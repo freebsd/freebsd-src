@@ -153,6 +153,8 @@ enum partialfilelock_status lock_partialfilelock(struct file_lock *fl);
 void send_granted(struct file_lock *fl, int opcode);
 void siglock(void);
 void sigunlock(void);
+void monitor_lock_host(const char *hostname);
+void unmonitor_lock_host(const char *hostname);
 
 void
 debuglog(char const *fmt, ...)
@@ -893,6 +895,32 @@ remove_blockingfilelock(struct file_lock *fl)
 }
 
 void
+clear_blockingfilelock(const char *hostname)
+{
+	struct file_lock *ifl,*nfl;
+
+	/*
+	 * Normally, LIST_FOREACH is called for, but since
+	 * the current element *is* the iterator, deleting it
+	 * would mess up the iteration.  Thus, a next element
+	 * must be used explicitly
+	 */
+
+	ifl = LIST_FIRST(&blockedlocklist_head);
+
+	while (ifl != NULL) {
+		nfl = LIST_NEXT(ifl, nfslocklist);
+
+		if (strncmp(hostname, ifl->client_name, SM_MAXSTRLEN) == 0) {
+			remove_blockingfilelock(ifl);
+			deallocate_file_lock(ifl);
+		}
+
+		ifl = nfl;
+	}
+}
+
+void
 retry_blockingfilelocklist(void)
 {
 	/* Retry all locks in the blocked list */
@@ -946,26 +974,30 @@ retry_blockingfilelocklist(void)
  */
 
 /*
+ * Please note that lock monitoring must be done at this level which
+ * keeps track of *individual* lock requests on lock and unlock
+ *
+ * XXX: Split unlocking is going to make the unlock code miserable
+ */
+
+/*
  * lock_partialfilelock:
  *
  * Argument fl gets modified as its list housekeeping entries get modified
  * upon insertion into the NFS lock list
  *
  * This routine makes several assumptions:
- *    1) It (will) pass locks through to fcntl to lock the underlying file
- *           fcntl has some absolutely brain damaged unlocking semantics which
- *               may cause trouble with NFS subsystem.  The primary problem
- *               is that fcntl drops *ALL* locks held by a process when it
- *               executes a close.  This means that NFS may indicate a range as
- *               locked but the underlying file on hardware may not have that
- *               lock anymore.
- *           The safe solution may be for any NFS locks to cause an flock
- *               of the entire underlying file by the lockd, parcel out
- *               the partitions manually, and then to only
- *               release the underlying file when all NFS locks are finished.
- *    2) Nothing modifies the lock lists between testing and granting
- *           I have no idea whether this is a useful guarantee of not
+ * 1) It (will) pass locks through to flock to lock the entire underlying file
+ *     and then parcel out NFS locks if it gets control of the file.
+ *         This matches the old rpc.lockd file semantics (except where it
+ *         is now more correct).  It is the safe solution, but will cause
+ *         overly restrictive blocking if someone is trying to use the
+ *         underlying files without using NFS.  This appears to be an
+ *         acceptable tradeoff since most people use standalone NFS servers.
+ * XXX: The right solution is probably kevent combined with fcntl
  *
+ *    2) Nothing modifies the lock lists between testing and granting
+ *           I have no idea whether this is a useful assumption or not
  */
 
 enum partialfilelock_status
@@ -1009,6 +1041,7 @@ lock_partialfilelock(struct file_lock *fl)
 			} else {
 				retval = PFL_GRANTED;
 			}
+			monitor_lock_host(fl->client_name);
 			break;
 		case HW_RESERR:
 			debuglog("HW RESERR\n");
@@ -1070,18 +1103,24 @@ lock_partialfilelock(struct file_lock *fl)
 
 /*
  * unlock_partialfilelock:
+ *
+ * Given a file_lock, unlock all locks which match.
+ *
+ * Note that a given lock might have to unlock ITSELF!  See
+ * clear_partialfilelock for example.
  */
 
 enum partialfilelock_status
 unlock_partialfilelock(const struct file_lock *fl)
 {
-	struct file_lock *lfl,*rfl,*releasedfl,*mfl;
+	struct file_lock *lfl,*rfl,*releasedfl,*selffl;
 	enum partialfilelock_status retval;
 	enum nfslock_status unlstatus;
 	enum hwlock_status unlhwstatus;
 
 	debuglog("Entering unlock_partialfilelock\n");
 
+	selffl = NULL;
 	releasedfl = NULL;
 	retval = PFL_DENIED;
 
@@ -1111,6 +1150,7 @@ unlock_partialfilelock(const struct file_lock *fl)
 			switch (unlhwstatus) {
 			case HW_GRANTED:
 				debuglog("HW unlock granted\n");
+				unmonitor_lock_host(releasedfl->client_name);
 				retval = PFL_GRANTED;
 				break;
 			case HW_DENIED_NOLOCK:
@@ -1136,10 +1176,6 @@ unlock_partialfilelock(const struct file_lock *fl)
 			 * code needs to migrate down (violation of "When you write
 			 * malloc you must write free")
 			 */
-
-			if (releasedfl != NULL) {
-				deallocate_file_lock(releasedfl);
-			}
 			
 			retry_blockingfilelocklist();
 			break;
@@ -1153,11 +1189,76 @@ unlock_partialfilelock(const struct file_lock *fl)
 			dump_filelock(fl);
 			break;
 		}
+
+		if (releasedfl != NULL) {
+			if (fl == releasedfl) {
+				/*
+				 * XXX: YECHHH!!! Attempt to unlock self succeeded
+				 * but we can't deallocate the space yet.  This is what
+				 * happens when you don't write malloc and free together
+				 */
+				debuglog("Attempt to unlock self\n");
+				selffl = releasedfl;
+			} else {
+				deallocate_file_lock(releasedfl);
+			}
+		}
+
 	} while (unlstatus == NFS_GRANTED);
+
+	if (selffl != NULL) {
+		/*
+		 * This statement wipes out the incoming file lock (fl)
+		 * in spite of the fact that it is declared const
+		 */
+		debuglog("WARNING!  Destroying incoming lock pointer\n");
+		deallocate_file_lock(selffl);
+	}
 
 	debuglog("Exiting unlock_partialfilelock\n");
 
 	return retval;
+}
+
+/*
+ * clear_partialfilelock
+ *
+ * Normally called in response to statd state number change.
+ * Wipe out all locks held by a host.  As a bonus, the act of
+ * doing so should automatically clear their statd entries and
+ * unmonitor the host.
+ */
+
+void 
+clear_partialfilelock(const char *hostname)
+{
+	struct file_lock *ifl, *nfl;
+
+	/* Clear blocking file lock list */
+	clear_blockingfilelock(hostname);
+
+	/* do all required unlocks */
+	/* Note that unlock can smash the current pointer to a lock */
+
+	/*
+	 * Normally, LIST_FOREACH is called for, but since
+	 * the current element *is* the iterator, deleting it
+	 * would mess up the iteration.  Thus, a next element
+	 * must be used explicitly
+	 */
+
+	ifl = LIST_FIRST(&nfslocklist_head);
+
+	while (ifl != NULL) {
+		nfl = LIST_NEXT(ifl, nfslocklist);
+
+		if (strncmp(hostname, ifl->client_name, SM_MAXSTRLEN) == 0) {
+			/* Unlock destroys ifl out from underneath */
+			unlock_partialfilelock(ifl);
+			/* ifl is NO LONGER VALID AT THIS POINT */
+		}
+		ifl = nfl;
+	}
 }
 
 /*
@@ -1197,7 +1298,6 @@ test_partialfilelock(const struct file_lock *fl,
 
 	return retval;
 }
-
 
 /*
  * Below here are routines associated with translating the partial file locking
@@ -1361,6 +1461,20 @@ do_unlock(struct file_lock *fl)
 	debuglog("Exiting do_unlock...\n");
 
 	return retval;
+}
+
+/*
+ * do_clear
+ *
+ * This routine is non-existent because it doesn't have a return code.
+ * It is here for completeness in case someone *does* need to do return
+ * codes later.  A decent compiler should optimize this away.
+ */
+
+void
+do_clear(const char* hostname)
+{
+	clear_partialfilelock(hostname);
 }
 
 /*
@@ -1531,20 +1645,13 @@ unlock(nlm4_lock *lock, const int flags)
 
 /*
  * XXX: The following monitor/unmonitor routines 
- * HAVE NOT BEEN TESTED!!!  THEY ARE GUARANTEED TO
- * BE WRONG!!! At the very least, there are pointers
- * to characters being thrown around when they should be
- * strings in the statd structures.  Consequently, the
- * statd calling code has been commented out. Please note
- * that this problem was also in the original do_mon routine
- * which this pair replaced (and there was no do_unmon either)
+ * have not been extensively tested (ie. no regression
+ * script exists like for the locking sections
  */
 
 /*
  * monitor_lock_host: monitor lock hosts locally with a ref count and
  * inform statd
- *
- * XXX: Are the strnXXX functions the correct choices?
  */
 void
 monitor_lock_host(const char *hostname)
@@ -1573,6 +1680,7 @@ monitor_lock_host(const char *hostname)
 		
 		if (nhp == NULL) {
 			debuglog("Unable to allocate entry for statd mon\n");
+			return;
 		} else {
 			/* Allocated new host entry, now fill the fields */
 			strncpy(nhp->name, hostname, SM_MAXSTRLEN);
@@ -1581,34 +1689,30 @@ monitor_lock_host(const char *hostname)
 			
 			debuglog("Attempting to tell statd\n");
 			
-			bzero(&smon,sizeof(struct mon));
+			bzero(&smon,sizeof(smon));
 	  
-			/*
-			  smon.mon_id.mon_name = nhp->name;
-			  smon.mon_id.my_id.my_name = "localhost";
-			  smon.mon_id.my_id.my_prog = NLM_PROG;
-			  smon.mon_id.my_id.my_vers = NLM_SM;
-			  smon.mon_id.my_id.my_proc = NLM_SM_NOTIFY;
+			smon.mon_id.mon_name = nhp->name;
+			smon.mon_id.my_id.my_name = "localhost\0";
+
+			smon.mon_id.my_id.my_prog = NLM_PROG;
+			smon.mon_id.my_id.my_vers = NLM_SM;
+			smon.mon_id.my_id.my_proc = NLM_SM_NOTIFY;
 			  
-			  rpcret = callrpc("localhost", SM_PROG, SM_VERS, SM_MON, xdr_mon,
-			  &smon, xdr_sm_stat_res, &sres);
+			rpcret = callrpc("localhost", SM_PROG, SM_VERS, SM_MON, xdr_mon,
+			    &smon, xdr_sm_stat_res, &sres);
 			  
-			  if (rpcret == 0)
-			  {
-			  if (sres.res_stat == stat_fail) {
-			  debuglog("Statd call failed\n");
-			  statflag = 0;
-			  } else {
-			  statflag = 1;
-			  }
-			  } else {
-			  debuglog("Rpc call to statd failed with return value: %d\n",rpcret);
-			  statflag = 0;
-			  }
-			*/
+			if (rpcret == 0) {
+				if (sres.res_stat == stat_fail) {
+					debuglog("Statd call failed\n");
+					statflag = 0;
+				} else {
+					statflag = 1;
+				}
+			} else {
+				debuglog("Rpc call to statd failed with return value: %d\n",rpcret);
+				statflag = 0;
+			}
 			
-			/* XXX: remove this when statd code is fixed */
-			statflag = 1;
 			if (statflag == 1) {
 				LIST_INSERT_HEAD(&hostlst_head, nhp, hostlst);
 			} else {
@@ -1624,7 +1728,7 @@ monitor_lock_host(const char *hostname)
 void
 unmonitor_lock_host(const char *hostname)
 {
-	struct host *ihp, *nhp;
+	struct host *ihp;
 	struct mon_id smon_id;
 	struct sm_stat smstat;
 	int rpcret;
@@ -1655,21 +1759,18 @@ unmonitor_lock_host(const char *hostname)
 
 			bzero(&smon_id,sizeof(smon_id));
 
-			/*
-			  smon_id.mon_name = hostname;
-			  smon_id.my_id.my_name = "localhost";
-			  smon_id.my_id.my_prog = NLM_PROG;
-			  smon_id.my_id.my_vers = NLM_SM;
-			  smon_id.my_id.my_proc = NLM_SM_NOTIFY;
+			smon_id.mon_name = (char *)hostname;
+			smon_id.my_id.my_name = "localhost";
+			smon_id.my_id.my_prog = NLM_PROG;
+			smon_id.my_id.my_vers = NLM_SM;
+			smon_id.my_id.my_proc = NLM_SM_NOTIFY;
 			  
-			  rpcret = callrpc("localhost", SM_PROG, SM_VERS, SM_UNMON, xdr_mon,
-			  &smon_id, xdr_sm_stat_res, &smstat);
+			rpcret = callrpc("localhost", SM_PROG, SM_VERS, SM_UNMON, xdr_mon,
+			    &smon_id, xdr_sm_stat_res, &smstat);
 			  
-			  if (rpcret != 0)
-			  {
-			  debuglog("Rpc call to unmonitor statd failed with return value: %d\n",rpcret);
-			  }
-			*/
+			if (rpcret != 0) {
+				debuglog("Rpc call to unmonitor statd failed with return value: %d\n",rpcret);
+			}
 
 			LIST_REMOVE(ihp, hostlst);
 			free(ihp);
@@ -1680,62 +1781,31 @@ unmonitor_lock_host(const char *hostname)
 /*
  * notify: Clear all locks from a host if statd complains
  *
- * CAUTION: This routine has probably not been thoroughly tested even in
- * its original incarnation.  The proof is the fact that it only tests
- * for nlm_granted on do_unlock rather than inlcluding nlm4_granted.
- * 
- * Consequently, it has been commented out until it has.
+ * XXX: This routine has not been thoroughly tested.  However, neither
+ * had the old one been.  It used to compare the statd crash state counter
+ * to the current lock state.  The upshot of this was that it basically
+ * cleared all locks from the specified host 99% of the time (with the
+ * other 1% being a bug).  Consequently, the assumption is that clearing
+ * all locks from a host when notified by statd is acceptable.
+ *
+ * Please note that this routine skips the usual level of redirection
+ * through a do_* type routine.  This introduces a possible level of
+ * error and might better be written as do_notify and take this one out.
+
  */
 
 void
 notify(const char *hostname, const int state)
 {
-	struct file_lock *fl, *next_fl;
-	int err;
 	debuglog("notify from %s, new state %d", hostname, state);
 	
-	debuglog("****************************\n");
-	debuglog("No action taken in notify!!!\n");
-	debuglog("****************************\n");
-
-  /* search all lock for this host; if status changed, release the lock */
-  /*
 	siglock();
-	for (fl = LIST_FIRST(&nfslocklist_head); fl != NULL; fl = next_fl) {
-		next_fl = LIST_NEXT(fl, nfslocklist);
-		if (strcmp(hostname, fl->client_name) == 0 &&
-		    fl->nsm_status != state) {
-			debuglog("state %d, nsm_state %d, unlocking",
-				 fl->status, fl->nsm_status);
-			switch(fl->status) {
-			case LKST_LOCKED:
-				err = do_unlock(fl);
-				if (err != nlm_granted)
-				  debuglog("notify: unlock failed for %s (%d)",
-					   hostname, err);
-				break;
-			case LKST_WAITING:
-				LIST_REMOVE(fl, nfslocklist);
-				lfree(fl);
-				break;
-			case LKST_PROCESSING:
-				fl->status = LKST_DYING;
-				break;
-			case LKST_DYING:
-				break;
-			default:
-				syslog(LOG_NOTICE, "unknow status %d for %s",
-				    fl->status, fl->client_name);
-			}
-		}
-	}
+	do_clear(hostname);
 	sigunlock();
-  */
+
+	debuglog("Leaving notify\n");
 }
 
-/*
- * Routines below here have not been modified in the overhaul
- */
 void
 send_granted(fl, opcode)
 	struct file_lock *fl;
@@ -1816,6 +1886,10 @@ send_granted(fl, opcode)
 			 success, clnt_sperrno(success));
 
 }
+
+/*
+ * Routines below here have not been modified in the overhaul
+ */
 
 /*
  * Are these two routines still required since lockd is not spawning off
