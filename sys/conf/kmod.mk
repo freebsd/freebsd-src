@@ -160,18 +160,12 @@ MAN?=	${KMOD}.4
 .endif
 .include <bsd.man.mk>
 .else
-.if !target(all-man)
-all-man: _SUBDIR
-.endif
-.if !target(maninstall)
-maninstall: _SUBDIR
-.endif
 .endif
 
 _ILINKS=@ machine
 
 .MAIN: all
-all: objwarn ${PROG} all-man _SUBDIR
+all: objwarn ${PROG} all-man
 
 beforedepend: ${_ILINKS}
 # Ensure that the links exist without depending on it when it exists which
@@ -218,7 +212,7 @@ _INSTALLFLAGS:=	${INSTALLFLAGS}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
-realinstall: _SUBDIR
+realinstall:
 	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}/
 .if defined(LINKS) && !empty(LINKS)
@@ -244,7 +238,7 @@ realinstall: _SUBDIR
 	done; true
 .endif
 
-install: afterinstall _SUBDIR
+install: afterinstall
 .if !defined(NOMAN)
 afterinstall: realinstall maninstall
 .else
@@ -255,7 +249,7 @@ realinstall: beforeinstall
 
 DISTRIBUTION?=	bin
 .if !target(distribute)
-distribute: _SUBDIR
+distribute:
 .for dist in ${DISTRIBUTION}
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
 .endfor

@@ -215,8 +215,5 @@ MLINKS+=vpo.4 imm.4
 
 # XXX NOT IMPORTED:	man4.hp300 man4.sparc man4.tahoe man4.vax
 SUBDIR=	 man4.i386
-.if make(maninstall)
-maninstall:: _SUBDIR
-.endif
 
 .include <bsd.prog.mk>

@@ -116,25 +116,6 @@ realinstall:
 		${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
 .endif
 
-install:	beforeinstall realinstall afterinstall
-
-.if !target(beforeinstall)
-beforeinstall:
-
-.endif
-.if !target(afterinstall)
-afterinstall:
-
-.endif
-
-DISTRIBUTION?=	doc
-.if !target(distribute)
-distribute:
-.for dist in ${DISTRIBUTION}
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
-.endfor
-.endif
-
 spell: ${SRCS}
 	(cd ${.CURDIR};  spell ${SRCS} ) | sort | \
 		comm -23 - ${.CURDIR}/spell.ok > ${DOC}.spell
@@ -161,16 +142,6 @@ ${DFILE}: ${SRCS} _stamp.extraobjs
 .endif
 .endif
 
-.if !target(all-man)
-all-man:
-.endif
-
-.if !target(maninstall)
-maninstall:
-.endif
-
-.if !target(regress)
-regress:
-.endif
+DISTRIBUTION?=	doc
 
 .include <bsd.obj.mk>

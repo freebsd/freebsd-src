@@ -70,7 +70,8 @@ MAN+=	${MAN${sect}}
 .endfor
 .endif
 
-all-man:
+_manpages:
+all-man: _manpages
 
 .if defined(NOMANCOMPRESS)
 
@@ -90,13 +91,13 @@ CLEANFILES+=	${MAN:T:S/$/${FILTEXTENSION}/g}
 CLEANFILES+=	${MAN:T:S/$/${CATEXT}${FILTEXTENSION}/g}
 .for page in ${MAN}
 .for target in ${page:T:S/$/${FILTEXTENSION}/g}
-all-man: ${target}
+_manpages: ${target}
 ${target}: ${page}
 	${MANFILTER} < ${.ALLSRC} > ${.TARGET}
 .endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for target in ${page:T:S/$/${CATEXT}${FILTEXTENSION}/g}
-all-man: ${target}
+_manpages: ${target}
 ${target}: ${page}
 	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} > ${.TARGET}
 .endfor
@@ -109,13 +110,13 @@ CLEANFILES+=	${MAN:T:S/$/${CATEXT}/g}
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for page in ${MAN}
 .for target in ${page:T:S/$/${CATEXT}/g}
-all-man: ${target}
+_manpages: ${target}
 ${target}: ${page}
 	${MROFF_CMD} ${.ALLSRC} > ${.TARGET}
 .endfor
 .endfor
 .else
-all-man: ${MAN}
+_manpages: ${MAN}
 .endif
 .endif
 .endif
@@ -129,7 +130,7 @@ CLEANFILES+=	${MAN:T:S/$/${MCOMPRESS_EXT}/g}
 CLEANFILES+=	${MAN:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g}
 .for page in ${MAN}
 .for target in ${page:T:S/$/${MCOMPRESS_EXT}/}
-all-man: ${target}
+_manpages: ${target}
 ${target}: ${page}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MCOMPRESS_CMD} > ${.TARGET}
@@ -139,7 +140,7 @@ ${target}: ${page}
 .endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for target in ${page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/}
-all-man: ${target}
+_manpages: ${target}
 ${target}: ${page}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} | ${MCOMPRESS_CMD} > ${.TARGET}
@@ -153,9 +154,10 @@ ${target}: ${page}
 
 .endif
 
-maninstall::
+maninstall: _maninstall
+_maninstall:
 .if defined(MAN) && !empty(MAN)
-maninstall:: ${MAN}
+_maninstall: ${MAN}
 .if defined(NOMANCOMPRESS)
 .if defined(MANFILTER)
 .for page in ${MAN}

@@ -13,5 +13,3 @@ CLEANFILES+= tcsh.cat tcsh.msg
 all: tcsh.cat
 
 tcsh.cat: tcsh.msg
-
-distribute:
