@@ -420,13 +420,13 @@ getNewfsCmd(PartInfo *p)
 	sstrncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
 }
 
-#define MAX_MOUNT_NAME	12
+#define MAX_MOUNT_NAME	10
 
 #define PART_PART_COL	0
-#define PART_MOUNT_COL	8
+#define PART_MOUNT_COL	10
 #define PART_SIZE_COL	(PART_MOUNT_COL + MAX_MOUNT_NAME + 3)
 #define PART_NEWFS_COL	(PART_SIZE_COL + 8)
-#define PART_OFF	38
+#define PART_OFF	40
 
 #define TOTAL_AVAIL_LINES       (10)
 #define PSLICE_SHOWABLE          (4)
