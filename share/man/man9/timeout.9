@@ -61,7 +61,7 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"
 .Ft void
 .Fn callout_init "struct callout *c"
-.Ft void
+.Ft int
 .Fn callout_stop "struct callout *c"
 .Ft void
 .Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
@@ -168,6 +168,11 @@ without any side effects.
 The function
 .Fn callout_stop
 cancels a callout if it is currently pending.
+If the callout is pending, then
+.Fn callout_stop
+will return a non-zero value.
+If the callout has already been serviced or is currently being serviced,
+then zero will be returned.
 .Pp
 The function
 .Fn callout_reset
@@ -176,6 +181,16 @@ first calls
 to disestablish the callout, and then establishes a new callout in the
 same manner as
 .Fn timeout .
+.Sh RETURN VALUES
+The
+.Fn timeout
+function returns a
+.Ft struct callout_handle
+that can be passed to
+.Fn untimeout .
+The
+.Fn callout_stop
+function returns non-zero if the callout is still pending or zero otherwise.
 .Sh HISTORY
 The current timeout and untimeout routines are based on the work of
 .An Adam M. Costello
