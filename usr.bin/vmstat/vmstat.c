@@ -53,6 +53,7 @@ static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
+#include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <time.h>
 #include <nlist.h>
