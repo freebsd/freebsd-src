@@ -1,8 +1,8 @@
-# Makefile for kbdmap / kbdfont
-# $Id$
+# Makefile for kbdmap / vidfont
+# $Id: Makefile,v 1.1.1.1 1995/03/24 00:52:28 jkh Exp $
 
 SCRIPT=	${.CURDIR}/kbdmap.pl
-LINKS=	${DESTDIR}${BINDIR}/kbdmap ${DESTDIR}${BINDIR}/kbdfont
+LINKS=	${DESTDIR}${BINDIR}/kbdmap ${DESTDIR}${BINDIR}/vidfont
 
 all:
 	@echo -n
