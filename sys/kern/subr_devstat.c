@@ -240,8 +240,7 @@ devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
 		flg = DEVSTAT_WRITE;
 
 	devstat_end_transaction(ds, bp->bio_bcount - bp->bio_resid,
-				(bp->bio_flags & BIO_ORDERED) ?
-				DEVSTAT_TAG_ORDERED : DEVSTAT_TAG_SIMPLE, flg);
+				DEVSTAT_TAG_SIMPLE, flg);
 }
 
 /*

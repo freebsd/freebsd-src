@@ -105,8 +105,7 @@ bioqdisksort(bioq, bp)
 	 * If the queue is empty or we are an
 	 * ordered transaction, then it's easy.
 	 */
-	if ((bq = bioq_first(bioq)) == NULL
-	 || (bp->bio_flags & BIO_ORDERED) != 0) {
+	if ((bq = bioq_first(bioq)) == NULL) {
 		bioq_insert_tail(bioq, bp);
 		bioq->busy = 0;
 		return;
