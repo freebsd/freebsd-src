@@ -122,7 +122,11 @@ _global_globaldata(void)
 
 #define	witness_spin_check	GLOBAL_RVALUE(witness_spin_check, int)
 
-#endif	/*UP kernel*/
+#else /* !(SMP || KLD_MODULE) */
+
+extern u_int	astpending;
+
+#endif /* SMP || KLD_MODULE */
 
 GLOBAL_FUNC(curproc)
 GLOBAL_FUNC(astpending)
