@@ -2,6 +2,7 @@
 
 /*
  * $Id: pam_item.c,v 1.3 2001/01/22 06:07:28 agmorgan Exp $
+ * $FreeBSD$
  */
 
 #include <ctype.h>
@@ -156,7 +157,7 @@ int pam_get_item (const pam_handle_t *pamh, int item_type, const void **item)
     if (item == NULL) {
 	_pam_system_log(LOG_ERR,
 			"pam_get_item: nowhere to place requested item");
-	return PAM_PERM_DENIED;
+	return PAM_BUF_ERR;
     }
 
     switch (item_type) {
