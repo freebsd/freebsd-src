@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.9 1993/10/08 20:45:12 rgrimes Exp $
+ *	$Id: machdep.c,v 1.10 1993/10/10 06:01:44 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -947,15 +947,13 @@ init386(first)
 
 	cninit ();
 
-	/* make gdt memory segments */
-	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(i386_round_page(&etext)) - 1;
 	/*
-	 * XXX - VM_MAX_KERNEL_ADDRESS is correctly a max, but bogusly the
-	 * address of the last page, not the last byte.  Then above the end
-	 * :-) there is another 4M of page tables or something.
+	 * make gdt memory segments, the code segment goes up to end of the
+	 * page with etext in it, the data segment goes to the end of
+	 * the address space
 	 */
-#define VM_END_KERNEL_ADDRESS	(VM_MAX_KERNEL_ADDRESS + NBPG + NBPDR)
-	gdt_segs[GDATA_SEL].ssd_limit = i386_btop(VM_END_KERNEL_ADDRESS) - 1;
+	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(i386_round_page(&etext)) - 1;
+	gdt_segs[GDATA_SEL].ssd_limit = 0xffffffff;	/* XXX constant? */
 	for (x=0; x < NGDT; x++) ssdtosd(gdt_segs+x, gdt+x);
 	/* make ldt memory segments */
 	/*
