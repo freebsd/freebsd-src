@@ -1,4 +1,4 @@
-#	$Id: options,v 1.145 1999/08/10 09:42:32 des Exp $
+#	$Id: options,v 1.146 1999/08/16 22:39:53 gibbs Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -169,10 +169,13 @@ SCSI_NO_OP_STRINGS	opt_scsi.h
 CHANGER_MIN_BUSY_SECONDS	opt_cd.h
 CHANGER_MAX_BUSY_SECONDS	opt_cd.h
 
-# Options used only in cam/scsi/sa.c.
+# Options used only in cam/scsi/scsi_sa.c.
 SA_SPACE_TIMEOUT	opt_sa.h
 SA_REWIND_TIMEOUT	opt_sa.h
 SA_ERASE_TIMEOUT	opt_sa.h
+
+# Options used only in cam/scsi/scsi_pt.c
+SCSI_PT_DEFAULT_TIMEOUT	opt_pt.h
 
 # Options used only in pci/ncr.c
 SCSI_NCR_DEBUG		opt_ncr.h
