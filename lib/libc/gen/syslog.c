@@ -335,6 +335,7 @@ closelog()
 {
 	(void)_close(LogFile);
 	LogFile = -1;
+	LogTag = NULL;
 	connected = 0;
 }
 
