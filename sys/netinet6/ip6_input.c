@@ -1096,6 +1096,9 @@ ip6_savecontrol(in6p, mp, ip6, m)
 	}
 #endif
 
+	if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION)
+		return;
+
 	/* RFC 2292 sec. 5 */
 	if ((in6p->in6p_flags & IN6P_PKTINFO) != 0) {
 		struct in6_pktinfo pi6;
