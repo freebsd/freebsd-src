@@ -164,6 +164,15 @@ init_cy486dx(void)
 #ifdef CPU_SUSP_HLT
 	ccr2 |= CCR2_SUSP_HLT;
 #endif
+
+#ifdef PC98
+	/* Enables WB cache interface pin and Lock NW bit in CR0. */
+	ccr2 |= CCR2_WB | CCR2_LOCK_NW;
+	/* Unlock NW bit in CR0. */
+	write_cyrix_reg(CCR2, ccr2 & ~CCR2_LOCK_NW);
+	load_cr0((rcr0() & ~CR0_CD) | CR0_NW);	/* CD = 0, NW = 1 */
+#endif
+
 	write_cyrix_reg(CCR2, ccr2);
 	write_eflags(eflags);
 }
@@ -560,6 +569,12 @@ initializecpu(void)
 			break;
 		case CPU_M1SC:
 			need_pre_dma_flush = 1;
+			break;
+		case CPU_CY486DX:
+			need_pre_dma_flush = 1;
+#ifdef CPU_I486_ON_386
+			need_post_dma_flush = 1;
+#endif
 			break;
 #endif
 		default:
