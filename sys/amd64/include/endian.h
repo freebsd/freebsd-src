@@ -36,6 +36,10 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Define the order of 32-bit words in 64-bit words.
  */
@@ -187,5 +191,9 @@ __bswap16(__uint16_t _x)
 #define	_BYTEORDER_FUNC_DEFINED
 
 #endif /* __GNUCLIKE_ASM && __GNUCLIKE_BUILTIN_CONSTANT_P */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !_MACHINE_ENDIAN_H_ */
