@@ -110,6 +110,7 @@ int	fine;			/* if `fine' resolution (half lines) */
 int	max_bufd_lines;		/* max # lines to keep in memory */
 int	nblank_lines;		/* # blanks after last flushed line */
 int	no_backspaces;		/* if not to output any backspaces */
+int	pass_unknown_seqs;	/* pass unknown control sequences */
 
 #define	PUTC(ch) \
 	do {					\
@@ -138,7 +139,7 @@ main(argc, argv)
 
 	max_bufd_lines = 128;
 	compress_spaces = 1;		/* compress spaces into tabs */
-	while ((opt = getopt(argc, argv, "bfhl:x")) != -1)
+	while ((opt = getopt(argc, argv, "bfhl:px")) != -1)
 		switch (opt) {
 		case 'b':		/* do not output backspaces */
 			no_backspaces = 1;
@@ -152,6 +153,9 @@ main(argc, argv)
 		case 'l':		/* buffered line count */
 			if ((max_bufd_lines = atoi(optarg)) <= 0)
 				errx(1, "bad -l argument %s", optarg);
+			break;
+		case 'p':		/* pass unknown control sequences */
+			pass_unknown_seqs = 1;
 			break;
 		case 'x':		/* do not compress spaces into tabs */
 			compress_spaces = 0;
@@ -220,7 +224,8 @@ main(argc, argv)
 				cur_line -= 2;
 				continue;
 			}
-			continue;
+			if (!pass_unknown_seqs)
+				continue;
 		}
 
 		/* Must stuff ch in a line - are we at the right one? */
@@ -530,7 +535,7 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: col [-bfhx] [-l nline]\n");
+	(void)fprintf(stderr, "usage: col [-bfhpx] [-l nline]\n");
 	exit(1);
 }
 
