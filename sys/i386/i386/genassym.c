@@ -49,6 +49,7 @@
 #include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/resourcevar.h>
 /* XXX */
@@ -76,7 +77,6 @@
 #include <machine/sigframe.h>
 #include <machine/globaldata.h>
 #include <machine/vm86.h>
-#include <machine/mutex.h>
 
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
@@ -229,6 +229,6 @@ ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
-ASSYM(MTX_SAVEFL, offsetof(struct mtx, mtx_savefl));
+ASSYM(MTX_SAVEINTR, offsetof(struct mtx, mtx_saveintr));
 
 ASSYM(MTX_UNOWNED, MTX_UNOWNED);
