@@ -558,7 +558,7 @@ set_input_fragment(rstrm)
 	 * but we don't have any way to be certain that they aren't
 	 * what the client actually intended to send us.
 	 */
-	if ((header & (~LAST_FRAG)) == 0)
+	if (header == 0)
 		return(FALSE);
 	rstrm->fbtbc = header & (~LAST_FRAG);
 	return (TRUE);
