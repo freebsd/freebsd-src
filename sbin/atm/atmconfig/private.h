@@ -42,8 +42,15 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
-#define	PATH_HELP	".:/usr/share/doc/atm"
+#ifndef PATH_HELP
+#define	PATH_HELP	"/usr/share/doc/atm:/usr/local/share/doc/atm"
+#endif
+#ifndef FILE_HELP
 #define	FILE_HELP	"atmconfig.help"
+#endif
+#ifndef FILE_HELP_OTHERS
+#define	FILE_HELP_OTHERS "atmconfig_*.help"
+#endif
 
 /*
  * Builtin commands
