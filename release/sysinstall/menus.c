@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.39 1995/11/03 12:02:42 jkh Exp $
+ * $Id: menus.c,v 1.42.2.40 1995/11/04 08:47:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -115,7 +115,7 @@ consult the README file.",
 
 DMenu MenuMouse = {
 DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-"Choose a Mouse type",
+"Please select your mouse type from the following menu",
 "There are many different types of mice currently on the market,\n\
 but this configuration menu should at least narrow down the choices\n\
 somewhat.  Once you've selected one of the below, you can specify\n\
