@@ -805,59 +805,6 @@
     <para arch="i386,pc98,alpha,sparc64">RealTek 8129/8139 Fast Ethernet NICs (&man.rl.4; driver)
     </para>
 
-    <para arch="i386,alpha,sparc64">Lite-On 82c168/82c169 PNIC Fast Ethernet NICs (&man.dc.4; driver)
-      <itemizedlist>
-	<listitem>
-	  <para>Kingston KNE110TX</para>
-        </listitem>
-        <listitem>
-          <para>LinkSys EtherFast LNE100TX</para>
-        </listitem>
-	<listitem>
-	  <para>Matrox FastNIC 10/100</para>
-        </listitem>
-	<listitem>
-	  <para>NetGear FA310-TX Rev. D1</para>
-        </listitem>
-      </itemizedlist
-    </para>
-
-    <para arch="i386,pc98,alpha,sparc64">Macronix 98713, 98713A, 98715, 98715A and 98725 Fast
-    Ethernet NICs (&man.dc.4; driver)
-      <itemizedlist>
-	<listitem>
-	  <para>Accton EN1217 (98715A)</para>
-        </listitem>
-	<listitem>
-	  <para>Adico AE310TX (98715A)</para>
-        </listitem>
-	<listitem>
-	  <para>Compex RL100-TX (98713 or 98713A)</para>
-        </listitem>
-	<listitem>
-	  <para>CNet Pro120A (98713 or 98713A)</para>
-        </listitem>
-	<listitem>
-	  <para>CNet Pro120B (98715)</para>
-        </listitem>
-        <listitem>
-          <para>NDC Communications SFA100A (98713A)</para>
-        </listitem>
-	<listitem>
-	  <para>SVEC PN102TX (98713)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-
-    <para arch="i386,pc98,alpha,sparc64">Macronix/Lite-On PNIC II LC82C115 Fast Ethernet NICs
-    (&man.dc.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>LinkSys EtherFast LNE100TX Version 2</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-
     <para arch="i386,pc98,alpha">Winbond W89C840F Fast Ethernet NICs (&man.wb.4; driver)
     </para>
 
@@ -885,17 +832,9 @@
 
     <para arch="i386,pc98,alpha">Texas Instruments ThunderLAN PCI NICs (&man.tl.4; driver)</para>
 
-    <para arch="i386,pc98,alpha,sparc64">ADMtek Inc. AL981-based PCI Fast Ethernet NICs (&man.dc.4;
-    driver)</para>
-
-    <para arch="i386,pc98,alpha,sparc64">ADMtek Inc. AN985-based PCI Fast Ethernet NICs (&man.dc.4;
-    driver)
-      <itemizedlist>
-        <listitem>
-	  <para>LinkSys EtherFast LNE100TX v4.0/4.1</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98,alpha,sparc64">DEC/Intel 21143 Fast Ethernet
+      NICs and clones for PCI, MiniPCI, and CardBus (&man.dc.4;
+      driver)</para>
 
     <para arch="i386,pc98">ADMtek Inc. AN986-based USB Ethernet NICs (&man.aue.4; driver)</para>
 
@@ -910,59 +849,12 @@
     <para arch="i386,pc98">RealTek RTL8150-based USB Ethernet NICs
       (&man.rue.4; driver)</para>
 
-    <para arch="i386,pc98,alpha,sparc64">ASIX Electronics AX88140A PCI NICs (&man.dc.4; driver)
-      <itemizedlist>
-        <listitem>
-          <para>Alfa Inc. GFC2204</para>
-        </listitem>
-	<listitem>
-	  <para>CNet Pro110B</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-
     <para arch="i386">DEC EtherWORKS II and III NICs (&man.le.4; driver)
     </para>
 
     <para arch="i386,pc98,alpha">DEC DC21040, DC21041, DC21140, DC21141, DC21142, and DC21143
     based NICs (&man.de.4; driver)
     </para>
-
-    <para arch="i386,pc98,alpha,sparc64">DEC/Intel 21143 based Fast Ethernet NICs (&man.dc.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>DEC DE500</para>
-	</listitem>
-        <listitem>
-          <para>Compaq Presario 7900 series built-in Ethernet</para>
-        </listitem>
-        <listitem>
-	  <para>D-Link DFE-570TX</para>
-        </listitem>
-        <listitem>
-	  <para>Kingston KNE100TX</para>
-        </listitem>
-        <listitem>
-	  <para>LinkSys EtherFast 10/100 Instant GigaDrive built-in Ethernet</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-
-    <para arch="i386,pc98,alpha,sparc64">Davicom DM9009, DM9100 and DM9102 PCI Fast Ethernet NICs (&man.dc.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Jaton Corporation XpressNet</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-
-    <para arch="i386">Xircom 3201 (Cardbus) (&man.dc.4; driver)</para>
-
-    <para arch="i386">Conexant LANfinity RS7112 (MiniPCI) (&man.dc.4; driver)</para>
-
-    <para arch="pc98">Cnet Pro120A (PCI) (&man.dc.4; driver)</para>
-
-    <para arch="pc98">MELCO LGY-PCI-TXL (PCI) (&man.dc.4; driver)</para>
 
     <para arch="i386,pc98">Fujitsu MB86960A/MB86965A based Fast Ethernet NICs
     (&man.fe.4; driver)</para>
@@ -1027,28 +919,6 @@
 
     <para arch="i386">Megahertz X-Jack Ethernet PC-Card CC-10BT (&man.sn.4;
     driver)</para>
-
-    <para arch="i386">Xircom X3201 (Cardbus) based Ethernet cards
-      (&man.dc.4; driver)
-      <itemizedlist>
-	<listitem>
-	  <para>IBM EtherJet Cardbus Adapter</para>
-        </listitem>
-	<listitem>
-	  <para>Intel PRO/100 Mobile Cardbus (versions that use the
-	  X3201 chipset)</para>
-        </listitem>
-	<listitem>
-	  <para>Xircom Cardbus Realport</para>
-        </listitem>
-	<listitem>
-	  <para>Xircom Cardbus Ethernet 10/100</para>
-        </listitem>
-	<listitem>
-	  <para>Xircom Cardbus Ethernet II 10/100</para>
-        </listitem>
-      </itemizedlist>
-    </para>
 
     <para arch="i386">Xircom CreditCard adapters (16 bit) and
     workalikes (&man.xe.4; driver)
