@@ -76,8 +76,8 @@ SUBDIR=	adjkerntz \
 	slattach \
 	spppcontrol \
 	startslip \
-	sysctl \
 	swapon \
+	sysctl \
 	tunefs \
 	umount \
 	vinum
