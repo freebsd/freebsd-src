@@ -71,7 +71,7 @@ page layout macros
 make up the
 .Em "page structure domain"
 which consists of macros for titles, section headers, displays
-and lists. Essentially items which affect the physical position
+and lists.  Essentially items which affect the physical position
 of text on a formatted page.
 In addition to the page structure domain, there are two more domains,
 the manual domain and the general text domain.
@@ -790,7 +790,7 @@ The result is:
 .Dl Li sptr, ptr),
 .Pp
 The punctuation is not recognized and all is output in the
-literal font. If the punctuation is separated by a leading
+literal font.  If the punctuation is separated by a leading
 white space:
 .Pp
 .Dl \&.Li "sptr , ptr ) ,"
@@ -1133,7 +1133,7 @@ and
 may be used with
 .Ql \&.Fa
 (function argument)
-to get around the limitation. For example:
+to get around the limitation.  For example:
 .Bd -literal -offset indent
 \&.Fo "int res_mkquery"
 \&.Fa "int op"
@@ -1282,7 +1282,7 @@ macro is parsed and is callable.
 The
 .Ql \&.Op
 macro
-places option brackets around the any remaining arguments on the command
+places option brackets around any remaining arguments on the command
 line, and places any
 trailing punctuation outside the brackets.
 The macros
@@ -1470,7 +1470,7 @@ macro is
 .Em not
 parsed and
 .Em not
-callable. It accepts at most two arguments.
+callable.  It accepts at most two arguments.
 .Ss BSD Macro
 .Dl Usage: .Bx [Version/release] ... \*(Pu
 .Bl -tag -width ".Bx 4.3 ) ," -compact -offset 14n
@@ -1516,7 +1516,7 @@ macros are
 .Em not
 parsed and
 .Em not
-callable. They accept at most two arguments.
+callable.  They accept at most two arguments.
 .Ss UNIX Macro
 .Dl Usage: .Ux ... \*(Pu
 .Bl -tag -width ".Ux 4.3 ) ," -compact -offset 14n
@@ -1571,7 +1571,7 @@ All handle punctuation properly, as long as it
 is presented one character at a time and separated by spaces.
 The quoting macros examine opening and closing punctuation
 to determine whether it comes before or after the
-enclosing string. This makes some nesting possible.
+enclosing string.  This makes some nesting possible.
 .Bl -tag -width xxx,xxxx
 .It Li \&.Ec , \&.Eo
 These macros expect the first argument to be the
@@ -2729,7 +2729,7 @@ is the name of the defined string or as
 where
 .Em x
 is the name of the string.
-The interpreting sequence may be used any where in the text.
+The interpreting sequence may be used anywhere in the text.
 .Pp
 .Bl -column "String " "Nroff " "Troff " -offset indent
 .It Sy "String	Nroff	Troff"
