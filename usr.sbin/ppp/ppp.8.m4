@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.95 1998/01/18 20:49:22 brian Exp $
+.\" $Id: ppp.8,v 1.96 1998/01/20 22:47:46 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2592,7 +2592,6 @@ Get port number if port number is using service name.
 .Sh HISTORY
 This program was originally written by Toshiharu OHNO (tony-o@iij.ad.jp),
 and was submitted to FreeBSD-2.0.5 by Atsushi Murai (amurai@spec.co.jp).
-It has since had an enormous face lift and looks substantially different.
 .Pp
-The zlib compression algorithms used in the DEFLATE protocol are provided
-thanks to Jean-loup Gailly (Copyright 1995).
+It has since been substantially modified by Brian Somers (brian@Awfulhak.org),
+and was ported to OpenBSD in November '97 (just after the 2.2 release).
