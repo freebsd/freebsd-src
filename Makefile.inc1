@@ -339,7 +339,8 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: building libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} -DNOHTML -DNOINFO -DNOMAN -DNOFSCHG libraries
+	cd ${.CURDIR}; ${WMAKE} -DNOHTML -DNOINFO -DNOMAN -DNOFSCHG -DNOLINT \
+		libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
