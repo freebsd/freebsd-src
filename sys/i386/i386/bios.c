@@ -385,10 +385,11 @@ bios16(struct bios_args *args, char *fmt, ...)
 
     ptd = (pd_entry_t *)rcr3();
 #ifdef PAE
-    if (ptd == IdlePDPT) {
+    if (ptd == IdlePDPT)
 #else
-    if (ptd == IdlePTD) {
+    if (ptd == IdlePTD)
 #endif
+    {
 	/*
 	 * no page table, so create one and install it.
 	 */
