@@ -1589,9 +1589,9 @@ more:
 		sep->se_family = AF_INET6;
 		if (v4bind == 0 || no_v4bind != 0)
 			sep->se_nomapped = 1;
-	}
+	} else
 #endif
-	else { /* default to v4 bind if not v6 bind */
+	{ /* default to v4 bind if not v6 bind */
 		if (no_v4bind != 0) {
 			syslog(LOG_INFO, "IPv4 bind is ignored for %s",
 			       sep->se_service);
