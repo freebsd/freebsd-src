@@ -32,13 +32,13 @@
 .Nm safe
 .Nd SafeNet crypto accelerator
 .Sh SYNOPSIS
-.Nm device safe
-.sp
-.Cd sysctl hw.safe.debug
-.Cd sysctl hw.safe.dump
-.Cd sysctl hw.safe.rnginterval
-.Cd sysctl hw.safe.rngbufsize
-.Cd sysctl hw.safe.rngmaxalarm
+.Cd "device safe"
+.Pp
+.Nm sysctl Va hw.safe.debug
+.Nm sysctl Va hw.safe.dump
+.Nm sysctl Va hw.safe.rnginterval
+.Nm sysctl Va hw.safe.rngbufsize
+.Nm sysctl Va hw.safe.rngmaxalarm
 .Sh DESCRIPTION
 The
 .Nm
@@ -68,33 +68,37 @@ Periodically the driver will poll the hardware RNG and retrieve
 data for use by the system.
 If the driver detects that the hardware RNG is resonating with any local
 signal, it will reset the oscillators that generate random data.
-Three sysctl settings control this procedure:
-.Li hw.safe.rnginterval
+Three
+.Xr sysctl 8
+settings control this procedure:
+.Va hw.safe.rnginterval
 specifies the time, in seconds, between polling operations,
-.Li hw.safe.rngbufsize
+.Va hw.safe.rngbufsize
 specifies the number of 32-bit words to retrieve on each poll,
 and
-.Li hw.safe.rngmaxalarm
+.Va hw.safe.rngmaxalarm
 specifies the threshold for resetting the oscillators.
 .Pp
 When the driver is compiled with
 .Dv SAFE_DEBUG
-defined, two sysctl variables are provided for debugging purposes:
-.Li hw.safe.debug
+defined, two
+.Xr sysctl 8
+variables are provided for debugging purposes:
+.Va hw.safe.debug
 can be set to a non-zero value to enable debugging messages to be sent
-to the console for each cryptographic operation.
-.Li hw.safe.dump
+to the console for each cryptographic operation,
+.Va hw.safe.dump
 is a write-only variable that can be used to force driver state to be sent
 to the console.
 Set this variable to
-.Li ring
+.Dq Li ring
 to dump the current state of the descriptor ring,
 to
-.Li dma
+.Dq Li dma
 to dump the hardware DMA registers,
 or
 to
-.Li int
+.Dq Li int
 to dump the hardware interrupt registers.
 .Sh SEE ALSO
 .Xr crypt 3 ,
