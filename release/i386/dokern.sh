@@ -11,102 +11,92 @@ fi
 
 if [ "${FDSIZE}" = "SMALL" ]; then
 
-sed	-e '/	pty	/d' \
-	-e '/	pass	/d' \
-	-e '/	apm$/d' \
-	-e '/	pmtimer$/d' \
-	-e '/	ppp	/d' \
-	-e '/	gif	/d' \
-	-e '/	faith	/d' \
-	-e '/	random	/d' \
-	-e '/	splash$/d' \
+sed	-e '/	pci$/d' \
+	-e '/	adv/d' \
+	-e '/	ahc/d' \
+	-e '/	amd/d' \
+	-e '/	isp/d' \
+	-e '/	ncr/d' \
+	-e '/	sym/d' \
+	-e '/	de/d' \
+	-e '/	em/d' \
+	-e '/	fxp/d' \
+	-e '/	tx/d' \
+	-e '/	txp/d' \
+	-e '/	bge/d' \
+	-e '/	vx/d' \
+	-e '/	wx/d' \
+	-e '/	dc/d' \
+	-e '/	pcn/d' \
+	-e '/	rl/d' \
+	-e '/	sf/d' \
+	-e '/	sis/d' \
+	-e '/	ste/d' \
+	-e '/	tl/d' \
+	-e '/	vr/d' \
+	-e '/	wb/d' \
+	-e '/	xl/d' \
+	-e '/	an$/d' \
+	-e '/	wi$/d' \
+	-e '/pty/d' \
+	-e '/pass/d' \
+	-e '/	apm/d' \
+	-e '/ppp/d' \
+	-e '/gif/d' \
+	-e '/faith/d' \
+	-e '/gzip/d' \
+	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
-	-e '/SYSV/d' \
+	-e '/SYSVMSG/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
-	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
-	-e '/DEBUG/d' \
-	-e '/DDB/d' \
-	-e '/INVARIANTS/d' \
-	-e '/INVARIANT_SUPPORT/d' \
-	-e '/WITNESS/d' \
-	-e '/	pci$/d' \
-	-e '/	adv	/d' \
-	-e '/	ahc	/d' \
-	-e '/	amd	/d' \
-	-e '/	isp	/d' \
-	-e '/	sym	/d' \
-	-e '/	ncr	/d' \
-	-e '/	ch	/d' \
-	-e '/	sa	/d' \
-	-e '/	ses	/d' \
-	-e '/	pcm/d' \
-	-e '/	atapist	/d' \
-	-e '/	lpt	/d' \
-	-e '/	ppi	/d' \
-	-e '/	de	/d' \
-	-e '/	txp	/d' \
-	-e '/	vx	/d' \
-	-e '/	dc	/d' \
-	-e '/	fxp	/d' \
-	-e '/	pcn	/d' \
-	-e '/	rl	/d' \
-	-e '/	sf	/d' \
-	-e '/	sis	/d' \
-	-e '/	ste	/d' \
-	-e '/	tl	/d' \
-	-e '/	tx	/d' \
-	-e '/	vr	/d' \
-	-e '/	wb	/d' \
-	-e '/	xl	/d' \
-	-e '/	ugen	/d' \
-	-e '/	uhid	/d' \
-	-e '/	ulpt	/d' \
-	-e '/	urio	/d' \
-	-e '/	uscanner	/d' \
+	-e '/P1003_1B/d' \
+	-e '/_KPOSIX_PRIORITY_SCHEDULING/d' \
+	-e '/RANDOMDEV/d' \
+	-e '/atapist/d' \
+	-e '/lpt/d' \
+	-e '/ppi/d' \
+	-e '/ugen/d' \
+	-e '/uhid/d' \
+	-e '/ulpt/d' \
+	-e '/urio/d' \
+	-e '/uscanner/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
 else
 
-sed	-e '/	pty	/d' \
-	-e '/	pass	/d' \
-	-e '/	apm$/d' \
-	-e '/	pmtimer$/d' \
-	-e '/	ppp	/d' \
-	-e '/	gif	/d' \
-	-e '/	faith	/d' \
-	-e '/	random	/d' \
-	-e '/	splash$/d' \
+sed	-e '/pty/d' \
+	-e '/pass/d' \
+	-e '/	apm/d' \
+	-e '/ppp/d' \
+	-e '/gif/d' \
+	-e '/faith/d' \
+	-e '/gzip/d' \
+	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
-	-e '/SYSV/d' \
+	-e '/SYSVMSG/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
-	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
- 	-e '/DEBUG/d' \
- 	-e '/DDB/d' \
- 	-e '/INVARIANTS/d' \
- 	-e '/INVARIANT_SUPPORT/d' \
- 	-e '/WITNESS/d' \
-	-e '/	ncr	/d' \
-	-e '/	pcm/d' \
-	-e '/	atapist	/d' \
-	-e '/	lpt	/d' \
-	-e '/	ppi	/d' \
-	-e '/	txp	/d' \
-	-e '/	sf	/d' \
-	-e '/	ste	/d' \
-	-e '/	ugen	/d' \
-	-e '/	uhid	/d' \
-	-e '/	ulpt	/d' \
-	-e '/	urio	/d' \
-	-e '/	uscanner	/d' \
+	-e '/RANDOMDEV/d' \
+	-e '/	ncr/d' \
+	-e '/	txp/d' \
+	-e '/	an$/d' \
+	-e '/	wi$/d' \
+	-e '/atapist/d' \
+	-e '/lpt/d' \
+	-e '/ppi/d' \
+	-e '/ugen/d' \
+	-e '/uhid/d' \
+	-e '/ulpt/d' \
+	-e '/urio/d' \
+	-e '/uscanner/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
@@ -120,5 +110,6 @@ echo "options  NETGRAPH_SOCKET"
 # reset maxusers to something lower
 echo "maxusers	5"
 
+echo "options  NFS_NOSERVER" 
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"

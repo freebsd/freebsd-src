@@ -9,7 +9,6 @@ sed	\
 	-e '/SOFTUPDATES/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
-	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/MSDOSFS/d' \
 	-e '/PROCFS/d' \
@@ -17,23 +16,14 @@ sed	\
 	-e '/SYSV/d' \
 	-e '/P1003_1B/d' \
 	-e '/_KPOSIX_PRIORITY_SCHEDULING/d' \
- 	-e '/DEBUG/d' \
- 	-e '/DDB/d' \
- 	-e '/INVARIANTS/d' \
- 	-e '/INVARIANT_SUPPORT/d' \
- 	-e '/WITNESS/d' \
- 	-e '/SMP/d' \
-	-e '/atapifd/d' \
+	-e '/ICMP_BANDLIM/d' \
 	-e '/atapist/d' \
 	-e '/	ncr/d' \
 	-e '/	sa/d' \
 	-e '/pass/d' \
-	-e '/ses/d' \
 	-e '/	amr/d' \
 	-e '/splash/d' \
-	-e '/	apm/d' \
-	-e '/pmtimer/d' \
-	-e '/pcm/d' \
+	-e '/	apm0/d' \
 	-e '/ppc/d' \
 	-e '/ppbus/d' \
 	-e '/plip/d' \
@@ -41,13 +31,11 @@ sed	\
 	-e '/ppi/d' \
 	-e '/vpo/d' \
 	-e '/	le	/d' \
-	-e '/	xv	/d' \
 	-e '/	pcn	/d' \
 	-e '/	sf	/d' \
 	-e '/	sis	/d' \
 	-e '/	ste	/d' \
-	-e '/	wb	/d' \
-	-e '/random/d' \
+	-e '/	wx	/d' \
 	-e '/gzip/d' \
 	-e '/	sl	/d' \
 	-e '/ppp/d' \
@@ -74,5 +62,6 @@ sed	\
 # reset maxusers to something lower
 echo "maxusers	5"
 
+echo "options  NFS_NOSERVER" 
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"
