@@ -34,8 +34,6 @@
 #endif
 
 #include <sys/queue.h>
-#include <sys/_lock.h>
-#include <sys/_mutex.h>
 
 struct taskqueue;
 
@@ -62,12 +60,8 @@ struct task {
 	int		ta_priority;	/* priority of task in queue */
 	task_fn_t	*ta_func;	/* task handler */
 	void		*ta_context;	/* argument for handler */
-	struct mtx	ta_mutex;	/* lock for each task */
 };
 
-void	task_init(struct task *task, int priority, task_fn_t *func,
-	    void *context);
-void	task_destroy(struct task *task);
 struct taskqueue *taskqueue_create(const char *name, int mflags,
 				    taskqueue_enqueue_fn enqueue,
 				    void *context);
@@ -79,14 +73,12 @@ void	taskqueue_run(struct taskqueue *queue);
 /*
  * Initialise a task structure.
  */
-#define	TASK_INIT(task, priority, func, context) \
-	task_init((task), (priority), (func), (context))
-
-/*
- * Destroy a task structure.
- */
-#define	TASK_DESTROY(task)			\
-	task_destroy((task))
+#define TASK_INIT(task, priority, func, context) do {	\
+	(task)->ta_pending = 0;				\
+	(task)->ta_priority = (priority);		\
+	(task)->ta_func = (func);			\
+	(task)->ta_context = (context);			\
+} while (0)
 
 /*
  * Declare a reference to a taskqueue.
