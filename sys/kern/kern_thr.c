@@ -106,7 +106,11 @@ thr_exit1(void)
 	td->td_last_kse = NULL;
 	thread_stash(td);
 
+#if defined(__i386__) || defined(__sparc64__)
+	cpu_throw(td, choosethread());
+#else
 	cpu_throw();
+#endif
 }
 
 #define	RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))

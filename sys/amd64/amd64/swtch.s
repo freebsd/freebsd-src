@@ -37,29 +37,15 @@
  */
 
 #include "opt_npx.h"
+#include "opt_swtch.h"
 
 #include <machine/asmacros.h>
-
-#ifdef SMP
-#include <machine/apic.h>
-#include <machine/smptests.h>			/* CHEAP_TPR, GRAB_LOPRIO */
-#endif
 
 #include "assym.s"
 
 /*****************************************************************************/
 /* Scheduling                                                                */
 /*****************************************************************************/
-
-	.data
-
-	.globl	panic
-
-#ifdef SWTCH_OPTIM_STATS
-	.globl	swtch_optim_stats, tlb_flush_count
-swtch_optim_stats:	.long	0		/* number of _swtch_optims */
-tlb_flush_count:	.long	0
-#endif
 
 	.text
 
@@ -68,30 +54,60 @@ tlb_flush_count:	.long	0
  *
  * This is the second half of cpu_swtch(). It is used when the current
  * thread is either a dummy or slated to die, and we no longer care
- * about its state.
+ * about its state.  This is only a slight optimization and is probably
+ * not worth it anymore.  Note that we need to clear the pm_active bits so
+ * we do need the old proc if it still exists.
+ * 0(%esp) = ret
+ * 4(%esp) = oldtd
+ * 8(%esp) = newtd
  */
 ENTRY(cpu_throw)
+	movl	PCPU(CPUID), %esi
+	movl	4(%esp),%ecx			/* Old thread */
+	testl	%ecx,%ecx			/* no thread? */
+	jz	1f
+	/* release bit from old pm_active */
+	movl	TD_PROC(%ecx), %eax		/* thread->td_proc */
+	movl	P_VMSPACE(%eax), %ebx		/* proc->p_vmspace */
+#ifdef SMP
+	lock
+#endif
+	btrl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* clear old */
+1:
+	movl	8(%esp),%ecx			/* New thread */
+	movl	TD_PCB(%ecx),%edx
+#ifdef SWTCH_OPTIM_STATS
+	incl	tlb_flush_count
+#endif
+	movl	PCB_CR3(%edx),%eax
+	movl	%eax,%cr3			/* new address space */
+	/* set bit in new pm_active */
+	movl	TD_PROC(%ecx),%eax
+	movl	P_VMSPACE(%eax), %ebx
+#ifdef SMP
+	lock
+#endif
+	btsl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* set new */
 	jmp	sw1
 
 /*
- * cpu_switch()
+ * cpu_switch(old, new)
  *
  * Save the current thread state, then select the next thread to run
  * and load its state.
+ * 0(%esp) = ret
+ * 4(%esp) = oldtd
+ * 8(%esp) = newtd
  */
 ENTRY(cpu_switch)
 
-	/* Switch to new thread.  First, save context as needed. */
-	movl	PCPU(CURTHREAD),%ecx
+	/* Switch to new thread.  First, save context. */
+	movl	4(%esp),%ecx
 
-	/* If no thread to save, don't save it (XXX shouldn't happen). */
-	testl	%ecx,%ecx
-	jz	sw1
-
-	movl	TD_PROC(%ecx), %eax
-	movl	P_VMSPACE(%eax), %edx
-	movl	PCPU(CPUID), %eax
-	btrl	%eax, VM_PMAP+PM_ACTIVE(%edx)
+#ifdef INVARIANTS
+	testl	%ecx,%ecx			/* no thread? */
+	jz	badsw2				/* no, panic */
+#endif
 
 	movl	TD_PCB(%ecx),%edx
 
@@ -125,10 +141,6 @@ ENTRY(cpu_switch)
 	movl    %eax,PCB_DR0(%edx)
 1:
 
-#ifdef SMP
-	/* XXX FIXME: we should be saving the local APIC TPR */
-#endif
-
 #ifdef DEV_NPX
 	/* have we used fp, and need a save? */
 	cmpl	%ecx,PCPU(FPCURTHREAD)
@@ -140,56 +152,76 @@ ENTRY(cpu_switch)
 1:
 #endif
 
-	/* Save is done.  Now choose a new thread. */
-	/* XXX still trashing space above the old "Top Of Stack". */
-sw1:
-
-#ifdef SMP
-	/*
-	 * Stop scheduling if smp_active has become zero (for rebooting) and
-	 * we are not the BSP.
-	 */
-	cmpl	$0,smp_active
-	jne	1f
-	cmpl	$0,PCPU(CPUID)
-	je	1f
-	movl	PCPU(IDLETHREAD), %eax
-	jmp	sw1b
-1:
-#endif
-
-	/*
-	 * Choose a new thread to schedule.  choosethread() returns idlethread
-	 * if it cannot find another thread to run.
-	 */
-	call	choosethread			/* Trash ecx, edx; ret eax. */
-
+	/* Save is done.  Now fire up new thread. Leave old vmspace. */
+	movl	%ecx,%edi
+	movl	8(%esp),%ecx			/* New thread */
 #ifdef INVARIANTS
-	testl	%eax,%eax			/* no thread? */
+	testl	%ecx,%ecx			/* no thread? */
 	jz	badsw3				/* no, panic */
 #endif
-
-sw1b:
-	movl	%eax,%ecx
 	movl	TD_PCB(%ecx),%edx
-
-#ifdef SWTCH_OPTIM_STATS
-	incl	swtch_optim_stats
-#endif
+	movl	PCPU(CPUID), %esi
 
 	/* switch address space */
-	movl	%cr3,%ebx			/* The same address space? */
-	cmpl	PCB_CR3(%edx),%ebx
-	je	4f				/* Yes, skip all that cruft */
+	movl	PCB_CR3(%edx),%eax
+#ifdef LAZY_SWITCH
+	cmpl	$0,lazy_flush_enable
+	je	1f
+	cmpl	%eax,IdlePTD			/* Kernel address space? */
 #ifdef SWTCH_OPTIM_STATS
-	decl	swtch_optim_stats
+	je	3f
+#else
+	je	sw1
+#endif
+1:
+	movl	%cr3,%ebx			/* The same address space? */
+	cmpl	%ebx,%eax
+#ifdef SWTCH_OPTIM_STATS
+	je	2f				/* Yes, skip all that cruft */
+#else
+	je	sw1
+#endif
+#endif
+
+#ifdef SWTCH_OPTIM_STATS
 	incl	tlb_flush_count
 #endif
-	movl	PCB_CR3(%edx),%ebx		/* Tell the CPU about the */
-	movl	%ebx,%cr3			/* new address space */
-4:
+	movl	%eax,%cr3			/* new address space */
 
-	movl	PCPU(CPUID), %esi
+	/* Release bit from old pmap->pm_active */
+	movl	TD_PROC(%edi), %eax		/* oldproc */
+	movl	P_VMSPACE(%eax), %ebx
+#ifdef SMP
+	lock
+#endif
+	btrl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* clear old */
+
+	/* Set bit in new pmap->pm_active */
+	movl	TD_PROC(%ecx),%eax		/* newproc */
+	movl	P_VMSPACE(%eax), %ebx
+#ifdef SMP
+	lock
+#endif
+	btsl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* set new */
+
+#ifdef LAZY_SWITCH
+#ifdef SWTCH_OPTIM_STATS
+	jmp	sw1
+
+2:						/* same address space */
+	incl	swtch_optim_stats
+	jmp	sw1
+
+3:						/* kernel address space */
+	incl	lazy_flush_count
+#endif
+#endif
+
+sw1:
+	/*
+	 * At this point, we've switched address spaces and are ready
+	 * to load up the rest of the next context.
+	 */
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
 	je	1f				/* If not, use the default */
 	btsl	%esi, private_tss		/* mark use of private tss */
@@ -221,11 +253,6 @@ sw1b:
 	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 3:
-	/* Note in vmspace that this cpu is using it. */
-	movl	TD_PROC(%ecx),%eax
-	movl	P_VMSPACE(%eax), %ebx
-	movl	PCPU(CPUID), %eax
-	btsl	%eax, VM_PMAP+PM_ACTIVE(%ebx)
 
 	/* Restore context. */
 	movl	PCB_EBX(%edx),%ebx
@@ -240,10 +267,6 @@ sw1b:
 
 	movl	%edx, PCPU(CURPCB)
 	movl	%ecx, PCPU(CURTHREAD)		/* into next thread */
-
-#ifdef SMP
-	/* XXX FIXME: we should be restoring the local APIC TPR */
-#endif
 
 	/*
 	 * Determine the LDT to use and load it if is the default one and
@@ -301,12 +324,23 @@ cpu_switch_load_gs:
 	ret
 
 #ifdef INVARIANTS
+badsw1:
+	pushal
+	pushl	$sw0_1
+	call	panic
+sw0_1:	.asciz	"cpu_throw: no newthread supplied"
+
+badsw2:
+	pushal
+	pushl	$sw0_2
+	call	panic
+sw0_2:	.asciz	"cpu_switch: no curthread supplied"
+
 badsw3:
 	pushal
 	pushl	$sw0_3
 	call	panic
-
-sw0_3:	.asciz	"cpu_switch: choosethread returned NULL"
+sw0_3:	.asciz	"cpu_switch: no newthread supplied"
 #endif
 
 /*

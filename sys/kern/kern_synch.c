@@ -41,6 +41,9 @@
 
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
+#ifdef __i386__
+#include "opt_swtch.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -67,6 +70,9 @@
 #endif
 
 #include <machine/cpu.h>
+#ifdef SWTCH_OPTIM_STATS
+#include <machine/md_var.h>
+#endif
 
 static void sched_setup(void *dummy);
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
@@ -449,12 +455,16 @@ void
 mi_switch(void)
 {
 	struct bintime new_switchtime;
-	struct thread *td = curthread;	/* XXX */
-	struct proc *p = td->td_proc;	/* XXX */
+	struct thread *td;
+#if defined(__i386__) || defined(__sparc64__)
+	struct thread *newtd;
+#endif
+	struct proc *p;
 	u_int sched_nest;
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
-
+	td = curthread;			/* XXX */
+	p = td->td_proc;		/* XXX */
 	KASSERT(!TD_ON_RUNQ(td), ("mi_switch: called by old code"));
 #ifdef INVARIANTS
 	if (!TD_ON_LOCK(td) &&
@@ -506,7 +516,17 @@ mi_switch(void)
 		thread_switchout(td);
 	sched_switchout(td);
 
+#if defined(__i386__) || defined(__sparc64__)
+	newtd = choosethread();
+	if (td != newtd)
+		cpu_switch(td, newtd);	/* SHAZAM!! */
+#ifdef SWTCH_OPTIM_STATS
+	else
+		stupid_switch++;
+#endif
+#else
 	cpu_switch();		/* SHAZAM!!*/
+#endif
 
 	sched_lock.mtx_recurse = sched_nest;
 	sched_lock.mtx_lock = (uintptr_t)td;

@@ -98,6 +98,9 @@ reassigned to keep this true.
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sched.h>
+#if defined(SMP) && defined(__i386__)
+#include <sys/smp.h>
+#endif
 #include <machine/critical.h>
 
 CTASSERT((RQB_BPW * RQB_LEN) == RQ_NQS);
@@ -122,8 +125,21 @@ choosethread(void)
 	struct thread *td;
 	struct ksegrp *kg;
 
+#if defined(SMP) && defined(__i386__)
+	if (smp_active == 0 && PCPU_GET(cpuid) != 0) {
+		/* Shutting down, run idlethread on AP's */
+		td = PCPU_GET(idlethread);
+		ke = td->td_kse;
+		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
+		ke->ke_flags |= KEF_DIDRUN;
+		TD_SET_RUNNING(td);
+		return (td);
+	}
+#endif
+
 retry:
-	if ((ke = sched_choose())) {
+	ke = sched_choose();
+	if (ke) {
 		td = ke->ke_thread;
 		KASSERT((td->td_kse == ke), ("kse/thread mismatch"));
 		kg = ke->ke_ksegrp;
