@@ -75,6 +75,7 @@ static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <unistd.h>
 #include <utmp.h>
 #include <vis.h>
+#include <locale.h>
 
 #include <arpa/nameser.h>
 #include <resolv.h>
@@ -129,6 +130,8 @@ main(argc, argv)
 	int ch, i, nentries, nusers, wcmd;
 	char *memf, *nlistf, *p, *vis_args, *x;
 	char buf[MAXHOSTNAMELEN], errbuf[256];
+
+	(void) setlocale(LC_TIME|LC_CTYPE, "");
 
 	/* Are we w(1) or uptime(1)? */
 	p = __progname;
