@@ -1,0 +1,17 @@
+command.o: command.cc refer.h ../include/errarg.h ../include/error.h \
+ ../include/lib.h ../include/stringclass.h ../include/cset.h \
+ ../include/cmap.h ../include/defs.h ../include/refid.h \
+ ../include/search.h command.h
+ref.o: ref.cc refer.h ../include/errarg.h ../include/error.h \
+ ../include/lib.h ../include/stringclass.h ../include/cset.h \
+ ../include/cmap.h ../include/defs.h ../include/refid.h ref.h token.h
+refer.o: refer.cc refer.h ../include/errarg.h ../include/error.h \
+ ../include/lib.h ../include/stringclass.h ../include/cset.h \
+ ../include/cmap.h ../include/defs.h ../include/refid.h ref.h token.h \
+ ../include/search.h command.h
+token.o: token.cc refer.h ../include/errarg.h ../include/error.h \
+ ../include/lib.h ../include/stringclass.h ../include/cset.h \
+ ../include/cmap.h ../include/defs.h token.h
+label.o: label.cc refer.h ../include/errarg.h ../include/error.h \
+ ../include/lib.h ../include/stringclass.h ../include/cset.h \
+ ../include/cmap.h ../include/defs.h ../include/refid.h ref.h token.h
