@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.10 1995/07/30 12:58:47 joerg Exp $
+ *	$Id: scsi.c,v 1.11 1996/04/06 11:00:28 joerg Exp $
  */
 
 #include <stdio.h>
@@ -820,7 +820,7 @@ mode_edit(int fd, int page, int edit, int argc, char *argv[])
 		bcopy((char *)mph, ((char *)mh) + sizeof(*mh),
 		sizeof(*mph) + mph->page_length);
 
-		mh->bdl = 0;
+		mh->bdl = mh->dev_spec_par = 0;
 		mph = (struct mode_page_header *) (((char *)mh) + sizeof(*mh));
 		mode_pars = ((char *)mph) + 2;
 
