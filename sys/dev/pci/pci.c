@@ -402,9 +402,9 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 #define REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
 	int	ptr, nextptr, ptrptr;
 
-	switch (cfg->hdrtype) {
+	switch (cfg->hdrtype & PCIM_HDRTYPE) {
 	case 0:
-		ptrptr = 0x34;
+		ptrptr = PCIR_CAP_PTR;
 		break;
 	case 2:
 		ptrptr = 0x14;
@@ -430,7 +430,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 
 		/* Process this entry */
 		switch (REG(ptr, 1)) {
-		case 0x01:		/* PCI power management */
+		case PCIY_PMG:		/* PCI power management */
 			if (cfg->pp_cap == 0) {
 				cfg->pp_cap = REG(ptr + PCIR_POWER_CAP, 2);
 				cfg->pp_status = ptr + PCIR_POWER_STATUS;
