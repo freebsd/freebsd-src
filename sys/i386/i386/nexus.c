@@ -519,8 +519,6 @@ nexus_get_resource(device_t dev, device_t child, int type, int rid, u_long *star
 	struct resource_list_entry *rle;
 
 	rle = resource_list_find(rl, type, rid);
-	device_printf(child, "type %d  rid %d  startp %p  countp %p - got %p\n",
-		      type, rid, startp, countp, rle);
 	if (!rle)
 		return(ENOENT);
 	if (startp)
