@@ -683,11 +683,13 @@ struct rl_softc {
 	int			rxcycles;
 #endif
 
+#ifndef BURN_BRIDGES
 	u_int32_t		saved_maps[5];	/* pci data */
 	u_int32_t		saved_biosaddr;
 	u_int8_t		saved_intline;
 	u_int8_t		saved_cachelnsz;
 	u_int8_t		saved_lattimer;
+#endif
 };
 
 #define	RL_LOCK(_sc)		mtx_lock(&(_sc)->rl_mtx)
