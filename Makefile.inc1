@@ -138,7 +138,9 @@ XMAKEENV=	COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		PATH=${TMPPATH}
 
 # bootstrap make
-BMAKE=	${BMAKEENV} ${MAKE} DESTDIR=${WORLDTMP} -DNOMAN -DNOINFO
+BMAKE=	${BMAKEENV} ${MAKE} DESTDIR=${WORLDTMP} -DNOMAN -DNOINFO \
+	-DNO_FORTRAN -DNO_GDB -DNO_OBJC
+
 # cross make used for compilation
 XMAKE=	${XMAKEENV} ${MAKE} DESTDIR=${WORLDTMP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh"
