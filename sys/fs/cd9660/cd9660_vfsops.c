@@ -537,7 +537,7 @@ cd9660_unmount(mp, mntflags, p)
 	if (mntinvalbuf(mp))
 		return EBUSY;
 #endif
-	if ((error = vflush(mp, NULLVP, flags)))
+	if ((error = vflush(mp, 0, flags)))
 		return (error);
 
 	isomp = VFSTOISOFS(mp);

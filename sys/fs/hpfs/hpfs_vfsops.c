@@ -477,7 +477,7 @@ hpfs_unmount(
 
 	dprintf(("hpfs_unmount: vflushing...\n"));
 	
-	error = vflush(mp,NULLVP,flags);
+	error = vflush(mp, 0, flags);
 	if (error) {
 		printf("hpfs_unmount: vflush failed: %d\n",error);
 		return (error);

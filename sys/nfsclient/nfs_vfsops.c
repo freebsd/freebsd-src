@@ -953,8 +953,6 @@ nfs_unmount(mp, mntflags, p)
 	struct proc *p;
 {
 	register struct nfsmount *nmp;
-	struct nfsnode *np;
-	struct vnode *vp;
 	int error, flags = 0;
 
 	if (mntflags & MNT_FORCE)
@@ -962,36 +960,20 @@ nfs_unmount(mp, mntflags, p)
 	nmp = VFSTONFS(mp);
 	/*
 	 * Goes something like this..
-	 * - Check for activity on the root vnode (other than ourselves).
-	 * - Call vflush() to clear out vnodes for this file system,
-	 *   except for the root vnode.
-	 * - Decrement reference on the vnode representing remote root.
+	 * - Call vflush() to clear out vnodes for this file system
 	 * - Close the socket
 	 * - Free up the data structures
 	 */
-	/*
-	 * We need to decrement the ref. count on the nfsnode representing
-	 * the remote root.  See comment in mountnfs().  The VFS unmount()
-	 * has done vput on this vnode, otherwise we would get deadlock!
-	 */
-	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np);
-	if (error)
-		return(error);
-	vp = NFSTOV(np);
-	if (vp->v_usecount > 2) {
-		vput(vp);
-		return (EBUSY);
-	}
-
 	/*
 	 * Must handshake with nqnfs_clientd() if it is active.
 	 */
 	nmp->nm_state |= NFSSTA_DISMINPROG;
 	while (nmp->nm_inprog != NULLVP)
 		(void) tsleep((caddr_t)&lbolt, PSOCK, "nfsdism", 0);
-	error = vflush(mp, vp, flags);
+
+	/* We hold 1 extra ref on the root vnode; see comment in mountnfs(). */
+	error = vflush(mp, 1, flags);
 	if (error) {
-		vput(vp);
 		nmp->nm_state &= ~NFSSTA_DISMINPROG;
 		return (error);
 	}
@@ -1003,12 +985,6 @@ nfs_unmount(mp, mntflags, p)
 	if (nmp->nm_flag & (NFSMNT_NQNFS | NFSMNT_KERB))
 		nmp->nm_state |= NFSSTA_DISMNT;
 
-	/*
-	 * There are two reference counts and one lock to get rid of here.
-	 */
-	vput(vp);
-	vrele(vp);
-	vgone(vp);
 	nfs_disconnect(nmp);
 	FREE(nmp->nm_nam, M_SONAME);
 

@@ -254,7 +254,6 @@ static int
 smbfs_unmount(struct mount *mp, int mntflags, struct proc *p)
 {
 	struct smbmount *smp = VFSTOSMBFS(mp);
-	struct vnode *vp;
 	struct smb_cred scred;
 	int error, flags;
 
@@ -262,22 +261,10 @@ smbfs_unmount(struct mount *mp, int mntflags, struct proc *p)
 	flags = 0;
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	error = VFS_ROOT(mp, &vp);
+	/* There is 1 extra root vnode reference from smbfs_mount(). */
+	error = vflush(mp, 1, flags);
 	if (error)
-		return (error);
-	if (vp->v_usecount > 2) {
-		printf("smbfs_unmount: usecnt=%d\n", vp->v_usecount);
-		vput(vp);
-		return EBUSY;
-	}
-	error = vflush(mp, vp, flags);
-	if (error) {
-		vput(vp);
 		return error;
-	}
-	vput(vp);
-	vrele(vp);
-	vgone(vp);
 	smb_makescred(&scred, p, p->p_ucred);
 	smb_share_put(smp->sm_share, &scred);
 	mp->mnt_data = (qaddr_t)0;
