@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.30 1999/02/11 10:14:08 brian Exp $
+ *	$Id: datalink.c,v 1.31 1999/02/17 02:11:28 brian Exp $
  */
 
 #include <sys/param.h>
@@ -475,20 +475,21 @@ datalink_LayerUp(void *v, struct fsm *fp)
 {
   /* The given fsm is now up */
   struct datalink *dl = (struct datalink *)v;
+  struct lcp *lcp = &dl->physical->link.lcp;
 
   if (fp->proto == PROTO_LCP) {
     datalink_GotAuthname(dl, "");
-    dl->physical->link.lcp.auth_ineed = dl->physical->link.lcp.want_auth;
-    dl->physical->link.lcp.auth_iwait = dl->physical->link.lcp.his_auth;
-    if (dl->physical->link.lcp.his_auth || dl->physical->link.lcp.want_auth) {
+    lcp->auth_ineed = lcp->want_auth;
+    lcp->auth_iwait = lcp->his_auth;
+    if (lcp->his_auth || lcp->want_auth) {
       if (bundle_Phase(dl->bundle) == PHASE_ESTABLISH)
         bundle_NewPhase(dl->bundle, PHASE_AUTHENTICATE);
       log_Printf(LogPHASE, "%s: his = %s, mine = %s\n", dl->name,
-                Auth2Nam(dl->physical->link.lcp.his_auth),
-                Auth2Nam(dl->physical->link.lcp.want_auth));
-      if (dl->physical->link.lcp.his_auth == PROTO_PAP)
+                Auth2Nam(lcp->his_auth, lcp->his_authtype),
+                Auth2Nam(lcp->want_auth, lcp->want_authtype));
+      if (lcp->his_auth == PROTO_PAP)
         auth_StartReq(&dl->pap);
-      if (dl->physical->link.lcp.want_auth == PROTO_CHAP)
+      if (lcp->want_auth == PROTO_CHAP)
         auth_StartReq(&dl->chap.auth);
     } else
       datalink_AuthOk(dl);
@@ -955,8 +956,6 @@ datalink_Show(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "Name: %s\n", arg->cx->name);
   prompt_Printf(arg->prompt, " State:              %s\n",
                 datalink_State(arg->cx));
-  prompt_Printf(arg->prompt, " CHAP Encryption:    %s\n",
-                arg->cx->chap.using_MSChap ? "MSChap" : "MD5" );
   prompt_Printf(arg->prompt, " Peer name:          ");
   if (*arg->cx->peer.authname)
     prompt_Printf(arg->prompt, "%s\n", arg->cx->peer.authname);

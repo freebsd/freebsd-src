@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.h,v 1.11 1999/02/06 02:54:44 brian Exp $
+ * $Id: chap.h,v 1.12 1999/02/11 10:14:07 brian Exp $
  *
  *	TODO:
  */
@@ -39,8 +39,9 @@ struct chap {
     } buf;
   } child;
   struct authinfo auth;
-  char challenge[CHAPCHALLENGELEN + AUTHLEN];
-  unsigned using_MSChap : 1;	/* A combination of MD4 & DES */
+  u_char challenge[CHAPCHALLENGELEN + AUTHLEN];
+  unsigned NTRespSent : 1;		/* Our last response */
+  int peertries;
 };
 
 #define descriptor2chap(d) \
