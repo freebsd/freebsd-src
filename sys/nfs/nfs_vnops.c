@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.127 1999/05/06 18:13:05 peter Exp $
+ * $Id: nfs_vnops.c,v 1.128 1999/05/06 20:00:30 phk Exp $
  */
 
 
@@ -1242,8 +1242,8 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 		nfsm_v3attrbuild(vap, FALSE);
 		if (vap->va_type == VCHR || vap->va_type == VBLK) {
 			nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-			*tl++ = txdr_unsigned(major(vap->va_rdev));
-			*tl = txdr_unsigned(minor(vap->va_rdev));
+			*tl++ = txdr_unsigned(umajor(vap->va_rdev));
+			*tl = txdr_unsigned(uminor(vap->va_rdev));
 		}
 	} else {
 		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);

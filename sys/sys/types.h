@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.29 1999/01/28 00:57:54 dillon Exp $
+ * $Id: types.h,v 1.30 1999/05/09 18:03:48 phk Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -71,7 +71,6 @@ typedef	const char *	c_caddr_t;	/* core address, pointer to const */
 typedef	volatile char *	v_caddr_t;	/* core address, pointer to volatile */
 typedef	int32_t		daddr_t;	/* disk address */
 typedef	u_int32_t	u_daddr_t;	/* unsigned disk address */
-typedef	u_int32_t	dev_t;		/* device number */
 typedef	u_int32_t	fixpt_t;	/* fixed point number */
 typedef	u_int32_t	gid_t;		/* group id */
 typedef	u_int32_t	ino_t;		/* inode number */
@@ -96,32 +95,35 @@ typedef	u_int64_t	uoff_t;
 typedef	struct vm_page	*vm_page_t;
 #endif
 
+#ifdef KERNEL
+
+typedef	u_int32_t	udev_t;		/* device number */
+typedef u_int32_t 	dev_t;
+
+#else /* !KERNEL */
+
+typedef	u_int32_t	dev_t;		/* device number */
+
 #ifndef _POSIX_SOURCE
+
 /*
  * minor() gives a cookie instead of an index since we don't want to
  * change the meanings of bits 0-15 or waste time and space shifting
  * bits 16-31 for devices that don't use them.
  */
 
-static __inline int
-minor(dev_t dev)
-{
-	return(dev & 0xffff00ff);
-}
+/*
+ * minor() gives a cookie instead of an index since we don't want to
+ * change the meanings of bits 0-15 or waste time and space shifting
+ * bits 16-31 for devices that don't use them.
+ */
+#define major(x)        ((int)(((u_int)(x) >> 8)&0xff)) /* major number */
+#define minor(x)        ((int)((x)&0xffff00ff))         /* minor number */
+#define makedev(x,y)    ((dev_t)(((x) << 8) | (y)))     /* create dev_t */
 
-static __inline int
-major(dev_t dev)
-{
-	return((dev & 0xff00) >> 8);
-}
+#endif /* _POSIX_SOURCE */
 
-static __inline dev_t
-makedev(int x, int y)
-{
-	return ((x << 8) | y);
-}
-
-#endif
+#endif /* !KERNEL */
 
 #include <machine/endian.h>
 

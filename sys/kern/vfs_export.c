@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.192 1999/05/08 06:39:48 phk Exp $
+ * $Id: vfs_subr.c,v 1.193 1999/05/08 07:02:38 phk Exp $
  */
 
 /*
@@ -1188,7 +1188,7 @@ bdevvp(dev, vpp)
 	}
 	vp = nvp;
 	vp->v_type = VBLK;
-	if ((nvp = checkalias(vp, dev, (struct mount *)0)) != NULL) {
+	if ((nvp = checkalias(vp, dev2udev(dev), (struct mount *)0)) != NULL) {
 		vput(vp);
 		vp = nvp;
 	}
@@ -1207,22 +1207,25 @@ bdevvp(dev, vpp)
 struct vnode *
 checkalias(nvp, nvp_rdev, mp)
 	register struct vnode *nvp;
-	dev_t nvp_rdev;
+	udev_t nvp_rdev;
 	struct mount *mp;
 {
 	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp;
 	struct vnode **vpp;
-	int rmaj = major(nvp_rdev);
+	int rmaj = umajor(nvp_rdev);
+	dev_t	dev;
 
 	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
 		return (NULLVP);
+
+	dev = udev2dev(nvp_rdev, 2);
 
 	vpp = &speclisth[SPECHASH(nvp_rdev)];
 loop:
 	simple_lock(&spechash_slock);
 	for (vp = *vpp; vp; vp = vp->v_specnext) {
-		if (nvp_rdev != vp->v_rdev || nvp->v_type != vp->v_type)
+		if (dev != vp->v_rdev || nvp->v_type != vp->v_type)
 			continue;
 		/*
 		 * Alias, but not in use, so flush it out.
@@ -1262,7 +1265,7 @@ loop:
 		    sizeof(struct specinfo), M_VNODE, M_WAITOK);
 		bzero(sinfo, sizeof(struct specinfo));
 		nvp->v_specinfo = sinfo;
-		sinfo->si_rdev = nvp_rdev;
+		sinfo->si_rdev = dev;
 		sinfo->si_hashchain = vpp;
 		sinfo->si_specnext = *vpp;
 		sinfo->si_bsize_phys = DEV_BSIZE;
@@ -1275,12 +1278,12 @@ loop:
 		 */
 
 		if (nvp->v_type == VBLK && rmaj < nblkdev) {
-			if (bdevsw(nvp_rdev) && bdevsw(nvp_rdev)->d_parms)
+			if (bdevsw(dev) && bdevsw(dev)->d_parms)
 				
-				(*bdevsw(nvp_rdev)->d_parms)(nvp_rdev, sinfo, DPARM_GET);
+				(*bdevsw(dev)->d_parms)(dev, sinfo, DPARM_GET);
 		} else if (nvp->v_type == VCHR && rmaj < nchrdev) {
-			if (devsw(nvp_rdev) && devsw(nvp_rdev)->d_parms)
-				(*devsw(nvp_rdev)->d_parms)(nvp_rdev, sinfo, DPARM_GET);
+			if (devsw(dev) && devsw(dev)->d_parms)
+				(*devsw(dev)->d_parms)(dev, sinfo, DPARM_GET);
 		}
 
 		simple_unlock(&spechash_slock);

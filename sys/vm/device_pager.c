@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.39 1999/01/24 02:32:14 dillon Exp $
+ * $Id: device_pager.c,v 1.40 1999/05/08 06:40:29 phk Exp $
  */
 
 #include <sys/param.h>
@@ -103,7 +103,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	/*
 	 * Make sure this device can be mapped.
 	 */
-	dev = (dev_t) (uintptr_t) handle;
+	dev = udev2dev((uintptr_t) handle, 2);
 	mapfunc = devsw(dev)->d_mmap;
 	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop) {
 		printf("obsolete map function %p\n", (void *)mapfunc);
@@ -199,7 +199,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	d_mmap_t *mapfunc;
 	int prot;
 
-	dev = (dev_t) (uintptr_t) object->handle;
+	dev = udev2dev((uintptr_t) object->handle, 2);
 	offset = m[reqpage]->pindex;
 	prot = PROT_READ;	/* XXX should pass in? */
 	mapfunc = devsw(dev)->d_mmap;
@@ -207,7 +207,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop)
 		panic("dev_pager_getpage: no map function");
 
-	paddr = pmap_phys_address((*mapfunc) ((dev_t) dev, (vm_offset_t) offset << PAGE_SHIFT, prot));
+	paddr = pmap_phys_address((*mapfunc) (dev, (vm_offset_t) offset << PAGE_SHIFT, prot));
 	KASSERT(paddr != -1,("dev_pager_getpage: map function returns error"));
 	/*
 	 * Replace the passed in reqpage page with our own fake page and free up the

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.12 (Berkeley) 6/16/95
- * $Id: stat.h,v 1.14 1998/02/25 02:00:44 bde Exp $
+ * $Id: stat.h,v 1.15 1998/05/11 03:55:13 dyson Exp $
  */
 
 #ifndef _SYS_STAT_H_
@@ -48,6 +48,12 @@
  * pollution with it.
  */
 #include <sys/time.h>
+#endif
+
+#ifdef KERNEL
+#define __devt	udev_t
+#else
+#define __devt	dev_t
 #endif
 
 #ifndef _POSIX_SOURCE
@@ -71,13 +77,13 @@ struct ostat {
 #endif /* !_POSIX_SOURCE */
 
 struct stat {
-	dev_t	  st_dev;		/* inode's device */
+	__devt	  st_dev;		/* inode's device */
 	ino_t	  st_ino;		/* inode's number */
 	mode_t	  st_mode;		/* inode protection mode */
 	nlink_t	  st_nlink;		/* number of hard links */
 	uid_t	  st_uid;		/* user ID of the file's owner */
 	gid_t	  st_gid;		/* group ID of the file's group */
-	dev_t	  st_rdev;		/* device type */
+	__devt	  st_rdev;		/* device type */
 #ifndef _POSIX_SOURCE
 	struct	timespec st_atimespec;	/* time of last access */
 	struct	timespec st_mtimespec;	/* time of last data modification */
@@ -101,13 +107,13 @@ struct stat {
 
 #ifndef _POSIX_SOURCE
 struct nstat {
-	dev_t	  st_dev;		/* inode's device */
+	__devt	  st_dev;		/* inode's device */
 	ino_t	  st_ino;		/* inode's number */
 	u_int32_t st_mode;		/* inode protection mode */
 	u_int32_t st_nlink;		/* number of hard links */
 	uid_t	  st_uid;		/* user ID of the file's owner */
 	gid_t	  st_gid;		/* group ID of the file's group */
-	dev_t	  st_rdev;		/* device type */
+	__devt	  st_rdev;		/* device type */
 #ifndef _POSIX_SOURCE
 	struct	timespec st_atimespec;	/* time of last access */
 	struct	timespec st_mtimespec;	/* time of last data modification */
@@ -128,6 +134,8 @@ struct nstat {
 	int64_t	  st_qspare[2];
 };
 #endif
+
+#undef __devt
 
 #ifndef _POSIX_SOURCE
 #define st_atime st_atimespec.tv_sec

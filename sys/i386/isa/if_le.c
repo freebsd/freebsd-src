@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.48 1998/10/22 05:58:39 bde Exp $
+ * $Id: if_le.c,v 1.49 1998/12/30 00:37:42 hoek Exp $
  */
 
 /*
@@ -41,8 +41,8 @@
 #include "opt_ipx.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>

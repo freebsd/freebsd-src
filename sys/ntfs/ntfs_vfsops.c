@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vfsops.c,v 1.3 1999/04/20 21:06:43 semenu Exp $
+ *	$Id: ntfs_vfsops.c,v 1.4 1999/05/06 22:07:34 peter Exp $
  */
 
 
@@ -500,7 +500,7 @@ ntfs_mountfs(devvp, mp, argsp, p)
 		vput(vp);
 	}
 
-	mp->mnt_stat.f_fsid.val[0] = (long)dev;
+	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 #if __FreeBSD_version >= 300000
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 #else

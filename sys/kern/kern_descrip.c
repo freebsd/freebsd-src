@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.59 1999/04/28 10:53:22 dt Exp $
+ * $Id: kern_descrip.c,v 1.60 1999/05/03 23:57:20 billf Exp $
  */
 
 #include "opt_compat.h"
@@ -81,7 +81,7 @@ static	 d_open_t  fdopen;
 static struct cdevsw fildesc_cdevsw = 
 	{ fdopen,	noclose,	noread,		nowrite,
 	  noioc,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		nostrat };
+	  seltrue,	nommap,		nostrat,	"FD" };
 
 static int finishdup __P((struct filedesc *fdp, int old, int new, register_t *retval));
 /*

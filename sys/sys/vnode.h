@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.85 1999/02/19 17:41:14 dillon Exp $
+ * $Id: vnode.h,v 1.86 1999/04/17 08:36:06 peter Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -183,7 +183,7 @@ struct vattr {
 	struct timespec	va_ctime;	/* time file changed */
 	u_long		va_gen;		/* generation number of file */
 	u_long		va_flags;	/* flags defined for file */
-	dev_t		va_rdev;	/* device the special file represents */
+	udev_t		va_rdev;	/* device the special file represents */
 	u_quad_t	va_bytes;	/* bytes of disk space held by file */
 	u_quad_t	va_filerev;	/* file modification number */
 	u_int		va_vaflags;	/* operations flags, see below */
@@ -543,7 +543,7 @@ int	vop_null __P((struct vop_generic_args *ap));
 int	vop_panic __P((struct vop_generic_args *ap));
 
 struct vnode *
-	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
+	checkalias __P((struct vnode *vp, udev_t nvp_rdev, struct mount *mp));
 void 	vput __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
 void	vref __P((struct vnode *vp));
