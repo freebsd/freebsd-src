@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)spx.h
+ *	@(#)$Id$
  */
 
 #ifndef _NETIPX_SPX_H_
