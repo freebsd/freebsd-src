@@ -294,7 +294,7 @@ void ex_init(void *xsc)
 
 	DODEBUG(Start_End, printf("ex_init%d: start\n", ifp->if_unit););
 
-	if (ifp->if_addrhead.tqh_first == NULL)
+	if (ifp->if_addrlist == (struct ifaddr *) 0)
 	  return;
 	s = splimp();
 	sc->arpcom.ac_if.if_timer = 0;

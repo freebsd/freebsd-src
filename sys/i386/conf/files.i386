@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.141.2.5 1996/12/14 14:32:18 joerg Exp $
+#	$Id: files.i386,v 1.141.2.6 1997/02/08 15:13:20 joerg Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -105,6 +105,7 @@ i386/isa/if_ed.c		optional	ed	device-driver
 i386/isa/if_eg.c		optional	eg	device-driver
 i386/isa/if_el.c		optional	el	device-driver
 i386/isa/if_ep.c		optional	ep	device-driver
+i386/isa/if_ex.c		optional	ex	device-driver
 i386/isa/if_fe.c		optional	fe	device-driver
 i386/isa/if_ie.c		optional	ie	device-driver
 i386/isa/if_ix.c		optional	ix	device-driver
