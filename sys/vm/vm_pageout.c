@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.12 1994/09/12 15:06:14 davidg Exp $
+ * $Id: vm_pageout.c,v 1.13 1994/10/04 03:05:09 davidg Exp $
  */
 
 /*
@@ -196,7 +196,7 @@ vm_pageout_clean(m, sync)
 		for (i = 1; i < vm_pageout_page_count; i++) {
 			if (ms[i] = vm_page_lookup(object, offset+i*NBPG)) {
 				if (( ((ms[i]->flags & (PG_CLEAN|PG_INACTIVE|PG_BUSY)) == PG_INACTIVE)
-					|| ( (ms[i]->flags & PG_CLEAN|PG_BUSY) == 0 && sync == VM_PAGEOUT_FORCE))
+					|| ( (ms[i]->flags & (PG_CLEAN|PG_BUSY)) == 0 && sync == VM_PAGEOUT_FORCE))
 					&& (ms[i]->wire_count == 0)
 					&& (ms[i]->busy == 0)
 					&& (ms[i]->hold_count == 0))
