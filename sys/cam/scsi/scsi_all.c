@@ -2215,7 +2215,7 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 		dtype = "Communication";
 		break;
 	case T_STORARRAY:
-		dtype = "Storage Arrray";
+		dtype = "Storage Array";
 		break;
 	case T_ENCLOSURE:
 		dtype = "Enclosure Services";
