@@ -3155,7 +3155,8 @@ open_top:
 		tp->t_actout = TRUE;
 out:
 	splx(s);
-	if (!(tp->t_state & TS_ISOPEN) && tp->t_wopeners == 0)
+	if (!(tp->t_state & TS_ISOPEN) && tp->t_wopeners == 0 &&
+	    tp->t_close != NULL)
 		tp->t_close(tp);
 	return (error);
 }
@@ -3168,7 +3169,8 @@ ttyclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	tp = dev->si_tty;
 	ttyld_close(tp, flag);
 	ttyldoptim(tp);
-	tp->t_close(tp);
+	if (tp->t_close != NULL)
+		tp->t_close(tp);
 	tty_close(tp);
 	tp->t_do_timestamp = 0;
 	if (tp->t_pps != NULL)
