@@ -153,7 +153,7 @@ main(int argc, char *argv[])
 			entry = zmalloc(sizeof(struct sf_entry));
 			entry->acl = acl_from_text(optarg);
 			if (entry->acl == NULL)
-				err(1, "acl_from_text() failed");
+				err(1, "%s", optarg);
 			entry->op = OP_MERGE_ACL;
 			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
@@ -164,7 +164,7 @@ main(int argc, char *argv[])
 			entry = zmalloc(sizeof(struct sf_entry));
 			entry->acl = acl_from_text(optarg);
 			if (entry->acl == NULL)
-				err(1, "acl_from_text() failed");
+				err(1, "%s", optarg);
 			entry->op = OP_REMOVE_ACL;
 			TAILQ_INSERT_TAIL(&entrylist, entry, next);
 			break;
