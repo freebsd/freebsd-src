@@ -115,7 +115,7 @@ main(argc, argv)
 char **argv;
 {
 	register FILE *ofp;	/* output file */
-	register rv;		/* 1 if got card in output file, 0 otherwise */
+	register int rv;	/* 1 if got card in output file, 0 otherwise */
 	register char *ptr;
 	int nflag,		/* 1 if got name of subprog., 0 otherwise */
 		retval,
