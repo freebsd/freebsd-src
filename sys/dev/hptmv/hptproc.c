@@ -293,22 +293,28 @@ static int hpt_set_info(int length)
 					return -EINVAL;
 				}
 
+			err = 0;
 			if (piop->nInBufferSize)
-				copyin((void*)(ULONG_PTR)piop->lpInBuffer, ke_area, piop->nInBufferSize);
+				err = copyin((void*)(ULONG_PTR)piop->lpInBuffer, ke_area, piop->nInBufferSize);
 
 			/*
 			  * call kernel handler.
 			  */    
-			err = Kernel_DeviceIoControl(&gIal_Adapter->VBus,
-				piop->dwIoControlCode, ke_area, piop->nInBufferSize,
-				ke_area + piop->nInBufferSize, piop->nOutBufferSize, &dwRet);    
+			if (err==0)
+				err = Kernel_DeviceIoControl(&gIal_Adapter->VBus,
+					piop->dwIoControlCode, ke_area, piop->nInBufferSize,
+					ke_area + piop->nInBufferSize, piop->nOutBufferSize, &dwRet);    
 			
 			if (err==0) {
-				if (piop->nOutBufferSize)
-					copyout(ke_area + piop->nInBufferSize, (void*)(ULONG_PTR)piop->lpOutBuffer, piop->nOutBufferSize);
+				if (piop->nOutBufferSize) {
+					err = copyout(ke_area + piop->nInBufferSize, (void*)(ULONG_PTR)piop->lpOutBuffer, piop->nOutBufferSize);
+					if (err) KdPrintW(("Kernel_ioctl(): copyout (1) return %d\n", err));
+				}
 				
-				if (piop->lpBytesReturned)
-					copyout(&dwRet, (void*)(ULONG_PTR)piop->lpBytesReturned, sizeof(DWORD));
+				if (piop->lpBytesReturned) {
+					err = copyout(&dwRet, (void*)(ULONG_PTR)piop->lpBytesReturned, sizeof(DWORD));
+					if (err) KdPrintW(("Kernel_ioctl(): copyout (2) return %d\n", err));
+				}
 			
 				free(ke_area, M_DEVBUF);
 				return length;
