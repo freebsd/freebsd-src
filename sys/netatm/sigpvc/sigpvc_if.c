@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sigpvc_if.c,v 1.2 1998/10/31 20:06:56 phk Exp $
+ *	@(#) $Id: sigpvc_if.c,v 1.3 1998/12/04 22:54:53 archie Exp $
  *
  */
 
@@ -46,7 +46,7 @@
 #include <netatm/sigpvc/sigpvc_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: sigpvc_if.c,v 1.2 1998/10/31 20:06:56 phk Exp $");
+__RCSID("@(#) $Id: sigpvc_if.c,v 1.3 1998/12/04 22:54:53 archie Exp $");
 #endif
 
 
@@ -653,8 +653,9 @@ sigpvc_ioctl(code, data, arg1)
 		break;
 
 	case AIOCS_INF_ARP:
+	case AIOCS_INF_ASV:
 		/*
-		 * Get ARP table information
+		 * Get ARP table/server information
 		 */
 		/* We don't maintain any ARP information */
 		break;
