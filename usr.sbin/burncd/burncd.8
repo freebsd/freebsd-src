@@ -58,6 +58,8 @@ set the device to use for the burning process.
 read a list of image files from filename.
 .It Fl m
 close disk in multisession mode (otherwise disk is closed as singlesession).
+.It Fl n
+dont write gaps between data tracks in DAO mode.
 .It Fl p
 use preemphasis on audio tracks.
 .It Fl q
@@ -115,6 +117,12 @@ on the command line.
 .It Cm XAmode1
 Set the write mode to produce data (XAmode1) tracks for the following image
 files on the command line.
+.It Cm XAmode2
+Set the write mode to produce data (XAmode2) tracks for the following image
+files on the command line.
+.It Cm vcd
+Set the write mode to produce VCD/SVCD tracks for the following image files 
+on the command line. This automagically sets DAO and nogap mode.
 .It Ar file
 All other arguments are treated as filenames of images to write to the media,
 or in case the
