@@ -336,7 +336,7 @@ int	len;
 		t += 2;
 		if (!((j + 1) & 0xf)) {
 			s -= 15;
-			sprintf((char *)t, "        ");
+			sprintf((char *)t, "	");
 			t += 8;
 			for (k = 16; k; k--, s++)
 				*t++ = (isprint(*s) ? *s : '.');
@@ -581,6 +581,7 @@ int	blen;
 {
 	tcphdr_t	*tp;
 	struct	icmp	*ic;
+	struct	icmp	*icmp;
 	struct	tm	*tm;
 	char	*t, *proto;
 	int	i, v, lvl, res, len, off, plen, ipoff;
@@ -742,19 +743,56 @@ int	blen;
 		    ic->icmp_type == ICMP_REDIRECT ||
 		    ic->icmp_type == ICMP_TIMXCEED) {
 			ipc = &ic->icmp_ip;
-			tp = (tcphdr_t *)((char *)ipc + hl);
-
+			i = ntohs(ipc->ip_len);
+			ipoff = ntohs(ipc->ip_off);
 			proto = getproto(ipc->ip_p);
 
-			t += strlen(t);
-			(void) sprintf(t, " for %s,%s -",
-				HOSTNAME_V4(res, ipc->ip_src),
-				portname(res, proto, (u_int)tp->th_sport));
-			t += strlen(t);
-			(void) sprintf(t, " %s,%s PR %s len %hu %hu",
-				HOSTNAME_V4(res, ipc->ip_dst),
-				portname(res, proto, (u_int)tp->th_dport),
-				proto, ipc->ip_hl << 2, ipc->ip_len);
+			if (!(ipoff & IP_OFFMASK) &&
+			    ((ipc->ip_p == IPPROTO_TCP) ||
+			     (ipc->ip_p == IPPROTO_UDP))) {
+				tp = (tcphdr_t *)((char *)ipc + hl);
+				t += strlen(t);
+				(void) sprintf(t, " for %s,%s -",
+					HOSTNAME_V4(res, ipc->ip_src),
+					portname(res, proto,
+						 (u_int)tp->th_sport));
+				t += strlen(t);
+				(void) sprintf(t, " %s,%s PR %s len %hu %hu",
+					HOSTNAME_V4(res, ipc->ip_dst),
+					portname(res, proto,
+						 (u_int)tp->th_dport),
+					proto, ipc->ip_hl << 2, i);
+			} else if (!(ipoff & IP_OFFMASK) &&
+				   (ipc->ip_p == IPPROTO_ICMP)) {
+				icmp = (icmphdr_t *)((char *)ipc + hl);
+
+				t += strlen(t);
+				(void) sprintf(t, " for %s -",
+					HOSTNAME_V4(res, ipc->ip_src));
+				t += strlen(t);
+				(void) sprintf(t,
+					" %s PR icmp len %hu %hu icmp %d/%d",
+					HOSTNAME_V4(res, ipc->ip_dst),
+					ipc->ip_hl << 2, i,
+					icmp->icmp_type, icmp->icmp_code);
+
+			} else {
+				t += strlen(t);
+				(void) sprintf(t, " for %s -",
+						HOSTNAME_V4(res, ipc->ip_src));
+				t += strlen(t);
+				(void) sprintf(t, " %s PR %s len %hu (%hu)",
+					HOSTNAME_V4(res, ipc->ip_dst), proto,
+					ipc->ip_hl << 2, i);
+				t += strlen(t);
+				if (ipoff & IP_OFFMASK) {
+					(void) sprintf(t, " frag %s%s%hu@%hu",
+						ipoff & IP_MF ? "+" : "",
+						ipoff & IP_DF ? "-" : "",
+						i - (ipc->ip_hl<<2),
+						(ipoff & IP_OFFMASK) << 3);
+				}
+			}
 		}
 	} else {
 		(void) sprintf(t, "%s -> ", hostname(res, v, s));
