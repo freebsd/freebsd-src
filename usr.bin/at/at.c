@@ -56,13 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <utmp.h>
-
-#if (MAXLOGNAME-1) > UT_NAMESIZE
-#define LOGNAMESIZE UT_NAMESIZE
-#else
-#define LOGNAMESIZE (MAXLOGNAME-1)
-#endif
 
 /* Local headers */
 
@@ -320,15 +313,15 @@ writefile(time_t runtimer, char queue)
     if((fp = fdopen(fdes, "w")) == NULL)
 	panic("cannot reopen atjob file");
 
-    /* Get the userid to mail to, first by trying getlogin(), which reads
-     * /etc/utmp, then from LOGNAME, finally from getpwuid().
+    /* Get the userid to mail to, first by trying getlogin(),
+     * then from LOGNAME, finally from getpwuid().
      */
     mailname = getlogin();
     if (mailname == NULL)
 	mailname = getenv("LOGNAME");
 
     if ((mailname == NULL) || (mailname[0] == '\0') 
-	|| (strlen(mailname) > LOGNAMESIZE) || (getpwnam(mailname)==NULL))
+	|| (strlen(mailname) >= MAXLOGNAME) || (getpwnam(mailname)==NULL))
     {
 	pass_entry = getpwuid(real_uid);
 	if (pass_entry != NULL)
@@ -342,7 +335,8 @@ writefile(time_t runtimer, char queue)
 	    perr("cannot open input file");
     }
     fprintf(fp, "#!/bin/sh\n# atrun uid=%ld gid=%ld\n# mail %*s %d\n",
-	(long) real_uid, (long) real_gid, LOGNAMESIZE, mailname, send_mail);
+	(long) real_uid, (long) real_gid, MAXLOGNAME - 1, mailname,
+	send_mail);
 
     /* Write out the umask at the time of invocation
      */
