@@ -633,6 +633,7 @@ ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS) {
 /*	struct ucred *cred = req->p->p_ucred;*/
 
 	error = 0;
+	sysctl_wire_old_buffer(req, 0);
 	ncp_conn_locklist(LK_SHARED, req->p);
 	error = SYSCTL_OUT(req, &ncp_conn_cnt, sizeof(ncp_conn_cnt));
 	SLIST_FOREACH(ncp, &conn_list, nc_next) {

@@ -193,6 +193,7 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 {
 	int error, pid;
 
+	sysctl_wire_old_buffer(req, sizeof(int));
 	sx_xlock(&allproc_lock);
 	pid = randompid;
 	error = sysctl_handle_int(oidp, &pid, 0, req);
