@@ -192,7 +192,7 @@ For_Eval (line)
 		    ptr++;
 		wrd = ptr--;
 	    }
-	DEBUGF(FOR, "For: Iterator %s List %s\n", forVar, sub);
+	DEBUGF(FOR, ("For: Iterator %s List %s\n", forVar, sub));
 	if (ptr - wrd > 0)
 	    ADDWORD();
 	else
@@ -210,7 +210,7 @@ For_Eval (line)
 
 	if (strncmp(ptr, "endfor", 6) == 0 &&
 	    (isspace((unsigned char) ptr[6]) || !ptr[6])) {
-	    DEBUGF(FOR, "For: end for %d\n", forLevel);
+	    DEBUGF(FOR, ("For: end for %d\n", forLevel));
 	    if (--forLevel < 0) {
 		Parse_Error (level, "for-less endfor");
 		return 0;
@@ -219,7 +219,7 @@ For_Eval (line)
 	else if (strncmp(ptr, "for", 3) == 0 &&
 		 isspace((unsigned char) ptr[3])) {
 	    forLevel++;
-	    DEBUGF(FOR, "For: new loop %d\n", forLevel);
+	    DEBUGF(FOR, ("For: new loop %d\n", forLevel));
 	}
     }
 
@@ -255,7 +255,7 @@ ForExec(namep, argp)
     For *arg = (For *) argp;
     int len;
     Var_Set(arg->var, name, VAR_GLOBAL);
-    DEBUGF(FOR, "--- %s = %s\n", arg->var, name);
+    DEBUGF(FOR, ("--- %s = %s\n", arg->var, name));
     Parse_FromString(Var_Subst(arg->var, (char *) Buf_GetAll(arg->buf, &len),
 			       VAR_GLOBAL, FALSE));
     Var_Delete(arg->var, VAR_GLOBAL);
