@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.20 1998/02/23 16:44:30 ache Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.21 1998/02/24 14:13:13 ache Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -114,6 +114,7 @@ msdosfs_lookup(ap)
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 	struct proc *p = cnp->cn_proc;
+	int unlen;
 
 	int wincnt = 1;
 	int chksum = -1;
@@ -170,6 +171,7 @@ msdosfs_lookup(ap)
 	}
 	if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
 		wincnt = 1;
+	unlen = winLenFixup(cnp->cn_nameptr, cnp->cn_namelen);
 
 	/*
 	 * Suppress search for slots unless creating
@@ -255,7 +257,7 @@ msdosfs_lookup(ap)
 						continue;
 
 					chksum = winChkName((const u_char *)cnp->cn_nameptr,
-							    cnp->cn_namelen,
+							    unlen,
 							    (struct winentry *)dep,
 							    chksum,
 							    pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
@@ -292,7 +294,7 @@ msdosfs_lookup(ap)
 				 * this lookup.
 				 */
 				dp->de_fndoffset = diroff;
-				dp->de_fndcnt = 0;	/* unused anyway */
+				dp->de_fndcnt = wincnt;
 
 				goto found;
 			}
