@@ -21,6 +21,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/timex.h>
 
 /*
+ * a large step happens on boot.  This constant detects such 
+ * a steps.  It is relatively small so that ntp_update_second gets called
+ * enough in the typical 'missed a couple of seconds' case, but doesn't
+ * loop forever when the time step is large.
+ */
+#define LARGE_STEP	200
+
+/*
  * Implement a dummy timecounter which we can use until we get a real one
  * in the air.  This allows the console and other early stuff to use
  * time services.
@@ -344,6 +352,7 @@ tc_windup(void)
 	u_int64_t scale;
 	u_int delta, ncount, ogen;
 	int i;
+	time_t t;
 
 	/*
 	 * Make the next timehands a copy of the current one, but do not
@@ -381,13 +390,28 @@ tc_windup(void)
 	if (tho->th_counter->tc_poll_pps)
 		tho->th_counter->tc_poll_pps(tho->th_counter);
 
+ 	/*
+	 * Compute the UTC time, before any leapsecond adjustments, are
+	 * made.
+	 */
+	bt = th->th_offset;
+	bintime_add(&bt, &boottimebin);
+
 	/*
 	 * Deal with NTP second processing.  The for loop normally only
 	 * iterates once, but in extreme situations it might keep NTP sane
-	 * if timeouts are not run for several seconds.
+	 * if timeouts are not run for several seconds.  At boot, the
+	 * time step can be large when the TOD hardware has been read, so
+	 * on really large steps, we call ntp_update_second only once.
 	 */
-	for (i = th->th_offset.sec - tho->th_offset.sec; i > 0; i--)
-		ntp_update_second(&th->th_adjustment, &th->th_offset.sec);
+	for (i = bt.sec - tho->th_microtime.tv_sec; i > 0; i--) {
+		t = bt.sec;
+		ntp_update_second(&th->th_adjustment, &bt.sec);
+		if (bt.sec != t)
+			boottimebin.sec += bt.sec - t;
+		if (i > LARGE_STEP)
+			break;
+	}
 
 	/* Now is a good time to change timecounters. */
 	if (th->th_counter != timecounter) {
@@ -423,9 +447,6 @@ tc_windup(void)
 	scale /= th->th_counter->tc_frequency;
 	th->th_scale = scale * 2;
 
-	/* Update the UTC timestamps used for the get*() functions. */
-	bt = th->th_offset;
-	bintime_add(&bt, &boottimebin);
 	bintime2timeval(&bt, &th->th_microtime);
 	bintime2timespec(&bt, &th->th_nanotime);
 
