@@ -409,7 +409,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	     request_flags |= ATA_R_WRITE|ATA_R_DMA;
 	     break;
 	case CAM_DIR_NONE:
-	     request_flags |= ATA_R_CONTROL;
+	     /* No flags need to be set */
 	     break;
 	default:
 	     ata_prtdev(dev, "unknown IO operation\n");
