@@ -7,7 +7,7 @@
 acpi_quirks.h			optional acpi				   \
 	dependency	"$S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
 	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
-	no-obj no-implicit-rule						   \
+	no-obj no-implicit-rule before-depend				   \
 	clean		"acpi_quirks.h"
 aicasm				optional ahc				   \
 	dependency 	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
