@@ -112,6 +112,22 @@
 #define	CPUID_B30	0x40000000
 #define	CPUID_PBE	0x80000000
 
+#define CPUID2_SSE3	0x00000001
+#define CPUID2_MON	0x00000008
+#define CPUID2_DS_CPL	0x00000010
+#define CPUID2_EST	0x00000080
+#define CPUID2_TM2	0x00000100
+#define CPUID2_CNTXID	0x00000400
+#define CPUID2_CX16	0x00002000
+
+/*
+ * Important bits in the AMD extended cpuid flags
+ */
+#define AMDID_SYSCALL	0x00000800
+#define AMDID_MP	0x00080000
+#define AMDID_NX	0x00100000
+#define AMDID_LM	0x20000000
+
 /*
  * CPUID instruction 1 ebx info
  */

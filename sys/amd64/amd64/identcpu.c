@@ -69,13 +69,10 @@ void identify_cpu(void);
 void earlysetcpuclass(void);
 void panicifcpuunsupported(void);
 
-static void print_AMD_features(void);
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);
 
-int	cpu_feature2;		/* XXX change cpu_feature to long? */
 int	cpu_class;
-u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
 char machine[] = "amd64";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, 
     machine, 0, "Machine class");
@@ -109,26 +106,18 @@ printcpuinfo(void)
 	strncpy(cpu_model, amd64_cpus[cpu].cpu_name, sizeof (cpu_model));
 
 	/* Check for extended CPUID information and a processor name. */
-	if (cpu_high > 0 &&
-	    (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
-	    strcmp(cpu_vendor, "AuthenticAMD") == 0)) {
-		do_cpuid(0x80000000, regs);
-		if (regs[0] >= 0x80000000) {
-			cpu_exthigh = regs[0];
-			if (cpu_exthigh >= 0x80000004) {
-				brand = cpu_brand;
-				for (i = 0x80000002; i < 0x80000005; i++) {
-					do_cpuid(i, regs);
-					memcpy(brand, regs, sizeof(regs));
-					brand += sizeof(regs);
-				}
-			}
+	if (cpu_exthigh >= 0x80000004) {
+		brand = cpu_brand;
+		for (i = 0x80000002; i < 0x80000005; i++) {
+			do_cpuid(i, regs);
+			memcpy(brand, regs, sizeof(regs));
+			brand += sizeof(regs);
 		}
 	}
 
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
-		/* Better late than never I suppose.. */
-		strcat(cpu_model, "IA-32e");
+		/* Please make up your mind folks! */
+		strcat(cpu_model, "EM64T");
 	} else if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
 		/*
 		 * Values taken from AMD Processor Recognition
@@ -259,6 +248,44 @@ printcpuinfo(void)
 				"\040<b31>"
 				);
 			}
+			0x0183f3ff
+			if (amd_feature != 0) {
+				printf("\n  AMD Features=0x%b", amd_feature,
+				"\020"		/* in hex */
+				"\001<s0>"	/* Same */
+				"\002<s1>"	/* Same */
+				"\003<s2>"	/* Same */
+				"\004<s3>"	/* Same */
+				"\005<s4>"	/* Same */
+				"\006<s5>"	/* Same */
+				"\007<s6>"	/* Same */
+				"\010<s7>"	/* Same */
+				"\011<s8>"	/* Same */
+				"\012<s9>"	/* Same */
+				"\013<b10>"	/* Undefined */
+				"\014SYSCALL"	/* Have SYSCALL/SYSRET */
+				"\015<s12>"	/* Same */
+				"\016<s13>"	/* Same */
+				"\017<s14>"	/* Same */
+				"\020<s15>"	/* Same */
+				"\021<s16>"	/* Same */
+				"\022<s17>"	/* Same */
+				"\023<b18>"	/* Reserved, unknown */
+				"\024MP"	/* Multiprocessor Capable */
+				"\025NX"	/* Has EFER.NXE, NX */
+				"\026<b21>"	/* Undefined */
+				"\027MMX+"	/* AMD MMX Extensions */
+				"\030<s23>"	/* Same */
+				"\031<s24>"	/* Same */
+				"\032<b25>"	/* Undefined */
+				"\033<b26>"	/* Undefined */
+				"\034<b27>"	/* Undefined */
+				"\035<b28>"	/* Undefined */
+				"\036LM"	/* 64 bit long mode */
+				"\0373DNow+"	/* AMD 3DNow! Extensions */
+				"\0403DNow"	/* AMD 3DNow! */
+				);
+			}
 
 			/*
 			 * If this CPU supports hyperthreading then mention
@@ -269,8 +296,6 @@ printcpuinfo(void)
 				printf("\n  Hyperthreading: %d logical CPUs",
 				    (cpu_procinfo & CPUID_HTT_CORES) >> 16);
 		}
-		if (cpu_exthigh >= 0x80000001)
-			print_AMD_features();
 	}
 	/* Avoid ugly blank lines: only print newline when we have to. */
 	if (*cpu_vendor || cpu_id)
@@ -327,6 +352,16 @@ identify_cpu(void)
 	cpu_feature = regs[3];
 	cpu_feature2 = regs[2];
 
+	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
+	    strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+		do_cpuid(0x80000000, regs);
+		cpu_exthigh = regs[0];
+	}
+	if (cpu_exthigh >= 0x80000001) {
+		do_cpuid(0x80000001, regs);
+		amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
+	}
+
 	/* XXX */
 	cpu = CPU_CLAWHAMMER;
 }
@@ -358,111 +393,64 @@ print_AMD_l2_assoc(int i)
 static void
 print_AMD_info(void)
 {
-
-	if (cpu_exthigh >= 0x80000005) {
-		u_int regs[4];
-
-		do_cpuid(0x80000005, regs);
-		printf("L1 2MB data TLB: %d entries", (regs[0] >> 16) & 0xff);
-		print_AMD_assoc(regs[0] >> 24);
-
-		printf("L1 2MB instruction TLB: %d entries", regs[0] & 0xff);
-		print_AMD_assoc((regs[0] >> 8) & 0xff);
-
-		printf("L1 4KB data TLB: %d entries", (regs[1] >> 16) & 0xff);
-		print_AMD_assoc(regs[1] >> 24);
-
-		printf("L1 4KB instruction TLB: %d entries", regs[1] & 0xff);
-		print_AMD_assoc((regs[1] >> 8) & 0xff);
-
-		printf("L1 data cache: %d kbytes", regs[2] >> 24);
-		printf(", %d bytes/line", regs[2] & 0xff);
-		printf(", %d lines/tag", (regs[2] >> 8) & 0xff);
-		print_AMD_assoc((regs[2] >> 16) & 0xff);
-
-		printf("L1 instruction cache: %d kbytes", regs[3] >> 24);
-		printf(", %d bytes/line", regs[3] & 0xff);
-		printf(", %d lines/tag", (regs[3] >> 8) & 0xff);
-		print_AMD_assoc((regs[3] >> 16) & 0xff);
-
-		if (cpu_exthigh >= 0x80000006) {
-			do_cpuid(0x80000006, regs);
-			if ((regs[0] >> 16) != 0) {
-				printf("L2 2MB data TLB: %d entries",
-				    (regs[0] >> 16) & 0xfff);
-				print_AMD_l2_assoc(regs[0] >> 28);
-				printf("L2 2MB instruction TLB: %d entries",
-				    regs[0] & 0xfff);
-				print_AMD_l2_assoc((regs[0] >> 28) & 0xf);
-			} else {
-				printf("L2 2MB unified TLB: %d entries",
-				    regs[0] & 0xfff);
-				print_AMD_l2_assoc((regs[0] >> 28) & 0xf);
-			}
-			if ((regs[1] >> 16) != 0) {
-				printf("L2 4KB data TLB: %d entries",
-				    (regs[1] >> 16) & 0xfff);
-				print_AMD_l2_assoc(regs[1] >> 28);
-
-				printf("L2 4KB instruction TLB: %d entries",
-				    (regs[1] >> 16) & 0xfff);
-				print_AMD_l2_assoc((regs[1] >> 28) & 0xf);
-			} else {
-				printf("L2 4KB unified TLB: %d entries",
-				    (regs[1] >> 16) & 0xfff);
-				print_AMD_l2_assoc((regs[1] >> 28) & 0xf);
-			}
-			printf("L2 unified cache: %d kbytes", regs[2] >> 16);
-			printf(", %d bytes/line", regs[2] & 0xff);
-			printf(", %d lines/tag", (regs[2] >> 8) & 0x0f);
-			print_AMD_l2_assoc((regs[2] >> 12) & 0x0f);	
-		}
-	}
-}
-
-static void
-print_AMD_features(void)
-{
 	u_int regs[4];
 
-	/*
-	 * Values taken from AMD Processor Recognition
-	 * http://www.amd.com/products/cpg/athlon/techdocs/pdf/20734.pdf
-	 */
-	do_cpuid(0x80000001, regs);
-	printf("\n  AMD Features=0x%b", regs[3] & ~(cpu_feature & 0x0183f3ff),
-		"\020"		/* in hex */
-		"\001FPU"	/* Integral FPU */
-		"\002VME"	/* Extended VM86 mode support */
-		"\003DE"	/* Debug extensions */
-		"\004PSE"	/* 4MByte page tables */
-		"\005TSC"	/* Timestamp counter */
-		"\006MSR"	/* Machine specific registers */
-		"\007PAE"	/* Physical address extension */
-		"\010MCE"	/* Machine Check support */
-		"\011CX8"	/* CMPEXCH8 instruction */
-		"\012APIC"	/* SMP local APIC */
-		"\013<b10>"
-		"\014SYSCALL"	/* SYSENTER/SYSEXIT instructions */
-		"\015MTRR"	/* Memory Type Range Registers */
-		"\016PGE"	/* PG_G (global bit) support */
-		"\017MCA"	/* Machine Check Architecture */
-		"\020CMOV"	/* CMOV instruction */
-		"\021PAT"	/* Page attributes table */
-		"\022PGE36"	/* 36 bit address space support */
-		"\023RSVD"	/* Reserved, unknown */
-		"\024MP"	/* Multiprocessor Capable */
-		"\025NX"	/* Has EFER.NXE, NX (no execute pte bit) */
-		"\026<b21>"
-		"\027MMX+"	/* AMD MMX Instruction Extensions */
-		"\030MMX"
-		"\031FXSAVE"	/* FXSAVE/FXRSTOR */
-		"\032<b25>"
-		"\033<b26>"
-		"\034<b27>"
-		"\035<b28>"
-		"\036LM"	/* Long mode */
-		"\0373DNow!+"	/* AMD 3DNow! Instruction Extensions */
-		"\0403DNow!"	/* AMD 3DNow! Instructions */
-		);
+	if (cpu_exthigh < 0x80000005)
+		return;
+
+	do_cpuid(0x80000005, regs);
+	printf("L1 2MB data TLB: %d entries", (regs[0] >> 16) & 0xff);
+	print_AMD_assoc(regs[0] >> 24);
+
+	printf("L1 2MB instruction TLB: %d entries", regs[0] & 0xff);
+	print_AMD_assoc((regs[0] >> 8) & 0xff);
+
+	printf("L1 4KB data TLB: %d entries", (regs[1] >> 16) & 0xff);
+	print_AMD_assoc(regs[1] >> 24);
+
+	printf("L1 4KB instruction TLB: %d entries", regs[1] & 0xff);
+	print_AMD_assoc((regs[1] >> 8) & 0xff);
+
+	printf("L1 data cache: %d kbytes", regs[2] >> 24);
+	printf(", %d bytes/line", regs[2] & 0xff);
+	printf(", %d lines/tag", (regs[2] >> 8) & 0xff);
+	print_AMD_assoc((regs[2] >> 16) & 0xff);
+
+	printf("L1 instruction cache: %d kbytes", regs[3] >> 24);
+	printf(", %d bytes/line", regs[3] & 0xff);
+	printf(", %d lines/tag", (regs[3] >> 8) & 0xff);
+	print_AMD_assoc((regs[3] >> 16) & 0xff);
+
+	if (cpu_exthigh >= 0x80000006) {
+		do_cpuid(0x80000006, regs);
+		if ((regs[0] >> 16) != 0) {
+			printf("L2 2MB data TLB: %d entries",
+			    (regs[0] >> 16) & 0xfff);
+			print_AMD_l2_assoc(regs[0] >> 28);
+			printf("L2 2MB instruction TLB: %d entries",
+			    regs[0] & 0xfff);
+			print_AMD_l2_assoc((regs[0] >> 28) & 0xf);
+		} else {
+			printf("L2 2MB unified TLB: %d entries",
+			    regs[0] & 0xfff);
+			print_AMD_l2_assoc((regs[0] >> 28) & 0xf);
+		}
+		if ((regs[1] >> 16) != 0) {
+			printf("L2 4KB data TLB: %d entries",
+			    (regs[1] >> 16) & 0xfff);
+			print_AMD_l2_assoc(regs[1] >> 28);
+
+			printf("L2 4KB instruction TLB: %d entries",
+			    (regs[1] >> 16) & 0xfff);
+			print_AMD_l2_assoc((regs[1] >> 28) & 0xf);
+		} else {
+			printf("L2 4KB unified TLB: %d entries",
+			    (regs[1] >> 16) & 0xfff);
+			print_AMD_l2_assoc((regs[1] >> 28) & 0xf);
+		}
+		printf("L2 unified cache: %d kbytes", regs[2] >> 16);
+		printf(", %d bytes/line", regs[2] & 0xff);
+		printf(", %d lines/tag", (regs[2] >> 8) & 0x0f);
+		print_AMD_l2_assoc((regs[2] >> 12) & 0x0f);	
+	}
 }
