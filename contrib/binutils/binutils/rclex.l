@@ -1,5 +1,5 @@
 %{ /* rclex.l -- lexer for Windows rc files parser  */
-/* Copyright 1997, 1998, 1999, 2001 Free Software Foundation, Inc.
+/* Copyright 1997, 1998, 1999, 2001, 2002 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -284,11 +284,11 @@ cpp_line (s)
   if (!initial_fn)
     {
       initial_fn = xmalloc (strlen (fn) + 1);
-      strcpy(initial_fn, fn);
+      strcpy (initial_fn, fn);
     }
 
   /* Allow the initial file, regardless of name.  Suppress all other
-     files if they end in ".h" (this allows included "*.rc") */
+     files if they end in ".h" (this allows included "*.rc").  */
   if (strcmp (initial_fn, fn) == 0
       || strcmp (fn + strlen (fn) - 2, ".h") != 0)
     suppress_cpp_data = 0;
@@ -331,7 +331,7 @@ handle_quotes (input, len)
 	      break;
 
 	    case 'a':
-	      *s++ = ESCAPE_A;
+	      *s++ = ESCAPE_B; /* Strange, but true...  */
 	      ++t;
 	      break;
 
@@ -394,9 +394,9 @@ handle_quotes (input, len)
 		  if (*t >= '0' && *t <= '9')
 		    ch = (ch << 4) | (*t - '0');
 		  else if (*t >= 'a' && *t <= 'f')
-		    ch = (ch << 4) | (*t - 'a');
+		    ch = (ch << 4) | (*t - 'a' + 10);
 		  else if (*t >= 'A' && *t <= 'F')
-		    ch = (ch << 4) | (*t - 'A');
+		    ch = (ch << 4) | (*t - 'A' + 10);
 		  else
 		    break;
 		  ++t;
@@ -452,7 +452,7 @@ get_string (len)
   as->s = xmalloc (len);
 
   as->next = strings;
-  strings = as->next;
+  strings = as;
 
   return as->s;
 }

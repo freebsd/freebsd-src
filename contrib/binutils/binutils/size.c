@@ -316,6 +316,7 @@ display_archive (file)
      bfd *file;
 {
   bfd *arfile = (bfd *) NULL;
+  bfd *last_arfile = (bfd *) NULL;
 
   for (;;)
     {
@@ -333,8 +334,14 @@ display_archive (file)
 	}
 
       display_bfd (arfile);
-      /* Don't close the archive elements; we need them for next_archive.  */
+
+      if (last_arfile != NULL)
+	bfd_close (last_arfile);
+      last_arfile = arfile;
     }
+
+  if (last_arfile != NULL)
+    bfd_close (last_arfile);
 }
 
 static void

@@ -1,6 +1,6 @@
 /* opncls.c -- open and close a BFD.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
-   2001
+   2001, 2002
    Free Software Foundation, Inc.
 
    Written by Cygnus Support.
@@ -96,6 +96,8 @@ _bfd_new_bfd_contained_in (obfd)
   bfd *nbfd;
 
   nbfd = _bfd_new_bfd ();
+  if (nbfd == NULL)
+    return NULL;
   nbfd->xvec = obfd->xvec;
   nbfd->my_archive = obfd;
   nbfd->direction = read_direction;
@@ -618,7 +620,6 @@ bfd_make_readable(abfd)
   abfd->arch_info = &bfd_default_arch_struct;
 
   abfd->where = 0;
-  abfd->sections = (asection *) NULL;
   abfd->format = bfd_unknown;
   abfd->my_archive = (bfd *) NULL;
   abfd->origin = 0;
@@ -637,6 +638,7 @@ bfd_make_readable(abfd)
   abfd->outsymbols = 0;
   abfd->tdata.any = 0;
 
+  bfd_section_list_clear (abfd);
   bfd_check_format(abfd, bfd_object);
 
   return true;
