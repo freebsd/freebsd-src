@@ -1085,7 +1085,7 @@ enroll(const char *description, int flag)
 			return (NULL);
 
 	if (w_inited == 0) {
-		mtx_init(&w_mtx, "witness lock", MTX_COLD | MTX_DEF);
+		mtx_init(&w_mtx, "witness lock", MTX_COLD | MTX_SPIN);
 		for (i = 0; i < WITNESS_COUNT; i++) {
 			w = &w_data[i];
 			witness_free(w);
