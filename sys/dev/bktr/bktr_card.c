@@ -720,7 +720,6 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 	  }
 	  if (card_found) {
 	    bktr->card = cards[ card = bt848_card_signature[i].card];
-	    select_tuner( bktr, bt848_card_signature[i].tuner );
 	    eeprom_i2c_address = locate_eeprom_address( bktr );
 	    if (eeprom_i2c_address != -1) {
 		bktr->card.eepromAddr = eeprom_i2c_address;
@@ -729,6 +728,8 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 		bktr->card.eepromAddr = 0;
 		bktr->card.eepromSize = 0;
 	    }
+	    tuner_i2c_address = locate_tuner_address( bktr );   
+	    select_tuner( bktr, bt848_card_signature[i].tuner );
 	    goto checkDBX;
 	  }
 	}
@@ -822,7 +823,7 @@ checkTuner:
 		17 Philips FM1236       MN 		PHILIPS_FR1236_NTSC
 		18 Philips FM1246       I 
 		19 Philips FM1256       DK 
-		1a Temic 4036FY5        MN - FI1236 MK2 clone
+		1a Temic 4036FY5        MN - FI1236 MK2 clone PHILIPS_NTSC
 		1b Samsung TCPN9082D    MN 
 		1c Samsung TCPM9092P    Pal BG/I/DK 
 		1d Temic 4006FH5        BG 		PHILIPS_PALI clone
@@ -856,6 +857,12 @@ checkTuner:
 	        /* Determine the tuner type from the eeprom */
 		tuner_code = eeprom[9];
 		switch (tuner_code) {
+
+		  case 0x5:
+                  case 0x0a:
+                  case 0x1a:
+		    select_tuner( bktr, PHILIPS_NTSC );
+		    goto checkDBX;
 
 		  case 0x4:
                   case 0x9:
