@@ -1,4 +1,4 @@
-<!-- $Id: diskless.sgml,v 1.1.1.1.4.3 1996/01/31 14:32:15 mpp Exp $ -->
+<!-- $Id: diskless.sgml,v 1.1.1.1.4.4 1996/06/19 20:27:36 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Diskless operation<label id="diskless"></heading>
@@ -66,6 +66,8 @@ swapfs <ip:/fs>		- print/set swap filesystem
 swapsize <size>		- set diskless swapsize in Kbytes
 diskboot		- boot from disk
 autoboot		- continue boot process
+trans <on|off>		- turn transceiver on|off
+flags [bcdhsv]		- set boot flags
 </verb></tscreen>
     A typical completely diskless cfg file might contain:
 <tscreen><verb>

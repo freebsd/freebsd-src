@@ -1,4 +1,4 @@
-#
+# $Id$
 #
 .SUFFIXES: .nr .grn
 
@@ -12,7 +12,7 @@ ALL = \
 all: $(ALL)
 
 clean:
-	rm  $(ALL)
+	rm -f $(ALL)
 
 .grn.nr:
 	grn -P$(PRINTER) $*.grn > $*.nr
