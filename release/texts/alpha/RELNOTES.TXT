@@ -90,6 +90,8 @@ can be changed with the INSTKERNEL variable.  The NO_KERNELCLEAN
 variable prevents cleaning of the kernel build directory (which is now
 done via "make clean", rather than "config -r").
 
+The API CS20 1U high server has been verified to work OK.
+
 
 1.2. SECURITY FIXES
 -------------------
