@@ -32,7 +32,7 @@
 .\"     From: @(#)vis.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd July 25, 1996
+.Dd March 21, 2004
 .Dt VIS 3
 .Os
 .Sh NAME
@@ -282,3 +282,9 @@ ambiguous and non-invertible.
 .Sh HISTORY
 These functions first appeared in
 .Bx 4.4 .
+.Sh BUGS
+The
+.Nm
+family of functions do not recognize multibyte characters, and thus
+may consider them to be non-printable when they are in fact printable
+(and vice versa.)
