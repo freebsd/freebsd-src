@@ -9,8 +9,8 @@ CFLAGS+=-DUSE_INET6 -DIPL_NAME=\"/dev/ipl\" -DSTATETOP
 CFLAGS+=-I${.CURDIR}/../../sys/contrib/ipfilter/netinet
 CFLAGS+=-I${.CURDIR}/../../contrib/ipfilter
 
-DPADD= ${NCURSES}
-LDADD= -lncurses
+DPADD=	${LIBNCURSES}
+LDADD=	-lncurses
 
 MAINTAINER=	guido@freebsd.org
 
