@@ -110,7 +110,7 @@
 49	MNOPROTO BSD	{ int getlogin(char *namebuf, u_int namelen); }
 50	MNOPROTO BSD	{ int setlogin(char *namebuf); }
 51	MNOPROTO BSD	{ int acct(char *path); }
-52	MNOPROTO POSIX	{ int sigpending(void); }
+52	OBSOL	POSIX	osigpending
 53	MSTD	BSD	{ int freebsd32_sigaltstack(struct sigaltstack32 *ss, \
 			    struct sigaltstack32 *oss); }
 54	MNOPROTO POSIX	{ int ioctl(int fd, u_long com, caddr_t data); }
@@ -171,8 +171,7 @@
 96	MNOPROTO BSD	{ int setpriority(int which, int who, int prio); }
 97	MNOPROTO BSD	{ int socket(int domain, int type, int protocol); }
 98	MNOPROTO BSD	{ int connect(int s, caddr_t name, int namelen); }
-99	MNOPROTO BSD	{ int accept(int s, caddr_t name, int *anamelen); } \
-			    accept accept_args int
+99	OBSOL	BSD	oaccept
 100	MNOPROTO BSD	{ int getpriority(int which, int who); }
 101	OBSOL	BSD	osend
 102	OBSOL	BSD	orecv
@@ -205,9 +204,7 @@
 			    struct timezone *tzp); }
 123	NOPROTO	BSD	{ int fchown(int fd, int uid, int gid); }
 124	NOPROTO	BSD	{ int fchmod(int fd, int mode); }
-125	MNOPROTO BSD	{ int recvfrom(int s, caddr_t buf, size_t len, \
-			    int flags, caddr_t from, int *fromlenaddr); } \
-			    recvfrom recvfrom_args int
+125	OBSOL	BSD	orecvfrom
 126	MNOPROTO BSD	{ int setreuid(int ruid, int euid); }
 127	MNOPROTO BSD	{ int setregid(int rgid, int egid); }
 128	NOPROTO	POSIX	{ int rename(char *from, char *to); }
@@ -249,8 +246,7 @@
 154	UNIMPL	NOHIDE	nosys
 ; 155 is initialized by the NFS code, if present.
 155	UNIMPL	NOHIDE	nfssvc
-156	NOPROTO	BSD	{ int getdirentries(int fd, char *buf, u_int count, \
-			    long *basep); }
+156	OBSOL	BSD	ogetdirentries
 157	STD	BSD	{ int freebsd32_statfs(char *path, \
 			    struct statfs32 *buf); }
 158	STD	BSD	{ int freebsd32_fstatfs(int fd, struct statfs32 *buf); }
