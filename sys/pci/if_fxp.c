@@ -232,6 +232,7 @@ static void fxp_watchdog	__P((struct ifnet *));
 static int fxp_add_rfabuf	__P((struct fxp_softc *, struct mbuf *));
 static int fxp_mdi_read		__P((struct fxp_softc *, int, int));
 static void fxp_mdi_write	__P((struct fxp_softc *, int, int, int));
+static void fxp_autosize_eeprom __P((struct fxp_softc *));
 static void fxp_read_eeprom	__P((struct fxp_softc *, u_int16_t *,
 				     int, int));
 static int fxp_attach_common	__P((struct fxp_softc *, u_int8_t *));
@@ -748,6 +749,11 @@ fxp_attach_common(sc, enaddr)
 	}
 
 	/*
+	 * Find out how large of an SEEPROM we have.
+	 */
+	fxp_autosize_eeprom(sc);
+
+	/*
 	 * Get info about the primary PHY
 	 */
 	fxp_read_eeprom(sc, (u_int16_t *)&data, 6, 1);
@@ -802,6 +808,76 @@ fxp_attach_common(sc, enaddr)
 }
 
 /*
+ * From NetBSD:
+ *
+ * Figure out EEPROM size.
+ *
+ * 559's can have either 64-word or 256-word EEPROMs, the 558
+ * datasheet only talks about 64-word EEPROMs, and the 557 datasheet
+ * talks about the existance of 16 to 256 word EEPROMs.
+ *
+ * The only known sizes are 64 and 256, where the 256 version is used
+ * by CardBus cards to store CIS information.
+ *
+ * The address is shifted in msb-to-lsb, and after the last
+ * address-bit the EEPROM is supposed to output a `dummy zero' bit,
+ * after which follows the actual data. We try to detect this zero, by
+ * probing the data-out bit in the EEPROM control register just after
+ * having shifted in a bit. If the bit is zero, we assume we've
+ * shifted enough address bits. The data-out should be tri-state,
+ * before this, which should translate to a logical one.
+ *
+ * Other ways to do this would be to try to read a register with known
+ * contents with a varying number of address bits, but no such
+ * register seem to be available. The high bits of register 10 are 01
+ * on the 558 and 559, but apparently not on the 557.
+ * 
+ * The Linux driver computes a checksum on the EEPROM data, but the
+ * value of this checksum is not very well documented.
+ */
+static void
+fxp_autosize_eeprom(sc)
+	struct fxp_softc *sc;
+{
+	u_int16_t reg;
+	int x;
+
+	CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, FXP_EEPROM_EECS);
+	/*
+	 * Shift in read opcode.
+	 */
+	for (x = 3; x > 0; x--) {
+		if (FXP_EEPROM_OPC_READ & (1 << (x - 1))) {
+			reg = FXP_EEPROM_EECS | FXP_EEPROM_EEDI;
+		} else {
+			reg = FXP_EEPROM_EECS;
+		}
+		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, reg);
+		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL,
+		    reg | FXP_EEPROM_EESK);
+		DELAY(1);
+		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, reg);
+		DELAY(1);
+	}
+	/*
+	 * Shift in address.
+	 * Wait for the dummy zero following a correct address shift.
+	 */
+	for (x = 1; x <= 8; x++) {
+		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, FXP_EEPROM_EECS);
+		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL,
+			FXP_EEPROM_EECS | FXP_EEPROM_EESK);
+		DELAY(1);
+		if ((CSR_READ_2(sc, FXP_CSR_EEPROMCONTROL) & FXP_EEPROM_EEDO) == 0)
+			break;
+		CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, FXP_EEPROM_EECS);
+		DELAY(1);
+	}
+	CSR_WRITE_2(sc, FXP_CSR_EEPROMCONTROL, 0);
+	DELAY(1);
+	sc->eeprom_size = x;
+}
+/*
  * Read from the serial EEPROM. Basically, you manually shift in
  * the read opcode (one bit at a time) and then shift in the address,
  * and then you shift out the data (all of this one bit at a time).
@@ -839,7 +915,7 @@ fxp_read_eeprom(sc, data, offset, words)
 		/*
 		 * Shift in address.
 		 */
-		for (x = 6; x > 0; x--) {
+		for (x = sc->eeprom_size; x > 0; x--) {
 			if ((i + offset) & (1 << (x - 1))) {
 				reg = FXP_EEPROM_EECS | FXP_EEPROM_EEDI;
 			} else {
