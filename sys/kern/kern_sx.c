@@ -70,7 +70,7 @@ sx_init(struct sx *sx, const char *description)
 	    ("sx lock %s %p already initialized", description, sx));
 	bzero(sx, sizeof(*sx));
 	lock->lo_class = &lock_class_sx;
-	lock->lo_name = description;
+	lock->lo_type = lock->lo_name = description;
 	lock->lo_flags = LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE |
 	    LO_UPGRADABLE;
 	sx->sx_lock = mtx_pool_find(sx);
