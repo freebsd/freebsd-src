@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.35 1996/02/21 00:07:39 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.36 1996/02/22 23:34:13 joerg Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -998,7 +998,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
             <tag><tt/tw.c/</tag>
               Driver for the X-10 POWERHOUSE <newline>
           </descrip>
-
+<!--
       <sect1>
 	<heading>I am about to buy a new machine to run FreeBSD on and want an idea of what other people are running. Is there list of other systems anywhere?</heading>
 
@@ -1008,7 +1008,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           Please note, this is a raw listing of equipment that other users
           have sent in, and does not constitute any kind of endorsement by
           the FreeBSD Project.
-
+-->
       <sect1>
 	<heading>I have a lap-top with power management. Can FreeBSD take advantage of this?</heading>
         <p>
