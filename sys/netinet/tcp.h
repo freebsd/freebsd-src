@@ -31,14 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp.h,v 1.8 1997/02/22 09:41:37 peter Exp $
+ * $Id: tcp.h,v 1.9 1998/06/08 09:47:42 bde Exp $
  */
 
 #ifndef _NETINET_TCP_H_
 #define _NETINET_TCP_H_
 
-typedef	u_long	tcp_seq;
-typedef u_long	tcp_cc;			/* connection count per rfc1644 */
+typedef	u_int32_t tcp_seq;
+typedef u_int32_t tcp_cc;		/* connection count per rfc1644 */
 
 /*
  * TCP header.
