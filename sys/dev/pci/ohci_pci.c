@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: ohci_pci.c,v 1.6 1998/12/14 21:14:11 julian Exp $ */
+/*	FreeBSD $Id: ohci_pci.c,v 1.7 1999/01/06 12:31:28 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -79,6 +79,16 @@
 #define PCI_VENDOR(d)           ((d) & 0xffff)
 #define PCI_DEVICE(d)           (((d) >> 8) & 0xffff)
 
+#define PCI_OHCI_VENDORID_ADS		0x
+#define PCI_OHCI_VENDORID_ALI		0x10b9
+#define PCI_OHCI_VENDORID_SIS		0x1039
+
+#define PCI_OHCI_DEVICEID_ALADDIN_V	0x523710b9
+static const char *ohci_device_aladdin_v = "AcerLabs M5237 (Aladdin-V) USB Host Controller";
+#define PCI_OHCI_DEVICEID_ADS		0x
+static const char *ohci_device_ads = "ADS Technologies USB Host Controller";
+static const char *ohci_device_generic = "OHCI USB Host Controller (generic)";
+
 #define PCI_OHCI_BASE_REG	0x10
 
 static const char *ohci_pci_probe              __P((pcici_t, pcidi_t));
@@ -101,11 +111,20 @@ ohci_pci_probe(pcici_t config_id, pcidi_t device_id)
 {
         u_int32_t class;
 
-	class = pci_conf_read(config_id, PCI_CLASS_REG);
-	if (   (PCI_CLASS(class)     == PCI_CLASS_SERIALBUS)
-	    && (PCI_SUBCLASS(class)  == PCI_SUBCLASS_SERIALBUS_USB)
-	    && (PCI_INTERFACE(class) == PCI_INTERFACE_OHCI))
-		return("OHCI USB Host Controller (generic)");
+	if (device_id == PCI_OHCI_DEVICEID_ALADDIN_V) {
+		return (ohci_device_aladdin_v);
+	/*
+	} else if (device_id == PCI_OHCI_DEVICEID_ADS) {
+		return (ohci_device_ads);
+	*/
+	} else {
+		class = pci_conf_read(config_id, PCI_CLASS_REG);
+		if (   (PCI_CLASS(class)     == PCI_CLASS_SERIALBUS)
+		    && (PCI_SUBCLASS(class)  == PCI_SUBCLASS_SERIALBUS_USB)
+		    && (PCI_INTERFACE(class) == PCI_INTERFACE_OHCI)) {
+			return(ohci_device_generic);
+		}
+	}
 
 	return NULL;	/* dunno */
 }
@@ -153,10 +172,16 @@ ohci_pci_attach(pcici_t config_id, int unit)
 
 	/* Figure out vendor for root hub descriptor. */
 	id = pci_conf_read(config_id, PCI_ID_REG);
-	if (PCI_VENDOR(id) == 0x8086)
-		sprintf(sc->sc_vendor, "Intel");
+	if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_ALI)
+		sprintf(sc->sc_vendor, "AcerLabs");
+	/*
+	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_ADS)
+		sprintf(sc->sc_vendor, "ADS");
+	*/
+	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_SIS)
+		sprintf(sc->sc_vendor, "SiS");
 	else
-		sprintf(sc->sc_vendor, "Vendor 0x%04x", PCI_VENDOR(id));
+		sprintf(sc->sc_vendor, "(0x%04x)", PCI_VENDOR(id));
 
 	/* We add a child to the root bus. After PCI configuration
 	 * has completed the root bus will start to probe and
@@ -185,7 +210,19 @@ ohci_pci_attach(pcici_t config_id, int unit)
 		return;
 	}
 
-	device_set_desc(sc->sc_bus.bdev, "OHCI USB Host Controller (generic)");
+	switch(id) {
+	case PCI_OHCI_DEVICEID_ALADDIN_V:
+		device_set_desc(sc->sc_bus.bdev, ohci_device_aladdin_v);
+		break;
+	/*
+	case PCI_OHCI_DEVICEID_ADS:
+		device_set_desc(sc->sc_bus.bdev, ohci_device_ads);
+		break;
+	*/
+	default:
+		printf("(New OHCI DeviceId=0x%08x)\n", id);
+		device_set_desc(sc->sc_bus.bdev, ohci_device_generic);
+	}
 
 	return;
 }
