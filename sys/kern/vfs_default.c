@@ -749,7 +749,7 @@ loop2:
 			continue;
 		VI_UNLOCK(vp);
 		if ((bp->b_flags & B_DELWRI) == 0)
-			panic("spec_fsync: not dirty");
+			panic("fsync: not dirty");
 		if ((vp->v_vflag & VV_OBJBUF) && (bp->b_flags & B_CLUSTEROK)) {
 			BUF_UNLOCK(bp);
 			vfs_bio_awrite(bp);
