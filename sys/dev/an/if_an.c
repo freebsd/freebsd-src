@@ -102,6 +102,7 @@
 #endif
 
 #include <sys/module.h>
+#include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -169,6 +170,68 @@ static int an_media_change	__P((struct ifnet *));
 static void an_media_status	__P((struct ifnet *, struct ifmediareq *));
 
 static int	an_dump = 0;
+static char an_conf[256];
+
+/* sysctl vars */
+SYSCTL_NODE(_machdep, OID_AUTO, an, CTLFLAG_RD, 0, "dump RID");
+
+static int
+sysctl_an_dump(SYSCTL_HANDLER_ARGS)
+{
+	int	error, r, last;
+	char 	*s = an_conf;
+    
+	last = an_dump;
+	bzero(an_conf, sizeof(an_conf));
+
+	switch (an_dump){
+	case 0:
+		strcat(an_conf, "off");
+		break;
+	case 1:
+		strcat(an_conf, "type");
+		break;
+	case 2:
+		strcat(an_conf, "dump");
+		break;
+	default:
+		snprintf(an_conf, 5, "%x", an_dump);
+		break;
+	}
+
+	error = sysctl_handle_string(oidp, an_conf, sizeof(an_conf), req);
+
+	if (strncmp(an_conf,"off", 4) == 0){
+		an_dump = 0;
+ 	}
+	if (strncmp(an_conf,"dump", 4) == 0){
+		an_dump = 1;
+	}
+	if (strncmp(an_conf,"type", 4) == 0){
+		an_dump = 2;
+	}
+	if (*s == 'f'){
+		r = 0;
+		for(;;s++){
+			if((*s >= '0') && (*s <= '9')){
+				r = r * 16 + (*s - '0');
+			}else if ((*s >= 'a') && (*s <= 'f')) {
+				r = r * 16 + (*s - 'a' + 10);
+			}else{
+			break;
+			}
+		}
+		an_dump = r;
+	}
+	if (an_dump != last)
+		printf("Sysctl changed for Aironet driver\n");
+
+	return error;
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, an_dump, CTLTYPE_STRING | CTLFLAG_RW,
+            0, sizeof(an_conf), sysctl_an_dump, "A", "");
+
 /* 
  * We probe for an Aironet 4500/4800 card by attempting to
  * read the default SSID list. On reset, the first entry in
@@ -303,6 +366,8 @@ int an_attach(sc, unit, flags)
 
 	sc->an_gone = 0;
 	sc->an_associated = 0;
+	sc->an_monitor = 0;
+	sc->an_was_monitor = 0;
 
 	/* Reset the NIC. */
 	an_reset(sc);
@@ -424,90 +489,160 @@ int an_attach(sc, unit, flags)
 	return(0);
 }
 
-static void an_rxeof(sc)
-	struct an_softc		*sc;
+static void 
+an_rxeof(sc)
+	struct an_softc *sc;
 {
-	struct ifnet		*ifp;
-	struct ether_header	*eh;
-#ifdef ANCACHE
-	struct an_rxframe	rx_frame;
-#endif
-	struct an_rxframe_802_3	rx_frame_802_3;
-	struct mbuf		*m;
-	int			id, error = 0;
+	struct ifnet   *ifp;
+	struct ether_header *eh;
+	struct ieee80211_frame *ih;
+	struct an_rxframe rx_frame;
+	struct an_rxframe_802_3 rx_frame_802_3;
+	struct mbuf    *m;
+	int             len, id, error = 0;
+	int             ieee80211_header_len;
+	u_char          *bpf_buf;
+	u_short         fc1;
 
 	ifp = &sc->arpcom.ac_if;
 
 	id = CSR_READ_2(sc, AN_RX_FID);
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == NULL) {
-		ifp->if_ierrors++;
-		return;
-	}
-	MCLGET(m, M_DONTWAIT);
-	if (!(m->m_flags & M_EXT)) {
-		m_freem(m);
-		ifp->if_ierrors++;
-		return;
-	}
+	if (sc->an_monitor && (ifp->if_flags & IFF_PROMISC)) {
+		/* read raw 802.11 packet */
+	        bpf_buf = sc->buf_802_11;
 
-	m->m_pkthdr.rcvif = ifp;
+		/* read header */
+		if (an_read_data(sc, id, 0x0, (caddr_t)&rx_frame,
+				 sizeof(rx_frame))) {
+			ifp->if_ierrors++;
+			return;
+		}
 
-	eh = mtod(m, struct ether_header *);
+		/* 
+		 * skip beacon by default since this increases the 
+		 * system load a lot
+		 */
+		   
+		if(!(sc->an_monitor & AN_MONITOR_INCLUDE_BEACON) &&
+		    (rx_frame.an_frame_ctl & IEEE80211_FC0_SUBTYPE_BEACON)){
+			return;
+		}
+
+		if (sc->an_monitor & AN_MONITOR_AIRONET_HEADER){
+			len = rx_frame.an_rx_payload_len 
+				+ sizeof(rx_frame);
+			/* Check for insane frame length */
+			if (len > sizeof(sc->buf_802_11)) {
+				printf("an%d: oversized packet received (%d, %d)\n",
+				       sc->an_unit, len, MCLBYTES);
+				ifp->if_ierrors++;
+				return;
+			}
+
+			bcopy((char *)&rx_frame,
+			      bpf_buf, sizeof(rx_frame));
+
+			error = an_read_data(sc, id, sizeof(rx_frame),
+					     (caddr_t)bpf_buf+sizeof(rx_frame),
+					     rx_frame.an_rx_payload_len);
+		}else{
+			fc1=rx_frame.an_frame_ctl >> 8;
+			ieee80211_header_len = sizeof(struct ieee80211_frame);
+			if ((fc1 & IEEE80211_FC1_DIR_TODS) &&
+			    (fc1 & IEEE80211_FC1_DIR_FROMDS)) {
+				ieee80211_header_len += ETHER_ADDR_LEN;
+			}
+
+			len = rx_frame.an_rx_payload_len 
+				+ ieee80211_header_len;
+			/* Check for insane frame length */
+			if (len > sizeof(sc->buf_802_11)) {
+				printf("an%d: oversized packet received (%d, %d)\n",
+				       sc->an_unit, len, MCLBYTES);
+				ifp->if_ierrors++;
+				return;
+			}
+
+			ih = (struct ieee80211_frame *)bpf_buf;
+
+			bcopy((char *)&rx_frame.an_frame_ctl,
+			      (char *)ih, ieee80211_header_len);
+
+			error = an_read_data(sc, id, sizeof(rx_frame) + 
+					     rx_frame.an_gaplen,
+					     (caddr_t)ih +ieee80211_header_len,
+					     rx_frame.an_rx_payload_len);
+		}
+		/* dump raw 802.11 packet to bpf and skip ip stack */
+		if (ifp->if_bpf != NULL) {
+			bpf_tap(ifp, bpf_buf, len);
+		}
+	} else {
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		if (m == NULL) {
+			ifp->if_ierrors++;
+			return;
+		}
+		MCLGET(m, M_DONTWAIT);
+		if (!(m->m_flags & M_EXT)) {
+			m_freem(m);
+			ifp->if_ierrors++;
+			return;
+		}
+		m->m_pkthdr.rcvif = ifp;
+		/* Read Ethenet encapsulated packet */
 
 #ifdef ANCACHE
-	/* Read NIC frame header */
-	if (an_read_data(sc, id, 0, (caddr_t)&rx_frame, sizeof(rx_frame))) {
-		ifp->if_ierrors++;
-		return;
-	}
+		/* Read NIC frame header */
+		if (an_read_data(sc, id, 0, (caddr_t) & rx_frame, sizeof(rx_frame))) {
+			ifp->if_ierrors++;
+			return;
+		}
 #endif
-	/* Read in the 802_3 frame header */
-	if (an_read_data(sc, id, 0x34, (caddr_t)&rx_frame_802_3, 
-			 sizeof(rx_frame_802_3))) {
-		ifp->if_ierrors++;
-		return;
-	}
+		/* Read in the 802_3 frame header */
+		if (an_read_data(sc, id, 0x34, (caddr_t) & rx_frame_802_3,
+				 sizeof(rx_frame_802_3))) {
+			ifp->if_ierrors++;
+			return;
+		}
+		if (rx_frame_802_3.an_rx_802_3_status != 0) {
+			ifp->if_ierrors++;
+			return;
+		}
+		/* Check for insane frame length */
+		if (rx_frame_802_3.an_rx_802_3_payload_len > MCLBYTES) {
+			ifp->if_ierrors++;
+			return;
+		}
+		m->m_pkthdr.len = m->m_len =
+			rx_frame_802_3.an_rx_802_3_payload_len + 12;
 
-	if (rx_frame_802_3.an_rx_802_3_status != 0) {
-		ifp->if_ierrors++;
-		return;
-	}
+		eh = mtod(m, struct ether_header *);
 
-	/* Check for insane frame length */
-	if (rx_frame_802_3.an_rx_802_3_payload_len > MCLBYTES) {
-		ifp->if_ierrors++;
-		return;
-	}
+		bcopy((char *)&rx_frame_802_3.an_rx_dst_addr,
+		      (char *)&eh->ether_dhost, ETHER_ADDR_LEN);
+		bcopy((char *)&rx_frame_802_3.an_rx_src_addr,
+		      (char *)&eh->ether_shost, ETHER_ADDR_LEN);
 
-	m->m_pkthdr.len = m->m_len =
-	    rx_frame_802_3.an_rx_802_3_payload_len + 12;
+		/* in mbuf header type is just before payload */
+		error = an_read_data(sc, id, 0x44, (caddr_t)&(eh->ether_type),
+				     rx_frame_802_3.an_rx_802_3_payload_len);
 
-	
-	bcopy((char *)&rx_frame_802_3.an_rx_dst_addr,
-	    (char *)&eh->ether_dhost, ETHER_ADDR_LEN);
-	bcopy((char *)&rx_frame_802_3.an_rx_src_addr,
-	    (char *)&eh->ether_shost, ETHER_ADDR_LEN);
+		if (error) {
+			m_freem(m);
+			ifp->if_ierrors++;
+			return;
+		}
+		ifp->if_ipackets++;
 
-	/* in mbuf header type is just before payload */
-	error = an_read_data(sc, id, 0x44, (caddr_t)&(eh->ether_type), 
-			     rx_frame_802_3.an_rx_802_3_payload_len);
-
-	if (error != 0) {
-		m_freem(m);
-		ifp->if_ierrors++;
-		return;
-	}
-
-	ifp->if_ipackets++;
-
-	/* Receive packet. */
-	m_adj(m, sizeof(struct ether_header));
+		/* Receive packet. */
+		m_adj(m, sizeof(struct ether_header));
 #ifdef ANCACHE
-	an_cache_store(sc, eh, m, rx_frame.an_rx_signal_strength);
+		an_cache_store(sc, eh, m, rx_frame.an_rx_signal_strength);
 #endif
-	ether_input(ifp, eh, m);
+		ether_input(ifp, eh, m);
+	}
 }
 
 static void an_txeof(sc, status)
@@ -516,10 +651,6 @@ static void an_txeof(sc, status)
 {
 	struct ifnet		*ifp;
 	int			id, i;
-
-	/* TX DONE enable lan monitor DJA
-	   an_enable_sniff();
-	 */
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -1025,27 +1156,38 @@ static void an_setdef(sc, areq)
 		sc->an_tx_rate = sp->an_val;
 		break;
 	case AN_RID_WEP_TEMP:
-		/* Disable the MAC. */
-		an_cmd(sc, AN_CMD_DISABLE, 0);
-		
-		/* Just write the Key, we don't want to save it */
-		an_write_record(sc, (struct an_ltv_gen *)areq);
-		
-		/* Turn the MAC back on. */   
-		an_cmd(sc, AN_CMD_ENABLE, 0);
-	
-		break;
 	case AN_RID_WEP_PERM:
-
 		/* Disable the MAC. */
 		an_cmd(sc, AN_CMD_DISABLE, 0);
 	
-		/* Just write the Key, the card will save it in this mode */
+		/* Write the key */
 		an_write_record(sc, (struct an_ltv_gen *)areq);
 		
 		/* Turn the MAC back on. */   
 		an_cmd(sc, AN_CMD_ENABLE, 0);
 		
+		break;
+	case AN_RID_MONITOR_MODE:
+		cfg = (struct an_ltv_genconfig *)areq;
+		bpfdetach(ifp);
+		if (ng_ether_detach_p != NULL)
+			(*ng_ether_detach_p) (ifp);
+		sc->an_monitor = cfg->an_len;
+
+		if (sc->an_monitor & AN_MONITOR){
+			if (sc->an_monitor & AN_MONITOR_AIRONET_HEADER){
+				bpfattach(ifp, DLT_AIRONET_HEADER, 
+					sizeof(struct ether_header));
+			} else {
+				bpfattach(ifp, DLT_IEEE802_11, 
+					sizeof(struct ether_header));
+			}
+		} else {
+			bpfattach(ifp, DLT_EN10MB, 
+				  sizeof(struct ether_header));
+			if (ng_ether_attach_p != NULL)
+				(*ng_ether_attach_p) (ifp);
+		}
 		break;
 	default:
 		printf("an%d: unknown RID: %x\n", sc->an_unit, areq->an_type);
@@ -1062,16 +1204,21 @@ static void an_setdef(sc, areq)
 }
 
 /*
- * We can't change the NIC configuration while the MAC is enabled,
- * so in order to turn on RX monitor mode, we have to turn the MAC
- * off first.
+ * Derived from Linux driver to enable promiscious mode.
  */
+
 static void an_promisc(sc, promisc)
 	struct an_softc		*sc;
 	int			promisc;
 {
-	an_cmd(sc, AN_CMD_SET_MODE, promisc ? 0xffff : 0);
+	if(sc->an_was_monitor)
+		an_reset(sc);
+	if (sc->an_monitor ||sc->an_was_monitor )
+		an_init(sc);
 
+	sc->an_was_monitor = sc->an_monitor;
+	an_cmd(sc, AN_CMD_SET_MODE, promisc ? 0xffff : 0);
+  
 	return;
 }
 
@@ -1634,13 +1781,19 @@ static void an_init(xsc)
 	if (ifp->if_flags & IFF_MULTICAST)
 		sc->an_config.an_rxmode = AN_RXMODE_BC_MC_ADDR;
 
-	/* Initialize promisc mode. */
-	/* Kills card DJA can't TX packet in sniff mode
- 	if (ifp->if_flags & IFF_PROMISC)
-		sc->an_config.an_rxmode |= AN_RXMODE_LAN_MONITOR_CURBSS;
-	*/
-
-	sc->an_rxmode = sc->an_config.an_rxmode;
+	if (ifp->if_flags & IFF_PROMISC) {
+		if (sc->an_monitor & AN_MONITOR) {
+			if (sc->an_monitor & AN_MONITOR_ANY_BSS) {
+				sc->an_config.an_rxmode |=
+				    AN_RXMODE_80211_MONITOR_ANYBSS |
+				    AN_RXMODE_NO_8023_HEADER;
+			} else {
+				sc->an_config.an_rxmode |=
+				    AN_RXMODE_80211_MONITOR_CURBSS |
+				    AN_RXMODE_NO_8023_HEADER;
+			}
+		}
+	}
 
 	/* Set the ssid list */
 	sc->an_ssidlist.an_type = AN_RID_SSIDLIST;
@@ -1712,6 +1865,15 @@ static void an_start(ifp)
 
 	if (!sc->an_associated)
 		return;
+
+	if (sc->an_monitor && (ifp->if_flags & IFF_PROMISC)) {
+		for(;;) {
+			IF_DEQUEUE(&ifp->if_snd, m0);
+			if (m0 == NULL)
+				break;
+		}
+		return;
+	}
 
 	idx = sc->an_rdata.an_tx_prod;
 	bzero((char *)&tx_frame_802_3, sizeof(tx_frame_802_3));
