@@ -247,9 +247,7 @@ SUBDIR+=uac
 .if ${MACHINE_ARCH} != "sparc64" && ${MACHINE_ARCH} != "ia64"
 SUBDIR+=xlint
 .endif
-.if ${CXX:T} != "c++"
 SUBDIR+=getconf
-.endif
 
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=chkey newkey
