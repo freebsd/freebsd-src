@@ -147,70 +147,69 @@ struct chunk {
 #define DELCHUNK_RECOVER	0x0001
 
 
-const char *chunk_name(chunk_e type);
+const char *chunk_name(chunk_e);
 
 const char *
-slice_type_name( int type, int subtype );
+slice_type_name(int, int);
 /* "chunk_n" for subtypes too
  */
 
 struct disk *
-Open_Disk(const char *devname);
+Open_Disk(const char *);
 /* Will open the named disk, and return populated tree.
  */
 
 void
-Free_Disk(struct disk *disk);
+Free_Disk(struct disk *);
 /* Free a tree made with Open_Disk() or Clone_Disk()
  */
 
 void
-Debug_Disk(struct disk *disk);
+Debug_Disk(struct disk *);
 /* Print the content of the tree to stdout
  */
 
 void
-Set_Bios_Geom(struct disk *disk, u_long cyl, u_long heads, u_long sects);
+Set_Bios_Geom(struct disk *, u_long, u_long, u_long);
 /* Set the geometry the bios uses.
  */
 
 void
-Sanitize_Bios_Geom(struct disk *disk);
+Sanitize_Bios_Geom(struct disk *);
 /* Set the bios geometry to something sane
  */
 
 int
-Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
-	chunk_e type, int subtype, u_long flags, const char *sname);
+Insert_Chunk(struct chunk *, u_long, u_long, const char *, chunk_e, int,
+	u_long, const char *);
 
 int
-Delete_Chunk2(struct disk *disk, struct chunk *, int flags);
+Delete_Chunk2(struct disk *, struct chunk *, int);
 /* Free a chunk of disk_space modified by the passed
  * flags.
  */
 
 int
-Delete_Chunk(struct disk *disk, struct chunk *);
+Delete_Chunk(struct disk *, struct chunk *);
 /* Free a chunk of disk_space
  */
 
 void
-Collapse_Disk(struct disk *disk);
+Collapse_Disk(struct disk *);
 /* Experimental, do not use.
  */
 int
-Collapse_Chunk(struct disk *disk, struct chunk *chunk);
+Collapse_Chunk(struct disk *, struct chunk *);
 /* Experimental, do not use.
  */
 
 int
-Create_Chunk(struct disk *disk, u_long offset, u_long size, chunk_e type,
-	int subtype, u_long flags, const char *);
+Create_Chunk(struct disk *, u_long, u_long, chunk_e, int, u_long, const char *);
 /* Create a chunk with the specified paramters
  */
 
 void
-All_FreeBSD(struct disk *d, int force_all);
+All_FreeBSD(struct disk *, int);
 /* Make one FreeBSD chunk covering the entire disk;
  * if force_all is set, bypass all BIOS geometry
  * considerations.
@@ -229,65 +228,65 @@ Disk_Names(void);
 
 #ifdef PC98
 void
-Set_Boot_Mgr(struct disk *d, const u_char *bootipl, const size_t bootipl_size,
-	     const u_char *bootmenu, const size_t bootmenu_size);
+Set_Boot_Mgr(struct disk *, const u_char *, const size_t, const u_char *,
+	const size_t);
 #else
 void
-Set_Boot_Mgr(struct disk *d, const u_char *bootmgr, const size_t bootmgr_size);
+Set_Boot_Mgr(struct disk *, const u_char *, const size_t);
 #endif
 /* Use this boot-manager on this disk.  Gets written when Write_Disk()
  * is called
  */
 
 int
-Set_Boot_Blocks(struct disk *d, const u_char *_boot1, const u_char *_boot2);
+Set_Boot_Blocks(struct disk *, const u_char *, const u_char *);
 /* Use these boot-blocks on this disk.  Gets written when Write_Disk()
  * is called. Returns nonzero upon failure.
  */
 
 int
-Write_Disk(const struct disk *d);
+Write_Disk(const struct disk *);
 /* Write all the MBRs, disklabels, bootblocks and boot managers
  */
 
 u_long
-Next_Cyl_Aligned(const struct disk *d, u_long offset);
+Next_Cyl_Aligned(const struct disk *, u_long);
 /* Round offset up to next cylinder according to the bios-geometry
  */
 
 u_long
-Prev_Cyl_Aligned(const struct disk *d, u_long offset);
+Prev_Cyl_Aligned(const struct disk *, u_long);
 /* Round offset down to previous cylinder according to the bios-
  * geometry
  */
 
 int
-Track_Aligned(const struct disk *d, u_long offset);
+Track_Aligned(const struct disk *, u_long);
 /* Check if offset is aligned on a track according to the
  * bios geometry
  */
 
 u_long
-Next_Track_Aligned(const struct disk *d, u_long offset);
+Next_Track_Aligned(const struct disk *, u_long);
 /* Round offset up to next track according to the bios-geometry
  */
 
 u_long
-Prev_Track_Aligned(const struct disk *d, u_long offset);
+Prev_Track_Aligned(const struct disk *, u_long);
 /* Check if offset is aligned on a track according to the
  * bios geometry
  */
 
 struct chunk *
-Create_Chunk_DWIM(struct disk *d, const struct chunk *parent , u_long size,
-	chunk_e type, int subtype, u_long flags);
+Create_Chunk_DWIM(struct disk *, const struct chunk *, u_long, chunk_e, int,
+	u_long);
 /* This one creates a partition inside the given parent of the given
  * size, and returns a pointer to it.  The first unused chunk big
  * enough is used.
  */
 
 char *
-ShowChunkFlags(struct chunk *c);
+ShowChunkFlags(struct chunk *);
 /* Return string to show flags. */
 
 /*
@@ -295,17 +294,19 @@ ShowChunkFlags(struct chunk *c);
  */
 
 struct disklabel;
-void Fill_Disklabel(struct disklabel *dl, const struct disk *new, const struct disk *old, const struct chunk *c1);
+void Fill_Disklabel(struct disklabel *, const struct disk *,
+	const struct disk *, const struct chunk *);
 void Debug_Chunk(struct chunk *);
 void Free_Chunk(struct chunk *);
-struct chunk * Clone_Chunk(const struct chunk *);
-int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long, const char *);
-void * read_block(int, daddr_t, u_long);
+struct chunk *Clone_Chunk(const struct chunk *);
+int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long,
+	const char *);
+void *read_block(int, daddr_t, u_long);
 int write_block(int, daddr_t, const void *, u_long);
-struct disklabel * read_disklabel(int, daddr_t, u_long);
-struct disk * Int_Open_Disk(const char *name);
+struct disklabel *read_disklabel(int, daddr_t, u_long);
+struct disk *Int_Open_Disk(const char *);
 int Fixup_Names(struct disk *);
-int MakeDevChunk(const struct chunk *c1, const char *path);
+int MakeDevChunk(const struct chunk *, const char *);
 __END_DECLS
 
 #define dprintf	printf
