@@ -1793,6 +1793,8 @@ coredump(p)
 
 restart:
 	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
+	if (name == NULL)
+		return (EINVAL);
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
 	error = vn_open(&nd, &flags, S_IRUSR | S_IWUSR);
