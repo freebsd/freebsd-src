@@ -73,6 +73,8 @@ static int	nullfs_sync(struct mount *mp, int waitfor,
 static int	nullfs_unmount(struct mount *mp, int mntflags, struct proc *p);
 static int	nullfs_vget(struct mount *mp, ino_t ino, struct vnode **vpp);
 static int	nullfs_vptofh(struct vnode *vp, struct fid *fhp);
+static int	nullfs_extattrctl(struct mount *mp, int cmd,
+			const char *attrname, caddr_t arg, struct proc *p);
 
 /*
  * Mount null layer
@@ -224,7 +226,7 @@ nullfs_unmount(mp, mntflags, p)
 	int mntflags;
 	struct proc *p;
 {
-	struct vnode *nullm_rootvp = MOUNTTONULLMOUNT(mp)->nullm_rootvp;
+	struct vnode *vp = MOUNTTONULLMOUNT(mp)->nullm_rootvp;
 	void *mntdata;
 	int error;
 	int flags = 0;
@@ -234,39 +236,37 @@ nullfs_unmount(mp, mntflags, p)
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 
-	/*
-	 * Clear out buffer cache.  I don't think we
-	 * ever get anything cached at this level at the
-	 * moment, but who knows...
-	 */
-#if 0
-	mntflushbuf(mp, 0);
-	if (mntinvalbuf(mp, 1))
+	error = VFS_ROOT(mp, &vp);
+	if (error)
+		return (error);
+	if (vp->v_usecount > 2) {
+		NULLFSDEBUG("nullfs_unmount: rootvp is busy(%d)\n",
+		    vp->v_usecount);
+		vput(vp);
 		return (EBUSY);
-#endif
-	if (nullm_rootvp->v_usecount > 1)
-		return (EBUSY);
-	error = vflush(mp, nullm_rootvp, flags);
+	}
+	error = vflush(mp, vp, flags);
 	if (error)
 		return (error);
 
 #ifdef NULLFS_DEBUG
-	vprint("alias root of lower", nullm_rootvp);
+	vprint("alias root of lower", vp);
 #endif
+	vput(vp);
 	/*
 	 * Release reference on underlying root vnode
 	 */
-	vrele(nullm_rootvp);
+	vrele(vp);
 	/*
 	 * And blow it away for future re-use
 	 */
-	vgone(nullm_rootvp);
+	vgone(vp);
 	/*
 	 * Finally, throw away the null_mount structure
 	 */
 	mntdata = mp->mnt_data;
 	mp->mnt_data = 0;
-	free(mntdata, M_NULLFSMNT);	/* XXX */
+	free(mntdata, M_NULLFSMNT);
 	return 0;
 }
 
@@ -287,13 +287,10 @@ nullfs_root(mp, vpp)
 	 */
 	vp = MOUNTTONULLMOUNT(mp)->nullm_rootvp;
 	VREF(vp);
+
 #ifdef NULLFS_DEBUG
 	if (VOP_ISLOCKED(vp, NULL)) {
-		/*
-		 * XXX
-		 * Should we check type of node?
-		 */
-		printf("nullfs_root: multi null mount?\n");
+		Debugger("root vnode is locked.\n");
 		vrele(vp);
 		return (EDEADLK);
 	}
@@ -370,8 +367,12 @@ nullfs_vget(mp, ino, vpp)
 	ino_t ino;
 	struct vnode **vpp;
 {
+	int error;
+	error = VFS_VGET(MOUNTTONULLMOUNT(mp)->nullm_vfs, ino, vpp);
+	if (error)
+		return (error);
 
-	return VFS_VGET(MOUNTTONULLMOUNT(mp)->nullm_vfs, ino, vpp);
+	return (null_node_create(mp, *vpp, vpp));
 }
 
 static int
@@ -380,8 +381,12 @@ nullfs_fhtovp(mp, fidp, vpp)
 	struct fid *fidp;
 	struct vnode **vpp;
 {
+	int error;
+	error = VFS_FHTOVP(MOUNTTONULLMOUNT(mp)->nullm_vfs, fidp, vpp);
+	if (error)
+		return (error);
 
-	return VFS_FHTOVP(MOUNTTONULLMOUNT(mp)->nullm_vfs, fidp, vpp);
+	return (null_node_create(mp, *vpp, vpp));
 }
 
 static int
