@@ -1,7 +1,7 @@
 /*
  * extensions to ioctl_meteor.h for the bt848 cards
  *
- * $Id: ioctl_bt848.h,v 1.19 1998/09/30 21:06:55 sos Exp $
+ * $Id: ioctl_bt848.h,v 1.22 1999/02/15 11:04:36 roger Exp $
  */
 
 /*
@@ -14,8 +14,9 @@
 #define CHNLSET_JPNBCST         5
 #define CHNLSET_JPNCABLE        6
 #define CHNLSET_XUSSR           7
+#define CHNLSET_AUSTRALIA       8
 #define CHNLSET_MIN	        CHNLSET_NABCST
-#define CHNLSET_MAX	        CHNLSET_XUSSR
+#define CHNLSET_MAX	        CHNLSET_AUSTRALIA
 
 
 /*
