@@ -57,7 +57,6 @@
 #include <sys/conf.h>
 #include <sys/devicestat.h>
 #include <sys/disk.h>
-#include <sys/file.h>
 #include <sys/signalvar.h>
 #include <sys/time.h>
 #include <sys/eventhandler.h>
@@ -2491,57 +2490,6 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 
 	return;
 }
-
-/*
- * Linux Management Interface
- * This is soon to be removed!
- */
-
-#ifdef AAC_COMPAT_LINUX
-
-#include <sys/proc.h>
-#include <machine/../linux/linux.h>
-#include <machine/../linux/linux_proto.h>
-#include <compat/linux/linux_ioctl.h>
-
-/* There are multiple ioctl number ranges that need to be handled */
-#define AAC_LINUX_IOCTL_MIN  0x0000
-#define AAC_LINUX_IOCTL_MAX  0x21ff
-
-static linux_ioctl_function_t aac_linux_ioctl;
-static struct linux_ioctl_handler aac_handler = {aac_linux_ioctl,
-						 AAC_LINUX_IOCTL_MIN,
-						 AAC_LINUX_IOCTL_MAX};
-
-SYSINIT  (aac_register,   SI_SUB_KLD, SI_ORDER_MIDDLE,
-	  linux_ioctl_register_handler, &aac_handler);
-SYSUNINIT(aac_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,
-	  linux_ioctl_unregister_handler, &aac_handler);
-
-MODULE_DEPEND(aac, linux, 1, 1, 1);
-
-static int
-aac_linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
-{
-	struct file *fp;
-	u_long cmd;
-	int error;
-
-	debug_called(2);
-
-	if ((error = fget(td, args->fd, &fp)) != 0)
-		return (error);
-	cmd = args->cmd;
-
-	/*
-	 * Pass the ioctl off to our standard handler.
-	 */
-	error = (fo_ioctl(fp, cmd, (caddr_t)args->arg, td->td_ucred, td));
-	fdrop(fp, td);
-	return (error);
-}
-
-#endif
 
 /*
  * Return the Revision of the driver to userspace and check to see if the

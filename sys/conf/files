@@ -223,6 +223,7 @@ dev/aac/aac_debug.c	optional aac
 dev/aac/aac_disk.c	optional aac
 dev/aac/aac_pci.c	optional aac pci
 dev/aac/aac_cam.c	optional aacp aac
+dev/aac/aac_linux.c		optional aac_compat_linux compat_linux
 dev/acpica/acpi.c		optional acpica
 dev/acpica/acpica_support.c	optional acpica
 dev/acpica/acpi_acad.c		optional acpica nowerror
