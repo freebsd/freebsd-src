@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * Author: Archie Cobbs <archie@whistle.com>
+ * Author: Archie Cobbs <archie@freebsd.org>
  *
  * $FreeBSD$
  * $Whistle: ng_async.h,v 1.5 1999/01/25 01:17:14 archie Exp $
