@@ -34,7 +34,7 @@
 #ifndef _IBCS2_DIRENT_H
 #define _IBCS2_DIRENT_H 1
 
-#include <compat/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_types.h>
 
 #define IBCS2_MAXNAMLEN		512
 #define IBCS2_DIRBUF		1048

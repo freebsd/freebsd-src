@@ -33,7 +33,7 @@
 #ifndef _IBCS2_FCNTL_H
 #define _IBCS2_FCNTL_H 1
 
-#include <compat/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_types.h>
 
 #define IBCS2_O_RDONLY		0x0000
 #define IBCS2_O_WRONLY		0x0001
@@ -46,6 +46,7 @@
 #define IBCS2_O_TRUNC		0x0200
 #define IBCS2_O_EXCL		0x0400
 #define IBCS2_O_NOCTTY		0x0800
+#define IBCS2_O_PRIV		0x1000
 
 #define IBCS2_F_DUPFD         0
 #define IBCS2_F_GETFD         1

@@ -33,7 +33,7 @@
 #ifndef	_IBCS2_STAT_H
 #define	_IBCS2_STAT_H
 
-#include <compat/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_types.h>
 
 struct ibcs2_stat {
 	ibcs2_dev_t	st_dev;

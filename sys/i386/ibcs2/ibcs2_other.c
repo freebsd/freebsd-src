@@ -1,6 +1,4 @@
-/*-
- * Copyright (c) 1994 Søren Schmidt
- * Copyright (c) 1994 Sean Eric Fagan
+/*
  * Copyright (c) 1995 Steven Wallace
  * All rights reserved.
  *
@@ -8,13 +6,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -27,37 +21,56 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_isc.c,v 1.4 1995/05/30 07:59:58 rgrimes Exp $
+ * $Id$
+ */
+
+/*
+ * IBCS2 compatibility module.
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysent.h>
-
-#include <machine/cpu.h>
-#include <machine/psl.h>
-#include <machine/reg.h>
+#include <sys/sysproto.h>
+#include <sys/kernel.h>
 
 #include <i386/ibcs2/ibcs2_types.h>
 #include <i386/ibcs2/ibcs2_signal.h>
 #include <i386/ibcs2/ibcs2_util.h>
 #include <i386/ibcs2/ibcs2_proto.h>
-#include <i386/ibcs2/ibcs2_isc_syscall.h>
 
-extern struct sysent isc_sysent[];
+#define IBCS2_SECURE_GETLUID 1
+#define IBCS2_SECURE_SETLUID 2
 
 int
-ibcs2_isc(struct proc *p, struct ibcs2_isc_args *uap, int *retval)
+ibcs2_secure(struct proc *p, struct ibcs2_secure_args *uap, int *retval)
 {
-	struct trapframe *tf = (struct trapframe *)p->p_md.md_regs;
-        struct sysent *callp;
-        u_int code;             
+	switch (uap->cmd) {
 
-	code = (tf->tf_eax & 0xffffff00) >> 8;
-	callp = &isc_sysent[code];
+	case IBCS2_SECURE_GETLUID:		/* get login uid */
+		*retval = p->p_ucred->cr_uid;
+		return 0;
 
-	if(code < IBCS2_ISC_MAXSYSCALL)
-	  return((*callp->sy_call)(p, (void *)uap, retval));
-	else
-	  return ENOSYS;
+	case IBCS2_SECURE_SETLUID:		/* set login uid */
+		return EPERM;
+
+	default:
+		printf("IBCS2: 'secure' cmd=%d not implemented\n", uap->cmd);
+	}
+
+	return EINVAL;
+}
+
+int
+ibcs2_lseek(struct proc *p, register struct ibcs2_lseek_args *uap, int *retval)
+{
+	struct lseek_args largs;
+	off_t lret;
+	int error;
+
+	largs.fd = uap->fd;
+	largs.offset = uap->offset;
+	largs.whence = uap->whence;
+	error = lseek(p, &largs, (int *)&lret);
+	*(long *)retval = lret;
+	return (error);
 }
