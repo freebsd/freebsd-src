@@ -267,15 +267,16 @@ struct vattr {
 /*
  * Flags for ioflag. (high 16 bits used to ask for read-ahead and
  * help with write clustering)
+ * NB: IO_NDELAY and IO_DIRECT are linked to fcntl.h
  */
 #define	IO_UNIT		0x0001		/* do I/O as atomic unit */
 #define	IO_APPEND	0x0002		/* append write to end */
-#define	IO_SYNC		0x0004		/* do I/O synchronously */
+#define	IO_NDELAY	0x0004		/* FNDELAY flag set in file table */
 #define	IO_NODELOCKED	0x0008		/* underlying node already locked */
-#define	IO_NDELAY	0x0010		/* FNDELAY flag set in file table */
+#define	IO_ASYNC	0x0010		/* bawrite rather then bdwrite */
 #define	IO_VMIO		0x0020		/* data already in VMIO space */
 #define	IO_INVAL	0x0040		/* invalidate after I/O */
-#define	IO_ASYNC	0x0080		/* bawrite rather then bdwrite */
+#define	IO_SYNC		0x0080		/* do I/O synchronously */
 #define	IO_DIRECT	0x0100		/* attempt to bypass buffer cache */
 #define	IO_EXT		0x0400		/* operate on external attributes */
 #define	IO_NORMAL	0x0800		/* operate on regular data */
