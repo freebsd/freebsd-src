@@ -269,6 +269,7 @@ dev/sound/pcm/sound.c	optional pcm
 dev/streams/streams.c	optional streams
 dev/sym/sym_hipd.c	optional sym					\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
+dev/tdfx/tdfx_pci.c	optional	tdfx
 #
 # USB support
 dev/usb/usb_if.m	optional usb
