@@ -83,7 +83,7 @@ struct uio;
 
 void nwfs_hash_init(void);
 void nwfs_hash_free(void);
-int  nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct proc *p,
+int  nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct thread *td,
 	struct nwnode **npp);
 int  nwfs_inactive(struct vop_inactive_args *);
 int  nwfs_reclaim(struct vop_reclaim_args *);

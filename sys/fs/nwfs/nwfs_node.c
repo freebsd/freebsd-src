@@ -139,7 +139,7 @@ static int
 nwfs_allocvp(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
 	struct vnode *dvp, struct vnode **vpp)
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct nwnode *np;
 	struct nwnode_hash_head *nhpp;
 	struct nwmount *nmp = VFSTONWFS(mp);
@@ -147,20 +147,20 @@ nwfs_allocvp(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
 	int error;
 
 loop:
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, p);
+	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
 rescan:
 	if (nwfs_hashlookup(nmp, fid, &np) == 0) {
 		vp = NWTOV(np);
 		mtx_lock(&vp->v_interlock);
-		lockmgr(&nwhashlock, LK_RELEASE, NULL, p);
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
+		lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
 			goto loop;
 		if (fap)
 			np->n_attr = fap->attributes;
 		*vpp = vp;
 		return(0);
 	}
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, p);
+	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
 
 	if (fap == NULL || ((fap->attributes & aDIR) == 0 && dvp == NULL))
 		panic("nwfs_allocvp: fap = %p, dvp = %p\n", fap, dvp);
@@ -186,7 +186,7 @@ rescan:
 		np->n_parent = VTONW(dvp)->n_fid;
 	}
 	lockinit(&vp->v_lock, PINOD, "nwnode", 0, LK_CANRECURSE);
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, p);
+	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
 	/*
 	 * Another process can create vnode while we blocked in malloc() or
 	 * getnewvnode(). Rescan list again.
@@ -201,8 +201,8 @@ rescan:
 	*vpp = vp;
 	nhpp = NWNOHASH(fid);
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, p);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
 
 	if (vp->v_type == VDIR && dvp && (dvp->v_flag & VROOT) == 0) {
 		np->n_flag |= NREFPARENT;
@@ -229,14 +229,14 @@ nwfs_nget(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
 }
 
 int
-nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct proc *p,
+nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct thread *td,
 	struct nwnode **npp)
 {
 	int error;
 
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, p);
+	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
 	error = nwfs_hashlookup(nmp, fid, npp);
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, p);
+	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
 	return error;
 }
 
@@ -247,26 +247,26 @@ int
 nwfs_reclaim(ap)                     
         struct vop_reclaim_args /* {
     		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
         } */ *ap;
 {
 	struct vnode *dvp = NULL, *vp = ap->a_vp;
 	struct nwnode *dnp, *np = VTONW(vp);
 	struct nwmount *nmp = VTONWFS(vp);
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	
 	NCPVNDEBUG("%s,%d\n", np->n_name, vp->v_usecount);
 	if (np->n_flag & NREFPARENT) {
 		np->n_flag &= ~NREFPARENT;
-		if (nwfs_lookupnp(nmp, np->n_parent, p, &dnp) == 0) {
+		if (nwfs_lookupnp(nmp, np->n_parent, td, &dnp) == 0) {
 			dvp = dnp->n_vnode;
 		} else {
 			NCPVNDEBUG("%s: has no parent ?\n",np->n_name);
 		}
 	}
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, p);
+	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
 	LIST_REMOVE(np, n_hash);
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, p);
+	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
 	cache_purge(vp);
 	if (nmp->n_root == np) {
 		nmp->n_root = NULL;
@@ -283,22 +283,22 @@ int
 nwfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
-	struct proc *p = ap->a_p;
-	struct ucred *cred = p->p_ucred;
+	struct thread *td = ap->a_td;
+	struct ucred *cred = td->td_proc->p_ucred;
 	struct vnode *vp = ap->a_vp;
 	struct nwnode *np = VTONW(vp);
 	int error;
 
 	NCPVNDEBUG("%s: %d\n", VTONW(vp)->n_name, vp->v_usecount);
 	if (np->opened) {
-		error = nwfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
-		error = ncp_close_file(NWFSTOCONN(VTONWFS(vp)), &np->n_fh, p, cred);
+		error = nwfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+		error = ncp_close_file(NWFSTOCONN(VTONWFS(vp)), &np->n_fh, td, cred);
 		np->opened = 0;
 	}
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	if (np->n_flag & NSHOULDFREE) {
 		cache_purge(vp);
 		vgone(vp);

@@ -103,7 +103,7 @@ extern struct ppp_softc ppp_softc[];
 struct	ppp_softc *pppalloc __P((pid_t pid));
 void	pppdealloc __P((struct ppp_softc *sc));
 int	pppioctl __P((struct ppp_softc *sc, u_long cmd, caddr_t data,
-		      int flag, struct proc *p));
+		      int flag, struct thread *td));
 int	pppoutput __P((struct ifnet *ifp, struct mbuf *m0,
 		       struct sockaddr *dst, struct rtentry *rtp));
 void	ppp_restart __P((struct ppp_softc *sc));

@@ -1164,7 +1164,7 @@ psmdetach(device_t dev)
 }
 
 static int
-psmopen(dev_t dev, int flag, int fmt, struct proc *p)
+psmopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
     int unit = PSM_UNIT(dev);
     struct psm_softc *sc;
@@ -1248,7 +1248,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 static int
-psmclose(dev_t dev, int flag, int fmt, struct proc *p)
+psmclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
     int unit = PSM_UNIT(dev);
     struct psm_softc *sc = PSM_SOFTC(unit);
@@ -1516,7 +1516,7 @@ unblock_mouse_data(struct psm_softc *sc, int c)
 }
 
 static int
-psmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+psmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
     struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
     mousemode_t mode;
@@ -2237,7 +2237,7 @@ psmintr(void *arg)
 }
 
 static int
-psmpoll(dev_t dev, int events, struct proc *p)
+psmpoll(dev_t dev, int events, struct thread *td)
 {
     struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
     int s;
@@ -2249,7 +2249,7 @@ psmpoll(dev_t dev, int events, struct proc *p)
 	if (sc->queue.count > 0)
 	    revents |= events & (POLLIN | POLLRDNORM);
 	else
-	    selrecord(p, &sc->rsel);
+	    selrecord(td, &sc->rsel);
     }
     splx(s);
 

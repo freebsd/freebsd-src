@@ -119,22 +119,22 @@ extern int union_allocvp __P((struct vnode **, struct mount *,
 				struct componentname *, struct vnode *,
 				struct vnode *, int));
 extern int union_freevp __P((struct vnode *));
-extern struct vnode *union_dircache __P((struct vnode *, struct proc *));
+extern struct vnode *union_dircache __P((struct vnode *, struct thread *));
 extern int union_copyup __P((struct union_node *, int, struct ucred *,
-				struct proc *));
+				struct thread *));
 extern int union_dowhiteout __P((struct union_node *, struct ucred *,
-					struct proc *));
+					struct thread *));
 extern int union_mkshadow __P((struct union_mount *, struct vnode *,
 				struct componentname *, struct vnode **));
 extern int union_mkwhiteout __P((struct union_mount *, struct vnode *,
 				struct componentname *, char *));
 extern int union_cn_close __P((struct vnode *, int, struct ucred *,
-				struct proc *));
+				struct thread *));
 extern void union_removed_upper __P((struct union_node *un));
 extern struct vnode *union_lowervp __P((struct vnode *));
 extern void union_newsize __P((struct vnode *, off_t, off_t));
 
-extern int (*union_dircheckp) __P((struct proc *, struct vnode **,
+extern int (*union_dircheckp) __P((struct thread *, struct vnode **,
 				 struct file *));
 
 #define	MOUNTTOUNIONMOUNT(mp) ((struct union_mount *)((mp)->mnt_data))

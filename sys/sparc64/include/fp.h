@@ -75,8 +75,8 @@ struct fpstate {
 	u_long	fp_fprs;
 };
 
-void	fp_init_proc(struct pcb *);
-int	fp_enable_proc(struct proc *);
+void	fp_init_thread(struct pcb *);
+int	fp_enable_thread(struct thread *);
 /*
  * Note: The pointers passed to the next two functions must be aligned on
  * 64 byte boundaries.

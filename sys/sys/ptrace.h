@@ -55,8 +55,8 @@
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
 
 #ifdef _KERNEL
-int	ptrace_set_pc __P((struct proc *p, unsigned long addr));
-int	ptrace_single_step __P((struct proc *p));
+int	ptrace_set_pc __P((struct thread *td, unsigned long addr));
+int	ptrace_single_step __P((struct thread *td));
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>

@@ -131,7 +131,7 @@ const struct sockaddr_in6 sa6_any = {sizeof(sa6_any), AF_INET6,
 				     0, 0, IN6ADDR_ANY_INIT, 0};
 
 static int in6_lifaddr_ioctl __P((struct socket *, u_long, caddr_t,
-	struct ifnet *, struct proc *));
+	struct ifnet *, struct thread *));
 static int in6_ifinit __P((struct ifnet *, struct in6_ifaddr *,
 			   struct sockaddr_in6 *, int));
 static void in6_unlink_ifa __P((struct in6_ifaddr *, struct ifnet *));
@@ -361,12 +361,12 @@ in6_len2mask(mask, len)
 #define ia62ifa(ia6)	(&((ia6)->ia_ifa))
 
 int
-in6_control(so, cmd, data, ifp, p)
+in6_control(so, cmd, data, ifp, td)
 	struct	socket *so;
 	u_long cmd;
 	caddr_t	data;
 	struct ifnet *ifp;
-	struct proc *p;
+	struct thread *td;
 {
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;
 	struct	in6_ifaddr *ia = NULL;
@@ -374,7 +374,7 @@ in6_control(so, cmd, data, ifp, p)
 	int privileged;
 
 	privileged = 0;
-	if (p == NULL || !suser(p))
+	if (td == NULL || !suser_td(td))
 		privileged++;
 
 	switch (cmd) {
@@ -438,7 +438,7 @@ in6_control(so, cmd, data, ifp, p)
 			return(EPERM);
 		/*fall through*/
 	case SIOCGLIFADDR:
-		return in6_lifaddr_ioctl(so, cmd, data, ifp, p);
+		return in6_lifaddr_ioctl(so, cmd, data, ifp, td);
 	}
 
 	/*
@@ -1317,12 +1317,12 @@ in6_purgeif(ifp)
  * address encoding scheme. (see figure on page 8)
  */
 static int
-in6_lifaddr_ioctl(so, cmd, data, ifp, p)
+in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 	struct socket *so;
 	u_long cmd;
 	caddr_t	data;
 	struct ifnet *ifp;
-	struct proc *p;
+	struct thread *td;
 {
 	struct if_laddrreq *iflr = (struct if_laddrreq *)data;
 	struct ifaddr *ifa;
@@ -1430,7 +1430,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, p)
 		in6_len2mask(&ifra.ifra_prefixmask.sin6_addr, prefixlen);
 
 		ifra.ifra_flags = iflr->flags & ~IFLR_PREFIX;
-		return in6_control(so, SIOCAIFADDR_IN6, (caddr_t)&ifra, ifp, p);
+		return in6_control(so, SIOCAIFADDR_IN6, (caddr_t)&ifra, ifp, td);
 	    }
 	case SIOCGLIFADDR:
 	case SIOCDLIFADDR:
@@ -1558,7 +1558,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, p)
 
 			ifra.ifra_flags = ia->ia6_flags;
 			return in6_control(so, SIOCDIFADDR_IN6, (caddr_t)&ifra,
-				ifp, p);
+				ifp, td);
 		}
 	    }
 	}

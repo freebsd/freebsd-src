@@ -655,10 +655,11 @@ vm86_getptr(vmc, kva, sel, off)
 }
 	
 int
-vm86_sysarch(p, args)
-	struct proc *p;
+vm86_sysarch(td, args)
+	struct thread *td;
 	char *args;
 {
+	struct proc *p = td->td_proc;
 	int error = 0;
 	struct i386_vm86_args ua;
 	struct vm86_kernel *vm86;
@@ -666,10 +667,10 @@ vm86_sysarch(p, args)
 	if ((error = copyin(args, &ua, sizeof(struct i386_vm86_args))) != 0)
 		return (error);
 
-	if (p->p_addr->u_pcb.pcb_ext == 0)
-		if ((error = i386_extend_pcb(p)) != 0)
+	if (td->td_pcb->pcb_ext == 0)
+		if ((error = i386_extend_pcb(td)) != 0)
 			return (error);
-	vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
+	vm86 = &td->td_pcb->pcb_ext->ext_vm86;
 
 	switch (ua.sub_op) {
 	case VM86_INIT: {

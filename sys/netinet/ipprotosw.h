@@ -73,7 +73,6 @@
 
 /* Forward declare these structures referenced from prototypes below. */
 struct mbuf;
-struct proc;
 struct sockaddr;
 struct socket;
 struct sockopt;

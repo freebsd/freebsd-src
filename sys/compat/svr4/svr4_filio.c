@@ -51,8 +51,8 @@
 /*#define GROTTY_READ_HACK*/
 
 int
-svr4_sys_poll(p, uap)
-     struct proc *p;
+svr4_sys_poll(td, uap)
+     struct thread *td;
      struct svr4_sys_poll_args *uap;
 {
      int error;
@@ -68,7 +68,7 @@ svr4_sys_poll(p, uap)
      siz = SCARG(uap, nfds) * sizeof(struct pollfd);
      pfd = (struct pollfd *)malloc(siz, M_TEMP, M_WAITOK);
 
-     error = poll(p, (struct poll_args *)uap);
+     error = poll(td, (struct poll_args *)uap);
 
      if ((cerr = copyin(SCARG(uap, fds), pfd, siz)) != 0) {
        error = cerr;
@@ -92,12 +92,12 @@ done:
 
 #if defined(READ_TEST)
 int
-svr4_sys_read(p, uap)
-     struct proc *p;
+svr4_sys_read(td, uap)
+     struct thread *td;
      struct svr4_sys_read_args *uap;
 {
      struct read_args ra;
-     struct filedesc *fdp = p->p_fd;
+     struct filedesc *fdp = td->td_proc->p_fd;
      struct file *fp;
      struct socket *so = NULL;
      int so_state;
@@ -126,15 +126,15 @@ svr4_sys_read(p, uap)
 #endif
      }
 
-     rv = read(p, &ra);
+     rv = read(td, &ra);
 
      DPRINTF(("svr4_read(%d, 0x%0x, %d) = %d\n", 
 	     SCARG(uap, fd), SCARG(uap, buf), SCARG(uap, nbyte), rv));
      if (rv == EAGAIN) {
-       DPRINTF(("sigmask = 0x%x\n", p->p_sigmask));
-       DPRINTF(("sigignore = 0x%x\n", p->p_sigignore));
-       DPRINTF(("sigcaught = 0x%x\n", p->p_sigcatch));
-       DPRINTF(("siglist = 0x%x\n", p->p_siglist));
+       DPRINTF(("sigmask = 0x%x\n", td->td_proc->p_sigmask));
+       DPRINTF(("sigignore = 0x%x\n", td->td_proc->p_sigignore));
+       DPRINTF(("sigcaught = 0x%x\n", td->td_proc->p_sigcatch));
+       DPRINTF(("siglist = 0x%x\n", td->td_proc->p_siglist));
      }
 
 #if defined(GROTTY_READ_HACK)
@@ -149,8 +149,8 @@ svr4_sys_read(p, uap)
 
 #if defined(BOGUS)
 int
-svr4_sys_write(p, uap)
-     struct proc *p;
+svr4_sys_write(td, uap)
+     struct thread *td;
      struct svr4_sys_write_args *uap;
 {
      struct write_args wa;
@@ -162,7 +162,7 @@ svr4_sys_write(p, uap)
      SCARG(&wa, buf) = SCARG(uap, buf);
      SCARG(&wa, nbyte) = SCARG(uap, nbyte);
 
-     rv = write(p, &wa);
+     rv = write(td, &wa);
 
      DPRINTF(("svr4_write(%d, 0x%0x, %d) = %d\n", 
 	     SCARG(uap, fd), SCARG(uap, buf), SCARG(uap, nbyte), rv));
@@ -172,9 +172,9 @@ svr4_sys_write(p, uap)
 #endif /* BOGUS */
 
 int
-svr4_fil_ioctl(fp, p, retval, fd, cmd, data)
+svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 	register_t *retval;
 	int fd;
 	u_long cmd;
@@ -182,7 +182,7 @@ svr4_fil_ioctl(fp, p, retval, fd, cmd, data)
 {
 	int error;
 	int num;
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp = td->td_proc->p_fd;
 
 	*retval = 0;
 
@@ -214,7 +214,7 @@ svr4_fil_ioctl(fp, p, retval, fd, cmd, data)
 #ifdef SVR4_DEBUG
 		if (cmd == FIOASYNC) DPRINTF(("FIOASYNC\n"));
 #endif
-		error = fo_ioctl(fp, cmd, (caddr_t) &num, p);
+		error = fo_ioctl(fp, cmd, (caddr_t) &num, td);
 
 		if (error)
 			return error;

@@ -100,12 +100,12 @@ static struct cdevsw mem_cdevsw = {
 struct mem_range_softc mem_range_softc;
 
 static int
-mmclose(dev_t dev, int flags, int fmt, struct proc *p)
+mmclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	switch (minor(dev)) {
 #ifdef PERFMON
 	case 32:
-		return perfmon_close(dev, flags, fmt, p);
+		return perfmon_close(dev, flags, fmt, td);
 #endif
 	default:
 		break;
@@ -114,7 +114,7 @@ mmclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-mmopen(dev_t dev, int flags, int fmt, struct proc *p)
+mmopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 
 	switch (minor(dev)) {
@@ -125,7 +125,7 @@ mmopen(dev_t dev, int flags, int fmt, struct proc *p)
 		break;
 	case 32:
 #ifdef PERFMON
-		return perfmon_open(dev, flags, fmt, p);
+		return perfmon_open(dev, flags, fmt, td);
 #else
 		return ENODEV;
 #endif
@@ -240,12 +240,12 @@ memmmap(dev_t dev, vm_offset_t offset, int prot)
 }
 
 static int
-mmioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct proc *p)
+mmioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct thread *td)
 {
 	switch(minor(dev)) {
 #ifdef PERFMON
 	case 32:
-		return perfmon_ioctl(dev, cmd, cmdarg, flags, p);
+		return perfmon_ioctl(dev, cmd, cmdarg, flags, td);
 #endif
 	default:
 		return ENODEV;

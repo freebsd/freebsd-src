@@ -83,11 +83,12 @@ shmexit(p)
  */
 
 int
-ipcperm(p, perm, mode)
-	struct proc *p;
+ipcperm(td, perm, mode)
+	struct thread *td;
 	struct ipc_perm *perm;
 	int mode;
 {
+	struct proc *p = td->td_proc;
 	struct ucred *cred = p->p_ucred;
 
 	/* Check for user match. */

@@ -55,10 +55,10 @@
 #include <ufs/ufs/ufs_extern.h>
 
 int
-softdep_flushfiles(oldmnt, flags, p)
+softdep_flushfiles(oldmnt, flags, td)
 	struct mount *oldmnt;
 	int flags;
-	struct proc *p;
+	struct thread *td;
 {
 
 	panic("softdep_flushfiles called");
@@ -244,10 +244,10 @@ softdep_fsync_mountdev(vp)
 }
 
 int
-softdep_flushworklist(oldmnt, countp, p)
+softdep_flushworklist(oldmnt, countp, td)
 	struct mount *oldmnt;
 	int *countp;
-	struct proc *p;
+	struct thread *td;
 {
 
 	*countp = 0;
@@ -260,7 +260,7 @@ softdep_sync_metadata(ap)
 		struct vnode *a_vp;
 		struct ucred *a_cred;
 		int a_waitfor;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 

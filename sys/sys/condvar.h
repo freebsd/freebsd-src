@@ -33,9 +33,9 @@
 #include <sys/queue.h>
 
 struct mtx;
-struct proc;
+struct thread;
 
-TAILQ_HEAD(cv_waitq, proc);
+TAILQ_HEAD(cv_waitq, thread);
 
 /*
  * Condition variable.
@@ -61,7 +61,7 @@ int	cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo);
 void	cv_signal(struct cv *cvp);
 void	cv_broadcast(struct cv *cvp);
 
-void	cv_waitq_remove(struct proc *p);
+void	cv_waitq_remove(struct thread *td);
 
 #define	cv_waitq_empty(cvp)	(TAILQ_EMPTY(&(cvp)->cv_waitq))
 #define	cv_wmesg(cvp)		((cvp)->cv_description)

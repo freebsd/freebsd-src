@@ -6,6 +6,7 @@ SUBDIR=	async \
 	bridge \
 	cisco \
 	echo \
+	eiface \
 	ether \
 	frame_relay \
 	hole \

@@ -269,8 +269,8 @@ MODULE_VERSION(sysvmsg, 1);
  * MPSAFE
  */
 int
-msgsys(p, uap)
-	struct proc *p;
+msgsys(td, uap)
+	struct thread *td;
 	/* XXX actually varargs. */
 	struct msgsys_args /* {
 		u_int	which;
@@ -284,8 +284,7 @@ msgsys(p, uap)
 	int error;
 
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
@@ -293,7 +292,7 @@ msgsys(p, uap)
 		error = EINVAL;
 		goto done2;
 	}
-	error = (*msgcalls[uap->which])(p, &uap->a2);
+	error = (*msgcalls[uap->which])(td, &uap->a2);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -335,8 +334,8 @@ struct msgctl_args {
  * MPSAFE
  */
 int
-msgctl(p, uap)
-	struct proc *p;
+msgctl(td, uap)
+	struct thread *td;
 	register struct msgctl_args *uap;
 {
 	int msqid = uap->msqid;
@@ -350,8 +349,7 @@ msgctl(p, uap)
 	printf("call to msgctl(%d, %d, 0x%x)\n", msqid, cmd, user_msqptr);
 #endif
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
@@ -392,7 +390,7 @@ msgctl(p, uap)
 	case IPC_RMID:
 	{
 		struct msg *msghdr;
-		if ((error = ipcperm(p, &msqptr->msg_perm, IPC_M)))
+		if ((error = ipcperm(td, &msqptr->msg_perm, IPC_M)))
 			goto done2;
 		/* Free the message headers */
 		msghdr = msqptr->msg_first;
@@ -420,12 +418,12 @@ msgctl(p, uap)
 		break;
 
 	case IPC_SET:
-		if ((error = ipcperm(p, &msqptr->msg_perm, IPC_M)))
+		if ((error = ipcperm(td, &msqptr->msg_perm, IPC_M)))
 			goto done2;
 		if ((error = copyin(user_msqptr, &msqbuf, sizeof(msqbuf))) != 0)
 			goto done2;
 		if (msqbuf.msg_qbytes > msqptr->msg_qbytes) {
-			error = suser(p);
+			error = suser_td(td);
 			if (error)
 				goto done2;
 		}
@@ -452,7 +450,7 @@ msgctl(p, uap)
 		break;
 
 	case IPC_STAT:
-		if ((error = ipcperm(p, &msqptr->msg_perm, IPC_R))) {
+		if ((error = ipcperm(td, &msqptr->msg_perm, IPC_R))) {
 #ifdef MSG_DEBUG_OK
 			printf("requester doesn't have read access\n");
 #endif
@@ -471,7 +469,7 @@ msgctl(p, uap)
 	}
 
 	if (error == 0)
-		p->p_retval[0] = rval;
+		td->td_retval[0] = rval;
 done2:
 	mtx_unlock(&Giant);
 	return(error);
@@ -488,14 +486,14 @@ struct msgget_args {
  * MPSAFE
  */
 int
-msgget(p, uap)
-	struct proc *p;
+msgget(td, uap)
+	struct thread *td;
 	register struct msgget_args *uap;
 {
 	int msqid, error = 0;
 	int key = uap->key;
 	int msgflg = uap->msgflg;
-	struct ucred *cred = p->p_ucred;
+	struct ucred *cred = td->td_proc->p_ucred;
 	register struct msqid_ds *msqptr = NULL;
 
 #ifdef MSG_DEBUG_OK
@@ -503,8 +501,7 @@ msgget(p, uap)
 #endif
 
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
@@ -527,7 +524,7 @@ msgget(p, uap)
 				error = EEXIST;
 				goto done2;
 			}
-			if ((error = ipcperm(p, &msqptr->msg_perm, msgflg & 0700 ))) {
+			if ((error = ipcperm(td, &msqptr->msg_perm, msgflg & 0700 ))) {
 #ifdef MSG_DEBUG_OK
 				printf("requester doesn't have 0%o access\n",
 				    msgflg & 0700);
@@ -592,7 +589,7 @@ msgget(p, uap)
 
 found:
 	/* Construct the unique msqid */
-	p->p_retval[0] = IXSEQ_TO_IPCID(msqid, msqptr->msg_perm);
+	td->td_retval[0] = IXSEQ_TO_IPCID(msqid, msqptr->msg_perm);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -611,8 +608,8 @@ struct msgsnd_args {
  * MPSAFE
  */
 int
-msgsnd(p, uap)
-	struct proc *p;
+msgsnd(td, uap)
+	struct thread *td;
 	register struct msgsnd_args *uap;
 {
 	int msqid = uap->msqid;
@@ -629,8 +626,7 @@ msgsnd(p, uap)
 	    msgflg);
 #endif
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
@@ -662,7 +658,7 @@ msgsnd(p, uap)
 		goto done2;
 	}
 
-	if ((error = ipcperm(p, &msqptr->msg_perm, IPC_W))) {
+	if ((error = ipcperm(td, &msqptr->msg_perm, IPC_W))) {
 #ifdef MSG_DEBUG_OK
 		printf("requester doesn't have write access\n");
 #endif
@@ -929,11 +925,11 @@ msgsnd(p, uap)
 
 	msqptr->msg_cbytes += msghdr->msg_ts;
 	msqptr->msg_qnum++;
-	msqptr->msg_lspid = p->p_pid;
+	msqptr->msg_lspid = td->td_proc->p_pid;
 	msqptr->msg_stime = time_second;
 
 	wakeup((caddr_t)msqptr);
-	p->p_retval[0] = 0;
+	td->td_retval[0] = 0;
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -953,8 +949,8 @@ struct msgrcv_args {
  * MPSAFE
  */
 int
-msgrcv(p, uap)
-	struct proc *p;
+msgrcv(td, uap)
+	struct thread *td;
 	register struct msgrcv_args *uap;
 {
 	int msqid = uap->msqid;
@@ -974,8 +970,7 @@ msgrcv(p, uap)
 #endif
 
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
@@ -1007,7 +1002,7 @@ msgrcv(p, uap)
 		goto done2;
 	}
 
-	if ((error = ipcperm(p, &msqptr->msg_perm, IPC_R))) {
+	if ((error = ipcperm(td, &msqptr->msg_perm, IPC_R))) {
 #ifdef MSG_DEBUG_OK
 		printf("requester doesn't have read access\n");
 #endif
@@ -1159,7 +1154,7 @@ msgrcv(p, uap)
 
 	msqptr->msg_cbytes -= msghdr->msg_ts;
 	msqptr->msg_qnum--;
-	msqptr->msg_lrpid = p->p_pid;
+	msqptr->msg_lrpid = td->td_proc->p_pid;
 	msqptr->msg_rtime = time_second;
 
 	/*
@@ -1228,7 +1223,7 @@ msgrcv(p, uap)
 
 	msg_freehdr(msghdr);
 	wakeup((caddr_t)msqptr);
-	p->p_retval[0] = msgsz;
+	td->td_retval[0] = msgsz;
 done2:
 	mtx_unlock(&Giant);
 	return (error);

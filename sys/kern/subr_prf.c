@@ -109,12 +109,13 @@ tablefull(const char *tab)
 int
 uprintf(const char *fmt, ...)
 {
-	struct proc *p = curproc;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 	va_list ap;
 	struct putchar_arg pca;
 	int retval = 0;
 
-	if (p && p != PCPU_GET(idleproc) && p->p_flag & P_CONTROLT &&
+	if (td && td != PCPU_GET(idlethread) && p->p_flag & P_CONTROLT &&
 	    p->p_session->s_ttyvp) {
 		va_start(ap, fmt);
 		pca.tty = p->p_session->s_ttyp;

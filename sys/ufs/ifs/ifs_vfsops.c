@@ -70,7 +70,7 @@ static MALLOC_DEFINE(M_IFSNODE, "IFS node", "IFS vnode private part");
 
 static int	ifs_init (struct vfsconf *);
 static int	ifs_mount (struct mount *, char *, caddr_t,
-		    struct nameidata *, struct proc *);
+		    struct nameidata *, struct thread *);
 extern int	ifs_vget (struct mount *, ino_t, struct vnode **);
 
 
@@ -101,16 +101,16 @@ VFS_SET(ifs_vfsops, ifs, 0);
  * deal with softupdates so we make sure the user isn't trying to use it.
  */
 static int
-ifs_mount(mp, path, data, ndp, p)
+ifs_mount(mp, path, data, ndp, td)
 	struct mount		*mp;
 	char			*path;
 	caddr_t			data;
 	struct nameidata	*ndp;
-	struct proc		*p;
+	struct thread		*td;
 {
 	/* Clear the softdep flag */
 	mp->mnt_flag &= ~MNT_SOFTDEP;
-	return (ffs_mount(mp, path, data, ndp, p));
+	return (ffs_mount(mp, path, data, ndp, td));
 }
 
 

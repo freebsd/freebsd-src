@@ -37,7 +37,7 @@
  * $FreeBSD$
  */
 
-#include "opt_upages.h"
+#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,6 +50,7 @@
 #include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/resourcevar.h>
+#include <sys/user.h>
 /* XXX */
 #ifdef KTR_PERCPU
 #include <sys/ktr.h>
@@ -79,21 +80,31 @@
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
-ASSYM(P_ADDR, offsetof(struct proc, p_addr));
-ASSYM(P_INTR_NESTING_LEVEL, offsetof(struct proc, p_intr_nesting_level));
 ASSYM(P_SFLAG, offsetof(struct proc, p_sflag));
 ASSYM(P_STAT, offsetof(struct proc, p_stat));
-ASSYM(P_WCHAN, offsetof(struct proc, p_wchan));
+ASSYM(P_UAREA, offsetof(struct proc, p_uarea));
 
-ASSYM(PS_ASTPENDING, PS_ASTPENDING);
-ASSYM(PS_NEEDRESCHED, PS_NEEDRESCHED);
+/*ASSYM(TD_STAT, offsetof(struct thread, td__stat));*/
+ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
+ASSYM(TD_WCHAN, offsetof(struct thread, td_wchan));
+ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
+ASSYM(TD_KSE, offsetof(struct thread, td_kse));
+ASSYM(TD_PROC, offsetof(struct thread, td_proc));
+ASSYM(TD_INTR_NESTING_LEVEL, offsetof(struct thread, td_intr_nesting_level));
+
+ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
+
+ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
+ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
 
 ASSYM(SSLEEP, SSLEEP);
 ASSYM(SRUN, SRUN);
 ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
 ASSYM(V_SYSCALL, offsetof(struct vmmeter, v_syscall));
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
-ASSYM(UPAGES, UPAGES);
+/* ASSYM(UPAGES, UPAGES);*/
+ASSYM(UAREA_PAGES, UAREA_PAGES);
+ASSYM(KSTACK_PAGES, KSTACK_PAGES);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(NPTEPG, NPTEPG);
 ASSYM(NPDEPG, NPDEPG);
@@ -133,9 +144,7 @@ ASSYM(PCB_SAVEFPU_SIZE, sizeof(union savefpu));
 ASSYM(PCB_SAVE87_SIZE, sizeof(struct save87));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 
-#ifdef SMP
 ASSYM(PCB_SIZE, sizeof(struct pcb));
-#endif
 
 ASSYM(TF_TRAPNO, offsetof(struct trapframe, tf_trapno));
 ASSYM(TF_ERR, offsetof(struct trapframe, tf_err));
@@ -166,9 +175,9 @@ ASSYM(BI_ESYMTAB, offsetof(struct bootinfo, bi_esymtab));
 ASSYM(BI_KERNEND, offsetof(struct bootinfo, bi_kernend));
 ASSYM(GD_SIZEOF, sizeof(struct globaldata));
 ASSYM(GD_PRVSPACE, offsetof(struct globaldata, gd_prvspace));
-ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
-ASSYM(GD_NPXPROC, offsetof(struct globaldata, gd_npxproc));
-ASSYM(GD_IDLEPROC, offsetof(struct globaldata, gd_idleproc));
+ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
+ASSYM(GD_NPXTHREAD, offsetof(struct globaldata, gd_npxthread));
+ASSYM(GD_IDLETHREAD, offsetof(struct globaldata, gd_idlethread));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_COMMON_TSS, offsetof(struct globaldata, gd_common_tss));
 ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));

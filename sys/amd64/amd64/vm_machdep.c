@@ -47,7 +47,7 @@
 #endif
 #include "opt_reset.h"
 #include "opt_isa.h"
-#include "opt_upages.h"
+#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -117,19 +117,24 @@ vm_fault_quick(v, prot)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(p1, p2, flags)
-	register struct proc *p1, *p2;
+cpu_fork(td1, p2, flags)
+	register struct thread *td1;
+	register struct proc *p2;
 	int flags;
 {
+	register struct proc *p1;
+	struct thread *td2;
 	struct pcb *pcb2;
 #ifdef DEV_NPX
 	int savecrit;
 #endif
 
+	p1 = td1->td_proc;
+	td2 = &p2->p_thread;
 	if ((flags & RFPROC) == 0) {
 		if ((flags & RFMEM) == 0) {
 			/* unshare user LDT */
-			struct pcb *pcb1 = &p1->p_addr->u_pcb;
+			struct pcb *pcb1 = td1->td_pcb;
 			struct pcb_ldt *pcb_ldt = pcb1->pcb_ldt;
 			if (pcb_ldt && pcb_ldt->ldt_refcnt > 1) {
 				pcb_ldt = user_ldt_alloc(pcb1,pcb_ldt->ldt_len);
@@ -145,30 +150,32 @@ cpu_fork(p1, p2, flags)
 
 	/* Ensure that p1's pcb is up to date. */
 #ifdef DEV_NPX
-	if (p1 == curproc)
-		p1->p_addr->u_pcb.pcb_gs = rgs();
+	if (td1 == curthread)
+		td1->td_pcb->pcb_gs = rgs();
 	savecrit = critical_enter();
-	if (PCPU_GET(npxproc) == p1)
-		npxsave(&p1->p_addr->u_pcb.pcb_save);
+	if (PCPU_GET(npxthread) == td1)
+		npxsave(&td1->td_pcb->pcb_save);
 	critical_exit(savecrit);
 #endif
 
+	/* Point the pcb to the top of the stack */
+	pcb2 = (struct pcb *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	td2->td_pcb = pcb2;
+
 	/* Copy p1's pcb. */
-	p2->p_addr->u_pcb = p1->p_addr->u_pcb;
-	pcb2 = &p2->p_addr->u_pcb;
+	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
 	/*
 	 * Create a new fresh stack for the new process.
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
 	 */
-	p2->p_frame = (struct trapframe *)
-			   ((int)p2->p_addr + UPAGES * PAGE_SIZE - 16) - 1;
-	bcopy(p1->p_frame, p2->p_frame, sizeof(struct trapframe));
+	td2->td_frame = (struct trapframe *)td2->td_pcb - 1;
+	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
 
-	p2->p_frame->tf_eax = 0;		/* Child returns zero */
-	p2->p_frame->tf_eflags &= ~PSL_C;	/* success */
-	p2->p_frame->tf_edx = 1;
+	td2->td_frame->tf_eax = 0;		/* Child returns zero */
+	td2->td_frame->tf_eflags &= ~PSL_C;	/* success */
+	td2->td_frame->tf_edx = 1;
 
 	/*
 	 * Set registers for trampoline to user mode.  Leave space for the
@@ -178,8 +185,8 @@ cpu_fork(p1, p2, flags)
 	pcb2->pcb_edi = 0;
 	pcb2->pcb_esi = (int)fork_return;	/* fork_trampoline argument */
 	pcb2->pcb_ebp = 0;
-	pcb2->pcb_esp = (int)p2->p_frame - sizeof(void *);
-	pcb2->pcb_ebx = (int)p2;		/* fork_trampoline argument */
+	pcb2->pcb_esp = (int)td2->td_frame - sizeof(void *);
+	pcb2->pcb_ebx = (int)td2;		/* fork_trampoline argument */
 	pcb2->pcb_eip = (int)fork_trampoline;
 	/*-
 	 * pcb2->pcb_dr*:	cloned above.
@@ -228,8 +235,8 @@ cpu_fork(p1, p2, flags)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(p, func, arg)
-	struct proc *p;
+cpu_set_fork_handler(td, func, arg)
+	struct thread *td;
 	void (*func) __P((void *));
 	void *arg;
 {
@@ -237,18 +244,18 @@ cpu_set_fork_handler(p, func, arg)
 	 * Note that the trap frame follows the args, so the function
 	 * is really called like this:  func(arg, frame);
 	 */
-	p->p_addr->u_pcb.pcb_esi = (int) func;	/* function */
-	p->p_addr->u_pcb.pcb_ebx = (int) arg;	/* first arg */
+	td->td_pcb->pcb_esi = (int) func;	/* function */
+	td->td_pcb->pcb_ebx = (int) arg;	/* first arg */
 }
 
 void
-cpu_exit(p)
-	register struct proc *p;
+cpu_exit(td)
+	register struct thread *td;
 {
-	struct pcb *pcb = &p->p_addr->u_pcb; 
+	struct pcb *pcb = td->td_pcb; 
 
 #ifdef DEV_NPX
-	npxexit(p);
+	npxexit(td);
 #endif
 	if (pcb->pcb_ext != 0) {
 	        /* 
@@ -280,25 +287,29 @@ cpu_wait(p)
  * Dump the machine specific header information at the start of a core dump.
  */
 int
-cpu_coredump(p, vp, cred)
-	struct proc *p;
+cpu_coredump(td, vp, cred)
+	struct thread *td;
 	struct vnode *vp;
 	struct ucred *cred;
 {
+	struct proc *p = td->td_proc;
 	int error;
 	caddr_t tempuser;
 
-	tempuser = malloc(ctob(UPAGES), M_TEMP, M_WAITOK | M_ZERO);
+	tempuser = malloc(ctob(UAREA_PAGES + KSTACK_PAGES), M_TEMP, M_WAITOK | M_ZERO);
 	if (!tempuser)
 		return EINVAL;
 	
-	bcopy(p->p_addr, tempuser, sizeof(struct user));
-	bcopy(p->p_frame,
-	      tempuser + ((caddr_t) p->p_frame - (caddr_t) p->p_addr),
+	bcopy(p->p_uarea, tempuser, sizeof(struct user));
+#if 0		/* XXXKSE - broken, fixme!!!!! td_frame is in kstack! */
+	bcopy(td->td_frame,
+	      tempuser + ((caddr_t) td->td_frame - (caddr_t) p->p_uarea),
 	      sizeof(struct trapframe));
+#endif
 
-	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser, ctob(UPAGES),
-			(off_t)0, UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, p);
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser, 
+			ctob(UAREA_PAGES + KSTACK_PAGES),
+			(off_t)0, UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, td);
 
 	free(tempuser, M_TEMP);
 	

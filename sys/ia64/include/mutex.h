@@ -55,7 +55,7 @@
 	add	rLCK=MTX_LOCK,rLCK ;;			\
 	rsm	psr.i ;					\
 	mov	ar.ccv=MTX_UNOWNED ;			\
-	add	rNEW=PC_CURPROC,rNEW ;;			\
+	add	rNEW=PC_CURTHREAD,rNEW ;;		\
 	ld8	rNEW=[rNEW] ;;				\
 1:	cmpxchg8.acq rOLD=[rLCK],rNEW,ar.ccv ;;		\
 	cmp.eq	p1,p0=MTX_UNOWNED,rOLD ;;		\

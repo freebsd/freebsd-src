@@ -46,13 +46,13 @@ idle_setup(void *dummy)
 	SLIST_FOREACH(gd, &cpuhead, gd_allcpu) {
 		error = kthread_create(idle_proc, NULL, &p,
 		    RFSTOPPED | RFHIGHPID, "idle: cpu%d", gd->gd_cpuid);
-		gd->gd_idleproc = p;
-		if (gd->gd_curproc == NULL)
-			gd->gd_curproc = p;
+		gd->gd_idlethread = &p->p_thread;
+		if (gd->gd_curthread == NULL)
+			gd->gd_curthread = gd->gd_idlethread;
 #else
 		error = kthread_create(idle_proc, NULL, &p,
 		    RFSTOPPED | RFHIGHPID, "idle");
-		PCPU_SET(idleproc, p);
+		PCPU_SET(idlethread, &p->p_thread);
 #endif
 		if (error)
 			panic("idle_setup: kthread_create error %d\n", error);

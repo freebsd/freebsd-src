@@ -166,15 +166,15 @@ isavga_attach(device_t dev)
 #ifdef FB_INSTALL_CDEV
 
 static int
-isavga_open(dev_t dev, int flag, int mode, struct proc *p)
+isavga_open(dev_t dev, int flag, int mode, struct thread *td)
 {
-	return vga_open(dev, VGA_SOFTC(VGA_UNIT(dev)), flag, mode, p);
+	return vga_open(dev, VGA_SOFTC(VGA_UNIT(dev)), flag, mode, td);
 }
 
 static int
-isavga_close(dev_t dev, int flag, int mode, struct proc *p)
+isavga_close(dev_t dev, int flag, int mode, struct thread *td)
 {
-	return vga_close(dev, VGA_SOFTC(VGA_UNIT(dev)), flag, mode, p);
+	return vga_close(dev, VGA_SOFTC(VGA_UNIT(dev)), flag, mode, td);
 }
 
 static int
@@ -190,9 +190,9 @@ isavga_write(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-isavga_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
+isavga_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
-	return vga_ioctl(dev, VGA_SOFTC(VGA_UNIT(dev)), cmd, arg, flag, p);
+	return vga_ioctl(dev, VGA_SOFTC(VGA_UNIT(dev)), cmd, arg, flag, td);
 }
 
 static int

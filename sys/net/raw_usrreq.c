@@ -150,26 +150,26 @@ raw_uabort(struct socket *so)
 /* pru_accept is EOPNOTSUPP */
 
 static int
-raw_uattach(struct socket *so, int proto, struct proc *p)
+raw_uattach(struct socket *so, int proto, struct thread *td)
 {
 	struct rawcb *rp = sotorawcb(so);
 	int error;
 
 	if (rp == 0)
 		return EINVAL;
-	if (p && (error = suser(p)) != 0)
+	if (td && (error = suser_td(td)) != 0)
 		return error;
 	return raw_attach(so, proto);
 }
 
 static int
-raw_ubind(struct socket *so, struct sockaddr *nam, struct proc *p)
+raw_ubind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	return EINVAL;
 }
 
 static int
-raw_uconnect(struct socket *so, struct sockaddr *nam, struct proc *p)
+raw_uconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	return EINVAL;
 }
@@ -225,7 +225,7 @@ raw_upeeraddr(struct socket *so, struct sockaddr **nam)
 
 static int
 raw_usend(struct socket *so, int flags, struct mbuf *m,
-	  struct sockaddr *nam, struct mbuf *control, struct proc *p)
+	  struct sockaddr *nam, struct mbuf *control, struct thread *td)
 {
 	int error;
 	struct rawcb *rp = sotorawcb(so);

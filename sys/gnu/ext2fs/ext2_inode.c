@@ -129,12 +129,12 @@ ext2_update(vp, waitfor)
  * disk blocks.
  */
 int
-ext2_truncate(vp, length, flags, cred, p)
+ext2_truncate(vp, length, flags, cred, td)
 	struct vnode *vp;
 	off_t length;
 	int flags;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct vnode *ovp = vp;
 	register daddr_t lastblock;
@@ -268,7 +268,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	bcopy((caddr_t)&oip->i_db[0], (caddr_t)newblks, sizeof newblks);
 	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof oldblks);
 	oip->i_size = osize;
-	error = vtruncbuf(ovp, cred, p, length, (int)fs->s_blocksize);
+	error = vtruncbuf(ovp, cred, td, length, (int)fs->s_blocksize);
 	if (error && (allerror == 0))
 		allerror = error;
 

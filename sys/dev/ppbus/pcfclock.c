@@ -153,7 +153,7 @@ pcfclock_attach(device_t dev)
 }
 
 static int 
-pcfclock_open(dev_t dev, int flag, int fms, struct proc *p)
+pcfclock_open(dev_t dev, int flag, int fms, struct thread *td)
 {
 	u_int unit = minor(dev);
 	struct pcfclock_data *sc = UNITOSOFTC(unit);
@@ -174,7 +174,7 @@ pcfclock_open(dev_t dev, int flag, int fms, struct proc *p)
 }
 
 static int
-pcfclock_close(dev_t dev, int flags, int fmt, struct proc *p)
+pcfclock_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	u_int unit = minor(dev);
 	struct pcfclock_data *sc = UNITOSOFTC(unit);

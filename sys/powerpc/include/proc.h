@@ -37,5 +37,8 @@
 /*
  * Machine-dependent part of the proc structure
  */
+struct mdthread {
+};
+
 struct mdproc {
 };

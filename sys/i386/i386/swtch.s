@@ -77,17 +77,17 @@ ENTRY(cpu_throw)
 ENTRY(cpu_switch)
 	
 	/* switch to new process. first, save context as needed */
-	movl	PCPU(CURPROC),%ecx
+	movl	PCPU(CURTHREAD),%ecx
 
 	/* if no process to save, don't bother */
 	testl	%ecx,%ecx
 	jz	sw1
-
-	movl	P_VMSPACE(%ecx), %edx
+	movl	TD_PROC(%ecx), %eax
+	movl	P_VMSPACE(%eax), %edx
 	movl	PCPU(CPUID), %eax
 	btrl	%eax, VM_PMAP+PM_ACTIVE(%edx)
 
-	movl	P_ADDR(%ecx),%edx
+	movl	TD_PCB(%ecx),%edx
 
 	movl	(%esp),%eax			/* Hardware registers */
 	movl	%eax,PCB_EIP(%edx)
@@ -124,7 +124,7 @@ ENTRY(cpu_switch)
 
 #ifdef DEV_NPX
 	/* have we used fp, and need a save? */
-	cmpl	%ecx,PCPU(NPXPROC)
+	cmpl	%ecx,PCPU(NPXTHREAD)
 	jne	1f
 	addl	$PCB_SAVEFPU,%edx		/* h/w bugs make saving complicated */
 	pushl	%edx
@@ -133,7 +133,11 @@ ENTRY(cpu_switch)
 1:
 #endif	/* DEV_NPX */
 
+/*##########################################################################*/
+/*##########################################################################*/
+/*##########################################################################*/
 	/* save is done, now choose a new process */
+	/* But still trashing space above the old "Top Of Stack".. */
 sw1:
 
 #ifdef SMP
@@ -143,17 +147,17 @@ sw1:
 	cmpl	$0,PCPU(CPUID)
 	je	1f
 
-	movl	PCPU(IDLEPROC), %eax
-	jmp	sw1b
+	movl	PCPU(IDLETHREAD), %eax
+	jmp	sw1b  /* Idle thread can run on any kernel context */
 1:
 #endif
 
 	/*
-	 * Choose a new process to schedule.  chooseproc() returns idleproc
+	 * Choose a new process to schedule.  choosethread() returns idleproc
 	 * if it cannot find another process to run.
 	 */
 sw1a:
-	call	chooseproc			/* trash ecx, edx, ret eax*/
+	call	choosethread			/* trash ecx, edx, ret eax*/
 
 #ifdef INVARIANTS
 	testl	%eax,%eax			/* no process? */
@@ -163,15 +167,20 @@ sw1b:
 	movl	%eax,%ecx
 
 #ifdef	INVARIANTS
-	cmpb	$SRUN,P_STAT(%ecx)
+	movl	TD_PROC(%ecx), %eax	/* XXXKSE */
+	cmpb	$SRUN,P_STAT(%eax)
 	jne	badsw2
 #endif
 
-	movl	P_ADDR(%ecx),%edx
+	movl	TD_PCB(%ecx),%edx
 
 #if defined(SWTCH_OPTIM_STATS)
 	incl	swtch_optim_stats
 #endif
+
+/*##########################################################################*/
+/*##########################################################################*/
+/*##########################################################################*/
 	/* switch address space */
 	movl	%cr3,%ebx
 	cmpl	PCB_CR3(%edx),%ebx
@@ -181,9 +190,8 @@ sw1b:
 	incl	tlb_flush_count
 #endif
 	movl	PCB_CR3(%edx),%ebx
-	movl	%ebx,%cr3
+	movl	%ebx,%cr3			/* LOAD NEW PAGE TABLES */
 4:
-
 	movl	PCPU(CPUID), %esi
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
 	je	1f
@@ -191,12 +199,9 @@ sw1b:
 	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
 	jmp	2f
 1:
-
 	/* update common_tss.tss_esp0 pointer */
-	movl	%edx, %ebx			/* pcb */
-	addl	$(UPAGES * PAGE_SIZE - 16), %ebx
-	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0
-
+	/* esp points to base of usable stack */
+	movl	%edx, PCPU(COMMON_TSS) + TSS_ESP0 /* stack is below pcb */
 	btrl	%esi, private_tss
 	jae	3f
 	PCPU_ADDR(COMMON_TSSD, %edi)
@@ -210,7 +215,9 @@ sw1b:
 	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 3:
-	movl	P_VMSPACE(%ecx), %ebx
+	/* note in a vmspace that this cpu is using it */
+	movl	TD_PROC(%ecx),%eax	/* get proc from thread XXXKSE */
+	movl	P_VMSPACE(%eax), %ebx	/* get vmspace of proc */
 	movl	PCPU(CPUID), %eax
 	btsl	%eax, VM_PMAP+PM_ACTIVE(%ebx)
 
@@ -233,22 +240,23 @@ sw1b:
 #endif /** GRAB_LOPRIO */
 #endif /* SMP */
 	movl	%edx, PCPU(CURPCB)
-	movl	%ecx, PCPU(CURPROC)		/* into next process */
+	movl	%ecx, PCPU(CURTHREAD)		/* into next process */
 
 #ifdef SMP
 	/* XXX FIXME: we should be restoring the local APIC TPR */
 #endif /* SMP */
 
-	cmpl	$0, PCB_USERLDT(%edx)
-	jnz	1f
-	movl	_default_ldt,%eax
-	cmpl	PCPU(CURRENTLDT),%eax
-	je	2f
-	lldt	_default_ldt
-	movl	%eax,PCPU(CURRENTLDT)
+	cmpl	$0, PCB_USERLDT(%edx)	/* if there is one */
+	jnz	1f			/* then use it */
+	movl	_default_ldt,%eax	/* We will use the default */
+	cmpl	PCPU(CURRENTLDT),%eax	/* check to see if already loaded */
+	je	2f			/* if so skip reload */
+	lldt	_default_ldt		/* load the default... we trust it. */
+	movl	%eax,PCPU(CURRENTLDT)	/* store what we have */
 	jmp	2f
-1:	pushl	%edx
-	call	set_user_ldt
+
+1:	pushl	%edx			/* call a non-trusting routine */
+	call	set_user_ldt		/* to check and load the ldt */
 	popl	%edx
 2:
 
@@ -275,7 +283,7 @@ cpu_switch_load_gs:
 	andl    $0x0000fc00,%eax         /*   reserved bits               */
 	pushl   %ebx
 	movl    PCB_DR7(%edx),%ebx
-	andl	$~0x0000fc00,%ebx
+	andl	$~0x0000fc00,%ebx	/* re-enable the restored watchpoints */
 	orl     %ebx,%eax
 	popl	%ebx
 	movl    %eax,%dr7
@@ -322,25 +330,25 @@ ENTRY(savectx)
 
 #ifdef DEV_NPX
 	/*
-	 * If npxproc == NULL, then the npx h/w state is irrelevant and the
+	 * If npxthread == NULL, then the npx h/w state is irrelevant and the
 	 * state had better already be in the pcb.  This is true for forks
 	 * but not for dumps (the old book-keeping with FP flags in the pcb
 	 * always lost for dumps because the dump pcb has 0 flags).
 	 *
-	 * If npxproc != NULL, then we have to save the npx h/w state to
-	 * npxproc's pcb and copy it to the requested pcb, or save to the
+	 * If npxthread != NULL, then we have to save the npx h/w state to
+	 * npxthread's pcb and copy it to the requested pcb, or save to the
 	 * requested pcb and reload.  Copying is easier because we would
 	 * have to handle h/w bugs for reloading.  We used to lose the
 	 * parent's npx state for forks by forgetting to reload.
 	 */
 	pushfl
 	cli
-	movl	PCPU(NPXPROC),%eax
+	movl	PCPU(NPXTHREAD),%eax
 	testl	%eax,%eax
 	je	1f
 
 	pushl	%ecx
-	movl	P_ADDR(%eax),%eax
+	movl	TD_PCB(%eax),%eax
 	leal	PCB_SAVEFPU(%eax),%eax
 	pushl	%eax
 	pushl	%eax

@@ -341,7 +341,7 @@ passregister(struct cam_periph *periph, void *arg)
 }
 
 static int
-passopen(dev_t dev, int flags, int fmt, struct proc *p)
+passopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct pass_softc *softc;
@@ -412,7 +412,7 @@ passopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-passclose(dev_t dev, int flag, int fmt, struct proc *p)
+passclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct 	cam_periph *periph;
 	struct	pass_softc *softc;
@@ -478,7 +478,7 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 }
 
 static int
-passioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+passioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct 	cam_periph *periph;
 	struct	pass_softc *softc;

@@ -98,8 +98,8 @@ static int	pppopen __P((dev_t dev, struct tty *tp));
 static int	pppclose __P((struct tty *tp, int flag));
 static int	pppread __P((struct tty *tp, struct uio *uio, int flag));
 static int	pppwrite __P((struct tty *tp, struct uio *uio, int flag));
-static int	ppptioctl __P((struct tty *tp, u_long cmd, caddr_t data, int flag,
-		       struct proc *));
+static int	ppptioctl __P((struct tty *tp, u_long cmd, caddr_t data,
+					int flag, struct thread *td));
 static int	pppinput __P((int c, struct tty *tp));
 static int	pppstart __P((struct tty *tp));
 
@@ -171,11 +171,11 @@ pppopen(dev, tp)
     dev_t dev;
     register struct tty *tp;
 {
-    struct proc *p = curproc;		/* XXX */
+    struct thread *td = curthread;		/* XXX */
     register struct ppp_softc *sc;
     int error, s;
 
-    if ((error = suser(p)) != 0)
+    if ((error = suser_td(td)) != 0)
 	return (error);
 
     s = spltty();
@@ -188,7 +188,7 @@ pppopen(dev, tp)
 	}
     }
 
-    if ((sc = pppalloc(p->p_pid)) == NULL) {
+    if ((sc = pppalloc(td->td_proc->p_pid)) == NULL) {
 	splx(s);
 	return ENXIO;
     }
@@ -428,12 +428,12 @@ pppwrite(tp, uio, flag)
  */
 /* ARGSUSED */
 static int
-ppptioctl(tp, cmd, data, flag, p)
+ppptioctl(tp, cmd, data, flag, td)
     struct tty *tp;
     u_long cmd;
     caddr_t data;
     int flag;
-    struct proc *p;
+    struct thread *td;
 {
     struct ppp_softc *sc = (struct ppp_softc *) tp->t_sc;
     int error, s;
@@ -444,7 +444,7 @@ ppptioctl(tp, cmd, data, flag, p)
     error = 0;
     switch (cmd) {
     case PPPIOCSASYNCMAP:
-	if ((error = suser(p)) != 0)
+	if ((error = suser_td(td)) != 0)
 	    break;
 	sc->sc_asyncmap[0] = *(u_int *)data;
 	break;
@@ -454,7 +454,7 @@ ppptioctl(tp, cmd, data, flag, p)
 	break;
 
     case PPPIOCSRASYNCMAP:
-	if ((error = suser(p)) != 0)
+	if ((error = suser_td(td)) != 0)
 	    break;
 	sc->sc_rasyncmap = *(u_int *)data;
 	break;
@@ -464,7 +464,7 @@ ppptioctl(tp, cmd, data, flag, p)
 	break;
 
     case PPPIOCSXASYNCMAP:
-	if ((error = suser(p)) != 0)
+	if ((error = suser_td(td)) != 0)
 	    break;
 	s = spltty();
 	bcopy(data, sc->sc_asyncmap, sizeof(sc->sc_asyncmap));
@@ -479,7 +479,7 @@ ppptioctl(tp, cmd, data, flag, p)
 	break;
 
     default:
-	error = pppioctl(sc, cmd, data, flag, p);
+	error = pppioctl(sc, cmd, data, flag, td);
 	if (error == 0 && cmd == PPPIOCSMRU)
 	    pppgetm(sc);
     }

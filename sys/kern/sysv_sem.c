@@ -34,15 +34,15 @@ static int sysctl_sema __P((SYSCTL_HANDLER_ARGS));
 
 #ifndef _SYS_SYSPROTO_H_
 struct __semctl_args;
-int __semctl __P((struct proc *p, struct __semctl_args *uap));
+int __semctl __P((struct thread *td, struct __semctl_args *uap));
 struct semget_args;
-int semget __P((struct proc *p, struct semget_args *uap));
+int semget __P((struct thread *td, struct semget_args *uap));
 struct semop_args;
-int semop __P((struct proc *p, struct semop_args *uap));
+int semop __P((struct thread *td, struct semop_args *uap));
 #endif
 
-static struct sem_undo *semu_alloc __P((struct proc *p));
-static int semundo_adjust __P((struct proc *p, struct sem_undo **supptr, 
+static struct sem_undo *semu_alloc __P((struct thread *td));
+static int semundo_adjust __P((struct thread *td, struct sem_undo **supptr, 
 		int semid, int semnum, int adjval));
 static void semundo_clear __P((int semid, int semnum));
 
@@ -250,8 +250,8 @@ MODULE_VERSION(sysvsem, 1);
  * MPSAFE
  */
 int
-semsys(p, uap)
-	struct proc *p;
+semsys(td, uap)
+	struct thread *td;
 	/* XXX actually varargs. */
 	struct semsys_args /* {
 		u_int	which;
@@ -264,17 +264,15 @@ semsys(p, uap)
 	int error;
 
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
-
 	if (uap->which >= sizeof(semcalls)/sizeof(semcalls[0])) {
 		error = EINVAL;
 		goto done2;
 	}
-	error = (*semcalls[uap->which])(p, &uap->a2);
+	error = (*semcalls[uap->which])(td, &uap->a2);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -286,8 +284,8 @@ done2:
  */
 
 static struct sem_undo *
-semu_alloc(p)
-	struct proc *p;
+semu_alloc(td)
+	struct thread *td;
 {
 	register int i;
 	register struct sem_undo *suptr;
@@ -312,7 +310,7 @@ semu_alloc(p)
 				suptr->un_next = semu_list;
 				semu_list = suptr;
 				suptr->un_cnt = 0;
-				suptr->un_proc = p;
+				suptr->un_proc = td->td_proc;
 				return(suptr);
 			}
 		}
@@ -356,12 +354,13 @@ semu_alloc(p)
  */
 
 static int
-semundo_adjust(p, supptr, semid, semnum, adjval)
-	register struct proc *p;
+semundo_adjust(td, supptr, semid, semnum, adjval)
+	register struct thread *td;
 	struct sem_undo **supptr;
 	int semid, semnum;
 	int adjval;
 {
+	struct proc *p = td->td_proc;
 	register struct sem_undo *suptr;
 	register struct undo *sunptr;
 	int i;
@@ -381,7 +380,7 @@ semundo_adjust(p, supptr, semid, semnum, adjval)
 		if (suptr == NULL) {
 			if (adjval == 0)
 				return(0);
-			suptr = semu_alloc(p);
+			suptr = semu_alloc(td);
 			if (suptr == NULL)
 				return(ENOSPC);
 			*supptr = suptr;
@@ -466,8 +465,8 @@ struct __semctl_args {
  * MPSAFE
  */
 int
-__semctl(p, uap)
-	struct proc *p;
+__semctl(td, uap)
+	struct thread *td;
 	register struct __semctl_args *uap;
 {
 	int semid = uap->semid;
@@ -475,7 +474,7 @@ __semctl(p, uap)
 	int cmd = uap->cmd;
 	union semun *arg = uap->arg;
 	union semun real_arg;
-	struct ucred *cred = p->p_ucred;
+	struct ucred *cred = td->td_proc->p_ucred;
 	int i, rval, error;
 	struct semid_ds sbuf;
 	register struct semid_ds *semaptr;
@@ -484,8 +483,7 @@ __semctl(p, uap)
 	printf("call to semctl(%d, %d, %d, 0x%x)\n", semid, semnum, cmd, arg);
 #endif
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
@@ -508,7 +506,7 @@ __semctl(p, uap)
 
 	switch (cmd) {
 	case IPC_RMID:
-		if ((error = ipcperm(p, &semaptr->sem_perm, IPC_M)))
+		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_M)))
 			goto done2;
 		semaptr->sem_perm.cuid = cred->cr_uid;
 		semaptr->sem_perm.uid = cred->cr_uid;
@@ -526,7 +524,7 @@ __semctl(p, uap)
 		break;
 
 	case IPC_SET:
-		if ((error = ipcperm(p, &semaptr->sem_perm, IPC_M)))
+		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_M)))
 			goto done2;
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			goto done2;
@@ -542,7 +540,7 @@ __semctl(p, uap)
 		break;
 
 	case IPC_STAT:
-		if ((error = ipcperm(p, &semaptr->sem_perm, IPC_R)))
+		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_R)))
 			goto done2;
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			goto done2;
@@ -551,7 +549,7 @@ __semctl(p, uap)
 		break;
 
 	case GETNCNT:
-		if ((error = ipcperm(p, &semaptr->sem_perm, IPC_R)))
+		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_R)))
 			goto done2;
 		if (semnum < 0 || semnum >= semaptr->sem_nsems) {
 			error = EINVAL;
@@ -561,7 +559,7 @@ __semctl(p, uap)
 		break;
 
 	case GETPID:
-		if ((error = ipcperm(p, &semaptr->sem_perm, IPC_R)))
+		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_R)))
 			goto done2;
 		if (semnum < 0 || semnum >= semaptr->sem_nsems) {
 			error = EINVAL;
@@ -571,7 +569,7 @@ __semctl(p, uap)
 		break;
 
 	case GETVAL:
-		if ((error = ipcperm(p, &semaptr->sem_perm, IPC_R)))
+		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_R)))
 			goto done2;
 		if (semnum < 0 || semnum >= semaptr->sem_nsems) {
 			error = EINVAL;
@@ -581,7 +579,7 @@ __semctl(p, uap)
 		break;
 
 	case GETALL:
-		if ((error = ipcperm(p, &semaptr->sem_perm, IPC_R)))
+		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_R)))
 			goto done2;
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			goto done2;
@@ -594,7 +592,7 @@ __semctl(p, uap)
 		break;
 
 	case GETZCNT:
-		if ((error = ipcperm(p, &semaptr->sem_perm, IPC_R)))
+		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_R)))
 			goto done2;
 		if (semnum < 0 || semnum >= semaptr->sem_nsems) {
 			error = EINVAL;
@@ -604,7 +602,7 @@ __semctl(p, uap)
 		break;
 
 	case SETVAL:
-		if ((error = ipcperm(p, &semaptr->sem_perm, IPC_W)))
+		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_W)))
 			goto done2;
 		if (semnum < 0 || semnum >= semaptr->sem_nsems) {
 			error = EINVAL;
@@ -618,7 +616,7 @@ __semctl(p, uap)
 		break;
 
 	case SETALL:
-		if ((error = ipcperm(p, &semaptr->sem_perm, IPC_W)))
+		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_W)))
 			goto done2;
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			goto done2;
@@ -639,7 +637,7 @@ __semctl(p, uap)
 	}
 
 	if (error == 0)
-		p->p_retval[0] = rval;
+		td->td_retval[0] = rval;
 done2:
 	mtx_unlock(&Giant);
 	return(error);
@@ -657,22 +655,21 @@ struct semget_args {
  * MPSAFE
  */
 int
-semget(p, uap)
-	struct proc *p;
+semget(td, uap)
+	struct thread *td;
 	register struct semget_args *uap;
 {
 	int semid, error = 0;
 	int key = uap->key;
 	int nsems = uap->nsems;
 	int semflg = uap->semflg;
-	struct ucred *cred = p->p_ucred;
+	struct ucred *cred = td->td_proc->p_ucred;
 
 #ifdef SEM_DEBUG
 	printf("semget(0x%x, %d, 0%o)\n", key, nsems, semflg);
 #endif
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
@@ -687,7 +684,7 @@ semget(p, uap)
 #ifdef SEM_DEBUG
 			printf("found public key\n");
 #endif
-			if ((error = ipcperm(p, &sema[semid].sem_perm,
+			if ((error = ipcperm(td, &sema[semid].sem_perm,
 			    semflg & 0700))) {
 				goto done2;
 			}
@@ -771,7 +768,7 @@ semget(p, uap)
 	}
 
 found:
-	p->p_retval[0] = IXSEQ_TO_IPCID(semid, sema[semid].sem_perm);
+	td->td_retval[0] = IXSEQ_TO_IPCID(semid, sema[semid].sem_perm);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -789,8 +786,8 @@ struct semop_args {
  * MPSAFE
  */
 int
-semop(p, uap)
-	struct proc *p;
+semop(td, uap)
+	struct thread *td;
 	register struct semop_args *uap;
 {
 	int semid = uap->semid;
@@ -808,8 +805,7 @@ semop(p, uap)
 #endif
 
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
@@ -831,7 +827,7 @@ semop(p, uap)
 		goto done2;
 	}
 
-	if ((error = ipcperm(p, &semaptr->sem_perm, IPC_W))) {
+	if ((error = ipcperm(td, &semaptr->sem_perm, IPC_W))) {
 #ifdef SEM_DEBUG
 		printf("error = %d from ipcperm\n", error);
 #endif
@@ -1000,7 +996,7 @@ done:
 			adjval = sops[i].sem_op;
 			if (adjval == 0)
 				continue;
-			error = semundo_adjust(p, &suptr, semid,
+			error = semundo_adjust(td, &suptr, semid,
 			    sops[i].sem_num, -adjval);
 			if (error == 0)
 				continue;
@@ -1020,7 +1016,7 @@ done:
 				adjval = sops[j].sem_op;
 				if (adjval == 0)
 					continue;
-				if (semundo_adjust(p, &suptr, semid,
+				if (semundo_adjust(td, &suptr, semid,
 				    sops[j].sem_num, adjval) != 0)
 					panic("semop - can't undo undos");
 			}
@@ -1040,7 +1036,7 @@ done:
 	for (i = 0; i < nsops; i++) {
 		sopptr = &sops[i];
 		semptr = &semaptr->sem_base[sopptr->sem_num];
-		semptr->sempid = p->p_pid;
+		semptr->sempid = td->td_proc->p_pid;
 	}
 
 	/* Do a wakeup if any semaphore was up'd. */
@@ -1056,7 +1052,7 @@ done:
 #ifdef SEM_DEBUG
 	printf("semop:  done\n");
 #endif
-	p->p_retval[0] = 0;
+	td->td_retval[0] = 0;
 done2:
 	mtx_unlock(&Giant);
 	return (error);

@@ -65,7 +65,7 @@
 
 static int portal_fileid = PORTAL_ROOTFILEID+1;
 
-static void	portal_closefd __P((struct proc *p, int fd));
+static void	portal_closefd __P((struct thread *td, int fd));
 static int	portal_connect __P((struct socket *so, struct socket *so2));
 static int	portal_getattr __P((struct vop_getattr_args *ap));
 static int	portal_lookup __P((struct vop_lookup_args *ap));
@@ -76,15 +76,15 @@ static int	portal_reclaim __P((struct vop_reclaim_args *ap));
 static int	portal_setattr __P((struct vop_setattr_args *ap));
 
 static void
-portal_closefd(p, fd)
-	struct proc *p;
+portal_closefd(td, fd)
+	struct thread *td;
 	int fd;
 {
 	int error;
 	struct close_args ua;
 
 	ua.fd = fd;
-	error = close(p, &ua);
+	error = close(td, &ua);
 	/*
 	 * We should never get an error, and there isn't anything
 	 * we could do if we got one, so just print a message.
@@ -204,12 +204,12 @@ portal_open(ap)
 		struct vnode *a_vp;
 		int  a_mode;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct socket *so = 0;
 	struct portalnode *pt;
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	struct vnode *vp = ap->a_vp;
 	int s;
 	struct uio auio;
@@ -237,7 +237,7 @@ portal_open(ap)
 	 * to deal with the side effects.  Check for this
 	 * by testing whether the p_dupfd has been set.
 	 */
-	if (p->p_dupfd >= 0)
+	if (td->td_dupfd >= 0)
 		return (ENODEV);
 
 	pt = VTOPORTAL(vp);
@@ -246,7 +246,7 @@ portal_open(ap)
 	/*
 	 * Create a new socket.
 	 */
-	error = socreate(AF_UNIX, &so, SOCK_STREAM, 0, ap->a_p);
+	error = socreate(AF_UNIX, &so, SOCK_STREAM, 0, ap->a_td);
 	if (error)
 		goto bad;
 
@@ -315,12 +315,12 @@ portal_open(ap)
 	auio.uio_iovcnt = 2;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_SYSSPACE;
-	auio.uio_procp = p;
+	auio.uio_td = td;
 	auio.uio_offset = 0;
 	auio.uio_resid = aiov[0].iov_len + aiov[1].iov_len;
 
 	error = sosend(so, (struct sockaddr *) 0, &auio,
-			(struct mbuf *) 0, (struct mbuf *) 0, 0, p);
+			(struct mbuf *) 0, (struct mbuf *) 0, 0 , td);
 	if (error)
 		goto bad;
 
@@ -392,7 +392,7 @@ portal_open(ap)
 		int i;
 		printf("portal_open: %d extra fds\n", newfds - 1);
 		for (i = 1; i < newfds; i++) {
-			portal_closefd(p, *ip);
+			portal_closefd(td, *ip);
 			ip++;
 		}
 	}
@@ -401,9 +401,9 @@ portal_open(ap)
 	 * Check that the mode the file is being opened for is a subset
 	 * of the mode of the existing descriptor.
 	 */
- 	fp = p->p_fd->fd_ofiles[fd];
+ 	fp = td->td_proc->p_fd->fd_ofiles[fd];
 	if (((ap->a_mode & (FREAD|FWRITE)) | fp->f_flag) != fp->f_flag) {
-		portal_closefd(p, fd);
+		portal_closefd(td, fd);
 		error = EACCES;
 		goto bad;
 	}
@@ -413,7 +413,7 @@ portal_open(ap)
 	 * special error code (ENXIO) which causes magic things to
 	 * happen in vn_open.  The whole concept is, well, hmmm.
 	 */
-	p->p_dupfd = fd;
+	td->td_dupfd = fd;
 	error = ENXIO;
 
 bad:;
@@ -437,7 +437,7 @@ portal_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -482,7 +482,7 @@ portal_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 

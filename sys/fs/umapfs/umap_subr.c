@@ -141,7 +141,7 @@ umap_node_find(mp, targetvp)
 	struct mount *mp;
 	struct vnode *targetvp;
 {
-	struct proc *p = curproc;		/* XXX */
+	struct thread *td = curthread;		/* XXX */
 	struct umap_node_hashhead *hd;
 	struct umap_node *a;
 	struct vnode *vp;
@@ -168,7 +168,7 @@ loop:
 			 * stuff, but we don't want to lock
 			 * the lower node.
 			 */
-			if (vget(vp, 0, p)) {
+			if (vget(vp, 0, td)) {
 #ifdef DEBUG
 				printf ("umap_node_find: vget failed.\n");
 #endif

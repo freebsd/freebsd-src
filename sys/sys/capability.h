@@ -190,6 +190,7 @@ typedef struct cap	*cap_t;
 
 #ifdef _KERNEL
 
+struct thread;
 struct proc;
 struct ucred;
 struct vnode;

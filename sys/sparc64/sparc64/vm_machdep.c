@@ -64,7 +64,7 @@
 #include <machine/tstate.h>
 
 void
-cpu_exit(struct proc *p)
+cpu_exit(struct thread *td)
 {
 }
 
@@ -74,25 +74,29 @@ cpu_exit(struct proc *p)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(struct proc *p1, struct proc *p2, int flags)
+cpu_fork(struct thread *td1, struct proc *p2, int flags)
 {
+	struct thread *td2;
 	struct trapframe *tf;
 	struct frame *fp;
 	struct pcb *pcb;
 
-	KASSERT(p1 == curproc || p1 == &proc0,
+	KASSERT(td1 == curthread || td1 == thread0,
 	    ("cpu_fork: p1 not curproc and not proc0"));
 
 	if ((flags & RFPROC) == 0)
 		return;
 
+	td2 = &p2->p_thread;
+	pcb = (struct pcb *)td2->td_kstack;
+	td2->td_pcb = pcb;
+
 	/*
 	 * Ensure that p1's pcb is up to date.
 	 */
-	pcb = &p2->p_addr->u_pcb;
-	p1->p_addr->u_pcb.pcb_y = rd(y);
-	p1->p_addr->u_pcb.pcb_fpstate.fp_fprs = rd(fprs);
-	if ((p1->p_frame->tf_tstate & TSTATE_PEF) != 0) {
+	td1->td_pcb->pcb_y = rd(y);
+	td1->td_pcb->pcb_fpstate.fp_fprs = rd(fprs);
+	if ((td1->td_frame->tf_tstate & TSTATE_PEF) != 0) {
 		mtx_lock_spin(&sched_lock);
 		savefpctx(&pcb->pcb_fpstate);
 		mtx_unlock_spin(&sched_lock);
@@ -100,8 +104,7 @@ cpu_fork(struct proc *p1, struct proc *p2, int flags)
 	/* Make sure the copied windows are spilled. */
 	__asm __volatile("flushw");
 	/* Copy the pcb (this will copy the windows saved in the pcb, too). */
-	pcb = &p2->p_addr->u_pcb;
-	bcopy(&p1->p_addr->u_pcb, pcb, sizeof(*pcb));
+	bcopy(td1->td_pcb, pcb, sizeof(*pcb));
 	pcb->pcb_cwp = 2;
 
 	/*
@@ -109,17 +112,18 @@ cpu_fork(struct proc *p1, struct proc *p2, int flags)
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
 	 */
-	tf = (struct trapframe *)((caddr_t)p2->p_addr + UPAGES * PAGE_SIZE) - 1;
-	bcopy(p1->p_frame, tf, sizeof(*tf));
+	tf = (struct trapframe *)
+	    (td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	bcopy(td1->td_frame, tf, sizeof(*tf));
 
 	tf->tf_out[0] = 0;			/* Child returns zero */
 	tf->tf_out[1] = 1;			/* XXX i386 returns 1 in %edx */
 	tf->tf_tstate &= ~(TSTATE_XCC_C | TSTATE_CWP_MASK);	/* success */
 
-	p2->p_frame = tf;
+	td2->td_frame = tf;
 	fp = (struct frame *)tf - 1;
 	fp->f_local[0] = (u_long)fork_return;
-	fp->f_local[1] = (u_long)p2;
+	fp->f_local[1] = (u_long)td2;
 	fp->f_local[2] = (u_long)tf;
 	pcb->pcb_cwp = 2;
 	pcb->pcb_fp = (u_long)fp - SPOFF;
@@ -143,12 +147,12 @@ cpu_reset(void)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(struct proc *p, void (*func)(void *), void *arg)
+cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 	struct frame *fp;
 	struct pcb *pcb;
 
-	pcb = &p->p_addr->u_pcb;
+	pcb = td->td_pcb;
 	fp = (struct frame *)(pcb->pcb_fp + SPOFF);
 	fp->f_local[0] = (u_long)func;
 	fp->f_local[1] = (u_long)arg;

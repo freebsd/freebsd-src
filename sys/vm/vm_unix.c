@@ -70,11 +70,11 @@ struct obreak_args {
  */
 /* ARGSUSED */
 int
-obreak(p, uap)
-	struct proc *p;
+obreak(td, uap)
+	struct thread *td;
 	struct obreak_args *uap;
 {
-	struct vmspace *vm = p->p_vmspace;
+	struct vmspace *vm = td->td_proc->p_vmspace;
 	vm_offset_t new, old, base;
 	int rv;
 	int error = 0;
@@ -90,7 +90,7 @@ obreak(p, uap)
 		 * reduce their usage, even if they remain over the limit.
 		 */
 		if (new > old &&
-		    (new - base) > (unsigned) p->p_rlimit[RLIMIT_DATA].rlim_cur) {
+		    (new - base) > (unsigned) td->td_proc->p_rlimit[RLIMIT_DATA].rlim_cur) {
 			error = ENOMEM;
 			goto done;
 		}
@@ -143,8 +143,8 @@ struct ovadvise_args {
  */
 /* ARGSUSED */
 int
-ovadvise(p, uap)
-	struct proc *p;
+ovadvise(td, uap)
+	struct thread *td;
 	struct ovadvise_args *uap;
 {
 	/* START_GIANT_OPTIONAL */

@@ -340,7 +340,7 @@ amr_submit_bio(struct amr_softc *sc, struct bio *bio)
  * Accept an open operation on the control device.
  */
 int
-amr_open(dev_t dev, int flags, int fmt, struct proc *p)
+amr_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
     struct amr_softc	*sc = devclass_get_softc(amr_devclass, unit);
@@ -355,7 +355,7 @@ amr_open(dev_t dev, int flags, int fmt, struct proc *p)
  * Accept the last close on the control device.
  */
 int
-amr_close(dev_t dev, int flags, int fmt, struct proc *p)
+amr_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
     struct amr_softc	*sc = devclass_get_softc(amr_devclass, unit);
@@ -370,7 +370,7 @@ amr_close(dev_t dev, int flags, int fmt, struct proc *p)
  * Handle controller-specific control operations.
  */
 int
-amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
     struct amr_softc		*sc = (struct amr_softc *)dev->si_drv1;
     int				*arg = (int *)addr;

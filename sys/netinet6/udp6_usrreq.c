@@ -523,7 +523,7 @@ udp6_abort(struct socket *so)
 }
 
 static int
-udp6_attach(struct socket *so, int proto, struct proc *p)
+udp6_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct inpcb *inp;
 	int s, error;
@@ -538,7 +538,7 @@ udp6_attach(struct socket *so, int proto, struct proc *p)
 			return error;
 	}
 	s = splnet();
-	error = in_pcballoc(so, &udbinfo, p);
+	error = in_pcballoc(so, &udbinfo, td);
 	splx(s);
 	if (error)
 		return error;
@@ -557,7 +557,7 @@ udp6_attach(struct socket *so, int proto, struct proc *p)
 }
 
 static int
-udp6_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
+udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp;
 	int s, error;
@@ -582,20 +582,20 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 			inp->inp_vflag |= INP_IPV4;
 			inp->inp_vflag &= ~INP_IPV6;
 			s = splnet();
-			error = in_pcbbind(inp, (struct sockaddr *)&sin, p);
+			error = in_pcbbind(inp, (struct sockaddr *)&sin, td);
 			splx(s);
 			return error;
 		}
 	}
 
 	s = splnet();
-	error = in6_pcbbind(inp, nam, p);
+	error = in6_pcbbind(inp, nam, td);
 	splx(s);
 	return error;
 }
 
 static int
-udp6_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
+udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp;
 	int s, error;
@@ -615,7 +615,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 				return EISCONN;
 			in6_sin6_2_sin(&sin, sin6_p);
 			s = splnet();
-			error = in_pcbconnect(inp, (struct sockaddr *)&sin, p);
+			error = in_pcbconnect(inp, (struct sockaddr *)&sin, td);
 			splx(s);
 			if (error == 0) {
 				inp->inp_vflag |= INP_IPV4;
@@ -629,7 +629,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
 		return EISCONN;
 	s = splnet();
-	error = in6_pcbconnect(inp, nam, p);
+	error = in6_pcbconnect(inp, nam, td);
 	splx(s);
 	if (error == 0) {
 		if (ip6_mapped_addr_on) { /* should be non mapped addr */
@@ -686,7 +686,7 @@ udp6_disconnect(struct socket *so)
 
 static int
 udp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
-	  struct mbuf *control, struct proc *p)
+	  struct mbuf *control, struct thread *td)
 {
 	struct inpcb *inp;
 	int error = 0;
@@ -726,13 +726,13 @@ udp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 				in6_sin6_2_sin_in_sock(addr);
 			pru = inetsw[ip_protox[IPPROTO_UDP]].pr_usrreqs;
 			error = ((*pru->pru_send)(so, flags, m, addr, control,
-						  p));
+						  td));
 			/* addr will just be freed in sendit(). */
 			return error;
 		}
 	}
 
-	return udp6_output(inp, m, addr, control, p);
+	return udp6_output(inp, m, addr, control, td);
 
   bad:
 	m_freem(m);

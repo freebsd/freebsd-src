@@ -54,7 +54,7 @@ MODULE_DEPEND(coff, ibcs2, 1, 1, 1);
 
 extern struct sysentvec ibcs2_svr3_sysvec;
 
-static int coff_load_file __P((struct proc *p, char *name));
+static int coff_load_file __P((struct thread *td, char *name));
 static int exec_coff_imgact __P((struct image_params *imgp));
 
 static int load_coff_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
@@ -150,8 +150,9 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 }
 
 static int
-coff_load_file(struct proc *p, char *name)
+coff_load_file(struct thread *td, char *name)
 {
+	struct proc *p = td->td_proc;
   	struct vmspace *vmspace = p->p_vmspace;
   	int error;
   	struct nameidata nd;
@@ -167,7 +168,7 @@ coff_load_file(struct proc *p, char *name)
   	unsigned long bss_size = 0;
   	int i;
 
-	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME, UIO_SYSSPACE, name, p);
+	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME, UIO_SYSSPACE, name, td);
 
   	error = namei(&nd);
   	if (error)
@@ -182,7 +183,7 @@ coff_load_file(struct proc *p, char *name)
     		goto fail;
   	}
 
-  	if ((error = VOP_GETATTR(vp, &attr, p->p_ucred, p)) != 0)
+  	if ((error = VOP_GETATTR(vp, &attr, p->p_ucred, td)) != 0)
     		goto fail;
 
   	if ((vp->v_mount->mnt_flag & MNT_NOEXEC)
@@ -195,17 +196,17 @@ coff_load_file(struct proc *p, char *name)
     		goto fail;
   	}
 
-  	if ((error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p)) != 0)
+  	if ((error = VOP_ACCESS(vp, VEXEC, p->p_ucred, td)) != 0)
     		goto fail;
 
-  	if ((error = VOP_OPEN(vp, FREAD, p->p_ucred, p)) != 0)
+  	if ((error = VOP_OPEN(vp, FREAD, p->p_ucred, td)) != 0)
     		goto fail;
 
 	/*
 	 * Lose the lock on the vnode. It's no longer needed, and must not
 	 * exist for the pagefault paging to work below.
 	 */
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 
   	if ((error = vm_mmap(kernel_map,
 			    (vm_offset_t *) &ptr,
@@ -278,7 +279,7 @@ coff_load_file(struct proc *p, char *name)
     		panic(__FUNCTION__ " vm_map_remove failed");
 
  fail:
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
  unlocked_fail:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
@@ -393,9 +394,9 @@ exec_coff_imgact(imgp)
 				DPRINTF(("%s(%d):  shared library %s\n",
 					 __FILE__, __LINE__, libname));
 				strcpy(&libbuf[emul_path_len], libname);
-		      		error = coff_load_file(imgp->proc, libbuf);
+/* XXXKSE only 1:1 in coff */		      		error = coff_load_file(&imgp->proc->p_thread, libbuf);
 		      		if (error)
-	      				error = coff_load_file(imgp->proc,
+	      				error = coff_load_file(&imgp->proc->p_thread,
 							       libname);
 		      		if (error)
 					break;

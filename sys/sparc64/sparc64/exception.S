@@ -313,8 +313,9 @@ ENTRY(tl0_kstack_fixup)
 	wrpr	%o1, 0, %wstate
 	wrpr	%o0, 0, %otherwin
 	wrpr	%g0, 0, %canrestore
-	ldx	[PCPU(CURPCB)], %o0
-	set	UPAGES * PAGE_SIZE - SPOFF - CCFSZ, %o1
+	ldx	[PCPU(CURTHREAD)], %o0
+	ldx	[%o0 + TD_KSTACK], %o0
+	set	KSTACK_PAGES * PAGE_SIZE - SPOFF - CCFSZ, %o1
 	retl
 	 add	%o0, %o1, %sp
 END(tl0_kstack_fixup)
@@ -1021,9 +1022,9 @@ END(tl1_align_trap)
 
 ENTRY(intr_enqueue)
 #if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "intr_enqueue: p=%p (%s) tl=%#lx pc=%#lx sp=%#lx"
+	CATR(KTR_CT1, "intr_enqueue: td=%p (%s) tl=%#lx pc=%#lx sp=%#lx"
 	   , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURPROC)], %g2
+	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
 	add	%g2, P_COMM, %g2
 	stx	%g2, [%g1 + KTR_PARM2]
@@ -1818,9 +1819,9 @@ ENTRY(tl0_trap)
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
 #if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl0_trap: p=%p type=%#x arg=%#lx pil=%#lx ws=%#lx"
+	CATR(KTR_CT1, "tl0_trap: td=%p type=%#x arg=%#lx pil=%#lx ws=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURPROC)], %g2
+	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
 	stx	%o0, [%g1 + KTR_PARM2]
 	stx	%o1, [%g1 + KTR_PARM3]
@@ -1848,9 +1849,9 @@ END(tl0_trap)
 /* Return to tl0 (user process). */
 ENTRY(tl0_ret)
 #if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl0_ret: p=%p (%s) pil=%#lx sflag=%#x"
+	CATR(KTR_CT1, "tl0_ret: td=%p (%s) pil=%#lx sflag=%#x"
 	    , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURPROC)], %g2
+	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
 	add	%g2, P_COMM, %g3
 	stx	%g3, [%g1 + KTR_PARM2]
@@ -1862,9 +1863,10 @@ ENTRY(tl0_ret)
 #endif
 
 	wrpr	%g0, PIL_TICK, %pil
-	ldx	[PCPU(CURPROC)], %o0
-	lduw	[%o0 + P_SFLAG], %o1
-	and	%o1, PS_ASTPENDING | PS_NEEDRESCHED, %o1
+	ldx	[PCPU(CURTHREAD)], %o0
+	ldx	[%o0 + TD_KSE], %o0
+	lduw	[%o0 + KE_FLAGS], %o1
+	and	%o1, KEF_ASTPENDING | KEF_NEEDRESCHED, %o1
 	brz,pt	%o1, 1f
 	 nop
 	call	ast
@@ -1927,9 +1929,9 @@ ENTRY(tl0_ret)
 tl0_ret_fill:
 
 #if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "tl0_ret: return p=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
+	CATR(KTR_CT1, "tl0_ret: return td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
 	    , %g2, %g3, %g4, 7, 8, 9)
-	ldx	[PCPU(CURPROC)], %g3
+	ldx	[PCPU(CURTHREAD)], %g3
 	stx	%g3, [%g2 + KTR_PARM1]
 	rdpr	%tstate, %g3
 	stx	%g3, [%g2 + KTR_PARM2]
@@ -1993,9 +1995,9 @@ ENTRY(tl1_trap)
 	and	%l4, %l5, %l4
 	brz	%l4, 9f
 	 nop
-	CATR(KTR_CT1, "tl1_trap: p=%p pil=%#lx type=%#lx arg=%#lx pc=%#lx"
+	CATR(KTR_CT1, "tl1_trap: td=%p pil=%#lx type=%#lx arg=%#lx pc=%#lx"
 	    , %l3, %l4, %l5, 7, 8, 9)
-	ldx	[PCPU(CURPROC)], %l4
+	ldx	[PCPU(CURTHREAD)], %l4
 	stx	%l4, [%l3 + KTR_PARM1]
 #if 0
 	add	%l4, P_COMM, %l4
@@ -2062,9 +2064,9 @@ ENTRY(tl1_trap)
 	and	%l4, %l5, %l4
 	brz	%l4, 9f
 	 nop
-	CATR(KTR_CT1, "tl1_trap: return p=%p pil=%#lx sp=%#lx pc=%#lx"
+	CATR(KTR_CT1, "tl1_trap: return td=%p pil=%#lx sp=%#lx pc=%#lx"
 	    , %l3, %l4, %l5, 7, 8, 9)
-	ldx	[PCPU(CURPROC)], %l4
+	ldx	[PCPU(CURTHREAD)], %l4
 	stx	%l4, [%l3 + KTR_PARM1]
 	stx	%l0, [%l3 + KTR_PARM2]
 	stx	%sp, [%l3 + KTR_PARM3]
@@ -2083,9 +2085,9 @@ END(tl1_trap)
  */
 ENTRY(fork_trampoline)
 #if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "fork_trampoline: p=%p (%s) cwp=%#lx"
+	CATR(KTR_CT1, "fork_trampoline: td=%p (%s) cwp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURPROC)], %g2
+	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
 	add	%g2, P_COMM, %g2
 	stx	%g2, [%g1 + KTR_PARM2]

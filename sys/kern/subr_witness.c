@@ -464,6 +464,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	struct lock_class *class;
 	struct witness *w, *w1;
 	struct proc *p;
+	struct thread *td;
 	int i, j;
 #ifdef DDB
 	int go_into_ddb = 0;
@@ -474,7 +475,8 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		return;
 	w = lock->lo_witness;
 	class = lock->lo_class;
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
 
 	/*
 	 * We have to hold a spinlock to keep lock_list valid across the check
@@ -493,7 +495,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			panic("blockable sleep lock (%s) %s @ %s:%d",
 			    class->lc_name, lock->lo_name, file, line);
 		}
-		lock_list = &p->p_sleeplocks;
+		lock_list = &td->td_sleeplocks;
 	}
 	mtx_unlock_spin(&w_mtx);
 
@@ -732,7 +734,7 @@ witness_upgrade(struct lock_object *lock, int flags, const char *file, int line)
 	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
 		panic("upgrade of non-sleep lock (%s) %s @ %s:%d",
 		    class->lc_name, lock->lo_name, file, line);
-	instance = find_instance(curproc->p_sleeplocks, lock);
+	instance = find_instance(curthread->td_sleeplocks, lock);
 	if (instance == NULL)
 		panic("upgrade of unlocked lock (%s) %s @ %s:%d",
 		    class->lc_name, lock->lo_name, file, line);
@@ -763,7 +765,7 @@ witness_downgrade(struct lock_object *lock, int flags, const char *file,
 	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
 		panic("downgrade of non-sleep lock (%s) %s @ %s:%d",
 		    class->lc_name, lock->lo_name, file, line);
-	instance = find_instance(curproc->p_sleeplocks, lock);
+	instance = find_instance(curthread->td_sleeplocks, lock);
 	if (instance == NULL)
 		panic("downgrade of unlocked lock (%s) %s @ %s:%d",
 		    class->lc_name, lock->lo_name, file, line);
@@ -784,16 +786,18 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 	struct lock_instance *instance;
 	struct lock_class *class;
 	struct proc *p;
+	struct thread *td;
 	critical_t s;
 	int i, j;
 
 	if (witness_cold || witness_dead || lock->lo_witness == NULL ||
 	    panicstr != NULL)
 		return;
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
 	class = lock->lo_class;
 	if (class->lc_flags & LC_SLEEPLOCK)
-		lock_list = &p->p_sleeplocks;
+		lock_list = &td->td_sleeplocks;
 	else
 		lock_list = PCPU_PTR(spinlocks);
 	for (; *lock_list != NULL; lock_list = &(*lock_list)->ll_next)
@@ -883,6 +887,7 @@ witness_sleep(int check_only, struct lock_object *lock, const char *file,
 	struct lock_list_entry **lock_list, *lle;
 	struct lock_instance *lock1;
 	struct proc *p;
+	struct thread *td;
 	critical_t savecrit;
 	int i, n;
 
@@ -894,8 +899,9 @@ witness_sleep(int check_only, struct lock_object *lock, const char *file,
 	 * Preemption bad because we need PCPU_PTR(spinlocks) to not change.
 	 */
 	savecrit = critical_enter();	
-	p = curproc;
-	lock_list = &p->p_sleeplocks;
+	td = curthread;
+	p = td->td_proc;
+	lock_list = &td->td_sleeplocks;
 again:
 	for (lle = *lock_list; lle != NULL; lle = lle->ll_next)
 		for (i = lle->ll_count - 1; i >= 0; i--) {
@@ -920,7 +926,7 @@ again:
 			    lock1->li_lock->lo_name, lock1->li_file,
 			    lock1->li_line);
 		}
-	if (lock_list == &p->p_sleeplocks) {
+	if (lock_list == &td->td_sleeplocks) {
 		lock_list = PCPU_PTR(spinlocks);
 		goto again;
 	}
@@ -1323,35 +1329,35 @@ witness_list_locks(struct lock_list_entry **lock_list)
 }
 
 /*
- * Calling this on p != curproc is bad unless we are in ddb.
+ * Calling this on td != curthread is bad unless we are in ddb.
  */
 int
-witness_list(struct proc *p)
+witness_list(struct thread *td)
 {
 	critical_t savecrit;
 	int nheld;
 
 	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 #ifdef DDB
-	KASSERT(p == curproc || db_active,
-	    ("%s: p != curproc and we aren't in the debugger", __func__));
+	KASSERT(td == curthread || db_active,
+	    ("%s: td != curthread and we aren't in the debugger", __func__));
 	if (!db_active && witness_dead)
 		return (0);
 #else
-	KASSERT(p == curproc, ("%s: p != curproc", __func__));
+	KASSERT(td == curthread, ("%s: p != curthread", __func__));
 	if (witness_dead)
 		return (0);
 #endif
-	nheld = witness_list_locks(&p->p_sleeplocks);
+	nheld = witness_list_locks(&td->td_sleeplocks);
 
 	/*
-	 * We only handle spinlocks if p == curproc.  This is somewhat broken
+	 * We only handle spinlocks if td == curthread.  This is somewhat broken
 	 * if p is currently executing on some other CPU and holds spin locks
 	 * as we won't display those locks.  If we had a MI way of getting
 	 * the per-cpu data for a given cpu then we could use p->p_oncpu to
 	 * get the list of spinlocks for this process and "fix" this.
 	 */
-	if (p == curproc) {
+	if (td == curthread) {
 		/*
 		 * Preemption bad because we need PCPU_PTR(spinlocks) to not
 		 * change.
@@ -1374,7 +1380,7 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
 		panic("%s: lock (%s) %s is not a sleep lock", __func__,
 		    lock->lo_class->lc_name, lock->lo_name);
-	instance = find_instance(curproc->p_sleeplocks, lock);
+	instance = find_instance(curthread->td_sleeplocks, lock);
 	if (instance == NULL)
 		panic("%s: lock (%s) %s not locked", __func__,
 		    lock->lo_class->lc_name, lock->lo_name);
@@ -1393,7 +1399,7 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
 		panic("%s: lock (%s) %s is not a sleep lock", __func__,
 		    lock->lo_class->lc_name, lock->lo_name);
-	instance = find_instance(curproc->p_sleeplocks, lock);
+	instance = find_instance(curthread->td_sleeplocks, lock);
 	if (instance == NULL)
 		panic("%s: lock (%s) %s not locked", __func__,
 		    lock->lo_class->lc_name, lock->lo_name);
@@ -1412,7 +1418,7 @@ witness_assert(struct lock_object *lock, int flags, const char *file, int line)
 	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
 	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) != 0)
-		instance = find_instance(curproc->p_sleeplocks, lock);
+		instance = find_instance(curthread->td_sleeplocks, lock);
 	else if ((lock->lo_class->lc_flags & LC_SPINLOCK) != 0)
 		instance = find_instance(PCPU_GET(spinlocks), lock);
 	else
@@ -1464,15 +1470,16 @@ witness_assert(struct lock_object *lock, int flags, const char *file, int line)
 
 DB_SHOW_COMMAND(locks, db_witness_list)
 {
-	struct proc *p;
+	struct thread *td;
 	pid_t pid;
+	struct proc *p;
 
 	if (have_addr) {
 		pid = (addr % 16) + ((addr >> 4) % 16) * 10 +
 		    ((addr >> 8) % 16) * 100 + ((addr >> 12) % 16) * 1000 +
 		    ((addr >> 16) % 16) * 10000;
 		/* sx_slock(&allproc_lock); */
-		LIST_FOREACH(p, &allproc, p_list) {
+		FOREACH_PROC_IN_SYSTEM(p) {
 			if (p->p_pid == pid)
 				break;
 		}
@@ -1481,9 +1488,11 @@ DB_SHOW_COMMAND(locks, db_witness_list)
 			db_printf("pid %d not found\n", pid);
 			return;
 		}
-	} else
-		p = curproc;
-	witness_list(p);
+		td = &p->p_thread; /* XXXKSE */
+	} else {
+		td = curthread;
+	}
+	witness_list(td);
 }
 
 DB_SHOW_COMMAND(witness, db_witness_display)

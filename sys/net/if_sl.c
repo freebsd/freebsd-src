@@ -72,6 +72,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/dkstat.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -178,10 +179,10 @@ static void sldestroy __P((struct sl_softc *sc));
 static struct mbuf *sl_btom __P((struct sl_softc *, int));
 static timeout_t sl_keepalive;
 static timeout_t sl_outfill;
-static int	slclose __P((struct tty *,int));
-static int	slinput __P((int, struct tty *));
+static l_close_t	slclose;
+static l_rint_t		slinput;
+static l_ioctl_t	sltioctl;
 static int	slioctl __P((struct ifnet *, u_long, caddr_t));
-static int	sltioctl __P((struct tty *, u_long, caddr_t, int, struct proc *));
 static int	slopen __P((dev_t, struct tty *));
 static int	sloutput __P((struct ifnet *,
 	    struct mbuf *, struct sockaddr *, struct rtentry *));
@@ -336,11 +337,10 @@ slopen(dev, tp)
 	dev_t dev;
 	register struct tty *tp;
 {
-	struct proc *p = curproc;		/* XXX */
 	register struct sl_softc *sc;
 	int s, error;
 
-	error = suser(p);
+	error = suser_td(curthread);
 	if (error)
 		return (error);
 
@@ -437,12 +437,12 @@ slclose(tp,flag)
  */
 /* ARGSUSED */
 static int
-sltioctl(tp, cmd, data, flag, p)
+sltioctl(tp, cmd, data, flag, td)
 	struct tty *tp;
 	u_long cmd;
 	caddr_t data;
 	int flag;
-	struct proc *p;
+	struct thread *td;
 {
 	struct sl_softc *sc = (struct sl_softc *)tp->t_sc, *nc;
 	int s, unit, wasup;

@@ -156,20 +156,20 @@ static u_char sinetab[];
 PDEVSTATIC void i4btelattach __P((void));
 
 #ifdef __bsdi__
-PDEVSTATIC int i4btelioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
+PDEVSTATIC int i4btelioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td));
 #else
-PDEVSTATIC int i4btelioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
+PDEVSTATIC int i4btelioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct thread *td));
 #endif
 
-int i4btelopen __P((dev_t dev, int flag, int fmt, struct proc *p));
-int i4btelclose __P((dev_t dev, int flag, int fmt, struct proc *p));
+int i4btelopen __P((dev_t dev, int flag, int fmt, struct thread *td));
+int i4btelclose __P((dev_t dev, int flag, int fmt, struct thread *td));
 int i4btelread __P((dev_t dev, struct uio *uio, int ioflag));
 int i4btelwrite __P((dev_t dev, struct uio * uio, int ioflag));
 
 #ifdef OS_USES_POLL
-int i4btelpoll	__P((dev_t dev, int events, struct proc *p));
+int i4btelpoll	__P((dev_t dev, int events, struct thread *td));
 #else
-int i4btelsel __P((dev_t dev, int rw, struct proc *p));
+int i4btelsel __P((dev_t dev, int rw, struct thread *td));
 #endif
 
 #endif /* ! __FreeBSD__ */
@@ -234,7 +234,7 @@ SYSINIT(i4bteldev, SI_SUB_DRIVERS,
 
 #ifdef __bsdi__
 
-int i4btelsel(dev_t dev, int rw, struct proc *p);
+int i4btelsel(dev_t dev, int rw, struct thread *td);
 int i4btelmatch(struct device *parent, struct cfdata *cf, void *aux);
 void dummy_i4btelattach(struct device*, struct device *, void *);
 
@@ -314,7 +314,7 @@ i4btelattach()
  *	open tel device
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4btelopen(dev_t dev, int flag, int fmt, struct proc *p)
+i4btelopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int unit = UNIT(dev);
 	int func = FUNC(dev);
@@ -343,7 +343,7 @@ i4btelopen(dev_t dev, int flag, int fmt, struct proc *p)
  *	close tel device
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4btelclose(dev_t dev, int flag, int fmt, struct proc *p)
+i4btelclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int unit = UNIT(dev);
 	int func = FUNC(dev);
@@ -387,11 +387,11 @@ i4btelclose(dev_t dev, int flag, int fmt, struct proc *p)
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
 #if defined(__FreeBSD__)
-i4btelioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+i4btelioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #elif defined(__bsdi__)
-i4btelioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+i4btelioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #else
-i4btelioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+i4btelioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 #endif
 {
 	int unit = UNIT(dev);
@@ -815,7 +815,7 @@ tel_tone(tel_sc_t *sc)
  *	device driver poll
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4btelpoll(dev_t dev, int events, struct proc *p)
+i4btelpoll(dev_t dev, int events, struct thread *td)
 {
 	int revents = 0;	/* Events we found */
 	int s;
@@ -863,7 +863,7 @@ i4btelpoll(dev_t dev, int events, struct proc *p)
 		if(revents == 0)
 		{
 			NDBGL4(L4_TELDBG, "i4btel%d, selrecord", unit);
-			selrecord(p, &sc->selp);
+			selrecord(td, &sc->selp);
 		}
 	}
 	else if(func == FUNCDIAL)
@@ -884,7 +884,7 @@ i4btelpoll(dev_t dev, int events, struct proc *p)
 		if(revents == 0)
 		{
 			NDBGL4(L4_TELDBG, "i4bteld%d,  selrecord", unit);
-			selrecord(p, &sc->selp);
+			selrecord(td, &sc->selp);
 		}
 	}
 	splx(s);
@@ -897,7 +897,7 @@ i4btelpoll(dev_t dev, int events, struct proc *p)
  *	device driver select
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4btelsel(dev_t dev, int rw, struct proc *p)
+i4btelsel(dev_t dev, int rw, struct thread *td)
 {
 	int s;
 	int unit = UNIT(dev);
@@ -963,7 +963,7 @@ i4btelsel(dev_t dev, int rw, struct proc *p)
 	}
 
 	NDBGL4(L4_TELDBG, "i4bteld%d,  selrecord", unit);
-	selrecord(p, &sc->selp);
+	selrecord(td, &sc->selp);
 	splx(s);
 	return 0;
 }

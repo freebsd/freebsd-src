@@ -54,7 +54,7 @@
  * Syscall to allow a process to get it's currently capability set
  */
 int
-__cap_get_proc(struct proc *p, struct __cap_get_proc_args *uap)
+__cap_get_proc(struct thread *td, struct __cap_get_proc_args *uap)
 {
 
 	return (ENOSYS);
@@ -65,7 +65,7 @@ __cap_get_proc(struct proc *p, struct __cap_get_proc_args *uap)
  * permitted.
  */
 int
-__cap_set_proc(struct proc *p, struct __cap_set_proc_args *uap)
+__cap_set_proc(struct thread *td, struct __cap_set_proc_args *uap)
 {
 
 	return (ENOSYS);
@@ -76,14 +76,14 @@ __cap_set_proc(struct proc *p, struct __cap_set_proc_args *uap)
  * files, if permitted.
  */
 int
-__cap_get_fd(struct proc *p, struct __cap_get_fd_args *uap)
+__cap_get_fd(struct thread *td, struct __cap_get_fd_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-__cap_get_file(struct proc *p, struct __cap_get_file_args *uap)
+__cap_get_file(struct thread *td, struct __cap_get_file_args *uap)
 {
 
 	return (ENOSYS);
@@ -94,14 +94,14 @@ __cap_get_file(struct proc *p, struct __cap_get_file_args *uap)
  * if permitted.
  */
 int
-__cap_set_fd(struct proc *p, struct __cap_set_fd_args *uap)
+__cap_set_fd(struct thread *td, struct __cap_set_fd_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-__cap_set_file(struct proc *p, struct __cap_set_file_args *uap)
+__cap_set_file(struct thread *td, struct __cap_set_file_args *uap)
 {
 
 	return (ENOSYS);

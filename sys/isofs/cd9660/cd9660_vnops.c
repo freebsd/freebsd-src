@@ -87,7 +87,7 @@ cd9660_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -128,7 +128,7 @@ cd9660_access(ap)
 		struct vnode *a_vp;
 		int  a_mode;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -162,7 +162,7 @@ cd9660_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 
 {
@@ -197,7 +197,7 @@ cd9660_getattr(ap)
 		auio.uio_offset = 0;
 		auio.uio_rw = UIO_READ;
 		auio.uio_segflg = UIO_SYSSPACE;
-		auio.uio_procp = ap->a_p;
+		auio.uio_td = ap->a_td;
 		auio.uio_resid = MAXPATHLEN;
 		rdlnk.a_uio = &auio;
 		rdlnk.a_vp = ap->a_vp;
@@ -226,7 +226,7 @@ cd9660_ioctl(ap)
 		caddr_t  a_data;
 		int  a_fflag;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;

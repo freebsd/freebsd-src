@@ -118,30 +118,35 @@ vm_fault_quick(v, prot)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(p1, p2, flags)
-	register struct proc *p1, *p2;
+cpu_fork(td1, p2, flags)
+	register struct thread *td1;
+	register struct proc *p2;
 	int flags;
 {
-	struct user *up;
+	struct proc *p1;
+	struct thread *td2;
 	struct trapframe *p2tf;
 
 	if ((flags & RFPROC) == 0)
 		return;
 
-	p2->p_frame = p1->p_frame;
-	p2->p_md.md_flags = p1->p_md.md_flags & (MDP_FPUSED | MDP_UAC_MASK);
+	p1 = td1->td_proc;
+	td2 = &p2->p_thread;
+	td2->td_pcb = (struct pcb *)
+	    (td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	td2->td_md.md_flags = td1->td_md.md_flags & (MDP_FPUSED | MDP_UAC_MASK);
 
 	/*
 	 * Cache the physical address of the pcb, so we can
 	 * swap to it easily.
 	 */
-	p2->p_md.md_pcbpaddr = (void*)vtophys((vm_offset_t)&p2->p_addr->u_pcb);
+	td2->td_md.md_pcbpaddr = (void*)vtophys((vm_offset_t)td2->td_pcb);
 
 	/*
 	 * Copy floating point state from the FP chip to the PCB
 	 * if this process has state stored there.
 	 */
-	alpha_fpstate_save(p1, 0);
+	alpha_fpstate_save(td1, 0);
 
 	/*
 	 * Copy pcb and stack from proc p1 to p2.  We do this as
@@ -149,16 +154,16 @@ cpu_fork(p1, p2, flags)
 	 * stack.  The stack and pcb need to agree. Make sure that the 
 	 * new process has FEN disabled.
 	 */
-	p2->p_addr->u_pcb = p1->p_addr->u_pcb;
-	p2->p_addr->u_pcb.pcb_hw.apcb_usp = alpha_pal_rdusp();
-	p2->p_addr->u_pcb.pcb_hw.apcb_flags &= ~ALPHA_PCB_FLAGS_FEN;
+	bcopy(td1->td_pcb, td2->td_pcb, sizeof(struct pcb));
+	td2->td_pcb->pcb_hw.apcb_usp = alpha_pal_rdusp();
+	td2->td_pcb->pcb_hw.apcb_flags &= ~ALPHA_PCB_FLAGS_FEN;
 
 	/*
 	 * Set the floating point state.
 	 */
-	if ((p2->p_addr->u_pcb.pcb_fp_control & IEEE_INHERIT) == 0) {
-		p2->p_addr->u_pcb.pcb_fp_control = 0;
-		p2->p_addr->u_pcb.pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
+	if ((td2->td_pcb->pcb_fp_control & IEEE_INHERIT) == 0) {
+		td2->td_pcb->pcb_fp_control = 0;
+		td2->td_pcb->pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
 						   | FPCR_INVD | FPCR_DZED
 						   | FPCR_OVFD | FPCR_INED
 						   | FPCR_UNFD);
@@ -169,7 +174,7 @@ cpu_fork(p1, p2, flags)
 	 * is started, to resume here, returning nonzero from setjmp.
 	 */
 #ifdef DIAGNOSTIC
-	alpha_fpstate_check(p1);
+	alpha_fpstate_check(td1);
 #endif
 
 	/*
@@ -179,34 +184,32 @@ cpu_fork(p1, p2, flags)
 	 * copy trapframe from parent so return to user mode
 	 * will be to right address, with correct registers.
 	 */
-	p2->p_frame = (struct trapframe *)
-	    ((char *)p2->p_addr + USPACE - sizeof(struct trapframe));
-	bcopy(p1->p_frame, p2->p_frame, sizeof(struct trapframe));
+	td2->td_frame = (struct trapframe *)td2->td_pcb - 1;
+	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
 
 	/*
 	 * Set up return-value registers as fork() libc stub expects.
 	 */
-	p2tf = p2->p_frame;
-	p2tf->tf_regs[FRAME_V0] = 0; 	/* child's pid (linux) 	*/
-	p2tf->tf_regs[FRAME_A3] = 0;	/* no error 		*/
-	p2tf->tf_regs[FRAME_A4] = 1;	/* is child (FreeBSD) 	*/
+	p2tf = td2->td_frame;
+	p2tf->tf_regs[FRAME_V0] = 0;	/* child's pid (linux)	*/
+	p2tf->tf_regs[FRAME_A3] = 0;	/* no error		*/
+	p2tf->tf_regs[FRAME_A4] = 1;	/* is child (FreeBSD)	*/
 
 	/*
 	 * Arrange for continuation at fork_return(), which
 	 * will return to exception_return().  Note that the child
 	 * process doesn't stay in the kernel for long!
 	 */
-	up = p2->p_addr;
-	up->u_pcb.pcb_hw.apcb_ksp = (u_int64_t)p2tf;	
-	up->u_pcb.pcb_context[0] = (u_int64_t)fork_return;	/* s0: a0 */
-	up->u_pcb.pcb_context[1] = (u_int64_t)exception_return;	/* s1: ra */
-	up->u_pcb.pcb_context[2] = (u_long) p2;			/* s2: a1 */
-	up->u_pcb.pcb_context[7] = (u_int64_t)fork_trampoline;	/* ra: magic */
+	td2->td_pcb->pcb_hw.apcb_ksp = (u_int64_t)p2tf;
+	td2->td_pcb->pcb_context[0] = (u_int64_t)fork_return;	  /* s0: a0 */
+	td2->td_pcb->pcb_context[1] = (u_int64_t)exception_return;/* s1: ra */
+	td2->td_pcb->pcb_context[2] = (u_long)td2;		  /* s2: a1 */
+	td2->td_pcb->pcb_context[7] = (u_int64_t)fork_trampoline; /* ra: magic*/
 #ifdef SMP
 	/*
 	 * We start off at a nesting level of 1 within the kernel.
 	 */
-	p2->p_md.md_kernnest = 1;
+	td2->td_md.md_kernnest = 1;
 #endif
 }
 
@@ -217,8 +220,8 @@ cpu_fork(p1, p2, flags)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(p, func, arg)
-	struct proc *p;
+cpu_set_fork_handler(td, func, arg)
+	struct thread *td;
 	void (*func) __P((void *));
 	void *arg;
 {
@@ -226,8 +229,8 @@ cpu_set_fork_handler(p, func, arg)
 	 * Note that the trap frame follows the args, so the function
 	 * is really called like this:  func(arg, frame);
 	 */
-	p->p_addr->u_pcb.pcb_context[0] = (u_long) func;
-	p->p_addr->u_pcb.pcb_context[2] = (u_long) arg;
+	td->td_pcb->pcb_context[0] = (u_long) func;
+	td->td_pcb->pcb_context[2] = (u_long) arg;
 }
 
 /*
@@ -238,11 +241,11 @@ cpu_set_fork_handler(p, func, arg)
  * from proc0.
  */
 void
-cpu_exit(p)
-	register struct proc *p;
+cpu_exit(td)
+	register struct thread *td;
 {
 
-	alpha_fpstate_drop(p);
+	alpha_fpstate_drop(td);
 }
 
 void
@@ -255,14 +258,23 @@ cpu_wait(p)
  * Dump the machine specific header information at the start of a core dump.
  */
 int
-cpu_coredump(p, vp, cred)
-	struct proc *p;
+cpu_coredump(td, vp, cred)
+	struct thread *td;
 	struct vnode *vp;
 	struct ucred *cred;
 {
+	int error;
 
-	return (vn_rdwr(UIO_WRITE, vp, (caddr_t) p->p_addr, ctob(UPAGES),
-	    (off_t)0, UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, p));
+	/* XXXKSE this is totally bogus! (and insecure) */
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) td->td_proc->p_uarea,
+	    ctob(UAREA_PAGES), (off_t)0,
+	    UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, td);
+	if (error)
+		return error;
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) td->td_kstack,
+	    ctob(KSTACK_PAGES), (off_t)ctob(UAREA_PAGES),
+	    UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, td);
+	return error;
 }
 
 /*

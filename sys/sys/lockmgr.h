@@ -196,7 +196,7 @@ struct lock {
 #endif	/* INVARIANTS */
 
 void dumplockinfo(struct lock *lkp);
-struct proc;
+struct thread;
 
 void	lockinit __P((struct lock *, int prio, char *wmesg, int timo,
 			int flags));
@@ -204,7 +204,7 @@ void	lockdestroy __P((struct lock *));
 
 #ifdef DEBUG_LOCKS
 int	debuglockmgr __P((struct lock *, u_int flags,
-			struct mtx *, struct proc *p,
+			struct mtx *, struct thread *p,
 			const char *,
 			const char *,
 			int));
@@ -213,10 +213,10 @@ int	debuglockmgr __P((struct lock *, u_int flags,
 	    "lockmgr", __FILE__, __LINE__)
 #else
 int	lockmgr __P((struct lock *, u_int flags,
-			struct mtx *, struct proc *p));
+			struct mtx *, struct thread *p));
 #endif
 void	lockmgr_printinfo __P((struct lock *));
-int	lockstatus __P((struct lock *, struct proc *));
+int	lockstatus __P((struct lock *, struct thread *));
 int	lockcount __P((struct lock *));
 
 #endif /* !_SYS_LOCKMGR_H_ */

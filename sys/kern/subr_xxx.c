@@ -80,22 +80,22 @@ nullop()
  */
 
 int
-noopen(dev, flags, fmt, p)
+noopen(dev, flags, fmt, td)
 	dev_t dev;
 	int flags;
 	int fmt;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (ENODEV);
 }
 
 int
-noclose(dev, flags, fmt, p)
+noclose(dev, flags, fmt, td)
 	dev_t dev;
 	int flags;
 	int fmt;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (ENODEV);
@@ -122,12 +122,12 @@ nowrite(dev, uio, ioflag)
 }
 
 int
-noioctl(dev, cmd, data, flags, p)
+noioctl(dev, cmd, data, flags, td)
 	dev_t dev;
 	u_long cmd;
 	caddr_t data;
 	int flags;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (ENODEV);
@@ -172,22 +172,22 @@ nodump(dev)
  * minor number.
  */
 int
-nullopen(dev, flags, fmt, p)
+nullopen(dev, flags, fmt, td)
 	dev_t dev;
 	int flags;
 	int fmt;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (0);
 }
 
 int
-nullclose(dev, flags, fmt, p)
+nullclose(dev, flags, fmt, td)
 	dev_t dev;
 	int flags;
 	int fmt;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (0);

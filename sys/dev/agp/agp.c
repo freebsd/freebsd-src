@@ -270,7 +270,7 @@ agp_generic_detach(device_t dev)
 {
 	struct agp_softc *sc = device_get_softc(dev);
 	bus_release_resource(dev, SYS_RES_MEMORY, AGP_APBASE, sc->as_aperture);
-	lockmgr(&sc->as_lock, LK_DRAIN, 0, curproc);
+	lockmgr(&sc->as_lock, LK_DRAIN, 0, curthread);
 	lockdestroy(&sc->as_lock);
 	destroy_dev(sc->as_devnode);
 	agp_flush_cache();
@@ -389,7 +389,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	vm_page_t m;
 	int error;
 
-	lockmgr(&sc->as_lock, LK_EXCLUSIVE, 0, curproc);
+	lockmgr(&sc->as_lock, LK_EXCLUSIVE, 0, curthread);
 
 	if (mem->am_is_bound) {
 		device_printf(dev, "memory already bound\n");
@@ -450,7 +450,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 							   OFF_TO_IDX(k));
 					vm_page_unwire(m, 0);
 				}
-				lockmgr(&sc->as_lock, LK_RELEASE, 0, curproc);
+				lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
 				return error;
 			}
 		}
@@ -471,7 +471,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	mem->am_offset = offset;
 	mem->am_is_bound = 1;
 
-	lockmgr(&sc->as_lock, LK_RELEASE, 0, curproc);
+	lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
 
 	return 0;
 }
@@ -483,7 +483,7 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 	vm_page_t m;
 	int i;
 
-	lockmgr(&sc->as_lock, LK_EXCLUSIVE, 0, curproc);
+	lockmgr(&sc->as_lock, LK_EXCLUSIVE, 0, curthread);
 
 	if (!mem->am_is_bound) {
 		device_printf(dev, "memory is not bound\n");
@@ -508,7 +508,7 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 	mem->am_offset = 0;
 	mem->am_is_bound = 0;
 
-	lockmgr(&sc->as_lock, LK_RELEASE, 0, curproc);
+	lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
 
 	return 0;
 }
@@ -645,7 +645,7 @@ agp_unbind_user(device_t dev, agp_unbind *unbind)
 }
 
 static int
-agp_open(dev_t kdev, int oflags, int devtype, struct proc *p)
+agp_open(dev_t kdev, int oflags, int devtype, struct thread *td)
 {
 	device_t dev = KDEV2DEV(kdev);
 	struct agp_softc *sc = device_get_softc(dev);
@@ -659,7 +659,7 @@ agp_open(dev_t kdev, int oflags, int devtype, struct proc *p)
 }
 
 static int
-agp_close(dev_t kdev, int fflag, int devtype, struct proc *p)
+agp_close(dev_t kdev, int fflag, int devtype, struct thread *td)
 {
 	device_t dev = KDEV2DEV(kdev);
 	struct agp_softc *sc = device_get_softc(dev);
@@ -676,7 +676,7 @@ agp_close(dev_t kdev, int fflag, int devtype, struct proc *p)
 }
 
 static int
-agp_ioctl(dev_t kdev, u_long cmd, caddr_t data, int fflag, struct proc *p)
+agp_ioctl(dev_t kdev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	device_t dev = KDEV2DEV(kdev);
 

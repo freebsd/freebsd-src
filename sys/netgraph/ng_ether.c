@@ -609,6 +609,9 @@ ng_ether_rcvdata(hook_p hook, item_p item)
 	if (hook == priv->upper)
 		return ng_ether_rcv_upper(node, m, meta);
 	panic("%s: weird hook", __FUNCTION__);
+#ifdef RESTARTABLE_PANICS /* so we don;t get an error msg in LINT */
+	return NULL;
+#endif
 }
 
 /*

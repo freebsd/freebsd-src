@@ -100,7 +100,7 @@ static driver_t amrd_driver = {
 DRIVER_MODULE(amrd, amr, amrd_driver, amrd_devclass, 0, 0);
 
 static int
-amrd_open(dev_t dev, int flags, int fmt, struct proc *p)
+amrd_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
     struct disklabel	*label;
@@ -129,7 +129,7 @@ amrd_open(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-amrd_close(dev_t dev, int flags, int fmt, struct proc *p)
+amrd_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
 
@@ -142,7 +142,7 @@ amrd_close(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-amrd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+amrd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
 
     return (ENOTTY);

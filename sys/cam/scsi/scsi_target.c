@@ -551,7 +551,7 @@ targdtor(struct cam_periph *periph)
 }
 
 static int
-targopen(dev_t dev, int flags, int fmt, struct proc *p)
+targopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct	targ_softc *softc;
@@ -610,7 +610,7 @@ targopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-targclose(dev_t dev, int flag, int fmt, struct proc *p)
+targclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	targ_softc *softc;
@@ -807,7 +807,7 @@ fail:
 }
 
 static int
-targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct targ_softc *softc;
@@ -1080,7 +1080,7 @@ targsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 
 
 static int
-targpoll(dev_t dev, int poll_events, struct proc *p)
+targpoll(dev_t dev, int poll_events, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct targ_softc *softc;
@@ -1117,9 +1117,9 @@ targpoll(dev_t dev, int poll_events, struct proc *p)
 
 	if (revents == 0) {
 		if (poll_events & (POLLOUT | POLLWRNORM))
-			selrecord(p, &softc->rcv_select);
+			selrecord(td, &softc->rcv_select);
 		if (poll_events & (POLLIN | POLLRDNORM))
-			selrecord(p, &softc->snd_select);
+			selrecord(td, &softc->snd_select);
 	}
 	splx(s);
 	return (revents);

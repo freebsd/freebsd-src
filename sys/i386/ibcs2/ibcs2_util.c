@@ -50,8 +50,8 @@ const char      ibcs2_emul_path[] = "/compat/ibcs2";
  * be in exists.
  */
 int
-ibcs2_emul_find(p, sgp, prefix, path, pbuf, cflag)
-	struct proc	 *p;
+ibcs2_emul_find(td, sgp, prefix, path, pbuf, cflag)
+	struct thread	 *td;
 	caddr_t		 *sgp;		/* Pointer to stackgap memory */
 	const char	 *prefix;
 	char		 *path;
@@ -104,7 +104,7 @@ ibcs2_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		for (cp = &ptr[len] - 1; *cp != '/'; cp--);
 		*cp = '\0';
 
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, p);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
 
 		if ((error = namei(&nd)) != 0) {
 			free(buf, M_TEMP);
@@ -114,7 +114,7 @@ ibcs2_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		*cp = '/';
 	}
 	else {
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, p);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
 
 		if ((error = namei(&nd)) != 0) {
 			free(buf, M_TEMP);
@@ -130,7 +130,7 @@ ibcs2_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		 * to the emulation root directory. This is expensive :-(
 		 */
 		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, ibcs2_emul_path,
-		       p);
+		       td);
 
 		if ((error = namei(&ndroot)) != 0) {
 			/* Cannot happen! */
@@ -140,11 +140,11 @@ ibcs2_emul_find(p, sgp, prefix, path, pbuf, cflag)
 			return error;
 		}
 
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, p->p_ucred, p)) != 0) {
+		if ((error = VOP_GETATTR(nd.ni_vp, &vat, td->td_proc->p_ucred, td)) != 0) {
 			goto done;
 		}
 
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, p->p_ucred, p))
+		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, td->td_proc->p_ucred, td))
 		    != 0) {
 			goto done;
 		}

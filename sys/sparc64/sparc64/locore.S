@@ -45,7 +45,7 @@ ENTRY(_start)
 	wrpr	%g0, 0, %cleanwin
 	wrpr	%g0, 0, %pil
 
-	setx	user0 + UPAGES * PAGE_SIZE - SPOFF, %l0, %o5
+	setx	kstack0 + KSTACK_PAGES * PAGE_SIZE - SPOFF, %l0, %o5
 	save	%o5, -CCFSZ, %sp
 
 	mov	%g1, %o0

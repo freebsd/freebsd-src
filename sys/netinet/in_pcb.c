@@ -136,10 +136,10 @@ SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hilast, CTLTYPE_INT|CTLFLAG_RW,
  * Allocate a PCB and associate it with the socket.
  */
 int
-in_pcballoc(so, pcbinfo, p)
+in_pcballoc(so, pcbinfo, td)
 	struct socket *so;
 	struct inpcbinfo *pcbinfo;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct inpcb *inp;
 #ifdef IPSEC
@@ -175,11 +175,12 @@ in_pcballoc(so, pcbinfo, p)
 }
 
 int
-in_pcbbind(inp, nam, p)
+in_pcbbind(inp, nam, td)
 	register struct inpcb *inp;
 	struct sockaddr *nam;
-	struct proc *p;
+	struct thread *td;
 {
+	struct proc *p = td->td_proc;
 	register struct socket *so = inp->inp_socket;
 	unsigned short *lastport;
 	struct sockaddr_in *sin;
@@ -494,10 +495,10 @@ in_pcbladdr(inp, nam, plocal_sin)
  * then pick one.
  */
 int
-in_pcbconnect(inp, nam, p)
+in_pcbconnect(inp, nam, td)
 	register struct inpcb *inp;
 	struct sockaddr *nam;
-	struct proc *p;
+	struct thread *td;
 {
 	struct sockaddr_in *ifaddr;
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
@@ -511,7 +512,7 @@ in_pcbconnect(inp, nam, p)
 		sa.sin_addr.s_addr = htonl(cred->cr_prison->pr_ip);
 		sa.sin_len=sizeof (sa);
 		sa.sin_family = AF_INET;
-		error = in_pcbbind(inp, (struct sockaddr *)&sa, p);
+		error = in_pcbbind(inp, (struct sockaddr *)&sa, td);
 		if (error)
 		    return (error);
 	}
@@ -528,7 +529,7 @@ in_pcbconnect(inp, nam, p)
 	}
 	if (inp->inp_laddr.s_addr == INADDR_ANY) {
 		if (inp->inp_lport == 0) {
-			error = in_pcbbind(inp, (struct sockaddr *)0, p);
+			error = in_pcbbind(inp, (struct sockaddr *)0, td);
 			if (error)
 				return (error);
 		}

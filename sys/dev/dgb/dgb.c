@@ -959,11 +959,11 @@ load_fep:
 
 /* ARGSUSED */
 static	int
-dgbopen(dev, flag, mode, p)
+dgbopen(dev, flag, mode, td)
 	dev_t		dev;
 	int		flag;
 	int		mode;
-	struct proc	*p;
+	struct thread	*td;
 {
 	struct dgb_softc *sc;
 	struct tty *tp;
@@ -1049,7 +1049,7 @@ open_top:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser(p)) {
+		    suser_td(td)) {
 			error = EBUSY;
 			goto out;
 		}
@@ -1139,11 +1139,11 @@ out:
 
 /*ARGSUSED*/
 static	int
-dgbclose(dev, flag, mode, p)
+dgbclose(dev, flag, mode, td)
 	dev_t		dev;
 	int		flag;
 	int		mode;
-	struct proc	*p;
+	struct thread	*td;
 {
 	int		mynor;
 	struct tty	*tp;
@@ -1499,12 +1499,12 @@ dgbpoll(unit_c)
 }
 
 static	int
-dgbioctl(dev, cmd, data, flag, p)
+dgbioctl(dev, cmd, data, flag, td)
 	dev_t		dev;
 	u_long		cmd;
 	caddr_t		data;
 	int		flag;
-	struct proc	*p;
+	struct thread	*td;
 {
 	struct dgb_softc *sc;
 	int unit, pnum;
@@ -1547,7 +1547,7 @@ dgbioctl(dev, cmd, data, flag, p)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser(p);
+			error = suser_td(td);
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
@@ -1622,7 +1622,7 @@ dgbioctl(dev, cmd, data, flag, p)
 	if(cmd==TIOCSETAW || cmd==TIOCSETAF)
 		port->mustdrain=1;
 
-	error = linesw[tp->t_line].l_ioctl(tp, cmd, data, flag, p);
+	error = linesw[tp->t_line].l_ioctl(tp, cmd, data, flag, td);
 	if (error != ENOIOCTL)
 		return error;
 	s = spltty();
@@ -1769,7 +1769,7 @@ dgbioctl(dev, cmd, data, flag, p)
 		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
-		error = suser(p);
+		error = suser_td(td);
 		if (error != 0) {
 			splx(s);
 			return (error);

@@ -92,10 +92,10 @@ int	promparam __P((struct tty *, struct termios *));
 void	promstop __P((struct tty *, int));
 
 int
-promopen(dev, flag, mode, p)
+promopen(dev, flag, mode, td)
 	dev_t dev;
 	int flag, mode;
-	struct proc *p;
+	struct thread *td;
 {
 	struct tty *tp;
 	int unit = minor(dev);
@@ -124,7 +124,7 @@ promopen(dev, flag, mode, p)
 		ttsetwater(tp);
 
 		setuptimeout = 1;
-	} else if ((tp->t_state & TS_XCLUDE) && suser(p)) {
+	} else if ((tp->t_state & TS_XCLUDE) && suser(td->td_proc)) {
 		splx(s);
 		return EBUSY;
 	}
@@ -143,10 +143,10 @@ promopen(dev, flag, mode, p)
 }
  
 int
-promclose(dev, flag, mode, p)
+promclose(dev, flag, mode, td)
 	dev_t dev;
 	int flag, mode;
-	struct proc *p;
+	struct thread *td;
 {
 	int unit = minor(dev);
 	struct tty *tp = prom_tp;
@@ -161,12 +161,12 @@ promclose(dev, flag, mode, p)
 }
  
 int
-promioctl(dev, cmd, data, flag, p)
+promioctl(dev, cmd, data, flag, td)
 	dev_t dev;
 	u_long cmd;
 	caddr_t data;
 	int flag;
-	struct proc *p;
+	struct thread *td;
 {
 	int unit = minor(dev);
 	struct tty *tp = prom_tp;
@@ -175,7 +175,7 @@ promioctl(dev, cmd, data, flag, p)
 	if (unit != 0)
 		return ENXIO;
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if (error != ENOIOCTL)
 		return error;
 	error = ttioctl(tp, cmd, data, flag);

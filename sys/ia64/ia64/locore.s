@@ -64,9 +64,9 @@
 #endif
 
 	.section .data.proc0,"aw"
-	.global	proc0paddr
+	.global	kstack
 	.align	PAGE_SIZE
-proc0paddr:	.space UPAGES * PAGE_SIZE
+kstack:	.space KSTACK_PAGES * PAGE_SIZE
 
 	.text
 
@@ -80,23 +80,19 @@ ENTRY(__start, 1)
 	;;
 	mov	cr.iva=r8
 	mov	cr.pta=r9
-	movl	r10=proc0
 	;;
-	add	r10=P_ADDR,r10
-	movl	r11=proc0paddr
+	movl	r11=kstack
 	;;
-	st8	[r10]=r11
 	srlz.i
 	;;
 	srlz.d
-	mov	r9=UPAGES*PAGE_SIZE-16
+	mov	r9=KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-16
 	;; 
 	movl	gp=__gp			// find kernel globals
 	add	sp=r9,r11		// proc0's stack
-	add	r10=SIZEOF_USER,r11	// proc0's backing store
 	mov	ar.rsc=0		// turn off rse
 	;;
-	mov	ar.bspstore=r10		// switch backing store
+	mov	ar.bspstore=r11		// switch backing store
 	;;
 	loadrs				// invalidate regs
 	;;
@@ -105,17 +101,19 @@ ENTRY(__start, 1)
 	br.call.sptk.many rp=ia64_init
 
 	/*
-	 * switch to proc0 and then initialise the rest of the kernel.
+	 * switch to thread0 and then initialise the rest of the kernel.
 	 */
 	alloc	r16=ar.pfs,0,0,1,0
 	;; 
-	movl	out0=proc0
+	movl	out0=thread0
 	;;
-	add	out0=P_ADDR,out0
+	ld8	out0=[out0]
+	;;
+	add	out0=TD_PCB,out0
 	;;
 	ld8	out0=[out0]
 	;; 
-	add	r16=U_PCB_B0,out0	// return to mi_startup
+	add	r16=PCB_B0,out0		// return to mi_startup
 	movl	r17=mi_startup
 	;;
 	st8	[r16]=r17

@@ -666,7 +666,7 @@ readrest:
 				 * grab the lock if we need to
 				 */
 				(fs.lookup_still_valid ||
-				 lockmgr(&fs.map->lock, LK_EXCLUSIVE|LK_NOWAIT, (void *)0, curproc) == 0)
+				 lockmgr(&fs.map->lock, LK_EXCLUSIVE|LK_NOWAIT, (void *)0, curthread) == 0)
 			    ) {
 				
 				fs.lookup_still_valid = 1;

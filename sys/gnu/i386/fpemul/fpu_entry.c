@@ -211,10 +211,10 @@ math_emulate(struct trapframe * tframe)
 	REENTRANT_CHECK(ON);
 #endif				/* PARANOID */
 
-	if ((((struct pcb *) curproc->p_addr)->pcb_flags & FP_SOFTFP) == 0) {
+	if ((curthread->td_pcb->pcb_flags & FP_SOFTFP) == 0) {
 		finit();
 		control_word = __INITIAL_NPXCW__;
-		((struct pcb *) curproc->p_addr)->pcb_flags |= FP_SOFTFP;
+		curthread->td_pcb->pcb_flags |= FP_SOFTFP;
 	}
 	FPU_info = tframe;
 	FPU_ORIG_EIP = FPU_EIP;	/* --pink-- */
@@ -232,10 +232,10 @@ math_emulate(struct trapframe * tframe)
 #endif
 
 	FPU_lookahead = FPU_LOOKAHEAD;
-	PROC_LOCK(curproc);
+	PROC_LOCK(curthread->td_proc);
 	if (curproc->p_flag & P_TRACED)
 		FPU_lookahead = 0;
-	PROC_UNLOCK(curproc);
+	PROC_UNLOCK(curthread->td_proc);
 
 do_another_FPU_instruction:
 

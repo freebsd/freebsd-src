@@ -362,7 +362,7 @@ spictimeout(void *arg)
 }
 
 static int
-spicopen(dev_t dev, int flag, int fmt, struct proc *p)
+spicopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
         struct spic_softc *sc;
 
@@ -380,7 +380,7 @@ spicopen(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 static int
-spicclose(dev_t dev, int flag, int fmt, struct proc *p)
+spicclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
         struct spic_softc *sc;
 
@@ -427,7 +427,7 @@ spicread(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-spicioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+spicioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
         struct spic_softc *sc;
 
@@ -437,7 +437,7 @@ spicioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 }
 
 static int
-spicpoll(dev_t dev, int events, struct proc *p)
+spicpoll(dev_t dev, int events, struct thread *td)
 {
         struct spic_softc *sc;
         int revents = 0, s;
@@ -448,7 +448,7 @@ spicpoll(dev_t dev, int events, struct proc *p)
                 if (sc->sc_count)
                         revents |= events & (POLLIN | POLLRDNORM);
                 else
-                        selrecord(p, &sc->sc_rsel); /* Who shall we wake? */
+                        selrecord(td, &sc->sc_rsel); /* Who shall we wake? */
         }
         splx(s);
 

@@ -1065,10 +1065,10 @@ ttioctl(tp, cmd, data, flag)
 }
 
 int
-ttypoll(dev, events, p)
+ttypoll(dev, events, td)
 	dev_t dev;
 	int events;
-	struct proc *p;
+	struct thread *td;
 {
 	int s;
 	int revents = 0;
@@ -1084,7 +1084,7 @@ ttypoll(dev, events, p)
 		if (ttnread(tp) > 0 || ISSET(tp->t_state, TS_ZOMBIE))
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(p, &tp->t_rsel);
+			selrecord(td, &tp->t_rsel);
 	}
 	if (events & (POLLOUT | POLLWRNORM)) {
 		if ((tp->t_outq.c_cc <= tp->t_olowat &&
@@ -1092,7 +1092,7 @@ ttypoll(dev, events, p)
 		    || ISSET(tp->t_state, TS_ZOMBIE))
 			revents |= events & (POLLOUT | POLLWRNORM);
 		else
-			selrecord(p, &tp->t_wsel);
+			selrecord(td, &tp->t_wsel);
 	}
 	splx(s);
 	return (revents);
@@ -2337,8 +2337,8 @@ ttyinfo(tp)
 			if (proc_compare(pick, p))
 				pick = p;
 
-		stmp = pick->p_stat == SRUN ? "running" :
-		    pick->p_wmesg ? pick->p_wmesg : "iowait";
+		stmp = pick->p_stat == SRUN ? "running" :  /* XXXKSE */
+		    pick->p_thread.td_wmesg ? pick->p_thread.td_wmesg : "iowait";
 		calcru(pick, &utime, &stime, NULL);
 		ltmp = pick->p_stat == SIDL || pick->p_stat == SWAIT ||
 		    pick->p_stat == SZOMB ? 0 :
@@ -2386,6 +2386,8 @@ proc_compare(p1, p2)
 	register struct proc *p1, *p2;
 {
 
+	int esta, estb;
+	struct ksegrp *kg;
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (p1 == NULL)
 		return (1);
@@ -2402,9 +2404,16 @@ proc_compare(p1, p2)
 		/*
 		 * tie - favor one with highest recent cpu utilization
 		 */
-		if (p2->p_estcpu > p1->p_estcpu)
+		esta = estb = 0;
+		FOREACH_KSEGRP_IN_PROC(p1,kg) {
+			esta += kg->kg_estcpu;
+		}
+		FOREACH_KSEGRP_IN_PROC(p2,kg) {
+			estb += kg->kg_estcpu;
+		}
+		if (estb > esta)
 			return (1);
-		if (p1->p_estcpu > p2->p_estcpu)
+		if (esta > estb)
 			return (0);
 		return (p2->p_pid > p1->p_pid);	/* tie - return highest pid */
 	}
@@ -2420,6 +2429,7 @@ proc_compare(p1, p2)
 		return (p2->p_pid > p1->p_pid); /* tie - return highest pid */
 	}
 
+#if 0 /* XXXKSE */
 	/*
 	 * pick the one with the smallest sleep time
 	 */
@@ -2434,6 +2444,7 @@ proc_compare(p1, p2)
 		return (1);
 	if (p2->p_sflag & PS_SINTR && (p1->p_sflag & PS_SINTR) == 0)
 		return (0);
+#endif
 	return (p2->p_pid > p1->p_pid);		/* tie - return highest pid */
 }
 

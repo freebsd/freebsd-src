@@ -118,25 +118,27 @@ static void
 ithread_update(struct ithd *ithd)
 {
 	struct intrhand *ih;
+	struct thread *td;
 	struct proc *p;
 	int entropy;
 
 	mtx_assert(&ithd->it_lock, MA_OWNED);
-	p = ithd->it_proc;
-	if (p == NULL)
+	td = ithd->it_td;
+	if (td == NULL)
 		return;
+	p = td->td_proc;
 
 	strncpy(p->p_comm, ithd->it_name, sizeof(ithd->it_name));
 	ih = TAILQ_FIRST(&ithd->it_handlers);
 	if (ih == NULL) {
-		p->p_pri.pri_level = PRI_MAX_ITHD;
+		td->td_ksegrp->kg_pri.pri_level = PRI_MAX_ITHD;
 		ithd->it_flags &= ~IT_ENTROPY;
 		return;
 	}
 
 	entropy = 0;
-	p->p_pri.pri_level = ih->ih_pri;
-	p->p_pri.pri_native = ih->ih_pri;
+	td->td_ksegrp->kg_pri.pri_level = ih->ih_pri;
+	td->td_ksegrp->kg_pri.pri_native = ih->ih_pri;
 	TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 		if (strlen(p->p_comm) + strlen(ih->ih_name) + 1 <
 		    sizeof(p->p_comm)) {
@@ -166,6 +168,7 @@ ithread_create(struct ithd **ithread, int vector, int flags,
     void (*disable)(int), void (*enable)(int), const char *fmt, ...)
 {
 	struct ithd *ithd;
+	struct thread *td;
 	struct proc *p;
 	int error;
 	va_list ap;
@@ -194,11 +197,12 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 		free(ithd, M_ITHREAD);
 		return (error);
 	}
-	p->p_pri.pri_class = PRI_ITHD;
-	p->p_pri.pri_level = PRI_MAX_ITHD;
+	td = &p->p_thread;	/* XXXKSE */
+	td->td_ksegrp->kg_pri.pri_class = PRI_ITHD;
+	td->td_ksegrp->kg_pri.pri_level = PRI_MAX_ITHD;
 	p->p_stat = SWAIT;
-	ithd->it_proc = p;
-	p->p_ithd = ithd;
+	ithd->it_td = td;
+	td->td_ithd = ithd;
 	if (ithread != NULL)
 		*ithread = ithd;
 	mtx_unlock(&ithd->it_lock);
@@ -211,9 +215,13 @@ int
 ithread_destroy(struct ithd *ithread)
 {
 
+	struct thread *td;
+	struct proc *p;
 	if (ithread == NULL)
 		return (EINVAL);
 
+	td = ithread->it_td;
+	p = td->td_proc;
 	mtx_lock(&ithread->it_lock);
 	if (!TAILQ_EMPTY(&ithread->it_handlers)) {
 		mtx_unlock(&ithread->it_lock);
@@ -221,9 +229,9 @@ ithread_destroy(struct ithd *ithread)
 	}
 	ithread->it_flags |= IT_DEAD;
 	mtx_lock_spin(&sched_lock);
-	if (ithread->it_proc->p_stat == SWAIT) {
-		ithread->it_proc->p_stat = SRUN;
-		setrunqueue(ithread->it_proc);
+	if (p->p_stat == SWAIT) {
+		p->p_stat = SRUN; /* XXXKSE */
+		setrunqueue(td);
 	}
 	mtx_unlock_spin(&sched_lock);
 	mtx_unlock(&ithread->it_lock);
@@ -319,7 +327,7 @@ ok:
 	 * handler as being dead and let the ithread do the actual removal.
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (ithread->it_proc->p_stat != SWAIT) {
+	if (ithread->it_td->td_proc->p_stat != SWAIT) {
 		handler->ih_flags |= IH_DEAD;
 
 		/*
@@ -343,6 +351,7 @@ int
 ithread_schedule(struct ithd *ithread, int do_switch)
 {
 	struct int_entropy entropy;
+	struct thread *td;
 	struct proc *p;
 
 	/*
@@ -357,12 +366,13 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	 */
 	if (harvest.interrupt && ithread->it_flags & IT_ENTROPY) {
 		entropy.vector = ithread->it_vector;
-		entropy.proc = CURPROC;
+		entropy.proc = curthread->td_proc;;
 		random_harvest(&entropy, sizeof(entropy), 2, 0,
 		    RANDOM_INTERRUPT);
 	}
 
-	p = ithread->it_proc;
+	td = ithread->it_td;
+	p = td->td_proc;
 	KASSERT(p != NULL, ("ithread %s has no process", ithread->it_name));
 	CTR3(KTR_INTR, __func__ ": pid %d: (%s) need = %d", p->p_pid, p->p_comm,
 	    ithread->it_need);
@@ -380,14 +390,14 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	if (p->p_stat == SWAIT) {
 		CTR1(KTR_INTR, __func__ ": setrunqueue %d", p->p_pid);
 		p->p_stat = SRUN;
-		setrunqueue(p);
-		if (do_switch && curproc->p_stat == SRUN) {
-			if (curproc != PCPU_GET(idleproc))
-				setrunqueue(curproc);
-			curproc->p_stats->p_ru.ru_nivcsw++;
+		setrunqueue(td); /* XXXKSE */
+		if (do_switch && curthread->td_proc->p_stat == SRUN) {
+			if (curthread != PCPU_GET(idlethread))
+				setrunqueue(curthread);
+			curthread->td_proc->p_stats->p_ru.ru_nivcsw++;
 			mi_switch();
 		} else
-			curproc->p_sflag |= PS_NEEDRESCHED;
+			curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
 	} else {
 		CTR3(KTR_INTR, __func__ ": pid %d: it_need %d, state %d",
 		    p->p_pid, ithread->it_need, p->p_stat);
@@ -439,7 +449,7 @@ swi_sched(void *cookie, int flags)
 	atomic_add_int(&cnt.v_intr, 1); /* one more global interrupt */
 		
 	CTR3(KTR_INTR, "swi_sched pid %d(%s) need=%d",
-		it->it_proc->p_pid, it->it_proc->p_comm, it->it_need);
+		it->it_td->td_proc->p_pid, it->it_td->td_proc->p_comm, it->it_need);
 
 	/*
 	 * Set ih_need for this handler so that if the ithread is already
@@ -461,11 +471,13 @@ ithread_loop(void *arg)
 {
 	struct ithd *ithd;		/* our thread context */
 	struct intrhand *ih;		/* and our interrupt handler chain */
+	struct thread *td;
 	struct proc *p;
 	
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
 	ithd = (struct ithd *)arg;	/* point to myself */
-	KASSERT(ithd->it_proc == p && p->p_ithd == ithd,
+	KASSERT(ithd->it_td == td && td->td_ithd == ithd,
 	    (__func__ ": ithread and proc linkage out of sync"));
 
 	/*
@@ -479,7 +491,7 @@ ithread_loop(void *arg)
 		if (ithd->it_flags & IT_DEAD) {
 			CTR2(KTR_INTR, __func__ ": pid %d: (%s) exiting",
 			    p->p_pid, p->p_comm);
-			p->p_ithd = NULL;
+			td->td_ithd = NULL;
 			mtx_destroy(&ithd->it_lock);
 			mtx_lock(&Giant);
 			free(ithd, M_ITHREAD);
@@ -559,9 +571,9 @@ start_softintr(void *dummy)
 	    swi_add(NULL, "vm", swi_vm, NULL, SWI_VM, 0, &vm_ih))
 		panic("died while creating standard software ithreads");
 
-	PROC_LOCK(clk_ithd->it_proc);
-	clk_ithd->it_proc->p_flag |= P_NOLOAD;
-	PROC_UNLOCK(clk_ithd->it_proc);
+	PROC_LOCK(clk_ithd->it_td->td_proc);
+	clk_ithd->it_td->td_proc->p_flag |= P_NOLOAD;
+	PROC_UNLOCK(clk_ithd->it_td->td_proc);
 }
 SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
 

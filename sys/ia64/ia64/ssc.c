@@ -124,7 +124,7 @@ ssccncheckc(dev_t dev)
 }
 
 static int
-sscopen(dev_t dev, int flag, int mode, struct proc *p)
+sscopen(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct tty *tp;
 	int s;
@@ -148,7 +148,7 @@ sscopen(dev_t dev, int flag, int mode, struct proc *p)
 		ttsetwater(tp);
 
 		setuptimeout = 1;
-	} else if ((tp->t_state & TS_XCLUDE) && suser(p)) {
+	} else if ((tp->t_state & TS_XCLUDE) && suser(td->td_proc)) {
 		splx(s);
 		return EBUSY;
 	}
@@ -167,7 +167,7 @@ sscopen(dev_t dev, int flag, int mode, struct proc *p)
 }
  
 static int
-sscclose(dev_t dev, int flag, int mode, struct proc *p)
+sscclose(dev_t dev, int flag, int mode, struct thread *td)
 {
 	int unit = minor(dev);
 	struct tty *tp = ssc_tp;
@@ -182,7 +182,7 @@ sscclose(dev_t dev, int flag, int mode, struct proc *p)
 }
  
 static int
-sscioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+sscioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int unit = minor(dev);
 	struct tty *tp = ssc_tp;
@@ -191,7 +191,7 @@ sscioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if (unit != 0)
 		return ENXIO;
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if (error != ENOIOCTL)
 		return error;
 	error = ttioctl(tp, cmd, data, flag);

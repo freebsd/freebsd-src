@@ -20,7 +20,7 @@ WLCACHE			opt_wavelan.h
 WLDEBUG			opt_wavelan.h
 COMPAT_OLDISA
 BROKEN_KEYBOARD_RESET	opt_reset.h
-UPAGES
+KSTACK_PAGES
 
 # Options for emulators.  These should only be used at config time, so
 # they are handled like options for static file systems

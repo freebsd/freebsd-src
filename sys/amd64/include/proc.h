@@ -42,6 +42,9 @@
 /*
  * Machine-dependent part of the proc structure for i386.
  */
+struct mdthread {
+};
+
 struct mdproc {
 };
 

@@ -21,6 +21,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -44,9 +46,9 @@ struct setipdomainname_args {
 };
 
 /* Local prototypes */
-static int ibcs2_getipdomainname __P((struct proc *,
+static int ibcs2_getipdomainname __P((struct thread *,
 				      struct getipdomainname_args *));
-static int ibcs2_setipdomainname __P((struct proc *,
+static int ibcs2_setipdomainname __P((struct thread *,
 				      struct setipdomainname_args *));
 
 /*
@@ -54,8 +56,8 @@ static int ibcs2_setipdomainname __P((struct proc *,
  */
 
 int
-ibcs2_socksys(p, uap)
-	register struct proc *p;
+ibcs2_socksys(td, uap)
+	register struct thread *td;
 	register struct ibcs2_socksys_args *uap;
 {
 	int error;
@@ -77,55 +79,55 @@ ibcs2_socksys(p, uap)
 	passargs = (void *)(realargs + 1);
 	switch (realargs[0]) {
 	case SOCKSYS_ACCEPT:
-		return accept(p, passargs);
+		return accept(td, passargs);
 	case SOCKSYS_BIND:
-		return bind(p, passargs);
+		return bind(td, passargs);
 	case SOCKSYS_CONNECT:
-		return connect(p, passargs);
+		return connect(td, passargs);
 	case SOCKSYS_GETPEERNAME:
-		return getpeername(p, passargs);
+		return getpeername(td, passargs);
 	case SOCKSYS_GETSOCKNAME:
-		return getsockname(p, passargs);
+		return getsockname(td, passargs);
 	case SOCKSYS_GETSOCKOPT:
-		return getsockopt(p, passargs);
+		return getsockopt(td, passargs);
 	case SOCKSYS_LISTEN:
-		return listen(p, passargs);
+		return listen(td, passargs);
 	case SOCKSYS_RECV:
 		realargs[5] = realargs[6] = 0;
 		/* FALLTHROUGH */
 	case SOCKSYS_RECVFROM:
-		return recvfrom(p, passargs);
+		return recvfrom(td, passargs);
 	case SOCKSYS_SEND:
 		realargs[5] = realargs[6] = 0;
 		/* FALLTHROUGH */
 	case SOCKSYS_SENDTO:
-		return sendto(p, passargs);
+		return sendto(td, passargs);
 	case SOCKSYS_SETSOCKOPT:
-		return setsockopt(p, passargs);
+		return setsockopt(td, passargs);
 	case SOCKSYS_SHUTDOWN:
-		return shutdown(p, passargs);
+		return shutdown(td, passargs);
 	case SOCKSYS_SOCKET:
-		return socket(p, passargs);
+		return socket(td, passargs);
 	case SOCKSYS_SELECT:
-		return select(p, passargs);
+		return select(td, passargs);
 	case SOCKSYS_GETIPDOMAIN:
-		return ibcs2_getipdomainname(p, passargs);
+		return ibcs2_getipdomainname(td, passargs);
 	case SOCKSYS_SETIPDOMAIN:
-		return ibcs2_setipdomainname(p, passargs);
+		return ibcs2_setipdomainname(td, passargs);
 	case SOCKSYS_ADJTIME:
-		return adjtime(p, passargs);
+		return adjtime(td, passargs);
 	case SOCKSYS_SETREUID:
-		return setreuid(p, passargs);
+		return setreuid(td, passargs);
 	case SOCKSYS_SETREGID:
-		return setregid(p, passargs);
+		return setregid(td, passargs);
 	case SOCKSYS_GETTIME:
-		return gettimeofday(p, passargs);
+		return gettimeofday(td, passargs);
 	case SOCKSYS_SETTIME:
-		return settimeofday(p, passargs);
+		return settimeofday(td, passargs);
 	case SOCKSYS_GETITIMER:
-		return getitimer(p, passargs);
+		return getitimer(td, passargs);
 	case SOCKSYS_SETITIMER:
-		return setitimer(p, passargs);
+		return setitimer(td, passargs);
 
 	default:
 		printf("socksys unknown %08x %08x %08x %08x %08x %08x %08x\n",
@@ -138,8 +140,8 @@ ibcs2_socksys(p, uap)
 
 /* ARGSUSED */
 static int
-ibcs2_getipdomainname(p, uap)
-        struct proc *p;
+ibcs2_getipdomainname(td, uap)
+        struct thread *td;
         struct getipdomainname_args *uap;
 {
 	char hname[MAXHOSTNAMELEN], *dptr;
@@ -162,14 +164,14 @@ ibcs2_getipdomainname(p, uap)
 
 /* ARGSUSED */
 static int
-ibcs2_setipdomainname(p, uap)
-        struct proc *p;
+ibcs2_setipdomainname(td, uap)
+        struct thread *td;
         struct setipdomainname_args *uap;
 {
 	char hname[MAXHOSTNAMELEN], *ptr;
 	int error, sctl[2], hlen;
 
-	if ((error = suser(p)))
+	if ((error = suser_td(td)))
 		return (error);
 
 	/* W/out a hostname a domain-name is nonsense */
@@ -200,5 +202,5 @@ ibcs2_setipdomainname(p, uap)
 	sctl[0] = CTL_KERN;
         sctl[1] = KERN_HOSTNAME;
  	hlen = strlen(hname) + 1;
-        return (kernel_sysctl(p, sctl, 2, 0, 0, hname, hlen, 0));
+        return (kernel_sysctl(td, sctl, 2, 0, 0, hname, hlen, 0));
 }

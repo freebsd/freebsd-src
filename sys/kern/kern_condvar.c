@@ -46,9 +46,9 @@
 /*
  * Common sanity checks for cv_wait* functions.
  */
-#define	CV_ASSERT(cvp, mp, p) do {					\
-	KASSERT((p) != NULL, ("%s: curproc NULL", __FUNCTION__));	\
-	KASSERT((p)->p_stat == SRUN, ("%s: not SRUN", __FUNCTION__));	\
+#define	CV_ASSERT(cvp, mp, td) do {					\
+	KASSERT((td) != NULL, ("%s: curthread NULL", __FUNCTION__));	\
+	KASSERT((td)->td_proc->p_stat == SRUN, ("%s: not SRUN", __FUNCTION__));	\
 	KASSERT((cvp) != NULL, ("%s: cvp NULL", __FUNCTION__));		\
 	KASSERT((mp) != NULL, ("%s: mp NULL", __FUNCTION__));		\
 	mtx_assert((mp), MA_OWNED | MA_NOTRECURSED);			\
@@ -112,21 +112,23 @@ cv_destroy(struct cv *cvp)
  * Switch context.
  */
 static __inline void
-cv_switch(struct proc *p)
+cv_switch(struct thread *td)
 {
 
-	p->p_stat = SSLEEP;
-	p->p_stats->p_ru.ru_nvcsw++;
+	td->td_proc->p_stat = SSLEEP;
+	td->td_proc->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();
-	CTR3(KTR_PROC, "cv_switch: resume proc %p (pid %d, %s)", p, p->p_pid,
-	    p->p_comm);
+	CTR3(KTR_PROC, "cv_switch: resume thread %p (pid %d, %s)",
+				td,
+				td->td_proc->p_pid,
+	    			td->td_proc->p_comm);
 }
 
 /*
  * Switch context, catching signals.
  */
 static __inline int
-cv_switch_catch(struct proc *p)
+cv_switch_catch(struct thread *td)
 {
 	int sig;
 
@@ -136,69 +138,71 @@ cv_switch_catch(struct proc *p)
 	 * both) could occur while we were stopped.  A SIGCONT would cause us to
 	 * be marked as SSLEEP without resuming us, thus we must be ready for
 	 * sleep when CURSIG is called.  If the wakeup happens while we're
-	 * stopped, p->p_wchan will be 0 upon return from CURSIG.
+	 * stopped, td->td_wchan will be 0 upon return from CURSIG.
 	 */
-	p->p_sflag |= PS_SINTR;
+	td->td_flags |= TDF_SINTR;
 	mtx_unlock_spin(&sched_lock);
-	PROC_LOCK(p);
-	sig = CURSIG(p);
+	PROC_LOCK(td->td_proc);
+	sig = CURSIG(td->td_proc);	/* XXXKSE */
 	mtx_lock_spin(&sched_lock);
-	PROC_UNLOCK_NOSWITCH(p);
+	PROC_UNLOCK_NOSWITCH(td->td_proc);
 	if (sig != 0) {
-		if (p->p_wchan != NULL)
-			cv_waitq_remove(p);
-		p->p_stat = SRUN;
-	} else if (p->p_wchan != NULL) {
-		cv_switch(p);
+		if (td->td_wchan != NULL)
+			cv_waitq_remove(td);
+		td->td_proc->p_stat = SRUN;
+	} else if (td->td_wchan != NULL) {
+		cv_switch(td);
 	}
-	p->p_sflag &= ~PS_SINTR;
+	td->td_flags &= ~TDF_SINTR;
 
 	return sig;
 }
 
 /*
- * Add a process to the wait queue of a condition variable.
+ * Add a thread to the wait queue of a condition variable.
  */
 static __inline void
-cv_waitq_add(struct cv *cvp, struct proc *p)
+cv_waitq_add(struct cv *cvp, struct thread *td)
 {
 
 	/*
 	 * Process may be sitting on a slpque if asleep() was called, remove it
 	 * before re-adding.
 	 */
-	if (p->p_wchan != NULL)
-		unsleep(p);
+	if (td->td_wchan != NULL)
+		unsleep(td);
 
-	p->p_sflag |= PS_CVWAITQ;
-	p->p_wchan = cvp;
-	p->p_wmesg = cvp->cv_description;
-	p->p_slptime = 0;
-	p->p_pri.pri_native = p->p_pri.pri_level;
-	CTR3(KTR_PROC, "cv_waitq_add: proc %p (pid %d, %s)", p, p->p_pid,
-	    p->p_comm);
-	TAILQ_INSERT_TAIL(&cvp->cv_waitq, p, p_slpq);
+	td->td_flags |= TDF_CVWAITQ;
+	td->td_wchan = cvp;
+	td->td_wmesg = cvp->cv_description;
+	td->td_kse->ke_slptime = 0; /* XXXKSE */
+	td->td_ksegrp->kg_slptime = 0; /* XXXKSE */
+	td->td_ksegrp->kg_pri.pri_native = td->td_ksegrp->kg_pri.pri_level;
+	CTR3(KTR_PROC, "cv_waitq_add: thread %p (pid %d, %s)", td,
+	    td->td_proc->p_pid,
+	    td->td_proc->p_comm);
+	TAILQ_INSERT_TAIL(&cvp->cv_waitq, td, td_slpq);
 }
 
 /*
- * Wait on a condition variable.  The current process is placed on the condition
+ * Wait on a condition variable.  The current thread is placed on the condition
  * variable's wait queue and suspended.  A cv_signal or cv_broadcast on the same
- * condition variable will resume the process.  The mutex is released before
+ * condition variable will resume the thread.  The mutex is released before
  * sleeping and will be held on return.  It is recommended that the mutex be
  * held when cv_signal or cv_broadcast are called.
  */
 void
 cv_wait(struct cv *cvp, struct mtx *mp)
 {
-	struct proc *p;
+	struct thread *td;
 	WITNESS_SAVE_DECL(mp);
 
-	p = CURPROC;
+	td = curthread;
 #ifdef KTRACE
-	if (p && KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 1, 0);
+	if (td->td_proc && KTRPOINT(td->td_proc, KTR_CSW))
+		ktrcsw(td->td_proc->p_tracep, 1, 0);
 #endif
-	CV_ASSERT(cvp, mp, p);
+	CV_ASSERT(cvp, mp, td);
 	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
@@ -207,7 +211,7 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 		/*
 		 * After a panic, or during autoconfiguration, just give
 		 * interrupts a chance, then just return; don't run any other
-		 * procs or panic below, in case this is the idle process and
+		 * thread or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
 		mtx_unlock_spin(&sched_lock);
@@ -218,13 +222,13 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 	DROP_GIANT_NOSWITCH();
 	mtx_unlock_flags(mp, MTX_NOSWITCH);
 
-	cv_waitq_add(cvp, p);
-	cv_switch(p);
+	cv_waitq_add(cvp, td);
+	cv_switch(td);
 
 	mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 0, 0);
+	if (KTRPOINT(td->td_proc, KTR_CSW))
+		ktrcsw(td->td_proc->p_tracep, 0, 0);
 #endif
 	PICKUP_GIANT();
 	mtx_lock(mp);
@@ -233,25 +237,25 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 
 /*
  * Wait on a condition variable, allowing interruption by signals.  Return 0 if
- * the process was resumed with cv_signal or cv_broadcast, EINTR or ERESTART if
+ * the thread was resumed with cv_signal or cv_broadcast, EINTR or ERESTART if
  * a signal was caught.  If ERESTART is returned the system call should be
  * restarted if possible.
  */
 int
 cv_wait_sig(struct cv *cvp, struct mtx *mp)
 {
-	struct proc *p;
+	struct thread *td;
 	int rval;
 	int sig;
 	WITNESS_SAVE_DECL(mp);
 
-	p = CURPROC;
+	td = curthread;
 	rval = 0;
 #ifdef KTRACE
-	if (p && KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 1, 0);
+	if (td->td_proc && KTRPOINT(td->td_proc, KTR_CSW))
+		ktrcsw(td->td_proc->p_tracep, 1, 0);
 #endif
-	CV_ASSERT(cvp, mp, p);
+	CV_ASSERT(cvp, mp, td);
 	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
@@ -271,27 +275,27 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	DROP_GIANT_NOSWITCH();
 	mtx_unlock_flags(mp, MTX_NOSWITCH);
 
-	cv_waitq_add(cvp, p);
-	sig = cv_switch_catch(p);
+	cv_waitq_add(cvp, td);
+	sig = cv_switch_catch(td);
 
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 
-	PROC_LOCK(p);
+	PROC_LOCK(td->td_proc);
 	if (sig == 0)
-		sig = CURSIG(p);
+		sig = CURSIG(td->td_proc);  /* XXXKSE */
 	if (sig != 0) {
-		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
+		if (SIGISMEMBER(td->td_proc->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
 		else
 			rval = ERESTART;
 	}
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(td->td_proc);
 
 #ifdef KTRACE
 	mtx_lock(&Giant);
-	if (KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 0, 0);
+	if (KTRPOINT(td->td_proc, KTR_CSW))
+		ktrcsw(td->td_proc->p_tracep, 0, 0);
 	mtx_unlock(&Giant);
 #endif
 	mtx_lock(mp);
@@ -308,17 +312,16 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 int
 cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 {
-	struct proc *p;
+	struct thread *td;
 	int rval;
 	WITNESS_SAVE_DECL(mp);
 
-	p = CURPROC;
+	td = curthread;
 	rval = 0;
 #ifdef KTRACE
-	if (p && KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 1, 0);
+		ktrcsw(td->td_proc->p_tracep, 1, 0);
 #endif
-	CV_ASSERT(cvp, mp, p);
+	CV_ASSERT(cvp, mp, td);
 	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
@@ -327,7 +330,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		/*
 		 * After a panic, or during autoconfiguration, just give
 		 * interrupts a chance, then just return; don't run any other
-		 * procs or panic below, in case this is the idle process and
+		 * thread or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
 		mtx_unlock_spin(&sched_lock);
@@ -338,29 +341,29 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	DROP_GIANT_NOSWITCH();
 	mtx_unlock_flags(mp, MTX_NOSWITCH);
 
-	cv_waitq_add(cvp, p);
-	callout_reset(&p->p_slpcallout, timo, cv_timedwait_end, p);
-	cv_switch(p);
+	cv_waitq_add(cvp, td);
+	callout_reset(&td->td_slpcallout, timo, cv_timedwait_end, td);
+	cv_switch(td);
 
-	if (p->p_sflag & PS_TIMEOUT) {
-		p->p_sflag &= ~PS_TIMEOUT;
+	if (td->td_flags & TDF_TIMEOUT) {
+		td->td_flags &= ~TDF_TIMEOUT;
 		rval = EWOULDBLOCK;
-	} else if (p->p_sflag & PS_TIMOFAIL)
-		p->p_sflag &= ~PS_TIMOFAIL;
-	else if (callout_stop(&p->p_slpcallout) == 0) {
+	} else if (td->td_flags & TDF_TIMOFAIL)
+		td->td_flags &= ~TDF_TIMOFAIL;
+	else if (callout_stop(&td->td_slpcallout) == 0) {
 		/*
 		 * Work around race with cv_timedwait_end similar to that
 		 * between msleep and endtsleep.
 		 */
-		p->p_sflag |= PS_TIMEOUT;
-		p->p_stats->p_ru.ru_nivcsw++;
+		td->td_flags |= TDF_TIMEOUT;
+		td->td_proc->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 	}
 
 	mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 0, 0);
+	if (KTRPOINT(td->td_proc, KTR_CSW))
+		ktrcsw(td->td_proc->p_tracep, 0, 0);
 #endif
 	PICKUP_GIANT();
 	mtx_lock(mp);
@@ -371,25 +374,25 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 
 /*
  * Wait on a condition variable for at most timo/hz seconds, allowing
- * interruption by signals.  Returns 0 if the process was resumed by cv_signal
+ * interruption by signals.  Returns 0 if the thread was resumed by cv_signal
  * or cv_broadcast, EWOULDBLOCK if the timeout expires, and EINTR or ERESTART if
  * a signal was caught.
  */
 int
 cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 {
-	struct proc *p;
+	struct thread *td;
 	int rval;
 	int sig;
 	WITNESS_SAVE_DECL(mp);
 
-	p = CURPROC;
+	td = curthread;
 	rval = 0;
 #ifdef KTRACE
-	if (p && KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 1, 0);
+	if (td->td_proc && KTRPOINT(td->td_proc, KTR_CSW))
+		ktrcsw(td->td_proc->p_tracep, 1, 0);
 #endif
-	CV_ASSERT(cvp, mp, p);
+	CV_ASSERT(cvp, mp, td);
 	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
@@ -398,7 +401,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		/*
 		 * After a panic, or during autoconfiguration, just give
 		 * interrupts a chance, then just return; don't run any other
-		 * procs or panic below, in case this is the idle process and
+		 * thread or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
 		mtx_unlock_spin(&sched_lock);
@@ -409,43 +412,43 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	DROP_GIANT_NOSWITCH();
 	mtx_unlock_flags(mp, MTX_NOSWITCH);
 
-	cv_waitq_add(cvp, p);
-	callout_reset(&p->p_slpcallout, timo, cv_timedwait_end, p);
-	sig = cv_switch_catch(p);
+	cv_waitq_add(cvp, td);
+	callout_reset(&td->td_slpcallout, timo, cv_timedwait_end, td);
+	sig = cv_switch_catch(td);
 
-	if (p->p_sflag & PS_TIMEOUT) {
-		p->p_sflag &= ~PS_TIMEOUT;
+	if (td->td_flags & TDF_TIMEOUT) {
+		td->td_flags &= ~TDF_TIMEOUT;
 		rval = EWOULDBLOCK;
-	} else if (p->p_sflag & PS_TIMOFAIL)
-		p->p_sflag &= ~PS_TIMOFAIL;
-	else if (callout_stop(&p->p_slpcallout) == 0) {
+	} else if (td->td_flags & TDF_TIMOFAIL)
+		td->td_flags &= ~TDF_TIMOFAIL;
+	else if (callout_stop(&td->td_slpcallout) == 0) {
 		/*
 		 * Work around race with cv_timedwait_end similar to that
 		 * between msleep and endtsleep.
 		 */
-		p->p_sflag |= PS_TIMEOUT;
-		p->p_stats->p_ru.ru_nivcsw++;
+		td->td_flags |= TDF_TIMEOUT;
+		td->td_proc->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 	}
 
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 
-	PROC_LOCK(p);
+	PROC_LOCK(td->td_proc);
 	if (sig == 0)
-		sig = CURSIG(p);
+		sig = CURSIG(td->td_proc);
 	if (sig != 0) {
-		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
+		if (SIGISMEMBER(td->td_proc->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
 		else
 			rval = ERESTART;
 	}
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(td->td_proc);
 
 #ifdef KTRACE
 	mtx_lock(&Giant);
-	if (KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 0, 0);
+	if (KTRPOINT(td->td_proc, KTR_CSW))
+		ktrcsw(td->td_proc->p_tracep, 0, 0);
 	mtx_unlock(&Giant);
 #endif
 	mtx_lock(mp);
@@ -461,38 +464,39 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 static __inline void
 cv_wakeup(struct cv *cvp)
 {
-	struct proc *p;
+	struct thread *td;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	p = TAILQ_FIRST(&cvp->cv_waitq);
-	KASSERT(p->p_wchan == cvp, ("%s: bogus wchan", __FUNCTION__));
-	KASSERT(p->p_sflag & PS_CVWAITQ, ("%s: not on waitq", __FUNCTION__));
-	TAILQ_REMOVE(&cvp->cv_waitq, p, p_slpq);
-	p->p_sflag &= ~PS_CVWAITQ;
-	p->p_wchan = 0;
-	if (p->p_stat == SSLEEP) {
-		/* OPTIMIZED EXPANSION OF setrunnable(p); */
-		CTR3(KTR_PROC, "cv_signal: proc %p (pid %d, %s)",
-		    p, p->p_pid, p->p_comm);
-		if (p->p_slptime > 1)
-			updatepri(p);
-		p->p_slptime = 0;
-		p->p_stat = SRUN;
-		if (p->p_sflag & PS_INMEM) {
-			setrunqueue(p);
-			maybe_resched(p);
+	td = TAILQ_FIRST(&cvp->cv_waitq);
+	KASSERT(td->td_wchan == cvp, ("%s: bogus wchan", __FUNCTION__));
+	KASSERT(td->td_flags & TDF_CVWAITQ, ("%s: not on waitq", __FUNCTION__));
+	TAILQ_REMOVE(&cvp->cv_waitq, td, td_slpq);
+	td->td_flags &= ~TDF_CVWAITQ;
+	td->td_wchan = 0;
+	if (td->td_proc->p_stat == SSLEEP) {
+		/* OPTIMIZED EXPANSION OF setrunnable(td); */
+		CTR3(KTR_PROC, "cv_signal: thread %p (pid %d, %s)",
+		    td, td->td_proc->p_pid, td->td_proc->p_comm);
+		if (td->td_ksegrp->kg_slptime > 1) /* XXXKSE */
+			updatepri(td);
+		td->td_kse->ke_slptime = 0;
+		td->td_ksegrp->kg_slptime = 0;
+		td->td_proc->p_stat = SRUN;
+		if (td->td_proc->p_sflag & PS_INMEM) {
+			setrunqueue(td);
+			maybe_resched(td->td_ksegrp);
 		} else {
-			p->p_sflag |= PS_SWAPINREQ;
-			wakeup(&proc0);
+			td->td_proc->p_sflag |= PS_SWAPINREQ;
+			wakeup(&proc0); /* XXXKSE */
 		}
 		/* END INLINE EXPANSION */
 	}
 }
 
 /*
- * Signal a condition variable, wakes up one waiting process.  Will also wakeup
+ * Signal a condition variable, wakes up one waiting thread.  Will also wakeup
  * the swapper if the process is not in memory, so that it can bring the
- * sleeping process in.  Note that this may also result in additional processes
+ * sleeping process in.  Note that this may also result in additional threads
  * being made runnable.  Should be called with the same mutex as was passed to
  * cv_wait held.
  */
@@ -510,7 +514,7 @@ cv_signal(struct cv *cvp)
 }
 
 /*
- * Broadcast a signal to a condition variable.  Wakes up all waiting processes.
+ * Broadcast a signal to a condition variable.  Wakes up all waiting threads.
  * Should be called with the same mutex as was passed to cv_wait held.
  */
 void
@@ -526,46 +530,46 @@ cv_broadcast(struct cv *cvp)
 }
 
 /*
- * Remove a process from the wait queue of its condition variable.  This may be
+ * Remove a thread from the wait queue of its condition variable.  This may be
  * called externally.
  */
 void
-cv_waitq_remove(struct proc *p)
+cv_waitq_remove(struct thread *td)
 {
 	struct cv *cvp;
 
 	mtx_lock_spin(&sched_lock);
-	if ((cvp = p->p_wchan) != NULL && p->p_sflag & PS_CVWAITQ) {
-		TAILQ_REMOVE(&cvp->cv_waitq, p, p_slpq);
-		p->p_sflag &= ~PS_CVWAITQ;
-		p->p_wchan = NULL;
+	if ((cvp = td->td_wchan) != NULL && td->td_flags & TDF_CVWAITQ) {
+		TAILQ_REMOVE(&cvp->cv_waitq, td, td_slpq);
+		td->td_flags &= ~TDF_CVWAITQ;
+		td->td_wchan = NULL;
 	}
 	mtx_unlock_spin(&sched_lock);
 }
 
 /*
- * Timeout function for cv_timedwait.  Put the process on the runqueue and set
+ * Timeout function for cv_timedwait.  Put the thread on the runqueue and set
  * its timeout flag.
  */
 static void
 cv_timedwait_end(void *arg)
 {
-	struct proc *p;
+	struct thread *td;
 
-	p = arg;
-	CTR3(KTR_PROC, "cv_timedwait_end: proc %p (pid %d, %s)", p, p->p_pid,
-	    p->p_comm);
+	td = arg;
+	CTR3(KTR_PROC, "cv_timedwait_end: thread %p (pid %d, %s)", td, td->td_proc->p_pid,
+	    td->td_proc->p_comm);
 	mtx_lock_spin(&sched_lock);
-	if (p->p_sflag & PS_TIMEOUT) {
-		p->p_sflag &= ~PS_TIMEOUT;
-		setrunqueue(p);
-	} else if (p->p_wchan != NULL) {
-		if (p->p_stat == SSLEEP)
-			setrunnable(p);
+	if (td->td_flags & TDF_TIMEOUT) {
+		td->td_flags &= ~TDF_TIMEOUT;
+		setrunqueue(td);
+	} else if (td->td_wchan != NULL) {
+		if (td->td_proc->p_stat == SSLEEP) /* XXXKSE */
+			setrunnable(td);
 		else
-			cv_waitq_remove(p);
-		p->p_sflag |= PS_TIMEOUT;
+			cv_waitq_remove(td);
+		td->td_flags |= TDF_TIMEOUT;
 	} else
-		p->p_sflag |= PS_TIMOFAIL;
+		td->td_flags |= TDF_TIMOFAIL;
 	mtx_unlock_spin(&sched_lock);
 }

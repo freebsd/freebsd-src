@@ -144,7 +144,7 @@ malloc(size, type, flags)
 
 #if defined(INVARIANTS)
 	if (flags == M_WAITOK)
-		KASSERT(curproc->p_intr_nesting_level == 0,
+		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
 #endif
 	indx = BUCKETINDX(size);

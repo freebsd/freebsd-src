@@ -2058,7 +2058,7 @@ aac_describe_code(struct aac_code_lookup *table, u_int32_t code)
  */
 
 static int
-aac_open(dev_t dev, int flags, int fmt, struct proc *p)
+aac_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct aac_softc *sc;
 
@@ -2076,7 +2076,7 @@ aac_open(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-aac_close(dev_t dev, int flags, int fmt, struct proc *p)
+aac_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct aac_softc *sc;
 
@@ -2091,7 +2091,7 @@ aac_close(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
+aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	union aac_statrequest *as;
 	struct aac_softc *sc;
@@ -2427,20 +2427,20 @@ SYSUNINIT(aac_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,
 MODULE_DEPEND(aac, linux, 1, 1, 1);
 
 static int
-aac_linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
+aac_linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 {
 	struct file *fp;
 	u_long cmd;
 
 	debug_called(2);
 
-	fp = p->p_fd->fd_ofiles[args->fd];
+	fp = td->td_proc->p_fd->fd_ofiles[args->fd];
 	cmd = args->cmd;
 
 	/*
 	 * Pass the ioctl off to our standard handler.
 	 */
-	return(fo_ioctl(fp, cmd, (caddr_t)args->arg, p));
+	return(fo_ioctl(fp, cmd, (caddr_t)args->arg, td));
 }
 
 #endif

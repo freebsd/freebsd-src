@@ -952,11 +952,11 @@ if_withname(sa)
  * Interface ioctls.
  */
 int
-ifioctl(so, cmd, data, p)
+ifioctl(so, cmd, data, td)
 	struct socket *so;
 	u_long cmd;
 	caddr_t data;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct ifnet *ifp;
 	register struct ifreq *ifr;
@@ -975,7 +975,7 @@ ifioctl(so, cmd, data, p)
 	switch (cmd) {
 	case SIOCIFCREATE:
 	case SIOCIFDESTROY:
-		if ((error = suser(p)) != 0)
+		if ((error = suser_td(td)) != 0)
 			return (error);
 		return ((cmd == SIOCIFCREATE) ?
 			if_clone_create(ifr->ifr_name, sizeof(ifr->ifr_name)) :
@@ -1007,7 +1007,7 @@ ifioctl(so, cmd, data, p)
 		break;
 
 	case SIOCSIFFLAGS:
-		error = suser(p);
+		error = suser_td(td);
 		if (error)
 			return (error);
 		ifr->ifr_prevflags = ifp->if_flags;
@@ -1032,7 +1032,7 @@ ifioctl(so, cmd, data, p)
 		break;
 
 	case SIOCSIFMETRIC:
-		error = suser(p);
+		error = suser_td(td);
 		if (error)
 			return (error);
 		ifp->if_metric = ifr->ifr_metric;
@@ -1040,7 +1040,7 @@ ifioctl(so, cmd, data, p)
 		break;
 
 	case SIOCSIFPHYS:
-		error = suser(p);
+		error = suser_td(td);
 		if (error)
 			return error;
 		if (!ifp->if_ioctl)
@@ -1054,7 +1054,7 @@ ifioctl(so, cmd, data, p)
 	{
 		u_long oldmtu = ifp->if_mtu;
 
-		error = suser(p);
+		error = suser_td(td);
 		if (error)
 			return (error);
 		if (ifp->if_ioctl == NULL)
@@ -1079,7 +1079,7 @@ ifioctl(so, cmd, data, p)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		error = suser(p);
+		error = suser_td(td);
 		if (error)
 			return (error);
 
@@ -1109,7 +1109,7 @@ ifioctl(so, cmd, data, p)
 	case SIOCSLIFPHYADDR:
         case SIOCSIFMEDIA:
 	case SIOCSIFGENERIC:
-		error = suser(p);
+		error = suser_td(td);
 		if (error)
 			return (error);
 		if (ifp->if_ioctl == 0)
@@ -1133,7 +1133,7 @@ ifioctl(so, cmd, data, p)
 		return ((*ifp->if_ioctl)(ifp, cmd, data));
 
 	case SIOCSIFLLADDR:
-		error = suser(p);
+		error = suser_td(td);
 		if (error)
 			return (error);
 		return if_setlladdr(ifp,
@@ -1146,7 +1146,7 @@ ifioctl(so, cmd, data, p)
 #ifndef COMPAT_43
 		error = ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd,
 								 data,
-								 ifp, p));
+								 ifp, td));
 #else
 	    {
 		int ocmd = cmd;
@@ -1187,7 +1187,7 @@ ifioctl(so, cmd, data, p)
 		error =  ((*so->so_proto->pr_usrreqs->pru_control)(so,
 								   cmd,
 								   data,
-								   ifp, p));
+								   ifp, td));
 		switch (ocmd) {
 
 		case OSIOCGIFADDR:

@@ -326,7 +326,7 @@ vm_object_reference(vm_object_t object)
 
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
-		while (vget((struct vnode *) object->handle, LK_RETRY|LK_NOOBJ, curproc)) {
+		while (vget((struct vnode *) object->handle, LK_RETRY|LK_NOOBJ, curthread)) {
 			printf("vm_object_reference: delay in getting object\n");
 		}
 	}

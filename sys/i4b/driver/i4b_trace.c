@@ -101,14 +101,14 @@ static int outunit = -1;
 
 #define	PDEVSTATIC	/* - not static - */
 void i4btrcattach __P((void));
-int i4btrcopen __P((dev_t dev, int flag, int fmt, struct proc *p));
-int i4btrcclose __P((dev_t dev, int flag, int fmt, struct proc *p));
+int i4btrcopen __P((dev_t dev, int flag, int fmt, struct thread *td));
+int i4btrcclose __P((dev_t dev, int flag, int fmt, struct thread *td));
 int i4btrcread __P((dev_t dev, struct uio * uio, int ioflag));
 
 #ifdef __bsdi__
-int i4btrcioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
+int i4btrcioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td));
 #else
-int i4btrcioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
+int i4btrcioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct thread *td));
 #endif
 
 #endif
@@ -333,7 +333,7 @@ get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf)
  *	open trace device
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4btrcopen(dev_t dev, int flag, int fmt, struct proc *p)
+i4btrcopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int x;
 	int unit = minor(dev);
@@ -360,7 +360,7 @@ i4btrcopen(dev_t dev, int flag, int fmt, struct proc *p)
  *	close trace device
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4btrcclose(dev_t dev, int flag, int fmt, struct proc *p)
+i4btrcclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int unit = minor(dev);
 	int i, x;
@@ -462,7 +462,7 @@ i4btrcread(dev_t dev, struct uio * uio, int ioflag)
  *	poll device
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4btrcpoll(dev_t dev, int events, struct proc *p)
+i4btrcpoll(dev_t dev, int events, struct thread *td)
 {
 	return(ENODEV);
 }
@@ -473,11 +473,11 @@ i4btrcpoll(dev_t dev, int events, struct proc *p)
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
 #if defined (__FreeBSD_version) && __FreeBSD_version >= 300003
-i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #elif defined(__bsdi__)
-i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #else
-i4btrcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+i4btrcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 #endif
 {
 	int error = 0;

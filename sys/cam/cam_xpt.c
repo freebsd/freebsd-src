@@ -909,7 +909,7 @@ xptdone(struct cam_periph *periph, union ccb *done_ccb)
 }
 
 static int
-xptopen(dev_t dev, int flags, int fmt, struct proc *p)
+xptopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int unit;
 
@@ -946,7 +946,7 @@ xptopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-xptclose(dev_t dev, int flag, int fmt, struct proc *p)
+xptclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int unit;
 
@@ -969,7 +969,7 @@ xptclose(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 static int
-xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	int unit, error;
 

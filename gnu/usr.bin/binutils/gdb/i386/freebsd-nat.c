@@ -104,21 +104,21 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
   register int addr;
   int bad_reg = -1;
   int offset;
-  struct user *tmp_uaddr;
+  struct pcb *tmp_pcbaddr;
 
   /* 
    * First get virtual address of user structure. Then calculate offset.
    */
-  memcpy(&tmp_uaddr,
-	 &((struct user *) core_reg_sect)->u_kproc.ki_addr,
-	 sizeof(tmp_uaddr));
-  offset = -reg_addr - (int) tmp_uaddr;
+  memcpy(&tmp_pcbaddr,
+	 &((struct user *) core_reg_sect)->u_kproc.ki_pcb,
+	 sizeof(tmp_pcbaddr));
+  offset = -reg_addr - (int) tmp_pcbaddr;
   
   for (regno = 0; regno < NUM_REGS; regno++)
     {
       cregno = tregmap[regno];
       if (cregno == tGS)
-        addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_gs);
+        addr = offsetof (struct pcb, pcb_gs);
       else
         addr = offset + 4 * cregno;
       if (addr < 0 || addr >= core_reg_size)
@@ -136,11 +136,7 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
       error ("Register %s not found in core file.", gdb_register_names[bad_reg]);
     }
 
-#if __FreeBSD_version >= 500022
-  addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_save);
-#else
-  addr = offsetof (struct user, u_pcb) + offsetof (struct pcb, pcb_savefpu);
-#endif
+  addr = offsetof (struct pcb, pcb_save);
   memcpy (&pcb_savefpu, core_reg_sect + addr, sizeof pcb_savefpu);
 }
 
@@ -170,11 +166,6 @@ extern void print_387_control_word ();		/* i387-tdep.h */
 extern void print_387_status_word ();
 
 #define	fpstate		save87
-#if __FreeBSD_version >= 500022
-#define	U_FPSTATE(u)	u.u_pcb.pcb_save.sv_87
-#else
-#define	U_FPSTATE(u)	u.u_pcb.pcb_savefpu
-#endif
 
 static void
 i387_to_double (from, to)
@@ -344,15 +335,13 @@ i386_float_info ()
   /* fpstate defined in <sys/user.h> */
   struct fpstate *fpstatep;
   char buf[sizeof (struct fpstate) + 2 * sizeof (int)];
-  unsigned int uaddr;
   char fpvalid;
   unsigned int rounded_addr;
   unsigned int rounded_size;
   /*extern int corechan;*/
   int skip;
   extern int inferior_pid;
-  
-  uaddr = (char *)&U_FPSTATE(u) - (char *)&u;
+
   if (inferior_pid != 0 && core_bfd == NULL) 
     {
       int pid = inferior_pid & ((1 << 17) - 1);	/* XXX extract pid from tid */

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	ibcs2_sysi86.c,v 1.1 1994/10/14 08:53:11 sos Exp
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -51,7 +51,7 @@
 extern int hw_float;
 
 int
-ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args)
+ibcs2_sysi86(struct thread *td, struct ibcs2_sysi86_args *args)
 {
 	switch (SCARG(args, cmd)) {
 	case SI86_FPHW: {	/* Floating Point information */
@@ -73,16 +73,16 @@ ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args)
 	        int name[2];
 	        int error;
 
-		if ((error = suser(p)))
+		if ((error = suser_td(td)))
 		  return (error);
 		name[0] = CTL_KERN;
 		name[1] = KERN_HOSTNAME;
-		return (userland_sysctl(p, name, 2, 0, 0, 0, 
+		return (userland_sysctl(td, name, 2, 0, 0, 0, 
 			SCARG(args, arg), 7, 0));
 	}
 
 	case SI86_MEM:	/* size of physical memory */
-		p->p_retval[0] = ctob(physmem);
+		td->td_retval[0] = ctob(physmem);
 		return 0;
 
 	default:

@@ -209,10 +209,12 @@ vsunlock(addr, len)
  * to user mode to avoid stack copying and relocation problems.
  */
 void
-vm_forkproc(p1, p2, flags)
-	struct proc *p1, *p2;
+vm_forkproc(td, p2, flags)
+	struct thread *td;
+	struct proc *p2;
 	int flags;
 {
+	struct proc *p1 = td->td_proc;
 	struct user *up;
 
 	GIANT_REQUIRED;
@@ -228,7 +230,7 @@ vm_forkproc(p1, p2, flags)
 				vmspace_unshare(p1);
 			}
 		}
-		cpu_fork(p1, p2, flags);
+		cpu_fork(td, p2, flags);
 		return;
 	}
 
@@ -251,8 +253,10 @@ vm_forkproc(p1, p2, flags)
 	}
 
 	pmap_new_proc(p2);
+	pmap_new_thread(&p2->p_thread);		/* Initial thread */
 
-	up = p2->p_addr;
+	/* XXXKSE this is unsatisfactory but should be adequate */
+	up = p2->p_uarea;
 
 	/*
 	 * p_stats currently points at fields in the user struct
@@ -282,7 +286,7 @@ vm_forkproc(p1, p2, flags)
 	 * cpu_fork will copy and update the pcb, set up the kernel stack,
 	 * and make the child ready to run.
 	 */
-	cpu_fork(p1, p2, flags);
+	cpu_fork(td, p2, flags);
 }
 
 /*
@@ -294,10 +298,13 @@ void
 vm_waitproc(p)
 	struct proc *p;
 {
+	struct thread *td;
 
 	GIANT_REQUIRED;
 	cpu_wait(p);
 	pmap_dispose_proc(p);		/* drop per-process resources */
+	FOREACH_THREAD_IN_PROC(p, td)
+		pmap_dispose_thread(td);
 	vmspace_free(p->p_vmspace);	/* and clean-out the vmspace */
 }
 
@@ -338,6 +345,7 @@ void
 faultin(p)
 	struct proc *p;
 {
+	struct thread *td;
 	GIANT_REQUIRED;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -348,12 +356,14 @@ faultin(p)
 		PROC_UNLOCK(p);
 
 		pmap_swapin_proc(p);
+		FOREACH_THREAD_IN_PROC (p, td)
+			pmap_swapin_thread(td);
 
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
-		if (p->p_stat == SRUN) {
-			setrunqueue(p);
-		}
+		FOREACH_THREAD_IN_PROC (p, td)
+			if (td->td_proc->p_stat == SRUN)	/* XXXKSE */
+				setrunqueue(td);
 
 		p->p_sflag |= PS_INMEM;
 
@@ -367,6 +377,8 @@ faultin(p)
  * This swapin algorithm attempts to swap-in processes only if there
  * is enough space for them.  Of course, if a process waits for a long
  * time, it will be swapped in anyway.
+ *
+ *  XXXKSE - KSEGRP with highest priority counts..
  *
  * Giant is still held at this point, to be released in tsleep.
  */
@@ -392,24 +404,29 @@ loop:
 	pp = NULL;
 	ppri = INT_MIN;
 	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
+		struct ksegrp *kg;
 		mtx_lock_spin(&sched_lock);
-		if (p->p_stat == SRUN &&
-			(p->p_sflag & (PS_INMEM | PS_SWAPPING)) == 0) {
+		if (p->p_stat == SRUN
+		&& (p->p_sflag & (PS_INMEM | PS_SWAPPING)) == 0) {
+			/* Find the minimum sleeptime for the process */
+			FOREACH_KSEGRP_IN_PROC(p, kg) {
+				pri = p->p_swtime + kg->kg_slptime;
+				if ((p->p_sflag & PS_SWAPINREQ) == 0) {
+					pri -= kg->kg_nice * 8;
+				}
+				
 
-			pri = p->p_swtime + p->p_slptime;
-			if ((p->p_sflag & PS_SWAPINREQ) == 0) {
-				pri -= p->p_nice * 8;
-			}
-
-			/*
-			 * if this process is higher priority and there is
-			 * enough space, then select this process instead of
-			 * the previous selection.
-			 */
-			if (pri > ppri) {
-				pp = p;
-				ppri = pri;
+				/*
+				 * if this ksegrp is higher priority
+				 * and there is enough space, then select
+				 * this process instead of the previous
+				 * selection.
+				 */
+				if (pri > ppri) {
+					pp = p;
+					ppri = pri;
+				}
 			}
 		}
 		mtx_unlock_spin(&sched_lock);
@@ -469,6 +486,7 @@ swapout_procs(action)
 int action;
 {
 	struct proc *p;
+	struct ksegrp *kg;
 	struct proc *outp, *outp2;
 	int outpri, outpri2;
 	int didswap = 0;
@@ -481,6 +499,7 @@ retry:
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		struct vmspace *vm;
+		int minslptime = 100000;
 		
 		PROC_LOCK(p);
 		if (p->p_lock != 0 ||
@@ -511,50 +530,59 @@ retry:
 		case SSTOP:
 			/*
 			 * do not swapout a realtime process
+			 * Check all the thread groups..
 			 */
-			if (PRI_IS_REALTIME(p->p_pri.pri_class)) {
-				mtx_unlock_spin(&sched_lock);
-				PROC_UNLOCK(p);
-				continue;
+			FOREACH_KSEGRP_IN_PROC(p, kg) {
+				if (PRI_IS_REALTIME(kg->kg_pri.pri_class)) {
+					mtx_unlock_spin(&sched_lock);
+					PROC_UNLOCK(p);
+					goto nextproc;
+				}
+
+				/*
+				 * Do not swapout a process waiting
+				 * on a critical event of some kind. 
+				 * Also guarantee swap_idle_threshold1
+				 * time in memory.
+				 */
+				if (((kg->kg_pri.pri_level) < PSOCK) ||
+				    (kg->kg_slptime < swap_idle_threshold1)) {
+					mtx_unlock_spin(&sched_lock);
+					PROC_UNLOCK(p);
+					goto nextproc;
+				}
+
+				/*
+				 * If the system is under memory stress,
+				 * or if we are swapping
+				 * idle processes >= swap_idle_threshold2,
+				 * then swap the process out.
+				 */
+				if (((action & VM_SWAP_NORMAL) == 0) &&
+				    (((action & VM_SWAP_IDLE) == 0) ||
+				    (kg->kg_slptime < swap_idle_threshold2))) {
+					mtx_unlock_spin(&sched_lock);
+					PROC_UNLOCK(p);
+					goto nextproc;
+				}
+				if (minslptime > kg->kg_slptime)
+					minslptime = kg->kg_slptime;
 			}
 
-			/*
-			 * Do not swapout a process waiting on a critical
-			 * event of some kind.  Also guarantee swap_idle_threshold1
-			 * time in memory.
-			 */
-			if (((p->p_pri.pri_level) < PSOCK) ||
-				(p->p_slptime < swap_idle_threshold1)) {
-				mtx_unlock_spin(&sched_lock);
-				PROC_UNLOCK(p);
-				continue;
-			}
-
-			/*
-			 * If the system is under memory stress, or if we are swapping
-			 * idle processes >= swap_idle_threshold2, then swap the process
-			 * out.
-			 */
-			if (((action & VM_SWAP_NORMAL) == 0) &&
-				(((action & VM_SWAP_IDLE) == 0) ||
-				  (p->p_slptime < swap_idle_threshold2))) {
-				mtx_unlock_spin(&sched_lock);
-				PROC_UNLOCK(p);
-				continue;
-			}
 			mtx_unlock_spin(&sched_lock);
-
 			++vm->vm_refcnt;
 			/*
-			 * do not swapout a process that is waiting for VM
-			 * data structures there is a possible deadlock.
+			 * do not swapout a process that
+			 * is waiting for VM
+			 * data structures there is a
+			 * possible deadlock.
 			 */
 			if (lockmgr(&vm->vm_map.lock,
 					LK_EXCLUSIVE | LK_NOWAIT,
-					NULL, curproc)) {
+					NULL, curthread)) {
 				vmspace_free(vm);
 				PROC_UNLOCK(p);
-				continue;
+				goto nextproc;
 			}
 			vm_map_unlock(&vm->vm_map);
 			/*
@@ -563,7 +591,7 @@ retry:
 			 */
 			if ((action & VM_SWAP_NORMAL) ||
 				((action & VM_SWAP_IDLE) &&
-				 (p->p_slptime > swap_idle_threshold2))) {
+				 (minslptime > swap_idle_threshold2))) {
 				sx_sunlock(&allproc_lock);
 				swapout(p);
 				vmspace_free(vm);
@@ -573,6 +601,7 @@ retry:
 			PROC_UNLOCK(p);
 			vmspace_free(vm);
 		}
+nextproc:
 	}
 	sx_sunlock(&allproc_lock);
 	/*
@@ -587,6 +616,7 @@ static void
 swapout(p)
 	struct proc *p;
 {
+	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 #if defined(SWAP_DEBUG)
@@ -602,11 +632,14 @@ swapout(p)
 	p->p_sflag &= ~PS_INMEM;
 	p->p_sflag |= PS_SWAPPING;
 	PROC_UNLOCK_NOSWITCH(p);
-	if (p->p_stat == SRUN)
-		remrunqueue(p);
+	FOREACH_THREAD_IN_PROC (p, td)
+		if (td->td_proc->p_stat == SRUN)	/* XXXKSE */
+			remrunqueue(td);	/* XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 
 	pmap_swapout_proc(p);
+	FOREACH_THREAD_IN_PROC(p, td)
+		pmap_swapout_thread(td);
 
 	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_SWAPPING;

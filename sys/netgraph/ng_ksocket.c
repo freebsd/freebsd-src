@@ -548,7 +548,7 @@ ng_ksocket_constructor(node_p node)
 static int
 ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 {
-	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
+	struct thread *td = curthread ? curthread : thread0;	/* XXX broken */
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	char *s1, *s2, name[NG_HOOKLEN+1];
 	int family, type, protocol, error;
@@ -586,7 +586,7 @@ ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 			return (EINVAL);
 
 		/* Create the socket */
-		error = socreate(family, &priv->so, type, protocol, p);
+		error = socreate(family, &priv->so, type, protocol, td);
 		if (error != 0)
 			return (error);
 
@@ -656,7 +656,7 @@ ng_ksocket_connect(hook_p hook)
 static int
 ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
+	struct thread *td = curthread ? curthread : thread0;	/* XXX broken */
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct socket *const so = priv->so;
 	struct ng_mesg *resp = NULL;
@@ -681,7 +681,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ERROUT(ENXIO);
 
 			/* Bind */
-			error = sobind(so, sa, p);
+			error = sobind(so, sa, td);
 			break;
 		    }
 		case NGM_KSOCKET_LISTEN:
@@ -693,7 +693,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ERROUT(ENXIO);
 
 			/* Listen */
-			error = solisten(so, *((int32_t *)msg->data), p);
+			error = solisten(so, *((int32_t *)msg->data), td);
 			break;
 		    }
 
@@ -744,7 +744,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* Do connect */
 			if ((so->so_state & SS_ISCONNECTING) != 0)
 				ERROUT(EALREADY);
-			if ((error = soconnect(so, sa, p)) != 0) {
+			if ((error = soconnect(so, sa, td)) != 0) {
 				so->so_state &= ~SS_ISCONNECTING;
 				ERROUT(error);
 			}
@@ -821,7 +821,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			sopt.sopt_dir = SOPT_GET;
 			sopt.sopt_level = ksopt->level;
 			sopt.sopt_name = ksopt->name;
-			sopt.sopt_p = NULL;
+			sopt.sopt_td = NULL;
 			sopt.sopt_valsize = NG_KSOCKET_MAX_OPTLEN;
 			ksopt = (struct ng_ksocket_sockopt *)resp->data;
 			sopt.sopt_val = ksopt->value;
@@ -855,7 +855,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			sopt.sopt_name = ksopt->name;
 			sopt.sopt_val = ksopt->value;
 			sopt.sopt_valsize = valsize;
-			sopt.sopt_p = NULL;
+			sopt.sopt_td = NULL;
 			error = sosetopt(so, &sopt);
 			break;
 		    }
@@ -881,7 +881,7 @@ done:
 static int
 ng_ksocket_rcvdata(hook_p hook, item_p item)
 {
-	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
+	struct thread *td = curthread ? curthread : thread0;	/* XXX broken */
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct socket *const so = priv->so;
@@ -890,7 +890,7 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
-	error = (*so->so_proto->pr_usrreqs->pru_sosend)(so, 0, 0, m, 0, 0, p);
+	error = (*so->so_proto->pr_usrreqs->pru_sosend)(so, 0, 0, m, 0, 0, td);
 	return (error);
 }
 
@@ -1053,7 +1053,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 	}
 
 	/* Read and forward available mbuf's */
-	auio.uio_procp = NULL;
+	auio.uio_td = NULL;
 	auio.uio_resid = 1000000000;
 	flags = MSG_DONTWAIT;
 	do {

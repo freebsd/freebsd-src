@@ -40,6 +40,7 @@
 #include <sys/lock.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/mutex.h>
 
 #include <ufs/ufs/quota.h>
@@ -97,7 +98,7 @@ ufs_ihashget(dev, inum)
 	dev_t dev;
 	ino_t inum;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct inode *ip;
 	struct vnode *vp;
 
@@ -108,7 +109,7 @@ loop:
 			vp = ITOV(ip);
 			mtx_lock(&vp->v_interlock);
 			mtx_unlock(&ufs_ihash_mtx);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
 				goto loop;
 			return (vp);
 		}
@@ -124,11 +125,11 @@ void
 ufs_ihashins(ip)
 	struct inode *ip;
 {
-	struct proc *p = curproc;		/* XXX */
+	struct thread *td = curthread;		/* XXX */
 	struct ihashhead *ipp;
 
 	/* lock the inode, then put it on the appropriate hash list */
-	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, p);
+	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, td);
 
 	mtx_lock(&ufs_ihash_mtx);
 	ipp = INOHASH(ip->i_dev, ip->i_number);

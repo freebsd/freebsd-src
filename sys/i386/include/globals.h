@@ -129,10 +129,12 @@
 #define	PCPU_PTR(member)	__PCPU_PTR(gd_ ## member)
 #define	PCPU_SET(member, val)	__PCPU_SET(gd_ ## member, val)
 
-#define	CURPROC			PCPU_GET(curproc)
-#define	CURTHD			PCPU_GET(curproc)
 #define	GLOBALDATA		PCPU_GET(prvspace)
-#define	curproc			PCPU_GET(curproc)
+#define	curthread		PCPU_GET(curthread)
+#define CURPROC  		(curthread->td_proc)
+#define curproc  		(curthread->td_proc)
+#define	curksegrp		(curthread->td_ksegrp)
+#define	curkse			(curthread->td_kse)
 
 #endif	/* _KERNEL */
 

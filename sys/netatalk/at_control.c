@@ -43,7 +43,7 @@ static int aa_claim_addr(struct ifaddr *ifa, struct sockaddr *gw);
 
 int
 at_control(struct socket *so, u_long cmd, caddr_t data,
-		struct ifnet *ifp, struct proc *p )
+		struct ifnet *ifp, struct thread *td )
 {
     struct ifreq	*ifr = (struct ifreq *)data;
     struct sockaddr_at	*sat;
@@ -99,7 +99,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	/* 
 	 * If we are not superuser, then we don't get to do these ops.
 	 */
-	if ( suser(p) ) {
+	if ( suser_td(td) ) {
 	    return( EPERM );
 	}
 

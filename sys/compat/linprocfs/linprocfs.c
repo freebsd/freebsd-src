@@ -376,8 +376,8 @@ linprocfs_doversion(PFS_FILL_ARGS)
 	sbuf_printf(sb,
 	    "%s version %s (des@freebsd.org) (gcc version " __VERSION__ ")"
 	    " #4 Sun Dec 18 04:30:00 CET 1977\n",
-	    linux_get_osname(curp),
-	    linux_get_osrelease(curp));
+	    linux_get_osname(td->td_proc),
+	    linux_get_osrelease(td->td_proc));
 	return (0);
 }
 
@@ -581,7 +581,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 static int
 linprocfs_doselflink(PFS_FILL_ARGS)
 {
-	sbuf_printf(sb, "%ld", (long)curp->p_pid);
+	sbuf_printf(sb, "%ld", (long)td->td_proc->p_pid);
 	return (0);
 }
 
@@ -604,9 +604,9 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 	 * Linux behaviour is to return zero-length in this case.
 	 */
 
-	if (p->p_args && (ps_argsopen || !p_cansee(curp, p))) {
+	if (p->p_args && (ps_argsopen || !p_cansee(td->td_proc, p))) {
 		sbuf_bcpy(sb, p->p_args->ar_args, p->p_args->ar_length);
-	} else if (p != curp) {
+	} else if (p != td->td_proc) {
 		sbuf_printf(sb, "%.*s", MAXCOMLEN, p->p_comm);
 	} else {
 		error = copyin((void*)PS_STRINGS, &pstr, sizeof(pstr));
@@ -663,8 +663,8 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 		sbuf_printf(sb,
 		    "%8lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu "
 		    "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
-		    0, 0, 0, 0, 0, 0, 0, 0,
-		    0, 0, 0, 0, 0, 0, 0, 0);
+		    0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
+		    0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L);
 	}
 	
 	return (0);

@@ -174,12 +174,12 @@ extern struct nfsstats nfsstats;
  *     queue yet. (Ditto for the splsoftclock() and splx(s) calls)
  */
 int
-nqsrv_getlease(vp, duration, flags, slp, procp, nam, cachablep, frev, cred)
+nqsrv_getlease(vp, duration, flags, slp, td, nam, cachablep, frev, cred)
 	struct vnode *vp;
 	u_int32_t *duration;
 	int flags;
 	struct nfssvc_sock *slp;
-	struct proc *procp;
+	struct thread *td;
 	struct sockaddr *nam;
 	int *cachablep;
 	u_quad_t *frev;
@@ -198,7 +198,7 @@ nqsrv_getlease(vp, duration, flags, slp, procp, nam, cachablep, frev, cred)
 		return (0);
 	if (*duration > nqsrv_maxlease)
 		*duration = nqsrv_maxlease;
-	error = VOP_GETATTR(vp, &vattr, cred, procp);
+	error = VOP_GETATTR(vp, &vattr, cred, td);
 	if (error)
 		return (error);
 	*frev = vattr.va_filerev;
@@ -340,9 +340,9 @@ doreply:
  * OS needs.
  */
 void
-nqnfs_lease_check(vp, p, cred, flag)
+nqnfs_lease_check(vp, td, cred, flag)
 	struct vnode *vp;
-	struct proc *p;
+	struct thread *td;
 	struct ucred *cred;
 	int flag;
 {
@@ -351,14 +351,14 @@ nqnfs_lease_check(vp, p, cred, flag)
 	u_quad_t frev;
 
 	(void) nqsrv_getlease(vp, &duration, ND_CHECK | flag, NQLOCALSLP,
-		p, (struct sockaddr *)0, &cache, &frev, cred);
+		td, (struct sockaddr *)0, &cache, &frev, cred);
 }
 
 int
 nqnfs_vop_lease_check(ap)
 	struct vop_lease_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 		struct ucred *a_cred;
 		int a_flag;
 	} */ *ap;
@@ -368,7 +368,7 @@ nqnfs_vop_lease_check(ap)
 	u_quad_t frev;
 
 	(void) nqsrv_getlease(ap->a_vp, &duration, ND_CHECK | ap->a_flag,
-			      NQLOCALSLP, ap->a_p, (struct sockaddr *)0,
+			      NQLOCALSLP, ap->a_td, (struct sockaddr *)0,
 			      &cache, &frev, ap->a_cred);
 	return (0);
 }
@@ -723,10 +723,10 @@ nqnfs_serverd()
  * do the real work.
  */
 int
-nqnfsrv_getlease(nfsd, slp, procp, mrq)
+nqnfsrv_getlease(nfsd, slp, td, mrq)
 	struct nfsrv_descript *nfsd;
 	struct nfssvc_sock *slp;
-	struct proc *procp;
+	struct thread *td;
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
@@ -764,9 +764,9 @@ nqnfsrv_getlease(nfsd, slp, procp, mrq)
 		vput(vp);
 		nfsm_reply(0);
 	}
-	(void) nqsrv_getlease(vp, &nfsd->nd_duration, flags, slp, procp,
+	(void) nqsrv_getlease(vp, &nfsd->nd_duration, flags, slp, td,
 		nam, &cache, &frev, cred);
-	error = VOP_GETATTR(vp, vap, cred, procp);
+	error = VOP_GETATTR(vp, vap, cred, td);
 	vput(vp);
 	nfsm_reply(NFSX_V3FATTR + 4 * NFSX_UNSIGNED);
 	nfsm_build(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
@@ -783,10 +783,10 @@ nqnfsrv_getlease(nfsd, slp, procp, mrq)
  * client. Find the entry and expire it.
  */
 int
-nqnfsrv_vacated(nfsd, slp, procp, mrq)
+nqnfsrv_vacated(nfsd, slp, td, mrq)
 	struct nfsrv_descript *nfsd;
 	struct nfssvc_sock *slp;
-	struct proc *procp;
+	struct thread *td;
 	struct mbuf **mrq;
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
@@ -861,11 +861,11 @@ nfsmout:
  * Client get lease rpc function.
  */
 int
-nqnfs_getlease(vp, rwflag, cred, p)
+nqnfs_getlease(vp, rwflag, cred, td)
 	register struct vnode *vp;
 	int rwflag;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	register u_int32_t *tl;
 	register caddr_t cp;
@@ -887,7 +887,7 @@ nqnfs_getlease(vp, rwflag, cred, p)
 	*tl++ = txdr_unsigned(rwflag);
 	*tl = txdr_unsigned(nmp->nm_leaseterm);
 	reqtime = time_second;
-	nfsm_request(vp, NQNFSPROC_GETLEASE, p, cred);
+	nfsm_request(vp, NQNFSPROC_GETLEASE, td, cred);
 	np = VTONFS(vp);
 	nfsm_dissect(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
 	cachable = fxdr_unsigned(int, *tl++);
@@ -1018,13 +1018,13 @@ nqnfs_callback(nmp, mrep, md, dpos)
  * the list asynchronously.
  */
 int
-nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
+nqnfs_clientd(nmp, cred, ncd, flag, argp, td)
 	register struct nfsmount *nmp;
 	struct ucred *cred;
 	struct nfsd_cargs *ncd;
 	int flag;
 	caddr_t argp;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct nfsnode *np;
 	struct vnode *vp;
@@ -1078,7 +1078,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 		    myrep.r_flags = R_GETONEREP;
 		    myrep.r_nmp = nmp;
 		    myrep.r_mrep = (struct mbuf *)0;
-		    myrep.r_procp = (struct proc *)0;
+		    myrep.r_td = (struct thread *)0;
 		    (void) nfs_reply(&myrep);
 		}
 
@@ -1091,7 +1091,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 			vp = NFSTOV(np);
 			vpid = vp->v_id;
 			if (np->n_expiry < time_second) {
-			   if (vget(vp, LK_EXCLUSIVE, p) == 0) {
+			   if (vget(vp, LK_EXCLUSIVE, td) == 0) {
 			     nmp->nm_inprog = vp;
 			     if (vpid == vp->v_id) {
 				TAILQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
@@ -1102,12 +1102,12 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 							nfs_invaldir(vp);
 						cache_purge(vp);
 						(void) nfs_vinvalbuf(vp,
-						       V_SAVE, cred, p, 0);
+						       V_SAVE, cred, td, 0);
 						np->n_flag &= ~NQNFSEVICTED;
 						(void) nqnfs_vacated(vp, cred);
 					} else if (vp->v_type == VREG) {
 						(void) VOP_FSYNC(vp, cred,
-						    MNT_WAIT, p);
+						    MNT_WAIT, td);
 						np->n_flag &= ~NMODIFIED;
 					}
 				}
@@ -1119,10 +1119,10 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 			    if ((np->n_flag & (NQNFSWRITE | NQNFSNONCACHE))
 				 == NQNFSWRITE &&
 				 !TAILQ_EMPTY(&vp->v_dirtyblkhd) &&
-				 vget(vp, LK_EXCLUSIVE, p) == 0) {
+				 vget(vp, LK_EXCLUSIVE, td) == 0) {
 				 nmp->nm_inprog = vp;
 				 if (vpid == vp->v_id &&
-				     nqnfs_getlease(vp, ND_WRITE, cred, p)==0)
+				     nqnfs_getlease(vp, ND_WRITE, cred, td)==0)
 					np->n_brev = np->n_lrev;
 				 vput(vp);
 				 nmp->nm_inprog = NULLVP;
@@ -1151,7 +1151,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 		    error = tsleep((caddr_t)&nmp->nm_authstr, PSOCK | PCATCH,
 			"nqnfstimr", hz / 3);
 		    if (error == EINTR || error == ERESTART)
-			(void) dounmount(nmp->nm_mountp, 0, p);
+			(void) dounmount(nmp->nm_mountp, 0, td);
 	    }
 	}
 
@@ -1180,7 +1180,7 @@ void
 nqnfs_lease_updatetime(deltat)
 	register int deltat;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct nqlease *lp;
 	struct nfsnode *np;
 	struct mount *mp, *nxtmp;
@@ -1200,7 +1200,7 @@ nqnfs_lease_updatetime(deltat)
 	 */
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nxtmp) {
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, p)) {
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
 			nxtmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
@@ -1214,7 +1214,7 @@ nqnfs_lease_updatetime(deltat)
 		}
 		mtx_lock(&mountlist_mtx);
 		nxtmp = TAILQ_NEXT(mp, mnt_list);
-		vfs_unbusy(mp, p);
+		vfs_unbusy(mp, td);
 	}
 	mtx_unlock(&mountlist_mtx);
 }

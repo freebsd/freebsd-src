@@ -110,7 +110,7 @@ idad_getsoftc(dev_t dev)
 }
 
 static int
-idad_open(dev_t dev, int flags, int fmt, struct proc *p)
+idad_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct idad_softc *drv;
 	struct disklabel *label;
@@ -133,7 +133,7 @@ idad_open(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-idad_close(dev_t dev, int flags, int fmt, struct proc *p)
+idad_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct idad_softc *drv;
 

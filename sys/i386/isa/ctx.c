@@ -218,7 +218,7 @@ ctxattach(struct isa_device * devp)
 }
 
 static int
-ctxopen(dev_t dev, int flags, int fmt, struct proc *p)
+ctxopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct ctx_soft_registers *sr;
 	u_char  unit;
@@ -273,7 +273,7 @@ ctxopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-ctxclose(dev_t dev, int flags, int fmt, struct proc *p)
+ctxclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int     unit;
 
@@ -383,7 +383,7 @@ ctxread(dev_t dev, struct uio * uio, int ioflag)
 }
 
 static int
-ctxioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
+ctxioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	int     error;
 	int     unit, i;

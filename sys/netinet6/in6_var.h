@@ -571,7 +571,7 @@ extern int in6_ifindex2scopeid __P((int));
 extern int in6_mask2len __P((struct in6_addr *, u_char *));
 extern void in6_len2mask __P((struct in6_addr *, int));
 int	in6_control __P((struct socket *,
-			 u_long, caddr_t, struct ifnet *, struct proc *));
+			 u_long, caddr_t, struct ifnet *, struct thread *));
 int	in6_update_ifa __P((struct ifnet *, struct in6_aliasreq *,
 			    struct in6_ifaddr *));
 void	in6_purgeaddr __P((struct ifaddr *));

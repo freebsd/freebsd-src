@@ -182,8 +182,7 @@ case OBJT_DEVICE:
 }
 
 int
-procfs_validmap(p)
-	struct proc *p;
+procfs_validmap(struct thread *td)
 {
-	return ((p->p_flag & P_SYSTEM) == 0);
+	return ((td->td_proc->p_flag & P_SYSTEM) == 0);
 }

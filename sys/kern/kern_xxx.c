@@ -60,8 +60,8 @@ struct gethostname_args {
  */
 /* ARGSUSED */
 int
-ogethostname(p, uap)
-	struct proc *p;
+ogethostname(td, uap)
+	struct thread *td;
 	struct gethostname_args *uap;
 {
 	int name[2];
@@ -71,7 +71,7 @@ ogethostname(p, uap)
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
 	mtx_lock(&Giant);
-	error = userland_sysctl(p, name, 2, uap->hostname, &len, 1, 0, 0, 0);
+	error = userland_sysctl(td, name, 2, uap->hostname, &len, 1, 0, 0, 0);
 	mtx_unlock(&Giant);
 	return(error);
 }
@@ -87,8 +87,8 @@ struct sethostname_args {
  */
 /* ARGSUSED */
 int
-osethostname(p, uap)
-	struct proc *p;
+osethostname(td, uap)
+	struct thread *td;
 	register struct sethostname_args *uap;
 {
 	int name[2];
@@ -97,8 +97,8 @@ osethostname(p, uap)
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
 	mtx_lock(&Giant);
-	if ((error = suser_xxx(0, p, PRISON_ROOT)) == 0) {
-		error = userland_sysctl(p, name, 2, 0, 0, 0,
+	if ((error = suser_xxx(0, td->td_proc, PRISON_ROOT)) == 0) {
+		error = userland_sysctl(td, name, 2, 0, 0, 0,
 		    uap->hostname, uap->len, 0);
 	}
 	mtx_unlock(&Giant);
@@ -115,12 +115,12 @@ struct ogethostid_args {
  */
 /* ARGSUSED */
 int
-ogethostid(p, uap)
-	struct proc *p;
+ogethostid(td, uap)
+	struct thread *td;
 	struct ogethostid_args *uap;
 {
 
-	*(long *)(p->p_retval) = hostid;
+	*(long *)(td->td_retval) = hostid;
 	return (0);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
@@ -136,14 +136,14 @@ struct osethostid_args {
  */
 /* ARGSUSED */
 int
-osethostid(p, uap)
-	struct proc *p;
+osethostid(td, uap)
+	struct thread *td;
 	struct osethostid_args *uap;
 {
 	int error;
 
 	mtx_lock(&Giant);
-	if ((error = suser(p)) == 0)
+	if ((error = suser_td(td)))
 		hostid = uap->hostid;
 	mtx_unlock(&Giant);
 	return (error);
@@ -153,8 +153,8 @@ osethostid(p, uap)
  * MPSAFE
  */
 int
-oquota(p, uap)
-	struct proc *p;
+oquota(td, uap)
+	struct thread *td;
 	struct oquota_args *uap;
 {
 	return (ENOSYS);
@@ -180,8 +180,8 @@ struct uname_args {
  */
 /* ARGSUSED */
 int
-uname(p, uap)
-	struct proc *p;
+uname(td, uap)
+	struct thread *td;
 	struct uname_args *uap;
 {
 	int name[2], error;
@@ -192,7 +192,7 @@ uname(p, uap)
 	name[1] = KERN_OSTYPE;
 	len = sizeof (uap->name->sysname);
 	mtx_lock(&Giant);
-	error = userland_sysctl(p, name, 2, uap->name->sysname, &len, 
+	error = userland_sysctl(td, name, 2, uap->name->sysname, &len, 
 		1, 0, 0, 0);
 	if (error)
 		goto done2;
@@ -200,7 +200,7 @@ uname(p, uap)
 
 	name[1] = KERN_HOSTNAME;
 	len = sizeof uap->name->nodename;
-	error = userland_sysctl(p, name, 2, uap->name->nodename, &len, 
+	error = userland_sysctl(td, name, 2, uap->name->nodename, &len, 
 		1, 0, 0, 0);
 	if (error)
 		goto done2;
@@ -208,7 +208,7 @@ uname(p, uap)
 
 	name[1] = KERN_OSRELEASE;
 	len = sizeof uap->name->release;
-	error = userland_sysctl(p, name, 2, uap->name->release, &len, 
+	error = userland_sysctl(td, name, 2, uap->name->release, &len, 
 		1, 0, 0, 0);
 	if (error)
 		goto done2;
@@ -217,7 +217,7 @@ uname(p, uap)
 /*
 	name = KERN_VERSION;
 	len = sizeof uap->name->version;
-	error = userland_sysctl(p, name, 2, uap->name->version, &len, 
+	error = userland_sysctl(td, name, 2, uap->name->version, &len, 
 		1, 0, 0, 0);
 	if (error)
 		goto done2;
@@ -241,7 +241,7 @@ uname(p, uap)
 	name[0] = CTL_HW;
 	name[1] = HW_MACHINE;
 	len = sizeof uap->name->machine;
-	error = userland_sysctl(p, name, 2, uap->name->machine, &len, 
+	error = userland_sysctl(td, name, 2, uap->name->machine, &len, 
 		1, 0, 0, 0);
 	if (error)
 		goto done2;
@@ -263,8 +263,8 @@ struct getdomainname_args {
  */
 /* ARGSUSED */
 int
-getdomainname(p, uap)
-        struct proc *p;
+getdomainname(td, uap)
+        struct thread *td;
         struct getdomainname_args *uap;
 {
 	int domainnamelen;
@@ -291,14 +291,14 @@ struct setdomainname_args {
  */
 /* ARGSUSED */
 int
-setdomainname(p, uap)
-        struct proc *p;
+setdomainname(td, uap)
+        struct thread *td;
         struct setdomainname_args *uap;
 {
         int error, domainnamelen;
 
 	mtx_lock(&Giant);
-        if ((error = suser(p)))
+        if ((error = suser_td(td)))
 		goto done2;
         if ((u_int)uap->len > sizeof (domainname) - 1) {
 		error = EINVAL;

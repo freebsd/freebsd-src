@@ -291,11 +291,11 @@ USB_ATTACH(urio)
 
 
 int
-urioopen(dev, flag, mode, p)
+urioopen(dev, flag, mode, td)
 	dev_t dev;
 	int flag;
 	int mode;
-	struct proc *p;
+	struct thread *td;
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -335,11 +335,11 @@ urioopen(dev, flag, mode, p)
 }
 
 int
-urioclose(dev, flag, mode, p)
+urioclose(dev, flag, mode, td)
 	dev_t dev;
 	int flag;
 	int mode;
-	struct proc *p;
+	struct thread *td;
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -509,12 +509,12 @@ uriowrite(dev, uio, flag)
 
 
 int
-urioioctl(dev, cmd, addr, flag, p)
+urioioctl(dev, cmd, addr, flag, td)
 	dev_t dev;
 	u_long cmd;
 	caddr_t addr; 
 	int flag;
-	struct proc *p;
+	struct thread *td;
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -584,7 +584,7 @@ urioioctl(dev, cmd, addr, flag, p)
 		uio.uio_rw =
 			req.bmRequestType & UT_READ ? 
 			UIO_READ : UIO_WRITE;
-		uio.uio_procp = p;
+		uio.uio_td = td;
 		ptr = malloc(len, M_TEMP, M_WAITOK);
 		if (uio.uio_rw == UIO_WRITE) {
 			error = uiomove(ptr, len, &uio);

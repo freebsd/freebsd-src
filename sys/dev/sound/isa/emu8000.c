@@ -743,19 +743,19 @@ emupnp_attach(device_t dev)
 }
 
 static int
-emu_open(dev_t i_dev, int flags, int mode, struct proc *p)
+emu_open(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	return (0);
 }
 
 static int
-emu_close(dev_t i_dev, int flags, int mode, struct proc *p)
+emu_close(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	return (0);
 }
 
 static int
-emu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
+emu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
 	sc_p scp;
 	mididev_info *devinfo;

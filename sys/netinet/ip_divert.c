@@ -335,7 +335,7 @@ cantsend:
 }
 
 static int
-div_attach(struct socket *so, int proto, struct proc *p)
+div_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct inpcb *inp;
 	int error, s;
@@ -343,14 +343,14 @@ div_attach(struct socket *so, int proto, struct proc *p)
 	inp  = sotoinpcb(so);
 	if (inp)
 		panic("div_attach");
-	if (p && (error = suser(p)) != 0)
+	if (td && (error = suser_td(td)) != 0)
 		return error;
 
 	error = soreserve(so, div_sendspace, div_recvspace);
 	if (error)
 		return error;
 	s = splnet();
-	error = in_pcballoc(so, &divcbinfo, p);
+	error = in_pcballoc(so, &divcbinfo, td);
 	splx(s);
 	if (error)
 		return error;
@@ -392,7 +392,7 @@ div_disconnect(struct socket *so)
 }
 
 static int
-div_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
+div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp;
 	int s;
@@ -411,7 +411,7 @@ div_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 		error = EAFNOSUPPORT;
 	} else {
 		((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
-		error = in_pcbbind(inp, nam, p);
+		error = in_pcbbind(inp, nam, td);
 	}
 	splx(s);
 	return error;
@@ -426,7 +426,7 @@ div_shutdown(struct socket *so)
 
 static int
 div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-	 struct mbuf *control, struct proc *p)
+	 struct mbuf *control, struct thread *td)
 {
 	/* Packet must have a header (but that's about it) */
 	if (m->m_len < sizeof (struct ip) &&

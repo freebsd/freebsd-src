@@ -212,6 +212,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 	boolean_t ra_from_pcb;
 	u_long last_ipl = ~0L;
 	struct proc *p = NULL;
+	struct thread *td = NULL;
 	boolean_t have_trapframe = FALSE;
 	pid_t pid;
 
@@ -219,7 +220,8 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		count = 65535;
 
 	if (!have_addr) {
-		p = curproc;
+		td = curthread;
+		p = td->td_proc;
 		addr = DDB_REGS->tf_regs[FRAME_SP] - FRAME_SIZE * 8;
 		tf = (struct trapframe *)addr;
 		have_trapframe = 1;
@@ -231,8 +233,9 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		 * The pcb for curproc is not valid at this point,
 		 * so fall back to the default case.
 		 */
-		if (pid == curproc->p_pid) {
-			p = curproc;
+		if (pid == curthread->td_proc->p_pid) {
+			td = curthread;
+			p = td->td_proc;
 			addr = DDB_REGS->tf_regs[FRAME_SP] - FRAME_SIZE * 8;
 			tf = (struct trapframe *)addr;
 			have_trapframe = 1;
@@ -251,7 +254,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 				db_printf("pid %d swapped out\n", pid);
 				return;
 			}
-			pcbp = &p->p_addr->u_pcb;
+			pcbp = p->p_thread.td_pcb;	/* XXXKSE */
 			addr = (db_expr_t)pcbp->pcb_hw.apcb_ksp;
 			callpc = pcbp->pcb_context[7];
 			frame = addr;

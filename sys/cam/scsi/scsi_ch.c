@@ -424,7 +424,7 @@ chregister(struct cam_periph *periph, void *arg)
 }
 
 static int
-chopen(dev_t dev, int flags, int fmt, struct proc *p)
+chopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct ch_softc *softc;
@@ -474,7 +474,7 @@ chopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-chclose(dev_t dev, int flag, int fmt, struct proc *p)
+chclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	ch_softc *softc;
@@ -724,7 +724,7 @@ cherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 }
 
 static int
-chioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+chioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct ch_softc *softc;

@@ -73,27 +73,34 @@ static fixpt_t cexp[3] = {
 /*
  * Compute a tenex style load average of a quantity on
  * 1, 5 and 15 minute intervals.
+ * XXXKSE   Needs complete rewrite when correct info is available.
+ * Completely Bogus.. only works with 1:1 (but compiles ok now :-)
  */
 static void
 loadav(struct loadavg *avg)
 {
 	int i, nrun;
 	struct proc *p;
+	struct ksegrp *kg;
 
 	sx_slock(&allproc_lock);
-	for (nrun = 0, p = LIST_FIRST(&allproc); p != 0; p = LIST_NEXT(p, p_list)) {
-		switch (p->p_stat) {
-		case SSLEEP:
-			if (p->p_pri.pri_level > PZERO ||
-			    p->p_slptime != 0)
-				continue;
-			/* FALLTHROUGH */
-		case SRUN:
-			if ((p->p_flag & P_NOLOAD) != 0)
-				continue;
-			/* FALLTHROUGH */
-		case SIDL:
-			nrun++;
+	nrun = 0;
+	FOREACH_PROC_IN_SYSTEM(p) {
+		FOREACH_KSEGRP_IN_PROC(p, kg) {
+			switch (p->p_stat) {
+			case SSLEEP:
+				if (kg->kg_pri.pri_level > PZERO ||
+				    kg->kg_slptime != 0) /* ke? */
+					goto nextproc;
+				/* FALLTHROUGH */
+			case SRUN:
+				if ((p->p_flag & P_NOLOAD) != 0)
+					goto nextproc;
+				/* FALLTHROUGH */
+			case SIDL:
+				nrun++;
+			}
+nextproc:
 		}
 	}
 	sx_sunlock(&allproc_lock);
@@ -139,6 +146,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	vm_object_t object;
 	vm_map_t map;
 	int paging;
+	struct ksegrp *kg;
 
 	totalp = &total;
 	bzero(totalp, sizeof *totalp);
@@ -152,7 +160,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	 * Calculate process statistics.
 	 */
 	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		if (p->p_flag & P_SYSTEM)
 			continue;
 		mtx_lock_spin(&sched_lock);
@@ -164,14 +172,15 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		case SMTX:
 		case SSLEEP:
 		case SSTOP:
+			kg = &p->p_ksegrp;	/* XXXKSE */
 			if (p->p_sflag & PS_INMEM) {
-				if (p->p_pri.pri_level <= PZERO)
+				if (kg->kg_pri.pri_level <= PZERO)
 					totalp->t_dw++;
-				else if (p->p_slptime < maxslp)
+				else if (kg->kg_slptime < maxslp)
 					totalp->t_sl++;
-			} else if (p->p_slptime < maxslp)
+			} else if (kg->kg_slptime < maxslp)
 				totalp->t_sw++;
-			if (p->p_slptime >= maxslp) {
+			if (kg->kg_slptime >= maxslp) {
 				mtx_unlock_spin(&sched_lock);
 				continue;
 			}

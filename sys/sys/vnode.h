@@ -135,7 +135,7 @@ struct vnode {
 		short	vpi_events;		/* what they are looking for */
 		short	vpi_revents;		/* what has happened */
 	} v_pollinfo;
-	struct proc *v_vxproc;			/* proc owning VXLOCK */
+	struct thread *v_vxproc;		/* thread owning VXLOCK */
 #ifdef	DEBUG_LOCKS
 	const char *filename;			/* Source file doing locking */
 	int line;				/* Line number doing locking */
@@ -161,7 +161,7 @@ struct vnode {
 #define	VSYSTEM		0x00004	/* vnode being used by kernel */
 #define	VISTTY		0x00008	/* vnode represents a tty */
 #define	VXLOCK		0x00100	/* vnode is locked to change underlying type */
-#define	VXWANT		0x00200	/* process is waiting for vnode */
+#define	VXWANT		0x00200	/* thread is waiting for vnode */
 #define	VBWAIT		0x00400	/* waiting for output to complete */
 #define	VNOSYNC		0x01000	/* unlinked, stop syncing */
 /* open for business    0x01000 */
@@ -169,7 +169,7 @@ struct vnode {
 #define	VCOPYONWRITE    0x04000 /* vnode is doing copy-on-write */
 #define	VAGE		0x08000	/* Insert vnode at head of free list */
 #define	VOLOCK		0x10000	/* vnode is locked waiting for an object */
-#define	VOWANT		0x20000	/* a process is waiting for VOLOCK */
+#define	VOWANT		0x20000	/* a thread is waiting for VOLOCK */
 #define	VDOOMED		0x40000	/* This vnode is being recycled */
 #define	VFREE		0x80000	/* This vnode is on the freelist */
 /* open for business	0x100000 */
@@ -361,7 +361,7 @@ struct vnodeop_desc {
 	int	*vdesc_vp_offsets;	/* list ended by VDESC_NO_OFFSET */
 	int	vdesc_vpp_offset;	/* return vpp location */
 	int	vdesc_cred_offset;	/* cred location, if any */
-	int	vdesc_proc_offset;	/* proc location, if any */
+	int	vdesc_thread_offset;	/* thread location, if any */
 	int	vdesc_componentname_offset; /* if any */
 	/*
 	 * Finally, we've got a list of private data (about each operation)
@@ -423,8 +423,8 @@ struct vop_generic_args {
 #ifdef DEBUG_VFS_LOCKS
 /*
  * Macros to aid in tracing VFS locking problems.  Not totally
- * reliable since if the process sleeps between changing the lock
- * state and checking it with the assert, some other process could
+ * reliable since if the thread sleeps between changing the lock
+ * state and checking it with the assert, some other thread could
  * change the state.  They are good enough for debugging a single
  * filesystem using a single-threaded test.  I find that 'cvs co src'
  * is a pretty good test.
@@ -454,7 +454,7 @@ do {									\
 	int lockstate;							\
 									\
 	if (_vp && IS_LOCKING_VFS(_vp)) {				\
-		lockstate = VOP_ISLOCKED(_vp, curproc);			\
+		lockstate = VOP_ISLOCKED(_vp, curthread);		\
 		if (lockstate == LK_EXCLUSIVE)				\
 			panic("%s: %p is locked but should not be",	\
 			    str, _vp);					\
@@ -466,7 +466,7 @@ do {									\
 	struct vnode *_vp = (vp);					\
 									\
 	if (_vp && IS_LOCKING_VFS(_vp) &&				\
-	    VOP_ISLOCKED(_vp, curproc) != LK_EXCLUSIVE)			\
+	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLUSIVE)			\
 		panic("%s: %p is not exclusive locked but should be",	\
 		    str, _vp);						\
 } while (0)
@@ -476,8 +476,8 @@ do {									\
 	struct vnode *_vp = (vp);					\
 									\
 	if (_vp && IS_LOCKING_VFS(_vp) &&				\
-	    VOP_ISLOCKED(_vp, curproc) != LK_EXCLOTHER)			\
-		panic("%s: %p is not exclusive locked by another proc",	\
+	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLOTHER)			\
+		panic("%s: %p is not exclusive locked by another thread",	\
 		    str, _vp);						\
 } while (0)
 
@@ -539,6 +539,7 @@ struct file;
 struct mount;
 struct nameidata;
 struct ostat;
+struct thread;
 struct proc;
 struct stat;
 struct nstat;
@@ -580,51 +581,52 @@ int	vfinddev __P((dev_t dev, enum vtype type, struct vnode **vpp));
 void	vfs_add_vnodeops __P((const void *));
 void	vfs_rm_vnodeops __P((const void *));
 int	vflush __P((struct mount *mp, int rootrefs, int flags));
-int	vget __P((struct vnode *vp, int lockflag, struct proc *p));
+int	vget __P((struct vnode *vp, int lockflag, struct thread *td));
 void	vgone __P((struct vnode *vp));
-void	vgonel __P((struct vnode *vp, struct proc *p));
+void	vgonel __P((struct vnode *vp, struct thread *td));
 void	vhold __P((struct vnode *));
 int	vinvalbuf __P((struct vnode *vp, int save, struct ucred *cred,
-	    struct proc *p, int slpflag, int slptimeo));
-int	vtruncbuf __P((struct vnode *vp, struct ucred *cred, struct proc *p,
+	    struct thread *td, int slpflag, int slptimeo));
+int	vtruncbuf __P((struct vnode *vp, struct ucred *cred, struct thread *td,
 	    off_t length, int blksize));
 void	vprint __P((char *label, struct vnode *vp));
 int	vrecycle __P((struct vnode *vp, struct mtx *inter_lkp,
-	    struct proc *p));
+	    struct thread *td));
 int	vn_close __P((struct vnode *vp,
-	    int flags, struct ucred *cred, struct proc *p));
+	    int flags, struct ucred *cred, struct thread *td));
 void	vn_finished_write __P((struct mount *mp));
 int	vn_isdisk __P((struct vnode *vp, int *errp));
-int	vn_lock __P((struct vnode *vp, int flags, struct proc *p));
+int	vn_lock __P((struct vnode *vp, int flags, struct thread *td));
 #ifdef	DEBUG_LOCKS
-int	debug_vn_lock __P((struct vnode *vp, int flags, struct proc *p,
+int	debug_vn_lock __P((struct vnode *vp, int flags, struct thread *p,
 	    const char *filename, int line));
 #define vn_lock(vp,flags,p) debug_vn_lock(vp,flags,p,__FILE__,__LINE__)
 #endif
+int	vn_mkdir __P((char *path, int mode, enum uio_seg segflg, struct thread *td));
 int	vn_open __P((struct nameidata *ndp, int *flagp, int cmode));
 void	vn_pollevent __P((struct vnode *vp, int events));
 void	vn_pollgone __P((struct vnode *vp));
-int	vn_pollrecord __P((struct vnode *vp, struct proc *p, int events));
+int	vn_pollrecord __P((struct vnode *vp, struct thread *p, int events));
 int	vn_rdwr __P((enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
-	    struct ucred *cred, int *aresid, struct proc *p));
+	    struct ucred *cred, int *aresid, struct thread *td));
 int	vn_rdwr_inchunks __P((enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
-	    struct ucred *cred, int *aresid, struct proc *p));
-int	vn_stat __P((struct vnode *vp, struct stat *sb, struct proc *p));
+	    struct ucred *cred, int *aresid, struct thread *td));
+int	vn_stat __P((struct vnode *vp, struct stat *sb, struct thread *td));
 int	vn_start_write __P((struct vnode *vp, struct mount **mpp, int flags));
 dev_t	vn_todev __P((struct vnode *vp));
 int	vn_write_suspend_wait __P((struct vnode *vp, struct mount *mp,
 	    int flags));
 int	vn_writechk __P((struct vnode *vp));
 int	vn_extattr_get __P((struct vnode *vp, int ioflg, int attrnamespace,
-	    const char *attrname, int *buflen, char *buf, struct proc *p));
+	    const char *attrname, int *buflen, char *buf, struct thread *td));
 int	vn_extattr_set __P((struct vnode *vp, int ioflg, int attrnamespace,
-	    const char *attrname, int buflen, char *buf, struct proc *p));
+	    const char *attrname, int buflen, char *buf, struct thread *td));
 int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
-	    const char *attrname, struct proc *p);
+	    const char *attrname, struct thread *td);
 int	vfs_cache_lookup __P((struct vop_lookup_args *ap));
-int	vfs_object_create __P((struct vnode *vp, struct proc *p,
+int	vfs_object_create __P((struct vnode *vp, struct thread *td,
 	    struct ucred *cred));
 void	vfs_timestamp __P((struct timespec *));
 void	vfs_write_resume __P((struct mount *mp));

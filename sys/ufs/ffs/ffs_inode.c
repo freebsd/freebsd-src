@@ -130,12 +130,12 @@ ffs_update(vp, waitfor)
  * disk blocks.
  */
 int
-ffs_truncate(vp, length, flags, cred, p)
+ffs_truncate(vp, length, flags, cred, td)
 	struct vnode *vp;
 	off_t length;
 	int flags;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct vnode *ovp = vp;
 	ufs_daddr_t lastblock;
@@ -191,7 +191,7 @@ ffs_truncate(vp, length, flags, cred, p)
 			 * so that it will have no data structures left.
 			 */
 			if ((error = VOP_FSYNC(ovp, cred, MNT_WAIT,
-			    p)) != 0)
+			    td)) != 0)
 				return (error);
 			if (oip->i_flag & IN_SPACECOUNTED)
 				fs->fs_pendingblocks -= oip->i_blocks;
@@ -200,7 +200,7 @@ ffs_truncate(vp, length, flags, cred, p)
 			(void) chkdq(oip, -oip->i_blocks, NOCRED, 0);
 #endif
 			softdep_setup_freeblocks(oip, length);
-			vinvalbuf(ovp, 0, cred, p, 0, 0);
+			vinvalbuf(ovp, 0, cred, td, 0, 0);
 			oip->i_flag |= IN_CHANGE | IN_UPDATE;
 			return (ffs_update(ovp, 0));
 		}
@@ -302,7 +302,7 @@ ffs_truncate(vp, length, flags, cred, p)
 	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof oldblks);
 	oip->i_size = osize;
 
-	error = vtruncbuf(ovp, cred, p, length, fs->fs_bsize);
+	error = vtruncbuf(ovp, cred, td, length, fs->fs_bsize);
 	if (error && (allerror == 0))
 		allerror = error;
 

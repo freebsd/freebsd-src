@@ -461,7 +461,7 @@ SYSCTL_INT(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
     &rip_recvspace, 0, "Maximum incoming raw IP datagram size");
 
 static int
-rip_attach(struct socket *so, int proto, struct proc *p)
+rip_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct inpcb *inp;
 	int error, s;
@@ -469,14 +469,14 @@ rip_attach(struct socket *so, int proto, struct proc *p)
 	inp = sotoinpcb(so);
 	if (inp)
 		panic("rip_attach");
-	if (p && (error = suser(p)) != 0)
+	if (td && (error = suser_td(td)) != 0)
 		return error;
 
 	error = soreserve(so, rip_sendspace, rip_recvspace);
 	if (error)
 		return error;
 	s = splnet();
-	error = in_pcballoc(so, &ripcbinfo, p);
+	error = in_pcballoc(so, &ripcbinfo, td);
 	splx(s);
 	if (error)
 		return error;
@@ -520,7 +520,7 @@ rip_disconnect(struct socket *so)
 }
 
 static int
-rip_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
+rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp = sotoinpcb(so);
 	struct sockaddr_in *addr = (struct sockaddr_in *)nam;
@@ -538,7 +538,7 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 }
 
 static int
-rip_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
+rip_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp = sotoinpcb(so);
 	struct sockaddr_in *addr = (struct sockaddr_in *)nam;
@@ -564,7 +564,7 @@ rip_shutdown(struct socket *so)
 
 static int
 rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-	 struct mbuf *control, struct proc *p)
+	 struct mbuf *control, struct thread *td)
 {
 	struct inpcb *inp = sotoinpcb(so);
 	register u_long dst;

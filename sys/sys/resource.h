@@ -135,7 +135,7 @@ struct loadavg {
 #ifdef _KERNEL
 extern struct loadavg averunnable;
 
-int	dosetrlimit __P((struct proc *, u_int, struct rlimit *));
+int	dosetrlimit __P((struct thread *, u_int, struct rlimit *));
 
 #else
 #include <sys/cdefs.h>

@@ -259,7 +259,7 @@ tuncreate(dev_t dev)
 }
 
 static int
-tunopen(dev_t dev, int flag, int mode, struct proc *p)
+tunopen(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct resource *r;
 	struct ifnet	*ifp;
@@ -284,7 +284,7 @@ tunopen(dev_t dev, int flag, int mode, struct proc *p)
 	}
 	KASSERT(!(tp->tun_flags & TUN_OPEN), ("Resource & flags out-of-sync"));
 	tp->r_unit = r;
-	tp->tun_pid = p->p_pid;
+	tp->tun_pid = td->td_proc->p_pid;
 	ifp = &tp->tun_if;
 	tp->tun_flags |= TUN_OPEN;
 	TUNDEBUG("%s%d: open\n", ifp->if_name, ifp->if_unit);
@@ -297,7 +297,7 @@ tunopen(dev_t dev, int flag, int mode, struct proc *p)
  * routing info
  */
 static	int
-tunclose(dev_t dev, int foo, int bar, struct proc *p)
+tunclose(dev_t dev, int foo, int bar, struct thread *td)
 {
 	struct tun_softc *tp;
 	struct ifnet *ifp;
@@ -520,7 +520,7 @@ tunoutput(
  * the cdevsw interface is now pretty minimal.
  */
 static	int
-tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int		s;
 	int		error;
@@ -532,7 +532,8 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
  		tunp = (struct tuninfo *)data;
 		if (tunp->mtu < IF_MINMTU)
 			return (EINVAL);
- 		if (tp->tun_if.if_mtu != tunp->mtu && (error = suser(p)) != 0)
+ 		if (tp->tun_if.if_mtu != tunp->mtu
+		&& (error = suser_td(td)) != 0)
 			return (error);
  		tp->tun_if.if_mtu = tunp->mtu;
  		tp->tun_if.if_type = tunp->type;
@@ -584,7 +585,7 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		}
 		break;
 	case TUNSIFPID:
-		tp->tun_pid = curproc->p_pid;
+		tp->tun_pid = curthread->td_proc->p_pid;
 		break;
 	case FIONBIO:
 		break;
@@ -790,7 +791,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
  * anyway, it either accepts the packet or drops it.
  */
 static	int
-tunpoll(dev_t dev, int events, struct proc *p)
+tunpoll(dev_t dev, int events, struct thread *td)
 {
 	int		s;
 	struct tun_softc *tp = dev->si_drv1;
@@ -808,7 +809,7 @@ tunpoll(dev_t dev, int events, struct proc *p)
 		} else {
 			TUNDEBUG("%s%d: tunpoll waiting\n", ifp->if_name,
 			    ifp->if_unit);
-			selrecord(p, &tp->tun_rsel);
+			selrecord(curthread, &tp->tun_rsel);
 		}
 	}
 	if (events & (POLLOUT | POLLWRNORM))

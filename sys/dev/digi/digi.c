@@ -723,7 +723,7 @@ digi_disc_optim(struct tty *tp, struct termios *t, struct digi_p *port)
 }
 
 int
-digiopen(dev_t dev, int flag, int mode, struct proc *p)
+digiopen(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct digi_softc *sc;
 	struct tty *tp;
@@ -801,7 +801,7 @@ open_top:
 			}
 			goto open_top;
 		}
-		if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0) {
+		if (tp->t_state & TS_XCLUDE && td->td_proc->p_ucred->cr_uid != 0) {
 			error = EBUSY;
 			goto out;
 		}
@@ -888,7 +888,7 @@ out:
 }
 
 int
-digiclose(dev_t dev, int flag, int mode, struct proc *p)
+digiclose(dev_t dev, int flag, int mode, struct thread *td)
 {
 	int mynor;
 	struct tty *tp;
@@ -1090,7 +1090,7 @@ digi_loadmoduledata(struct digi_softc *sc)
 }
 
 static int
-digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int unit, pnum, mynor, error, s;
 	struct digi_softc *sc;
@@ -1164,7 +1164,7 @@ digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser(p);
+			error = suser_td(td);
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
@@ -1285,7 +1285,7 @@ digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		if (lt->c_ospeed != 0)
 			dt->c_ospeed = tp->t_ospeed;
 	}
-	error = linesw[tp->t_line].l_ioctl(tp, cmd, data, flag, p);
+	error = linesw[tp->t_line].l_ioctl(tp, cmd, data, flag, td);
 	if (error == 0 && cmd == TIOCGETA)
 		((struct termios *)data)->c_iflag |= port->c_iflag;
 
@@ -1335,7 +1335,7 @@ digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		*(int *)data = digimctl(port, 0, DMGET);
 		break;
 	case TIOCMSDTRWAIT:
-		error = suser(p);
+		error = suser_td(td);
 		if (error != 0) {
 			splx(s);
 			return (error);

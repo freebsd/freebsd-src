@@ -356,8 +356,8 @@ struct profil_args {
  */
 /* ARGSUSED */
 int
-profil(p, uap)
-	struct proc *p;
+profil(td, uap)
+	struct thread *td;
 	register struct profil_args *uap;
 {
 	register struct uprof *upp;
@@ -371,10 +371,10 @@ profil(p, uap)
 		goto done2;
 	}
 	if (uap->scale == 0) {
-		stopprofclock(p);
+		stopprofclock(td->td_proc);
 		goto done2;
 	}
-	upp = &p->p_stats->p_prof;
+	upp = &td->td_proc->p_stats->p_prof;
 
 	/* Block profile interrupts while changing state. */
 	s = splstatclock();
@@ -382,7 +382,7 @@ profil(p, uap)
 	upp->pr_scale = uap->scale;
 	upp->pr_base = uap->samples;
 	upp->pr_size = uap->size;
-	startprofclock(p);
+	startprofclock(td->td_proc);
 	splx(s);
 
 done2:
@@ -413,8 +413,8 @@ done2:
  * inaccurate.
  */
 void
-addupc_intr(p, pc, ticks)
-	register struct proc *p;
+addupc_intr(ke, pc, ticks)
+	register struct kse *ke;
 	register uintptr_t pc;
 	u_int ticks;
 {
@@ -425,7 +425,7 @@ addupc_intr(p, pc, ticks)
 
 	if (ticks == 0)
 		return;
-	prof = &p->p_stats->p_prof;
+	prof = &ke->ke_proc->p_stats->p_prof;
 	if (pc < prof->pr_off ||
 	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size)
 		return;			/* out of range; ignore */
@@ -435,7 +435,7 @@ addupc_intr(p, pc, ticks)
 		mtx_lock_spin(&sched_lock);
 		prof->pr_addr = pc;
 		prof->pr_ticks = ticks;
-		p->p_sflag |= PS_OWEUPC | PS_ASTPENDING;
+		ke->ke_flags |= KEF_OWEUPC | KEF_ASTPENDING ;
 		mtx_unlock_spin(&sched_lock);
 	}
 }
@@ -445,11 +445,12 @@ addupc_intr(p, pc, ticks)
  * update fails, we simply turn off profiling.
  */
 void
-addupc_task(p, pc, ticks)
-	register struct proc *p;
+addupc_task(ke, pc, ticks)
+	register struct kse *ke;
 	register uintptr_t pc;
 	u_int ticks;
 {
+	struct proc *p = ke->ke_proc;
 	register struct uprof *prof;
 	register caddr_t addr;
 	register u_int i;

@@ -78,15 +78,15 @@ svr4_decode_cmd(cmd, dir, c, num, argsiz)
 #endif
 
 int
-svr4_sys_ioctl(p, uap)
-	register struct proc *p;
+svr4_sys_ioctl(td, uap)
+	register struct thread *td;
 	struct svr4_sys_ioctl_args *uap;
 {
 	int             *retval;
 	struct file	*fp;
 	struct filedesc	*fdp;
 	u_long		 cmd;
-	int (*fun) __P((struct file *, struct proc *, register_t *,
+	int (*fun) __P((struct file *, struct thread *, register_t *,
 			int, u_long, caddr_t));
 #ifdef DEBUG_SVR4
 	char		 dir[4];
@@ -99,8 +99,8 @@ svr4_sys_ioctl(p, uap)
 	DPRINTF(("svr4_ioctl[%lx](%d, _IO%s(%c, %d, %d), %p);\n", SCARG(uap, com), SCARG(uap, fd),
 	    dir, c, num, argsiz, SCARG(uap, data)));
 #endif
-	retval = p->p_retval;
-	fdp = p->p_fd;
+	retval = td->td_retval;
+	fdp = td->td_proc->p_fd;
 	cmd = SCARG(uap, com);
 
 	if ((u_int)SCARG(uap, fd) >= fdp->fd_nfiles ||
@@ -157,5 +157,5 @@ svr4_sys_ioctl(p, uap)
 		DPRINTF((">>> OUT: so_state = 0x%x\n", so->so_state));
 	}
 #endif
-	return (*fun)(fp, p, retval, SCARG(uap, fd), cmd, SCARG(uap, data));
+	return (*fun)(fp, td, retval, SCARG(uap, fd), cmd, SCARG(uap, data));
 }

@@ -75,8 +75,8 @@ extern TAILQ_HEAD(svr4_sockcache_head, svr4_sockcache_entry) svr4_head;
 extern int svr4_str_initialized;
 
 struct sockaddr_un *
-svr4_find_socket(p, fp, dev, ino)
-	struct proc *p;
+svr4_find_socket(td, fp, dev, ino)
+	struct thread *td;
 	struct file *fp;
 	udev_t dev;
 	ino_t ino;
@@ -87,7 +87,7 @@ svr4_find_socket(p, fp, dev, ino)
 	if (svr4_str_initialized != 2) {
 		if (atomic_cmpset_acq_int(&svr4_str_initialized, 0, 1)) {
 			DPRINTF(("svr4_find_socket: uninitialized [%p,%d,%d]\n",
-			    p, dev, ino));
+			    td, dev, ino));
 			TAILQ_INIT(&svr4_head);
 			atomic_store_rel_int(&svr4_str_initialized, 2);
 		}
@@ -95,9 +95,9 @@ svr4_find_socket(p, fp, dev, ino)
 	}
 
 
-	DPRINTF(("svr4_find_socket: [%p,%d,%d]: ", p, dev, ino));
+	DPRINTF(("svr4_find_socket: [%p,%d,%d]: ", td, dev, ino));
 	TAILQ_FOREACH(e, &svr4_head, entries)
-		if (e->p == p && e->dev == dev && e->ino == ino) {
+		if (e->p == td->td_proc && e->dev == dev && e->ino == ino) {
 #ifdef DIAGNOSTIC
 			if (e->cookie != NULL && e->cookie != cookie)
 				panic("svr4 socket cookie mismatch");
@@ -117,8 +117,8 @@ svr4_find_socket(p, fp, dev, ino)
  * the streams "soo_close()" routine).
  */
 int
-svr4_add_socket(p, path, st)
-	struct proc *p;
+svr4_add_socket(td, path, st)
+	struct thread *td;
 	const char *path;
 	struct stat *st;
 {
@@ -142,7 +142,7 @@ svr4_add_socket(p, path, st)
 	e->cookie = NULL;
 	e->dev = st->st_dev;
 	e->ino = st->st_ino;
-	e->p = p;
+	e->p = td->td_proc;
 
 	if ((error = copyinstr(path, e->sock.sun_path,
 	    sizeof(e->sock.sun_path), &len)) != 0) {
@@ -156,14 +156,14 @@ svr4_add_socket(p, path, st)
 
 	TAILQ_INSERT_HEAD(&svr4_head, e, entries);
 	DPRINTF(("svr4_add_socket: %s [%p,%d,%d]\n", e->sock.sun_path,
-		 p, e->dev, e->ino));
+		 td->td_proc, e->dev, e->ino));
 	return 0;
 }
 
 
 int
-svr4_sys_socket(p, uap)
-	struct proc *p;
+svr4_sys_socket(td, uap)
+	struct thread *td;
 	struct svr4_sys_socket_args *uap;
 {
 	switch (SCARG(uap, type)) {
@@ -189,5 +189,5 @@ svr4_sys_socket(p, uap)
 	default:
 		return EINVAL;
 	}
-	return socket(p, (struct socket_args *)uap);
+	return socket(td, (struct socket_args *)uap);
 }

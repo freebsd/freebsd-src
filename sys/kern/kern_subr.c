@@ -66,6 +66,7 @@ uiomove(cp, n, uio)
 	register int n;
 	register struct uio *uio;
 {
+	struct thread *td = curthread;
 	register struct iovec *iov;
 	u_int cnt;
 	int error = 0;
@@ -73,12 +74,12 @@ uiomove(cp, n, uio)
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
 	    ("uiomove: mode"));
-	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_procp == curproc,
+	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == curthread,
 	    ("uiomove proc"));
 
-	if (curproc) {
-		save = curproc->p_flag & P_DEADLKTREAT;
-		curproc->p_flag |= P_DEADLKTREAT;
+	if (td) {
+		save = td->td_flags & TDF_DEADLKTREAT;
+		td->td_flags |= TDF_DEADLKTREAT;
 	}
 
 	while (n > 0 && uio->uio_resid) {
@@ -122,8 +123,10 @@ uiomove(cp, n, uio)
 		cp += cnt;
 		n -= cnt;
 	}
-	if (curproc)
-		curproc->p_flag = (curproc->p_flag & ~P_DEADLKTREAT) | save;
+	if (td != curthread) printf("uiomove: IT CHANGED!");
+	td = curthread;	/* Might things have changed in copyin/copyout? */
+	if (td)
+		td->td_flags = (td->td_flags & ~TDF_DEADLKTREAT) | save;
 	return (error);
 }
 
@@ -140,7 +143,7 @@ uiomoveco(cp, n, uio, obj)
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
 	    ("uiomoveco: mode"));
-	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_procp == curproc,
+	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == curthread,
 	    ("uiomoveco proc"));
 
 	while (n > 0 && uio->uio_resid) {
@@ -376,14 +379,14 @@ phashinit(elements, type, nentries)
 static void
 uio_yield()
 {
-	struct proc *p;
+	struct thread *td;
 
-	p = curproc;
+	td = curthread;
 	mtx_lock_spin(&sched_lock);
 	DROP_GIANT_NOSWITCH();
-	p->p_pri.pri_level = p->p_pri.pri_user;
-	setrunqueue(p);
-	p->p_stats->p_ru.ru_nivcsw++;
+	td->td_ksegrp->kg_pri.pri_level = td->td_ksegrp->kg_pri.pri_user;
+	setrunqueue(td);
+	td->td_proc->p_stats->p_ru.ru_nivcsw++;
 	mi_switch();
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();

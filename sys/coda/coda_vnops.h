@@ -82,7 +82,7 @@ int coda_fbsd_getpages	__P((void *));
 int (**coda_vnodeop_p)(void *);
 
 int coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw,
-    int ioflag, struct ucred *cred, struct proc *p);
+    int ioflag, struct ucred *cred, struct thread *td);
 int coda_grab_vnode(dev_t dev, ino_t ino, struct vnode **vpp);
 void print_vattr(struct vattr *attr);
 void print_cred(struct ucred *cred);

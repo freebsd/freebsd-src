@@ -469,8 +469,8 @@ int IPL_EXTERN(ioctl)(dev, cmd, data, mode
 # if (defined(_KERNEL) && ((_BSDI_VERSION >= 199510) || (BSD >= 199506) || \
        (NetBSD >= 199511) || (__FreeBSD_version >= 220000) || \
        defined(__OpenBSD__)))
-, p)
-struct proc *p;
+, td)
+struct thread *td;
 # else
 )
 # endif
@@ -903,9 +903,9 @@ int IPL_EXTERN(open)(dev_t dev, int flags)
 int IPL_EXTERN(open)(dev, flags
 #  if ((_BSDI_VERSION >= 199510) || (BSD >= 199506) || (NetBSD >= 199511) || \
      (__FreeBSD_version >= 220000) || defined(__OpenBSD__)) && defined(_KERNEL)
-, devtype, p)
+, devtype, td)
 int devtype;
-struct proc *p;
+struct thread *td;
 #  else
 )
 #  endif
@@ -933,9 +933,9 @@ int IPL_EXTERN(close)(dev_t dev, int flags, int devtype, cred_t *cp)
 int IPL_EXTERN(close)(dev, flags
 #  if ((_BSDI_VERSION >= 199510) || (BSD >= 199506) || (NetBSD >= 199511) || \
      (__FreeBSD_version >= 220000) || defined(__OpenBSD__)) && defined(_KERNEL)
-, devtype, p)
+, devtype, td)
 int devtype;
-struct proc *p;
+struct thread *td;
 #  else
 )
 #  endif

@@ -217,7 +217,7 @@ ufs_getacl(ap)
 		struct acl_type_t type;
 		struct acl *aclp;
 		struct ucred *cred;
-		struct proc *p;
+		struct thread *td;
 	} */ *ap;
 {
 	struct inode *ip = VTOI(ap->a_vp);
@@ -241,7 +241,7 @@ ufs_getacl(ap)
 		error = vn_extattr_get(ap->a_vp, IO_NODELOCKED,
 		    POSIX1E_ACL_ACCESS_EXTATTR_NAMESPACE,
 		    POSIX1E_ACL_ACCESS_EXTATTR_NAME, &len, (char *) ap->a_aclp,
-		    ap->a_p);
+		    ap->a_td);
 		switch (error) {
 		/* XXX: Will be ENOATTR. */
 		/* XXX: If ufs_getacl() should work on file systems without
@@ -294,7 +294,7 @@ ufs_getacl(ap)
 		error = vn_extattr_get(ap->a_vp, IO_NODELOCKED,
 		    POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE,
 		    POSIX1E_ACL_DEFAULT_EXTATTR_NAME, &len,
-		    (char *) ap->a_aclp, ap->a_p);
+		    (char *) ap->a_aclp, ap->a_td);
 		/*
 		 * Unlike ACL_TYPE_ACCESS, there is no relationship between
 		 * the inode contents and the ACL, and it is therefore
@@ -370,7 +370,7 @@ ufs_setacl(ap)
 		 * Set operation.
 		 */
 		error = VOP_ACLCHECK(ap->a_vp, ap->a_type, ap->a_aclp,
-		    ap->a_cred, ap->a_p);
+		    ap->a_cred, ap->a_td);
 		if (error != 0)
 			return (error);
 	} else {
@@ -397,7 +397,7 @@ ufs_setacl(ap)
 	/*
 	 * Must hold VADMIN (be file owner) or have appropriate privilege.
 	 */
-	if ((error = VOP_ACCESS(ap->a_vp, VADMIN, ap->a_cred, ap->a_p)))
+	if ((error = VOP_ACCESS(ap->a_vp, VADMIN, ap->a_cred, ap->a_td)))
 		return (error);
 
 	switch(ap->a_type) {
@@ -405,14 +405,14 @@ ufs_setacl(ap)
 		error = vn_extattr_set(ap->a_vp, IO_NODELOCKED,
 		    POSIX1E_ACL_ACCESS_EXTATTR_NAMESPACE,
 		    POSIX1E_ACL_ACCESS_EXTATTR_NAME, sizeof(*ap->a_aclp),
-		    (char *) ap->a_aclp, ap->a_p);
+		    (char *) ap->a_aclp, ap->a_td);
 		break;
 
 	case ACL_TYPE_DEFAULT:
 		if (ap->a_aclp == NULL) {
 			error = vn_extattr_rm(ap->a_vp, IO_NODELOCKED,
 			    POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE,
-			    POSIX1E_ACL_DEFAULT_EXTATTR_NAME, ap->a_p);
+			    POSIX1E_ACL_DEFAULT_EXTATTR_NAME, ap->a_td);
 			/*
 			 * Attempting to delete a non-present default ACL
 			 * will return success for portability purposes.
@@ -425,7 +425,7 @@ ufs_setacl(ap)
 			error = vn_extattr_set(ap->a_vp, IO_NODELOCKED,
 			    POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE,
 			    POSIX1E_ACL_DEFAULT_EXTATTR_NAME,
-			    sizeof(*ap->a_aclp), (char *) ap->a_aclp, ap->a_p);
+			    sizeof(*ap->a_aclp), (char *) ap->a_aclp, ap->a_td);
 		break;
 
 	default:
@@ -466,7 +466,7 @@ ufs_aclcheck(ap)
 		acl_type_t type;
 		struct acl *aclp;
 		struct ucred *cred;
-		struct proc *p;
+		struct thread *td;
 	} */ *ap;
 {
 
