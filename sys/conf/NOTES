@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.610 1999/06/27 19:35:23 mjacob Exp $
+#	$Id: LINT,v 1.611 1999/06/29 18:58:27 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1567,7 +1567,7 @@ options EISA_SLOTS=12
 # The 'ti' device provides support for PCI gigabit ethernet NICs based
 # on the Alteon Networks Tigon 1 and Tigon 2 chipsets. This includes the
 # Alteon AceNIC, the 3Com 3c985, the Netgear GA620 and various others.
-# Note that you will probably want to bump up NBMCLUSTERS a lot to use
+# Note that you will probably want to bump up NMBCLUSTERS a lot to use
 # this driver.
 #
 # The 'tl' device provides support for the Texas Instruments TNETE100
