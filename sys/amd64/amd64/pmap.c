@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.50 1995/02/26 05:14:16 bde Exp $
+ *	$Id: pmap.c,v 1.51 1995/03/01 22:08:35 davidg Exp $
  */
 
 /*
@@ -143,8 +143,6 @@ boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 vm_offset_t vm_first_phys, vm_last_phys;
 
 static inline int pmap_is_managed();
-static inline void *vm_get_pmap();
-static inline void vm_put_pmap();
 static void i386_protection_init();
 static void pmap_alloc_pv_entry();
 static inline pv_entry_t get_pv_entry();
@@ -495,8 +493,6 @@ pmap_map(virt, start, end, prot)
  *	the map will be used in software only, and
  *	is bounded by that size.
  *
- * [ just allocate a ptd and mark it uninitialize -- should we track
- *   with a table which process has which ptd? -wfj ]
  */
 
 pmap_t
@@ -517,28 +513,6 @@ pmap_create(size)
 	return (pmap);
 }
 
-
-struct pmaplist {
-	struct pmaplist *next;
-};
-
-static inline void *
-vm_get_pmap()
-{
-	struct pmaplist *rtval;
-
-	rtval = (struct pmaplist *) kmem_alloc(kernel_map, ctob(1));
-	bzero(rtval, ctob(1));
-	return rtval;
-}
-
-static inline void
-vm_put_pmap(up)
-	struct pmaplist *up;
-{
-	kmem_free(kernel_map, (vm_offset_t) up, ctob(1));
-}
-
 /*
  * Initialize a preallocated and zeroed pmap structure,
  * such as one in a vmspace structure.
@@ -551,7 +525,7 @@ pmap_pinit(pmap)
 	 * No need to allocate page table space yet but we do need a valid
 	 * page directory table.
 	 */
-	pmap->pm_pdir = (pd_entry_t *) vm_get_pmap();
+	pmap->pm_pdir = (pd_entry_t *) kmem_alloc(kernel_map, PAGE_SIZE);
 
 	/* wire in kernel global address entries */
 	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * PTESIZE);
@@ -649,7 +623,7 @@ void
 pmap_release(pmap)
 	register struct pmap *pmap;
 {
-	vm_put_pmap((struct pmaplist *) pmap->pm_pdir);
+	kmem_free(kernel_map, (vm_offset_t) pmap->pm_pdir, PAGE_SIZE);
 }
 
 /*
