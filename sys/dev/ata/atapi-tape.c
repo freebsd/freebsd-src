@@ -185,7 +185,7 @@ ast_describe(struct ast_softc *stp)
                stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
                ATA_PARAM(stp->atp->controller, stp->atp->unit)->revision,
 	       stp->atp->controller->lun,
-	       (stp->atp->unit == ATA_MASTER) ? "master" : "slave ");
+	       (stp->atp->unit == ATA_MASTER) ? "master" : "slave");
 	printf("ast%d: ", stp->lun);
 	printf("%dKB/s, ", stp->cap.max_speed);
 	printf("transfer limit %d blk%s, ",
