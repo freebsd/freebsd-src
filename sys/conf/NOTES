@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.280 1996/09/19 08:27:58 phk Exp $
+#	$Id: LINT,v 1.281 1996/10/01 03:00:30 pst Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -157,6 +157,7 @@ options		UCONSOLE
 
 # XXX - this doesn't belong here either
 options		USERCONFIG		#boot -c editor
+options		USERCONFIG_BOOT		#imply -c and parse info area
 options		VISUAL_USERCONFIG	#visual boot -c editor
 
 #####################################################################
