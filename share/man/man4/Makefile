@@ -43,6 +43,7 @@ MAN=	aac.4 \
 	fdc.4 \
 	fpa.4 \
 	fxp.4 \
+	geom.4 \
 	gif.4 \
 	gusc.4 \
 	gx.4 \
