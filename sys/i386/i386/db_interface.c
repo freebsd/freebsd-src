@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.40 1998/06/08 08:43:20 dfr Exp $
+ *	$Id: db_interface.c,v 1.41 1998/06/08 09:23:24 dfr Exp $
  */
 
 /*
@@ -69,7 +69,7 @@ kdb_trap(type, code, regs)
 	int	type, code;
 	register struct i386_saved_state *regs;
 {
-	int ddb_mode = !(boothowto & RB_GDB);
+	volatile int ddb_mode = !(boothowto & RB_GDB);
 
 	/*
 	 * XXX try to do nothing if the console is in graphics mode.
