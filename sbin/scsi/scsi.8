@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.12 1997/08/24 08:50:25 joerg Exp $
+.\"	$Id: scsi.8,v 1.13 1997/12/19 14:14:26 brian Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
@@ -85,6 +85,24 @@ The
 .Nm scsi
 program is used to send commands to a scsi device. It is also
 a sample usage of the user level SCSI commands.
+.Pp
+The
+.Fl f
+option must be specified, and
+.Ar device
+must be the name of a functional SCSI device.  If the device is a
+disk device, it should be the
+.Sq whole slice ,
+ie.
+.Pa /dev/sd0
+or
+.Pa /dev/sd0s1c .
+Use the
+.Fl p
+option with the
+.Sq super scsi
+device to reprobe a bus where there are currently no valid devices
+attached.
 .Pp
 The
 .Fl d
@@ -140,11 +158,13 @@ by your
 environment variable.  To store changes permanently, 
 edit page control 3 using the
 .Fl P
-flag.
+option.
 .Pp
 The
 .Fl p
-option can be used against the "super scsi" device
+option can be used against the
+.Sq super scsi
+device
 .Pa /dev/ssc
 to probe all devices with a given SCSI lun on a given SCSI bus.
 The bus can be selected with the
@@ -156,17 +176,8 @@ option and the default is 0.
 .Pp
 The
 .Fl r
-option can be used in 
-.Tn FreeBSD 
-1.1 to reprobe a specific SCSI device at a given
-Bus, Target and Lun.
-This is not needed in
-.Fx 2.1 ,
-since opening a fixed SCSI device
-has the side effect of reprobing it, and probing with the bus with the
-.Fl p
-option should bring on line any newly found devices.
-See
+option can be used to reprobe all SCSI devices on the bus that the
+given SCSI device resides.  See
 .Xr scsi 4
 for a description of fixed scsi devices.
 .Pp
