@@ -11,7 +11,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\"     @(#)vidcontrol.1
-.\"	$Id: vidcontrol.1,v 1.12 1997/10/27 07:52:08 charnier Exp $
+.\"	$Id: vidcontrol.1,v 1.13 1998/09/15 18:16:39 sos Exp $
 .\"
 .Dd May 22, 1994
 .Dt VIDCONTROL 1
@@ -45,20 +45,39 @@ such as video mode, colors, cursors, scrnmaps, font and screensaver timeout.
 The following command line options are supported:
 .Bl -tag -width indent
 .It mode
-Select a new video mode. The modes currently supported are:
+Select a new video mode. The modes currently recognized are:
+.Ar 40x25 ,
+.Ar 80x25 ,
+.Ar 80x30 ,
+.Ar 80x43 ,
+.Ar 80x50 ,
+.Ar 80x60 ,
+.Ar 132x25 ,
+.Ar 132x30 ,
+.Ar 132x43 ,
+.Ar 132x50 ,
+.Ar 132x60 ,
 .Ar VGA_40x25 ,
 .Ar VGA_80x25 ,
+.Ar VGA_80x30 ,
 .Ar VGA_80x50 ,
+.Ar VGA_80x60 ,
 .Ar EGA_80x25 ,
-.Ar EGA_80x43 .
-On some laptops the modes
-.Ar VGA_80x30
-and
-.Ar VGA_80x60
-can be used.
+.Ar EGA_80x43 ,
+.Ar VESA_132x25 ,
+.Ar VESA_132x30 ,
+.Ar VESA_132x43 ,
+.Ar VESA_132x50 ,
+.Ar VESA_132x60 .
 The graphic mode
 .Ar VGA_320x200
+and
+.Ar VESA_800x600
 can also be chosen.
+Note that not all modes listed above may be supported by the video
+hardware, and that the VESA BIOS support must be linked to the kernel
+or loaded as a LKM if you wish to use VESA video modes or 
+132 column modes.
 .It fgcol Op bgcol
 Change colors when displaying text. Specify the foreground color
 (e.g. "vidcontrol white"), or both a foreground & background color

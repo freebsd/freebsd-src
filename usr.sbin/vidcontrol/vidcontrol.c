@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: vidcontrol.c,v 1.20 1998/09/15 18:16:39 sos Exp $";
+	"$Id: vidcontrol.c,v 1.21 1998/09/16 13:55:26 abial Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -258,37 +258,47 @@ set_cursor_type(char *appearence)
 void
 video_mode(int argc, char **argv, int *index)
 {
+	static struct {
+		char *name;
+		unsigned long mode;
+	} modes[] = {
+		{ "80x25",		SW_TEXT_80x25 },
+		{ "80x30",		SW_TEXT_80x30 },
+		{ "80x43",		SW_TEXT_80x43 },
+		{ "80x50",		SW_TEXT_80x50 },
+		{ "80x60",		SW_TEXT_80x60 },
+		{ "132x25",		SW_TEXT_132x25 },
+		{ "132x30",		SW_TEXT_132x30 },
+		{ "132x43",		SW_TEXT_132x43 },
+		{ "132x50",		SW_TEXT_132x50 },
+		{ "132x60",		SW_TEXT_132x60 },
+		{ "VGA_40x25",		SW_VGA_C40x25 },
+		{ "VGA_80x25",		SW_VGA_C80x25 },
+		{ "VGA_80x30",		SW_VGA_C80x30 },
+		{ "VGA_80x50",		SW_VGA_C80x50 },
+		{ "VGA_80x60",		SW_VGA_C80x60 },
+		{ "VGA_320x200",	SW_VGA_CG320 },
+		{ "EGA_80x25",		SW_ENH_C80x25 },
+		{ "EGA_80x43",		SW_ENH_C80x43 },
+		{ "VESA_132x25",	SW_VESA_C132x25 },
+		{ "VESA_132x43",	SW_VESA_C132x43 },
+		{ "VESA_132x50",	SW_VESA_C132x50 },
+		{ "VESA_132x60",	SW_VESA_C132x60 },
+		{ "VESA_800x600",	SW_VESA_800x600 },
+		{ NULL },
+	};
 	unsigned long mode;
 	int size[3];
+	int i;
 
 	if (*index < argc) {
-		if (!strcmp(argv[*index], "VGA_40x25"))
-			mode = SW_VGA_C40x25;
-		else if (!strcmp(argv[*index], "VGA_80x25"))
-			mode = SW_VGA_C80x25;
-		else if (!strcmp(argv[*index], "VGA_80x30"))
-			mode = SW_VGA_C80x30;
-		else if (!strcmp(argv[*index], "VGA_80x50"))
-			mode = SW_VGA_C80x50;
-		else if (!strcmp(argv[*index], "VGA_80x60"))
-			mode = SW_VGA_C80x60;
-		else if (!strcmp(argv[*index], "VGA_320x200"))
-			mode = SW_VGA_CG320;
-		else if (!strcmp(argv[*index], "EGA_80x25"))
-			mode = SW_ENH_C80x25;
-		else if (!strcmp(argv[*index], "EGA_80x43"))
-			mode = SW_ENH_C80x43;
-		else if (!strcmp(argv[*index], "VESA_132x25"))
-			mode = SW_VESA_C132x25;
-		else if (!strcmp(argv[*index], "VESA_132x43"))
-			mode = SW_VESA_C132x43;
-		else if (!strcmp(argv[*index], "VESA_132x50"))
-			mode = SW_VESA_C132x50;
-		else if (!strcmp(argv[*index], "VESA_132x60"))
-			mode = SW_VESA_C132x60;
-		else if (!strcmp(argv[*index], "VESA_800x600"))
-			mode = SW_VESA_800x600;
-		else
+		for (i = 0; modes[i].name != NULL; ++i) {
+			if (!strcmp(argv[*index], modes[i].name)) {
+				mode = modes[i].mode;
+				break;
+			}
+		}
+		if (modes[i].name == NULL)
 			return;
 		if (ioctl(0, mode, NULL) < 0)
 			warn("cannot set videomode");
