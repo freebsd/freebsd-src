@@ -1189,9 +1189,15 @@ ptransfer(direction, bytes, t0, t1)
 		s = td.tv_sec + (td.tv_usec / 1000000.);
 #define	nz(x)	((x) == 0 ? 1 : (x))
 		bs = bytes / nz(s);
-		printf("%ld bytes %s in %.2g seconds (%.2g Kbytes/s)\n",
-		    bytes, direction, s, bs / 1024.);
-	}
+		if(bs > ( 1024 * 1024 ))
+			printf("%ld bytes %s in %.2f seconds (%.2f Meg/s)\n",
+				bytes, direction, s, bs / (1024. * 1024.));
+		else
+			printf("%ld bytes %s in %.2f seconds (%.2f Kbytes/s)\n",
+				bytes, direction, s, bs / 1024.);
+        }
+  }
+
 }
 
 /*
