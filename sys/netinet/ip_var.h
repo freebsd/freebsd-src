@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.43 1998/07/13 12:20:07 bde Exp $
+ *	$Id: ip_var.h,v 1.44 1998/08/23 03:07:14 wollman Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -41,8 +41,7 @@
  * Overlay for ip header used by other protocols (tcp, udp).
  */
 struct ipovly {
-	caddr_t	ih_next, ih_prev;	/* for protocol sequence q's */
-	u_char	ih_x1;			/* (unused) */
+	u_char	ih_x1[9];		/* (unused) */
 	u_char	ih_pr;			/* protocol */
 	u_short	ih_len;			/* protocol length */
 	struct	in_addr ih_src;		/* source internet address */
@@ -60,40 +59,12 @@ struct ipq {
 	u_char	ipq_ttl;		/* time for reass q to live */
 	u_char	ipq_p;			/* protocol of this fragment */
 	u_short	ipq_id;			/* sequence id for reassembly */
-	struct	ipasfrag *ipq_next,*ipq_prev;
-					/* to ip headers of fragments */
+	struct mbuf *ipq_frags;		/* to ip headers of fragments */
 	struct	in_addr ipq_src,ipq_dst;
 #ifdef IPDIVERT
 	u_short ipq_divert;		/* divert protocol port */
 	u_short ipq_div_cookie;		/* divert protocol cookie */
 #endif
-};
-
-/*
- * Ip header, when holding a fragment.
- *
- * Note: ipf_next must be at same offset as ipq_next above
- */
-struct	ipasfrag {
-#if BYTE_ORDER == LITTLE_ENDIAN 
-	u_int	ip_hl:4,
-		ip_v:4;
-#endif
-#if BYTE_ORDER == BIG_ENDIAN 
-	u_int	ip_v:4,
-		ip_hl:4;
-#endif
-	u_char	ipf_mff;		/* XXX overlays ip_tos: use low bit
-					 * to avoid destroying tos;
-					 * copied from (ip_off&IP_MF) */
-	u_short	ip_len;
-	u_short	ip_id;
-	u_short	ip_off;
-	u_char	ip_ttl;
-	u_char	ip_p;
-	u_short	ip_sum;
-	struct	ipasfrag *ipf_next;	/* next fragment */
-	struct	ipasfrag *ipf_prev;	/* previous fragment */
 };
 
 /*
