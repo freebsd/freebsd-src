@@ -655,7 +655,7 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 		if (error || wtype == WAITTYPE_ANY)
 			break;
 
-		if (*timeout != NULL) {
+		if (timeout != NULL) {
 			tv.tv_sec -= (t2.tv_sec - t1.tv_sec);
 			tv.tv_usec -= (t2.tv_nsec - t1.tv_nsec) / 1000;
 		}
