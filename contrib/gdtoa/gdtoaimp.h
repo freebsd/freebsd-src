@@ -600,6 +600,8 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
  extern Bigint *diff ANSI((Bigint*, Bigint*));
  extern char *dtoa ANSI((double d, int mode, int ndigits,
 			int *decpt, int *sign, char **rve));
+ extern char *gdtoa ANSI((FPI *fpi, int be, ULong *bits, int *kindp,
+			  int mode, int ndigits, int *decpt, char **rve));
  extern char *g__fmt ANSI((char*, char*, char*, int, ULong));
  extern int gethex ANSI((CONST char**, FPI*, Long*, Bigint**, int));
  extern void hexdig_init_D2A(Void);
