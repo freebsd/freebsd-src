@@ -40,8 +40,8 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh.c,v 1.206 2003/12/16 15:49:51 markus Exp $");
 RCSID("$FreeBSD$");
+RCSID("$OpenBSD: ssh.c,v 1.206 2003/12/16 15:49:51 markus Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -147,49 +147,12 @@ pid_t proxy_command_pid = 0;
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [options] host [command]\n", __progname);
-	fprintf(stderr, "Options:\n");
-	fprintf(stderr, "  -l user     Log in using this user name.\n");
-	fprintf(stderr, "  -n          Redirect input from " _PATH_DEVNULL ".\n");
-	fprintf(stderr, "  -F config   Config file (default: ~/%s).\n",
-	     _PATH_SSH_USER_CONFFILE);
-	fprintf(stderr, "  -A          Enable authentication agent forwarding.\n");
-	fprintf(stderr, "  -a          Disable authentication agent forwarding (default).\n");
-	fprintf(stderr, "  -X          Enable X11 connection forwarding.\n");
-	fprintf(stderr, "  -Y          Enable trusted X11 connection forwarding.\n");
-	fprintf(stderr, "  -x          Disable X11 connection forwarding (default).\n");
-	fprintf(stderr, "  -i file     Identity for public key authentication "
-	    "(default: ~/.ssh/identity)\n");
-#ifdef SMARTCARD
-	fprintf(stderr, "  -I reader   Set smartcard reader.\n");
-#endif
-	fprintf(stderr, "  -t          Tty; allocate a tty even if command is given.\n");
-	fprintf(stderr, "  -T          Do not allocate a tty.\n");
-	fprintf(stderr, "  -v          Verbose; display verbose debugging messages.\n");
-	fprintf(stderr, "              Multiple -v increases verbosity.\n");
-	fprintf(stderr, "  -V          Display version number only.\n");
-	fprintf(stderr, "  -q          Quiet; don't display any warning messages.\n");
-	fprintf(stderr, "  -f          Fork into background after authentication.\n");
-	fprintf(stderr, "  -e char     Set escape character; ``none'' = disable (default: ~).\n");
-
-	fprintf(stderr, "  -c cipher   Select encryption algorithm\n");
-	fprintf(stderr, "  -m macs     Specify MAC algorithms for protocol version 2.\n");
-	fprintf(stderr, "  -p port     Connect to this port.  Server must be on the same port.\n");
-	fprintf(stderr, "  -L listen-port:host:port   Forward local port to remote address\n");
-	fprintf(stderr, "  -R listen-port:host:port   Forward remote port to local address\n");
-	fprintf(stderr, "              These cause %s to listen for connections on a port, and\n", __progname);
-	fprintf(stderr, "              forward them to the other side by connecting to host:port.\n");
-	fprintf(stderr, "  -D port     Enable dynamic application-level port forwarding.\n");
-	fprintf(stderr, "  -C          Enable compression.\n");
-	fprintf(stderr, "  -N          Do not execute a shell or command.\n");
-	fprintf(stderr, "  -g          Allow remote hosts to connect to forwarded ports.\n");
-	fprintf(stderr, "  -1          Force protocol version 1.\n");
-	fprintf(stderr, "  -2          Force protocol version 2.\n");
-	fprintf(stderr, "  -4          Use IPv4 only.\n");
-	fprintf(stderr, "  -6          Use IPv6 only.\n");
-	fprintf(stderr, "  -o 'option' Process the option as if it was read from a configuration file.\n");
-	fprintf(stderr, "  -s          Invoke command (mandatory) as SSH2 subsystem.\n");
-	fprintf(stderr, "  -b addr     Local IP address.\n");
+	fprintf(stderr,
+"usage: ssh [-1246AaCfghkNnqsTtVvXxY] [-b bind_address] [-c cipher_spec]\n"
+"           [-D port] [-e escape_char] [-F configfile] [-i identity_file]\n"
+"           [-L port:host:hostport] [-l login_name] [-m mac_spec] [-o option]\n"
+"           [-p port] [-R port:host:hostport] [user@]hostname [command]\n"
+	);
 	exit(1);
 }
 
@@ -348,12 +311,8 @@ again:
 			}
 			/* fallthrough */
 		case 'V':
-			fprintf(stderr,
-			    "%s, SSH protocols %d.%d/%d.%d, %s\n",
-			    SSH_VERSION,
-			    PROTOCOL_MAJOR_1, PROTOCOL_MINOR_1,
-			    PROTOCOL_MAJOR_2, PROTOCOL_MINOR_2,
-			    SSLeay_version(SSLEAY_VERSION));
+			fprintf(stderr, "%s, %s\n",
+			    SSH_VERSION, SSLeay_version(SSLEAY_VERSION));
 			if (opt == 'V')
 				exit(0);
 			break;
@@ -795,7 +754,7 @@ x11_get_proto(char **_proto, char **_data)
 				    xauthdir);
 				snprintf(cmd, sizeof(cmd),
 				    "%s -f %s generate %s " SSH_X11_PROTO
-				    " untrusted timeout 120 2>" _PATH_DEVNULL,
+				    " untrusted timeout 1200 2>" _PATH_DEVNULL,
 				    options.xauth_location, xauthfile, display);
 				debug2("x11_get_proto: %s", cmd);
 				if (system(cmd) == 0)

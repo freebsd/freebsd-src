@@ -55,7 +55,9 @@ krb5_init(void *context)
 		problem = krb5_init_context(&authctxt->krb5_ctx);
 		if (problem)
 			return (problem);
+#ifdef KRB5_INIT_ETS
 		krb5_init_ets(authctxt->krb5_ctx);
+#endif
 	}
 	return (0);
 }
@@ -71,6 +73,7 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 #endif
 	krb5_error_code problem;
 	krb5_ccache ccache = NULL;
+	int len;
 
 	if (!authctxt->valid)
 		return (0);
@@ -175,6 +178,11 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 #endif
 
 	authctxt->krb5_ticket_file = (char *)krb5_cc_get_name(authctxt->krb5_ctx, authctxt->krb5_fwd_ccache);
+
+	len = strlen(authctxt->krb5_ticket_file) + 6;
+	authctxt->krb5_ccname = xmalloc(len);
+	snprintf(authctxt->krb5_ccname, len, "FILE:%s",
+	    authctxt->krb5_ticket_file);
 
  out:
 	restore_uid();

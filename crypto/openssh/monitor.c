@@ -46,7 +46,13 @@ RCSID("$FreeBSD$");
 #include "auth.h"
 #include "kex.h"
 #include "dh.h"
+#ifdef TARGET_OS_MAC	/* XXX Broken krb5 headers on Mac */
+#undef TARGET_OS_MAC
 #include "zlib.h"
+#define TARGET_OS_MAC 1
+#else
+#include "zlib.h"
+#endif
 #include "packet.h"
 #include "auth-options.h"
 #include "sshpty.h"
@@ -747,7 +753,8 @@ mm_answer_skeyquery(int socket, Buffer *m)
 	char challenge[1024];
 	u_int success;
 
-	success = skeychallenge(&skey, authctxt->user, challenge) < 0 ? 0 : 1;
+	success = _compat_skeychallenge(&skey, authctxt->user, challenge,
+	    sizeof(challenge)) < 0 ? 0 : 1;
 
 	buffer_clear(m);
 	buffer_put_int(m, success);
@@ -791,16 +798,10 @@ mm_answer_skeyrespond(int socket, Buffer *m)
 int
 mm_answer_pam_start(int socket, Buffer *m)
 {
-	char *user;
-
 	if (!options.use_pam)
 		fatal("UsePAM not set, but ended up in %s anyway", __func__);
 
-	user = buffer_get_string(m, NULL);
-
-	start_pam(user);
-
-	xfree(user);
+	start_pam(authctxt);
 
 	monitor_permit(mon_dispatch, MONITOR_REQ_PAM_ACCOUNT, 1);
 

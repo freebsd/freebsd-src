@@ -12,8 +12,8 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: readconf.c,v 1.127 2003/12/16 15:49:51 markus Exp $");
 RCSID("$FreeBSD$");
+RCSID("$OpenBSD: readconf.c,v 1.127 2003/12/16 15:49:51 markus Exp $");
 
 #include "ssh.h"
 #include "xmalloc.h"
@@ -106,8 +106,12 @@ typedef enum {
 	oClearAllForwardings, oNoHostAuthenticationForLocalhost,
 	oEnableSSHKeysign, oRekeyLimit, oVerifyHostKeyDNS, oConnectTimeout,
 	oAddressFamily, oGssAuthentication, oGssDelegateCreds,
+<<<<<<< readconf.c
 	oServerAliveInterval, oServerAliveCountMax,
 	oVersionAddendum,
+=======
+	oServerAliveInterval, oServerAliveCountMax, oIdentitiesOnly,
+>>>>>>> 1.1.1.15
 	oDeprecated, oUnsupported
 } OpCodes;
 
@@ -149,6 +153,7 @@ static struct {
 	{ "usersh", oDeprecated },
 	{ "identityfile", oIdentityFile },
 	{ "identityfile2", oIdentityFile },			/* alias */
+	{ "identitiesonly", oIdentitiesOnly },
 	{ "hostname", oHostName },
 	{ "hostkeyalias", oHostKeyAlias },
 	{ "proxycommand", oProxyCommand },
@@ -739,6 +744,10 @@ parse_int:
 		intptr = &options->enable_ssh_keysign;
 		goto parse_flag;
 
+	case oIdentitiesOnly:
+		intptr = &options->identities_only;
+		goto parse_flag;
+
 	case oServerAliveInterval:
 		intptr = &options->server_alive_interval;
 		goto parse_time;
@@ -879,6 +888,7 @@ initialize_options(Options * options)
 	options->smartcard_device = NULL;
 	options->enable_ssh_keysign = - 1;
 	options->no_host_authentication_for_localhost = - 1;
+	options->identities_only = - 1;
 	options->rekey_limit = - 1;
 	options->verify_host_key_dns = -1;
 	options->server_alive_interval = -1;
@@ -991,6 +1001,8 @@ fill_default_options(Options * options)
 		clear_forwardings(options);
 	if (options->no_host_authentication_for_localhost == - 1)
 		options->no_host_authentication_for_localhost = 0;
+	if (options->identities_only == -1)
+		options->identities_only = 0;
 	if (options->enable_ssh_keysign == -1)
 		options->enable_ssh_keysign = 0;
 	if (options->rekey_limit == -1)

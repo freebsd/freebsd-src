@@ -67,6 +67,7 @@ struct Authctxt {
 	krb5_ccache	 krb5_fwd_ccache;
 	krb5_principal	 krb5_user;
 	char		*krb5_ticket_file;
+	char		*krb5_ccname;
 #endif
 	void		*methoddata;
 };
