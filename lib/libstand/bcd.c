@@ -1,9 +1,11 @@
 /*
  * Some data-tables that are often used.
  * Cannot be copyrighted.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/libkern.h>
+#include <sys/types.h>
 
 u_char const bcd2bin_data[] = {
 	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 0, 0, 0, 0, 0, 0,

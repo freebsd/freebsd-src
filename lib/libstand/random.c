@@ -34,7 +34,7 @@
  * $FreeBSD$
  */
 
-#include <sys/libkern.h>
+#include <sys/types.h>
 
 static u_long randseed = 1;
 
