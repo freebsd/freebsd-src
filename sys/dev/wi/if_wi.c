@@ -1685,6 +1685,7 @@ wi_alloc(dev, io_rid)
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
 				     0, ~0, 1, RF_ACTIVE);
 	if (!sc->irq) {
+		wi_free(dev);
 		device_printf(dev, "No irq?!\n");
 		return (ENXIO);
 	}
@@ -1703,12 +1704,18 @@ static void wi_free(dev)
 {
 	struct wi_softc		*sc = device_get_softc(dev);
 
-	if (sc->iobase != NULL)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->iobase);
-	if (sc->irq != NULL)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-	if (sc->mem != NULL)
+	if (sc->iobase != NULL) {
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->iobase_rid, sc->iobase);
+		sc->iobase = NULL;
+	}
+	if (sc->irq != NULL) {
+		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
+		sc->irq = NULL;
+	}
+	if (sc->mem != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
+		sc->mem = NULL;
+	}
 
 	return;
 }
