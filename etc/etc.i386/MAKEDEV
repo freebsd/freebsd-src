@@ -26,7 +26,7 @@
 #	std	standard devices
 #	local	configuration specific devices
 #	mach-4	mach4&lites+devices for Mach's XFree86 distribution
-#	(see http://www.cs.hut.fi/~jvh/lites.html for more info on LITES)
+#	(see http://www.cs.hut.fi/lites.html for more info on LITES)
 #
 # Tapes:
 #	wt*	QIC-interfaced (e.g. not SCSI) 3M cartridge tape
@@ -44,6 +44,7 @@
 #	scd*	"sony cdrom disks"
 #	matcd*	"Matsushita (panasonic) cdrom disks"
 #	vn*	"vnode disks"
+#	od*	"optical disks"
 #
 # Console ports:
 #	vty*	virtual console devices for syscons/pcvt/codrv
@@ -51,6 +52,9 @@
 # Pointing devices:
 #	mse*	Logitech and ATI Inport bus mouse
 #	psm*	PS/2 mouse
+#
+# Time devices:
+#	refclock-*  serial ports used by xntpd parse refclocks
 #
 # Terminal ports:
 #	tty*	general purpose serial ports
@@ -63,12 +67,10 @@
 # Printers:
 #	lpt*	stock lp
 #
-# Call units:
-#
-# SCSI devices (other than CD-ROM, tape and disk)
-#   uk*     "unknown" device (supports ioctl calls only)
-# worm*     WORM driver
-#   pt*     Processor Type (HP scanner, as one example)
+# SCSI devices (other than CD-ROM, tape and disk):
+#	uk*	"unknown" device (supports ioctl calls only)
+#	worm*	WORM driver
+#	pt*	Processor Type (HP scanner, as one example)
 #
 # Special purpose devices:
 #	bpf*	packet filter
@@ -82,10 +84,11 @@
 #	joy	pc joystick
 #	tun	Tunneling IP device
 #	spigot	Video Spigot video aquisition card
+#	meteor*	Matrox Meteor video aquisition card (pci)
 #	isdn*	ISDN devices
-#   labpc*  National Instrument's Lab-PC and LAB-PC+
+#	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.95 1995/05/18 10:51:03 jkh Exp $
+#	$Id: MAKEDEV,v 1.103 1995/08/19 15:50:56 joerg Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -199,7 +202,8 @@ mach-4)
 
 # Create device files for new Archive/Wangtek QIC-02 tape driver (vak)
 wt*)
-	umask 7 ; u=`expr $i : '..\(.*\)'`
+	umask 7
+	u=`expr $i : '..\(.*\)'`
 	if [ x$u = x ]; then u=0; fi
 	rm -f r[Ww]t$u nr[Ww]t$u r[Ww]t$u[a-f] nr[Ww]t$u[a-f]
 	mknod rwt${u}   c 10 `expr  0 + $u`	# default density, 512b blocks
@@ -220,9 +224,69 @@ wt*)
 	umask 77
 	;;
 
+# Individual slices.
+sd*s*|vn*s*|wd*s*|od*s*)
+	umask 37
+	case $i in
+	sd*s*) name=sd; blk=4;  chr=13;;
+	wd*s*) name=wd; blk=0;  chr=3;;
+	vn*s*) name=vn; blk=15; chr=43;;
+	od*s*) name=od; blk=20; chr=70;;
+	esac
+	unit=`expr $i : '..\([0-9]*\)s'`
+	slice=`expr $i : '..[0-9]*s\([0-9]*\)'`
+	part=`expr $i : '..[0-9]*s[0-9]*\(.*\)'`
+	case $unit in
+	[0-9]|[1-2][0-9]|30|31)
+		case $slice in
+		[0-9]|[1-2][0-9]|30)
+			oldslice=$slice
+			slice=$(($slice+1))
+			slicename=`dkitos $slice`
+			rm -f  $name$unit$slicename* r$name$unit$slicename*
+			minor=`dkminor 0 $unit $slice $dkrawpart`
+			mknod  $name$unit$slicename b $blk $minor
+			mknod r$name$unit$slicename c $chr $minor
+			case $part in
+			[a-h])
+				case $oldslice in
+				0) slice=$oldslice ;;
+				esac
+				for part in 0 1 2 3 4 5 6 7
+				do
+					minor=`dkminor 0 $unit $slice $part`
+					partname=`dkitop $part`
+					mknod  $name$unit$slicename$partname \
+					      b $blk $minor
+					mknod r$name$unit$slicename$partname \
+					      c $chr $minor
+				done
+				;;
+			"")
+				;;
+			*)
+				echo bad partition for disk in: $i
+				;;
+			esac
+			chgrp operator $name$unit$slicename* \
+				      r$name$unit$slicename*
+			;;
+		*)
+			echo bad slice for disk in: $i
+			;;
+		esac
+		;;
+	*)
+		echo bad unit for disk in: $i "(unit=$unit, slice=$slice, part=$part)"
+		;;
+	esac
+	umask 77
+	;;
+
 fd*)
-	umask 2 ; unit=`expr $i : '..\(.*\)'`
-	name=fd; blk=2; chr=9;
+	umask 2
+	unit=`expr $i : '..\(.*\)'`
+	name=fd; blk=2; chr=9
 	rm -f $name$unit* r$name$unit*
 	case $unit in
 	0|1|2|3)
@@ -306,8 +370,9 @@ fd*)
 
 
 ft*)
-	umask 2 ; unit=`expr $i : '..\(.*\)'`
-	name=ft; blk=2; chr=9;
+	umask 2
+	unit=`expr $i : '..\(.*\)'`
+	name=ft; blk=2; chr=9
 	rm -f $name$unit* r$name$unit*
 	case $unit in
 	0|1|2|3)
@@ -325,70 +390,13 @@ ft*)
 	umask 77
 	;;
 
-# Individual slices.
-sd*s*|vn*s*|wd*s*)
-	umask 37
-	case $i in
-	sd*s*) name=sd; blk=4;  chr=13;;
-	wd*s*) name=wd; blk=0;  chr=3;;
-	vn*s*) name=vn; blk=15; chr=43;;
-	esac
-	unit=`expr $i : '..\([0-9]*\)s'`
-	slice=`expr $i : '..[0-9]*s\([0-9]*\)'`
-	part=`expr $i : '..[0-9]*s[0-9]*\(.*\)'`
-	case $unit in
-	[0-9]|[1-2][0-9]|30|31)
-		case $slice in
-		[0-9]|[1-2][0-9]|30)
-			oldslice=$slice
-			slice=$(($slice+1))
-			slicename=`dkitos $slice`
-			rm -f  $name$unit$slicename* r$name$unit$slicename*
-			minor=`dkminor 0 $unit $slice $dkrawpart`
-			mknod  $name$unit$slicename b $blk $minor
-			mknod r$name$unit$slicename c $chr $minor
-			case $part in
-			[a-h])
-				case $oldslice in
-				0) slice=$oldslice ;;
-				esac
-				for part in 0 1 2 3 4 5 6 7
-				do
-					minor=`dkminor 0 $unit $slice $part`
-					partname=`dkitop $part`
-					mknod  $name$unit$slicename$partname \
-					      b $blk $minor
-					mknod r$name$unit$slicename$partname \
-					      c $chr $minor
-				done
-				;;
-			"")
-				;;
-			*)
-				echo bad partition for disk in: $i
-				;;
-			esac
-			chgrp operator $name$unit$slicename* \
-				      r$name$unit$slicename*
-			;;
-		*)
-			echo bad slice for disk in: $i
-			;;
-		esac
-		;;
-	*)
-		echo bad unit for disk in: $i "(unit=$unit, slice=$slice, part=$part)"
-		;;
-	esac
-	umask 77
-	;;
-
-sd*|vn*|wd*)
+sd*|vn*|wd*|od*)
 	umask 37
 	case $i in
 	sd*) name=sd; blk=4;  chr=13;;
 	wd*) name=wd; blk=0;  chr=3;;
 	vn*) name=vn; blk=15; chr=43;;
+	od*) name=od; blk=20; chr=70;;
 	esac
 	unit=`expr $i : '..\(.*\)'`
 	case $unit in
@@ -398,7 +406,7 @@ sd*|vn*|wd*)
 			sh MAKEDEV $name$unit$slicepartname
 		done
 		case $name in
-		sd)
+		sd|od)
 			rm -f r${name}${unit}.ctl
 			mknod r${name}${unit}.ctl c $chr `expr $unit '*' 8 + $scsictl `
 			chmod 600 r${name}${unit}.ctl
@@ -485,8 +493,9 @@ pty*)
 	;;
 
 st*)
-	umask 2 ; unit=`expr $i : '..\(.*\)'`
-	chr=14;
+	umask 2
+	unit=`expr $i : '..\(.*\)'`
+	chr=14
 
 	#remove old stype names
 	rm -f [hml]rst[0123456] [hml][en]rst[0123456] [hml]enrst[0123456]
@@ -529,7 +538,8 @@ st*)
 	;;
 
 ch*)
-	umask 2 ; unit=`expr $i : '..\(.*\)'`
+	umask 2
+	unit=`expr $i : '..\(.*\)'`
 	case $i in
 	ch*) name=ch;  chr=17;;
 	esac
@@ -551,7 +561,7 @@ ch*)
 	;;
 
 cd*|mcd*|scd*)
-	umask 2 ;
+	umask 2
 	case $i in
 	cd*) unit=`expr $i : '..\(.*\)'`; name=cd; blk=6; chr=15;;
 	mcd*) unit=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
@@ -582,7 +592,7 @@ cd*|mcd*|scd*)
 	;;
 
 matcd*)
-	umask 2 ;
+	umask 2
 	case $i in
 	matcd*) unit=`expr $i : '.....\(.*\)'`; name=matcd; blk=17; chr=46;;
 	esac
@@ -602,6 +612,26 @@ matcd*)
 		mknod r${name}${unit}lc c $chr `expr $unit '*' 8 + 130`
 		chgrp operator ${name}${unit}l[a-h] r${name}${unit}l[a-h]
 		chmod 640 ${name}${unit}l[a-h] r${name}${unit}l[a-h]
+		;;
+	*)
+		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+wcd*)
+	umask 2 ;
+	unit=`expr $i : '...\(.*\)'`
+	blk=19
+	chr=69
+	rm -f wcd$unit? rwcd$unit?
+	case $unit in
+	0|1|2|3)
+		mknod wcd${unit}c  b $blk `expr $unit '*' 8 + 0`
+		mknod rwcd${unit}c c $chr `expr $unit '*' 8 + 0`
+		chgrp operator wcd${unit}[a-h] rwcd${unit}[a-h]
+		chmod 640 wcd${unit}[a-h] rwcd${unit}[a-h]
 		;;
 	*)
 		echo bad unit for disk in: $i
@@ -716,6 +746,36 @@ ttym?)
 	m=`ttyminor $unit`
 	mknod ttym$unit c 63 $m
 	chown root.wheel ttym$unit
+	;;
+
+# Specialix SI/XIO.
+# Note: these are 'base 1' to match the numbers on the panels, and to match
+#       the manual that comes with the system.
+ttyA?)
+	unit=`expr $i : 'tty.*\(.\)$'`
+	rm -f tty*A$unit
+	m=`ttyminor $unit`
+	mknod ttyA$unit c 68 `expr $m - 1`
+	mknod ttyiA$unit c 68 `expr $m + 65536 - 1`
+	mknod ttylA$unit c 68 `expr $m + 131072 - 1`
+	chown root.wheel ttyA$unit
+	;;
+cuaA?)
+	umask 7
+	unit=`expr $i : 'cua.*\(.\)$'`
+	rm -f cuaA$unit
+	m=`ttyminor $unit`
+	mknod cuaA$unit c 68 `expr $m + 128 - 1`
+	chown uucp.dialer cuaA$unit
+	umask 77
+	;;
+
+# the user mode process "gets" to the card via this..
+si_control)
+	rm -f si_control
+	mknod si_control c 68 262144
+	chmod 600 si_control
+	chown root.wheel si_control
 	;;
 
 mse*)
@@ -861,6 +921,13 @@ spigot)
 	chmod 444 spigot
 	;;
 
+meteor?)
+	unit=`expr $i : 'meteor\(.*\)'`
+	rm -f meteor$unit
+	mknod meteor$unit c 67 $unit
+	chmod 444 meteor$unit
+	;;
+
 tun?)
 	unit=`expr $i : 'tun\(.*\)'`
 	rm -f tun$unit
@@ -873,7 +940,6 @@ snp?)
 	rm -f snp$unit
 	mknod snp$unit c 53 $unit
 	chown root.wheel snp$unit
-	chmod 600 snp$unit
 	;;
 
 # Valid arguments to isdn:
@@ -904,23 +970,19 @@ isdn*)
 	mknod itel00 c `expr $unit + 3` 0
 	mknod itel01 c `expr $unit + 3` 1
 	mknod ispy c `expr $unit + 5` 0
-	chmod 600 n8ic0 n9ic0 snic0 isdn isdn? ity?? itel?? ispy
 	chown root.wheel n8ic0 n9ic0 snic0 isdn isdn? ity?? itel?? ispy
 	chown uucp.wheel ityo[01]
 	case $type in
 	5000)
 		ln snic0 nic0
-		chmod 600 nic0
 		chown root.wheel nic0
 		;;
 	3008)
 		ln n8ic0 nic0
-		chmod 600 nic0
 		chown root.wheel nic0
 		;;
 	3009)
 		ln n9ic0 nic0
-		chmod 600 nic0
 		chown root.wheel nic0
 		;;
 	1000|tel*|TEL*|none)
