@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.5 1993/10/08 01:19:28 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.6 1993/10/10 20:25:31 jkh Exp $";
 #endif
 
 /*
@@ -28,7 +28,6 @@ static const char *rcsid = "$Id: perform.c,v 1.5 1993/10/08 01:19:28 jkh Exp $";
 #include <signal.h>
 
 static int pkg_do(char *);
-static char *find_name(Package *);
 static int sanity_check(char *);
 static char LogDir[FILENAME_MAX];
 
@@ -60,6 +59,7 @@ pkg_do(char *pkg)
     FILE *cfile;
     char *home;
     int code = 0;
+    PackingList p;
 
     /* Reset some state */
     if (Plist.head)
@@ -118,7 +118,7 @@ pkg_do(char *pkg)
 	    return 0;
 	}
     }
-    PkgName = find_name(&Plist);
+    PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
     if (fexists(REQUIRE_FNAME)) {
 	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
 	if (Verbose)
@@ -218,19 +218,6 @@ sanity_check(char *pkg)
 	return 1;
     }
     return 0;
-}
-
-static char *
-find_name(Package *pkg)
-{
-    PackingList p = pkg->head;
-
-    while (p) {
-	if (p->type == PLIST_NAME)
-	    return p->name;
-	p = p->next;
-    }
-    return "anonymous";
 }
 
 void
