@@ -1,8 +1,10 @@
 /*
- * $Id: tcpip.c,v 1.44 1996/07/08 10:08:22 jkh Exp $
+ * $Id: tcpip.c,v 1.45 1996/08/03 10:11:56 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
+ * Copyright (c) 1996
+ *      Jordan K. Hubbard. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,10 +17,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY GARY J PALMER ``AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL GARY J PALMER BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
  * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
  * OF USE, DATA, LIFE OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
@@ -78,11 +80,11 @@ typedef struct _layout {
 
 static Layout layout[] = {
 { 1, 2, 25, HOSTNAME_FIELD_LEN - 1,
-      "Host name:", "Your fully-qualified hostname, e.g. foo.bar.com",
+      "Host:", "Your fully-qualified hostname, e.g. foo.bar.com",
       hostname, STRINGOBJ, NULL },
 #define LAYOUT_HOSTNAME		0
 { 1, 35, 20, HOSTNAME_FIELD_LEN - 1,
-      "Domain name:",
+      "Domain:",
       "The name of the domain that your machine is in, e.g. bar.com",
       domainname, STRINGOBJ, NULL },
 #define LAYOUT_DOMAINNAME	1
@@ -107,7 +109,7 @@ static Layout layout[] = {
 #define LAYOUT_NETMASK		5
 { 14, 10, 37, HOSTNAME_FIELD_LEN - 1,
       "Extra options to ifconfig:",
-      "Any interface-specific options to ifconfig you would like to use",
+      "Any interface-specific options to ifconfig you would like to add",
       extras, STRINGOBJ, NULL },
 #define LAYOUT_EXTRAS		6
 { 19, 15, 0, 0,
@@ -397,27 +399,9 @@ tcpOpenDialog(Device *devp)
 	       awkward for the user to go back and correct screw up's
 	       in the per-interface section */
 
-	case KEY_UP:
-	    if (obj->prev !=NULL ) {
-		obj = obj->prev;
-		--n;
-	    } else {
-		obj = last;
-		n = max;
-	    }
-	    break;
-
 	case KEY_DOWN:
-	    if (obj->next != NULL) {
-		obj = obj->next;
-		++n;
-	    } else {
-		obj = first;
-		n = 0;
-	    }
-	    break;
-
 	case SEL_TAB:
+	case SEL_CR:
 	    if (n < max)
 		++n;
 	    else
@@ -434,14 +418,7 @@ tcpOpenDialog(Device *devp)
 	    }
 	    break;
 
-	    /* Generic CR handler */
-	case SEL_CR:
-	    if (n < max)
-		++n;
-	    else
-		n = 0;
-	    break;
-
+	case KEY_UP:
 	case SEL_BACKTAB:
 	    if (n)
 		--n;
@@ -546,7 +523,7 @@ tcpDeviceSelect(void)
     }
     else if (cnt == 1 || (!RunningAsInit && !Fake)) {
 	/* If we're running in user mode, assume network already up */
-	if (RunningAsInit) {
+	if (!RunningAsInit) {
 	    if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_FAILURE))
 		return FALSE;
 	}
