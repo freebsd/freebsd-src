@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.10 (Berkeley) 5/14/95
- * $Id: ufs_extern.h,v 1.14 1997/02/22 09:47:46 peter Exp $
+ * $Id: ufs_extern.h,v 1.15 1997/08/16 19:16:26 wollman Exp $
  */
 
 #ifndef _UFS_UFS_EXTERN_H_
@@ -93,7 +93,7 @@ int	 ufs_islocked __P((struct vop_islocked_args *));
 #endif
 int	 ufs_link __P((struct vop_link_args *));
 int	 ufs_lock __P((struct vop_lock_args *));
-int	 ufs_lookup __P((struct vop_lookup_args *));
+int	 ufs_lookup __P((struct vop_cachedlookup_args *));
 int	 ufs_makeinode __P((int mode, struct vnode *, struct vnode **, struct componentname *));
 int	 ufs_mkdir __P((struct vop_mkdir_args *));
 int	 ufs_mknod __P((struct vop_mknod_args *));

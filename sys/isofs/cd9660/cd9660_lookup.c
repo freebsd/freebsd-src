@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.15 1997/03/08 16:09:38 bde Exp $
+ * $Id: cd9660_lookup.c,v 1.16 1997/08/02 14:31:18 bde Exp $
  */
 
 #include <sys/param.h>
@@ -89,7 +89,7 @@
  */
 int
 cd9660_lookup(ap)
-	struct vop_lookup_args /* {
+	struct vop_cachedlookup_args /* {
 		struct vnode *a_dvp;
 		struct vnode **a_vpp;
 		struct componentname *a_cnp;
@@ -146,59 +146,7 @@ cd9660_lookup(ap)
 	
 	/*
 	 * We now have a segment name to search for, and a directory to search.
-	 *
-	 * Before tediously performing a linear scan of the directory,
-	 * check the name cache to see if the directory/name pair
-	 * we are looking for is known already.
 	 */
-	if ((error = cache_lookup(vdp, vpp, cnp))) {
-		u_long vpid;	/* capability number of vnode */
-
-		if (error == ENOENT)
-			return (error);
-#ifdef PARANOID
-		if ((vdp->v_flag & VROOT) && (flags & ISDOTDOT))
-			panic("cd9660_lookup: .. through root");
-#endif
-		/*
-		 * Get the next vnode in the path.
-		 * See comment below starting `Step through' for
-		 * an explaination of the locking protocol.
-		 */
-		pdp = vdp;
-		dp = VTOI(*vpp);
-		vdp = *vpp;
-		vpid = vdp->v_id;
-		if (pdp == vdp) {
-			VREF(vdp);
-			error = 0;
-		} else if (flags & ISDOTDOT) {
-			VOP_UNLOCK(pdp, 0, p);
-			error = vget(vdp, LK_EXCLUSIVE, p);
-			if (!error && lockparent && (flags & ISLASTCN))
-				error = vn_lock(pdp, LK_EXCLUSIVE, p);
-		} else {
-			error = vget(vdp, LK_EXCLUSIVE, p);
-			if (!lockparent || error || !(flags & ISLASTCN))
-				VOP_UNLOCK(pdp, 0, p);
-		}
-		/*
-		 * Check that the capability number did not change
-		 * while we were waiting for the lock.
-		 */
-		if (!error) {
-			if (vpid == vdp->v_id)
-				return (0);
-			vput(vdp);
-			if (lockparent && pdp != vdp && (flags & ISLASTCN))
-				VOP_UNLOCK(pdp, 0, p);
-		}
-		if (error = vn_lock(pdp, LK_EXCLUSIVE, p))
-			return (error);
-		vdp = pdp;
-		dp = VTOI(pdp);
-		*vpp = NULL;
-	}
 
 	len = cnp->cn_namelen;
 	name = cnp->cn_nameptr;
