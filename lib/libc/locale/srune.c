@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <limits.h>
 #include <rune.h>
+#include <string.h>
 #include <wchar.h>
 
 /*

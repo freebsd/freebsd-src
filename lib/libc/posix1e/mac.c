@@ -44,6 +44,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <sys/mac.h>
 
@@ -182,7 +183,7 @@ mac_init_internal(int ignore_errors)
 		return (0);
 
 	while (fgets(line, LINE_MAX, file)) {
-		char *arg, *comment, *parse, *statement;
+		char *comment, *parse, *statement;
 
 		if (line[strlen(line)-1] == '\n')
 			line[strlen(line)-1] = '\0';
