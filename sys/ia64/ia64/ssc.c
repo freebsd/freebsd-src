@@ -97,7 +97,7 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 	return ret0;
 }
 
-void
+static void
 ssccnputc(dev_t dev, int c)
 {
 	ssc(c, 0, 0, 0, SSC_PUTCHAR);
@@ -106,13 +106,22 @@ ssccnputc(dev_t dev, int c)
 static int
 ssccngetc(dev_t dev)
 {
-    return -1;
+	int c;
+	do {
+		c = ssc(0, 0, 0, 0, SSC_GETCHAR);
+	} while (c == 0);
+
+	return c;
 }
 
 static int
 ssccncheckc(dev_t dev)
 {
-    return -1;
+    int c;
+    c = ssc(0, 0, 0, 0, SSC_GETCHAR);
+    if (!c)
+	    return -1;
+    return c;
 }
 
 static int

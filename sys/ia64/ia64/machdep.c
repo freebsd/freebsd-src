@@ -87,8 +87,6 @@ struct cpuhead cpuhead;
 struct mtx	sched_lock;
 struct mtx	Giant;
 
-struct	user *proc0paddr;
-
 char machine[] = "ia64";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
@@ -573,7 +571,7 @@ ia64_init()
 	/*
 	 * Init mapping for u page(s) for proc 0
 	 */
-	proc0.p_addr = proc0paddr =
+	proc0.p_addr =
 	    (struct user *)pmap_steal_memory(UPAGES * PAGE_SIZE);
 
 	/*
@@ -593,20 +591,18 @@ ia64_init()
 	pmap_bootstrap();
 
 	/*
-	 * Initialize the rest of proc 0's PCB, and cache its physical
-	 * address.
-	 */
-	proc0.p_md.md_pcbpaddr =
-	    (struct pcb *)IA64_RR_MASK((vm_offset_t)&proc0paddr->u_pcb);
-
-	/*
+	 * Initialize the rest of proc 0's PCB.
+	 *
 	 * Set the kernel sp, reserving space for an (empty) trapframe,
 	 * and make proc0's trapframe pointer point to it for sanity.
+	 * Initialise proc0's backing store to start after u area.
 	 */
-	proc0paddr->u_pcb.pcb_sp =
-	    (u_int64_t)proc0paddr + USPACE - sizeof(struct trapframe);
+	proc0.p_addr->u_pcb.pcb_sp =
+	    (u_int64_t)proc0.p_addr + USPACE - sizeof(struct trapframe) - 16;
+	proc0.p_addr->u_pcb.pcb_bspstore = (u_int64_t) (proc0.p_addr + 1);
 	proc0.p_md.md_tf =
-	    (struct trapframe *)proc0paddr->u_pcb.pcb_sp;
+	    (struct trapframe *)(proc0.p_addr->u_pcb.pcb_sp + 16);
+
 	PCPU_SET(curproc, &proc0);
 
 	/*
@@ -709,6 +705,11 @@ ia64_init()
 			bootverbose = 1;
 		}
 	}
+
+	/*
+	 * Force verbose mode for a while.
+	 */
+	bootverbose = 1;
 
 	/*
 	 * Initialize debuggers, and break into them if appropriate.
@@ -898,7 +899,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_r[FRAME_R3] = (u_int64_t)&(sfp->sf_uc);
 	frame->tf_r[FRAME_R4] = (u_int64_t)catcher;
 	frame->tf_r[FRAME_R5] = sbs;
-	frame->tf_r[FRAME_SP] = (unsigned long)sfp;
+	frame->tf_r[FRAME_SP] = (u_int64_t)sfp - 16;
 
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)

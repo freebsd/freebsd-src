@@ -87,7 +87,7 @@ static struct timecounter ia64_timecounter = {
 	0,			/* no poll_pps */
  	~0u,			/* counter_mask */
 	0,			/* frequency */
-	"alpha"			/* name */
+	"IA64 ITC"		/* name */
 };
 
 SYSCTL_OPAQUE(_debug, OID_AUTO, ia64_timecounter, CTLFLAG_RD, 
@@ -158,9 +158,15 @@ cpu_initclocks()
 {
 	u_int32_t freq;
 
+#if 0
 	if (clockdev == NULL)
 		panic("cpu_initclocks: no clock attached");
+#endif
 
+	/*
+	 * We use cr.itc and cr.itm to implement a 1024hz clock.
+	 */
+	hz = 1024;
 	tick = 1000000 / hz;	/* number of microseconds between interrupts */
 	tickfix = 1000000 - (hz * tick);
 	if (tickfix) {
@@ -172,19 +178,14 @@ cpu_initclocks()
         }
 
 	/*
-	 * Establish the clock interrupt; it's a special case.
-	 *
-	 * We establish the clock interrupt this late because if
-	 * we do it at clock attach time, we may have never been at
-	 * spl0() since taking over the system.  Some versions of
-	 * PALcode save a clock interrupt, which would get delivered
-	 * when we spl0() in autoconf.c.  If established the clock
-	 * interrupt handler earlier, that interrupt would go to
-	 * hardclock, which would then fall over because p->p_stats
-	 * isn't set at that time.
+	 * XXX we should call SAL_FREQ_BASE_INTERVAL_TIMER here.
 	 */
+	cycles_per_sec = 700000000;
+	ia64_set_itm(ia64_get_itc() + (cycles_per_sec + hz/2) / hz);
+
+
 	freq = cycles_per_sec;
-	last_time = ia64_read_itc();
+	last_time = ia64_get_itc();
 	scaled_ticks_per_cycle = ((u_int64_t)hz << FIX_SHIFT) / freq;
 	max_cycles_per_tick = 2*freq / hz;
 
@@ -193,10 +194,12 @@ cpu_initclocks()
 
 	stathz = 128;
 
+#if 0
 	/*
 	 * Get the clock started.
 	 */
 	CLOCK_INIT(clockdev);
+#endif
 }
 
 static u_int32_t
@@ -222,7 +225,7 @@ calibrate_clocks(u_int32_t firmware_freq)
 	}
 
 	/* Start keeping track of the PCC. */
-	start_pcc = ia64_read_itc();
+	start_pcc = ia64_get_itc();
 
 	/*
 	 * Wait for the mc146818A seconds counter to change.
@@ -238,7 +241,7 @@ calibrate_clocks(u_int32_t firmware_freq)
 	/*
 	 * Read the PCC again to work out frequency.
 	 */
-	stop_pcc = ia64_read_itc();
+	stop_pcc = ia64_get_itc();
 
 	if (bootverbose) {
 	        printf("PCC clock: %u Hz (firmware %u Hz)\n",
@@ -256,7 +259,7 @@ fail:
 static void
 handleclock(void* arg)
 {
-	u_int32_t now = ia64_read_itc();
+	u_int32_t now = ia64_get_itc();
 	u_int32_t delta = now - last_time;
 	last_time = now;
 
@@ -432,7 +435,7 @@ resettodr()
 static unsigned
 ia64_get_timecount(struct timecounter* tc)
 {
-    return ia64_read_itc();
+    return ia64_get_itc();
 }
 
 int

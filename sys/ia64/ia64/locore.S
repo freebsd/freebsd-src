@@ -63,17 +63,6 @@
 #include <machine/intrcnt.h>
 #endif
 
-/*
- * Perform actions necessary to switch to a new context.  The
- * hwpcb should be in a0.
- */
-#define	SWITCH_CONTEXT							\
-	/* Make a note of the context we're running on. */		\
-	stq	a0, curpcb					;	\
-									\
-	/* Swap in the new context. */					\
-	call_pal PAL_OSF1_swpctx
-	
 	.text
 
 /*
@@ -81,8 +70,8 @@
  */
 LEAF(locorestart, 1)
 
-	movl	r8=ia64_vector_table	/* set up IVT early */
-	movl	r9=ia64_vhpt+(1<<8)+(15<<2)+1 /* and VHPT */
+	movl	r8=ia64_vector_table	// set up IVT early
+	movl	r9=ia64_vhpt+(1<<8)+(15<<2)+1 // and VHPT
 	;;
 	mov	cr.iva=r8
 	mov	cr.pta=r9
@@ -91,87 +80,30 @@ LEAF(locorestart, 1)
 	;;
 	srlz.d
 	;; 
-	movl	gp=__gp			/* find kernel globals */
+	movl	gp=__gp			// find kernel globals
 	;;
 	br.call.sptk.many rp=ia64_init
 
-	/* XXX switch to proc0 here */
-	movl	r16=proc0
+	/*
+	 * switch to proc0 and then initialise the rest of the kernel.
+	 */
+	alloc	r16=ar.pfs,0,0,1,0
+	;; 
+	movl	out0=proc0
 	;;
-	add	r16=P_ADDR,r16
+	add	out0=P_ADDR,out0
 	;;
-	ld8	r16=[r16]
+	ld8	out0=[out0]
 	;; 
-	add	r17=SIZEOF_USER,r16	/* address of backing store */
-	add	r18=U_PCB_SP,r16	/* stack pointer */
+	add	r16=U_PCB_B0,out0	// return to mi_startup
+	movl	r17=mi_startup
 	;;
-	ld8	r18=[r18]
-	mov	ar.rsc=0
-	cover
+	st8	[r16]=r17
 	;; 
-	flushrs
-	;; 
-	mov	ar.bspstore=r17
-	mov	sp=r18
-	;;
-	loadrs
-	mov	ar.rsc=3
-	;; 
-	alloc	r16=ar.pfs,0,0,0,0
-	;; 
-	br.call.sptk.many rp=mi_startup
+	br.call.sptk.many rp=restorectx
 
 	/* NOTREACHED */	
 	
-#if 0
-	/* Load KGP with current GP. */
-	or	a0,zero,s0		/* save pfn */
-	or	gp,zero,a0
-	call_pal PAL_OSF1_wrkgp		/* clobbers a0, t0, t8-t11 */
-	or	s0,zero,a0		/* restore pfn */
-
-	/*
-	 * Call alpha_init() to do pre-main initialization.
-	 * alpha_init() gets the arguments we were called with,
-	 * which are already in a0, a1, a2, a3, and a4.
-	 */
-	CALL(alpha_init)
-
-	/* Set up the virtual page table pointer. */
-	ldiq	a0, VPTBASE
-	call_pal PAL_OSF1_wrvptptr	/* clobbers a0, t0, t8-t11 */
-
-	/*
-	 * Switch to proc0's PCB, which is at U_PCB off of proc0paddr.
-	 */
-	lda	t0,proc0			/* get phys addr of pcb */
-	ldq	a0,P_MD_PCBPADDR(t0)
-	SWITCH_CONTEXT
-
-	/*
-	 * We've switched to a new page table base, so invalidate the TLB
-	 * and I-stream.  This happens automatically everywhere but here.
-	 */
-	ldiq	a0, -2				/* TBIA */
-	call_pal PAL_OSF1_tbi
-	call_pal PAL_imb
-
-	/*
-	 * Construct a fake trap frame, so execve() can work normally.
-	 * Note that setregs() is responsible for setting its contents
-	 * to 'reasonable' values.
-	 */
-	lda	sp,-(FRAME_SIZE * 8)(sp)	/* space for struct trapframe */
-	mov	sp, a0				/* arg is frame ptr */
-	CALL(mi_startup)			/* go to mi_startup()! */
-
-	/*
-	 * Call exception_return, to simulate return from (fake)
-	 * exception to user-land, running process 1, init!
-	 */
-	jmp	zero, exception_return		/* "And that's all she wrote." */
-
-#endif
 	END(locorestart)
 
 	
@@ -187,48 +119,48 @@ LEAF(locorestart, 1)
  *	r16	pointer to signal context frame (scp)
  *      r17	address of handler function descriptor
  *	r18	address of new backing store (if any)
- *      sp	pointer to sigframe
+ *      sp+16	pointer to sigframe
  */
 
 LEAF(sigcode,0)
-	ld8	r8=[r17],8		/* function address */
+	ld8	r8=[r17],8		// function address
 	;;
-	ld8	gp=[r17]		/* function's gp value */
-	mov	b6=r8			/* transfer to a branch register */
+	ld8	gp=[r17]		// function's gp value
+	mov	b6=r8			// transfer to a branch register
 	cover
 	;;
-	alloc	r5=ar.pfs,0,0,3,0	/* register frame for call */
+	alloc	r5=ar.pfs,0,0,3,0	// register frame for call
 	;;
-	mov	out0=r14		/* signal number */
-	add	r8=UC_MCONTEXT_MC_AR_BSP,r16 /* address or mc_ar_bsp */
-	mov	r9=ar.bsp		/* save ar.bsp */
+	mov	out0=r14		// signal number
+	add	r8=UC_MCONTEXT_MC_AR_BSP,r16 // address or mc_ar_bsp
+	mov	r9=ar.bsp		// save ar.bsp
 	;;
 	st8	[r8]=r9
-	cmp.eq	p1,p0=r0,r18		/* check for new bs */
-(p1)	br.cond.sptk.few 1f		/* branch if not switching */
-	flushrs				/* flush out to old bs */
-	mov	ar.rsc=0		/* switch off RSE */
-	add	r8=UC_MCONTEXT_MC_AR_RNAT,r16 /* address of mc_ar_rnat */
+	cmp.eq	p1,p0=r0,r18		// check for new bs
+(p1)	br.cond.sptk.few 1f		// branch if not switching
+	flushrs				// flush out to old bs
+	mov	ar.rsc=0		// switch off RSE
+	add	r8=UC_MCONTEXT_MC_AR_RNAT,r16 // address of mc_ar_rnat
 	;;
-	mov	r9=ar.rnat		/* value of ar.rnat after flush */
-	mov	ar.bspstore=r18		/* point at new bs */
+	mov	r9=ar.rnat		// value of ar.rnat after flush
+	mov	ar.bspstore=r18		// point at new bs
 	;;
-	st8	[r8]=r9			/* remember ar.rnat */
-	mov	ar.rsc=15		/* XXX bogus value - check */
+	st8	[r8]=r9			// remember ar.rnat
+	mov	ar.rsc=15		// XXX bogus value - check
 	invala
 	;; 
-1:	mov	out1=r15		/* siginfo */
-	mov	out2=r16		/* ucontext */
-	mov	r4=r17			/* save ucontext pointer from call */
-	br.call.sptk.few rp=b6		/* call the signal handler */
-(p1)	br.cond.sptk.few 2f		/* note: p1 is preserved */
+1:	mov	out1=r15		// siginfo
+	mov	out2=r16		// ucontext
+	mov	r4=r17			// save ucontext pointer from call
+	br.call.sptk.few rp=b6		// call the signal handler
+(p1)	br.cond.sptk.few 2f		// note: p1 is preserved
 	flushrs
 	mov	ar.rsc=0
-	add	r8=UC_MCONTEXT_MC_AR_RNAT,r4 /* address of mc_ar_rnat */
+	add	r8=UC_MCONTEXT_MC_AR_RNAT,r4 // address of mc_ar_rnat
 	;;
 	ld8	r9=[r8]
 	;; 
-	add	r8=UC_MCONTEXT_MC_AR_BSP,r4 /* address of mc_ar_bsp */
+	add	r8=UC_MCONTEXT_MC_AR_BSP,r4 // address of mc_ar_bsp
 	;;
 	ld8	r10=[r8]
 	;;
@@ -237,9 +169,9 @@ LEAF(sigcode,0)
 	mov	ar.rnat=r9
 	mov	ar.rsc=15
 2:	
-	CALLSYS_NOERROR(sigreturn)	/* and call sigreturn() with it. */
-	mov	out0=ret0		/* if that failed, get error code */
-	CALLSYS_NOERROR(exit)		/* and call exit() with it. */
+	CALLSYS_NOERROR(sigreturn)	// and call sigreturn() with it.
+	mov	out0=ret0		// if that failed, get error code
+	CALLSYS_NOERROR(exit)		// and call exit() with it.
 XLEAF(esigcode)
 	END(sigcode)
 

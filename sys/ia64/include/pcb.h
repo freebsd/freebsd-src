@@ -43,6 +43,13 @@ struct pcb {
 	struct ia64_fpreg	pcb_f4;
 	struct ia64_fpreg	pcb_f5;
 
+	u_int64_t		pcb_b0;		/* really restart address */
+	u_int64_t		pcb_b1;
+	u_int64_t		pcb_b2;
+	u_int64_t		pcb_b3;
+	u_int64_t		pcb_b4;
+	u_int64_t		pcb_b5;
+
 	u_int64_t		pcb_old_unat;	/* caller's ar.unat */
 	u_int64_t		pcb_sp;
 	u_int64_t		pcb_pfs;
@@ -51,10 +58,9 @@ struct pcb {
 	u_int64_t		pcb_unat;	/* ar.unat for r4..r7 */
 	u_int64_t		pcb_rnat;
 	u_int64_t		pcb_pr;		/* predicates */
-	u_int64_t		pcb_iip;	/* address to restart */
 
-	unsigned long		pcb_onfault;	/* for copy faults */
-	unsigned long		pcb_accessaddr;	/* for [fs]uswintr */
+	u_int64_t		pcb_onfault;	/* for copy faults */
+	u_int64_t		pcb_accessaddr;	/* for [fs]uswintr */
 };
 
 /*

@@ -48,6 +48,7 @@
 	movl	r17=exception_return;			\
 	mov	out0=_n_;				\
 	mov	out1=sp;;				\
+	add	sp=-16,sp;;				\
 	mov	rp=r17;					\
 	br.call.sptk.few b6=trap
 	
@@ -780,15 +781,16 @@ ia64_vhpt:	.quad 0
  * exception_return:	restore interrupted state
  *	
  * Arguments:
- *	sp	trapframe pointer
+ *	sp+16	trapframe pointer
  *
  */
 LEAF(exception_return, 0)
 
 	rsm	psr.ic|psr.dt		// disable interrupt collection and vm
+	add	r3=16,sp;
 	;;
 	srlz.d
-	dep	r3=0,sp,61,3		// physical address
+	dep	r3=0,r3,61,3		// physical address
 	;; 
 	add	r1=SIZEOF_TRAPFRAME-16,r3 // r1=&tf_f[FRAME_F15]
 	add	r2=SIZEOF_TRAPFRAME-32,r3 // r2=&tf_f[FRAME_F14]
@@ -805,7 +807,7 @@ LEAF(exception_return, 0)
 	ldf.fill f9=[r1],-32		// r1=&tf_f[FRAME_F7]
 	ldf.fill f8=[r2],-32		// r2=&tf_f[FRAME_F6]
 	;; 
-	ldf.fill f7=[r1],-24		// r1=&tf_r[FRAME_R31]
+	ldf.fill f7=[r1],-32		// r1=&tf_r[FRAME_R31]
 	ldf.fill f6=[r2],-24		// r2=&tf_r[FRAME_R30]
 	;; 
 	ld8.fill r31=[r1],-16		// r1=&tf_r[FRAME_R29]
