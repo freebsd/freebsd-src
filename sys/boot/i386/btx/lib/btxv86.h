@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: btxv86.h,v 1.1 1998/09/14 10:37:00 rnordier Exp $
+ *	$Id: btxv86.h,v 1.2 1998/09/17 23:52:05 msmith Exp $
  */
 
 #ifndef _BTXV86_H_
@@ -57,7 +57,7 @@ extern u_int32_t	__args;
 #define	VTOPSEG(va)	(u_int16_t)(VTOP(va) >> 4)
 #define	VTOPOFF(va)	(u_int16_t)(VTOP(va) & 0xf)
 
-void __exit(int);
+void __exit(int) __attribute__((__noreturn__));
 void __exec(caddr_t, ...);
 
 #endif /* !_BTXV86_H_ */
