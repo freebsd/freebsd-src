@@ -56,8 +56,6 @@ static char rcsid[] = "$OpenBSD: fsirand.c,v 1.9 1997/02/28 00:46:33 millert Exp
 void usage __P((int));
 int fsirand __P((char *));
 
-extern char *__progname;
-
 int printonly = 0, force = 0, ignorelabel = 0;
 
 int
@@ -290,7 +288,7 @@ void
 usage(ex)
 	int ex;
 {
-	(void)fprintf(stderr, "Usage: %s [ -b ] [ -f ] [ -p ] special [special ...]\n",
-		      __progname);
+	(void)fprintf(stderr, 
+"Usage: fsirand [ -b ] [ -f ] [ -p ] special [special ...]\n");
 	exit(ex);
 }
