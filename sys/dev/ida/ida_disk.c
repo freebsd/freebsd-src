@@ -249,7 +249,7 @@ idattach(device_t dev)
 	    drv->secperunit / ((1024 * 1024) / drv->secsize),
 	    drv->secperunit, drv->secsize);
 
-	devstat_add_entry(&drv->stats, "id", drv->unit, drv->secsize,
+	devstat_add_entry(&drv->stats, "idad", drv->unit, drv->secsize,
 	    DEVSTAT_NO_ORDERED_TAGS,
 	    DEVSTAT_TYPE_STORARRAY| DEVSTAT_TYPE_IF_OTHER,
 	    DEVSTAT_PRIORITY_ARRAY);
