@@ -112,8 +112,9 @@ may also be specified as the last segment of a path, in which case
 the listing will be of the relevant subdirectory.)
 .Pp
 .It Xo
-.Ar bios_drive : Ns Ar interface Ns Po
-.Ar unit , Ns Ar part Pc
+.Sm off
+.Ar bios_drive : interface ( unit , Oo Ar slice , Oc Ar part )
+.Sm on
 .Ar filename
 .Op Fl aCcDdghmPprsv
 .Xc
@@ -143,7 +144,7 @@ SCSI disk on any supported SCSI controller
 .It Ar unit
 The unit number of the drive on the interface being used.
 0 for the first drive, 1 for the second drive, etc.
-.It Ar part
+.It Oo Ar slice , Oc Ns Ar part
 The partition letter inside the
 .Bx
 portion of the disk.  See
@@ -152,10 +153,20 @@ By convention, only partition
 .Ql a
 contains a bootable image.  If sliced disks are used
 .Pq Dq fdisk partitions ,
-any slice can be booted from, with the default being the active slice
+any
+.Ar slice
+(1 for the first slice, 2 for the second slice, etc.\&)
+can be booted from, with the default (if not specified) being the active slice
 or, otherwise, the first
 .Fx
 slice.
+If
+.Ar slice
+is specified as 0, the first
+.Fx
+slice (also known as
+.Dq compatibility
+slice) is booted from.
 .It Ar filename
 The pathname of the file to boot (relative to the root directory
 on the specified partition).  Defaults to
