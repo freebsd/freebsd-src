@@ -126,13 +126,13 @@ fd_first_free(struct filedesc *fdp, int low, int size)
 	off = NDSLOT(low);
 	if (low % NDENTRIES) {
 		mask = ~(~(NDSLOTTYPE)0 >> (NDENTRIES - (low % NDENTRIES)));
-		if ((mask &= ~map[off]) != 0)
+		if ((mask &= ~map[off]) != 0UL)
 			return (off * NDENTRIES + ffsl(mask) - 1);
 		++off;
 	}
 	for (maxoff = NDSLOTS(size); off < maxoff; ++off)
-		if ((mask = ~map[off]) != 0)
-			return (off * NDENTRIES + ffsl(mask) - 1);
+		if (map[off] != ~0UL)
+			return (off * NDENTRIES + ffsl(~map[off]) - 1);
 	return (size);
 }
 
@@ -158,8 +158,8 @@ fd_last_used(struct filedesc *fdp, int low, int size)
 		--off;
 	}
 	for (minoff = NDSLOT(low); off >= minoff; --off)
-		if ((mask = map[off]) != 0)
-			return (off * NDENTRIES + flsl(mask) - 1);
+		if (map[off] != 0)
+			return (off * NDENTRIES + flsl(map[off]) - 1);
 	return (size - 1);
 }
 
