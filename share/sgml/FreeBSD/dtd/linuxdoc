@@ -6,9 +6,9 @@
 
 <!entity % index "idx|cdx" >
 
-<!-- url added by HG -->
+<!-- url added by HG; htmlurl added by esr -->
 <!entity % xref
-	" label|ref|pageref|cite|url|ncite " >
+	" label|ref|pageref|cite|url|htmlurl|ncite|email " >
 
 <!entity % inline 
 	" (#pcdata | f| x| %emph; |sq| %xref | %index )* " >
@@ -365,6 +365,12 @@
 <!-- url entity added to have direct url references HG -->
 <!element url - o empty>
 <!attlist url   
+        url cdata #required
+        name cdata "&urlnam" >
+
+<!-- htmlurl entity added to have quieter url references esr -->
+<!element htmlurl - o empty>
+<!attlist htmlurl   
         url cdata #required
         name cdata "&urlnam" >
 
