@@ -494,6 +494,8 @@ display(void)
 	    "LOCAL ADDRESS", "FOREIGN ADDRESS");
 	setpassent(1);
 	for (xf = xfiles, n = 0; n < nxfiles; ++n, ++xf) {
+		if (xf->xf_data == NULL)
+			continue;
 		hash = (int)((uintptr_t)xf->xf_data % HASHSIZE);
 		for (s = sockhash[hash]; s != NULL; s = s->next)
 			if ((void *)s->socket == xf->xf_data)
