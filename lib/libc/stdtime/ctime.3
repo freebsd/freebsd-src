@@ -38,10 +38,14 @@
 .Os BSD 4.3
 .Sh NAME
 .Nm asctime ,
+.Nm asctime_r,
 .Nm ctime ,
+.Nm ctime_r ,
 .Nm difftime ,
 .Nm gmtime ,
+.Nm gmtime_r ,
 .Nm localtime ,
+.Nm localtime_r ,
 .Nm mktime ,
 .Nm timegm
 .Nd transform binary date and time values
@@ -62,6 +66,14 @@
 .Fn mktime "struct tm *tm"
 .Ft time_t
 .Fn timegm "struct tm *tm"
+.Ft char *
+.Fn ctime_r "const time_t *clock" "char *buf"
+.Ft struct tm *
+.Fn localtime_r "const time_t *clock" "struct tm *result"
+.Ft struct tm *
+.Fn gmtime_r "const time_t *clock" "struct tm *result"
+.Ft char *
+.Fn asctime_r "const struct tm *tm" "char *buf"
 .Sh DESCRIPTION
 The functions
 .Fn ctime ,
@@ -125,6 +137,22 @@ Thu Nov 24 18:22:48 1986\en\e0
 .Pp
 All the fields have constant width.
 .Pp
+.Fn ctime_r
+provides the same functionality as
+.Fn ctime
+except the caller must provide the output buffer
+.Fa buf
+to store the result, which must be at least 26 bytes long.
+.Fn localtime_r
+and
+.Fn gmtime_r 
+provide the same functionality as 
+.Fn localtime 
+and
+.Fn gmtime
+respectively, except the caller must provide the output buffer
+.Fa result .
+.Pp
 The
 .Fn asctime
 function
@@ -134,6 +162,13 @@ pointed at by
 .Fa *tm
 to the form
 shown in the example above.
+.Pp
+.Fn asctime_r
+provides the same functionality as
+.Fn asctime
+except the caller provide the output buffer
+.Fa buf
+to store the result, which must be at least 26 bytes long.
 .Pp
 The function
 .Fn mktime
