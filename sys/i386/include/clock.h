@@ -3,16 +3,13 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.11 1996/04/05 03:36:20 ache Exp $
+ *	$Id: clock.h,v 1.12 1996/04/22 19:40:27 nate Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
 #define	_MACHINE_CLOCK_H_
 
 #if defined(I586_CPU) || defined(I686_CPU)
-
-#define I586_CYCLECTR(x) \
-	__asm __volatile(".byte 0x0f, 0x31" : "=A" (x))
 
 /*
  * When we update the clock, we also update this bias value which is
@@ -58,6 +55,7 @@ extern int	statclock_disable;
 extern int	wall_cmos_clock;
 
 #if defined(I586_CPU) || defined(I686_CPU)
+extern unsigned	i586_ctr_freq;
 extern unsigned	i586_ctr_rate;	/* fixed point */
 extern long long i586_last_tick;
 extern long long i586_ctr_bias;
@@ -67,9 +65,6 @@ extern int 	timer0_max_count;
 extern u_int 	timer0_overflow_threshold;
 extern u_int 	timer0_prescaler_count;
 
-#if defined(I586_CPU) || defined(I686_CPU)
-void	calibrate_cyclecounter __P((void));
-#endif
 
 #if defined(I586_CPU) || defined(I686_CPU)
 static __inline u_long 
@@ -77,10 +72,10 @@ cpu_thisticklen(u_long dflt)
 {
 	long long old;
 	long len;
-	
+
 	if (i586_ctr_rate) {
 		old = i586_last_tick;
-		I586_CYCLECTR(i586_last_tick);
+		i586_last_tick = rdtsc();
 		len = ((i586_last_tick - old) << I586_CTR_RATE_SHIFT)
 			/ i586_ctr_rate;
 		i586_avg_tick = i586_avg_tick * 15 / 16 + len / 16;

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.184 1996/04/26 13:47:39 phk Exp $
+ *	$Id: machdep.c,v 1.185 1996/05/01 08:31:21 bde Exp $
  */
 
 #include "npx.h"
@@ -234,7 +234,7 @@ cpu_startup(dummy)
 	 * Initialize error message buffer (at end of core).
 	 */
 
-	/* avail_end was pre-decremented in init_386() to compensate */
+	/* avail_end was pre-decremented in init386() to compensate */
 	for (i = 0; i < btoc(sizeof (struct msgbuf)); i++)
 		pmap_enter(pmap_kernel(), (vm_offset_t)msgbufp,
 			   avail_end + i * NBPG,
