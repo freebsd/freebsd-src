@@ -37,6 +37,7 @@
 #include <signal.h>
 #include <ctype.h>
 #include <setjmp.h>
+#include <stdlib.h>
 #include "machdep.h"
 
 	/* program mode */
@@ -55,7 +56,7 @@ char nobells;				/* -b, don't ring bell before Signal */
 	/* other initial modes */
 char issetuid;				/* running setuid */
 
-#define die()		((rand() >> 3) % 6 + 1)
+#define die()           (random() % 6 + 1)
 #define sqr(a)		((a) * (a))
 #define abs(a)		((a) > 0 ? (a) : -(a))
 #define min(a,b)	((a) < (b) ? (a) : (b))

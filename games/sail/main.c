@@ -51,7 +51,7 @@ main(argc, argv)
 	register char *p;
 	int i;
 
-	(void) srand(getpid());
+	srandomdev();
 	issetuid = getuid() != geteuid();
 	if (p = rindex(*argv, '/'))
 		p++;
