@@ -76,6 +76,8 @@ main(int argc, char **argv)
 		while ((fsp = getfsent()) != NULL) {
 			if (strcmp(fsp->fs_type, FSTAB_SW))
 				continue;
+			if (strstr(fsp->fs_mntops, "noauto"))
+				continue;
 			if (add(fsp->fs_spec, 1))
 				stat = 1;
 			else
