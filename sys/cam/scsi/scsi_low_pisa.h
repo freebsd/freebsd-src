@@ -40,7 +40,7 @@ int scsi_low_deactivate __P((pisa_device_handle_t));
 int scsi_low_notify __P((pisa_device_handle_t, pisa_event_t));
 #endif
 #ifdef __FreeBSD__
-int scsi_low_activate __P((struct scsi_low_softc *, struct isa_device *));
+int scsi_low_activate __P((struct scsi_low_softc *, int));
 int scsi_low_deactivate __P((struct scsi_low_softc *));
 #endif
 #endif	/* !_SCSI_LOW_PISA_H_ */
