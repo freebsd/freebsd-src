@@ -48,10 +48,10 @@
 .In sys/proc.h
 .In vm/vm.h
 .In vm/vm_extern.h
+.Ft int
+.Fn vslock "void *addr" "size_t len"
 .Ft void
-.Fn vslock "void *addr" "u_int len"
-.Ft void
-.Fn vsunlock "void *addr" "u_int len"
+.Fn vsunlock "void *addr" "size_t len"
 .Sh DESCRIPTION
 The
 .Fn vslock
@@ -69,8 +69,29 @@ to the next page boundary.
 The process context to use for this operation is taken from the
 global variable
 .Va curproc .
-.Pp
-.\" .Sh SEE ALSO
-.\" .Xr physio 9
-.Sh BUGS
-The process pointer should be passed in as an argument.
+.Sh RETURN VALUES
+The
+.Fn vslock
+function will return 0 on success, otherwise it will return
+one of the errors listed below.
+.Sh ERRORS
+The
+.Fn vslock
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa addr
+and
+.Fa len
+parameters specify a memory range that wraps around the end of the
+machine address space.
+.It Bq Er ENOMEM
+The size of the specified address range exceeds the system
+limit on locked memory.
+.It Bq Er ENOMEM
+Locking the requested address range would cause the process to exceed
+its per-process locked memory limit.
+.It Bq Er EFAULT
+Some portion of the indicated address range is not allocated.
+There was an error faulting/mapping a page.
