@@ -7,8 +7,10 @@ sup2.freebsd.org
 sup3.freebsd.org
 sup4.freebsd.org
 
-Europe:
+Germany:
 sup.de.freebsd.org
+
+Finland:
 nic.funet.fi
 	a bit non-standard, get supfiles from
 	ftp://nic.funet.fi/pub/mirrors/sup.freebsd.org/
