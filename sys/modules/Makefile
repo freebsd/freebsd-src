@@ -49,6 +49,7 @@ SUBDIR=	${_3dfx} \
 	coda5 \
 	${_coff} \
 	${_cp} \
+	cpufreq \
 	${_crypto} \
 	${_cryptodev} \
 	${_cs} \

@@ -338,6 +338,7 @@ dev/acpica/acpi_pci_link.c	optional acpi pci
 dev/acpica/acpi_pcib.c		optional acpi pci
 dev/acpica/acpi_pcib_acpi.c	optional acpi pci
 dev/acpica/acpi_pcib_pci.c	optional acpi pci
+dev/acpica/acpi_perf.c		optional acpi_perf acpi
 dev/acpica/acpi_powerres.c	optional acpi
 dev/acpica/acpi_quirk.c		optional acpi
 dev/acpica/acpi_resource.c	optional acpi
@@ -423,6 +424,7 @@ dev/cardbus/cardbus_cis.c	optional cardbus
 dev/ciss/ciss.c			optional ciss
 dev/cm/smc90cx6.c		optional cm
 dev/cnw/if_cnw.c		optional cnw pccard
+dev/cpufreq/ichss.c		optional ichss
 dev/cs/if_cs.c			optional cs
 dev/cs/if_cs_isa.c		optional cs isa
 dev/cs/if_cs_pccard.c		optional cs pccard
@@ -1076,6 +1078,7 @@ isofs/cd9660/cd9660_vnops.c	optional cd9660
 isofs/cd9660/cd9660_iconv.c	optional cd9660_iconv
 kern/bus_if.m			standard
 kern/clock_if.m			optional genclock
+kern/cpufreq_if.m		standard
 kern/device_if.m		standard
 kern/imgact_elf.c		standard
 kern/imgact_shell.c		standard
@@ -1088,6 +1091,7 @@ kern/kern_alq.c			optional alq
 kern/kern_clock.c		standard
 kern/kern_condvar.c		standard
 kern/kern_conf.c		standard
+kern/kern_cpu.c			standard
 kern/kern_context.c		standard
 kern/kern_descrip.c		standard
 kern/kern_environment.c		standard
