@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 VOLUME=	psd/12.make
-SRCS=	tutorial.ms
+SRCS=	stubs.ms tutorial.ms
 MACROS=	-ms
 SRCDIR=	${.CURDIR}/../../../../usr.bin/make/PSD.doc
 
