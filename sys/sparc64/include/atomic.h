@@ -33,6 +33,13 @@
 
 #include <machine/cpufunc.h>
 
+/* Userland needs different ASI's. */
+#ifdef _KERNEL
+#define	__ASI_ATOMIC	ASI_N
+#else
+#define	__ASI_ATOMIC	ASI_P
+#endif
+
 /*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and multiple processors.  See atomic(9) for details.
@@ -77,8 +84,8 @@
 
 #define	itype(sz)	u_int ## sz ## _t
 
-#define	atomic_cas_32(p, e, s)	casa(p, e, s, ASI_N)
-#define	atomic_cas_64(p, e, s)	casxa(p, e, s, ASI_N)
+#define	atomic_cas_32(p, e, s)	casa(p, e, s, __ASI_ATOMIC)
+#define	atomic_cas_64(p, e, s)	casxa(p, e, s, __ASI_ATOMIC)
 
 #define	atomic_cas(p, e, s, sz)						\
 	atomic_cas_ ## sz(p, e, s)
@@ -269,6 +276,7 @@ ATOMIC_GEN(64, long *, long, long, 64);
 
 ATOMIC_GEN(ptr, void *, void *, uintptr_t, 64);
 
+#undef __ASI_ATOMIC
 #undef ATOMIC_GEN
 #undef atomic_cas_32
 #undef atomic_cas_64
