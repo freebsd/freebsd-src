@@ -29,16 +29,16 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)msgs.1	8.1 (Berkeley) 6/6/93
+.\"	@(#)msgs.1	8.2 (Berkeley) 4/28/95
 .\"
-.Dd June 6, 1993
+.Dd April 28, 1995
 .Dt MSGS 1
 .Os BSD 4
 .Sh NAME
 .Nm msgs
 .Nd system messages and junk mail program
 .Sh SYNOPSIS
-.Nm msgs
+.Nm
 .Op Fl fhlpq
 .Op Ar number
 .Op Ar \-number
@@ -82,7 +82,7 @@ Redisplay the last message.
 Drop out of
 .Nm msgs ;
 the next time
-.Nm msgs
+.Nm
 will pick up where it last left off.
 .It Fl s
 Append the current message to the file ``Messages'' in the current directory;
@@ -109,12 +109,12 @@ The file
 .Pa /var/msgs/bounds
 shows the low and high number of the messages in the directory
 so that
-.Nm msgs
+.Nm
 can quickly determine if there are no messages for you.
 If the contents of
 .Pa bounds
 is incorrect it can be fixed by removing it;
-.Nm msgs
+.Nm
 will make a new
 .Pa bounds
 file the next time it is run.
@@ -161,7 +161,7 @@ Option causes only locally originated messages to be reported.
 .It Ar num
 A message number can be given
 on the command line, causing
-.Nm msgs
+.Nm
 to start at the specified message rather than at the next message
 indicated by your
 .Pa \&.msgsrc
@@ -183,9 +183,9 @@ Pipe long messages through
 .El
 .Pp
 Within
-.Nm msgs
+.Nm
 you can also go to any specific message by typing its number when
-.Nm msgs
+.Nm
 requests input as to what to do.
 .Sh ENVIRONMENT
 .Nm Msgs
@@ -209,6 +209,6 @@ number of next message to be presented
 .\".Xr crontab 5 ,
 .Sh HISTORY
 The
-.Nm msgs
+.Nm
 command appeared in
 .Bx 3.0 .
