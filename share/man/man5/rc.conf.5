@@ -146,6 +146,13 @@ List of removable network interfaces to be supported by
 .It Va local_startup
 .Pq Vt str
 List of directories to search for startup script files.
+.It Va script_name_sep
+.Pq Vt str
+The field separator to use for breaking down the list of startup script files
+into individual filenames.
+The default is a space.
+You do not need to change this unless you have startup scripts with names
+containing spaces.
 .It Va hostname
 .Pq Vt str
 The Fully Qualified Domain Name of your host on the network.
