@@ -348,6 +348,11 @@ witness_init(struct lock_object *lock)
 		panic("%s: lock (%s) %s can not be sleepable!\n", __func__,
 		    class->lc_name, lock->lo_name);
 
+	if ((lock->lo_flags & LO_UPGRADABLE) != 0 &&
+	    (class->lc_flags & LC_UPGRADABLE) == 0)
+		panic("%s: lock (%s) %s can not be upgradable!\n", __func__,
+		    class->lc_name, lock->lo_name);
+
 	mtx_lock(&all_mtx);
 	STAILQ_INSERT_TAIL(&all_locks, lock, lo_list);
 	lock->lo_flags |= LO_INITIALIZED;
@@ -710,6 +715,72 @@ out:
 		lock1->li_flags = 0;
 	CTR3(KTR_WITNESS, __func__ ": pid %d added %s as lle[%d]",
 	    curproc->p_pid, lock->lo_name, lle->ll_count - 1);
+}
+
+void
+witness_upgrade(struct lock_object *lock, int flags, const char *file, int line)
+{
+	struct lock_instance *instance;
+	struct lock_class *class;
+
+	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
+		return;
+
+	class = lock->lo_class;
+	if ((lock->lo_flags & LO_UPGRADABLE) == 0)
+		panic("upgrade of non-upgradable lock (%s) %s @ %s:%d",
+		    class->lc_name, lock->lo_name, file, line);
+	if ((flags & LOP_TRYLOCK) == 0)
+		panic("non-try upgrade of lock (%s) %s @ %s:%d", class->lc_name,
+		    lock->lo_name, file, line);
+	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
+		panic("upgrade of non-sleep lock (%s) %s @ %s:%d",
+		    class->lc_name, lock->lo_name, file, line);
+	instance = find_instance(curproc->p_sleeplocks, lock);
+	if (instance == NULL)
+		panic("upgrade of unlocked lock (%s) %s @ %s:%d",
+		    class->lc_name, lock->lo_name, file, line);
+	if ((instance->li_flags & LI_EXCLUSIVE) != 0)
+		panic("upgrade of exclusive lock (%s) %s @ %s:%d",
+		    class->lc_name, lock->lo_name, file, line);
+	if ((instance->li_flags & LI_RECURSEMASK) != 0)
+		panic("upgrade of recursed lock (%s) %s r=%d @ %s:%d",
+		    class->lc_name, lock->lo_name,
+		    instance->li_flags & LI_RECURSEMASK, file, line);
+	instance->li_flags |= LI_EXCLUSIVE;
+}
+
+void
+witness_downgrade(struct lock_object *lock, int flags, const char *file,
+    int line)
+{
+	struct lock_instance *instance;
+	struct lock_class *class;
+
+	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
+		return;
+
+	class = lock->lo_class;
+	if ((lock->lo_flags & LO_UPGRADABLE) == 0)
+		panic("downgrade of non-upgradable lock (%s) %s @ %s:%d",
+		    class->lc_name, lock->lo_name, file, line);
+	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
+		panic("downgrade of non-sleep lock (%s) %s @ %s:%d",
+		    class->lc_name, lock->lo_name, file, line);
+	instance = find_instance(curproc->p_sleeplocks, lock);
+	if (instance == NULL)
+		panic("downgrade of unlocked lock (%s) %s @ %s:%d",
+		    class->lc_name, lock->lo_name, file, line);
+	if ((instance->li_flags & LI_EXCLUSIVE) == 0)
+		panic("downgrade of shared lock (%s) %s @ %s:%d",
+		    class->lc_name, lock->lo_name, file, line);
+	if ((instance->li_flags & LI_RECURSEMASK) != 0)
+		panic("downgrade of recursed lock (%s) %s r=%d @ %s:%d",
+		    class->lc_name, lock->lo_name,
+		    instance->li_flags & LI_RECURSEMASK, file, line);
+	instance->li_flags &= ~LI_EXCLUSIVE;
 }
 
 void
