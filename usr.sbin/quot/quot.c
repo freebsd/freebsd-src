@@ -35,6 +35,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/stdint.h>
 #include <sys/mount.h>
 #include <sys/disklabel.h>
 #include <sys/time.h>
@@ -406,8 +407,9 @@ dofsizes(fd,super,name)
 	for (fp = fsizes; fp; fp = fp->fsz_next) {
 		for (i = 0; i < FSZCNT; i++) {
 			if (fp->fsz_count[i])
-				printf("%d\t%d\t%d\n",fp->fsz_first + i,
-				    fp->fsz_count[i],
+				printf("%jd\t%jd\t%d\n",
+				    (intmax_t)(fp->fsz_first + i),
+				    (intmax_t)fp->fsz_count[i],
 				    SIZE(sz += fp->fsz_sz[i]));
 		}
 	}
