@@ -240,7 +240,7 @@ static vifi_t	   numvifs = 0;
 static const struct encaptab *encap_cookie = NULL;
 
 /*
- * one-back cache used by ipip_input to locate a tunnel's vif
+ * one-back cache used by mroute_encapcheck to locate a tunnel's vif
  * given a datagram's src ip address.
  */
 static u_long last_encap_src;
