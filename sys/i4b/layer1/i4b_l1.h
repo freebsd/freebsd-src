@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -204,7 +204,8 @@ struct l1_softc
 	
 	int		sc_isac_version;	/* version number of ISAC */
 	int		sc_hscx_version;	/* version number of HSCX */
-
+	int		sc_ipac_version;	/* version number of IPAC */
+	
 	int		sc_I430state;	/* I.430 state F3 .... F8 */
 
 	int		sc_I430T3;	/* I.430 Timer T3 running */	
