@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2000-2001 Robert N. M. Watson
+.\" Copyright (c) 2000, 2001, 2002 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" This software was developed by Robert Watson for the TrustedBSD Project.
@@ -30,7 +30,7 @@
 .\" Developed by the TrustedBSD Project.
 .\" Support for POSIX.1e access control lists.
 .\"
-.Dd March 30, 2000
+.Dd Decemer 30, 2002
 .Dt GETFACL 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd get ACL information
 .Sh SYNOPSIS
 .Nm
-.Op Fl d
+.Op Fl dh
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -61,6 +61,9 @@ The operation applies to the default ACL of a directory instead of the
 access ACL.
 An error is generated if a default ACL cannot be associated with
 .Ar file .
+.It Fl h
+If the target of the operation is a symbolic link, return the ACL from
+the symbol link itself rather than following the link.
 .El
 .Pp
 The following operand is available:

@@ -75,6 +75,7 @@ acl_type_t acl_type;
 uint       have_mask;
 uint       need_mask;
 uint       have_stdin;
+uint       h_flag;
 uint       n_flag;
 
 #endif /* _SETFACL_H */

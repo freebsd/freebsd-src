@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2001 Robert N M Watson
+ * Copyright (c) 1999, 2001, 2002 Robert N M Watson
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -52,7 +52,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "getfacl [-d] [files ...]\n");
+	fprintf(stderr, "getfacl [-dh] [files ...]\n");
 }
 
 /*
@@ -147,14 +147,17 @@ acl_from_stat(struct stat sb)
 }
 
 static int
-print_acl(char *path, acl_type_t type)
+print_acl(char *path, acl_type_t type, int hflag)
 {
 	struct stat	sb;
 	acl_t	acl;
 	char	*acl_text;
 	int	error;
 
-	error = stat(path, &sb);
+	if (hflag)
+		error = lstat(path, &sb);
+	else
+		error = stat(path, &sb);
 	if (error == -1) {
 		warn("%s", path);
 		return(-1);
@@ -167,7 +170,10 @@ print_acl(char *path, acl_type_t type)
 
 	printf("#file:%s\n#owner:%d\n#group:%d\n", path, sb.st_uid, sb.st_gid);
 
-	acl = acl_get_file(path, type);
+	if (hflag)
+		acl = acl_get_link_np(path, type);
+	else
+		acl = acl_get_file(path, type);
 	if (!acl) {
 		if (errno != EOPNOTSUPP) {
 			warn("%s", path);
@@ -198,7 +204,7 @@ print_acl(char *path, acl_type_t type)
 }
 
 static int
-print_acl_from_stdin(acl_type_t type)
+print_acl_from_stdin(acl_type_t type, int hflag)
 {
 	char	*p, pathname[PATH_MAX];
 	int	carried_error = 0;
@@ -206,7 +212,7 @@ print_acl_from_stdin(acl_type_t type)
 	while (fgets(pathname, (int)sizeof(pathname), stdin)) {
 		if ((p = strchr(pathname, '\n')) != NULL)
 			*p = '\0';
-		if (print_acl(pathname, type) == -1) {
+		if (print_acl(pathname, type, hflag) == -1) {
 			carried_error = -1;
 		}
 	}
@@ -220,11 +226,16 @@ main(int argc, char *argv[])
 	acl_type_t	type = ACL_TYPE_ACCESS;
 	int	carried_error = 0;
 	int	ch, error, i;
+	int	hflag;
 
-	while ((ch = getopt(argc, argv, "d")) != -1)
+	hflag = 0;
+	while ((ch = getopt(argc, argv, "dh")) != -1)
 		switch(ch) {
 		case 'd':
 			type = ACL_TYPE_DEFAULT;
+			break;
+		case 'h':
+			hflag = 1;
 			break;
 		default:
 			usage();
@@ -234,17 +245,17 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	if (argc == 0) {
-		error = print_acl_from_stdin(type);
+		error = print_acl_from_stdin(type, hflag);
 		return(error ? 1 : 0);
 	}
 
 	for (i = 0; i < argc; i++) {
 		if (!strcmp(argv[i], "-")) {
-			error = print_acl_from_stdin(type);
+			error = print_acl_from_stdin(type, hflag);
 			if (error == -1)
 				carried_error = -1;
 		} else {
-			error = print_acl(argv[i], type);
+			error = print_acl(argv[i], type, hflag);
 			if (error == -1)
 				carried_error = -1;
 		}
