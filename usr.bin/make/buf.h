@@ -53,11 +53,11 @@
 typedef char Byte;
 
 typedef struct Buffer {
-	int	size; 		/* Current size of the buffer */
-	int     left;		/* Space left (== size - (inPtr - buffer)) */
-	Byte    *buffer;	/* The buffer itself */
-	Byte    *inPtr;		/* Place to write to */
-	Byte    *outPtr;	/* Place to read from */
+	size_t	size; 		/* Current size of the buffer */
+	size_t	left;		/* Space left (== size - (inPtr - buffer)) */
+	Byte	*buffer;	/* The buffer itself */
+	Byte	*inPtr;		/* Place to write to */
+	Byte	*outPtr;	/* Place to read from */
 } *Buffer;
 
 /* Buf_AddByte adds a single byte to a buffer. */
@@ -67,17 +67,17 @@ typedef struct Buffer {
 
 #define	BUF_ERROR 256
 
-void Buf_OvAddByte(Buffer, int);
-void Buf_AddBytes(Buffer, int, const Byte *);
-void Buf_UngetByte(Buffer, int);
-void Buf_UngetBytes(Buffer, int, Byte *);
+void Buf_OvAddByte(Buffer, Byte);
+void Buf_AddBytes(Buffer, size_t, const Byte *);
+void Buf_UngetByte(Buffer, Byte);
+void Buf_UngetBytes(Buffer, size_t, Byte *);
 int Buf_GetByte(Buffer);
-int Buf_GetBytes(Buffer, int, Byte *);
-Byte *Buf_GetAll(Buffer, int *);
-void Buf_Discard(Buffer, int);
-int Buf_Size(Buffer);
-Buffer Buf_Init(int);
+int Buf_GetBytes(Buffer, size_t, Byte *);
+Byte *Buf_GetAll(Buffer, size_t *);
+void Buf_Discard(Buffer, size_t);
+size_t Buf_Size(Buffer);
+Buffer Buf_Init(size_t);
 void Buf_Destroy(Buffer, Boolean);
-void Buf_ReplaceLastByte(Buffer, int);
+void Buf_ReplaceLastByte(Buffer, Byte);
 
 #endif /* _BUF_H */

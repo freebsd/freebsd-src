@@ -408,7 +408,7 @@ VarSubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
 	     * buffer.
 	     */
 	    Boolean done;
-	    int origSize;
+	    size_t origSize;
 
 	    done = FALSE;
 	    origSize = Buf_Size(buf);
