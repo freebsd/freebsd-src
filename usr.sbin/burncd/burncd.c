@@ -501,13 +501,13 @@ do_TAO(int fd, int test_write, int preemp, int dvdrw)
 #define NTOH3B(x)	((x&0x0000ff)<<16) | (x&0x00ff00) | ((x&0xff0000)>>16)
 
 void
-do_format(int fd, int force, char *type)
+do_format(int the_fd, int force, char *type)
 {
 	struct cdr_format_capacities capacities;
 	struct cdr_format_params format_params;
 	int count, i, pct, last = 0;
 
-	if (ioctl(fd, CDRIOCREADFORMATCAPS, &capacities) == -1)
+	if (ioctl(the_fd, CDRIOCREADFORMATCAPS, &capacities) == -1)
 		err(EX_IOERR, "ioctl(CDRIOCREADFORMATCAPS)");
 
 	if (verbose) {
@@ -559,12 +559,12 @@ do_format(int fd, int force, char *type)
 	memcpy(&format_params.format, &capacities.format[i],
 		sizeof(struct cdr_format_capacity));
 
-	if(ioctl(fd, CDRIOCFORMAT, &format_params) == -1)
+	if(ioctl(the_fd, CDRIOCFORMAT, &format_params) == -1)
 		err(EX_IOERR, "ioctl(CDRIOCFORMAT)");
 
 	while (1) {
 		sleep(1);
-		if (ioctl(fd, CDRIOCGETPROGRESS, &pct) == -1)
+		if (ioctl(the_fd, CDRIOCGETPROGRESS, &pct) == -1)
 			err(EX_IOERR, "ioctl(CDRIOGETPROGRESS)");
 		if (pct > 0 && !quiet)
 			fprintf(stderr, "formatting DVD - %d %% done     \r", 
