@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.58 1995/02/06 23:20:03 jkh Exp $
+ *	$Id: conf.c,v 1.59 1995/02/09 11:13:09 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -772,14 +772,8 @@ d_mmap_t        spigot_mmap;
 /*
  * This stuff from Heikki is kind of bizarre, and I'm not sure how I feel
  * about it yet (I think I like it about as much as I can like anything in
- * here), but I'm intrigued enough for now to enable it by default. -jkh
- *
- * If you want to use the Cyclades driver, you MUST have this on for now
- * (or convert Heikki's syntax to the old one).
+ * here). -jkh
  */
-#define NEW_CONF_C_SYNTAX	yes
-
-#if defined(NEW_CONF_C_SYNTAX)
 #ifndef __CONCAT
 #define	__CONCAT(x,y)	x ## y
 #endif
@@ -812,10 +806,10 @@ d_mmap_t        spigot_mmap;
 	(d_mmap_t((*))) enodev, 0 }
 #endif
 
+
+/* Cyclades serial driver */
 #include "cy.h"
 cdev_decl(cy);
-
-#endif	/* NEW_CONF_C_SYNTAX */
 
 
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
@@ -974,9 +968,7 @@ struct cdevsw	cdevsw[] =
 	{ gscopen,      gscclose,       gscread,        nowrite,	/*47*/
 	  gscioctl,     nostop,         nullreset,      NULL,	/* gsc */
 	  seltrue,      nommap,         NULL },
-#if defined(NEW_CONF_C_SYNTAX)
 	cdev_tty_init(NCY,cy),					/* cyclades */
-#endif
 	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
 	  sscioctl,	nostop,		nullreset,	NULL,	/* scsi super */
 	  sscselect,	sscmmap,		sscstrategy },
