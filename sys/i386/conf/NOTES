@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.300 1996/12/22 18:28:50 dyson Exp $
+#	$Id: LINT,v 1.301 1996/12/23 18:23:14 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1014,6 +1014,12 @@ options		"I586_CTR_GUPROF"
 options		"I586_PMC_GUPROF=0x70000"
 options		"IBCS2"
 options		"SCSI_2_DEF"
+options		SCSI_DELAY=8	# Be pessimistic about Joe SCSI device
+options		SCSI_NCR_DEBUG
+options		SCSI_NCR_DFLT_TAGS=4
+options		SCSI_NCR_MAX_SYNC=10000
+options		SCSI_NCR_MAX_WIDE=1
+options		SCSI_NCR_MYADDR=7
 options		SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options		SI_DEBUG
 options		SPX_HACK
