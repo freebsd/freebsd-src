@@ -246,9 +246,8 @@ remove_drive(int driveno)
 }
 
 /*
- * Read data from a drive
- *
- * Return error number
+ * Read data from a drive.
+ * Return error number.
  */
 int
 read_drive(struct drive *drive, void *buf, size_t length, off_t offset)
@@ -282,19 +281,7 @@ read_drive(struct drive *drive, void *buf, size_t length, off_t offset)
 	count = min((unsigned) (drive->blocksize - blockoff), /* amount to transfer in this block */
 	    uio.uio_resid);
 
-	if (drive->vp->v_lastr + bscale == blocknum) {	    /* did our last read finish in this block? */
-	    nextbn = blocknum + bscale;			    /* note the end of the transfer */
-	    error = breadn(drive->vp,			    /* and read with read-ahead */
-		blocknum,
-		(int) drive->blocksize,
-		&nextbn,
-		(int *) &drive->blocksize,
-		1,
-		NOCRED,
-		&bp);
-	} else						    /* random read: just read this block */
-	    error = bread(drive->vp, blocknum, (int) drive->blocksize, NOCRED, &bp);
-	drive->vp->v_lastr = blocknum;			    /* note the last block we read */
+	error = bread(drive->vp, blocknum, (int) drive->blocksize, NOCRED, &bp);
 	count = min(count, drive->blocksize - bp->b_resid);
 	if (error) {
 	    brelse(bp);
