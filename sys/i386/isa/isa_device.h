@@ -31,14 +31,15 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.35 1997/02/22 09:36:42 peter Exp $
+ *	$Id: isa_device.h,v 1.36 1997/04/26 11:46:02 peter Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
 #define	_I386_ISA_ISA_DEVICE_H_
 
+#if 0
 #include "opt_smp.h"
-
+#endif
 /*
  * ISA Bus Autoconfiguration
  */
