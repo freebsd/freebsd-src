@@ -40,6 +40,9 @@ sysctl_set ()
 	[Ll][Oo][Ww])
 		value=${lowest_value}
 		;;
+	[Nn][Oo][Nn][Ee])
+		return
+		;;
 	*)
 		;;
 	esac
