@@ -853,6 +853,16 @@ pmap_dispose_proc(struct proc *p)
 		vm_page_free(m);
 	}
 	pmap_qremove(up, UAREA_PAGES);
+
+	/*
+	 * If the process got swapped out some of its UPAGES might have gotten
+	 * swapped.  Just get rid of the object to clean up the swap use
+	 * proactively.  NOTE! might block waiting for paging I/O to complete.
+	 */
+	if (upobj->type == OBJT_SWAP) {
+		p->p_upages_obj = NULL;
+		vm_object_deallocate(upobj);
+	}
 }
 
 /*
@@ -995,6 +1005,16 @@ pmap_dispose_thread(struct thread *td)
 		vm_page_free(m);
 	}
 	pmap_qremove(ks, KSTACK_PAGES);
+
+	/*
+	 * If the thread got swapped out some of its KSTACK might have gotten
+	 * swapped.  Just get rid of the object to clean up the swap use
+	 * proactively.  NOTE! might block waiting for paging I/O to complete.
+	 */
+	if (ksobj->type == OBJT_SWAP) {
+		td->td_kstack_obj = NULL;
+		vm_object_deallocate(ksobj);
+	}
 }
 
 /*
