@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.69 1999/04/03 08:18:43 obrien Exp $
+#	$Id: Makefile.inc1,v 1.70 1999/04/03 23:46:18 obrien Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -519,7 +519,6 @@ includes:
 	cd ${.CURDIR}/gnu/lib/libreadline;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libstdc++;	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libg++;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libgmp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/usr.bin/cc/cc1plus;	${MAKE} beforeinstall
@@ -639,7 +638,7 @@ lib-tools:
 # libcrypt must be built before libskey and libkrb.
 # libdes must be built before libpam.
 # libkrb must be built before libpam.
-# libm must be built before libf2c, libg++ and libstdc++.
+# libm must be built before libf2c and libstdc++.
 # libmd must be built before libatm, libopie, libradius, libskey,
 # and libtacplus.
 # libmytinfo must be built before libdialog and libncurses.
