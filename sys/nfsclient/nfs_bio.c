@@ -1067,13 +1067,12 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 
 	ASSERT_VOP_LOCKED(vp, "nfs_vinvalbuf");
 
-	VI_LOCK(vp);
 	if (vp->v_iflag & VI_XLOCK) {
-		/* XXX Should we wait here? */
-		VI_UNLOCK(vp);
+#ifdef INVARIANTS
+		backtrace();
+#endif
 		return (0);
 	}
-	VI_UNLOCK(vp);
 
 	if ((nmp->nm_flag & NFSMNT_INT) == 0)
 		intrflg = 0;
