@@ -510,7 +510,10 @@ vniocattach_file(vn, vio, dev, flag, p)
 		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
 		return(error);
 	}
-	dev->si_bsize_phys = vn->sc_secsize;
+	if (dev->si_bsize_phys < vn->sc_secsize)
+		dev->si_bsize_phys = vn->sc_secsize;
+	if (dev->si_bsize_best < vn->sc_secsize)
+		dev->si_bsize_best = vn->sc_secsize;
 	vn->sc_flags |= VNF_INITED;
 	if (flags == FREAD)
 		vn->sc_flags |= VNF_READONLY;

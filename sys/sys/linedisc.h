@@ -69,6 +69,7 @@ struct specinfo {
 			struct disk *__sid_disk;
 			struct mount *__sid_mountpoint;
 			int __sid_bsize_phys; /* min physical block size */
+			int __sid_bsize_best; /* optimal block size */
 			int __sid_bsize_max;  /* maximum block size */
 		} __si_disk;
 	} __si_u;
@@ -78,6 +79,7 @@ struct specinfo {
 #define si_disk		__si_u.__si_disk.__sid_disk
 #define si_mountpoint	__si_u.__si_disk.__sid_mountpoint
 #define si_bsize_phys	__si_u.__si_disk.__sid_bsize_phys
+#define si_bsize_best	__si_u.__si_disk.__sid_bsize_best
 #define si_bsize_max	__si_u.__si_disk.__sid_bsize_max
 
 /*
