@@ -2,17 +2,13 @@
 
 PROG=		kdc
 SRCS=		\
-	524.c		\
 	config.c	\
 	connect.c	\
-	kaserver.c	\
 	kdc_locl.h	\
-	kerberos4.c	\
 	kerberos5.c	\
 	log.c		\
 	main.c		\
-	misc.c		\
-	rx.h
+	misc.c
 
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/kdc \
@@ -26,6 +22,7 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${.OBJDIR}
 .if defined(MAKE_KERBEROS4) && \
 	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
+SRCS+=	524.c kerberos4.c kaserver.c rx.h
 _krb4libs=	-lkrb -lkafs
 _krb4deps=	${LIBKRB} ${LIBKAFS}
 .endif

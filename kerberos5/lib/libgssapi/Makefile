@@ -50,10 +50,10 @@ SRCS=				\
         wrap.c                  \
         address_to_krb5addr.c
 
-INCLUDES=${KRB5DIR}/lib/gssapi/gssapi.h heim_err.h krb5_err.h
+INCLUDES=${KRB5DIR}/lib/gssapi/gssapi.h heim_err.h krb5_err.h k524_err.h
 
 .include <bsd.lib.mk>
 
 .PATH:		${KRB5DIR}/lib/gssapi
 
-beforedepend all:	heim_err.h krb5_err.h
+beforedepend all:	heim_err.h krb5_err.h k524_err.h

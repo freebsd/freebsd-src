@@ -7,7 +7,7 @@ CFLAGS+=-I${KRB5DIR}/include \
 	-I${INCLUDEOBJDIR} \
 	-I${.OBJDIR}
 SRCS=	der_get.c der_put.c der_free.c der_length.c der_copy.c \
-	timegm.c asn1_err.c asn1_err.h asn1.h roken.h \
+	timegm.c asn1_err.c asn1_err.h krb5_asn1.h roken.h \
 	${GEN:S/.x/.c/g}
 
 GEN=						\
@@ -20,6 +20,7 @@ GEN=						\
 	asn1_AuthorizationData.x		\
 	asn1_CKSUMTYPE.x			\
 	asn1_Checksum.x				\
+	asn1_ENCTYPE.x				\
 	asn1_ETYPE_INFO.x			\
 	asn1_ETYPE_INFO_ENTRY.x			\
 	asn1_EncAPRepPart.x			\
@@ -45,6 +46,7 @@ GEN=						\
 	asn1_KerberosTime.x			\
 	asn1_KrbCredInfo.x			\
 	asn1_LastReq.x				\
+	asn1_LR_TYPE.x				\
 	asn1_MESSAGE_TYPE.x			\
 	asn1_METHOD_DATA.x			\
 	asn1_NAME_TYPE.x			\
@@ -61,16 +63,13 @@ GEN=						\
 	asn1_TransitedEncoding.x		\
 	asn1_UNSIGNED.x
 
-INCLUDES=asn1.h asn1_err.h 
+INCLUDES=krb5_asn1.h asn1_err.h 
 
 .include <bsd.lib.mk>
 
 .PATH:		${KRB5DIR}/lib/asn1
 .PATH:		${KRB5DIR}/lib/vers
 .PATH:		${KRB5DIR}/lib/roken
-.ORDER:		parse.o lex.o
-
-build-tools:	make-print-version asn1_compile
 
 beforedepend all: roken.h
 
@@ -79,27 +78,42 @@ ${I:S/.x/.c/}:	${I}
 	cmp -s ${.OODATE} ${.TARGET} 2> /dev/null || cp ${.OODATE} ${.TARGET}
 .endfor
 
-CLEANFILES+=	${GEN:S/.x/.c/g} asn1.h asn1_files
+CLEANFILES+=	${GEN:S/.x/.c/g} krb5_asn1.h asn1_files
 
-${GEN} asn1.h:		asn1_compile k5.asn1
-	./asn1_compile ${KRB5DIR}/lib/asn1/k5.asn1
+${GEN} krb5_asn1.h:		asn1_compile k5.asn1
+	./asn1_compile ${KRB5DIR}/lib/asn1/k5.asn1 krb5_asn1
 
-build-tools:	make-print-version asn1_compile
+build-tools:	make-print-version make-roken asn1_compile
 
-asn1_compile:	parse.o lex.o main.c hash.c symbol.c gen.c \
-		gen_encode.c gen_decode.c gen_free.c gen_length.c \
-		gen_copy.c gen_glue.c getarg.c warnerr.c print_version.o \
-		get_window_size.c strupr.c
+asn1_compile:				\
+       gen.c				\
+       gen_copy.c			\
+       gen_decode.c			\
+       gen_encode.c			\
+       gen_free.c			\
+       gen_glue.c			\
+       gen_length.c			\
+       hash.c				\
+       emalloc.c			\
+       lex.o				\
+       main.c				\
+       parse.o				\
+       symbol.c				\
+       getarg.c				\
+       warnerr.c			\
+       print_version.o			\
+       get_window_size.c		\
+       strupr.c
 	${CC} ${CFLAGS} ${.OODATE} -o ${.TARGET}
 
 parse.o:	parse.c roken.h
 
 parse.h parse.c:	parse.y
 	${YACC}	-d ${.OODATE}
-	mv y.tab.c parse.c
-	mv y.tab.h parse.h
+	cp y.tab.c parse.c
+	cp y.tab.h parse.h
 
-lex.o:		lex.l
+lex.o:		lex.l parse.h roken.h
 
 print_version.o: print_version.h print_version.c roken.h
 	${CC} ${CFLAGS} -c -o ${.TARGET} ${KRB5DIR}/lib/vers/print_version.c
@@ -111,4 +125,5 @@ make-print-version: make-print-version.c
 	${CC} ${CFLAGS} -static -o ${.TARGET} ${.OODATE}
 
 CLEANFILES+=	${GEN} asn1_compile lex.o parse.o parse.c parse.h \
-		hdb_asn1.h make-print-version print_version.h print_version.o
+		hdb_asn1.h make-print-version print_version.h print_version.o \
+		y.tab.c y.tab.h

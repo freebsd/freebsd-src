@@ -10,6 +10,7 @@ INCLUDEDIR=	${.CURDIR}/../../include
 KRB4DIR=	${.CURDIR}/../../../crypto/kerberosIV
 KRB5DIR=	${.CURDIR}/../../../crypto/heimdal
 ROKENDIR=	${.CURDIR}/../../lib/libroken
+TELNETDIR=	${.CURDIR}/../../../crypto/telnet
 
 CFLAGS+=-Wall -I${INCLUDEDIR} -I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
 
@@ -98,6 +99,12 @@ SLOBJDIR=	${.OBJDIR}/../../lib/libsl
 SLOBJDIR=	${.CURDIR}/../../lib/libsl
 .endif
 
+.if exists(${.OBJDIR}/../../lib/libtelnet)
+LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
+.else
+LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
+.endif
+
 COMPILE_ET=     compile_et
 
 .ORDER: asn1_err.c asn1_err.h
@@ -135,6 +142,14 @@ kadm5_err.c kadm5_err.h: \
 	${COMPILE_ET} kadm5_err.et
 
 CLEANFILES+=kadm5_err.h kadm5_err.c kadm5_err.et
+
+.ORDER:	k524_err.c k524_err.h
+k524_err.c k524_err.h: \
+	${KRB5DIR}/lib/krb5/k524_err.et
+	test -e ${.OBJDIR}/k524_err.et || ln -sf ${.ALLSRC}
+	${COMPILE_ET} k524_err.et
+
+CLEANFILES+=k524_err.h k524_err.c k524_err.et
 
 .if defined(INCLUDES)
 beforeinstall: ${INCLUDES}
