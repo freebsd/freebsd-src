@@ -59,9 +59,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 int
-copy_file(entp, dne)
-	FTSENT *entp;
-	int dne;
+copy_file(FTSENT *entp, int dne)
 {
 	static char buf[MAXBSIZE];
 	struct stat *fs;
@@ -190,9 +188,7 @@ copy_file(entp, dne)
 }
 
 int
-copy_link(p, exists)
-	FTSENT *p;
-	int exists;
+copy_link(FTSENT *p, int exists)
 {
 	int len;
 	char link[PATH_MAX];
@@ -214,9 +210,7 @@ copy_link(p, exists)
 }
 
 int
-copy_fifo(from_stat, exists)
-	struct stat *from_stat;
-	int exists;
+copy_fifo(struct stat *from_stat, int exists)
 {
 	if (exists && unlink(to.p_path)) {
 		warn("unlink: %s", to.p_path);
@@ -230,9 +224,7 @@ copy_fifo(from_stat, exists)
 }
 
 int
-copy_special(from_stat, exists)
-	struct stat *from_stat;
-	int exists;
+copy_special(struct stat *from_stat, int exists)
 {
 	if (exists && unlink(to.p_path)) {
 		warn("unlink: %s", to.p_path);
@@ -249,9 +241,7 @@ copy_special(from_stat, exists)
 	(S_ISUID | S_ISGID | S_ISVTX | S_IRWXU | S_IRWXG | S_IRWXO)
 
 int
-setfile(fs, fd)
-	register struct stat *fs;
-	int fd;
+setfile(struct stat *fs, int fd)
 {
 	static struct timeval tv[2];
 	struct stat ts;
@@ -308,7 +298,7 @@ setfile(fs, fd)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
