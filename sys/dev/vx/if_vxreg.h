@@ -31,17 +31,17 @@
  * Some global constants
  */
 
-#define TX_INIT_RATE         16
-#define TX_INIT_MAX_RATE     64
-#define RX_INIT_LATENCY      64
-#define RX_INIT_EARLY_THRESH 64
-#define MIN_RX_EARLY_THRESHF   16 /* not less than ether_header */
-#define MIN_RX_EARLY_THRESHL   4
+#define TX_INIT_RATE		16
+#define TX_INIT_MAX_RATE	64
+#define RX_INIT_LATENCY		64
+#define RX_INIT_EARLY_THRESH	64
+#define MIN_RX_EARLY_THRESHF	16	/* not less than ether_header */
+#define MIN_RX_EARLY_THRESHL	4
 
-#define EEPROMSIZE      0x40
-#define MAX_EEPROMBUSY  1000
-#define VX_LAST_TAG     0xd7
-#define VX_MAX_BOARDS   16
+#define EEPROMSIZE	0x40
+#define MAX_EEPROMBUSY	1000
+#define VX_LAST_TAG	0xd7
+#define VX_MAX_BOARDS	16
 
 /*
  * Commands to read/write EEPROM trough EEPROM command register (Window 0,
@@ -111,14 +111,11 @@
 #define NO_RX_OVN_ANOMALY       (1<<5)
 
 /**************************************************************************
- *										  *
  * These are the registers for the 3Com 3c509 and their bit patterns when *
  * applicable.  They have been taken out the the "EtherLink III Parallel  *
  * Tasking EISA and ISA Technical Reference" "Beta Draft 10/30/92" manual *
  * from 3com.								  *
- *										  *
  **************************************************************************/
-
 #define VX_COMMAND		0x0e	/* Write. BASE+0x0e is always a
 					 * command reg. */
 #define VX_STATUS		0x0e	/* Read. BASE+0x0e is always status
@@ -134,7 +131,7 @@
 #define VX_W0_RESOURCE_CFG	0x08
 #define VX_W0_ADDRESS_CFG	0x06
 #define VX_W0_CONFIG_CTRL	0x04
-	/* Read */
+ /* Read */
 #define VX_W0_PRODUCT_ID	0x02
 #define VX_W0_MFG_ID		0x00
 
@@ -243,25 +240,25 @@
 #define TX_RESET		(u_short) (0xb<<11)
 #define REQ_INTR		(u_short) (0xc<<11)
 /*
- * The following C_* acknowledge the various interrupts. Some of them don't
- * do anything.  See the manual.
+ * The following C_* acknowledge the various interrupts.
+ * Some of them don't do anything.  See the manual.
  */
 #define ACK_INTR		(u_short) (0x6800)
-#	define C_INTR_LATCH	(u_short) (ACK_INTR|0x1)
-#	define C_CARD_FAILURE	(u_short) (ACK_INTR|0x2)
-#	define C_TX_COMPLETE	(u_short) (ACK_INTR|0x4)
-#	define C_TX_AVAIL	(u_short) (ACK_INTR|0x8)
-#	define C_RX_COMPLETE	(u_short) (ACK_INTR|0x10)
-#	define C_RX_EARLY	(u_short) (ACK_INTR|0x20)
-#	define C_INT_RQD		(u_short) (ACK_INTR|0x40)
-#	define C_UPD_STATS	(u_short) (ACK_INTR|0x80)
+#define C_INTR_LATCH		(u_short) (ACK_INTR|0x1)
+#define C_CARD_FAILURE		(u_short) (ACK_INTR|0x2)
+#define C_TX_COMPLETE		(u_short) (ACK_INTR|0x4)
+#define C_TX_AVAIL		(u_short) (ACK_INTR|0x8)
+#define C_RX_COMPLETE		(u_short) (ACK_INTR|0x10)
+#define C_RX_EARLY		(u_short) (ACK_INTR|0x20)
+#define C_INT_RQD		(u_short) (ACK_INTR|0x40)
+#define C_UPD_STATS		(u_short) (ACK_INTR|0x80)
 #define SET_INTR_MASK		(u_short) (0xe<<11)
 #define SET_RD_0_MASK		(u_short) (0xf<<11)
 #define SET_RX_FILTER		(u_short) (0x10<<11)
-#	define FIL_INDIVIDUAL	(u_short) (0x1)
-#	define FIL_MULTICAST     (u_short) (0x02)
-#	define FIL_BRDCST        (u_short) (0x04)
-#	define FIL_PROMISC       (u_short) (0x08)
+#define FIL_INDIVIDUAL		(u_short) (0x1)
+#define FIL_MULTICAST		(u_short) (0x02)
+#define FIL_BRDCST		(u_short) (0x04)
+#define FIL_PROMISC		(u_short) (0x08)
 #define SET_RX_EARLY_THRESH	(u_short) (0x11<<11)
 #define SET_TX_AVAIL_THRESH	(u_short) (0x12<<11)
 #define SET_TX_START_THRESH	(u_short) (0x13<<11)
@@ -299,7 +296,7 @@
 
 #define VX_BUSY_WAIT while (CSR_READ_2(sc, VX_STATUS) & S_COMMAND_IN_PROGRESS)
 
-/* Address Config. Register.    
+/* Address Config. Register.
  * Window 0/Port 06
  */
 
@@ -307,7 +304,7 @@
 #define ACF_CONNECTOR_UTP	0
 #define ACF_CONNECTOR_AUI	1
 #define ACF_CONNECTOR_BNC	3
-   
+
 #define INTERNAL_CONNECTOR_BITS 20
 #define INTERNAL_CONNECTOR_MASK 0x01700000
 
@@ -338,7 +335,7 @@
 #define ERR_DRIBBLE     (u_short) (0x1000)
 
 /*
- * TX Status. 
+ * TX Status.
  *
  *   Reports the transmit status of a completed transmission. Writing this
  *   register pops the transmit completion stack.
@@ -415,15 +412,15 @@
 #define TAG_ADAPTER                     0xd0
 #define ACTIVATE_ADAPTER_TO_CONFIG      0xff
 #define ENABLE_DRQ_IRQ                  0x0001
-#define MFG_ID                          0x506d  /* `TCM' */
+#define MFG_ID                          0x506d	/* `TCM' */
 #define PROD_ID                         0x5090
-#define JABBER_GUARD_ENABLE	0x40
-#define LINKBEAT_ENABLE		0x80
-#define	ENABLE_UTP		(JABBER_GUARD_ENABLE | LINKBEAT_ENABLE)
-#define DISABLE_UTP		0x0
-#define RX_BYTES_MASK		(u_short) (0x07ff)
-#define TX_INDICATE		1<<15
+#define JABBER_GUARD_ENABLE		0x40
+#define LINKBEAT_ENABLE			0x80
+#define	ENABLE_UTP			(JABBER_GUARD_ENABLE | LINKBEAT_ENABLE)
+#define DISABLE_UTP			0x0
+#define RX_BYTES_MASK			(u_short) (0x07ff)
+#define TX_INDICATE			(1<<15)
 
-#define	VX_IOSIZE	0x20
+#define	VX_IOSIZE			0x20
 
 #define VX_CONNECTORS 8
