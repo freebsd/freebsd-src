@@ -18,6 +18,7 @@ LIBUUCP=	$(.CURDIR)/../libuucp/libuucp.a
 
 VERSION=	1.04
 owner=		uucp
+group=		wheel
 bindir=		/usr/bin
 sbindir=	/usr/libexec/uucp
 
