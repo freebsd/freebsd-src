@@ -381,7 +381,12 @@ ptrace(curp, uap)
 				struct proc *pp;
 
 				pp = pfind(p->p_oppid);
-				proc_reparent(p, pp ? pp : initproc);
+				if (pp != NULL)
+					PROC_UNLOCK(pp);
+				else
+					pp = initproc;
+				PROC_LOCK(p);
+				proc_reparent(p, pp);
 			} else
 				PROC_LOCK(p);
 			p->p_flag &= ~(P_TRACED | P_WAITED);
