@@ -1,20 +1,20 @@
 FreeBSD ?.?.?  (UNKNOWN)
 
 Welcome to FreeBSD!  You will find security advisories and updated
-errata information for all releases at http://www.FreeBSD.ORG/releases/
+errata information for all releases at http://www.FreeBSD.org/releases/
 
 Before asking for technical assistance:
  1.  Consult the ERRATA section for your release at the URL above.
 
  2.  Search the Handbook, FAQ, and mail archives at 
-     http://www.FreeBSD.ORG/search.html. If the doc distribution is
+     http://www.FreeBSD.org/search.html. If the doc distribution is
      installed on this machine, you will also find the formatted FAQ
      and Handbook documents in /usr/share/doc/
 
  3.  If you still have a question or problem, collect the output of
      `uname -a' along with error messages from whatever part of the
      system you are having problems with and email it as a question
-     to the questions@FreeBSD.ORG mailing list.
+     to the questions@FreeBSD.org mailing list.
         
 You may also use `/stand/sysinstall' to re-enter the installation and
 configuration  utility.  Edit /etc/motd to change this login announcement.
