@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)getname.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -42,8 +46,7 @@ static char sccsid[] = "@(#)getname.c	8.1 (Berkeley) 6/6/93";
 /* Getname / getuserid for those with hashed passwd data base). */
 
 /*
- * Search the passwd file for a uid.  Return name through ref parameter
- * if found, indicating success with 0 return.  Return -1 on error.
+ * Search the passwd file for a uid. Return name on success, NULL on failure.
  */
 char *
 getname(uid)
@@ -52,8 +55,8 @@ getname(uid)
 	struct passwd *pw;
 
 	if ((pw = getpwuid(uid)) == NULL)
-		return NOSTR;
-	return pw->pw_name;
+		return (NULL);
+	return (pw->pw_name);
 }
 
 /*
@@ -67,6 +70,6 @@ getuserid(name)
 	struct passwd *pw;
 
 	if ((pw = getpwnam(name)) == NULL)
-		return -1;
-	return pw->pw_uid;
+		return (-1);
+	return (pw->pw_uid);
 }

@@ -31,9 +31,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/6/93
+ *
+ * $FreeBSD$
  */
-
-#include <paths.h>
 
 #define	_PATH_EX	"/usr/bin/ex"
 #define	_PATH_HELP	"/usr/share/misc/mail.help"

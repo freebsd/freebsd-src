@@ -40,7 +40,6 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include "rcv.h"
-#include <err.h>
 #include "extern.h"
 
 /*
@@ -49,75 +48,45 @@ static const char rcsid[] =
  * Give names to all the temporary files that we will need.
  */
 
-char	*tempMail;
-char	*tempQuit;
-char	*tempEdit;
-char	*tempResid;
-char	*tempMesg;
 char	*tmpdir;
 
 void
 tinit()
 {
-	register char *cp;
-	int len;
+	char *cp;
 
-	if ((tmpdir = getenv("TMPDIR")) == NULL)
+	if ((tmpdir = getenv("TMPDIR")) == NULL || *tmpdir == '\0')
 		tmpdir = _PATH_TMP;
-	else {
-		len = strlen(tmpdir);
-		if ((cp = malloc(len + 2)) == NULL)
-			panic("Out of memory");
-		(void)strcpy(cp, tmpdir);
-		cp[len] = '/';
-		cp[len + 1] = '\0';
-		tmpdir = cp;
+	if ((tmpdir = strdup(tmpdir)) == NULL)
+		errx(1, "Out of memory");
+	/* Strip trailing '/' if necessary */
+	cp = tmpdir + strlen(tmpdir) - 1;
+	while (cp > tmpdir && *cp == '/') {
+		*cp = '\0';
+		cp--;
 	}
-	len = strlen(tmpdir);
-	if ((tempMail = malloc(len + sizeof("RsXXXXXX"))) == NULL)
-		panic("Out of memory");
-	strcpy(tempMail, tmpdir);
-	mktemp(strcat(tempMail, "RsXXXXXX"));
-	if ((tempResid = malloc(len + sizeof("RqXXXXXX"))) == NULL)
-		panic("Out of memory");
-	strcpy(tempResid, tmpdir);
-	mktemp(strcat(tempResid, "RqXXXXXX"));
-	if ((tempQuit = malloc(len + sizeof("RmXXXXXX"))) == NULL)
-		panic("Out of memory");
-	strcpy(tempQuit, tmpdir);
-	mktemp(strcat(tempQuit, "RmXXXXXX"));
-	if ((tempEdit = malloc(len + sizeof("ReXXXXXX"))) == NULL)
-		panic("Out of memory");
-	strcpy(tempEdit, tmpdir);
-	mktemp(strcat(tempEdit, "ReXXXXXX"));
-	if ((tempMesg = malloc(len + sizeof("RxXXXXXX"))) == NULL)
-		panic("Out of memory");
-	strcpy(tempMesg, tmpdir);
-	mktemp(strcat(tempMesg, "RxXXXXXX"));
 
 	/*
 	 * It's okay to call savestr in here because main will
 	 * do a spreserve() after us.
 	 */
-	if (myname != NOSTR) {
-		if (getuserid(myname) < 0) {
-			printf("\"%s\" is not a user of this system\n",
-			    myname);
-			exit(1);
-		}
+	if (myname != NULL) {
+		if (getuserid(myname) < 0)
+			errx(1, "\"%s\" is not a user of this system", myname);
 	} else {
-		if ((cp = username()) == NOSTR) {
+		if ((cp = username()) == NULL) {
 			myname = "ubluit";
-			if (rcvmode) {
-				printf("Who are you!?\n");
-				exit(1);
-			}
+			if (rcvmode)
+				errx(1, "Who are you!?");
 		} else
 			myname = savestr(cp);
 	}
-	if ((cp = getenv("HOME")) == NOSTR)
-		cp = ".";
-	homedir = savestr(cp);
+	if ((cp = getenv("HOME")) == NULL || *cp == '\0' ||
+	    strlen(cp) >= PATHSIZE)
+		homedir = NULL;
+	else
+		homedir = savestr(cp);
 	if (debug)
-		printf("user = %s, homedir = %s\n", myname, homedir);
+		printf("user = %s, homedir = %s\n", myname,
+		    homedir ? homedir : "NONE");
 }
