@@ -55,6 +55,8 @@
 #include <sys/ttycom.h>
 #include <sys/conf.h>
 
+#include <machine/limits.h>
+
 static int vn_closefile __P((struct file *fp, struct proc *p));
 static int vn_ioctl __P((struct file *fp, u_long com, caddr_t data, 
 		struct proc *p));
@@ -499,6 +501,8 @@ vn_stat(vp, sb, p)
 	sb->st_uid = vap->va_uid;
 	sb->st_gid = vap->va_gid;
 	sb->st_rdev = vap->va_rdev;
+	if (vap->va_size > OFF_MAX)
+		return (EOVERFLOW);
 	sb->st_size = vap->va_size;
 	sb->st_atimespec = vap->va_atime;
 	sb->st_mtimespec = vap->va_mtime;
