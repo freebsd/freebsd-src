@@ -12,6 +12,10 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 #if defined(_KERNEL) && defined(__FreeBSD_version) && \
+    (__FreeBSD_version >= 400019)
+# define CSUM_DELAY_DATA
+#endif
+#if defined(_KERNEL) && defined(__FreeBSD_version) && \
     (__FreeBSD_version >= 400000) && !defined(KLD_MODULE)
 #include "opt_inet6.h"
 #endif

@@ -7,10 +7,14 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fil.c,v 2.35.2.8 2000/05/22 10:26:09 darrenr Exp $";
+static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 #if defined(_KERNEL) && defined(__FreeBSD_version) && \
+    (__FreeBSD_version >= 400019) 
+# define CSUM_DELAY_DATA
+#endif 
+#if defined(_KERNEL) && defined(__FreeBSD_version) && \ 
     (__FreeBSD_version >= 400000) && !defined(KLD_MODULE)
 #include "opt_inet6.h"
 #endif
