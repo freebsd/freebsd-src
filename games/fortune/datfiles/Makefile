@@ -33,7 +33,7 @@ beforeinstall:
 
 .for f in fortunes fortunes2 fortunes2-o limerick startrek zippy
 $f.dat: $f
-	PATH=/usr/games:${.OBJDIR}/../strfile:$$PATH \
+	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
 	    strfile -Crs ${.ALLSRC} ${.TARGET}
 .endfor
 
