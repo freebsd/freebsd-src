@@ -584,7 +584,7 @@ distExtract(char *parent, Distribution *me)
     WINDOW *w = savescr();
     struct timeval start, stop;
     struct sigaction old, new;
-    properties dist_attr;
+    properties dist_attr = NULL;
 
     status = TRUE;
     if (isDebug())
