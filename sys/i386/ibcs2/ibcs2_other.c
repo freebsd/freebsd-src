@@ -21,12 +21,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_other.c,v 1.7 1997/08/25 21:57:55 bde Exp $
+ * $Id: ibcs2_other.c,v 1.8 1997/11/06 19:28:35 phk Exp $
  */
 
 /*
  * IBCS2 compatibility module.
  */
+
+#include "opt_spx_hack.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
