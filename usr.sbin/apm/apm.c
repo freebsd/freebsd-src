@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: apm.c,v 1.17 1999/07/30 16:15:11 msmith Exp $";
+	"$Id: apm.c,v 1.18 1999/07/30 19:35:21 msmith Exp $";
 #endif /* not lint */
 
 #include <sys/file.h>
@@ -173,7 +173,7 @@ print_all_info(int fd, apm_info_t aip)
 	args.ebx = PMDV_APMBIOS;
 	args.ecx = 0x0001;
 	if (ioctl(fd, APMIO_BIOS, &args)) {
-		err(1,"Get resume timer");
+		printf("Resume timer: unknown\n");
 	} else {
 		apmerr = APMERR(args.eax);
 		 if (apmerr == 0x0d || apmerr == 0x86)
