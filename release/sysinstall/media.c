@@ -125,7 +125,7 @@ void
 mediaClose(void)
 {
     if (mediaDevice)
-	mediaDevice->shutdown(mediaDevice);
+	DEVICE_SHUTDOWN(mediaDevice);
     mediaDevice = NULL;
 }
 
@@ -361,13 +361,13 @@ mediaSetFTP(dialogMenuItem *self)
     if (!networkDev || msgYesNo("You've already done the network configuration once,\n"
 				"would you like to skip over it now?") != 0) {
 	if (networkDev)
-	    networkDev->shutdown(networkDev);
+	    DEVICE_SHUTDOWN(networkDev);
 	if (!(networkDev = tcpDeviceSelect())) {
 	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE;
 	}
     }
-    if (!networkDev->init(networkDev)) {
+    if (!DEVICE_INIT(networkDev)) {
 	if (isDebug())
 	    msgDebug("mediaSetFTP: Net device init failed.\n");
 	variable_unset(VAR_FTP_PATH);
@@ -415,7 +415,7 @@ mediaSetFTP(dialogMenuItem *self)
 			" your\nname server, gateway and network interface are"
 			" correctly configured?", hostname);
 		if (networkDev)
-		    networkDev->shutdown(networkDev);
+		    DEVICE_SHUTDOWN(networkDev);
 		networkDev = NULL;
 		variable_unset(VAR_FTP_PATH);
 		return DITEM_FAILURE;
@@ -558,11 +558,11 @@ mediaSetNFS(dialogMenuItem *self)
     if (!networkDev || msgYesNo("You've already done the network configuration once,\n"
 				"would you like to skip over it now?") != 0) {
 	if (networkDev)
-	    networkDev->shutdown(networkDev);
+	    DEVICE_SHUTDOWN(networkDev);
 	if (!(networkDev = tcpDeviceSelect()))
 	    return DITEM_FAILURE;
     }
-    if (!networkDev->init(networkDev)) {
+    if (!DEVICE_INIT(networkDev)) {
 	if (isDebug())
 	    msgDebug("mediaSetNFS: Net device init failed\n");
     }
@@ -572,7 +572,7 @@ mediaSetNFS(dialogMenuItem *self)
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", hostname);
 	    if (networkDev)
-		networkDev->shutdown(networkDev);
+		DEVICE_SHUTDOWN(networkDev);
 	    networkDev = NULL;
 	    variable_unset(VAR_NFS_PATH);
 	    return DITEM_FAILURE;

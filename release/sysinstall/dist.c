@@ -605,14 +605,14 @@ distExtract(char *parent, Distribution *me)
 	snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
 
     getinfo:
-	fp = mediaDevice->get(mediaDevice, buf, TRUE);
+	fp = DEVICE_GET(mediaDevice, buf, TRUE);
 	intr = check_for_interrupt();
 	if (fp == (FILE *)IO_ERROR || intr || !mediaDevice) {
 	    /* Hard error, can't continue */
 	    if (!msgYesNo("Unable to open %s: %s.\nReinitialize media?",
 			  buf, !intr ? "I/O error." : "User interrupt.")) {
-		mediaDevice->shutdown(mediaDevice);
-		if (!mediaDevice->init(mediaDevice)) {
+		DEVICE_SHUTDOWN(mediaDevice);
+		if (!DEVICE_INIT(mediaDevice)) {
 		    status = FALSE;
 		    goto done;
 		}
@@ -652,7 +652,7 @@ distExtract(char *parent, Distribution *me)
 	     * are not considered too significant.
 	     */
 	getsingle:
-	    fp = mediaDevice->get(mediaDevice, buf, TRUE);
+	    fp = DEVICE_GET(mediaDevice, buf, TRUE);
 	    intr = check_for_interrupt();
 	    if (fp == (FILE *)IO_ERROR || intr || !mediaDevice) {
 		/* Hard error, can't continue */
@@ -660,8 +660,8 @@ distExtract(char *parent, Distribution *me)
 		    msgConfirm("Unable to open %s: User interrupt", buf);
 		else
 		    msgConfirm("Unable to open %s: I/O error", buf);
-		mediaDevice->shutdown(mediaDevice);
-		if (!mediaDevice->init(mediaDevice)) {
+		DEVICE_SHUTDOWN(mediaDevice);
+		if (!DEVICE_INIT(mediaDevice)) {
 		    status = FALSE;
 		    goto done;
 		}
@@ -715,7 +715,7 @@ distExtract(char *parent, Distribution *me)
 	    snprintf(buf, sizeof buf, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
-	    fp = mediaDevice->get(mediaDevice, buf, FALSE);
+	    fp = DEVICE_GET(mediaDevice, buf, FALSE);
 	    intr = check_for_interrupt();
 	    if (fp <= (FILE *)0 || intr) {
 		if (fp == (FILE *)0)
@@ -723,8 +723,8 @@ distExtract(char *parent, Distribution *me)
 		else
 		    msgConfirm("failed to retreive piece file %s.\n"
 			       "%s: Reinitializing media.", buf, !intr ? "I/O error" : "User interrupt");
-		mediaDevice->shutdown(mediaDevice);
-		if (!mediaDevice->init(mediaDevice))
+		DEVICE_SHUTDOWN(mediaDevice);
+		if (!DEVICE_INIT(mediaDevice))
 		    goto punt;
 		else
 		    goto getchunk;
@@ -867,7 +867,7 @@ distExtractAll(dialogMenuItem *self)
 	    return DITEM_FAILURE;
     }
 
-    if (!mediaVerify() || !mediaDevice->init(mediaDevice))
+    if (!mediaVerify() || !DEVICE_INIT(mediaDevice))
 	return DITEM_FAILURE;
 
     old_dists = Dists;

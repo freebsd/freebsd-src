@@ -61,7 +61,7 @@ package_add(char *name)
     if (!mediaVerify())
 	return DITEM_FAILURE;
 
-    if (!mediaDevice->init(mediaDevice))
+    if (!DEVICE_INIT(mediaDevice))
 	return DITEM_FAILURE;    
 
     i = index_initialize("packages/INDEX");
@@ -123,7 +123,7 @@ package_extract(Device *dev, char *name, Boolean depended)
     if (package_exists(name))
 	return DITEM_SUCCESS;
 
-    if (!dev->init(dev)) {
+    if (!DEVICE_INIT(dev)) {
 	msgConfirm("Unable to initialize media type for package extract.");
 	return DITEM_FAILURE;
     }
@@ -154,7 +154,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	sprintf(path, "%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
 
     /* We have a path, call the device strategy routine to get the file */
-    fp = dev->get(dev, path, TRUE);
+    fp = DEVICE_GET(dev, path, TRUE);
     if (fp) {
 	int i = 0, tot, pfd[2];
 	pid_t pid;
