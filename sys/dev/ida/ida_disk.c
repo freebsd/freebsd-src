@@ -52,68 +52,67 @@
 #include <dev/ida/idavar.h>
 
 /* prototypes */
-static int idprobe(device_t dev);
-static int idattach(device_t dev);
-static int iddetach(device_t dev);
+static int idad_probe(device_t dev);
+static int idad_attach(device_t dev);
+static int idad_detach(device_t dev);
 
-static	d_open_t	idopen;
-static	d_close_t	idclose;
-static	d_strategy_t	idstrategy;
+static	d_open_t	idad_open;
+static	d_close_t	idad_close;
+static	d_strategy_t	idad_strategy;
 
-#define ID_BDEV_MAJOR	29
-#define ID_CDEV_MAJOR	109
-
-#define WD_BDEV_MAJOR	0
-#define WD_CDEV_MAJOR	3
+#define IDAD_BDEV_MAJOR	29
+#define IDAD_CDEV_MAJOR	109
 
 static struct cdevsw id_cdevsw = {
-	/* open */	idopen,
-	/* close */	idclose,
+	/* open */	idad_open,
+	/* close */	idad_close,
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	noioctl,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
-	/* strategy */	idstrategy,
-	/* name */ 	"id",
-	/* maj */	ID_CDEV_MAJOR,
+	/* strategy */	idad_strategy,
+	/* name */ 	"idad",
+	/* maj */	IDAD_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */ 	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	ID_BDEV_MAJOR
+	/* bmaj */	IDAD_BDEV_MAJOR
 };
 
-static devclass_t	id_devclass;
-static struct cdevsw 	iddisk_cdevsw;
+static devclass_t	idad_devclass;
+static struct cdevsw 	idaddisk_cdevsw;
 static int		disks_registered = 0;
 
-static device_method_t id_methods[] = {
-	DEVMETHOD(device_probe,		idprobe),
-	DEVMETHOD(device_attach,	idattach),
-	DEVMETHOD(device_detach,	iddetach),
+static device_method_t idad_methods[] = {
+	DEVMETHOD(device_probe,		idad_probe),
+	DEVMETHOD(device_attach,	idad_attach),
+	DEVMETHOD(device_detach,	idad_detach),
 	{ 0, 0 }
 };
 
-static driver_t id_driver = {
+static driver_t idad_driver = {
 	"idad",
-	id_methods,
-	sizeof(struct id_softc)
+	idad_methods,
+	sizeof(struct idad_softc)
 };
 
-static __inline struct id_softc *
-idgetsoftc(dev_t dev)
+DRIVER_MODULE(idad, ida, idad_driver, idad_devclass, 0, 0);
+
+static __inline struct idad_softc *
+idad_getsoftc(dev_t dev)
 {
 
-	return ((struct id_softc *)dev->si_drv1);
+	return ((struct idad_softc *)dev->si_drv1);
 }
 
 static int
-idopen(dev_t dev, int flags, int fmt, struct proc *p)
+idad_open(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	struct id_softc *drv;
+	struct idad_softc *drv;
 	struct disklabel *label;
 
-	drv = idgetsoftc(dev);
+	drv = idad_getsoftc(dev);
 	if (drv == NULL)
 		return (ENXIO);
 
@@ -131,11 +130,11 @@ idopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-idclose(dev_t dev, int flags, int fmt, struct proc *p)
+idad_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	struct id_softc *drv;
+	struct idad_softc *drv;
 
-	drv = idgetsoftc(dev);
+	drv = idad_getsoftc(dev);
 	if (drv == NULL)
 		return (ENXIO);
 	return (0);
@@ -148,12 +147,12 @@ idclose(dev_t dev, int flags, int fmt, struct proc *p)
  * be a multiple of a sector in length.
  */
 static void
-idstrategy(struct bio *bp)
+idad_strategy(struct bio *bp)
 {
-	struct id_softc *drv;
+	struct idad_softc *drv;
 	int s;
 
-	drv = idgetsoftc(bp->bio_dev);
+	drv = idad_getsoftc(bp->bio_dev);
 	if (drv == NULL) {
     		bp->bio_error = EINVAL;
 		goto bad;
@@ -193,9 +192,9 @@ done:
 }
 
 void
-id_intr(struct bio *bp)
+idad_intr(struct bio *bp)
 {
-	struct id_softc *drv = (struct id_softc *)bp->bio_driver1;
+	struct idad_softc *drv = (struct idad_softc *)bp->bio_driver1;
 
 	if (bp->bio_flags & BIO_ERROR)
 		bp->bio_error = EIO;
@@ -207,7 +206,7 @@ id_intr(struct bio *bp)
 }
 
 static int
-idprobe(device_t dev)
+idad_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Compaq Logical Drive");
@@ -215,15 +214,15 @@ idprobe(device_t dev)
 }
 
 static int
-idattach(device_t dev)
+idad_attach(device_t dev)
 {
 	struct ida_drive_info dinfo;
-	struct id_softc *drv;
+	struct idad_softc *drv;
 	device_t parent;
 	dev_t dsk;
 	int error;
 
-	drv = (struct id_softc *)device_get_softc(dev);
+	drv = (struct idad_softc *)device_get_softc(dev);
 	parent = device_get_parent(dev);
 	drv->controller = (struct ida_softc *)device_get_softc(parent);
 	drv->unit = device_get_unit(dev);
@@ -254,7 +253,7 @@ idattach(device_t dev)
 	    DEVSTAT_PRIORITY_ARRAY);
 
 	dsk = disk_create(drv->unit, &drv->disk, 0,
-	    &id_cdevsw, &iddisk_cdevsw);
+	    &id_cdevsw, &idaddisk_cdevsw);
 
 	dsk->si_drv1 = drv;
 	dsk->si_iosize_max = DFLTPHYS;		/* XXX guess? */
@@ -264,16 +263,14 @@ idattach(device_t dev)
 }
 
 static int
-iddetach(device_t dev)
+idad_detach(device_t dev)
 {
-	struct id_softc *drv;
+	struct idad_softc *drv;
 
-	drv = (struct id_softc *)device_get_softc(dev);
+	drv = (struct idad_softc *)device_get_softc(dev);
 	devstat_remove_entry(&drv->stats);
 
 	if (--disks_registered == 0)
-		cdevsw_remove(&iddisk_cdevsw);
+		cdevsw_remove(&idaddisk_cdevsw);
 	return (0);
 }
-
-DRIVER_MODULE(idad, ida, id_driver, id_devclass, 0, 0);
