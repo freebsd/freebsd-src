@@ -54,36 +54,41 @@
 .Fn strncpy "char * restrict dst" "const char * restrict src" "size_t len"
 .Sh DESCRIPTION
 The
-.Fn stpcpy ,
+.Fn stpcpy
+and
 .Fn strcpy
-function
-copies the string
+functions
+copy the string
 .Fa src
 to
 .Fa dst
 (including the terminating
 .Ql \e0
-character).
+character.)
 .Pp
 The
 .Fn strncpy
-function copies not more than
+function copies at most
 .Fa len
 characters from
 .Fa src
 into
-.Fa dst ,
-appending
-.Ql \e0
-characters if
+.Fa dst .
+If
 .Fa src
 is less than
 .Fa len
-characters long, and
-.Em not
-terminating
+characters long,
+the remainder of
 .Fa dst
-otherwise.
+is filled with
+.Ql \e0
+characters.
+Otherwise,
+.Fa dst
+is
+.Em not
+terminated.
 .Sh RETURN VALUES
 The
 .Fn strcpy
