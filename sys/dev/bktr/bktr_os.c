@@ -48,10 +48,6 @@
  */
 
 
-#ifdef __FreeBSD__
-#include "bktr.h"
-#endif /* __FreeBSD__ */
-
 #include "opt_bktr.h"		/* include any kernel config options */
 
 #define FIFO_RISC_DISABLED      0
