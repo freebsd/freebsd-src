@@ -326,6 +326,14 @@ ie_attach(device_t dev)
 	return (0);
 }
 
+static __inline void
+ie_ack(struct ie_softc *sc, u_int mask)
+{
+
+	sc->scb->ie_command = sc->scb->ie_status & mask;
+	(*sc->ie_chan_attn) (sc);
+}
+
 /*
  * What to do upon receipt of an interrupt.
  */
@@ -1218,14 +1226,6 @@ sl_read_ether(struct ie_softc *sc, unsigned char *addr)
 
 	for (i = 0; i < 6; i++)
 		addr[i] = inb(PORT(sc) + i);
-}
-
-static __inline void
-ie_ack(struct ie_softc *sc, u_int mask)
-{
-
-	sc->scb->ie_command = sc->scb->ie_status & mask;
-	(*sc->ie_chan_attn) (sc);
 }
 
 static void
