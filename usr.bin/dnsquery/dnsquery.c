@@ -7,8 +7,6 @@
 #include <resolv.h>
 #include <errno.h>
 
-#include "../conf/portability.h"
-
 extern int errno;
 extern int h_errno;
 extern char *h_errlist[];
