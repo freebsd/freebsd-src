@@ -443,7 +443,7 @@ NewFtpMessage(struct ip *pip,
 
 /* Establish link to address and port found in FTP control message. */
     ftp_link = FindUdpTcpOut(true_addr, GetDestAddress(link),
-                             htons(true_port), 0, IPPROTO_TCP);
+                             htons(true_port), 0, IPPROTO_TCP, 1);
 
     if (ftp_link != NULL)
     {

@@ -1402,14 +1402,15 @@ FindLinkIn(struct in_addr dst_addr,
 struct alias_link *
 FindIcmpIn(struct in_addr dst_addr,
            struct in_addr alias_addr,
-           u_short id_alias)
+           u_short id_alias,
+           int create)
 {
     struct alias_link *link;
 
     link = FindLinkIn(dst_addr, alias_addr,
                       NO_DEST_PORT, id_alias,
                       LINK_ICMP, 0);
-    if (link == NULL && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
+    if (link == NULL && create && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
     {
         struct in_addr target_addr;
 
@@ -1426,14 +1427,15 @@ FindIcmpIn(struct in_addr dst_addr,
 struct alias_link *
 FindIcmpOut(struct in_addr src_addr,
             struct in_addr dst_addr,
-            u_short id)
+            u_short id,
+            int create)
 {
     struct alias_link * link;
 
     link = FindLinkOut(src_addr, dst_addr,
                        id, NO_DEST_PORT,
                        LINK_ICMP, 0);
-    if (link == NULL)
+    if (link == NULL && create)
     {
         struct in_addr alias_addr;
 
@@ -1555,7 +1557,8 @@ FindUdpTcpIn(struct in_addr dst_addr,
              struct in_addr alias_addr,
              u_short        dst_port,
              u_short        alias_port,
-             u_char         proto)
+             u_char         proto,
+             int            create)
 {
     int link_type;
     struct alias_link *link;
@@ -1575,11 +1578,9 @@ FindUdpTcpIn(struct in_addr dst_addr,
 
     link = FindLinkIn(dst_addr, alias_addr,
                       dst_port, alias_port,
-                      link_type, 1);
+                      link_type, create);
 
-    if (!(packetAliasMode & PKT_ALIAS_DENY_INCOMING)
-     && !(packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-     && link == NULL)
+    if (link == NULL && create && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
     {
         struct in_addr target_addr;
 
@@ -1598,7 +1599,8 @@ FindUdpTcpOut(struct in_addr  src_addr,
               struct in_addr  dst_addr,
               u_short         src_port,
               u_short         dst_port,
-              u_char          proto)
+              u_char          proto,
+              int             create)
 {
     int link_type;
     struct alias_link *link;
@@ -1616,9 +1618,9 @@ FindUdpTcpOut(struct in_addr  src_addr,
         break;
     }
 
-    link = FindLinkOut(src_addr, dst_addr, src_port, dst_port, link_type, 1);
+    link = FindLinkOut(src_addr, dst_addr, src_port, dst_port, link_type, create);
 
-    if (link == NULL)
+    if (link == NULL && create)
     {
         struct in_addr alias_addr;
 
@@ -1631,67 +1633,6 @@ FindUdpTcpOut(struct in_addr  src_addr,
     return(link);
 }
 
-
-struct alias_link *
-QueryUdpTcpIn(struct in_addr dst_addr,
-              struct in_addr alias_addr,
-              u_short        dst_port,
-              u_short        alias_port,
-              u_char         proto)
-{
-    int link_type;
-    struct alias_link *link;
-
-    switch (proto)
-    {
-    case IPPROTO_UDP:
-        link_type = LINK_UDP;
-        break;
-    case IPPROTO_TCP:
-        link_type = LINK_TCP;
-        break;
-    default:
-        return NULL;
-        break;
-    }
-
-    link = FindLinkIn(dst_addr, alias_addr,
-                      dst_port, alias_port,
-                      link_type, 0);
-
-    return(link);
-}
-
-
-struct alias_link * 
-QueryUdpTcpOut(struct in_addr  src_addr,
-               struct in_addr  dst_addr,
-               u_short         src_port,
-               u_short         dst_port,
-               u_char          proto)
-{
-    int link_type;
-    struct alias_link *link;
-
-    switch (proto)
-    {
-    case IPPROTO_UDP:
-        link_type = LINK_UDP;
-        break;
-    case IPPROTO_TCP:
-        link_type = LINK_TCP;
-        break;
-    default:
-        return NULL;
-        break;
-    }
-
-    link = FindLinkOut(src_addr, dst_addr,
-                       src_port, dst_port,
-		       link_type, 0);
-
-    return(link);
-}
 
 struct alias_link *
 AddPptp(struct in_addr  src_addr,
