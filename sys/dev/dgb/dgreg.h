@@ -1,5 +1,5 @@
 /*-
- *  dgreg.h $Id$
+ *  dgreg.h $Id: dgreg.h,v 1.7 1997/02/22 09:29:43 peter Exp $
  *
  *  Digiboard driver.
  *
@@ -359,7 +359,7 @@ struct channel {
 
 /* debugging printout */
 
-#ifdef DEBUG
+#ifdef DGB_DEBUG
 #define DPRINT1(l,a1)			(dgbdebug&l ? printf(a1) : 0)
 #define DPRINT2(l,a1,a2)		(dgbdebug&l ? printf(a1,a2) : 0)
 #define DPRINT3(l,a1,a2,a3)		(dgbdebug&l ? printf(a1,a2,a3) : 0)
