@@ -96,7 +96,7 @@ acpi_user_find_mapping(vm_offset_t pa, size_t size)
  * Public interfaces
  */
 struct ACPIrsdp *
-acpi_find_rsd_ptr()
+acpi_find_rsd_ptr(void)
 {
 	struct ACPIrsdp rsdp;
 	u_long		addr;
@@ -106,7 +106,7 @@ acpi_find_rsd_ptr()
 
 	/* Attempt to use sysctl to find RSD PTR record */
 	len = sizeof(addr);
-	if (sysctlbyname(machdep_acpi_root, &addr, &len, NULL, 0) == 0) {	
+	if (sysctlbyname(machdep_acpi_root, &addr, &len, NULL, 0) == 0) {
 		pread(acpi_mem_fd, &rsdp, sizeof(rsdp), addr);
 		if (memcmp(rsdp.signature, "RSD PTR ", 8) != 0)
 			errx(1, "sysctl %s does not point to RSDP",
