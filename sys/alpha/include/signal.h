@@ -94,10 +94,9 @@ struct sigcontext {
 	unsigned long sc_fpregs[32];	/* FP register set (see above) */
 	unsigned long sc_fpcr;		/* FP control register (see above) */
 	unsigned long sc_fp_control;	/* FP software control word */
-	long	sc_ownedfp;		/* fp has been used */
-	long	sc_xxx1[2];		/* sc_ssize, sc_sbase on DUX */
-	long	sc_xxx2[3];		/* sc_fp_trap_pc, sc_fp_trigger_sum, sc_fp_trigger_inst */
-	long	sc_reserved[2];		/* XXX */
+	long	sc_ownedfp;		/* fp has been used; see mcontext_t */
+	long	sc_format;		/* see mcontext_t */
+	long	sc_spare[6];		/* XXX */
 };
 
 #define	sc_sp	sc_regs[R_SP]
