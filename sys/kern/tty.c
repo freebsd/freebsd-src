@@ -2751,3 +2751,18 @@ ttywrite(dev_t dev, struct uio *uio, int flag)
 		return (ENODEV);
 	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
+
+int
+ttyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+{
+	struct	tty *tp;
+	int	error;
+
+	tp = dev->si_tty;
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
+	if (error == ENOIOCTL)
+		error = ttioctl(tp, cmd, data, flag);
+	if (error != ENOIOCTL)
+		return (error);
+	return (ENOTTY);
+}
