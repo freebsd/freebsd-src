@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.2 1998/09/18 22:33:59 ken Exp $
+ *	$Id: scsi_all.h,v 1.3 1998/09/29 22:11:30 ken Exp $
  */
 
 /*
@@ -796,7 +796,8 @@ static __inline u_int32_t scsi_2btoul(u_int8_t *bytes);
 static __inline u_int32_t scsi_3btoul(u_int8_t *bytes);
 static __inline int32_t scsi_3btol(u_int8_t *bytes);
 static __inline u_int32_t scsi_4btoul(u_int8_t *bytes);
-
+static __inline void *find_mode_page_6(struct scsi_mode_header_6 *mode_header);
+static __inline void *find_mode_page_10(struct scsi_mode_header_10 *mode_header);
 
 static __inline void scsi_extract_sense(struct scsi_sense_data *sense,
 					int *error_code, int *sense_key,
@@ -878,6 +879,33 @@ scsi_4btoul(u_int8_t *bytes)
 	     bytes[3];
 	return (rv);
 }
+
+/*
+ * Given the pointer to a returned mode sense buffer, return a pointer to
+ * the start of the first mode page.
+ */
+static __inline void *
+find_mode_page_6(struct scsi_mode_header_6 *mode_header)
+{
+	void *page_start;
+
+	page_start = (void *)((u_int8_t *)&mode_header[1] +
+			      mode_header->blk_desc_len);
+
+	return(page_start);
+}
+
+static __inline void *
+find_mode_page_10(struct scsi_mode_header_10 *mode_header)
+{
+	void *page_start;
+
+	page_start = (void *)((u_int8_t *)&mode_header[1] +
+			       scsi_2btoul(mode_header->blk_desc_len));
+
+	return(page_start);
+}
+
 __END_DECLS
 
 #endif /*_SCSI_SCSI_ALL_H*/
