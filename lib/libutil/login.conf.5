@@ -29,7 +29,8 @@
 .Pa /etc/login.conf ,
 .Pa ~/.login_conf
 .Sh DESCRIPTION
-login.conf contains various attributes and capabilities of login classes.
+.Nm login.conf
+contains various attributes and capabilities of login classes.
 A login class (an optional annotation against each record in the user
 account database,
 .Pa /etc/master.passwd )
@@ -122,7 +123,7 @@ A size value is a numeric quantity and case of the suffix is not significant.
 Concatenated values are added together.
 .It time
 A period of time, by default in seconds.
-A prefix may specify a different unit;
+A prefix may specify a different unit:
 .Bl -tag -offset indent -compact -width xxxx
 .It y
 indicates the number of 365 day years,
