@@ -213,7 +213,7 @@ check_for_lost_intr (void *arg)
 	int opri;
 
 	lost_intr_timeout_queued = 0;
-	if ((*kbdsw[kbd->kb_index]->lock)(kbd, TRUE)) {
+	if (kbd && (*kbdsw[kbd->kb_index]->lock)(kbd, TRUE)) {
 		opri = spltty ();
 		(*kbdsw[kbd->kb_index]->lock)(kbd, FALSE);
 		if ((*kbdsw[kbd->kb_index]->check)(kbd))

@@ -118,11 +118,12 @@ static kbd_callback_func_t pcevent;
 
 static cn_probe_t	pccnprobe;
 static cn_init_t	pccninit;
+static cn_term_t	pccnterm;
 static cn_getc_t	pccngetc;
 static cn_checkc_t	pccncheckc;
 static cn_putc_t	pccnputc;
 
-CONS_DRIVER(pc, pccnprobe, pccninit, NULL, pccngetc, pccncheckc, pccnputc);
+CONS_DRIVER(pc, pccnprobe, pccninit, pccnterm, pccngetc, pccncheckc, pccnputc);
 
 static	d_open_t	pcopen;
 static	d_close_t	pcclose;
@@ -1176,46 +1177,22 @@ int
 #endif
 pccnprobe(struct consdev *cp)
 {
-	static int uarg = 0;
+	int unit = 0;
 	int i;
 
 	/* See if this driver is disabled in probe hint. */ 
-	if (resource_int_value("vt", 0, "disabled", &i) == 0 && i) {
+	if (resource_int_value("vt", unit, "disabled", &i) == 0 && i) {
 		cp->cn_pri = CN_DEAD;
 		return;
 	}
 
 #ifdef _DEV_KBD_KBDREG_H_
-	/*
-	 * Don't reset the keyboard via `kbdio' just yet.
-	 * The system clock has not been calibrated...
-	 */
-	reset_keyboard = 0;
-	if (kbd == NULL)
+	kbd_configure(KB_CONF_PROBE_ONLY);
+	if (kbd_find_keyboard("*", unit) < 0)
 	{
-		kbd_configure(KB_CONF_PROBE_ONLY);
-		i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)&uarg);
-		if (i >= 0)
-		{
-			uarg = i;
-			kbd = kbd_get_keyboard(i);
-		}
-		else
-		{
-			cp->cn_pri = CN_DEAD;
-			return;
-		}
+		cp->cn_pri = CN_DEAD;
+		return;
 	}
-
-#if PCVT_SCANSET == 2
-	/*
-	 * Turn off scancode translation early so that UserConfig 
-	 * and DDB can read the keyboard.
-	 */
-	empty_both_buffers(*(KBDC *)kbd->kb_data, 10);
-	set_controller_command_byte(*(KBDC *)kbd->kb_data, KBD_TRANSLATION, 0);
-#endif /* PCVT_SCANSET == 2 */
-
 #endif /* _DEV_KBD_KBDREG_H_ */
 
 	/* initialize required fields */
@@ -1245,10 +1222,57 @@ int
 #endif
 pccninit(struct consdev *cp)
 {
+	int unit = 0;
+	int i;
+
 	pcvt_is_console = 1;
+
+#ifdef _DEV_KBD_KBDREG_H_
+	/*
+	 * Don't reset the keyboard via `kbdio' just yet.
+	 * The system clock has not been calibrated...
+	 */
+	reset_keyboard = 0;
+
+	if (kbd)
+	{
+		kbd_release(kbd, (void *)&kbd);
+		kbd = NULL;
+	}
+	i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)unit);
+	if (i >= 0)
+		kbd = kbd_get_keyboard(i);
+
+#if PCVT_SCANSET == 2
+	/*
+	 * Turn off scancode translation early so that UserConfig 
+	 * and DDB can read the keyboard.
+	 */
+	if (kbd)
+	{
+		empty_both_buffers(*(KBDC *)kbd->kb_data, 10);
+		set_controller_command_byte(*(KBDC *)kbd->kb_data,
+					    KBD_TRANSLATION, 0);
+	}
+#endif /* PCVT_SCANSET == 2 */
+
+#endif /* _DEV_KBD_KBDREG_H_ */
+
 #if PCVT_FREEBSD <= 205
 	return 0;
 #endif
+}
+
+static void
+pccnterm(struct consdev *cp)
+{
+#ifdef _DEV_KBD_KBDREG_H_
+	if (kbd)
+	{
+		kbd_release(kbd, (void *)&kbd);
+		kbd = NULL;
+	}
+#endif /* _DEV_KBD_KBDREG_H_ */
 }
 
 #if PCVT_FREEBSD > 205
@@ -1312,6 +1336,11 @@ pccngetc(Dev_t dev)
 		 */
 		return (*cp++);
 
+#ifdef _DEV_KBD_KBDREG_H_
+	if (kbd == NULL)
+		return 0;
+#endif	
+
 	s = spltty();		/* block pcrint while we poll */
 	kbd_polling = 1;
 #ifdef _DEV_KBD_KBDREG_H_
@@ -1345,7 +1374,14 @@ static int
 pccncheckc(Dev_t dev)
 {
 	char *cp;
-	int x = spltty();
+	int x;
+
+#ifdef _DEV_KBD_KBDREG_H_
+	if (kbd == NULL)
+		return 0;
+#endif	
+
+	x = spltty();
 	kbd_polling = 1;
 #ifdef _DEV_KBD_KBDREG_H_
 	(*kbdsw[kbd->kb_index]->enable)(kbd);
