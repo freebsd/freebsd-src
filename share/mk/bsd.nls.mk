@@ -1,4 +1,3 @@
-#	Based on $NetBSD: bsd.nls.mk,v 1.35 2001/11/28 20:19:08 tv Exp $
 # $FreeBSD$
 #
 # This include file <bsd.nls.mk> handles building and installing Native
@@ -21,108 +20,57 @@
 # NLSOWN	National Language Support files owner. [${SHAREOWN}]
 #
 # NO_NLS	Do not make or install NLS files. [not set]
-#
-# +++ targets +++
-#
-#	install:
-#		Install compiled NLS files
-#
-# bsd.obj.mk: cleandir and obj
 
-.include <bsd.init.mk>
+.if !target(__<bsd.init.mk>__)
+.error bsd.nls.mk cannot be included directly.
+.endif
 
 GENCAT?=	gencat -new
-
-NLSDIR?=        ${SHAREDIR}/nls
-NLSGRP?=        ${SHAREGRP}
-NLSMODE?=       ${NOBINMODE}
-NLSOWN?=        ${SHAREOWN}
-
-NLS?=
-NLSLINKS=
 
 .SUFFIXES: .cat .msg
 
 .msg.cat:
 	${GENCAT} ${.TARGET} ${.IMPSRC}
 
+.if defined(NLS) && !empty(NLS) && !defined(NO_NLS)
+
 #
 # .msg file pre-build rules
 #
+NLSSRCDIR?=	${.CURDIR}
 .for file in ${NLS}
-.if !defined(NLSSRCDIR_${file}) && defined(NLSSRCDIR)
-NLSSRCDIR_${file}=${NLSSRCDIR}
+.if defined(NLSSRCFILES)
+NLSSRCFILES_${file}?= ${NLSSRCFILES}
 .endif
-.if !defined(NLSSRCFILES_${file}) && defined(NLSSRCFILES)
-NLSSRCFILES_${file}=${NLSSRCFILES}
-.endif
-
 .if defined(NLSSRCFILES_${file})
-${file}:
+NLSSRCDIR_${file}?= ${NLSSRCDIR}
+${file}.msg: ${NLSSRCFILES_${file}:S/^/${NLSSRCDIR_${file}}\//}
 	@rm -f ${.TARGET}
-	cat ${NLSSRCDIR_${file}}/${NLSSRCFILES_${file}} > ${.TARGET}
-CLEANFILES+= ${file}
-.endif
-
-.if defined(NLSLINKS_${file:C/.msg//g}) && !empty(NLSLINKS_${file:C/.msg//g})
-NLSLINKS+= ${file:C/.msg//g}
+	cat ${.ALLSRC} > ${.TARGET}
+CLEANFILES+= ${file}.msg
 .endif
 .endfor
 
 #
 # .cat file build rules
 #
-NLSALL=		${NLS:.msg=.cat}
-CLEANFILES+=	${NLSALL}
+NLS:=		${NLS:=.cat}
+CLEANFILES+=	${NLS}
+FILESGROUPS?=	FILES
+FILESGROUPS+=	NLS
+NLSDIR?=	${SHAREDIR}/nls
 
 #
 # installation rules
 #
-__nlsinstall: .USE
-	${INSTALL} -o ${NLSOWN} -g ${NLSGRP} -m ${NLSMODE} \
-		${.ALLSRC} ${.TARGET}
-
-.for F in ${NLSALL}
-_F:=		${DESTDIR}${NLSDIR}/${F:T:R}/${NLSNAME}.cat
-
-${_F}:		${F} __nlsinstall			# install rule
-nlsinstall::	${_F}
-.PRECIOUS:	${_F}					# keep if install fails
-.endfor
-
-links-nls:
-.if defined(NLSLINKS) && !empty(NLSLINKS)
-.for src in ${NLSLINKS}
-.for dst in ${NLSLINKS_${src}}
-	ln -fs ../${src}/${NLSNAME}.cat \
-		${DESTDIR}${NLSDIR}/${dst}/${NLSNAME}.cat
+.for file in ${NLS}
+NLSNAME_${file:T}= ${file:T:R}/${NLSNAME}.cat
+.if defined(NLSLINKS_${file:R}) && !empty(NLSLINKS_${file:R})
+NLSLINKS+=	${file:R}
+.endif
+.for dst in ${NLSLINKS_${file:R}}
+SYMLINKS+=	../${file:R}/${NLSNAME}.cat ${NLSDIR}/${dst}/${NLSNAME}.cat
 .endfor
 .endfor
-.endif
 
-#
-
-.if !defined(NO_NLS) && !empty(NLS)
-all-nls: ${NLSALL}
-.else
-all-nls:
-.endif
-
-.if !defined(NO_NLS) && !empty(NLS)
-realinstall:	beforeinstall nlsinstall links-nls
-.else
-realinstall:	beforeinstall
-.endif
-
-all:		all-nls
-install:	realinstall afterinstall
-
-.if !target(beforeinstall)
-beforeinstall:
-.endif
-
-.if !target(afterinstall)
-afterinstall:
-.endif
-
-.include <bsd.obj.mk>
+.endif defined(NLS) && !empty(NLS) && !defined(NO_NLS)

@@ -10,7 +10,6 @@ TCSHDIR= ${.CURDIR}/../../contrib/tcsh
 .PATH: ${TCSHDIR}
 
 PROG=	csh
-SUBDIR= nls
 DFLAGS= -D_PATH_TCSHELL='"/bin/${PROG}"'
 CFLAGS+= -I. -I${.CURDIR} -I${TCSHDIR} ${DFLAGS}
 WARNS=	0
@@ -45,6 +44,34 @@ CLEANFILES= ${GENHDRS} gethost csh.1
 
 FILESDIR= ${SHAREDIR}/examples/tcsh
 FILES= complete.tcsh csh-mode.el
+
+CATALOGS=	et:et_EE.ISO8859-15 \
+		finnish:fi_FI.ISO8859-1 \
+		french:fr_FR.ISO8859-1 \
+		german:de_DE.ISO8859-1 \
+		greek:el_GR.ISO8859-7 \
+		italian:it_IT.ISO8859-1 \
+		ja:ja_JP.eucJP \
+		russian:ru_RU.KOI8-R \
+		spanish:es_ES.ISO8859-1 \
+		ukrainian:uk_UA.KOI8-U
+
+NLSLINKS_fi_FI.ISO8859-1= fi_FI.ISO8859-15
+NLSLINKS_fr_FR.ISO8859-1= fr_BE.ISO8859-1 fr_BE.ISO8859-15 \
+		fr_CA.ISO8859-1 fr_CA.ISO8859-15 fr_CH.ISO8859-1 \
+		fr_CH.ISO8859-15 fr_FR.ISO8859-15
+NLSLINKS_de_DE.ISO8859-1= de_AT.ISO8859-1 de_AT.ISO8859-15 de_CH.ISO8859-1 \
+		de_CH.ISO8859-15 de_DE.ISO8859-15
+NLSLINKS_it_IT.ISO8859-1= it_CH.ISO8859-1 it_CH.ISO8859-15 it_IT.ISO8859-15
+NLSLINKS_es_ES.ISO8859-1= es_ES.ISO8859-15
+
+NLSNAME= tcsh
+
+.for catalog in ${CATALOGS}
+NLS+=		${catalog:C/.*://}
+NLSSRCDIR_${catalog:C/.*://}= ${TCSHDIR}/nls/${catalog:C/:.*//}
+NLSSRCFILES_${catalog:C/.*://}!= cd ${NLSSRCDIR_${catalog:C/.*://}}; echo set[0-9]*
+.endfor
 
 csh.1: tcsh.man
 	ln -sf ${.ALLSRC} ${.TARGET}
