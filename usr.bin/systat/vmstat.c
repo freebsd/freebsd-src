@@ -315,9 +315,9 @@ labelkre()
 	mvprintw(GRAPHROW + 1, GRAPHCOL,
 		"|    |    |    |    |    |    |    |    |    |    |");
 
-	mvprintw(NAMEIROW, NAMEICOL, "Namei         Name-cache    Proc-cache");
+	mvprintw(NAMEIROW, NAMEICOL, "Namei         Name-cache    Dir-cache");
 	mvprintw(NAMEIROW + 1, NAMEICOL,
-		"    Calls     hits    %%     hits     %%");
+		"    Calls     hits    %%     hits    %%");
 	mvprintw(DISKROW, DISKCOL, "Discs");
 	mvprintw(DISKROW + 1, DISKCOL, "seeks");
 	mvprintw(DISKROW + 2, DISKCOL, "xfers");
@@ -485,7 +485,7 @@ showkre()
 	   NAMEIROW + 2, NAMEICOL + 19, 4, 0, 1);
 	putint(nchtotal.ncs_pass2, NAMEIROW + 2, NAMEICOL + 23, 9);
 	putfloat(nchtotal.ncs_pass2 * 100.0 / nz(s.nchcount),
-	   NAMEIROW + 2, NAMEICOL + 34, 4, 0, 1);
+	   NAMEIROW + 2, NAMEICOL + 33, 4, 0, 1);
 #undef nz
 }
 
