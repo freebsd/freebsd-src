@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.52 1996/07/27 12:40:31 amurai Exp $
+ *  $Id: if_ep.c,v 1.53 1996/09/06 23:07:33 phk Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -374,12 +374,17 @@ ep_look_for_board_at(is)
 		get_eeprom_data(id_port, EEPROM_PROD_ID);
 
 	    ep_board[ep_boards].epb_used = 0;
+#ifdef PC98
+	    ep_board[ep_boards].epb_addr =
+			(get_eeprom_data(id_port, EEPROM_ADDR_CFG) & 0x1f) * 0x100 + 0x40d0;
+#else
 	    ep_board[ep_boards].epb_addr =
 			(get_eeprom_data(id_port, EEPROM_ADDR_CFG) & 0x1f) * 0x10 + 0x200;
 
 	    if(ep_board[ep_boards].epb_addr > 0x3E0)
 		/* Board in EISA configuration mode */
 		continue;
+#endif /* PC98 */
 
 	    outb(id_port, ep_current_tag);	/* tags board */
 	    outb(id_port, ACTIVATE_ADAPTER_TO_CONFIG);
