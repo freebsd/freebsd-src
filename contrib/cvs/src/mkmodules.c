@@ -644,7 +644,7 @@ init (argc, argv)
 
     umask (cvsumask);
 
-    if (argc > 1)
+    if (argc == -1 || argc > 1)
 	usage (init_usage);
 
     if (client_active)
