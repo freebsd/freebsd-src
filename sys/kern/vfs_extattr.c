@@ -690,7 +690,7 @@ fchdir(td, uap)
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
 		if (vfs_busy(mp, 0, 0, td))
 			continue;
-		error = VFS_ROOT(mp, &tdp);
+		error = VFS_ROOT(mp, &tdp, td);
 		vfs_unbusy(mp, td);
 		if (error)
 			break;

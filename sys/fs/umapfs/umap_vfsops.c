@@ -279,7 +279,7 @@ umapfs_unmount(mp, mntflags, td)
 		return (EBUSY);
 #endif
 	/* There is 1 extra root vnode reference (umapm_rootvp). */
-	error = vflush(mp, 1, flags);
+	error = vflush(mp, 1, flags, td);
 	if (error)
 		return (error);
 
@@ -292,9 +292,10 @@ umapfs_unmount(mp, mntflags, td)
 }
 
 static int
-umapfs_root(mp, vpp)
+umapfs_root(mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
+	struct thread *td;
 {
 	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp;

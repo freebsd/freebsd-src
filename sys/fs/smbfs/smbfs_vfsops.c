@@ -189,7 +189,7 @@ smbfs_mount(struct mount *mp, char *path, caddr_t data,
 	/* protect against invalid mount points */
 	smp->sm_args.mount_point[sizeof(smp->sm_args.mount_point) - 1] = '\0';
 	vfs_getnewfsid(mp);
-	error = smbfs_root(mp, &vp);
+	error = smbfs_root(mp, &vp, td);
 	if (error)
 		goto bad;
 	VOP_UNLOCK(vp, 0, td);
@@ -238,7 +238,7 @@ smbfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	do {
 		smp->sm_didrele = 0;
 		/* There is 1 extra root vnode reference from smbfs_mount(). */
-		error = vflush(mp, 1, flags);
+		error = vflush(mp, 1, flags, td);
 	} while (error == EBUSY && smp->sm_didrele != 0);
 	if (error)
 		return error;
@@ -262,7 +262,7 @@ smbfs_unmount(struct mount *mp, int mntflags, struct thread *td)
  * Return locked root vnode of a filesystem
  */
 static int
-smbfs_root(struct mount *mp, struct vnode **vpp)
+smbfs_root(struct mount *mp, struct vnode **vpp, struct thread *td)
 {
 	struct smbmount *smp = VFSTOSMBFS(mp);
 	struct vnode *vp;

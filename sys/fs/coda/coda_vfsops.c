@@ -252,7 +252,7 @@ coda_unmount(vfsp, mntflags, td)
 	active = coda_kill(vfsp, NOT_DOWNCALL);
 	ASSERT_VOP_LOCKED(mi->mi_rootvp, "coda_unmount");
 	mi->mi_rootvp->v_vflag &= ~VV_ROOT;
-	error = vflush(mi->mi_vfsp, 0, FORCECLOSE);
+	error = vflush(mi->mi_vfsp, 0, FORCECLOSE, td);
 #ifdef CODA_VERBOSE
 	printf("coda_unmount: active = %d, vflush active %d\n", active, error);
 #endif
@@ -280,9 +280,10 @@ coda_unmount(vfsp, mntflags, td)
  * find root of cfs
  */
 int
-coda_root(vfsp, vpp)
+coda_root(vfsp, vpp, td)
 	struct mount *vfsp;
 	struct vnode **vpp;
+	struct thread *td;
 {
     struct coda_mntinfo *mi = vftomi(vfsp);
     struct vnode **result;

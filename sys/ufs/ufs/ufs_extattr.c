@@ -472,7 +472,7 @@ ufs_extattr_autostart(struct mount *mp, struct thread *td)
 	 * Does UFS_EXTATTR_FSROOTSUBDIR exist off the filesystem root?
 	 * If so, automatically start EA's.
 	 */
-	error = VFS_ROOT(mp, &rvp);
+	error = VFS_ROOT(mp, &rvp, td);
 	if (error) {
 		printf("ufs_extattr_autostart.VFS_ROOT() returned %d\n",
 		    error);

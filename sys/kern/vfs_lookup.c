@@ -555,7 +555,7 @@ unionlookup:
 		if (vfs_busy(mp, 0, 0, td))
 			continue;
 		VOP_UNLOCK(dp, 0, td);
-		error = VFS_ROOT(mp, &tdp);
+		error = VFS_ROOT(mp, &tdp, td);
 		vfs_unbusy(mp, td);
 		if (error) {
 			dpunlocked = 1;

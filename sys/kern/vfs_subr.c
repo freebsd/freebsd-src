@@ -2258,7 +2258,7 @@ vdropl(vp)
  *
  * `rootrefs' specifies the base reference count for the root vnode
  * of this filesystem. The root vnode is considered busy if its
- * v_usecount exceeds this value. On a successful return, vflush()
+ * v_usecount exceeds this value. On a successful return, vflush(, td)
  * will call vrele() on the root vnode exactly rootrefs times.
  * If the SKIPSYSTEM or WRITECLOSE flags are specified, rootrefs must
  * be zero.
@@ -2269,12 +2269,12 @@ SYSCTL_INT(_debug, OID_AUTO, busyprt, CTLFLAG_RW, &busyprt, 0, "");
 #endif
 
 int
-vflush(mp, rootrefs, flags)
+vflush(mp, rootrefs, flags, td)
 	struct mount *mp;
 	int rootrefs;
 	int flags;
+	struct thread *td;
 {
-	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp, *nvp, *rootvp = NULL;
 	struct vattr vattr;
 	int busy = 0, error;
@@ -2286,7 +2286,7 @@ vflush(mp, rootrefs, flags)
 		 * Get the filesystem root vnode. We can vput() it
 		 * immediately, since with rootrefs > 0, it won't go away.
 		 */
-		if ((error = VFS_ROOT(mp, &rootvp)) != 0)
+		if ((error = VFS_ROOT(mp, &rootvp, td)) != 0)
 			return (error);
 		vput(rootvp);
 

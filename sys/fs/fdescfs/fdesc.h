@@ -58,8 +58,8 @@ struct fdescnode {
 #define VFSTOFDESC(mp)	((struct fdescmount *)((mp)->mnt_data))
 #define	VTOFDESC(vp) ((struct fdescnode *)(vp)->v_data)
 
-extern int fdesc_init(struct vfsconf *);
-extern int fdesc_root(struct mount *, struct vnode **);
+extern vfs_init_t fdesc_init;
+extern vfs_root_t fdesc_root;
 extern int fdesc_allocvp(fdntype, int, struct mount *, struct vnode **,
 			      struct thread *);
 #endif /* _KERNEL */

@@ -1003,7 +1003,7 @@ ffs_flushfiles(mp, flags, td)
 #ifdef QUOTA
 	if (mp->mnt_flag & MNT_QUOTA) {
 		int i;
-		error = vflush(mp, 0, SKIPSYSTEM|flags);
+		error = vflush(mp, 0, SKIPSYSTEM|flags, td);
 		if (error)
 			return (error);
 		for (i = 0; i < MAXQUOTAS; i++) {
@@ -1019,7 +1019,7 @@ ffs_flushfiles(mp, flags, td)
 #endif
 	ASSERT_VOP_LOCKED(ump->um_devvp, "ffs_flushfiles");
 	if (ump->um_devvp->v_vflag & VV_COPYONWRITE) {
-		if ((error = vflush(mp, 0, SKIPSYSTEM | flags)) != 0)
+		if ((error = vflush(mp, 0, SKIPSYSTEM | flags, td)) != 0)
 			return (error);
 		ffs_snapshot_unmount(mp);
 		/*
@@ -1030,7 +1030,7 @@ ffs_flushfiles(mp, flags, td)
         /*
 	 * Flush all the files.
 	 */
-	if ((error = vflush(mp, 0, flags)) != 0)
+	if ((error = vflush(mp, 0, flags, td)) != 0)
 		return (error);
 	/*
 	 * Flush filesystem metadata.
