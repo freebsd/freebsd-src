@@ -44,7 +44,7 @@
 
 /* #define CMSOFTCOPY */
 #define CMRETRANSMIT /**/
-#undef CM_DEBUG
+/* #define CM_DEBUG */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -346,7 +346,7 @@ cm_attach(sc, unit)
 #endif
 	}
 
-	if_printf(ifp, "link addr 0x%02x(%d)\n", linkaddress, linkaddress);
+	if_printf(ifp, "link addr 0x%02x (%d)\n", linkaddress, linkaddress);
 	return 0;
 }
 
@@ -531,7 +531,7 @@ cm_start(ifp)
 	if (m->m_len < 2)
 		m = m_pullup(m, 2);
 #endif
-	cm_ram_ptr = buffer*512;
+	cm_ram_ptr = buffer * 512;
 
 	if (m == 0)
 		return;
@@ -666,7 +666,7 @@ cm_srint(vsc)
 	 * (2*sizeof(ulong) - CM_HDRNEWLEN)), packet type dependent.
 	 */
 
-	cm_ram_ptr = buffer*512;
+	cm_ram_ptr = buffer * 512;
 	offset = GETMEM(cm_ram_ptr + 2);
 	if (offset)
 		len = 256 - offset;
@@ -844,7 +844,7 @@ cmintr(arg)
 		return;
 	do {
 
-#if defined(CM_DEBUG) && (CM_DEBUG>1)
+#if defined(CM_DEBUG) && (CM_DEBUG > 1)
 		if_printf(ifp, "intr: status 0x%02x, intmask 0x%02x\n",
 		    isr, sc->sc_intmask);
 #endif
@@ -905,7 +905,7 @@ cmintr(arg)
 
 			buffer = sc->sc_rx_act;
 			/* look if buffer is marked invalid: */
-			if (GETMEM(buffer*512) == 0) {
+			if (GETMEM(buffer * 512) == 0) {
 				/*
 				 * invalid marked buffer (or illegally
 				 * configured sender)
@@ -959,7 +959,7 @@ cmintr(arg)
 		isr = GETREG(CMSTAT);
 		maskedisr = isr & sc->sc_intmask;
 	} while (maskedisr);
-#if defined(CM_DEBUG) && (CM_DEBUG>1)
+#if defined(CM_DEBUG) && (CM_DEBUG > 1)
 	if_printf(ifp, "intr (exit): status 0x%02x, intmask 0x%02x\n",
 	    isr, sc->sc_intmask);
 #endif
@@ -1008,6 +1008,7 @@ cm_ioctl(ifp, command, data)
 
 	switch (command) {
 	case SIOCSIFADDR:
+	case SIOCGIFADDR:
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 	case SIOCSIFMTU:

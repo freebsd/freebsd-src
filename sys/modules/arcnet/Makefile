@@ -4,7 +4,7 @@
 
 KMOD=	arcnet
 SRCS=	if_arcsubr.c
-SRCS+=	opt_inet.h opt_inet6.h
+SRCS+=	opt_inet.h opt_inet6.h opt_ipx.h
 
 EXPORT_SYMS=	arc_frag_init	\
 		arc_frag_next	\
@@ -18,5 +18,8 @@ EXPORT_SYMS=	arc_frag_init	\
 
 opt_inet.h opt_inet6.h:
 	echo "#define INET 1" > ${.TARGET}
+
+opt_ipx.h:
+	echo "#define IPX 1" > ${.TARGET}
 
 .include <bsd.kmod.mk>
