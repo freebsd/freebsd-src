@@ -254,7 +254,6 @@ svr4_sys_getdents64(td, uap)
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
-	struct vattr va;
 	off_t off;
 	struct svr4_dirent64 svr4_dirent;
 	int buflen, error, eofflag, nbytes, justone;
@@ -277,11 +276,6 @@ svr4_sys_getdents64(td, uap)
 	if (vp->v_type != VDIR) {
 		fdrop(fp, td);
 		return (EINVAL);
-	}
-
-	if ((error = VOP_GETATTR(vp, &va, td->td_ucred, td))) {
-		fdrop(fp, td);
-		return error;
 	}
 
 	nbytes = uap->nbytes;
