@@ -67,8 +67,6 @@
  * rights to redistribute these changes.
  */
 
-#include "opt_kstack_pages.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -139,8 +137,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	p1 = td1->td_proc;
 
-	pcb = (struct pcb *)((td2->td_kstack + KSTACK_PAGES * PAGE_SIZE -
-	    sizeof(struct pcb)) & ~0x2fU);
+	pcb = (struct pcb *)((td2->td_kstack +
+	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x2fU);
 	td2->td_pcb = pcb;
 
 	/* Copy the pcb */
@@ -357,7 +355,7 @@ cpu_thread_setup(struct thread *td)
 {
 	struct pcb *pcb;
 
-	pcb = (struct pcb *)((td->td_kstack + KSTACK_PAGES * PAGE_SIZE -
+	pcb = (struct pcb *)((td->td_kstack + td2->td_kstack_pages * PAGE_SIZE -
 	    sizeof(struct pcb)) & ~0x2fU);
 	td->td_pcb = pcb;
 	td->td_frame = (struct trapframe *)pcb - 1;
