@@ -537,7 +537,7 @@ main(int ac, char **av)
 	if (ac > 0 && (c_flag || k_flag || s_flag))
 		usage();
 
-	if (ac == 0 && !c_flag && !k_flag && !s_flag) {
+	if (ac == 0 && !c_flag && !s_flag) {
 		shell = getenv("SHELL");
 		if (shell != NULL && strncmp(shell + strlen(shell) - 3, "csh", 3) == 0)
 			c_flag = 1;
