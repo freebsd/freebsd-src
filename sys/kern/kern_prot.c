@@ -1367,6 +1367,20 @@ p_cansee(struct thread *td, struct proc *p)
 	return (cr_cansee(td->td_ucred, p->p_ucred));
 }
 
+/*
+ * 'conservative_signals' prevents the delivery of a broad class of
+ * signals by unprivileged processes to processes that have changed their
+ * credentials since the last invocation of execve().  This can prevent
+ * the leakage of cached information or retained privileges as a result
+ * of a common class of signal-related vulnerabilities.  However, this
+ * may interfere with some applications that expect to be able to
+ * deliver these signals to peer processes after having given up
+ * privilege.
+ */
+static int	conservative_signals = 1;
+SYSCTL_INT(_security_bsd, OID_AUTO, conservative_signals, CTLFLAG_RW,
+    &conservative_signals, 0, "Unprivileged processes prevented from "
+    "sending certain signals to processes whose credentials have changed");
 /*-
  * Determine whether cred may deliver the specified signal to proc.
  * Returns: 0 for permitted, an errno value otherwise.
@@ -1399,12 +1413,13 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 	 * bit on the target process.  If the bit is set, then additional
 	 * restrictions are placed on the set of available signals.
 	 */
-	if (proc->p_flag & P_SUGID) {
+	if (conservative_signals && (proc->p_flag & P_SUGID)) {
 		switch (signum) {
 		case 0:
 		case SIGKILL:
 		case SIGINT:
 		case SIGTERM:
+		case SIGALRM:
 		case SIGSTOP:
 		case SIGTTIN:
 		case SIGTTOU:
