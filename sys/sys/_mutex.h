@@ -28,24 +28,23 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_MUTEX_TYPES_H_
-#define	_SYS_MUTEX_TYPES_H_
+#ifndef _SYS__MUTEX_H_
+#define	_SYS__MUTEX_H_
 
 /*
- * Sleep/spin mutex
+ * Sleep/spin mutex.
  */
-
 struct mtx {
-	struct	lock_object mtx_object;	/* Common lock properties. */
-	volatile uintptr_t mtx_lock;	/* owner (and state for sleep locks) */
-	volatile u_int mtx_recurse;	/* number of recursive holds */
-	TAILQ_HEAD(, thread) mtx_blocked;	/* threads blocked on this lock */
-	LIST_ENTRY(mtx)	mtx_contested;	/* list of all contested locks */
-/* #ifdef MUTEX_PROFILING */
-	u_int64_t acqtime;
-	const char *file;
-	int line;
-/* #endif */
+	struct lock_object	mtx_object;	/* Common lock properties. */
+	volatile uintptr_t	mtx_lock;	/* Owner and flags. */
+	volatile u_int		mtx_recurse;	/* Number of recursive holds. */
+	TAILQ_HEAD(, thread)	mtx_blocked;	/* Threads blocked on us. */
+	LIST_ENTRY(mtx)		mtx_contested;	/* Next contested mtx. */
+
+	/* Fields used only if MUTEX_PROFILING is configured: */
+	u_int64_t		acqtime;
+	const char		*file;
+	int			line;
 };
 
-#endif /* !_SYS_MUTEX_TYPES_H_ */
+#endif /* !_SYS__MUTEX_H_ */
