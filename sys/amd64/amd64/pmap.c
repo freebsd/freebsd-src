@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.15 1994/01/31 04:18:37 davidg Exp $
+ *	$Id: pmap.c,v 1.16 1994/01/31 23:47:27 davidg Exp $
  */
 
 /*
@@ -848,7 +848,7 @@ pmap_remove(pmap, sva, eva)
 	register pt_entry_t *ptp,*ptq;
 	vm_offset_t pa;
 	register pv_entry_t pv;
-	vm_offset_t asva;
+	vm_offset_t asva, va;
 	vm_page_t m;
 	int oldpte;
 
@@ -943,10 +943,15 @@ pmap_remove(pmap, sva, eva)
 		 */
 		if (!pmap_is_managed(pa))
 			continue;
-		if (oldpte & PG_M) {
+
+		va = i386_ptob(sva);
+
+		if (((oldpte & PG_M) && (va < USRSTACK || va > UPT_MAX_ADDRESS))
+			|| (va >= USRSTACK && va < USRSTACK+(UPAGES*NBPG))) {
 			m = PHYS_TO_VM_PAGE(pa);
 			m->flags &= ~PG_CLEAN;
 		}
+
 		pv = pa_to_pvh(pa);
 		asva = i386_ptob(sva);
 		pmap_remove_entry(pmap, pv, asva);
@@ -995,8 +1000,9 @@ pmap_remove_all(pa)
 			pmap->pm_stats.wired_count--;
 		if (pmap_pte_v(pte))
 			pmap->pm_stats.resident_count--;
-
-		if (*(int *)pte & PG_M) {
+		
+		if (((*(int *)pte & PG_M) && (pv->pv_va < USRSTACK || pv->pv_va > UPT_MAX_ADDRESS))
+			|| (pv->pv_va >= USRSTACK && pv->pv_va < USRSTACK+(UPAGES*NBPG))) {
 			m->flags &= ~PG_CLEAN;
 		}
 
