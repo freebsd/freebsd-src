@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.25 1999/05/08 11:07:38 brian Exp $
+ * $Id: slcompress.c,v 1.26 1999/05/09 20:02:26 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -558,7 +558,7 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
 
     /* Watch out for alighment problems.... */
     sum = ~changes;
-    bp = &((struct ip *)cp)->ip_sum;
+    bp = cp + (int)&((struct ip *)0)->ip_sum;
     memcpy(bp, &sum, sizeof *bp);
   }
   return (len);
