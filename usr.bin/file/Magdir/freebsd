@@ -14,3 +14,13 @@
 0	lelong			000000407	impure format
 >16	lelong			>0		not stripped
 
+# XXX gross hack to identify core files
+# cores start with a struct tss; we take advantage of the following:
+# byte 7:     highest byte of the kernel stack pointer, always 0xfe
+#      8/9:   kernel (ring 0) ss value, always 0x0010
+#      10 - 27: ring 1 and 2 ss/esp, unused, thus always 0
+#      28:    low order byte of the current PTD entry, always 0 since the
+#             PTD is page-aligned
+#
+7	string	\357\020\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0	i386 a.out core file
+>1047	string	>\0	from "%s"
