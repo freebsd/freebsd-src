@@ -1,4 +1,5 @@
 #       @(#)Makefile    5.3 (Berkeley) 5/12/90
+#	$Id: $
 
 PROG=	gzip
 SRCS=	gzip.c zip.c deflate.c trees.c bits.c unzip.c inflate.c util.c \
@@ -25,7 +26,7 @@ beforeinstall:
 match.o: ${.CURDIR}/match.S
 	$(CPP) ${.CURDIR}/match.S >_match.s
 	$(CC) -c _match.s
-	mv _match.o match.o
+	mv -f _match.o match.o
 	rm -f _match.s
 
 .include <bsd.prog.mk>

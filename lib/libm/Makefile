@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id$
+#	$Id: Makefile,v 1.2 1994/08/05 01:52:05 wollman Exp $
 #
 # ieee		- for most IEEE machines, we hope.
 # mc68881	- the, ahem, mc68881.
@@ -159,10 +159,10 @@ depend: .depend
 .s.o:
 	${AS} -o ${.TARGET} ${.IMPSRC}
 	@${LD} -x -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}
 
 .s.po:
 	sed -f ${.CURDIR}/${HARDWARE}/mcount.sed ${.IMPSRC} | \
 	    ${AS} -o ${.TARGET}
 	@${LD} -X -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}

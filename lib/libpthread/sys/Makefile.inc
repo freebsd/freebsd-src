@@ -1,4 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/17/93
+#	$Id: $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys \
@@ -48,7 +49,7 @@ ${ASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
 	@${LD} -x -r ${.PREFIX}.o
-	@mv a.out ${.PREFIX}.o
+	@mv -f a.out ${.PREFIX}.o
 
 PASM=	${ASM:.o=.po}
 ${PASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
@@ -56,7 +57,7 @@ ${PASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
 	@${LD} -x -r ${.PREFIX}.po
-	@mv a.out ${.PREFIX}.po
+	@mv -f a.out ${.PREFIX}.po
 
 SASM=	${ASM:.o=.so}
 ${SASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
@@ -69,7 +70,7 @@ ${THREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX},_thread_sys_${.PREFIX})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
 	@${LD} -x -r ${.PREFIX}.o
-	@mv a.out ${.PREFIX}.o
+	@mv -f a.out ${.PREFIX}.o
 
 PTHREADASM=	${THREADASM:.o=.po}
 ${PTHREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
@@ -77,7 +78,7 @@ ${PTHREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX},_thread_sys_${.PREFIX})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
 	@${LD} -x -r ${.PREFIX}.po
-	@mv a.out ${.PREFIX}.po
+	@mv -f a.out ${.PREFIX}.po
 
 STHREADASM=	${THREADASM:.o=.so}
 ${STHREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
@@ -90,7 +91,7 @@ ${PSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
 	@${LD} -x -r ${.PREFIX}.o
-	@mv a.out ${.PREFIX}.o
+	@mv -f a.out ${.PREFIX}.o
 
 PPSEUDO=${PSEUDO:.o=.po}
 ${PPSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
@@ -98,7 +99,7 @@ ${PPSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
 	@${LD} -x -r ${.PREFIX}.po
-	@mv a.out ${.PREFIX}.po
+	@mv -f a.out ${.PREFIX}.po
 
 SPSEUDO=${PSEUDO:.o=.so}
 ${SPSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h

@@ -1,5 +1,5 @@
 # Makefile for libgmp
-# $Id: Makefile,v 1.2 1995/11/25 00:14:03 peter Exp $
+# $Id: Makefile,v 1.3 1995/11/26 09:51:42 bde Exp $
 
 LIB=    gmp
 SRCS=	$(GMP_SRCS)
@@ -53,10 +53,10 @@ cre-conv-tab: gmp-mparam.h
 
 gmp-mparam.h: cre-mparam
 	./cre-mparam > tmp-${.TARGET}
-	mv tmp-${.TARGET} ${.TARGET}
+	mv -f tmp-${.TARGET} ${.TARGET}
 
 mp_bases.c: cre-conv-tab
 	./cre-conv-tab > tmp-${.TARGET}
-	mv tmp-${.TARGET} ${.TARGET}
+	mv -f tmp-${.TARGET} ${.TARGET}
 
 .include <bsd.lib.mk>
