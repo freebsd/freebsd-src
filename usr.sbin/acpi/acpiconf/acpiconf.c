@@ -28,12 +28,15 @@
  */
 
 #include <sys/param.h>
-#include <sys/acpi.h>
 
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
+
+#include <dev/acpi/acpiio.h>
+#include <dev/acpi/acpireg.h>
 
 #define ACPIDEV	"/dev/acpi"
 

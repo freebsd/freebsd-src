@@ -30,13 +30,14 @@
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/acpi.h>
 
 #include <assert.h>
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
+
+#include <dev/acpi/acpireg.h>
 
 #include "acpidump.h"
 
