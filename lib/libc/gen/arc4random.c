@@ -122,6 +122,7 @@ arc4_getbyte(as)
 	sj = as->s[as->j];
 	as->s[as->i] = sj;
 	as->s[as->j] = si;
+
 	return (as->s[(si + sj) & 0xff]);
 }
 
@@ -130,11 +131,13 @@ arc4_getword(as)
 	struct arc4_stream *as;
 {
 	u_int32_t val;
+
 	val = arc4_getbyte(as) << 24;
 	val |= arc4_getbyte(as) << 16;
 	val |= arc4_getbyte(as) << 8;
 	val |= arc4_getbyte(as);
-	return val;
+
+	return (val);
 }
 
 void
@@ -162,7 +165,8 @@ arc4random()
 {
 	if (!rs_initialized)
 		arc4random_stir();
-	return arc4_getword(&rs);
+
+	return (arc4_getword(&rs));
 }
 
 #if 0
