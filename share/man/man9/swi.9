@@ -35,11 +35,11 @@
 .In sys/param.h
 .In sys/bus.h
 .In sys/interrupt.h
-.Vt "extern	struct ithd *tty_ithd" ;
-.Vt "extern	struct ithd *clk_ithd" ;
-.Vt "extern	void *net_ih" ;
-.Vt "extern	void *softclock_ih" ;
-.Vt "extern	void *vm_ih" ;
+.Vt "extern struct ithd *tty_ithd" ;
+.Vt "extern struct ithd *clk_ithd" ;
+.Vt "extern void *net_ih" ;
+.Vt "extern void *softclock_ih" ;
+.Vt "extern void *vm_ih" ;
 .Ft int
 .Fo swi_add
 .Fa "struct ithd **ithdp"
