@@ -494,7 +494,7 @@ release.1:
 .endif
 	mkdir ${RD}/trees
 	mkdir ${RD}/kernels
-	for i in ${DISTRIBUTIONS} ; do \
+	for i in ${DISTRIBUTIONS} special; do \
 		mkdir ${RD}/trees/$$i && \
 		mtree -deU -f ${MTREEFILES}/BSD.root.dist \
 		    -p ${RD}/trees/$$i > /dev/null && \
@@ -661,6 +661,11 @@ release.8:
 #
 
 release.9:
+.if exists(${.CURDIR}/../sys/boot/${TARGET}/loader)
+	cd ${.CURDIR}/../sys/boot/${TARGET}/loader; \
+	${WMAKE} clean cleandepend; \
+	${WMAKE} -DNOMAN -DNOFORTH all install DESTDIR=${RD}/trees/special
+.endif
 	cp ${RD}/trees/base/etc/disktab /etc
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
@@ -1069,9 +1074,9 @@ doMFSKERN:
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 .if ${TARGET} == "i386"
 	@${WMAKEENV} kgzip -v -l ${RD}/trees/base/usr/lib/kgzldr.o \
-	    -o ${RD}/image.${FSIMAGE}/boot/loader ${RD}/trees/base/boot/loader
+	    -o ${RD}/image.${FSIMAGE}/boot/loader ${RD}/trees/special/boot/loader
 .else
-	@cp ${RD}/trees/base/boot/loader ${RD}/image.${FSIMAGE}/boot
+	@cp ${RD}/trees/special/boot/loader ${RD}/image.${FSIMAGE}/boot
 .endif
 	@[ -r ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints ] && \
 	  sed -e '/^hint/s/^/set /' -e '/^#/d' \
