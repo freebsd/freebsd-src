@@ -2115,10 +2115,8 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
      * Check to see if the command succeeded.
      */
     ce = (struct ciss_error_info *)&(cc->sg[0]);
-    if (ciss_report_request(cr, NULL, NULL) == 0)
+    if ((cc->header.host_tag & CISS_HDR_HOST_TAG_ERROR) == 0)
 	bzero(ce, sizeof(*ce));
-    else
-	error = EIO;
 
     /*
      * Copy the results back to the user.
