@@ -65,6 +65,7 @@ static int tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
 	    struct rtentry *rt));
 static int tunifioctl __P((struct ifnet *, u_long, caddr_t));
 static int tuninit __P((struct ifnet *));
+static void tunstart __P((struct ifnet *));
 
 static	d_open_t	tunopen;
 static	d_close_t	tunclose;
@@ -122,6 +123,21 @@ tunattach(dummy)
 }
 
 static void
+tunstart(ifp)
+	struct ifnet *ifp;
+{
+	struct tun_softc *tp = ifp->if_softc;
+
+	if (tp->tun_flags & TUN_RWAIT) {
+		tp->tun_flags &= ~TUN_RWAIT;
+		wakeup((caddr_t)tp);
+	}
+	if (tp->tun_flags & TUN_ASYNC && tp->tun_sigio)
+		pgsigio(tp->tun_sigio, SIGIO, 0);
+	selwakeup(&tp->tun_rsel);
+}
+
+static void
 tuncreate(dev)
 	dev_t dev;
 {
@@ -141,6 +157,7 @@ tuncreate(dev)
 	ifp->if_mtu = TUNMTU;
 	ifp->if_ioctl = tunifioctl;
 	ifp->if_output = tunoutput;
+	ifp->if_start = tunstart;
 	ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 	ifp->if_type = IFT_PPP;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
@@ -402,19 +419,11 @@ tunoutput(ifp, m0, dst, rt)
 		}
 	}
 
-	if (! IF_HANDOFF(&ifp->if_snd, m0, NULL)) {
+	if (! IF_HANDOFF(&ifp->if_snd, m0, ifp)) {
 		ifp->if_collisions++;
 		return ENOBUFS;
 	}
 	ifp->if_opackets++;
-
-	if (tp->tun_flags & TUN_RWAIT) {
-		tp->tun_flags &= ~TUN_RWAIT;
-		wakeup((caddr_t)tp);
-	}
-	if (tp->tun_flags & TUN_ASYNC && tp->tun_sigio)
-		pgsigio(tp->tun_sigio, SIGIO, 0);
-	selwakeup(&tp->tun_rsel);
 	return 0;
 }
 
