@@ -213,7 +213,7 @@ process 1 ID (the init process ID).
 .Pp
 If a signal is caught while any of the
 .Fn wait
-calls is pending,
+calls are pending,
 the call may be interrupted or restarted when the signal-catching routine
 returns,
 depending on the options in effect for the signal;
@@ -232,7 +232,7 @@ is set to indicate the error.
 .Pp
 If
 .Fn wait4 ,
-.Fn wait3
+.Fn wait3 ,
 or
 .Fn waitpid
 returns due to a stopped
