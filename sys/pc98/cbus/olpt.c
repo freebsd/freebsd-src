@@ -105,6 +105,7 @@
 #include "opt_inet.h"
 #ifdef PC98
 #undef INET	/* PLIP is not supported for old PC-98 */
+#define LPT_DRVINIT_AT_ATTACH	/* avoid conflicting with lpt on ppbus */
 #endif
 
 #include <sys/param.h>
@@ -255,6 +256,7 @@ static timeout_t lptout;
 static int	lptprobe (struct isa_device *dvp);
 static int	lptattach (struct isa_device *isdp);
 static ointhand2_t	lptintr;
+static void 	lpt_drvinit(void *unused);
 
 #ifdef INET
 
@@ -487,6 +489,10 @@ lptattach(struct isa_device *isdp)
 	make_dev(&lpt_cdevsw, unit, UID_ROOT, GID_WHEEL, 0600, "lpt%d", unit);
 	make_dev(&lpt_cdevsw, unit | LP_BYPASS,
 			UID_ROOT, GID_WHEEL, 0600, "lpctl%d", unit);
+
+#ifdef LPT_DRVINIT_AT_ATTACH
+	lpt_drvinit(NULL);
+#endif
 	return (1);
 }
 
@@ -1433,6 +1439,6 @@ static void 	lpt_drvinit(void *unused)
 		lpt_devsw_installed = 1;
     	}
 }
-
+#ifndef LPT_DRVINIT_AT_ATTACH
 SYSINIT(lptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lpt_drvinit,NULL)
-
+#endif
