@@ -106,7 +106,6 @@ loop:
 	}
 	vp->v_data = de;
 	de->de_vnode = vp;
-	vhold(vp);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	*vpp = vp;
 	return (0);
@@ -148,7 +147,7 @@ devfs_getattr(ap)
 	dev_t dev;
 
 	de = vp->v_data;
-	if (vp->v_type == VDIR) 
+	if (vp->v_type == VDIR)
 		de = de->de_dir;
 	bzero((caddr_t) vap, sizeof(*vap));
 	vattr_null(vap);
@@ -245,7 +244,7 @@ devfs_lookupx(ap)
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, p);
 			return (error);
 		}
-		if ((flags & LOCKPARENT) && (flags & ISLASTCN)) 
+		if ((flags & LOCKPARENT) && (flags & ISLASTCN))
 			error = vn_lock(dvp, LK_EXCLUSIVE, p);
 		if (error)
 			vput(*vpp);
@@ -296,13 +295,13 @@ devfs_lookupx(ap)
 	printf("Finished specname: %d \"%s\"\n", i, specname + i);
 #endif
 	cdev = NODEV;
-	EVENTHANDLER_INVOKE(dev_clone, specname + i, 
+	EVENTHANDLER_INVOKE(dev_clone, specname + i,
 	    strlen(specname + i), &cdev);
 #if 0
 	printf("cloned %s -> %p %s\n", specname + i, cdev,
 	    cdev == NODEV ? "NODEV" : cdev->si_name);
 #endif
-	if (cdev == NODEV) 
+	if (cdev == NODEV)
 		goto notfound;
 
 	devfs_populate(dmp);
@@ -431,7 +430,7 @@ devfs_readdir(ap)
 	dd = TAILQ_FIRST(&de->de_dlist);
 	off = 0;
 	while (dd != NULL) {
-		if (dd->de_dirent->d_type == DT_DIR) 
+		if (dd->de_dirent->d_type == DT_DIR)
 			de = dd->de_dir;
 		else
 			de = dd;
@@ -476,14 +475,24 @@ devfs_reclaim(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct devfs_dirent *de;
+	int i;
 
 	de = vp->v_data;
+	if (de != NULL)
+		de->de_vnode = NULL;
 	if (de != NULL && de->de_flags & DE_ORPHAN) {
-		if (de->de_symlink) 
+		if (de->de_symlink)
 			FREE(de->de_symlink, M_DEVFS);
-		FREE(de, M_DEVFS);   
+		FREE(de, M_DEVFS);
 	}
 	vp->v_data = NULL;
+	if (vp->v_rdev != NODEV && vp->v_rdev != NULL) {
+		i = vcount(vp);
+		if ((vp->v_rdev->si_flags & SI_CHEAPCLONE) && i == 0) {
+			destroy_dev(vp->v_rdev);
+			printf("Reclaim <%s> %d %d Killed\n", vp->v_rdev->si_name, vp->v_rdev->si_flags, i);
+		}		
+	}
 	return (0);
 }
 
@@ -508,7 +517,6 @@ devfs_remove(ap)
 	if (dep != NULL)
 		*dep = DE_DELETED;
 	de->de_flags |= DE_ORPHAN;
-	vdrop(de->de_vnode);
 	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curproc);
 	return (0);
 }
@@ -529,8 +537,6 @@ devfs_revoke(ap)
 	struct devfs_dirent *de;
 
 	de = vp->v_data;
-	if (!(de->de_flags & DE_ORPHAN)) 
-		vdrop(de->de_vnode);
 	de->de_vnode = NULL;
 	vop_revoke(ap);
 	return (0);
@@ -565,7 +571,7 @@ devfs_setattr(ap)
 	}
 
 	de = ap->a_vp->v_data;
-	if (ap->a_vp->v_type == VDIR) 
+	if (ap->a_vp->v_type == VDIR)
 		de = de->de_dir;
 
 	error = c = 0;
