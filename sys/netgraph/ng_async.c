@@ -64,8 +64,8 @@
 
 #include <net/ppp_defs.h>
 
-/* Optimize opening and closing flags into one? Set to max # seconds delay */
-#define SYNC_OPT_TIME	1	/* one second maximum */
+/* LCP protocol number */
+#define PROTO_LCP	0xc021
 
 /* Async decode state */
 #define MODE_HUNT	0
@@ -77,15 +77,12 @@ struct private {
 	node_p  	node;		/* Our node */
 	hook_p  	async;		/* Asynchronous side */
 	hook_p  	sync;		/* Synchronous side */
-	hook_p  	sync2;		/* Synchronous side, full escapes */
 	u_char  	amode;		/* Async hunt/esape mode */
 	u_int16_t	fcs;		/* Decoded async FCS (so far) */
 	u_char	       *abuf;		/* Buffer to encode sync into */
 	u_char	       *sbuf;		/* Buffer to decode async into */
 	u_int		slen;		/* Length of data in sbuf */
-#if SYNC_OPT_TIME
 	long		lasttime;	/* Time of last async packet sent */
-#endif
 	struct		ng_async_cfg	cfg;	/* Configuration */
 	struct		ng_async_stat	stats;	/* Statistics */
 };
@@ -181,8 +178,6 @@ nga_newhook(node_p node, hook_p hook, const char *name)
 		hookp = &sc->async;
 	else if (!strcmp(name, NG_ASYNC_HOOK_SYNC))
 		hookp = &sc->sync;
-	else if (!strcmp(name, NG_ASYNC_HOOK_SYNC2))
-		hookp = &sc->sync2;
 	else
 		return (EINVAL);
 	if (*hookp)
@@ -201,18 +196,7 @@ nga_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 
 	if (hook == sc->sync)
 		return (nga_rcv_sync(sc, m, meta));
-	else if (hook == sc->sync2) {
-		const u_char acfcompSave = sc->cfg.acfcomp;
-		const u_int32_t accmSave = sc->cfg.accm;
-		int     rtn;
-
-		sc->cfg.acfcomp = 0;
-		sc->cfg.accm = ~0;
-		rtn = nga_rcv_sync(sc, m, meta);
-		sc->cfg.acfcomp = acfcompSave;
-		sc->cfg.accm = accmSave;
-		return (rtn);
-	} else if (hook == sc->async)
+	if (hook == sc->async)
 		return (nga_rcv_async(sc, m, meta));
 	panic(__FUNCTION__);
 }
@@ -335,17 +319,13 @@ nga_disconnect(hook_p hook)
 		hookp = &sc->async;
 	else if (hook == sc->sync)
 		hookp = &sc->sync;
-	else if (hook == sc->sync2)
-		hookp = &sc->sync2;
 	else
 		panic(__FUNCTION__);
 	if (!*hookp)
 		panic(__FUNCTION__ "2");
 	*hookp = NULL;
 	bzero(&sc->stats, sizeof(sc->stats));
-#if SYNC_OPT_TIME
 	sc->lasttime = 0;
-#endif
 	if (hook->node->numhooks == 0)
 		ng_rmnode(hook->node);
 	return (0);
@@ -372,28 +352,57 @@ nga_async_add(const sc_p sc, u_int16_t *fcs, u_int32_t accm, int *len, u_char x)
 }
 
 /*
- * Receive incoming synchronous data. Any "meta" information means
- * for us to apply full ACCM to this frame.
+ * Receive incoming synchronous data.
  */
 static int
 nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta)
 {
 	struct ifnet *const rcvif = m->m_pkthdr.rcvif;
+	int acfcomp, alen, error = 0;
+	struct timeval time;
 	u_int16_t fcs, fcs0;
-	int alen, error = 0;
+	u_int32_t accm;
 
-#define ADD_BYTE(x)	\
-  nga_async_add(sc, &fcs, meta ? ~0 : sc->cfg.accm, &alen, (x))
+#define ADD_BYTE(x)	nga_async_add(sc, &fcs, accm, &alen, (x))
 
+	/* Check for bypass mode */
 	if (!sc->cfg.enabled) {
 		NG_SEND_DATA(error, sc->async, m, meta);
 		return (error);
 	}
+
+	/* Defaults for ACF compression and ACCM */
+	accm = sc->cfg.accm;
+	acfcomp = sc->cfg.acfcomp;
+
+	/* Special case LCP frames: disable ACF and enable ACCM */
+	{
+		struct mbuf *n = m;
+		int off, proto;
+
+		for (proto = off = 0; (proto & 1) == 0; off++) {
+			while (n != NULL && off >= n->m_len) {
+				n = n->m_next;
+				off = 0;
+			}
+			if (n == NULL)
+				break;
+			proto = (proto << 8) | mtod(n, u_char *)[off];
+		}
+		if (proto == PROTO_LCP) {
+			accm = ~0;
+			acfcomp = 0;
+		}
+	}
+
+	/* Check for overflow */
 	if (m->m_pkthdr.len > sc->cfg.smru) {
 		sc->stats.syncOverflows++;
 		NG_FREE_DATA(m, meta);
 		return (EMSGSIZE);
 	}
+
+	/* Update stats */
 	sc->stats.syncFrames++;
 	sc->stats.syncOctets += m->m_pkthdr.len;
 
@@ -402,32 +411,22 @@ nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta)
 	fcs = PPP_INITFCS;
 
 	/* Add beginning sync flag if it's been long enough to need one */
-#if SYNC_OPT_TIME
-	{
-		struct timeval time;
-
-		getmicrotime(&time);
-		if (time.tv_sec >= sc->lasttime + SYNC_OPT_TIME) {
-			sc->abuf[alen++] = PPP_FLAG;
-			sc->lasttime = time.tv_sec;
-		}
+	getmicrotime(&time);
+	if (time.tv_sec >= sc->lasttime + 1) {
+		sc->abuf[alen++] = PPP_FLAG;
+		sc->lasttime = time.tv_sec;
 	}
-#else
-	sc->abuf[alen++] = PPP_FLAG;
-#endif
 
 	/* Add option address and control fields, then packet payload */
-	if (!sc->cfg.acfcomp || meta) {
+	if (!acfcomp) {
 		ADD_BYTE(PPP_ALLSTATIONS);
 		ADD_BYTE(PPP_UI);
 	}
-	while (m) {
+	while (m != NULL) {
 		struct mbuf *n;
 
 		while (m->m_len > 0) {
-			u_char const ch = *mtod(m, u_char *);
-
-			ADD_BYTE(ch);
+			ADD_BYTE(*mtod(m, u_char *));
 			m->m_data++;
 			m->m_len--;
 		}
@@ -442,17 +441,18 @@ nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta)
 	sc->abuf[alen++] = PPP_FLAG;
 
 	/* Put frame in an mbuf and ship it off */
-	NG_FREE_META(meta);
-	if (!(m = m_devget(sc->abuf, alen, 0, rcvif, NULL)))
+	if (!(m = m_devget(sc->abuf, alen, 0, rcvif, NULL))) {
+		NG_FREE_META(meta);
 		error = ENOBUFS;
-	else
+	} else
 		NG_SEND_DATA(error, sc->async, m, meta);
 	return (error);
 }
 
 /*
  * Receive incoming asynchronous data
- * XXX technically, we should strip out supposedly escaped characters
+ * XXX Technically, we should strip out incoming characters
+ *     that are in our ACCM. Not sure if this is good or not.
  */
 static int
 nga_rcv_async(const sc_p sc, struct mbuf * m, meta_p meta)
