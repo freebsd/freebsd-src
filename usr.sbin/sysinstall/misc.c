@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.6 1995/05/18 16:53:53 jkh Exp $
+ * $Id: misc.c,v 1.7 1995/05/18 16:57:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -40,6 +40,7 @@
 
 #include "sysinstall.h"
 #include <ctype.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/errno.h>
 #include <sys/file.h>
@@ -176,8 +177,12 @@ Mkdir(char *ipath, void *data)
 {
     struct stat sb;
     int final=0;
-    char *p, *path = strdup(ipath);
+    char *p, *path;
 
+    if (access(ipath, R_OK) == 0)
+	return 0;
+
+    path = strdup(ipath);
     msgDebug("mkdir(%s)\n", path);
     p = path;
     if (p[0] == '/')		/* Skip leading '/'. */
@@ -222,9 +227,10 @@ Mount(char *mountp, void *dev)
     }
     memset(&ufsargs,0,sizeof ufsargs);
 
-    if (access(mountpoint, R_OK))
-	Mkdir(mountpoint, NULL);
-
+    if (Mkdir(mountpoint, NULL)) {
+	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
+	return 1;
+    }
     msgDebug("mount %s %s\n", device, mountpoint); 
     ufsargs.fspec = device;
     if (mount(MOUNT_UFS, mountpoint, 0, (caddr_t)&ufsargs) == -1) {

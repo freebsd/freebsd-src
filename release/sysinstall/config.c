@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.47 1995/05/22 14:10:17 jkh Exp $
+ * $Id: config.c,v 1.1 1995/05/23 02:40:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -191,5 +191,24 @@ config_sysconfig(void)
 void
 config_resolv(void)
 {
-}
+    static Boolean alreadyDone = FALSE;
+    FILE *fp;
 
+    if (alreadyDone)
+	return;
+
+    if (!getenv(VAR_DOMAINNAME) || !getenv(VAR_NAMESERVER)) {
+	msgConfirm("Warning: You haven't set a domain name or nameserver.  You will need\nto configure your /etc/resolv.conf file manually to fully use network services.");
+	return;
+    }
+    Mkdir("/etc", NULL);
+    fp = fopen("/etc/resolv.conf", "w");
+    if (!fp) {
+	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
+	return;
+    }
+    fprintf(fp, "domain\t%s\n", getenv(VAR_DOMAINNAME));
+    fprintf(fp, "nameserver\t%s\n", getenv(VAR_NAMESERVER));
+    fclose(fp);
+    alreadyDone = TRUE;
+}
