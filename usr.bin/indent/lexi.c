@@ -242,7 +242,7 @@ lexi(void)
 	    ps.last_u_d = true;
 	    return (decl);
 	}
-	ps.last_u_d = false;	/* Operator after indentifier is binary */
+	ps.last_u_d = false;	/* Operator after identifier is binary */
 	last_code = ident;	/* Remember that this is the code we will
 				 * return */
 
@@ -362,7 +362,7 @@ lexi(void)
 	code = (had_eof ? 0 : newline);
 
 	/*
-	 * if data has been exausted, the newline is a dummy, and we should
+	 * if data has been exhausted, the newline is a dummy, and we should
 	 * return code to stop
 	 */
 	break;
