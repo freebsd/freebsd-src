@@ -509,11 +509,6 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	if (oldstate == state)
 		return (0);
 
-	if (bootverbose)
-		printf(
-		    "pci%d:%d:%d: Transition from D%d to D%d\n",
-		    dinfo->cfg.bus, dinfo->cfg.slot, dinfo->cfg.func,
-		    oldstate, state);
 	/*
 	 * The PCI power management specification states that after a state
 	 * transition between PCI power states, system software must
@@ -556,6 +551,13 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	default:
 		return (EINVAL);
 	}
+
+	if (bootverbose)
+		printf(
+		    "pci%d:%d:%d: Transition from D%d to D%d\n",
+		    dinfo->cfg.bus, dinfo->cfg.slot, dinfo->cfg.func,
+		    oldstate, state);
+
 	PCI_WRITE_CONFIG(dev, child, cfg->pp.pp_status, status, 2);
 	if (delay)
 		DELAY(delay);
