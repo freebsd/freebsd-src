@@ -235,6 +235,11 @@ create last_module_option sizeof module.next allot 0 last_module_option !
 : 2r> postpone r> postpone r> ; immediate
 : 2r@ postpone 2r> postpone 2dup postpone 2>r ; immediate
 
+: getenv?
+  getenv
+  -1 = if false else drop true then
+;
+
 \ Private definitions
 
 vocabulary support-functions
@@ -1300,13 +1305,12 @@ also builtins
 \   1. The "bootfile" environment variable
 \   2. The "kernel" environment variable
 \
-\ Flags are passed, if available.
+\ Flags are passed, if available. If not, dummy values must be given.
 \
 \ The kernel gets loaded from the current module_path.
 
-: load_a_kernel ( flags len 1 | 0 -- flag )
+: load_a_kernel ( flags len 1 | x x 0 -- flag )
   local args
-  args 0= if 0 0 then
   2local flags
   0 0 2local kernel
   end-locals
@@ -1379,8 +1383,7 @@ also builtins
   modulepath setenv
 
   \ Try all default kernel names
-  args 2 = if flags 1 else 0 then
-  load_a_kernel
+  flags args 1- load_a_kernel
   0= if ( success )
     oldmodulepath nip -1 <> if
       newmodulepath s" ;" strcat
@@ -1399,8 +1402,7 @@ also builtins
   modulepath setenv
 
   \ Try all default kernel names
-  args 2 = if flags 1 else 0 then
-  load_a_kernel
+  flags args 1- load_a_kernel
   if ( failed once more )
     oldmodulepath restoreenv
     newmodulepath drop free-memory
@@ -1454,11 +1456,6 @@ also builtins
   flags path args try_multiple_kernels
 ;
 
-: load_kernel_and_modules ( flags len path len' 2 | path len' 1 -- flag )
-  load_directory_or_file
-  ?dup 0= if ['] load_modules catch then
-;
-
 : initialize  ( addr len -- )
   strdup conf_files .len ! conf_files .addr !
 ;
@@ -1468,24 +1465,25 @@ also builtins
   dup -1 = if drop 0 else 1 then
 ;
 
-: kernel_and_options  ( a u 1 | 0 -- a u a' u' 2 | a' u' 1 )
-  kernel_options
+: standard_kernel_search  ( flags 1 | 0 -- flag )
+  local args
+  args 0= if 0 0 then
+  2local flags
   s" kernel" getenv
-  rot 1+
+  dup -1 = if 0 swap then
+  2local path
+  end-locals
+
+  path dup -1 = if ( there isn't a "kernel" environment variable )
+    2drop
+    flags args load_a_kernel
+  else
+    flags path args 1+ clip_args load_directory_or_file
+  then
 ;
 
 : load_kernel  ( -- ) ( throws: abort )
-  s" kernel" getenv
-  dup -1 = if ( there isn't a "kernel" environment variable, try bootfile )
-    drop
-    kernel_options load_a_kernel
-  else ( try finding a kernel using ${kernel} in various ways )
-    kernel_options >r 2swap r> clip_args load_from_directory
-    dup if
-      drop
-      kernel_and_options try_multiple_kernels
-    then
-  then
+  kernel_options standard_kernel_search
   abort" Unable to load a kernel!"
 ;
 
@@ -1597,7 +1595,7 @@ also builtins
   drop ( empty string )
 ;
 
-: load-conf  ( args -- flag )
+: load_conf  ( args -- flag )
   set-tempoptions
   argc >r
   s" temp_options" getenv dup -1 <> if
@@ -1606,11 +1604,11 @@ also builtins
     drop
   then
   r> if ( a path was passed )
-    load_kernel_and_modules
+    load_directory_or_file
   else
-    load_a_kernel
-    ?dup 0= if ['] load_modules catch then
+    standard_kernel_search
   then
+  ?dup 0= if ['] load_modules catch then
 ;
 
 : read-password { size | buf len -- }
