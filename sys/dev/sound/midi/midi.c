@@ -90,10 +90,8 @@ static struct cdevsw midi_cdevsw = {
  * descriptors for active devices. also used as the public softc
  * of a device.
  */
-mididev_info midi_info[NMIDI_MAX];
-
-u_long nmidi;	/* total number of midi devices, filled in by the driver */
-u_long nsynth;	/* total number of synthesizers, filled in by the driver */
+static mididev_info midi_info[NMIDI_MAX];
+static int nmidi, nsynth;
 
 /* These make the buffer for /dev/midistat */
 static int midistatbusy;
@@ -141,7 +139,6 @@ mididev_info *
 get_mididev_info(dev_t i_dev, int *unit)
 {
 	int u;
-	mididev_info *d = NULL;
 
 	if (MIDIDEV(i_dev) != MIDI_DEV_MIDIN)
 		return NULL;
@@ -149,13 +146,53 @@ get_mididev_info(dev_t i_dev, int *unit)
 	if (unit)
 		*unit = u;
 
-	if (u >= nmidi + nsynth) {
-		DEB(printf("get_mididev_info: unit %d is not configured.\n", u));
+	return get_mididev_info_unit(u);
+}
+
+/*
+ * a small utility function which, given a unit number, returns
+ * a pointer to the associated mididev_info struct.
+ */
+mididev_info *
+get_mididev_info_unit(int unit)
+{
+	mididev_info *d;
+
+	if (unit >= nmidi + nsynth) {
+		DEB(printf("get_mididev_info_unit: unit %d is not configured.\n", u));
 		return NULL;
 	}
-	d = &midi_info[u];
+	d = &midi_info[unit];
 
 	return d;
+}
+
+/* Create a new midi device info structure. */
+mididev_info *
+create_mididev_info_unit(int *unit, int type)
+{
+	/* XXX midi_info is still static. */
+	switch (type) {
+	case MDT_MIDI:
+		nmidi++;
+		break;
+	case MDT_SYNTH:
+		nsynth++;
+		break;
+	default:
+		panic("unsupported device type");
+		break;
+	}
+
+	*unit = nmidi + nsynth - 1;
+	return get_mididev_info_unit(*unit);
+}
+
+/* Return the number of configured devices. */
+int
+mididev_info_number(void)
+{
+	return nmidi + nsynth;
 }
 
 /*
