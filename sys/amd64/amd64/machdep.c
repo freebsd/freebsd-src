@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.345 1999/06/28 15:34:54 luoqi Exp $
+ *	$Id: machdep.c,v 1.346 1999/07/01 18:27:15 peter Exp $
  */
 
 #include "apm.h"
@@ -1141,9 +1141,7 @@ getmemsize(int first)
 		u_int64_t length;
 		u_int32_t type;
 	} *smap;
-#if NNPX > 0
 	int msize;
-#endif
 
 	bzero(&vmf, sizeof(struct vm86frame));
 	bzero(physmap, sizeof(physmap));
@@ -1353,6 +1351,14 @@ physmap_done:
 		}
 	}
 #endif
+
+	/* Allow final override from the kernel environment */
+	if (getenv_int("MAXMEM", &msize)) {
+		if (msize != 0) {
+			Maxmem = msize / 4;
+			speculative_mprobe = FALSE;
+		}
+	}
 
 #ifdef SMP
 	/* look for the MP hardware - needed for apic addresses */
