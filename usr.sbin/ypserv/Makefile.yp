@@ -478,8 +478,7 @@ $(PASSWD): $(MASTER)
 passwd.byname: $(PASSWD)
 	@echo "Updating $@..."
 	$(CAT) $(PASSWD) | \
-	$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
-		print $$1"\t"$$0 }' $^ \
+	$(AWK) -F: '{ if ($$1 != "+") print $$1"\t"$$0 }' $^ \
 		| $(DBLOAD) -f -i $(PASSWD) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -490,8 +489,7 @@ passwd.byname: $(PASSWD)
 passwd.byuid: $(PASSWD)
 	@echo "Updating $@..."
 	$(CAT) $(PASSWD) | \
-	$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
-		print $$3"\t"$$0 }' $^ \
+	$(AWK) -F: '{ if ($$1 != "+") print $$3"\t"$$0 }' $^ \
 		| $(DBLOAD) -f -i $(PASSWD) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -503,8 +501,7 @@ passwd.byuid: $(PASSWD)
 group.byname: $(GROUP)
 	@echo "Updating $@..."
 	$(CAT) $(GROUP) | \
-	$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
-		print $$1"\t"$$0 }' $^ \
+	$(AWK) -F: '{ if ($$1 != "+") print $$1"\t"$$0 }' $^ \
 		| $(DBLOAD) -f -i $(GROUP) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -515,8 +512,7 @@ group.byname: $(GROUP)
 group.bygid: $(GROUP)
 	@echo "Updating $@..."
 	$(CAT) $(GROUP) | \
-	$(AWK) -F: '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
-		print $$3"\t"$$0 }' $^ \
+	$(AWK) -F: '{ if ($$1 != "+") print $$3"\t"$$0 }' $^ \
 		| $(DBLOAD) -f -i $(GROUP) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
