@@ -64,8 +64,10 @@ static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 struct oshmctl_args;
 static int oshmctl __P((struct proc *p, struct oshmctl_args *uap));
 
-static int shmget_allocate_segment __P((struct proc *p, struct shmget_args *uap, int mode));
-static int shmget_existing __P((struct proc *p, struct shmget_args *uap, int mode, int segnum));
+static int shmget_allocate_segment __P((struct proc *p,
+    struct shmget_args *uap, int mode));
+static int shmget_existing __P((struct proc *p, struct shmget_args *uap,
+    int mode, int segnum));
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *shmcalls[] = {
@@ -104,10 +106,10 @@ static void shmexit_myhook __P((struct proc *p));
 static void shmfork_myhook __P((struct proc *p1, struct proc *p2));
 
 /*
- * Tuneable values
+ * Tuneable values.
  */
 #ifndef SHMMAXPGS
-#define	SHMMAXPGS	8192	/* note: sysv shared memory is swap backed */
+#define	SHMMAXPGS	8192	/* Note: sysv shared memory is swap backed. */
 #endif
 #ifndef SHMMAX
 #define	SHMMAX	(SHMMAXPGS*PAGE_SIZE)
@@ -141,7 +143,8 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, shmmin, CTLFLAG_RW, &shminfo.shmmin, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shmmni, CTLFLAG_RD, &shminfo.shmmni, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shmseg, CTLFLAG_RD, &shminfo.shmseg, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RW, &shminfo.shmall, 0, "");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RW, &shm_use_phys, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RW,
+    &shm_use_phys, 0, "");
 
 static int
 shm_find_segment_by_key(key)
@@ -181,8 +184,7 @@ shm_deallocate_segment(shmseg)
 	struct shm_handle *shm_handle;
 	size_t size;
 
-	/* for vm_object_deallocate */
-	mtx_assert(&vm_mtx, MA_OWNED);
+	mtx_assert(&vm_mtx, MA_OWNED);		/* For vm_object_deallocate. */
 	shm_handle = shmseg->shm_internal;
 	vm_object_deallocate(shm_handle->shm_object);
 	free((caddr_t)shm_handle, M_SHM);
@@ -202,12 +204,14 @@ shm_delete_mapping(p, shmmap_s)
 	int segnum, result;
 	size_t size;
 
-	/* for vm_map_remove and shm_deallocate_segment */
+	/* For vm_map_remove and shm_deallocate_segment. */
 	mtx_assert(&vm_mtx, MA_OWNED);
+
 	segnum = IPCID_TO_IX(shmmap_s->shmid);
 	shmseg = &shmsegs[segnum];
 	size = round_page(shmseg->shm_segsz);
-	result = vm_map_remove(&p->p_vmspace->vm_map, shmmap_s->va, shmmap_s->va + size);
+	result = vm_map_remove(&p->p_vmspace->vm_map, shmmap_s->va,
+	    shmmap_s->va + size);
 	if (result != KERN_SUCCESS)
 		return EINVAL;
 	shmmap_s->shmid = -1;
@@ -318,8 +322,12 @@ shmat(p, uap)
 		else
 			return EINVAL;
 	} else {
-		/* This is just a hint to vm_map_find() about where to put it. */
-		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_taddr + MAXTSIZ + MAXDSIZ);
+		/*
+		 * This is just a hint to vm_map_find() about where to
+		 * put it.
+		 */
+		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_taddr
+		    + MAXTSIZ + MAXDSIZ);
 	}
 
 	shm_handle = shmseg->shm_internal;
@@ -530,13 +538,13 @@ shmget_allocate_segment(p, uap, mode)
 
 	if (uap->size < shminfo.shmmin || uap->size > shminfo.shmmax)
 		return EINVAL;
-	if (shm_nused >= shminfo.shmmni) /* any shmids left? */
+	if (shm_nused >= shminfo.shmmni) /* Any shmids left? */
 		return ENOSPC;
 	size = round_page(uap->size);
 	if (shm_committed + btoc(size) > shminfo.shmall)
 		return ENOMEM;
 	if (shm_last_free < 0) {
-		shmrealloc();	/* maybe expand the shmsegs[] array */
+		shmrealloc();	/* Maybe expand the shmsegs[] array. */
 		for (i = 0; i < shmalloced; i++)
 			if (shmsegs[i].shm_perm.mode & SHMSEG_FREE)
 				break;
@@ -669,8 +677,7 @@ shmexit_myhook(p)
 	struct shmmap_state *shmmap_s;
 	int i;
 
-	/* shm_delete_mapping requires this */
-	mtx_assert(&vm_mtx, MA_OWNED);
+	mtx_assert(&vm_mtx, MA_OWNED);	/* For shm_delete_mapping. */
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
 	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++)
 		if (shmmap_s->shmid != -1)
