@@ -397,7 +397,19 @@ ia64_get_cpuid(int i)
 	return result;
 }
 
-#endif
+static __inline void
+ia64_disable_highfp(void)
+{
+	__asm __volatile("ssm psr.dfh;; srlz.d");
+}
+
+static __inline void
+ia64_enable_highfp(void)
+{
+	__asm __volatile("rsm psr.dfh;; srlz.d");
+}
+
+#endif /* !LOCORE */
 
 #endif /* _MACHINE_IA64_CPU_H_ */
 
