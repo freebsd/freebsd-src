@@ -1331,7 +1331,7 @@ checklabel(lp)
 	register struct partition *pp;
 	int i, errors = 0;
 	char part;
-	unsigned long total_size,total_percent,current_offset;
+	unsigned long total_size, total_percent, current_offset;
 	int seen_default_offset;
 	int hog_part;
 	int j;
@@ -1394,7 +1394,7 @@ checklabel(lp)
 				}
 			} else {
 				char *type;
-				unsigned long size;
+				off_t size;
 
 				size = pp->p_size;
 				switch (part_size_type[i]) {
@@ -1403,15 +1403,15 @@ checklabel(lp)
 					break;
 				case 'k':
 				case 'K':
-					size *= 1024UL;
+					size *= 1024ULL;
 					break;
 				case 'm':
 				case 'M':
-					size *= ((unsigned long) 1024*1024);
+					size *= 1024ULL * 1024ULL;
 					break;
 				case 'g':
 				case 'G':
-					size *= ((unsigned long) 1024*1024*1024);
+					size *= 1024ULL * 1024ULL * 1024ULL;
 					break;
 				case '\0':
 					break;
