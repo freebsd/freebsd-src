@@ -60,7 +60,8 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #include "pci_if.h"
 
-#if defined(__i386__) || defined(__amd64__) || defined (__ia64__)
+#if (defined(__i386__) && !defined(PC98)) || defined(__amd64__) || \
+    defined (__ia64__)
 #include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
 #include "acpi_if.h"
