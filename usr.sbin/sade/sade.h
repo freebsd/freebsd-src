@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.37 1995/05/27 23:39:32 phk Exp $
+ * $Id: sysinstall.h,v 1.38 1995/05/28 03:05:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -197,6 +197,17 @@ typedef struct _part_info {
 
 typedef int (*commandFunc)(char *key, void *data);
 
+#define HOSTNAME_FIELD_LEN	256
+#define IPADDR_FIELD_LEN	16
+#define EXTRAS_FIELD_LEN	256
+
+/* This is the structure that Network devices carry around in their private, erm, structures */
+typedef struct _devPriv {
+    char ipaddr[IPADDR_FIELD_LEN];
+    char netmask[IPADDR_FIELD_LEN];
+    char extras[EXTRAS_FIELD_LEN];
+} DevInfo;
+
 
 /*** Externs ***/
 extern int		DebugFD;		/* Where diagnostic output goes			*/
@@ -229,7 +240,12 @@ extern DMenu		MenuMediaFloppy;	/* Floppy media menu				*/
 extern DMenu		MenuMediaFTP;		/* FTP media menu				*/
 extern DMenu		MenuMediaTape;		/* Tape media menu				*/
 extern DMenu		MenuNetworkDevice;	/* Network device menu				*/
+extern DMenu		MenuNTP;		/* NTP time server menu				*/
 extern DMenu		MenuSyscons;		/* System console configuration menu		*/
+extern DMenu		MenuSysconsKeymap;	/* System console keymap configuration menu	*/
+extern DMenu		MenuSysconsKeyrate;	/* System console keyrate configuration menu	*/
+extern DMenu		MenuSysconsSaver;	/* System console saver configuration menu	*/
+extern DMenu		MenuNetworking;		/* Network configuration menu			*/
 extern DMenu		MenuInstall;		/* Installation menu				*/
 extern DMenu		MenuInstallType;	/* Installation type menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
@@ -402,6 +418,7 @@ extern char	*msgGetInput(char *buf, char *fmt, ...);
 /* network.c */
 extern Boolean	mediaInitNetwork(Device *dev);
 extern void	mediaShutdownNetwork(Device *dev);
+extern int	configRoutedFlags(char *str);
 
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
@@ -426,7 +443,6 @@ extern void	mediaShutdownTape(Device *dev);
 /* tcpip.c */
 extern int	tcpOpenDialog(Device *dev);
 extern int	tcpDeviceSelect(char *str);
-extern Boolean	tcpStartPPP(Device *dev);
 
 /* termcap.c */
 extern int	set_termcap(void);

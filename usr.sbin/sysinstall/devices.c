@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.31 1995/05/26 08:41:37 jkh Exp $
+ * $Id: devices.c,v 1.32 1995/05/27 23:52:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -90,8 +90,8 @@ static struct {
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
     { DEVICE_TYPE_FLOPPY,	"rfd0",		"floppy drive unit A"					},
     { DEVICE_TYPE_FLOPPY,	"rfd1",		"floppy drive unit B"					},
-    { DEVICE_TYPE_NETWORK,	"cuaa0",	"Serial port (COM1) - possible PPP device"		},
-    { DEVICE_TYPE_NETWORK,	"cuaa1",	"Serial port (COM2) - possible PPP device"		},
+    { DEVICE_TYPE_NETWORK,	"cuaa0",	"Serial port (COM1) - possible PPP/SLIP device"		},
+    { DEVICE_TYPE_NETWORK,	"cuaa1",	"Serial port (COM2) - possible PPP/SLIP device"		},
     { DEVICE_TYPE_NETWORK,	"lp0",		"Parallel Port IP (PLIP) using laplink cable"		},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"			},
     { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
