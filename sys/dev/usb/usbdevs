@@ -40,16 +40,16 @@ $FreeBSD$
 /*
  * List of known USB vendors
  *
- * Adding an ID and its string description for a device to the usbdevs file,
- * enables the USB stack to print a useful description of the device that was
- * connected.
+ * Adding an ID and its string description for a device to the usbdevs
+ * file, enables the USB stack to print a useful description of the
+ * device that was connected.
  *
- * Please note that these IDs do not do anything. Adding an ID here and
- * regenerating the usbdevs.h and usbdevs_data.h only makes a symbolic name
- * available to the source code and does not change any functionality, nor
- * does it make your device available to a specific driver.
- * It will however make the descriptive string available if a device does not
- * provide the string itself.
+ * Please note that these IDs do not do anything. Adding an ID here
+ * only makes a symbolic name available to the source code and does
+ * not change any functionality, nor does it make your device
+ * available to a specific driver.  It will however make the
+ * descriptive string available if a device does not provide the
+ * string itself.
  *
  * After adding a vendor ID VNDR and a product ID PRDCT you will have the
  * following extra defines:
