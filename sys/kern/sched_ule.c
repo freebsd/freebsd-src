@@ -591,8 +591,6 @@ kseq_move(struct kseq *from, int cpu)
 	ke->ke_state = KES_THREAD;
 	kseq_runq_rem(kseq, ke);
 	kseq_load_rem(kseq, ke);
-
-	ke->ke_cpu = cpu;
 	kseq_notify(ke, cpu);
 }
 
@@ -658,6 +656,7 @@ kseq_notify(struct kse *ke, int cpu)
 	struct thread *td;
 	struct pcpu *pcpu;
 
+	ke->ke_cpu = cpu;
 	ke->ke_flags |= KEF_ASSIGNED;
 
 	kseq = KSEQ_CPU(cpu);
@@ -761,7 +760,6 @@ kseq_transfer(struct kseq *kseq, struct kse *ke, int class)
 	 */
 	if (cpu) {
 		cpu--;
-		ke->ke_cpu = cpu;
 		ke->ke_runq = NULL;
 		kseq_notify(ke, cpu);
 		return (1);
@@ -1584,6 +1582,7 @@ sched_add(struct thread *td)
 	}
 #ifdef SMP
 	if (ke->ke_cpu != PCPU_GET(cpuid)) {
+		ke->ke_runq = NULL;
 		kseq_notify(ke, ke->ke_cpu);
 		return;
 	}
@@ -1696,7 +1695,6 @@ sched_bind(struct thread *td, int cpu)
 	ke->ke_state = KES_THREAD;
 	ke->ke_ksegrp->kg_runq_kses--;
 	kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
-	ke->ke_cpu = cpu;
 	kseq_notify(ke, cpu);
 	/* When we return from mi_switch we'll be on the correct cpu. */
 	td->td_proc->p_stats->p_ru.ru_nvcsw++;
