@@ -18,7 +18,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7770.c,v 1.5 1994/11/18 20:34:30 gibbs Exp $
+ *      $Id: aic7770.c,v 1.6 1994/11/25 22:25:15 ats Exp $
  */
 /*
  * TODO:
@@ -1326,11 +1326,14 @@ ahc_init(unit)
 	printf("SCSI Id=%d\n", ahc->our_id);
 
 	/*
-	 * Load the Sequencer program and Enable the adapter
+	 * Load the Sequencer program and Enable the adapter.
+	 * Place the aic7770 in fastmode which makes a big
+	 * difference when doing many small block transfers.
          */
 	
         printf("ahc%d: Downloading Sequencer Program\n", unit);
 	ahc_loadseq(port);
+        outb(SEQCTL + port, FASTMODE);
 	outb(BCTL + port, ENABLE); 
 
 	/* Reset the SCSI bus.  Is this necessary? */
@@ -1640,7 +1643,7 @@ void ahc_loadseq(port)
 	int port;
 {
         static unsigned char seqprog[] = {
-#               include "../../sys/gnu/misc/aic7770/aic7770_seq.h"
+#               include <gnu/misc/aic7770/aic7770_seq.h>
         };
  
         outb(SEQCTL + port, PERRORDIS|SEQRESET|LOADRAM);
