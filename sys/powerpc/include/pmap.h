@@ -36,6 +36,7 @@
 #define	_MACHINE_PMAP_H_
 
 #include <machine/sr.h>
+#include <machine/pte.h>
 
 #if !defined(NPMAPS)
 #define	NPMAPS		32768
