@@ -1,5 +1,6 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.17 1994/12/04 03:41:18 jkh Exp $
+# $Id: extract_info.sh,v 1.1 1995/01/14 07:41:42 jkh Exp $
+set -e
 PATH=/stand:$PATH
 DDIR=/
 

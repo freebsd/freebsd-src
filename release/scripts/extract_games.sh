@@ -1,5 +1,6 @@
 #!/bin/sh
-# $Id: extract_games.sh,v 1.1 1995/01/14 07:41:41 jkh Exp $
+# $Id: extract_games.sh,v 1.2 1995/01/28 09:07:43 jkh Exp $
+set -e
 PATH=/stand:$PATH
 DDIR=/
 
