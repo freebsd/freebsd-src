@@ -795,7 +795,7 @@ xe_media_change(struct ifnet *ifp) {
   struct xe_softc *scp = ifp->if_softc;
 
 #ifdef XE_DEBUG
-  printf("xe%d: media_change\n", ifp->if_unit);
+  if_printf(ifp, "media_change\n");
 #endif
 
   if (IFM_TYPE(scp->ifm->ifm_media) != IFM_ETHER)
@@ -821,7 +821,7 @@ static void
 xe_media_status(struct ifnet *ifp, struct ifmediareq *mrp) {
 
 #ifdef XE_DEBUG
-  printf("xe%d: media_status\n", ifp->if_unit);
+  if_printf(ifp, "media_status\n");
 #endif
 
   mrp->ifm_active = ((struct xe_softc *)ifp->if_softc)->media;
