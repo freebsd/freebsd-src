@@ -732,7 +732,7 @@ inithosts()
 						   ai->ai_addr->sa_len) == 0) {
 						gothost++;
 						break;
-				}
+					}
 				if (gothost)
 					break;
 			}
