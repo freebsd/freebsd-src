@@ -357,16 +357,18 @@ gpib_ib_irq(struct upd7210 *u)
 		}
 		return (1);
 	}
-	if ((u->rreg[ISR1] & IXR1_DO) && ib->dolen > 0) {
+	if ((u->rreg[ISR1] & IXR1_DO) && ib->dobuf != NULL) {
+		if (ib->dolen == 0) {
+			wakeup(ib);
+			ib->dobuf = NULL;
+			write_reg(u, IMR1, 0);
+			return (1);
+		}
 		if (ib->dolen == 1 && ib->doeoi)
 			write_reg(u, AUXMR, AUXMR_SEOI);
 		write_reg(u, CDOR, *ib->dobuf);
 		ib->dobuf++;
 		ib->dolen--;
-		if (ib->dolen == 0) {
-			wakeup(ib);
-			write_reg(u, IMR1, 0);
-		}
 		return (1);
 	}
 	if (u->rreg[ISR1] & IXR1_ENDRX) {
@@ -384,11 +386,15 @@ config_eos(struct upd7210 *u, struct handle *h)
 	int i;
 
 	i = 0;
-	if (h->eos & 0x0400) {
+	if (h->eos & REOS) {
 		write_reg(u, EOSR, h->eos & 0xff);
 		i |= AUXA_REOS;
 	}
-	if (h->eos & 0x1000)
+	if (h->eos & XEOS) {
+		write_reg(u, EOSR, h->eos & 0xff);
+		i |= AUXA_XEOS;
+	}
+	if (h->eos & BIN)
 		i |= AUXA_BIN;
 	write_reg(u, AUXRA, C_AUXA | i);
 }
@@ -476,10 +482,12 @@ do_odata(struct upd7210 *u, u_char *data, int len, int eos)
 
 	ib = u->ibfoo;
 
+	if (len == 0)
+		return (0);
 	mtx_lock(&u->mutex);
 	ib->dobuf = data;
 	ib->dolen = len;
-	ib->doeoi = 1;
+	ib->doeoi = 0;
 	
 	if (!(u->rreg[ISR1] & IXR1_DO)) {
 		i1 = read_reg(u, ISR1);
@@ -737,6 +745,7 @@ ibwrt(struct upd7210 *u, struct ibfoo_iocarg *ap)
 		ib->rdh = NULL;
 		ib->wrh = h;
 		upd7210_goto_standby(u);
+		config_eos(u, h);
 	}
 	i = do_odata(u, bp, ap->cnt, 1);
 	ap->__ibcnt = i;
