@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.39 1995/04/09 06:02:43 davidg Exp $
+ * $Id: vfs_bio.c,v 1.40 1995/04/16 05:11:14 davidg Exp $
  */
 
 /*
@@ -118,7 +118,6 @@ bufinit()
 		bzero(bp, sizeof *bp);
 		bp->b_flags = B_INVAL;	/* we're just an empty header */
 		bp->b_dev = NODEV;
-		bp->b_vp = NULL;
 		bp->b_rcred = NOCRED;
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
