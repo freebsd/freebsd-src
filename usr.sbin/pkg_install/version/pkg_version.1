@@ -32,7 +32,7 @@
 .Nd summarize installed versions of packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdhv
+.Op Fl hv
 .Op Fl l Ar limchar
 .Op Fl L Ar limchar
 .Op Fl s Ar string
@@ -110,23 +110,6 @@ The
 .Nm
 utility supports several command-line arguments:
 .Bl -tag -width indent
-.It Fl c
-Enable commands output.  Commands output includes the commands you should
-type to update your installed packages to the latest versions in the ports
-system.
-This feature does
-.Bf Em
-not
-.Ef
-constitute an automated packages updating system.
-The output of this command
-.Bf Em
-must
-.Ef
-be edited, in order to avoid destroying dependencies between installed
-packages.
-.It Fl d
-Enable debugging output.
 .It Fl h
 Print help message.
 .It Fl l
@@ -201,42 +184,19 @@ the version numbers in the on-line ports collection:
 .Pp
 .Dl % pkg_version ftp://ftp.FreeBSD.org/pub/FreeBSD/branches/-current/ports/INDEX
 .Pp
-The command below generates a file of commands to run to update the installed
-files.
-These commands must
-.Bf Em
-not
-.Ef
-be run without suitable editing.
-They should be treated as suggestions, and may need to be reordered
-to account for dependencies between installed packages, or may need to
-be disregarded if multiple versions of an installed package can coexist.
-Blindly running the output of this command may leave a system in an
-unusable state.
-.Pp
-.Dl % pkg_version -c > do_update
-.Pp
 The following command compares two package version strings:
 .Pp
 .Dl % pkg_version -t 1.5 1.5.1
 .Sh AUTHORS
-.An Bruce A. Mah Aq bmah@FreeBSD.org
+The
+.Nm
+utility was written by
+.An Jeremy D. Lea Aq reg@FreeBSD.org ,
+partially based on a Perl script written by
+.An Bruce A. Mah Aq bmah@FreeBSD.org .
 .Sh CONTRIBUTORS
 .An Nik Clayton Aq nik@FreeBSD.org ,
 .An Dominic Mitchell Aq dom@palmerharvey.co.uk ,
 .An Mark Ovens Aq marko@FreeBSD.org ,
 .An Doug Barton Aq DougB@gorean.org ,
 .An Akinori MUSHA Aq knu@FreeBSD.org
-.Sh BUGS
-The commands output feature is
-.Bf Em
-not
-.Ef
-an automated ports/packages updating system.
-It does not even attempt to handle dependencies between installed
-packages correctly, and can produce incorrect results if multiple
-versions of a package can coexist on a system.
-.Pp
-Commands output assumes you install new software using the ports system,
-rather than using
-.Xr pkg_add 1 .
