@@ -516,15 +516,6 @@ pcic_pci_intr(void *arg)
 	 * in the CD change.
 	 */
 	sp->getb(sp, PCIC_STAT_CHG);
-
-	/*
-	 * If we have a card in the slot with an interrupt handler, then
-	 * call it.  Note: This means that each card can have at most one
-	 * interrupt handler for it.  Since multifunction cards aren't
-	 * supported, this shouldn't cause a problem in practice.
-	 */
-	if (sc->cd_present && sp->intr != NULL)
-		sp->intr(sp->argp);
 }
 
 /*
@@ -785,36 +776,6 @@ pcic_pci_get_memory(device_t dev)
 	return (0);
 }
 
-static int
-pcic_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
-    int flags, driver_intr_t *intr, void *arg, void **cookiep)
-{
-	struct pcic_softc *sc = (struct pcic_softc *) device_get_softc(dev);
-	struct pcic_slot *sp = &sc->slots[0];
-	
-	if (sp->intr) {
-		device_printf(dev,
-"Interrupt already established, possible multiple attach bug.\n");
-		return (EINVAL);
-	}
-	sp->intr = intr;
-	sp->argp = arg;
-	*cookiep = sc;
-	return (0);
-}
-
-static int
-pcic_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
-    void *cookie)
-{
-	struct pcic_softc *sc = (struct pcic_softc *) device_get_softc(dev);
-	struct pcic_slot *sp = &sc->slots[0];
-
-	sp->intr = NULL;
-	sp->argp = NULL;
-	return (0);
-}
-
 static device_method_t pcic_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcic_pci_probe),
@@ -830,8 +791,8 @@ static device_method_t pcic_pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	pcic_pci_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	pcic_pci_teardown_intr),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* Card interface */
 	DEVMETHOD(card_set_res_flags,	pcic_set_res_flags),
