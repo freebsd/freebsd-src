@@ -29,6 +29,7 @@
 
 PSYSCALL(fork)
 	cmp.ne	p6,p0=ret1,r0		/* ret1!=0 for child */
+	;;
 (p6)	mov	ret0=r0
 	br.ret.sptk.few rp
 PEND(fork)
