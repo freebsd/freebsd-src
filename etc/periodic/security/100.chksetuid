@@ -35,12 +35,12 @@ then
     source_periodic_confs
 fi
 
-TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 LOG="${daily_status_security_logdir}"
 rc=0
 
 case "$daily_status_security_chksetuid_enable" in
     [Yy][Ee][Ss])
+	TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 	echo ""
 	echo 'Checking setuid files and devices:'
 	# XXX Note that there is the possibility of overrunning the args to ls
