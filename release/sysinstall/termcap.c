@@ -33,7 +33,6 @@ set_termcap(void)
     int		   stat;
     struct ttysize ts;
 
-    OnVTY = FALSE;
     term = getenv("TERM");
     stat = ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay);
 
@@ -43,7 +42,7 @@ set_termcap(void)
 	    DebugFD = open("/dev/null", O_RDWR, 0);
     }
 
-    if (stat < 0) {
+    if (!OnVTY || (stat < 0)) {
 	if (!term) {
 	    if (setenv("TERM", "vt100", 1) < 0)
 		return -1;
@@ -78,7 +77,6 @@ set_termcap(void)
 		    return -1;
 	    }
 	}
-	OnVTY = TRUE;
     }
     if (ioctl(0, TIOCGSIZE, &ts) == -1) {
 	msgDebug("Unable to get terminal size - errno %d\n", errno);
