@@ -125,9 +125,9 @@ based PC's, ranging from 386sx to Pentium class machines (though the
 configurations, various SCSI controller, network and serial cards is
 also provided.
 
-What follows is a list of all disk controllers and ethernet cards
-currently known to work with FreeBSD.  Other configurations may also
-work, but we have simply not received any confirmation of this.
+What follows is a list of all peripherals currently known to work with
+FreeBSD.  Other configurations may also work, we have simply not as yet
+received confirmation of this.
 
 
 3.1. Disk Controllers
@@ -179,7 +179,7 @@ WD7000 SCSI controller.
 
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
-DAT) and CD ROM drives.
+DAT and 8mm Exabyte) and CD ROM drives.
 
 The following CD-ROM type systems are supported at this time:
 (cd)    SCSI interface (also includes ProAudio Spectrum and
@@ -243,7 +243,7 @@ AST 4 port serial card using shared IRQ.
 ARNET 8 port serial card using shared IRQ.
 ARNET (now Digiboard) Sync 570/i high-speed serial.
 
-BOCA ATIO66 6 port serial card using shared IRQ.
+BOCA ATIO66 6 and 16 port serial card using shared IRQ.
 
 Cyclades Cyclom-y Serial Board.
 
@@ -254,6 +254,24 @@ SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
 
 Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards.
+
+Connectix QuickCam
+Matrox Meteor Video frame grabber
+Creative Labs Video Spigot frame grabber
+Cortex1 frame grabber
+
+HP4020i, Philips CDD2000 and PLASMON WORM (CDR) drives.
+
+PS/2 mice
+
+Standard PC Joystick
+
+X-10 power controllers
+
+GPIB and Transputer drivers.
+
+Genius and Mustek hand scanners.
+
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
 
@@ -495,4 +513,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.18 1996/11/13 12:35:15 jkh Exp $
+$Id: relnotes.hlp,v 1.19 1996/11/14 05:47:39 jkh Exp $
