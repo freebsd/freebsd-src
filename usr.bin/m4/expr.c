@@ -453,7 +453,7 @@ constant(void)
 		ungetch();
 		return num();
 	}
-	for (i = 0; i < (int)sizeof(int); i++) {
+	for (i = 0; i < (ssize_t)sizeof(int); i++) {
 		if ((c = getch()) == '\'') {
 			ungetch();
 			break;
