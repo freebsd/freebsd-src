@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.21 1998/03/30 09:50:41 phk Exp $ */
+/*	$Id: sysv_sem.c,v 1.22 1998/12/14 08:34:55 dillon Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -359,7 +359,7 @@ __semctl(p, uap)
 
 	switch (cmd) {
 	case IPC_RMID:
-		if ((eval = ipcperm(cred, &semaptr->sem_perm, IPC_M)))
+		if ((eval = ipcperm(p, &semaptr->sem_perm, IPC_M)))
 			return(eval);
 		semaptr->sem_perm.cuid = cred->cr_uid;
 		semaptr->sem_perm.uid = cred->cr_uid;
@@ -377,7 +377,7 @@ __semctl(p, uap)
 		break;
 
 	case IPC_SET:
-		if ((eval = ipcperm(cred, &semaptr->sem_perm, IPC_M)))
+		if ((eval = ipcperm(p, &semaptr->sem_perm, IPC_M)))
 			return(eval);
 		if ((eval = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			return(eval);
@@ -392,7 +392,7 @@ __semctl(p, uap)
 		break;
 
 	case IPC_STAT:
-		if ((eval = ipcperm(cred, &semaptr->sem_perm, IPC_R)))
+		if ((eval = ipcperm(p, &semaptr->sem_perm, IPC_R)))
 			return(eval);
 		if ((eval = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			return(eval);
@@ -401,7 +401,7 @@ __semctl(p, uap)
 		break;
 
 	case GETNCNT:
-		if ((eval = ipcperm(cred, &semaptr->sem_perm, IPC_R)))
+		if ((eval = ipcperm(p, &semaptr->sem_perm, IPC_R)))
 			return(eval);
 		if (semnum < 0 || semnum >= semaptr->sem_nsems)
 			return(EINVAL);
@@ -409,7 +409,7 @@ __semctl(p, uap)
 		break;
 
 	case GETPID:
-		if ((eval = ipcperm(cred, &semaptr->sem_perm, IPC_R)))
+		if ((eval = ipcperm(p, &semaptr->sem_perm, IPC_R)))
 			return(eval);
 		if (semnum < 0 || semnum >= semaptr->sem_nsems)
 			return(EINVAL);
@@ -417,7 +417,7 @@ __semctl(p, uap)
 		break;
 
 	case GETVAL:
-		if ((eval = ipcperm(cred, &semaptr->sem_perm, IPC_R)))
+		if ((eval = ipcperm(p, &semaptr->sem_perm, IPC_R)))
 			return(eval);
 		if (semnum < 0 || semnum >= semaptr->sem_nsems)
 			return(EINVAL);
@@ -425,7 +425,7 @@ __semctl(p, uap)
 		break;
 
 	case GETALL:
-		if ((eval = ipcperm(cred, &semaptr->sem_perm, IPC_R)))
+		if ((eval = ipcperm(p, &semaptr->sem_perm, IPC_R)))
 			return(eval);
 		if ((eval = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			return(eval);
@@ -438,7 +438,7 @@ __semctl(p, uap)
 		break;
 
 	case GETZCNT:
-		if ((eval = ipcperm(cred, &semaptr->sem_perm, IPC_R)))
+		if ((eval = ipcperm(p, &semaptr->sem_perm, IPC_R)))
 			return(eval);
 		if (semnum < 0 || semnum >= semaptr->sem_nsems)
 			return(EINVAL);
@@ -446,7 +446,7 @@ __semctl(p, uap)
 		break;
 
 	case SETVAL:
-		if ((eval = ipcperm(cred, &semaptr->sem_perm, IPC_W)))
+		if ((eval = ipcperm(p, &semaptr->sem_perm, IPC_W)))
 			return(eval);
 		if (semnum < 0 || semnum >= semaptr->sem_nsems)
 			return(EINVAL);
@@ -458,7 +458,7 @@ __semctl(p, uap)
 		break;
 
 	case SETALL:
-		if ((eval = ipcperm(cred, &semaptr->sem_perm, IPC_W)))
+		if ((eval = ipcperm(p, &semaptr->sem_perm, IPC_W)))
 			return(eval);
 		if ((eval = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			return(eval);
@@ -515,7 +515,7 @@ semget(p, uap)
 #ifdef SEM_DEBUG
 			printf("found public key\n");
 #endif
-			if ((eval = ipcperm(cred, &sema[semid].sem_perm,
+			if ((eval = ipcperm(p, &sema[semid].sem_perm,
 			    semflg & 0700)))
 				return(eval);
 			if (nsems > 0 && sema[semid].sem_nsems < nsems) {
@@ -616,7 +616,6 @@ semop(p, uap)
 	register struct sembuf *sopptr;
 	register struct sem *semptr;
 	struct sem_undo *suptr = NULL;
-	struct ucred *cred = p->p_ucred;
 	int i, j, eval;
 	int do_wakeup, do_undos;
 
@@ -635,7 +634,7 @@ semop(p, uap)
 	if (semaptr->sem_perm.seq != IPCID_TO_SEQ(uap->semid))
 		return(EINVAL);
 
-	if ((eval = ipcperm(cred, &semaptr->sem_perm, IPC_W))) {
+	if ((eval = ipcperm(p, &semaptr->sem_perm, IPC_W))) {
 #ifdef SEM_DEBUG
 		printf("eval = %d from ipaccess\n", eval);
 #endif
