@@ -471,8 +471,12 @@ int mode;
 		}
 		for (np = &nat_list; (n = *np); np = &n->in_next)
 			if (!bcmp((char *)&nat->in_flags, (char *)&n->in_flags,
-					IPN_CMPSIZ))
+					IPN_CMPSIZ)) {
+				if (n->in_redir == NAT_REDIRECT &&
+				    n->in_pnext != nat->in_pnext)
+					continue;
 				break;
+			}
 	}
 
 	switch (cmd)
