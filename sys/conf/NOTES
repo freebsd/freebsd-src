@@ -1040,6 +1040,13 @@ controller	ida0
 device		id0
 
 #
+# Mylex DAC960, AMI MegaRAID controllers.  Only one entry is needed; the code 
+# will find and configure all supported controllers.
+#
+controller	mlx0		# Mylex DAC960
+controller	amr0		# AMI MegaRAID
+
+#
 # ATA and ATAPI devices
 # This is work in progress, use at your own risk.
 # It currently reuses the majors of wd.c and friends.
