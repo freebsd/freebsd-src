@@ -1,4 +1,4 @@
-.\" $OpenBSD: pfctl.8,v 1.102 2003/09/18 09:18:51 jmc Exp $
+.\" $OpenBSD: pfctl.8,v 1.110 2004/03/20 09:31:42 david Exp $
 .\"
 .\" Copyright (c) 2001 Kjell Wooding.  All rights reserved.
 .\"
@@ -33,15 +33,17 @@
 .Sh SYNOPSIS
 .Nm pfctl
 .Bk -words
-.Op Fl AdeghnNqrROvz
+.Op Fl AdeghNnOqRrvz
 .Op Fl a Ar anchor Ns Op Ar :ruleset
 .Op Fl D Ar macro=value
-.Op Fl f Ar file
 .Op Fl F Ar modifier
+.Op Fl f Ar file
+.Op Fl i Ar interface
 .Op Fl k Ar host
+.Op Fl p Ar device
 .Op Fl s Ar modifier
-.Op Fl t Ar table
 .Op Fl T Ar command Op Ar address ...
+.Op Fl t Ar table
 .Op Fl x Ar level
 .Ek
 .Sh DESCRIPTION
@@ -93,6 +95,9 @@ The
 utility provides several commands.
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl A
+Load only the queue rules present in the rule file.
+Other rules and options are ignored.
 .It Fl a Ar anchor Ns Op Ar :ruleset
 Apply flags
 .Fl f ,
@@ -134,11 +139,6 @@ This is similar to C rules for variables.
 It is possible to create distinct tables with the same name in the global
 ruleset and in an anchor, but this is often bad design and a warning will be
 issued in that case.
-.It Fl A
-Load only the queue rules present in the rule file.
-Other rules and options are ignored.
-.It Fl d
-Disable the packet filter.
 .It Fl D Ar macro=value
 Define
 .Ar macro
@@ -148,17 +148,10 @@ on the command line.
 Overrides the definition of
 .Ar macro
 in the ruleset.
+.It Fl d
+Disable the packet filter.
 .It Fl e
 Enable the packet filter.
-.It Fl f Ar file
-Load the rules contained in
-.Ar file .
-This
-.Ar file
-may contain macros, tables, options, and normalization, queueing,
-translation, and filtering rules.
-With the exception of macros and tables, the statements must appear in that
-order.
 .It Fl F Ar modifier
 Flush the filter parameters specified by
 .Ar modifier
@@ -173,6 +166,8 @@ Flush the queue rules.
 Flush the filter rules.
 .It Fl F Ar state
 Flush the state table (NAT and filter).
+.It Fl F Ar Sources
+Flush the source tracking table.
 .It Fl F Ar info
 Flush the filter information (statistics that are not bound to rules).
 .It Fl F Ar Tables
@@ -182,8 +177,22 @@ Flush the passive operating system fingerprints.
 .It Fl F Ar all
 Flush all of the above.
 .El
+.It Fl f Ar file
+Load the rules contained in
+.Ar file .
+This
+.Ar file
+may contain macros, tables, options, and normalization, queueing,
+translation, and filtering rules.
+With the exception of macros and tables, the statements must appear in that
+order.
 .It Fl g
 Include output helpful for debugging.
+.It Fl h
+Help.
+.It Fl i Ar interface
+Restrict the operation to the given
+.Ar interface .
 .It Fl k Ar host
 Kill all of the state entries originating from the specified
 .Ar host .
@@ -207,29 +216,32 @@ to
 .Bd -literal -offset indent
 # pfctl -k host1 -k host2
 .Ed
-.It Fl h
-Help.
-.It Fl n
-Do not actually load rules, just parse them.
 .It Fl N
 Load only the NAT rules present in the rule file.
 Other rules and options are ignored.
-.It Fl q
-Only print errors and warnings.
-.It Fl r
-Perform reverse DNS lookups on states when displaying them.
-.It Fl R
-Load only the filter rules present in the rule file.
-Other rules and options are ignored.
+.It Fl n
+Do not actually load rules, just parse them.
 .It Fl O
 Load only the options present in the rule file.
 Other rules and options are ignored.
+.It Fl p Ar device
+Use the device file
+.Ar device
+instead of the default
+.Pa /dev/pf .
+.It Fl q
+Only print errors and warnings.
+.It Fl R
+Load only the filter rules present in the rule file.
+Other rules and options are ignored.
+.It Fl r
+Perform reverse DNS lookups on states when displaying them.
 .It Fl s Ar modifier
 Show the filter parameters specified by
 .Ar modifier
 (may be abbreviated):
 .Pp
-.Bl -tag -width xxxxxxxxxxxx -compact
+.Bl -tag -width xxxxxxxxxxxxx -compact
 .It Fl s Ar nat
 Show the currently loaded NAT rules.
 .It Fl s Ar queue
@@ -261,8 +273,13 @@ is specified as well, the named rulesets currently loaded in the specified
 anchor are shown instead.
 .It Fl s Ar state
 Show the contents of the state table.
+.It Fl s Ar Sources
+Show the contents of the source tracking table.
 .It Fl s Ar info
 Show filter information (statistics and counters).
+When used together with
+.Fl v ,
+source tracking statistics are also shown.
 .It Fl s Ar labels
 Show per-rule statistics (label, evaluations, packets, bytes) of
 filter rules with labels, useful for accounting.
@@ -274,16 +291,17 @@ Show the current pool memory hard limits.
 Show the list of tables.
 .It Fl s Ar osfp
 Show the list of operating system fingerprints.
-Can be used in combination with
-.Fl o Ar file
-to list the fingerprints in a
-.Xr pf.os 5
-file.
+.It Fl s Ar Interfaces
+Show the list of interfaces and interface drivers available to PF.
+When used together with a double
+.Fl v ,
+interface statistics are also shown.
+.Fl i
+can be used to select an interface or a group of interfaces.
 .It Fl s Ar all
-Show all of the above.
+Show all of the above, except for the lists of interfaces and operating
+system fingerprints.
 .El
-.It Fl t Ar table
-Specify the name of the table.
 .It Fl T Ar command Op Ar address ...
 Specify the
 .Ar command
@@ -334,7 +352,7 @@ Comments starting with a "#" are allowed in the text file.
 With these commands, the
 .Fl v
 flag can also be used once or twice, in which case
-.Nm pfctl
+.Nm
 will print the
 detailed result of the operation for each individual address, prefixed by
 one of the following letters:
@@ -359,7 +377,7 @@ The address/network has been cleared (statistics).
 Each table maintains a set of counters that can be retrieved using the
 .Fl v
 flag of
-.Nm pfctl .
+.Nm .
 For example, the following commands define a wide open firewall which will keep
 track of packets going to or coming from the
 .Ox
@@ -367,8 +385,8 @@ ftp server.
 The following commands configure the firewall and send 10 pings to the ftp
 server:
 .Bd -literal -offset indent
-# printf \&"table <test> { ftp.openbsd.org }\en \e
-\  \  pass out to <test> keep state\en" \&| pfctl -f-
+# printf "table <test> { ftp.openbsd.org }\en \e
+    pass out to <test> keep state\en" | pfctl -f-
 # ping -qc10 ftp.openbsd.org
 .Ed
 .Pp
@@ -381,12 +399,12 @@ The time at which the current accounting started is also shown with the
 line.
 .Bd -literal -offset indent
 # pfctl -t test -vTshow
-\ \ \ 129.128.5.191
-\ \ \ \ Cleared: \ \ \ \ Thu Feb 13 18:55:18 2003
-\ \ \ \ In/Block: \ \ \ [ Packets: 0 \ \ \ \ \ \ \ Bytes: 0 \ \ \ \ \ \ \ ]
-\ \ \ \ In/Pass: \ \ \ \ [ Packets: 10 \ \ \ \ \ \ Bytes: 840 \ \ \ \ \ ]
-\ \ \ \ Out/Block: \ \ [ Packets: 0 \ \ \ \ \ \ \ Bytes: 0 \ \ \ \ \ \ \ ]
-\ \ \ \ Out/Pass: \ \ \ [ Packets: 10 \ \ \ \ \ \ Bytes: 840 \ \ \ \ \ ]
+   129.128.5.191
+    Cleared:     Thu Feb 13 18:55:18 2003
+    In/Block:    [ Packets: 0        Bytes: 0        ]
+    In/Pass:     [ Packets: 10       Bytes: 840      ]
+    Out/Block:   [ Packets: 0        Bytes: 0        ]
+    Out/Pass:    [ Packets: 10       Bytes: 840      ]
 .Ed
 .Pp
 Similarly, it is possible to view global information about the tables
@@ -401,19 +419,19 @@ packet statistics for the whole table:
 .Bd -literal -offset indent
 # pfctl -vvsTables
 --a-r-  test
-\ \ \ \ Addresses: \ \ 1
-\ \ \ \ Cleared: \ \ \ \ Thu Feb 13 18:55:18 2003
-\ \ \ \ References: \ [ Anchors: 0 \ \ \ \ \ \ \ Rules: 1 \ \ \ \ \ \ \ ]
-\ \ \ \ Evaluations: [ NoMatch: 3496 \ \ \ \ Match: 1 \ \ \ \ \ \ \ ]
-\ \ \ \ In/Block: \ \ \ [ Packets: 0 \ \ \ \ \ \ \ Bytes: 0 \ \ \ \ \ \ \ ]
-\ \ \ \ In/Pass: \ \ \ \ [ Packets: 10 \ \ \ \ \ \ Bytes: 840 \ \ \ \ \ ]
-\ \ \ \ In/XPass: \ \ \ [ Packets: 0 \ \ \ \ \ \ \ Bytes: 0 \ \ \ \ \ \ \ ]
-\ \ \ \ Out/Block: \ \ [ Packets: 0 \ \ \ \ \ \ \ Bytes: 0 \ \ \ \ \ \ \ ]
-\ \ \ \ Out/Pass: \ \ \ [ Packets: 10 \ \ \ \ \ \ Bytes: 840 \ \ \ \ \ ]
-\ \ \ \ Out/XPass: \ \ [ Packets: 0 \ \ \ \ \ \ \ Bytes: 0 \ \ \ \ \ \ \ ]
+    Addresses:   1
+    Cleared:     Thu Feb 13 18:55:18 2003
+    References:  [ Anchors: 0        Rules: 1        ]
+    Evaluations: [ NoMatch: 3496     Match: 1        ]
+    In/Block:    [ Packets: 0        Bytes: 0        ]
+    In/Pass:     [ Packets: 10       Bytes: 840      ]
+    In/XPass:    [ Packets: 0        Bytes: 0        ]
+    Out/Block:   [ Packets: 0        Bytes: 0        ]
+    Out/Pass:    [ Packets: 10       Bytes: 840      ]
+    Out/XPass:   [ Packets: 0        Bytes: 0        ]
 .Ed
 .Pp
-As we can see here, only one packet - the initial ping request - matched the
+As we can see here, only one packet \- the initial ping request \- matched the
 table; but all packets passing as the result of the state are correctly
 accounted for.
 Reloading the table(s) or ruleset will not affect packet accounting in any way.
@@ -421,14 +439,14 @@ The two
 .Ar XPass
 counters are incremented instead of the
 .Ar Pass
-counters when a \&"stateful\&" packet is passed but doesn't match the table
+counters when a "stateful" packet is passed but doesn't match the table
 anymore.
 This will happen in our example if someone flushes the table while the ping
 command is running.
 .Pp
 When used with a single
 .Fl v ,
-.Nm pfctl
+.Nm
 will only display the first line containing the table flags and name.
 The flags are defined as follows:
 .Pp
@@ -459,6 +477,8 @@ For tables which are referenced (used) by rules.
 This flag is set when a table in the main ruleset is hidden by one or more
 tables of the same name in sub-rulesets (anchors).
 .El
+.It Fl t Ar table
+Specify the name of the table.
 .It Fl v
 Produce more verbose output.
 A second use of
