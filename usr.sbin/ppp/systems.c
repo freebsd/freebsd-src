@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.22 1997/11/09 17:51:27 brian Exp $
+ * $Id: systems.c,v 1.23 1997/11/11 22:58:13 brian Exp $
  *
  *  TODO:
  */
@@ -351,7 +351,7 @@ LoadCommand(struct cmdtab const * list, int argc, char **argv)
     name = "default";
 
   if (!ValidSystem(name))
-    LogPrintf(LogERROR, "%s: Label not allowed\n");
+    LogPrintf(LogERROR, "%s: Label not allowed\n", name);
   else if (SelectSystem(name, CONFFILE) < 0) {
     LogPrintf(LogWARN, "%s: not found.\n", name);
     return -1;
