@@ -82,6 +82,13 @@ TAILQ_HEAD(buflists, buf);
 typedef	int	vop_t __P((void *));
 struct namecache;
 
+struct vpollinfo {
+	struct	mtx vpi_lock;		/* lock to protect below */
+	struct	selinfo vpi_selinfo;	/* identity of poller(s) */
+	short	vpi_events;		/* what they are looking for */
+	short	vpi_revents;		/* what has happened */
+};
+
 /*
  * Reading or writing any of these items requires holding the appropriate lock.
  * v_freelist is locked by the global vnode_free_list mutex.
@@ -116,7 +123,7 @@ struct vnode {
 	} v_un;
 	daddr_t	v_lastw;			/* last write (write cluster) */
 	daddr_t	v_cstart;			/* start block of cluster */
-	daddr_t	v_lasta;			/* last allocation */
+	daddr_t	v_lasta;			/* last allocation (cluster) */
 	int	v_clen;				/* length of current cluster */
 	struct vm_object *v_object;		/* Place to store VM object */
 	struct	mtx v_interlock;		/* lock on usecount and flag */
@@ -128,12 +135,7 @@ struct vnode {
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
 	struct	vnode *v_dd;			/* .. vnode */
 	u_long	v_ddid;				/* .. capability identifier */
-	struct {
-		struct	mtx vpi_lock;		/* lock to protect below */
-		struct	selinfo vpi_selinfo;	/* identity of poller(s) */
-		short	vpi_events;		/* what they are looking for */
-		short	vpi_revents;		/* what has happened */
-	} v_pollinfo;
+	struct vpollinfo *v_pollinfo;
 	struct thread *v_vxproc;		/* thread owning VXLOCK */
 #ifdef	DEBUG_LOCKS
 	const char *filename;			/* Source file doing locking */
@@ -148,13 +150,16 @@ struct vnode {
 
 #define	VN_POLLEVENT(vp, events)				\
 	do {							\
-		if ((vp)->v_pollinfo.vpi_events & (events))	\
+		if ((vp)->v_pollinfo != NULL && 		\
+		    (vp)->v_pollinfo->vpi_events & (events))	\
 			vn_pollevent((vp), (events));		\
 	} while (0)
 
-#define VN_KNOTE(vp, b) \
-	KNOTE(&vp->v_pollinfo.vpi_selinfo.si_note, (b))
-
+#define VN_KNOTE(vp, b)						\
+	do {							\
+		if ((vp)->v_pollinfo != NULL)			\
+			KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b)); \
+	} while (0)
 
 /*
  * Vnode flags.

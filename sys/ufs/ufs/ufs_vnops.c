@@ -2473,9 +2473,14 @@ ufs_kqfilter(ap)
 
 	kn->kn_hook = (caddr_t)vp;
 
-	mtx_lock(&vp->v_pollinfo.vpi_lock);
-	SLIST_INSERT_HEAD(&vp->v_pollinfo.vpi_selinfo.si_note, kn, kn_selnext);
-	mtx_unlock(&vp->v_pollinfo.vpi_lock);
+	if (vp->v_pollinfo == NULL) {
+		/* XXX: call v_addpollinfo(vp) ? */
+		printf("ufs_kqfilter: vnode with no v_pollinfo\n");
+		return (1);
+	}
+	mtx_lock(&vp->v_pollinfo->vpi_lock);
+	SLIST_INSERT_HEAD(&vp->v_pollinfo->vpi_selinfo.si_note, kn, kn_selnext);
+	mtx_unlock(&vp->v_pollinfo->vpi_lock);
 
 	return (0);
 }
@@ -2485,10 +2490,11 @@ filt_ufsdetach(struct knote *kn)
 {
 	struct vnode *vp = (struct vnode *)kn->kn_hook;
 
-	mtx_lock(&vp->v_pollinfo.vpi_lock);
-	SLIST_REMOVE(&vp->v_pollinfo.vpi_selinfo.si_note,
+	KASSERT(vp->v_pollinfo != NULL, ("Mising v_pollinfo"));
+	mtx_lock(&vp->v_pollinfo->vpi_lock);
+	SLIST_REMOVE(&vp->v_pollinfo->vpi_selinfo.si_note,
 	    kn, knote, kn_selnext);
-	mtx_unlock(&vp->v_pollinfo.vpi_lock);
+	mtx_unlock(&vp->v_pollinfo->vpi_lock);
 }
 
 /*ARGSUSED*/
