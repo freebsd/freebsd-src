@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.58 1996/08/03 10:11:10 jkh Exp $
+ * $Id: label.c,v 1.59 1996/10/01 12:13:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -264,8 +264,8 @@ get_mountpoint(struct chunk *old)
     else
 	tmp = NULL;
     if (!old) {
-	DialogX = 13;
-	DialogY = 17;
+	DialogX = 14;
+	DialogY = 16;
     }
     val = msgGetInput(tmp ? tmp->mountpoint : NULL, "Please specify a mount point for the partition");
     DialogX = DialogY = 0;
@@ -326,7 +326,7 @@ get_partition_type(void)
 	"A swap partition.",
     };
     DialogX = 7;
-    DialogY = 9;
+    DialogY = 8;
     i = dialog_menu("Please choose a partition type",
 		    "If you want to use this partition for swap space, select Swap.\n"
 		    "If you want to put a filesystem on it, choose FS.",
@@ -670,7 +670,7 @@ diskLabel(char *str)
 
 		sprintf(osize, "%d", sz);
 		DialogX = 3;
-		DialogY = 1;
+		DialogY = 2;
 		val = msgGetInput(osize,
 				  "Please specify the partition size in blocks or append a trailing M for\n"
 				  "megabytes or C for cylinders.  %d blocks (%dMB) are free.",
