@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.6 1994/10/14 05:42:24 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.7 1994/10/14 05:56:15 jkh Exp $";
 #endif
 
 /*
@@ -45,7 +45,7 @@ make_playpen(char *pen, size_t sz)
 	if ((cp = getenv("TMPDIR")) != NULL)
 	    sprintf(Pen, "%s/instmp.XXXXXX", cp);
 	else
-	    strcpy(Pen, "/tmp/instmp.XXXXXX");
+	    strcpy(Pen, "/var/tmp/instmp.XXXXXX");
     }
     else
 	strcpy(Pen, pen);
