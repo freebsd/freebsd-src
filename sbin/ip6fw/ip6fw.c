@@ -543,6 +543,7 @@ static int
 lookup_host (host, addr, family)
 	char *host;
 	u_char *addr;
+	int family;
 {
 	struct hostent *he;
 
@@ -574,7 +575,7 @@ fill_ip6(ipno, mask, acp, avp)
 			*p++ = '\0';
 		}
 
-		if (lookup_host(*av, ipno, AF_INET6) != 0)
+		if (lookup_host(*av, (u_char *)ipno, AF_INET6) != 0)
 			show_usage("hostname ``%s'' unknown", *av);
 		switch (md) {
 			case '/':
