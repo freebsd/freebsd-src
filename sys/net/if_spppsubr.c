@@ -1859,6 +1859,14 @@ sppp_lcp_up(struct sppp *sp)
 	sp->lcp.protos = 0;
 	sp->lcp.mru = sp->lcp.their_mru = PP_MTU;
 	/*
+	 * If we are authenticator, negotiate LCP_AUTH
+	 */
+	if (sp->hisauth.proto != 0)
+		sp->lcp.opts |= (1 << LCP_OPT_AUTH_PROTO);
+	else
+		sp->lcp.opts &= ~(1 << LCP_OPT_AUTH_PROTO);
+	sp->pp_flags &= ~PP_NEEDAUTH;
+	/*
 	 * If this interface is passive or dial-on-demand, and we are
 	 * still in Initial state, it means we've got an incoming
 	 * call.  Activate the interface.
@@ -1914,14 +1922,6 @@ sppp_lcp_down(struct sppp *sp)
 static void
 sppp_lcp_open(struct sppp *sp)
 {
-	/*
-	 * If we are authenticator, negotiate LCP_AUTH
-	 */
-	if (sp->hisauth.proto != 0)
-		sp->lcp.opts |= (1 << LCP_OPT_AUTH_PROTO);
-	else
-		sp->lcp.opts &= ~(1 << LCP_OPT_AUTH_PROTO);
-	sp->pp_flags &= ~PP_NEEDAUTH;
 	sppp_open_event(&lcp, sp);
 }
 
