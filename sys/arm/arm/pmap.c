@@ -3938,7 +3938,6 @@ pmap_use_minicache(vm_offset_t va, vm_size_t size)
 		return;
 #endif
 
-	return;
 	eva = va + size;
 
 	while (va < eva) {
