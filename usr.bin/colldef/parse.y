@@ -39,7 +39,7 @@
 
 extern int line_no;
 extern FILE *yyin;
-void yyerror(char *fmt, ...);
+void yyerror(char *fmt, ...) __printflike(1, 2);
 int yyparse(void);
 int yylex(void);
 static void usage __P((void));
