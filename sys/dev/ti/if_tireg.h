@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tireg.h,v 1.7 1999/07/23 02:17:59 wpaul Exp $
+ *	$Id: if_tireg.h,v 1.8 1999/07/23 18:46:24 wpaul Exp $
  */
 
 /*
@@ -1107,6 +1107,7 @@ struct ti_jpool_entry {
 struct ti_softc {
 	struct arpcom		arpcom;		/* interface info */
 	bus_space_handle_t	ti_bhandle;
+	vm_offset_t		ti_vhandle;
 	bus_space_tag_t		ti_btag;
 	void			*ti_intrhand;
 	struct resource		*ti_irq;
