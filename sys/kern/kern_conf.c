@@ -436,6 +436,8 @@ dev_stdclone(char *name, char **namep, const char *stem, int *unit)
 		u *= 10;
 		u += name[i++] - '0';
 	}
+	if (u > 0xffffff)
+		return (0);
 	*unit = u;
 	if (namep)
 		*namep = &name[i];
