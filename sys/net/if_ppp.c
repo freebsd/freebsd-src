@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.4 1994/10/05 21:22:42 wollman Exp $ */
+/* $Id: if_ppp.c,v 1.5 1994/11/01 09:03:16 pst Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -132,16 +132,16 @@ struct ppp_softc ppp_softc[NPPP];
 
 void	pppattach __P((void));
 int	pppopen __P((dev_t dev, struct tty *tp));
-void	pppclose __P((struct tty *tp, int flag));
+int	pppclose __P((struct tty *tp, int flag));
 int	pppread __P((struct tty *tp, struct uio *uio, int flag));
 int	pppwrite __P((struct tty *tp, struct uio *uio, int flag));
 int	ppptioctl __P((struct tty *tp, int cmd, caddr_t data, int flag,
 		       struct proc *));
 int	pppoutput __P((struct ifnet *, struct mbuf *,
 		       struct sockaddr *, struct rtentry *));
-void	pppinput __P((int c, struct tty *tp));
+int	pppinput __P((int c, struct tty *tp));
 int	pppioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
-void	pppstart __P((struct tty *tp));
+int	pppstart __P((struct tty *tp));
 
 static struct linesw pppdisc = {
 	pppopen, pppclose, pppread, pppwrite, ppptioctl,
