@@ -159,6 +159,7 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 		isp_get_atio2(isp, at2iop, (at2_entry_t *) local);
 		isp_handle_atio2(isp, (at2_entry_t *) local);
 		break;
+	case RQSTYPE_CTIO3:
 	case RQSTYPE_CTIO2:
 		isp_get_ctio2(isp, ct2iop, (ct2_entry_t *) local);
 		isp_handle_ctio2(isp, (ct2_entry_t *) local);
@@ -363,7 +364,7 @@ isp_target_put_entry(struct ispsoftc *isp, void *ap)
 		return (-1);
 	}
 
-	ISP_TDQE(isp, "isp_target_put_entry", (int) optr, ap);;
+	ISP_TDQE(isp, "isp_target_put_entry", (int) optr, ap);
 	ISP_ADD_REQUEST(isp, nxti);
 	return (0);
 }
@@ -386,6 +387,8 @@ isp_target_put_atio(struct ispsoftc *isp, void *arg)
 		} else {
 			atun._atio2.at_lun = (u_int8_t) aep->at_lun;
 		}
+		atun._atio2.at_iid = aep->at_iid;
+		atun._atio2.at_rxid = aep->at_rxid;
 		atun._atio2.at_status = CT_OK;
 	} else {
 		at_entry_t *aep = arg;
@@ -444,7 +447,7 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int16_t hdl)
 			cto->ct_lun = aep->at_lun;
 		}
 		cto->ct_rxid = aep->at_rxid;
-		cto->rsp.m1.ct_scsi_status = sts & 0xff;
+		cto->rsp.m1.ct_scsi_status = sts;
 		cto->ct_flags = CT2_SENDSTATUS | CT2_NO_DATA | CT2_FLAG_MODE1;
 		if (hdl == 0) {
 			cto->ct_flags |= CT2_CCINCR;
@@ -453,7 +456,7 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int16_t hdl)
 			cto->ct_resid = aep->at_datalen;
 			cto->rsp.m1.ct_scsi_status |= CT2_DATA_UNDER;
 		}
-		if ((sts & 0xff) == SCSI_CHECK && (sts & ECMD_SVALID)) {
+		if (sts == SCSI_CHECK && (code & ECMD_SVALID)) {
 			cto->rsp.m1.ct_resp[0] = 0xf0;
 			cto->rsp.m1.ct_resp[2] = (code >> 12) & 0xf;
 			cto->rsp.m1.ct_resp[7] = 8;
@@ -537,6 +540,11 @@ isp_target_async(struct ispsoftc *isp, int bus, int event)
 		msg.nt_msg[0] = MSG_BUS_DEV_RESET;
 		(void) isp_async(isp, ISPASYNC_TARGET_MESSAGE, &msg);
 		break;
+	case ASYNC_CTIO_DONE:
+		evt.ev_bus = bus;
+		evt.ev_event = event;
+		(void) isp_async(isp, ISPASYNC_TARGET_EVENT, &evt);
+		return (0);
 	default:
 		isp_prt(isp, ISP_LOGERR,
 		    "isp_target_async: unknown event 0x%x", event);
@@ -609,30 +617,29 @@ isp_got_msg_fc(struct ispsoftc *isp, int bus, in_fcentry_t *inp)
 		msg.nt_tagval = inp->in_seqid;
 		msg.nt_lun = lun;
 
-		if (inp->in_task_flags & TASK_FLAGS_ABORT_TASK) {
-			isp_prt(isp, ISP_LOGINFO, f1, "ABORT TASK",
-			    inp->in_iid, msg.nt_lun, inp->in_seqid);
-			msg.nt_msg[0] = MSG_ABORT_TAG;
+		if (inp->in_task_flags & TASK_FLAGS_ABORT_TASK_SET) {
+			isp_prt(isp, ISP_LOGINFO, f1, "ABORT TASK SET",
+			    inp->in_iid, lun, inp->in_seqid);
+			msg.nt_msg[0] = MSG_ABORT;
 		} else if (inp->in_task_flags & TASK_FLAGS_CLEAR_TASK_SET) {
 			isp_prt(isp, ISP_LOGINFO, f1, "CLEAR TASK SET",
-			    inp->in_iid, msg.nt_lun, inp->in_seqid);
+			    inp->in_iid, lun, inp->in_seqid);
 			msg.nt_msg[0] = MSG_CLEAR_QUEUE;
+		} else if (inp->in_task_flags & TASK_FLAGS_LUN_RESET) {
+			isp_prt(isp, ISP_LOGINFO, f1, "LUN RESET",
+			    inp->in_iid, lun, inp->in_seqid);
+			msg.nt_msg[0] = MSG_LUN_RESET;
 		} else if (inp->in_task_flags & TASK_FLAGS_TARGET_RESET) {
 			isp_prt(isp, ISP_LOGINFO, f1, "TARGET RESET",
-			    inp->in_iid, msg.nt_lun, inp->in_seqid);
+			    inp->in_iid, lun, inp->in_seqid);
 			msg.nt_msg[0] = MSG_BUS_DEV_RESET;
 		} else if (inp->in_task_flags & TASK_FLAGS_CLEAR_ACA) {
 			isp_prt(isp, ISP_LOGINFO, f1, "CLEAR ACA",
-			    inp->in_iid, msg.nt_lun, inp->in_seqid);
-			/* ???? */
+			    inp->in_iid, lun, inp->in_seqid);
 			msg.nt_msg[0] = MSG_REL_RECOVERY;
-		} else if (inp->in_task_flags & TASK_FLAGS_TERMINATE_TASK) {
-			isp_prt(isp, ISP_LOGINFO, f1, "TERMINATE TASK",
-			    inp->in_iid, msg.nt_lun, inp->in_seqid);
-			msg.nt_msg[0] = MSG_TERM_IO_PROC;
 		} else {
 			isp_prt(isp, ISP_LOGWARN, f2, "task flag",
-			    inp->in_status, msg.nt_lun, inp->in_iid,
+			    inp->in_status, lun, inp->in_iid,
 			    inp->in_task_flags,  inp->in_seqid);
 		}
 		if (msg.nt_msg[0]) {
@@ -763,7 +770,7 @@ isp_handle_atio(struct ispsoftc *isp, at_entry_t *aep)
 
 	case AT_RESET:
 		/*
-		 * A bus reset came along an blew away this command. Why
+		 * A bus reset came along and blew away this command. Why
 		 * they do this in addition the async event code stuff,
 		 * I dunno.
 		 *
@@ -1089,7 +1096,7 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 		/*
 		 * CTIO rejected by the firmware - invalid data direction.
 		 */
-		isp_prt(isp, ISP_LOGERR, "CTIO2 had wrong data directiond");
+		isp_prt(isp, ISP_LOGERR, "CTIO2 had wrong data direction");
 		break;
 
 	case CT_RSELTMO:
@@ -1111,9 +1118,11 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 	case CT_PORTNOTAVAIL:
 		if (fmsg == NULL)
 			fmsg = "Port not available";
+		/*FALLTHROUGH*/
 	case CT_PORTCHANGED:
 		if (fmsg == NULL)
 			fmsg = "Port Changed";
+		/*FALLTHROUGH*/
 	case CT_NOACK:
 		if (fmsg == NULL)
 			fmsg = "unacknowledged Immediate Notify pending";
@@ -1144,7 +1153,7 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 		 * order we got them.
 		 */
 		if (ct->ct_syshandle == 0) {
-			if ((ct->ct_flags & CT_SENDSTATUS) == 0) {
+			if ((ct->ct_flags & CT2_SENDSTATUS) == 0) {
 				isp_prt(isp, pl,
 				    "intermediate CTIO completed ok");
 			} else {
@@ -1160,7 +1169,7 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 		if ((ct->ct_flags & CT2_DATAMASK) != CT2_NO_DATA) {
 			ISP_DMAFREE(isp, xs, ct->ct_syshandle);
 		}
-		if (ct->ct_flags & CT_SENDSTATUS) {
+		if (ct->ct_flags & CT2_SENDSTATUS) {
 			/*
 			 * Sent status and command complete.
 			 *
