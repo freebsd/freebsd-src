@@ -281,21 +281,8 @@ atapi_interrupt(struct atapi_request *request)
 	return ATA_OP_CONTINUES;
     }
 
-    if (atp->flags & ATAPI_F_DMA_USED)
-	dma_stat = ata_dmadone(atp->controller);
-
-    /* is this needed anymore ?? SOS XXX */
-#if NOT_ANY_MORE
-    if (ata_wait(atp->controller, atp->unit, 0) < 0) {
-	printf("%s: timeout waiting for status", atp->devname);
-	atp->flags &= ~ATAPI_F_DMA_USED; 
-	request->result = inb(atp->controller->ioaddr + ATA_ERROR) | 
-			  ATAPI_SK_RESERVED;
-	goto op_finished;
-    }
-#endif
-
     if (atp->flags & ATAPI_F_DMA_USED) {
+	dma_stat = ata_dmadone(atp->controller);
 	atp->flags &= ~ATAPI_F_DMA_USED; 
 	if ((atp->controller->status & (ATA_S_ERROR | ATA_S_DWF)) ||
 	    dma_stat != ATA_BMSTAT_INTERRUPT) {
