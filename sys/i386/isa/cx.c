@@ -61,6 +61,9 @@
 #include <machine/cronyx.h>
 #include <i386/isa/cxreg.h>
 
+extern void cxswitch (cx_chan_t *c, cx_soft_opt_t new);
+extern timeout_t cxtimeout;
+
 #ifdef DEBUG
 #   define print(s)     printf s
 #else
@@ -89,18 +92,17 @@ static	d_select_t	cxselect;
 
 # define CDEV_MAJOR 42
 
-static struct cdevsw cx_cdevsw = 
+/* Don't make this static.  if_cx.c  uses it. */
+struct cdevsw cx_cdevsw = 
 	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
 	  cxioctl,	cxstop,		nullreset,	cxdevtotty,/* cronyx */
 	  cxselect,	nommap,		NULL,	"cx",	NULL,	-1 };
-
 #else
 struct tty *cx_tty [NCX*NCHAN];         /* tty data */
 #endif
 
 static void cxoproc (struct tty *tp);
 static int cxparam (struct tty *tp, struct termios *t);
-void cxswitch (cx_chan_t *c, cx_soft_opt_t new);
 
 int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 {
