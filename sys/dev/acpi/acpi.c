@@ -1238,7 +1238,7 @@ acpi_identify(driver_t *driver, device_t parent)
 {
 	device_t        child;
 
-	child = BUS_ADD_CHILD(parent, 0, "acpi", 0);
+	child = BUS_ADD_CHILD(parent, 101, "acpi", 0);	/* after pcib(100) */
 
 	if (child == NULL) {
 		panic("acpi_identify");
