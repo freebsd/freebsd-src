@@ -26,7 +26,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$Id$";
+static char *rcsid = "$Id: ftok.c,v 1.3 1997/02/22 15:06:10 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
