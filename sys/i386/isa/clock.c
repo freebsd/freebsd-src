@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.65 1996/07/21 08:20:51 joerg Exp $
+ *	$Id: clock.c,v 1.66 1996/07/30 19:26:47 bde Exp $
  */
 
 /*
@@ -102,11 +102,10 @@ int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
 
 u_int	idelayed;
 #if defined(I586_CPU) || defined(I686_CPU)
+u_int 	i586_ctr_bias;
 u_int	i586_ctr_comultiplier;
 u_int	i586_ctr_freq;
 u_int	i586_ctr_multiplier;
-unsigned	i586_ctr_rate;
-long long	i586_ctr_bias;
 long long	i586_last_tick;
 unsigned long	i586_avg_tick;
 #endif
@@ -630,7 +629,6 @@ startrtclock()
 		       freq, timer_freq);
 #if defined(I586_CPU) || defined(I686_CPU)
 		i586_ctr_freq = 0;
-		i586_ctr_rate = 0;
 #endif
 	}
 
@@ -638,15 +636,14 @@ startrtclock()
 
 #if defined(I586_CPU) || defined(I686_CPU)
 #ifndef CLK_USE_I586_CALIBRATION
-	if (i586_ctr_rate != 0) {
+	if (i586_ctr_freq != 0) {
 		if (bootverbose)
 		    printf(
 "CLK_USE_I586_CALIBRATION not specified - using old calibration method\n");
 		i586_ctr_freq = 0;
-		i586_ctr_rate = 0;
 	}
 #endif
-	if (i586_ctr_rate == 0 &&
+	if (i586_ctr_freq == 0 &&
 	    (cpu_class == CPUCLASS_586 || cpu_class == CPUCLASS_686)) {
 		/*
 		 * Calibration of the i586 clock relative to the mc146818A
@@ -815,7 +812,7 @@ cpu_initclocks()
 	/*
 	 * Finish setting up anti-jitter measures.
 	 */
-	if (i586_ctr_rate) {
+	if (i586_ctr_freq != 0) {
 		i586_last_tick = rdtsc();
 		i586_ctr_bias = i586_last_tick;
 	}
@@ -878,24 +875,21 @@ SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
 static void
 set_i586_ctr_freq(u_int i586_freq, u_int i8254_freq)
 {
-	u_int comultiplier, multiplier, rate;
+	u_int comultiplier, multiplier;
 	u_long ef;
 
 	if (i586_freq == 0) {
 		i586_ctr_freq = i586_freq;
-		i586_ctr_rate = 0;
 		return;
 	}
 	comultiplier = ((unsigned long long)i586_freq
 			<< I586_CTR_COMULTIPLIER_SHIFT) / i8254_freq;
 	multiplier = (1000000LL << I586_CTR_MULTIPLIER_SHIFT) / i586_freq;
-	rate = ((unsigned long long)i586_freq << I586_CTR_RATE_SHIFT) / 1000000;
 	ef = read_eflags();
 	disable_intr();
 	i586_ctr_freq = i586_freq;
 	i586_ctr_comultiplier = comultiplier;
 	i586_ctr_multiplier = multiplier;
-	i586_ctr_rate = rate;
 	write_eflags(ef);
 }
 
