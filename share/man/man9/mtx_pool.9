@@ -79,7 +79,7 @@ are standard, non-recursive,
 blockable mutexes, and should only be used in appropriate situations.
 The mutexes in the
 .Va mtxpool_lockbuilder
-mutex pool are similar except that are initialized with the MTX_NOWITNESS
+mutex pool are similar, except that they are initialized with the MTX_NOWITNESS
 flag so that they may be used to build higher-level locks.
 Other mutex pools may be created that contain mutexes with different
 properties, such as spin mutexes.
