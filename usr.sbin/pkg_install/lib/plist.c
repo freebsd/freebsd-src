@@ -247,17 +247,17 @@ write_plist(Package *pkg, FILE *fp)
 	    break;
 
 	case PLIST_CHMOD:
-	    fprintf(fp, "%cchmod %s\n", CMD_CHAR,
+	    fprintf(fp, "%cmode %s\n", CMD_CHAR,
 		    plist->name ? plist->name : "");
 	    break;
 
 	case PLIST_CHOWN:
-	    fprintf(fp, "%cchown %s\n", CMD_CHAR,
+	    fprintf(fp, "%cowner %s\n", CMD_CHAR,
 		    plist->name ? plist->name : "");
 	    break;
 
 	case PLIST_CHGRP:
-	    fprintf(fp, "%cchgrp %s\n", CMD_CHAR,
+	    fprintf(fp, "%cgroup %s\n", CMD_CHAR,
 		    plist->name ? plist->name : "");
 	    break;
 
