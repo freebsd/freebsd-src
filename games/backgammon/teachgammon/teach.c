@@ -82,7 +82,6 @@ char	**argv;
 	register int	i;
 
 	/* revoke privs */
-	setegid(getgid());
 	setgid(getgid());
 
 	acnt = 1;
