@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.6 1995/07/21 16:30:37 bde Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.7 1995/07/21 20:52:21 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,12 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.6 1995/07/21 16:30:37 bde Exp 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.7  1995/07/21  20:52:21  bde
+ * Obtained from:	partly from ancient patches by ache and me via 1.1.5
+ *
+ * Nuke `symbolic sleep message strings'.  Use unique literal messages so that
+ * `ps l' shows unambiguously where processes are sleeping.
+ *
  * Revision 1.6  1995/07/21  16:30:37  bde
  * Obtained from:	partly from an ancient patch of mine via 1.1.5
  *
@@ -226,15 +232,7 @@ itystart(struct tty *tp)
 		splx(s);
 		return;
 	}
-	if (tp->t_outq.c_cc <= tp->t_lowat)
-	{
-		if (tp->t_state & TS_ASLEEP)
-		{
-			tp->t_state &= ~TS_ASLEEP;
-			wakeup((caddr_t) & tp->t_outq);
-		}
-		selwakeup(&tp->t_wsel);
-	}
+	ttwwakeup(tp);
 	if (tp->t_outq.c_cc)
 	{
 		if(OUTBOUND(tp->t_dev) && (tp->t_cflag & CLOCAL) &&

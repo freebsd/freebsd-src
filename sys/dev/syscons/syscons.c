@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.119 1995/07/11 17:59:22 bde Exp $
+ *  $Id: syscons.c,v 1.120 1995/07/11 18:34:29 bde Exp $
  */
 
 #include "sc.h"
@@ -1102,13 +1102,7 @@ scstart(struct tty *tp)
 	    s = spltty();
 	}
 	tp->t_state &= ~TS_BUSY;
-	if (rbp->c_cc <= tp->t_lowat) {
-	    if (tp->t_state & TS_ASLEEP) {
-		tp->t_state &= ~TS_ASLEEP;
-		wakeup((caddr_t)rbp);
-	    }
-	    selwakeup(&tp->t_wsel);
-	}
+	ttwwakeup(tp);
     }
     splx(s);
 }
