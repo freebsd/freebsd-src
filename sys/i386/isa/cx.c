@@ -194,7 +194,7 @@ int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 		cx_chan_rts (c, 1);
 	}
 	if (cx_chan_cd (c))
-		tp->t_state |= TS_CARR_ON;
+		(*linesw[tp->t_line].l_modem)(tp, 1);
 	if (! (flag & O_NONBLOCK)) {
 		/* Lock the channel against cxconfig while we are
 		 * waiting for carrier. */

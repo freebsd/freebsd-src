@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.26 1995/07/07 01:13:49 davidg Exp $
+ * $Id: if_sl.c,v 1.27 1995/07/29 13:39:46 bde Exp $
  */
 
 /*
@@ -444,8 +444,7 @@ sloutput(ifp, m, dst, rtp)
 		m_freem(m);
 		return (ENETDOWN);
 	}
-	if ((sc->sc_ttyp->t_state & TS_CARR_ON) == 0 &&
-	    (sc->sc_ttyp->t_cflag & CLOCAL) == 0) {
+	if ((sc->sc_ttyp->t_state & TS_CONNECTED) == 0) {
 		m_freem(m);
 		return (EHOSTUNREACH);
 	}
@@ -731,8 +730,7 @@ slinput(c, tp)
 	sc = (struct sl_softc *)tp->t_sc;
 	if (sc == NULL)
 		return 0;
-	if (c & TTY_ERRORMASK || ((tp->t_state & TS_CARR_ON) == 0 &&
-	    (tp->t_cflag & CLOCAL) == 0)) {
+	if (c & TTY_ERRORMASK || (tp->t_state & TS_CONNECTED) == 0) {
 		sc->sc_flags |= SC_ERROR;
 		return 0;
 	}

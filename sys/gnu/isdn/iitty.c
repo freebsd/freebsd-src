@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.8 1995/07/22 01:29:28 bde Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.9 1995/07/22 16:44:26 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.8 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.9 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,12 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.8 1995/07/22 01:29:28 bde Exp 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.9  1995/07/22  16:44:26  bde
+ * Obtained from:	partly from ancient patches of mine via 1.1.5
+ *
+ * Give names to the magic tty i/o sleep addresses and use them.  This makes
+ * it easier to remember what the addresses are for and to keep them unique.
+ *
  * Revision 1.8  1995/07/22  01:29:28  bde
  * Move the inline code for waking up writers to a new function
  * ttwwakeup().  The conditions for doing the wakeup will soon become
@@ -159,7 +165,14 @@ ityopen(dev_t dev, int flag, int mode, struct proc * p)
 		return (EBUSY);
 	(void) spltty();
 
-	if(OUTBOUND(dev)) tp->t_cflag |= CLOCAL;
+	if (OUTBOUND(dev)) {
+		/*
+		 * XXX should call l_modem() here and not meddle with CLOCAL,
+		 * but itystart() wants TS_CARR_ON to give the true carrier.
+		 */
+		tp->t_cflag |= CLOCAL;
+		tp->t_state |= TS_CONNECTED;
+	}
 
 	while ((flag & O_NONBLOCK) == 0 && (tp->t_cflag & CLOCAL) == 0 &&
 	       (tp->t_state & TS_CARR_ON) == 0)
@@ -286,7 +299,6 @@ ity_connect(int no)
 		return;
 	if(OUTBOUND(tp->t_dev)) tp->t_cflag &= ~CLOCAL;
 	(*linesw[tp->t_line].l_modem) (tp, 1);
-	tp->t_state |= TS_CARR_ON;
 	tp->t_state &=~ (TS_BUSY|TS_FLUSH);
 	if (tp->t_line)
 		(*linesw[tp->t_line].l_start)(tp);
