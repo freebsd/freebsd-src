@@ -27,7 +27,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -37,7 +36,6 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
  
-#include <dev/aic/aic6360reg.h>
 #include <dev/aic/aicvar.h>
 
 struct aic_pccard_softc {
