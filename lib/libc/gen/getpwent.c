@@ -388,7 +388,7 @@ getpw(int (*fn)(union key, struct passwd *, char *, size_t, struct passwd **),
 				return (NULL);
 		}
 	} while (res == NULL && rv == ERANGE);
-	if (res == NULL)
+	if (rv != 0)
 		errno = rv;
 	return (res);
 }
