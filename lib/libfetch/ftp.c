@@ -452,15 +452,15 @@ _ftp_transfer(int cd, char *oper, char *file,
     struct sockaddr_storage sin;
     struct sockaddr_in6 *sin6;
     struct sockaddr_in *sin4;
-    int pasv, high, verbose;
+    int low, pasv, verbose;
     int e, sd = -1;
     socklen_t l;
     char *s;
     FILE *df;
 
     /* check flags */
+    low = CHECK_FLAG('l');
     pasv = CHECK_FLAG('p');
-    high = CHECK_FLAG('h');
     verbose = CHECK_FLAG('v');
 
     /* passive mode */
@@ -607,7 +607,7 @@ _ftp_transfer(int cd, char *oper, char *file,
 	case AF_INET6:
 	    ((struct sockaddr_in6 *)&sin)->sin6_port = 0;
 #ifdef IPV6_PORTRANGE
-	    arg = high ? IPV6_PORTRANGE_HIGH : IPV6_PORTRANGE_DEFAULT;
+	    arg = low ? IPV6_PORTRANGE_DEFAULT : IPV6_PORTRANGE_HIGH;
 	    if (setsockopt(sd, IPPROTO_IPV6, IPV6_PORTRANGE,
 			   (char *)&arg, sizeof(arg)) == -1)
 		goto sysouch;
@@ -615,7 +615,7 @@ _ftp_transfer(int cd, char *oper, char *file,
 	    break;
 	case AF_INET:
 	    ((struct sockaddr_in *)&sin)->sin_port = 0;
-	    arg = high ? IP_PORTRANGE_HIGH : IP_PORTRANGE_DEFAULT;
+	    arg = low ? IP_PORTRANGE_DEFAULT : IP_PORTRANGE_HIGH;
 	    if (setsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
 			   (char *)&arg, sizeof arg) == -1)
 		goto sysouch;
