@@ -306,7 +306,7 @@ decr_get_timecount(struct timecounter *tc)
  * Wait for about n microseconds (at least!).
  */
 void
-delay(int n)
+DELAY(int n)
 {
 	u_quad_t	tb, ttb;
 	
