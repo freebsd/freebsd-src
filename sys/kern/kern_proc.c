@@ -329,8 +329,48 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 int
 kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 {
+	struct proc *p;
+	struct kse *ke, *ke2;
+	struct ksegrp *kg;
 
-	return(ENOSYS);
+	p = td->td_proc;
+	/* KSE-enabled processes only, please. */
+	if (!(p->p_flag & P_KSES))
+		return EINVAL;
+	if (td->td_standin == NULL)
+		td->td_standin = thread_alloc();
+	ke = NULL;
+	mtx_lock_spin(&sched_lock);
+	if (uap->mbx) {
+		FOREACH_KSEGRP_IN_PROC(p, kg) {
+			FOREACH_KSE_IN_GROUP(kg, ke2) {
+				if (ke2->ke_mailbox != uap->mbx) 
+					continue;
+				if (ke2->ke_flags & KEF_IDLEKSE) {
+					ke = ke2;
+					goto found;
+				} else {
+					mtx_unlock_spin(&sched_lock);
+					td->td_retval[0] = 0;
+					td->td_retval[1] = 0;
+					return 0;
+				}
+			}	
+		}
+	} else {
+		kg = td->td_ksegrp;
+		ke = TAILQ_FIRST(&kg->kg_iq);
+	}
+	if (ke == NULL) {
+		mtx_unlock_spin(&sched_lock);
+		return ESRCH;
+	}
+found:
+	thread_schedule_upcall(td, ke);
+	mtx_unlock_spin(&sched_lock);
+	td->td_retval[0] = 0;
+	td->td_retval[1] = 0;
+	return 0;
 }
 
 /* 
