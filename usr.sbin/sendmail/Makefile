@@ -1,7 +1,7 @@
 #       @(#)Makefile	8.12 (Berkeley) 5/29/95
 
 VER=	XX
-SUBDIR= src mailstats makemap praliases shmrsh cf/cf
+SUBDIR= src mailstats makemap praliases smrsh cf/cf
 FTPDIR=	mastodon:/disks/barad-dur/ftp/sendmail/.
 DISTFILES=sendmail.${VER}.tar.Z sendmail.${VER}.tar.gz \
 	RELEASE_NOTES FAQ KNOWNBUGS
