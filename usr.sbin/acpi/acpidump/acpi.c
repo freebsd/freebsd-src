@@ -123,6 +123,179 @@ acpi_handle_facp(struct FACPbody *facp)
 }
 
 static void
+acpi_print_cpu(u_char cpu_id)
+{
+
+	printf("\tACPI CPU=");
+	if (cpu_id == 0xff)
+		printf("ALL\n");
+	else
+		printf("%d\n", (u_int)cpu_id);
+}
+
+static void
+acpi_print_local_apic(u_char cpu_id, u_char apic_id, u_int32_t flags)
+{
+	acpi_print_cpu(cpu_id);
+	printf("\tFlags={");
+	if (flags & ACPI_MADT_APIC_LOCAL_FLAG_ENABLED)
+		printf("ENABLED");
+	else
+		printf("DISABLED");
+	printf("}\n");
+	printf("\tAPIC ID=%d\n", (u_int)apic_id);
+}
+
+static void
+acpi_print_io_apic(u_char apic_id, u_int32_t int_base, u_int64_t apic_addr)
+{
+	u_int addr_hi;
+	
+	printf("\tAPIC ID=%d\n", (u_int)apic_id);
+	printf("\tINT BASE=%d\n", int_base);
+	printf("\tADDR=0x");
+	addr_hi = apic_addr >> 32;
+	if (addr_hi != 0) {
+		printf("%08x", addr_hi);
+		apic_addr &= 0xffffffff;
+	}
+	printf("%08x\n", (u_int)apic_addr);
+}
+
+static void
+acpi_print_mps_flags(u_int16_t flags)
+{
+
+	printf("\tFlags={Polarity=");
+	switch (flags & MPS_INT_FLAG_POLARITY_MASK) {
+	case MPS_INT_FLAG_POLARITY_CONFORM:
+		printf("conforming");
+		break;
+	case MPS_INT_FLAG_POLARITY_HIGH:
+		printf("active-hi");
+		break;
+	case MPS_INT_FLAG_POLARITY_LOW:
+		printf("active-lo");
+		break;
+	default:
+		printf("0x%x", flags & MPS_INT_FLAG_POLARITY_MASK);
+		break;
+	}
+	printf(", Trigger=");
+	switch (flags & MPS_INT_FLAG_TRIGGER_MASK) {
+	case MPS_INT_FLAG_TRIGGER_CONFORM:
+		printf("conforming");
+		break;
+	case MPS_INT_FLAG_TRIGGER_EDGE:
+		printf("edge");
+		break;
+	case MPS_INT_FLAG_TRIGGER_LEVEL:
+		printf("level");
+		break;
+	default:
+		printf("0x%x", (flags & MPS_INT_FLAG_TRIGGER_MASK) >> 2);
+	}
+	printf("}\n");
+}
+
+static void
+acpi_print_intr(u_int32_t intr, u_int16_t mps_flags)
+{
+
+	printf("\tINTR=%d\n", (u_int)intr);
+	acpi_print_mps_flags(mps_flags);
+}
+
+const char *apic_types[] = { "Local APIC", "IO APIC", "INT Override", "NMI",
+			     "Local NMI", "Local APIC Override", "IO SAPIC",
+			     "Local SAPIC", "Platform Interrupt" };
+const char *platform_int_types[] = { "PMI", "INIT",
+				     "Corrected Platform Error" };
+
+static void
+acpi_print_apic(struct MADT_APIC *mp)
+{
+
+	printf("\tType=%s\n", apic_types[mp->type]);
+	switch (mp->type) {
+	case ACPI_MADT_APIC_TYPE_LOCAL_APIC:
+		acpi_print_local_apic(mp->body.local_apic.cpu_id,
+		    mp->body.local_apic.apic_id, mp->body.local_apic.flags);
+		break;
+	case ACPI_MADT_APIC_TYPE_IO_APIC:
+		acpi_print_io_apic(mp->body.io_apic.apic_id,
+		    mp->body.io_apic.int_base,
+		    mp->body.io_apic.apic_addr);
+		break;
+	case ACPI_MADT_APIC_TYPE_INT_OVERRIDE:
+		printf("\tBUS=%d\n", (u_int)mp->body.int_override.bus);
+		printf("\tIRQ=%d\n", (u_int)mp->body.int_override.source);
+		acpi_print_intr(mp->body.int_override.intr,
+		    mp->body.int_override.mps_flags);
+		break;
+	case ACPI_MADT_APIC_TYPE_NMI:
+		acpi_print_intr(mp->body.nmi.intr, mp->body.nmi.mps_flags);
+		break;
+	case ACPI_MADT_APIC_TYPE_LOCAL_NMI:
+		acpi_print_cpu(mp->body.local_nmi.cpu_id);
+		printf("\tLINT Pin=%d\n", mp->body.local_nmi.lintpin);
+		acpi_print_mps_flags(mp->body.local_nmi.mps_flags);
+		break;
+	case ACPI_MADT_APIC_TYPE_LOCAL_OVERRIDE:
+		printf("\tLocal APIC ADDR=0x%08x%08x\n",
+		    (u_int)(mp->body.local_apic_override.apic_addr >> 32),
+		    (u_int)(mp->body.local_apic_override.apic_addr & 0xffffffff));
+		break;
+	case ACPI_MADT_APIC_TYPE_IO_SAPIC:
+		acpi_print_io_apic(mp->body.io_sapic.apic_id,
+		    mp->body.io_sapic.int_base,
+		    mp->body.io_sapic.apic_addr);
+		break;
+	case ACPI_MADT_APIC_TYPE_LOCAL_SAPIC:
+		acpi_print_local_apic(mp->body.local_sapic.cpu_id,
+		    mp->body.local_sapic.apic_id, mp->body.local_sapic.flags);
+		printf("\tAPIC EID=%d\n", (u_int)mp->body.local_sapic.apic_eid);
+		break;
+	case ACPI_MADT_APIC_TYPE_INT_SRC:
+		printf("\tType=%s\n",
+		    platform_int_types[mp->body.int_src.type]);
+		printf("\tCPU ID=%d\n", (u_int)mp->body.int_src.cpu_id);
+		printf("\tCPU EID=%d\n", (u_int)mp->body.int_src.cpu_id);
+		printf("\tSAPIC Vector=%d\n",
+		    (u_int)mp->body.int_src.sapic_vector);
+		acpi_print_intr(mp->body.int_src.intr,
+		    mp->body.int_src.mps_flags);
+		break;
+	default:
+		printf("\tUnknown type %d\n", (u_int)mp->type);
+	}
+}
+
+static void
+acpi_handle_apic(struct ACPIsdt *sdp)
+{
+	struct MADTbody *madtp;
+	struct MADT_APIC *madt_apicp;
+
+	acpi_print_sdt(sdp);
+	madtp = (struct MADTbody *) sdp->body;
+	printf(BEGIN_COMMENT);
+	printf("\tLocal APIC ADDR=0x%08x\n", madtp->lapic_addr);
+	printf("\tFlags={");
+	if (madtp->flags & ACPI_APIC_FLAG_PCAT_COMPAT)
+		printf("PC-AT");
+	printf("}\n");
+	madt_apicp = (struct MADT_APIC *) madtp->body;
+	while (((uintptr_t)madt_apicp) - ((uintptr_t)sdp) < sdp->len) {
+		printf("\n");
+		acpi_print_apic(madt_apicp);
+		madt_apicp = (struct MADT_APIC *) ((char *)madt_apicp +
+		    madt_apicp->len);
+	}
+	printf(END_COMMENT);
+}
+
+static void
 init_namespace()
 {
 	struct	aml_environ env;
@@ -169,6 +342,7 @@ acpi_dump_dsdt(u_int8_t *dp, u_int8_t *end)
 	printf("\n}\n");
 	assert(dp == end);
 }
+
 void
 acpi_print_sdt(struct ACPIsdt *sdp)
 {
@@ -346,6 +520,8 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 			errx(1, "RSDT entry %d is corrupt\n", i);
 		if (!memcmp(sdp->signature, "FACP", 4)) {
 			acpi_handle_facp((struct FACPbody *) sdp->body);
+		} else if (!memcmp(sdp->signature, "APIC", 4)) {
+			acpi_handle_apic(sdp);
 		} else {
 			acpi_print_sdt(sdp);
 		}
