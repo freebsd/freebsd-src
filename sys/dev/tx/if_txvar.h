@@ -131,16 +131,3 @@ struct epic_type {
 	epic_read_phy_reg((sc), (phy), (reg))
 #define	PHY_WRITE_2(sc, phy, reg, val)					\
 	epic_write_phy_reg((sc), (phy), (reg), (val))
-
-/* Macro to get either mbuf cluster or nothing */
-#define EPIC_MGETCLUSTER(m)						\
-	{ MGETHDR((m),M_DONTWAIT,MT_DATA);				\
-	  if (m) {							\
-	    MCLGET((m),M_DONTWAIT);					\
-	    if( 0 == ((m)->m_flags & M_EXT) ) {				\
-	      m_freem(m);						\
-	      (m) = NULL;						\
-	    }								\
-	  }								\
-	}
-
