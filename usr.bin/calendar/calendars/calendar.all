@@ -11,6 +11,7 @@
 #include <calendar.croatian>
 #include <calendar.french>
 #include <calendar.german>
+#include <calendar.southafrica>
 #include <calendar.russian>
 #include <calendar.usholiday>
 

@@ -11,6 +11,7 @@
 #include <calendar.christian>
 #include <calendar.computer>
 #include <calendar.history>
+#include <calendar.lotr>
 #include <calendar.holiday>
 #include <calendar.judaic>
 #include <calendar.music>

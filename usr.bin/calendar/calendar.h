@@ -67,6 +67,7 @@ void     setnnames(void);
 
 extern int f_dayAfter; /* days after current date */
 extern int f_dayBefore; /* days bevore current date */
+extern int Friday;	/* day before weekend */
 
 struct fixs {
 	char *name;

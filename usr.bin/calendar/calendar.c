@@ -64,6 +64,7 @@ time_t f_time = 0;
 
 int f_dayAfter = 0; /* days after current date */
 int f_dayBefore = 0; /* days before current date */
+int Friday = 5;	     /* day before weekend */
 
 int
 main(argc, argv)
@@ -74,7 +75,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_ALL, "");
 
-	while ((ch = getopt(argc, argv, "-af:t:A:B:")) != -1)
+	while ((ch = getopt(argc, argv, "-af:t:A:B:F:W:")) != -1)
 		switch (ch) {
 		case '-':		/* backward contemptible */
 		case 'a':
@@ -94,12 +95,20 @@ main(argc, argv)
 			f_time = Mktime (optarg);
 			break;
 
+		case 'W': /* we don't need no steenking Fridays */
+			Friday = -1;
+
+			/* FALLTHROUGH */			
 		case 'A': /* days after current date */
 			f_dayAfter = atoi(optarg);
 			break;
 
 		case 'B': /* days before current date */
 			f_dayBefore = atoi(optarg); 
+			break;
+
+		case 'F':
+			Friday = atoi(optarg);
 			break;
 
 		case '?':
@@ -136,8 +145,10 @@ main(argc, argv)
 void
 usage()
 {
-	(void)fprintf(stderr, 
-		      "usage: calendar [-a] [-A days] [-B days] [-f calendarfile] [-t dd[.mm[.year]]]\n");
+	(void)fprintf(stderr, "%s\n%s\n",
+	    "usage: calendar [-a] [-A days] [-B days] [-F friday] "
+	    "[-f calendarfile]",
+	    "                [-t dd[.mm[.year]]] [-W days]");
 	exit(1);
 }
 

@@ -32,7 +32,7 @@
 .\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2001
+.Dd June 13, 2002
 .Dt CALENDAR 1
 .Os
 .Sh NAME
@@ -43,12 +43,17 @@
 .Op Fl a
 .Op Fl A Ar num
 .Op Fl B Ar num
+.Op Fl F Ar friday
 .Op Fl f Ar calendarfile
-.Oo Fl t Ar dd Ns
+.Oo
+.Bk -words
+.Fl t Ar dd Ns
 .Sm off
 .Op . Ar mm Op . Ar year
 .Sm on
+.Ek
 .Oc
+.Op Fl W Ar num
 .Sh DESCRIPTION
 The
 .Nm
@@ -61,18 +66,22 @@ three days are displayed.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
-.It Fl a
-Process the ``calendar'' files of all users and mail the results
-to them.
-This requires super-user privileges.
 .It Fl A Ar num
 Print lines from today and the next
 .Ar num
 days (forward, future).
+.It Fl a
+Process the ``calendar'' files of all users and mail the results
+to them.
+This requires super-user privileges.
 .It Fl B Ar num
 Print lines from today and the previous
 .Ar num
 days (backward, past).
+.It Fl F Ar friday
+Specify which day of the week is ``Friday'' (the day before the
+weekend begins).
+Default is 5.
 .It Fl f Pa calendarfile
 Use
 .Pa calendarfile
@@ -84,6 +93,11 @@ as the default calendar file.
 .Sm on
 .Xc
 For test purposes only: set date directly to argument values.
+.It Fl W Ar num
+Print lines from today and the next
+.Ar num
+days (forward, future).
+Ignore weekends when calculating the number of days.
 .El
 .Pp
 To handle calendars in your national code table you can specify
@@ -179,7 +193,11 @@ do not send mail if this file exists.
 .Pp
 The following default calendar files are provided:
 .Pp
-.Bl -tag -width calendar.christian -compact
+.Bl -tag -width calendar.southafrica -compact
+.It Pa calendar.all
+File which includes all the default files.
+.It Pa calendar.australia
+Calendar of events in Australia.
 .It Pa calendar.birthday
 Births and deaths of famous (and not-so-famous) people.
 .It Pa calendar.christian
@@ -188,10 +206,16 @@ This calendar should be updated yearly by the local system administrator
 so that roving holidays are set correctly for the current year.
 .It Pa calendar.computer
 Days of special significance to computer people.
+.It Pa calendar.croatian
+Calendar of events in Croatia.
 .It Pa calendar.freebsd
 Birthdays of
 .Fx
 committers.
+.It Pa calendar.french
+Calendar of events in France.
+.It Pa calendar.german
+Calendar of events in Germany.
 .It Pa calendar.history
 Everything  else, mostly U.S. historical events.
 .It Pa calendar.holiday
@@ -213,8 +237,16 @@ so that roving holidays are set correctly for the current year.
 French calendar.
 .It Pa calendar.german
 German calendar.
+.It Pa calendar.newzealand
+Calendar of events in New Zealand.
 .It Pa calendar.russian
 Russian calendar.
+.It Pa calendar.southafrica
+Calendar of events in South Africa.
+.It Pa calendar.usholiday
+Calendar of holidays specific to the United States of America.
+.It Pa calendar.world
+Includes all calendar files except for national files.
 .El
 .Sh SEE ALSO
 .Xr at 1 ,
