@@ -113,6 +113,8 @@
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/if_ieee80211.h>
+#include <net/if_media.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -159,6 +161,9 @@ static void an_setdef		__P((struct an_softc *, struct an_req *));
 static void an_cache_store	__P((struct an_softc *, struct ether_header *,
 					struct mbuf *, unsigned short));
 #endif
+
+static int an_media_change	__P((struct ifnet *));
+static void an_media_status	__P((struct ifnet *, struct ifmediareq *));
 
 /* 
  * We probe for an Aironet 4500/4800 card by attempting to
@@ -379,6 +384,31 @@ int an_attach(sc, unit, flags)
 
 	sc->an_tx_rate = 0;
 	bzero((char *)&sc->an_stats, sizeof(sc->an_stats));
+
+	ifmedia_init(&sc->an_ifmedia, 0, an_media_change, an_media_status);
+#define	ADD(m, c)	ifmedia_add(&sc->an_ifmedia, (m), (c), NULL)
+	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1,
+	    IFM_IEEE80211_ADHOC, 0), 0);
+	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1, 0, 0), 0);
+	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2,
+	    IFM_IEEE80211_ADHOC, 0), 0);
+	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2, 0, 0), 0);
+	if(sc->an_caps.an_rates[2] == AN_RATE_5_5MBPS) {
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5,
+		    IFM_IEEE80211_ADHOC, 0), 0);
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5, 0, 0), 0);
+	}
+	if(sc->an_caps.an_rates[3] == AN_RATE_11MBPS) {
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11,
+		    IFM_IEEE80211_ADHOC, 0), 0);
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11, 0, 0), 0);
+	}
+	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO,
+	    IFM_IEEE80211_ADHOC, 0), 0);
+	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, 0, 0), 0);
+#undef	ADD
+	ifmedia_set(&sc->an_ifmedia, IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO,
+	    0, 0));
 
 	/*
 	 * Call MI attach routine.
@@ -713,10 +743,10 @@ static int an_read_record(sc, ltv)
 	 * room to hold all of the returned data).
 	 */
 	len = CSR_READ_2(sc, AN_DATA1);
-	if (len > ltv->an_len) {
+	if (len > (ltv->an_len - 2)) {
 		printf("an%d: record length mismatch -- expected %d, "
-		    "got %d\n", sc->an_unit, ltv->an_len, len);
-		return(ENOSPC);
+		    "got %d\n", sc->an_unit, (ltv->an_len - 2), len);
+		len = (ltv->an_len - 2);
 	}
 
 	ltv->an_len = len;
@@ -981,14 +1011,29 @@ static int an_ioctl(ifp, command, data)
 	caddr_t			data;
 {
 	int			error = 0;
+	int			len;
+	int			i;
 	struct an_softc		*sc;
 	struct an_req		areq;
 	struct ifreq		*ifr;
 	struct proc		*p = curproc;
+	struct ieee80211req	*ireq;
+	u_int8_t		tmpstr[IEEE80211_NWID_LEN*2];
+	u_int8_t		*tmpptr;
+	struct an_ltv_genconfig	*config;
+	struct an_ltv_key	*key;
+	struct an_ltv_status	*status;
+	struct an_ltv_ssidlist	*ssids;
 
 	sc = ifp->if_softc;
 	AN_LOCK(sc);
 	ifr = (struct ifreq *)data;
+	ireq = (struct ieee80211req *)data;
+
+	config = (struct an_ltv_genconfig *)&areq;
+	key = (struct an_ltv_key *)&areq;
+	status = (struct an_ltv_status *)&areq;
+	ssids = (struct an_ltv_ssidlist *)&areq;
 
 	if (sc->an_gone) {
 		error = ENODEV;
@@ -1019,6 +1064,10 @@ static int an_ioctl(ifp, command, data)
 		}
 		sc->an_if_flags = ifp->if_flags;
 		error = 0;
+		break;
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &sc->an_ifmedia, command);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -1058,6 +1107,369 @@ static int an_ioctl(ifp, command, data)
 		if (error)
 			break;
 		an_setdef(sc, &areq);
+		break;
+	case SIOCG80211:
+		areq.an_len = sizeof(areq);
+		switch(ireq->i_type) {
+		case IEEE80211_IOC_SSID:
+			if(ireq->i_val == -1) {
+				areq.an_type = AN_RID_STATUS;
+				if (an_read_record(sc,
+				    (struct an_ltv_gen *)&areq)) {
+					error = EINVAL;
+					break;
+				}
+				len = status->an_ssidlen;
+				tmpptr = status->an_ssid;
+			} else if(ireq->i_val >= 0) {
+				areq.an_type = AN_RID_SSIDLIST;
+				if (an_read_record(sc,
+				    (struct an_ltv_gen *)&areq)) {
+					error = EINVAL;
+					break;
+				}
+				if(ireq->i_val == 0) {
+					len = ssids->an_ssid1_len;
+					tmpptr = ssids->an_ssid1;
+				} else if(ireq->i_val == 1) {
+					len = ssids->an_ssid2_len;
+					tmpptr = ssids->an_ssid3;
+				} else if(ireq->i_val == 1) {
+					len = ssids->an_ssid3_len;
+					tmpptr = ssids->an_ssid3;
+				} else {
+					error = EINVAL;
+					break;
+				}
+			} else {
+				error = EINVAL;
+				break;
+			}
+			if(len > IEEE80211_NWID_LEN) {
+				error = EINVAL;
+				break;
+			}
+			ireq->i_len = len;
+			bzero(tmpstr, IEEE80211_NWID_LEN);
+			bcopy(tmpptr, tmpstr, len);
+			error = copyout(tmpstr, ireq->i_data,
+			    IEEE80211_NWID_LEN);
+			break;
+		case IEEE80211_IOC_NUMSSIDS:
+			ireq->i_val = 3;
+			break;
+		case IEEE80211_IOC_WEP:
+			areq.an_type = AN_RID_ACTUALCFG;
+			if (an_read_record(sc,
+			    (struct an_ltv_gen *)&areq)) {
+				error = EINVAL;
+				break;
+			}
+			if(config->an_authtype & AN_AUTHTYPE_PRIVACY_IN_USE) {
+				if(config->an_authtype &
+				    AN_AUTHTYPE_ALLOW_UNENCRYPTED)
+					ireq->i_val = IEEE80211_WEP_MIXED;
+				else
+					ireq->i_val = IEEE80211_WEP_ON;
+				
+			} else {
+				ireq->i_val = IEEE80211_WEP_OFF;
+			}
+			break;
+		case IEEE80211_IOC_WEPKEY:
+			/*
+			 * XXX: I'm not entierly convinced this is
+			 * correct, but it's what is implemented in
+			 * ancontrol so it will have to do until we get
+			 * access to actual Cisco code.
+			 */
+			if(ireq->i_val < 0 || ireq->i_val > 7) {
+				error = EINVAL;
+				break;
+			}
+			len = 0;
+			if(ireq->i_val < 4) {
+				areq.an_type = AN_RID_WEP_TEMP;
+				for(i=0; i<4; i++) {
+					areq.an_len = sizeof(areq);
+					if (an_read_record(sc,
+					    (struct an_ltv_gen *)&areq)) {
+						error = EINVAL;
+						break;
+					}
+					len = key->klen;
+					if(i == ireq->i_val)
+						break;
+					/* Required to get next entry */
+					areq.an_type = AN_RID_WEP_PERM;
+				}
+				if(error)
+					break;
+			}
+			/* We aren't allowed to read the value of the
+			 * key from the card so we just output zeros
+			 * like we would if we could read the card, but
+			 * denied the user access.
+			 */
+			bzero(tmpstr, len);
+			ireq->i_len = len;
+			error = copyout(tmpstr, ireq->i_data, len);
+			break;
+		case IEEE80211_IOC_NUMWEPKEYS:
+			ireq->i_val = 8;
+			break;
+		case IEEE80211_IOC_WEPTXKEY:
+			areq.an_type = AN_RID_WEP_PERM;
+			key->kindex = 0xffff;
+			if (an_read_record(sc,
+			    (struct an_ltv_gen *)&areq)) {
+				error = EINVAL;
+				break;
+			}
+			ireq->i_val = key->mac[0];
+			break;
+		case IEEE80211_IOC_AUTHMODE:
+			areq.an_type = AN_RID_ACTUALCFG;
+			if (an_read_record(sc,
+			    (struct an_ltv_gen *)&areq)) {
+				error = EINVAL;
+				break;
+			}
+			if ((config->an_authtype & AN_AUTHTYPE_MASK) ==
+			    AN_AUTHTYPE_NONE) {
+			    ireq->i_val = IEEE80211_AUTH_NONE;
+			} else if ((config->an_authtype & AN_AUTHTYPE_MASK) ==
+			    AN_AUTHTYPE_OPEN) {
+			    ireq->i_val = IEEE80211_AUTH_OPEN;
+			} else if ((config->an_authtype & AN_AUTHTYPE_MASK) ==
+			    AN_AUTHTYPE_SHAREDKEY) {
+			    ireq->i_val = IEEE80211_AUTH_SHARED;
+			} else
+				error = EINVAL;
+			break;
+		case IEEE80211_IOC_STATIONNAME:
+			areq.an_type = AN_RID_ACTUALCFG;
+			if (an_read_record(sc,
+			    (struct an_ltv_gen *)&areq)) {
+				error = EINVAL;
+				break;
+			}
+			ireq->i_len = sizeof(config->an_nodename);
+			tmpptr = config->an_nodename;
+			bzero(tmpstr, IEEE80211_NWID_LEN);
+			bcopy(tmpptr, tmpstr, ireq->i_len);
+			error = copyout(tmpstr, ireq->i_data,
+			    IEEE80211_NWID_LEN);
+			break;
+		case IEEE80211_IOC_CHANNEL:
+			areq.an_type = AN_RID_STATUS;
+			if (an_read_record(sc,
+			    (struct an_ltv_gen *)&areq)) {
+				error = EINVAL;
+				break;
+			}
+			ireq->i_val = status->an_cur_channel;
+			break;
+		case IEEE80211_IOC_POWERSAVE:
+			areq.an_type = AN_RID_ACTUALCFG;
+			if (an_read_record(sc,
+			    (struct an_ltv_gen *)&areq)) {
+				error = EINVAL;
+				break;
+			}
+			if(config->an_psave_mode == AN_PSAVE_NONE) {
+				ireq->i_val = IEEE80211_POWERSAVE_OFF;
+			} else if(config->an_psave_mode == AN_PSAVE_CAM) {
+				ireq->i_val = IEEE80211_POWERSAVE_CAM;
+			} else if(config->an_psave_mode == AN_PSAVE_PSP) {
+				ireq->i_val = IEEE80211_POWERSAVE_PSP;
+			} else if(config->an_psave_mode == AN_PSAVE_PSP_CAM) {
+				ireq->i_val = IEEE80211_POWERSAVE_PSP_CAM;
+			} else
+				error = EINVAL;
+			break;
+		case IEEE80211_IOC_POWERSAVESLEEP:
+			areq.an_type = AN_RID_ACTUALCFG;
+			if (an_read_record(sc,
+			    (struct an_ltv_gen *)&areq)) {
+				error = EINVAL;
+				break;
+			}
+			ireq->i_val = config->an_listen_interval;
+			break;
+		}	
+		break;
+	case SIOCS80211:
+		if ((error = suser(p)))
+			goto out;
+		areq.an_len = sizeof(areq);
+		/*
+		 * We need a config structure for everything but the WEP
+		 * key management and SSIDs so we get it now so avoid
+		 * duplicating this code every time.
+		 */
+		if (ireq->i_type != IEEE80211_IOC_SSID &&
+		    ireq->i_type != IEEE80211_IOC_WEPKEY &&
+		    ireq->i_type != IEEE80211_IOC_WEPTXKEY) {
+			areq.an_type = AN_RID_GENCONFIG;
+			if (an_read_record(sc,
+			    (struct an_ltv_gen *)&areq)) {
+				error = EINVAL;
+				break;
+			}
+		}
+		switch(ireq->i_type) {
+		case IEEE80211_IOC_SSID:
+			areq.an_type = AN_RID_SSIDLIST;
+			if (an_read_record(sc,
+			    (struct an_ltv_gen *)&areq)) {
+				error = EINVAL;
+				break;
+			}
+			if(ireq->i_len > IEEE80211_NWID_LEN) {
+				error = EINVAL;
+				break;
+			}
+			switch (ireq->i_val) {
+			case 0:
+				error = copyin(ireq->i_data,
+				    ssids->an_ssid1, ireq->i_len);
+				ssids->an_ssid1_len = ireq->i_len;
+				break;
+			case 1:
+				error = copyin(ireq->i_data,
+				    ssids->an_ssid2, ireq->i_len);
+				ssids->an_ssid2_len = ireq->i_len;
+				break;
+			case 2:
+				error = copyin(ireq->i_data,
+				    ssids->an_ssid3, ireq->i_len);
+				ssids->an_ssid3_len = ireq->i_len;
+				break;
+			default:
+				error = EINVAL;
+				break;
+			}
+			break;
+		case IEEE80211_IOC_WEP:
+			switch (ireq->i_val) {
+			case IEEE80211_WEP_OFF:
+				config->an_authtype &=
+				    ~(AN_AUTHTYPE_PRIVACY_IN_USE |
+				    AN_AUTHTYPE_ALLOW_UNENCRYPTED);
+				break;
+			case IEEE80211_WEP_ON:
+				config->an_authtype |=
+				    AN_AUTHTYPE_PRIVACY_IN_USE;
+				config->an_authtype &=
+				    ~AN_AUTHTYPE_ALLOW_UNENCRYPTED;
+				break;
+			case IEEE80211_WEP_MIXED:
+				config->an_authtype |=
+				    AN_AUTHTYPE_PRIVACY_IN_USE |
+				    AN_AUTHTYPE_ALLOW_UNENCRYPTED;
+				break;
+			default:
+				error = EINVAL;
+				break;
+			}
+			break;
+		case IEEE80211_IOC_WEPKEY:
+			if (ireq->i_val < 0 || ireq->i_val > 7 ||
+			    ireq->i_len > 13) {
+				error = EINVAL;
+				break;
+			}
+			error = copyin(ireq->i_data, tmpstr, 13);
+			if(error)
+				break;
+			bzero(&areq, sizeof(struct an_ltv_key));
+			areq.an_len = sizeof(struct an_ltv_key);
+			key->mac[0] = 1;	/* The others are 0. */
+			key->kindex = ireq->i_val % 4;
+			if(ireq->i_val < 4)
+				areq.an_type = AN_RID_WEP_TEMP;
+			else
+				areq.an_type = AN_RID_WEP_PERM;
+			key->klen = ireq->i_len;
+			bcopy(tmpstr, key->key, key->klen);
+			break;
+		case IEEE80211_IOC_WEPTXKEY:
+			if(ireq->i_val < 0 || ireq->i_val > 3) {
+				error = EINVAL;
+				break;
+			}
+			bzero(&areq, sizeof(struct an_ltv_key));
+			areq.an_len = sizeof(struct an_ltv_key);
+			areq.an_type = AN_RID_WEP_PERM;
+			key->kindex = 0xffff;
+			key->mac[0] = ireq->i_val;
+			break;
+		case IEEE80211_IOC_AUTHMODE:
+			switch (ireq->i_val) {
+			case IEEE80211_AUTH_NONE:
+				config->an_authtype = AN_AUTHTYPE_NONE |
+				    (config->an_authtype & ~AN_AUTHTYPE_MASK);
+				break;
+			case IEEE80211_AUTH_OPEN:
+				config->an_authtype = AN_AUTHTYPE_OPEN |
+				    (config->an_authtype & ~AN_AUTHTYPE_MASK);
+				break;
+			case IEEE80211_AUTH_SHARED:
+				config->an_authtype = AN_AUTHTYPE_SHAREDKEY |
+				    (config->an_authtype & ~AN_AUTHTYPE_MASK);
+				break;
+			default:
+				error = EINVAL;
+			}
+			break;
+		case IEEE80211_IOC_STATIONNAME:
+			if(ireq->i_len > 16) {
+				error = EINVAL;
+				break;
+			}
+			bzero(config->an_nodename, 16);
+			error = copyin(ireq->i_data,
+			    config->an_nodename, ireq->i_len);
+			break;
+		case IEEE80211_IOC_CHANNEL:
+			/*
+			 * The actual range is 1-14, but if you set it
+			 * to 0 you get the default so we let that work
+			 * too.
+			 */
+			if (ireq->i_val < 0 || ireq->i_val >14) {
+				error = EINVAL;
+				break;
+			}
+			config->an_ds_channel = ireq->i_val;
+			break;
+		case IEEE80211_IOC_POWERSAVE:
+			switch (ireq->i_val) {
+			case IEEE80211_POWERSAVE_OFF:
+				config->an_psave_mode = AN_PSAVE_NONE;
+				break;
+			case IEEE80211_POWERSAVE_CAM:
+				config->an_psave_mode = AN_PSAVE_CAM;
+				break;
+			case IEEE80211_POWERSAVE_PSP:
+				config->an_psave_mode = AN_PSAVE_PSP;
+				break;
+			case IEEE80211_POWERSAVE_PSP_CAM:
+				config->an_psave_mode = AN_PSAVE_PSP_CAM;
+				break;
+			default:
+				error = EINVAL;
+				break;
+			}
+			break;
+		case IEEE80211_IOC_POWERSAVESLEEP:
+			config->an_listen_interval = ireq->i_val;
+			break;
+		}
+
+		if (!error)
+			an_setdef(sc, &areq);
 		break;
 	default:
 		error = EINVAL;
@@ -1416,6 +1828,7 @@ void an_cache_store (sc, eh, m, rx_quality)
 	static int cache_slot = 0; 	/* use this cache entry */
 	static int wrapindex = 0;       /* next "free" cache entry */
 	int saanp=0;
+	int sig, noise;
 
 	/* filters:
 	 * 1. ip only
@@ -1523,3 +1936,84 @@ void an_cache_store (sc, eh, m, rx_quality)
 	return;
 }
 #endif
+
+static int an_media_change(ifp)
+	struct ifnet		*ifp;
+{
+	struct an_softc *sc = ifp->if_softc;
+	int otype = sc->an_config.an_opmode;
+	int orate = sc->an_tx_rate;
+
+	if ((sc->an_ifmedia.ifm_cur->ifm_media & IFM_IEEE80211_ADHOC) != 0)
+		sc->an_config.an_opmode = AN_OPMODE_IBSS_ADHOC;
+	else
+		sc->an_config.an_opmode = AN_OPMODE_INFRASTRUCTURE_STATION;
+
+	switch (IFM_SUBTYPE(sc->an_ifmedia.ifm_cur->ifm_media)) {
+	case IFM_IEEE80211_DS1:
+		sc->an_tx_rate = AN_RATE_1MBPS;
+		break;
+	case IFM_IEEE80211_DS2:
+		sc->an_tx_rate = AN_RATE_2MBPS;
+		break;
+	case IFM_IEEE80211_DS5:
+		sc->an_tx_rate = AN_RATE_5_5MBPS;
+		break;
+	case IFM_IEEE80211_DS11:
+		sc->an_tx_rate = AN_RATE_11MBPS;
+		break;
+	case IFM_AUTO:
+		sc->an_tx_rate = 0;
+		break;
+	}
+
+	if (otype != sc->an_config.an_opmode ||
+	    orate != sc->an_tx_rate)
+		an_init(sc);
+
+	return(0);
+}
+
+static void an_media_status(ifp, imr)
+	struct ifnet		*ifp;
+	struct ifmediareq	*imr;
+{
+	struct an_ltv_status	status;
+	struct an_softc		*sc = ifp->if_softc;
+
+	status.an_len = sizeof(status);
+	status.an_type = AN_RID_STATUS;
+	if (an_read_record(sc, (struct an_ltv_gen *)&status)) {
+		/* If the status read fails, just lie. */
+		imr->ifm_active = sc->an_ifmedia.ifm_cur->ifm_media;
+		imr->ifm_status = IFM_AVALID|IFM_ACTIVE;
+	}
+
+	if(sc->an_tx_rate == 0) {
+		imr->ifm_active = IFM_IEEE80211|IFM_AUTO;
+		if (sc->an_config.an_opmode == AN_OPMODE_IBSS_ADHOC)
+			imr->ifm_active |= IFM_IEEE80211_ADHOC;
+		switch(status.an_current_tx_rate) {
+		case AN_RATE_1MBPS:
+			imr->ifm_active |= IFM_IEEE80211_DS1;
+			break;
+		case AN_RATE_2MBPS:
+			imr->ifm_active |= IFM_IEEE80211_DS2;
+			break;
+		case AN_RATE_5_5MBPS:
+			imr->ifm_active |= IFM_IEEE80211_DS5;
+			break;
+		case AN_RATE_11MBPS:
+			imr->ifm_active |= IFM_IEEE80211_DS11;
+			break;
+		}
+	} else {
+		imr->ifm_active = sc->an_ifmedia.ifm_cur->ifm_media;
+	}
+
+	imr->ifm_status = IFM_AVALID;
+	if (sc->an_config.an_opmode == AN_OPMODE_IBSS_ADHOC)
+		imr->ifm_status |= IFM_ACTIVE;
+	else if (status.an_opmode & AN_STATUS_OPMODE_ASSOCIATED)
+			imr->ifm_status |= IFM_ACTIVE;
+}
