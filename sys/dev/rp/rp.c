@@ -1166,10 +1166,10 @@ rp_pciattach(pcici_t tag, int unit)
 			rp_table(line) = rp;
 /*			devfs_add_devswf(&rp_cdevsw,
 				port, DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-				"ttyR%n", port);
+				"ttyR%r", port);
 			devfs_add_devswf(&rp_cdevsw,
 				port | CONTROL_INIT_STATE, DV_CHR, UID_ROOT,
-				GID_WHEEL, 0600, "ttyRi%n", port);
+				GID_WHEEL, 0600, "ttyRi%r", port);
 */
 		}
 	}
