@@ -70,79 +70,76 @@
 #define PTE_AR_RWX_RW	6
 #define PTE_AR_X_RX	7
 
-#define PTE_IG_WIRED	1
-#define PTE_IG_MANAGED	2
-
 /*
  * A short-format VHPT entry. Also matches the TLB insertion format.
  */
 struct ia64_pte {
-	u_int64_t	pte_p	:1;	/* bits 0..0 */
-	u_int64_t	pte_rv1	:1;	/* bits 1..1 */
-	u_int64_t	pte_ma	:3;	/* bits 2..4 */
-	u_int64_t	pte_a	:1;	/* bits 5..5 */
-	u_int64_t	pte_d	:1;	/* bits 6..6 */
-	u_int64_t	pte_pl	:2;	/* bits 7..8 */
-	u_int64_t	pte_ar	:3;	/* bits 9..11 */
-	u_int64_t	pte_ppn	:38;	/* bits 12..49 */
-	u_int64_t	pte_rv2	:2;	/* bits 50..51 */
-	u_int64_t	pte_ed	:1;	/* bits 52..52 */
-	u_int64_t	pte_ig	:11;	/* bits 53..63 */
+	uint64_t	pte_p	:1;	/* bit 0 */
+	uint64_t	__rv1__	:1;	/* bit 1 */
+	uint64_t	pte_ma	:3;	/* bits 2..4 */
+	uint64_t	pte_a	:1;	/* bit 5 */
+	uint64_t	pte_d	:1;	/* bit 6 */
+	uint64_t	pte_pl	:2;	/* bits 7..8 */
+	uint64_t	pte_ar	:3;	/* bits 9..11 */
+	uint64_t	pte_ppn	:38;	/* bits 12..49 */
+	uint64_t	__rv2__	:2;	/* bits 50..51 */
+	uint64_t	pte_ed	:1;	/* bit 52 */
+	/* The following bits are ignored by the hardware. */
+	uint64_t	pte_w	:1;	/* bit 53 */
+	uint64_t	pte_m	:1;	/* bit 54 */
+	uint64_t	pte_prot:3;	/* bits 55..57 */
+	uint64_t	__ig__	:6;	/* bits 58..63 */
 };
 
 /*
  * A long-format VHPT entry.
  */
 struct ia64_lpte {
-	u_int64_t	pte_p	:1;	/* bits 0..0 */
-	u_int64_t	pte_rv1	:1;	/* bits 1..1 */
-	u_int64_t	pte_ma	:3;	/* bits 2..4 */
-	u_int64_t	pte_a	:1;	/* bits 5..5 */
-	u_int64_t	pte_d	:1;	/* bits 6..6 */
-	u_int64_t	pte_pl	:2;	/* bits 7..8 */
-	u_int64_t	pte_ar	:3;	/* bits 9..11 */
-	u_int64_t	pte_ppn	:38;	/* bits 12..49 */
-	u_int64_t	pte_rv2	:2;	/* bits 50..51 */
-	u_int64_t	pte_ed	:1;	/* bits 52..52 */
-	u_int64_t	pte_ig	:11;	/* bits 53..63 */
+	uint64_t	pte_p	:1;	/* bit 0 */
+	uint64_t	__rv1__	:1;	/* bit 1 */
+	uint64_t	pte_ma	:3;	/* bits 2..4 */
+	uint64_t	pte_a	:1;	/* bit 5 */
+	uint64_t	pte_d	:1;	/* bit 6 */
+	uint64_t	pte_pl	:2;	/* bits 7..8 */
+	uint64_t	pte_ar	:3;	/* bits 9..11 */
+	uint64_t	pte_ppn	:38;	/* bits 12..49 */
+	uint64_t	__rv2__	:2;	/* bits 50..51 */
+	uint64_t	pte_ed	:1;	/* bit 52 */
+	/* The following 11 bits are ignored by the hardware. */
+	uint64_t	pte_w	:1;	/* bit 53 */
+	uint64_t	pte_m	:1;	/* bit 54 */
+	uint64_t	pte_prot:3;	/* bits 55..57 */
+	uint64_t	__ig__	:6;	/* bits 58..63 */
 
-	u_int64_t	pte_rv3	:2;	/* bits 0..1 */
-	u_int64_t	pte_ps	:6;	/* bits 2..7 */
-	u_int64_t	pte_key	:24;	/* bits 8..31 */
-	u_int64_t	pte_rv4	:32;	/* bits 32..63 */
+	uint64_t	__rv3__	:2;	/* bits 0..1 */
+	uint64_t	pte_ps	:6;	/* bits 2..7 */
+	uint64_t	pte_key	:24;	/* bits 8..31 */
+	uint64_t	__rv4__	:32;	/* bits 32..63 */
 
-	u_int64_t	pte_tag;	/* includes ti */
+	uint64_t	pte_tag;	/* includes ti */
 
-	u_int64_t	pte_chain;	/* pa of collision chain */
+	uint64_t	pte_chain;	/* pa of collision chain */
 };
 
 /*
  * Layout of cr.itir.
  */
 struct ia64_itir {
-	u_int64_t	itir_rv1 :2;    /* bits 0..1 */
-	u_int64_t	itir_ps  :6;	/* bits 2..7 */
-	u_int64_t	itir_key :24;	/* bits 8..31 */
-	u_int64_t	itir_rv2 :32;	/* bits 32..63 */
-};
-
-/*
- * Layout of cr.ifa.
- */
-struct ia64_ifa {
-	u_int64_t	ifa_ig   :12;	/* bits 0..11 */
-	u_int64_t	ifa_vpn  :52;	/* bits 12..63 */
+	uint64_t	__rv1__	:2;	/* bits 0..1 */
+	uint64_t	itir_ps	:6;	/* bits 2..7 */
+	uint64_t	itir_key:24;	/* bits 8..31 */
+	uint64_t	__rv2__	:32;	/* bits 32..63 */
 };
 
 /*
  * Layout of rr[x].
  */
 struct ia64_rr {
-	u_int64_t	rr_ve    :1;	/* bits 0..0 */
-	u_int64_t	rr_rv1   :1;	/* bits 1..1 */
-	u_int64_t	rr_ps    :6;	/* bits 2..7 */
-	u_int64_t	rr_rid   :24;	/* bits 8..31 */
-	u_int64_t	rr_rv2   :32;	/* bits 32..63 */
+	uint64_t	rr_ve	:1;	/* bit 0 */
+	uint64_t	__rv1__	:1;	/* bit 1 */
+	uint64_t	rr_ps	:6;	/* bits 2..7 */
+	uint64_t	rr_rid	:24;	/* bits 8..31 */
+	uint64_t	__rv2__	:32;	/* bits 32..63 */
 };
 
 #endif /* !LOCORE */
