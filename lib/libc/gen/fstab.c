@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)fstab.c	8.1 (Berkeley) 6/4/93";
 
 static FILE *_fs_fp;
 static struct fstab _fs_fstab;
+static int LineNo = 0;
 
 static error __P((int));
 static fstabscan __P((void));
@@ -58,9 +59,13 @@ fstabscan()
 	int typexx;
 
 	for (;;) {
+
 		if (!(cp = fgets(line, sizeof(line), _fs_fp)))
 			return(0);
 /* OLD_STYLE_FSTAB */
+		++LineNo;
+		if (*line == '#' || *line == '\n')
+			continue;
 		if (!strpbrk(cp, " \t")) {
 			_fs_fstab.fs_spec = strtok(cp, ":\n");
 			_fs_fstab.fs_file = strtok((char *)NULL, ":\n");
@@ -170,10 +175,13 @@ setfsent()
 {
 	if (_fs_fp) {
 		rewind(_fs_fp);
+		LineNo = 0;
 		return(1);
 	}
-	if (_fs_fp = fopen(_PATH_FSTAB, "r"))
+	if (_fs_fp = fopen(_PATH_FSTAB, "r")) {
+		LineNo = 0;
 		return(1);
+	}
 	error(errno);
 	return(0);
 }
@@ -192,10 +200,13 @@ error(err)
 	int err;
 {
 	char *p;
+	char num[30];
 
 	(void)write(STDERR_FILENO, "fstab: ", 7);
 	(void)write(STDERR_FILENO, _PATH_FSTAB, sizeof(_PATH_FSTAB) - 1);
-	(void)write(STDERR_FILENO, ": ", 1);
+	(void)write(STDERR_FILENO, ":", 1);
+	sprintf(num, "%d: ", LineNo);
+	(void)write(STDERR_FILENO, num, strlen(num));
 	p = strerror(err);
 	(void)write(STDERR_FILENO, p, strlen(p));
 	(void)write(STDERR_FILENO, "\n", 1);
