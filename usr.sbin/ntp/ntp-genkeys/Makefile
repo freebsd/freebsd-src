@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../contrib/ntp/util \
-	${.CURDIR}/../../../contrib/ntp/ntpd
+.PATH: ${.CURDIR}/../../../contrib/ntp/util \
+       ${.CURDIR}/../../../contrib/ntp/ntpd
 
 PROG=	ntp-genkeys
 NOMAN=	yes

@@ -11,6 +11,6 @@ BINMODE= 4555
 CFLAGS+= -I$S
 
 DPADD=	${LIBMROUTED}
-LDADD=	${LIBMROUTED}
+LDADD=	../common/libmrouted.a
 
 .include <bsd.prog.mk>

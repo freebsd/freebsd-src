@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=	quot
-WARNS?=	2
 MAN=	quot.8
+
+WARNS?=	2
 
 .include <bsd.prog.mk>

@@ -2,7 +2,8 @@
 # $FreeBSD$
 
 PROG=	mountd
-WARNS=	0
 MAN=	exports.5 netgroup.5 mountd.8
+
+WARNS?=	0
 
 .include <bsd.prog.mk>

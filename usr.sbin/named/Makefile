@@ -3,8 +3,7 @@
 USE_LIBBIND=	true
 .include "${.CURDIR}/Makefile.inc"
 
-.PATH: ${BIND_DIR}/bin/named
-.PATH: ${BIND_DIR}/doc/man
+.PATH: ${BIND_DIR}/bin/named ${BIND_DIR}/doc/man
 
 PROG=	named
 MAN=	named.conf.5 named.8 named-bootconf.8 nsupdate.8
@@ -18,14 +17,14 @@ SRCS=	tmp_version.c pathnames.h \
 	ns_sort.c ns_notify.c
 
 .if exists(${.OBJDIR}/../../lib/libisc)
-LIBISCDIR:=    ${.OBJDIR}/../../lib/libisc
+LIBISCDIR:=	${.OBJDIR}/../../lib/libisc
 .else
-LIBISCDIR!=    cd ${.CURDIR}/../../lib/libisc; make -V .OBJDIR
+LIBISCDIR!=	cd ${.CURDIR}/../../lib/libisc; make -V .OBJDIR
 .endif
-LIBISC:=       ${LIBISCDIR}/libisc.a
+LIBISC:=	${LIBISCDIR}/libisc.a
 
-DPADD+=         ${LIBISC}
-LDADD+=         ${LIBISC}
+DPADD+=	${LIBISC}
+LDADD+=	-lisc
 
 HTMLS=	acl.html address_list.html comments.html config.html controls.html \
 	docdef.html example.html include.html index.html key.html \

@@ -5,7 +5,7 @@ MAN=	watch.8
 
 WARNS?=	2
 
-LDADD=	-ltermcap
 DPADD=	${LIBTERMCAP}
+LDADD=	-ltermcap
 
 .include <bsd.prog.mk>

@@ -2,7 +2,8 @@
 # $FreeBSD$
 
 PROG=	repquota
-WARNS?=	4
 MAN=	repquota.8
+
+WARNS?=	4
 
 .include <bsd.prog.mk>

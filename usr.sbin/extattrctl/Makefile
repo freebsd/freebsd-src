@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=	extattrctl
-WARNS?=	2
 MAN=	extattrctl.8
+
+WARNS?=	2
 
 .include <bsd.prog.mk>

@@ -64,8 +64,8 @@ CLEANFILES+=sm_os.h
 # STARTTLS support
 DISTRIBUTION=	crypto
 CFLAGS+=	-DSTARTTLS -D_FFR_TLS_1
-LDADD+=		-lssl -lcrypto
 DPADD+=		${LIBSSL} ${LIBCRYPTO}
+LDADD+=		-lssl -lcrypto
 .endif
 
 # User customizations to the sendmail build environment

@@ -21,7 +21,7 @@ SRCS=	rtsold.c rtsol.c if.c probe.c dump.c rtsock.c
 
 CFLAGS+= -DINET6 -DHAVE_GETIFADDRS -DHAVE_ARC4RANDOM
 
-LDADD=	-lkvm
 DPADD=	${LIBKVM}
+LDADD=	-lkvm
 
 .include <bsd.prog.mk>

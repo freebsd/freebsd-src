@@ -15,7 +15,7 @@ SRCS=	check_bound.c rpcb_stat.c rpcb_svc_4.c rpcbind.c pmap_svc.c \
 
 CFLAGS+= -I${LIBCRPCDIR} -I${LIBCINCLUDE} -DPORTMAP -DINET6 -DLIBWRAP
 
-LDADD=	-lwrap -lutil
 DPADD=	${LIBWRAP} ${LIBUTIL}
+LDADD=	-lwrap -lutil
 
 .include <bsd.prog.mk>
