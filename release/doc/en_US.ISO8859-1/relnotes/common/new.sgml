@@ -177,7 +177,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Filesystems</title>
 
-      <para></para>
+      <para>A bug was been fixed in soft updates that could cause
+	occasional filesystem corruption if the system is shut down
+	immediately after performing heavy filesystem activities, such
+	as installing a new kernel or other software.</para>
     </sect3>
 
     <sect3>
@@ -189,7 +192,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Multimedia Support</title>
 
-      <para></para>
+      <para arch="i386">The ufm driver, supporting the D-Link DSB-R100
+	USB Radio, has been added.</para>
     </sect3>
 
     <sect3>
@@ -205,6 +209,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>&man.ctags.1; no longer creates a corrupt tags file if the
+      source file used <literal>//</literal> (C++-style)
+      comments.</para>
 
     <para>&man.dump.8; now supplies progress information in its
       process title, useful for monitoring automated backups.</para>
