@@ -27,10 +27,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: infocmp.1m,v 1.25 2000/06/11 02:08:16 tom Exp $
+.\" $Id: infocmp.1m,v 1.27 2000/08/19 18:51:05 tom Exp $
 .TH infocmp 1M ""
 .ds n 5
-.ds d @DATADIR@/terminfo
+.ds d @TERMINFO@
 .SH NAME
 \fBinfocmp\fR - compare or print out \fIterminfo\fR descriptions
 .SH SYNOPSIS
@@ -171,7 +171,7 @@ were not needed.
 The location of the compiled \fBterminfo\fR database is taken from the
 environment variable \fBTERMINFO\fR .  If the variable is not defined, or the
 terminal is not found in that location, the system \fBterminfo\fR database,
-in \fB@DATADIR@/terminfo\fR, will be used.  The options \fB-A\fR
+in \fB@TERMINFO@\fR, will be used.  The options \fB-A\fR
 and \fB-B\fR may be used to override this location.  The \fB-A\fR option will
 set \fBTERMINFO\fR for the first \fItermname\fR and the \fB-B\fR option will
 set \fBTERMINFO\fR for the other \fItermnames\fR.  With this, it is possible to
@@ -245,7 +245,7 @@ This is mainly useful for testing and analysis, since the compiled
 descriptions are limited (e.g., 1023 for termcap, 4096 for terminfo).
 .TP 5
 \fB-V\fR
-prints out the version of the program in use on standard error and exits.
+reports the version of ncurses which was used in this program, and exits.
 .TP 5
 \fB-e\fR
 Dump the capabilities of the given terminal as a C initializer for a
@@ -347,6 +347,7 @@ The
 \fB-G\fR,
 \fB-R\fR,
 \fB-T\fR,
+\fB-V\fR,
 \fB-a\fR,
 \fB-e\fR,
 \fB-f\fR,

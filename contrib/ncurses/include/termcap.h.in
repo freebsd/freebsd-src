@@ -31,7 +31,7 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-/* $Id: termcap.h.in,v 1.10 1999/01/09 22:38:04 Uchiyama.Yasushi Exp $ */
+/* $Id: termcap.h.in,v 1.12 2000/10/08 01:06:37 tom Exp $ */
 
 #ifndef _NCU_TERMCAP_H
 #define _NCU_TERMCAP_H	1
@@ -45,7 +45,6 @@ extern "C"
 #endif /* __cplusplus */
 
 #include <sys/types.h>
-@OSPEED_INCLUDES@ 
 
 #undef  NCURSES_CONST 
 #define NCURSES_CONST @NCURSES_CONST@ 
@@ -53,7 +52,7 @@ extern "C"
 extern char PC;
 extern char *UP;
 extern char *BC;
-extern @OSPEED_TYPE@ ospeed; 
+extern short ospeed; 
 
 #if !defined(_NCU_TERM_H)
 extern char *tgetstr(NCURSES_CONST char *, char **);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
 **	lib_tstp.c
 **
@@ -44,11 +43,11 @@
 #include <signal.h>
 #include <SigAction.h>
 
-#if defined(SVR4_ACTION) && !defined(_POSIX_SOURCE)
+#if SVR4_ACTION && !defined(_POSIX_SOURCE)
 #define _POSIX_SOURCE
 #endif
 
-MODULE_ID("$Id: lib_tstp.c,v 1.21 2000/05/20 23:28:56 tom Exp $")
+MODULE_ID("$Id: lib_tstp.c,v 1.22 2000/09/02 18:33:17 tom Exp $")
 
 #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
 #define USE_SIGTSTP 1
@@ -100,151 +99,152 @@ MODULE_ID("$Id: lib_tstp.c,v 1.21 2000/05/20 23:28:56 tom Exp $")
  */
 
 #if USE_SIGTSTP
-static void tstp(int dummy GCC_UNUSED)
+static void
+tstp(int dummy GCC_UNUSED)
 {
-	sigset_t mask, omask;
-	sigaction_t act, oact;
+    sigset_t mask, omask;
+    sigaction_t act, oact;
 
 #ifdef SIGTTOU
-	int sigttou_blocked;
+    int sigttou_blocked;
 #endif
 
-	T(("tstp() called"));
+    T(("tstp() called"));
 
-	/*
-	 * The user may have changed the prog_mode tty bits, so save them.
-	 *
-	 * But first try to detect whether we still are in the foreground
-	 * process group - if not, an interactive shell may already have
-	 * taken ownership of the tty and modified the settings when our
-	 * parent was stopped before us, and we would likely pick up the
-	 * settings already modified by the shell.
-	 */
-	if (SP != 0 && !SP->_endwin) /* don't do this if we're not in curses */
+    /*
+     * The user may have changed the prog_mode tty bits, so save them.
+     *
+     * But first try to detect whether we still are in the foreground
+     * process group - if not, an interactive shell may already have
+     * taken ownership of the tty and modified the settings when our
+     * parent was stopped before us, and we would likely pick up the
+     * settings already modified by the shell.
+     */
+    if (SP != 0 && !SP->_endwin)	/* don't do this if we're not in curses */
 #if HAVE_TCGETPGRP
 	if (tcgetpgrp(STDIN_FILENO) == getpgrp())
 #endif
 	    def_prog_mode();
 
-	/*
-	 * Block window change and timer signals.  The latter
-	 * is because applications use timers to decide when
-	 * to repaint the screen.
-	 */
-	(void)sigemptyset(&mask);
-	(void)sigaddset(&mask, SIGALRM);
+    /*
+     * Block window change and timer signals.  The latter
+     * is because applications use timers to decide when
+     * to repaint the screen.
+     */
+    (void) sigemptyset(&mask);
+    (void) sigaddset(&mask, SIGALRM);
 #if USE_SIGWINCH
-	(void)sigaddset(&mask, SIGWINCH);
+    (void) sigaddset(&mask, SIGWINCH);
 #endif
-	(void)sigprocmask(SIG_BLOCK, &mask, &omask);
+    (void) sigprocmask(SIG_BLOCK, &mask, &omask);
 
 #ifdef SIGTTOU
-	sigttou_blocked = sigismember(&omask, SIGTTOU);
-	if (!sigttou_blocked) {
-	    (void)sigemptyset(&mask);
-	    (void)sigaddset(&mask, SIGTTOU);
-	    (void)sigprocmask(SIG_BLOCK, &mask, NULL);
-	}
+    sigttou_blocked = sigismember(&omask, SIGTTOU);
+    if (!sigttou_blocked) {
+	(void) sigemptyset(&mask);
+	(void) sigaddset(&mask, SIGTTOU);
+	(void) sigprocmask(SIG_BLOCK, &mask, NULL);
+    }
 #endif
 
-	/*
-	 * End window mode, which also resets the terminal state to the
-	 * original (pre-curses) modes.
-	 */
-	endwin();
+    /*
+     * End window mode, which also resets the terminal state to the
+     * original (pre-curses) modes.
+     */
+    endwin();
 
-	/* Unblock SIGTSTP. */
-	(void)sigemptyset(&mask);
-	(void)sigaddset(&mask, SIGTSTP);
+    /* Unblock SIGTSTP. */
+    (void) sigemptyset(&mask);
+    (void) sigaddset(&mask, SIGTSTP);
 #ifdef SIGTTOU
-	if (!sigttou_blocked) {
-            /* Unblock this too if it wasn't blocked on entry */
-	    (void)sigaddset(&mask, SIGTTOU);
-	}
+    if (!sigttou_blocked) {
+	/* Unblock this too if it wasn't blocked on entry */
+	(void) sigaddset(&mask, SIGTTOU);
+    }
 #endif
-	(void)sigprocmask(SIG_UNBLOCK, &mask, NULL);
+    (void) sigprocmask(SIG_UNBLOCK, &mask, NULL);
 
-	/* Now we want to resend SIGSTP to this process and suspend it */
-	act.sa_handler = SIG_DFL;
+    /* Now we want to resend SIGSTP to this process and suspend it */
+    act.sa_handler = SIG_DFL;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = 0;
+#ifdef SA_RESTART
+    act.sa_flags |= SA_RESTART;
+#endif /* SA_RESTART */
+    sigaction(SIGTSTP, &act, &oact);
+    kill(getpid(), SIGTSTP);
+
+    /* Process gets suspended...time passes...process resumes */
+
+    T(("SIGCONT received"));
+    sigaction(SIGTSTP, &oact, NULL);
+    flushinp();
+
+    /*
+     * If the user modified the tty state while suspended, he wants
+     * those changes to stick.  So save the new "default" terminal state.
+     */
+    def_shell_mode();
+
+    /*
+     * This relies on the fact that doupdate() will restore the
+     * program-mode tty state, and issue enter_ca_mode if need be.
+     */
+    doupdate();
+
+    /* Reset the signals. */
+    (void) sigprocmask(SIG_SETMASK, &omask, NULL);
+}
+#endif /* USE_SIGTSTP */
+
+static void
+cleanup(int sig)
+{
+    static int nested;
+
+    /*
+     * Actually, doing any sort of I/O from within an signal handler is
+     * "unsafe".  But we'll _try_ to clean up the screen and terminal
+     * settings on the way out.
+     */
+    if (!nested++
+	&& (sig == SIGINT
+	    || sig == SIGQUIT)) {
+#if HAVE_SIGACTION || HAVE_SIGVEC
+	sigaction_t act;
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
-#ifdef SA_RESTART
-	act.sa_flags |= SA_RESTART;
-#endif /* SA_RESTART */
-	sigaction(SIGTSTP, &act, &oact);
-	kill(getpid(), SIGTSTP);
-
-	/* Process gets suspended...time passes...process resumes */
-
-	T(("SIGCONT received"));
-	sigaction(SIGTSTP, &oact, NULL);
-	flushinp();
-
-	/*
-	 * If the user modified the tty state while suspended, he wants
-	 * those changes to stick.  So save the new "default" terminal state.
-	 */
-	def_shell_mode();
-
-	/*
-	 * This relies on the fact that doupdate() will restore the
-	 * program-mode tty state, and issue enter_ca_mode if need be.
-	 */
-	doupdate();
-
-	/* Reset the signals. */
-	(void)sigprocmask(SIG_SETMASK, &omask, NULL);
-}
-#endif	/* USE_SIGTSTP */
-
-static void cleanup(int sig)
-{
-	static int nested;
-
-	/*
-	 * Actually, doing any sort of I/O from within an signal handler is
-	 * "unsafe".  But we'll _try_ to clean up the screen and terminal
-	 * settings on the way out.
-	 */
-	if (!nested++
-	 && (sig == SIGINT
-	  || sig == SIGQUIT)) {
-#if HAVE_SIGACTION || HAVE_SIGVEC
-		sigaction_t act;
-		sigemptyset(&act.sa_mask);
-		act.sa_flags = 0;
-		act.sa_handler = SIG_IGN;
-		if (sigaction(sig, &act, (sigaction_t *)0) == 0)
+	act.sa_handler = SIG_IGN;
+	if (sigaction(sig, &act, (sigaction_t *) 0) == 0)
 #else
-		if (signal(sig, SIG_IGN) != SIG_ERR)
+	if (signal(sig, SIG_IGN) != SIG_ERR)
 #endif
-		{
-		    SCREEN *scan = _nc_screen_chain;
-		    while(scan)
-		    {
-			if (SP != 0
-			&& SP->_ofp != 0
-			&& isatty(fileno(SP->_ofp))) {
-			    SP->_cleanup = TRUE;
-			    SP->_outch = _nc_outch;
-			}
-			set_term(scan);
-			endwin();
-			if (SP)
-			    SP->_endwin = FALSE; /* in case we have an atexit! */
-			scan = scan->_next_screen;
-		    }
+	{
+	    SCREEN *scan = _nc_screen_chain;
+	    while (scan) {
+		if (SP != 0
+		    && SP->_ofp != 0
+		    && isatty(fileno(SP->_ofp))) {
+		    SP->_cleanup = TRUE;
+		    SP->_outch = _nc_outch;
 		}
+		set_term(scan);
+		endwin();
+		if (SP)
+		    SP->_endwin = FALSE;	/* in case we have an atexit! */
+		scan = scan->_next_screen;
+	    }
 	}
-	exit(EXIT_FAILURE);
+    }
+    exit(EXIT_FAILURE);
 }
 
 #if USE_SIGWINCH
-static void sigwinch(int sig GCC_UNUSED)
+static void
+sigwinch(int sig GCC_UNUSED)
 {
     SCREEN *scan = _nc_screen_chain;
-    while(scan)
-    {
+    while (scan) {
 	scan->_sig_winch = TRUE;
 	scan = scan->_next_screen;
     }
@@ -256,38 +256,40 @@ static void sigwinch(int sig GCC_UNUSED)
  * handler.
  */
 #if HAVE_SIGACTION || HAVE_SIGVEC
-static int CatchIfDefault(int sig, sigaction_t *act)
+static int
+CatchIfDefault(int sig, sigaction_t * act)
 {
-	sigaction_t old_act;
+    sigaction_t old_act;
 
-	if (sigaction(sig, (sigaction_t *)0, &old_act) == 0
-	 && (old_act.sa_handler == SIG_DFL
+    if (sigaction(sig, (sigaction_t *) 0, &old_act) == 0
+	&& (old_act.sa_handler == SIG_DFL
 #if USE_SIGWINCH
 	    || (sig == SIGWINCH && old_act.sa_handler == SIG_IGN)
 #endif
-	    )) {
-		(void)sigaction(sig, act, (sigaction_t *)0);
-		return TRUE;
-	}
-	return FALSE;
+	)) {
+	(void) sigaction(sig, act, (sigaction_t *) 0);
+	return TRUE;
+    }
+    return FALSE;
 }
 #else
-static int CatchIfDefault(int sig, RETSIGTYPE (*handler)(int))
+static int
+CatchIfDefault(int sig, RETSIGTYPE(*handler) (int))
 {
-	void	(*ohandler)(int);
+    void (*ohandler) (int);
 
-	ohandler = signal(sig, SIG_IGN);
-	if (ohandler == SIG_DFL
+    ohandler = signal(sig, SIG_IGN);
+    if (ohandler == SIG_DFL
 #if USE_SIGWINCH
-	    || (sig == SIGWINCH && ohandler == SIG_IGN)
+	|| (sig == SIGWINCH && ohandler == SIG_IGN)
 #endif
 	) {
-		signal(sig, handler);
-		return TRUE;
-	} else {
-		signal(sig, ohandler);
-		return FALSE;
-	}
+	signal(sig, handler);
+	return TRUE;
+    } else {
+	signal(sig, ohandler);
+	return FALSE;
+    }
 }
 #endif
 
@@ -302,69 +304,63 @@ static int CatchIfDefault(int sig, RETSIGTYPE (*handler)(int))
  * The XSI document implies that we shouldn't keep the SIGTSTP handler if
  * the caller later changes its mind, but that doesn't seem correct.
  */
-void _nc_signal_handler(bool enable)
+void
+_nc_signal_handler(bool enable)
 {
-#if USE_SIGTSTP		/* Xenix 2.x doesn't have SIGTSTP, for example */
-static sigaction_t act, oact;
-static int ignore;
+#if USE_SIGTSTP			/* Xenix 2.x doesn't have SIGTSTP, for example */
+    static sigaction_t act, oact;
+    static int ignore;
 
-	if (!ignore)
-	{
-		if (!enable)
-		{
-			act.sa_handler = SIG_IGN;
-			sigaction(SIGTSTP, &act, &oact);
-		}
-		else if (act.sa_handler)
-		{
-			sigaction(SIGTSTP, &oact, NULL);
-		}
-		else	/*initialize */
-		{
-			sigemptyset(&act.sa_mask);
-			act.sa_flags = 0;
+    if (!ignore) {
+	if (!enable) {
+	    act.sa_handler = SIG_IGN;
+	    sigaction(SIGTSTP, &act, &oact);
+	} else if (act.sa_handler) {
+	    sigaction(SIGTSTP, &oact, NULL);
+	} else {		/*initialize */
+	    sigemptyset(&act.sa_mask);
+	    act.sa_flags = 0;
 #if USE_SIGWINCH
-			act.sa_handler = sigwinch;
-			CatchIfDefault(SIGWINCH, &act);
+	    act.sa_handler = sigwinch;
+	    CatchIfDefault(SIGWINCH, &act);
 #endif
 
 #ifdef SA_RESTART
-			act.sa_flags |= SA_RESTART;
+	    act.sa_flags |= SA_RESTART;
 #endif /* SA_RESTART */
-			act.sa_handler = cleanup;
-			CatchIfDefault(SIGINT,  &act);
-			CatchIfDefault(SIGTERM, &act);
+	    act.sa_handler = cleanup;
+	    CatchIfDefault(SIGINT, &act);
+	    CatchIfDefault(SIGTERM, &act);
 
-			act.sa_handler = tstp;
-			if (!CatchIfDefault(SIGTSTP, &act))
-				ignore = TRUE;
-		}
+	    act.sa_handler = tstp;
+	    if (!CatchIfDefault(SIGTSTP, &act))
+		ignore = TRUE;
 	}
+    }
 #else /* !USE_SIGTSTP */
-	if (enable)
-	{
+    if (enable) {
 #if HAVE_SIGACTION || HAVE_SIGVEC
-		static sigaction_t act;
-		sigemptyset(&act.sa_mask);
+	static sigaction_t act;
+	sigemptyset(&act.sa_mask);
 #if USE_SIGWINCH
-		act.sa_handler = sigwinch;
-		CatchIfDefault(SIGWINCH, &act);
+	act.sa_handler = sigwinch;
+	CatchIfDefault(SIGWINCH, &act);
 #endif
 #ifdef SA_RESTART
-		act.sa_flags |= SA_RESTART;
+	act.sa_flags |= SA_RESTART;
 #endif /* SA_RESTART */
-		act.sa_handler = cleanup;
-		CatchIfDefault(SIGINT,  &act);
-		CatchIfDefault(SIGTERM, &act);
+	act.sa_handler = cleanup;
+	CatchIfDefault(SIGINT, &act);
+	CatchIfDefault(SIGTERM, &act);
 
 #else /* !(HAVE_SIGACTION || HAVE_SIGVEC) */
 
-		CatchIfDefault(SIGINT,  cleanup);
-		CatchIfDefault(SIGTERM, cleanup);
+	CatchIfDefault(SIGINT, cleanup);
+	CatchIfDefault(SIGTERM, cleanup);
 #if USE_SIGWINCH
-		CatchIfDefault(SIGWINCH, sigwinch);
+	CatchIfDefault(SIGWINCH, sigwinch);
 #endif
 #endif /* !(HAVE_SIGACTION || HAVE_SIGVEC) */
-	}
+    }
 #endif /* !USE_SIGTSTP */
 }

@@ -1,5 +1,5 @@
 /*
- * $Id: firework.c,v 1.16 1999/11/13 23:39:16 tom Exp $
+ * $Id: firework.c,v 1.17 2000/09/02 18:41:12 tom Exp $
  */
 #include <test.priv.h>
 
@@ -133,7 +133,7 @@ main(
 
     if (has_colors()) {
 	start_color();
-#ifdef HAVE_USE_DEFAULT_COLORS
+#if HAVE_USE_DEFAULT_COLORS
 	if (use_default_colors() == OK)
 	    my_bg = -1;
 #endif

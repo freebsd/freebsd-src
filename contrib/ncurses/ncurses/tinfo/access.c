@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,29 +27,68 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1998                        *
+ *  Author: Thomas E. Dickey <dickey@clark.net> 1998,2000                   *
  ****************************************************************************/
 
-
 #include <curses.priv.h>
+#include <tic.h>
 
-MODULE_ID("$Id: access.c,v 1.1 1998/07/25 20:17:09 tom Exp $")
+MODULE_ID("$Id: access.c,v 1.4 2000/10/08 01:25:06 tom Exp $")
 
-int _nc_access(const char *path, int mode)
+char *
+_nc_basename(char *path)
 {
-	if (access(path, mode) < 0) {
-		if ((mode & W_OK) != 0
-		 && errno == ENOENT) {
-			char head[PATH_MAX];
-			char *leaf = strrchr(strcpy(head, path), '/');
-			if (leaf == 0)
-				leaf = head;
-			*leaf = '\0';
-			if (head == leaf)
-				(void)strcpy(head, ".");
-			return access(head, R_OK|W_OK|X_OK);
-		}
-		return -1;
-	}
-	return 0;
+    char *result = strrchr(path, '/');
+#ifdef __EMX__
+    if (result == 0)
+	result = strrchr(path, '\\');
+#endif
+    if (result == 0)
+	result = path;
+    else
+	result++;
+    return result;
 }
+
+int
+_nc_access(const char *path, int mode)
+{
+    if (access(path, mode) < 0) {
+	if ((mode & W_OK) != 0
+	    && errno == ENOENT
+	    && strlen(path) < PATH_MAX) {
+	    char head[PATH_MAX];
+	    char *leaf = _nc_basename(strcpy(head, path));
+
+	    if (leaf == 0)
+		leaf = head;
+	    *leaf = '\0';
+	    if (head == leaf)
+		(void) strcpy(head, ".");
+
+	    return access(head, R_OK | W_OK | X_OK);
+	}
+	return -1;
+    }
+    return 0;
+}
+
+#ifndef USE_ROOT_ENVIRON
+/*
+ * Returns true if we allow application to use environment variables that are
+ * used for searching lists of directories, etc.
+ */
+int
+_nc_env_access(void)
+{
+#if HAVE_ISSETUGID
+    if (issetugid())
+	return FALSE;
+#elif HAVE_GETEUID && HAVE_GETEGID
+    if (getuid() != geteuid()
+     || getgid() != getegid())
+	return FALSE;
+#endif
+    return getuid() != 0;	/* ...finally, disallow root */
+}
+#endif

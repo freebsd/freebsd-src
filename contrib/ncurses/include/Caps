@@ -29,7 +29,7 @@
 # Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995
 #    and: Eric S. Raymond <esr@snark.thyrsus.com>
 #
-# $Id: Caps,v 1.25 1999/11/27 20:13:55 tom Exp $
+# $Id: Caps,v 1.28 2000/10/01 02:07:36 tom Exp $
 #
 # This is the master termcap/terminfo capability table.
 #
@@ -334,7 +334,7 @@ cursor_down     	cud1	str	do	YBCGE	down one line
 cursor_home     	home	str	ho	YBCGE	home cursor (if no cup)
 cursor_invisible	civis	str	vi	YB-G-	make cursor invisible
 cursor_left     	cub1	str	le	YBCGE	move left one space
-cursor_mem_address	mrcup	str	CM	YB-G-	memory relative cursor addressing
+cursor_mem_address	mrcup	str	CM	YB-G-	memory relative cursor addressing, move to row #1 columns #2
 cursor_normal   	cnorm	str	ve	YBCGE	make cursor appear normal (undo civis/cvvis)
 cursor_right    	cuf1	str	nd	YBCGE	non-destructive space (move right one space)
 cursor_to_ll    	ll	str	ll	YBCGE	last line, first column (if no cup)
@@ -454,7 +454,7 @@ set_attributes        	sgr	str	sa	YB-G-	define video attributes #1-#9 (PG9)
 set_tab         	hts	str	st	YB-G-	set a tab in every row, current columns
 set_window      	wind	str	wi	-B-GE	current window is lines #1-#2 cols #3-#4
 tab             	ht	str	ta	YBCGE	tab to next 8-space hardware tab stop
-to_status_line  	tsl	str	ts	YB-G-	move to status line
+to_status_line  	tsl	str	ts	YB-G-	move to status line, column #1
 underline_char  	uc	str	uc	YBCG-	underline char and move past it
 up_half_line    	hu	str	hu	YB-G-	half a line up
 init_prog       	iprog	str	iP	-B---	path name of program for initialization
@@ -633,10 +633,10 @@ set_background  	setb	str	Sb	-----	Set background color #1
 #
 # SVr4 added these capabilities to support printers
 #
-change_char_pitch	cpi	str	ZA	-----	Change number of characters per inch
-change_line_pitch	lpi	str	ZB	-----	Change number of lines per inch
-change_res_horz  	chr	str	ZC	-----	Change horizontal resolution
-change_res_vert  	cvr	str	ZD	-----	Change vertical resolution
+change_char_pitch	cpi	str	ZA	-----	Change number of characters per inch to #1
+change_line_pitch	lpi	str	ZB	-----	Change number of lines per inch to #1
+change_res_horz  	chr	str	ZC	-----	Change horizontal resolution to #1
+change_res_vert  	cvr	str	ZD	-----	Change vertical resolution to #1
 define_char     	defc	str	ZE	-----	Define a character
 enter_doublewide_mode	swidm	str	ZF	-----	Enter double-wide mode
 enter_draft_quality	sdrfq	str	ZG	-----	Enter draft-quality mode
@@ -661,14 +661,14 @@ micro_column_address	mhpa	str	ZY	-----	Like column_address in micro mode
 micro_down      	mcud1	str	ZZ	-----	Like cursor_down in micro mode
 micro_left      	mcub1	str	Za	-----	Like cursor_left in micro mode
 micro_right     	mcuf1	str	Zb	-----	Like cursor_right in micro mode
-micro_row_address	mvpa	str	Zc	-----	Like row_address in micro mode
+micro_row_address	mvpa	str	Zc	-----	Like row_address #1 in micro mode
 micro_up        	mcuu1	str	Zd	-----	Like cursor_up in micro mode
 order_of_pins   	porder	str	Ze	-----	Match software bits to print-head pins
 parm_down_micro 	mcud	str	Zf	-----	Like parm_down_cursor in micro mode
 parm_left_micro 	mcub	str	Zg	-----	Like parm_left_cursor in micro mode
 parm_right_micro	mcuf	str	Zh	-----	Like parm_right_cursor in micro mode
 parm_up_micro   	mcuu	str	Zi	-----	Like parm_up_cursor in micro mode
-select_char_set 	scs	str	Zj	-----	Select character set
+select_char_set 	scs	str	Zj	-----	Select character set, #1
 set_bottom_margin	smgb	str	Zk	-----	Set bottom margin at current line
 set_bottom_margin_parm	smgbp	str	Zl	-----	Set bottom margin at line #1 or #2 lines from bottom
 set_left_margin_parm	smglp	str	Zm	-----	Set left (right) margin at column #1 (#2)
@@ -701,9 +701,9 @@ char_set_names  	csnm	str	Zy	-----	List of character set names
 key_mouse       	kmous	str	Km	-----	Mouse event has occurred
 mouse_info      	minfo	str	Mi	-----	Mouse status information
 req_mouse_pos   	reqmp	str	RQ	-----	Request mouse position
-get_mouse       	getm	str	Gm	-----	Curses should get button events
-set_a_foreground	setaf	str	AF	-----	Set foreground color using ANSI escape
-set_a_background	setab	str	AB	-----	Set background color using ANSI escape
+get_mouse       	getm	str	Gm	-----	Curses should get button events, parameter #1 not documented.
+set_a_foreground	setaf	str	AF	-----	Set foreground color to #1, using ANSI escape
+set_a_background	setab	str	AB	-----	Set background color to #1, using ANSI escape
 pkey_plab       	pfxl	str	xl	-----	Program function key #1 to type string #2 and show string #3
 device_type     	devt	str	dv	-----	Indicate language/codeset support
 code_set_init   	csin	str	ci	-----	Init sequence for multiple codesets
@@ -724,7 +724,7 @@ set_page_length 	slines	str	YZ	-----	Set page length to #1 lines
 #
 # SVr4 added these capabilities for direct PC-clone support
 #
-display_pc_char 	dispc	str	S1	-----	Display PC character
+display_pc_char 	dispc	str	S1	-----	Display PC character #1
 enter_pc_charset_mode	smpch	str	S2	-----	Enter PC character display mode
 exit_pc_charset_mode	rmpch	str	S3	-----	Exit PC character display mode
 enter_scancode_mode	smsc	str	S4	-----	Enter PC scancode mode

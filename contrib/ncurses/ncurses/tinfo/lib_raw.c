@@ -50,9 +50,9 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_raw.c,v 1.7 2000/02/13 01:01:26 tom Exp $")
+MODULE_ID("$Id: lib_raw.c,v 1.8 2000/09/02 18:08:48 tom Exp $")
 
-#if defined(SVR4_TERMIO) && !defined(_POSIX_SOURCE)
+#if SVR4_TERMIO && !defined(_POSIX_SOURCE)
 #define _POSIX_SOURCE
 #endif
 

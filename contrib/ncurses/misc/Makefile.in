@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.20 1998/02/11 12:13:52 tom Exp $
+# $Id: Makefile.in,v 1.29 2000/09/30 20:01:10 tom Exp $
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -48,7 +48,8 @@ THIS		= Makefile
 CF_MFLAGS 	= @cf_cv_makeflags@
 @SET_MAKE@
 
-INSTALL_PREFIX	= @INSTALL_PREFIX@
+DESTDIR		= @DESTDIR@
+top_srcdir	= @top_srcdir@
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
@@ -57,7 +58,8 @@ libdir		= @libdir@
 datadir		= @datadir@
 
 tabsetdir	= $(datadir)/tabset
-ticdir		= $(datadir)/terminfo
+ticdir		= @TERMINFO@
+source		= @TERMINFO_SRC@
 
 INSTALL		= @INSTALL@
 INSTALL_DATA	= @INSTALL_DATA@
@@ -69,29 +71,40 @@ sources:
 
 install: install.data
 
-install.data:	$(INSTALL_PREFIX)$(libdir) \
-		$(INSTALL_PREFIX)$(ticdir) \
-		$(INSTALL_PREFIX)$(tabsetdir)
-	sh $(srcdir)/run_tic.sh $(bindir) $(srcdir) $(ticdir) $(INSTALL_PREFIX)
+install.data :	$(DESTDIR)$(libdir) \
+		$(DESTDIR)$(ticdir) \
+		$(DESTDIR)$(tabsetdir)
+	DESTDIR=${DESTDIR} \
+	prefix=${prefix} \
+	exec_prefix=${exec_prefix} \
+	bindir=${bindir} \
+	top_srcdir=${top_srcdir} \
+	srcdir=${srcdir} \
+	datadir=${datadir} \
+	ticdir=${ticdir} \
+	source=${source} \
+	$(SHELL) ./run_tic.sh
 	@cd $(srcdir)/tabset && \
-		sh -c 'for i in `echo * | fgrep -v CVS | fgrep -v RCS`; do \
-		echo installing $$i; \
-		$(INSTALL_DATA) $$i $(INSTALL_PREFIX)$(tabsetdir); done'
+		$(SHELL) -c 'for i in * ; do \
+			if test -f $$i ; then \
+			echo installing $$i; \
+			$(INSTALL_DATA) $$i $(DESTDIR)$(tabsetdir)/$$i; \
+			fi; done'
 
-$(INSTALL_PREFIX)$(libdir) \
-$(INSTALL_PREFIX)$(tabsetdir) \
-$(INSTALL_PREFIX)$(ticdir) :
+$(DESTDIR)$(libdir) \
+$(DESTDIR)$(tabsetdir) \
+$(DESTDIR)$(ticdir) :
 	$(srcdir)/../mkinstalldirs $@
 
 uninstall: uninstall.data
 
 uninstall.data:
-	-cd $(INSTALL_PREFIX)$(ticdir) && rm -rf *
-	-cd $(INSTALL_PREFIX)$(tabsetdir) && rm -rf *
+	-cd $(DESTDIR)$(ticdir) && rm -rf *
+	-cd $(DESTDIR)$(tabsetdir) && rm -rf *
 
 tags:
 
-TAGS:
+@MAKE_UPPER_TAGS@TAGS:
 
 mostlyclean:
 	-rm -f core tags TAGS *~ *.ln *.atac trace
@@ -99,7 +112,7 @@ mostlyclean:
 clean :: mostlyclean
 
 distclean: clean
-	-rm -f Makefile 
+	-rm -f Makefile run_tic.sh
 
 realclean: distclean
 

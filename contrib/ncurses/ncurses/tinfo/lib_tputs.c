@@ -45,10 +45,10 @@
 #include <termcap.h>		/* ospeed */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tputs.c,v 1.47 2000/05/27 23:08:41 tom Exp $")
+MODULE_ID("$Id: lib_tputs.c,v 1.51 2000/10/08 00:22:24 tom Exp $")
 
 char PC = 0;			/* used by termcap library */
-speed_t ospeed = 0;		/* used by termcap library */
+short ospeed = 0;		/* used by termcap library */
 
 int _nc_nulls_sent = 0;		/* used by 'tack' program */
 
@@ -78,7 +78,7 @@ delay_output(int ms)
 void
 _nc_flush(void)
 {
-    (void)fflush(NC_OUTPUT);
+    (void) fflush(NC_OUTPUT);
 }
 
 int
@@ -102,7 +102,7 @@ _nc_outch(int ch)
     return OK;
 }
 
-#ifdef USE_WIDEC_SUPPORT
+#if USE_WIDEC_SUPPORT
 /*
  * Reference: The Unicode Standard 2.0
  *
@@ -120,20 +120,20 @@ _nc_utf8_outch(int ch)
     int result[7], *ptr;
     int count = 0;
 
-    if (ch < 0x80)
+    if ((unsigned int) ch < 0x80)
 	count = 1;
-    else if (ch < 0x800)
+    else if ((unsigned int) ch < 0x800)
 	count = 2;
-    else if (ch < 0x10000)
+    else if ((unsigned int) ch < 0x10000)
 	count = 3;
-    else if (ch < 0x200000)
+    else if ((unsigned int) ch < 0x200000)
 	count = 4;
-    else if (ch < 0x4000000)
+    else if ((unsigned int) ch < 0x4000000)
 	count = 5;
-    else if (ch <= 0x7FFFFFFF)
+    else if ((unsigned int) ch <= 0x7FFFFFFF)
 	count = 6;
     else {
-	count = 2;
+	count = 3;
 	ch = 0xFFFD;
     }
     ptr = result + count;
@@ -141,20 +141,26 @@ _nc_utf8_outch(int ch)
     case 6:
 	*--ptr = (ch | otherMark) & byteMask;
 	ch >>= 6;
+	/* FALLTHRU */
     case 5:
 	*--ptr = (ch | otherMark) & byteMask;
 	ch >>= 6;
+	/* FALLTHRU */
     case 4:
 	*--ptr = (ch | otherMark) & byteMask;
 	ch >>= 6;
+	/* FALLTHRU */
     case 3:
 	*--ptr = (ch | otherMark) & byteMask;
 	ch >>= 6;
+	/* FALLTHRU */
     case 2:
 	*--ptr = (ch | otherMark) & byteMask;
 	ch >>= 6;
+	/* FALLTHRU */
     case 1:
 	*--ptr = (ch | firstMark[count]);
+	break;
     }
     while (count--)
 	_nc_outch(*ptr++);
@@ -174,7 +180,7 @@ tputs(const char *string, int affcnt, int (*outc) (int))
     bool always_delay;
     bool normal_delay;
     int number;
-#ifdef BSD_TPUTS
+#if BSD_TPUTS
     int trailpad;
 #endif /* BSD_TPUTS */
 
@@ -188,7 +194,7 @@ tputs(const char *string, int affcnt, int (*outc) (int))
 	    (void) sprintf(addrbuf, "%p", outc);
 	if (_nc_tputs_trace) {
 	    _tracef("tputs(%s = %s, %d, %s) called", _nc_tputs_trace,
-		_nc_visbuf(string), affcnt, addrbuf);
+		    _nc_visbuf(string), affcnt, addrbuf);
 	} else {
 	    _tracef("tputs(%s, %d, %s) called", _nc_visbuf(string), affcnt, addrbuf);
 	}
@@ -207,13 +213,13 @@ tputs(const char *string, int affcnt, int (*outc) (int))
 	normal_delay =
 	    !xon_xoff
 	    && padding_baud_rate
-#ifdef NCURSES_NO_PADDING
+#if NCURSES_NO_PADDING
 	    && (SP == 0 || !(SP->_no_padding))
 #endif
 	    && (_nc_baudrate(ospeed) >= padding_baud_rate);
     }
 
-#ifdef BSD_TPUTS
+#if BSD_TPUTS
     /*
      * This ugly kluge deals with the fact that some ancient BSD programs
      * (like nethack) actually do the likes of tputs("50") to get delays.
@@ -304,7 +310,7 @@ tputs(const char *string, int affcnt, int (*outc) (int))
 	string++;
     }
 
-#ifdef BSD_TPUTS
+#if BSD_TPUTS
     /*
      * Emit any BSD-style prefix padding that we've accumulated now.
      */

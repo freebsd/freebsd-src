@@ -43,7 +43,7 @@
 #include <term.h>		/* cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_set_term.c,v 1.55 2000/07/02 00:22:18 tom Exp $")
+MODULE_ID("$Id: lib_set_term.c,v 1.58 2000/10/04 22:05:48 tom Exp $")
 
 SCREEN *
 set_term(SCREEN * screenp)
@@ -171,7 +171,7 @@ no_mouse_wrap(SCREEN * sp GCC_UNUSED)
 {
 }
 
-#if defined(NCURSES_EXT_FUNCS) && defined(USE_COLORFGBG)
+#if NCURSES_EXT_FUNCS && USE_COLORFGBG
 static char *
 extract_fgbg(char *src, int *result)
 {
@@ -220,17 +220,45 @@ _nc_setupscreen(short slines, short const scolumns, FILE * output)
     SP->_endwin = TRUE;
     SP->_ofp = output;
     SP->_cursor = -1;		/* cannot know real cursor shape */
-#ifdef NCURSES_NO_PADDING
+
+#if NCURSES_NO_PADDING
     SP->_no_padding = getenv("NCURSES_NO_PADDING") != 0;
     TR(TRACE_CHARPUT | TRACE_MOVE, ("padding will%s be used",
 	    SP->_no_padding ? " not" : ""));
 #endif
-#ifdef NCURSES_EXT_FUNCS
+
+#if NCURSES_EXT_FUNCS
     SP->_default_color = FALSE;
     SP->_has_sgr_39_49 = FALSE;
+
+    /*
+     * Set our assumption of the terminal's default foreground and background
+     * colors.  The curs_color man-page states that we can assume that the
+     * background is black.  The origin of this assumption appears to be
+     * terminals that displayed colored text, but no colored backgrounds, e.g.,
+     * the first colored terminals around 1980.  More recent ones with better
+     * technology can display not only colored backgrounds, but all
+     * combinations.  So a terminal might be something other than "white" on
+     * black (green/black looks monochrome too), but black on white or even
+     * on ivory.
+     *
+     * White-on-black is the simplest thing to use for monochrome.  Almost
+     * all applications that use color paint both text and background, so
+     * the distinction is moot.  But a few do not - which is why we leave this
+     * configurable (a better solution is to use assume_default_colors() for
+     * the rare applications that do require that sort of appearance, since
+     * is appears that more users expect to be able to make a white-on-black
+     * or black-on-white display under control of the application than not).
+     */
+#ifdef USE_ASSUMED_COLOR
     SP->_default_fg = COLOR_WHITE;
     SP->_default_bg = COLOR_BLACK;
-#ifdef USE_COLORFGBG
+#else
+    SP->_default_fg = C_MASK;
+    SP->_default_bg = C_MASK;
+#endif
+
+#if USE_COLORFGBG
     /*
      * If rxvt's $COLORFGBG variable is set, use it to specify the assumed
      * default colors.  Note that rxvt (mis)uses bold colors, equating a bold

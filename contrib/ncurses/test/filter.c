@@ -29,7 +29,7 @@
 /*
  * Author:  Thomas E. Dickey <dickey@clark.net> 1998
  *
- * $Id: filter.c,v 1.3 1999/11/13 23:39:19 tom Exp $
+ * $Id: filter.c,v 1.4 2000/09/02 18:50:38 tom Exp $
  */
 #include <test.priv.h>
 
@@ -50,60 +50,60 @@
 #define getnstr(s,n) getstr(s)
 #endif
 
-static int new_command(char *buffer, int length, attr_t underline)
+static int
+new_command(char *buffer, int length, attr_t underline)
 {
-	int code;
+    int code;
 
-	attron(A_BOLD);
-	printw("Command: ");
-	attron(underline);
-	code = getnstr(buffer, length);
-	attroff(underline);
-	attroff(A_BOLD);
-	printw("\n");
+    attron(A_BOLD);
+    printw("Command: ");
+    attron(underline);
+    code = getnstr(buffer, length);
+    attroff(underline);
+    attroff(A_BOLD);
+    printw("\n");
 
-	return code;
+    return code;
 }
 
-int main(
-	int argc GCC_UNUSED,
-	char *argv[] GCC_UNUSED)
+int
+main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 {
-	SCREEN *sp;
-	char buffer[80];
-	attr_t underline;
+    SCREEN *sp;
+    char buffer[80];
+    attr_t underline;
 
-	filter();
-	sp = newterm((char *)0, stdout, stdin);
-	cbreak();
-	keypad(stdscr, TRUE);
+    filter();
+    sp = newterm((char *) 0, stdout, stdin);
+    cbreak();
+    keypad(stdscr, TRUE);
 
-	if (has_colors()) {
-		int background = COLOR_BLACK;
-		start_color();
-#ifdef HAVE_USE_DEFAULT_COLORS
-		if (use_default_colors () != ERR)
-			background = -1;
+    if (has_colors()) {
+	int background = COLOR_BLACK;
+	start_color();
+#if HAVE_USE_DEFAULT_COLORS
+	if (use_default_colors() != ERR)
+	    background = -1;
 #endif
-		init_pair(1, COLOR_CYAN, background);
-		underline = COLOR_PAIR(1);
-	} else {
-		underline = A_UNDERLINE;
-	}
+	init_pair(1, COLOR_CYAN, background);
+	underline = COLOR_PAIR(1);
+    } else {
+	underline = A_UNDERLINE;
+    }
 
-	while (new_command(buffer, sizeof(buffer)-1, underline) != ERR
-	  && strlen(buffer) != 0) {
-       		reset_shell_mode();
-		printf("\n");
-		fflush(stdout);
-		system(buffer);
-		reset_prog_mode();
-		touchwin(stdscr);
-		erase();
-		refresh();
-	}
-	printw("done");
+    while (new_command(buffer, sizeof(buffer) - 1, underline) != ERR
+	   && strlen(buffer) != 0) {
+	reset_shell_mode();
+	printf("\n");
+	fflush(stdout);
+	system(buffer);
+	reset_prog_mode();
+	touchwin(stdscr);
+	erase();
 	refresh();
-	endwin();
-	return 0;
+    }
+    printw("done");
+    refresh();
+    endwin();
+    return 0;
 }
