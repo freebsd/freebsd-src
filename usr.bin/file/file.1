@@ -1,5 +1,5 @@
 .TH FILE 1 "Copyright but distributable"
-.\# $Id: file.1,v 1.5 1996/02/02 00:25:40 mpp Exp $
+.\" $Id: file.1,v 1.10 1997/04/04 02:41:01 mpp Exp $
 .SH NAME
 file \- determine file type
 .SH SYNOPSIS
@@ -15,7 +15,10 @@ namefile ]
 magicfiles ]
 file ...
 .SH DESCRIPTION
-.I File
+This manual page documents version 3.22 of the
+.B file
+command.
+.B File
 tests each argument in an attempt to classify it.
 There are three sets of tests, performed in this order:
 filesystem tests, magic number tests, and language tests.
@@ -25,8 +28,11 @@ test that succeeds causes the file type to be printed.
 .PP
 The type printed will usually contain one of the words
 .B text
-(the file contains only ASCII characters and is 
-probably safe to read on an ASCII terminal),
+(the file contains only
+.SM ASCII
+characters and is probably safe to read on an
+.SM ASCII
+terminal),
 .B executable
 (the file contains the result of compiling a program
 in a form understandable to some \s-1UNIX\s0 kernel or another),
@@ -36,7 +42,7 @@ meaning anything else (data is usually `binary' or non-printable).
 Exceptions are well-known file formats (core files, tar archives)
 that are known to contain binary data.
 When modifying the file
-.I /etc/magic
+.I /usr/share/misc/magic
 or the program itself, 
 .B "preserve these keywords" .
 People depend on knowing that all the readable files in a directory
@@ -45,7 +51,7 @@ Don't do as Berkeley did \- change ``shell commands text''
 to ``shell script''.
 .PP
 The filesystem tests are based on examining the return from a
-.IR stat (2)
+.BR stat (2)
 system call.
 The program checks to see if the file is empty,
 or if it's some sort of special file.
@@ -54,16 +60,16 @@ Any known file types appropriate to the system you are running on
 implement them)
 are intuited if they are defined in
 the system header file
-.BR sys/stat.h  .
+.IR sys/stat.h  .
 .PP
 The magic number tests are used to check for files with data in
 particular fixed formats.
 The canonical example of this is a binary executable (compiled program)
-.B a.out
+.I a.out
 file, whose format is defined in 
-.B a.out.h
+.I a.out.h
 and possibly
-.B exec.h
+.I exec.h
 in the standard include directory.
 These files have a `magic number' stored in a particular place
 near the beginning of the file that tells the \s-1UNIX\s0 operating system
@@ -72,26 +78,28 @@ The concept of `magic number' has been applied by extension to data files.
 Any file with some invariant identifier at a small fixed
 offset into the file can usually be described in this way.
 The information in these files is read from the magic file
-.I /etc/magic.
+.I /usr/share/misc/magic.
 .PP
 If an argument appears to be an
 .SM ASCII 
 file,
-.I file
+.B file
 attempts to guess its language.
-The language tests look for particular strings (cf \fInames.h\fP)
+The language tests look for particular strings (cf
+.IR names.h )
 that can appear anywhere in the first few blocks of a file.
 For example, the keyword
 .B .br
-indicates that the file is most likely a troff input file,
-just as the keyword 
+indicates that the file is most likely a
+.BR troff (1)
+input file, just as the keyword 
 .B struct
 indicates a C program.
 These tests are less reliable than the previous
 two groups, so they are performed last.
 The language test routines also test for some miscellany
 (such as 
-.I tar
+.BR tar (1)
 archives) and determine whether an unknown file should be
 labelled as `ascii text' or `data'. 
 .SH OPTIONS
@@ -124,20 +132,22 @@ to test the standard input, use ``-'' as a filename argument.
 .TP 8
 .B \-L
 option causes symlinks to be followed, as the like-named option in
-.IR ls (1).
+.BR ls (1).
 (on systems that support symbolic links).
 .SH FILES
+.I /usr/share/misc/magic
+\- default list of magic numbers (used to be
 .I /etc/magic
-\- default list of magic numbers
+in previous versions of FreeBSD)
 .SH ENVIRONMENT
 The environment variable
 .B MAGIC
 can be used to set the default magic number files.
 .SH SEE ALSO
-.IR magic (5)
+.BR magic (5)
 \- description of magic file format.
 .br
-.IR strings (1), " od" (1)
+.BR strings (1), " od" (1)
 \- tools for examining non-textfiles.
 .SH STANDARDS CONFORMANCE
 This program is believed to exceed the System V Interface Definition
@@ -170,7 +180,7 @@ in an existing magic file would have to be changed to
 .br
 .PP
 SunOS releases 3.2 and later from Sun Microsystems include a
-.IR file (1)
+.BR file (1)
 command derived from the System V one, but with some extensions.
 My version differs from Sun's only in minor ways.
 It includes the extension of the `&' operator, used as,
@@ -189,15 +199,15 @@ The order of entries in the magic file is significant.
 Depending on what system you are using, the order that
 they are put together may be incorrect.
 If your old
-.I file
+.B file
 command uses a magic file,
 keep the old magic file around for comparison purposes
 (rename it to 
-.IR /etc/magic.orig ).
+.IR /usr/share/misc/magic.orig ).
 .SH HISTORY
 There has been a 
-.I file
-command in every UNIX since at least Research Version 6
+.B file
+command in every \s-1UNIX\s0 since at least Research Version 6
 (man page dated January, 1975).
 The System V version introduced one significant major change:
 the external list of magic number types.
@@ -226,7 +236,7 @@ put the ``old-style'' `&'
 operator back the way it was, because 1) Rob McMahon's change broke the
 previous style of usage, 2) the SunOS ``new-style'' `&' operator,
 which this version of
-.I file
+.B file
 supports, also handles `x&y op z', and 3) Rob's change wasn't documented
 in any case;
 .PP
@@ -235,11 +245,11 @@ put in multiple levels of `>';
 put in ``beshort'', ``leshort'', etc. keywords to look at numbers in the
 file in a specific byte order, rather than in the native byte order of
 the process running
-.IR file .
+.BR file .
 .RE
 .PP
 Changes by Ian Darwin and various authors including
-Christos Zoulas (christos@ee.cornell.edu), 1990-1992.
+Christos Zoulas (christos@deshaw.com), 1990-1992.
 .SH LEGAL NOTICE
 Copyright (c) Ian F. Darwin, Toronto, Canada,
 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993.
@@ -283,33 +293,42 @@ The files
 and
 .I is_tar.c
 were written by John Gilmore from his public-domain
-.I tar
+.B tar
 program, and are not covered by the above restrictions.
 .SH BUGS
 There must be a better way to automate the construction of the Magic
 file from all the glop in Magdir. What is it?
 Better yet, the magic file should be compiled into binary (say,
-.IR ndbm (3)
-or, better yet, fixed-length ASCII strings 
-for use in heterogenous network environments) for faster startup.
+.BR ndbm (3)
+or, better yet, fixed-length
+.SM ASCII
+strings for use in heterogenous network environments) for faster startup.
 Then the program would run as fast as the Version 7 program of the same name,
 with the flexibility of the System V version.
 .PP
-.I File
+.B File
 uses several algorithms that favor speed over accuracy,
-thus it can be misled about the contents of ASCII files.
+thus it can be misled about the contents of
+.SM ASCII
+files.
 .PP
-The support for ASCII files (primarily for programming languages)
+The support for
+.SM ASCII
+files (primarily for programming languages)
 is simplistic, inefficient and requires recompilation to update.
 .PP
 There should be an ``else'' clause to follow a series of continuation lines.
 .PP
 The magic file and keywords should have regular expression support.
-Their use of ASCII TAB as a field delimiter is ugly and makes
+Their use of
+.SM "ASCII TAB"
+as a field delimiter is ugly and makes
 it hard to edit the files, but is entrenched.
 .PP
 It might be advisable to allow upper-case letters in keywords
-for e.g., troff commands vs man page macros.
+for e.g.,
+.BR troff (1)
+commands vs man page macros.
 Regular expression support would make this easy.
 .PP
 The program doesn't grok \s-2FORTRAN\s0.
@@ -342,6 +361,6 @@ This manual page, and particularly this section, is too long.
 .SH AVAILABILITY
 You can obtain the original author's latest version by anonymous FTP
 on
-.B tesla.ee.cornell.edu
+.B ftp.deshaw.com
 in the directory
-.BR /pub/file-X.YY.tar.gz
+.I /pub/file/file-X.YY.tar.gz

@@ -33,8 +33,8 @@
 #include "file.h"
 
 #ifndef	lint
-static char *moduleid =
-	"@(#)$Id: apprentice.c,v 1.2 1995/05/30 06:29:58 rgrimes Exp $";
+static char *moduleid = 
+	"@(#)$Id: apprentice.c,v 1.6 1997/03/18 19:37:16 mpp Exp $";
 #endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \
@@ -133,10 +133,10 @@ int check;			/* non-zero? checking-only run. */
 /*
  * extend the sign bit if the comparison is to be signed
  */
-unsigned long
+uint32
 signextend(m, v)
 struct magic *m;
-unsigned long v;
+uint32 v;
 {
 	if (!(m->flag & UNSIGNED))
 		switch(m->type) {
@@ -159,7 +159,7 @@ unsigned long v;
 		case LONG:
 		case BELONG:
 		case LELONG:
-			v = (long) v;
+			v = (int32) v;
 			break;
 		case STRING:
 			break;
@@ -210,6 +210,10 @@ int *ndx, check;
 		++l;		/* step over */
 		m->flag |= INDIR;
 	}
+	if (m->cont_level != 0 && *l == '&') {
+                ++l;            /* step over */
+                m->flag |= ADD;
+        }
 
 	/* get offset, then skip over it */
 	m->offset = (int) strtoul(l,&t,0);
@@ -491,21 +495,16 @@ int	plen, *slen;
 				*p++ = (char)val;
 				break;
 
-			/* \x and up to 3 hex digits */
+			/* \x and up to 2 hex digits */
 			case 'x':
 				val = 'x';	/* Default if no digits */
 				c = hextoint(*s++);	/* Get next char */
 				if (c >= 0) {
 					val = c;
 					c = hextoint(*s++);
-					if (c >= 0) {
+					if (c >= 0)
 						val = (val << 4) + c;
-						c = hextoint(*s++);
-						if (c >= 0) {
-							val = (val << 4) + c;
-						} else
-							--s;
-					} else
+					else
 						--s;
 				} else
 					--s;

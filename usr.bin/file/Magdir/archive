@@ -45,8 +45,6 @@
 >19	string	B			and an EB hash table
 >22	string	X			-- out of date
 
-0	string		!<arch>		archive
->8	string		__.SYMDEF	random library
 0	string		-h-		Software Tools format archive text
 
 #
@@ -56,10 +54,9 @@
 # 0	string		!<arch>		current ar archive
 # 0	long		0x213c6172	archive file
 #
-# and for SVR3.1 archives, we have:
+# and for SVR1 archives, we have:
 #
 # 0	string		\<ar>		System V Release 1 ar archive
-# 0	string		=<ar>		archive
 # 0	string		=<ar>		archive
 #
 # XXX - did Aegis really store shared libraries, breakpointed modules,
@@ -68,6 +65,8 @@
 #
 0	string		!<arch>		current ar archive
 >8	string		__.SYMDEF	random library
+>8	string		debian-split	part of multipart Debian package
+>8	string		debian-binary	Debian binary package
 >0	belong		=65538		- pre SR9.5
 >0	belong		=65539		- post SR9.5
 >0	beshort		2		- object archive
@@ -96,14 +95,10 @@
 0	leshort		0177545		old PDP-11 archive
 >8	string		__.SYMDEF	random library
 #
-0	string		=<ar>		archive
-#
-# From "pdp":
+# From "pdp" (but why a 4-byte quantity?)
 #
 0	lelong		0x39bed		PDP-11 old archive
 0	lelong		0x39bee		PDP-11 4.0 archive
-#
-0	string		-h-		Software Tools format archive text
 
 # ARC archiver, from Daniel Quinlan (quinlan@yggdrasil.com)
 #

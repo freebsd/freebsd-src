@@ -17,16 +17,18 @@
 >8	belong	1234		Little Endian,
 >8	belong	4321		Big Endian,
 >12	belong	x		Bucket Size %d,
->16	belong	x		Directory Size %d,
->20	belong	x		Segment Size %d,
->24	belong	x		Segment Shift %d,
->28	belong	x		Overflow Point %d,
->32	belong	x		Last Freed %d,
->36	belong	x		Max Bucket %d,
->40	belong	x		High Mask 0x%x,
->44	belong	x		Low Mask 0x%x,
->48	belong	x		Fill Factor %d,
->52	belong	x		Number of Keys %d)
+>16	belong	x		Bucket Shift %d,
+>20	belong	x		Directory Size %d,
+>24	belong	x		Segment Size %d,
+>28	belong	x		Segment Shift %d,
+>32	belong	x		Overflow Point %d,
+>36	belong	x		Last Freed %d,
+>40	belong	x		Max Bucket %d,
+>44	belong	x		High Mask 0x%x,
+>48	belong	x		Low Mask 0x%x,
+>52	belong	x		Fill Factor %d,
+>56	belong	x		Number of Keys %d)
+#
 #
 0	belong	0x053162	Berkeley DB Btree file
 >4	belong	>0		(Version %d,

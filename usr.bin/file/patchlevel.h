@@ -1,11 +1,32 @@
 #define	FILE_VERSION_MAJOR	3
-#define	patchlevel		19
+#define	patchlevel		22
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.2 1995/05/30 06:30:06 rgrimes Exp $
+ * $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.7  1997/03/18 19:37:21  mpp
+ * Merge to resolve conflicts with file 3.22 merge.
+ *
+ * Revision 1.6  1997/02/22 19:54:59  peter
+ * Revert $FreeBSD$ to $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $
+ *
+ * Revision 1.5  1997/02/22 19:29:15  peter
+ * Revert $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $ to $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $
+ *
+ * Revision 1.4  1997/01/14 06:59:48  jkh
+ * Make the long-awaited change from $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $ to $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $
+ *
+ * This will make a number of things easier in the future, as well as (finally!)
+ * avoiding the Id-smashing problem which has plagued developers for so long.
+ *
+ * Boy, I'm glad we're not using sup anymore.  This update would have been
+ * insane otherwise.
+ *
+ * Revision 1.3  1996/01/23 12:40:20  mpp
+ * Merged changes to resolve conflicts with file 3.19 import.
+ *
  * Revision 1.2  1995/05/30 06:30:06  rgrimes
  * Remove trailing whitespace.
  *
@@ -21,6 +42,33 @@
  *
  * The following file was removed:
  * - Magdir/Makefile
+ *
+ * Revision 1.1.1.3  1997/03/18 17:58:54  mpp
+ * Upgrade to file version 3.22.
+ *
+ * Obtained from: ftp://ftp.deshaw.com/pub/file/file-3.22.tar.gz
+ *
+ * Revision 1.22  1997/01/15 17:23:24  christos
+ * - add support for elf core files: find the program name under SVR4 [Ken Pizzini]
+ * - print strings only up to the first carriage return [various]
+ * - freebsd international ascii support [J Wunsch]
+ * - magic fixes and additions [Guy Harris]
+ * - 64 bit fixes [Larry Schwimmer]
+ * - support for both utime and utimes, but don't restore file access times
+ *   by default [various]
+ * - \xXX only takes 2 hex digits, not 3.
+ * - re-implement support for core files [Guy Harris]
+ *
+ * Revision 1.21  1996/10/05 18:15:29  christos
+ * Segregate elf stuff and conditionally enable it with -DBUILTIN_ELF
+ * More magic fixes
+ *
+ * Revision 1.20  1996/06/22  22:15:52  christos
+ * - support relative offsets of the form >&
+ * - fix bug with truncating magic strings that contain \n
+ * - file -f - did not read from stdin as documented
+ * - support elf file parsing using our own elf support.
+ * - as always magdir fixes and additions.
  *
  * Revision 1.19  1995/10/27  23:14:46  christos
  * Ability to parse colon separated list of magic files
