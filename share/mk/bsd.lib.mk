@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.75 1998/08/08 07:02:07 peter Exp $
+#	$Id: bsd.lib.mk,v 1.76 1998/08/08 13:11:44 peter Exp $
 #
 
 .if !target(__initialized__)
@@ -181,8 +181,8 @@ lib${LIB}.a:: ${OBJS}
 	@${AR} cq lib${LIB}.a `lorder ${OBJS} | tsort -q` ${ARADD}
 	${RANLIB} lib${LIB}.a
 
-.if !defined(NOPROFILE)
 POBJS+=	${OBJS:.o=.po}
+.if !defined(NOPROFILE)
 lib${LIB}_p.a:: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f lib${LIB}_p.a
@@ -194,9 +194,9 @@ lib${LIB}_p.a:: ${POBJS}
 LDDESTDIRENV?=	LIBRARY_PATH=${DESTDIR}${SHLIBDIR}:${DESTDIR}${LIBDIR}
 .endif
 
-.if !defined(NOPIC)
 SOBJS+= ${OBJS:.o=.so}
 
+.if !defined(NOPIC)
 .if ${BINFORMAT} == aout
 lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 	@${ECHO} building shared ${LIB} library \(version ${SHLIB_MAJOR}.${SHLIB_MINOR}\)
@@ -225,13 +225,10 @@ llib-l${LIB}.ln: ${SRCS}
 
 .if !target(clean)
 clean:	_SUBDIR
-	rm -f a.out ${OBJS} ${CLEANFILES}
+	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${CLEANFILES}
 	rm -f lib${LIB}.a # llib-l${LIB}.ln
-	rm -f ${POBJS} lib${LIB}_p.a
-.if defined(SOBJS) && !empty(SOBJS)
-	rm -f ${SOBJS}
-.endif
-	rm -f lib${LIB}.so.*.* lib${LIB}_pic.a
+	rm -f ${POBJS} ${POBJS:S/$/.tmp/} lib${LIB}_p.a
+	rm -f ${SOBJS} ${SOBJS:S/$/.tmp/} lib${LIB}.so.*.* lib${LIB}_pic.a
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
