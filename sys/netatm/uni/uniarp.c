@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp.c,v 1.3 1998/10/31 20:07:00 phk Exp $
+ *	@(#) $Id: uniarp.c,v 1.4 1998/12/04 22:54:53 archie Exp $
  *
  */
 
@@ -43,7 +43,7 @@
 #include <netatm/uni/uniip_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: uniarp.c,v 1.3 1998/10/31 20:07:00 phk Exp $");
+__RCSID("@(#) $Id: uniarp.c,v 1.4 1998/12/04 22:54:53 archie Exp $");
 #endif
 
 
@@ -1137,14 +1137,14 @@ updbuf:
 		 * Get ARP server information
 		 */
 		aip = (struct atminfreq *)data;
+		nip = (struct atm_nif *)arg1;
 
 		buf_addr = aip->air_buf_addr;
 		buf_len = aip->air_buf_len;
 
 		for (uip = uniip_head; uip; uip = uip->uip_next) {
 
-			if ((arg1 != NULL) &&
-			    (uip->uip_ipnif->inf_nif != (struct atm_nif *)arg1))
+			if (uip->uip_ipnif->inf_nif != nip)
 				continue;
 
 			/*
@@ -1158,7 +1158,6 @@ updbuf:
 			/*
 			 * Fill in info to be returned
 			 */
-			nip = uip->uip_ipnif->inf_nif;
 			(void) snprintf(asr.asp_intf,
 			    sizeof(asr.asp_intf), "%s%d",
 				nip->nif_if.if_name, nip->nif_if.if_unit);
