@@ -40,6 +40,8 @@
 .Ft void
 .Fn kobj_class_compile "kobj_class_t cls"
 .Ft void
+.Fn kobj_class_compile_static "kobj_class_t cls" "kobj_ops_t ops"
+.Ft void
 .Fn kobj_class_free "kobj_class_t cls"
 .Ft kobj_t
 .Fn kobj_create "kobj_class_t cls" "struct malloc_type *mtype" "int mflags"
@@ -96,13 +98,23 @@ The device framework uses this feature to associate drivers with
 devices.
 .Pp
 The functions
-.Fn kobj_class_compile
+.Fn kobj_class_compile ,
+.Fn kobj_class_compile_static
 and
 .Fn kobj_class_free
 are used to process a class description to make method dispatching
 efficient.
 A client should not normally need to call these since a class
 will automatically be compiled the first time it is used.
+If a class is to be used before
+.Xr malloc 9
+is initialised,
+then
+.Fn kobj_class_compile_static
+should be called with the class and a pointer to a statically
+allocated
+.Dv kobj_ops
+structure before the class is used to initialise any objects.
 .Pp
 To define a class, first define a simple array of
 .Dv kobj_method_t .
