@@ -99,12 +99,7 @@ static struct timecounter acpi_timer_timecounter = {
 static u_int
 acpi_timer_read()
 {
-    uint32_t tv;
-
-    tv = bus_space_read_4(acpi_timer_bst, acpi_timer_bsh, 0);
-    bus_space_barrier(acpi_timer_bst, acpi_timer_bsh, 0, 4,
-	BUS_SPACE_BARRIER_READ);
-    return (tv);
+    return (bus_space_read_4(acpi_timer_bst, acpi_timer_bsh, 0));
 }
 
 /*
@@ -277,9 +272,13 @@ acpi_timer_test()
 {
     uint32_t	last, this;
     int		min, max, n, delta;
+    register_t	s;
 
     min = 10000000;
     max = 0;
+
+    /* Test the timer with interrupts disabled to get accurate results. */
+    s = intr_disable();
     last = acpi_timer_read();
     for (n = 0; n < N; n++) {
 	this = acpi_timer_read();
@@ -290,6 +289,8 @@ acpi_timer_test()
 	    min = delta;
 	last = this;
     }
+    intr_restore(s);
+
     if (max - min > 2)
 	n = 0;
     else if (min < 0 || max == 0)
