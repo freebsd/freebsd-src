@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.31 1997/07/18 11:44:24 julian Exp $
+ *	$Id: rtsock.c,v 1.32 1997/08/16 19:15:32 wollman Exp $
  */
 
 
@@ -41,6 +41,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>

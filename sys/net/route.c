@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.41 1997/03/05 08:01:28 julian Exp $
+ *	$Id: route.c,v 1.42 1997/03/24 11:24:47 bde Exp $
  */
 
 #include "opt_mrouting.h"
@@ -41,6 +41,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>

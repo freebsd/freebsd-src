@@ -1,4 +1,4 @@
-/*	$Id: ppp_deflate.c,v 1.1.2.1 1997/07/01 20:44:10 peter Exp $	*/
+/*	$Id: ppp_deflate.c,v 1.3 1997/08/19 14:10:46 peter Exp $	*/
 
 /*
  * ppp_deflate.c - interface the zlib procedures for Deflate compression
@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <net/ppp_defs.h>
 #include <net/zlib.h>

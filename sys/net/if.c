@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.50 1997/08/22 22:47:27 julian Exp $
+ *	$Id: if.c,v 1.51 1997/08/28 01:17:07 julian Exp $
  */
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
 #include <sys/proc.h>

@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.58 1997/03/24 11:32:45 bde Exp $
+ *  $Id: if_ep.c,v 1.59 1997/07/20 14:09:58 bde Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -66,6 +66,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #endif
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>

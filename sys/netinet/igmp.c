@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id$
+ * $Id: igmp.c,v 1.21 1997/02/22 09:41:26 peter Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>

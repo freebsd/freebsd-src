@@ -40,12 +40,13 @@
 /*
  * This version is for use with mbufs on BSD-derived systems.
  *
- * $Id: bsd_comp.c,v 1.7 1997/08/19 14:10:44 peter Exp $
+ * $Id: bsd_comp.c,v 1.8 1997/08/19 17:07:07 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
