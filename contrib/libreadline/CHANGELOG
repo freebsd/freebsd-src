@@ -697,3 +697,114 @@ doc/Makefile.in
 	- new maybe-clean target that removes the generated documentation if
 	  the build directory differs from the source directory
 	- distclean target now depends on maybe-clean
+
+				   7/17
+				   ----
+[readline-4.3 released]
+
+				   7/18
+				   ----
+shlib/Makefile.in
+	- fix bad dependency: text.so: terminal.c, make it depend on text.c
+
+				    8/7
+				    ---
+support/shlib-install
+	- break `linux' out into its own stanza:  it seems that linux
+	  distributions are all moving to the following scheme:
+
+		libreadline.so.4.3	installed version
+		libreadline.so.4 -> libreadline.so.4.3	symlink
+		libreadline.so -> libreadline.so.4	symlink
+
+				   10/29
+				   -----
+support/shlib-install
+	- change INSTALL_LINK[12] to use `&&' instead of `;' so it only
+	  tries the link if the cd succeeds; put ${echo} in there, too
+	- use $LN instead of `ln -s' so it works on machines without symlinks
+	- change special linux stanza to use cd before ln also
+	- change to use $INSTALL_LINK1 and $INSTALL_LINK2 appropriately
+	  instead of explicit commands in various stanzas
+
+				    2/1
+				    ---
+config.h.in
+	- add HAVE_MBRTOWC and HAVE_MBRLEN
+	- add NO_MULTIBYTE_SUPPORT for new configure argument
+	- add STDC_HEADERS
+
+configure.in
+	- new argument --enable-multibyte (enabled by default), allows
+	  multibyte support to be turned off even on systems that support it
+	- add check for ansi stdc headers with call to AC_HEADER_STDC
+
+				    2/3
+				    ---
+configure.in
+	- add call to BASH_FUNC_CTYPE_NONASCII
+
+config.h.in
+	- add CTYPE_NON_ASCII
+
+				   2/20
+				   ----
+
+doc/manvers.texinfo
+        - renamed to version.texi to match other GNU software
+        - UPDATE-MONTH variable is now `UPDATED-MONTH'
+        
+doc/{hist,rlman,rluserman}.texinfo
+        - include version.texi
+        
+doc/{rltech,rluser,hstech,hsuser}.texi
+	- changed the suffix from `texinfo' to `texi'
+
+doc/Makefile.in
+	- made appropriate changes for {{rl,hs}tech,{rl,hs}user}.texi
+
+doc/{rlman,rluserman}.texinfo
+	- changed the suffix from `texinfo' to `texi'
+
+doc/hist.texinfo
+	- renamed to history.texi to be more consistent
+
+				   6/11
+				   ----
+shlib/Makefile.in
+	- have configure substitute value of `@LDFLAGS@' into the assignment
+	  to SHLIB_XLDFLAGS
+
+				   6/16
+				   ----
+configure.in
+	- readline and history libraries are now at version 5.0
+
+				   8/18
+				   ----
+support/shlib-install
+	- support for FreeBSD-gnu (from Robert Millan)
+
+				   12/4
+				   ----
+Makefile.in
+	- add variables for localedir and the PACKAGE_* variables, auto-set
+	  by configure
+
+				   12/9
+				   ----
+Makefile.in
+	- use mkinstalldirs instead of mkdirs
+
+				   4/22
+				   ----
+Makefile.in
+	- separate doc install/uninstall out into two new targets:
+	  install-doc and uninstall-doc
+	- make install-doc and uninstall-doc prerequisites of appropriate
+	  install and uninstall targets
+
+examples/rl-fgets.c
+	- new example from Harold Levy that wraps fgets replacement functions
+	  that call readline in a shared library that can be interposed with
+	  LD_PRELOAD

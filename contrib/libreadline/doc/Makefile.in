@@ -1,7 +1,7 @@
 # This makefile for Readline library documentation is in -*- text -*- mode.
 # Emacs likes it that way.
 
-# Copyright (C) 1996 Free Software Foundation, Inc.
+# Copyright (C) 1996-2004 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,14 +52,18 @@ TEXI2DVI    = $(srcdir)/texi2dvi
 TEXI2HTML   = $(srcdir)/texi2html
 QUIETPS     = #set this to -q to shut up dvips
 PAPERSIZE   = letter
-PSDPI       = 300	# I don't have any 600-dpi printers
+PSDPI       = 600
 DVIPS       = dvips -D ${PSDPI} $(QUIETPS) -t ${PAPERSIZE} -o $@     # tricky
 
-RLSRC = $(srcdir)/rlman.texinfo $(srcdir)/rluser.texinfo \
-	$(srcdir)/rltech.texinfo $(srcdir)/manvers.texinfo \
-	$(srcdir)/rluserman.texinfo
-HISTSRC = $(srcdir)/hist.texinfo $(srcdir)/hsuser.texinfo \
-	  $(srcdir)/hstech.texinfo $(srcdir)/manvers.texinfo
+# These tools might not be available; they're not required
+DVIPDF      = dvipdfm -o $@ -p ${PAPERSIZE}
+PSPDF       = gs -sPAPERSIZE=${PAPERSIZE} -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -sOutputFile=$@
+
+RLSRC = $(srcdir)/rlman.texi $(srcdir)/rluser.texi \
+	$(srcdir)/rltech.texi $(srcdir)/version.texi \
+	$(srcdir)/rluserman.texi
+HISTSRC = $(srcdir)/history.texi $(srcdir)/hsuser.texi \
+	  $(srcdir)/hstech.texi $(srcdir)/version.texi
 
 # This should be a program that converts troff to an ascii-readable format
 NROFF       = groff -Tascii
@@ -72,39 +76,54 @@ INFOOBJ = readline.info history.info rluserman.info
 PSOBJ = readline.ps history.ps rluserman.ps readline_3.ps history_3.ps
 HTMLOBJ = readline.html history.html rluserman.html
 TEXTOBJ = readline.0 history.0
+PDFOBJ = readline.pdf history.pdf rluserman.pdf
 
-INTERMEDIATE_OBJ = rlman.dvi hist.dvi rluserman.dvi
+INTERMEDIATE_OBJ = rlman.dvi
 
 DIST_DOCS = $(DVIOBJ) $(PSOBJ) $(HTMLOBJ) $(INFOOBJ) $(TEXTOBJ)
 
-.SUFFIXES:      .0 .3 .ps .txt .dvi
+.SUFFIXES:      .0 .3 .ps .txt .dvi .html .pdf
 
 .3.0:
 	$(RM) $@
 	-${NROFF} -man $< > $@
 
+.ps.pdf:
+	$(RM) $@
+	-${PSPDF} $<
+
+.dvi.pdf:
+	$(RM) $@
+	-${DVIPDF} $<
+
 all: info dvi html ps text
 nodvi: info html text
 
+info:	$(INFOOBJ)
+dvi:	$(DVIOBJ)
+ps:	$(PSOBJ)
+html:	$(HTMLOBJ)
+text:	$(TEXTOBJ)
+pdf:	$(PDFOBJ)
+
 readline.dvi: $(RLSRC)
-	TEXINPUTS=.:$(TEXINPUTDIR):$$TEXINPUTS $(TEXI2DVI) $(srcdir)/rlman.texinfo
+	TEXINPUTS=.:$(TEXINPUTDIR):$$TEXINPUTS $(TEXI2DVI) $(srcdir)/rlman.texi
 	mv rlman.dvi readline.dvi
 
 readline.info: $(RLSRC)
-	$(MAKEINFO) --no-split -I $(TEXINPUTDIR) -o $@ $(srcdir)/rlman.texinfo
+	$(MAKEINFO) --no-split -I $(TEXINPUTDIR) -o $@ $(srcdir)/rlman.texi
 
 rluserman.dvi: $(RLSRC)
-	TEXINPUTS=.:$(TEXINPUTDIR):$$TEXINPUTS $(TEXI2DVI) $(srcdir)/rluserman.texinfo
+	TEXINPUTS=.:$(TEXINPUTDIR):$$TEXINPUTS $(TEXI2DVI) $(srcdir)/rluserman.texi
 
 rluserman.info: $(RLSRC)
-	$(MAKEINFO) --no-split -I $(TEXINPUTDIR) -o $@ $(srcdir)/rluserman.texinfo
+	$(MAKEINFO) --no-split -I $(TEXINPUTDIR) -o $@ $(srcdir)/rluserman.texi
 
 history.dvi: ${HISTSRC}
-	TEXINPUTS=.:$(TEXINPUTDIR):$$TEXINPUTS $(TEXI2DVI) $(srcdir)/hist.texinfo
-	mv hist.dvi history.dvi
+	TEXINPUTS=.:$(TEXINPUTDIR):$$TEXINPUTS $(TEXI2DVI) $(srcdir)/history.texi
 
 history.info: ${HISTSRC}
-	$(MAKEINFO) --no-split -I $(TEXINPUTDIR) -o $@ $(srcdir)/hist.texinfo
+	$(MAKEINFO) --no-split -I $(TEXINPUTDIR) -o $@ $(srcdir)/history.texi
 
 readline.ps:	readline.dvi
 	$(RM) $@
@@ -122,22 +141,15 @@ history.ps:	history.dvi
 # This leaves readline.html and rlman.html -- rlman.html is for www.gnu.org
 #
 readline.html:	${RLSRC}
-	$(TEXI2HTML) -menu -monolithic -I $(TEXINPUTDIR) $(srcdir)/rlman.texinfo
+	$(TEXI2HTML) -menu -monolithic -I $(TEXINPUTDIR) $(srcdir)/rlman.texi
 	sed -e 's:rlman.html:readline.html:g' rlman.html > readline.html
+	$(RM) rlman.html
 
 rluserman.html:	${RLSRC}
-	$(TEXI2HTML) -menu -monolithic -I $(TEXINPUTDIR) $(srcdir)/rluserman.texinfo
+	$(TEXI2HTML) -menu -monolithic -I $(TEXINPUTDIR) $(srcdir)/rluserman.texi
 
 history.html:	${HISTSRC}
-	$(TEXI2HTML) -menu -monolithic -I $(TEXINPUTDIR) $(srcdir)/hist.texinfo
-	sed -e 's:hist.html:history.html:g' hist.html > history.html
-	$(RM) hist.html
-
-info:	$(INFOOBJ)
-dvi:	$(DVIOBJ)
-ps:	$(PSOBJ)
-html:	$(HTMLOBJ)
-text:	$(TEXTOBJ)
+	$(TEXI2HTML) -menu -monolithic -I $(TEXINPUTDIR) $(srcdir)/history.texi
 
 readline.0: readline.3
 
@@ -151,9 +163,14 @@ history_3.ps: history.3
 	${RM} $@
 	${GROFF} -man < $(srcdir)/history.3 > $@ 
 
+readline.pdf:	readline.dvi
+history.pdf:	history.dvi
+rluserman.pdf:	rluserman.dvi
+
 clean:
-	$(RM) *.aux *.cp *.fn *.ky *.log *.pg *.toc *.tp *.vr *.cps *.pgs \
-	      *.fns *.kys *.tps *.vrs *.bt *.bts *.o core *.core
+	$(RM) *.aux *.bak *.cp *.fn *.ky *.log *.pg *.toc *.tp *.vr *.cps \
+	      *.pgs *.bt *.bts *.rw *.rws *.fns *.kys *.tps *.vrs *.o \
+	      core *.core
 
 mostlyclean: clean
 
@@ -169,6 +186,7 @@ maybe-clean:
 maintainer-clean: clean
 	$(RM) $(DIST_DOCS)
 	$(RM) $(INTERMEDIATE_OBJ)
+	$(RM) $(PDFOBJ)
 	$(RM) Makefile
 
 installdirs:	$(topdir)/support/mkdirs
