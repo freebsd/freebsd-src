@@ -89,6 +89,7 @@ ASSYM(TD_KSE, offsetof(struct thread, td_kse));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_INTR_NESTING_LEVEL, offsetof(struct thread, td_intr_nesting_level));
 ASSYM(TD_CRITNEST, offsetof(struct thread, td_critnest));
+ASSYM(TD_SWITCHIN, offsetof(struct thread, td_switchin));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 
 ASSYM(P_MD, offsetof(struct proc, p_md));

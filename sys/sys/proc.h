@@ -285,6 +285,7 @@ struct thread {
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
 	void 		*td_mailbox;	/* the userland mailbox address */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
+	void		(*td_switchin)(void); /* (k) switchin special func */
 #define	td_endzero td_md
 
 #define	td_startcopy td_endzero
