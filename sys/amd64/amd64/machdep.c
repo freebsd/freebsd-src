@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.207 1996/10/05 10:44:03 jkh Exp $
+ *	$Id: machdep.c,v 1.208 1996/10/20 18:35:32 phk Exp $
  */
 
 #include "npx.h"
@@ -687,6 +687,16 @@ sigreturn(p, uap, retval)
 void
 cpu_boot(int howto)
 {
+}
+
+/*
+ * Shutdown the CPU as much as possible
+ */
+void
+cpu_halt(void)
+{
+	for (;;)
+		__asm__ ("hlt");
 }
 
 /*
