@@ -11,7 +11,6 @@ SRCS+= pfctl_osfp.c pfctl_radix.c pfctl_table.c pfctl_qstats.c
 
 CFLAGS+= -Wall -Wmissing-prototypes -Wno-uninitialized
 CFLAGS+= -Wstrict-prototypes -I${.CURDIR}/../../contrib/pf/pfctl
-CFLAGS+= -I${.CURDIR}/../../sys/contrib/pf
 
 # XXX ALTQ
 CFLAGS+= -DENABLE_ALTQ
