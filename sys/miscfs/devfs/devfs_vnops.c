@@ -1532,21 +1532,6 @@ loop:
 	splx(s);
 	return (0);
 }
-/*
- *
- *	struct vop_inactive_args {
- *		struct vnode *a_vp;
- *		struct proc *a_p;
- *	} 
- */
-
-static int
-devfs_inactive(struct vop_inactive_args *ap)
-{
-
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
-	return (0);
-}
 
 /*
  * Just call the device strategy routine
@@ -1964,7 +1949,6 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) devfs_access },
 	{ &vop_bmap_desc,		(vop_t *) devfs_badop },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
-	{ &vop_inactive_desc,		(vop_t *) devfs_inactive },
 	{ &vop_link_desc,		(vop_t *) devfs_link },
 	{ &vop_lookup_desc,		(vop_t *) devfs_lookup },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
@@ -1999,7 +1983,6 @@ static struct vnodeopv_entry_desc devfs_spec_vnodeop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) devfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
 	{ &vop_getpages_desc,		(vop_t *) devfs_getpages },
-	{ &vop_inactive_desc,		(vop_t *) devfs_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) devfs_ioctl },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) devfs_badop },

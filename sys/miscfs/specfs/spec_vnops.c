@@ -59,7 +59,6 @@ static int	spec_close __P((struct vop_close_args *));
 static int	spec_freeblks __P((struct vop_freeblks_args *));
 static int	spec_fsync __P((struct  vop_fsync_args *));
 static int	spec_getpages __P((struct vop_getpages_args *));
-static int	spec_inactive __P((struct  vop_inactive_args *));
 static int	spec_ioctl __P((struct vop_ioctl_args *));
 static int	spec_open __P((struct vop_open_args *));
 static int	spec_poll __P((struct vop_poll_args *));
@@ -79,7 +78,7 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_freeblks_desc,		(vop_t *) spec_freeblks },
 	{ &vop_fsync_desc,		(vop_t *) spec_fsync },
 	{ &vop_getpages_desc,		(vop_t *) spec_getpages },
-	{ &vop_inactive_desc,		(vop_t *) spec_inactive },
+	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_ioctl_desc,		(vop_t *) spec_ioctl },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) vop_panic },
@@ -88,7 +87,6 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) spec_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_poll_desc,		(vop_t *) spec_poll },
-	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_print_desc,		(vop_t *) spec_print },
 	{ &vop_read_desc,		(vop_t *) spec_read },
 	{ &vop_readdir_desc,		(vop_t *) vop_panic },
@@ -388,18 +386,6 @@ loop:
 #endif
 	}
 	splx(s);
-	return (0);
-}
-
-static int
-spec_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
 	return (0);
 }
 
