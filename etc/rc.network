@@ -197,6 +197,16 @@ network_pass1() {
 	    echo -n ' broadcast ping responses=YES'
 	    sysctl -w net.inet.icmp.bmcastecho=1 >/dev/null
     fi
+    
+    if [ "X$icmp_drop_redirect" = X"YES" ]; then
+	    echo -n ' ignore ICMP redirect=YES'
+	    sysctl -w net.inet.icmp.drop_redirect=1 >/dev/null
+    fi
+    
+    if [ "X$icmp_log_redirect" = X"YES" ]; then
+	    echo -n ' log ICMP redirect=YES'
+	    sysctl -w net.inet.icmp.log_redirect=1 >/dev/null
+    fi
 
     if [ "X$gateway_enable" = X"YES" ]; then
 	    echo -n ' IP gateway=YES'
@@ -216,6 +226,16 @@ network_pass1() {
     if [ "X$tcp_keepalive" = X"YES" ]; then
 	    echo -n ' TCP keepalive=YES'
 	    sysctl -w net.inet.tcp.always_keepalive=1 >/dev/null
+    fi
+
+    if [ "X$tcp_drop_synfin" = X"YES" ]; then
+	    echo -n ' drop SYN+FIN packets=YES'
+	    sysctl -w net.inet.tcp.drop_synfin=1 >/dev/null
+    fi
+
+    if [ "X$tcp_restrict_rst" = X"YES" ]; then
+	    echo -n ' restrict TCP reset=YES'
+	    sysctl -w net.inet.tcp.restrict_rst=1 >/dev/null
     fi
 
     if [ "X$ipxgateway_enable" = X"YES" ]; then
