@@ -43,7 +43,6 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -277,7 +276,6 @@ fts_read(sp)
 {
 	struct stat sb;
 	register FTSENT *p, *tmp;
-	struct stat sb;
 	register int instr;
 	register char *t;
 	int saved_errno;
