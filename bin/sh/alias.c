@@ -56,14 +56,13 @@ static const char rcsid[] =
 
 struct alias *atab[ATABSIZE];
 
-STATIC void setalias __P((char *, char *));
-STATIC int unalias __P((char *));
-STATIC struct alias **hashalias __P((char *));
+STATIC void setalias(char *, char *);
+STATIC int unalias(char *);
+STATIC struct alias **hashalias(char *);
 
 STATIC
 void
-setalias(name, val)
-	char *name, *val;
+setalias(char *name, char *val)
 {
 	struct alias *ap, **app;
 
@@ -116,9 +115,8 @@ setalias(name, val)
 }
 
 STATIC int
-unalias(name)
-	char *name;
-	{
+unalias(char *name)
+{
 	struct alias *ap, **app;
 
 	app = hashalias(name);
@@ -158,7 +156,8 @@ SHELLPROC {
 #endif
 
 void
-rmaliases() {
+rmaliases(void)
+{
 	struct alias *ap, *tmp;
 	int i;
 
@@ -178,9 +177,7 @@ rmaliases() {
 }
 
 struct alias *
-lookupalias(name, check)
-	char *name;
-	int check;
+lookupalias(char *name, int check)
 {
 	struct alias *ap = *hashalias(name);
 
@@ -199,9 +196,7 @@ lookupalias(name, check)
  * TODO - sort output
  */
 int
-aliascmd(argc, argv)
-	int argc;
-	char **argv;
+aliascmd(int argc, char **argv)
 {
 	char *n, *v;
 	int ret = 0;
@@ -234,9 +229,7 @@ aliascmd(argc, argv)
 }
 
 int
-unaliascmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+unaliascmd(int argc __unused, char **argv __unused)
 {
 	int i;
 
@@ -253,9 +246,8 @@ unaliascmd(argc, argv)
 }
 
 STATIC struct alias **
-hashalias(p)
-	char *p;
-	{
+hashalias(char *p)
+{
 	unsigned int hashval;
 
 	hashval = *p << 4;

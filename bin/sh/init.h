@@ -37,6 +37,6 @@
  * $FreeBSD$
  */
 
-void init __P((void));
-void reset __P((void));
-void initshellproc __P((void));
+void init(void);
+void reset(void);
+void initshellproc(void);

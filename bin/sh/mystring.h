@@ -39,10 +39,10 @@
 
 #include <string.h>
 
-void scopyn __P((const char *, char *, int));
-int prefix __P((const char *, const char *));
-int number __P((const char *));
-int is_number __P((const char *));
+void scopyn(const char *, char *, int);
+int prefix(const char *, const char *);
+int number(const char *);
+int is_number(const char *);
 
 #define equal(s1, s2)	(strcmp(s1, s2) == 0)
 #define scopy(s1, s2)	((void)strcpy(s2, s1))

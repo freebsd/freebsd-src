@@ -83,6 +83,7 @@ extern char *arith_buf, *arith_startbuf;
 %%
 
 void
-arith_lex_reset() {
+arith_lex_reset()
+{
 	YY_NEW_FILE;
 }

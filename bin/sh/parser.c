@@ -108,22 +108,22 @@ static const char types[] = "}-+?=";
 #endif
 
 
-STATIC union node *list __P((int));
-STATIC union node *andor __P((void));
-STATIC union node *pipeline __P((void));
-STATIC union node *command __P((void));
-STATIC union node *simplecmd __P((union node **, union node *));
-STATIC union node *makename __P((void));
-STATIC void parsefname __P((void));
-STATIC void parseheredoc __P((void));
-STATIC int peektoken __P((void));
-STATIC int readtoken __P((void));
-STATIC int xxreadtoken __P((void));
-STATIC int readtoken1 __P((int, char const *, char *, int));
-STATIC int noexpand __P((char *));
-STATIC void synexpect __P((int));
-STATIC void synerror __P((char *));
-STATIC void setprompt __P((int));
+STATIC union node *list(int);
+STATIC union node *andor(void);
+STATIC union node *pipeline(void);
+STATIC union node *command(void);
+STATIC union node *simplecmd(union node **, union node *);
+STATIC union node *makename(void);
+STATIC void parsefname(void);
+STATIC void parseheredoc(void);
+STATIC int peektoken(void);
+STATIC int readtoken(void);
+STATIC int xxreadtoken(void);
+STATIC int readtoken1(int, char const *, char *, int);
+STATIC int noexpand(char *);
+STATIC void synexpect(int);
+STATIC void synerror(char *);
+STATIC void setprompt(int);
 
 
 /*
@@ -132,8 +132,7 @@ STATIC void setprompt __P((int));
  */
 
 union node *
-parsecmd(interact)
-	int interact;
+parsecmd(int interact)
 {
 	int t;
 
@@ -155,8 +154,7 @@ parsecmd(interact)
 
 
 STATIC union node *
-list(nlflag)
-	int nlflag;
+list(int nlflag)
 {
 	union node *n1, *n2, *n3;
 	int tok;
@@ -226,7 +224,8 @@ list(nlflag)
 
 
 STATIC union node *
-andor() {
+andor(void)
+{
 	union node *n1, *n2, *n3;
 	int t;
 
@@ -252,7 +251,8 @@ andor() {
 
 
 STATIC union node *
-pipeline() {
+pipeline(void)
+{
 	union node *n1, *n2, *pipenode;
 	struct nodelist *lp, *prev;
 	int negate;
@@ -292,7 +292,8 @@ pipeline() {
 
 
 STATIC union node *
-command() {
+command(void)
+{
 	union node *n1, *n2;
 	union node *ap, **app;
 	union node *cp, **cpp;
@@ -527,9 +528,8 @@ checkneg:
 
 
 STATIC union node *
-simplecmd(rpp, redir)
-	union node **rpp, *redir;
-	{
+simplecmd(union node **rpp, union node *redir)
+{
 	union node *args, **app;
 	union node **orig_rpp = rpp;
 	union node *n = NULL, *n2;
@@ -604,7 +604,8 @@ checkneg:
 }
 
 STATIC union node *
-makename() {
+makename(void)
+{
 	union node *n;
 
 	n = (union node *)stalloc(sizeof (struct narg));
@@ -615,11 +616,8 @@ makename() {
 	return n;
 }
 
-void fixredir(n, text, err)
-	union node *n;
-	const char *text;
-	int err;
-	{
+void fixredir(union node *n, const char *text, int err)
+{
 	TRACE(("Fix redir %s %d\n", text, err));
 	if (!err)
 		n->ndup.vname = NULL;
@@ -639,7 +637,8 @@ void fixredir(n, text, err)
 
 
 STATIC void
-parsefname() {
+parsefname(void)
+{
 	union node *n = redirnode;
 
 	if (readtoken() != TWORD)
@@ -680,7 +679,8 @@ parsefname() {
  */
 
 STATIC void
-parseheredoc() {
+parseheredoc(void)
+{
 	struct heredoc *here;
 	union node *n;
 
@@ -703,7 +703,8 @@ parseheredoc() {
 }
 
 STATIC int
-peektoken() {
+peektoken(void)
+{
 	int t;
 
 	t = readtoken();
@@ -712,7 +713,8 @@ peektoken() {
 }
 
 STATIC int
-readtoken() {
+readtoken(void)
+{
 	int t;
 	int savecheckkwd = checkkwd;
 	struct alias *ap;
@@ -791,7 +793,8 @@ out:
 #define RETURN(token)	return lasttoken = token
 
 STATIC int
-xxreadtoken() {
+xxreadtoken(void)
+{
 	int c;
 
 	if (tokpushback) {
@@ -881,12 +884,8 @@ breakloop:
 #define	PARSEARITH()	{goto parsearith; parsearith_return:;}
 
 STATIC int
-readtoken1(firstc, syntax, eofmark, striptabs)
-	int firstc;
-	char const *syntax;
-	char *eofmark;
-	int striptabs;
-	{
+readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
+{
 	int c = firstc;
 	char *out;
 	int len;
@@ -1484,9 +1483,8 @@ RESET {
  */
 
 STATIC int
-noexpand(text)
-	char *text;
-	{
+noexpand(char *text)
+{
 	char *p;
 	char c;
 
@@ -1509,9 +1507,8 @@ noexpand(text)
  */
 
 int
-goodname(name)
-	char *name;
-	{
+goodname(char *name)
+{
 	char *p;
 
 	p = name;
@@ -1532,8 +1529,7 @@ goodname(name)
  */
 
 STATIC void
-synexpect(token)
-	int token;
+synexpect(int token)
 {
 	char msg[64];
 
@@ -1548,9 +1544,8 @@ synexpect(token)
 
 
 STATIC void
-synerror(msg)
-	char *msg;
-	{
+synerror(char *msg)
+{
 	if (commandname)
 		outfmt(&errout, "%s: %d: ", commandname, startlinno);
 	outfmt(&errout, "Syntax error: %s\n", msg);
@@ -1558,9 +1553,8 @@ synerror(msg)
 }
 
 STATIC void
-setprompt(which)
-	int which;
-	{
+setprompt(int which)
+{
 	whichprompt = which;
 
 #ifndef NO_HISTORY
@@ -1574,8 +1568,7 @@ setprompt(which)
  *    should be added here.
  */
 char *
-getprompt(unused)
-	void *unused __unused;
+getprompt(void *unused __unused)
 {
 	switch (whichprompt) {
 	case 0:

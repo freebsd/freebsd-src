@@ -42,9 +42,9 @@
 #define REDIR_BACKQ 02		/* save the command output in memory */
 
 union node;
-void redirect __P((union node *, int));
-void popredir __P((void));
-int fd0_redirected_p __P((void));
-void clearredir __P((void));
-int copyfd __P((int, int));
+void redirect(union node *, int);
+void popredir(void);
+int fd0_redirected_p(void);
+void clearredir(void);
+int copyfd(int, int);
 

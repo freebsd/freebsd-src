@@ -72,8 +72,7 @@ STATIC time_t mailtime[MAXMBOXES];	/* times of mailboxes */
  */
 
 void
-chkmail(silent)
-	int silent;
+chkmail(int silent)
 {
 	int i;
 	char *mpath;
