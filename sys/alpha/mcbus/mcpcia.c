@@ -69,6 +69,8 @@ struct mcpcia_softc {
 	int		mcpcia_inst;	/* our mcpcia instance # */
 };
 static struct mcpcia_softc *mcpcia_eisa = NULL;
+extern void dec_kn300_cons_init(void);
+
 
 static int mcpcia_probe(device_t dev);
 static int mcpcia_attach(device_t dev);
@@ -326,7 +328,6 @@ mcpcia_cfgread(u_int bh, u_int bus, u_int slot, u_int func, u_int off, int sz)
 	struct mcpcia_softc *sc;
 	u_int32_t *dp, data, rvp;
 	u_int64_t paddr;
-	int secondary = 0;
 
 	rvp = data = ~0;
 	if (bh > 3)
@@ -338,14 +339,18 @@ mcpcia_cfgread(u_int bh, u_int bus, u_int slot, u_int func, u_int off, int sz)
 	sc = MCPCIA_SOFTC(dev);
 
 	/*
-	 * There's nothing in slot 0 on a primary bus.
-	 *
-	 * XXX: How do we generate knowledge of secondary bus accesses?
+	 * The bus number being passed is the pci instance number- not
+	 * the actual pci bus number. FreeBSD farts bad on this one.
 	 */
-	if (secondary == 0 && (slot < 1 || slot >= MCPCIA_MAXDEV))
+	bus = 0;	/* No secondaries for the moment */
+
+	/*
+	 * There's nothing in slot 0 on a primary bus.
+	 */
+	if (bus == 0 && (slot < 1 || slot >= MCPCIA_MAXDEV))
 		return (data);
 
-	paddr = secondary << 21;
+	paddr = bus << 21;
 	paddr |= slot << 16;
 	paddr |= func << 13;
 	paddr |= ((sz - 1) << 3);
@@ -356,12 +361,10 @@ mcpcia_cfgread(u_int bh, u_int bus, u_int slot, u_int func, u_int off, int sz)
 
 #if	0
 printf("CFGREAD MID %d %d.%d.%d sz %d off %d -> paddr 0x%x",
-mcbus_get_mid(dev), secondary, slot, func, sz, off, paddr);
+mcbus_get_mid(dev), bus , slot, func, sz, off, paddr);
 #endif
 	if (badaddr(dp, sizeof (*dp)) == 0) {
 		data = *dp;
-	}
-	if (secondary) {
 	}
 	if (data != ~0) {
 		if (sz == 1) {
@@ -389,7 +392,6 @@ mcpcia_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
 	struct mcpcia_softc *sc;
 	u_int32_t *dp;
 	u_int64_t paddr;
-	int secondary = 0;
 
 	if (bh > 3)
 		return;
@@ -398,16 +400,15 @@ mcpcia_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
 		return;
 	}
 	sc = MCPCIA_SOFTC(dev);
+	bus = 0;	/* No secondaries for the moment */
 
 	/*
 	 * There's nothing in slot 0 on a primary bus.
-	 *
-	 * XXX: How do we generate knowledge of secondary bus accesses?
 	 */
-	if (secondary == 0 && (slot < 1 || slot >= MCPCIA_MAXDEV))
+	if (bus != 0 && (slot < 1 || slot >= MCPCIA_MAXDEV))
 		return;
 
-	paddr = secondary << 21;
+	paddr = bus << 21;
 	paddr |= slot << 16;
 	paddr |= func << 13;
 	paddr |= ((sz - 1) << 3);
@@ -428,12 +429,10 @@ mcpcia_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
 
 #if	0
 printf("CFGWRITE MID%d %d.%d.%d sz %d off %d paddr %lx, data %x new_data %x\n",
-mcbus_get_mid(dev), secondary, slot, func, sz, off, paddr, data, new_data);
+mcbus_get_mid(dev), bus , slot, func, sz, off, paddr, data, new_data);
 #endif
 
 		*dp = new_data;
-	}
-	if (secondary) {
 	}
 }
 
@@ -564,6 +563,10 @@ mcpcia_attach(device_t dev)
 	rval =
 	    BUS_SETUP_INTR(p, dev, NULL, INTR_TYPE_MISC, mcpcia_intr, 0, &intr);
 	if (rval == 0) {
+		if (sc == mcpcia_eisa) {
+			printf("Attaching Real Console\n");
+			dec_kn300_cons_init();
+		}
 		bus_generic_attach(dev);
 	}
 	return (rval);
@@ -638,7 +641,7 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
 	if (error)
 		return error;
 	mcpcia_enable_intr(sc, irq);
-	device_printf(child, "interrupting at IRQ 0x%x INT%c (vec 0x%x)\n",
+	device_printf(child, "interrupting at IRQ 0x%x int%c (vec 0x%x)\n",
 	    irq, intpin - 1 + 'A' , h);
 	return (0);
 }
