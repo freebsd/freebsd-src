@@ -30,17 +30,26 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
 #include <sys/bus.h>
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/systm.h>
+
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
 #include <pccard/pcic_pci.h>
 #include <pccard/i82365.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <pccard/cardinfo.h>
+#include <pccard/slot.h>
+#include <pccard/pcicvar.h>
+
+#include <dev/pccard/pccardvar.h>
+#include "card_if.h"
 
 #define PRVERB(x)	if (bootverbose) device_printf x
+
+static int pcic_pci_get_memory(device_t dev);
 
 struct pcic_pci_table
 {
@@ -116,6 +125,24 @@ struct pcic_pci_table
 };
 
 /*
+ * Read a register from the PCIC.
+ */
+static unsigned char
+pcic_pci_getb2(struct pcic_slot *sp, int reg)
+{
+	return (bus_space_read_1(sp->bst, sp->bsh, sp->offset + reg));
+}
+
+/*
+ * Write a register on the PCIC
+ */
+static void
+pcic_pci_putb2(struct pcic_slot *sp, int reg, unsigned char val)
+{
+	bus_space_write_1(sp->bst, sp->bsh, sp->offset + reg, val);
+}
+
+/*
  * lookup inside the table
  */
 static struct pcic_pci_table *
@@ -130,88 +157,36 @@ pcic_pci_lookup(u_int32_t devid, struct pcic_pci_table *tbl)
 }
 
 /*
- * Set up the CL-PD6832 to look like a ISA based PCMCIA chip (a
- * PD672X).  This routine is called once per PCMCIA socket.
+ * Set up the CL-PD6832
  */
 static void
-pd6832_legacy_init(device_t dev)
+pcic_pci_pd6832_init(device_t dev)
 {
 	u_long bcr; 		/* to set interrupts */
-	u_short io_port;	/* the io_port to map this slot on */
-	static int num6832;	/* The number of 6832s initialized */
-	int unit;
 
-	num6832 = 0;
-	unit = device_get_unit(dev);
-
-	/*
-	 * Some BIOS leave the legacy address uninitialized.  This
-	 * insures that the PD6832 puts itself where the driver will
-	 * look.  We assume that multiple 6832's should be laid out
-	 * sequentially.  We only initialize the first socket's legacy port,
-	 * the other is a dummy.
+        /*
+         * CLPD683X management interrupt enable bit is bit 11 in bridge
+         * control register(offset 0x3d).
+         * When this bit is turned on, card status change interrupt sets
+         * on ISA IRQ interrupt.
 	 */
-	io_port = PCIC_PORT_0 + num6832 * CLPD6832_NUM_REGS;
-	if (unit == 0)
-		pci_write_config(dev, CLPD6832_LEGACY_16BIT_IOADDR,
-		    io_port & ~CLPD6832_LEGACY_16BIT_IOENABLE, 4);
-
-	/*
-	 * I think this should be a call to pci_map_port, but that
-	 * routine won't map regiaters above 0x28, and the register we
-	 * need to map is 0x44.
-	 */
-	io_port = pci_read_config(dev, CLPD6832_LEGACY_16BIT_IOADDR, 4) &
-	    ~CLPD6832_LEGACY_16BIT_IOENABLE;
-
-	/*
-	 * Configure the first I/O window to contain CLPD6832_NUM_REGS
-	 * words and deactivate the second by setting the limit lower
-	 * than the base.
-	 */
-	pci_write_config(dev, CLPD6832_IO_BASE0, io_port | 1, 4);
-	pci_write_config(dev, CLPD6832_IO_LIMIT0,
-	    (io_port + CLPD6832_NUM_REGS) | 1, 4);
-
-	pci_write_config(dev, CLPD6832_IO_BASE1, (io_port + 0x20) | 1, 4);
-	pci_write_config(dev, CLPD6832_IO_LIMIT1, io_port | 1, 4);
-
-	/*
-	 * Set default operating mode (I/O port space) and allocate
-	 * this socket to the current unit.
-	 */
-	pci_write_config(dev, PCIR_COMMAND, CLPD6832_COMMAND_DEFAULTS, 4);
-	pci_write_config(dev, CLPD6832_SOCKET, unit, 4);
-
-	/*
-	 * Set up the card inserted/card removed interrupts to come
-	 * through the isa IRQ.
-	 */
-	bcr = pci_read_config(dev, CLPD6832_BRIDGE_CONTROL, 4);
-	bcr |= (CLPD6832_BCR_ISA_IRQ|CLPD6832_BCR_MGMT_IRQ_ENA);
-	pci_write_config(dev, CLPD6832_BRIDGE_CONTROL, bcr, 4);
-
-	/* After initializing 2 sockets, the chip is fully configured */
-	if (unit == 1)
-		num6832++;
-
-	PRVERB((dev, "CardBus: Legacy PC-card 16bit I/O address [0x%x]\n", 
-	    io_port));
+	bcr = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
+	bcr |= CLPD6832_BCR_MGMT_IRQ_ENA;
+	pci_write_config(dev, CB_PCI_BRIDGE_CTRL, bcr, 2);
 }
 
 /*
- * TI1XXX PCI-CardBus Host Adapter specific function code.
+ * TI PCI-CardBus Host Adapter specific function code.
  * This function is separated from pcic_pci_attach().
- * Support Device: TI1130,TI1131,TI1250,TI1220.
- * Test Device: TI1221.
  * Takeshi Shibagaki(shiba@jp.freebsd.org).
  */
 static void
-ti1xxx_pci_init(device_t dev)
+pcic_pci_ti_init(device_t dev)
 {
 	u_long	syscntl,devcntl,cardcntl;
 	u_int32_t device_id = pci_get_devid(dev);
 	char	buf[128];
+	struct pcic_softc *sc = device_get_softc(dev);
 	int 	ti113x = (device_id == PCI_DEVICE_ID_PCIC_TI1130)
 	    || (device_id == PCI_DEVICE_ID_PCIC_TI1131);
 
@@ -232,17 +207,33 @@ ti1xxx_pci_init(device_t dev)
 		 * Bridge Control Register(Offset:0x3e,0x13e).
 		 * Takeshi Shibagaki(shiba@jp.freebsd.org) 
 		 */
-		cardcntl |= TI113X_CARDCNTL_PCI_IREQ;
-		cardcntl |= TI113X_CARDCNTL_PCI_CSC;
+		if (sc->func_route == pci_parallel) {
+			cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA;
+			cardcntl &= ~TI113X_CARDCNTL_PCI_IREQ;
+		} else {
+			cardcntl |= TI113X_CARDCNTL_PCI_IREQ;
+		}
+		if (sc->csc_route == pci_parallel)
+			cardcntl |= TI113X_CARDCNTL_PCI_CSC;
+		else
+			cardcntl &= ~TI113X_CARDCNTL_PCI_CSC;
 		pci_write_config(dev, TI113X_PCI_CARD_CONTROL,  cardcntl, 1);
 		cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL, 1);
-		if (syscntl & TI113X_SYSCNTL_CLKRUN_ENA){
+		if (syscntl & TI113X_SYSCNTL_CLKRUN_ENA) {
 			if (syscntl & TI113X_SYSCNTL_CLKRUN_SEL)
 				strcat(buf, "[clkrun irq 12]");
 			else
 				strcat(buf, "[clkrun irq 10]");
 		}
 		break;
+	}
+	if (sc->func_route == pci_parallel) {
+		devcntl &= ~TI113X_DEVCNTL_INTR_MASK;
+		pci_write_config(dev, TI113X_PCI_DEVICE_CONTROL, devcntl, 1);
+		devcntl = pci_read_config(dev, TI113X_PCI_DEVICE_CONTROL, 1);
+		syscntl |= TI113X_SYSCNTL_INTRTIE;
+		syscntl &= ~TI113X_SYSCNTL_SMIENB;
+		pci_write_config(dev, TI113X_PCI_SYSTEM_CONTROL, syscntl, 1);
 	}
 	if (cardcntl & TI113X_CARDCNTL_RING_ENA)
 		strcat(buf, "[ring enable]");
@@ -268,35 +259,94 @@ ti1xxx_pci_init(device_t dev)
 }
 
 static void
-generic_cardbus_attach(device_t dev)
+pcic_pci_cardbus_init(device_t dev)
 {
 	u_int16_t	brgcntl;
-	u_int32_t	iobase;
 	int		unit;
+	struct pcic_softc *sc = device_get_softc(dev);
 
 	unit = device_get_unit(dev);
 
-	/* Output ISA IRQ indicated in ExCA register(0x03). */
-	brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
-	brgcntl |= CB_BCR_INT_EXCA;
-	pci_write_config(dev, CB_PCI_BRIDGE_CTRL, brgcntl, 2);
-
-	/* 16bit Legacy Mode Base Address */
-	if (unit != 0)
-		return;
-	
-	iobase = pci_read_config(dev, CB_PCI_LEGACY16_IOADDR, 2) &
-	    ~CB_PCI_LEGACY16_IOENABLE;
-	if (!iobase) {
-		iobase = 0x3e0 | CB_PCI_LEGACY16_IOENABLE;
-		pci_write_config(dev, CB_PCI_LEGACY16_IOADDR, iobase, 2);
-		iobase = pci_read_config(dev, CB_PCI_LEGACY16_IOADDR, 2)
-		    & ~CB_PCI_LEGACY16_IOENABLE;
+	if (sc->func_route == pci_parallel) {
+		/* Use INTA for routing interrupts via pci bus */
+		brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
+		brgcntl &= ~CB_BCR_INT_EXCA;
+		brgcntl |= CB_BCR_WRITE_POST_EN | CB_BCR_MASTER_ABORT;
+		pci_write_config(dev, CB_PCI_BRIDGE_CTRL, brgcntl, 2);
+	} else {
+		/* Output ISA IRQ indicated in ExCA register(0x03). */
+		brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
+		brgcntl |= CB_BCR_INT_EXCA;
+		pci_write_config(dev, CB_PCI_BRIDGE_CTRL, brgcntl, 2);
 	}
-	PRVERB((dev, "Legacy address set to %#x\n", iobase));
+
+	/* Turn off legacy address */
+	pci_write_config(dev, CB_PCI_LEGACY16_IOADDR, 0, 2);
 	return;
 }
 
+static void
+pcic_pci_ricoh_init(device_t dev, int old)
+{
+	u_int16_t       brgcntl;
+
+	/*
+	 * Ricoh chips have a legacy bridge enable different than most
+	 * Code cribbed from NEWBUS's bridge code since I can't find a
+	 * datasheet for them that has register definitions.
+	 */
+	if (old) {
+		brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
+		brgcntl &= ~(CB_BCR_RL_3E2_EN | CB_BCR_RL_3E0_EN);
+		pci_write_config(dev, CB_PCI_BRIDGE_CTRL, brgcntl, 2);
+	}
+}
+
+static void
+pcic_cd_event(void *arg) 
+{
+	struct pcic_softc *sc = (struct pcic_softc *) arg;
+	struct pcic_slot *sp = &sc->slots[0];
+	u_int32_t stat;
+	
+	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+	printf("State is %x\n", stat);
+	if (stat & CB_SS_5VCARD)
+		device_printf(sp->sc->dev, "5V card\n");
+	if (stat & CB_SS_3VCARD)
+		device_printf(sp->sc->dev, "3V card\n");
+	if (stat & CB_SS_CD)
+		device_printf(sp->sc->dev, "CD %x",
+		    stat & CB_SS_CD);
+	if ((stat & CB_SS_16BIT) == 0) {
+		device_printf(sp->sc->dev,
+		    "Cardbus card inserted.  NOT SUPPORTED\n");
+	} else {
+		if (stat & CB_SS_CD)
+			pccard_event(sp->slt, card_removed);
+		else
+			pccard_event(sp->slt, card_inserted);
+	}
+	sc->cd_pending = 0;
+}
+
+static void
+pcic_pci_intr(void *arg)
+{
+	struct pcic_softc *sc = (struct pcic_softc *) arg;
+	struct pcic_slot *sp = &sc->slots[0];
+	u_int32_t event;
+
+	event = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_EVENT);
+	if (event & CB_SE_CD) {
+		if (!sc->cd_pending) {
+			sc->cd_pending = 1;
+			timeout(pcic_cd_event, arg, hz/2);
+		}
+	}
+	/* Ack the interrupt, all of them to be safe */
+	bus_space_write_4(sp->bst, sp->bsh, 0, 0xffffffff);
+}
 
 /*
  * Return the ID string for the controller if the vendor/product id
@@ -305,15 +355,16 @@ generic_cardbus_attach(device_t dev)
 static int
 pcic_pci_probe(device_t dev)
 {
-	u_int32_t device_id;
-	u_int8_t subclass;
-	u_int8_t progif;
+	u_int8_t	subclass;
+	u_int8_t	progif;
+	const char	*desc;
+	u_int32_t	device_id;
 	struct pcic_pci_table *itm;
-	const char *desc;
+	struct resource	*res;
+	int		rid;
 
 	device_id = pci_get_devid(dev);
 	desc = NULL;
-
 	itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
 	if (itm != NULL)
 		desc = itm->descr;
@@ -330,22 +381,17 @@ pcic_pci_probe(device_t dev)
 	if (desc == NULL)
 		return (ENXIO);
 	device_set_desc(dev, desc);
-	return (0);
-}
 
-static void
-ricoh_init(device_t dev)
-{
-	u_int16_t       brgcntl;
 	/*
-	 * Ricoh chips have a legacy bridge enable different than most
-	 * Code cribbed from NEWBUS's bridge code since I can't find a
-	 * datasheet for them that has register definitions.
+	 * Allocated/deallocate interrupt.  This forces the PCI BIOS or
+	 * other MD method to route the interrupts to this card.
 	 */
-	brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
-	brgcntl |= CB_BCR_RL_3E0_EN;
-	brgcntl &= ~CB_BCR_RL_3E2_EN;
-	pci_write_config(dev, CLPD6832_BRIDGE_CONTROL, brgcntl, 4);
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
+	if (res)
+		bus_release_resource(dev, SYS_RES_IRQ, rid, res);
+	
+	return (0);
 }
 
 /*
@@ -358,10 +404,13 @@ pcic_pci_attach(device_t dev)
 {
 	u_int32_t device_id = pci_get_devid(dev);
 	u_long command;
-
-	/* Init. CardBus/PC-card controllers as 16-bit PC-card controllers */
-
-	/* Place any per "slot" initialization here */
+	struct pcic_slot *sp;
+	struct pcic_softc *sc;
+	u_int32_t sockbase;
+	struct pcic_pci_table *itm;
+	int rid;
+	struct resource *r;
+	int error;
 
 	/*
 	 * In sys/pci/pcireg.h, PCIR_COMMAND must be separated
@@ -372,12 +421,56 @@ pcic_pci_attach(device_t dev)
         command |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN;
         pci_write_config(dev, PCIR_COMMAND, command, 4);
 
+	sc = (struct pcic_softc *) device_get_softc(dev);
+	sp = &sc->slots[0];
+	sp->sc = sc;
+	sockbase = pci_read_config(dev, 0x10, 4);
+	if (sockbase & 0x1) {
+		device_printf(dev, "I/O mapped device!\n");
+		return (EIO);
+	} else {
+		sc->memrid = CB_PCI_SOCKET_BASE;
+		sc->memres = bus_alloc_resource(dev, SYS_RES_MEMORY,
+		    &sc->memrid, 0, ~0, 1, RF_ACTIVE);
+		if (sc->memres == NULL && pcic_pci_get_memory(dev) != 0)
+			return (ENOMEM);
+		sp->getb = pcic_pci_getb2;
+		sp->putb = pcic_pci_putb2;
+		sp->offset = CB_EXCA_OFFSET;
+		sc->bst = sp->bst = rman_get_bustag(sc->memres);
+		sc->bst = sp->bsh = rman_get_bushandle(sc->memres);
+		itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
+		if (itm != NULL) {
+			sp->controller = itm->type;
+			sp->revision = itm->revision;
+			sc->flags  = itm->flags;
+			sc->flags = PCIC_AB_POWER;
+		} else {
+			/* By default, assume we're a D step compatible */
+			sp->controller = PCIC_I82365SL_DF;
+			sp->revision = 0;
+			sc->flags = PCIC_DF_POWER;
+		}
+		sp->slt = (struct slot *) 1;
+	}
+	sc->dev = dev;
+	sc->csc_route = pci_parallel;
+	sc->func_route = pci_parallel;
+
 	switch (device_id) {
 	case PCI_DEVICE_ID_RICOH_RL5C465:
 	case PCI_DEVICE_ID_RICOH_RL5C466:
-		ricoh_init(dev);
-		generic_cardbus_attach(dev);
+		pcic_pci_ricoh_init(dev, 1);
+                pcic_pci_cardbus_init(dev);
 		break;
+	case PCI_DEVICE_ID_RICOH_RL5C475:
+	case PCI_DEVICE_ID_RICOH_RL5C476:
+	case PCI_DEVICE_ID_RICOH_RL5C477:
+	case PCI_DEVICE_ID_RICOH_RL5C478:
+		pcic_pci_ricoh_init(dev, 0);
+                pcic_pci_cardbus_init(dev);
+		break;
+	case PCI_DEVICE_ID_PCIC_TI1031:
 	case PCI_DEVICE_ID_PCIC_TI1130:
 	case PCI_DEVICE_ID_PCIC_TI1131:
 	case PCI_DEVICE_ID_PCIC_TI1211:
@@ -391,50 +484,77 @@ pcic_pci_attach(device_t dev)
 	case PCI_DEVICE_ID_PCIC_TI1420:
 	case PCI_DEVICE_ID_PCIC_TI1450:
 	case PCI_DEVICE_ID_PCIC_TI1451:
-                ti1xxx_pci_init(dev);
-		/* FALLTHROUGH */
-	default:
-                generic_cardbus_attach(dev);
-                break;
-	case PCI_DEVICE_ID_PCIC_CLPD6832:
-	case PCI_DEVICE_ID_PCIC_TI1031:		/* 1031 is like 6832 */
-		pd6832_legacy_init(dev);
+	case PCI_DEVICE_ID_PCIC_TI4451:
+                pcic_pci_ti_init(dev);
+                pcic_pci_cardbus_init(dev);
 		break;
+	case PCI_DEVICE_ID_PCIC_CLPD6832:
+		pcic_pci_pd6832_init(dev);
+		break;
+	default:
+                pcic_pci_cardbus_init(dev);
+                break;
 	}
 
-	if (bootverbose) { 		
-		int i, j;
-		u_char *p;
-		u_long *pl;
-
-		printf("PCI Config space:\n");
-		for (j = 0; j < 0x98; j += 16) {
-			printf("%02x: ", j);
-			for (i = 0; i < 16; i += 4)
-				printf(" %08x", pci_read_config(dev, i+j, 4));
-			printf("\n");
-		}
-		p = (u_char *)pmap_mapdev(pci_read_config(dev, 0x10, 4),
-					  0x1000);
-		pl = (u_long *)p;
-		printf("Cardbus Socket registers:\n");
-		printf("00: ");
-		for (i = 0; i < 4; i += 1)
-			printf(" %08lx:", pl[i]);
-		printf("\n10: ");
-		for (i = 4; i < 8; i += 1)
-			printf(" %08lx:", pl[i]);
-		printf("\nExCa registers:\n");
-		for (i = 0; i < 0x40; i += 16)
-			printf("%02x: %16D\n", i, p + 0x800 + i, " ");
+	rid = 0;
+	r = NULL;
+	r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, 
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (r == NULL) {
+		device_printf(dev, "Failed to allocate managment irq\n");
+		return (EIO);
+	}
+	sc->irqrid = rid;
+	sc->irqres = r;
+	error = bus_setup_intr(dev, r, INTR_TYPE_MISC, pcic_pci_intr,
+	    (void *) sc, &sc->ih);
+	if (error) {
+		pcic_dealloc(dev);
+		return (error);
 	}
 
-	return (0);
+	return (pcic_attach(dev));
 }
 
 static int
 pcic_pci_detach(device_t dev)
 {
+	return (0);
+}
+
+/*
+ * The PCI bus should do this for us.  However, it doesn't quite yet, so
+ * we cope by doing it ourselves.  If it ever does, this code can go quietly
+ * into that good night.
+ */
+static int
+pcic_pci_get_memory(device_t dev)
+{
+	struct pcic_softc *sc;
+	u_int32_t sockbase;
+
+	sc = (struct pcic_softc *) device_get_softc(dev);
+	sockbase = pci_read_config(dev, sc->memrid, 4);
+	if (sockbase >= 0x100000 && sockbase < 0xfffffff0) {
+		device_printf(dev, "Could not map register memory\n");
+		return (ENOMEM);
+	}
+	pci_write_config(dev, sc->memrid, 0xffffffff, 4);
+	sockbase = pci_read_config(dev, sc->memrid, 4);
+	sockbase = (sockbase & 0xfffffff0) & -(sockbase & 0xfffffff0);
+#define CARDBUS_SYS_RES_MEMORY_START    0x44000000
+#define CARDBUS_SYS_RES_MEMORY_END      0xEFFFFFFF
+	sc->memres = bus_generic_alloc_resource(device_get_parent(dev),
+	    dev, SYS_RES_MEMORY, &sc->memrid,
+	    CARDBUS_SYS_RES_MEMORY_START, CARDBUS_SYS_RES_MEMORY_END,
+	    sockbase, RF_ACTIVE | rman_make_alignment_flags(sockbase));
+	if (sc->memres == NULL) {
+		device_printf(dev, "Could not grab register memory\n");
+		return (ENOMEM);
+	}
+	sockbase = rman_get_start(sc->memres);
+	pci_write_config(dev, sc->memrid, sockbase, 4);
+	device_printf(dev, "PCI Memory allocated: 0x%08x\n", sockbase);
 	return (0);
 }
 
@@ -447,15 +567,28 @@ static device_method_t pcic_pci_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_alloc_resource,	pcic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	pcic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	pcic_teardown_intr),
+
+	/* Card interface */
+	DEVMETHOD(card_set_res_flags,	pcic_set_res_flags),
+	DEVMETHOD(card_get_res_flags,	pcic_get_res_flags),
+	DEVMETHOD(card_set_memory_offset, pcic_set_memory_offset),
+	DEVMETHOD(card_get_memory_offset, pcic_get_memory_offset),
+
 	{0, 0}
 };
 
 static driver_t pcic_pci_driver = {
-	"pcic-pci",
+	"pcic",
 	pcic_pci_methods,
-	0	/* no softc */
+	sizeof(struct pcic_softc)
 };
 
-static devclass_t pcic_pci_devclass;
-
-DRIVER_MODULE(pcic_pci, pci, pcic_pci_driver, pcic_pci_devclass, 0, 0);
+DRIVER_MODULE(pcic, pci, pcic_pci_driver, pcic_devclass, 0, 0);
