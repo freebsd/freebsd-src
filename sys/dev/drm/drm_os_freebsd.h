@@ -317,8 +317,6 @@ find_first_zero_bit(volatile void *p, int max)
 
 #define spldrm()		spltty()
 
-#define memset(p, v, s)		bzero(p, s)
-
 /*
  * Fake out the module macros for versions of FreeBSD where they don't
  * exist.
