@@ -1078,11 +1078,12 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		return (error);
 	}
 	flags = *flagsp;
+	obj = vp->v_object;
 	if (vp->v_type == VREG) {
 		/*
 		 * Get the proper underlying object
 		 */
-		if (VOP_GETVOBJECT(vp, &obj) != 0) {
+		if (obj == NULL) {
 			error = EINVAL;
 			goto done;
 		}

@@ -1742,8 +1742,9 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	if ((error = fgetvp_read(td, uap->fd, &vp)) != 0)
 		goto done;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	obj = vp->v_object;
 	VOP_UNLOCK(vp, 0, td);
-	if (vp->v_type != VREG || VOP_GETVOBJECT(vp, &obj) != 0) {
+	if (obj == NULL) {
 		error = EINVAL;
 		goto done;
 	}

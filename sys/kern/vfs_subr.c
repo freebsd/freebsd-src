@@ -672,7 +672,8 @@ vtryrecycle(struct vnode *vp)
 	/*
 	 * Don't recycle if we still have cached pages.
 	 */
-	if (VOP_GETVOBJECT(vp, &object) == 0) {
+	object = vp->v_object;
+	if (object != NULL) {
 		VM_OBJECT_LOCK(object);
 		if (object->resident_page_count ||
 		    object->ref_count) {
@@ -930,7 +931,6 @@ vinvalbuf(vp, flags, td, slpflag, slptimeo)
 	int slpflag, slptimeo;
 {
 	int error;
-	vm_object_t object;
 	struct bufobj *bo;
 
 	ASSERT_VOP_LOCKED(vp, "vinvalbuf");
@@ -981,10 +981,10 @@ vinvalbuf(vp, flags, td, slpflag, slptimeo)
 	do {
 		bufobj_wwait(bo, 0, 0);
 		VI_UNLOCK(vp);
-		if (VOP_GETVOBJECT(vp, &object) == 0) {
-			VM_OBJECT_LOCK(object);
-			vm_object_pip_wait(object, "vnvlbx");
-			VM_OBJECT_UNLOCK(object);
+		if (vp->v_object != NULL) {
+			VM_OBJECT_LOCK(vp->v_object);
+			vm_object_pip_wait(vp->v_object, "vnvlbx");
+			VM_OBJECT_UNLOCK(vp->v_object);
 		}
 		VI_LOCK(vp);
 	} while (bo->bo_numoutput > 0);
@@ -993,11 +993,11 @@ vinvalbuf(vp, flags, td, slpflag, slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if (VOP_GETVOBJECT(vp, &object) == 0) {
-		VM_OBJECT_LOCK(object);
-		vm_object_page_remove(object, 0, 0,
+	if (vp->v_object != NULL) {
+		VM_OBJECT_LOCK(vp->v_object);
+		vm_object_page_remove(vp->v_object, 0, 0,
 			(flags & V_SAVE) ? TRUE : FALSE);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_UNLOCK(vp->v_object);
 	}
 
 #ifdef INVARIANTS
@@ -2825,7 +2825,8 @@ loop:
 					continue;
 				}
 
-				if (VOP_GETVOBJECT(vp, &obj) == 0) {
+				obj = vp->v_object;
+				if (obj != NULL) {
 					VM_OBJECT_LOCK(obj);
 					vm_object_page_clean(obj, 0, 0,
 					    flags == MNT_WAIT ?
