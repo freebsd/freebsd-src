@@ -59,6 +59,7 @@ void	gvinum_parityop(int, char **, int);
 void	gvinum_printconfig(int, char **);
 void	gvinum_rm(int, char **);
 void	gvinum_saveconfig(void);
+void	gvinum_setstate(int, char **);
 void	gvinum_start(int, char **);
 void	gvinum_stop(int, char **);
 void	parseline(int, char **);
@@ -482,6 +483,61 @@ gvinum_init(int argc, char **argv)
 }
 
 void
+gvinum_setstate(int argc, char **argv)
+{
+	struct gctl_req *req;
+	int flags, i;
+	const char *errstr;
+
+	flags = 0;
+
+	optreset = 1;
+	optind = 1;
+
+	while ((i = getopt(argc, argv, "f")) != -1) {
+		switch (i) {
+		case 'f':
+			flags |= GV_FLAG_F;
+			break;
+		case '?':
+		default:
+			warn("invalid flag: %c", i);
+			return;
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 2) {
+		warnx("usage: setstate [-f] <state> <obj>");
+		return;
+	}
+
+	/*
+	 * XXX: This hack is needed to avoid tripping over (now) invalid
+	 * 'classic' vinum states and will go away later.
+	 */
+	if (strcmp(argv[0], "up") && strcmp(argv[0], "down") &&
+	    strcmp(argv[0], "stale")) {
+		warnx("invalid state '%s'", argv[0]);
+		return;
+	}
+
+	req = gctl_get_handle();
+	gctl_ro_param(req, "class", -1, "VINUM");
+	gctl_ro_param(req, "verb", -1, "setstate");
+	gctl_ro_param(req, "state", -1, argv[0]);
+	gctl_ro_param(req, "object", -1, argv[1]);
+	gctl_ro_param(req, "flags", sizeof(int), &flags);
+
+	errstr = gctl_issue(req);
+	if (errstr != NULL)
+		warnx("%s", errstr);
+	gctl_free(req);
+}
+
+void
 gvinum_list(int argc, char **argv)
 {
 	struct gctl_req *req;
@@ -801,6 +857,8 @@ parseline(int argc, char **argv)
 		gvinum_rm(argc, argv);
 	else if (!strcmp(argv[0], "saveconfig"))
 		gvinum_saveconfig();
+	else if (!strcmp(argv[0], "setstate"))
+		gvinum_setstate(argc, argv);
 	else if (!strcmp(argv[0], "start"))
 		gvinum_start(argc, argv);
 	else if (!strcmp(argv[0], "stop"))
