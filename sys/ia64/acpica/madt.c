@@ -237,16 +237,16 @@ parse_madt(APIC_TABLE *madt, int countcpus)
 static int
 parse_table(int countcpus)
 {
-	ACPI_PHYSICAL_ADDRESS	rsdp_phys;
+	ACPI_PTR		rsdp_ptr;
 	RSDP_DESCRIPTOR		*rsdp;
 	XSDT_DESCRIPTOR		*xsdt;
 	ACPI_TABLE_HEADER	*table;
 	int			i, count;
 
-	if (AcpiOsGetRootPointer(0, &rsdp_phys) != AE_OK)
+	if (AcpiOsGetRootPointer(ACPI_LOGICAL_ADDRESSING, &rsdp_ptr) != AE_OK)
 		return 0;
 
-	rsdp = (RSDP_DESCRIPTOR *)IA64_PHYS_TO_RR7(rsdp_phys);
+	rsdp = (RSDP_DESCRIPTOR *)IA64_PHYS_TO_RR7(rsdp_ptr.Pointer.Physical);
 	xsdt = (XSDT_DESCRIPTOR *)IA64_PHYS_TO_RR7(rsdp->XsdtPhysicalAddress);
 
 	count = (UINT64 *)((char *)xsdt + xsdt->Header.Length)
