@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.31 1998/07/29 16:43:00 bde Exp $
+ *  $Id: linux_sysvec.c,v 1.32 1998/08/16 01:21:50 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -41,6 +41,7 @@
 #include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/imgact.h>
+#include <sys/imgact_aout.h>
 #include <sys/imgact_elf.h>
 #include <sys/signalvar.h>
 #include <sys/malloc.h>
@@ -401,7 +402,8 @@ struct sysentvec linux_sysvec = {
 	linux_sigcode,	
 	&linux_szsigcode,
 	linux_prepsyscall,
-	"Linux a.out"
+	"Linux a.out",
+	aout_coredump
 };
 
 struct sysentvec elf_linux_sysvec = {
@@ -418,7 +420,8 @@ struct sysentvec elf_linux_sysvec = {
         linux_sigcode,
         &linux_szsigcode,
         linux_prepsyscall,
-	"Linux ELF"
+	"Linux ELF",
+	elf_coredump
 };
 
 /*
