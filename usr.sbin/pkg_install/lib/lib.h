@@ -77,7 +77,9 @@
 #define DISPLAY_FNAME		"+DISPLAY"
 #define MTREE_FNAME		"+MTREE_DIRS"
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500036
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 600000
+#define INDEX_FNAME		"INDEX-6"
+#elif defined(__FreeBSD_version) && __FreeBSD_version >= 500036
 #define INDEX_FNAME		"INDEX-5"
 #else
 #define INDEX_FNAME		"INDEX"
