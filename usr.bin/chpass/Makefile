@@ -1,7 +1,10 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/2/94
 
 PROG=	chpass
-SRCS=	chpass.c edit.c field.c pw_copy.c pw_scan.c pw_util.c table.c util.c
+SRCS=	chpass.c edit.c field.c pw_copy.c pw_scan.c pw_util.c pw_yp.c \
+	table.c util.c ypxfr_misc.c ${GENSRCS}
+GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c yppasswd_private.h \
+	yppasswd_private_clnt.c yppasswd_private_xdr.c
 BINOWN=	root
 BINMODE=4555
 .PATH:	${.CURDIR}/../../usr.sbin/pwd_mkdb ${.CURDIR}/../../usr.sbin/vipw \
@@ -23,13 +26,10 @@ COPTS+=	-DYP -I. -I${.CURDIR}/../../libexec/ypxfr \
 #Some people need this, uncomment to activate
 #COPTS+= -DRESTRICT_FULLNAME_CHANGE
 
-SRCS+=	yppasswd_private_xdr.c yppasswd_private_clnt.c yp_clnt.c \
-	yppasswd_clnt.c pw_yp.c ypxfr_misc.c
-CLEANFILES= yp_clnt.c yp.h yppasswd_clnt.c yppasswd.h \
-	    yppasswd_private_xdr.c yppasswd_private_clnt.c yppasswd_private.h
-
 DPADD=	${LIBRPCSVC} ${LIBCRYPT}
 LDADD+=	-lrpcsvc -lcrypt
+
+CLEANFILES= ${GENSRCS}
 
 RPCGEN= rpcgen -C
 RPCSRC= ${DESTDIR}/usr/include/rpcsvc/yp.x
@@ -39,22 +39,22 @@ RPCSRC_PRIV= ${.CURDIR}/../../usr.sbin/rpc.yppasswdd/yppasswd_private.x
 yp.h: ${RPCSRC}
 	${RPCGEN} -h -o ${.TARGET} ${RPCSRC}
 
-yp_clnt.c: ${RPCSRC} yp.h
+yp_clnt.c: ${RPCSRC}
 	${RPCGEN} -l -o ${.TARGET} ${RPCSRC}
 
 yppasswd.h: ${RPCSRC_PW}
 	${RPCGEN} -h -o ${.TARGET} ${RPCSRC_PW}
 
-yppasswd_clnt.c: ${RPCSRC_PW} yppasswd.h
+yppasswd_clnt.c: ${RPCSRC_PW}
 	${RPCGEN} -l -o ${.TARGET} ${RPCSRC_PW}
 
 yppasswd_private.h: ${RPCSRC_PRIV}
 	${RPCGEN} -h -o ${.TARGET} ${RPCSRC_PRIV}
 
-yppasswd_private_xdr.c: ${RPCSRC_PRIV} yppasswd_private.h
+yppasswd_private_xdr.c: ${RPCSRC_PRIV}
 	${RPCGEN} -c -o ${.TARGET} ${RPCSRC_PRIV}
 
-yppasswd_private_clnt.c: ${RPCSRC_PRIV} yppasswd_private.h
+yppasswd_private_clnt.c: ${RPCSRC_PRIV}
 	${RPCGEN} -l -o ${.TARGET} ${RPCSRC_PRIV}
 
 beforeinstall:
