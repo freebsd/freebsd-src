@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <bitstring.h>
 #include <stdlib.h>
+#include <string.h>
 #include "apmd.h"
 
 #ifdef DEBUG
