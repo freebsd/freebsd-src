@@ -32,13 +32,18 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mount_ufs.c	8.4 (Berkeley) 4/26/95";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -53,9 +58,10 @@ static char sccsid[] = "@(#)mount_ufs.c	8.4 (Berkeley) 4/26/95";
 
 #include <ufs/ufs/ufsmount.h>
 
+#include "extern.h"
 #include "mntopts.h"
 
-void	ufs_usage __P((void));
+static void ufs_usage __P((void));
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
@@ -143,7 +149,7 @@ mount_ufs(argc, argv)
 	return (0);
 }
 
-void
+static void
 ufs_usage()
 {
 	(void)fprintf(stderr, "usage: mount_ufs [-o options] special node\n");

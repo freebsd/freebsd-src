@@ -32,7 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)getmntopts.c	8.3 (Berkeley) 3/29/95";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -44,6 +49,7 @@ static char sccsid[] = "@(#)getmntopts.c	8.3 (Berkeley) 3/29/95";
 #include <stdlib.h>
 #include <string.h>
 
+#include "extern.h"
 #include "mntopts.h"
 
 int getmnt_silent = 0;
