@@ -132,6 +132,7 @@ bad:
 				el_set(el, EL_EDITOR, "vi");
 			else if (Eflag)
 				el_set(el, EL_EDITOR, "emacs");
+			el_source(el, NULL);
 		}
 	} else {
 		INTOFF;
