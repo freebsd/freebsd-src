@@ -119,7 +119,7 @@ decimal_copy_1 (b, digits)
       return result;
     }
   else
-    return decimal_round_digits (b, digits);
+    return decimal_trunc_digits (b, digits);
 }
 
 /* flush specified number `digits' of trailing fraction digits,
@@ -858,8 +858,8 @@ decimal_div (b1, b2, digits)
       return decimal_copy (DECIMAL_ZERO);
     }
 
-  if (lengthr <= (length1 - length2))
-    abort();		 /* My reasoning says this cannot happen, I hope */
+/*   if (lengthr <= (length1 - length2))
+    abort(); */		 /* My reasoning says this cannot happen, I hope */
 
   for (i = length1 - length2; i >= 0; i--)
     {
