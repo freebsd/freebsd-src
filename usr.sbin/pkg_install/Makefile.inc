@@ -6,6 +6,13 @@ LIBINSTALL=	${.OBJDIR}/../lib/libinstall.a
 LIBINSTALL=	${.CURDIR}/../lib/libinstall.a
 .endif
 
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && \
+    defined(LDADD) && ${LDADD:M-lfetch} != ""
+DISTRIBUTION=	crypto
+DPADD+=		${LIBSSL} ${LIBCRYPTO}
+LDADD+=		-lssl -lcrypto
+.endif
+
 # Inherit BINDIR from one level up.
 .if exists(${.CURDIR}/../../Makefile.inc)
 .include "${.CURDIR}/../../Makefile.inc"

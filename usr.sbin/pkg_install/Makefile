@@ -1,10 +1,9 @@
 # $FreeBSD$
 
-SUBDIR=	lib add create delete info version
+SUBDIR=	lib add create delete info ${_sign} version
 
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-DISTRIBUTION=	crypto
-SUBDIR+= sign
+_sign=	sign
 .endif
 
 .include <bsd.subdir.mk>
