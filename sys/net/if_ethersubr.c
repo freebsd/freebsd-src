@@ -646,7 +646,6 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 			 * packet for us to free; sigh.
 			 */
 			if (bif != BDG_BCAST && bif != BDG_MCAST) {
-printf("ether_input: drop bdg packet, bif %p\n", bif);/*XXX*/
 				m_freem(m);
 				return;
 			}
