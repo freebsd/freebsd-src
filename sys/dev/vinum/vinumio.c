@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.7.2.4 1999/02/11 05:31:02 grog Exp $
+ * $Id: vinumio.c,v 1.21 1998/12/30 06:04:31 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -46,7 +46,6 @@
 #include <miscfs/specfs/specdev.h>
 
 extern jmp_buf command_fail;				    /* return on a failed command */
-struct _ioctl_reply *ioctl_reply;			    /* data pointer, for returning error messages */
 
 /* Why aren't these declared anywhere? XXX */
 int setjmp(jmp_buf);
@@ -66,7 +65,7 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
     struct vattr va;
     int error;
 
-    if (drive->devicename[0] == '\0')			    /* no device name */
+    if (drive->devicename[0] != '/')			    /* no device name */
 	sprintf(drive->devicename, "/dev/%s", drive->label.name); /* get it from the drive name */
     NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, drive->devicename, p);
     error = vn_open(&nd, FREAD | FWRITE, 0);		    /* open the device */
@@ -74,7 +73,9 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	set_drive_state(drive->driveno, drive_down, setstate_force);
 	drive->lasterror = error;
 	if (verbose)
-	    printf("vinum open_drive %s: failed with error %d\n", drive->devicename, error); /* XXX */
+	    log(LOG_WARNING,
+		"vinum open_drive %s: failed with error %d\n",
+		drive->devicename, error);		    /* XXX */
 	return error;
     }
     drive->vp = nd.ni_vp;
@@ -82,7 +83,8 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 
     if (drive->vp->v_usecount > 1) {			    /* already in use? */
 	if (verbose)
-	    printf("open_drive %s: use count %d, ignoring\n", /* XXX where does this come from? */
+	    log(LOG_WARNING,
+		"open_drive %s: use count %d, ignoring\n",  /* XXX where does this come from? */
 		drive->devicename,
 		drive->vp->v_usecount);
 	drive->vp->v_usecount = 1;			    /* will this work? */
@@ -94,7 +96,9 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	set_drive_state(drive->driveno, drive_down, setstate_force);
 	drive->lasterror = error;
 	if (verbose)
-	    printf("vinum open_drive %s: GETAATTR returns error %d\n", drive->devicename, error); /* XXX */
+	    log(LOG_WARNING,
+		"vinum open_drive %s: GETAATTR returns error %d\n",
+		drive->devicename, error);		    /* XXX */
 	return error;
     }
     drive->dev = va.va_rdev;				    /* device */
@@ -105,7 +109,9 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	set_drive_state(drive->driveno, drive_down, setstate_force); /* this also closes the drive */
 	drive->lasterror = ENOTBLK;
 	if (verbose)
-	    printf("vinum open_drive %s: Not a block device\n", drive->devicename); /* XXX */
+	    log(LOG_WARNING,
+		"vinum open_drive %s: Not a block device\n",
+		drive->devicename);			    /* XXX */
 	return ENOTBLK;
     }
     drive->vp->v_numoutput = 0;
@@ -153,7 +159,7 @@ set_drive_parms(struct drive *drive)
     if (drive->label.name[0] != '\0')			    /* got a name */
 	set_drive_state(drive->driveno, drive_up, setstate_force); /* our drive is accessible */
     else						    /* we know about it, but that's all */
-	drive->state = drive_uninit;
+	drive->state = drive_referenced;
     return 0;
 }
 
@@ -166,13 +172,9 @@ init_drive(struct drive *drive, int verbose)
 {
     int error;
 
-    if (drive->devicename[0] == '\0') {			    /* no device name yet, default to drive name */
+    if (drive->devicename[0] != '/') {
 	drive->lasterror = EINVAL;
-	/*
-	 * This is a bug if it happens internally,
-	 * so print a message regardless 
-	 */
-	printf("vinum: Can't open drive without drive name\n");	/* XXX */
+	log(LOG_ERR, "vinum: Can't open drive without drive name\n");
 	return EINVAL;
     }
     error = open_drive(drive, curproc, verbose);	    /* open the drive */
@@ -187,20 +189,23 @@ init_drive(struct drive *drive, int verbose)
 	curproc);
     if (error) {
 	if (verbose)
-	    printf("vinum open_drive %s: Can't get partition information, error %d\n",
+	    log(LOG_WARNING,
+		"vinum open_drive %s: Can't get partition information, error %d\n",
 		drive->devicename,
 		error);					    /* XXX */
 	close_drive(drive);
 	drive->lasterror = error;
-	set_drive_state(drive->driveno, drive_down, setstate_force);
+	drive->state = drive_down;			    /* don't tell the system about this one at all */
 	return error;
     }
     if (drive->partinfo.part->p_fstype != 0) {		    /* not plain */
 	drive->lasterror = EFTYPE;
 	if (verbose)
-	    printf("vinum open_drive %s: Wrong partition type for vinum\n", drive->devicename);	/* XXX */
+	    log(LOG_WARNING,
+		"vinum open_drive %s: Wrong partition type for vinum\n",
+		drive->devicename);			    /* XXX */
 	close_drive(drive);
-	set_drive_state(drive->driveno, drive_down, setstate_force);
+	drive->state = drive_down;			    /* don't tell the system about this one at all */
 	return EFTYPE;
     }
     return set_drive_parms(drive);			    /* set various odds and ends */
@@ -214,7 +219,10 @@ close_drive(struct drive *drive)
 	lockdrive(drive);				    /* keep the daemon out */
 	vn_close(drive->vp, FREAD | FWRITE, NOCRED, drive->p);
 	if (drive->vp->v_usecount) {			    /* XXX shouldn't happen */
-	    printf("close_drive %s: use count still %d\n", drive->devicename, drive->vp->v_usecount);
+	    log(LOG_WARNING,
+		"close_drive %s: use count still %d\n",
+		drive->devicename,
+		drive->vp->v_usecount);
 	    drive->vp->v_usecount = 0;			    /* will this work? */
 	}
 	drive->vp = NULL;
@@ -527,12 +535,27 @@ check_drive(char *drivename)
 	&&(DRIVE[i].state != drive_unallocated)		    /* and it's allocated */
 	&&(strcmp(DRIVE[i].label.name,
 		    DRIVE[driveno].label.name) == 0)) {	    /* and it has the same name */
-	    /*
-	     * set an error, but don't take the drive down:
-	     * that would cause unneeded error messages.
-	     */
-	    drive->lasterror = EEXIST;
-	    break;
+	    struct drive *mydrive = &DRIVE[i];
+
+	    if (mydrive->devicename[0] == '/') {	    /* we know a device name for it */
+		/*
+		 * set an error, but don't take the drive down:
+		 * that would cause unneeded error messages.
+		 */
+		drive->lasterror = EEXIST;
+		break;
+	    } else {					    /* it's just a place holder, */
+		int sdno;
+
+		for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) { /* look at each subdisk */
+		    if ((SD[sdno].driveno == driveno)	    /* it's pointing to this one, */
+		    &&(SD[sdno].state != sd_unallocated)) { /* and it's a real subdisk */
+			SD[sdno].driveno = drive->driveno;  /* point to the one we found */
+			update_sd_state(sdno);		    /* and update its state */
+		    }
+		}
+		free_drive(mydrive);
+	    }
 	}
     }
     return drive;
@@ -582,7 +605,8 @@ format_config(char *config, int len)
 	struct volume *vol;
 
 	vol = &vinum_conf.volume[i];
-	if (vol->state != volume_unallocated) {
+	if ((vol->state != volume_unallocated)
+	    && (vol->name[0] != '\0')) {		    /* paranoia */
 	    if (vol->preferred_plex >= 0)		    /* preferences, */
 		sprintf(s,
 		    "volume %s state %s readpol prefer %s",
@@ -598,7 +622,7 @@ format_config(char *config, int len)
 		s++;					    /* find the end */
 	    s = sappend("\n", s);
 	    if (s > &config[len - 80]) {
-		printf("vinum: configuration data overflow\n");
+		log(LOG_ERR, "vinum: configuration data overflow\n");
 		return;
 	    }
 	}
@@ -609,7 +633,8 @@ format_config(char *config, int len)
 	struct plex *plex;
 
 	plex = &vinum_conf.plex[i];
-	if (plex->state != plex_unallocated) {
+	if ((plex->state != plex_unallocated)
+	    && (plex->name[0] != '\0')) {		    /* paranoia */
 	    sprintf(s, "plex name %s state %s org %s ",
 		plex->name,
 		plex_state(plex->state),
@@ -617,7 +642,7 @@ format_config(char *config, int len)
 	    while (*s)
 		s++;					    /* find the end */
 	    if ((plex->organization == plex_striped)
-		) {
+		|| (plex->organization == plex_raid5)) {
 		sprintf(s, "%db ", (int) plex->stripesize);
 		while (*s)
 		    s++;				    /* find the end */
@@ -631,7 +656,7 @@ format_config(char *config, int len)
 	    }
 	    s = sappend("\n", s);
 	    if (s > &config[len - 80]) {
-		printf("vinum: configuration data overflow\n");
+		log(LOG_ERR, "vinum: configuration data overflow\n");
 		return;
 	    }
 	}
@@ -640,7 +665,8 @@ format_config(char *config, int len)
     /* And finally the subdisk configuration */
     for (i = 0; i < vinum_conf.subdisks_used; i++) {
 	struct sd *sd = &vinum_conf.sd[i];		    /* XXX */
-	if (vinum_conf.sd[i].state != sd_unallocated) {
+	if ((sd->state != sd_unallocated)
+	    && (sd->name[0] != '\0')) {			    /* paranoia */
 	    sprintf(s,
 		"sd name %s drive %s plex %s state %s len ",
 		sd->name,
@@ -656,7 +682,7 @@ format_config(char *config, int len)
 	    s = lltoa(sd->plexoffset, s);
 	    s = sappend("b\n", s);
 	    if (s > &config[len - 80]) {
-		printf("vinum: configuration data overflow\n");
+		log(LOG_ERR, "vinum: configuration data overflow\n");
 		return;
 	    }
 	}
@@ -715,7 +741,9 @@ daemon_save_config(void)
 	if ((drive->devicename[0] == '\0')		    /* XXX we keep getting these nameless drives */
 	||(drive->label.name[0] == '\0')) {		    /* XXX we keep getting these nameless drives */
 	    unlockdrive(drive);
-	    printf("Removing incomplete drive, index %d\n", driveno);
+	    log(LOG_WARNING,
+		"Removing incomplete drive, index %d\n",
+		driveno);
 	    if (drive->vp)				    /* how can it be open without a name? */
 		close_drive(drive);
 	    free_drive(drive);				    /* get rid of it */
@@ -736,7 +764,7 @@ daemon_save_config(void)
 		(char *) &vhdr->label,
 		sizeof(vhdr->label));
 	    if ((drive->state != drive_unallocated)
-		&& (drive->state != drive_uninit)) {
+		&& (drive->state != drive_referenced)) {    /* and it's a real drive */
 		wlabel_on = 1;				    /* enable writing the label */
 		error = VOP_IOCTL(drive->vp,		    /* make the label writeable */
 		    DIOCWLABEL,
@@ -760,7 +788,10 @@ daemon_save_config(void)
 			curproc);
 		unlockdrive(drive);
 		if (error) {
-		    printf("vinum: Can't write config to %s, error %d\n", drive->devicename, error);
+		    log(LOG_ERR,
+			"vinum: Can't write config to %s, error %d\n",
+			drive->devicename,
+			error);
 		    set_drive_state(drive->driveno, drive_down, setstate_force);
 		} else
 		    written_config = 1;			    /* we've written it on at least one drive */
@@ -882,7 +913,7 @@ initsd(int sdno)
 }
 
 /* Look at all disks on the system for vinum slices */
-void 
+int 
 vinum_scandisk(char *drivename[], int drives)
 {
     struct drive *volatile drive;
@@ -903,7 +934,7 @@ vinum_scandisk(char *drivename[], int drives)
     char partname[DRIVENAMELEN];			    /* for creating partition names */
 
     status = 0;						    /* success indication */
-    vinum_conf.flags |= VF_KERNELOP | VF_READING_CONFIG;    /* kernel operation: reading config */
+    vinum_conf.flags |= VF_DISKCONFIG | VF_READING_CONFIG;  /* reading config from disk */
 
     gooddrives = 0;					    /* number of usable drives found */
     firstdrive = vinum_conf.drives_used;		    /* the first drive */
@@ -929,7 +960,8 @@ vinum_scandisk(char *drivename[], int drives)
 		||(drive->state != drive_up))
 		    free_drive(drive);			    /* get rid of it */
 		else if (drive->flags & VF_CONFIGURED)	    /* already read this config, */
-		    printf("vinum: already read config from %s\n", /* say so */
+		    log(LOG_WARNING,
+			"vinum: already read config from %s\n",	/* say so */
 			drive->label.name);
 		else {
 		    drivelist[gooddrives] = drive->driveno; /* keep the drive index */
@@ -940,8 +972,8 @@ vinum_scandisk(char *drivename[], int drives)
     }
 
     if (gooddrives == 0) {
-	printf("vinum: no drives found\n");
-	return;
+	log(LOG_WARNING, "vinum: no drives found\n");
+	return ENOENT;
     }
     /*
      * We now have at least one drive
@@ -958,15 +990,15 @@ vinum_scandisk(char *drivename[], int drives)
 	drive = &DRIVE[drivelist[driveno]];		    /* point to the drive */
 
 	if (firsttime && (driveno == 0))		    /* we've never configured before, */
-	    printf("vinum: reading configuration from %s\n", drive->devicename);
+	    log(LOG_INFO, "vinum: reading configuration from %s\n", drive->devicename);
 	else
-	    printf("vinum: updating configuration from %s\n", drive->devicename);
+	    log(LOG_INFO, "vinum: updating configuration from %s\n", drive->devicename);
 
 	/* Read in both copies of the configuration information */
 	error = read_drive(drive, config_text, MAXCONFIG * 2, VINUM_CONFIG_OFFSET);
 
 	if (error != 0) {
-	    printf("vinum: Can't read device %s, error %d\n", drive->devicename, error);
+	    log(LOG_ERR, "vinum: Can't read device %s, error %d\n", drive->devicename, error);
 	    Free(config_text);
 	    Free(config_line);
 	    free_drive(drive);				    /* give it back */
@@ -994,7 +1026,9 @@ vinum_scandisk(char *drivename[], int drives)
 			   * serious is afoot.  Complain and let the user
 			   * snarf the config to see what's wrong 
 			 */
-			printf("vinum: Config error on drive %s, aborting integration\n", nd.ni_dirp);
+			log(LOG_ERR,
+			    "vinum: Config error on drive %s, aborting integration\n",
+			    nd.ni_dirp);
 			Free(config_text);
 			Free(config_line);
 			free_drive(drive);		    /* give it back */
@@ -1010,10 +1044,11 @@ vinum_scandisk(char *drivename[], int drives)
 
     Free(config_text);
     Free(drivelist);
-    vinum_conf.flags &= ~(VF_KERNELOP | VF_READING_CONFIG);
+    vinum_conf.flags &= ~(VF_DISKCONFIG | VF_READING_CONFIG); /* no longer reading from disk */
     if (status != 0)
 	throw_rude_remark(status, "Couldn't read configuration");
-    updateconfig(VF_KERNELOP);				    /* update from kernel space */
+    updateconfig(VF_DISKCONFIG);			    /* update from disk config */
+    return 0;
 }
 
 /*
