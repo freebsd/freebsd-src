@@ -126,8 +126,8 @@ _pthread_exit(void *status)
 	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
 	/* Use thread_list_lock */
 	_thread_active_threads--;
-	if ((_thread_scope_system == 0 && _thread_active_threads == 1) ||
-	    (_thread_scope_system != 0 && _thread_active_threads == 0)) {
+	if ((_thread_scope_system <= 0 && _thread_active_threads == 1) ||
+	    (_thread_scope_system > 0 && _thread_active_threads == 0)) {
 		KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 		_kse_critical_leave(crit);
 		exit(0);
