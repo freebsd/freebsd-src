@@ -435,9 +435,6 @@ extern	struct mbstat mbstat;		/* General mbuf stats/infos */
 extern	int nmbclusters;		/* Maximum number of clusters */
 extern	int nmbcnt;			/* Scale kmem_map for counter space */
 extern	int nmbufs;			/* Maximum number of mbufs */
-extern	int nsfbufs;			/* Number of sendfile(2) bufs alloced */
-extern	int nsfbufspeak;		/* Peak of nsfbufsused */
-extern	int nsfbufsused;		/* Number of sendfile(2) bufs in use */
 
 void		 _mext_free(struct mbuf *);
 void		 m_adj(struct mbuf *, int);
