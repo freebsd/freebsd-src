@@ -114,16 +114,8 @@ realinstall:	beforeinstall nlsinstall links-nls
 realinstall:	beforeinstall
 .endif
 
-all:		all-nls _SUBDIR
+all:		all-nls
 install:	realinstall afterinstall
-
-.if !target(all-man)
-all-man: _SUBDIR
-.endif
-
-.if !target(maninstall)
-maninstall: _SUBDIR
-.endif
 
 DISTRIBUTION?=	bin
 .if !target(distribute)

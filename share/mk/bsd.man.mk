@@ -74,7 +74,7 @@ MAN+=	${MAN${sect}}
 .endfor
 .endif
 
-all-man: _SUBDIR
+all-man:
 
 .if defined(NOMANCOMPRESS)
 

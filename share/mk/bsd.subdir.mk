@@ -25,15 +25,16 @@
 # 		put the stuff into the right "distribution".
 #
 #	afterdistribute, afterinstall, all, all-man, beforeinstall, checkdpadd,
-#	clean, cleandepend, cleandir, depend, install, lint, maninstall,
+#	clean, cleandepend, cleandir, depend, install, lint,
 #	obj, objlink, realinstall, regress, tags
 #
 
 .include <bsd.init.mk>
 
-_SUBDIRUSE: .USE
+_SUBDIR: .USE
+.if defined(SUBDIR) && !empty(SUBDIR)
 	@for entry in ${SUBDIR}; do \
-		(if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
+		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
 			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH}"; \
 			edir=$${entry}.${MACHINE_ARCH}; \
 			cd ${.CURDIR}/$${edir}; \
@@ -43,8 +44,9 @@ _SUBDIRUSE: .USE
 			cd ${.CURDIR}/$${edir}; \
 		fi; \
 		${MAKE} ${.TARGET:realinstall=install} \
-		    DIRPRFX=${DIRPRFX}$$edir/); \
+		    DIRPRFX=${DIRPRFX}$$edir/; \
 	done
+.endif
 
 ${SUBDIR}::
 	@if test -d ${.TARGET}.${MACHINE_ARCH}; then \
@@ -56,11 +58,9 @@ ${SUBDIR}::
 
 
 .for __target in all all-man checkdpadd clean cleandepend cleandir depend lint \
-		 maninstall obj objlink regress tags \
+		 obj objlink realinstall regress tags \
 		 install.debug reinstall.debug
-.if !target(${__target})
-${__target}: _SUBDIRUSE
-.endif
+${__target}: _SUBDIR
 .endfor
 
 .if !target(install)
@@ -72,7 +72,7 @@ afterinstall:
 .endif
 install: afterinstall
 afterinstall: realinstall
-realinstall: beforeinstall _SUBDIRUSE
+realinstall: beforeinstall
 .endif
 
 DISTRIBUTION?=	bin
@@ -80,7 +80,7 @@ DISTRIBUTION?=	bin
 afterdistribute:
 .endif
 .if !target(distribute)
-distribute: _SUBDIRUSE
+distribute: _SUBDIR
 .for dist in ${DISTRIBUTION}
 	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${DISTDIR}/${dist}
 .endfor

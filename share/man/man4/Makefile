@@ -231,9 +231,6 @@ MLINKS+=vpo.4 imm.4
 # XXX NOT IMPORTED:	man4.hp300 man4.sparc man4.tahoe man4.vax
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})
 SUBDIR=	man4.${MACHINE_ARCH}
-.if make(maninstall)
-maninstall:: _SUBDIR
-.endif
 .endif
 
 .include <bsd.prog.mk>
