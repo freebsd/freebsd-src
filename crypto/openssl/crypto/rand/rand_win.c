@@ -577,7 +577,8 @@ static void readtimer(void)
 	if (have_tsc) {
 	  __try {
 	    __asm {
-	      rdtsc
+	      _emit 0x0f
+	      _emit 0x31
 	      mov cyclecount, eax
 	      }
 	    RAND_add(&cyclecount, sizeof(cyclecount), 1);
@@ -725,8 +726,9 @@ int RAND_poll(void)
 
 #ifdef DEVRANDOM
 	return 1;
-#endif
+#else
 	return 0;
+#endif
 }
 
 #endif
