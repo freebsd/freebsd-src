@@ -17,6 +17,7 @@ CFLAGS+=	-I${SRCDIR}/gas
 CFLAGS+=	-I${SRCDIR}/gas/config
 CFLAGS+=	-I${SRCDIR}
 CFLAGS+=	-DVERSION=\"${VERSION}\" -DBFD_VERSION=\"${VERSION}\"
+NOSHARED=	yes
 DPADD=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libiberty/libiberty.a
 DPADD+=		${RELTOP}/libopcodes/libopcodes.a
