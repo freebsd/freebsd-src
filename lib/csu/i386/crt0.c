@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.30 1997/08/02 04:56:33 jdp Exp $
+ *	$Id: crt0.c,v 1.25.2.3 1997/08/08 02:17:45 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -265,9 +265,9 @@ __do_dynamic_link ()
 	if (ldso_version == -1) {
 		_PUTMSG("ld.so failed");
 		if (ld_entry != NULL) {
-			char *msg = (ld_entry->dlerror)();
+			const char *msg = (ld_entry->dlerror)();
 			if(msg != NULL) {
-				char *endp;
+				const char *endp;
 				_PUTMSG(": ");
 				for(endp = msg;  *endp != '\0';  ++endp)
 					;	/* Find the end */
@@ -290,7 +290,7 @@ __do_dynamic_link ()
 
 void *
 dlopen(name, mode)
-char	*name;
+const char *name;
 int	mode;
 {
 	if (ld_entry == NULL)
@@ -312,7 +312,7 @@ void	*fd;
 void *
 dlsym(fd, name)
 void	*fd;
-char	*name;
+const char *name;
 {
 	if (ld_entry == NULL)
 		return NULL;
@@ -325,7 +325,7 @@ char	*name;
 }
 
 
-char *
+const char *
 dlerror()
 {
 	if (ld_entry == NULL)
@@ -398,7 +398,7 @@ _getenv(name)
 
 void *
 dlopen(name, mode)
-char	*name;
+const char *name;
 int	mode;
 {
 	return NULL;
@@ -414,13 +414,13 @@ void	*fd;
 void *
 dlsym(fd, name)
 void	*fd;
-char	*name;
+const char *name;
 {
 	return NULL;
 }
 
 
-char *
+const char *
 dlerror()
 {
 	return "Service unavailable";

@@ -51,9 +51,9 @@
 #define RTLD_NEXT	((void *) -1)
 
 __BEGIN_DECLS
-void *dlopen __P((char *, int));
-void *dlsym __P((void *, char *));
-char *dlerror __P((void));
+void *dlopen __P((const char *, int));
+void *dlsym __P((void *, const char *));
+const char *dlerror __P((void));
 int dlclose __P((void *));
 __END_DECLS
 
