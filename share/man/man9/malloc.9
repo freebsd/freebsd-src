@@ -36,7 +36,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2003
+.Dd June 12, 2003
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -260,7 +260,7 @@ flags
 .Dv M_DONTWAIT
 and
 .Dv M_TRYWAIT .
-.Sh LOCKING CONSIDERATIONS
+.Sh CONTEXT
 .Fn malloc ,
 .Fn realloc
 and
@@ -275,15 +275,10 @@ must contain
 .Fn realloc
 and
 .Fn reallocf
-must not be called with
-.Dv M_WAITOK
-while a mutex other than
-.Va Giant
-is held.
-.Va Giant
-may or may not be held when
+may sleep when called with
+.Dv M_WAITOK .
 .Fn free
-is called.
+never sleeps.
 .Pp
 Any calls to
 .Fn malloc
