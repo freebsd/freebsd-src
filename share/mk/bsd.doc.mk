@@ -42,7 +42,7 @@ TRFLAGS+=	-s
 TRFALGS+=	-R
 .endif
 
-.if defined(NODOCCOMPRESS)
+.if defined(NODOCCOMPRESS) || ${PRINTERDEVICE} == "html"
 DFILE=	${DOC}.${PRINTERDEVICE}
 GZIPCMD=	cat
 .else
@@ -51,6 +51,13 @@ GZIPCMD=	gzip -c
 .endif
 
 PAGES?=		1-
+
+UNROFF?=	unroff
+HTML_SPLIT?=	yes
+UNROFFFLAGS?=	-ms -fhtml
+.if ${HTML_SPLIT} == "yes"
+UNROFFFLAGS+=	split=1
+.endif
 
 # Compatibility mode flag for groff.  Use this when formatting documents with
 # Berkeley me macros.
@@ -70,14 +77,22 @@ print: ${DFILE}
 .endif
 .endif
 
-clean:
-	rm -f ${DOC}.${PRINTERDEVICE} ${DOC}.ps ${DOC}.ascii \
-		${DOC}.ps.gz ${DOC}.ascii.gz Errs errs mklog ${CLEANFILES}
+CLEANFILES+=	${DOC}.${PRINTERDEVICE} ${DOC}.${PRINTERDEVICE}.gz \
+		${DOC}.ascii ${DOC}.ascii.gz \
+		${DOC}.ps ${DOC}.ps.gz \
+		${DOC}.html ${DOC}-*.html
+
 
 FILES?=	${SRCS}
 realinstall:
+.if ${PRINTERDEVICE} == "html"
+	cd ${SRCDIR}; \
+		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
+.else
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
+.endif
 
 install:	beforeinstall realinstall afterinstall
 
@@ -106,6 +121,11 @@ BINMODE=        444
 SRCDIR?=	${.CURDIR}
 
 .if !target(${DFILE})
+.if ${PRINTERDEVICE} == "html"
+${DFILE}:	${SRCS} ${EXTRA} ${OBJS}
+	cd ${SRCDIR}; ${UNROFF} ${UNROFFFLAGS} document=${DOC} ${.ALLSRC}
+.else
+
 ${DFILE}::	${SRCS} ${EXTRA} ${OBJS}
 # XXX ${.ALLSRC} doesn't work unless there are a lot of .PATH.foo statements.
 ALLSRCS=	${SRCS:S;^;${SRCDIR}/;}
@@ -119,6 +139,7 @@ ${DFILE}::	${SRCS}
 .if !defined(NODOCCOMPRESS)
 ${DFILE}:	${DOC}.${PRINTERDEVICE}
 	${GZIPCMD} ${DOC}.${PRINTERDEVICE} > ${.TARGET}
+.endif
 .endif
 .endif
 
