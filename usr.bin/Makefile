@@ -8,11 +8,19 @@
 #
 
 .if ${MACHINE_ARCH} != "ia64"
+.if !defined(NO_TOOLCHAIN)
 _xlint=	xlint
+_lex=	lex
+_yacc=	yacc
+_c88=	c88
+_c98=	c98
+.endif
 .endif
 
 .if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "amd64"
+.if !defined(NO_TOOLCHAIN)
 _gprof=	gprof
+.endif
 _truss=	truss
 .endif
 
@@ -27,8 +35,8 @@ SUBDIR=	alias \
 	brandelf \
 	bzip2 \
 	bzip2recover \
-	c89 \
-	c99 \
+	${_c89} \
+	${_c99} \
 	calendar \
 	cap_mkdb \
 	catman \
@@ -96,7 +104,7 @@ SUBDIR=	alias \
 	less \
 	lessecho \
 	lesskey \
-	lex \
+	${_lex} \
 	limits \
 	locale \
 	locate \
@@ -188,8 +196,6 @@ SUBDIR=	alias \
 	uniq \
 	units \
 	unvis \
-	usbhidaction \
-	usbhidctl \
 	users \
 	uudecode \
 	uuencode \
@@ -212,7 +218,7 @@ SUBDIR=	alias \
 	xinstall \
 	${_xlint} \
 	xstr \
-	yacc \
+	${_yacc} \
 	yes \
 	ypcat \
 	ypmatch \
@@ -227,6 +233,11 @@ SUBDIR+=dig \
 
 .if !defined(NO_SENDMAIL)
 SUBDIR+=vacation
+.endif
+
+.if !defined(NO_USB)
+SUBDIR+=usbhidaction \
+	usbhidctl
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
