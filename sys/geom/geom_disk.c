@@ -115,9 +115,12 @@ g_disk_start(struct bio *bp)
 	struct bio *bp2;
 	dev_t dev;
 	struct disk *dp;
+	struct g_ioctl *gio;
+	int error;
 
 	dp = bp->bio_to->geom->softc;
 	dev = dp->d_dev;
+	error = 0;
 	switch(bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_WRITE:
@@ -134,27 +137,38 @@ g_disk_start(struct bio *bp)
 	case BIO_GETATTR:
 		if (g_haveattr_int(bp, "GEOM::sectorsize",
 		    dp->d_label.d_secsize))
-			return;
-		if (g_haveattr_int(bp, "GEOM::fwsectors",
+			break;
+		else if (g_haveattr_int(bp, "GEOM::fwsectors",
 		    dp->d_label.d_nsectors))
-			return;
-		if (g_haveattr_int(bp, "GEOM::fwheads",
+			break;
+		else if (g_haveattr_int(bp, "GEOM::fwheads",
 		    dp->d_label.d_ntracks))
-			return;
-		if (g_haveattr_int(bp, "GEOM::fwcylinders",
+			break;
+		else if (g_haveattr_int(bp, "GEOM::fwcylinders",
 		    dp->d_label.d_ncylinders))
-			return;
-		if (g_haveattr_off_t(bp, "GEOM::mediasize",
+			break;
+		else if (g_haveattr_off_t(bp, "GEOM::mediasize",
 		    dp->d_label.d_secsize * (off_t)dp->d_label.d_secperunit))
-			return;
-		bp->bio_error = ENOIOCTL;
-		g_io_deliver(bp);
-		return;
+			break;
+		else if (!strcmp(bp->bio_attribute, "GEOM::ioctl") &&
+		    bp->bio_length == sizeof *gio) {
+			gio = (struct g_ioctl *)bp->bio_data;
+			mtx_lock(&Giant);
+			error = devsw(dev)->d_ioctl(dev, gio->cmd,
+			    gio->data, gio->fflag, gio->td);
+			mtx_unlock(&Giant);
+		} else 
+			error = ENOIOCTL;
+		break;
 	default:
-		bp->bio_error = EOPNOTSUPP;
-		g_io_deliver(bp);
-		return;
+		error = EOPNOTSUPP;
+		break;
 	}
+	if (error) {
+		bp->bio_error = error;
+		g_io_deliver(bp);
+	}
+	return;
 }
 
 dev_t
