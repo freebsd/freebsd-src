@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.7.2.1 1999/02/11 07:17:15 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.7.2.2 1999/03/07 00:40:31 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -638,9 +638,6 @@ targallocinstance(struct ioc_alloc_unit *alloc_unit)
 				  0, &cpi);
 
 fail:
-	if (free_path_on_return != 0)
-		xpt_free_path(path);
-
 	switch (status) {
 	case CAM_REQ_CMP:
 	{
@@ -668,6 +665,10 @@ fail:
 		error = ENODEV;
 		break;
 	}
+
+	if (free_path_on_return != 0)
+		xpt_free_path(path);
+
 	return (error);
 }
 
