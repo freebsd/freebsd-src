@@ -57,14 +57,4 @@ struct pcb {
 	unsigned long	pcb_accessaddr;		/* for [fs]uswintr	[SW] */
 };
 
-/*
- * The pcb is augmented with machine-dependent additional data for
- * core dumps. For the Alpha, that's a trap frame and the floating
- * point registers.
- */
-struct md_coredump {
-	struct	trapframe md_tf;
-	struct	fpreg md_fpstate;
-};
-
 #endif	/* _MACHINE_PCB_H */
