@@ -222,6 +222,7 @@ pfs_exit(void *arg, struct proc *p)
 {
 	struct pfs_vdata *pvd, *prev;
 
+	mtx_lock(&Giant);
 	mtx_lock(&pfs_vncache_mutex);
 	/*
 	 * The double loop is necessary because vgone() indirectly
@@ -239,6 +240,7 @@ pfs_exit(void *arg, struct proc *p)
 			break;
 	}
 	mtx_unlock(&pfs_vncache_mutex);
+	mtx_unlock(&Giant);
 }
 
 /*
