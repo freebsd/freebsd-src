@@ -36,12 +36,13 @@
 .\"     @(#)strerror.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd Nov 26, 2001
 .Dt STRERROR 3
 .Os
 .Sh NAME
 .Nm perror ,
 .Nm strerror ,
+.Nm strerror_r ,
 .Nm sys_errlist ,
 .Nm sys_nerr
 .Nd system error messages
@@ -56,9 +57,12 @@
 .In string.h
 .Ft char *
 .Fn strerror "int errnum"
+.Ft int
+.Fn strerror_r "int errnum" "char * strerrbuf" "size_t buflen"
 .Sh DESCRIPTION
 The
-.Fn strerror
+.Fn strerror ,
+.Fn strerror_r 
 and
 .Fn perror
 functions look up the error message string corresponding to an
@@ -68,9 +72,25 @@ The
 .Fn strerror
 function accepts an error number argument
 .Fa errnum
-and
-returns a pointer to the corresponding
+and returns a pointer to the corresponding
 message string.
+.Pp
+The
+.Fn strerror_r
+function renders the same result into
+.Fa strerrbuf
+for a maximum of 
+.Fa buflen
+characters and returns 0 upon success.  If insufficient
+storage is provided in
+.Fa strerrbuf 
+(as specified in 
+.Fa buflen )
+to contain the error string, 
+.Er ERANGE 
+is returned and the string in 
+.Fa strerrbuf
+may not be null-terminated.
 .Pp
 The
 .Fn perror
@@ -107,6 +127,8 @@ contains a count of the messages in
 .Va sys_errlist .
 The use of these variables is deprecated;
 .Fn strerror
+or
+.Fn strerror_r
 should be used instead.
 .Sh SEE ALSO
 .Xr intro 2 ,
@@ -118,6 +140,13 @@ and
 .Fn perror
 functions first appeared in
 .Bx 4.4 .
+The 
+.Fn strerror_r
+function was implemented in
+.Fx 4.4
+by 
+.An Wes Peters
+.Aq wes@freebsd.org .
 .Sh BUGS
 For unknown error numbers, the
 .Fn strerror
