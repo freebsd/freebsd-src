@@ -604,7 +604,7 @@ child_died(code)
 	    }
 	    printf("[Hit return to continue]");
 	    fflush(stdout);
-	    (void) gets(inputbuffer);
+	    (void) fgets(inputbuffer, sizeof(inputbuffer), stdin);
 	    setconnmode();
 	    ConnectScreen();	/* Turn screen on (if need be) */
 	    (void) close(serversock);
