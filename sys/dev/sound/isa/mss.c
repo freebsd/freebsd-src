@@ -39,6 +39,7 @@
 #include "midi.h"
 #endif /* notyet */
 
+#define MSS_BUFFSIZE (65536 - 256)
 #define	abs(x)	(((x) < 0) ? -(x) : (x))
 
 struct mss_info;
@@ -1679,7 +1680,7 @@ msschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = mss;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = DSP_BUFFSIZE;
+	ch->buffer->bufsize = MSS_BUFFSIZE;
 	if (chn_allocbuf(ch->buffer, mss->parent_dmat) == -1) return NULL;
 	return ch;
 }
