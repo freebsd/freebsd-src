@@ -54,7 +54,7 @@ db_get_value(addr, size, is_signed)
 	register int	size;
 	boolean_t	is_signed;
 {
-	char		data[sizeof(int)];
+	char		data[sizeof(u_int64_t)];
 	register db_expr_t value;
 	register int	i;
 
