@@ -213,7 +213,7 @@ fetchConnect(char *host, int port)
     sin.sin_port = htons(port);
 
     /* try to connect */
-    if ((sd = socket(sin.sin_family, SOCK_STREAM, 0)) < 0)
+    if ((sd = socket(sin.sin_family, SOCK_STREAM, IPPROTO_TCP)) < 0)
 	return -1;
     if (connect(sd, (struct sockaddr *)&sin, sizeof sin) < 0) {
 	close(sd);
