@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 
-#if 0
 db_varfcn_t db_dr0;
 db_varfcn_t db_dr1;
 db_varfcn_t db_dr2;
@@ -55,7 +54,6 @@ db_varfcn_t db_dr4;
 db_varfcn_t db_dr5;
 db_varfcn_t db_dr6;
 db_varfcn_t db_dr7;
-#endif
 
 /*
  * Machine register set.
@@ -87,7 +85,6 @@ struct db_variable db_regs[] = {
 	{ "r15",	&ddb_regs.tf_r15,    FCN_NULL },
 	{ "rip",	&ddb_regs.tf_rip,    FCN_NULL },
 	{ "rflags",	&ddb_regs.tf_rflags, FCN_NULL },
-#if 0
 	{ "dr0",	NULL,		     db_dr0 },
 	{ "dr1",	NULL,		     db_dr1 },
 	{ "dr2",	NULL,		     db_dr2 },
@@ -96,7 +93,6 @@ struct db_variable db_regs[] = {
 	{ "dr5",	NULL,		     db_dr5 },
 	{ "dr6",	NULL,		     db_dr6 },
 	{ "dr7",	NULL,		     db_dr7 },
-#endif
 };
 struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
 
@@ -124,12 +120,10 @@ static void db_trace_one_stack(int count, boolean_t have_addr,
 		struct proc *p, struct amd64_frame *frame, db_addr_t callpc);
 
 
-#if 0
 static char * watchtype_str(int type);
 int  amd64_set_watch(int watchnum, unsigned int watchaddr, int size, int access,
 		    struct dbreg * d);
 int  amd64_clr_watch(int watchnum, struct dbreg * d);
-#endif
 int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
 int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
 void db_md_list_watchpoints(void);
@@ -517,7 +511,6 @@ db_print_backtrace(void)
 	db_stack_trace_cmd(ebp, 1, -1, NULL);
 }
 
-#if 0
 #define DB_DRX_FUNC(reg)		\
 int					\
 db_ ## reg (vp, valuep, op)		\
@@ -709,9 +702,9 @@ db_md_list_watchpoints()
 			unsigned type, len;
 			type = (d.dr[7] >> (16+(i*4))) & 3;
 			len =  (d.dr[7] >> (16+(i*4)+2)) & 3;
-			db_printf("  %-5d  %-8s  %10s  %3d  0x%08x\n",
+			db_printf("  %-5d  %-8s  %10s  %3d  0x%016lx\n",
 				  i, "enabled", watchtype_str(type), 
-				  len+1, DBREG_DRX((&d),i));
+				  len + 1, DBREG_DRX((&d), i));
 		}
 		else {
 			db_printf("  %-5d  disabled\n", i);
@@ -720,30 +713,7 @@ db_md_list_watchpoints()
 	
 	db_printf("\ndebug register values:\n");
 	for (i=0; i<8; i++) {
-		db_printf("  dr%d 0x%08x\n", i, DBREG_DRX((&d),i));
+		db_printf("  dr%d 0x%016lx\n", i, DBREG_DRX((&d), i));
 	}
 	db_printf("\n");
 }
-
-#else
-int
-db_md_set_watchpoint(addr, size)
-	db_expr_t addr;
-	db_expr_t size;
-{
-	return (-1);
-}
-
-int
-db_md_clr_watchpoint(addr, size)
-	db_expr_t addr;
-	db_expr_t size;
-{
-	return (-1);
-}
-
-void
-db_md_list_watchpoints()
-{
-}
-#endif
