@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.155 1997/08/05 22:06:47 dyson Exp $
+ *	$Id: pmap.c,v 1.156 1997/08/05 22:24:08 dyson Exp $
  */
 
 /*
@@ -503,7 +503,7 @@ pmap_init(phys_start, phys_end)
 	 * init the pv free list
 	 */
 	pvzone = &pvzone_store;
-	zbootinit(pvzone, "PV entries", sizeof(pvinit[0]), pvinit, NPVINIT);
+	zbootinit(pvzone, "PV ENTRY", sizeof(pvinit[0]), pvinit, NPVINIT);
 
 	/*
 	 * Now it is safe to enable pv_table recording.

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.c,v 1.2 1997/08/05 22:24:30 dyson Exp $
+ * $Id: vm_zone.c,v 1.3 1997/08/06 04:58:04 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -92,6 +92,7 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 		z->ztotal = 0;
 		z->zmax = 0;
 		z->zname = name;
+		z->znalloc = 0;
 
 		if (zlist == 0) {
 			zlist = z;
@@ -186,6 +187,7 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems) {
 	z->zallocflag = 0;
 	z->zpagecount = 0;
 	z->zalloc = 0;
+	z->znalloc = 0;
 	simple_lock_init(&z->zlock);
 
 	for (i = 0; i < nitems; i++) {
@@ -321,7 +323,7 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 	int error=0;
 	vm_zone_t curzone, nextzone;
 	char tmpbuf[128];
-	char tmpname[16];
+	char tmpname[14];
 
 	for (curzone = zlist; curzone; curzone = nextzone) {
 			int i;
@@ -329,18 +331,24 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 			int offset;
 			nextzone = curzone->znext;
 			len = strlen(curzone->zname);
+			if (len >= (sizeof(tmpname) - 1))
+				len = (sizeof(tmpname) - 1);
 			for(i = 0; i < sizeof(tmpname) - 1; i++)
 				tmpname[i] = ' ';
 			tmpname[i] = 0;
 			memcpy(tmpname, curzone->zname, len);
+			tmpname[len] = ':';
 			offset = 0;
 			if (curzone == zlist) {
 				offset = 1;
 				tmpbuf[0] = '\n';
 			}
 			
-			sprintf(tmpbuf + offset, "%s: maxpossible=%6.6d, total=%6.6d, free=%6.6d\n",
-				tmpname, curzone->zmax, curzone->ztotal, curzone->zfreecnt);
+			sprintf(tmpbuf + offset,
+				"%s limit=%8.8u, used=%6.6u, free=%6.6u, requests=%8.8u\n",
+				tmpname, curzone->zmax,
+				(curzone->ztotal - curzone->zfreecnt),
+				curzone->zfreecnt, curzone->znalloc);
 
 			len = strlen((char *)tmpbuf);
 			if (nextzone == NULL) {
