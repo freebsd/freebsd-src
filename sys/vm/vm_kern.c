@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.26 1996/05/23 02:24:55 dyson Exp $
+ * $Id: vm_kern.c,v 1.27 1996/07/02 02:08:02 dyson Exp $
  */
 
 /*
@@ -89,19 +89,19 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
-vm_map_t buffer_map;
-vm_map_t kernel_map;
-vm_map_t kmem_map;
-vm_map_t mb_map;
-int mb_map_full;
-vm_map_t mcl_map;
-int mcl_map_full;
-vm_map_t io_map;
-vm_map_t clean_map;
-vm_map_t phys_map;
-vm_map_t exec_map;
-vm_map_t exech_map;
-vm_map_t u_map;
+vm_map_t kernel_map=0;
+vm_map_t kmem_map=0;
+vm_map_t exec_map=0;
+vm_map_t exech_map=0;
+vm_map_t clean_map=0;
+vm_map_t u_map=0;
+vm_map_t buffer_map=0;
+vm_map_t mb_map=0;
+int mb_map_full=0;
+vm_map_t mcl_map=0;
+int mcl_map_full=0;
+vm_map_t io_map=0;
+vm_map_t phys_map=0;
 
 /*
  *	kmem_alloc_pageable:
