@@ -70,6 +70,26 @@ gv_new_raid5_packet(void)
 	return (wp);
 }
 
+void
+gv_free_raid5_packet(struct gv_raid5_packet *wp)
+{
+	struct gv_raid5_bit *r, *r2;
+
+	/* Remove all the bits from this work packet. */
+	TAILQ_FOREACH_SAFE(r, &wp->bits, list, r2) {
+		TAILQ_REMOVE(&wp->bits, r, list);
+		if (r->malloc)
+			g_free(r->buf);
+		if (r->bio != NULL)
+			g_destroy_bio(r->bio);
+		g_free(r);
+	}
+
+	if (wp->bufmalloc == 1)
+		g_free(wp->buf);
+	g_free(wp);
+}
+
 /*
  * Check if the stripe that the work packet wants is already being used by
  * some other work packet.
@@ -140,9 +160,7 @@ gv_raid5_worker(void *arg)
 					mtx_lock(&p->worklist_mtx);
 				}
 				TAILQ_REMOVE(&p->worklist, wp, list);
-				if (wp->bufmalloc == 1)
-					g_free(wp->buf);
-				g_free(wp);
+				gv_free_raid5_packet(wp);
 				restart++;
 				/*break;*/
 			}
@@ -236,15 +254,6 @@ gv_raid5_done(struct bio *bp)
 			}
 		}
 		break;
-	}
-
-	g_destroy_bio(bp);
-
-	if (rbp != NULL) {
-		if (rbp->malloc == 1)
-			g_free(rbp->buf);
-		TAILQ_REMOVE(&wp->bits, rbp, list);
-		g_free(rbp);
 	}
 
 	/* This request group is done. */

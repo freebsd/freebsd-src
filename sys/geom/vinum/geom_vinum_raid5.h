@@ -85,6 +85,7 @@ struct gv_raid5_packet {
 
 int	gv_build_raid5_req(struct gv_raid5_packet *, struct bio *, caddr_t,
 	    long, off_t);
+void	gv_free_raid5_packet(struct gv_raid5_packet *);
 void	gv_raid5_done(struct bio *);
 void	gv_raid5_worker(void *);
 struct gv_raid5_packet  *gv_new_raid5_packet(void);
