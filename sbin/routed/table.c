@@ -612,8 +612,8 @@ rtm_type_name(u_char type)
 
 
 /* Trim a mask in a sockaddr
- *	Produce a length of 0 for an address of 0.
- *	Otherwise produce the index of the first zero byte.
+ *	Produce the index of the first zero byte.
+ *	i.e. Produce a index of 4 for an mask of 0. (default route)
  */
 void
 #ifdef _HAVE_SIN_LEN
@@ -624,13 +624,11 @@ masktrim(struct sockaddr_in_new *ap)
 {
 	register char *cp;
 
-	if (ap->sin_addr.s_addr == 0) {
-		ap->sin_len = 0;
-		return;
-	}
+	ap->sin_port = 0xffff; /* buffer zone for default route */
 	cp = (char *)(&ap->sin_addr.s_addr+1);
 	while (*--cp == 0)
 		continue;
+	/*ap->sin_port = 0x0;*/ /* may not be needed (who cares?)*/
 	ap->sin_len = cp - (char*)ap + 1;
 }
 
@@ -685,8 +683,6 @@ again:
 		w.w_mask.sin_addr.s_addr = htonl(mask);
 #ifdef _HAVE_SA_LEN
 		masktrim(&w.w_mask);
-		if (w.w_mask.sin_len == 0)
-			w.w_mask.sin_len = sizeof(long);
 		w.w_rtm.rtm_msglen -= (sizeof(w.w_mask) - w.w_mask.sin_len);
 #endif
 	}
