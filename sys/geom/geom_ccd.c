@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.35 1998/07/04 22:30:13 julian Exp $ */
+/* $Id: ccd.c,v 1.36 1998/08/19 10:50:32 sos Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -103,6 +103,7 @@
 #include <sys/disklabel.h>
 #include <ufs/ffs/fs.h> 
 #include <sys/device.h>
+#include <sys/devicestat.h>
 #undef KERNEL			/* XXX */
 #include <sys/disk.h>
 #define KERNEL
@@ -292,9 +293,6 @@ ccdinit(ccd, cpaths, p)
 		printf("ccdinit: unit %d\n", ccd->ccd_unit);
 #endif
 
-#ifdef WORKING_DISK_STATISTICS		/* XXX !! */
-	cs->sc_dk = ccd->ccd_dk;
-#endif
 	cs->sc_size = 0;
 	cs->sc_ileave = ccd->ccd_interleave;
 	cs->sc_nccdisks = ccd->ccd_ndev;
@@ -481,10 +479,12 @@ ccdinit(ccd, cpaths, p)
 	ccg->ccg_nsectors = 1024 * (1024 / ccg->ccg_secsize);
 	ccg->ccg_ncylinders = cs->sc_size / ccg->ccg_nsectors;
 
-#ifdef WORKING_DISK_STATISTICS		/* XXX !! */
-	if (ccd->ccd_dk >= 0)
-		dk_wpms[ccd->ccd_dk] = 32 * (60 * DEV_BSIZE / 2);     /* XXX */
-#endif
+	/*
+	 * Add an devstat entry for this device.
+	 */
+	devstat_add_entry(&cs->device_stats, "ccd", ccd->ccd_unit,
+			  ccg->ccg_secsize, DEVSTAT_ALL_SUPPORTED,
+			  DEVSTAT_TYPE_ASC0 |DEVSTAT_TYPE_IF_OTHER);
 
 	cs->sc_flags |= CCDF_INITED;
 	cs->sc_cflags = ccd->ccd_flags;	/* So we can find out later... */
@@ -776,17 +776,8 @@ ccdstart(cs, bp)
 		printf("ccdstart(%x, %x)\n", cs, bp);
 #endif
 
-#ifdef WORKING_DISK_STATISTICS		/* XXX !! */
-	/*
-	 * Instrumentation (not very meaningful)
-	 */
-	cs->sc_nactive++;
-	if (cs->sc_dk >= 0) {
-		dk_busy |= 1 << cs->sc_dk;
-		dk_xfer[cs->sc_dk]++;
-		dk_wds[cs->sc_dk] += bp->b_bcount >> 6;
-	}
-#endif
+	/* Record the transaction start  */
+	devstat_start_transaction(&cs->device_stats);
 
 	/*
 	 * Translate the partition-relative block number to an absolute.
@@ -909,6 +900,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	cbp->cb_buf.b_data = addr;
 	cbp->cb_buf.b_vp = ci->ci_vp;
 	LIST_INIT(&cbp->cb_buf.b_dep);
+	cbp->cb_buf.b_resid = 0;
 	if (cs->sc_ileave == 0)
 		cbp->cb_buf.b_bcount = dbtob(ci->ci_size - cbn);
 	else
@@ -963,16 +955,14 @@ ccdintr(cs, bp)
 	/*
 	 * Request is done for better or worse, wakeup the top half.
 	 */
-#ifdef WORKING_DISK_STATISTICS		/* XXX !! */
-	--cs->sc_nactive;
-#ifdef DIAGNOSTIC
-	if (cs->sc_nactive < 0)
-		panic("ccdintr: ccd%d: sc_nactive < 0", cs->sc_unit);
-#endif
+	/* Record device statistics */
+	devstat_end_transaction(&cs->device_stats,
+				bp->b_bcount - bp->b_resid,
+				(bp->b_flags & B_ORDERED) ?
+				DEVSTAT_TAG_ORDERED : DEVSTAT_TAG_SIMPLE,
+				(bp->b_flags & B_READ) ? DEVSTAT_READ :
+				DEVSTAT_WRITE);
 
-	if (cs->sc_nactive == 0 && cs->sc_dk >= 0)
-		dk_busy &= ~(1 << cs->sc_dk);
-#endif
 	if (bp->b_flags & B_ERROR)
 		bp->b_resid = bp->b_bcount;
 	biodone(bp);
@@ -1055,9 +1045,6 @@ ccdioctl(dev, cmd, data, flag, p)
 	struct ccddevice ccd;
 	char **cpp;
 	struct vnode **vpp;
-#ifdef WORKING_DISK_STATISTICS		/* XXX !! */
-	extern int dkn;
-#endif
 
 	if (unit >= numccd)
 		return (ENXIO);
@@ -1143,27 +1130,10 @@ ccdioctl(dev, cmd, data, flag, p)
 		ccd.ccd_vpp = vpp;
 		ccd.ccd_ndev = ccio->ccio_ndisks;
 
-#ifdef WORKING_DISK_STATISTICS		/* XXX !! */
-		/*
-		 * Assign disk index first so that init routine
-		 * can use it (saves having the driver drag around
-		 * the ccddevice pointer just to set up the dk_*
-		 * info in the open routine).
-		 */
-		if (dkn < DK_NDRIVE)
-			ccd.ccd_dk = dkn++;
-		else
-			ccd.ccd_dk = -1;
-#endif
-
 		/*
 		 * Initialize the ccd.  Fills in the softc for us.
 		 */
 		if (error = ccdinit(&ccd, cpp, p)) {
-#ifdef WORKING_DISK_STATISTICS		/* XXX !! */
-			if (ccd.ccd_dk >= 0)
-				--dkn;
-#endif
 			for (j = 0; j < lookedup; ++j)
 				(void)vn_close(vpp[j], FREAD|FWRITE,
 				    p->p_ucred, p);

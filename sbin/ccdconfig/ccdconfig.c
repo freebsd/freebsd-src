@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ccdconfig.c,v 1.9 1998/06/04 06:41:26 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/devicestat.h>
 #include <sys/ccdvar.h>
 
 #include "pathnames.h"
