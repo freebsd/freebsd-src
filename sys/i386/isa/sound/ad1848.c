@@ -474,11 +474,7 @@ static struct audio_operations ad1848_pcm_operations[MAX_AUDIO_DEV] =
 {
   {
     "Generic AD1848 codec",
-#if defined(__FreeBSD__)
-    NEEDS_RESTART,/* disable automode for now until we get this working right */
-#else
     DMA_AUTOMODE,
-#endif
     AFMT_U8,			/* Will be set later */
     NULL,
     ad1848_open,
