@@ -72,6 +72,14 @@
 #include <dev/usb/ohcireg.h>
 #include <dev/usb/ohcivar.h>
 
+#define PCI_OHCI_VENDORID_ACERLABS	0x10b9
+#define PCI_OHCI_VENDORID_AMD		0x1022
+#define PCI_OHCI_VENDORID_APPLE		0x106b
+#define PCI_OHCI_VENDORID_CMDTECH	0x1095
+#define PCI_OHCI_VENDORID_NEC		0x1033
+#define PCI_OHCI_VENDORID_OPTI		0x1045
+#define PCI_OHCI_VENDORID_SIS		0x1039
+
 #define PCI_OHCI_DEVICEID_ALADDIN_V	0x523710b9
 static const char *ohci_device_aladdin_v = "AcerLabs M5237 (Aladdin-V) USB controller";
 
@@ -191,49 +199,35 @@ ohci_pci_attach(device_t self)
 	}
 	device_set_ivars(sc->sc_bus.bdev, sc);
 
-	switch (pci_get_devid(self)) {
-	case PCI_OHCI_DEVICEID_ALADDIN_V:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_aladdin_v);
+	/* ohci_pci_match will never return NULL if ohci_pci_probe succeeded */
+	device_set_desc(sc->sc_bus.bdev, ohci_pci_match(self));
+	switch (pci_get_vendor(self)) {
+	case PCI_OHCI_VENDORID_ACERLABS:
 		sprintf(sc->sc_vendor, "AcerLabs");
 		break;
-	case PCI_OHCI_DEVICEID_AMD756:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_amd756);
+	case PCI_OHCI_VENDORID_AMD:
 		sprintf(sc->sc_vendor, "AMD");
 		break;
-	case PCI_OHCI_DEVICEID_AMD766:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_amd766);
-		sprintf(sc->sc_vendor, "AMD");
+	case PCI_OHCI_VENDORID_APPLE:
+		sprintf(sc->sc_vendor, "Apple");
 		break;
-	case PCI_OHCI_DEVICEID_FIRELINK:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_firelink);
-		sprintf(sc->sc_vendor, "OPTi");
+	case PCI_OHCI_VENDORID_CMDTECH:
+		sprintf(sc->sc_vendor, "CMDTECH");
 		break;
-	case PCI_OHCI_DEVICEID_NEC:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_nec);
+	case PCI_OHCI_VENDORID_NEC:
 		sprintf(sc->sc_vendor, "NEC");
 		break;
-	case PCI_OHCI_DEVICEID_USB0670:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_usb0670);
-		sprintf(sc->sc_vendor, "CMDTECH");
+	case PCI_OHCI_VENDORID_OPTI:
+		sprintf(sc->sc_vendor, "OPTi");
 		break;
-	case PCI_OHCI_DEVICEID_USB0673:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_usb0673);
-		sprintf(sc->sc_vendor, "CMDTECH");
-		break;
-	case PCI_OHCI_DEVICEID_SIS5571:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_sis5571);
+	case PCI_OHCI_VENDORID_SIS:
 		sprintf(sc->sc_vendor, "SiS");
-		break;
-	case PCI_OHCI_DEVICEID_KEYLARGO:
-		device_set_desc(sc->sc_bus.bdev, ohci_device_keylargo);
-		sprintf(sc->sc_vendor, "Apple");
 		break;
 	default:
 		if (bootverbose)
 			device_printf(self, "(New OHCI DeviceId=0x%08x)\n",
 			    pci_get_devid(self));
-		device_set_desc(sc->sc_bus.bdev, ohci_device_generic);
-		sprintf(sc->sc_vendor, "(unknown)");
+		sprintf(sc->sc_vendor, "(0x%04x)", pci_get_vendor(self));
 	}
 
 	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_BIO,
