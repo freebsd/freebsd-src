@@ -38,7 +38,9 @@
 .Ft int
 .Fn rfork_thread "int flags" "void *stack" "int (*func)(void *arg)" "void *arg"
 .Sh DESCRIPTION
+The
 .Fn rfork_thread
+function
 is a helper function for
 .Xr rfork 2 .
 It arranges for a new process to be created and the child process will
@@ -73,5 +75,5 @@ for error return codes.
 .Sh HISTORY
 The
 .Fn rfork_thread
-function call first appeared in
+function first appeared in
 .Fx 4.3 .

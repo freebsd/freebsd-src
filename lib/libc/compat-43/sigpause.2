@@ -48,16 +48,22 @@
 .Sy This interface is made obsolete by
 .Xr sigsuspend 2 .
 .Pp
-.Fn Sigpause
+The
+.Fn sigpause
+function
 assigns
 .Fa sigmask
 to the set of masked signals
 and then waits for a signal to arrive;
 on return the set of masked signals is restored.
-.Fa Sigmask
+The
+.Fa sigmask
+argument
 is usually 0 to indicate that no
 signals are to be blocked.
-.Fn Sigpause
+The
+.Fn sigpause
+function
 always terminates by being interrupted, returning -1 with
 .Va errno
 set to
@@ -72,6 +78,6 @@ set to
 .Sh HISTORY
 The
 .Fn sigpause
-function call appeared in
+function appeared in
 .Bx 4.2
 and has been deprecated.

@@ -50,7 +50,9 @@ This interface is made obsolete by:
 .Ef
 .Xr open 2 .
 .Pp
-.Fn Creat
+The
+.Fn creat
+function
 is the same as:
 .Bd -literal -offset indent
 open(path, O_CREAT | O_TRUNC | O_WRONLY, mode);
@@ -60,5 +62,5 @@ open(path, O_CREAT | O_TRUNC | O_WRONLY, mode);
 .Sh HISTORY
 The
 .Fn creat
-function call appeared in
+function appeared in
 .At v6 .

@@ -63,7 +63,8 @@ objects, and to remove such objects when their use is no longer required.
 .Pp
 The
 .Fn dlopen
-function provides access to the shared object in
+function
+provides access to the shared object in
 .Fa path ,
 returning a descriptor that can be used for later
 references to the object in calls to
@@ -127,7 +128,8 @@ from all other shared objects.
 .It Dv RTLD_LOCAL
 Symbols in this shared object and its DAG of needed objects will be
 available for resolving undefined references only from other objects
-in the same DAG.  This is the default, but it may be specified
+in the same DAG.
+This is the default, but it may be specified
 explicitly with this flag.
 .It Dv RTLD_TRACE
 When set, causes dynamic linker to exit after loading all objects

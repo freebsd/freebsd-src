@@ -60,7 +60,9 @@ are read into the provided buffer
 Any additional
 characters and the terminating newline (or return) character are discarded.
 .Pp
+The
 .Fn readpassphrase
+function
 takes the following optional
 .Fa flags :
 .Pp
@@ -137,7 +139,9 @@ if (compare(transform(passbuf), epass) != 0)
 memset(passbuf, 0, sizeof(passbuf));
 .Ed
 .Sh SIGNALS
+The
 .Fn readpassphrase
+function
 will catch the following signals:
 .Pp
 .Bl -tag -compact

@@ -116,7 +116,9 @@ adding the signal to be delivered, and
 .Em or Ns 'ing
 in the signal mask associated with the handler to be invoked.
 .Pp
-.Fn Sigvec
+The
+.Fn sigvec
+function
 assigns a handler for a specific signal.  If
 .Fa vec
 is non-zero, it
@@ -234,8 +236,9 @@ or
 all signals, the signal mask, the signal stack,
 and the restart/interrupt flags are inherited by the child.
 .Pp
-.Xr Execve 2
-reinstates the default
+The
+.Xr execve 2
+system call reinstates the default
 action for all signals which were caught and
 resets all signals to be caught on the user stack.
 Ignored signals remain ignored;
@@ -258,7 +261,9 @@ hence it should not be used if backward compatibility is needed.
 .Sh RETURN VALUES
 .Rv -std sigvec
 .Sh ERRORS
-.Fn Sigvec
+The
+.Fn sigvec
+function
 will fail and no new signal handler will be installed if one
 of the following occurs:
 .Bl -tag -width Er
@@ -270,7 +275,9 @@ or
 points to memory that is not a valid part of the process
 address space.
 .It Bq Er EINVAL
-.Fa Sig
+The
+.Fa sig
+argument
 is not a valid signal number.
 .It Bq Er EINVAL
 An attempt is made to ignore or supply a handler for
@@ -308,8 +315,10 @@ Here
 .Fa sig
 is the signal number, into which the hardware faults and traps are
 mapped as defined below.
-.Fa Code
-is a parameter that is either a constant
+The
+.Fa code
+argument
+is either a constant
 as given below or, for compatibility mode faults, the code provided by
 the hardware (Compatibility mode faults are distinguished from the
 other
@@ -317,7 +326,9 @@ other
 traps by having
 .Dv PSL_CM
 set in the psl).
-.Fa Scp
+The
+.Fa scp
+argument
 is a pointer to the
 .Fa sigcontext
 structure (defined in
