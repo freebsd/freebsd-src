@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.20 1994/11/06 23:47:04 phk Exp $
+#	$Id: Makefile,v 1.21 1994/11/07 03:53:13 phk Exp $
 #
 
 FDLABEL=	fd1200
@@ -21,7 +21,7 @@ CPIO2=  etc/services
 CPIO3=	extract.sh bininst
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
-CLEANFILES+=	boot_flp boot_${FDLABEL}.flp cpio_flp_1
+CLEANFILES+=	boot_flp boot.flp cpio_flp_1
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
 
@@ -70,8 +70,8 @@ boot.flp:
 	touch ${MNT}/this_is_boot_flp
 	-umount ${MNT}
 	fsck /dev/r${FLOPPY}
-	dd if=/dev/r${FLOPPY} bs=${DDBS} count=${DDCOUNT} of=boot_${FDLABEL}.flp
-	gzip -9 -v < boot_${FDLABEL}.flp > boot_${FDLABEL}.flp.gz
+	dd if=/dev/r${FLOPPY} bs=${DDBS} count=${DDCOUNT} of=boot.flp
+	gzip -9 -v < boot_.flp > boot_.flp.gz
 	df -k /dev/r${FLOPPY}
 
 cpio.flp:
