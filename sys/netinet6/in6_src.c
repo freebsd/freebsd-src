@@ -170,6 +170,13 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 	struct in6_addrpolicy *dst_policy = NULL, *best_policy = NULL;
 	u_int32_t odstzone;
 	int prefer_tempaddr;
+	struct sockaddr_in6 dstsock0;
+
+	dstsock0 = *dstsock;
+	if ((*errorp = in6_embedscope(&dstsock0.sin6_addr, &dstsock0,
+	    NULL, NULL)) != 0)
+		return (NULL);
+	dstsock = &dstsock0;
 
 	dst = &dstsock->sin6_addr;
 	*errorp = 0;
@@ -226,35 +233,6 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 	 */
 	if (laddr && !IN6_IS_ADDR_UNSPECIFIED(laddr))
 		return (laddr);
-
-	/*
-	 * If the destination address is a link-local unicast address or
-	 * a multicast address, and if the outgoing interface is specified
-	 * by the sin6_scope_id filed, use an address associated with the
-	 * interface.
-	 * XXX: We're now trying to define more specific semantics of
-	 *      sin6_scope_id field, so this part will be rewritten in
-	 *      the near future.
-	 */
-	if ((IN6_IS_ADDR_LINKLOCAL(dst) || IN6_IS_ADDR_MULTICAST(dst)) &&
-	    dstsock->sin6_scope_id) {
-		/*
-		 * I'm not sure if boundary check for scope_id is done
-		 * somewhere...
-		 */
-		if (dstsock->sin6_scope_id < 0 ||
-		    if_index < dstsock->sin6_scope_id) {
-			*errorp = ENXIO; /* XXX: better error? */
-			return (0);
-		}
-		ia = in6_ifawithscope(ifnet_byindex(dstsock->sin6_scope_id),
-				      dst);
-		if (ia == 0) {
-			*errorp = EADDRNOTAVAIL;
-			return (0);
-		}
-		return (&ia->ia_addr.sin6_addr);
-	}
 
 	/*
 	 * If the address is not specified, choose the best one based on
@@ -630,6 +608,7 @@ in6_selectroute(dstsock, opts, mopts, ro, retifp, retrt, clone)
 			bzero(&ro->ro_dst, sizeof(struct sockaddr_in6));
 			sa6 = (struct sockaddr_in6 *)&ro->ro_dst;
 			*sa6 = *dstsock;
+			sa6->sin6_scope_id = 0;
 			if (clone) {
 				rtalloc((struct route *)ro);
 			} else {
