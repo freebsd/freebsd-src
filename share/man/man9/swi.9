@@ -51,7 +51,7 @@
 .Fa "void **cookiep"
 .Fc
 .Ft void
-.Fn swi_sched "void *handler" "int flags"
+.Fn swi_sched "void *cookie" "int flags"
 .Sh DESCRIPTION
 These functions are used to register and schedule software interrupt handlers.
 Software interrupt handlers are attached to a software interrupt thread, just
@@ -105,7 +105,7 @@ and the
 argument is used to specify the attributes of a handler such as
 .Dv INTR_MPSAFE .
 The
-.Fn cookiep
+.Fa cookiep
 argument points to a
 .Vt void *
 cookie.
