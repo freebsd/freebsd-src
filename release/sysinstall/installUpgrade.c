@@ -99,6 +99,7 @@ static HitList etc_files [] = {
    { JUST_COPY,		"namedb",		TRUE, NULL },
    { JUST_COPY,		"networks",		TRUE, NULL },
    { JUST_COPY,		"newsyslog.conf",	TRUE, NULL },
+   { JUST_COPY,		"nsmb.conf",		TRUE, NULL },
    { JUST_COPY,		"pam.conf",		TRUE, NULL },
    { JUST_COPY,		"passwd",		TRUE, NULL },
    { JUST_COPY,		"periodic",		TRUE, NULL },
