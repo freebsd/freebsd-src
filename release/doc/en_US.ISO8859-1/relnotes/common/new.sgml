@@ -289,6 +289,11 @@
     <para>The dev_db utility is unnecessary due to the mandatory
       presence of devfs, and has been removed.</para>
 
+    <para>&man.dhclient.8; now polls the state of network interfaces
+      and only sends DHCP requests on interfaces that are up.  The
+      polling interval can be controlled with the <option>-i</option>
+      option.</para>
+
     <para>&man.ipfw.8; <literal>list</literal> and <literal>show</literal>
       command now support ranges of rule numbers.
       &merged;</para>
@@ -330,6 +335,9 @@
 
     <para>A bug that &man.rarpd.8; does not recognize removable Ethernet NICs
       has been fixed.</para>
+
+    <para>&man.systat.1; now includes displays for IPv6 and ICMPv6
+      traffic.</para>
 
     <para>A number of utilities available in <filename>/bin</filename>
       and <filename>/sbin</filename> are now available as a
@@ -387,6 +395,10 @@
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
+
+    <para arch="alpha,amd64,ia64">Floppy disk installation images are
+      no longer built for the alpha, amd64, and ia64
+      architectures.</para>
 
     <para>The supported release of <application>GNOME</application> has
       been updated from 2.2.1 to 2.2.2. &merged;</para>
