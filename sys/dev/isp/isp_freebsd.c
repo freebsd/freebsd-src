@@ -2082,7 +2082,7 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		}
 		isp_prt(isp, ISP_LOGINFO, "Loop UP");
 		break;
-	case ISPASYNC_PDB_CHANGED:
+	case ISPASYNC_LOGGED_INOUT:
 	{
 		const char *fmt = "Target %d (Loop 0x%x) Port ID 0x%x "
 		    "role %s %s\n Port WWN 0x%08x%08x\n Node WWN 0x%08x%08x";
@@ -2108,7 +2108,13 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		break;
 	}
 	case ISPASYNC_CHANGE_NOTIFY:
-		isp_prt(isp, ISP_LOGINFO, "Name Server Database Changed");
+		if (arg == (void *) 1) {
+			isp_prt(isp, ISP_LOGINFO,
+			    "Name Server Database Changed");
+		} else {
+			isp_prt(isp, ISP_LOGINFO,
+			    "Name Server Database Changed");
+		}
 		break;
 #ifdef	ISP2100_FABRIC
 	case ISPASYNC_FABRIC_DEV:
