@@ -1969,7 +1969,7 @@ check_body:
 				    (proto != IPPROTO_ICMP ||
 				     is_icmp_query(ip)) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
-				    !IN_MULTICAST(dst_ip.s_addr)) {
+				    !IN_MULTICAST(ntohl(dst_ip.s_addr))) {
 					send_reject(args, cmd->arg1,
 					    offset,ip_len);
 					m = args->m;
