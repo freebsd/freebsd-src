@@ -36,6 +36,8 @@ static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -60,8 +62,6 @@ typedef struct nlist NLIST;
 
 #define	badfmt(str)	errx(1, "%s: %s: %s", kfile, str, strerror(EFTYPE))
 
-static void badread __P((int, char *));
-
 static char *kfile;
 
 void
@@ -70,71 +70,56 @@ create_knlist(name, db)
 	DB *db;
 {
 	register int nsyms;
-	struct exec ebuf;
-	FILE *fp;
-	NLIST nbuf;
+	struct exec *ebuf;
+	NLIST *nbuf;
 	DBT data, key;
-	int fd, nr, strsize;
-	char *strtab, buf[1024];
+	int fd;
+	char *strtab;
+	u_char *filep;
+	char *vp;
+	struct stat sst;
+	long cur_off, voff;
 
 	kfile = name;
 	if ((fd = open(name, O_RDONLY, 0)) < 0)
 		err(1, "%s", name);
+	
+	fstat(fd,&sst);
+
+	filep = (u_char*)mmap(0, sst.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
 	/* Read in exec structure. */
-	nr = read(fd, &ebuf, sizeof(struct exec));
-	if (nr != sizeof(struct exec))
-		badfmt("no exec header");
+	ebuf = (struct exec *) filep;
 
 	/* Check magic number and symbol count. */
-	if (N_BADMAG(ebuf))
+	if (N_BADMAG(*ebuf))
 		badfmt("bad magic number");
-	if (!ebuf.a_syms)
+	if (!ebuf->a_syms)
 		badfmt("stripped");
 
-	/* Seek to string table. */
-	if (lseek(fd, N_STROFF(ebuf), SEEK_SET) == -1)
-		badfmt("corrupted string table");
-
-	/* Read in the size of the symbol table. */
-	nr = read(fd, (char *)&strsize, sizeof(strsize));
-	if (nr != sizeof(strsize))
-		badread(nr, "no symbol table");
-
-	/* Read in the string table. */
-	strsize -= sizeof(strsize);
-	if (!(strtab = malloc(strsize)))
-		err(1, NULL);
-	if ((nr = read(fd, strtab, strsize)) != strsize)
-		badread(nr, "corrupted symbol table");
+	strtab = filep + N_STROFF(*ebuf) + sizeof (int);
 
 	/* Seek to symbol table. */
-	if (!(fp = fdopen(fd, "r")))
-		err(1, "%s", name);
-	if (fseek(fp, N_SYMOFF(ebuf), SEEK_SET) == -1)
-		err(1, "%s", name);
+	cur_off = N_SYMOFF(*ebuf);
 	
-	data.data = (u_char *)&nbuf;
-	data.size = sizeof(NLIST);
-
 	/* Read each symbol and enter it into the database. */
-	nsyms = ebuf.a_syms / sizeof(struct nlist);
+	nsyms = ebuf->a_syms / sizeof(struct nlist);
 	while (nsyms--) {
-		if (fread((char *)&nbuf, sizeof (NLIST), 1, fp) != 1) {
-			if (feof(fp))
-				badfmt("corrupted symbol table");
-			err(1, "%s", name);
-		}
-		if (!nbuf._strx || nbuf.n_type&N_STAB)
+
+		nbuf = (NLIST *)(filep + cur_off);
+		cur_off += sizeof(NLIST);
+
+		if (!nbuf->_strx || nbuf->n_type&N_STAB)
 			continue;
 
-		key.data = (u_char *)strtab + nbuf._strx - sizeof(long);
+		key.data = (u_char *)strtab + nbuf->_strx - sizeof(long);
 		key.size = strlen((char *)key.data);
+		data.data = (u_char *)nbuf;
+		data.size = sizeof(NLIST);
 		if (db->put(db, &key, &data, 0))
 			err(1, "record enter");
 
-		if (strcmp((char *)key.data, VRS_SYM) == 0) {
-			long cur_off, voff;
+		if (1 && strcmp((char *)key.data, VRS_SYM) == 0) {
 #ifndef KERNTEXTOFF
 /*
  * XXX
@@ -144,7 +129,7 @@ create_knlist(name, db)
  * This may be introducing an i386 dependency.
  */
 #if defined(__FreeBSD__)
-#define KERNTEXTOFF ebuf.a_entry
+#define KERNTEXTOFF ebuf->a_entry
 #else
 #define KERNTEXTOFF KERNBASE
 #endif
@@ -155,46 +140,24 @@ create_knlist(name, db)
 			 * loaded; N_TXTADDR is where a normal file is loaded.
 			 * From there, locate file offset in text or data.
 			 */
-			voff = nbuf.n_value - KERNTEXTOFF + N_TXTADDR(ebuf);
-			if ((nbuf.n_type & N_TYPE) == N_TEXT)
-				voff += N_TXTOFF(ebuf) - N_TXTADDR(ebuf);
+			voff = nbuf->n_value - KERNTEXTOFF + N_TXTADDR(*ebuf);
+			if ((nbuf->n_type & N_TYPE) == N_TEXT)
+				voff += N_TXTOFF(*ebuf) - N_TXTADDR(*ebuf);
 			else
-				voff += N_DATOFF(ebuf) - N_DATADDR(ebuf);
-			cur_off = ftell(fp);
-			if (fseek(fp, voff, SEEK_SET) == -1)
-				badfmt("corrupted string table");
+				voff += N_DATOFF(*ebuf) - N_DATADDR(*ebuf);
 
-			/*
-			 * Read version string up to, and including newline.
-			 * This code assumes that a newline terminates the
-			 * version line.
-			 */
-			if (fgets(buf, sizeof(buf), fp) == NULL)
-				badfmt("corrupted string table");
-
+			vp = filep + voff;
+			
 			key.data = (u_char *)VRS_KEY;
 			key.size = sizeof(VRS_KEY) - 1;
-			data.data = (u_char *)buf;
-			data.size = strlen(buf);
+			data.data = vp;
+			data.size = strchr(vp, '\n') - vp + 1;
+
 			if (db->put(db, &key, &data, 0))
 				err(1, "record enter");
 
 			/* Restore to original values. */
-			data.data = (u_char *)&nbuf;
 			data.size = sizeof(NLIST);
-			if (fseek(fp, cur_off, SEEK_SET) == -1)
-				badfmt("corrupted string table");
 		}
 	}
-	(void)fclose(fp);
-}
-
-static void
-badread(nr, p)
-	int nr;
-	char *p;
-{
-	if (nr < 0)
-		err(1, "%s", kfile);
-	badfmt(p);
 }
