@@ -118,7 +118,6 @@ struct buf {
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
 	TAILQ_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
-	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
 	long	b_flags;		/* B_* flags. */
 	unsigned short b_qindex;	/* buffer queue index */
 	unsigned char b_xflags;		/* extra flags */
