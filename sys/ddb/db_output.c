@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/cons.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <machine/stdarg.h>
 
@@ -66,8 +68,11 @@ static int	db_newlines;			/* # lines this page */
 static int	db_maxlines = -1;		/* max lines per page */
 static db_page_calloutfcn_t *db_page_callout = NULL;
 static void	*db_page_callout_arg = NULL;
+static int	ddb_use_printf = 0;
+SYSCTL_INT(_debug, OID_AUTO, ddb_use_printf, CTLFLAG_RW, &ddb_use_printf, 0,
+    "use printf for all ddb output");
 
-static void db_putchar(int c, void *arg);
+static void	db_putchar(int c, void *arg);
 
 /*
  * Force pending whitespace.
@@ -103,6 +108,27 @@ db_putchar(c, arg)
 	void *	arg;
 {
 
+	/*
+	 * If not in the debugger or the user requests it, output data to
+	 * both the console and the message buffer.
+	 */
+	if (!db_active || ddb_use_printf) {
+		printf("%c", c);
+		if (!db_active)
+			return;
+		if (c == '\r' || c == '\n')
+			db_check_interrupt();
+		if (c == '\n' && db_maxlines > 0 && db_page_callout != NULL) {
+			db_newlines++;
+			if (db_newlines >= db_maxlines) {
+				db_maxlines = -1;
+				db_page_callout(db_page_callout_arg);
+			}
+		}
+		return;
+	}
+
+	/* Otherwise, output data directly to the console. */
 	if (c > ' ' && c <= '~') {
 	    /*
 	     * Printing character.
