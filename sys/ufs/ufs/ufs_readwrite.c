@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.14 1995/10/23 02:23:18 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.15 1995/11/05 21:01:10 dyson Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -330,7 +330,6 @@ ffs_getpages(ap)
 	vm_offset_t foff, physoffset;
 	int i, size, bsize;
 	struct vnode *dp;
-	int error = 0;
 	int bbackwards, bforwards;
 	int pbackwards, pforwards;
 	int firstpage;
