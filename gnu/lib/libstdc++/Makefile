@@ -21,14 +21,15 @@ LDADD=		-lm
 DPADD=		${LIBM}
 
 # libstdc++ sources
-SRCS+= 	allocator.cc codecvt.cc complex_io.cc ctype.cc debug.cc functexcept.cc \
-	globals_locale.cc globals_io.cc ios.cc ios_failure.cc ios_init.cc \
-	ios_locale.cc limits.cc list.cc locale.cc locale_init.cc \
-	locale_facets.cc localename.cc stdexcept.cc strstream.cc tree.cc \
-	allocator-inst.cc concept-inst.cc fstream-inst.cc ext-inst.cc \
-	io-inst.cc istream-inst.cc locale-inst.cc locale-misc-inst.cc \
-	misc-inst.cc ostream-inst.cc sstream-inst.cc streambuf-inst.cc \
-	string-inst.cc valarray-inst.cc wlocale-inst.cc wstring-inst.cc 
+SRCS+= 	allocator.cc codecvt.cc complex_io.cc ctype.cc debug.cc debug_list.cc \
+	functexcept.cc globals_locale.cc globals_io.cc ios.cc ios_failure.cc \
+	ios_init.cc ios_locale.cc limits.cc debug_list.cc list.cc locale.cc \
+	locale_init.cc locale_facets.cc localename.cc stdexcept.cc \
+	strstream.cc tree.cc allocator-inst.cc concept-inst.cc fstream-inst.cc \
+	ext-inst.cc io-inst.cc istream-inst.cc locale-inst.cc \
+	locale-misc-inst.cc misc-inst.cc ostream-inst.cc sstream-inst.cc \
+	streambuf-inst.cc string-inst.cc valarray-inst.cc wlocale-inst.cc \
+	wstring-inst.cc 
 
 # target sources
 SRCS+=  atomicity.cc codecvt_members.cc collate_members.cc ctype_members.cc \
