@@ -649,7 +649,7 @@ struct sbi_instrument {
 };
 
 struct synth_info {	/* Read only */
-	char	name[33];
+	char	name[30];
 	int	device;		/* 0-N. INITIALIZE BEFORE CALLING */
 	int	synth_type;
 #define SYNTH_TYPE_FM			0
