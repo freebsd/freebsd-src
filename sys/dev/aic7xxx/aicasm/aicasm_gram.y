@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_gram.y,v 1.4 1997/09/27 19:37:28 gibbs Exp $
+ *      $Id: aicasm_gram.y,v 1.5 1998/09/15 07:24:17 gibbs Exp $
  */
 
 #include <stdio.h>
@@ -861,12 +861,12 @@ code:
 ;
 
 code:
-	T_NOP ';'
+	T_NOP ret ';'
 	{
 		expression_t immed;
 
 		make_expression(&immed, 0xff);
-		format_1_instr(AIC_OP_AND, &none, &immed, &allzeros, FALSE);
+		format_1_instr(AIC_OP_AND, &none, &immed, &allzeros, $2);
 	}
 ;
 
