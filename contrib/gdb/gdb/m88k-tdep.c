@@ -1,21 +1,23 @@
 /* Target-machine dependent code for Motorola 88000 series, for GDB.
-   Copyright 1988, 1990, 1991, 1994, 1995 Free Software Foundation, Inc.
+   Copyright 1988, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000,
+   2001 Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "frame.h"
@@ -25,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "symtab.h"
 #include "setjmp.h"
 #include "value.h"
+#include "regcache.h"
 
 /* Size of an instruction */
 #define	BYTES_PER_88K_INSN	4
@@ -36,6 +39,19 @@ void frame_find_saved_regs ();
 
 int target_is_m88110 = 0;
 
+/* The type of a register.  */
+struct type *
+m88k_register_type (int regnum)
+{
+  if (regnum >= XFP_REGNUM)
+    return builtin_type_m88110_ext;
+  else if (regnum == PC_REGNUM || regnum == FP_REGNUM || regnum == SP_REGNUM)
+    return builtin_type_void_func_ptr;
+  else
+    return builtin_type_int32;
+}
+
+
 /* The m88k kernel aligns all instructions on 4-byte boundaries.  The
    kernel also uses the least significant two bits for its own hocus
    pocus.  When gdb receives an address from the kernel, it needs to
@@ -44,8 +60,7 @@ int target_is_m88110 = 0;
    of an instruction.  Shrug.  */
 
 CORE_ADDR
-m88k_addr_bits_remove (addr)
-     CORE_ADDR addr;
+m88k_addr_bits_remove (CORE_ADDR addr)
 {
   return ((addr) & ~3);
 }
@@ -59,14 +74,13 @@ m88k_addr_bits_remove (addr)
    the function prologue to determine the caller's sp value, and return it.  */
 
 CORE_ADDR
-frame_chain (thisframe)
-     struct frame_info *thisframe;
+frame_chain (struct frame_info *thisframe)
 {
 
   frame_find_saved_regs (thisframe, (struct frame_saved_regs *) 0);
   /* NOTE:  this depends on frame_find_saved_regs returning the VALUE, not
- 	    the ADDRESS, of SP_REGNUM.  It also depends on the cache of
-	    frame_find_saved_regs results.  */
+     the ADDRESS, of SP_REGNUM.  It also depends on the cache of
+     frame_find_saved_regs results.  */
   if (thisframe->fsr->regs[SP_REGNUM])
     return thisframe->fsr->regs[SP_REGNUM];
   else
@@ -74,14 +88,13 @@ frame_chain (thisframe)
 }
 
 int
-frameless_function_invocation (frame)
-     struct frame_info *frame;
+frameless_function_invocation (struct frame_info *frame)
 {
 
   frame_find_saved_regs (frame, (struct frame_saved_regs *) 0);
   /* NOTE:  this depends on frame_find_saved_regs returning the VALUE, not
- 	    the ADDRESS, of SP_REGNUM.  It also depends on the cache of
-	    frame_find_saved_regs results.  */
+     the ADDRESS, of SP_REGNUM.  It also depends on the cache of
+     frame_find_saved_regs results.  */
   if (frame->fsr->regs[SP_REGNUM])
     return 0;			/* Frameful -- return addr saved somewhere */
   else
@@ -89,12 +102,10 @@ frameless_function_invocation (frame)
 }
 
 void
-init_extra_frame_info (fromleaf, frame)
-     int fromleaf;
-     struct frame_info *frame;
+init_extra_frame_info (int fromleaf, struct frame_info *frame)
 {
-  frame->fsr = 0;			/* Not yet allocated */
-  frame->args_pointer = 0;		/* Unknown */
+  frame->fsr = 0;		/* Not yet allocated */
+  frame->args_pointer = 0;	/* Unknown */
   frame->locals_pointer = 0;	/* Unknown */
 }
 
@@ -117,17 +128,17 @@ init_extra_frame_info (fromleaf, frame)
    derived from examination of the source to gcc 1.95, particularly
    the routine output_prologue () in config/out-m88k.c.
 
-   subu r31,r31,n			# stack pointer update
+   subu r31,r31,n                       # stack pointer update
 
-   (st rn,r31,offset)?			# save incoming regs
+   (st rn,r31,offset)?                  # save incoming regs
    (st.d rn,r31,offset)?
 
-   (addu r30,r31,n)?			# frame pointer update
+   (addu r30,r31,n)?                    # frame pointer update
 
-   (pic sequence)?			# PIC code prologue
+   (pic sequence)?                      # PIC code prologue
 
-   (or   rn,rm,0)?			# Move parameters to other regs
-*/
+   (or   rn,rm,0)?                      # Move parameters to other regs
+ */
 
 /* Macros for extracting fields from instructions.  */
 
@@ -146,7 +157,8 @@ init_extra_frame_info (fromleaf, frame)
  * the state of certain machine registers and where the stack frame lives.
  */
 
-enum prologue_insn_action {
+enum prologue_insn_action
+{
   PIA_SKIP,			/* don't care what the instruction does */
   PIA_NOTE_ST,			/* note register stored and where */
   PIA_NOTE_STD,			/* note pair of registers stored and where */
@@ -155,41 +167,43 @@ enum prologue_insn_action {
   PIA_NOTE_PROLOGUE_END,	/* no more prologue */
 };
 
-struct prologue_insns {
+struct prologue_insns
+  {
     unsigned long insn;
     unsigned long mask;
     enum prologue_insn_action action;
-};
+  };
 
-struct prologue_insns prologue_insn_tbl[] = {
+struct prologue_insns prologue_insn_tbl[] =
+{
   /* Various register move instructions */
-  { 0x58000000, 0xf800ffff, PIA_SKIP },		/* or/or.u with immed of 0 */
-  { 0xf4005800, 0xfc1fffe0, PIA_SKIP },		/* or rd, r0, rs */
-  { 0xf4005800, 0xfc00ffff, PIA_SKIP },		/* or rd, rs, r0 */
+  {0x58000000, 0xf800ffff, PIA_SKIP},	/* or/or.u with immed of 0 */
+  {0xf4005800, 0xfc1fffe0, PIA_SKIP},	/* or rd, r0, rs */
+  {0xf4005800, 0xfc00ffff, PIA_SKIP},	/* or rd, rs, r0 */
 
   /* Stack pointer setup: "subu sp, sp, n" where n is a multiple of 8 */
-  { 0x67ff0000, 0xffff0007, PIA_NOTE_SP_ADJUSTMENT },
+  {0x67ff0000, 0xffff0007, PIA_NOTE_SP_ADJUSTMENT},
 
   /* Frame pointer assignment: "addu r30, r31, n" */
-  { 0x63df0000, 0xffff0000, PIA_NOTE_FP_ASSIGNMENT },
+  {0x63df0000, 0xffff0000, PIA_NOTE_FP_ASSIGNMENT},
 
   /* Store to stack instructions; either "st rx, sp, n" or "st.d rx, sp, n" */
-  { 0x241f0000, 0xfc1f0000, PIA_NOTE_ST },	/* st rx, sp, n */
-  { 0x201f0000, 0xfc1f0000, PIA_NOTE_STD },	/* st.d rs, sp, n */
+  {0x241f0000, 0xfc1f0000, PIA_NOTE_ST},	/* st rx, sp, n */
+  {0x201f0000, 0xfc1f0000, PIA_NOTE_STD},	/* st.d rs, sp, n */
 
   /* Instructions needed for setting up r25 for pic code. */
-  { 0x5f200000, 0xffff0000, PIA_SKIP },		/* or.u r25, r0, offset_high */
-  { 0xcc000002, 0xffffffff, PIA_SKIP },		/* bsr.n Lab */
-  { 0x5b390000, 0xffff0000, PIA_SKIP },		/* or r25, r25, offset_low */
-  { 0xf7396001, 0xffffffff, PIA_SKIP },		/* Lab: addu r25, r25, r1 */
+  {0x5f200000, 0xffff0000, PIA_SKIP},	/* or.u r25, r0, offset_high */
+  {0xcc000002, 0xffffffff, PIA_SKIP},	/* bsr.n Lab */
+  {0x5b390000, 0xffff0000, PIA_SKIP},	/* or r25, r25, offset_low */
+  {0xf7396001, 0xffffffff, PIA_SKIP},	/* Lab: addu r25, r25, r1 */
 
   /* Various branch or jump instructions which have a delay slot -- these
      do not form part of the prologue, but the instruction in the delay
      slot might be a store instruction which should be noted. */
-  { 0xc4000000, 0xe4000000, PIA_NOTE_PROLOGUE_END }, 
-  					/* br.n, bsr.n, bb0.n, or bb1.n */
-  { 0xec000000, 0xfc000000, PIA_NOTE_PROLOGUE_END }, /* bcnd.n */
-  { 0xf400c400, 0xfffff7e0, PIA_NOTE_PROLOGUE_END } /* jmp.n or jsr.n */
+  {0xc4000000, 0xe4000000, PIA_NOTE_PROLOGUE_END},
+					/* br.n, bsr.n, bb0.n, or bb1.n */
+  {0xec000000, 0xfc000000, PIA_NOTE_PROLOGUE_END},	/* bcnd.n */
+  {0xf400c400, 0xfffff7e0, PIA_NOTE_PROLOGUE_END}	/* jmp.n or jsr.n */
 
 };
 
@@ -208,9 +222,7 @@ struct prologue_insns prologue_insn_tbl[] = {
    is stored at 'pword1'.  */
 
 CORE_ADDR
-next_insn (memaddr, pword1)
-     unsigned long *pword1;
-     CORE_ADDR memaddr;
+next_insn (CORE_ADDR memaddr, unsigned long *pword1)
 {
   *pword1 = read_memory_integer (memaddr, BYTES_PER_88K_INSN);
   return memaddr + BYTES_PER_88K_INSN;
@@ -219,17 +231,16 @@ next_insn (memaddr, pword1)
 /* Read a register from frames called by us (or from the hardware regs).  */
 
 static int
-read_next_frame_reg(frame, regno)
-     struct frame_info *frame;
-     int regno;
+read_next_frame_reg (struct frame_info *frame, int regno)
 {
-  for (; frame; frame = frame->next) {
+  for (; frame; frame = frame->next)
+    {
       if (regno == SP_REGNUM)
 	return FRAME_FP (frame);
       else if (frame->fsr->regs[regno])
-	return read_memory_integer(frame->fsr->regs[regno], 4);
-  }
-  return read_register(regno);
+	return read_memory_integer (frame->fsr->regs[regno], 4);
+    }
+  return read_register (regno);
 }
 
 /* Examine the prologue of a function.  `ip' points to the first instruction.
@@ -242,16 +253,13 @@ read_next_frame_reg(frame, regno)
    to reflect the offsets of the arg pointer and the locals pointer.  */
 
 static CORE_ADDR
-examine_prologue (ip, limit, frame_sp, fsr, fi)
-     register CORE_ADDR ip;
-     register CORE_ADDR limit;
-     CORE_ADDR frame_sp;
-     struct frame_saved_regs *fsr;
-     struct frame_info *fi;
+examine_prologue (register CORE_ADDR ip, register CORE_ADDR limit,
+		  CORE_ADDR frame_sp, struct frame_saved_regs *fsr,
+		  struct frame_info *fi)
 {
   register CORE_ADDR next_ip;
   register int src;
-  unsigned int insn;
+  unsigned long insn;
   int size, offset;
   char must_adjust[32];		/* If set, must adjust offsets in fsr */
   int sp_offset = -1;		/* -1 means not set (valid must be mult of 8) */
@@ -264,51 +272,52 @@ examine_prologue (ip, limit, frame_sp, fsr, fi)
 
   while (next_ip)
     {
-      struct prologue_insns *pip; 
+      struct prologue_insns *pip;
 
-      for (pip=prologue_insn_tbl; (insn & pip->mask) != pip->insn; )
-	  if (++pip >= prologue_insn_tbl + sizeof prologue_insn_tbl)
-	      goto end_of_prologue_found;	/* not a prologue insn */
+      for (pip = prologue_insn_tbl; (insn & pip->mask) != pip->insn;)
+	if (++pip >= prologue_insn_tbl + sizeof prologue_insn_tbl)
+	  goto end_of_prologue_found;	/* not a prologue insn */
 
       switch (pip->action)
 	{
-	  case PIA_NOTE_ST:
-	  case PIA_NOTE_STD:
-	    if (sp_offset != -1) {
-		src = ST_SRC (insn);
-		offset = ST_OFFSET (insn);
-		must_adjust[src] = 1;
-		fsr->regs[src++] = offset;	/* Will be adjusted later */
-		if (pip->action == PIA_NOTE_STD && src < 32)
-		  {
-		    offset += 4;
-		    must_adjust[src] = 1;
-		    fsr->regs[src++] = offset;
-		  }
+	case PIA_NOTE_ST:
+	case PIA_NOTE_STD:
+	  if (sp_offset != -1)
+	    {
+	      src = ST_SRC (insn);
+	      offset = ST_OFFSET (insn);
+	      must_adjust[src] = 1;
+	      fsr->regs[src++] = offset;	/* Will be adjusted later */
+	      if (pip->action == PIA_NOTE_STD && src < 32)
+		{
+		  offset += 4;
+		  must_adjust[src] = 1;
+		  fsr->regs[src++] = offset;
+		}
 	    }
-	    else
-		goto end_of_prologue_found;
-	    break;
-	  case PIA_NOTE_SP_ADJUSTMENT:
-	    if (sp_offset == -1)
-		sp_offset = -SUBU_OFFSET (insn);
-	    else
-		goto end_of_prologue_found;
-	    break;
-	  case PIA_NOTE_FP_ASSIGNMENT:
-	    if (fp_offset == -1)
-		fp_offset = ADDU_OFFSET (insn);
-	    else
-		goto end_of_prologue_found;
-	    break;
-	  case PIA_NOTE_PROLOGUE_END:
-	    if (!prologue_end)
-		prologue_end = ip;
-	    break;
-	  case PIA_SKIP:
-	  default :
-	    /* Do nothing */
-	    break;
+	  else
+	    goto end_of_prologue_found;
+	  break;
+	case PIA_NOTE_SP_ADJUSTMENT:
+	  if (sp_offset == -1)
+	    sp_offset = -SUBU_OFFSET (insn);
+	  else
+	    goto end_of_prologue_found;
+	  break;
+	case PIA_NOTE_FP_ASSIGNMENT:
+	  if (fp_offset == -1)
+	    fp_offset = ADDU_OFFSET (insn);
+	  else
+	    goto end_of_prologue_found;
+	  break;
+	case PIA_NOTE_PROLOGUE_END:
+	  if (!prologue_end)
+	    prologue_end = ip;
+	  break;
+	case PIA_SKIP:
+	default:
+	  /* Do nothing */
+	  break;
 	}
 
       ip = next_ip;
@@ -317,8 +326,8 @@ examine_prologue (ip, limit, frame_sp, fsr, fi)
 
 end_of_prologue_found:
 
-    if (prologue_end)
-	ip = prologue_end;
+  if (prologue_end)
+    ip = prologue_end;
 
   /* We're done with the prologue.  If we don't care about the stack
      frame itself, just return.  (Note that fsr->regs has been trashed,
@@ -330,16 +339,16 @@ end_of_prologue_found:
   /*
      OK, now we have:
 
-     	sp_offset	original (before any alloca calls) displacement of SP
-			(will be negative).
+     sp_offset  original (before any alloca calls) displacement of SP
+     (will be negative).
 
-	fp_offset	displacement from original SP to the FP for this frame
-			or -1.
+     fp_offset  displacement from original SP to the FP for this frame
+     or -1.
 
-	fsr->regs[0..31]	displacement from original SP to the stack
-				location where reg[0..31] is stored.
+     fsr->regs[0..31]   displacement from original SP to the stack
+     location where reg[0..31] is stored.
 
-	must_adjust[0..31]	set if corresponding offset was set.
+     must_adjust[0..31] set if corresponding offset was set.
 
      If alloca has been called between the function prologue and the current
      IP, then the current SP (frame_sp) will not be the original SP as set by
@@ -350,24 +359,30 @@ end_of_prologue_found:
      Then, we figure out where the arguments and locals are, and relocate the
      offsets in fsr->regs to absolute addresses.  */
 
-  if (fp_offset != -1) {
-    /* We have a frame pointer, so get it, and base our calc's on it.  */
-    frame_fp = (CORE_ADDR) read_next_frame_reg (fi->next, ACTUAL_FP_REGNUM);
-    frame_sp = frame_fp - fp_offset;
-  } else {
-    /* We have no frame pointer, therefore frame_sp is still the same value
-       as set by prologue.  But where is the frame itself?  */
-    if (must_adjust[SRP_REGNUM]) {
-      /* Function header saved SRP (r1), the return address.  Frame starts
-	 4 bytes down from where it was saved.  */
-      frame_fp = frame_sp + fsr->regs[SRP_REGNUM] - 4;
-      fi->locals_pointer = frame_fp;
-    } else {
-      /* Function header didn't save SRP (r1), so we are in a leaf fn or
-	 are otherwise confused.  */
-      frame_fp = -1;
+  if (fp_offset != -1)
+    {
+      /* We have a frame pointer, so get it, and base our calc's on it.  */
+      frame_fp = (CORE_ADDR) read_next_frame_reg (fi->next, ACTUAL_FP_REGNUM);
+      frame_sp = frame_fp - fp_offset;
     }
-  }
+  else
+    {
+      /* We have no frame pointer, therefore frame_sp is still the same value
+         as set by prologue.  But where is the frame itself?  */
+      if (must_adjust[SRP_REGNUM])
+	{
+	  /* Function header saved SRP (r1), the return address.  Frame starts
+	     4 bytes down from where it was saved.  */
+	  frame_fp = frame_sp + fsr->regs[SRP_REGNUM] - 4;
+	  fi->locals_pointer = frame_fp;
+	}
+      else
+	{
+	  /* Function header didn't save SRP (r1), so we are in a leaf fn or
+	     are otherwise confused.  */
+	  frame_fp = -1;
+	}
+    }
 
   /* The locals are relative to the FP (whether it exists as an allocated
      register, or just as an assumed offset from the SP) */
@@ -382,14 +397,14 @@ end_of_prologue_found:
   for (src = 0; src < 32; src++)
     if (must_adjust[src])
       fsr->regs[src] += frame_sp;
- 
+
   /* The saved value of the SP is always known.  */
   /* (we hope...) */
-  if (fsr->regs[SP_REGNUM] != 0 
-   && fsr->regs[SP_REGNUM] != frame_sp - sp_offset)
-    fprintf_unfiltered(gdb_stderr, "Bad saved SP value %x != %x, offset %x!\n",
-        fsr->regs[SP_REGNUM],
-	frame_sp - sp_offset, sp_offset);
+  if (fsr->regs[SP_REGNUM] != 0
+      && fsr->regs[SP_REGNUM] != frame_sp - sp_offset)
+    fprintf_unfiltered (gdb_stderr, "Bad saved SP value %lx != %lx, offset %x!\n",
+			fsr->regs[SP_REGNUM],
+			frame_sp - sp_offset, sp_offset);
 
   fsr->regs[SP_REGNUM] = frame_sp - sp_offset;
 
@@ -401,8 +416,7 @@ end_of_prologue_found:
    prologue.  */
 
 CORE_ADDR
-skip_prologue (ip)
-     CORE_ADDR (ip);
+m88k_skip_prologue (CORE_ADDR ip)
 {
   struct frame_saved_regs saved_regs_dummy;
   struct symtab_and_line sal;
@@ -412,7 +426,7 @@ skip_prologue (ip)
   limit = (sal.end) ? sal.end : 0xffffffff;
 
   return (examine_prologue (ip, limit, (CORE_ADDR) 0, &saved_regs_dummy,
-			    (struct frame_info *)0 ));
+			    (struct frame_info *) 0));
 }
 
 /* Put here the code to store, into a struct frame_saved_regs,
@@ -425,9 +439,7 @@ skip_prologue (ip)
    fairly expensive.  */
 
 void
-frame_find_saved_regs (fi, fsr)
-     struct frame_info *fi;
-     struct frame_saved_regs *fsr;
+frame_find_saved_regs (struct frame_info *fi, struct frame_saved_regs *fsr)
 {
   register struct frame_saved_regs *cache_fsr;
   CORE_ADDR ip;
@@ -442,26 +454,26 @@ frame_find_saved_regs (fi, fsr)
       fi->fsr = cache_fsr;
 
       /* Find the start and end of the function prologue.  If the PC
-	 is in the function prologue, we only consider the part that
-	 has executed already.  In the case where the PC is not in
-	 the function prologue, we set limit to two instructions beyond
-	 where the prologue ends in case if any of the prologue instructions
-	 were moved into a delay slot of a branch instruction. */
-         
+         is in the function prologue, we only consider the part that
+         has executed already.  In the case where the PC is not in
+         the function prologue, we set limit to two instructions beyond
+         where the prologue ends in case if any of the prologue instructions
+         were moved into a delay slot of a branch instruction. */
+
       ip = get_pc_function_start (fi->pc);
       sal = find_pc_line (ip, 0);
-      limit = (sal.end && sal.end < fi->pc) ? sal.end + 2 * BYTES_PER_88K_INSN 
-					    : fi->pc;
+      limit = (sal.end && sal.end < fi->pc) ? sal.end + 2 * BYTES_PER_88K_INSN
+	: fi->pc;
 
       /* This will fill in fields in *fi as well as in cache_fsr.  */
 #ifdef SIGTRAMP_FRAME_FIXUP
       if (fi->signal_handler_caller)
-	SIGTRAMP_FRAME_FIXUP(fi->frame);
+	SIGTRAMP_FRAME_FIXUP (fi->frame);
 #endif
       examine_prologue (ip, limit, fi->frame, cache_fsr, fi);
 #ifdef SIGTRAMP_SP_FIXUP
       if (fi->signal_handler_caller && fi->fsr->regs[SP_REGNUM])
-	SIGTRAMP_SP_FIXUP(fi->fsr->regs[SP_REGNUM]);
+	SIGTRAMP_SP_FIXUP (fi->fsr->regs[SP_REGNUM]);
 #endif
     }
 
@@ -475,12 +487,11 @@ frame_find_saved_regs (fi, fsr)
    argument pointer, so this is the same as frame_args_address().  */
 
 CORE_ADDR
-frame_locals_address (fi)
-     struct frame_info *fi;
+frame_locals_address (struct frame_info *fi)
 {
   struct frame_saved_regs fsr;
 
-  if (fi->args_pointer)	/* Cached value is likely there.  */
+  if (fi->args_pointer)		/* Cached value is likely there.  */
     return fi->args_pointer;
 
   /* Nope, generate it.  */
@@ -494,8 +505,7 @@ frame_locals_address (fi)
    described by FI.  Returns 0 if the address is unknown.  */
 
 CORE_ADDR
-frame_args_address (fi)
-     struct frame_info *fi;
+frame_args_address (struct frame_info *fi)
 {
   struct frame_saved_regs fsr;
 
@@ -515,19 +525,16 @@ frame_args_address (fi)
    just use the register SRP_REGNUM itself.  */
 
 CORE_ADDR
-frame_saved_pc (frame)
-     struct frame_info *frame;
+frame_saved_pc (struct frame_info *frame)
 {
-  return read_next_frame_reg(frame, SRP_REGNUM);
+  return read_next_frame_reg (frame, SRP_REGNUM);
 }
 
 
 #define DUMMY_FRAME_SIZE 192
 
 static void
-write_word (sp, word)
-     CORE_ADDR sp;
-     ULONGEST word;
+write_word (CORE_ADDR sp, ULONGEST word)
 {
   register int len = REGISTER_SIZE;
   char buffer[MAX_REGISTER_RAW_SIZE];
@@ -537,7 +544,7 @@ write_word (sp, word)
 }
 
 void
-m88k_push_dummy_frame()
+m88k_push_dummy_frame (void)
 {
   register CORE_ADDR sp = read_register (SP_REGNUM);
   register int rn;
@@ -545,25 +552,25 @@ m88k_push_dummy_frame()
 
   sp -= DUMMY_FRAME_SIZE;	/* allocate a bunch of space */
 
-  for (rn = 0, offset = 0; rn <= SP_REGNUM; rn++, offset+=4)
-    write_word (sp+offset, read_register(rn));
-  
-  write_word (sp+offset, read_register (SXIP_REGNUM));
+  for (rn = 0, offset = 0; rn <= SP_REGNUM; rn++, offset += 4)
+    write_word (sp + offset, read_register (rn));
+
+  write_word (sp + offset, read_register (SXIP_REGNUM));
   offset += 4;
 
-  write_word (sp+offset, read_register (SNIP_REGNUM));
+  write_word (sp + offset, read_register (SNIP_REGNUM));
   offset += 4;
 
-  write_word (sp+offset, read_register (SFIP_REGNUM));
+  write_word (sp + offset, read_register (SFIP_REGNUM));
   offset += 4;
 
-  write_word (sp+offset, read_register (PSR_REGNUM));
+  write_word (sp + offset, read_register (PSR_REGNUM));
   offset += 4;
 
-  write_word (sp+offset, read_register (FPSR_REGNUM));
+  write_word (sp + offset, read_register (FPSR_REGNUM));
   offset += 4;
 
-  write_word (sp+offset, read_register (FPCR_REGNUM));
+  write_word (sp + offset, read_register (FPCR_REGNUM));
   offset += 4;
 
   write_register (SP_REGNUM, sp);
@@ -571,59 +578,57 @@ m88k_push_dummy_frame()
 }
 
 void
-pop_frame ()
+pop_frame (void)
 {
   register struct frame_info *frame = get_current_frame ();
-  register CORE_ADDR fp;
   register int regnum;
   struct frame_saved_regs fsr;
 
-  fp = FRAME_FP (frame);
   get_frame_saved_regs (frame, &fsr);
 
-  if (PC_IN_CALL_DUMMY (read_pc (), read_register (SP_REGNUM), FRAME_FP (fi)))
+  if (PC_IN_CALL_DUMMY (read_pc (), read_register (SP_REGNUM), frame->frame))
     {
       /* FIXME: I think get_frame_saved_regs should be handling this so
-	 that we can deal with the saved registers properly (e.g. frame
-	 1 is a call dummy, the user types "frame 2" and then "print $ps").  */
+         that we can deal with the saved registers properly (e.g. frame
+         1 is a call dummy, the user types "frame 2" and then "print $ps").  */
       register CORE_ADDR sp = read_register (ACTUAL_FP_REGNUM);
       int offset;
 
-      for (regnum = 0, offset = 0; regnum <= SP_REGNUM; regnum++, offset+=4)
-	(void) write_register (regnum, read_memory_integer (sp+offset, 4));
-  
-      write_register (SXIP_REGNUM, read_memory_integer (sp+offset, 4));
+      for (regnum = 0, offset = 0; regnum <= SP_REGNUM; regnum++, offset += 4)
+	(void) write_register (regnum, read_memory_integer (sp + offset, 4));
+
+      write_register (SXIP_REGNUM, read_memory_integer (sp + offset, 4));
       offset += 4;
 
-      write_register (SNIP_REGNUM, read_memory_integer (sp+offset, 4));
+      write_register (SNIP_REGNUM, read_memory_integer (sp + offset, 4));
       offset += 4;
 
-      write_register (SFIP_REGNUM, read_memory_integer (sp+offset, 4));
+      write_register (SFIP_REGNUM, read_memory_integer (sp + offset, 4));
       offset += 4;
 
-      write_register (PSR_REGNUM, read_memory_integer (sp+offset, 4));
+      write_register (PSR_REGNUM, read_memory_integer (sp + offset, 4));
       offset += 4;
 
-      write_register (FPSR_REGNUM, read_memory_integer (sp+offset, 4));
+      write_register (FPSR_REGNUM, read_memory_integer (sp + offset, 4));
       offset += 4;
 
-      write_register (FPCR_REGNUM, read_memory_integer (sp+offset, 4));
+      write_register (FPCR_REGNUM, read_memory_integer (sp + offset, 4));
       offset += 4;
 
     }
-  else 
+  else
     {
-      for (regnum = FP_REGNUM ; regnum > 0 ; regnum--)
-	  if (fsr.regs[regnum])
-	      write_register (regnum,
-			      read_memory_integer (fsr.regs[regnum], 4));
+      for (regnum = FP_REGNUM; regnum > 0; regnum--)
+	if (fsr.regs[regnum])
+	  write_register (regnum,
+			  read_memory_integer (fsr.regs[regnum], 4));
       write_pc (frame_saved_pc (frame));
     }
   reinit_frame_cache ();
 }
 
 void
-_initialize_m88k_tdep ()
+_initialize_m88k_tdep (void)
 {
   tm_print_insn = print_insn_m88k;
 }

@@ -1,5 +1,6 @@
 /* Remote debugging interface for ABug Rom monitor for GDB, the GNU debugger.
-   Copyright 1995, 1996, 1998 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
    Written by Rob Savoye of Cygnus Support
 
@@ -25,17 +26,14 @@
 #include "target.h"
 #include "monitor.h"
 #include "serial.h"
+#include "regcache.h"
 
 /* Prototypes for local functions. */
 
-static void abug_open PARAMS ((char *args, int from_tty));
+static void abug_open (char *args, int from_tty);
 
 static void
-abug_supply_register (regname, regnamelen, val, vallen)
-     char *regname;
-     int regnamelen;
-     char *val;
-     int vallen;
+abug_supply_register (char *regname, int regnamelen, char *val, int vallen)
 {
   int regno;
 
@@ -148,15 +146,13 @@ init_abug_cmds (void)
 };
 
 static void
-abug_open (args, from_tty)
-     char *args;
-     int from_tty;
+abug_open (char *args, int from_tty)
 {
   monitor_open (args, &abug_cmds, from_tty);
 }
 
 void
-_initialize_abug_rom ()
+_initialize_abug_rom (void)
 {
   init_abug_cmds ();
   init_monitor_ops (&abug_ops);

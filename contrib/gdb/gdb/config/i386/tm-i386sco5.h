@@ -1,22 +1,23 @@
 /* Macro definitions for GDB on an Intel i386 running SCO Open Server 5.
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright 1998 Free Software Foundation, Inc.
    Written by J. Kean Johnston (jkj@sco.com).
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #ifndef TM_I386SCO5_H
 #define TM_I386SCO5_H 1
@@ -51,12 +52,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define HAVE_STEPPABLE_WATCHPOINT
 
 #define STOPPED_BY_WATCHPOINT(W)  \
-  i386_stopped_by_watchpoint (inferior_pid)
+  i386_stopped_by_watchpoint (PIDGET (inferior_ptid))
 
 #define target_insert_watchpoint(addr, len, type)  \
-  i386_insert_watchpoint (inferior_pid, addr, len, type)
+  i386_insert_watchpoint (PIDGET (inferior_ptid), addr, len, type)
 
 #define target_remove_watchpoint(addr, len, type)  \
-  i386_remove_watchpoint (inferior_pid, addr, len)
+  i386_remove_watchpoint (PIDGET (inferior_ptid), addr, len)
 
-#endif  /* ifndef TM_I386SCO5_H */
+#endif /* ifndef TM_I386SCO5_H */

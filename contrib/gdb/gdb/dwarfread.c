@@ -1,43 +1,44 @@
 /* DWARF debugging format support for GDB.
-   Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1998
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001, 2002
    Free Software Foundation, Inc.
    Written by Fred Fish at Cygnus Support.  Portions based on dbxread.c,
    mipsread.c, coffread.c, and dwarfread.c from a Data General SVR4 gdb port.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /*
 
-FIXME: Do we need to generate dependencies in partial symtabs?
-(Perhaps we don't need to).
+   FIXME: Do we need to generate dependencies in partial symtabs?
+   (Perhaps we don't need to).
 
-FIXME: Resolve minor differences between what information we put in the
-partial symbol table and what dbxread puts in.  For example, we don't yet
-put enum constants there.  And dbxread seems to invent a lot of typedefs
-we never see.  Use the new printpsym command to see the partial symbol table
-contents.
+   FIXME: Resolve minor differences between what information we put in the
+   partial symbol table and what dbxread puts in.  For example, we don't yet
+   put enum constants there.  And dbxread seems to invent a lot of typedefs
+   we never see.  Use the new printpsym command to see the partial symbol table
+   contents.
 
-FIXME: Figure out a better way to tell gdb about the name of the function
-contain the user's entry point (I.E. main())
+   FIXME: Figure out a better way to tell gdb about the name of the function
+   contain the user's entry point (I.E. main())
 
-FIXME: See other FIXME's and "ifdef 0" scattered throughout the code for
-other things to work on, if you get bored. :-)
+   FIXME: See other FIXME's and "ifdef 0" scattered throughout the code for
+   other things to work on, if you get bored. :-)
 
-*/
+ */
 
 #include "defs.h"
 #include "symtab.h"
@@ -47,7 +48,7 @@ other things to work on, if you get bored. :-)
 #include "elf/dwarf.h"
 #include "buildsym.h"
 #include "demangle.h"
-#include "expression.h"	/* Needed for enum exp_opcode in language.h, sigh... */
+#include "expression.h"		/* Needed for enum exp_opcode in language.h, sigh... */
 #include "language.h"
 #include "complaints.h"
 
@@ -189,11 +190,6 @@ typedef unsigned int DIE_REF;	/* Reference to a DIE */
 #define CHILL_PRODUCER "GNU Chill "
 #endif
 
-/* Provide a default mapping from a DWARF register number to a gdb REGNUM.  */
-#ifndef DWARF_REG_TO_REGNUM
-#define DWARF_REG_TO_REGNUM(num) (num)
-#endif
-
 /* Flags to target_to_host() that tell whether or not the data object is
    expected to be signed.  Used, for example, when fetching a signed
    integer in the target environment which is used as a signed integer
@@ -243,11 +239,6 @@ typedef unsigned int DIE_REF;	/* Reference to a DIE */
 
 #define	AT_short_element_list	 (0x00f0|FORM_BLOCK2)
 
-/* External variables referenced. */
-
-extern int info_verbose;		/* From main.c; nonzero => verbose */
-extern char *warning_pre_print;		/* From utils.c */
-
 /* The DWARF debugging information consists of two major pieces,
    one is a block of DWARF Information Entries (DIE's) and the other
    is a line number table.  The "struct dieinfo" structure contains
@@ -272,74 +263,75 @@ extern char *warning_pre_print;		/* From utils.c */
    we may want to test for the presence of some attributes in the DIE,
    such as AT_low_pc, without restricting the values of the field,
    we need someway to note that we found such an attribute.
-   
+
  */
-   
+
 typedef char BLOCK;
 
-struct dieinfo {
-  char *		die;		/* Pointer to the raw DIE data */
-  unsigned long 	die_length;	/* Length of the raw DIE data */
-  DIE_REF		die_ref;	/* Offset of this DIE */
-  unsigned short	die_tag;	/* Tag for this DIE */
-  unsigned long		at_padding;
-  unsigned long		at_sibling;
-  BLOCK *		at_location;
-  char *		at_name;
-  unsigned short	at_fund_type;
-  BLOCK *		at_mod_fund_type;
-  unsigned long		at_user_def_type;
-  BLOCK *		at_mod_u_d_type;
-  unsigned short	at_ordering;
-  BLOCK *		at_subscr_data;
-  unsigned long		at_byte_size;
-  unsigned short	at_bit_offset;
-  unsigned long		at_bit_size;
-  BLOCK *		at_element_list;
-  unsigned long		at_stmt_list;
-  CORE_ADDR		at_low_pc;
-  CORE_ADDR		at_high_pc;
-  unsigned long		at_language;
-  unsigned long		at_member;
-  unsigned long		at_discr;
-  BLOCK *		at_discr_value;
-  BLOCK *		at_string_length;
-  char *		at_comp_dir;
-  char *		at_producer;
-  unsigned long		at_start_scope;
-  unsigned long		at_stride_size;
-  unsigned long		at_src_info;
-  char *		at_prototyped;
-  unsigned int		has_at_low_pc:1;
-  unsigned int		has_at_stmt_list:1;
-  unsigned int		has_at_byte_size:1;
-  unsigned int		short_element_list:1;
+struct dieinfo
+  {
+    char *die;			/* Pointer to the raw DIE data */
+    unsigned long die_length;	/* Length of the raw DIE data */
+    DIE_REF die_ref;		/* Offset of this DIE */
+    unsigned short die_tag;	/* Tag for this DIE */
+    unsigned long at_padding;
+    unsigned long at_sibling;
+    BLOCK *at_location;
+    char *at_name;
+    unsigned short at_fund_type;
+    BLOCK *at_mod_fund_type;
+    unsigned long at_user_def_type;
+    BLOCK *at_mod_u_d_type;
+    unsigned short at_ordering;
+    BLOCK *at_subscr_data;
+    unsigned long at_byte_size;
+    unsigned short at_bit_offset;
+    unsigned long at_bit_size;
+    BLOCK *at_element_list;
+    unsigned long at_stmt_list;
+    CORE_ADDR at_low_pc;
+    CORE_ADDR at_high_pc;
+    unsigned long at_language;
+    unsigned long at_member;
+    unsigned long at_discr;
+    BLOCK *at_discr_value;
+    BLOCK *at_string_length;
+    char *at_comp_dir;
+    char *at_producer;
+    unsigned long at_start_scope;
+    unsigned long at_stride_size;
+    unsigned long at_src_info;
+    char *at_prototyped;
+    unsigned int has_at_low_pc:1;
+    unsigned int has_at_stmt_list:1;
+    unsigned int has_at_byte_size:1;
+    unsigned int short_element_list:1;
 
-  /* Kludge to identify register variables */
+    /* Kludge to identify register variables */
 
-  unsigned int		isreg;
+    unsigned int isreg;
 
-  /* Kludge to identify optimized out variables */
+    /* Kludge to identify optimized out variables */
 
-  unsigned int		optimized_out;
+    unsigned int optimized_out;
 
-  /* Kludge to identify basereg references.
-     Nonzero if we have an offset relative to a basereg.  */
+    /* Kludge to identify basereg references.
+       Nonzero if we have an offset relative to a basereg.  */
 
-  unsigned int		offreg;
+    unsigned int offreg;
 
-  /* Kludge to identify which base register is it relative to.  */
+    /* Kludge to identify which base register is it relative to.  */
 
-  unsigned int		basereg;
-};
+    unsigned int basereg;
+  };
 
-static int diecount;	/* Approximate count of dies for compilation unit */
+static int diecount;		/* Approximate count of dies for compilation unit */
 static struct dieinfo *curdie;	/* For warnings and such */
 
-static char *dbbase;	/* Base pointer to dwarf info */
-static int dbsize;	/* Size of dwarf info in bytes */
-static int dbroff;	/* Relative offset from start of .debug section */
-static char *lnbase;	/* Base pointer to line section */
+static char *dbbase;		/* Base pointer to dwarf info */
+static int dbsize;		/* Size of dwarf info in bytes */
+static int dbroff;		/* Relative offset from start of .debug section */
+static char *lnbase;		/* Base pointer to line section */
 
 /* This value is added to each symbol value.  FIXME:  Generalize to 
    the section_offsets structure used by dbxread (once this is done,
@@ -353,27 +345,28 @@ static struct section_offsets *base_section_offsets;
 /* We put a pointer to this structure in the read_symtab_private field
    of the psymtab.  */
 
-struct dwfinfo {
-  /* Always the absolute file offset to the start of the ".debug"
-     section for the file containing the DIE's being accessed.  */
-  file_ptr dbfoff;
-  /* Relative offset from the start of the ".debug" section to the
-     first DIE to be accessed.  When building the partial symbol
-     table, this value will be zero since we are accessing the
-     entire ".debug" section.  When expanding a partial symbol
-     table entry, this value will be the offset to the first
-     DIE for the compilation unit containing the symbol that
-     triggers the expansion.  */
-  int dbroff;
-  /* The size of the chunk of DIE's being examined, in bytes.  */
-  int dblength;
-  /* The absolute file offset to the line table fragment.  Ignored
-     when building partial symbol tables, but used when expanding
-     them, and contains the absolute file offset to the fragment
-     of the ".line" section containing the line numbers for the
-     current compilation unit.  */
-  file_ptr lnfoff;
-};
+struct dwfinfo
+  {
+    /* Always the absolute file offset to the start of the ".debug"
+       section for the file containing the DIE's being accessed.  */
+    file_ptr dbfoff;
+    /* Relative offset from the start of the ".debug" section to the
+       first DIE to be accessed.  When building the partial symbol
+       table, this value will be zero since we are accessing the
+       entire ".debug" section.  When expanding a partial symbol
+       table entry, this value will be the offset to the first
+       DIE for the compilation unit containing the symbol that
+       triggers the expansion.  */
+    int dbroff;
+    /* The size of the chunk of DIE's being examined, in bytes.  */
+    int dblength;
+    /* The absolute file offset to the line table fragment.  Ignored
+       when building partial symbol tables, but used when expanding
+       them, and contains the absolute file offset to the fragment
+       of the ".line" section containing the line numbers for the
+       current compilation unit.  */
+    file_ptr lnfoff;
+  };
 
 #define DBFOFF(p) (((struct dwfinfo *)((p)->read_symtab_private))->dbfoff)
 #define DBROFF(p) (((struct dwfinfo *)((p)->read_symtab_private))->dbroff)
@@ -430,7 +423,7 @@ static int numutypes;		/* Max number of user type pointers */
    FT_NUM_MEMBERS compile time constant, which is the number of predefined
    fundamental types gdb knows how to construct. */
 
-static struct type *ftypes[FT_NUM_MEMBERS];  /* Fundamental types */
+static struct type *ftypes[FT_NUM_MEMBERS];	/* Fundamental types */
 
 /* Record the language for the compilation unit which is currently being
    processed.  We know it once we have seen the TAG_compile_unit DIE,
@@ -448,172 +441,133 @@ static const struct language_defn *cu_language_defn;
 /* Forward declarations of static functions so we don't have to worry
    about ordering within this file.  */
 
-static void
-free_utypes PARAMS ((PTR));
+static void free_utypes (PTR);
 
-static int
-attribute_size PARAMS ((unsigned int));
+static int attribute_size (unsigned int);
 
-static CORE_ADDR
-target_to_host PARAMS ((char *, int, int, struct objfile *));
+static CORE_ADDR target_to_host (char *, int, int, struct objfile *);
 
-static void
-add_enum_psymbol PARAMS ((struct dieinfo *, struct objfile *));
+static void add_enum_psymbol (struct dieinfo *, struct objfile *);
+
+static void handle_producer (char *);
 
 static void
-handle_producer PARAMS ((char *));
+read_file_scope (struct dieinfo *, char *, char *, struct objfile *);
 
 static void
-read_file_scope PARAMS ((struct dieinfo *, char *, char *, struct objfile *));
+read_func_scope (struct dieinfo *, char *, char *, struct objfile *);
 
 static void
-read_func_scope PARAMS ((struct dieinfo *, char *, char *, struct objfile *));
+read_lexical_block_scope (struct dieinfo *, char *, char *, struct objfile *);
+
+static void scan_partial_symbols (char *, char *, struct objfile *);
 
 static void
-read_lexical_block_scope PARAMS ((struct dieinfo *, char *, char *,
-				  struct objfile *));
+scan_compilation_units (char *, char *, file_ptr, file_ptr, struct objfile *);
+
+static void add_partial_symbol (struct dieinfo *, struct objfile *);
+
+static void basicdieinfo (struct dieinfo *, char *, struct objfile *);
+
+static void completedieinfo (struct dieinfo *, struct objfile *);
+
+static void dwarf_psymtab_to_symtab (struct partial_symtab *);
+
+static void psymtab_to_symtab_1 (struct partial_symtab *);
+
+static void read_ofile_symtab (struct partial_symtab *);
+
+static void process_dies (char *, char *, struct objfile *);
 
 static void
-scan_partial_symbols PARAMS ((char *, char *, struct objfile *));
+read_structure_scope (struct dieinfo *, char *, char *, struct objfile *);
+
+static struct type *decode_array_element_type (char *);
+
+static struct type *decode_subscript_data_item (char *, char *);
+
+static void dwarf_read_array_type (struct dieinfo *);
+
+static void read_tag_pointer_type (struct dieinfo *dip);
+
+static void read_tag_string_type (struct dieinfo *dip);
+
+static void read_subroutine_type (struct dieinfo *, char *, char *);
 
 static void
-scan_compilation_units PARAMS ((char *, char *, file_ptr,
-				file_ptr, struct objfile *));
+read_enumeration (struct dieinfo *, char *, char *, struct objfile *);
+
+static struct type *struct_type (struct dieinfo *, char *, char *,
+				 struct objfile *);
+
+static struct type *enum_type (struct dieinfo *, struct objfile *);
+
+static void decode_line_numbers (char *);
+
+static struct type *decode_die_type (struct dieinfo *);
+
+static struct type *decode_mod_fund_type (char *);
+
+static struct type *decode_mod_u_d_type (char *);
+
+static struct type *decode_modified_type (char *, unsigned int, int);
+
+static struct type *decode_fund_type (unsigned int);
+
+static char *create_name (char *, struct obstack *);
+
+static struct type *lookup_utype (DIE_REF);
+
+static struct type *alloc_utype (DIE_REF, struct type *);
+
+static struct symbol *new_symbol (struct dieinfo *, struct objfile *);
 
 static void
-add_partial_symbol PARAMS ((struct dieinfo *, struct objfile *));
+synthesize_typedef (struct dieinfo *, struct objfile *, struct type *);
 
-static void
-basicdieinfo PARAMS ((struct dieinfo *, char *, struct objfile *));
+static int locval (struct dieinfo *);
 
-static void
-completedieinfo PARAMS ((struct dieinfo *, struct objfile *));
+static void set_cu_language (struct dieinfo *);
 
-static void
-dwarf_psymtab_to_symtab PARAMS ((struct partial_symtab *));
-
-static void
-psymtab_to_symtab_1 PARAMS ((struct partial_symtab *));
-
-static void
-read_ofile_symtab PARAMS ((struct partial_symtab *));
-
-static void
-process_dies PARAMS ((char *, char *, struct objfile *));
-
-static void
-read_structure_scope PARAMS ((struct dieinfo *, char *, char *,
-			      struct objfile *));
-
-static struct type *
-decode_array_element_type PARAMS ((char *));
-
-static struct type *
-decode_subscript_data_item PARAMS ((char *, char *));
-
-static void
-dwarf_read_array_type PARAMS ((struct dieinfo *));
-
-static void
-read_tag_pointer_type PARAMS ((struct dieinfo *dip));
-
-static void
-read_tag_string_type PARAMS ((struct dieinfo *dip));
-
-static void
-read_subroutine_type PARAMS ((struct dieinfo *, char *, char *));
-
-static void
-read_enumeration PARAMS ((struct dieinfo *, char *, char *, struct objfile *));
-
-static struct type *
-struct_type PARAMS ((struct dieinfo *, char *, char *, struct objfile *));
-
-static struct type *
-enum_type PARAMS ((struct dieinfo *, struct objfile *));
-
-static void
-decode_line_numbers PARAMS ((char *));
-
-static struct type *
-decode_die_type PARAMS ((struct dieinfo *));
-
-static struct type *
-decode_mod_fund_type PARAMS ((char *));
-
-static struct type *
-decode_mod_u_d_type PARAMS ((char *));
-
-static struct type *
-decode_modified_type PARAMS ((char *, unsigned int, int));
-
-static struct type *
-decode_fund_type PARAMS ((unsigned int));
-
-static char *
-create_name PARAMS ((char *, struct obstack *));
-
-static struct type *
-lookup_utype PARAMS ((DIE_REF));
-
-static struct type *
-alloc_utype PARAMS ((DIE_REF, struct type *));
-
-static struct symbol *
-new_symbol PARAMS ((struct dieinfo *, struct objfile *));
-
-static void
-synthesize_typedef PARAMS ((struct dieinfo *, struct objfile *,
-			    struct type *));
-
-static int
-locval PARAMS ((struct dieinfo *));
-
-static void
-set_cu_language PARAMS ((struct dieinfo *));
-
-static struct type *
-dwarf_fundamental_type PARAMS ((struct objfile *, int));
+static struct type *dwarf_fundamental_type (struct objfile *, int);
 
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	dwarf_fundamental_type -- lookup or create a fundamental type
+   dwarf_fundamental_type -- lookup or create a fundamental type
 
-SYNOPSIS
+   SYNOPSIS
 
-	struct type *
-	dwarf_fundamental_type (struct objfile *objfile, int typeid)
+   struct type *
+   dwarf_fundamental_type (struct objfile *objfile, int typeid)
 
-DESCRIPTION
+   DESCRIPTION
 
-	DWARF version 1 doesn't supply any fundamental type information,
-	so gdb has to construct such types.  It has a fixed number of
-	fundamental types that it knows how to construct, which is the
-	union of all types that it knows how to construct for all languages
-	that it knows about.  These are enumerated in gdbtypes.h.
+   DWARF version 1 doesn't supply any fundamental type information,
+   so gdb has to construct such types.  It has a fixed number of
+   fundamental types that it knows how to construct, which is the
+   union of all types that it knows how to construct for all languages
+   that it knows about.  These are enumerated in gdbtypes.h.
 
-	As an example, assume we find a DIE that references a DWARF
-	fundamental type of FT_integer.  We first look in the ftypes
-	array to see if we already have such a type, indexed by the
-	gdb internal value of FT_INTEGER.  If so, we simply return a
-	pointer to that type.  If not, then we ask an appropriate
-	language dependent routine to create a type FT_INTEGER, using
-	defaults reasonable for the current target machine, and install
-	that type in ftypes for future reference.
+   As an example, assume we find a DIE that references a DWARF
+   fundamental type of FT_integer.  We first look in the ftypes
+   array to see if we already have such a type, indexed by the
+   gdb internal value of FT_INTEGER.  If so, we simply return a
+   pointer to that type.  If not, then we ask an appropriate
+   language dependent routine to create a type FT_INTEGER, using
+   defaults reasonable for the current target machine, and install
+   that type in ftypes for future reference.
 
-RETURNS
+   RETURNS
 
-	Pointer to a fundamental type.
+   Pointer to a fundamental type.
 
-*/
+ */
 
 static struct type *
-dwarf_fundamental_type (objfile, typeid)
-     struct objfile *objfile;
-     int typeid;
+dwarf_fundamental_type (struct objfile *objfile, int typeid)
 {
   if (typeid < 0 || typeid >= FT_NUM_MEMBERS)
     {
@@ -626,7 +580,7 @@ dwarf_fundamental_type (objfile, typeid)
 
   if (ftypes[typeid] == NULL)
     {
-      ftypes[typeid] = cu_language_defn -> la_fund_type(objfile, typeid);
+      ftypes[typeid] = cu_language_defn->la_fund_type (objfile, typeid);
     }
 
   return (ftypes[typeid]);
@@ -634,212 +588,201 @@ dwarf_fundamental_type (objfile, typeid)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	set_cu_language -- set local copy of language for compilation unit
+   set_cu_language -- set local copy of language for compilation unit
 
-SYNOPSIS
+   SYNOPSIS
 
-	void
-	set_cu_language (struct dieinfo *dip)
+   void
+   set_cu_language (struct dieinfo *dip)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Decode the language attribute for a compilation unit DIE and
-	remember what the language was.  We use this at various times
-	when processing DIE's for a given compilation unit.
+   Decode the language attribute for a compilation unit DIE and
+   remember what the language was.  We use this at various times
+   when processing DIE's for a given compilation unit.
 
-RETURNS
+   RETURNS
 
-	No return value.
+   No return value.
 
  */
 
 static void
-set_cu_language (dip)
-     struct dieinfo *dip;
+set_cu_language (struct dieinfo *dip)
 {
-  switch (dip -> at_language)
+  switch (dip->at_language)
     {
-      case LANG_C89:
-      case LANG_C:
-        cu_language = language_c;
-	break;
-      case LANG_C_PLUS_PLUS:
-	cu_language = language_cplus;
-	break;
-      case LANG_CHILL:
-	cu_language = language_chill;
-	break;
-      case LANG_MODULA2:
-	cu_language = language_m2;
-	break;
-      case LANG_FORTRAN77:
-      case LANG_FORTRAN90:
-	cu_language = language_fortran;
-	break;
-      case LANG_ADA83:
-      case LANG_COBOL74:
-      case LANG_COBOL85:
-      case LANG_PASCAL83:
-	/* We don't know anything special about these yet. */
-	cu_language = language_unknown;
-	break;
-      default:
-	/* If no at_language, try to deduce one from the filename */
-	cu_language = deduce_language_from_filename (dip -> at_name);
-	break;
+    case LANG_C89:
+    case LANG_C:
+      cu_language = language_c;
+      break;
+    case LANG_C_PLUS_PLUS:
+      cu_language = language_cplus;
+      break;
+    case LANG_CHILL:
+      cu_language = language_chill;
+      break;
+    case LANG_MODULA2:
+      cu_language = language_m2;
+      break;
+    case LANG_FORTRAN77:
+    case LANG_FORTRAN90:
+      cu_language = language_fortran;
+      break;
+    case LANG_ADA83:
+    case LANG_COBOL74:
+    case LANG_COBOL85:
+    case LANG_PASCAL83:
+      /* We don't know anything special about these yet. */
+      cu_language = language_unknown;
+      break;
+    default:
+      /* If no at_language, try to deduce one from the filename */
+      cu_language = deduce_language_from_filename (dip->at_name);
+      break;
     }
   cu_language_defn = language_def (cu_language);
 }
 
 /*
 
-GLOBAL FUNCTION
+   GLOBAL FUNCTION
 
-	dwarf_build_psymtabs -- build partial symtabs from DWARF debug info
+   dwarf_build_psymtabs -- build partial symtabs from DWARF debug info
 
-SYNOPSIS
+   SYNOPSIS
 
-	void dwarf_build_psymtabs (struct objfile *objfile,
-	     struct section_offsets *section_offsets,
-	     int mainline, file_ptr dbfoff, unsigned int dbfsize,
-	     file_ptr lnoffset, unsigned int lnsize)
+   void dwarf_build_psymtabs (struct objfile *objfile,
+   int mainline, file_ptr dbfoff, unsigned int dbfsize,
+   file_ptr lnoffset, unsigned int lnsize)
 
-DESCRIPTION
+   DESCRIPTION
 
-	This function is called upon to build partial symtabs from files
-	containing DIE's (Dwarf Information Entries) and DWARF line numbers.
+   This function is called upon to build partial symtabs from files
+   containing DIE's (Dwarf Information Entries) and DWARF line numbers.
 
-	It is passed a bfd* containing the DIES
-	and line number information, the corresponding filename for that
-	file, a base address for relocating the symbols, a flag indicating
-	whether or not this debugging information is from a "main symbol
-	table" rather than a shared library or dynamically linked file,
-	and file offset/size pairs for the DIE information and line number
-	information.
+   It is passed a bfd* containing the DIES
+   and line number information, the corresponding filename for that
+   file, a base address for relocating the symbols, a flag indicating
+   whether or not this debugging information is from a "main symbol
+   table" rather than a shared library or dynamically linked file,
+   and file offset/size pairs for the DIE information and line number
+   information.
 
-RETURNS
+   RETURNS
 
-	No return value.
+   No return value.
 
  */
 
 void
-dwarf_build_psymtabs (objfile, section_offsets, mainline, dbfoff, dbfsize,
-		      lnoffset, lnsize)
-     struct objfile *objfile;
-     struct section_offsets *section_offsets;
-     int mainline;
-     file_ptr dbfoff;
-     unsigned int dbfsize;
-     file_ptr lnoffset;
-     unsigned int lnsize;
+dwarf_build_psymtabs (struct objfile *objfile, int mainline, file_ptr dbfoff,
+		      unsigned int dbfsize, file_ptr lnoffset,
+		      unsigned int lnsize)
 {
   bfd *abfd = objfile->obfd;
   struct cleanup *back_to;
-  
+
   current_objfile = objfile;
   dbsize = dbfsize;
   dbbase = xmalloc (dbsize);
   dbroff = 0;
   if ((bfd_seek (abfd, dbfoff, SEEK_SET) != 0) ||
-      (bfd_read (dbbase, dbsize, 1, abfd) != dbsize))
+      (bfd_bread (dbbase, dbsize, abfd) != dbsize))
     {
-      free (dbbase);
+      xfree (dbbase);
       error ("can't read DWARF data from '%s'", bfd_get_filename (abfd));
     }
-  back_to = make_cleanup (free, dbbase);
-  
+  back_to = make_cleanup (xfree, dbbase);
+
   /* If we are reinitializing, or if we have never loaded syms yet, init.
      Since we have no idea how many DIES we are looking at, we just guess
      some arbitrary value. */
-  
-  if (mainline || objfile -> global_psymbols.size == 0 ||
-      objfile -> static_psymbols.size == 0)
+
+  if (mainline
+      || (objfile->global_psymbols.size == 0
+	  && objfile->static_psymbols.size == 0))
     {
       init_psymbol_list (objfile, 1024);
     }
-  
+
   /* Save the relocation factor where everybody can see it.  */
 
-  base_section_offsets = section_offsets;
-  baseaddr = ANOFFSET (section_offsets, 0);
+  base_section_offsets = objfile->section_offsets;
+  baseaddr = ANOFFSET (objfile->section_offsets, 0);
 
   /* Follow the compilation unit sibling chain, building a partial symbol
      table entry for each one.  Save enough information about each compilation
      unit to locate the full DWARF information later. */
-  
+
   scan_compilation_units (dbbase, dbbase + dbsize, dbfoff, lnoffset, objfile);
-  
+
   do_cleanups (back_to);
   current_objfile = NULL;
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	read_lexical_block_scope -- process all dies in a lexical block
+   read_lexical_block_scope -- process all dies in a lexical block
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void read_lexical_block_scope (struct dieinfo *dip,
-		char *thisdie, char *enddie)
+   static void read_lexical_block_scope (struct dieinfo *dip,
+   char *thisdie, char *enddie)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Process all the DIES contained within a lexical block scope.
-	Start a new scope, process the dies, and then close the scope.
+   Process all the DIES contained within a lexical block scope.
+   Start a new scope, process the dies, and then close the scope.
 
  */
 
 static void
-read_lexical_block_scope (dip, thisdie, enddie, objfile)
-     struct dieinfo *dip;
-     char *thisdie;
-     char *enddie;
-     struct objfile *objfile;
+read_lexical_block_scope (struct dieinfo *dip, char *thisdie, char *enddie,
+			  struct objfile *objfile)
 {
   register struct context_stack *new;
 
-  push_context (0, dip -> at_low_pc);
-  process_dies (thisdie + dip -> die_length, enddie, objfile);
+  push_context (0, dip->at_low_pc);
+  process_dies (thisdie + dip->die_length, enddie, objfile);
   new = pop_context ();
   if (local_symbols != NULL)
     {
-      finish_block (0, &local_symbols, new -> old_blocks, new -> start_addr,
-		    dip -> at_high_pc, objfile);
+      finish_block (0, &local_symbols, new->old_blocks, new->start_addr,
+		    dip->at_high_pc, objfile);
     }
-  local_symbols = new -> locals;
+  local_symbols = new->locals;
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	lookup_utype -- look up a user defined type from die reference
+   lookup_utype -- look up a user defined type from die reference
 
-SYNOPSIS
+   SYNOPSIS
 
-	static type *lookup_utype (DIE_REF die_ref)
+   static type *lookup_utype (DIE_REF die_ref)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a DIE reference, lookup the user defined type associated with
-	that DIE, if it has been registered already.  If not registered, then
-	return NULL.  Alloc_utype() can be called to register an empty
-	type for this reference, which will be filled in later when the
-	actual referenced DIE is processed.
+   Given a DIE reference, lookup the user defined type associated with
+   that DIE, if it has been registered already.  If not registered, then
+   return NULL.  Alloc_utype() can be called to register an empty
+   type for this reference, which will be filled in later when the
+   actual referenced DIE is processed.
  */
 
 static struct type *
-lookup_utype (die_ref)
-     DIE_REF die_ref;
+lookup_utype (DIE_REF die_ref)
 {
   struct type *type = NULL;
   int utypeidx;
-  
+
   utypeidx = (die_ref - dbroff) / 4;
   if ((utypeidx < 0) || (utypeidx >= numutypes))
     {
@@ -855,33 +798,31 @@ lookup_utype (die_ref)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	alloc_utype  -- add a user defined type for die reference
+   alloc_utype  -- add a user defined type for die reference
 
-SYNOPSIS
+   SYNOPSIS
 
-	static type *alloc_utype (DIE_REF die_ref, struct type *utypep)
+   static type *alloc_utype (DIE_REF die_ref, struct type *utypep)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a die reference DIE_REF, and a possible pointer to a user
-	defined type UTYPEP, register that this reference has a user
-	defined type and either use the specified type in UTYPEP or
-	make a new empty type that will be filled in later.
+   Given a die reference DIE_REF, and a possible pointer to a user
+   defined type UTYPEP, register that this reference has a user
+   defined type and either use the specified type in UTYPEP or
+   make a new empty type that will be filled in later.
 
-	We should only be called after calling lookup_utype() to verify that
-	there is not currently a type registered for DIE_REF.
+   We should only be called after calling lookup_utype() to verify that
+   there is not currently a type registered for DIE_REF.
  */
 
 static struct type *
-alloc_utype (die_ref, utypep)
-     DIE_REF die_ref;
-     struct type *utypep;
+alloc_utype (DIE_REF die_ref, struct type *utypep)
 {
   struct type **typep;
   int utypeidx;
-  
+
   utypeidx = (die_ref - dbroff) / 4;
   typep = utypes + utypeidx;
   if ((utypeidx < 0) || (utypeidx >= numutypes))
@@ -907,26 +848,25 @@ alloc_utype (die_ref, utypep)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	free_utypes -- free the utypes array and reset pointer & count
+   free_utypes -- free the utypes array and reset pointer & count
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void free_utypes (PTR dummy)
+   static void free_utypes (PTR dummy)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Called via do_cleanups to free the utypes array, reset the pointer to NULL,
-	and set numutypes back to zero.  This ensures that the utypes does not get
-	referenced after being freed.
+   Called via do_cleanups to free the utypes array, reset the pointer to NULL,
+   and set numutypes back to zero.  This ensures that the utypes does not get
+   referenced after being freed.
  */
 
 static void
-free_utypes (dummy)
-     PTR dummy;
+free_utypes (PTR dummy)
 {
-  free (utypes);
+  xfree (utypes);
   utypes = NULL;
   numutypes = 0;
 }
@@ -934,45 +874,44 @@ free_utypes (dummy)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	decode_die_type -- return a type for a specified die
+   decode_die_type -- return a type for a specified die
 
-SYNOPSIS
+   SYNOPSIS
 
-	static struct type *decode_die_type (struct dieinfo *dip)
+   static struct type *decode_die_type (struct dieinfo *dip)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a pointer to a die information structure DIP, decode the
-	type of the die and return a pointer to the decoded type.  All
-	dies without specific types default to type int.
+   Given a pointer to a die information structure DIP, decode the
+   type of the die and return a pointer to the decoded type.  All
+   dies without specific types default to type int.
  */
 
 static struct type *
-decode_die_type (dip)
-     struct dieinfo *dip;
+decode_die_type (struct dieinfo *dip)
 {
   struct type *type = NULL;
-  
-  if (dip -> at_fund_type != 0)
+
+  if (dip->at_fund_type != 0)
     {
-      type = decode_fund_type (dip -> at_fund_type);
+      type = decode_fund_type (dip->at_fund_type);
     }
-  else if (dip -> at_mod_fund_type != NULL)
+  else if (dip->at_mod_fund_type != NULL)
     {
-      type = decode_mod_fund_type (dip -> at_mod_fund_type);
+      type = decode_mod_fund_type (dip->at_mod_fund_type);
     }
-  else if (dip -> at_user_def_type)
+  else if (dip->at_user_def_type)
     {
-      if ((type = lookup_utype (dip -> at_user_def_type)) == NULL)
+      if ((type = lookup_utype (dip->at_user_def_type)) == NULL)
 	{
-	  type = alloc_utype (dip -> at_user_def_type, NULL);
+	  type = alloc_utype (dip->at_user_def_type, NULL);
 	}
     }
-  else if (dip -> at_mod_u_d_type)
+  else if (dip->at_mod_u_d_type)
     {
-      type = decode_mod_u_d_type (dip -> at_mod_u_d_type);
+      type = decode_mod_u_d_type (dip->at_mod_u_d_type);
     }
   else
     {
@@ -983,36 +922,34 @@ decode_die_type (dip)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	struct_type -- compute and return the type for a struct or union
+   struct_type -- compute and return the type for a struct or union
 
-SYNOPSIS
+   SYNOPSIS
 
-	static struct type *struct_type (struct dieinfo *dip, char *thisdie,
-	    char *enddie, struct objfile *objfile)
+   static struct type *struct_type (struct dieinfo *dip, char *thisdie,
+   char *enddie, struct objfile *objfile)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given pointer to a die information structure for a die which
-	defines a union or structure (and MUST define one or the other),
-	and pointers to the raw die data that define the range of dies which
-	define the members, compute and return the user defined type for the
-	structure or union.
+   Given pointer to a die information structure for a die which
+   defines a union or structure (and MUST define one or the other),
+   and pointers to the raw die data that define the range of dies which
+   define the members, compute and return the user defined type for the
+   structure or union.
  */
 
 static struct type *
-struct_type (dip, thisdie, enddie, objfile)
-     struct dieinfo *dip;
-     char *thisdie;
-     char *enddie;
-     struct objfile *objfile;
+struct_type (struct dieinfo *dip, char *thisdie, char *enddie,
+	     struct objfile *objfile)
 {
   struct type *type;
-  struct nextfield {
-    struct nextfield *next;
-    struct field field;
-  };
+  struct nextfield
+    {
+      struct nextfield *next;
+      struct field field;
+    };
   struct nextfield *list = NULL;
   struct nextfield *new;
   int nfields = 0;
@@ -1020,47 +957,47 @@ struct_type (dip, thisdie, enddie, objfile)
   struct dieinfo mbr;
   char *nextdie;
   int anonymous_size;
-  
-  if ((type = lookup_utype (dip -> die_ref)) == NULL)
+
+  if ((type = lookup_utype (dip->die_ref)) == NULL)
     {
       /* No forward references created an empty type, so install one now */
-      type = alloc_utype (dip -> die_ref, NULL);
+      type = alloc_utype (dip->die_ref, NULL);
     }
-  INIT_CPLUS_SPECIFIC(type);
-  switch (dip -> die_tag)
+  INIT_CPLUS_SPECIFIC (type);
+  switch (dip->die_tag)
     {
-      case TAG_class_type:
-        TYPE_CODE (type) = TYPE_CODE_CLASS;
-	break;
-      case TAG_structure_type:
-        TYPE_CODE (type) = TYPE_CODE_STRUCT;
-	break;
-      case TAG_union_type:
-	TYPE_CODE (type) = TYPE_CODE_UNION;
-	break;
-      default:
-	/* Should never happen */
-	TYPE_CODE (type) = TYPE_CODE_UNDEF;
-	complain (&missing_tag, DIE_ID, DIE_NAME);
-	break;
+    case TAG_class_type:
+      TYPE_CODE (type) = TYPE_CODE_CLASS;
+      break;
+    case TAG_structure_type:
+      TYPE_CODE (type) = TYPE_CODE_STRUCT;
+      break;
+    case TAG_union_type:
+      TYPE_CODE (type) = TYPE_CODE_UNION;
+      break;
+    default:
+      /* Should never happen */
+      TYPE_CODE (type) = TYPE_CODE_UNDEF;
+      complain (&missing_tag, DIE_ID, DIE_NAME);
+      break;
     }
   /* Some compilers try to be helpful by inventing "fake" names for
      anonymous enums, structures, and unions, like "~0fake" or ".0fake".
      Thanks, but no thanks... */
-  if (dip -> at_name != NULL
-      && *dip -> at_name != '~'
-      && *dip -> at_name != '.')
+  if (dip->at_name != NULL
+      && *dip->at_name != '~'
+      && *dip->at_name != '.')
     {
-      TYPE_TAG_NAME (type) = obconcat (&objfile -> type_obstack,
-				       "", "", dip -> at_name);
+      TYPE_TAG_NAME (type) = obconcat (&objfile->type_obstack,
+				       "", "", dip->at_name);
     }
   /* Use whatever size is known.  Zero is a valid size.  We might however
      wish to check has_at_byte_size to make sure that some byte size was
      given explicitly, but DWARF doesn't specify that explicit sizes of
      zero have to present, so complaining about missing sizes should 
      probably not be the default. */
-  TYPE_LENGTH (type) = dip -> at_byte_size;
-  thisdie += dip -> die_length;
+  TYPE_LENGTH (type) = dip->at_byte_size;
+  thisdie += dip->die_length;
   while (thisdie < enddie)
     {
       basicdieinfo (&mbr, thisdie, objfile);
@@ -1082,12 +1019,12 @@ struct_type (dip, thisdie, enddie, objfile)
 	case TAG_member:
 	  /* Get space to record the next field's data.  */
 	  new = (struct nextfield *) alloca (sizeof (struct nextfield));
-	  new -> next = list;
+	  new->next = list;
 	  list = new;
 	  /* Save the data.  */
-	  list -> field.name =
-	      obsavestring (mbr.at_name, strlen (mbr.at_name),
-			    &objfile -> type_obstack);
+	  list->field.name =
+	    obsavestring (mbr.at_name, strlen (mbr.at_name),
+			  &objfile->type_obstack);
 	  FIELD_TYPE (list->field) = decode_die_type (&mbr);
 	  FIELD_BITPOS (list->field) = 8 * locval (&mbr);
 	  /* Handle bit fields. */
@@ -1095,39 +1032,39 @@ struct_type (dip, thisdie, enddie, objfile)
 	  if (BITS_BIG_ENDIAN)
 	    {
 	      /* For big endian bits, the at_bit_offset gives the
-		 additional bit offset from the MSB of the containing
-		 anonymous object to the MSB of the field.  We don't
-		 have to do anything special since we don't need to
-		 know the size of the anonymous object. */
+	         additional bit offset from the MSB of the containing
+	         anonymous object to the MSB of the field.  We don't
+	         have to do anything special since we don't need to
+	         know the size of the anonymous object. */
 	      FIELD_BITPOS (list->field) += mbr.at_bit_offset;
 	    }
 	  else
 	    {
 	      /* For little endian bits, we need to have a non-zero
-		 at_bit_size, so that we know we are in fact dealing
-		 with a bitfield.  Compute the bit offset to the MSB
-		 of the anonymous object, subtract off the number of
-		 bits from the MSB of the field to the MSB of the
-		 object, and then subtract off the number of bits of
-		 the field itself.  The result is the bit offset of
-		 the LSB of the field. */
+	         at_bit_size, so that we know we are in fact dealing
+	         with a bitfield.  Compute the bit offset to the MSB
+	         of the anonymous object, subtract off the number of
+	         bits from the MSB of the field to the MSB of the
+	         object, and then subtract off the number of bits of
+	         the field itself.  The result is the bit offset of
+	         the LSB of the field. */
 	      if (mbr.at_bit_size > 0)
 		{
 		  if (mbr.has_at_byte_size)
 		    {
 		      /* The size of the anonymous object containing
-			 the bit field is explicit, so use the
-			 indicated size (in bytes). */
+		         the bit field is explicit, so use the
+		         indicated size (in bytes). */
 		      anonymous_size = mbr.at_byte_size;
 		    }
 		  else
 		    {
 		      /* The size of the anonymous object containing
-			 the bit field matches the size of an object
-			 of the bit field's type.  DWARF allows
-			 at_byte_size to be left out in such cases, as
-			 a debug information size optimization. */
-		      anonymous_size = TYPE_LENGTH (list -> field.type);
+		         the bit field matches the size of an object
+		         of the bit field's type.  DWARF allows
+		         at_byte_size to be left out in such cases, as
+		         a debug information size optimization. */
+		      anonymous_size = TYPE_LENGTH (list->field.type);
 		    }
 		  FIELD_BITPOS (list->field) +=
 		    anonymous_size * 8 - mbr.at_bit_offset - mbr.at_bit_size;
@@ -1156,60 +1093,57 @@ struct_type (dip, thisdie, enddie, objfile)
       TYPE_FIELDS (type) = (struct field *)
 	TYPE_ALLOC (type, sizeof (struct field) * nfields);
       /* Copy the saved-up fields into the field vector.  */
-      for (n = nfields; list; list = list -> next)
+      for (n = nfields; list; list = list->next)
 	{
-	  TYPE_FIELD (type, --n) = list -> field;
-	}	
+	  TYPE_FIELD (type, --n) = list->field;
+	}
     }
   return (type);
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	read_structure_scope -- process all dies within struct or union
+   read_structure_scope -- process all dies within struct or union
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void read_structure_scope (struct dieinfo *dip,
-		char *thisdie, char *enddie, struct objfile *objfile)
+   static void read_structure_scope (struct dieinfo *dip,
+   char *thisdie, char *enddie, struct objfile *objfile)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Called when we find the DIE that starts a structure or union
-	scope (definition) to process all dies that define the members
-	of the structure or union.  DIP is a pointer to the die info
-	struct for the DIE that names the structure or union.
+   Called when we find the DIE that starts a structure or union
+   scope (definition) to process all dies that define the members
+   of the structure or union.  DIP is a pointer to the die info
+   struct for the DIE that names the structure or union.
 
-NOTES
+   NOTES
 
-	Note that we need to call struct_type regardless of whether or not
-	the DIE has an at_name attribute, since it might be an anonymous
-	structure or union.  This gets the type entered into our set of
-	user defined types.
+   Note that we need to call struct_type regardless of whether or not
+   the DIE has an at_name attribute, since it might be an anonymous
+   structure or union.  This gets the type entered into our set of
+   user defined types.
 
-	However, if the structure is incomplete (an opaque struct/union)
-	then suppress creating a symbol table entry for it since gdb only
-	wants to find the one with the complete definition.  Note that if
-	it is complete, we just call new_symbol, which does it's own
-	checking about whether the struct/union is anonymous or not (and
-	suppresses creating a symbol table entry itself).
-	
+   However, if the structure is incomplete (an opaque struct/union)
+   then suppress creating a symbol table entry for it since gdb only
+   wants to find the one with the complete definition.  Note that if
+   it is complete, we just call new_symbol, which does it's own
+   checking about whether the struct/union is anonymous or not (and
+   suppresses creating a symbol table entry itself).
+
  */
 
 static void
-read_structure_scope (dip, thisdie, enddie, objfile)
-     struct dieinfo *dip;
-     char *thisdie;
-     char *enddie;
-     struct objfile *objfile;
+read_structure_scope (struct dieinfo *dip, char *thisdie, char *enddie,
+		      struct objfile *objfile)
 {
   struct type *type;
   struct symbol *sym;
-  
+
   type = struct_type (dip, thisdie, enddie, objfile);
-  if (!(TYPE_FLAGS (type) & TYPE_FLAG_STUB))
+  if (!TYPE_STUB (type))
     {
       sym = new_symbol (dip, objfile);
       if (sym != NULL)
@@ -1225,33 +1159,32 @@ read_structure_scope (dip, thisdie, enddie, objfile)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	decode_array_element_type -- decode type of the array elements
+   decode_array_element_type -- decode type of the array elements
 
-SYNOPSIS
+   SYNOPSIS
 
-	static struct type *decode_array_element_type (char *scan, char *end)
+   static struct type *decode_array_element_type (char *scan, char *end)
 
-DESCRIPTION
+   DESCRIPTION
 
-	As the last step in decoding the array subscript information for an
-	array DIE, we need to decode the type of the array elements.  We are
-	passed a pointer to this last part of the subscript information and
-	must return the appropriate type.  If the type attribute is not
-	recognized, just warn about the problem and return type int.
+   As the last step in decoding the array subscript information for an
+   array DIE, we need to decode the type of the array elements.  We are
+   passed a pointer to this last part of the subscript information and
+   must return the appropriate type.  If the type attribute is not
+   recognized, just warn about the problem and return type int.
  */
 
 static struct type *
-decode_array_element_type (scan)
-     char *scan;
+decode_array_element_type (char *scan)
 {
   struct type *typep;
   DIE_REF die_ref;
   unsigned short attribute;
   unsigned short fundtype;
   int nbytes;
-  
+
   attribute = target_to_host (scan, SIZEOF_ATTRIBUTE, GET_UNSIGNED,
 			      current_objfile);
   scan += SIZEOF_ATTRIBUTE;
@@ -1264,83 +1197,81 @@ decode_array_element_type (scan)
     {
       switch (attribute)
 	{
-	  case AT_fund_type:
-	    fundtype = target_to_host (scan, nbytes, GET_UNSIGNED,
-				       current_objfile);
-	    typep = decode_fund_type (fundtype);
-	    break;
-	  case AT_mod_fund_type:
-	    typep = decode_mod_fund_type (scan);
-	    break;
-	  case AT_user_def_type:
-	    die_ref = target_to_host (scan, nbytes, GET_UNSIGNED,
-				      current_objfile);
-	    if ((typep = lookup_utype (die_ref)) == NULL)
-	      {
-		typep = alloc_utype (die_ref, NULL);
-	      }
-	    break;
-	  case AT_mod_u_d_type:
-	    typep = decode_mod_u_d_type (scan);
-	    break;
-	  default:
-	    complain (&bad_array_element_type, DIE_ID, DIE_NAME, attribute);
-	    typep = dwarf_fundamental_type (current_objfile, FT_INTEGER);
-	    break;
-	  }
+	case AT_fund_type:
+	  fundtype = target_to_host (scan, nbytes, GET_UNSIGNED,
+				     current_objfile);
+	  typep = decode_fund_type (fundtype);
+	  break;
+	case AT_mod_fund_type:
+	  typep = decode_mod_fund_type (scan);
+	  break;
+	case AT_user_def_type:
+	  die_ref = target_to_host (scan, nbytes, GET_UNSIGNED,
+				    current_objfile);
+	  if ((typep = lookup_utype (die_ref)) == NULL)
+	    {
+	      typep = alloc_utype (die_ref, NULL);
+	    }
+	  break;
+	case AT_mod_u_d_type:
+	  typep = decode_mod_u_d_type (scan);
+	  break;
+	default:
+	  complain (&bad_array_element_type, DIE_ID, DIE_NAME, attribute);
+	  typep = dwarf_fundamental_type (current_objfile, FT_INTEGER);
+	  break;
+	}
     }
   return (typep);
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	decode_subscript_data_item -- decode array subscript item
+   decode_subscript_data_item -- decode array subscript item
 
-SYNOPSIS
+   SYNOPSIS
 
-	static struct type *
-	decode_subscript_data_item (char *scan, char *end)
+   static struct type *
+   decode_subscript_data_item (char *scan, char *end)
 
-DESCRIPTION
+   DESCRIPTION
 
-	The array subscripts and the data type of the elements of an
-	array are described by a list of data items, stored as a block
-	of contiguous bytes.  There is a data item describing each array
-	dimension, and a final data item describing the element type.
-	The data items are ordered the same as their appearance in the
-	source (I.E. leftmost dimension first, next to leftmost second,
-	etc).
+   The array subscripts and the data type of the elements of an
+   array are described by a list of data items, stored as a block
+   of contiguous bytes.  There is a data item describing each array
+   dimension, and a final data item describing the element type.
+   The data items are ordered the same as their appearance in the
+   source (I.E. leftmost dimension first, next to leftmost second,
+   etc).
 
-	The data items describing each array dimension consist of four
-	parts: (1) a format specifier, (2) type type of the subscript
-	index, (3) a description of the low bound of the array dimension,
-	and (4) a description of the high bound of the array dimension.
+   The data items describing each array dimension consist of four
+   parts: (1) a format specifier, (2) type type of the subscript
+   index, (3) a description of the low bound of the array dimension,
+   and (4) a description of the high bound of the array dimension.
 
-	The last data item is the description of the type of each of
-	the array elements.
+   The last data item is the description of the type of each of
+   the array elements.
 
-	We are passed a pointer to the start of the block of bytes
-	containing the remaining data items, and a pointer to the first
-	byte past the data.  This function recursively decodes the
-	remaining data items and returns a type.
+   We are passed a pointer to the start of the block of bytes
+   containing the remaining data items, and a pointer to the first
+   byte past the data.  This function recursively decodes the
+   remaining data items and returns a type.
 
-	If we somehow fail to decode some data, we complain about it
-	and return a type "array of int".
+   If we somehow fail to decode some data, we complain about it
+   and return a type "array of int".
 
-BUGS
-	FIXME:  This code only implements the forms currently used
-	by the AT&T and GNU C compilers.
+   BUGS
+   FIXME:  This code only implements the forms currently used
+   by the AT&T and GNU C compilers.
 
-	The end pointer is supplied for error checking, maybe we should
-	use it for that...
+   The end pointer is supplied for error checking, maybe we should
+   use it for that...
  */
 
 static struct type *
-decode_subscript_data_item (scan, end)
-     char *scan;
-     char *end;
+decode_subscript_data_item (char *scan, char *end)
 {
   struct type *typep = NULL;	/* Array type we are building */
   struct type *nexttype;	/* Type of each element (may be array) */
@@ -1351,7 +1282,7 @@ decode_subscript_data_item (scan, end)
   unsigned long lowbound;
   unsigned long highbound;
   int nbytes;
-  
+
   format = target_to_host (scan, SIZEOF_FORMAT_SPECIFIER, GET_UNSIGNED,
 			   current_objfile);
   scan += SIZEOF_FORMAT_SPECIFIER;
@@ -1378,7 +1309,7 @@ decode_subscript_data_item (scan, end)
 	  nexttype = dwarf_fundamental_type (current_objfile, FT_INTEGER);
 	}
       rangetype = create_range_type ((struct type *) NULL, indextype,
-				      lowbound, highbound);
+				     lowbound, highbound);
       typep = create_array_type ((struct type *) NULL, nexttype, rangetype);
       break;
     case FMT_FT_C_X:
@@ -1405,23 +1336,22 @@ decode_subscript_data_item (scan, end)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	dwarf_read_array_type -- read TAG_array_type DIE
+   dwarf_read_array_type -- read TAG_array_type DIE
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void dwarf_read_array_type (struct dieinfo *dip)
+   static void dwarf_read_array_type (struct dieinfo *dip)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Extract all information from a TAG_array_type DIE and add to
-	the user defined type vector.
+   Extract all information from a TAG_array_type DIE and add to
+   the user defined type vector.
  */
 
 static void
-dwarf_read_array_type (dip)
-     struct dieinfo *dip;
+dwarf_read_array_type (struct dieinfo *dip)
 {
   struct type *type;
   struct type *utype;
@@ -1429,23 +1359,23 @@ dwarf_read_array_type (dip)
   char *subend;
   unsigned short blocksz;
   int nbytes;
-  
-  if (dip -> at_ordering != ORD_row_major)
+
+  if (dip->at_ordering != ORD_row_major)
     {
       /* FIXME:  Can gdb even handle column major arrays? */
       complain (&not_row_major, DIE_ID, DIE_NAME);
     }
-  if ((sub = dip -> at_subscr_data) != NULL)
+  if ((sub = dip->at_subscr_data) != NULL)
     {
       nbytes = attribute_size (AT_subscr_data);
       blocksz = target_to_host (sub, nbytes, GET_UNSIGNED, current_objfile);
       subend = sub + nbytes + blocksz;
       sub += nbytes;
       type = decode_subscript_data_item (sub, subend);
-      if ((utype = lookup_utype (dip -> die_ref)) == NULL)
+      if ((utype = lookup_utype (dip->die_ref)) == NULL)
 	{
 	  /* Install user defined type that has not been referenced yet. */
-	  alloc_utype (dip -> die_ref, type);
+	  alloc_utype (dip->die_ref, type);
 	}
       else if (TYPE_CODE (utype) == TYPE_CODE_UNDEF)
 	{
@@ -1470,32 +1400,31 @@ dwarf_read_array_type (dip)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	read_tag_pointer_type -- read TAG_pointer_type DIE
+   read_tag_pointer_type -- read TAG_pointer_type DIE
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void read_tag_pointer_type (struct dieinfo *dip)
+   static void read_tag_pointer_type (struct dieinfo *dip)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Extract all information from a TAG_pointer_type DIE and add to
-	the user defined type vector.
+   Extract all information from a TAG_pointer_type DIE and add to
+   the user defined type vector.
  */
 
 static void
-read_tag_pointer_type (dip)
-     struct dieinfo *dip;
+read_tag_pointer_type (struct dieinfo *dip)
 {
   struct type *type;
   struct type *utype;
-  
+
   type = decode_die_type (dip);
-  if ((utype = lookup_utype (dip -> die_ref)) == NULL)
+  if ((utype = lookup_utype (dip->die_ref)) == NULL)
     {
       utype = lookup_pointer_type (type);
-      alloc_utype (dip -> die_ref, utype);
+      alloc_utype (dip->die_ref, utype);
     }
   else
     {
@@ -1504,32 +1433,31 @@ read_tag_pointer_type (dip)
 
       /* We assume the machine has only one representation for pointers!  */
       /* FIXME:  Possably a poor assumption  */
-      TYPE_LENGTH (utype) = TARGET_PTR_BIT / TARGET_CHAR_BIT ;
+      TYPE_LENGTH (utype) = TARGET_PTR_BIT / TARGET_CHAR_BIT;
       TYPE_CODE (utype) = TYPE_CODE_PTR;
     }
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	read_tag_string_type -- read TAG_string_type DIE
+   read_tag_string_type -- read TAG_string_type DIE
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void read_tag_string_type (struct dieinfo *dip)
+   static void read_tag_string_type (struct dieinfo *dip)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Extract all information from a TAG_string_type DIE and add to
-	the user defined type vector.  It isn't really a user defined
-	type, but it behaves like one, with other DIE's using an
-	AT_user_def_type attribute to reference it.
+   Extract all information from a TAG_string_type DIE and add to
+   the user defined type vector.  It isn't really a user defined
+   type, but it behaves like one, with other DIE's using an
+   AT_user_def_type attribute to reference it.
  */
 
 static void
-read_tag_string_type (dip)
-     struct dieinfo *dip;
+read_tag_string_type (struct dieinfo *dip)
 {
   struct type *utype;
   struct type *indextype;
@@ -1537,10 +1465,10 @@ read_tag_string_type (dip)
   unsigned long lowbound = 0;
   unsigned long highbound;
 
-  if (dip -> has_at_byte_size)
+  if (dip->has_at_byte_size)
     {
       /* A fixed bounds string */
-      highbound = dip -> at_byte_size - 1;
+      highbound = dip->at_byte_size - 1;
     }
   else
     {
@@ -1550,17 +1478,17 @@ read_tag_string_type (dip)
   indextype = dwarf_fundamental_type (current_objfile, FT_INTEGER);
   rangetype = create_range_type ((struct type *) NULL, indextype, lowbound,
 				 highbound);
-      
-  utype = lookup_utype (dip -> die_ref);
+
+  utype = lookup_utype (dip->die_ref);
   if (utype == NULL)
     {
       /* No type defined, go ahead and create a blank one to use. */
-      utype = alloc_utype (dip -> die_ref, (struct type *) NULL);
+      utype = alloc_utype (dip->die_ref, (struct type *) NULL);
     }
   else
     {
       /* Already a type in our slot due to a forward reference. Make sure it
-	 is a blank one.  If not, complain and leave it alone. */
+         is a blank one.  If not, complain and leave it alone. */
       if (TYPE_CODE (utype) != TYPE_CODE_UNDEF)
 	{
 	  complain (&dup_user_type_definition, DIE_ID, DIE_NAME);
@@ -1574,40 +1502,37 @@ read_tag_string_type (dip)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	read_subroutine_type -- process TAG_subroutine_type dies
+   read_subroutine_type -- process TAG_subroutine_type dies
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void read_subroutine_type (struct dieinfo *dip, char thisdie,
-		char *enddie)
+   static void read_subroutine_type (struct dieinfo *dip, char thisdie,
+   char *enddie)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Handle DIES due to C code like:
+   Handle DIES due to C code like:
 
-	struct foo {
-	    int (*funcp)(int a, long l);  (Generates TAG_subroutine_type DIE)
-	    int b;
-	};
+   struct foo {
+   int (*funcp)(int a, long l);  (Generates TAG_subroutine_type DIE)
+   int b;
+   };
 
-NOTES
+   NOTES
 
-	The parameter DIES are currently ignored.  See if gdb has a way to
-	include this info in it's type system, and decode them if so.  Is
-	this what the type structure's "arg_types" field is for?  (FIXME)
+   The parameter DIES are currently ignored.  See if gdb has a way to
+   include this info in it's type system, and decode them if so.  Is
+   this what the type structure's "arg_types" field is for?  (FIXME)
  */
 
 static void
-read_subroutine_type (dip, thisdie, enddie)
-     struct dieinfo *dip;
-     char *thisdie;
-     char *enddie;
+read_subroutine_type (struct dieinfo *dip, char *thisdie, char *enddie)
 {
   struct type *type;		/* Type that this function returns */
   struct type *ftype;		/* Function that returns above type */
-  
+
   /* Decode the type that this subroutine returns */
 
   type = decode_die_type (dip);
@@ -1615,17 +1540,17 @@ read_subroutine_type (dip, thisdie, enddie)
   /* Check to see if we already have a partially constructed user
      defined type for this DIE, from a forward reference. */
 
-  if ((ftype = lookup_utype (dip -> die_ref)) == NULL)
+  if ((ftype = lookup_utype (dip->die_ref)) == NULL)
     {
       /* This is the first reference to one of these types.  Make
-	 a new one and place it in the user defined types. */
+         a new one and place it in the user defined types. */
       ftype = lookup_function_type (type);
-      alloc_utype (dip -> die_ref, ftype);
+      alloc_utype (dip->die_ref, ftype);
     }
   else if (TYPE_CODE (ftype) == TYPE_CODE_UNDEF)
     {
       /* We have an existing partially constructed type, so bash it
-	 into the correct type. */
+         into the correct type. */
       TYPE_TARGET_TYPE (ftype) = type;
       TYPE_LENGTH (ftype) = 1;
       TYPE_CODE (ftype) = TYPE_CODE_FUNC;
@@ -1638,37 +1563,34 @@ read_subroutine_type (dip, thisdie, enddie)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	read_enumeration -- process dies which define an enumeration
+   read_enumeration -- process dies which define an enumeration
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void read_enumeration (struct dieinfo *dip, char *thisdie,
-		char *enddie, struct objfile *objfile)
+   static void read_enumeration (struct dieinfo *dip, char *thisdie,
+   char *enddie, struct objfile *objfile)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a pointer to a die which begins an enumeration, process all
-	the dies that define the members of the enumeration.
+   Given a pointer to a die which begins an enumeration, process all
+   the dies that define the members of the enumeration.
 
-NOTES
+   NOTES
 
-	Note that we need to call enum_type regardless of whether or not we
-	have a symbol, since we might have an enum without a tag name (thus
-	no symbol for the tagname).
+   Note that we need to call enum_type regardless of whether or not we
+   have a symbol, since we might have an enum without a tag name (thus
+   no symbol for the tagname).
  */
 
 static void
-read_enumeration (dip, thisdie, enddie, objfile)
-     struct dieinfo *dip;
-     char *thisdie;
-     char *enddie;
-     struct objfile *objfile;
+read_enumeration (struct dieinfo *dip, char *thisdie, char *enddie,
+		  struct objfile *objfile)
 {
   struct type *type;
   struct symbol *sym;
-  
+
   type = enum_type (dip, objfile);
   sym = new_symbol (dip, objfile);
   if (sym != NULL)
@@ -1683,45 +1605,44 @@ read_enumeration (dip, thisdie, enddie, objfile)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	enum_type -- decode and return a type for an enumeration
+   enum_type -- decode and return a type for an enumeration
 
-SYNOPSIS
+   SYNOPSIS
 
-	static type *enum_type (struct dieinfo *dip, struct objfile *objfile)
+   static type *enum_type (struct dieinfo *dip, struct objfile *objfile)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a pointer to a die information structure for the die which
-	starts an enumeration, process all the dies that define the members
-	of the enumeration and return a type pointer for the enumeration.
+   Given a pointer to a die information structure for the die which
+   starts an enumeration, process all the dies that define the members
+   of the enumeration and return a type pointer for the enumeration.
 
-	At the same time, for each member of the enumeration, create a
-	symbol for it with namespace VAR_NAMESPACE and class LOC_CONST,
-	and give it the type of the enumeration itself.
+   At the same time, for each member of the enumeration, create a
+   symbol for it with namespace VAR_NAMESPACE and class LOC_CONST,
+   and give it the type of the enumeration itself.
 
-NOTES
+   NOTES
 
-	Note that the DWARF specification explicitly mandates that enum
-	constants occur in reverse order from the source program order,
-	for "consistency" and because this ordering is easier for many
-	compilers to generate. (Draft 6, sec 3.8.5, Enumeration type
-	Entries).  Because gdb wants to see the enum members in program
-	source order, we have to ensure that the order gets reversed while
-	we are processing them.
+   Note that the DWARF specification explicitly mandates that enum
+   constants occur in reverse order from the source program order,
+   for "consistency" and because this ordering is easier for many
+   compilers to generate. (Draft 6, sec 3.8.5, Enumeration type
+   Entries).  Because gdb wants to see the enum members in program
+   source order, we have to ensure that the order gets reversed while
+   we are processing them.
  */
 
 static struct type *
-enum_type (dip, objfile)
-     struct dieinfo *dip;
-     struct objfile *objfile;
+enum_type (struct dieinfo *dip, struct objfile *objfile)
 {
   struct type *type;
-  struct nextfield {
-    struct nextfield *next;
-    struct field field;
-  };
+  struct nextfield
+    {
+      struct nextfield *next;
+      struct field field;
+    };
   struct nextfield *list = NULL;
   struct nextfield *new;
   int nfields = 0;
@@ -1732,30 +1653,30 @@ enum_type (dip, objfile)
   struct symbol *sym;
   int nbytes;
   int unsigned_enum = 1;
-  
-  if ((type = lookup_utype (dip -> die_ref)) == NULL)
+
+  if ((type = lookup_utype (dip->die_ref)) == NULL)
     {
       /* No forward references created an empty type, so install one now */
-      type = alloc_utype (dip -> die_ref, NULL);
+      type = alloc_utype (dip->die_ref, NULL);
     }
   TYPE_CODE (type) = TYPE_CODE_ENUM;
   /* Some compilers try to be helpful by inventing "fake" names for
      anonymous enums, structures, and unions, like "~0fake" or ".0fake".
      Thanks, but no thanks... */
-  if (dip -> at_name != NULL
-      && *dip -> at_name != '~'
-      && *dip -> at_name != '.')
+  if (dip->at_name != NULL
+      && *dip->at_name != '~'
+      && *dip->at_name != '.')
     {
-      TYPE_TAG_NAME (type) = obconcat (&objfile -> type_obstack,
-				       "", "", dip -> at_name);
+      TYPE_TAG_NAME (type) = obconcat (&objfile->type_obstack,
+				       "", "", dip->at_name);
     }
-  if (dip -> at_byte_size != 0)
+  if (dip->at_byte_size != 0)
     {
-      TYPE_LENGTH (type) = dip -> at_byte_size;
+      TYPE_LENGTH (type) = dip->at_byte_size;
     }
-  if ((scan = dip -> at_element_list) != NULL)
+  if ((scan = dip->at_element_list) != NULL)
     {
-      if (dip -> short_element_list)
+      if (dip->short_element_list)
 	{
 	  nbytes = attribute_size (AT_short_element_list);
 	}
@@ -1769,7 +1690,7 @@ enum_type (dip, objfile)
       while (scan < listend)
 	{
 	  new = (struct nextfield *) alloca (sizeof (struct nextfield));
-	  new -> next = list;
+	  new->next = list;
 	  list = new;
 	  FIELD_TYPE (list->field) = NULL;
 	  FIELD_BITSIZE (list->field) = 0;
@@ -1777,15 +1698,15 @@ enum_type (dip, objfile)
 	    target_to_host (scan, TARGET_FT_LONG_SIZE (objfile), GET_SIGNED,
 			    objfile);
 	  scan += TARGET_FT_LONG_SIZE (objfile);
-	  list -> field.name = obsavestring (scan, strlen (scan),
-					     &objfile -> type_obstack);
+	  list->field.name = obsavestring (scan, strlen (scan),
+					   &objfile->type_obstack);
 	  scan += strlen (scan) + 1;
 	  nfields++;
 	  /* Handcraft a new symbol for this enum member. */
 	  sym = (struct symbol *) obstack_alloc (&objfile->symbol_obstack,
 						 sizeof (struct symbol));
 	  memset (sym, 0, sizeof (struct symbol));
-	  SYMBOL_NAME (sym) = create_name (list -> field.name,
+	  SYMBOL_NAME (sym) = create_name (list->field.name,
 					   &objfile->symbol_obstack);
 	  SYMBOL_INIT_LANGUAGE_SPECIFIC (sym, cu_language);
 	  SYMBOL_NAMESPACE (sym) = VAR_NAMESPACE;
@@ -1797,10 +1718,10 @@ enum_type (dip, objfile)
 	  add_symbol_to_list (sym, list_in_scope);
 	}
       /* Now create the vector of fields, and record how big it is. This is
-	 where we reverse the order, by pulling the members off the list in
-	 reverse order from how they were inserted.  If we have no fields
-	 (this is apparently possible in C++) then skip building a field
-	 vector. */
+         where we reverse the order, by pulling the members off the list in
+         reverse order from how they were inserted.  If we have no fields
+         (this is apparently possible in C++) then skip building a field
+         vector. */
       if (nfields > 0)
 	{
 	  if (unsigned_enum)
@@ -1809,10 +1730,10 @@ enum_type (dip, objfile)
 	  TYPE_FIELDS (type) = (struct field *)
 	    obstack_alloc (&objfile->symbol_obstack, sizeof (struct field) * nfields);
 	  /* Copy the saved-up fields into the field vector.  */
-	  for (n = 0; (n < nfields) && (list != NULL); list = list -> next)
+	  for (n = 0; (n < nfields) && (list != NULL); list = list->next)
 	    {
-	      TYPE_FIELD (type, n++) = list -> field;
-	    }	
+	      TYPE_FIELD (type, n++) = list->field;
+	    }
 	}
     }
   return (type);
@@ -1820,83 +1741,74 @@ enum_type (dip, objfile)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	read_func_scope -- process all dies within a function scope
+   read_func_scope -- process all dies within a function scope
 
-DESCRIPTION
+   DESCRIPTION
 
-	Process all dies within a given function scope.  We are passed
-	a die information structure pointer DIP for the die which
-	starts the function scope, and pointers into the raw die data
-	that define the dies within the function scope.
+   Process all dies within a given function scope.  We are passed
+   a die information structure pointer DIP for the die which
+   starts the function scope, and pointers into the raw die data
+   that define the dies within the function scope.
 
-	For now, we ignore lexical block scopes within the function.
-	The problem is that AT&T cc does not define a DWARF lexical
-	block scope for the function itself, while gcc defines a
-	lexical block scope for the function.  We need to think about
-	how to handle this difference, or if it is even a problem.
-	(FIXME)
+   For now, we ignore lexical block scopes within the function.
+   The problem is that AT&T cc does not define a DWARF lexical
+   block scope for the function itself, while gcc defines a
+   lexical block scope for the function.  We need to think about
+   how to handle this difference, or if it is even a problem.
+   (FIXME)
  */
 
 static void
-read_func_scope (dip, thisdie, enddie, objfile)
-     struct dieinfo *dip;
-     char *thisdie;
-     char *enddie;
-     struct objfile *objfile;
+read_func_scope (struct dieinfo *dip, char *thisdie, char *enddie,
+		 struct objfile *objfile)
 {
   register struct context_stack *new;
-  
+
   /* AT_name is absent if the function is described with an
      AT_abstract_origin tag.
      Ignore the function description for now to avoid GDB core dumps.
      FIXME: Add code to handle AT_abstract_origin tags properly.  */
-  if (dip -> at_name == NULL)
+  if (dip->at_name == NULL)
     {
       complain (&missing_at_name, DIE_ID);
       return;
     }
 
-  if (objfile -> ei.entry_point >= dip -> at_low_pc &&
-      objfile -> ei.entry_point <  dip -> at_high_pc)
+  if (objfile->ei.entry_point >= dip->at_low_pc &&
+      objfile->ei.entry_point < dip->at_high_pc)
     {
-      objfile -> ei.entry_func_lowpc = dip -> at_low_pc;
-      objfile -> ei.entry_func_highpc = dip -> at_high_pc;
+      objfile->ei.entry_func_lowpc = dip->at_low_pc;
+      objfile->ei.entry_func_highpc = dip->at_high_pc;
     }
-  if (STREQ (dip -> at_name, "main"))	/* FIXME: hardwired name */
-    {
-      objfile -> ei.main_func_lowpc = dip -> at_low_pc;
-      objfile -> ei.main_func_highpc = dip -> at_high_pc;
-    }
-  new = push_context (0, dip -> at_low_pc);
-  new -> name = new_symbol (dip, objfile);
+  new = push_context (0, dip->at_low_pc);
+  new->name = new_symbol (dip, objfile);
   list_in_scope = &local_symbols;
-  process_dies (thisdie + dip -> die_length, enddie, objfile);
+  process_dies (thisdie + dip->die_length, enddie, objfile);
   new = pop_context ();
   /* Make a block for the local symbols within.  */
-  finish_block (new -> name, &local_symbols, new -> old_blocks,
-		new -> start_addr, dip -> at_high_pc, objfile);
+  finish_block (new->name, &local_symbols, new->old_blocks,
+		new->start_addr, dip->at_high_pc, objfile);
   list_in_scope = &file_symbols;
 }
 
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	handle_producer -- process the AT_producer attribute
+   handle_producer -- process the AT_producer attribute
 
-DESCRIPTION
+   DESCRIPTION
 
-	Perform any operations that depend on finding a particular
-	AT_producer attribute.
+   Perform any operations that depend on finding a particular
+   AT_producer attribute.
 
  */
 
 static void
-handle_producer (producer)
-     char *producer;
+handle_producer (char *producer)
 {
 
   /* If this compilation unit was compiled with g++ or gcc, then set the
@@ -1923,7 +1835,11 @@ handle_producer (producer)
     {
       if (STREQN (producer, GPLUS_PRODUCER, strlen (GPLUS_PRODUCER)))
 	{
+#if 0
+	  /* For now, stay with AUTO_DEMANGLING for g++ output, as we don't
+	     know whether it will use the old style or v3 mangling.  */
 	  set_demangling_style (GNU_DEMANGLING_STYLE_STRING);
+#endif
 	}
       else if (STREQN (producer, LCC_PRODUCER, strlen (LCC_PRODUCER)))
 	{
@@ -1935,91 +1851,85 @@ handle_producer (producer)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	read_file_scope -- process all dies within a file scope
+   read_file_scope -- process all dies within a file scope
 
-DESCRIPTION
+   DESCRIPTION
 
-	Process all dies within a given file scope.  We are passed a
-	pointer to the die information structure for the die which
-	starts the file scope, and pointers into the raw die data which
-	mark the range of dies within the file scope.
+   Process all dies within a given file scope.  We are passed a
+   pointer to the die information structure for the die which
+   starts the file scope, and pointers into the raw die data which
+   mark the range of dies within the file scope.
 
-	When the partial symbol table is built, the file offset for the line
-	number table for each compilation unit is saved in the partial symbol
-	table entry for that compilation unit.  As the symbols for each
-	compilation unit are read, the line number table is read into memory
-	and the variable lnbase is set to point to it.  Thus all we have to
-	do is use lnbase to access the line number table for the current
-	compilation unit.
+   When the partial symbol table is built, the file offset for the line
+   number table for each compilation unit is saved in the partial symbol
+   table entry for that compilation unit.  As the symbols for each
+   compilation unit are read, the line number table is read into memory
+   and the variable lnbase is set to point to it.  Thus all we have to
+   do is use lnbase to access the line number table for the current
+   compilation unit.
  */
 
 static void
-read_file_scope (dip, thisdie, enddie, objfile)
-     struct dieinfo *dip;
-     char *thisdie;
-     char *enddie;
-     struct objfile *objfile;
+read_file_scope (struct dieinfo *dip, char *thisdie, char *enddie,
+		 struct objfile *objfile)
 {
   struct cleanup *back_to;
   struct symtab *symtab;
-  
-  if (objfile -> ei.entry_point >= dip -> at_low_pc &&
-      objfile -> ei.entry_point <  dip -> at_high_pc)
+
+  if (objfile->ei.entry_point >= dip->at_low_pc &&
+      objfile->ei.entry_point < dip->at_high_pc)
     {
-      objfile -> ei.entry_file_lowpc = dip -> at_low_pc;
-      objfile -> ei.entry_file_highpc = dip -> at_high_pc;
+      objfile->ei.entry_file_lowpc = dip->at_low_pc;
+      objfile->ei.entry_file_highpc = dip->at_high_pc;
     }
   set_cu_language (dip);
-  if (dip -> at_producer != NULL)
+  if (dip->at_producer != NULL)
     {
-      handle_producer (dip -> at_producer);
+      handle_producer (dip->at_producer);
     }
   numutypes = (enddie - thisdie) / 4;
   utypes = (struct type **) xmalloc (numutypes * sizeof (struct type *));
   back_to = make_cleanup (free_utypes, NULL);
   memset (utypes, 0, numutypes * sizeof (struct type *));
   memset (ftypes, 0, FT_NUM_MEMBERS * sizeof (struct type *));
-  start_symtab (dip -> at_name, dip -> at_comp_dir, dip -> at_low_pc);
+  start_symtab (dip->at_name, dip->at_comp_dir, dip->at_low_pc);
   record_debugformat ("DWARF 1");
   decode_line_numbers (lnbase);
-  process_dies (thisdie + dip -> die_length, enddie, objfile);
+  process_dies (thisdie + dip->die_length, enddie, objfile);
 
-  symtab = end_symtab (dip -> at_high_pc, objfile, 0);
+  symtab = end_symtab (dip->at_high_pc, objfile, 0);
   if (symtab != NULL)
     {
-      symtab -> language = cu_language;
-    }      
+      symtab->language = cu_language;
+    }
   do_cleanups (back_to);
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	process_dies -- process a range of DWARF Information Entries
+   process_dies -- process a range of DWARF Information Entries
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void process_dies (char *thisdie, char *enddie,
-				  struct objfile *objfile)
+   static void process_dies (char *thisdie, char *enddie,
+   struct objfile *objfile)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Process all DIE's in a specified range.  May be (and almost
-	certainly will be) called recursively.
+   Process all DIE's in a specified range.  May be (and almost
+   certainly will be) called recursively.
  */
 
 static void
-process_dies (thisdie, enddie, objfile)
-     char *thisdie;
-     char *enddie;
-     struct objfile *objfile;
+process_dies (char *thisdie, char *enddie, struct objfile *objfile)
 {
   char *nextdie;
   struct dieinfo di;
-  
+
   while (thisdie < enddie)
     {
       basicdieinfo (&di, thisdie, objfile);
@@ -2042,17 +1952,15 @@ process_dies (thisdie, enddie, objfile)
 	    {
 	      nextdie = thisdie + di.die_length;
 	    }
-#ifdef SMASH_TEXT_ADDRESS
 	  /* I think that these are always text, not data, addresses.  */
-	  SMASH_TEXT_ADDRESS (di.at_low_pc);
-	  SMASH_TEXT_ADDRESS (di.at_high_pc);
-#endif
+	  di.at_low_pc = SMASH_TEXT_ADDRESS (di.at_low_pc);
+	  di.at_high_pc = SMASH_TEXT_ADDRESS (di.at_high_pc);
 	  switch (di.die_tag)
 	    {
 	    case TAG_compile_unit:
 	      /* Skip Tag_compile_unit if we are already inside a compilation
-		 unit, we are unable to handle nested compilation units
-		 properly (FIXME).  */
+	         unit, we are unable to handle nested compilation units
+	         properly (FIXME).  */
 	      if (current_subfile == NULL)
 		read_file_scope (&di, thisdie, nextdie, objfile);
 	      else
@@ -2099,67 +2007,66 @@ process_dies (thisdie, enddie, objfile)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	decode_line_numbers -- decode a line number table fragment
+   decode_line_numbers -- decode a line number table fragment
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void decode_line_numbers (char *tblscan, char *tblend,
-		long length, long base, long line, long pc)
+   static void decode_line_numbers (char *tblscan, char *tblend,
+   long length, long base, long line, long pc)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Translate the DWARF line number information to gdb form.
+   Translate the DWARF line number information to gdb form.
 
-	The ".line" section contains one or more line number tables, one for
-	each ".line" section from the objects that were linked.
+   The ".line" section contains one or more line number tables, one for
+   each ".line" section from the objects that were linked.
 
-	The AT_stmt_list attribute for each TAG_source_file entry in the
-	".debug" section contains the offset into the ".line" section for the
-	start of the table for that file.
+   The AT_stmt_list attribute for each TAG_source_file entry in the
+   ".debug" section contains the offset into the ".line" section for the
+   start of the table for that file.
 
-	The table itself has the following structure:
+   The table itself has the following structure:
 
-	<table length><base address><source statement entry>
-	4 bytes       4 bytes       10 bytes
+   <table length><base address><source statement entry>
+   4 bytes       4 bytes       10 bytes
 
-	The table length is the total size of the table, including the 4 bytes
-	for the length information.
+   The table length is the total size of the table, including the 4 bytes
+   for the length information.
 
-	The base address is the address of the first instruction generated
-	for the source file.
+   The base address is the address of the first instruction generated
+   for the source file.
 
-	Each source statement entry has the following structure:
+   Each source statement entry has the following structure:
 
-	<line number><statement position><address delta>
-	4 bytes      2 bytes             4 bytes
+   <line number><statement position><address delta>
+   4 bytes      2 bytes             4 bytes
 
-	The line number is relative to the start of the file, starting with
-	line 1.
+   The line number is relative to the start of the file, starting with
+   line 1.
 
-	The statement position either -1 (0xFFFF) or the number of characters
-	from the beginning of the line to the beginning of the statement.
+   The statement position either -1 (0xFFFF) or the number of characters
+   from the beginning of the line to the beginning of the statement.
 
-	The address delta is the difference between the base address and
-	the address of the first instruction for the statement.
+   The address delta is the difference between the base address and
+   the address of the first instruction for the statement.
 
-	Note that we must copy the bytes from the packed table to our local
-	variables before attempting to use them, to avoid alignment problems
-	on some machines, particularly RISC processors.
+   Note that we must copy the bytes from the packed table to our local
+   variables before attempting to use them, to avoid alignment problems
+   on some machines, particularly RISC processors.
 
-BUGS
+   BUGS
 
-	Does gdb expect the line numbers to be sorted?  They are now by
-	chance/luck, but are not required to be.  (FIXME)
+   Does gdb expect the line numbers to be sorted?  They are now by
+   chance/luck, but are not required to be.  (FIXME)
 
-	The line with number 0 is unused, gdb apparently can discover the
-	span of the last line some other way. How?  (FIXME)
+   The line with number 0 is unused, gdb apparently can discover the
+   span of the last line some other way. How?  (FIXME)
  */
 
 static void
-decode_line_numbers (linetable)
-     char *linetable;
+decode_line_numbers (char *linetable)
 {
   char *tblscan;
   char *tblend;
@@ -2167,7 +2074,7 @@ decode_line_numbers (linetable)
   unsigned long base;
   unsigned long line;
   unsigned long pc;
-  
+
   if (linetable != NULL)
     {
       tblscan = tblend = linetable;
@@ -2198,42 +2105,41 @@ decode_line_numbers (linetable)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	locval -- compute the value of a location attribute
+   locval -- compute the value of a location attribute
 
-SYNOPSIS
+   SYNOPSIS
 
-	static int locval (struct dieinfo *dip)
+   static int locval (struct dieinfo *dip)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given pointer to a string of bytes that define a location, compute
-	the location and return the value.
-	A location description containing no atoms indicates that the
-	object is optimized out. The optimized_out flag is set for those,
-	the return value is meaningless.
+   Given pointer to a string of bytes that define a location, compute
+   the location and return the value.
+   A location description containing no atoms indicates that the
+   object is optimized out. The optimized_out flag is set for those,
+   the return value is meaningless.
 
-	When computing values involving the current value of the frame pointer,
-	the value zero is used, which results in a value relative to the frame
-	pointer, rather than the absolute value.  This is what GDB wants
-	anyway.
-    
-	When the result is a register number, the isreg flag is set, otherwise
-	it is cleared.  This is a kludge until we figure out a better
-	way to handle the problem.  Gdb's design does not mesh well with the
-	DWARF notion of a location computing interpreter, which is a shame
-	because the flexibility goes unused.
+   When computing values involving the current value of the frame pointer,
+   the value zero is used, which results in a value relative to the frame
+   pointer, rather than the absolute value.  This is what GDB wants
+   anyway.
 
-NOTES
+   When the result is a register number, the isreg flag is set, otherwise
+   it is cleared.  This is a kludge until we figure out a better
+   way to handle the problem.  Gdb's design does not mesh well with the
+   DWARF notion of a location computing interpreter, which is a shame
+   because the flexibility goes unused.
 
-	Note that stack[0] is unused except as a default error return.
-	Note that stack overflow is not yet handled.
+   NOTES
+
+   Note that stack[0] is unused except as a default error return.
+   Note that stack overflow is not yet handled.
  */
 
 static int
-locval (dip)
-     struct dieinfo *dip;
+locval (struct dieinfo *dip)
 {
   unsigned short nbytes;
   unsigned short locsize;
@@ -2243,72 +2149,72 @@ locval (dip)
   char *end;
   int loc_atom_code;
   int loc_value_size;
-  
-  loc = dip -> at_location;
+
+  loc = dip->at_location;
   nbytes = attribute_size (AT_location);
   locsize = target_to_host (loc, nbytes, GET_UNSIGNED, current_objfile);
   loc += nbytes;
   end = loc + locsize;
   stacki = 0;
   stack[stacki] = 0;
-  dip -> isreg = 0;
-  dip -> offreg = 0;
-  dip -> optimized_out = 1;
+  dip->isreg = 0;
+  dip->offreg = 0;
+  dip->optimized_out = 1;
   loc_value_size = TARGET_FT_LONG_SIZE (current_objfile);
   while (loc < end)
     {
-      dip -> optimized_out = 0;
+      dip->optimized_out = 0;
       loc_atom_code = target_to_host (loc, SIZEOF_LOC_ATOM_CODE, GET_UNSIGNED,
 				      current_objfile);
       loc += SIZEOF_LOC_ATOM_CODE;
       switch (loc_atom_code)
 	{
-	  case 0:
-	    /* error */
-	    loc = end;
-	    break;
-	  case OP_REG:
-	    /* push register (number) */
-	    stack[++stacki]
-	      = DWARF_REG_TO_REGNUM (target_to_host (loc, loc_value_size,
-						     GET_UNSIGNED,
-						     current_objfile));
-	    loc += loc_value_size;
-	    dip -> isreg = 1;
-	    break;
-	  case OP_BASEREG:
-	    /* push value of register (number) */
-	    /* Actually, we compute the value as if register has 0, so the
-	       value ends up being the offset from that register.  */
-	    dip -> offreg = 1;
-	    dip -> basereg = target_to_host (loc, loc_value_size, GET_UNSIGNED,
-					     current_objfile);
-	    loc += loc_value_size;
-	    stack[++stacki] = 0;
-	    break;
-	  case OP_ADDR:
-	    /* push address (relocated address) */
-	    stack[++stacki] = target_to_host (loc, loc_value_size,
-					      GET_UNSIGNED, current_objfile);
-	    loc += loc_value_size;
-	    break;
-	  case OP_CONST:
-	    /* push constant (number)   FIXME: signed or unsigned! */
-	    stack[++stacki] = target_to_host (loc, loc_value_size,
-					      GET_SIGNED, current_objfile);
-	    loc += loc_value_size;
-	    break;
-	  case OP_DEREF2:
-	    /* pop, deref and push 2 bytes (as a long) */
-	    complain (&op_deref2, DIE_ID, DIE_NAME, stack[stacki]);
-	    break;
-	  case OP_DEREF4:	/* pop, deref and push 4 bytes (as a long) */
-	    complain (&op_deref4, DIE_ID, DIE_NAME, stack[stacki]);
-	    break;
-	  case OP_ADD:	/* pop top 2 items, add, push result */
-	    stack[stacki - 1] += stack[stacki];
-	    stacki--;
-	    break;
+	case 0:
+	  /* error */
+	  loc = end;
+	  break;
+	case OP_REG:
+	  /* push register (number) */
+	  stack[++stacki]
+	    = DWARF_REG_TO_REGNUM (target_to_host (loc, loc_value_size,
+						   GET_UNSIGNED,
+						   current_objfile));
+	  loc += loc_value_size;
+	  dip->isreg = 1;
+	  break;
+	case OP_BASEREG:
+	  /* push value of register (number) */
+	  /* Actually, we compute the value as if register has 0, so the
+	     value ends up being the offset from that register.  */
+	  dip->offreg = 1;
+	  dip->basereg = target_to_host (loc, loc_value_size, GET_UNSIGNED,
+					 current_objfile);
+	  loc += loc_value_size;
+	  stack[++stacki] = 0;
+	  break;
+	case OP_ADDR:
+	  /* push address (relocated address) */
+	  stack[++stacki] = target_to_host (loc, loc_value_size,
+					    GET_UNSIGNED, current_objfile);
+	  loc += loc_value_size;
+	  break;
+	case OP_CONST:
+	  /* push constant (number)   FIXME: signed or unsigned! */
+	  stack[++stacki] = target_to_host (loc, loc_value_size,
+					    GET_SIGNED, current_objfile);
+	  loc += loc_value_size;
+	  break;
+	case OP_DEREF2:
+	  /* pop, deref and push 2 bytes (as a long) */
+	  complain (&op_deref2, DIE_ID, DIE_NAME, stack[stacki]);
+	  break;
+	case OP_DEREF4:	/* pop, deref and push 4 bytes (as a long) */
+	  complain (&op_deref4, DIE_ID, DIE_NAME, stack[stacki]);
+	  break;
+	case OP_ADD:		/* pop top 2 items, add, push result */
+	  stack[stacki - 1] += stack[stacki];
+	  stacki--;
+	  break;
 	}
     }
   return (stack[stacki]);
@@ -2316,26 +2222,25 @@ locval (dip)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	read_ofile_symtab -- build a full symtab entry from chunk of DIE's
+   read_ofile_symtab -- build a full symtab entry from chunk of DIE's
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void read_ofile_symtab (struct partial_symtab *pst)
+   static void read_ofile_symtab (struct partial_symtab *pst)
 
-DESCRIPTION
+   DESCRIPTION
 
-	When expanding a partial symbol table entry to a full symbol table
-	entry, this is the function that gets called to read in the symbols
-	for the compilation unit.  A pointer to the newly constructed symtab,
-	which is now the new first one on the objfile's symtab list, is
-	stashed in the partial symbol table entry.
+   When expanding a partial symbol table entry to a full symbol table
+   entry, this is the function that gets called to read in the symbols
+   for the compilation unit.  A pointer to the newly constructed symtab,
+   which is now the new first one on the objfile's symtab list, is
+   stashed in the partial symbol table entry.
  */
 
 static void
-read_ofile_symtab (pst)
-     struct partial_symtab *pst;
+read_ofile_symtab (struct partial_symtab *pst)
 {
   struct cleanup *back_to;
   unsigned long lnsize;
@@ -2343,8 +2248,8 @@ read_ofile_symtab (pst)
   bfd *abfd;
   char lnsizedata[SIZEOF_LINETBL_LENGTH];
 
-  abfd = pst -> objfile -> obfd;
-  current_objfile = pst -> objfile;
+  abfd = pst->objfile->obfd;
+  current_objfile = pst->objfile;
 
   /* Allocate a buffer for the entire chunk of DIE's for this compilation
      unit, seek to the location in the file, and read in all the DIE's. */
@@ -2352,17 +2257,17 @@ read_ofile_symtab (pst)
   diecount = 0;
   dbsize = DBLENGTH (pst);
   dbbase = xmalloc (dbsize);
-  dbroff = DBROFF(pst);
-  foffset = DBFOFF(pst) + dbroff;
+  dbroff = DBROFF (pst);
+  foffset = DBFOFF (pst) + dbroff;
   base_section_offsets = pst->section_offsets;
   baseaddr = ANOFFSET (pst->section_offsets, 0);
   if (bfd_seek (abfd, foffset, SEEK_SET) ||
-      (bfd_read (dbbase, dbsize, 1, abfd) != dbsize))
+      (bfd_bread (dbbase, dbsize, abfd) != dbsize))
     {
-      free (dbbase);
+      xfree (dbbase);
       error ("can't read DWARF data");
     }
-  back_to = make_cleanup (free, dbbase);
+  back_to = make_cleanup (xfree, dbbase);
 
   /* If there is a line number table associated with this compilation unit
      then read the size of this fragment in bytes, from the fragment itself.
@@ -2373,66 +2278,65 @@ read_ofile_symtab (pst)
   if (LNFOFF (pst))
     {
       if (bfd_seek (abfd, LNFOFF (pst), SEEK_SET) ||
-	  (bfd_read ((PTR) lnsizedata, sizeof (lnsizedata), 1, abfd) !=
-	   sizeof (lnsizedata)))
+	  (bfd_bread ((PTR) lnsizedata, sizeof (lnsizedata), abfd)
+	   != sizeof (lnsizedata)))
 	{
 	  error ("can't read DWARF line number table size");
 	}
       lnsize = target_to_host (lnsizedata, SIZEOF_LINETBL_LENGTH,
-			       GET_UNSIGNED, pst -> objfile);
+			       GET_UNSIGNED, pst->objfile);
       lnbase = xmalloc (lnsize);
       if (bfd_seek (abfd, LNFOFF (pst), SEEK_SET) ||
-	  (bfd_read (lnbase, lnsize, 1, abfd) != lnsize))
+	  (bfd_bread (lnbase, lnsize, abfd) != lnsize))
 	{
-	  free (lnbase);
+	  xfree (lnbase);
 	  error ("can't read DWARF line numbers");
 	}
-      make_cleanup (free, lnbase);
+      make_cleanup (xfree, lnbase);
     }
 
-  process_dies (dbbase, dbbase + dbsize, pst -> objfile);
+  process_dies (dbbase, dbbase + dbsize, pst->objfile);
   do_cleanups (back_to);
   current_objfile = NULL;
-  pst -> symtab = pst -> objfile -> symtabs;
+  pst->symtab = pst->objfile->symtabs;
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	psymtab_to_symtab_1 -- do grunt work for building a full symtab entry
+   psymtab_to_symtab_1 -- do grunt work for building a full symtab entry
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void psymtab_to_symtab_1 (struct partial_symtab *pst)
+   static void psymtab_to_symtab_1 (struct partial_symtab *pst)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Called once for each partial symbol table entry that needs to be
-	expanded into a full symbol table entry.
+   Called once for each partial symbol table entry that needs to be
+   expanded into a full symbol table entry.
 
-*/
+ */
 
 static void
-psymtab_to_symtab_1 (pst)
-     struct partial_symtab *pst;
+psymtab_to_symtab_1 (struct partial_symtab *pst)
 {
   int i;
   struct cleanup *old_chain;
-  
+
   if (pst != NULL)
     {
       if (pst->readin)
 	{
 	  warning ("psymtab for %s already read in.  Shouldn't happen.",
-		   pst -> filename);
+		   pst->filename);
 	}
       else
 	{
 	  /* Read in all partial symtabs on which this one is dependent */
-	  for (i = 0; i < pst -> number_of_dependencies; i++)
+	  for (i = 0; i < pst->number_of_dependencies; i++)
 	    {
-	      if (!pst -> dependencies[i] -> readin)
+	      if (!pst->dependencies[i]->readin)
 		{
 		  /* Inform about additional files that need to be read in. */
 		  if (info_verbose)
@@ -2442,18 +2346,17 @@ psymtab_to_symtab_1 (pst)
 		      fputs_filtered ("and ", gdb_stdout);
 		      wrap_here ("");
 		      printf_filtered ("%s...",
-				       pst -> dependencies[i] -> filename);
+				       pst->dependencies[i]->filename);
 		      wrap_here ("");
-		      gdb_flush (gdb_stdout);		/* Flush output */
+		      gdb_flush (gdb_stdout);	/* Flush output */
 		    }
-		  psymtab_to_symtab_1 (pst -> dependencies[i]);
+		  psymtab_to_symtab_1 (pst->dependencies[i]);
 		}
-	    }	  
-	  if (DBLENGTH (pst))		/* Otherwise it's a dummy */
+	    }
+	  if (DBLENGTH (pst))	/* Otherwise it's a dummy */
 	    {
 	      buildsym_init ();
-	      old_chain = make_cleanup ((make_cleanup_func) 
-                                        really_free_pendings, 0);
+	      old_chain = make_cleanup (really_free_pendings, 0);
 	      read_ofile_symtab (pst);
 	      if (info_verbose)
 		{
@@ -2461,68 +2364,67 @@ psymtab_to_symtab_1 (pst)
 		  wrap_here ("");
 		  gdb_flush (gdb_stdout);
 		}
-	      sort_symtab_syms (pst -> symtab);
+	      sort_symtab_syms (pst->symtab);
 	      do_cleanups (old_chain);
 	    }
-	  pst -> readin = 1;
+	  pst->readin = 1;
 	}
     }
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	dwarf_psymtab_to_symtab -- build a full symtab entry from partial one
+   dwarf_psymtab_to_symtab -- build a full symtab entry from partial one
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void dwarf_psymtab_to_symtab (struct partial_symtab *pst)
+   static void dwarf_psymtab_to_symtab (struct partial_symtab *pst)
 
-DESCRIPTION
+   DESCRIPTION
 
-	This is the DWARF support entry point for building a full symbol
-	table entry from a partial symbol table entry.  We are passed a
-	pointer to the partial symbol table entry that needs to be expanded.
+   This is the DWARF support entry point for building a full symbol
+   table entry from a partial symbol table entry.  We are passed a
+   pointer to the partial symbol table entry that needs to be expanded.
 
-*/
+ */
 
 static void
-dwarf_psymtab_to_symtab (pst)
-     struct partial_symtab *pst;
+dwarf_psymtab_to_symtab (struct partial_symtab *pst)
 {
 
   if (pst != NULL)
     {
-      if (pst -> readin)
+      if (pst->readin)
 	{
 	  warning ("psymtab for %s already read in.  Shouldn't happen.",
-		   pst -> filename);
+		   pst->filename);
 	}
       else
 	{
-	  if (DBLENGTH (pst) || pst -> number_of_dependencies)
+	  if (DBLENGTH (pst) || pst->number_of_dependencies)
 	    {
 	      /* Print the message now, before starting serious work, to avoid
-		 disconcerting pauses.  */
+	         disconcerting pauses.  */
 	      if (info_verbose)
 		{
 		  printf_filtered ("Reading in symbols for %s...",
-				   pst -> filename);
+				   pst->filename);
 		  gdb_flush (gdb_stdout);
 		}
-	      
+
 	      psymtab_to_symtab_1 (pst);
-	      
-#if 0	      /* FIXME:  Check to see what dbxread is doing here and see if
-		 we need to do an equivalent or is this something peculiar to
-		 stabs/a.out format.
-		 Match with global symbols.  This only needs to be done once,
-		 after all of the symtabs and dependencies have been read in.
-		 */
-	      scan_file_globals (pst -> objfile);
+
+#if 0				/* FIXME:  Check to see what dbxread is doing here and see if
+				   we need to do an equivalent or is this something peculiar to
+				   stabs/a.out format.
+				   Match with global symbols.  This only needs to be done once,
+				   after all of the symtabs and dependencies have been read in.
+				 */
+	      scan_file_globals (pst->objfile);
 #endif
-	      
+
 	      /* Finish up the verbose info message.  */
 	      if (info_verbose)
 		{
@@ -2536,30 +2438,28 @@ dwarf_psymtab_to_symtab (pst)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	add_enum_psymbol -- add enumeration members to partial symbol table
+   add_enum_psymbol -- add enumeration members to partial symbol table
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given pointer to a DIE that is known to be for an enumeration,
-	extract the symbolic names of the enumeration members and add
-	partial symbols for them.
-*/
+   Given pointer to a DIE that is known to be for an enumeration,
+   extract the symbolic names of the enumeration members and add
+   partial symbols for them.
+ */
 
 static void
-add_enum_psymbol (dip, objfile)
-     struct dieinfo *dip;
-     struct objfile *objfile;
+add_enum_psymbol (struct dieinfo *dip, struct objfile *objfile)
 {
   char *scan;
   char *listend;
   unsigned short blocksz;
   int nbytes;
-  
-  if ((scan = dip -> at_element_list) != NULL)
+
+  if ((scan = dip->at_element_list) != NULL)
     {
-      if (dip -> short_element_list)
+      if (dip->short_element_list)
 	{
 	  nbytes = attribute_size (AT_short_element_list);
 	}
@@ -2574,7 +2474,7 @@ add_enum_psymbol (dip, objfile)
 	{
 	  scan += TARGET_FT_LONG_SIZE (objfile);
 	  add_psymbol_to_list (scan, strlen (scan), VAR_NAMESPACE, LOC_CONST,
-			       &objfile -> static_psymbols, 0, 0, cu_language,
+			       &objfile->static_psymbols, 0, 0, cu_language,
 			       objfile);
 	  scan += strlen (scan) + 1;
 	}
@@ -2583,56 +2483,54 @@ add_enum_psymbol (dip, objfile)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	add_partial_symbol -- add symbol to partial symbol table
+   add_partial_symbol -- add symbol to partial symbol table
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a DIE, if it is one of the types that we want to
-	add to a partial symbol table, finish filling in the die info
-	and then add a partial symbol table entry for it.
+   Given a DIE, if it is one of the types that we want to
+   add to a partial symbol table, finish filling in the die info
+   and then add a partial symbol table entry for it.
 
-NOTES
+   NOTES
 
-	The caller must ensure that the DIE has a valid name attribute.
-*/
+   The caller must ensure that the DIE has a valid name attribute.
+ */
 
 static void
-add_partial_symbol (dip, objfile)
-     struct dieinfo *dip;
-     struct objfile *objfile;
+add_partial_symbol (struct dieinfo *dip, struct objfile *objfile)
 {
-  switch (dip -> die_tag)
+  switch (dip->die_tag)
     {
     case TAG_global_subroutine:
-      add_psymbol_to_list (dip -> at_name, strlen (dip -> at_name),
-				VAR_NAMESPACE, LOC_BLOCK,
-				&objfile -> global_psymbols,
-				0, dip -> at_low_pc, cu_language, objfile);
+      add_psymbol_to_list (dip->at_name, strlen (dip->at_name),
+			   VAR_NAMESPACE, LOC_BLOCK,
+			   &objfile->global_psymbols,
+			   0, dip->at_low_pc, cu_language, objfile);
       break;
     case TAG_global_variable:
-      add_psymbol_to_list (dip -> at_name, strlen (dip -> at_name),
+      add_psymbol_to_list (dip->at_name, strlen (dip->at_name),
 			   VAR_NAMESPACE, LOC_STATIC,
-			   &objfile -> global_psymbols,
+			   &objfile->global_psymbols,
 			   0, 0, cu_language, objfile);
       break;
     case TAG_subroutine:
-      add_psymbol_to_list (dip -> at_name, strlen (dip -> at_name),
-				VAR_NAMESPACE, LOC_BLOCK,
-				&objfile -> static_psymbols,
-				0, dip -> at_low_pc, cu_language, objfile);
+      add_psymbol_to_list (dip->at_name, strlen (dip->at_name),
+			   VAR_NAMESPACE, LOC_BLOCK,
+			   &objfile->static_psymbols,
+			   0, dip->at_low_pc, cu_language, objfile);
       break;
     case TAG_local_variable:
-      add_psymbol_to_list (dip -> at_name, strlen (dip -> at_name),
+      add_psymbol_to_list (dip->at_name, strlen (dip->at_name),
 			   VAR_NAMESPACE, LOC_STATIC,
-			   &objfile -> static_psymbols,
+			   &objfile->static_psymbols,
 			   0, 0, cu_language, objfile);
       break;
     case TAG_typedef:
-      add_psymbol_to_list (dip -> at_name, strlen (dip -> at_name),
+      add_psymbol_to_list (dip->at_name, strlen (dip->at_name),
 			   VAR_NAMESPACE, LOC_TYPEDEF,
-			   &objfile -> static_psymbols,
+			   &objfile->static_psymbols,
 			   0, 0, cu_language, objfile);
       break;
     case TAG_class_type:
@@ -2640,24 +2538,24 @@ add_partial_symbol (dip, objfile)
     case TAG_union_type:
     case TAG_enumeration_type:
       /* Do not add opaque aggregate definitions to the psymtab.  */
-      if (!dip -> has_at_byte_size)
+      if (!dip->has_at_byte_size)
 	break;
-      add_psymbol_to_list (dip -> at_name, strlen (dip -> at_name),
+      add_psymbol_to_list (dip->at_name, strlen (dip->at_name),
 			   STRUCT_NAMESPACE, LOC_TYPEDEF,
-			   &objfile -> static_psymbols,
+			   &objfile->static_psymbols,
 			   0, 0, cu_language, objfile);
       if (cu_language == language_cplus)
 	{
 	  /* For C++, these implicitly act as typedefs as well. */
-	  add_psymbol_to_list (dip -> at_name, strlen (dip -> at_name),
+	  add_psymbol_to_list (dip->at_name, strlen (dip->at_name),
 			       VAR_NAMESPACE, LOC_TYPEDEF,
-			       &objfile -> static_psymbols,
+			       &objfile->static_psymbols,
 			       0, 0, cu_language, objfile);
 	}
       break;
     }
 }
-
+/* *INDENT-OFF* */
 /*
 
 LOCAL FUNCTION
@@ -2721,17 +2619,17 @@ NOTES
 	where the actual definition occurs, rather than just a reference
 	to an external.
  */
+/* *INDENT-ON* */
+
+
 
 static void
-scan_partial_symbols (thisdie, enddie, objfile)
-     char *thisdie;
-     char *enddie;
-     struct objfile *objfile;
+scan_partial_symbols (char *thisdie, char *enddie, struct objfile *objfile)
 {
   char *nextdie;
   char *temp;
   struct dieinfo di;
-  
+
   while (thisdie < enddie)
     {
       basicdieinfo (&di, thisdie, objfile);
@@ -2805,54 +2703,50 @@ scan_partial_symbols (thisdie, enddie, objfile)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	scan_compilation_units -- build a psymtab entry for each compilation
+   scan_compilation_units -- build a psymtab entry for each compilation
 
-DESCRIPTION
+   DESCRIPTION
 
-	This is the top level dwarf parsing routine for building partial
-	symbol tables.
+   This is the top level dwarf parsing routine for building partial
+   symbol tables.
 
-	It scans from the beginning of the DWARF table looking for the first
-	TAG_compile_unit DIE, and then follows the sibling chain to locate
-	each additional TAG_compile_unit DIE.
-   
-	For each TAG_compile_unit DIE it creates a partial symtab structure,
-	calls a subordinate routine to collect all the compilation unit's
-	global DIE's, file scope DIEs, typedef DIEs, etc, and then links the
-	new partial symtab structure into the partial symbol table.  It also
-	records the appropriate information in the partial symbol table entry
-	to allow the chunk of DIE's and line number table for this compilation
-	unit to be located and re-read later, to generate a complete symbol
-	table entry for the compilation unit.
+   It scans from the beginning of the DWARF table looking for the first
+   TAG_compile_unit DIE, and then follows the sibling chain to locate
+   each additional TAG_compile_unit DIE.
 
-	Thus it effectively partitions up a chunk of DIE's for multiple
-	compilation units into smaller DIE chunks and line number tables,
-	and associates them with a partial symbol table entry.
+   For each TAG_compile_unit DIE it creates a partial symtab structure,
+   calls a subordinate routine to collect all the compilation unit's
+   global DIE's, file scope DIEs, typedef DIEs, etc, and then links the
+   new partial symtab structure into the partial symbol table.  It also
+   records the appropriate information in the partial symbol table entry
+   to allow the chunk of DIE's and line number table for this compilation
+   unit to be located and re-read later, to generate a complete symbol
+   table entry for the compilation unit.
 
-NOTES
+   Thus it effectively partitions up a chunk of DIE's for multiple
+   compilation units into smaller DIE chunks and line number tables,
+   and associates them with a partial symbol table entry.
 
-	If any compilation unit has no line number table associated with
-	it for some reason (a missing at_stmt_list attribute, rather than
-	just one with a value of zero, which is valid) then we ensure that
-	the recorded file offset is zero so that the routine which later
-	reads line number table fragments knows that there is no fragment
-	to read.
+   NOTES
 
-RETURNS
+   If any compilation unit has no line number table associated with
+   it for some reason (a missing at_stmt_list attribute, rather than
+   just one with a value of zero, which is valid) then we ensure that
+   the recorded file offset is zero so that the routine which later
+   reads line number table fragments knows that there is no fragment
+   to read.
 
-	Returns no value.
+   RETURNS
+
+   Returns no value.
 
  */
 
 static void
-scan_compilation_units (thisdie, enddie, dbfoff, lnoffset, objfile)
-     char *thisdie;
-     char *enddie;
-     file_ptr dbfoff;
-     file_ptr lnoffset;
-     struct objfile *objfile;
+scan_compilation_units (char *thisdie, char *enddie, file_ptr dbfoff,
+			file_ptr lnoffset, struct objfile *objfile)
 {
   char *nextdie;
   struct dieinfo di;
@@ -2892,69 +2786,67 @@ scan_compilation_units (thisdie, enddie, dbfoff, lnoffset, objfile)
 
 	  pst = start_psymtab_common (objfile, base_section_offsets,
 				      di.at_name, di.at_low_pc,
-				      objfile -> global_psymbols.next,
-				      objfile -> static_psymbols.next);
+				      objfile->global_psymbols.next,
+				      objfile->static_psymbols.next);
 
-	  pst -> texthigh = di.at_high_pc;
-	  pst -> read_symtab_private = (char *)
-	      obstack_alloc (&objfile -> psymbol_obstack,
-			     sizeof (struct dwfinfo));
+	  pst->texthigh = di.at_high_pc;
+	  pst->read_symtab_private = (char *)
+	    obstack_alloc (&objfile->psymbol_obstack,
+			   sizeof (struct dwfinfo));
 	  DBFOFF (pst) = dbfoff;
 	  DBROFF (pst) = curoff;
 	  DBLENGTH (pst) = culength;
-	  LNFOFF (pst)  = curlnoffset;
-	  pst -> read_symtab = dwarf_psymtab_to_symtab;
+	  LNFOFF (pst) = curlnoffset;
+	  pst->read_symtab = dwarf_psymtab_to_symtab;
 
 	  /* Now look for partial symbols */
 
 	  scan_partial_symbols (thisdie + di.die_length, nextdie, objfile);
 
-	  pst -> n_global_syms = objfile -> global_psymbols.next -
-	    (objfile -> global_psymbols.list + pst -> globals_offset);
-	  pst -> n_static_syms = objfile -> static_psymbols.next - 
-	    (objfile -> static_psymbols.list + pst -> statics_offset);
+	  pst->n_global_syms = objfile->global_psymbols.next -
+	    (objfile->global_psymbols.list + pst->globals_offset);
+	  pst->n_static_syms = objfile->static_psymbols.next -
+	    (objfile->static_psymbols.list + pst->statics_offset);
 	  sort_pst_symbols (pst);
 	  /* If there is already a psymtab or symtab for a file of this name,
 	     remove it. (If there is a symtab, more drastic things also
 	     happen.)  This happens in VxWorks.  */
-	  free_named_symtabs (pst -> filename);
+	  free_named_symtabs (pst->filename);
 	}
-      thisdie = nextdie;      
+      thisdie = nextdie;
     }
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	new_symbol -- make a symbol table entry for a new symbol
+   new_symbol -- make a symbol table entry for a new symbol
 
-SYNOPSIS
+   SYNOPSIS
 
-	static struct symbol *new_symbol (struct dieinfo *dip,
-					  struct objfile *objfile)
+   static struct symbol *new_symbol (struct dieinfo *dip,
+   struct objfile *objfile)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a pointer to a DWARF information entry, figure out if we need
-	to make a symbol table entry for it, and if so, create a new entry
-	and return a pointer to it.
+   Given a pointer to a DWARF information entry, figure out if we need
+   to make a symbol table entry for it, and if so, create a new entry
+   and return a pointer to it.
  */
 
 static struct symbol *
-new_symbol (dip, objfile)
-     struct dieinfo *dip;
-     struct objfile *objfile;
+new_symbol (struct dieinfo *dip, struct objfile *objfile)
 {
   struct symbol *sym = NULL;
-  
-  if (dip -> at_name != NULL)
+
+  if (dip->at_name != NULL)
     {
-      sym = (struct symbol *) obstack_alloc (&objfile -> symbol_obstack,
+      sym = (struct symbol *) obstack_alloc (&objfile->symbol_obstack,
 					     sizeof (struct symbol));
       OBJSTAT (objfile, n_syms++);
       memset (sym, 0, sizeof (struct symbol));
-      SYMBOL_NAME (sym) = create_name (dip -> at_name,
+      SYMBOL_NAME (sym) = create_name (dip->at_name,
 				       &objfile->symbol_obstack);
       /* default assumptions */
       SYMBOL_NAMESPACE (sym) = VAR_NAMESPACE;
@@ -2962,26 +2854,26 @@ new_symbol (dip, objfile)
       SYMBOL_TYPE (sym) = decode_die_type (dip);
 
       /* If this symbol is from a C++ compilation, then attempt to cache the
-	 demangled form for future reference.  This is a typical time versus
-	 space tradeoff, that was decided in favor of time because it sped up
-	 C++ symbol lookups by a factor of about 20. */
+         demangled form for future reference.  This is a typical time versus
+         space tradeoff, that was decided in favor of time because it sped up
+         C++ symbol lookups by a factor of about 20. */
 
       SYMBOL_LANGUAGE (sym) = cu_language;
-      SYMBOL_INIT_DEMANGLED_NAME (sym, &objfile -> symbol_obstack);
-      switch (dip -> die_tag)
+      SYMBOL_INIT_DEMANGLED_NAME (sym, &objfile->symbol_obstack);
+      switch (dip->die_tag)
 	{
 	case TAG_label:
-	  SYMBOL_VALUE_ADDRESS (sym) = dip -> at_low_pc;
+	  SYMBOL_VALUE_ADDRESS (sym) = dip->at_low_pc;
 	  SYMBOL_CLASS (sym) = LOC_LABEL;
 	  break;
 	case TAG_global_subroutine:
 	case TAG_subroutine:
-	  SYMBOL_VALUE_ADDRESS (sym) = dip -> at_low_pc;
+	  SYMBOL_VALUE_ADDRESS (sym) = dip->at_low_pc;
 	  SYMBOL_TYPE (sym) = lookup_function_type (SYMBOL_TYPE (sym));
-	  if (dip -> at_prototyped)
+	  if (dip->at_prototyped)
 	    TYPE_FLAGS (SYMBOL_TYPE (sym)) |= TYPE_FLAG_PROTOTYPED;
 	  SYMBOL_CLASS (sym) = LOC_BLOCK;
-	  if (dip -> die_tag == TAG_global_subroutine)
+	  if (dip->die_tag == TAG_global_subroutine)
 	    {
 	      add_symbol_to_list (sym, &global_symbols);
 	    }
@@ -2991,7 +2883,7 @@ new_symbol (dip, objfile)
 	    }
 	  break;
 	case TAG_global_variable:
-	  if (dip -> at_location != NULL)
+	  if (dip->at_location != NULL)
 	    {
 	      SYMBOL_VALUE_ADDRESS (sym) = locval (dip);
 	      add_symbol_to_list (sym, &global_symbols);
@@ -3000,21 +2892,21 @@ new_symbol (dip, objfile)
 	    }
 	  break;
 	case TAG_local_variable:
-	  if (dip -> at_location != NULL)
+	  if (dip->at_location != NULL)
 	    {
 	      int loc = locval (dip);
-	      if (dip -> optimized_out)
+	      if (dip->optimized_out)
 		{
 		  SYMBOL_CLASS (sym) = LOC_OPTIMIZED_OUT;
 		}
-	      else if (dip -> isreg)
+	      else if (dip->isreg)
 		{
 		  SYMBOL_CLASS (sym) = LOC_REGISTER;
 		}
-	      else if (dip -> offreg)
+	      else if (dip->offreg)
 		{
 		  SYMBOL_CLASS (sym) = LOC_BASEREG;
-		  SYMBOL_BASEREG (sym) = dip -> basereg;
+		  SYMBOL_BASEREG (sym) = dip->basereg;
 		}
 	      else
 		{
@@ -3035,19 +2927,19 @@ new_symbol (dip, objfile)
 	    }
 	  break;
 	case TAG_formal_parameter:
-	  if (dip -> at_location != NULL)
+	  if (dip->at_location != NULL)
 	    {
 	      SYMBOL_VALUE (sym) = locval (dip);
 	    }
 	  add_symbol_to_list (sym, list_in_scope);
-	  if (dip -> isreg)
+	  if (dip->isreg)
 	    {
 	      SYMBOL_CLASS (sym) = LOC_REGPARM;
 	    }
-	  else if (dip -> offreg)
+	  else if (dip->offreg)
 	    {
 	      SYMBOL_CLASS (sym) = LOC_BASEREG_ARG;
-	      SYMBOL_BASEREG (sym) = dip -> basereg;
+	      SYMBOL_BASEREG (sym) = dip->basereg;
 	    }
 	  else
 	    {
@@ -3083,41 +2975,39 @@ new_symbol (dip, objfile)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	synthesize_typedef -- make a symbol table entry for a "fake" typedef
+   synthesize_typedef -- make a symbol table entry for a "fake" typedef
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void synthesize_typedef (struct dieinfo *dip,
-					struct objfile *objfile,
-					struct type *type);
+   static void synthesize_typedef (struct dieinfo *dip,
+   struct objfile *objfile,
+   struct type *type);
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a pointer to a DWARF information entry, synthesize a typedef
-	for the name in the DIE, using the specified type.
+   Given a pointer to a DWARF information entry, synthesize a typedef
+   for the name in the DIE, using the specified type.
 
-	This is used for C++ class, structs, unions, and enumerations to
-	set up the tag name as a type.
+   This is used for C++ class, structs, unions, and enumerations to
+   set up the tag name as a type.
 
  */
 
 static void
-synthesize_typedef (dip, objfile, type)
-     struct dieinfo *dip;
-     struct objfile *objfile;
-     struct type *type;
+synthesize_typedef (struct dieinfo *dip, struct objfile *objfile,
+		    struct type *type)
 {
   struct symbol *sym = NULL;
-  
-  if (dip -> at_name != NULL)
+
+  if (dip->at_name != NULL)
     {
       sym = (struct symbol *)
-	obstack_alloc (&objfile -> symbol_obstack, sizeof (struct symbol));
+	obstack_alloc (&objfile->symbol_obstack, sizeof (struct symbol));
       OBJSTAT (objfile, n_syms++);
       memset (sym, 0, sizeof (struct symbol));
-      SYMBOL_NAME (sym) = create_name (dip -> at_name,
+      SYMBOL_NAME (sym) = create_name (dip->at_name,
 				       &objfile->symbol_obstack);
       SYMBOL_INIT_LANGUAGE_SPECIFIC (sym, cu_language);
       SYMBOL_TYPE (sym) = type;
@@ -3129,35 +3019,34 @@ synthesize_typedef (dip, objfile, type)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	decode_mod_fund_type -- decode a modified fundamental type
+   decode_mod_fund_type -- decode a modified fundamental type
 
-SYNOPSIS
+   SYNOPSIS
 
-	static struct type *decode_mod_fund_type (char *typedata)
+   static struct type *decode_mod_fund_type (char *typedata)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Decode a block of data containing a modified fundamental
-	type specification.  TYPEDATA is a pointer to the block,
-	which starts with a length containing the size of the rest
-	of the block.  At the end of the block is a fundmental type
-	code value that gives the fundamental type.  Everything
-	in between are type modifiers.
+   Decode a block of data containing a modified fundamental
+   type specification.  TYPEDATA is a pointer to the block,
+   which starts with a length containing the size of the rest
+   of the block.  At the end of the block is a fundmental type
+   code value that gives the fundamental type.  Everything
+   in between are type modifiers.
 
-	We simply compute the number of modifiers and call the general
-	function decode_modified_type to do the actual work.
-*/
+   We simply compute the number of modifiers and call the general
+   function decode_modified_type to do the actual work.
+ */
 
 static struct type *
-decode_mod_fund_type (typedata)
-     char *typedata;
+decode_mod_fund_type (char *typedata)
 {
   struct type *typep = NULL;
   unsigned short modcount;
   int nbytes;
-  
+
   /* Get the total size of the block, exclusive of the size itself */
 
   nbytes = attribute_size (AT_mod_fund_type);
@@ -3176,35 +3065,34 @@ decode_mod_fund_type (typedata)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	decode_mod_u_d_type -- decode a modified user defined type
+   decode_mod_u_d_type -- decode a modified user defined type
 
-SYNOPSIS
+   SYNOPSIS
 
-	static struct type *decode_mod_u_d_type (char *typedata)
+   static struct type *decode_mod_u_d_type (char *typedata)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Decode a block of data containing a modified user defined
-	type specification.  TYPEDATA is a pointer to the block,
-	which consists of a two byte length, containing the size
-	of the rest of the block.  At the end of the block is a
-	four byte value that gives a reference to a user defined type.
-	Everything in between are type modifiers.
+   Decode a block of data containing a modified user defined
+   type specification.  TYPEDATA is a pointer to the block,
+   which consists of a two byte length, containing the size
+   of the rest of the block.  At the end of the block is a
+   four byte value that gives a reference to a user defined type.
+   Everything in between are type modifiers.
 
-	We simply compute the number of modifiers and call the general
-	function decode_modified_type to do the actual work.
-*/
+   We simply compute the number of modifiers and call the general
+   function decode_modified_type to do the actual work.
+ */
 
 static struct type *
-decode_mod_u_d_type (typedata)
-     char *typedata;
+decode_mod_u_d_type (char *typedata)
 {
   struct type *typep = NULL;
   unsigned short modcount;
   int nbytes;
-  
+
   /* Get the total size of the block, exclusive of the size itself */
 
   nbytes = attribute_size (AT_mod_u_d_type);
@@ -3223,56 +3111,53 @@ decode_mod_u_d_type (typedata)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	decode_modified_type -- decode modified user or fundamental type
+   decode_modified_type -- decode modified user or fundamental type
 
-SYNOPSIS
+   SYNOPSIS
 
-	static struct type *decode_modified_type (char *modifiers,
-	    unsigned short modcount, int mtype)
+   static struct type *decode_modified_type (char *modifiers,
+   unsigned short modcount, int mtype)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Decode a modified type, either a modified fundamental type or
-	a modified user defined type.  MODIFIERS is a pointer to the
-	block of bytes that define MODCOUNT modifiers.  Immediately
-	following the last modifier is a short containing the fundamental
-	type or a long containing the reference to the user defined
-	type.  Which one is determined by MTYPE, which is either
-	AT_mod_fund_type or AT_mod_u_d_type to indicate what modified
-	type we are generating.
+   Decode a modified type, either a modified fundamental type or
+   a modified user defined type.  MODIFIERS is a pointer to the
+   block of bytes that define MODCOUNT modifiers.  Immediately
+   following the last modifier is a short containing the fundamental
+   type or a long containing the reference to the user defined
+   type.  Which one is determined by MTYPE, which is either
+   AT_mod_fund_type or AT_mod_u_d_type to indicate what modified
+   type we are generating.
 
-	We call ourself recursively to generate each modified type,`
-	until MODCOUNT reaches zero, at which point we have consumed
-	all the modifiers and generate either the fundamental type or
-	user defined type.  When the recursion unwinds, each modifier
-	is applied in turn to generate the full modified type.
+   We call ourself recursively to generate each modified type,`
+   until MODCOUNT reaches zero, at which point we have consumed
+   all the modifiers and generate either the fundamental type or
+   user defined type.  When the recursion unwinds, each modifier
+   is applied in turn to generate the full modified type.
 
-NOTES
+   NOTES
 
-	If we find a modifier that we don't recognize, and it is not one
-	of those reserved for application specific use, then we issue a
-	warning and simply ignore the modifier.
+   If we find a modifier that we don't recognize, and it is not one
+   of those reserved for application specific use, then we issue a
+   warning and simply ignore the modifier.
 
-BUGS
+   BUGS
 
-	We currently ignore MOD_const and MOD_volatile.  (FIXME)
+   We currently ignore MOD_const and MOD_volatile.  (FIXME)
 
  */
 
 static struct type *
-decode_modified_type (modifiers, modcount, mtype)
-     char *modifiers;
-     unsigned int modcount;
-     int mtype;
+decode_modified_type (char *modifiers, unsigned int modcount, int mtype)
 {
   struct type *typep = NULL;
   unsigned short fundtype;
   DIE_REF die_ref;
   char modifier;
   int nbytes;
-  
+
   if (modcount == 0)
     {
       switch (mtype)
@@ -3304,25 +3189,25 @@ decode_modified_type (modifiers, modcount, mtype)
       typep = decode_modified_type (modifiers, --modcount, mtype);
       switch (modifier)
 	{
-	  case MOD_pointer_to:
-	    typep = lookup_pointer_type (typep);
-	    break;
-	  case MOD_reference_to:
-	    typep = lookup_reference_type (typep);
-	    break;
-	  case MOD_const:
-	    complain (&const_ignored, DIE_ID, DIE_NAME);  /* FIXME */
-	    break;
-	  case MOD_volatile:
-	    complain (&volatile_ignored, DIE_ID, DIE_NAME); /* FIXME */
-	    break;
-	  default:
-	    if (!(MOD_lo_user <= (unsigned char) modifier
-		  && (unsigned char) modifier <= MOD_hi_user))
-	      {
-		complain (&unknown_type_modifier, DIE_ID, DIE_NAME, modifier);
-	      }
-	    break;
+	case MOD_pointer_to:
+	  typep = lookup_pointer_type (typep);
+	  break;
+	case MOD_reference_to:
+	  typep = lookup_reference_type (typep);
+	  break;
+	case MOD_const:
+	  complain (&const_ignored, DIE_ID, DIE_NAME);	/* FIXME */
+	  break;
+	case MOD_volatile:
+	  complain (&volatile_ignored, DIE_ID, DIE_NAME);	/* FIXME */
+	  break;
+	default:
+	  if (!(MOD_lo_user <= (unsigned char) modifier
+		&& (unsigned char) modifier <= MOD_hi_user))
+	    {
+	      complain (&unknown_type_modifier, DIE_ID, DIE_NAME, modifier);
+	    }
+	  break;
 	}
     }
   return (typep);
@@ -3330,39 +3215,38 @@ decode_modified_type (modifiers, modcount, mtype)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	decode_fund_type -- translate basic DWARF type to gdb base type
+   decode_fund_type -- translate basic DWARF type to gdb base type
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given an integer that is one of the fundamental DWARF types,
-	translate it to one of the basic internal gdb types and return
-	a pointer to the appropriate gdb type (a "struct type *").
+   Given an integer that is one of the fundamental DWARF types,
+   translate it to one of the basic internal gdb types and return
+   a pointer to the appropriate gdb type (a "struct type *").
 
-NOTES
+   NOTES
 
-	For robustness, if we are asked to translate a fundamental
-	type that we are unprepared to deal with, we return int so
-	callers can always depend upon a valid type being returned,
-	and so gdb may at least do something reasonable by default.
-	If the type is not in the range of those types defined as
-	application specific types, we also issue a warning.
-*/
+   For robustness, if we are asked to translate a fundamental
+   type that we are unprepared to deal with, we return int so
+   callers can always depend upon a valid type being returned,
+   and so gdb may at least do something reasonable by default.
+   If the type is not in the range of those types defined as
+   application specific types, we also issue a warning.
+ */
 
 static struct type *
-decode_fund_type (fundtype)
-     unsigned int fundtype;
+decode_fund_type (unsigned int fundtype)
 {
   struct type *typep = NULL;
-  
+
   switch (fundtype)
     {
 
     case FT_void:
       typep = dwarf_fundamental_type (current_objfile, FT_VOID);
       break;
-    
+
     case FT_boolean:		/* Was FT_set in AT&T version */
       typep = dwarf_fundamental_type (current_objfile, FT_BOOLEAN);
       break;
@@ -3371,11 +3255,11 @@ decode_fund_type (fundtype)
       typep = dwarf_fundamental_type (current_objfile, FT_VOID);
       typep = lookup_pointer_type (typep);
       break;
-    
+
     case FT_char:
       typep = dwarf_fundamental_type (current_objfile, FT_CHAR);
       break;
-    
+
     case FT_signed_char:
       typep = dwarf_fundamental_type (current_objfile, FT_SIGNED_CHAR);
       break;
@@ -3383,7 +3267,7 @@ decode_fund_type (fundtype)
     case FT_unsigned_char:
       typep = dwarf_fundamental_type (current_objfile, FT_UNSIGNED_CHAR);
       break;
-    
+
     case FT_short:
       typep = dwarf_fundamental_type (current_objfile, FT_SHORT);
       break;
@@ -3391,11 +3275,11 @@ decode_fund_type (fundtype)
     case FT_signed_short:
       typep = dwarf_fundamental_type (current_objfile, FT_SIGNED_SHORT);
       break;
-    
+
     case FT_unsigned_short:
       typep = dwarf_fundamental_type (current_objfile, FT_UNSIGNED_SHORT);
       break;
-    
+
     case FT_integer:
       typep = dwarf_fundamental_type (current_objfile, FT_INTEGER);
       break;
@@ -3403,11 +3287,11 @@ decode_fund_type (fundtype)
     case FT_signed_integer:
       typep = dwarf_fundamental_type (current_objfile, FT_SIGNED_INTEGER);
       break;
-    
+
     case FT_unsigned_integer:
       typep = dwarf_fundamental_type (current_objfile, FT_UNSIGNED_INTEGER);
       break;
-    
+
     case FT_long:
       typep = dwarf_fundamental_type (current_objfile, FT_LONG);
       break;
@@ -3415,11 +3299,11 @@ decode_fund_type (fundtype)
     case FT_signed_long:
       typep = dwarf_fundamental_type (current_objfile, FT_SIGNED_LONG);
       break;
-    
+
     case FT_unsigned_long:
       typep = dwarf_fundamental_type (current_objfile, FT_UNSIGNED_LONG);
       break;
-    
+
     case FT_long_long:
       typep = dwarf_fundamental_type (current_objfile, FT_LONG_LONG);
       break;
@@ -3435,27 +3319,27 @@ decode_fund_type (fundtype)
     case FT_float:
       typep = dwarf_fundamental_type (current_objfile, FT_FLOAT);
       break;
-    
+
     case FT_dbl_prec_float:
       typep = dwarf_fundamental_type (current_objfile, FT_DBL_PREC_FLOAT);
       break;
-    
+
     case FT_ext_prec_float:
       typep = dwarf_fundamental_type (current_objfile, FT_EXT_PREC_FLOAT);
       break;
-    
+
     case FT_complex:
       typep = dwarf_fundamental_type (current_objfile, FT_COMPLEX);
       break;
-    
+
     case FT_dbl_prec_complex:
       typep = dwarf_fundamental_type (current_objfile, FT_DBL_PREC_COMPLEX);
       break;
-    
+
     case FT_ext_prec_complex:
       typep = dwarf_fundamental_type (current_objfile, FT_EXT_PREC_COMPLEX);
       break;
-    
+
     }
 
   if (typep == NULL)
@@ -3466,27 +3350,25 @@ decode_fund_type (fundtype)
 	  complain (&unexpected_fund_type, DIE_ID, DIE_NAME, fundtype);
 	}
     }
-    
+
   return (typep);
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	create_name -- allocate a fresh copy of a string on an obstack
+   create_name -- allocate a fresh copy of a string on an obstack
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a pointer to a string and a pointer to an obstack, allocates
-	a fresh copy of the string on the specified obstack.
+   Given a pointer to a string and a pointer to an obstack, allocates
+   a fresh copy of the string on the specified obstack.
 
-*/
+ */
 
 static char *
-create_name (name, obstackp)
-     char *name;
-     struct obstack *obstackp;
+create_name (char *name, struct obstack *obstackp)
 {
   int length;
   char *newname;
@@ -3499,134 +3381,129 @@ create_name (name, obstackp)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	basicdieinfo -- extract the minimal die info from raw die data
+   basicdieinfo -- extract the minimal die info from raw die data
 
-SYNOPSIS
+   SYNOPSIS
 
-	void basicdieinfo (char *diep, struct dieinfo *dip,
-			   struct objfile *objfile)
+   void basicdieinfo (char *diep, struct dieinfo *dip,
+   struct objfile *objfile)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a pointer to raw DIE data, and a pointer to an instance of a
-	die info structure, this function extracts the basic information
-	from the DIE data required to continue processing this DIE, along
-	with some bookkeeping information about the DIE.
+   Given a pointer to raw DIE data, and a pointer to an instance of a
+   die info structure, this function extracts the basic information
+   from the DIE data required to continue processing this DIE, along
+   with some bookkeeping information about the DIE.
 
-	The information we absolutely must have includes the DIE tag,
-	and the DIE length.  If we need the sibling reference, then we
-	will have to call completedieinfo() to process all the remaining
-	DIE information.
+   The information we absolutely must have includes the DIE tag,
+   and the DIE length.  If we need the sibling reference, then we
+   will have to call completedieinfo() to process all the remaining
+   DIE information.
 
-	Note that since there is no guarantee that the data is properly
-	aligned in memory for the type of access required (indirection
-	through anything other than a char pointer), and there is no
-	guarantee that it is in the same byte order as the gdb host,
-	we call a function which deals with both alignment and byte
-	swapping issues.  Possibly inefficient, but quite portable.
+   Note that since there is no guarantee that the data is properly
+   aligned in memory for the type of access required (indirection
+   through anything other than a char pointer), and there is no
+   guarantee that it is in the same byte order as the gdb host,
+   we call a function which deals with both alignment and byte
+   swapping issues.  Possibly inefficient, but quite portable.
 
-	We also take care of some other basic things at this point, such
-	as ensuring that the instance of the die info structure starts
-	out completely zero'd and that curdie is initialized for use
-	in error reporting if we have a problem with the current die.
+   We also take care of some other basic things at this point, such
+   as ensuring that the instance of the die info structure starts
+   out completely zero'd and that curdie is initialized for use
+   in error reporting if we have a problem with the current die.
 
-NOTES
+   NOTES
 
-	All DIE's must have at least a valid length, thus the minimum
-	DIE size is SIZEOF_DIE_LENGTH.  In order to have a valid tag, the
-	DIE size must be at least SIZEOF_DIE_TAG larger, otherwise they
-	are forced to be TAG_padding DIES.
+   All DIE's must have at least a valid length, thus the minimum
+   DIE size is SIZEOF_DIE_LENGTH.  In order to have a valid tag, the
+   DIE size must be at least SIZEOF_DIE_TAG larger, otherwise they
+   are forced to be TAG_padding DIES.
 
-	Padding DIES must be at least SIZEOF_DIE_LENGTH in length, implying
-	that if a padding DIE is used for alignment and the amount needed is
-	less than SIZEOF_DIE_LENGTH, then the padding DIE has to be big
-	enough to align to the next alignment boundry.
+   Padding DIES must be at least SIZEOF_DIE_LENGTH in length, implying
+   that if a padding DIE is used for alignment and the amount needed is
+   less than SIZEOF_DIE_LENGTH, then the padding DIE has to be big
+   enough to align to the next alignment boundry.
 
-	We do some basic sanity checking here, such as verifying that the
-	length of the die would not cause it to overrun the recorded end of
-	the buffer holding the DIE info.  If we find a DIE that is either
-	too small or too large, we force it's length to zero which should
-	cause the caller to take appropriate action.
+   We do some basic sanity checking here, such as verifying that the
+   length of the die would not cause it to overrun the recorded end of
+   the buffer holding the DIE info.  If we find a DIE that is either
+   too small or too large, we force it's length to zero which should
+   cause the caller to take appropriate action.
  */
 
 static void
-basicdieinfo (dip, diep, objfile)
-     struct dieinfo *dip;
-     char *diep;
-     struct objfile *objfile;
+basicdieinfo (struct dieinfo *dip, char *diep, struct objfile *objfile)
 {
   curdie = dip;
   memset (dip, 0, sizeof (struct dieinfo));
-  dip -> die = diep;
-  dip -> die_ref = dbroff + (diep - dbbase);
-  dip -> die_length = target_to_host (diep, SIZEOF_DIE_LENGTH, GET_UNSIGNED,
-				      objfile);
-  if ((dip -> die_length < SIZEOF_DIE_LENGTH) ||
-      ((diep + dip -> die_length) > (dbbase + dbsize)))
+  dip->die = diep;
+  dip->die_ref = dbroff + (diep - dbbase);
+  dip->die_length = target_to_host (diep, SIZEOF_DIE_LENGTH, GET_UNSIGNED,
+				    objfile);
+  if ((dip->die_length < SIZEOF_DIE_LENGTH) ||
+      ((diep + dip->die_length) > (dbbase + dbsize)))
     {
-      complain (&malformed_die, DIE_ID, DIE_NAME, dip -> die_length);
-      dip -> die_length = 0;
+      complain (&malformed_die, DIE_ID, DIE_NAME, dip->die_length);
+      dip->die_length = 0;
     }
-  else if (dip -> die_length < (SIZEOF_DIE_LENGTH + SIZEOF_DIE_TAG))
+  else if (dip->die_length < (SIZEOF_DIE_LENGTH + SIZEOF_DIE_TAG))
     {
-      dip -> die_tag = TAG_padding;
+      dip->die_tag = TAG_padding;
     }
   else
     {
       diep += SIZEOF_DIE_LENGTH;
-      dip -> die_tag = target_to_host (diep, SIZEOF_DIE_TAG, GET_UNSIGNED,
-				       objfile);
+      dip->die_tag = target_to_host (diep, SIZEOF_DIE_TAG, GET_UNSIGNED,
+				     objfile);
     }
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	completedieinfo -- finish reading the information for a given DIE
+   completedieinfo -- finish reading the information for a given DIE
 
-SYNOPSIS
+   SYNOPSIS
 
-	void completedieinfo (struct dieinfo *dip, struct objfile *objfile)
+   void completedieinfo (struct dieinfo *dip, struct objfile *objfile)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a pointer to an already partially initialized die info structure,
-	scan the raw DIE data and finish filling in the die info structure
-	from the various attributes found.
-   
-	Note that since there is no guarantee that the data is properly
-	aligned in memory for the type of access required (indirection
-	through anything other than a char pointer), and there is no
-	guarantee that it is in the same byte order as the gdb host,
-	we call a function which deals with both alignment and byte
-	swapping issues.  Possibly inefficient, but quite portable.
+   Given a pointer to an already partially initialized die info structure,
+   scan the raw DIE data and finish filling in the die info structure
+   from the various attributes found.
 
-NOTES
+   Note that since there is no guarantee that the data is properly
+   aligned in memory for the type of access required (indirection
+   through anything other than a char pointer), and there is no
+   guarantee that it is in the same byte order as the gdb host,
+   we call a function which deals with both alignment and byte
+   swapping issues.  Possibly inefficient, but quite portable.
 
-	Each time we are called, we increment the diecount variable, which
-	keeps an approximate count of the number of dies processed for
-	each compilation unit.  This information is presented to the user
-	if the info_verbose flag is set.
+   NOTES
+
+   Each time we are called, we increment the diecount variable, which
+   keeps an approximate count of the number of dies processed for
+   each compilation unit.  This information is presented to the user
+   if the info_verbose flag is set.
 
  */
 
 static void
-completedieinfo (dip, objfile)
-     struct dieinfo *dip;
-     struct objfile *objfile;
+completedieinfo (struct dieinfo *dip, struct objfile *objfile)
 {
   char *diep;			/* Current pointer into raw DIE data */
   char *end;			/* Terminate DIE scan here */
   unsigned short attr;		/* Current attribute being scanned */
   unsigned short form;		/* Form of the attribute */
   int nbytes;			/* Size of next field to read */
-  
+
   diecount++;
-  diep = dip -> die;
-  end = diep + dip -> die_length;
+  diep = dip->die;
+  end = diep + dip->die_length;
   diep += SIZEOF_DIE_LENGTH + SIZEOF_DIE_TAG;
   while (diep < end)
     {
@@ -3641,121 +3518,121 @@ completedieinfo (dip, objfile)
       switch (attr)
 	{
 	case AT_fund_type:
-	  dip -> at_fund_type = target_to_host (diep, nbytes, GET_UNSIGNED,
-						objfile);
+	  dip->at_fund_type = target_to_host (diep, nbytes, GET_UNSIGNED,
+					      objfile);
 	  break;
 	case AT_ordering:
-	  dip -> at_ordering = target_to_host (diep, nbytes, GET_UNSIGNED,
-					       objfile);
+	  dip->at_ordering = target_to_host (diep, nbytes, GET_UNSIGNED,
+					     objfile);
 	  break;
 	case AT_bit_offset:
-	  dip -> at_bit_offset = target_to_host (diep, nbytes, GET_UNSIGNED,
-						 objfile);
+	  dip->at_bit_offset = target_to_host (diep, nbytes, GET_UNSIGNED,
+					       objfile);
 	  break;
 	case AT_sibling:
-	  dip -> at_sibling = target_to_host (diep, nbytes, GET_UNSIGNED,
-					      objfile);
-	  break;
-	case AT_stmt_list:
-	  dip -> at_stmt_list = target_to_host (diep, nbytes, GET_UNSIGNED,
-						objfile);
-	  dip -> has_at_stmt_list = 1;
-	  break;
-	case AT_low_pc:
-	  dip -> at_low_pc = target_to_host (diep, nbytes, GET_UNSIGNED,
-					     objfile);
-	  dip -> at_low_pc += baseaddr;
-	  dip -> has_at_low_pc = 1;
-	  break;
-	case AT_high_pc:
-	  dip -> at_high_pc = target_to_host (diep, nbytes, GET_UNSIGNED,
-					      objfile);
-	  dip -> at_high_pc += baseaddr;
-	  break;
-	case AT_language:
-	  dip -> at_language = target_to_host (diep, nbytes, GET_UNSIGNED,
-					       objfile);
-	  break;
-	case AT_user_def_type:
-	  dip -> at_user_def_type = target_to_host (diep, nbytes,
-						    GET_UNSIGNED, objfile);
-	  break;
-	case AT_byte_size:
-	  dip -> at_byte_size = target_to_host (diep, nbytes, GET_UNSIGNED,
-						objfile);
-	  dip -> has_at_byte_size = 1;
-	  break;
-	case AT_bit_size:
-	  dip -> at_bit_size = target_to_host (diep, nbytes, GET_UNSIGNED,
-					       objfile);
-	  break;
-	case AT_member:
-	  dip -> at_member = target_to_host (diep, nbytes, GET_UNSIGNED,
-					     objfile);
-	  break;
-	case AT_discr:
-	  dip -> at_discr = target_to_host (diep, nbytes, GET_UNSIGNED,
+	  dip->at_sibling = target_to_host (diep, nbytes, GET_UNSIGNED,
 					    objfile);
 	  break;
+	case AT_stmt_list:
+	  dip->at_stmt_list = target_to_host (diep, nbytes, GET_UNSIGNED,
+					      objfile);
+	  dip->has_at_stmt_list = 1;
+	  break;
+	case AT_low_pc:
+	  dip->at_low_pc = target_to_host (diep, nbytes, GET_UNSIGNED,
+					   objfile);
+	  dip->at_low_pc += baseaddr;
+	  dip->has_at_low_pc = 1;
+	  break;
+	case AT_high_pc:
+	  dip->at_high_pc = target_to_host (diep, nbytes, GET_UNSIGNED,
+					    objfile);
+	  dip->at_high_pc += baseaddr;
+	  break;
+	case AT_language:
+	  dip->at_language = target_to_host (diep, nbytes, GET_UNSIGNED,
+					     objfile);
+	  break;
+	case AT_user_def_type:
+	  dip->at_user_def_type = target_to_host (diep, nbytes,
+						  GET_UNSIGNED, objfile);
+	  break;
+	case AT_byte_size:
+	  dip->at_byte_size = target_to_host (diep, nbytes, GET_UNSIGNED,
+					      objfile);
+	  dip->has_at_byte_size = 1;
+	  break;
+	case AT_bit_size:
+	  dip->at_bit_size = target_to_host (diep, nbytes, GET_UNSIGNED,
+					     objfile);
+	  break;
+	case AT_member:
+	  dip->at_member = target_to_host (diep, nbytes, GET_UNSIGNED,
+					   objfile);
+	  break;
+	case AT_discr:
+	  dip->at_discr = target_to_host (diep, nbytes, GET_UNSIGNED,
+					  objfile);
+	  break;
 	case AT_location:
-	  dip -> at_location = diep;
+	  dip->at_location = diep;
 	  break;
 	case AT_mod_fund_type:
-	  dip -> at_mod_fund_type = diep;
+	  dip->at_mod_fund_type = diep;
 	  break;
 	case AT_subscr_data:
-	  dip -> at_subscr_data = diep;
+	  dip->at_subscr_data = diep;
 	  break;
 	case AT_mod_u_d_type:
-	  dip -> at_mod_u_d_type = diep;
+	  dip->at_mod_u_d_type = diep;
 	  break;
 	case AT_element_list:
-	  dip -> at_element_list = diep;
-	  dip -> short_element_list = 0;
+	  dip->at_element_list = diep;
+	  dip->short_element_list = 0;
 	  break;
 	case AT_short_element_list:
-	  dip -> at_element_list = diep;
-	  dip -> short_element_list = 1;
+	  dip->at_element_list = diep;
+	  dip->short_element_list = 1;
 	  break;
 	case AT_discr_value:
-	  dip -> at_discr_value = diep;
+	  dip->at_discr_value = diep;
 	  break;
 	case AT_string_length:
-	  dip -> at_string_length = diep;
+	  dip->at_string_length = diep;
 	  break;
 	case AT_name:
-	  dip -> at_name = diep;
+	  dip->at_name = diep;
 	  break;
 	case AT_comp_dir:
 	  /* For now, ignore any "hostname:" portion, since gdb doesn't
 	     know how to deal with it.  (FIXME). */
-	  dip -> at_comp_dir = strrchr (diep, ':');
-	  if (dip -> at_comp_dir != NULL)
+	  dip->at_comp_dir = strrchr (diep, ':');
+	  if (dip->at_comp_dir != NULL)
 	    {
-	      dip -> at_comp_dir++;
+	      dip->at_comp_dir++;
 	    }
 	  else
 	    {
-	      dip -> at_comp_dir = diep;
+	      dip->at_comp_dir = diep;
 	    }
 	  break;
 	case AT_producer:
-	  dip -> at_producer = diep;
+	  dip->at_producer = diep;
 	  break;
 	case AT_start_scope:
-	  dip -> at_start_scope = target_to_host (diep, nbytes, GET_UNSIGNED,
-						  objfile);
+	  dip->at_start_scope = target_to_host (diep, nbytes, GET_UNSIGNED,
+						objfile);
 	  break;
 	case AT_stride_size:
-	  dip -> at_stride_size = target_to_host (diep, nbytes, GET_UNSIGNED,
-						  objfile);
+	  dip->at_stride_size = target_to_host (diep, nbytes, GET_UNSIGNED,
+						objfile);
 	  break;
 	case AT_src_info:
-	  dip -> at_src_info = target_to_host (diep, nbytes, GET_UNSIGNED,
-					       objfile);
+	  dip->at_src_info = target_to_host (diep, nbytes, GET_UNSIGNED,
+					     objfile);
 	  break;
 	case AT_prototyped:
-	  dip -> at_prototyped = diep;
+	  dip->at_prototyped = diep;
 	  break;
 	default:
 	  /* Found an attribute that we are unprepared to handle.  However
@@ -3800,87 +3677,83 @@ completedieinfo (dip, objfile)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	target_to_host -- swap in target data to host
+   target_to_host -- swap in target data to host
 
-SYNOPSIS
+   SYNOPSIS
 
-	target_to_host (char *from, int nbytes, int signextend,
-			struct objfile *objfile)
+   target_to_host (char *from, int nbytes, int signextend,
+   struct objfile *objfile)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given pointer to data in target format in FROM, a byte count for
-	the size of the data in NBYTES, a flag indicating whether or not
-	the data is signed in SIGNEXTEND, and a pointer to the current
-	objfile in OBJFILE, convert the data to host format and return
-	the converted value.
+   Given pointer to data in target format in FROM, a byte count for
+   the size of the data in NBYTES, a flag indicating whether or not
+   the data is signed in SIGNEXTEND, and a pointer to the current
+   objfile in OBJFILE, convert the data to host format and return
+   the converted value.
 
-NOTES
+   NOTES
 
-	FIXME:  If we read data that is known to be signed, and expect to
-	use it as signed data, then we need to explicitly sign extend the
-	result until the bfd library is able to do this for us.
+   FIXME:  If we read data that is known to be signed, and expect to
+   use it as signed data, then we need to explicitly sign extend the
+   result until the bfd library is able to do this for us.
 
-	FIXME: Would a 32 bit target ever need an 8 byte result?
+   FIXME: Would a 32 bit target ever need an 8 byte result?
 
  */
 
 static CORE_ADDR
-target_to_host (from, nbytes, signextend, objfile)
-     char *from;
-     int nbytes;
-     int signextend;		/* FIXME:  Unused */
-     struct objfile *objfile;
+target_to_host (char *from, int nbytes, int signextend,	/* FIXME:  Unused */
+		struct objfile *objfile)
 {
   CORE_ADDR rtnval;
 
   switch (nbytes)
     {
-      case 8:
-        rtnval = bfd_get_64 (objfile -> obfd, (bfd_byte *) from);
-	break;
-      case 4:
-	rtnval = bfd_get_32 (objfile -> obfd, (bfd_byte *) from);
-	break;
-      case 2:
-	rtnval = bfd_get_16 (objfile -> obfd, (bfd_byte *) from);
-	break;
-      case 1:
-	rtnval = bfd_get_8 (objfile -> obfd, (bfd_byte *) from);
-	break;
-      default:
-	complain (&no_bfd_get_N, DIE_ID, DIE_NAME, nbytes);
-	rtnval = 0;
-	break;
+    case 8:
+      rtnval = bfd_get_64 (objfile->obfd, (bfd_byte *) from);
+      break;
+    case 4:
+      rtnval = bfd_get_32 (objfile->obfd, (bfd_byte *) from);
+      break;
+    case 2:
+      rtnval = bfd_get_16 (objfile->obfd, (bfd_byte *) from);
+      break;
+    case 1:
+      rtnval = bfd_get_8 (objfile->obfd, (bfd_byte *) from);
+      break;
+    default:
+      complain (&no_bfd_get_N, DIE_ID, DIE_NAME, nbytes);
+      rtnval = 0;
+      break;
     }
   return (rtnval);
 }
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	attribute_size -- compute size of data for a DWARF attribute
+   attribute_size -- compute size of data for a DWARF attribute
 
-SYNOPSIS
+   SYNOPSIS
 
-	static int attribute_size (unsigned int attr)
+   static int attribute_size (unsigned int attr)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a DWARF attribute in ATTR, compute the size of the first
-	piece of data associated with this attribute and return that
-	size.
+   Given a DWARF attribute in ATTR, compute the size of the first
+   piece of data associated with this attribute and return that
+   size.
 
-	Returns -1 for unrecognized attributes.
+   Returns -1 for unrecognized attributes.
 
  */
 
 static int
-attribute_size (attr)
-     unsigned int attr;
+attribute_size (unsigned int attr)
 {
   int nbytes;			/* Size of next data for this attribute */
   unsigned short form;		/* Form of the attribute */
@@ -3888,28 +3761,28 @@ attribute_size (attr)
   form = FORM_FROM_ATTR (attr);
   switch (form)
     {
-      case FORM_STRING:		/* A variable length field is next */
-        nbytes = 0;
-	break;
-      case FORM_DATA2:		/* Next 2 byte field is the data itself */
-      case FORM_BLOCK2:		/* Next 2 byte field is a block length */
-	nbytes = 2;
-	break;
-      case FORM_DATA4:		/* Next 4 byte field is the data itself */
-      case FORM_BLOCK4:		/* Next 4 byte field is a block length */
-      case FORM_REF:		/* Next 4 byte field is a DIE offset */
-	nbytes = 4;
-	break;
-      case FORM_DATA8:		/* Next 8 byte field is the data itself */
-	nbytes = 8;
-	break;
-      case FORM_ADDR:		/* Next field size is target sizeof(void *) */
-	nbytes = TARGET_FT_POINTER_SIZE (objfile);
-	break;
-      default:
-	complain (&unknown_attribute_form, DIE_ID, DIE_NAME, form);
-	nbytes = -1;
-	break;
-      }
+    case FORM_STRING:		/* A variable length field is next */
+      nbytes = 0;
+      break;
+    case FORM_DATA2:		/* Next 2 byte field is the data itself */
+    case FORM_BLOCK2:		/* Next 2 byte field is a block length */
+      nbytes = 2;
+      break;
+    case FORM_DATA4:		/* Next 4 byte field is the data itself */
+    case FORM_BLOCK4:		/* Next 4 byte field is a block length */
+    case FORM_REF:		/* Next 4 byte field is a DIE offset */
+      nbytes = 4;
+      break;
+    case FORM_DATA8:		/* Next 8 byte field is the data itself */
+      nbytes = 8;
+      break;
+    case FORM_ADDR:		/* Next field size is target sizeof(void *) */
+      nbytes = TARGET_FT_POINTER_SIZE (objfile);
+      break;
+    default:
+      complain (&unknown_attribute_form, DIE_ID, DIE_NAME, form);
+      nbytes = -1;
+      break;
+    }
   return (nbytes);
 }

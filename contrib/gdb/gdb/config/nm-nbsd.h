@@ -1,28 +1,22 @@
 /* Native-dependent definitions for NetBSD.
-   Copyright 1994, 1996 Free Software Foundation, Inc.
+   Copyright 1994, 1996, 1999 Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
-
-/* This is the amount to subtract from u.u_ar0
-   to get the offset in the core file of the register values.  */
-
-#include <machine/vmparam.h>
-
-#define KERNEL_U_ADDR USRSTACK
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #define PTRACE_ARG3_TYPE char*
 
@@ -30,7 +24,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define ATTACH_DETACH
 
-#include "solib.h"      /* Support for shared libraries. */
+#include "solib.h"		/* Support for shared libraries. */
+#if defined (SVR4_SHARED_LIBS)
+#include "elf/common.h"		/* Additional ELF shared library info. */
+#endif
+
+#if !defined (SVR4_SHARED_LIBS)
 
 /* make structure definitions match up with those expected in solib.c */
 #define link_object	sod
@@ -84,3 +83,5 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ldd		d_debug
 #define ld_un		d_un
 #define ld_2		d_sdt
+
+#endif

@@ -1,5 +1,5 @@
 /* S-record download support for GDB, the GNU debugger.
-   Copyright 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 2000 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,9 +18,9 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-void load_srec PARAMS ((serial_t desc, const char *file, bfd_vma load_offset,
-			int maxrecsize, int flags, int hashmark,
-			int (*waitack) (void)));
+void load_srec (struct serial *desc, const char *file, bfd_vma load_offset,
+		int maxrecsize, int flags, int hashmark,
+		int (*waitack) (void));
 
 /* S-record capability flags */
 

@@ -1,5 +1,5 @@
 /* Target-dependent code for the Fujitsu FR30.
-   Copyright 1999, Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -28,12 +28,12 @@
 #include "gdb_string.h"
 #include "gdbcore.h"
 #include "symfile.h"
+#include "regcache.h"
 
 /* An expression that tells us whether the function invocation represented
    by FI does not have a frame on the stack associated with it.  */
 int
-fr30_frameless_function_invocation (fi)
-     struct frame_info *fi;
+fr30_frameless_function_invocation (struct frame_info *fi)
 {
   int frameless;
   CORE_ADDR func_start, after_prologue;
@@ -50,7 +50,7 @@ fr30_frameless_function_invocation (fi)
    command, or the call dummy breakpoint gets hit.  */
 
 void
-fr30_pop_frame ()
+fr30_pop_frame (void)
 {
   struct frame_info *frame = get_current_frame ();
   int regnum;
@@ -159,12 +159,8 @@ fr30_skip_prologue (CORE_ADDR pc)
  */
 
 CORE_ADDR
-fr30_push_arguments (nargs, args, sp, struct_return, struct_addr)
-     int nargs;
-     value_ptr *args;
-     CORE_ADDR sp;
-     int struct_return;
-     CORE_ADDR struct_addr;
+fr30_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
+		     int struct_return, CORE_ADDR struct_addr)
 {
   int argreg;
   int argnum;
@@ -192,7 +188,7 @@ fr30_push_arguments (nargs, args, sp, struct_return, struct_addr)
   for (argnum = 0; argnum < nargs; argnum++)
     {
       char *val;
-      value_ptr arg = args[argnum];
+      struct value *arg = args[argnum];
       struct type *arg_type = check_typedef (VALUE_TYPE (arg));
       struct type *target_type = TYPE_TARGET_TYPE (arg_type);
       int len = TYPE_LENGTH (arg_type);
@@ -242,10 +238,10 @@ fr30_push_arguments (nargs, args, sp, struct_return, struct_addr)
   return sp;
 }
 
-void _initialize_fr30_tdep PARAMS ((void));
+void _initialize_fr30_tdep (void);
 
 void
-_initialize_fr30_tdep ()
+_initialize_fr30_tdep (void)
 {
   extern int print_insn_fr30 (bfd_vma, disassemble_info *);
   tm_print_insn = print_insn_fr30;
@@ -272,8 +268,7 @@ _initialize_fr30_tdep ()
 static struct frame_info prologue_cache;
 
 static int
-check_prologue_cache (fi)
-     struct frame_info *fi;
+check_prologue_cache (struct frame_info *fi)
 {
   int i;
 
@@ -296,8 +291,7 @@ check_prologue_cache (fi)
  */
 
 static void
-save_prologue_cache (fi)
-     struct frame_info *fi;
+save_prologue_cache (struct frame_info *fi)
 {
   int i;
 
@@ -323,8 +317,7 @@ save_prologue_cache (fi)
    be determined till after we have scanned the prologue.  */
 
 static void
-fr30_scan_prologue (fi)
-     struct frame_info *fi;
+fr30_scan_prologue (struct frame_info *fi)
 {
   int sp_offset, fp_offset;
   CORE_ADDR prologue_start, prologue_end, current_pc;
@@ -460,8 +453,7 @@ fr30_scan_prologue (fi)
    pointer just prior to calling the target function (see run_stack_dummy).  */
 
 void
-fr30_init_extra_frame_info (fi)
-     struct frame_info *fi;
+fr30_init_extra_frame_info (struct frame_info *fi)
 {
   int reg;
 
@@ -485,10 +477,11 @@ fr30_init_extra_frame_info (fi)
     fi->frame = read_register (fi->framereg);
   else
     /* not the innermost frame */
-    /* If we have an FP,  the callee saved it. */ if (fi->framereg == FP_REGNUM)
-    if (fi->next->fsr.regs[fi->framereg] != 0)
-      fi->frame = read_memory_integer (fi->next->fsr.regs[fi->framereg],
-				       4);
+    /* If we have an FP,  the callee saved it. */
+    if (fi->framereg == FP_REGNUM)
+      if (fi->next->fsr.regs[fi->framereg] != 0)
+	fi->frame = read_memory_integer (fi->next->fsr.regs[fi->framereg], 4);
+
   /* Calculate actual addresses of saved registers using offsets determined
      by fr30_scan_prologue.  */
   for (reg = 0; reg < NUM_REGS; reg++)
@@ -507,9 +500,7 @@ fr30_init_extra_frame_info (fi)
    frame.  */
 
 CORE_ADDR
-fr30_find_callers_reg (fi, regnum)
-     struct frame_info *fi;
-     int regnum;
+fr30_find_callers_reg (struct frame_info *fi, int regnum)
 {
   for (; fi; fi = fi->next)
     if (PC_IN_CALL_DUMMY (fi->pc, fi->frame, fi->frame))
@@ -531,8 +522,7 @@ fr30_find_callers_reg (fi, regnum)
 
 
 CORE_ADDR
-fr30_frame_chain (fi)
-     struct frame_info *fi;
+fr30_frame_chain (struct frame_info *fi)
 {
   CORE_ADDR fn_start, callers_pc, fp;
   struct frame_info caller_fi;
@@ -580,8 +570,7 @@ fr30_frame_chain (fi)
    will be found.  */
 
 CORE_ADDR
-fr30_frame_saved_pc (fi)
-     struct frame_info *fi;
+fr30_frame_saved_pc (struct frame_info *fi)
 {
   if (PC_IN_CALL_DUMMY (fi->pc, fi->frame, fi->frame))
     return generic_read_register_dummy (fi->pc, fi->frame, PC_REGNUM);
@@ -597,14 +586,8 @@ fr30_frame_saved_pc (fi)
  */
 
 int
-fr30_fix_call_dummy (dummy, sp, fun, nargs, args, type, gcc_p)
-     char *dummy;
-     CORE_ADDR sp;
-     CORE_ADDR fun;
-     int nargs;
-     value_ptr *args;
-     struct type *type;
-     int gcc_p;
+fr30_fix_call_dummy (char *dummy, CORE_ADDR sp, CORE_ADDR fun, int nargs,
+		     struct value **args, struct type *type, int gcc_p)
 {
   long offset24;
 

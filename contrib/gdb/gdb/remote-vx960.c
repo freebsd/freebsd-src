@@ -1,46 +1,46 @@
 /* i80960-dependent portions of the RPC protocol
    used with a VxWorks target 
 
-Contributed by Wind River Systems.
+   Contributed by Wind River Systems.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 #include "defs.h"
 
-#include "vx-share/regPacket.h"  
+#include "vx-share/regPacket.h"
 #include "frame.h"
 #include "inferior.h"
-#include "wait.h"
 #include "target.h"
 #include "gdbcore.h"
 #include "command.h"
 #include "symtab.h"
 #include "symfile.h"		/* for struct complaint */
+#include "regcache.h"
 
 #include "gdb_string.h"
 #include <errno.h>
-#include <signal.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 
-#ifdef _AIX                     /* IBM claims "void *malloc()" not char * */
+#ifdef _AIX			/* IBM claims "void *malloc()" not char * */
 #define malloc bogon_malloc
 #endif
 
@@ -75,8 +75,7 @@ extern void net_write_registers ();
    it is ignored.  FIXME look at regno to improve efficiency.  */
 
 void
-vx_read_register (regno)
-     int regno;
+vx_read_register (int regno)
 {
   char i960_greg_packet[I960_GREG_PLEN];
   char i960_fpreg_packet[I960_FPREG_PLEN];
@@ -106,14 +105,14 @@ vx_read_register (regno)
   if (target_has_fp)
     {
       net_read_registers (i960_fpreg_packet, I960_FPREG_PLEN,
-                          PTRACE_GETFPREGS);
-      bcopy (&i960_fpreg_packet[I960_R_FP0], 
-             &registers[REGISTER_BYTE (FP0_REGNUM)],
-  	     REGISTER_RAW_SIZE (FP0_REGNUM) * 4);
+			  PTRACE_GETFPREGS);
+      bcopy (&i960_fpreg_packet[I960_R_FP0],
+	     &registers[REGISTER_BYTE (FP0_REGNUM)],
+	     REGISTER_RAW_SIZE (FP0_REGNUM) * 4);
     }
   else
     bzero (&registers[REGISTER_BYTE (FP0_REGNUM)],
-           REGISTER_RAW_SIZE (FP0_REGNUM) * 4);
+	   REGISTER_RAW_SIZE (FP0_REGNUM) * 4);
 
   /* Mark the register cache valid.  */
 
@@ -125,8 +124,7 @@ vx_read_register (regno)
    it is ignored.  FIXME look at regno to improve efficiency.  */
 
 void
-vx_write_register (regno)
-     int regno;
+vx_write_register (int regno)
 {
   char i960_greg_packet[I960_GREG_PLEN];
   char i960_fpreg_packet[I960_FPREG_PLEN];
@@ -152,12 +150,11 @@ vx_write_register (regno)
 
   if (target_has_fp)
     {
-      bcopy (&registers[REGISTER_BYTE (FP0_REGNUM)], 
+      bcopy (&registers[REGISTER_BYTE (FP0_REGNUM)],
 	     &i960_fpreg_packet[I960_R_FP0],
 	     REGISTER_RAW_SIZE (FP0_REGNUM) * 4);
 
       net_write_registers (i960_fpreg_packet, I960_FPREG_PLEN,
-                           PTRACE_SETFPREGS);
+			   PTRACE_SETFPREGS);
     }
 }
-

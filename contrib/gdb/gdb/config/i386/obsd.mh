@@ -1,0 +1,7 @@
+# Host: Intel 386 running OpenBSD
+
+XM_FILE= xm-i386.h
+
+NAT_FILE= nm-obsd.h
+# NOTE: Do not spread NATDEPFILES over several lines - it hurts BSD make.
+NATDEPFILES= fork-child.o infptrace.o inftarg.o solib.o solib-sunos.o corelow.o core-aout.o i386-nat.o i387-nat.o i386bsd-nat.o

@@ -1,1443 +1,1524 @@
-/* Remote debugging interface for AMD 290*0 Adapt Monitor Version 2.1d18. 
-   Copyright 1990, 1991, 1992 Free Software Foundation, Inc.
-   Contributed by David Wood at New York University (wood@lab.ultra.nyu.edu).
-   Adapted from work done at Cygnus Support in remote-eb.c.
-
-This file is part of GDB.
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
-
-/* This is like remote.c but is for an esoteric situation--
-   having a 29k board attached to an Adapt inline monitor. 
-   The  monitor is connected via serial line to a unix machine 
-   running gdb. 
-
-   3/91 -  developed on Sun3 OS 4.1, by David Wood
-   	o - I can't get binary coff to load. 
-	o - I can't get 19200 baud rate to work. 
-   7/91 o - Freeze mode tracing can be done on a 29050.  */
-
-
-
-#include "defs.h"
-#include "gdb_string.h"
-#include "inferior.h"
-#include "wait.h"
-#include "value.h"
-#include <ctype.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <errno.h>
-#include "terminal.h"
-#include "target.h"
-#include "gdbcore.h"
-
-/* This processor is getting rusty but I am trying to keep it
-   up to date at least with data structure changes.
-   Activate this block to compile just this file.
-   */
-#define COMPILE_CHECK 0
-#if COMPILE_CHECK
-#define Q_REGNUM 0
-#define VAB_REGNUM 0
-#define CPS_REGNUM 0
-#define IPA_REGNUM 0
-#define IPB_REGNUM 0
-#define GR1_REGNUM 0
-#define LR0_REGNUM 0
-#define IPC_REGNUM 0
-#define CR_REGNUM 0
-#define BP_REGNUM 0
-#define FC_REGNUM 0
-#define INTE_REGNUM 0
-#define EXO_REGNUM 0
-#define GR96_REGNUM 0
-#define NPC_REGNUM
-#define FPE_REGNUM 0
-#define PC2_REGNUM 0
-#define FPS_REGNUM 0
-#define ALU_REGNUM 0
-#define LRU_REGNUM 0
-#define TERMINAL int
-#define RAW 1
-#define ANYP 1
-extern int a29k_freeze_mode ;
-extern int processor_type ;
-extern char * processor_name ;
-#endif
-
-/* External data declarations */
-extern int stop_soon_quietly;           /* for wait_for_inferior */
-
-/* Forward data declarations */
-extern struct target_ops adapt_ops;		/* Forward declaration */
-
-/* Forward function declarations */
-static void adapt_fetch_registers ();
-static void adapt_store_registers ();
-static void adapt_close ();
-static int  adapt_clear_breakpoints();
-
-#define FREEZE_MODE 	(read_register(CPS_REGNUM) && 0x400) 
-#define USE_SHADOW_PC	((processor_type == a29k_freeze_mode) && FREEZE_MODE)
-
-/* Can't seem to get binary coff working */
-#define ASCII_COFF		/* Adapt will be downloaded with ascii coff */
-
-/* FIXME: Replace with `set remotedebug'.  */
-#define LOG_FILE "adapt.log"
-#if defined (LOG_FILE)
-FILE *log_file=NULL;
-#endif
-
-static int timeout = 5;
-static char *dev_name;
-
-/* Descriptor for I/O to remote machine.  Initialize it to -1 so that
-   adapt_open knows that we don't have a file open when the program
-   starts.  */
-int adapt_desc = -1;
-
-/* stream which is fdopen'd from adapt_desc.  Only valid when
-   adapt_desc != -1.  */
-FILE *adapt_stream;
-
-#define ON	1
-#define OFF	0
-static void
-rawmode(desc, turnon)
-int	desc;
-int	turnon;
-{
-  
-  TERMINAL sg;
-
-  if (desc < 0)
-    return;
-
-  ioctl (desc, TIOCGETP, &sg);
-
-  if (turnon) {
-#ifdef HAVE_TERMIO
-  	sg.c_lflag &= ~(ICANON);
-#else
-	sg.sg_flags |= RAW;
-#endif
-  } else {
-#ifdef HAVE_TERMIO
-  	sg.c_lflag |= ICANON;
-#else
-	sg.sg_flags &= ~(RAW);
-#endif
-  }
-  ioctl (desc, TIOCSETP, &sg);
-}
-
-/* Suck up all the input from the adapt */
-slurp_input()
-{
-  char buf[8];
-
-#ifdef HAVE_TERMIO
-  /* termio does the timeout for us.  */
-  while (read (adapt_desc, buf, 8) > 0);
-#else
-  alarm (timeout);
-  while (read (adapt_desc, buf, 8) > 0);
-  alarm (0);
-#endif
-}
-
-/* Read a character from the remote system, doing all the fancy
-   timeout stuff.  */
-static int
-readchar ()
-{
-  char buf;
-
-  buf = '\0';
-#ifdef HAVE_TERMIO
-  /* termio does the timeout for us.  */
-  read (adapt_desc, &buf, 1);
-#else
-  alarm (timeout);
-  if (read (adapt_desc, &buf, 1) < 0)
-    {
-      if (errno == EINTR)
-	error ("Timeout reading from remote system.");
-      else
-	perror_with_name ("remote");
-    }
-  alarm (0);
-#endif
-
-  if (buf == '\0')
-    error ("Timeout reading from remote system.");
-#if defined (LOG_FILE)
-  putc (buf & 0x7f, log_file);
-#endif
-  return buf & 0x7f;
-}
-
-/* Keep discarding input from the remote system, until STRING is found. 
-   Let the user break out immediately.  */
-static void
-expect (string)
-     char *string;
-{
-  char *p = string;
-
-  fflush(adapt_stream);
-  immediate_quit = 1;
-  while (1)
-    {
-      if (readchar() == *p)
-	{
-	  p++;
-	  if (*p == '\0')
-	    {
-	      immediate_quit = 0;
-	      return;
-	    }
-	}
-      else
-	p = string;
-    }
-}
-
-/* Keep discarding input until we see the adapt prompt.
-
-   The convention for dealing with the prompt is that you
-   o give your command
-   o *then* wait for the prompt.
-
-   Thus the last thing that a procedure does with the serial line
-   will be an expect_prompt().  Exception:  adapt_resume does not
-   wait for the prompt, because the terminal is being handed over
-   to the inferior.  However, the next thing which happens after that
-   is a adapt_wait which does wait for the prompt.
-   Note that this includes abnormal exit, e.g. error().  This is
-   necessary to prevent getting into states from which we can't
-   recover.  */
-static void
-expect_prompt ()
-{
-#if defined (LOG_FILE)
-  /* This is a convenient place to do this.  The idea is to do it often
-     enough that we never lose much data if we terminate abnormally.  */
-  fflush (log_file);
-#endif
-  fflush(adapt_stream);
-  expect ("\n# ");
-}
-
-/* Get a hex digit from the remote system & return its value.
-   If ignore_space is nonzero, ignore spaces (not newline, tab, etc).  */
-static int
-get_hex_digit (ignore_space)
-     int ignore_space;
-{
-  int ch;
-  while (1)
-    {
-      ch = readchar ();
-      if (ch >= '0' && ch <= '9')
-	return ch - '0';
-      else if (ch >= 'A' && ch <= 'F')
-	return ch - 'A' + 10;
-      else if (ch >= 'a' && ch <= 'f')
-	return ch - 'a' + 10;
-      else if (ch == ' ' && ignore_space)
-	;
-      else
-	{
-	  expect_prompt ();
-	  error ("Invalid hex digit from remote system.");
-	}
-    }
-}
-
-/* Get a byte from adapt_desc and put it in *BYT.  Accept any number
-   leading spaces.  */
-static void
-get_hex_byte (byt)
-     char *byt;
-{
-  int val;
-
-  val = get_hex_digit (1) << 4;
-  val |= get_hex_digit (0);
-  *byt = val;
-}
-
-/* Read a 32-bit hex word from the adapt, preceded by a space  */
-static long 
-get_hex_word()
-{
-  long val;
-  int j;
-      
-  val = 0;
-  for (j = 0; j < 8; j++)
-	val = (val << 4) + get_hex_digit (j == 0);
-  return val;
-}
-/* Get N 32-bit hex words from remote, each preceded by a space 
-   and put them in registers starting at REGNO.  */
-static void
-get_hex_regs (n, regno)
-     int n;
-     int regno;
-{
-	long val;
-	while (n--) {
-		val = get_hex_word();
-		supply_register(regno++,(char *) &val);
-	}
-}
-/* Called when SIGALRM signal sent due to alarm() timeout.  */
-#ifndef HAVE_TERMIO
-
-#ifndef __STDC__
-# ifndef volatile
-#  define volatile /**/
-# endif
-#endif
-volatile int n_alarms;
-
-void
-adapt_timer ()
-{
-#if 0
-  if (kiodebug)
-    printf ("adapt_timer called\n");
-#endif
-  n_alarms++;
-}
-#endif
-
-/* malloc'd name of the program on the remote system.  */
-static char *prog_name = NULL;
-
-/* Number of SIGTRAPs we need to simulate.  That is, the next
-   NEED_ARTIFICIAL_TRAP calls to adapt_wait should just return
-   SIGTRAP without actually waiting for anything.  */
-
-static int need_artificial_trap = 0;
-
-void
-adapt_kill(arg,from_tty)
-char	*arg;
-int	from_tty;
-{
-	fprintf (adapt_stream, "K");
-	fprintf (adapt_stream, "\r");
-	expect_prompt ();
-}
-/*
- * Download a file specified in 'args', to the adapt. 
- * FIXME: Assumes the file to download is a binary coff file.
- */
-static void
-adapt_load(args,fromtty)
-char	*args;
-int	fromtty;
-{
-	FILE *fp;
-	int	n;
-	char	buffer[1024];
-	
-	if (!adapt_stream) {
-		printf_filtered("Adapt not open. Use 'target' command to open adapt\n");
-		return;
-	}
-
-  	/* OK, now read in the file.  Y=read, C=COFF, T=dTe port
-     		0=start address.  */
-
-#ifdef ASCII_COFF	/* Ascii coff */
-	fprintf (adapt_stream, "YA T,0\r");
-	fflush(adapt_stream); 	/* Just in case */
-	/* FIXME: should check args for only 1 argument */
-	sprintf(buffer,"cat %s | btoa > /tmp/#adapt-btoa",args);
-	system(buffer);
-	fp = fopen("/tmp/#adapt-btoa","r");
-	rawmode(adapt_desc,OFF);	
-	while (n=fread(buffer,1,1024,fp)) {
-		do { n -= write(adapt_desc,buffer,n); } while (n>0);
-		if (n<0) { perror("writing ascii coff"); break; }
-	}
-	fclose(fp);
-	rawmode(adapt_desc,ON);	
-	system("rm /tmp/#adapt-btoa");
-#else	/* Binary coff - can't get it to work .*/
-	fprintf (adapt_stream, "YC T,0\r");
-	fflush(adapt_stream); 	/* Just in case */
-	if (!(fp = fopen(args,"r"))) {
-		printf_filtered("Can't open %s\n",args);
-		return;
-	}
-	while (n=fread(buffer,1,512,fp)) {
-		do { n -= write(adapt_desc,buffer,n); } while (n>0);
-		if (n<0) { perror("writing ascii coff"); break; }
-	}
-	fclose(fp);
-#endif
-  	expect_prompt ();	/* Skip garbage that comes out */
-	fprintf (adapt_stream, "\r");
-  	expect_prompt ();
-}
-
-/* This is called not only when we first attach, but also when the
-   user types "run" after having attached.  */
-void
-adapt_create_inferior (execfile, args, env)
-     char *execfile;
-     char *args;
-     char **env;
-{
-  int entry_pt;
-
-  if (args && *args)
-    error ("Can't pass arguments to remote adapt process.");
-
-  if (execfile == 0 || exec_bfd == 0)
-    error ("No executable file specified");
-
-  entry_pt = (int) bfd_get_start_address (exec_bfd);
-
-  if (adapt_stream) {
-	adapt_kill(NULL,NULL);	 
-	adapt_clear_breakpoints();
-	init_wait_for_inferior ();
-	/* Clear the input because what the adapt sends back is different
-	 * depending on whether it was running or not.
-	 */
-	slurp_input();	/* After this there should be a prompt */
-	fprintf(adapt_stream,"\r"); 
-	expect_prompt();
-	printf_filtered("Do you want to download '%s' (y/n)? [y] : ",prog_name);
-	{	
-		char buffer[10];
-		gets(buffer);
-		if (*buffer != 'n') {
-			adapt_load(prog_name,0);
-		}
-	}
-
-#ifdef NOTDEF
-	/* Set the PC and wait for a go/cont */
-	  fprintf (adapt_stream, "G %x,N\r",entry_pt);
-	  printf_filtered("Now use the 'continue' command to start.\n"); 
-  	  expect_prompt ();
-#else
-  	insert_breakpoints ();  /* Needed to get correct instruction in cache */
-  	proceed(entry_pt, TARGET_SIGNAL_DEFAULT, 0);
-#endif
-
-  } else {
-	printf_filtered("Adapt not open yet.\n");
-  }
-}
-
-/* Translate baud rates from integers to damn B_codes.  Unix should
-   have outgrown this crap years ago, but even POSIX wouldn't buck it.  */
-
-#ifndef B19200
-#define B19200 EXTA
-#endif
-#ifndef B38400
-#define B38400 EXTB
-#endif
-
-static struct {int rate, damn_b;} baudtab[] = {
-	{0, B0},
-	{50, B50},
-	{75, B75},
-	{110, B110},
-	{134, B134},
-	{150, B150},
-	{200, B200},
-	{300, B300},
-	{600, B600},
-	{1200, B1200},
-	{1800, B1800},
-	{2400, B2400},
-	{4800, B4800},
-	{9600, B9600},
-	{19200, B19200},
-	{38400, B38400},
-	{-1, -1},
-};
-
-static int damn_b (rate)
-     int rate;
-{
-  int i;
-
-  for (i = 0; baudtab[i].rate != -1; i++)
-    if (rate == baudtab[i].rate) return baudtab[i].damn_b;
-  return B38400;	/* Random */
-}
-
-
-/* Open a connection to a remote debugger.
-   NAME is the filename used for communication, then a space,
-   then the baud rate.
- */
-
-static int baudrate = 9600;
-static void
-adapt_open (name, from_tty)
-     char *name;
-     int from_tty;
-{
-  TERMINAL sg;
-  unsigned int prl;
-  char *p;
-
-  /* Find the first whitespace character, it separates dev_name from
-     prog_name.  */
-  if (name == 0)
-    goto erroid;
-
-  for (p = name;
-       *p != '\0' && !isspace (*p); p++)
-    ;
-  if (*p == '\0')
-erroid:
-    error ("\
-Please include the name of the device for the serial port,\n\
-the baud rate, and the name of the program to run on the remote system.");
-  dev_name = (char*)xmalloc(p - name + 1);
-  strncpy (dev_name, name, p - name);
-  dev_name[p - name] = '\0';
-
-  /* Skip over the whitespace after dev_name */
-  for (; isspace (*p); p++)
-    /*EMPTY*/;
-  
-  if (1 != sscanf (p, "%d ", &baudrate))
-    goto erroid;
-
-  /* Skip the number and then the spaces */
-  for (; isdigit (*p); p++)
-    /*EMPTY*/;
-  for (; isspace (*p); p++)
-    /*EMPTY*/;
-  
-  if (prog_name != NULL)
-    free (prog_name);
-  prog_name = savestring (p, strlen (p));
-
-  adapt_close (0);
-
-  adapt_desc = open (dev_name, O_RDWR);
-  if (adapt_desc < 0)
-    perror_with_name (dev_name);
-  ioctl (adapt_desc, TIOCGETP, &sg);
-#if ! defined(COMPILE_CHECK) 
-#ifdef HAVE_TERMIO
-  sg.c_cc[VMIN] = 0;		/* read with timeout.  */
-  sg.c_cc[VTIME] = timeout * 10;
-  sg.c_lflag &= ~(ICANON | ECHO);
-  sg.c_cflag = (sg.c_cflag & ~CBAUD) | damn_b (baudrate);
-#else
-  sg.sg_ispeed = damn_b (baudrate);
-  sg.sg_ospeed = damn_b (baudrate);
-  sg.sg_flags |= RAW | ANYP;
-  sg.sg_flags &= ~ECHO;
-#endif
-
-  ioctl (adapt_desc, TIOCSETP, &sg);
-  adapt_stream = fdopen (adapt_desc, "r+");
-#endif /* compile_check */
-  push_target (&adapt_ops);
-
-#ifndef HAVE_TERMIO
-#ifndef NO_SIGINTERRUPT
-  /* Cause SIGALRM's to make reads fail with EINTR instead of resuming
-     the read.  */
-  if (siginterrupt (SIGALRM, 1) != 0)
-    perror ("adapt_open: error in siginterrupt");
-#endif
-
-  /* Set up read timeout timer.  */
-  if ((void (*)) signal (SIGALRM, adapt_timer) == (void (*)) -1)
-    perror ("adapt_open: error in signal");
-#endif
-
-#if defined (LOG_FILE)
-  log_file = fopen (LOG_FILE, "w");
-  if (log_file == NULL)
-    perror_with_name (LOG_FILE);
-#endif
-
-  /* Put this port into NORMAL mode, send the 'normal' character */
-  write(adapt_desc, "", 1);	/* Control A */
-  write(adapt_desc, "\r", 1);	
-  expect_prompt ();
-  
-  /* Hello?  Are you there?  */
-  write (adapt_desc, "\r", 1);
- 
-  expect_prompt ();
-
-  /* Clear any break points */
-  adapt_clear_breakpoints();
-
-  /* Print out some stuff, letting the user now what's going on */
-  printf_filtered("Connected to an Adapt via %s.\n", dev_name);
-    /* FIXME: can this restriction be removed? */
-  printf_filtered("Remote debugging using virtual addresses works only\n");
-  printf_filtered("\twhen virtual addresses map 1:1 to physical addresses.\n"); 
-  if (processor_type != a29k_freeze_mode) {
-	fprintf_filtered(gdb_stderr,
-	"Freeze-mode debugging not available, and can only be done on an A29050.\n");
-  }
-}
-
-/* Close out all files and local state before this target loses control. */
-
-static void
-adapt_close (quitting)
-     int quitting;
-{
-
-  /* Clear any break points */
-  adapt_clear_breakpoints();
-
-  /* Put this port back into REMOTE mode */ 
-  if (adapt_stream) {
-     fflush(adapt_stream);
-     sleep(1);		/* Let any output make it all the way back */
-     write(adapt_desc, "R\r", 2);
-  }
-
-  /* Due to a bug in Unix, fclose closes not only the stdio stream,
-     but also the file descriptor.  So we don't actually close
-     adapt_desc.  */
-  if (adapt_stream)
-    fclose (adapt_stream);	/* This also closes adapt_desc */
-  if (adapt_desc >= 0)
-    /* close (adapt_desc); */
-
-  /* Do not try to close adapt_desc again, later in the program.  */
-  adapt_stream = NULL;
-  adapt_desc = -1;
-
-#if defined (LOG_FILE)
-  if (log_file) {
-    if (ferror (log_file))
-      printf_filtered ("Error writing log file.\n");
-    if (fclose (log_file) != 0)
-      printf_filtered ("Error closing log file.\n");
-    log_file = NULL;
-  }
-#endif
-}
-
-/* Attach to the target that is already loaded and possibly running */
-static void
-adapt_attach (args, from_tty)
-     char *args;
-     int from_tty;
-{
-
-  if (from_tty)
-      printf_filtered ("Attaching to remote program %s.\n", prog_name);
-
-  /* Send the adapt a kill. It is ok if it is not already running */
-  fprintf(adapt_stream, "K\r"); fflush(adapt_stream);
-  expect_prompt();		/* Slurp the echo */
-}
-
-
-/* Terminate the open connection to the remote debugger.
-   Use this when you want to detach and do something else
-   with your gdb.  */
-void
-adapt_detach (args,from_tty)
-     char *args;
-     int from_tty;
-{
-
-  if (adapt_stream) { /* Send it on its way (tell it to continue)  */
-	adapt_clear_breakpoints();
-  	fprintf(adapt_stream,"G\r");
-  }
- 
-  pop_target();		/* calls adapt_close to do the real work */
-  if (from_tty)
-    printf_filtered ("Ending remote %s debugging\n", target_shortname);
-}
- 
-/* Tell the remote machine to resume.  */
-
-void
-adapt_resume (pid, step, sig)
-     int pid, step;
-     enum target_signal sig;
-{
-  if (step)	
-    {
-      write (adapt_desc, "t 1,s\r", 6);
-      /* Wait for the echo.  */
-      expect ("t 1,s\r\n");
-      /* Then comes a line containing the instruction we stepped to.  */
-      expect ("@");
-      /* Then we get the prompt.  */
-      expect_prompt ();
-
-      /* Force the next adapt_wait to return a trap.  Not doing anything
-         about I/O from the target means that the user has to type
-         "continue" to see any.  FIXME, this should be fixed.  */
-      need_artificial_trap = 1;
-    }
-  else
-    {
-      write (adapt_desc, "G\r", 2);
-      /* Swallow the echo.  */
-      expect_prompt(); 
-    }
-}
-
-/* Wait until the remote machine stops, then return,
-   storing status in STATUS just as `wait' would.  */
-
-int
-adapt_wait (status)
-     struct target_waitstatus *status;
-{
-  /* Strings to look for.  '?' means match any single character.  
-     Note that with the algorithm we use, the initial character
-     of the string cannot recur in the string, or we will not
-     find some cases of the string in the input.  */
-  
-  static char bpt[] = "@";
-  /* It would be tempting to look for "\n[__exit + 0x8]\n"
-     but that requires loading symbols with "yc i" and even if
-     we did do that we don't know that the file has symbols.  */
-  static char exitmsg[] = "@????????I    JMPTI     GR121,LR0";
-  char *bp = bpt;
-  char *ep = exitmsg;
-
-  /* Large enough for either sizeof (bpt) or sizeof (exitmsg) chars.  */
-  char swallowed[50];
-  /* Current position in swallowed.  */
-  char *swallowed_p = swallowed;
-
-  int ch;
-  int ch_handled;
-  int old_timeout = timeout;
-  int old_immediate_quit = immediate_quit;
-
-  status->kind = TARGET_WAITKIND_EXITED;
-  status->value.integer = 0;
-
-  if (need_artificial_trap != 0)
-    {
-      status->kind = TARGET_WAITKIND_STOPPED;
-      status->value.sig = TARGET_SIGNAL_TRAP;
-      need_artificial_trap--;
-      return 0;
-    }
-
-  timeout = 0;		/* Don't time out -- user program is running. */
-  immediate_quit = 1;	/* Helps ability to QUIT */
-  while (1) {
-      QUIT;		/* Let user quit and leave process running */
-      ch_handled = 0;
-      ch = readchar ();
-      if (ch == *bp) {
-	  bp++;
-	  if (*bp == '\0')
-	    break;
-	  ch_handled = 1;
-
-	  *swallowed_p++ = ch;
-      } else
-	bp = bpt;
-      if (ch == *ep || *ep == '?') {
-	  ep++;
-	  if (*ep == '\0')
-	    break;
-
-	  if (!ch_handled)
-	    *swallowed_p++ = ch;
-	  ch_handled = 1;
-      } else
-	ep = exitmsg;
-      if (!ch_handled) {
-	  char *p;
-	  /* Print out any characters which have been swallowed.  */
-	  for (p = swallowed; p < swallowed_p; ++p)
-	    putc (*p, stdout);
-	  swallowed_p = swallowed;
-	  putc (ch, stdout);
-      }
-  }
-  expect_prompt ();
-  if (*bp== '\0')
-    {
-      status->kind = TARGET_WAITKIND_STOPPED;
-      status->value.sig = TARGET_SIGNAL_TRAP;
-    }
-  else
-    {
-      status->kind = TARGET_WAITKIND_EXITED;
-      status->value.integer = 0;
-    }
-  timeout = old_timeout;
-  immediate_quit = old_immediate_quit;
-  return 0;
-}
-
-/* Return the name of register number REGNO
-   in the form input and output by adapt.
-
-   Returns a pointer to a static buffer containing the answer.  */
-static char *
-get_reg_name (regno)
-     int regno;
-{
-  static char buf[80];
-  if (regno >= GR96_REGNUM && regno < GR96_REGNUM + 32 )
-    sprintf (buf, "GR%03d", regno - GR96_REGNUM + 96);
-#if defined(GR64_REGNUM)
-  else if (regno >= GR64_REGNUM && regno < GR64_REGNUM + 32 )
-    sprintf (buf, "GR%03d", regno - GR64_REGNUM + 64);
-#endif
-  else if (regno >= LR0_REGNUM && regno < LR0_REGNUM + 128)
-    sprintf (buf, "LR%03d", regno - LR0_REGNUM);
-  else if (regno == Q_REGNUM) 
-    strcpy (buf, "SR131");
-  else if (regno >= BP_REGNUM && regno <= CR_REGNUM)
-    sprintf (buf, "SR%03d", regno - BP_REGNUM + 133);
-  else if (regno == ALU_REGNUM)
-    strcpy (buf, "SR132");
-  else if (regno >= IPC_REGNUM && regno <= IPB_REGNUM)
-    sprintf (buf, "SR%03d", regno - IPC_REGNUM + 128);
-  else if (regno >= VAB_REGNUM && regno <= LRU_REGNUM) {
-    /* When a 29050 is in freeze-mode, read shadow pcs instead */
-    if ((regno >= NPC_REGNUM && regno <= PC2_REGNUM) && USE_SHADOW_PC)
-    	sprintf (buf, "SR%03d", regno - NPC_REGNUM + 20);
-    else
-    	sprintf (buf, "SR%03d", regno - VAB_REGNUM);
-  }
-  else if (regno == GR1_REGNUM)
-    strcpy (buf, "GR001");
-  return buf;
-}
-
-/* Read the remote registers.  */
-
-static void
-adapt_fetch_registers ()
-{
-  int reg_index;
-  int regnum_index;
-  char tempbuf[10];
-  int	sreg_buf[16];
-  int i,j;
-
-/* 
- * Global registers
- */
-#if defined(GR64_REGNUM)
-  write (adapt_desc, "dw gr64,gr95\r", 13);
-  for (reg_index = 64, regnum_index = GR64_REGNUM;
-       reg_index < 96;
-       reg_index += 4, regnum_index += 4)
-    {
-      sprintf (tempbuf, "GR%03d ", reg_index);
-      expect (tempbuf);
-      get_hex_regs (4, regnum_index);
-      expect ("\n");
-    }
-#endif
-  write (adapt_desc, "dw gr96,gr127\r", 14);
-  for (reg_index = 96, regnum_index = GR96_REGNUM;
-       reg_index < 128;
-       reg_index += 4, regnum_index += 4)
-    {
-      sprintf (tempbuf, "GR%03d ", reg_index);
-      expect (tempbuf);
-      get_hex_regs (4, regnum_index);
-      expect ("\n");
-    }
-
-/* 
- * Local registers
- */
-  for (i = 0; i < 128; i += 32)
-    {
-      /* The PC has a tendency to hang if we get these
-	 all in one fell swoop ("dw lr0,lr127").  */
-      sprintf (tempbuf, "dw lr%d\r", i);
-      write (adapt_desc, tempbuf, strlen (tempbuf));
-      for (reg_index = i, regnum_index = LR0_REGNUM + i;
-	   reg_index < i + 32;
-	   reg_index += 4, regnum_index += 4)
-	{
-	  sprintf (tempbuf, "LR%03d ", reg_index);
-	  expect (tempbuf);
-	  get_hex_regs (4, regnum_index);
-	  expect ("\n");
-	}
-    }
-
-/* 
- * Special registers
- */
-  sprintf (tempbuf, "dw sr0\r");
-  write (adapt_desc, tempbuf, strlen (tempbuf));
-  for (i=0 ; i<4 ; i++) {			/* SR0 - SR14 */
-        sprintf (tempbuf, "SR%3d",i*4);
-	expect(tempbuf);
-	for (j=0 ; j < (i==3 ? 3 : 4) ; j++)
-		sreg_buf[i*4 + j] = get_hex_word();
-  }		
-  expect_prompt();
-  /* 
-   * Read the pcs individually if we are in freeze mode.
-   * See get_reg_name(), it translates the register names for the pcs to
-   * the names of the shadow pcs.
-   */ 
-  if (USE_SHADOW_PC)  {
-	  sreg_buf[10] = read_register(NPC_REGNUM);	/* pc0 */
-	  sreg_buf[11] = read_register(PC_REGNUM);	/* pc1 */
-	  sreg_buf[12] = read_register(PC2_REGNUM);	/* pc2 */
-  }
-  for (i=0 ; i<14 ; i++)		/* Supply vab -> lru */
- 	supply_register(VAB_REGNUM+i, (char *) &sreg_buf[i]);
-  sprintf (tempbuf, "dw sr128\r");
-  write (adapt_desc, tempbuf, strlen (tempbuf));
-  for (i=0 ; i<2 ; i++) {			/* SR128 - SR135 */
-        sprintf (tempbuf, "SR%3d",128 + i*4);
-	expect(tempbuf);
-	for (j=0 ; j<4 ; j++)
-		sreg_buf[i*4 + j] = get_hex_word();
-  }		
-  expect_prompt();
-  supply_register(IPC_REGNUM,(char *) &sreg_buf[0]);
-  supply_register(IPA_REGNUM,(char *) &sreg_buf[1]);
-  supply_register(IPB_REGNUM,(char *) &sreg_buf[2]);
-  supply_register(Q_REGNUM,  (char *) &sreg_buf[3]);
-		/* Skip ALU */
-  supply_register(BP_REGNUM, (char *) &sreg_buf[5]);
-  supply_register(FC_REGNUM, (char *) &sreg_buf[6]);
-  supply_register(CR_REGNUM, (char *) &sreg_buf[7]);
-
-  /* There doesn't seem to be any way to get these.  */
-  {
-    int val = -1;
-    supply_register (FPE_REGNUM, (char *) &val);
-    supply_register (INTE_REGNUM, (char *) &val);
-    supply_register (FPS_REGNUM, (char *) &val);
-    supply_register (EXO_REGNUM, (char *) &val);
-  }
-
-  write (adapt_desc, "dw gr1,gr1\r", 11);
-  expect ("GR001 ");
-  get_hex_regs (1, GR1_REGNUM);
-  expect_prompt ();
-}
-
-/* Fetch register REGNO, or all registers if REGNO is -1.
- */
-static void
-adapt_fetch_register (regno)
-     int regno;
-{
-  if (regno == -1)
-    adapt_fetch_registers ();
-  else
-    {
-      char *name = get_reg_name (regno);
-      fprintf (adapt_stream, "dw %s,%s\r", name, name);
-      expect (name);
-      expect (" ");
-      get_hex_regs (1, regno);
-      expect_prompt ();
-    }
-}
-
-/* Store the remote registers from the contents of the block REGS.  */
-
-static void
-adapt_store_registers ()
-{
-  int i, j;
-
-  fprintf (adapt_stream, "s gr1,%x\r", read_register (GR1_REGNUM));
-  expect_prompt ();
-
-#if defined(GR64_REGNUM)
-  for (j = 0; j < 32; j += 16)
-    {
-      fprintf (adapt_stream, "s gr%d,", j + 64);
-      for (i = 0; i < 15; ++i) 
-	fprintf (adapt_stream, "%x,", read_register (GR64_REGNUM + j + i));
-      fprintf (adapt_stream, "%x\r", read_register (GR64_REGNUM + j + 15));
-      expect_prompt ();
-    }
-#endif
-  for (j = 0; j < 32; j += 16)
-    {
-      fprintf (adapt_stream, "s gr%d,", j + 96);
-      for (i = 0; i < 15; ++i) 
-	fprintf (adapt_stream, "%x,", read_register (GR96_REGNUM + j + i));
-      fprintf (adapt_stream, "%x\r", read_register (GR96_REGNUM + j + 15));
-      expect_prompt ();
-    }
-
-  for (j = 0; j < 128; j += 16)
-    {
-      fprintf (adapt_stream, "s lr%d,", j);
-      for (i = 0; i < 15; ++i) 
-	fprintf (adapt_stream, "%x,", read_register (LR0_REGNUM + j + i));
-      fprintf (adapt_stream, "%x\r", read_register (LR0_REGNUM + j + 15));
-      expect_prompt ();
-    }
-
-  fprintf (adapt_stream, "s sr128,%x,%x,%x\r", read_register (IPC_REGNUM),
-	   read_register (IPA_REGNUM), read_register (IPB_REGNUM));
-  expect_prompt ();
-  fprintf (adapt_stream, "s sr133,%x,%x,%x\r", read_register (BP_REGNUM),
-	   read_register (FC_REGNUM), read_register (CR_REGNUM));
-  expect_prompt ();
-  fprintf (adapt_stream, "s sr131,%x\r", read_register (Q_REGNUM));
-  expect_prompt ();
-  fprintf (adapt_stream, "s sr0,");
-  for (i=0 ; i<7 ; ++i)
-    fprintf (adapt_stream, "%x,", read_register (VAB_REGNUM + i));
-  expect_prompt ();
-  fprintf (adapt_stream, "s sr7,");
-  for (i=7; i<14 ; ++i)
-    fprintf (adapt_stream, "%x,", read_register (VAB_REGNUM + i));
-  expect_prompt ();
-}
-
-/* Store register REGNO, or all if REGNO == -1.
-   Return errno value.  */
-void
-adapt_store_register (regno)
-     int regno;
-{
-  /* printf("adapt_store_register() called.\n"); fflush(stdout); /* */
-  if (regno == -1)
-    adapt_store_registers ();
-  else
-    {
-      char *name = get_reg_name (regno);
-      fprintf (adapt_stream, "s %s,%x\r", name, read_register (regno));
-      /* Setting GR1 changes the numbers of all the locals, so
-	 invalidate the register cache.  Do this *after* calling
-	 read_register, because we want read_register to return the
-	 value that write_register has just stuffed into the registers
-	 array, not the value of the register fetched from the
-	 inferior.  */
-      if (regno == GR1_REGNUM)
-	registers_changed ();
-      expect_prompt ();
-    }
-}
-
-/* Get ready to modify the registers array.  On machines which store
-   individual registers, this doesn't need to do anything.  On machines
-   which store all the registers in one fell swoop, this makes sure
-   that registers contains all the registers from the program being
-   debugged.  */
-
-void
-adapt_prepare_to_store ()
-{
-  /* Do nothing, since we can store individual regs */
-}
-
-static CORE_ADDR 
-translate_addr(addr)
-CORE_ADDR addr;
-{
-#if defined(KERNEL_DEBUGGING)
-	/* Check for a virtual address in the kernel */
-	/* Assume physical address of ublock is in  paddr_u register */
-	if (addr >= UVADDR) {
-		/* PADDR_U register holds the physical address of the ublock */
-		CORE_ADDR i = (CORE_ADDR)read_register(PADDR_U_REGNUM);	
-		return(i + addr - (CORE_ADDR)UVADDR);
-	} else {
-		return(addr);
-	}
-#else
-	return(addr);
-#endif
-}
-
-
-/* FIXME!  Merge these two.  */
-int
-adapt_xfer_inferior_memory (memaddr, myaddr, len, write)
-     CORE_ADDR memaddr;
-     char *myaddr;
-     int len;
-     int write;
-{
-
-  memaddr = translate_addr(memaddr);
-
-  if (write)
-    return adapt_write_inferior_memory (memaddr, myaddr, len);
-  else
-    return adapt_read_inferior_memory (memaddr, myaddr, len);
-}
-
-void
-adapt_files_info ()
-{
-  printf_filtered("\tAttached to %s at %d baud and running program %s\n",
-	  dev_name, baudrate, prog_name);
-  printf_filtered("\ton an %s processor.\n", processor_name[processor_type]);
-}
-
-/* Copy LEN bytes of data from debugger memory at MYADDR
-   to inferior's memory at MEMADDR.  Returns errno value.  
- * sb/sh instructions don't work on unaligned addresses, when TU=1. 
- */
-int
-adapt_write_inferior_memory (memaddr, myaddr, len)
-     CORE_ADDR memaddr;
-     char *myaddr;
-     int len;
-{
-  int i;
-  unsigned int cps;
-
-  /* Turn TU bit off so we can do 'sb' commands */
-  cps = read_register(CPS_REGNUM);
-  if (cps & 0x00000800)
-  	write_register(CPS_REGNUM,cps&~(0x00000800));
-
-  for (i = 0; i < len; i++)
-    {
-      if ((i % 16) == 0)
-	fprintf (adapt_stream, "sb %x,", memaddr + i);
-      if ((i % 16) == 15 || i == len - 1)
-	{
-	  fprintf (adapt_stream, "%x\r", ((unsigned char *)myaddr)[i]);
-	  expect_prompt ();
-	}
-      else
-	fprintf (adapt_stream, "%x,", ((unsigned char *)myaddr)[i]);
-    }
-  /* Restore the old value of cps if the TU bit was on */
-  if (cps & 0x00000800)
-  	write_register(CPS_REGNUM,cps);
-  return len;
-}
-
-/* Read LEN bytes from inferior memory at MEMADDR.  Put the result
-   at debugger address MYADDR.  Returns errno value.  */
-int
-adapt_read_inferior_memory(memaddr, myaddr, len)
-     CORE_ADDR memaddr;
-     char *myaddr;
-     int len;
-{
-  int i;
-
-  /* Number of bytes read so far.  */
-  int count;
-
-  /* Starting address of this pass.  */
-  unsigned long startaddr;
-
-  /* Number of bytes to read in this pass.  */
-  int len_this_pass;
-
-  /* Note that this code works correctly if startaddr is just less
-     than UINT_MAX (well, really CORE_ADDR_MAX if there was such a
-     thing).  That is, something like
-     adapt_read_bytes (CORE_ADDR_MAX - 4, foo, 4)
-     works--it never adds len to memaddr and gets 0.  */
-  /* However, something like
-     adapt_read_bytes (CORE_ADDR_MAX - 3, foo, 4)
-     doesn't need to work.  Detect it and give up if there's an attempt
-     to do that.  */
-
-  if (((memaddr - 1) + len) < memaddr)
-    return EIO;
-  
-  startaddr = memaddr;
-  count = 0;
-  while (count < len)
-    {
-      len_this_pass = 16;
-      if ((startaddr % 16) != 0)
-	len_this_pass -= startaddr % 16;
-      if (len_this_pass > (len - count))
-	len_this_pass = (len - count);
-
-      fprintf (adapt_stream, "db %x,%x\r", startaddr,
-	       (startaddr - 1) + len_this_pass);
-
-#ifdef NOTDEF	/* Why do this */
-      expect ("\n");
-      /* Look for 8 hex digits.  */
-      i = 0;
-      while (1)
-	{
-	  if (isxdigit (readchar ()))
-	    ++i;
-	  else
-	    {
-	      expect_prompt ();
-	      error ("Hex digit expected from remote system.");
-	    }
-	  if (i >= 8)
-	    break;
-	}
-#endif /* NOTDEF */
-
-      expect ("  ");
-
-      for (i = 0; i < len_this_pass; i++)
-	get_hex_byte (&myaddr[count++]);
-
-      expect_prompt ();
-
-      startaddr += len_this_pass;
-    }
-  return count;
-}
-
-#define MAX_BREAKS	8
-static int num_brkpts=0;
-static int
-adapt_insert_breakpoint(addr, save)
-CORE_ADDR	addr;
-char		*save;	/* Throw away, let adapt save instructions */
-{
-  if (num_brkpts < MAX_BREAKS) {
-  	num_brkpts++;
-  	fprintf (adapt_stream, "B %x", addr);
-  	fprintf (adapt_stream, "\r");
-  	expect_prompt ();
-	return(0);	/* Success */
-  } else {
-	fprintf_filtered(gdb_stderr,
-		"Too many break points, break point not installed\n");
-	return(1);	/* Failure */
-  }
-
-}
-static int
-adapt_remove_breakpoint(addr, save)
-CORE_ADDR	addr;
-char		*save;	/* Throw away, let adapt save instructions */
-{
-  if (num_brkpts > 0) {
-	  num_brkpts--;
-	  fprintf (adapt_stream, "BR %x", addr);
-	  fprintf (adapt_stream, "\r");
-	  fflush (adapt_stream);
-	  expect_prompt ();
-  }
-  return(0);
-}
-
-/* Clear the adapts notion of what the break points are */
-static int
-adapt_clear_breakpoints() 
-{ 
-  if (adapt_stream) {
-  	fprintf (adapt_stream, "BR");	/* Clear all break points */
-  	fprintf (adapt_stream, "\r");
-  	fflush(adapt_stream);
-  	expect_prompt ();
-  }
-  num_brkpts = 0;
-}
-static void
-adapt_mourn() 
-{ 
-  adapt_clear_breakpoints();
-  pop_target ();                /* Pop back to no-child state */
-  generic_mourn_inferior ();
-}
-
-/* Display everthing we read in from the adapt until we match/see the
- * specified string
- */
-static int
-display_until(str)
-char	*str;
-{
-	int	i=0,j,c;
-
-	while (c=readchar()) {
-		if (c==str[i]) {
-			i++;
-			if (i == strlen(str)) return;
-		} else {
-			if (i) {
-			    for (j=0 ; j<i ; j++) /* Put everthing we matched */
-				putchar(str[j]);
-			    i=0;
-			}
-			putchar(c);
-		}	
-	}
-
-}
-
-
-/* Put a command string, in args, out to the adapt.  The adapt is assumed to
-   be in raw mode, all writing/reading done through adapt_desc.
-   Ouput from the adapt is placed on the users terminal until the
-   prompt from the adapt is seen.
-   FIXME: Can't handle commands that take input.  */
-
-void
-adapt_com (args, fromtty)
-     char	*args;
-     int	fromtty;
-{
-	if (!adapt_stream) {
-		printf_filtered("Adapt not open.  Use the 'target' command to open.\n");
-		return;
-	}
-
-	/* Clear all input so only command relative output is displayed */
-	slurp_input();	
-
-	switch(islower(args[0]) ? toupper(args[0]) : args[0]) {
-	default:
-		printf_filtered("Unknown/Unimplemented adapt command '%s'\n",args);
-		break;
-	case 'G':	/* Go, begin execution */
-		write(adapt_desc,args,strlen(args));
-		write(adapt_desc,"\r",1);
-		expect_prompt();
-		break;
-	case 'B':	/* Break points, B or BR */
-	case 'C':	/* Check current 29k status (running/halted) */
-	case 'D':	/* Display data/registers */ 
-	case 'I':	/* Input from i/o space */
-	case 'J':	/* Jam an instruction */
-	case 'K':	/* Kill, stop execution */
-	case 'L':	/* Disassemble */
-	case 'O':	/* Output to i/o space */
-	case 'T':	/* Trace */ 
-	case 'P':	/* Pulse an input line */ 
-	case 'X':	/* Examine special purpose registers */ 
-	case 'Z':	/* Display trace buffer */ 
-		write(adapt_desc,args,strlen(args));
-		write(adapt_desc,"\r",1);
-		expect(args);		/* Don't display the command */
-		display_until("# ");
-		break;
-	/* Begin commands that take input in the form 'c x,y[,z...]' */
-	case 'S':	/* Set memory or register */
-		if (strchr(args,',')) {	/* Assume it is properly formatted */
-			write(adapt_desc,args,strlen(args));
-			write(adapt_desc,"\r",1);
-			expect_prompt();
-		}
-		break;
-	}
-}
-
-/* Define the target subroutine names */
-
-struct target_ops adapt_ops ;
-
-static void 
-init_adapt_ops(void)
-{
-  adapt_ops.to_shortname = 	"adapt";
-  adapt_ops.to_longname = 	"Remote AMD `Adapt' target";
-  adapt_ops.to_doc = 	"Remote debug an AMD 290*0 using an `Adapt' monitor via RS232";
-  adapt_ops.to_open = 	adapt_open;
-  adapt_ops.to_close = 	adapt_close;
-  adapt_ops.to_attach = adapt_attach;
-  adapt_ops.to_post_attach = NULL;
-  adapt_ops.to_require_attach = NULL;  
-  adapt_ops.to_detach = adapt_detach;
-  adapt_ops.to_require_detach = NULL;
-  adapt_ops.to_resume = adapt_resume;
-  adapt_ops.to_wait  = 	adapt_wait;
-  adapt_ops.to_post_wait = NULL;
-  adapt_ops.to_fetch_registers  = adapt_fetch_register;
-  adapt_ops.to_store_registers  = adapt_store_register;
-  adapt_ops.to_prepare_to_store = adapt_prepare_to_store;
-  adapt_ops.to_xfer_memory  = 	adapt_xfer_inferior_memory;
-  adapt_ops.to_files_info  = 	adapt_files_info;
-  adapt_ops.to_insert_breakpoint = adapt_insert_breakpoint;
-  adapt_ops.to_remove_breakpoint = adapt_remove_breakpoint; 
-  adapt_ops.to_terminal_init  = 	0;
-  adapt_ops.to_terminal_inferior = 	0;
-  adapt_ops.to_terminal_ours_for_output = 	0;
-  adapt_ops.to_terminal_ours  = 	0;
-  adapt_ops.to_terminal_info  = 	0;
-  adapt_ops.to_kill  = 	adapt_kill; 		
-  adapt_ops.to_load  = 	adapt_load;
-  adapt_ops.to_lookup_symbol = 	0; 		
-  adapt_ops.to_create_inferior =  adapt_create_inferior;
-  adapt_ops.to_post_startup_inferior = NULL;
-  adapt_ops.to_acknowledge_created_inferior = NULL;
-  adapt_ops.to_clone_and_follow_inferior = NULL;          
-  adapt_ops.to_post_follow_inferior_by_clone = NULL;  
-  adapt_ops.to_insert_fork_catchpoint = NULL;
-  adapt_ops.to_remove_fork_catchpoint = NULL;
-  adapt_ops.to_insert_vfork_catchpoint = NULL;
-  adapt_ops.to_remove_vfork_catchpoint = NULL;                     
-  adapt_ops.to_has_forked = NULL;
-  adapt_ops.to_has_vforked = NULL;
-  adapt_ops.to_can_follow_vfork_prior_to_exec = NULL;                        
-  adapt_ops.to_post_follow_vfork = NULL; 	
-  adapt_ops.to_insert_exec_catchpoint = NULL;
-  adapt_ops.to_remove_exec_catchpoint = NULL;
-  adapt_ops.to_has_execd = NULL;
-  adapt_ops.to_reported_exec_events_per_exec_call = NULL;
-  adapt_ops.to_has_exited = NULL;
-  adapt_ops.to_mourn_inferior =   adapt_mourn; 		
-  adapt_ops.to_can_run  = 	0; 
-  adapt_ops.to_notice_signals = 	0;
-  adapt_ops.to_thread_alive  = 	0;
-  adapt_ops.to_stop  = 	0 ; /* process_stratum; */
-  adapt_ops.to_pid_to_exec_file = NULL;
-  adapt_ops.to_core_file_to_sym_file = NULL;
-  adapt_ops.to_stratum = 	0; 
-  adapt_ops.DONT_USE = 	0 ;
-  adapt_ops.to_has_all_memory = 	1;
-  adapt_ops.to_has_memory = 	1;
-  adapt_ops.to_has_stack = 	1;
-  adapt_ops.to_has_registers = 	1;
-  adapt_ops.to_has_execution = 	0;
-  adapt_ops.to_sections = 	0;
-  adapt_ops.to_sections_end = 	0 ;
-  adapt_ops.to_magic = 	OPS_MAGIC; 
-} /* init_adapt_ops */
-
-void
-_initialize_remote_adapt ()
-{
-  init_adapt_ops() ;
-  add_target (&adapt_ops);
-  add_com ("adapt <command>", class_obscure, adapt_com,
- 	"Send a command to the AMD Adapt remote monitor.");
-}
+/* OBSOLETE /* Remote debugging interface for AMD 290*0 Adapt Monitor Version 2.1d18.  */
+/* OBSOLETE    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, */
+/* OBSOLETE    2001 Free Software Foundation, Inc. */
+/* OBSOLETE    Contributed by David Wood at New York University (wood@lab.ultra.nyu.edu). */
+/* OBSOLETE    Adapted from work done at Cygnus Support in remote-eb.c. */
+/* OBSOLETE  */
+/* OBSOLETE    This file is part of GDB. */
+/* OBSOLETE  */
+/* OBSOLETE    This program is free software; you can redistribute it and/or modify */
+/* OBSOLETE    it under the terms of the GNU General Public License as published by */
+/* OBSOLETE    the Free Software Foundation; either version 2 of the License, or */
+/* OBSOLETE    (at your option) any later version. */
+/* OBSOLETE  */
+/* OBSOLETE    This program is distributed in the hope that it will be useful, */
+/* OBSOLETE    but WITHOUT ANY WARRANTY; without even the implied warranty of */
+/* OBSOLETE    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the */
+/* OBSOLETE    GNU General Public License for more details. */
+/* OBSOLETE  */
+/* OBSOLETE    You should have received a copy of the GNU General Public License */
+/* OBSOLETE    along with this program; if not, write to the Free Software */
+/* OBSOLETE    Foundation, Inc., 59 Temple Place - Suite 330, */
+/* OBSOLETE    Boston, MA 02111-1307, USA.  */ */
+/* OBSOLETE  */
+/* OBSOLETE /* This is like remote.c but is for an esoteric situation-- */
+/* OBSOLETE    having a 29k board attached to an Adapt inline monitor.  */
+/* OBSOLETE    The  monitor is connected via serial line to a unix machine  */
+/* OBSOLETE    running gdb.  */
+/* OBSOLETE  */
+/* OBSOLETE    3/91 -  developed on Sun3 OS 4.1, by David Wood */
+/* OBSOLETE    o - I can't get binary coff to load.  */
+/* OBSOLETE    o - I can't get 19200 baud rate to work.  */
+/* OBSOLETE    7/91 o - Freeze mode tracing can be done on a 29050.  */ */
+/* OBSOLETE  */
+/* OBSOLETE  */
+/* OBSOLETE  */
+/* OBSOLETE #include "defs.h" */
+/* OBSOLETE #include "gdb_string.h" */
+/* OBSOLETE #include "inferior.h" */
+/* OBSOLETE #include "value.h" */
+/* OBSOLETE #include <ctype.h> */
+/* OBSOLETE #include <fcntl.h> */
+/* OBSOLETE #include <signal.h> */
+/* OBSOLETE #include <errno.h> */
+/* OBSOLETE #include "terminal.h" */
+/* OBSOLETE #include "target.h" */
+/* OBSOLETE #include "gdbcore.h" */
+/* OBSOLETE #include "regcache.h" */
+/* OBSOLETE  */
+/* OBSOLETE /* This processor is getting rusty but I am trying to keep it */
+/* OBSOLETE    up to date at least with data structure changes. */
+/* OBSOLETE    Activate this block to compile just this file. */
+/* OBSOLETE  */ */
+/* OBSOLETE #define COMPILE_CHECK 0 */
+/* OBSOLETE #if COMPILE_CHECK */
+/* OBSOLETE #define Q_REGNUM 0 */
+/* OBSOLETE #define VAB_REGNUM 0 */
+/* OBSOLETE #define CPS_REGNUM 0 */
+/* OBSOLETE #define IPA_REGNUM 0 */
+/* OBSOLETE #define IPB_REGNUM 0 */
+/* OBSOLETE #define GR1_REGNUM 0 */
+/* OBSOLETE #define LR0_REGNUM 0 */
+/* OBSOLETE #define IPC_REGNUM 0 */
+/* OBSOLETE #define CR_REGNUM 0 */
+/* OBSOLETE #define BP_REGNUM 0 */
+/* OBSOLETE #define FC_REGNUM 0 */
+/* OBSOLETE #define INTE_REGNUM 0 */
+/* OBSOLETE #define EXO_REGNUM 0 */
+/* OBSOLETE #define GR96_REGNUM 0 */
+/* OBSOLETE #define NPC_REGNUM */
+/* OBSOLETE #define FPE_REGNUM 0 */
+/* OBSOLETE #define PC2_REGNUM 0 */
+/* OBSOLETE #define FPS_REGNUM 0 */
+/* OBSOLETE #define ALU_REGNUM 0 */
+/* OBSOLETE #define LRU_REGNUM 0 */
+/* OBSOLETE #define TERMINAL int */
+/* OBSOLETE #define RAW 1 */
+/* OBSOLETE #define ANYP 1 */
+/* OBSOLETE extern int a29k_freeze_mode; */
+/* OBSOLETE extern int processor_type; */
+/* OBSOLETE extern char *processor_name; */
+/* OBSOLETE #endif */
+/* OBSOLETE  */
+/* OBSOLETE /* External data declarations */ */
+/* OBSOLETE extern int stop_soon_quietly;	/* for wait_for_inferior */ */
+/* OBSOLETE  */
+/* OBSOLETE /* Forward data declarations */ */
+/* OBSOLETE extern struct target_ops adapt_ops;	/* Forward declaration */ */
+/* OBSOLETE  */
+/* OBSOLETE /* Forward function declarations */ */
+/* OBSOLETE static void adapt_fetch_registers (); */
+/* OBSOLETE static void adapt_store_registers (); */
+/* OBSOLETE static void adapt_close (); */
+/* OBSOLETE static int adapt_clear_breakpoints (); */
+/* OBSOLETE  */
+/* OBSOLETE #define FREEZE_MODE 	(read_register(CPS_REGNUM) && 0x400) */
+/* OBSOLETE #define USE_SHADOW_PC	((processor_type == a29k_freeze_mode) && FREEZE_MODE) */
+/* OBSOLETE  */
+/* OBSOLETE /* Can't seem to get binary coff working */ */
+/* OBSOLETE #define ASCII_COFF		/* Adapt will be downloaded with ascii coff */ */
+/* OBSOLETE  */
+/* OBSOLETE /* FIXME: Replace with `set remotedebug'.  */ */
+/* OBSOLETE #define LOG_FILE "adapt.log" */
+/* OBSOLETE #if defined (LOG_FILE) */
+/* OBSOLETE FILE *log_file = NULL; */
+/* OBSOLETE #endif */
+/* OBSOLETE  */
+/* OBSOLETE static int timeout = 5; */
+/* OBSOLETE static char *dev_name; */
+/* OBSOLETE  */
+/* OBSOLETE /* Descriptor for I/O to remote machine.  Initialize it to -1 so that */
+/* OBSOLETE    adapt_open knows that we don't have a file open when the program */
+/* OBSOLETE    starts.  */ */
+/* OBSOLETE int adapt_desc = -1; */
+/* OBSOLETE  */
+/* OBSOLETE /* stream which is fdopen'd from adapt_desc.  Only valid when */
+/* OBSOLETE    adapt_desc != -1.  */ */
+/* OBSOLETE FILE *adapt_stream; */
+/* OBSOLETE  */
+/* OBSOLETE #define ON	1 */
+/* OBSOLETE #define OFF	0 */
+/* OBSOLETE static void */
+/* OBSOLETE rawmode (int desc, int turnon) */
+/* OBSOLETE { */
+/* OBSOLETE  */
+/* OBSOLETE   TERMINAL sg; */
+/* OBSOLETE  */
+/* OBSOLETE   if (desc < 0) */
+/* OBSOLETE     return; */
+/* OBSOLETE  */
+/* OBSOLETE   ioctl (desc, TIOCGETP, &sg); */
+/* OBSOLETE  */
+/* OBSOLETE   if (turnon) */
+/* OBSOLETE     { */
+/* OBSOLETE #ifdef HAVE_TERMIO */
+/* OBSOLETE       sg.c_lflag &= ~(ICANON); */
+/* OBSOLETE #else */
+/* OBSOLETE       sg.sg_flags |= RAW; */
+/* OBSOLETE #endif */
+/* OBSOLETE     } */
+/* OBSOLETE   else */
+/* OBSOLETE     { */
+/* OBSOLETE #ifdef HAVE_TERMIO */
+/* OBSOLETE       sg.c_lflag |= ICANON; */
+/* OBSOLETE #else */
+/* OBSOLETE       sg.sg_flags &= ~(RAW); */
+/* OBSOLETE #endif */
+/* OBSOLETE     } */
+/* OBSOLETE   ioctl (desc, TIOCSETP, &sg); */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Suck up all the input from the adapt */ */
+/* OBSOLETE slurp_input (void) */
+/* OBSOLETE { */
+/* OBSOLETE   char buf[8]; */
+/* OBSOLETE  */
+/* OBSOLETE #ifdef HAVE_TERMIO */
+/* OBSOLETE   /* termio does the timeout for us.  */ */
+/* OBSOLETE   while (read (adapt_desc, buf, 8) > 0); */
+/* OBSOLETE #else */
+/* OBSOLETE   alarm (timeout); */
+/* OBSOLETE   while (read (adapt_desc, buf, 8) > 0); */
+/* OBSOLETE   alarm (0); */
+/* OBSOLETE #endif */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Read a character from the remote system, doing all the fancy */
+/* OBSOLETE    timeout stuff.  */ */
+/* OBSOLETE static int */
+/* OBSOLETE readchar (void) */
+/* OBSOLETE { */
+/* OBSOLETE   char buf; */
+/* OBSOLETE  */
+/* OBSOLETE   buf = '\0'; */
+/* OBSOLETE #ifdef HAVE_TERMIO */
+/* OBSOLETE   /* termio does the timeout for us.  */ */
+/* OBSOLETE   read (adapt_desc, &buf, 1); */
+/* OBSOLETE #else */
+/* OBSOLETE   alarm (timeout); */
+/* OBSOLETE   if (read (adapt_desc, &buf, 1) < 0) */
+/* OBSOLETE     { */
+/* OBSOLETE       if (errno == EINTR) */
+/* OBSOLETE 	error ("Timeout reading from remote system."); */
+/* OBSOLETE       else */
+/* OBSOLETE 	perror_with_name ("remote"); */
+/* OBSOLETE     } */
+/* OBSOLETE   alarm (0); */
+/* OBSOLETE #endif */
+/* OBSOLETE  */
+/* OBSOLETE   if (buf == '\0') */
+/* OBSOLETE     error ("Timeout reading from remote system."); */
+/* OBSOLETE #if defined (LOG_FILE) */
+/* OBSOLETE   putc (buf & 0x7f, log_file); */
+/* OBSOLETE #endif */
+/* OBSOLETE   return buf & 0x7f; */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Keep discarding input from the remote system, until STRING is found.  */
+/* OBSOLETE    Let the user break out immediately.  */ */
+/* OBSOLETE static void */
+/* OBSOLETE expect (char *string) */
+/* OBSOLETE { */
+/* OBSOLETE   char *p = string; */
+/* OBSOLETE  */
+/* OBSOLETE   fflush (adapt_stream); */
+/* OBSOLETE   immediate_quit++; */
+/* OBSOLETE   while (1) */
+/* OBSOLETE     { */
+/* OBSOLETE       if (readchar () == *p) */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  p++; */
+/* OBSOLETE 	  if (*p == '\0') */
+/* OBSOLETE 	    { */
+/* OBSOLETE 	      immediate_quit--; */
+/* OBSOLETE 	      return; */
+/* OBSOLETE 	    } */
+/* OBSOLETE 	} */
+/* OBSOLETE       else */
+/* OBSOLETE 	p = string; */
+/* OBSOLETE     } */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Keep discarding input until we see the adapt prompt. */
+/* OBSOLETE  */
+/* OBSOLETE    The convention for dealing with the prompt is that you */
+/* OBSOLETE    o give your command */
+/* OBSOLETE    o *then* wait for the prompt. */
+/* OBSOLETE  */
+/* OBSOLETE    Thus the last thing that a procedure does with the serial line */
+/* OBSOLETE    will be an expect_prompt().  Exception:  adapt_resume does not */
+/* OBSOLETE    wait for the prompt, because the terminal is being handed over */
+/* OBSOLETE    to the inferior.  However, the next thing which happens after that */
+/* OBSOLETE    is a adapt_wait which does wait for the prompt. */
+/* OBSOLETE    Note that this includes abnormal exit, e.g. error().  This is */
+/* OBSOLETE    necessary to prevent getting into states from which we can't */
+/* OBSOLETE    recover.  */ */
+/* OBSOLETE static void */
+/* OBSOLETE expect_prompt (void) */
+/* OBSOLETE { */
+/* OBSOLETE #if defined (LOG_FILE) */
+/* OBSOLETE   /* This is a convenient place to do this.  The idea is to do it often */
+/* OBSOLETE      enough that we never lose much data if we terminate abnormally.  */ */
+/* OBSOLETE   fflush (log_file); */
+/* OBSOLETE #endif */
+/* OBSOLETE   fflush (adapt_stream); */
+/* OBSOLETE   expect ("\n# "); */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Get a hex digit from the remote system & return its value. */
+/* OBSOLETE    If ignore_space is nonzero, ignore spaces (not newline, tab, etc).  */ */
+/* OBSOLETE static int */
+/* OBSOLETE get_hex_digit (int ignore_space) */
+/* OBSOLETE { */
+/* OBSOLETE   int ch; */
+/* OBSOLETE   while (1) */
+/* OBSOLETE     { */
+/* OBSOLETE       ch = readchar (); */
+/* OBSOLETE       if (ch >= '0' && ch <= '9') */
+/* OBSOLETE 	return ch - '0'; */
+/* OBSOLETE       else if (ch >= 'A' && ch <= 'F') */
+/* OBSOLETE 	return ch - 'A' + 10; */
+/* OBSOLETE       else if (ch >= 'a' && ch <= 'f') */
+/* OBSOLETE 	return ch - 'a' + 10; */
+/* OBSOLETE       else if (ch == ' ' && ignore_space) */
+/* OBSOLETE 	; */
+/* OBSOLETE       else */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  expect_prompt (); */
+/* OBSOLETE 	  error ("Invalid hex digit from remote system."); */
+/* OBSOLETE 	} */
+/* OBSOLETE     } */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Get a byte from adapt_desc and put it in *BYT.  Accept any number */
+/* OBSOLETE    leading spaces.  */ */
+/* OBSOLETE static void */
+/* OBSOLETE get_hex_byte (char *byt) */
+/* OBSOLETE { */
+/* OBSOLETE   int val; */
+/* OBSOLETE  */
+/* OBSOLETE   val = get_hex_digit (1) << 4; */
+/* OBSOLETE   val |= get_hex_digit (0); */
+/* OBSOLETE   *byt = val; */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Read a 32-bit hex word from the adapt, preceded by a space  */ */
+/* OBSOLETE static long */
+/* OBSOLETE get_hex_word (void) */
+/* OBSOLETE { */
+/* OBSOLETE   long val; */
+/* OBSOLETE   int j; */
+/* OBSOLETE  */
+/* OBSOLETE   val = 0; */
+/* OBSOLETE   for (j = 0; j < 8; j++) */
+/* OBSOLETE     val = (val << 4) + get_hex_digit (j == 0); */
+/* OBSOLETE   return val; */
+/* OBSOLETE } */
+/* OBSOLETE /* Get N 32-bit hex words from remote, each preceded by a space  */
+/* OBSOLETE    and put them in registers starting at REGNO.  */ */
+/* OBSOLETE static void */
+/* OBSOLETE get_hex_regs (int n, int regno) */
+/* OBSOLETE { */
+/* OBSOLETE   long val; */
+/* OBSOLETE   while (n--) */
+/* OBSOLETE     { */
+/* OBSOLETE       val = get_hex_word (); */
+/* OBSOLETE       supply_register (regno++, (char *) &val); */
+/* OBSOLETE     } */
+/* OBSOLETE } */
+/* OBSOLETE /* Called when SIGALRM signal sent due to alarm() timeout.  */ */
+/* OBSOLETE #ifndef HAVE_TERMIO */
+/* OBSOLETE  */
+/* OBSOLETE volatile int n_alarms; */
+/* OBSOLETE  */
+/* OBSOLETE void */
+/* OBSOLETE adapt_timer (void) */
+/* OBSOLETE { */
+/* OBSOLETE #if 0 */
+/* OBSOLETE   if (kiodebug) */
+/* OBSOLETE     printf ("adapt_timer called\n"); */
+/* OBSOLETE #endif */
+/* OBSOLETE   n_alarms++; */
+/* OBSOLETE } */
+/* OBSOLETE #endif */
+/* OBSOLETE  */
+/* OBSOLETE /* malloc'd name of the program on the remote system.  */ */
+/* OBSOLETE static char *prog_name = NULL; */
+/* OBSOLETE  */
+/* OBSOLETE /* Number of SIGTRAPs we need to simulate.  That is, the next */
+/* OBSOLETE    NEED_ARTIFICIAL_TRAP calls to adapt_wait should just return */
+/* OBSOLETE    SIGTRAP without actually waiting for anything.  */ */
+/* OBSOLETE  */
+/* OBSOLETE static int need_artificial_trap = 0; */
+/* OBSOLETE  */
+/* OBSOLETE void */
+/* OBSOLETE adapt_kill (char *arg, int from_tty) */
+/* OBSOLETE { */
+/* OBSOLETE   fprintf (adapt_stream, "K"); */
+/* OBSOLETE   fprintf (adapt_stream, "\r"); */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE } */
+/* OBSOLETE /* */
+/* OBSOLETE  * Download a file specified in 'args', to the adapt.  */
+/* OBSOLETE  * FIXME: Assumes the file to download is a binary coff file. */
+/* OBSOLETE  */ */
+/* OBSOLETE static void */
+/* OBSOLETE adapt_load (char *args, int fromtty) */
+/* OBSOLETE { */
+/* OBSOLETE   FILE *fp; */
+/* OBSOLETE   int n; */
+/* OBSOLETE   char buffer[1024]; */
+/* OBSOLETE  */
+/* OBSOLETE   if (!adapt_stream) */
+/* OBSOLETE     { */
+/* OBSOLETE       printf_filtered ("Adapt not open. Use 'target' command to open adapt\n"); */
+/* OBSOLETE       return; */
+/* OBSOLETE     } */
+/* OBSOLETE  */
+/* OBSOLETE   /* OK, now read in the file.  Y=read, C=COFF, T=dTe port */
+/* OBSOLETE      0=start address.  */ */
+/* OBSOLETE  */
+/* OBSOLETE #ifdef ASCII_COFF		/* Ascii coff */ */
+/* OBSOLETE   fprintf (adapt_stream, "YA T,0\r"); */
+/* OBSOLETE   fflush (adapt_stream);	/* Just in case */ */
+/* OBSOLETE   /* FIXME: should check args for only 1 argument */ */
+/* OBSOLETE   sprintf (buffer, "cat %s | btoa > /tmp/#adapt-btoa", args); */
+/* OBSOLETE   system (buffer); */
+/* OBSOLETE   fp = fopen ("/tmp/#adapt-btoa", "r"); */
+/* OBSOLETE   rawmode (adapt_desc, OFF); */
+/* OBSOLETE   while (n = fread (buffer, 1, 1024, fp)) */
+/* OBSOLETE     { */
+/* OBSOLETE       do */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  n -= write (adapt_desc, buffer, n); */
+/* OBSOLETE 	} */
+/* OBSOLETE       while (n > 0); */
+/* OBSOLETE       if (n < 0) */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  perror ("writing ascii coff"); */
+/* OBSOLETE 	  break; */
+/* OBSOLETE 	} */
+/* OBSOLETE     } */
+/* OBSOLETE   fclose (fp); */
+/* OBSOLETE   rawmode (adapt_desc, ON); */
+/* OBSOLETE   system ("rm /tmp/#adapt-btoa"); */
+/* OBSOLETE #else /* Binary coff - can't get it to work . */ */
+/* OBSOLETE   fprintf (adapt_stream, "YC T,0\r"); */
+/* OBSOLETE   fflush (adapt_stream);	/* Just in case */ */
+/* OBSOLETE   if (!(fp = fopen (args, "r"))) */
+/* OBSOLETE     { */
+/* OBSOLETE       printf_filtered ("Can't open %s\n", args); */
+/* OBSOLETE       return; */
+/* OBSOLETE     } */
+/* OBSOLETE   while (n = fread (buffer, 1, 512, fp)) */
+/* OBSOLETE     { */
+/* OBSOLETE       do */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  n -= write (adapt_desc, buffer, n); */
+/* OBSOLETE 	} */
+/* OBSOLETE       while (n > 0); */
+/* OBSOLETE       if (n < 0) */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  perror ("writing ascii coff"); */
+/* OBSOLETE 	  break; */
+/* OBSOLETE 	} */
+/* OBSOLETE     } */
+/* OBSOLETE   fclose (fp); */
+/* OBSOLETE #endif */
+/* OBSOLETE   expect_prompt ();		/* Skip garbage that comes out */ */
+/* OBSOLETE   fprintf (adapt_stream, "\r"); */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* This is called not only when we first attach, but also when the */
+/* OBSOLETE    user types "run" after having attached.  */ */
+/* OBSOLETE void */
+/* OBSOLETE adapt_create_inferior (char *execfile, char *args, char **env) */
+/* OBSOLETE { */
+/* OBSOLETE   int entry_pt; */
+/* OBSOLETE  */
+/* OBSOLETE   if (args && *args) */
+/* OBSOLETE     error ("Can't pass arguments to remote adapt process."); */
+/* OBSOLETE  */
+/* OBSOLETE   if (execfile == 0 || exec_bfd == 0) */
+/* OBSOLETE     error ("No executable file specified"); */
+/* OBSOLETE  */
+/* OBSOLETE   entry_pt = (int) bfd_get_start_address (exec_bfd); */
+/* OBSOLETE  */
+/* OBSOLETE   if (adapt_stream) */
+/* OBSOLETE     { */
+/* OBSOLETE       adapt_kill (NULL, NULL); */
+/* OBSOLETE       adapt_clear_breakpoints (); */
+/* OBSOLETE       init_wait_for_inferior (); */
+/* OBSOLETE       /* Clear the input because what the adapt sends back is different */
+/* OBSOLETE        * depending on whether it was running or not. */
+/* OBSOLETE        */ */
+/* OBSOLETE       slurp_input ();		/* After this there should be a prompt */ */
+/* OBSOLETE       fprintf (adapt_stream, "\r"); */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE       printf_filtered ("Do you want to download '%s' (y/n)? [y] : ", prog_name); */
+/* OBSOLETE       { */
+/* OBSOLETE 	char buffer[10]; */
+/* OBSOLETE 	gets (buffer); */
+/* OBSOLETE 	if (*buffer != 'n') */
+/* OBSOLETE 	  { */
+/* OBSOLETE 	    adapt_load (prog_name, 0); */
+/* OBSOLETE 	  } */
+/* OBSOLETE       } */
+/* OBSOLETE  */
+/* OBSOLETE #ifdef NOTDEF */
+/* OBSOLETE       /* Set the PC and wait for a go/cont */ */
+/* OBSOLETE       fprintf (adapt_stream, "G %x,N\r", entry_pt); */
+/* OBSOLETE       printf_filtered ("Now use the 'continue' command to start.\n"); */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE #else */
+/* OBSOLETE       insert_breakpoints ();	/* Needed to get correct instruction in cache */ */
+/* OBSOLETE       proceed (entry_pt, TARGET_SIGNAL_DEFAULT, 0); */
+/* OBSOLETE #endif */
+/* OBSOLETE  */
+/* OBSOLETE     } */
+/* OBSOLETE   else */
+/* OBSOLETE     { */
+/* OBSOLETE       printf_filtered ("Adapt not open yet.\n"); */
+/* OBSOLETE     } */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Translate baud rates from integers to damn B_codes.  Unix should */
+/* OBSOLETE    have outgrown this crap years ago, but even POSIX wouldn't buck it.  */ */
+/* OBSOLETE  */
+/* OBSOLETE #ifndef B19200 */
+/* OBSOLETE #define B19200 EXTA */
+/* OBSOLETE #endif */
+/* OBSOLETE #ifndef B38400 */
+/* OBSOLETE #define B38400 EXTB */
+/* OBSOLETE #endif */
+/* OBSOLETE  */
+/* OBSOLETE static struct */
+/* OBSOLETE { */
+/* OBSOLETE   int rate, damn_b; */
+/* OBSOLETE } */
+/* OBSOLETE baudtab[] = */
+/* OBSOLETE { */
+/* OBSOLETE   { */
+/* OBSOLETE     0, B0 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     50, B50 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     75, B75 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     110, B110 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     134, B134 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     150, B150 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     200, B200 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     300, B300 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     600, B600 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     1200, B1200 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     1800, B1800 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     2400, B2400 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     4800, B4800 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     9600, B9600 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     19200, B19200 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     38400, B38400 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE   { */
+/* OBSOLETE     -1, -1 */
+/* OBSOLETE   } */
+/* OBSOLETE   , */
+/* OBSOLETE }; */
+/* OBSOLETE  */
+/* OBSOLETE static int */
+/* OBSOLETE damn_b (int rate) */
+/* OBSOLETE { */
+/* OBSOLETE   int i; */
+/* OBSOLETE  */
+/* OBSOLETE   for (i = 0; baudtab[i].rate != -1; i++) */
+/* OBSOLETE     if (rate == baudtab[i].rate) */
+/* OBSOLETE       return baudtab[i].damn_b; */
+/* OBSOLETE   return B38400;		/* Random */ */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE  */
+/* OBSOLETE /* Open a connection to a remote debugger. */
+/* OBSOLETE    NAME is the filename used for communication, then a space, */
+/* OBSOLETE    then the baud rate. */
+/* OBSOLETE  */ */
+/* OBSOLETE  */
+/* OBSOLETE static int baudrate = 9600; */
+/* OBSOLETE static void */
+/* OBSOLETE adapt_open (char *name, int from_tty) */
+/* OBSOLETE { */
+/* OBSOLETE   TERMINAL sg; */
+/* OBSOLETE   unsigned int prl; */
+/* OBSOLETE   char *p; */
+/* OBSOLETE  */
+/* OBSOLETE   /* Find the first whitespace character, it separates dev_name from */
+/* OBSOLETE      prog_name.  */ */
+/* OBSOLETE   if (name == 0) */
+/* OBSOLETE     goto erroid; */
+/* OBSOLETE  */
+/* OBSOLETE   for (p = name; */
+/* OBSOLETE        *p != '\0' && !isspace (*p); p++) */
+/* OBSOLETE     ; */
+/* OBSOLETE   if (*p == '\0') */
+/* OBSOLETE   erroid: */
+/* OBSOLETE     error ("\ */
+/* OBSOLETE Please include the name of the device for the serial port,\n\ */
+/* OBSOLETE the baud rate, and the name of the program to run on the remote system."); */
+/* OBSOLETE   dev_name = (char *) xmalloc (p - name + 1); */
+/* OBSOLETE   strncpy (dev_name, name, p - name); */
+/* OBSOLETE   dev_name[p - name] = '\0'; */
+/* OBSOLETE  */
+/* OBSOLETE   /* Skip over the whitespace after dev_name */ */
+/* OBSOLETE   for (; isspace (*p); p++) */
+/* OBSOLETE     /*EMPTY */ ; */
+/* OBSOLETE  */
+/* OBSOLETE   if (1 != sscanf (p, "%d ", &baudrate)) */
+/* OBSOLETE     goto erroid; */
+/* OBSOLETE  */
+/* OBSOLETE   /* Skip the number and then the spaces */ */
+/* OBSOLETE   for (; isdigit (*p); p++) */
+/* OBSOLETE     /*EMPTY */ ; */
+/* OBSOLETE   for (; isspace (*p); p++) */
+/* OBSOLETE     /*EMPTY */ ; */
+/* OBSOLETE  */
+/* OBSOLETE   if (prog_name != NULL) */
+/* OBSOLETE     xfree (prog_name); */
+/* OBSOLETE   prog_name = savestring (p, strlen (p)); */
+/* OBSOLETE  */
+/* OBSOLETE   adapt_close (0); */
+/* OBSOLETE  */
+/* OBSOLETE   adapt_desc = open (dev_name, O_RDWR); */
+/* OBSOLETE   if (adapt_desc < 0) */
+/* OBSOLETE     perror_with_name (dev_name); */
+/* OBSOLETE   ioctl (adapt_desc, TIOCGETP, &sg); */
+/* OBSOLETE #if ! defined(COMPILE_CHECK) */
+/* OBSOLETE #ifdef HAVE_TERMIO */
+/* OBSOLETE   sg.c_cc[VMIN] = 0;		/* read with timeout.  */ */
+/* OBSOLETE   sg.c_cc[VTIME] = timeout * 10; */
+/* OBSOLETE   sg.c_lflag &= ~(ICANON | ECHO); */
+/* OBSOLETE   sg.c_cflag = (sg.c_cflag & ~CBAUD) | damn_b (baudrate); */
+/* OBSOLETE #else */
+/* OBSOLETE   sg.sg_ispeed = damn_b (baudrate); */
+/* OBSOLETE   sg.sg_ospeed = damn_b (baudrate); */
+/* OBSOLETE   sg.sg_flags |= RAW | ANYP; */
+/* OBSOLETE   sg.sg_flags &= ~ECHO; */
+/* OBSOLETE #endif */
+/* OBSOLETE  */
+/* OBSOLETE   ioctl (adapt_desc, TIOCSETP, &sg); */
+/* OBSOLETE   adapt_stream = fdopen (adapt_desc, "r+"); */
+/* OBSOLETE #endif /* compile_check */ */
+/* OBSOLETE   push_target (&adapt_ops); */
+/* OBSOLETE  */
+/* OBSOLETE #ifndef HAVE_TERMIO */
+/* OBSOLETE #ifndef NO_SIGINTERRUPT */
+/* OBSOLETE   /* Cause SIGALRM's to make reads fail with EINTR instead of resuming */
+/* OBSOLETE      the read.  */ */
+/* OBSOLETE   if (siginterrupt (SIGALRM, 1) != 0) */
+/* OBSOLETE     perror ("adapt_open: error in siginterrupt"); */
+/* OBSOLETE #endif */
+/* OBSOLETE  */
+/* OBSOLETE   /* Set up read timeout timer.  */ */
+/* OBSOLETE   if ((void (*)) signal (SIGALRM, adapt_timer) == (void (*)) -1) */
+/* OBSOLETE     perror ("adapt_open: error in signal"); */
+/* OBSOLETE #endif */
+/* OBSOLETE  */
+/* OBSOLETE #if defined (LOG_FILE) */
+/* OBSOLETE   log_file = fopen (LOG_FILE, "w"); */
+/* OBSOLETE   if (log_file == NULL) */
+/* OBSOLETE     perror_with_name (LOG_FILE); */
+/* OBSOLETE #endif */
+/* OBSOLETE  */
+/* OBSOLETE   /* Put this port into NORMAL mode, send the 'normal' character */ */
+/* OBSOLETE   write (adapt_desc, "", 1);	/* Control A */ */
+/* OBSOLETE   write (adapt_desc, "\r", 1); */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE  */
+/* OBSOLETE   /* Hello?  Are you there?  */ */
+/* OBSOLETE   write (adapt_desc, "\r", 1); */
+/* OBSOLETE  */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE  */
+/* OBSOLETE   /* Clear any break points */ */
+/* OBSOLETE   adapt_clear_breakpoints (); */
+/* OBSOLETE  */
+/* OBSOLETE   /* Print out some stuff, letting the user now what's going on */ */
+/* OBSOLETE   printf_filtered ("Connected to an Adapt via %s.\n", dev_name); */
+/* OBSOLETE   /* FIXME: can this restriction be removed? */ */
+/* OBSOLETE   printf_filtered ("Remote debugging using virtual addresses works only\n"); */
+/* OBSOLETE   printf_filtered ("\twhen virtual addresses map 1:1 to physical addresses.\n"); */
+/* OBSOLETE   if (processor_type != a29k_freeze_mode) */
+/* OBSOLETE     { */
+/* OBSOLETE       fprintf_filtered (gdb_stderr, */
+/* OBSOLETE 			"Freeze-mode debugging not available, and can only be done on an A29050.\n"); */
+/* OBSOLETE     } */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Close out all files and local state before this target loses control. */ */
+/* OBSOLETE  */
+/* OBSOLETE static void */
+/* OBSOLETE adapt_close (int quitting) */
+/* OBSOLETE { */
+/* OBSOLETE  */
+/* OBSOLETE   /* Clear any break points */ */
+/* OBSOLETE   adapt_clear_breakpoints (); */
+/* OBSOLETE  */
+/* OBSOLETE   /* Put this port back into REMOTE mode */ */
+/* OBSOLETE   if (adapt_stream) */
+/* OBSOLETE     { */
+/* OBSOLETE       fflush (adapt_stream); */
+/* OBSOLETE       sleep (1);		/* Let any output make it all the way back */ */
+/* OBSOLETE       write (adapt_desc, "R\r", 2); */
+/* OBSOLETE     } */
+/* OBSOLETE  */
+/* OBSOLETE   /* Due to a bug in Unix, fclose closes not only the stdio stream, */
+/* OBSOLETE      but also the file descriptor.  So we don't actually close */
+/* OBSOLETE      adapt_desc.  */ */
+/* OBSOLETE   if (adapt_stream) */
+/* OBSOLETE     fclose (adapt_stream);	/* This also closes adapt_desc */ */
+/* OBSOLETE   if (adapt_desc >= 0) */
+/* OBSOLETE     /* close (adapt_desc); */ */
+/* OBSOLETE  */
+/* OBSOLETE     /* Do not try to close adapt_desc again, later in the program.  */ */
+/* OBSOLETE     adapt_stream = NULL; */
+/* OBSOLETE   adapt_desc = -1; */
+/* OBSOLETE  */
+/* OBSOLETE #if defined (LOG_FILE) */
+/* OBSOLETE   if (log_file) */
+/* OBSOLETE     { */
+/* OBSOLETE       if (ferror (log_file)) */
+/* OBSOLETE 	printf_filtered ("Error writing log file.\n"); */
+/* OBSOLETE       if (fclose (log_file) != 0) */
+/* OBSOLETE 	printf_filtered ("Error closing log file.\n"); */
+/* OBSOLETE       log_file = NULL; */
+/* OBSOLETE     } */
+/* OBSOLETE #endif */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Attach to the target that is already loaded and possibly running */ */
+/* OBSOLETE static void */
+/* OBSOLETE adapt_attach (char *args, int from_tty) */
+/* OBSOLETE { */
+/* OBSOLETE  */
+/* OBSOLETE   if (from_tty) */
+/* OBSOLETE     printf_filtered ("Attaching to remote program %s.\n", prog_name); */
+/* OBSOLETE  */
+/* OBSOLETE   /* Send the adapt a kill. It is ok if it is not already running */ */
+/* OBSOLETE   fprintf (adapt_stream, "K\r"); */
+/* OBSOLETE   fflush (adapt_stream); */
+/* OBSOLETE   expect_prompt ();		/* Slurp the echo */ */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE  */
+/* OBSOLETE /* Terminate the open connection to the remote debugger. */
+/* OBSOLETE    Use this when you want to detach and do something else */
+/* OBSOLETE    with your gdb.  */ */
+/* OBSOLETE void */
+/* OBSOLETE adapt_detach (char *args, int from_tty) */
+/* OBSOLETE { */
+/* OBSOLETE  */
+/* OBSOLETE   if (adapt_stream) */
+/* OBSOLETE     {				/* Send it on its way (tell it to continue)  */ */
+/* OBSOLETE       adapt_clear_breakpoints (); */
+/* OBSOLETE       fprintf (adapt_stream, "G\r"); */
+/* OBSOLETE     } */
+/* OBSOLETE  */
+/* OBSOLETE   pop_target ();		/* calls adapt_close to do the real work */ */
+/* OBSOLETE   if (from_tty) */
+/* OBSOLETE     printf_filtered ("Ending remote %s debugging\n", target_shortname); */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Tell the remote machine to resume.  */ */
+/* OBSOLETE  */
+/* OBSOLETE void */
+/* OBSOLETE adapt_resume (ptid_t ptid, int step, enum target_signal sig) */
+/* OBSOLETE { */
+/* OBSOLETE   if (step) */
+/* OBSOLETE     { */
+/* OBSOLETE       write (adapt_desc, "t 1,s\r", 6); */
+/* OBSOLETE       /* Wait for the echo.  */ */
+/* OBSOLETE       expect ("t 1,s\r\n"); */
+/* OBSOLETE       /* Then comes a line containing the instruction we stepped to.  */ */
+/* OBSOLETE       expect ("@"); */
+/* OBSOLETE       /* Then we get the prompt.  */ */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE  */
+/* OBSOLETE       /* Force the next adapt_wait to return a trap.  Not doing anything */
+/* OBSOLETE          about I/O from the target means that the user has to type */
+/* OBSOLETE          "continue" to see any.  FIXME, this should be fixed.  */ */
+/* OBSOLETE       need_artificial_trap = 1; */
+/* OBSOLETE     } */
+/* OBSOLETE   else */
+/* OBSOLETE     { */
+/* OBSOLETE       write (adapt_desc, "G\r", 2); */
+/* OBSOLETE       /* Swallow the echo.  */ */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE     } */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Wait until the remote machine stops, then return, */
+/* OBSOLETE    storing status in STATUS just as `wait' would.  */ */
+/* OBSOLETE  */
+/* OBSOLETE ptid_t */
+/* OBSOLETE adapt_wait (ptid_t ptid, struct target_waitstatus *status) */
+/* OBSOLETE { */
+/* OBSOLETE   /* Strings to look for.  '?' means match any single character.   */
+/* OBSOLETE      Note that with the algorithm we use, the initial character */
+/* OBSOLETE      of the string cannot recur in the string, or we will not */
+/* OBSOLETE      find some cases of the string in the input.  */ */
+/* OBSOLETE  */
+/* OBSOLETE   static char bpt[] = "@"; */
+/* OBSOLETE   /* It would be tempting to look for "\n[__exit + 0x8]\n" */
+/* OBSOLETE      but that requires loading symbols with "yc i" and even if */
+/* OBSOLETE      we did do that we don't know that the file has symbols.  */ */
+/* OBSOLETE   static char exitmsg[] = "@????????I    JMPTI     GR121,LR0"; */
+/* OBSOLETE   char *bp = bpt; */
+/* OBSOLETE   char *ep = exitmsg; */
+/* OBSOLETE  */
+/* OBSOLETE   /* Large enough for either sizeof (bpt) or sizeof (exitmsg) chars.  */ */
+/* OBSOLETE   char swallowed[50]; */
+/* OBSOLETE   /* Current position in swallowed.  */ */
+/* OBSOLETE   char *swallowed_p = swallowed; */
+/* OBSOLETE  */
+/* OBSOLETE   int ch; */
+/* OBSOLETE   int ch_handled; */
+/* OBSOLETE   int old_timeout = timeout; */
+/* OBSOLETE   int old_immediate_quit = immediate_quit; */
+/* OBSOLETE  */
+/* OBSOLETE   status->kind = TARGET_WAITKIND_EXITED; */
+/* OBSOLETE   status->value.integer = 0; */
+/* OBSOLETE  */
+/* OBSOLETE   if (need_artificial_trap != 0) */
+/* OBSOLETE     { */
+/* OBSOLETE       status->kind = TARGET_WAITKIND_STOPPED; */
+/* OBSOLETE       status->value.sig = TARGET_SIGNAL_TRAP; */
+/* OBSOLETE       need_artificial_trap--; */
+/* OBSOLETE       return inferior_ptid; */
+/* OBSOLETE     } */
+/* OBSOLETE  */
+/* OBSOLETE   timeout = 0;			/* Don't time out -- user program is running. */ */
+/* OBSOLETE   immediate_quit = 1;		/* Helps ability to QUIT */ */
+/* OBSOLETE   while (1) */
+/* OBSOLETE     { */
+/* OBSOLETE       QUIT;			/* Let user quit and leave process running */ */
+/* OBSOLETE       ch_handled = 0; */
+/* OBSOLETE       ch = readchar (); */
+/* OBSOLETE       if (ch == *bp) */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  bp++; */
+/* OBSOLETE 	  if (*bp == '\0') */
+/* OBSOLETE 	    break; */
+/* OBSOLETE 	  ch_handled = 1; */
+/* OBSOLETE  */
+/* OBSOLETE 	  *swallowed_p++ = ch; */
+/* OBSOLETE 	} */
+/* OBSOLETE       else */
+/* OBSOLETE 	bp = bpt; */
+/* OBSOLETE       if (ch == *ep || *ep == '?') */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  ep++; */
+/* OBSOLETE 	  if (*ep == '\0') */
+/* OBSOLETE 	    break; */
+/* OBSOLETE  */
+/* OBSOLETE 	  if (!ch_handled) */
+/* OBSOLETE 	    *swallowed_p++ = ch; */
+/* OBSOLETE 	  ch_handled = 1; */
+/* OBSOLETE 	} */
+/* OBSOLETE       else */
+/* OBSOLETE 	ep = exitmsg; */
+/* OBSOLETE       if (!ch_handled) */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  char *p; */
+/* OBSOLETE 	  /* Print out any characters which have been swallowed.  */ */
+/* OBSOLETE 	  for (p = swallowed; p < swallowed_p; ++p) */
+/* OBSOLETE 	    putc (*p, stdout); */
+/* OBSOLETE 	  swallowed_p = swallowed; */
+/* OBSOLETE 	  putc (ch, stdout); */
+/* OBSOLETE 	} */
+/* OBSOLETE     } */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE   if (*bp == '\0') */
+/* OBSOLETE     { */
+/* OBSOLETE       status->kind = TARGET_WAITKIND_STOPPED; */
+/* OBSOLETE       status->value.sig = TARGET_SIGNAL_TRAP; */
+/* OBSOLETE     } */
+/* OBSOLETE   else */
+/* OBSOLETE     { */
+/* OBSOLETE       status->kind = TARGET_WAITKIND_EXITED; */
+/* OBSOLETE       status->value.integer = 0; */
+/* OBSOLETE     } */
+/* OBSOLETE   timeout = old_timeout; */
+/* OBSOLETE   immediate_quit = old_immediate_quit; */
+/* OBSOLETE   return inferior_ptid; */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Return the name of register number REGNO */
+/* OBSOLETE    in the form input and output by adapt. */
+/* OBSOLETE  */
+/* OBSOLETE    Returns a pointer to a static buffer containing the answer.  */ */
+/* OBSOLETE static char * */
+/* OBSOLETE get_reg_name (int regno) */
+/* OBSOLETE { */
+/* OBSOLETE   static char buf[80]; */
+/* OBSOLETE   if (regno >= GR96_REGNUM && regno < GR96_REGNUM + 32) */
+/* OBSOLETE     sprintf (buf, "GR%03d", regno - GR96_REGNUM + 96); */
+/* OBSOLETE #if defined(GR64_REGNUM) */
+/* OBSOLETE   else if (regno >= GR64_REGNUM && regno < GR64_REGNUM + 32) */
+/* OBSOLETE     sprintf (buf, "GR%03d", regno - GR64_REGNUM + 64); */
+/* OBSOLETE #endif */
+/* OBSOLETE   else if (regno >= LR0_REGNUM && regno < LR0_REGNUM + 128) */
+/* OBSOLETE     sprintf (buf, "LR%03d", regno - LR0_REGNUM); */
+/* OBSOLETE   else if (regno == Q_REGNUM) */
+/* OBSOLETE     strcpy (buf, "SR131"); */
+/* OBSOLETE   else if (regno >= BP_REGNUM && regno <= CR_REGNUM) */
+/* OBSOLETE     sprintf (buf, "SR%03d", regno - BP_REGNUM + 133); */
+/* OBSOLETE   else if (regno == ALU_REGNUM) */
+/* OBSOLETE     strcpy (buf, "SR132"); */
+/* OBSOLETE   else if (regno >= IPC_REGNUM && regno <= IPB_REGNUM) */
+/* OBSOLETE     sprintf (buf, "SR%03d", regno - IPC_REGNUM + 128); */
+/* OBSOLETE   else if (regno >= VAB_REGNUM && regno <= LRU_REGNUM) */
+/* OBSOLETE     { */
+/* OBSOLETE       /* When a 29050 is in freeze-mode, read shadow pcs instead */ */
+/* OBSOLETE       if ((regno >= NPC_REGNUM && regno <= PC2_REGNUM) && USE_SHADOW_PC) */
+/* OBSOLETE 	sprintf (buf, "SR%03d", regno - NPC_REGNUM + 20); */
+/* OBSOLETE       else */
+/* OBSOLETE 	sprintf (buf, "SR%03d", regno - VAB_REGNUM); */
+/* OBSOLETE     } */
+/* OBSOLETE   else if (regno == GR1_REGNUM) */
+/* OBSOLETE     strcpy (buf, "GR001"); */
+/* OBSOLETE   return buf; */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Read the remote registers.  */ */
+/* OBSOLETE  */
+/* OBSOLETE static void */
+/* OBSOLETE adapt_fetch_registers (void) */
+/* OBSOLETE { */
+/* OBSOLETE   int reg_index; */
+/* OBSOLETE   int regnum_index; */
+/* OBSOLETE   char tempbuf[10]; */
+/* OBSOLETE   int sreg_buf[16]; */
+/* OBSOLETE   int i, j; */
+/* OBSOLETE  */
+/* OBSOLETE /*  */
+/* OBSOLETE  * Global registers */
+/* OBSOLETE  */ */
+/* OBSOLETE #if defined(GR64_REGNUM) */
+/* OBSOLETE   write (adapt_desc, "dw gr64,gr95\r", 13); */
+/* OBSOLETE   for (reg_index = 64, regnum_index = GR64_REGNUM; */
+/* OBSOLETE        reg_index < 96; */
+/* OBSOLETE        reg_index += 4, regnum_index += 4) */
+/* OBSOLETE     { */
+/* OBSOLETE       sprintf (tempbuf, "GR%03d ", reg_index); */
+/* OBSOLETE       expect (tempbuf); */
+/* OBSOLETE       get_hex_regs (4, regnum_index); */
+/* OBSOLETE       expect ("\n"); */
+/* OBSOLETE     } */
+/* OBSOLETE #endif */
+/* OBSOLETE   write (adapt_desc, "dw gr96,gr127\r", 14); */
+/* OBSOLETE   for (reg_index = 96, regnum_index = GR96_REGNUM; */
+/* OBSOLETE        reg_index < 128; */
+/* OBSOLETE        reg_index += 4, regnum_index += 4) */
+/* OBSOLETE     { */
+/* OBSOLETE       sprintf (tempbuf, "GR%03d ", reg_index); */
+/* OBSOLETE       expect (tempbuf); */
+/* OBSOLETE       get_hex_regs (4, regnum_index); */
+/* OBSOLETE       expect ("\n"); */
+/* OBSOLETE     } */
+/* OBSOLETE  */
+/* OBSOLETE /*  */
+/* OBSOLETE  * Local registers */
+/* OBSOLETE  */ */
+/* OBSOLETE   for (i = 0; i < 128; i += 32) */
+/* OBSOLETE     { */
+/* OBSOLETE       /* The PC has a tendency to hang if we get these */
+/* OBSOLETE          all in one fell swoop ("dw lr0,lr127").  */ */
+/* OBSOLETE       sprintf (tempbuf, "dw lr%d\r", i); */
+/* OBSOLETE       write (adapt_desc, tempbuf, strlen (tempbuf)); */
+/* OBSOLETE       for (reg_index = i, regnum_index = LR0_REGNUM + i; */
+/* OBSOLETE 	   reg_index < i + 32; */
+/* OBSOLETE 	   reg_index += 4, regnum_index += 4) */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  sprintf (tempbuf, "LR%03d ", reg_index); */
+/* OBSOLETE 	  expect (tempbuf); */
+/* OBSOLETE 	  get_hex_regs (4, regnum_index); */
+/* OBSOLETE 	  expect ("\n"); */
+/* OBSOLETE 	} */
+/* OBSOLETE     } */
+/* OBSOLETE  */
+/* OBSOLETE /*  */
+/* OBSOLETE  * Special registers */
+/* OBSOLETE  */ */
+/* OBSOLETE   sprintf (tempbuf, "dw sr0\r"); */
+/* OBSOLETE   write (adapt_desc, tempbuf, strlen (tempbuf)); */
+/* OBSOLETE   for (i = 0; i < 4; i++) */
+/* OBSOLETE     {				/* SR0 - SR14 */ */
+/* OBSOLETE       sprintf (tempbuf, "SR%3d", i * 4); */
+/* OBSOLETE       expect (tempbuf); */
+/* OBSOLETE       for (j = 0; j < (i == 3 ? 3 : 4); j++) */
+/* OBSOLETE 	sreg_buf[i * 4 + j] = get_hex_word (); */
+/* OBSOLETE     } */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE   /*  */
+/* OBSOLETE    * Read the pcs individually if we are in freeze mode. */
+/* OBSOLETE    * See get_reg_name(), it translates the register names for the pcs to */
+/* OBSOLETE    * the names of the shadow pcs. */
+/* OBSOLETE    */ */
+/* OBSOLETE   if (USE_SHADOW_PC) */
+/* OBSOLETE     { */
+/* OBSOLETE       sreg_buf[10] = read_register (NPC_REGNUM);	/* pc0 */ */
+/* OBSOLETE       sreg_buf[11] = read_register (PC_REGNUM);		/* pc1 */ */
+/* OBSOLETE       sreg_buf[12] = read_register (PC2_REGNUM);	/* pc2 */ */
+/* OBSOLETE     } */
+/* OBSOLETE   for (i = 0; i < 14; i++)	/* Supply vab -> lru */ */
+/* OBSOLETE     supply_register (VAB_REGNUM + i, (char *) &sreg_buf[i]); */
+/* OBSOLETE   sprintf (tempbuf, "dw sr128\r"); */
+/* OBSOLETE   write (adapt_desc, tempbuf, strlen (tempbuf)); */
+/* OBSOLETE   for (i = 0; i < 2; i++) */
+/* OBSOLETE     {				/* SR128 - SR135 */ */
+/* OBSOLETE       sprintf (tempbuf, "SR%3d", 128 + i * 4); */
+/* OBSOLETE       expect (tempbuf); */
+/* OBSOLETE       for (j = 0; j < 4; j++) */
+/* OBSOLETE 	sreg_buf[i * 4 + j] = get_hex_word (); */
+/* OBSOLETE     } */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE   supply_register (IPC_REGNUM, (char *) &sreg_buf[0]); */
+/* OBSOLETE   supply_register (IPA_REGNUM, (char *) &sreg_buf[1]); */
+/* OBSOLETE   supply_register (IPB_REGNUM, (char *) &sreg_buf[2]); */
+/* OBSOLETE   supply_register (Q_REGNUM, (char *) &sreg_buf[3]); */
+/* OBSOLETE   /* Skip ALU */ */
+/* OBSOLETE   supply_register (BP_REGNUM, (char *) &sreg_buf[5]); */
+/* OBSOLETE   supply_register (FC_REGNUM, (char *) &sreg_buf[6]); */
+/* OBSOLETE   supply_register (CR_REGNUM, (char *) &sreg_buf[7]); */
+/* OBSOLETE  */
+/* OBSOLETE   /* There doesn't seem to be any way to get these.  */ */
+/* OBSOLETE   { */
+/* OBSOLETE     int val = -1; */
+/* OBSOLETE     supply_register (FPE_REGNUM, (char *) &val); */
+/* OBSOLETE     supply_register (INTE_REGNUM, (char *) &val); */
+/* OBSOLETE     supply_register (FPS_REGNUM, (char *) &val); */
+/* OBSOLETE     supply_register (EXO_REGNUM, (char *) &val); */
+/* OBSOLETE   } */
+/* OBSOLETE  */
+/* OBSOLETE   write (adapt_desc, "dw gr1,gr1\r", 11); */
+/* OBSOLETE   expect ("GR001 "); */
+/* OBSOLETE   get_hex_regs (1, GR1_REGNUM); */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Fetch register REGNO, or all registers if REGNO is -1. */
+/* OBSOLETE  */ */
+/* OBSOLETE static void */
+/* OBSOLETE adapt_fetch_register (int regno) */
+/* OBSOLETE { */
+/* OBSOLETE   if (regno == -1) */
+/* OBSOLETE     adapt_fetch_registers (); */
+/* OBSOLETE   else */
+/* OBSOLETE     { */
+/* OBSOLETE       char *name = get_reg_name (regno); */
+/* OBSOLETE       fprintf (adapt_stream, "dw %s,%s\r", name, name); */
+/* OBSOLETE       expect (name); */
+/* OBSOLETE       expect (" "); */
+/* OBSOLETE       get_hex_regs (1, regno); */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE     } */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Store the remote registers from the contents of the block REGS.  */ */
+/* OBSOLETE  */
+/* OBSOLETE static void */
+/* OBSOLETE adapt_store_registers (void) */
+/* OBSOLETE { */
+/* OBSOLETE   int i, j; */
+/* OBSOLETE  */
+/* OBSOLETE   fprintf (adapt_stream, "s gr1,%x\r", read_register (GR1_REGNUM)); */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE  */
+/* OBSOLETE #if defined(GR64_REGNUM) */
+/* OBSOLETE   for (j = 0; j < 32; j += 16) */
+/* OBSOLETE     { */
+/* OBSOLETE       fprintf (adapt_stream, "s gr%d,", j + 64); */
+/* OBSOLETE       for (i = 0; i < 15; ++i) */
+/* OBSOLETE 	fprintf (adapt_stream, "%x,", read_register (GR64_REGNUM + j + i)); */
+/* OBSOLETE       fprintf (adapt_stream, "%x\r", read_register (GR64_REGNUM + j + 15)); */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE     } */
+/* OBSOLETE #endif */
+/* OBSOLETE   for (j = 0; j < 32; j += 16) */
+/* OBSOLETE     { */
+/* OBSOLETE       fprintf (adapt_stream, "s gr%d,", j + 96); */
+/* OBSOLETE       for (i = 0; i < 15; ++i) */
+/* OBSOLETE 	fprintf (adapt_stream, "%x,", read_register (GR96_REGNUM + j + i)); */
+/* OBSOLETE       fprintf (adapt_stream, "%x\r", read_register (GR96_REGNUM + j + 15)); */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE     } */
+/* OBSOLETE  */
+/* OBSOLETE   for (j = 0; j < 128; j += 16) */
+/* OBSOLETE     { */
+/* OBSOLETE       fprintf (adapt_stream, "s lr%d,", j); */
+/* OBSOLETE       for (i = 0; i < 15; ++i) */
+/* OBSOLETE 	fprintf (adapt_stream, "%x,", read_register (LR0_REGNUM + j + i)); */
+/* OBSOLETE       fprintf (adapt_stream, "%x\r", read_register (LR0_REGNUM + j + 15)); */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE     } */
+/* OBSOLETE  */
+/* OBSOLETE   fprintf (adapt_stream, "s sr128,%x,%x,%x\r", read_register (IPC_REGNUM), */
+/* OBSOLETE 	   read_register (IPA_REGNUM), read_register (IPB_REGNUM)); */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE   fprintf (adapt_stream, "s sr133,%x,%x,%x\r", read_register (BP_REGNUM), */
+/* OBSOLETE 	   read_register (FC_REGNUM), read_register (CR_REGNUM)); */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE   fprintf (adapt_stream, "s sr131,%x\r", read_register (Q_REGNUM)); */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE   fprintf (adapt_stream, "s sr0,"); */
+/* OBSOLETE   for (i = 0; i < 7; ++i) */
+/* OBSOLETE     fprintf (adapt_stream, "%x,", read_register (VAB_REGNUM + i)); */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE   fprintf (adapt_stream, "s sr7,"); */
+/* OBSOLETE   for (i = 7; i < 14; ++i) */
+/* OBSOLETE     fprintf (adapt_stream, "%x,", read_register (VAB_REGNUM + i)); */
+/* OBSOLETE   expect_prompt (); */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Store register REGNO, or all if REGNO == -1. */
+/* OBSOLETE    Return errno value.  */ */
+/* OBSOLETE void */
+/* OBSOLETE adapt_store_register (int regno) */
+/* OBSOLETE { */
+/* OBSOLETE   /* printf("adapt_store_register() called.\n"); fflush(stdout); /* */ */
+/* OBSOLETE   if (regno == -1) */
+/* OBSOLETE     adapt_store_registers (); */
+/* OBSOLETE   else */
+/* OBSOLETE     { */
+/* OBSOLETE       char *name = get_reg_name (regno); */
+/* OBSOLETE       fprintf (adapt_stream, "s %s,%x\r", name, read_register (regno)); */
+/* OBSOLETE       /* Setting GR1 changes the numbers of all the locals, so */
+/* OBSOLETE          invalidate the register cache.  Do this *after* calling */
+/* OBSOLETE          read_register, because we want read_register to return the */
+/* OBSOLETE          value that write_register has just stuffed into the registers */
+/* OBSOLETE          array, not the value of the register fetched from the */
+/* OBSOLETE          inferior.  */ */
+/* OBSOLETE       if (regno == GR1_REGNUM) */
+/* OBSOLETE 	registers_changed (); */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE     } */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Get ready to modify the registers array.  On machines which store */
+/* OBSOLETE    individual registers, this doesn't need to do anything.  On machines */
+/* OBSOLETE    which store all the registers in one fell swoop, this makes sure */
+/* OBSOLETE    that registers contains all the registers from the program being */
+/* OBSOLETE    debugged.  */ */
+/* OBSOLETE  */
+/* OBSOLETE void */
+/* OBSOLETE adapt_prepare_to_store (void) */
+/* OBSOLETE { */
+/* OBSOLETE   /* Do nothing, since we can store individual regs */ */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE static CORE_ADDR */
+/* OBSOLETE translate_addr (CORE_ADDR addr) */
+/* OBSOLETE { */
+/* OBSOLETE #if defined(KERNEL_DEBUGGING) */
+/* OBSOLETE   /* Check for a virtual address in the kernel */ */
+/* OBSOLETE   /* Assume physical address of ublock is in  paddr_u register */ */
+/* OBSOLETE   if (addr >= UVADDR) */
+/* OBSOLETE     { */
+/* OBSOLETE       /* PADDR_U register holds the physical address of the ublock */ */
+/* OBSOLETE       CORE_ADDR i = (CORE_ADDR) read_register (PADDR_U_REGNUM); */
+/* OBSOLETE       return (i + addr - (CORE_ADDR) UVADDR); */
+/* OBSOLETE     } */
+/* OBSOLETE   else */
+/* OBSOLETE     { */
+/* OBSOLETE       return (addr); */
+/* OBSOLETE     } */
+/* OBSOLETE #else */
+/* OBSOLETE   return (addr); */
+/* OBSOLETE #endif */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE  */
+/* OBSOLETE /* FIXME!  Merge these two.  */ */
+/* OBSOLETE int */
+/* OBSOLETE adapt_xfer_inferior_memory (CORE_ADDR memaddr, char *myaddr, int len, int write, */
+/* OBSOLETE 			    struct mem_attrib *attrib ATTRIBUTE_UNUSED, */
+/* OBSOLETE 			    struct target_ops *target ATTRIBUTE_UNUSED) */
+/* OBSOLETE { */
+/* OBSOLETE  */
+/* OBSOLETE   memaddr = translate_addr (memaddr); */
+/* OBSOLETE  */
+/* OBSOLETE   if (write) */
+/* OBSOLETE     return adapt_write_inferior_memory (memaddr, myaddr, len); */
+/* OBSOLETE   else */
+/* OBSOLETE     return adapt_read_inferior_memory (memaddr, myaddr, len); */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE void */
+/* OBSOLETE adapt_files_info (void) */
+/* OBSOLETE { */
+/* OBSOLETE   printf_filtered ("\tAttached to %s at %d baud and running program %s\n", */
+/* OBSOLETE 		   dev_name, baudrate, prog_name); */
+/* OBSOLETE   printf_filtered ("\ton an %s processor.\n", processor_name[processor_type]); */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Copy LEN bytes of data from debugger memory at MYADDR */
+/* OBSOLETE    to inferior's memory at MEMADDR.  Returns errno value.   */
+/* OBSOLETE    * sb/sh instructions don't work on unaligned addresses, when TU=1.  */
+/* OBSOLETE  */ */
+/* OBSOLETE int */
+/* OBSOLETE adapt_write_inferior_memory (CORE_ADDR memaddr, char *myaddr, int len) */
+/* OBSOLETE { */
+/* OBSOLETE   int i; */
+/* OBSOLETE   unsigned int cps; */
+/* OBSOLETE  */
+/* OBSOLETE   /* Turn TU bit off so we can do 'sb' commands */ */
+/* OBSOLETE   cps = read_register (CPS_REGNUM); */
+/* OBSOLETE   if (cps & 0x00000800) */
+/* OBSOLETE     write_register (CPS_REGNUM, cps & ~(0x00000800)); */
+/* OBSOLETE  */
+/* OBSOLETE   for (i = 0; i < len; i++) */
+/* OBSOLETE     { */
+/* OBSOLETE       if ((i % 16) == 0) */
+/* OBSOLETE 	fprintf (adapt_stream, "sb %x,", memaddr + i); */
+/* OBSOLETE       if ((i % 16) == 15 || i == len - 1) */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  fprintf (adapt_stream, "%x\r", ((unsigned char *) myaddr)[i]); */
+/* OBSOLETE 	  expect_prompt (); */
+/* OBSOLETE 	} */
+/* OBSOLETE       else */
+/* OBSOLETE 	fprintf (adapt_stream, "%x,", ((unsigned char *) myaddr)[i]); */
+/* OBSOLETE     } */
+/* OBSOLETE   /* Restore the old value of cps if the TU bit was on */ */
+/* OBSOLETE   if (cps & 0x00000800) */
+/* OBSOLETE     write_register (CPS_REGNUM, cps); */
+/* OBSOLETE   return len; */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Read LEN bytes from inferior memory at MEMADDR.  Put the result */
+/* OBSOLETE    at debugger address MYADDR.  Returns errno value.  */ */
+/* OBSOLETE int */
+/* OBSOLETE adapt_read_inferior_memory (CORE_ADDR memaddr, char *myaddr, int len) */
+/* OBSOLETE { */
+/* OBSOLETE   int i; */
+/* OBSOLETE  */
+/* OBSOLETE   /* Number of bytes read so far.  */ */
+/* OBSOLETE   int count; */
+/* OBSOLETE  */
+/* OBSOLETE   /* Starting address of this pass.  */ */
+/* OBSOLETE   unsigned long startaddr; */
+/* OBSOLETE  */
+/* OBSOLETE   /* Number of bytes to read in this pass.  */ */
+/* OBSOLETE   int len_this_pass; */
+/* OBSOLETE  */
+/* OBSOLETE   /* Note that this code works correctly if startaddr is just less */
+/* OBSOLETE      than UINT_MAX (well, really CORE_ADDR_MAX if there was such a */
+/* OBSOLETE      thing).  That is, something like */
+/* OBSOLETE      adapt_read_bytes (CORE_ADDR_MAX - 4, foo, 4) */
+/* OBSOLETE      works--it never adds len to memaddr and gets 0.  */ */
+/* OBSOLETE   /* However, something like */
+/* OBSOLETE      adapt_read_bytes (CORE_ADDR_MAX - 3, foo, 4) */
+/* OBSOLETE      doesn't need to work.  Detect it and give up if there's an attempt */
+/* OBSOLETE      to do that.  */ */
+/* OBSOLETE  */
+/* OBSOLETE   if (((memaddr - 1) + len) < memaddr) */
+/* OBSOLETE     return EIO; */
+/* OBSOLETE  */
+/* OBSOLETE   startaddr = memaddr; */
+/* OBSOLETE   count = 0; */
+/* OBSOLETE   while (count < len) */
+/* OBSOLETE     { */
+/* OBSOLETE       len_this_pass = 16; */
+/* OBSOLETE       if ((startaddr % 16) != 0) */
+/* OBSOLETE 	len_this_pass -= startaddr % 16; */
+/* OBSOLETE       if (len_this_pass > (len - count)) */
+/* OBSOLETE 	len_this_pass = (len - count); */
+/* OBSOLETE  */
+/* OBSOLETE       fprintf (adapt_stream, "db %x,%x\r", startaddr, */
+/* OBSOLETE 	       (startaddr - 1) + len_this_pass); */
+/* OBSOLETE  */
+/* OBSOLETE #ifdef NOTDEF			/* Why do this */ */
+/* OBSOLETE       expect ("\n"); */
+/* OBSOLETE       /* Look for 8 hex digits.  */ */
+/* OBSOLETE       i = 0; */
+/* OBSOLETE       while (1) */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  if (isxdigit (readchar ())) */
+/* OBSOLETE 	    ++i; */
+/* OBSOLETE 	  else */
+/* OBSOLETE 	    { */
+/* OBSOLETE 	      expect_prompt (); */
+/* OBSOLETE 	      error ("Hex digit expected from remote system."); */
+/* OBSOLETE 	    } */
+/* OBSOLETE 	  if (i >= 8) */
+/* OBSOLETE 	    break; */
+/* OBSOLETE 	} */
+/* OBSOLETE #endif /* NOTDEF */ */
+/* OBSOLETE  */
+/* OBSOLETE       expect ("  "); */
+/* OBSOLETE  */
+/* OBSOLETE       for (i = 0; i < len_this_pass; i++) */
+/* OBSOLETE 	get_hex_byte (&myaddr[count++]); */
+/* OBSOLETE  */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE  */
+/* OBSOLETE       startaddr += len_this_pass; */
+/* OBSOLETE     } */
+/* OBSOLETE   return count; */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE #define MAX_BREAKS	8 */
+/* OBSOLETE static int num_brkpts = 0; */
+/* OBSOLETE  */
+/* OBSOLETE /* Insert a breakpoint at ADDR.  SAVE is normally the address of the */
+/* OBSOLETE    pattern buffer where the instruction that the breakpoint overwrites */
+/* OBSOLETE    is saved.  It is unused here since the Adapt Monitor is responsible */
+/* OBSOLETE    for saving/restoring the original instruction. */ */
+/* OBSOLETE  */
+/* OBSOLETE static int */
+/* OBSOLETE adapt_insert_breakpoint (CORE_ADDR addr, char *save) */
+/* OBSOLETE { */
+/* OBSOLETE   if (num_brkpts < MAX_BREAKS) */
+/* OBSOLETE     { */
+/* OBSOLETE       num_brkpts++; */
+/* OBSOLETE       fprintf (adapt_stream, "B %x", addr); */
+/* OBSOLETE       fprintf (adapt_stream, "\r"); */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE       return (0);		/* Success */ */
+/* OBSOLETE     } */
+/* OBSOLETE   else */
+/* OBSOLETE     { */
+/* OBSOLETE       fprintf_filtered (gdb_stderr, */
+/* OBSOLETE 		      "Too many break points, break point not installed\n"); */
+/* OBSOLETE       return (1);		/* Failure */ */
+/* OBSOLETE     } */
+/* OBSOLETE  */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Remove a breakpoint at ADDR.  SAVE is normally the previously */
+/* OBSOLETE    saved pattern, but is unused here as the Adapt Monitor is */
+/* OBSOLETE    responsible for saving/restoring instructions. */ */
+/* OBSOLETE  */
+/* OBSOLETE static int */
+/* OBSOLETE adapt_remove_breakpoint (CORE_ADDR addr, char *save) */
+/* OBSOLETE { */
+/* OBSOLETE   if (num_brkpts > 0) */
+/* OBSOLETE     { */
+/* OBSOLETE       num_brkpts--; */
+/* OBSOLETE       fprintf (adapt_stream, "BR %x", addr); */
+/* OBSOLETE       fprintf (adapt_stream, "\r"); */
+/* OBSOLETE       fflush (adapt_stream); */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE     } */
+/* OBSOLETE   return (0); */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Clear the adapts notion of what the break points are */ */
+/* OBSOLETE static int */
+/* OBSOLETE adapt_clear_breakpoints (void) */
+/* OBSOLETE { */
+/* OBSOLETE   if (adapt_stream) */
+/* OBSOLETE     { */
+/* OBSOLETE       fprintf (adapt_stream, "BR");	/* Clear all break points */ */
+/* OBSOLETE       fprintf (adapt_stream, "\r"); */
+/* OBSOLETE       fflush (adapt_stream); */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE     } */
+/* OBSOLETE   num_brkpts = 0; */
+/* OBSOLETE } */
+/* OBSOLETE static void */
+/* OBSOLETE adapt_mourn (void) */
+/* OBSOLETE { */
+/* OBSOLETE   adapt_clear_breakpoints (); */
+/* OBSOLETE   pop_target ();		/* Pop back to no-child state */ */
+/* OBSOLETE   generic_mourn_inferior (); */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Display everthing we read in from the adapt until we match/see the */
+/* OBSOLETE  * specified string */
+/* OBSOLETE  */ */
+/* OBSOLETE static int */
+/* OBSOLETE display_until (char *str) */
+/* OBSOLETE { */
+/* OBSOLETE   int i = 0, j, c; */
+/* OBSOLETE  */
+/* OBSOLETE   while (c = readchar ()) */
+/* OBSOLETE     { */
+/* OBSOLETE       if (c == str[i]) */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  i++; */
+/* OBSOLETE 	  if (i == strlen (str)) */
+/* OBSOLETE 	    return; */
+/* OBSOLETE 	} */
+/* OBSOLETE       else */
+/* OBSOLETE 	{ */
+/* OBSOLETE 	  if (i) */
+/* OBSOLETE 	    { */
+/* OBSOLETE 	      for (j = 0; j < i; j++)	/* Put everthing we matched */ */
+/* OBSOLETE 		putchar (str[j]); */
+/* OBSOLETE 	      i = 0; */
+/* OBSOLETE 	    } */
+/* OBSOLETE 	  putchar (c); */
+/* OBSOLETE 	} */
+/* OBSOLETE     } */
+/* OBSOLETE  */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE  */
+/* OBSOLETE /* Put a command string, in args, out to the adapt.  The adapt is assumed to */
+/* OBSOLETE    be in raw mode, all writing/reading done through adapt_desc. */
+/* OBSOLETE    Ouput from the adapt is placed on the users terminal until the */
+/* OBSOLETE    prompt from the adapt is seen. */
+/* OBSOLETE    FIXME: Can't handle commands that take input.  */ */
+/* OBSOLETE  */
+/* OBSOLETE void */
+/* OBSOLETE adapt_com (char *args, int fromtty) */
+/* OBSOLETE { */
+/* OBSOLETE   if (!adapt_stream) */
+/* OBSOLETE     { */
+/* OBSOLETE       printf_filtered ("Adapt not open.  Use the 'target' command to open.\n"); */
+/* OBSOLETE       return; */
+/* OBSOLETE     } */
+/* OBSOLETE  */
+/* OBSOLETE   /* Clear all input so only command relative output is displayed */ */
+/* OBSOLETE   slurp_input (); */
+/* OBSOLETE  */
+/* OBSOLETE   switch (islower (args[0]) ? toupper (args[0]) : args[0]) */
+/* OBSOLETE     { */
+/* OBSOLETE     default: */
+/* OBSOLETE       printf_filtered ("Unknown/Unimplemented adapt command '%s'\n", args); */
+/* OBSOLETE       break; */
+/* OBSOLETE     case 'G':			/* Go, begin execution */ */
+/* OBSOLETE       write (adapt_desc, args, strlen (args)); */
+/* OBSOLETE       write (adapt_desc, "\r", 1); */
+/* OBSOLETE       expect_prompt (); */
+/* OBSOLETE       break; */
+/* OBSOLETE     case 'B':			/* Break points, B or BR */ */
+/* OBSOLETE     case 'C':			/* Check current 29k status (running/halted) */ */
+/* OBSOLETE     case 'D':			/* Display data/registers */ */
+/* OBSOLETE     case 'I':			/* Input from i/o space */ */
+/* OBSOLETE     case 'J':			/* Jam an instruction */ */
+/* OBSOLETE     case 'K':			/* Kill, stop execution */ */
+/* OBSOLETE     case 'L':			/* Disassemble */ */
+/* OBSOLETE     case 'O':			/* Output to i/o space */ */
+/* OBSOLETE     case 'T':			/* Trace */ */
+/* OBSOLETE     case 'P':			/* Pulse an input line */ */
+/* OBSOLETE     case 'X':			/* Examine special purpose registers */ */
+/* OBSOLETE     case 'Z':			/* Display trace buffer */ */
+/* OBSOLETE       write (adapt_desc, args, strlen (args)); */
+/* OBSOLETE       write (adapt_desc, "\r", 1); */
+/* OBSOLETE       expect (args);		/* Don't display the command */ */
+/* OBSOLETE       display_until ("# "); */
+/* OBSOLETE       break; */
+/* OBSOLETE       /* Begin commands that take input in the form 'c x,y[,z...]' */ */
+/* OBSOLETE     case 'S':			/* Set memory or register */ */
+/* OBSOLETE       if (strchr (args, ',')) */
+/* OBSOLETE 	{			/* Assume it is properly formatted */ */
+/* OBSOLETE 	  write (adapt_desc, args, strlen (args)); */
+/* OBSOLETE 	  write (adapt_desc, "\r", 1); */
+/* OBSOLETE 	  expect_prompt (); */
+/* OBSOLETE 	} */
+/* OBSOLETE       break; */
+/* OBSOLETE     } */
+/* OBSOLETE } */
+/* OBSOLETE  */
+/* OBSOLETE /* Define the target subroutine names */ */
+/* OBSOLETE  */
+/* OBSOLETE struct target_ops adapt_ops; */
+/* OBSOLETE  */
+/* OBSOLETE static void */
+/* OBSOLETE init_adapt_ops (void) */
+/* OBSOLETE { */
+/* OBSOLETE   adapt_ops.to_shortname = "adapt"; */
+/* OBSOLETE   adapt_ops.to_longname = "Remote AMD `Adapt' target"; */
+/* OBSOLETE   adapt_ops.to_doc = "Remote debug an AMD 290*0 using an `Adapt' monitor via RS232"; */
+/* OBSOLETE   adapt_ops.to_open = adapt_open; */
+/* OBSOLETE   adapt_ops.to_close = adapt_close; */
+/* OBSOLETE   adapt_ops.to_attach = adapt_attach; */
+/* OBSOLETE   adapt_ops.to_post_attach = NULL; */
+/* OBSOLETE   adapt_ops.to_require_attach = NULL; */
+/* OBSOLETE   adapt_ops.to_detach = adapt_detach; */
+/* OBSOLETE   adapt_ops.to_require_detach = NULL; */
+/* OBSOLETE   adapt_ops.to_resume = adapt_resume; */
+/* OBSOLETE   adapt_ops.to_wait = adapt_wait; */
+/* OBSOLETE   adapt_ops.to_post_wait = NULL; */
+/* OBSOLETE   adapt_ops.to_fetch_registers = adapt_fetch_register; */
+/* OBSOLETE   adapt_ops.to_store_registers = adapt_store_register; */
+/* OBSOLETE   adapt_ops.to_prepare_to_store = adapt_prepare_to_store; */
+/* OBSOLETE   adapt_ops.to_xfer_memory = adapt_xfer_inferior_memory; */
+/* OBSOLETE   adapt_ops.to_files_info = adapt_files_info; */
+/* OBSOLETE   adapt_ops.to_insert_breakpoint = adapt_insert_breakpoint; */
+/* OBSOLETE   adapt_ops.to_remove_breakpoint = adapt_remove_breakpoint; */
+/* OBSOLETE   adapt_ops.to_terminal_init = 0; */
+/* OBSOLETE   adapt_ops.to_terminal_inferior = 0; */
+/* OBSOLETE   adapt_ops.to_terminal_ours_for_output = 0; */
+/* OBSOLETE   adapt_ops.to_terminal_ours = 0; */
+/* OBSOLETE   adapt_ops.to_terminal_info = 0; */
+/* OBSOLETE   adapt_ops.to_kill = adapt_kill; */
+/* OBSOLETE   adapt_ops.to_load = adapt_load; */
+/* OBSOLETE   adapt_ops.to_lookup_symbol = 0; */
+/* OBSOLETE   adapt_ops.to_create_inferior = adapt_create_inferior; */
+/* OBSOLETE   adapt_ops.to_post_startup_inferior = NULL; */
+/* OBSOLETE   adapt_ops.to_acknowledge_created_inferior = NULL; */
+/* OBSOLETE   adapt_ops.to_clone_and_follow_inferior = NULL; */
+/* OBSOLETE   adapt_ops.to_post_follow_inferior_by_clone = NULL; */
+/* OBSOLETE   adapt_ops.to_insert_fork_catchpoint = NULL; */
+/* OBSOLETE   adapt_ops.to_remove_fork_catchpoint = NULL; */
+/* OBSOLETE   adapt_ops.to_insert_vfork_catchpoint = NULL; */
+/* OBSOLETE   adapt_ops.to_remove_vfork_catchpoint = NULL; */
+/* OBSOLETE   adapt_ops.to_has_forked = NULL; */
+/* OBSOLETE   adapt_ops.to_has_vforked = NULL; */
+/* OBSOLETE   adapt_ops.to_can_follow_vfork_prior_to_exec = NULL; */
+/* OBSOLETE   adapt_ops.to_post_follow_vfork = NULL; */
+/* OBSOLETE   adapt_ops.to_insert_exec_catchpoint = NULL; */
+/* OBSOLETE   adapt_ops.to_remove_exec_catchpoint = NULL; */
+/* OBSOLETE   adapt_ops.to_has_execd = NULL; */
+/* OBSOLETE   adapt_ops.to_reported_exec_events_per_exec_call = NULL; */
+/* OBSOLETE   adapt_ops.to_has_exited = NULL; */
+/* OBSOLETE   adapt_ops.to_mourn_inferior = adapt_mourn; */
+/* OBSOLETE   adapt_ops.to_can_run = 0; */
+/* OBSOLETE   adapt_ops.to_notice_signals = 0; */
+/* OBSOLETE   adapt_ops.to_thread_alive = 0; */
+/* OBSOLETE   adapt_ops.to_stop = 0;	/* process_stratum; */ */
+/* OBSOLETE   adapt_ops.to_pid_to_exec_file = NULL; */
+/* OBSOLETE   adapt_ops.to_stratum = 0; */
+/* OBSOLETE   adapt_ops.DONT_USE = 0; */
+/* OBSOLETE   adapt_ops.to_has_all_memory = 1; */
+/* OBSOLETE   adapt_ops.to_has_memory = 1; */
+/* OBSOLETE   adapt_ops.to_has_stack = 1; */
+/* OBSOLETE   adapt_ops.to_has_registers = 1; */
+/* OBSOLETE   adapt_ops.to_has_execution = 0; */
+/* OBSOLETE   adapt_ops.to_sections = 0; */
+/* OBSOLETE   adapt_ops.to_sections_end = 0; */
+/* OBSOLETE   adapt_ops.to_magic = OPS_MAGIC; */
+/* OBSOLETE }				/* init_adapt_ops */ */
+/* OBSOLETE  */
+/* OBSOLETE void */
+/* OBSOLETE _initialize_remote_adapt (void) */
+/* OBSOLETE { */
+/* OBSOLETE   init_adapt_ops (); */
+/* OBSOLETE   add_target (&adapt_ops); */
+/* OBSOLETE   add_com ("adapt <command>", class_obscure, adapt_com, */
+/* OBSOLETE 	   "Send a command to the AMD Adapt remote monitor."); */
+/* OBSOLETE } */

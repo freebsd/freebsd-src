@@ -10,7 +10,7 @@ CC = /usr/ccs/ATT/cc
 CFLAGS =
 
 XM_FILE= xm-i386v4.h
-XDEPFILES= 
 
 NAT_FILE= nm-i386v4.h
-NATDEPFILES= corelow.o core-regset.o procfs.o fork-child.o i386v4-nat.o
+NATDEPFILES= corelow.o core-regset.o fork-child.o i386v4-nat.o procfs.o \
+	proc-api.o proc-events.o proc-flags.o proc-why.o

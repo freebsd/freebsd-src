@@ -1,4 +1,4 @@
-.\" Copyright (c) 1993 Free Software Foundation
+.\" Copyright 1993 Free Software Foundation, Inc.
 .\" See section COPYING for conditions for redistribution
 .TH gdbserver 1 "2 November 1993" "Cygnus Support" "GNU Development Tools"
 .SH NAME
@@ -10,6 +10,11 @@ gdbserver \- Remote Server for the GNU Debugger
 .RB tty
 .RB prog
 .RB "[\|" args... "\|]"
+.PP
+.B gdbserver
+.RB tty
+.B --attach
+.RB PID
 .ad b
 .SH DESCRIPTION
 GDBSERVER is a program that allows you to run GDB on a different machine
@@ -49,6 +54,14 @@ ports on the target system.  This same port number must be used in the host
 GDBs `target remote' command, which will be described shortly.  Note that if
 you chose a port number that conflicts with another service, gdbserver will
 print an error message and exit.
+
+On some targets, gdbserver can also attach to running programs.
+This is accomplished via the --attach argument.  The syntax is:
+
+	target> gdbserver COMM --attach PID
+
+PID is the process ID of a currently running process.  It isn't
+necessary to point gdbserver at a binary for the running process.
 
 Usage (host side):
 

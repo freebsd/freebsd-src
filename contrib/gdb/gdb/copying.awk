@@ -7,11 +7,11 @@ BEGIN	{
 	  print "#include \"command.h\""
 	  print "#include \"gdbcmd.h\""
 	  print ""
-	  print "static void show_copying_command PARAMS ((char *, int));"
+	  print "static void show_copying_command (char *, int);"
 	  print ""
-	  print "static void show_warranty_command PARAMS ((char *, int));"
+	  print "static void show_warranty_command (char *, int);"
 	  print ""
-	  print "void _initialize_copying PARAMS ((void));"
+	  print "void _initialize_copying (void);"
 	  print ""
 	  print "extern int immediate_quit;";
 	  print "static void";

@@ -1,21 +1,23 @@
 /* Terminal interface definitions for GDB, the GNU Debugger.
-   Copyright 1986, 1989, 1991, 1992 Free Software Foundation, Inc.
+   Copyright 1986, 1989, 1990, 1991, 1992, 1993, 1995, 1996, 1999, 2000
+   Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #if !defined (TERMINAL_H)
 #define TERMINAL_H 1
@@ -29,8 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    nothing has already defined the one of the names, and do the right
    thing. */
 
-/* nothing works with go32, and the headers aren't complete */
-#if !defined (__GO32__)
 #if !defined (HAVE_TERMIOS) && !defined(HAVE_TERMIO) && !defined(HAVE_SGTTY)
 #if defined(HAVE_TERMIOS_H)
 #define HAVE_TERMIOS
@@ -44,13 +44,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #endif /* ! defined (HAVE_TERMIO_H) */
 #endif /* ! defined (HAVE_TERMIOS_H) */
 #endif /* !defined (HAVE_TERMIOS) && !defined(HAVE_TERMIO) && !defined(HAVE_SGTTY) */
-#endif /* ! defined (__GO32__) */
 
 #if defined(HAVE_TERMIOS)
 #include <termios.h>
 #endif
 
-#if !defined(__GO32__) && !defined(_WIN32) && !defined (HAVE_TERMIOS)
+#if !defined(_WIN32) && !defined (HAVE_TERMIOS)
 
 /* Define a common set of macros -- BSD based -- and redefine whatever
    the system offers to make it look like that.  FIXME: serial.h and
@@ -79,7 +78,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #endif /* sgtty */
 #endif
 
-extern void new_tty PARAMS ((void));
+extern void new_tty (void);
 
 /* Do we have job control?  Can be assumed to always be the same within
    a given run of GDB.  In inflow.c.  */
@@ -87,6 +86,6 @@ extern int job_control;
 
 /* Set the process group of the caller to its own pid, or do nothing if
    we lack job control.  */
-extern int gdb_setpgid PARAMS ((void));
+extern int gdb_setpgid (void);
 
-#endif	/* !defined (TERMINAL_H) */
+#endif /* !defined (TERMINAL_H) */

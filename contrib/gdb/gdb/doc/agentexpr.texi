@@ -798,7 +798,7 @@ When we add side-effects, we should add this.
 
 @item Why does the @code{reg} bytecode take a 16-bit register number?
 
-Intel's IA64-architecture, Merced, has 128 general-purpose registers,
+Intel's IA-64 architecture has 128 general-purpose registers,
 and 128 floating-point registers, and I'm sure it has some random
 control registers.
 

@@ -1,6 +1,12 @@
 /* Define if compiling on Solaris 7. */
 #undef _MSE_INT_H
 
+/* Define if your struct reg has r_fs.  */
+#undef HAVE_STRUCT_REG_R_FS
+
+/* Define if your struct reg has r_gs.  */
+#undef HAVE_STRUCT_REG_R_GS
+
 /* Define if pstatus_t type is available */
 #undef HAVE_PSTATUS_T
 
@@ -24,6 +30,40 @@
 
 /* Define if <sys/procfs.h> has psaddr_t. */
 #undef HAVE_PSADDR_T
+
+/* Define if <sys/procfs.h> has prgregset32_t. */
+#undef HAVE_PRGREGSET32_T
+
+/* Define if <sys/procfs.h> has prfpregset32_t. */
+#undef HAVE_PRFPREGSET32_T
+
+/* Define if <sys/procfs.h> has prsysent_t */
+#undef HAVE_PRSYSENT_T
+
+/* Define if <sys/procfs.h> has pr_sigset_t */
+#undef HAVE_PR_SIGSET_T
+
+/* Define if <sys/procfs.h> has pr_sigaction64_t */
+#undef HAVE_PR_SIGACTION64_T
+
+/* Define if <sys/procfs.h> has pr_siginfo64_t */
+#undef HAVE_PR_SIGINFO64_T
+
+/* Define if <link.h> exists and defines struct link_map which has
+   members with an ``l_'' prefix.  (For Solaris, SVR4, and
+   SVR4-like systems.) */
+#undef HAVE_STRUCT_LINK_MAP_WITH_L_MEMBERS
+
+/* Define if <link.h> exists and defines struct link_map which has
+  members with an ``lm_'' prefix.  (For SunOS.)  */
+#undef HAVE_STRUCT_LINK_MAP_WITH_LM_MEMBERS
+
+/* Define if <link.h> exists and defines a struct so_map which has
+  members with an ``som_'' prefix.  (Found on older *BSD systems.)  */
+#undef HAVE_STRUCT_SO_MAP_WITH_SOM_MEMBERS
+
+/* Define if <sys/link.h> has struct link_map32 */
+#undef HAVE_STRUCT_LINK_MAP32
 
 /* Define if the prfpregset_t type is broken. */
 #undef PRFPREGSET_T_BROKEN
@@ -104,5 +144,32 @@
 /* Define if <sys/ptrace.h> defines the PTRACE_GETREGS request.  */
 #undef HAVE_PTRACE_GETREGS
 
-/* Define if <sys/ptrace.h> defines the PTRACE_GETXFPREGS request.  */
-#undef HAVE_PTRACE_GETXFPREGS
+/* Define if <sys/ptrace.h> defines the PTRACE_GETFPXREGS request.  */
+#undef HAVE_PTRACE_GETFPXREGS
+
+/* Define if <sys/ptrace.h> defines the PT_GETDBREGS request.  */
+#undef HAVE_PT_GETDBREGS
+
+/* Define if <sys/ptrace.h> defines the PT_GETXMMREGS request.  */
+#undef HAVE_PT_GETXMMREGS
+
+/* Define if gnu-regex.c included with GDB should be used. */
+#undef USE_INCLUDED_REGEX
+
+/* BFD's default architecture. */
+#undef DEFAULT_BFD_ARCH
+
+/* BFD's default target vector. */
+#undef DEFAULT_BFD_VEC
+
+/* Multi-arch enabled. */
+#undef GDB_MULTI_ARCH
+
+/* hostfile */
+#undef GDB_XM_FILE
+
+/* targetfile */
+#undef GDB_TM_FILE
+
+/* nativefile */
+#undef GDB_NM_FILE

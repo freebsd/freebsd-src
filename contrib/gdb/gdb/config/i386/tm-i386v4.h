@@ -1,28 +1,30 @@
 /* Macro definitions for GDB on an Intel i386 running SVR4.
-   Copyright (C) 1991, 1994 Free Software Foundation, Inc.
+   Copyright 1991, 1994, 1995, 1998, 1999, 2000
+   Free Software Foundation, Inc.
    Written by Fred Fish at Cygnus Support (fnf@cygnus.com)
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #ifndef TM_I386V4_H
 #define TM_I386V4_H 1
 
 /* Pick up most of what we need from the generic i386 target include file. */
-
+#define HAVE_I387_REGS
 #include "i386/tm-i386.h"
 
 /* Pick up more stuff from the generic SVR4 host include file. */
@@ -31,7 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Use the alternate method of determining valid frame chains. */
 
-#define FRAME_CHAIN_VALID(fp,fi) alternate_frame_chain_valid (fp, fi)
+#define FRAME_CHAIN_VALID(fp,fi) func_frame_chain_valid (fp, fi)
 
 /* Offsets (in target ints) into jmp_buf.  Not defined in any system header
    file, so we have to step through setjmp/longjmp with a debugger and figure
@@ -47,15 +49,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define JB_ESP	4
 #define JB_EDX	5
 
-#define JB_PC	JB_EDX	/* Setjmp()'s return PC saved in EDX */
+#define JB_PC	JB_EDX		/* Setjmp()'s return PC saved in EDX */
 
 /* Figure out where the longjmp will land.  Slurp the args out of the stack.
    We expect the first arg to be a pointer to the jmp_buf structure from which
    we extract the pc (JB_PC) that we will land at.  The pc is copied into ADDR.
    This routine returns true on success */
 
-extern int
-get_longjmp_target PARAMS ((CORE_ADDR *));
+extern int get_longjmp_target (CORE_ADDR *);
 
 #define GET_LONGJMP_TARGET(ADDR) get_longjmp_target(ADDR)
 
@@ -73,6 +74,6 @@ get_longjmp_target PARAMS ((CORE_ADDR *));
 /* Saved Pc.  Get it from ucontext if within sigtramp.  */
 
 #define sigtramp_saved_pc i386v4_sigtramp_saved_pc
-extern CORE_ADDR i386v4_sigtramp_saved_pc PARAMS ((struct frame_info *));
+extern CORE_ADDR i386v4_sigtramp_saved_pc (struct frame_info *);
 
-#endif  /* ifndef TM_I386V4_H */
+#endif /* ifndef TM_I386V4_H */
