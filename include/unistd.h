@@ -361,7 +361,7 @@ int	 unlink(const char *);
 ssize_t	 write(int, const void *, size_t);
 
 /* 1003.2-1992 */
-#if __POSIX_VISIBLE >= 199209
+#if __POSIX_VISIBLE >= 199209 || __XSI_VISIBLE
 size_t	 confstr(int, char *, size_t);
 int	 getopt(int, char * const [], const char *);
 
@@ -370,7 +370,7 @@ extern int optind, opterr, optopt;
 #endif
 
 /* ISO/IEC 9945-1: 1996 */
-#if __POSIX_VISIBLE >= 199506
+#if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE
 int	 fsync(int);
 
 /*
@@ -381,13 +381,18 @@ int	 fsync(int);
 #define	_FTRUNCATE_DECLARED
 int	 ftruncate(int, off_t);
 #endif
+#endif
 
+#if __POSIX_VISIBLE >= 199506
 int	 getlogin_r(char *, int);
 #endif
 
 /* 1003.1-2001 */
-#if __POSIX_VISIBLE >= 200112
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 int	 fchown(int, uid_t, gid_t);
+int	 readlink(const char *, char *, int);
+#endif
+#if __POSIX_VISIBLE >= 200112
 int	 gethostname(char *, int /* socklen_t */);
 int	 setegid(gid_t);
 int	 seteuid(uid_t);
@@ -408,6 +413,7 @@ char	*crypt(const char *, const char *);
 /* char	*ctermid(char *); */		/* XXX ??? */
 int	 encrypt(char *, int);
 int	 fchdir(int);
+long	 gethostid(void);
 int	 getpgid(pid_t _pid);
 int	 getsid(pid_t _pid);
 char	*getwd(char *);			/* LEGACY: obsoleted by getcwd() */
@@ -432,13 +438,20 @@ int	 truncate(const char *, off_t);
 #endif
 #endif /* __XSI_VISIBLE */
 
+#if __XSI_VISIBLE <= 500 || __BSD_VISIBLE
+int	 brk(const void *);
+int	 chroot(const char *);
+int	 getdtablesize(void);
+int	 getpagesize(void) __pure2;
+char	*getpass(const char *);
+void	*sbrk(intptr_t);
+#endif
+
 #if __BSD_VISIBLE
 struct timeval;				/* select(2) */
 int	 acct(const char *);
 int	 async_daemon(void);
-int	 brk(const void *);
 int	 check_utility_compat(const char *);
-int	 chroot(const char *);
 const char *
 	 crypt_get_format(void);
 int	 crypt_set_format(const char *);
@@ -448,12 +461,8 @@ void	 endusershell(void);
 int	 exect(const char *, char * const *, char * const *);
 char	*fflagstostr(u_long);
 int	 getdomainname(char *, int);
-int	 getdtablesize(void);
 int	 getgrouplist(const char *, gid_t, gid_t *, int *);
-long	 gethostid(void);
 mode_t	 getmode(const void *, mode_t);
-int	 getpagesize(void) __pure2;
-char	*getpass(const char *);
 int	 getpeereid(int, uid_t *, gid_t *);
 int	 getresgid(gid_t *, gid_t *, gid_t *);
 int	 getresuid(uid_t *, uid_t *, uid_t *);
@@ -483,7 +492,6 @@ int	 rcmdsh(char **, int, const char *,
 		const char *, const char *, const char *);
 char	*re_comp(const char *);
 int	 re_exec(const char *);
-int	 readlink(const char *, char *, int);
 int	 reboot(int);
 int	 revoke(const char *);
 pid_t	 rfork(int);
@@ -491,7 +499,6 @@ pid_t	 rfork_thread(int, void *, int (*)(void *), void *);
 int	 rresvport(int *);
 int	 rresvport_af(int *, int);
 int	 ruserok(const char *, int, const char *, const char *);
-void	*sbrk(intptr_t);
 #if __BSD_VISIBLE
 #ifndef _SELECT_DECLARED
 #define	_SELECT_DECLARED
