@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: proc.c,v 1.2.8.1 1997/08/24 21:41:37 jkh Exp $
+ *	$Id: proc.c,v 1.2.8.2 1998/01/31 17:06:15 joerg Exp $
  */
 
 #ifndef lint
@@ -205,7 +205,7 @@ pnote()
 {
     struct process *pp;
     int     flags;
-    sigset_t omask;
+    int	omask;
 
     neednote = 0;
     for (pp = proclist.p_next; pp != NULL; pp = pp->p_next) {
@@ -228,7 +228,7 @@ void
 pwait()
 {
     struct process *fp, *pp;
-    sigset_t omask;
+    int	omask;
 
     /*
      * Here's where dead procs get flushed.
@@ -259,7 +259,7 @@ pjwait(pp)
 {
     struct process *fp;
     int     jobflags, reason;
-    sigset_t omask;
+    int	omask;
 
     while (pp->p_pid != pp->p_jobid)
 	pp = pp->p_friends;
@@ -348,7 +348,7 @@ dowait(v, t)
     struct command *t;
 {
     struct process *pp;
-    sigset_t omask;
+    int	omask;
 
     pjobs++;
     omask = sigblock(sigmask(SIGCHLD));
@@ -356,7 +356,7 @@ loop:
     for (pp = proclist.p_next; pp; pp = pp->p_next)
 	if (pp->p_pid &&	/* pp->p_pid == pp->p_jobid && */
 	    pp->p_flags & PRUNNING) {
-	    (void) sigpause((sigset_t) 0);
+	    (void) sigpause(0);
 	    goto loop;
 	}
     (void) sigsetmask(omask);
@@ -1003,7 +1003,7 @@ pkill(v, signum)
     struct process *pp, *np;
     int jobflags = 0;
     int     pid, err1 = 0;
-    sigset_t omask;
+    int omask;
     Char   *cp;
 
     omask = sigmask(SIGCHLD);
@@ -1087,7 +1087,7 @@ pstart(pp, foregnd)
     int     foregnd;
 {
     struct process *np;
-    sigset_t omask;
+    int omask;
     long    jobflags = 0;
 
     omask = sigblock(sigmask(SIGCHLD));
@@ -1233,7 +1233,7 @@ pfork(t, wanttty)
     int pid;
     bool    ignint = 0;
     int     pgrp;
-    sigset_t omask;
+    int	omask;
 
     /*
      * A child will be uninterruptible only under very special conditions.
@@ -1330,7 +1330,7 @@ void
 pgetty(wanttty, pgrp)
     int     wanttty, pgrp;
 {
-    sigset_t omask = 0;
+    int omask = 0;
 
     /*
      * christos: I am blocking the tty signals till I've set things

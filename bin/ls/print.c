@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.7 1995/12/30 18:15:30 joerg Exp $
+ *	$Id: print.c,v 1.8 1996/01/20 10:31:14 mpp Exp $
  */
 
 #ifndef lint
@@ -95,7 +95,7 @@ printlong(dp)
 			continue;
 		sp = p->fts_statp;
 		if (f_inode)
-			(void)printf("%*lu ", dp->s_inode, sp->st_ino);
+			(void)printf("%*lu ", dp->s_inode, (u_long)sp->st_ino);
 		if (f_size)
 			(void)printf("%*qd ",
 			    dp->s_block, howmany(sp->st_blocks, blocksize));
@@ -124,7 +124,8 @@ printlong(dp)
 			printtime(sp->st_ctime);
 		else
 			printtime(sp->st_mtime);
-		(void)printf("%s", p->fts_name);
+		if (f_octal || f_octal_escape) (void)prn_octal(p->fts_name);
+		else (void)printf("%s", p->fts_name);
 		if (f_type)
 			(void)printtype(sp->st_mode);
 		if (S_ISLNK(sp->st_mode))
@@ -215,11 +216,12 @@ printaname(p, inodefield, sizefield)
 	sp = p->fts_statp;
 	chcnt = 0;
 	if (f_inode)
-		chcnt += printf("%*lu ", (int)inodefield, sp->st_ino);
+		chcnt += printf("%*lu ", (int)inodefield, (u_long)sp->st_ino);
 	if (f_size)
 		chcnt += printf("%*qd ",
 		    (int)sizefield, howmany(sp->st_blocks, blocksize));
-	chcnt += printf("%s", p->fts_name);
+	chcnt += (f_octal || f_octal_escape) ? prn_octal(p->fts_name)
+	                                     : printf("%s", p->fts_name);
 	if (f_type)
 		chcnt += printtype(sp->st_mode);
 	return (chcnt);
@@ -231,6 +233,10 @@ printtime(ftime)
 {
 	int i;
 	char longstring[80];
+	static time_t now;
+
+	if (now == 0)
+		now = time(NULL);
 
 	strftime(longstring, sizeof(longstring), "%c", localtime(&ftime));
 	for (i = 4; i < 11; ++i)
@@ -240,7 +246,7 @@ printtime(ftime)
 	if (f_sectime)
 		for (i = 11; i < 24; i++)
 			(void)putchar(longstring[i]);
-	else if (ftime + SIXMONTHS > time(NULL))
+	else if (ftime + SIXMONTHS > now && ftime < now + SIXMONTHS)
 		for (i = 11; i < 16; ++i)
 			(void)putchar(longstring[i]);
 	else {
@@ -293,5 +299,9 @@ printlink(p)
 		return;
 	}
 	path[lnklen] = '\0';
-	(void)printf(" -> %s", path);
+	if (f_octal || f_octal_escape) {
+	        (void)printf(" -> ");
+	        (void)prn_octal(path);
+	}
+	else (void)printf(" -> %s", path);
 }

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cp.c,v 1.10 1996/03/08 06:58:06 wosch Exp $
+ *	$Id: cp.c,v 1.10.2.1 1997/08/24 10:34:45 jkh Exp $
  */
 
 #ifndef lint
@@ -261,6 +261,7 @@ copy(argv, type, fts_options)
 	for (rval = 0; (curr = fts_read(ftsp)) != NULL;) {
 		switch (curr->fts_info) {
 		case FTS_NS:
+		case FTS_DNR:
 		case FTS_ERR:
 			warnx("%s: %s",
 			    curr->fts_path, strerror(curr->fts_errno));

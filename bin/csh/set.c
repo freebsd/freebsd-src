@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: set.c,v 1.4 1995/07/07 23:13:11 ache Exp $
+ *	$Id: set.c,v 1.4.2.1 1997/08/24 21:41:38 jkh Exp $
  */
 
 #ifndef lint
@@ -819,7 +819,7 @@ plist(p)
     int len;
 
     if (setintr)
-	(void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	(void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
 
     for (;;) {
 	while (p->v_left)

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ls.c,v 1.10 1996/08/27 21:51:48 adam Exp $
+ *	$Id: ls.c,v 1.10.2.1 1997/12/03 05:40:06 imp Exp $
  */
 
 #ifndef lint
@@ -82,16 +82,16 @@ int f_kblocks;			/* print size in kilobytes */
 int f_listdir;			/* list actual directory, not contents */
 int f_listdot;			/* list files beginning with . */
 int f_longform;			/* long listing format */
-int f_newline;			/* if precede with newline */
 int f_nonprint;			/* show unprintables as ? */
 int f_nosort;			/* don't sort output */
+int f_octal;			/* show unprintables as \xxx */
+int f_octal_escape;		/* like f_octal but use C escapes if possible */
 int f_recursive;		/* ls subdirectories also */
 int f_reversesort;		/* reverse whatever sort is used */
 int f_sectime;			/* print the real time for all files */
 int f_singlecol;		/* use single column output */
 int f_size;			/* list size in short listing */
 int f_statustime;		/* use time of last mode change */
-int f_dirname;			/* if precede with directory name */
 int f_timesort;			/* sort by time vice name */
 int f_type;			/* add type character for non-regular files */
 
@@ -131,7 +131,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ACFLRTacdfgikloqrstu")) != -1) {
+	while ((ch = getopt(argc, argv, "1ABCFHLPRTWabcdfgikloqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -140,6 +140,11 @@ main(argc, argv)
 		case '1':
 			f_singlecol = 1;
 			f_column = f_longform = 0;
+			break;
+		case 'B':
+			f_nonprint = 0;
+			f_octal = 1;
+		        f_octal_escape = 0;
 			break;
 		case 'C':
 			f_column = 1;
@@ -161,9 +166,17 @@ main(argc, argv)
 		case 'F':
 			f_type = 1;
 			break;
+		case 'H':
+		        fts_options |= FTS_COMFOLLOW;
+			break;
 		case 'L':
 			fts_options &= ~FTS_PHYSICAL;
 			fts_options |= FTS_LOGICAL;
+			break;
+		case 'P':
+		        fts_options &= ~FTS_COMFOLLOW;
+			fts_options &= ~FTS_LOGICAL;
+			fts_options |= FTS_PHYSICAL;
 			break;
 		case 'R':
 			f_recursive = 1;
@@ -195,6 +208,8 @@ main(argc, argv)
 			break;
 		case 'q':
 			f_nonprint = 1;
+			f_octal = 0;
+		        f_octal_escape = 0;
 			break;
 		case 'r':
 			f_reversesort = 1;
@@ -207,6 +222,11 @@ main(argc, argv)
 			break;
 		case 't':
 			f_timesort = 1;
+			break;
+		case 'b':
+			f_nonprint = 0;
+		        f_octal = 0;
+			f_octal_escape = 1;
 			break;
 		default:
 		case '?':
@@ -411,6 +431,10 @@ display(p, list)
 			prcopy(cur->fts_name, cur->fts_name, cur->fts_namelen);
 		if (cur->fts_namelen > maxlen)
 			maxlen = cur->fts_namelen;
+		if (f_octal || f_octal_escape) {
+		        int t = len_octal(cur->fts_name, cur->fts_namelen);
+			if (t > maxlen) maxlen = t;
+		}		        
 		if (needstats) {
 			sp = cur->fts_statp;
 			if (sp->st_blocks > maxblock)
@@ -513,16 +537,12 @@ mastercmp(a, b)
 	if (a_info == FTS_NS || b_info == FTS_NS)
 		return (namecmp(*a, *b));
 
-	if (a_info == b_info)
-		return (sortfcn(*a, *b));
-
-	if ((*a)->fts_level == FTS_ROOTLEVEL)
+	if (a_info != b_info &&
+	    (*a)->fts_level == FTS_ROOTLEVEL && !f_listdir) {
 		if (a_info == FTS_D)
 			return (1);
-		else if (b_info == FTS_D)
+		if (b_info == FTS_D)
 			return (-1);
-		else
-			return (sortfcn(*a, *b));
-	else
-		return (sortfcn(*a, *b));
+	}
+	return (sortfcn(*a, *b));
 }

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dir.c,v 1.4 1995/06/18 14:34:48 ache Exp $
+ *	$Id: dir.c,v 1.4.2.1 1997/08/24 21:41:30 jkh Exp $
  */
 
 #ifndef lint
@@ -702,8 +702,7 @@ dcanon(cp, p)
 	     */
 	    *--sp = 0;		/* form the pathname for readlink */
 	    if (sp != cp && !adrof(STRignore_symlinks) &&
-		(cc = readlink(short2str(cp), tlink,
-			       sizeof tlink)) >= 0) {
+		(cc = readlink(short2str(cp), tlink, sizeof(tlink) - 1)) >= 0) {
 		(void) Strcpy(link, str2short(tlink));
 		link[cc] = '\0';
 
@@ -787,8 +786,7 @@ dcanon(cp, p)
 
 	    if (sp != cp && adrof(STRchase_symlinks) &&
 		!adrof(STRignore_symlinks) &&
-		(cc = readlink(short2str(cp), tlink,
-			       sizeof tlink)) >= 0) {
+		(cc = readlink(short2str(cp), tlink, sizeof(tlink) - 1)) >= 0) {
 		(void) Strcpy(link, str2short(tlink));
 		link[cc] = '\0';
 
