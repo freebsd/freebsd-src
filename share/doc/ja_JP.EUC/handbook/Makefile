@@ -1,5 +1,5 @@
-# $Id: Makefile,v 1.4 1996/12/20 07:31:33 max Exp $
-# Original revision: 1.17
+# $Id: Makefile,v 1.8 1997/02/25 04:53:50 hanai Exp $
+# Original revision: 1.22
 # The FreeBSD Japanese Documentation Project
 
 DOC=	handbook
@@ -12,7 +12,7 @@ SRCS+= cyclades.sgml development.sgml dialup.sgml dialout.sgml
 SRCS+= diskless.sgml dma.sgml eresources.sgml esdi.sgml 
 SRCS+= firewalls.sgml glossary.sgml goals.sgml
 SRCS+= handbook.sgml history.sgml hw.sgml install.sgml isdn.sgml
-SRCS+= kerberos.sgml kernelconfig.sgml kerneldebug.sgml
+SRCS+= kerberos.sgml kernelconfig.sgml kerneldebug.sgml kernelopts.sgml
 SRCS+= lists.sgml mail.sgml memoryuse.sgml
 SRCS+= mirrors.sgml nfs.sgml nutshell.sgml pgpkeys.sgml policies.sgml
 SRCS+= porting.sgml ports.sgml ppp.sgml printing.sgml

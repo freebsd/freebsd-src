@@ -1,4 +1,4 @@
-.\"	$Id$
+.\"	$Id: trans_design.nr,v 1.4 1997/02/22 13:00:14 peter Exp $
 .\"
 .NC "The Design of the ARGO Transport Entity"
 .sh 1 "Protocol Hooks"

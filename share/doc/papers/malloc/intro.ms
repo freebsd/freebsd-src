@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: intro.ms,v 1.3 1997/01/05 12:13:31 mckay Exp $
+.\" $Id: intro.ms,v 1.5 1997/02/22 13:03:33 peter Exp $
 .\"
 .ds RH Introduction
 .NH

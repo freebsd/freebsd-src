@@ -34,7 +34,7 @@
 .bp
 .nr PS 10
 .nr VS 12
-.SH
+.NH
 Appendix A - Implementation Details
 .LP
 .nf

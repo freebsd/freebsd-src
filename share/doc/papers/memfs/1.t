@@ -33,7 +33,7 @@
 .\"
 .nr PS 11
 .nr VS 13
-.SH
+.NH
 Introduction
 .PP
 This paper describes the motivation for and implementation of
@@ -150,7 +150,7 @@ We await the results of others trying this approach.
 .[
 Ohta
 .]
-.SH
+.NH
 Implementation
 .PP
 The current implementation took less time to write than did this paper.
@@ -268,7 +268,7 @@ but have not been recently accessed (or have been deleted).
 .[
 leffler
 .]
-.SH
+.NH
 Performance
 .PP
 The performance of the current memory-based filesystem is determined by
@@ -313,7 +313,7 @@ Here, the low latency of the memory-based filesystem is
 noticeable compared to the disk-based filesystem,
 as a synchronous operation can be done with
 just two context switches instead of incurring the disk latency.
-.SH
+.NH
 Future Work
 .PP
 The most obvious shortcoming of the current implementation

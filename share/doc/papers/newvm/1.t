@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)1.t	5.1 (Berkeley) 4/16/91
-.\"	$Id$
+.\"	$Id: 1.t,v 1.5 1997/02/22 13:03:52 peter Exp $
 .\"
 .NH
 Motivations for a New Virtual Memory System
@@ -43,7 +43,7 @@ This section of the paper describes the current design,
 points out the current technological trends,
 and attempts to define the new design considerations that should
 be taken into account in a new virtual memory design.
-.SH
+.NH 2
 Implementation of 4.3BSD virtual memory
 .PP
 All Berkeley Software Distributions through 4.3BSD
@@ -71,7 +71,7 @@ to contain newly faulted pages.
 If a previously accessed page that has been pushed to swap is once
 again used, a free page is reallocated and filled from the swap area
 [Babaoglu79], [Someren84].
-.SH
+.NH 2
 Design assumptions for 4.3BSD virtual memory
 .PP
 The design criteria for the current virtual memory implementation
@@ -110,7 +110,7 @@ Given the high cost of memory there was little incentive to have
 the kernel keep track of the contents of the swap area once a process
 exited since it could almost as easily and quickly be reread from the
 file system.
-.SH
+.NH 2
 New influences
 .PP
 In the ten years since the current virtual memory system was designed,
@@ -190,7 +190,7 @@ User Interface
 This section outlines our new virtual memory interface as it is
 currently envisioned.
 The details of the system call interface are contained in Appendix A.
-.SH
+.NH 2
 Regions
 .PP
 The virtual memory interface is designed to support both large,
@@ -259,7 +259,7 @@ processes that wish to attach to the region.
 Such a descriptor may be bound into the UNIX file system
 name space so that other processes can find it just as
 they would with a mapped file.
-.SH
+.NH 2
 Shared memory as high speed interprocess communication
 .PP
 The primary use envisioned for shared memory is to

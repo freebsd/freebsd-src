@@ -1,6 +1,6 @@
-<!-- $Id: scsi.sgml,v 1.2 1996/11/23 23:49:40 max Exp $ -->
+<!-- $Id: scsi.sgml,v 1.7 1997/02/25 04:58:11 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.19 -->
+<!-- Original revision: 1.22 -->
 
 <!--
       <title>SCSIの概要と FreeBSDでの使い方</title>

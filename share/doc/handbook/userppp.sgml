@@ -1,10 +1,12 @@
-<!-- $Id: userppp.sgml,v 1.9 1996/10/05 18:36:22 wosch Exp $ -->
+<!-- $Id: userppp.sgml,v 1.13 1997/03/14 04:17:44 brian Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
 
 <p><em>Contributed by &a.nik;<newline>
 28 July 1995</em>.
+<p><em>Updated by &a.brian;<newline>
+14 March 1997</em>.
 
 <!--  This FAQ/HowTo is intended to get you up and running with
   iijppp, also known as the <em>user level ppp</em> for FreeBSD 2.0.5
@@ -230,6 +232,9 @@ nameserver 158.152.1.65
 9	 set login "TIMEOUT 10 gin:-BREAK-gin: foo word: bar col: ppp"
 10       set timeout 120
 11       set ifaddr x.x.x.x y.y.y.y
+12       delete ALL
+13       add 0 0 HISADDR
+14       set openmode active
 </verb></tscreen>
     Do not include the line numbers, they are just for this discussion.
 
@@ -242,7 +247,10 @@ nameserver 158.152.1.65
 
 <tag/Line 3:/ Sets the speed you want to connect at.
 
-<tag/* Lines 4 and 5:/ Do not know exactly what effect these lines have
+<tag/Line 4:/ Tells us not to request LQR.  LQR is a "keepalive" protocol
+              used by ppp.
+
+<tag/Line 5:/ Tells us not to accept LQR negotiation from the other side.
 
 <tag/Line 6:/ Dial string commands. user ppp uses the <tt>chat(8)</tt>
               language. Check the manual page for information on the features
@@ -272,16 +280,31 @@ protocol: ppp
               replaced by the IP address that your provider allocates you. The
 	      string y.y.y.y should be replaced by the IP address that your
 	      ISP indicated for their gateway.
+
+<tag/Line 12:/ Deletes all existing routing table entries for the
+              acquired tun device.
+
+<tag/Line 13:/ Adds a default route to your ISPs IP number.
+
+<tag/Line 14:/ Tells our side to begin negotiation.  This is not always
+              necessary, but it does no harm to have both sides initiating
+              the Line Control Protocol (LCP).
 </descrip>
 
     Now you have to edit the file <tt>/etc/ppp/ppp.linkup</tt>:
 <tscreen><verb>
 x.x.x.x:
+  delete ALL
   add 0 0 HISADDR
 </verb></tscreen>
     Replace x.x.x.x with your IP address as before. This file is used to
-    automatically add a default route from your ISP (who's address is
-    automatically inserted with the HISADDR macro) to you.
+    automatically delete all existing routes for the acquired line and
+    add a default route from your ISP (who's address is automatically
+    inserted with the HISADDR macro) to you.
+
+    With a static IP number assigned by your ISP, you don't actually
+    need an entry in <tt>/etc/ppp.linkup</tt>, but again, it doesn't
+    do any harm to have it.
 
     Finally, you can create the file <tt>/etc/ppp/ppp.secret</tt>, which sets
     some passwords to prevent people messing around with ppp on your system.
@@ -293,11 +316,18 @@ x.x.x.x:
 <!-- XXX -->
  <p>If your service provider does not assign static IP numbers,
    <tt>ppp</tt> can be configured to negotiate the local address.  This is
-   done by specifying 0 as the local IP address:
+   done by "guessing" an IP number and allowing ppp to set it up correctly
+   using the LCP at connection time.
 <tscreen><verb>
-set ifaddr 0 0
+    ifaddr 10.0.1.1/0 10.0.1.2/0
+    delete ALL
+    add 0 0 HISADDR
 </verb></tscreen>
-   See the <tt>ppp(8)</tt> manual page for more detailed information.
+   You should NOT use 0 as either IP address.  If you do, ppp will not be
+   able to set up the correct initial entries in the routing table.
+
+   See the pmdemand entry in the files <tt>/etc/ppp/ppp.conf.sample</tt> and
+   <tt>/etc/ppp/ppp.linkup.sample</tt> for a detailed example.
 
 <sect1><heading>Final system configuration</heading>
 
@@ -311,28 +341,20 @@ set ifaddr 0 0
 hostname=foo.bar.com
 </verb></tscreen>
     Look for the network_interfaces variable, and make sure the tun0 device is
-    added to the list. My line looks like
+    NOT added to the list.  My line looks like
 <tscreen><verb>
-network_interfaces="lo0 tun0 ep0"
+network_interfaces="lo0 ep0"
 </verb></tscreen>
-    but I have an ethernet card (ep0) to configure as well.
+    because I have an ethernet card (ep0) to configure as well.
 
-    Now add an ifconfig line for the tun0 device. It should look something
-    like
+    Set the router program to ``NO'' with the line
 <tscreen><verb>
-ifconfig_tun0="inet foo.bar.com y.y.y.y netmask 0xffffffff"
+router=NO
 </verb></tscreen>
-    as before, change ``foo.bar.com'' to be your hostname, y.y.y.y is the IP
-    address of your providers gateway, and 0xffffffff is the netmask they
-    provided you with (in hexadecimal). Two common values for the netmask are
-<tscreen><verb>
-255.255.255.255 = 0xffffffff
-255.255.255.0   = 0xffffff00
-</verb></tscreen>
-    Set the routed flags to ``-s'' with the line
-<tscreen><verb>
-routedflags=-s
-</verb></tscreen>
+    It is important that this is not set to <tt>routed</tt> (the default)
+    as <tt>routed</tt> tends to delete the routing table entries made by
+    ppp.
+
     It is probably worth your while ensuring that the ``sendmail_flags'' line
     does not include the ``-q'' option, otherwise sendmail will attempt to do
     a network lookup every now and then, possibly causing your machine to dial
@@ -345,15 +367,13 @@ sendmail_flags="-bd"
 <tscreen><verb>
 # /usr/sbin/sendmail -q
 </verb></tscreen>
-    That should be about all you need to do to get PPP working with a static
-    IP address. All that is left is to reboot the machine. During startup the
-    tun0 device should be detected, and two lines like the following should be
-    printed,
-<tscreen><verb>
-tun0: flags=51<UP,POINTOPOINT,RUNNING> mtu 1500
-inet x.x.x.x --> y.y.y.y netmask 0xffffffff 
-</verb></tscreen>
-    At this point, it should all be working. You can now either type
+    If you don't like this, it is possible to set up a "dfilter" to block
+    SMTP traffic.  Refer to the sample files for further details.
+
+    That should be about all you need to do to get PPP working.  All that is
+    left is to reboot the machine.
+
+    You can now either type
 <tscreen><verb>
 # ppp
 </verb></tscreen>

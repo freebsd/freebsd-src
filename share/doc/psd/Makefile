@@ -1,8 +1,8 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.7 1995/01/12 20:57:11 wollman Exp $
+#	$Id: Makefile,v 1.11 1997/03/04 18:20:20 wosch Exp $
 
 # The following modules do not build/install:
-# 10.gdb, 13.rcs
+# 10.gdb
 
 # The following modules are encumbered:
 # 01.cacm 02.implement 03.iosys 04.uprog 06.Clang 11.adb 14.sccs
@@ -13,9 +13,10 @@
 
 BINDIR=	/usr/share/doc/psd
 SUBDIR=	 title contents 
-SUBDIR+= 05.sysman 12.make 18.gprof 19.curses 20.ipctut 21.ipc
+SUBDIR+= 05.sysman 12.make 13.rcs 18.gprof 19.curses 20.ipctut 21.ipc
 
 # The following modules are new in FreeBSD:
 SUBDIR+= 22.rpcgen 23.rpc 24.xdr 25.xdrrfc 26.rpcrfc 27.nfsrpc
+SUBDIR+= 28.cvs
 
 .include <bsd.subdir.mk>

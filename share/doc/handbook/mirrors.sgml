@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.43 1996/12/21 00:49:07 ache Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.53 1997/03/11 15:19:32 ache Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -7,12 +7,9 @@
 
 <chapt><heading>Obtaining FreeBSD<label id="mirrors"></heading>
 
-<p>The official sources for FreeBSD available via anonymous FTP from:
-<quote>
-<url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD" 
-name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">
-</quote> 
-and on CD-ROM from Walnut Creek CDROM:
+<sect><heading>CD-ROM Publishers</heading>
+
+<p>FreeBSD is available on CD-ROM from Walnut Creek CDROM:
 <quote>
  Walnut Creek CDROM<newline>
  1547 Palos Verdes Mall, Suite 260<newline>
@@ -23,14 +20,24 @@ and on CD-ROM from Walnut Creek CDROM:
  WWW: <url url="http://www.cdrom.com/" name="http://www.cdrom.com/">
 </quote>
 
+<sect><heading>FTP Sites<label id="mirrors-ftp"></heading>
+
+<p>The official sources for FreeBSD are available via anonymous FTP from:
+<quote>
+<url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD" 
+name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">.
+</quote> 
+
 <p>Additionally, FreeBSD is available via anonymous FTP from the
       following mirror sites. If you choose to obtain FreeBSD via
       anonymous FTP, please try to use a site near you.
 
+<ref id="mirrors-ar" name="Argentina">, 
 <ref id="mirrors-au" name="Australia">, 
 <ref id="mirrors-br" name="Brazil">, 
 <ref id="mirrors-ca" name="Canada">,
 <ref id="mirrors-cz" name="Czech Republic">,
+<ref id="mirrors-dk" name="Denmark">,
 <ref id="mirrors-ee" name="Estonia">,
 <ref id="mirrors-fi" name="Finland">,
 <ref id="mirrors-fr" name="France">,
@@ -51,8 +58,21 @@ and on CD-ROM from Walnut Creek CDROM:
 <ref id="mirrors-us" name="USA">,
 <ref id="mirrors-uk" name="UK">.
 
-
 <descrip>
+<tag><label id="mirrors-ar">Argentina</tag>
+
+In case of problems, please contact the
+<url url="mailto:hostmaster@ar.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.ar.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.ar.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
 <tag><label id="mirrors-au">Australia</tag>
 
 In case of problems, please contact the
@@ -129,6 +149,21 @@ for this domain.
 	name="ftp://sunsite.mff.cuni.cz/OS/FreeBSD"><newline>
 	Contact: <url url="jj@sunsite.mff.cuni.cz"
 	name="jj@sunsite.mff.cuni.cz">.
+
+</itemize>
+
+
+<tag><label id="mirrors-dk">Denmark</tag>
+
+In case of problems, please contact the
+<url url="mailto:hostmaster@dk.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.dk.freeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.dk.freeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -309,48 +344,51 @@ for this domain.
 
 <tag><label id="mirrors-pl">Poland</tag>
 
+In case of problems, please contact the
+<url url="mailto:hostmaster@pl.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
 <itemize>
  
 <item>
-<url url="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"
-	name="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"><newline>
-	Contact: <url url="mailto:ftp@SunSITE.icm.edu.pl"
-	name="ftp@SunSITE.icm.edu.pl">.
+<url url="ftp://ftp.pl.freebsd.ORG/pub/FreeBSD"
+	name="ftp://ftp.pl.freebsd.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
 <tag><label id="mirrors-pt">Portugal</tag>
 
+In case of problems, please contact the
+<url url="mailto:hostmaster@pt.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
-<url url="ftp://ftp.ua.pt/pub/misc/FreeBSD"
-	name="ftp://ftp.ua.pt/pub/misc/FreeBSD"><newline>
-	Contact: <url url="mailto:archie@ua.pt"
-	name="archie@ua.pt">.
-
+<url url="ftp://ftp.pt.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.pt.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.pt.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.pt.freebsd.org/pub/FreeBSD"><newline>
 </itemize>
 
 <tag><label id="mirrors-ru">Russia</tag>
-
-<itemize>
 
 In case of problems, please contact the
 <url url="mailto:hostmaster@ru.FreeBSD.ORG" name="hostmaster">
 for this domain.
 
-<item>
-<url url="ftp://ftp1.ru.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp1.ru.freebsd.org/pub/FreeBSD"><newline>
-	Contact: <url url="mailto:ftp-adm@ftp1.ru.freebsd.org"
-	name="ftp-adm@ftp1.ru.freebsd.org">.
+<itemize>
 
 <item>
-<url url="ftp://ftp.kiae.su/FreeBSD"
-	name="ftp://ftp.kiae.su/FreeBSD"><newline>
-	Contact: <url url="mailto:ftp@ftp.kiae.su"
-	name="ftp@ftp.kiae.su">.
-
+<url url="ftp://ftp.ru.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.ru.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.ru.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.ru.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"><newline>
 </itemize>
 
 <tag><label id="mirrors-za">South Africa</tag>
@@ -463,8 +501,8 @@ for this domain.
 <url url="ftp://ftp2.uk.FreeBSD.ORG/pub/walnut.creek/FreeBSD"
 	name="ftp://ftp2.uk.FreeBSD.ORG/pub/walnut.creek/FreeBSD"><newline>
 <item>
-<url url="ftp://ftp3.uk.FreeBSD.ORG/pub/BSD/FreeBSD"
-	name="ftp://ftp3.uk.FreeBSD.ORG/pub/BSD/FreeBSD"><newline>
+<url url="ftp://ftp3.uk.FreeBSD.ORG/pub/unix/FreeBSD"
+	name="ftp://ftp3.uk.FreeBSD.ORG/pub/unix/FreeBSD"><newline>
 
 </itemize>
 
@@ -521,7 +559,8 @@ for this domain.
 
 </descrip>
 
-<label id="mirrors-ctm">
+<sect><heading>CTM Sites<label id="mirrors-ctm"></heading>
+
 <p>CTM/FreeBSD is available via anonymous FTP from the
       following mirror sites. If you choose to obtain CTM via
       anonymous FTP, please try to use a site near you.
@@ -578,3 +617,85 @@ try
 	name="http://ftpsearch.ntnu.no/ftpsearch">. 
 FTP search is a great free archie server in Trondheim, Norway.
 
+<sect><heading>CVSup Sites<label id="mirrors-cvsup"></heading>
+
+<p>CVSup servers for FreeBSD are running at the following sites:
+
+<descrip>
+
+<tag>Argentina</tag>
+<itemize>
+<item>cvsup.ar.FreeBSD.ORG
+(<url url="mailto:msagre@cactus.fi.uba.ar" name="maintainer">)
+</itemize>
+
+<tag>Australia</tag>
+<itemize>
+<item>cvsup.au.FreeBSD.ORG
+(<url url="mailto:dawes@physics.usyd.edu.au" name="maintainer">)
+</itemize>
+
+<tag>Germany</tag>
+<itemize>
+<item>cvsup.de.FreeBSD.ORG
+(<url url="mailto:wosch@cs.tu-berlin.de" name="maintainer">)
+</itemize>
+
+<tag>Japan</tag>
+<itemize>
+<item>cvsup.jp.FreeBSD.ORG
+(<url url="mailto:simokawa@sat.t.u-tokyo.ac.jp" name="maintainer">)
+</itemize>
+
+<tag>Netherlands</tag>
+<itemize>
+<item>cvsup.nl.FreeBSD.ORG
+(<url url="mailto:xaa@stack.nl" name="maintainer">)
+</itemize>
+
+<tag>Norway</tag>
+<itemize>
+<item>cvsup.no.FreeBSD.ORG
+(<url url="mailto:Tor.Egge@idt.ntnu.no" name="maintainer">)
+</itemize>
+
+<tag>South Africa</tag>
+<itemize>
+<item>cvsup.za.FreeBSD.ORG
+(<url url="mailto:markm@FreeBSD.ORG" name="maintainer">)
+</itemize>
+
+<tag>Taiwan</tag>
+<itemize>
+<item>sup.tw.FreeBSD.ORG
+(<url url="mailto:jdli@freebsd.csie.nctu.edu.tw" name="maintainer">)
+</itemize>
+
+<tag>USA</tag>
+<itemize>
+<item>cvsup.FreeBSD.ORG
+(<url url="mailto:jdp@FreeBSD.ORG" name="maintainer">)
+<item>cvsup2.FreeBSD.ORG
+(<url url="mailto:jdp@FreeBSD.ORG" name="maintainer">)
+<item>cvsup4.FreeBSD.ORG
+(<url url="mailto:jdp@FreeBSD.ORG" name="maintainer">)
+<item>cvsup5.FreeBSD.ORG
+(<url url="mailto:skynyrd@opus.cts.cwu.edu" name="maintainer">)
+</itemize>
+
+</descrip>
+
+The export-restricted code for FreeBSD (eBones and secure) is
+available via CVSup at the following international repository.
+Please use this site to get the export-restricted code, if you are
+outside the USA or Canada.
+
+<descrip>
+
+<tag>South Africa</tag>
+<itemize>
+<item>cvsup.internat.FreeBSD.ORG
+(<url url="mailto:markm@FreeBSD.ORG" name="maintainer">)
+</itemize>
+
+</descrip>

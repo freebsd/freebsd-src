@@ -30,13 +30,13 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)a.t	5.1 (Berkeley) 4/16/91
-.\"	$Id$
+.\"	$Id: a.t,v 1.5 1997/02/22 13:03:56 peter Exp $
 .\"
 .sp 2
 .ne 2i
 .NH
 Appendix A \- Virtual Memory Interface
-.SH
+.NH 2
 Mapping pages
 .PP
 The system supports sharing of data between processes
@@ -148,7 +148,7 @@ caddr_t addr; int len;
 This call deletes the mappings for the specified address range,
 and causes further references to addresses within the range
 to generate invalid memory references.
-.SH
+.NH 2
 Page protection control
 .PP
 A process can control the protection of pages using the call
@@ -159,7 +159,7 @@ caddr_t addr; int len, prot;
 This call changes the specified pages to have protection \fIprot\fP\|.
 Not all implementations will guarantee protection on a page basis;
 the granularity of protection changes may be as large as an entire region.
-.SH
+.NH 2
 Giving and getting advice
 .PP
 A process that has knowledge of its memory behavior may
@@ -188,7 +188,7 @@ caddr_t addr; int len; result char *vec;
 Here the current core residency of the pages is returned
 in the character array \fIvec\fP, with a value of 1 meaning
 that the page is in-core.
-.SH
+.NH 2
 Synchronization primitives
 .PP
 Primitives are provided for synchronization using semaphores in shared memory.

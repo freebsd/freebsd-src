@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.4 1996/11/08 13:09:27 jkh Exp $
+#	$Id: Makefile,v 1.6 1997/02/22 13:06:45 peter Exp $
 
 .if exists(${.CURDIR}/../../../../games)
 VOLUME=	usd/30.rogue

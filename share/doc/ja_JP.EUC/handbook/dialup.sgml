@@ -1,9 +1,8 @@
+<!-- $Id: dialup.sgml,v 1.7 1997/02/25 04:55:09 hanai Exp $ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.17 -->
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.2 1996/12/01 12:38:41 max Exp $
-     The FreeBSD Japanese Documentation Project
-     Original revision: 1.14
-
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
 

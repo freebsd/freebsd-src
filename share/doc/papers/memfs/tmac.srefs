@@ -142,7 +142,8 @@ in \\f2\\*([B\\f1\c
 .\}
 .el .sp 27p
 .Li 2 30.5P
-\fBReferences\fP
+.NH
+References
 .br
 .if \\n(Ns<2 \{\
 .	nr Ns 1
