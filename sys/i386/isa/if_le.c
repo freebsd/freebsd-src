@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.17 1995/05/30 08:02:22 rgrimes Exp $
+ * $Id: if_le.c,v 1.17.4.1 1995/08/19 23:24:14 davidg Exp $
  */
 
 /*
@@ -374,8 +374,7 @@ le_probe(
 	    return iospace;
 	}
     }
-    printf("%s%d: no board found at 0x%x\n",
-	   sc->le_if.if_name, sc->le_if.if_unit, dvp->id_iobase);
+
     return 0;
 }
 
