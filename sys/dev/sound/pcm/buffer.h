@@ -106,7 +106,6 @@ void sndbuf_updateprevtotal(struct snd_dbuf *b);
 
 int sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count);
 int sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count);
-int sndbuf_uiomove(struct snd_dbuf *b, struct uio *uio, unsigned int count);
 int sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *channel, struct pcm_feeder *feeder, unsigned int count);
 
 u_int32_t sndbuf_getflags(struct snd_dbuf *b);
