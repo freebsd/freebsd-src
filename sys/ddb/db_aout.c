@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.17 1997/02/22 09:28:19 peter Exp $
+ *	$Id: db_aout.c,v 1.18 1997/04/01 14:31:04 bde Exp $
  */
 
 /*
@@ -250,7 +250,7 @@ X_db_line_at_pc(symtab, cursym, filename, linenum, off)
 		fname = NULL;
 	    }
 
-	    if (sp->n_type == N_SO) {
+	    if (sp->n_type == N_SO && *sp->n_un.n_name != '/') {
 		if (sp->n_value <= off && (off - sp->n_value) < sodiff) {
 			sodiff = off - sp->n_value;
 			fname = sp->n_un.n_name;
