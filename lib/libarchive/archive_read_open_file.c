@@ -27,6 +27,7 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#include <sys/stat.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -34,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "archive.h"
+#include "archive_private.h"
 
 struct read_file_data {
 	int	 fd;
@@ -77,6 +79,7 @@ static int
 file_open(struct archive *a, void *client_data)
 {
 	struct read_file_data *mine = client_data;
+	struct stat st;
 
 	mine->buffer = malloc(mine->block_size);
 	if (*mine->filename != 0)
@@ -85,6 +88,14 @@ file_open(struct archive *a, void *client_data)
 		mine->fd = 0;
 	if (mine->fd < 0) {
 		archive_set_error(a, errno, "Failed to open '%s'",
+		    mine->filename);
+		return (ARCHIVE_FATAL);
+	}
+	if (fstat(mine->fd, &st) == 0) {
+		a->skip_file_dev = st.st_dev;
+		a->skip_file_ino = st.st_ino;
+	} else {
+		archive_set_error(a, errno, "Can't stat '%s'",
 		    mine->filename);
 		return (ARCHIVE_FATAL);
 	}
