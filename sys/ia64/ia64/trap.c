@@ -71,6 +71,7 @@
 #endif
 
 extern int unaligned_fixup(struct trapframe *framep, struct thread *td);
+static void ia32_syscall(struct trapframe *framep);
 
 /*
  * EFI-Provided FPSWA interface (Floating Point SoftWare Assist
@@ -248,6 +249,8 @@ printpsr(u_int64_t psr)
 }
 
 struct bitname isr_bits[] = {
+	{IA64_ISR_CODE,	"code"},
+	{IA64_ISR_VECTOR, "vector"},
 	{IA64_ISR_X,	"x"},
 	{IA64_ISR_W,	"w"},
 	{IA64_ISR_R,	"r"},
@@ -651,6 +654,7 @@ trap(int vector, int imm, struct trapframe *framep)
 		ucode = va;
 		i = SIGSEGV;
 		break;
+	}
 
 	case IA64_VEC_SINGLE_STEP_TRAP:
 	case IA64_VEC_DEBUG:
@@ -693,7 +697,83 @@ trap(int vector, int imm, struct trapframe *framep)
 			break;
 		}
 		goto dopanic;
+
+	case IA64_VEC_IA32_EXCEPTION:
+	{
+		u_int64_t isr = framep->tf_cr_isr;
+
+		switch ((isr >> 16) & 0xffff) {
+		case IA32_EXCEPTION_DIVIDE:
+			ucode = FPE_INTDIV;
+			i = SIGFPE;
+			break;
+
+		case IA32_EXCEPTION_DEBUG:
+		case IA32_EXCEPTION_BREAK:
+			i = SIGTRAP;
+			break;
+
+		case IA32_EXCEPTION_OVERFLOW:
+			ucode = FPE_INTOVF;
+			i = SIGFPE;
+			break;
+
+		case IA32_EXCEPTION_BOUND:
+			ucode = FPE_FLTSUB;
+			i = SIGFPE;
+			break;
+
+		case IA32_EXCEPTION_DNA:
+			ucode = 0;
+			i = SIGFPE;
+			break;
+
+		case IA32_EXCEPTION_NOT_PRESENT:
+		case IA32_EXCEPTION_STACK_FAULT:
+		case IA32_EXCEPTION_GPFAULT:
+			ucode = (isr & 0xffff) + BUS_SEGM_FAULT;
+			i = SIGBUS;
+			break;
+
+		case IA32_EXCEPTION_FPERROR:
+			ucode = 0; /* XXX */
+			i = SIGFPE;
+			break;
+			
+		case IA32_EXCEPTION_ALIGNMENT_CHECK:
+			ucode = framep->tf_cr_ifa;	/* VA */
+			i = SIGBUS;
+			break;
+			
+		case IA32_EXCEPTION_STREAMING_SIMD:
+			ucode = 0; /* XXX */
+			i = SIGFPE;
+			break;
+
+		default:
+			goto dopanic;
+		}
+		break;
 	}
+
+	case IA64_VEC_IA32_INTERRUPT:
+		/*
+		 * INT n instruction - probably a syscall.
+		 */
+		if (((framep->tf_cr_isr >> 16) & 0xffff) == 0x80) {
+			ia32_syscall(framep);
+			goto out;
+		} else {
+			ucode = (framep->tf_cr_isr >> 16) & 0xffff;
+			i = SIGILL;
+			break;
+		}
+
+	case IA64_VEC_IA32_INTERCEPT:
+		/*
+		 * Maybe need to emulate ia32 instruction.
+		 */
+		goto dopanic;
 
 	default:
 		goto dopanic;
@@ -863,6 +943,195 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 #ifdef DIAGNOSTIC
 	cred_free_thread(td);
 #endif
+#ifdef WITNESS
+	if (witness_list(td)) {
+		panic("system call %s returning with mutex(s) held\n",
+		    syscallnames[code]);
+	}
+#endif
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	mtx_assert(&Giant, MA_NOTOWNED);
+}
+
+#include <i386/include/psl.h>
+
+extern long fuhword(const void *base);
+
+static void
+ia32_syscall(struct trapframe *framep)
+{
+	caddr_t params;
+	int i;
+	struct sysent *callp;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+	register_t orig_eflags;
+	u_int sticks;
+	int error;
+	int narg;
+	int args[8];
+	int64_t args64[8];
+	u_int code;
+
+	/*
+	 * note: PCPU_LAZY_INC() can only be used if we can afford
+	 * occassional inaccuracy in the count.
+	 */
+	cnt.v_syscall++;
+
+	sticks = td->td_kse->ke_sticks;
+	td->td_frame = framep;
+	if (td->td_ucred != p->p_ucred) 
+		cred_update_thread(td);
+	params = (caddr_t)(framep->tf_r[FRAME_SP] & ((1L<<32)-1))
+		+ sizeof(int);
+	code = framep->tf_r[FRAME_R8]; /* eax */
+	orig_eflags = ia64_get_eflag();
+
+	if (p->p_sysent->sv_prepsyscall) {
+		/*
+		 * The prep code is MP aware.
+		 */
+		(*p->p_sysent->sv_prepsyscall)(framep, args, &code, &params);
+	} else {
+		/*
+		 * Need to check if this is a 32 bit or 64 bit syscall.
+		 * fuword is MP aware.
+		 */
+		if (code == SYS_syscall) {
+			/*
+			 * Code is first argument, followed by actual args.
+			 */
+			code = fuhword(params);
+			params += sizeof(int);
+		} else if (code == SYS___syscall) {
+			/*
+			 * Like syscall, but code is a quad, so as to maintain
+			 * quad alignment for the rest of the arguments.
+			 */
+			code = fuword(params);
+			params += sizeof(quad_t);
+		}
+	}
+
+ 	if (p->p_sysent->sv_mask)
+ 		code &= p->p_sysent->sv_mask;
+
+ 	if (code >= p->p_sysent->sv_size)
+ 		callp = &p->p_sysent->sv_table[0];
+  	else
+ 		callp = &p->p_sysent->sv_table[code];
+
+	narg = callp->sy_narg & SYF_ARGMASK;
+
+	/*
+	 * copyin and the ktrsyscall()/ktrsysret() code is MP-aware
+	 */
+	if (params && (i = narg * sizeof(int)) &&
+	    (error = copyin(params, (caddr_t)args, (u_int)i))) {
+#ifdef KTRACE
+		if (KTRPOINT(p, KTR_SYSCALL))
+			ktrsyscall(p->p_tracep, code, narg, args64);
+#endif
+		goto bad;
+	}
+	for (i = 0; i < narg; i++)
+		args64[i] = args[i];
+
+	/*
+	 * Try to run the syscall without Giant if the syscall
+	 * is MP safe.
+	 */
+	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+		mtx_lock(&Giant);
+	}
+
+#ifdef KTRACE
+	/*
+	 * We have to obtain Giant no matter what if 
+	 * we are ktracing
+	 */
+	if (KTRPOINT(p, KTR_SYSCALL)) {
+		ktrsyscall(p->p_tracep, code, narg, args64);
+	}
+#endif
+	td->td_retval[0] = 0;
+	td->td_retval[1] = framep->tf_r[FRAME_R10]; /* edx */
+
+	STOPEVENT(p, S_SCE, narg);
+
+	error = (*callp->sy_call)(td, args64);
+
+	switch (error) {
+	case 0:
+		framep->tf_r[FRAME_R8] = td->td_retval[0]; /* eax */
+		framep->tf_r[FRAME_R10] = td->td_retval[0]; /* edx */
+		ia64_set_eflag(ia64_get_eflag() & ~PSL_C);
+		break;
+
+	case ERESTART:
+		/*
+		 * Reconstruct pc, assuming lcall $X,y is 7 bytes,
+		 * int 0x80 is 2 bytes. XXX Assume int 0x80.
+		 */
+		framep->tf_cr_iip -= 2;
+		break;
+
+	case EJUSTRETURN:
+		break;
+
+	default:
+bad:
+ 		if (p->p_sysent->sv_errsize) {
+ 			if (error >= p->p_sysent->sv_errsize)
+  				error = -1;	/* XXX */
+   			else
+  				error = p->p_sysent->sv_errtbl[error];
+		}
+		framep->tf_r[FRAME_R8] = error;
+		ia64_set_eflag(ia64_get_eflag() | PSL_C);
+		break;
+	}
+
+	/*
+	 * Traced syscall.
+	 */
+	if ((orig_eflags & PSL_T) && !(orig_eflags & PSL_VM)) {
+		ia64_set_eflag(ia64_get_eflag() & ~PSL_T);
+		trapsignal(p, SIGTRAP, 0);
+	}
+
+	/*
+	 * Handle reschedule and other end-of-syscall issues
+	 */
+	userret(td, framep, sticks);
+
+#ifdef KTRACE
+	if (KTRPOINT(p, KTR_SYSRET)) {
+		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
+	}
+#endif
+
+	/*
+	 * Release Giant if we previously set it.  Do not
+	 * release based on mtx_owned() - we want to catch
+	 * broken syscalls.
+	 */
+	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+		mtx_unlock(&Giant);
+	}
+
+	/*
+	 * This works because errno is findable through the
+	 * register set.  If we ever support an emulation where this
+	 * is not the case, this code will need to be revisited.
+	 */
+	STOPEVENT(p, S_SCX, code);
+
+#ifdef DIAGNOSTIC
+	cred_free_thread(td);
+#endif
+
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
