@@ -1359,7 +1359,7 @@ ip_fw_ctl(struct sockopt *sopt)
 		for (fcp = LIST_FIRST(&ip_fw_chain), bp = buf; fcp;
 		     fcp = LIST_NEXT(fcp, chain)) {
 			bcopy(fcp->rule, bp, sizeof *fcp->rule);
-			bp->pipe_ptr = (intptr_t)
+			bp->pipe_ptr = (void *)(intptr_t)
 			    ((struct ip_fw_ext *)fcp->rule)->dont_match_prob;
 			bp++;
 		}
