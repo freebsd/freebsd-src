@@ -529,7 +529,9 @@ makejob(union node *node __unused, int nprocs)
 			INTOFF;
 			if (njobs == 0) {
 				jobtab = ckmalloc(4 * sizeof jobtab[0]);
+#if JOBS
 				jobmru = NULL;
+#endif
 			} else {
 				jp = ckmalloc((njobs + 4) * sizeof jobtab[0]);
 				memcpy(jp, jobtab, njobs * sizeof jp[0]);
