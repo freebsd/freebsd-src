@@ -41,6 +41,7 @@
 #include <sys/rman.h>
 
 #include <dev/aac/aacreg.h>
+#include <dev/aac/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
 
 /*
@@ -187,13 +188,15 @@ aac_disk_strategy(struct bio *bp)
  * Handle completion of an I/O request.
  */
 void
-aac_complete_bio(struct bio *bp)
+aac_biodone(struct bio *bp)
 {
     struct aac_disk	*sc = (struct aac_disk *)bp->bio_dev->si_drv1;
 
     debug_called(4);
 
     devstat_end_transaction_bio(&sc->ad_stats, bp);
+    if (bp->bio_flags & BIO_ERROR)	
+	diskerr(bp, (char *)bp->bio_driver1, 0, &sc->ad_label);
     biodone(bp);
 }
 
@@ -226,7 +229,7 @@ aac_disk_attach(device_t dev)
     sc->ad_container = device_get_ivars(dev);
     sc->ad_dev = dev;
 
-    /* require that extended translation be enabled  XXX document! */
+    /* require that extended translation be enabled - other drivers read the disk! */
     sc->ad_size = sc->ad_container->co_mntobj.Capacity;
     if (sc->ad_size >= (2 * 1024 * 1024)) {		/* 2GB */
 	sc->ad_heads = 255;

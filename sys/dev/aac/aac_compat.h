@@ -60,5 +60,5 @@
 
 #else					/* new bio style */
 # include <sys/bio.h>
-#define BIO_IS_READ(x)				((x)->bio_cmd == BIO_READ)
+# define BIO_IS_READ(x)				((x)->bio_cmd == BIO_READ)
 #endif

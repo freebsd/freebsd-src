@@ -489,7 +489,7 @@ struct aac_adapter_info {
     u_int32_t		TotalMem;        /* adapter Total Memory */
     struct FsaRevision	KernelRevision;  /* adapter Kernel Software Revision */
     struct FsaRevision	MonitorRevision; /* adapter Monitor/Diagnostic Software Revision */
-    struct FsaRevision	HardwareRevision;/* TDB */
+    struct FsaRevision	HardwareRevision;/* TBD */
     struct FsaRevision	BIOSRevision;    /* adapter BIOS Revision */
     u_int32_t		ClusteringEnabled;
     u_int32_t		ClusterChannelMask;

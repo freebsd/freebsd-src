@@ -28,6 +28,31 @@
  *	$FreeBSD$
  */
 
+/*
+ * Command queue statistics
+ */
+#define AACQ_FREE	0
+#define AACQ_BIO	1
+#define AACQ_READY	2
+#define AACQ_BUSY	3
+#define AACQ_COMPLETE	4
+#define AACQ_COUNT	5	/* total number of queues */
+
+struct aac_qstat {
+    u_int32_t	q_length;
+    u_int32_t	q_max;
+};
+
+/*
+ * Statistics request
+ */
+union aac_statrequest {
+    u_int32_t		as_item;
+    struct aac_qstat	as_qstat;
+};
+
+#define AACIO_STATS		_IOWR('T', 101, union aac_statrequest)
+
 #ifdef AAC_COMPAT_LINUX
 
 /*
