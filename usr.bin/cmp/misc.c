@@ -62,7 +62,7 @@ diffmsg(file1, file2, byte, line)
 	off_t byte, line;
 {
 	if (!sflag)
-		(void)printf("%s %s differ: char %qd, line %qd\n",
-		    file1, file2, byte, line);
+		(void)printf("%s %s differ: char %lld, line %lld\n",
+		    file1, file2, (long long)byte, (long long)line);
 	exit(DIFF_EXIT);
 }
