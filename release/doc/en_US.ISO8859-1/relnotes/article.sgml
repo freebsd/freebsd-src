@@ -338,9 +338,9 @@
       <para>The 802.11 support layer has been rewritten to allow for
 	future growth and new features.</para>
 
-      <para>The xe driver now supports CE2, CEM28, 
+      <para>The &man.xe.4; driver now supports CE2, CEM28, 
         and CEM33 cards, and &man.multicast.4; datagram.  Also several
-        bugs in the driver has been fixed.</para>
+        bugs in the driver have been fixed.</para>
 
       <para>A number of network drivers have had their interrupt
 	handlers marked as MPSAFE, meaning they can run without
@@ -396,7 +396,7 @@
       <itemizedlist>
         <listitem>
           <para><application>libsdp</application> has been re-implemented
-            under BSD style license.  This is because the Linux BlueZ's code is
+            under BSD style license.  This is because the Linux BlueZ code is
             distributed under GPL.</para>
         </listitem>
 
@@ -411,9 +411,9 @@
         </listitem>
 
         <listitem>
-          <para>A netgraph timeouts problem in &man.ng.hci.4; and
+          <para>A netgraph timeout problem in &man.ng.hci.4; and
             &man.ng.l2cap.4; kernel modules, which could cause
-            access to data structure that was already freed,
+            access to a data structure that was already freed,
             has been fixed.</para>
         </listitem>
 
@@ -424,13 +424,13 @@
 
         <listitem>
           <para>&man.rfcomm.sppd.1; and &man.rfcomm.pppd.8; now support
-            to query RFCOMM channel via SDP from the server.  Specifying
-            RFCOMM channel manually, this behavior can be disabled and
+            to query the RFCOMM channel via SDP from the server.  Specifying
+            the RFCOMM channel manually, this behavior can be disabled and
             these utilities will not use SDP query.</para>
         </listitem>
 
         <listitem>
-          <para>&man.sdpcontrol.8; utility, which is analogous to sdptool utility in
+          <para>&man.sdpcontrol.8; utility, which is analogous to the sdptool utility in
             the Linux BlueZ SDP package, has been added.</para>
         </listitem>
       </itemizedlist>
