@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.16 1995/12/07 10:33:25 peter Exp $
+ * $Id: tst01.c,v 1.17 1996/03/24 18:55:39 joerg Exp $
  *
  */
 
@@ -77,8 +77,8 @@ scan_block(int fd, daddr_t block)
 {
 	u_char foo[512];
 
-	if (-1 == lseek(fd,block * 512,SEEK_SET))
-		err(1,"lseek");
+	if (-1 == lseek(fd, (off_t)block * 512, SEEK_SET))
+		err(1, "lseek");
 	if (512 != read(fd,foo, 512))
 		return 1;
 	return 0;
