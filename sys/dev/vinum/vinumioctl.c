@@ -289,6 +289,24 @@ vinum_super_ioctl(dev_t dev,
 	    error = EINVAL;				    /* release what config? */
 	return error;
 
+    case VINUM_READCONFIG:
+	error = lock_config();				    /* get the config for us alone */
+	if (error)					    /* can't do it, */
+	    return error;				    /* give up */
+	if (((char *) data)[0] == '\0')
+	    ioctl_reply->error = vinum_scandisk(NULL);	    /* built your own list */
+	else
+	    ioctl_reply->error = vinum_scandisk((char *) data);
+	if (ioctl_reply->error == ENOENT) {
+	    if (vinum_conf.drives_used > 0)
+		strcpy(ioctl_reply->msg, "no additional drives found");
+	    else
+		strcpy(ioctl_reply->msg, "no drives found");
+	} else if (ioctl_reply->error)
+	    strcpy(ioctl_reply->msg, "can't read configuration information, see log file");
+	unlock_config();
+	return 0;					    /* must be 0 to return the real error info */
+
     case VINUM_INIT:
 	ioctl_reply = (struct _ioctl_reply *) data;	    /* reinstate the address to reply to */
 	ioctl_reply->error = 0;
