@@ -140,6 +140,7 @@ MLINKS+=	archive_read.3 archive_read_support_compression_gzip.3
 MLINKS+=	archive_read.3 archive_read_support_compression_none.3
 MLINKS+=	archive_read.3 archive_read_support_format_all.3
 MLINKS+=	archive_read.3 archive_read_support_format_cpio.3
+MLINKS+=	archive_read.3 archive_read_support_format_iso9660.3
 MLINKS+=	archive_read.3 archive_read_support_format_tar.3
 MLINKS+=	archive_util.3 archive_compression.3
 MLINKS+=	archive_util.3 archive_compression_name.3
