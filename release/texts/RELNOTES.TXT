@@ -20,7 +20,7 @@ For the latest of these 4.0-current snapshots, you should always see:
 
         ftp://current.freebsd.org/pub/FreeBSD
 
-If you wish to get the latest post-3.0-RELEASE technology.
+If you wish to get the latest post-3.x-RELEASE technology.
 
 Table of contents:
 ------------------
