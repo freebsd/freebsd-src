@@ -888,9 +888,8 @@ readrest:
  *	Wire down a range of virtual addresses in a map.
  */
 int
-vm_fault_wire(map, start, end)
-	vm_map_t map;
-	vm_offset_t start, end;
+vm_fault_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
+    boolean_t user_wire, boolean_t fictitious)
 {
 
 	register vm_offset_t va;
@@ -912,58 +911,17 @@ vm_fault_wire(map, start, end)
 	 */
 
 	for (va = start; va < end; va += PAGE_SIZE) {
-		rv = vm_fault(map, va, VM_PROT_READ|VM_PROT_WRITE,
-			VM_FAULT_CHANGE_WIRING);
+		rv = vm_fault(map, va,
+		    user_wire ? VM_PROT_READ : VM_PROT_READ | VM_PROT_WRITE,
+		    user_wire ? VM_FAULT_USER_WIRE : VM_FAULT_CHANGE_WIRING);
 		if (rv) {
 			if (va != start)
-				vm_fault_unwire(map, start, va);
+				vm_fault_unwire(map, start, va, fictitious);
 			return (rv);
 		}
 	}
 	return (KERN_SUCCESS);
 }
-
-/*
- *	vm_fault_user_wire:
- *
- *	Wire down a range of virtual addresses in a map.  This
- *	is for user mode though, so we only ask for read access
- *	on currently read only sections.
- */
-int
-vm_fault_user_wire(map, start, end)
-	vm_map_t map;
-	vm_offset_t start, end;
-{
-
-	register vm_offset_t va;
-	register pmap_t pmap;
-	int rv;
-
-	pmap = vm_map_pmap(map);
-
-	/*
-	 * Inform the physical mapping system that the range of addresses may
-	 * not fault, so that page tables and such can be locked down as well.
-	 */
-
-	pmap_pageable(pmap, start, end, FALSE);
-
-	/*
-	 * We simulate a fault to get the page and enter it in the physical
-	 * map.
-	 */
-	for (va = start; va < end; va += PAGE_SIZE) {
-		rv = vm_fault(map, va, VM_PROT_READ, VM_FAULT_USER_WIRE);
-		if (rv) {
-			if (va != start)
-				vm_fault_unwire(map, start, va);
-			return (rv);
-		}
-	}
-	return (KERN_SUCCESS);
-}
-
 
 /*
  *	vm_fault_unwire:
@@ -971,9 +929,8 @@ vm_fault_user_wire(map, start, end)
  *	Unwire a range of virtual addresses in a map.
  */
 void
-vm_fault_unwire(map, start, end)
-	vm_map_t map;
-	vm_offset_t start, end;
+vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
+    boolean_t fictitious)
 {
 
 	vm_offset_t va;
@@ -991,7 +948,8 @@ vm_fault_unwire(map, start, end)
 		pa = pmap_extract(pmap, va);
 		if (pa != 0) {
 			pmap_change_wiring(pmap, va, FALSE);
-			vm_page_unwire(PHYS_TO_VM_PAGE(pa), 1);
+			if (!fictitious)
+				vm_page_unwire(PHYS_TO_VM_PAGE(pa), 1);
 		}
 	}
 

@@ -1225,6 +1225,8 @@ vm_page_wire(vm_page_t m)
 {
 	int s;
 
+	if (m->flags & PG_FICTITIOUS)
+		return;
 	/*
 	 * Only bump the wire statistics if the page is not already wired,
 	 * and only unqueue the page if it is on some queue (if it is unmanaged
@@ -1277,6 +1279,8 @@ vm_page_unwire(vm_page_t m, int activate)
 {
 	int s;
 
+	if (m->flags & PG_FICTITIOUS)
+		return;
 	s = splvm();
 
 	if (m->wire_count > 0) {
