@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.4 1995/10/20 21:57:16 jkh Exp $
+ * $Id: installPreconfig.c,v 1.5 1995/10/22 01:32:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,6 +68,8 @@ static struct _word {
     { "distSetDeveloper",	distSetDeveloper	},
     { "distSetXDeveloper",	distSetXDeveloper	},
     { "distSetKernDeveloper",	distSetKernDeveloper	},
+    { "distSetUser",		distSetUser		},
+    { "distSetXUser",		distSetXUser		},
     { "distSetMinimum",		distSetMinimum		},
     { "distSetEverything",	distSetEverything	},
     { "distSetDES",		distSetDES		},
