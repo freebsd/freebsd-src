@@ -10,11 +10,11 @@
 # This makefile is constructed from a machine description:
 #	config machineid
 # Most changes should be made in the machine description
-#	/sys/i386/conf/``machineid''
+#	/sys/pc98/conf/``machineid''
 # after which you should do
 #	 config machineid
 # Generic makefile changes should be made in
-#	/sys/i386/conf/Makefile.i386
+#	/sys/conf/Makefile.pc98
 # after which config should be rerun for all machines.
 #
 
