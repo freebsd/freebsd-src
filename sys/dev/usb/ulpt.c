@@ -63,8 +63,6 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
-#include <dev/usb/usbdevs.h>
-#include <dev/usb/usb_quirks.h>
 
 #define	TIMEOUT		hz*16	/* wait up to 16 seconds for a ready */
 #define	STEP		hz/4
@@ -144,14 +142,14 @@ Static struct cdevsw ulpt_cdevsw = {
 };
 #endif
 
-void ulpt_disco __P((void *));
+void ulpt_disco(void *);
 
-int ulpt_do_write __P((struct ulpt_softc *, struct uio *uio, int));
-int ulpt_status __P((struct ulpt_softc *));
-void ulpt_reset __P((struct ulpt_softc *));
-int ulpt_statusmsg __P((u_char, struct ulpt_softc *));
+int ulpt_do_write(struct ulpt_softc *, struct uio *uio, int);
+int ulpt_status(struct ulpt_softc *);
+void ulpt_reset(struct ulpt_softc *);
+int ulpt_statusmsg(u_char, struct ulpt_softc *);
 
-void ieee1284_print_id __P((char *));
+void ieee1284_print_id(char *);
 
 #define	ULPTUNIT(s)	(minor(s) & 0x1f)
 #define	ULPTFLAGS(s)	(minor(s) & 0xe0)
