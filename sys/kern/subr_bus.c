@@ -2187,7 +2187,7 @@ device_probe_and_attach(device_t dev)
 		return (0);
 
 	if (!(dev->flags & DF_ENABLED)) {
-		if (bootverbose) {
+		if (bootverbose && device_get_name(dev) != NULL) {
 			device_print_prettyname(dev);
 			printf("not probed (disabled)\n");
 		}
