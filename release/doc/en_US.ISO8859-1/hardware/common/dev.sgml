@@ -737,41 +737,7 @@
     (&man.fe.4; driver)</para>
 
     <para arch="i386,pc98,alpha,ia64,sparc64,amd64">Intel 82557-, 82258-, 82559-, 82550-
-    or 82562-based Fast Ethernet NICs (&man.fxp.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Intel EtherExpress Pro/100B PCI Fast Ethernet</para>
-        </listitem>
-        <listitem arch="i386,alpha,ia64,amd64">
-	  <para>Intel InBusiness 10/100 PCI Network Adapter</para>
-        </listitem>
-        <listitem>
-	  <para>Intel PRO/100+ Management Adapter</para>
-        </listitem>
-        <listitem>
-          <para>Intel Pro/100 VE Desktop Adapter</para>
-        </listitem>
-        <listitem>
-          <para>Intel Pro/100 M Desktop Adapter</para>
-        </listitem>
-        <listitem>
-          <para>Intel Pro/100 S Desktop, Server and Dual-Port Server Adapters</para>
-        </listitem>
-        <listitem arch="i386,ia64,amd64">
-          <para>On-board Ethernet NICs on many Intel motherboards.</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>NEC PC-9821Ra20, Rv20, Xv13, Xv20 internal 100Base-TX
-          (PCI)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>NEC PC-9821X-B06 (PCI)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Contec C-NET(PI)-100TX (PCI)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      or 82562-based Fast Ethernet NICs (&man.fxp.4; driver)</para>
 
     <para arch="i386,amd64">Intel 82595-based Ethernet NICs (&man.ex.4; driver)
     </para>
