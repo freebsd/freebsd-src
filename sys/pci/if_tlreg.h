@@ -49,8 +49,8 @@ struct tl_type {
  */
 
 #define TL_MAXFRAGS		10
-#define TL_RX_LIST_CNT		20
-#define TL_TX_LIST_CNT		20
+#define TL_RX_LIST_CNT		64
+#define TL_TX_LIST_CNT		128
 #define TL_MIN_FRAMELEN		64
 
 struct tl_frag {
@@ -120,7 +120,6 @@ struct tl_softc {
 	struct tl_type		*tl_dinfo;	/* ThunderLAN adapter info */
 	u_int8_t		tl_unit;	/* interface number */
 	u_int8_t		tl_eeaddr;
-	caddr_t			tl_ldata_ptr;
 	struct tl_list_data	*tl_ldata;	/* TX/RX lists and mbufs */
 	struct tl_chain_data	tl_cdata;
 	u_int8_t		tl_txeoc;
@@ -457,6 +456,34 @@ struct tl_stats {
 #define TL_AC_MTXD1		0x02	/* 0 == 10baseT 1 == AUI */
 #define TL_AC_MTXD2		0x04	/* loopback disable */
 #define TL_AC_MTXD3		0x08	/* full duplex disable */
+
+#define TL_AC_TXTHRESH		0xF0
+#define TL_AC_TXTHRESH_16LONG	0x00
+#define TL_AC_TXTHRESH_32LONG	0x10
+#define TL_AC_TXTHRESH_64LONG	0x20
+#define TL_AC_TXTHRESH_128LONG	0x30
+#define TL_AC_TXTHRESH_256LONG	0x40
+#define TL_AC_TXTHRESH_WHOLEPKT	0x50
+
+/*
+ * PCI burst size register (TL_BSIZEREG).
+ */
+#define TL_RXBURST		0x0F
+#define TL_TXBURST		0xF0
+
+#define TL_RXBURST_4LONG	0x00
+#define TL_RXBURST_8LONG	0x01
+#define TL_RXBURST_16LONG	0x02
+#define TL_RXBURST_32LONG	0x03
+#define TL_RXBURST_64LONG	0x04
+#define TL_RXBURST_128LONG	0x05
+
+#define TL_TXBURST_4LONG	0x00
+#define TL_TXBURST_8LONG	0x10
+#define TL_TXBURST_16LONG	0x20
+#define TL_TXBURST_32LONG	0x30
+#define TL_TXBURST_64LONG	0x40
+#define TL_TXBURST_128LONG	0x50
 
 /*
  * register space access macros
