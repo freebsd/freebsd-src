@@ -14,7 +14,7 @@ INCS=	mmintrin.h
 INCS=	ppc-asm.h altivec.h spe.h
 .endif
 
-NOOBJ=
+NO_OBJ=
 
 .include <bsd.init.mk>
 .include <bsd.incs.mk>

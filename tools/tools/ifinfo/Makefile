@@ -2,6 +2,6 @@
 
 PROG=	ifinfo
 SRCS=	ifinfo.c rfc1650.c
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

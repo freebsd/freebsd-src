@@ -67,7 +67,7 @@
 # $FreeBSD$
 #
 PROG=	testcdev
-NOMAN=
+NO_MAN=
 
 MODSTAT= /sbin/kldstat
 

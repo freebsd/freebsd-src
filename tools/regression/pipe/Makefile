@@ -4,7 +4,7 @@
 # "make" then "make regress".
 #
 PROG=	bigpipetest
-NOMAN=
+NO_MAN=
 
 regress:
 	@if ./bigpipetest; then \

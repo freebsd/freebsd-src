@@ -2,7 +2,7 @@
 
 PROG=	crt0.o
 INTERNALPROG=
-NOMAN=
+NO_MAN=
 SRCS=	btxcsu.s btxsys.s btxv86.s
 LDFLAGS=-Wl,-r
 

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	asn1_compile
-NOMAN=
+NO_MAN=
 
 SRCS=	gen.c \
 	gen_copy.c \

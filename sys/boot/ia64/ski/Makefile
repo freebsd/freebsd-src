@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		skiload
-NOMAN=
+NO_MAN=
 NEWVERSWHAT=	"ia64 SKI boot" ${MACHINE_ARCH}
 STRIP=		# We must not strip skiload at install time.
 

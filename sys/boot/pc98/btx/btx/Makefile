@@ -2,7 +2,7 @@
 
 PROG=	btx
 INTERNALPROG=
-NOMAN=
+NO_MAN=
 SRCS=	btx.S
 
 CFLAGS+=-DPC98

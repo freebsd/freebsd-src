@@ -2,7 +2,7 @@
 
 PROG=	gdbtui${GDB_SUFFIX}
 SRCS=	tui-main.c
-NOMAN=
+NO_MAN=
 
 BULIBS= ${OBJ_BU}/libbfd/libbfd.a ${OBJ_BU}/libopcodes/libopcodes.a \
 	${OBJ_BU}/libiberty/libiberty.a

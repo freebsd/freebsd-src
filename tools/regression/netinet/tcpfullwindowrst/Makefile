@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG=	tcpfullwindowrsttest
-NOMAN=	noman
+NO_MAN=	noman
 
 .include <bsd.prog.mk>

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ppsapitest
-NOMAN=
+NO_MAN=
 
 WARNS?=	5
 

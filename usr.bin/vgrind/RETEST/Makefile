@@ -4,7 +4,7 @@
 PROG=	retest
 SRCS=	regexp.c retest.c
 .PATH:	${.CURDIR}/..
-NOMAN=
+NO_MAN=
 
 install:
 

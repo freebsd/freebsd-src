@@ -2,7 +2,7 @@
 
 PROG=	infokey
 SRCS=	infokey.c key.c
-NOMAN=
+NO_MAN=
 
 DPADD=	${LIBTXI}
 LDADD=	${LIBTXI}

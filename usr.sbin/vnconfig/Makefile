@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG=	vnconfig
-NOMAN=	# mdconfig supplies manpage
+NO_MAN=	# mdconfig supplies manpage
 
 .include <bsd.prog.mk>

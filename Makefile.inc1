@@ -8,7 +8,7 @@
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
 #	-DNOCRYPT will prevent building of crypt versions
-#	-DNOMAN do not build the manual pages
+#	-DNO_MAN do not build the manual pages
 #	-DNOPROFILE do not build profiled libraries
 #	-DNOGAMES do not go into games subdir
 #	-DNOSHARE do not go into share subdir
@@ -182,7 +182,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
-		-DNOHTML -DNOINFO -DNOLINT -DNOMAN -DNOPIC -DNOPROFILE \
+		-DNOHTML -DNOINFO -DNOLINT -DNO_MAN -DNOPIC -DNOPROFILE \
 		-DNOSHARED -DNO_CPU_CFLAGS -DNO_WARNS
 
 # build-tools stage
@@ -231,7 +231,7 @@ LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		SHLIBDIR=/usr/lib32
 
 LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
-		-DNO_BIND -DNOMAN -DNODOC -DNOINFO -DNOHTML \
+		-DNO_BIND -DNO_MAN -DNODOC -DNOINFO -DNOHTML \
 		CC="cc ${LIB32CC}" \
 		CXX="c++ ${LIB32CXX}" \
 		OBJC="cc ${LIB32OBJC}" \
@@ -364,7 +364,7 @@ _libraries:
 	@echo ">>> stage 4.2: building libraries"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
-	    ${WMAKE} -DNOFSCHG -DNOHTML -DNOINFO -DNOLINT -DNOMAN -DNOPROFILE \
+	    ${WMAKE} -DNOFSCHG -DNOHTML -DNOINFO -DNOLINT -DNO_MAN -DNOPROFILE \
 	    libraries
 _depend:
 	@echo

@@ -213,7 +213,7 @@ CANONICALOBJDIR:= ${MAKEOBJDIRPREFIX}${.CURDIR}
 CANONICALOBJDIR:= /usr/obj${.CURDIR}
 .endif
 
-NOMAN=
+NO_MAN=
 CLEANFILES+= $(CONF) *.o *.lo *.c *.mk *.cache *.a *.h
 
 # Program names and their aliases contribute hardlinks to 'rescue' executable,

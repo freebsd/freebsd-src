@@ -6,6 +6,6 @@
 
 PROG=	collect2
 SRCS=	collect2.c tlink.c version.c
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

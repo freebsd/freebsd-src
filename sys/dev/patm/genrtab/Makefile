@@ -6,7 +6,7 @@
 PROG=	genrtab
 INTERNALPROG=
 WARNS?=	5
-NOMAN=
+NO_MAN=
 DPADD=	${LIBM}
 LDADD=	-lm
 

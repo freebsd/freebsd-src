@@ -4,6 +4,6 @@ BZ2DIR=	${.CURDIR}/../../contrib/bzip2
 .PATH: ${BZ2DIR}
 
 PROG=	bzip2recover
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

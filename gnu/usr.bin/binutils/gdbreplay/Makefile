@@ -10,7 +10,7 @@ GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 .PATH:	${GDBDIR}/gdb
 
 PROG=	gdbreplay
-NOMAN=
+NO_MAN=
 
 SRCS=	gdbreplay.c
 

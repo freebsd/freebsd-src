@@ -3,6 +3,6 @@
 # $FreeBSD$
 
 PROG=	ppilcd
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

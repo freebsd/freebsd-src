@@ -12,7 +12,7 @@ SRCS+=	main.c cp-lang.c c-opts.c call.c class.c cvt.c cxx-pretty-print.c \
 	search.c semantics.c tree.c typeck.c typeck2.c optimize.c 
 
 BINDIR=	/usr/libexec
-NOMAN=
+NO_MAN=
 NOSHARED?=yes
 
 CFLAGS+= -I${GCCDIR}/cp -I.

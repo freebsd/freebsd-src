@@ -5,6 +5,6 @@
 SCRIPTS=	ntptrace
 
 SCRIPTSNAME=	ntptrace
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>
