@@ -238,10 +238,10 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 				     "IO" : "Memory"));
 		break;
 	    }
-	    if ((res->Data.Address32.ResourceType != ACPI_MEMORY_RANGE) ||
-		(res->Data.Address32.ResourceType != ACPI_IO_RANGE)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, 
-				  "ignored Address32 for non-memory, non-I/O\n"));
+	    if (res->Data.Address32.ResourceType != ACPI_MEMORY_RANGE &&
+		res->Data.Address32.ResourceType != ACPI_IO_RANGE) {
+		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
+			"ignored Address32 for non-memory, non-I/O\n"));
 		break;
 	    }
 
@@ -296,10 +296,10 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 				     "IO" : "Memory"));
 		break;
 	    }
-	    if ((res->Data.Address16.ResourceType != ACPI_MEMORY_RANGE) ||
-		(res->Data.Address16.ResourceType != ACPI_IO_RANGE)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, 
-				  "ignored Address16 for non-memory, non-I/O\n"));
+	    if (res->Data.Address16.ResourceType != ACPI_MEMORY_RANGE &&
+		res->Data.Address16.ResourceType != ACPI_IO_RANGE) {
+		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
+			"ignored Address16 for non-memory, non-I/O\n"));
 		break;
 	    }
 
