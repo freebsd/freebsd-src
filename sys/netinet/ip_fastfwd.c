@@ -241,6 +241,10 @@ ip_fastforward(struct mbuf *m)
 		ipstat.ips_badsum++;
 		goto drop;
 	}
+
+	/*
+	 * Remeber that we have checked the IP header and found it valid.
+	 */
 	m->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED | CSUM_IP_VALID);
 
 	ip_len = ntohs(ip->ip_len);
@@ -408,8 +412,9 @@ passin:
 	}
 
 	/*
-	 * Decrement the TTL and incrementally change the checksum.
-	 * Don't bother doing this with hw checksum offloading.
+	 * Decrement the TTL and incrementally change the IP header checksum.
+	 * Don't bother doing this with hw checksum offloading, it's faster
+	 * doing it right here.
 	 */
 	ip->ip_ttl -= IPTTLDEC;
 	if (ip->ip_sum >= (u_int16_t) ~htons(IPTTLDEC << 8))
@@ -462,7 +467,7 @@ passin:
 #ifndef IPFIREWALL_FORWARD
 		if (in_localip(dest)) {
 #else
-		if (in_localip(dest) || m->m_flags & M_FASTFWD_OURS) {
+		if (m->m_flags & M_FASTFWD_OURS || in_localip(dest)) {
 #endif /* IPFIREWALL_FORWARD */
 forwardlocal:
 			/*
