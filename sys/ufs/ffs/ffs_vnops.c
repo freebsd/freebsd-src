@@ -386,13 +386,17 @@ ffs_read(ap)
 	} else if (vp->v_type != VREG && vp->v_type != VDIR)
 		panic("ffs_read: type %d",  vp->v_type);
 #endif
-	fs = ip->i_fs;
-	if ((u_int64_t)uio->uio_offset > fs->fs_maxfilesize)
-		return (EFBIG);
-
 	orig_resid = uio->uio_resid;
-	if (orig_resid <= 0)
+	if (orig_resid == 0)
 		return (0);
+	fs = ip->i_fs;
+	/*
+	 * The caller is supposed to check if
+	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
+	 */
+	if (uio->uio_offset < ip->i_size &&
+	    uio->uio_offset >= fs->fs_maxfilesize)
+		return (EOVERFLOW);
 
 	object = vp->v_object;
 
@@ -641,8 +645,11 @@ ffs_write(ap)
 	}
 
 	fs = ip->i_fs;
-	if (uio->uio_offset < 0 ||
-	    (u_int64_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize) {
+	/*
+	 * The caller is supposed to check if
+	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
+	 */
+	if ((uoff_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize) {
 		if (object) {
 			VM_OBJECT_LOCK(object);
 			vm_object_vndeallocate(object);
