@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.99 1999/05/08 20:28:01 peter Exp $
+ * $Id: pci.c,v 1.100 1999/05/08 21:59:40 dfr Exp $
  *
  */
 
@@ -993,8 +993,6 @@ pci_add_children(device_t dev, int busno)
 #endif
 
 	bzero(&probe, sizeof probe);
-	/* XXX KDM */
-	/* probe.parent = pci_bridgeto(bus); */
 	probe.bus = busno;
 	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
 		int pcifunchigh = 0;
@@ -1022,7 +1020,6 @@ pci_add_children(device_t dev, int busno)
 static int
 pci_new_probe(device_t dev)
 {
-	STAILQ_INIT(&pci_devq);
 	device_set_desc(dev, "PCI bus");
 
 	pci_add_children(dev, device_get_unit(dev));
@@ -1334,7 +1331,7 @@ pci_modevent(module_t mod, int what, void *arg)
 {
 	switch (what) {
 	case MOD_LOAD:
-		/* pci_wrap_old_drivers(); */
+		STAILQ_INIT(&pci_devq);
 		break;
 
 	case MOD_UNLOAD:
