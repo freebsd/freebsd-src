@@ -2012,7 +2012,19 @@
 	  <para>Intel 82371SB (PIIX3)</para>
 	</listitem>
         <listitem>
-	  <para>Intel 82371AB and EB chipsets (PIIX4)</para>
+	  <para>Intel 82371AB and EB (PIIX4)</para>
+	</listitem>
+        <listitem>
+	  <para>Intel 82801AA (ICH)</para>
+	</listitem>
+        <listitem>
+	  <para>Intel 82801AB (ICH0)</para>
+	</listitem>
+        <listitem>
+	  <para>Intel 82801BA/BAM (ICH2)</para>
+	</listitem>
+        <listitem>
+	  <para>Intel 82443MX</para>
 	</listitem>
         <listitem>
 	  <para>NEC uPD 9210</para>
