@@ -86,6 +86,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>
 #include <machine/bus.h>
+#if __FreeBSD_version < 500000
+#include <machine/clock.h>
+#endif
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -336,7 +339,12 @@ axe_setmulti(struct axe_softc *sc)
 	} else
 		rxmode &= ~AXE_RXCMD_ALLMULTI;
 
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+#if __FreeBSD_version >= 500000
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+#else
+	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+#endif
+	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
@@ -450,8 +458,10 @@ USB_ATTACH(axe)
 		}
 	}
 
+#if __FreeBSD_version >= 500000
 	mtx_init(&sc->axe_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
+#endif
 	AXE_LOCK(sc);
 
 	/*
@@ -493,7 +503,9 @@ USB_ATTACH(axe)
 	    axe_ifmedia_upd, axe_ifmedia_sts)) {
 		printf("axe%d: MII without any PHY!\n", sc->axe_unit);
 		AXE_UNLOCK(sc);
+#if __FreeBSD_version >= 500000
 		mtx_destroy(&sc->axe_mtx);
+#endif
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -501,7 +513,11 @@ USB_ATTACH(axe)
 	 * Call MI attach routine.
 	 */
 
+#if __FreeBSD_version >= 500000
 	ether_ifattach(ifp, eaddr);
+#else
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+#endif
 	callout_handle_init(&sc->axe_stat_ch);
 	usb_register_netisr();
 
@@ -524,7 +540,11 @@ axe_detach(device_ptr_t dev)
 
 	sc->axe_dying = 1;
 	untimeout(axe_tick, sc, sc->axe_stat_ch);
+#if __FreeBSD_version >= 500000
 	ether_ifdetach(ifp);
+#else
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+#endif
 
 	if (sc->axe_ep[AXE_ENDPT_TX] != NULL)
 		usbd_abort_pipe(sc->axe_ep[AXE_ENDPT_TX]);
@@ -534,7 +554,9 @@ axe_detach(device_ptr_t dev)
 		usbd_abort_pipe(sc->axe_ep[AXE_ENDPT_INTR]);
 
 	AXE_UNLOCK(sc);
+#if __FreeBSD_version >= 500000
 	mtx_destroy(&sc->axe_mtx);
+#endif
 
 	return(0);
 }
