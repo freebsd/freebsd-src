@@ -220,7 +220,6 @@ vm_map_modflags(vm_map_t map, vm_flags_t set, vm_flags_t clear)
 struct vmspace {
 	struct vm_map vm_map;	/* VM address map */
 	struct pmap vm_pmap;	/* private physical map */
-	int vm_refcnt;		/* number of references */
 	struct shmmap_state *vm_shm;	/* SYS5 shared memory private data XXX */
 /* we copy between vm_startcopy and vm_endcopy on fork */
 #define vm_startcopy vm_swrss
@@ -233,6 +232,7 @@ struct vmspace {
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
 #define	vm_endcopy vm_exitingcnt
 	int	vm_exitingcnt;	/* several processes zombied in exit1  */
+	int	vm_refcnt;	/* number of references */
 };
 
 #ifdef	_KERNEL
