@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.20 1998/02/25 03:55:48 dyson Exp $
+ *	$Id: swap_pager.h,v 1.21 1998/04/29 04:28:02 dyson Exp $
  */
 
 /*
@@ -62,7 +62,7 @@
 struct swblock {
 	unsigned short swb_valid;	/* bitmask for valid pages */
 	unsigned short swb_locked;	/* block locked */
-	daddr_t swb_block[SWB_NPAGES];	/* unfortunately int instead of daddr_t */
+	daddr_t swb_block[SWB_NPAGES];
 };
 typedef struct swblock *sw_blk_t;
 
