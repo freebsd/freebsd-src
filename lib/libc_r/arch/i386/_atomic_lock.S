@@ -19,13 +19,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF  
  * SUCH DAMAGE.    
  *
- * $Id$
+ * $Id: _atomic_lock.S,v 1.1 1998/04/29 09:36:03 jb Exp $
  *
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: _atomic_lock.S,v 1.1 1998/04/29 09:36:03 jb Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -34,22 +34,12 @@
  * Atomicly lock a location with an identifier provided the location
  * is not currently locked.
  *
- * long _atomic_lock(long *, long);
- * eax will contain the return value.
+ * long _atomic_lock(long *);
+ * eax will contain the return value (zero if lock obtained).
  */
 ENTRY(_atomic_lock)
 	movl	4(%esp), %ecx
-	movl	8(%esp), %eax
+	movl	$1, %eax
 	xchg	%eax, (%ecx)
 	ret
 
-/*
- * Unlock a location.
- *
- * long _atomic_unlock(long *);
- */
-ENTRY(_atomic_unlock)
-	movl	4(%esp), %ecx
-	movl	$0, %eax
-	xchg	%eax, (%ecx)
-	ret
