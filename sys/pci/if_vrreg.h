@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vrreg.h,v 1.9 1999/01/10 18:06:10 wpaul Exp $
+ *	$Id: if_vrreg.h,v 1.10 1999/02/23 06:47:52 wpaul Exp $
  */
 
 /*
@@ -439,13 +439,33 @@ struct vr_softc {
  *
  * VIA vendor ID
  */
-#define	VIA_VENDORID		0x1106
+#define	VIA_VENDORID			0x1106
 
 /*
  * VIA Rhine device IDs.
  */
-#define	VIA_DEVICEID_RHINE	0x3043
-#define VIA_DEVICEID_RHINE_II	0x6100
+#define	VIA_DEVICEID_RHINE		0x3043
+#define VIA_DEVICEID_RHINE_II		0x6100
+
+/*
+ * Delta Electronics device ID.
+ */
+#define DELTA_VENDORID			0x1500
+
+/*
+ * Delta device IDs.
+ */
+#define DELTA_DEVICEID_RHINE_II		0x1320
+
+/*
+ * Addtron vendor ID.
+ */
+#define ADDTRON_VENDORID		0x4033
+
+/*
+ * Addtron device IDs.
+ */
+#define ADDTRON_DEVICEID_RHINE_II	0x1320
 
 
 /*
