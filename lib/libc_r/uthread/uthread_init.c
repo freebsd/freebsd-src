@@ -92,7 +92,6 @@ _thread_init(void)
 	int		mib[2];
 	struct clockinfo clockinfo;
 	struct sigaction act;
-	struct sigaltstack alt;
 
 	/* Check if this function has already been called: */
 	if (_thread_initial)
@@ -281,11 +280,15 @@ _thread_init(void)
 		/* Clear the signal queue: */
 		memset(_thread_sigq, 0, sizeof(_thread_sigq));
 
-		/* Create and install an alternate signal stack: */
-		alt.ss_sp = malloc(SIGSTKSZ);	/* recommended stack size */
-		alt.ss_size = SIGSTKSZ;
-		alt.ss_flags = 0;
-		if (_thread_sys_sigaltstack(&alt, NULL) != 0)
+		/*
+		 * Create and install an alternate signal stack of
+		 * the recommended size:
+		 */
+		_thread_sigstack.ss_sp = malloc(SIGSTKSZ);
+		_thread_sigstack.ss_size = SIGSTKSZ;
+		_thread_sigstack.ss_flags = 0;
+		if ((_thread_sigstack.ss_sp == NULL) ||
+		    (_thread_sys_sigaltstack(&_thread_sigstack, NULL) != 0))
 			PANIC("Unable to install alternate signal stack");
 
 		/* Enter a loop to get the existing signal status: */

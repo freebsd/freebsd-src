@@ -71,6 +71,7 @@ thread_run_switch_hook(pthread_t thread_out, pthread_t thread_in);
 
 /* Static variables: */
 static int	last_tick = 0;
+static int	called_from_handler = 0;
 
 /*
  * This is called when a signal handler finishes and wants to
@@ -106,20 +107,8 @@ _thread_kern_sched(ucontext_t *scp)
 
 	/* Check if this function was called from the signal handler: */
 	if (scp != NULL) {
-		/*
-		 * The signal handler should have saved the state of
-		 * the current thread.  Restore the process signal
-		 * mask.
-		 */
-		if (_thread_sys_sigprocmask(SIG_SETMASK,
-		    &_process_sigmask, NULL) != 0)
-			PANIC("Unable to restore process mask after signal");
-		/*
-		 * We're running on the signal stack; just call the
-		 * kernel scheduler directly.
-		 */
+		called_from_handler = 1;
 		DBG_MSG("Entering scheduler due to signal\n");
-		_thread_kern_scheduler();
 	} else {
 		/* Save the state of the current thread: */
 		if (_setjmp(_thread_run->ctx.jb) == 0) {
@@ -162,9 +151,9 @@ _thread_kern_sched(ucontext_t *scp)
 			}
 			return;
 		}
-		/* Switch to the thread scheduler: */
-		___longjmp(_thread_kern_sched_jb, 1);
 	}
+	/* Switch to the thread scheduler: */
+	___longjmp(_thread_kern_sched_jb, 1);
 }
 
 void
@@ -187,6 +176,26 @@ _thread_kern_scheduler(void)
 	/* If the currently running thread is a user thread, save it: */
 	if ((_thread_run->flags & PTHREAD_FLAGS_PRIVATE) == 0)
 		_last_user_thread = _thread_run;
+
+	if (called_from_handler != 0) {
+		called_from_handler = 0;
+
+		/*
+		 * The signal handler should have saved the state of
+		 * the current thread.  Restore the process signal
+		 * mask.
+		 */
+		if (_thread_sys_sigprocmask(SIG_SETMASK,
+		    &_process_sigmask, NULL) != 0)
+			PANIC("Unable to restore process mask after signal");
+
+		/*
+		 * Since the signal handler didn't return normally, we
+		 * have to tell the kernel to reuse the signal stack.
+		 */
+		if (_thread_sys_sigaltstack(&_thread_sigstack, NULL) != 0)
+			PANIC("Unable to restore alternate signal stack");
+	}
 
 	/* Are there pending signals for this thread? */
 	if (_thread_run->check_pending != 0) {
