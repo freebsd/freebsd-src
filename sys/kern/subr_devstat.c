@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_devstat.c,v 1.1 1998/09/15 08:16:09 gibbs Exp $
+ *	$Id: subr_devstat.c,v 1.2 1998/09/20 00:10:39 ken Exp $
  */
 
 #include <sys/param.h>
@@ -178,7 +178,9 @@ devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 		/* Add our busy time to the total busy time. */
 		timevaladd(&ds->busy_time, &busy_time);
 	} else if (ds->busy_count < 0)
-		printf("devstat_end_transaction: HELP!! busy_count is < 0!\n");
+		printf("devstat_end_transaction: HELP!! busy_count "
+		       "for %s%d is < 0 (%d)!\n", ds->device_name,
+		       ds->unit_number, ds->busy_count);
 }
 
 /*
