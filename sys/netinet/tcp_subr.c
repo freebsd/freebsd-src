@@ -412,7 +412,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	int isipv6;
 #endif /* INET6 */
 	int ipflags = 0;
-	struct inpcb *inp = NULL;
+	struct inpcb *inp;
 
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
 
@@ -427,6 +427,10 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 		KASSERT(inp != NULL, ("tcp control block w/o inpcb"));
 		INP_INFO_WLOCK_ASSERT(&tcbinfo);
 		INP_LOCK_ASSERT(inp);
+	} else
+		inp = NULL;
+
+	if (tp != NULL) {
 		if (!(flags & TH_RST)) {
 			win = sbspace(&inp->inp_socket->so_rcv);
 			if (win > (long)TCP_MAXWIN << tp->rcv_scale)
@@ -509,7 +513,8 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 		 * Packet is associated with a socket, so allow the
 		 * label of the response to reflect the socket label.
 		 */
-		mac_create_mbuf_from_socket(inp->inp_socket, m);
+		INP_LOCK_ASSERT(inp);
+		mac_create_mbuf_from_inpcb(inp, m);
 	} else {
 		/*
 		 * Packet is not associated with a socket, so possibly
