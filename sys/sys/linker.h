@@ -74,8 +74,8 @@ struct linker_file {
     int			id;		/* unique id */
     caddr_t		address;	/* load address */
     size_t		size;		/* size of file */
-    int			ndeps;		/* number of dependancies */
-    linker_file_t*	deps;		/* list of dependancies */
+    int			ndeps;		/* number of dependencies */
+    linker_file_t*	deps;		/* list of dependencies */
     STAILQ_HEAD(, common_symbol) common; /* list of common symbols */
     TAILQ_HEAD(, module) modules;	/* modules in this file */
     TAILQ_ENTRY(linker_file) loaded;	/* preload dependency support */
@@ -133,12 +133,12 @@ linker_file_t linker_make_file(const char* _filename, linker_class_t _cls);
 int linker_file_unload(linker_file_t _file);
 
 /*
- * Add a dependancy to a file.
+ * Add a dependency to a file.
  */
-int linker_file_add_dependancy(linker_file_t _file, linker_file_t _dep);
+int linker_file_add_dependency(linker_file_t _file, linker_file_t _dep);
 
 /*
- * Lookup a symbol in a file.  If deps is TRUE, look in dependancies
+ * Lookup a symbol in a file.  If deps is TRUE, look in dependencies
  * if not found in file.
  */
 caddr_t linker_file_lookup_symbol(linker_file_t _file, const char* _name, 
@@ -156,7 +156,7 @@ int linker_file_lookup_set(linker_file_t _file, const char *_name,
  * This routine is responsible for finding dependencies of userland
  * initiated kldload(2)'s of files.
  */
-int linker_load_dependancies(linker_file_t _lf);
+int linker_load_dependencies(linker_file_t _lf);
 
 /*
  * DDB Helpers, tuned specifically for ddb/db_kld.c

@@ -52,7 +52,7 @@ struct moduledir {
 
 static int			file_load(char *filename, vm_offset_t dest, struct preloaded_file **result);
 static int			file_loadraw(char *type, char *name);
-static int			file_load_dependancies(struct preloaded_file *base_mod);
+static int			file_load_dependencies(struct preloaded_file *base_mod);
 static char *			file_search(const char *name, char **extlist);
 static struct kernel_module *	file_findmodule(struct preloaded_file *fp, char *modname, struct mod_depend *verinfo);
 static int			file_havepath(const char *name);
@@ -255,7 +255,7 @@ file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 }
 
 static int
-file_load_dependancies(struct preloaded_file *base_file) {
+file_load_dependencies(struct preloaded_file *base_file) {
     struct file_metadata *md;
     struct preloaded_file *fp;
     struct mod_depend *verinfo;
@@ -443,7 +443,7 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
 	fp->f_args = unargv(argc, argv);
 	loadaddr = fp->f_addr + fp->f_size;
 	file_insert_tail(fp);		/* Add to the list of loaded files */
-	if (file_load_dependancies(fp) != 0) {
+	if (file_load_dependencies(fp) != 0) {
 	    err = ENOENT;
 	    last_file->f_next = NULL;
 	    loadaddr = last_file->f_addr + last_file->f_size;

@@ -738,7 +738,7 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     error = parse_dynamic(ef);
     if (error)
 	goto out;
-    error = linker_load_dependancies(lf);
+    error = linker_load_dependencies(lf);
     if (error)
 	goto out;
 #if 0	/* this will be more trouble than it's worth for now */

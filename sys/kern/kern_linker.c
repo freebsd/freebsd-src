@@ -498,7 +498,7 @@ out:
 }
 
 int
-linker_file_add_dependancy(linker_file_t file, linker_file_t dep)
+linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 {
     linker_file_t* newdeps;
 
@@ -547,7 +547,7 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 	LINKER_SYMBOL_VALUES(file, sym, &symval);
 	if (symval.value == 0)
 	    /*
-	     * For commons, first look them up in the dependancies and
+	     * For commons, first look them up in the dependencies and
 	     * only allocate space if not found there.
 	     */
 	    common_size = symval.size;
@@ -570,7 +570,7 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
     if (common_size > 0) {
 	/*
 	 * This is a common symbol which was not found in the
-	 * dependancies.  We maintain a simple common symbol table in
+	 * dependencies.  We maintain a simple common symbol table in
 	 * the file object.
 	 */
 	struct common_symbol* cp;
@@ -1227,7 +1227,7 @@ restart:
     TAILQ_FOREACH(lf, &depended_files, loaded) {
 	if (linker_kernel_file) {
 	    linker_kernel_file->refs++;
-	    error = linker_file_add_dependancy(lf, linker_kernel_file);
+	    error = linker_file_add_dependency(lf, linker_kernel_file);
 	    if (error)
 		panic("cannot add dependency");
 	}
@@ -1241,7 +1241,7 @@ restart:
 		linker_mdt_depend(lf, mp, &modname, &verinfo);
 		mod = modlist_lookup2(modname, verinfo);
 		mod->container->refs++;
-		error = linker_file_add_dependancy(lf, mod->container);
+		error = linker_file_add_dependency(lf, mod->container);
 		if (error)
 		    panic("cannot add dependency");
 	    }
@@ -1611,7 +1611,7 @@ linker_load_module(const char *kldname, const char *modname,
 	    break;
 	}
 	if (parent) {
-	    error = linker_file_add_dependancy(parent, lfdep);
+	    error = linker_file_add_dependency(parent, lfdep);
 	    if (error)
 		break;
 	}
@@ -1629,7 +1629,7 @@ out:
  * initiated kldload(2)'s of files.
  */
 int
-linker_load_dependancies(linker_file_t lf)
+linker_load_dependencies(linker_file_t lf)
 {
     linker_file_t lfdep;
     struct mod_metadata **start, **stop, **mdp, **nmdp;
@@ -1644,7 +1644,7 @@ linker_load_dependancies(linker_file_t lf)
      */
     if (linker_kernel_file) {
 	linker_kernel_file->refs++;
-	error = linker_file_add_dependancy(lf, linker_kernel_file);
+	error = linker_file_add_dependency(lf, linker_kernel_file);
 	if (error)
 	    return error;
     }
@@ -1684,7 +1684,7 @@ linker_load_dependancies(linker_file_t lf)
 	if (mod) {		/* woohoo, it's loaded already */
 	    lfdep = mod->container;
 	    lfdep->refs++;
-	    error = linker_file_add_dependancy(lf, lfdep);
+	    error = linker_file_add_dependency(lf, lfdep);
 	    if (error)
 		break;
 	    continue;
