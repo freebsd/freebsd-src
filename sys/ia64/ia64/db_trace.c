@@ -99,6 +99,8 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 		db_printsym(ip, DB_STGY_PROC);
 		db_printf("\n");
 	}
+
+	unw_delete(&rs);
 }
 
 void
