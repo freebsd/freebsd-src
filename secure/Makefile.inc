@@ -1,3 +1,3 @@
-#	$Id: Makefile.inc,v 1.1 1994/08/07 19:04:10 wollman Exp $
+#	$Id: Makefile.inc,v 1.2 1994/11/14 20:45:21 phk Exp $
 
-DISTRIBUTION=des
+DISTRIBUTION=secrdist
