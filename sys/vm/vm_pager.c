@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.35 1998/02/23 08:22:40 dyson Exp $
+ * $Id: vm_pager.c,v 1.36 1998/03/07 21:37:21 dyson Exp $
  */
 
 /*
@@ -90,11 +90,85 @@ extern struct pagerops swappagerops;
 extern struct pagerops vnodepagerops;
 extern struct pagerops devicepagerops;
 
+static int dead_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
+static vm_object_t dead_pager_alloc __P((void *, vm_size_t, vm_prot_t,
+	vm_ooffset_t));
+static int dead_pager_putpages __P((vm_object_t, vm_page_t *, int, int, int *));
+static boolean_t dead_pager_haspage __P((vm_object_t, vm_pindex_t, int *, int *));
+static void dead_pager_dealloc __P((vm_object_t));
+
+int
+dead_pager_getpages(obj, ma, count, req)
+	vm_object_t obj;
+	vm_page_t *ma;
+	int count;
+	int req;
+{
+	return VM_PAGER_FAIL;
+}
+
+vm_object_t
+dead_pager_alloc(handle, size, prot, off)
+	void *handle;
+	vm_size_t size;
+	vm_prot_t prot;
+	vm_ooffset_t off;
+{
+	return NULL;
+}
+
+int
+dead_pager_putpages(object, m, count, flags, rtvals)
+	vm_object_t object;
+	vm_page_t *m;
+	int count;
+	int flags;
+	int *rtvals;
+{
+	int i;
+	for (i = 0; i < count; i++) {
+		rtvals[i] = VM_PAGER_AGAIN;
+	}
+	return VM_PAGER_AGAIN;
+}
+
+int
+dead_pager_haspage(object, pindex, prev, next)
+	vm_object_t object;
+	vm_pindex_t pindex;
+	int *prev;
+	int *next;
+{
+	if (prev)
+		*prev = 0;
+	if (next)
+		*next = 0;
+	return FALSE;
+}
+
+void
+dead_pager_dealloc(object)
+	vm_object_t object;
+{
+	return;
+}
+
+struct pagerops deadpagerops = {
+	NULL,
+	dead_pager_alloc,
+	dead_pager_dealloc,
+	dead_pager_getpages,
+	dead_pager_putpages,
+	dead_pager_haspage,
+	NULL
+};
+
 static struct pagerops *pagertab[] = {
 	&defaultpagerops,	/* OBJT_DEFAULT */
 	&swappagerops,		/* OBJT_SWAP */
 	&vnodepagerops,		/* OBJT_VNODE */
 	&devicepagerops,	/* OBJT_DEVICE */
+	&deadpagerops		/* OBJT_DEAD */
 };
 static int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
 
