@@ -311,13 +311,15 @@ vmspace_dofree(struct vmspace *vm)
 void
 vmspace_free(struct vmspace *vm)
 {
-	GIANT_REQUIRED;
+	int refcnt;
 
 	if (vm->vm_refcnt == 0)
 		panic("vmspace_free: attempt to free already freed vmspace");
 
-	--vm->vm_refcnt;
-	if (vm->vm_refcnt == 0 && vm->vm_exitingcnt == 0)
+	do
+		refcnt = vm->vm_refcnt;
+	while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt - 1));
+	if (refcnt == 1 && vm->vm_exitingcnt == 0)
 		vmspace_dofree(vm);
 }
 
@@ -325,8 +327,8 @@ void
 vmspace_exitfree(struct proc *p)
 {
 	struct vmspace *vm;
+	int exitingcnt;
 
-	GIANT_REQUIRED;
 	vm = p->p_vmspace;
 	p->p_vmspace = NULL;
 
@@ -341,8 +343,11 @@ vmspace_exitfree(struct proc *p)
 	 * The last wait on the exiting child's vmspace will clean up
 	 * the remainder of the vmspace.
 	 */
-	--vm->vm_exitingcnt;
-	if (vm->vm_refcnt == 0 && vm->vm_exitingcnt == 0)
+	do
+		exitingcnt = vm->vm_exitingcnt;
+	while (!atomic_cmpset_int(&vm->vm_exitingcnt, exitingcnt,
+	    exitingcnt - 1));
+	if (vm->vm_refcnt == 0 && exitingcnt == 1)
 		vmspace_dofree(vm);
 }
 
