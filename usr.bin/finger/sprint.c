@@ -59,7 +59,7 @@ sflag_print()
 	extern int    oflag;
 	register PERSON *pn;
 	register WHERE *w;
-	register int sflag, r;
+	register int sflag, r, namelen;
 	char p[80];
 	DBT data, key;
 
@@ -80,9 +80,9 @@ sflag_print()
 	 *		remote host
 	 */
 #define	MAXREALNAME	20
-#define	MAXHOSTNAME	18	/* in reality, hosts are not longer than 16 */
-	(void)printf("%-*s %-*s %s  %s\n", UT_NAMESIZE, "Login", MAXREALNAME,
-	    "Name", "TTY   Idle  Login Time",
+#define	MAXHOSTNAME	20	/* in reality, hosts are never longer than 16 */
+	(void)printf("%-*s %-*s%s  %s\n", UT_NAMESIZE, "Login", MAXREALNAME,
+	    "Name", " TTY  Idle  Login Time",
 	    oflag ? " Office     Office Phone" : " Where");
 
 	for (sflag = R_FIRST;; sflag = R_NEXT) {
@@ -94,9 +94,12 @@ sflag_print()
 		pn = *(PERSON **)data.data;
 
 		for (w = pn->whead; w != NULL; w = w->next) {
-			(void)printf("%-*.*s %-*.*s ", UT_NAMESIZE, UT_NAMESIZE,
-			    pn->name, MAXREALNAME, MAXREALNAME,
-			    pn->realname ? pn->realname : "");
+			namelen = MAXREALNAME;
+			if (w->info == LOGGEDIN && !w->writable)
+				--namelen;	/* leave space before `*' */
+			(void)printf("%-*.*s %-*.*s", UT_NAMESIZE, UT_NAMESIZE,
+				pn->name, MAXREALNAME, namelen,
+				pn->realname ? pn->realname : "");
 			if (!w->loginat) {
 				(void)printf("  *     *  No logins   ");
 				goto office;
@@ -133,7 +136,7 @@ office:			if (oflag) {
 			else if (pn->officephone)
 				(void)printf(" %-10.10s", " ");
 			if (pn->officephone)
-				(void)printf(" %-.13s",
+				(void)printf(" %-.15s",
 				    prphone(pn->officephone));
 			} else
 				(void)printf(" %.*s", MAXHOSTNAME, w->host);
