@@ -74,12 +74,12 @@ static void bpack(int8_t *, int8_t *, int);
 static void ata_init(void);
 
 /* global vars */
+MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 struct intr_config_hook *ata_delayed_attach = NULL;
 devclass_t ata_devclass;
 int ata_wc = 1;	 
 
 /* local vars */
-static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 static int ata_dma = 1;
 static int atapi_dma = 0;
 
