@@ -36,8 +36,6 @@
  * $FreeBSD$
  */
 
-#include "eisa.h"
-#if NEISA > 0
 #include "opt_dpt.h"
 
 #include <sys/param.h>
@@ -251,5 +249,3 @@ static driver_t dpt_eisa_driver = {
 static devclass_t dpt_devclass;
 
 DRIVER_MODULE(dpt, eisa, dpt_eisa_driver, dpt_devclass, 0, 0);
-
-#endif /* NEISA > 0 */
