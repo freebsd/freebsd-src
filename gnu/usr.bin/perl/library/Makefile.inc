@@ -18,11 +18,11 @@ all:	lib/auto/${MODULE}.so
 .include "../Makefile.inc"
 
 lib/auto/${MODULE}.so: ext/${MODULEDIR}/Makefile ${DYNALOADER}
-	cd ext/${MODULEDIR}; \
+	@cd ext/${MODULEDIR}; \
 	make -B all PERL_SRC=${.OBJDIR}
 
 ext/${MODULEDIR}/Makefile: scripts
-	cd ext/${MODULEDIR}; \
+	@cd ext/${MODULEDIR}; \
 	${MINIPERL} -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
 		LINKTYPE=dynamic LIBS="-lperl -lm" \
 		INST_LIB=${.OBJDIR}/build/${MODULEDIR} \
@@ -31,13 +31,13 @@ ext/${MODULEDIR}/Makefile: scripts
 
 install:
 	cd ${.OBJDIR}/ext/${MODULEDIR} ;\
-	make -B install \
+	@make -B install \
 		INSTALLPRIVLIB=${DESTDIR}/usr/libdata/perl/${VERSION} \
 		INSTALLARCHLIB=${DESTDIR}/usr/libdata/perl/${VERSION}/mach
 
 distribute:
 	cd ${.OBJDIR}/ext/${MODULEDIR} ;\
-	make -B install DESTDIR=${DISTDIR}/${dist} SHARED=copies \
+	@make -B install DESTDIR=${DISTDIR}/${dist} SHARED=copies \
 		INSTALLPRIVLIB=${DESTDIR}/usr/libdata/perl/${VERSION} \
 		INSTALLARCHLIB=${DESTDIR}/usr/libdata/perl/${VERSION}/mach
 
