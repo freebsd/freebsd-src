@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id$
+ *	$Id: fdc.h,v 1.8 1997/02/22 09:36:10 peter Exp $
  *
  */
 
@@ -54,6 +54,7 @@ struct fdc_data
 #define FDC_HASFTAPE	0x02
 #define FDC_TAPE_BUSY	0x04
 #define FDC_STAT_VALID	0x08
+#define FDC_HAS_FIFO	0x10
 	struct	fd_data *fd;
 	int	fdu;		/* the active drive	*/
 	int	state;
