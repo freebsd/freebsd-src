@@ -87,7 +87,15 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
     /*
      * Now go scan the bus.
      */
+    acpi_pci_link_config(dev, prt, busno);
     return_VALUE(bus_generic_attach(dev));
+}
+
+int
+acpi_pcib_resume(device_t dev, ACPI_BUFFER *prt, int busno)
+{
+    acpi_pci_link_resume(dev, prt, busno);
+    return (bus_generic_resume(dev));
 }
 
 /*

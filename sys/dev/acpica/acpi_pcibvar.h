@@ -33,5 +33,9 @@
 int	acpi_pcib_attach(device_t bus, ACPI_BUFFER *prt, int busno);
 int	acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     ACPI_BUFFER *ptrbuf);
+int	acpi_pcib_resume(device_t bus, ACPI_BUFFER *prt, int busno);
+
+int	acpi_pci_link_config(device_t pcib, ACPI_BUFFER *prt, int busno);
+int	acpi_pci_link_resume(device_t pcib, ACPI_BUFFER *prt, int busno);
 
 #endif
