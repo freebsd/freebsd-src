@@ -1151,8 +1151,10 @@ my_list_rx_init(struct my_softc * sc)
 	for (i = 0; i < MY_RX_LIST_CNT; i++) {
 		cd->my_rx_chain[i].my_ptr =
 		    (struct my_desc *) & ld->my_rx_list[i];
-		if (my_newbuf(sc, &cd->my_rx_chain[i]) == ENOBUFS)
+		if (my_newbuf(sc, &cd->my_rx_chain[i]) == ENOBUFS) {
+			MY_UNLOCK(sc);
 			return (ENOBUFS);
+		}
 		if (i == (MY_RX_LIST_CNT - 1)) {
 			cd->my_rx_chain[i].my_nextdesc = &cd->my_rx_chain[0];
 			ld->my_rx_list[i].my_next = vtophys(&ld->my_rx_list[0]);
