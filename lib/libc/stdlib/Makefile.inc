@@ -8,7 +8,7 @@ MISRCS+=abort.c abs.c atexit.c atof.c atoi.c atol.c bsearch.c calloc.c div.c \
 	exit.c getenv.c getopt.c getsubopt.c heapsort.c labs.c ldiv.c \
 	malloc.c merge.c putenv.c qsort.c radixsort.c rand.c random.c \
 	reallocf.c realpath.c setenv.c strhash.c strtol.c strtoq.c strtoul.c \
-	strtouq.c system.c
+	strtouq.c system.c tdelete.c tfind.c tsearch.c twalk.c
 
 .if ${MACHINE_ARCH} == "alpha"
 #  XXX Temporary until the assumption that a long is 32-bits is resolved
@@ -26,7 +26,7 @@ SRCS+=	strtod.c
 MAN3+=	abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
 	div.3 exit.3 getenv.3 getopt.3 getsubopt.3 labs.3 \
 	ldiv.3 malloc.3 memory.3 qsort.3 radixsort.3 rand.3 random.3 \
-	realpath.3 strtod.3 strtol.3 strtoul.3 system.3
+	realpath.3 strtod.3 strtol.3 strtoul.3 system.3 tsearch.3
 
 MLINKS+=getenv.3 putenv.3 getenv.3 setenv.3 getenv.3 unsetenv.3
 MLINKS+=qsort.3 heapsort.3 qsort.3 mergesort.3
