@@ -33,4 +33,16 @@ $
 1
 # n_sign_posn
 1
+# int_p_cs_precedes
+1
+# int_n_cs_precedes;
+1
+# int_p_sep_by_space;
+0
+# int_n_sep_by_space;
+0
+# int_p_sign_posn;
+1
+# int_n_sign_posn;
+1
 # EOF
