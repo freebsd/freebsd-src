@@ -53,4 +53,4 @@ extern int	key_sendup __P((struct socket *, struct sadb_msg *, u_int,
 				int));
 #endif /* _KERNEL */
 
-#endif _NETKEY_KEYSOCK_H_
+#endif /* _NETKEY_KEYSOCK_H_ */
