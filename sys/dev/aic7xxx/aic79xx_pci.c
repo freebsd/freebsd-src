@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id$
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#73 $
  *
  * $FreeBSD$
  */
@@ -65,28 +65,29 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 }
 
 #define ID_ALL_MASK			0xFFFFFFFFFFFFFFFFull
+#define ID_ALL_IROC_MASK		0xFFFFFF7FFFFFFFFFull
 #define ID_DEV_VENDOR_MASK		0xFFFFFFFF00000000ull
 #define ID_9005_GENERIC_MASK		0xFFF0FFFF00000000ull
+#define ID_9005_GENERIC_IROC_MASK	0xFFF0FF7F00000000ull
 
 #define ID_AIC7901			0x800F9005FFFF9005ull
-#define ID_AIC7901A			0x801E9005FFFF9005ull
-#define ID_AIC7901A_IROC		0x809E9005FFFF9005ull
 #define ID_AHA_29320A			0x8000900500609005ull
+#define ID_AHA_29320ALP			0x8017900500449005ull
+
+#define ID_AIC7901A			0x801E9005FFFF9005ull
+#define ID_AHA_29320			0x8012900500429005ull
+#define ID_AHA_29320B			0x8013900500439005ull
 #define ID_AHA_29320LP			0x8014900500449005ull
-#define ID_AHA_29320LP_IROC		0x8094900500449005ull
 
 #define ID_AIC7902			0x801F9005FFFF9005ull
-#define ID_AIC7902_IROC			0x809F9005FFFF9005ull
 #define ID_AIC7902_B			0x801D9005FFFF9005ull
-#define ID_AIC7902_B_IROC		0x809D9005FFFF9005ull
 #define ID_AHA_39320			0x8010900500409005ull
+#define ID_AHA_39320_B			0x8015900500409005ull
 #define ID_AHA_39320A			0x8016900500409005ull
 #define ID_AHA_39320D			0x8011900500419005ull
 #define ID_AHA_39320D_B			0x801C900500419005ull
 #define ID_AHA_39320D_HP		0x8011900500AC0E11ull
 #define ID_AHA_39320D_B_HP		0x801C900500AC0E11ull
-#define ID_AHA_29320			0x8012900500429005ull
-#define ID_AHA_29320B			0x8013900500439005ull
 #define ID_AIC7902_PCI_REV_A4		0x3
 #define ID_AIC7902_PCI_REV_B0		0x10
 #define SUBID_HP			0x0E11
@@ -113,27 +114,53 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define		SUBID_9005_SEEPTYPE_NONE	0x0
 #define		SUBID_9005_SEEPTYPE_4K		0x1
 
+static ahd_device_setup_t ahd_aic7901_setup;
 static ahd_device_setup_t ahd_aic7901A_setup;
 static ahd_device_setup_t ahd_aic7902_setup;
 
 struct ahd_pci_identity ahd_pci_ident_table [] =
 {
+	/* aic7901 based controllers */
+	{
+		ID_AHA_29320A,
+		ID_ALL_MASK,
+		"Adaptec 29320A Ultra320 SCSI adapter",
+		ahd_aic7901_setup
+	},
+	{
+		ID_AHA_29320ALP,
+		ID_ALL_MASK,
+		"Adaptec 29320ALP Ultra320 SCSI adapter",
+		ahd_aic7901_setup
+	},
 	/* aic7901A based controllers */
+	{
+		ID_AHA_29320,
+		ID_ALL_MASK,
+		"Adaptec 29320 Ultra320 SCSI adapter",
+		ahd_aic7901A_setup
+	},
+	{
+		ID_AHA_29320B,
+		ID_ALL_MASK,
+		"Adaptec 29320B Ultra320 SCSI adapter",
+		ahd_aic7901A_setup
+	},
 	{
 		ID_AHA_29320LP,
 		ID_ALL_MASK,
 		"Adaptec 29320LP Ultra320 SCSI adapter",
 		ahd_aic7901A_setup
 	},
-	{
-		ID_AHA_29320A,
-		ID_ALL_MASK,
-		"Adaptec 29320A Ultra320 SCSI adapter",
-		ahd_aic7901A_setup
-	},
 	/* aic7902 based controllers */	
 	{
 		ID_AHA_39320,
+		ID_ALL_MASK,
+		"Adaptec 39320 Ultra320 SCSI adapter",
+		ahd_aic7902_setup
+	},
+	{
+		ID_AHA_39320_B,
 		ID_ALL_MASK,
 		"Adaptec 39320 Ultra320 SCSI adapter",
 		ahd_aic7902_setup
@@ -181,6 +208,12 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 		ahd_aic7902_setup
 	},
 	/* Generic chip probes for devices we don't know 'exactly' */
+	{
+		ID_AIC7901 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec AIC7901 Ultra320 SCSI adapter",
+		ahd_aic7901_setup
+	},
 	{
 		ID_AIC7901A & ID_DEV_VENDOR_MASK,
 		ID_DEV_VENDOR_MASK,
@@ -865,6 +898,18 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 			     pcix_status, /*bytes*/2);
 	ahd_outb(ahd, CLRINT, CLRSPLTINT);
 	ahd_restore_modes(ahd, saved_modes);
+}
+
+static int
+ahd_aic7901_setup(struct ahd_softc *ahd)
+{
+	int error;
+
+	error = ahd_aic7902_setup(ahd);
+	if (error != 0)
+		return (error);
+	ahd->chip = AHD_AIC7901;
+	return (0);
 }
 
 static int
