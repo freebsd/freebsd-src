@@ -368,9 +368,6 @@ disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * 
 	KASSERT(dp->d_name != NULL, ("disk_create need d_name"));
 	KASSERT(*dp->d_name != 0, ("disk_create need d_name"));
 	KASSERT(strlen(dp->d_name) < SPECNAMELEN - 4, ("disk name too long"));
-	if (bootverbose || 1)
-		printf("GEOM: create disk %s%d dp=%p\n",
-		    dp->d_name, dp->d_unit, dp);
 	if (dp->d_devstat == NULL)
 		dp->d_devstat = devstat_new_entry(dp->d_name, dp->d_unit,
 		    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
@@ -384,9 +381,6 @@ disk_destroy(struct disk *dp)
 {
 	struct g_geom *gp;
 
-	if (bootverbose || 1)
-		printf("GEOM: destroy disk %s%d dp=%p\n",
-		    dp->d_name, dp->d_unit, dp);
 	g_cancel_event(dp);
 	gp = dp->d_geom;
 	if (gp == NULL)
