@@ -134,6 +134,7 @@ int type;
 			if (*(nlspath + 1) == 'L') {
 			    ++nlspath;
 			    if (strlcpy(pathP, lang, spcleft) >= spcleft) {
+				free(base);
 				errno = ENAMETOOLONG;
 				return(NLERR);
 			    }
@@ -141,6 +142,7 @@ int type;
 			} else if (*(nlspath + 1) == 'N') {
 			    ++nlspath;
 			    if (strlcpy(pathP, name, spcleft) >= spcleft) {
+				free(base);
 			        errno = ENAMETOOLONG;
 				return(NLERR);
 			    }
