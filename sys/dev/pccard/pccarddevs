@@ -82,6 +82,7 @@ vendor FARALLON			0x0200  Farallon Communications
 vendor TELECOMDEVICE		0x021b  Telecom Device
 vendor NOKIA			0x023d	Nokia Communications
 vendor SAMSUNG			0x0250	Samsung
+vendor HWN			0x0261	Home Wireless Networks
 vendor SYMBOL			0x026c	Symbol
 vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
 vendor LINKSYS2			0x0274  The Linksys Group
@@ -200,6 +201,9 @@ product FARALLON SKYLINE	0x0a01 SkyLINE Wireless
 product FUJITSU SCSI600		0x0401 Fujitsu SCSI 600 Interface
 product FUJITSU LA10S		0x1003 Fujitsu Compact Flash Ethernet
 product FUJITSU LA501		0x2000 Fujitsu Towa LA501 Ethernet
+
+/* Home Wireless Networks */
+product HWN AIRWAY80211		0x0002 HWN Airway Wireless PCMCIA Card
 
 /* IBM Products */
 product IBM MICRODRIVE		0x0000 IBM Microdrive
