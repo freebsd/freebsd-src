@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.131 1997/06/25 11:48:47 pst Exp $
+#	$Id$
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -131,6 +131,7 @@ chmod 666 /dev/tty[pqrsPQRS]*
 rm -f /etc/nologin
 rm -f /var/spool/lock/*
 rm -rf /var/spool/uucp/.Temp/*
+rm -f /var/run/*.pid
 (cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 
 # enable dumpdev so that savecore can see it
