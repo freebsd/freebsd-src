@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.10 1995/05/19 02:19:15 jkh Exp $
+ * $Id: label.c,v 1.11 1995/05/20 10:33:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -280,7 +280,6 @@ print_label_chunks(void)
     int i, j, srow, prow, pcol;
     int sz;
 
-    clear();
     attrset(A_REVERSE);
     mvaddstr(0, 25, "FreeBSD Disklabel Editor");
     attrset(A_NORMAL);
@@ -407,6 +406,7 @@ diskLabelEditor(char *str)
 	msgConfirm("You need to partition your disk(s) before you can assign disk labels.");
 	return 0;
     }
+    clear();
     while (labeling) {
 	print_label_chunks();
 	print_command_summary();
