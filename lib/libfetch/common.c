@@ -53,11 +53,11 @@ __FBSDID("$FreeBSD$");
  * Error messages for resolver errors
  */
 static struct fetcherr _netdb_errlist[] = {
-    { EAI_NODATA,	FETCH_RESOLV,	"Host not found" },
-    { EAI_AGAIN,	FETCH_TEMP,	"Transient resolver failure" },
-    { EAI_FAIL,		FETCH_RESOLV,	"Non-recoverable resolver failure" },
-    { EAI_NONAME,	FETCH_RESOLV,	"No address record" },
-    { -1,		FETCH_UNKNOWN,	"Unknown resolver error" }
+	{ EAI_NODATA,	FETCH_RESOLV,	"Host not found" },
+	{ EAI_AGAIN,	FETCH_TEMP,	"Transient resolver failure" },
+	{ EAI_FAIL,	FETCH_RESOLV,	"Non-recoverable resolver failure" },
+	{ EAI_NONAME,	FETCH_RESOLV,	"No address record" },
+	{ -1,		FETCH_UNKNOWN,	"Unknown resolver error" }
 };
 
 /* End-of-Line */
@@ -72,9 +72,9 @@ static const char ENDL[2] = "\r\n";
 static struct fetcherr *
 _fetch_finderr(struct fetcherr *p, int e)
 {
-    while (p->num != -1 && p->num != e)
-	p++;
-    return p;
+	while (p->num != -1 && p->num != e)
+		p++;
+	return (p);
 }
 
 /*
@@ -83,9 +83,9 @@ _fetch_finderr(struct fetcherr *p, int e)
 void
 _fetch_seterr(struct fetcherr *p, int e)
 {
-    p = _fetch_finderr(p, e);
-    fetchLastErrCode = p->cat;
-    snprintf(fetchLastErrString, MAXERRSTRING, "%s", p->string);
+	p = _fetch_finderr(p, e);
+	fetchLastErrCode = p->cat;
+	snprintf(fetchLastErrString, MAXERRSTRING, "%s", p->string);
 }
 
 /*
@@ -94,60 +94,57 @@ _fetch_seterr(struct fetcherr *p, int e)
 void
 _fetch_syserr(void)
 {
-    int e;
-    e = errno;
-    
-    switch (errno) {
-    case 0:
-	fetchLastErrCode = FETCH_OK;
-	break;
-    case EPERM:
-    case EACCES:
-    case EROFS:
-    case EAUTH:
-    case ENEEDAUTH:
-	fetchLastErrCode = FETCH_AUTH;
-	break;
-    case ENOENT:
-    case EISDIR: /* XXX */
-	fetchLastErrCode = FETCH_UNAVAIL;
-	break;
-    case ENOMEM:
-	fetchLastErrCode = FETCH_MEMORY;
-	break;
-    case EBUSY:
-    case EAGAIN:	
-	fetchLastErrCode = FETCH_TEMP;
-	break;
-    case EEXIST:
-	fetchLastErrCode = FETCH_EXISTS;
-	break;
-    case ENOSPC:
-	fetchLastErrCode = FETCH_FULL;
-	break;
-    case EADDRINUSE:
-    case EADDRNOTAVAIL:
-    case ENETDOWN:
-    case ENETUNREACH:
-    case ENETRESET:
-    case EHOSTUNREACH:
-	fetchLastErrCode = FETCH_NETWORK;
-	break;
-    case ECONNABORTED:
-    case ECONNRESET:
-	fetchLastErrCode = FETCH_ABORT;
-	break;
-    case ETIMEDOUT:
-	fetchLastErrCode = FETCH_TIMEOUT;
-	break;
-    case ECONNREFUSED:
-    case EHOSTDOWN:
-	fetchLastErrCode = FETCH_DOWN;
-	break;
-    default:
-	fetchLastErrCode = FETCH_UNKNOWN;
-    }
-    snprintf(fetchLastErrString, MAXERRSTRING, "%s", strerror(e));
+	switch (errno) {
+	case 0:
+		fetchLastErrCode = FETCH_OK;
+		break;
+	case EPERM:
+	case EACCES:
+	case EROFS:
+	case EAUTH:
+	case ENEEDAUTH:
+		fetchLastErrCode = FETCH_AUTH;
+		break;
+	case ENOENT:
+	case EISDIR: /* XXX */
+		fetchLastErrCode = FETCH_UNAVAIL;
+		break;
+	case ENOMEM:
+		fetchLastErrCode = FETCH_MEMORY;
+		break;
+	case EBUSY:
+	case EAGAIN:
+		fetchLastErrCode = FETCH_TEMP;
+		break;
+	case EEXIST:
+		fetchLastErrCode = FETCH_EXISTS;
+		break;
+	case ENOSPC:
+		fetchLastErrCode = FETCH_FULL;
+		break;
+	case EADDRINUSE:
+	case EADDRNOTAVAIL:
+	case ENETDOWN:
+	case ENETUNREACH:
+	case ENETRESET:
+	case EHOSTUNREACH:
+		fetchLastErrCode = FETCH_NETWORK;
+		break;
+	case ECONNABORTED:
+	case ECONNRESET:
+		fetchLastErrCode = FETCH_ABORT;
+		break;
+	case ETIMEDOUT:
+		fetchLastErrCode = FETCH_TIMEOUT;
+		break;
+	case ECONNREFUSED:
+	case EHOSTDOWN:
+		fetchLastErrCode = FETCH_DOWN;
+		break;
+default:
+		fetchLastErrCode = FETCH_UNKNOWN;
+	}
+	snprintf(fetchLastErrString, MAXERRSTRING, "%s", strerror(errno));
 }
 
 
@@ -157,12 +154,12 @@ _fetch_syserr(void)
 void
 _fetch_info(const char *fmt, ...)
 {
-    va_list ap;
-    
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-    fputc('\n', stderr);
+	va_list ap;
+
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	fputc('\n', stderr);
 }
 
 
@@ -174,15 +171,15 @@ _fetch_info(const char *fmt, ...)
 int
 _fetch_default_port(const char *scheme)
 {
-    struct servent *se;
+	struct servent *se;
 
-    if ((se = getservbyname(scheme, "tcp")) != NULL)
-	return ntohs(se->s_port);
-    if (strcasecmp(scheme, SCHEME_FTP) == 0)
-	return FTP_DEFAULT_PORT;
-    if (strcasecmp(scheme, SCHEME_HTTP) == 0)
-	return HTTP_DEFAULT_PORT;
-    return 0;
+	if ((se = getservbyname(scheme, "tcp")) != NULL)
+		return (ntohs(se->s_port));
+	if (strcasecmp(scheme, SCHEME_FTP) == 0)
+		return (FTP_DEFAULT_PORT);
+	if (strcasecmp(scheme, SCHEME_HTTP) == 0)
+		return (HTTP_DEFAULT_PORT);
+	return (0);
 }
 
 /*
@@ -191,11 +188,11 @@ _fetch_default_port(const char *scheme)
 int
 _fetch_default_proxy_port(const char *scheme)
 {
-    if (strcasecmp(scheme, SCHEME_FTP) == 0)
-	return FTP_DEFAULT_PROXY_PORT;
-    if (strcasecmp(scheme, SCHEME_HTTP) == 0)
-	return HTTP_DEFAULT_PROXY_PORT;
-    return 0;
+	if (strcasecmp(scheme, SCHEME_FTP) == 0)
+		return (FTP_DEFAULT_PROXY_PORT);
+	if (strcasecmp(scheme, SCHEME_HTTP) == 0)
+		return (HTTP_DEFAULT_PROXY_PORT);
+	return (0);
 }
 
 /*
@@ -204,46 +201,46 @@ _fetch_default_proxy_port(const char *scheme)
 int
 _fetch_connect(const char *host, int port, int af, int verbose)
 {
-    char pbuf[10];
-    struct addrinfo hints, *res, *res0;
-    int sd, err;
+	char pbuf[10];
+	struct addrinfo hints, *res, *res0;
+	int sd, err;
 
-    DEBUG(fprintf(stderr, "---> %s:%d\n", host, port));
+	DEBUG(fprintf(stderr, "---> %s:%d\n", host, port));
 
-    if (verbose)
-	_fetch_info("looking up %s", host);
-    
-    /* look up host name and set up socket address structure */
-    snprintf(pbuf, sizeof(pbuf), "%d", port);
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = af;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = 0;
-    if ((err = getaddrinfo(host, pbuf, &hints, &res0)) != 0) {
-	_netdb_seterr(err);
-	return -1;
-    }
+	if (verbose)
+		_fetch_info("looking up %s", host);
 
-    if (verbose)
-	_fetch_info("connecting to %s:%d", host, port);
-    
-    /* try to connect */
-    for (sd = -1, res = res0; res; res = res->ai_next) {
-	if ((sd = socket(res->ai_family, res->ai_socktype,
+	/* look up host name and set up socket address structure */
+	snprintf(pbuf, sizeof(pbuf), "%d", port);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = af;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = 0;
+	if ((err = getaddrinfo(host, pbuf, &hints, &res0)) != 0) {
+		_netdb_seterr(err);
+		return (-1);
+	}
+
+	if (verbose)
+		_fetch_info("connecting to %s:%d", host, port);
+
+	/* try to connect */
+	for (sd = -1, res = res0; res; res = res->ai_next) {
+		if ((sd = socket(res->ai_family, res->ai_socktype,
 			 res->ai_protocol)) == -1)
-	    continue;
-	if (connect(sd, res->ai_addr, res->ai_addrlen) != -1)
-	    break;
-	close(sd);
-	sd = -1;
-    }
-    freeaddrinfo(res0);
-    if (sd == -1) {
-	_fetch_syserr();
-	return -1;
-    }
+			continue;
+		if (connect(sd, res->ai_addr, res->ai_addrlen) != -1)
+			break;
+		close(sd);
+		sd = -1;
+	}
+	freeaddrinfo(res0);
+	if (sd == -1) {
+		_fetch_syserr();
+		return (-1);
+	}
 
-    return sd;
+	return (sd);
 }
 
 
@@ -255,77 +252,77 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 int
 _fetch_getln(int fd, char **buf, size_t *size, size_t *len)
 {
-    struct timeval now, timeout, wait;
-    fd_set readfds;
-    int r;
-    char c;
-    
-    if (*buf == NULL) {
-	if ((*buf = malloc(MIN_BUF_SIZE)) == NULL) {
-	    errno = ENOMEM;
-	    return -1;
+	struct timeval now, timeout, wait;
+	fd_set readfds;
+	int r;
+	char c;
+
+	if (*buf == NULL) {
+		if ((*buf = malloc(MIN_BUF_SIZE)) == NULL) {
+			errno = ENOMEM;
+			return (-1);
+		}
+		*size = MIN_BUF_SIZE;
 	}
-	*size = MIN_BUF_SIZE;
-    }
 
-    **buf = '\0';
-    *len = 0;
+	**buf = '\0';
+	*len = 0;
 
-    if (fetchTimeout) {
-	gettimeofday(&timeout, NULL);
-	timeout.tv_sec += fetchTimeout;
-	FD_ZERO(&readfds);
-    }
-    
-    do {
 	if (fetchTimeout) {
-	    FD_SET(fd, &readfds);
-	    gettimeofday(&now, NULL);
-	    wait.tv_sec = timeout.tv_sec - now.tv_sec;
-	    wait.tv_usec = timeout.tv_usec - now.tv_usec;
-	    if (wait.tv_usec < 0) {
-		wait.tv_usec += 1000000;
-		wait.tv_sec--;
-	    }
-	    if (wait.tv_sec < 0) {
-		errno = ETIMEDOUT;
-		return -1;
-	    }
-	    r = select(fd+1, &readfds, NULL, NULL, &wait);
-	    if (r == -1) {
-		if (errno == EINTR && fetchRestartCalls)
-		    continue;
-		/* EBADF or EINVAL: shouldn't happen */
-		return -1;
-	    }
-	    if (!FD_ISSET(fd, &readfds))
-		continue;
+		gettimeofday(&timeout, NULL);
+		timeout.tv_sec += fetchTimeout;
+		FD_ZERO(&readfds);
 	}
-	r = read(fd, &c, 1);
-	if (r == 0)
-	    break;
-	if (r == -1) {
-	    if (errno == EINTR && fetchRestartCalls)
-		continue;
-	    /* any other error is bad news */
-	    return -1;
-	}
-	(*buf)[*len] = c;
-	*len += 1;
-	if (*len == *size) {
-	    char *tmp;
-	    
-	    if ((tmp = realloc(*buf, *size * 2 + 1)) == NULL) {
-		errno = ENOMEM;
-		return -1;
-	    }
-	    *buf = tmp;
-	    *size = *size * 2 + 1;
-	}
-    } while (c != '\n');
-    
-    DEBUG(fprintf(stderr, "<<< %.*s", (int)*len, *buf));
-    return 0;
+
+	do {
+		if (fetchTimeout) {
+			FD_SET(fd, &readfds);
+			gettimeofday(&now, NULL);
+			wait.tv_sec = timeout.tv_sec - now.tv_sec;
+			wait.tv_usec = timeout.tv_usec - now.tv_usec;
+			if (wait.tv_usec < 0) {
+				wait.tv_usec += 1000000;
+				wait.tv_sec--;
+			}
+			if (wait.tv_sec < 0) {
+				errno = ETIMEDOUT;
+				return (-1);
+			}
+			r = select(fd+1, &readfds, NULL, NULL, &wait);
+			if (r == -1) {
+				if (errno == EINTR && fetchRestartCalls)
+					continue;
+				/* EBADF or EINVAL: shouldn't happen */
+				return (-1);
+			}
+			if (!FD_ISSET(fd, &readfds))
+				continue;
+		}
+		r = read(fd, &c, 1);
+		if (r == 0)
+			break;
+		if (r == -1) {
+			if (errno == EINTR && fetchRestartCalls)
+				continue;
+			/* any other error is bad news */
+			return (-1);
+		}
+		(*buf)[*len] = c;
+		*len += 1;
+		if (*len == *size) {
+			char *tmp;
+
+			if ((tmp = realloc(*buf, *size * 2 + 1)) == NULL) {
+				errno = ENOMEM;
+				return (-1);
+			}
+			*buf = tmp;
+			*size = *size * 2 + 1;
+		}
+	} while (c != '\n');
+
+	DEBUG(fprintf(stderr, "<<< %.*s", (int)*len, *buf));
+	return (0);
 }
 
 
@@ -336,20 +333,20 @@ _fetch_getln(int fd, char **buf, size_t *size, size_t *len)
 int
 _fetch_putln(int fd, const char *str, size_t len)
 {
-    struct iovec iov[2];
-    ssize_t wlen;
+	struct iovec iov[2];
+	ssize_t wlen;
 
-    /* XXX should enforce timeout */
-    iov[0].iov_base = (char *)str;
-    iov[0].iov_len = len;
-    iov[1].iov_base = (char *)ENDL;
-    iov[1].iov_len = sizeof ENDL;
-    len += sizeof ENDL;
-    wlen = writev(fd, iov, 2);
-    if (wlen < 0 || (size_t)wlen != len)
-	return -1;
-    DEBUG(fprintf(stderr, ">>> %s\n", str));
-    return 0;
+	/* XXX should enforce timeout */
+	iov[0].iov_base = (char *)str;
+	iov[0].iov_len = len;
+	iov[1].iov_base = (char *)ENDL;
+	iov[1].iov_len = sizeof ENDL;
+	len += sizeof ENDL;
+	wlen = writev(fd, iov, 2);
+	if (wlen < 0 || (size_t)wlen != len)
+		return (-1);
+	DEBUG(fprintf(stderr, ">>> %s\n", str));
+	return (0);
 }
 
 
@@ -357,39 +354,39 @@ _fetch_putln(int fd, const char *str, size_t len)
 
 int
 _fetch_add_entry(struct url_ent **p, int *size, int *len,
-		 const char *name, struct url_stat *us)
+    const char *name, struct url_stat *us)
 {
-    struct url_ent *tmp;
+	struct url_ent *tmp;
 
-    if (*p == NULL) {
+	if (*p == NULL) {
 #define INITIAL_SIZE 8
-	if ((*p = malloc(INITIAL_SIZE * sizeof **p)) == NULL) {
-	    errno = ENOMEM;
-	    _fetch_syserr();
-	    return -1;
-	}
-	*size = INITIAL_SIZE;
-	*len = 0;
+		if ((*p = malloc(INITIAL_SIZE * sizeof **p)) == NULL) {
+			errno = ENOMEM;
+			_fetch_syserr();
+			return (-1);
+		}
+		*size = INITIAL_SIZE;
+		*len = 0;
 #undef INITIAL_SIZE
-    }
-    
-    if (*len >= *size - 1) {
-	tmp = realloc(*p, *size * 2 * sizeof **p);
-	if (tmp == NULL) {
-	    errno = ENOMEM;
-	    _fetch_syserr();
-	    return -1;
 	}
-	*size *= 2;
-	*p = tmp;
-    }
 
-    tmp = *p + *len;
-    snprintf(tmp->name, PATH_MAX, "%s", name);
-    bcopy(us, &tmp->stat, sizeof *us);
+	if (*len >= *size - 1) {
+		tmp = realloc(*p, *size * 2 * sizeof **p);
+		if (tmp == NULL) {
+			errno = ENOMEM;
+			_fetch_syserr();
+			return (-1);
+		}
+		*size *= 2;
+		*p = tmp;
+	}
 
-    (*len)++;
-    (++tmp)->name[0] = 0;
+	tmp = *p + *len;
+	snprintf(tmp->name, PATH_MAX, "%s", name);
+	bcopy(us, &tmp->stat, sizeof *us);
 
-    return 0;
+	(*len)++;
+	(++tmp)->name[0] = 0;
+
+	return (0);
 }
