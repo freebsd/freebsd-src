@@ -627,7 +627,7 @@ iwic_bchannel_start(int unit, int chan_no)
 	/*
 	 * if there is either still data in the current mbuf and/or
 	 * there is a successor on the chain available issue just
-	 * a XTF (transmit) command to teh chip. if ther is no more
+	 * a XTF (transmit) command to the chip. if there is no more
 	 * data available from the current mbuf (-chain), issue
 	 * an XTF and an XME (message end) command which will then
 	 * send the CRC and the closing HDLC flag sequence
