@@ -1,6 +1,8 @@
+.\"	$KAME: rtsold.8,v 1.14 2000/08/13 18:06:39 itojun Exp $
+.\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -12,7 +14,7 @@
 .\" 3. Neither the name of the project nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -25,7 +27,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rtsold.8,v 1.9 2000/07/04 14:44:38 jinmei Exp $
 .\"	$FreeBSD$
 .\"
 .Dd May 17, 1998
@@ -37,15 +38,21 @@
 .Nd router solicitation daemon
 .\"
 .Sh SYNOPSIS
-.Nm
+.Nm rtsold
 .Op Fl dDfm1
 .Ar interface ...
+.Nm rtsold
+.Op Fl dDfm1
+.Fl a
 .Nm rtsol
 .Op Fl dD
 .Ar interface ...
+.Nm rtsol
+.Op Fl dD
+.Fl a
 .\"
 .Sh DESCRIPTION
-.Nm Rtsold
+.Nm
 is the daemon program to send ICMPv6 Router Solicitation messages
 on the specified interfaces.
 If a node (re)attaches to a link,
@@ -53,6 +60,11 @@ If a node (re)attaches to a link,
 sends some Router Solicitations on the link destined to the link-local scope
 all-routers multicast address to discover new routers
 and to get non link-local addresses.
+.Pp
+.Nm
+should be used on IPv6 host
+.Pq non-router node
+only.
 .Pp
 If you invoke the program as
 .Nm rtsol ,
@@ -80,7 +92,7 @@ Just after invocation of
 daemon.
 .It
 The interface is up after a temporary interface failure.
-.Nm Rtsold
+.Nm
 detects such failures by periodically probing to see if the status
 of the interface is active or not.
 Note that some network cards and drivers do not allow the extraction
@@ -118,10 +130,19 @@ Upon receipt of signal
 .Dv SIGUSR1 ,
 .Nm
 will dump the current internal state into
-.Pa /var/run/rtsold.dump.
+.Pa /var/run/rtsold.dump .
 .\"
 .Sh OPTIONS
 .Bl -tag -width indent
+.It Fl a
+Autoprobe outgoing interface.
+.Nm
+will try to find a non-loopback, non-p2p and IPv6-capable, interface.
+If
+.Nm
+finds multiple interfaces,
+.Nm
+will exit with error.
 .\"
 .It Fl d
 Enable debugging.
@@ -190,3 +211,12 @@ may not work if you reinsert a network card.
 In such a case,
 .Nm
 should be killed and restarted.
+.Pp
+IPv6 autoconfiguration specification assumes single interface host.
+You may see kernel error message if you try to autoconfigure a host with
+multiple interfaces.
+Also, it seems contradictory for
+.Nm
+to accept multiple
+.Ar interfaces
+in argument.

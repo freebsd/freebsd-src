@@ -1,3 +1,5 @@
+/*	$KAME: dump.c,v 1.7 2000/08/13 06:14:59 itojun Exp $	*/
+
 /*
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
@@ -98,7 +100,7 @@ rtsold_dump_file(dumpfile)
 	char *dumpfile;
 {
 	if ((fp = fopen(dumpfile, "w")) == NULL) {
-		warnmsg(LOG_WARNING, __FUNCTION__, "open a dump file(%s)",
+		warnmsg(LOG_WARNING, __FUNCTION__, "open a dump file(%s): %s",
 			dumpfile, strerror(errno));
 		return;
 	}

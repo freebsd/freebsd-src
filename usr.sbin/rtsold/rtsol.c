@@ -1,3 +1,5 @@
+/*	$KAME$	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -33,6 +35,7 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <sys/time.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/route.h>
