@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $FreeBSD$
+ * $Id$
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and

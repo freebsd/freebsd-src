@@ -41,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef MCD_H

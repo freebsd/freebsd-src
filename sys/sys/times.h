@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)times.h	8.4 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef	_SYS_TIMES_H_

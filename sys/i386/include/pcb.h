@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef _I386_PCB_H_

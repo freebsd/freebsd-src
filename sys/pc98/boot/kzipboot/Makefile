@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 PROG= kztail.o kzhead.o
 BINMODE = 444	# target is a relocatable object

@@ -35,7 +35,7 @@
  *
  *	@(#)umap.h	8.4 (Berkeley) 8/20/94
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #define MAPFILEENTRIES 64

@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 .if defined(MACHINE_PC98) && ${MACHINE_PC98} == "yes"
 SUBDIR=	pc98/boot

@@ -1,7 +1,7 @@
 /* usual BSD style copyright here */
 /* Written by Julian Elischer (julian@dialix.oz.au)*/
 /*
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _SYS_DEVFSECT_H_

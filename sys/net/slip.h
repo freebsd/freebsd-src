@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slip.h	8.1 (Berkeley) 2/12/94
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _NET_SLIP_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioccom.h	8.2 (Berkeley) 3/28/94
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef	_SYS_IOCCOM_H_

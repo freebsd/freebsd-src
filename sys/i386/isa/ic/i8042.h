@@ -1,5 +1,5 @@
 /*
- *	$FreeBSD$
+ *	$Id$
  */
 
 #define	KBSTATP		0x64	/* kbd controller status port (I) */

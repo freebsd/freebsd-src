@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 /* This is a "converted" mtio.h from 386BSD

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $FreeBSD$
+**  $Id$
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()

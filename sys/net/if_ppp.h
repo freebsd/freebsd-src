@@ -1,5 +1,5 @@
 /*	from Id: if_ppp.h,v 1.12 1995/04/24 02:40:23 paulus Exp	*/
-/*	$FreeBSD$ */
+/*	$Id$ */
 
 /*
  * if_ppp.h - Point-to-Point Protocol definitions.

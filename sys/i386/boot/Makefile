@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 SUBDIR=	biosboot dosboot kzipboot netboot rawboot
 

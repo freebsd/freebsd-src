@@ -41,7 +41,7 @@
  */
 
 
-/* $FreeBSD$ */
+/* $Id$ */
 
 /* Please send any comments to micke@dynas.se */
 

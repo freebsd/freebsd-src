@@ -1,4 +1,4 @@
-$FreeBSD$
+$Id$
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.

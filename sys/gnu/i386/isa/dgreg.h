@@ -1,5 +1,5 @@
 /*-
- *  dgreg.h $FreeBSD$
+ *  dgreg.h $Id$
  *
  *  Digiboard driver.
  *

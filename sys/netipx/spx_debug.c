@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.c
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>
