@@ -32,11 +32,15 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <stdio.h>
 #include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "error.h"
@@ -61,17 +65,18 @@ Errorclass	pi();
 Errorclass	ri();
 Errorclass	troff();
 Errorclass	mod2();
+Errorclass catchall __P((void));
 /*
  *	Eat all of the lines in the input file, attempting to categorize
  *	them by their various flavors
  */
 static	char	inbuffer[BUFSIZ];
 
+void
 eaterrors(r_errorc, r_errorv)
 	int	*r_errorc;
 	Eptr	**r_errorv;
 {
-	extern	boolean	piflag;
 	Errorclass	errorclass = C_SYNC;
 
     for (;;){
@@ -113,6 +118,7 @@ eaterrors(r_errorc, r_errorv)
 /*
  *	create a new error entry, given a zero based array and count
  */
+void
 erroradd(errorlength, errorv, errorclass, errorsubclass)
 	int		errorlength;
 	char		**errorv;
@@ -404,6 +410,8 @@ char	*F77_fatal[3] = {"Compiler", "error", "line"};
 char	*F77_error[3] = {"Error", "on", "line"};
 char	*F77_warning[3] = {"Warning", "on", "line"};
 char    *F77_no_ass[3] = {"Error.","No","assembly."};
+
+Errorclass
 f77()
 {
 	char	**nwordv;

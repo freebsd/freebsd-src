@@ -32,17 +32,23 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)subr.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "error.h"
 /*
  *	Arrayify a list of rules
  */
+void
 arrayify(e_length, e_array, header)
 	int	*e_length;
 	Eptr	**e_array;
@@ -68,27 +74,14 @@ arrayify(e_length, e_array, header)
 	*e_array = array;
 }
 
-/*VARARGS1*/
-error(msg, a1, a2, a3)
-	char	*msg;
-{
-	fprintf(stderr, "Error: ");
-	fprintf(stderr, msg, a1, a2, a3);
-	fprintf(stderr, "\n");
-	fflush(stdout);
-	fflush(stderr);
-	exit(6);
-}
 /*ARGSUSED*/
 char *Calloc(nelements, size)
 	int	nelements;
 	int	size;
 {
 	char	*back;
-	if ( (back = (char *)calloc(nelements, size)) == (char *)NULL){
-		error("Ran out of memory.\n");
-		exit(1);
-	}
+	if ( (back = (char *)calloc(nelements, size)) == (char *)NULL)
+		errx(6, "ran out of memory");
 	return(back);
 }
 
@@ -169,6 +162,7 @@ char	next_lastchar(string)
 		return('\0');
 }
 
+void
 clob_last(string, newstuff)
 	char	*string, newstuff;
 {
@@ -258,29 +252,30 @@ static	char	mod2incomment[] = MOD2INCOMMENT;
 static	char	mod2outcomment[] = MOD2OUTCOMMENT;
 
 struct	lang_desc lang_table[] = {
-	/*INUNKNOWN	0*/	"unknown", cincomment,	coutcomment,
-	/*INCPP		1*/	"cpp",	cincomment,    coutcomment,
-	/*INCC		2*/	"cc",	cincomment,    coutcomment,
-	/*INAS		3*/	"as",	ASINCOMMENT,   newline,
-	/*INLD		4*/	"ld",	cincomment,    coutcomment,
-	/*INLINT	5*/	"lint",	cincomment,    coutcomment,
-	/*INF77		6*/	"f77",	fincomment,    foutcomment,
-	/*INPI		7*/	"pi",	piincomment,   pioutcomment,
-	/*INPC		8*/	"pc",	piincomment,   pioutcomment,
-	/*INFRANZ	9*/	"franz",lispincomment, newline,
-	/*INLISP	10*/	"lisp",	lispincomment, newline,
-	/*INVAXIMA	11*/	"vaxima",lispincomment,newline,
-	/*INRATFOR	12*/	"ratfor",fincomment,   foutcomment,
-	/*INLEX		13*/	"lex",	cincomment,    coutcomment,
-	/*INYACC	14*/	"yacc",	cincomment,    coutcomment,
-	/*INAPL		15*/	"apl",	".lm",	       newline,
-	/*INMAKE	16*/	"make",	ASINCOMMENT,   newline,
-	/*INRI		17*/	"ri",	riincomment,   rioutcomment,
-	/*INTROFF	18*/	"troff",troffincomment,troffoutcomment,
-	/*INMOD2	19*/	"mod2",	mod2incomment, mod2outcomment,
-				0,	0,	     0
+	/*INUNKNOWN	0*/	{"unknown", cincomment,	coutcomment},
+	/*INCPP		1*/	{"cpp",	cincomment,    coutcomment},
+	/*INCC		2*/	{"cc",	cincomment,    coutcomment},
+	/*INAS		3*/	{"as",	ASINCOMMENT,   newline},
+	/*INLD		4*/	{"ld",	cincomment,    coutcomment},
+	/*INLINT	5*/	{"lint", cincomment,    coutcomment},
+	/*INF77		6*/	{"f77",	fincomment,    foutcomment},
+	/*INPI		7*/	{"pi",	piincomment,   pioutcomment},
+	/*INPC		8*/	{"pc",	piincomment,   pioutcomment},
+	/*INFRANZ	9*/	{"franz",lispincomment, newline},
+	/*INLISP	10*/	{"lisp", lispincomment, newline},
+	/*INVAXIMA	11*/	{"vaxima",lispincomment,newline},
+	/*INRATFOR	12*/	{"ratfor",fincomment,   foutcomment},
+	/*INLEX		13*/	{"lex",	cincomment,    coutcomment},
+	/*INYACC	14*/	{"yacc", cincomment,    coutcomment},
+	/*INAPL		15*/	{"apl",	".lm",	       newline},
+	/*INMAKE	16*/	{"make", ASINCOMMENT,   newline},
+	/*INRI		17*/	{"ri",	riincomment,   rioutcomment},
+	/*INTROFF	18*/	{"troff",troffincomment,troffoutcomment},
+	/*INMOD2	19*/	{"mod2", mod2incomment, mod2outcomment},
+				{0,	0,	     0}
 };
 
+void
 printerrors(look_at_subclass, errorc, errorv)
 	boolean	look_at_subclass;
 	int	errorc;
@@ -303,6 +298,7 @@ printerrors(look_at_subclass, errorc, errorv)
 	}
 }
 
+void
 wordvprint(fyle, wordc, wordv)
 	FILE	*fyle;
 	int	wordc;
@@ -322,6 +318,7 @@ wordvprint(fyle, wordc, wordv)
  *	Given a string, parse it into a number of words, and build
  *	a wordc wordv combination pointing into it.
  */
+void
 wordvbuild(string, r_wordc, r_wordv)
 	char	*string;
 	int	*r_wordc;
@@ -354,7 +351,7 @@ wordvbuild(string, r_wordc, r_wordv)
 		*cp++ = '\0';
 	}
 	if (wordcount != 0)
-		error("Initial miscount of the number of words in a line\n");
+		errx(6, "initial miscount of the number of words in a line");
 	wordv[wordindex] = (char *)0;
 #ifdef FULLDEBUG
 	for (wordcount = 0; wordcount < wordindex; wordcount++)
@@ -377,7 +374,7 @@ int wordvcmp(wordv1, wordc, wordv2)
 	for (i = 0; i < wordc; i++){
 		if (wordv1[i] == 0 || wordv2[i] == 0)
 				return(-1);
-		if (back = strcmp(wordv1[i], wordv2[i])){
+		if ((back = strcmp(wordv1[i], wordv2[i]))){
 			return(back);
 		}
 	}
