@@ -118,7 +118,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* #undef HAVE_CAPABILITY_H */
 
 /* Define to 1 if you have the `cap_set_proc' function. */
-#define HAVE_CAP_SET_PROC 1
+/* #undef HAVE_CAP_SET_PROC */
 
 /* Define to 1 if you have the `cgetent' function. */
 #define HAVE_CGETENT 1
@@ -238,7 +238,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE_FNMATCH_H 1
 
 /* Define if el_init takes four arguments. */
+#if __FreeBSD_version >= 500024
 #define HAVE_FOUR_VALUED_EL_INIT 1
+#endif
 
 /* define if krb_put_int takes four arguments. */
 #define HAVE_FOUR_VALUED_KRB_PUT_INT 1
@@ -305,6 +307,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define if you have the function `getopt'. */
 #define HAVE_GETOPT 1
+
+/* Define to 1 if you have the `getpagesize' function. */
+#define HAVE_GETPAGESIZE 1
 
 /* Define to 1 if you have the `getprogname' function. */
 #if (__FreeBSD_version >= 430002 && __FreeBSD_version < 500000) || \
@@ -460,6 +465,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to 1 if you have the `mktime' function. */
 #define HAVE_MKTIME 1
 
+/* Define to 1 if you have a working `mmap' system call. */
+#define HAVE_MMAP 1
+
 /* define if you have a ndbm library */
 #define HAVE_NDBM 1
 
@@ -468,6 +476,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to 1 if you have the <netdb.h> header file. */
 #define HAVE_NETDB_H 1
+
+/* Define to 1 if you have the <netgroup.h> header file. */
+/* #undef HAVE_NETGROUP_H */
 
 /* Define to 1 if you have the <netinet6/in6.h> header file. */
 /* #undef HAVE_NETINET6_IN6_H */
@@ -504,6 +515,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define if NDBM really is DB (creates files *.db) */
 #define HAVE_NEW_DB 1
+
+/* define if you have hash functions like md4_finito() */
+/* #undef HAVE_OLD_HASH_NAMES */
 
 /* Define to 1 if you have the `on_exit' function. */
 /* #undef HAVE_ON_EXIT */
@@ -570,6 +584,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to 1 if you have the <resolv.h> header file. */
 #define HAVE_RESOLV_H 1
+
+/* Define to 1 if you have the `res_nsearch' function. */
+/* #undef HAVE_RES_NSEARCH */
 
 /* Define to 1 if you have the `res_search' function. */
 #define HAVE_RES_SEARCH 1
@@ -686,7 +703,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* #undef HAVE_STANDARDS_H */
 
 /* Define to 1 if you have the <stdint.h> header file. */
+#if __FreeBSD_version >= 500028
 #define HAVE_STDINT_H 1
+#endif
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
@@ -842,7 +861,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* #undef HAVE_SYS_BSWAP_H */
 
 /* Define to 1 if you have the <sys/capability.h> header file. */
-#define HAVE_SYS_CAPABILITY_H 1
+/* #undef HAVE_SYS_CAPABILITY_H */
 
 /* Define to 1 if you have the <sys/category.h> header file. */
 /* #undef HAVE_SYS_CATEGORY_H */
@@ -858,6 +877,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #define HAVE_SYS_IOCTL_H 1
+
+/* Define to 1 if you have the <sys/mman.h> header file. */
+#define HAVE_SYS_MMAN_H 1
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 #define HAVE_SYS_PARAM_H 1
@@ -1058,13 +1080,13 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE_WS_YPIXEL 1
 
 /* Define to 1 if you have the `XauFileName' function. */
-#define HAVE_XAUFILENAME 1
+/* #undef HAVE_XAUFILENAME */
 
 /* Define to 1 if you have the `XauReadAuth' function. */
-#define HAVE_XAUREADAUTH 1
+/* #undef HAVE_XAUREADAUTH */
 
 /* Define to 1 if you have the `XauWriteAuth' function. */
-#define HAVE_XAUWRITEAUTH 1
+/* #undef HAVE_XAUWRITEAUTH */
 
 /* Define to 1 if you have the `yp_get_default_domain' function. */
 #define HAVE_YP_GET_DEFAULT_DOMAIN 1
@@ -1192,6 +1214,9 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* define if the system is missing a prototype for vsnprintf() */
 /* #undef NEED_VSNPRINTF_PROTO */
 
+/* Define if you don't want to use mmap. */
+/* #undef NO_MMAP */
+
 /* Define this to enable old environment option in telnet. */
 #define OLD_ENVIRON 1
 
@@ -1266,8 +1291,14 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
    `char[]'. */
 #define YYTEXT_POINTER 1
 
+/* Number of bits in a file offset, on hosts where this is settable. */
+/* #undef _FILE_OFFSET_BITS */
+
 /* Define to enable extensions on glibc-based systems such as Linux. */
 #define _GNU_SOURCE 1
+
+/* Define for large files, on AIX-style hosts. */
+/* #undef _LARGE_FILES */
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
@@ -1297,6 +1328,13 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to `int' if <sys/types.h> doesn't define. */
 /* #undef uid_t */
 
+#if defined(HAVE_FOUR_VALUED_KRB_PUT_INT) || !defined(KRB4)
+#define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (L), (S))
+#else
+#define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (S))
+#endif
+
+
 
 #if defined(ENCRYPTION) && !defined(AUTHENTICATION)
 #define AUTHENTICATION 1
@@ -1321,6 +1359,14 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #include "roken_rename.h"
 #endif
 
+#ifndef HAVE_KRB_KDCTIMEOFDAY
+#define krb_kdctimeofday(X) gettimeofday((X), NULL)
+#endif
+
+#ifndef HAVE_KRB_GET_KDC_TIME_DIFF
+#define krb_get_kdc_time_diff() (0)
+#endif
+
 #ifdef VOID_RETSIGTYPE
 #define SIGRETURN(x) return
 #else
@@ -1330,21 +1376,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #ifdef BROKEN_REALLOC
 #define realloc(X, Y) isoc_realloc((X), (Y))
 #define isoc_realloc(X, Y) ((X) ? realloc((X), (Y)) : malloc(Y))
-#endif
-
-#if defined(HAVE_FOUR_VALUED_KRB_PUT_INT) || !defined(KRB4)
-#define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (L), (S))
-#else
-#define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (S))
-#endif
-
-
-#ifndef HAVE_KRB_KDCTIMEOFDAY
-#define krb_kdctimeofday(X) gettimeofday((X), NULL)
-#endif
-
-#ifndef HAVE_KRB_GET_KDC_TIME_DIFF
-#define krb_get_kdc_time_diff() (0)
 #endif
 
 
