@@ -537,8 +537,6 @@ bfe_tx_ring_free(struct bfe_softc *sc)
 			sc->bfe_tx_ring[i].bfe_mbuf = NULL;
 			bus_dmamap_unload(sc->bfe_tag,
 					sc->bfe_tx_ring[i].bfe_map);
-			bus_dmamap_destroy(sc->bfe_tag,
-					sc->bfe_tx_ring[i].bfe_map);
 		}
 	}
 	bzero(sc->bfe_tx_list, BFE_TX_LIST_SIZE);
@@ -556,14 +554,11 @@ bfe_rx_ring_free(struct bfe_softc *sc)
 			sc->bfe_rx_ring[i].bfe_mbuf = NULL;
 			bus_dmamap_unload(sc->bfe_tag,
 					sc->bfe_rx_ring[i].bfe_map);
-			bus_dmamap_destroy(sc->bfe_tag,
-					sc->bfe_rx_ring[i].bfe_map);
 		}
 	}
 	bzero(sc->bfe_rx_list, BFE_RX_LIST_SIZE);
 	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREREAD);
 }
-
 
 static int
 bfe_list_rx_init(struct bfe_softc *sc)
@@ -980,6 +975,10 @@ bfe_release_resources(struct bfe_softc *sc)
 		for(i = 0; i < BFE_TX_LIST_CNT; i++) {
 			bus_dmamap_destroy(sc->bfe_tag,
 			    sc->bfe_tx_ring[i].bfe_map);
+		}
+		for(i = 0; i < BFE_RX_LIST_CNT; i++) {
+			bus_dmamap_destroy(sc->bfe_tag,
+			    sc->bfe_rx_ring[i].bfe_map);
 		}
 		bus_dma_tag_destroy(sc->bfe_tag);
 		sc->bfe_tag = NULL;
