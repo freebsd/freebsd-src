@@ -23,7 +23,16 @@ LIBFICL=	${.CURDIR}/../../ficl/libficl.a
 LIBFICL=
 .endif
 
-LIBSTAND=	-lstand
+# where to get libstand from
+#XXX need a better way to do this
+LIBSTAND=       ${.CURDIR}/../../../../lib/libstand/libstand.a
+.if !exists(${LIBSTAND})
+LIBSTAND=       ${.OBJDIR}/../../../../lib/libstand/libstand.a
+.if !exists(${LIBSTAND})
+LIBSTAND=       -lstand
+.endif
+.endif
+
 .if exists(${.OBJDIR}/../libski/libski.a)
 LIBSKI=		${.OBJDIR}/../libski/libski.a
 .else
@@ -75,7 +84,7 @@ start.o: ${.CURDIR}/../libefi/arch/${MACHINE_ARCH}/start.S
 machine:
 	ln -sf ${.CURDIR}/../../../${MACHINE_ARCH}/include machine
 
-${PROG}: ${OBJS} ${LIBFICL} ${LIBSTAND} ${LIBSKI} vers.o
+${PROG}: ${OBJS} ${LIBFICL} ${LIBSKI} vers.o
 	${LD} ${LDFLAGS} -o ${PROG} -M \
 	    ${OBJS} vers.o \
 	    ${LIBFICL} ${LIBSTAND} ${LIBSKI} ${LIBSTAND} \
