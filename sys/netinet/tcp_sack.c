@@ -168,6 +168,7 @@ SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW, 0, "TCP SACK");
 int tcp_do_sack = 1;
 SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_RW,
 	&tcp_do_sack, 0, "Enable/Disable TCP SACK support");
+TUNABLE_INT("net.inet.tcp.sack.enable", &tcp_do_sack);
 
 /*
  * This function is called upon receipt of new valid data (while not in header
