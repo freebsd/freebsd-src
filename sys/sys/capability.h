@@ -36,6 +36,8 @@
 #ifndef _SYS_CAPABILITY_H
 #define	_SYS_CAPABILITY_H
 
+#define	POSIX1E_CAPABILITY_EXTATTR_NAME	"$posix1e.cap"
+
 #define	__CAP_MASK_LEN	2
 
 typedef int	cap_flag_t;
@@ -120,8 +122,8 @@ typedef struct cap	*cap_t;
 
 /*
  * The following capability, borrowed from Linux, is unsafe
- * #define	CAP_SETPCAP		(0x00000100 | SYSTEM_CAPABILITY)
  */
+#define	CAP_SETPCAP		(0x00000100 | SYSTEM_CAPABILITY)
 /*
  * The following capability, borrowed from Linux, is not appropriate
  * in the BSD file environment
@@ -155,10 +157,11 @@ typedef struct cap	*cap_t;
 
 struct proc;
 struct ucred;
-int	cap_change_on_inherit(struct cap *);
+struct vnode;
 int	cap_check(struct proc *, cap_value_t);
 int	cap_check_xxx(struct ucred *, struct proc *, cap_value_t, int);
-void	cap_inherit(struct cap *);
+int	cap_change_on_inherit(struct cap *cap_p);
+void	cap_inherit(struct vnode *vp, struct proc *p);
 void	cap_init_proc0(struct cap *);
 void	cap_init_proc1(struct cap *);
 
