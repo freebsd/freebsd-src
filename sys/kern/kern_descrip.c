@@ -40,6 +40,7 @@
  */
 
 #include "opt_compat.h"
+#include <machine/limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -303,8 +304,14 @@ fcntl(p, uap)
 			fdrop(fp, p);
 			return (error);
 		}
-		if (fl.l_whence == SEEK_CUR)
+		if (fl.l_whence == SEEK_CUR) {
+			if ((fl.l_start > 0 &&
+			     fp->f_offset > OFF_MAX - fl.l_start) ||
+			    (fl.l_start < 0 &&
+			     fp->f_offset < OFF_MIN - fl.l_start))
+				return (EOVERFLOW);
 			fl.l_start += fp->f_offset;
+		}
 
 		switch (fl.l_type) {
 		case F_RDLCK:
@@ -356,8 +363,14 @@ fcntl(p, uap)
 			fdrop(fp, p);
 			return (EINVAL);
 		}
-		if (fl.l_whence == SEEK_CUR)
+		if (fl.l_whence == SEEK_CUR) {
+			if ((fl.l_start > 0 &&
+			     fp->f_offset > OFF_MAX - fl.l_start) ||
+			    (fl.l_start < 0 &&
+			     fp->f_offset < OFF_MIN - fl.l_start))
+				return (EOVERFLOW);
 			fl.l_start += fp->f_offset;
+		}
 		error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_GETLK,
 			    &fl, F_POSIX);
 		fdrop(fp, p);
