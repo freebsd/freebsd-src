@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: local_passwd.c,v 1.19 1998/03/07 21:42:07 ache Exp $
+ * $Id: local_passwd.c,v 1.20 1998/05/19 03:48:07 jkoshy Exp $
  */
 
 #ifndef lint
@@ -49,6 +49,7 @@ static const char sccsid[] = "@(#)local_passwd.c	8.3 (Berkeley) 4/2/94";
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <libutil.h>
 
 #include <pw_copy.h>
 #include <pw_util.h>
@@ -89,6 +90,146 @@ to64(s, v, n)
 	}
 }
 
+/*
+** used in generating new salt
+*/
+char * gen_des_salt(char * salt, int htype, struct timeval * tvp);
+char * gen_mcf_salt(char * salt, int htype, struct timeval * tvp);
+
+#define DES_CRYPT  0 /* which index is the 'des' crypt.  Do not change */
+#define BEST_CRYPT 1 /* which index is the 'best' crypt.  Do not change
+                        the index, change the crypt_token for the index */
+#define DEFAULT_CRYPT BEST_CRYPT /* or 0 for old behaviour */
+struct hash_type {
+    char * auth_token;
+    char * crypt_token;
+    char * (*gensalt)(char *, int, struct timeval *);
+} hash_types[] = {
+    { "des",  "",     gen_des_salt },
+    { "best", "SHA1", gen_mcf_salt },
+    { "md5",  "MD5",  gen_mcf_salt },
+    { "sha1", "SHA1", gen_mcf_salt },
+    { NULL,   NULL,   NULL }
+};
+
+char * gen_long_salt(char * salt, struct timeval * tvp) {
+    char * s, * p;
+    int    r, x;
+
+    s = p = salt;
+
+    to64(s, random(), 2);
+    to64(s+2, tvp->tv_usec, 2);
+    s += 4;
+    for (x = 0; x < 3; x++) {
+        to64(s, random(), 4);
+        s+=4;
+    }
+    r = (random()%9) + 8;
+    p[r] = '\0';
+
+    return &salt[0];
+}
+
+char * gen_des_salt(char * salt, int htype, struct timeval * tvp) {
+#ifdef NEWSALT
+    salt[0] = _PASSWORD_EFMT1;
+    to64(&salt[1], (long)(29 * 25), 4);
+    to64(&salt[5], random(), 4);
+    salt[9] = '\0';
+    return &salt[0];
+#else
+    return gen_long_salt(salt, tvp);
+#endif
+}
+
+/*
+** Make a good size salt for algoritms that can use it,
+** infact randomize it from 8 to 16 chars in length too
+*/
+char * gen_mcf_salt(char * salt, int htype, struct timeval * tvp) {
+    char * s;
+
+    sprintf(salt, "$%s$", hash_types[htype].crypt_token);
+    s = &salt[strlen(salt)];
+    gen_long_salt(s, tvp);
+    return salt;
+}
+
+char * generate_salt(char * salt, char * curpwd) {
+    int    x;
+    char * p, *s;
+    char * v = auth_getval("auth_default");
+    char   sbuf[32];
+    short  descrypt = 0;
+    struct timeval tv;
+
+    if (!randinit) {
+        randinit = 1;
+        srandomdev();
+    }
+    gettimeofday(&tv,0);
+
+    /* see if DES crypt is crypt()'s default */
+    p = crypt("a", "bc");
+    if (p[0] != '$')
+        descrypt = 1;
+
+    /* nothing defined, default to old behaviour */
+    if (v == NULL) {
+        if (curpwd && curpwd[0] == '$') {
+            salt[0] = '$';
+            s = &salt[1];
+            p = &curpwd[1];
+            for (;*p && isalnum(*p); s++, p++) {
+                *s = *p;
+            }
+            *s++ = '$';
+        } else {
+            s = &salt[0];
+        }
+        gen_long_salt(s, &tv);
+        return salt;
+    }
+
+    /* cleanup the auth token */
+    for (p = &v[strlen(v) - 1]; p >= v; p--) {
+        if (isalnum(*p))
+            break;
+        *p = (char) NULL;
+    }
+
+    for (x = 0; hash_types[x].crypt_token != NULL; x++) {
+        if (strcasecmp(v, hash_types[x].auth_token) == 0) {
+            if (x == DES_CRYPT && !descrypt) {
+                if (strlen(hash_types[DEFAULT_CRYPT].crypt_token))
+                    x = DEFAULT_CRYPT;
+                else
+                    x = BEST_CRYPT;
+                printf("WARNING: DES crypt specified in /etc/auth.conf, but crypt(3) library does\nnot have DES hash support installed.  Will use default (%s) instead!\n", hash_types[x].crypt_token);
+                return (hash_types[x].gensalt)(salt, x, &tv);
+            }
+
+            /* we have a match, verify it is valid */
+            if (!strlen(hash_types[x].crypt_token))
+                return (hash_types[x].gensalt)(salt, x, &tv);
+
+            sprintf(sbuf, "$%s$", hash_types[x].crypt_token);
+            p = crypt(hash_types[x].auth_token, sbuf);
+            if (strncmp(&p[1], hash_types[x].crypt_token,
+                           strlen(hash_types[x].crypt_token)))
+            {
+                printf("WARNING: Specified auth default (%s) in /etc/auth.conf is not supported\nby crypt(3) library, using best (%s) instead.\n",
+hash_types[x].auth_token, hash_types[BEST_CRYPT].crypt_token);
+                return (hash_types[BEST_CRYPT].gensalt)(salt, BEST_CRYPT, &tv);
+            }
+            return (hash_types[x].gensalt)(salt, x, &tv);
+        }
+    }
+    printf("WARNING: Specified auth default (%s) in /etc/auth.conf is not recognized.\nUsing best type (%s) instead.\n", v, hash_types[BEST_CRYPT].crypt_token);
+    return (hash_types[BEST_CRYPT].gensalt)(salt, BEST_CRYPT, &tv);
+}
+
 char *
 getnewpasswd(pw, nis)
 	struct passwd *pw;
@@ -100,7 +241,6 @@ getnewpasswd(pw, nis)
 	login_cap_t * lc;
 #endif
 	char buf[_PASSWORD_LEN+1], salt[10];
-	struct timeval tv;
 
 	if (!nis)
 		(void)printf("Changing local password for %s.\n", pw->pw_name);
@@ -152,34 +292,7 @@ getnewpasswd(pw, nis)
 			break;
 		(void)printf("Mismatch; try again, EOF to quit.\n");
 	}
-	/* grab a random printable character that isn't a colon */
-	if (!randinit) {
-		randinit = 1;
-		srandomdev();
-	}
-#ifdef NEWSALT
-	salt[0] = _PASSWORD_EFMT1;
-	to64(&salt[1], (long)(29 * 25), 4);
-	to64(&salt[5], random(), 4);
-	salt[9] = '\0';
-#else
-	/* Make a good size salt for algoritms that can use it. */
-	gettimeofday(&tv,0);
-	if (strncmp(pw->pw_passwd, "$1$", 3)) {
-	    /* DES Salt */
-	    to64(&salt[0], random(), 3);
-	    to64(&salt[3], tv.tv_usec, 3);
-	    to64(&salt[6], tv.tv_sec, 2);
-	    salt[8] = '\0';
-	}
-	else {
-	    /* MD5 Salt */
-	    strncpy(&salt[0], "$1$", 3);
-	    to64(&salt[3], random(), 3);
-	    to64(&salt[6], tv.tv_usec, 3);
-	    salt[8] = '\0';
-	}
-#endif
+        generate_salt(salt, pw->pw_passwd);
 	return (crypt(buf, salt));
 }
 
