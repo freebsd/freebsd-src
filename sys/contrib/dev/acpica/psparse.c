@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psparse - Parser top level AML parse routines
- *              $Revision: 87 $
+ *              $Revision: 89 $
  *
  *****************************************************************************/
 
@@ -664,12 +664,12 @@ AcpiPsParseLoop (
                 {
                     if (Status == AE_AML_NO_RETURN_VALUE)
                     {
-                        DEBUG_PRINTP (ACPI_ERROR,
-                            ("Invoked method did not return a value, %s\n",
+                        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                            "Invoked method did not return a value, %s\n",
                             AcpiFormatException (Status)));
 
                     }
-                    DEBUG_PRINTP (ACPI_ERROR, ("GetPredicate Failed, %s\n",
+                    ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "GetPredicate Failed, %s\n",
                         AcpiFormatException (Status)));
                     return_ACPI_STATUS (Status);
                 }
@@ -678,7 +678,7 @@ AcpiPsParseLoop (
             }
 
             AcpiPsPopScope (ParserState, &Op, &ArgTypes, &ArgCount);
-            DEBUG_PRINTP (TRACE_PARSE, ("Popped scope, Op=%p\n", Op));
+            ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Popped scope, Op=%p\n", Op));
         }
 
         else if (WalkState->PrevOp)
@@ -737,8 +737,8 @@ AcpiPsParseLoop (
 
                 /* The opcode is unrecognized.  Just skip unknown opcodes */
 
-                DEBUG_PRINTP (ACPI_ERROR,
-                    ("Found unknown opcode %lX at AML offset %X, ignoring\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                    "Found unknown opcode %lX at AML offset %X, ignoring\n",
                     Opcode, AmlOffset));
 
                 DUMP_BUFFER (ParserState->Aml, 128);
@@ -879,8 +879,8 @@ AcpiPsParseLoop (
 
             if (OpInfo)
             {
-                DEBUG_PRINTP (TRACE_PARSE,
-                    ("Op=%p Opcode=%4.4lX Aml %p Oft=%5.5lX\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+                    "Op=%p Opcode=%4.4lX Aml %p Oft=%5.5lX\n",
                      Op, Op->Opcode, ParserState->Aml, Op->AmlOffset));
             }
         }
@@ -900,6 +900,7 @@ AcpiPsParseLoop (
             case AML_BYTE_OP:       /* AML_BYTEDATA_ARG */
             case AML_WORD_OP:       /* AML_WORDDATA_ARG */
             case AML_DWORD_OP:      /* AML_DWORDATA_ARG */
+            case AML_QWORD_OP:      /* AML_QWORDATA_ARG */
             case AML_STRING_OP:     /* AML_ASCIICHARLIST_ARG */
 
                 /* fill in constant or string argument directly */
@@ -1120,7 +1121,7 @@ CloseThisOp:
             if (AcpiPsHasCompletedScope (ParserState))
             {
                 AcpiPsPopScope (ParserState, &Op, &ArgTypes, &ArgCount);
-                DEBUG_PRINTP (TRACE_PARSE, ("Popped scope, Op=%p\n", Op));
+                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Popped scope, Op=%p\n", Op));
             }
 
             else
@@ -1151,7 +1152,7 @@ CloseThisOp:
      * sequential closing braces).  We want to terminate each one cleanly.
      */
 
-    DEBUG_PRINTP (TRACE_PARSE, ("Package complete at Op %p\n", Op));
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Package complete at Op %p\n", Op));
     do
     {
         if (Op)
@@ -1243,7 +1244,7 @@ AcpiPsParseAml (
 
     FUNCTION_TRACE ("PsParseAml");
 
-    DEBUG_PRINTP (TRACE_PARSE, ("Entered with Scope=%p Aml=%p size=%lX\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Entered with Scope=%p Aml=%p size=%lX\n",
         StartScope, Aml, AmlSize));
 
 
@@ -1335,7 +1336,7 @@ AcpiPsParseAml (
      * handles nested control method invocations without recursion.
      */
 
-    DEBUG_PRINTP (TRACE_PARSE, ("State=%p\n", WalkState));
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "State=%p\n", WalkState));
 
     while (WalkState)
     {
@@ -1344,8 +1345,8 @@ AcpiPsParseAml (
             Status = AcpiPsParseLoop (WalkState);
         }
 
-        DEBUG_PRINTP (TRACE_PARSE, 
-            ("Completed one call to walk loop, State=%p\n", WalkState));
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, 
+            "Completed one call to walk loop, State=%p\n", WalkState));
 
         if (Status == AE_CTRL_TRANSFER)
         {
@@ -1387,7 +1388,7 @@ AcpiPsParseAml (
             AcpiUtAddReference (EffectiveReturnDesc);
         }
 
-	DEBUG_PRINTP (TRACE_PARSE, ("ReturnValue=%p, State=%p\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "ReturnValue=%p, State=%p\n",
             WalkState->ReturnDesc, WalkState));
 
         /* Reset the current scope to the beginning of scope stack */

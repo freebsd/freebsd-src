@@ -409,34 +409,7 @@ AcpiEnterSleepState (
     UINT8 SleepState);
 
 ACPI_STATUS
-AcpiGetProcessorThrottlingInfo (
-    ACPI_HANDLE             ProcessorHandle,
-    ACPI_BUFFER             *UserBuffer);
-
-ACPI_STATUS
-AcpiSetProcessorThrottlingState (
-    ACPI_HANDLE             ProcessorHandle,
-    UINT32                  ThrottleState);
-
-ACPI_STATUS
-AcpiGetProcessorThrottlingState (
-    ACPI_HANDLE             ProcessorHandle,
-    UINT32                  *ThrottleState);
-
-ACPI_STATUS
-AcpiGetProcessorCxInfo (
-    ACPI_HANDLE             ProcessorHandle,
-    ACPI_BUFFER             *UserBuffer);
-
-ACPI_STATUS
-AcpiSetProcessorSleepState (
-    ACPI_HANDLE             ProcessorHandle,
-    UINT32                  CxState);
-
-ACPI_STATUS
-AcpiProcessorSleep (
-    ACPI_HANDLE             ProcessorHandle,
-    UINT32                  *PmTimerTicks);
-
+AcpiLeaveSleepState (
+    UINT8 SleepState);
 
 #endif /* __ACXFACE_H__ */
