@@ -284,7 +284,7 @@ mount_autofs(char *dir, char *opts)
   /*
    * Make a ``hostname'' string for the kernel
    */
-  sprintf(fs_hostname, "pid%ld@%s:%s", foreground ? mypid : getppid(),
+  sprintf(fs_hostname, "pid%ld@%s:%s", (long) (foreground ? mypid : getppid()),
 	  hostname, dir);
 
   /*
@@ -1131,6 +1131,7 @@ autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op)
 	  memset((char *) &ap, 0, sizeof(am_opts));
 	  pt = ops_match(&ap, *sp, "", mp->am_path, "/defaults",
 			 mp->am_parent->am_mnt->mf_info);
+	  free_opts(&ap);	/* don't leak */
 	  if (pt == &amfs_error_ops) {
 	    plog(XLOG_MAP, "failed to match defaults for \"%s\"", *sp);
 	  } else {

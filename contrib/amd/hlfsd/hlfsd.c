@@ -85,7 +85,7 @@ char *logfile = DEFAULT_LOGFILE;
 char *passwdfile = NULL;	/* alternate passwd file to use */
 char *progname;
 char *slinkname = 0;
-char hostname[MAXHOSTNAMELEN] = "localhost";
+char hostname[MAXHOSTNAMELEN + 1] = "localhost";
 int cache_interval = DEFAULT_CACHE_INTERVAL;
 int foreground = 1;		/* This is the top-level server */
 gid_t hlfs_gid = (gid_t) INVALIDID;
@@ -308,7 +308,8 @@ main(int argc, char *argv[])
   }
 
   /* get hostname for logging and open log before we reset umask */
-  gethostname(hostname, MAXHOSTNAMELEN);
+  gethostname(hostname, sizeof(hostname));
+  hostname[sizeof(hostname) - 1] = '\0';
   if ((dot = strchr(hostname, '.')) != NULL)
     *dot = '\0';
   if (logfile)
