@@ -1,5 +1,5 @@
 /* 
- * include file for pkg.c 
+ * include file for pkg_manage 
  *
  *
  * Copyright (c) 1995, Marc van Kempen
@@ -39,24 +39,41 @@ typedef struct {
     unsigned char **mnu;	/* pointers to be used with dialog_menu() */
 } PKG_info;
 
-typedef struct DirList {             /* structure to hold the directory entries */
-    char        filename[MAXNAMLEN]; /* together with the stat-info per file */
-    struct stat filestatus;          /* filename, or the name to which it points */
-    int         link;                /* is it a link ? */
-    char        *linkname;           /* the name of the file the link points to */
-} DirList;
+/* Names of the description and comment files in the package */
+#define DESC		"+DESC"
+#define COMMENT		"+COMMENT"
+#define CONTENTS	"+CONTENTS"
 
+/* some programs */
 #define PKG_DELETE 	"/usr/sbin/pkg_delete"
 #define PKG_INFO 	"/usr/sbin/pkg_info"
 #define PKG_ADD 	"/usr/sbin/pkg_add"
-#define TAR 		"/usr/bin/tar"
+#define TAR 		"/usr/bin/tar" 
+#define GUNZIP		"/usr/bin/gunzip"
 
 /* HELP_PATH must have a trailing '/' */
 #ifndef HELP_PATH
-#define HELP_PATH	"/home/marc/src/pkg_manage/"
+#define HELP_PATH	"/home/marc/src/dialog/pkg_manage/"
 #endif
-#define VIEW_INST_HLP 	HELP_PATH##"pkg_view-inst.hlp"
-#define DEL_INST_HLP 	HELP_PATH##"pkg_del-inst.hlp"
-#define PREVIEW_HLP 	HELP_PATH##"pkg_preview.hlp"
+#define VIEW_INST_HLP 	HELP_PATH##"pkg_view_inst.hlp"
+#define DEL_INST_HLP 	HELP_PATH##"pkg_del_inst.hlp"
 #define INSTALL_HLP	HELP_PATH##"pkg_install.hlp"
 #define MAIN_HLP 	HELP_PATH##"pkg_main.hlp"
+#define DS_INSTALL_HLP  HELP_PATH##"pkg_ds_install.hlp"
+
+
+/*
+ * prototypes
+ */
+
+void	run_menu(void);
+void	get_pkginfo(void);
+void 	FreeMnu(unsigned char **mnu, int n);
+void    FreeInfo(void);
+void	install_package(char *fname);
+int	get_pkg_index(char *selection);
+void	install_batch(void);
+int	get_desc(char *fname, char **name, char **comment, 
+		 char **desc, long *size, char *tmp_file);
+int	exec_catch_errors(char *prog, char *arg, char *fout);
+int	already_installed(char *name);
