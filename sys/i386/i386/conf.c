@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.31 1994/08/31 07:44:21 davidg Exp $
+ *	$Id: conf.c,v 1.32 1994/09/08 18:02:35 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -352,6 +352,22 @@ d_rdwr_t logread;
 d_ioctl_t logioctl;
 d_select_t logselect;
 
+#include "bqu.h"
+#if NBQU > 0
+d_open_t bquopen;
+d_close_t bquclose;
+d_rdwr_t bquread, bquwrite;
+d_select_t bquselect; 
+d_ioctl_t bquioctl;
+#else 
+#define bquopen         (d_open_t *)enxio 
+#define bquclose        (d_close_t *)enxio
+#define bquread         (d_rdwr_t *)enxio
+#define bquwrite        (d_rdwr_t *)enxio
+#define bquselect       (d_select_t *)enxio
+#define bquioctl        (d_ioctl_t *)enxio 
+#endif
+
 #include "lpt.h"
 #if NLPT > 0
 d_open_t lptopen;
@@ -581,10 +597,9 @@ struct cdevsw	cdevsw[] =
 	{ logopen,	logclose,	logread,	nowrite,	/*7*/
 	  logioctl,	nostop,		nullreset,	NULL,	/* klog */
 	  logselect,	nommap,		NULL },
-	{ (d_open_t *)enxio, (d_close_t *)enxio, (d_rdwr_t *)enxio,	/*8*/
-	  (d_rdwr_t *)enxio, (d_ioctl_t *)enxio, (d_stop_t *)enxio, /* tputer */
-	  (d_reset_t *)enxio, NULL, (d_select_t *)enxio,
-	  (d_mmap_t *)enxio, NULL },
+	{ bquopen,      bquclose,       bquread,        bquwrite,       /*8*/
+	  bquioctl,     nostop,         nullreset,      NULL,   /* tputer */
+	  bquselect,    nommap,         NULL },
 	{ Fdopen,	fdclose,	rawread,	rawwrite,	/*9*/
 	  fdioctl,	nostop,		nullreset,	NULL,	/* Fd (!=fd) */
 	  seltrue,	nommap,		fdstrategy },
