@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.31 1998/03/20 19:47:40 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.32 1998/03/25 00:59:28 brian Exp $
  */
 
 #include <sys/param.h>
@@ -182,6 +182,19 @@ bundle_LayerStart(void *v, struct fsm *fp)
     bundle_NewPhase(bundle, PHASE_ESTABLISH);
 }
 
+
+static void
+bundle_Notify(struct bundle *bundle, char c)
+{
+  if (bundle->notify.fd != -1) {
+    if (write(bundle->notify.fd, &c, 1) == 1)
+      LogPrintf(LogPHASE, "Parent notified of success.\n");
+    else
+      LogPrintf(LogPHASE, "Failed to notify parent of success.\n");
+    close(bundle->notify.fd);
+    bundle->notify.fd = -1;
+  }
+}
 static void
 bundle_LayerUp(void *v, struct fsm *fp)
 {
@@ -204,16 +217,7 @@ bundle_LayerUp(void *v, struct fsm *fp)
 
   if (fp->proto == PROTO_IPCP) {
     bundle_StartIdleTimer(bundle);
-    if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
-      char c = EX_NORMAL;
-
-      if (write(BGFiledes[1], &c, 1) == 1)
-	LogPrintf(LogPHASE, "Parent notified of success.\n");
-      else
-	LogPrintf(LogPHASE, "Failed to notify parent of success.\n");
-      close(BGFiledes[1]);
-      BGFiledes[1] = -1;
-    }
+    bundle_Notify(bundle, EX_NORMAL);
   }
 }
 
@@ -477,9 +481,9 @@ bundle_Create(const char *prefix)
   bundle.filter.dial.name = "DIAL";
   bundle.filter.alive.name = "ALIVE";
   bundle.filter.alive.logok = 1;
-
   memset(&bundle.idle.timer, '\0', sizeof bundle.idle.timer);
   bundle.idle.done = 0;
+  bundle.notify.fd = -1;
 
   /* Clean out any leftover crud */
   bundle_CleanInterface(&bundle);
@@ -533,6 +537,8 @@ bundle_Destroy(struct bundle *bundle)
   dl = bundle->links;
   while (dl)
     dl = datalink_Destroy(dl);
+
+  bundle_Notify(bundle, EX_ERRDEAD);
 
   bundle->ifname = NULL;
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.37 1998/03/25 00:59:38 brian Exp $
+ * $Id: main.c,v 1.121.2.38 1998/03/25 18:38:24 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -113,15 +113,6 @@ AbortProgram(int excode)
   prompt_Drop(&prompt, 1);
   ServerClose();
   ID0unlink(pid_filename);
-  if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
-    char c = EX_ERRDEAD;
-
-    if (write(BGFiledes[1], &c, 1) == 1)
-      LogPrintf(LogPHASE, "Parent notified of failure.\n");
-    else
-      LogPrintf(LogPHASE, "Failed to notify parent of failure.\n");
-    close(BGFiledes[1]);
-  }
   LogPrintf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
   prompt_TtyOldMode(&prompt);
   bundle_Close(SignalBundle, NULL, 1);
@@ -421,26 +412,26 @@ main(int argc, char **argv)
   }
 
   if (mode & MODE_DAEMON) {
-    if (mode & MODE_BACKGROUND) {
-      if (pipe(BGFiledes)) {
-	LogPrintf(LogERROR, "pipe: %s\n", strerror(errno));
+    if (!(mode & MODE_DIRECT)) {
+      int bgpipe[2];
+      pid_t bgpid;
+
+      if (mode & MODE_BACKGROUND && pipe(bgpipe)) {
+        LogPrintf(LogERROR, "pipe: %s\n", strerror(errno));
 	Cleanup(EX_SOCK);
       }
-    }
-
-    if (!(mode & MODE_DIRECT)) {
-      pid_t bgpid;
 
       bgpid = fork();
       if (bgpid == -1) {
 	LogPrintf(LogERROR, "fork: %s\n", strerror(errno));
 	Cleanup(EX_SOCK);
       }
+
       if (bgpid) {
 	char c = EX_NORMAL;
 
 	if (mode & MODE_BACKGROUND) {
-	  close(BGFiledes[1]);
+	  close(bgpipe[1]);
 	  BGPid = bgpid;
           /* If we get a signal, kill the child */
           signal(SIGHUP, KillChild);
@@ -449,7 +440,7 @@ main(int argc, char **argv)
           signal(SIGQUIT, KillChild);
 
 	  /* Wait for our child to close its pipe before we exit */
-	  if (read(BGFiledes[0], &c, 1) != 1) {
+	  if (read(bgpipe[0], &c, 1) != 1) {
 	    prompt_Printf(&prompt, "Child exit, no status.\n");
 	    LogPrintf(LogPHASE, "Parent: Child exit, no status.\n");
 	  } else if (c == EX_NORMAL) {
@@ -460,11 +451,13 @@ main(int argc, char **argv)
 	    LogPrintf(LogPHASE, "Parent: Child failed (%s).\n",
 		      ex_desc((int) c));
 	  }
-	  close(BGFiledes[0]);
+	  close(bgpipe[0]);
 	}
 	return c;
-      } else if (mode & MODE_BACKGROUND)
-	close(BGFiledes[0]);
+      } else if (mode & MODE_BACKGROUND) {
+	close(bgpipe[0]);
+        bundle->notify.fd = bgpipe[1];
+      }
     }
 
     prompt_Init(&prompt, PROMPT_NONE);

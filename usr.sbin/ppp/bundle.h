@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.19 1998/03/18 23:15:31 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.20 1998/03/20 19:47:42 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -71,6 +71,10 @@ struct bundle {
     struct pppTimer timer;      /* timeout after cfg.idle_timeout */
     time_t done;
   } idle;
+
+  struct {
+    int fd;                     /* write status here */
+  } notify;
 };
 
 #define descriptor2bundle(d) \

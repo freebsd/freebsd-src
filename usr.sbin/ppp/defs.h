@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.29.2.5 1998/03/09 19:24:56 brian Exp $
+ * $Id: defs.h,v 1.29.2.6 1998/03/09 19:26:37 brian Exp $
  *
  *	TODO:
  */
@@ -77,13 +77,8 @@
 #define EX_NOLOGIN	13
 
 extern int mode;
-extern int BGFiledes[2];
-extern int tun_in;
-extern int tun_out;
-extern int netfd;
 
 extern void SetLabel(const char *);
 extern const char *GetLabel(void);
 extern void randinit(void);
 extern int GetShortHost(void);
-extern void DropClient(int);
