@@ -818,10 +818,10 @@ scbus_devtab(fp, dev_idp)
 
 	fprintf(fp, "#include \"scsi/scsiconf.h\"\n");
 	fprintf(fp, "\nstruct scsi_ctlr_config scsi_cinit[] = {\n");
-	fprintf(fp, "/* unit  driver  driver unit */\n");
+	fprintf(fp, "/* scbus, driver, driver unit, ctlr bus*/\n");
 
 	/* XXX: Why do we always get an entry such as:
-	 * { '?', "ncr", '?' },
+	 * { '?', "ncr", '?', '?' },
 	 */
 
 	for (dp = dtab; dp; dp = dp->d_next) {
@@ -832,9 +832,10 @@ scbus_devtab(fp, dev_idp)
 		}
 		fprintf(fp, "{ %s, ", id(dp->d_unit));
 		fprintf(fp, "\"%s\", ", mp->d_name);
-		fprintf(fp, "%s },\n", id(mp->d_unit));
+		fprintf(fp, "%s, ", id(mp->d_unit));
+		fprintf(fp, "%s },\n", id(dp->d_slave));
 	}
-	fprintf(fp, "{ 0, 0, 0 }\n};\n");
+	fprintf(fp, "{ 0, 0, 0, 0 }\n};\n");
 
 	fprintf(fp, "\nstruct scsi_device_config scsi_dinit[] = {\n");
 	fprintf(fp, "/* name    unit  cunit   target   LUN  flags */\n");
