@@ -150,7 +150,7 @@ pkg_do(char *pkg)
 	sprintf(log_dir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
 		pkg);
 	if (!fexists(log_dir)) {
-	    warnx("can't find package `%s' installed or in a file!", pkg);
+	    warnx("can't find package '%s' installed or in a file!", pkg);
 	    return 1;
 	}
 	if (chdir(log_dir) == FAIL) {
