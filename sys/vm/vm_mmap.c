@@ -53,6 +53,8 @@
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
+#include <sys/resource.h>
+#include <sys/resourcevar.h>
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -1055,6 +1057,11 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		return (0);
 
 	objsize = size = round_page(size);
+
+	if (p->p_vmspace->vm_map.size + size >
+	    p->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+		return(ENOMEM);
+	}
 
 	/*
 	 * We currently can only deal with page aligned file offsets.

@@ -83,7 +83,8 @@ static struct {
 	  { "  memorylocked%-4s %8s", " kb\n",    1024 },
 	  { "  maxprocesses%-4s %8s", "\n",       1    },
 	  { "  openfiles%-4s    %8s", "\n",       1    },
-	  { "  sbsize%-4s       %8s", " bytes\n", 1    }
+	  { "  sbsize%-4s       %8s", " bytes\n", 1    },
+	  { "  vmemoryuse%-4s   %8s", " kb\n",    1024 }
       }
     },
     { "sh", "unlimited", "", " -H", " -S", "",
@@ -97,7 +98,8 @@ static struct {
 	  { "ulimit%s -l %s", ";\n",  1024 },
 	  { "ulimit%s -u %s", ";\n",  1    },
 	  { "ulimit%s -n %s", ";\n",  1    },
-	  { "ulimit%s -b %s", ";\n",  1    }
+	  { "ulimit%s -b %s", ";\n",  1    },
+	  { "ulimit%s -v %s", ";\n",  1024 }
       }
     },
     { "csh", "unlimited", "", " -h", "", NULL,
@@ -111,7 +113,8 @@ static struct {
 	  { "limit%s memorylocked %s", ";\n",  1024 },
 	  { "limit%s maxproc %s",      ";\n",  1    },
 	  { "limit%s openfiles %s",    ";\n",  1    },
-	  { "limit%s sbsize %s",       ";\n",  1    }
+	  { "limit%s sbsize %s",       ";\n",  1    },
+	  { "limit%s vmemoryuse %s",   ";\n",  1024 }
       }
     },
     { "bash|bash2", "unlimited", "", " -H", " -S", "",
@@ -125,7 +128,8 @@ static struct {
 	  { "ulimit%s -l %s", ";\n",  1024 },
 	  { "ulimit%s -u %s", ";\n",  1    },
 	  { "ulimit%s -n %s", ";\n",  1    },
-	  { "ulimit%s -b %s", ";\n",  1    }
+	  { "ulimit%s -b %s", ";\n",  1    },
+	  { "ulimit%s -v %s", ";\n",  1024 }
       }
     },
     { "tcsh", "unlimited", "", " -h", "", NULL,
@@ -139,7 +143,8 @@ static struct {
 	  { "limit%s memorylocked %s", ";\n",  1024 },
 	  { "limit%s maxproc %s",      ";\n",  1    },
 	  { "limit%s descriptors %s",  ";\n",  1    },
-	  { "limit%s sbsize %s",       ";\n",  1    }
+	  { "limit%s sbsize %s",       ";\n",  1    },
+	  { "limit%s vmemoryuse %s",   ";\n",  1024 }
       }
     },
     { "ksh|pdksh", "unlimited", "", " -H", " -S", "",
@@ -153,7 +158,8 @@ static struct {
 	  { "ulimit%s -l %s", ";\n",  1024 },
 	  { "ulimit%s -p %s", ";\n",  1    },
 	  { "ulimit%s -n %s", ";\n",  1    },
-	  { "ulimit%s -b %s", ";\n",  1    }
+	  { "ulimit%s -b %s", ";\n",  1    },
+	  { "ulimit%s -v %s", ";\n",  1024 }
       }
     },
     { "zsh", "unlimited", "", " -H", " -S", "",
@@ -167,7 +173,8 @@ static struct {
 	  { "ulimit%s -l %s", ";\n",  1024 },
 	  { "ulimit%s -u %s", ";\n",  1    },
 	  { "ulimit%s -n %s", ";\n",  1    },
-	  { "ulimit%s -b %s", ";\n",  1    }
+	  { "ulimit%s -b %s", ";\n",  1    },
+	  { "ulimit%s -v %s", ";\n",  1024 }
       }
     },
     { "rc|es", "unlimited", "", " -h", "", NULL,
@@ -181,7 +188,8 @@ static struct {
 	  { "limit%s lockedmemory %s", ";\n",  1024 },
 	  { "limit%s processes %s",    ";\n",  1    },
 	  { "limit%s descriptors %s",  ";\n",  1    },
-	  { "limit%s sbsize %s",       ";\n",  1    }
+	  { "limit%s sbsize %s",       ";\n",  1    },
+	  { "limit%s vmemoryuse %s",   ";\n",  1024 }
       }
     },
     { NULL }
@@ -200,7 +208,8 @@ static struct {
     { "memorylocked",	login_getcapsize },
     { "maxproc",	login_getcapnum  },
     { "openfiles",	login_getcapnum  },
-    { "sbsize",		login_getcapnum  }
+    { "sbsize",		login_getcapnum  },
+    { "vmemoryuse",	login_getcapsize }
 };
 
 /*
@@ -211,7 +220,7 @@ static struct {
  * to be modified accordingly!
  */
 
-#define RCS_STRING  "tfdscmlunb"
+#define RCS_STRING  "tfdscmlunbv"
 
 static rlim_t resource_num(int which, int ch, const char *str);
 static void usage(void);
@@ -247,7 +256,7 @@ main(int argc, char *argv[])
     }
 
     optarg = NULL;
-    while ((ch = getopt(argc, argv, ":EeC:U:BSHabc:d:f:l:m:n:s:t:u:")) != -1) {
+    while ((ch = getopt(argc, argv, ":EeC:U:BSHabc:d:f:l:m:n:s:t:u:v:")) != -1) {
 	switch(ch) {
 	case 'a':
 	    doall = 1;
@@ -456,7 +465,7 @@ static void
 usage(void)
 {
     (void)fprintf(stderr,
-"usage: limits [-C class|-U user] [-eaSHBE] [-bcdflmnstu [val]] [[name=val ...] cmd]\n");
+"usage: limits [-C class|-U user] [-eaSHBE] [-bcdflmnstuv [val]] [[name=val ...] cmd]\n");
     exit(EXIT_FAILURE);
 }
 
@@ -526,6 +535,7 @@ resource_num(int which, int ch, const char *str)
 	case RLIMIT_CORE:
 	case RLIMIT_RSS:
 	case RLIMIT_MEMLOCK:
+	case RLIMIT_VMEM:
 	    errno = 0;
 	    res = 0;
 	    while (*s) {
