@@ -14,10 +14,10 @@ alias ll="ls -l"
 alias m="more -e"
 
 echo '+---------------------------------------------------------------+'
-echo '| You are now running from a FreeBSD "fixit" floppy.            |'
+echo '| You are now running from FreeBSD "fixit" media.               |'
 echo '| ------------------------------------------------------------- |'
 echo "| When you're finished with this shell, please type exit.       |"
-echo '| The fixit floppy itself is mounted as /mnt2.                  |'
+echo '| The fixit media is mounted as /mnt2.                          |'
 echo '|                                                               |'
 echo '| You might want to symlink /mnt/etc/*pwd.db and /mnt/etc/group |'
 echo '| to /etc after mounting a root filesystem from your disk.      |'
