@@ -7,7 +7,7 @@ BINDIR?=	/boot
 BINMODE=	444
 CLEANFILES+=	boot1 boot1.out boot1.o \
 		boot2.ldr boot2.bin boot2.ld boot2.out boot2.o boot2.h \
-		sio.o
+		boot2.s sio.o
 
 NM?=		nm
 
