@@ -60,6 +60,7 @@ typedef enum {
 	mbr,
 	gpt,
 
+	efi,
 	fat,
 	freebsd,
 	extended,
