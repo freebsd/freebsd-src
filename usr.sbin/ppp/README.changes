@@ -50,9 +50,9 @@ o Set encrypt is no longer necessary.  Ppp will respond to M$CHAP
 o Throughput statistics are enabled by default.
 o `Set stopped' only has two parameters.  It's no longer possible to
   have an IPCP stopped timer.
-o `Set timeout' only has one parameter.  Use `set lqrperiod' and `set
-  {lcp,ccp,ipcp,chap,pap}retry' for the other timers.  `show timeout'
-  is also now available using the relevant show commands.
+o `Set timeout' only has one or two parameters.  Use `set lqrperiod' and
+  `set {lcp,ccp,ipcp,chap,pap}retry' for the other timers.  These timeout
+  values can be seen using the relevant show commands.
 o `set loopback' is now `enable/disable loopback'.
 o `show auto', `show loopback' and `show mtu' are all part of `show bundle'.
 o `show mru' is part of `show lcp'
