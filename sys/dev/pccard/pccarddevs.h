@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.5 2000/08/24 07:01:12 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.6 2000/11/25 03:42:06 peter Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.97 2000/07/26 07:24:15 onoe Exp $ */
 
@@ -71,6 +71,7 @@
 #define	PCCARD_VENDOR_LUCENT	0x0156	/* Lucent Technologies */
 #define	PCCARD_VENDOR_AIRONET	0x015f	/* Aironet Wireless Communications */
 #define	PCCARD_VENDOR_COMPAQ2	0x0183	/* Compaq */
+#define	PCCARD_VENDOR_KINGSTON	0x0186	/* Kingston */
 #define	PCCARD_VENDOR_DAYNA	0x0194	/* Dayna Corporation */
 #define	PCCARD_VENDOR_RAYTHEON	0x01a6	/* Raytheon */
 #define	PCCARD_VENDOR_IODATA	0x01bf	/* I-O DATA */
@@ -169,6 +170,11 @@
 #define	PCCARD_CIS_MOTOROLA_PM100C	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_MOTOROLA_PM100C	0x0302
 #define	PCCARD_STR_MOTOROLA_PM100C	"Motorola Personal Messenger 100C CDPD Modem"
+
+/* Kingston Products */
+#define	PCCARD_CIS_KINGSTON_KNE2	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_KINGSTON_KNE2	0x0100
+#define	PCCARD_STR_KINGSTON_KNE2	"Kingston KNE-PC2 Ethernet"
 
 /* Fujitsu Products */
 #define	PCCARD_CIS_FUJITSU_LA501	{ NULL, NULL, NULL, NULL }
