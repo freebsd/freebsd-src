@@ -1,4 +1,4 @@
-<!-- $Id: policies.sgml,v 1.11 1997/02/22 12:59:00 peter Exp $ -->
+<!-- $Id: policies.sgml,v 1.4.2.3 1997/03/15 23:30:09 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Source Tree Guidelines and Policies
@@ -127,7 +127,7 @@ is done, be sure to check in such utilities (as necessary) in the
 src/tools directory along with the port itself so that it is available
 to future maintainers.
 
-<p>In the src/contrib/tcl level directory, a file called README.FreeBSD
+<p>In the src/contrib/tcl level directory, a file called FREEBSD-upgrade
 should be added and it should states things like:
 
 <itemize>
@@ -137,6 +137,49 @@ should be added and it should states things like:
  <item> Where to send patches back to the original authors
  <item> Perhaps an overview of the FreeBSD-specific changes that have been made.
 </itemize>
+
+<p>However, please do not import FREEBSD-upgrade with the contributed source.  
+Rather you should ``cvs add FREEBSD-upgrade ; cvs ci'' after the
+initial import.  Example wording from ``src/contrib/cpio'' is below:
+
+<verb>This directory contains virgin sources of the original distribution files
+on a "vendor" branch.  Do not, under any circumstances, attempt to upgrade
+the files in this directory via patches and a cvs commit.  New versions or
+official-patch versions must be imported.
+
+For the import of GNU cpio 2.4.2, the following files were removed:
+
+	INSTALL         cpio.info       mkdir.c             
+	Makefile.in     cpio.texi       mkinstalldirs
+
+To upgrade to a newer version of cpio, when it is available:
+        1. Unpack the new version into an empty directory.
+           [Do not make ANY changes to the files.]
+
+        2. Remove the files listed above and any others that don't apply to
+           FreeBSD.
+
+        3. Use the command:
+                cvs import -m 'Virgin import of GNU cpio v<version>' \
+                        src/contrib/cpio GNU v<version>
+
+           For example, to do the import of version 2.4.2, I typed:
+                cvs import -m 'Virgin import of GNU v2.4.2' \
+                        src/contrib/cpio GNU v2.4.2
+
+        4. Follow the instructions printed out in step 3 to resolve any
+           conflicts between local FreeBSD changes and the newer version.
+
+Do not, under any circumstances, deviate from this procedure.
+
+To make local changes to cpio, simply patch and commit to the main
+branch (aka HEAD).  Never make local changes on the GNU branch.
+
+All local changes should be submitted to "cpio@gnu.ai.mit.edu" for
+inclusion in the next vendor release.
+
+obrien@freebsd.org - 30 March 1997</verb>
+
 
 <sect><heading>Shared libraries
 <label id="policies:shlib">

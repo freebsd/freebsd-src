@@ -1,11 +1,11 @@
-<!-- $Id: cvsup.sgml,v 1.11 1997/03/06 05:55:08 asami Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.2.2.1 1997/03/15 23:29:14 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<sect><heading>CVSup<label id="cvsup"></heading>
+<sect1><heading>CVSup<label id="cvsup"></heading>
 
 <p><em>Contributed by &a.jdp;</em>.
 
-<sect1><heading>Introduction<label id="cvsup:intro"></heading>
+<sect2><heading>Introduction<label id="cvsup:intro"></heading>
 
 <p>CVSup is a software package for distributing and updating source
 trees from a master CVS repository on a remote server host.  The
@@ -33,7 +33,7 @@ way as sup and, in fact, uses configuration files which are
 backward-compatible with sup's.  Sup is no longer used in the FreeBSD
 project, however, because CVSup is both faster and more flexible.
 
-<sect1><heading>Installation<label id="cvsup:install"></heading>
+<sect2><heading>Installation<label id="cvsup:install"></heading>
 
 <p>The easiest way to install CVSup if you are running FreeBSD 2.2 or
 later is to use either <url
@@ -44,9 +44,9 @@ url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-current/net/cvsup-14.1.1.tgz"
 name="binary package">, depending on whether you prefer to roll your
 own or not.
 
-<p>If you are running FreeBSD-2.1.6, you unfortunately cannot use the
+<p>If you are running FreeBSD-2.1.6 or 2.1.7, you unfortunately cannot use the
 binary package versions due to the fact that it requires a version of
-the C library that did not yet exist in FreeBSD-2.1.6.  You can easily
+the C library that does not yet exist in FreeBSD-2.1.{6,7}.  You can easily
 use <url url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup.tar.gz"
 name="the port">, however, just as with FreeBSD 2.2.  Simply unpack
 the tar file, cd to the cvsup subdirectory and type "make install"
@@ -69,11 +69,11 @@ is provided.  You can get <em>statically linked</em> FreeBSD
 executables for CVSup from either the USA distribution site:
 
 <itemize>
-  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz"
-  name="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz">
+  <item><url url="ftp://hub.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz"
+  name="ftp://hub.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz">
   (client).
-  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz"
-  name="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz">
+  <item><url url="ftp://hub.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz"
+  name="ftp://hub.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz">
   (server).
 </itemize>
 
@@ -96,11 +96,11 @@ FreeBSD-2.1.0 to FreeBSD-current.
 
 <itemize>
   <item>FreeBSD-2.2 or later:		static binary, port, or package
-  <item>FreeBSD-2.1.6:			static binary or port
+  <item>FreeBSD-2.1.6, 2.1.7:		static binary or port
   <item>FreeBSD-2.1.5 or earlier:	static binary
 </itemize>
 
-<sect1><heading>Configuration<label id="cvsup:config"></heading>
+<sect2><heading>Configuration<label id="cvsup:config"></heading>
 
 <p>CVSup's operation is controlled by a configuration file called the
 "supfile".  Beginning with FreeBSD-2.2, there are some sample supfiles
@@ -198,7 +198,7 @@ different tomorrow than it means today.
     The main line of development, also known as FreeBSD-current.
     Note:  the "." is not punctuation; it is the name of the tag.
   <tag/tag=RELENG_2_2/
-    The line of development leading up to FreeBSD-2.2.
+    The line of development for FreeBSD-2.2.x.
   <tag/tag=RELENG_2_1_0/
     The line of development for FreeBSD-2.1.x, also known as
     FreeBSD-stable.
@@ -207,6 +207,12 @@ different tomorrow than it means today.
 <p>Here are the revision tags that users might be interested in:
 
 <descrip>
+  <tag/tag=RELENG_2_2_1_RELEASE/
+  FreeBSD-2.2.1.
+  <tag/tag=RELENG_2_2_0_RELEASE/
+  FreeBSD-2.2.0.
+  <tag/tag=RELENG_2_1_7_RELEASE/
+  FreeBSD-2.1.7.
   <tag/tag=RELENG_2_1_6_1_RELEASE/
   FreeBSD-2.1.6.1.
   <tag/tag=RELENG_2_1_6_RELEASE/
@@ -334,7 +340,7 @@ substantially.
 </verb>
 </itemize>
 
-<sect1><heading>Running CVSup</heading>
+<sect2><heading>Running CVSup</heading>
 
 <p>You are now ready to try an update.  The command line for doing this is
 quite simple:
@@ -392,7 +398,7 @@ type "cvsup -H".  For more detailed descriptions, see the manual page.
 for regular runs of cvsup using cron(8).  Obviously, you should not let
 cvsup use its GUI when running it from cron.
 
-<sect1><heading>CVSup File Collections<label id="cvsup:collec"></heading>
+<sect2><heading>CVSup File Collections<label id="cvsup:collec"></heading>
 
 <p>The file collections available via CVSup are organized
 hierarchically.  There are a few large collections, and they are
@@ -434,6 +440,8 @@ cryptography code.
     Chinese language support.
     <tag><tt>ports-comms release=cvs</tt></tag>
     Communication software.
+    <tag><tt>ports-converters release=cvs</tt></tag>
+    character code converters.
     <tag><tt>ports-databases release=cvs</tt></tag>
     Databases.
     <tag><tt>ports-devel release=cvs</tt></tag>
@@ -476,6 +484,8 @@ cryptography code.
     Command line shells.
     <tag><tt>ports-sysutils release=cvs</tt></tag>
     System utilities.
+    <tag><tt>ports-textproc release=cvs</tt></tag>
+    text processing utilities (does not include desktop publishing).
     <tag><tt>ports-vietnamese release=cvs</tt></tag>
     Vietnamese language support.
     <tag><tt>ports-www release=cvs</tt></tag>
@@ -548,7 +558,7 @@ The CVS repository for the SMP project.
 The installed World Wide Web data.  Used by WWW mirror sites.
 </descrip>
 
-<sect1><heading>Announcements, Questions, and Bug Reports</heading>
+<sect2><heading>Announcements, Questions, and Bug Reports</heading>
 
 <p>Most FreeBSD-related discussion of CVSup takes place on the
 &a.hackers;.  New versions of the software are announced there, as

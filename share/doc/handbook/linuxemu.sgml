@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.17 1997/02/22 12:58:46 peter Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.13.2.1 1997/03/15 23:29:54 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -9,9 +9,9 @@
 
 <p>Linux emulation in FreeBSD has reached a point where it is possible
 to run a large fraction of Linux binaries in both a.out and ELF
-format.  The linux emulation in the -STABLE branch is capable of
+format.  The linux emulation in the 2.1-STABLE branch is capable of
 running Linux DOOM and Mathematica; the version present in
-FreeBSD-CURRENT is vastly more capable and runs all these as well as
+FreeBSD-2.2-RELEASE is vastly more capable and runs all these as well as
 Quake, Abuse, IDL, netrek for Linux and a whole host of other
 programs.
 
@@ -37,7 +37,7 @@ Linux-emulation up will vary slightly:
 
 <sect1><heading>Installing Linux Emulation in 2.1-STABLE</heading>
 
-<p>The GENERIC kernel in 2.1-stable is not configured for linux
+<p>The GENERIC kernel in 2.1-STABLE is not configured for linux
 compatibility so you must reconfigure your kernel for it.  There
 are two ways to do this: 1. linking the emulator statically in the
 kernel itself and 2. configuring your kernel to dynamically load the
@@ -106,7 +106,7 @@ EXEC      0   3 f0baf000 0018 f0bb4000   1 linux_emulator
 </verb>
 </tscreen>
 You can cause the LKM to be loaded when the system boots in either of
-two ways.  On FreeBSD-CURRENT and FreeBSD-STABLE enable it in
+two ways.  On FreeBSD 2.2-RELEASE and 2.1-STABLE enable it in
 /etc/sysconfig
 <tscreen>
 <verb>
@@ -122,9 +122,9 @@ linux
 </verb>
 </tscreen>
 
-<sect1><heading>Installing Linux Emulation in 2.2-CURRENT</heading>
+<sect1><heading>Installing Linux Emulation in 2.2-RELEASE and later</heading>
 
-<p>In -current it is no longer necessary to specify ``options LINUX''
+<p>It is no longer necessary to specify ``options LINUX''
 or ``options COMPAT_LINUX''.  Linux emulation is done with an LKM 
 (``Loadable Kernel Module'') so it can be installed on the fly without
 having to reboot.  You will need the following things in your startup files, 
@@ -157,8 +157,8 @@ EXEC      0   4 f09e6000 001c f09ec010   1 linux_mod
 %
 </verb>
 </tscreen>
-However, there have been reports that this fails on some
-FreeBSD-current systems.  If for some reason you cannot load the linux
+However, there have been reports that this fails on some 2.2-RELEASE and
+later systems.  If for some reason you cannot load the linux
 LKM, then statically link the emulator in the kernel by adding
 <tscreen>
 <verb>
@@ -208,8 +208,8 @@ shadow tree /compat/linux/lib rather than the paths that the Linux
 ld.so reports.
 
 
-FreeBSD-current works slightly differently with respect to
-/compat/linux.  On -current, all files, not just libraries, are
+FreeBSD-2.2-RELEASE and later works slightly differently with respect to
+/compat/linux.  On -CURRENT, all files, not just libraries, are
 searched for from the ``shadow root'' /compat/linux.
 
 Generally, you will need to look for the shared libraries that Linux 
@@ -296,12 +296,12 @@ needed for Linux binaries, the FreeBSD runtime linker takes care of
 looking for matching major revision numbers itself, you do not need to
 worry about that.
 
-<sect2><heading>Configuring the ld.so -- for FreeBSD-current only</heading>
+<sect2><heading>Configuring the ld.so -- for FreeBSD 2.2-RELEASE only</heading>
 
-<p>This section applies only to FreeBSD-current only.  Those running
-FreeBSD-stable should skip this section.
+<p>This section applies only to FreeBSD 2.2-RELEASE and later.  Those running
+2.1-STABLE should skip this section.
 
-<p>Finally, if you run FreeBSD-current you must make sure that you
+<p>Finally, if you run FreeBSD 2.2-RELEASE you must make sure that you
 have the Linux runtime linker and its config files on your system. You
 should copy these files from the Linux system to their appropriate
 place on your FreeBSD system (to the /compat/linux tree):
@@ -353,7 +353,7 @@ linux libraries should be installed under /compat/linux (e.g.
 /compat/linux/lib/libc.so, /compat/linux/usr/X11/lib/libX11.so, etc.)
 in order for the emulator to find them.
 
-<p>Those running FreeBSD-current should run the Linux ldconfig program.
+<p>Those running FreeBSD 2.2-RELEASE should run the Linux ldconfig program.
 <tscreen>
 <verb>
 % cd /compat/linux/lib
@@ -367,8 +367,8 @@ which contains the names of all the shared libraries. It should rerun
 to recreate this file whenever you install additional shared
 libraries.
 
-On FreeBSD-stable do not install /compat/linux/etc/ld.so.cache or run
-ldconfig because in FreeBSD-stable the syscalls are implemented
+On 2.1-STABLE do not install /compat/linux/etc/ld.so.cache or run
+ldconfig because in 2.1-STABLE the syscalls are implemented
 differently and ldconfig is not needed or used.
 
 <p>You should now be set up for Linux binaries which only need a
@@ -424,9 +424,9 @@ complain about the incompatible FreeBSD syntax.  You should remove
 `bind,' if you have not configured a name-server using the
 /etc/resolv.conf file.
 
-<p>Lastly, those who run FreeBSD-stable need to set an the
+<p>Lastly, those who run 2.1-STABLE need to set an the
 RESOLV_HOST_CONF environment variable so that applications will know
-how to search the host tables.  If you run FreeBSD-current you can
+how to search the host tables.  If you run FreeBSD 2.2-RELEASE can
 skip this.  For the /bin/csh shell use:
 <tscreen>
 <verb>
@@ -655,7 +655,7 @@ This tells Mathematica were to find its own version of the key
 mapping file XKeysymDB.  Without this you will get pages of error
 messages about missing key mappings.
 
-On FreeBSD-stable you need to add the following as well:
+On 2.1-STABLE you need to add the following as well:
 <tscreen>
 <verb>
 RESOLV_HOST_CONF=/compat/linux/etc/host.conf; export RESOLV_HOST_CONF

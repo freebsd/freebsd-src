@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.145.2.9 1997/03/30 23:52:42 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.145.2.10 1997/04/02 06:04:57 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -47,8 +47,11 @@ groups of people:
 
       <itemize>
 	<item>&a.mbarkah;
+	<item>&a.stb;
+        <item>&a.jb;
         <item>&a.torstenb;
 	<item>&a.danny;
+	<item>&a.kjc;
         <item>&a.gclarkii;
 	<item>&a.cracauer;
         <item>&a.adam;
@@ -66,6 +69,7 @@ groups of people:
 	<item>&a.scrappy;
         <item>&a.tg;
         <item>&a.graichen;
+	<item>&a.jgreco;
         <item>&a.rgrimes;
 	<item>&a.jmg;
 	<item>&a.jhay;
@@ -81,6 +85,7 @@ groups of people:
 	<item>&a.imp;
         <item>&a.smace;
 	<item>&a.mckay;
+	<item>&a.tedm;
         <item>&a.amurai;
         <item>&a.markm;
 	<item>&a.max;
@@ -105,6 +110,7 @@ groups of people:
         <item>&a.ats;
         <item>&a.msmith;
         <item>&a.brian; 
+	<item>&a.stark;
         <item>&a.karl;
         <item>&a.pst;
         <item>&a.swallace;
@@ -128,10 +134,10 @@ groups of people:
         <tag/Build Engineer/ &a.paul;<p><em>Deputy:</em> &a.dave
         <tag/Mirror Manager/ &a.ulf;<p><em>Deputy:</em> &a.john
         <tag/News Editor/ &a.nsj;<p><em>Deputy:</em> &a.john;
-        <tag/Gallery and Commercial Editor/ &a.ricardag;<p><em>Deputy:</em> &a.cawimm
+        <tag/Gallery and Commercial Editor/ &a.nsj;<p><em>Deputy:</em> &a.cawimm
         <tag/Style Police & Art Director/ &a.dave;<p><em>Deputy:</em> &a.opsys
         <tag/Database Engineer/ &a.mayo;<p><em>Deputy:</em> &a.cracauer
-        <tag/CGI Engineer/ &a.cracauer
+        <tag/CGI Engineer/ &a.cracauer;<p><em>Deputy:</em> &a.stb
         <tag/Bottle Washing/ &a.nsj
       </descrip>
 
@@ -173,41 +179,6 @@ groups of people:
       BSD based operating systems on people's computers!  We wish
       the NetBSD group every success in their endeavors.
 
-  <sect><heading>Hardware contributors</heading>
-
-    <p>A special thank-you to Walnut Creek CDROM for providing
-      the Pentium P5-90 and 486/DX2-66 EISA/VL systems that are
-      being used for our development work, to say nothing of the
-      network access and other donations of hardware resources.
-      It would have been impossible to do this release without
-      their support.
-
-      TRW Financial Systems, Inc. provided 130 PCs, three 68 GB
-      fileservers, twelve Ethernets, two routers and an ATM
-      switch for debugging the diskless code.  They also keep a
-      couple of FreeBSD hackers alive and busy.  Thanks!
-
-      Thanks also to Dermot McDonnell for his donation of a
-      Toshiba XM3401B CDROM drive.  It has been most useful!
-
-      Thanks to &a.chuck; who
-      contributed his floppy tape streamer for experimental
-      work.
-
-      Thanks to Larry Altneu &lt;larry@ALR.COM&gt;, and to &a.wilko;,
-      for providing us with a Wangtek and
-      an Archive QIC-02 tape drive, in order to give us the hardware
-      to improve the <tt>wt</tt> driver.
-
-      Thanks go to Ernst Winter &lt;ewinter@lobo.muc.de&gt;, for
-      contributing a 2.88 MB floppy drive to the project.  Hopefully,
-      this will increase the pressure for rewriting the floppy disk
-      driver. ;-)
-
-      Also see <ref id="donors" name="the donor's gallery"> for
-      a list of people who have donated funding or services to the FreeBSD
-      Project.
-
     <sect><heading>Additional FreeBSD contributors<label
 	id="contrib:additional"></heading>
 
@@ -241,9 +212,11 @@ groups of people:
 	  <item>Brent J. Nordquist &lt;bjn@visi.com&gt;
 	  <item>Brian Clapper &lt;bmc@willscreek.com&gt;
 	  <item>Brian Tao &lt;taob@risc.org&gt;
+	  <item>Carey Jones &lt;mcj@acquiesce.org&gt;
 	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
 	  <item>Charles Mott &lt;cmott@srv.net&gt;
 	  <item>Chet Ramey &lt;chet@odin.INS.CWRU.Edu&gt;
+	  <item>Chris Dabrowski &lt; chris@vader.org&gt;
 	  <item>Chris G. Demetriou &lt;cgd@postgres.berkeley.edu&gt;
 	  <item>Chris Stenton &lt;jacs@gnome.co.uk&gt;
 	  <item>Chris Timmons &lt;skynyrd@opus.cts.cwu.edu&gt;
@@ -251,6 +224,7 @@ groups of people:
 	  <item>Christian Gusenbauer &lt;cg@fimp01.fim.uni-linz.ac.at&gt;
 	  <item>Christian Haury &lt;Christian.Haury@sagem.fr&gt;
 	  <item>Christoph Robitschko &lt;chmr@edvz.tu-graz.ac.at&gt;
+	  <item>Choi Jun Ho &lt;junker@jazz.snu.ac.kr&gt;
 	  <item>Chuck Hein &lt;chein@cisco.com&gt;
 	  <item>Conrad Sabatier &lt;conrads@neosoft.com&gt;
 	  <item>Cornelis van der Laan &lt;nils@guru.ims.uni-stuttgart.de&gt;
@@ -270,6 +244,7 @@ groups of people:
 	  <item>David Leonard &lt;d@scry.dstc.edu.au&gt;
 	  <item>Dean Huxley &lt;dean@fsa.ca&gt;
 	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
+	  <item>Dmitrij Tejblum &lt;dima@tejblum.dnttm.rssi.ru&gt;
 	  <item>Dmitry Kohmanyuk &lt;dk@farm.org&gt;
 	  <item>&a.whiteside;
 	  <item>Don Yuniskis &lt;dgy@rtd.com&gt;
@@ -281,7 +256,6 @@ groups of people:
 	  <item>Frank Nobis &lt;fn@trinity.radio-do.de&gt;
 	  <item>FURUSAWA Kazuhisa &lt;furusawa@com.cs.osakafu-u.ac.jp&gt;
 	  <item>Gary A. Browning &lt;gab10@griffcd.amdahl.com&gt;
-	  <item>Gene Stark &lt;stark@cs.sunysb.edu&gt;
 	  <item>Greg Ungerer &lt;gerg@stallion.oz.au&gt;
 	  <item>Harlan Stenn &lt;Harlan.Stenn@pfcs.com&gt;
 	  <item>Havard Eidnes &lt;Havard.Eidnes@runit.sintef.no&gt;
@@ -295,6 +269,7 @@ groups of people:
 	  <item>IMAMURA Tomoaki &lt;tomoak-i@is.aist-nara.ac.jp&gt;
 	  <item>Ishii Masahiro &lt;?&gt;
 	  <item>Itsuro Saito &lt;saito@miv.t.u-tokyo.ac.jp&gt;
+	  <item>J. David Lowe &lt;lowe@saturn5.com&gt;
 	  <item>J.T. Conklin &lt;jtc@cygnus.com&gt;
 	  <item>James Clark &lt;jjc@jclark.com&gt;
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
@@ -318,9 +293,10 @@ groups of people:
 	  <item>Justin M. Seger &lt;jseger@scds.ziplink.net&gt;
 	  <item>Kazuhiko Kiriyama &lt;kiri@kiri.toba-cmt.ac.jp&gt;
 	  <item>Kazutaka YOKOTA &lt;yokota@zodiac.mech.utsunomiya-u.ac.jp&gt;
-	  <item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
+	  <item>Keith Bostic &lt;bostic@bostic.com&gt;
 	  <item>Keith Moore &lt;?&gt;
 	  <item>Kenneth Monville &lt;desmo@bandwidth.org&gt;
+	  <item>Kent Vander Velden &lt;graphix@iastate.edu&gt;
 	  <item>Kirk McKusick &lt;mckusick@mckusick.com&gt;
 	  <item>Kiroh HARADA &lt;kiroh@kh.rim.or.jp&gt;
 	  <item>Koichi Sato &lt;copan@ppp.fastnet.or.jp&gt;
@@ -359,12 +335,14 @@ groups of people:
 	  <item>MITA Yoshio &lt;mita@jp.FreeBSD.ORG&gt;
 	  <item>MOROHOSHI Akihiko &lt;moro@race.u-tokyo.ac.jp&gt;
 	  <item>Naoki Hamada &lt;nao@tom-yam.or.jp&gt;
+	  <item>Narvi &lt;narvi@haldjas.folklore.ee&gt;
 	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
 	  <item>Nick Sayer &lt;nsayer@quack.kfu.com&gt;
 	  <item>Nisha Talagala &lt;nisha@cs.berkeley.edu&gt;
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
 	  <item>Nobuyuki Koganemaru &lt;kogane@kces.koganemaru.co.jp&gt;
-	  <item>Noritaka Ishizumi &lt;graphite@taurus.bekkoame.or.jp&gt;
+	  <item>Noritaka Ishizumi &lt;graphite@jp.FreeBSD.ORG&gt;
+	  <item>Oliver Laumann &lt;net@informatik.uni-bremen.de&gt;
 	  <item>Oliver Oberdorf &lt;oly@world.std.com&gt;
 	  <item>Paul Fox &lt;pgf@foxharp.boston.ma.us&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
@@ -375,6 +353,7 @@ groups of people:
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
 	  <item>R. Kym Horsell &lt;?&gt;
+	  <item>Ralf S. Engelschall &lt;rse@engelschall.com&gt;
 	  <item>Randall Hopper &lt;rhh@stealth.ct.picker.com&gt;
 	  <item>Richard Stallman &lt;rms@gnu.ai.mit.edu&gt;
 	  <item>Richard Wiwatowski &lt;rjwiwat@adelaide.on.neti&gt;
@@ -384,6 +363,7 @@ groups of people:
 	  <item>Robert Sanders &lt;rsanders@mindspring.com&gt;
 	  <item>Robert Withrow &lt;witr@rwwa.com&gt;
 	  <item>Ronald Kuehn &lt;kuehn@rz.tu-clausthal.de&gt;
+	  <item>Samuel Lam &lt;skl@ScalableNetwork.com&gt;
 	  <item>Sander Vesik &lt;sander@haldjas.folklore.ee&gt;
 	  <item>Sandro Sigala &lt;ssigala@globalnet.it&gt;
 	  <item>Sascha Blank &lt;blank@fox.uni-trier.de&gt;
@@ -391,7 +371,7 @@ groups of people:
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
 	  <item>Simon Marlow &lt;simonm@dcs.gla.ac.uk&gt;
-	  <item>Slaven Reziæ (Tomiæ) &lt;eserte@cs.tu-berlin.de&gt;
+	  <item>Slaven Rezic (Tomic) &lt;eserte@cs.tu-berlin.de&gt;
 	  <item>Soren Dayton &lt;csdayton@midway.uchicago.edu&gt;
 	  <item>Stefan Moeding &lt;moeding@bn.DeTeMobil.de&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
@@ -407,7 +387,6 @@ groups of people:
 	  <item>Tim Vanderhoek &lt;ac199@freenet.hamilton.on.ca&gt;
 	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;
 	  <item>Torbjorn Granlund &lt;tege@matematik.su.se&gt;
-	  <item>Tor Egge &lt;tegge@itea.ntnu.no&gt;
 	  <item>Toshihiro Kanda &lt;candy@fct.kgc.co.jp&gt;
 	  <item>Ville Eerola &lt;ve@sci.fi&gt;
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
@@ -502,7 +481,6 @@ groups of people:
 	<item>Rick Macklem &lt;root@snowhite.cis.uoguelph.ca&gt;
 	<item>Robert D. Thrush &lt;rd@phoenix.aii.com&gt;
 	<item>Rodney W. Grimes &lt;rgrimes@cdrom.com&gt;
-	<item>Rog Egge &lt;?&gt;
 	<item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	<item>Scott Burris &lt;scott@pita.cns.ucla.edu&gt;
 	<item>Scott Reynolds &lt;scott@clmqt.marquette.mi.us&gt;
@@ -512,6 +490,7 @@ groups of people:
 	<item>Stephen McKay &lt;syssgm@devetir.qld.gov.au&gt;
 	<item>Terry Lambert &lt;terry@icarus.weber.edu&gt;
 	<item>Terry Lee &lt;terry@uivlsi.csl.uiuc.edu&gt;
+	<item>Tor Egge &lt;Tor.Egge@idi.ntnu.no&gt;
 	<item>Warren Toomey &lt;wkt@csadfa.cs.adfa.oz.au&gt;
 	<item>Wiljo Heinen &lt;wiljo@freeside.ki.open.de&gt;
 	<item>William Jolitz &lt;withheld&gt;

@@ -1,4 +1,4 @@
-<!-- $Id: kerneldebug.sgml,v 1.12 1997/02/22 12:58:44 peter Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.10.2.1 1997/03/15 23:29:51 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>
@@ -33,7 +33,10 @@
   to <tt>gdb</tt> run in `kernel debug mode'.  This can be accomplished by
   either starting the <tt>gdb</tt> with the option <tt>-k</tt>, or by linking
   and starting it under the name <tt>kgdb</tt>.  This is not being
-  done by default, however.</em>
+  done by default, however, and the idea is basically deprecated since
+  the GNU folks do not love it if their tools behave differently when
+  called by another name.  This feature might as well be discontinued
+  in further releases.</em>
 
   When the kernel has been built make a copy of it, say
   <tt>kernel.debug</tt>, and then run <tt>strip -d</tt> on the
@@ -410,6 +413,104 @@
   Remember that it is hard to read the on-line manual while
   single-stepping the kernel.
 
+<sect><heading>On-line kernel debugging using remote GDB</heading>
+
+<p>This feature is supported since FreeBSD 2.2, and it's actually
+  a very neat one.
+
+  GDB used to support <em/remote debugging/ for a long time
+  already.  This is done using a very simple protocol along a
+  serial line.  Obviously, and opposed to the other methods
+  described above, you need two machines for doing this.  One is
+  the host providing the debugging environment, including all
+  the sources, and a copy of the kernel binary with all the
+  symbols in it, and the other one is the target machine that
+  simply runs a similar copy of the very same kernel (but stripped
+  off the debugging information).
+
+  You should configure the kernel in question with <tt>config -g</tt>,
+  include <em/DDB/ into the configuration, and compile it as usual.
+  This gives a large blurb of a binary, due
+  to the debugging information.  Copy this kernel to the target
+  machine, strip the debugging symbols off with <tt>strip -x</tt>,
+  and boot it using the <tt/-d/ boot option.  Connect the first
+  serial line of the target machine to any serial line of the
+  debugging host.  Now, on the debugging machine, go to the compile
+  directory of the target kernel, and start gdb:
+<tscreen><verb>
+% gdb -k kernel
+GDB is free software and you are welcome to distribute copies of it
+ under certain conditions; type "show copying" to see the conditions.
+There is absolutely no warranty for GDB; type "show warranty" for details.
+GDB 4.16 (i386-unknown-freebsd), 
+Copyright 1996 Free Software Foundation, Inc...
+(kgdb) 
+</verb></tscreen>
+
+  Initialize the remote debugging session (assuming the first serial
+  port is being used) by:
+<tscreen><verb>
+(kgdb) target remote /dev/cuaa0
+</verb></tscreen>
+
+  Now, on the target host (that entered DDB right before even starting
+  the device probe), type:
+<tscreen><verb>
+Debugger("Boot flags requested debugger")
+Stopped at	Debugger+0x35: movb	$0, edata+0x51bc
+db> gdb
+</verb></tscreen>
+
+  DDB will respond with:
+<tscreen><verb>
+Next trap will enter GDB remote protocol mode
+</verb></tscreen>
+
+  Every time you type ``gdb'', the mode will be toggled between
+  remote GDB and local DDB.  In order to force a next trap
+  immediately, simply type ``s'' (step).  Your hosting GDB will
+  now gain control over the target kernel:
+<tscreen><verb>
+Remote debugging using /dev/cuaa0
+Debugger (msg=0xf01b0383 "Boot flags requested debugger")
+    at ../../i386/i386/db_interface.c:257
+(kgdb) 
+</verb></tscreen>
+
+  You can use this session almost as any other GDB session, including
+  full access to the source, running it in gud-mode inside an Emacs
+  window (which gives you an automatic source code display in another
+  Emacs window) etc.
+
+<p>Remote GDB can also be used to debug LKMs.  First build the LKM
+ with debugging symbols:
+<tscreen><verb>
+# cd /usr/src/lkm/linux
+# make clean; make COPTS=-g
+</verb></tscreen>
+
+ Then install this version of the module on the target machine, load it
+ and use <tt>modstat</tt> to find out where it was loaded:
+<tscreen><verb>
+# linux
+# modstat
+Type     Id Off Loadaddr Size Info     Rev Module Name
+EXEC      0   4 f5109000 001c f510f010   1 linux_mod
+</verb></tscreen>
+
+ Take the load address of the module and add 0x20 (probably to account
+ for the a.out header).  This is the address that the module code was
+ relocated to.  Use the <tt>add-symbol-file</tt> command in GDB to tell the
+ debugger about the module:
+<tscreen><verb>
+(kgdb) add-symbol-file /usr/src/lkm/linux/linux_mod.o 0xf5109020
+add symbol table from file "/usr/src/lkm/linux/linux_mod.o" at
+text_addr = 0xf5109020?
+(y or n) y
+(kgdb)
+</verb></tscreen>
+
+ You now have access to all the symbols in the LKM.
 
 <sect><heading>Debugging a console driver</heading>
 

@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.58.2.5 1997/03/15 23:29:34 jkh Exp $ -->
+<!-- $Id: handbook.sgml,v 1.58.2.6 1997/03/17 04:04:54 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -20,7 +20,7 @@
 %sections;
 
 <!-- The currently released version of FreeBSD -->
-<!ENTITY rel.current CDATA "2.2">
+<!ENTITY rel.current CDATA "2.2.2">
 
 ]>
 
@@ -31,7 +31,7 @@
       <author>
 	<name>The FreeBSD Documentation Project</name>
       </author>
-      <date>March 1997</date>
+      <date>May 1997</date>
 
 <abstract>Welcome to FreeBSD!  This handbook covers the
 installation and day to day use of <bf>FreeBSD Release
@@ -55,7 +55,7 @@ name="FreeBSD FTP server"> or one of the numerous
 
 <!-- ************************************************************ -->	      
 
-    <part><heading>Basics</heading>
+    <part><heading>Getting Started</heading>
 
     <chapt><heading>Introduction</heading>
       <p>FreeBSD is a 4.4BSD-Lite based operating system for Intel
@@ -78,16 +78,14 @@ name="FreeBSD FTP server"> or one of the numerous
     &install;
     &basics;
 
-    <chapt><heading>Installing applications</heading>
-      <sect><heading>* Installing packages</heading>
-        &ports;
+    &ports;
 
 <!-- ************************************************************ -->	      
 
     <part><heading>System Administration</heading>
 
     &kernelconfig;
-    <chapt><heading>Users, groups and security</heading>
+    <chapt><heading>Security</heading>
       &crypt;
       &skey;
       &kerberos;
@@ -102,6 +100,9 @@ name="FreeBSD FTP server"> or one of the numerous
          name="The XFree86 Project, Inc">.
 
     &hw;
+
+    <chapt><heading>Localization<label id="l10n"></heading>
+      &russian;
 
 <!-- ************************************************************ -->	      
 
@@ -133,7 +134,6 @@ name="FreeBSD FTP server"> or one of the numerous
       &routing;
       &nfs;
       &diskless;
-      <sect><heading>* Yellow Pages/NIS</heading>
       &isdn;	
 
     &mail;
@@ -141,13 +141,23 @@ name="FreeBSD FTP server"> or one of the numerous
 <!-- ************************************************************ -->	      
 
     <part><heading>Advanced topics</heading>
-    &current;
-    &stable;
-    &synching; 
+    <chapt><heading>The Cutting Edge: FreeBSD-current and FreeBSD-stable</heading>
+    <p>FreeBSD is under constant development between releases.  For
+    people who want to be on the cutting edge, there are several
+    easy mechanisms for keeping your system in sync with the latest
+    developments.  Be warned: the cutting edge is not for everyone!
+    This chapter will help you decide if you want to track the development
+    system, or stick with one of the released versions.</p>
+
+      &current;
+      &stable;
+      &synching; 
+    </chapt>
+
     &submitters;
-    &troubleshooting;
-    &kerneldebug;
+    &policies;
     &kernelopts;
+    &kerneldebug;
     &linuxemu;
     <chapt><heading>FreeBSD internals</heading>
       &booting;
@@ -163,7 +173,6 @@ name="FreeBSD FTP server"> or one of the numerous
     &bibliography;
     &eresources;
     &contrib;
-    &policies;
     &pgpkeys;
 
 <!--    &glossary; -->
