@@ -79,6 +79,13 @@ struct nwnode {
 #define	NWCMPN(np1,np2)	NWCMPF(&(np1)->n_fid, &(np2)->n_fid)
 #define NWCMPV(vp1,vp2)	NWCMPN(VTONW(vp1),VTONW(vp2))
 
+struct vop_getpages_args;
+struct vop_inactive_args;
+struct vop_putpages_args;
+struct vop_reclaim_args;
+struct ucred;
+struct uio;
+
 void nwfs_hash_init(void);
 void nwfs_hash_free(void);
 int  nwfs_allocvp(struct mount *mp, ncpfid fid, struct vnode **vpp);
