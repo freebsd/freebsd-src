@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13.2.4 1995/10/04 12:08:14 jkh Exp $
+ * $Id: main.c,v 1.13.2.5 1995/10/16 15:14:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -64,17 +64,8 @@ main(int argc, char **argv)
     /* Probe for all relevant devices on the system */
     deviceGetAll();
 
-    /* Set default startup options */
-    OptFlags = OPT_DEFAULT_FLAGS;
-    variable_set2("routedflags",	"-q");
-    variable_set2(RELNAME,		RELEASE_NAME);
-    variable_set2(CPIO_VERBOSITY_LEVEL, "high");
-    variable_set2(TAPE_BLOCKSIZE,	DEFAULT_TAPE_BLOCKSIZE);
-    variable_set2(FTP_USER,		"ftp");
-    variable_set2(BROWSER_PACKAGE,	"lynx-2.4.2");
-    variable_set2(BROWSER_BINARY,	"/usr/local/bin/lynx");
-    if (getpid() != 1)
-	variable_set2(SYSTEM_INSTALLED, "update");
+    /* Set default flag and variable values */
+    installVarDefaults();
 
     /* Begin user dialog at outer menu */
     while (1) {

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.8 1995/10/16 23:02:29 jkh Exp $
+ * $Id: system.c,v 1.44.2.9 1995/10/17 02:57:03 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -214,7 +214,7 @@ vsystem(char *fmt, ...)
 	(void)sigsetmask(omask);
 	if (DebugFD != -1) {
 	    if (OnVTY && isDebug())
-		msgInfo("Command output is on debugging screen - type ALT-F2 to see it");
+		msgInfo("Command output is on VTY2 - type ALT-F2 to see it");
 	    dup2(DebugFD, 0);
 	    dup2(DebugFD, 1);
 	    dup2(DebugFD, 2);
@@ -303,20 +303,6 @@ docBrowser(char *junk)
     /* Run browser on the appropriate doc */
     dmenuOpenSimple(&MenuHTMLDoc);
     return RET_SUCCESS;
-}
-
-/* Specify which package to load for a browser */
-int
-docSelectBrowserPkg(char *str)
-{
-    return variable_get_value(BROWSER_PACKAGE, "Please specify the name of the HTML browser package:");
-}
-
-/* Specify which binary to load for a browser */
-int
-docSelectBrowserBin(char *str)
-{
-    return variable_get_value(BROWSER_BINARY, "Please specify a full pathname to the HTML browser binary:");
 }
 
 /* Try to show one of the documents requested from the HTML doc menu */

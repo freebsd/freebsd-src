@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.23 1995/10/16 23:02:25 jkh Exp $
+ * $Id: menus.c,v 1.42.2.24 1995/10/17 02:56:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -78,6 +78,8 @@ option by pressing [ENTER].",		/* prompt */
 	DMENU_SUBMENU,		&MenuConfigure, 0, 0		},
   { "Quit",			"Exit this menu (and the installation)",	/* Q */
 	DMENU_CANCEL,		NULL, 0, 0			},
+  { "Load",			"Load a pre-configuration disk.",
+	DMENU_CALL,		installPreconfig, 0,		},
   { NULL } },
 };
 
@@ -241,14 +243,14 @@ select one of the following tape devices detected on your system.",
 
 DMenu MenuNetworkDevice = {
 DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-"Choose a network interface type",
+"Network interface information required",
 "If you are using PPP over a serial device (cuaa0 or cuaa1) as opposed\n\
 to a direct ethernet connection, then you may first need to dial your\n\
 service provider using the ppp utility we provide for that purpose.\n\
 You can also install over a parallel port using a special \"laplink\"\n\
 cable, though this only works if you have another FreeBSD machine running\n\
 a fairly recent (2.0R or later) release to talk to.\n\n\
-To use PPP select one of the serial devices, otherwise select lp0 for\n\
+To use PPP, select one of the serial devices, otherwise select lp0 for\n\
 the parallel port or one of the ethernet controllers (if you have one)\n\
 for an ethernet installation.",
 "Press F1 to read network configuration manual",
@@ -258,12 +260,12 @@ for an ethernet installation.",
 
 /* The media selection menu */
 DMenu MenuMedia = {
-DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+DMENU_NORMAL_TYPE,
 "Choose Installation Media",
 "FreeBSD can be installed from a variety of different installation\n\
-media, ranging from floppies to the Internet.  If you're installing\n\
-FreeBSD from a supported CDROM drive then this is generally the best\n\
-media to use, unless you have some overriding reason for using another\n\
+media, ranging from floppies to an Internet FTP server.  If you're\n\
+installing FreeBSD from a supported CDROM drive then this is generally\n\
+the best media to use if you have no overriding reason for using other\n\
 media.",
 "Press F1 for more information on the various media types",
 "media",
@@ -271,7 +273,7 @@ media.",
 	DMENU_CALL,	mediaSetCDROM, 0, 0		},
   { "DOS",		"Install from a DOS partition",
 	DMENU_CALL,	mediaSetDOS, 0, 0		},
-  { "File System",	"Install from a mounted filesystem",
+  { "File System",	"Install from an existing filesystem",
 	DMENU_CALL,	mediaSetUFS, 0, 0		},
   { "Floppy",	"Install from a floppy disk set",
 	DMENU_CALL,	mediaSetFloppy, 0, 0		},
@@ -649,14 +651,14 @@ DMenu MenuMBRType = {
 DMenu MenuConfigure = {
     DMENU_NORMAL_TYPE,
     "FreeBSD Configuration Menu",	/* title */
-    "If you've already installed FreeBSD, you may use this menu to\n\
-customize it somewhat to suit your particular configuration.  Most\n\
-importantly, you can use the Packages utility to load extra \"3rd party\"\n\
+"If you've already installed FreeBSD, you may use this menu to customize\n\
+it somewhat to suit your particular configuration.  Most importantly,\n\
+you can use the Packages utility to load extra \"3rd party\"\n\
 software not provided in the base distributions.",
     "Press F1 for more information on these options",
     "configure",
     { { "Add User",		"Add users to the system",
-	DMENU_SYSTEM_COMMAND,	"adduser -silent", 0, 0			},
+	DMENU_SYSTEM_COMMAND,	"adduser -s", 0, 0			},
       { "Console",		"Customize system console behavior",
 	DMENU_SUBMENU,		&MenuSyscons, 0, 0			},
       {	"Handbook",		"Read the FreeBSD handbook.",
@@ -669,7 +671,7 @@ software not provided in the base distributions.",
 	DMENU_SUBMENU, 		&MenuNetworking, 0, 0			},
       { "Options",		"Go to options editor.",
 	DMENU_CALL,		optionsEditor, 0, 0			},
-      { "Packages",		"Install extra FreeBSD packaged software",
+      { "Packages",		"Install pre-packaged software for FreeBSD",
 	DMENU_CALL,		configPackages, 0, 0			},
       { "Ports",		"Link to FreeBSD Ports Collection on CD/NFS",
 	DMENU_CALL,		configPorts, 0, 1			},

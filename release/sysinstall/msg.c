@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.29.2.1 1995/10/03 23:36:52 jkh Exp $
+ * $Id: msg.c,v 1.29.2.2 1995/10/07 11:55:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -214,7 +214,7 @@ msgConfirm(char *fmt, ...)
     use_helpfile(NULL);
     w = dupwin(newscr);
     if (OnVTY) {
-	msgDebug("Switching back to VTY 0\n");
+	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);
 	msgInfo(NULL);
     }
@@ -262,7 +262,7 @@ msgYesNo(char *fmt, ...)
     use_helpfile(NULL);
     w = dupwin(newscr);
     if (OnVTY) {
-	msgDebug("Switching back to VTY 0\n");
+	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
@@ -296,7 +296,7 @@ msgGetInput(char *buf, char *fmt, ...)
 	input_buffer[0] = '\0';
     w = dupwin(newscr);
     if (OnVTY) {
-	msgDebug("Switching back to VTY 0\n");
+	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
@@ -347,5 +347,5 @@ msgWeHaveOutput(char *fmt, ...)
     dialog_msgbox("Information Dialog", errstr, -1, -1, 0);
     free(errstr);
     if (OnVTY)
-	msgInfo("Command output is on debugging screen - type ALT-F2 to see it");
+	msgInfo("Command output is on VTY2 - type ALT-F2 to see it");
 }

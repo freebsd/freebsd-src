@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: decode.c,v 1.6.2.1 1995/09/23 22:03:05 jkh Exp $
+ * $Id: decode.c,v 1.6.2.2 1995/09/25 00:52:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,10 +56,10 @@ decode(DMenu *menu, char *name)
     return tmp;
 }
 
-Boolean
+int
 dispatch(DMenuItem *tmp, char *name)
 {
-    Boolean failed = FALSE;
+    int val = RET_SUCCESS;
 
     switch (tmp->type) {
 	/* We want to simply display a file */
@@ -86,11 +86,12 @@ dispatch(DMenuItem *tmp, char *name)
 	break;
 
     case DMENU_CALL:
-	failed = (((int (*)())tmp->ptr)(name));
+	val = (((int (*)())tmp->ptr)(name));
 	break;
 
     case DMENU_CANCEL:
-	return TRUE;
+	val = RET_DONE;
+	break;
 
     case DMENU_SET_VARIABLE:
 	variable_set((char *)tmp->ptr);
@@ -110,10 +111,10 @@ dispatch(DMenuItem *tmp, char *name)
     default:
 	msgFatal("Don't know how to deal with menu type %d", tmp->type);
     }
-    return failed;
+    return val;
 }
 
-Boolean
+int
 decode_and_dispatch_multiple(DMenu *menu, char *names)
 {
     DMenuItem *tmp;
@@ -140,7 +141,7 @@ decode_and_dispatch_multiple(DMenu *menu, char *names)
 	if (!*names)
 	    return FALSE;
 	if ((tmp = decode(menu, names)) != NULL) {
-	    if (dispatch(tmp, names))
+	    if (dispatch(tmp, names) != RET_SUCCESS)
 		++errors;
 	}
 	else
@@ -148,6 +149,5 @@ decode_and_dispatch_multiple(DMenu *menu, char *names)
 		     names, menu->title);
 	names = cp;
     }
-    return errors ? TRUE : FALSE;
+    return errors;
 }
-

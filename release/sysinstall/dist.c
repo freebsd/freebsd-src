@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.8 1995/10/15 04:37:01 jkh Exp $
+ * $Id: dist.c,v 1.36.2.9 1995/10/15 12:40:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -317,10 +317,7 @@ distExtract(char *parent, Distribution *me)
         snprintf(buf, 512, "%s/%s.tgz", path, dist);
 	if (isDebug())
 	    msgDebug("Trying to get large piece: %s\n", buf);
-	/* Set it as an "exploratory get" so that we don't loop unnecessarily on it */
-	mediaDevice->flags |= OPT_EXPLORATORY_GET;
-	fd = mediaDevice->get(mediaDevice, buf, NULL);
-	mediaDevice->flags &= ~OPT_EXPLORATORY_GET;
+	fd = mediaDevice->get(mediaDevice, buf, TRUE);
 	if (fd >= 0) {
 	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
 	    status = mediaExtractDist(me[i].my_dir, fd);
@@ -330,32 +327,54 @@ distExtract(char *parent, Distribution *me)
 	else if (fd == -2)	/* Hard error, can't continue */
 	    return FALSE;
 
-	/* If we couldn't get it as one file then we need to get multiple pieces; get info file telling us how many */
+	/*
+	 * If we couldn't get it as one file then we need to get multiple pieces; locate and parse an
+	 * info file telling us how many we need for this distribution.
+	 */
+	dist_attr = NULL;
+	numchunks = 0;
+
+	/* First, look locally.  We sometimes cache info files on the root floppy */
 	snprintf(buf, sizeof buf, "/stand/info/%s/%s.inf", path, dist);
+	msgNotify("Trying to get attributes file from %s..", buf);
 	if (file_readable(buf)) {
-	    if (isDebug())
-		msgDebug("Parsing attributes file for %s\n", dist);
+	    msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-	    if (attr_parse(&dist_attr, buf) == 0) {
+	    if (attr_parse_file(dist_attr, buf) == RET_FAIL) {
 		msgConfirm("Cannot load information file for %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
-		return FALSE;
+		numchunks = -1;
 	    }
-
+	}
+	else { 	/* Not available locally?  Try to get it from the distribution itself */
+	    msgNotify("Trying to get attributes file from %s..", mediaDevice->name);
+	    fd = mediaDevice->get(mediaDevice, buf, FALSE);
+	    if (fd >= 0) {
+		dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
+		if (attr_parse(dist_attr, fd) == RET_FAIL) {
+		    msgConfirm("Cannot load information file for %s distribution!\n"
+			       "Please verify that your media is valid and try again.", dist);
+		    numchunks = -1;
+		}
+		mediaDevice->close(mediaDevice, fd);
+	    }
+	    else {
+		msgNotify("Unable to get information file for distribution %s - skipping..", dist);
+		numchunks = -1;
+	    }
+	}
+	if (!numchunks) {
 	    if (isDebug())
 		msgDebug("Looking for attribute `pieces'\n");
 	    tmp = attr_match(dist_attr, "pieces");
 	    if (tmp)
 		numchunks = strtol(tmp, 0, 0);
 	    else
-		numchunks = 0;
+		numchunks = -1;
 	}
-	else {
-	    if (isDebug())
-		msgDebug("Couldn't open attributes file: %s\n", buf);
-	    numchunks = 0;
-	}
-	if (!numchunks)
+	safe_free(dist_attr);
+
+	if (numchunks < 0)
 	    continue;
 
 	if (isDebug())
@@ -371,14 +390,15 @@ distExtract(char *parent, Distribution *me)
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk, numchunks, buf);
-	    fd = mediaDevice->get(mediaDevice, buf, dist_attr);
+	    fd = mediaDevice->get(mediaDevice, buf, FALSE);
 	    if (fd < 0) {
 		dialog_clear();
 		msgConfirm("failed to retreive piece file %s!\nAborting the transfer", buf);
 		goto punt;
 	    }
 	    snprintf(prompt, 80, "Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
-	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100));
+	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100) - 1);
+	    move(0, 0);	/* Get cursor out of the way - it makes gauges look strange */
 	    while ((n = read(fd, buf, sizeof buf)) > 0) {
 		retval = write(fd2, buf, n);
 		if (retval != n) {

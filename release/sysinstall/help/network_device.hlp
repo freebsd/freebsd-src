@@ -5,34 +5,35 @@ You can do network installations over 3 types of communications links:
         Ethernet:       A standard ethernet controller (includes some
                         PCMCIA networking cards).
 
-SLIP support is rather primitive and limited primarily to hard-wired
-links, such as a serial cable running between a laptop computer and
-another PC.  The link must be hard-wired as the SLIP installation
-doesn't currently offer a dialing capability; that facility is provided
-with the PPP utility, which should be used in preference to SLIP
-whenever possible.  When you choose a serial port device, you'll
-be given the option later to edit the slattach command before it's
-run on the serial line.  It is expected that you'll run slattach
-(or some equivalent) on the other end of the link at this time and
-bring up the line.  FreeBSD will then install itself over the link
-at speeds of up to 115.2K/baud (the recommended speed for a hardwired
-cable).
+SLIP support is rather primitive and limited primarily to directly
+connected links, such as a serial cable running between a laptop
+computer and another PC.  The link must be hard-wired as the SLIP
+installation doesn't currently offer a dialing capability (that
+facility is offered by the PPP utility, which should be used in
+preference to SLIP whenever possible).  When you choose the SLIP
+option, you'll be given the option of later editing the slattach
+command before it's run on the serial line.  It is expected that
+you'll run slattach (or some equivalent command) on the other end of
+the link at that time and bring up the line.  FreeBSD will then
+install itself at serial speeds of up to 115.2K/baud (the recommended
+speed for a hardwired cable).
 
-If you're using a modem then PPP is almost certainly your only
-choice.  Make sure that you have your service provider's information
-handy as you'll need to know it fairly early in the installation
-process.  You will need to know, at the minimum, your service
-provider's IP address and possibly your own (though you can also leave
-it blank and allow PPP to negotiate it with your ISP).  You will also
-need to know how to use the various "AT commands" to dial the ISP with
-your particular brand of modem as the PPP dialer provides only a very
-simple terminal emulator and has no "modem capabilities database".
+If you're using a modem then PPP is almost certainly your only choice.
+Make sure that you have your service provider's information handy as
+you'll need to know it fairly early in the installation process.  You
+will need to know, at the minimum, your service provider's IP address
+and possibly your own (though you can also leave it blank and allow
+PPP to negotiate it with your ISP if your ISP supports such dynamic
+negotiation).  You will also need to know how to use the various "AT
+commands" to dial the ISP with your particular brand of modem as the
+PPP dialer provides only a very simple terminal emulator and has no
+"modem capabilities database".
 
 If a hard-wired connection to another FreeBSD (2.0R or later) machine
 is available, you might also consider installing over a "laplink"
 parallel port cable.  The data rate over the parallel port is much
-higher than what is typically possible over a serial line with
-speeds of up to 50k/sec.
+higher than what is typically possible over a serial line, and speeds
+of up to 50KB/sec are not uncommon.
 
 Finally, for the fastest possible network installation, an ethernet
 adaptor is always a good choice!  FreeBSD supports most common PC
@@ -52,5 +53,4 @@ provider's IP address) to use in talking to it.  If you do not know
 the answers to all or most of these questions then you should really
 probably talk to your system administrator _first_ before trying this
 type of installation!  Chosing the wrong IP address on a busy network
-will NOT make you popular with your systems administration department!
-:-)
+will NOT make you popular with your systems administrator!  :-)
