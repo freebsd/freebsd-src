@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.8 1994/08/27 16:14:09 davidg Exp $
+ *	$Id: db_output.c,v 1.9 1994/09/27 03:34:54 phk Exp $
  */
 
 /*
@@ -282,6 +282,8 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			break;
 		case 's':
 			p = va_arg(ap, char *);
+			if (p == NULL)
+				p = "(null)";
 			width -= strlen (p);
 			if (!ladjust && width > 0)
 				while (width--)
