@@ -2105,8 +2105,10 @@ outloop:
 		}
 	} else {
 		len = ed_pio_write_mbufs(sc, m, (int)buffer);
-		if (len == 0)
+		if (len == 0) {
+			m_freem(m0);
 			goto outloop;
+		}
 	}
 
 	sc->txb_len[sc->txb_new] = max(len, (ETHER_MIN_LEN-ETHER_CRC_LEN));
