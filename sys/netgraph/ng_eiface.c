@@ -92,6 +92,7 @@ static void	ng_eiface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
 
 /* Netgraph methods */
+static int		ng_eiface_mod_event(module_t, int, void *);
 static ng_constructor_t	ng_eiface_constructor;
 static ng_rcvmsg_t	ng_eiface_rcvmsg;
 static ng_shutdown_t	ng_eiface_rmnode;
@@ -104,6 +105,7 @@ static ng_disconnect_t	ng_eiface_disconnect;
 static struct ng_type typestruct = {
 	.version =	NG_ABI_VERSION,
 	.name =		NG_EIFACE_NODE_TYPE,
+	.mod_event =	ng_eiface_mod_event,
 	.constructor =	ng_eiface_constructor,
 	.rcvmsg =	ng_eiface_rcvmsg,
 	.shutdown =	ng_eiface_rmnode,
@@ -124,7 +126,6 @@ static int	ng_units_in_use = 0;
 #define UNITS_BITSPERWORD	(sizeof(*ng_eiface_units) * NBBY)
 
 static struct mtx	ng_eiface_mtx;
-MTX_SYSINIT(ng_eiface, &ng_eiface_mtx, "ng_eiface", MTX_DEF);
 
 /************************************************************************
 			HELPER STUFF
@@ -664,4 +665,26 @@ ng_eiface_disconnect(hook_p hook)
 
 	priv->ether = NULL;
 	return (0);
+}
+
+/*
+ * Handle loading and unloading for this node type.
+ */
+static int
+ng_eiface_mod_event(module_t mod, int event, void *data)
+{
+	int error = 0;
+
+	switch (event) {
+	case MOD_LOAD:
+		mtx_init(&ng_eiface_mtx, "ng_eiface", NULL, MTX_DEF);
+		break;
+	case MOD_UNLOAD:
+		mtx_destroy(&ng_eiface_mtx);
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return (error);
 }

@@ -204,6 +204,7 @@ static void	ng_fec_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
 
 /* Netgraph methods */
+static int		ng_fec_mod_event(module_t, int, void *);
 static ng_constructor_t	ng_fec_constructor;
 static ng_rcvmsg_t	ng_fec_rcvmsg;
 static ng_shutdown_t	ng_fec_shutdown;
@@ -245,6 +246,7 @@ static const struct ng_cmdlist ng_fec_cmds[] = {
 static struct ng_type typestruct = {
 	.version =	NG_ABI_VERSION,
 	.name =		NG_FEC_NODE_TYPE,
+	.mod_event =	ng_fec_mod_event,
 	.constructor =	ng_fec_constructor,
 	.rcvmsg =	ng_fec_rcvmsg,
 	.shutdown =	ng_fec_shutdown,
@@ -261,7 +263,6 @@ static int	ng_units_in_use = 0;
 #define UNITS_BITSPERWORD	(sizeof(*ng_fec_units) * NBBY)
 
 static struct mtx	ng_fec_mtx;
-MTX_SYSINIT(ng_fec, &ng_fec_mtx, "ng_fec", MTX_DEF);
 
 /*
  * Find the first free unit number for a new interface.
@@ -1242,4 +1243,26 @@ ng_fec_shutdown(node_p node)
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
 	return (0);
+}
+
+/*
+ * Handle loading and unloading for this node type.
+ */
+static int
+ng_fec_mod_event(module_t mod, int event, void *data)
+{
+	int error = 0;
+
+	switch (event) {
+	case MOD_LOAD:
+		mtx_init(&ng_fec_mtx, "ng_fec", NULL, MTX_DEF);
+		break;
+	case MOD_UNLOAD:
+		mtx_destroy(&ng_fec_mtx);
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return (error);
 }

@@ -63,6 +63,7 @@
 #define	ERROUT(x) do { error = (x); goto done; } while (0)
 
 /* Netgraph methods */
+static int		ng_device_mod_event(module_t, int, void *);
 static ng_constructor_t	ng_device_constructor;
 static ng_rcvmsg_t	ng_device_rcvmsg;
 static ng_shutdown_t	ng_device_shutdown;
@@ -74,6 +75,7 @@ static ng_disconnect_t	ng_device_disconnect;
 static struct ng_type ngd_typestruct = {
 	.version =	NG_ABI_VERSION,
 	.name =		NG_DEVICE_NODE_TYPE,
+	.mod_event =	ng_device_mod_event,
 	.constructor =	ng_device_constructor,
 	.rcvmsg	=	ng_device_rcvmsg,
 	.shutdown = 	ng_device_shutdown,
@@ -101,7 +103,6 @@ typedef struct ngd_private *priv_p;
 /* List of all active nodes and mutex to protect it */
 static SLIST_HEAD(, ngd_private) ngd_nodes = SLIST_HEAD_INITIALIZER(ngd_nodes);
 static struct mtx	ng_device_mtx;
-MTX_SYSINIT(ng_device, &ng_device_mtx, "ng_device", MTX_DEF);
 
 /* Maximum number of NGD devices */
 #define MAX_NGD	25	/* should be more than enough for now */
@@ -534,4 +535,26 @@ get_free_unit()
 	}
 
 	return (unit);
+}
+
+/*
+ * Handle loading and unloading for this node type.
+ */
+static int
+ng_device_mod_event(module_t mod, int event, void *data)
+{
+	int error = 0;
+
+	switch (event) {
+	case MOD_LOAD:
+		mtx_init(&ng_device_mtx, "ng_device", NULL, MTX_DEF);
+		break;
+	case MOD_UNLOAD:
+		mtx_destroy(&ng_device_mtx);
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return (error);
 }
