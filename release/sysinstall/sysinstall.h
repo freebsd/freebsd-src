@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.65 1996/06/29 02:22:48 jkh Exp $
+ * $Id: sysinstall.h,v 1.67 1996/06/29 03:43:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -423,8 +423,8 @@ extern int	dmenuSetVariable(dialogMenuItem *tmp);
 extern int	dmenuToggleVariable(dialogMenuItem *tmp);
 extern int	dmenuSetFlag(dialogMenuItem *tmp);
 extern int	dmenuSetValue(dialogMenuItem *tmp);
-extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max);
-extern Boolean	dmenuOpenSimple(DMenu *menu);
+extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max, Boolean buttons);
+extern Boolean	dmenuOpenSimple(DMenu *menu, Boolean buttons);
 extern int	dmenuVarCheck(dialogMenuItem *item);
 extern int	dmenuFlagCheck(dialogMenuItem *item);
 extern int	dmenuRadioCheck(dialogMenuItem *item);
