@@ -34,16 +34,13 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${HDBOBJDIR} \
 		-I${.OBJDIR} \
 		${LDAPCFLAGS}
-LDADD=		-L${KADM5COBJDIR} -lkadm5clnt -L${KADM5SOBJDIR} -lkadm5srv \
-		-L${KRB5OBJDIR} -lkrb5 \
-		-L${ROKENOBJDIR} -lroken \
-		-L${VERSOBJDIR} -lvers \
-		-L${HDBOBJDIR} -lhdb \
-		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err \
-		-L${SLOBJDIR} -lsl -lreadline -lcurses ${LDAPLDADD}
-DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} \
-		${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} \
-		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} \
+LDADD=		-lkadm5clnt -lkadm5srv -lkrb5 -lroken \
+		${LIBVERS} -lhdb -lasn1 \
+		-lcrypto -lcrypt -lcom_err \
+		${LIBSL} -lreadline -lcurses ${LDAPLDADD}
+DPADD=		${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBKRB5} ${LIBROKEN} \
+		${LIBVERS} ${LIBHDB} ${LIBASN1} \
+		${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} \
 		${LIBSL} ${LIBREADLINE} ${LIBCURSES} ${LDAPLIBS}
 MAN=		kadmin.8
 
