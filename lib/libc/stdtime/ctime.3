@@ -175,7 +175,7 @@ The functions
 .Fn mktime
 and
 .Fn timegm
-converts the broken-down time in the structure
+convert the broken-down time in the structure
 pointed to by tm into a time value with the same encoding as that of the
 values returned by the
 .Xr time 3
@@ -303,10 +303,16 @@ functions are expected to conform to
 .St -iso9945-1
 (again provided the selected local timezone does not contain a leap-second
 table).
+.Pp
+The
+.Fn timegm
+function is not specified by any standard; its function cannot be
+completely emulated using the standard functions described above.
 .Sh HISTORY
 This manual page is derived from
 the time package contributed to Berkeley by
-Arthur Olsen and which appeared in
+.An Arthur Olson
+and which appeared in
 .Bx 4.3 .
 .Sh BUGS
 Except for 
