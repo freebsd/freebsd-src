@@ -375,6 +375,9 @@ rerelease release:
 .else
 	echo "export DOC_LANG=en_US.ISO8859-1"	>> ${CHROOTDIR}/mk
 .endif
+.if defined(AUTO_KEYBOARD_DETECT)
+	echo "export AUTO_KEYBOARD_DETECT=\"${AUTO_KEYBOARD_DETECT}\"" 	>> ${CHROOTDIR}/mk
+.endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
 .endif
@@ -406,6 +409,9 @@ rerelease release:
 .endif
 .if defined(FIXCRYPTO)
 	echo "export FIXCRYPTO=\"${FIXCRYPTO}\""	>> ${CHROOTDIR}/mk
+.endif
+.if defined(KERNELS)
+	echo "export KERNELS=\"${KERNELS}\""		>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOKERBEROS)
 	echo "export NOKERBEROS=\"${NOKERBEROS}\""	>> ${CHROOTDIR}/mk
