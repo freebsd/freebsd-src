@@ -2254,7 +2254,7 @@ tn(argc, argv)
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_STREAM;
 	error = getaddrinfo(src_addr, 0, &hints, &src_res);
-	if (error == EAI_NONAME) {
+	if (error == EAI_NODATA) {
 		hints.ai_flags = 0;
 		error = getaddrinfo(src_addr, 0, &hints, &src_res);
 	}
