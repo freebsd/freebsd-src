@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.10 1994/03/21 14:53:08 ache Exp $
+ *	$Id: autoconf.c,v 1.12 1994/08/13 03:49:33 wollman Exp $
  */
 
 /*
@@ -143,6 +143,7 @@ static	char devname[][2] = {
 #define	PARTITIONMASK	0x7
 #define	PARTITIONSHIFT	3
 #define FDUNITSHIFT     6
+#define RAW_PART        2
 
 /*
  * Attempt to find the device from which we were booted.
@@ -166,7 +167,7 @@ setroot()
 	adaptor = (bootdev >> B_ADAPTORSHIFT) & B_ADAPTORMASK;
 	unit = (bootdev >> B_UNITSHIFT) & B_UNITMASK;
 	if (majdev == FDMAJOR) {
-		part = 3;       /* raw */
+		part = RAW_PART;
 		mindev = unit << FDUNITSHIFT;
 	}
 	else {
