@@ -4143,12 +4143,12 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 		auio.uio_td = td;
 		cnt = nbytes;
 		error = VOP_GETEXTATTR(vp, attrnamespace, attrname, &auio,
-		    NULL, td->td_proc->p_ucred, td);
+		    NULL, td->td_ucred, td);
 		cnt -= auio.uio_resid;
 		td->td_retval[0] = cnt;
 	} else {
 		error = VOP_GETEXTATTR(vp, attrnamespace, attrname, NULL,
-		    &size, td->td_proc->p_ucred, td);
+		    &size, td->td_ucred, td);
 		td->td_retval[0] = size;
 	}
 done:
