@@ -143,7 +143,6 @@ struct tcp_syncache {
 	u_int	cache_limit;
 	u_int	rexmt_limit;
 	u_int	hash_secret;
-	u_int	next_reseed;
 	TAILQ_HEAD(, syncache) timerq[SYNCACHE_MAXREXMTS + 1];
 	struct	callout tt_timerq[SYNCACHE_MAXREXMTS + 1];
 };
@@ -219,7 +218,6 @@ syncache_init(void)
 	tcp_syncache.cache_limit =
 	    tcp_syncache.hashsize * tcp_syncache.bucket_limit;
 	tcp_syncache.rexmt_limit = SYNCACHE_MAXREXMTS;
-	tcp_syncache.next_reseed = 0;
 	tcp_syncache.hash_secret = arc4random();
 
         TUNABLE_INT_FETCH("net.inet.tcp.syncache.hashsize",
@@ -610,7 +608,7 @@ syncache_socket(sc, lso, m)
 	if (sc->sc_inc.inc_isipv6) {
 		struct inpcb *oinp = sotoinpcb(lso);
 		struct in6_addr laddr6;
-		struct sockaddr_in6 *sin6;
+		struct sockaddr_in6 sin6;
 		/*
 		 * Inherit socket options from the listening socket.
 		 * Note that in6p_inputopts are not (and should not be)
@@ -625,20 +623,16 @@ syncache_socket(sc, lso, m)
 			inp->in6p_outputopts =
 			    ip6_copypktopts(oinp->in6p_outputopts, M_NOWAIT);
 
-		MALLOC(sin6, struct sockaddr_in6 *, sizeof *sin6,
-		    M_SONAME, M_NOWAIT | M_ZERO);
-		if (sin6 == NULL)
-			goto abort;
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_len = sizeof(*sin6);
-		sin6->sin6_addr = sc->sc_inc.inc6_faddr;
-		sin6->sin6_port = sc->sc_inc.inc_fport;
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_len = sizeof(sin6);
+		sin6.sin6_addr = sc->sc_inc.inc6_faddr;
+		sin6.sin6_port = sc->sc_inc.inc_fport;
+		sin6.sin6_flowinfo = sin6.sin6_scope_id = 0;
 		laddr6 = inp->in6p_laddr;
 		if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 			inp->in6p_laddr = sc->sc_inc.inc6_laddr;
-		if (in6_pcbconnect(inp, (struct sockaddr *)sin6, &thread0)) {
+		if (in6_pcbconnect(inp, (struct sockaddr *)&sin6, &thread0)) {
 			inp->in6p_laddr = laddr6;
-			FREE(sin6, M_SONAME);
 			goto abort;
 		}
 		FREE(sin6, M_SONAME);
@@ -646,7 +640,7 @@ syncache_socket(sc, lso, m)
 #endif
 	{
 		struct in_addr laddr;
-		struct sockaddr_in *sin;
+		struct sockaddr_in sin;
 
 		inp->inp_options = ip_srcroute();
 		if (inp->inp_options == NULL) {
@@ -654,24 +648,18 @@ syncache_socket(sc, lso, m)
 			sc->sc_ipopts = NULL;
 		}
 
-		MALLOC(sin, struct sockaddr_in *, sizeof *sin,
-		    M_SONAME, M_NOWAIT | M_ZERO);
-		if (sin == NULL)
-			goto abort;
-		sin->sin_family = AF_INET;
-		sin->sin_len = sizeof(*sin);
-		sin->sin_addr = sc->sc_inc.inc_faddr;
-		sin->sin_port = sc->sc_inc.inc_fport;
-		bzero((caddr_t)sin->sin_zero, sizeof(sin->sin_zero));
+		sin.sin_family = AF_INET;
+		sin.sin_len = sizeof(sin);
+		sin.sin_addr = sc->sc_inc.inc_faddr;
+		sin.sin_port = sc->sc_inc.inc_fport;
+		bzero((caddr_t)sin.sin_zero, sizeof(sin.sin_zero));
 		laddr = inp->inp_laddr;
 		if (inp->inp_laddr.s_addr == INADDR_ANY)
 			inp->inp_laddr = sc->sc_inc.inc_laddr;
-		if (in_pcbconnect(inp, (struct sockaddr *)sin, &thread0)) {
+		if (in_pcbconnect(inp, (struct sockaddr *)&sin, &thread0)) {
 			inp->inp_laddr = laddr;
-			FREE(sin, M_SONAME);
 			goto abort;
 		}
-		FREE(sin, M_SONAME);
 	}
 
 	tp = intotcpcb(inp);
