@@ -1,10 +1,11 @@
-/*-
+/*
  * Generic register and struct definitions for the Adaptech 154x/164x
  * SCSI host adapters. Product specific probe and attach routines can
  * be found in:
- *      aha 1542B/1542C/1542CF/1542CP	aha_isa.c
+ *      aha 1542A/1542B/1542C/1542CF/1542CP	aha_isa.c
  *      aha 1640			aha_mca.c
- *
+ */
+/*-
  * Copyright (c) 1998 M. Warner Losh.
  * All Rights Reserved.
  *
@@ -1286,9 +1287,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 				    aha_name(aha), accb->hccb.opcode,
 				    &accb->hccb);
 			device_printf(aha->dev,
-			    "AHA-1540A detected, maybe compensating\n");
-			aha->ccb_sg_opcode = INITIATOR_SG_CCB;
-			aha->ccb_ccb_opcode = INITIATOR_CCB;
+			    "AHA-1540A compensation failed\n");
 			xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 			csio->ccb_h.status = CAM_REQUEUE_REQ;
 			break;
