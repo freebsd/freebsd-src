@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.21 1996/10/30 22:39:04 asami Exp $
+ *	$Id: vector.s,v 1.22 1996/11/06 17:02:38 bde Exp $
  */
 
 /*
@@ -135,7 +135,8 @@ IDTVEC(vec_name) ; \
 	movl	_cpl,%eax ;	/* are we unmasking pending HWIs or SWIs? */ \
 	notl	%eax ; \
 	andl	_ipending,%eax ; \
-	jne	1f ;		/* yes, handle them */ \
+	jne	2f ; 		/* yes, maybe handle them */ \
+1: ; \
 	MEXITCOUNT ; \
 	MAYBE_POPL_ES ; \
 	popl	%ds ; \
@@ -145,9 +146,13 @@ IDTVEC(vec_name) ; \
 	iret ; \
 ; \
 	ALIGN_TEXT ; \
-1: ; \
+2: ; \
+	cmpb	$3,_intr_nesting_level ;	/* is there enough stack? */ \
+	jae	1b ;		/* no, return */ \
 	movl	_cpl,%eax ; \
+	/* XXX next line is probably unnecessary now. */ \
 	movl	$HWI_MASK|SWI_MASK,_cpl ;	/* limit nesting ... */ \
+	incb	_intr_nesting_level ;	/* ... really limit it ... */ \
 	sti ;			/* ... to do this as early as possible */ \
 	MAYBE_POPL_ES ;		/* discard most of thin frame ... */ \
 	popl	%ecx ;		/* ... original %ds ... */ \
@@ -163,7 +168,6 @@ IDTVEC(vec_name) ; \
 	movl	(2+8+1)*4(%esp),%eax ;	/* ... cpl from thin frame */ \
 	pushl	%eax ; \
 	subl	$4,%esp ;	/* junk for unit number */ \
-	incb	_intr_nesting_level ; \
 	MEXITCOUNT ; \
 	jmp	_doreti
 
