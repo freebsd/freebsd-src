@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: globals.c,v 1.1.1.1 1995/04/27 12:50:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,6 +53,8 @@ int		DebugFD;  /* Where diagnostic output goes */
 Boolean		OnCDROM;  /* Are we running off of a CDROM? */
 Boolean		OnSerial; /* Are we on a serial console? */
 Boolean		DialogActive;
+Boolean		ColorDisplay;
+Boolean		OnVTY;
 Variable	*VarHead; /* The head of the variable chain */
 
 /*
@@ -66,6 +68,8 @@ globalsInit(void)
     DebugFD = -1;
     OnCDROM = FALSE;
     OnSerial = FALSE;
+    ColorDisplay = FALSE;
+    OnVTY = FALSE;
     DialogActive = FALSE;
     VarHead = NULL;
 }
