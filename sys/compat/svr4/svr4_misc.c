@@ -47,24 +47,18 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
-#include <sys/socket.h>
 #include <sys/vnode.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
-#include <sys/utsname.h>
-#include <sys/unistd.h>
 #include <sys/times.h>
 #include <sys/fcntl.h>
 #include <sys/sem.h>
 #include <sys/msg.h>
 #include <sys/ptrace.h>
-#include <sys/signalvar.h>
-#include <ufs/ufs/dir.h>
 #include <vm/vm_zone.h>
 
 #include <sys/sysproto.h>
