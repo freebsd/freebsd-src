@@ -80,6 +80,8 @@ http://www.openssh.com for more details.
 OpenSSH can now authenticate using OPIE passwords in SSH1 mode.
 Support is not yet available in SSH2 mode.
 
+camcontrol(8) now includes a built in 'format' function to low-level
+format SCSI disks.
 
 2. Supported Configurations
 ---------------------------
