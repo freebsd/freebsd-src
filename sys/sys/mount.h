@@ -568,7 +568,6 @@ struct vfsconf *vfs_byname_kld(const char *, struct thread *td, int *);
 void	vfs_event_signal(fsid_t *, u_int32_t, intptr_t);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
-int	vfs_mount(struct thread *, const char *, char *, int, void *);
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
 int	vfs_lock(struct mount *);         /* lock a vfs */
