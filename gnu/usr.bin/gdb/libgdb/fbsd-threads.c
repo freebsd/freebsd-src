@@ -19,25 +19,28 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#include "defs.h"
-
-#include "gdb_assert.h"
 #include <dlfcn.h>
+#include <sys/types.h>
+#include <sys/ptrace.h>
+
 #include "proc_service.h"
 #include "thread_db.h"
 
+#include "defs.h"
 #include "bfd.h"
+#include "elf-bfd.h"
+#include "gdb_assert.h"
+#include "gdbcore.h"
 #include "gdbthread.h"
 #include "inferior.h"
+#include "objfiles.h"
+#include "regcache.h"
 #include "symfile.h"
 #include "symtab.h"
-#include "objfiles.h"
 #include "target.h"
-#include "regcache.h"
 #include "gdbcmd.h"
 #include "solib-svr4.h"
 
-#include <sys/ptrace.h>
 
 #define LIBTHREAD_DB_SO "libthread_db.so"
 
@@ -46,18 +49,29 @@ struct ps_prochandle
   pid_t pid;
 };
 
+extern int child_suppress_run;
+
 extern struct target_ops child_ops;
 
-/* This module's target vector.  */
-static struct target_ops thread_db_ops;
+/* This module's target vectors.  */
+static struct target_ops fbsd_thread_ops;
+static struct target_ops fbsd_core_ops;
 
-static struct target_ops base_ops;
- 
+/* Saved copy of orignal core_ops. */
+static struct target_ops orig_core_ops;
+extern struct target_ops core_ops;
+
 /* Pointer to the next function on the objfile event chain.  */
 static void (*target_new_objfile_chain) (struct objfile *objfile);
 
+/* Non-zero if there is a thread module */
+static int fbsd_thread_present;
+
 /* Non-zero if we're using this module's target vector.  */
-static int using_thread_db;
+static int fbsd_thread_active;
+
+/* Non-zero if core_open is called */
+static int fbsd_thread_core = 0;
 
 /* Non-zero if we have to keep this module's target vector active
    across re-runs.  */
@@ -78,6 +92,7 @@ static ptid_t last_single_step_thread;
 static td_err_e (*td_init_p) (void);
 
 static td_err_e (*td_ta_new_p) (struct ps_prochandle *ps, td_thragent_t **ta);
+static td_err_e (*td_ta_delete_p) (td_thragent_t *);
 static td_err_e (*td_ta_map_id2thr_p) (const td_thragent_t *ta, thread_t pt,
 				       td_thrhandle_t *__th);
 static td_err_e (*td_ta_map_lwp2thr_p) (const td_thragent_t *ta, lwpid_t lwpid,
@@ -93,7 +108,6 @@ static td_err_e (*td_ta_set_event_p) (const td_thragent_t *ta,
 				      td_thr_events_t *event);
 static td_err_e (*td_ta_event_getmsg_p) (const td_thragent_t *ta,
 					 td_event_msg_t *msg);
-static td_err_e (*td_thr_validate_p) (const td_thrhandle_t *th);
 static td_err_e (*td_thr_get_info_p) (const td_thrhandle_t *th,
 				      td_thrinfo_t *infop);
 static td_err_e (*td_thr_getfpregs_p) (const td_thrhandle_t *th,
@@ -222,24 +236,46 @@ thread_from_lwp (ptid_t ptid)
  
   gdb_assert (IS_LWP (ptid));
 
-  err = td_ta_map_lwp2thr_p (thread_agent, GET_LWP (ptid), &th);
-  if (err == TD_OK)
+  if (fbsd_thread_active)
     {
-      err = td_thr_get_info_p (&th, &ti);
-      if (err != TD_OK)
-        error ("Cannot get thread info: %s", thread_db_err_str (err));
-      return BUILD_THREAD (ti.ti_tid, GET_PID (ptid));
+      err = td_ta_map_lwp2thr_p (thread_agent, GET_LWP (ptid), &th);
+      if (err == TD_OK)
+        {
+          err = td_thr_get_info_p (&th, &ti);
+          if (err != TD_OK)
+            error ("Cannot get thread info: %s", thread_db_err_str (err));
+          return BUILD_THREAD (ti.ti_tid, GET_PID (ptid));
+        }
     }
 
   /* the LWP is not mapped to user thread */  
   return BUILD_LWP (GET_LWP (ptid), GET_PID (ptid));
 }
 
+static void
+fbsd_core_get_first_lwp (bfd *abfd, asection *asect, void *obj)
+{
+  if (strncmp (bfd_section_name (abfd, asect), ".reg/", 5) != 0)
+    return;
+
+  if (*(lwpid_t *)obj != 0)
+    return;
+
+  *(lwpid_t *)obj = atoi (bfd_section_name (abfd, asect) + 5);
+}
+
 static long
 get_current_lwp (int pid)
 {
   struct ptrace_lwpinfo pl;
+  lwpid_t lwpid;
 
+  if (!target_has_execution)
+    {
+      lwpid = 0;
+      bfd_map_over_sections (core_bfd, fbsd_core_get_first_lwp, &lwpid);
+      return lwpid;
+    }
   if (ptrace (PT_LWPINFO, pid, (caddr_t)&pl, sizeof(pl)))
     perror_with_name("PT_LWPINFO");
 
@@ -263,31 +299,50 @@ get_current_thread ()
 }
 
 static void
+fbsd_thread_activate (void)
+{
+  fbsd_thread_active = 1;
+  init_thread_list();
+  fbsd_thread_find_new_threads ();
+  get_current_thread ();
+}
+
+static void
+fbsd_thread_deactivate (void)
+{
+  td_ta_delete_p (thread_agent);
+
+  inferior_ptid = pid_to_ptid (proc_handle.pid);
+  proc_handle.pid = 0;
+  fbsd_thread_active = 0;
+  fbsd_thread_present = 0;
+  init_thread_list ();
+}
+
+static void
 fbsd_thread_new_objfile (struct objfile *objfile)
 {
   td_err_e err;
 
-  /* Don't attempt to use thread_db on targets which can not run
-     (core files).  */
-  if (objfile == NULL || !target_has_execution)
+  if (objfile == NULL)
     {
       /* All symbols have been discarded.  If the thread_db target is
          active, deactivate it now.  */
-      if (using_thread_db)
+      if (fbsd_thread_active)
         {
           gdb_assert (proc_handle.pid == 0);
-          unpush_target (&thread_db_ops);
-          using_thread_db = 0;
+          fbsd_thread_active = 0;
         }
-
-      keep_thread_db = 0;
 
       goto quit;
     }
 
-  if (using_thread_db)
-    /* Nothing to do.  The thread library was already detected and the
-       target vector was already activated.  */
+  if (!child_suppress_run)
+    goto quit;
+
+  /* Nothing to do.  The thread library was already detected and the
+     target vector was already activated.  */
+  if (fbsd_thread_active)
     goto quit;
 
   /* Initialize the structure that identifies the child process.  Note
@@ -305,32 +360,21 @@ fbsd_thread_new_objfile (struct objfile *objfile)
 
     case TD_OK:
       /* The thread library was detected.  Activate the thread_db target.  */
-      base_ops = current_target;
-      push_target (&thread_db_ops);
-      using_thread_db = 1;
-
-      /* If the thread library was detected in the main symbol file
-         itself, we assume that the program was statically linked
-         against the thread library and well have to keep this
-         module's target vector activated until forever...  Well, at
-         least until all symbols have been discarded anyway (see
-         above).  */
-      if (objfile == symfile_objfile)
-        {
-          gdb_assert (proc_handle.pid == 0);
-          keep_thread_db = 1;
-        }
+      fbsd_thread_present = 1;
 
       /* We can only poke around if there actually is a child process.
          If there is no child process alive, postpone the steps below
          until one has been created.  */
-      if (proc_handle.pid != 0)
+      if (fbsd_thread_core == 0 && proc_handle.pid != 0)
         {
-          fbsd_thread_find_new_threads ();
-          get_current_thread ();
+          push_target(&fbsd_thread_ops);
+          fbsd_thread_activate();
         }
       else
-        printf_filtered("%s postpone processing\n", __func__);
+        {
+          td_ta_delete_p(thread_agent);
+          thread_agent = NULL;
+        }
       break;
 
     default:
@@ -347,23 +391,41 @@ fbsd_thread_new_objfile (struct objfile *objfile)
 static void
 fbsd_thread_attach (char *args, int from_tty)
 {
+  fbsd_thread_core = 0;
+
   child_ops.to_attach (args, from_tty);
 
-  /* Destroy thread info; it's no longer valid.  */
-  init_thread_list ();
+  /* Must get symbols from solibs before libthread_db can run! */
+  SOLIB_ADD ((char *) 0, from_tty, (struct target_ops *) 0, auto_solib_add);
 
-  /* The child process is now the actual multi-threaded
-     program.  Snatch its process ID...  */
-  proc_handle.pid = GET_PID (inferior_ptid);
+  if (fbsd_thread_present && !fbsd_thread_active)
+    push_target(&fbsd_thread_ops);
+}
 
-  /* ...and perform the remaining initialization steps.  */
-  fbsd_thread_find_new_threads();
-  get_current_thread ();
+static void
+fbsd_thread_post_attach (int pid)
+{
+  child_ops.to_post_attach (pid);
+
+  if (fbsd_thread_present && !fbsd_thread_active)
+    {
+      proc_handle.pid = GET_PID (inferior_ptid);
+      fbsd_thread_activate ();
+    }
 }
 
 static void
 fbsd_thread_detach (char *args, int from_tty)
 {
+  fbsd_thread_deactivate ();
+  unpush_target (&fbsd_thread_ops);
+
+  /* Clear gdb solib information and symbol file
+     cache, so that after detach and re-attach, new_objfile
+     hook will be called */
+
+  clear_solib();
+  symbol_file_clear(0);
   proc_handle.pid = 0;
   child_ops.to_detach (args, from_tty);
 }
@@ -373,7 +435,7 @@ suspend_thread_callback (const td_thrhandle_t *th_p, void *data)
 {
   int err = td_thr_dbsuspend_p (th_p);
   if (err != 0)
-	printf_filtered("%s %s\n", __func__, thread_db_err_str (err));
+	fprintf_filtered(gdb_stderr, "%s %s\n", __func__, thread_db_err_str (err));
   return (err);
 }
 
@@ -382,7 +444,7 @@ resume_thread_callback (const td_thrhandle_t *th_p, void *data)
 {
   int err = td_thr_dbresume_p (th_p);
   if (err != 0)
-	printf_filtered("%s %s\n", __func__, thread_db_err_str (err));
+	fprintf_filtered(gdb_stderr, "%s %s\n", __func__, thread_db_err_str (err));
   return (err);
 }
 
@@ -395,17 +457,9 @@ fbsd_thread_resume (ptid_t ptid, int step, enum target_signal signo)
   int resume_all, ret;
   long lwp, thvalid = 0;
 
-#if 0
-  printf_filtered("%s ptid=%ld.%ld.%ld step=%d\n", __func__,
-	GET_PID(ptid), GET_LWP(ptid), GET_THREAD(ptid), step);
-  printf_filtered("%s inferior_ptid=%ld.%ld.%ld\n", __func__,
-	GET_PID(inferior_ptid), GET_LWP(inferior_ptid),
-	GET_THREAD(inferior_ptid));
-#endif
-
-  if (proc_handle.pid == 0)
+  if (!fbsd_thread_active)
     {
-      base_ops.to_resume (ptid, step, signo);
+      child_ops.to_resume (ptid, step, signo);
       return;
     }
 
@@ -428,14 +482,12 @@ fbsd_thread_resume (ptid_t ptid, int step, enum target_signal signo)
       if (ret)
         error (thread_db_err_str (ret));
 
-      /*
-       * For M:N thread, we need to tell UTS to set/unset single step
-       * flag at context switch time, the flag will be written into
-       * thread mailbox. This becauses some architecture may not have
-       * machine single step flag in ucontext, so we put the flag in mailbox,
-       * when the thread switches back, kse_switchin restores the single step
-       * state.
-       */ 
+      /* For M:N thread, we need to tell UTS to set/unset single step
+         flag at context switch time, the flag will be written into
+         thread mailbox. This becauses some architecture may not have
+         machine single step flag in ucontext, so we put the flag in mailbox,
+         when the thread switches back, kse_switchin restores the single step
+         state.  */
       ret = td_thr_sstep_p (&th, step);
       if (ret)
         error (thread_db_err_str (ret));
@@ -502,7 +554,7 @@ fbsd_thread_wait (ptid_t ptid, struct target_waitstatus *ourstatus)
   ret = child_ops.to_wait (ptid, ourstatus);
   if (GET_PID(ret) >= 0 && ourstatus->kind == TARGET_WAITKIND_STOPPED)
     {
-      lwp = get_current_lwp (proc_handle.pid);
+      lwp = get_current_lwp (GET_PID(ret));
       ret = thread_from_lwp (BUILD_LWP (lwp, GET_PID (ret)));
       if (!in_thread_list (ret))
         add_thread (ret);
@@ -525,8 +577,16 @@ static int
 fbsd_thread_xfer_memory (CORE_ADDR memaddr, char *myaddr, int len, int write,
                         struct mem_attrib *attrib, struct target_ops *target)
 {
-  return base_ops.to_xfer_memory (memaddr, myaddr, len, write,
-                                  attrib, target);
+  int err;
+
+  if (target_has_execution)
+    err = child_ops.to_xfer_memory (memaddr, myaddr, len, write, attrib,
+	target);
+  else
+    err = orig_core_ops.to_xfer_memory (memaddr, myaddr, len, write, attrib,
+	target);
+
+  return (err);
 }
 
 static void
@@ -536,7 +596,12 @@ fbsd_lwp_fetch_registers (int regno)
   fpregset_t fpregs;
   lwpid_t lwp;
 
-  /* FIXME, use base_ops to fetch lwp registers! */
+  if (!target_has_execution)
+    {
+      orig_core_ops.to_fetch_registers (-1);
+      return;
+    }
+
   lwp = GET_LWP (inferior_ptid);
 
   if (ptrace (PT_GETREGS, lwp, (caddr_t) &gregs, 0) == -1)
@@ -675,14 +740,17 @@ fbsd_thread_kill (void)
   child_ops.to_kill();
 }
 
+static int
+fbsd_thread_can_run (void)
+{
+  return child_suppress_run;
+}
+
 static void
 fbsd_thread_create_inferior (char *exec_file, char *allargs, char **env)
 {
-  if (!keep_thread_db)
-    {
-      unpush_target (&thread_db_ops);
-      using_thread_db = 0;
-    }
+  if (fbsd_thread_present && !fbsd_thread_active)
+    push_target(&fbsd_thread_ops);
 
   child_ops.to_create_inferior (exec_file, allargs, env);
 }
@@ -690,29 +758,42 @@ fbsd_thread_create_inferior (char *exec_file, char *allargs, char **env)
 static void
 fbsd_thread_post_startup_inferior (ptid_t ptid)
 {
-  if (proc_handle.pid == 0)
+  if (fbsd_thread_present && !fbsd_thread_active)
     {
-      /*
-       * The child process is now the actual multi-threaded
-       * program.  Snatch its process ID... 
-       */
+      /* The child process is now the actual multi-threaded
+         program.  Snatch its process ID... */
       proc_handle.pid = GET_PID (ptid);
-
-      fbsd_thread_find_new_threads ();
-      get_current_thread ();
+      td_ta_new_p (&proc_handle, &thread_agent);
+      fbsd_thread_activate();
     }
 }
 
 static void
 fbsd_thread_mourn_inferior (void)
 {
-  /*
-   * Forget about the child's process ID.  We shouldn't need it
-   * anymore.
-   */
-  proc_handle.pid = 0;
+  if (fbsd_thread_active)
+    fbsd_thread_deactivate ();
+
+  unpush_target (&fbsd_thread_ops);
 
   child_ops.to_mourn_inferior ();
+}
+
+static void
+fbsd_core_check_lwp (bfd *abfd, asection *asect, void *obj)
+{
+  lwpid_t lwp;
+
+  if (strncmp (bfd_section_name (abfd, asect), ".reg/", 5) != 0)
+    return;
+
+  /* already found */
+  if (*(lwpid_t *)obj == 0)
+    return;
+
+  lwp = atoi (bfd_section_name (abfd, asect) + 5);
+  if (*(lwpid_t *)obj == lwp)
+    *(lwpid_t *)obj = 0;
 }
 
 static int
@@ -722,6 +803,7 @@ fbsd_thread_alive (ptid_t ptid)
   td_thrinfo_t ti;
   td_err_e err;
   gregset_t gregs;
+  lwpid_t lwp;
 
   if (IS_THREAD (ptid))
     {
@@ -745,17 +827,33 @@ fbsd_thread_alive (ptid_t ptid)
       return 1;
     }
 
-  err = td_ta_map_lwp2thr_p (thread_agent, GET_LWP (ptid), &th);
+  if (fbsd_thread_active)
+    {
+      err = td_ta_map_lwp2thr_p (thread_agent, GET_LWP (ptid), &th);
 
-   /*
-    * if the lwp was already mapped to user thread, don't use it
-    * directly, please use user thread id instead.
-    */
-  if (err == TD_OK)
-    return 0;
+      /*
+       * if the lwp was already mapped to user thread, don't use it
+       * directly, please use user thread id instead.
+       */
+      if (err == TD_OK)
+        return 0;
+    }
+
+  if (!target_has_execution)
+    {
+      lwp = GET_LWP (ptid);
+      bfd_map_over_sections (core_bfd, fbsd_core_check_lwp, &lwp);
+      return (lwp == 0); 
+    }
 
   /* check lwp in kernel */
   return ptrace (PT_GETREGS, GET_LWP (ptid), (caddr_t)&gregs, 0) == 0;
+}
+
+static void
+fbsd_thread_files_info (struct target_ops *ignore)
+{
+  child_ops.to_files_info (ignore);
 }
 
 static int
@@ -773,11 +871,10 @@ find_new_threads_callback (const td_thrhandle_t *th_p, void *data)
   if (ti.ti_state == TD_THR_UNKNOWN || ti.ti_state == TD_THR_ZOMBIE)
     return 0;
 
-  ptid = BUILD_THREAD (ti.ti_tid, GET_PID (inferior_ptid));
+  ptid = BUILD_THREAD (ti.ti_tid, proc_handle.pid);
 
   if (!in_thread_list (ptid))
       add_thread (ptid);
- 
   return 0;
 }
 
@@ -785,6 +882,9 @@ static void
 fbsd_thread_find_new_threads (void)
 {
   td_err_e err;
+
+  if (!fbsd_thread_active)
+    return;
 
   /* Iterate over all user-space threads to discover new threads. */
   err = td_ta_thr_iter_p (thread_agent, find_new_threads_callback, NULL,
@@ -908,35 +1008,136 @@ tsd_cb (thread_key_t key, void (*destructor)(void *), void *ignore)
 static void
 fbsd_thread_tsd_cmd (char *exp, int from_tty)
 {
-  td_ta_tsd_iter_p (thread_agent, tsd_cb, NULL);
+  if (fbsd_thread_active)
+    td_ta_tsd_iter_p (thread_agent, tsd_cb, NULL);
+}
+
+static int
+ignore (CORE_ADDR addr, char *contents)
+{
+  return 0;
 }
 
 static void
-init_thread_db_ops (void)
+fbsd_core_open (char *filename, int from_tty)
 {
-  thread_db_ops.to_shortname = "multi-thread";
-  thread_db_ops.to_longname = "multi-threaded child process.";
-  thread_db_ops.to_doc = "Threads and pthreads support.";
-  thread_db_ops.to_attach = fbsd_thread_attach;
-  thread_db_ops.to_detach = fbsd_thread_detach;
-  thread_db_ops.to_resume = fbsd_thread_resume;
-  thread_db_ops.to_wait = fbsd_thread_wait;
-  thread_db_ops.to_fetch_registers = fbsd_thread_fetch_registers;
-  thread_db_ops.to_store_registers = fbsd_thread_store_registers;
-  thread_db_ops.to_xfer_memory = fbsd_thread_xfer_memory;
-  thread_db_ops.to_kill = fbsd_thread_kill;
-  thread_db_ops.to_create_inferior = fbsd_thread_create_inferior;
-  thread_db_ops.to_post_startup_inferior = fbsd_thread_post_startup_inferior;
-  thread_db_ops.to_mourn_inferior = fbsd_thread_mourn_inferior;
-  thread_db_ops.to_thread_alive = fbsd_thread_alive;
-  thread_db_ops.to_find_new_threads = fbsd_thread_find_new_threads;
-  thread_db_ops.to_pid_to_str = fbsd_thread_pid_to_str;
-  thread_db_ops.to_stratum = thread_stratum;
-  thread_db_ops.to_has_thread_control = tc_none;
-  thread_db_ops.to_insert_breakpoint = memory_insert_breakpoint;
-  thread_db_ops.to_remove_breakpoint = memory_remove_breakpoint;
-  thread_db_ops.to_get_thread_local_address = fbsd_thread_get_local_address;
-  thread_db_ops.to_magic = OPS_MAGIC;
+  int err;
+
+  fbsd_thread_core = 1;
+
+  orig_core_ops.to_open (filename, from_tty);
+
+  if (fbsd_thread_present)
+    {
+      err = td_ta_new_p (&proc_handle, &thread_agent);
+      if (err == TD_OK)
+        {
+          proc_handle.pid = elf_tdata (core_bfd)->core_pid;
+          fbsd_thread_activate ();
+        }
+      else
+        error ("fbsd_core_open: td_ta_new: %s", thread_db_err_str (err));
+    }
+}
+
+static void
+fbsd_core_close (int quitting)
+{
+  orig_core_ops.to_close (quitting);
+}
+
+static void
+fbsd_core_detach (char *args, int from_tty)
+{
+  if (fbsd_thread_active)
+    fbsd_thread_deactivate ();
+  unpush_target (&fbsd_thread_ops);
+  orig_core_ops.to_detach (args, from_tty);
+ 
+  /* Clear gdb solib information and symbol file
+     cache, so that after detach and re-attach, new_objfile
+     hook will be called */
+  clear_solib();
+  symbol_file_clear(0);
+}
+
+static void
+fbsd_core_files_info (struct target_ops *ignore)
+{
+  orig_core_ops.to_files_info (ignore);
+}
+
+static void
+init_fbsd_core_ops (void)
+{
+  fbsd_core_ops.to_shortname = "FreeBSD-core";
+  fbsd_core_ops.to_longname = "FreeBSD core thread.";
+  fbsd_core_ops.to_doc = "FreeBSD threads support for core files.";
+  fbsd_core_ops.to_open = fbsd_core_open;
+  fbsd_core_ops.to_close = fbsd_core_close;
+  fbsd_core_ops.to_attach = 0;
+  fbsd_core_ops.to_post_attach = 0;
+  fbsd_core_ops.to_detach = fbsd_core_detach;
+  /* fbsd_core_ops.to_resume  = 0; */
+  /* fbsd_core_ops.to_wait  = 0;  */
+  fbsd_core_ops.to_fetch_registers = fbsd_thread_fetch_registers;
+  /* fbsd_core_ops.to_store_registers  = 0; */
+  /* fbsd_core_ops.to_prepare_to_store  = 0; */
+  fbsd_core_ops.to_xfer_memory = fbsd_thread_xfer_memory;
+  fbsd_core_ops.to_files_info = fbsd_core_files_info;
+  fbsd_core_ops.to_insert_breakpoint = ignore;
+  fbsd_core_ops.to_remove_breakpoint = ignore;
+  /* fbsd_core_ops.to_lookup_symbol  = 0; */
+  fbsd_core_ops.to_create_inferior = fbsd_thread_create_inferior;
+  fbsd_core_ops.to_stratum = core_stratum;
+  fbsd_core_ops.to_has_all_memory = 0;
+  fbsd_core_ops.to_has_memory = 1;
+  fbsd_core_ops.to_has_stack = 1;
+  fbsd_core_ops.to_has_registers = 1;
+  fbsd_core_ops.to_has_execution = 0;
+  fbsd_core_ops.to_has_thread_control = tc_none;
+  fbsd_core_ops.to_thread_alive = fbsd_thread_alive;
+  fbsd_core_ops.to_pid_to_str = fbsd_thread_pid_to_str;
+  fbsd_core_ops.to_find_new_threads = fbsd_thread_find_new_threads;
+  fbsd_core_ops.to_sections = 0;
+  fbsd_core_ops.to_sections_end = 0;
+  fbsd_core_ops.to_magic = OPS_MAGIC;
+}
+
+static void
+init_fbsd_thread_ops (void)
+{
+  fbsd_thread_ops.to_shortname = "freebsd-threads";
+  fbsd_thread_ops.to_longname = "FreeBSD multithreaded child process.";
+  fbsd_thread_ops.to_doc = "FreeBSD threads support.";
+  fbsd_thread_ops.to_attach = fbsd_thread_attach;
+  fbsd_thread_ops.to_detach = fbsd_thread_detach;
+  fbsd_thread_ops.to_post_attach = fbsd_thread_post_attach;
+  fbsd_thread_ops.to_resume = fbsd_thread_resume;
+  fbsd_thread_ops.to_wait = fbsd_thread_wait;
+  fbsd_thread_ops.to_fetch_registers = fbsd_thread_fetch_registers;
+  fbsd_thread_ops.to_store_registers = fbsd_thread_store_registers;
+  fbsd_thread_ops.to_xfer_memory = fbsd_thread_xfer_memory;
+  fbsd_thread_ops.to_files_info = fbsd_thread_files_info;
+  fbsd_thread_ops.to_kill = fbsd_thread_kill;
+  fbsd_thread_ops.to_create_inferior = fbsd_thread_create_inferior;
+  fbsd_thread_ops.to_post_startup_inferior = fbsd_thread_post_startup_inferior;
+  fbsd_thread_ops.to_mourn_inferior = fbsd_thread_mourn_inferior;
+  fbsd_thread_ops.to_can_run = fbsd_thread_can_run;
+  fbsd_thread_ops.to_thread_alive = fbsd_thread_alive;
+  fbsd_thread_ops.to_find_new_threads = fbsd_thread_find_new_threads;
+  fbsd_thread_ops.to_pid_to_str = fbsd_thread_pid_to_str;
+  fbsd_thread_ops.to_stratum = thread_stratum;
+  fbsd_thread_ops.to_has_thread_control = tc_none;
+  fbsd_thread_ops.to_has_all_memory = 1;
+  fbsd_thread_ops.to_has_memory = 1;
+  fbsd_thread_ops.to_has_stack = 1;
+  fbsd_thread_ops.to_has_registers = 1;
+  fbsd_thread_ops.to_has_execution = 1;
+  fbsd_thread_ops.to_insert_breakpoint = memory_insert_breakpoint;
+  fbsd_thread_ops.to_remove_breakpoint = memory_remove_breakpoint;
+  fbsd_thread_ops.to_get_thread_local_address = fbsd_thread_get_local_address;
+  fbsd_thread_ops.to_magic = OPS_MAGIC;
 }
 
 static int
@@ -949,67 +1150,26 @@ thread_db_load (void)
   if (handle == NULL)
       return 0;
 
-  td_init_p = dlsym (handle, "td_init");
-  if (td_init_p == NULL)
-    return 0;
+#define resolve(X)			\
+ if (!(X##_p = dlsym (handle, #X)))	\
+   return 0;
 
-  td_ta_new_p = dlsym (handle, "td_ta_new");
-  if (td_ta_new_p == NULL)
-    return 0;
-
-  td_ta_map_id2thr_p = dlsym (handle, "td_ta_map_id2thr");
-  if (td_ta_map_id2thr_p == NULL)
-    return 0;
-
-  td_ta_map_lwp2thr_p = dlsym (handle, "td_ta_map_lwp2thr");
-  if (td_ta_map_lwp2thr_p == NULL)
-    return 0;
-
-  td_ta_thr_iter_p = dlsym (handle, "td_ta_thr_iter");
-  if (td_ta_thr_iter_p == NULL)
-    return 0;
-
-  td_thr_validate_p = dlsym (handle, "td_thr_validate");
-  if (td_thr_validate_p == NULL)
-    return 0;
-
-  td_thr_get_info_p = dlsym (handle, "td_thr_get_info");
-  if (td_thr_get_info_p == NULL)
-    return 0;
-
-  td_thr_getfpregs_p = dlsym (handle, "td_thr_getfpregs");
-  if (td_thr_getfpregs_p == NULL)
-    return 0;
-
-  td_thr_getgregs_p = dlsym (handle, "td_thr_getgregs");
-  if (td_thr_getgregs_p == NULL)
-    return 0;
-
-  td_thr_setfpregs_p = dlsym (handle, "td_thr_setfpregs");
-  if (td_thr_setfpregs_p == NULL)
-    return 0;
-
-  td_thr_setgregs_p = dlsym (handle, "td_thr_setgregs");
-  if (td_thr_setgregs_p == NULL)
-    return 0;
-
-  td_thr_sstep_p = dlsym(handle, "td_thr_sstep");
-  if (td_thr_sstep_p == NULL)
-    return 0;
-
-  td_ta_tsd_iter_p = dlsym (handle, "td_ta_tsd_iter");
-  if (td_ta_tsd_iter_p == NULL)
-    return 0;
-
-  td_thr_dbsuspend_p = dlsym (handle, "td_thr_dbsuspend");
-  if (td_thr_dbsuspend_p == NULL)
-    return 0;
-
-  td_thr_dbresume_p = dlsym (handle, "td_thr_dbresume");
-  if (td_thr_dbresume_p == NULL)
-    return 0;
-
-  td_thr_tls_get_addr_p = dlsym (handle, "td_thr_tls_get_addr");
+  resolve(td_init);
+  resolve(td_ta_new);
+  resolve(td_ta_delete);
+  resolve(td_ta_map_id2thr);
+  resolve(td_ta_map_lwp2thr);
+  resolve(td_ta_thr_iter);
+  resolve(td_thr_get_info);
+  resolve(td_thr_getfpregs);
+  resolve(td_thr_getgregs);
+  resolve(td_thr_setfpregs);
+  resolve(td_thr_setgregs);
+  resolve(td_thr_sstep);
+  resolve(td_ta_tsd_iter);
+  resolve(td_thr_dbsuspend);
+  resolve(td_thr_dbresume);
+  resolve(td_thr_tls_get_addr);
 
   /* Initialize the library.  */
   err = td_init_p ();
@@ -1022,14 +1182,22 @@ thread_db_load (void)
   return 1;
 }
 
+/* we suppress the call to add_target of core_ops in corelow because
+   if there are two targets in the stratum core_stratum, find_core_target
+   won't know which one to return.  see corelow.c for an additonal
+   comment on coreops_suppress_target. */
+
+int coreops_suppress_target = 1;
+
 void
 _initialize_thread_db (void)
 {
-  /* Only initialize the module if we can load libthread_db. */
+  init_fbsd_thread_ops ();
+  init_fbsd_core_ops ();
+
   if (thread_db_load ())
     {
-      init_thread_db_ops ();
-      add_target (&thread_db_ops);
+      add_target (&fbsd_thread_ops);
 
       /* "thread tsd" command */
       add_cmd ("tsd", class_run, fbsd_thread_tsd_cmd,
@@ -1037,13 +1205,23 @@ _initialize_thread_db (void)
             "for the process.\n",
            &thread_cmd_list);
 
+      memcpy (&orig_core_ops, &core_ops, sizeof (struct target_ops));
+      memcpy (&core_ops, &fbsd_core_ops, sizeof (struct target_ops));
+      add_target (&core_ops);
+
       /* Add ourselves to objfile event chain. */
       target_new_objfile_chain = target_new_objfile_hook;
       target_new_objfile_hook = fbsd_thread_new_objfile;
+
+      child_suppress_run = 1;
     }
   else
     {
-      printf_filtered("%s: can not load %s.\n", __func__, LIBTHREAD_DB_SO);
+      fprintf_unfiltered (gdb_stderr,
+        "[GDB will not be able to debug user-mode threads: %s]\n", dlerror());
+     
+      /* allow the user to debug non-threaded core files */
+      add_target (&core_ops);
     }
 }
 
@@ -1075,14 +1253,16 @@ ps_pglobal_lookup (struct ps_prochandle *ph, const char *obj,
 ps_err_e
 ps_pread (struct ps_prochandle *ph, psaddr_t addr, void *buf, size_t len)
 {
-  return target_read_memory ((CORE_ADDR) addr, buf, len);
+  int err = target_read_memory ((CORE_ADDR) addr, buf, len);
+  return (err == 0 ? PS_OK : PS_ERR);
 }
 
 ps_err_e
 ps_pwrite (struct ps_prochandle *ph, psaddr_t addr, const void *buf,
             size_t len)
 {
-  return target_write_memory ((CORE_ADDR) addr, (void *)buf, len);
+  int err = target_write_memory ((CORE_ADDR) addr, (void *)buf, len);
+  return (err == 0 ? PS_OK : PS_ERR);
 }
 
 ps_err_e
