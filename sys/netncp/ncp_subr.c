@@ -95,24 +95,6 @@ ncp_at_exit(struct proc *p)
 }
 
 int
-ncp_sysctlbyname(char *name, void *old, size_t *oldlenp,
-	void *new, size_t newlen, size_t *retval)
-{
-	int oid[CTL_MAXNAME];
-	int nmlen, plen, error;
-
-	oid[0] = 0;		/* sysctl internal magic */
-	oid[1] = 3;		/* name2oid */
-	nmlen = sizeof(oid);
-	error = kernel_sysctl(curproc, oid, 2, oid, &nmlen, name, strlen(name), &plen);
-	if (error)
-		return error;
-	error = kernel_sysctl(curproc, oid, plen / sizeof(int), old, oldlenp,
-	    new, newlen, retval);
-	return error;
-}
-
-int
 ncp_init(void)
 {
 	ncp_conn_init();
