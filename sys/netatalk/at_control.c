@@ -6,14 +6,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/types.h>
-#include <sys/errno.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <net/if.h>
 #include <net/route.h>
 #include <netinet/in.h>
@@ -22,8 +18,6 @@
 
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
-#include <netatalk/aarp.h>
-#include <netatalk/phase2.h>
 #include <netatalk/at_extern.h>
 
 struct at_ifaddr	*at_ifaddr;

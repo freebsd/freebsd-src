@@ -21,25 +21,19 @@
  *	netatalk@itd.umich.edu
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/route.h>
 
-#include <netinet/in.h>
 #undef s_net
-#include <netinet/if_ether.h>
 
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
-#include <netatalk/endian.h>
 #include <netatalk/ddp.h>
 #include <netatalk/ddp_var.h>
 #include <netatalk/at_extern.h>
