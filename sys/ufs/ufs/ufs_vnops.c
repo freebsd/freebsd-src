@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.41.2.2 1997/05/03 11:06:48 peter Exp $
+ * $Id: ufs_vnops.c,v 1.41.2.3 1997/06/29 08:48:50 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -1438,6 +1438,10 @@ ufs_rmdir(ap)
 	 *  ".." will contain a reference to
 	 *  the current directory and thus be
 	 *  non-empty.)
+	 * Do not allow the removal of mounted on
+	 * directories (this can happen when an NFS
+	 * exported filesystem tries to remove a
+	 * locally mounted on directory).
 	 */
 	error = 0;
 	if (ip->i_nlink != 2 ||
@@ -1453,6 +1457,10 @@ ufs_rmdir(ap)
 	if ((dp->i_flags & APPEND)
 	    || (ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))) {
 		error = EPERM;
+		goto out;
+	}
+	if (vp->v_mountedhere != 0) {
+		error = EINVAL;
 		goto out;
 	}
 	/*
