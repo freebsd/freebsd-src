@@ -2,12 +2,14 @@
 
 .include "../libcrypto/Makefile.inc"
 
+LOPENSSL_SRC= ${.CURDIR}/../../../crypto/openssl/ssl
+
+.PATH:	${LOPENSSL_SRC}
+
 LIB=		ssl
 SHLIB_MAJOR=	1
 
 MAINTAINER=	kris
-
-LOPENSSL_SRC= ${.CURDIR}/../../../crypto/openssl/ssl
 
 SRCS=	bio_ssl.c s23_clnt.c s23_lib.c s23_meth.c s23_pkt.c s23_srvr.c \
 	s2_clnt.c s2_enc.c s2_lib.c s2_meth.c s2_pkt.c s2_srvr.c s3_both.c \
@@ -17,6 +19,10 @@ SRCS=	bio_ssl.c s23_clnt.c s23_lib.c s23_meth.c s23_pkt.c s23_srvr.c \
 	t1_lib.c t1_meth.c t1_srvr.c 
 
 HDRS=	ssl.h ssl2.h ssl23.h ssl3.h ssl_locl.h tls1.h
+
+.for h in ${HDRS}
+BUILD_HDRS_OPENSSL+= ${LOPENSSL_SRC}/${h}
+.endfor
 
 CRYPTOHDRS= asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	buffer/buffer.h cast/cast.h comp/comp.h conf/conf.h crypto.h \
@@ -28,33 +34,29 @@ CRYPTOHDRS= asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	sha/sha.h stack/stack.h tmdiff.h txt_db/txt_db.h x509/x509.h \
 	x509/x509_vfy.h x509v3/x509v3.h
 
-beforedepend:	headers ${.OBJDIR}/openssl/opensslconf.h
+.for h in ${CRYPTOHDRS}
+BUILD_HDRS_CRYPTO+= ${LCRYPTO_SRC}/${h}
+.endfor
 
-DPADD+=	${.OBJDIR}/openssl/opensslconf.h
+#	this bogus header was the easiest way to get the openssl/
+#	directory populated
+SRCS+=		openssl/headers-copied.h
+CLEANDIRS+=	openssl
 
-CLEANDIRS+=	${.OBJDIR}/openssl
-
-${.OBJDIR}/openssl/opensslconf.h: ../libcrypto/opensslconf-${MACHINE_ARCH}.h
-	@test -d ${.OBJDIR}/openssl || mkdir -p ${.OBJDIR}/openssl; \
+openssl/opensslconf.h: ${.CURDIR}/../libcrypto/opensslconf-${MACHINE_ARCH}.h
+	@test -d openssl || mkdir -p openssl
 	cp ${.OODATE} ${.TARGET}
 
-headers:
-	@test -d ${.OBJDIR}/openssl || mkdir -p ${.OBJDIR}/openssl; \
-	for i in ${HDRS}; do \
-		${INSTALL} ${COPY} -m 444 ${LOPENSSL_SRC}/$$i \
-			${.OBJDIR}/openssl; \
-	done; \
-	for i in ${CRYPTOHDRS}; do \
-		${INSTALL} ${COPY} -m 444 ${LCRYPTO_SRC}/$$i \
-			${.OBJDIR}/openssl; \
-	done
+openssl/headers-copied.h:  openssl/opensslconf.h
+	@test -d openssl || mkdir -p openssl
+	${INSTALL} ${COPY} -m 444 \
+	    ${BUILD_HDRS_OPENSSL} ${BUILD_HDRS_CRYPTO} \
+	    openssl
+	@touch ${.TARGET}
 
 beforeinstall:
-	for i in ${HDRS}; do \
-		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
-			${LOPENSSL_SRC}/$$i ${DESTDIR}/usr/include/openssl; \
-	done
-
-.PATH:	${LOPENSSL_SRC}
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${BUILD_HDRS_OPENSSL} \
+	    ${DESTDIR}/usr/include/openssl
 
 .include <bsd.lib.mk>
