@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: fastfind.c,v 1.5 1996/10/23 16:46:47 ache Exp $
+ * $Id: fastfind.c,v 1.6 1996/10/27 19:18:06 alex Exp $
  */
 
 
@@ -185,6 +185,9 @@ fastfind
 
 #ifdef FF_ICASE
 	/* set patend char to true */
+        for (c = 0; c < UCHAR_MAX + 1; c++)
+                table[c] = 0;
+
 	table[TOLOWER(*patend)] = 1;
 	table[toupper(*patend)] = 1;
 #endif /* FF_ICASE */
