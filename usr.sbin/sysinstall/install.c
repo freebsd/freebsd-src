@@ -551,7 +551,12 @@ installNovice(dialogMenuItem *self)
 	WINDOW *w = savescr();
 
 	dialog_clear();
-	systemExecute("rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup");
+	if (!msgYesNo("Is this machine's CMOS clock set to local time?\n"
+		      "If it is set to UTC, please select NO here"))
+	    system("touch /etc/wall_cmos_clock");
+	else
+	    system("rm -f /etc/wall_cmos_clock");
+	systemExecute("rm -f /etc/localtime; tzsetup");
 	restorescr(w);
     }
 
@@ -570,9 +575,9 @@ installNovice(dialogMenuItem *self)
     }
 
     dialog_clear_norefresh();
-    if (!msgYesNo("The FreeBSD package collection is a collection of over 700 ready-to-run\n"
-		  "applications, from text editors to games to WEB servers.  Would you like\n"
-		  "to browse the collection now?"))
+    if (!msgYesNo("The FreeBSD package collection is a collection of hundreds of ready-to-run\n"
+		  "applications, from text editors to games to WEB servers and more.  Would you\n"
+		  "like to browse the collection now?"))
 	configPackages(self);
 
     dialog_clear_norefresh();
