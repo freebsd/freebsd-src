@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.14 1994/01/14 11:47:00 jkh Exp $
+ *	$Id: rtld.c,v 1.15 1994/02/13 20:42:53 jkh Exp $
  */
 
 #include <machine/vmparam.h>
@@ -133,12 +133,12 @@ struct so_map		*link_map_head, *main_map;
 struct so_map		**link_map_tail = &link_map_head;
 struct rt_symbol	*rt_symbol_head;
 
-static void		*dlopen __P((char *, int));
-static int		dlclose __P((void *));
-static void		*dlsym __P((void *, char *));
-static int		dlctl __P((void *, int, void *));
+void		*dlopen __P((char *, int));
+int		dlclose __P((void *));
+void		*dlsym __P((void *, char *));
+int		dlctl __P((void *, int, void *));
 
-static struct ld_entry	ld_entry = {
+struct ld_entry	ld_entry = {
 	dlopen, dlclose, dlsym, dlctl
 };
 
@@ -1107,7 +1107,7 @@ static struct so_map dlmap = {
 };
 static int dlerrno;
 
-	static void *
+	void *
 dlopen(name, mode)
 	char	*name;
 	int	mode;
@@ -1148,7 +1148,7 @@ xprintf("%s: %s\n", name, strerror(errno));
 	return smp;
 }
 
-	static int
+	int
 dlclose(fd)
 	void	*fd;
 {
@@ -1171,7 +1171,7 @@ xprintf("dlclose(%s): refcount = %d\n", smp->som_path, LM_PRIVATE(smp)->spd_refc
 	return 0;
 }
 
-	static void *
+	void *
 dlsym(fd, sym)
 	void	*fd;
 	char	*sym;
@@ -1198,7 +1198,7 @@ dlsym(fd, sym)
 	return (void *)addr;
 }
 
-	static int
+	int
 dlctl(fd, cmd, arg)
 	void	*fd, *arg;
 	int	cmd;
