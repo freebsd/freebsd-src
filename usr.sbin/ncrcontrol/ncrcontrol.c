@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.4 1994/10/26 19:23:02 se Exp $
+**  $Id: ncrcontrol.c,v 1.5 1995/02/03 20:49:10 bde Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -52,6 +52,7 @@
 #endif
 #include <nlist.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <paths.h>
 #include <limits.h>
@@ -730,7 +731,7 @@ void do_set (char * arg)
 	};
 
 	if (!strncmp(arg, "sync=", 5)) {
-		float f = strtod (arg+5, NULL);
+		double f = strtod (arg+5, NULL);
 		if (f>=4.0 && f<=10.0) {
 			user.data = 250.0 / f;
 			user.cmd  = UC_SETSYNC;
