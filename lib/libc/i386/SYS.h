@@ -35,7 +35,7 @@
  *
  *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
  *
- *	$Id: SYS.h,v 1.2 1994/08/05 01:17:57 wollman Exp $
+ *	$Id: SYS.h,v 1.3 1996/01/22 00:00:51 julian Exp $
  */
 
 #include <sys/syscall.h>
@@ -61,28 +61,27 @@
 #define PIC_GOTOFF(x)   x
 #endif
 
-#define	SYSCALL(x)	2: jmp cerror; ENTRY(x); lea SYS_/**/x,%eax; LCALL(7,0); jb 2b
+#define	SYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(x); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
 #define	RSYSCALL(x)	SYSCALL(x); ret
 
-#ifdef _THREAD_SAFE
 /*
- * Support for user-space threads which require that some syscalls be
- * private to the threaded library.
+ * For the thread_safe versions, we prepend _thread_sys_ to the function
+ * name so that the 'C' wrapper can go around the real name.
  */
-#define	PSYSCALL(x)	2: jmp cerror; ENTRY(_thread_sys_/**/x); lea SYS_/**/x,%eax; LCALL(7,0); jb 2b
-#else
-/*
- * The non-threaded library defaults to traditional syscalls where
- * the function name matches the syscall name.
- */
-#define	PSYSCALL(x)	SYSCALL(x)
+#ifdef _THREAD_SAFE	/* in case */
+#define	PSYSCALL(x,y)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(y); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
+#define	PRSYSCALL(x,y)	PSYSCALL(x,y); ret
 #endif
-#define	PRSYSCALL(x)	PSYSCALL(x); ret
-#define	PSEUDO(x,y)	ENTRY(x); lea SYS_/**/y, %eax; ; LCALL(7,0); ret
-#define	CALL(x,y)	call _/**/y; addl $4*x,%esp
+
+#define	PSEUDO(x,y)	ENTRY(x); lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
+#define	CALL(x,y)	call CNAME(y); addl $4*x,%esp
 /* gas fucks up offset -- although we don't currently need it, do for BCS */
 #define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
 
-#define	ASMSTR		.asciz
+#ifdef __ELF__
+#define KERNCALL	int $0x80	/* Faster */
+#else
+#define KERNCALL	LCALL(7,0)	/* The old way */
+#endif
 
-	.globl	cerror
+#define	ASMSTR		.asciz

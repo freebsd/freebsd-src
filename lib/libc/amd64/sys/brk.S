@@ -33,20 +33,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: brk.S,v 1.1 1994/08/05 01:18:39 wollman Exp $
+ *	$Id: brk.S,v 1.2 1995/01/23 01:29:39 davidg Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: brk.S,v 1.2 1995/01/23 01:29:39 davidg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 
-#define	SYS_brk		17
-
-	.globl	curbrk
-	.globl	minbrk
+	.globl	HIDENAME(curbrk)
+	.globl	HIDENAME(minbrk)
 ENTRY(_brk)
 	jmp	ok
 
@@ -54,39 +52,40 @@ ENTRY(brk)
 #ifdef PIC
 	movl	4(%esp),%eax
 	PIC_PROLOGUE
-	movl	PIC_GOT(curbrk),%edx	# set up GOT addressing
-	movl	PIC_GOT(minbrk),%ecx	#
+	movl	PIC_GOT(HIDENAME(curbrk)),%edx	# set up GOT addressing
+	movl	PIC_GOT(HIDENAME(minbrk)),%ecx	#
 	cmpl	%eax,(%ecx)
 	PIC_EPILOGUE
 	jl	ok
 	movl	(%ecx),%eax
 	movl	%eax,4(%esp)
 ok:
-	lea	SYS_brk,%eax
-	LCALL(7,0)
+	lea	SYS_break,%eax
+	KERNCALL
 	jb	err
 	movl	4(%esp),%eax
 	movl	%eax,(%edx)
 	movl	$0,%eax
 	ret
 err:
-	jmp	PIC_PLT(cerror)
+	PIC_PROLOGUE
+	jmp	PIC_PLT(HIDENAME(cerror))
 
 #else
 
 	movl	4(%esp),%eax
-	cmpl	%eax,minbrk
+	cmpl	%eax,HIDENAME(minbrk)
 	jl	ok
-	movl	minbrk,%eax
+	movl	HIDENAME(minbrk),%eax
 	movl	%eax,4(%esp)
 ok:
-	lea	SYS_brk,%eax
-	LCALL(7,0)
+	lea	SYS_break,%eax
+	KERNCALL
 	jb	err
 	movl	4(%esp),%eax
-	movl	%eax,curbrk
+	movl	%eax,HIDENAME(curbrk)
 	movl	$0,%eax
 	ret
 err:
-	jmp	cerror
+	jmp	HIDENAME(cerror)
 #endif

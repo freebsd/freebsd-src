@@ -35,8 +35,26 @@
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
  *
- *	$Id: DEFS.h,v 1.4 1994/05/03 16:29:13 jkh Exp $
+ *	$Id: DEFS.h,v 1.2 1994/08/05 01:17:56 wollman Exp $
  */
+
+#include <sys/cdefs.h>
+
+/*
+ * CNAME and HIDENAME manage the relationship between symbol names in C
+ * and the equivalent assembly language names.  CNAME is given a name as
+ * it would be used in a C program.  It expands to the equivalent assembly
+ * language name.  HIDENAME is given an assembly-language name, and expands
+ * to a possibly-modified form that will be invisible to C programs.
+ */
+#if defined(__ELF__) /* { */
+#define CNAME(csym)		csym
+#define HIDENAME(asmsym)	__CONCAT(.,asmsym)
+#else /* } { */
+#define CNAME(csym)		__CONCAT(_,csym)
+#define HIDENAME(asmsym)	asmsym
+#endif /* } */
+
 
 /* XXX should use align 4,0x90 for -m486. */
 #define _START_ENTRY	.align 2,0x90;
@@ -51,30 +69,30 @@
 #ifdef PROF
 
 #define ALTENTRY(x)	_START_ENTRY	\
-			.globl _/**/x; .type _/**/x,@function; _/**/x:; \
+			.globl CNAME(x); .type CNAME(x),@function; CNAME(x):; \
 			_MID_ENTRY	\
-			call mcount; jmp 9f
+			call HIDENAME(mcount); jmp 9f
 
-#define ENTRY(x)	_START_ENTRY \
-			.globl _/**/x; .type _/**/x,@function; _/**/x:; \
+#define ENTRY(x)	_START_ENTRY	\
+			.globl CNAME(x); .type CNAME(x),@function; CNAME(x):; \
 			_MID_ENTRY	\
-			call mcount; 9:
+			call HIDENAME(mcount); 9:
 
 
 #define	ALTASENTRY(x)	_START_ENTRY	\
 			.globl x; .type x,@function; x:;	\
 			_MID_ENTRY	\
-			call mcount; jmp 9f
+			call HIDENAME(mcount); jmp 9f
 
 #define	ASENTRY(x)	_START_ENTRY	\
 			.globl x; .type x,@function; x:;	\
 			_MID_ENTRY	\
-			call mcount; 9:
+			call HIDENAME(mcount); 9:
 
 #else	/* !PROF */
 
-#define	ENTRY(x)	_START_ENTRY .globl _/**/x; .type _/**/x,@function; \
-			_/**/x:
+#define	ENTRY(x)	_START_ENTRY .globl CNAME(x); .type CNAME(x),@function; \
+			CNAME(x):
 #define	ALTENTRY(x)	ENTRY(x)
 
 #define	ASENTRY(x)	_START_ENTRY .globl x; .type x,@function; x:

@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: modf.S,v 1.2 1995/01/23 01:27:05 davidg Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: modf.S,v 1.2 1995/01/23 01:27:05 davidg Exp $"
 #endif /* LIBC_RCS and not lint */
 
 /*
@@ -50,10 +50,10 @@
  */
 
 /* With CHOP mode on, frndint behaves as TRUNC does.  Useful. */
-.text
-.globl _modf
-.type _modf,@function
-_modf:
+
+#include "DEFS.h"
+
+ENTRY(modf)
 	pushl %ebp
 	movl %esp,%ebp
 	subl $16,%esp
