@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.123 1996/01/03 06:26:15 gibbs Exp $
+#	$Id: files.i386,v 1.124 1996/01/15 10:28:14 phk Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -36,7 +36,8 @@ i386/i386/mem.c			standard
 i386/i386/microtime.s		standard
 i386/i386/ns_cksum.c		optional	ns
 i386/i386/pmap.c		standard
-i386/i386/procfs_machdep.c	optional	procfs
+# used by ptrace now
+i386/i386/procfs_machdep.c	standard
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
