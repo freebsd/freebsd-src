@@ -154,7 +154,7 @@ The
 .Fa flags
 parameter currently only specifies the type of sleep queue being slept on.
 A value of
-.Dv 0
+0
 indicates a sleep queue used by
 .Xr msleep 9
 and a value of
@@ -209,7 +209,7 @@ When the thread is resumed,
 the wait functions return a non-zero value if the thread was awakened due to
 an interrupt other than a signal or a timeout.
 If the sleep timed out, then
-.Dv EWOULDBLOCK
+.Er EWOULDBLOCK
 is returned.
 If the sleep was interrupted by something other than a signal,
 then some other return value will be returned.
@@ -220,9 +220,9 @@ should be called to determine if the sleep was interrupted by a signal.
 If so,
 .Fn sleepq_calc_signal_retval
 returns
-.Dv ERESTART
+.Er ERESTART
 if the interrupting signal is restarable and
-.Dv EINTR
+.Er EINTR
 otherwise.
 If the sleep was not interrupted by a signal,
 .Fn sleepq_calc_signal_retval
@@ -250,7 +250,7 @@ argument passed to
 by the threads sleeping on the wait channel.
 If the
 .Fa pri
-argument does not equal -1,
+argument does not equal \-1,
 then each thread that is awakened will have its priority raised to
 .Fa pri
 if it has a lower priority.
@@ -290,7 +290,7 @@ interfaces.
 Almost all other code in the kernel should use one of those interfaces rather
 than manipulating sleep queues directly.
 .Sh SEE ALSO
-.Xr msleep 9 ,
 .Xr condvar 9 ,
+.Xr msleep 9 ,
 .Xr runqueue 9 ,
 .Xr scheduler 9
