@@ -92,6 +92,8 @@ void	pmap_qenter_flags(vm_offset_t va, vm_page_t *m, int count, u_long fl);
 int	pmap_cache_enter(vm_page_t m, vm_offset_t va);
 void	pmap_cache_remove(vm_page_t m, vm_offset_t va);
 
+void	pmap_map_tsb(void);
+
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
 extern	vm_offset_t avail_start;
