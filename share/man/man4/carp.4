@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd February 23, 2005
 .Dt CARP 4
@@ -36,10 +36,9 @@
 .Sh DESCRIPTION
 The
 .Nm
-interface is a pseudo-device which implements and controls the
+interface is a pseudo-device that implements and controls the
 CARP protocol.
-.Nm
-allows multiple hosts on the same local network to share a set of IP addresses.
+CARP allows multiple hosts on the same local network to share a set of IP addresses.
 Its primary purpose is to ensure that these
 addresses are always available, but in some configurations
 .Nm
@@ -48,7 +47,7 @@ can also provide load balancing functionality.
 A
 .Nm
 interface can be created at runtime using the
-.Ic ifconfig carp Ns Ar N Ic create
+.Nm ifconfig Li carp Ns Ar N Cm create
 command or by setting up configuration in
 .Pa /etc/rc.conf
 file.
@@ -65,29 +64,33 @@ and
 which are used to control how frequently the host sends advertisements when it
 is the master for a virtual host, and
 .Cm pass
-which is used to authenticate carp advertisements.
+which is used to authenticate
+.Nm
+advertisements.
 Finally
 .Cm carpdev
 is used to specify which interface the
 .Nm
 device attaches to.
-If unspecified, the kernel attempts to set carpdev by looking for
+If unspecified, the kernel attempts to set
+.Cm carpdev
+by looking for
 another interface with the same subnet.
 These configurations can be done using
 .Xr ifconfig 8 ,
 or through the
 .Dv SIOCSVH
-ioctl.
+.Xr ioctl 2 .
 .Pp
 Additionally, there are a number of global parameters which can be set using
 .Xr sysctl 8 :
-.Bl -tag -width net.inet.carp.arpbalance
-.It net.inet.carp.allow
+.Bl -tag -width ".Va net.inet.carp.arpbalance"
+.It Va net.inet.carp.allow
 Accept incoming
 .Nm
 packets.
 Enabled by default.
-.It net.inet.carp.preempt
+.It Va net.inet.carp.preempt
 Allow virtual hosts to preempt each other.
 It is also used to failover
 .Nm
@@ -95,17 +98,19 @@ interfaces as a group.
 When the option is enabled and one of the
 .Nm
 enabled physical interfaces
-goes down, advskew is changed to 240 on all
+goes down,
+.Cm advskew
+is changed to 240 on all
 .Nm
 interfaces.
 See also the first example.
 Disabled by default.
-.It net.inet.carp.log
+.It Va net.inet.carp.log
 Log bad
 .Nm
 packets.
 Enabled by default.
-.It net.inet.carp.arpbalance
+.It Va net.inet.carp.arpbalance
 Balance local traffic using ARP.
 Disabled by default.
 .El
@@ -117,32 +122,35 @@ interfaces together, when one of the physical interfaces goes down.
 This is achieved by the preempt option.
 Enable it on both host A and B:
 .Pp
-.Dl # sysctl net.inet.carp.preempt=1
+.Dl sysctl net.inet.carp.preempt=1
 .Pp
 Assume that host A is the preferred master and 192.168.1.x/24 is
 configured on one physical interface and 192.168.2.y/24 on another.
 This is the setup for host A:
 .Bd -literal -offset indent
-# ifconfig carp0 create
-# ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.1 \e
+ifconfig carp0 create
+ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.1 \e
 	255.255.255.0
-# ifconfig carp1 create
-# ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.2.1 \e
+ifconfig carp1 create
+ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.2.1 \e
 	255.255.255.0
 .Ed
 .Pp
-The setup for host B is identical, but it has a higher advskew:
+The setup for host B is identical, but it has a higher
+.Cm advskew :
 .Bd -literal -offset indent
-# ifconfig carp0 create
-# ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat \e
+ifconfig carp0 create
+ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat \e
 	192.168.1.1 255.255.255.0
-# ifconfig carp1 create
-# ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat \e
+ifconfig carp1 create
+ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat \e
 	192.168.2.1 255.255.255.0
 .Ed
 .Pp
 Because of the preempt option, when one of the physical interfaces of
-host A fails, advskew is adjusted to 240 on all its
+host A fails,
+.Cm advskew
+is adjusted to 240 on all its
 .Nm
 interfaces.
 This will cause host B to preempt on both interfaces instead of
@@ -156,34 +164,35 @@ provide balancing and failover for the IP address 192.168.1.10.
 .Pp
 First the
 .Nm
-interfaces on Host A are configured.
+interfaces on host A are configured.
 The
 .Cm advskew
 of 100 on the second virtual host means that its advertisements will be sent
 out slightly less frequently.
 .Bd -literal -offset indent
-# ifconfig carp0 create
-# ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.10 \e
+ifconfig carp0 create
+ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.10 \e
 	255.255.255.0
-# ifconfig carp1 create
-# ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat \e
+ifconfig carp1 create
+ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat \e
 	192.168.1.10 255.255.255.0
 .Ed
 .Pp
-The configuration for host B is identical, except the skew is on
-virtual host 1 rather than virtual host 2.
+The configuration for host B is identical, except the
+.Cm advskew
+is on virtual host 1 rather than virtual host 2.
 .Bd -literal -offset indent
-# ifconfig carp0 create
-# ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat \e
+ifconfig carp0 create
+ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat \e
 	192.168.1.10 255.255.255.0
-# ifconfig carp1 create
-# ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.1.10 \e
+ifconfig carp1 create
+ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.1.10 \e
 	255.255.255.0
 .Ed
 .Pp
 Finally, the ARP balancing feature must be enabled on both hosts:
 .Pp
-.Dl # sysctl net.inet.carp.arpbalance=1
+.Dl sysctl net.inet.carp.arpbalance=1
 .Pp
 When the hosts receive an ARP request for 192.168.1.10, the source IP address
 of the request is used to compute which virtual host should answer the request.
@@ -210,5 +219,5 @@ device first appeared in
 .Ox 3.5 .
 The
 .Nm
-device was imported to
+device was imported into
 .Fx 5.4 .
