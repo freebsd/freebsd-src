@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.11 1998/01/21 14:37:22 ache Exp $";
+	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.12 1998/01/21 15:10:13 ache Exp $";
 
 /* patch - a program to apply diffs to original files
  *
@@ -9,6 +9,10 @@ char rcsid[] =
  * money off of it, or pretend that you wrote it.
  *
  * $Log: patch.c,v $
+ * Revision 1.12  1998/01/21 15:10:13  ache
+ * Add -I or --index-first option to take Index: precedence over context diff,
+ * as it was in hacked FreeBSD version
+ *
  * Revision 1.11  1998/01/21 14:37:22  ache
  * Resurrect patch 2.1 without FreeBSD Index: hack
  *
@@ -649,7 +653,7 @@ Options:\n\
 		fprintf(stderr, "\
        [--strip[=strip-count]] [--normal] [--reject-file=rej-name] [--skip]\n\
        [--remove-empty-files] [--quiet] [--silent] [--unified] [--version]\n\
-       [--version-control={numbered,existing,simple}]\n");
+       [--version-control={numbered,existing,simple}] [--index-first]\n");
 		my_exit(1);
 	    }
 	}
