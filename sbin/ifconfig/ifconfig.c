@@ -134,6 +134,8 @@ static	int ip6lifetime;
 
 struct	afswtch;
 
+int supmedia = 0;
+
 #ifdef INET6
 char	addr_buf[MAXHOSTNAMELEN *2 + 1];	/*for getnameinfo()*/
 #endif
@@ -365,16 +367,16 @@ usage()
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	"usage: ifconfig interface address_family [address [dest_address]]",
 	"                [parameters]",
-	"       ifconfig -a [-d] [-u] [address_family]",
+	"       ifconfig -a [-d] [-m] [-u] [address_family]",
 	"       ifconfig -l [-d] [-u] [address_family]",
-	"       ifconfig [-d] [-u]");
+	"       ifconfig [-d] [-m] [-u]");
 #else
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	"usage: ifconfig [-L] interface address_family [address [dest_address]]",
 	"                [parameters]",
-	"       ifconfig -a [-L] [-d] [-u] [address_family]",
+	"       ifconfig -a [-L] [-d] [-m] [-u] [address_family]",
 	"       ifconfig -l [-d] [-u] [address_family]",
-	"       ifconfig [-L] [-d] [-u]");
+	"       ifconfig [-L] [-d] [-m] [-u]");
 #endif
 	exit(1);
 }
@@ -424,7 +426,7 @@ main(argc, argv)
 			uponly++;
 			break;
 		case 'm':	/* show media choices in status */
-			/* ignored for compatibility */
+			supmedia = 1;
 			break;
 		default:
 			usage();
@@ -435,7 +437,7 @@ main(argc, argv)
 	argv += optind;
 
 	/* -l cannot be used with -a or -m */
-	if (namesonly && all)
+	if (namesonly && (all || supmedia))
 		usage();
 
 	/* nonsense.. */
