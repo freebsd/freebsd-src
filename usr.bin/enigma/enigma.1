@@ -33,8 +33,10 @@ simple encryption program, working on a
 .Dq secret-key
 basis.  It operates as a filter, i. e. it encrypts or decrypts a
 stream of data from standard input, and writes the result to standard
-output.  It automatically detects whether the input data stream is
-already encrypted, and switches into decryption mode in this case.
+output.
+Since its operation is fully symmetrical, feeding the encrypted data
+stream again through the engine (using the same secret key) will
+decrypt it.
 .Pp
 There are several ways to provide the secret key to the program.  By
 default, the program prompts the user on the controlling terminal for
