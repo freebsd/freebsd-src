@@ -543,6 +543,23 @@ if [ -r /etc/rc.devfs ]; then
 	sh /etc/rc.devfs
 fi
 
+
+# Start the Linux binary compatibility if requested.
+#
+case ${linux_enable} in
+[Yy][Ee][Ss])
+	echo -n ' linux';	linux > /dev/null 2>&1
+	;;
+esac
+
+# Start the SysVR4 binary emulation if requested.
+#
+case ${svr4_enable} in
+[Yy][Ee][Ss])
+	echo -n ' svr4';	svr4 > /dev/null 2>&1
+	;;
+esac
+
 # Do traditional (but rather obsolete) rc.local file if it exists.  If you
 # use this file and want to make it programmatic, source /etc/defaults/rc.conf
 # in /etc/rc.local and add your custom variables to /etc/rc.conf, as
