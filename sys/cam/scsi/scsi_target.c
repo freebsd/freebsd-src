@@ -1,4 +1,4 @@
-/*
+/*-
  * Generic SCSI Target Kernel Mode Driver
  *
  * Copyright (c) 2002 Nate Lawson.

@@ -41,7 +41,7 @@
  * $FreeBSD$
  */
 
-/*
+/*-
  * Portions of this code derived from software contributed to the
  * FreeBSD Project by Mark Newton.
  * 

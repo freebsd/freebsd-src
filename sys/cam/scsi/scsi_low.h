@@ -5,7 +5,7 @@
 #define	SCSI_LOW_DIAGNOSTIC
 #define	SCSI_LOW_ALT_QTAG_ALLOCATE
 
-/*
+/*-
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1995, 1996, 1997, 1998, 1999, 2000, 2001
  *	NetBSD/pc98 porting staff. All rights reserved.

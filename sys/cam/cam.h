@@ -1,4 +1,4 @@
-/*
+/*-
  * Data structures and definitions for the CAM system.
  *
  * Copyright (c) 1997 Justin T. Gibbs.

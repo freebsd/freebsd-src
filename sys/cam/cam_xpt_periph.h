@@ -1,4 +1,4 @@
- /*
+/*-
  * Data structures and definitions for dealing with the 
  * Common Access Method Transport (xpt) layer from peripheral
  * drivers.
