@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mouse.h,v 1.11 1998/08/06 09:15:52 dfr Exp $
+ *	$Id: mouse.h,v 1.12 1998/11/22 11:57:59 yokota Exp $
  *	from: i386/include mouse.h,v 1.10
  */
 
@@ -226,12 +226,15 @@ typedef struct mousevar {
 						* as SYNC!
 					 	*/
 #define MOUSE_PS2PLUS_BUTTON4DOWN 0x10	/* 4th button on MouseMan+ */
+#define MOUSE_PS2PLUS_BUTTON5DOWN 0x20
 
 #define MOUSE_PS2_XNEG		0x10
 #define MOUSE_PS2_YNEG		0x20
 #define MOUSE_PS2_XOVERFLOW	0x40
 #define MOUSE_PS2_YOVERFLOW	0x80
 #define MOUSE_PS2PLUS_ZNEG	0x08	/* MouseMan+ negative wheel movement */
+#define MOUSE_PS2PLUS_SYNCMASK	0x48
+#define MOUSE_PS2PLUS_SYNC	0x48
 
 /* sysmouse extended data packet */
 /*
