@@ -4,6 +4,7 @@
 PROG=	mtree
 SRCS=	compare.c crc.c create.c misc.c mtree.c spec.c verify.c
 MAN8=	mtree.8
+DPADD=	${LIBUTIL}
 LDADD=	-lutil
 .PATH:	${.CURDIR}/../../usr.bin/cksum
 

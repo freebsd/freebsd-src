@@ -3,6 +3,7 @@
 
 PROG=	rm
 SRCS=   rm.c
+DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
 LINKS=	${BINDIR}/rm ${BINDIR}/unlink
