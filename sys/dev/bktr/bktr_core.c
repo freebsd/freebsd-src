@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.63 1999/01/28 00:57:51 dillon Exp $ */
+/* $Id: brooktree848.c,v 1.64 1999/01/28 17:47:47 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -319,14 +319,14 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                            PAL/SECAM boards will use PLL mode.
 			   Added to card probe. Thanks to Ken and Fred.
 
-1.56          21 Jan 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+1.56          21 Jan 1999  Roger Hardiman <roger@cs.strath.ac.uk>
                            Added detection of Hauppauge IR remote control.
 			   and MSP34xx Audio chip. Fixed i2c read error.
                            Hauppauge supplied details of new Tuner Types.
                            Danny Braniss <danny@cs.huji.ac.il> submitted Bt878
                            AverMedia detection with PCI subsystem vendor id.
 
-1.57          26 Jan 1998  Roger Hardiman <roger@cs.strath.ac.uk>
+1.57          26 Jan 1999  Roger Hardiman <roger@cs.strath.ac.uk>
                            Support for MSP3410D / MSP3415D Stereo/Mono audio
                            using the audio format Auto Detection Mode.
                            Nicolas Souchu <nsouch@freebsd.org> ported the
@@ -334,6 +334,13 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                            METEOR_INPUT_DEV2 now selects a composite camera on
                            the SVIDEO port for Johan Larsson<gozer@ludd.luth.se>
                            For true SVIDEO, use METEOR_INPUT_DEV_SVIDEO
+
+1.58           8 Feb 1999  Roger Hardiman <roger@cs.strath.ac.uk>
+                           Added check to bktr_mmap from OpenBSD driver.
+                           Improved MSP34xx reset for bt848 Hauppauge boards.
+                           Added detection for Bt848a.
+                           Vsevolod Lobko<seva@sevasoft.alex-ua.com> added
+                           more XUSSR channels.
 */
 
 #define DDB(x) x
@@ -512,10 +519,10 @@ bktr_pci_match(pci_devaddr_t *pa)
 	id = pci_inl(pa, PCI_VENDOR_ID);
 
 	switch (id) {
-	   BROOKTREE_848_ID:
-	   BROOKTREE_849_ID:
-	   BROOKTREE_878_ID:
-	   BROOKTREE_879_ID:
+	   BROOKTREE_848_PCI_ID:
+	   BROOKTREE_849_PCI_ID:
+	   BROOKTREE_878_PCI_ID:
+	   BROOKTREE_879_PCI_ID:
 	     return 1;
 	}
 	aprint_debug("bktr_pci_match got %x\n", id);
@@ -1172,14 +1179,17 @@ static int      i2c_read_byte( bktr_ptr_t bktr, unsigned char *data, int last );
 static const char*
 bktr_probe( pcici_t tag, pcidi_t type )
 {
+        unsigned int rev = pci_conf_read( tag, PCIR_REVID) & 0x000000ff;
+	 
 	switch (type) {
-	case BROOKTREE_848_ID:
-		return("BrookTree 848");
-        case BROOKTREE_849_ID:
+	case BROOKTREE_848_PCI_ID:
+		if (rev == 0x12) return("BrookTree 848a");
+		else             return("BrookTree 848"); 
+        case BROOKTREE_849_PCI_ID:
                 return("BrookTree 849");
-        case BROOKTREE_878_ID:
+        case BROOKTREE_878_PCI_ID:
                 return("BrookTree 878");
-        case BROOKTREE_879_ID:
+        case BROOKTREE_879_PCI_ID:
                 return("BrookTree 879");
 	};
 
@@ -1202,7 +1212,7 @@ bktr_attach( ATTACH_ARGS )
 	vm_offset_t	buf;
 	u_long		latency;
 	u_long		fun;
-
+	unsigned int	rev;
 
 #ifdef __FreeBSD__
 	bktr = &brooktree[unit];
@@ -1311,10 +1321,25 @@ bktr_attach( ATTACH_ARGS )
 		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
 	}
 
-	/* save pci id */
+	/* read the pci id and determine the card type */
 	fun = pci_conf_read(tag, PCI_ID_REG);
-	bktr->id = fun;
-
+        rev = pci_conf_read(tag, PCIR_REVID) & 0x000000ff;
+	 
+	switch (fun) {
+	case BROOKTREE_848_PCI_ID:
+		if (rev == 0x12) bktr->id = BROOKTREE_848A;
+		else             bktr->id = BROOKTREE_848;
+		break;
+        case BROOKTREE_849_PCI_ID:
+		bktr->id = BROOKTREE_849;
+		break;
+        case BROOKTREE_878_PCI_ID:
+		bktr->id = BROOKTREE_878;
+		break;
+        case BROOKTREE_879_PCI_ID:
+		bktr->id = BROOKTREE_879;
+		break;
+	};
 
 
 	bktr->clr_on_start = FALSE;
@@ -1711,7 +1736,7 @@ video_open( bktr_ptr_t bktr )
 
 	/* work around for new Hauppauge 878 cards */
 	if ((bktr->card.card_id == CARD_HAUPPAUGE) &&
-	    (bktr->id==BROOKTREE_878_ID || bktr->id==BROOKTREE_879_ID) )
+	    (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
 		bt848->iform |= BT848_IFORM_M_MUX3;
 	else
 		bt848->iform |= BT848_IFORM_M_MUX1;
@@ -2949,8 +2974,8 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 
 			/* work around for new Hauppauge 878 cards */
 			if ((bktr->card.card_id == CARD_HAUPPAUGE) &&
-				(bktr->id==BROOKTREE_878_ID ||
-				 bktr->id==BROOKTREE_879_ID) )
+				(bktr->id==BROOKTREE_878 ||
+				 bktr->id==BROOKTREE_879) )
 				bt848->iform |= BT848_IFORM_M_MUX3;
 			else
 				bt848->iform |= BT848_IFORM_M_MUX1;
@@ -2994,18 +3019,18 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 			break;
 
 		case METEOR_INPUT_DEV3:
-		  /* how do I detect a bt848a ? */
-		  if ((bktr->id == BROOKTREE_849_ID) ||
-		      (bktr->id == BROOKTREE_878_ID) ||
-		      (bktr->id == BROOKTREE_879_ID) ) {
+		  if ((bktr->id == BROOKTREE_848A) ||
+		      (bktr->id == BROOKTREE_849) ||
+		      (bktr->id == BROOKTREE_878) ||
+		      (bktr->id == BROOKTREE_879) ) {
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV3;
 			bt848->iform &= ~BT848_IFORM_MUXSEL;
 
 			/* work around for new Hauppauge 878 cards */
 			if ((bktr->card.card_id == CARD_HAUPPAUGE) &&
-				(bktr->id==BROOKTREE_878_ID ||
-				 bktr->id==BROOKTREE_879_ID) )
+				(bktr->id==BROOKTREE_878 ||
+				 bktr->id==BROOKTREE_879) )
 				bt848->iform |= BT848_IFORM_M_MUX1;
 			else
 				bt848->iform |= BT848_IFORM_M_MUX3;
@@ -3089,6 +3114,9 @@ bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
 	bktr = &(brooktree[ unit ]);
 
 	if (nprot & PROT_EXEC)
+		return( -1 );
+
+	if (offset < 0)
 		return( -1 );
 
 	if (offset >= bktr->alloc_pages * PAGE_SIZE)
@@ -4256,8 +4284,9 @@ i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 {
 	char cmd;
 
-	if (bktr->id == BROOKTREE_848_ID ||
-	    bktr->id == BROOKTREE_849_ID)
+	if (bktr->id == BROOKTREE_848  ||
+	    bktr->id == BROOKTREE_848A ||
+	    bktr->id == BROOKTREE_849)
 		cmd = I2C_COMMAND;
 	else
 		cmd = I2C_COMMAND_878;
@@ -4282,8 +4311,9 @@ i2cRead( bktr_ptr_t bktr, int addr )
 	char result;
 	char cmd;
 
-	if (bktr->id == BROOKTREE_848_ID ||
-	    bktr->id == BROOKTREE_849_ID)
+	if (bktr->id == BROOKTREE_848  ||
+	    bktr->id == BROOKTREE_848A ||
+	    bktr->id == BROOKTREE_849)
 		cmd = I2C_COMMAND;
 	else
 		cmd = I2C_COMMAND_878;
@@ -4392,8 +4422,9 @@ i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 	bt848->int_stat = (BT848_INT_RACK | BT848_INT_I2CDONE);
 
 	/* build the command datum */
-	if (bktr->id == BROOKTREE_848_ID ||
-	    bktr->id == BROOKTREE_849_ID) {
+	if (bktr->id == BROOKTREE_848  ||
+	    bktr->id == BROOKTREE_848A ||
+	    bktr->id == BROOKTREE_849 {
 	  data = ((addr & 0xff) << 24) | ((byte1 & 0xff) << 16) | I2C_COMMAND;
 	} else {
 	  data = ((addr & 0xff) << 24) | ((byte1 & 0xff) << 16) | I2C_COMMAND_878;
@@ -4438,8 +4469,9 @@ i2cRead( bktr_ptr_t bktr, int addr )
 	/* write the READ address */
 	/* The Bt878 and Bt879  differed on the treatment of i2c commands */
 	   
-	if (bktr->id == BROOKTREE_848_ID ||
-	    bktr->id == BROOKTREE_849_ID) {
+	if (bktr->id == BROOKTREE_848  ||
+	    bktr->id == BROOKTREE_848A ||
+	    bktr->id == BROOKTREE_849) {
 	  bt848->i2c_data_ctl = ((addr & 0xff) << 24) | I2C_COMMAND;
 	} else {
 	  bt848->i2c_data_ctl = ((addr & 0xff) << 24) | I2C_COMMAND_878;
@@ -4886,7 +4918,7 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	/* No override, so try and determine the make of the card */
 
         /* On BT878/879 cards, read the sub-system vendor id */
-        if (bktr->id==BROOKTREE_878_ID || bktr->id==BROOKTREE_879_ID) {
+        if (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) {
 
             subsystem_vendor_id =
                 pci_conf_read( bktr->tag, PCIR_SUBVEND_0) & 0xffff;
@@ -4927,7 +4959,9 @@ probeCard( bktr_ptr_t bktr, int verbose )
         /* Look for Hauppauge and STB cards by the presence of an EEPROM */
         /* Note: Bt878 based cards also use EEPROMs so we can only do this */
         /* test on BT848/848a and 849 based cards. */
-	if (bktr->id==BROOKTREE_848_ID || bktr->id==BROOKTREE_849_ID) {
+	if ((bktr->id==BROOKTREE_848)  ||
+	    (bktr->id==BROOKTREE_848A) ||
+	    (bktr->id==BROOKTREE_849)) {
             /* look for a hauppauge card */
             if ( (status = i2cRead( bktr, PFC8582_RADDR )) != ABSENT ) {
                     bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
@@ -5148,15 +5182,14 @@ checkMSP:
          * The chip's reset line is wired to GPIO pin 5 and a pulldown
 	 * resistor holds the device in reset until we set GPIO pin 5
          */
-	if ((card == CARD_HAUPPAUGE) &&
-	    (bktr->id==BROOKTREE_878_ID || bktr->id==BROOKTREE_879_ID) ) {
+	if (card == CARD_HAUPPAUGE) {
             bt848->gpio_out_en = bt848->gpio_out_en | (1<<5);
             bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
-            DELAY(10); /* wait 10us */
+            DELAY(2500); /* wait 2.5ms */
             bt848->gpio_data   = bt848->gpio_data & ~(1<<5); /* write '0' */
-            DELAY(10); /* wait 10us */
+            DELAY(2500); /* wait 2.5ms */
             bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
-            DELAY(10); /* wait 10us */
+            DELAY(2500); /* wait 2.5ms */
         }
 
 #if defined( OVERRIDE_MSP )
@@ -5209,7 +5242,7 @@ checkMSPEnd:
 	bktr->xtal_pll_mode = BT848_USE_XTALS;
 
 	if ((card == CARD_HAUPPAUGE) &&
-	   (bktr->id==BROOKTREE_878_ID || bktr->id==BROOKTREE_879_ID) )
+	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
 		bktr->xtal_pll_mode = BT848_USE_PLL;
 #if defined( BKTR_USE_PLL )
 checkPLLEnd:
@@ -5551,13 +5584,20 @@ static int jpncable[] = {
  *  6: 175.25MHz - 12: 223.25MHz
  * 13-20 - not exist
  * 21: 471.25MHz - 34: 575.25MHz
- * 35: 583.25MHz - 60: 775.25MHz
+ * 35: 583.25MHz - 69: 855.25MHz
+ *
+ * Cable channels
+ *
+ * 70: 111.25MHz - 77: 167.25MHz
+ * 78: 231.25MHz -107: 463.25MHz
  *
  * IF freq: 38.90 MHz
  */
 #define IF_FREQ 38.90
 static int xussr[] = {
-       60,     (int)(IF_FREQ * FREQFACTOR),    0,
+      107,     (int)(IF_FREQ * FREQFACTOR),    0,
+       78,     (int)(231.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR), 
+       70,     (int)(111.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),
        35,     (int)(583.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR), 
        21,     (int)(471.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),
         6,     (int)(175.25 * FREQFACTOR),     (int)(8.00 * FREQFACTOR),  
@@ -5848,9 +5888,6 @@ set_audio( bktr_ptr_t bktr, int cmd )
 	 * something like the dbx or teletext chips.  This doesn't guarantee
 	 * success, but follows the rule of least astonishment.
 	 */
-
-	/* XXX FIXME: this was an 8 bit reference before new struct ??? */
-	bt848->gpio_reg_inp = (~GPIO_AUDIOMUX_BITS & 0xff);
 
 	if ( bktr->audio_mute_state == TRUE ) {
 #ifdef BKTR_REVERSEMUTE
