@@ -236,6 +236,7 @@ MAN=	accept_filter.9 \
 	VFS_START.9 \
 	VFS_STATFS.9 \
 	VFS_SYNC.9 \
+	vfs_suser.9 \
 	vfs_timestamp.9 \
 	vfs_unbusy.9 \
 	VFS_UNMOUNT.9 \
