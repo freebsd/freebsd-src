@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ * 
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -44,7 +46,7 @@ static const char sccsid[] = "@(#)enc_des.c	8.3 (Berkeley) 5/30/95";
 #include <stdlib.h>
 #endif
 
-#include <des.h>
+#include <openssl/des.h>
 #include <string.h>
 #include "encrypt.h"
 #include "key-proto.h"

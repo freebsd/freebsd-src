@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ * 
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -59,7 +61,7 @@ static const char sccsid[] = "@(#)kerberos.c	8.3 (Berkeley) 5/30/95";
 #include <sys/types.h>
 #include <arpa/telnet.h>
 #include <stdio.h>
-#include <des.h>	/* BSD wont include this in krb.h, so we do it here */
+#include <openssl/des.h>	/* BSD wont include this in krb.h, so we do it here */
 #include <krb.h>
 #ifdef	__STDC__
 #include <stdlib.h>

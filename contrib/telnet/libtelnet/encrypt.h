@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)encrypt.h	8.1 (Berkeley) 6/4/93
+ * $FreeBSD$
  */
 
 /*
@@ -60,7 +61,7 @@
 #define	DIR_DECRYPT		1
 #define	DIR_ENCRYPT		2
 
-#include <des.h>
+#include <openssl/des.h>
 typedef	unsigned char Block[8];
 typedef unsigned char *BlockT;
 #if 0
