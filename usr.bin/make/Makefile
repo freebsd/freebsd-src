@@ -15,6 +15,10 @@ SRCS+=	lstAppend.c lstAtEnd.c lstAtFront.c lstClose.c lstConcat.c \
 
 NOSHARED?=	YES
 
+CFLAGS+=-DMAKE_VERSION=\"5200205220\"
+
+main.o: ${MAKEFILE}
+
 # Set the shell which make(1) uses.  Bourne is the default, but a decent
 # Korn shell works fine, and much faster.  Using the C shell for this
 # will almost certainly break everything, but it's Unix tradition to
