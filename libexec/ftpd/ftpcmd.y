@@ -72,6 +72,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include "extern.h"
+#include "pathnames.h"
 
 extern	union sockunion data_dest, his_addr;
 extern	int logged_in;
@@ -484,12 +485,12 @@ cmd
 	| LIST check_login CRLF
 		{
 			if ($2)
-				retrieve("/bin/ls -lgA", "");
+				retrieve(_PATH_LS " -lgA", "");
 		}
 	| LIST check_login SP pathstring CRLF
 		{
 			if ($2)
-				retrieve("/bin/ls -lgA %s", $4);
+				retrieve(_PATH_LS " -lgA %s", $4);
 			free($4);
 		}
 	| STAT check_login SP pathname CRLF
@@ -975,7 +976,7 @@ pathname
 				 GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE;
 
 				memset(&gl, 0, sizeof(gl));
-				flags |= GLOB_MAXPATH;
+				flags |= GLOB_LIMIT;
 				gl.gl_matchc = MAXGLOBARGS;
 				if (glob($1, flags, NULL, &gl) ||
 				    gl.gl_pathc == 0) {
