@@ -102,7 +102,7 @@ struct ip_fw {
 struct ip_fw_ext {             /* extended structure */
     struct ip_fw rule;      /* must be at offset 0 */
     long    dont_match_prob;        /* 0x7fffffff means 1.0, always fail */
-    u_int   param1;         /* unused at the moment */
+    u_int   dyn_type;  /* type for dynamic rule */
 };
 
 #define IP_FW_GETNSRCP(rule)		((rule)->fw_nports & 0x0f)
@@ -126,6 +126,33 @@ struct ip_fw_chain {
         LIST_ENTRY(ip_fw_chain) chain;
         struct ip_fw    *rule;
 };
+
+/*
+ * Flow mask/flow id for each queue.
+ */
+struct ipfw_flow_id {
+    u_int32_t dst_ip, src_ip ;
+    u_int16_t dst_port, src_port ; 
+    u_int8_t proto ;    
+    u_int8_t flags ;    /* protocol-specific flags */
+} ;
+
+/*
+ * dynamic ipfw rule
+ */
+struct ipfw_dyn_rule {
+    struct ipfw_dyn_rule *next ;
+
+    struct ipfw_flow_id id ;
+    struct ipfw_flow_id mask ;
+    struct ip_fw_chain *chain ;		/* pointer to parent rule	*/
+    u_int32_t type ;			/* rule type			*/
+    u_int32_t expire ;			/* expire time			*/
+    u_int64_t pcnt, bcnt;		/* match counters		*/
+    u_int32_t bucket ;			/* which bucket in hash table	*/
+    u_int32_t state ;			/* state of this rule (typ. a   */
+					/* combination of TCP flags)	*/
+} ;
 
 /*
  * Values for "flags" field .
@@ -173,9 +200,11 @@ struct ip_fw_chain {
 #define IP_FW_F_RND_MATCH 0x00800000	/* probabilistic rule match		*/
 #define IP_FW_F_SMSK	0x01000000	/* src-port + mask 			*/
 #define IP_FW_F_DMSK	0x02000000	/* dst-port + mask 			*/
-#define IP_FW_F_KEEP_S	0x04000000	/* keep state	 			*/
+#define	IP_FW_BRIDGED	0x04000000	/* only match bridged packets		*/
+#define IP_FW_F_KEEP_S	0x08000000	/* keep state	 			*/
+#define IP_FW_F_CHECK_S	0x10000000	/* check state	 			*/
 
-#define IP_FW_F_MASK	0x03FFFFFF	/* All possible flag bits mask		*/
+#define IP_FW_F_MASK	0x1FFFFFFF	/* All possible flag bits mask		*/
 
 /*
  * For backwards compatibility with rules specifying "via iface" but
@@ -231,7 +260,9 @@ typedef	int ip_fw_chk_t __P((struct ip **, int, struct ifnet *, u_int16_t *,
 typedef	int ip_fw_ctl_t __P((struct sockopt *));
 extern	ip_fw_chk_t *ip_fw_chk_ptr;
 extern	ip_fw_ctl_t *ip_fw_ctl_ptr;
-
+extern int fw_one_pass;
+extern int fw_enable;
+extern struct ipfw_flow_id last_pkt ;
 #endif /* _KERNEL */
 
 #endif /* _IP_FW_H */
