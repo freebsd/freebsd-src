@@ -15,7 +15,7 @@
 .\" * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
 .\" */
 .\"
-.\" $Id: crontab.5,v 1.7 1997/11/02 17:22:10 ache Exp $
+.\" $Id: crontab.5,v 1.8 1998/03/23 08:21:36 charnier Exp $
 .\" 
 .Dd January 24, 1994
 .Dt CRONTAB 5
@@ -185,7 +185,7 @@ month, plus every Friday.
 .Sh EXAMPLE CRON FILE
 .Bd -literal
 
-# use /bin/sh to run commands, no matter what /etc/passwd says
+# use /bin/sh to run commands, overriding the default set by cron
 SHELL=/bin/sh
 # mail any output to `paul', no matter whose crontab this is
 MAILTO=paul
