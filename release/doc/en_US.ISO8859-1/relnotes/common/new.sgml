@@ -75,6 +75,11 @@
       ncr, sa, amr, plip, le, pcn, wx and sl. Note that most if not
       all Symbios adapters are covered by the new sym driver.</para>
 
+      <para arch="i386">Support for Streaming <acronym>SIMD</acronym>
+      Extensions (<acronym>SSE</acronym>) has been introduced.  The
+      <literal>CPU_ENABLE_SSE</literal> kernel option controls whether
+      support is compiled into the kernel.</para>
+
     </sect3>
 
     <sect3>
