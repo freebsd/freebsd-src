@@ -1276,9 +1276,9 @@ these, a builtin version of the
 .Xr printf 1
 command is provided for efficiency.
 .Bl -tag -width Ds
-.It Ic :
+.It Ic \&:
 A null command that returns a 0 (true) exit value.
-.It Ic . Ar file
+.It Ic \&. Ar file
 The commands in the specified file are read and executed by the shell.
 If
 .Ar file
@@ -1290,9 +1290,11 @@ for the file.  If it is not found in the
 .Ev PATH ,
 it is sought in the current working directory.
 .It Ic alias Op Ar name ...
-.It Ic alias Op Ar name=string ...
+.It Ic alias Xo
+.Op Ar name Ns = Ns Ar string ...
+.Xc
 If
-.Ar name=string
+.Ar name Ns = Ns Ar string
 is specified, the shell defines the alias
 .Ar name
 with value
@@ -1515,7 +1517,8 @@ Re-execute the command without invoking an editor.
 Select the commands to list or edit.
 The number of previous commands that can be accessed
 are determined by the value of the
-.Ev HISTSIZE variable.
+.Ev HISTSIZE
+variable.
 The value of
 .Ar first
 or

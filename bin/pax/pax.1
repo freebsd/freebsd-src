@@ -146,7 +146,7 @@
 .Oc
 .Ar ...\&
 .Ek
-.Op Ar file ...\&
+.Op Ar
 .Nm
 .Fl r
 .Fl w
@@ -176,7 +176,7 @@
 .Oc
 .Ar ...\&
 .Ek
-.Op Ar file ...\&
+.Op Ar
 .Ar directory
 .Sh DESCRIPTION
 .Nm Pax
@@ -198,7 +198,7 @@ options specifies which of the following functional modes
 will operate under:
 .Em list , read , write ,
 and
-.Em copy.
+.Em copy .
 .Bl -tag -width 6n
 .It <none>
 .Em List .
@@ -208,7 +208,7 @@ will write to
 a table of contents of the members of the archive file read from
 .Dv standard input ,
 whose pathnames match the specified
-.Ar patterns.
+.Ar patterns .
 The table of contents contains one filename per line
 and is written using single line buffering.
 .It Fl r
@@ -217,7 +217,7 @@ and is written using single line buffering.
 extracts the members of the archive file read from the
 .Dv standard input ,
 with pathnames matching the specified 
-.Ar patterns.
+.Ar patterns .
 The archive format and blocking is automatically determined on input.
 When an extracted file is a directory, the entire file hierarchy
 rooted at that directory is extracted.
@@ -811,7 +811,7 @@ The default
 .Ar limit
 is a small positive number of retries.
 .Pp
-.Em Warning: 
+.Em Warning :
 Using this option with
 .Li NONE
 should be used with extreme caution as
@@ -1045,7 +1045,7 @@ option, a file is not considered selected unless it is newer
 than the file to which it is compared.
 .Sh EXAMPLES
 The command:
-.Dl pax -w -f /dev/rst0 .\ 
+.Dl "pax -w -f /dev/rst0 ."
 copies the contents of the current directory to the device
 .Pa /dev/rst0 .
 .Pp
