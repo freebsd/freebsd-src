@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.158 2002/12/01 12:36:35 ue Exp $
-  basiert auf: 1.460
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.159 2002/12/01 16:08:27 ue Exp $
+  basiert auf: 1.461
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -138,6 +138,20 @@
 
     <para arch="i386,alpha,ia64" role="historic">Der Treiber &man.agp.4; f&uuml;r AGP-Karten wurde
       hinzugef&uuml;gt. &merged;</para>
+
+    <para arch="i386">Bluetooth-Ger&auml;te werden jetzt
+      unterst&uuml;tzt, dazu dient eine Reihe von Netgraph-Modulen
+      (siehe &man.ng.bluetooth.4;).  Zwei Module stellen Treiber
+      f&uuml;r Bluetooth-Adapter bereit:  Der Treiber &man.ng.bt3c.4;
+      unterst&uuml;tzt die 3Com/HP Bluetooth PCCARD Adapter,
+      w&auml;hrend der Treiber &man.ng.ubt.4; diverse USB Bluetooth
+      Adapter unterst&uuml;tzt.
+      <note>
+	<para>Die Arbeiten an den Bluetooth-Treibern f&uuml;r &os;
+	  sind noch abgeschlossen.</para>
+      </note>
+    </para>
+
 
     <para>Der Kernel wurde um eine von OpenBSD stammende
       Crypto-Infrastruktur erg&auml;nzt (siehe &man.crypto.4;  und
