@@ -342,6 +342,13 @@
     <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
     port. &merged;</para>
 
+    <para>If a debugging kernel with modules is being built
+    (i.e. using <literal>makeoptions DEBUG=-g</literal>), the modules
+    will now be built with debugging support as well, for
+    completeness.  A side effect of this change is that modules built
+    and installed with debugging kernels will now occupy more space on
+    disk than they did previously. &merged;</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -2034,6 +2041,8 @@
     firmware like EFI boot managers (at least on HP i2000 Itanium
     servers) in order to boot an image using
     <application>TFTP</application>.</para>
+
+    <para arch="alpha">&man.timed.8; now works on the alpha.</para>
 
     <para>A version of Transport Independent RPC
     (<application>TI-RPC</application>) has been imported.</para>
