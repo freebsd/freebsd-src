@@ -76,6 +76,8 @@
 
 #include <pci/if_stereg.h>
 
+MODULE_DEPEND(ste, miibus, 1, 1, 1);
+
 #if !defined(lint)
 static const char rcsid[] =
   "$FreeBSD$";

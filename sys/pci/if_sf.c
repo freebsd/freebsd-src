@@ -118,6 +118,8 @@
 
 #include <pci/if_sfreg.h>
 
+MODULE_DEPEND(sf, miibus, 1, 1, 1);
+
 #ifndef lint
 static const char rcsid[] =
   "$FreeBSD$";

@@ -130,6 +130,8 @@
 #include <dev/pci/if_txvar.h>
 #endif
 
+MODULE_DEPEND(tx, miibus, 1, 1, 1);
+
 #if defined(__FreeBSD__)
 #define EPIC_INTR_RET_TYPE void
 #else /* __OpenBSD__ */
