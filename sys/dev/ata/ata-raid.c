@@ -583,7 +583,7 @@ ar_rebuild(struct ar_softc *rdp)
     buffer = malloc(256 * DEV_BSIZE, M_AR, M_NOWAIT | M_ZERO);
 
     /* now go copy entire disk(s) */
-    while (rdp->lock_start < (rdp->total_sectors / rdp->width)) {
+    while (rdp->lock_end < (rdp->total_sectors / rdp->width)) {
 	int size = min(256, (rdp->total_sectors / rdp->width) - rdp->lock_end);
 
 	for (disk = 0; disk < rdp->width; disk++) {
@@ -1177,9 +1177,9 @@ ar_rw(struct ad_softc *adp, u_int32_t lba, int count, caddr_t data, int flags)
         bp->bio_done = ar_rw_done;
     AR_STRATEGY(bp);
     if (flags & AR_WAIT) {
-	error = tsleep(bp, PRIBIO, "arrw", 10 * hz);
-	if (!error && bp->b_flags & B_ERROR)
-	    error = bp->b_error;
+	error = tsleep(bp, PRIBIO, "arrw", 0);
+	if (!error && bp->bio_flags & BIO_ERROR)
+	    error = bp->bio_error;
 	free(bp, M_AR);
     }
     return error;
