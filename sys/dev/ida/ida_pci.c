@@ -231,17 +231,20 @@ ida_pci_attach(device_t dev)
 	ida = (struct ida_softc *)device_get_softc(dev);
 	ida->dev = dev;
 
-	board = ida_pci_match(pci_get_subdevice(dev));
+	board = ida_pci_match(pci_get_devid(dev));
 	if (board == NULL)
-		board = ida_pci_match(pci_get_devid(dev));
+		board = ida_pci_match(pci_get_subdevice(dev));
 	ida->cmd = *board->accessor;
 
 	ida->regs_res_type = SYS_RES_MEMORY;
 	ida->regs_res_id = IDA_PCI_MEMADDR;
+	if (board->board == IDA_DEVICEID_DEC_SMART)
+		ida->regs_res_id = PCIR_MAPS;
+
 	ida->regs = bus_alloc_resource(dev, ida->regs_res_type,
 	    &ida->regs_res_id, 0, ~0, 1, RF_ACTIVE);
 	if (ida->regs == NULL) {
-		device_printf(dev, "can't allocate register resources\n");
+		device_printf(dev, "can't allocate memory resources\n");
 		return (ENOMEM);
 	}
 
@@ -273,13 +276,14 @@ ida_pci_attach(device_t dev)
 		return (ENOMEM);
 	}
 
+	ida->flags = 0;
 	error = ida_init(ida);
 	if (error) {
                 ida_free(ida);
                 return (error);
         }
 	ida_attach(ida);
-	ida->flags = IDA_ATTACHED; 
+	ida->flags |= IDA_ATTACHED; 
 
 	return (0);
 }

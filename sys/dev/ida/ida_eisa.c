@@ -315,6 +315,7 @@ ida_eisa_attach(device_t dev)
 		return (ENOMEM);
 	}
 
+	ida->flags = 0;
 	error = ida_init(ida);
 	if (error) {
 		ida_free(ida);
@@ -322,7 +323,7 @@ ida_eisa_attach(device_t dev)
 	}
 
 	ida_attach(ida);
-	ida->flags = IDA_ATTACHED; 
+	ida->flags |= IDA_ATTACHED; 
 
 	return (0);
 }
