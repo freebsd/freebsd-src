@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.194 1999/04/21 07:22:37 obrien Exp $
+ * $Id: menus.c,v 1.195 1999/04/24 01:53:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -443,6 +443,31 @@ DMenu MenuXF86Config = {
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
       { "XF98Setup",	"Fully graphical XFree86 configuration tool (PC98).",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF98Setup" },
+      { NULL } },
+};
+
+DMenu MenuXDesktops = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Please select the default X desktop to use.",
+    "By default, XFree86 comes with a fairly vanilla desktop which\n"
+    "is based around the twm(1) window manager and does not offer\n"
+    "much in the way of features.  It does have the advantage of\n"
+    "being a standard part of X so you don't need to load anything\n"
+    "extra in order to use it.  If, however, you have access to a\n"
+    "reasonably full packages collection on your installation media,\n"
+    "you can choose any one of the following desktops as alternatives.",
+    NULL,
+    NULL,
+    { { "Gnome",	"The GNOME desktop environment.",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=gnome" },
+      { "KDE",		"The K Desktop Environment.",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=kde" },
+      { "Afterstep",	"The Afterstep Window manager",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=afterstep" },
+      { "Windowmaker",	"The Windowmaker Window manager",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=windowmaker" },
+      { "Enlightenment","The E Window manager (24 bit recommended)",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=enlightenment" },
       { NULL } },
 };
 
@@ -1165,7 +1190,7 @@ DMenu MenuConfigure = {
       { "D HTML Docs",	"Go to the HTML documentation menu (post-install)",
 	NULL, docBrowser },
       { "X XFree86",	"Configure XFree86",
-	NULL, configXEnvironment },
+	NULL, configXSetup },
       { "E Exit",		"Exit this menu (returning to previous)",
 	NULL,	dmenuExit },
       { NULL } },
