@@ -1,3 +1,5 @@
+#	$Id:$
+#
 #csh .cshrc file
 
 alias h		history 25
