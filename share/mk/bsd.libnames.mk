@@ -56,7 +56,7 @@ LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 
 # The static PAM library doesn't know its secondary dependencies,
 # so we have to specify them explictly.
-LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a	# XXX doesn't exist
+LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
 MINUSLPAM?=	-lpam
 .if defined(NOSHARED) && ${NOSHARED} != "no" && ${NOSHARED} != "NO"
 .ifdef MAKE_KERBEROS4
@@ -64,8 +64,8 @@ LIBPAM+=	${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
 MINUSLPAM+=	-lkrb -lcrypto -lcom_err
 .endif
 LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBSKEY} ${LIBCRYPT} ${LIBMD} \
-		${LIBUTIL}
-MINUSLPAM+=	-lradius -ltacplus -lskey -lcrypt -lmd -lutil
+		${LIBUTIL} ${LIBOPIE}
+MINUSLPAM+=	-lradius -ltacplus -lskey -lcrypt -lmd -lutil -lopie
 .endif
 
 LIBPC?=		${DESTDIR}${LIBDIR}/libpc.a	# XXX doesn't exist
