@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# $Id: 430.status-rwho,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+#
+
+if [ -d /var/rwho -a -x /usr/bin/rwho ] ; then
+    echo ""
+    echo "Local network system status:"
+    ruptime
+fi

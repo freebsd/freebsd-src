@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# $Id: 100.clean-disks,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+#
+# This is a security hole, never use 'find' on a public directory
+# with -exec rm -f as root.  This can be exploited to delete any file
+# on the system.
+#
+
+exit 0		# do not run by default
+
+find / \( ! -fstype local -o -fstype rdonly \) -a -prune -o \
+	\( -name '[#,]*' -o -name '.#*' -o -name a.out -o -name '*.core' \
+	   -o -name '*.CKP' -o -name '.emacs_[0-9]*' \) \
+		-a -atime +3 -exec rm -f -- {} \;
