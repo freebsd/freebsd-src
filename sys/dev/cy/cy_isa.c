@@ -2852,6 +2852,9 @@ cd_getreg(com, reg)
 	int	cy_align;
 	register_t	eflags;
 	cy_addr	iobase;
+#ifdef SMP
+	int	need_unlock;
+#endif
 	int	val;
 
 	basecom = com_addr(com->unit & ~(CD1400_NO_OF_CHANNELS - 1));
@@ -2860,13 +2863,20 @@ cd_getreg(com, reg)
 	iobase = com->iobase;
 	eflags = read_eflags();
 	critical_enter();
-	if (eflags & PSL_I)
+#ifdef SMP
+	need_unlock = 0;
+	if (!mtx_owned(&com_mtx)) {
 		COM_LOCK();
+		need_unlock = 1;
+	}
+#endif
 	if (basecom->car != car)
 		cd_outb(iobase, CD1400_CAR, cy_align, basecom->car = car);
 	val = cd_inb(iobase, reg, cy_align);
-	if (eflags & PSL_I)
+#ifdef SMP
+	if (need_unlock)
 		COM_UNLOCK();
+#endif
 	critical_exit();
 	return (val);
 }
@@ -2882,6 +2892,9 @@ cd_setreg(com, reg, val)
 	int	cy_align;
 	register_t	eflags;
 	cy_addr	iobase;
+#ifdef SMP
+	int	need_unlock;
+#endif
 
 	basecom = com_addr(com->unit & ~(CD1400_NO_OF_CHANNELS - 1));
 	car = com->unit & CD1400_CAR_CHAN;
@@ -2889,13 +2902,20 @@ cd_setreg(com, reg, val)
 	iobase = com->iobase;
 	eflags = read_eflags();
 	critical_enter();
-	if (eflags & PSL_I)
+#ifdef SMP
+	need_unlock = 0;
+	if (!mtx_owned(&com_mtx)) {
 		COM_LOCK();
+		need_unlock = 1;
+	}
+#endif
 	if (basecom->car != car)
 		cd_outb(iobase, CD1400_CAR, cy_align, basecom->car = car);
 	cd_outb(iobase, reg, cy_align, val);
-	if (eflags & PSL_I)
+#ifdef SMP
+	if (need_unlock)
 		COM_UNLOCK();
+#endif
 	critical_exit();
 }
 
