@@ -130,6 +130,7 @@ sub report($$$$) {
 	print(PIPE "From: $sender\n");
 	print(PIPE "To: $recipient\n");
 	print(PIPE "Subject: $subject\n");
+	print(PIPE "Precedence: bulk\n");
 	print(PIPE "\n");
 	print(PIPE "$message\n");
 	close(PIPE);
