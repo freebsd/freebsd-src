@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.10 1995/02/13 02:09:13 ache Exp $ */
+/* $Id: if_ppp.c,v 1.11 1995/03/20 19:20:42 wollman Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -1284,14 +1284,18 @@ pppinput(c, tp)
 
     ++sc->sc_bytesrcvd;
 
-    if (c & TTY_FE) {
-	/* framing error or overrun on this char - abort packet */
+    if (!(tp->t_state & TS_CARR_ON) && !(tp->t_cflag & CLOCAL)) {
 	if (sc->sc_flags & SC_DEBUG)
-	    printf("ppp%d: bad char %x\n", sc->sc_if.if_unit, c);
+	    printf("ppp%d: no carrier\n", sc->sc_if.if_unit);
+	goto flush;
+    }
+    if (c & TTY_ERRORMASK) {
+	if (sc->sc_flags & SC_DEBUG)
+	    printf("ppp%d: line error %x\n", sc->sc_if.if_unit, c & TTY_ERRORMASK);
 	goto flush;
     }
 
-    c &= 0xff;
+    c &= TTY_CHARMASK;
 
     if (c & 0x80)
 	sc->sc_flags |= SC_RCV_B7_1;
