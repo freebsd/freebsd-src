@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id$
+ * $Id: subr_prof.c,v 1.3 1994/08/02 07:42:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,7 @@ struct gmonparam _gmonparam = { GMON_PROF_OFF };
 
 extern char etext[];
 
+void
 kmstartup()
 {
 	char *cp;
@@ -91,7 +92,8 @@ kmstartup()
 /*
  * Return kernel profiling information.
  */
-sysctl_doprof(name, namelen, oldp, oldlenp, newp, newlen, p)
+int
+sysctl_doprof(name, namelen, oldp, oldlenp, newp, newlen)
 	int *name;
 	u_int namelen;
 	void *oldp;
