@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.56 1998/03/09 10:16:56 kato Exp $
+#	$Id: options.pc98,v 1.57 1998/03/10 12:48:57 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -128,5 +128,6 @@ FPU_ERROR_BROKEN	opt_npx.h
 
 # PC98 options
 PC98			opt_global.h
+EPSON_BOUNCEDMA		opt_pc98.h
 EPSON_MEMWIN		opt_pc98.h
 COMPAT_ATDISK		opt_pc98.h
