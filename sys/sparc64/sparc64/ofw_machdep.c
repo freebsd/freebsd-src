@@ -32,6 +32,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <net/ethernet.h>
+
 #include <ofw/openfirm.h>
 
 #include <machine/idprom.h>
@@ -46,5 +48,5 @@ OF_getetheraddr(device_t dev, u_char *addr)
 	node = OF_peer(0);
 	if (node <= 0 || OF_getprop(node, "idprom", &idp, sizeof(idp)) == -1)
 		panic("Could not determine the machine ethernet address");
-	bcopy(&idp.id_ether, addr, sizeof(addr));
+	bcopy(&idp.id_ether, addr, ETHER_ADDR_LEN);
 }
