@@ -44,8 +44,8 @@ struct fpreg {
 };
 
 struct dbreg {
-	uint64_t	dbr_data[8];
-	uint64_t	dbr_inst[8];
+	unsigned long	dbr_data[8];
+	unsigned long	dbr_inst[8];
 };
 
 #ifdef _KERNEL
