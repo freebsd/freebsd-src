@@ -64,6 +64,39 @@ static int	LogMask = 0xff;		/* mask of priorities to be logged */
 extern char	*__progname;		/* Program name, from crt0. */
 
 /*
+ * Format of the magic cookie passed through the stdio hook
+ */
+struct bufcookie {
+	char	*base;	/* start of buffer */
+	int	left;
+};
+
+/*
+ * stdio write hook for writing to a static string buffer
+ * XXX: Maybe one day, dynamically allocate it so that the line length
+ *      is `unlimited'.
+ */
+static writehook(cookie, buf, len)
+	void	*cookie;	/* really [struct bufcookie *] */
+	char	*buf;		/* characters to copy */
+	int	len;		/* length to copy */
+{
+	struct bufcookie *h;	/* private `handle' */
+
+	h = (struct bufcookie *)cookie;
+	if (len > h->left) {
+		/* clip in case of wraparound */
+		len = h->left;
+	}
+	if (len > 0) {
+		(void)memcpy(h->base, buf, len); /* `write' it. */
+		h->base += len;
+		h->left -= len;
+	}
+	return 0;
+}
+
+/*
  * syslog, vsyslog --
  *	print message on log file; output is intended for syslogd(8).
  */
@@ -99,6 +132,9 @@ vsyslog(pri, fmt, ap)
 	time_t now;
 	int fd, saved_errno;
 	char *stdp, tbuf[2048], fmt_cpy[1024];
+	FILE *fp, *fmt_fp;
+	struct bufcookie tbuf_cookie;
+	struct bufcookie fmt_cookie;
 
 #define	INTERNALLOG	LOG_ERR|LOG_CONS|LOG_PERROR|LOG_PID
 	/* Check for invalid bits. */
@@ -118,34 +154,66 @@ vsyslog(pri, fmt, ap)
 	if ((pri & LOG_FACMASK) == 0)
 		pri |= LogFacility;
 
+	/* Create the primary stdio hook */
+	tbuf_cookie.base = tbuf;
+	tbuf_cookie.left = sizeof(tbuf);
+	fp = fwopen(&tbuf_cookie, writehook);
+	if (fp == NULL)
+		return;
+
 	/* Build the message. */
 	(void)time(&now);
-	p = tbuf + sprintf(tbuf, "<%d>", pri);
-	p += sprintf(p, "%.15s ", ctime(&now) + 4);
-	if (LogStat & LOG_PERROR)
-		stdp = p;
+	(void)fprintf(fp, "<%d>", pri);
+	(void)fprintf(fp, "%.15s ", ctime(&now) + 4);
+	if (LogStat & LOG_PERROR) {
+		/* Transfer to string buffer */
+		(void)fflush(fp);
+		stdp = tbuf + (sizeof(tbuf) - tbuf_cookie.left);
+	}
 	if (LogTag == NULL)
 		LogTag = __progname;
 	if (LogTag != NULL)
-		p += sprintf(p, "%s", LogTag);
+		(void)fprintf(fp, "%s", LogTag);
 	if (LogStat & LOG_PID)
-		p += sprintf(p, "[%d]", getpid());
+		(void)fprintf(fp, "[%d]", getpid());
 	if (LogTag != NULL) {
-		*p++ = ':';
-		*p++ = ' ';
+		(void)fprintf(fp, ": ");
 	}
 
-	/* Substitute error message for %m. */
-	for (t = fmt_cpy; ch = *fmt; ++fmt)
-		if (ch == '%' && fmt[1] == 'm') {
-			++fmt;
-			t += sprintf(t, "%s", strerror(saved_errno));
-		} else
-			*t++ = ch;
-	*t = '\0';
+	/* Check to see if we can skip expanding the %m */
+	if (strstr(fmt, "%m")) {
 
-	p += vsprintf(p, fmt_cpy, ap);
-	cnt = p - tbuf;
+		/* Create the second stdio hook */
+		fmt_cookie.base = fmt_cpy;
+		fmt_cookie.left = sizeof(fmt_cpy) - 1;
+		fmt_fp = fwopen(&fmt_cookie, writehook);
+		if (fmt_fp == NULL) {
+			fclose(fp);
+			return;
+		}
+
+		/* Substitute error message for %m. */
+		for ( ; ch = *fmt; ++fmt)
+			if (ch == '%' && fmt[1] == 'm') {
+				++fmt;
+				fputs(strerror(saved_errno), fmt_fp);
+			} else
+				fputc(ch, fmt_fp);
+
+		/* Null terminate if room */
+		fputc(0, fmt_fp);
+		fclose(fmt_fp);
+
+		/* Guarantee null termination */
+		fmt_cpy[sizeof(fmt_cpy) - 1] = '\0';
+
+		fmt = fmt_cpy;
+	}
+
+	(void)vfprintf(fp, fmt, ap);
+	(void)fclose(fp);
+
+	cnt = sizeof(tbuf) - tbuf_cookie.left;
 
 	/* Output to stderr if requested. */
 	if (LogStat & LOG_PERROR) {
