@@ -11,11 +11,12 @@ SRCS+=		ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
 		ldver.c ldwrite.c lexsup.c mri.c
 CFLAGS+=	-DSCRIPTDIR=\"${DESTDIR}/usr/libdata\"
 CFLAGS+=	-I${SRCDIR}/ld
+CFLAGS+=	-DVERSION=\"${VERSION}\" -DBFD_VERSION=\"${VERSION}\"
 DPADD=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libiberty/libiberty.a
 LDADD=		${DPADD}
 CLEANDIRS+=	ldscripts
-CLEANFILES+=	ldemul-list.h
+CLEANFILES+=	ldemul-list.h stringify.sed
 
 # If set, BINUTILSDISTDIR is the path to a directory containing the full GNU
 # binutils release. FreeBSD only distributes the bits that are required to
@@ -35,6 +36,9 @@ EMLST+=	&${_e},
 ldemul-list.h:
 	echo "${EMXFR}" > ldemul-list.h
 	echo "#define EMULATION_LIST ${EMLST} 0" >> ldemul-list.h
+
+stringify.sed:
+	ln -sf ${SRCDIR}/ld/emultempl/stringify.sed ${.TARGET}
 
 afterinstall:
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \

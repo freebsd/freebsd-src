@@ -23,7 +23,7 @@ libdir=$2
 host=$3
 target=$4
 target_alias=$5
-DEFAULT_EMULATION=$6
+EMULATION_LIBPATH=$6
 NATIVE_LIB_DIRS=$7
 EMULATION_NAME=$8
 
@@ -35,6 +35,13 @@ if test -d ldscripts; then
 else
   mkdir ldscripts
 fi
+
+# Set the library search path, for libraries named by -lfoo.
+# If LIB_PATH is defined (e.g., by Makefile) and non-empty, it is used.
+# Otherwise, the default is set here.
+#
+# The format is the usual list of colon-separated directories.
+# To force a logically empty LIB_PATH, do LIBPATH=":".
 
 LIB_SEARCH_DIRS=`echo ${libdir} | tr ':' ' ' | sed -e 's/\([^ ][^ ]*\)/SEARCH_DIR(\1);/g'`
 
@@ -101,7 +108,8 @@ if test -n "$GENERATE_SHLIB_SCRIPT"; then
     ldscripts/${EMULATION_NAME}.xs
 fi
 
-test "$DEFAULT_EMULATION" = "$EMULATION_NAME" && COMPILE_IN=true
-
+for i in $EMULATION_LIBPATH ; do
+  test "$i" = "$EMULATION_NAME" && COMPILE_IN=true
+done
 # Generate e${EMULATION_NAME}.c.
 . ${srcdir}/emultempl/${TEMPLATE_NAME-generic}.em
