@@ -240,7 +240,7 @@ all)
 	sh MAKEDEV ppi0 ppi1 ppi2			# cdev, parallel port
 	sh MAKEDEV iic0 iic1				# cdev, I2C device
 	sh MAKEDEV smb0 smb1				# cdev, SMBus device
-	sh MAKEDEV usb0 ums0 ulpt0 ugen0		# cdev, USB devices
+	sh MAKEDEV usb usb0 ums0 ulpt0 ugen0		# cdev, USB devices
 	sh MAKEDEV bpf0 tun0				# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
 	sh MAKEDEV apm apmctl card0 card1 card2 card3	# cdev, laptop
@@ -837,6 +837,10 @@ ppi*)
 pps*)
 	unit=`expr $i : 'pps\(.*\)'`
 	mknod pps$unit c 89 $unit
+	;;
+
+usb)
+	mknod usb$unit c 108 255
 	;;
 
 usb*)
