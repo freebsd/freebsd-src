@@ -1,4 +1,4 @@
-/* $Id: dec_kn8ae.c,v 1.1 1998/06/10 10:52:30 dfr Exp $ */
+/* $Id: dec_kn8ae.c,v 1.2 1998/06/14 13:44:42 dfr Exp $ */
 /* $NetBSD: dec_kn8ae.c,v 1.15 1998/02/13 00:12:50 thorpej Exp $ */
 
 /*
@@ -39,7 +39,6 @@
 #include <sys/termios.h>
 
 #include <machine/rpb.h>
-#include <machine/conf.h>
 #include <machine/cpuconf.h>
 
 #include <alpha/tlsb/tlsbreg.h>
