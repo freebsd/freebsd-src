@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.96 1999/08/14 11:40:45 phk Exp $
+ * $Id: spec_vnops.c,v 1.97 1999/08/17 04:02:04 alc Exp $
  */
 
 #include <sys/param.h>
@@ -537,6 +537,7 @@ spec_inactive(ap)
 static int
 spec_strategy(ap)
 	struct vop_strategy_args /* {
+		struct vnode *a_vp;
 		struct buf *a_bp;
 	} */ *ap;
 {
