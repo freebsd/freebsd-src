@@ -85,7 +85,7 @@ fatal (int sock, const char *m, ...)
     va_start(args, m);
     len = vsnprintf (buf + 1, sizeof(buf) - 1, m, args);
     va_end(args);
-    syslog (LOG_ERR, buf + 1);
+    syslog (LOG_ERR, "%s", buf + 1);
     net_write (sock, buf, len + 1);
     exit (1);
 }
