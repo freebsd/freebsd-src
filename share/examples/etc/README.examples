@@ -44,7 +44,6 @@ protocols	- see protocols(5)
 profile		- system-wide .profile for sh(1)
 rc		- system startup script (see init(8))
 rc.atm		- networking startup script for atm(8)
-rc.devfs	- startup script for devfs(5)
 rc.diskless1	- general BOOTP startup script
 rc.diskless2	- 
 rc.firewall	- setup system for ipfw(8)
