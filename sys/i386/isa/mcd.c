@@ -39,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.25 1994/09/14 20:28:25 ache Exp $
+ *	$Id: mcd.c,v 1.26 1994/10/23 21:27:29 wollman Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -483,7 +483,6 @@ MCD_TRACE("ioctl called 0x%x\n",cmd,0,0,0);
 		else {
 			return setdisklabel(&cd->dlabel,
 			    (struct disklabel *) addr,
-			    0,
 			    0);
 		}
 	case DIOCWLABEL:
