@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.30 1994/02/26 00:04:03 phk Exp $
+ *	$Id: sio.c,v 1.31 1994/03/02 20:28:36 guido Exp $
  */
 
 #include "sio.h"
@@ -668,9 +668,13 @@ bidir_open_top:
 			tp->t_oflag = 0;
 #ifdef COMCONSOLE
 			if (unit == comconsole)
-			tp->t_oflag = TTYDEF_OFLAG;
+			    tp->t_oflag = TTYDEF_OFLAG;
 #endif
-			tp->t_cflag = CREAD | CS8 | HUPCL;
+			tp->t_cflag = CREAD | CS8;
+#ifdef COM_BIDIR
+			if (com->bidir && !callout)
+			    tp->t_cflag |= HUPCL;
+#endif
 			tp->t_lflag = 0;
 			tp->t_ispeed = tp->t_ospeed = comdefaultrate;
 		}
@@ -800,7 +804,10 @@ comhardclose(com)
 		outb(iobase + com_ier, 0);
 		tp = com->tp;
 		if (tp->t_cflag & HUPCL || tp->t_state & TS_WOPEN
-		    || !(com->prev_modem_status & MSR_DCD) && !FAKE_DCD(unit)
+#ifdef COM_BIDIR
+		    || com->active_in
+		    && !(com->prev_modem_status & MSR_DCD) && !FAKE_DCD(unit)
+#endif
 		    || !(tp->t_state & TS_ISOPEN)) {
 			commctl(com, MCR_RTS, DMSET);
 			if (com->dtr_wait != 0)
