@@ -31,8 +31,8 @@
  *
  * In-kernel UNI stack message functions.
  */
-#ifndef _NETGRAPH_ATM_NGATMBASE_H
-#define	_NETGRAPH_ATM_NGATMBASE_H
+#ifndef _NETGRAPH_ATM_NGATMBASE_H_
+#define	_NETGRAPH_ATM_NGATMBASE_H_
 
 /* forward declarations */
 struct mbuf;

@@ -30,8 +30,8 @@
  *
  * Netgraph module for Q.2110 SSCOP
  */
-#ifndef _NETGRAPH_ATM_NG_SSCOP_H
-#define _NETGRAPH_ATM_NG_SSCOP_H
+#ifndef _NETGRAPH_ATM_NG_SSCOP_H_
+#define _NETGRAPH_ATM_NG_SSCOP_H_
 
 #define NG_SSCOP_NODE_TYPE "sscop"
 #define NGM_SSCOP_COOKIE	980175044
