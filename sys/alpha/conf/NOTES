@@ -45,6 +45,7 @@ options 	DEC_KN300		# AlphaServer 4100 (Rawhide),
 # HARDWARE BUS CONFIGURATION
 
 device		isa
+device		eisa
 device		pci
 
 
