@@ -1025,7 +1025,9 @@ pscomp(const void *a, const void *b)
 		DIFF_RETURN(ka, kb, ki_p->ki_tdev);
 	}
 
+	/* PID's and TID's (threads) are sorted in ascending order. */
 	DIFF_RETURN(ka, kb, ki_p->ki_pid);
+	DIFF_RETURN(ka, kb, ki_p->ki_tid);
 	return (0);
 }
 #undef DIFF_RETURN
