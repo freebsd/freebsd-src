@@ -273,9 +273,9 @@ feeder_fmtchain(u_int32_t *to, struct pcm_feeder *source, struct pcm_feeder *sto
 
 	SLIST_FOREACH(fte, &feedertab, link) {
 		if (fte->desc == NULL)
-			goto no;
+			continue;
 		if (fte->desc->type != FEEDER_FMT)
-			goto no;
+			continue;
 		if (fte->desc->in == source->desc->out) {
 			try = feeder_create(fte->feederclass, fte->desc);
 			if (try) {
@@ -286,7 +286,6 @@ feeder_fmtchain(u_int32_t *to, struct pcm_feeder *source, struct pcm_feeder *sto
 				feeder_destroy(try);
 			}
 		}
-no:
 	}
 	/* printf("giving up %s...\n", source->class->name); */
 
