@@ -214,6 +214,10 @@ printcpuinfo(void)
 				        strcat(cpu_model, "Pentium III/Xeon");
 					cpu = CPU_PIII;
 					break;
+				case 0x80:
+				        strcat(cpu_model, "Pentium III");
+					cpu = CPU_PIII;
+					break;
 				default:
 				        strcat(cpu_model, "Unknown 80686");
 					break;
