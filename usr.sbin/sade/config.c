@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.120 1999/02/05 22:15:47 jkh Exp $
+ * $Id: config.c,v 1.121 1999/02/09 22:18:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -377,12 +377,16 @@ configRC_conf(void)
 {
     FILE *rcSite;
     Variable *v;
+    int write_header;
 
-    rcSite = fopen("/etc/rc.conf", "w");
+    write_header = !file_readable("/etc/rc.conf");
+    rcSite = fopen("/etc/rc.conf", "a");
     if (!rcSite)
 	return;
-    fprintf(rcSite, "# This file now contains just the overrides from /etc/defaults/rc.conf\n");
-    fprintf(rcSite, "# please make all changes to this file.\n\n");
+    if (write_header) {
+	fprintf(rcSite, "# This file now contains just the overrides from /etc/defaults/rc.conf\n");
+	fprintf(rcSite, "# please make all changes to this file.\n\n");
+    }
 
     /* Now do variable substitutions */
     for (v = VarHead; v; v = v->next) {
