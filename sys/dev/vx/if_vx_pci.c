@@ -51,8 +51,6 @@
 #include <netns/ns_if.h>
 #endif
 
-#include <machine/clock.h>
-
 #include <pci/pcivar.h>
 
 #include <dev/vx/if_vxreg.h>
@@ -128,7 +126,7 @@ vx_pci_attach(
      */
     at_shutdown(vx_pci_shutdown, sc, SHUTDOWN_POST_SYNC);
 
-    pci_map_int(config_id, (void *) vxintr, (void *) sc, &net_imask);
+    pci_map_int(config_id, vxintr, (void *) sc, &net_imask);
 }
 
 static struct pci_device vxdevice = {
