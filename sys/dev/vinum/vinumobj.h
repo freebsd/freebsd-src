@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumobj.h,v 1.1 2001/05/22 04:07:22 grog Exp grog $
+ * $Id: vinumobj.h,v 1.2 2001/05/23 23:04:18 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -126,7 +126,7 @@ struct __vinum_conf
     int active;						    /* current number of requests outstanding */
     int maxactive;					    /* maximum number of requests ever outstanding */
 #ifdef _KERNEL
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
     struct request *lastrq;
     struct buf *lastbuf;
 #endif

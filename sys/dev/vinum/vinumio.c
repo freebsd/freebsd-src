@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.30 2000/05/10 23:23:30 grog Exp grog $
+ * $Id: vinumio.c,v 1.32 2001/05/23 23:03:45 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -170,7 +170,7 @@ set_drive_parms(struct drive *drive)
     getmicrotime(&drive->label.date_of_birth);		    /* and current time */
     drive->label.drive_size = ((u_int64_t) drive->partinfo.part->p_size) /* size of the drive in bytes */
     *((u_int64_t) drive->partinfo.disklab->d_secsize);
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
     if (debug & DEBUG_BIGDRIVE)				    /* pretend we're 100 times as big */
 	drive->label.drive_size *= 100;
 #endif
