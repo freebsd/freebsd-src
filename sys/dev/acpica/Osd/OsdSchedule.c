@@ -93,7 +93,7 @@ TASKQUEUE_DEFINE(acpi, taskqueue_acpi_enqueue, 0,
 		     SWI_TQ, 0, &taskqueue_acpi_ih));
 
 #ifdef ACPI_USE_THREADS
-STAILQ_HEAD(, acpi_task_queue) acpi_task_queue;
+static STAILQ_HEAD(, acpi_task_queue) acpi_task_queue;
 static struct mtx	acpi_task_mtx;
 
 static void

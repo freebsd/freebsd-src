@@ -39,7 +39,7 @@
 extern u_int64_t ia64_efi_acpi_table;
 extern u_int64_t ia64_efi_acpi20_table;
 
-u_long ia64_acpi_root;
+static u_long ia64_acpi_root;
 
 SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &ia64_acpi_root, 0,
 	     "The physical address of the RSDP");
