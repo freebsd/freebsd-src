@@ -7,7 +7,7 @@ SRCS=		rtld_start.S rtld.c lockdflt.c map_object.c malloc.c \
 MAN=		rtld.1
 CFLAGS+=	-Wall -DFREEBSD_ELF -I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}
 LDFLAGS+=	-nostdlib -e .rtld_start
-INSTALLFLAGS+=	-fschg -C
+INSTALLFLAGS=	-fschg -C -b
 MLINKS=		rtld.1 ld-elf.so.1.1
 
 .if exists(${.CURDIR}/${MACHINE_ARCH}/Makefile.inc)
@@ -42,16 +42,3 @@ dyn_hack.so:
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 
 .include <bsd.prog.mk>
-
-# Keep the previous version of the dynamic linker for recovery
-# purposes.  This must come after the include of <bsd.prog.mk> so that
-# BINDIR is set for the exists(...) constructs.
-beforeinstall:
-.if exists(${DESTDIR}${BINDIR}/${PROG})
-	-chflags noschg ${DESTDIR}${BINDIR}/${PROG}
-.if exists(${DESTDIR}${BINDIR}/${PROG}.old)
-	-chflags noschg ${DESTDIR}${BINDIR}/${PROG}.old
-.endif
-	${INSTALL} -C -p ${DESTDIR}${BINDIR}/${PROG} \
-	    ${DESTDIR}${BINDIR}/${PROG}.old
-.endif
