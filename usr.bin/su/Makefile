@@ -19,8 +19,8 @@ COPTS+=	-DWHEELSU
 .endif
 CFLAGS+= -Wall
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
-	|| defined(MAKE_EBONES)) && !defined(LC_AUTH)
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4) \
+	&& !defined(LC_AUTH)
 CFLAGS+=-DKERBEROS
 DPADD+=	${LIBKRB} ${LIBDES}
 LDADD+=	-lkrb -ldes

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: su.c,v 1.21 1997/08/12 06:45:43 charnier Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -74,7 +74,7 @@ static const char rcsid[] =
 
 #ifdef KERBEROS
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 #include <netdb.h>
 
 #define	ARGSTR	"-Kflm"
@@ -102,7 +102,7 @@ main(argc, argv)
 	char *targetpass;
 	int iswheelsu;
 #endif /* WHEELSU */
-	char *p, **g, *user, *shell=NULL, *username, *cleanenv[20], **nargv, **np;
+	char *p, **g, *user, *shell=NULL, *username, **cleanenv, **nargv, **np;
 	struct group *gr;
 	uid_t ruid;
 	int asme, ch, asthem, fastlogin, prio, i;
@@ -113,6 +113,9 @@ main(argc, argv)
 #ifdef LOGIN_CAP_AUTH
 	char *style, *approvep, *auth_method = NULL;
 #endif
+#endif
+#ifdef KERBEROS
+	char *k;
 #endif
 	char shellbuf[MAXPATHLEN];
 
@@ -366,6 +369,11 @@ main(argc, argv)
 	if (!asme) {
 		if (asthem) {
 			p = getenv("TERM");
+#ifdef KERBEROS
+			k = getenv("KRBTKFILE");
+#endif
+			if ((cleanenv = calloc(20, sizeof(char*))) == NULL)
+				errx(1, "calloc");
 			cleanenv[0] = NULL;
 			environ = cleanenv;
 #ifdef LOGIN_CAP
@@ -376,6 +384,10 @@ main(argc, argv)
 #endif
 			if (p)
 				(void)setenv("TERM", p, 1);
+#ifdef KERBEROS
+			if (k)
+				(void)setenv("KRBTKFILE", k, 1);
+#endif
 			if (chdir(pwd->pw_dir) < 0)
 				errx(1, "no directory");
 		}
@@ -445,15 +457,14 @@ kerberos(username, user, uid, pword)
 	int uid;
 	char *pword;
 {
-	extern char *krb_err_txt[];
 	KTEXT_ST ticket;
 	AUTH_DAT authdata;
 	int kerno;
 	u_long faddr;
-	struct sockaddr_in local_addr;
 	char lrealm[REALM_SZ], krbtkfile[MAXPATHLEN];
 	char hostname[MAXHOSTNAMELEN], savehost[MAXHOSTNAMELEN];
 	char *krb_get_phost();
+	struct hostent *hp;
 
 	if (krb_get_lrealm(lrealm, 1) != KSUCCESS)
 		return (1);
@@ -531,13 +542,13 @@ kerberos(username, user, uid, pword)
 		dest_tkt();
 		return (1);
 	} else {
-		if ((kerno = krb_get_local_addr(&local_addr)) != KSUCCESS) {
-			warnx("Unable to get our local address: %s",
-			      krb_err_txt[kerno]);
+		if (!(hp = gethostbyname(hostname))) {
+			warnx("can't get addr of %s", hostname);
 			dest_tkt();
 			return (1);
 		}
-		faddr = local_addr.sin_addr.s_addr;
+		memmove((char *)&faddr, (char *)hp->h_addr, sizeof(faddr));
+
 		if ((kerno = krb_rd_req(&ticket, "rcmd", savehost, faddr,
 		    &authdata, "")) != KSUCCESS) {
 			warnx("kerberos: unable to verify rcmd ticket: %s\n",
