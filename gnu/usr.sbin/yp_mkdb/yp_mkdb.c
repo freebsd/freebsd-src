@@ -20,7 +20,7 @@
 */
 
 /*
- * $Id: yp_mkdb.c,v 1.4 1995/10/11 14:30:51 wpaul Exp $
+ * $Id: yp_mkdb.c,v 1.5 1995/10/23 16:03:41 wpaul Exp $
  */
 
 #define BUFFERSIZE 4096
@@ -102,9 +102,9 @@ load( char *FileName, char *DbName)
 		exit(1);
 	}
 
-	sprintf(filename, "%s~.db", DbName);
+	sprintf(filename, "%s~", DbName);
 
-	if ((dp = dbopen(DbName,O_RDWR|O_EXCL|O_CREAT, PERM_SECURE,
+	if ((dp = dbopen(filename,O_RDWR|O_EXCL|O_CREAT, PERM_SECURE,
 				DB_HASH, &openinfo)) == NULL) {
 		perror("dbopen");
 		fprintf(stderr, "%s: Cannot open\n", filename);
@@ -177,10 +177,14 @@ load( char *FileName, char *DbName)
 	}
 	(void)(dp->close)(dp);
 
-	sprintf(filename, "%s.db", DbName);
-	sprintf(filename2, "%s~.db", DbName);
+	sprintf(filename, "%s", DbName);
+	sprintf(filename2, "%s~", DbName);
 	unlink(filename);
-	rename(filename2, filename);
+	if (rename(filename2, filename)) {
+		perror("rename");
+		fprintf(stderr, "Cannot rename %s to %s\n", filename2, filename);
+		exit(1);
+	}
 }
 
 static void
