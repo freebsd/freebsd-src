@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.32 1997/02/22 14:12:08 peter Exp $
+ * $Id: misc.c,v 1.33 1997/03/09 22:25:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,6 +42,7 @@
 #include <sys/wait.h>
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <ufs/ufs/ufsmount.h>
 #include <sys/reboot.h>
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
