@@ -6,6 +6,9 @@ SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
 INCS=	libdisk.h
 
 CFLAGS+= 	-Wall
+.if ${MACHINE} == "pc98"
+CFLAGS+=	-DPC98
+.endif
 CLEANFILES+=	tmp.c tst01 tst01.o
 VPATH=		${.CURDIR}/../../sbin/disklabel
 NOPROFILE=	yes
