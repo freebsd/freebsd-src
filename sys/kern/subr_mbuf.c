@@ -629,6 +629,8 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type, short persist,
 			how = M_TRYWAIT;
 		}
 	}
+	if ((flags & M_DONTWAIT) == 0)
+		GIANT_REQUIRED;
 #endif
 
 	m = NULL;
