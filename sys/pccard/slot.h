@@ -46,6 +46,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
+#include <sys/select.h>
 
 /*
  *	Controller data - Specific to each slot controller.
