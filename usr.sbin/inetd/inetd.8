@@ -277,7 +277,7 @@ use the
 .Dq nowait
 entry.
 Connection requests for these services are accepted by
-.Nm inetd ,
+.Nm Ns ,
 and the server is given only the newly-accepted socket connected
 to a client of the service.
 Most stream-based services operate in this manner.
@@ -531,14 +531,14 @@ to list TCPMUX services in
 .Sh "FILES"
 .Bl -tag -width /var/run/inetd.pid -compact
 .It Pa /etc/inetd.conf
-configuration file.
+configuration file
 .It Pa /etc/rpc
-translation of service names to RPC program numbers.
+translation of service names to RPC program numbers
 .It Pa /etc/services
-translation of service names to port numbers.
+translation of service names to port numbers
 .It Pa /var/run/inetd.pid
 the pid of the currently running
-.Nm inetd .
+.Nm
 .El
 .Sh "EXAMPLES"
 .Pp
