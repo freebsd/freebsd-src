@@ -44,11 +44,6 @@
 #define	CPU_SLEDGEHAMMER 2	/* AMD Sledgehammer */
 
 #ifndef LOCORE
-struct cpu_nameclass {
-	char	*cpu_name;
-	int	cpu_class;
-};
-
 extern int	cpu;
 extern int	cpu_class;
 #endif
