@@ -30,20 +30,20 @@
  * SUCH DAMAGE.
  *
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 /*
  * error logging/reporting facilities
  * stolen from /usr/libexec/mail.local via ypserv
- *
- * $Id$
  */
 
 #include <stdio.h>
 #include <sys/types.h>
 #include <syslog.h>
-
-#ifndef lint
-static const char rcsid[] = "$Id$";
-#endif
 
 int debug;
 extern int _rpcpmstart;

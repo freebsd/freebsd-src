@@ -31,6 +31,11 @@
  *
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <stdlib.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/yp.h>
@@ -50,10 +55,6 @@
 #include "yp_extern.h"
 #ifdef TCP_WRAPPER
 #include "tcpd.h"
-#endif
-
-#ifndef lint
-static const char rcsid[] = "$Id$";
 #endif
 
 extern int debug;
@@ -241,11 +242,11 @@ int yp_access(map, rqstp)
 	rqhost = svc_getcaller(rqstp->rq_xprt);
 
 	if (debug) {
-		yp_error("Procedure %s called from %s:%d", yp_procedure,
+		yp_error("procedure %s called from %s:%d", yp_procedure,
 			inet_ntoa(rqhost->sin_addr),
 			ntohs(rqhost->sin_port));
 		if (map != NULL)
-			yp_error("Client is referencing map \"%s\".", map);
+			yp_error("client is referencing map \"%s\".", map);
 	}
 
 	/* Check the map name if one was supplied. */
@@ -267,14 +268,14 @@ possible spoof attempt from %s:%d",
 		    (rqstp->rq_prog == YPXFRD_FREEBSD_PROG &&
 		     rqstp->rq_proc == YPXFRD_GETMAP)) &&
 		     ntohs(rqhost->sin_port) >= IPPORT_RESERVED) {
-			yp_error("Access to %s denied -- client %s:%d \
+			yp_error("access to %s denied -- client %s:%d \
 not privileged", map, inet_ntoa(rqhost->sin_addr), ntohs(rqhost->sin_port));
 			return(1);
 		}
 	}
 
 #ifdef TCP_WRAPPER
-	status = hosts_ctl(progname, STRING_UNKNOWN,
+	status = hosts_ctl("ypserv", STRING_UNKNOWN,
 			   inet_ntoa(rqhost->sin_addr), "");
 #else
 	tmp = securenets;
