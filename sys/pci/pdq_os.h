@@ -21,47 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_os.h,v 1.6 1996/01/30 22:59:57 mpp Exp $
- *
- * $Log: pdq_os.h,v $
- * Revision 1.6  1996/01/30  22:59:57  mpp
- * Fix a bunch of spelling errors in the comment fields of
- * a bunch of system include files.
- *
- * Revision 1.5  1995/12/07 12:47:43  davidg
- * Untangled the vm.h include file spaghetti.
- *
- * Revision 1.4  1995/10/29  15:33:36  phk
- * Second batch of cleanup changes.
- * This time mostly making a lot of things static and some unused
- * variables here and there.
- *
- * Revision 1.3  1995/07/16  10:07:20  bde
- * Fix compiler warnings (systm.h wasn't included).
- *
- * Revision 1.2  1995/03/25  22:40:49  bde
- * Remove wrong redeclarations of printf() and bzero().  Include the correct
- * header to declare DELAY().
- *
- * Revision 1.1  1995/03/14  09:16:07  davidg
- * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
- *
- * Submitted by:	Matt Thomas
- *
- * Revision 1.6  1995/03/14  01:52:52  thomas
- * Update for new FreeBSD PCI Interrupt interface
- * Use inl/inb/... inline macros provided by FreeBSD and BSDI
- *
- * Revision 1.5  1995/03/10  17:42:24  thomas
- * More changes for BSDI
- *
- * Revision 1.4  1995/03/06  17:08:56  thomas
- * Add copyright/disclaimer
- * Add inx/outx macros
- *
- * Revision 1.3  1995/03/03  13:48:35  thomas
- * more fixes
- *
+ * $Id: pdq_os.h,v 1.7 1996/05/02 14:20:49 phk Exp $
  *
  */
 
