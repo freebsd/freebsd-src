@@ -723,6 +723,9 @@ add_intrdesc(intrec *idesc)
  * Add the interrupt handler descriptor data structure created by an
  * earlier call of create_intr() to the linked list for its irq and
  * adjust the interrupt masks if necessary.
+ *
+ * WARNING: This is an internal function and not to be used by device
+ * drivers.  It is subject to change without notice.
  */
 
 intrec *
