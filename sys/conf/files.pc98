@@ -267,7 +267,7 @@ i386/isa/rc.c			count		rc
 i386/isa/scd.c			count		scd
 i386/isa/spic.c			optional	spic
 i386/isa/spigot.c		count		spigot
-i386/isa/stallion.c		optional	stl
+i386/isa/stallion.c		optional	stl nowerror
 i386/isa/tw.c			count		tw
 i386/isa/wt.c			count		wt
 i386/linux/imgact_linux.c	optional	compat_linux
