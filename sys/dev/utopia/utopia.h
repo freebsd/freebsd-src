@@ -86,6 +86,7 @@ struct utopia_print {
 #define	UTP_TYPE_SUNI_ULTRA	2
 #define	UTP_TYPE_SUNI_622	3
 #define	UTP_TYPE_IDT77105	4
+#define	UTP_TYPE_IDT77155	5
 
 #ifdef _KERNEL
 
