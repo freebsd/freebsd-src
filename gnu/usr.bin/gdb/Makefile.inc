@@ -1,6 +1,6 @@
 # bsd.lib.mk causes this file to be loaded multiple times.
-.if !defined(BEEN_HERE)
-BEEN_HERE=1	
+.if !defined(GDB_MAKEFILE_INC_BEEN_HERE)
+GDB_MAKEFILE_INC_BEEN_HERE=yes
 
 # this may be defined in other places
 .if !defined(GDBDIR)
