@@ -391,23 +391,23 @@ struct ifmultiaddr {
 };
 
 #ifdef _KERNEL
-#define	IFAFREE(ifa)				\
-	do {					\
-		IFA_LOCK(ifa);			\
-		if ((ifa)->ifa_refcnt == 0) {	\
-			IFA_DESTROY(ifa);	\
-			free(ifa, M_IFADDR);	\
-		} else {			\
-			--(ifa)->ifa_refcnt;	\
-			IFA_UNLOCK(ifa);	\
-		}				\
+#define	IFAFREE(ifa)					\
+	do {						\
+		IFA_LOCK(ifa);				\
+		KASSERT((ifa)->ifa_refcnt > 0,		\
+		    ("ifa %p !(ifa_refcnt > 0)", ifa));	\
+		if (--(ifa)->ifa_refcnt == 0) {		\
+			IFA_DESTROY(ifa);		\
+			free(ifa, M_IFADDR);		\
+		} else 					\
+			IFA_UNLOCK(ifa);		\
 	} while (0)
 
-#define IFAREF(ifa)				\
-	do {					\
-		IFA_LOCK(ifa);			\
-		++(ifa)->ifa_refcnt;		\
-		IFA_UNLOCK(ifa);		\
+#define IFAREF(ifa)					\
+	do {						\
+		IFA_LOCK(ifa);				\
+		++(ifa)->ifa_refcnt;			\
+		IFA_UNLOCK(ifa);			\
 	} while (0)
 
 struct ifindex_entry {
