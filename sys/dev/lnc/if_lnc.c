@@ -941,7 +941,7 @@ printf("XXX no address?\n");
 	sc->trans_next = 0;
 
 	if (sc->nic.mem_mode == SHMEM)
-		lnc_mem = (char *) sc->nic.iobase;
+		lnc_mem = (char *)(uintptr_t)sc->nic.iobase;
 	else
 		lnc_mem = (char *) (sc->trans_ring + NDESC(sc->ntdre));
 
