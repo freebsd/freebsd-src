@@ -345,7 +345,7 @@ sub new_users_name_valid {
 	    warn "Username doesn't match the regexp /$usernameregexp/\a\n";
 	}
 	return 0;
-    } elsif ($username{$name}) {
+    } elsif (defined($username{$name})) {
 	warn "Username ``$name'' already exists!\a\n"; return 0;
     }
     return 1;
