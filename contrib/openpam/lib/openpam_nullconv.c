@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_nullconv.c#6 $
+ * $P4: //depot/projects/openpam/lib/openpam_nullconv.c#7 $
  */
 
 #include <sys/types.h>
@@ -70,12 +70,13 @@ openpam_nullconv(int n,
 /**
  * The =openpam_nullconv function is a null conversation function suitable
  * for applications that want to use PAM but don't support interactive
- * dialog with the user.  Such applications should set =PAM_AUTHTOK to
- * whatever authentication token they've obtained on their own before
- * calling =pam_authenticate and / or =pam_chauthtok, and their PAM
- * configuration should specify the ;use_first_pass option for all modules
- * that require access to the authentication token, to make sure they use
- * =PAM_AUTHTOK rather than try to query the user.
+ * dialog with the user.
+ * Such applications should set =PAM_AUTHTOK to whatever authentication
+ * token they've obtained on their own before calling =pam_authenticate
+ * and / or =pam_chauthtok, and their PAM configuration should specify the
+ * ;use_first_pass option for all modules that require access to the
+ * authentication token, to make sure they use =PAM_AUTHTOK rather than
+ * try to query the user.
  *
  * >openpam_ttyconv
  * >pam_prompt

@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd February 10, 2004
+.Dd February 1, 2005
 .Dt OPENPAM_NULLCONV 3
 .Os
 .Sh NAME
@@ -52,21 +52,21 @@ The
 .Nm
 function is a null conversation function suitable
 for applications that want to use PAM but don't support interactive
-dialog with the user.  Such applications should set
+dialog with the user.
+Such applications should set
 .Dv PAM_AUTHTOK
-to
-whatever authentication token they've obtained on their own before
-calling
+to whatever authentication
+token they've obtained on their own before calling
 .Xr pam_authenticate 3
 and / or
 .Xr pam_chauthtok 3 ,
-and their PAM
-configuration should specify the
+and their PAM configuration should specify the
 .Dv use_first_pass
-option for all modules
-that require access to the authentication token, to make sure they use
+option for all modules that require access to the
+authentication token, to make sure they use
 .Dv PAM_AUTHTOK
-rather than try to query the user.
+rather than
+try to query the user.
 .Pp
 .Sh RETURN VALUES
 The
@@ -95,7 +95,7 @@ The
 function and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

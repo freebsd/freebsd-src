@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_user.c#19 $
+ * $P4: //depot/projects/openpam/lib/pam_get_user.c#20 $
  */
 
 #include <sys/param.h>
@@ -96,14 +96,16 @@ pam_get_user(pam_handle_t *pamh,
 
 /**
  * The =pam_get_user function returns the name of the target user, as
- * specified to =pam_start.  If no user was specified, nor set using
- * =pam_set_item, =pam_get_user will prompt for a user name.  Either way,
- * a pointer to the user name is stored in the location pointed to by the
- * =user argument.
-
+ * specified to =pam_start.
+ * If no user was specified, nor set using =pam_set_item, =pam_get_user
+ * will prompt for a user name.
+ * Either way, a pointer to the user name is stored in the location
+ * pointed to by the =user argument.
+ *
  * The =prompt argument specifies a prompt to use if no user name is
- * cached.  If it is =NULL, the =PAM_USER_PROMPT will be used.  If that
- * item is also =NULL, a hardcoded default prompt will be used.
+ * cached.
+ * If it is =NULL, the =PAM_USER_PROMPT will be used.
+ * If that item is also =NULL, a hardcoded default prompt will be used.
  *
  * >pam_get_item
  * >pam_get_authtok
