@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.109 1998/01/31 11:56:41 dyson Exp $
+ * $Id: vm_object.c,v 1.110 1998/02/04 22:33:50 eivind Exp $
  */
 
 /*
@@ -93,9 +93,7 @@
 #include <vm/vm_zone.h>
 
 static void	vm_object_qcollapse __P((vm_object_t object));
-#ifdef not_used
-static void	vm_object_deactivate_pages __P((vm_object_t));
-#endif
+static void vm_object_dispose __P((vm_object_t));
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -249,7 +247,9 @@ vm_object_reference(object)
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
 		while (vget((struct vnode *) object->handle, LK_RETRY|LK_NOOBJ, curproc)) {
+#if !defined(MAX_PERF)
 			printf("vm_object_reference: delay in getting object\n");
+#endif
 		}
 	}
 }
@@ -381,6 +381,7 @@ doterm:
 			if (temp->ref_count == 0)
 				temp->flags &= ~OBJ_OPT;
 			temp->generation++;
+			object->backing_object = NULL;
 		}
 		vm_object_terminate(object);
 		/* unlocks and deallocates object */
@@ -418,7 +419,7 @@ vm_object_terminate(object)
 
 #if defined(DIAGNOSTIC)
 	if (object->paging_in_progress != 0)
-		panic("vm_object_deallocate: pageout in progress");
+		panic("vm_object_terminate: pageout in progress");
 #endif
 
 	/*
@@ -441,28 +442,34 @@ vm_object_terminate(object)
 		vp = (struct vnode *) object->handle;
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
 
-	} else {
+	} else if (object->type != OBJT_DEAD) {
 
 		/*
 		 * Now free the pages. For internal objects, this also removes them
 		 * from paging queues.
 		 */
 		while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
+#if !defined(MAX_PERF)
 			if (p->busy || (p->flags & PG_BUSY))
 				printf("vm_object_terminate: freeing busy page\n");
+#endif
 			p->flags |= PG_BUSY;
 			vm_page_free(p);
 			cnt.v_pfree++;
 		}
+
 	}
 
-	/*
-	 * Let the pager know object is dead.
-	 */
-	vm_pager_deallocate(object);
+	if (object->type != OBJT_DEAD) {
+		/*
+		 * Let the pager know object is dead.
+		 */
+		vm_pager_deallocate(object);
+	}
 
 	if (object->ref_count == 0) {
-		vm_object_dispose(object);
+		if ((object->type != OBJT_DEAD) || (object->resident_page_count == 0))
+			vm_object_dispose(object);
 	}
 }
 
@@ -471,7 +478,7 @@ vm_object_terminate(object)
  *
  * Dispose the object.
  */
-void
+static void
 vm_object_dispose(object)
 	vm_object_t object;
 {

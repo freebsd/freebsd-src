@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.43 1998/01/22 17:30:40 dyson Exp $
+ * $Id: vm_object.h,v 1.44 1998/01/31 11:56:43 dyson Exp $
  */
 
 /*
@@ -171,7 +171,6 @@ void vm_object_collapse __P((vm_object_t));
 void vm_object_copy __P((vm_object_t, vm_pindex_t, vm_object_t *, vm_pindex_t *, boolean_t *));
 void vm_object_deallocate __P((vm_object_t));
 void vm_object_terminate __P((vm_object_t));
-void vm_object_dispose __P((vm_object_t));
 void vm_object_vndeallocate __P((vm_object_t));
 void vm_object_init __P((void));
 void vm_object_page_clean __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t));

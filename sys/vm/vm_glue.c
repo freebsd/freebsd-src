@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.70 1998/01/22 17:30:34 dyson Exp $
+ * $Id: vm_glue.c,v 1.71 1998/02/04 22:33:44 eivind Exp $
  */
 
 #include "opt_diagnostic.h"
@@ -214,6 +214,7 @@ vm_fork(p1, p2, flags)
 	}
 
 	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
+		vm_pageout_deficit += (UPAGES + VM_INITIAL_PAGEIN);
 		VM_WAIT;
 	}
 
@@ -332,13 +333,12 @@ loop:
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if (p->p_stat == SRUN &&
 			(p->p_flag & (P_INMEM | P_SWAPPING)) == 0) {
-			int mempri;
 
 			pri = p->p_swtime + p->p_slptime;
 			if ((p->p_flag & P_SWAPINREQ) == 0) {
 				pri -= p->p_nice * 8;
 			}
-			mempri = pri > 0 ? pri : 0;
+
 			/*
 			 * if this process is higher priority and there is
 			 * enough space, then select this process instead of

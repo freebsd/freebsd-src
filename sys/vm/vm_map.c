@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.109 1998/01/31 11:56:38 dyson Exp $
+ * $Id: vm_map.c,v 1.110 1998/02/04 22:33:47 eivind Exp $
  */
 
 /*
@@ -175,7 +175,6 @@ static void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
 static void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
 static void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t,
 		vm_map_entry_t));
-static vm_page_t vm_freeze_page_alloc __P((vm_object_t, vm_pindex_t));
 
 void
 vm_map_startup()
@@ -2608,27 +2607,6 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 }
 
 /*
- * local routine to allocate a page for an object.
- */
-static vm_page_t
-vm_freeze_page_alloc(object, pindex)
-	vm_object_t object;
-	vm_pindex_t pindex;
-{
-	vm_page_t m;
-
-	while ((m = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL)) == NULL) {
-		VM_WAIT;
-		if (m = vm_page_lookup(object, pindex))
-			return NULL;
-	}
-
-	m->valid = 0;
-	m->dirty = 0;
-	return m;
-}
-
-/*
  * Performs the copy_on_write operations necessary to allow the virtual copies
  * into user space to work.  This has to be called for write(2) system calls
  * from other processes, file unlinking, and file size shrinkage.
@@ -2638,7 +2616,7 @@ vm_freeze_copyopts(object, froma, toa)
 	vm_object_t object;
 	vm_pindex_t froma, toa;
 {
-	int s;
+	int s, rv;
 	vm_object_t robject, robjectn;
 	vm_pindex_t idx, from, to;
 
@@ -2674,64 +2652,32 @@ vm_freeze_copyopts(object, froma, toa)
 		for (idx = 0; idx < robject->size; idx++) {
 
 m_outretry:
-			m_out = vm_page_lookup(robject, idx);
-			if( m_out && (m_out->flags & PG_BUSY)) {
-				s = splvm();
-				while (m_out && (m_out->flags & PG_BUSY)) {
-					m_out->flags |= PG_WANTED;
-					tsleep(m_out, PVM, "pwtfrz", 0);
-					splx(s);
-					goto m_outretry;
-				}
-				splx(s);
-			}
-
-			if (m_out == NULL) {
-				m_out = vm_freeze_page_alloc(robject, idx);
-				if (m_out == NULL)
-					goto m_outretry;
-			}
+			m_out = vm_page_grab(robject, idx,
+						VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 
 			if (m_out->valid == 0) {
-				m_out->flags |= PG_BUSY;
 m_inretry:
-				m_in = vm_page_lookup(object, bo_pindex + idx);
-				if (m_in == NULL) {
-					int rv;
-					m_in = vm_freeze_page_alloc(object, bo_pindex + idx);
-					if (m_in == NULL)
-						goto m_inretry;
+				m_in = vm_page_grab(object, bo_pindex + idx,
+						VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+				if (m_in->valid == 0) {
 					rv = vm_pager_get_pages(object, &m_in, 1, 0);
 					if (rv != VM_PAGER_OK) {
 						printf("vm_freeze_copyopts: cannot read page from file: %x\n", m_in->pindex);
 						continue;
 					}
-				} else if(m_in->busy || (m_in->flags & PG_BUSY)) {
-					s = splvm();
-					while (m_in && (m_in->busy || (m_in->flags & PG_BUSY))) {
-						m_in->flags |= PG_WANTED;
-						tsleep(m_in, PVM, "pwtfrz", 0);
-						splx(s);
-						goto m_inretry;
-					}
-					splx(s);
-					if (m_in == NULL) {
-						goto m_inretry;
-					}
+					vm_page_deactivate(m_in);
 				}
 
-				m_in->flags |= PG_BUSY;
 				vm_page_protect(m_in, VM_PROT_NONE);
 				pmap_copy_page(VM_PAGE_TO_PHYS(m_in), VM_PAGE_TO_PHYS(m_out));
-				m_out->valid = VM_PAGE_BITS_ALL;
+				m_out->valid = m_in->valid;
 				m_out->dirty = VM_PAGE_BITS_ALL;
 
-				vm_page_deactivate(m_out);
-				vm_page_deactivate(m_in);
+				vm_page_activate(m_out);
 
-				PAGE_WAKEUP(m_out);
 				PAGE_WAKEUP(m_in);
 			}
+			PAGE_WAKEUP(m_out);
 		}
 
 		object->shadow_count--;
