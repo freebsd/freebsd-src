@@ -107,6 +107,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x1200b23d, NULL},     /* RSS0012 - OMRON ME5614ISA */
 	{0x5002734a, NULL},	/* RSS0250 - 5614Jx3(G) Internal Modem */
 	{0x6202734a, NULL},	/* RSS0262 - 5614Jx3[G] V90+K56Flex Modem */
+	{0x1010104d, NULL},	/* SHP1010 - Rockwell 33600bps Modem */
 	{0xc100ad4d, NULL},	/* SMM00C1 - Leopard 56k PnP */
 	{0x9012b04e, NULL},	/* SUP1290 - Supra ? */
 	{0x1013b04e, NULL},	/* SUP1310 - SupraExpress 336i PnP */
