@@ -1,47 +1,19 @@
 $FreeBSD$
 
-sendmail 8.11.6
+sendmail 8.12.2
 	originals can be found at: ftp://ftp.sendmail.org/pub/sendmail/
 
 For the import of sendmail, the following files were removed:
 
 	Build
 	cf/cf/Build
-	cf/cf/generic-bsd4.4.cf
-	cf/cf/generic-hpux10.cf
-	cf/cf/generic-hpux9.cf
-	cf/cf/generic-linux.cf
-	cf/cf/generic-nextstep3.3.cf
-	cf/cf/generic-osf1.cf
-	cf/cf/generic-solaris2.cf
-	cf/cf/generic-sunos4.1.cf
-	cf/cf/generic-ultrix4.cf
+	cf/cf/generic-*.cf
 	devtools/*
 	doc/op/op.ps
-	libmilter/Build
-	libsmdb/Build
-	libsmutil/Build
-	mail.local/Build
-	mail.local/mail.local.0
-	mailstats/Build
-	mailstats/mailstats.0
-	makemap/Build
-	makemap/makemap.0
-	praliases/Build
-	praliases/praliases.0
-	rmail/Build
-	rmail/rmail.0
-	sendmail/Build
-	sendmail/aliases.0
-	sendmail/mailq.0
+	*/Build
+	*/*.0
 	sendmail/makesendmail
-	sendmail/newaliases.0
-	sendmail/sendmail.0
 	sendmail/sysexits.h
-	smrsh/Build
-	smrsh/smrsh.0
-	vacation/Build
-	vacation/vacation.0
 
 The following directories were renamed:
 
@@ -49,8 +21,8 @@ The following directories were renamed:
 
 Imported using:
 
-	cvs import -m 'Import sendmail 8.11.6' \
-		src/contrib/sendmail SENDMAIL v8_11_6
+	cvs import -m 'Import sendmail 8.12.2' \
+		src/contrib/sendmail SENDMAIL v8_12_2
 
 
 To make local changes to sendmail, simply patch and commit to the main
@@ -61,4 +33,4 @@ All local changes should be submitted to the Sendmail Consortium
 <sendmail@sendmail.org> for inclusion in the next vendor release.
 
 gshapiro@FreeBSD.org
-20-August-2001
+25-March-2002
