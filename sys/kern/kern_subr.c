@@ -68,6 +68,12 @@ SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV,
 /* Declared in uipc_socket.c */
 extern int so_zero_copy_receive;
 
+/*
+ * Identify the physical page mapped at the given kernel virtual
+ * address.  Insert this physical page into the given address space at
+ * the given virtual address, replacing the physical page, if any,
+ * that already exists there.
+ */
 static int
 vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
 {
@@ -79,10 +85,17 @@ vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
 	vm_prot_t prot;
 	boolean_t wired;
 
+	KASSERT((uaddr & PAGE_MASK) == 0,
+	    ("vm_pgmoveco: uaddr is not page aligned"));
+
 	/*
-	 * First lookup the kernel page.
+	 * Herein the physical page is validated and dirtied.  It is
+	 * unwired in sf_buf_mext().
 	 */
 	kern_pg = PHYS_TO_VM_PAGE(vtophys(kaddr));
+	kern_pg->valid = VM_PAGE_BITS_ALL;
+	KASSERT(kern_pg->queue == PQ_NONE && kern_pg->wire_count == 1,
+	    ("vm_pgmoveco: kern_pg is not correctly wired"));
 
 	if ((vm_map_lookup(&map, uaddr,
 			   VM_PROT_WRITE, &entry, &uobject,
@@ -90,28 +103,25 @@ vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
 		return(EFAULT);
 	}
 	VM_OBJECT_LOCK(uobject);
+retry:
 	if ((user_pg = vm_page_lookup(uobject, upindex)) != NULL) {
-		do
-			vm_page_lock_queues();
-		while (vm_page_sleep_if_busy(user_pg, 1, "vm_pgmoveco"));
+		vm_page_lock_queues();
+		if (vm_page_sleep_if_busy(user_pg, 1, "vm_pgmoveco"))
+			goto retry;
 		pmap_remove_all(user_pg);
 		vm_page_free(user_pg);
-	} else
+	} else {
+		/*
+		 * Even if a physical page does not exist in the
+		 * object chain's first object, a physical page from a
+		 * backing object may be mapped read only.
+		 */
+		if (uobject->backing_object != NULL)
+			pmap_remove(map->pmap, uaddr, uaddr + PAGE_SIZE);
 		vm_page_lock_queues();
-	if (kern_pg->busy || ((kern_pg->queue - kern_pg->pc) == PQ_FREE) ||
-	    (kern_pg->hold_count != 0)|| (kern_pg->flags & PG_BUSY)) {
-		printf("vm_pgmoveco: pindex(%lu), busy(%d), PG_BUSY(%d), "
-		       "hold(%d) paddr(0x%lx)\n", (u_long)kern_pg->pindex,
-			kern_pg->busy, (kern_pg->flags & PG_BUSY) ? 1 : 0,
-			kern_pg->hold_count, (u_long)kern_pg->phys_addr);
-		if ((kern_pg->queue - kern_pg->pc) == PQ_FREE)
-			panic("vm_pgmoveco: renaming free page");
-		else
-			panic("vm_pgmoveco: renaming busy page");
 	}
 	vm_page_insert(kern_pg, uobject, upindex);
 	vm_page_dirty(kern_pg);
-	kern_pg->valid = VM_PAGE_BITS_ALL;
 	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(uobject);
 	vm_map_lookup_done(map, entry);
