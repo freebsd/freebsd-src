@@ -21,7 +21,7 @@
  *
  * High-level routines relating to use of the user capabilities database
  *
- *	$Id: login_class.c,v 1.9 1998/07/28 01:30:16 ache Exp $
+ *	$Id$
  */
 
 #include <stdio.h>
@@ -163,7 +163,7 @@ substvar(char * var, const struct passwd * pwd, int hlen, int pch, int nlen)
 		while (*(p += strcspn(p, "~$")) != '\0') {
 		    int	l = strlen(p);
 
-		    if (p > var && *(p-1) == '\\')  /* Escaped: */
+		    if (p > np && *(p-1) == '\\')  /* Escaped: */
 			memmove(p - 1, p, l + 1); /* Slide-out the backslash */
 		    else if (*p == '~') {
 			int	v = pch && *(p+1) != '/'; /* Avoid double // */
