@@ -242,7 +242,7 @@ aue_csr_read_1(struct aue_softc *sc, int reg)
 	usbd_status		err;
 	u_int8_t		val = 0;
 
-	if (sc->aue_gone)
+	if (sc->aue_dying)
 		return (0);
 
 	AUE_LOCK(sc);
@@ -272,7 +272,7 @@ aue_csr_read_2(struct aue_softc *sc, int reg)
 	usbd_status		err;
 	u_int16_t		val = 0;
 
-	if (sc->aue_gone)
+	if (sc->aue_dying)
 		return (0);
 
 	AUE_LOCK(sc);
@@ -301,7 +301,7 @@ aue_csr_write_1(struct aue_softc *sc, int reg, int val)
 	usb_device_request_t	req;
 	usbd_status		err;
 
-	if (sc->aue_gone)
+	if (sc->aue_dying)
 		return (0);
 
 	AUE_LOCK(sc);
@@ -330,7 +330,7 @@ aue_csr_write_2(struct aue_softc *sc, int reg, int val)
 	usb_device_request_t	req;
 	usbd_status		err;
 
-	if (sc->aue_gone)
+	if (sc->aue_dying)
 		return (0);
 
 	AUE_LOCK(sc);
@@ -769,7 +769,7 @@ USB_ATTACH(aue)
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->aue_stat_ch);
 	usb_register_netisr();
-	sc->aue_gone = 0;
+	sc->aue_dying = 0;
 
 	AUE_UNLOCK(sc);
 	USB_ATTACH_SUCCESS_RETURN;
@@ -785,7 +785,7 @@ aue_detach(device_ptr_t dev)
 	AUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	sc->aue_gone = 1;
+	sc->aue_dying = 1;
 	untimeout(aue_tick, sc, sc->aue_stat_ch);
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
@@ -972,7 +972,7 @@ aue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	int			total_len = 0;
 	struct aue_rxpkt	r;
 
-	if (sc->aue_gone)
+	if (sc->aue_dying)
 		return;
 	AUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
@@ -1557,7 +1557,7 @@ aue_shutdown(device_ptr_t dev)
 	struct aue_softc	*sc;
 
 	sc = device_get_softc(dev);
-	sc->aue_gone++;
+	sc->aue_dying++;
 	AUE_LOCK(sc);
 	aue_reset(sc);
 	aue_stop(sc);

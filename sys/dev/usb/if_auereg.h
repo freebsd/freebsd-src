@@ -249,11 +249,11 @@ struct aue_softc {
 	usbd_pipe_handle	aue_ep[AUE_ENDPT_MAX];
 	int			aue_unit;
 	u_int8_t		aue_link;
-	u_int8_t		aue_gone;
 	int			aue_if_flags;
 	struct aue_cdata	aue_cdata;
 	struct callout_handle	aue_stat_ch;
 	struct mtx		aue_mtx;
+	char			aue_dying;
 };
 
 #if 0

@@ -159,7 +159,7 @@ csr_read_1(struct cue_softc *sc, int reg)
 	usbd_status		err;
 	u_int8_t		val = 0;
 
-	if (sc->cue_gone)
+	if (sc->cue_dying)
 		return(0);
 
 	CUE_LOCK(sc);
@@ -188,7 +188,7 @@ csr_read_2(struct cue_softc *sc, int reg)
 	usbd_status		err;
 	u_int16_t		val = 0;
 
-	if (sc->cue_gone)
+	if (sc->cue_dying)
 		return(0);
 
 	CUE_LOCK(sc);
@@ -216,7 +216,7 @@ csr_write_1(struct cue_softc *sc, int reg, int val)
 	usb_device_request_t	req;
 	usbd_status		err;
 
-	if (sc->cue_gone)
+	if (sc->cue_dying)
 		return(0);
 
 	CUE_LOCK(sc);
@@ -245,7 +245,7 @@ csr_write_2(struct cue_softc *sc, int reg, int val)
 	usb_device_request_t	req;
 	usbd_status		err;
 
-	if (sc->cue_gone)
+	if (sc->cue_dying)
 		return(0);
 
 	CUE_LOCK(sc);
@@ -274,7 +274,7 @@ cue_mem(struct cue_softc *sc, int cmd, int addr, void *buf, int len)
 	usb_device_request_t	req;
 	usbd_status		err;
 
-	if (sc->cue_gone)
+	if (sc->cue_dying)
 		return(0);
 
 	CUE_LOCK(sc);
@@ -305,7 +305,7 @@ cue_getmac(struct cue_softc *sc, void *buf)
 	usb_device_request_t	req;
 	usbd_status		err;
 
-	if (sc->cue_gone)
+	if (sc->cue_dying)
 		return(0);
 
 	CUE_LOCK(sc);
@@ -398,7 +398,7 @@ cue_reset(struct cue_softc *sc)
 	usb_device_request_t	req;
 	usbd_status		err;
 
-	if (sc->cue_gone)
+	if (sc->cue_dying)
 		return;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -534,7 +534,7 @@ USB_ATTACH(cue)
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->cue_stat_ch);
 	usb_register_netisr();
-	sc->cue_gone = 0;
+	sc->cue_dying = 0;
 
 	CUE_UNLOCK(sc);
 	USB_ATTACH_SUCCESS_RETURN;
@@ -550,7 +550,7 @@ cue_detach(device_ptr_t dev)
 	CUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	sc->cue_gone = 1;
+	sc->cue_dying = 1;
 	untimeout(cue_tick, sc, sc->cue_stat_ch);
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
