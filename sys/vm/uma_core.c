@@ -30,7 +30,7 @@
  * This allocator is intended to replace the multitude of similar object caches
  * in the standard FreeBSD kernel.  The intent is to be flexible as well as
  * effecient.  A primary design goal is to return unused memory to the rest of
- * the system.  This will make the system as a whole more flexible due to the 
+ * the system.  This will make the system as a whole more flexible due to the
  * ability to move memory to subsystems which most need it instead of leaving
  * pools of reserved memory unused.
  *
@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 /*
- * This is the zone from which all zones are spawned.  The idea is that even 
+ * This is the zone from which all zones are spawned.  The idea is that even
  * the zone heads are allocated from the allocator, so we use the bss section
  * to bootstrap us.
  */
@@ -108,7 +108,7 @@ static MALLOC_DEFINE(M_UMAHASH, "UMAHash", "UMA Hash Buckets");
 static int bucketdisable = 1;
 
 /* Linked list of all zones in the system */
-static LIST_HEAD(,uma_zone) uma_zones = LIST_HEAD_INITIALIZER(&uma_zones); 
+static LIST_HEAD(,uma_zone) uma_zones = LIST_HEAD_INITIALIZER(&uma_zones);
 
 /* This mutex protects the zone list */
 static struct mtx uma_mtx;
@@ -237,7 +237,7 @@ bucket_init(void)
 		size = roundup(sizeof(struct uma_bucket), sizeof(void *));
 		size += sizeof(void *) * ubz->ubz_entries;
 		ubz->ubz_zone = uma_zcreate(ubz->ubz_name, size,
-	    	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
+		    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
 		for (; i <= ubz->ubz_entries; i += (1 << BUCKET_SHIFT))
 			bucket_size[i >> BUCKET_SHIFT] = j;
 	}
@@ -300,7 +300,7 @@ bucket_zone_drain(void)
  *
  * Arguments:
  *	arg   Unused
- * 
+ *
  * Returns:
  *	Nothing
  */
@@ -345,7 +345,7 @@ zone_timeout(uma_zone_t zone)
 		for (cpu = 0; cpu <= mp_maxid; cpu++) {
 			if (CPU_ABSENT(cpu))
 				continue;
-			CPU_LOCK(cpu); 
+			CPU_LOCK(cpu);
 			cache = &zone->uz_cpu[cpu];
 			/* Add them up, and reset */
 			alloc += cache->uc_allocs;
@@ -360,7 +360,7 @@ zone_timeout(uma_zone_t zone)
 
 	/*
 	 * Expand the zone hash table.
-	 * 
+	 *
 	 * This is done if the number of slabs is larger than the hash size.
 	 * What I'm trying to do here is completely reduce collisions.  This
 	 * may be a little aggressive.  Should I allow for two collisions max?
@@ -373,7 +373,7 @@ zone_timeout(uma_zone_t zone)
 		int ret;
 
 		/*
-		 * This is so involved because allocating and freeing 
+		 * This is so involved because allocating and freeing
 		 * while the zone lock is held will lead to deadlock.
 		 * I have to do everything in stages and check for
 		 * races.
@@ -442,11 +442,11 @@ hash_alloc(struct uma_hash *hash)
  * path, otherwise, we can recurse on the vm while allocating pages.
  *
  * Arguments:
- *	oldhash  The hash you want to expand 
+ *	oldhash  The hash you want to expand
  *	newhash  The hash structure for the new table
  *
  * Returns:
- * 	Nothing
+ *	Nothing
  *
  * Discussion:
  */
@@ -538,7 +538,7 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 		KASSERT(item != NULL,
 		    ("bucket_drain: botched ptr, item is NULL"));
 #endif
-		/* 
+		/*
 		 * This is extremely inefficient.  The slab pointer was passed
 		 * to uma_zfree_arg, but we lost it because the buckets don't
 		 * hold them.  This will go away when free() gets a size passed
@@ -712,7 +712,7 @@ finished:
  *	The slab that was allocated or NULL if there is no memory and the
  *	caller specified M_NOWAIT.
  */
-static uma_slab_t 
+static uma_slab_t
 slab_zalloc(uma_zone_t zone, int wait)
 {
 	uma_slab_t slab;	/* Starting slab */
@@ -830,7 +830,7 @@ startup_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
  *	wait  Shall we wait?
  *
  * Returns:
- *	A pointer to the alloced memory or possibly 
+ *	A pointer to the alloced memory or possibly
  *	NULL if M_NOWAIT is set.
  */
 static void *
@@ -840,7 +840,7 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 
 	*pflag = UMA_SLAB_KMEM;
 	p = (void *) kmem_malloc(kmem_map, bytes, wait);
-  
+
 	return (p);
 }
 
@@ -853,7 +853,7 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
  *	wait   Shall we wait?
  *
  * Returns:
- *	A pointer to the alloced memory or possibly 
+ *	A pointer to the alloced memory or possibly
  *	NULL if M_NOWAIT is set.
  */
 static void *
@@ -867,7 +867,7 @@ obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	object = zone->uz_obj;
 	retkva = 0;
 
-	/* 
+	/*
 	 * This looks a little weird since we're getting one page at a time.
 	 */
 	VM_OBJECT_LOCK(object);
@@ -907,7 +907,7 @@ done:
 
 /*
  * Frees a number of pages to the system
- * 
+ *
  * Arguments:
  *	mem   A pointer to the memory to be freed
  *	size  The size of the memory being freed
@@ -996,7 +996,7 @@ zone_small_init(uma_zone_t zone)
 }
 
 /*
- * Finish creating a large (> UMA_SLAB_SIZE) uma zone.  Just give in and do 
+ * Finish creating a large (> UMA_SLAB_SIZE) uma zone.  Just give in and do
  * OFFPAGE for now.  When I can allow for more dynamic slab sizes this will be
  * more complicated.
  *
@@ -1008,7 +1008,7 @@ zone_small_init(uma_zone_t zone)
  */
 static void
 zone_large_init(uma_zone_t zone)
-{	
+{
 	int pages;
 
 	KASSERT((zone->uz_flags & UMA_ZFLAG_CACHEONLY) == 0,
@@ -1030,7 +1030,7 @@ zone_large_init(uma_zone_t zone)
 	zone->uz_rsize = zone->uz_size;
 }
 
-/* 
+/*
  * Zone header ctor.  This initializes all fields, locks, etc.  And inserts
  * the zone onto the global zone list.
  *
@@ -1095,7 +1095,7 @@ zone_ctor(void *mem, int size, void *udata)
 
 	/*
 	 * If we're putting the slab header in the actual page we need to
-	 * figure out where in each page it goes.  This calculates a right 
+	 * figure out where in each page it goes.  This calculates a right
 	 * justified offset into the memory on an ALIGN_PTR boundary.
 	 */
 	if (!(zone->uz_flags & UMA_ZONE_OFFPAGE)) {
@@ -1146,7 +1146,7 @@ zone_ctor(void *mem, int size, void *udata)
 		zone->uz_count = BUCKET_MAX;
 }
 
-/* 
+/*
  * Zone header dtor.  This frees all data, destroys locks, frees the hash table
  * and removes the zone from the global list.
  *
@@ -1188,11 +1188,11 @@ zone_dtor(void *arg, int size, void *udata)
  * Arguments:
  *	zfunc  A pointer to a function which accepts a zone
  *		as an argument.
- * 
+ *
  * Returns:
  *	Nothing
  */
-static void 
+static void
 zone_foreach(void (*zfunc)(uma_zone_t))
 {
 	uma_zone_t zone;
@@ -1309,10 +1309,10 @@ uma_startup3(void)
 }
 
 /* See uma.h */
-uma_zone_t  
+uma_zone_t
 uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 		uma_init uminit, uma_fini fini, int align, u_int16_t flags)
-		     
+
 {
 	struct uma_zctor_args args;
 
@@ -1445,7 +1445,7 @@ zalloc_start:
 		cache->uc_allocbucket = bucket;
 		ZONE_UNLOCK(zone);
 		goto zalloc_start;
-	} 
+	}
 	/* We are no longer associated with this cpu!!! */
 	CPU_UNLOCK(cpu);
 
@@ -1476,15 +1476,15 @@ uma_zone_slab(uma_zone_t zone, int flags)
 {
 	uma_slab_t slab;
 
-	/* 
+	/*
 	 * This is to prevent us from recursively trying to allocate
 	 * buckets.  The problem is that if an allocation forces us to
 	 * grab a new bucket we will call page_alloc, which will go off
 	 * and cause the vm to allocate vm_map_entries.  If we need new
-	 * buckets there too we will recurse in kmem_alloc and bad 
+	 * buckets there too we will recurse in kmem_alloc and bad
 	 * things happen.  So instead we return a NULL bucket, and make
 	 * the code that allocates buckets smart enough to deal with it
-	 */ 
+	 */
 	if (zone->uz_flags & UMA_ZFLAG_INTERNAL && zone->uz_recurse != 0)
 		return (NULL);
 
@@ -1520,7 +1520,7 @@ uma_zone_slab(uma_zone_t zone, int flags)
 
 			if (flags & M_NOWAIT)
 				break;
-			else 
+			else
 				msleep(zone, &zone->uz_lock, PVM,
 				    "zonelimit", 0);
 			continue;
@@ -1528,7 +1528,7 @@ uma_zone_slab(uma_zone_t zone, int flags)
 		zone->uz_recurse++;
 		slab = slab_zalloc(zone, flags);
 		zone->uz_recurse--;
-		/* 
+		/*
 		 * If we got a slab here it's safe to mark it partially used
 		 * and return.  We assume that the caller is going to remove
 		 * at least one item.
@@ -1537,7 +1537,7 @@ uma_zone_slab(uma_zone_t zone, int flags)
 			LIST_INSERT_HEAD(&zone->uz_part_slab, slab, us_link);
 			return (slab);
 		}
-		/* 
+		/*
 		 * We might not have been able to get a slab but another cpu
 		 * could have while we were unlocked.  Check again before we
 		 * fail.
@@ -1553,7 +1553,7 @@ uma_slab_alloc(uma_zone_t zone, uma_slab_t slab)
 {
 	void *item;
 	u_int8_t freei;
-	
+
 	freei = slab->us_firstfree;
 	slab->us_firstfree = slab->us_freelist[freei];
 	item = slab->us_data + (zone->uz_rsize * freei);
@@ -1748,7 +1748,7 @@ zfree_start:
 			 * We have run out of space in our freebucket.
 			 * See if we can switch with our alloc bucket.
 			 */
-			if (cache->uc_allocbucket->ub_cnt < 
+			if (cache->uc_allocbucket->ub_cnt <
 			    cache->uc_freebucket->ub_cnt) {
 				bucket = cache->uc_freebucket;
 				cache->uc_freebucket = cache->uc_allocbucket;
@@ -1756,7 +1756,7 @@ zfree_start:
 				goto zfree_start;
 			}
 		}
-	} 
+	}
 	/*
 	 * We can get here for two reasons:
 	 *
@@ -1878,7 +1878,7 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 		LIST_INSERT_HEAD(&zone->uz_part_slab, slab, us_link);
 	}
 
-	/* Slab management stuff */	
+	/* Slab management stuff */
 	freei = ((unsigned long)item - (unsigned long)slab->us_data)
 		/ zone->uz_rsize;
 
@@ -1912,7 +1912,7 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 	ZONE_LOCK(zone);
 	if (zone->uz_ppera > 1)
 		zone->uz_maxpages = nitems * zone->uz_ppera;
-	else 
+	else
 		zone->uz_maxpages = nitems / zone->uz_ipers;
 
 	if (zone->uz_maxpages * zone->uz_ipers < nitems)
@@ -2039,7 +2039,7 @@ void
 uma_large_free(uma_slab_t slab)
 {
 	vsetobj((vm_offset_t)slab->us_data, kmem_object);
-	/* 
+	/*
 	 * XXX: We get a lock order reversal if we don't have Giant:
 	 * vm_map_remove (locks system map) -> vm_map_delete ->
 	 *    vm_map_entry_unwire -> vm_fault_unwire -> mtx_lock(&Giant)
@@ -2070,7 +2070,7 @@ slab_print(uma_slab_t slab)
 static void
 cache_print(uma_cache_t cache)
 {
-	printf("alloc: %p(%d), free: %p(%d)\n", 
+	printf("alloc: %p(%d), free: %p(%d)\n",
 		cache->uc_allocbucket,
 		cache->uc_allocbucket?cache->uc_allocbucket->ub_cnt:0,
 		cache->uc_freebucket,
@@ -2107,7 +2107,7 @@ uma_print_zone(uma_zone_t zone)
 }
 
 /*
- * Sysctl handler for vm.zone 
+ * Sysctl handler for vm.zone
  *
  * stolen from vm_zone.c
  */
