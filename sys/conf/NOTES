@@ -979,6 +979,12 @@ device		ccd		#Concatenated disk driver
 device		vinum		#Vinum concat/mirror/raid driver
 options 	VINUMDEBUG	#enable Vinum debugging hooks
 
+# RAIDframe device.  RAID_AUTOCONFIG allows RAIDframe to search all of the
+# disk devices in the system looking for components that it recognizes (already
+# configured once before) and auto-configured them into arrays.
+device		raidframe
+options		RAID_AUTOCONFIG
+
 # Kernel side iconv library
 options 	LIBICONV
 
