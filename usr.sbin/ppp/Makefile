@@ -10,6 +10,7 @@ CFLAGS+=-Wall
 LDADD+= -lutil -lz
 DPADD+=	${LIBUTIL} ${LIBZ}
 BINMODE=4554
+BINOWN=	root
 BINGRP=	network
 MAN8=	ppp.8
 LDADD+=	-lmd -lcrypt
