@@ -882,14 +882,9 @@ witness_sleep(int check_only, struct lock_object *lock, const char *file,
 	struct thread *td;
 	int i, n;
 
-	if (witness_dead || panicstr != NULL)
+	if (witness_cold || witness_dead || panicstr != NULL)
 		return (0);
-	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	n = 0;
-	/*
-	 * Preemption bad because we need PCPU_PTR(spinlocks) to not change.
-	 */
-	critical_enter();
 	td = curthread;
 	lock_list = &td->td_sleeplocks;
 again:
@@ -916,7 +911,11 @@ again:
 			    lock1->li_lock->lo_name, lock1->li_file,
 			    lock1->li_line);
 		}
-	if (lock_list == &td->td_sleeplocks) {
+	if (lock_list == &td->td_sleeplocks && PCPU_GET(spinlocks) != NULL) {
+		/*
+		 * Since we already hold a spinlock preemption is
+		 * already blocked.
+		 */
 		lock_list = PCPU_PTR(spinlocks);
 		goto again;
 	}
@@ -924,7 +923,6 @@ again:
 	if (witness_ddb && n)
 		Debugger(__func__);
 #endif /* DDB */
-	critical_exit();
 	return (n);
 }
 
@@ -1346,15 +1344,9 @@ witness_list(struct thread *td)
 	 * out from under us.  It is probably best to just not try to handle
 	 * threads on other CPU's for now.
 	 */
-	if (td == curthread) {
-		/*
-		 * Preemption bad because we need PCPU_PTR(spinlocks) to not
-		 * change.
-		 */
-		critical_enter();
+	if (td == curthread && PCPU_GET(spinlocks) != NULL)
 		nheld += witness_list_locks(PCPU_PTR(spinlocks));
-		critical_exit();
-	}
+
 	return (nheld);
 }
 
