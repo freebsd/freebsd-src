@@ -103,7 +103,7 @@ distribution: distrib-dirs
 	install -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc
 	install -c -o root -g wheel -m 755 ${BIN3} ${DESTDIR}/etc
-	install -c -o root -g wheel -m 600 crontab ${DESTDIR}/var/cron/tabs/root
+	install -c -o root -g wheel -m 644 crontab ${DESTDIR}/etc
 	install -c -o root -g wheel -m 600 /dev/null ${DESTDIR}/var/cron/log
 	install -c -o root -g wheel -m 600 master.passwd ${DESTDIR}/etc
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
