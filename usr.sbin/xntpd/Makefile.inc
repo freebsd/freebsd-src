@@ -7,6 +7,6 @@ CLOCKDEFS= -DLOCAL_CLOCK -DPST -DWWVB -DAS2201 -DGOES -DGPSTM -DOMEGA \
 CFLAGS+= ${NTPDEFS} ${DEFS_LOCAL} ${AUTHDEFS} ${CLOCKDEFS} ${COPTS}
 BINDIR?= /usr/sbin
 
-.if !defined(NOCRYPT)
+.if !defined(NOCRYPT) && exists(${.CURDIR}/../../secure/usr.sbin/xntpd/lib)
 AUTHDEFS+=	-DDES
 .endif
