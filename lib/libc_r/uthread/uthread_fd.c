@@ -182,6 +182,22 @@ _thread_fd_table_init(int fd)
 	return (ret);
 }
 
+int
+_thread_fd_getflags(int fd)
+{
+	if (_thread_fd_table[fd] != NULL)
+		return (_thread_fd_table[fd]->flags);
+	else
+		return (0);
+}
+
+void
+_thread_fd_setflags(int fd, int flags)
+{
+	if (_thread_fd_table[fd] != NULL)
+		_thread_fd_table[fd]->flags = flags;
+}
+
 #ifdef _FDLOCKS_ENABLED
 void
 _thread_fd_unlock(int fd, int lock_type)
