@@ -27,7 +27,7 @@ CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
 
 # feature not implemented
 BOOT_COMCONSOLE_SPEED?=9600
-CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
+CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 
 # Enable code to take the default boot string from a fixed location on the
 # disk.  See nextboot(8) and README.386BSD for more info.
