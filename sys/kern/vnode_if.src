@@ -573,9 +573,9 @@ vop_openextattr {
 };
 
 #
-#% rmextattr	vp	L L L
+#% deleteextattr	vp	L L L
 #
-vop_rmextattr {
+vop_deleteextattr {
 	IN struct vnode *vp;
 	IN int attrnamespace;
 	IN const char *name;
