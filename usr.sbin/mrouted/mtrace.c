@@ -100,7 +100,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "$Id$";
+    "$Id: mtrace.c,v 1.12 1997/09/30 06:15:16 charnier Exp $";
 #endif
 
 #include <ctype.h>
@@ -2234,17 +2234,13 @@ char *argv[];
 	int error;
     
 	error = sysinfo(SI_HOSTNAME, myhostname, sizeof(myhostname));
-	if (error == -1) {
-	    warn("getting my hostname");
-	    exit(-1);
-	}
+	if (error == -1)
+	    err(1, "getting my hostname");
 
 	hp = gethostbyname(myhostname);
 	if (hp == NULL || hp->h_addrtype != AF_INET ||
-	    hp->h_length != sizeof(addr.sin_addr)) {
-	    warn("finding IP address for my hostname");
-	    exit(-1);
-	}
+	    hp->h_length != sizeof(addr.sin_addr))
+	    err(1, "finding IP address for my hostname");
 
 	memcpy((char *)&addr.sin_addr.s_addr, hp->h_addr, hp->h_length);
     }
@@ -2668,7 +2664,7 @@ log(severity, syserr, format, va_alist)
 	    else
 		fprintf(stderr, ": errno %d\n", syserr);
     }
-    if (severity <= LOG_ERR) exit(-1);
+    if (severity <= LOG_ERR) exit(1);
 }
 
 /* dummies */
