@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- *	$Id: auth.h,v 1.10 1997/05/07 02:27:00 eivind Exp $
+ *	$Id: auth.h,v 1.11 1997/05/07 20:00:40 eivind Exp $
  */
 
 /*
@@ -174,7 +174,7 @@ extern AUTH *authdes_create		__P((char *, u_int,
 					    struct sockaddr_in *, des_block *));
 __END_DECLS
 
-#ifndef AUTH_NONE /* Protect against <login_cap.h>
+#ifndef AUTH_NONE /* Protect against <login_cap.h> */
 #define AUTH_NONE	0		/* no authentication */
 #endif
 #define	AUTH_NULL	0		/* backward compatibility */
