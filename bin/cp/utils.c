@@ -293,7 +293,7 @@ setfile(fs, fd)
 
 	if (!gotstat || fs->st_mode != ts.st_mode)
 		if (fd ? fchmod(fd, fs->st_mode) : chmod(to.p_path, fs->st_mode)) {
-			warn("chown: %s", to.p_path);
+			warn("chmod: %s", to.p_path);
 			rval = 1;
 		}
 
