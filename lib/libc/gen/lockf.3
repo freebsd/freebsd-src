@@ -173,10 +173,22 @@ error.
 .Pp
 The
 .Fn lockf ,
-.Xr fcntl 2
+.Xr fcntl 2 ,
 and
 .Xr flock 2
-locks may be safely used concurrently.
+locks are compatible.
+Processes using different locking interfaces can cooperate
+over the same file safely.
+However, only one of such interfaces should be used within
+the same process.
+If a file is locked by a process through
+.Xr flock 2 ,
+any record within the file will be seen as locked
+from the viewpoint of another process using
+.Xr fcntl 2
+or
+.Fn lockf ,
+and vice versa.
 .Pp
 Blocking on a section is interrupted by any signal.
 .Sh RETURN VALUES
