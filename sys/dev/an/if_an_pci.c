@@ -198,7 +198,7 @@ an_attach_pci(dev)
 		/* Allocate aux. memory */
 		sc->mem_aux_rid = PCIR_MAPS + 8;
 		error = an_alloc_aux_memory(dev, sc->mem_aux_rid, 
-		    AN_AUXMEMSIZE);
+		    AN_AUX_MEM_SIZE);
 		if (error) {
 			printf("an%d: couldn't map aux memory\n", unit);
 			goto fail;

@@ -101,9 +101,7 @@ int main(int, char **);
 #define ACT_DUMPAP 6
 
 #define ACT_SET_OPMODE 7
-#define ACT_SET_SSID1 8
-#define ACT_SET_SSID2 9
-#define ACT_SET_SSID3 10
+#define ACT_SET_SSID 8
 #define ACT_SET_FREQ 11
 #define ACT_SET_AP1 12
 #define ACT_SET_AP2 13
@@ -185,6 +183,7 @@ static void an_setval(iface, areq)
 		err(1, "SIOCSAIRONET");
 
 	close(s);
+printf("Hello %s %s %d\n",__FILE__,__FUNCTION__,__LINE__);
 
 	return;
 }
@@ -648,18 +647,26 @@ static void an_dumpap(iface)
 static void an_dumpssid(iface)
 	const char		*iface;
 {
-	struct an_ltv_ssidlist	*ssid;
+	struct an_ltv_ssidlist_new	*ssid;
 	struct an_req		areq;
+	int			i, max;
 
 	areq.an_len = sizeof(areq);
 	areq.an_type = AN_RID_SSIDLIST;
 
 	an_getval(iface, &areq);
 
-	ssid = (struct an_ltv_ssidlist *)&areq;
-	printf("SSID 1:\t\t\t[ %.*s ]\n", ssid->an_ssid1_len, ssid->an_ssid1);
-	printf("SSID 2:\t\t\t[ %.*s ]\n", ssid->an_ssid2_len, ssid->an_ssid2);
-	printf("SSID 3:\t\t\t[ %.*s ]\n", ssid->an_ssid3_len, ssid->an_ssid3);
+	max = (areq.an_len - 4) / sizeof(struct an_ltv_ssid_entry);
+	if ( max > MAX_SSIDS ) {
+		printf("To many SSIDs only printing %d of %d\n",
+		    MAX_SSIDS, max);
+		max = MAX_SSIDS;
+	}
+	ssid = (struct an_ltv_ssidlist_new *)&areq;
+	for (i = 0; i < max; i++)
+		printf("SSID %2d:\t\t\t[ %.*s ]\n", i + 1, 
+		    ssid->an_entry[i].an_len, 
+		    ssid->an_entry[i].an_ssid);
 
 	return;
 }
@@ -1182,37 +1189,38 @@ static void an_setssid(iface, act, arg)
 	int			act;
 	void			*arg;
 {
-	struct an_ltv_ssidlist	*ssid;
+	struct an_ltv_ssidlist_new	*ssid;
 	struct an_req		areq;
+	int			max;
 
 	areq.an_len = sizeof(areq);
 	areq.an_type = AN_RID_SSIDLIST;
 
 	an_getval(iface, &areq);
-	ssid = (struct an_ltv_ssidlist *)&areq;
+	ssid = (struct an_ltv_ssidlist_new *)&areq;
 
-	switch (act) {
-	case ACT_SET_SSID1:
-		bzero(ssid->an_ssid1, sizeof(ssid->an_ssid1));
-		strlcpy(ssid->an_ssid1, (char *)arg, sizeof(ssid->an_ssid1));
-		ssid->an_ssid1_len = strlen(ssid->an_ssid1);
-		break;
-	case ACT_SET_SSID2:
-		bzero(ssid->an_ssid2, sizeof(ssid->an_ssid2));
-		strlcpy(ssid->an_ssid2, (char *)arg, sizeof(ssid->an_ssid2));
-		ssid->an_ssid2_len = strlen(ssid->an_ssid2);
-		break;
-	case ACT_SET_SSID3:
-		bzero(ssid->an_ssid3, sizeof(ssid->an_ssid3));
-		strlcpy(ssid->an_ssid3, (char *)arg, sizeof(ssid->an_ssid3));
-		ssid->an_ssid3_len = strlen(ssid->an_ssid3);
-		break;
-	default:
-		errx(1, "unknown action");
-		break;
+	max = (areq.an_len - 4) / sizeof(struct an_ltv_ssid_entry);
+	if ( max > MAX_SSIDS ) {
+		printf("To many SSIDs only printing %d of %d\n",
+		    MAX_SSIDS, max);
+		max = MAX_SSIDS;
 	}
 
+	if ( act > max ) {
+		errx(1, "bad modifier %d: there "
+		    "are only %d SSID settings", act, max);
+		exit(1);
+	}
+
+	bzero(ssid->an_entry[act-1].an_ssid, 
+	    sizeof(ssid->an_entry[act-1].an_ssid));
+	strlcpy(ssid->an_entry[act-1].an_ssid, (char *)arg, 
+	    sizeof(ssid->an_entry[act-1].an_ssid));
+	ssid->an_entry[act-1].an_len 
+	    = strlen(ssid->an_entry[act-1].an_ssid);
+
 	an_setval(iface, &areq);
+
 	exit(0);
 }
 
@@ -1702,23 +1710,9 @@ int main(argc, argv)
 			arg = optarg;
 			break;
 		case 'n':
-			switch(modifier) {
-			case 0:
-			case 1:
-				act = ACT_SET_SSID1;
-				break;
-			case 2:
-				act = ACT_SET_SSID2;
-				break;
-			case 3:
-				act = ACT_SET_SSID3;
-				break;
-			default:
-				errx(1, "bad modifier %d: there"
-				    "are only 3 SSID settings", modifier);
-				usage(p);
-				break;
-			}
+			if (modifier == 0)
+				modifier = 1;
+			act = ACT_SET_SSID;
 			arg = optarg;
 			break;
 		case 'o':
@@ -1800,10 +1794,8 @@ int main(argc, argv)
 	case ACT_DUMPRSSIMAP:
 		an_dumprssimap(iface);
 		break;
-	case ACT_SET_SSID1:
-	case ACT_SET_SSID2:
-	case ACT_SET_SSID3:
-		an_setssid(iface, act, arg);
+	case ACT_SET_SSID:
+		an_setssid(iface, modifier, arg);
 		break;
 	case ACT_SET_AP1:
 	case ACT_SET_AP2:
