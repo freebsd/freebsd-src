@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.19 1999/04/26 08:54:24 brian Exp $
+ *	$Id: defs.c,v 1.20 1999/05/08 11:06:26 brian Exp $
  */
 
 
@@ -268,7 +268,7 @@ findblank(char *p, int instring)
   if (instring) {
     while (*p) {
       if (*p == '\\') {
-	memmove(p, p + 1, strlen(p + 1));
+	memmove(p, p + 1, strlen(p));
 	if (!*p)
 	  break;
       } else if (*p == '"')
@@ -301,7 +301,7 @@ MakeArgs(char *script, char **pvect, int maxargs)
 	instring = 1;
 	script++;
 	if (*script == '\0')
-	  break;		/* Shouldn't return here. Need to null
+	  break;		/* Shouldn't return here. Need to NULL
 				 * terminate below */
       } else
 	instring = 0;
