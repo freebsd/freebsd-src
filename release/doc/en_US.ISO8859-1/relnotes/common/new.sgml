@@ -630,7 +630,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  <note>
 	    <para>As with &os; &release.base;, <literal>Protocol
 	      1,2</literal> remains the default protocol setting in
-	      <filename>/et/ssh/ssh_config</filename>.  In &os;
+	      <filename>/etc/ssh/ssh_config</filename>.  In &os;
 	      -CURRENT (and &os; &release.branch; as of this writing),
 	      the default is <literal>Protocol 2,1</literal>.</para>
 	  </note>
