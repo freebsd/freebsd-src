@@ -16,6 +16,7 @@ SUBDIR=	alias \
 	biff \
 	brandelf \
 	bzip2 \
+	bzip2recover \
 	c89 \
 	calendar \
 	cap_mkdb \
