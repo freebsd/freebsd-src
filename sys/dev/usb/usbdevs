@@ -1,7 +1,8 @@
 $FreeBSD$
+/* $NetBSD: usbdevs,v 1.388 2004/11/05 13:51:16 scw Exp $ */
 
 /*
- * Copyright (c) 1998, 1999, 2000 The NetBSD Foundation, Inc.
+ * Copyright (c) 1998-2004 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -40,16 +41,12 @@ $FreeBSD$
 /*
  * List of known USB vendors
  *
- * Adding an ID and its string description for a device to the usbdevs
- * file, enables the USB stack to print a useful description of the
- * device that was connected.
- *
- * Please note that these IDs do not do anything. Adding an ID here
- * only makes a symbolic name available to the source code and does
- * not change any functionality, nor does it make your device
- * available to a specific driver.  It will however make the
- * descriptive string available if a device does not provide the
- * string itself.
+ * Please note that these IDs do not do anything. Adding an ID here and
+ * regenerating the usbdevs.h and usbdevs_data.h only makes a symbolic name
+ * available to the source code and does not change any functionality, nor
+ * does it make your device available to a specific driver.
+ * It will however make the descriptive string available if a device does not
+ * provide the string itself.
  *
  * After adding a vendor ID VNDR and a product ID PRDCT you will have the
  * following extra defines:
@@ -60,6 +57,7 @@ $FreeBSD$
  * make the device recognised by the appropriate device driver.
  */
 
+vendor EGALAX2		0x0123  eGalax, Inc.
 vendor LTS		0x0386	LTS
 vendor AOX		0x03e8	AOX
 vendor THESYS		0x03e9	Thesys Microelectronics
@@ -140,31 +138,32 @@ vendor CONNECTIX	0x0478	Connectix
 vendor SEMTECH		0x047a	Semtech Corporation
 vendor KENSINGTON	0x047d	Kensington
 vendor LUCENT		0x047e	Lucent
-vendor KYOCERA		0x0482	Kyocera Corp.
+vendor PLANTRONICS	0x047f	Plantronics
+vendor KYOCERA		0x0482	Kyocera
 vendor STMICRO		0x0483	STMicroelectronics
 vendor FOXCONN		0x0489	Foxconn / Hon Hai
 vendor YAMAHA		0x0499	YAMAHA
-vendor COMPAQ		0x049f	Compaq Computers
-vendor HITACHI		0x04a4	Hitachi, Ltd.
+vendor COMPAQ		0x049f	Compaq
+vendor HITACHI		0x04a4	Hitachi
 vendor ACERP		0x04a5	Acer Peripherals
 vendor VISIONEER	0x04a7	Visioneer
 vendor CANON		0x04a9	Canon
 vendor NIKON		0x04b0	Nikon
 vendor PAN		0x04b1	Pan International
-vendor IBM		0x04b3	IBM Corporation
+vendor IBM		0x04b3	IBM
 vendor CYPRESS		0x04b4	Cypress Semiconductor
 vendor ROHM		0x04b5	ROHM LSI Systems USA
 vendor COMPAL		0x04b7	Compal Electronics
 vendor EPSON		0x04b8	Seiko Epson
 vendor RAINBOW		0x04b9	Rainbow Technologies
-vendor IODATA		0x04bb	I/O Data
+vendor IODATA		0x04bb	I-O Data
 vendor TDK		0x04bf	TDK
 vendor 3COMUSR		0x04c1	U.S. Robotics
 vendor METHODE		0x04c2	Methode Electronics Far East
 vendor MAXISWITCH	0x04c3	Maxi Switch
 vendor LOCKHEEDMER	0x04c4	Lockheed Martin Energy Research
 vendor FUJITSU		0x04c5	Fujitsu
-vendor TOSHIBAAM	0x04c6	Toshiba America Electronic Components
+vendor TOSHIBAAM	0x04c6	Toshiba America
 vendor MICROMACRO	0x04c7	Micro Macro Technologies
 vendor KONICA		0x04c8	Konica
 vendor LITEON		0x04ca	Lite-On Technology
@@ -173,9 +172,9 @@ vendor PHILIPSSEMI	0x04cc	Philips Semiconductors
 vendor TATUNG		0x04cd	Tatung Co. Of America
 vendor SCANLOGIC	0x04ce	ScanLogic
 vendor MYSON		0x04cf	Myson Technology
-vendor DIGI2		0x04d0	Digi International
+vendor DIGI2		0x04d0	Digi
 vendor ITTCANON		0x04d1	ITT Canon
-vendor ALTEC		0x04d2	Altec Lansing Technologies
+vendor ALTEC		0x04d2	Altec Lansing
 vendor LSI		0x04d4	LSI Logic
 vendor MENTORGRAPHICS	0x04d6	Mentor Graphics
 vendor HOLTEK		0x04d9	Holtek Semiconductor
@@ -206,6 +205,7 @@ vendor BELKIN		0x050d	Belkin Components
 vendor KAWATSU		0x050f	Kawatsu Semiconductor
 vendor FCI		0x0514	FCI Electronics
 vendor LONGWELL		0x0516	Longwell Electronics
+vendor COMPOSITE	0x0518	Composite
 vendor STAR		0x0519	Star Micronics
 vendor APC		0x051d	American Power Conversion
 vendor SCIATLANTA	0x051e	Scientific Atlanta
@@ -224,11 +224,11 @@ vendor PREHWERKE	0x053a	Preh Werke Gmbh & Co. KG
 vendor SYNOPSYS		0x053f	Synopsys
 vendor UNIACCESS	0x0540	Universal Access
 vendor VIEWSONIC	0x0543	ViewSonic
-vendor XIRLINK		0x0545	Xirlink / Veo
+vendor XIRLINK		0x0545	Xirlink
 vendor ANCHOR		0x0547	Anchor Chips
 vendor SONY		0x054c	Sony
 vendor FUJIXEROX	0x0550	Fuji Xerox
-vendor VISION		0x0553	VLSI Vision / STMicroelectronics Imaging
+vendor VISION		0x0553	VLSI Vision
 vendor ASAHIKASEI	0x0556	Asahi Kasei Microsystems
 vendor ATEN		0x0557	ATEN International
 vendor MUSTEK		0x055f	Mustek Systems
@@ -245,11 +245,11 @@ vendor CONEXANT		0x0572	Conexant Systems
 vendor HAUPPAUGE	0x0573	Hauppauge Computer Works
 vendor BAFO		0x0576	BAFO/Quality Computer Accessories
 vendor YEDATA		0x057b	Y-E Data
-vendor AVM		0x057c	AVM GmbH
+vendor AVM		0x057c	AVM
 vendor QUICKSHOT	0x057f	Quickshot
 vendor ROLAND		0x0582	Roland
 vendor ROCKFIRE		0x0583	Rockfire
-vendor RATOC		0x0584	RATOC Systems, Inc.
+vendor RATOC		0x0584	RATOC Systems
 vendor ZYXEL		0x0586	ZyXEL Communication
 vendor INFINEON		0x058b	Infineon Technologies
 vendor MICREL		0x058d	Micrel Semiconductor
@@ -264,7 +264,7 @@ vendor FUJIFILM		0x05a2	Fuji Film Microdevices
 vendor ARC		0x05a3	ARC International
 vendor ORTEK		0x05a4	Ortek Technology
 vendor BOSE		0x05a7	Bose
-vendor OMNIVISION	0x05a9	OmniVision Technologies
+vendor OMNIVISION	0x05a9	OmniVision
 vendor INSYSTEM		0x05ab	In-System Design
 vendor APPLE		0x05ac	Apple Computer
 vendor YCCABLE		0x05ad	Y.C. Cable U.S.A
@@ -306,8 +306,11 @@ vendor MACALLY		0x0618	Macally
 vendor ACTLABS		0x061c	Act Labs
 vendor ALARIS		0x0620	Alaris
 vendor APEX		0x0624	Apex
+vendor VIVITAR		0x0636	Vivitar
 vendor AVISION		0x0638	Avision
 vendor TEAC		0x0644	TEAC
+vendor SGI		0x065e	Silicon Graphics
+vendor SANWASUPPLY	0x0663	Sanwa Supply
 vendor LINKSYS		0x066b	Linksys
 vendor ACERSA		0x066e	Acer Semiconductor America
 vendor SIGMATEL		0x066f	Sigmatel
@@ -316,6 +319,7 @@ vendor ACARD		0x0678	ACARD Technology
 vendor PROLIFIC		0x067b	Prolific Technology
 vendor SIEMENS		0x067c	Siemens
 vendor ADVANCELOGIC	0x0680	Avance Logic
+vendor CHPRODUCTS	0x068e	CH Products
 vendor HAGIWARA		0x0693	Hagiwara Sys-Com
 vendor MINOLTA		0x0686	Minolta
 vendor CTX		0x0698	Chuntex
@@ -331,21 +335,26 @@ vendor MULTITECH	0x06e0	MultiTech
 vendor ADS		0x06e1	ADS Technologies
 vendor ALCATELM		0x06e4	Alcatel Microelectronics
 vendor SIRIUS		0x06ea	Sirius Technologies
+vendor GUILLEMOT	0x06f8	Guillemot
 vendor BOSTON		0x06fd	Boston Acoustics
 vendor SMC		0x0707	Standard Microsystems
 vendor PUTERCOM		0x0708	Putercom
 vendor MCT		0x0711	MCT
+vendor IMATION		0x0718	Imation
 vendor SONYERICSSON	0x0731	Sony Ericsson
+vendor EICON		0x0734	Eicon Networks
 vendor DIGITALSTREAM	0x074e	Digital Stream
 vendor AUREAL		0x0755	Aureal Semiconductor
 vendor MIDIMAN		0x0763	Midiman
 vendor LINKSYS2		0x077b	Linksys
 vendor GRIFFIN		0x077d	Griffin Technology
-vendor SANDISK		0x0781	SanDisk Corp
-vendor LOGITEC		0x0789	Logitec Corp
+vendor SANDISK		0x0781	SanDisk
+vendor JENOPTIK		0x0784  Jenoptik
+vendor LOGITEC		0x0789	Logitec
 vendor BRIMAX		0x078e	Brimax
 vendor AXIS		0x0792	Axis Communications
 vendor ABL		0x0794	ABL Electronics
+vendor SUNCOMM		0x079c	Sun Communications, Inc.
 vendor ALFADATA		0x079d	Alfadata Computer
 vendor NATIONALTECH	0x07a2	National Technical Systems
 vendor ONNTO		0x07a3	Onnto
@@ -358,7 +367,7 @@ vendor GENERALINSTMNTS	0x07b2	General Instruments (Motorola)
 vendor OLYMPUS		0x07b4	Olympus
 vendor ABOCOM		0x07b8	AboCom Systems
 vendor KEISOKUGIKEN	0x07c1	Keisokugiken
-vendor ONSPEC		0x07c4	OnSpec Electronic
+vendor ONSPEC		0x07c4	OnSpec
 vendor APG		0x07c5	APG Cash Drawer
 vendor BUG		0x07c8	B.U.G.
 vendor ALLIEDTELESYN	0x07c9	Allied Telesyn International
