@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.55 1999/06/30 23:36:39 sheldonh Exp $";
+	"$Id: inetd.c,v 1.56 1999/06/30 23:47:46 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -258,6 +258,7 @@ struct servtab *getconfigent __P((void));
 void		ident_stream __P((int, struct servtab *));
 void		machtime_dg __P((int, struct servtab *));
 void		machtime_stream __P((int, struct servtab *));
+int		matchservent __P((char *, char *, char *));
 char	       *newstr __P((char *));
 char	       *nextline __P((FILE *));
 void		print_service __P((char *, struct servtab *));
@@ -306,7 +307,7 @@ struct biltin {
 
 	{ "tcpmux",	SOCK_STREAM,	1, -1,	(void (*)())tcpmux },
 
-	{ "ident",	SOCK_STREAM,	1, -1,	ident_stream },
+	{ "auth",	SOCK_STREAM,	1, -1,	ident_stream },
 
 	{ NULL }
 };
@@ -1124,6 +1125,23 @@ close_sep(sep)
 	sep->se_numchild = 0;	/* forget about any existing children */
 }
 
+int
+matchservent(name1, name2, proto)
+	char *name1, *name2, *proto;
+{
+	char **alias;
+	struct servent *se;
+
+	if ((se = getservbyname(name1, proto)) != NULL) {
+		if (strcmp(name2, se->s_name) == 0)
+			return(1);
+		for (alias = se->s_aliases; *alias; alias++)
+			if (strcmp(name2, *alias) == 0)
+				return(1);
+	}
+	return(0);
+}
+
 struct servtab *
 enter(cp)
 	struct servtab *cp;
@@ -1398,8 +1416,10 @@ more:
 		struct biltin *bi;
 
 		for (bi = biltins; bi->bi_service; bi++)
-			if (bi->bi_socktype == sep->se_socktype &&
-			    strcmp(bi->bi_service, sep->se_service) == 0)
+			if ((bi->bi_socktype == sep->se_socktype &&
+			    strcmp(bi->bi_service, sep->se_service) == 0) ||
+			    matchservent(bi->bi_service, sep->se_service,
+			    sep->se_proto))
 				break;
 		if (bi->bi_service == 0) {
 			syslog(LOG_ERR, "internal service %s unknown",
