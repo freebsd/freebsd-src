@@ -176,10 +176,9 @@ struct user {
 	struct	sigacts u_sigacts;	/* *p_sigacts */
 	struct	pstats u_stats;		/* *p_stats */
 	/*
-	 * Remaining fields for a.out core dumps - not valid at other times!
+	 * Remaining field for a.out core dumps - not valid at other times!
 	 */
 	struct	kinfo_proc u_kproc;	/* eproc */
-	struct	md_coredump u_md;	/* glop */
 };
 
 #endif

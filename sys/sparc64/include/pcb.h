@@ -44,9 +44,6 @@ struct pcb {
 	struct	rwindow pcb_rw[MAXWIN];
 };
 
-struct md_coredump {
-};
-
 #ifdef _KERNEL
 int	savectx(struct pcb *pcb);
 #endif

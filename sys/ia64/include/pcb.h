@@ -75,13 +75,6 @@ struct pcb {
 	struct ia64_fpreg	pcb_highfp[96];	/* f32-f127 */
 };
 
-/*
- * The pcb is augmented with machine-dependent additional data for
- * core dumps. Not applicable...
- */
-struct md_coredump {
-};
-
 #ifdef _KERNEL
 void restorectx(struct pcb *);
 void savectx(struct pcb *);
