@@ -114,9 +114,10 @@ static	void cryptointr(void);		/* swi thread to dispatch ops */
 static	void cryptoret(void);		/* kernel thread for callbacks*/
 static	struct proc *cryptoproc;
 static	void crypto_destroy(void);
+static	int crypto_invoke(struct cryptop *crp, int hint);
 
 static struct cryptostats cryptostats;
-SYSCTL_STRUCT(_kern, OID_AUTO, crypto_stats, CTLFLAG_RD, &cryptostats,
+SYSCTL_STRUCT(_kern, OID_AUTO, crypto_stats, CTLFLAG_RW, &cryptostats,
 	    cryptostats, "Crypto system statistics");
 
 #ifdef CRYPTO_TIMING
@@ -609,7 +610,7 @@ crypto_dispatch(struct cryptop *crp)
 
 #ifdef CRYPTO_TIMING
 	if (crypto_timing)
-		microuptime(&crp->crp_tstamp);
+		nanouptime(&crp->crp_tstamp);
 #endif
 	s = splcrypto();
 	wasempty = TAILQ_EMPTY(&crp_q);
@@ -696,23 +697,24 @@ crypto_kinvoke(struct cryptkop *krp, int hint)
 
 #ifdef CRYPTO_TIMING
 static void
-crypto_tstat(struct cryptotstat *ts, struct timeval *tv)
+crypto_tstat(struct cryptotstat *ts, struct timespec *tv)
 {
-	struct timeval now, t;
+	struct timespec now, t;
 
-	microuptime(&now);
+	nanouptime(&now);
 	t.tv_sec = now.tv_sec - tv->tv_sec;
-	t.tv_usec = now.tv_usec - tv->tv_usec;
-	if (t.tv_usec < 0) {
+	t.tv_nsec = now.tv_nsec - tv->tv_nsec;
+	if (t.tv_nsec < 0) {
 		t.tv_sec--;
-		t.tv_usec += 1000000;
+		t.tv_nsec += 1000000000;
 	}
-	if (t.tv_sec == 0) {
-		ts->acc += t.tv_usec;
-		if (t.tv_usec > ts->max)
-			ts->max = t.tv_usec;
-		ts->count++;
-	}
+	timespecadd(&ts->acc, &t);
+	if (timespeccmp(&t, &ts->min, <))
+		ts->min = t;
+	if (timespeccmp(&t, &ts->max, >))
+		ts->max = t;
+	ts->count++;
+
 	*tv = now;
 }
 #endif
@@ -1035,7 +1037,7 @@ cryptoret(void)
 					 * doing the callback as the cryptop is
 					 * likely to be reclaimed.
 					 */
-					struct timeval t = crp->crp_tstamp;
+					struct timespec t = crp->crp_tstamp;
 					crypto_tstat(&cryptostats.cs_cb, &t);
 					crp->crp_callback(crp);
 					crypto_tstat(&cryptostats.cs_finis, &t);
