@@ -113,6 +113,7 @@ tty_Timeout(void *data)
         log_Printf(LogWARN, "%s: Carrier ioctl not supported, "
                    "using ``set cd off''\n", p->link.name);
       timer_Stop(&dev->Timer);
+      dev->mbits = TIOCM_CD;
       return;
     }
   } else
@@ -188,8 +189,7 @@ tty_AwaitCarrier(struct physical *p)
     return CARRIER_PENDING;			/* Not yet ! */
   }
 
-  return Online(dev) || !dev->dev.cd.necessity == CD_REQUIRED ?
-    CARRIER_OK : CARRIER_LOST;
+  return Online(dev) ? CARRIER_OK : CARRIER_LOST;
 }
 
 static int
