@@ -92,7 +92,8 @@ static cn_getc_t	pccngetc;
 static cn_checkc_t	pccncheckc;
 static cn_putc_t	pccnputc;
 
-CONS_DRIVER(pc, pccnprobe, pccninit, pccnterm, pccngetc, pccncheckc, pccnputc);
+CONS_DRIVER(pc, pccnprobe, pccninit, pccnterm, pccngetc, pccncheckc, pccnputc,
+	    NULL);
 
 static	d_open_t	pcopen;
 static	d_close_t	pcclose;

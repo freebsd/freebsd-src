@@ -52,6 +52,7 @@ extern jmp_buf	db_jmpbuf;
 
 extern void	gdb_handle_exception __P((db_regs_t *, int, int));
 
+int	db_active;
 db_regs_t ddb_regs;
 
 static jmp_buf	db_global_jmpbuf;
@@ -132,8 +133,6 @@ kdb_trap(type, code, regs)
 	    ddb_regs.tf_ss = rss();
 	}
 
-	cnpollc(TRUE);
-
 #ifdef SMP
 #ifdef CPUSTOP_ON_DDBBREAK
 
@@ -153,10 +152,14 @@ kdb_trap(type, code, regs)
 
 	(void) setjmp(db_global_jmpbuf);
 	db_global_jmpbuf_valid = TRUE;
-	if (ddb_mode)
+	db_active++;
+	if (ddb_mode) {
+	    cndbctl(TRUE);
 	    db_trap(type, code);
-	else
+	    cndbctl(FALSE);
+	} else
 	    gdb_handle_exception(&ddb_regs, type, code);
+	db_active--;
 	db_global_jmpbuf_valid = FALSE;
 
 #ifdef SMP
@@ -180,8 +183,6 @@ kdb_trap(type, code, regs)
 
 #endif /* CPUSTOP_ON_DDBBREAK */
 #endif /* SMP */
-
-	cnpollc(FALSE);
 
 	regs->tf_eip    = ddb_regs.tf_eip;
 	regs->tf_eflags = ddb_regs.tf_eflags;
@@ -296,12 +297,11 @@ db_write_bytes(addr, size, data)
  * Move this to machdep.c and allow it to be called if any debugger is
  * installed.
  */
-volatile int in_Debugger = 0;
-
 void
 Debugger(msg)
 	const char *msg;
 {
+	static volatile u_char in_Debugger;
 
 	/*
 	 * XXX

@@ -90,9 +90,7 @@
 
 #include <machine/vm86.h>
 
-#ifdef DDB
-	extern int in_Debugger, debugger_on_panic;
-#endif
+#include <ddb/ddb.h>
 
 #include "isa.h"
 #include "npx.h"
@@ -900,7 +898,7 @@ trap_fatal(frame, eva)
 		return;
 #endif
 #ifdef DDB
-	if ((debugger_on_panic || in_Debugger) && kdb_trap(type, 0, frame))
+	if ((debugger_on_panic || db_active) && kdb_trap(type, 0, frame))
 		return;
 #endif
 	printf("trap number		= %d\n", type);

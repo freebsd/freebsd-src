@@ -124,15 +124,7 @@ SYSCTL_INT(_machdep, OID_AUTO, enable_panic_key, CTLFLAG_RW, &enable_panic_key,
 
 #define VIRTUAL_TTY(sc, x) (SC_DEV((sc), (x))->si_tty)
 
-#define debugger	FALSE
-
-#ifdef __i386__
-#ifdef DDB
-extern int		in_Debugger;
-#undef debugger
-#define debugger	in_Debugger
-#endif /* DDB */
-#endif /* __i386__ */
+static	int		debugger;
 
 /* prototypes */
 static int scvidprobe(int unit, int flags, int cons);
@@ -199,13 +191,15 @@ static cn_init_t	sccninit;
 static cn_getc_t	sccngetc;
 static cn_checkc_t	sccncheckc;
 static cn_putc_t	sccnputc;
+static cn_dbctl_t	sccndbctl;
 static cn_term_t	sccnterm;
 
 #if __alpha__
 void sccnattach(void);
 #endif
 
-CONS_DRIVER(sc, sccnprobe, sccninit, sccnterm, sccngetc, sccncheckc, sccnputc);
+CONS_DRIVER(sc, sccnprobe, sccninit, sccnterm, sccngetc, sccncheckc, sccnputc,
+	    sccndbctl);
 
 static	d_open_t	scopen;
 static	d_close_t	scclose;
@@ -1474,6 +1468,28 @@ sccncheckc(dev_t dev)
     return sccngetch(SCGETC_NONBLOCK);
 }
 
+static void
+sccndbctl(dev_t dev, int on)
+{
+    /* try to switch to the kernel console screen */
+    if (on && debugger == 0) {
+	/*
+	 * TRY to make sure the screen saver is stopped, 
+	 * and the screen is updated before switching to 
+	 * the vty0.
+	 */
+	scrn_timer(NULL);
+	if (!cold
+	    && sc_console->sc->cur_scp->smode.mode == VT_AUTO
+	    && sc_console->smode.mode == VT_AUTO)
+	    switch_scr(sc_console->sc, sc_console->index);
+    }
+    if (on)
+	++debugger;
+    else
+	--debugger;
+}
+
 static int
 sccngetch(int flags)
 {
@@ -1553,7 +1569,7 @@ sccnupdate(scr_stat *scp)
     if (scp->sc->font_loading_in_progress || scp->sc->videoio_in_progress)
 	return;
 
-    if (debugger || panicstr || shutdown_in_progress) {
+    if (debugger > 0 || panicstr || shutdown_in_progress) {
 	sc_touch_scrn_saver();
     } else if (scp != scp->sc->cur_scp) {
 	return;
@@ -1626,7 +1642,7 @@ scrn_timer(void *arg)
 
     /* should we stop the screen saver? */
     getmicrouptime(&tv);
-    if (debugger || panicstr || shutdown_in_progress)
+    if (debugger > 0 || panicstr || shutdown_in_progress)
 	sc_touch_scrn_saver();
     if (run_scrn_saver) {
 	if (tv.tv_sec > sc->scrn_time_stamp + scrn_blank_time)
@@ -3720,21 +3736,6 @@ next_code:
 	    case DBG:
 #ifndef SC_DISABLE_DDBKEY
 #ifdef DDB
-		if (debugger)
-		    break;
-		/* try to switch to the kernel console screen */
-		if (sc_console) {
-		    /*
-		     * TRY to make sure the screen saver is stopped, 
-		     * and the screen is updated before switching to 
-		     * the vty0.
-		     */
-		    scrn_timer(NULL);
-		    if (!cold
-			&& sc_console->sc->cur_scp->smode.mode == VT_AUTO
-			&& sc_console->smode.mode == VT_AUTO)
-			switch_scr(sc_console->sc, sc_console->index);
-		}
 		Debugger("manual escape to debugger");
 #else
 		printf("No debugger in kernel\n");

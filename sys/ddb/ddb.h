@@ -67,9 +67,11 @@ func_name(addr, have_addr, count, modif)			\
 
 extern char *esym;
 extern db_expr_t db_maxoff;
+extern int db_active;
 extern int db_indent;
 extern int db_inst_count;
 extern int db_load_count;
+extern int debugger_on_panic;
 extern int db_store_count;
 extern db_expr_t db_radix;
 extern db_expr_t db_max_width;
@@ -77,7 +79,6 @@ extern db_expr_t db_tab_stop_width;
 
 struct vm_map;
 
-void		cnpollc __P((int));
 void		db_check_interrupt __P((void));
 void		db_clear_watchpoints __P((void));
 db_addr_t	db_disasm __P((db_addr_t loc, boolean_t altfmt));
