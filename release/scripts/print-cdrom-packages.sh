@@ -75,10 +75,15 @@ CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
 CDROM_SET_1="${CDROM_SET_1} www/netscape47-communicator"
 CDROM_SET_1="${CDROM_SET_1} www/netscape47-navigator"
 CDROM_SET_1="${CDROM_SET_1} print/acroread"
+CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
+CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
+CDROM_SET_1="${CDROM_SET_1} print/ghostscript6-nox11"
+CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
 
 # VERY common build dependancies
 CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} archivers/bzip2"
+CDROM_SET_1="${CDROM_SET_1} graphics/png"
 
 ## End of set for CDROM #1
 
