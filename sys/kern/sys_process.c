@@ -357,7 +357,7 @@ ptrace(td, uap)
 		PHOLD(p);
 
 		if (uap->req == PT_STEP) {
-			if ((error = ptrace_single_step (td))) {
+			if ((error = ptrace_single_step (&p->p_thread))) {
 				PRELE(p);
 				return error;
 			}
@@ -365,7 +365,7 @@ ptrace(td, uap)
 
 		if (uap->addr != (caddr_t)1) {
 			fill_kinfo_proc (p, &p->p_uarea->u_kproc);
-			if ((error = ptrace_set_pc (td,
+			if ((error = ptrace_set_pc (&p->p_thread,
 			    (u_long)(uintfptr_t)uap->addr))) {
 				PRELE(p);
 				return error;
