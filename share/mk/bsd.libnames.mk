@@ -14,6 +14,7 @@ LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a	# XXX in secure dist, not base
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
 LIBBSDXML?=	${DESTDIR}${LIBDIR}/libbsdxml.a
+LIBBSNMP?=	${DESTDIR}${LIBDIR}/libbsnmp.a
 LIBBLUETOOTH?=	${DESTDIR}${LIBDIR}/libbluetooth.a
 LIBBZ2?=	${DESTDIR}${LIBDIR}/libbz2.a
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
