@@ -46,7 +46,7 @@
 .Op Ar
 .Sh DESCRIPTION
 The
-.Nm column
+.Nm
 utility formats its input into multiple columns.
 Rows are filled before columns.
 Input is taken from
@@ -55,7 +55,7 @@ operands, or, by default, from the standard input.
 Empty lines are ignored.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl c
 Output is formatted for a display
 .Ar columns
@@ -74,9 +74,10 @@ Useful for pretty-printing displays.
 .It Fl x
 Fill columns before filling rows.
 .El
-.Pp
-.Nm Column
-exits 0 on success, >0 if an error occurred.
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
 .Sh ENVIRONMENT
 .Bl -tag -width COLUMNS
 .It Ev COLUMNS

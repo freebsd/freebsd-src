@@ -57,9 +57,8 @@ When you log off,
 exits just before it would have
 printed the next message.
 .Pp
-Options:
-.Pp
-.Bl -tag -width flag
+The following options are available:
+.Bl -tag -width indent
 .It Ar hhmm
 The time of day is in the form
 .Ar hhmm
@@ -81,7 +80,8 @@ from the current time.
 If no argument is given,
 .Nm
 prompts with "When do you
-have to leave?". A reply of newline causes
+have to leave?".
+A reply of newline causes
 .Nm
 to exit,
 otherwise the reply is assumed to be a time.
@@ -90,7 +90,8 @@ This form is suitable for inclusion in a
 or
 .Pa .profile .
 .Pp
-Leave ignores interrupts, quits, and terminates.
+.Nm Leave
+ignores interrupts, quits, and terminates.
 To get rid of it you should either log off or use
 .Ql kill \-s KILL
 giving its process id.

@@ -42,7 +42,7 @@
 .Nm id
 .Nd return user identity
 .Sh SYNOPSIS
-.Nm
+.Nm id
 .Op Ar user
 .Nm id
 .Fl G Op Fl n
@@ -74,7 +74,7 @@ is specified, the user and group IDs of that user are displayed.
 In this case, the real and effective IDs are assumed to be the same.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl G
 Display the different group IDs (effective, real and supplementary)
 as white-space separated numbers, in no particular order.
@@ -121,7 +121,7 @@ options instead of the effective ID.
 .It Fl u
 Display the effective user ID as a number.
 .El
-.Pp
+.Sh DIAGNOSTICS
 The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.

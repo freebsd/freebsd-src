@@ -46,13 +46,21 @@
 The
 .Nm
 command produces output similar to
-.Xr who ,
-but for the list of hosts or all machines on the local
+.Xr who 1 ,
+but for the list of
+.Ar host Ns s
+or all machines on the local
 network.
-For each host responding to the rusers query,
+For each
+.Ar host
+responding to the
+.Nm
+query,
 the hostname with the names of the users currently logged
 on is printed on each line.
-The rusers command will wait for
+The
+.Nm
+command will wait for
 one minute to catch late responders.
 .Pp
 The following options are available:
@@ -68,16 +76,16 @@ and the remote host they logged in from (if applicable).
 .El
 .Sh DIAGNOSTICS
 .Bl -tag -width indent
-.It rusers: RPC: Program not registered
+.It Nm Ns : RPC: Program not registered
 The
 .Xr rpc.rusersd 8
 daemon has not been started on the remote host.
-.It rusers: RPC: Timed out
+.It Nm Ns : RPC: Timed out
 A communication error occurred.  Either the network is
 excessively congested, or the
 .Xr rpc.rusersd 8
 daemon has terminated on the remote host.
-.It rusers: RPC: Port mapper failure - RPC: Timed out
+.It Nm Ns : "RPC: Port mapper failure - RPC: Timed out"
 The remote host is not running the portmapper (see
 .Xr portmap 8 ),
 and cannot accommodate any RPC-based services.  The host may be down.
