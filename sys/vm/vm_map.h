@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.15 1996/07/30 03:08:11 dyson Exp $
+ * $Id: vm_map.h,v 1.16 1996/11/30 22:41:48 dyson Exp $
  */
 
 /*
@@ -104,7 +104,7 @@ struct vm_map_entry {
 	vm_offset_t end;		/* end address */
 	union vm_map_object object;	/* object I point to */
 	vm_ooffset_t offset;		/* offset into object */
-	boolean_t is_a_map:1,		/* Is "object" a map? */
+	u_char is_a_map:1,		/* Is "object" a map? */
 	 is_sub_map:1,			/* Is "object" a submap? */
 	 copy_on_write:1,		/* is data copy-on-write */
 	 needs_copy:1,			/* does object need to be copied */
