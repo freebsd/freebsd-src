@@ -886,6 +886,20 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 }
 
 int
+mac_socket_label_set(struct ucred *cred, struct socket *so,
+    struct label *label)
+{
+	int error;
+
+	error = mac_check_socket_relabel(cred, so, label);
+	if (error)
+		return (error);
+
+	mac_relabel_socket(cred, so, label);
+	return (0);
+}
+
+int
 mac_setsockopt_label(struct ucred *cred, struct socket *so, struct mac *mac)
 {
 	struct label *intlabel;
@@ -906,21 +920,15 @@ mac_setsockopt_label(struct ucred *cred, struct socket *so, struct mac *mac)
 	intlabel = mac_socket_label_alloc(M_WAITOK);
 	error = mac_internalize_socket_label(intlabel, buffer);
 	free(buffer, M_MACTEMP);
-	if (error) {
-		mac_socket_label_free(intlabel);
-		return (error);
-	}
+	if (error)
+		goto out;
 
-	mac_check_socket_relabel(cred, so, intlabel);
-	if (error) {
-		mac_socket_label_free(intlabel);
-		return (error);
-	}
-
-	mac_relabel_socket(cred, so, intlabel);
-
+	/* XXX: Socket lock here. */
+	error = mac_socket_label_set(cred, so, intlabel);
+	/* XXX: Socket unlock here. */
+out:
 	mac_socket_label_free(intlabel);
-	return (0);
+	return (error);
 }
 
 int
