@@ -40,7 +40,7 @@
 .Nd Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46AdDEMoOrRSU
+.Op Fl 46AdDEMoOrRSUv
 .Op Fl l Op Fl l
 .Op Fl a Ar address
 .Op Fl p Ar file
@@ -182,6 +182,9 @@ when a passive mode client requested a data connection to the server,
 the server would use data ports in the range 1024..4999.  Now, by default,
 the server will use data ports in the range 49152..65535.  Specifying this
 option will revert to the old behavior.
+.It Fl v
+A synonym for
+.Fl d .
 .El
 .Pp
 The file
