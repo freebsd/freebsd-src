@@ -584,7 +584,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_WRITE_I:
 	case PT_WRITE_D:
 		write = 1;
-		/* fallthrough */
+		/* FALLTHROUGH */
 	case PT_READ_I:
 	case PT_READ_D:
 		PROC_UNLOCK(p);

@@ -1761,7 +1761,7 @@ reassignbuf(bp, newvp)
 					delay = metadelay;
 					break;
 				}
-				/* fall through */
+				/* FALLTHROUGH */
 			default:
 				delay = filedelay;
 			}

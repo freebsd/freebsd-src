@@ -283,7 +283,7 @@ nextc()
 		s = cptr;
 		break;
 	    }
-	    /* fall through */
+	    /* FALLTHROUGH */
 
 	default:
 	    cptr = s;
@@ -511,7 +511,7 @@ loop:
 	    FREE(t_line);
 	    return;
 	}
-	/* fall through */
+	/* FALLTHROUGH */
 
     default:
 	putc(c, f);

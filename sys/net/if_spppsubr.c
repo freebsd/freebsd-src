@@ -1165,7 +1165,7 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 	case SIOCSIFADDR:
 		/* set the interface "up" when assigning an IP address */
 		ifp->if_flags |= IFF_UP;
-		/* fall through... */
+		/* FALLTHROUGH */
 
 	case SIOCSIFFLAGS:
 		going_up = ifp->if_flags & IFF_UP &&
@@ -1496,7 +1496,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		case STATE_OPENED:
 			(cp->tld)(sp);
 			(cp->scr)(sp);
-			/* fall through... */
+			/* FALLTHROUGH */
 		case STATE_ACK_SENT:
 		case STATE_REQ_SENT:
 			/*
@@ -1560,7 +1560,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			break;
 		case STATE_OPENED:
 			(cp->tld)(sp);
-			/* fall through */
+			/* FALLTHROUGH */
 		case STATE_ACK_RCVD:
 			(cp->scr)(sp);
 			sppp_cp_change_state(cp, sp, STATE_REQ_SENT);
@@ -1615,7 +1615,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			break;
 		case STATE_OPENED:
 			(cp->tld)(sp);
-			/* fall through */
+			/* FALLTHROUGH */
 		case STATE_ACK_RCVD:
 			sppp_cp_change_state(cp, sp, STATE_REQ_SENT);
 			(cp->scr)(sp);
@@ -1637,7 +1637,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		case STATE_ACK_RCVD:
 		case STATE_ACK_SENT:
 			sppp_cp_change_state(cp, sp, STATE_REQ_SENT);
-			/* fall through */
+			/* FALLTHROUGH */
 		case STATE_CLOSED:
 		case STATE_STOPPED:
 		case STATE_CLOSING:
@@ -2002,7 +2002,7 @@ sppp_close_event(const struct cp *cp, struct sppp *sp)
 		break;
 	case STATE_OPENED:
 		(cp->tld)(sp);
-		/* fall through */
+		/* FALLTHROUGH */
 	case STATE_REQ_SENT:
 	case STATE_ACK_RCVD:
 	case STATE_ACK_SENT:
@@ -4158,7 +4158,7 @@ sppp_chap_TO(void *cookie)
 		case STATE_OPENED:
 			/* TO* event */
 			sp->rst_counter[IDX_CHAP] = sp->lcp.max_configure;
-			/* fall through */
+			/* FALLTHROUGH */
 		case STATE_REQ_SENT:
 			chap.scr(sp);
 			/* sppp_cp_change_state() will restart the timer */

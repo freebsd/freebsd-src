@@ -131,7 +131,7 @@ nsipioctl(ifp, cmd, data)
 
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
-		/* fall into: */
+		/* FALLTHROUGH */
 
 	case SIOCSIFDSTADDR:
 		/*

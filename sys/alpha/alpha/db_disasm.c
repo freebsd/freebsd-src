@@ -1012,7 +1012,7 @@ foperate:
 	case op_sts:
 	case op_stt:
 		fstore = TRUE;
-		/* fall through */
+		/* FALLTHROUGH */
 	case op_ldl:
 	case op_ldq:
 	case op_ldl_l:

@@ -318,7 +318,7 @@ trap(frame)
 					goto user;
 				break;
 			}
-			/* FALL THROUGH */
+			/* FALLTHROUGH */
 
 		case T_SEGNPFLT:	/* segment not present fault */
 		case T_TSSFLT:		/* invalid TSS fault */
@@ -593,7 +593,7 @@ trap(frame)
 				goto out;
 			}
 			/*
-			 * Fall through (TRCTRAP kernel mode, kernel address)
+			 * FALLTHROUGH (TRCTRAP kernel mode, kernel address)
 			 */
 		case T_BPTFLT:
 			/*
@@ -635,7 +635,7 @@ trap(frame)
 				goto out;
 			} else if (panic_on_nmi == 0)
 				goto out;
-			/* FALL THROUGH */
+			/* FALLTHROUGH */
 #endif /* POWERFAIL_NMI */
 #endif /* DEV_ISA */
 		}

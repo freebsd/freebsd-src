@@ -1537,7 +1537,7 @@ vga_set_mode(video_adapter_t *adp, int mode)
 #ifdef VGA_WIDTH90
     case M_VGA_C90x60: case M_VGA_M90x60:
 	set_width90(&params);
-	/* FALL THROUGH */
+	/* FALLTHROUGH */
 #endif
     case M_VGA_C80x60: case M_VGA_M80x60:
 	params.regs[2]  = 0x08;
@@ -1547,7 +1547,7 @@ vga_set_mode(video_adapter_t *adp, int mode)
 #ifdef VGA_WIDTH90
     case M_VGA_C90x30: case M_VGA_M90x30:
 	set_width90(&params);
-	/* FALL THROUGH */
+	/* FALLTHROUGH */
 #endif
     case M_VGA_C80x30: case M_VGA_M80x30:
 	params.regs[19] = 0x4f;
@@ -1564,7 +1564,7 @@ special_480l:
 #ifdef VGA_WIDTH90
     case M_VGA_C90x43: case M_VGA_M90x43:
 	set_width90(&params);
-	/* FALL THROUGH */
+	/* FALLTHROUGH */
 #endif
     case M_ENH_C80x43: case M_ENH_B80x43:
 	params.regs[28] = 87;
@@ -1573,7 +1573,7 @@ special_480l:
 #ifdef VGA_WIDTH90
     case M_VGA_C90x50: case M_VGA_M90x50:
 	set_width90(&params);
-	/* FALL THROUGH */
+	/* FALLTHROUGH */
 #endif
     case M_VGA_C80x50: case M_VGA_M80x50:
 special_80x50:
@@ -1584,7 +1584,7 @@ special_80x50:
 #ifdef VGA_WIDTH90
     case M_VGA_C90x25: case M_VGA_M90x25:
 	set_width90(&params);
-	/* FALL THROUGH */
+	/* FALLTHROUGH */
 #endif
     case M_VGA_C40x25: case M_VGA_C80x25:
     case M_VGA_M80x25:

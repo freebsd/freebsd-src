@@ -443,9 +443,7 @@ route_output(m, so)
 			       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, &info);
 			if (genmask)
 				rt->rt_genmask = genmask;
-			/*
-			 * Fall into
-			 */
+			/* FALLTHROUGH */
 		case RTM_LOCK:
 			rt->rt_rmx.rmx_locks &= ~(rtm->rtm_inits);
 			rt->rt_rmx.rmx_locks |=

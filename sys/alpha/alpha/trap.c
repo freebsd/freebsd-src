@@ -404,7 +404,7 @@ trap(a0, a1, a2, entry, framep)
 				ucode =  a0;	/* exception summary */
 				break;
 			}
-			/* FALLTHROUTH */
+			/* FALLTHROUGH */
 		case ALPHA_IF_CODE_BPT:
 		case ALPHA_IF_CODE_BUGCHK:
 			if (td->td_md.md_flags & (MDTD_STEP1|MDTD_STEP2)) {
