@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $Id: ufs_bmap.c,v 1.15 1997/03/09 06:10:31 mpp Exp $
+ * $Id: ufs_bmap.c,v 1.16 1997/09/02 20:06:56 bde Exp $
  */
 
 #include <sys/param.h>
@@ -248,9 +248,10 @@ ufs_getlbns(vp, bn, ap, nump)
 	struct indir *ap;
 	int *nump;
 {
-	long metalbn, realbn;
+	long blockcnt, metalbn, realbn;
 	struct ufsmount *ump;
-	int blockcnt, i, numlevels, off;
+	int i, numlevels, off;
+	int64_t qblockcnt;
 
 	ump = VFSTOUFS(vp->v_mount);
 	if (nump)
@@ -267,15 +268,21 @@ ufs_getlbns(vp, bn, ap, nump)
 	/*
 	 * Determine the number of levels of indirection.  After this loop
 	 * is done, blockcnt indicates the number of data blocks possible
-	 * at the given level of indirection, and NIADDR - i is the number
+	 * at the previous level of indirection, and NIADDR - i is the number
 	 * of levels of indirection needed to locate the requested block.
 	 */
 	for (blockcnt = 1, i = NIADDR, bn -= NDADDR;; i--, bn -= blockcnt) {
 		if (i == 0)
 			return (EFBIG);
-		blockcnt *= MNINDIR(ump);
-		if (bn < blockcnt)
+		/*
+		 * Use int64_t's here to avoid overflow for triple indirect
+		 * blocks when longs have 32 bits and the block size is more
+		 * than 4K.
+		 */
+		qblockcnt = (int64_t)blockcnt * MNINDIR(ump);
+		if (bn < qblockcnt)
 			break;
+		blockcnt = qblockcnt;
 	}
 
 	/* Calculate the address of the first meta-block. */
@@ -299,7 +306,6 @@ ufs_getlbns(vp, bn, ap, nump)
 		if (metalbn == realbn)
 			break;
 
-		blockcnt /= MNINDIR(ump);
 		off = (bn / blockcnt) % MNINDIR(ump);
 
 		++numlevels;
@@ -309,6 +315,7 @@ ufs_getlbns(vp, bn, ap, nump)
 		++ap;
 
 		metalbn -= -1 + off * blockcnt;
+		blockcnt /= MNINDIR(ump);
 	}
 	if (nump)
 		*nump = numlevels;
