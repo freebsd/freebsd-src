@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ftp.c,v 1.1 1997/01/30 21:43:40 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -114,9 +114,7 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 
 	p = slash + 1;
 
-	ftps = malloc(sizeof *ftps);
-	if (ftps == 0)
-		err(EX_OSERR, "malloc");
+	ftps = safe_malloc(sizeof *ftps);
 
 	/*
 	 * Now, we have a copy of the hostname in hostname, the specified port
@@ -146,7 +144,7 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 
 	if (fs->fs_outputfile == 0) {
 		slash = strrchr(p, '/');
-		fs->fs_outputfile = slash + 1;
+		fs->fs_outputfile = slash ? slash + 1 : p;
 	}
 
 	ftps->ftp_password = getenv("FTP_PASSWORD");
@@ -161,9 +159,7 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 		if (logname == 0)
 			logname = "root";
 		gethostname(localhost, sizeof localhost);
-		pw = malloc(strlen(logname) + 1 + strlen(localhost) + 1);
-		if (pw == 0)
-			err(EX_OSERR, "malloc");
+		pw = safe_malloc(strlen(logname) + 1 + strlen(localhost) + 1);
 		strcpy(pw, logname);
 		strcat(pw, "@");
 		strcat(pw, localhost);
@@ -242,10 +238,9 @@ ftp_proxy_parse(struct fetch_state *fs, const char *uri)
 
 	ftps->ftp_port = portno;
 	user = ftps->ftp_user ? ftps->ftp_user : "anonymous";
-	newpass = malloc(strlen(ftps->ftp_user ? ftps->ftp_user : "anonymous")
-			 + 1 + strlen(ftps->ftp_hostname) + 1);
-	if (newpass == 0)
-		err(EX_OSERR, "malloc");
+	newpass = safe_malloc(strlen(ftps->ftp_user 
+				     ? ftps->ftp_user : "anonymous")
+			      + 1 + strlen(ftps->ftp_hostname) + 1);
 
 	strcpy(newpass, user);
 	strcat(newpass, "@");
