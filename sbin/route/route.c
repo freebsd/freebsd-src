@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.23 1997/04/02 16:52:45 phk Exp $";
+	"$Id: route.c,v 1.24 1997/04/02 17:05:30 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -120,7 +120,7 @@ usage(cp)
 	if (cp)
 		warnx("bad keyword: %s", cp);
 	(void) fprintf(stderr,
-	    "usage: route [ -nqv ] cmd [[ -<qualifers> ] args ]\n");
+	    "usage: route [ -nqv ] command [[ modifiers ] args ]\n");
 	exit(EX_USAGE);
 	/* NOTREACHED */
 }
