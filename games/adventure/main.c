@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "hdr.h"
