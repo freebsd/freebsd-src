@@ -38,7 +38,7 @@
 static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif not lint
+#endif
 
 #ifndef lint
 #if 0
@@ -46,13 +46,14 @@ static char sccsid[] = "@(#)nfsiod.c	8.4 (Berkeley) 5/3/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
-#endif not lint
+#endif
 
 #include <sys/param.h>
 #include <sys/syslog.h>
 #include <sys/wait.h>
 #include <sys/mount.h>
 #include <sys/time.h>
+#include <sys/sysctl.h>
 
 #include <err.h>
 #include <stdio.h>
@@ -71,11 +72,10 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	int ch, num_servers;
+	int ch;
 	struct vfsconf vfc;
 	int error;
-	unsigned int iodmin;
-	unsigned int iodmax;
+	unsigned int iodmin, iodmax, num_servers;
 	size_t len;
 
 	error = getvfsbyname("nfs", &vfc);
@@ -137,5 +137,6 @@ main(int argc, char *argv[])
 	error = sysctlbyname("vfs.nfs.iodmax", NULL, 0, &iodmax, sizeof iodmax);
 	if (error < 0)
 		err(1, "sysctlbyname(\"vfs.nfs.iodmax\")");
+	exit (0);
 }
 
