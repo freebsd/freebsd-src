@@ -29,7 +29,6 @@ PECOFF_SUPPORT		opt_dontuse.h
 PECOFF_DEBUG		opt_pecoff.h
 # i386 SMP options
 APIC_IO			opt_global.h
-HTT
 
 # Change KVM size.  Changes things all over the kernel.
 KVA_PAGES		opt_global.h
