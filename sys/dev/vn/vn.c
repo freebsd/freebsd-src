@@ -68,7 +68,6 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/errno.h>
-#include <sys/dkstat.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/ioctl.h>
@@ -76,6 +75,10 @@
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/uio.h>
+#ifdef TEST_LABELLING
+#include <sys/disklabel.h>
+#include <sys/diskslice.h>
+#endif
 
 #include <miscfs/specfs/specdev.h>
 
@@ -89,7 +92,11 @@ int vndebug = 0x00;
 #define VDB_IO		0x04
 #endif
 
+#ifdef TEST_LABELLING
+#define	vnunit(dev)	dkunit(dev)
+#else
 #define	vnunit(x)	(minor(x) >> 3)
+#endif
 
 #define	getvnbuf()	\
 	((struct buf *)malloc(sizeof(struct buf), M_DEVBUF, M_WAITOK))
@@ -104,6 +111,9 @@ struct vn_softc {
 	struct ucred	*sc_cred;	/* credentials */
 	int		 sc_maxactive;	/* max # of active requests */
 	struct buf	 sc_tab;	/* transfer queue */
+#ifdef TEST_LABELLING
+	struct diskslices *sc_slices;
+#endif
 };
 
 /* sc_flags */
@@ -112,6 +122,9 @@ struct vn_softc {
 struct vn_softc **vn_softc;
 int numvnd;
 
+/*
+ * XXX these decls should be static (without __P(())) or elsewhere.
+ */
 void	vnattach __P((int num));
 int	vnopen __P((dev_t dev, int flags, int mode, struct proc *p));
 void	vnstrategy __P((struct buf *bp));
@@ -127,13 +140,24 @@ void	vnclear __P((struct vn_softc *vn));
 size_t	vnsize __P((dev_t dev));
 int	vndump __P((dev_t dev));
 
-int vnclose() {return 0;}
+int
+vnclose(dev_t dev, int flags, int mode, struct proc *p)
+{
+#ifdef TEST_LABELLING
+	struct vn_softc *vn;
+
+	vn = vn_softc[vnunit(dev)];
+	if (vn->sc_slices != NULL)
+		dsclose(dev, mode, vn->sc_slices);
+#endif
+	return (0);
+}
 
 int
 vnopen(dev_t dev, int flags, int mode, struct proc *p)
 {
 	int unit = vnunit(dev),size;
-	struct vn_softc **vscp, **old;
+	struct vn_softc **vscp, **old, *vn;
 
 #ifdef DEBUG
 	if (vndebug & VDB_FOLLOW)
@@ -157,13 +181,37 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 		if (old)
 			free(old, M_DEVBUF);
 	}
-	if (!vn_softc[unit]) {
-		vn_softc[unit] = (struct vn_softc *) 
-			malloc (sizeof **vn_softc, M_DEVBUF, M_WAITOK);
-		if (!vn_softc[unit])
-			return(ENOMEM);
-		bzero(vn_softc[unit], sizeof **vn_softc);
+	vn = vn_softc[unit];
+	if (!vn) {
+		vn = malloc(sizeof *vn, M_DEVBUF, M_WAITOK);
+		if (!vn)
+			return (ENOMEM);
+		bzero(vn, sizeof *vn);
+		vn_softc[unit] = vn;
 	}
+#ifdef TEST_LABELLING
+	if (vn->sc_flags & VNF_INITED) {
+		int error;
+		struct disklabel label;
+
+		/* Build label for whole disk.  */
+		bzero(&label, sizeof label);
+		label.d_secsize = DEV_BSIZE;
+		label.d_nsectors = vn->sc_size;
+		label.d_ntracks = 1;
+		label.d_ncylinders = 1;
+		label.d_secpercyl = label.d_nsectors;
+		label.d_secperunit = label.d_partitions[RAW_PART].p_size
+				   = label.d_nsectors;
+
+		error = dsopen("vn", dev, mode, &vn->sc_slices, &label,
+			       vnstrategy, (ds_setgeom_t *)NULL);
+#if 0
+		/* XXX temporary */
+		return (error);
+#endif
+	}
+#endif /* TEST_LABELLING */
 	return(0);
 }
 
@@ -192,6 +240,15 @@ vnstrategy(struct buf *bp)
 		biodone(bp);
 		return;
 	}
+#ifdef TEST_LABELLING
+	bp->b_resid = bp->b_bcount;	/* XXX best place to set this? */
+	if (vn->sc_slices != NULL && dscheck(bp, vn->sc_slices) <= 0) {
+		biodone(bp);
+		return;
+	}
+ 	bn = bp->b_pblkno;
+	bp->b_resid = bp->b_bcount;	/* XXX best place to set this? */
+#else /* !TEST_LABELLING */
 	bn = bp->b_blkno;
 	sz = howmany(bp->b_bcount, DEV_BSIZE);
 	bp->b_resid = bp->b_bcount;
@@ -203,6 +260,7 @@ vnstrategy(struct buf *bp)
 		biodone(bp);
 		return;
 	}
+#endif /* TEST_LABELLING */
 	bn = dbtob(bn);
 	bsize = vn->sc_vp->v_mount->mnt_stat.f_iosize;
 	addr = bp->b_data;
@@ -273,7 +331,11 @@ vnstrategy(struct buf *bp)
 		/*
 		 * Just sort by block number
 		 */
-		nbp->b_resid = nbp->b_blkno;
+		/*
+		 * XXX sort at all?  The lowest layer should repeat the sort.
+		 */
+#define	b_cylinder	b_resid		/* XXX */
+		nbp->b_cylinder = nbp->b_blkno;
 		s = splbio();
 		disksort(&vn->sc_tab, nbp);
 		if (vn->sc_tab.b_active < vn->sc_maxactive) {
@@ -390,9 +452,28 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		printf("vnioctl(%x, %x, %x, %x, %x): unit %d\n",
 		       dev, cmd, data, flag, p, unit);
 #endif
+
+#ifdef TEST_LABELLING
+	/*
+	 * XXX test is unnecessary?
+	 */
+	if (unit >= numvnd)
+		return (ENXIO);
+	vn = vn_softc[unit];
+	if (vn->sc_slices) {
+		error = dsioctl(dev, cmd, data, flag, vn->sc_slices, vnstrategy,
+				(ds_setgeom_t *)NULL);
+		if (error != -1)
+			return (error);
+	}
+#endif
+
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error)
 		return (error);
+	/*
+	 * XXX test is unnecessary?
+	 */
 	if (unit >= numvnd)
 		return (ENXIO);
 
@@ -511,7 +592,7 @@ vnshutdown()
 			vnclear(vn_softc[i]);
 }
 
-TEXT_SET(cleanup_set,vnshutdown);
+TEXT_SET(cleanup_set, vnshutdown);
 
 void
 vnclear(struct vn_softc *vn)
@@ -531,6 +612,7 @@ vnclear(struct vn_softc *vn)
 	vn->sc_vp = (struct vnode *)0;
 	vn->sc_cred = (struct ucred *)0;
 	vn->sc_size = 0;
+	vn->sc_slices = NULL;	/* XXX temportary; leaks memory, maybe worse */
 }
 
 size_t
