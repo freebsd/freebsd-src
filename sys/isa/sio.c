@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.21 1994/01/02 10:17:29 ache Exp $
+ *	$Id: sio.c,v 1.22 1994/01/11 18:31:45 ache Exp $
  */
 
 #include "sio.h"
@@ -83,6 +83,7 @@
 #define COM_ISMULTIPORT(dev) ((dev)->id_flags & 0x01)
 #define COM_MPMASTER(dev)    (((dev)->id_flags >> 8) & 0x0ff)
 #endif /* COM_MULTIPORT */
+#define COM_NOFIFO(dev) ((dev)->id_flags & 0x02)
 
 #ifndef	FIFO_TRIGGER
 /*
@@ -475,8 +476,12 @@ sioattach(isdp)
 		printf(" 16550?");
 		break;
 	case FIFO_TRIGGER_14:
-		com->hasfifo = TRUE;
 		printf(" 16550A");
+		if (COM_NOFIFO(isdp)) {
+			printf(" fifo software disabled");
+		} else {
+			com->hasfifo = TRUE;
+		}
 		break;
 	}
 	outb(iobase + com_fifo, 0);
