@@ -82,7 +82,7 @@ The
 function sets the value of the global value
 .Ev _INVALID_RUNE
 to be
-.Fa rune.
+.Fa rune .
 .Pp
 The
 .Fn sgetrune
@@ -100,7 +100,7 @@ is not
 .Dv NULL ,
 .Fa *result
 will point to the first byte which was not converted in
-.Fa string.
+.Fa string .
 If the first
 .Fa n
 bytes of
@@ -110,14 +110,14 @@ do not describe a full multibyte character,
 is returned and
 .Fa *result
 will point to
-.Fa string.
+.Fa string .
 If there is an encoding error at the start of
 .Fa string ,
 .Ev _INVALID_RUNE
 is returned and 
 .Fa *result
 will point to the second character of
-.Fa string.
+.Fa string .
 .Pp
 the
 .Fn sputrune
@@ -210,7 +210,8 @@ The
 function returns one of the following values:
 .Bl -tag -width WWWWWWWW
 .It Dv 0
-.Fa setrunelocale was successful.
+.Fn setrunelocale
+was successful.
 .It Ev EFAULT
 .Fa locale
 was
