@@ -683,6 +683,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0xf015f435, NULL},	/* MOT15F0 - Motorola VoiceSURFR 56K Modem */
 	{0x6045f435, NULL},	/* MOT4560 - Motorola ? */
 	{0x61e7a338, NULL},	/* NECE761 - 33.6Modem */
+ 	{0x08804f3f, NULL},	/* OZO8008 - Zoom  (33.6k Modem) */
 	{0x0f804f3f, NULL},	/* OZO800f - Zoom 2812 (56k Modem) */
 	{0x39804f3f, NULL},	/* OZO8039 - Zoom 56k flex */
 	{0x3024a341, NULL},	/* PMC2430 - Pace 56 Voice Internal Modem */
