@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.109 1996/06/08 10:03:35 bde Exp $
+ *	$Id: wd.c,v 1.1.1.1 1996/06/14 10:04:48 asami Exp $
  */
 
 /* TODO:
@@ -120,6 +120,7 @@ extern void wdstart(int ctrlr);
 				/* can't handle that in all cases */
 #define WDOPT_32BIT	0x8000
 #define WDOPT_SLEEPHACK	0x4000
+#define WDOPT_FORCEHD(x)	(((x)&0x0f00)>>8)
 #define WDOPT_MULTIMASK	0x00ff
 
 
@@ -334,7 +335,9 @@ static int wdcontrol(struct buf *bp);
 static int wdcommand(struct disk *du, u_int cylinder, u_int head,
 		     u_int sector, u_int count, u_int command);
 static int wdsetctlr(struct disk *du);
+#if 0
 static int wdwsetctlr(struct disk *du);
+#endif
 static int wdgetctlr(struct disk *du);
 static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
@@ -849,7 +852,6 @@ wdstart(int ctrlr)
 	if (wdtab[ctrlr].b_active)
 		return;
 #endif
-loop:
 	/* is there a drive for the controller to do a transfer with? */
 	bp = wdtab[ctrlr].controller_queue.tqh_first;
 	if (bp == NULL) {
@@ -1660,6 +1662,7 @@ wdsetctlr(struct disk *du)
 	return (0);
 }
 
+#if 0
 /*
  * Wait until driver is inactive, then set up controller.
  */
@@ -1676,6 +1679,7 @@ wdwsetctlr(struct disk *du)
 	splx(x);
 	return (stat);
 }
+#endif
 
 /*
  * issue READP to drive to ask it what it is.
@@ -1859,9 +1863,8 @@ failed:
 #ifdef PC98
 	/* for larger than 40MB */
 	{
-	  long cyl = wp->wdp_fixedcyl * wp->wdp_heads * wp->wdp_sectors;
-	  wp->wdp_removcyl = 0;			/* XXX ukai */
-#ifdef	PC98
+	  long cyl = wp->wdp_cylinders * wp->wdp_heads * wp->wdp_sectors;
+
 	  if ( du->dk_unit > 1 ) {
 	 	 wp->wdp_sectors = 17;
 		 wp->wdp_heads = 8;
@@ -1869,8 +1872,8 @@ failed:
 		 wp->wdp_sectors = bootinfo.bi_bios_geom[du->dk_unit] & 0xff;
 		 wp->wdp_heads = (bootinfo.bi_bios_geom[du->dk_unit] >> 8) & 0xff;
 	  }
-#endif
-	  wp->wdp_fixedcyl = cyl / (wp->wdp_heads * wp->wdp_sectors);
+
+	  wp->wdp_cylinders = cyl / (wp->wdp_heads * wp->wdp_sectors);
 	}
 #endif
 
@@ -1881,6 +1884,13 @@ failed:
 	du->dk_dd.d_nsectors = wp->wdp_sectors;
 	du->dk_dd.d_secpercyl = du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
 	du->dk_dd.d_secperunit = du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders;
+	if (WDOPT_FORCEHD(du->cfg_flags)) {
+		du->dk_dd.d_ntracks = WDOPT_FORCEHD(du->cfg_flags);
+		du->dk_dd.d_secpercyl = 
+		    du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
+		du->dk_dd.d_ncylinders =
+		    du->dk_dd.d_secperunit / du->dk_dd.d_secpercyl;
+	}
 #if 0
 	du->dk_dd.d_partitions[RAW_PART].p_size = du->dk_dd.d_secperunit;
 	/* dubious ... */

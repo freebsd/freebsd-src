@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.29 1996/01/06 23:10:52 peter Exp $
+ *	$Id: npx.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
  */
 
 #include "npx.h"
@@ -54,6 +54,7 @@
 
 #include <machine/cpu.h>
 #include <machine/pcb.h>
+#include <machine/md_var.h>
 #include <machine/trap.h>
 #include <machine/clock.h>
 #include <machine/specialreg.h>

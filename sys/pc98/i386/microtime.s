@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.13 1996/05/31 01:08:02 peter Exp $
+ *	$Id: microtime.s,v 1.1.1.1 1996/06/14 10:04:41 asami Exp $
  */
 
 #include <machine/asmacros.h>
@@ -60,6 +60,7 @@ ENTRY(microtime)
 
 	movb	$TIMER_SEL0|TIMER_LATCH, %al	/* prepare to latch */
 
+	pushfl
 	cli			/* disable interrupts */
 
 	outb	%al, $TIMER_MODE	/* latch timer 0's counter */
@@ -218,7 +219,7 @@ overflow:
 #endif	/* !AUTO_CLOCK */
 #else	/* IBM-PC */
 #if 0
-	imul	$27645, %edx				/* 25 cycles on a 486 */
+	imul	$27465, %edx				/* 25 cycles on a 486 */
 #else
 	leal	(%edx,%edx,2), %eax	/* a = 3	2 cycles on a 486   */
 	leal	(%edx,%eax,4), %eax	/* a = 13	2		    */
@@ -235,7 +236,7 @@ common_microtime:
 	addl	_time+4, %eax	/* usec += time.tv_sec */
 	movl	_time, %edx	/* sec = time.tv_sec */
 
-	sti			/* enable interrupts */
+	popfl			/* restore interrupt mask */
 
 	cmpl	$1000000, %eax	/* usec valid? */
 	jb	1f
@@ -251,6 +252,7 @@ common_microtime:
 #if defined(I586_CPU) || defined(I686_CPU)
 	ALIGN_TEXT
 pentium_microtime:
+	pushfl
 	cli
 	.byte	0x0f, 0x31	/* RDTSC */
 	subl	_i586_ctr_bias, %eax

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.99 1996/05/27 22:32:23 gpalmer Exp $
+ *	$Id: if_ed.c,v 1.1.1.1 1996/06/14 10:04:43 asami Exp $
  */
 
 /*
@@ -38,8 +38,16 @@
  */
 
 /*
- * FreeBSD(98) supports the LGY-98 series, EGY-98 series, LGH-98 series,
- * IF_2766ET, AD-ET2-T, SIC-98 series, LD-BDN and LPC-T.
+ * FreeBSD(98) supports:
+ *    Allied Telesis CenterCom LA-98-T, SIC-98
+ *    D-Link DE-298P, DE-298
+ *    ELECOM LANEED LD-BDN
+ *    ICM DT-ET-25, DT-ET-T5, IF-2766ET, IF_2711ET
+ *    IO-DATA PCLA/T, LA/T-98
+ *    MACNICA NE2098
+ *    NEC PC-9801-108
+ *    MELCO LPC-TJ, LPC-TS, LGY-98, LGH-98, IND-SP, IND-SS, EGY-98
+ *    PLANET SMART COM CREDITCARD/2000 PCMCIA, EN-2298
  *
  * Modified for FreeBSD(98) 2.2 by KATO T. of Nagoya University.
  *
@@ -90,17 +98,19 @@
 #endif
 
 #include <machine/clock.h>
+#include <machine/md_var.h>
 
 #ifdef PC98
-#include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_device.h>
 #include <pc98/pc98/icu.h>
-#include <pc98/pc98/if_edreg.h>
 #else
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
+#endif
 #include <i386/isa/if_edreg.h>
+
+#ifdef PC98
+#include <pc98/pc98/if_ed98.h>
 #endif
 
 /*
@@ -331,120 +341,6 @@ card_intr(struct pccard_dev *dp)
 #endif /* NCRD > 0 */
 
 #ifdef PC98
-/* LPC-T support */
-#define LPCT_1d0_ON() \
-{ \
-	outb(0x2a8e, 0x84); \
-	outw(0x4a8e, 0x1d0); \
-	outw(0x5a8e, 0x0310); \
-}
-
-#define LPCT_1d0_OFF() \
-{ \
-	outb(0x2a8e, 0xa4); \
-	outw(0x4a8e, 0xd0); \
-	outw(0x5a8e, 0x0300); \
-}
-
-/* register offsets */
-static unsigned int *edp[NED];
-static unsigned int pc98_io_skip[NED];
-static int ed_novell_nic_offset[NED];
-static int ed_novell_asic_offset[NED];
-static int ed_novell_data[NED];
-static int ed_novell_reset[NED];
-
-/* NE2000, LGY-98, ICM, LPC-T */
-static unsigned int edp_generic[16] = {
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
-};
-
-/* EGY-98 */
-static unsigned int edp_egy98[16] = {
-	0,     0x02,  0x04,  0x06,  0x08,  0x0a,  0x0c,  0x0e,
-	0x100, 0x102, 0x104, 0x106, 0x108, 0x10a, 0x10c, 0x10e
-};
-
-/* LD-BDN */
-static unsigned int edp_bdn98[16] = {
-	0x00000, 0x01000, 0x02000, 0x03000, 0x04000, 0x05000, 0x06000, 0x07000,
-	0x08000, 0x0a000, 0x0b000, 0x0c000, 0x0d000, 0x0d000, 0x0e000, 0x0f000
-};
-
-/* SIC-98 */
-static unsigned int edp_sic98[16] = {
-	0x0000, 0x0200, 0x0400, 0x0600, 0x0800, 0x0a00, 0x0c00, 0x0e00,
-	0x1000, 0x1200, 0x1400, 0x1600, 0x1800, 0x1a00, 0x1c00, 0x1e00
-};
-
-
-static void pc98_set_register(int unit, int type)
-{
-	switch (type) {
-	case ED_TYPE98_GENERIC:
-		edp[unit] = edp_generic;
-		pc98_io_skip[unit] = 1;
-		ED_NOVELL_NIC_OFFSET = 0x0000;
-		ED_NOVELL_ASIC_OFFSET = 0x0010;
-		ED_NOVELL_DATA = 0x0000;
-		ED_NOVELL_RESET = 0x000f;
-		break;
-
-	case ED_TYPE98_LGY:
-		edp[unit] = edp_generic;
-		pc98_io_skip[unit] = 1;
-		ED_NOVELL_NIC_OFFSET = 0x0000;
-		ED_NOVELL_ASIC_OFFSET = 0x0200;
-		ED_NOVELL_DATA = 0x0000;
-		ED_NOVELL_RESET = 0x0100;
-		break;
-
-	case ED_TYPE98_EGY:
-		edp[unit] = edp_egy98;
-		pc98_io_skip[unit] = 2;
-		ED_NOVELL_NIC_OFFSET = 0;
-		ED_NOVELL_ASIC_OFFSET = 0x0200;
-		ED_NOVELL_DATA = 0x0000;
-		ED_NOVELL_RESET = 0x0100;
-		break;		
-
-	case ED_TYPE98_ICM:
-		edp[unit] = edp_generic;
-		pc98_io_skip[unit] = 1;
-		ED_NOVELL_NIC_OFFSET = 0;
-		ED_NOVELL_ASIC_OFFSET = 0x0100;
-		ED_NOVELL_DATA = 0x0000;
-		ED_NOVELL_RESET = 0x000f;
-		break;
-
-	case ED_TYPE98_BDN:
-		edp[unit] = edp_bdn98;
-		pc98_io_skip[unit] = 0x1000;
-		ED_NOVELL_NIC_OFFSET = 0x0000;
-		ED_NOVELL_ASIC_OFFSET = 0x0100;
-		ED_NOVELL_DATA = 0;
-		ED_NOVELL_RESET = 0xc100;
-		break;
-
-	case ED_TYPE98_SIC:
-		edp[unit] = edp_sic98;
-		pc98_io_skip[unit] = 0x200;
-		ED_NOVELL_NIC_OFFSET = 0x0000;
-		ED_NOVELL_ASIC_OFFSET = 0x2000;
-		ED_NOVELL_DATA = 0x00;			/* dummy */
-		ED_NOVELL_RESET = 0x00;
-		break;
-
-	case ED_TYPE98_LPC:
-		edp[unit] = edp_generic;
-		pc98_io_skip[unit] = 0x1;
-		ED_NOVELL_NIC_OFFSET = 0x0000;
-		ED_NOVELL_ASIC_OFFSET = 0x0100;
-		ED_NOVELL_DATA = 0x0000;
-		ED_NOVELL_RESET = 0x0200;
-	}
-}
-
 struct pc98_driver eddriver = {
 #else
 struct isa_driver eddriver = {
@@ -553,18 +449,33 @@ ed_probe(isa_dev)
 #endif /* not DEV_LKM */
 
 #ifdef PC98
-	ed_softc[isa_dev->id_unit].unit = isa_dev->id_unit;
+	/*
+	 * XXX
+	 * MELCO LPC-TJ, LPC-TS
+	 * PLANET SMART COM CREDITCARD/2000 PCMCIA
+	 * IO-DATA PCLA/T
+	 */
+	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev) == ED_TYPE98_LPC)) {
+		ed_softc[isa_dev->id_unit].unit = isa_dev->id_unit;
+		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LPC;
+		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_LPC);
+		nports = ed_probe_Novell(isa_dev);
+		if (nports)
+			return (nports);
+	}
 
-	ed_softc[isa_dev->id_unit].type = ED_TYPE98_LPC;
-	pc98_set_register(isa_dev->id_unit, ED_TYPE98_LPC);
-	nports = ed_probe_Novell(isa_dev);
-	if (nports)
-		return (nports);
-
+	/*
+	 * Generic probe routine
+	 * Allied Telesis CenterCom LA-98-T
+	 */
 	ed_softc[isa_dev->id_unit].type = ED_TYPE98_GENERIC;
-	pc98_set_register(isa_dev->id_unit, ED_TYPE98_GENERIC);
+	pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_GENERIC);
 #endif
 
+#ifdef PC98
+	if (ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) {
+#endif
 	nports = ed_probe_WD80x3(isa_dev);
 	if (nports)
 		return (nports);
@@ -576,36 +487,102 @@ ed_probe(isa_dev)
 	nports = ed_probe_Novell(isa_dev);
 	if (nports)
 		return (nports);
+#ifdef PC98
+	}
+#endif
 
-	ed_softc[isa_dev->id_unit].type = ED_TYPE98_SIC;
-	pc98_set_register(isa_dev->id_unit, ED_TYPE98_SIC);
-	nports = ed_probe_SIC98(isa_dev);
-	if (nports)
-		return (nports);
+	/*
+	 * Allied Telesis SIC-98
+	 */
+	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev) == ED_TYPE98_SIC)) {
+		ed_softc[isa_dev->id_unit].type = ED_TYPE98_SIC;
+		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_SIC);
+		nports = ed_probe_SIC98(isa_dev);
+		if (nports)
+			return (nports);
+	}
 
-	ed_softc[isa_dev->id_unit].type = ED_TYPE98_BDN;
-	pc98_set_register(isa_dev->id_unit, ED_TYPE98_BDN);
-	nports = ed_probe_Novell(isa_dev);
-	if (nports)
-		return (nports);
+	/*
+	 * ELECOM LANEED LD-BDN
+	 * PLANET SMART COM 98 EN-2298
+	 */
+	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev) == ED_TYPE98_BDN)) {
+		/* LD-BDN */
+		ed_softc[isa_dev->id_unit].type = ED_TYPE98_BDN;
+		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_BDN);
+		nports = ed_probe_Novell(isa_dev);
+		if (nports)
+			return (nports);
+	}
 
-	ed_softc[isa_dev->id_unit].type = ED_TYPE98_LGY;
-	pc98_set_register(isa_dev->id_unit, ED_TYPE98_LGY);
-	nports = ed_probe_Novell(isa_dev);
-	if (nports)
-		return (nports);
+	/*
+	 * MELCO LGY-98, IND-SP, IND-SS
+	 * MACNICA NE2098
+	 */
+	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev) == ED_TYPE98_LGY)) {
+		/* LGY-98 */
+		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LGY;
+		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_LGY);
+		nports = ed_probe_Novell(isa_dev);
+		if (nports)
+			return (nports);
+	}
 
-	ed_softc[isa_dev->id_unit].type = ED_TYPE98_ICM;
-	pc98_set_register(isa_dev->id_unit, ED_TYPE98_ICM);
-	nports = ed_probe_Novell(isa_dev);
-	if (nports)
-		return (nports);
+	/*
+	 * ICM DT-ET-25, DT-ET-T5, IF-2766ET, IF-2771ET
+	 * D-Link DE-298P, DE-298
+	 */
+	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev) == ED_TYPE98_ICM)) {
+		/* ICM */
+		ed_softc[isa_dev->id_unit].type = ED_TYPE98_ICM;
+		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_ICM);
+		nports = ed_probe_Novell(isa_dev);
+		if (nports)
+			return (nports);
+	}
 
-	ed_softc[isa_dev->id_unit].type = ED_TYPE98_EGY;
-	pc98_set_register(isa_dev->id_unit, ED_TYPE98_EGY);
-	nports = ed_probe_Novell(isa_dev);
-	if (nports)
-		return (nports);
+	/*
+	 * MELCO EGY-98
+	 */
+	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev) == ED_TYPE98_EGY)) {
+		/* EGY-98 */
+		ed_softc[isa_dev->id_unit].type = ED_TYPE98_EGY;
+		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_EGY);
+		nports = ed_probe_Novell(isa_dev);
+		if (nports)
+			return (nports);
+	}
+
+	/*
+	 * IO-DATA LA/T-98
+	 */
+	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev) == ED_TYPE98_LA98)) {
+		/* LA-98 */
+		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LA98;
+		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_LA98);
+		nports = ed_probe_Novell(isa_dev);
+		if (nports)
+			return (nports);
+	}
+
+	/*
+	 * NEC PC-9801-108
+	 */
+	if ((ED_TYPE98(isa_dev) == ED_TYPE98_GENERIC) ||
+		(ED_TYPE98(isa_dev) == ED_TYPE98_108)) {
+		/* PC-9801-108 */
+		ed_softc[isa_dev->id_unit].type = ED_TYPE98_108;
+		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_108);
+		nports = ed_probe_Novell(isa_dev);
+		if (nports)
+			return (nports);
+	}
 
 	return (0);
 }
@@ -1481,22 +1458,38 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 		sc->type_str = "NE2000";
 		sc->kdc.kdc_description = "Ethernet adapter: NE2000";
 		break;
-	case ED_TYPE98_LGY:
-		sc->type_str = "LGY-98";
-		sc->kdc.kdc_description = "Ethernet adapter: LGY-98";
-		break;
-	case ED_TYPE98_EGY:
-		sc->type_str = "EGY-98";
-		sc->kdc.kdc_description = "Ethernet adapter: EGY-98";
-		break;
-	case ED_TYPE98_ICM:
-		sc->type_str = "ICM";
-		sc->kdc.kdc_description = "Ethernet adapter: ICM";
+	case ED_TYPE98_LPC:
+		sc->type_str = "LPC-T";
+		sc->kdc.kdc_description = "Ethernet adapter: LPC-T";
 		break;
 	case ED_TYPE98_BDN:
 		sc->type_str = "LD-BDN";
 		sc->kdc.kdc_description = "Ethernet adapter: LD-BDN";
 		break;
+	case ED_TYPE98_EGY:
+		sc->type_str = "EGY-98";
+		sc->kdc.kdc_description = "Ethernet adapter: EGY-98";
+		break;
+	case ED_TYPE98_LGY:
+		sc->type_str = "LGY-98";
+		sc->kdc.kdc_description = "Ethernet adapter: LGY-98";
+		break;
+	case ED_TYPE98_ICM:
+		sc->type_str = "ICM";
+		sc->kdc.kdc_description = "Ethernet adapter: ICM";
+		break;
+	case ED_TYPE98_SIC:
+		sc->type_str = "SIC-98";
+		sc->kdc.kdc_description = "Ethernet adapter: SIC-98";
+		break;
+	case ED_TYPE98_108:
+		sc->type_str = "PC-9801-108";
+		sc->kdc.kdc_description = "Ethernet adapter: PC-9801-108";
+	    break;
+	case ED_TYPE98_LA98:
+		sc->type_str = "LA-98";
+		sc->kdc.kdc_description = "Ethernet adapter: LA-98";
+	    break;
 	default:
 		sc->type_str = "Unknown";
 		sc->kdc.kdc_description = "Ethernet adapter: Unkonwn";

@@ -44,57 +44,6 @@
  * documents..
  */
 
-/*
- * Modified for Allied-Telesis RE1000 series.
- */
-
-#ifdef PC98
-/* Data Link Control Registrs, on invaliant port addresses.  */
-#define FE_DLCR0	0
-#define FE_DLCR1	1
-#define FE_DLCR2	0x200
-#define FE_DLCR3	0x201
-#define FE_DLCR4	0x400
-#define FE_DLCR5	0x401
-#define FE_DLCR6	0x600
-#define FE_DLCR7	0x601
-
-/* More DLCRs, on register bank #0.  */
-#define FE_DLCR8	0x800
-#define FE_DLCR9	0x801
-#define FE_DLCR10	0xA00
-#define FE_DLCR11	0xA01
-#define FE_DLCR12	0xC00
-#define FE_DLCR13	0xC01
-#define FE_DLCR14	0xE00
-#define FE_DLCR15	0xE01
-
-/* Malticast Address Registers.  On register bank #1.  */
-#define FE_MAR8		0x800
-#define FE_MAR9		0x801
-#define FE_MAR10	0xA00
-#define FE_MAR11	0xA01
-#define FE_MAR12	0xC00
-#define FE_MAR13	0xC01
-#define FE_MAR14	0xE00
-#define FE_MAR15	0xE01
-
-/* Buffer Memory Port Registers.  On register back #2.  */
-#define FE_BMPR8	0x800
-#define FE_BMPR9	0x801
-#define FE_BMPR10	0xA00
-#define FE_BMPR11	0xA01
-#define FE_BMPR12	0xC00
-#define FE_BMPR13	0xC01
-#define FE_BMPR14	0xE00
-#define FE_BMPR15	0xE01
-
-/* More BMPRs, only on MB86965A, accessible only when JLI mode.  */
-#define FE_BMPR16	0x1000
-#define FE_BMPR17	0x1001
-#define FE_BMPR18	0x1200
-#define FE_BMPR19	0x1201
-#else	/* not PC98 */
 /* Data Link Control Registrs, on invaliant port addresses.  */
 #define FE_DLCR0	0
 #define FE_DLCR1	1
@@ -140,7 +89,6 @@
 #define FE_BMPR17	17
 #define FE_BMPR18	18
 #define FE_BMPR19	19
-#endif	/* PC98 */
 
 /*
  * Definitions of registers.

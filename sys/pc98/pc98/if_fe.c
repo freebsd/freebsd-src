@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.14 1996/04/23 18:36:55 nate Exp $
+ * $Id: if_fe.c,v 1.1.1.1 1996/06/14 10:04:44 asami Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -128,11 +128,9 @@
 #include <machine/clock.h>
 
 #ifdef PC98
-#include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_device.h>
 #include <pc98/pc98/icu.h>
 #else
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 #endif
@@ -264,13 +262,8 @@ static struct fe_softc {
 #define sc_description	kdc.kdc_description
 
 /* Standard driver entry points.  These can be static.  */
-#ifdef PC98
-static int		fe_probe	( struct pc98_device * );
-static int		fe_attach	( struct pc98_device * );
-#else
-static int		fe_probe	( struct isa_device * );
-static int		fe_attach	( struct isa_device * );
-#endif
+static int		fe_probe	( DEVICE * );
+static int		fe_attach	( DEVICE * );
 static void		fe_init		( int );
 static int		fe_ioctl	( struct ifnet *, int, caddr_t );
 static void		fe_start	( struct ifnet * );
@@ -281,6 +274,7 @@ static void		fe_watchdog	( struct ifnet * );
 static void	fe_registerdev	( struct fe_softc *, DEVICE * );
 #ifdef PC98
 static int	fe_probe_re1000	( DEVICE *, struct fe_softc * );
+static int	fe_probe_re1000p( DEVICE *, struct fe_softc * );
 #else
 static int	fe_probe_fmv	( DEVICE *, struct fe_softc * );
 static int	fe_probe_ati	( DEVICE *, struct fe_softc * );
@@ -369,40 +363,16 @@ static struct kern_devconf const fe_kdc_template =
 static void
 inblk ( struct fe_softc * sc, int offs, u_char * mem, int len )
 {
-#ifdef PC98
-	u_short addr = sc->ioaddr[offs];
-#endif
-
 	while ( --len >= 0 ) {
-#ifdef PC98
-		*mem++ = inb( addr );
-		if (addr & 1)
-			addr+=0x1FF;
-		else
-			addr++;
-#else
 		*mem++ = inb( sc->ioaddr[ offs++ ] );
-#endif
 	}
 }
 
 static void
 outblk ( struct fe_softc * sc, int offs, u_char const * mem, int len )
 {
-#ifdef PC98
-	u_short addr = sc->ioaddr[offs];
-#endif
-
 	while ( --len >= 0 ) {
-#ifdef PC98
-		outb( addr, *mem++ );
-		if (addr & 1)
-			addr+=0x1FF;
-		else
-			addr++;
-#else
 		outb( sc->ioaddr[ offs++ ], *mem++ );
-#endif
 	}
 }
 
@@ -521,7 +491,10 @@ struct fe_probe_list
 /* Lists of possible addresses.  */
 #ifdef PC98
 static u_short const fe_re1000_addr [] =
-	{ 0xD0, 0xD2, 0xD4, 0xD8, 0x1D4, 0x1D6, 0x1D8, 0x1DA, 0 };
+	{ 0x0D0, 0x0D2, 0x0D4, 0x0D6, 0x0D8, 0x0DA, 0x0DC, 0x0DE,
+	  0x1D0, 0x1D2, 0x1D4, 0x1D6, 0x1D8, 0x1DA, 0x1DC, 0x1DE, 0 };
+static u_short const fe_re1000p_addr [] =
+	{ 0x0D0, 0x0D2, 0x0D4, 0x0D8, 0x1D4, 0x1D6, 0x1D8, 0x1DA, 0 };
 #else
 static u_short const fe_fmv_addr [] =
 	{ 0x220, 0x240, 0x260, 0x280, 0x2A0, 0x2C0, 0x300, 0x340, 0 };
@@ -533,6 +506,7 @@ static struct fe_probe_list const fe_probe_list [] =
 {
 #ifdef PC98
 	{ fe_probe_re1000, fe_re1000_addr },
+	{ fe_probe_re1000p, fe_re1000p_addr },
 #else
 	{ fe_probe_fmv, fe_fmv_addr },
 	{ fe_probe_ati, fe_ati_addr },
@@ -661,11 +635,7 @@ fe_probe ( DEVICE * dev )
  */
 struct fe_simple_probe_struct
 {
-#ifdef PC98
-	u_short port;	/* Offset from the base I/O address.  */
-#else
 	u_char port;	/* Offset from the base I/O address.  */
-#endif
 	u_char mask;	/* Bits to be checked.  */
 	u_char bits;	/* Values to be compared against.  */
 };
@@ -794,9 +764,101 @@ fe_read_eeprom ( struct fe_softc * sc, u_char * data )
 /*
  * Probe and initialization for Allied-Telesis RE1000 series.
  */
-#if 1
 static int
-fe_probe_re1000 ( struct pc98_device * isa_dev, struct fe_softc * sc )
+fe_probe_re1000 ( DEVICE * isa_dev, struct fe_softc * sc )
+{
+	int i, n;
+	int dlcr6, dlcr7;
+	u_char c = 0;
+
+	static u_short const irqmap [ 4 ] =
+		{ IRQ3,  IRQ5,  IRQ6,  IRQ12 };
+
+#if FE_DEBUG >= 3
+	log( LOG_INFO, "fe%d: probe (0x%x) for RE1000\n", sc->sc_unit, sc->iobase );
+	fe_dump( LOG_INFO, sc, NULL );
+#endif
+
+	/* Setup an I/O address mapping table.  */
+	for ( i = 0; i < MAXREGISTERS; i++ ) {
+		sc->ioaddr[ i ] = sc->iobase + (i/2)*0x200 + (i%2);
+	}
+
+	/*
+	 * RE1000 does not use 86965 EEPROM interface.
+	 */
+	c ^= sc->sc_enaddr[0] = inb(sc->ioaddr[FE_RE1000_MAC0]);
+	c ^= sc->sc_enaddr[1] = inb(sc->ioaddr[FE_RE1000_MAC1]);
+	c ^= sc->sc_enaddr[2] = inb(sc->ioaddr[FE_RE1000_MAC2]);
+	c ^= sc->sc_enaddr[3] = inb(sc->ioaddr[FE_RE1000_MAC3]);
+	c ^= sc->sc_enaddr[4] = inb(sc->ioaddr[FE_RE1000_MAC4]);
+	c ^= sc->sc_enaddr[5] = inb(sc->ioaddr[FE_RE1000_MAC5]);
+	c ^= inb(sc->ioaddr[FE_RE1000_MACCHK]);
+	if (c != 0) return 0;
+
+	if ( sc->sc_enaddr[ 0 ] != 0x00
+		|| sc->sc_enaddr[ 1 ] != 0x00
+		|| sc->sc_enaddr[ 2 ] != 0xF4 ) return 0;
+
+	/*
+	 * check interrupt configure
+	 */
+	for (n=0; n<4; n++) {
+		if (isa_dev->id_irq == irqmap[n]) break;
+	}
+	if (n == 4) return 0;
+
+	/*
+	 * set irq
+	 */
+	c = inb(sc->ioaddr[FE_RE1000_IRQCONF]);
+	c &= (~ FE_RE1000_IRQCONF_IRQ);
+	c |= (1 << (n + FE_RE1000_IRQCONF_IRQSHIFT));
+	outb(sc->ioaddr[FE_RE1000_IRQCONF], c);
+
+	sc->typestr = "RE1000";
+	sc->sc_description = "Ethernet adapter: RE1000";
+
+	/*
+	 * Program the 86965 as follows:
+	 *	SRAM: 32KB, 100ns, byte-wide access.
+	 *	Transmission buffer: 4KB x 2.
+	 *	System bus interface: 16 bits.
+	 */
+	sc->proto_dlcr4 = FE_D4_LBC_DISABLE | FE_D4_CNTRL;  /* FIXME */
+	sc->proto_dlcr5 = 0;
+	sc->proto_dlcr6 = FE_D6_BUFSIZ_32KB | FE_D6_TXBSIZ_2x4KB
+		| FE_D6_BBW_BYTE | FE_D6_SBW_WORD | FE_D6_SRAM_100ns;
+	sc->proto_dlcr7 = FE_D7_BYTSWP_LH | FE_D7_IDENT_EC;
+	sc->proto_bmpr13 = FE_B13_TPTYPE_UTP | FE_B13_PORT_AUTO;
+
+#if FE_DEBUG >= 3
+	fe_dump( LOG_INFO, sc, "RE1000 found" );
+#endif
+
+	/* Initialize 86965.  */
+	outb( sc->ioaddr[FE_DLCR6], sc->proto_dlcr6 | FE_D6_DLC_DISABLE );
+	DELAY(200);
+
+	/* Disable all interrupts.  */
+	outb( sc->ioaddr[FE_DLCR2], 0 );
+	outb( sc->ioaddr[FE_DLCR3], 0 );
+
+#if FE_DEBUG >= 3
+	fe_dump( LOG_INFO, sc, "end of fe_probe_re1000()" );
+#endif
+
+	/*
+	 * That's all.  RE1000 occupies 2*16 I/O addresses, by the way.
+	 */
+	return 2;	/* ??? */
+}
+
+/*
+ * Probe and initialization for Allied-Telesis RE1000Plus/ME1500 series.
+ */
+static int
+fe_probe_re1000p ( DEVICE * isa_dev, struct fe_softc * sc )
 {
 	int i, n, signature;
 	int dlcr6, dlcr7;
@@ -829,23 +891,24 @@ fe_probe_re1000 ( struct pc98_device * isa_dev, struct fe_softc * sc )
 		{ FE_DLCR10,  0xFF, 0xF4 },
 		{ 0 }
 	};
-	static struct fe_simple_probe_struct const re1000_check [] = {
-		{ FE_RE1000_MAC0,  0xff, 0x00 },
-		{ FE_RE1000_MAC1,  0xff, 0x00 },
-		{ FE_RE1000_MAC2,  0xff, 0xf4 },	/* ATI vendor code */
-		{ 0 }
-	};
 
 #if FE_DEBUG >= 3
-	log( LOG_INFO, "fe%d: probe (0x%x) for RE1000/RE1000Plus/ME1500\n", sc->sc_unit, sc->iobase );
+	log( LOG_INFO, "fe%d: probe (0x%x) for RE1000Plus/ME1500\n", sc->sc_unit, sc->iobase );
 	fe_dump( LOG_INFO, sc, NULL );
 #endif
+
+	/* Setup an I/O address mapping table.  */
+	for ( i = 0; i < 16; i++ ) {
+		sc->ioaddr[ i ] = sc->iobase + (i/2)*0x200 + (i%2);
+	}
+	for ( i = 16; i < MAXREGISTERS; i++ ) {
+		sc->ioaddr[ i ] = sc->iobase + i*0x200 - 0x1000;
+	}
 
 	/* First, check the "signature" */
 	signature = 0;
 	if (fe_simple_probe(sc, probe_signature1)) {
-
-		outb(sc->iobase+FE_DLCR6, (inb(sc->iobase+FE_DLCR6) & 0xCF) | 0x16);
+		outb(sc->ioaddr[FE_DLCR6], (inb(sc->ioaddr[FE_DLCR6]) & 0xCF) | 0x16);
 		if (fe_simple_probe(sc, probe_signature2))
 			signature = 1;
 	}
@@ -861,290 +924,85 @@ fe_probe_re1000 ( struct pc98_device * isa_dev, struct fe_softc * sc )
 		if (!fe_simple_probe(sc, probe_table)) return 0;
 
 		/* Disable DLC */
-		dlcr6 = inb(sc->iobase + FE_DLCR6);
-		outb(sc->iobase + FE_DLCR6, dlcr6 | FE_D6_DLC_DISABLE);
+		dlcr6 = inb(sc->ioaddr[FE_DLCR6]);
+		outb(sc->ioaddr[FE_DLCR6], dlcr6 | FE_D6_DLC_DISABLE);
 		/* Select register bank for DLCR */
-		dlcr7 = inb(sc->iobase + FE_DLCR7);
-		outb(sc->iobase + FE_DLCR7, dlcr7 & 0xF3 | FE_D7_RBS_DLCR);
+		dlcr7 = inb(sc->ioaddr[FE_DLCR7]);
+		outb(sc->ioaddr[FE_DLCR7], dlcr7 & 0xF3 | FE_D7_RBS_DLCR);
 
 		/* Check the Ethernet address */
 		if (!fe_simple_probe(sc, vendor_code)) return 0;
 
 		/* Restore configuration registers */
 		DELAY(200);
-		outb(sc->iobase + FE_DLCR6, dlcr6);
-		outb(sc->iobase + FE_DLCR7, dlcr7);
+		outb(sc->ioaddr[FE_DLCR6], dlcr6);
+		outb(sc->ioaddr[FE_DLCR7], dlcr7);
 	}
 
-#if 1
 	/*
-	 * This test doesn't work well for RE1000 look-alike by
-	 * other vendors.
+	 * We are now almost sure we have an 86965 at the given
+	 * address.  So, read EEPROM through 86965.  We have to write
+	 * into LSI registers to read from EEPROM.  I want to avoid it
+	 * at this stage, but I cannot test the presense of the chip
+	 * any further without reading EEPROM.  FIXME.
 	 */
-	if ( fe_simple_probe( sc, re1000_check )){
-	    /*
-	     * RE1000 does not use 86965 EEPROM interface.
-	     */
-	    u_char c = 0;
-	    c ^= sc->sc_enaddr[0] = inb(sc->iobase + FE_RE1000_MAC0);
-	    c ^= sc->sc_enaddr[1] = inb(sc->iobase + FE_RE1000_MAC1);
-	    c ^= sc->sc_enaddr[2] = inb(sc->iobase + FE_RE1000_MAC2);
-	    c ^= sc->sc_enaddr[3] = inb(sc->iobase + FE_RE1000_MAC3);
-	    c ^= sc->sc_enaddr[4] = inb(sc->iobase + FE_RE1000_MAC4);
-	    c ^= sc->sc_enaddr[5] = inb(sc->iobase + FE_RE1000_MAC5);
-	    c ^= inb(sc->iobase + FE_RE1000_MACCHK);
-	    if (c != 0) return 0;
+	fe_read_eeprom( sc, eeprom );
 
-	    if ( sc->sc_enaddr[ 0 ] != 0x00
-		|| sc->sc_enaddr[ 1 ] != 0x00
-		|| sc->sc_enaddr[ 2 ] != 0xF4 ) return 0;
-
-	    /*
-	     * check interrupt configure
-	     */
-	    for (n=0; n<4; n++) {
-		if (isa_dev->id_irq == irqmap[n]) break;
-	    }
-	    if (n == 4) return 0;
-
-	    /*
-	     * set irq
-	     */
-	    c = inb(sc->iobase + FE_RE1000_IRQCONF);
-	    c &= (~ FE_RE1000_IRQCONF_IRQ);
-	    c |= (1 << (n + FE_RE1000_IRQCONF_IRQSHIFT));
-	    outb(sc->iobase + FE_RE1000_IRQCONF, c);
-#if 0
-	    PC98WAIT; PC98WAIT;
-	    if (c == (inb(sc->iobase + FE_RE1000_IRQCONF)
-		      & FE_RE1000_IRQCONF_IRQ)) return 0;
-#endif
-
-	    sc->typestr = "RE1000";
-	    sc->sc_description = "Ethernet adapter: RE1000";
-
-	} else {
-	    /*
-	     * We are now almost sure we have an 86965 at the given
-	     * address.  So, read EEPROM through 86965.  We have to write
-	     * into LSI registers to read from EEPROM.  I want to avoid it
-	     * at this stage, but I cannot test the presense of the chip
-	     * any further without reading EEPROM.  FIXME.
-	     */
-	    fe_read_eeprom( sc, eeprom );
-
-	    /* Make sure that config info in EEPROM and 86965 agree.  */
-	    if ( eeprom[ FE_EEPROM_CONF ] != inb( sc->iobase + FE_BMPR19 ) ) {
+	/* Make sure that config info in EEPROM and 86965 agree.  */
+	if ( eeprom[ FE_EEPROM_CONF ] != inb( sc->ioaddr[FE_BMPR19] ) ) {
 		return 0;
-	    }
+	}
 
-	    /*
-	     * Initialize constants in the per-line structure.
-	     */
+	/*
+	 * Initialize constants in the per-line structure.
+	 */
 	    
-	    /* Get our station address from EEPROM.  */
-	    bcopy( eeprom + FE_ATI_EEP_ADDR, sc->sc_enaddr, ETHER_ADDR_LEN );
-	    
-	    sc->typestr = "RE1000Plus/ME1500";
-	    sc->sc_description = "Ethernet adapter: RE1000Plus/ME1500";
-	    /*
-	     * Read IRQ configuration.
-	     */
-	    n = (inb(sc->iobase + FE_BMPR19) & FE_B19_IRQ ) >> FE_B19_IRQ_SHIFT;
-	    isa_dev->id_irq = irqmap[n];
-	}
+	/* Get our station address from EEPROM.  */
+	bcopy( eeprom + FE_ATI_EEP_ADDR, sc->sc_enaddr, ETHER_ADDR_LEN );
 
-#else
-	/* Make sure we got a valid station address.  */
-	if ( ( sc->sc_enaddr[ 0 ] & 0x03 ) != 0x00
-	  || ( sc->sc_enaddr[ 0 ] == 0x00
-	    && sc->sc_enaddr[ 1 ] == 0x00
-	    && sc->sc_enaddr[ 2 ] == 0x00 ) ) return 0;
-#endif
-
-	/* Should find all register prototypes here.  FIXME.  */
-	sc->proto_dlcr4 = FE_D4_LBC_DISABLE | FE_D4_CNTRL;  /* FIXME */
-	sc->proto_dlcr5 = 0;
-	sc->proto_dlcr7 = FE_D7_BYTSWP_LH | FE_D7_IDENT_EC;
-
-	/*
-	 * Program the 86965 as follows:
-	 *	SRAM: 32KB, 100ns, byte-wide access.
-	 *	Transmission buffer: 4KB x 2.
-	 *	System bus interface: 16 bits.
-	 * We cannot change these values but TXBSIZE, because they
-	 * are hard-wired on the board.  Modifying TXBSIZE will affect
-	 * the driver performance.
-	 */
-	sc->proto_dlcr6 = FE_D6_BUFSIZ_32KB | FE_D6_TXBSIZ_2x4KB
-		| FE_D6_BBW_BYTE | FE_D6_SBW_WORD | FE_D6_SRAM_100ns;
-
-#if FE_DEBUG >= 3
-	fe_dump( LOG_INFO, sc, "RE1000 found" );
-#endif
-
-	/* Initialize 86965.  */
-	outb( sc->iobase + FE_DLCR6, sc->proto_dlcr6 | FE_D6_DLC_DISABLE );
-	DELAY(200);
-
-	/* Disable all interrupts.  */
-	outb( sc->iobase + FE_DLCR2, 0 );
-	outb( sc->iobase + FE_DLCR3, 0 );
-
-#if FE_DEBUG >= 3
-	fe_dump( LOG_INFO, sc, "end of fe_probe_re1000()" );
-#endif
-
-	/*
-	 * That's all.  RE1000 occupies 2*16 I/O addresses, by the way.
-	 */
-	return 2;	/* ??? */
-}
-#else
-static int
-fe_probe_re1000 ( struct pc98_device * isa_dev, struct fe_softc * sc )
-{
-	int i, n, signature;
-	int dlcr6, dlcr7;
-	u_char eeprom [ FE_EEPROM_SIZE ];
-
-	static u_short const irqmap [ 4 ] =
-		{ IRQ3,  IRQ5,  IRQ6,  IRQ12 };
-	static struct fe_simple_probe_struct const probe_signature1 [] = {
-		{ FE_DLCR0,  0xBF, 0x00 },
-		{ FE_DLCR2,  0xFF, 0x00 },
-		{ FE_DLCR4,  0x0F, 0x06 },
-		{ FE_DLCR6,  0x0F, 0x06 },
-		{ 0 }
-	};
-	static struct fe_simple_probe_struct const probe_signature2 [] = {
-		{ FE_DLCR1,  0xFF, 0x00 },
-		{ FE_DLCR3,  0xFF, 0x00 },
-		{ FE_DLCR5,  0xFF, 0x41 },
-		{ 0 }
-	};
-	static struct fe_simple_probe_struct const probe_table [] = {
-		{ FE_DLCR2,  0x71, 0x00 },
-		{ FE_DLCR4,  0x08, 0x00 },
-		{ FE_DLCR5,  0x80, 0x00 },
-		{ 0 }
-	};
-	static struct fe_simple_probe_struct const vendor_code [] = {
-		{ FE_DLCR8,  0xFF, 0x00 },
-		{ FE_DLCR9,  0xFF, 0x00 },
-		{ FE_DLCR10,  0xFF, 0xF4 },
-		{ 0 }
-	};
-	static struct fe_simple_probe_struct const re1000_check [] = {
-		{ FE_RE1000_MAC0,  0xff, 0x00 },
-		{ FE_RE1000_MAC1,  0xff, 0x00 },
-		{ FE_RE1000_MAC2,  0xff, 0xf4 },	/* ATI vendor code */
-		{ 0 }
-	};
-
-#if FE_DEBUG >= 3
-	log( LOG_INFO, "fe%d: probe (0x%x) for RE1000\n", sc->sc_unit, sc->iobase );
-	fe_dump( LOG_INFO, sc, NULL );
-#endif
-
-	/* First, check the "signature" */
-	signature = 0;
-	if (fe_simple_probe(sc, probe_signature1)) {
-
-		outb(sc->iobase+FE_DLCR6, (inb(sc->iobase+FE_DLCR6) & 0xCF) | 0x16);
-		if (fe_simple_probe(sc, probe_signature2))
-			signature = 1;
-	}
-
-	/*
-	 * If the "signature" not detected, RE1000 *might* be previously
-	 * initialized. So, check the Ethernet address here.
-	 *
-	 * Allied-Telesis uses 00 00 F4 ?? ?? ??.
-	 */
-	if (signature == 0) {
-		/* Simple check */
-		if (!fe_simple_probe(sc, probe_table)) return 0;
-
-		/* Disable DLC */
-		dlcr6 = inb(sc->iobase + FE_DLCR6);
-		outb(sc->iobase + FE_DLCR6, dlcr6 | FE_D6_DLC_DISABLE);
-		/* Select register bank for DLCR */
-		dlcr7 = inb(sc->iobase + FE_DLCR7);
-		outb(sc->iobase + FE_DLCR7, dlcr7 & 0xF3 | FE_D7_RBS_DLCR);
-
-		/* Check the Ethernet address */
-		if (!fe_simple_probe(sc, vendor_code)) return 0;
-
-		/* Restore configuration registers */
-		DELAY(200);
-		outb(sc->iobase + FE_DLCR6, dlcr6);
-		outb(sc->iobase + FE_DLCR7, dlcr7);
-	}
+	sc->typestr = "RE1000Plus/ME1500";
+	sc->sc_description = "Ethernet adapter: RE1000Plus/ME1500";
 
 	/*
 	 * Read IRQ configuration.
 	 */
-	n = (inb(sc->iobase + 0x1600) & FE_B19_IRQ ) >> FE_B19_IRQ_SHIFT;
+	n = (inb(sc->ioaddr[FE_BMPR19]) & FE_B19_IRQ ) >> FE_B19_IRQ_SHIFT;
 	isa_dev->id_irq = irqmap[n];
-
-#if 1
-	/*
-	 * This test doesn't work well for RE1000 look-alike by
-	 * other vendors.
-	 */
-	/* Make sure the vendor part is for Allied-Telesis.  */
-	if ( sc->sc_enaddr[ 0 ] != 0x00
-	  || sc->sc_enaddr[ 1 ] != 0x00
-	  || sc->sc_enaddr[ 2 ] != 0xF4 ) return 0;
-
-#else
-	/* Make sure we got a valid station address.  */
-	if ( ( sc->sc_enaddr[ 0 ] & 0x03 ) != 0x00
-	  || ( sc->sc_enaddr[ 0 ] == 0x00
-	    && sc->sc_enaddr[ 1 ] == 0x00
-	    && sc->sc_enaddr[ 2 ] == 0x00 ) ) return 0;
-#endif
-
-	/* Should find all register prototypes here.  FIXME.  */
-	sc->proto_dlcr4 = FE_D4_LBC_DISABLE | FE_D4_CNTRL;  /* FIXME */
-	sc->proto_dlcr5 = 0;
-	sc->proto_dlcr7 = FE_D7_BYTSWP_LH | FE_D7_IDENT_EC;
 
 	/*
 	 * Program the 86965 as follows:
 	 *	SRAM: 32KB, 100ns, byte-wide access.
 	 *	Transmission buffer: 4KB x 2.
 	 *	System bus interface: 16 bits.
-	 * We cannot change these values but TXBSIZE, because they
-	 * are hard-wired on the board.  Modifying TXBSIZE will affect
-	 * the driver performance.
 	 */
+	sc->proto_dlcr4 = FE_D4_LBC_DISABLE | FE_D4_CNTRL;  /* FIXME */
+	sc->proto_dlcr5 = 0;
 	sc->proto_dlcr6 = FE_D6_BUFSIZ_32KB | FE_D6_TXBSIZ_2x4KB
 		| FE_D6_BBW_BYTE | FE_D6_SBW_WORD | FE_D6_SRAM_100ns;
+	sc->proto_dlcr7 = FE_D7_BYTSWP_LH | FE_D7_IDENT_EC;
+	sc->proto_bmpr13 = FE_B13_TPTYPE_UTP | FE_B13_PORT_AUTO;
 
 #if FE_DEBUG >= 3
-	fe_dump( LOG_INFO, sc, "RE1000 found" );
+	fe_dump( LOG_INFO, sc, "RE1000Plus/ME1500 found" );
 #endif
 
 	/* Initialize 86965.  */
-	outb( sc->iobase + FE_DLCR6, sc->proto_dlcr6 | FE_D6_DLC_DISABLE );
+	outb( sc->ioaddr[FE_DLCR6], sc->proto_dlcr6 | FE_D6_DLC_DISABLE );
 	DELAY(200);
 
 	/* Disable all interrupts.  */
-	outb( sc->iobase + FE_DLCR2, 0 );
-	outb( sc->iobase + FE_DLCR3, 0 );
+	outb( sc->ioaddr[FE_DLCR2], 0 );
+	outb( sc->ioaddr[FE_DLCR3], 0 );
 
 #if FE_DEBUG >= 3
-	fe_dump( LOG_INFO, sc, "end of fe_probe_re1000()" );
+	fe_dump( LOG_INFO, sc, "end of fe_probe_re1000p()" );
 #endif
 
 	/*
-	 * That's all.  AT1700 occupies 2*16 I/O addresses, by the way.
+	 * That's all.  RE1000Plus/ME1500 occupies 2*16 I/O addresses, by the way.
 	 */
 	return 2;	/* ??? */
 }
-#endif
 #else
 /*
  * Probe and initialization for Fujitsu FMV-180 series boards
@@ -1519,7 +1377,7 @@ fe_probe_ati ( DEVICE * dev, struct fe_softc * sc )
 	 */
 
 	/* Get our station address from EEPROM.  */
-	bcopy( eeprom + FE_EEP_ATI_ADDR, sc->sc_enaddr, ETHER_ADDR_LEN );
+	bcopy( eeprom + FE_ATI_EEP_ADDR, sc->sc_enaddr, ETHER_ADDR_LEN );
 
 #if 1
 	/*
@@ -3065,7 +2923,6 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 {
 	u_short addr_bmpr8 = sc->ioaddr[ FE_BMPR8 ];
 	u_short length, len;
-	short pad;
 	struct mbuf *mp;
 	u_char *data;
 	u_short savebyte;	/* WARNING: Architecture dependent!  */

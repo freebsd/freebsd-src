@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.24 1996/04/30 21:37:21 se Exp $
+**  $Id: pcibus.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -43,11 +43,9 @@
 
 #ifdef PC98
 #include <pc98/pc98/icu.h>
-#include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_device.h>
 #else
 #include <i386/isa/icu.h>
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #endif
 
@@ -152,7 +150,7 @@ DATA_SET (pcibus_set, i386pci);
 
 #define CONF1_ENABLE       0x80000000ul
 #define CONF1_ENABLE_CHK   0x80000000ul
-#define CONF1_ENABLE_MSK   0x00ff0700ul
+#define CONF1_ENABLE_MSK   0x7ff00000ul
 #define CONF1_ENABLE_CHK1  0xff000001ul
 #define CONF1_ENABLE_MSK1  0x80000001ul
 #define CONF1_ENABLE_RES1  0x80000000ul

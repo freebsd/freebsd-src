@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.76 1996/05/18 03:36:19 dyson Exp $
+ *	$Id: trap.c,v 1.1.1.1 1996/06/14 10:04:41 asami Exp $
  */
 
 /*
@@ -175,19 +175,10 @@ userret(p, frame, oticks)
 	/*
 	 * Charge system time if profiling.
 	 */
-	if (p->p_flag & P_PROFIL) {
-		u_quad_t ticks = p->p_sticks - oticks;
+	if (p->p_flag & P_PROFIL)
+		addupc_task(p, frame->tf_eip,
+			    (u_int)(p->p_sticks - oticks) * psratio);
 
-		if (ticks) {
-#ifdef PROFTIMER
-			extern int profscale;
-			addupc(frame->tf_eip, &p->p_stats->p_prof,
-			    ticks * profscale);
-#else
-			addupc(frame->tf_eip, &p->p_stats->p_prof, ticks);
-#endif
-		}
-	}
 	curpriority = p->p_priority;
 }
 
@@ -255,8 +246,9 @@ trap(frame)
 			astoff();
 			cnt.v_soft++;
 			if (p->p_flag & P_OWEUPC) {
-				addupc(frame.tf_eip, &p->p_stats->p_prof, 1);
 				p->p_flag &= ~P_OWEUPC;
+				addupc_task(p, p->p_stats->p_prof.pr_addr,
+					    p->p_stats->p_prof.pr_ticks);
 			}
 			goto out;
 
@@ -325,8 +317,7 @@ trap(frame)
 			/* if a transparent fault (due to context switch "late") */
 			if (npxdna())
 				return;
-#endif	/* NNPX > 0 */
-
+#endif
 			if (!pmath_emulate) {
 				i = SIGFPE;
 				ucode = FPE_FPU_NP_TRAP;
@@ -358,6 +349,18 @@ trap(frame)
 			(void) trap_pfault(&frame, FALSE);
 #endif
 			return;
+
+		case T_DNA:
+#if NNPX > 0
+			/*
+			 * The kernel is apparently using npx for copying.
+			 * XXX this should be fatal unless the kernel has
+			 * registered such use.
+			 */
+			if (npxdna())
+				return;
+#endif
+			break;
 
 		case T_PROTFLT:		/* general protection fault */
 		case T_SEGNPFLT:	/* segment not present fault */
@@ -672,9 +675,6 @@ trap_pfault(frame, usermode)
 		ftype = VM_PROT_READ;
 
 	if (map != kernel_map) {
-		vm_offset_t v;
-		vm_page_t mpte;
-
 		/*
 		 * Keep swapout from messing with us during this
 		 *	critical time.

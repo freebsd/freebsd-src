@@ -43,14 +43,10 @@
 #include <machine/clock.h>
 #endif
 #ifdef PC98
-#include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_device.h>
-#include <pc98/pc98/icu.h>
 #include <pc98/pc98/pcic.h>
 #else
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 #include <i386/isa/pcic.h>
 #endif
 

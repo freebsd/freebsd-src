@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.142 1996/05/02 09:34:40 phk Exp $
+ *	$Id: sio.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
  */
 
 #include "opt_comconsole.h"
@@ -138,14 +138,13 @@
 #include <machine/clock.h>
 
 #ifdef PC98
-#include <pc98/pc98/icu.h>	/* XXX just to get at `imen' */
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/icu.h>
 #include <pc98/pc98/pc98_device.h>
 #include <pc98/pc98/sioreg.h>
 #include <pc98/pc98/ic/i8251.h>
 #include <pc98/pc98/ic/ns16550.h>
 #else
-#include <i386/isa/icu.h>	/* XXX just to get at `imen' */
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
@@ -330,7 +329,9 @@ struct com_s {
 	struct termios	lt_out;
 
 	bool_t	do_timestamp;
+	bool_t	do_dcd_timestamp;
 	struct timeval	timestamp;
+	struct timeval	dcd_timestamp;
 
 	u_long	bytes_in;	/* statistics */
 	u_long	bytes_out;
@@ -366,8 +367,7 @@ struct com_s {
  * by `config', not here.
  */
 
-/* Interrupt handling entry points. */
-inthand2_t	siointrts;
+/* Interrupt handling entry point. */
 void	siopoll		__P((void));
 
 /* Device switch entry points. */
@@ -416,8 +416,6 @@ static char driver_name[] = "sio";
 /* table and macro for fast conversion from a unit number to its com struct */
 static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
-
-static  struct timeval	intr_timestamp;
 
 #ifdef PC98
 struct pc98_driver	siodriver = {
@@ -958,18 +956,6 @@ sioprobe(dev)
 /* EXTRA DELAY? */
 
 	/*
-	 * XXX DELAY() reenables CPU interrupts.  This is a problem for
-	 * shared interrupts after the first device using one has been
-	 * successfully probed - config_isadev() has enabled the interrupt
-	 * in the ICU.
-	 */
-#ifdef PC98
-	outb(IO_ICU1 + 2, 0xff);
-#else
-	outb(IO_ICU1 + 1, 0xff);
-#endif
-
-	/*
 	 * Initialize the speed and the word size and wait long enough to
 	 * drain the maximum of 16 bytes of junk in device output queues.
 	 * The speed is undefined after a master reset and must be set
@@ -1042,7 +1028,7 @@ sioprobe(dev)
 	failures[0] = inb(iobase + com_cfcr) - CFCR_8BITS;
 	failures[1] = inb(iobase + com_ier) - IER_ETXRDY;
 	failures[2] = inb(iobase + com_mcr) - mcr_image;
-	DELAY(1000);		/* XXX */
+	DELAY(10000);		/* Some internal modems need this time */
 	if (idev->id_irq != 0)
 #ifdef PC98
 		failures[3] = pc98_irq_pending(idev) ? 0 : 1;
@@ -1082,11 +1068,6 @@ sioprobe(dev)
 #endif
 	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
-#ifdef PC98
-	outb(IO_ICU1 + 2, imen);	/* XXX */
-#else
-	outb(IO_ICU1 + 1, imen);	/* XXX */
-#endif
 	enable_intr();
 
 	result = IO_COMSIZE;
@@ -1868,32 +1849,6 @@ siodtrwakeup(chan)
 	wakeup(&com->dtr_wait);
 }
 
-/* Interrupt routine for timekeeping purposes */
-void
-siointrts(unit)
-	int	unit;
-{
-	/*
-	 * XXX microtime() reenables CPU interrupts.  We can't afford to
-	 * be interrupted and don't want to slow down microtime(), so lock
-	 * out interrupts in another way.
-	 */
-#ifdef PC98
-	outb(IO_ICU1 + 2, 0xff);
-#else /* IBM-PC */
-	outb(IO_ICU1 + 1, 0xff);
-#endif /* PC98 */
-	microtime(&intr_timestamp);
-	disable_intr();
-#ifdef PC98
-	outb(IO_ICU1 + 2, imen);
-#else /* IBM_PC */
-	outb(IO_ICU1 + 1, imen);
-#endif /* PC98 */
-
-	siointr(unit);
-}
-
 void
 siointr(unit)
 	int	unit;
@@ -1947,9 +1902,6 @@ siointr1(com)
 recv_data=0;
 #endif /* PC98 */
 
-	if (com->do_timestamp)
-		/* XXX a little bloat here... */
-		com->timestamp = intr_timestamp;
 	while (TRUE) {
 #ifdef PC98
 status_read:;
@@ -2024,6 +1976,8 @@ more_intr:
 			if (ioptr >= com->ibufend)
 				CE_RECORD(com, CE_INTERRUPT_BUF_OVERFLOW);
 			else {
+				if (com->do_timestamp)
+					microtime(&com->timestamp);
 				++com_events;
 				schedsofttty();
 #if 0 /* for testing input latency vs efficiency */
@@ -2064,6 +2018,11 @@ cont:
 #endif
 		modem_status = inb(com->modem_status_port);
 		if (modem_status != com->last_modem_status) {
+			if (com->do_dcd_timestamp
+			    && !(com->last_modem_status & MSR_DCD)
+			    && modem_status & MSR_DCD)
+				microtime(&com->dcd_timestamp);
+
 			/*
 			 * Schedule high level to handle DCD changes.  Note
 			 * that we don't use the delta bits anywhere.  Some
@@ -2115,11 +2074,7 @@ cont:
 			com->obufq.l_head = ioptr;
 			if (ioptr >= com->obufq.l_tail) {
 				struct lbq	*qp;
-#ifdef PC98
-				if(IS_8251(com->pc98_if_type))
-					if ( pc98_check_i8251_interrupt(com) & IEN_TxFLAG )
-						com_int_Tx_disable(com);
-#endif
+
 				qp = com->obufq.l_next;
 				qp->l_queued = FALSE;
 				qp = qp->l_next;
@@ -2130,6 +2085,11 @@ cont:
 				} else {
 					/* output just completed */
 					com->state &= ~CS_BUSY;
+#if defined(PC98)
+					if(IS_8251(com->pc98_if_type))
+						if ( pc98_check_i8251_interrupt(com) & IEN_TxFLAG )
+							com_int_Tx_disable(com);
+#endif
 				}
 				if (!(com->state & CS_ODONE)) {
 					com_events += LOTS_OF_EVENTS;
@@ -2330,6 +2290,10 @@ sioioctl(dev, cmd, data, flag, p)
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
 		*(struct timeval *)data = com->timestamp;
+		break;
+	case TIOCDCDTIMESTAMP:
+		com->do_dcd_timestamp = TRUE;
+		*(struct timeval *)data = com->dcd_timestamp;
 		break;
 	default:
 		splx(s);
@@ -3199,9 +3163,6 @@ static void
 siocntxwait()
 {
 	int	timo;
-#ifdef PC98
-	int	tmp;
-#endif
 
 	/*
 	 * Wait for any pending transmission to finish.  Required to avoid
@@ -3551,8 +3512,6 @@ pc98_get_modem_status(struct com_s *com)
 	int	stat, stat2;
 	register int	msr;
 
-	int	ret;
-
 	stat  = inb(com->sts_port);
 	stat2 = inb(com->in_modem_port);
 	msr = com->pc98_prev_modem_status
@@ -3763,7 +3722,7 @@ static void
 com_cflag_and_speed_set( struct com_s *com, int cflag, int speed)
 {
 	int	cfcr=0, count;
-	int	s, previnterrupt;
+	int	previnterrupt;
 
 	count = pc98_ttspeedtab( com, speed );
 	if ( count < 0 ) return;

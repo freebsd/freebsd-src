@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.51 1996/07/01 18:12:23 bde Exp $
+ *	$Id: cpufunc.h,v 1.52 1996/07/01 20:16:09 bde Exp $
  */
 
 /*
@@ -252,6 +252,8 @@ outw(u_int port, u_short data)
 }
 
 #ifdef PC98
+#include <machine/spl.h>
+
 static inline u_char
 epson_inb(u_int port)
 {
