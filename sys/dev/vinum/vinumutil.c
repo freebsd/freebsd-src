@@ -162,7 +162,7 @@ VolState(char *text)
     int i;
     for (i = 0; i < STATECOUNT(vol); i++)
 	if (strcmp(text, volstatetext[i]) == 0)		    /* found it */
-	    return (enum volstate) i;
+	    return (enum volumestate) i;
     return -1;
 }
 
