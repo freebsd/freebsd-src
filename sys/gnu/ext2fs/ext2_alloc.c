@@ -58,8 +58,6 @@
 #include <gnu/ext2fs/fs.h>
 #include <gnu/ext2fs/ext2_extern.h>
 
-extern u_long nextgennumber;
-
 static void	ext2_fserr __P((struct ext2_sb_info *, u_int, char *));
 
 /*
@@ -426,9 +424,8 @@ ext2_valloc(pvp, mode, cred, vpp)
 	 * Set up a new generation number for this inode.
 	 * XXX check if this makes sense in ext2
 	 */
-	if (++nextgennumber < (u_long)time.tv_sec)
-		nextgennumber = time.tv_sec;
-	ip->i_gen = nextgennumber;
+	if (ip->i_gen == 0 || ++ip->i_gen == 0)
+		ip->i_gen = random() / 2 + 1;
 /*
 printf("ext2_valloc: allocated inode %d\n", ino);
 */
