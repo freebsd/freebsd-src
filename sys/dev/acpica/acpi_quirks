@@ -105,10 +105,11 @@ oem_rev:	FADT <= 0x06040000
 quirks:		ACPI_Q_BROKEN
 
 # Compaq Thunder 05/18/99
+# XXX Note creator rev should be "=", I think
 name:		Compaq_Thunder
 oem:		FADT "COMPAQ" "THUNDER "
 oem_rev:	FADT <= 1
-creator_rev:	FADT <= 0 !!! Should be =
+creator_rev:	FADT <= 0
 quirks:		ACPI_Q_BROKEN
 
 # Compaq RaceBait 12/06/99
@@ -124,15 +125,17 @@ oem_rev:	FADT <= 0x27cf011b
 quirks:		ACPI_Q_BROKEN
 
 # Dell CPt
+# XXX Is ">=" correct?
 name:		Dell_CPt
 oem:		FADT "DELL  " "CPt C  "
-oem_rev:	FADT >= 0x27cf090e !!! should be <= ?
+oem_rev:	FADT >= 0x27cf090e
 quirks:		ACPI_Q_BROKEN
 
 # Dell CPt A02
+# XXX Is ">=" correct?
 name:		Dell_CPt_A02
 oem:		FADT "DELL  " "CPt C  "
-oem_rev:	FADT >= 0x27cf090f !!! should be <= ?
+oem_rev:	FADT >= 0x27cf090f
 quirks:		ACPI_Q_BROKEN
 
 # Dell Latitude LT
@@ -355,7 +358,7 @@ quirks:		ACPI_Q_BROKEN
 
 # Iwill DBS100
 name:		Iwill_DBS100
-oem:		FADT "AWARD " "AWRDACPI" !!! dupe?
+oem:		FADT "AWARD " "AWRDACPI"
 oem_rev:	FADT = 0
 quirks:		ACPI_Q_BROKEN
 
