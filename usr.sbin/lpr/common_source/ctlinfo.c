@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <limits.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,6 +73,18 @@ struct cjprivate {
 	int	 cji_buffsize;		/* # bytes in the buffer */
 	int	 cji_dumpit;
 };
+
+/*
+ * All the following take a parameter of 'int', but expect values in the
+ * range of unsigned char.  Define wrappers which take values of type 'char',
+ * whether signed or unsigned, and ensure they end up in the right range.
+ */
+#define	isdigitch(Anychar) isdigit((u_char)(Anychar))
+#define	islowerch(Anychar) islower((u_char)(Anychar))
+#define	isupperch(Anychar) isupper((u_char)(Anychar))
+#define	tolowerch(Anychar) tolower((u_char)(Anychar))
+
+#define	OTHER_USERID_CHARS  "-_"	/* special chars valid in a userid */
 
 #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
 
@@ -345,11 +358,11 @@ ctl_readcf(const char *ptrname, const char *cfname)
 			cpriv->pub.cji_mailto = strdup(lbuff);
 			break;
 		case 'P':
-			/* don't allow userid's with a leading minus, either */
-			if (*lbuff == '-')
-				break;
 			if (*lbuff == '\0')
 				break;
+			/* The userid must not start with a minus sign */
+			if (*lbuff == '-')
+				*lbuff = '_';
 			cpriv->pub.cji_acctuser = strdup(lbuff);
 			break;
 		default:
@@ -414,7 +427,7 @@ ctl_readcf(const char *ptrname, const char *cfname)
 char *
 ctl_renametf(const char *ptrname, const char *tfname)
 {
-	int chk3rd, newfd, nogood, res;
+	int chk3rd, has_uc, newfd, nogood, res;
 	FILE *newcf;
 	struct cjobinfo *cjinf;
 	char *lbuff, *slash, *cp;
@@ -531,10 +544,36 @@ ctl_renametf(const char *ptrname, const char *tfname)
 	nogood = 0;
 	if (cjinf->cji_acctuser == NULL)
 		nogood = 1;
+	else if (strcmp(cjinf->cji_acctuser, ".na.") == 0)
+		;			/* No further checks needed... */
 	else {
-		for (cp = cjinf->cji_acctuser; *cp != '\0'; cp++) {
-			if (*cp <= ' ')
-				*cp = '_';
+		has_uc = 0;
+		cp = cjinf->cji_acctuser;
+		if (*cp == '-')
+			*cp++ = '_';
+		for (; *cp != '\0'; cp++) {
+			if (islowerch(*cp) || isdigitch(*cp))
+				continue;	/* Standard valid characters */
+			if (strchr(OTHER_USERID_CHARS, *cp) != NULL)
+				continue;	/* Some more valid characters */
+			if (isupperch(*cp)) {
+				has_uc = 1;	/* These may be valid... */
+				continue;
+			}
+			*cp = '_';
+		}
+		/*
+		 * Some Windows hosts send print jobs where the correct userid
+		 * has been converted to uppercase, and that can cause trouble
+		 * for sites that expect the correct value (for something like
+		 * accounting).  On the other hand, some sites do use uppercase
+		 * in their userids, so we can't blindly convert to lowercase.
+		 */
+		if (has_uc && (getpwnam(cjinf->cji_acctuser) == NULL)) {
+			for (cp = cjinf->cji_acctuser; *cp != '\0'; cp++) {
+				if (isupperch(*cp))
+					*cp = tolowerch(*cp);
+			}
 		}
 	}
 	if (nogood)
