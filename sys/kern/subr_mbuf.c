@@ -1062,7 +1062,8 @@ mb_reclaim(void)
     (((uintptr_t)(cl) - (uintptr_t)cl_refcntmap) >> MCLSHIFT)
 
 #define	_mext_dealloc_ref(m)						\
-	free((m)->m_ext.ref_cnt, M_MBUF)
+	if ((m)->m_ext.ext_type != EXT_EXTREF)				\
+		free((m)->m_ext.ref_cnt, M_MBUF)
 
 /******************************************************************************
  * Internal routines.
@@ -1508,9 +1509,13 @@ void
 m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
     void (*freef)(void *, void *), void *args, int flags, int type)
 {
+	u_int *ref_cnt = NULL;
 
-	_mext_init_ref(mb, ((type != EXT_CLUSTER) ?
-	    NULL : &cl_refcntmap[cl2ref(mb->m_ext.ext_buf)]));
+	if (type == EXT_CLUSTER)
+		ref_cnt = &cl_refcntmap[cl2ref(mb->m_ext.ext_buf)];
+	else if (type == EXT_EXTREF)
+		ref_cnt = mb->m_ext.ref_cnt;
+	_mext_init_ref(mb, ref_cnt);
 	if (mb->m_ext.ref_cnt != NULL) {
 		mb->m_flags |= (M_EXT | flags);
 		mb->m_ext.ext_buf = buf;

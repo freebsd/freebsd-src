@@ -173,6 +173,7 @@ struct mbuf {
 #define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
 #define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
+#define	EXT_EXTREF	400	/* has externally maintained ref_cnt ptr*/
 
 /*
  * Flags copied when copying m_pkthdr.
