@@ -725,6 +725,11 @@ pcib_match(device_t dev)
 	/* Others */
 	case 0x00221014:
 		return ("IBM 82351 PCI-PCI bridge");
+	case 0x00011011:
+		return ("DEC 21050 PCI-PCI bridge");
+	/* UMC United Microelectronics 0x1060 */
+	case 0x88811060:
+		return ("UMC UM8881 HB4 486 PCI Chipset");
 	};
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
@@ -874,6 +879,9 @@ isab_match(device_t dev)
 		return ("NEC 002C PCI to PC-98 C-bus bridge");
 	case 0x003b1033:
 		return ("NEC 003B PCI to PC-98 C-bus bridge");
+	/* UMC United Microelectronics 0x1060 */
+	case 0x886a1060:
+		return ("UMC UM8886 ISA Bridge with EIDE");
 
 	/* Cypress -- vendor 0x1080 */
 	case 0xc6931080:
@@ -1140,7 +1148,7 @@ chip_match(device_t dev)
 
 	/* SiS -- vendor 0x1039 */
 	case 0x04961039:
-		return ("SiS 85c496");
+		return ("SiS 85c496 PCI/VL Bridge");
 	case 0x04061039:
 		return ("SiS 85c501");
 	case 0x06011039:
