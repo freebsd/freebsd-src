@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.70 1995/02/16 16:03:29 bde Exp $
+#	$Id: MAKEDEV,v 1.71 1995/02/17 12:32:34 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -719,11 +719,12 @@ cronyx)
   	;;
 
 joy)
+	umask 2
 	rm -f joy0 joy1
 	mknod joy0 c 51 0
 	mknod joy1 c 51 1
-	chmod 444 joy0 joy1
-	chown root.wheel joy0 joy1
+	chown root.operator joy0 joy1
+	chmod 640  joy0 joy1
 	;;
 
 spigot)
