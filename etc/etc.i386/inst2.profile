@@ -1,6 +1,6 @@
 stty status '^T'
-trap : 2
-trap : 3
+#trap : 2
+#trap : 3
 HOME=/; export HOME
 PATH=/sbin:/bin:/usr/sbin:/usr/bin; export PATH
 if [ -e /fastboot ]
@@ -121,16 +121,112 @@ tmp_dir()
 load_fd()
 {
 	tmp_dir
-	which=
-	while [ "$which" != "a" -a "$which" != "b" ]; do
-		echo -n "read from which floppy drive?  [a or b] "
-		read which
+	drive=
+	altdrive=
+	while [ -z "$drive" ]; do
+		echo -n "Read from which floppy drive? (? for help) [a] "
+		read answer junk
+		[ ! "$answer" ] && answer=a
+		case "$answer" in
+		a*b|A*B)	
+			drive=A; altdrive=B
+			;;
+		b*a|B*A)	
+			drive=B; altdrive=A
+			;;
+		a*|A*)	
+			drive=A; altdrive=A
+			;;
+		b*|B*)	
+			drive=B; altdrive=B
+			;;
+		q*|Q*)	
+			drive=q
+			;;
+		\?*)	
+			echo
+			echo "Enter:		To:"
+			echo "------		---"
+			echo "  a		Read from floppy drive A:"
+			echo "  b		Read from floppy drive B:"
+			echo "  ab		Alternate between A: and B:, starting with A:"
+			echo "  ba		Alternate between A: and B:, starting with B:"
+			echo "  q		Quit"
+			echo
+			;;
+		esac
 	done
-	while echo -n "Insert floppy (hit ^C to terminate, enter to load): "
+	verbose=
+	interactive=-v
+	dir=/tmp/floppy
+	umount $dir >/dev/null 2>&1
+	rm -f $dir
+	mkdir -p $dir
+	while [ "$drive" != "q" ]
 	do
-		read foo
-		mread "$which:*.*" .
+		device=/dev/fd0a
+		[ "$drive" = "B" ] && device=/dev/fd1a
+		echo; echo "Insert floppy in drive $drive: and press RETURN,"
+		echo -n    "or enter option (? for help): "
+		read answer junk
+		[ ! "$answer" ] && answer=c
+		case "$answer" in
+		c*|C*)	
+			if mount -t pcfs $verbose $device $dir; then 
+				[ "$verbose" ] && 
+				echo "Please wait.  Copying to disk..."
+				cp $interactive $dir/* .
+				sync
+				umount $dir
+				tmp=$drive; drive=$altdrive; altdrive=$tmp
+			fi
+			;;
+		o*|O*)	
+			tmp=$drive; drive=$altdrive; altdrive=$tmp
+			;;
+		v*|V*)	
+			tmp=$verbose; verbose=; [ -z "$tmp" ] && verbose=-v
+			tmp=on; [ -z "$verbose" ] && tmp=off
+			echo "verbose mode is $tmp"
+			;;
+		i*|I*)	
+			tmp=$interactive; interactive=; [ -z "$tmp" ] && interactive=-i
+			tmp=on; [ -z "$interactive" ] && tmp=off
+			echo "interactive mode is $tmp"
+			;;
+		s*|S*)	
+			echo; echo -n "tmp_dir is set to $tmp_dir"
+			[ "$tmp_dir" != "`pwd`" ] && echo -n " (physically `pwd`)"
+			echo; echo "free space in tmp_dir:"
+			df -k .
+			echo -n "you are loading from drive $drive:"
+			[ "$drive" != "$altdrive" ] && echo -n " and drive $altdrive:"
+			echo
+			tmp=on; [ -z "$verbose" ] && tmp=off
+			echo "verbose mode is $tmp"
+			tmp=on; [ -z "$interactive" ] && tmp=off
+			echo "interactive mode is $tmp"
+			;;
+		q*|Q*)	
+			drive=q
+			;;
+		\?)	
+			echo
+			echo "Enter:		To:"
+			echo "-----		---"
+			echo "(just RETURN)	Copy the contents of the floppy to $tmp_dir"
+			[ "$drive" != "$altdrive" ] &&
+			echo "  o		Read from alternate drive"
+			echo "  v		Toggle verbose mode"
+			echo "  i		Toggle interactive mode (cp -i)"
+			echo "  s		Display status"
+			echo "  q		Quit"
+			echo 
+			;;
+		esac
 	done
+	echo goodbye.
+	unset verbose answer drive altdrive device dir tmp interactive
 }
 load_qic_tape()
 {
@@ -152,18 +248,21 @@ extract()
 	echo -n "Would you like to be verbose about this? [n] "
 	read verbose
 	case $verbose in
-		y*|Y*)
-			tarverbose=--verbose
-			;;
-		*)
-			tarverbose=
-			;;
+	y*|Y*)
+		tarverbose=--verbose
+		;;
+	*)
+		tarverbose=
+		;;
 	esac
 	#XXX ugly hack to eliminate busy files, copy them to /tmp and use them
 	#from there...
-	cp -p /bin/cat /usr/bin/gunzip /usr/bin/tar /tmp
-	/tmp/cat "$@"* | /tmp/gunzip | (cd / ; /tmp/tar --extract --file - --preserve-permissions ${tarverbose} )
-	rm -f /tmp/cat /tmp/gunzip /tmp/tar
+	cp -p /usr/bin/gunzip /usr/bin/tar /tmp
+	
+	for i in "$@"*; do
+		/tmp/gunzip <$i
+	done | (cd / ; /tmp/tar --extract --file - --preserve-permissions ${tarverbose} )
+	rm -f /tmp/gunzip /tmp/tar
 	sync
 }
 configure()
@@ -195,7 +294,7 @@ configure()
 	echo -n "Does this machine have an ethernet interface? [y] "
 	read resp
 	case "$resp" in
-	        n*)
+	n*)
                 ;;
         *)
 		intf=
@@ -219,31 +318,31 @@ configure()
 		echo -n "Does this interface have a special netmask? [n] "
 		read resp
 		case "$resp" in
-		        y*)
-				echo -n "What is the netmask? [0xffffff00] "
-				read ifnetmask
-				if [ "$ifnetmask" = "" ]; then
-					ifnetmask=0xffffff00
-				fi
-	       		        ;;
-			*)
-				ifnetmask=
-				;;
+		y*)
+			echo -n "What is the netmask? [0xffffff00] "
+			read ifnetmask
+			if [ "$ifnetmask" = "" ]; then
+				ifnetmask=0xffffff00
+			fi
+			;;
+		*)
+			ifnetmask=
+			;;
 		esac
 		
 		echo -n "Does this interface need additional flags? [n] "
 		read resp
 		case "$resp" in
-			y*)
-				echo -n "What flags? [llc0] "
-				read ifflags
-				if [ "$ifflags" = "" ]; then
-					ifflags=llc0
-				fi
-				;;
-			*)
-				ifflags=
-				;;
+		y*)
+			echo -n "What flags? [llc0] "
+			read ifflags
+			if [ "$ifflags" = "" ]; then
+				ifflags=llc0
+			fi
+			;;
+		*)
+			ifflags=
+			;;
 		esac
 		
 		echo "inet $ifname $ifnetmask $ifflags" > /etc/hostname.$intf

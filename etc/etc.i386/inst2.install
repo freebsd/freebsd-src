@@ -20,9 +20,10 @@ case $resp in
 		;;
 esac
 
-echo "Copying to disk..."
+echo
+echo "Please wait.  Copying to disk..."
 cd /
-cat mnt/inst2.cpio.gz | mnt/usr/bin/gunzip | cpio -idmu${cpioverbose}
+mnt/usr/bin/gunzip < mnt/inst2.cpio.gz | cpio -idmu${cpioverbose}
 cd /mnt
 ls .profile install usr/bin/* | cpio -pdmu${cpioverbose} /
 cd /dev

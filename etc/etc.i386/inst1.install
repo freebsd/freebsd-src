@@ -1,225 +1,550 @@
 #!/bin/sh
-# filesystem-floppy disk /install
-# Simplified, interactive *BSD installation script.
-# D.E. Silvia (dsilvia@net.com)
+# install1.fs disk 'install'
 #
-# Heavily hacked on by cgd and rwgrimes and miscilanious times
-# comments here are brief to save disk space!
+# Currently, no method for checking to see if the designated disk type is
+# already in /etc/disktab.  You can edit it out of the file after installation.
 #
 OPSYSTEM=FreeBSD
+OPSYSID=165
+ROOTMIN=7
+SWAPMIN=8
+DISKMIN=`expr $ROOTMIN + $SWAPMIN + 1`
 DEFBLOCKING=2
 DEFSECT=17
 DEFHEAD=12
 DEFCYLN=1024
+RUN_FDISK=""
 
-echo	"Welcome to ${OPSYSTEM}."
-echo	""
-echo	"This program is designed to help put ${OPSYSTEM} on a hard disk,"
-echo	"in a simple and rational way.  We'll ask you several questions,"
-echo	"and it would probably be useful to have a disk's hardware"
-echo	"manual, the installation notes, and a calculator handy."
-echo	""
-echo	"In particular, we need to know some reasonably detailed"
-echo	"information about the disk's geometry, because there is currently"
-echo	"no way we can figure out this information by ourselves."
-echo	""
+set_arbitrary_defaults() {
+cyls_per_disk=$DEFCYLN
+tracks_per_cyl=$DEFHEAD
+sects_per_track=$DEFSECT
+unused_last_part=3
+part_cnt=4
+}
+
+
+get_fdisk_data() {
+cyls_per_disk=
+part_id=
+got_sysid=
+part_cnt=0
+sysid_cnt=0
+have_opsys_part=
+unused_last_part=
+extent_max=0
+extent_max_part=
+
+fdisk /dev/r${drivename}d >fdisk.out 2>fdisk.err
+if [ $? -gt 0 ]; then
+	echo "Can't open /dev/r${drivename}d for reading!"
+	set_arbitrary_defaults
+	>fdisk.out 
+	>fdisk.err
+	return 2
+elif [ -s fdisk.err ]; then
+	echo "Disk doesn't appear to be initialized..."
+	no_part_table=1
+fi
+while read data; do
+	if [ ! "$cyls_per_disk" ]; then
+		cyls_per_disk=`expr "$data" : '[^=]*=\([0-9]*\)'`
+		tracks_per_cyl=`expr "$data" : '[^=]*=[^=]*=\([0-9]*\)'`
+		sects_per_track=`expr "$data" : '[^=]*=[^=]*=[^=]*=\([0-9]*\)'`
+		continue
+	fi
+	if [ "$got_sysid" ]; then
+		start_part=`expr "$data" : '[^0-9]*\([0-9]*\)'`
+		size_part=`expr "$data" : '[^0-9]*[0-9]*[^0-9]*\([0-9]*\)'`
+		extent_part=`expr $start_part + $size_part`
+		if [ $extent_part -gt $extent_max ]; then
+			extent_max=$extent_part
+			extent_max_part=$part_id
+		fi
+		eval start${part_id}=$start_part
+		eval size${part_id}=$size_part
+		sysid_cnt=`expr $sysid_cnt + 1`
+		got_sysid=
+		part_id=
+	elif [  "$part_id" ]; then
+		sysid=`expr "$data" : 'sysid \([0-9]*\)'`
+		if [ "$no_part_table" -o "$sysid" = "0" -o \
+		    "$(expr "$data" : '\(<UNUSED>\)')" = "<UNUSED>" ]; then
+			unused_last_part=$part_id
+			part_id=
+			continue
+		fi
+		[ "$sysid" = "$OPSYSID" ] && have_opsys_part=$part_id
+		eval sysid${part_id}=$sysid
+		got_sysid=1
+	else 
+		part_id=`expr "$data" : 'The data[^0-9]*\([0-9]*\)'`
+		beg_cyl=`expr "$data" : '[ 	]*beg[^0-9]*\([0-9]*\)'`
+		end_cyl=`expr "$data" : '[ 	]*end[^0-9]*\([0-9]*\)'`
+		if [ "$part_id" ]; then 	
+			part_cnt=`expr $part_cnt + 1`
+		elif [ "$beg_cyl"  ]; then
+				if [ $beg_cyl -gt $cyls_per_disk ]; then
+					no_part_table=1
+					sysid_cnt=0
+					have_opsys_part=0
+					unused_last_part=`expr $part_cnt - 1`
+				fi
+		elif [ "$end_cyl" ]; then 
+				if [ $end_cyl -gt $cyls_per_disk ]; then
+					no_part_table=1
+					sysid_cnt=0
+					have_opsys_part=0
+					unused_last_part=`expr $part_cnt - 1`
+				fi
+		fi
+	fi
+done <fdisk.out
+if [ ! "$cyls_per_disk" ]; then
+	set_arbitrary_defaults
+	return 2
+fi
+>fdisk.out 
+>fdisk.err
+return 0
+}
+
+analyze_fdisk_data() {
+# Case I: >1024 cylinders
+force_offset=
+if [ $cyls_per_disk -gt 1024 ]; then
+	echo
+	echo "WARNING: >1024 cylinders."
+	echo "Overwriting existing partitions - okay? [y] "
+	read resp junk
+	[ ! "$resp" ] && resp=y
+	case "$resp" in
+	y*|Y*)
+		force_offset=1
+		;;
+	*)
+		echo
+		echo "If the number of disk cylinders does exceed 1024, then ${OPSYSTEM}"
+		echo "can be installed alongside other operating systems on a single disk."
+		echo "Otherwise, ${OPSYSTEM} MUST be installed at the beginning of the disk,"
+		echo "and existing partitions will be lost."
+		;;
+	esac
+	RUN_FDISK=""
+	opsys_off=0
+	cyls_per_opsys=${cyls_per_disk}
+	opsys_part=${unused_last_part:-3}
+	return 0
+# Case II: no partitions used
+elif [ $sysid_cnt -eq 0 ]; then
+	echo
+	echo "WARNING: partition table is either missing or corrupt."
+	echo "Existing partitions will be lost."
+	part_cnt=${part_cnt:-4}
+	RUN_FDISK="overwrite"
+	opsys_off=1
+	cyls_per_opsys=`expr ${cyls_per_disk} - 1`
+	opsys_part=${unused_last_part:-3}
+	return 0
+# Case IIIa: overwrite an existing 386BSD/NetBSD/FreeBSD partition
+elif [ "$have_opsys_part" ]; then
+	echo
+	echo "386/Net/FreeBSD partition already exists!"
+	echo -n "Overwriting existing partition - okay? [y] "
+	read resp junk
+	[ ! "$resp" ] && resp=y
+	case "$resp" in
+	y*|Y*)
+		# Set existing partiton values as default (after adjusting to
+		# cylinder boundaries)
+		eval opsys_size=\$size${have_opsys_part}
+		eval opsys_start=\$start${have_opsys_part}
+		[ $opsys_size -eq 50000 ] && opsys_size=$disksize
+		opsys_off=`expr $opsys_start / $cylindersize`
+		opsys_adjusted=`expr $opsys_off \* $cylindersize`
+		if [ $opsys_adjusted -lt $opsys_start -o $opsys_off -eq 0 ]; then
+			opsys_off=`expr $opsys_off + 1`
+			opsys_adjusted=`expr $opsys_off \* $cylindersize`
+			opsys_size=`expr $opsys_size - $opsys_adjusted + $opsys_start`
+		fi
+		cyls_per_opsys=`expr $opsys_size / $cylindersize`
+		opsys_part=${have_opsys_part}
+		RUN_FDISK="fdisk -u"
+		return 0
+		;;
+	*)
+		have_opsys_part=
+		# FALL THROUGH
+		;;
+	esac
+fi
+
+# Case IIIb: no partitions available
+if [ $sysid_cnt -eq $part_cnt -a ! "$have_opsys_part" ]; then
+	echo
+	echo "No unused partitions."
+	echo "$OPSYSTEM cannot selectively overwrite existing partitions."
+	echo -n "Install $OPSYSTEM and overwrite the entire disk? [n] "
+	read resp junk
+	case "$resp" in
+	y*|Y*)
+		# don't use first cylinder!
+		opsys_off=1
+		cyls_per_opsys=`expr $cyls_per_disk - 1`
+		opsys_part=${unused_last_part}
+		RUN_FDISK="overwrite"
+		return 0
+		;;
+	*)
+		return 2
+		;;
+	esac
+fi
+
+
+# *** CAVEAT ***
+# $OPSYSTEM installs at the end of the disk.  If the
+# beginning of the disk is free but not the end, install fails!
+
+# Assume `fdisk -u' to add $OPSYSTEM in last unused partition for remaining cases
+opsys_part=${unused_last_part}
+RUN_FDISK="fdisk -u"
+mb_sect=`expr 1024 \* 1024 / $bytes_per_sect`
+disk_minimum=`expr $DISKMIN \* $mb_sect`
+
+# Case IV: No room (at end of disk) for mininal install
+disk_remaining=`expr $disksize - $extent_max`
+if [ $disk_remaining -lt $disk_minimum ]; then
+	echo
+	echo "Not enough space ($DISKMIN Mb) at end of disk to install $OPSYSTEM."
+	echo -n "Install FreeBSD and overwrite the entire disk? [n] "
+	read resp junk
+	case "$resp" in
+	y*|Y*)
+		# don't use first cylinder!
+		opsys_off=1
+		cyls_per_opsys=`expr $cyls_per_disk - 1`
+		opsys_part=${unused_last_part}
+		RUN_FDISK="overwrite"
+		;;
+	*)
+		echo
+		echo "WARNING: To install ${OPSYSTEM}, you're on your own in figuring"
+		echo "out where on the disk it will fit without overwriting another"
+		echo "partition..."
+		# Set defaults assuming there is only one partition at end of disk
+		eval start=\$start${extent_max_part}
+		# don't use first cylinder!
+		opsys_off=1
+		cyls_per_opsys=`expr $start / $cylindersize - 1`
+		;;
+	esac
+	return 0
+fi
+
+# Case V: Room for $OPSYSTEM and partition data okay
+opsys_off=`expr $extent_max / $cylindersize`
+opsys_extent=`expr $opsys_off \* $cylindersize`
+[ $opsys_extent -lt $extent_max ] && opsys_off=`expr $opsys_off + 1`
+cyls_per_opsys=`expr $cyls_per_disk - $opsys_off`
+return 0
+}
+
+put_fdisk_data() {
+start=$root_offset
+size=$partition 
+
+if [ "$RUN_FDISK" = "overwrite" ]; then
+	# How do you overwrite without explicitly editing each entry?
+	(
+		echo y
+		echo $cyls_per_disk
+		echo $tracks_per_cyl
+		echo $sects_per_track
+		echo y
+	) >fdisk.script
+	i=0
+	n=`expr ${part_cnt:-4} - 1`
+	while [ $i -lt $n ]; do
+		echo y
+		echo 0
+		echo 0
+		echo 0
+		echo n
+		echo y
+		i=`expr $i + 1`
+	done >>fdisk.script
+	(	echo y
+		echo ${OPSYSID}
+		echo ${start}
+		echo ${size}
+		echo n
+		echo y
+		echo y
+		echo ${n}
+		echo y
+		echo y
+	) >>fdisk.script
+	fdisk -u <fdisk.script >/dev/null 2>&1
+elif [ "$RUN_FDISK" ]; then
+	$RUN_FDISK -${opsys_part:-${unused_last_part:-3}} <<-EOF >/dev/null 2>&1
+	y
+	$cyls_per_disk
+	$tracks_per_cyl
+	$sects_per_track
+	y
+	y
+	${OPSYSID}
+	${start}
+	${size}
+	n
+	y
+	y
+	${opsys_part:-${unused_last_part:-3}}
+	y
+	y
+	EOF
+fi
+
+}
+
+echo    "Welcome to ${OPSYSTEM}."
+echo
+echo    "This program is designed to help put ${OPSYSTEM} on a hard disk with"
+echo	"at least $DISKMIN Megabytes of free space."
+echo
+echo 	"If other operating systems are already on the disk, ${OPSYSTEM}"
+echo	"should be able to install alongside them.  Otherwise, if the disk"
+echo	"is being installed for the first time, it would probably be useful"
+echo	"to have the disk's hardware manual, the installation notes, and a"
+echo	"calculator handy."
+echo
 echo	"As with anything which modifies a hard drive's contents, this"
 echo	"program can cause SIGNIFICANT data loss, and we strongly recommend"
 echo	"making sure that the hard drive is backed up before going further with"
 echo	"the installation process."
-echo	""
+echo
 echo -n "Proceed with installation? [y] "
 read resp junk
-if [ "$resp" = "" ]; then
-	resp=y
-fi
-case $resp in
-	y*|Y*)
-		echo
-		echo	"Cool!  Let's get to it..."
-		echo	""
-		echo	"If a mistake is made along the way, don't bail out."
-		echo	"At the end, you have the option to redo the configuration."
-		echo	"If you really must bail out at some point, then type <CTRL>+C,"
-		echo	"and enter \`halt' at the command prompt \`#'."
-		;;
-	*)
-		echo	""
-		echo	"OK, then enter 'halt' to halt the machine."
-		echo	"Once the machine has halted, remove the floppy,"
-		echo	"and press any key to reboot."
-		exit
-		;;
+resp=${resp:-y}
+case "$resp" in
+y*|Y*)
+	echo
+	echo    "Cool!  Let's get to it..."
+	echo
+	echo	"If a mistake is made along the way, don't bail out."
+	echo	"At the end, you have the option to redo the configuration."
+	echo	"If you really must quit at some point, type <CTRL>+C and"
+	echo	"enter \`halt' at the command prompt, \`#'."
+	;;
+*)
+	echo
+	echo    "OK, then.  Enter \`halt' to halt the machine."
+	echo    "Once the machine has halted, remove the floppy,"
+	echo    "and press any key to reboot."
+	exit
+	;;
 esac
 
+mount -u /dev/fd0a /
+sync
 verified_install=""
-while [ "$verified_install" = "" ]; do	# Begin of Big Loop
+while [ ! "$verified_install" ]; do	# Begin of Big Loop
 
 rotdelay=""
 drivename=wd0
 drivetype=wd
 sect_fwd=""
-echo	""
-echo	"First, we need to know the drive type.  This can be can be one of"
+echo
+echo    "First, we need to know the drive type.  This can be can be one of"
 echo	"ESDI, SCSI, ST506, or IDE."
-echo -n "Drive type? [IDE] "
-read type junk
-if [ "$type" = "" ]; then
-	type=IDE
-fi
+echo -n "Drive type? [${type:-IDE}] "
+read resp junk
+type=${resp:-${type:-IDE}}
 case "$type" in
-	e*|E*|st*|ST*)
-		echo
-		echo -n "Does it support _automatic_ sector remapping? [y] "
-		read remap junk
-		case "$remap" in
-			n*|N*)
-				sect_fwd="sf:"
-				;;
-		esac
-		case "$type" in
-			e*|E*)
-				DEFSECT=36
-				;;
-		esac
+e*|E*|st*|ST*)
+	echo -n "Does it support AUTOMATIC sector remapping? [y] "
+	read remap junk
+	case "$remap" in
+	n*|N*)
+		sect_fwd="sf:"
 		;;
-	i*|I*)
-		type=ST506
-		rotdelay="-d 0"
+	esac
+	case "$type" in
+	e*|E*)
+		DEFSECT=36
 		;;
-	sc*|SC*)
-		drivename=sd0
-		drivetype=sd
-		type=SCSI
-		rotdelay="-d 0"
-		DEFSECT=32
-		DEFHEAD=64
-		;;
-	*)
-		echo "Unknown type.  Assuming ST506 with automatic sectoring..."
-		type=ST506
-		;;
+	esac
+	;;
+i*|I*)
+	type=ST506
+	rotdelay="-d 0"
+	;;
+sc*|SC*)
+	drivename=sd0
+	drivetype=sd
+	type=SCSI
+	rotdelay="-d 0"
+	DEFSECT=32
+	DEFHEAD=64
+	;;
+*)
+	echo "Unknown type.  Assuming ST506 with automatic sectoring..."
+	type=ST506
+	;;
 esac
-echo	""
-echo	"Disk is of device type $drivetype."
-echo	"Installing on device /dev/$drivename..."
-echo	""
+echo
+echo    "Disk is of device type $drivetype."
+echo
+echo -n "Number of bytes per disk sector? [${bytes_per_sect:-512}] "
+read resp junk
+bytes_per_sect=${resp:-${bytes_per_sect:-512}}
+if [ ! "$partition" ]; then
+	echo
+	echo    "Please wait.  Examining device /dev/r${drivename}d..."
+	get_fdisk_data
+	if [ $? -gt 1 ]; then
+		echo "Hm  - we can't seem to read that drive."
+		echo
+		echo -n "Are you sure that $type is the correct type? [n] "
+		read resp
+		case "$resp" in
+		y*|Y*)
+			echo "Well, since we can't even open it, there isn't much"
+			echo "hope for writing a label  on it.  But you're free"
+			echo "to give it a try.  You need to specify the geometry."
+			;;
+		*)
+			echo "Okay.  Let's start again from the top."
+			continue
+			;;
+		esac
+	fi
+fi
+echo
 echo	"Now we want to build a data base entry in /etc/disktab describing"
 echo	"the geometry of the /dev/$drivename disk.  The name of the entry"
 echo	"should be descriptive of the disk's type and model.  For example,"
 echo	"a Maxtor IDE, model 7080 disk might be named \`maxtor7080'."
-echo -n "Disk label name (one word, please)? [mfr_model] "
-read name junk
-if [ "$name" = "" ]; then
-	name=mfr_model
-fi
-echo	""
-echo -n "Number of bytes per disk sector? [512] "
-read bytes_per_sect junk
-if [ "$bytes_per_sect" = "" ]; then
-	bytes_per_sect=512
-fi
-echo	""
-echo -n "Total number of disk cylinders? [$DEFCYLN] "
-read cyls_per_disk junk
-if [ "$cyls_per_disk" = "" ]; then
-	cyls_per_disk=$DEFCYLN
-fi
-echo	""
-echo -n "Number of disk heads (i.e., tracks/cylinder)? [$DEFHEAD] "
-read tracks_per_cyl junk
-if [ "$tracks_per_cyl" = "" ]; then
-	tracks_per_cyl=$DEFHEAD
-fi
-echo	""
-echo -n "Number of disk sectors (i.e., sectors/track)? [$DEFSECT] "
-read sects_per_track junk
-if [ "$sects_per_track" = "" ]; then
-	sects_per_track=$DEFSECT
-fi
-echo	""
+echo -n "Disk label name (one word, please)? [${name:-mfr_model}] "
+read resp junk
+name=${resp:-${name:-mfr_model}}
+echo
+echo -n "Total number of disk cylinders? [${cyls_per_disk:-${DEFCYLN}}] "
+read resp junk
+cyls_per_disk=${resp:-${cyls_per_disk:-${DEFCYLN}}}
+echo
+echo -n "Number of disk heads (i.e., tracks/cylinder)? [${tracks_per_cyl:-${DEFHEAD}}] "
+read resp junk
+tracks_per_cyl=${resp:-${tracks_per_cyl:-${DEFHEAD}}}
+echo
+echo -n "Number of disk sectors (i.e., sectors/track)? [${sects_per_track:-${DEFSECT}}] "
+read resp junk
+sects_per_track=${resp:-${sects_per_track:-${DEFSECT}}}
 cylindersize=`expr $sects_per_track \* $tracks_per_cyl`
 disksize=`expr $cylindersize \* $cyls_per_disk`
 mb_sect=`expr 1024 \* 1024 / $bytes_per_sect`
 mb_per_disk=`expr $disksize / $mb_sect`
+opsys_cyls_min=`expr $DISKMIN \* $mb_sect / $cylindersize`
+analyze_fdisk_data
+if [ $? -eq 0 ]; then
+	partition=`expr $cyls_per_opsys \* $cylindersize`
+	part_offset=`expr $opsys_off \* $cylindersize`
+fi
+echo
 echo "Disk has a total of $mb_per_disk Mb."
-echo "It must be divided into at least two partitions: one for the root" 
-echo "filesystem and one for swap.  In addition, it is a very good idea to"
-echo "have at least a third partition for the /usr filesystem."
-echo ""
-echo "For greater efficiency, partitions should begin and end on cylinder"
-echo "boundaries.  If you know the size NN in Megabytes (Mb) of a partition"
-echo "you want, then use the following formula to determine the number NC of"
-echo "cylinders to use:"
-echo	"	NC = integer { ( NN * $mb_sect ) / $cylindersize }"
-echo -n "Total size of the ${OPSYSTEM} portion of the disk (in cylinders)? [${cyls_per_disk}] "
-read partition junk
-if [ "$partition" = "" ]; then
-	partition=$cyls_per_disk
-fi
-partition=`expr $partition \* $cylindersize`
-part_offset=0
-if [ $partition -lt $disksize ]; then
-	echo ""
-	echo -n "Offset from beginning of the disk of first ${OPSYSTEM} partition (in cylinders)? [0] "
-	read part_offset junk
-	if [ "$part_offset" = "" ]; then
-		part_offset=0
+echo "The size of the ${OPSYSTEM} portion of the disk must be at least"
+echo "${opsys_cyls_min} cylinders, and should not exceed $(expr $cyls_per_disk - 1) cylinders."
+echo "The offset of ${OPSYSTEM} from the beginning of the disk should be at"
+echo "least 1 cylinder."
+echo 
+echo "For efficiency, partitions begin and end on cylinder boundaries."
+echo "If you know the size NN in Megabytes (Mb) of a partition you want, then"
+echo "use the following formula to determine the number NC of cylinders to use:"
+echo	"	NC = integer { ( NN * $mb_sect ) /  $cylindersize }"
+while :; do
+	echo -n "Total size of the ${OPSYSTEM} portion of the disk (in cylinders)? [${cyls_per_opsys:-`expr ${cyls_per_disk} - 1`}] "
+	read resp junk
+	cyls_per_opsys=${resp:-${cyls_per_opsys:-`expr ${cyls_per_disk} - 1`}}
+	partition=`expr $cyls_per_opsys \* $cylindersize`
+	if [ $cyls_per_opsys -lt $cyls_per_disk -a ! "$force_offset" ]; then
+		echo
+		echo -n "Offset of ${OPSYSTEM} from beginning of disk (in cylinders)? [${opsys_off:-1}] "
+		read resp junk
+		opsys_off=${resp:-${opsys_off:-1}}
+	else
+		echo
+		echo "WARNING: Installing at cylinder 0 overwrites DOS partition table."
+		echo "Existing partitions will be lost, and subsequent installs may fail."
+		RUN_FDISK=""
+		cyls_per_opsys=$cyls_per_disk
+		partition=$disksize
+		opsys_off=0
 	fi
-	echo $part_offset
-fi
-part_offset=`expr $part_offset \* $cylindersize`
+	part_offset=`expr $opsys_off \* $cylindersize`
+	opsys_extent=`expr $opsys_off + $cyls_per_opsys`
+	if [ ${opsys_extent} -gt ${cyls_per_disk} ]; then 
+		echo
+		echo "${OPSYSTEM} Size + Offset cannot exceed ${cyls_per_disk} cylinders."
+	elif [ ${cyls_per_opsys} -lt ${opsys_cyls_min} ]; then
+		echo
+		echo "${OPSYSTEM} requires at least ${opsys_cyls_min} cylinders to install."
+	else	break 
+	fi
+done
 badspacesec=0
 if [ "$sect_fwd" = "sf:" ]; then
 	badspacecyl=`expr $sects_per_track + 126`
 	badspacecyl=`expr $badspacecyl + $cylindersize - 1`
 	badspacecyl=`expr $badspacecyl / $cylindersize`
 	badspacesec=`expr $badspacecyl \* $cylindersize`
-	echo ""
+	echo
 	echo -n "Using $badspacesec sectors ($badspacecyl cylinders) for the "
 	echo "bad144 bad block table"
 fi
 whats_left=`expr $partition - $badspacesec`
 cyl_left=`expr $whats_left / $cylindersize`
 mb_left=`expr $whats_left / $mb_sect`
-echo	""
-echo	"There are $mb_left Mb ($cyl_left cylinders) to allocate."
-echo	""
-# set default root partition to 15MB
-part_size=`expr \( 15 \* $mb_sect \) / $cylindersize`
-if [ $part_size -gt $cyl_left ]; then
-	part_size=$cyl_left
+swap_cyls_min=`expr $SWAPMIN \* $mb_sect / $cylindersize`
+root_cyls_max=`expr ${cyl_left} - ${swap_cyls_min}`
+root_cyls_min=`expr $ROOTMIN \* $mb_sect / $cylindersize`
+echo
+echo "There are $mb_left Mb ($cyl_left cylinders) to allocate."
+echo
+echo "The $OPSYSTEM portion of the disk must itself be divided into at least"
+echo "two partitions: one for the root filesystem and one for swap.  It is a"
+echo "good idea to have at least a third (large) $OPSYSTEM partition for the /usr"
+echo "filesystem."
+echo
+echo "The root partition cannot exceed ${root_cyls_max} cylinders.  It is usually"
+echo "no larger than about 15 Mb ($(expr 15 \* $mb_sect / $cylindersize) cylinders), and sometimes"
+echo "as small as $ROOTMIN Mb ($root_cyls_min cylinders)."
+if [ ! "$cyls_per_root" ]; then
+	# set default root partition to 15MB
+	cyls_per_root=`expr \( 15 \* $mb_sect \) /  $cylindersize`
+	[ $cyls_per_root -gt $root_cyls_max ] && cyls_per_root=$root_cyls_max
 fi
-echo "The root partition is usually no larger than about 15 Mb, and sometimes"
-echo "as small as 7 or 8 Mb."
-root=0
-while [ $root -eq 0 ]; do
-	echo -n "Root partition size (in cylinders)? [${part_size}] "
-	read root junk
-	if [ "$root" = "" ]; then
-		root=$part_size
+while :; do
+	echo -n "Root partition size (in cylinders)? [${cyls_per_root}] "
+	read resp junk
+	cyls_per_root=${resp:-${cyls_per_root}}
+	root=`expr $cyls_per_root \* $cylindersize`
+	if [ ${cyls_per_root} -gt ${root_cyls_max} ]; then
+		echo
+		echo "The root partition size cannot exceed $root_cyls_max cylinders."
+	elif [ ${cyls_per_root} -lt ${root_cyls_min} ]; then
+		echo
+		echo "The root partition size must be at least $root_cyls_min cylinders."
+	else
+		part_used=`expr $root + $badspacesec`
+		break
 	fi
-	case $root in
-		[1-9]*)
-			root=`expr $root \* $cylindersize`
-			total=$root
-			if [ $total -gt $whats_left ]; then
-				echo Total is greater than remaining free space
-				root=0
-			else
-				part_used=`expr $root + $badspacesec`
-			fi
-			;;
-		*)
-			root=0
-			;;
-	esac
 done
 root_offset=$part_offset
 whats_left=`expr $partition - $part_used`
 cyl_left=`expr $whats_left / $cylindersize`
 mb_left=`expr $whats_left / $mb_sect`
-echo	""
+echo
 # DO NOT USE DIFFERENT BLOCKING FACTORS FOR EACH PARITION.. IT TRASHES THE
 # VM SYSTEM!  When that gets fixed this can go back the way it was...
 #
@@ -227,138 +552,114 @@ echo "We can build the filesystems with block/fragment sizes of either"
 echo "	1) 4k/512, to save disk space at the expense of speed, or"
 echo "	2) 8k/1k for speed at the expense of disk space."
 echo -n "Which blocking factor should we use for the filesystems? "
-echo -n "[$DEFBLOCKING] "
-read blocking_factor junk
-if [ "$blocking_factor" = "" ]; then
-	blocking_factor=$DEFBLOCKING
-fi
-DEFBLOCKING=$blocking_factor
+echo -n "[${blocking_factor:-${DEFBLOCKING}}] "
+read resp junk
+blocking_factor=${resp:-${blocking_factor:-${DEFBLOCKING}}}
 fragsize=`expr $bytes_per_sect \* $blocking_factor`
 blocksize=`expr $bytes_per_sect \* $blocking_factor \* 8`
-minswap=`expr 8 \* $mb_sect`
-min_cyl=`expr $minswap / $cylindersize`
-swap=0
-while [ $swap -eq 0 ]; do
-	echo
-	echo	"$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
-	echo
-	echo	"Minimum swap space is $min_cyl cylinders."
-	echo	"For running X, if your RAM size is NR Mb, then the recomended swap"
-	echo	"size NS (in cylinders) is:"
-	echo	" 	NS = integer { ( 2.1 x NR x $mb_sect ) / ${cylindersize} }"
-	
+echo
+echo    "$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
+echo
+echo	"Minimum swap space is ${swap_cyls_min} cylinders."
+echo	"For running X, if your RAM size is NR Mb, then the recomended swap"
+echo	"size NS (in cylinders) is:"
+echo	" 	NS = integer { ( NR x `expr 21 \* $mb_sect / 10` ) / ${cylindersize} }"
+if [ ! "$swap_cyl" ]; then
 	# guess memory size
 	mb_ram=16
-	part_size=`expr \( 21 \* $mb_ram \* $mb_sect \) / 10`
-	part_size=`expr $part_size / ${cylindersize}`
+	swap_cyl=`expr \( 21 \* $mb_ram \* $mb_sect \) / 10`
+	swap_cyl=`expr $swap_cyl / ${cylindersize}`
 
 	# but not swap size more than 10% of disk size...
 	swap_quot=`expr $mb_left / $mb_ram`
 	if [ $swap_quot -lt 10 ]; then
-		part_size=$min_cyl
+		swap_cyl=$swap_cyls_min
 	fi
-	echo -n "Swap partition size (in cylinders)? [${part_size}] "
-	read swap_cyl junk
-	if [ "$swap_cyl" = "" ]; then
-		swap_cyl=$part_size
+fi
+while :; do
+	echo -n "Swap partition size (in cylinders)? [${swap_cyl}] "
+	read resp junk
+	swap_cyl=${resp:-${swap_cyl}}
+	swap=`expr $swap_cyl \* $cylindersize`
+	if [ ${swap_cyl} -gt ${cyl_left} ]; then
+		echo
+		echo "Swap size cannot exceed $cyl_left cylinders."
+	elif [ ${swap_cyl} -lt ${swap_cyls_min} ]; then
+		echo
+		echo "Swap size must be at least ${swap_cyls_min} cylinders."
+	else
+		break
 	fi
-	case $swap_cyl in
-		[1-9]*)
-			swap=`expr $swap_cyl \* $cylindersize`
-			if [ $swap_cyl -gt $cyl_left ]; then
-				echo "Swap size is greater than remaining free space"
-				swap=0
-			fi
-			if [ $swap_cyl -lt $min_cyl ]; then
-				echo "Swap space must be greater than $min_cyl"
-				swap=0
-			fi
-			;;
-		*)
-			swap=0
-			;;
-	esac
 done
-echo ""
+echo
 swap_offset=`expr $root_offset + $root`
 part_used=`expr $part_used + $swap`
-mount -u /dev/fd0a /
-echo	"" >/etc/disktab
-echo	"$name|${OPSYSTEM} installation generated:\\" >>/etc/disktab
-echo	"	:dt=${type}:ty=winchester:\\" >>/etc/disktab
+echo    "" >/etc/disktab
+echo    "$name|${OPSYSTEM} installation generated:\\" >>/etc/disktab
+echo    "	:dt=${type}:ty=winchester:\\" >>/etc/disktab
 echo -n "	:nc#${cyls_per_disk}:ns#${sects_per_track}" >>/etc/disktab
-echo	":nt#${tracks_per_cyl}:\\" >>/etc/disktab
-echo	"	:se#${bytes_per_sect}:${sect_fwd}\\" >>/etc/disktab
+echo    ":nt#${tracks_per_cyl}:\\" >>/etc/disktab
+echo    "	:se#${bytes_per_sect}:${sect_fwd}\\" >>/etc/disktab
 echo -n "	:pa#${root}:oa#${root_offset}" >>/etc/disktab
-echo	":ta=4.2BSD:ba#${blocksize}:fa#${fragsize}:\\" >>/etc/disktab
-echo	"	:pb#${swap}:ob#${swap_offset}:tb=swap:\\" >>/etc/disktab
-echo	"	:pc#${partition}:oc#${part_offset}:\\" >>/etc/disktab
+echo    ":ta=4.2BSD:ba#${blocksize}:fa#${fragsize}:\\" >>/etc/disktab
+echo    "	:pb#${swap}:ob#${swap_offset}:tb=swap:\\" >>/etc/disktab
+echo    "	:pc#${partition}:oc#${part_offset}:\\" >>/etc/disktab
 ename="";fname="";gname="";hname=""
-
-echo	""
-echo	"Now we enter information about any other partitions and filesystems"
-echo	"to be created in the ${OPSYSTEM} portion of the disk.  This process"
-echo	"is complete when we've filled up all remaining space in the ${OPSYSTEM}"
-echo	"portion of the disk."
-
+if [ $part_used -lt $partition ]; then
+	echo
+	echo	"Now we enter information about any other partitions and filesystems"
+	echo	"to be created in the ${OPSYSTEM} portion of the disk.  This process"
+	echo	"is complete when we've filled up all remaining space in the ${OPSYSTEM}"
+	echo	"portion of the disk."
+fi
 while [ $part_used -lt $partition ]; do
 	part_size=0
 	whats_left=`expr $partition - $part_used`
 	cyl_left=`expr $whats_left / $cylindersize`
 	mb_left=`expr $whats_left / $mb_sect`
-	while [ $part_size -eq 0 ]; do
-		echo	""
-		echo	"$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
-		echo
+	echo
+	echo    "$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
+	echo
+	while :; do
 		echo -n "Next partition size (in cylinders)? [${cyl_left}] "
-		read part_size junk
-		if [ "$part_size" = "" ]; then
-			part_size=$cyl_left
+		read resp junk
+		part_size=${resp:-${cyl_left}}
+		part_size=`expr $part_size \* $cylindersize`
+		total=`expr $part_used + $part_size`
+		if [ $total -gt $partition ]; then
+			echo
+			echo "Partition size cannot exceed ${cyl_left} cylinders." 
+		else
+			part_used=$total
+			part_name=""
+			while [ "$part_name" = "" ]; do
+				echo
+				echo -n "On which directory should this filesystem be mounted? [usr] "
+				read resp junk
+				part_name=${resp:-usr}
+				part_name=`expr "$part_name" : '/*\(.*\)'`
+			done
+			break
 		fi
-		case $part_size in
-			[1-9]*)
-				part_size=`expr $part_size \* $cylindersize`
-				total=`expr $part_used + $part_size`
-				if [ $total -gt $partition ]; then
-					echo Total is greater than partition size
-					part_size=0
-				else
-					part_used=$total
-					part_name=""
-					while [ "$part_name" = "" ]; do
-						echo
-						echo -n "On which directory should this filesystem be mounted? [usr] "
-						read part_name junk
-						if [ "$part_name" = "" ]; then
-							part_name=usr
-						fi
-						part_name=`expr "$part_name" : '/*\(.*\)'`
-					done
-				fi
-				;;
-			*)
-				part_size=0
-				;;
-		esac
 	done
-	echo ""
-	if [ "$ename" = "" ]; then	
+	echo
+	if [ ! "$ename" ]; then	
 		ename=$part_name
 		offset=`expr $part_offset + $root + $swap`
 		echo -n "	:pe#${part_size}:oe#${offset}" >>/etc/disktab
 		echo ":te=4.2BSD:be#${blocksize}:fe#${fragsize}:\\" >>/etc/disktab
 		offset=`expr $offset + $part_size`
-	elif [ "$fname" = "" ]; then
+	elif [ ! "$fname" ]; then
 		fname=$part_name
 		echo -n "	:pf#${part_size}:of#${offset}" >>/etc/disktab
 		echo ":tf=4.2BSD:bf#${blocksize}:ff#${fragsize}:\\" >>/etc/disktab
 		offset=`expr $offset + $part_size`
-	elif [ "$gname" = "" ]; then
+	elif [ ! "$gname" ]; then
 		gname=$part_name
 		echo -n "	:pg#${part_size}:og#${offset}" >>/etc/disktab
 		echo ":tg=4.2BSD:bg#${blocksize}:fg#${fragsize}:\\" >>/etc/disktab
 		offset=`expr $offset + $part_size`
-	elif [ "$hname" = "" ]; then
+	elif [ ! "$hname" ]; then
 		hname=$part_name
 		echo -n "	:ph#${part_size}:oh#${offset}" >>/etc/disktab
 		echo ":th=4.2BSD:bh#${blocksize}:fh#${fragsize}:\\" >>/etc/disktab
@@ -366,115 +667,141 @@ while [ $part_used -lt $partition ]; do
 	fi
 done
 
-echo	"	:pd#${disksize}:od#0:" >>/etc/disktab
-cat /etc/disktab
+echo    "	:pd#${disksize}:od#0:" >>/etc/disktab
 sync
 
-echo	""
+# cat /etc/disktab
+OIFS=$IFS
+IFS='
+'
+while read data; do
+	echo $data
+done < /etc/disktab
+IFS=$OIFS
+
+echo
 echo -n "Verbose installation? [n] "
 read resp
 
 case $resp in
-	y*)
-		cpioverbose=v
-		;;
-	*)
-		cpioverbose=
-		;;
+y*)
+	cpioverbose=v
+	;;
+*)
+	cpioverbose=
+	;;
 esac
 
-echo	""
-echo	"OK!  THIS IS THE LAST CHANCE!!!  Data on the hard disk wil be lost."
+
+echo
+echo    "OK!  THIS IS THE LAST CHANCE!!!  Data on the hard disk wil be lost."
 echo -n "Are you sure you want to install on the hard drive? (yes/no) "
-answer=""
-while [ "$answer" = "" ]; do
-	read answer junk
-	case $answer in
-		Yes|yes|YES)
-			verified_install=1
-			echo	""
-			echo	"OK!  Here we go..."
-			;;
-		No|no|NO)
-			echo ""
-			echo -n "Would you like to change the configuration? [y] "
-			read answer junk
-			if [ "$answer" = "" ]; then
-				answer=y
-			fi
-			echo $answer
-			case $answer in
-				y*|Y*)
-					;;
-				*)
-					echo	""
-					echo	"OK, then enter 'halt' to halt the machine."
-					echo	"Once the machine has halted, remove the floppy,"
-					echo	"and press any key to reboot."
-					exit
-					;;
-			esac
+resp=""
+while [ ! "$resp" ]; do
+	read resp junk
+	case "$resp" in
+	Yes|yes|YES)
+		verified_install=1
+		echo
+		echo    "OK!  Here we go..."
+		;;
+	No|no|NO)
+		echo
+		echo -n "Would you like to change the configuration? [y] "
+		read resp junk
+		resp=${resp:-y}
+		case "$resp" in
+		y*|Y*)
 			;;
 		*)
-			echo "Please spell out either of \`yes' or \`no'..." 
-			echo -n "Install on the hard disk? (yes/no) " 
-			answer=
+			echo
+			echo    "OK, then.  Enter 'halt' to halt the machine."
+			echo    "Once the machine has halted, remove the floppy,"
+			echo    "and press any key to reboot."
+			exit
 			;;
+		esac
+		;;
+	*)
+		echo "Please spell out either of \`yes' or \`no'..." 
+		echo -n "Install on the hard disk? (yes/no) " 
+		resp=
+		;;
 	esac
 done
-
 done	# End of Big Loop
 
-echo	""
+put_fdisk_data
+
+echo
 echo -n "Labelling disk..."
-/sbin/disklabel -w -r $drivename $name /usr/mdec/${drivetype}boot /usr/mdec/boot${drivetype}
-echo	" done."
+echo y | 
+/sbin/disklabel -w -r ${drivename} $name /usr/mdec/${drivetype}boot /usr/mdec/boot${drivetype} >/dev/null 2>&1
+echo    " done."
 
 if [ "$sect_fwd" = "sf:" ]; then
 	echo -n "Initializing bad144 badblock table..."
 	bad144 $drivename 0
 	echo " done."
-	echo "Scanning disk for bad blocks..."
-	bad144 -s $drivename
-	echo "done."
+	echo "Updating badblock table..."
+	# `2>&1 >/dev/null' filters stdout and leaves only stderr...
+	bad144 -s $drivename 2>&1 >/dev/null |
+	while read data; do
+		bad_seek=`expr $data : '[^(]*(seek)[^0-9]*\([0-9]*\)'`
+		bad_read=`expr $data : '[^(]*(read)[^0-9]*\([0-9]*\)'`
+		[ "$bad_seek" -o "$bad_read" ] && echo -n "$bad_seek $bad_read "
+	done >bad144.out
+	if [ -s bad144.out ]; then
+		read badlist <bad144.out
+		bad144 -a -c $drivename "$badlist"
+		>bad144.out
+	fi
+	echo " done."
 fi
 
-echo	"Initializing root filesystem, and mounting..."
+echo    "Initializing root filesystem, and mounting..."
 newfs ${rotdelay} /dev/r${drivename}a $name
 mount -v /dev/${drivename}a /mnt
 if [ "$ename" != "" ]; then
-	echo	""
-	echo	"Initializing $ename filesystem, and mounting..."
+	echo
+	echo    "Initializing $ename filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}e $name
 	mkdir -p /mnt/$ename
 	mount -v /dev/${drivename}e /mnt/$ename
 fi
 if [ "$fname" != "" ]; then
-	echo	""
-	echo	"Initializing $fname filesystem, and mounting..."
+	echo
+	echo    "Initializing $fname filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}f $name
 	mkdir -p /mnt/$fname
 	mount -v /dev/${drivename}f /mnt/$fname
 fi
 if [ "$gname" != "" ]; then
-	echo	""
-	echo	"Initializing $gname filesystem, and mounting..."
+	echo
+	echo    "Initializing $gname filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}g $name
 	mkdir -p /mnt/$gname
 	mount -v /dev/${drivename}g /mnt/$gname
 fi
 if [ "$hname" != "" ]; then
-	echo	""
-	echo	"Initializing $hname filesystem, and mounting..."
+	echo
+	echo    "Initializing $hname filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}h $name
 	mkdir -p /mnt/$hname
 	mount -v /dev/${drivename}h /mnt/$hname
 fi
 
 echo
-echo "Copying to disk..."
+echo "Please wait.  Copying to disk..."
 cd /
-cat filelist | cpio -pdamu${cpioverbose} /mnt
+# cat filelist | cpio -pdamu${cpioverbose} /mnt
+OIFS=$IFS
+IFS='
+'
+while read data; do 
+	echo $data
+done <filelist | cpio -pdamu${cpioverbose} /mnt
+IFS=$OIFS
 sync
 
 cd /mnt
@@ -492,44 +819,48 @@ if [ "$hname" != "" ]; then
 	echo "/dev/${drivename}h	/$hname	ufs	rw 1 5" >>etc/fstab
 fi
 
-cat /etc/disktab >etc/disktab.install
+# cat /etc/disktab >etc/disktab.install
+OIFS=$IFS
+IFS='
+'
+while read data; do
+	echo $data
+done </etc/disktab >etc/disktab.install
+IFS=$OIFS
 
-cat << EOF >.profile
-PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/contrib/bin:.:
-export PATH
-HOME=/root
-export HOME
-TERM=pc3
-export TERM
-mount -at ufs
-echo
-echo	"Insert cpio floppy in a drive and enter"
-echo -n "that drive's number (e.g. 0 or 1): [0]"
-read driveno junk
-if [ "\$driveno" = "" ]; then
-	driveno=0
-fi
-echo $driveno
-mount -o ro /dev/fd\${driveno}a /mnt
-cd /mnt
-install
-EOF
+# cat << EOF >.profile
+(
+echo "PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/contrib/bin:.:"
+echo "export PATH"
+echo "HOME=/root"
+echo "export HOME"
+echo "TERM=pc3"
+echo "export TERM"
+echo "mount -at ufs"
+echo "echo" 
+echo "echo    \"Insert second installation floppy in drive and\""
+echo "echo -n \"enter that drive's number (e.g. 0 or 1): [0] \""
+echo "read resp junk"
+echo "driveno=\${resp:-0}"
+echo "mount -o ro /dev/fd\${driveno}a /mnt"
+echo "cd /mnt"
+echo "install"
+) >.profile
 
 sync
 
-echo	""
-echo	"The next step:  reboot from the kernel-copy disk, copy a kernel"
-echo	"to the hard disk, and finally reboot from the hard disk."
-echo	""
-echo	"To do this, enter 'halt' now to halt the machine.  After it"
+echo
+echo    "The next step:  reboot from the kernel-copy disk, copy a kernel"
+echo    "to the hard disk, and finally reboot from the hard disk."
+echo
+echo    "To do this, enter 'halt' now to halt the machine.  After it"
 echo	"announces that it has halted, remove the floppy from the drive"
 echo	"and insert the kernel-copy disk that was booted before."
-echo	"Press any key to reboot."
-echo	""
-echo	"When prompted to insert the file system floppy, this time just"
-echo	"hit RETURN without changing floppies.  If all goes well, you can"
-echo	"enter the command \`copy' at the prompt to copy the kernel to the"
-echo	"hard disk.  When asked for which partition to copy to, enter to"
-echo	"\`${drivename}a' (without the quotes)."
-echo	""
+echo	"Press any key to reboot.  Then when prompted to insert the file"
+echo	"system floppy this time, just hit RETURN without changing floppies."
+echo
+echo	"If all goes well, you can enter the command \`copy' at the prompt to"
+echo	"copy the kernel to the hard disk.  When asked for which partition to"
+echo	"copy to, enter  to \`${drivename}a' (without the quotes)."
+echo
 echo	"Okay, that's all for now.  I'm waiting for you to enter \`halt'..."
