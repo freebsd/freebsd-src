@@ -1,5 +1,7 @@
                     How to assign disk space to FreeBSD.
 
+$Id$
+
 1.0  Getting started.
 ---------------------
 
@@ -262,4 +264,4 @@ Mountpoint	Filesystem size
 /usr/X11R6	50Mb	If you load the entire XFree86 binary kit.
 
 
-$Id: DISKSPACE.FAQ,v 1.7 1994/11/21 01:30:03 jkh Exp $
+$Id: diskspace.FAQ,v 1.1 1995/01/03 15:48:36 gclarkii Exp $
