@@ -925,7 +925,6 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	struct pccard_function *func = devi->fcn;
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
 
-	/* PCCARD_IVAR_ETHADDR unhandled from oldcard */
 	switch (which) {
 	default:
 	case PCCARD_IVAR_ETHADDR:
@@ -960,7 +959,7 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 		*(char **) result = sc->card.cis1_info[2];
 		break;
 	case PCCARD_IVAR_CIS4_STR:
-		*(char **) result = sc->card.cis1_info[2];
+		*(char **) result = sc->card.cis1_info[3];
 		break;
 	}
 	return (0);
