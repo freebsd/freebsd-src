@@ -33,7 +33,7 @@
 .\"	@(#)bcd.6	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2000
+.Dd May 11, 2004
 .Dt MORSE 6
 .Os
 .Sh NAME
@@ -143,20 +143,20 @@ minor glitch that is generated during program startup.
 speaker device file
 .El
 .Sh ENVIRONMENT
-If your
+Your
 .Ev LC_CTYPE
-locale codeset is
-.Ql KOI8-R ,
-characters with the high-order bit set are interpreted as
-Cyrillic characters.  If your
-.Ev LC_CTYPE
-locale codeset is
-.Ql ISO8859-1
-compatible,
-they are interpreted
-as belonging to the
-.Ql ISO-8859-1
-character set.
+locale codeset determines how
+characters with the high-order bit set
+are interpreted.
+.Bl -tag -width ".Li ISO8859-15" -compact
+.It Li ISO8859-1
+.It Li ISO8859-15
+Interpret characters with the high-order bit set as Western European characters.
+.It Li KOI8-R
+Interpret characters with the high-order bit set as Cyrillic characters.
+.It Li ISO8859-7
+Interpret characters with the high-order bit set as Greek characters.
+.El
 .Sh SEE ALSO
 .Xr speaker 4
 .Sh HISTORY
