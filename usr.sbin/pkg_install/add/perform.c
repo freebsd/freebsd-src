@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.42 1997/06/29 10:41:44 jkh Exp $";
+	"$Id: perform.c,v 1.43 1997/10/08 07:45:48 charnier Exp $";
 #endif
 
 /*
@@ -475,4 +475,5 @@ cleanup(int signo)
     if (!Fake && LogDir[0])
 	vsystem("%s -rf %s", REMOVE_CMD, LogDir);
     leave_playpen(Home);
+    exit(1);
 }
