@@ -2,9 +2,9 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.12 2004/10/01 08:17:22 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.15 2005/03/10 13:52:33 den Exp $
 
-     Original revision: 1.274
+     Original revision: 1.275
 -->
 
 <!--
@@ -779,13 +779,13 @@
 
     <para arch="i386,amd64">OPTi 931/82C931 (драйвер &man.pcm.4;)</para>
 
-    <para arch="i386,amd64">S3 Sonicvibes</para>
+    &hwlist.snd.vibes;
 
     &hwlist.snd.emu10k1;
 
     <para arch="i386,amd64">Trident 4DWave DX/NX (драйвер &man.pcm.4;)</para>
 
-    <para arch="i386,amd64">VIA Technologies VT82C686A</para>
+    &hwlist.snd.via82c686;
 
     &hwlist.snd.ds1;
 
