@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.1.1.1 1994/09/30 14:49:48 csgr Exp $
+#	$Id: Makefile,v 1.2 1994/10/06 00:32:42 wollman Exp $
 
 SUBDIR=	include
 
@@ -35,6 +35,7 @@ bootstrap:
 	@echo removing old 1.1.5 Kerberos libraries
 	rm -f /usr/lib/libkrb.so.4.0
 	rm -f /usr/lib/libdes.so.4.0
+	rm -f /usr/lib/libkdb.so.4.0
 	${MAKE} ${MFLAGS} depend all install kprog
 
 .include <bsd.subdir.mk>
