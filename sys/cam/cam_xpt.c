@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.32 1998/12/24 02:43:41 mjacob Exp $
+ *      $Id: cam_xpt.c,v 1.33 1998/12/24 06:01:15 mjacob Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -281,7 +281,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/* Broken tagged queuing drive */ 
-		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "CONNER", "CFP2107*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "CONNER", "CFP2107*", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
         {
@@ -618,12 +618,16 @@ static xpt_targetfunc_t	xptdeftargetfunc;
 static xpt_devicefunc_t	xptdefdevicefunc;
 static xpt_periphfunc_t	xptdefperiphfunc;
 static int		xpt_for_all_busses(xpt_busfunc_t *tr_func, void *arg);
+#ifdef notusedyet
 static int		xpt_for_all_targets(xpt_targetfunc_t *tr_func,
 					    void *arg);
+#endif
 static int		xpt_for_all_devices(xpt_devicefunc_t *tr_func,
 					    void *arg);
+#ifdef notusedyet
 static int		xpt_for_all_periphs(xpt_periphfunc_t *tr_func,
 					    void *arg);
+#endif
 static xpt_devicefunc_t	xptsetasyncfunc;
 static xpt_busfunc_t	xptsetasyncbusfunc;
 static cam_status	xptregister(struct cam_periph *periph,
@@ -2464,6 +2468,7 @@ xpt_for_all_busses(xpt_busfunc_t *tr_func, void *arg)
 	return(xptbustraverse(NULL, xptdefbusfunc, &tr_config));
 }
 
+#ifdef notusedyet
 /*
  * Execute the given function for every target in the EDT.
  */
@@ -2478,6 +2483,7 @@ xpt_for_all_targets(xpt_targetfunc_t *tr_func, void *arg)
 
 	return(xptbustraverse(NULL, xptdefbusfunc, &tr_config));
 }
+#endif /* notusedyet */
 
 /*
  * Execute the given function for every device in the EDT.
@@ -2494,6 +2500,7 @@ xpt_for_all_devices(xpt_devicefunc_t *tr_func, void *arg)
 	return(xptbustraverse(NULL, xptdefbusfunc, &tr_config));
 }
 
+#ifdef notusedyet
 /*
  * Execute the given function for every peripheral in the EDT.
  */
@@ -2508,6 +2515,7 @@ xpt_for_all_periphs(xpt_periphfunc_t *tr_func, void *arg)
 
 	return(xptbustraverse(NULL, xptdefbusfunc, &tr_config));
 }
+#endif /* notusedyet */
 
 static int
 xptsetasyncfunc(struct cam_ed *device, void *arg)
