@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.14 1999/07/29 06:48:26 msmith Exp $
+ *      $Id: bios.c,v 1.16 1999/08/17 07:10:29 msmith Exp $
  */
 
 /*
@@ -52,7 +52,6 @@
 
 /* exported lookup results */
 struct bios32_SDentry		PCIbios = {entry : 0};
-struct SMBIOS_table		*SMBIOStable = 0;
 struct PnPBIOS_table		*PnPBIOStable = 0;
 
 static u_int			bios32_SDCI = 0;
@@ -75,7 +74,6 @@ bios32_init(void *junk)
 {
     u_long			sigaddr;
     struct bios32_SDheader	*sdh;
-    struct SMBIOS_table		*sbt;
     struct PnPBIOS_table	*pt;
     u_int8_t			ck, *cv;
     int				i;
@@ -108,33 +106,6 @@ bios32_init(void *junk)
 	} else {
 	    printf("bios32: Bad BIOS32 Service Directory\n");
 	}
-    }
-
-    /*
-     * System Management BIOS
-     */
-    /* look for the SMBIOS signature */
-    if ((sigaddr = bios_sigsearch(0, "_SM_", 4, 16, 0)) != 0) {
-
-	/* get a virtual pointer to the structure */
-	sbt = (struct SMBIOS_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
-	for (cv = (u_int8_t *)sbt, ck = 0, i = 0; i < sbt->len; i++) {
-	    ck += cv[i];
-	}
-	/* if checksum is OK, we have action */
-	if (ck == 0) {
-	    SMBIOStable = sbt;		/* save reference */
-	    if (bootverbose) {
-		printf("smbios: SMBIOS header at %p\n", sbt);
-		printf("smbios: Version %d.%d\n", sbt->major, sbt->minor);
-		printf("smbios: Table at 0x%x, %d entries, %d bytes, largest entry %d bytes\n",
-		       sbt->dmi.st_base, (int)sbt->dmi.st_entries, (int)sbt->dmi.st_size,
-		       (int)sbt->st_maxsize);
-	    }
-	} else {
-	    printf("smbios: Bad SMBIOS table checksum\n");
-	}
-	
     }
 
     /*
