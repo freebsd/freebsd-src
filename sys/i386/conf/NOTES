@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.418 1998/03/16 23:04:07 eivind Exp $
+#	$Id: LINT,v 1.419 1998/03/21 06:21:03 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -415,6 +415,10 @@ options PPP_FILTER			#enable bpf filtering (needs bpfilter)
 #
 # IPDIVERT enables the divert IP sockets, used by ``ipfw divert''
 #
+# IPFILTER enables Darren Reed's ipfilter package.
+# IPFILTER_LOG enables ipfilter's logging.
+# IPFILTER_LKM enables LKM support for an ipfilter module (untested).
+#
 # TCPDEBUG is undocumented.
 #
 options		"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
@@ -425,6 +429,9 @@ options         IPFIREWALL_VERBOSE      #print information about
 options		"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
 options		IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by default
 options		IPDIVERT		#divert sockets
+options		IPFILTER		#kernel ipfilter support
+options		IPFILTER_LOG		#ipfilter logging
+#options	IPFILTER_LKM		#kernel support for ip_fil.o LKM
 options		TCPDEBUG
 
 
