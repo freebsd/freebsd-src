@@ -37,6 +37,8 @@ struct pppThroughput {
   time_t uptime, downtime;
   unsigned long long OctetsIn;
   unsigned long long OctetsOut;
+  unsigned long long PacketsIn;
+  unsigned long long PacketsOut;
   int SamplePeriod;
   struct {
     unsigned long long *SampleOctets;
