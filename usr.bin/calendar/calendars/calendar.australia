@@ -9,8 +9,10 @@
 
 /* Australia */
 Jan 26	Australia Day
+Mar/SunLast	Daylight Savings Time ends in ACT, NSW, SA, TAS and VIC.
 Apr 25	Anzac Day
 Jun/MonSecond	Queen's Birthday Holiday (Australia, except WA)
+Oct/SunLast	Daylight Savings Time starts in ACT, NSW, SA and VIC.
 
 /* ACT, NSW, common */
 Mar 18	Canberra Day (ACT)
@@ -25,6 +27,7 @@ Nov/TueFirst	Melbourne Cup (Vic)
 Feb 11	Regatta Day (Tas)
 Feb 27	Launceston Cup (Tas)
 Mar 11	Eight Hours Day (Tas)
+Oct/SunFirst	Daylight Savings Time starts in TAS.
 Oct 10	Launceston Show Day (Tas)
 Oct 24	Hobart Show Day (Tas)
 Nov 04	Recreation Day (N Tas)
