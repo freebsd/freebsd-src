@@ -186,7 +186,7 @@ main(argc, argv)
 			break;
 
 		  case 'B':
-			nobiff = TRUE;
+			nobiff = true;
 			break;
 
 		  case 'b':		/* bounce mail when over quota. */
