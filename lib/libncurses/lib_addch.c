@@ -13,24 +13,22 @@
 #include "curses.priv.h"
 #include "unctrl.h"
 
-int
-waddch(WINDOW *win, chtype c)
+static int
+wladdch(WINDOW *win, chtype c, bool literal)
 {
 int	x, y;
 int	newx;
 chtype	ch = c;
-
-#if 0	
-	/* enabling this causes tons of tracing output
-	   and slow ncurses down to a crawl */
-	T(("waddch(%x,%c (%x)) called", win, ch&A_CHARTEXT, ch));
-#endif
 
 	x = win->_curx;
 	y = win->_cury;
 
 	if (y > win->_maxy  ||  x > win->_maxx  ||  y < 0  ||  x < 0)
 	    return(ERR);
+
+	/* ugly, but necessary --- and, bizarrely enough, even portable! */
+	if (literal)
+	    goto noctrl;
 
 	switch (ch&A_CHARTEXT) {
     	case '\t':
@@ -40,7 +38,7 @@ chtype	ch = c;
 		return(OK);
     	case '\n':
 		wclrtoeol(win);
-    	x = 0;
+		x = 0;
 		goto newline;
     	case '\r':
 		x = 0;
@@ -53,7 +51,16 @@ chtype	ch = c;
 		if (ch < ' ')
 		    	return(waddstr(win, unctrl(ch)));
 
+		/* FALL THROUGH */
+        noctrl:
+        	T(("win attr = %x", win->_attrs));
 		ch |= win->_attrs;
+
+		if (win->_line[y][x]&A_CHARTEXT == ' ')
+			ch |= win->_bkgd;
+		else
+			ch |= (win->_bkgd&A_ATTRIBUTES);
+		T(("bkg = %x -> ch = %x", win->_bkgd, ch));
 
 		if (win->_line[y][x] != ch) {
 		    	if (win->_firstchar[y] == _NOCHANGE)
@@ -65,6 +72,7 @@ chtype	ch = c;
 
 		}
 
+		T(("char %d of line %d is %x", x, y, ch));
 		win->_line[y][x++] = ch;
 		if (x > win->_maxx) {
 		    	x = 0;
@@ -83,4 +91,17 @@ newline:
 	win->_cury = y;
 
 	return(OK);
+}
+
+int waddch(WINDOW *win, chtype ch)
+{
+	TR(TRACE_CHARPUT, ("waddch(%x,%c (%x)) called", win, ch&A_CHARTEXT, ch));
+	return wladdch(win, ch, FALSE);
+}
+
+int wechochar(WINDOW *win, chtype ch)
+{
+	T(("wechochar(%x,%c (%x)) called", win, ch&A_CHARTEXT, ch));
+
+	return wladdch(win, ch, TRUE);
 }

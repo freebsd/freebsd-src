@@ -1,7 +1,21 @@
 
-/* This work is copyrighted. See COPYRIGHT.OLD & COPYRIGHT.NEW for   *
-*  details. If they are missing then this copy is in violation of    *
-*  the copyright conditions.                                        */
+/***************************************************************************
+*                            COPYRIGHT NOTICE                              *
+****************************************************************************
+*                ncurses is copyright (C) 1992, 1993, 1994                 *
+*                          by Zeyd M. Ben-Halim                            *
+*                          zmbenhal@netcom.com                             *
+*                                                                          *
+*        Permission is hereby granted to reproduce and distribute ncurses  *
+*        by any means and for any fee, whether alone or as part of a       *
+*        larger distribution, in source or in binary form, PROVIDED        *
+*        this notice is included with any such distribution, not removed   *
+*        from header files, and is reproduced in any documentation         *
+*        accompanying it or the applications linked with it.               *
+*                                                                          *
+*        ncurses comes AS IS with no warranty, implied or expressed.       *
+*                                                                          *
+***************************************************************************/
 
 /*
  *	vidputs(newmode, outc)
@@ -28,11 +42,11 @@
 
 #include <string.h>
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 
 static void do_color(int pair, int  (*outc)(char))
 {
-short fg, bg;
+int fg, bg;
 
 	if ( pair == 0 ) {
 		tputs(orig_pair, 1, outc);
@@ -53,84 +67,71 @@ short fg, bg;
 	}
 }
 
-static int current_pair = 0;
-static chtype	previous_attr = 0;
+#define previous_attr SP->_current_attr
 
 int vidputs(chtype newmode, int  (*outc)(char))
 {
-chtype		turn_off, turn_on;
+chtype	turn_off = (~newmode & previous_attr) & ~A_COLOR;
+chtype	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;
 
 	T(("vidputs(%x) called %s", newmode, _traceattr(newmode)));
 	T(("previous attribute was %s", _traceattr(previous_attr)));
 
+	if (newmode == previous_attr)
+		return OK;
 	if (newmode == A_NORMAL && exit_attribute_mode) {
-	    if((previous_attr & A_ALTCHARSET) && exit_alt_charset_mode)
-		    tputs(exit_alt_charset_mode, 1, outc);
-	    tputs(exit_attribute_mode, 1, outc);
-	    current_pair = -1;
-	    goto set_color;
-	}
-	else if (set_attributes) {
-	    tputs(tparm(set_attributes,
-			(newmode & A_STANDOUT) != 0,
-			(newmode & A_UNDERLINE) != 0,
-			(newmode & A_REVERSE) != 0,
-			(newmode & A_BLINK) != 0,
-			(newmode & A_DIM) != 0,
-			(newmode & A_BOLD) != 0,
-			(newmode & A_INVIS) != 0,
-			(newmode & A_PROTECT) != 0,
-			(newmode & A_ALTCHARSET) != 0), 1, outc);
-	    goto set_color;
-	} else {
- 		if (exit_attribute_mode) {
- 			if((previous_attr & A_ALTCHARSET) && exit_alt_charset_mode) {
- 				tputs(exit_alt_charset_mode, 1, outc);
- 				previous_attr &= ~A_ALTCHARSET;
- 			}
- 			if (previous_attr) {
-				T(("exiting attribute mode"));
-
- 				tputs(exit_attribute_mode, 1, outc);
- 				previous_attr = 0;
-				current_pair = -1;
- 			}
- 		} else {
-			turn_off = ~newmode & previous_attr;
-
-			T(("turning %x off", turn_off));
-			
-			if ((turn_off & A_ALTCHARSET) && exit_alt_charset_mode) 
-				tputs(exit_alt_charset_mode, 1, outc);
-
-			if ((turn_off & A_BOLD)  &&  exit_standout_mode)
-			    tputs(exit_standout_mode, 1, outc);
-
-			if ((turn_off & A_DIM)  && exit_standout_mode)
-			    tputs(exit_standout_mode, 1, outc);
-
-			if ((turn_off & A_BLINK)  && exit_standout_mode)
-			    tputs(exit_standout_mode, 1, outc);
-
-			if ((turn_off & A_INVIS)  && exit_standout_mode)
-			    tputs(exit_standout_mode, 1, outc);
-
-			if ((turn_off & A_PROTECT)  && exit_standout_mode)
-			    tputs(exit_standout_mode, 1, outc);
-
-			if ((turn_off & A_UNDERLINE)  &&  exit_underline_mode)
-			    tputs(exit_underline_mode, 1, outc);
-
-   		 	if ((turn_off & A_REVERSE)  &&  exit_standout_mode)
-			    tputs(exit_standout_mode, 1, outc);
-
-			if ((turn_off & A_STANDOUT)  &&  exit_standout_mode)
-			    tputs(exit_standout_mode, 1, outc);
+		if((previous_attr & A_ALTCHARSET) && exit_alt_charset_mode) {
+ 			tputs(exit_alt_charset_mode, 1, outc);
+ 			previous_attr &= ~A_ALTCHARSET;
+ 		}
+ 		if (previous_attr) 
+ 			tputs(exit_attribute_mode, 1, outc);
+ 	
+	} else if (set_attributes) {
+		if (turn_on || turn_off) {
+	    		tputs(tparm(set_attributes,
+				(newmode & A_STANDOUT) != 0,
+				(newmode & A_UNDERLINE) != 0,
+				(newmode & A_REVERSE) != 0,
+				(newmode & A_BLINK) != 0,
+				(newmode & A_DIM) != 0,
+				(newmode & A_BOLD) != 0,
+				(newmode & A_INVIS) != 0,
+				(newmode & A_PROTECT) != 0,
+				(newmode & A_ALTCHARSET) != 0), 1, outc);
 		}
+	} else {
 
-		turn_on = newmode & ~previous_attr;
+		T(("turning %x off", _traceattr(turn_off)));
+			
+		if ((turn_off & A_ALTCHARSET) && exit_alt_charset_mode) 
+			tputs(exit_alt_charset_mode, 1, outc);
 
-		T(("turning %x on", turn_on));
+		if ((turn_off & A_BOLD)  &&  exit_standout_mode)
+			tputs(exit_standout_mode, 1, outc);
+
+		if ((turn_off & A_DIM)  && exit_standout_mode)
+		    tputs(exit_standout_mode, 1, outc);
+
+		if ((turn_off & A_BLINK)  && exit_standout_mode)
+		    tputs(exit_standout_mode, 1, outc);
+
+		if ((turn_off & A_INVIS)  && exit_standout_mode)
+		    tputs(exit_standout_mode, 1, outc);
+
+		if ((turn_off & A_PROTECT)  && exit_standout_mode)
+		    tputs(exit_standout_mode, 1, outc);
+
+		if ((turn_off & A_UNDERLINE)  &&  exit_underline_mode)
+		    tputs(exit_underline_mode, 1, outc);
+
+   	 	if ((turn_off & A_REVERSE)  &&  exit_standout_mode)
+		    tputs(exit_standout_mode, 1, outc);
+
+		if ((turn_off & A_STANDOUT)  &&  exit_standout_mode)
+		    tputs(exit_standout_mode, 1, outc);
+
+		T(("turning %x on", _traceattr(turn_on)));
 
 		if ((turn_on & A_ALTCHARSET) && enter_alt_charset_mode) 
 			tputs(enter_alt_charset_mode, 1, outc);
@@ -158,18 +159,18 @@ chtype		turn_off, turn_on;
 
 		if ((turn_on & A_UNDERLINE)  &&  enter_underline_mode)
 			tputs(enter_underline_mode, 1, outc);
-	set_color:
-		if (_coloron) {
-		int pair = PAIR_NUMBER(newmode);
-	    
-	   		T(("old pair = %d -- new pair = %d", current_pair, pair));
-	   		if (pair != current_pair) {
-	   			current_pair = pair;
-	   			do_color(pair, outc);
-	   		}
-	   	}
+
 	}
 
+	if (SP->_coloron) {
+	int pair = PAIR_NUMBER(newmode);
+	int current_pair = PAIR_NUMBER(previous_attr);
+
+   		T(("old pair = %d -- new pair = %d", current_pair, pair));
+   		if (pair != current_pair || turn_off) {
+			do_color(pair, outc);
+		}
+   	}
 
 	previous_attr = newmode;
 
@@ -182,6 +183,6 @@ int vidattr(chtype newmode)
 
 	T(("vidattr(%x) called", newmode));
 
-	return(vidputs(newmode, _outc));
+	return(vidputs(newmode, _outch));
 }
 

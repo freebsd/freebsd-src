@@ -12,7 +12,7 @@
 
 #include <string.h>
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 
 char *
 longname()

@@ -24,7 +24,7 @@ typedef struct sigaction sigaction_t;
 #include "SigAction.h"
 #endif
 
-#include <ncurses.h>
+#include "curses.h"
 
 #define min(a,b)	((a) > (b)  ?  (b)  :  (a))
 #define max(a,b)	((a) < (b)  ?  (b)  :  (a))
@@ -34,17 +34,19 @@ typedef struct sigaction sigaction_t;
 
 #define CHANGED     -1
 
-extern int _coloron;
-extern int _isendwin;
+extern WINDOW	*newscr;
 
 #ifdef TRACE
-#define T(a)	if (_tracing) _tracef a 
+#define T(a)	if (_tracing & TRACE_ORDINARY) _tracef a 
+#define TR(n, a)	if (_tracing & (n)) _tracef a 
 extern int _tracing;
+extern char *visbuf(const char *);
 #else	
-#define T(a)	
+#define T(a)
+#define TR(n, a)
 #endif
 
-extern int _outc(char);
+extern int _outch(char);
 extern void init_acs(void);
 extern void tstp(int);
 extern WINDOW *makenew(int, int, int, int);
@@ -79,6 +81,7 @@ typedef struct {
 struct screen {
    	FILE		*_ifp;	    	/* input file ptr for this terminal     */
    	FILE		*_ofp;	    	/* output file ptr for this terminal    */
+   	int		_checkfd;
 #ifdef MYTINFO
 	struct _terminal *_term;
 #else
@@ -86,11 +89,16 @@ struct screen {
 #endif
 	WINDOW		*_curscr;   	/* windows specific to a given terminal */
 	WINDOW		*_newscr;
+	WINDOW		*_stdscr;
 	struct try  	*_keytry;   	/* "Try" for use with keypad mode       */
 	unsigned int	_fifo[FIFO_SIZE]; 	/* Buffer for pushed back characters    */
-	signed char		_fifohead, 
+	signed char	_fifohead, 
 			_fifotail,
 			_fifopeek;
+	bool		_endwin;
+	chtype		_current_attr;
+	bool		_coloron;
+	int		_cursor;	/* visibility of the cursor		*/
 	int         	_cursrow;   	/* Row and column of physical cursor    */
 	int         	_curscol;
 	bool		_nl;	    	/* True if NL -> CR/NL is on	    	*/

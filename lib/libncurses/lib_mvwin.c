@@ -11,7 +11,7 @@
 */
 
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 
 int mvwin(WINDOW *win, int by, int bx)
 {

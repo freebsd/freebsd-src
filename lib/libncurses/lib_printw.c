@@ -17,10 +17,7 @@ int printw(char *fmt, ...)
 va_list argp;
 char buf[BUFSIZ];
 
-#ifdef TRACE
-	if (_tracing)
-	    _tracef("printw(%s,...) called", fmt);
-#endif
+	T(("printw(\"%s\",...) called", fmt));
 
 	va_start(argp, fmt);
 	vsprintf(buf, fmt, argp);
@@ -35,10 +32,7 @@ int wprintw(WINDOW *win, char *fmt, ...)
 va_list argp;
 char buf[BUFSIZ];
 
-#ifdef TRACE
-	if (_tracing)
-	    _tracef("wprintw(%x,%s,...) called", win, fmt);
-#endif
+	T(("wprintw(%x,\"%s\",...) called", win, fmt));
 
 	va_start(argp, fmt);
 	vsprintf(buf, fmt, argp);

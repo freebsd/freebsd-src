@@ -8,29 +8,29 @@
  *
  */
 
+#include <stdlib.h>
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 
 int COLOR_PAIRS;
 int COLORS;
-unsigned char color_pairs[64];
-
-int _coloron = 0;
+unsigned char *color_pairs;
 
 int start_color()
 {
 	T(("start_color() called."));
 
 	if (orig_pair != NULL)
-		tputs(orig_pair, 1, _outc);
+		putp(orig_pair);
 	else return ERR;
 	if (max_pairs != -1)
 		COLOR_PAIRS = max_pairs;
 	else return ERR;
+	color_pairs = malloc(max_pairs);
 	if (max_colors != -1)
 		COLORS = max_colors;
 	else return ERR;
-	_coloron = 1;
+	SP->_coloron = 1;
 
 	T(("started color: COLORS = %d, COLOR_PAIRS = %d", COLORS, COLOR_PAIRS));
 
@@ -41,7 +41,7 @@ int init_pair(short pair, short f, short b)
 {
 	T(("init_pair( %d, %d, %d )", pair, f, b));
 
-	if ((pair < 1) || (pair > COLOR_PAIRS))
+	if ((pair < 1) || (pair >= COLOR_PAIRS))
 		return ERR;
 	if ((f  < 0) || (f >= COLORS) || (b < 0) || (b >= COLORS))
 		return ERR;
@@ -53,7 +53,7 @@ int init_pair(short pair, short f, short b)
 
 	color_pairs[pair] = ( (f & 0x0f) | (b & 0x0f) << 4 );
 
-	return color_pairs[pair];
+	return OK;
 }
 
 int init_color(short color, short r, short g, short b)
@@ -68,7 +68,7 @@ int init_color(short color, short r, short g, short b)
 			if (r < 0 || r > 1000 || g < 0 ||  g > 1000 || b < 0 || b > 1000)
 				return ERR;
 				
-		tputs(tparm(initialize_color, color, r, g, b), 1, _outc);
+		putp(tparm(initialize_color, color, r, g, b));
 		return OK;
 	}
 	
