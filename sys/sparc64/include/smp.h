@@ -116,8 +116,8 @@ ipi_dcache_page_inval(vm_offset_t pa)
 	ica = &ipi_cache_args;
 	ica->ica_mask = all_cpus;
 	ica->ica_pa = pa;
-	cpu_ipi_selected(all_cpus, 0, (u_long)tl_ipi_dcache_page_inval,
-	    (u_long)ica);
+	cpu_ipi_selected(PCPU_GET(other_cpus), 0,
+	    (u_long)tl_ipi_dcache_page_inval, (u_long)ica);
 	return (&ica->ica_mask);
 }
 
@@ -131,8 +131,8 @@ ipi_icache_page_inval(vm_offset_t pa)
 	ica = &ipi_cache_args;
 	ica->ica_mask = all_cpus;
 	ica->ica_pa = pa;
-	cpu_ipi_selected(all_cpus, 0, (u_long)tl_ipi_icache_page_inval,
-	    (u_long)ica);
+	cpu_ipi_selected(PCPU_GET(other_cpus), 0,
+	    (u_long)tl_ipi_icache_page_inval, (u_long)ica);
 	return (&ica->ica_mask);
 }
 
