@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.34 1999/05/09 17:06:47 peter Exp $
+ *	$Id: ide_pci.c,v 1.35 1999/07/03 18:34:04 peter Exp $
  */
 
 #include "wd.h"
@@ -189,12 +189,16 @@ extern struct isa_driver wdcdriver;
 /*
  * PRD_ALLOC_SIZE should be something that will not be allocated across a 64k
  * boundary.
+ * DMA_PG_SZ is the size of the chunks that each DMA scatter gather element
+ * represents. In some systems there can be reasons to make this smaller than
+ * a pagesize (usually due to broken hardware).
  * PRD_MAX_SEGS is defined to be the maximum number of segments required for
  * a transfer on an IDE drive, for an xfer that is linear in virtual memory.
  * PRD_BUF_SIZE is the size of the buffer needed for a PRD table.
  */
 #define	PRD_ALLOC_SIZE		PAGE_SIZE
-#define PRD_MAX_SEGS		((256 * 512 / PAGE_SIZE) + 1)
+#define DMA_PG_SZ		PAGE_SIZE
+#define PRD_MAX_SEGS		((256 * 512 / DMA_PG_SZ) + 1)
 #define PRD_BUF_SIZE		PRD_MAX_SEGS * 8
 
 static void *prdbuf = 0;
@@ -391,7 +395,6 @@ via_571_dmainit(struct ide_pci_cookie *cookie,
 		int(*wdcmd)(int, void *),
 		void *wdinfo)
 {
-	int r;
 	u_long pci_revision;
 	int unitno;
 
@@ -426,8 +429,7 @@ via_571_dmainit(struct ide_pci_cookie *cookie,
 		/* Set UDMA mode 2 on drive */
 		if (bootverbose)
 			printf("via_571_dmainit: setting ultra DMA mode 2\n");
-		r = wdcmd(WDDMA_UDMA2, wdinfo);
-		if (!r) {
+		if (!wdcmd(WDDMA_UDMA2, wdinfo)) {
 			printf("via_571_dmainit: setting DMA mode failed\n");
 			return 0;
 		}
@@ -445,8 +447,7 @@ via_571_dmainit(struct ide_pci_cookie *cookie,
 		/* Set multiword DMA mode 2 on drive */
 		if (bootverbose)
 			printf("via_571_dmainit: setting multiword DMA mode 2\n");
-		r = wdcmd(WDDMA_MDMA2, wdinfo);
-		if (!r) {
+		if (!wdcmd(WDDMA_MDMA2, wdinfo)) {
 			printf("via_571_dmainit: setting DMA mode failed\n");
 			return 0;
 		}
@@ -558,13 +559,6 @@ cyrix_5530_status(struct ide_pci_cookie *cookie)
 
 	unitno = ctlr * 2 + unit;
 
-	/* set some values the BIOS should have set */
-	printf("Using 0x%x\n", cookie->iobase_bm);
-	outl(iobase_bm + (unit * 0x10) + 0x20, 0x00040010);
-	outl(iobase_bm + (unit * 0x10) + 0x24, 0x00911030);
-	/* if ((ctlr == 0) && (unit == 0)) */	/* XXX */
-		/* outb(iobase_bm + (unit * 0x10) + BMISTA_PORT, 0xe6);*/
-
 	PIO_config = inl(iobase_bm + (unit * 0x10) + 0x20);
 	DMA_config = inl(iobase_bm + (unit * 0x10) + 0x24);
 
@@ -586,11 +580,13 @@ cyrix_5530_dmainit(struct ide_pci_cookie *cookie,
 		int(*wdcmd)(int, void *),
 		void *wdinfo)
 {
-	int r;
 	u_long	pci_revision;
 	int	unitno;
 	int	iobase_bm;
 	int	unit;
+	int drivemode;
+	int mode;
+	int regval;
 
 	/*cookie->unit = 0; */	/* XXX */
 	unit = cookie->unit;
@@ -603,8 +599,6 @@ cyrix_5530_dmainit(struct ide_pci_cookie *cookie,
 	printf("Setting using 0x%x\n", iobase_bm);
 	if ((cookie->ctlr == 0) && (unit == 0))	/* XXX */
 		outb(iobase_bm + (unit * 0x10) + BMISTA_PORT, 0xe6);
-	outl(iobase_bm + (unit * 0x10) + 0x20, 0x00040010);
-	outl(iobase_bm + (unit * 0x10) + 0x24, 0x00911030);
 	/* If it's a UDMA drive on a '5530, set it up */
 	/* 
 	 * depending on what the drive can do,
@@ -614,20 +608,47 @@ cyrix_5530_dmainit(struct ide_pci_cookie *cookie,
 		unitno,
 		mwdma_mode(wp), pio_mode(wp),
 		pci_revision, udma_mode(wp));
-	if (/* pci_revision >= 1 && */ udma_mode(wp) >= 2) {
-		/*outl(iobase_bm + 0x20 + (cookie->unit * 16), 0x00100010);*/
-		outl(iobase_bm + 0x24 + (cookie->unit * 16), 0x00911030);
+	if (/* pci_revision >= 1 && */ udma_mode(wp) >= 0) {
+		switch(udma_mode(wp)) {
+		case 0:
+			mode = 0;
+			drivemode = WDDMA_UDMA0;
+			regval = 0x00921250;
+			break;
+		default: /* newer modes not supported */
+		case 2:
+#if 0
+/*
+ * XXX The 5530 can do mode 2 but if you do use it, it will block all 
+ * access to the PCI bus (and thus the ISA bus, PICs, PIT, etc. etc.) until the
+ * transfer is complete. Mode 2 swamps the 5530 so much it can't really cope
+ * with any other operations. Therefore, use mode 1 for drives that can
+ * do mode 2 (or more). (FALL THROUGH)
+ */
 
+
+			mode = 2;
+			drivemode = WDDMA_UDMA2;
+			regval = 0x00911030;
+			break;
+#endif
+		case 1:
+			mode = 1;
+			drivemode = WDDMA_UDMA1;
+			regval = 0x00911140;
+			break;
+		}
 		/*
-		 * With the Cx5530, drive configuration should come *after* the
-		 * controller configuration, to make sure the controller sees 
+		 * With the Cx5530, drive configuration
+		 * should come *after* the controller configuration,
+		 * to make sure the controller sees 
 		 * the command and does the right thing.
 		 */
-		/* Set UDMA mode 2 on drive */
+		/* Set UDMA mode on drive */
 		if (bootverbose)
-			printf("cyrix_5530_dmainit: setting ultra DMA mode 2\n");
-		r = wdcmd(WDDMA_UDMA2, wdinfo);
-		if (!r) {
+			printf("cyrix_5530_dmainit: set UDMA mode %d\n", mode);
+		outl(iobase_bm+0x24 + (unit * 16), regval);
+		if (!wdcmd(drivemode, wdinfo)) {
 			printf("cyrix_5530_dmainit: setting DMA mode failed\n");
 			return 0;
 		}
@@ -639,21 +660,39 @@ cyrix_5530_dmainit(struct ide_pci_cookie *cookie,
 	}
 
 	/* otherwise, try and program it for MW DMA mode 2 */
-	else if (mwdma_mode(wp) >= 2 && pio_mode(wp) >= 4) {
+	else if (mwdma_mode(wp) >= 0 && pio_mode(wp) >= 4) {
 
+		switch(mwdma_mode(wp)) {
+		case 0:
+			mode = 0;
+			drivemode = WDDMA_MDMA0;
+			regval = 0x00017771;
+			break;
+		case 1:
+			mode = 1;
+			drivemode = WDDMA_MDMA1;
+			regval = 0x00012121;
+			break;
+		default: /* newer modes not supported */
+		case 2:
+			mode = 2;
+			drivemode = WDDMA_MDMA2;
+			regval = 0x00002020;
+
+			break;
+		}
 		/* Set multiword DMA mode 2 on drive */
 		if (bootverbose)
-			printf("cyrix_5530_dmainit: setting multiword DMA mode 2\n");
-		r = wdcmd(WDDMA_MDMA2, wdinfo);
-		if (!r) {
+			printf("cyrix_5530_dmainit: multiword DMA mode %d\n",
+							mode);
+		if (!wdcmd(drivemode, wdinfo)) {
 			printf("cyrix_5530_dmainit: setting DMA mode failed\n");
 			return 0;
 		}
 
-		/* Configure the controller appropriately for MWDMA mode 2 */
+		/* Configure the controller appropriately for MWDMA mode */
 
-		/*outl(iobase_bm + 0x20 + (cookie->unit * 16), 0x00100010);*/
-		outl(iobase_bm + 0x24 + (cookie->unit * 16), 0x00002020);
+		outl(iobase_bm + 0x24 + (unit * 16), regval);
 
 		if (bootverbose)
 			cyrix_5530_status(cookie);
@@ -661,6 +700,40 @@ cyrix_5530_dmainit(struct ide_pci_cookie *cookie,
 		return 1;
 
 	}
+	/*
+	 * Always set the PIO mode values.
+	 */
+	switch(pio_mode(wp)) {
+	case 0:
+		mode = 0;
+		drivemode = WDDMA_MDMA0;
+		regval = 0x0000E132;
+		break;
+	case 1:
+		mode = 1;
+		drivemode = WDDMA_MDMA1;
+		regval = 0x00001812;
+		break;
+	case 2:
+		mode = 2;
+		drivemode = WDDMA_MDMA1;
+		regval = 0x00024020;
+		break;
+	case 3:
+		mode = 3;
+		drivemode = WDDMA_MDMA1;
+		regval = 0x00032010;
+		break;
+	default: /* newer modes not supported */
+	case 4:
+		mode = 4;
+		drivemode = WDDMA_MDMA2;
+		regval = 0x00040010;
+
+		break;
+	}
+	outl(iobase_bm + 0x20 + (unit * 16), regval);
+	printf("cyrix_5530_dmainit: setting PIO mode %d\n", mode);
 	return 0;
 }
 
@@ -867,7 +940,6 @@ intel_piix_dmainit(struct ide_pci_cookie *cookie,
 		   int(*wdcmd)(int, void *),
 		   void *wdinfo)
 {
-	int r;
 
 	/* If it's a UDMA drive and a PIIX4, set it up */
 	if (cookie->type == 0x71118086 && udma_mode(wp) >= 2) {
@@ -877,9 +949,7 @@ intel_piix_dmainit(struct ide_pci_cookie *cookie,
 		if (bootverbose)
 			printf("intel_piix_dmainit: setting ultra DMA mode 2\n");
 
-		r = wdcmd(WDDMA_UDMA2, wdinfo);
-
-		if (!r) {
+		if (!wdcmd(WDDMA_UDMA2, wdinfo)) {
 			printf("intel_piix_dmainit: setting DMA mode failed\n");
 			return 0;
 		}
@@ -924,8 +994,7 @@ intel_piix_dmainit(struct ide_pci_cookie *cookie,
 		/* Set multiword DMA mode 2 on drive */
 		if (bootverbose)
 			printf("intel_piix_dmainit: setting multiword DMA mode 2\n");
-		r = wdcmd(WDDMA_MDMA2, wdinfo);
-		if (!r) {
+		if (!wdcmd(WDDMA_MDMA2, wdinfo)) {
 			printf("intel_piix_dmainit: setting DMA mode failed\n");
 			return 0;
 		}
@@ -976,9 +1045,7 @@ intel_piix_dmainit(struct ide_pci_cookie *cookie,
 		if (bootverbose)
 			printf("intel_piix_dmainit: setting multiword DMA mode 2\n");
 
-		r = wdcmd(WDDMA_MDMA2, wdinfo);
-
-		if (!r) {
+		if (!wdcmd(WDDMA_MDMA2, wdinfo)) {
 			printf("intel_piix_dmainit: setting DMA mode failed\n");
 			return 0;
 		}
@@ -1754,9 +1821,6 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 	u_long nbase, ncount, nend;
 	int iobase_bm;
 	u_long count;
-#ifdef DIAGNOSTIC
-	u_long checkcount;
-#endif
 
 	prd = cp->prd;
 
@@ -1774,7 +1838,7 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 
 	/* Generate first PRD entry, which may be non-aligned. */
 
-	firstpage = PAGE_SIZE - ((uintptr_t)vaddr & PAGE_MASK);
+	firstpage = DMA_PG_SZ - ((uintptr_t)vaddr & DMA_PG_SZ);
 
 	prd_base = vtophys(vaddr);
 	prd_count = MIN(count,  firstpage);
@@ -1782,42 +1846,26 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 	vaddr += prd_count;
 	count -= prd_count;
 
-	/* Step through virtual pages, coalescing as needed. */
+	/*
+	 * Step through virtual pages.
+	 * Note that it is not worth trying to coalesce pages that are 
+	 * next to each other physically, and some DMA engines (e.g.
+	 * Cyrix Cx5530) actually blow up if you do.
+	 */
 	while (count) {
 		nbase = vtophys(vaddr);
-		ncount = MIN(count, PAGE_SIZE);
+		ncount = MIN(count, DMA_PG_SZ);
 		nend = nbase + ncount;
 
-		/* 
-		 * Coalesce if physically contiguous and not crossing
-		 * 64k boundary. 
-		 */
-#if 0
-	/*
-	 * Aggregation is NOT an optimisation worth doing,
-	 * and the Cyrix UDMA controller screws itself 
-	 * in some aggregated situations.
-	 * We might as well just assign each 4K page a DMA entry
-	 * as this doesn't really gain us anything to aggregate them.
-	 * This was basically copied from my agregation code in the aha
-	 * driver, but I doubt it helped much there either. [JRE]
-	 */
-		if ((prd_base + prd_count == nbase) && 
-		    ((((nend - 1) ^ prd_base) & ~0xffff) == 0)) {
-			prd_count += ncount;
-		} else 
-#endif
-		{
-			prd[i].prd_base = prd_base;
-			prd[i].prd_count = (prd_count & 0xffff);
-			i++;
-			if (i >= PRD_MAX_SEGS) {
-				printf("wd82371: too many segments in PRD table\n");
-				return 1;
-			}
-			prd_base = nbase;
-			prd_count = ncount;
+		prd[i].prd_base = prd_base;
+		prd[i].prd_count = (prd_count & 0xffff);
+		i++;
+		if (i >= PRD_MAX_SEGS) {
+			printf("wd82371: too many segments in PRD table\n");
+			return 1;
 		}
+		prd_base = nbase;
+		prd_count = ncount;
 		vaddr += ncount;
 		count -= ncount;
 	}
@@ -1825,29 +1873,6 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 	/* Write last PRD entry. */
 	prd[i].prd_base = prd_base;
 	prd[i].prd_count = (prd_count & 0xffff) | PRD_EOT_BIT;
-
-#ifdef DIAGNOSTIC
-	/* sanity check the transfer for length and page-alignment, at least */
-	checkcount = 0;
-	for (i = 0;; i++) {
-		unsigned int modcount;
-
-		modcount = prd[i].prd_count & 0xffffe;
-		if (modcount == 0) modcount = 0x10000;
-		checkcount += modcount;
-		if (i != 0 && ((prd[i].prd_base & PAGE_MASK) != 0)) {
-			printf("ide_pci: dmasetup() diagnostic fails-- unaligned page\n");
-			return 1;
-		}
-		if (prd[i].prd_count & PRD_EOT_BIT)
-			break;
-	}
-
-	if (checkcount != vcount) {
-		printf("ide_pci: dmasetup() diagnostic fails-- bad length\n");
-		return 1;
-	}
-#endif
 
 	/* Set up PRD base register */
 	outl(iobase_bm + BMIDTP_PORT, vtophys(prd));
