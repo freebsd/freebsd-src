@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.16 1997/02/22 09:40:22 peter Exp $
+ *	$Id: null_vnops.c,v 1.17 1997/04/17 11:17:30 kato Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.16 1997/02/22 09:40:22 peter Exp $
+ * $Id: null_vnops.c,v 1.17 1997/04/17 11:17:30 kato Exp $
  */
 
 /*
@@ -193,7 +193,6 @@ SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW,
 	&null_bug_bypass, 0, "");
 
 static int	null_access __P((struct vop_access_args *ap));
-int		null_bypass __P((struct vop_generic_args *ap));
 static int	null_bwrite __P((struct vop_bwrite_args *ap));
 static int	null_getattr __P((struct vop_getattr_args *ap));
 static int	null_inactive __P((struct vop_inactive_args *ap));
