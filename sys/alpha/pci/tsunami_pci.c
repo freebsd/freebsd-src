@@ -63,6 +63,7 @@ tsunami_pcib_probe(device_t dev)
 
 	device_set_desc(dev, "21271 PCI host bus adapter");
 
+	pci_init_resources();	/* XXX probably don't need */
 	child = device_add_child(dev, "pci", -1);
 
 	bwx_init_space(&sc->io, KV(TSUNAMI_IO(device_get_unit(dev))));
@@ -89,8 +90,8 @@ tsunami_pcib_probe(device_t dev)
 	 * isn't stictly necessary but it keeps things tidy.
 	 */
 	if (device_get_unit(dev) == 0) {
-		busspace_isa_io = (kobj_t) &sc->io;
-		busspace_isa_mem = (kobj_t) &sc->mem;
+		busspace_isa_io = (struct alpha_busspace *) &sc->io;
+		busspace_isa_mem = (struct alpha_busspace *) &sc->mem;
 	}
 
 	return 0;

@@ -38,10 +38,8 @@
 
 #include <alpha/pci/lcareg.h>
 #include <alpha/pci/lcavar.h>
-#include <alpha/pci/pcibus.h>
 #include <alpha/isa/isavar.h>
 #include <machine/intr.h>
-#include <machine/resource.h>
 #include <machine/cpuconf.h>
 #include <machine/swiz.h>
 #include <machine/sgmap.h>
@@ -114,23 +112,12 @@ lca_write_hae(u_int64_t hae)
 
 static int lca_probe(device_t dev);
 static int lca_attach(device_t dev);
-static struct resource *lca_alloc_resource(device_t bus, device_t child,
-					   int type, int *rid, u_long start,
-					   u_long end, u_long count,
-					   u_int flags);
-static int lca_release_resource(device_t bus, device_t child,
-				int type, int rid, struct resource *r);
-
 static device_method_t lca_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		lca_probe),
 	DEVMETHOD(device_attach,	lca_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_alloc_resource,	lca_alloc_resource),
-	DEVMETHOD(bus_release_resource,	lca_release_resource),
-	DEVMETHOD(bus_activate_resource, pci_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	isa_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	isa_teardown_intr),
 
@@ -237,7 +224,6 @@ lca_probe(device_t dev)
 	lca0 = dev;
 	device_set_desc(dev, "21066 Core Logic chipset"); /* XXX */
 
-	pci_init_resources();
 	isa_init_intr();
 	lca_init_sgmap();
 
@@ -262,27 +248,6 @@ lca_attach(device_t dev)
 
 	bus_generic_attach(dev);
 	return 0;
-}
-
-static struct resource *
-lca_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		   u_long start, u_long end, u_long count, u_int flags)
-{
-	if (type == SYS_RES_IRQ)
-		return isa_alloc_intr(bus, child, start);
-	else
-		return pci_alloc_resource(bus, child, type, rid,
-					  start, end, count, flags);
-}
-
-static int
-lca_release_resource(device_t bus, device_t child, int type, int rid,
-		     struct resource *r)
-{
-	if (type == SYS_RES_IRQ)
-		return isa_release_intr(bus, child, r);
-	else
-		return pci_release_resource(bus, child, type, rid, r);
 }
 
 DRIVER_MODULE(lca, root, lca_driver, lca_devclass, 0, 0);

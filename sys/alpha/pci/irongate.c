@@ -43,7 +43,6 @@
 #include <alpha/isa/isavar.h>
 #include <alpha/pci/irongatereg.h>
 #include <alpha/pci/irongatevar.h>
-#include <alpha/pci/pcibus.h>
 #include <machine/bwx.h>
 #include <machine/intr.h>
 #include <machine/intrcnt.h>
@@ -100,10 +99,6 @@ static device_method_t irongate_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,      bus_generic_print_child),
-	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	pci_release_resource),
-	DEVMETHOD(bus_activate_resource, pci_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	isa_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	isa_teardown_intr),
 
@@ -131,8 +126,8 @@ irongate_init()
 	bwx_init_space(&io_space, KV(IRONGATE_IO));
 	bwx_init_space(&mem_space, KV(IRONGATE_MEM));
 
-	busspace_isa_io = (kobj_t) &io_space;
-	busspace_isa_mem = (kobj_t) &mem_space;
+	busspace_isa_io = (struct alpha_busspace *) &io_space;
+	busspace_isa_mem = (struct alpha_busspace *) &mem_space;
 
 	if (platform.pci_intr_init)
 		platform.pci_intr_init();
@@ -146,7 +141,6 @@ irongate_probe(device_t dev)
 		return ENXIO;
 	irongate0 = dev;
 	device_set_desc(dev, "AMD 751 Core Logic chipset"); 
-	pci_init_resources();
 	isa_init_intr();
 	device_add_child(dev, "pcib", 0);
 	return 0;
