@@ -190,7 +190,7 @@ makedev(int x, int y)
 	int hash;
 
 	if (x == umajor(NOUDEV) && y == uminor(NOUDEV))
-		Debugger("makedev of NOUDEV");
+		panic("makedev of NOUDEV");
 	udev = (x << 8) | y;
 	hash = udev % DEVT_HASH;
 	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
@@ -401,6 +401,8 @@ sysctl_devname(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, &ud, sizeof (ud));
 	if (error)
 		return (error);
+	if (ud == NOUDEV)
+		return(EINVAL);
 	dev = makedev(umajor(ud), uminor(ud));
 	if (dev->si_name[0] == '\0')
 		error = ENOENT;
