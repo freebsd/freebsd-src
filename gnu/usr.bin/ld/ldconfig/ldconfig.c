@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.8 1994/06/16 13:38:32 pk Exp $
+ *	$Id: ldconfig.c,v 1.10 1995/06/24 10:08:44 asami Exp $
  */
 
 #include <sys/param.h>
@@ -317,6 +317,7 @@ buildhints()
 		bp->hi_ndewey = shp->ndewey;
 	}
 
+	umask(022);		/* ensure the file will be worl-readable */
 	tmpfile = concat(_PATH_LD_HINTS, "+", "");
 	if ((fd = open(tmpfile, O_RDWR|O_CREAT|O_TRUNC, 0444)) == -1) {
 		warn("%s", _PATH_LD_HINTS);
