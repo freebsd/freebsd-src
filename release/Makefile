@@ -152,37 +152,46 @@ MNT=			/mnt
 .if ${TARGET_ARCH} == "i386"
 .if ${TARGET} == "pc98"
 SMALLBOOTSIZE=		1200
+DRIVERSIZE=		1440
 BOOTSIZE=		1440
 FIXITSIZE=		1440
 MFSSIZE=		4320
+DRIVERINODE=		80000
 BOOTINODE=		80000
 FIXITINODE=		40000
 MFSINODE=		8000
 SMALLBOOTLABEL=		fd1200
+DRIVERLABEL=		fd1440
 BOOTLABEL=		fd1440
 FIXITLABEL=		fd1440
 MFSLABEL=		minimum3
 .else
+DRIVERSIZE=		1440
 BOOTSIZE=		1440
 FIXITSIZE=		1440
 MFSSIZE=		4320
 BIGBOOTSIZE=		2880
+DRIVERINODE=		40000
 BOOTINODE=		80000
 FIXITINODE=		40000
 MFSINODE=		8000
+DRIVERLABEL=		fd1440
 BOOTLABEL=		fd1440
 FIXITLABEL=		fd1440
 MFSLABEL=		minimum3
 BIGBOOTLABEL=		minimum2
 .endif
 .elif ${TARGET_ARCH} == "alpha"
+DRIVERSIZE=		1440
 BOOTSIZE=		1440
 FIXITSIZE=		2880
 MFSSIZE=		4320
 BIGBOOTSIZE=		2880
+DRIVERINODE=		80000
 BOOTINODE=		80000
 FIXITINODE=		40000
 MFSINODE=		8000
+DRIVERLABEL=		fd1440
 BOOTLABEL=		fd1440
 FIXITLABEL=		minimum2
 MFSLABEL=		auto
@@ -278,6 +287,8 @@ rerelease release:
 .if exists(${CHROOTDIR})
 # The first command will fail on a handful of files that have their schg
 # flags set.  But it greatly speeds up the next two commands.
+	# NB: clear any vestigal devfs mount, just in case
+	-umount ${CHROOTDIR}/dev > /dev/null 2>&1
 	-rm -rf ${CHROOTDIR} 2>/dev/null
 	-chflags -R noschg ${CHROOTDIR}/.
 	-rm -rf ${CHROOTDIR}
@@ -364,6 +375,7 @@ rerelease release:
 	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
+	echo "trap 'umount /dev || true' 0"	>> ${CHROOTDIR}/mk
 	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${CHROOTDIR}/mk
 .for var in \
 	AUTO_KEYBOARD_DETECT BOOT_CONFIG BUILDNAME \
@@ -380,6 +392,10 @@ rerelease release:
 	echo "export RELEASEDIR=${_R}"		>> ${CHROOTDIR}/mk
 	echo "export PATH=/bin:/usr/bin:/sbin:/usr/sbin:${LOCALDIR}"	>> ${CHROOTDIR}/mk
 	echo "export MANBUILDCAT=YES"		>> ${CHROOTDIR}/mk
+	# NB: these may fail if the host is running w/o devfs
+	echo "umount /dev >/dev/null 2>&1 || true" >> ${CHROOTDIR}/mk
+	echo "mount -t devfs devfs /dev >/dev/null 2>&1 || true" \
+						>> ${CHROOTDIR}/mk
 	echo "if [ ! -f /tmp/.world_done ]; then" >> ${CHROOTDIR}/mk
 	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${CHROOTDIR}/mk
@@ -683,8 +699,8 @@ release.9:
 	-@rmdir ${RD}/driversfd
 	if [ -d ${RD}/driversfd ]; then \
 	    sh -e ${.CURDIR}/scripts/doFS.sh \
-		${RD}/floppies/drivers.flp ${RD} ${MNT} ${BOOTSIZE} \
-		${RD}/driversfd ${BOOTINODE} ${BOOTLABEL}; \
+		${RD}/floppies/drivers.flp ${RD} ${MNT} ${DRIVERSIZE} \
+		${RD}/driversfd ${DRIVERINODE} ${DRIVERLABEL}; \
 	fi
 .endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
@@ -713,9 +729,6 @@ release.10:
 		usr/share/misc
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=false
-	@( cd ${RD}/fixitfd/dev && \
-		cp ${RD}/trees/base/dev/MAKEDEV MAKEDEV && \
-		chmod 755 MAKEDEV)
 	@cp ${RD}/trees/base/etc/spwd.db ${RD}/trees/base/etc/group \
 		${RD}/trees/base/etc/protocols ${RD}/fixitfd/etc
 	@cp ${RD}/trees/base/usr/share/misc/scsi_modes \
@@ -799,6 +812,9 @@ cdrom.1:
 .endif
 .if ${TARGET} != "pc98"
 	@echo "Setting up /boot"
+	@rm -f ${CD_DISC1}/boot/mfsroot.gz
+	@rm -f ${CD_DISC2}/boot/mfsroot.gz
+	@rm -f ${CD_DISC2}/boot/loader.conf
 	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
 	@ln -f ${RD}/image.boot/mfsroot.gz ${CD_DISC1}/boot/mfsroot.gz
 	@ln -f ${CD_DISC1}/boot/mfsroot.gz ${CD_DISC2}/boot/mfsroot.gz
