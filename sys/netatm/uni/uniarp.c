@@ -1,5 +1,4 @@
 /*
- *
  * ===================================
  * HARP  |  Host ATM Research Platform
  * ===================================
@@ -22,9 +21,6 @@
  *
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
- *
- *	@(#) $FreeBSD$
- *
  */
 
 /*
@@ -32,8 +28,10 @@
  * ---------------------
  *
  * UNI ATMARP support (RFC1577)
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -67,11 +65,6 @@
 #include <netatm/uni/uniip_var.h>
 
 #include <vm/uma.h>
-
-#ifndef lint
-__RCSID("@(#) $FreeBSD$");
-#endif
-
 
 /*
  * Global variables

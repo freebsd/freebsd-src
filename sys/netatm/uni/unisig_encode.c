@@ -1,5 +1,4 @@
 /*
- *
  * ===================================
  * HARP  |  Host ATM Research Platform
  * ===================================
@@ -22,9 +21,6 @@
  *
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
- *
- *	@(#) $FreeBSD$
- *
  */
 
 /*
@@ -32,8 +28,10 @@
  * ----------------------------------------
  *
  * Message formatting module
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -61,11 +59,6 @@
 #include <netatm/uni/unisig_msg.h>
 #include <netatm/uni/unisig_mbuf.h>
 #include <netatm/uni/unisig_decode.h>
-
-#ifndef lint
-__RCSID("@(#) $FreeBSD$");
-#endif
-
 
 /*
  * Local functions
