@@ -26,7 +26,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: rarpd.c,v 1.22 96/06/14 20:40:14 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.10 1996/11/19 23:57:06 wpaul Exp $ (LBL)";
 #endif
 
 /*
@@ -406,7 +406,7 @@ init(target)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: rarpd [ -afv ] [ interface ]\n");
+	(void)fprintf(stderr, "usage: rarpd [ -afnv ] [ interface ]\n");
 	exit(1);
 }
 
@@ -508,10 +508,8 @@ rarp_check(p, len)
 	struct ether_arp *ap = (struct ether_arp *)(p + sizeof(*ep));
 
 	if (len < sizeof(*ep) + sizeof(*ap)) {
-		syslog(LOG_ERR, "truncated request");
-#ifdef DEBUG
-		printf ("len: %d expected: %d\n", len, sizeof(*ep) + sizeof(*ap));
-#endif
+		syslog(LOG_ERR, "truncated request, got %d, expected %d",
+				len, sizeof(*ep) + sizeof(*ap));
 		return 0;
 	}
 	/*
@@ -624,7 +622,7 @@ rarp_loop()
 				caplen = bhp->bh_caplen;
 				hdrlen = bhp->bh_hdrlen;
 				if (rarp_check(bp + hdrlen, caplen))
-					rarp_process(ii, bp + hdrlen, cc);
+					rarp_process(ii, bp + hdrlen, caplen);
 				bp += BPF_WORDALIGN(hdrlen + caplen);
 			}
 		}
@@ -709,11 +707,17 @@ rarp_process(ii, pkt, len)
 
 	ep = (struct ether_header *)pkt;
 	/* should this be arp_tha? */
-	if (ether_ntohost(ename, &ep->ether_shost) != 0)
+	if (ether_ntohost(ename, &ep->ether_shost) != 0) {
+		syslog(LOG_ERR, "cannot map %s to name",
+			eatoa(ep->ether_shost));
 		return;
+	}
 
-	  if((hp = gethostbyname(ename)) == NULL)
+	if ((hp = gethostbyname(ename)) == NULL) {
+		syslog(LOG_ERR, "cannot map %s to IP address", ename);
 		return;
+	}
+
 	/*
 	 * Choose correct address from list.
 	 */
@@ -943,7 +947,7 @@ rarp_reply(ii, ep, ipaddr, len)
 		syslog(LOG_ERR, "write: only %d of %d bytes written", n, len);
 	if (verbose)
 		syslog(LOG_INFO, "%s %s at %s REPLIED", ii->ii_ifname,
-		    eatoa(ap->arp_sha),
+		    eatoa(ap->arp_tha),
 		    intoa(ntohl(ipaddr)));
 }
 
