@@ -90,11 +90,6 @@ struct ray_softc {
     TAILQ_HEAD(ray_comq, ray_comq_entry) 
 			sc_comq;	/* Command queue		*/
 
-#if XXX_IOCTLLOCK
-    int			sc_ioctl_lock;	/* IOCTL lock 			*/
-    int			sc_ioctl_cnt;	/* IOCTL lock count		*/
-#endif /* XXX_IOCTLLOCK */
-
     struct ray_nw_param	sc_c;		/* current network params 	*/
     struct ray_nw_param sc_d;		/* desired network params	*/
     int			sc_havenet;	/* true if we have a network	*/

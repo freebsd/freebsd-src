@@ -288,7 +288,6 @@
 #define XXX_MCAST	0
 #define XXX_RESET	0
 #define XXX_IFQ_PEEK	0
-#define XXX_IOCTLLOCK	0
 #define RAY_DEBUG	(				\
  			   RAY_DBG_RECERR	|    	\
  			/* RAY_DBG_SUBR		| */ 	\
@@ -410,8 +409,6 @@ static void	ray_intr_ccs		(struct ray_softc *sc, u_int8_t cmd, size_t ccs);
 static void	ray_intr_rcs		(struct ray_softc *sc, u_int8_t cmd, size_t ccs);
 static void	ray_intr_updt_errcntrs	(struct ray_softc *sc);
 static int	ray_ioctl		(struct ifnet *ifp, u_long command, caddr_t data);
-static int	ray_ioctl_lock		(struct ray_softc *sc);
-static void	ray_ioctl_unlock	(struct ray_softc *sc);
 static void	ray_mcast		(struct ray_softc *sc, struct ray_comq_entry *com); 
 static void	ray_mcast_done		(struct ray_softc *sc, size_t ccs); 
 static int	ray_mcast_user		(struct ray_softc *sc); 
@@ -645,10 +642,6 @@ ray_attach(device_t dev)
 	/*
 	 * Initialise the timers and driver
 	 */
-#if XXX_IOCTLLOCK
-	sc->sc_ioctl_lock = 0;
-	sc->sc_ioctl_cnt = 0;
-#endif /* XXX_IOCTLLOCK */
 	callout_handle_init(&sc->com_timerh);
 	callout_handle_init(&sc->reset_timerh);
 	callout_handle_init(&sc->tx_timerh);
@@ -759,12 +752,6 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	error = error2 = 0;
 	s = splimp();
 
-#if XXX_IOCTLLOCK
-	error = ray_ioctl_lock(sc);
-	if (error)
-		goto cannotlock;
-#endif /* XXX_IOCTLLOCK */
-
 	switch (command) {
 
 	case SIOCGIFADDR:
@@ -788,19 +775,10 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFFLAGS");
 		/*
-		 * If the interface is marked up and stopped, then start
-		 * it. If it is marked down and running, then stop it.
-		 *
-	   	 * Restarting the interface deals with promisc/allmulti,
-		 * so only check them if we are already running.
-		 * 
+		 * If the interface is marked up we call ray_init_user.
+		 * This will deal with mcast and promisc flags as well as
+		 * initialising the hardware if it needs it.
 		 */
-
-/* XXX
-
-need some mechanism to allow me to differentiate init and promisc?
-	we could just not bail in promisc?
-*/
 		if (ifp->if_flags & IFF_UP)
 			error = ray_init_user(sc);
 		else
@@ -879,80 +857,31 @@ need some mechanism to allow me to differentiate init and promisc?
 
 	}
 
-#if XXX_IOCTLLOCK
-	ray_ioctl_unlock(sc);
-
-cannotlock:
-#endif /* XXX_IOCTLLOCK */
 	splx(s);
 
 	return (error);
 }
 
-#if XXX_IOCTLLOCK
-/*
- * Lock routines for serialising ioctls
- */
-static int
-ray_ioctl_lock(struct ray_softc *sc)
-{
-	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_IOCTL, "");
-
-	if (sc->gone)
-		return (ENXIO);
-
-	/* XXX Just in case for KAME ipv6 - see awi.c */
-	if (curproc == NULL) {
-	    	if (sc->sc_ioctl_lock)
-			return (EWOULDBLOCK);
-		sc->sc_ioctl_lock = 1;
-		return (0);
-	}
-
-	while (sc->sc_busy) {
-	    	sc->sc_ioctl_cnt++;
-		error = tsleep(ray_ioctl_lock, PCATCH, "raylock", 0);
-	    	sc->sc_ioctl_cnt--;
-		if (error)
-			return (error);
-		if (sc->gone)
-			return (ENXIO);
-	}
-	sc->sc_ioctl_lock = 1;
-	return (0);
-}
-
-static void
-ray_ioctl_unlock(struct ray_softc *sc)
-{
-	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_IOCTL, "");
-
-	sc->sc_ioctl_lock = 0;
-	wakeup(ray_ioctl_lock);
-}
-#endif /* XXX_IOCTLLOCK */
-
-
 /*
  * User land entry to network initialisation. Called by ray_ioctl
  * 
- * We do a very small bit of house keeping before calling ray_init_download
- * to do all the real work. We do it this way in case there are runq
- * entries outstanding from earlier ioctls that modify the interface
- * flags.
+ * We do a very small bit of house keeping before calling
+ * ray_init_download to do all the real work. We do it this way in
+ * case there are runq entries outstanding from earlier ioctls that
+ * modify the interface flags.
  *
  * ray_init_download fills the startup parameter structure out and
- * sends it to the card.
+ * sends it to the card if the interface isn't up.
  *
- * ray_init_sj tells the card to try and find an existing network or
- * start a new one.
+ * ray_init_sj tells the card to try and find a network (or
+ * start a new one) if we are not already connected
  *
- * ray_init_sj_done checks a few parameters and we are ready to process packets
- *
- * the promiscuous and multi-cast modes are then set
+ * promiscuous and multi-cast modes are then set
  *
  * Returns values are either 0 for success, a varity of resource allocation
  * failures or errors in the command sent to the card.
+ *
+ * IFF_RUNNING is eventually set by init_sj_done
  */
 static int
 ray_init_user(struct ray_softc *sc)
@@ -978,7 +907,7 @@ ray_init_user(struct ray_softc *sc)
 	ncom = 0;
 	com[ncom++] = RAY_COM_MALLOC(ray_init_download, 0);
 	com[ncom++] = RAY_COM_MALLOC(ray_init_sj, 0);
-#if XXX_ASSOC
+#if XXX_ASSOC /* XXX this test should be moved to preseve ioctl ordering */
 	if (sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA)
 		com[ncom++] = RAY_COM_MALLOC(ray_init_assoc, 0);
 #endif /* XXX_ASSOC */
