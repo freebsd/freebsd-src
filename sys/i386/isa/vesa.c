@@ -1513,22 +1513,26 @@ vesa_bios_info(int level)
 	int i;
 #endif
 
-	/* general adapter information */
-	printf("VESA: v%d.%d, %dk memory, flags:0x%x, mode table:%p (%x)\n", 
-	       ((vesa_adp_info->v_version & 0xf000) >> 12) * 10 
-		   + ((vesa_adp_info->v_version & 0x0f00) >> 8),
-	       ((vesa_adp_info->v_version & 0x00f0) >> 4) * 10 
-		   + (vesa_adp_info->v_version & 0x000f),
-	       vesa_adp_info->v_memsize * 64, vesa_adp_info->v_flags,
-	       vesa_vmodetab, vesa_adp_info->v_modetable);
-	/* OEM string */
-	if (vesa_oemstr != NULL)
-		printf("VESA: %s\n", vesa_oemstr);
+	if (bootverbose) {
+		/* general adapter information */
+		printf(
+	"VESA: v%d.%d, %dk memory, flags:0x%x, mode table:%p (%x)\n", 
+		    ((vesa_adp_info->v_version & 0xf000) >> 12) * 10 +
+		    ((vesa_adp_info->v_version & 0x0f00) >> 8),
+		    ((vesa_adp_info->v_version & 0x00f0) >> 4) * 10 +
+		    (vesa_adp_info->v_version & 0x000f),
+		    vesa_adp_info->v_memsize * 64, vesa_adp_info->v_flags,
+		    vesa_vmodetab, vesa_adp_info->v_modetable);
+
+		/* OEM string */
+		if (vesa_oemstr != NULL)
+			printf("VESA: %s\n", vesa_oemstr);
+	}
 
 	if (level <= 0)
 		return 0;
 
-	if (vesa_adp_info->v_version >= 0x0200) {
+	if (vesa_adp_info->v_version >= 0x0200 && bootverbose) {
 		/* vender name, product name, product revision */
 		printf("VESA: %s %s %s\n",
 			(vesa_venderstr != NULL) ? vesa_venderstr : "unknown",
