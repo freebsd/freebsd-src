@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.21 1998/02/17 01:05:36 brian Exp $
+ * $Id: command.c,v 1.131.2.22 1998/02/17 19:27:51 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -808,7 +808,7 @@ TerminalCommand(struct cmdargs const *arg)
   datalink_Up(arg->cx, 0, 0);
   prompt_Printf(&prompt, "Entering terminal mode.\n");
   prompt_Printf(&prompt, "Type `~?' for help.\n");
-  prompt_TtyTermMode(&prompt);
+  prompt_TtyTermMode(&prompt, arg->cx);
   return 0;
 }
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.4 1998/02/17 01:05:47 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.5 1998/02/17 19:28:00 brian Exp $
  */
 
 #include <sys/param.h>
@@ -113,31 +113,28 @@ static void
 prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct prompt *p = descriptor2prompt(d);
-  struct datalink *dl = NULL;
   int n;
   char ch;
   static int ttystate;
   char linebuff[LINE_LEN];
 
-  if (p->TermMode) {
-    dl = bundle2datalink(bundle, NULL);
-
-    if (dl->state == DATALINK_CLOSED) {
+  if (p->TermMode != NULL) {
+    if (p->TermMode->state == DATALINK_CLOSED) {
       prompt_Printf(p, "Exiting terminal mode.\n");
       prompt_TtyCommandMode(&prompt);
       prompt_nonewline = 0;
       prompt_Display(&prompt, bundle);
     }
 
-    if (dl->state != DATALINK_OPEN)
+    if (p->TermMode->state != DATALINK_OPEN)
       return;
   }
 
   LogPrintf(LogDEBUG, "descriptor2prompt; %p -> %p\n", d, p);
-  LogPrintf(LogDEBUG, "termode = %d, p->fd_in = %d, mode = %d\n",
+  LogPrintf(LogDEBUG, "termode = %p, p->fd_in = %d, mode = %d\n",
 	    p->TermMode, p->fd_in, mode);
 
-  if (!p->TermMode) {
+  if (p->TermMode == NULL) {
     n = read(p->fd_in, linebuff, sizeof linebuff - 1);
     if (n > 0) {
       if (linebuff[n-1] == '\n')
@@ -184,7 +181,6 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 	  PacketMode(bundle, 0);
 	break;
       case '.':
-	p->TermMode = 1;
 	prompt_TtyCommandMode(&prompt);
         prompt_nonewline = 0;
         prompt_Display(&prompt, bundle);
@@ -247,7 +243,7 @@ prompt_Init(struct prompt *p, int fd)
     p->fd_in = p->fd_out = fd;
     p->Term = fdopen(fd, "a+");
   }
-  p->TermMode = 0;
+  p->TermMode = NULL;
   tcgetattr(STDIN_FILENO, &p->oldtio);	/* Save original tty mode */
 
   return 1;
@@ -258,7 +254,7 @@ prompt_Display(struct prompt *p, struct bundle *bundle)
 {
   const char *pconnect, *pauth;
 
-  if (!p->Term || p->TermMode || CleaningUp)
+  if (!p->Term || p->TermMode != NULL || CleaningUp)
     return;
 
   if (prompt_nonewline)
@@ -372,14 +368,14 @@ prompt_TtyCommandMode(struct prompt *p)
     stat |= O_NONBLOCK;
     (void) fcntl(p->fd_in, F_SETFL, stat);
   }
-  p->TermMode = 0;
+  p->TermMode = NULL;
 }
 
 /*
  * Set tty into terminal mode which is used while we invoke term command.
  */
 void
-prompt_TtyTermMode(struct prompt *p)
+prompt_TtyTermMode(struct prompt *p, struct datalink *dl)
 {
   int stat;
 
@@ -389,7 +385,7 @@ prompt_TtyTermMode(struct prompt *p)
     stat &= ~O_NONBLOCK;
     (void) fcntl(p->fd_in, F_SETFL, stat);
   }
-  p->TermMode = 1;
+  p->TermMode = dl;
 }
 
 void

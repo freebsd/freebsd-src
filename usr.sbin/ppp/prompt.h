@@ -23,13 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.h,v 1.1.2.1 1998/02/10 03:23:39 brian Exp $
+ *	$Id: prompt.h,v 1.1.2.2 1998/02/16 00:01:00 brian Exp $
  */
 
 struct prompt {
   struct descriptor desc;
   int fd_in, fd_out;
-  int TermMode;
+  struct datalink *TermMode;	/* The modem we're talking directly to */
   FILE *Term;			/* sits on top of fd_out */
 
   struct termios oldtio;	/* Original tty mode */
@@ -54,7 +54,7 @@ extern void prompt_vPrintf(struct prompt *, const char *, _BSD_VA_LIST_);
 #define PROMPT_WANT_INT 0
 extern void prompt_TtyInit(struct prompt *, int);
 extern void prompt_TtyCommandMode(struct prompt *);
-extern void prompt_TtyTermMode(struct prompt *);
+extern void prompt_TtyTermMode(struct prompt *, struct datalink *);
 extern void prompt_TtyOldMode(struct prompt *);
 extern pid_t prompt_pgrp(struct prompt *);
 #define prompt_IsTermMode(p) ((p)->TermMode ? 1 : 0)
