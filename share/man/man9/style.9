@@ -64,17 +64,14 @@ All VCS (version control system) revision identification from files obtained
 from elsewhere should be maintained, including, where applicable, multiple IDs
 showing a file's history.
 In general, keep the IDs intact, including any `$'s.
+There is no reason to add "From" in front of foreign VCS IDs.
 Most
 .No non- Ns Fx
 VCS IDs should be indented by a tab if in a comment.
 .Bd -literal
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)style	1.14 (Berkeley) 4/28/95";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__RCSID("@(#)style	1.14 (Berkeley) 4/28/95")
+__FBSDID("$FreeBSD$")
 .Ed
 .Pp
 Leave another blank line before the header files.
