@@ -55,14 +55,14 @@ int	extattrctl(const char *_path, int _cmd, const char *_filename,
 int	extattr_delete_fd(int _fd, int _attrnamespace, const char *_attrname);
 int	extattr_delete_file(const char *_path, int _attrnamespace,
 	    const char *_attrname);
-int	extattr_get_fd(int _fd, int _attrnamespace, const char *_attrname,
-	    struct iovec *_iovp, unsigned _iovcnt);
-int	extattr_get_file(const char *_path, int _attrnamespace,
-	    const char *_attrname, struct iovec *_iovp, unsigned _iovcnt);
+ssize_t	extattr_get_fd(int _fd, int _attrnamespace, const char *_attrname,
+	    void *_data, size_t _nbytes);
+ssize_t	extattr_get_file(const char *_path, int _attrnamespace,
+	    const char *_attrname, void *_data, size_t _nbytes);
 int	extattr_set_fd(int _fd, int _attrnamespace, const char *_attrname,
-	    struct iovec *_iovp, unsigned _iovcnt);
+	    const void *_data, size_t _nbytes);
 int	extattr_set_file(const char *_path, int _attrnamespace,
-	    const char *_attrname, struct iovec *_iovp, unsigned _iovcnt);
+	    const char *_attrname, const void *_data, size_t _nbytes);
 __END_DECLS
 
 #endif /* !_KERNEL */

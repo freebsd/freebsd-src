@@ -513,10 +513,10 @@
 			    const char *attrname); }
 356	STD	BSD	{ int extattr_set_file(const char *path, \
 			    int attrnamespace, const char *attrname, \
-			    struct iovec *iovp, unsigned iovcnt); }
-357	STD	BSD	{ int extattr_get_file(const char *path, \
+			    void *data, size_t nbytes); }
+357	STD	BSD	{ ssize_t extattr_get_file(const char *path, \
 			    int attrnamespace, const char *attrname, \
-			    struct iovec *iovp, unsigned iovcnt); }
+			    void *data, size_t nbytes); }
 358	STD	BSD	{ int extattr_delete_file(const char *path, \
 			    int attrnamespace, const char *attrname); }
 359	NOSTD	BSD	{ int aio_waitcomplete(struct aiocb **aiocbp, struct timespec *timeout); }
@@ -535,11 +535,10 @@
 369	STD	BSD	{ int __cap_set_file(const char *path_p, struct cap *cap_p); }
 370	NODEF	NOHIDE	lkmressys lkmressys nosys_args int
 371	STD	BSD	{ int extattr_set_fd(int fd, int attrnamespace, \
-			    const char *attrname, struct iovec *iovp, \
-			    int iovcnt); }
-372	STD	BSD	{ int extattr_get_fd(int fd, int attrnamespace, \
-			    const char *attrname, struct iovec *iovp, \
-			    int iovcnt); }
+			    const char *attrname, void *data, \
+			    size_t nbytes); }
+372	STD	BSD	{ ssize_t extattr_get_fd(int fd, int attrnamespace, \
+			    const char *attrname, void *data, size_t nbytes); }
 373	STD	BSD	{ int extattr_delete_fd(int fd, int attrnamespace, \
 			    const char *attrname); }
 374	MSTD	BSD	{ int __setugid(int flag); }

@@ -1053,6 +1053,7 @@ lomacfs_getextattr(
 		int a_attrnamespace;
 		const char *a_name;
 		struct uio *a_uio;
+		size_t *a_size;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap
@@ -1065,7 +1066,7 @@ lomacfs_getextattr(
 		return (EPERM);
 	else
 		return (VOP_GETEXTATTR(VTOLVP(ap->a_vp), ap->a_attrnamespace,
-		    ap->a_name, ap->a_uio, ap->a_cred, ap->a_td));
+		    ap->a_name, ap->a_uio, ap->a_size, ap->a_cred, ap->a_td));
 }
 
 static int
