@@ -45,6 +45,8 @@ struct pcic_event {
 #define	PCIC_EVENT_INSERTION	0
 #define	PCIC_EVENT_REMOVAL	1
 
+struct proc;
+
 struct pcic_handle {
 	struct pcic_softc *sc;
 	device_t dev;
