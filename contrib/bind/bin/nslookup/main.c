@@ -78,7 +78,7 @@ char copyright[] =
 
 #ifndef lint
 static const char sccsid[] = "@(#)main.c	5.42 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: main.c,v 8.22 2002/04/12 03:03:49 marka Exp $";
+static const char rcsid[] = "$Id: main.c,v 8.24 2002/05/26 03:12:20 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -341,10 +341,21 @@ main(int argc, char **argv) {
 	    } else {
 		result = GetHostInfoByAddr(&u[i], &u[i], defaultPtr);
 		if (result != SUCCESS) {
+		    char t[80];
+		    switch (u[i].sin.sin_family) {
+		    case AF_INET:
+			inet_ntop(AF_INET, &u[i].sin.sin_addr, t, sizeof(t));
+			break;
+		    case AF_INET6:
+			inet_ntop(AF_INET6, &u[i].sin6.sin6_addr, t, sizeof(t));
+			break;
+		    default:
+			strcpy(t, "<UNKNOWN>");
+			break;
+		    }
 		    fprintf(stderr,
-		    "*** Can't find server name for address %s: %s\n", 
-		       inet_ntoa(res.nsaddr_list[i].sin_addr), 
-		       DecodeError(result));
+		            "*** Can't find server name for address %s: %s\n", 
+			    t, DecodeError(result));
 		} else {
 		    defaultAddr = u[i];
 		    break;
@@ -693,7 +704,7 @@ DoLookup(host, servPtr, serverName)
      * RFC1123 says we "SHOULD check the string syntactically for a 
      * dotted-decimal number before looking it up [...]" (p. 13).
      */
-    if (queryType == T_A && IsAddr(host, &addr)) {
+    if ((queryType == T_A || queryType == T_AAAA) && IsAddr(host, &addr)) {
 	result = GetHostInfoByAddr(&servAddr, &addr, &curHostInfo);
     } else {
 	if (queryType == T_PTR) {
@@ -711,7 +722,7 @@ DoLookup(host, servPtr, serverName)
 	     *  There's no need to print anything for other query types
 	     *  because the info has already been printed.
 	     */
-	    if (queryType == T_A) {
+	    if (queryType == T_A || queryType == T_AAAA) {
 		curHostValid = TRUE;
 		PrintHostInfo(filePtr, "Name:", &curHostInfo);
 	    }

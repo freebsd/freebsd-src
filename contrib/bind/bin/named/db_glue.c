@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_glue.c	4.4 (Berkeley) 6/1/90";
-static const char rcsid[] = "$Id: db_glue.c,v 8.46 2001/11/25 23:52:19 marka Exp $";
+static const char rcsid[] = "$Id: db_glue.c,v 8.47 2002/05/18 01:02:54 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -441,7 +441,7 @@ nhash(const char *name) {
 
 static void
 db_freedata(struct databuf *dp) {
-	int bytes = DATASIZE(dp->d_size);
+	int bytes = BIND_DATASIZE(dp->d_size);
 
 	if (dp->d_rcnt != 0)
 		panic("db_freedata: d_rcnt != 0", NULL);

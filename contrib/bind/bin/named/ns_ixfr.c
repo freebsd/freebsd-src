@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_ixfr.c,v 8.31 2002/01/02 05:15:20 marka Exp $";
+static const char rcsid[] = "$Id: ns_ixfr.c,v 8.32 2002/05/18 01:02:57 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -201,10 +201,10 @@ sx_send_ixfr(struct qstream *qsp) {
 		ns_panic(ns_log_update, 1,
 			 "sx_send_ixfr: unable to locate soa");
 	}
-	old_soadp = memget(DATASIZE(soa_dp->d_size));
+	old_soadp = memget(BIND_DATASIZE(soa_dp->d_size));
 	if (old_soadp == NULL)
 		ns_panic(ns_log_update, 1, "sx_send_ixfr: out of memory");
-	memcpy(old_soadp, soa_dp, DATASIZE(soa_dp->d_size));
+	memcpy(old_soadp, soa_dp, BIND_DATASIZE(soa_dp->d_size));
 
  again:
 	switch (qsp->xfr.state) {
@@ -383,7 +383,7 @@ sx_send_ixfr(struct qstream *qsp) {
 		qsp->xfr.top.ixfr = NULL;
 	}
  cleanup:
-	memput(old_soadp, DATASIZE(old_soadp->d_size));
+	memput(old_soadp, BIND_DATASIZE(old_soadp->d_size));
 }
 
 
