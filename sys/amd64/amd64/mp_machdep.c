@@ -82,7 +82,6 @@ extern	int nkpt;
  */
 struct cpu_group mp_groups[MAXCPU];
 struct cpu_top mp_top;
-struct cpu_top *smp_topology;
 
 /* AP uses this during bootstrap.  Do not staticize.  */
 char *bootSTK;
