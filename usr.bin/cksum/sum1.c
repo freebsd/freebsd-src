@@ -42,32 +42,34 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "extern.h"
+
 int
 csum1(fd, cval, clen)
-	register int fd;
+	int fd;
 	u_int32_t *cval, *clen;
 {
-	register u_int32_t total;
-	register int nr;
-	register u_int crc;
-	register u_char *p;
+	u_int32_t total;
+	int nr;
+	u_int lcrc;
+	u_char *p;
 	u_char buf[8192];
 
 	/*
 	 * 16-bit checksum, rotating right before each addition;
 	 * overflow is discarded.
 	 */
-	crc = total = 0;
+	lcrc = total = 0;
 	while ((nr = read(fd, buf, sizeof(buf))) > 0)
 		for (total += nr, p = buf; nr--; ++p) {
-			if (crc & 1)
-				crc |= 0x10000;
-			crc = ((crc >> 1) + *p) & 0xffff;
+			if (lcrc & 1)
+				lcrc |= 0x10000;
+			lcrc = ((lcrc >> 1) + *p) & 0xffff;
 		}
 	if (nr < 0)
 		return(1);
 
-	*cval = crc;
+	*cval = lcrc;
 	*clen = total;
 	return(0);
 }
