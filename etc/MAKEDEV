@@ -121,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.188 1999/02/18 21:17:16 n_hibma Exp $
+#	$Id: MAKEDEV,v 1.189 1999/02/26 16:14:22 roger Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -1233,8 +1233,7 @@ bktr?)
 	unit=`expr $i : 'bktr\(.*\)'`
 	mknod bktr$unit c 92 $unit
 	mknod tuner$unit c 92 $((16 + $unit ))
-	mknod vbi$unit c 92 $((32 + $unit ))
-	chmod 444 bktr$unit tuner$unit vbi$unit
+	chmod 444 bktr$unit tuner$unit
 	;;
 
 tun*)
