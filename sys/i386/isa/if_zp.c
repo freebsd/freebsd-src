@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.15 1996/01/26 09:27:34 phk Exp $
+ *	$Id: if_zp.c,v 1.16 1996/02/06 18:50:51 wollman Exp $
  */
 /*-
  * TODO:
@@ -377,8 +377,10 @@ re_init:
 	 * for. */
 	pcic_map_memory(slot, 0, kvtop(isa_dev->id_maddr), 0x10000, 8L,
 	    ATTRIBUTE, 1);
+#if OLD_3C589B_CARDS
 	POKE(isa_dev->id_maddr, 0x80);	/* reset the card (how long?) */
 	DELAY(40000);
+#endif
 	/* Set the configuration index.  According to [1], the adapter won't
 	 * respond to any i/o signals until we do this; it uses the Memory
 	 * Only interface (whatever that is; it's not documented). Also turn
