@@ -260,6 +260,7 @@ chkquota(fsname, mntpt, qnp)
 		(void)printf(" quotas for %s (%s)\n", fsname, mntpt);
 	}
 	sync();
+	dev_bsize = 1;
 	bread(SBOFF, (char *)&sblock, (long)SBSIZE);
 	dev_bsize = sblock.fs_fsize / fsbtodb(&sblock, 1);
 	maxino = sblock.fs_ncg * sblock.fs_ipg;
