@@ -554,8 +554,7 @@ pseudo-device	stf			#6to4 IPv6 over IPv4 encapsulation
 #
 options 	MROUTING		# Multicast routing
 options 	IPFIREWALL		#firewall
-options 	IPFIREWALL_VERBOSE	#print information about
-					# dropped packets
+options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
 options 	IPFIREWALL_FORWARD	#enable transparent proxy support
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
