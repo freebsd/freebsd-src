@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.62 1994/12/13 18:20:08 guido Exp $
+ *	$Id: wd.c,v 1.63 1994/12/24 09:43:12 bde Exp $
  */
 
 /* TODO:
@@ -1269,15 +1269,16 @@ wdgetctlr(struct disk *du)
 		    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0)
 			return (1);
 
-		if (du->dk_unit == bootinfo.n_bios_used) {
+		if (du->dk_unit == bootinfo.bi_n_bios_used) {
 			du->dk_dd.d_secsize = DEV_BSIZE;
 			du->dk_dd.d_nsectors = 
-			    bootinfo.bios_geom[du->dk_unit] & 0xff;
+			    bootinfo.bi_bios_geom[du->dk_unit] & 0xff;
 			du->dk_dd.d_ntracks = 
-			    ((bootinfo.bios_geom[du->dk_unit] >> 8) & 0xff) +1;
+			    ((bootinfo.bi_bios_geom[du->dk_unit] >> 8) & 0xff)
+			    + 1;
 			/* XXX Why 2 ? */
 			du->dk_dd.d_ncylinders = 
-			    (bootinfo.bios_geom[du->dk_unit] >> 16) + 2;
+			    (bootinfo.bi_bios_geom[du->dk_unit] >> 16) + 2;
 			du->dk_dd.d_secpercyl = 
 			    du->dk_dd.d_ntracks * du->dk_dd.d_nsectors; 
 			du->dk_dd.d_secperunit = 
@@ -1290,7 +1291,7 @@ wdgetctlr(struct disk *du)
 				sizeof du->dk_dd.d_typename);
 			strncpy(du->dk_params.wdp_model, "ST506",
 				sizeof du->dk_params.wdp_model);
-			bootinfo.n_bios_used ++;
+			bootinfo.bi_n_bios_used ++;
 			return 0;
 		}
 		/*

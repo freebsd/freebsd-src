@@ -29,22 +29,41 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.h,v 1.2 1994/11/18 05:02:43 phk Exp $
+ *	$Id: bootinfo.h,v 1.3 1994/11/18 05:26:52 phk Exp $
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_
 #define	_MACHINE_BOOTINFO_H_ 
 
-#define N_BIOS_GEOM	8
-struct bootinfo_t {
-	unsigned int		version;
-	unsigned char		*kernelname;
-	struct nfs_diskless	*nfs_diskless;
-	unsigned int		n_bios_used;
-	unsigned long		bios_geom[N_BIOS_GEOM];
+/* Only change the version number if you break compatibility. */
+#define	BOOTINFO_VERSION	1
+
+#define	N_BIOS_GEOM		8
+
+/*
+ * A zero bootinfo field often means that there is no info available.
+ * Flags are used to indicate the validity of fields where zero is a
+ * normal value.
+ */
+struct bootinfo {
+	unsigned int		bi_version;
+	unsigned char		*bi_kernelname;
+	struct nfs_diskless	*bi_nfs_diskless;
+				/* End of fields that are always present. */
+#define	bi_endcommon		bi_n_bios_used
+	unsigned int		bi_n_bios_used;
+	unsigned long		bi_bios_geom[N_BIOS_GEOM];
+	unsigned int		bi_size;
+	unsigned char		bi_memsizes_valid;
+	unsigned char		bi_pad[3];
+	unsigned long		bi_basemem;
+	unsigned long		bi_extmem;
+	unsigned long		bi_symtab;
+	unsigned long		bi_esymtab;
 };
 
 #ifdef KERNEL
-extern struct bootinfo_t	bootinfo;
+extern struct bootinfo	bootinfo;
 #endif
-#endif	/* _MACHINE_BOOTINFO_H_ */
+
+#endif	/* !_MACHINE_BOOTINFO_H_ */

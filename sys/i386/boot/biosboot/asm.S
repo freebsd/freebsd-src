@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id: asm.S,v 1.4 1994/10/02 05:18:24 rgrimes Exp $
+ *	$Id: asm.S,v 1.5 1994/10/06 09:41:01 rgrimes Exp $
  */
 
 
@@ -59,7 +59,6 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 CR0_PE_ON	=	0x1
 CR0_PE_OFF	=	0xfffffffe
 
-.globl	_ouraddr
 	.text
 
 /*
@@ -118,8 +117,7 @@ xprot:
 ENTRY(prot_to_real)
 
 	/* set up a dummy stack frame for the second seg change. */
-	movl 	_ouraddr, %eax
-	sarl	$4, %eax
+	movw 	$BOOTSEG, %ax
 	pushw	%ax
 	movw	$xreal, %ax	/* gas botches pushw $xreal, extra bytes 0, 0 */
 	pushw	%ax		/* decode to add %al, (%eax) (%al usually 0) */

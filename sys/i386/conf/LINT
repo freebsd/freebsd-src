@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.127 1995/01/24 20:38:39 paul Exp $
+#	$Id: LINT,v 1.128 1995/01/25 20:35:14 jmz Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -91,14 +91,16 @@ options		SYSVMSG
 # DEBUGGING OPTIONS
 
 #
-# This line enables the kernel debugger, DDB, and the line following
-# allocates extra space for a copy of the debugger symbol table which
-# is stored in the initialized data area of the kernel.  If you change
-# the latter option, remove db_aout.o before compiling.
+# Enable the kernel debugger.
 #
-options		DODUMP			#We dump core-image on panic
-options		DDB			#Kernel debugger
-options		"SYMTAB_SPACE=163834"	#This kernel needs LOTS of symtable
+options		DDB
+
+#
+# Enable dumping of the kernel image to swap for panics.  This is not
+# the default because writing to misconfigured swap may wipe out file
+# systems.
+#
+options		DODUMP
 
 # 
 # KTRACE enables the system-call tracing facility ktrace(2).

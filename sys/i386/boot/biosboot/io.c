@@ -24,9 +24,10 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.10 1994/11/07 11:26:29 davidg Exp $
+ *	$Id: io.c,v 1.11 1995/01/20 07:48:21 wpaul Exp $
  */
 
+#include "boot.h"
 #include <machine/cpufunc.h>
 #include <sys/reboot.h>
 
@@ -49,7 +50,6 @@ extern int loadflags;
 /*
  * Gate A20 for high memory
  */
-unsigned char	x_20 = KB_A20;
 gateA20()
 {
 #ifdef	IBM_L40
@@ -61,7 +61,7 @@ gateA20()
 
 	outb(K_CMD, KC_CMD_WOUT);
 	while (inb(K_STATUS) & K_IBUF_FUL);
-	outb(K_RDWR, x_20);
+	outb(K_RDWR, KB_A20);
 	while (inb(K_STATUS) & K_IBUF_FUL);
 #endif	IBM_L40
 }
@@ -121,11 +121,15 @@ printf(format,data)
 putchar(c)
 {
 	if (c == '\n') {
-		if (loadflags & RB_SERIAL) serial_putc('\r');
-			else putc('\r');
+		if (loadflags & RB_SERIAL)
+			serial_putc('\r');
+		else
+			putc('\r');
 	}
-	if (loadflags & RB_SERIAL) serial_putc(c);
-		else putc(c);
+	if (loadflags & RB_SERIAL)
+		serial_putc(c);
+	else
+		putc(c);
 }
 
 getchar(in_buf)
@@ -190,7 +194,6 @@ char *buf;
 				      default:
 					ptr++;
 				}
-
 	return 0;
 }
 
@@ -214,8 +217,6 @@ int len;
 }
 
 /* To quote Ken: "You are not expected to understand this." :) */
-
-static unsigned long tw_chars = 0x5C2D2F7C; /* "\-/|" */
 
 twiddle()
 {
