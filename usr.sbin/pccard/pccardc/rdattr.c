@@ -24,11 +24,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+
 #include <pccard/cardinfo.h>
 
 int
@@ -42,36 +44,30 @@ rdattr_main(argc, argv)
 	int     fd;
 	off_t   offs;
 
-	if (argc != 4) {
-		fprintf(stderr, "usage: %s rdattr slot offs length\n", argv[0]);
-		exit(1);
-	}
+	if (argc != 4)
+		errx(1, "Usage: %s rdattr slot offs length", argv[0]);
+
 	sprintf(name, CARD_DEVICE, atoi(argv[1]));
 	fd = open(name, O_RDONLY);
-	if (fd < 0) {
-		perror(name);
-		exit(1);
-	}
+	if (fd < 0)
+		err(1, "%s", name);
+
 	reg = MDF_ATTR;
-	if (ioctl(fd, PIOCRWFLAG, &reg)) {
-		perror("ioctl (PIOCRWFLAG)");
-		exit(1);
-	}
+	if (ioctl(fd, PIOCRWFLAG, &reg))
+		err(1, "ioctl (PIOCRWFLAG)");
+
 	if (sscanf(argv[2], "%x", &reg) != 1 ||
-	    sscanf(argv[3], "%x", &length) != 1) {
-		fprintf(stderr, "arg error\n");
-		exit(1);
-	}
+	    sscanf(argv[3], "%x", &length) != 1)
+		errx(1, "arg error");
+
 	offs = reg;
-	if ((buf = malloc(length)) == 0) {
-		perror(name);
-		exit(1);
-	}
+	if ((buf = malloc(length)) == 0)
+		errx(1, "malloc failed");
+
 	lseek(fd, offs, SEEK_SET);
-	if (read(fd, buf, length) != length) {
-		perror(name);
-		exit(1);
-	}
+	if (read(fd, buf, length) != length)
+		err(1, "%s", name);
+
 	for (i = 0; i < length; i++) {
 		if (i % 16 == 0) {
 			printf("%04x: ", (int) offs + i);
