@@ -1,0 +1,50 @@
+
+                     V.21 Modem for ISDN4BSD.
+
+INTRODUCTION:
+
+The modem is implemented in software and is rather simple minded.
+
+It works with my Telebit TB2500 and Zyxel 2864I modems.
+
+There are plenty of knobs and handles which can be adjusted and I have
+no real idea what to set them to for best all-round performance.
+
+The carrier detect timer may be a bit short tempered, and this is
+probably why the dialing modem needs to be told to talk V.21 up
+front.  If this code were mode tolerant of loss of carrier auto
+negotiation might work.
+
+When you get carrier ("CONNECT 300"), you must press a key before the
+login banner gets printed.  See the comments in "input_byte" why this
+is.
+
+THE KERNEL PART:
+
+Implementes a crude "send these tones" facility, but it is enough to
+take most of the real-time worries out of doing FSK modulation in
+software.  If suitably extended, the code could also be used to
+send DTMF tones and other similar signals.
+
+INSTALLATION:
+
+The program is started from /etc/isdn/isdnd.rc:
+
+entry
+        name                    = I4BTEL
+        usrdevicename           = tel
+        usrdeviceunit           = 0
+        isdncontroller          = 0
+        isdnchannel             = -1
+        local-phone-incoming    = 2934812934
+        remote-phone-incoming   = *
+        dialin-reaction         = answer
+        answerprog              = v21modem
+        b1protocol              = raw
+        idletime-incoming       = 5
+
+
+Poul-Henning (phk@freebsd.org)
+19991212
+
+$FreeBSD$
