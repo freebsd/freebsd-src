@@ -402,10 +402,12 @@ again:
 			bzero(&ysd->dom_server_addr, sizeof ysd->dom_server_addr);
 			ysd->dom_server_addr.sin_family = AF_INET;
 			ysd->dom_server_addr.sin_len = sizeof(struct sockaddr_in);
-			ysd->dom_server_addr.sin_addr.s_addr =
-			    *(u_long *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr;
-			ysd->dom_server_addr.sin_port =
-			    *(u_short *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port;
+			bcopy(&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr,
+			    &ysd->dom_server_addr.sin_addr.s_addr,
+			    sizeof(ysd->dom_server_addr.sin_addr.s_addr));
+			bcopy(&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port,
+			    &ysd->dom_server_addr.sin_port,
+			    sizeof(ysd->dom_server_addr.sin_port));
 
 			ysd->dom_server_port = ysd->dom_server_addr.sin_port;
 			_close(fd);
@@ -497,10 +499,12 @@ skipit:
 
 		bzero((char *)&ysd->dom_server_addr, sizeof ysd->dom_server_addr);
 		ysd->dom_server_addr.sin_family = AF_INET;
-		ysd->dom_server_addr.sin_port =
-			*(u_short *)&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port;
-		ysd->dom_server_addr.sin_addr.s_addr =
-			*(u_long *)&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr;
+		bcopy(&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port,
+		    &ysd->dom_server_addr.sin_port,
+		    sizeof(ysd->dom_server_addr.sin_port));
+		bcopy(&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr,
+		    &ysd->dom_server_addr.sin_addr.s_addr,
+		    sizeof(ysd->dom_server_addr.sin_addr.s_addr));
 
 		/*
 		 * We could do a reserved port check here too, but this
