@@ -10,6 +10,7 @@ SRCS=		\
 	base64.c		\
 	bswap.c			\
 	concat.c		\
+	ecalloc.c		\
 	emalloc.c		\
 	environment.c		\
 	eread.c			\
@@ -22,6 +23,7 @@ SRCS=		\
 	get_window_size.c	\
 	getarg.c		\
 	getnameinfo_verified.c	\
+	hostent_find_fqdn.c	\
 	issuid.c		\
 	k_getpwnam.c		\
 	k_getpwuid.c		\
