@@ -120,12 +120,14 @@ labelswap()
 {
 	char *header;
 	int row, i;
+	size_t tmp;
 
 	fetchswap();
 
 	row = 0;
 	wmove(wnd, row, 0); wclrtobot(wnd);
-	header = getbsize(&hlen, &blocksize);
+	header = getbsize(&tmp, &blocksize);
+	hlen = (int)tmp;
 	mvwprintw(wnd, row++, 0, "%-5s%*s%9s %55s",
 	    "Disk", hlen, header, "Used",
 	    "/0%  /10% /20% /30% /40% /50% /60% /70% /80% /90% /100");
