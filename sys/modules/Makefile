@@ -121,6 +121,7 @@ SUBDIR+=ar \
 	ncv \
 	nsp \
 	ray \
+	safe \
 	sbni \
 	scsi_low \
 	smbfs \

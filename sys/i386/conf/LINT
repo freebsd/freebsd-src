@@ -2749,6 +2749,10 @@ device		ubsec		# Broadcom 5501, 5601, 58xx
 options		UBSEC_DEBUG	# enable debugging support: hw.ubsec.debug
 options		UBSEC_RNDTEST	# enable rndtest support
 
+device		safe		# SafeNet 1141
+options		SAFE_DEBUG	# enable debugging support: hw.safe.debug
+options		SAFE_RNDTEST	# enable rndtest support
+
 # DRM options:
 # mgadrm:    AGP Matrox G200, G400, G450, G550
 # tdfxdrm:   3dfx Voodoo 3/4/5 and Banshee

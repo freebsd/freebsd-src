@@ -507,3 +507,8 @@ UBSEC_NO_RNG		opt_ubsec.h
 HIFN_DEBUG		opt_hifn.h
 HIFN_RNDTEST		opt_hifn.h
 HIFN_NO_RNG		opt_hifn.h
+
+# options for safe driver
+SAFE_DEBUG		opt_safe.h
+SAFE_RNDTEST		opt_safe.h
+SAFE_NO_RNG		opt_safe.h

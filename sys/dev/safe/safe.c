@@ -23,10 +23,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 /*
  * SafeNet SafeXcel-1141 hardware crypto accelerator
@@ -40,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
 
@@ -205,7 +202,9 @@ safe_partname(struct safe_softc *sc)
 static void
 default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
 {
-	random_harvest(buf, count, count*NBBY, 0, RANDOM_PURE);
+	u_int32_t *p = buf;
+	for (count /= sizeof (u_int32_t); count; count--)
+		add_true_randomness(*p++);
 }
 #endif /* SAFE_NO_RNG */
 
@@ -264,7 +263,7 @@ safe_attach(device_t dev)
 	 * NB: Network code assumes we are blocked with splimp()
 	 *     so make sure the IRQ is mapped appropriately.
 	 */
-	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET,
 			   safe_intr, sc, &sc->sc_ih)) {
 		device_printf(dev, "could not establish interrupt\n");
 		goto bad2;
@@ -292,7 +291,6 @@ safe_attach(device_t dev)
 			       SAFE_MAX_PART,		/* nsegments */
 			       SAFE_MAX_SSIZE,		/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
-			       NULL, NULL,		/* locking */
 			       &sc->sc_srcdmat)) {
 		device_printf(dev, "cannot allocate DMA tag\n");
 		goto bad4;
@@ -307,7 +305,6 @@ safe_attach(device_t dev)
 			       SAFE_MAX_PART,		/* nsegments */
 			       SAFE_MAX_DSIZE,		/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
-			       NULL, NULL,		/* locking */
 			       &sc->sc_dstdmat)) {
 		device_printf(dev, "cannot allocate DMA tag\n");
 		goto bad4;
@@ -342,8 +339,6 @@ safe_attach(device_t dev)
 
 		raddr += sizeof (struct safe_ringentry);
 	}
-	mtx_init(&sc->sc_ringmtx, device_get_nameunit(dev),
-		"packet engine ring", MTX_DEF);
 
 	/*
 	 * Allocate scatter and gather particle descriptors.
@@ -352,7 +347,6 @@ safe_attach(device_t dev)
 	    &sc->sc_spalloc, 0)) {
 		device_printf(dev, "cannot allocate source particle "
 			"descriptor ring\n");
-		mtx_destroy(&sc->sc_ringmtx);
 		safe_dma_free(sc, &sc->sc_ringalloc);
 		bus_dma_tag_destroy(sc->sc_srcdmat);
 		goto bad4;
@@ -366,7 +360,6 @@ safe_attach(device_t dev)
 	    &sc->sc_dpalloc, 0)) {
 		device_printf(dev, "cannot allocate destination particle "
 			"descriptor ring\n");
-		mtx_destroy(&sc->sc_ringmtx);
 		safe_dma_free(sc, &sc->sc_spalloc);
 		safe_dma_free(sc, &sc->sc_ringalloc);
 		bus_dma_tag_destroy(sc->sc_dstdmat);
@@ -441,8 +434,7 @@ safe_attach(device_t dev)
 #endif
 		safe_rng_init(sc);
 
-		/* NB: 1 means the callout runs w/o Giant locked */
-		callout_init(&sc->sc_rngto, 1);
+		callout_init(&sc->sc_rngto);
 		callout_reset(&sc->sc_rngto, hz*safe_rnginterval, safe_rng, sc);
 	}
 #endif /* SAFE_NO_RNG */
@@ -486,7 +478,6 @@ safe_detach(device_t dev)
 	safe_cleanchip(sc);
 	safe_dma_free(sc, &sc->sc_dpalloc);
 	safe_dma_free(sc, &sc->sc_spalloc);
-	mtx_destroy(&sc->sc_ringmtx);
 	safe_dma_free(sc, &sc->sc_ringalloc);
 
 	bus_generic_detach(dev);
@@ -560,7 +551,6 @@ safe_intr(void *arg)
 		 * Descriptor(s) done; scan the ring and
 		 * process completed operations.
 		 */
-		mtx_lock(&sc->sc_ringmtx);
 		while (sc->sc_back != sc->sc_front) {
 			struct safe_ringentry *re = sc->sc_back;
 #ifdef SAFE_DEBUG
@@ -587,7 +577,6 @@ safe_intr(void *arg)
 			if (++(sc->sc_back) == sc->sc_ringtop)
 				sc->sc_back = sc->sc_ring;
 		}
-		mtx_unlock(&sc->sc_ringmtx);
 	}
 
 	/*
@@ -732,7 +721,6 @@ safe_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 
 	bzero(ses, sizeof(struct safe_session));
 	ses->ses_used = 1;
-
 	if (encini) {
 		/* get an IV */
 		/* XXX may read fewer than requested */
@@ -811,19 +799,18 @@ static int
 safe_freesession(void *arg, u_int64_t tid)
 {
 	struct safe_softc *sc = arg;
-	int session, ret;
+	int session;
 	u_int32_t sid = ((u_int32_t) tid) & 0xffffffff;
 
 	if (sc == NULL)
 		return (EINVAL);
 
 	session = SAFE_SESSION(sid);
-	if (session < sc->sc_nsessions) {
-		bzero(&sc->sc_sessions[session], sizeof(sc->sc_sessions[session]));
-		ret = 0;
-	} else
-		ret = EINVAL;
-	return (ret);
+	if (session >= sc->sc_nsessions)
+		return (EINVAL);
+
+	bzero(&sc->sc_sessions[session], sizeof(sc->sc_sessions[session]));
+	return (0);
 }
 
 static void
@@ -854,6 +841,7 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 	struct safe_sarec *sa;
 	struct safe_pdesc *pd;
 	u_int32_t cmd0, cmd1, staterec;
+	int s;
 
 	if (crp == NULL || crp->crp_callback == NULL || sc == NULL) {
 		safestats.st_invalid++;
@@ -864,11 +852,11 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 		return (EINVAL);
 	}
 
-	mtx_lock(&sc->sc_ringmtx);
+	s = splimp();
 	if (sc->sc_front == sc->sc_back && sc->sc_nqchip != 0) {
 		safestats.st_ringfull++;
 		sc->sc_needwakeup |= CRYPTO_SYMQ;
-		mtx_unlock(&sc->sc_ringmtx);
+		splx(s);
 		return (ERESTART);
 	}
 	re = sc->sc_front;
@@ -1466,7 +1454,7 @@ safe_process(void *arg, struct cryptop *crp, int hint)
 
 	/* XXX honor batching */
 	safe_feed(sc, re);
-	mtx_unlock(&sc->sc_ringmtx);
+	splx(s);
 	return (0);
 
 errout:
@@ -1481,7 +1469,7 @@ errout:
 		bus_dmamap_unload(sc->sc_srcdmat, re->re_src_map);
 		bus_dmamap_destroy(sc->sc_srcdmat, re->re_src_map);
 	}
-	mtx_unlock(&sc->sc_ringmtx);
+	splx(s);
 	if (err != ERESTART) {
 		crp->crp_etype = err;
 		crypto_done(crp);
@@ -1803,7 +1791,6 @@ safe_dma_malloc(
 			       1,			/* nsegments */
 			       size,			/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
-			       NULL, NULL,		/* locking */
 			       &dma->dma_tag);
 	if (r != 0) {
 		device_printf(sc->sc_dev, "safe_dma_malloc: "
@@ -1965,6 +1952,23 @@ safe_init_board(struct safe_softc *sc)
 static void
 safe_init_pciregs(device_t dev)
 {
+#if 0
+	u_int32_t misc;
+
+	misc = pci_conf_read(pc, pa->pa_tag, BS_RTY_TOUT);
+	misc = (misc & ~(SAFE_PCI_RTY_MASK << SAFE_PCI_RTY_SHIFT))
+	    | ((SAFE_DEF_RTY & 0xff) << SAFE_PCI_RTY_SHIFT);
+	misc = (misc & ~(SAFE_PCI_TOUT_MASK << SAFE_PCI_TOUT_SHIFT))
+	    | ((SAFE_DEF_TOUT & 0xff) << SAFE_PCI_TOUT_SHIFT);
+	pci_conf_write(pc, pa->pa_tag, BS_RTY_TOUT, misc);
+
+	/*
+	 * This will set the cache line size to 1, this will
+	 * force the chip just to do burst read/writes.
+	 * Cache line read/writes are to slow
+	 */
+	pci_write_config(dev, PCIR_CACHELNSZ, SAFE_DEF_CACHELINE, 1);
+#endif
 }
 
 /*
@@ -2101,7 +2105,6 @@ safe_dump_ringstate(struct safe_softc *sc, const char *tag)
 {
 	u_int32_t estat = READ_REG(sc, SAFE_PE_ERNGSTAT);
 
-	/* NB: assume caller has lock on ring */
 	printf("%s: ERNGSTAT %x (next %u) back %u front %u\n",
 		tag,
 		estat, (estat >> SAFE_PE_ERNGSTAT_NEXT_S),
@@ -2136,6 +2139,10 @@ safe_dump_request(struct safe_softc *sc, const char* tag, struct safe_ringentry 
 			);
 			if (sc->sc_spring[ix].pd_size == 0)
 				printf(" (zero!)");
+#ifdef SAFE_DMAWAR
+			if (sc->sc_spring[ix].pd_size > SAFE_DMA_BOUNDARY)
+				printf(" (bogus size)!");
+#endif
 			printf("\n");
 			if (++ix == SAFE_TOTAL_SPART)
 				ix = 0;
@@ -2199,7 +2206,7 @@ safe_dump_request(struct safe_softc *sc, const char* tag, struct safe_ringentry 
 static void
 safe_dump_ring(struct safe_softc *sc, const char *tag)
 {
-	mtx_lock(&sc->sc_ringmtx);
+	int s = splimp();
 	printf("\nSafeNet Ring State:\n");
 	safe_dump_intrstate(sc, tag);
 	safe_dump_dmastatus(sc, tag);
@@ -2212,7 +2219,7 @@ safe_dump_ring(struct safe_softc *sc, const char *tag)
 				re = sc->sc_ring;
 		} while (re != sc->sc_front);
 	}
-	mtx_unlock(&sc->sc_ringmtx);
+	splx(s);
 }
 
 static int

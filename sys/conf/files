@@ -414,6 +414,7 @@ dev/rndtest/rndtest.c	optional rndtest
 dev/rp/rp.c		optional nrp
 dev/rp/rp_isa.c		optional nrp isa
 dev/rp/rp_pci.c		optional nrp pci
+dev/safe/safe.c		optional safe
 dev/sbni/if_sbni_pci.c	optional sbni pci
 dev/sbsh/if_sbsh.c	optional sbsh
 smbus_if.o		optional smbus					\

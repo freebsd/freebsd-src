@@ -29,13 +29,22 @@
 #ifndef _SAFE_SAFEVAR_H_
 #define	_SAFE_SAFEVAR_H_
 
+#if 0
+#define	SAFE_DMAWAR			/* Enable ER-1 workaround */
+#endif
+
 /* Maximum queue length */
 #ifndef SAFE_MAX_NQUEUE
 #define SAFE_MAX_NQUEUE	60
 #endif
 
+#ifdef SAFE_DMAWAR
+#define	SAFE_MAX_PART		128	/* Maximum scatter/gather depth */
+#define	SAFE_DMA_BOUNDARY	256	/* Limit DMA to avoid chip lockup */
+#else
 #define	SAFE_MAX_PART		64	/* Maximum scatter/gather depth */
 #define	SAFE_DMA_BOUNDARY	0	/* No boundary for source DMA ops */
+#endif
 #define	SAFE_MAX_DSIZE		MCLBYTES /* Fixed scatter particle size */
 #define	SAFE_MAX_SSIZE		0x0ffff	/* Maximum gather particle size */
 #define	SAFE_MAX_DMA		0xfffff	/* Maximum PE operand size (20 bits) */
@@ -165,7 +174,6 @@ struct safe_softc {
 	struct safe_ringentry	*sc_front;	/* next free entry */
 	struct safe_ringentry	*sc_back;	/* next pending entry */
 	int			sc_nqchip;	/* # passed to chip */
-	struct mtx		sc_ringmtx;	/* PE ring lock */
 	struct safe_pdesc	*sc_spring;	/* src particle ring */
 	struct safe_pdesc	*sc_springtop;	/* src particle ring top */
 	struct safe_pdesc	*sc_spfree;	/* next free src particle */
