@@ -230,7 +230,7 @@ typedef void if_init_f_t(void *);
 #define	if_lastchange	if_data.ifi_lastchange
 #define if_recvquota	if_data.ifi_recvquota
 #define	if_xmitquota	if_data.ifi_xmitquota
-#define if_rawoutput(if, m, sa) if_output(if, m, sa, (struct rtentry *)0)
+#define if_rawoutput(if, m, sa) if_output(if, m, sa, (struct rtentry *)NULL)
 
 /* for compatibility with other BSDs */
 #define	if_addrlist	if_addrhead
@@ -282,7 +282,7 @@ typedef void if_init_f_t(void *);
 #define	_IF_DEQUEUE(ifq, m) do { 				\
 	(m) = (ifq)->ifq_head; 					\
 	if (m) { 						\
-		if (((ifq)->ifq_head = (m)->m_nextpkt) == 0) 	\
+		if (((ifq)->ifq_head = (m)->m_nextpkt) == NULL)	\
 			(ifq)->ifq_tail = NULL; 		\
 		(m)->m_nextpkt = NULL; 				\
 		(ifq)->ifq_len--; 				\
