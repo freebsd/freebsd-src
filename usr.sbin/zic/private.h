@@ -30,7 +30,7 @@
 
 #ifndef lint
 #ifndef NOID
-static const char	privatehid[] = "@(#)private.h	7.48";
+static const char	privatehid[] = "@(#)private.h	7.53";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -51,6 +51,14 @@ static const char	privatehid[] = "@(#)private.h	7.48";
 #define HAVE_SYMLINK		1
 #endif /* !defined HAVE_SYMLINK */
 
+#ifndef HAVE_SYS_STAT_H
+#define HAVE_SYS_STAT_H		1
+#endif /* !defined HAVE_SYS_STAT_H */
+
+#ifndef HAVE_SYS_WAIT_H
+#define HAVE_SYS_WAIT_H		1
+#endif /* !defined HAVE_SYS_WAIT_H */
+
 #ifndef HAVE_UNISTD_H
 #define HAVE_UNISTD_H		1
 #endif /* !defined HAVE_UNISTD_H */
@@ -70,6 +78,10 @@ static const char	privatehid[] = "@(#)private.h	7.48";
 #if HAVE_GETTEXT - 0
 #include "libintl.h"
 #endif /* HAVE_GETTEXT - 0 */
+
+#if HAVE_SYS_WAIT_H - 0
+#include <sys/wait.h>	/* for WIFEXITED and WEXITSTATUS */
+#endif /* HAVE_SYS_WAIT_H - 0 */
 
 #if HAVE_UNISTD_H - 0
 #include "unistd.h"	/* for F_OK and R_OK */
@@ -175,7 +187,7 @@ char *	scheck P((const char *string, const char *format));
 #endif /* !defined TZ_DOMAIN */
 
 /*
-** UNIX was a registered trademark of UNIX System Laboratories in 1993.
+** UNIX was a registered trademark of The Open Group in 2003.
 */
 
 #endif /* !defined PRIVATE_H */

@@ -2,7 +2,7 @@
 .\"	@(#)zdump.8	7.3
 .\" $FreeBSD$
 .\"
-.Dd September 13, 1994
+.Dd June 20, 2004
 .Dt ZDUMP 8
 .Os
 .Sh NAME
@@ -10,6 +10,7 @@
 .Nd timezone dumper
 .Sh SYNOPSIS
 .Nm
+.Op Fl -version
 .Op Fl v
 .Op Fl c Ar cutoffyear
 .Op Ar zonename ...
@@ -22,6 +23,8 @@ named on the command line.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl -version
+Output version information and exit.
 .It Fl v
 For each
 .Ar zonename
