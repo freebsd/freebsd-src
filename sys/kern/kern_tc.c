@@ -66,8 +66,17 @@ static struct timehands th4 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 1, &th5};
 static struct timehands th3 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 1, &th4};
 static struct timehands th2 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 1, &th3};
 static struct timehands th1 = { NULL, 0, 0, 0, {0, 0}, {0, 0}, {0, 0}, 1, &th2};
-static struct timehands th0 =
-	{ &dummy_timecounter, 0, 18446744073709ULL, 0, {1, 0}, {0, 0}, {0, 0}, 1, &th1};
+static struct timehands th0 = {
+	&dummy_timecounter,
+	0,
+	18446744073709ULL,	/* 2^64/1000000 */
+	0,
+	{769769981, 0},		/* Tue May 24 08:59:41 GMT 1994 */
+	{0, 0},
+	{0, 0},
+	1,
+	&th1
+};
 
 static struct timehands *volatile timehands = &th0;
 struct timecounter *timecounter = &dummy_timecounter;
@@ -340,6 +349,10 @@ tc_windup(void)
 		tco->tc_counter->tc_poll_pps(tco->tc_counter);
 	for (i = tc->tc_offset.sec - tco->tc_offset.sec; i > 0; i--) 
 		ntp_update_second(&tc->tc_adjustment, &tc->tc_offset.sec);
+	if (tc->tc_counter != timecounter) {
+		tc->tc_counter = timecounter;
+		tc->tc_offset_count = ncount;
+	}
 	tc_setscales(tc);
 
 	bt = tc->tc_offset;
