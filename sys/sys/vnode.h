@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.52 1997/10/16 20:32:33 phk Exp $
+ * $Id: vnode.h,v 1.53 1997/10/17 12:36:18 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -260,17 +260,6 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 
 
 extern void	(*lease_updatetime) __P((int deltat));
-
-#ifdef NFS
-#ifdef NQNFS
-#define	LEASE_UPDATETIME(dt)		lease_updatetime(dt)
-#else
-#define	LEASE_UPDATETIME(dt)
-#endif /* NQNFS */
-#else
-#define	LEASE_UPDATETIME(dt) \
-	do { if(lease_updatetime) lease_updatetime(dt); } while(0)
-#endif /* NFS */
 
 #define VSHOULDFREE(vp)	\
 	(!((vp)->v_flag & (VFREE|VDOOMED)) && \
