@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.10 1995/12/10 13:32:43 phk Exp $
+ *	$Id: ddb.h,v 1.11 1996/05/08 04:28:36 gpalmer Exp $
  */
 
 /*
@@ -42,11 +42,32 @@
 typedef void db_cmdfcn_t __P((db_expr_t addr, boolean_t have_addr,
 			      db_expr_t count, char *modif));
 
-/*
- * Global variables...
- */
+#define DB_COMMAND(cmd_name, func_name) \
+	DB_SET(cmd_name, func_name, db_cmd_set)
+#define DB_SHOW_COMMAND(cmd_name, func_name) \
+	DB_SET(cmd_name, func_name, db_show_cmd_set)
+
+#define DB_SET(cmd_name, func_name, set)			\
+static db_cmdfcn_t	func_name;				\
+								\
+static const struct command __CONCAT(func_name,_cmd) = {	\
+	__STRING(cmd_name),					\
+	func_name,						\
+	0,							\
+	0,							\
+};								\
+TEXT_SET(set, __CONCAT(func_name,_cmd));			\
+								\
+static void							\
+func_name(addr, have_addr, count, modif)			\
+	db_expr_t addr;						\
+	boolean_t have_addr;					\
+	db_expr_t count;					\
+	char *modif;
+
 extern char *esym;
 extern unsigned int db_maxoff;
+extern int db_indent;
 extern int db_inst_count;
 extern int db_load_count;
 extern int db_store_count;
@@ -54,11 +75,7 @@ extern int db_radix;
 extern int db_max_width;
 extern int db_tab_stop_width;
 
-struct vm_map;			/* forward declaration */
-
-/*
- * Functions...
- */
+struct vm_map;
 
 void		cnpollc __P((int));
 void		db_check_interrupt __P((void));
@@ -68,6 +85,7 @@ db_addr_t	db_disasm __P((db_addr_t loc, boolean_t altfmt));
 void		db_error __P((char *s));
 int		db_expression __P((db_expr_t *valuep));
 int		db_get_variable __P((db_expr_t *valuep));
+void		db_iprintf __P((const char *,...));
 struct vm_map	*db_map_addr __P((vm_offset_t));
 boolean_t	db_map_current __P((struct vm_map *));
 boolean_t	db_map_equal __P((struct vm_map *, struct vm_map *));
@@ -114,5 +132,19 @@ db_cmdfcn_t	db_show_one_thread;
 db_cmdfcn_t	ipc_port_print;
 db_cmdfcn_t	vm_page_print;
 #endif
+
+/*
+ * Command table.
+ */
+struct command {
+	char *	name;		/* command name */
+	db_cmdfcn_t *fcn;	/* function to call */
+	int	flag;		/* extra info: */
+#define	CS_OWN		0x1	/* non-standard syntax */
+#define	CS_MORE		0x2	/* standard syntax, but may have other words
+				 * at end */
+#define	CS_SET_DOT	0x100	/* set dot after command */
+	struct command *more;	/* another level of command */
+};
 
 #endif /* !_DDB_DDB_H_ */
