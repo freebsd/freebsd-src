@@ -66,7 +66,7 @@ isp_attach(struct ispsoftc *isp)
 	 * Construct our SIM entry.
 	 */
 	sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
-	    isp->isp_unit, 1, isp->isp_maxcmds, devq);
+	    device_get_unit(isp->isp_dev), 1, isp->isp_maxcmds, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		return;
@@ -107,7 +107,7 @@ isp_attach(struct ispsoftc *isp)
 	 */
 	if (IS_DUALBUS(isp)) {
 		sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
-		    isp->isp_unit, 1, isp->isp_maxcmds, devq);
+		    device_get_unit(isp->isp_dev), 1, isp->isp_maxcmds, devq);
 		if (sim == NULL) {
 			xpt_bus_deregister(cam_sim_path(isp->isp_sim));
 			xpt_free_path(isp->isp_path);
@@ -391,7 +391,7 @@ destroy_lun_state(struct ispsoftc *isp, tstate_t *tptr)
 static void
 isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 {
-	const char *lfmt = "Lun now %sabled for target mode\n";
+	const char lfmt[] = "Lun now %sabled for target mode";
 	struct ccb_en_lun *cel = &ccb->cel;
 	tstate_t *tptr;
 	u_int16_t rstat;
@@ -468,7 +468,8 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 		if (fcp->isp_fwstate != FW_READY ||
 		    fcp->isp_loopstate != LOOP_READY) {
 			xpt_print_path(ccb->ccb_h.path);
-			printf("could not get a good port database read\n");
+			isp_prt(isp, ISP_LOGWARN,
+			    "could not get a good port database read");
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 			if (frozen)
 				xpt_release_simq(isp->isp_sim, 1);
@@ -545,7 +546,7 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 			ccb->ccb_h.status = CAM_REQ_CMP;
 		}
 		xpt_print_path(ccb->ccb_h.path);
-		printf(lfmt, (cel->enable) ? "en" : "dis");
+		isp_prt(isp, ISP_LOGINFO, lfmt, (cel->enable) ? "en" : "dis");
 		if (frozen)
 			xpt_release_simq(isp->isp_sim, 1);
 		return;
@@ -587,18 +588,20 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 		rstat = LUN_ERR;
 		if (isp_lun_cmd(isp, RQSTYPE_ENABLE_LUN, bus, tgt, lun, seq)) {
 			xpt_print_path(ccb->ccb_h.path);
-			printf("isp_lun_cmd failed\n");
+			isp_prt(isp, ISP_LOGWARN, "isp_lun_cmd failed");
 			goto out;
 		}
 		if (isp_cv_wait_timed_rqe(isp, 30 * hz)) {
 			xpt_print_path(ccb->ccb_h.path);
-			printf("wait for ENABLE LUN timed out\n");
+			isp_prt(isp, ISP_LOGERR,
+			    "wait for ENABLE LUN timed out");
 			goto out;
 		}
 		rstat = isp->isp_osinfo.rstatus;
 		if (rstat != LUN_OK) {
 			xpt_print_path(ccb->ccb_h.path);
-			printf("ENABLE LUN returned 0x%x\n", rstat);
+			isp_prt(isp, ISP_LOGERR,
+			    "ENABLE LUN returned 0x%x", rstat);
 			goto out;
 		}
 	} else {
@@ -609,18 +612,20 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 
 		if (isp_lun_cmd(isp, -RQSTYPE_MODIFY_LUN, bus, tgt, lun, seq)) {
 			xpt_print_path(ccb->ccb_h.path);
-			printf("isp_lun_cmd failed\n");
+			isp_prt(isp, ISP_LOGERR, "isp_lun_cmd failed");
 			goto out;
 		}
 		if (isp_cv_wait_timed_rqe(isp, 30 * hz)) {
 			xpt_print_path(ccb->ccb_h.path);
-			printf("wait for MODIFY LUN timed out\n");
+			isp_prt(isp, ISP_LOGERR,
+			    "wait for MODIFY LUN timed out");
 			goto out;
 		}
 		rstat = isp->isp_osinfo.rstatus;
 		if (rstat != LUN_OK) {
 			xpt_print_path(ccb->ccb_h.path);
-			printf("MODIFY LUN returned 0x%x\n", rstat);
+			isp_prt(isp, ISP_LOGERR,
+			    "MODIFY LUN returned 0x%x", rstat);
 			goto out;
 		}
 		rstat = LUN_ERR;
@@ -628,18 +633,20 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 
 		if (isp_lun_cmd(isp, -RQSTYPE_ENABLE_LUN, bus, tgt, lun, seq)) {
 			xpt_print_path(ccb->ccb_h.path);
-			printf("isp_lun_cmd failed\n");
+			isp_prt(isp, ISP_LOGERR, "isp_lun_cmd failed");
 			goto out;
 		}
 		if (isp_cv_wait_timed_rqe(isp, 30 * hz)) {
 			xpt_print_path(ccb->ccb_h.path);
-			printf("wait for ENABLE LUN timed out\n");
+			isp_prt(isp, ISP_LOGERR,
+			     "wait for ENABLE LUN timed out");
 			goto out;
 		}
 		rstat = isp->isp_osinfo.rstatus;
 		if (rstat != LUN_OK) {
 			xpt_print_path(ccb->ccb_h.path);
-			printf("ENABLE LUN returned 0x%x\n", rstat);
+			isp_prt(isp, ISP_LOGWARN,
+			    "ENABLE LUN returned 0x%x", rstat);
 			goto out;
 		}
 	}
@@ -649,14 +656,15 @@ out:
 
 	if (rstat != LUN_OK) {
 		xpt_print_path(ccb->ccb_h.path);
-		printf("lun %sable failed\n", (cel->enable) ? "en" : "dis");
+		isp_prt(isp, ISP_LOGWARN,
+		    "lun %sable failed", (cel->enable) ? "en" : "dis");
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		rls_lun_statep(isp, tptr);
 		if (cel->enable)
 			destroy_lun_state(isp, tptr);
 	} else {
 		xpt_print_path(ccb->ccb_h.path);
-		printf(lfmt, (cel->enable) ? "en" : "dis");
+		isp_prt(isp, ISP_LOGINFO, lfmt, (cel->enable) ? "en" : "dis");
 		rls_lun_statep(isp, tptr);
 		if (cel->enable == 0) {
 			destroy_lun_state(isp, tptr);
@@ -965,13 +973,14 @@ isp_handle_platform_atio(struct ispsoftc *isp, at_entry_t *aep)
 		 * suggested by the f/w. I'm not sure quite yet what
 		 * to do about this for CAM.
 		 */
-		printf("%s: PHASE ERROR\n", isp->isp_name);
+		isp_prt(isp, ISP_LOGWARN, "PHASE ERROR");
 		isp_endcmd(isp, aep, SCSI_STATUS_BUSY, 0);
 		return (0);
 	}
 	if ((status & ~QLTM_SVALID) != AT_CDB) {
-		printf("%s: bogus atio (0x%x) leaked to platform\n",
-		    isp->isp_name, status);
+		isp_prt(isp,
+		    ISP_LOGWARN, "bogus atio (0x%x) leaked to platform",
+		    status);
 		isp_endcmd(isp, aep, SCSI_STATUS_BUSY, 0);
 		return (0);
 	}
@@ -1006,7 +1015,8 @@ isp_handle_platform_atio(struct ispsoftc *isp, at_entry_t *aep)
 		 * run out of ATIOS.
 		 */
 		xpt_print_path(tptr->owner);
-		printf("no ATIOS for lun %d from initiator %d\n",
+		isp_prt(isp, ISP_LOGWARN,
+		    "no ATIOS for lun %d from initiator %d",
 		    aep->at_lun, aep->at_iid);
 		rls_lun_statep(isp, tptr);
 		if (aep->at_flags & AT_TQAE)
@@ -1066,8 +1076,8 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 	 * If QLTM_SVALID is set, the firware has recommended Sense Data.
 	 */
 	if ((aep->at_status & ~QLTM_SVALID) != AT_CDB) {
-		printf("%s: bogus atio (0x%x) leaked to platform\n",
-		    isp->isp_name, aep->at_status);
+		isp_prt(isp, ISP_LOGWARN,
+		    "bogus atio (0x%x) leaked to platform", aep->at_status);
 		isp_endcmd(isp, aep, SCSI_STATUS_BUSY, 0);
 		return (0);
 	}
@@ -1133,8 +1143,8 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		 * run out of ATIOS.
 		 */
 		xpt_print_path(tptr->owner);
-		printf("no ATIOS for lun %d from initiator %d\n",
-		    lun, aep->at_iid);
+		isp_prt(isp, ISP_LOGWARN,
+		    "no ATIOS for lun %d from initiator %d", lun, aep->at_iid);
 		rls_lun_statep(isp, tptr);
 		if (aep->at_flags & AT_TQAE)
 			isp_endcmd(isp, aep, SCSI_STATUS_QUEUE_FULL, 0);
@@ -1325,7 +1335,7 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 		}
 		break;
 	default:
-		printf("%s: isp_attach Async Code 0x%x\n", isp->isp_name, code);
+		isp_prt(isp, ISP_LOGWARN, "isp_cam_async: Code 0x%x", code);
 		break;
 	}
 }
@@ -1409,8 +1419,8 @@ isp_watchdog(void *arg)
                 	} 
 			isp_destroy_handle(isp, handle);
 			xpt_print_path(xs->ccb_h.path);
-			printf("%s: watchdog timeout (%x, %x)\n",
-			    isp->isp_name, handle, r);
+			isp_prt(isp, ISP_LOGWARN,
+			    "watchdog timeout (%x, %x)", handle, r);
 			XS_SETERR(xs, CAM_CMD_TIMEOUT);
 			XS_CMD_C_WDOG(xs);
 			isp_done(xs);
@@ -1598,7 +1608,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			if (isp->isp_osinfo.simqfrozen == 0) {
 				xpt_freeze_simq(sim, 1);
 				xpt_print_path(ccb->ccb_h.path);
-				printf("XPT_CONT_TARGET_IO freeze simq\n");
+				isp_prt(isp, ISP_LOGINFO,
+				    "XPT_CONT_TARGET_IO freeze simq");
 			}
 			isp->isp_osinfo.simqfrozen |= SIMQFRZ_RESOURCE;
 			XS_SETERR(ccb, CAM_REQUEUE_REQ);
@@ -1981,7 +1992,8 @@ isp_done(struct ccb_scsiio *sccb)
 	if ((CAM_DEBUGGED(sccb->ccb_h.path, ISPDDB)) &&
 	    (sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		xpt_print_path(sccb->ccb_h.path);
-		printf("cam completion status 0x%x\n", sccb->ccb_h.status);
+		isp_prt(isp, ISP_LOGINFO, 
+		    "cam completion status 0x%x", sccb->ccb_h.status);
 	}
 
 	XS_CMD_S_DONE(sccb);
@@ -2300,7 +2312,7 @@ isp_prt(struct ispsoftc *isp, int level, const char *fmt, ...)
 	if (level != ISP_LOGALL && (level & isp->isp_dblev) == 0) {
 		return;
 	}
-	printf("%s: ", isp->isp_name);
+	printf("%s: ", device_get_nameunit(isp->isp_dev));
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);
