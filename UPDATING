@@ -18,7 +18,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	to maximize performance.
 
 20040226:
-	Some sshd configuration defaults have changed: protocol version 2
+	Some sshd configuration defaults have changed: protocol version 1
 	is no longer enabled by default, and password authentication is
 	disabled by default if PAM is enabled (which it is by default).
 	OpenSSH clients should not be affected by this; other clients may
