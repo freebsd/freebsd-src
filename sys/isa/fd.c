@@ -1210,7 +1210,7 @@ fd_probe(device_t dev)
  * fail the probe).  However, for whatever reason, testing for _MACHINE_ARCH
  * == i386 breaks the test on FreeBSD/Alpha.
  */
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 	if (fd->type == FDT_NONE && (fd->fdu == 0 || fd->fdu == 1)) {
 		/* Look up what the BIOS thinks we have. */
 		if (fd->fdu == 0) {
@@ -1230,7 +1230,7 @@ fd_probe(device_t dev)
 		if (fd->type == FDT_288M_1)
 			fd->type = FDT_288M;
 	}
-#endif /* __i386__ */
+#endif /* __i386__ || __amd64__ */
 	/* is there a unit? */
 	if (fd->type == FDT_NONE)
 		return (ENXIO);
