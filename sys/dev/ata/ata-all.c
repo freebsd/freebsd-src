@@ -1240,6 +1240,7 @@ ata_enclosure_status(struct ata_device *atadev,
 		     int *fan, int *temp, int *v05, int *v12)
 {
     u_int8_t id1, id2, cnt, div;
+    int error = ENXIO;
 
     if (atadev->flags & ATA_D_ENC_PRESENT) {
 	ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
@@ -1247,24 +1248,24 @@ ata_enclosure_status(struct ata_device *atadev,
 	id1 = ata_enclosure_sensor(atadev, 0, 0x4f, 0);
 	ata_enclosure_sensor(atadev, 1, 0x4e, 0x80);
 	id2 = ata_enclosure_sensor(atadev, 0, 0x4f, 0);
-	if (id1 != 0xa3 || id2 != 0x5c)
-	    return ENXIO;
-	div = 1 << (((ata_enclosure_sensor(atadev, 0, 0x5d, 0) & 0x20) >> 3)+
-		    ((ata_enclosure_sensor(atadev, 0, 0x47, 0) & 0x30) >> 4)+1);
-	cnt = ata_enclosure_sensor(atadev, 0, 0x28, 0);
-	if (cnt == 0xff)
-	    *fan = 0;
-	else
-	    *fan = 1350000 / cnt / div;
-	ata_enclosure_sensor(atadev, 1, 0x4e, 0x01);
-	*temp = (ata_enclosure_sensor(atadev, 0, 0x50, 0) * 10) +
-	       (ata_enclosure_sensor(atadev, 0, 0x50, 0) & 0x80 ? 5 : 0);
-	*v05 = ata_enclosure_sensor(atadev, 0, 0x23, 0) * 27;
-	*v12 = ata_enclosure_sensor(atadev, 0, 0x24, 0) * 61;
+	if (id1 == 0xa3 && id2 == 0x5c) {
+	    div = 1 << (((ata_enclosure_sensor(atadev, 0, 0x5d, 0)&0x20)>>3)+
+			((ata_enclosure_sensor(atadev, 0, 0x47, 0)&0x30)>>4)+1);
+	    cnt = ata_enclosure_sensor(atadev, 0, 0x28, 0);
+	    if (cnt == 0xff)
+		*fan = 0;
+	    else
+		*fan = 1350000 / cnt / div;
+	    ata_enclosure_sensor(atadev, 1, 0x4e, 0x01);
+	    *temp = (ata_enclosure_sensor(atadev, 0, 0x50, 0) * 10) +
+		    (ata_enclosure_sensor(atadev, 0, 0x50, 0) & 0x80 ? 5 : 0);
+	    *v05 = ata_enclosure_sensor(atadev, 0, 0x23, 0) * 27;
+	    *v12 = ata_enclosure_sensor(atadev, 0, 0x24, 0) * 61;
+	    error = 0;
+	}
 	ATA_UNLOCK_CH(atadev->channel);
-	return 0;
     }
-    return ENXIO;
+    return error;
 }
     
 void
