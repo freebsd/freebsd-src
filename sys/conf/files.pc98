@@ -250,7 +250,7 @@ i386/isa/loran.c		optional	loran
 i386/isa/matcd/matcd.c		count		matcd
 i386/isa/mca_machdep.c		optional	mca
 i386/isa/mcd.c			count		mcd
-i386/isa/npx.c			mandatory	npx
+i386/isa/npx.c			optional	npx
 i386/isa/pcf.c			optional	pcf
 i386/isa/pcvt/pcvt_drv.c	optional	vt
 i386/isa/pcvt/pcvt_ext.c	optional	vt
