@@ -1393,7 +1393,6 @@ diskLabelNonInteractive(Device *dev)
 			tmp->private_data = new_part(mpoint, TRUE);
 			tmp->private_free = safe_free;
 			((PartInfo *)tmp->private_data)->soft = soft;
-			status = DITEM_SUCCESS;
 		    }
 		}
 	    }
@@ -1408,7 +1407,7 @@ diskLabelNonInteractive(Device *dev)
 		if (sscanf(cp, "%s %s", mpoint, do_newfs) != 2) {
 		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s", c1->name, cp);
 		    status = DITEM_FAILURE;
-		    continue;
+		    break;
 		}
 		newfs = toupper(do_newfs[0]) == 'Y' ? TRUE : FALSE;
 		if (c1->private_data) {
