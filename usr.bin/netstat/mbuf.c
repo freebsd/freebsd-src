@@ -253,7 +253,9 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 	totused[0] = totnum - totfree;
 	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", totused[0], totnum);
 	printf("\tMbuf cache high watermark: %d\n", mbuf_hiwm);
+#ifdef NOTYET
 	printf("\tMbuf cache low watermark: %d\n", mbuf_lowm);
+#endif
 	printf("\tMaximum possible: %d\n", nmbufs);
 	printf("\tAllocated mbuf types:\n");
 	for (mp = mbtypenames; mp->mt_name; mp++) {
@@ -292,7 +294,9 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 	totused[1] = totnum - totfree;
 	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", totused[1], totnum);
 	printf("\tCluster cache high watermark: %d\n", clust_hiwm);
+#ifdef NOTYET
 	printf("\tCluster cache low watermark: %d\n", clust_lowm);
+#endif
 	printf("\tMaximum possible: %d\n", nmbclusters);
 	printf("\t%lu%% of cluster map consumed\n", ((totspace[1] * 100) /
 	    (nmbclusters * MCLBYTES)));
