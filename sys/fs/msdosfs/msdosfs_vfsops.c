@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.2 1994/09/19 19:24:44 dfr Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.3 1994/09/21 03:47:16 wollman Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -93,7 +93,8 @@ msdosfs_mount(mp, path, data, ndp, p)
 	/*
 	 * Copy in the args for the mount request.
 	 */
-	if (error = copyin(data, (caddr_t) & args, sizeof(struct msdosfs_args)))
+	error = copyin(data, (caddr_t) & args, sizeof(struct msdosfs_args));
+	if (error)
 		return error;
 
 	/*
@@ -259,17 +260,20 @@ mountmsdosfs(devvp, mp, p)
 	 * old buffers from this filesystem.  Presumably this prevents us
 	 * from running into buffers that are the wrong blocksize.
 	 */
-	if (error = vfs_mountedon(devvp))
+	error = vfs_mountedon(devvp);
+	if (error)
 		return error;
 	if (vcount(devvp) > 1)
 		return EBUSY;
-	if (error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0))
+	error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0);
+	if (error)
 		return error;
 
 	/*
 	 * Now open the block special file.
 	 */
-	if (error = VOP_OPEN(devvp, ronly ? FREAD : FREAD | FWRITE, FSCRED, p))
+	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD | FWRITE, FSCRED, p);
+	if (error)
 		return error;
 	needclose = 1;
 #ifdef HDSUPPORT
@@ -287,7 +291,8 @@ mountmsdosfs(devvp, mp, p)
 	 * also add some checking on the bsOemName field.  So far I've seen
 	 * the following values: "IBM  3.3" "MSDOS3.3" "MSDOS5.0"
 	 */
-	if (error = bread(devvp, 0, 512, NOCRED, &bp0))
+	error = bread(devvp, 0, 512, NOCRED, &bp0);
+	if (error)
 		goto error_exit;
 	bp0->b_flags |= B_AGE;
 	bsp = (union bootsector *) bp0->b_data;
@@ -493,7 +498,6 @@ msdosfs_unmount(mp, mntflags, p)
 	int flags = 0;
 	int error;
 	struct msdosfsmount *pmp = (struct msdosfsmount *) mp->mnt_data;
-	struct vnode *vp = pmp->pm_devvp;
 
 	/* only the mounter, or superuser can unmount */
 	if ((p->p_cred->p_ruid != pmp->pm_mounter) &&
@@ -507,7 +511,8 @@ msdosfs_unmount(mp, mntflags, p)
 	}
 #ifdef QUOTA
 #endif
-	if (error = vflush(mp, NULLVP, flags))
+	error = vflush(mp, NULLVP, flags);
+	if (error)
 		return error;
 	pmp->pm_devvp->v_specflags &= ~SI_MOUNTEDON;
 #ifdef MSDOSFS_DEBUG
@@ -561,6 +566,7 @@ msdosfs_quotactl(mp, cmds, uid, arg, p)
 	struct proc *p;
 {
 #ifdef QUOTA
+	return EOPNOTSUPP;
 #else
 	return EOPNOTSUPP;
 #endif
@@ -646,7 +652,8 @@ loop:
 			continue;
 		if (vget(vp, 1))	/* not there anymore?	 */
 			goto loop;
-		if (error = VOP_FSYNC(vp, cred, waitfor, p))
+		error = VOP_FSYNC(vp, cred, waitfor, p);
+		if (error)
 			allerror = error;
 		vput(vp);	/* done with this one	 */
 	}
@@ -654,7 +661,8 @@ loop:
 	/*
 	 * Flush filesystem control info.
 	 */
-	if (error = VOP_FSYNC(pmp->pm_devvp, cred, waitfor, p))
+	error = VOP_FSYNC(pmp->pm_devvp, cred, waitfor, p);
+	if (error)
 		allerror = error;
 	return allerror;
 }

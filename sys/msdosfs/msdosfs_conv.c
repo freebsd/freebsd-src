@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfs_conv.c,v 1.1 1994/09/19 15:41:40 dfr Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.6.2.1 1994/08/30 02:27:57 cgd Exp $	*/
 
 /*
@@ -23,6 +23,7 @@
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/kernel.h>		/* defines tz */
+#include <sys/systm.h>		/* defines tz */
 
 /*
  * MSDOSFS include files.
@@ -166,8 +167,9 @@ dos2unixtime(dd, dt, tsp)
 		 */
 		month = (dd & DD_MONTH_MASK) >> DD_MONTH_SHIFT;
 		if (month == 0) {
-			printf("dos2unixtime(): month value out of range (%d)\n",
-			       month);
+			printf(
+			    "dos2unixtime(): month value out of range (%ld)\n",
+			    month);
 			month = 1;
 		}
 		for (m = 0; m < month - 1; m++) {
