@@ -872,6 +872,26 @@ adw_free(struct adw_softc *adw)
 	case 0:
 		break;
 	}
+	
+	if (adw->regs != NULL)
+		bus_release_resource(adw->device,
+				     adw->regs_res_type,
+				     adw->regs_res_id,
+				     adw->regs);
+
+	if (adw->irq != NULL)
+		bus_release_resource(adw->device,
+				     adw->irq_res_type,
+				     0, adw->irq);
+
+	if (adw->sim != NULL) {
+		if (adw->path != NULL) {
+			xpt_async(AC_LOST_DEVICE, adw->path, NULL);
+			xpt_free_path(adw->path);
+		}
+		xpt_bus_deregister(cam_sim_path(adw->sim));
+		cam_sim_free(adw->sim, /*free_devq*/TRUE);
+	}
 	free(adw->name, M_DEVBUF);
 	free(adw, M_DEVBUF);
 }
