@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993 Eugene W. Stark
+ * Copyright (c) 1992, 1993, 1995 Eugene W. Stark
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,10 +39,14 @@
 #include <time.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <pwd.h>
+#include <grp.h>
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/stat.h>
+#include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -72,61 +76,79 @@ char *argv[];
   char statpath[MAXPATHLEN+1];
   struct sockaddr_un sa;
   struct timeval tv;
+  struct passwd *pw;
+  struct group *gr;
+  struct stat sb;
   int user;
   int fd;
   FILE *pidf;
 
   /*
-   * Open the log file before doing anything
+   * Make sure we start out running as root
+   */
+  if(geteuid() != 0) {
+    fprintf(stderr, "You must be root to run %s\n", argv[0]);
+    exit(1);
+  }
+
+  /*
+   * Find out what UID/GID we are to run as
+   */
+  if((pw = getpwnam(XTENUNAME)) == NULL) {
+    fprintf(stderr, "%s: No such user '%s'\n", argv[0], XTENUNAME);
+    exit(1);
+  }
+  if((gr = getgrnam(XTENGNAME)) == NULL) {
+    fprintf(stderr, "%s: No such group '%s'\n", argv[0], XTENGNAME);
+    exit(1);
+  }
+
+  /*
+   * Open the log file before doing anything else
    */
   strcpy(logpath, X10DIR);
+  if(stat(logpath, &sb) == -1 && errno == ENOENT) {
+    if(mkdir(logpath, 0755) != -1) {
+      chown(logpath, pw->pw_uid, gr->gr_gid);
+    } else {
+      fprintf(stderr, "%s: Can't create directory '%s'\n", argv[0], logpath);
+      exit(1);
+    }
+  }
+  strcat(logpath, "/");
   strcat(logpath, X10LOGNAME);
   if((Log = fopen(logpath, "a")) == NULL) {
     fprintf(stderr, "Can't open log file %s\n", logpath);
     exit(1);
   }
+  chown(logpath, pw->pw_uid, gr->gr_gid);
 
   /*
    * Become a daemon
    */
   if(daemon(0, 0) == -1) {
-    fprintf(Log, "%s:  %s unable to become a daemon\n", thedate(), argv[0]);
+    fprintf(Log, "%s:  Unable to become a daemon\n", thedate());
+    fclose(Log);
     exit(1);
   }
-  fprintf(Log, "%s:  %s[%d] started\n", thedate(), argv[0], getpid());
+  fprintf(Log, "%s:  %s [%d] started\n", thedate(), argv[0], getpid());
 
   /*
    * Get ahold of the TW523 device
    */
   if((tw523 = open(twpath, O_RDWR)) < 0) {
     fprintf(Log, "%s:  Can't open %s\n", thedate(), twpath);
+    fclose(Log);
     exit(1);
   }
   fprintf(Log, "%s:  %s successfully opened\n", thedate(), twpath);
-
-  /*
-   * Initialize the status table
-   */
-  strcpy(statpath, X10DIR);
-  strcat(statpath, X10STATNAME);
-  if((status = open(statpath, O_RDWR)) < 0) {
-    if((status = open(statpath, O_RDWR | O_CREAT, 0666)) < 0) {
-      fprintf(Log, "%s:  Can't open %s\n", thedate(), statpath);
-      exit(1);
-    }
-    if(write(status, Status, 16 * 16 * sizeof(STATUS))
-       != 16 * 16 * sizeof(STATUS)) {
-      fprintf(Log, "%s:  Error initializing status file\n", thedate());
-      exit(1);
-    }
-  }
-  initstatus();
 
   /*
    * Put our pid in a file so we can be signalled by shell scripts
    */
   if((pidf = fopen(PIDPATH, "w")) == NULL) {
       fprintf(Log, "%s:  Error writing pid file: %s\n", thedate(), PIDPATH);
+      fclose(Log);
       exit(1);
   }
   fprintf(pidf, "%d\n", getpid());
@@ -137,6 +159,7 @@ char *argv[];
    */
   if((sock = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
     fprintf(Log, "%s:  Can't create socket\n", thedate());
+    fclose(Log);
     exit(1);
   }
   strcpy(sa.sun_path, sockpath);
@@ -144,20 +167,59 @@ char *argv[];
   unlink(sockpath);
   if(bind(sock, (struct sockaddr *)(&sa), strlen(sa.sun_path) + 2) < 0) {
     fprintf(Log, "%s:  Can't bind socket to %s\n", thedate(), sockpath);
+    fclose(Log);
     exit(1);
   }
   if(listen(sock, 5) < 0) {
     fprintf(Log, "%s:  Can't listen on socket\n", thedate());
+    fclose(Log);
     exit(1);
   }
 
-  signal(SIGHUP, onhup);
-  signal(SIGTERM, onterm);
-  signal(SIGPIPE, onpipe);
+  /*
+   * Set proper ownership and permissions on the socket
+   */
+  if(chown(sockpath, pw->pw_uid, gr->gr_gid) == -1 ||
+     chmod(sockpath, 0660) == -1) {
+    fprintf(Log, "%s:  Can't set owner/permissions on socket\n", thedate());
+    fclose(Log);
+    exit(1);
+  }
+
+  /*
+   * Give up root privileges
+   */
+  setgid(pw->pw_gid);
+  setuid(pw->pw_uid);
+
+  /*
+   * Initialize the status table
+   */
+  strcpy(statpath, X10DIR);
+  strcat(statpath, "/");
+  strcat(statpath, X10STATNAME);
+  if((status = open(statpath, O_RDWR)) < 0) {
+    if((status = open(statpath, O_RDWR | O_CREAT, 0666)) < 0) {
+      fprintf(Log, "%s:  Can't open %s\n", thedate(), statpath);
+      fclose(Log);
+      exit(1);
+    }
+    if(write(status, Status, 16 * 16 * sizeof(STATUS))
+       != 16 * 16 * sizeof(STATUS)) {
+      fprintf(Log, "%s:  Error initializing status file\n", thedate());
+      fclose(Log);
+      exit(1);
+    }
+  }
+  initstatus();
+
   /*
    * Return here on SIGHUP after closing and reopening log file.
    * Also on SIGPIPE after closing user connection.
    */
+  signal(SIGTERM, onterm);
+  signal(SIGHUP, onhup);
+  signal(SIGPIPE, onpipe);
   setjmp(mainloop);
 
   /*
@@ -268,6 +330,7 @@ void onhup()
   fprintf(Log, "%s:  SIGHUP received, reopening Log\n", thedate());
   fclose(Log);
   strcpy(logpath, X10DIR);
+  strcat(logpath, "/");
   strcat(logpath, X10LOGNAME);
   if((Log = fopen(logpath, "a")) == NULL) {
     fprintf(stderr, "Can't open log file %s\n", logpath);
@@ -284,6 +347,7 @@ void onhup()
 void onterm()
 {
   fprintf(Log, "%s:  SIGTERM received, shutting down\n", thedate());
+  fclose(Log);
   exit(0);
 }
 
