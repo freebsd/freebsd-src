@@ -575,6 +575,7 @@ cache_drain(uma_zone_t zone)
 static void
 zone_drain(uma_zone_t zone)
 {
+	struct slabhead freeslabs = {};
 	uma_slab_t slab;
 	uma_slab_t n;
 	u_int64_t extra;
@@ -621,6 +622,26 @@ zone_drain(uma_zone_t zone)
 		LIST_REMOVE(slab, us_link);
 		zone->uz_pages -= zone->uz_ppera;
 		zone->uz_free -= zone->uz_ipers;
+
+		if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
+			mtx_lock(&malloc_mtx);
+			UMA_HASH_REMOVE(mallochash, slab, slab->us_data);
+			mtx_unlock(&malloc_mtx);
+		}
+		if (zone->uz_flags & UMA_ZFLAG_OFFPAGE &&
+		    !(zone->uz_flags & UMA_ZFLAG_MALLOC))
+			UMA_HASH_REMOVE(&zone->uz_hash, slab, slab->us_data);
+
+		SLIST_INSERT_HEAD(&freeslabs, slab, us_hlink);
+
+		slab = n;
+		extra--;
+	}
+finished:
+	ZONE_UNLOCK(zone);
+
+	while ((slab = SLIST_FIRST(&freeslabs)) != NULL) {
+		SLIST_REMOVE(&freeslabs, slab, uma_slab, us_hlink);
 		if (zone->uz_fini)
 			for (i = 0; i < zone->uz_ipers; i++)
 				zone->uz_fini(
@@ -628,16 +649,7 @@ zone_drain(uma_zone_t zone)
 				    zone->uz_size);
 		flags = slab->us_flags;
 		mem = slab->us_data;
-		if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
-			mtx_lock(&malloc_mtx);
-			UMA_HASH_REMOVE(mallochash, slab, slab->us_data);
-			mtx_unlock(&malloc_mtx);
-		}
 		if (zone->uz_flags & UMA_ZFLAG_OFFPAGE) {
-			if (!(zone->uz_flags & UMA_ZFLAG_MALLOC)) {
-				UMA_HASH_REMOVE(&zone->uz_hash,
-				    slab, slab->us_data);
-			}
 			uma_zfree_internal(slabzone, slab, NULL, 0);
 		}
 #ifdef UMA_DEBUG
@@ -645,13 +657,8 @@ zone_drain(uma_zone_t zone)
 		    zone->uz_name, UMA_SLAB_SIZE * zone->uz_ppera);
 #endif
 		zone->uz_freef(mem, UMA_SLAB_SIZE * zone->uz_ppera, flags);
-
-		slab = n;
-		extra--;
 	}
 
-finished:
-	ZONE_UNLOCK(zone);
 }
 
 /*
