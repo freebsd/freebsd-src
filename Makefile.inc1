@@ -758,15 +758,15 @@ libraries:
 
 # These dependencies are not automatically generated:
 #
-# gnu/lib/csu, gnu/lib/libgcc and lib/csu must be built before all
+# lib/csu and gnu/lib/csu, gnu/lib/libgcc must be built before all
 # shared libraries for ELF.
 #
-_startup_libs=	gnu/lib/csu gnu/lib/libgcc
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-${OBJFORMAT})
-_startup_libs+=	lib/csu/${MACHINE_ARCH}-${OBJFORMAT}
+_startup_libs=	lib/csu/${MACHINE_ARCH}-${OBJFORMAT}
 .else
-_startup_libs+=	lib/csu/${MACHINE_ARCH}
+_startup_libs=	lib/csu/${MACHINE_ARCH}
 .endif
+_startup_libs+=	gnu/lib/csu gnu/lib/libgcc
 
 _prebuild_libs=
 
