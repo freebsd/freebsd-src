@@ -1,9 +1,9 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.24 2005/03/21 15:08:46 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.25 2005/03/22 07:45:00 den Exp $
 
-     Original revision: 1.830
+     Original revision: 1.832
 -->
 
 <articleinfo>
@@ -455,8 +455,8 @@
 	CARP был взят из OpenBSD и позволяет нескольким хостам
 	совместно использовать один IP адрес, чтобы обеспечивать
 	высокую доступность и распределение нагрузки.
-	За дальнейшей информацией обращайтесь к странице справочник
-	&man.carp.4;.</para>
+	За дальнейшей информацией обращайтесь к странице справочника
+	&man.carp.4;.  &merged;</para>
 
       <para>Параметр &man.ipfw.4; <literal>IPDIVERT</literal> теперь
 	доступен в виде загружаемого модуля ядра.  Если этот модуль
@@ -829,6 +829,10 @@
     <para>&man.ps.1; теперь поддерживает ключевое слово
       <literal>jid</literal> опции <option>-o</option>.  Оно предназначено
       для отображения идентификатора &man.jail.2; каждого процесса.</para>
+
+    <para>&man.pstat.8; теперь поддерживает опцию <option>-h</option>,
+      чтобы выводить размер с префиксами, такими как K, M и G.
+      <!--which are used to form binary multiples.--></para>
 
     <para>Утилиты &man.rescue.8; в каталоге <filename>/rescue</filename>
       теперь включают &man.bsdtar.1; вместо GNU tar.</para>
