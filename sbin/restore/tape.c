@@ -297,7 +297,7 @@ void
 getvol(nextvol)
 	long nextvol;
 {
-	long newvol, savecnt, wantnext, i;
+	long newvol, savecnt, savetpcnt, i;
 	union u_spcl tmpspcl;
 #	define tmpbuf tmpspcl.s_spcl
 	char buf[TP_BSIZE];
@@ -318,16 +318,15 @@ getvol(nextvol)
 		goto gethdr;
 	}
 	savecnt = blksread;
+	savetpcnt = tpblksread;
 again:
+	tpblksread = savetpcnt;
 	if (pipein)
 		done(1); /* pipes do not get a second chance */
-	if (command == 'R' || command == 'r' || curfile.action != SKIP) {
+	if (command == 'R' || command == 'r' || curfile.action != SKIP)
 		newvol = nextvol;
-		wantnext = 1;
-	} else {
+	else
 		newvol = 0;
-		wantnext = 0;
-	}
 	while (newvol <= 0) {
 		if (tapesread == 0) {
 			fprintf(stderr, "%s%s%s%s%s",
@@ -424,10 +423,16 @@ gethdr:
 	dprintf(stdout, "read %ld recs, tape starts with %ld\n",
 		tpblksread, tmpbuf.c_firstrec);
  	if (tmpbuf.c_type == TS_TAPE && (tmpbuf.c_flags & DR_NEWHEADER)) {
- 		if (!wantnext) {
+ 		if (curfile.action != USING) {
  			tpblksread = tmpbuf.c_firstrec;
- 			for (i = tmpbuf.c_count; i > 0; i--)
- 				readtape(buf);
+			/*
+			 * XXX Dump incorrectly sets c_count to 1 in the
+			 * volume header of the first tape, so ignore
+			 * c_count when volno == 1.
+			 */
+			if (volno != 1)
+				for (i = tmpbuf.c_count; i > 0; i--)
+					readtape(buf);
  		} else if (tmpbuf.c_firstrec > 0 &&
 			   tmpbuf.c_firstrec < tpblksread - 1) {
 			/*
@@ -440,17 +445,11 @@ gethdr:
  				readtape(buf);
  		}
  	}
-	if (curfile.action == USING  || curfile.action == SKIP) {
+	if (curfile.action == USING) {
 		if (volno == 1)
 			panic("active file into volume 1\n");
 		return;
 	}
-	/*
-	 * Skip up to the beginning of the next record
-	 */
-	if (tmpbuf.c_type == TS_TAPE && (tmpbuf.c_flags & DR_NEWHEADER))
-		for (i = tmpbuf.c_count; i > 0; i--)
-			readtape(buf);
 	(void) gethead(&spcl);
 	findinode(&spcl);
 	if (gettingfile) {
@@ -1222,6 +1221,7 @@ findinode(header)
 	static long skipcnt = 0;
 	long i;
 	char buf[TP_BSIZE];
+	int htype;
 
 	curfile.name = "<name unknown>";
 	curfile.action = UNKNOWN;
@@ -1234,7 +1234,8 @@ findinode(header)
 			    _time32_to_time(header->c_date) != dumpdate)
 				skipcnt++;
 		}
-		switch (header->c_type) {
+		htype = header->c_type;
+		switch (htype) {
 
 		case TS_ADDR:
 			/*
@@ -1274,7 +1275,7 @@ findinode(header)
 			/* NOTREACHED */
 
 		}
-	} while (header->c_type == TS_ADDR);
+	} while (htype == TS_ADDR);
 	if (skipcnt > 0)
 		fprintf(stderr, "resync restore, skipped %ld blocks\n",
 		    skipcnt);
