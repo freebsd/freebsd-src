@@ -96,6 +96,7 @@ struct an_type {
 };
 
 #define AIRONET_VENDORID	0x14B9
+#define AIRONET_DEVICEID_35x	0x0350
 #define AIRONET_DEVICEID_4500	0x4500
 #define AIRONET_DEVICEID_4800	0x4800
 #define AIRONET_DEVICEID_4xxx	0x0001
@@ -103,6 +104,7 @@ struct an_type {
 #define AN_PCI_LOIO		0x18	/* Aironet iobase */
 
 static struct an_type an_devs[] = {
+	{ AIRONET_VENDORID, AIRONET_DEVICEID_35x, "Cisco Aironet 350 Series" },
 	{ AIRONET_VENDORID, AIRONET_DEVICEID_4500, "Aironet PCI4500" },
 	{ AIRONET_VENDORID, AIRONET_DEVICEID_4800, "Aironet PCI4800" },
 	{ AIRONET_VENDORID, AIRONET_DEVICEID_4xxx, "Aironet PCI4500/PCI4800" },
