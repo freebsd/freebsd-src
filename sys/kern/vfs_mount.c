@@ -941,7 +941,7 @@ update:
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			error = vfs_allocate_syncvnode(mp);
 		vfs_unbusy(mp, td);
-		if ((error = VFS_START(mp, 0, td)) != 0)
+		if (error || (error = VFS_START(mp, 0, td)) != 0)
 			vrele(vp);
 	} else {
 		VI_LOCK(vp);
