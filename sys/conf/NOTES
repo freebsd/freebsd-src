@@ -1288,6 +1288,7 @@ device		mly
 #			support).
 #
 device		aac
+device		aacp	# SCSI Passthrough interface (optional)
 
 #
 # Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only

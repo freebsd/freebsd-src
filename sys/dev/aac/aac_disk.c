@@ -269,7 +269,7 @@ aac_disk_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size
 		}
 	}
 
-	aac_get_sync_fib(sc, &fib, AAC_SYNC_LOCK_FORCE);
+	aac_alloc_sync_fib(sc, &fib, AAC_SYNC_LOCK_FORCE);
 	bw = (struct aac_blockwrite *)&fib->data[0];
 
 	while (length > 0) {
