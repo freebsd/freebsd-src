@@ -971,6 +971,7 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	usbd_device_handle dev;
 	struct usbd_device *hub;
 	usb_device_descriptor_t *dd;
+	usb_port_status_t ps;
 	usbd_status err;
 	int addr;
 	int i;
@@ -1027,12 +1028,14 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	up->device = dev;
 	dd = &dev->ddesc;
 	/* Try a few times in case the device is slow (i.e. outside specs.) */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 15; i++) {
 		/* Get the first 8 bytes of the device descriptor. */
 		err = usbd_get_desc(dev, UDESC_DEVICE, 0, USB_MAX_IPACKET, dd);
 		if (!err)
 			break;
 		usbd_delay_ms(dev, 200);
+		if ((i & 3) == 3)
+			usbd_reset_port(up->parent, port, &ps);
 	}
 	if (err) {
 		DPRINTFN(-1, ("usbd_new_device: addr=%d, getting first desc "
