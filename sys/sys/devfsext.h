@@ -1,19 +1,11 @@
 /* usual BSD style copyright here */
 /* Written by Julian Elischer (julian@dialix.oz.au)*/
 /*
- * $Id: devfsext.h,v 1.11 1996/04/02 19:07:38 scrappy Exp $
+ * $Id: devfsext.h,v 1.12 1996/04/03 00:01:40 gpalmer Exp $
  */
 
 #ifndef _SYS_DEVFSECT_H_
 #define _SYS_DEVFSECT_H_ 1
-void *devfs_add_devsw(char *path,
-		char *name,
-		void *devsw,
-		int minor,
-		int chrblk,
-		uid_t uid,
-		gid_t gid,
-		int perms)  ; 
 
 void *devfs_add_devswf(void *devsw,
 		int minor,
