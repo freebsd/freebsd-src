@@ -89,7 +89,12 @@
 			abort();					\
 	} while (0)
 
-#define THR_TRYLOCK(m)		_umtxtrylock((m))
+#define THR_TRYLOCK(m, r)						\
+	do {								\
+		(r) = umtx_trylock((m), curthread->thr_id);		\
+		if ((r) != 0 && (r) != EBUSY)				\
+			abort();					\
+	} while (0)
 
 #define	THR_UNLOCK(m)							\
 	do {								\
@@ -785,7 +790,6 @@ void	_thread_critical_enter(pthread_t);
 void	_thread_critical_exit(pthread_t);
 void	_thread_sigblock();
 void	_thread_sigunblock();
-int	_umtxtrylock(struct umtx *lck);
 
 /* #include <sys/aio.h> */
 #ifdef _SYS_AIO_H_
