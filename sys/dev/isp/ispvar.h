@@ -427,7 +427,7 @@ typedef struct ispsoftc {
 	XS_T **isp_xflist;
 
 	/*
-	 * request/result queue pointers and dma handles for them.
+	 * request/result queue pointers and DMA handles for them.
 	 */
 	caddr_t			isp_rquest;
 	caddr_t			isp_result;
