@@ -120,13 +120,13 @@ lnc0    280     10      n/a     dyn     Lance/PCnet cards
 pcn0	dyn	dyn	n/a	dyn	AMD PCnet/FAST, PCnet/FAST+, 
 					PCnet/FAST III, PCnet/PRO, PCnet/Home, 
 					and HomePNA cards
-rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
-sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 fast ethernet
-sis0    dyn     dyn     n/a     dyn     SiS 900/SiS 7016 fast ethernet
-sn0     0x300   10      n/a     n/a	SMC 91xx ethernet
-ste0    dyn     dyn     n/a     dyn     Sundance ST201 fast ethernet
+rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 Fast Ethernet
+sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 Fast Ethernet
+sis0    dyn     dyn     n/a     dyn     SiS 900/SiS 7016 Fast Ethernet
+sn0     0x300   10      n/a     n/a	SMC 91xx Ethernet
+ste0    dyn     dyn     n/a     dyn     Sundance ST201 Fast Ethernet
 tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
-tx0     dyn     dyn     n/a     dyn     SMC 9432 'Epic' fast ethernet
+tx0     dyn     dyn     n/a     dyn     SMC 9432 'Epic' Fast Ethernet
 wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
 vr0     dyn     dyn     n/a     dyn     VIA VT3043/VT86C100A PCI based cards.
 vx0     dyn     dyn     n/a     dyn     3Com 3c59x ((Fast) Etherlink III)
@@ -425,6 +425,7 @@ AMI MegaRAID Express and Enterprise family RAID controllers:
     Dell PERC
     Dell PERC 2/SC
     Dell PERC 2/DC
+    Dell PERC 3/DCL
     HP NetRAID-1si
     HP NetRAID-3si
     HP Embedded NetRAID
@@ -526,8 +527,8 @@ Unmaintained drivers, they might or might not work for your hardware:
 4.2.    Network cards
 ----    -------------
 
-Adaptec Duralink PCI fast ethernet adapters based on the Adaptec
-AIC-6915 fast ethernet controller chip, including the following:
+Adaptec Duralink PCI Fast Ethernet adapters based on the Adaptec
+AIC-6915 Fast Ethernet controller chip, including the following:
   ANA-62011 64-bit single port 10/100baseTX adapter
   ANA-62022 64-bit dual port 10/100baseTX adapter
   ANA-62044 64-bit quad port 10/100baseTX adapter
@@ -536,7 +537,7 @@ AIC-6915 fast ethernet controller chip, including the following:
 
 Allied-Telesyn AT1700 and RE2000 cards
 
-Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
+Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon 1 and Tigon 2
 chipsets, including the following:
   Alteon AceNIC (Tigon 1 and 2)
   Alteon AceNIC 1000baseT (Tigon 2)
@@ -552,11 +553,11 @@ AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III, PCnet/PRO, 
 HomePCI, and HomePNA.
 
-SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
+SMC Elite 16 WD8013 Ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra is also supported.
 
-RealTek 8129/8139 fast ethernet NICs including the following:
+RealTek 8129/8139 Fast Ethernet NICs including the following:
   Allied Telesyn AT2550
   Allied Telesyn AT2500TX
   Genius GF100TXR (RTL8139)
@@ -568,37 +569,40 @@ RealTek 8129/8139 fast ethernet NICs including the following:
   Accton "Cheetah" EN1207D (MPX 5030/5038; RealTek 8139 clone)
   SMC EZ Card 10/100 PCI 1211-TX
 
-Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
+Lite-On 82c168/82c169 PNIC Fast Ethernet NICs including the following:
   LinkSys EtherFast LNE100TX
   NetGear FA310-TX Rev. D1
   Matrox FastNIC 10/100
   Kingston KNE110TX
 
-Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
-  NDC Communications SFA100A (98713A)
+Macronix 98713, 98713A, 98715, 98715A and 98725 Fast Ethernet NICs
+  Accton EN1217 (98715A)
+  Adico AE310TX (98715A)
+  Compex RL100-TX
   CNet Pro120A (98713 or 98713A)
   CNet Pro120B (98715)
+  NDC Communications SFA100A (98713A)
   SVEC PN102TX (98713)
 
-Macronix/Lite-On PNIC II LC82C115 fast ethernet NICs including the following:
+Macronix/Lite-On PNIC II LC82C115 Fast Ethernet NICs including the following:
   LinkSys EtherFast LNE100TX Version 2
 
-Winbond W89C840F fast ethernet NICs including the following:
+Winbond W89C840F Fast Ethernet NICs including the following:
   Trendware TE100-PCIE
 
-VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
+VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" Fast Ethernet
 NICs including the following:
   Hawking Technologies PN102TX
   D-Link DFE-530TX
   AOpen/Acer ALN-320
 
-Silicon Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet NICs
+Silicon Integrated Systems SiS 900 and SiS 7016 PCI Fast Ethernet NICs
 
-Sundance Technologies ST201 PCI fast ethernet NICs including
+Sundance Technologies ST201 PCI Fast Ethernet NICs including
 the following:
   D-Link DFE-550TX
 
-SysKonnect SK-984x PCI gigabit ethernet cards including the following:
+SysKonnect SK-984x PCI Gigabit Ethernet cards including the following:
   SK-9841 1000baseLX single mode fiber, single port
   SK-9842 1000baseSX multimode fiber, single port
   SK-9843 1000baseLX single mode fiber, dual port
@@ -612,21 +616,21 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Racore 8165 10/100baseTX
   Racore 8148 10baseT/100baseTX/100baseFX multi-personality
 
-ADMtek AL981-based PCI fast ethernet NICs
-ADMtek AN985-based PCI fast ethernet NICs
-ADMtek Inc. AN986-based USB ethernet NICs including the following:
+ADMtek AL981-based PCI Fast Ethernet NICs
+ADMtek AN985-based PCI Fast Ethernet NICs
+ADMtek Inc. AN986-based USB Ethernet NICs including the following:
   LinkSys USB100TX
   Billionton USB100
   Melco Inc. LUA-TX
   D-Link DSB-650TX
   SMC 2202USB
 
-CATC USB-EL1210A-based USB ethernet NICs including the following:
+CATC USB-EL1210A-based USB Ethernet NICs including the following:
   CATC Netmate
   CATC Netmate II
   Belkin F5U111
 
-Kawasaki LSI KU5KUSB101B-based USB ethernet NICs including
+Kawasaki LSI KU5KUSB101B-based USB Ethernet NICs including
 the following:
   LinkSys USB10T
   Entrega NET-USB-E45
@@ -649,7 +653,14 @@ DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
 DEC FDDI (DEFPA/DEFEA) NICs
 
-Davicom DM9100 and DM9102 PCI fast ethernet NICs, including the
+DEC/Intel 21143 based Fast Ethernet NICs, including the following:
+  DEC DE500-BA
+  Compaq Presario 7900 series built-in Ethernet
+  D-Link DFE-570TX
+  Kingston KNE100TX
+  LinkSys EtherFast 10/100 Instant GigaDrive built-in Ethernet
+
+Davicom DM9100 and DM9102 PCI Fast Ethernet NICs, including the
 following:
   Jaton Corporation XPressNet
 
@@ -678,7 +689,7 @@ Intel Gigabit Ethernet (PRO/1000)
 Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
 
-Novell NE1000, NE2000, and NE2100 ethernet interface.
+Novell NE1000, NE2000, and NE2100 Ethernet interface.
 PCI network cards emulating the NE2000: RealTek 8029, NetVin 5000,
 Winbond W89C940, Surecom NE-34, VIA VT86C926, etc.
 
@@ -758,7 +769,7 @@ USB printers and USB to parallel printer conversion cables.
 
 USB hubs.
 
-USB ethernet controllers.
+USB Ethernet controllers.
 
 
 USB Host Controllers:
@@ -780,7 +791,7 @@ PCI plug-in USB host controllers:
     Entrega PCI plug-in card (4 ports).
 
 
-Specific devices reported to be working (see above for USB ethernet devices
+Specific devices reported to be working (see above for USB Ethernet devices
 supported):
 
 Floppy drives/Hard disks/CDROMs/Zip drives/etc:
