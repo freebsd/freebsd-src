@@ -205,7 +205,6 @@ evaltree(union node *n, int flags)
 	case NAND:
 		evaltree(n->nbinary.ch1, EV_TESTED);
 		if (evalskip || exitstatus != 0) {
-			flags |= EV_TESTED;
 			goto out;
 		}
 		evaltree(n->nbinary.ch2, flags);
@@ -246,25 +245,9 @@ evaltree(union node *n, int flags)
 		break;
 	case NFOR:
 		evalfor(n);
-		/*
-		 * The 'for' command does not set exitstatus, so the value
-		 * now in exitstatus is from the last command executed in
-		 * the 'for' loop.  That exit value had been tested (wrt
-		 * 'sh -e' checking) while processing that command, and
-		 * it should not be re-tested here.
-		 */
-		flags |= EV_TESTED;
 		break;
 	case NCASE:
 		evalcase(n, flags);
-		/*
-		 * The 'case' command does not set exitstatus, so the value
-		 * now in exitstatus is from the last command executed in
-		 * the 'case' block.  That exit value had been tested (wrt
-		 * 'sh -e' checking) while processing that command, and
-		 * it should not be re-tested here.
-		 */
-		flags |= EV_TESTED;
 		break;
 	case NDEFUN:
 		defun(n->narg.text, n->narg.next);
@@ -289,14 +272,8 @@ evaltree(union node *n, int flags)
 out:
 	if (pendingsigs)
 		dotrap();
-	/*
-	 * XXX - Like "!(n->type == NSEMI)", more types will probably
-	 * need to be excluded from this test. It's probably better
-	 * to set or unset EV_TESTED in the loop above than to bloat
-	 * the conditional here.
-	 */
 	if ((flags & EV_EXIT) || (eflag && exitstatus 
-	    && !(flags & EV_TESTED) && !(n->type == NSEMI)))
+	    && !(flags & EV_TESTED) && (n->type == NCMD)))
 		exitshell(exitstatus);
 }
 
