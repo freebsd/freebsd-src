@@ -35,7 +35,7 @@ use Fcntl qw(:DEFAULT :flock);
 use POSIX;
 use Getopt::Long;
 
-my $VERSION	= "2.0";
+my $VERSION	= "2.1";
 my $COPYRIGHT	= "Copyright (c) 2003 Dag-Erling Smørgrav. " .
 		  "All rights reserved.";
 
@@ -54,6 +54,8 @@ my $verbose;			# Verbose mode
 my %userenv;
 
 my %cmds = (
+    'clean'	=> 0,
+    'update'	=> 0,
     'world'	=> 0,
     'generic'	=> 0,
     'lint'	=> 0,
@@ -237,8 +239,6 @@ Usage:
   $0 [options] [parameters] command [...]
 
 Options:
-  -c, --clean                   Clean sandbox before building
-  -u, --update                  Update sources before building
   -v, --verbose                 Verbose mode
 
 Parameters:
@@ -252,6 +252,8 @@ Parameters:
   -s, --sandbox=DIR             Location of sandbox
 
 Commands:
+  clean                         Clean the sandbox
+  update                        Update the source tree
   world                         Build the world
   generic                       Build the GENERIC kernel
   lint                          Build the LINT kernel
@@ -282,14 +284,12 @@ MAIN:{
     GetOptions(
 	"a|arch=s"	        => \$arch,
 	"b|branch=s"		=> \$branch,
-	"c|clean"		=> \$clean,
 	"d|date=s"		=> \$date,
 	"j|jobs=i"		=> \$jobs,
 	"l|logfile=s"		=> \$logfile,
 	"m|machine=s"		=> \$machine,
 	"r|repository=s"	=> \$repository,
 	"s|sandbox=s"		=> \$sandbox,
-	"u|update"		=> \$update,
 	"v|verbose+"		=> \$verbose,
 	) or usage();
 
@@ -361,20 +361,22 @@ MAIN:{
     $SIG{__WARN__} = \&sigwarn;
 
     # Clean up remains from old runs
-    if ($clean) {
-	logstage("cleaning up sandbox");
+    if ($cmds{'clean'}) {
+	logstage("cleaning the sandbox");
 	remove_dir("$sandbox/src")
 	    or error("unable to remove old source directory");
 	remove_dir("$sandbox/obj")
 	    or error("unable to remove old object directory");
+	remove_dir("$sandbox/root")
+	    or error("unable to remove old chroot directory");
 	make_dir("$sandbox/obj")
 	    or error("$sandbox/obj: $!");
     }
 
     # Check out new source tree
-    if ($update) {
+    if ($cmds{'update'}) {
 	cd("$sandbox");
-	logstage("checking out sources");
+	logstage("checking out the source tree");
 	my @cvsargs = (
 	    "-f",
 	    "-R",
