@@ -1776,16 +1776,6 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 	    !((prop & SA_CONT) && (p->p_flag & P_STOPPED_SIG)))
 		return;
 	/*
-	 * SIGKILL: Remove procfs STOPEVENTs.
-	 */
-	if (sig == SIGKILL) {
-		/* from procfs_ioctl.c: PIOCBIC */
-		p->p_stops = 0;
-		/* from procfs_ioctl.c: PIOCCONT */
-		p->p_step = 0;
-		wakeup(&p->p_step);
-	}
-	/*
 	 * Some signals have a process-wide effect and a per-thread
 	 * component.  Most processing occurs when the process next
 	 * tries to cross the user boundary, however there are some
