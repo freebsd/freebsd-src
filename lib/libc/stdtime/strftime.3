@@ -73,7 +73,7 @@ null character, is not more than
 .Fn strftime
 returns the number of characters in the array, not counting the
 terminating null.
-Otherwise, zero is returned.
+Otherwise, zero is returned and the buffer contents is indeterminate.
 .Pp
 Each conversion specification is replaced by the characters as
 follows which are then copied into the buffer.
