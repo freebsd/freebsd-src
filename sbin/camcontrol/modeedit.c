@@ -123,7 +123,7 @@ arg_put(void *hook, int letter, void *arg, int count, char *name)
 	{
 		case 'i':
 		case 'b':
-		printf("%d ", (int)arg);
+		printf("%d ", (intptr_t)arg);
 		break;
 
 		case 'c':
@@ -313,7 +313,7 @@ edit_check(void *hook, int letter, void *arg, int count, char *name)
 	if (editind >= sizeof(editinfo) / sizeof(editinfo[0]))
 		errx(1, "edit table overflow");
 
-	editinfo[editind].can_edit = ((int)arg != 0);
+	editinfo[editind].can_edit = (arg != NULL);
 	editind++;
 }
 
@@ -323,7 +323,7 @@ edit_defaults(void *hook, int letter, void *arg, int count, char *name)
 	if (letter != 'i' && letter != 'b')
 		errx(1, "can't edit format %c", letter);
 
-	editinfo[editind].default_value = ((int)arg);
+	editinfo[editind].default_value = (intptr_t)arg;	/* truncated */
 	editind++;
 }
 
@@ -334,7 +334,7 @@ edit_report(void *hook, int letter, void *arg, int count, char *name)
 		if (letter != 'i' && letter != 'b')
 			errx(1, "can't report format %c", letter);
 
-		fprintf(edit_file, "%s:  %d\n", name, (int)arg);
+		fprintf(edit_file, "%s:  %d\n", name, (intptr_t)arg);
 	}
 
 	editind++;
