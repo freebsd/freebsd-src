@@ -34,7 +34,7 @@
 .\"
 .Dd March 31, 1994
 .Dt SYMLINK 7
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm symlink
 .Nd symbolic link handling
@@ -135,7 +135,9 @@ permissions, are not used by the system and cannot be changed.
 .Pp
 The
 .Bx 4.4
-system differs from historical 4BSD systems in that the system call
+system differs from historical
+.Bx 4
+systems in that the system call
 .Xr chown 2
 has been changed to follow symbolic links.
 The
@@ -238,7 +240,9 @@ option is specified.
 .Pp
 The
 .Bx 4.4
-system differs from historical 4BSD systems in that the
+system differs from historical
+.Bx 4
+systems in that the
 .Nm chown
 and
 .Nm chgrp

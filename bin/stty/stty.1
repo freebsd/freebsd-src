@@ -68,7 +68,7 @@ as per
 .It Fl e
 Display all the current settings for the terminal to standard output
 in the traditional
-.Tn BSD
+.Bx
 ``all'' and ``everything'' formats.
 .It Fl f
 Open and use the terminal named by
@@ -464,8 +464,8 @@ The terminal size is recorded as having
 .Ar number
 rows.
 .It Cm dec
-Set modes suitable for users of Digital Equipment Corporation systems (
-.Dv ERASE ,
+Set modes suitable for users of Digital Equipment Corporation systems
+.Dv ( ERASE ,
 .Dv KILL ,
 and
 .Dv INTR
@@ -577,9 +577,7 @@ Same as the control character
 .Cm reprint .
 .El
 .Sh DIAGNOSTICS
-The
-.Nm
-utility exits 0 on success, and >0 if an error occurs.
+.Ex -std
 .Sh SEE ALSO
 .Xr termios 4
 .Sh STANDARDS
