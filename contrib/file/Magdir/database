@@ -67,4 +67,8 @@
 >16	belong	>0		(Queue, version %d, big-endian)
 12	lelong	0x00042253	Berkeley DB
 >16	lelong	>0		(Queue, version %d, little-endian)
-
+#
+#
+# Round Robin Database Tool by Tobias Oetiker <oetiker@ee.ethz.ch>
+0	string	RRD		RRDTool DB
+>4	string	x		version %s
