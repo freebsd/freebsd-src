@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.53 1999/06/28 09:28:17 sheldonh Exp $";
+	"$Id: inetd.c,v 1.54 1999/06/28 11:27:14 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -145,6 +145,11 @@ static const char rcsid[] =
 #ifndef LIBWRAP_DENY_SEVERITY
 # define LIBWRAP_DENY_SEVERITY LOG_WARNING
 #endif
+
+#define ISWRAP(sep)	\
+	   ( ((wrap && !(sep)->se_bi) || (wrap_bi && (sep)->se_bi)) \
+	&& ( ((sep)->se_accept && (sep)->se_socktype == SOCK_STREAM) \
+	    || (sep)->se_socktype == SOCK_DGRAM))
 
 #ifdef LOGIN_CAP
 #include <login_cap.h>
@@ -350,6 +355,7 @@ main(argc, argv, envp)
 	struct request_info req;
 	int denied;
 	char *service = NULL;
+	char *pnm;
 	struct  sockaddr_in peer;
 	int i;
 
@@ -541,32 +547,30 @@ main(argc, argv, envp)
 				close(ctrl);
 				continue;
 			    }
-			    if (!wrap && log) {
-				i = sizeof peer;
-				if (getpeername(ctrl, (struct sockaddr *)
-						&peer, &i)) {
-					syslog(LOG_WARNING,
-						"getpeername(for %s): %m",
-						sep->se_service);
-					close(ctrl);
-					continue;
-				}
-				syslog(LOG_INFO,"%s from %s",
-					sep->se_service,
-					inet_ntoa(peer.sin_addr));
-			    }
 		    } else
 			    ctrl = sep->se_fd;
+		    if (log && !ISWRAP(sep)) {
+			    pnm = "unknown";
+			    i = sizeof peer;
+			    if (getpeername(ctrl, (struct sockaddr *)
+					    &peer, &i)) {
+				    i = sizeof peer;
+				    if (recvfrom(ctrl, buf, sizeof(buf),
+					MSG_PEEK,
+					(struct sockaddr *)&peer, &i) >= 0)
+					    pnm = inet_ntoa(peer.sin_addr);
+			    }
+			    else
+				    pnm = inet_ntoa(peer.sin_addr);
+			    syslog(LOG_INFO,"%s from %s", sep->se_service, pnm);
+		    }
 		    (void) sigblock(SIGBLOCK);
 		    pid = 0;
 		    /*
-		     * When builtins are wrapped, avoid a minor optimization
-		     * that breaks hosts_options(5) twist.
+		     * Fork for any service except a non-forking builtin,
+		     * which might twist (hosts_options(5)).
 		     */
-		    if (wrap_bi)
-			   dofork = 1;
-		    else
-			   dofork = (sep->se_bi == 0 || sep->se_bi->bi_fork);
+		    dofork = !sep->se_bi || sep->se_bi->bi_fork || ISWRAP(sep);
 		    if (dofork) {
 			    if (sep->se_count++ == 0)
 				(void)gettimeofday(&sep->se_time, (struct timezone *)NULL);
@@ -624,9 +628,7 @@ main(argc, argv, envp)
 					    _exit(0);
 				    }
 			    }
-			    if ((wrap && (!sep->se_bi || wrap_bi))
-				&& sep->se_accept
-				&& sep->se_socktype == SOCK_STREAM) {
+			    if (ISWRAP(sep)) {
 				service = sep->se_server_name ?
 				    sep->se_server_name : sep->se_service;
 				request_init(&req, RQ_DAEMON, service, RQ_FILE, ctrl, NULL);
@@ -638,7 +640,10 @@ main(argc, argv, envp)
 				    syslog(deny_severity,
 				        "refused connection from %.500s, service %s (%s)",
 				        eval_client(&req), service, sep->se_proto);
-				    goto reject;
+				    if (sep->se_socktype != SOCK_STREAM)
+					recv(ctrl, buf, sizeof (buf), 0);
+				    if (dofork)
+					_exit(0);
 				}
 				if (log) {
 				    syslog(allow_severity,
@@ -648,7 +653,6 @@ main(argc, argv, envp)
 			    }
 			    if (sep->se_bi) {
 				(*sep->se_bi->bi_fn)(ctrl, sep);
-				/* NOTREACHED */
 			    } else {
 				if (debug)
 					warnx("%d execl %s",
@@ -735,7 +739,6 @@ main(argc, argv, envp)
 				execv(sep->se_server, sep->se_argv);
 				syslog(LOG_ERR,
 				    "cannot execute %s: %m", sep->se_server);
-			    reject:
 				if (sep->se_socktype != SOCK_STREAM)
 					recv(0, buf, sizeof (buf), 0);
 			    }
