@@ -1,3 +1,1495 @@
+1999-08-22
+
+	* release 0.10
+
+	* configure.in (VERSION): bump to 0.10
+
+1999-08-19
+
+	* release 0.10pre5
+
+	* configure.in (VERSION): bump to 0.10pre5
+
+1999-08-18
+
+	* release 0.10pre4
+
+	* configure.in (VERSION): bump to 0.10pre4
+
+1999-08-16
+
+	* release 0.10pre3
+
+	* configure.in (VERSION): bump to 0.10pre3
+
+1999-07-22
+
+	* release 0.10pre2
+
+	* configure.in (VERSION): bump to 0.10pre2
+
+
+	* acconfig.h (SunOS): remove definition
+
+	* configure.in: define SunOS to xy for SunOS x.y
+
+1999-07-08
+
+	* Release 0.10pre1.
+
+	* configure.in (VERSION): bump to 0.10pre1
+
+1999-07-07
+
+	* kadmin/admin_server.c (main): call krb_get_lrealm correctly
+
+	* appl/bsd/rlogind.c (lowtmp): fill in ut_id
+
+1999-07-06
+
+	* include/bits.c: move around __attribute__ to make it work with
+ 	old gcc
+
+	* appl/bsd/rcp.c (rsource): remove trailing slashes which
+ 	otherwise makes us fail
+
+1999-07-04
+
+	* appl/afsutil/aklog.c (epxand_cell_name): terminate on #
+
+	* lib/kadm/kadm_cli_wrap.c (kadm_cli_send): free the right memory
+ 	(none) when kadm_cli_out fails.  based on a patch by Buck Huppmann
+ 	<Charles-Huppmann@UIowa.edu>
+
+1999-06-24
+
+	* configure.in: check for sgi capability stuff
+
+	* appl/bsd/login.c: add some kind of sgi capability capability
+
+1999-06-23
+
+	* acconfig.h (HAVE_KRB_DISABLE_DEBUG): always define.  this makes
+ 	the telnet code easier when building heimdal with an older krb4
+
+	* lib/krb/kuserok.c (krb_kuserok): add support for multiple local
+ 	realms and de-support entries without realm in ~/.klogin
+
+1999-06-19
+
+	* lib/krb/send_to_kdc.c: and a new variable `timeout' in krb.extra
+ 	instead of always having a timeout of four seconds.  based on a
+ 	patch by Mattias Amnefelt <mattiasa@stacken.kth.se>
+
+1999-06-17
+
+	* appl/bsd/rshd.c: use DES_RW_MAXWRITE instead of BUFSIZ (for
+ 	consistency)
+
+	* appl/bsd/rsh.c: use DES_RW_MAXWRITE instead of BUFSIZ.
+  	Otherwise, des_enc_read might be buffering data to us and it can
+ 	get returned on a des_enc_read to another fd that the original one
+ 	:-(
+
+	* appl/bsd/bsd_locl.h: DES_RW_{MAXWRITE,BSIZE}
+
+	* appl/bsd/encrypt.c: move MAXWRITE and BSIZE to bsd_locl.h and
+ 	rename them to DES_RW_\1
+
+1999-06-16
+
+	* kuser/kdestroy.c: make unlog and tickets function correctly
+
+	* configure.in: correct variables used for socks includes and libs
+
+
+	* lib/krb/{debug_decl.c,krb-protos.h}: add krb_disable_debug
+
+1999-06-15
+
+	* kuser/klist.c (display_tokens): type correctness
+
+	* lib/krb/send_to_kdc.c (url_parse): always return the port in
+ 	network byte order (and be more careful when parsing the port
+ 	number)
+
+	* lib/krb/send_to_kdc.c (http_recv): handle both HTTP/1.0 and
+ 	HTTP/1.1 in reply
+
+Wed Jun 2 1999
+
+	* kadmin/kadmin.c: use print_version; (mod_entry): add command
+	line options
+	
+1999-05-21
+
+	* appl/bsd/login.c: limit more stuff for crays; fix call to
+	login_access
+
+1999-05-19
+
+	* man/Makefile.in (install, uninstall): handle relative paths (fix
+ 	editline)
+
+1999-05-18
+
+	* appl/bsd/bsd_locl.h: update prototype for login_access; declare
+	`struct aud_rec' to keep AIX xlc happy
+
+1999-05-14
+
+	* appl/bsd/login_access.c: merge in more recent code
+
+	* configure.in (CHECK_NETINET_IP_AND_TCP): use
+
+1999-05-10
+
+	* lib/krb/get_host.c (parse_address): remove trailing slash
+	
+	* lib/krb/send_to_kdc.c (prog): nuke
+	(send_to_kdc): restructure.  make sure we have used all of the
+	addresses from gethostbyname before calling send_recv
+	(send_recv): removed unused parameters
+	(url_parse): remove trailing slash
+	(http_recv): make sure the http transaction was succesful
+
+1999-05-08
+
+	* configure.in: use the correct include files for the utmp tests
+
+	* appl/movemail/pop.c: rename getline -> pop_getline removed
+ 	duplicate prototypes
+
+	* configure.in: db.h: test for
+	(getmsg): check for existence before checking if it works (otherwise
+	it fails with glibc2.1 that implements an always failing getmsg)
+
+	* acconfig.h (_GNU_SOURCE): define this to enable (used)
+ 	extensions on glibc-based systems such as linux
+
+	* configure.in: test for strndup
+
+1999-04-21
+
+	* configure.in: replace AC_TEST_PACKAGE with AC_TEST_PACKAGE_NEW
+ 	fix test for readline.h add test for four argument el_init
+ 	remember to link with $LIB_tgetent when trying linking with
+ 	readline
+
+1999-04-16
+
+	* configure.in: check for prototype of strsep
+
+Sat Apr 10 1999
+
+	* configure.in: fix readline logic
+
+Fri Apr 9 1999
+
+	* man/Makefile.in: add editline and push.  make install rules
+ 	handle paths
+
+Wed Apr 7 1999
+
+	* appl/movemail/Makefile.in: fix names of hesiod variables
+
+	* configure.in: fix readline flags
+
+Mon Mar 29 1999
+
+	* appl/bsd/utmpx_login.c: HAVE_UT_* -> HAVE_STRUCT_UTMP*_UT_*
+
+	* appl/bsd/utmp_login.c: HAVE_UT_* -> HAVE_STRUCT_UTMP*_UT_*
+
+	* appl/bsd/rlogind.c: HAVE_UT_* -> HAVE_STRUCT_UTMP*_UT_*
+
+	* configure.in: include <sys/types.h> in test for ut_*; use
+ 	AC_CHECK_XAU
+
+	* configure.in: utmp{,x} -> struct utmp{,x}
+
+Sat Mar 27 1999
+
+	* configure.in: AC_CHECK_OSFC2
+
+Fri Mar 19 1999
+
+	* configure.in: use AC_SHARED_LIBS
+
+	* configure.in: remove AIX install hack (fixed in autoconf 2.13)
+
+
+	* server/kerberos.c: fix some printf format strings
+
+Wed Mar 17 1999
+
+	* lib/krb/krb.h (KRB_VERIFY_NOT_SECURE): add for completeness
+
+	* lib/auth/sia/sia.c (common_auth): use KRB_VERIFY_SECURE instead
+ 	of 1
+
+	* lib/auth/pam/pam.c (doit): use KRB_VERIFY_SECURE instead of 1
+
+	* lib/auth/afskauthlib/verify.c (afs_verify): use
+ 	KRB_VERIFY_SECURE instead of 1
+
+Tue Mar 16 1999
+
+	* lib/krb/verify_user.c (krb_verify_user): handle multiple local
+ 	realms
+	(krb_verify_user_multiple): remove
+
+	* lib/krb/krb-protos.h (krb_verify_user_multiple): remove
+
+	* lib/auth/pam/pam.c: krb_verify_user_multiple -> krb_verify_user
+
+	* lib/auth/sia/sia.c: krb_verify_user_multiple -> krb_verify_user
+
+	* lib/auth/afskauthlib/verify.c: krb_verify_user_multiple ->
+ 	krb_verify_user
+
+
+	* lib/krb/getaddrs.c: SOCKADDR_HAS_SA_LEN ->
+ 	HAVE_STRUCT_SOCKADDR_SA_LEN
+
+Sat Mar 13 1999
+
+	* lib/kadm/check_password.c (kadm_check_pw): cast when calling is*
+ 	to get rid of a warning
+
+	* lib/acl/acl_files.c (nuke_whitespace): cast when calling is* to
+ 	get rid of a warning
+
+	* kadmin/ksrvutil.c (usage): update. improve error messages
+	
+	* appl/bsd/sysv_default.c (trim): cast when calling is* to get rid
+ 	of a warning
+
+	* appl/bsd/rshd.c (doit): more parenthesis to make gcc happy
+
+	* appl/bsd/rsh.c: add `-p'
+
+	* appl/bsd/rlogin.c (main): more paranoid parsing of `-p'
+
+	* appl/bsd/rcp.c (sink): cast when calling is* to get rid of a
+ 	warning
+
+	* appl/bsd/login_access.c (login_access): cast when calling
+ 	isspace to get rid of a warning
+
+	* include/bits.c (my_strupr): rename to strupr and ifdef
+	(try_signed, try_unsigned): add __attribute__ junk to get rid of two
+	warnings
+
+	* appl/bsd/Makefile.in (SOURCES): add osfc2.c
+
+	* admin/kdb_util.c (update_ok_file): add fallback utimes (some
+ 	systems seem to fail updating the timestamp with open(), close())
+
+	* server/kerberos.c (main): more paranoid parsing of `-a' and `-p'
+
+Thu Mar 11 1999
+
+	* configure.in: AC_BROKEN innetgr
+
+	* lib/krb/send_to_kdc.c: fix types in format string
+
+	* lib/krb/get_host.c: add some if-braces to keep gcc happy
+
+	* lib/kadm/kadm_supp.c: fix types in format string
+
+	* lib/auth/sia/Makefile.in: WFLAGS
+
+	* include/bits.c: fix types in format string
+
+	* appl/bsd/su.c: add some if-braces to keep gcc happy
+
+	* appl/bsd/rlogind.c: add some if-braces to keep gcc happy
+
+	* appl/bsd/rlogin.c: add some if-braces to keep gcc happy
+
+	* appl/bsd/login.c: add some if-braces to keep gcc happy
+
+	* appl/afsutil/pagsh.c: fix types in format string
+
+Wed Mar 10 1999
+
+	* server/kerberos.c: remove unused k_instance
+
+	* lib/krb/krb-protos.h (read_service_key): add some consts to
+ 	prototype
+
+	* lib/krb/read_service_key.c (read_service_key): add some consts
+ 	to prototype
+
+	* appl/sample/sample_server.c: openlog -> roken_openlog
+
+	* appl/kip/kipd.c: openlog -> roken_openlog
+
+	* configure.in: use AC_WFLAGS
+
+Mon Mar 1 1999
+
+	* acinclude.m4: add
+
+	* configure.in: typo
+
+	* Makefile.in: use aclocal
+
+	* Makefile.export: use aclocal
+
+	* configure.in: update to autoconf 2.13
+
+	* aclocal.m4.in: have-struct-field.m4, check-type-extra.m4
+
+	* acconfig.h: update to autoconf 2.13
+
+	* lib/auth/sia/sia.c: SIAENTITY_HAS_OUID -> HAVE_SIAENTITY_OUID
+
+Tue Feb 23 1999
+
+	* configure.in: don't include afsl.exp in libkafs.a if building
+ 	with dynamic afs support (breaks egcs 1.1.1)
+
+	* configure.in: don't build rxkad if not building afs-support
+
+Mon Feb 22 1999
+
+	* include/Makefile.in: clean up handling of missing system headers
+
+	* configure.in: clean up handling of missing system headers
+
+	* aclocal.m4.in: broken-snprintf.m4 broken-glob.m4
+
+	* acconfig.h: NEED_{SNPRINTF,GLOB}_PROTO
+
+Mon Feb 15 1999
+
+	* configure.in (gethostname, mkstemp): test for prototype
+
+	* configure.in: homogenize broken detection with heimdal
+
+Thu Feb 11 1999
+
+	* lib/krb/verify_user.c: If secure == KRB_VERIFY_SECURE_FAIL,
+ 	return ok if there isn't any service key (or if it can't be read).
+
+	* lib/krb/krb.h: KRB_VERIFY_SECURE, KRB_VERIFY_SECURE_FAIL
+
+Wed Jan 13 1999
+
+	* kadmin/kadmin.c (add_new_key): enable the `-p password' option
+ 	and add the missing code.
+
+	* appl/bsd/login_fbtab.c (login_protect): remove `/*' from string
+ 	before reading the directory.  From "Brandon S. Allbery"
+ 	<allbery@ece.cmu.edu>
+
+Fri Dec 18 1998
+
+	* man/kadmin.8 (-t): add a note about using `kinit -p'
+
+Mon Dec 14 1998
+
+	* lib/krb/name2name.c (krb_name_to_name): really verify we have an
+ 	alias before trying to use it as the primary name.
+
+Fri Nov 27 1998
+
+	* lib/krb/send_to_kdc.c (url_parse): use correct length when
+ 	copying the hostname
+
+Sun Nov 22 1998
+
+	* configure.in, acconfig.h: NEED_HSTRERROR_PROTO
+
+
+	* configure.in: use AC_KRB_STRUCT_SPWD
+
+	* slave/Makefile.in (WFLAGS): set
+
+	* server/Makefile.in (WFLAGS): set
+
+	* lib/krb/send_to_kdc.c (send_recv): add `int'
+
+	* lib/krb/decomp_ticket.c (decomp_ticket): if the realm is empty,
+ 	use the local realm.
+
+	* lib/krb/Makefile.in (WFLAGS): set
+
+	* lib/kdb/krb_lib.c (kerb_get_principal): correct test
+	(kerb_put_principal): remove unused variable
+
+	* lib/kdb/Makefile.in (WFLAGS): set
+
+	* lib/auth/pam/Makefile.in (WFLAGS): set
+
+	* lib/auth/afskauthlib/Makefile.in (WFLAGS): set
+
+	* lib/acl/Makefile.in (WFLAGS): set
+
+	* kuser/Makefile.in (WFLAGS): set
+
+	* kadmin/Makefile.in (WFLAGS): set
+
+	* include/Makefile.in (WFLAGS): set
+
+	* appl/sample/sample_client.c (main): remove unused variable
+
+	* appl/sample/Makefile.in (WFLAGS): set
+
+	* appl/movemail/Makefile.in (WFLAGS): set
+
+	* appl/kip/Makefile.in (WFLAGS): set
+
+	* appl/bsd/Makefile.in (WFLAGS): set
+
+	* appl/afsutil/pagsh.c (main): fall back to running /bin/sh if
+ 	execvp fails.
+
+	* appl/afsutil/Makefile.in (WFLAGS): set
+
+	* admin/kdb_edit.c (change_principal): remove unused variable
+
+	* admin/Makefile.in (WFLAGS): set
+
+	* configure.in: check for crypt, environ and struct spwd
+
+Thu Nov 19 1998
+
+	* appl/movemail/Makefile.in: link and include hesiod
+
+	* configure.in: test for hesiod
+
+Wed Nov 18 1998
+
+	* kadmin/kadm_locl.h: include <arpa/inet.h>
+
+	* configure.in (freebsd3): seems to like symbolic links for the
+ 	shared libraries
+
+1998-11-07
+
+	* Makefile.export (ChangeLOG): handle emacs20-style changelog
+	entries
+
+	* lib/kdb/krb_dbm.c (kerb_db_get_principal, kerb_db_iterate):
+	check return value from `dbm_open'
+
+Fri Oct 23 1998
+
+	* lib/kadm/kadm.h: enable new extended kadmin fields by default
+
+Thu Oct 22 1998
+
+	* lib/krb/get_host.c (read_file): add more kinds of whitespace
+
+	* lib/krb/lsb_addr_comp.c: fix(?) calculations regrding
+ 	`firewall_address'
+
+	* kadmin/kadmin.c: change timeout to 5 minutes, (sigarlm): only
+ 	print message if any tickets were actually destroyed, (main): less
+ 	noise, (add_new_key): some cleanup, (del_entry): allow more than
+ 	one principal on command line, (get_entry): set more flags
+
+	* lib/kadm/kadm.h: add code to get modification date, modifier and
+ 	key version number
+
+	* lib/kadm/kadm_supp.c: add code to get modification date,
+ 	modifier and key version number
+
+	* lib/kadm/kadm_stream.c: add code to get modification date,
+ 	modifier and key version number
+
+Tue Oct 13 1998
+
+	* lib/kadm/Makefile.in: ROKEN_RENAME
+
+	* lib/krb/roken_rename.h: add strnlen
+
+	* lib/krb/Makefile.in: add strnlen
+
+Sat Oct 3 1998
+
+	* doc/install.texi: add comment about afskauthlib being in the
+ 	correct object format
+
+Thu Oct 1 1998
+
+	* kadmin/kadmin.c (change_admin_password): add `alarm(0)' to
+ 	prevent it from timing out
+
+
+	* lib/krb/time.c (krb_kdctimeofday): set `tv'.  fix from Thomas
+ 	Nyström <thn@stacken.kth.se>
+
+Mon Sep 28 1998
+
+	* appl/bsd/osfc2.c: lots of C2 magic
+
+	* appl/bsd/{rshd,rcp_util,rcp}.c: do C2 stuff
+
+	* appl/bsd/login.c: move C2 stuff to osfc2.c
+
+	* appl/bsd/login.c: call `set_auth_parameters' if OSFC2
+
+Sun Sep 27 1998
+
+	* appl/bsd/login.c: add some code to call setluid
+
+Sat Sep 26 1998
+
+	* appl/sample/sample_client.c (main): correct test
+
+Sat Sep 12 1998
+
+	* configure.in (XauReadAuth): reverse test and check for -lX11
+ 	before -lXau, otherwise the test fails on Irix 6.5
+
+Sun Sep 6 1998
+
+	* lib/krb/krb-protos.h: fix prototypes for krb_net_{read,write}
+
+	* lib/krb/krb_net_{read,write}.c: new files
+
+	* lib/krb/Makefile.in: add krb_net_{read,write}
+
+Fri Sep 4 1998
+
+	* lib/auth/sia/sia.c (siad_ses_launch, siad_ses_reauthent): use
+ 	krb_afslog_home
+
+	* lib/auth/pam/pam.c (pam_sm_open_session): use krb_afslog_home
+
+	* lib/auth/afskauthlib/verify.c (afs_verify): use
+ 	krb_afslog_uid_home
+
+Sun Aug 30 1998
+
+	* lib/krb/get_host.c: patch from Derrick J Brashear
+ 	<shadow@dementia.org> for doing less DNS lookups
+
+Sun Aug 23 1998
+
+	* lib/krb/ticket_memory.c (tf_save_cred): use memcpy to copy the
+ 	session key.
+
+Tue Aug 18 1998
+
+	* kadmin/kadmin.c (change_password): add `--random'.  From Love
+ 	Hörnquist-Åstrand <lha@elixir.e.kth.se>
+
+Thu Aug 13 1998
+
+	* lib/kclient/KClient.c (KClientErrorText): copy the string.
+  	Patch from Daniel Staaf <d96-dst@nada.kth.se>
+
+Tue Jul 28 1998
+
+	* appl/bsd/rsh.c (main): make sure not to send `-K' before the
+ 	hostname when re-execing
+
+	* appl/bsd/su.c: openlog LOG_AUTH
+
+Fri Jul 24 1998
+
+	* lib/krb/create_ciph.c: typo: s/tmp/rem/
+
+Wed Jul 22 1998
+
+	* lib/krb/send_to_kdc.c (send_recv): return FALSE if recv failed
+ 	so that we try the next server
+
+	* configure.in (*-*-sunos): no lib_deps
+
+	* include/protos.H (utime): update prototype
+
+Thu Jul 16 1998
+
+	* acconfig.h (DBDIR, MATCH_SUBDOMAINS): added
+
+	* configure.in (--enable-match-subdomains): added
+	(--with-db-dir): added
+
+	* lib/krb/getrealm.c (file_find_realm): fix MATCH_SUBDOMAINS code.
+  	Patch originally from R Lindsay Todd <toddr@rpi.edu>
+
+	* lib/krb/dllmain.c: clean-up patch from <d96-dst@nada.kth.se>
+
+	* appl/krbmanager: patches from <d96-dst>
+
+Mon Jul 13 1998
+
+	* appl/sample/sample_client.c (main): don't advance
+ 	hostent->h_addr_list, use a copy instead
+
+	* appl/bsd/kcmd.c (kcmd): don't advance hostent->h_addr_list, use
+ 	a copy instead
+
+Fri Jul 10 1998
+
+	* lib/krb/net{read,write}.c: removed
+
+	* lib/krb/Makefile.in: grab net_{read,write}.c from roken
+
+	* lib/krb/roken_rename.h: add krb_net_{write,read}
+
+	* lib/krb/create_ciph.c (create_ciph): return KFAILURE instead of
+ 	NULL
+
+	* lib/kadm/kadm_cli_wrap.c (kadm_get): return KADM_NOMEM, not NULL
+
+Wed Jul 8 1998
+
+	* server/kerberos.c (make_sockets): strdup the port specification
+ 	before strtok_r:ing it
+
+	* lib/krb/extra.c (define_variable): return 0
+
+	* kuser/klist.c (display_tktfile): only print time diff and
+ 	newline if using the longform
+
+Tue Jun 30 1998
+
+	* lib/krb/send_to_kdc.c (send_to_kdc): be careful in not advancing
+ 	the h_addr_list pointer in the hostent structure
+
+	* lib/krb/time.c (krb_kdctimeofday): handle the case of `time_t'
+ 	and the type of `tv_sec' being different.  patch originally from
+ 	<art@stacken.kth.se>
+
+	* man/afslog.1: add refs to kafs and kauth
+
+	* man/kauth.1: add refs to kafs
+
+	* lib/krb/krb_get_in_tkt.c (krb_mk_as_req): remove old code laying
+ 	around.
+
+	* lib/krb/Makefile.in: add strcat_truncate.c
+
+	* lib/auth/sia/krb4+c2_matrix.conf: fix broken lines and typos
+
+	* kuser/klist.c (display_tokens): print expired for expired tokens
+
+Sat Jun 13 1998
+
+	* kadmin/kadm_ser_wrap.c (kadm_ser_init): new argument `addr'
+
+	* kadmin/admin_server.c: new argument `-i' for listening on a
+ 	single address
+
+Mon Jun 8 1998
+
+	*  Release 0.9.9
+
+Wed Jun 3 1998
+
+	* lib/krb/extra.c: implement read_extra_file() for Win32
+
+Fri May 29 1998
+
+	* configure.in: removed duplicate crypt
+
+	* lib/kdb/Makefile.in (roken_rename.h): remove dependency
+
+	* lib/acl/Makefile.in (roken_rename.h): remove dependency
+
+	* lib/krb/roken_rename.h: remove duplicate flock
+
+	* appl/afsutil/aklog.c (createuser): fclose the file
+
+Wed May 27 1998
+
+	* lib/krb/Makefile.in (extra.c): add
+
+	* slave/kpropd.c: k_flock -> flock
+
+	* slave/kprop.c: k_flock -> flock
+
+	* lib/krb/tf_util.c: k_flock -> flock
+
+	* lib/krb/roken_rename.h: add base64* and flock
+
+	* lib/krb/kntoln.c: k_flock -> flock
+
+	* lib/kdb/krb_dbm.c: k_flock -> flock
+
+	* lib/kdb/Makefile.in: use ROKEN_RENAME to get hold of renames
+ 	symbols
+
+Tue May 26 1998
+
+	* lib/krb/extra.c: add read flag, so we don't have to look for
+ 	non-existant files several times
+
+	* lib/krb/send_to_kdc.c: use krb_get_config_string()
+
+	* lib/krb/lsb_addr_comp.c: use krb_get_config_bool()
+
+	* lib/krb/krb_get_in_tkt.c: use krb_get_config_bool()
+
+	* lib/krb/extra.c: parse and use krb.extra file for special
+ 	configurations, to lessen the number of environment variables used
+
+	* lib/krb/getfile.c: cleanup and add `krb_get_krbextra'
+
+	* lib/krb/debug_decl.c: add krb_enable_debug
+
+	* lib/krb/lsb_addr_comp.c (lsb_time): if KRB_REVERSE_DIRECTION is
+ 	set, negate time (fix for some firewalls)
+
+Mon May 25 1998
+
+	* lib/krb/Makefile.in (clean): try to remove shared library debris
+	(LIBDES and LIB_DEPS): try to figure out dependencies
+
+	* lib/kdb/Makefile.in (clean): try to remove shared library debris
+
+	* lib/kadm/Makefile.in (clean): try to remove shared library
+ 	debris
+
+	* configure.in: make symlink magic work with libsl
+
+Mon May 18 1998
+
+	* appl/bsd/login.c: Hack for AIX 4.3.
+
+Thu May 14 1998
+
+	* configure.in: mips-api support.  From Derrick J Brashear
+ 	<shadow@dementia.org>
+
+	* configure.in: --enable-legacy-kdestroy: added.  From Derrick J
+ 	Brashear <shadow@dementia.org>
+
+	* kuser/kdestroy.c: LEGACY_KDESTROY: add
+
+Wed May 13 1998
+
+	* lib/krb/krb.h (const, signed): define when compiling with
+ 	non-ANSI comilers.  From Derrick J Brashear <shadow@dementia.org>
+
+Mon May 11 1998
+
+	* kadmin/admin_server.c: Fix reallocation bug.
+
+Fri May 1 1998
+
+	* configure.in: don't test for winsock.h
+
+	* slave/kprop.c: unifdef -DHAVE_H_ERRNO
+
+	* appl/sample/sample_client.c: unifdef -DHAVE_H_ERRNO
+
+	* appl/movemail/pop.c: unifdef -DHAVE_H_ERRNO
+
+	* appl/kip/kip.c: unifdef -DHAVE_H_ERRNO
+
+Mon Apr 27 1998
+
+	* appl/ftp/ftpd/krb4.c (krb4_adat): applied patch from Love
+ 	<lha@elixir.e.kth.se> for checking address in krb_rd_req
+
+Sun Apr 26 1998
+
+	* appl/Makefile.in (SUBDIRS): add push
+
+Sun Apr 19 1998
+
+	* configure.in: fix for the symlink magic. From Gregory S. Stark
+ 	<gsstark@mit.edu>
+
+	* doc/Makefile.in (install): ignore failures from install-info.
+
+	* lib/krb/Makefile.in (install): don't install include files with
+ 	x bit
+
+	* lib/kadm/Makefile.in (install): don't install include files with
+ 	x bit
+
+	* man/Makefile.in: don't install getusershell
+
+	* lib/krb/Makefile.in: add symlink magic for linux.
+	only link in com_err.o and error.o if building shared
+
+	* lib/kdb/Makefile.in: add symlink magic for linux
+
+	* lib/kadm/Makefile.in: add symlink magic for linux
+
+	* configure.in: add symlink magic for Linux
+
+	* appl/kx/common.c (connect_local_xsocket): update to try the list
+ 	of potential socket pathnames
+
+Tue Apr 7 1998
+
+	* lib/krb/getaddrs.c: Don't bail out if various ioctl's fail.
+
+
+	* doc/Makefile.in (kth-krb.info): use `--no-split'
+
+Mon Apr 6 1998
+
+	* configure.in: add --disable-cat-manpages
+
+	* configure.in: call the shared libraries so.0.9.9 on linux
+
+Sat Apr 4 1998
+
+	* lib/Makefile.in (SUBDIRS): changed order so that editline is
+ 	built before sl
+
+	* lib/*/Makefile.in: shared library dependency information
+
+	* doc/Makefile.in (clean): remove *.info*
+
+	* merge in win32 changes from <flag@astrogator.se> and
+ 	<jfa@pobox.se>
+
+	* Makefile.export: aux -> cf
+
+	* Makefile.in: aux -> cf
+
+	* appl/voodoo/TelnetEngine.cpp (TelnetEngine::Connect): check the
+ 	return from `gethostbyname'
+
+	* appl/bsd/bsd_locl.h: Check for <io.h> and conditionalize
+ 	prepare_utmp.  From <d96-mst@nada.kth.se>
+
+	* acconfig.h (__EMX__): define MAIL_USE_SYSTEM_LOCK.  From
+ 	<d96-mst@nada.kth.se>
+
+	* include/bits.c: renamed `strupr' to `my_strupr' not to conflict
+ 	with any exiting strupr.
+
+Sat Mar 28 1998
+
+	* Makefile.in (install): use DESTDIR
+
+	* include/Makefile.in (install): depend on all
+
+	* man/Makefile.in (install, uninstall): use transform correctly
+
+Fri Mar 27 1998
+
+	* configure.in: don't look for dbopen.  From Derrick J Brashear
+ 	<shadow@dementia.org>
+	(termcap.h): check for
+
+	* lib/krb/Makefile.in: fix for LD options on solaris.  From
+ 	Derrick J Brashear <shadow@dementia.org>
+
+Thu Mar 19 1998
+
+	* appl/kx/common.c: Trying binding sockets in the special
+	directories for some versions of Solaris and HP-UX
+
+
+	* lib/krb/kdc_reply.c: Check for error code of zero in error
+ 	packet from KDC.
+
+Wed Mar 18 1998
+
+	* appl/kx/common.c (get_xsockets): try getting sockets in lots of
+ 	places
+	
+	* appl/kauth/kauth.c: return error code from child (plus shell
+ 	magic)
+
+
+	* lib/krb/getrealm.c (krb_realmofhost), lib/krb/get_krbrlm.c
+ 	(krb_get_lrealm, krb_get_default_realm): When figuring out a
+ 	default local realm name avoid going into infinite loops.
+
+Sun Mar 15 1998
+
+	* configure.in: test for <term.h> and search for `tgetent' in
+	ncurses.  From Gregory S. Stark <gsstark@mit.edu>
+
+	* **/Makefile.in: add DESTDIR support and .PHONY
+
+Sat Mar 7 1998
+
+	* kadmin/ksrvutil.c: Remove kvno zero restriction.
+
+	* configure.in: Add option `--disable-dynamic-afs' do disable AIX
+ 	dynamic loading of afs syscall library. This should hopefully also
+ 	work with AIX 3.
+
+	* kadmin/ksrvutil.c: Add `delete' function (from Chris Chiappa
+ 	<griffon+@cmu.edu>).
+
+Thu Feb 26 1998
+
+	* kadmin/kadmin.c (do_init): fix check of return value from
+ 	krb_get_default_principal
+
+	* lib/kadm/kadm_stream.c (stv_string): use correct offset
+
+Sat Feb 21 1998
+
+	* include/Makefile.in: add parse_time.h
+
+	* lib/krb/solaris_compat.c: new file with alternative entry points
+	compatible with solaris's libkrb.
+
+Thu Feb 19 1998
+
+	* lib/krb/time.c: Various time related functions.
+
+Tue Feb 17 1998
+
+	* lib/krb/send_to_kdc.c: Add some more connection debug traces.
+
+Sun Feb 15 1998
+
+	* lib/krb/get_host.c (init_hosts): call k_getportbyname with proto
+ 	== "udp" instead of NULL.  NULL would be the right thing, but some
+ 	libraries are not happy with that.
+
+	* appl/bsd/rcp.c: renamed `{local,foreign}' to \1_addr to avoid
+ 	conflicts with system header files on mklinux.
+
+
+	* lib/kadm/Makefile.in: Fix rules for kadm_err.[ch].
+
+	* lib/krb/krb_err.et: Fix for changes to compile_et.
+
+	* lib/com_err/{error.c,com_err.h,com_right.h}: Rename error.h to
+ 	com_right.h.
+
+	* lib/com_err/{compile_et.c,compile_et.h,lex.l,parse.y}: Switch
+ 	back to a yacc-based compile_et.
+
+Tue Feb 10 1998
+
+	* appl/kx/kxd.c (doit): fix stupid mistake when marshalling
+
+	* lib/krb/Makefile.in: add strcpy_truncate
+
+Sun Feb 8 1998
+
+	* lib/krb/netwrite.c (krb_net_write): restart if errno == EINTR
+
+	* lib/krb/netread.c (krb_net_read): restart if errno == EINTR
+
+	* appl/kx/rxterm.in: redirect std{in,out,err} of xterm to make
+ 	sure rshd does not hang.
+
+Sat Feb 7 1998
+
+	* lib/acl/acl_files.c (acl_canonicalize_principal): use
+ 	krb_parse_name
+
+
+	* lib/krb/rw.c: add a parameter containting maximum size.  Change
+	all callers.
+
+	* lots-of-files: replace {REALM_SZ, *_SZ, MaxPathLen,
+ 	MaxHostNameLen} + 1 with \1
+
+	* appl/bsd/rlogind.c (cleanup): logout -> rlogind_logout
+
+	* lib/acl/acl_files.c (acl_canonicalize_principal): use
+ 	strcpy_truncate
+
+	* include/Makefile.in: fnmatch.h
+
+	* appl/ftp/ftpd/ftpd.c: <fnmatch.h>
+
+	* lib/kadm/kadm_stream.c (stv_string): don't use strncpy
+
+	* lib/auth/sia/sia.c (siad_ses_suauthent): do ugly magic to make
+ 	sure `entity->name' is long enough.
+
+	* appl/ftp/ftpd/ftpcmd.y: HASSETPROCTITLE -> HAVE_SETPROCTITLE
+
+	* appl/bsd/rlogind.c (logout): renamed to rlogind_logout to avoid
+ 	conflict with logout() in libutil.
+	(doit): use forkpty_truncate it there's one
+
+	* appl/afsutil/kstring2key.c (krb5_string_to_key): don't use
+ 	strcat
+
+	* configure.in: add lots of functions and headers that were used
+ 	in the code but not tested for.
+
+	* lib/krb/send_to_kdc.c (url_parse): re-structured
+
+	* kadmin/kadm_locl.h: add prototype for random_password and remove
+ 	__P
+
+	* appl/bsd/forkpty.c (forkpty_truncate): new function.
+	use strcpy_truncate instead of strcpy
+
+	* appl/bsd/bsd_locl.h: include <libutil.h>.
+	prototype for forkpty_truncate()
+
+	* configure.in: test for <libutil.h>
+
+Fri Feb 6 1998
+
+	* kadmin/random_password.c: Random password generation.
+
+	* kadmin/kadmin.c: Add some functionality to add_new_key, to make
+ 	it more useful with batch creation.
+
+Wed Feb 4 1998
+
+	* appl/bsd/login.c (find_in_etc_securetty): new function
+	(rootterm): call `find_in_etc_securetty'
+
+	* appl/bsd/pathnames.h (_PATH_ETC_SECURETTY): add
+
+Tue Feb 3 1998
+
+	* kadmin/kadmin.c: Fix `-t' flag. Centralize the calling of
+ 	alarm() to a modified sl_loop().
+
+	* kadmin/kadmin.c: Add support for `batch' processing, taking a
+ 	command from the command line. Remove the automatic destruction of
+ 	tickets, instead add a timeout (initially set to 1 minute), after
+ 	which any tickets will be destroyed. Option `-m' now sets this
+ 	timeout to 0 (disabling timeout). Options `-p' takes a full
+ 	principal, and `-u' takes a `username' that is used as the name of
+ 	the admin principal to use.
+
+Sat Jan 31 1998
+
+	* lib/auth/sia/sia.c: Chown ticket file when doing reauth.
+
+Thu Jan 29 1998
+
+	* lib/auth/sia/sia.c: Add support for reauthentication.
+
+Mon Jan 26 1998
+
+	* appl/kauth/kauth.c (main): Add debug switch -d to kauth to aid
+ 	in finding miss-configurations.
+
+Mon Jan 19 1998
+
+	* lib/krb/name2name.c: If inet_addr thinks host's a valid
+ 	ip-address, assume it is, and don't call gethostbyname().  This
+ 	should fix things like `rsh 1.2.3.4'.
+
+Sat Jan 17 1998
+
+	* lib/krb/get_host.c: Check for http-srv records.
+
+	* lib/krb/get_host.c: Don't use getprotobyname. Check for `http'
+ 	as well as `udp' and `tcp'.
+
+	* lib/auth/sia/sia.c: Add password changing support.
+
+	* kadmin/new_pwd.c: Use kadm_check_pw.
+
+	* lib/kadm/check_password.c: Password quality check, moved from
+ 	kpasswd.c.
+
+Fri Jan 16 1998
+
+	* kadmin/ksrvutil_get.c: Add `-u' flag to put each key in a
+ 	separate file.
+
+Mon Jan 12 1998
+
+	* kadmin/admin_server.c: Fix broken realloc of pidarray.
+
+Fri Jan 9 1998
+
+	* rename logwtmp -> ftpd_logwtmp not to conflict with libc.
+
+Sun Dec 21 1997
+
+	* lib/krb/verify_user.c (krb_verify_user): new argument `srvtab'.
+	Changed all callers.
+
+Sat Dec 13 1997
+
+	* lib/kdb/krb_dbm.c: check return value from dbm_store
+
+Thu Dec 11 1997
+
+	* lib/krb/k_flock.c (k_flock): Re-included an implementaion of
+ 	k_flock. Changed all library and core application source to use
+ 	k_flock.
+
+Tue Dec 9 1997
+
+	* appl/kx/kxd.c,common.c: more error testing from Love
+ 	Hörnquist-Åstrand <e96_lho@elixir.e.kth.se>
+	Use the correct number of X for mkstemp.
+
+
+	* Release 0.9.8
+
+	* Add `--disable-mmap' configure option, do disable all use of
+ 	mmap.
+
+	* Rename all k_afsklog to krb_afslog.
+
+Mon Dec 8 1997
+
+	* kuser/klist.c: Add a header for tokens.
+
+Fri Dec 5 1997
+
+	* lib/krb/krb.h: Moved prototypes to krb-protos.h, cruft to
+ 	krb-archaeology.h.
+
+Thu Dec 4 1997
+
+	* appl/kauth/kauth.c: Use krb_get_pw_in_tkt2.
+
+	* lib/krb/get_in_tkt.c: krb_get_pw_in_tkt2 that returns key.
+
+Sun Nov 30 1997
+
+	* configure.in: check for tgetent in libcurses
+
+Mon Nov 24 1997
+
+	* appl/krbmanager: incorporate patches from <d96-dst@nada.kth.se>
+	for making sure there's only one instance of krbmanager.
+
+Fri Nov 21 1997
+
+	* admin/ext_srvtab.c: use atexit() to stamp out secrets.
+
+Thu Nov 20 1997
+
+	* server/kerberos.c: Log funny HTTP requests.
+
+	* server/kerberos.c: Add comma to list of port separators for
+ 	`-P'.
+
+
+	* appl/voodoo/TelnetEngine.cpp (TelnetEngine::Connect): better
+ 	error message (from <d96-dst@nada.kth.se>)
+
+Wed Nov 12 1997
+
+	* kuser/klist.c (display_tokens): patch from <e96_lho@e.kth.se>
+
+Sun Nov 9 1997
+
+	* Release 0.9.7
+
+
+	* configure.in: test for ssize_t
+
+	* appl/bsd/rlogind.c: Fill in ut_type, and ut_exit if they exist.
+
+	* appl/kx/common.c (create_and_write_cookie): Create temp file
+ 	with mkstemp.
+
+
+	* appl/ftp/ftpd/ftpd.c: conditionalize otp
+
+	* appl/bsd/login.c: conditionalize otp
+
+	* configure.in: add --disable-otp.  update Makefile.in's
+
+	* configure.in: define CANONICAL_HOST
+	
+	* configure.in, aclocal.m4: remove <bind/bitypes.h>.  contains
+ 	bogus information on Crays.
+
+	* include/bits.c: stolen from Heimdal
+
+	* include/Makefile.in: replace ktypes.c with bits.c
+
+	* lib/krb/getaddrs.c (k_get_all_addrs): cray fix
+
+	* configure.in: updated header files
+
+
+	* slave/kpropd.c: Make sure it's the kprop service that tries to
+ 	send data.
+
+Fri Nov 7 1997
+
+	* configure.in: Added option --with-afsws=/usr/afsws.
+
+	* lib/Makefile.in: Build lib/rxkad if we have include file rx/rx.h
+
+Thu Nov 6 1997
+
+	* appl/ftp/ftp/ftp.c (sendrequest, recvrequest): do correct tests
+ 	for `-'
+
+	* appl/ftp/ftp/cmds.c (getit): removed stupid goto
+
+
+	* appl/kauth/kauth.c: Use krb_get_pw_in_tkt(), now that it is
+ 	fixed.
+
+	* appl/ftp/ftp/cmds.c: Don't retrieve files that start with `..'
+ 	or `/' without asking.  Reverse test in confirm() to check for `y'
+ 	rather than not `n'.  Use mkstemp.
+
+	* appl/ftp/ftp/ftp.c: Add extra parameter to recvrequest,
+ 	specifying if local filenames should be parsed as "-" and "|".
+
+Mon Nov 3 1997
+
+	* configure.in: updated broken list.  add fclose for proto check.
+
+	* kadmin/kadmin.c: updated functions to new style of sl
+
+	* appl/bsd/rcp.c, rlogin.c, rsh.c: setuid before doing kerberos
+ 	authentication.  if that fails, exec ourselves with -K
+
+	* appl/bsd/pathnames.h: add _PATH_RCP
+
+	* configure.in: test for readv, writev
+
+Fri Oct 24 1997
+
+	* lib/krb/tkt_string.c (krb_set_tkt_string): const-ized
+
+	* appl/ftp/ftp{,d}: new commands: kdestroy, krbtkfile and afslog.
+
+	* appl/afsutil/aklog.c (expand_cell_name): fix parsing of
+ 	CellServDB
+
+Sat Oct 11 1997
+
+	* appl/telnet/telnetd/sys_term.c (start_login): moved `user' so it
+ 	works even if !defined(HAVE_UTMPX_H)
+
+Fri Oct 10 1997
+
+	* lib/krb/send_to_kdc.c: Change send_recv* to use a lookup table
+ 	indexed by protocol.
+	
+	Implement http proxy use, enabled via `krb4_proxy' environment
+ 	variable.
+
+Thu Oct 9 1997
+
+	* lib/krb/getrealm.c: Don't lookup top-level domains. Try files
+ 	before doing DNS.
+
+Thu Oct 2 1997
+
+	* appl/krbmanager: Turned into a ticket management program.
+
+	* lib/krb/{dllmain,ticket_memory}.c: Add some KrbManager
+ 	interaction.
+
+Sat Sep 27 1997
+
+	* appl/voodoo: Major fixes of terminal emulation, and other
+	things.
+
+Fri Sep 26 1997
+
+	* server/kerberos.c: Cleanup socket-opening code. Add HTTP
+ 	support.
+
+	* lib/krb/send_to_kdc.c: Add Kerberos over HTTP.
+
+	* lib/krb/get_host.c: Parse URL-style host-specifications.
+
+
+	* include/win32: add `version.h' and `ktypes.h'
+
+	* lib/kclient/KClient.def: rename kclnt32 to make Eudora
+ 	happy. Add SendTicketForService
+
+	* lib/kclient/KClient.c: implement SendTicketForService.  Used by
+ 	Eudora.
+
+	* appl/voodoo/voodoo.mak: kclient renamed as kclnt32
+
+Thu Sep 25 1997
+
+	* Moved various base64 implementations to roken.
+
+Thu Sep 18 1997
+
+	* appl/telnet/telnetd/telnetd.c: Move the call to startslave()
+ 	into the telnet() loop. This way we'll maximise the chance that
+ 	the transmission is encrypted before starting login. This will
+ 	hopefully remove the irritating warning you would get with some
+ 	macintosh telnet clients.
+
+Wed Sep 17 1997
+
+	* appl/telnet/telnetd/sys_term.c: Fix for duplicate `-- user'.
+
+Tue Sep 9 1997
+
+	* server/kerberos.c: More detailed logging
+
+Fri Sep 5 1997
+
+	* lib/kafs/afssysdefs.h: HP-UX 10.20 seems to use 48
+
+Thu Sep 4 1997
+
+	* lib/des/Makefile.in: quote the test for $(CC) correctly
+
+Wed Sep 3 1997
+
+	* include/ktypes.c: Move __BIT_TYPES_DEFINED__ to after including
+ 	other stuff.
+
+
+	* lib/rxkad/rxk_locl.c (rxkad_calc_header_iv): Simplify header IV
+ 	calculation.
+
+	* lib/rxkad/osi_alloc.c (osi_Alloc): Memory allocation routines
+ 	for user space. There is no longer any need for conditional
+ 	compilation of user/kernel-space versions of librxkad.a.
+
+	* lib/rxkad/rxk_clnt.c (rxkad_NewClientSecurityObject): Use
+ 	Transarc FC-crypto to generate random numbers. We no longer need
+ 	to link a DES library into the kernel.
+
+Tue Sep 2 1997
+
+	* appl/ftp/ftpd/ftpd.c (pass): chown the ticket file is logging in
+ 	with clear-text passwords and using kerberos
+
+	* lib/krb/krb_log.h: new file
+
+	* lib/krb/krb.h: moved all logging functions to krb_log.h.
+  	Include krb_log.h in appropriate places.  From
+ 	<shadow@dementia.org>
+
+Mon Sep 1 1997
+
+	* appl/kx/kx.c: more intelligent check for passive mode new option
+ 	`-P' to force passive mode
+
+Sat Aug 23 1997
+
+	* lib/krb/krb_get_in_tkt.c: rename krb_as_req -> krb_mk_as_req
+
+Wed Aug 20 1997
+
+	* lib/rxkad/rxkad.h, rxk_serv.c (server_CheckResponse): Increase
+ 	limit of ticket lengths to 1024 at server end.
+
+	* lib/rxkad/rxk_clnt.c (rxkad_NewClientSecurityObject): Support
+ 	for almost arbitrary ticket lengths.
+
+Tue Aug 19 1997
+
+	* kadmin/ksrvutil_get.c: Make sure we're talking to the admin
+ 	server when getting ticket.
+
+	* lib/krb/send_to_kdc.c: Add flag to always use admin server.
+
+Sun Aug 17 1997
+
+	* appl/kx/rxtelnet.in: reverse the looking for xterm loops Use
+ 	`-n' and not `-name' to xterm
+	
+	* server/kerberos.c: implement `-i' for only listening on one
+ 	address
+
+	* lib/kadm/kadm_cli_wrap.c: Implement kadm_change_pw2 to be
+ 	compatible with CNS.  From <shadow@dementia.org>
+
+	* appl/ftp/ftpd/ftpd.c: removed bogus reset of `debug'
+
+	* appl/ftp/ftpd/extern.h: define NBBY if needed
+
+	* configure.in: os2 fixes: -Zcrtdll and check for chroot
+
+Wed Aug 13 1997
+
+	* lib/krb/get_in_tkt.c: Use new get_in_tkt functions, and
+ 	implement kerberos 5 salts.
+
+	* lib/krb/krb_get_in_tkt.c: Split krb_get_in_tkt in two functions
+ 	so it's possible to try several key-procs with just one request to
+ 	the KDC.
+
+Wed Jul 23 1997
+
+	* lib/rxkad/rxk_serv.c (decode_krb4_ticket): New functions
+ 	decode_xxx_ticket so that it is possible to also decode kerberos
+ 	version 5 tickets.
+
+Sat Jul 19 1997
+
+	* doc/Makefile.in: `test -f' is more portable than `test -e'
+
+Tue Jul 15 1997
+
+	* lib/kafs/kafs.h, lib/krb/krb.h: swap order of <sys/cdefs.h> and
+ 	<ktypes.h>.  Another fix form <shadow@dementia.org>
+
+Fri Jul 11 1997
+
+	* lib/krb/krb.h: non-ANSI fix from <shadow@dementia.org>
+
+Fri Jun 27 1997
+
+	* man/otp.1: `-o' option
+
+	* appl/otp/otp.c: List lock-time with `-l'.  New option `-o' to
+ 	open an locked entry.
+
+	* lib/otp/otp_db.c (otp_get_internal): Save lock_time in returned
+ 	struct.
+
+	* lib/otp/otp.h: New field `lock_time' in OtpContext
+
+Thu Jun 26 1997
+
+	* man/otp.1, man/otpprint.1: Update changed default to `md5'
+
+	* appl/bsd/rsh.c: Don't use a hard-coded constant in `select'
+
+	* configure.in, include/ktypes.c: Handle the case of there being
+ 	an old version of our `sys/bitypes.h'.
+
+Sun Jun 22 1997
+
+	* lib/des: Merge in changes from libdes 4.01. The optimizations
+ 	written in assembler are not used since they in general wont't
+ 	work with shared libraries.
+
+Fri Jun 20 1997
+
+	* lib/krb/netread.c, netwrite.c: Handle windows discrimation of
+	sockets.
+
+Sun Jun 15 1997
+
+	* appl/kpopper/pop_init.c: Use `STDIN_FILENO' and `STDOUT_FILENO'
+ 	instead of `sp'.  OSF's libc isn't quite prepared to have two
+ 	different FILEs refer to the same file descriptor.
+
+Thu Jun 12 1997
+
+	* doc/dir: Add dir template file.
+
+
+	* appl/kauth/kauth.c (main): AFS style positional argument for -n
+ 	option.
+
+	* appl/xnlock/xnlock.c (verify): New resource destroyTickets and
+ 	corresponding option -nodestroytickets. First try local
+ 	authentication and if it fails try kerberos.
+	
+Sun Jun 8 1997
+
+	* appl/ftp/ftpd/popen.c (ftpd_popen): Correct initialization of
+ 	`foo' before call to `strtok_r'
+
+Wed Jun 4 1997
+
+	* doc/*.texi: Use @url.
+
+	* doc/setup.texi: Added @ifinfo around @dircategory
+
 Tue Jun 3 1997
 
 	* Release 0.9.6

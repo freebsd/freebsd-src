@@ -2,7 +2,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: sysv_default.c,v 1.9 1997/03/31 01:47:59 assar Exp $");
+RCSID("$Id: sysv_default.c,v 1.11 1999/03/13 21:15:24 assar Exp $");
 
 #include "sysv_default.h"
 
@@ -21,7 +21,7 @@ char   *default_hz	= 0;
 char   *default_path	= _PATH_DEFPATH;
 char   *default_supath	= _PATH_DEFSUPATH;
 char   *default_ulimit	= 0;
-char   *default_timeout	= "60";
+char   *default_timeout	= "180";
 char   *default_umask	= default_umask_value;
 char   *default_sleep	= "4";
 char   *default_maxtrys	= "5";
@@ -48,7 +48,7 @@ static struct sysv_default {
 
 #define trim(s) { \
 	char   *cp = s + strlen(s); \
-	while (cp > s && isspace(cp[-1])) \
+	while (cp > s && isspace((unsigned char)cp[-1])) \
 	    cp--; \
 	*cp = 0; \
 }

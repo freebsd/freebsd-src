@@ -21,7 +21,7 @@ or implied warranty.
         
 #include "krb_locl.h"
 
-RCSID("$Id: tf_util.c,v 1.24 1997/04/20 06:24:32 assar Exp $");
+RCSID("$Id: tf_util.c,v 1.35 1999/06/29 21:18:11 bg Exp $");
 
 
 #define TOO_BIG -1
@@ -121,6 +121,11 @@ static int tf_read(void *s, int n);
  * TKT_FIL_LCK  - couldn't lock the file, even after a retry
  */
 
+#ifdef _NO_LOCKING
+#undef flock
+#define flock(F, M) 0
+#endif
+
 int
 tf_init(char *tf_name, int rw)
 {
@@ -148,18 +153,21 @@ tf_init(char *tf_name, int rw)
     default:
       return TKT_FIL_ACC;
     }
-  /* The old code tried to guess when the calling program was
-   * running set-uid, this is now removed - the kerberos library
-   * does not (or shouldn't) know anything about user-ids.
-
-   * All library functions now assume that the right userids are set
-   * upon entry, therefore there is no need to test permissions like
-   * before. If the file is openable, just open it.
-   */
-
-  if(!S_ISREG(stat_buf.st_mode))
+  if (!S_ISREG(stat_buf.st_mode))
     return TKT_FIL_ACC;
 
+  /* The code tries to guess when the calling program is running
+   * set-uid and prevent unauthorized access.
+   *
+   * All library functions now assume that the right set of userids
+   * are set upon entry, therefore it's not strictly necessary to
+   * perform these test for programs adhering to these assumptions.
+   */
+  {
+    uid_t me = getuid();
+    if (stat_buf.st_uid != me && me != 0)
+      return TKT_FIL_ACC;
+  }
 
   /*
    * If "wflag" is set, open the ticket file in append-writeonly mode
@@ -177,7 +185,7 @@ tf_init(char *tf_name, int rw)
       return TKT_FIL_ACC;
     }
     for (i_retry = 0; i_retry < TF_LCK_RETRY_COUNT; i_retry++) {
-      if (k_flock(fd, K_LOCK_EX | K_LOCK_NB) < 0) {
+      if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
 	if (krb_debug)
 	  krb_warning("tf_init: retry %d of write lock of `%s'.\n",
 		      i_retry, tf_name);
@@ -201,7 +209,7 @@ tf_init(char *tf_name, int rw)
   }
 
   for (i_retry = 0; i_retry < TF_LCK_RETRY_COUNT; i_retry++) {
-    if (k_flock(fd, K_LOCK_SH | K_LOCK_NB) < 0) {
+    if (flock(fd, LOCK_SH | LOCK_NB) < 0) {
       if (krb_debug)
 	krb_warning("tf_init: retry %d of read lock of `%s'.\n",
 		    i_retry, tf_name);
@@ -252,9 +260,9 @@ tf_create(char *tf_name)
   fd = open(tf_name, O_RDWR | O_CREAT | O_EXCL | O_BINARY, 0600);
   if (fd < 0)
     return TKT_FIL_ACC;
-  if (k_flock(fd, K_LOCK_EX | K_LOCK_NB) < 0) {
+  if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
     sleep(TF_LCK_RETRY);
-    if (k_flock(fd, K_LOCK_EX | K_LOCK_NB) < 0) {
+    if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
       close(fd);
       fd = -1;
       return TKT_FIL_LCK;
@@ -295,7 +303,7 @@ tf_get_pname(char *p)
  */
 
 int
-tf_put_pname(char *p)
+tf_put_pname(const char *p)
 {
   unsigned count;
 
@@ -343,7 +351,7 @@ tf_get_pinst(char *inst)
  */
 
 int
-tf_put_pinst(char *inst)
+tf_put_pinst(const char *inst)
 {
   unsigned count;
 
@@ -369,6 +377,9 @@ tf_put_pinst(char *inst)
  * EOF          - end of file encountered
  */
 
+#define MAGIC_TICKET_NAME "magic"
+#define MAGIC_TICKET_INST "time-diff"
+	  
 int
 tf_get_cred(CREDENTIALS *c)
 {
@@ -380,6 +391,7 @@ tf_get_cred(CREDENTIALS *c)
       krb_warning ("tf_get_cred called before tf_init.\n");
     return TKT_FIL_INI;
   }
+again:
   if ((k_errno = tf_gets(c->service, SNAME_SZ)) < 2)
     switch (k_errno) {
     case TOO_BIG:
@@ -431,6 +443,16 @@ tf_get_cred(CREDENTIALS *c)
       krb_warning ("tf_get_cred: failed tf_read.\n");
     return TKT_FIL_FMT;
   }
+  if(strcmp(c->service, MAGIC_TICKET_NAME) == 0 &&
+     strcmp(c->instance, MAGIC_TICKET_INST) == 0) {
+      /* we found the magic `time diff' ticket; update the kdc time
+         differential, and then get the next ticket */
+      u_int32_t d;
+
+      krb_get_int(c->ticket_st.dat, &d, 4, 0);
+      krb_set_kdc_time_diff(d);
+      goto again;
+  }
   return KSUCCESS;
 }
 
@@ -446,7 +468,7 @@ void
 tf_close(void)
 {
   if (!(fd < 0)) {
-    k_flock(fd, K_LOCK_UN);
+    flock(fd, LOCK_UN);
     close(fd);
     fd = -1;		/* see declaration of fd above */
   }
@@ -603,9 +625,9 @@ tf_save_cred(char *service,	/* Service name */
 bad:
   return (KFAILURE);
 }
-	  
+
 int
-tf_setup(CREDENTIALS *cred, char *pname, char *pinst)
+tf_setup(CREDENTIALS *cred, const char *pname, const char *pinst)
 {
     int ret;
     ret = tf_create(tkt_string());
@@ -617,7 +639,20 @@ tf_setup(CREDENTIALS *cred, char *pname, char *pinst)
 	tf_close();
 	return INTK_ERR;
     }
-
+    
+    if(krb_get_kdc_time_diff() != 0) {
+	/* Add an extra magic ticket containing the time differential
+           to the kdc. The first ticket defines which realm we belong
+           to, but since this ticket gets the same realm as the tgt,
+           this shouldn't be a problem */
+	des_cblock s = { 0, 0, 0, 0, 0, 0, 0, 0 };
+	KTEXT_ST t;
+	int d = krb_get_kdc_time_diff();
+	krb_put_int(d, t.dat, sizeof(t.dat), 4);
+	t.length = 4;
+	tf_save_cred(MAGIC_TICKET_NAME, MAGIC_TICKET_INST, cred->realm, s, 
+		     cred->lifetime, 0, &t, cred->issue_date);
+    }
     ret = tf_save_cred(cred->service, cred->instance, cred->realm, 
 		       cred->session, cred->lifetime, cred->kvno,
 		       &cred->ticket_st, cred->issue_date);

@@ -44,9 +44,14 @@ If you need to change the default behavior, configure understands the
 following options:
 
 @table @asis
-@item @kbd{--with-shared}
+@item @kbd{--enable-shared}
 Create shared versions of the Kerberos libraries. Not really
 recommended and might not work on all systems.
+
+@item @kbd{--with-ld-flags=}@var{flags}
+This allows you to specify which extra flags to pass to @code{ld}. Since
+this @emph{overrides} any choices made by configure, you should only use
+this if you know what you are doing.
 
 @item @kbd{--with-cracklib=}@var{dir}
 Use cracklib for password quality control in 
@@ -65,7 +70,7 @@ This is the dictionary that cracklib should use.
 If you have to traverse a firewall and it uses the SocksV5 protocol
 (@cite{RFC 1928}), you can build with socks-support.  Point @var{dir} to
 the directory where you have socks5 installed.  For more information
-about socks see @kbd{http://www.socks.nec.com/}.
+about socks see @url{http://www.socks.nec.com/}.
 
 @item @kbd{--with-readline=}@var{dir}
 @cindex readline
@@ -102,6 +107,21 @@ dbm. If you already are running Kerberos this option might be useful,
 since there currently isn't an easy way to convert a dbm database to a
 db one (you have to dump the old database and then load it with the new
 binaries).
+
+@item @kbd{--disable-shared-afs}
+The AFS support in AIX consists of a shared library that is loaded at
+runtime. This option disables this, and links with static system
+calls. Doing this will make the built binaries crash on a machine that
+doesn't have AFS in the kernel (for instance if the AFS module fails to
+load at boot).
+
+@item @kbd{--with-mips-api=api}
+This option enables creation of different types of binaries on Irix.
+The allowed values are @kbd{32}, @kbd{n32}, and @kbd{64}.
+
+@item @kbd{--enable-legacy-kdestroy}
+This compile-time option creates a @code{kdestroy} that does not destroy
+any AFS tokens.
 @end table
 
 @node Installing a binary distribution, Finishing the installation, Installing from source, Installing programs
@@ -181,7 +201,7 @@ the kerberised @code{login}.  However some systems assume that login
 performs some serious amount of magic that our login might not do (although
 we've tried to do our best). So before replacing it on every machine,
 try and see what happens.  Another thing to try is to use one of the
-authentication modules (@xref{Authentication modules}) supplied.
+authentication modules (@pxref{Authentication modules}) supplied.
 
 The @code{login} program that we use was in an earlier life the standard
 login program from NetBSD. In order to use it with a lot of weird
@@ -249,7 +269,10 @@ Make sure @file{libsia_krb4.so} is available in
 might want to put it in @file{/usr/shlib} or someplace else. If you do,
 you'll have to edit @file{krb4_matrix.conf} to reflect the new location
 (you will also have to do this if you installed in some other directory
-than @file{/usr/athena}).
+than @file{/usr/athena}). If you built with shared libraries, you will
+have to copy the shared @file{libkrb.so}, @file{libdes.so},
+@file{libkadm.so}, and @file{libkafs.so} to a place where the loader can
+find them (such as @file{/usr/shlib}).
 @item
 Copy (your possibly edited) @file{krb4_matrix.conf} to @file{/etc/sia}.
 @item
@@ -260,7 +283,8 @@ Turn on KRB4 security by issuing @kbd{rcmgr set SECURITY KRB4} and
 @item
 Digital thinks you should reboot your machine, but that really shouldn't
 be necessary.  It's usually sufficient just to run
-@kbd{/sbin/init.d/security start}.
+@kbd{/sbin/init.d/security start} (and restart any applications that use
+SIA, like @code{xdm}.)
 @end itemize
 
 Users with local passwords (like @samp{root}) should be able to login
@@ -273,9 +297,13 @@ have to set @samp{KRBTKFILE} to the correct value in
 @example
 KRBTKFILE=/tmp/tkt`id -u`_`ps -o ppid= -p $$`; export KRBTKFILE
 @end example
-
-There is currently no support for changing passwords. Use @file{kpasswd}
-instead.
+If you use CDE, @code{dtlogin} allows you to specify which additional
+environment variables it should export. To add @samp{KRBTKFILE} to this
+list, edit @file{/usr/dt/config/Xconfig}, and look for the definition of
+@samp{exportList}. You want to add something like:
+@example
+Dtlogin.exportList:     KRBTKFILE
+@end example
 
 @subsubheading Notes to users with Enhanced security
 
@@ -300,16 +328,19 @@ default entry @kbd{/usr/tcb/bin/edauth -dd default}, and add a
 @item
 For each user that does @emph{not} have a local C2 password, you should
 set the password expiration field to zero. You can do this for each
-user, or in the @samp{default} table. To to this use @samp{edauth} to
+user, or in the @samp{default} table. To do this use @samp{edauth} to
 set (or change) the @samp{u_exp} capability to @samp{u_exp#0}.
 @item
-You should make sure that you use Digital's login rather than the one
-distributed by us. The easiest way to do this is to replace
-@file{/usr/athena/bin/login} with @file{/bin/login}.
+You also need to be aware that the shipped @file{login}, @file{rcp}, and
+@file{rshd}, doesn't do any particular C2 magic (such as checking to
+various forms of disabled accounts), so if you rely on those features,
+you shouldn't use those programs. If you configure with
+@samp{--enable-osfc2}, these programs will, however, set the login
+UID. Still: use at your own risk.
 @end itemize
 
 At present @samp{su} does not accept the vouching flag, so it will not
-work as expected. 
+work as expected.
 
 Also, kerberised ftp will not work with C2 passwords. You can solve this
 by using both Digital's ftpd and our on different ports.
@@ -336,6 +367,13 @@ The interface is not very documented but it seems that you have to copy
 The @file{afskauthlib.so} itself is able to reside in
 @file{/usr/vice/etc}, @file{/usr/afsws/lib}, or the current directory
 (wherever that is).
+
+IRIX 6.4 and newer seems to have all programs (including @file{xdm} and
+@file{login}) in the N32 object format, whereas in older versions they
+were O32. For it to work, the @file{afskauthlib.so} library has to be in
+the same object format as the program that tries to load it. This might
+require that you have to configure and build for O32 in addition to the
+default N32.
 
 Appart from this it should ``just work'', there are no configuration
 files.

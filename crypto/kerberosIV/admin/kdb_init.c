@@ -10,7 +10,7 @@
 
 #include "adm_locl.h"
 
-RCSID("$Id: kdb_init.c,v 1.23 1997/03/30 17:45:05 assar Exp $");
+RCSID("$Id: kdb_init.c,v 1.24 1998/06/09 19:24:13 joda Exp $");
 
 enum ap_op {
     NULL_KEY,			/* setup null keys */
@@ -28,12 +28,11 @@ static int
 add_principal(char *name, char *instance, enum ap_op aap_op, int maxlife)
 {
     Principal principal;
-    struct tm *tm;
     des_cblock new_key;
 
     memset(&principal, 0, sizeof(principal));
-    strncpy(principal.name, name, ANAME_SZ);
-    strncpy(principal.instance, instance, INST_SZ);
+    strcpy_truncate(principal.name, name, ANAME_SZ);
+    strcpy_truncate(principal.instance, instance, INST_SZ);
     switch (aap_op) {
     case NULL_KEY:
 	principal.key_low = 0;
@@ -58,19 +57,19 @@ add_principal(char *name, char *instance, enum ap_op aap_op, int maxlife)
 	copy_from_key(new_key, &principal.key_low, &principal.key_high);
 	break;
     }
-    principal.exp_date = 946702799;	/* Happy new century */
-    strncpy(principal.exp_date_txt, "12/31/99", DATE_SZ);
     principal.mod_date = time(0);
+    *principal.mod_date_txt = '\0';
+    principal.exp_date = principal.mod_date + 5 * 365 * 24 * 60 * 60;
+    *principal.exp_date_txt = '\0';
 
-    tm = k_localtime(&principal.mod_date);
     principal.attributes = 0;
     principal.max_life = maxlife;
 
     principal.kdc_key_ver = 1;
     principal.key_version = 1;
 
-    strncpy(principal.mod_name, "db_creation", ANAME_SZ);
-    strncpy(principal.mod_instance, "", INST_SZ);
+    strcpy_truncate(principal.mod_name, "db_creation", ANAME_SZ);
+    strcpy_truncate(principal.mod_instance, "", INST_SZ);
     principal.old = 0;
 
     if (kerb_db_put_principal(&principal, 1) != 1)
@@ -109,10 +108,10 @@ main(int argc, char **argv)
     kerb_db_set_name(database);
 
     if (argc == 2)
-	strncpy(realm, argv[1], REALM_SZ);
+	strcpy_truncate(realm, argv[1], REALM_SZ);
     else {
         if (krb_get_lrealm(realm, 1) != KSUCCESS)
-		strcpy(realm, KRB_REALM);
+	    strcpy_truncate(realm, KRB_REALM, REALM_SZ);
 	fprintf(stderr, "Realm name [default  %s ]: ", realm);
 	if (fgets(realm, sizeof(realm), stdin) == NULL)
 	    errx (1, "\nEOF reading realm");
@@ -120,7 +119,7 @@ main(int argc, char **argv)
 	    *cp = '\0';
 	if (!*realm)			/* no realm given */
 		if (krb_get_lrealm(realm, 1) != KSUCCESS)
-			strcpy(realm, KRB_REALM);
+		    strcpy_truncate(realm, KRB_REALM, REALM_SZ);
     }
     if (!k_isrealm(realm))
 	errx (1, "Bad kerberos realm name \"%s\"", realm);

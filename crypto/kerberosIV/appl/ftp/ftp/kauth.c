@@ -37,9 +37,11 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: kauth.c,v 1.14 1997/05/11 04:08:04 assar Exp $");
+#include <krb.h>
+RCSID("$Id: kauth.c,v 1.17 1998/03/26 02:55:38 joda Exp $");
 
-void kauth(int argc, char **argv)
+void
+kauth(int argc, char **argv)
 {
     int ret;
     char buf[1024];
@@ -120,7 +122,11 @@ void kauth(int argc, char **argv)
     memset(key, 0, sizeof(key));
     memset(schedule, 0, sizeof(schedule));
     memset(passwd, 0, sizeof(passwd));
-    base64_encode(tktcopy.dat, tktcopy.length, &p);
+    if(base64_encode(tktcopy.dat, tktcopy.length, &p) < 0) {
+	printf("Out of memory base64-encoding.\n");
+	code = -1;
+	return;
+    }
     memset (tktcopy.dat, 0, tktcopy.length);
     ret = command("SITE KAUTH %s %s", name, p);
     free(p);
@@ -131,7 +137,8 @@ void kauth(int argc, char **argv)
     code = 0;
 }
 
-void klist(int argc, char **argv)
+void
+klist(int argc, char **argv)
 {
     int ret;
     if(argc != 1){
@@ -141,5 +148,47 @@ void klist(int argc, char **argv)
     }
     
     ret = command("SITE KLIST");
+    code = (ret == COMPLETE);
+}
+
+void
+kdestroy(int argc, char **argv)
+{
+    int ret;
+    if (argc != 1) {
+	printf("usage: %s\n", argv[0]);
+	code = -1;
+	return;
+    }
+    ret = command("SITE KDESTROY");
+    code = (ret == COMPLETE);
+}
+
+void
+krbtkfile(int argc, char **argv)
+{
+    int ret;
+    if(argc != 2) {
+	printf("usage: %s tktfile\n", argv[0]);
+	code = -1;
+	return;
+    }
+    ret = command("SITE KRBTKFILE %s", argv[1]);
+    code = (ret == COMPLETE);
+}
+
+void
+afslog(int argc, char **argv)
+{
+    int ret;
+    if(argc > 2) {
+	printf("usage: %s [cell]\n", argv[0]);
+	code = -1;
+	return;
+    }
+    if(argc == 2)
+	ret = command("SITE AFSLOG %s", argv[1]);
+    else
+	ret = command("SITE AFSLOG");
     code = (ret == COMPLETE);
 }

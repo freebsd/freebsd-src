@@ -58,7 +58,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: login_fbtab.c,v 1.10 1997/06/01 03:12:54 assar Exp $");
+RCSID("$Id: login_fbtab.c,v 1.13 1999/01/14 00:37:59 assar Exp $");
 
 void	login_protect	(char *, char *, int, uid_t, gid_t);
 void	login_fbtab	(char *tty, uid_t uid, gid_t gid);
@@ -126,15 +126,25 @@ login_protect(char *table, char *path, int mask, uid_t uid, gid_t gid)
 	if (chown(path, uid, gid) && errno != ENOENT)
 	    syslog(LOG_ERR, "%s: chown(%s): %m", table, path);
     } else {
-	strcpy(buf, path);
-	buf[pathlen - 1] = 0;
+	strcpy_truncate (buf, path, sizeof(buf));
+	if (sizeof(buf) > pathlen)
+	    buf[pathlen - 2] = '\0';
+ 	/* Solaris evidently operates on the directory as well */
+ 	login_protect(table, buf, mask | ((mask & 0444) >> 2), uid, gid);
 	if ((dir = opendir(buf)) == 0) {
 	    syslog(LOG_ERR, "%s: opendir(%s): %m", table, path);
 	} else {
+	    if (sizeof(buf) > pathlen) {
+		buf[pathlen - 2] = '/';
+		buf[pathlen - 1] = '\0';
+	    }
+
 	    while ((ent = readdir(dir)) != 0) {
 		if (strcmp(ent->d_name, ".") != 0
 		    && strcmp(ent->d_name, "..") != 0) {
-		    strcpy(buf + pathlen - 1, ent->d_name);
+		    strcpy_truncate (buf + pathlen - 1,
+				     ent->d_name,
+				     sizeof(buf) - (pathlen + 1));
 		    login_protect(table, buf, mask, uid, gid);
 		}
 	    }

@@ -9,7 +9,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: login_access.c,v 1.15 1997/06/01 03:12:28 assar Exp $");
+RCSID("$Id: login_access.c,v 1.19 1999/05/14 22:02:14 assar Exp $");
 
 #ifdef LOGIN_ACCESS
 
@@ -23,15 +23,26 @@ static char sep[] = ", \t";		/* list-element separator */
 #define YES             1
 #define NO              0
 
-static int list_match(char *list, char *item, int (*match_fn)(char *, char *));
-static int user_match(char *tok, char *string);
-static int from_match(char *tok, char *string);
+ /*
+  * A structure to bundle up all login-related information to keep the
+  * functional interfaces as generic as possible.
+  */
+struct login_info {
+    struct passwd *user;
+    char   *from;
+};
+
+static int list_match(char *list, struct login_info *item,
+		      int (*match_fn)(char *, struct login_info *));
+static int user_match(char *tok, struct login_info *item);
+static int from_match(char *tok, struct login_info *item);
 static int string_match(char *tok, char *string);
 
 /* login_access - match username/group and host/tty with access control file */
 
-int login_access(char *user, char *from)
+int login_access(struct passwd *user, char *from)
 {
+    struct login_info item;
     FILE   *fp;
     char    line[BUFSIZ];
     char   *perm;			/* becomes permission field */
@@ -41,6 +52,12 @@ int login_access(char *user, char *from)
     int     end;
     int     lineno = 0;			/* for diagnostics */
     char   *foo;
+
+    /*
+     * Bundle up the arguments to avoid unnecessary clumsiness lateron.
+     */
+    item.user = user;
+    item.from = from;
 
     /*
      * Process the table one line at a time and stop at the first match.
@@ -60,7 +77,7 @@ int login_access(char *user, char *from)
 	    }
 	    if (line[0] == '#')
 		continue;			/* comment line */
-	    while (end > 0 && isspace(line[end - 1]))
+	    while (end > 0 && isspace((unsigned char)line[end - 1]))
 		end--;
 	    line[end] = 0;			/* strip trailing whitespace */
 	    if (line[0] == 0)			/* skip blank lines */
@@ -81,8 +98,8 @@ int login_access(char *user, char *from)
 		       lineno);
 		continue;
 	    }
-	    match = (list_match(froms, from, from_match)
-		     && list_match(users, user, user_match));
+	    match = (list_match(froms, &item, from_match)
+		     && list_match(users, &item, user_match));
 	}
 	fclose(fp);
     } else if (errno != ENOENT) {
@@ -94,7 +111,9 @@ int login_access(char *user, char *from)
 /* list_match - match an item against a list of tokens with exceptions */
 
 static int
-list_match(char *list, char *item, int (*match_fn)(char *, char *))
+list_match(char *list,
+	   struct login_info *item,
+	   int (*match_fn)(char *, struct login_info *))
 {
     char   *tok;
     int     match = NO;
@@ -126,6 +145,19 @@ list_match(char *list, char *item, int (*match_fn)(char *, char *))
     return (NO);
 }
 
+/* myhostname - figure out local machine name */
+
+static char *myhostname(void)
+{
+    static char name[MAXHOSTNAMELEN + 1] = "";
+
+    if (name[0] == 0) {
+	gethostname(name, sizeof(name));
+	name[MAXHOSTNAMELEN] = 0;
+    }
+    return (name);
+}
+
 /* netgroup_match - match group against machine or user */
 
 static int netgroup_match(char *group, char *machine, char *user)
@@ -144,22 +176,32 @@ static int netgroup_match(char *group, char *machine, char *user)
 
 /* user_match - match a username against one token */
 
-static int user_match(char *tok, char *string)
+static int user_match(char *tok, struct login_info *item)
 {
+    char   *string = item->user->pw_name;
+    struct login_info fake_item;
     struct group *group;
     int     i;
+    char   *at;
 
     /*
      * If a token has the magic value "ALL" the match always succeeds.
-     * Otherwise, return YES if the token fully matches the username, or if
-     * the token is a group that contains the username.
+     * Otherwise, return YES if the token fully matches the username, if the
+     * token is a group that contains the username, or if the token is the
+     * name of the user's primary group.
      */
 
-    if (tok[0] == '@') {			/* netgroup */
+    if ((at = strchr(tok + 1, '@')) != 0) {	/* split user@host pattern */
+	*at = 0;
+	fake_item.from = myhostname();
+	return (user_match(tok, item) && from_match(at + 1, &fake_item));
+    } else if (tok[0] == '@') {			/* netgroup */
 	return (netgroup_match(tok + 1, (char *) 0, string));
     } else if (string_match(tok, string)) {	/* ALL or exact match */
 	return (YES);
     } else if ((group = getgrnam(tok)) != 0) { /* try group membership */
+	if (item->user->pw_gid == group->gr_gid)
+	    return (YES);
 	for (i = 0; group->gr_mem[i]; i++)
 	    if (strcasecmp(string, group->gr_mem[i]) == 0)
 		return (YES);
@@ -169,8 +211,9 @@ static int user_match(char *tok, char *string)
 
 /* from_match - match a host or tty against a list of tokens */
 
-static int from_match(char *tok, char *string)
+static int from_match(char *tok, struct login_info *item)
 {
+    char   *string = item->from;
     int     tok_len;
     int     str_len;
 

@@ -1,4 +1,4 @@
-.\" $Id: kadmind.8,v 1.4 1997/04/02 21:09:53 assar Exp $
+.\" $Id: kadmind.8,v 1.5 1998/06/13 00:30:08 assar Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -23,6 +23,8 @@ kadmind \- network daemon for Kerberos database administration
 .B \-d dbname
 ] [
 .B \-a acldir
+] [
+.B \-i address
 ]
 .SH DESCRIPTION
 .I kadmind
@@ -76,6 +78,13 @@ option is specified,
 .I kadmind
 prints out a short summary of the permissible control arguments, and
 then exits.
+.PP
+If the
+.B \-i
+option is specified,
+.I kadmind
+will only listen on that particular address and not on all configured
+addresses of the host, which is the default.
 .PP
 When performing requests on behalf of clients,
 .I kadmind

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: k_getpwnam.c,v 1.6 1997/04/01 08:19:03 joda Exp $");
+RCSID("$Id: k_getpwnam.c,v 1.7 1998/11/22 09:23:18 assar Exp $");
 #endif /* HAVE_CONFIG_H */
 
 #include "roken.h"
@@ -52,7 +52,7 @@ k_getpwnam (char *user)
      struct passwd *p;
 
      p = getpwnam (user);
-#ifdef HAVE_GETSPNAM
+#if defined(HAVE_GETSPNAM) && defined(HAVE_STRUCT_SPWD)
      if(p)
      {
 	  struct spwd *spwd;

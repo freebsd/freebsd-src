@@ -10,7 +10,7 @@
 
 #include "kuser_locl.h"
 
-#if defined(HAVE_SYS_IOCTL_H) && SunOS != 4
+#if defined(HAVE_SYS_IOCTL_H) && SunOS != 40
 #include <sys/ioctl.h>
 #endif
 
@@ -20,7 +20,9 @@
 
 #include <kafs.h>
 
-RCSID("$Id: klist.c,v 1.28 1997/05/26 17:33:50 bg Exp $");
+#include <parse_time.h>
+
+RCSID("$Id: klist.c,v 1.41.2.1 1999/07/22 03:15:12 assar Exp $");
 
 static int option_verbose = 0;
 
@@ -36,7 +38,23 @@ short_date(int32_t dp)
     return (cp);
 }
 
+/* prints the approximate kdc time differential as something human
+   readable */
+
 static void
+print_time_diff(void)
+{
+    int d = abs(krb_get_kdc_time_diff());
+    char buf[80];
+
+    if ((option_verbose && d > 0) || d > 60) {
+	unparse_time_approx (d, buf, sizeof(buf));
+	printf ("Time diff:\t%s\n", buf);
+    }
+}
+
+static
+int
 display_tktfile(char *file, int tgt_test, int long_form)
 {
     krb_principal pr;
@@ -65,7 +83,7 @@ display_tktfile(char *file, int tgt_test, int long_form)
     if ((k_errno = tf_init(file, R_TKT_FIL))) {
 	if (!tgt_test)
 	    warnx("%s", krb_get_err_text(k_errno));
-	exit(1);
+	return 1;
     }
     /* Close ticket file */
     tf_close();
@@ -80,21 +98,21 @@ display_tktfile(char *file, int tgt_test, int long_form)
 	if (!tgt_test)
 	    warnx("can't find realm of ticket file: %s", 
 		  krb_get_err_text(k_errno));
-	exit(1);
+	return 1;
     }
 
     /* Open ticket file */
     if ((k_errno = tf_init(file, R_TKT_FIL))) {
 	if (!tgt_test)
 	    warnx("%s", krb_get_err_text(k_errno));
-	exit(1);
+	return 1;
     }
     /* Get principal name and instance */
     if ((k_errno = tf_get_pname(pr.name)) ||
 	(k_errno = tf_get_pinst(pr.instance))) {
 	if (!tgt_test)
 	    warnx("%s", krb_get_err_text(k_errno));
-	exit(1);
+	return 1;
     }
 
     /* 
@@ -104,8 +122,11 @@ display_tktfile(char *file, int tgt_test, int long_form)
      * it was done before tf_init.
      */
        
-    if (!tgt_test && long_form)
-	printf("Principal:\t%s\n\n", krb_unparse_name(&pr));
+    if (!tgt_test && long_form) {
+	printf("Principal:\t%s\n", krb_unparse_name(&pr));
+	print_time_diff();
+	printf("\n");
+    }
     while ((k_errno = tf_get_cred(&c)) == KSUCCESS) {
 	if (!tgt_test && long_form && header) {
 	    printf("%-15s  %-15s  %s%s\n",
@@ -118,19 +139,27 @@ display_tktfile(char *file, int tgt_test, int long_form)
 	    if (!strcmp(c.service, KRB_TICKET_GRANTING_TICKET) &&
 		!strcmp(c.instance, pr.realm)) {
 		if (time(0) < c.issue_date)
-		    exit(0);		/* tgt hasn't expired */
+		    return 0;		/* tgt hasn't expired */
 		else
-		    exit(1);		/* has expired */
+		    return 1;		/* has expired */
 	    }
 	    continue;			/* not a tgt */
 	}
 	if (long_form) {
-	    strcpy(buf1, short_date(c.issue_date));
+	    struct timeval tv;
+	    strcpy_truncate(buf1,
+			    short_date(c.issue_date),
+			    sizeof(buf1));
 	    c.issue_date = krb_life_to_time(c.issue_date, c.lifetime);
-	    if (time(0) < (unsigned long) c.issue_date)
-	        strcpy(buf2, short_date(c.issue_date));
+	    krb_kdctimeofday(&tv);
+	    if (option_verbose || tv.tv_sec < (unsigned long) c.issue_date)
+	        strcpy_truncate(buf2,
+				short_date(c.issue_date),
+				sizeof(buf2));
 	    else
-	        strcpy(buf2, ">>> Expired <<<");
+	        strcpy_truncate(buf2,
+				">>> Expired <<<",
+				sizeof(buf2));
 	    printf("%s  %s  ", buf1, buf2);
 	}
 	printf("%s", krb_unparse_name_long(c.service, c.instance, c.realm));
@@ -139,10 +168,11 @@ display_tktfile(char *file, int tgt_test, int long_form)
 	printf("\n");
     }
     if (tgt_test)
-	exit(1);			/* no tgt found */
+	return 1;			/* no tgt found */
     if (header && long_form && k_errno == EOF) {
 	printf("No tickets in file.\n");
     }
+    return 0;
 }
 
 /* adapted from getst() in librkb */
@@ -173,13 +203,11 @@ ok_getst(int fd, char *s, int n)
 }
 
 static void
-display_tokens()
+display_tokens(void)
 {
     u_int32_t i;
     unsigned char t[128];
     struct ViceIoctl parms;
-    struct ClearToken ct;
-    int size_secret_tok, size_public_tok;
 
     parms.in = (void *)&i;
     parms.in_size = sizeof(i);
@@ -187,14 +215,33 @@ display_tokens()
     parms.out_size = sizeof(t);
 
     for (i = 0; k_pioctl(NULL, VIOCGETTOK, &parms, 0) == 0; i++) {
-        char *cell;
-	memcpy(&size_secret_tok, t, 4);
-	memcpy(&size_public_tok, t + 4 + size_secret_tok, 4);
-	memcpy(&ct, t + 4 + size_secret_tok + 4, size_public_tok);
-	cell = t + 4 + size_secret_tok + 4 + size_public_tok + 4;
+        int32_t size_secret_tok, size_public_tok;
+        const char *cell;
+	struct ClearToken ct;
+	const unsigned char *r = t;
+	struct timeval tv;
+	char buf1[20], buf2[20];
 
-	printf("%-15s  ", short_date(ct.BeginTimestamp));
-	printf("%-15s  ", short_date(ct.EndTimestamp));
+	memcpy(&size_secret_tok, r, sizeof(size_secret_tok));
+	/* dont bother about the secret token */
+	r += size_secret_tok + sizeof(size_secret_tok);
+	memcpy(&size_public_tok, r, sizeof(size_public_tok));
+	r += sizeof(size_public_tok);
+	memcpy(&ct, r, size_public_tok);
+	r += size_public_tok;
+	/* there is a int32_t with length of cellname, but we dont read it */
+	r += sizeof(int32_t);
+	cell = (const char *)r;
+
+	krb_kdctimeofday (&tv);
+	strcpy_truncate (buf1, short_date(ct.BeginTimestamp), sizeof(buf1));
+	if (option_verbose || tv.tv_sec < ct.EndTimestamp)
+	    strcpy_truncate (buf2, short_date(ct.EndTimestamp), sizeof(buf2));
+	else
+	    strcpy_truncate (buf2, ">>> Expired <<<", sizeof(buf2));
+
+	printf("%s  %s  ", buf1, buf2);
+
 	if ((ct.EndTimestamp - ct.BeginTimestamp) & 1)
 	  printf("User's (AFS ID %d) tokens for %s", ct.ViceId, cell);
 	else
@@ -262,6 +309,7 @@ main(int argc, char **argv)
     int     do_srvtab = 0;
     int     do_tokens = 0;
     char   *tkt_file = NULL;
+    int     eval;
 
     set_progname(argv[0]);
 
@@ -304,11 +352,14 @@ main(int argc, char **argv)
 	usage();
     }
 
+    eval = 0;
     if (do_srvtab)
 	display_srvtab(tkt_file);
     else
-	display_tktfile(tkt_file, tgt_test, long_form);
-    if (long_form && do_tokens)
+	eval = display_tktfile(tkt_file, tgt_test, long_form);
+    if (long_form && do_tokens){
+	printf("\nAFS tokens:\n");
 	display_tokens();
-    exit(0);
+    }
+    exit(eval);
 }

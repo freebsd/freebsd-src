@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -46,12 +46,12 @@
 
 #include "kauth.h"
 
-RCSID("$Id: kauth.c,v 1.75 1997/05/02 15:09:24 assar Exp $");
+RCSID("$Id: kauth.c,v 1.92 1999/06/29 21:19:35 bg Exp $");
 
 krb_principal princ;
-static char srvtab[MaxPathLen + 1];
+static char srvtab[MaxPathLen];
 static int lifetime = DEFAULT_TKT_LIFE;
-static char remote_tktfile[MaxPathLen + 1];
+static char remote_tktfile[MaxPathLen];
 static char remoteuser[100];
 static char *cell = 0;
 
@@ -59,41 +59,31 @@ static void
 usage(void)
 {
     fprintf(stderr,
-	    "Usage: %s [-n <name>] [-r remoteuser] [-t remote ticketfile]"
-	    "[-l lifetime (in minutes) ] [-h hosts... ]"
-	    "[-f srvtab ] [-c AFS cell name ] [command ... ]\n",
+	    "Usage: %s -n <name> [-r remoteuser] [-t remote ticketfile] "
+	    "[-l lifetime (in minutes) ] [-f srvtab ] "
+	    "[-c AFS cell name ] [-h hosts... [--]] [command ... ]\n",
 	    __progname);
     fprintf(stderr, "\nA fully qualified name can be given user[.instance][@realm]\nRealm is converted to uppercase!\n");
     exit(1);
 }
 
-static void
+#define EX_NOEXEC	126
+#define EX_NOTFOUND	127
+
+static int
 doexec(int argc, char **argv)
 {
-    int status;
-    pid_t ret;
-
-    switch (fork()) {
-    case -1:
-	err (1, "fork");
-	break;
-    case 0:
-	/* in child */
-	execvp(argv[0], argv);
-	err (1, "Can't exec program ``%s''", argv[0]);
-	break;
-    default:
-	/* in parent */
-	do {
-	    ret = wait(&status);
-	} while ((ret > 0 && !WIFEXITED(status)) || (ret < 0 && errno == EINTR));
-	if (ret < 0)
-	    perror("wait");
-	dest_tkt();
-	if (k_hasafs())
-	    k_unlog();	 
-	break;
-    }
+    int ret = simple_execvp(argv[0], argv);
+    if(ret == -2)
+	warn ("fork");
+    if(ret == -3)
+	warn("waitpid");
+    if(ret < 0)
+	return EX_NOEXEC;
+    if(ret == EX_NOEXEC || ret == EX_NOTFOUND)
+	warnx("Can't exec program ``%s''", argv[0]);
+	
+    return ret;
 }
 
 static RETSIGTYPE
@@ -110,7 +100,7 @@ renew(int sig)
 	warnx ("%s", krb_get_err_text(code));
     else if (k_hasafs())
 	{
-	    if ((code = k_afsklog(cell, NULL)) != 0 && code != KDC_PR_UNKNOWN) {
+	    if ((code = krb_afslog(cell, NULL)) != 0 && code != KDC_PR_UNKNOWN) {
 		warnx ("%s", krb_get_err_text(code));
 	    }
 	}
@@ -139,7 +129,10 @@ zrefresh(void)
 }
 
 static int
-key_to_key(char *user, char *instance, char *realm, void *arg,
+key_to_key(const char *user,
+	   char *instance,
+	   const char *realm,
+	   const void *arg,
 	   des_cblock *key)
 {
     memcpy(key, arg, sizeof(des_cblock));
@@ -154,6 +147,7 @@ main(int argc, char **argv)
     int c;
     char *file;
     int pflag = 0;
+    int version_flag = 0;
     char passwd[100];
     des_cblock key;
     char **host;
@@ -169,17 +163,31 @@ main(int argc, char **argv)
     memset(srvtab, 0, sizeof(srvtab));
     *remoteuser = '\0';
     nhost = 0;
+    host = NULL;
   
-    while ((c = getopt(argc, argv, "r:t:f:hl:n:c:")) != EOF)
+    /* Look for kerberos name */
+    if (argc > 1 &&
+	argv[1][0] != '-' &&
+	krb_parse_name(argv[1], &princ) == 0)
+      {
+	argc--; argv++;
+	strupr(princ.realm);
+      }
+
+    while ((c = getopt(argc, argv, "r:t:f:hdl:n:c:v")) != EOF)
 	switch (c) {
+	case 'd':
+	    krb_enable_debug();
+	    _kafs_debug = 1;
+	    break;
 	case 'f':
-	    strncpy(srvtab, optarg, sizeof(srvtab));
+	    strcpy_truncate(srvtab, optarg, sizeof(srvtab));
 	    break;
 	case 't':
-	    strncpy(remote_tktfile, optarg, sizeof(remote_tktfile));
+	    strcpy_truncate(remote_tktfile, optarg, sizeof(remote_tktfile));
 	    break;
 	case 'r':
-	    strncpy(remoteuser, optarg, sizeof(remoteuser));
+	    strcpy_truncate(remoteuser, optarg, sizeof(remoteuser));
 	    break;
 	case 'l':
 	    lifetime = atoi(optarg);
@@ -208,31 +216,38 @@ main(int argc, char **argv)
 	    for(nhost = 0; optind < argc && *argv[optind] != '-'; ++optind)
 		++nhost;
 	    break;
+	case 'v':
+	    version_flag++;
+	    print_version(NULL);
+	    break;
 	case '?':
 	default:
 	    usage();
 	    break;
 	}
   
-    /* Look for kerberos name */
-    if (!pflag && optind < argc && krb_parse_name(argv[optind], &princ) == 0) {
-	++optind;	 
-	strupr(princ.realm);
+    if(version_flag) {
+	print_version(NULL);
+	exit(0);
     }
-
     if (princ.name[0] == '\0' && krb_get_default_principal (princ.name, 
 							    princ.instance, 
 							    princ.realm) < 0)
 	errx (1, "Could not get default principal");
   
-    if (*remoteuser == '\0')
-	strcpy (remoteuser, princ.name);
+    /* With root tickets assume remote user is root */
+    if (*remoteuser == '\0') {
+      if (strcmp(princ.instance, "root") == 0)
+	strcpy_truncate(remoteuser, princ.instance, sizeof(remoteuser));
+      else
+	strcpy_truncate(remoteuser, princ.name, sizeof(remoteuser));
+    }
 
     more_args = argc - optind;
   
     if (princ.realm[0] == '\0')
 	if (krb_get_lrealm(princ.realm, 1) != KSUCCESS)
-	    strcpy(princ.realm, KRB_REALM);
+	    strcpy_truncate(princ.realm, KRB_REALM, REALM_SZ);
   
     if (more_args) {
 	int f;
@@ -271,18 +286,10 @@ main(int argc, char **argv)
 	    memset(passwd, 0, sizeof(passwd));
 	    exit(1);
 	}
-	des_string_to_key (passwd, &key);
-	code = krb_get_in_tkt (princ.name, princ.instance, princ.realm,
-			       KRB_TICKET_GRANTING_TICKET,
-			       princ.realm, lifetime,
-			       key_to_key, NULL, key);
-	if(code == INTK_BADPW) {
-	    afs_string_to_key (passwd, princ.realm, &key);
-	    code = krb_get_in_tkt (princ.name, princ.instance, princ.realm,
-				   KRB_TICKET_GRANTING_TICKET,
-				   princ.realm, lifetime,
-				   key_to_key, NULL, key);
-	}
+	code = krb_get_pw_in_tkt2(princ.name, princ.instance, princ.realm, 
+				  KRB_TICKET_GRANTING_TICKET, princ.realm, 
+				  lifetime, passwd, &key);
+	
 	memset(passwd, 0, sizeof(passwd));
     }
     if (code) {
@@ -293,8 +300,12 @@ main(int argc, char **argv)
     if (k_hasafs()) {
 	if (more_args)
 	    k_setpag();
-	if ((code = k_afsklog(cell, NULL)) != 0 && code != KDC_PR_UNKNOWN)
-	    warnx ("%s", krb_get_err_text(code));
+	if ((code = krb_afslog(cell, NULL)) != 0 && code != KDC_PR_UNKNOWN) {
+	    if(code > 0)
+		warnx ("%s", krb_get_err_text(code));
+	    else
+		warnx ("failed to store AFS token");
+	}
     }
 
     for(ret = 0; nhost-- > 0; host++)
@@ -303,10 +314,14 @@ main(int argc, char **argv)
     if (ret)
 	return ret;
 
-    if (more_args)
-	doexec(more_args, &argv[optind]);
+    if (more_args) {
+	ret = doexec(more_args, &argv[optind]);
+	dest_tkt();
+	if (k_hasafs())
+	    k_unlog();	 
+    }
     else
 	zrefresh();
   
-    return 0;
+    return ret;
 }

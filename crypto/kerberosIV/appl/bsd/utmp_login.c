@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995-1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,8 +38,9 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: utmp_login.c,v 1.13 1997/05/20 13:46:21 assar Exp $");
+RCSID("$Id: utmp_login.c,v 1.15 1999/03/29 17:57:16 joda Exp $");
 
+#ifdef HAVE_UTMP_H
 void
 prepare_utmp (struct utmp *utmp, char *tty, char *username, char *hostname)
 {
@@ -50,11 +51,11 @@ prepare_utmp (struct utmp *utmp, char *tty, char *username, char *hostname)
     strncpy(utmp->ut_line, ttyx, sizeof(utmp->ut_line));
     strncpy(utmp->ut_name, username, sizeof(utmp->ut_name));
 
-# ifdef HAVE_UT_USER
+# ifdef HAVE_STRUCT_UTMP_UT_USER
     strncpy(utmp->ut_user, username, sizeof(utmp->ut_user));
 # endif
 
-# ifdef HAVE_UT_ADDR
+# ifdef HAVE_STRUCT_UTMP_UT_ADDR
     if (hostname[0]) {
         struct hostent *he;
 	if ((he = gethostbyname(hostname)))
@@ -63,22 +64,23 @@ prepare_utmp (struct utmp *utmp, char *tty, char *username, char *hostname)
     }
 # endif
 
-# ifdef HAVE_UT_HOST
+# ifdef HAVE_STRUCT_UTMP_UT_HOST
     strncpy(utmp->ut_host, hostname, sizeof(utmp->ut_host));
 # endif
 
-# ifdef HAVE_UT_TYPE
+# ifdef HAVE_STRUCT_UTMP_UT_TYPE
     utmp->ut_type = USER_PROCESS;
 # endif
 
-# ifdef HAVE_UT_PID
+# ifdef HAVE_STRUCT_UTMP_UT_PID
     utmp->ut_pid = getpid();
 # endif
 
-# ifdef HAVE_UT_ID
+# ifdef HAVE_STRUCT_UTMP_UT_ID
     strncpy(utmp->ut_id, make_id(ttyx), sizeof(utmp->ut_id));
 # endif
 }
+#endif
 
 #ifdef HAVE_UTMPX_H
 void utmp_login(char *tty, char *username, char *hostname) { return; }

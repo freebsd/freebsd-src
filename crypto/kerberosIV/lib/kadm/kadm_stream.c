@@ -37,23 +37,23 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: kadm_stream.c,v 1.11 1997/05/02 10:28:05 joda Exp $");
+RCSID("$Id: kadm_stream.c,v 1.13 1998/10/22 15:38:01 joda Exp $");
 
 static int
-build_field_header(u_char *cont, u_char **st)
-             			/* container for fields data */
-            			/* stream */
+build_field_header(u_char *cont, /* container for fields data */
+		   u_char **st)	/* stream */
 {
-  *st = (u_char *) malloc (4);
+  *st = malloc (4);
+  if (*st == NULL)
+      return -1;
   memcpy(*st, cont, 4);
   return 4;			/* return pointer to current stream location */
 }
 
 static int
-check_field_header(u_char *st, u_char *cont, int maxlen)
-           			/* stream */
-             			/* container for fields data */
-           
+check_field_header(u_char *st,	/* stream */
+		   u_char *cont, /* container for fields data */
+		   int maxlen)
 {
   if (4 > maxlen)
       return(-1);
@@ -62,28 +62,31 @@ check_field_header(u_char *st, u_char *cont, int maxlen)
 }
 
 int
-vts_string(char *dat, u_char **st, int loc)
-          			/* a string to put on the stream */
-            			/* base pointer to the stream */
-        			/* offset into the stream for current data */
+vts_string(char *dat,		/* a string to put on the stream */
+	   u_char **st,		/* base pointer to the stream */
+	   int loc)		/* offset into the stream for current data */
 {
-  *st = (u_char *) realloc (*st, (unsigned) (loc + strlen(dat) + 1));
-  memcpy(*st + loc, dat, strlen(dat)+1);
+  void *tmp;
+
+  tmp = realloc(*st, loc + strlen(dat) + 1);
+  if(tmp == NULL)
+    return -1;
+  memcpy((char *)tmp + loc, dat, strlen(dat)+1);
+  *st = tmp;
   return strlen(dat)+1;
 }
 
 
 static int
-vts_short(u_int16_t dat, u_char **st, int loc)
-            			/* the attributes field */
-            			/* a base pointer to the stream */
-        			/* offset into the stream for current data */
+vts_short(u_int16_t dat,	/* the attributes field */
+	  u_char **st,		/* a base pointer to the stream */
+	  int loc)		/* offset into the stream for current data */
 {
     unsigned char *p;
+
     p = realloc(*st, loc + 2);
-    if(p == NULL){
-	abort();
-    }
+    if(p == NULL)
+	return -1;
     p[loc] = (dat >> 8) & 0xff;
     p[loc+1] = dat & 0xff;
     *st = p;
@@ -91,30 +94,31 @@ vts_short(u_int16_t dat, u_char **st, int loc)
 }
 
 static int
-vts_char(u_char dat, u_char **st, int loc)
-           			/* the attributes field */
-            			/* a base pointer to the stream */
-        			/* offset into the stream for current data */
+vts_char(u_char dat,		/* the attributes field */
+	 u_char **st,		/* a base pointer to the stream */
+	 int loc)		/* offset into the stream for current data */
 {
-    unsigned char *p = realloc(*st, loc + 1);
-    if(p == NULL){
-	abort();
-    }
+    unsigned char *p;
+
+    p = realloc(*st, loc + 1);
+
+    if(p == NULL)
+	return -1;
     p[loc] = dat;
     *st = p;
     return 1;
 }
 
 int
-vts_long(u_int32_t dat, u_char **st, int loc)
-           			/* the attributes field */
-            			/* a base pointer to the stream */
-        			/* offset into the stream for current data */
+vts_long(u_int32_t dat,		/* the attributes field */
+	 u_char **st,		/* a base pointer to the stream */
+	 int loc)		/* offset into the stream for current data */
 {
-    unsigned char *p = realloc(*st, loc + 4);
-    if(p == NULL){
-	abort();
-    }
+    unsigned char *p;
+
+    p = realloc(*st, loc + 4);
+    if(p == NULL)
+	return -1;
     p[loc] = (dat >> 24) & 0xff;
     p[loc+1] = (dat >> 16) & 0xff;
     p[loc+2] = (dat >> 8) & 0xff;
@@ -131,25 +135,28 @@ stv_string(u_char *st,		/* base pointer to the stream */
 	   int maxlen)		/* max length of input stream */
 {
   int maxcount;				/* max count of chars to copy */
+  int len;
 
   maxcount = min(maxlen - loc, stlen);
 
   if(maxcount <= 0)
       return -1;
 
-  strncpy(dat, (char *)st + loc, maxcount);
+  len = strnlen ((char *)st + loc, maxlen - loc);
 
-  if (dat[maxcount-1]) /* not null-term --> not enuf room */
-      return(-1);
-  return strlen(dat)+1;
+  if (len >= stlen)
+      return -1;
+
+  memcpy(dat, st + loc, len);
+  dat[len] = '\0';
+  return len + 1;
 }
 
 static int
-stv_short(u_char *st, u_int16_t *dat, int loc, int maxlen)
-           			/* a base pointer to the stream */
-             			/* the attributes field */
-        			/* offset into the stream for current data */
-           
+stv_short(u_char *st,		/* a base pointer to the stream */
+	  u_int16_t *dat,	/* the attributes field */
+	  int loc,		/* offset into the stream for current data */
+	  int maxlen)
 {
   if (maxlen - loc < 2)
       return -1;
@@ -159,11 +166,10 @@ stv_short(u_char *st, u_int16_t *dat, int loc, int maxlen)
 }
 
 int
-stv_long(u_char *st, u_int32_t *dat, int loc, int maxlen)
-           			/* a base pointer to the stream */
-            			/* the attributes field */
-        			/* offset into the stream for current data */
-           			/* maximum length of st */
+stv_long(u_char *st,		/* a base pointer to the stream */
+	 u_int32_t *dat,	/* the attributes field */
+	 int loc,		/* offset into the stream for current data */
+	 int maxlen)		/* maximum length of st */
 {
   if (maxlen - loc < 4)
       return -1;
@@ -173,11 +179,10 @@ stv_long(u_char *st, u_int32_t *dat, int loc, int maxlen)
 }
     
 static int
-stv_char(u_char *st, u_char *dat, int loc, int maxlen)
-           			/* a base pointer to the stream */
-            			/* the attributes field */
-        			/* offset into the stream for current data */
-           
+stv_char(u_char *st,		/* a base pointer to the stream */
+	 u_char *dat,		/* the attributes field */
+	 int loc,		/* offset into the stream for current data */
+	 int maxlen)
 {
   if (maxlen - loc < 1)
       return -1;
@@ -199,32 +204,56 @@ vals_to_stream(Kadm_vals *dt_in, u_char **dt_out)
   int vsloop, stsize;		/* loop counter, stream size */
 
   stsize = build_field_header(dt_in->fields, dt_out);
+  if (stsize < 0)
+      return stsize;
   for (vsloop=31; vsloop>=0; vsloop--)
     if (IS_FIELD(vsloop,dt_in->fields)) {
+      int tmp = 0;
+
       switch (vsloop) {
       case KADM_NAME:
-	  stsize+=vts_string(dt_in->name, dt_out, stsize);
+	  tmp = vts_string(dt_in->name, dt_out, stsize);
 	  break;
       case KADM_INST:
-	  stsize+=vts_string(dt_in->instance, dt_out, stsize);
+	  tmp = vts_string(dt_in->instance, dt_out, stsize);
 	  break;
       case KADM_EXPDATE:
-	  stsize+=vts_long(dt_in->exp_date, dt_out, stsize);
+	  tmp = vts_long(dt_in->exp_date, dt_out, stsize);
 	  break;
       case KADM_ATTR:
-	  stsize+=vts_short(dt_in->attributes, dt_out, stsize);
+	  tmp = vts_short(dt_in->attributes, dt_out, stsize);
 	  break;
       case KADM_MAXLIFE:
-	  stsize+=vts_char(dt_in->max_life, dt_out, stsize);
+	  tmp = vts_char(dt_in->max_life, dt_out, stsize);
 	  break;
       case KADM_DESKEY: 
-	  stsize+=vts_long(dt_in->key_high, dt_out, stsize); 
-	  stsize+=vts_long(dt_in->key_low, dt_out, stsize); 
+	  tmp = vts_long(dt_in->key_high, dt_out, stsize);
+	  if(tmp > 0)
+	      tmp += vts_long(dt_in->key_low, dt_out, stsize + tmp);
 	  break;
+#ifdef EXTENDED_KADM
+      case KADM_MODDATE:
+	  tmp = vts_long(dt_in->mod_date, dt_out, stsize);
+	  break;
+      case KADM_MODNAME:
+	  tmp = vts_string(dt_in->mod_name, dt_out, stsize);
+	  break;
+      case KADM_MODINST:
+	  tmp = vts_string(dt_in->mod_instance, dt_out, stsize);
+	  break;
+      case KADM_KVNO:
+	  tmp = vts_char(dt_in->key_version, dt_out, stsize);
+	  break;
+#endif
       default:
 	  break;
       }
-}
+      if (tmp < 0) {
+	  free(*dt_out);
+	  return tmp;
+      }
+      stsize += tmp;
+    }
   return(stsize);
 }  
 
@@ -236,64 +265,89 @@ stream_to_vals
 this decodes a byte stream represntation of a vals struct into kadm_vals
 */
 int
-stream_to_vals(u_char *dt_in, Kadm_vals *dt_out, int maxlen)
-              
-                  
-           				/* max length to use */
+stream_to_vals(u_char *dt_in,
+	       Kadm_vals *dt_out,
+	       int maxlen)	/* max length to use */
 {
-  int vsloop, stsize;		/* loop counter, stream size */
-  int status;
+    int vsloop, stsize;		/* loop counter, stream size */
+    int status;
 
-  memset(dt_out, 0, sizeof(*dt_out));
+    memset(dt_out, 0, sizeof(*dt_out));
 
-  stsize = check_field_header(dt_in, dt_out->fields, maxlen);
-  if (stsize < 0)
-      return(-1);
-  for (vsloop=31; vsloop>=0; vsloop--)
-    if (IS_FIELD(vsloop,dt_out->fields))
-      switch (vsloop) {
-      case KADM_NAME:
-	  if ((status = stv_string(dt_in, dt_out->name, stsize,
-				   sizeof(dt_out->name), maxlen)) < 0)
-	      return(-1);
-	  stsize += status;
-	  break;
-      case KADM_INST:
-	  if ((status = stv_string(dt_in, dt_out->instance, stsize,
-				   sizeof(dt_out->instance), maxlen)) < 0)
-	      return(-1);
-	  stsize += status;
-	  break;
-      case KADM_EXPDATE:
-	  if ((status = stv_long(dt_in, &dt_out->exp_date, stsize,
-				 maxlen)) < 0)
-	      return(-1);
-	  stsize += status;
-	  break;
-      case KADM_ATTR:
-	  if ((status = stv_short(dt_in, &dt_out->attributes, stsize,
-				  maxlen)) < 0)
-	      return(-1);
-	  stsize += status;
-	  break;
-      case KADM_MAXLIFE:
-	  if ((status = stv_char(dt_in, &dt_out->max_life, stsize,
-				 maxlen)) < 0)
-	      return(-1);
-	  stsize += status;
-	  break;
-      case KADM_DESKEY:
-	  if ((status = stv_long(dt_in, &dt_out->key_high, stsize,
-				    maxlen)) < 0)
-	      return(-1);
-	  stsize += status;
-	  if ((status = stv_long(dt_in, &dt_out->key_low, stsize,
-				    maxlen)) < 0)
-	      return(-1);
-	  stsize += status;
-	  break;
-      default:
-	  break;
-      }
-  return stsize;
+    stsize = check_field_header(dt_in, dt_out->fields, maxlen);
+    if (stsize < 0)
+	return(-1);
+    for (vsloop=31; vsloop>=0; vsloop--)
+	if (IS_FIELD(vsloop,dt_out->fields))
+	    switch (vsloop) {
+	    case KADM_NAME:
+		if ((status = stv_string(dt_in, dt_out->name, stsize,
+					 sizeof(dt_out->name), maxlen)) < 0)
+		    return(-1);
+		stsize += status;
+		break;
+	    case KADM_INST:
+		if ((status = stv_string(dt_in, dt_out->instance, stsize,
+					 sizeof(dt_out->instance), maxlen)) < 0)
+		    return(-1);
+		stsize += status;
+		break;
+	    case KADM_EXPDATE:
+		if ((status = stv_long(dt_in, &dt_out->exp_date, stsize,
+				       maxlen)) < 0)
+		    return(-1);
+		stsize += status;
+		break;
+	    case KADM_ATTR:
+		if ((status = stv_short(dt_in, &dt_out->attributes, stsize,
+					maxlen)) < 0)
+		    return(-1);
+		stsize += status;
+		break;
+	    case KADM_MAXLIFE:
+		if ((status = stv_char(dt_in, &dt_out->max_life, stsize,
+				       maxlen)) < 0)
+		    return(-1);
+		stsize += status;
+		break;
+	    case KADM_DESKEY:
+		if ((status = stv_long(dt_in, &dt_out->key_high, stsize,
+				       maxlen)) < 0)
+		    return(-1);
+		stsize += status;
+		if ((status = stv_long(dt_in, &dt_out->key_low, stsize,
+				       maxlen)) < 0)
+		    return(-1);
+		stsize += status;
+		break;
+#ifdef EXTENDED_KADM
+	    case KADM_MODDATE:
+		if ((status = stv_long(dt_in, &dt_out->mod_date, stsize,
+				       maxlen)) < 0)
+		    return(-1);
+		stsize += status;
+		break;
+	    case KADM_MODNAME:
+		if ((status = stv_string(dt_in, dt_out->mod_name, stsize,
+					 sizeof(dt_out->mod_name), maxlen)) < 0)
+		    return(-1);
+		stsize += status;
+		break;
+	    case KADM_MODINST:
+		if ((status = stv_string(dt_in, dt_out->mod_instance, stsize,
+					 sizeof(dt_out->mod_instance), maxlen)) < 0)
+		    return(-1);
+		stsize += status;
+		break;
+	    case KADM_KVNO:
+		if ((status = stv_char(dt_in, &dt_out->key_version, stsize,
+				       maxlen)) < 0)
+		    return(-1);
+		stsize += status;
+		break;
+#endif
+	    default:
+		break;
+	    }
+    return stsize;
 }  

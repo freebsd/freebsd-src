@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: kdc_reply.c,v 1.9 1997/04/15 21:52:14 assar Exp $");
+RCSID("$Id: kdc_reply.c,v 1.11 1998/06/09 19:25:20 joda Exp $");
 
 static int little_endian; /* XXX ugly */
 
@@ -52,15 +52,15 @@ kdc_reply_cred(KTEXT cip, CREDENTIALS *cred)
     
     if(p + strlen((char*)p) > cip->dat + cip->length)
 	return INTK_BADPW;
-    p += krb_get_string(p, cred->service);
+    p += krb_get_string(p, cred->service, sizeof(cred->service));
     
     if(p + strlen((char*)p) > cip->dat + cip->length)
 	return INTK_BADPW;
-    p += krb_get_string(p, cred->instance);
+    p += krb_get_string(p, cred->instance, sizeof(cred->instance));
     
     if(p + strlen((char*)p) > cip->dat + cip->length)
 	return INTK_BADPW;
-    p += krb_get_string(p, cred->realm);
+    p += krb_get_string(p, cred->realm, sizeof(cred->realm));
     
     if(p + 3 > cip->dat + cip->length)
 	return INTK_BADPW;
@@ -107,11 +107,14 @@ kdc_reply_cipher(KTEXT reply, KTEXT cip)
 
     if(type == AUTH_MSG_ERR_REPLY){
 	u_int32_t code;
+	/* skip these fields */
 	p += strlen((char*)p) + 1; /* name */
 	p += strlen((char*)p) + 1; /* instance */
 	p += strlen((char*)p) + 1; /* realm */
 	p += 4; /* time */
 	p += krb_get_int(p, &code, 4, little_endian);
+	if(code == 0)
+	    code = KFAILURE; /* things will go bad otherwise */
 	return code;
     }
     if(type != AUTH_MSG_KDC_REPLY)

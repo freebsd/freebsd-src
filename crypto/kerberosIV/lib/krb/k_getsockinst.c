@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: k_getsockinst.c,v 1.10 1997/05/02 14:29:17 assar Exp $");
+RCSID("$Id: k_getsockinst.c,v 1.11 1998/06/09 19:25:20 joda Exp $");
 
 /*
  * Return in inst the name of the local interface bound to socket
@@ -61,8 +61,7 @@ k_getsockinst(int fd, char *inst, size_t inst_size)
   if (hnam == 0)
     goto fail;
 
-  strncpy (inst, hnam->h_name, inst_size);
-  inst[inst_size - 1] = '\0';
+  strcpy_truncate (inst, hnam->h_name, inst_size);
   k_ricercar(inst); /* Canonicalize name */
   return 0;			/* Success */
 

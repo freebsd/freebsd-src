@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: get_window_size.c,v 1.4 1997/04/01 08:18:59 joda Exp $");
+RCSID("$Id: get_window_size.c,v 1.8 1998/07/31 09:40:21 bg Exp $");
 #endif
 
 #include <stdlib.h>
@@ -68,29 +68,40 @@ RCSID("$Id: get_window_size.c,v 1.4 1997/04/01 08:18:59 joda Exp $");
 int
 get_window_size(int fd, struct winsize *wp)
 {
+    int ret = -1;
+    
+    memset(wp, 0, sizeof(*wp));
+
 #if defined(TIOCGWINSZ)
-  return ioctl(fd, TIOCGWINSZ, wp);
+    ret = ioctl(fd, TIOCGWINSZ, wp);
 #elif defined(TIOCGSIZE)
-  struct ttysize ts;
-  int error;
-
-  if ((error = ioctl(0, TIOCGSIZE, &ts)) != 0)
-    return (error);
-  wp->ws_row = ts.ts_lines;
-  wp->ws_col = ts.ts_cols;
-  wp->ws_xpixel = 0;
-  wp->ws_ypixel = 0;
-  return 0;
+    {
+	struct ttysize ts;
+	
+	ret = ioctl(fd, TIOCGSIZE, &ts);
+	if(ret == 0) {
+	    wp->ws_row = ts.ts_lines;
+	    wp->ws_col = ts.ts_cols;
+	}
+    }
 #elif defined(HAVE__SCRSIZE)
-  int dst[2];
-
-  _scrsize(dst);
-  wp->ws_row = dst[1];
-  wp->ws_col = dst[0];
-  wp->ws_xpixel = 0;
-  wp->ws_ypixel = 0;
-  return 0;
-#else
-  return -1;
+    {
+	int dst[2];
+	
+	_scrsize(dst);
+	wp->ws_row = dst[1];
+	wp->ws_col = dst[0];
+	ret = 0;
+    }
 #endif
+    if (ret != 0) {
+        char *s;
+        if((s = getenv("COLUMNS")))
+	    wp->ws_col = atoi(s);
+	if((s = getenv("LINES")))
+	    wp->ws_row = atoi(s);
+	if(wp->ws_col > 0 && wp->ws_row > 0)
+	    ret = 0;
+    }
+    return ret;
 }

@@ -38,7 +38,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: inet_aton.c,v 1.10 1997/05/20 19:57:03 bg Exp $");
+RCSID("$Id: inet_aton.c,v 1.11 1997/09/29 14:00:28 assar Exp $");
 #endif
 
 #include "roken.h"
@@ -50,6 +50,13 @@ RCSID("$Id: inet_aton.c,v 1.10 1997/05/20 19:57:03 bg Exp $");
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
+#ifdef HAVE_NETINET_IN6_H
+#include <netinet/in6.h>
+#endif
+#ifdef HAVE_NETINET6_IN6_H
+#include <netinet6/in6.h>
+#endif
+
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
