@@ -314,6 +314,8 @@ setrootbyname(char *name)
 	if (cp != NULL) {
 		name = cp + 1;
 	}
+	if (*name == 'r')
+		name++;
 	cp = name;
 	while (cp != '\0' && (*cp < '0' || *cp > '9'))
 		cp++;
