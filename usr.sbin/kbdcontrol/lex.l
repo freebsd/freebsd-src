@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: lex.l,v 1.6 1998/01/07 08:43:28 yokota Exp $
+ *	$Id: lex.l,v 1.7 1998/08/03 11:33:22 yokota Exp $
  */
 
 %{
@@ -93,6 +93,7 @@ FS|fs		{ number = 28; return TNUM; }
 GS|gs		{ number = 29; return TNUM; }
 RS|rs		{ number = 30; return TNUM; }
 NS|ns		{ number = 31; return TNUM; }
+US|us		{ number = 31; return TNUM; }
 SP|sp		{ number = 32; return TNUM; }
 DEL|del		{ number = 127; return TNUM; }
 
