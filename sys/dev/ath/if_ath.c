@@ -196,6 +196,22 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		error = ENXIO;
 		goto bad;
 	}
+	if (ah->ah_abi != HAL_ABI_VERSION) {
+		if_printf(ifp, "HAL ABI mismatch detected (0x%x != 0x%x)\n",
+			ah->ah_abi, HAL_ABI_VERSION);
+		error = ENXIO;
+		goto bad;
+	}
+	if_printf(ifp, "mac %d.%d phy %d.%d",
+		ah->ah_macVersion, ah->ah_macRev,
+		ah->ah_phyRev >> 4, ah->ah_phyRev & 0xf);
+	if (ah->ah_analog5GhzRev)
+		printf(" 5ghz radio %d.%d",
+			ah->ah_analog5GhzRev >> 4, ah->ah_analog5GhzRev & 0xf);
+	if (ah->ah_analog2GhzRev)
+		printf(" 2ghz radio %d.%d",
+			ah->ah_analog2GhzRev >> 4, ah->ah_analog2GhzRev & 0xf);
+	printf("\n");
 	sc->sc_ah = ah;
 	sc->sc_invalid = 0;	/* ready to go, enable interrupt handling */
 
