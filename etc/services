@@ -7,7 +7,7 @@
 #
 # The latest IANA port assignments can be gotten from
 #
-#	http://www.isi.edu/in-notes/iana/assignments/port-numbers 
+#	http://www.iana.org/assignments/port-numbers
 #
 # The Well Known Ports are those from 0 through 1023.
 # The Registered Ports are those from 1024 through 49151
