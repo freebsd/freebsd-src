@@ -313,7 +313,7 @@ dump_file (p, curdev, toplevel)
 		    }
 		  link_name++;
 		}
-	      if (link_name - lp->name >= NAMSIZ)
+	      if (strlen(link_name) >= NAMSIZ)
 		write_long (link_name, LF_LONGLINK);
 	      current_link_name = link_name;
 
