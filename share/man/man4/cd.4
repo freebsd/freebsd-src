@@ -375,9 +375,9 @@ changer at the same time.
 The scheduler honors minimum and maximum time
 quanta that the driver will spend on a particular LUN.  The minimum time
 is the guaranteed minimum amount of time that the driver will spend on a
-given LUN, even if there is no oustanding I/O for that LUN.  The maximum
+given LUN, even if there is no outstanding I/O for that LUN.  The maximum
 time is the maximum amount of time the changer will spend on a LUN if there
-is oustdanding I/O for another LUN.  If there is no outstanding I/O for
+is outstanding I/O for another LUN.  If there is no outstanding I/O for
 another LUN, the driver will allow indefinite access to a given LUN.
 .Pp
 The minimum and maximum time quanta are configurable via kernel options and
@@ -435,7 +435,7 @@ There is no mechanism currently to set different minimum and maximum
 timeouts for different CD changers; the timeout values set by the kernel
 options or the sysctl variables apply to all LUN-based CD changers in the
 system.  It is possible to implement such support, but the sysctl
-impelmentation at least would be rather inelegant, because of the current
+implementation at least would be rather inelegant, because of the current
 inability of the sysctl code to handle the addition of nodes after compile
 time.  Thus, it would take one dynamically sized sysctl variable and a
 userland utility to get/set the timeout values.  Implementation of separate

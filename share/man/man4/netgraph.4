@@ -243,14 +243,14 @@ implements a
 semantic so that when there is a writer in the node, all other requests
 are queued, and while there are readers, a writer, and any following
 packets are queued. In the case where there is no reason to queue the
-data, the input method is called directly, as mentionned above.
+data, the input method is called directly, as mentioned above.
 .Pp
 A node may declare that all requests should be considered as writers,
 or that requests coming in over a particular hook should be considered to
 be a writer, or even that packets leaving or entering across a particular
 hook should always be queued, rather than delivered directly (often useful
 for interrupt routines who want to get back to the hardware quickly).
-By default, all controll message packets are considered to be writers
+By default, all control message packets are considered to be writers
 unless specifically declared to be a reader in their definition. (see
 NGM_READONLY in ng_message.h)
 .Pp
@@ -365,10 +365,10 @@ Two other methods are also supported by all nodes:
 .Bl -tag -width xxx
 .It Receive data message
 A
-.Em Netgraph queueable reqest item ,
-usually refered to as an
+.Em Netgraph queueable request item ,
+usually referred to as an
 .Em item ,
-is recieved by the function.
+is received by the function.
 The item contains a pointer to an mbuf and metadata about the packet.
 .Pp
 The node is notified on which hook the item arrived,
@@ -382,9 +382,9 @@ Similarly the
 must be freed if it is not to be passed on to another node, by using the
 .Fn NG_FREE_ITEM
 macro. If the item still holds references to mbufs or metadata at the time of
-freeing then they will also be appropriatly freed.
+freeing then they will also be appropriately freed.
 Therefore, if there is any chance that the mbuf or metadata will be
-changed or freed separatly from the item, it is very important
+changed or freed separately from the item, it is very important
 that these fields be retrieved using the
 .Fn NGI_GET_M
 and
@@ -450,7 +450,7 @@ other than it will receive all (and only) packets from that hook.
 This method is called when a control message is addressed to the node.
 As with the received data, an
 .Em item
-is reveived, with a pointer to the control message.
+is received, with a pointer to the control message.
 The message can be examined using the
 .Fn NGI_MSG
 macro, or completely extracted from the item using the
@@ -459,7 +459,7 @@ which also removes the reference within the item.
 If the Item still holds a reference to the message when it is freed
 (using the
 .Fn NG_FREE_ITEM
-macro), then the message will also be freed appropriatly. If the
+macro), then the message will also be freed appropriately. If the
 reference has been removed the node must free the message itself using the
 .Fn NG_FREE_MSG
 macro.
@@ -579,7 +579,7 @@ In each of these cases, where a relative addressing mode is
 used, the recipient is notified of the hook on which the
 message arrived, as well as
 the originating node.
-This allows the option of hop-by-hop distibution of messages and
+This allows the option of hop-by-hop distribution of messages and
 state information.
 Data messages are
 .Em only
@@ -623,7 +623,7 @@ over an ISDN line:
 .Sh Netgraph Structures
 Structures are defined in
 .Pa sys/netgraph/netgraph.h
-(for kernel sructures only of interest to nodes)
+(for kernel structures only of interest to nodes)
 and
 .Pa sys/netgraph/ng_message.h
 (for message definitions also of interest to user programs).
@@ -767,7 +767,7 @@ The
 and
 .Fn NG_HOOK_SET_RCVMSG hook fn
 macros can be used to set over-ride methods that will be used in preference
-to the generic receive data and reveive message functions. To unset these
+to the generic receive data and receive message functions. To unset these
 use the macros to set them to NULL. They will only be used for data and
 messages received on the hook on which they are set.
 .El
@@ -897,7 +897,7 @@ field contains a NUL-terminated
 string version of the message arguments.
 .El
 .Pp
-In general, the arguments field of a control messgage can be any
+In general, the arguments field of a control message can be any
 arbitrary C data type.  Netgraph includes parsing routines to support
 some pre-defined datatypes in
 .Tn ASCII
@@ -1220,13 +1220,13 @@ vpns using the
 .Em PPTP
 node.
 .It PPPOE
-A server and client side implememtation of PPPoE. Used in conjunction with
+A server and client side implementation of PPPoE. Used in conjunction with
 either
 .Xr ppp 8
 or the
 .Em mpd port .
 .It BRIDGE
-This node, togther with the ethernet nodes allows a very flexible
+This node, together with the ethernet nodes allows a very flexible
 bridging system to be implemented.
 .It KSOCKET
 This intriguing node looks like a socket to the system but diverts
@@ -1270,7 +1270,7 @@ are freed by the recipient. As in the case above, the addresses
 associated with the message are freed by whatever allocated them so the
 recipient should copy them if it wants to keep that information.
 .It 4
-Both control mesages and data are delivered and queued with
+Both control messages and data are delivered and queued with
 a netgraph
 .Em item .
 The item must be freed using
