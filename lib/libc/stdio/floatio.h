@@ -52,3 +52,5 @@
 #if LDBL_MAX_EXP > 999999
 #error "floating point buffers too small"
 #endif
+
+char *__ldtoa(long double *, int, int, int *, int *, char **);
