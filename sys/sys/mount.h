@@ -224,12 +224,9 @@ struct mount {
 #define	MNT_RELOAD	0x00040000	/* reload filesystem data */
 #define	MNT_FORCE	0x00080000	/* force unmount or readonly change */
 #define	MNT_SNAPSHOT	0x01000000	/* snapshot the filesystem */
+#define	MNT_BYFSID	0x08000000	/* specify filesystem by ID. */
 #define MNT_CMDFLAGS   (MNT_UPDATE	| MNT_DELEXPORT	| MNT_RELOAD	| \
-			MNT_FORCE	| MNT_SNAPSHOT)
-/*
- * Still available
- */
-#define	MNT_SPARE3	0x08000000
+			MNT_FORCE	| MNT_SNAPSHOT	| MNT_BYFSID)
 /*
  * Internal filesystem control flags stored in mnt_kern_flag.
  *
