@@ -581,51 +581,51 @@ ibwait (int handle, int mask)
 }
 
 int
-ibwrt (int handle, void * buffer, long cnt)
+ibwrt (int handle, const void *buffer, long cnt)
 {
 	struct ibfoo_iocarg io;
 
 	io.__ident = __ID_IBWRT;
 	io.handle = handle;
-	io.buffer = buffer;
+	io.buffer = __DECONST(void *, buffer);
 	io.cnt = cnt;
 	io.__field = __F_HANDLE | __F_BUFFER | __F_CNT;
 	return (__ibsubmit(&io));
 }
 
 int
-ibwrta (int handle, void * buffer, long cnt)
+ibwrta (int handle, const void * buffer, long cnt)
 {
 	struct ibfoo_iocarg io;
 
 	io.__ident = __ID_IBWRTA;
 	io.handle = handle;
-	io.buffer = buffer;
+	io.buffer = __DECONST(void *, buffer);
 	io.cnt = cnt;
 	io.__field = __F_HANDLE | __F_BUFFER | __F_CNT;
 	return (__ibsubmit(&io));
 }
 
 int
-ibwrtf (int handle, char * flname)
+ibwrtf (int handle, const char *flname)
 {
 	struct ibfoo_iocarg io;
 
 	io.__ident = __ID_IBWRTF;
 	io.handle = handle;
-	io.flname = flname;
+	io.flname = __DECONST(void *, flname);
 	io.__field = __F_HANDLE | __F_FLNAME;
 	return (__ibsubmit(&io));
 }
 
 int
-ibwrtkey (int handle, void * buffer, int cnt)
+ibwrtkey (int handle, const void *buffer, int cnt)
 {
 	struct ibfoo_iocarg io;
 
 	io.__ident = __ID_IBWRTKEY;
 	io.handle = handle;
-	io.buffer = buffer;
+	io.buffer = __DECONST(void *, buffer);
 	io.cnt = cnt;
 	io.__field = __F_HANDLE | __F_BUFFER | __F_CNT;
 	return (__ibsubmit(&io));
