@@ -34,11 +34,24 @@
  * Written by Semen Ustimenko.
  *
  * TODO:
- *	Implement FULL IFF_MULTICAST support
- *	Calculate optimal RX and TX rings size
- *	Test, test and test again:)
+ *	Deal with TX threshold (probably we should calculate it depending
+ *	    on processor speed, as did the MS-DOS driver).
+ *	Deal with bus mastering, i.e. i realy don't know what to do with
+ *	    it and how it can improve performance.
+ *	Implement FULL IFF_MULTICAST support.
+ *	Calculate optimal RX and TX rings size.
+ *	Test, test and test again:-)
  *	
  */
+
+/* We should define compile time options before smc83c170.h included */
+/*#define	EPIC_NOIFMEDIA	1*/
+/*#define	EPIC_DEBUG	1*/
+#define	RX_TO_MBUF	1	/* Receive directly to mbuf enstead of */
+				/* static allocated buffer */
+#define	TX_FRAG_LIST	1	/* Transmit directly from mbuf enstead */
+				/* of collecting mbuf's frags to one */
+				/* static allocated place */
 
 #include "pci.h"
 #if NPCI > 0
@@ -51,7 +64,9 @@
 #include <sys/kernel.h>
 #include <sys/sockio.h>
 #include <net/if.h>
+#if defined(SIOCSIFMEDIA) && !defined(EPIC_NOIFMEDIA)
 #include <net/if_media.h>
+#endif
 #include <net/if_mib.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
@@ -125,6 +140,11 @@ epic_ifioctl(register struct ifnet * ifp, int command, caddr_t data){
 		/* Handle IFF_PROMISC flag */
 		epic_set_rx_mode(sc);
 
+#if !defined(_NET_IF_MEDIA_H_)
+		/* Handle IFF_LINKx flags */
+		epic_set_media_speed(sc);
+#endif
+
 		break;
 
 	case SIOCADDMULTI:
@@ -157,10 +177,12 @@ epic_ifioctl(register struct ifnet * ifp, int command, caddr_t data){
 		}
 		break;
 
+#if defined(_NET_IF_MEDIA_H_)
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
 		break;
+#endif
 
 	default:
 		error = EINVAL;
@@ -751,7 +773,9 @@ epic_pci_attach(
 	/* Read current config */
 	i = epic_read_phy_register(iobase, DP83840_BMCR);
 
+#if defined(_NET_IF_MEDIA_H_)
 	media = IFM_ETHER;
+#endif
 
 	if( i & BMCR_AUTONEGOTIATION ){
 		i = epic_read_phy_register( iobase, DP83840_LPAR );
@@ -765,23 +789,39 @@ epic_pci_attach(
 
 		if( i & (ANAR_10_FD|ANAR_100_TX_FD) ) printf("FD");
 
+#if defined(_NET_IF_MEDIA_H_)
 		media |= IFM_AUTO;
+#endif
 	} else {
+#if !defined(_NET_IF_MEDIA_H_)
+		ifp->if_flags |= IFF_LINK0;
+#endif
 		if( i & BMCR_100MBPS ) {
 			printf("100Mbps ");
-			media |= IFM_100_TX;
+#if defined(_NET_IF_MEDIA_H_)
+				media |= IFM_100_TX;
+#else
+				ifp->if_flags |= IFF_LINK2;
+#endif
 		} else {
 			printf("10Mbps ");
-			media |= IFM_10_T;
+#if defined(_NET_IF_MEDIA_H_)
+				media |= IFM_10_T;
+#endif
 		}
 		if( i & BMCR_FULL_DUPLEX ) {
 			printf("FD");
+#if defined(_NET_IF_MEDIA_H_)
 			media |= IFM_FDX;
+#else
+			ifp->if_flags |= IFF_LINK1;
+#endif
 		}
 	}
 
 	printf("\n");
 
+#if defined(SIOCSIFMEDIA) && !defined(EPIC_NOIFMEDIA)
 	/* init ifmedia interface */
 	ifmedia_init(&sc->ifmedia,0,epic_ifmedia_change,epic_ifmedia_status);
 	ifmedia_add(&sc->ifmedia,IFM_ETHER|IFM_10_T,0,NULL);
@@ -790,6 +830,7 @@ epic_pci_attach(
 	ifmedia_add(&sc->ifmedia,IFM_ETHER|IFM_100_TX|IFM_FDX,0,NULL);
 	ifmedia_add(&sc->ifmedia,IFM_ETHER|IFM_AUTO,0,NULL);
 	ifmedia_set(&sc->ifmedia, media);
+#endif
 
 	/* Read MBSR twice to update latched bits */
 	epic_read_phy_register(iobase,DP83840_BMSR);
@@ -816,6 +857,7 @@ epic_pci_attach(
 	return;
 }
 
+#if defined(SIOCSIFMEDIA) && !defined(EPIC_NOIFMEDIA)
 static int
 epic_ifmedia_change __P((
     struct ifnet * ifp))
@@ -852,6 +894,7 @@ epic_ifmedia_status __P((
 	ifmr->ifm_active |= bmcr&BMCR_100MBPS?IFM_100_TX:IFM_10_T;
 	ifmr->ifm_active |= bmcr&BMCR_FULL_DUPLEX?IFM_FDX:0;
 }
+#endif
 
 /*
  * IFINIT function
@@ -859,8 +902,8 @@ epic_ifmedia_status __P((
  * splimp() invoked here
  */
 static int 
-epic_init(
-    epic_softc_t * sc)
+epic_init __P((
+    epic_softc_t * sc))
 {       
 	struct ifnet *ifp = &sc->epic_if;
 	int iobase = sc->iobase;
@@ -966,36 +1009,60 @@ epic_set_rx_mode(
 }
 
 /*
- * This function should set MII to mode specified by IFF_LINK* flags
+ * This function should set MII to mode specified by IFF_LINK* flags or
+ * ifmedia structure.
  */
 static void
 epic_set_media_speed __P((
     epic_softc_t * sc))
 {
+#if defined(_NET_IF_MEDIA_H_)
 	u_int32_t tgtmedia = sc->ifmedia.ifm_cur->ifm_media;
+#else
+	struct ifnet *ifp = &sc->epic_if;
+#endif
 	u_int16_t media;
 	u_int32_t i;
 
 	/* Reset PHY */
 	epic_write_phy_register( sc->iobase, DP83840_BMCR, BMCR_RESET );
-	for(i=0;i<0x100000;i++) if( !(epic_read_phy_register(sc->iobase,DP83840_BMCR)&BMCR_RESET) ) break;
+	for(i=0;i<0x100000;i++)
+		if( !(epic_read_phy_register(sc->iobase,DP83840_BMCR) & BMCR_RESET) )
+			break;
 
 	if( epic_read_phy_register(sc->iobase, DP83840_BMCR) & BMCR_RESET )
 		printf("tx%d: WARNING! cannot reset PHY\n",sc->unit);
 
-	/* Set media speed */           
+	/* Set media speed */
+           
+#if defined(_NET_IF_MEDIA_H_)
 	if( IFM_SUBTYPE(tgtmedia) != IFM_AUTO ){
 		/* Set mode */
 		media = (IFM_SUBTYPE(tgtmedia)==IFM_100_TX) ? BMCR_100MBPS : 0;
 		media|= ((tgtmedia&IFM_GMASK)==IFM_FDX) ? BMCR_FULL_DUPLEX : 0;
 
 		sc->epic_if.if_baudrate = 
-			(tgtmedia&IFM_100_TX) ? 100000000 : 10000000;
+			(IFM_SUBTYPE(tgtmedia)==IFM_100_TX)?100000000:10000000;
 
 		epic_write_phy_register( sc->iobase, DP83840_BMCR, media );
 
-		outl( sc->iobase + TXCON,(tgtmedia&IFM_FDX)?TXCON_LOOPBACK_MODE_FULL_DUPLEX|TXCON_DEFAULT:TXCON_DEFAULT );
-	} else {
+		outl( sc->iobase + TXCON,((tgtmedia&ITM_GMASK)==IFM_FDX)?TXCON_LOOPBACK_MODE_FULL_DUPLEX|TXCON_DEFAULT:TXCON_DEFAULT );
+	}
+#else
+	if( ifp->if_flags & IFF_LINK0 ) {
+		/* Set mode */
+		media = (ifp->if_flags & IFF_LINK2) ? BMCR_100MBPS : 0;
+		media|= (ifp->if_flags & IFF_LINK1) ? BMCR_FULL_DUPLEX : 0;
+
+		sc->epic_if.if_baudrate = 
+			(ifp->if_flags & IFF_LINK2)?100000000:10000000;
+
+		epic_write_phy_register( sc->iobase, DP83840_BMCR, media );
+
+		outl( sc->iobase + TXCON, (ifp->if_flags & IFF_LINK2) ? TXCON_LOOPBACK_MODE_FULL_DUPLEX|TXCON_DEFAULT : TXCON_DEFAULT );
+	}
+#endif
+	  else {
 		/* Init QS6612 to generate interrupt when AutoNeg complete */
 		if( QS6612_OUI == sc->phyid ) {
 			outl( sc->iobase + NVCTL, NVCTL_GP1_OUTPUT_ENABLE );
