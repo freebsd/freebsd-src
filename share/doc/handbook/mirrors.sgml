@@ -321,42 +321,37 @@ for this domain.
 
 <tag><label id="mirrors-pt">Portugal</tag>
 
+In case of problems, please contact the
+<url url="mailto:hostmaster@pt.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
-<url url="ftp://ftp.ua.pt/pub/misc/FreeBSD"
-	name="ftp://ftp.ua.pt/pub/misc/FreeBSD"><newline>
-	Contact: <url url="mailto:archie@ua.pt"
-	name="archie@ua.pt">.
-
+<url url="ftp://ftp.pt.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.pt.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.pt.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.pt.freebsd.org/pub/FreeBSD"><newline>
 </itemize>
 
 <tag><label id="mirrors-ru">Russia</tag>
-
-<itemize>
 
 In case of problems, please contact the
 <url url="mailto:hostmaster@ru.FreeBSD.ORG" name="hostmaster">
 for this domain.
 
-<item>
-<url url="ftp://ftp1.ru.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp1.ru.freebsd.org/pub/FreeBSD"><newline>
-	Contact: <url url="mailto:ftp-adm@ftp1.ru.freebsd.org"
-	name="ftp-adm@ftp1.ru.freebsd.org">.
+<itemize>
 
 <item>
-<url url="ftp://ftp.kiae.su/FreeBSD"
-	name="ftp://ftp.kiae.su/FreeBSD"><newline>
-	Contact: <url url="mailto:ftp@ftp.kiae.su"
-	name="ftp@ftp.kiae.su">.
-
+<url url="ftp://ftp.ru.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.ru.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.ru.freebsd.org/FreeBSD"
+	name="ftp://ftp2.ru.freebsd.org/FreeBSD"><newline>
 <item>
 <url url="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"><newline>
-	Contact: <url url="mailto:ivt@ftp3.ru.freebsd.org"
-	name="ivt@ftp3.ru.freebsd.org">.
-
 </itemize>
 
 <tag><label id="mirrors-za">South Africa</tag>
