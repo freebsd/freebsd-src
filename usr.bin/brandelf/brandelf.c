@@ -34,24 +34,47 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/errno.h>
 #include <err.h>
 
-static int iselftype(const char *);
+static int elftype(const char *);
+static const char *iselftype(int);
 static void printelftypes(void);
 static void usage __P((void));
+
+struct ELFtypes {
+	const char *str;
+	int value;
+};
+/* XXX - any more types? */
+static struct ELFtypes elftypes[] = {
+	{ "FreeBSD",	ELFOSABI_FREEBSD },
+	{ "Linux",	ELFOSABI_LINUX },
+	{ "Solaris",	ELFOSABI_SOLARIS },
+	{ "SVR4",	ELFOSABI_SYSV }
+};
 
 int
 main(int argc, char **argv)
 {
 
-	const char *type = "FreeBSD";
+	const char *strtype = "FreeBSD";
+	int type = ELFOSABI_FREEBSD;
 	int retval = 0;
 	int ch, change = 0, verbose = 0, force = 0, listed = 0;
 
-	while ((ch = getopt(argc, argv, "flt:v")) != -1)
+	while ((ch = getopt(argc, argv, "f:lt:v")) != -1)
 		switch (ch) {
 		case 'f':
+			if (change)
+				errx(1, "f option incompatable with t option");
 			force = 1;
+			type = atoi(optarg);
+			if (errno == ERANGE || type < 0 || type > 255) {
+				warnx("invalid argument to option f: %s",
+				    optarg);
+				usage();
+			}
 			break;
 		case 'l':
 			printelftypes();
@@ -61,8 +84,10 @@ main(int argc, char **argv)
 			verbose = 1;
 			break;
 		case 't':
+			if (force)
+				errx(1, "t option incompatable with f option");
 			change = 1;
-			type = optarg;
+			strtype = optarg;
 			break;
 		default:
 			usage();
@@ -78,8 +103,8 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (!force && !iselftype(type)) {
-		warnx("invalid ELF type '%s'", type);
+	if (!force && (type = elftype(strtype)) == -1) {
+		warnx("invalid ELF type '%s'", strtype);
 		printelftypes();
 		usage();
 	}
@@ -87,9 +112,8 @@ main(int argc, char **argv)
 	while (argc) {
 		int fd;
 		char buffer[EI_NIDENT];
-		char string[(EI_NIDENT-EI_BRAND)+1];
 
-		if ((fd = open(argv[0], change? O_RDWR: O_RDONLY, 0)) < 0) {
+		if ((fd = open(argv[0], change || force ? O_RDWR : O_RDONLY, 0)) < 0) {
 			warn("error opening file %s", argv[0]);
 			retval = 1;
 			goto fail;
@@ -105,33 +129,28 @@ main(int argc, char **argv)
 			retval = 1;
 			goto fail;
 		}
-		if (!change) {
-			bzero(string, sizeof(string));
-			strncpy(string, &buffer[EI_BRAND], EI_NIDENT-EI_BRAND);
-			if (strlen(string)) {
-				fprintf(stdout,
-					"File '%s' is of brand '%s'.\n",
-					argv[0], string);
-				if (!force && !iselftype(string)) {
-					warnx("Brand '%s' is unknown",
-					      string);
-					printelftypes();
-				}
+		if (!change && !force) {
+			fprintf(stdout,
+				"File '%s' is of brand '%s' (%u).\n",
+				argv[0], iselftype(buffer[EI_OSABI]),
+				buffer[EI_OSABI]);
+			if (!iselftype(type)) {
+				warnx("ELF ABI Brand '%u' is unknown",
+				      type);
+				printelftypes();
 			}
-			else
-				fprintf(stdout, "File '%s' has no branding.\n",
-					argv[0]);
 		}
 		else {
-			strncpy(&buffer[EI_BRAND], type, EI_NIDENT-EI_BRAND);
+			buffer[EI_OSABI] = type;
 			lseek(fd, 0, SEEK_SET);
 			if (write(fd, buffer, EI_NIDENT) != EI_NIDENT) {
-				warnx("error writing %s", argv[0]);
+				warn("error writing %s %d", argv[0], fd);
 				retval = 1;
 				goto fail;
 			}
 		}
 fail:
+		close(fd);
 		argc--;
 		argv++;
 	}
@@ -142,24 +161,34 @@ fail:
 static void
 usage()
 {
-	fprintf(stderr, "usage: brandelf [-f] [-v] [-l] [-t string] file ...\n");
+fprintf(stderr, "usage: brandelf [-f ELF ABI number] [-v] [-l] [-t string] file ...\n");
 	exit(1);
 }
 
-/* XXX - any more types? */
-static const char *elftypes[] = { "FreeBSD", "Linux", "SVR4" };
-
-static int
-iselftype(const char *elftype)
+static const char *
+iselftype(int elftype)
 {
 	int elfwalk;
 
 	for (elfwalk = 0;
 	     elfwalk < sizeof(elftypes)/sizeof(elftypes[0]);
 	     elfwalk++)
-		if (strcmp(elftype, elftypes[elfwalk]) == 0)
-			return 1;
+		if (elftype == elftypes[elfwalk].value)
+			return elftypes[elfwalk].str;
 	return 0;
+}
+
+static int
+elftype(const char *elfstrtype)
+{
+	int elfwalk;
+
+	for (elfwalk = 0;
+	     elfwalk < sizeof(elftypes)/sizeof(elftypes[0]);
+	     elfwalk++)
+		if (strcmp(elfstrtype, elftypes[elfwalk].str) == 0)
+			return elftypes[elfwalk].value;
+	return -1;
 }
 
 static void
@@ -171,6 +200,7 @@ printelftypes()
 	for (elfwalk = 0;
 	     elfwalk < sizeof(elftypes)/sizeof(elftypes[0]);
 	     elfwalk++)
-		fprintf(stderr, "%s ", elftypes[elfwalk]);
+		fprintf(stderr, "%s(%u) ", elftypes[elfwalk].str, 
+			elftypes[elfwalk].value);
 	fprintf(stderr, "\n");
 }

@@ -34,40 +34,44 @@
 .Nm brandelf
 .Nd mark an ELF binary for a specific ABI
 .Sh SYNOPSIS
-.Nm brandelf
-.Op Fl f
-.Op Fl l
-.Op Fl v
+.Nm
+.Op Fl lv
+.Op Fl f Ar ELF_ABI_number
 .Op Fl t Ar string
-.Ar file ...
+.Ar
 .Sh DESCRIPTION
 This command marks an ELF binary to be run under a certain ABI for
 .Tn FreeBSD .
 .Pp
 The options are as follows:
 .Bl -tag -width Fl
-.It Fl f
-forces branding even if the brand requested is unknown, and disables
-warnings for unknown brands.
+.It Fl f Ar ELF_ABI_number
+forces branding with the supplied ELF ABI number.
+Incompatible with the
+.Fl t
+option.
+These values are assigned by SCO/USL.
 .It Fl l
 lists all known ELF types on the standard error channel.
 .It Fl v
-turns on verbose reporting
+turns on verbose reporting.
 .It Fl t Ar string
-Brands the given ELF binaries with
+Brands the given ELF binaries to be of the
 .Ar string
-as the ABI type.  Currently supported ABI's are
-.Dq Tn FreeBSD
+ABI type.
+Currently supported ABIs are
+.Dq Tn FreeBSD ,
+.Dq Tn Linux ,
 and
-.Dq Linux .
+.Dq Tn SVR4 .
 .It Ar file
 If
 .Fl t Ar string
 is given it will brand
 .Ar file
-with
+to be of type
 .Ar string ,
-otherwise it will simply display the branding of 
+otherwise it will simply display the branding of
 .Ar file .
 .El
 .Sh EXAMPLES
@@ -80,10 +84,17 @@ command:
 .Dl % brandelf -t Linux file
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command
-fails if a file doesn't exist, is too short, fails to brand properly,
+fails if a file does not exist, is too short, fails to brand properly,
 or the brand requested is not one of the known types and the
 .Fl f
 option is not set.
+.Sh SEE ALSO
+.Rs
+.%A The Santa Cruz Operation, Inc.
+.%T System V Application Binary Interface
+.%D April 29, 1998 (DRAFT)
+.%O http://www.sco.com/developer/devspecs/
+.Re
 .Sh HISTORY
 The
 .Nm
