@@ -1,0 +1,32 @@
+.Dd April 28, 1999
+.Dt JAIL 8
+.Os FreeBSD 4.0
+.Sh NAME
+.Nm jail
+.Nd imprison process and decendants.
+.Sh SYNOPSIS
+.Nm jail
+.Ar path
+.Ar hostname
+.Ar ip-number
+.Sh DESCRIPTION
+The
+.Nm
+command imprisons a process and all future decendants.
+.Pp
+Please see the
+.Xr jail 2
+Manual page for further details.
+.Sh SEE ALSO
+.Xr chroot 2 ,
+.Xr jail 2
+.Sh HISTORY
+The
+.Fn jail
+function call appeared in
+.Fx 4.0 .
+.Pp
+The jail feature was written by Poul-Henning Kamp for
+R&D Associates
+.Dq Li http://www.rndassociates.com/
+who contributed it to FreeBSD.

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vfsops.c	8.8 (Berkeley) 5/20/95
- * $Id: ufs_vfsops.c,v 1.13 1999/01/28 00:57:56 dillon Exp $
+ * $Id: ufs_vfsops.c,v 1.14 1999/04/27 11:18:43 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -115,7 +115,7 @@ ufs_quotactl(mp, cmds, uid, arg, p)
 			break;
 		/* fall through */
 	default:
-		if ((error = suser(p)) != 0)
+		if ((error = suser_xxx(0, p, PRISON_ROOT)) != 0)
 			return (error);
 	}
 

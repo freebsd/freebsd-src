@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.81 1999/01/27 22:42:09 dillon Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.82 1999/04/27 11:16:51 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -431,7 +431,7 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_xxx(cred, &ap->a_p->p_acflag)))
+		    (error = suser_xxx(cred, ap->a_p, PRISON_ROOT)))
 			return (error);
 		/*
 		 * We are very inconsistent about handling unsupported
@@ -472,7 +472,7 @@ msdosfs_setattr(ap)
 			gid = pmp->pm_gid;
 		if ((cred->cr_uid != pmp->pm_uid || uid != pmp->pm_uid ||
 		    (gid != pmp->pm_gid && !groupmember(gid, cred))) &&
-		    (error = suser_xxx(cred, &ap->a_p->p_acflag)))
+		    (error = suser_xxx(cred, ap->a_p, PRISON_ROOT)))
 			return error;
 		if (uid != pmp->pm_uid || gid != pmp->pm_gid)
 			return EINVAL;
@@ -504,7 +504,7 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_xxx(cred, &ap->a_p->p_acflag)) &&
+		    (error = suser_xxx(cred, ap->a_p, PRISON_ROOT)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
 		    (error = VOP_ACCESS(ap->a_vp, VWRITE, cred, ap->a_p))))
 			return (error);
@@ -527,7 +527,7 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_xxx(cred, &ap->a_p->p_acflag)))
+		    (error = suser_xxx(cred, ap->a_p, PRISON_ROOT)))
 			return (error);
 		if (vp->v_type != VDIR) {
 			/* We ignore the read and execute bits. */

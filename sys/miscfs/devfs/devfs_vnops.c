@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.70 1999/02/25 16:06:51 bde Exp $
+ *	$Id: devfs_vnops.c,v 1.71 1999/04/27 11:16:31 phk Exp $
  */
 
 
@@ -381,7 +381,7 @@ found:
 	 * but only use suser_xxx prives as a last resort
 	 * (Use of super powers is recorded in ap->a_p->p_acflag)
 	 */
-	if( suser_xxx(cred, &ap->a_p->p_acflag) == 0) /* XXX what if no proc? */
+	if( suser_xxx(cred, ap->a_p, 0) == 0) /* XXX what if no proc? */
 		return 0;
 	return (EACCES);
 }
@@ -519,7 +519,7 @@ DBPRINT(("setattr\n"));
 #endif
 		if (((vap->va_vaflags & VA_UTIMES_NULL) == 0) &&
 		    (cred->cr_uid != file_node->uid)  &&
-		    suser_xxx(cred, &p->p_acflag))
+		    suser_xxx(cred, p, 0))
 			return (EPERM);
 		    if(VOP_ACCESS(vp, VWRITE, cred, p))
 			return (EACCES);
@@ -534,7 +534,7 @@ DBPRINT(("setattr\n"));
 	 */
 	if (vap->va_mode != (u_short)VNOVAL) {
 		if ((cred->cr_uid != file_node->uid)
-		 && suser_xxx(cred, &p->p_acflag))
+		 && suser_xxx(cred, p, 0))
 			return (EPERM);
 		/* set drwxwxrwx stuff */
 		file_node->mode &= ~07777;
@@ -545,7 +545,7 @@ DBPRINT(("setattr\n"));
 	 * Change the owner.. must be root to do this.
 	 */
 	if (vap->va_uid != (uid_t)VNOVAL) {
-		if (suser_xxx(cred, &p->p_acflag))
+		if (suser_xxx(cred, p, 0))
 			return (EPERM);
 		file_node->uid = vap->va_uid;
 	}
@@ -568,7 +568,7 @@ DBPRINT(("setattr\n"));
 		 * we can't do it with normal privs,
 		 * do we have an ace up our sleeve?
 		 */
-	 	if( suser_xxx(cred, &p->p_acflag))
+	 	if( suser_xxx(cred, p, 0))
 			return (EPERM);
 cando:
 		file_node->gid = vap->va_gid;
@@ -580,7 +580,7 @@ cando:
 	 * flags should be handled some day
 	 */
 	if (vap->va_flags != VNOVAL) {
-		if (error = suser_xxx(cred, &p->p_acflag))
+		if (error = suser_xxx(cred, p, 0))
 			return error;
 		if (cred->cr_uid == 0)
 		;

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.64 1999/01/27 22:42:07 dillon Exp $
+ *	$Id: procfs_vnops.c,v 1.65 1999/04/27 11:16:39 phk Exp $
  */
 
 /*
@@ -133,6 +133,8 @@ procfs_open(ap)
 
 	p2 = PFIND(pfs->pfs_pid);
 	if (p2 == NULL)
+		return (ENOENT);
+	if (!PRISON_CHECK(ap->a_p, p2))
 		return (ENOENT);
 
 	switch (pfs->pfs_type) {
@@ -835,6 +837,8 @@ procfs_readdir(ap)
 		p = PFIND(pfs->pfs_pid);
 		if (p == NULL)
 			break;
+		if (!PRISON_CHECK(curproc, p))
+			break;
 
 		for (pt = &proc_targets[i];
 		     uio->uio_resid >= UIO_MX && i < nproc_targets; pt++, i++) {
@@ -893,7 +897,14 @@ procfs_readdir(ap)
 
 			default:
 				while (pcnt < i) {
+					p = p->p_list.le_next;
+					if (!p)
+						goto done;
+					if (!PRISON_CHECK(curproc, p))
+						continue;
 					pcnt++;
+				}
+				while (!PRISON_CHECK(curproc, p)) {
 					p = p->p_list.le_next;
 					if (!p)
 						goto done;

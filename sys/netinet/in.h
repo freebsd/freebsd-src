@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.38 1998/12/14 18:09:13 luigi Exp $
+ * $Id: in.h,v 1.39 1999/04/20 13:32:04 peter Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -432,6 +432,9 @@ int	 in_canforward __P((struct in_addr));
 int	 in_cksum __P((struct mbuf *, int));
 int	 in_localaddr __P((struct in_addr));
 char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
+
+int	prison_ip __P((struct proc *p, int flag, u_int32_t *ip));
+void	prison_remote_ip __P((struct proc *p, int flag, u_int32_t *ip));
 
 #endif /* KERNEL */
 

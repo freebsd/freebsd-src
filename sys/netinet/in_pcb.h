@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.25 1998/03/28 10:18:22 bde Exp $
+ * $Id: in_pcb.h,v 1.26 1998/05/15 20:11:33 wollman Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -168,6 +168,7 @@ void	in_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
 void	in_pcbrehash __P((struct inpcb *));
 int	in_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
 int	in_setsockaddr __P((struct socket *so, struct sockaddr **nam));
+int	prison_xinpcb __P((struct proc *p, struct inpcb *inp));
 #endif /* KERNEL */
 
 #endif /* !_NETINET_IN_PCB_H_ */

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.43 1999/03/29 08:29:22 dfr Exp $
+ *	$Id: sys_process.c,v 1.44 1999/04/27 11:16:13 phk Exp $
  */
 
 #include <sys/param.h>
@@ -218,6 +218,8 @@ ptrace(curp, uap)
 		if ((p = pfind(uap->pid)) == NULL)
 			return ESRCH;
 	}
+	if (!PRISON_CHECK(curp, p))
+		return (ESRCH);
 
 	/*
 	 * Permissions check

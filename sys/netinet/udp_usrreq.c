@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.48 1998/08/24 07:47:39 dfr Exp $
+ *	$Id: udp_usrreq.c,v 1.49 1998/12/03 20:23:21 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -410,7 +410,7 @@ udp_pcblist SYSCTL_HANDLER_ARGS
 	s = splnet();
 	for (inp = udbinfo.listhead->lh_first, i = 0; inp && i < n;
 	     inp = inp->inp_list.le_next) {
-		if (inp->inp_gencnt <= gencnt)
+		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->p, inp))
 			inp_list[i++] = inp;
 	}
 	splx(s);
@@ -462,6 +462,7 @@ udp_output(inp, m, addr, control, p)
 	register struct udpiphdr *ui;
 	register int len = m->m_pkthdr.len;
 	struct in_addr laddr;
+	struct sockaddr_in *sin;
 	int s = 0, error = 0;
 
 	if (control)
@@ -473,6 +474,8 @@ udp_output(inp, m, addr, control, p)
 	}
 
 	if (addr) {
+		sin = (struct sockaddr_in *)addr;
+		prison_remote_ip(p, 0, &sin->sin_addr.s_addr);
 		laddr = inp->inp_laddr;
 		if (inp->inp_faddr.s_addr != INADDR_ANY) {
 			error = EISCONN;
@@ -614,6 +617,7 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	struct inpcb *inp;
 	int s, error;
+	struct sockaddr_in *sin;
 
 	inp = sotoinpcb(so);
 	if (inp == 0)
@@ -621,6 +625,8 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 	if (inp->inp_faddr.s_addr != INADDR_ANY)
 		return EISCONN;
 	s = splnet();
+	sin = (struct sockaddr_in *)nam;
+	prison_remote_ip(p, 0, &sin->sin_addr.s_addr);
 	error = in_pcbconnect(inp, nam, p);
 	splx(s);
 	if (error == 0)
