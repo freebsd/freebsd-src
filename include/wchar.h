@@ -73,9 +73,11 @@
 #define NULL	0
 #endif
 
+#ifndef __cplusplus
 #ifdef	_BSD_WCHAR_T_
 typedef	_BSD_WCHAR_T_	wchar_t;
 #undef	_BSD_WCHAR_T_
+#endif
 #endif
 
 #ifdef	_BSD_MBSTATE_T_
