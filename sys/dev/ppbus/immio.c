@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1998, 1999 Nicolas Souchu
+ * Copyright (c) 2001 Alcove - Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -776,6 +777,10 @@ imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		if (imm_instr(vpo, &h, 1)) {
 			*ret = VP0_EOTHER+2; goto error;
 		}
+
+	/* Experience showed that we should discard this */
+	if (h == -1)
+		h = 0;
 
 	*result = ((int) h << 8) | ((int) l & 0xff);
 
