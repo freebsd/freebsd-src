@@ -104,7 +104,7 @@ main(argc, argv)
 	rval = cmdloop();
 	sblock.fs_clean = 0;		/* mark it dirty */
 	sbdirty();
-	ckfini(0);
+	ckfini();
 	printf("*** FILE SYSTEM MARKED DIRTY\n");
 	printf("*** BE SURE TO RUN FSCK TO CLEAN UP ANY DAMAGE\n");
 	printf("*** IF IT WAS MOUNTED, RE-MOUNT WITH -u -o reload\n");
@@ -781,9 +781,9 @@ CMDFUNCSTART(chgroup)
 }
 
 int
-dotime(name, rsec, rnsec)
+dotime(name, rts)
 	char *name;
-	int32_t *rsec, *rnsec;
+	struct timespec *rts;
 {
     char *p, *val;
     struct tm t;
@@ -832,14 +832,14 @@ badformat:
 	warnx("date/time out of range");
 	return 1;
     }
-    *rsec = sec;
-    *rnsec = nsec;
+    rts->ts_sec = sec;
+    rts->ts_nsec = nsec;
     return 0;
 }
 
 CMDFUNCSTART(chmtime)
 {
-    if (dotime(argv[1], &curinode->di_ctime, &curinode->di_ctimensec))
+    if (dotime(argv[1], &curinode->di_ctime))
 	return 1;
     inodirty();
     printactive();
@@ -848,7 +848,7 @@ CMDFUNCSTART(chmtime)
 
 CMDFUNCSTART(chatime)
 {
-    if (dotime(argv[1], &curinode->di_ctime, &curinode->di_ctimensec))
+    if (dotime(argv[1], &curinode->di_ctime))
 	return 1;
     inodirty();
     printactive();
@@ -857,7 +857,7 @@ CMDFUNCSTART(chatime)
 
 CMDFUNCSTART(chctime)
 {
-    if (dotime(argv[1], &curinode->di_ctime, &curinode->di_ctimensec))
+    if (dotime(argv[1], &curinode->di_ctime))
 	return 1;
     inodirty();
     printactive();
