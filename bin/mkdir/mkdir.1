@@ -45,6 +45,7 @@
 .Nm mkdir
 .Op Fl p
 .Op Fl m Ar mode
+.Op Fl v
 .Ar directory_name  ...
 .Sh DESCRIPTION
 .Nm Mkdir
@@ -77,6 +78,8 @@ Intermediate directories are created with permission bits of
 .Li rwxrwxrwx (\&0777)
 as modified by the current umask, plus write and search
 permission for the owner.
+.It Fl p
+Be verbose when creating directories, listing them as they are created.
 .El
 .Pp
 The user must have write permission in the parent directory.
