@@ -274,16 +274,19 @@ hdrstop(signo)
 void
 setscreensize()
 {
-	struct sgttyb tbuf;
 	struct winsize ws;
+	struct termios tio;
+	speed_t speed = 0;
 
 	if (ioctl(1, TIOCGWINSZ, (char *) &ws) < 0)
 		ws.ws_col = ws.ws_row = 0;
-	if (ioctl(1, TIOCGETP, &tbuf) < 0)
-		tbuf.sg_ospeed = B9600;
-	if (tbuf.sg_ospeed < B1200)
+	if (tcgetattr(1, &tio) != -1)
+		speed = cfgetospeed(&tio);
+	if (speed <= 0)
+		speed = B9600;
+	if (speed < B1200)
 		screenheight = 9;
-	else if (tbuf.sg_ospeed == B1200)
+	else if (speed == B1200)
 		screenheight = 14;
 	else if (ws.ws_row != 0)
 		screenheight = ws.ws_row;
