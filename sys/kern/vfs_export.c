@@ -56,7 +56,7 @@ static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 static void	vfs_free_addrlist(struct netexport *nep);
 static int	vfs_free_netcred(struct radix_node *rn, void *w);
 static int	vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
-				       struct export_args *argp);
+		    struct export_args *argp);
 
 /*
  * Network address lookup element
