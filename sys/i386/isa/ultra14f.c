@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.27 1995/01/07 23:23:40 ats Exp $
+ *      $Id: ultra14f.c,v 1.28 1995/03/16 18:12:06 bde Exp $
  */
 
 #include <sys/types.h>
@@ -278,6 +278,8 @@ int	uha24_init __P((int unit));
 
 struct mscp *cheat;
 unsigned long int scratch;
+#define	EISA_MAX_SLOTS	16	/* XXX This should go into a comon header */
+static	uha_slot = 0;		/* slot last board was found in */
 static  uha_unit = 0;
 #define UHA_SHOWMSCPS 0x01
 #define UHA_SHOWINTS 0x02
@@ -927,18 +929,19 @@ int	unit;
 {
   unsigned char p0, p1, p2, p3, p5, p7;
   unsigned char id[7], rev, haid;
-  int slot, port, irq, i;
+  int port = 0, irq, i;
   int resetcount = 4000;
   struct uha_data *uha = uhadata[unit];
   struct uha_reg *ur = uhareg[unit];
   struct uha_bits *ub = uhabits[unit];
 
   /* Search for the 24F's product ID */
-  for (slot = 1; slot < 15; slot++) {
+  uha_slot++;
+  while (uha_slot < EISA_MAX_SLOTS) {
 	/*
 	 *  Prepare to use a 24F.
 	 */
-	port = EISA_CONFIG | (slot << 12);
+	port = EISA_CONFIG | (uha_slot << 12);
 	ur->id		= port + 0x00;
 	ur->type	= port + 0x02;
 	ur->ectl	= port + 0x04;
@@ -964,13 +967,18 @@ int	unit;
 	ub->abort_ack	= U24_ABORT_ACK;
 	ub->icm_ack	= U24_ICM_ACK;
 
-	/* Make sure an EISA card is installed in this slot. */
+	/*
+	 * Make sure an EISA card is installed in this slot, 
+	 * and if it is make sure that the card is enabled.
+	 */
 	outb(ur->id, 0xff);
 	p0 = inb(ur->id);
-	if (p0 == 0xff || (p0 & 0x80) != 0) continue;
-
-	/* It's EISA, so make sure the card is enabled. */
-	if ((inb(ur->ectl) & EISA_DISABLE) == 0) continue;
+	if ((p0 == 0xff) ||
+	    ((p0 & 0x80) != 0) ||
+            ((inb(ur->ectl) & EISA_DISABLE) == 0)) {
+		uha_slot++;
+		continue;
+	}
 
 	/* Found an enabled card.  Grab the product ID. */
 	p1 = inb(ur->id+1);
@@ -987,8 +995,9 @@ int	unit;
 
 	/* We only want the 24F product ID. */
 	if (!strcmp(id, "USC024")) break;
+	uha_slot++;
   }
-  if (slot == 15) return(ENODEV);
+  if (uha_slot == EISA_MAX_SLOTS) return(ENODEV);
 
   /* We have the card!  Grab remaining config. */
   p5 = inb(ur->config);
