@@ -91,11 +91,13 @@ The size of the buffer is given by the location specified by
 .Fa oldlenp
 before the call,
 and that location gives the amount of data copied after a successful call
-and after a call that returns with the error code ENOMEM.
+and after a call that returns with the error code
+.Er ENOMEM .
 If the amount of data available is greater
 than the size of the buffer supplied,
 the call supplies as much data as fits in the buffer provided
-and returns with the error code ENOMEM.
+and returns with the error code
+.Er ENOMEM .
 If the old value is not desired,
 .Fa oldp
 and
@@ -391,7 +393,8 @@ It is also possible for a process to set its own process title this way.
 Return profiling information about the kernel.
 If the kernel is not compiled for profiling,
 attempts to retrieve any of the KERN_PROF values will
-fail with EOPNOTSUPP.
+fail with
+.Er EOPNOTSUPP .
 The third level names for the string and integer profiling information
 is detailed below.
 The changeable column shows whether a process with appropriate

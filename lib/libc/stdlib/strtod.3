@@ -90,12 +90,12 @@ is stored in the location referenced by
 If the correct value would cause overflow, plus or minus
 .Dv HUGE_VAL
 is returned (according to the sign of the value), and
-.Dv ERANGE
+.Er ERANGE
 is stored in
 .Va errno .
 If the correct value would cause underflow, zero is
 returned and
-.Dv ERANGE
+.Er ERANGE
 is stored in 
 .Va errno .
 .Sh ERRORS
