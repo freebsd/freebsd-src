@@ -61,6 +61,9 @@ The ray(4) driver, which supports the Webgear Aviator wireless network
 cards, has been committed.  The operation of ray(4) interfaces can be
 modified by raycontrol(8).
 
+Support for the Adaptec FSA family of PCI-SCSI RAID controllers has
+been added, in the form of the aac(4) driver.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -105,6 +108,9 @@ removed.
 
 lpr(1), lpq(1), and lpd(8) have received a few minor enhancements.
 
+OpenSSH has been upgraded to 2.3.0.  This version adds support for the
+Rijndael encryption algorithm.
+
 
 2. Supported Configurations
 ---------------------------
@@ -137,6 +143,17 @@ Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
 and SoundBlaster SCSI cards.
 
 Adaptec 1400, 2100S, 3200S, and 3400S SCSI RAID controllers.
+
+Adaptec FSA family RAID controllers:
+    Adaptec AAC-2622
+    Adaptec AAC-364
+    Adaptec AAC-3642
+    Dell PERC 2/QC
+    Dell PERC 2/Si
+    Dell PERC 3/Di
+    Dell PERC 3/QC
+    Dell PERC 3/Si
+    HP NetRAID-4M
 
 AdvanSys SCSI controllers (all models).
 

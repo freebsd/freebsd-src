@@ -62,6 +62,9 @@ The ray(4) driver, which supports the Webgear Aviator wireless network
 cards, has been committed.  The operation of ray(4) interfaces can be
 modified by raycontrol(8).
 
+OpenSSH has been upgraded to 2.3.0.  This version adds support for the
+Rijndael encryption algorithm. [MERGED]
+
 
 1.2. SECURITY FIXES
 -------------------
