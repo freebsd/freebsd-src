@@ -415,7 +415,7 @@ tcp_stats(u_long off __unused, const char *name, int af1 __unused)
 	p(tcps_accepts, "\t%lu connection accept%s\n");
 	p(tcps_badsyn, "\t%lu bad connection attempt%s\n");
 	p(tcps_listendrop, "\t%lu listen queue overflow%s\n");
-	p(tcps_badrst, "\t%lu Ignored RSTs in the window%s\n");
+	p(tcps_badrst, "\t%lu ignored RSTs in the window%s\n");
 	p(tcps_connects, "\t%lu connection%s established (including accepts)\n");
 	p2(tcps_closed, tcps_drops,
 		"\t%lu connection%s closed (including %lu drop%s)\n");
