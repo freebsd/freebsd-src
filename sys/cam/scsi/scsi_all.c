@@ -2305,12 +2305,14 @@ scsi_calc_syncparam(u_int period)
 	if (period == 0)
 		return (~0);	/* Async */
 
+	/* Adjust for exception table being in 100ths. */
+	period *= 10;
 	num_syncrates = sizeof(scsi_syncrates) / sizeof(scsi_syncrates[0]);
 	/* See if the period is in the "exception" table */
 	for (i = 0; i < num_syncrates; i++) {
 
 		if (period <= scsi_syncrates[i].period) {
-			/* Period in kHz */
+			/* Period in 100ths of ns */
 			return (scsi_syncrates[i].period_factor);
 		}
 	}
@@ -2319,7 +2321,7 @@ scsi_calc_syncparam(u_int period)
 	 * Wasn't in the table, so use the standard
 	 * 1/4 period in ns conversion.
 	 */
-	return (period/40);
+	return (period/400);
 }
 
 void
