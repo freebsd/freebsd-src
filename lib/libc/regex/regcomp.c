@@ -246,6 +246,8 @@ int cflags;
 	g->nbol = 0;
 	g->neol = 0;
 	g->must = NULL;
+	g->charjump = NULL;
+	g->matchjump = NULL;
 	g->mlen = 0;
 	g->nsub = 0;
 	g->ncategories = 1;	/* category 0 is "everything else" */
