@@ -2047,11 +2047,13 @@ softdep_setup_freeblocks(ip, length, flags)
 	ACQUIRE_LOCK(&lk);
 	drain_output(vp, 1);
 restart:
+	VI_LOCK(vp);
 	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs) {
 		if (((flags & IO_EXT) == 0 && (bp->b_xflags & BX_ALTDATA)) ||
 		    ((flags & IO_NORMAL) == 0 &&
 		      (bp->b_xflags & BX_ALTDATA) == 0))
 			continue;
+		VI_UNLOCK(vp);
 		if (getdirtybuf(&bp, MNT_WAIT) == 0)
 			goto restart;
 		(void) inodedep_lookup(fs, ip->i_number, 0, &inodedep);
@@ -2062,6 +2064,7 @@ restart:
 		ACQUIRE_LOCK(&lk);
 		goto restart;
 	}
+	VI_UNLOCK(vp);
 	if (inodedep_lookup(fs, ip->i_number, 0, &inodedep) != 0)
 		(void) free_inodedep(inodedep);
 	FREE_LOCK(&lk);
@@ -4857,13 +4860,17 @@ softdep_fsync_mountdev(vp)
 	if (!vn_isdisk(vp, NULL))
 		panic("softdep_fsync_mountdev: vnode not a disk");
 	ACQUIRE_LOCK(&lk);
+	VI_LOCK(vp);
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
+		VI_UNLOCK(vp);
 		/* 
 		 * If it is already scheduled, skip to the next buffer.
 		 */
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+			VI_LOCK(vp);
 			continue;
+		}
 		if ((bp->b_flags & B_DELWRI) == 0) {
 			FREE_LOCK(&lk);
 			panic("softdep_fsync_mountdev: not dirty");
@@ -4876,6 +4883,7 @@ softdep_fsync_mountdev(vp)
 		    wk->wk_type != D_BMSAFEMAP ||
 		    (bp->b_xflags & BX_BKGRDINPROG)) {
 			BUF_UNLOCK(bp);
+			VI_LOCK(vp);
 			continue;
 		}
 		bremfree(bp);
@@ -4886,8 +4894,10 @@ softdep_fsync_mountdev(vp)
 		 * Since we may have slept during the I/O, we need 
 		 * to start from a known point.
 		 */
+		VI_LOCK(vp);
 		nbp = TAILQ_FIRST(&vp->v_dirtyblkhd);
 	}
+	VI_UNLOCK(vp);
 	drain_output(vp, 1);
 	FREE_LOCK(&lk);
 }
@@ -4962,6 +4972,7 @@ top:
 		FREE_LOCK(&lk);
 		return (0);
 	}
+	mp_fixme("The locking is somewhat complicated nonexistant here.");
 	bp = TAILQ_FIRST(&vp->v_dirtyblkhd);
 	/* While syncing snapshots, we must allow recursive lookups */
 	bp->b_lock.lk_flags |= LK_CANRECURSE;
