@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.9 1999/04/27 11:14:24 phk Exp $
+ *	$Id: dgm.c,v 1.10 1999/04/28 10:51:58 dt Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -1897,11 +1897,11 @@ dgmstart(tp)
 		if(tail>head) {
 			size=tail-head-LEAVE_FREE_CHARS;
 			if (size <0)
-			        size==0;
+			        size=0;
 		        } else {
 			        size=port->txbufsize-head;
 			        if(tail+port->txbufsize < head)
-				        size==0;
+				        size=0;
 		        }
 		}
 #else
