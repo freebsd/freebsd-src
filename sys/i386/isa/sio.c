@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.165 1997/05/18 20:53:52 phk Exp $
+ *	$Id: sio.c,v 1.166 1997/05/18 21:19:04 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -120,7 +120,7 @@
 #define	COM_LOSESOUTINTS(dev)	((dev)->id_flags & 0x08)
 #define	COM_NOFIFO(dev)		((dev)->id_flags & 0x02)
 #define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
-#define	COM_NOTST3(dev)		((dev)->id_flags & 0x1000)
+#define	COM_NOTST3(dev)		((dev)->id_flags & 0x10000)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
 
