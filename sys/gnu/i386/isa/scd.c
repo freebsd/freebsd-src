@@ -32,9 +32,12 @@
  *
  */
 
-/* First released version. Please send any comments to micke@dynas.se */
 
-#define	DEBUG	0	/* 0(no debug), 1(debug), 2(debug on each read) */
+/* $Id: scd.c,v 1.4 1995/01/28 23:53:16 micke Exp micke $ */
+
+/* Please send any comments to micke@dynas.se */
+
+#define	SCD_DEBUG	0
 
 #include "scd.h"
 #if NSCD > 0
@@ -52,10 +55,11 @@
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/devconf.h>
+#include <machine/stdarg.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <gnu/i386/scdreg.h>
+#include <i386/isa/scdreg.h>
 
 #define scd_part(dev)	((minor(dev)) & 7)
 #define scd_unit(dev)	(((minor(dev)) & 0x38) >> 3)
@@ -84,6 +88,13 @@
 
 #define	SCDBLKSIZE	2048
 
+#ifdef SCD_DEBUG
+   int scd_debuglevel = SCD_DEBUG;
+#  define XDEBUG(level, data) {if (scd_debuglevel >= level) printf data;}
+#else
+#  define XDEBUG(level, data)
+#endif
+
 struct scd_mbx {
 	short		unit;
 	short		port;
@@ -104,13 +115,13 @@ struct scd_data {
 	int	blksize;
 	u_long	disksize;
 	struct disklabel dlabel;
-	int	openflags;
+	int	openflag;
 	struct {
 		unsigned char start_msf[3];
 	} toc[MAX_TRACKS];
 	short	first_track;
 	short	last_track;
-/*	struct s_sony_subcode subcode; */
+	struct	ioc_play_msf last_play;
 	
 	short	audio_status;
 	struct buf head;		/* head of buf queue */
@@ -129,29 +140,29 @@ static	bcd_t	bin2bcd(int b);
 static	void	hsg2msf(int hsg, bcd_t *msf);
 static	int	msf2hsg(bcd_t *msf);
 
-static void get_drive_configuration(unsigned short unit,
-                        unsigned char res_reg[],
-                        unsigned int *res_size);
-static int handle_attention(unsigned unit);
+static void process_attention(unsigned unit);
 static inline void write_control(unsigned port, unsigned data);
-static int write_params(unsigned port, unsigned char *params, int num_params);
-static int do_cmd(unsigned int unit,
-		       unsigned char cmd,
-	               unsigned char *params,
-	               unsigned int num_params,
-	               unsigned char *result_buffer,
-	               unsigned int *result_size);
-static void set_drive_params(unsigned unit);
+static int waitfor_status_bits(int unit, int bits_set, int bits_clear);
+static int waitfor_attention(int unit);
+static int send_cmd(u_int unit, u_char cmd, u_int nargs, ...);
+static void init_drive(unsigned unit);
+static int spin_up(unsigned unit);
+static int read_toc(dev_t dev);
+static int get_result(u_int unit, int result_len, u_char *result);
+static void print_error(int unit, int errcode);
 
 static void scd_start(int unit);
 static void scd_doread(int state, struct scd_mbx *mbxin);
 
 static int scd_eject(int unit);
 static int scd_stop(int unit);
+static int scd_pause(int unit);
+static int scd_resume(int unit);
 static int scd_playtracks(int unit, struct ioc_play_track *pt);
 static int scd_playmsf(int unit, struct ioc_play_msf *msf);
+static int scd_play(int unit, struct ioc_play_msf *msf);
 static int scd_subchan(int unit, struct ioc_read_subchannel *sc);
-static int read_subcode(int unit, struct s_sony_subcode *sc);
+static int read_subcode(int unit, struct sony_subchannel_position_data *sc);
 
 extern	int	hz;
 
@@ -191,471 +202,12 @@ int scd_attach(struct isa_device *dev)
 	kdc_scd[dev->id_unit].kdc_description = scd_data[dev->id_unit].name;
 	printf("scd%d: <%s>\n", dev->id_unit, scd_data[dev->id_unit].name);
 
-	set_drive_params(dev->id_unit);
+	init_drive(dev->id_unit);
 
 	cd->flags = SCDINIT;
 	cd->audio_status = CD_AS_AUDIO_INVALID;
 
 	return 1;
-}
-
-static int
-bcd2bin(bcd_t b)
-{
-	return (b >> 4) * 10 + (b & 15);
-}
-
-static bcd_t
-bin2bcd(int b)
-{
-	return ((b / 10) << 4) | (b % 10);
-}
-
-static void
-hsg2msf(int hsg, bcd_t *msf)
-{
-	hsg += 150;
-	M_msf(msf) = bin2bcd(hsg / 4500);
-	hsg %= 4500;
-	S_msf(msf) = bin2bcd(hsg / 75);
-	F_msf(msf) = bin2bcd(hsg % 75);
-}
-
-static int
-msf2hsg(bcd_t *msf)
-{
-	return (bcd2bin(M_msf(msf)) * 60 +
-		bcd2bin(S_msf(msf))) * 75 +
-		bcd2bin(F_msf(msf)) - 150;
-}
-
-static int
-handle_attention(unsigned unit)
-{
-	unsigned port = scd_data[unit].iobase;
-	unsigned char atten_code;
-	static int loop_count = 0;
-	int i;
-
-	if (!IS_ATTENTION(port)) {
-		loop_count = 0;
-		return 0;
-	}
-
-	if (loop_count > 20) {
-		/* printf("scd%d: Too many attentions: %d\n", unit, loop_count); */
-		loop_count = 0;
-		return 0;
-	}
-
-	write_control(port, SCD_ATTN_CLR_BIT);
-	atten_code = inb(port+SCD_RESULT_REG);
-
-#if DEBUG
-	printf("scd%d: DEBUG: ********* ATTENTION = 0x%x\n", unit, atten_code);
-#endif
-
-	switch (atten_code) {
-	/* Someone changed the CD.  Mark it as changed */
-	case SONY_MECH_LOADED_ATTN:
-		scd_data[unit].flags &= ~(SCDTOC|SCDSPINNING|SCDVALID);
-		break;
-
-	case SONY_SPIN_DOWN_COMPLETE_ATTN:
-		scd_data[unit].flags &= ~SCDSPINNING;
-		break;
-
-	case SONY_SPIN_UP_COMPLETE_ATTN:
-		scd_data[unit].flags |= SCDSPINNING;
-		break;
-
-	case SONY_AUDIO_PLAY_DONE_ATTN:
-		scd_data[unit].audio_status = CD_AS_PLAY_COMPLETED;
-/*		read_subcode(); */
-		break;
-
-	case SONY_EJECT_PUSHED_ATTN:
-		scd_data[unit].flags &= ~SCDVALID;
-		break;
-
-	case SONY_LEAD_IN_ERR_ATTN:
-	case SONY_LEAD_OUT_ERR_ATTN:
-	case SONY_DATA_TRACK_ERR_ATTN:
-	case SONY_AUDIO_PLAYBACK_ERR_ATTN:
-		break;
-	default:
-#if DEBUG
-		printf("scd%d: unknown ATTENTION = 0x%x\n", unit, atten_code);
-#endif
-		break;
-	}
-	loop_count++;
-	return 1;
-}
-
-/* Returns 0 OR sony error code */
-static int
-spin_up(unsigned unit)
-{
-	unsigned char res_reg[12];
-	unsigned int res_size;
-	int res;
-	int loop_count = 0;
-
-again:
-	res = do_cmd(unit, SCD_SPIN_UP_CMD, NULL, 0, res_reg, &res_size);
-	if (res != 0) {
-#if DEBUG > 1
-		printf("scd%d: CMD_SPIN_UP error 0x%x\n", unit, res);
-#endif
-		return res;
-	}
-
-	if (!(scd_data[unit].flags & SCDTOC)) {	/* XXX probably no good ... */
-		res = do_cmd(unit, SCD_READ_TOC_CMD, NULL, 0, res_reg, &res_size);
-		if (res == SONY_NOT_SPIN_ERR) {
-			if (loop_count++ < 3)
-				goto again;
-			return res;
-		}
-	}
-
-	if (res != 0)
-		return res;
-
-	scd_data[unit].flags |= SCDSPINNING;
-
-	return 0;
-}
-      
-static struct s_sony_tracklist *
-get_tl(struct s_sony_session_toc *toc, int size)
-{
-	struct s_sony_tracklist *tl = (struct s_sony_tracklist *)&toc->pointb0;
-
-	(char *)tl -= 1;	/* Cannot take address of bitfield (above) */
-
-	if (toc->pointb0 != 0xb0) {
-#if DEBUG
-		if (toc->pointb0 != tl->track)
-			printf("scd: WARNING: pointb0 != track0\n");
-#endif
-		return tl;
-	}
-	(char *)tl += 9;
-	if (toc->pointb1 != 0xb1) 
-		return tl;
-	(char *)tl += 9;
-	if (toc->pointb2 != 0xb2) 
-		return tl;
-	(char *)tl += 9;
-	if (toc->pointb3 != 0xb3) 
-		return tl;
-	(char *)tl += 9;
-	if (toc->pointb4 != 0xb4) 
-		return tl;
-	(char *)tl += 9;
-	if (toc->pointc0 != 0xc0) 
-		return tl;
-	(char *)tl += 9;
-	return tl;
-}
-
-/* Return value same as do_cmd() */
-static int
-read_toc(dev_t dev)
-{
-	unsigned unit;
-	struct scd_data *cd;
-	unsigned part = 0;	/* For now ... */
-	unsigned char params[1];
-	unsigned char msf[3];
-	unsigned int res_size;
-	struct s_sony_session_toc toc;
-	struct s_sony_tracklist *tl;
-	int i, j;
-	u_long first, last;
-
-	unit = scd_unit(dev);
-	cd = scd_data + unit;
-
-	params[0] = part+1;
-	i = do_cmd(unit, SCD_REQ_TOC_DATA_SPEC_CMD,
-			params,
-			1, 
-			(unsigned char *)toc.exec_status,
-			&res_size);
-	if (i != 0)
-		return i;
-
-	tl = get_tl(&toc, res_size);
-	first = msf2hsg(tl->track_start_msf);
-	last = msf2hsg(toc.lead_out_start_msf);
-	cd->blksize = SCDBLKSIZE;
-	cd->disksize = last*cd->blksize/DEV_BSIZE;
-
-#if DEBUG
-	printf("scd%d: firstsector = %d, lastsector = %d", unit,
-			first, last);
-#endif
-
-	cd->first_track = bcd2bin(toc.first_track_num);
-	cd->last_track = bcd2bin(toc.last_track_num);
-	if (cd->last_track > (MAX_TRACKS-2))
-		cd->last_track = MAX_TRACKS-2;
-	for (j = 0, i = cd->first_track; i <= cd->last_track; i++, j++) {
-		bcopy(tl[j].track_start_msf, cd->toc[i].start_msf, 3);
-#if DEBUG
-		if ((j % 3) == 0)
-			printf("\nscd%d: tracks ", unit);
-		printf("[%03d: %2d %2d %2d]  ", i,
-			bcd2bin(cd->toc[i].start_msf[0]),
-			bcd2bin(cd->toc[i].start_msf[1]),
-			bcd2bin(cd->toc[i].start_msf[2]));
-#endif
-	}
-	hsg2msf(msf2hsg(toc.lead_out_start_msf)-1, msf);
-	bcopy(msf, cd->toc[cd->last_track+1].start_msf, 3);
-#if DEBUG
-	i = cd->last_track+1;
-	printf("[END: %2d %2d %2d]\n",
-		bcd2bin(cd->toc[i].start_msf[0]),
-		bcd2bin(cd->toc[i].start_msf[1]),
-		bcd2bin(cd->toc[i].start_msf[2]));
-#endif
-
-	bzero(&cd->dlabel,sizeof(struct disklabel));
-	/* filled with spaces first */
-	strncpy(cd->dlabel.d_typename,"               ",
-		sizeof(cd->dlabel.d_typename));
-	strncpy(cd->dlabel.d_typename, cd->name,
-		min(strlen(cd->name), sizeof(cd->dlabel.d_typename) - 1));
-	strncpy(cd->dlabel.d_packname,"unknown        ",
-		sizeof(cd->dlabel.d_packname));
-	cd->dlabel.d_secsize 	= cd->blksize;
-	cd->dlabel.d_nsectors	= 100;
-	cd->dlabel.d_ntracks	= 1;
-	cd->dlabel.d_ncylinders	= (cd->disksize/100)+1;
-	cd->dlabel.d_secpercyl	= 100;
-	cd->dlabel.d_secperunit	= cd->disksize;
-	cd->dlabel.d_rpm	= 300;
-	cd->dlabel.d_interleave	= 1;
-	cd->dlabel.d_flags	= D_REMOVABLE;
-	cd->dlabel.d_npartitions= 1;
-	cd->dlabel.d_partitions[0].p_offset = 0;
-	cd->dlabel.d_partitions[0].p_size = cd->disksize;
-	cd->dlabel.d_partitions[0].p_fstype = 9;
-	cd->dlabel.d_magic	= DISKMAGIC;
-	cd->dlabel.d_magic2	= DISKMAGIC;
-	cd->dlabel.d_checksum	= dkcksum(&cd->dlabel);
-
-	cd->flags |= SCDTOC;
-
-	return 0;
-}
-
-static inline void
-write_control(unsigned port, unsigned data)
-{
-	outb(port + SCD_CONTROL_REG, data);
-}
-
-static int
-write_params(unsigned port, unsigned char *params, int num_params)
-{
-   	int retry_count = 20000;
-
-	while ((retry_count-- > 0) && (!FIFOST_BIT(port, SCD_PARAM_WRITE_RDY_BIT)))
-		;
-	if (!FIFOST_BIT(port, SCD_PARAM_WRITE_RDY_BIT))
-		return EIO;
-
-	while (num_params-- > 0)
-		outb(port+SCD_PARAM_REG, *params++);
-
-	return 0;
-}
-
-static void
-set_drive_params(unsigned unit)
-{
-	unsigned char res_reg[12];
-	unsigned int res_size;
-	unsigned char params[3];
-	int res;
-
-	params[0] = SCD_SD_MECH_CONTROL;
-	params[1] = 0x03; /* Set auto spin up and auto eject */
-	if (scd_data[unit].double_speed)
-		params[1] |= 0x04; /* Set the drive to double speed if possible */
-
-	res = do_cmd(unit, SCD_SET_DRIVE_PARAM_CMD,
-		params,
-		2,
-		res_reg,
-		&res_size);
-
-	if (res != 0)
-		printf("scd%d: Unable to set mechanical parameters. Errcode = 0x%x\n", res);
-}
-
-static int
-get_result(unsigned unit, unsigned char *result)
-{
-	unsigned int port = scd_data[unit].iobase;
-	unsigned int flags = scd_data[unit].flags;
-	unsigned int res_reg = port + SCD_RESULT_REG;
-	unsigned char c;
-	int len = 0;
-	int datalen = 0;
-	int loop_index = 0;
-	unsigned int retry_count;
-
-	while (handle_attention(unit))
-		;
-
-	if (flags & SCDPROBING) {
-		retry_count = 50; /* While probing tsleep doesn't sleep */
-		while ((retry_count-- > 0)
-			&& (IS_BUSY(port) || !STATUS_BIT(port, SCD_RES_RDY_BIT)))
-		{
-			DELAY(100000);
-			while (handle_attention(unit))
-				;
-		}
-	} else {
-		retry_count = 100;	/* Wait max 10 sec. */
-		while ((retry_count-- > 0)
-			&& (IS_BUSY(port) || !STATUS_BIT(port, SCD_RES_RDY_BIT)))
-		{
-			tsleep(get_result, PZERO - 1, "get_result", hz/10);
-			while (handle_attention(unit))
-				;
-		}
-	}
-	while (handle_attention(unit))
-		;
-
-	if (IS_BUSY(port) || !STATUS_BIT(port, SCD_RES_RDY_BIT)) {
-		printf("scd%d: timeout @%d\n", unit, __LINE__);
-		return -EIO;
-	}
-
-	write_control(port, SCD_RES_RDY_CLR_BIT);
-	switch ((*result++ = inb(res_reg)) & 0xf0) {
-	case 0x50:
-		return 1;
-	case 0x20:
-		*result = inb(res_reg);
-		return 2;
-	case 0x00:
-	default:
-		datalen = inb(res_reg);
-		len = 2;
-		loop_index = len;
-		*result++ = datalen;
-	}
-
-#if DEBUG
-	printf("scd%d: DEBUG: get_result bytes = %d\n", unit, datalen);
-#endif
-
-	while (datalen-- > 0) {
-		if (loop_index++ >= 10) {
-			loop_index = 1;
-			retry_count = 200;
-			if (flags & SCDPROBING)
-				retry_count += 10000;
-			while ((retry_count > 0) && !STATUS_BIT(port, SCD_RES_RDY_BIT)) {
-				retry_count--;
-				if (retry_count < 100)
-					tsleep(get_result, PZERO - 1, "get_result", hz/50);
-				else
-					DELAY(10);
-			}
-			if (!STATUS_BIT(port, SCD_RES_RDY_BIT)) {
-				printf("scd%d: timeout @%d\n", unit, __LINE__);
-				return -EIO;
-			}
-			write_control(port, SCD_RES_RDY_CLR_BIT);
-		}
-		*result++ = inb(res_reg);
-		len++;
-	}
-	return len;
-}
-
-/* Returns 0 or (sony error code) or -(errno code) */
-static int
-do_cmd(unsigned int unit,
-	       unsigned char cmd,
-               unsigned char *params,
-               unsigned int num_params,
-               unsigned char *result_buffer,
-               unsigned int *result_size)
-{
-	unsigned port = scd_data[unit].iobase;
-	unsigned int retry_count;
-	int res;
-
-#if DEBUG
-	printf("SCD: do_cmd: 0x%x\n", cmd);
-#endif
-
-	while (handle_attention(unit))
-		;
-	retry_count = 40;
-	while (retry_count-- > 0 && IS_BUSY(port)) {
-		while (handle_attention(unit))
-			;
-		tsleep(do_cmd, PZERO - 1, "do_cmd", hz/4);
-	}
-	if (IS_BUSY(port)) {
-#if DEBUG
-		printf("SCD: timeout out @%d\n", __LINE__);
-#endif
-		return -EIO;
-	}
-	write_control(port, SCD_RES_RDY_CLR_BIT);
-	write_control(port, SCD_PARAM_CLR_BIT);
-
-	retry_count = 40;
-	while ((retry_count-- > 0) && (!FIFOST_BIT(port, SCD_PARAM_WRITE_RDY_BIT)))
-		;
-	if (!FIFOST_BIT(port, SCD_PARAM_WRITE_RDY_BIT))
-		return -EIO;
-
-	while (num_params-- > 0)
-		outb(port+SCD_PARAM_REG, *params++);
-	outb(port+SCD_CMD_REG, cmd);
-
-	if ((res = get_result(unit, result_buffer)) < 0)
-		return res;
-	if (res < 2)
-		return -EIO;
-	*result_size = res;
-	if (result_buffer[0] == 0x20)
-		return result_buffer[1];
-	return 0;
-}
-
-static void
-print_error(int unit, int errcode)
-{
-	switch (errcode) {
-	case SONY_NOT_LOAD_ERR:
-		printf("scd%d: door is open\n", unit);
-		break;
-	case SONY_NO_DISK_ERR:
-		printf("scd%d: no cd inside\n", unit);
-		break;
-	default:
-		if (errcode < 0)
-			printf("scd%d: device timeout\n", unit);
-		else
-			printf("scd%d: unexpected error 0x%x\n", unit, errcode);
-		break;
-	}
 }
 
 int
@@ -678,12 +230,10 @@ scdopen(dev_t dev)
 		return ENXIO;
 
 	/* invalidated in the meantime? mark all open part's invalid */
-	if (cd->openflags)
+	if (cd->openflag)
 		return ENXIO;
 
-#if DEBUG
-	printf("scd%d: DEBUG: status = 0x%x\n", unit, inb(cd->iobase+SCD_STATUS_REG));
-#endif
+	XDEBUG(1,("scd%d: DEBUG: status = 0x%x\n", unit, inb(cd->iobase+IREG_STATUS)));
 
 	if ((rc = spin_up(unit)) != 0) {
 		print_error(unit, rc);
@@ -693,7 +243,7 @@ scdopen(dev_t dev)
 		int loop_count = 3;
 
 		while (loop_count-- > 0 && (rc = read_toc(dev)) != 0) {
-			if (rc == SONY_NOT_SPIN_ERR) {
+			if (rc == ERR_NOT_SPINNING) {
 				rc = spin_up(unit);
 				if (rc) {
 					print_error(unit, rc);\
@@ -706,7 +256,7 @@ scdopen(dev_t dev)
 		}
 	}
 
-	cd->openflags = 1;
+	cd->openflag = 1;
 	cd->flags |= SCDVALID;
 	kdc_scd[unit].kdc_state = DC_BUSY;
 
@@ -729,16 +279,18 @@ scdclose(dev_t dev)
 	part = scd_part(dev);
 	phys = scd_phys(dev);
 	
-	if (!(cd->flags & SCDINIT) || !cd->openflags) 
+	if (!(cd->flags & SCDINIT) || !cd->openflag) 
 		return ENXIO;
 
-	(void)do_cmd(unit, SCD_SPIN_DOWN_CMD, (char *)0, 0, rdata, &rlen);
-	cd->flags &= ~SCDSPINNING;
+	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS) {
+		(void)send_cmd(unit, CMD_SPIN_DOWN, 0);
+		cd->flags &= ~SCDSPINNING;
+	}
 
 	kdc_scd[unit].kdc_state = DC_IDLE;
 
 	/* close channel */
-	cd->openflags = 0;
+	cd->openflag = 0;
 
 	return 0;
 }
@@ -753,10 +305,8 @@ scdstrategy(struct buf *bp)
 
 	cd = scd_data + unit;
 
-	/* test validity */
-#if DEBUG > 1
-	printf("scd%d: DEBUG: strategy: block=%ld, bcount=%ld\n", unit, bp->b_blkno, bp->b_bcount);
-#endif
+	XDEBUG(2, ("scd%d: DEBUG: strategy: block=%ld, bcount=%ld\n", unit, bp->b_blkno, bp->b_bcount));
+
 	if (unit >= NSCD || bp->b_blkno < 0 || (bp->b_bcount % SCDBLKSIZE)) {
 		printf("scd%d: strategy failure: blkno = %d, bcount = %d\n",
 			unit, bp->b_blkno, bp->b_bcount);
@@ -827,7 +377,7 @@ scd_start(int unit)
 
 	if ((bp = qp->b_actf) != 0) {
 		/* block found to process, dequeue */
-		qp->b_actf = bp->b_actf; /* changed from: bp->av_forw <se> */
+		qp->b_actf = bp->b_actf;
 		cd->flags |= SCDMBXBSY;
 		splx(s);
 	} else {
@@ -859,9 +409,7 @@ scdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
 	part = scd_part(dev);
 	cd = scd_data + unit;
 
-#if DEBUG
-	printf("scd%d: ioctl: cmd=0x%lx\n", unit, cmd);
-#endif
+	XDEBUG(1, ("scd%d: ioctl: cmd=0x%lx\n", unit, cmd));
 
 	if (!(cd->flags & SCDVALID))
 		return EIO;
@@ -897,9 +445,9 @@ scdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
 	case CDIOCSETRIGHT:
 		return EINVAL;
 	case CDIOCRESUME:
-/*		return scd_resume(unit); */
+		return scd_resume(unit);
 	case CDIOCPAUSE:
-/*		return scd_pause(unit); */
+		return scd_pause(unit);
 	case CDIOCSTART:
 		return EINVAL;
 	case CDIOCSTOP:
@@ -908,10 +456,33 @@ scdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
 		return scd_eject(unit);
 	case CDIOCALLOW:
 		return 0;
+	case CDIOCSETDEBUG:
+#ifdef SCD_DEBUG
+		scd_debuglevel++;
+#endif
+		return 0;
+	case CDIOCCLRDEBUG:
+#ifdef SCD_DEBUG
+		scd_debuglevel = 0;
+
+#endif
+		return 0;
 	default:
 		printf("scd%d: unsupported ioctl (cmd=0x%lx)\n", unit, cmd);
 		return ENOTTY;
 	}
+}
+
+int
+scdsize(dev_t dev)
+{
+	return -1;
+}
+
+void
+scdintr()
+{
+	return;
 }
 
 /***************************************************************
@@ -928,14 +499,19 @@ scd_playtracks(int unit, struct ioc_play_track *pt)
 	int rc, i;
 
 	if (!(cd->flags & SCDTOC) && (rc = read_toc(unit)) != 0) {
-		print_error(unit, rc);
-		return EIO;
+		if (rc == -ERR_NOT_SPINNING) {
+			if (spin_up(unit) != 0)
+				return EIO;
+			rc = read_toc(unit);
+		}
+		if (rc != 0) {
+			print_error(unit, rc);
+			return EIO;
+		}
 	}
 
-#if DEBUG
-	printf("scd%d: playtracks from %d:%d to %d:%d\n", unit,
-		a, pt->start_index, z, pt->end_index);
-#endif
+	XDEBUG(1, ("scd%d: playtracks from %d:%d to %d:%d\n", unit,
+		a, pt->start_index, z, pt->end_index));
 
 	if (   a < cd->first_track
 	    || a > cd->last_track
@@ -943,40 +519,57 @@ scd_playtracks(int unit, struct ioc_play_track *pt)
 	    || z > cd->last_track)
 		return EINVAL;
 
-	for (i = 0; i < 3; i++) {
-		((char *)&msf.start_m)[i] = bcd2bin(cd->toc[a].start_msf[i]);
-		((char *)&msf.end_m)[i] = bcd2bin(cd->toc[z+1].start_msf[i]);
-	}
-	return scd_playmsf(unit, &msf);
+	bcopy(cd->toc[a].start_msf, &msf.start_m, 3);
+	hsg2msf(msf2hsg(cd->toc[z+1].start_msf)-1, &msf.end_m);
+
+	return scd_play(unit, &msf);
 }
 
+/* The start/end msf is expected to be in bin format */
 static int
-scd_playmsf(int unit, struct ioc_play_msf *msf)
+scd_playmsf(int unit, struct ioc_play_msf *msfin)
+{
+	struct ioc_play_msf msf;
+
+	msf.start_m = bin2bcd(msfin->start_m);
+	msf.start_s = bin2bcd(msfin->start_s);
+	msf.start_f = bin2bcd(msfin->start_f);
+	msf.end_m = bin2bcd(msfin->end_m);
+	msf.end_s = bin2bcd(msfin->end_s);
+	msf.end_f = bin2bcd(msfin->end_f);
+
+	return scd_play(unit, &msf);
+}
+
+/* The start/end msf is expected to be in bcd format */
+static int
+scd_play(int unit, struct ioc_play_msf *msf)
 {
 	struct scd_data *cd = scd_data + unit;
-	unsigned char sdata[10];
-	unsigned char rdata[10];
-	int rlen, rc;
+	int i, rc;
 
-	sdata[0] = 0x03;
-	sdata[1] = bin2bcd(msf->start_m);
-	sdata[2] = bin2bcd(msf->start_s);
-	sdata[3] = bin2bcd(msf->start_f);
-	sdata[4] = bin2bcd(msf->end_m);
-	sdata[5] = bin2bcd(msf->end_s);
-	sdata[6] = bin2bcd(msf->end_f);
-
-#if DEBUG
-	printf("scd%d: playmsf: %02d:%02d:%02d -> %02d:%02d:%02d\n", unit,
+	XDEBUG(1, ("scd%d: playing: %02x:%02x:%02x -> %02x:%02x:%02x\n", unit,
 		msf->start_m, msf->start_s, msf->start_f,
-		msf->end_m, msf->end_s, msf->end_f);
-#endif
+		msf->end_m, msf->end_s, msf->end_f));
 
-	if ((rc = do_cmd(unit, SCD_AUDIO_PLAYBACK_CMD, sdata, 7, rdata, &rlen)) != 0) {
-		print_error(unit, rc);
-		return EIO;
+	for (i = 0; i < 2; i++) {
+		rc = send_cmd(unit, CMD_PLAY_AUDIO, 7,
+			0x03,
+			msf->start_m, msf->start_s, msf->start_f,
+			msf->end_m, msf->end_s, msf->end_f);
+		if (rc == -ERR_NOT_SPINNING) {
+			cd->flags &= ~SCDSPINNING;
+			if (spin_up(unit) != 0)
+				return EIO;
+		} else if (rc < 0) {
+			print_error(unit, rc);
+			return EIO;
+		} else {
+			break;
+		}
 	}
 	cd->audio_status = CD_AS_PLAY_IN_PROGRESS;
+	bcopy((char *)msf, (char *)&cd->last_play, sizeof(struct ioc_play_msf));
 	return 0;
 }
 
@@ -984,12 +577,46 @@ static int
 scd_stop(int unit)
 {
 	struct scd_data *cd = scd_data + unit;
-	char rdata[10];
-	int rlen;
 
-	(void)do_cmd(unit, SCD_AUDIO_STOP_CMD, (char *)0, 0, rdata, &rlen);
+	(void)send_cmd(unit, CMD_STOP_AUDIO, 0);
 	cd->audio_status = CD_AS_PLAY_COMPLETED;
 	return 0;
+}
+
+static int
+scd_pause(int unit)
+{
+	struct scd_data *cd = scd_data + unit;
+	struct sony_subchannel_position_data subpos;
+
+	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS)
+		return EINVAL;
+
+	if (read_subcode(unit, &subpos) != 0)
+		return EIO;
+
+	if (send_cmd(unit, CMD_STOP_AUDIO, 0) != 0)
+		return EIO;
+	
+	cd->last_play.start_m = subpos.abs_msf[0];
+	cd->last_play.start_s = subpos.abs_msf[1];
+	cd->last_play.start_f = subpos.abs_msf[2];
+	cd->audio_status = CD_AS_PLAY_PAUSED;
+
+	XDEBUG(1, ("scd%d: pause @ %02x:%02x:%02x\n", unit,
+		cd->last_play.start_m,
+		cd->last_play.start_s,
+		cd->last_play.start_f));
+
+	return 0;
+}
+
+static int
+scd_resume(int unit)
+{
+	if (scd_data[unit].audio_status != CD_AS_PLAY_PAUSED)
+		return EINVAL;
+	return scd_play(unit, &scd_data[unit].last_play);
 }
 
 static int
@@ -997,14 +624,16 @@ scd_eject(int unit)
 {
 	struct scd_data *cd = scd_data + unit;
 	int port = cd->iobase;
-	char rdata[10];
-	int rlen;
 
-	(void)do_cmd(unit, SCD_AUDIO_STOP_CMD, (char *)0, 0, rdata, &rlen);
-	(void)do_cmd(unit, SCD_SPIN_DOWN_CMD, (char *)0, 0, rdata, &rlen);
+	cd->audio_status = CD_AS_AUDIO_INVALID;
 	cd->flags &= ~(SCDSPINNING|SCDTOC);
-	if (do_cmd(unit, SCD_EJECT_CMD, (char *)0, 0, rdata, &rlen) != 0)
+
+	if (send_cmd(unit, CMD_STOP_AUDIO, 0) != 0 ||
+	    send_cmd(unit, CMD_SPIN_DOWN, 0) != 0 ||
+	    send_cmd(unit, CMD_EJECT, 0) != 0)
+	{
 		return EIO;
+	}
 	return 0;
 }
 
@@ -1012,14 +641,12 @@ static int
 scd_subchan(int unit, struct ioc_read_subchannel *sc)
 {
 	struct scd_data *cd = scd_data + unit;
-	struct s_sony_subcode q;
+	struct sony_subchannel_position_data q;
 	struct cd_sub_channel_info data;
 
-#if DEBUG
-	printf("scd%d: subchan af=%d, df=%d\n", unit,
+	XDEBUG(1, ("scd%d: subchan af=%d, df=%d\n", unit,
 		sc->address_format,
-		sc->data_format);
-#endif
+		sc->data_format));
 
 	if (sc->address_format != CD_MSF_FORMAT)
 		return EINVAL;
@@ -1032,7 +659,7 @@ scd_subchan(int unit, struct ioc_read_subchannel *sc)
 
 	data.header.audio_status = cd->audio_status;
 	data.what.position.data_format = CD_MSF_FORMAT;
-	data.what.position.track_number = bcd2bin(q.track_num);
+	data.what.position.track_number = bcd2bin(q.track_number);
 	data.what.position.reladdr.msf.unused = 0;
 	data.what.position.reladdr.msf.minute = bcd2bin(q.rel_msf[0]);
 	data.what.position.reladdr.msf.second = bcd2bin(q.rel_msf[1]);
@@ -1047,74 +674,63 @@ scd_subchan(int unit, struct ioc_read_subchannel *sc)
 	return 0;
 }
 
-/* check to see if a Sony CD-ROM is attached to the ISA bus */
-
-static void
-get_drive_configuration(unsigned short unit,
-                        unsigned char res_reg[],
-                        unsigned int *res_size)
-{
-	unsigned port = scd_data[unit].iobase;
-	int retry_count = 10000;
-
-	outb(port + SCD_CONTROL_REG, SCD_DRIVE_RESET_BIT); /* reset drive */
-
-	while ((retry_count-- > 0) && (!IS_ATTENTION(port)))
-		DELAY(10);
-
-	/* If I use a shorter delay, I get a timeout in get_result() */
-	/* I guess there is a better way, but I don't have the manuals */
-	DELAY(500000);
-
-	(void)do_cmd(unit, SCD_REQ_DRIVE_CONFIG_CMD,
-                     NULL,
-                     0,
-                     (unsigned char *) res_reg,
-                     res_size);
-	return;
-}
-
 int
 scd_probe(struct isa_device *dev)
 {
-	struct s_sony_drive_config drive_config;
+	struct sony_drive_configuration drive_config;
 	int unit = dev->id_unit;
-	unsigned int res_size;
-	int i;
-	static char buf[8+16+8+3];
-	char *s = buf;
+	int rc;
+	static char namebuf[8+16+8+3];
+	char *s = namebuf;
+	int loop_count = 0;
 
 	scd_data[unit].flags = SCDPROBING;
 	scd_data[unit].iobase = dev->id_iobase;
 
 	bzero(&drive_config, sizeof(drive_config));
-	get_drive_configuration(unit, drive_config.exec_status, &res_size);
 
-	if (res_size < sizeof(drive_config)
-		|| (drive_config.exec_status[0] & 0xf0) != 0x00)
-	{
+again:
+	/* Reset drive */
+	write_control(dev->id_iobase, CBIT_RESET_DRIVE);
+
+	/* Calm down */
+	DELAY(300000);
+
+	/* Only the ATTENTION bit may be set */
+	if ((inb(dev->id_iobase+IREG_STATUS) & ~1) != 0) {
+		XDEBUG(1, ("scd: too many bits set. probe failed.\n"));
 		return 0;
 	}
+	rc = send_cmd(unit, CMD_GET_DRIVE_CONFIG, 0);
+	if (rc != sizeof(drive_config)) {
+		/* Sometimes if the drive is playing audio I get */
+		/* the bad result 82. Fix by repeating the reset */
+		if (rc > 0 && loop_count++ == 0)
+			goto again;
+		return 0;
+	}
+	if (get_result(unit, rc, (u_char *)&drive_config) != 0)
+		return 0;
 
-	bcopy(drive_config.vendor_id, buf, 8);
-	s = buf+8;
-	while (*(s-1) == ' ')
+	bcopy(drive_config.vendor, namebuf, 8);
+	s = namebuf+8;
+	while (*(s-1) == ' ')	/* Strip trailing spaces */
 		s--;
 	*s++ = ' ';
-	bcopy(drive_config.product_id, s, 16);
+	bcopy(drive_config.product, s, 16);
 	s += 16;
 	while (*(s-1) == ' ')
 		s--;
 	*s++ = ' ';
-	bcopy(drive_config.product_rev_level, s, 8);
+	bcopy(drive_config.revision, s, 8);
 	s += 8;
 	while (*(s-1) == ' ')
 		s--;
 	*s = 0;
 
-	scd_data[unit].name = buf;
+	scd_data[unit].name = namebuf;
 
-	if (SONY_HWC_DOUBLE_SPEED(drive_config))
+	if (drive_config.config & 0x10)
 		scd_data[unit].double_speed = 1;
 	else
 		scd_data[unit].double_speed = 0;
@@ -1123,17 +739,24 @@ scd_probe(struct isa_device *dev)
 }
 
 static int
-read_subcode(int unit, struct s_sony_subcode *sc)
+read_subcode(int unit, struct sony_subchannel_position_data *sc)
 {
-	int rlen;
+	int rc;
 
-	if (do_cmd(unit, SCD_REQ_SUBCODE_ADDRESS_CMD,
-			(char *)0, 0, sc->exec_status, &rlen) != 0)
+	rc = send_cmd(unit, CMD_GET_SUBCHANNEL_DATA, 0);
+	if (rc < 0 || rc < sizeof(*sc))
+		return EIO;
+	if (get_result(unit, rc, (u_char *)sc) != 0)
 		return EIO;
 	return 0;
 }
 
-/* State machine copied from mcd.c /Micke */
+/* State machine copied from mcd.c */
+
+/* This (and the code in mcd.c) will not work with more than one drive */
+/* because there is only one mbxsave below. Should fix that some day. */
+/* (mbxsave & state should probably be included in the scd_data struct and */
+/*  the unit number used as first argument to scd_doread().) /Micke */
 
 /* state machine to process read requests
  * initialize with SCD_S_BEGIN: reset state machine
@@ -1154,7 +777,6 @@ scd_doread(int state, struct scd_mbx *mbxin)
 	int	port = mbx->port;
 	struct	buf *bp = mbx->bp;
 	struct	scd_data *cd = scd_data + unit;
-
 	int	reg,i,k,c;
 	int	blknum;
 	caddr_t	addr;
@@ -1170,8 +792,7 @@ loop:
 		/* get status */
 		mbx->count = RDELAY_WAIT;
 
-		while (handle_attention(unit))
-			;
+		process_attention(unit);
 		goto trystat;
 
 	case SCD_S_WAITSTAT:
@@ -1188,15 +809,14 @@ trystat:
 			return;
 		}
 			
-		while (handle_attention(unit))
-			;
-#if 0
+		process_attention(unit);
+
 		/* reject, if audio active */
-		if (cd->status & SCDAUDIOBSY) {
+		if (cd->audio_status & CD_AS_PLAY_IN_PROGRESS) {
 			printf("scd%d: audio is active\n",unit);
-			goto readerr;
+			goto harderr;
 		}
-#endif
+
 		mbx->sz = cd->blksize;
 
 firstblock:
@@ -1211,17 +831,16 @@ nextblock:
 		blknum 	= (bp->b_blkno / (mbx->sz/DEV_BSIZE))
 			+ mbx->p_offset + mbx->skip/mbx->sz;
 
-#if DEBUG > 1
-		printf("scd%d: scd_doread: read blknum=%d\n", unit, blknum);
-#endif
+		XDEBUG(2, ("scd%d: scd_doread: read blknum=%d\n", unit, blknum));
+
 		/* build parameter block */
 		hsg2msf(blknum, sdata);
 
-		write_control(port, SCD_RES_RDY_CLR_BIT);
-		write_control(port, SCD_PARAM_CLR_BIT);
-		write_control(port, SCD_DATA_RDY_CLR_BIT);
+		write_control(port, CBIT_RESULT_READY_CLEAR);
+		write_control(port, CBIT_RPARAM_CLEAR);
+		write_control(port, CBIT_DATA_READY_CLEAR);
 
-		if (FIFOST_BIT(port, SCD_PARAM_WRITE_RDY_BIT))
+		if (FSTATUS_BIT(port, FBIT_WPARAM_READY))
 			goto writeparam;
 
 		mbx->count = 100;
@@ -1235,25 +854,24 @@ nextblock:
 			printf("scd%d: timeout waiting for drive to spin up.\n", unit);
 			goto harderr;
 		}
-		if (!STATUS_BIT(port, SCD_RES_RDY_BIT)) {
+		if (!STATUS_BIT(port, SBIT_RESULT_READY)) {
 			timeout((timeout_func_t)scd_doread,
 				(caddr_t)SCD_S_WAITSPIN,hz/100); /* XXX */
 			return;
 		}
-		write_control(port, SCD_RES_RDY_CLR_BIT);
-		switch ((i = inb(port+SCD_RESULT_REG)) & 0xf0) {
+		write_control(port, CBIT_RESULT_READY_CLEAR);
+		switch ((i = inb(port+IREG_RESULT)) & 0xf0) {
 		case 0x20:
-			i = inb(port+SCD_RESULT_REG);
+			i = inb(port+IREG_RESULT);
 			print_error(unit, i);
 			goto harderr;
 		case 0x00:
-			(void)inb(port+SCD_RESULT_REG);
+			(void)inb(port+IREG_RESULT);
 			cd->flags |= SCDSPINNING;
 			break;
 		}
-#if DEBUG
-		printf("scd%d: DEBUG: spin up complete\n", unit);
-#endif
+		XDEBUG(1, ("scd%d: DEBUG: spin up complete\n", unit));
+
 		state = SCD_S_BEGIN1;
 		goto loop;
 
@@ -1263,31 +881,26 @@ nextblock:
 			printf("scd%d: timeout. write param not ready.\n",unit);
 			goto harderr;
 		}
-		if (!FIFOST_BIT(port, SCD_PARAM_WRITE_RDY_BIT)) {
+		if (!FSTATUS_BIT(port, FBIT_WPARAM_READY)) {
 			timeout((timeout_func_t)scd_doread,
 				(caddr_t)SCD_S_WAITFIFO,hz/100); /* XXX */
 			return;
 		}
-#if DEBUG
-		printf("scd%d: mbx->count (writeparamwait) = %d(%d)\n", unit, mbx->count, 100);
-#endif
+		XDEBUG(1, ("scd%d: mbx->count (writeparamwait) = %d(%d)\n", unit, mbx->count, 100));
 
 writeparam:
 		/* The reason this test isn't done 'till now is to make sure */
-		/* that it is ok to send the SPIN_UP command below */
+		/* that it is ok to send the SPIN_UP cmd below. */
 		if (!(cd->flags & SCDSPINNING)) {
-
-#if DEBUG
-			printf("scd%d: spinning up drive ...\n", unit);
-#endif
-			outb(port+SCD_CMD_REG, SCD_SPIN_UP_CMD);
+			XDEBUG(1, ("scd%d: spinning up drive ...\n", unit));
+			outb(port+OREG_COMMAND, CMD_SPIN_UP);
 			mbx->count = 300;
 			timeout((timeout_func_t)scd_doread,
 				(caddr_t)SCD_S_WAITSPIN,hz/100); /* XXX */
 			return;
 		}
 
-		reg = port + SCD_PARAM_REG;
+		reg = port + OREG_WPARAMS;
 		/* send the read command */
 		disable_intr();
 		outb(reg, sdata[0]);
@@ -1296,12 +909,12 @@ writeparam:
 		outb(reg, 0);
 		outb(reg, 0);
 		outb(reg, 1);
-		outb(port+SCD_CMD_REG, SCD_READ_BLKERR_STAT_CMD);
+		outb(port+OREG_COMMAND, CMD_READ);
 		enable_intr();
 
 		mbx->count = RDELAY_WAITREAD;
 		for (i = 0; i < 50; i++) {
-			if (STATUS_BIT(port, SCD_DATA_RDY_BIT))
+			if (STATUS_BIT(port, SBIT_DATA_READY))
 				goto got_data;
 			DELAY(100);
 		}
@@ -1313,34 +926,30 @@ writeparam:
 	case SCD_S_WAITREAD:
 		untimeout((timeout_func_t)scd_doread,(caddr_t)SCD_S_WAITREAD);
 		if (mbx->count-- <= 0) {
-			if (STATUS_BIT(port, SCD_RES_RDY_BIT))
+			if (STATUS_BIT(port, SBIT_RESULT_READY))
 				goto got_param;
 			printf("scd%d: timeout while reading data\n",unit);
 			goto readerr;
 		}
-		if (!STATUS_BIT(port, SCD_DATA_RDY_BIT)) {
-			while (handle_attention(unit))
-				;
+		if (!STATUS_BIT(port, SBIT_DATA_READY)) {
+			process_attention(unit);
 			if (!(cd->flags & SCDVALID))
 				goto changed;
 			timeout((timeout_func_t)scd_doread,
 				(caddr_t)SCD_S_WAITREAD,hz/100); /* XXX */
 			return;
 		}
-
-#if DEBUG > 1
-		printf("scd%d: mbx->count (after RDY_BIT) = %d(%d)\n", unit, mbx->count, RDELAY_WAITREAD);
-#endif
+		XDEBUG(2, ("scd%d: mbx->count (after RDY_BIT) = %d(%d)\n", unit, mbx->count, RDELAY_WAITREAD));
 
 got_data:
 		/* data is ready */
 		addr = bp->b_un.b_addr + mbx->skip;
-		write_control(port, SCD_DATA_RDY_CLR_BIT);
-		insb(port+SCD_READ_REG, addr, mbx->sz);
+		write_control(port, CBIT_DATA_READY_CLEAR);
+		insb(port+IREG_DATA, addr, mbx->sz);
 
 		mbx->count = 100;
 		for (i = 0; i < 20; i++) {
-			if (STATUS_BIT(port, SCD_RES_RDY_BIT))
+			if (STATUS_BIT(port, SBIT_RESULT_READY))
 				goto waitfor_param;
 			DELAY(100);
 		}
@@ -1354,34 +963,32 @@ got_data:
 		}
 
 waitfor_param:
-		if (!STATUS_BIT(port, SCD_RES_RDY_BIT)) {
+		if (!STATUS_BIT(port, SBIT_RESULT_READY)) {
 			timeout((timeout_func_t)scd_doread,
 				(caddr_t)SCD_S_WAITPARAM,hz/100); /* XXX */
 			return;
 		}
-#if DEBUG
-		if (mbx->count < 100)
+#if SCD_DEBUG
+		if (mbx->count < 100 && scd_debuglevel > 0)
 			printf("scd%d: mbx->count (paramwait) = %d(%d)\n", unit, mbx->count, 100);
 #endif
 
 got_param:
-		write_control(port, SCD_RES_RDY_CLR_BIT);
-		switch ((i = inb(port+SCD_RESULT_REG)) & 0xf0) {
+		write_control(port, CBIT_RESULT_READY_CLEAR);
+		switch ((i = inb(port+IREG_RESULT)) & 0xf0) {
 		case 0x50:
 			switch (i) {
-			case SONY_UNREC_CIRC_ERR:
-			case SONY_UNREC_LECC_ERR:
+			case ERR_FATAL_READ_ERROR1:
+			case ERR_FATAL_READ_ERROR2:
 				printf("scd%d: unrecoverable read error 0x%x\n", unit, i);
 				goto harderr;
 			}
 			break;
 		case 0x20:
-			i = inb(port+SCD_RESULT_REG);
+			i = inb(port+IREG_RESULT);
 			switch (i) {
-			case SONY_NOT_SPIN_ERR:
-#if DEBUG
-				printf("scd%d: read error: drive not spinning\n", unit);
-#endif
+			case ERR_NOT_SPINNING:
+				XDEBUG(1, ("scd%d: read error: drive not spinning\n", unit));
 				if (mbx->retry-- > 0) {
 					state = SCD_S_BEGIN1;
 					cd->flags &= ~SCDSPINNING;
@@ -1393,7 +1000,7 @@ got_param:
 				goto readerr;
 			}
 		case 0x00:
-			i = inb(port+SCD_RESULT_REG);
+			i = inb(port+IREG_RESULT);
 			break;
 		}
 
@@ -1433,9 +1040,415 @@ changed:
 	goto harderr;
 }
 
-int
-scdsize(dev_t dev)
+static int
+bcd2bin(bcd_t b)
 {
-	return -1;
+	return (b >> 4) * 10 + (b & 15);
+}
+
+static bcd_t
+bin2bcd(int b)
+{
+	return ((b / 10) << 4) | (b % 10);
+}
+
+static void
+hsg2msf(int hsg, bcd_t *msf)
+{
+	hsg += 150;
+	M_msf(msf) = bin2bcd(hsg / 4500);
+	hsg %= 4500;
+	S_msf(msf) = bin2bcd(hsg / 75);
+	F_msf(msf) = bin2bcd(hsg % 75);
+}
+
+static int
+msf2hsg(bcd_t *msf)
+{
+	return (bcd2bin(M_msf(msf)) * 60 +
+		bcd2bin(S_msf(msf))) * 75 +
+		bcd2bin(F_msf(msf)) - 150;
+}
+
+static void
+process_attention(unsigned unit)
+{
+	unsigned port = scd_data[unit].iobase;
+	unsigned char code;
+	int count = 0;
+	int i;
+
+	while (IS_ATTENTION(port) && count++ < 30) {
+		write_control(port, CBIT_ATTENTION_CLEAR);
+		code = inb(port+IREG_RESULT);
+
+#if SCD_DEBUG
+		if (scd_debuglevel > 0) {
+			if (count == 1)
+				printf("scd%d: DEBUG: ATTENTIONS = 0x%x", unit, code);
+			else
+				printf(",0x%x", code);
+		}
+#endif
+
+		switch (code) {
+		case ATTEN_SPIN_DOWN:
+			scd_data[unit].flags &= ~SCDSPINNING;
+			break;
+
+		case ATTEN_SPIN_UP_DONE:
+			scd_data[unit].flags |= SCDSPINNING;
+			break;
+
+		case ATTEN_AUDIO_DONE:
+			scd_data[unit].audio_status = CD_AS_PLAY_COMPLETED;
+			break;
+
+		case ATTEN_DRIVE_LOADED:
+			scd_data[unit].flags &= ~(SCDTOC|SCDSPINNING|SCDVALID);
+			scd_data[unit].audio_status = CD_AS_AUDIO_INVALID;
+			break;
+
+		case ATTEN_EJECT_PUSHED:
+			scd_data[unit].flags &= ~SCDVALID;
+			break;
+		}
+		DELAY(100);
+	}
+#if SCD_DEBUG
+	if (scd_debuglevel > 0 && count > 0)
+		printf("\n");
+#endif
+}
+
+/* Returns 0 OR sony error code */
+static int
+spin_up(unsigned unit)
+{
+	unsigned char res_reg[12];
+	unsigned int res_size;
+	int rc;
+	int loop_count = 0;
+
+again:
+	rc = send_cmd(unit, CMD_SPIN_UP, NULL, 0, res_reg, &res_size);
+	if (rc != 0) {
+		XDEBUG(2, ("scd%d: CMD_SPIN_UP error 0x%x\n", unit, rc));
+		return rc;
+	}
+
+	if (!(scd_data[unit].flags & SCDTOC)) {
+		rc = send_cmd(unit, CMD_READ_TOC, 0);
+		if (rc == ERR_NOT_SPINNING) {
+			if (loop_count++ < 3)
+				goto again;
+			return rc;
+		}
+		if (rc != 0)
+			return rc;
+	}
+
+	scd_data[unit].flags |= SCDSPINNING;
+
+	return 0;
+}
+      
+static struct sony_tracklist *
+get_tl(struct sony_toc *toc, int size)
+{
+	struct sony_tracklist *tl = &toc->tracks[0];
+
+	if (tl->track != 0xb0)
+		return tl;
+	(char *)tl += 9;
+	if (tl->track != 0xb1) 
+		return tl;
+	(char *)tl += 9;
+	if (tl->track != 0xb2) 
+		return tl;
+	(char *)tl += 9;
+	if (tl->track != 0xb3) 
+		return tl;
+	(char *)tl += 9;
+	if (tl->track != 0xb4) 
+		return tl;
+	(char *)tl += 9;
+	if (tl->track != 0xc0) 
+		return tl;
+	(char *)tl += 9;
+	return tl;
+}
+
+static int
+read_toc(dev_t dev)
+{
+	unsigned unit;
+	struct scd_data *cd;
+	unsigned part = 0;	/* For now ... */
+	struct sony_toc toc;
+	struct sony_tracklist *tl;
+	int rc, i, j;
+	u_long first, last;
+
+	unit = scd_unit(dev);
+	cd = scd_data + unit;
+
+	rc = send_cmd(unit, CMD_GET_TOC, 1, part+1);
+	if (rc < 0)
+		return rc;
+	if (rc > sizeof(toc)) {
+		printf("scd%d: program error: toc too large (%d)\n", unit, rc);
+		return EIO;
+	}
+	if (get_result(unit, rc, (u_char *)&toc) != 0)
+		return EIO;
+
+	XDEBUG(1, ("scd%d: toc read. len = %d, sizeof(toc) = %d\n", unit, rc, sizeof(toc)));
+
+	tl = get_tl(&toc, rc);
+	first = msf2hsg(tl->start_msf);
+	last = msf2hsg(toc.lead_out_start_msf);
+	cd->blksize = SCDBLKSIZE;
+	cd->disksize = last*cd->blksize/DEV_BSIZE;
+
+	XDEBUG(1, ("scd%d: firstsector = %d, lastsector = %d", unit,
+			first, last));
+
+	cd->first_track = bcd2bin(toc.first_track);
+	cd->last_track = bcd2bin(toc.last_track);
+	if (cd->last_track > (MAX_TRACKS-2))
+		cd->last_track = MAX_TRACKS-2;
+	for (j = 0, i = cd->first_track; i <= cd->last_track; i++, j++) {
+		bcopy(tl[j].start_msf, cd->toc[i].start_msf, 3);
+#ifdef SCD_DEBUG
+		if (scd_debuglevel > 0) {
+			if ((j % 3) == 0)
+				printf("\nscd%d: tracks ", unit);
+			printf("[%03d: %2d %2d %2d]  ", i,
+				bcd2bin(cd->toc[i].start_msf[0]),
+				bcd2bin(cd->toc[i].start_msf[1]),
+				bcd2bin(cd->toc[i].start_msf[2]));
+		}
+#endif
+	}
+	bcopy(toc.lead_out_start_msf, cd->toc[cd->last_track+1].start_msf, 3);
+#ifdef SCD_DEBUG
+	if (scd_debuglevel > 0) {
+		i = cd->last_track+1;
+		printf("[END: %2d %2d %2d]\n",
+			bcd2bin(cd->toc[i].start_msf[0]),
+			bcd2bin(cd->toc[i].start_msf[1]),
+			bcd2bin(cd->toc[i].start_msf[2]));
+	}
+#endif
+
+	bzero(&cd->dlabel,sizeof(struct disklabel));
+	/* filled with spaces first */
+	strncpy(cd->dlabel.d_typename,"               ",
+		sizeof(cd->dlabel.d_typename));
+	strncpy(cd->dlabel.d_typename, cd->name,
+		min(strlen(cd->name), sizeof(cd->dlabel.d_typename) - 1));
+	strncpy(cd->dlabel.d_packname,"unknown        ",
+		sizeof(cd->dlabel.d_packname));
+	cd->dlabel.d_secsize 	= cd->blksize;
+	cd->dlabel.d_nsectors	= 100;
+	cd->dlabel.d_ntracks	= 1;
+	cd->dlabel.d_ncylinders	= (cd->disksize/100)+1;
+	cd->dlabel.d_secpercyl	= 100;
+	cd->dlabel.d_secperunit	= cd->disksize;
+	cd->dlabel.d_rpm	= 300;
+	cd->dlabel.d_interleave	= 1;
+	cd->dlabel.d_flags	= D_REMOVABLE;
+	cd->dlabel.d_npartitions= 1;
+	cd->dlabel.d_partitions[0].p_offset = 0;
+	cd->dlabel.d_partitions[0].p_size = cd->disksize;
+	cd->dlabel.d_partitions[0].p_fstype = 9;
+	cd->dlabel.d_magic	= DISKMAGIC;
+	cd->dlabel.d_magic2	= DISKMAGIC;
+	cd->dlabel.d_checksum	= dkcksum(&cd->dlabel);
+
+	cd->flags |= SCDTOC;
+
+	return 0;
+}
+
+static inline void
+write_control(unsigned port, unsigned data)
+{
+	outb(port + OREG_CONTROL, data);
+}
+
+static void
+init_drive(unsigned unit)
+{
+	int rc;
+
+	rc = send_cmd(unit, CMD_SET_DRIVE_PARAM, 2,
+		0x05, 0x03 | ((scd_data[unit].double_speed) ? 0x04: 0));
+	if (rc != 0)
+		printf("scd%d: Unable to set parameters. Errcode = 0x%x\n", unit, rc);
+}
+
+/* Returns 0 or errno */
+static int
+get_result(u_int unit, int result_len, u_char *result)
+{
+	unsigned int port = scd_data[unit].iobase;
+	unsigned int res_reg = port + IREG_RESULT;
+	unsigned char c;
+	int loop_index = 2; /* send_cmd() reads two bytes ... */
+
+	XDEBUG(1, ("scd%d: DEBUG: get_result: bytes=%d\n", unit, result_len));
+
+	while (result_len-- > 0) {
+		if (loop_index++ >= 10) {
+			loop_index = 1;
+			if (waitfor_status_bits(unit, SBIT_RESULT_READY, 0))
+				return EIO;
+			write_control(port, CBIT_RESULT_READY_CLEAR);
+		}
+		if (result)
+			*result++ = inb(res_reg);
+		else
+			(void)inb(res_reg);
+	}
+	return 0;
+}
+
+/* Returns -0x100 for timeout, -(drive error code) OR number of result bytes */
+static int
+send_cmd(u_int unit, u_char cmd, u_int nargs, ...)
+{
+	va_list ap;
+	u_int port = scd_data[unit].iobase;
+	u_int reg;
+	u_char c;
+	int rc;
+	int i;
+
+	if (waitfor_status_bits(unit, 0, SBIT_BUSY)) {
+		printf("scd%d: drive busy\n", unit);
+		return -0x100;
+	}
+
+	XDEBUG(1,("scd%d: DEBUG: send_cmd: cmd=0x%x nargs=%d", unit, cmd, nargs));
+
+	write_control(port, CBIT_RESULT_READY_CLEAR);
+	write_control(port, CBIT_RPARAM_CLEAR);
+
+	for (i = 0; i < 100; i++)
+		if (FSTATUS_BIT(port, FBIT_WPARAM_READY))
+			break;
+	if (!FSTATUS_BIT(port, FBIT_WPARAM_READY)) {
+		XDEBUG(1, ("\nscd%d: wparam timeout\n", unit));
+		return -EIO;
+	}
+	
+	va_start(ap, nargs);
+	reg = port + OREG_WPARAMS;
+	for (i = 0; i < nargs; i++) {
+		c = (u_char)va_arg(ap, int);
+		outb(reg, c);
+		XDEBUG(1, (",{0x%x}", c));
+	}
+	va_end(ap);
+	XDEBUG(1, ("\n"));
+
+	outb(port+OREG_COMMAND, cmd);
+
+	if (rc = waitfor_status_bits(unit, SBIT_RESULT_READY, SBIT_BUSY))
+		return -0x100;
+
+	reg = port + IREG_RESULT;
+	write_control(port, CBIT_RESULT_READY_CLEAR);
+	switch ((rc = inb(reg)) & 0xf0) {
+	case 0x20:
+		rc = inb(reg);
+		/* FALL TROUGH */
+	case 0x50:
+		XDEBUG(1, ("scd%d: DEBUG: send_cmd: drive_error=0x%x\n", unit, rc));
+		return -rc;
+	case 0x00:
+	default:
+		rc = inb(reg);
+		XDEBUG(1, ("scd%d: DEBUG: send_cmd: result_len=%d\n", unit, rc));
+		return rc;
+	}
+}
+
+static void
+print_error(int unit, int errcode)
+{
+	switch (errcode) {
+	case -ERR_CD_NOT_LOADED:
+		printf("scd%d: door is open\n", unit);
+		break;
+	case -ERR_NO_CD_INSIDE:
+		printf("scd%d: no cd inside\n", unit);
+		break;
+	default:
+		if (errcode == -0x100 || errcode > 0)
+			printf("scd%d: device timeout\n", unit);
+		else
+			printf("scd%d: unexpected error 0x%x\n", unit, -errcode);
+		break;
+	}
+}
+
+/* Returns 0 or errno value */
+static int
+waitfor_status_bits(int unit, int bits_set, int bits_clear)
+{
+	u_int port = scd_data[unit].iobase;
+	u_int flags = scd_data[unit].flags;
+	u_int reg = port + IREG_STATUS;
+	u_int max_loop;
+	u_char c = 0;
+
+	if (flags & SCDPROBING) {
+		max_loop = 0;
+		while (max_loop++ < 1000) {
+			c = inb(reg);
+			if (c == 0xff)
+				return EIO;
+			if (c & SBIT_ATTENTION) {
+				process_attention(unit);
+				continue;
+			}
+			if ((c & bits_set) == bits_set &&
+			    (c & bits_clear) == 0)
+			{
+				break;
+			}
+			DELAY(10000);
+		}
+	} else {
+		max_loop = 100;
+		while (max_loop-- > 0) {
+			c = inb(reg);
+			if (c & SBIT_ATTENTION) {
+				process_attention(unit);
+				continue;
+			}
+			if ((c & bits_set) == bits_set &&
+			    (c & bits_clear) == 0)
+			{
+				break;
+			}
+			tsleep(waitfor_status_bits, PZERO - 1, "waitfor", hz/10);
+		}
+	}
+	if ((c & bits_set) == bits_set &&
+	    (c & bits_clear) == 0)
+	{
+		return 0;
+	}
+#ifdef SCD_DEBUG
+	if (scd_debuglevel > 0)
+		printf("scd%d: DEBUG: waitfor: TIMEOUT (0x%x,(0x%x,0x%x))\n", unit, c, bits_set, bits_clear);
+	else
+#endif
+		printf("scd%d: timeout.\n", unit);
+	return EIO;
 }
 #endif /* NSCD > 0 */
