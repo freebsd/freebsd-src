@@ -53,10 +53,9 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)finger.c	8.5 (Berkeley) 5/4/95";
-#else
+#endif
 static const char rcsid[] =
   "$FreeBSD$";
-#endif
 #endif /* not lint */
 
 /*
@@ -73,12 +72,8 @@ static const char rcsid[] =
  * well as home directory, shell, mail info, and .plan/.project files.
  */
 
-#include <sys/param.h>
-
 #include <db.h>
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,9 +81,7 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
-#include <db.h>
 #include <locale.h>
-#include <sys/syslimits.h>
 
 #include "finger.h"
 #include "pathnames.h"

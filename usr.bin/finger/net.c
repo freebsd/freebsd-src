@@ -37,29 +37,23 @@
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)net.c	8.4 (Berkeley) 4/28/95";
-#else
+#endif
 static const char rcsid[] =
   "$FreeBSD$";
-#endif
 #endif /* not lint */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
+#include <sys/uio.h>
+#include <ctype.h>
 #include <db.h>
 #include <err.h>
-#include <unistd.h>
+#include <netdb.h>
 #include <pwd.h>
-#include <utmp.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <string.h>
-#include <sys/uio.h>
-#include <signal.h>
-#include <limits.h>
+#include <unistd.h>
+#include <utmp.h>
 #include "finger.h"
 
 extern int lflag;		/* XXX finger.h? */
