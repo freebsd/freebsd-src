@@ -82,7 +82,7 @@ case ${rc_ng} in
 	# XXX - rcorder(8) with multiple -k switches works as a logical OR,
 	#       so, we can't do this: rcorder -k shutdown -k FreeBSD.
 	#
-	files=`eval grep -l \'^# KEYWORD:.*FreeBSD\' \`rcorder -k shutdown /etc/rc.d/*\``
+	files=`eval grep -l \'^# KEYWORD:.*FreeBSD\' \`rcorder -k shutdown /etc/rc.d/* 2>/dev/null\``
 
 	for _rc_elem in `reverse_list $files`; do
 		debug "run_rc_script $_rc_elem stop"
