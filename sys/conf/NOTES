@@ -884,9 +884,14 @@ options 	_KPOSIX_VERSION=199309L
 
 options 	HZ=100
 
-# Other clock options
+# CLK_CALIBRATION_LOOP will run the clock calibration loop at startup
+# until the user presses a key.
 
 options 	CLK_CALIBRATION_LOOP
+
+# The following two options measure the frequency of the corresponding
+# clock relative to the RTC (onboard mc146818a).
+
 options 	CLK_USE_I8254_CALIBRATION
 options 	CLK_USE_TSC_CALIBRATION
 
