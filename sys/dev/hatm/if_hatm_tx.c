@@ -422,7 +422,7 @@ hatm_start(struct ifnet *ifp)
 		arg.mbuf = m;
 
 		error = bus_dmamap_load_mbuf(sc->tx_tag, tpd->map, m,
-		    hatm_load_txbuf, &arg, 0);
+		    hatm_load_txbuf, &arg, BUS_DMA_NOWAIT);
 
 		if (error == EFBIG) {
 			/* try to defragment the packet */
@@ -434,7 +434,7 @@ hatm_start(struct ifnet *ifp)
 			}
 			arg.mbuf = m;
 			error = bus_dmamap_load_mbuf(sc->tx_tag, tpd->map, m,
-			    hatm_load_txbuf, &arg, 0);
+			    hatm_load_txbuf, &arg, BUS_DMA_NOWAIT);
 		}
 
 		if (error != 0) {
