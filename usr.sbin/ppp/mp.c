@@ -1046,7 +1046,7 @@ mpserver_Init(struct mpserver *s)
 int
 mpserver_Open(struct mpserver *s, struct peerid *peer)
 {
-  int f, l, bufsz;
+  int f, l;
   mode_t mask;
 
   if (s->fd != -1) {
@@ -1076,16 +1076,9 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
   mask = umask(0177);
 
   /*
-   * Calculate how big a link is.  It's vital that we set our receive
-   * buffer size before binding the socket, otherwise we'll end up with
-   * a sendmsg() failing with ENOBUFS.
+   * Try to bind the socket.  If we succeed we play server, if we fail
+   * we connect() and hand the link off.
    */
-
-  bufsz = bundle_LinkSize() + SOCKET_OVERHEAD;
-  log_Printf(LogDEBUG, "Setting MP socket buffer size to %d\n", bufsz);
-  if (setsockopt(s->fd, SOL_SOCKET, SO_RCVBUF, &bufsz, sizeof bufsz) == -1)
-    log_Printf(LogERROR, "setsockopt(SO_RCVBUF, %d): %s\n", bufsz,
-               strerror(errno));
 
   if (ID0bind_un(s->fd, &s->socket) < 0) {
     if (errno != EADDRINUSE) {
@@ -1097,10 +1090,7 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
       return MPSERVER_FAILED;
     }
 
-    /* Ok, so we'll play sender... set the send buffer size */
-    if (setsockopt(s->fd, SOL_SOCKET, SO_SNDBUF, &bufsz, sizeof bufsz) == -1)
-      log_Printf(LogERROR, "setsockopt(SO_SNDBUF, %d): %s\n", bufsz,
-                 strerror(errno));
+    /* So we're the sender */
     umask(mask);
     if (ID0connect_un(s->fd, &s->socket) < 0) {
       log_Printf(LogPHASE, "mpserver: can't connect to bundle socket %s (%s)\n",
