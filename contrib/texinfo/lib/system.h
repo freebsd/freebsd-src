@@ -1,7 +1,7 @@
 /* system.h: system-dependent declarations; include this first.
-   $Id: system.h,v 1.14 1999/07/17 21:11:34 karl Exp $
+   $Id: system.h,v 1.22 2002/02/26 14:31:18 karl Exp $
 
-   Copyright (C) 1997, 98, 99 Free Software Foundation, Inc.
+   Copyright (C) 1997, 98, 99, 00, 01, 02 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <ctype.h>
 
+/* All systems nowadays probably have these functions, but ... */
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
 #endif
@@ -42,9 +43,13 @@
 #endif
 
 /* For gettext (NLS).  */
-#include <libintl.h>
+#include "gettext.h"
 #define _(String) gettext (String)
 #define N_(String) (String)
+
+#ifndef HAVE_LC_MESSAGES
+#define LC_MESSAGES (-1)
+#endif
 
 #ifdef STDC_HEADERS
 #define getopt system_getopt
@@ -76,6 +81,16 @@ extern int errno;
 
 #ifndef HAVE_DECL_STRERROR
 extern char *strerror ();
+#endif
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+#ifndef PATH_MAX
+#ifndef _POSIX_PATH_MAX
+# define _POSIX_PATH_MAX 255
+#endif
+#define PATH_MAX _POSIX_PATH_MAX
 #endif
 
 #ifndef HAVE_DECL_STRCASECMP
@@ -123,7 +138,6 @@ extern int strcoll ();
     - directories in environment variables (like INFOPATH) are separated
         by `;' rather than `:';
     - text files can have their lines ended either with \n or with \r\n pairs;
-
    These are all parameterized here except the last, which is
    handled by the source code as appropriate (mostly, in info/).  */
 #ifndef O_BINARY
@@ -134,13 +148,35 @@ extern int strcoll ();
 # endif
 #endif /* O_BINARY */
 
+/* We'd like to take advantage of _doprnt if it's around, a la error.c,
+   but then we'd have no VA_SPRINTF.  */
+#if HAVE_VPRINTF
+# if __STDC__
+#  include <stdarg.h>
+#  define VA_START(args, lastarg) va_start(args, lastarg)
+# else
+#  include <varargs.h>
+#  define VA_START(args, lastarg) va_start(args)
+# endif
+# define VA_FPRINTF(file, fmt, ap) vfprintf (file, fmt, ap)
+# define VA_SPRINTF(str, fmt, ap) vsprintf (str, fmt, ap)
+#else /* not HAVE_VPRINTF */
+# define VA_START(args, lastarg)
+# define va_alist a1, a2, a3, a4, a5, a6, a7, a8
+# define va_dcl char *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8;
+# define va_end(args)
+#endif
+
 #if O_BINARY
-# include <io.h>
+# ifdef HAVE_IO_H
+#  include <io.h>
+# endif
 # ifdef __MSDOS__
 #  include <limits.h>
 #  ifdef __DJGPP__
 #   define HAVE_LONG_FILENAMES(dir)  (pathconf (dir, _PC_NAME_MAX) > 12)
 #   define NULL_DEVICE	"/dev/null"
+#   define DEFAULT_INFOPATH "c:/djgpp/info;/usr/local/info;/usr/info;."
 #  else  /* !__DJGPP__ */
 #   define HAVE_LONG_FILENAMES(dir)  (0)
 #   define NULL_DEVICE	"NUL"
@@ -184,6 +220,15 @@ extern int strcoll ();
 # define NULL_DEVICE	"/dev/null"
 # define PIPE_USE_FORK	1
 #endif /* not O_BINARY */
+
+/* DJGPP supports /dev/null, which is okay for Unix aficionados,
+   shell scripts and Makefiles, but interactive DOS die-hards
+   would probably want to have NUL as well.  */
+#ifdef __DJGPP__
+# define ALSO_NULL_DEVICE  "NUL"
+#else
+# define ALSO_NULL_DEVICE  ""
+#endif
 
 #ifdef HAVE_PWD_H
 #include <pwd.h>

@@ -1,7 +1,7 @@
 /* html.h -- declarations for html-related utilities.
-   $Id: html.h,v 1.1 1999/04/25 20:53:33 karl Exp $
+   $Id: html.h,v 1.2 2000/12/19 15:17:52 karl Exp $
 
-   Copyright (C) 1999 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,5 +40,8 @@ extern void add_escaped_anchor_name (/* char *name */);
 
 /* See html.c.  */
 extern void add_anchor_name (/* nodename, href */);
+extern void add_url_name ( /* nodename, href */ );
+extern char* nodename_to_filename ( /* nodename */ );
+extern void add_nodename_to_filename ( /*nodename, href */ );
 
 #endif /* !HTML_H */
