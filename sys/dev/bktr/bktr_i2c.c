@@ -128,12 +128,23 @@ static device_method_t bti2c_methods[] = {
 	{ 0, 0 }
 };
 
+#if (__FreeBSD_version < 400000)
+/* FreeBSD 3.x needs DRIVER_TYPE_MISC */
 static driver_t bti2c_driver = {
 	"bti2c",
 	bti2c_methods,
 	DRIVER_TYPE_MISC,
 	sizeof(struct bti2c_softc),
 };
+#endif
+
+#if (__FreeBSD_version >=400000)
+	static driver_t bti2c_driver = {
+	"bti2c",
+	bti2c_methods,
+	sizeof(struct bti2c_softc),
+};      
+#endif
 
 /*
  * Call this to pass the base address of the bktr device to the
@@ -148,10 +159,18 @@ bt848_i2c_attach(int unit, bt848_ptr_t base, struct bktr_i2c_softc *i2c_sc)
 	btdata[unit].base = base;
 
 	/* XXX add the I2C interface to the root_bus until pcibus is ready */
+#if (__FreeBSD_version < 400000)
 	interface = device_add_child(root_bus, "bti2c", unit, NULL);
+#else
+	interface = device_add_child(root_bus, "bti2c", unit);
+#endif
 
 	/* add bit-banging generic code onto bti2c interface */
+#if (__FreeBSD_version < 400000)
 	bitbang = device_add_child(interface, "iicbb", -1, NULL);
+#else
+	bitbang = device_add_child(interface, "iicbb", -1);
+#endif
 
 	/* probe and attach the interface, we need it NOW
 	 * bit-banging code is also probed and attached */

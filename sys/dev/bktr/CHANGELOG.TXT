@@ -1,4 +1,7 @@
 /* $FreeBSD$ */
+/*
+ * MAINTAINER = Roger Hardiman <roger@freebsd.org>
+ */
 
 /*
  * This is part of the Driver for Video Capture Cards (Frame grabbers)
@@ -251,7 +254,7 @@
                     and MSP34xx Audio chip. Fixed i2c read error.
                     Hauppauge supplied details of new Tuner Types.
                     Danny Braniss <danny@cs.huji.ac.il> submitted Bt878
-                    AverMedia detection with PCI subsystem vendor id.
+                    AVerMedia detection with PCI subsystem vendor id.
 
 1.57    26 Jan 1999 Roger Hardiman <roger@cs.strath.ac.uk>
                     Support for MSP3410D / MSP3415D Stereo/Mono audio
@@ -413,4 +416,36 @@
 
 2.03   5 Oct 1999 Thomas Runge <runge@rostock.zgdv.de>
 		  Found FM radio bug mute introduced in release 2.00
+
+2.04  20 Oct 1999 Roger Hardiman <roger@freebsd.org>
+		  Updated AVerMedia audio sources to support FM and Line In
+		  sources properly. (Based on info supplied by AVerMedia)
+		  Make PLL mode the default for Bt878 chips. This means PAL
+		  Bt878 users no longer need the BKTR_USE_PLL kernel option.
+		  Detect and auto-configure Dolby Surround Sound DPL3518A chip
+		  on Hauppauge WinTV Theater. From Frank Nobis <fn@radio-do.de>
+
+2.05   8 Nov 1999 Update tuner control codes for Philips SECAM. Submitted by
+                  Cyrille Lefevre <clefevre@citeweb.net>
+		  Updated clipping code, ready for Xv support in XFree86 4.0,
+		  submitted by Thomas Mueller <tmueller@thmu.de>
+		  Thomas also has information on a LynxOS port of this driver.
+                  Phase out the rgb_prog RISC program and use rgb_vbi_prog as
+                  the default. Now you no longer have to open /dev/vbi
+                  before /dev/bktr. - Roger Hardiman <roger@freebsd.org>
+
+2.06   7 Dec 1999 Fix bug which made the tuner fail on cards detected as
+                  IMS Turbo. Found by Patrick Mackeown<pgm@NS4.HELP-DESK.CO.UK>
+		  Put back some Hauppauge Tuner Types I deleted my mistake.
+		  Backout the switch from rgb_prob to rgb_vbi_prog due to
+		  problems with NTSC users.
+
+2.07  24 Jan 2000 Update i2c code to build on FreeBSD 3.x and 4.x machines.
+                  Added GPIO audio values for the Askey/Dynalink TV card
+		  taken from postings on the V4L mailing list.
+                  Update Australian Channel Set. Submitted by
+		  John Birrell <jb@cimlogic.com.au>
+                  Add new Channel Set for France. Submitted by
+		  Daniel Dagneaux <dagneaux@lure.u-psud.fr>
+
 

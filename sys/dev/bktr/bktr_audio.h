@@ -9,6 +9,7 @@
  * bktr_audio : This deals with controlling the audio on TV cards,
  *                controlling the Audio Multiplexer (audio source selector).
  *                controlling any MSP34xx stereo audio decoders.
+ *                controlling any DPL35xx dolby surroud sound audio decoders.
  *                initialising TDA98xx audio devices.
  *
  */
@@ -64,6 +65,13 @@ void	init_audio_devices( bktr_ptr_t bktr );
  */
 void	msp_autodetect( bktr_ptr_t bktr );
 void	msp_read_id( bktr_ptr_t bktr );
+
+
+/*
+ * DPL35xx Audio Chip functions.
+ */
+void	dpl_autodetect( bktr_ptr_t bktr );
+void	dpl_read_id( bktr_ptr_t bktr );
 
 
 /*
