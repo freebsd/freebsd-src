@@ -231,7 +231,7 @@ badaddr_read(addr, size, rptr)
 	alpha_mb();
 	switch (size) {
 	case sizeof (u_int8_t):
-		if (alpha_implver() == ALPHA_IMPLVER_EV5
+		if (alpha_implver() >= ALPHA_IMPLVER_EV5
 		    && alpha_amask(ALPHA_AMASK_BWX) == 0)
 			rcpt = ldbu((vm_offset_t)addr);
 		else
@@ -239,7 +239,7 @@ badaddr_read(addr, size, rptr)
 		break;
 
 	case sizeof (u_int16_t):
-		if (alpha_implver() == ALPHA_IMPLVER_EV5
+		if (alpha_implver() >= ALPHA_IMPLVER_EV5
 		    && alpha_amask(ALPHA_AMASK_BWX) == 0)
 			rcpt = ldwu((vm_offset_t)addr);
 		else
