@@ -36,13 +36,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.12 1997/09/02 20:05:42 bde Exp $
+ * $Id: kern_subr.c,v 1.13 1997/10/10 18:14:23 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+
+#include <vm/vm.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_page.h>
+#include <vm/vm_map.h>
 
 int
 uiomove(cp, n, uio)
@@ -79,6 +85,75 @@ uiomove(cp, n, uio)
 				error = copyout(cp, iov->iov_base, cnt);
 			else
 				error = copyin(iov->iov_base, cp, cnt);
+			if (error)
+				return (error);
+			break;
+
+		case UIO_SYSSPACE:
+			if (uio->uio_rw == UIO_READ)
+				bcopy((caddr_t)cp, iov->iov_base, cnt);
+			else
+				bcopy(iov->iov_base, (caddr_t)cp, cnt);
+			break;
+		case UIO_NOCOPY:
+			break;
+		}
+		iov->iov_base += cnt;
+		iov->iov_len -= cnt;
+		uio->uio_resid -= cnt;
+		uio->uio_offset += cnt;
+		cp += cnt;
+		n -= cnt;
+	}
+	return (0);
+}
+
+int
+uiomoveco(cp, n, uio, obj)
+	caddr_t cp;
+	int n;
+	struct uio *uio;
+	struct vm_object *obj;
+{
+	struct iovec *iov;
+	u_int cnt;
+	int error;
+
+#ifdef DIAGNOSTIC
+	if (uio->uio_rw != UIO_READ && uio->uio_rw != UIO_WRITE)
+		panic("uiomove: mode");
+	if (uio->uio_segflg == UIO_USERSPACE && uio->uio_procp != curproc)
+		panic("uiomove proc");
+#endif
+	while (n > 0 && uio->uio_resid) {
+		iov = uio->uio_iov;
+		cnt = iov->iov_len;
+		if (cnt == 0) {
+			uio->uio_iov++;
+			uio->uio_iovcnt--;
+			continue;
+		}
+		if (cnt > n)
+			cnt = n;
+
+		switch (uio->uio_segflg) {
+
+		case UIO_USERSPACE:
+		case UIO_USERISPACE:
+			if (uio->uio_rw == UIO_READ) {
+				if (((cnt & PAGE_MASK) == 0) &&
+					((((int) iov->iov_base) & PAGE_MASK) == 0) &&
+					((uio->uio_offset & PAGE_MASK) == 0) &&
+					((((int) cp) & PAGE_MASK) == 0)) {
+						error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
+								uio->uio_offset, cnt,
+								(vm_offset_t) iov->iov_base);
+				} else {
+					error = copyout(cp, iov->iov_base, cnt);
+				}
+			} else {
+				error = copyin(iov->iov_base, cp, cnt);
+			}
 			if (error)
 				return (error);
 			break;
