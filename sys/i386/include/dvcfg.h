@@ -49,15 +49,15 @@ struct dvcfg_hwsel {
 
 #define	DVCFG_HWSEL_SZ(array)	(sizeof(array) / sizeof(dvcfg_hw_t))
 
-static inline dvcfg_hw_t dvcfg_hw __P((struct dvcfg_hwsel *, u_int));
+static __inline dvcfg_hw_t dvcfg_hw __P((struct dvcfg_hwsel *, u_int));
 
-static inline dvcfg_hw_t
+static __inline dvcfg_hw_t
 dvcfg_hw(selp, num)
 	struct dvcfg_hwsel *selp;
 	u_int num;
 {
 
-	return ((num >= selp->cfg_max) ? NULL : selp->cfg_sel[num]);
+	return ((num >= selp->cfg_max) ? 0 : selp->cfg_sel[num]);
 }
 
 #define	DVCFG_HW(SELP, NUM)	dvcfg_hw((SELP), (NUM))
