@@ -775,7 +775,7 @@ tco_forward(int force)
 		tco->tc_poll_pps(tco);
 	if (timedelta != 0) {
 		tvt = boottime;
-		tvt.tv_usec -= tickdelta;
+		tvt.tv_usec += tickdelta;
 		if (tvt.tv_usec >= 1000000) {
 			tvt.tv_sec++;
 			tvt.tv_usec -= 1000000;
