@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.pl,v 1.1.1.1 1998/08/27 17:38:43 abial Exp $
+# $Id: rc.pl,v 1.2 1998/09/26 17:27:24 abial Exp $
 ############################################
 ### Special setup for one floppy PICOBSD ###
 ### THIS IS NOT THE NORMAL /etc/rc !!!!! ###
@@ -56,7 +56,7 @@ echo '| licencji BSD. Po wiecej szczegolow zajrzyj   |'
 echo '| na http://www.freebsd.org/~picobsd, lub      |'
 echo '| skontaktuj sie z autorem.                    |'
 echo '|                                              |'
-echo '|                     abial@nask.pl            |'
+echo '|                     abial@freebsd.org        |'
 echo '|                                              |'
 echo '+----------------------------------------------+'
 exit 0

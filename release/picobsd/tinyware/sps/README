@@ -12,6 +12,6 @@ The most serious limitation of 'sps' is that it's unable to retrieve the whole
 command line.
 
 
-<abial@nask.pl>
+<abial@freebsd.org>
 
-$Id: README,v 1.1 1998/07/16 23:21:59 abial Exp $
+$Id: README,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
