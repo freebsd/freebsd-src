@@ -100,13 +100,14 @@
 #include <sys/device.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
+#include <vm/pmap.h>
+
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/vmparam.h>
 #include <machine/ipl.h>
-#include <vm/pmap.h>
-#include <sys/proc.h>
+#include <machine/dvcfg.h>
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -142,10 +143,9 @@
 #define	BUS_IOW(offs, val) (BUS_IO_DELAY, outb(bsc->sc_iobase + (offs), (val)))
 
 #include <i386/isa/ic/wd33c93.h>
-#include <i386/isa/bs/ccbque.h>
-#include <i386/isa/bs/dvcfg.h>
+#include <i386/isa/ccbque.h>
 
-#include <i386/isa/bs/scsi_dvcfg.h>
+#include <i386/isa/scsi_dvcfg.h>
 #include <i386/isa/bs/bsvar.h>
 #include <i386/isa/bs/bshw.h>
 #include <i386/isa/bs/bsfunc.h>
