@@ -57,13 +57,11 @@
 
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_device.h>
-#include <pc98/pc98/icu.h>
 #else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
-#endif
 
 #include <pccard/i82365.h>
 #ifdef	PC98

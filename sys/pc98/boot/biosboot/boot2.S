@@ -61,11 +61,6 @@ ENTRY(boot2)
 	mov	%ax, %es
 	data32
 	shll	$4, %eax
-#ifdef NAMEBLOCK
-	addr32
-	data32
-	movl	%esp, EXT(dflt_name)
-#endif
 
 	/* fix up GDT entries for bootstrap */
 #define FIXUP(gdt_index) \
@@ -172,6 +167,10 @@ ENTRY(boot2)
 	subb	%al, %al
 	rep
 	stosb
+
+#ifdef NAMEBLOCK
+	movl	%esp, EXT(dflt_name)
+#endif
 
 	movzbl	%dl, %edx	/* discard head (%dh) and random high bits */
 	pushl	%edx
