@@ -283,10 +283,10 @@ struct mbstat {
  * mbuf, cluster, and external object allocation macros
  * (for compatibility purposes).
  */
-#define	M_COPY_PKTHDR(to, from)	m_copy_pkthdr(to, from)
-#define	m_getclr		m_get_clrd
-#define	MGET(m, how, type)	(m) = m_get((how), (type))
-#define	MGETHDR(m, how, type)	(m) = m_gethdr((how), (type))
+#define	M_COPY_PKTHDR(to, from)	m_copy_pkthdr((to), (from))
+#define	m_getclr(how, type)	m_get_clrd((how), (type))
+#define	MGET(m, how, type)	((m) = m_get((how), (type)))
+#define	MGETHDR(m, how, type)	((m) = m_gethdr((how), (type)))
 #define	MCLGET(m, how)		m_clget((m), (how))
 #define	MEXTADD(m, buf, size, free, args, flags, type) 			\
     m_extadd((m), (caddr_t)(buf), (size), (free), (args), (flags), (type))
@@ -389,7 +389,7 @@ struct mbstat {
 /* Length to m_copy to copy all. */
 #define	M_COPYALL	1000000000
 
-/* Compatibility with 4.3 */
+/* Compatibility with 4.3. */
 #define	m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
 
 /*
@@ -401,7 +401,7 @@ struct mauxtag {
 	void	*p;
 };
 
-/*
+/*-
  * Some packet tags to identify different mbuf annotations.
  *
  * Eventually, these annotations will end up in an appropriate chain
@@ -418,7 +418,6 @@ struct mauxtag {
  *	m_next	= next buffer in chain.
  *
  * BE VERY CAREFUL not to pass these blocks to the mbuf handling routines.
- *
  */
 
 #define	m_tag_id	m_hdr.mh_flags
@@ -450,11 +449,11 @@ struct mauxtag {
 #define	PACKET_TAG_MAX				19
 
 extern	int max_datalen;		/* MHLEN - max_hdr */
-extern	int max_hdr;			/* largest link + protocol header */
-extern	int max_linkhdr;		/* largest link-level header */
-extern	int max_protohdr;		/* largest protocol header */
-extern	struct mbpstat mb_statpcpu[];	/* Per-CPU allocation stats. */
-extern	struct mbstat mbstat;		/* General mbuf stats/infos. */
+extern	int max_hdr;			/* Largest link + protocol header */
+extern	int max_linkhdr;		/* Largest link-level header */
+extern	int max_protohdr;		/* Largest protocol header */
+extern	struct mbpstat mb_statpcpu[];	/* Per-CPU allocation stats */
+extern	struct mbstat mbstat;		/* General mbuf stats/infos */
 extern	int nmbclusters;		/* Maximum number of clusters */
 extern	int nmbcnt;			/* Scale kmem_map for counter space */
 extern	int nmbufs;			/* Maximum number of mbufs */
@@ -476,11 +475,11 @@ void		 m_copyback(struct mbuf *, int, int, caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct	mbuf	*m_copym(struct mbuf *, int, int, int);
 struct	mbuf	*m_copypacket(struct mbuf *, int);
-void		 m_copy_pkthdr(struct mbuf *to, struct mbuf *from);
+void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
 struct	mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*copy)(char *, caddr_t, u_int));
 struct	mbuf	*m_dup(struct mbuf *, int);
-unsigned	 m_fixhdr(struct mbuf *m);
+unsigned	 m_fixhdr(struct mbuf *);
 struct	mbuf	*m_free(struct mbuf *);
 void		 m_freem(struct mbuf *);
 struct	mbuf	*m_get(int, short);
@@ -489,9 +488,9 @@ struct	mbuf	*m_getcl(int, short, int);
 struct	mbuf	*m_gethdr(int, short);
 struct	mbuf	*m_gethdr_clrd(int, short);
 struct	mbuf	*m_getm(struct mbuf *, int, int, short);
-unsigned	 m_length(struct mbuf *m, struct mbuf **l);
+unsigned	 m_length(struct mbuf *, struct mbuf **);
 struct	mbuf	*m_prepend(struct mbuf *, int, int);
-void		 m_print(const struct mbuf *m);
+void		 m_print(const struct mbuf *);
 struct	mbuf	*m_pulldown(struct mbuf *, int, int, int *);
 struct	mbuf	*m_pullup(struct mbuf *, int);
 struct	mbuf	*m_split(struct mbuf *, int, int);
