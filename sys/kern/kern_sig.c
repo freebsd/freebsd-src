@@ -696,7 +696,6 @@ osigprocmask(td, uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct sigpending_args {
-	SIGSETOR(siglist, td->td_siglist);
 	sigset_t	*set;
 };
 #endif
@@ -953,7 +952,7 @@ osigvec(td, uap)
 #endif
 	}
 	mtx_lock(&Giant);
-	error = kern_sigaction(td, uap->signum, nsap, osap, 1);
+	error = kern_sigaction(td, uap->signum, nsap, osap, KSA_OSIGSET);
 	mtx_unlock(&Giant);
 	if (osap && !error) {
 		vec.sv_handler = osap->sa_handler;
