@@ -29,33 +29,31 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
 
-#ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1988, 1990, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 12/15/93";
-#endif /* not lint */
+static const char sccsid[] = "@(#)main.c	8.3 (Berkeley) 5/30/95";
+#endif
 
-#include <unistd.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "ring.h"
 #include "externs.h"
 #include "defines.h"
 
+
 /* These values need to be the same as defined in libtelnet/kerberos5.c */
 /* Either define them in both places, or put in some common header file. */
-#define OPTS_FORWARD_CREDS           0x00000002
-#define OPTS_FORWARDABLE_CREDS       0x00000001
+#define OPTS_FORWARD_CREDS	0x00000002
+#define OPTS_FORWARDABLE_CREDS	0x00000001
 
 #if 0
 #define FORWARD
@@ -71,8 +69,8 @@ int family = AF_UNSPEC;
 /*
  * Initialize variables.
  */
-    void
-tninit()
+void
+tninit(void)
 {
     init_terminal();
 
@@ -81,39 +79,20 @@ tninit()
     init_telnet();
 
     init_sys();
-
-#if defined(TN3270)
-    init_3270();
-#endif
 }
 
-	void
-usage()
+static void
+usage(void)
 {
 	fprintf(stderr, "Usage: %s %s%s%s%s\n",
 	    prompt,
-#ifdef	AUTHENTICATION
-	    "[-4] [-6] [-8] [-E] [-K] [-L] [-N] [-S tos] [-X atype] [-a] [-c] [-d]",
-	    "\n\t[-e char] [-k realm] [-l user] [-f/-F] [-n tracefile] ",
-#else
-	    "[-4] [-6] [-8] [-E] [-L] [-N] [-S tos] [-a] [-c] [-d]",
+	    "[-4] [-6] [-8] [-E] [-L] [-N] [-S tos] [-c] [-d]",
 	    "\n\t[-e char] [-l user] [-n tracefile] ",
-#endif
-#if defined(TN3270) && defined(unix)
-# ifdef AUTHENTICATION
-	    "[-noasynch] [-noasynctty]\n\t"
-	    "[-noasyncnet] [-r] [-s src_addr] [-t transcom] ",
-# else
-	    "[-noasynch] [-noasynctty] [-noasyncnet] [-r]\n\t"
-	    "[-s src_addr] [-t transcom] ",
-# endif
-#else
 	    "[-r] [-s src_addr] [-u] ",
-#endif
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	    "[-P policy] "
 #endif
-	    "\n\t[host-name [port]]"
+	    "[host-name [port]]"
 	);
 	exit(1);
 }
@@ -122,10 +101,8 @@ usage()
  * main.  Parse arguments, invoke the protocol or command parser.
  */
 
-
-main(argc, argv)
-	int argc;
-	char *argv[];
+int
+main(int argc, char *argv[])
 {
 	int ch;
 	char *user;
@@ -135,13 +112,10 @@ main(argc, argv)
 #endif	/* FORWARD */
 
 	tninit();		/* Clear out things */
-#if	defined(CRAY) && !defined(__STDC__)
-	_setlist_init();	/* Work around compiler bug */
-#endif
 
 	TerminalSaveState();
 
-	if (prompt = strrchr(argv[0], '/'))
+	if ((prompt = strrchr(argv[0], '/')))
 		++prompt;
 	else
 		prompt = argv[0];
@@ -151,16 +125,16 @@ main(argc, argv)
 	rlogin = (strncmp(prompt, "rlog", 4) == 0) ? '~' : _POSIX_VDISABLE;
 	autologin = -1;
 
+
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 #define IPSECOPT	"P:"
 #else
 #define IPSECOPT
 #endif
 	while ((ch = getopt(argc, argv,
-			    "468EKLNS:X:acde:fFk:l:n:rs:t:ux" IPSECOPT)) != -1)
+			    "468EKLNS:X:acde:fFk:l:n:rs:t:uxy" IPSECOPT)) != -1)
 #undef IPSECOPT
 	{
-
 		switch(ch) {
 		case '4':
 			family = AF_INET;
@@ -177,9 +151,6 @@ main(argc, argv)
 			rlogin = escape = _POSIX_VDISABLE;
 			break;
 		case 'K':
-#ifdef	AUTHENTICATION
-			autologin = 0;
-#endif
 			break;
 		case 'L':
 			eight |= 2;	/* binary output only */
@@ -205,9 +176,6 @@ main(argc, argv)
 		    }
 			break;
 		case 'X':
-#ifdef	AUTHENTICATION
-			auth_disable_name(optarg);
-#endif
 			break;
 		case 'a':
 			autologin = 1;
@@ -222,67 +190,25 @@ main(argc, argv)
 			set_escape_char(optarg);
 			break;
 		case 'f':
-#if defined(AUTHENTICATION) && defined(KRB5) && defined(FORWARD)
-			if (forward_flags & OPTS_FORWARD_CREDS) {
-			    fprintf(stderr,
-				    "%s: Only one of -f and -F allowed.\n",
-				    prompt);
-			    usage();
-			}
-			forward_flags |= OPTS_FORWARD_CREDS;
-#else
 			fprintf(stderr,
 			 "%s: Warning: -f ignored, no Kerberos V5 support.\n",
 				prompt);
-#endif
 			break;
 		case 'F':
-#if defined(AUTHENTICATION) && defined(KRB5) && defined(FORWARD)
-			if (forward_flags & OPTS_FORWARD_CREDS) {
-			    fprintf(stderr,
-				    "%s: Only one of -f and -F allowed.\n",
-				    prompt);
-			    usage();
-			}
-			forward_flags |= OPTS_FORWARD_CREDS;
-			forward_flags |= OPTS_FORWARDABLE_CREDS;
-#else
 			fprintf(stderr,
 			 "%s: Warning: -F ignored, no Kerberos V5 support.\n",
 				prompt);
-#endif
 			break;
 		case 'k':
-#if defined(AUTHENTICATION) && defined(KRB4)
-		    {
-			extern char *dest_realm, dst_realm_buf[], dst_realm_sz;
-			dest_realm = dst_realm_buf;
-			(void)strncpy(dest_realm, optarg, dst_realm_sz);
-		    }
-#else
 			fprintf(stderr,
 			   "%s: Warning: -k ignored, no Kerberos V4 support.\n",
 								prompt);
-#endif
 			break;
 		case 'l':
 			autologin = 1;
 			user = optarg;
 			break;
 		case 'n':
-#if defined(TN3270) && defined(unix)
-			/* distinguish between "-n oasynch" and "-noasynch" */
-			if (argv[optind - 1][0] == '-' && argv[optind - 1][1]
-			    == 'n' && argv[optind - 1][2] == 'o') {
-				if (!strcmp(optarg, "oasynch")) {
-					noasynchtty = 1;
-					noasynchnet = 1;
-				} else if (!strcmp(optarg, "oasynchtty"))
-					noasynchtty = 1;
-				else if (!strcmp(optarg, "oasynchnet"))
-					noasynchnet = 1;
-			} else
-#endif	/* defined(TN3270) && defined(unix) */
 				SetNetTrace(optarg);
 			break;
 		case 'r':
@@ -291,22 +217,17 @@ main(argc, argv)
 		case 's':
 			src_addr = optarg;
 			break;
-		case 't':
-#if defined(TN3270) && defined(unix)
-			(void)strlcpy(tline, optarg, sizeof(tline));
-			transcom = tline;
-#else
-			fprintf(stderr,
-			   "%s: Warning: -t ignored, no TN3270 support.\n",
-								prompt);
-#endif
-			break;
 		case 'u':
 			family = AF_UNIX;
 			break;
 		case 'x':
 			fprintf(stderr,
 			    "%s: Warning: -x ignored, no ENCRYPT support.\n",
+								prompt);
+			break;
+		case 'y':
+			fprintf(stderr,
+			    "%s: Warning: -y ignored, no ENCRYPT support.\n",
 								prompt);
 			break;
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
@@ -338,11 +259,11 @@ main(argc, argv)
 			usage();
 		*argp++ = prompt;
 		if (user) {
-			*argp++ = "-l";
+			*argp++ = strdup("-l");
 			*argp++ = user;
 		}
 		if (src_addr) {
-			*argp++ = "-s";
+			*argp++ = strdup("-s");
 			*argp++ = src_addr;
 		}
 		*argp++ = argv[0];		/* host */
@@ -359,11 +280,7 @@ main(argc, argv)
 	}
 	(void)setjmp(toplevel);
 	for (;;) {
-#ifdef TN3270
-		if (shell_active)
-			shell_continue();
-		else
-#endif
 			command(1, 0, 0);
 	}
+	return 0;
 }

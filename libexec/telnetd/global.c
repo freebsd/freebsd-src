@@ -33,7 +33,7 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)global.c	8.1 (Berkeley) 6/4/93";
+static const char sccsid[] = "@(#)global.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
