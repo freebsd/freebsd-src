@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.33 1998/06/08 11:02:00 bde Exp $
+# $Id: makesyscalls.sh,v 1.34 1998/06/09 03:32:05 bde Exp $
 
 set -e
 
@@ -383,6 +383,7 @@ s/\$//g
 		printf("#undef PAD_\n") > syscompatdcl
 		printf("\n#endif /* !%s */\n", sysproto_h) > syscompatdcl
 
+		printf("\n") > sysmk
 		printf("};\n") > sysent
 		printf("};\n") > sysnames
 		printf("#define\t%sMAXSYSCALL\t%d\n", syscallprefix, syscall) \
