@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.21 1997/12/05 19:55:39 bde Exp $
+ * $Id: tty_tty.c,v 1.22 1998/01/24 02:54:35 eivind Exp $
  */
 
 /*
@@ -177,7 +177,7 @@ cttypoll(dev, events, p)
 	return (VOP_POLL(ttyvp, events, p->p_ucred, p));
 }
 
-static ctty_devsw_installed = 0;
+static	int	ctty_devsw_installed;
 #ifdef DEVFS
 static 	void	*ctty_devfs_token;
 #endif
