@@ -85,10 +85,7 @@ struct fifoinfo {
 static int	fifo_print(struct vop_print_args *);
 static int	fifo_open(struct vop_open_args *);
 static int	fifo_close(struct vop_close_args *);
-static int	fifo_read(struct vop_read_args *);
-static int	fifo_write(struct vop_write_args *);
 static int	fifo_ioctl(struct vop_ioctl_args *);
-static int	fifo_poll(struct vop_poll_args *);
 static int	fifo_kqfilter(struct vop_kqfilter_args *);
 static int	fifo_pathconf(struct vop_pathconf_args *);
 static int	fifo_advlock(struct vop_advlock_args *);
@@ -119,9 +116,7 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) vop_panic },
 	{ &vop_open_desc,		(vop_t *) fifo_open },
 	{ &vop_pathconf_desc,		(vop_t *) fifo_pathconf },
-	{ &vop_poll_desc,		(vop_t *) fifo_poll },
 	{ &vop_print_desc,		(vop_t *) fifo_print },
-	{ &vop_read_desc,		(vop_t *) fifo_read },
 	{ &vop_readdir_desc,		(vop_t *) vop_panic },
 	{ &vop_readlink_desc,		(vop_t *) vop_panic },
 	{ &vop_reallocblks_desc,	(vop_t *) vop_panic },
@@ -131,7 +126,6 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) vop_panic },
 	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_symlink_desc,		(vop_t *) vop_panic },
-	{ &vop_write_desc,		(vop_t *) fifo_write },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc fifo_vnodeop_opv_desc =
@@ -190,14 +184,6 @@ fifo_open(ap)
 	struct socket *rso, *wso;
 	struct file *fp;
 	int error;
-	static int once, fifofs_fops;
-
-	if (!once) {
-		TUNABLE_INT_FETCH("vfs.fifofs.fops", &fifofs_fops);
-		if (fifofs_fops)
-			printf("WARNING: FIFOFS uses fops\n");
-		once = 1;
-	}
 
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE, M_WAITOK);
@@ -308,73 +294,14 @@ fail1:
 		}
 	}
 	mtx_unlock(&fifo_mtx);
-	fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
-	if (fifofs_fops && fp->f_ops == &badfileops) {
-		fp->f_ops = &fifo_ops_f;
-		fp->f_data = fip;
+	if (ap->a_fdidx >= 0) {
+		fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
+		if (fp->f_ops == &badfileops) {
+			fp->f_ops = &fifo_ops_f;
+			fp->f_data = fip;
+		}
 	}
 	return (0);
-}
-
-/*
- * Vnode op for read
- */
-/* ARGSUSED */
-static int
-fifo_read(ap)
-	struct vop_read_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	struct uio *uio = ap->a_uio;
-	struct socket *rso = ap->a_vp->v_fifoinfo->fi_readsock;
-	struct thread *td = uio->uio_td;
-	int error, flags;
-
-#ifdef DIAGNOSTIC
-	if (uio->uio_rw != UIO_READ)
-		panic("fifo_read mode");
-#endif
-	if (uio->uio_resid == 0)
-		return (0);
-	VOP_UNLOCK(ap->a_vp, 0, td);
-	flags = (ap->a_ioflag & IO_NDELAY) ? MSG_NBIO : 0;
-	error = soreceive(rso, (struct sockaddr **)0, uio, (struct mbuf **)0,
-	    (struct mbuf **)0, &flags);
-	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, td);
-	return (error);
-}
-
-/*
- * Vnode op for write
- */
-/* ARGSUSED */
-static int
-fifo_write(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	struct socket *wso = ap->a_vp->v_fifoinfo->fi_writesock;
-	struct thread *td = ap->a_uio->uio_td;
-	int error, flags;
-
-#ifdef DIAGNOSTIC
-	if (ap->a_uio->uio_rw != UIO_WRITE)
-		panic("fifo_write mode");
-#endif
-	VOP_UNLOCK(ap->a_vp, 0, td);
-	flags = (ap->a_ioflag & IO_NDELAY) ? MSG_NBIO : 0;
-	error = sosend(wso, (struct sockaddr *)0, ap->a_uio, 0,
-	    (struct mbuf *)0, flags, td);
-	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, td);
-	return (error);
 }
 
 /*
@@ -519,60 +446,6 @@ filt_fifowrite(struct knote *kn, long hint)
 	if (need_lock)
 		SOCKBUF_UNLOCK(&so->so_snd);
 	return (result);
-}
-
-/* ARGSUSED */
-static int
-fifo_poll(ap)
-	struct vop_poll_args /* {
-		struct vnode *a_vp;
-		int  a_events;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
-{
-	struct file filetmp;
-	int events, revents = 0;
-
-	events = ap->a_events &
-	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
-	if (events) {
-		/*
-		 * If POLLIN or POLLRDNORM is requested and POLLINIGNEOF is
-		 * not, then convert the first two to the last one.  This
-		 * tells the socket poll function to ignore EOF so that we
-		 * block if there is no writer (and no data).  Callers can
-		 * set POLLINIGNEOF to get non-blocking behavior.
-		 */
-		if (events & (POLLIN | POLLRDNORM) &&
-		    !(events & POLLINIGNEOF)) {
-			events &= ~(POLLIN | POLLRDNORM);
-			events |= POLLINIGNEOF;
-		}
-
-		filetmp.f_data = ap->a_vp->v_fifoinfo->fi_readsock;
-		filetmp.f_cred = ap->a_cred;
-		if (filetmp.f_data)
-			revents |= soo_poll(&filetmp, events,
-			    ap->a_td->td_ucred, ap->a_td);
-
-		/* Reverse the above conversion. */
-		if ((revents & POLLINIGNEOF) &&
-		    !(ap->a_events & POLLINIGNEOF)) {
-			revents |= (ap->a_events & (POLLIN | POLLRDNORM));
-			revents &= ~POLLINIGNEOF;
-		}
-	}
-	events = ap->a_events & (POLLOUT | POLLWRNORM | POLLWRBAND);
-	if (events) {
-		filetmp.f_data = ap->a_vp->v_fifoinfo->fi_writesock;
-		filetmp.f_cred = ap->a_cred;
-		if (filetmp.f_data) {
-			revents |= soo_poll(&filetmp, events,
-			    ap->a_td->td_ucred, ap->a_td);
-		}
-	}
-	return (revents);
 }
 
 /*
