@@ -477,14 +477,12 @@ ndis_convert_res(arg)
 	if (brl != NULL) {
 		SLIST_FOREACH(brle, brl, link) {
 			switch (brle->type) {
-#ifdef notdef
 			case SYS_RES_IOPORT:
 				prd->cprd_type = CmResourceTypePort;
 				prd->u.cprd_port.cprd_start.np_quad =
 				    brle->start;
 				prd->u.cprd_port.cprd_len = brle->count;
 				break;
-#endif
 			case SYS_RES_MEMORY:
 				prd->cprd_type = CmResourceTypeMemory;
 				prd->u.cprd_port.cprd_start.np_quad =
