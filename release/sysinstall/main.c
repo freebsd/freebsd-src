@@ -81,10 +81,10 @@ main(int argc, char **argv)
     if (OnVTY) {
 	for (curr = 0; curr < 25; curr++)
 	    putchar('\n');
-	/* Move stderr aside */
-	if (DebugFD)
-	    dup2(DebugFD, 2);
     }
+    /* Move stderr aside */
+    if (DebugFD)
+	dup2(DebugFD, 2);
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
