@@ -2595,7 +2595,7 @@ pmap_remove_pages(pmap, sva, eva)
 		if (TAILQ_EMPTY(&m->md.pv_list))
 			vm_page_flag_clear(m, PG_WRITEABLE);
 
-		pmap_unuse_pt(pmap, pv->pv_va, pv->pv_ptem);
+		pmap_unuse_pt(pmap, pv->pv_va);
 		free_pv_entry(pv);
 	}
 	sched_unpin();
