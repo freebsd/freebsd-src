@@ -42,6 +42,7 @@
 #include "opt_ipdn.h"
 #include "opt_ipdivert.h"
 #include "opt_ipfilter.h"
+#include "opt_ipstealth.h"
 
 #include <stddef.h>
 
@@ -138,6 +139,12 @@ static int    maxnipq;
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 	&ip_mtu, 0, "");
+#endif
+
+#ifdef IPSTEALTH
+static int	ipstealth = 0;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
+    &ipstealth, 0, "");
 #endif
 
 #if !defined(COMPAT_IPFW) || COMPAT_IPFW == 1
@@ -1421,11 +1428,18 @@ ip_forward(m, srcrt)
 		return;
 	}
 	HTONS(ip->ip_id);
-	if (ip->ip_ttl <= IPTTLDEC) {
-		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, dest, 0);
-		return;
+#ifdef IPSTEALTH
+	if (!ipstealth) {
+#endif
+		if (ip->ip_ttl <= IPTTLDEC) {
+			icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS,
+			    dest, 0);
+			return;
+		}
+		ip->ip_ttl -= IPTTLDEC;
+#ifdef IPSTEALTH
 	}
-	ip->ip_ttl -= IPTTLDEC;
+#endif
 
 	sin = (struct sockaddr_in *)&ipforward_rt.ro_dst;
 	if ((rt = ipforward_rt.ro_rt) == 0 ||
