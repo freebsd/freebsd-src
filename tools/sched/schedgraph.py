@@ -36,7 +36,6 @@ from Tkinter import *
 # - It is encouraged to increase KTR_ENTRIES size to 32768 to gather
 #    enough information for analysis.
 # - Rebuild kernel with proper changes to KERNCONF.
-# - Run ktrace(1) with whatever workload you wish to use.
 # - Dump the trace to a file: 'ktrdump -ct > ktr.out'
 # - Run the python script: 'python schedgraph.py ktr.out'
 #
