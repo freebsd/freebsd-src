@@ -72,11 +72,11 @@ extern char STR_SIEN[];
 
 #define	_getlock_spin_block(mp, tid, type) do {				\
 	u_int _ipl = alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH);		\
-	if (atomic_cmpset_64(&(mp)->mtx_lock, MTX_UNOWNED, (tid)) == 0) \
+	if (!_obtain_lock(mp, tid))					\
 		mtx_enter_hard(mp, (type) & MTX_HARDOPTS, _ipl);	\
 	else {								\
 		alpha_mb();						\
-		(mp)->mtx_saveipl = _ipl;				\
+		(mp)->mtx_saveintr = _ipl;				\
 	}								\
 } while (0)
 
@@ -97,13 +97,13 @@ extern char STR_SIEN[];
 	stq_c	a0, lck+MTX_LOCK;		\
 	beq	a0, 1b;				\
 	mb;					\
-	stl	v0, lck+MTX_SAVEIPL
+	stl	v0, lck+MTX_SAVEINTR
 
 #define MTX_EXIT(lck)				\
 	mb;					\
 	ldiq	a0, MTX_UNOWNED;		\
 	stq	a0, lck+MTX_LOCK;		\
-	ldl	a0, lck+MTX_SAVEIPL;		\
+	ldl	a0, lck+MTX_SAVEINTR;		\
 	call_pal PAL_OSF1_swpipl
 
 #endif	/* !LOCORE */
