@@ -94,7 +94,7 @@ struct links_entry {
         char                    *name;
 };
 
-#define CPIO_MAGIC   0x13141516
+#define	CPIO_MAGIC   0x13141516
 struct cpio {
 	int			  magic;
 	int			(*read_header)(struct archive *, struct stat *,

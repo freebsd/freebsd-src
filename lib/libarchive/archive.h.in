@@ -58,11 +58,11 @@ struct archive_entry;
  * platform-dependent error code.
  */
 /* Unrecognized or invalid file format. */
-/* #define ARCHIVE_ERRNO_FILE_FORMAT */
+/* #define	ARCHIVE_ERRNO_FILE_FORMAT */
 /* Illegal usage of the library. */
-/* #define ARCHIVE_ERRNO_PROGRAMMER_ERROR */
+/* #define	ARCHIVE_ERRNO_PROGRAMMER_ERROR */
 /* Unknown or unclassified error. */
-/* #define ARCHIVE_ERRNO_MISC */
+/* #define	ARCHIVE_ERRNO_MISC */
 
 /*
  * Callbacks are invoked to automatically read/write/open/close the archive.
@@ -96,9 +96,9 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FORMAT_BASE_MASK		0xff0000U
 #define	ARCHIVE_FORMAT_CPIO			0x10000
 #define	ARCHIVE_FORMAT_CPIO_POSIX		(ARCHIVE_FORMAT_CPIO | 1)
-#define ARCHIVE_FORMAT_SHAR			0x20000
-#define ARCHIVE_FORMAT_SHAR_BASE		(ARCHIVE_FORMAT_SHAR | 1)
-#define ARCHIVE_FORMAT_SHAR_DUMP		(ARCHIVE_FORMAT_SHAR | 2)
+#define	ARCHIVE_FORMAT_SHAR			0x20000
+#define	ARCHIVE_FORMAT_SHAR_BASE		(ARCHIVE_FORMAT_SHAR | 1)
+#define	ARCHIVE_FORMAT_SHAR_DUMP		(ARCHIVE_FORMAT_SHAR | 2)
 #define	ARCHIVE_FORMAT_TAR			0x30000
 #define	ARCHIVE_FORMAT_TAR_USTAR		(ARCHIVE_FORMAT_TAR | 1)
 #define	ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE	(ARCHIVE_FORMAT_TAR | 2)
