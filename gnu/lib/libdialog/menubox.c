@@ -25,6 +25,10 @@
 #include "dialog.priv.h"
 #include <ncurses.h>
 
+#ifndef lint
+static const char rcsid[] = "$FreeBSD$";
+#endif
+
 static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected, dialogMenuItem *me, int menu_width, int tag_x, int item_x);
 
 #define DREF(di, item)		((di) ? &((di)[(item)]) : NULL)
@@ -229,10 +233,10 @@ draw:
 	}
 
 	/* Check if key pressed matches first character of any item tag in menu */
-	for (i = 0; i < max_choice; i++)
-	    if (key < 0x100 && toupper(key) == toupper(items[(scroll + i) * 2][0]))
+	for (i = 0; i < max_choice; i++)	
+	    if (key < 0x100 && isprint(key) && toupper(key) == toupper(items[(scroll + i) * 2][0]))
 		break;
-	
+
 	if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) || KEY_IS_UP(key) || KEY_IS_DOWN(key)) {
 	    if (key >= '1' && key <= MIN('9', '0'+max_choice))
 		i = key - '1';
