@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.15 1995/02/14 06:11:21 phk Exp $
+ * $Id: vm_glue.c,v 1.16 1995/02/20 17:26:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -225,6 +225,8 @@ vm_fork(p1, p2, isvfork)
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	up = (struct user *) kmem_alloc_pageable(u_map, UPAGES * NBPG);
+	if (up == NULL)
+		panic("vm_fork: u_map allocation failed");
 
 	/* and force-map the upages into the kernel pmap */
 	for (i = 0; i < UPAGES; i++)
