@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.11 1998/05/29 18:32:09 brian Exp $
+ *	$Id: bundle.c,v 1.12 1998/05/29 18:33:08 brian Exp $
  */
 
 #include <sys/param.h>
@@ -653,7 +653,7 @@ bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
       descriptor_Write(&dl->desc, bundle, fdset);
 }
 
-static void
+void
 bundle_LockTun(struct bundle *bundle)
 {
   FILE *lockfile;
