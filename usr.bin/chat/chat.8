@@ -1,6 +1,6 @@
 .\" -*- nroff -*-
 .\" manual page [] for chat 1.8
-.\" $Id: chat.8,v 1.1.1.1 1994/11/12 05:25:32 lars Exp $
+.\" $Id: chat.8,v 1.3 1995/10/31 23:28:24 peter Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -46,7 +46,11 @@ option is not used and you still use \fIREPORT\fR keywords, the
 .B -v
 Request that the \fIchat\fR script be executed in a verbose mode. The
 \fIchat\fR program will then log all text received from the modem and
-the output strings which it sends to the SYSLOG.
+the output strings which it sends to
+.IR syslogd (8).
+Logging is
+done to the \fIlocal2\fR facility at level \fIinfo\fR for verbose tracing
+and level \fIerr\fR for some errors.
 .TP
 .B script
 If the script is not specified in a file with the \fI-f\fR option then
@@ -226,7 +230,9 @@ Pause for a fraction of a second. The delay is 1/10th of a second.
 .I (not valid in expect.)
 .TP
 .B \\\\q
-Suppress writing the string to the SYSLOG file. The string ?????? is
+Suppress writing the string to 
+.IR syslogd (8).
+The string ?????? is
 written to the log in its place.
 .I (not valid in expect.)
 .TP
