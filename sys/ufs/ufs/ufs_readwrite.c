@@ -50,9 +50,6 @@
 #include <sys/event.h>
 #include <sys/vmmeter.h>
 
-#define VN_KNOTE(vp, b) \
-	KNOTE((struct klist *)&vp->v_pollinfo.vpi_selinfo.si_note, (b))
-
 /*
  * Vnode op for reading.
  */

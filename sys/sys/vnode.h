@@ -152,6 +152,10 @@ struct vnode {
 			vn_pollevent((vp), (events));		\
 	} while (0)
 
+#define VN_KNOTE(vp, b) \
+	KNOTE(&vp->v_pollinfo.vpi_selinfo.si_note, (b))
+
+
 /*
  * Vnode flags.
  */
