@@ -45,21 +45,6 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-/*-
- * Todo:
- * o for -C, compare original files except in -s case.
- * o for -C, don't change anything if nothing needs be changed.  In
- *   particular, don't toggle the immutable flags just to allow null
- *   attribute changes and don't clear the dump flag.  (I think inode
- *   ctimes are not updated for null attribute changes, but this is a
- *   bug.)
- * o independent of -C, if a copy must be made, then copy to a tmpfile,
- *   set all attributes except the immutable flags, then rename, then
- *   set the immutable flags.  It's annoying that the immutable flags
- *   defeat the atomicicity of rename - it seems that there must be
- *   a window where the target is not immutable.
- */
-
 #include <sys/param.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
@@ -87,40 +72,29 @@ static const char rcsid[] =
 #define MAP_FAILED ((void *)-1)	/* from <sys/mman.h> */
 #endif
 
-int debug, docompare, docopy, dodir, dopreserve, dostrip, nommap, verbose;
-int mode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
-char *group, *owner, pathbuf[MAXPATHLEN];
-char pathbuf2[MAXPATHLEN];
-
 #define	DIRECTORY	0x01		/* Tell install it's a directory. */
 #define	SETFLAGS	0x02		/* Tell install to set flags. */
 #define	NOCHANGEBITS	(UF_IMMUTABLE | UF_APPEND | SF_IMMUTABLE | SF_APPEND)
-
-void	copy __P((int, char *, int, char *, off_t));
-int	compare __P((int, const char *, int, const char *, 
-		     const struct stat *, const struct stat *));
-void	install __P((char *, char *, u_long, u_int));
-void	install_dir __P((char *));
-void	strip __P((char *));
-void	usage __P((void));
-int	trymmap __P((int));
-
-#define ALLOW_NUMERIC_IDS 1
-#ifdef ALLOW_NUMERIC_IDS
-
-uid_t   uid = -1;
-gid_t   gid = -1;
-
-uid_t	resolve_uid __P((char *));
-gid_t	resolve_gid __P((char *));
-u_long	numeric_id __P((char *, char *));
-
-#else
+#define	BACKUP_SUFFIX	".old"
 
 struct passwd *pp;
 struct group *gp;
+gid_t gid;
+uid_t uid;
+int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
+mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+char *suffix = BACKUP_SUFFIX;
 
-#endif /* ALLOW_NUMERIC_IDS */
+void	copy __P((int, char *, int, char *, off_t));
+int	compare __P((int, const char *, size_t, int, const char *, size_t));
+int	create_newfile __P((char *, int, struct stat *));
+int	create_tempfile __P((char *, char *, size_t));
+void	install __P((char *, char *, u_long, u_int));
+void	install_dir __P((char *));
+u_long	numeric_id __P((char *, char *));
+void	strip __P((char *));
+int	trymmap __P((int));
+void	usage __P((void));
 
 int
 main(argc, argv)
@@ -130,21 +104,25 @@ main(argc, argv)
 	struct stat from_sb, to_sb;
 	mode_t *set;
 	u_long fset;
-	u_int iflags;
 	int ch, no_target;
-	char *flags, *to_name;
+	u_int iflags;
+	char *flags, *group, *owner, *to_name;
 
 	iflags = 0;
-	while ((ch = getopt(argc, argv, "CcdDf:g:m:Mo:psv")) != -1)
+	group = owner = NULL;
+	while ((ch = getopt(argc, argv, "B:bCcdf:g:Mm:o:pSsv")) != -1)
 		switch((char)ch) {
+		case 'B':
+			suffix = optarg;
+			/* FALLTHROUGH */
+		case 'b':
+			dobackup = 1;
+			break;
 		case 'C':
-			docompare = docopy = 1;
+			docompare = 1;
 			break;
 		case 'c':
-			docopy = 1;
-			break;
-		case 'D':
-			debug++;
+			/* For backwards compatibility. */
 			break;
 		case 'd':
 			dodir = 1;
@@ -158,6 +136,9 @@ main(argc, argv)
 		case 'g':
 			group = optarg;
 			break;
+		case 'M':
+			nommap = 1;
+			break;
 		case 'm':
 			if (!(set = setmode(optarg)))
 				errx(EX_USAGE, "invalid file mode: %s",
@@ -165,14 +146,14 @@ main(argc, argv)
 			mode = getmode(set, 0);
 			free(set);
 			break;
-		case 'M':
-			nommap = 1;
-			break;
 		case 'o':
 			owner = optarg;
 			break;
 		case 'p':
-			docompare = docopy = dopreserve = 1;
+			docompare = dopreserve = 1;
+			break;
+		case 'S':
+			safecopy = 1;
 			break;
 		case 's':
 			dostrip = 1;
@@ -188,29 +169,40 @@ main(argc, argv)
 	argv += optind;
 
 	/* some options make no sense when creating directories */
-	if (dostrip && dodir)
+	if ((safecopy || dostrip) && dodir)
 		usage();
+
+	/*
+	 * Older versions allowed -d -C combo.  Issue a warning
+	 * for now, but turn this into an error before 4.5-RELEASE.
+	 */
+	if (docompare && dodir)
+		warnx("the -d and -C options may not be specified together");
 
 	/* must have at least two arguments, except when creating directories */
 	if (argc < 2 && !dodir)
 		usage();
 
-#ifdef ALLOW_NUMERIC_IDS
-
-	if (owner)
-		uid = resolve_uid(owner);
-	if (group)
-		gid = resolve_gid(group);
-
-#else
+	/* need to make a temp copy so we can compare stripped version */
+	if (docompare && dostrip)
+		safecopy = 1;
 
 	/* get group and owner id's */
-	if (owner && !(pp = getpwnam(owner)))
-		errx(EX_NOUSER, "unknown user %s", owner);
-	if (group && !(gp = getgrnam(group)))
-		errx(EX_NOUSER, "unknown group %s", group);
+	if (group != NULL) {
+		if ((gp = getgrnam(group)) != NULL)
+			gid = gp->gr_gid;
+		else
+			gid = (uid_t)numeric_id(group, "group");
+	} else
+		gid = (gid_t)-1;
 
-#endif /* ALLOW_NUMERIC_IDS */
+	if (owner != NULL) {
+		if ((pp = getpwnam(owner)) != NULL)
+			uid = pp->pw_uid;
+		else
+			uid = (uid_t)numeric_id(owner, "user");
+	} else
+		uid = (uid_t)-1;
 
 	if (dodir) {
 		for (; *argv != NULL; ++argv)
@@ -220,7 +212,7 @@ main(argc, argv)
 	}
 
 	no_target = stat(to_name = argv[argc - 1], &to_sb);
-	if (!no_target && (to_sb.st_mode & S_IFMT) == S_IFDIR) {
+	if (!no_target && S_ISDIR(to_sb.st_mode)) {
 		for (; *argv != to_name; ++argv)
 			install(*argv, to_name, fset, iflags | DIRECTORY);
 		exit(EX_OK);
@@ -242,48 +234,10 @@ main(argc, argv)
 		    to_sb.st_ino == from_sb.st_ino)
 			errx(EX_USAGE, 
 			    "%s and %s are the same file", *argv, to_name);
-/*
- * XXX - It's not at all clear why this code was here, since it completely
- * duplicates code install().  The version in install() handles the -C flag
- * correctly, so we'll just disable this for now.
- */
-#if 0
-		/*
-		 * Unlink now... avoid ETXTBSY errors later.  Try and turn
-		 * off the append/immutable bits -- if we fail, go ahead,
-		 * it might work.
-		 */
-		if (to_sb.st_flags & NOCHANGEBITS)
-			(void)chflags(to_name,
-			    to_sb.st_flags & ~(NOCHANGEBITS));
-		(void)unlink(to_name);
-#endif
 	}
 	install(*argv, to_name, fset, iflags);
 	exit(EX_OK);
 	/* NOTREACHED */
-}
-
-#ifdef ALLOW_NUMERIC_IDS
-
-uid_t
-resolve_uid(s)
-	char *s;
-{
-	struct passwd *pw;
-
-	return ((pw = getpwnam(s)) == NULL) ?
-		(uid_t) numeric_id(s, "user") : pw->pw_uid;
-}
-
-gid_t
-resolve_gid(s)
-	char *s;
-{
-	struct group *gr;
-
-	return ((gr = getgrnam(s)) == NULL) ?
-		(gid_t) numeric_id(s, "group") : gr->gr_gid;
 }
 
 u_long
@@ -306,8 +260,6 @@ numeric_id(name, type)
 	return (val);
 }
 
-#endif /* ALLOW_NUMERIC_IDS */
-
 /*
  * install --
  *	build a path name and install the file
@@ -318,13 +270,13 @@ install(from_name, to_name, fset, flags)
 	u_long fset;
 	u_int flags;
 {
-	struct stat from_sb, to_sb;
-	int devnull, from_fd, to_fd, serrno;
-	char *p, *old_to_name = 0;
+	struct stat from_sb, temp_sb, to_sb;
+	struct utimbuf utb;
+	int devnull, files_match, from_fd, serrno, target;
+	int tempcopy, temp_fd, to_fd;
+	char backup[MAXPATHLEN], *p, pathbuf[MAXPATHLEN], tempfile[MAXPATHLEN];
 
-	if (debug >= 2 && !docompare)
-		fprintf(stderr, "install: invoked without -C for %s to %s\n",
-			from_name, to_name);
+	files_match = 0;
 
 	/* If try to install NULL file to a directory, fails. */
 	if (flags & DIRECTORY || strcmp(from_name, _PATH_DEVNULL)) {
@@ -343,154 +295,193 @@ install(from_name, to_name, fset, flags)
 		}
 		devnull = 0;
 	} else {
-		from_sb.st_flags = 0;	/* XXX */
 		devnull = 1;
 	}
 
-	if (docompare) {
-		old_to_name = to_name;
-		/*
-		 * Make a new temporary file in the same file system
-		 * (actually, in in the same directory) as the target so
-		 * that the temporary file can be renamed to the target.
-		 */
-		snprintf(pathbuf2, sizeof pathbuf2, "%s", to_name);
-		p = strrchr(pathbuf2, '/');
-		p = (p == NULL ? pathbuf2 : p + 1);
-		snprintf(p, &pathbuf2[sizeof pathbuf2] - p, "INS@XXXX");
-		to_fd = mkstemp(pathbuf2);
-		if (to_fd < 0)
-			/* XXX should fall back to not comparing. */
-			err(EX_OSERR, "mkstemp: %s for %s", pathbuf2, to_name);
-		to_name = pathbuf2;
-	} else {
-		/*
-		 * Unlink now... avoid errors later.  Try to turn off the
-		 * append/immutable bits -- if we fail, go ahead, it might
-		 * work.
-		 */
-		if (stat(to_name, &to_sb) == 0 && to_sb.st_flags & NOCHANGEBITS)
-			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
-		unlink(to_name);
+	target = stat(to_name, &to_sb) == 0;
 
-		/* Create target. */
-		to_fd = open(to_name,
-			     O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
-		if (to_fd < 0)
-			err(EX_OSERR, "%s", to_name);
+	/* Only install to regular files. */
+	if (target && !S_ISREG(to_sb.st_mode)) {
+		errno = EFTYPE;
+		warn("%s", to_name);
+		return;
 	}
 
-	if (!devnull) {
-		if ((from_fd = open(from_name, O_RDONLY, 0)) < 0) {
-			serrno = errno;
-			(void)unlink(to_name);
-			errno = serrno;
-			err(EX_OSERR, "%s", from_name);
+	/* Only copy safe if the target exists. */
+	tempcopy = safecopy && target;
+
+	if (!devnull && (from_fd = open(from_name, O_RDONLY, 0)) < 0)
+		err(EX_OSERR, "%s", from_name);
+
+	/* If we don't strip, we can compare first. */
+	if (docompare && !dostrip && target) {
+		if ((to_fd = open(to_name, O_RDONLY, 0)) < 0)
+			err(EX_OSERR, "%s", to_name);
+		if (devnull)
+			files_match = to_sb.st_size == 0;
+		else
+			files_match = !(compare(from_fd, from_name,
+			    (size_t)from_sb.st_size, to_fd,
+			    to_name, (size_t)to_sb.st_size));
+
+		/* Close "to" file unless we match. */
+		if (!files_match)
+			(void)close(to_fd);
+	}
+
+	if (!files_match) {
+		if (tempcopy) {
+			to_fd = create_tempfile(to_name, tempfile,
+			    sizeof(tempfile));
+			if (to_fd < 0)
+				err(EX_OSERR, "%s", tempfile);
+		} else {
+			if ((to_fd = create_newfile(to_name, target,
+			    &to_sb)) < 0)
+				err(EX_OSERR, "%s", to_name);
+			if (verbose)
+				(void)printf("install: %s -> %s\n",
+				    from_name, to_name);
 		}
-		copy(from_fd, from_name, to_fd, to_name, from_sb.st_size);
-		(void)close(from_fd);
+		if (!devnull)
+			copy(from_fd, from_name, to_fd,
+			     tempcopy ? tempfile : to_name, from_sb.st_size);
 	}
 
 	if (dostrip) {
-		(void)close(to_fd);
+		strip(tempcopy ? tempfile : to_name);
 
-		strip(to_name);
-
-		/* Reopen target. */
-		to_fd = open(to_name, O_RDWR, 0);
+		/*
+		 * Re-open our fd on the target, in case we used a strip
+		 * that does not work in-place -- like GNU binutils strip.
+		 */
+		close(to_fd);
+		to_fd = open(tempcopy ? tempfile : to_name, O_RDONLY, 0);
 		if (to_fd < 0)
+			err(EX_OSERR, "stripping %s", to_name);
+	}
+
+	/*
+	 * Compare the stripped temp file with the target.
+	 */
+	if (docompare && dostrip && target) {
+		temp_fd = to_fd;
+
+		/* Re-open to_fd using the real target name. */
+		if ((to_fd = open(to_name, O_RDONLY, 0)) < 0)
+			err(EX_OSERR, "%s", to_name);
+
+		if (fstat(temp_fd, &temp_sb)) {
+			serrno = errno;
+			(void)unlink(tempfile);
+			errno = serrno;
+			err(EX_OSERR, "%s", tempfile);
+		}
+
+		if (compare(temp_fd, tempfile, (size_t)temp_sb.st_size, to_fd,
+			    to_name, (size_t)to_sb.st_size) == 0) {
+			/*
+			 * If target has more than one link we need to
+			 * replace it in order to snap the extra links.
+			 * Need to preserve target file times, though.
+			 */
+			if (to_sb.st_nlink != 1) {
+				utb.actime = to_sb.st_atime;
+				utb.modtime = to_sb.st_mtime;
+				(void)utime(tempfile, &utb);
+			} else {
+				files_match = 1;
+				(void)unlink(tempfile);
+			}
+			(void) close(temp_fd);
+		}
+	}
+
+	/*
+	 * Move the new file into place if doing a safe copy
+	 * and the files are different (or just not compared).
+	 */
+	if (tempcopy && !files_match) {
+		/* Try to turn off the immutable bits. */
+		if (to_sb.st_flags & NOCHANGEBITS)
+			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
+		if (dobackup) {
+			if (snprintf(backup, MAXPATHLEN, "%s%s", to_name,
+			    suffix) != strlen(to_name) + strlen(suffix)) {
+				unlink(tempfile);
+				errx(EX_OSERR, "%s: backup filename too long",
+				    to_name);
+			}
+			if (verbose)
+				(void)printf("install: %s -> %s\n", to_name, backup);
+			if (rename(to_name, backup) < 0) {
+				serrno = errno;
+				unlink(tempfile);
+				errno = serrno;
+				err(EX_OSERR, "rename: %s to %s", to_name,
+				     backup);
+			}
+		}
+		if (verbose)
+			(void)printf("install: %s -> %s\n", from_name, to_name);
+		if (rename(tempfile, to_name) < 0) {
+			serrno = errno;
+			unlink(tempfile);
+			errno = serrno;
+			err(EX_OSERR, "rename: %s to %s",
+			    tempfile, to_name);
+		}
+
+		/* Re-open to_fd so we aren't hosed by the rename(2). */
+		(void) close(to_fd);
+		if ((to_fd = open(to_name, O_RDONLY, 0)) < 0)
 			err(EX_OSERR, "%s", to_name);
 	}
 
 	/*
-	 * Unfortunately, because we strip the installed file and not the
-	 * original one, it is impossible to do the comparison without
-	 * first laboriously copying things over and then comparing.
-	 * It may be possible to better optimize the !dostrip case, however.
-	 * For further study.
+	 * Preserve the timestamp of the source file if necessary.
 	 */
-	if (docompare) {
-		struct stat old_sb, new_sb, timestamp_sb;
-		int old_fd;
-		struct utimbuf utb;
+	if (dopreserve && !files_match && !devnull) {
+		utb.actime = from_sb.st_atime;
+		utb.modtime = from_sb.st_mtime;
+		(void)utime(to_name, &utb);
+	}
 
-		old_fd = open(old_to_name, O_RDONLY, 0);
-		if (old_fd < 0 && errno == ENOENT)
-			goto different;
-		if (old_fd < 0)
-			err(EX_OSERR, "%s", old_to_name);
-		fstat(old_fd, &old_sb);
-		if (old_sb.st_flags & NOCHANGEBITS)
-			(void)fchflags(old_fd, old_sb.st_flags & ~NOCHANGEBITS);
-		fstat(to_fd, &new_sb);
-		if (compare(old_fd, old_to_name, to_fd, to_name, &old_sb,
-			    &new_sb)) {
-different:
-			if (debug != 0)
-				fprintf(stderr,
-					"install: renaming for %s: %s to %s\n",
-					from_name, to_name, old_to_name);
-			if (verbose != 0)
-				printf("install: %s -> %s\n",
-					from_name, old_to_name);
-			if (dopreserve && stat(from_name, &timestamp_sb) == 0) {
-				utb.actime = timestamp_sb.st_atime;
-				utb.modtime = timestamp_sb.st_mtime;
-				(void)utime(to_name, &utb);
-			}
-moveit:
-			if (rename(to_name, old_to_name) < 0) {
-				serrno = errno;
-				unlink(to_name);
-				unlink(old_to_name);
-				errno = serrno;
-				err(EX_OSERR, "rename: %s to %s", to_name,
-				    old_to_name);
-			}
-			close(old_fd);
-		} else {
-			if (old_sb.st_nlink != 1) {
-				/*
-				 * Replace the target, although it hasn't
-				 * changed, to snap the extra links.  But
-				 * preserve the target file times.
-				 */
-				if (fstat(old_fd, &timestamp_sb) == 0) {
-					utb.actime = timestamp_sb.st_atime;
-					utb.modtime = timestamp_sb.st_mtime;
-					(void)utime(to_name, &utb);
-				}
-				goto moveit;
-			}
-			if (unlink(to_name) < 0)
-				err(EX_OSERR, "unlink: %s", to_name);
-			close(to_fd);
-			to_fd = old_fd;
-		}
-		to_name = old_to_name;
+	if (fstat(to_fd, &to_sb) == -1) {
+		serrno = errno;
+		(void)unlink(to_name);
+		errno = serrno;
+		err(EX_OSERR, "%s", to_name);
 	}
 
 	/*
 	 * Set owner, group, mode for target; do the chown first,
 	 * chown may lose the setuid bits.
 	 */
-	if ((group || owner) &&
-#ifdef ALLOW_NUMERIC_IDS
-	    fchown(to_fd, owner ? uid : -1, group ? gid : -1)) {
-#else
-	    fchown(to_fd, owner ? pp->pw_uid : -1, group ? gp->gr_gid : -1)) {
-#endif
-		serrno = errno;
-		(void)unlink(to_name);
-		errno = serrno;
-		err(EX_OSERR,"%s: chown/chgrp", to_name);
+	if ((gid != (gid_t)-1 && gid != to_sb.st_gid) ||
+	    (uid != (uid_t)-1 && uid != to_sb.st_uid) ||
+	    (mode != to_sb.st_mode)) {
+		/* Try to turn off the immutable bits. */
+		if (to_sb.st_flags & NOCHANGEBITS)
+			(void)fchflags(to_fd, to_sb.st_flags & ~NOCHANGEBITS);
 	}
-	if (fchmod(to_fd, mode)) {
-		serrno = errno;
-		(void)unlink(to_name);
-		errno = serrno;
-		err(EX_OSERR, "%s: chmod", to_name);
-	}
+
+	if ((gid != (gid_t)-1 && gid != to_sb.st_gid) ||
+	    (uid != (uid_t)-1 && uid != to_sb.st_uid))
+		if (fchown(to_fd, uid, gid) == -1) {
+			serrno = errno;
+			(void)unlink(to_name);
+			errno = serrno;
+			err(EX_OSERR,"%s: chown/chgrp", to_name);
+		}
+
+	if (mode != to_sb.st_mode)
+		if (fchmod(to_fd, mode)) {
+			serrno = errno;
+			(void)unlink(to_name);
+			errno = serrno;
+			err(EX_OSERR, "%s: chmod", to_name);
+		}
 
 	/*
 	 * If provided a set of flags, set them, otherwise, preserve the
@@ -499,7 +490,7 @@ moveit:
 	 * trying to turn off UF_NODUMP.  If we're trying to set real flags,
 	 * then warn if the the fs doesn't support it, otherwise fail.
 	 */
-	if (fchflags(to_fd,
+	if (!devnull && fchflags(to_fd,
 	    flags & SETFLAGS ? fset : from_sb.st_flags & ~UF_NODUMP)) {
 		if (flags & SETFLAGS) {
 			if (errno == EOPNOTSUPP)
@@ -514,8 +505,8 @@ moveit:
 	}
 
 	(void)close(to_fd);
-	if (!docopy && !devnull && unlink(from_name))
-		err(EX_OSERR, "%s", from_name);
+	if (!devnull)
+		(void)close(from_fd);
 }
 
 /*
@@ -523,35 +514,32 @@ moveit:
  *	compare two files; non-zero means files differ
  */
 int
-compare(int from_fd, const char *from_name, int to_fd, const char *to_name,
-	const struct stat *from_sb, const struct stat *to_sb)
+compare(int from_fd, const char *from_name, size_t from_len,
+	int to_fd, const char *to_name, size_t to_len)
 {
 	char *p, *q;
 	int rv;
-	size_t tsize;
 	int done_compare;
 
 	rv = 0;
-	if (from_sb->st_size != to_sb->st_size)
+	if (from_len != to_len)
 		return 1;
 
-	tsize = (size_t)from_sb->st_size;
-
-	if (tsize <= 8 * 1024 * 1024) {
+	if (from_len <= 8 * 1024 * 1024) {
 		done_compare = 0;
 		if (trymmap(from_fd) && trymmap(to_fd)) {
-			p = mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
+			p = mmap(NULL, from_len, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
 			if (p == (char *)MAP_FAILED)
 				goto out;
-			q = mmap(NULL, tsize, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
+			q = mmap(NULL, from_len, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
 			if (q == (char *)MAP_FAILED) {
-				munmap(p, tsize);
+				munmap(p, from_len);
 				goto out;
 			}
 
-			rv = memcmp(p, q, tsize);
-			munmap(p, tsize);
-			munmap(q, tsize);
+			rv = memcmp(p, q, from_len);
+			munmap(p, from_len);
+			munmap(q, from_len);
 			done_compare = 1;
 		}
 	out:
@@ -586,6 +574,69 @@ compare(int from_fd, const char *from_name, int to_fd, const char *to_name,
 }
 
 /*
+ * create_tempfile --
+ *	create a temporary file based on path and open it
+ */
+int
+create_tempfile(path, temp, tsize)
+	char *path;
+	char *temp;
+	size_t tsize;
+{
+	char *p;
+
+	(void)strncpy(temp, path, tsize);
+	temp[tsize - 1] = '\0';
+	if ((p = strrchr(temp, '/')) != NULL)
+		p++;
+	else
+		p = temp;
+	(void)strncpy(p, "INS@XXXX", &temp[tsize - 1] - p);
+	temp[tsize - 1] = '\0';
+	return (mkstemp(temp));
+}
+
+/*
+ * create_newfile --
+ *	create a new file, overwriting an existing one if necessary
+ */
+int
+create_newfile(path, target, sbp)
+	char *path;
+	int target;
+	struct stat *sbp;
+{
+	char backup[MAXPATHLEN];
+
+	if (target) {
+		/*
+		 * Unlink now... avoid ETXTBSY errors later.  Try to turn
+		 * off the append/immutable bits -- if we fail, go ahead,
+		 * it might work.
+		 */
+		if (sbp->st_flags & NOCHANGEBITS)
+			(void)chflags(path, sbp->st_flags & ~NOCHANGEBITS);
+
+		if (dobackup) {
+			if (snprintf(backup, MAXPATHLEN, "%s%s",
+			    path, suffix) != strlen(path) + strlen(suffix))
+				errx(EX_OSERR, "%s: backup filename too long",
+				    path);
+			(void)snprintf(backup, MAXPATHLEN, "%s%s",
+			    path, suffix);
+			if (verbose)
+				(void)printf("install: %s -> %s\n",
+				    path, backup);
+			if (rename(path, backup) < 0)
+				err(EX_OSERR, "rename: %s to %s", path, backup);
+		} else
+			(void)unlink(path);
+	}
+
+	return (open(path, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR));
+}
+
+/*
  * copy --
  *	copy from one file to another
  */
@@ -600,16 +651,21 @@ copy(from_fd, from_name, to_fd, to_name, size)
 	char *p, buf[MAXBSIZE];
 	int done_copy;
 
+	/* Rewind file descriptors. */
+	if (lseek(from_fd, (off_t)0, SEEK_SET) == (off_t)-1)
+		err(EX_OSERR, "lseek: %s", from_name);
+	if (lseek(to_fd, (off_t)0, SEEK_SET) == (off_t)-1)
+		err(EX_OSERR, "lseek: %s", to_name);
+
 	/*
 	 * Mmap and write if less than 8M (the limit is so we don't totally
 	 * trash memory on big files.  This is really a minor hack, but it
 	 * wins some CPU back.
 	 */
 	done_copy = 0;
-	if (size <= 8 * 1048576 && trymmap(from_fd)) {
-		if ((p = mmap(NULL, (size_t)size, PROT_READ,
-				MAP_SHARED, from_fd, (off_t)0)) == (char *)MAP_FAILED)
-			goto out;
+	if (size <= 8 * 1048576 && trymmap(from_fd) &&
+	    (p = mmap(NULL, (size_t)size, PROT_READ, MAP_SHARED,
+		    from_fd, (off_t)0)) != (char *)MAP_FAILED) {
 		if ((nw = write(to_fd, p, size)) != size) {
 			serrno = errno;
 			(void)unlink(to_name);
@@ -617,7 +673,6 @@ copy(from_fd, from_name, to_fd, to_name, size)
 			err(EX_OSERR, "%s", to_name);
 		}
 		done_copy = 1;
-	out:
 	}
 	if (!done_copy) {
 		while ((nr = read(from_fd, buf, sizeof(buf))) > 0)
@@ -653,7 +708,7 @@ strip(to_name)
 		errno = serrno;
 		err(EX_TEMPFAIL, "fork");
 	case 0:
-		execlp("strip", "strip", to_name, NULL);
+		execlp("strip", "strip", to_name, (char *)NULL);
 		err(EX_OSERR, "exec(strip)");
 	default:
 		if (wait(&status) == -1 || status) {
@@ -670,7 +725,7 @@ strip(to_name)
  */
 void
 install_dir(path)
-        char *path;
+	char *path;
 {
 	register char *p;
 	struct stat sb;
@@ -684,7 +739,9 @@ install_dir(path)
 				if (errno != ENOENT || mkdir(path, 0755) < 0) {
 					err(EX_OSERR, "mkdir %s", path);
 					/* NOTREACHED */
-				}
+				} else if (verbose)
+					(void)printf("install: mkdir %s\n",
+						     path);
 			} else if (!S_ISDIR(sb.st_mode))
 				errx(EX_OSERR, "%s exists but is not a directory", path);
 			if (!(*p = ch))
@@ -704,10 +761,11 @@ install_dir(path)
 void
 usage()
 {
-	(void)fprintf(stderr,"\
-usage: install [-CcDpsv] [-f flags] [-g group] [-m mode] [-o owner] file1 file2\n\
-       install [-CcDpsv] [-f flags] [-g group] [-m mode] [-o owner] file1 ...\n\
-             fileN directory\n\
+	(void)fprintf(stderr, "\
+usage: install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n\
+               [-o owner] file1 file2\n\
+       install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n\
+               [-o owner] file1 ... fileN directory\n\
        install -d [-v] [-g group] [-m mode] [-o owner] directory ...\n");
 	exit(EX_USAGE);
 	/* NOTREACHED */
