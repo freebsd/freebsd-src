@@ -216,7 +216,8 @@ void	cpu_startprofclock(void);
 void	cpu_stopprofclock(void);
 
 /* flags for suser() and suser_cred() */
-#define PRISON_ROOT	1
+#define SUSER_ALLOWJAIL	1
+#define PRISON_ROOT	SUSER_ALLOWJAIL	/* XXX Old name, will be removed */
 #define SUSER_RUID	2
 
 int	suser(struct thread *td);

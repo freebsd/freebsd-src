@@ -3663,7 +3663,7 @@ vaccess(type, file_mode, file_uid, file_gid, acc_mode, cred, privused)
 		return (0);
 
 privcheck:
-	if (!suser_cred(cred, PRISON_ROOT)) {
+	if (!suser_cred(cred, SUSER_ALLOWJAIL)) {
 		/* XXX audit: privilege used */
 		if (privused != NULL)
 			*privused = 1;
@@ -3686,24 +3686,24 @@ privcheck:
 		 * VEXEC requests, instead of CAP_DAC_EXECUTE.
 		 */
 		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
-		    !cap_check(cred, NULL, CAP_DAC_READ_SEARCH, PRISON_ROOT))
+		    !cap_check(cred, NULL, CAP_DAC_READ_SEARCH, SUSER_ALLOWJAIL))
 			cap_granted |= VEXEC;
 	} else {
 		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
-		    !cap_check(cred, NULL, CAP_DAC_EXECUTE, PRISON_ROOT))
+		    !cap_check(cred, NULL, CAP_DAC_EXECUTE, SUSER_ALLOWJAIL))
 			cap_granted |= VEXEC;
 	}
 
 	if ((acc_mode & VREAD) && ((dac_granted & VREAD) == 0) &&
-	    !cap_check(cred, NULL, CAP_DAC_READ_SEARCH, PRISON_ROOT))
+	    !cap_check(cred, NULL, CAP_DAC_READ_SEARCH, SUSER_ALLOWJAIL))
 		cap_granted |= VREAD;
 
 	if ((acc_mode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
-	    !cap_check(cred, NULL, CAP_DAC_WRITE, PRISON_ROOT))
+	    !cap_check(cred, NULL, CAP_DAC_WRITE, SUSER_ALLOWJAIL))
 		cap_granted |= (VWRITE | VAPPEND);
 
 	if ((acc_mode & VADMIN) && ((dac_granted & VADMIN) == 0) &&
-	    !cap_check(cred, NULL, CAP_FOWNER, PRISON_ROOT))
+	    !cap_check(cred, NULL, CAP_FOWNER, SUSER_ALLOWJAIL))
 		cap_granted |= VADMIN;
 
 	if ((acc_mode & (cap_granted | dac_granted)) == acc_mode) {

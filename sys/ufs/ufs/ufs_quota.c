@@ -408,7 +408,7 @@ quotaon(td, mp, type, fname)
 	int error, flags;
 	struct nameidata nd;
 
-	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 
@@ -496,7 +496,7 @@ quotaoff(td, mp, type)
 	struct inode *ip;
 	int error;
 
-	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 
@@ -563,7 +563,7 @@ getquota(td, mp, id, type, addr)
 	switch (type) {
 	case USRQUOTA:
 		if ((td->td_ucred->cr_uid != id) && !unprivileged_get_quota) {
-			error = suser_cred(td->td_ucred, PRISON_ROOT);
+			error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 			if (error)
 				return (error);
 		}
@@ -571,7 +571,7 @@ getquota(td, mp, id, type, addr)
 
 	case GRPQUOTA:
 		if (!groupmember(id, td->td_ucred) && !unprivileged_get_quota) {
-			error = suser_cred(td->td_ucred, PRISON_ROOT);
+			error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 			if (error)
 				return (error);
 		}
@@ -606,7 +606,7 @@ setquota(td, mp, id, type, addr)
 	struct dqblk newlim;
 	int error;
 
-	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 
@@ -672,7 +672,7 @@ setuse(td, mp, id, type, addr)
 	struct dqblk usage;
 	int error;
 
-	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 
