@@ -46,6 +46,7 @@
 .Op Fl p Ar file
 .Op Fl t Ar timeout
 .Op Fl T Ar maxtimeout
+.Op Fl u Ar umask
 .Sh DESCRIPTION
 The
 .Nm
@@ -167,6 +168,13 @@ seconds with the
 .Fl T
 option.
 The default limit is 2 hours.
+.It Fl u
+The default file creation mode mask is set to
+.Ar umask ,
+which is expected to be an octal numeric value.
+Refer to
+.Xr umask 2
+for details.
 .It Fl U
 In previous versions of
 .Nm ,
@@ -485,6 +493,7 @@ Log file for anonymous transfers.
 .Sh SEE ALSO
 .Xr ftp 1 ,
 .Xr key 1 ,
+.Xr umask 2 ,
 .Xr getusershell 3 ,
 .Xr login.conf 5 ,
 .Xr inetd 8 ,
