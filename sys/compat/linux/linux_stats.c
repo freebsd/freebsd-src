@@ -100,6 +100,8 @@ static int
 newstat_copyout(struct stat *buf, void *ubuf)
 {
 	struct linux_newstat tbuf;
+	struct cdevsw *cdevsw;
+	dev_t dev;
 
 	tbuf.stat_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
 	tbuf.stat_ino = buf->st_ino;
@@ -114,17 +116,22 @@ newstat_copyout(struct stat *buf, void *ubuf)
 	tbuf.stat_ctime = buf->st_ctime;
 	tbuf.stat_blksize = buf->st_blksize;
 	tbuf.stat_blocks = buf->st_blocks;
+
+	/* Lie about disk drives which are character devices
+	 * in FreeBSD but block devices under Linux.
+	 */
 	if (tbuf.stat_mode & S_IFCHR &&
-		(umajor(buf->st_rdev) == 116 ||
-		 umajor(buf->st_rdev) == 13)) {
+	    (dev = udev2dev(buf->st_rdev, 0)) != NODEV) {
+		cdevsw = devsw(dev);
+		if (cdevsw != NULL && (cdevsw->d_flags & D_DISK)) {
+			tbuf.stat_mode &= ~S_IFCHR;
+			tbuf.stat_mode |= S_IFBLK;
 
-		tbuf.stat_mode &= ~S_IFCHR;
-		tbuf.stat_mode |= S_IFBLK;
-
-		/* XXX this may not be quite right */
-		/* Map major number to 0 */
-		tbuf.stat_dev = uminor(buf->st_dev) & 0xf;
-		tbuf.stat_rdev = buf->st_rdev & 0xff;
+			/* XXX this may not be quite right */
+			/* Map major number to 0 */
+			tbuf.stat_dev = uminor(buf->st_dev) & 0xf;
+			tbuf.stat_rdev = buf->st_rdev & 0xff;
+		}
 	}
 
 	return (copyout(&tbuf, ubuf, sizeof(tbuf)));
