@@ -56,8 +56,12 @@
  * [including the GNU Public Licence.]
  */
 
+#include <sys/types.h>
+#include <sys/uio.h>
 #include <stdio.h>
 #include <errno.h>
+#include <unistd.h>                                                            
+
 #include "des_locl.h"
 
 /* This has some uglies in it but it works - even over sockets. */
