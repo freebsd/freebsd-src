@@ -1,0 +1,3 @@
+/defaults fs:=${autodir}/${rhost}/root/${rfs}
+*	rhost:=${key};type=host;rfs:=/
+

@@ -1,0 +1,141 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)trsp.8	8.1 (Berkeley) 6/6/93
+.\"
+.Dd June 6, 1993
+.Dt TRSP 8
+.Os BSD 4.2
+.Sh NAME
+.Nm trsp
+.Nd transliterate sequenced packet protocol trace
+.Sh SYNOPSIS
+.Nm trsp
+.Op Fl a
+.Op Fl s
+.Op Fl t
+.Op Fl j
+.Op Fl p Ar hex-address
+.Oo
+.Ar system Op Ar core
+.Oc
+.Sh DESCRIPTION
+.Xr Trpt
+interrogates the buffer of
+.Tn SPP
+trace records created
+when a socket is marked for
+.Dq debugging
+(see
+.Xr setsockopt 2 ) ,
+and prints a readable description of these records.
+When no options are supplied, 
+.Nm trsp
+prints all the trace records found in the system
+grouped according to
+.Tn SPP
+connection protocol control
+block
+.Pq Tn PCB .
+The following options may be used to
+alter this behavior.
+.Bl -tag -width Ds
+.It Fl a
+In addition to the normal output,
+print the values of the source and destination
+addresses for each packet recorded.
+.It Fl j
+Just give a list of the protocol control block
+addresses for which there are trace records.
+.It Fl p
+Show only trace records associated with the protocol
+control block at the given address,
+.Ar hex-address .
+.It Fl s
+in addition to the normal output,
+print a detailed description of the packet
+sequencing information.
+.It Fl t
+in addition to the normal output,
+print the values for all timers at each
+point in the trace,
+.El
+.Pp
+The recommended use of
+.Nm trsp
+is as follows.
+Isolate the problem and enable debugging on the
+socket(s) involved in the connection.
+Find the address of the protocol control blocks
+associated with the sockets using the 
+.Fl A
+option to 
+.Xr netstat 1 .
+Then run
+.Nm trsp
+with the
+.Fl p
+option, supplying the associated
+protocol control block addresses.  If there are
+many sockets using the debugging option, the
+.Fl j
+option may be useful in checking to see if
+any trace records are present for the socket in
+question.
+.Pp
+If debugging is being performed on a system or
+core file other than the default, the last two
+arguments may be used to supplant the defaults.
+.Sh FILES
+.Bl -tag -width /dev/kmem -compact
+.It Pa /vmunix
+.It Pa /dev/kmem
+.El
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr setsockopt 2
+.Sh DIAGNOSTICS
+.Bl -tag -width Ds
+.It Sy no namelist
+When the system image doesn't
+contain the proper symbols to find the trace buffer;
+others which should be self explanatory.
+.Sh BUGS
+Should also print the data for each input or output,
+but this is not saved in the race record.
+.Pp
+The output format is inscrutable and should be described
+here.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .

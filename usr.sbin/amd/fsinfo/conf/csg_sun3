@@ -1,0 +1,18 @@
+// $Id$
+// standard setups for DoC tsuns.
+// note that no /var/spool/rwho is mounted as we now expect amd to do this as /vol/rwho
+
+// a sun3
+#ifndef SOS4_SYS_OPTS
+#define SOS4_SYS_OPTS grpid,hard,intr
+#endif
+#define CSG_SUN3(HOST,DOMAIN,BOOT,EXEC) \
+host HOST.DOMAIN \
+\
+mount /vol/export/roots/HOST as / from BOOT opts rw,SOS4_SYS_OPTS \
+mount /vol/export/swaps/HOST fstype swap as swap from BOOT opts swap \
+mount /vol/export/exec/sun3 as /usr from EXEC opts ro,SOS4_SYS_OPTS \
+mount /vol/export/misc/crash/HOST as /var/crash/HOST from EXEC opts rw,nosuid,SOS4_SYS_OPTS \
+mount /vol/export/misc/tmp/HOST as /tmp from EXEC opts rw,nosuid,SOS4_SYS_OPTS \
+mount /vol/export/misc/usr.tmp/HOST as /var/tmp from EXEC opts rw,nosuid,SOS4_SYS_OPTS \
+mount /var/mmdf from BOOT opts rw,nosuid,SOS4_SYS_OPTS

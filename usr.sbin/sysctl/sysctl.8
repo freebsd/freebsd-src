@@ -1,0 +1,208 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)sysctl.8	8.1 (Berkeley) 6/6/93
+.\"
+.Dd "June 6, 1993"
+.Dt SYSCTL 8
+.Os
+.Sh NAME
+.Nm sysctl
+.Nd get or set kernel state
+.Sh SYNOPSIS
+.Nm sysctl
+.Op Fl n
+.Ar name ...
+.Nm sysctl
+.Op Fl n
+.Fl w
+.Ar name=value ...
+.Nm sysctl
+.Op Fl n
+.Fl aA
+.Sh DESCRIPTION
+The
+.Nm sysctl
+utility retrieves kernel state and allows processes with
+appropriate privilege to set kernel state.
+The state to be retrieved or set is described using a
+``Management Information Base'' (``MIB'') style name,
+described as a dotted set of components.
+The
+.Fl a
+flag can be used to list all the currently available string or integer values.
+The
+.Fl A
+flag will list all the known MIB names including tables.
+Those with string or integer values will be printed as with the
+.Fl a
+flag; for the table values,
+the name of the utility to retrieve them is given.
+.Pp
+The
+.Fl n
+flag specifies that the printing of the field name should be
+suppressed and that only its value should be output.
+This flag is useful for setting shell variables.
+For example, to save the pagesize in variable psize, use:
+.Bd -literal -offset indent -compact
+set psize=`sysctl -n hw.pagesize`
+.Ed
+.Pp
+If just a MIB style name is given,
+the corresponding value is retrieved.
+If a value is to be set, the
+.Fl w
+flag must be specified and the MIB name followed
+by an equal sign and the new value to be used.
+.Pp
+The information available from
+.Nm sysctl
+consists of integers, strings, and tables.
+The tabular information can only be retrieved by special
+purpose programs such as
+.Nm ps ,
+.Nm systat ,
+and
+.Nm netstat .
+The string and integer information is summaried below.
+For a detailed description of these variable see
+.Xr sysctl 3 .
+The changeable column indicates whether a process with appropriate
+privilege can change the value.
+.Bl -column net.inet.ip.forwardingxxxxxx integerxxx
+.It Sy Name	Type	Changeable
+.It kern.ostype	string	no
+.It kern.osrelease	string	no
+.It kern.osrevision	integer	no
+.It kern.version	string	no
+.It kern.maxvnodes	integer	yes
+.It kern.maxproc	integer	yes
+.It kern.maxfiles	integer	yes
+.It kern.argmax	integer	no
+.It kern.securelevel	integer	raise only
+.It kern.hostname	string	yes
+.It kern.hostid	integer	yes
+.It kern.clockrate	struct	no
+.It kern.posix1version	integer	no
+.It kern.ngroups	integer	no
+.It kern.job_control	integer	no
+.It kern.saved_ids	integer	no
+.It kern.link_max	integer	no
+.It kern.max_canon	integer	no
+.It kern.max_input	integer	no
+.It kern.name_max	integer	no
+.It kern.path_max	integer	no
+.It kern.pipe_buf	integer	no
+.It kern.chown_restricted	integer	no
+.It kern.no_trunc	integer	no
+.It kern.vdisable	integer	no
+.It kern.boottime	struct	no
+.It vm.loadavg	struct	no
+.It machdep.console_device	dev_t	no
+.It net.inet.ip.forwarding	integer	yes
+.It net.inet.ip.redirect	integer	yes
+.It net.inet.ip.ttl	integer	yes
+.It net.inet.icmp.maskrepl	integer	yes
+.It net.inet.udp.checksum	integer	yes
+.It hw.machine	string	no
+.It hw.model	string	no
+.It hw.ncpu	integer	no
+.It hw.byteorder	integer	no
+.It hw.physmem	integer	no
+.It hw.usermem	integer	no
+.It hw.pagesize	integer	no
+.It user.cs_path	string	no
+.It user.bc_base_max	integer	no
+.It user.bc_dim_max	integer	no
+.It user.bc_scale_max	integer	no
+.It user.bc_string_max	integer	no
+.It user.coll_weights_max	integer	no
+.It user.expr_nest_max	integer	no
+.It user.line_max	integer	no
+.It user.re_dup_max	integer	no
+.It user.posix2_version	integer	no
+.It user.posix2_c_bind	integer	no
+.It user.posix2_c_dev	integer	no
+.It user.posix2_char_term	integer	no
+.It user.posix2_fort_dev	integer	no
+.It user.posix2_fort_run	integer	no
+.It user.posix2_localedef	integer	no
+.It user.posix2_sw_dev	integer	no
+.It user.posix2_upe	integer	no
+.El
+.Sh EXAMPLES
+.Pp
+For example, to retrieve the maximum number of processes allowed
+in the system, one would use the follow request:
+.Bd -literal -offset indent -compact
+sysctl kern.maxproc
+.Ed
+.Pp
+To set the maximum number of processes allowed
+in the system to 1000, one would use the follow request:
+.Bd -literal -offset indent -compact
+sysctl -w kern.maxproc=1000
+.Ed
+.Pp
+Information about the system clock rate may be obtained with:
+.Bd -literal -offset indent -compact
+sysctl kern.clockrate
+.Ed
+.Pp
+Information about the load average history may be obtained with
+.Bd -literal -offset indent -compact
+sysctl vm.loadavg
+.Ed
+.Sh FILES
+.Bl -tag -width <netinet/icmpXvar.h> -compact
+.It Pa <sys/sysctl.h>
+definitions for top level identifiers, second level kernel and hardware
+identifiers, and user level identifiers
+.It Pa <sys/socket.h>
+definitions for second level network identifiers
+.It Pa <sys/gmon.h>
+definitions for third level profiling identifiers
+.It Pa <vm/vm_param.h>
+definitions for second level virtual memory identifiers
+.It Pa <netinet/in.h>
+definitions for third level Internet identifiers and
+fourth level IP identifiers
+.It Pa <netinet/icmp_var.h>
+definitions for fourth level ICMP identifiers
+.It Pa <netinet/udp_var.h>
+definitions for fourth level UDP identifiers
+.El
+.Sh SEE ALSO
+.Xr sysctl 3
+.Sh HISTORY
+.Nm sysctl
+first appeared in 4.4BSD.

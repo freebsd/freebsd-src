@@ -1,0 +1,9 @@
+#define DISKLESS_SUN3_SOS4(HOST,DOMAIN,BOOTSERVER) \
+host HOST.DOMAIN \
+\
+mount /export/root/HOST as / from BOOTSERVER opts rw,grpid,intr \
+mount /export/swap/HOST as swap fstype swap from BOOTSERVER opts swap \
+mount /export/exec/sun3 as /usr from BOOTSERVER opts rw,grpid,intr \
+mount /var/clients/HOST as /var from BOOTSERVER opts rw,grpid,intr,nosuid \
+mount /var/clients/HOST.tmp as /tmp from BOOTSERVER opts rw,grpid,intr,nosuid \
+mount /var/spool/mail from BOOTSERVER opts rw,grpid,intr,nosuid

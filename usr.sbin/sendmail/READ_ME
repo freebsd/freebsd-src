@@ -1,0 +1,239 @@
+/*-
+ *	@(#)READ_ME	8.10 (Berkeley) 4/13/94
+ */
+
+			SENDMAIL RELEASE 8
+
+This directory has the latest sendmail software from Berkeley.  See
+doc/op/op.me for a summary of changes since 5.67.
+
+Report any bugs to sendmail@CS.Berkeley.EDU.
+
+The latest version of sendmail is kept on FTP.CS.Berkeley.EDU, directory
+/ucb/sendmail; check there for the latest revision.
+
+
++--------------+
+| MANUAL PAGES |
++--------------+
+
+The sendmail manual pages use contemporary Berkeley troff macros.  If
+your system does not process these manual pages, you can pick up the
+new macros in a BSD Net/2 FTP site (e.g.  on FTP.UU.NET, the files
+/systems/unix/bsd-sources/share/tmac/me/strip.sed and
+/systems/unix/bsd-sources/share/tmac/*).
+
+The strip.sed file is only used in installation.
+
+After installation, edit tmac.doc and tmac.andoc to reflect the
+installation path of the tmac files.  Those files contain pointers to
+/usr/share/tmac/, and those pointers are not changed by the `make
+install` process.
+
+Rename the existing tmac.an to be tmac.an.old, and rename tmac.andoc
+to be tmac.an.
+
+tmac.an will choose between tmac.an.old, your old macros, or tmac.doc,
+which are the new macros, so that both the new man pages and the
+existing man pages will be translated properly.
+
+I'm also told that the groff distribution from MIT has a tmac.doc
+macro set that is compatible with these macros.
+
+
++-----------------------+
+| RELATED DOCUMENTATION |
++-----------------------+
+
+There are other files you should read.  Rooted in this directory are:
+
+  CHANGES-R5-R8
+	Describes changes between Release 5 and Release 8 of sendmail.
+	There are some things that may behave somewhat differently.
+	For example, the rules governing when :include: files will
+	be read have been tightened up for security reasons.
+  FAQ
+	Answers to Frequently Asked Questions.
+  KNOWNBUGS
+	Known bugs in the current release.  I try to keep this up
+	to date -- get the latest version from FTP.CS.Berkeley.EDU
+	in /ucb/sendmail/KNOWNBUGS.
+  RELEASE_NOTES
+	A detailed description of the changes in each version.  This
+	is quite long, but informative.
+  src/READ_ME
+	Details on compiling and installing sendmail.
+  cf/README
+	Details on configuring sendmail.
+  doc/op/op.me
+	The sendmail Installation & Operations Guide.  Be warned: if
+	you are running this off on SunOS or some other system with an
+	old version of -me, you need to add the following macro to the
+	macros:
+
+		.de sm
+		\s-1\\$1\\s0\\$2
+		..
+
+	This sets a word in a smaller pointsize.
+
+
++--------------+
+| RELATED RFCS |
++--------------+
+
+There are several related RFCs that you may wish to read -- they are
+available via anonymous FTP to several sites, including nic.ddn.mil
+(directory rfc), ftp.nisc.sri.com (rfc), nis.nsf.net (RFC),
+nisc.jvnc.net (rfc), venera.isi.edu (in-notes), and wuarchive.wustl.edu
+(info/rfc).  They can also be retrieved via electronic mail by sending
+email to one of:
+
+	mail-server@nisc.sri.com
+		Put "send rfcNNN" in message body
+	nis-info@nis.nsf.net
+		Put "send RFCnnn.TXT-1" in message body
+	sendrfc@jvnc.net
+		Put "RFCnnn" as Subject: line
+
+Important RFCs for electronic mail are:
+
+	RFC821	SMTP protocol
+	RFC822	Mail header format
+	RFC974	MX routing
+	RFC976	UUCP mail format
+	RFC1123	Host requirements (modifies 821, 822, and 974)
+	RFC1413	Identification server
+	RFC1341	MIME: Multipurpose Internet Mail Extensions
+	RFC1344	Implications of MIME for Internet Mail Gateways
+
+Other standards that may be of interest (but which are less directly
+relevant to sendmail) are:
+
+	RFC987	Mapping between RFC822 and X.400
+	RFC1049	Content-Type header field (extension to RFC822)
+
+Warning to AIX users: this version of sendmail does not implement
+MB, MR, or MG DNS resource records, as defined as experiments in
+RFC883.
+
+
++-------------------+
+| DATABASE ROUTINES |
++-------------------+
+
+IF YOU WANT TO RUN THE NEW BERKELEY DB SOFTWARE:  ****  DO NOT  ****
+use the version that was on the Net2 tape -- it has a number of
+nefarious bugs that were bad enough when I got them; you shouldn't have
+to go through the same thing.  Instead, get a new version via public
+FTP from ftp.CS.Berkeley.EDU, file ucb/4bsd/db.tar.Z.  This software
+is highly recommended; it gets rid of several stupid limits, it's much
+faster, and the interface is nicer to animals and plants.  You will
+also probably find that you have to add -I/where/you/put/db/include
+to the sendmail makefile to get db.h to work properly.
+
+Be sure you remove ndbm.h and ndbm.o from the db distribution.  These
+will cause problems with sendmail because sendmail already understands
+about NEWDB and NDBM coexisting.
+
+
++--------------------+
+| Host Name Services |
++--------------------+
+
+If you compile with NAMED_BIND (the default) sendmail will use
+DNS (the Domain Name System) for most host name lookups.  If
+you do not have DNS running at your site you may have to turn
+this off to cause sendmail to use NIS and/or the /etc/hosts file.
+In particular, on SunOS you have to choose to use DNS (which
+you should do if you are attached to the Internet, otherwise
+you lose MX records, which are required) or NIS -- there is no
+way to try both.
+
+If you are using NIS and /etc/hosts, it is critical that you
+list the long (fully qualified) name first in the /etc/hosts file
+used to build the NIS database.  For example, the line should read
+
+	128.32.149.68   mastodon.CS.Berkeley.EDU mastodon
+
+**** NOT ****
+
+	128.32.149.68   mastodon mastodon.CS.Berkeley.EDU
+
+If you use the wrong order, sendmail will conclude that your
+canonical name is the short version and use that in messages.
+The name "mastodon" doesn't mean much outside of Berkeley,
+and so this creates incorrect and unreplyable messages.
+
+
++-------------+
+| USE WITH MH |
++-------------+
+
+This version of sendmail notices and reports certain kinds of SMTP
+protocol violations that were ignored by older versions.  If you
+are running MH you may wish to install the patch in contrib/mh.patch
+that will prevent these warning reports.  This patch also works
+with the old version of sendmail, so it's safe to go ahead and
+install it.
+
+
++-----------+
+| MAKEFILES |
++-----------+
+
+The Makefiles in this release use the new Berkeley "make" that is
+available in BSD Net/2 and 4.4BSD.  If you are using this version
+of make, you may notice one or two places where the Makefile includes
+"../../Makefile.inc".  This file is not included with the sendmail
+distribution because it's not part of sendmail.  However, it is,
+in toto:
+
+	#	@(#)Makefile.inc	8.1 (Berkeley) 6/6/93
+
+	BINDIR?=	/usr/sbin
+
+The other directories should all have Makefile.dist files that work
+on the old make, albeit without all the niceties included.
+
+You can also get a new Berkeley make from the Net2 release (available
+on many public FTP archives).  This version should also interpret old
+Makefiles, so you could drop it in as your default make.
+
+For more details, see src/READ_ME.
+
+
++---------------------+
+| DIRECTORY STRUCTURE |
++---------------------+
+
+The structure of this directory tree is:
+
+cf		Source for Berkeley configuration files.  These are
+		different than what you've seen before.  They are a
+		fairly dramatic rewrite, requiring the new sendmail
+		(since they use new features).
+contrib		Some contributed tools to help with sendmail.  THESE
+		ARE NOT SUPPORTED by Berkeley -- contact the original
+		authors if you have problems.  (This directory is not
+		on the 4.4BSD tape.)
+doc		Documentation.  If you are getting source, read
+		op.me -- it's long, but worth it.
+mailstats	Statistics printing program.  It has the pathname of
+		sendmail.st compiled in, so if you've changed that,
+		beware.  This isn't all that useful.
+makemap		A program that creates the keyed maps used by the $( ... $)
+		construct in sendmail.  It is primitive but effective.
+		It takes a very simple input format, so you will probably
+		expect to preprocess must human-convenient formats
+		using sed scripts before this program will like them.
+		But it should be functionally complete.
+praliases	A program to print the DBM version of the aliases file.
+		It hasn't been converted to understand the new Berkeley
+		DB format (which we are using).
+rmail		Source for rmail(8).  This is used as a delivery
+		agent for for UUCP, and could presumably be used by
+		other non-socket oriented mailers.  Older versions of
+		rmail are probably deficient.
+src		Source for the sendmail program itself.
+test		Some test scripts (currently only for compilation aids).
