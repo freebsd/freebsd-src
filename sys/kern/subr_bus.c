@@ -381,19 +381,9 @@ devpoll(dev_t dev, int events, d_thread_t *td)
  * Common routine that tries to make sending messages as easy as possible.
  * We allocate memory for the data, copy strings into that, but do not
  * free it unless there's an error.  The dequeue part of the driver should
- * free the data.  We do not send any data if there is no listeners on the
- * /dev/devctl device.  We assume that on startup, any program that wishes
- * to do things based on devices that have attached before it starts will
- * query the tree to find out its current state.  This decision may
- * be revisited if there are difficulties determining if one should do an
- * action or not (eg, are all actions that the listening program idempotent
- * or not).  This may also open up races as well (say if the listener
- * dies just before a device goes away, and is run again just after, no
- * detach action would happen).  The flip side would be that we'd need to
- * limit the size of the queue because otherwise if no listener is running
- * then we'd have unbounded growth.  Most systems have less than 100 (maybe
- * even less than 50) devices, so maybe a limit of 200 or 300 wouldn't be
- * too horrible. XXX
+ * free the data.  We don't send data when the device is disabled.  We do
+ * send data, even when we have no listeners, because we wish to avoid
+ * races relating to startup and restart of listening applications.
  */
 static void
 devaddq(const char *type, const char *what, device_t dev)
