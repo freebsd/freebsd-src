@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.9 1995/02/16 12:43:00 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.10 1995/04/18 13:04:34 jkh Exp $";
 #endif
 
 /*
@@ -63,7 +63,7 @@ make_playpen(char *pen, size_t sz)
     }
     if (min_free(Pen) < sz) {
 	rmdir(Pen);
-	barf("Not enough free space to create `%s'.\nPlease set your PKG_TMPDIRenvironment variable to a location with more space and\ntry the command again.", Pen);
+	barf("Not enough free space to create `%s'.\nPlease set your PKG_TMPDIR environment variable to a location with more space and\ntry the command again.", Pen);
     }
     if (chdir(Pen) == FAIL)
 	barf("Can't chdir to '%s'.", Pen);
