@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)atexit.c	8.1 (Berkeley) 6/4/93";
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "atexit.h"
 
 /*
@@ -55,7 +56,7 @@ atexit(fn)
 	if ((p = __atexit) == NULL)
 		__atexit = p = &__atexit0;
 	else if (p->ind >= ATEXIT_SIZE) {
-		if ((p = malloc(sizeof(*p))) == NULL)
+		if ((p = (struct atexit *)sbrk(sizeof(*p))) == (struct atexit *)-1)
 			return (-1);
 		p->ind = 0;
 		p->next = __atexit;
