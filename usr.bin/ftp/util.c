@@ -58,6 +58,9 @@ __RCSID_SOURCE("$NetBSD: util.c,v 1.16.2.1 1997/11/18 01:02:33 mellon Exp $");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef INET6
+#include <netdb.h>
+#endif
 
 #include "ftp_var.h"
 #include "pathnames.h"
@@ -846,3 +849,30 @@ controlediting()
 	}
 }
 #endif /* !SMALL */
+
+/*
+ * Determine if given string is an IPv6 address or not.
+ * Return 1 for yes, 0 for no
+ */
+int
+isipv6addr(const char *addr)
+{
+	int rv = 0;
+#ifdef INET6
+	struct addrinfo hints, *res;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_INET6;
+	hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
+	hints.ai_flags = AI_NUMERICHOST;
+	if (getaddrinfo(addr, "0", &hints, &res) != 0)
+		rv = 0;
+	else {
+		rv = 1;
+		freeaddrinfo(res);
+	}
+	if (debug)
+		printf("isipv6addr: got %d for %sn", rv, addr);
+#endif
+	return (rv == 1) ? 1 : 0;
+}
