@@ -480,11 +480,7 @@ static struct audio_operations ad1848_pcm_operations[MAX_AUDIO_DEV] =
 {
   {
     "Generic AD1848 codec",
-#ifdef PC98
-	NEEDS_RESTART,
-#else
     DMA_AUTOMODE,
-#endif
     AFMT_U8,			/* Will be set later */
     NULL,
     ad1848_open,
