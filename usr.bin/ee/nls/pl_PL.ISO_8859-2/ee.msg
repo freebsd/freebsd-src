@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Header: /home/ncvs/src/usr.bin/ee/nls/pl_PL.ISO_8859-2/ee.msg,v 1.1 1997/09/22 20:20:28 wosch Exp $
+$ $Header: /home/ncvs/src/usr.bin/ee/nls/pl_PL.ISO_8859-2/ee.msg,v 1.2 1997/09/27 10:31:27 wosch Exp $
 $ 
 $set 1
 $quote "
@@ -111,7 +111,7 @@ zapisuj"
 100 "           ...szukam"
 101 "napis \"%s\" nie zosta³ znaleziony"
 102 "szukaj: "
-103 "nie mo¿na wykonaæ %s\n"
+103 "nie mo¿na wykonaæ %s"
 104 "naci¶nij Enter ¿eby kontynuowaæ "
 105 "naci¶nij Esc ¿eby anulowaæ"
 106 "menu zbyt du¿e dla tego okna"
