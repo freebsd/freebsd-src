@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.99 1997/11/16 22:15:05 brian Exp $
+ * $Id: main.c,v 1.100 1997/11/17 00:42:40 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -287,7 +287,7 @@ Usage()
   exit(EX_START);
 }
 
-static void
+static char *
 ProcessArgs(int argc, char **argv)
 {
   int optc;
@@ -328,13 +328,13 @@ ProcessArgs(int argc, char **argv)
     fprintf(stderr, "specify only one system label.\n");
     exit(EX_START);
   }
-  if (argc == 1)
-    SetLabel(*argv);
 
   if (optc > 1) {
     fprintf(stderr, "specify only one mode.\n");
     exit(EX_START);
   }
+
+  return argc == 1 ? *argv : NULL;	/* Don't SetLabel yet ! */
 }
 
 static void
@@ -350,7 +350,7 @@ int
 main(int argc, char **argv)
 {
   FILE *lockfile;
-  char *name;
+  char *name, *label;
 
   VarTerm = 0;
   name = strrchr(argv[0], '/');
@@ -358,7 +358,7 @@ main(int argc, char **argv)
 
   argc--;
   argv++;
-  ProcessArgs(argc, argv);
+  label = ProcessArgs(argc, argv);
   if (!(mode & MODE_DIRECT))
     VarTerm = stdout;
 
@@ -378,12 +378,11 @@ main(int argc, char **argv)
     } while (ptr >= conf);
   }
 
-  if (!ValidSystem(GetLabel())) {
+  if (!ValidSystem(label)) {
     fprintf(stderr, "You may not use ppp in this mode with this label\n");
     if (mode & MODE_DIRECT) {
       const char *l;
-      if ((l = GetLabel()) == NULL)
-        l = "default";
+      l = label ? label : "default";
       VarTerm = 0;
       LogPrintf(LogWARN, "Label %s rejected -direct connection\n", l);
     }
@@ -407,7 +406,7 @@ main(int argc, char **argv)
     fprintf(VarTerm, "Interactive mode\n");
     netfd = STDOUT_FILENO;
   } else if ((mode & MODE_OUTGOING_DAEMON) && !(mode & MODE_DEDICATED))
-    if (GetLabel() == NULL) {
+    if (label == NULL) {
       if (VarTerm)
 	fprintf(VarTerm, "Destination system must be specified in"
 		" auto, background or ddial mode.\n");
@@ -446,16 +445,21 @@ main(int argc, char **argv)
 #endif
   }
 
-  if (GetLabel()) {
-    if (SelectSystem(GetLabel(), CONFFILE) < 0) {
+  if (label) {
+    if (SelectSystem(label, CONFFILE) < 0) {
       LogPrintf(LogWARN, "Destination system %s not found in conf file.\n",
                 GetLabel());
       Cleanup(EX_START);
     }
+    /*
+     * We don't SetLabel() 'till now in case SelectSystem() has an
+     * embeded load "otherlabel" command.
+     */
+    SetLabel(label);
     if (mode & MODE_OUTGOING_DAEMON &&
 	DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
       LogPrintf(LogWARN, "You must \"set ifaddr\" in label %s for"
-		" auto, background or ddial mode.\n", GetLabel());
+		" auto, background or ddial mode.\n", label);
       Cleanup(EX_START);
     }
   }
