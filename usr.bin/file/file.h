@@ -1,6 +1,6 @@
 /*
  * file.h - definitions for file(1) program
- * @(#)$Id: file.h,v 1.7 1997/03/18 19:37:18 mpp Exp $
+ * @(#)$Id: file.h,v 1.8 1998/01/28 07:36:23 charnier Exp $
  *
  * Copyright (c) Ian F. Darwin, 1987.
  * Written by Ian F. Darwin.
@@ -35,7 +35,7 @@ typedef unsigned int uint32;
 #ifndef HOWMANY
 # define HOWMANY 8192		/* how much of the file to look at */
 #endif
-#define MAXMAGIS 1000		/* max entries in /etc/magic */
+#define MAXMAGIS 5000		/* max entries in /etc/magic */
 #define MAXDESC	50		/* max leng of text description */
 #define MAXstring 32		/* max leng of "string" types */
 
