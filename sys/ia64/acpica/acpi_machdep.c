@@ -31,6 +31,7 @@
 
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
+#include <machine/pal.h>
 
 int
 acpi_machdep_init(device_t dev)
@@ -48,4 +49,10 @@ int
 acpi_machdep_quirks(int *quirks)
 {
 	return (0);
+}
+
+void
+acpi_cpu_c1()
+{
+	ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
 }
