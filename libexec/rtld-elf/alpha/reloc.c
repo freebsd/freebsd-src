@@ -239,7 +239,8 @@ reloc_jmpslots(Obj_Entry *obj)
 	    if (def == NULL)
 		return -1;
 	    reloc_jmpslot(where,
-	      (Elf_Addr)(defobj->relocbase + def->st_value));
+	      (Elf_Addr)(defobj->relocbase + def->st_value),
+	      defobj);
 	}
     } else {
 	const Elf_Rela *relalim;
@@ -258,7 +259,8 @@ reloc_jmpslots(Obj_Entry *obj)
 	    if (def == NULL)
 		return -1;
 	    reloc_jmpslot(where,
-	      (Elf_Addr)(defobj->relocbase + def->st_value));
+	      (Elf_Addr)(defobj->relocbase + def->st_value),
+	      defobj);
 	}
     }
     obj->jmpslots_done = true;
@@ -266,8 +268,8 @@ reloc_jmpslots(Obj_Entry *obj)
 }
 
 /* Fixup the jump slot at "where" to transfer control to "target". */
-void
-reloc_jmpslot(Elf_Addr *where, Elf_Addr target)
+Elf_Addr
+reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *obj)
 {
     Elf_Addr stubaddr;
 
@@ -339,7 +341,7 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target)
 	     */
 	    if ((int32_t)delta != delta) {
 		dbg("  PLT stub too far from GOT to relocate");
-		return;
+		return target;
 	    }
 	    dhigh = delta - (int16_t)delta;
 	    if (dhigh != 0) {
@@ -389,6 +391,8 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target)
 	__asm__ __volatile__("wmb" : : : "memory");
 	stubptr[0] = inst[0];
     }
+
+    return target;
 }
 
 /* Process an R_ALPHA_COPY relocation. */

@@ -29,17 +29,25 @@
 #ifndef RTLD_MACHDEP_H
 #define RTLD_MACHDEP_H	1
 
+struct Struct_Obj_Entry;
+
 /* Return the address of the .dynamic section in the dynamic linker. */
 #define rtld_dynamic(obj) \
     ((const Elf_Dyn *)((obj)->relocbase + (Elf_Addr)&_DYNAMIC))
 
 /* Fixup the jump slot at "where" to transfer control to "target". */
-#define reloc_jmpslot(where, target)			\
-    do {						\
-	dbg("reloc_jmpslot: *%p = %p", (void *)(where),	\
-	  (void *)(target));				\
-	(*(Elf_Addr *)(where) = (Elf_Addr)(target));	\
-    } while (0)
+static inline Elf_Addr
+reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
+	      const struct Struct_Obj_Entry *obj)
+{
+    dbg("reloc_jmpslot: *%p = %p", (void *)(where),
+	(void *)(target));
+    (*(Elf_Addr *)(where) = (Elf_Addr)(target));
+    return target;
+}
+
+#define make_function_pointer(def, defobj) \
+	((defobj)->relocbase + (def)->st_value)
 
 static inline void
 atomic_decr_int(volatile int *p)

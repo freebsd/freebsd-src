@@ -437,7 +437,14 @@ _rtld_bind(Obj_Entry *obj, Elf_Word reloff)
       defobj->strtab + def->st_name, basename(obj->path),
       (void *)target, basename(defobj->path));
 
-    reloc_jmpslot(where, target);
+    /*
+     * Write the new contents for the jmpslot. Note that depending on
+     * architecture, the value which we need to return back to the
+     * lazy binding trampoline may or may not be the target
+     * address. The value returned from reloc_jmpslot() is the value
+     * that the trampoline needs.
+     */
+    target = reloc_jmpslot(where, target, defobj);
     rlock_release();
     return target;
 }
@@ -572,7 +579,7 @@ digest_dynamic(Obj_Entry *obj)
 
 	case DT_HASH:
 	    {
-		const Elf_Addr *hashtab = (const Elf_Addr *)
+		const Elf_Hashelt *hashtab = (const Elf_Hashelt *)
 		  (obj->relocbase + dynp->d_un.d_ptr);
 		obj->nbuckets = hashtab[0];
 		obj->nchains = hashtab[1];
@@ -863,8 +870,10 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
 	    cache[symnum].sym = def;
 	    cache[symnum].obj = defobj;
 	}
-    } else
-	_rtld_error("%s: Undefined symbol \"%s\"", refobj->path, name);
+    } else {
+	if (refobj != &obj_rtld)
+	    _rtld_error("%s: Undefined symbol \"%s\"", refobj->path, name);
+    }
     return def;
 }
 
@@ -1031,15 +1040,19 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
 	objlist_push_head(&list_fini, obj);
 }
 
+#ifndef FPTR_TARGET
+#define FPTR_TARGET(f)	((Elf_Addr) (f))
+#endif
+
 static bool
 is_exported(const Elf_Sym *def)
 {
-    func_ptr_type value;
+    Elf_Addr value;
     const func_ptr_type *p;
 
-    value = (func_ptr_type)(obj_rtld.relocbase + def->st_value);
-    for (p = exports;  *p != NULL;  p++)
-	if (*p == value)
+    value = (Elf_Addr)(obj_rtld.relocbase + def->st_value);
+    for (p = exports;  *p != NULL;  p++) 
+	if (FPTR_TARGET(*p) == value)
 	    return true;
     return false;
 }
@@ -1651,7 +1664,19 @@ dlsym(void *handle, const char *name)
 
     if (def != NULL) {
 	rlock_release();
-	return defobj->relocbase + def->st_value;
+
+	/*
+	 * The value required by the caller is derived from the value
+	 * of the symbol. For the ia64 architecture, we need to
+	 * construct a function descriptor which the caller can use to
+	 * call the function with the right 'gp' value. For other
+	 * architectures and for non-functions, the value is simply
+	 * the relocated value of the symbol.
+	 */
+	if (ELF_ST_TYPE(def->st_info) == STT_FUNC)
+	    return make_function_pointer(def, defobj);
+	else
+	    return defobj->relocbase + def->st_value;
     }
 
     _rtld_error("Undefined symbol \"%s\"", name);

@@ -29,45 +29,29 @@
 #ifndef RTLD_MACHDEP_H
 #define RTLD_MACHDEP_H	1
 
-struct Struct_Obj_Entry;
+/*
+ * Macros for cracking ia64 function pointers.
+ */
+struct fptr {
+	Elf_Addr	target;
+	Elf_Addr	gp;
+};
+
+#define FPTR_TARGET(f)	(((struct fptr *) (f))->target)
+#define FPTR_GP(f)	(((struct fptr *) (f))->gp)
 
 /* Return the address of the .dynamic section in the dynamic linker. */
-#define rtld_dynamic(obj) \
-    ((const Elf_Dyn *)((obj)->relocbase + (Elf_Addr)&_DYNAMIC))
+#define rtld_dynamic(obj)	(&_DYNAMIC)
 
-/* Fixup the jump slot at "where" to transfer control to "target". */
-static inline Elf_Addr
-reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
-	      const struct Struct_Obj_Entry *obj)
-{
-    dbg("reloc_jmpslot: *%p = %p", (void *)(where),
-	(void *)(target));
-    (*(Elf_Addr *)(where) = (Elf_Addr)(target));
-    return target;
-}
+struct Struct_Obj_Entry;
 
-#define make_function_pointer(def, defobj) \
-	((defobj)->relocbase + (def)->st_value)
+Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr, const struct Struct_Obj_Entry *);
+void *make_function_pointer(const Elf_Sym *, const struct Struct_Obj_Entry *);
 
-static inline void
-atomic_decr_int(volatile int *p)
-{
-    __asm __volatile ("lock; decl %0" : "=m"(*p) : "0"(*p) : "cc");
-}
-
-static inline void
-atomic_incr_int(volatile int *p)
-{
-    __asm __volatile ("lock; incl %0" : "=m"(*p) : "0"(*p) : "cc");
-}
-
-static inline void
-atomic_add_int(volatile int *p, int val)
-{
-    __asm __volatile ("lock; addl %1, %0"
-	: "=m"(*p)
-	: "ri"(val), "0"(*p)
-	: "cc");
-}
+/* Atomic operations. */
+int cmp0_and_store_int(volatile int *, int);
+void atomic_add_int(volatile int *, int);
+void atomic_incr_int(volatile int *);
+void atomic_decr_int(volatile int *);
 
 #endif
