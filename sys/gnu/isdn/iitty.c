@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.13 1995/11/29 10:47:09 julian Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.14 1995/11/29 14:39:12 julian Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.13 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.14 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.13 1995/11/29 10:47:09 julian 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.14  1995/11/29  14:39:12  julian
+ * If you're going to mechanically replicate something in 50 files
+ * it's best to not have a (compiles cleanly) typo in it! (sigh)
+ *
  * Revision 1.13  1995/11/29  10:47:09  julian
  * OK, that's it..
  * That's EVERY SINGLE driver that has an entry in conf.c..
@@ -467,7 +471,7 @@ itydevtotty(dev_t dev)
 #ifdef JREMOD
 struct cdevsw ity_cdevsw = 
 	{ ityopen,	ityclose,	ityread,	itywrite,	/*56*/
-	  ityioctl,	nostop,		nxreset,	itydevtotty,/* ity */
+	  ityioctl,	itystop,	noreset,	itydevtotty,/* ity */
 	  ttselect,	nommap,		NULL };
 
 static ity_devsw_installed = 0;

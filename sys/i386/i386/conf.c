@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.108 1995/11/29 14:39:22 julian Exp $
+ *	$Id: conf.c,v 1.109 1995/12/05 19:36:47 bde Exp $
  */
 
 #include <sys/param.h>
@@ -71,7 +71,6 @@ int	nchrdev = NUMCDEV;
 #define zerosize	nopsize
 
 /* Lots of bogus defines for shorthand purposes */
-int lkmenodev();
 #define	lkmopen		(d_open_t *)lkmenodev
 #define	lkmclose	(d_close_t *)lkmenodev
 #define lkmread		(d_rdwr_t *)lkmenodev
@@ -363,7 +362,6 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #define twread		nxread
 #define twwrite		nxwrite
 #define twselect	nxselect
-#define	twdevtotty	nxdevtotty
 #endif
 
 #include "psm.h"
@@ -589,6 +587,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #define ityread		nxread
 #define itywrite	nxwrite
 #define ityioctl	nxioctl
+#define itystop		nxstop
 #define	itydevtotty	nxdevtotty
 #endif
 
@@ -831,7 +830,7 @@ struct cdevsw	cdevsw[] =
 	  isdnioctl,	nostop,		nullreset,	nodevtotty,/* isdn */
 	  seltrue,	nommap,		NULL },
 	{ ityopen,	ityclose,	ityread,	itywrite,	/*56*/
-	  ityioctl,	nostop,		nxreset,	itydevtotty,/* ity */
+	  ityioctl,	itystop,	noreset,	itydevtotty,/* ity */
 	  ttselect,	nommap,		NULL },
 	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
 	  itelioctl,	nostop,		nullreset,	nodevtotty,/* itel */
