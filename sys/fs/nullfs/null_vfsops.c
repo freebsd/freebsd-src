@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.14 1997/02/22 09:40:21 peter Exp $
+ * $Id: null_vfsops.c,v 1.15 1997/04/17 11:17:29 kato Exp $
  */
 
 /*
@@ -92,6 +92,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	struct vnode *nullm_rootvp;
 	struct null_mount *xmp;
 	u_int size;
+	int isvnunlocked = 0;
 
 #ifdef NULLFS_DIAGNOSTIC
 	printf("nullfs_mount(mp = %x)\n", mp);
@@ -113,11 +114,26 @@ nullfs_mount(mp, path, data, ndp, p)
 		return (error);
 
 	/*
+	 * Unlock lower node to avoid deadlock.
+	 * (XXX) VOP_ISLOCKED is needed?
+	 */
+	if ((mp->mnt_vnodecovered->v_op == null_vnodeop_p) &&
+		VOP_ISLOCKED(mp->mnt_vnodecovered)) {
+		VOP_UNLOCK(mp->mnt_vnodecovered, 0, p);
+		isvnunlocked = 1;
+	}
+	/*
 	 * Find lower node
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT|LOCKLEAF,
 		UIO_USERSPACE, args.target, p);
 	error = namei(ndp);
+	/*
+	 * Re-lock vnode.
+	 */
+	if (isvnunlocked && !VOP_ISLOCKED(mp->mnt_vnodecovered))
+		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY, p);
+
 	if (error)
 		return (error);
 
@@ -128,6 +144,14 @@ nullfs_mount(mp, path, data, ndp, p)
 
 	vrele(ndp->ni_dvp);
 	ndp->ni_dvp = NULLVP;
+
+	/*
+	 * Check multi null mount to avoid `lock against myself' panic.
+	 */
+	if (lowerrootvp == VTONULL(mp->mnt_vnodecovered)->null_lowervp) {
+		error = EDEADLK;
+		return (error);
+	}
 
 	xmp = (struct null_mount *) malloc(sizeof(struct null_mount),
 				M_UFSMNT, M_WAITOK);	/* XXX */
