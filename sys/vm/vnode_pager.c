@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.2 1994/05/25 09:21:11 rgrimes Exp $
+ *	$Id: vnode_pager.c,v 1.3 1994/08/04 03:06:48 davidg Exp $
  */
 
 /*
@@ -101,6 +101,8 @@ struct pagerops vnodepagerops = {
 	vnode_pager_putmulti,
 	vnode_pager_haspage
 };
+
+
 
 static int vnode_pager_input(vn_pager_t vnp, vm_page_t * m, int count, int reqpage);
 static int vnode_pager_output(vn_pager_t vnp, vm_page_t * m, int count, int *rtvals);
@@ -518,8 +520,46 @@ void
 vnode_pager_iodone(bp)
 	struct buf *bp;
 {
+	int s = splbio();
 	bp->b_flags |= B_DONE;
 	wakeup((caddr_t) bp);
+	if( bp->b_flags & B_ASYNC) {
+		vm_offset_t paddr;
+		vm_page_t m;
+		vm_object_t obj = 0;
+		int i;
+		int npages;
+
+		paddr = (vm_offset_t) bp->b_data;
+		if( bp->b_bufsize != bp->b_bcount)
+			bzero( bp->b_data + bp->b_bcount,
+				bp->b_bufsize - bp->b_bcount);
+
+		npages = (bp->b_bufsize + PAGE_SIZE - 1) / PAGE_SIZE;
+		for( i = 0; i < npages; i++) {
+			m = PHYS_TO_VM_PAGE(pmap_kextract(paddr + i * PAGE_SIZE));
+			obj = m->object;
+			if( m) {
+				m->flags |= PG_CLEAN;
+				m->flags &= ~(PG_LAUNDRY|PG_FAKE);
+				PAGE_WAKEUP(m);
+			} else {
+				panic("vnode_pager_iodone: page is gone!!!");
+			}
+		}
+		if( obj) {
+			--obj->paging_in_progress;
+			if( obj->paging_in_progress == 0)
+				wakeup((caddr_t) obj);
+		} else {
+			panic("vnode_pager_iodone: object is gone???");
+		}
+		HOLDRELE(bp->b_vp);
+		splx(s);
+		relpbuf(bp);
+		return;
+	}
+	splx(s);
 }
 
 /*
@@ -723,7 +763,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 {
 	int     i, j;
 	vm_offset_t kva, foff;
-	int     size;
+	int     size, sizea;
 	struct proc *p = curproc;	/* XXX */
 	vm_object_t object;
 	vm_offset_t paging_offset;
@@ -736,7 +776,8 @@ vnode_pager_input(vnp, m, count, reqpage)
 	int     block, offset;
 
 	int     nbp;
-	struct buf *bp;
+	struct buf *bp, *bpa;
+	int	counta;
 	int     s;
 	int     failflag;
 
@@ -756,33 +797,13 @@ vnode_pager_input(vnp, m, count, reqpage)
 	 * originally, we did not check for an error return value -- assuming
 	 * an fs always has a bmap entry point -- that assumption is wrong!!!
 	 */
-	kva = 0;
 	mapsize = 0;
 	foff = m[reqpage]->offset + paging_offset;
-	if (!VOP_BMAP(vp, foff, &dp, 0, 0)) {
-
-		/*
-		 * we do not block for a kva, notice we default to a kva
-		 * conservative behavior
-		 */
-		kva = kmem_alloc_pageable(pager_map, (mapsize = count * PAGE_SIZE));
-		if (!kva) {
-			for (i = 0; i < count; i++) {
-				if (i != reqpage) {
-					vnode_pager_freepage(m[i]);
-				}
-			}
-			m[0] = m[reqpage];
-			kva = kmem_alloc_wait(pager_map, mapsize = PAGE_SIZE);
-			reqpage = 0;
-			count = 1;
-		}
-	}
 
 	/*
-	 * if we can't get a kva or we can't bmap, use old VOP code
+	 * if we can't bmap, use old VOP code
 	 */
-	if (!kva) {
+	if (VOP_BMAP(vp, foff, &dp, 0, 0)) {
 		for (i = 0; i < count; i++) {
 			if (i != reqpage) {
 				vnode_pager_freepage(m[i]);
@@ -797,8 +818,6 @@ vnode_pager_input(vnp, m, count, reqpage)
 		 */
 	} else if ((PAGE_SIZE / bsize) > 1 &&
 		   (vp->v_mount->mnt_stat.f_type != MOUNT_NFS)) {
-
-		kmem_free_wakeup(pager_map, kva, mapsize);
 
 		for (i = 0; i < count; i++) {
 			if (i != reqpage) {
@@ -852,12 +871,12 @@ vnode_pager_input(vnp, m, count, reqpage)
 		if ((amount > 0) && (offset + amount) <= bp->b_bcount) {
 			bp->b_flags |= B_BUSY;
 			splx(s);
+			kva = kmem_alloc_pageable( pager_map, PAGE_SIZE);
 
 			/*
 			 * map the requested page
 			 */
-			pmap_kenter(kva, VM_PAGE_TO_PHYS(m[reqpage]));
-			pmap_update();
+			pmap_qenter(kva, &m[reqpage], 1);
 
 			/*
 			 * copy the data from the buffer
@@ -870,7 +889,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 			/*
 			 * unmap the page and free the kva
 			 */
-			pmap_remove(vm_map_pmap(pager_map), kva, kva + PAGE_SIZE);
+			pmap_qremove( kva, 1);
 			kmem_free_wakeup(pager_map, kva, mapsize);
 
 			/*
@@ -982,14 +1001,25 @@ vnode_pager_input(vnp, m, count, reqpage)
 	if (dp->v_type == VBLK || dp->v_type == VCHR)
 		size = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 
+	counta = 0;
+	if( count*PAGE_SIZE > bsize)
+		counta = (count - reqpage) - 1;
+	bpa = 0;
+	sizea = 0;
+	if( counta) {
+		bpa = getpbuf();
+		count -= counta;
+		sizea = size - count*PAGE_SIZE;
+		size = count * PAGE_SIZE;
+	}
+
+	bp = getpbuf();
+	kva = (vm_offset_t)bp->b_data;
+
 	/*
 	 * and map the pages to be read into the kva
 	 */
-	for (i = 0; i < count; i++)
-		pmap_kenter(kva + PAGE_SIZE * i, VM_PAGE_TO_PHYS(m[i]));
-
-	pmap_update();
-	bp = getpbuf();
+	pmap_qenter(kva, m, count);
 	VHOLD(vp);
 
 	/* build a minimal buffer header */
@@ -1002,7 +1032,6 @@ vnode_pager_input(vnp, m, count, reqpage)
 		crhold(bp->b_rcred);
 	if (bp->b_wcred != NOCRED)
 		crhold(bp->b_wcred);
-	bp->b_un.b_addr = (caddr_t) kva;
 	bp->b_blkno = firstaddr / DEV_BSIZE;
 	bgetvp(dp, bp);
 	bp->b_bcount = size;
@@ -1010,6 +1039,29 @@ vnode_pager_input(vnp, m, count, reqpage)
 
 	/* do the input */
 	VOP_STRATEGY(bp);
+	if( counta) {
+		for(i=0;i<counta;i++) {
+			vm_page_deactivate(m[count+i]);
+		}
+		pmap_qenter(bpa->b_data, &m[count], counta);
+		++m[count]->object->paging_in_progress;
+		VHOLD(vp);
+		bpa->b_flags = B_BUSY | B_READ | B_CALL | B_ASYNC;
+		bpa->b_iodone = vnode_pager_iodone;
+		/* B_PHYS is not set, but it is nice to fill this in */
+		bpa->b_proc = curproc;
+		bpa->b_rcred = bpa->b_wcred = bpa->b_proc->p_ucred;
+		if (bpa->b_rcred != NOCRED)
+			crhold(bpa->b_rcred);
+		if (bpa->b_wcred != NOCRED)
+			crhold(bpa->b_wcred);
+		bpa->b_blkno = (firstaddr + count * PAGE_SIZE) / DEV_BSIZE;
+		bgetvp(dp, bpa);
+		bpa->b_bcount = sizea;
+		bpa->b_bufsize = counta*PAGE_SIZE;
+
+		VOP_STRATEGY(bpa);
+	}
 
 	s = splbio();
 	/* we definitely need to be at splbio here */
@@ -1025,8 +1077,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 		if (size != count * PAGE_SIZE)
 			bzero((caddr_t) kva + size, PAGE_SIZE * count - size);
 	}
-	pmap_remove(vm_map_pmap(pager_map), kva, kva + PAGE_SIZE * count);
-	kmem_free_wakeup(pager_map, kva, mapsize);
+	pmap_qremove( kva, count);
 
 	/*
 	 * free the buffer header back to the swap buffer pool
@@ -1283,16 +1334,6 @@ retryoutput:
 		return rtvals[0];
 	}
 
-	/*
-	 * get some kva for the output
-	 */
-	kva = kmem_alloc_pageable(pager_map, (mapsize = count * PAGE_SIZE));
-	if (!kva) {
-		kva = kmem_alloc_pageable(pager_map, (mapsize = PAGE_SIZE));
-		count = 1;
-		if (!kva)
-			return rtvals[0];
-	}
 	for (i = 0; i < count; i++) {
 		foff = m[i]->offset + paging_offset;
 		if (foff >= vnp->vnp_size) {
@@ -1333,16 +1374,14 @@ retryoutput:
 	if (dp->v_type == VBLK || dp->v_type == VCHR)
 		size = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 
+	bp = getpbuf();
+	kva = (vm_offset_t)bp->b_data;
 	/*
 	 * and map the pages to be read into the kva
 	 */
-	for (i = 0; i < count; i++)
-		pmap_kenter(kva + PAGE_SIZE * i, VM_PAGE_TO_PHYS(m[i]));
-	pmap_update();
-/*
+	pmap_qenter(kva, m, count);
 	printf("vnode: writing foff: %d, devoff: %d, size: %d\n",
 		foff, reqaddr, size);
-*/
 
 	/*
 	 * next invalidate the incore vfs_bio data
@@ -1370,7 +1409,6 @@ retryoutput:
 	}
 
 
-	bp = getpbuf();
 	VHOLD(vp);
 	/* build a minimal buffer header */
 	bp->b_flags = B_BUSY | B_WRITE | B_CALL;
@@ -1383,7 +1421,6 @@ retryoutput:
 		crhold(bp->b_rcred);
 	if (bp->b_wcred != NOCRED)
 		crhold(bp->b_wcred);
-	bp->b_un.b_addr = (caddr_t) kva;
 	bp->b_blkno = reqaddr / DEV_BSIZE;
 	bgetvp(dp, bp);
 	++dp->v_numoutput;
@@ -1410,8 +1447,7 @@ retryoutput:
 	if ((bp->b_flags & B_ERROR) != 0)
 		error = EIO;
 
-	pmap_remove(vm_map_pmap(pager_map), kva, kva + PAGE_SIZE * count);
-	kmem_free_wakeup(pager_map, kva, mapsize);
+	pmap_qremove( kva, count);
 
 	/*
 	 * free the buffer header back to the swap buffer pool
