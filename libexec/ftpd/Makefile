@@ -9,6 +9,7 @@ CFLAGS+=-DSETPROCTITLE -DSKEY -DLOGIN_CAP -DVIRTUAL_HOSTING -Wall
 CFLAGS+=-DINET6
 CFLAGS+=-I${.CURDIR}
 YFLAGS=
+NOSHARED=	YES
 
 LDADD=	-lskey -lmd -lcrypt -lutil
 DPADD=	${LIBSKEY} ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
@@ -25,3 +26,8 @@ LDADD+= ${MINUSLPAM}
 .endif
 
 .include <bsd.prog.mk>
+
+.if defined(NOSHARED) && !defined(NOPAM)
+DPADD+= ${LIBCRYPTO}
+LDADD+= -L${.OBJDIR}/../../secure/lib/libssh/ -lssh -lcrypto
+.endif
