@@ -27,6 +27,7 @@ cpp.fns
 gcc.aux
 gcc.cps
 gcc.hlp
+getopt.[ch]
 texinfo.tex
 .gdbinit
 install1.texi
