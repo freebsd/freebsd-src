@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.37.2.8 1998/01/17 12:24:48 jkh Exp $";
+	"$Id: perform.c,v 1.37.2.9 1998/01/21 06:08:58 jkh Exp $";
 #endif
 
 /*
@@ -272,7 +272,7 @@ pkg_do(char *pkg)
 		    else if (Verbose)
 			printf("\t`%s' loaded successfully.\n", p->name);
 		    /* Nuke the temporary playpen */
-		    leave_playpen(cp);
+		    leave_playpen();
 		}
 	    }
 	    else {
@@ -443,7 +443,7 @@ pkg_do(char *pkg)
  success:
     /* delete the packing list contents */
     free_plist(&Plist);
-    leave_playpen(Home);
+    leave_playpen();
     return code;
 }
 
@@ -470,10 +470,15 @@ sanity_check(char *pkg)
 void
 cleanup(int signo)
 {
-    if (signo)
-	printf("Signal %d received, cleaning up..\n", signo);
-    if (!Fake && LogDir[0])
-	vsystem("%s -rf %s", REMOVE_CMD, LogDir);
-    leave_playpen(Home);
+    static int in_cleanup = 0;
+
+    if (!in_cleanup) {
+	in_cleanup = 1;
+    	if (signo)
+		printf("Signal %d received, cleaning up..\n", signo);
+    	if (!Fake && LogDir[0])
+		vsystem("%s -rf %s", REMOVE_CMD, LogDir);
+    	leave_playpen();
+    }
     exit(1);
 }
