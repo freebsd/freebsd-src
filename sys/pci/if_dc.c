@@ -202,7 +202,6 @@ static struct dc_type *dc_devtype	__P((device_t));
 static int dc_newbuf		__P((struct dc_softc *, int, struct mbuf *));
 static int dc_encap		__P((struct dc_softc *, struct mbuf *,
 					u_int32_t *));
-static int dc_coal		__P((struct dc_softc *, struct mbuf **));
 static void dc_pnic_rx_bug_war	__P((struct dc_softc *, int));
 static int dc_rx_resync		__P((struct dc_softc *));
 static void dc_rxeof		__P((struct dc_softc *));
@@ -2983,8 +2982,32 @@ static int dc_encap(sc, m_head, txidx)
 {
 	struct dc_desc		*f = NULL;
 	struct mbuf		*m;
-	int			frag, cur, cnt = 0;
+	int			frag, cur, cnt = 0, chainlen = 0;
 
+	/*
+	 * If there's no way we can send any packets, return now.
+	 */
+	if (DC_TX_LIST_CNT - sc->dc_cdata.dc_tx_cnt < 6)
+		return (ENOBUFS);
+
+	/*
+	 * Count the number of frags in this chain to see if
+	 * we need to m_defrag.  Since the descriptor list is shared
+	 * by all packets, we'll m_defrag long chains so that they
+	 * do not use up the entire list, even if they would fit.
+	 */
+
+	for (m = m_head; m != NULL; m = m->m_next)
+		chainlen++;
+
+	if ((chainlen > DC_TX_LIST_CNT / 4) ||
+	    ((DC_TX_LIST_CNT - (chainlen + sc->dc_cdata.dc_tx_cnt)) < 6)) {
+		m = m_defrag(m_head, M_DONTWAIT);
+		if (m == NULL)
+			return (ENOBUFS);
+		m_head = m;
+	}
+       
 	/*
  	 * Start packing the mbufs in this chain into
 	 * the fragment pointers. Stop when we run out
@@ -3037,36 +3060,6 @@ static int dc_encap(sc, m_head, txidx)
 }
 
 /*
- * Coalesce an mbuf chain into a single mbuf cluster buffer.
- * Needed for some really badly behaved chips that just can't
- * do scatter/gather correctly.
- */
-static int dc_coal(sc, m_head)
-	struct dc_softc		*sc;
-	struct mbuf		**m_head;
-{
-        struct mbuf		*m_new, *m;
-
-	m = *m_head;
-	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-	if (m_new == NULL)
-		return(ENOBUFS);
-	if (m->m_pkthdr.len > MHLEN) {
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
-			m_freem(m_new);
-			return(ENOBUFS);
-		}
-	}
-	m_copydata(m, 0, m->m_pkthdr.len, mtod(m_new, caddr_t));
-	m_new->m_pkthdr.len = m_new->m_len = m->m_pkthdr.len;
-	m_freem(m);
-	*m_head = m_new;
-
-	return(0);
-}
-
-/*
  * Main transmit routine. To avoid having to do mbuf copies, we put pointers
  * to the mbuf data regions directly in the transmit lists. We also save a
  * copy of the pointers since the transmit list fragment pointers are
@@ -3077,7 +3070,7 @@ static void dc_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct dc_softc		*sc;
-	struct mbuf		*m_head = NULL;
+	struct mbuf		*m_head = NULL, *m;
 	int			idx;
 
 	sc = ifp->if_softc;
@@ -3098,10 +3091,13 @@ static void dc_start(ifp)
 		if (sc->dc_flags & DC_TX_COALESCE &&
 		    m_head->m_next != NULL) {
 			/* only coalesce if have >1 mbufs */
-			if (dc_coal(sc, &m_head)) {
+			m = m_defrag(m_head, M_DONTWAIT);
+			if (m == NULL) {
 				IF_PREPEND(&ifp->if_snd, m_head);
 				ifp->if_flags |= IFF_OACTIVE;
 				break;
+			} else {
+				m_head = m;
 			}
 		}
 
