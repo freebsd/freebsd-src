@@ -161,7 +161,6 @@
 162	*digi		Digiboard
 163	-		-
 164	*iir		Intel Integrated RAID <boji.t.kannanthanam@intel.com>
-165	*net		Network drivers <jlemon>
 166	*ciss		Compaq SmartArray 5* adapter <msmith>
 168	XXX		used by pst in RELENG_4
 170	pst		Promise SuperTrak (uses 168 in RELENG_4)
