@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filedesc.h	8.1 (Berkeley) 6/2/93
- * $Id: filedesc.h,v 1.13 1997/12/05 18:58:10 bde Exp $
+ * $Id: filedesc.h,v 1.14 1998/11/11 10:04:12 truckman Exp $
  */
 
 #ifndef _SYS_FILEDESC_H_
@@ -102,14 +102,14 @@ struct filedesc0 {
  */
 struct	sigio {
 	union {
-		struct	proc *siu_proc; /* Process to receive SIGIO/SIGURG */
-		struct	pgrp *siu_pgrp; /* Process group to receive ... */
+		struct	proc *siu_proc; /* process to receive SIGIO/SIGURG */
+		struct	pgrp *siu_pgrp; /* process group to receive ... */
 	} sio_u;
 	SLIST_ENTRY(sigio) sio_pgsigio;	/* sigio's for process or group */
 	struct	sigio **sio_myref;	/* location of the pointer that holds
 					 * the reference to this structure */
-	struct	ucred *sio_ucred;	/* Current credentials */
-	uid_t	sio_ruid;		/* Real user id */
+	struct	ucred *sio_ucred;	/* current credentials */
+	uid_t	sio_ruid;		/* real user id */
 	pid_t	sio_pgid;		/* pgid for signals */
 };
 #define	sio_proc	sio_u.siu_proc

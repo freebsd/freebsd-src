@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.30 1998/06/07 17:11:38 dfr Exp $
+ * $Id: subr_log.c,v 1.31 1998/11/11 10:03:55 truckman Exp $
  */
 
 /*
@@ -76,7 +76,7 @@ static struct cdevsw log_cdevsw =
 static struct logsoftc {
 	int	sc_state;		/* see above for possibilities */
 	struct	selinfo sc_selp;	/* process waiting on select call */
-	struct  sigio *sc_sigio;	/* information for SIGIO */
+	struct  sigio *sc_sigio;	/* information for async I/O */
 } logsoftc;
 
 int	log_open;			/* also used in log() */
