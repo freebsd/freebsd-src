@@ -754,6 +754,18 @@ case "${AUTO_RUN}" in
 *) ;;
 esac
 
+case "${AUTO_INSTALLED_FILES}" in
+'') ;;
+*)
+  (
+    echo ''
+    echo '*** You chose the automatic install option for files that did not exist'
+    echo '    on your system.  The following files were installed for you:'
+    echo "${AUTO_INSTALLED_FILES}"
+  ) | ${PAGER}
+  ;;
+esac
+
 case "${NEED_MAKEDEV}" in
 '') ;;
 *)
@@ -787,18 +799,6 @@ case "${NEED_PWD_MKDB}" in
   echo ''
   echo "*** You installed a new master.passwd file, so make sure that you run"
   echo "    'pwd_mkdb -p /etc/master.passwd' to rebuild your password files"
-  ;;
-esac
-
-case "${AUTO_INSTALLED_FILES}" in
-'') ;;
-*)
-  (
-    echo ''
-    echo '*** You chose the automatic install option for files that did not exist'
-    echo '    on your system.  The following files were installed for you:'
-    echo "${AUTO_INSTALLED_FILES}"
-  ) | ${PAGER}
   ;;
 esac
 
