@@ -31,14 +31,21 @@
  *  09/02/93 v0.2 pl01
  *  Initial revision.
  *
- *  usage: ft [ -f tape ] [ description ]
+ *  usage: ft [ -f tape ] [ -r ] [ description ]
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
 #include <time.h>
+#include <unistd.h>
 #include <sys/ftape.h>
 
 #define	DEFQIC	"/dev/rft0"
@@ -73,7 +80,7 @@ int doretension = 0;			/* TRUE if we should retension tape */
 void
 usage(void)
 {
-  fprintf(stderr, "usage: ft [ -r ] [ -f device ] [ \"description\" ]\n");
+  fprintf(stderr, "usage: ft [-f device] [-r] [\"description\"]\n");
   exit(1);
 }
 
@@ -84,35 +91,35 @@ usage(void)
 int
 check_stat(int fd, int wr)
 {
-  int r, s;
+  int s;
   int sawit = 0;
 
   /* get tape status */
   if (ioctl(fd, QIOSTATUS, &s) < 0) {
-	fprintf(stderr, "could not get drive status\n");
+	warnx("could not get drive status");
 	return(1);
   }
 
   /* wait for the tape drive to become ready */
   while ((s & QS_READY) == 0) {
 	if (!sawit) {
-		fprintf(stderr, "waiting for drive to become ready...\n");
+		warnx("waiting for drive to become ready");
 		sawit = 1;
 	}
 	sleep(2);
 	if (ioctl(fd, QIOSTATUS, &s) < 0) {
-		fprintf(stderr, "could not get drive status\n");
+		warnx("could not get drive status");
 		return(1);
 	}
   }
 
   if ((s & QS_FMTOK) == 0) {
-	fprintf(stderr, "tape is not formatted\n");
+	warnx("tape is not formatted");
 	return(2);
   }
 
   if (wr && (s & QS_RDONLY) != 0) {
-	fprintf(stderr, "tape is write protected\n");
+	warnx("tape is write protected");
 	return(3);
   }
 
@@ -186,12 +193,12 @@ char *qstr(char *str, int nchar)
 int
 get_header(int fd)
 {
-  int r, sn, bytes;
+  int r, sn;
   QIC_Segment s;
   int gothdr = 0;
 
   if (ioctl(fd, QIOGEOM, &geo) < 0) {
-	fprintf(stderr, "couldn't determine tape geometry\n");
+	warnx("couldn't determine tape geometry");
 	return(1);
   }
 
@@ -208,7 +215,7 @@ get_header(int fd)
 		if (hsn >= 0) {
 			dhsn = sn;
 			if (!r && !gothdr) {
-				fprintf(stderr, "using secondary header\n");
+				warnx("using secondary header");
 				bcopy(s.sg_data, hbuff, QCV_SEGSIZE);
 				gothdr = 1;
 			}
@@ -219,13 +226,13 @@ get_header(int fd)
 			bcopy(s.sg_data, hbuff, QCV_SEGSIZE);
 			gothdr = 1;
 		} else {
-			fprintf(stderr, "too many errors in primary header\n");
+			warnx("too many errors in primary header");
 		}
 	}
   }
 
   if (!gothdr) {
-	fprintf(stderr, "couldn't read header segment\n");
+	warnx("couldn't read header segment");
 	ioctl(fd, QIOREWIND);
 	return(1);
   }
@@ -237,16 +244,14 @@ get_header(int fd)
 /*
  *  Open /dev/tty and ask for next volume.
  */
+void
 ask_vol(int vn)
 {
-  FILE *inp;
   int fd;
   char c;
 
-  if ((fd = open("/dev/tty", 2)) < 0) {
-	fprintf(stderr, "argh!! can't open /dev/tty\n");
-	exit(1);
-  }
+  if ((fd = open("/dev/tty", 2)) < 0)
+	errx(1, "argh!! can't open /dev/tty");
 
   fprintf(stderr, "Insert ftfilt volume %02d and press enter:", vn);
   read(fd, &c, 1);
@@ -273,7 +278,7 @@ do_getname(void)
 void
 do_read(void)
 {
-  int sno, vno, sbytes, r, eccfails;
+  int sno, vno, sbytes, eccfails;
   long curpos;
   char *hname;
   QIC_Segment s;
@@ -330,13 +335,12 @@ do_read(void)
 
 		if (check_parity(s.sg_data, s.sg_badmap, s.sg_crcmap)) {
 			if (++eccfails <= 5) {
-				fprintf(stderr,
-					"ft: retry %d at segment %d byte %ld\n",
+				warnx("retry %d at segment %d byte %ld",
 					eccfails, sno, curpos);
 				continue;
 			} else
-				fprintf(stderr,
-				"ft: *** ecc failure in segment %d at byte %ld\n",
+				warnx(
+				"*** ecc failure in segment %d at byte %ld",
 						sno, curpos);
 		}
 		if (tvsize < sbytes) sbytes = tvsize;
@@ -360,7 +364,7 @@ void
 do_write(void)
 {
   int sno, vno, amt, sbytes;
-  int c, maxseg, r;
+  int maxseg, r;
   ULONG qnow;
   QIC_Segment s;
   char tmpstr[80];
@@ -414,11 +418,9 @@ do_write(void)
 			if (amt < sbytes)
 				bzero(&s.sg_data[amt], sbytes - amt);
 			r = set_parity(s.sg_data, s.sg_badmap);
-			if (r) fprintf(stderr, "** warning: ecc problem !!\n");
-			if (ioctl(tfd, QIOWRITE, &s) < 0) {
-				perror("QIOWRITE");
-				exit(1);
-			}
+			if (r) warnx("** warning: ecc problem !!");
+			if (ioctl(tfd, QIOWRITE, &s) < 0)
+				err(1, "QIOWRITE");
 			tvsize += amt;
 		}
 	}
@@ -439,11 +441,9 @@ do_write(void)
 		s.sg_badmap = 0;
 		s.sg_data = (UCHAR *)hbuff;
 		r = set_parity(s.sg_data, s.sg_badmap);
-		if (r) fprintf(stderr, "** warning: header ecc problem !!\n");
-		if (ioctl(tfd, QIOWRITE, &s) < 0) {
-			perror("QIOWRITE");
-			exit(1);
-		}
+		if (r) warnx("** warning: header ecc problem !!");
+		if (ioctl(tfd, QIOWRITE, &s) < 0)
+			err(1, "QIOWRITE");
 	}
 	if (dhsn >= 0) {
 		s.sg_trk = dhsn / geo.g_segtrk;
@@ -451,11 +451,9 @@ do_write(void)
 		s.sg_badmap = 0;
 		s.sg_data = (UCHAR *)hbuff;
 		r = set_parity(s.sg_data, s.sg_badmap);
-		if (r) fprintf(stderr, "** warning: duphdr ecc problem !!\n");
-		if (ioctl(tfd, QIOWRITE, &s) < 0) {
-			perror("QIOWRITE");
-			exit(1);
-			}
+		if (r) warnx("** warning: duphdr ecc problem !!");
+		if (ioctl(tfd, QIOWRITE, &s) < 0)
+			err(1, "QIOWRITE");
 	}
 	ioctl(tfd, QIOREWIND);
 	if (tvlast) break;
@@ -467,10 +465,10 @@ do_write(void)
 /*
  *  Entry.
  */
-void
+int
 main(int argc, char *argv[])
 {
-  int r, s, i;
+  int i;
   char *tape, *getenv();
 
 
@@ -500,10 +498,8 @@ main(int argc, char *argv[])
   }
 
   /* Open the tape device */
-  if ((tfd = open(tape, 2)) < 0) {
-	perror(tape);
-	exit(1);
-  }
+  if ((tfd = open(tape, 2)) < 0)
+	err(1, "%s", tape);
 
   if (!isatty(0))
 	do_write();
