@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.343
+    Original revision: 1.22.2.346
 -->
 
 <articleinfo>
@@ -135,6 +135,14 @@
 	利用できるようにします。
 	この論理プロセッサは、プロセススケジューラによって
 	あたかも増設された物理プロセッサのように扱われます。</para>
+
+      <para arch="alpha">AlphaServer 8200/8400 TurboLaser マシンは、
+	インストール後にシリアルコンソールを利用するには
+	明示的に &man.getty.8; を有効にしなければなりません。
+	もし設定されていないと、ログインプロンプトが出力されないので
+	システムがハングアップしたような状態になってしまいます。
+	(<filename>/etc/ttys</filename> の中の <literal>zs0</literal> という
+	行の付近をご覧ください)。</para>
 
     </sect3>
 
@@ -307,6 +315,14 @@
       ぜい弱性が修正されました。
       詳細はセキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>
+      をご覧ください。</para>
+
+    <para>最近発見された
+      <application>OpenSSL</application> の二つの弱点
+      (訳注: RSA のタイミング攻撃と Klima-Pokorny-Rosa 攻撃)
+      が修正されました、
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>
       をご覧ください。</para>
 
   </sect2>
