@@ -344,6 +344,19 @@ will remove that directory entry.
 Again,
 this condition can only arise when there has been a hardware failure.
 .PP
+.I Fsck
+also checks for directories with unallocated blocks (holes).
+Such directories should never be created.
+When found,
+.I fsck
+will prompt the user to adjust the length of the offending directory
+which is done by shortening the size of the directory to the end of the
+last allocated block preceeding the hole.
+Unfortunately, this means that another Phase 1 run has to be done. 
+.I Fsck
+will remind the user to rerun fsck after repairing a
+directory containing an unallocated block.
+.PP
 If a directory entry inode number references
 outside the inode list, then
 .I fsck
