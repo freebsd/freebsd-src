@@ -69,6 +69,7 @@ enum {
 	NGM_IFACE_GET_IFNAME = 1,	/* returns struct ng_iface_ifname */
 	NGM_IFACE_POINT2POINT,
 	NGM_IFACE_BROADCAST,
+	NGM_IFACE_GET_IFINDEX,
 };
 
 struct ng_iface_ifname {
