@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: advlib.c,v 1.5 1998/09/15 07:03:33 gibbs Exp $
  */
 /*
  * Ported from:
@@ -699,6 +699,8 @@ adv_execute_scsi_queue(struct adv_softc *adv, struct adv_scsi_q *scsiq,
 			      "Queue with too many segs.");
 
 		if (adv->type & (ADV_ISA | ADV_VL | ADV_EISA)) {
+			int i;
+
 			for (i = 0; i < sg_entry_cnt_minus_one; i++) {
 				addr = scsiq->sg_head->sg_list[i].addr +
 				       scsiq->sg_head->sg_list[i].bytes;
