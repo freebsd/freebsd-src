@@ -1525,7 +1525,11 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			((ispreqt2_t *)rq)->req_flags |= REQFLAG_DATA_OUT;
 		}
 	} else {
-		seglim = ISP_RQDSEG;
+		if (csio->cdb_len > 12) {
+			seglim = 0;
+		} else {
+			seglim = ISP_RQDSEG;
+		}
 		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 			rq->req_flags |= REQFLAG_DATA_IN;
 		} else {
