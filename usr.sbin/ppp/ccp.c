@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.43 1998/05/15 18:20:55 brian Exp $
+ * $Id: ccp.c,v 1.30.2.44 1998/05/15 23:58:16 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -505,9 +505,10 @@ ccp_Input(struct ccp *ccp, struct bundle *bundle, struct mbuf *bp)
   /* Got PROTO_CCP from link */
   if (bundle_Phase(bundle) == PHASE_NETWORK)
     fsm_Input(&ccp->fsm, bp);
-  else if (bundle_Phase(bundle) < PHASE_NETWORK) {
-    log_Printf(LogCCP, "%s: Error: Unexpected CCP in phase %s (ignored)\n",
-              ccp->fsm.link->name, bundle_PhaseName(bundle));
+  else {
+    if (bundle_Phase(bundle) < PHASE_NETWORK)
+      log_Printf(LogCCP, "%s: Error: Unexpected CCP in phase %s (ignored)\n",
+                 ccp->fsm.link->name, bundle_PhaseName(bundle));
     mbuf_Free(bp);
   }
 }

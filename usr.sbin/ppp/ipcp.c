@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.52 1998/05/15 23:58:23 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.53 1998/05/19 21:51:21 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -1061,10 +1061,17 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 }
 
 void
-ipcp_Input(struct ipcp *ipcp, struct mbuf * bp)
+ipcp_Input(struct ipcp *ipcp, struct bundle *bundle, struct mbuf *bp)
 {
   /* Got PROTO_IPCP from link */
-  fsm_Input(&ipcp->fsm, bp);
+  if (bundle_Phase(bundle) == PHASE_NETWORK)
+    fsm_Input(&ipcp->fsm, bp);
+  else {
+    if (bundle_Phase(bundle) < PHASE_NETWORK)
+      log_Printf(LogIPCP, "%s: Error: Unexpected IPCP in phase %s (ignored)\n",
+                 ipcp->fsm.link->name, bundle_PhaseName(bundle));
+    mbuf_Free(bp);
+  }
 }
 
 int
