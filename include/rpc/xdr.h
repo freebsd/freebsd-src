@@ -28,7 +28,7 @@
  *
  *	from: @(#)xdr.h 1.19 87/04/22 SMI
  *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: xdr.h,v 1.5 1996/12/30 13:59:41 peter Exp $
+ *	$Id: xdr.h,v 1.10 1997/05/28 04:45:15 wpaul Exp $
  */
 
 /*
@@ -245,6 +245,8 @@ extern bool_t	xdr_int16_t	__P((XDR *, int16_t *));
 extern bool_t	xdr_u_int16_t	__P((XDR *, u_int16_t *));
 extern bool_t	xdr_int32_t	__P((XDR *, int32_t *));
 extern bool_t	xdr_u_int32_t	__P((XDR *, u_int32_t *));
+extern bool_t	xdr_int64_t	__P((XDR *, int64_t *));
+extern bool_t	xdr_u_int64_t	__P((XDR *, u_int64_t *));
 extern bool_t	xdr_bool	__P((XDR *, bool_t *));
 extern bool_t	xdr_enum	__P((XDR *, enum_t *));
 extern bool_t	xdr_array	__P((XDR *, char **, u_int *, u_int, u_int, xdrproc_t));
