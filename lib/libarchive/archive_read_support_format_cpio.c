@@ -40,7 +40,21 @@ __FBSDID("$FreeBSD$");
 #include "archive_entry.h"
 #include "archive_private.h"
 
-struct cpio_header {
+struct cpio_bin_header {
+	unsigned char	c_magic[2];
+	unsigned char	c_dev[2];
+	unsigned char	c_ino[2];
+	unsigned char	c_mode[2];
+	unsigned char	c_uid[2];
+	unsigned char	c_gid[2];
+	unsigned char	c_nlink[2];
+	unsigned char	c_rdev[2];
+	unsigned char	c_mtime[4];
+	unsigned char	c_namesize[2];
+	unsigned char	c_filesize[4];
+};
+
+struct cpio_odc_header {
 	char	c_magic[6];
 	char	c_dev[6];
 	char	c_ino[6];
@@ -54,6 +68,23 @@ struct cpio_header {
 	char	c_filesize[11];
 };
 
+struct cpio_newc_header {
+	char	c_magic[6];
+	char	c_ino[8];
+	char	c_mode[8];
+	char	c_uid[8];
+	char	c_gid[8];
+	char	c_nlink[8];
+	char	c_mtime[8];
+	char	c_filesize[8];
+	char	c_devmajor[8];
+	char	c_devminor[8];
+	char	c_rdevmajor[8];
+	char	c_rdevminor[8];
+	char	c_namesize[8];
+	char	c_crc[8];
+};
+
 struct links_entry {
         struct links_entry      *next;
         struct links_entry      *previous;
@@ -65,17 +96,30 @@ struct links_entry {
 
 #define CPIO_MAGIC   0x13141516
 struct cpio {
-	int magic;
-	struct links_entry	*links_head;
-	struct archive_string	 entry_name;
-	struct archive_string	 entry_linkname;
+	int			  magic;
+	int			(*read_header)(struct archive *, struct stat *,
+				      size_t *, size_t *);
+	struct links_entry	 *links_head;
+	struct archive_string	  entry_name;
+	struct archive_string	  entry_linkname;
 };
 
+static int64_t	atol16(const char *, unsigned);
 static int64_t	atol8(const char *, unsigned);
 static int	archive_read_format_cpio_bid(struct archive *);
 static int	archive_read_format_cpio_cleanup(struct archive *);
 static int	archive_read_format_cpio_read_header(struct archive *,
 		    struct archive_entry *);
+static int	be4(const unsigned char *);
+static int	header_bin_be(struct archive *, struct stat *,
+		    size_t *, size_t *);
+static int	header_bin_le(struct archive *, struct stat *,
+		    size_t *, size_t *);
+static int	header_newc(struct archive *, struct stat *,
+		    size_t *, size_t *);
+static int	header_odc(struct archive *, struct stat *,
+		    size_t *, size_t *);
+static int	le4(const unsigned char *);
 static void	record_hardlink(struct cpio *cpio, struct archive_entry *entry,
 		    const struct stat *st);
 
@@ -106,21 +150,53 @@ archive_read_format_cpio_bid(struct archive *a)
 {
 	int bid, bytes_read;
 	const void *h;
-	const struct cpio_header *header;
+	const unsigned char *p;
+	struct cpio *cpio;
 
+	cpio = *(a->pformat_data);
 	bid = 0;
-	bytes_read =
-	    (a->compression_read_ahead)(a, &h, sizeof(struct cpio_header));
-	if (bytes_read < (int)sizeof(struct cpio_header))
+	bytes_read = (a->compression_read_ahead)(a, &h, 6);
+	if (bytes_read < 6)
 	    return (-1);
 
-	header = h;
-
-	if (memcmp(header->c_magic, "070707", 6)) return 0;
-	bid += 48;
-
-	/* TODO: Verify more of header: Can at least check that only octal
-	   digits appear in appropriate header locations */
+	p = h;
+	if (memcmp(p, "070707", 6) == 0) {
+		/* ASCII cpio archive (odc, POSIX.1) */
+		cpio->read_header = header_odc;
+		bid += 48;
+		/*
+		 * XXX TODO:  More verification; Could check that only octal
+		 * digits appear in appropriate header locations. XXX
+		 */
+	} else if (memcmp(p, "070701", 6) == 0) {
+		/* ASCII cpio archive (SVR4 without CRC) */
+		cpio->read_header = header_newc;
+		bid += 48;
+		/*
+		 * XXX TODO:  More verification; Could check that only hex
+		 * digits appear in appropriate header locations. XXX
+		 */
+	} else if (memcmp(p, "070702", 6) == 0) {
+		/* ASCII cpio archive (SVR4 with CRC) */
+		/* XXX TODO: Flag that we should check the CRC. XXX */
+		cpio->read_header = header_newc;
+		bid += 48;
+		/*
+		 * XXX TODO:  More verification; Could check that only hex
+		 * digits appear in appropriate header locations. XXX
+		 */
+	} else if (p[0] * 256 + p[1] == 070707) {
+		/* big-endian binary cpio archives */
+		cpio->read_header = header_bin_be;
+		bid += 16;
+		/* Is more verification possible here? */
+	} else if (p[0] + p[1] * 256 == 070707) {
+		/* little-endian binary cpio archives */
+		cpio->read_header = header_bin_le;
+		bid += 16;
+		/* Is more verification possible here? */
+	} else
+		return (ARCHIVE_WARN);
 
 	return (bid);
 }
@@ -132,55 +208,27 @@ archive_read_format_cpio_read_header(struct archive *a,
 	struct stat st;
 	struct cpio *cpio;
 	size_t bytes;
-	const struct cpio_header *header;
 	const void *h;
 	size_t namelength;
+	size_t name_pad;
+	int r;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO;
-	a->archive_format_name = "POSIX octet-oriented cpio";
-	cpio = *(a->pformat_data);
-	if (cpio->magic != CPIO_MAGIC)
-		errx(1, "CPIO data lost? This can't happen.\n");
-
-	/* Read fixed-size portion of header. */
-	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_header));
-	if (bytes < sizeof(struct cpio_header))
-	    return (ARCHIVE_FATAL);
-	(a->compression_read_consume)(a, sizeof(struct cpio_header));
-
-	/* Parse out octal fields into struct stat. */
 	memset(&st, 0, sizeof(st));
-	header = h;
 
-	st.st_dev = atol8(header->c_dev, sizeof(header->c_dev));
-	st.st_ino = atol8(header->c_ino, sizeof(header->c_ino));
-	st.st_mode = atol8(header->c_mode, sizeof(header->c_mode));
-	st.st_uid = atol8(header->c_uid, sizeof(header->c_uid));
-	st.st_gid = atol8(header->c_gid, sizeof(header->c_gid));
-	st.st_nlink = atol8(header->c_nlink, sizeof(header->c_nlink));
-	st.st_rdev = atol8(header->c_rdev, sizeof(header->c_rdev));
-	st.st_mtime = atol8(header->c_mtime, sizeof(header->c_mtime));
-	namelength = atol8(header->c_namesize, sizeof(header->c_namesize));
+	cpio = *(a->pformat_data);
+	r = (cpio->read_header(a, &st, &namelength, &name_pad));
 
-	/*
-	 * Note: entry_bytes_remaining is at least 64 bits and
-	 * therefore gauranteed to be big enough for a 33-bit file
-	 * size.  struct stat.st_size may only be 32 bits, so
-	 * assigning there first could lose information.
-	 */
-	a->entry_bytes_remaining =
-	    atol8(header->c_filesize, sizeof(header->c_filesize));
-	st.st_size = a->entry_bytes_remaining;
-	a->entry_padding = 0;
+	if (r != ARCHIVE_OK)
+		return (r);
 
 	/* Assign all of the 'stat' fields at once. */
 	archive_entry_copy_stat(entry, &st);
 
 	/* Read name from buffer. */
-	bytes = (a->compression_read_ahead)(a, &h, namelength);
-	if (bytes < namelength)
+	bytes = (a->compression_read_ahead)(a, &h, namelength + name_pad);
+	if (bytes < namelength + name_pad)
 	    return (ARCHIVE_FATAL);
-	(a->compression_read_consume)(a, namelength);
+	(a->compression_read_consume)(a, namelength + name_pad);
 	archive_strncpy(&cpio->entry_name, h, namelength);
 	archive_entry_set_pathname(entry, cpio->entry_name.s);
 
@@ -211,6 +259,167 @@ archive_read_format_cpio_read_header(struct archive *a,
 }
 
 static int
+header_newc(struct archive *a, struct stat *st,
+    size_t *namelength, size_t *name_pad)
+{
+	const void *h;
+	const struct cpio_newc_header *header;
+	size_t bytes;
+
+	a->archive_format = ARCHIVE_FORMAT_CPIO;
+	a->archive_format_name = "ASCII cpio (SVR4 with no CRC)";
+
+	/* Read fixed-size portion of header. */
+	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_newc_header));
+	if (bytes < sizeof(struct cpio_newc_header))
+	    return (ARCHIVE_FATAL);
+	(a->compression_read_consume)(a, sizeof(struct cpio_newc_header));
+
+	/* Parse out hex fields into struct stat. */
+	header = h;
+	st->st_ino = atol16(header->c_ino, sizeof(header->c_ino));
+	st->st_mode = atol16(header->c_mode, sizeof(header->c_mode));
+	st->st_uid = atol16(header->c_uid, sizeof(header->c_uid));
+	st->st_gid = atol16(header->c_gid, sizeof(header->c_gid));
+	st->st_nlink = atol16(header->c_nlink, sizeof(header->c_nlink));
+	st->st_mtime = atol16(header->c_mtime, sizeof(header->c_mtime));
+	*namelength = atol16(header->c_namesize, sizeof(header->c_namesize));
+	/* Pad name to 2 more than a multiple of 4. */
+	*name_pad = (2 - *namelength) & 3;
+
+	/*
+	 * Note: entry_bytes_remaining is at least 64 bits and
+	 * therefore gauranteed to be big enough for a 33-bit file
+	 * size.  struct stat.st_size may only be 32 bits, so
+	 * assigning there first could lose information.
+	 */
+	a->entry_bytes_remaining =
+	    atol16(header->c_filesize, sizeof(header->c_filesize));
+	st->st_size = a->entry_bytes_remaining;
+	/* Pad file contents to a multiple of 4. */
+	a->entry_padding = 3 & -a->entry_bytes_remaining;
+	return (ARCHIVE_OK);
+}
+
+static int
+header_odc(struct archive *a, struct stat *st,
+    size_t *namelength, size_t *name_pad)
+{
+	const void *h;
+	const struct cpio_odc_header *header;
+	size_t bytes;
+
+	a->archive_format = ARCHIVE_FORMAT_CPIO;
+	a->archive_format_name = "POSIX octet-oriented cpio";
+
+	/* Read fixed-size portion of header. */
+	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_odc_header));
+	if (bytes < sizeof(struct cpio_odc_header))
+	    return (ARCHIVE_FATAL);
+	(a->compression_read_consume)(a, sizeof(struct cpio_odc_header));
+
+	/* Parse out octal fields into struct stat. */
+	header = h;
+
+	st->st_dev = atol8(header->c_dev, sizeof(header->c_dev));
+	st->st_ino = atol8(header->c_ino, sizeof(header->c_ino));
+	st->st_mode = atol8(header->c_mode, sizeof(header->c_mode));
+	st->st_uid = atol8(header->c_uid, sizeof(header->c_uid));
+	st->st_gid = atol8(header->c_gid, sizeof(header->c_gid));
+	st->st_nlink = atol8(header->c_nlink, sizeof(header->c_nlink));
+	st->st_rdev = atol8(header->c_rdev, sizeof(header->c_rdev));
+	st->st_mtime = atol8(header->c_mtime, sizeof(header->c_mtime));
+	*namelength = atol8(header->c_namesize, sizeof(header->c_namesize));
+	*name_pad = 0; /* No padding of filename. */
+
+	/*
+	 * Note: entry_bytes_remaining is at least 64 bits and
+	 * therefore gauranteed to be big enough for a 33-bit file
+	 * size.  struct stat.st_size may only be 32 bits, so
+	 * assigning there first could lose information.
+	 */
+	a->entry_bytes_remaining =
+	    atol8(header->c_filesize, sizeof(header->c_filesize));
+	st->st_size = a->entry_bytes_remaining;
+	a->entry_padding = 0;
+	return (ARCHIVE_OK);
+}
+
+static int
+header_bin_le(struct archive *a, struct stat *st,
+    size_t *namelength, size_t *name_pad)
+{
+	const void *h;
+	const struct cpio_bin_header *header;
+	size_t bytes;
+
+	a->archive_format = ARCHIVE_FORMAT_CPIO;
+	a->archive_format_name = "cpio (little-endian binary)";
+
+	/* Read fixed-size portion of header. */
+	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_bin_header));
+	if (bytes < sizeof(struct cpio_bin_header))
+	    return (ARCHIVE_FATAL);
+	(a->compression_read_consume)(a, sizeof(struct cpio_bin_header));
+
+	/* Parse out binary fields into struct stat. */
+	header = h;
+
+	st->st_dev = header->c_dev[0] + header->c_dev[1] * 256;
+	st->st_ino = header->c_ino[0] + header->c_ino[1] * 256;
+	st->st_mode = header->c_mode[0] + header->c_mode[1] * 256;
+	st->st_uid = header->c_uid[0] + header->c_uid[1] * 256;
+	st->st_gid = header->c_gid[0] + header->c_gid[1] * 256;
+	st->st_nlink = header->c_nlink[0] + header->c_nlink[1] * 256;
+	st->st_rdev = header->c_rdev[0] + header->c_rdev[1] * 256;
+	st->st_mtime = le4(header->c_mtime);
+	*namelength = header->c_namesize[0] + header->c_namesize[1] * 256;
+	*name_pad = *namelength & 1; /* Pad to even. */
+
+	a->entry_bytes_remaining = le4(header->c_filesize);
+	st->st_size = a->entry_bytes_remaining;
+	a->entry_padding = a->entry_bytes_remaining & 1; /* Pad to even. */
+	return (ARCHIVE_OK);
+}
+
+static int
+header_bin_be(struct archive *a, struct stat *st,
+    size_t *namelength, size_t *name_pad)
+{
+	const void *h;
+	const struct cpio_bin_header *header;
+	size_t bytes;
+
+	a->archive_format = ARCHIVE_FORMAT_CPIO;
+	a->archive_format_name = "cpio (big-endian binary)";
+
+	/* Read fixed-size portion of header. */
+	bytes = (a->compression_read_ahead)(a, &h,
+	    sizeof(struct cpio_bin_header));
+	if (bytes < sizeof(struct cpio_bin_header))
+	    return (ARCHIVE_FATAL);
+	(a->compression_read_consume)(a, sizeof(struct cpio_bin_header));
+
+	/* Parse out binary fields into struct stat. */
+	header = h;
+	st->st_dev = header->c_dev[0] * 256 + header->c_dev[1];
+	st->st_ino = header->c_ino[0] * 256 + header->c_ino[1];
+	st->st_mode = header->c_mode[0] * 256 + header->c_mode[1];
+	st->st_uid = header->c_uid[0] * 256 + header->c_uid[1];
+	st->st_gid = header->c_gid[0] * 256 + header->c_gid[1];
+	st->st_nlink = header->c_nlink[0] * 256 + header->c_nlink[1];
+	st->st_rdev = header->c_rdev[0] * 256 + header->c_rdev[1];
+	st->st_mtime = be4(header->c_mtime);
+	*namelength = header->c_namesize[0] * 256 + header->c_namesize[1];
+	*name_pad = *namelength & 1; /* Pad to even. */
+
+	a->entry_bytes_remaining = be4(header->c_filesize);
+	st->st_size = a->entry_bytes_remaining;
+	a->entry_padding = a->entry_bytes_remaining & 1; /* Pad to even. */
+	return (ARCHIVE_OK);
+}
+
+static int
 archive_read_format_cpio_cleanup(struct archive *a)
 {
 	struct cpio *cpio;
@@ -231,6 +440,18 @@ archive_read_format_cpio_cleanup(struct archive *a)
 	return (ARCHIVE_OK);
 }
 
+static int
+le4(const unsigned char *p)
+{
+	return ((p[0]<<16) + (p[1]<<24) + (p[2]<<0) + (p[3]<<8));
+}
+
+
+static int
+be4(const unsigned char *p)
+{
+	return (p[0] + (p[1]<<8) + (p[2]<<16) + (p[3]<<24));
+}
 
 /*
  * Note that this implementation does not (and should not!) obey
@@ -243,19 +464,38 @@ atol8(const char *p, unsigned char_cnt)
 	int64_t l;
 	int digit;
 
-	static const int64_t limit = INT64_MAX / 8;
-	static const int base = 8;
-	static const char last_digit_limit = INT64_MAX % 8;
+	l = 0;
+	while (char_cnt-- > 0) {
+		if (*p >= '0' && *p <= '7')
+			digit = *p - '0';
+		else
+			return (l);
+		p++;
+		l <<= 3;
+		l |= digit;
+	}
+	return (l);
+}
+
+static int64_t
+atol16(const char *p, unsigned char_cnt)
+{
+	int64_t l;
+	int digit;
 
 	l = 0;
-	digit = *p - '0';
-	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
-		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = UINT64_MAX; /* Truncate on overflow */
-			break;
-		}
-		l = (l * base) + digit;
-		digit = *++p - '0';
+	while (char_cnt-- > 0) {
+		if (*p >= 'a' && *p <= 'f')
+			digit = *p - 'a' + 10;
+		else if (*p >= 'A' && *p <= 'F')
+			digit = *p - 'A' + 10;
+		else if (*p >= '0' && *p <= '9')
+			digit = *p - '0';
+		else
+			return (l);
+		p++;
+		l <<= 4;
+		l |= digit;
 	}
 	return (l);
 }
