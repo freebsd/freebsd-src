@@ -67,11 +67,6 @@ AHD_DEBUG_OPTS		opt_aic79xx.h	# Aic79xx driver debugging options.
 AHD_TMODE_ENABLE	opt_aic79xx.h	# Bitmap of units to enable
 					# targetmode operations.
 
-AHD_DUMP_EEPROM		opt_aic79xx.h	# Dump the contents of our
-					# configuration prom.
-
-AHD_DEBUG_SEQUENCER	opt_aic79xx.h	# Enable diagnostic sequencer code
-
 AHD_REG_PRETTY_PRINT	opt_aic79xx.h	# Print register bitfields in debug
 					# output.  Adds ~15k to driver.
 
