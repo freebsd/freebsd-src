@@ -54,7 +54,7 @@
  * longword aligned.
  */
 
-#include "bpf.h"
+#include "bpfilter.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
