@@ -104,6 +104,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 int	lflag;				/* log requests flag */
+int	pflag;				/* no incoming port flag */
 int	from_remote;			/* from remote socket */
 
 int		  main __P((int, char **));
@@ -144,13 +145,16 @@ main(argc, argv)
 		errx(EX_NOPERM,"must run as root");
 
 	errs = 0;
-	while ((i = getopt(argc, argv, "dl")) != -1)
+	while ((i = getopt(argc, argv, "dlp")) != -1)
 		switch (i) {
 		case 'd':
 			options |= SO_DEBUG;
 			break;
 		case 'l':
 			lflag++;
+			break;
+		case 'p':
+			pflag++;
 			break;
 		default:
 			errs++;
@@ -278,22 +282,25 @@ main(argc, argv)
 	FD_ZERO(&defreadfds);
 	FD_SET(funix, &defreadfds);
 	listen(funix, 5);
-	finet = socket(AF_INET, SOCK_STREAM, 0);
-	if (finet >= 0) {
-		if (options & SO_DEBUG)
-			if (setsockopt(finet, SOL_SOCKET, SO_DEBUG, 0, 0) < 0) {
+	if (pflag == 0) {
+		finet = socket(AF_INET, SOCK_STREAM, 0);
+		if (finet >= 0) {
+			if (options & SO_DEBUG &&
+			    setsockopt(finet, SOL_SOCKET, SO_DEBUG, 0, 0) < 0) {
 				syslog(LOG_ERR, "setsockopt (SO_DEBUG): %m");
 				mcleanup(0);
 			}
-		memset(&sin, 0, sizeof(sin));
-		sin.sin_family = AF_INET;
-		sin.sin_port = sp->s_port;
-		if (bind(finet, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-			syslog(LOG_ERR, "bind: %m");
-			mcleanup(0);
+			memset(&sin, 0, sizeof(sin));
+			sin.sin_family = AF_INET;
+			sin.sin_port = sp->s_port;
+			if (bind(finet, (struct sockaddr *)&sin,
+			    sizeof(sin)) < 0) {
+				syslog(LOG_ERR, "bind: %m");
+				mcleanup(0);
+			}
+			FD_SET(finet, &defreadfds);
+			listen(finet, 5);
 		}
-		FD_SET(finet, &defreadfds);
-		listen(finet, 5);
 	}
 	/*
 	 * Main loop: accept, do a request, continue.
@@ -318,7 +325,7 @@ main(argc, argv)
 			domain = AF_UNIX, fromlen = sizeof(fromunix);
 			s = accept(funix,
 			    (struct sockaddr *)&fromunix, &fromlen);
-		} else /* if (FD_ISSET(finet, &readfds)) */  {
+		} else if (pflag == 0) /* if (FD_ISSET(finet, &readfds)) */  {
 			domain = AF_INET, fromlen = sizeof(frominet);
 			s = accept(finet,
 			    (struct sockaddr *)&frominet, &fromlen);
@@ -339,7 +346,9 @@ main(argc, argv)
 			signal(SIGQUIT, SIG_IGN);
 			signal(SIGTERM, SIG_IGN);
 			(void) close(funix);
-			(void) close(finet);
+			if (pflag == 0) {
+				(void) close(finet);
+			}
 			dup2(s, 1);
 			(void) close(s);
 			if (domain == AF_INET) {
@@ -629,6 +638,6 @@ again:
 static void
 usage()
 {
-	fprintf(stderr, "usage: lpd [-dl] [port#]\n");
+	fprintf(stderr, "usage: lpd [-dlp] [port#]\n");
 	exit(EX_USAGE);
 }
