@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.26 1996/05/29 01:35:29 jkh Exp $
+ * $Id: installUpgrade.c,v 1.27 1996/07/02 01:03:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -170,11 +170,11 @@ traverseHitlist(HitList *h)
 	++h;
     }
 }
-		
+
 int
 installUpgrade(dialogMenuItem *self)
 {
-    char *saved_etc = NULL;
+    char *saved_etc;
     Boolean extractingBin = TRUE;
     struct termios foo;
 
@@ -187,9 +187,10 @@ installUpgrade(dialogMenuItem *self)
     variable_set2(SYSTEM_STATE, "upgrade");
     systemDisplayHelp("upgrade");
 
+    dialog_clear();
     if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
 		 "risk it all and proceed with this upgrade?"))
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (!Dists) {
 	msgConfirm("You haven't specified any distributions yet.  The upgrade procedure will\n"
@@ -198,7 +199,7 @@ installUpgrade(dialogMenuItem *self)
 		   "to select those portions of 2.1 you wish to install on top of your 2.0.5\n"
 		   "system.");
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE))
-	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     /* No bin selected?  Not much of an upgrade.. */
@@ -218,22 +219,22 @@ installUpgrade(dialogMenuItem *self)
     if (!mediaDevice) {
 	msgConfirm("Now you must specify an installation medium for the upgrade.");
 	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     msgConfirm("OK.  First, we're going to go to the disk label editor.  In this editor\n"
 	       "you will be expected to *Mount* any partitions you're interested in\n"
-	       "upgrading.  Don't set the Newfs flag to Y on anything in the label editor\n"
+	       "upgrading.  DO NOT set the Newfs flag to Y on anything in the label editor\n"
 	       "unless you're absolutely sure you know what you're doing!  In this\n"
 	       "instance, you'll be using the label editor as little more than a fancy\n"
-	       "screen-oriented filesystem mounting utility, so think of it that way.\n\n"
+	       "screen-oriented way of labeling existing partitions.\n\n"
 	       "Once you're done in the label editor, press Q to return here for the next\n"
 	       "step.");
 
     if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE) {
 	msgConfirm("The disk label editor failed to work properly!  Upgrade operation\n"
 		   "aborted.");
-	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+	return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     /* Don't write out MBR info */
@@ -242,29 +243,31 @@ installUpgrade(dialogMenuItem *self)
 	msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		   "aborted.");
 	variable_unset(DISK_PARTITIONED);
-	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+	return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     if (!copySelf()) {
 	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
 		   "Aborting.");
-	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+	return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     if (DITEM_STATUS(chroot("/mnt")) == DITEM_FAILURE) {
 	msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		   "root partition or the way it's mounted if this doesn't work.");
 	variable_unset(DISK_PARTITIONED);
-	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+	return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     chdir("/");
     systemCreateHoloshell();
 
+    saved_etc = NULL;
     if (extractingBin) {
 	while (!saved_etc) {
 	    saved_etc = msgGetInput("/usr/tmp/etc", "Under which directory do you wish to save your current /etc?");
 	    if (!saved_etc || !*saved_etc || Mkdir(saved_etc, NULL)) {
+		saved_etc = NULL;
 		if (msgYesNo("Directory was not specified, was invalid or user selected Cancel.\n\n"
 			     "Doing an upgrade without first backing up your /etc directory is a very\n"
 			     "bad idea!  Do you want to go back and specify the save directory again?"))
@@ -274,8 +277,10 @@ installUpgrade(dialogMenuItem *self)
 
 	if (saved_etc) {
 	    msgNotify("Preserving /etc directory..");
-	    /* cp returns a bogus status, so we can't check the status meaningfully.  Bleah. */
-	    (void)vsystem("cp -pr /etc/* %s", saved_etc);
+	    if (vsystem("tar -cf - -C /etc . | tar -xpf - -C %s", saved_etc))
+		if (msgYesNo("Unable to backup your /etc into %s.\n"
+			     "Do you want to continue anyway?"))
+		    return DITEM_FAILURE | DITEM_RECREATE;
 	}
 	if (file_readable("/kernel")) {
 	    msgNotify("Moving old kernel to /kernel.prev");
@@ -319,7 +324,7 @@ installUpgrade(dialogMenuItem *self)
 	       "Next comes stage 2, where we attempt to resurrect your /etc\n"
 	       "directory!");
 
-    if (chdir(saved_etc)) {
+    if (saved_etc && chdir(saved_etc)) {
 	msgConfirm("Unable to go to your saved /etc directory in %s?!  Argh!\n"
 		   "Something went seriously wrong!  It's quite possible that\n"
 		   "your former /etc is toast.  I hope you didn't have any\n"
@@ -354,10 +359,9 @@ installUpgrade(dialogMenuItem *self)
     printf("Well, good luck!  When you're done, please type \"reboot\" or exit\n"
 	    "the shell to reboot the new system.\n");
     if (!Fake)
-	execlp("sh", "-sh", 0);
+	system("/bin/sh");
     else
 	exit(0);
-    msgDebug("Was unable to execute sh for post-upgrade shell!\n");
     if (RunningAsInit)
 	reboot(0);
     /* NOTREACHED */
