@@ -115,13 +115,13 @@ typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 
 static unit_t unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
+static void	  addstat(struct statfs *, struct statfs *);
 static char	 *getmntpt(const char *);
 static int	  int64width(int64_t);
 static char	 *makenetvfslist(void);
 static void	  prthuman(const struct statfs *, int64_t);
 static void	  prthumanval(double);
 static void	  prtstat(struct statfs *, struct maxwidths *);
-static void	  addstat(struct statfs *, struct statfs *);
 static size_t	  regetmntinfo(struct statfs **, long, const char **);
 static unit_t	  unit_adjust(double *);
 static void	  update_maxwidths(struct maxwidths *, const struct statfs *);
@@ -140,8 +140,9 @@ int
 main(int argc, char *argv[])
 {
 	struct stat stbuf;
-	struct statfs statfsbuf, totalbuf, *mntbuf;
+	struct statfs statfsbuf, totalbuf;
 	struct maxwidths maxwidths;
+	struct statfs *mntbuf;
 	const char *fstype;
 	char *mntpath, *mntpt;
 	const char **vfslist;
@@ -150,23 +151,23 @@ main(int argc, char *argv[])
 
 	fstype = "ufs";
 
-	memset (&totalbuf, 0, sizeof (totalbuf));
+	memset(&totalbuf, 0, sizeof(totalbuf));
 	totalbuf.f_bsize = DEV_BSIZE;
-	strncpy (totalbuf.f_mntfromname, "total", MNAMELEN);
+	strncpy(totalbuf.f_mntfromname, "total", MNAMELEN);
 	vfslist = NULL;
 	while ((ch = getopt(argc, argv, "abcgHhiklmnPt:")) != -1)
 		switch (ch) {
 		case 'a':
 			aflag = 1;
 			break;
-		case 'c':
-			cflag = 1;
-			break;
 		case 'b':
 				/* FALLTHROUGH */
 		case 'P':
 			putenv("BLOCKSIZE=512");
 			hflag = 0;
+			break;
+		case 'c':
+			cflag = 1;
 			break;
 		case 'g':
 			putenv("BLOCKSIZE=1g");
@@ -428,7 +429,6 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	static int headerlen, timesthrough = 0;
 	static const char *header;
 	int64_t used, availblks, inodes;
-	int total;
 
 	if (++timesthrough == 1) {
 		mwp->mntfrom = imax(mwp->mntfrom, (int)strlen("Filesystem"));
@@ -470,8 +470,6 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	}
 	(void)printf(" %5.0f%%",
 	    availblks == 0 ? 100.0 : (double)used / (double)availblks * 100.0);
-	total = !*sfsp->f_mntonname &&
-	    strncmp(sfsp->f_mntfromname, "total", MNAMELEN) == 0;
 	if (iflag) {
 		inodes = sfsp->f_files;
 		used = inodes - sfsp->f_ffree;
@@ -480,7 +478,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 		    (double)used / (double)inodes * 100.0);
 	} else
 		(void)printf("  ");
-	if (!total)
+	if (strncmp(sfsp->f_mntfromname, "total", MNAMELEN) != 0)
 		(void)printf("  %s", sfsp->f_mntonname);
 	(void)printf("\n");
 }
@@ -488,8 +486,9 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 void
 addstat(struct statfs *totalfsp, struct statfs *statfsp)
 {
-	double bsize = statfsp->f_bsize / totalfsp->f_bsize;
+	uint64_t bsize;
 
+	bsize = statfsp->f_bsize / totalfsp->f_bsize;
 	totalfsp->f_blocks += statfsp->f_blocks * bsize;
 	totalfsp->f_bfree += statfsp->f_bfree * bsize;
 	totalfsp->f_bavail += statfsp->f_bavail * bsize;
@@ -548,7 +547,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "usage: df [-b | -H | -h | -k | -m | -P] [-aciln] [-t type] [file | filesystem ...]\n");
+"usage: df [-b | -g | -H | -h | -k | -m | -P] [-aciln] [-t type] [file | filesystem ...]\n");
 	exit(EX_USAGE);
 }
 
