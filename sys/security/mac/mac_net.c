@@ -292,6 +292,8 @@ mac_create_mbuf_from_bpfdesc(struct bpf_d *bpf_d, struct mbuf *mbuf)
 {
 	struct label *label;
 
+	BPFD_LOCK_ASSERT(bpf_d);
+
 	label = mac_mbuf_to_label(mbuf);
 
 	MAC_PERFORM(create_mbuf_from_bpfdesc, bpf_d, bpf_d->bd_label, mbuf,
@@ -349,6 +351,8 @@ int
 mac_check_bpfdesc_receive(struct bpf_d *bpf_d, struct ifnet *ifnet)
 {
 	int error;
+
+	BPFD_LOCK_ASSERT(bpf_d);
 
 	if (!mac_enforce_network)
 		return (0);

@@ -102,6 +102,7 @@ struct bpf_d {
 
 #define BPFD_LOCK(bd)		mtx_lock(&(bd)->bd_mtx)
 #define BPFD_UNLOCK(bd)		mtx_unlock(&(bd)->bd_mtx)
+#define BPFD_LOCK_ASSERT(bd)	mtx_assert(&(bd)->bd_mtx, MA_OWNED)
 
 /* Test whether a BPF is ready for read(). */
 #define	bpf_ready(bd)						 \
