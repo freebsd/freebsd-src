@@ -234,7 +234,7 @@ isp_attach(struct ispsoftc *isp)
 
 }
 
-static __inline void
+static INLINE void
 isp_freeze_loopdown(struct ispsoftc *isp, char *msg)
 {
 	if (isp->isp_osinfo.simqfrozen == 0) {
@@ -521,15 +521,15 @@ isp_intr_enable(void *arg)
 
 #ifdef	ISP_TARGET_MODE
 
-static __inline int is_lun_enabled(struct ispsoftc *, int, lun_id_t);
-static __inline int are_any_luns_enabled(struct ispsoftc *, int);
-static __inline tstate_t *get_lun_statep(struct ispsoftc *, int, lun_id_t);
-static __inline void rls_lun_statep(struct ispsoftc *, tstate_t *);
-static __inline int isp_psema_sig_rqe(struct ispsoftc *, int);
-static __inline int isp_cv_wait_timed_rqe(struct ispsoftc *, int, int);
-static __inline void isp_cv_signal_rqe(struct ispsoftc *, int, int);
-static __inline void isp_vsema_rqe(struct ispsoftc *, int);
-static __inline atio_private_data_t *isp_get_atpd(struct ispsoftc *, int);
+static INLINE int is_lun_enabled(struct ispsoftc *, int, lun_id_t);
+static INLINE int are_any_luns_enabled(struct ispsoftc *, int);
+static INLINE tstate_t *get_lun_statep(struct ispsoftc *, int, lun_id_t);
+static INLINE void rls_lun_statep(struct ispsoftc *, tstate_t *);
+static INLINE int isp_psema_sig_rqe(struct ispsoftc *, int);
+static INLINE int isp_cv_wait_timed_rqe(struct ispsoftc *, int, int);
+static INLINE void isp_cv_signal_rqe(struct ispsoftc *, int, int);
+static INLINE void isp_vsema_rqe(struct ispsoftc *, int);
+static INLINE atio_private_data_t *isp_get_atpd(struct ispsoftc *, int);
 static cam_status
 create_lun_state(struct ispsoftc *, int, struct cam_path *, tstate_t **);
 static void destroy_lun_state(struct ispsoftc *, tstate_t *);
@@ -545,7 +545,7 @@ static int isp_handle_platform_ctio(struct ispsoftc *, void *);
 static int isp_handle_platform_notify_scsi(struct ispsoftc *, in_entry_t *);
 static int isp_handle_platform_notify_fc(struct ispsoftc *, in_fcentry_t *);
 
-static __inline int
+static INLINE int
 is_lun_enabled(struct ispsoftc *isp, int bus, lun_id_t lun)
 {
 	tstate_t *tptr;
@@ -561,7 +561,7 @@ is_lun_enabled(struct ispsoftc *isp, int bus, lun_id_t lun)
 	return (0);
 }
 
-static __inline int
+static INLINE int
 are_any_luns_enabled(struct ispsoftc *isp, int port)
 {
 	int lo, hi;
@@ -580,7 +580,7 @@ are_any_luns_enabled(struct ispsoftc *isp, int port)
 	return (0);
 }
 
-static __inline tstate_t *
+static INLINE tstate_t *
 get_lun_statep(struct ispsoftc *isp, int bus, lun_id_t lun)
 {
 	tstate_t *tptr = NULL;
@@ -607,53 +607,73 @@ get_lun_statep(struct ispsoftc *isp, int bus, lun_id_t lun)
 	return (tptr);
 }
 
-static __inline void
+static INLINE void
 rls_lun_statep(struct ispsoftc *isp, tstate_t *tptr)
 {
 	if (tptr->hold)
 		tptr->hold--;
 }
 
-static __inline int
+static INLINE int
 isp_psema_sig_rqe(struct ispsoftc *isp, int bus)
 {
 	while (isp->isp_osinfo.tmflags[bus] & TM_BUSY) {
 		isp->isp_osinfo.tmflags[bus] |= TM_WANTED;
+#ifdef	ISP_SMPLOCK
 		if (cv_wait_sig(&isp->isp_osinfo.tgtcv0[bus], &isp->isp_lock)) {
 			return (-1);
 		}
+#else
+		if (tsleep(&isp->isp_osinfo.tgtcv0[bus], PZERO, "cv_isp", 0)) {
+			return (-1);
+		}
+#endif
 		isp->isp_osinfo.tmflags[bus] |= TM_BUSY;
 	}
 	return (0);
 }
 
-static __inline int
+static INLINE int
 isp_cv_wait_timed_rqe(struct ispsoftc *isp, int bus, int timo)
 {
+#ifdef	ISP_SMPLOCK
 	if (cv_timedwait(&isp->isp_osinfo.tgtcv1[bus], &isp->isp_lock, timo)) {
 		return (-1);
 	}
+#else
+	if (tsleep(&isp->isp_osinfo.tgtcv1[bus], PZERO, "cv_isp1", 0)) {
+		return (-1);
+	}
+#endif
 	return (0);
 }
 
-static __inline void
+static INLINE void
 isp_cv_signal_rqe(struct ispsoftc *isp, int bus, int status)
 {
 	isp->isp_osinfo.rstatus[bus] = status;
+#ifdef	ISP_SMPLOCK
 	cv_signal(&isp->isp_osinfo.tgtcv1[bus]);
+#else
+	wakeup(&isp->isp_osinfo.tgtcv1[bus]);
+#endif
 }
 
-static __inline void
+static INLINE void
 isp_vsema_rqe(struct ispsoftc *isp, int bus)
 {
 	if (isp->isp_osinfo.tmflags[bus] & TM_WANTED) {
 		isp->isp_osinfo.tmflags[bus] &= ~TM_WANTED;
+#ifdef	ISP_SMPLOCK
 		cv_signal(&isp->isp_osinfo.tgtcv0[bus]);
+#else
+		cv_signal(&isp->isp_osinfo.tgtcv0[bus]);
+#endif
 	}
 	isp->isp_osinfo.tmflags[bus] &= ~TM_BUSY;
 }
 
-static __inline atio_private_data_t *
+static INLINE atio_private_data_t *
 isp_get_atpd(struct ispsoftc *isp, int tag)
 {
 	atio_private_data_t *atp;
@@ -711,7 +731,7 @@ create_lun_state(struct ispsoftc *isp, int bus,
 	return (CAM_REQ_CMP);
 }
 
-static __inline void
+static INLINE void
 destroy_lun_state(struct ispsoftc *isp, tstate_t *tptr)
 {
 	int hfx;
@@ -1941,7 +1961,9 @@ isp_kthread(void *arg)
 {
 	struct ispsoftc *isp = arg;
 
+#ifdef	ISP_SMPLOCK
 	mtx_lock(&isp->isp_lock);
+#endif
 	/*
 	 * The first loop is for our usage where we have yet to have
 	 * gotten good fibre channel state.
@@ -1959,8 +1981,12 @@ isp_kthread(void *arg)
 					break;
 				}
 			}
+#ifdef	ISP_SMPLOCK
 			msleep(isp_kthread, &isp->isp_lock,
 			    PRIBIO, "isp_fcthrd", hz);
+#else
+			(void) tsleep(isp_kthread, PRIBIO, "isp_fcthrd", hz);
+#endif
 		}
 
 		/*
@@ -1978,7 +2004,11 @@ isp_kthread(void *arg)
 			CAMLOCK_2_ISPLOCK(isp);
 		}
 		isp_prt(isp, ISP_LOGDEBUG0, "kthread: waiting until called");
+#ifdef	ISP_SMPLOCK
 		cv_wait(&isp->isp_osinfo.kthread_cv, &isp->isp_lock);
+#else
+		(void) tsleep(&isp->isp_osinfo.kthread_cv, PRIBIO, "fc_cv", 0);
+#endif
 	}
 }
 
@@ -2077,7 +2107,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				xpt_done(ccb);
 				break;
 			}
+#ifdef	ISP_SMPLOCK
 			cv_signal(&isp->isp_osinfo.kthread_cv);
+#else
+			wakeup(&isp->isp_osinfo.kthread_cv);
+#endif
 			isp_freeze_loopdown(isp, "isp_action(RQLATER)");
 			XS_SETERR(ccb, CAM_REQUEUE_REQ);
 			ISPLOCK_2_CAMLOCK(isp);
@@ -2855,7 +2889,11 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 			isp_prt(isp, ISP_LOGINFO,
 			    "Name Server Database Changed");
 		}
+#ifdef	ISP_SMPLOCK
 		cv_signal(&isp->isp_osinfo.kthread_cv);
+#else
+		wakeup(&isp->isp_osinfo.kthread_cv);
+#endif
 		break;
 	case ISPASYNC_FABRIC_DEV:
 	{
