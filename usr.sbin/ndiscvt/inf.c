@@ -32,7 +32,8 @@ static struct section
 static void	dump_deviceids	(void);
 static void	dump_pci_id	(const char *);
 static void	dump_regvals	(void);
-static void	dump_paramreg	(const struct section *, const struct reg *);
+static void	dump_paramreg	(const struct section *,
+				const struct reg *, int);
 
 static FILE	*ofp;
 
@@ -119,7 +120,7 @@ static void
 dump_pci_id(const char *s)
 {
 	char *p;
-	char vidstr[7], didstr[7];
+	char vidstr[7], didstr[7], subsysstr[14];
 
 	p = strcasestr(s, "VEN_");
 	if (p == NULL)
@@ -135,8 +136,16 @@ dump_pci_id(const char *s)
 	strncat(didstr, p, 4);
 	if (p == NULL)
 		return;
+	p = strcasestr(s, "SUBSYS_");
+	if (p == NULL)
+		strcpy(subsysstr, "0x00000000");
+	else {
+		p += 7;
+		strcpy(subsysstr, "0x");
+		strncat(subsysstr, p, 8);
+	}
 
-	fprintf(ofp, "\t\\\n\t{ %s, %s,", vidstr, didstr);
+	fprintf(ofp, "\t\\\n\t{ %s, %s, %s, ", vidstr, didstr, subsysstr);
 	return;
 }
 
@@ -193,7 +202,7 @@ dump_deviceids()
 }
 
 static void
-dump_addreg(const char *s)
+dump_addreg(const char *s, int devidx)
 {
 	struct section *sec;
 	struct reg *reg;
@@ -213,13 +222,13 @@ dump_addreg(const char *s)
 			if (reg->subkey == NULL) {
 				fprintf(ofp, "\n\t{ \"%s\",", reg->key);
 				fprintf(ofp,"\n\t\"%s \",", reg->key);
-				fprintf(ofp, "\n\t{ \"%s\" } },",
+				fprintf(ofp, "\n\t{ \"%s\" }, %d },",
 				    reg->value == NULL ? "" :
-				    stringcvt(reg->value));
+				    stringcvt(reg->value), devidx);
 			} else if (strcasestr(reg->subkey,
 			    "Ndi\\params") != NULL &&
 			    strcasecmp(reg->key, "ParamDesc") == 0)
-				dump_paramreg(sec, reg);
+				dump_paramreg(sec, reg, devidx);
 		}
 	}
 
@@ -283,7 +292,7 @@ dump_dwordreg(const struct section *s, const struct reg *r)
 }
 
 static void
-dump_defaultinfo(const struct section *s, const struct reg *r)
+dump_defaultinfo(const struct section *s, const struct reg *r, int devidx)
 {
 	struct reg *reg;
 	TAILQ_FOREACH(reg, &rh, link) {
@@ -293,8 +302,8 @@ dump_defaultinfo(const struct section *s, const struct reg *r)
 			continue;
 		if (strcasecmp(reg->key, "Default"))
 			continue;
-		fprintf(ofp, "\n\t{ \"%s\" } },", reg->value == NULL ? "" :
-		    reg->value);
+		fprintf(ofp, "\n\t{ \"%s\" }, %d },", reg->value == NULL ? "" :
+		    reg->value, devidx);
 			break;
 	}
 	return;
@@ -340,7 +349,7 @@ dump_typeinfo(const struct section *s, const struct reg *r)
 }
 
 static void
-dump_paramreg(const struct section *s, const struct reg *r)
+dump_paramreg(const struct section *s, const struct reg *r, int devidx)
 {
 	const char *keyname;
 
@@ -349,7 +358,7 @@ dump_paramreg(const struct section *s, const struct reg *r)
 	dump_paramdesc(s, r);
 	dump_typeinfo(s, r);
 	fprintf(ofp, "\",");
-	dump_defaultinfo(s, r);
+	dump_defaultinfo(s, r, devidx);
 
 	return;
 }
@@ -357,14 +366,11 @@ dump_paramreg(const struct section *s, const struct reg *r)
 static void
 dump_regvals(void)
 {
-	struct assign *manf, *dev, *dev_dup;
+	struct assign *manf, *dev;
 	struct section *sec;
 	struct assign *assign;
-	struct assign_head tmp_ah;
 	char sname[256];
-	int i, is_winxp = 0;
-
-	TAILQ_INIT(&tmp_ah);
+	int i, is_winxp = 0, devidx = 0;
 
 	/* Find manufacturer name */
 	manf = find_assign("Manufacturer", NULL);
@@ -385,19 +391,6 @@ dump_regvals(void)
 	fprintf (ofp, "ndis_cfg ndis_regvals[] = {");
 
 	TAILQ_FOREACH(assign, &ah, link) {
-		/* Avoid repeating the same section. */
-		i = 0;
-		TAILQ_FOREACH(dev_dup, &tmp_ah, link)
-			if (strcmp(dev_dup->vals[0], assign->vals[0]) == 0) {
-				i++;
-				break;
-		}
-		if (i)
-			continue;
-		dev_dup = malloc(sizeof(struct assign));
-		bcopy((char *)assign, (char *)dev_dup,
-		    sizeof(struct assign));
-		TAILQ_INSERT_TAIL(&tmp_ah, dev_dup, link);
 		if (assign->section == sec) {
 			/*
 			 * Find all the AddReg sections.
@@ -419,12 +412,13 @@ dump_regvals(void)
 				continue;
 			for (i = 0; i < W_MAX; i++) {
 				if (dev->vals[i] != NULL)
-					dump_addreg(dev->vals[i]);
+					dump_addreg(dev->vals[i], devidx);
 			}
+			devidx++;
 		}
 	}
 
-	fprintf(ofp, "\n\t{ NULL, NULL, { 0 } }\n};\n\n");
+	fprintf(ofp, "\n\t{ NULL, NULL, { 0 }, 0 }\n};\n\n");
 
 	return;
 }

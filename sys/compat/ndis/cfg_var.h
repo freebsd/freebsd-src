@@ -39,6 +39,7 @@ struct ndis_cfg {
 	char			*nc_cfgkey;
 	char			*nc_cfgdesc;
 	char			nc_val[256];
+	int			nc_idx;
 };
 
 typedef struct ndis_cfg ndis_cfg;

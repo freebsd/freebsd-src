@@ -214,6 +214,10 @@ ndis_create_sysctls(arg)
 	while(1) {
 		if (vals->nc_cfgkey == NULL)
 			break;
+		if (vals->nc_idx != sc->ndis_devidx) {
+			vals++;
+			continue;
+		}
 		SYSCTL_ADD_STRING(&sc->ndis_ctx,
 		    SYSCTL_CHILDREN(sc->ndis_tree),
 		    OID_AUTO, vals->nc_cfgkey,
