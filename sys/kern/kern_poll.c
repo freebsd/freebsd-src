@@ -385,6 +385,8 @@ netisr_poll(void)
 		else if (poll_each_burst > poll_burst_max)
 			poll_each_burst = poll_burst_max;
 
+		if (poll_burst > poll_burst_max)
+			poll_burst = poll_burst_max;
 		residual_burst = poll_burst;
 	}
 	cycles = (residual_burst < poll_each_burst) ?
