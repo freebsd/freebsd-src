@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/28/95";
 #else
 static const char rcsid[] =
-	"$Id: util.c,v 1.5 1997/07/02 06:34:51 charnier Exp $";
+	"$Id: util.c,v 1.6 1999/08/21 18:25:38 imp Exp $";
 #endif
 #endif /* not lint */
 
@@ -80,7 +80,7 @@ match(pw, user)
 	 * Why do we skip asterisks!?!?
 	 */
 	(void)strncpy(p = tbuf, pw->pw_gecos, sizeof(tbuf));
-	p[sizeof(tbuf) - 1] = '\0';
+	tbuf[sizeof(tbuf) - 1] = '\0';
 	if (*p == '*')
 		++p;
 
@@ -88,12 +88,13 @@ match(pw, user)
 	if ((p = strtok(p, ",")) == NULL)
 		return(0);
 
-	for (t = name; (*t = *p) != '\0' && t - name > sizeof(name); ++p) {
+	for (t = name; t < &name[sizeof(name) - 1] && (*t = *p) != '\0'; ++p) {
 		if (*t == '&') { 
 			(void)strncpy(t, pw->pw_name, 
 			    sizeof(name) - (t - name));
 			name[sizeof(name) - 1] = '\0';
-			while (*++t);
+			while (t < &name[sizeof(name) - 1] && *++t)
+				continue;
 		} else {
 			++t;
 		}
@@ -352,21 +353,22 @@ userinfo(pn, pw)
 
 	/* why do we skip asterisks!?!? */
 	(void)strncpy(bp = tbuf, pw->pw_gecos, sizeof(tbuf));
-	bp[sizeof(tbuf) - 1] = '\0';
+	tbuf[sizeof(tbuf) - 1] = '\0';
 	if (*bp == '*')
 		++bp;
 
 	/* ampersands get replaced by the login name */
 	if (!(p = strsep(&bp, ",")))
 		return;
-	for (t = name; (*t = *p) != '\0' && t < name + sizeof(name); ++p) {
+	for (t = name; t < &name[sizeof(name) - 1] && (*t = *p) != '\0'; ++p) {
 		if (*t == '&') {
 			(void)strncpy(t, pw->pw_name, 
 			    sizeof(name) - (t - name));
 			name[sizeof(name) - 1] = '\0';
 			if (islower(*t))
 				*t = toupper(*t);
-			while (*++t);
+			while (t < &name[sizeof(name) - 1] && *++t)
+				continue;
 		} else {
 			++t;
 		}
