@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.26 1995/06/05 18:34:14 jkh Exp $
+ * $Id: dist.c,v 1.35.2.27 1995/06/06 07:57:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,6 +72,7 @@ static Distribution DistTable[] = {
 { "info",	"/",			&Dists,		DIST_INFO,		NULL		},
 { "src",	"/",			&Dists,		DIST_SRC,		SrcDistTable	},
 { "des",	"/",			&Dists,		DIST_DES,		NULL		},
+{ "krb",	"/",			&Dists,		DIST_KRB,		NULL		},
 { "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
 { "commerce",	"/usr/local",		&Dists,		DIST_COMMERCIAL,		NULL		},
@@ -96,6 +97,8 @@ static Distribution SrcDistTable[] = {
 { "ssys",	"/usr/src",		&SrcDists,	DIST_SRC_SYS,		NULL		},
 { "subin",	"/usr/src",		&SrcDists,	DIST_SRC_UBIN,		NULL		},
 { "susbin",	"/usr/src",		&SrcDists,	DIST_SRC_USBIN,		NULL		},
+{ "ssecure",	"/usr/src",		&SrcDists,	DIST_SRC_SECURE,	NULL		},
+{ "sebones",	"/usr/src",		&SrcDists,	DIST_SRC_EBONES,	NULL		},
 { NULL },
 };
 
@@ -386,7 +389,7 @@ distExtract(char *parent, Distribution *me)
 		status = TRUE;
 	    else {
 		status = msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);
-		if (status && !msgYesNo("Would you like to clear all distributions in this group?"))
+		if (status && !msgYesNo("Would you like to clear all distributions from the %s group?"), path)
 		    *(me[i].my_mask) = 0;
 	    }
 	}
