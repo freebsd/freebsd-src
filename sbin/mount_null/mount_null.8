@@ -35,7 +35,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount_null.8	8.4 (Berkeley) 4/19/94
-.\"	$Id: mount_null.8,v 1.5 1996/10/05 22:26:59 wosch Exp $
+.\"	$Id: mount_null.8,v 1.5.2.1 1997/10/19 17:23:25 joerg Exp $
 .\"
 .Dd April 19, 1994
 .Dt MOUNT_NULL 8
@@ -174,7 +174,9 @@ process when constructing other vnode stacks.
 .Sh CREATING OTHER FILE SYSTEM LAYERS
 One of the easiest ways to construct new file system layers is to make
 a copy of the null layer, rename all files and variables, and
-then begin modifying the copy.  Sed can be used to easily rename
+then begin modifying the copy.
+.Xr Sed 1
+can be used to easily rename
 all variables.
 .Pp
 The umap layer is an example of a layer descended from the 
