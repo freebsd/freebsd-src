@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.16 2001/11/11 20:15:06 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.17 2001/11/11 23:52:28 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.144 2001/10/27 08:05:21 ichiro Exp $ */
 
@@ -544,6 +544,7 @@
 #define	PCMCIA_VENDOR_EIGERLABS	-1	/* Eiger labs,Inc. */
 #define	PCMCIA_VENDOR_EPSON	-1	/* Seiko Epson Corporation */
 #define	PCMCIA_VENDOR_EXP	-1	/* EXP Computer Inc */
+#define	PCMCIA_VENDOR_GEMTEK	-1	/* Gem Tek */
 #define	PCMCIA_VENDOR_ICOM	-1	/* ICOM Inc */
 #define	PCMCIA_VENDOR_INTERSIL	-1	/* Intersil */
 #define	PCMCIA_VENDOR_NAKAGAWAMETAL	-1	/* NAKAGAWA METAL */
