@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.214 1998/10/12 23:45:06 jkh Exp $
+ * $Id: install.c,v 1.215 1998/10/12 23:47:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -354,16 +354,16 @@ installFixitFloppy(dialogMenuItem *self)
     while (1) {
 	msgConfirm("Please insert a writable fixit floppy and press return");
 	mediaDevice->private = "/mnt2";
-	if (!mediaDevice->init(&mediaDevice)) {
+	if (!mediaDevice->init(mediaDevice)) {
 	    if (msgYesNo("The attempt to mount the fixit floppy failed, bad floppy\n"
-			 "or unclean filesystem.  Do you want to try again?")
+			 "or unclean filesystem.  Do you want to try again?"))
 		return DITEM_FAILURE;
 	}
     }
     if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
     fixit_common();
-    mediaDevice->shutdown(&mediaDevice);
+    mediaDevice->shutdown(mediaDevice);
     mediaDevice = NULL;
     msgConfirm("Please remove the fixit floppy now.");
     return DITEM_SUCCESS;
