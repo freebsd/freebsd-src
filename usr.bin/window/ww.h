@@ -307,8 +307,6 @@ char **wwalloc();
 char *wwerror();
 
 	/* c library functions */
-char *malloc();
-char *calloc();
 char *getenv();
 char *tgetstr();
 char *rindex();
