@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_query.c,v 4.9.1.13 1994/06/11 22:05:04 vixie Exp $";
+static char rcsid[] = "$Id: res_query.c,v 1.2 1994/09/25 02:12:41 pst Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -111,37 +111,29 @@ res_query(name, class, type, answer, anslen)
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
 		return (-1);
-#ifdef DEBUG
 	if (_res.options & RES_DEBUG)
 		printf(";; res_query(%s, %d, %d)\n", name, class, type);
-#endif
 
 	n = res_mkquery(QUERY, name, class, type, NULL, 0, NULL,
 			buf, sizeof(buf));
 	if (n <= 0) {
-#ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf(";; res_query: mkquery failed\n");
-#endif
 		h_errno = NO_RECOVERY;
 		return (n);
 	}
 	n = res_send(buf, n, answer, anslen);
 	if (n < 0) {
-#ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf(";; res_query: send error\n");
-#endif
 		h_errno = TRY_AGAIN;
 		return (n);
 	}
 
 	if (hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
-#ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf(";; rcode = %d, ancount=%d\n", hp->rcode,
 			    ntohs(hp->ancount));
-#endif
 		switch (hp->rcode) {
 			case NXDOMAIN:
 				h_errno = HOST_NOT_FOUND;
@@ -321,11 +313,9 @@ res_querydomain(name, domain, class, type, answer, anslen)
 	const char *longname = nbuf;
 	int n;
 
-#ifdef DEBUG
 	if (_res.options & RES_DEBUG)
 		printf(";; res_querydomain(%s, %s, %d, %d)\n",
 		       name, domain?domain:"<Nil>", class, type);
-#endif
 	if (domain == NULL) {
 		/*
 		 * Check for trailing '.';
