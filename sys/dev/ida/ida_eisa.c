@@ -80,7 +80,7 @@ ida_v1_submit(struct ida_softc *ida, struct ida_qcb *qcb)
 	ida_outb(ida, R_EISA_SYSTEM_DOORBELL, EISA_CHANNEL_CLEAR);
 	ida_outl(ida, R_EISA_LIST_ADDR, qcb->hwqcb_busaddr);
 	ida_outw(ida, R_EISA_LIST_LEN, size);
-	ida_outb(ida, R_EISA_LOCAL_DOORBELL, EISA_CHANNEL_CLEAR);
+	ida_outb(ida, R_EISA_LOCAL_DOORBELL, EISA_CHANNEL_BUSY);
 }
 
 static bus_addr_t
