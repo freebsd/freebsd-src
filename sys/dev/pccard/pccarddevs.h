@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.61 2003/07/26 17:45:45 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.62 2003/08/07 19:33:11 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -87,6 +87,7 @@
 #define	PCMCIA_VENDOR_PSION	0x016c	/* Psion */
 #define	PCMCIA_VENDOR_COMPAQ2	0x0183	/* Compaq */
 #define	PCMCIA_VENDOR_KINGSTON	0x0186	/* Kingston */
+#define	PCMCIA_VENDOR_MELCO	0x018a	/* Melco Corporation */
 #define	PCMCIA_VENDOR_DAYNA	0x0194	/* Dayna Corporation */
 #define	PCMCIA_VENDOR_RAYTHEON	0x01a6	/* Raytheon */
 #define	PCMCIA_VENDOR_IODATA	0x01bf	/* I-O DATA */
@@ -116,7 +117,6 @@
 #define	PCMCIA_VENDOR_DUAL	0x890f	/* Dual */
 #define	PCMCIA_VENDOR_EDIMAX	0x890f	/* Edimax Technology Inc. */
 #define	PCMCIA_VENDOR_COMPEX	0x8a01	/* Compex Corporation */
-#define	PCMCIA_VENDOR_MELCO	0x8a01	/* Melco Corporation */
 #define	PCMCIA_VENDOR_ZONET	0x8a01	/* Zonet Technology Inc. */
 #define	PCMCIA_VENDOR_CONTEC	0xc001	/* Contec */
 #define	PCMCIA_VENDOR_MACNICA	0xc00b	/* MACNICA */
@@ -490,6 +490,9 @@
 #define	PCMCIA_CIS_MELCO_LPC3_TX	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_MELCO_LPC3_TX	0xc1ab
 #define	PCMCIA_STR_MELCO_LPC3_TX	"Melco LPC3-TX"
+#define	PCMCIA_CIS_MELCO_LPC3_CLX	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_MELCO_LPC3_CLX	0x0301
+#define	PCMCIA_STR_MELCO_LPC3_CLX	"Melco LPC3-CLX Ethernet Adapter"
 
 /* Motorola Products */
 #define	PCMCIA_CIS_MOTOROLA_POWER144	{ NULL, NULL, NULL, NULL }
@@ -804,6 +807,7 @@
 #define	PCMCIA_VENDOR_INTERSIL	0xffffffff	/* Intersil */
 #define	PCMCIA_VENDOR_IODATA3	0xffffffff	/* I-O DATA */
 #define	PCMCIA_VENDOR_LANTECH	0xffffffff	/* Lantech Computer Company */
+#define	PCMCIA_VENDOR_MELCO2	0xffffffff	/* Melco Corporation */
 #define	PCMCIA_VENDOR_NAKAGAWAMETAL	0xffffffff	/* NAKAGAWA METAL */
 #define	PCMCIA_VENDOR_NDC	0xffffffff	/* NDC */
 #define	PCMCIA_VENDOR_NEC	0xffffffff	/* NEC */
@@ -979,9 +983,9 @@
 #define	PCMCIA_CIS_MEGAHERTZ_XJ2288	{ "MEGAHERTZ", "MODEM XJ2288", NULL, NULL }
 #define	PCMCIA_PRODUCT_MEGAHERTZ_XJ2288	0xffffffff
 #define	PCMCIA_STR_MEGAHERTZ_XJ2288	"Megahertz XJ2288 Modem"
-#define	PCMCIA_CIS_MELCO_LPC2_TX	{ "MELCO", "LPC2-TX", NULL, NULL }
-#define	PCMCIA_PRODUCT_MELCO_LPC2_TX	0xffffffff
-#define	PCMCIA_STR_MELCO_LPC2_TX	"Melco LPC2-TX"
+#define	PCMCIA_CIS_MELCO2_LPC2_TX	{ "MELCO", "LPC2-TX", NULL, NULL }
+#define	PCMCIA_PRODUCT_MELCO2_LPC2_TX	0xffffffff
+#define	PCMCIA_STR_MELCO2_LPC2_TX	"Melco LPC2-TX"
 #define	PCMCIA_CIS_NAKAGAWAMETAL_LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL }
 #define	PCMCIA_PRODUCT_NAKAGAWAMETAL_LNT10TN	0xffffffff
 #define	PCMCIA_STR_NAKAGAWAMETAL_LNT10TN	"NAKAGAWA METAL LNT-10TN NE2000 Compatible Card"
