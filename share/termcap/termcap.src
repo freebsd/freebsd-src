@@ -1956,7 +1956,7 @@ c100-rv-s|concept-rv-s|concept100-rv-s|c100rvs|slow reverse concept 100:\
 	:vb=\EK\200\Ek:pt:dC@:dN@:tc=c100-rv:
 # for syscons
 cons25|ansi|ansi80x25:\
-	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305o~s_`^Da\260f\370g\361~\371,^P+^Q.^Y-^Xh\261i^U0\333y\363z\362:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305o~s_`^Da\260f\370g\361~\371,^P+^Q.^Y-^Xh\261I^U0\333y\363z\362:\
         :al=\E[L:am:bs:cd=\E[J:ce=\E[K:cl=\E[2J\E[H:cm=\E[%i%d;%dH:co#80:\
         :dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ei=:ho=\E[H:ic=\E[@:im=:li#25:\
 	:ms:nd=\E[C:pt:rs=\E[x\E[m\Ec:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:up=\E[A:\
@@ -1982,7 +1982,7 @@ pc3r|ibmpc3r|FreeBSD console for syscons koi8-r code table:\
 	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
 	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:\
 	:sr=\E[T:sf=\E[S:SR=\E[%dT:SF=\E[%dS:\
-	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221o~s_`^D,^P+^Q.^Y-^Xi^U0\215:\
+	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221o~s_`^D,^P+^Q.^Y-^XI^U0\215:\
 	:pa#64:Co#8:Sf=\E[=%dF:Sb=\E[=%dG:op=\E[x:
 dosansi|ANSI.SYS standard crt:\
         :am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
@@ -3384,7 +3384,7 @@ pc3|ibmpc3|IBM PC 386BSD Console:\
 	:Sb=\E[1;%dx:\
 	:Sf=\E[2;%dx:\
 	:UP=\E[%dA:\
-	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305o~s_`^Da\260f\370g\361~\371,^P+^Q.^Y-^Xh\261i^U0\333y\363z\362:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305o~s_`^Da\260f\370g\361~\371,^P+^Q.^Y-^Xh\261I^U0\333y\363z\362:\
 	:am:\
 	:bl=^G:\
 	:bs:\
