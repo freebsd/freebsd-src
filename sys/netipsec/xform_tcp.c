@@ -86,7 +86,7 @@ tcpsignature_init(struct secasvar *sav, struct xformsw *xsp)
 
 	if (sav->spi != htonl(TCP_SIG_SPI)) {
 		DPRINTF(("%s: SPI must be TCP_SIG_SPI (0x1000)\n",
-		    __func__, sav->alg_auth));
+		    __func__));
 		return (EINVAL);
 	}
 	if (sav->alg_auth != SADB_X_AALG_TCP_MD5) {
