@@ -1,6 +1,6 @@
-static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.5 1995/09/08 11:06:58 bde Exp $";
+static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.6 1995/11/16 10:47:21 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,19 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.5 1995/09/08 11:06:58 bde Exp $
  *
  *******************************************************************************
  * $Log: isdn.c,v $
+ * Revision 1.6  1995/11/16  10:47:21  bde
+ * Fixed a call to the listen function.  A trailing arg was missing.
+ *
+ * Fixed the type of isdn_check().  A trailing arg was missing.
+ *
+ * Included "conf.h" to get some prototypes.
+ *
+ * Completed function declarations.
+ *
+ * Added prototypes.
+ *
+ * Removed some useless includes.
+ *
  * Revision 1.5  1995/09/08  11:06:58  bde
  * Fix benign type mismatches in devsw functions.  82 out of 299 devsw
  * functions were wrong.
@@ -55,14 +68,21 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.5 1995/09/08 11:06:58 bde Exp $
 #define TYPNR		4
 #define N_ISDN_APPL	(NII + NITY + NITEL + NISPY)
 
-#include "param.h"
-#include "ioctl.h"
-#include "kernel.h"
-#include "systm.h"
-#include "conf.h"
-#include "proc.h"
+#include <sys/param.h>
+#include <sys/ioctl.h>
+#include <sys/kernel.h>
+#include <sys/systm.h>
+#include <sys/conf.h>
+#include <sys/proc.h>
 
 #include "gnu/isdn/isdn_ioctl.h"
+
+#ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 55
+#endif /*JREMOD*/
 
 isdn_appl_t     isdn_appl[N_ISDN_APPL];
 isdn_ctrl_t     isdn_ctrl[N_ISDN_CTRL];
@@ -646,5 +666,37 @@ passout(int unit, int l, char *buf)
 	}
 	splx(x);
 }
+
+#ifdef JREMOD
+struct cdevsw isdn_cdevsw = 
+	{ isdnopen,	isdnclose,	isdnread,	nowrite,	/*55*/
+	  isdnioctl,	nostop,		nullreset,	nodevtotty,/* isdn */
+	  seltrue,	nommap,		NULL };
+
+static isdn_devsw_installed = 0;
+
+static void 	isdn_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! isdn_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&isdn_cdevsw,NULL);
+		isdn_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"isdn",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(isdndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,isdn_drvinit,NULL)
+
+#endif /* JREMOD */
 
 #endif				/* NISDN > 0 */

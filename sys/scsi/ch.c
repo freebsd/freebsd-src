@@ -1,8 +1,8 @@
 /*
- * Written by grefen@?????
+ * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.21 1995/05/30 08:13:22 rgrimes Exp $
+ *      $Id: ch.c,v 1.22 1995/11/20 12:42:27 phk Exp $
  */
 
 #include	<sys/types.h>
@@ -23,6 +23,16 @@
 #include <scsi/scsi_changer.h>
 #include <scsi/scsiconf.h>
 #include <sys/devconf.h>
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 17
+#endif /*JREMOD*/
+
 
 errval ch_getelem __P((u_int32 unit, short *stat, int type, u_int32 from,
 		       void *data, u_int32 flags));
@@ -501,3 +511,36 @@ ch_mode_sense(unit, flags)
 		cd->rot ? "can" : "can't"));
 	return (0);
 }
+
+#ifdef JREMOD
+struct cdevsw ch_cdevsw = 
+	{ chopen,	chclose,	noread,		nowrite,	/*17*/
+	  chioctl,	nostop,		nullreset,	nodevtotty,/* ch */
+	  noselect,	nommap,		nostrat };
+
+static ch_devsw_installed = 0;
+
+static void 	ch_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! ch_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&ch_cdevsw,NULL);
+		ch_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"ch",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(chdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ch_drvinit,NULL)
+
+#endif /* JREMOD */
+

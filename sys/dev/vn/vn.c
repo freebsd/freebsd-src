@@ -88,6 +88,16 @@
 
 #include <sys/vnioctl.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 43
+#define BDEV_MAJOR 15
+#endif /*JREMOD */
+
+
 #ifdef DEBUG
 int dovncluster = 1;
 int vndebug = 0x00;
@@ -586,4 +596,46 @@ vndump(dev_t dev)
 {
 	return (ENODEV);
 }
+#ifdef JREMOD
+struct bdevsw vn_bdevsw = 
+	{ vnopen,	vnclose,	vnstrategy,	vnioctl,	/*15*/
+	  vndump,	vnsize,		0 };
+
+struct cdevsw vn_cdevsw = 
+	{ vnopen,	vnclose,	rawread,	rawwrite,	/*43*/
+	  vnioctl,	nostop,		nullreset,	nodevtotty,/* vn */
+	  seltrue,	nommap,		vnstrategy };
+
+static vn_devsw_installed = 0;
+
+static void 	vn_drvinit(void *unused)
+{
+	dev_t dev;
+	dev_t dev_chr;
+
+	if( ! vn_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&vn_cdevsw,NULL);
+		dev_chr = dev;
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&vn_bdevsw,NULL);
+		vn_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	major		minor	type   uid gid perm*/
+	"/",	"rvn",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+			x=devfs_add_devsw(
+	"/",	"vn",	major(dev),	0,	DV_BLK,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(vndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,vn_drvinit,NULL)
+
+#endif /* JREMOD */
+
 #endif

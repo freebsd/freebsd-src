@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.9 1995/08/07 07:58:17 davidg Exp $
+ * $Id: subr_log.c,v 1.10 1995/10/29 15:30:59 phk Exp $
  */
 
 /*
@@ -46,6 +46,15 @@
 #include <sys/msgbuf.h>
 #include <sys/file.h>
 #include <sys/signalvar.h>
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 7
+#endif /*JREMOD*/
 
 #define LOG_RDPRI	(PZERO + 1)
 
@@ -223,3 +232,36 @@ logioctl(dev, com, data, flag, p)
 	}
 	return (0);
 }
+
+#ifdef JREMOD
+struct cdevsw log_cdevsw = 
+	{ logopen,	logclose,	logread,	nowrite,	/*7*/
+	  logioctl,	nostop,		nullreset,	nodevtotty,/* klog */
+	  logselect,	nommap,		NULL };
+
+static log_devsw_installed = 0;
+
+static void 	log_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! log_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&log_cdevsw,NULL);
+		log_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"log",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(logdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,log_drvinit,NULL)
+
+#endif /* JREMOD */
+

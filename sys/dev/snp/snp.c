@@ -33,6 +33,13 @@
 
 #include <sys/snoop.h>
 
+#ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 53
+#endif /*JREMOD*/
+
 #ifndef MIN
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
@@ -490,5 +497,37 @@ snpselect(dev, rw, p)
 	selrecord(p, &snp->snp_sel);
 	return 0;
 }
+
+#ifdef JREMOD
+struct cdevsw snp_cdevsw = 
+	{ snpopen,	snpclose,	snpread,	snpwrite,	/*53*/
+	  snpioctl,	nostop,		nullreset,	nodevtotty,/* snoop */
+	  snpselect,	nommap,		NULL };
+
+static snp_devsw_installed = 0;
+
+static void 	snp_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! snp_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&snp_cdevsw,NULL);
+		snp_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"snp",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(snpdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,snp_drvinit,NULL)
+
+#endif /* JREMOD */
 
 #endif

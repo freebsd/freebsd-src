@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.5 1995/09/08 19:01:28 julian Exp $
+ * $Id: asc.c,v 1.6 1995/11/28 09:40:39 julian Exp $
  */
 
 #include "asc.h"
@@ -76,16 +76,15 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ascreg.h>
-#ifdef  DEVFS
-#include <sys/devfsext.h>
 
-extern d_open_t ascopen;
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 71
-static void 	asc_devsw_install();
 #endif /*JREMOD*/
-#endif
 
 #endif /* FREEBSD_1_X */
 
@@ -434,11 +433,6 @@ ascprobe (struct isa_device *isdp)
 
   scu->flags &= ~DEBUG;
   scu->icnt = 0;
-
-#ifdef JREMOD
-  asc_devsw_install();
-#endif /*JREMOD*/
-
   return PROBE_SUCCESS;
 }
 
@@ -869,6 +863,7 @@ ascselect(dev_t dev, int rw, struct proc *p)
     return 0;
 }
 
+
 #ifdef JREMOD
 struct cdevsw asc_cdevsw = 
 	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
@@ -877,18 +872,34 @@ struct cdevsw asc_cdevsw =
 
 static asc_devsw_installed = 0;
 
-static void 	asc_devsw_install()
+static void 	asc_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+	dev_t dev_chr;
+
 	if( ! asc_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&asc_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&asc_cdevsw,NULL);
+		dev_chr = dev;
 #if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&asc_bdevsw,NULL);
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&asc_bdevsw,NULL);
 #endif /*BDEV_MAJOR*/
 		asc_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"asc",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(ascdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,asc_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif /* NASC > 0 */

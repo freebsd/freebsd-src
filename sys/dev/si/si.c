@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.16 1995/11/28 07:29:29 bde Exp $
+ *	$Id: si.c,v 1.17 1995/11/28 09:41:39 julian Exp $
  */
 
 #ifndef lint
@@ -82,8 +82,10 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 enum si_mctl { GET, SET, BIS, BIC };
 
 #ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 68
-static void 	si_devsw_install();
 #endif /*JREMOD*/
 
 
@@ -657,9 +659,6 @@ mem_fail:
 		}
 		done_chartimes = 1;
 	}
-#ifdef JREMOD
-	si_devsw_install();
-#endif /*JREMOD*/
 
 	return (1);
 }
@@ -2309,18 +2308,34 @@ struct cdevsw si_cdevsw =
 
 static si_devsw_installed = 0;
 
-static void 	si_devsw_install()
+static void 	si_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+	dev_t dev_chr;
+
 	if( ! si_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&si_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&si_cdevsw,NULL);
+		dev_chr = dev;
 #if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&si_bdevsw,NULL);
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&si_bdevsw,NULL);
 #endif /*BDEV_MAJOR*/
 		si_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"si",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,si_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif

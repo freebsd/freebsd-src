@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.7 1995/09/09 18:10:18 davidg Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.8 1995/10/10 07:12:25 julian Exp $
  */
 
 #include "param.h"
@@ -900,6 +900,50 @@ int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p
 		
 	}
 	return error;
+}
+
+/***********************************************************************\
+* Add the named device entry into the given directory, and make it 	*
+* The appropriate type... (called (sometimes indirectly) by drivers..)	*
+\***********************************************************************/
+void *devfs_add_devsw(char *path,
+		char *name,
+		int major,
+		int minor,
+		int chrblk,
+		uid_t uid,
+		gid_t gid,
+		int perms)
+{
+	devnm_p	new_dev;
+	dn_p	dnp;	/* devnode for parent directory */
+	int	retval;
+	union	typeinfo by;
+
+	DBPRINT(("dev_add\n"));
+	retval = dev_finddir(path,NULL,1,&dnp);
+	if (retval) return 0;
+	switch(chrblk)
+	{
+	case	DV_CHR:
+		by.Cdev.cdevsw = cdevsw + major;
+		by.Cdev.dev = makedev(major, minor);
+		if( dev_add_entry(name, dnp, DEV_CDEV, &by,&new_dev))
+			return NULL;
+		break;
+	case	DV_BLK:
+		by.Bdev.bdevsw = bdevsw + major;
+		by.Bdev.dev = makedev(major, minor);
+		if( dev_add_entry(name, dnp, DEV_BDEV, &by, &new_dev))
+			return NULL;
+		break;
+	default:
+		return NULL;
+	}
+	new_dev->dnp->gid = gid;
+	new_dev->dnp->uid = uid;
+	new_dev->dnp->mode |= perms;
+	return new_dev;
 }
 
 /***********************************************************************\

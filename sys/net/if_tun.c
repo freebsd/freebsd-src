@@ -67,6 +67,13 @@ static void tunattach __P((void *));
 PSEUDO_SET(tunattach, if_tun);
 #endif
 
+#ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 52
+#endif /*JREMOD*/
+
 #define TUNDEBUG	if (tundebug) printf
 int	tundebug = 0;
 
@@ -597,5 +604,37 @@ tunselect(dev_t dev, int rw, struct proc *p)
 	TUNDEBUG("%s%d: tunselect waiting\n", ifp->if_name, ifp->if_unit);
 	return 0;
 }
+
+#ifdef JREMOD
+struct cdevsw tun_cdevsw = 
+	{ tunopen,      tunclose,       tunread,        tunwrite,       /*52*/
+	  tunioctl,     nostop,         nullreset,      nodevtotty,/* tunnel */
+	  tunselect,    nommap,         NULL };
+
+static tun_devsw_installed = 0;
+
+static void 	tun_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! tun_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&tun_cdevsw,NULL);
+		tun_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"tun",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(tundev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,tun_drvinit,NULL)
+
+#endif /* JREMOD */
 
 #endif  /* NTUN */

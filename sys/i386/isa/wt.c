@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.20 1995/10/28 15:39:31 phk Exp $
+ * $Id: wt.c,v 1.21 1995/11/28 09:42:06 julian Exp $
  *
  */
 
@@ -78,9 +78,11 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 10
 #define BDEV_MAJOR 3
-static void 	wt_devsw_install();
 #endif /*JREMOD */
 
 /*
@@ -268,9 +270,6 @@ wtattach (struct isa_device *id)
 	t->flags = TPSTART;                     /* tape is rewound */
 	t->dens = -1;                           /* unknown density */
 	kdc_wt[id->id_unit].kdc_state = DC_IDLE;
-#ifdef JREMOD
-	wt_devsw_install();
-#endif /*JREMOD*/
 
 	return (1);
 }
@@ -975,6 +974,7 @@ static int wtstatus (wtinfo_t *t)
 	return (1);
 }
 
+
 #ifdef JREMOD
 struct bdevsw wt_bdevsw = 
 	{ wtopen,	wtclose,	wtstrategy,	wtioctl,	/*3*/
@@ -987,19 +987,34 @@ struct cdevsw wt_cdevsw =
 
 static wt_devsw_installed = 0;
 
-static void 	wt_devsw_install()
+static void 	wt_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+	dev_t dev_chr;
+
 	if( ! wt_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&wt_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&wt_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&wt_cdevsw,NULL);
+		dev_chr = dev;
+		dev = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&dev,&wt_bdevsw,NULL);
 		wt_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"rwt",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+			x=devfs_add_devsw(
+	"/",	"wt",	major(dev),	0,	DV_BLK,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(wtdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wt_drvinit,NULL)
+
 #endif /* JREMOD */
 
 #endif /* NWT */

@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.18 1995/11/04 13:52:30 bde Exp $
+ *	$Id: mem.c,v 1.19 1995/11/04 16:00:25 markm Exp $
  */
 
 /*
@@ -63,26 +63,27 @@
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
 
+#ifdef JREMOD
+#include <sys/kernel.h>
+#define CDEV_MAJOR 2
+#endif /*JREMOD*/
+
 #ifdef DEVFS
 #include <sys/devfsext.h>
-#include "sys/kernel.h"
-
-static void memdev_init __P((void *));
-SYSINIT(memdev,SI_SUB_DEVFS, SI_ORDER_ANY, memdev_init, NULL)
 
 static void
-memdev_init(dummy)
-	void *dummy;
+memdevfs_init(dev_t dev)
 {
   void * x;
-/*            path	name		devsw   minor	type   uid gid perm*/
-   x=dev_add("/misc",	"mem",		mmopen, 0,	DV_CHR, 0,  2, 0640);
-   x=dev_add("/misc",	"kmem",		mmopen, 1,	DV_CHR, 0,  2, 0640);
-   x=dev_add("/misc",	"null",		mmopen, 2,	DV_CHR, 0,  0, 0666);
-   x=dev_add("/misc",	"random",	mmopen, 3,	DV_CHR, 0,  0, 0666);
-   x=dev_add("/misc",	"urandom",	mmopen, 4,	DV_CHR, 0,  0, 0666);
-   x=dev_add("/misc",	"zero",		mmopen, 12,	DV_CHR, 0,  0, 0666);
-   x=dev_add("/misc",	"io",		mmopen, 14,	DV_CHR, 0,  2, 0640);
+  int maj = major(dev);
+/*            path	name		major   minor	type   uid gid perm*/
+   x=devfs_add_devsw("/misc",	"mem",	maj,    0,	DV_CHR, 0,  2, 0640);
+   x=devfs_add_devsw("/misc",	"kmem",	maj,    1,	DV_CHR, 0,  2, 0640);
+   x=devfs_add_devsw("/misc",	"null",	maj,    2,	DV_CHR, 0,  0, 0666);
+   x=devfs_add_devsw("/misc",	"random", maj,  3,	DV_CHR, 0,  0, 0666);
+   x=devfs_add_devsw("/misc",	"urandom", maj, 4,	DV_CHR, 0,  0, 0666);
+   x=devfs_add_devsw("/misc",	"zero",	maj,    12,	DV_CHR, 0,  0, 0666);
+   x=devfs_add_devsw("/misc",	"io",	maj,    14,	DV_CHR, 0,  2, 0640);
 }
 #endif /* DEVFS */
 
@@ -378,3 +379,31 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 	}
 	return (0);
 }
+
+
+
+#ifdef JREMOD
+struct cdevsw mem_cdevsw = 
+	{ mmopen,	mmclose,	mmrw,		mmrw,		/*2*/
+	  mmioctl,	nullstop,	nullreset,	nodevtotty,/* memory */
+	  seltrue,	memmmap,	NULL };
+
+static mem_devsw_installed = 0;
+
+static void 	mem_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! mem_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&mem_cdevsw,NULL);
+		mem_devsw_installed = 1;
+#ifdef DEVFS
+	memdevfs_init(dev);
+#endif
+}
+
+SYSINIT(memdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mem_drvinit,NULL)
+
+#endif /* JREMOD */
+

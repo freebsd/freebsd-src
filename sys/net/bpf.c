@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.13 1995/09/22 17:57:45 wollman Exp $
+ * $Id: bpf.c,v 1.14 1995/11/20 12:29:05 phk Exp $
  */
 
 #include "bpfilter.h"
@@ -79,6 +79,14 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <sys/kernel.h>
+
+#ifdef JREMOD
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 23
+#endif /*JREMOD*/
 
 /*
  * Older BSDs don't have kernel malloc.
@@ -1310,4 +1318,38 @@ bpfattach(driverp, ifp, dlt, hdrlen)
 	if (bootverbose)
 		printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
 }
+
+
+#ifdef JREMOD
+struct cdevsw bpf_cdevsw = 
+ 	{ bpfopen,	bpfclose,	bpfread,	bpfwrite,	/*23*/
+ 	  bpfioctl,	nostop,		nullreset,	nodevtotty,/* bpf */
+ 	  bpfselect,	nommap,		NULL };
+
+static bpf_devsw_installed = 0;
+
+static void 	bpf_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! bpf_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&bpf_cdevsw,NULL);
+		bpf_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"bpf",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bpf_drvinit,NULL)
+
+#endif /* JREMOD */
+
 #endif

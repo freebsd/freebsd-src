@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.18 1995/11/09 09:43:32 bde Exp $
+ * $Id: kern_lkm.c,v 1.19 1995/11/20 12:06:21 phk Exp $
  */
 
 /*
@@ -60,6 +60,13 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
+
+#ifdef JREMOD
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 32
+#endif /*JREMOD */
 
 #define PAGESIZE 1024		/* kmem_alloc() allocation quantum */
 
@@ -993,3 +1000,36 @@ lkm_nullcmd(lkmtp, cmd)
 
 	return (0);
 }
+
+#ifdef JREMOD
+struct cdevsw lkm_cdevsw = 
+	{ lkmcopen,	lkmcclose,	noread,		nowrite,	/*32*/
+	  lkmcioctl,	nostop,		nullreset,	nodevtotty,
+	  noselect,	nommap,		NULL };
+
+static lkm_devsw_installed = 0;
+
+static void 	lkm_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! lkm_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&lkm_cdevsw,NULL);
+		lkm_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"lkm",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
+}
+
+SYSINIT(lkmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lkm_drvinit,NULL)
+
+#endif /* JREMOD */
+

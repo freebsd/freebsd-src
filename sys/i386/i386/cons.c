@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.33 1995/09/10 18:57:25 bde Exp $
+ *	$Id: cons.c,v 1.34 1995/09/10 21:34:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,14 @@
 
 #include <machine/cons.h>
 #include <machine/stdarg.h>
+
+#ifdef JREMOD
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
+#define CDEV_MAJOR 0
+#endif /*JREMOD*/
 
 /* XXX this should be config(8)ed. */
 #include "sc.h"
@@ -78,23 +86,6 @@ static d_close_t *cn_phys_close;	/* physical device close function */
 static d_open_t *cn_phys_open;	/* physical device open function */
 static struct consdev *cn_tab;	/* physical console device info */
 static struct tty *cn_tp;	/* physical console tty struct */
-
-#ifdef DEVFS
-#include <sys/kernel.h>
-#include <sys/devfsext.h>
-
-static void cndev_init __P((void *));
-SYSINIT(cndev, SI_SUB_DEVFS, SI_ORDER_ANY, cndev_init, NULL)
-
-static void
-cndev_init(dummy)
-	void *dummy;
-{
-  void * x;
-/*            path	name		devsw   minor	type   uid gid perm*/
-   x=dev_add("/misc",	"console",	cnopen, 0,	DV_CHR, 0,  0, 0640);
-}
-#endif /* DEVFS */
 
 void
 cninit()
@@ -321,4 +312,31 @@ pg(const char *p, ...) {
   return(cngetc());
 }
 
+
+#ifdef JREMOD
+struct cdevsw cn_cdevsw = 
+	{ cnopen,	cnclose,	cnread,		cnwrite,	/*0*/
+	  cnioctl,	nullstop,	nullreset,	nodevtotty,/* console */
+	  cnselect,	nommap,		NULL };
+
+static cn_devsw_installed = 0;
+
+static void 	cn_drvinit(void *unused)
+{
+  	void * x;
+	dev_t dev;
+
+	if( ! cn_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&cn_cdevsw,NULL);
+		cn_devsw_installed = 1;
+#ifdef DEVFS
+	/*                path,name,major,minor,type,uid,gid,perm */
+	x=devfs_add_devsw("/","console",major(dev),0,DV_CHR,0,0,0640);
+#endif
+}
+
+SYSINIT(cndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cn_drvinit,NULL)
+
+#endif /* JREMOD */
 

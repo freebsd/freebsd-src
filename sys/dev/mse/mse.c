@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.15 1995/11/04 17:07:37 bde Exp $
+ * $Id: mse.c,v 1.16 1995/11/28 09:41:25 julian Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -63,8 +63,11 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 27
-static void 	mse_devsw_install();
 #endif /*JREMOD*/
 
 static int mseprobe(struct isa_device *);
@@ -239,9 +242,6 @@ mseattach(idp)
 
 	sc->sc_port = idp->id_iobase;
 	kdc_mse[idp->id_unit].kdc_state = DC_IDLE;
-#ifdef JREMOD
-	mse_devsw_install();
-#endif /*JREMOD*/
 	return (1);
 }
 
@@ -583,18 +583,28 @@ struct cdevsw mse_cdevsw =
 
 static mse_devsw_installed = 0;
 
-static void 	mse_devsw_install()
+static void 	mse_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! mse_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&mse_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&mse_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&mse_cdevsw,NULL);
 		mse_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"mse",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(msedev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mse_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif /* NMSE */

@@ -60,8 +60,11 @@
 
 #ifdef JREMOD
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #define CDEV_MAJOR 63
-static void 	rc_devsw_install();
 #endif /*JREMOD*/
 
 /* Prototypes */
@@ -283,10 +286,6 @@ int rcattach(dvp)
 		rc_wakeup((void *)NULL);
 		rc_wakeup_started = 0;
 	}
-#ifdef JREMOD
-        rc_devsw_install();
-#endif /*JREMOD*/
-
 	return 1;
 }
 
@@ -1511,18 +1510,28 @@ struct cdevsw rc_cdevsw =
 
 static rc_devsw_installed = 0;
 
-static void 	rc_devsw_install()
+static void 	rc_drvinit(void *unused)
 {
-	dev_t descript;
+	dev_t dev;
+
 	if( ! rc_devsw_installed ) {
-		descript = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&descript,&rc_cdevsw,NULL);
-#if defined(BDEV_MAJOR)
-		descript = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&descript,&rc_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&rc_cdevsw,NULL);
 		rc_devsw_installed = 1;
-	}
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"rc",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+    	}
+#endif
 }
+
+SYSINIT(rcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,rc_drvinit,NULL)
+
 #endif /* JREMOD */
+
 #endif /* NRC */
