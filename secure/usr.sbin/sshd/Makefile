@@ -9,19 +9,12 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	auth-skey.c auth-bsdauth.c monitor_mm.c monitor.c \
 	auth2-none.c auth2-passwd.c auth2-pubkey.c \
 	auth2-hostbased.c auth2-kbdint.c \
-	auth2-pam-freebsd.c monitor_wrap.c monitor_fdpass.c
+	auth2-pam-freebsd.c monitor_wrap.c monitor_fdpass.c \
+	kexdhs.c kexgexs.c
 # Portability layer
 SRCS+=	loginrec.c
 MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR}
-
-.if defined(MAKE_KERBEROS4)
-DISTRIBUTION=krb4
-CFLAGS+= -DKRB4
-SRCS+=	auth-krb4.c
-LDADD+=	 -lkrb -lcom_err
-DPADD+=	 ${LIBKRB} ${LIBCOM_ERR}
-.endif
 
 .if defined(MAKE_KERBEROS5)
 DISTRIBUTION=krb5
