@@ -7,17 +7,19 @@ RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 
 PROG=	rpc.yppasswdd
 MAN=	rpc.yppasswdd.8
-SRCS=	pw_copy.c pw_util.c util.c yp_access.c yp_dblookup.c yp_dbwrite.c \
+SRCS=	util.c yp_access.c yp_dblookup.c yp_dbwrite.c \
 	yp_error.c yppasswdd_main.c yppasswdd_server.c ypxfr_misc.c ${GENSRCS}
 GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_private.h yppasswd_private_svc.c \
 	yppasswd_private_xdr.c yppasswd_svc.c
 
-CFLAGS+= -I${.CURDIR}/../../usr.sbin/vipw -I${.CURDIR}/../../usr.sbin/ypserv \
-	 -I${.CURDIR}/../../libexec/ypxfr -I${.CURDIR}/../../usr.bin/chpass \
+CFLAGS+= -I${.CURDIR}/../../usr.sbin/vipw \
+	 -I${.CURDIR}/../../usr.sbin/ypserv \
+	 -I${.CURDIR}/../../libexec/ypxfr \
 	 -I${.CURDIR} -I.
+WARNS?=	 4
 
-DPADD=	${LIBRPCSVC} ${LIBCRYPT}
-LDADD=	-lrpcsvc -lcrypt
+DPADD=	${LIBRPCSVC} ${LIBCRYPT} ${LIBUTIL}
+LDADD=	-lrpcsvc -lcrypt -lutil
 
 CLEANFILES= ${GENSRCS}
 
