@@ -11,7 +11,7 @@
 #	-DNO_MAN do not build the manual pages
 #	-DNO_PROFILE do not build profiled libraries
 #	-DNO_GAMES do not go into games subdir
-#	-DNOSHARE do not go into share subdir
+#	-DNO_SHARE do not go into share subdir
 #	-DNO_INFO do not make or install info files
 #	-DNO_LIBC_R do not build libc_r.
 #	-DNO_FORTRAN do not build g77 and related libraries.
@@ -59,7 +59,7 @@ SUBDIR+=sbin
 .if !defined(NO_CRYPT)
 SUBDIR+=secure
 .endif
-.if !defined(NOSHARE)
+.if !defined(NO_SHARE)
 SUBDIR+=share
 .endif
 SUBDIR+=sys usr.bin usr.sbin etc
@@ -876,7 +876,7 @@ bootstrap-tools:
 _aicasm= sys/modules/aic7xxx/aicasm
 .endif
 
-.if !defined(NOSHARE)
+.if !defined(NO_SHARE)
 _share=	share/syscons/scrnmaps
 .endif
 
