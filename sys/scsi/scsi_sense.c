@@ -283,6 +283,13 @@ static struct
 char *scsi_sense_desc(int asc, int ascq)
 {
 	int i;
+
+	if (asc >= 0x80 && asc <= 0xff)
+		return "Vendor Specific ASC";
+
+	if (ascq >= 0x80 && ascq <= 0xff)
+		return "Vendor Specific ASCQ";
+
 	for (i = 0; i < sizeof(tab) / sizeof(tab[0]); i++)
 		if (tab[i].asc == asc && tab[i].ascq == ascq)
 			return tab[i].desc;
