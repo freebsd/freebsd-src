@@ -91,7 +91,7 @@ pr_idle(idle)
 	/* If idle more than 36 hours, print as a number of days. */
 	if (idle >= 36 * 3600) {
 		int days = idle / 86400;
-		(void)printf(" %dday%s ", days, days > 1 ? "s" : "" );
+		(void)printf(" %dday%s ", days, days > 1 ? "s" : " " );
 	}
 
 	/* If idle more than an hour, print as HH:MM. */
