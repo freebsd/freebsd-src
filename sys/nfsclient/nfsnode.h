@@ -195,9 +195,10 @@ extern	vop_t	**fifo_nfsnodeop_p;
 extern	vop_t	**nfs_vnodeop_p;
 extern	vop_t	**spec_nfsnodeop_p;
 
+#if 0
 extern	vop_t	**fifo_nfs4nodeop_p;
+#endif
 extern	vop_t	**nfs4_vnodeop_p;
-extern	vop_t	**spec_nfs4nodeop_p;
 
 /*
  * Prototypes for NFS vnode operations
