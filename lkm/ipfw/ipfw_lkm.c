@@ -86,6 +86,5 @@ int s=splnet();
 
 ipfw_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, ipfw_load, ipfw_unload, nosys);
+	DISPATCH(lkmtp, cmd, ver, ipfw_load, ipfw_unload, lkm_nullcmd);
 }
-
