@@ -90,7 +90,7 @@ strtoumax(nptr, endptr, base)
 	cutoff = UINTMAX_MAX / base;
 	cutlim = UINTMAX_MAX % base;
 	for ( ; ; c = *s++) {
-		if (isxdigit(c))
+		if (isdigit(c) || (base == 16 && isxdigit(c)))
 			c = digittoint(c);
 		else if (isascii(c) && isalpha(c))
 			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
