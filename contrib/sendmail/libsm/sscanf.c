@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sscanf.c,v 1.24 2001/09/11 04:04:49 gshapiro Exp $")
+SM_RCSID("@(#)$Id: sscanf.c,v 1.25 2002/02/01 02:28:00 ca Exp $")
 #include <string.h>
 #include <sm/varargs.h>
 #include <sm/io.h>
@@ -93,7 +93,6 @@ sm_io_sscanf(str, fmt, va_alist)
 	fake.f_type = "sm_io_sscanf:fake";
 	fake.f_flushfp = NULL;
 	fake.f_ub.smb_base = NULL;
-	fake.f_lb.smb_base = NULL;
 	fake.f_timeout = SM_TIME_FOREVER;
 	fake.f_timeoutstate = SM_TIME_BLOCK;
 	SM_VA_START(ap, fmt);

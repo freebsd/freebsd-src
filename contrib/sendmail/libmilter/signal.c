@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: signal.c,v 8.35 2002/01/10 01:34:55 ca Exp $")
+SM_RCSID("@(#)$Id: signal.c,v 8.37 2002/03/23 00:55:19 ca Exp $")
 
 #include "libmilter.h"
 

@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.628 2001/12/28 19:02:40 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.639 2002/04/02 23:42:42 gshapiro Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -337,7 +337,8 @@ _OPTION(OldStyleHeaders, `confOLD_STYLE_HEADERS', `False')
 
 # SMTP daemon options
 ifelse(defn(`confDAEMON_OPTIONS'), `', `dnl',
-`errprint(WARNING: `confDAEMON_OPTIONS' is no longer valid.  See cf/README for more information.
+`errprint(WARNING: `confDAEMON_OPTIONS' is no longer valid.
+	Use `DAEMON_OPTIONS()'; see cf/README.
 )'dnl
 `DAEMON_OPTIONS(`confDAEMON_OPTIONS')')
 ifelse(defn(`_DPO_'), `',
@@ -394,6 +395,10 @@ O QueueDirectory=ifdef(`QUEUE_DIR', QUEUE_DIR, `/var/spool/mqueue')
 
 # key for shared memory; 0 to turn off
 _OPTION(SharedMemoryKey, `confSHARED_MEMORY_KEY', `0')
+
+ifdef(`confSHARED_MEMORY_KEY_FILE', `dnl
+# file to store key for shared memory (if SharedMemoryKey = -1)
+O SharedMemoryKeyFile=confSHARED_MEMORY_KEY_FILE')
 
 # timeouts (many of these)
 _OPTION(Timeout.initial, `confTO_INITIAL', `5m')
@@ -1416,6 +1421,10 @@ SLDAPExpand
 # do the LDAP lookups
 R<$+><$+><$*>	$: <$(ldapmra $2 $: $)> <$(ldapmh $2 $: $)> <$1> <$2> <$3>
 
+# look for temporary failures (return original address, MTA will queue up)
+R<$* <TMPF>> <$*> <$+> <$+> <$*>	$@ $2
+R<$*> <$* <TMPF>> <$+> <$+> <$*>	$@ $2
+
 # if mailRoutingAddress and local or non-existant mailHost,
 # return the new mailRoutingAddress
 ifelse(_LDAP_ROUTE_DETAIL_, `_PRESERVE_', `dnl
@@ -2104,7 +2113,7 @@ ifdef(`_RELAY_LOCAL_FROM_', `dnl
 # check whether local FROM is ok
 R<?> $+ < @ $=w >	$@ RELAY		FROM local', `dnl')
 ifdef(`_RELAY_DB_FROM_', `dnl
-R<?> $+ < @ $+ >	$: <@> $>SearchList <! From> $| <F:$1@$2> ifdef(`_RELAY_DB_FROM_DOMAIN_', `<D:$2>') <>
+R<?> $+ < @ $+ >	$: <@> $>SearchList <! From> $| <F:$1@$2> ifdef(`_RELAY_DB_FROM_DOMAIN_', ifdef(`_RELAY_HOSTS_ONLY_', `<E:$2>', `<D:$2>')) <>
 R<@> <RELAY>		$@ RELAY		RELAY FROM sender ok
 ifdef(`_ATMPF_', `R<@> <_ATMPF_>		$#TEMP $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
 ', `dnl
@@ -2201,9 +2210,10 @@ dnl should we "clean up" $&f?
 ifdef(`_FFR_MAIL_MACRO',
 `R$*			$: $1 $| $>checkmail $&{mail_from}',
 `R$*			$: $1 $| $>checkmail <$&f>')
+dnl recipient (canonical format) $| result of checkmail
 R$* $| $#$*		$#$2
 dnl run further checks: check_relay
-R$*			$: $1 $| $>checkrelay $&{client_name} $| $&{client_addr}
+R$* $| $*		$: $1 $| $>checkrelay $&{client_name} $| $&{client_addr}
 R$* $| $#$*		$#$2
 R$* $| $*		$: $1
 ', `dnl')

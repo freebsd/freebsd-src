@@ -16,7 +16,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.814 2002/01/08 00:56:22 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.819 2002/04/02 03:51:02 ca Exp $")
 
 #if SASL || STARTTLS
 # include <sys/time.h>
@@ -172,22 +172,22 @@ static char	*CurSmtpClient;		/* who's at the other end of channel */
 
 #ifndef MAXBADCOMMANDS
 # define MAXBADCOMMANDS 25	/* maximum number of bad commands */
-#endif
+#endif /* ! MAXBADCOMMANDS */
 #ifndef MAXNOOPCOMMANDS
 # define MAXNOOPCOMMANDS 20	/* max "noise" commands before slowdown */
-#endif
+#endif /* ! MAXNOOPCOMMANDS */
 #ifndef MAXHELOCOMMANDS
 # define MAXHELOCOMMANDS 3	/* max HELO/EHLO commands before slowdown */
-#endif
+#endif /* ! MAXHELOCOMMANDS */
 #ifndef MAXVRFYCOMMANDS
 # define MAXVRFYCOMMANDS 6	/* max VRFY/EXPN commands before slowdown */
-#endif
+#endif /* ! MAXVRFYCOMMANDS */
 #ifndef MAXETRNCOMMANDS
 # define MAXETRNCOMMANDS 8	/* max ETRN commands before slowdown */
-#endif
+#endif /* ! MAXETRNCOMMANDS */
 #ifndef MAXTIMEOUT
 # define MAXTIMEOUT (4 * 60)	/* max timeout for bad commands */
-#endif
+#endif /* ! MAXTIMEOUT */
 
 #if SM_HEAP_CHECK
 static SM_DEBUG_T DebugLeakSmtp = SM_DEBUG_INITIALIZER("leak_smtp",
@@ -535,7 +535,7 @@ smtp(nullserver, d_flags, e)
 		**  Kerberos_v4
 		*/
 
-#if NETINET
+# if NETINET
 		in = macvalue(macid("{daemon_family}"), e);
 		if (in != NULL && strcmp(in, "inet") == 0)
 		{
@@ -560,7 +560,7 @@ smtp(nullserver, d_flags, e)
 						     &saddr_l);
 			}
 		}
-#endif /* NETINET */
+# endif /* NETINET */
 
 		auth_type = NULL;
 		mechlist = NULL;
@@ -575,8 +575,8 @@ smtp(nullserver, d_flags, e)
 
 		/* XXX should these be options settable via .cf ? */
 		/* ssp.min_ssf = 0; is default due to memset() */
-#  if STARTTLS
-#  endif /* STARTTLS */
+# if STARTTLS
+# endif /* STARTTLS */
 		{
 			ssp.max_ssf = MaxSLBits;
 			ssp.maxbufsize = MAXOUTLEN;
@@ -613,7 +613,7 @@ smtp(nullserver, d_flags, e)
 		  case SMFIR_REJECT:
 			if (MilterLogLevel > 3)
 				sm_syslog(LOG_INFO, e->e_id,
-					  "Milter: inititalization failed, rejecting commands");
+					  "Milter: initialization failed, rejecting commands");
 			greetcode = "554";
 			nullserver = "Command rejected";
 			smtp.sm_milterize = false;
@@ -622,7 +622,7 @@ smtp(nullserver, d_flags, e)
 		  case SMFIR_TEMPFAIL:
 			if (MilterLogLevel > 3)
 				sm_syslog(LOG_INFO, e->e_id,
-					  "Milter: inititalization failed, temp failing commands");
+					  "Milter: initialization failed, temp failing commands");
 			tempfail = true;
 			smtp.sm_milterize = false;
 			break;
@@ -953,10 +953,10 @@ smtp(nullserver, d_flags, e)
 					{
 						/* restart dialogue */
 						n_helo = 0;
-#if PIPELINING
+# if PIPELINING
 						(void) sm_io_autoflush(InChannel,
 								       OutChannel);
-#endif /* PIPELINING */
+# endif /* PIPELINING */
 					}
 					else
 						syserr("503 5.3.3 SASL TLS failed");
@@ -1688,7 +1688,7 @@ smtp(nullserver, d_flags, e)
 				if (response != NULL)
 					sm_free(response);
 
-#if _FFR_QUARANTINE
+# if _FFR_QUARANTINE
 				/*
 				**  If quarantining by a connect/ehlo action,
 				**  save between messages
@@ -1697,7 +1697,7 @@ smtp(nullserver, d_flags, e)
 				if (smtp.sm_quarmsg == NULL &&
 				    e->e_quarmsg != NULL)
 					smtp.sm_quarmsg = newstr(e->e_quarmsg);
-#endif /* _FFR_QUARANTINE */
+# endif /* _FFR_QUARANTINE */
 			}
 #endif /* MILTER */
 			gothello = true;
@@ -1726,7 +1726,6 @@ smtp(nullserver, d_flags, e)
 			**  Note: If you change this list,
 			**	  remember to update 'helpfile'
 			*/
-
 
 			message("250-ENHANCEDSTATUSCODES");
 #if PIPELINING
@@ -1858,7 +1857,10 @@ smtp(nullserver, d_flags, e)
 			/* do the processing */
 		    SM_TRY
 		    {
+			extern char *FullName;
+
 			QuickAbort = true;
+			SM_FREE_CLR(FullName);
 
 			/* must parse sender first */
 			delimptr = NULL;

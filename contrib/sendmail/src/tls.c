@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: tls.c,v 8.75 2001/09/11 04:05:17 gshapiro Exp $")
+SM_RCSID("@(#)$Id: tls.c,v 8.79 2002/03/21 22:24:13 gshapiro Exp $")
 
 #if STARTTLS
 #  include <openssl/err.h>
@@ -26,9 +26,18 @@ SM_RCSID("@(#)$Id: tls.c,v 8.75 2001/09/11 04:05:17 gshapiro Exp $")
 static RSA *rsa_tmp = NULL;	/* temporary RSA key */
 static RSA *tmp_rsa_key __P((SSL *, int, int));
 # endif /* !TLS_NO_RSA */
+#  if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x00907000L
 static int	tls_verify_cb __P((X509_STORE_CTX *));
+#  else /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
+static int	tls_verify_cb __P((X509_STORE_CTX *, void *));
+#  endif /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
 
-static void	apps_ssl_info_cb __P((SSL *, int , int));
+# if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x00907000L
+#  define CONST097
+# else /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
+#  define CONST097 const
+# endif /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
+static void	apps_ssl_info_cb __P((CONST097 SSL *, int , int));
 
 # if !NO_DH
 static DH *get_dh512 __P((void));
@@ -139,6 +148,8 @@ tls_rand_init(randfile, logl)
 		      | SFF_NOGWFILES | SFF_NOWWFILES
 		      | SFF_NOGRFILES | SFF_NOWRFILES
 		      | SFF_MUSTOWN | SFF_ROOTOK | SFF_OPENASROOT;
+		if (DontLockReadFiles)
+			sff |= SFF_NOLOCK;
 		if ((fd = safeopen(randfile, O_RDONLY, 0, sff)) >= 0)
 		{
 			if (fstat(fd, &st) < 0)
@@ -1308,7 +1319,7 @@ tmp_rsa_key(s, export, keylength)
 
 static void
 apps_ssl_info_cb(s, where, ret)
-	SSL *s;
+	CONST097 SSL *s;
 	int where;
 	int ret;
 {
@@ -1420,8 +1431,14 @@ tls_verify_log(ok, ctx)
 */
 
 static int
+#  if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x00907000L
 tls_verify_cb(ctx)
 	X509_STORE_CTX *ctx;
+#  else /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
+tls_verify_cb(ctx, unused)
+	X509_STORE_CTX *ctx;
+	void *unused;
+#  endif /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
 {
 	int ok;
 
