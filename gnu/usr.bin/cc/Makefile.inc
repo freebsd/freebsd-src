@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.15 1996/09/19 15:38:01 peter Exp $
+# $Id: Makefile.inc,v 1.16 1996/09/21 14:27:22 peter Exp $
 #
 
 # Sometimes this is .include'd several times...
@@ -11,8 +11,9 @@ BISON?=		bison
 
 # Machine description.
 MD_FILE=	${GCCDIR}/config/i386/i386.md
-OUT_FILE=	${GCCDIR}/config/i386/i386.c
+OUT_FILE=	i386.c
 OUT_OBJ=	i386
+.PATH:		${GCCDIR}/config/i386
 
 # Pick aout for now. the elf config is not binary compatable.
 BINFORMAT=	aout
