@@ -40,7 +40,7 @@ ypbind_precmd()
 
 	_domain=`domainname`
 	if [ -z "$_domain" ]; then
-		warn "domainname(1) is not set."
+		warn "NIS domainname(1) is not set."
 		return 1
 	fi
 }
