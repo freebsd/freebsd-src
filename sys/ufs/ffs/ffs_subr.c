@@ -191,6 +191,7 @@ ffs_isblock(fs, cp, h)
 	default:
 		panic("ffs_isblock");
 	}
+	return (0);
 }
 
 /*
@@ -215,6 +216,7 @@ ffs_isfreeblock(fs, cp, h)
 	default:
 		panic("ffs_isfreeblock");
 	}
+	return (0);
 }
 
 /*

@@ -36,6 +36,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
@@ -62,6 +63,7 @@
 static int indiracct __P((struct vnode *, struct vnode *, int, ufs_daddr_t,
 	int, int, int, int));
 static int snapacct __P((struct vnode *, ufs_daddr_t *, ufs_daddr_t *));
+static int ffs_copyonwrite __P((struct vnode *, struct buf *));
 static int readblock __P((struct buf *, daddr_t));
 
 #ifdef DEBUG
@@ -85,14 +87,15 @@ ffs_snapshot(mp, snapfile)
 	int blksperindir, flag = mp->mnt_flag;
 	void *space;
 	struct fs *copy_fs, *fs = VFSTOUFS(mp)->um_fs;
+	struct snaphead *snaphead;
 	struct proc *p = CURPROC;
-	struct inode *devip, *ip, *xp;
+	struct inode *ip, *xp;
 	struct buf *bp, *nbp, *ibp;
-	struct vnode *vp, *devvp;
 	struct nameidata nd;
 	struct mount *wrtmp;
 	struct dinode *dip;
 	struct vattr vat;
+	struct vnode *vp;
 	struct cg *cgp;
 
 	/*
@@ -153,8 +156,6 @@ restart:
 	}
 	vp = nd.ni_vp;
 	ip = VTOI(vp);
-	devvp = ip->i_devvp;
-	devip = VTOI(devvp);
 	/*
 	 * Allocate and copy the last block contents so as to be able
 	 * to set size to that of the filesystem.
@@ -379,7 +380,8 @@ restart:
 	 * Copy allocation information from other snapshots and then
 	 * expunge them from the view of the current snapshot.
 	 */
-	for (xp = devip->i_copyonwrite; xp; xp = xp->i_copyonwrite) {
+	snaphead = &ip->i_devvp->v_rdev->si_snapshots;
+	TAILQ_FOREACH(xp, snaphead, i_nextsnap) {
 		/*
 		 * Before expunging a snapshot inode, note all the
 		 * blocks that it claims with BLK_SNAP so that fsck will
@@ -451,16 +453,11 @@ restart:
 	 * it must be placed at the end of the list.
 	 */
 	fs->fs_snapinum[snaploc] = ip->i_number;
-	if (ip->i_copyonwrite != 0)
+	if (ip->i_nextsnap.tqe_prev != 0)
 		panic("ffs_snapshot: %d already on list", ip->i_number);
-	if (devip->i_copyonwrite == 0) {
-		devvp->v_flag |= VCOPYONWRITE;
-		devip->i_copyonwrite = ip;
-	} else {
-		for (xp = devip->i_copyonwrite; xp->i_copyonwrite != 0; )
-			xp = xp->i_copyonwrite;
-		xp->i_copyonwrite = ip;
-	}
+	TAILQ_INSERT_TAIL(snaphead, ip, i_nextsnap);
+	ip->i_devvp->v_rdev->si_copyonwrite = ffs_copyonwrite;
+	ip->i_devvp->v_flag |= VCOPYONWRITE;
 	vp->v_flag |= VSYSTEM;
 	/*
 	 * Resume operation on filesystem.
@@ -608,8 +605,8 @@ ffs_snapgone(ip)
 	/*
 	 * Find snapshot in incore list.
 	 */
-	for (xp = VTOI(ip->i_devvp); xp; xp = xp->i_copyonwrite)
-		if (xp->i_copyonwrite == ip)
+	TAILQ_FOREACH(xp, &ip->i_devvp->v_rdev->si_snapshots, i_nextsnap)
+		if (xp == ip)
 			break;
 	if (xp == 0)
 		printf("ffs_snapgone: lost snapshot vnode %d\n",
@@ -625,7 +622,7 @@ void
 ffs_snapremove(vp)
 	struct vnode *vp;
 {
-	struct inode *ip, *xp;
+	struct inode *ip;
 	struct vnode *devvp;
 	struct buf *ibp;
 	struct fs *fs;
@@ -653,18 +650,17 @@ ffs_snapremove(vp)
 	 * Clear copy-on-write flag if last snapshot.
 	 */
 	devvp = ip->i_devvp;
-	for (xp = VTOI(devvp); xp; xp = xp->i_copyonwrite) {
-		if (xp->i_copyonwrite != ip)
-			continue;
-		xp->i_copyonwrite = ip->i_copyonwrite;
-		ip->i_copyonwrite = 0;
-		break;
-	}
-	if (xp == 0)
+	if (ip->i_nextsnap.tqe_prev == 0) {
 		printf("ffs_snapremove: lost snapshot vnode %d\n",
 		    ip->i_number);
-	if (VTOI(devvp)->i_copyonwrite == 0)
-		devvp->v_flag &= ~VCOPYONWRITE;
+	} else {
+		TAILQ_REMOVE(&devvp->v_rdev->si_snapshots, ip, i_nextsnap);
+		ip->i_nextsnap.tqe_prev = 0;
+		if (TAILQ_FIRST(&devvp->v_rdev->si_snapshots) == 0) {
+			devvp->v_rdev->si_copyonwrite = 0;
+			devvp->v_flag &= ~VCOPYONWRITE;
+		}
+	}
 	/*
 	 * Clear all BLK_NOCOPY fields. Pass any block claims to other
 	 * snapshots that want them (see ffs_snapblkfree below).
@@ -730,10 +726,11 @@ ffs_snapblkfree(freeip, bno, size)
 	struct vnode *vp;
 	ufs_daddr_t lbn, blkno;
 	int indiroff = 0, error = 0, claimedblk = 0;
+	struct snaphead *snaphead;
 
 	lbn = fragstoblks(fs, bno);
-	for (ip = VTOI(freeip->i_devvp)->i_copyonwrite; ip;
-	     ip = ip->i_copyonwrite) {
+	snaphead = &freeip->i_devvp->v_rdev->si_snapshots;
+	TAILQ_FOREACH(ip, snaphead, i_nextsnap) {
 		vp = ITOV(ip);
 		/*
 		 * Lookup block being written.
@@ -875,11 +872,12 @@ ffs_snapshot_mount(mp)
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs = ump->um_fs;
 	struct proc *p = CURPROC;
-	struct inode *ip, **listtailp;
+	struct snaphead *snaphead;
 	struct vnode *vp;
+	struct inode *ip;
 	int error, snaploc, loc;
 
-	listtailp = &VTOI(ump->um_devvp)->i_copyonwrite;
+	snaphead = &ump->um_devvp->v_rdev->si_snapshots;
 	for (snaploc = 0; snaploc < FSMAXSNAP; snaploc++) {
 		if (fs->fs_snapinum[snaploc] == 0)
 			return;
@@ -901,14 +899,15 @@ ffs_snapshot_mount(mp)
 			snaploc--;
 			continue;
 		}
-		if (ip->i_copyonwrite != 0)
+		if (ip->i_nextsnap.tqe_prev != 0)
 			panic("ffs_snapshot_mount: %d already on list",
 			    ip->i_number);
-		*listtailp = ip;
-		listtailp = &ip->i_copyonwrite;
+		else
+			TAILQ_INSERT_TAIL(snaphead, ip, i_nextsnap);
 		vp->v_flag |= VSYSTEM;
-		VOP_UNLOCK(vp, 0, p);
+		ump->um_devvp->v_rdev->si_copyonwrite = ffs_copyonwrite;
 		ump->um_devvp->v_flag |= VCOPYONWRITE;
+		VOP_UNLOCK(vp, 0, p);
 	}
 }
 
@@ -920,15 +919,16 @@ ffs_snapshot_unmount(mp)
 	struct mount *mp;
 {
 	struct ufsmount *ump = VFSTOUFS(mp);
-	struct inode *devip = VTOI(ump->um_devvp);
+	struct snaphead *snaphead = &ump->um_devvp->v_rdev->si_snapshots;
 	struct inode *xp;
 
-	while ((xp = devip->i_copyonwrite) != 0) {
-		devip->i_copyonwrite = xp->i_copyonwrite;
-		xp->i_copyonwrite = 0;
+	while ((xp = TAILQ_FIRST(snaphead)) != 0) {
+		TAILQ_REMOVE(snaphead, xp, i_nextsnap);
+		xp->i_nextsnap.tqe_prev = 0;
 		if (xp->i_effnlink > 0)
 			vrele(ITOV(xp));
 	}
+	ump->um_devvp->v_rdev->si_copyonwrite = 0;
 	ump->um_devvp->v_flag &= ~VCOPYONWRITE;
 }
 
@@ -936,25 +936,24 @@ ffs_snapshot_unmount(mp)
  * Check for need to copy block that is about to be written,
  * copying the block if necessary.
  */
-int
-ffs_copyonwrite(ap)
-	struct vop_copyonwrite_args /* {
-		struct vnode *a_vp;
-		struct buf *a_bp;
-	} */ *ap;
+static int
+ffs_copyonwrite(devvp, bp)
+	struct vnode *devvp;
+	struct buf *bp;
 {
-	struct buf *ibp, *cbp, *savedcbp = 0, *bp = ap->a_bp;
-	struct fs *fs = VTOI(bp->b_vp)->i_fs;
+	struct buf *ibp, *cbp, *savedcbp = 0;
 	struct proc *p = CURPROC;
+	struct fs *fs;
 	struct inode *ip;
 	struct vnode *vp;
 	ufs_daddr_t lbn, blkno;
 	int indiroff, error = 0;
 
+	fs = TAILQ_FIRST(&devvp->v_rdev->si_snapshots)->i_fs;
 	lbn = fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
 	if (p->p_flag & P_COWINPROGRESS)
 		panic("ffs_copyonwrite: recursive call");
-	for (ip = VTOI(ap->a_vp)->i_copyonwrite; ip; ip = ip->i_copyonwrite) {
+	TAILQ_FOREACH(ip, &devvp->v_rdev->si_snapshots, i_nextsnap) {
 		vp = ITOV(ip);
 		/*
 		 * We ensure that everything of our own that needs to be
@@ -1020,7 +1019,7 @@ retry:
 		if (snapdebug) {
 			printf("Copyonwrite: snapino %d lbn %d for ",
 			    ip->i_number, lbn);
-			if (bp->b_vp == ap->a_vp)
+			if (bp->b_vp == devvp)
 				printf("fs metadata");
 			else
 				printf("inum %d", VTOI(bp->b_vp)->i_number);
