@@ -580,7 +580,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 	}
 out:
 	popstackmark(&smark);
-	TRACE(("evalbackcmd done: fd=%d buf=0x%x nleft=%d jp=0x%x\n",
+	TRACE(("evalbackcmd done: fd=%d buf=%p nleft=%d jp=%p\n",
 		result->fd, result->buf, result->nleft, result->jp));
 }
 
