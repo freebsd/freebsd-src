@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.107 1995/02/10 07:44:03 davidg Exp $
+ *	$Id: machdep.c,v 1.108 1995/02/11 04:21:24 phk Exp $
  */
 
 #include "npx.h"
@@ -255,7 +255,7 @@ again:
 #endif
 
 	if (nbuf == 0) {
-		nbuf = 32;
+		nbuf = 30;
 		if( physmem > 1024)
 			nbuf += min((physmem - 1024) / 20, 1024);
 	}
