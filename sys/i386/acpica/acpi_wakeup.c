@@ -193,6 +193,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	static vm_page_t	opage = NULL;
 	int			ret = 0;
 	int			pteobj_allocated = 0;
+	u_int32_t		cr3;
 	u_long			ef;
 	struct proc		*p;
 
@@ -209,6 +210,12 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	if ((p = curproc) == NULL)
 		p = &proc0;
 	pm = vmspace_pmap(p->p_vmspace);
+	cr3 = rcr3();
+#ifdef PAE
+	load_cr3(vtophys(pm->pm_pdpt));
+#else
+	load_cr3(vtophys(pm->pm_pdir));
+#endif
 	if (pm->pm_pteobj == NULL) {
 		pm->pm_pteobj = vm_object_allocate(OBJT_DEFAULT, PTDPTDI + 1);
 		pteobj_allocated = 1;
@@ -295,6 +302,7 @@ out:
 		vm_object_deallocate(pm->pm_pteobj);
 		pm->pm_pteobj = NULL;
 	}
+	load_cr3(cr3);
 
 	write_eflags(ef);
 
