@@ -114,6 +114,16 @@ this way also allows one to reference
 .Pa foo
 without the path,
 as well as set up the environment as desired.
+.Sh ENVIRONMENT
+The
+.Nm env
+utility uses the
+.Ev PATH
+environment variable is used to locate the requested
+.Ar utility
+if the name contains no
+.Ql /
+characters.
 .Sh DIAGNOSTICS
 .Ex -std printenv
 .Pp

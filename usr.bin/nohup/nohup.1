@@ -70,7 +70,7 @@ Consult the
 .Xr builtin 1
 manual page.
 .Sh ENVIRONMENT
-The following variable is utilized by
+The following variables are utilized by
 .Nm :
 .Bl -tag -width flag
 .It Ev HOME
@@ -81,6 +81,12 @@ cannot be created in the current directory, the
 utility uses the directory named by
 .Ev HOME
 to create the file.
+.It Ev PATH
+Used to locate the requested
+.Ar command
+if the name contains no
+.Ql /
+characters.
 .El
 .Sh DIAGNOSTICS
 The
