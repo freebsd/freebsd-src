@@ -1436,6 +1436,8 @@ psignal(p, sig)
 					}
 				}
 			} else {
+				p->p_flag |= P_CONTINUED;
+				wakeup((caddr_t)p->p_pptr);
 				if (td->td_wchan == NULL)
 					goto run;
 				p->p_stat = SSLEEP;

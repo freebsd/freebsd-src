@@ -61,6 +61,7 @@
 #define WTERMSIG(x)	(_WSTATUS(x))
 #define WIFEXITED(x)	(_WSTATUS(x) == 0)
 #define WEXITSTATUS(x)	(_W_INT(x) >> 8)
+#define	WIFCONTINUED(x)	(x == 0x13)	/* 0x13 == SIGCONT */
 #ifndef _POSIX_SOURCE
 #define WCOREDUMP(x)	(_W_INT(x) & WCOREFLAG)
 
@@ -79,6 +80,7 @@
  */
 #define WNOHANG		1	/* don't hang in wait */
 #define WUNTRACED	2	/* tell about stopped, untraced children */
+#define	WCONTINUED	4	/* Report a job control continued process. */
 #define WLINUXCLONE     0x80000000       /* wait for kthread spawned from linux_clone */
 
 #ifndef _POSIX_SOURCE
