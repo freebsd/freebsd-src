@@ -12,15 +12,23 @@
  * Currently supports the Western Digital/SMC 8003 and 8013 series,
  *   the 3Com 3c503, the NE1000 and NE2000, and a variety of similar
  *   clones.
+ *
+ * Thanks to Charles Hannum for proving to me with example code that the
+ *	NE1000/2000 support could be added with minimal impact. Without
+ *	this, I wouldn't have proceeded in this direction.
+ *	
  */
 
 /*
- * $Id: if_ed.c,v 2.2 93/09/29 13:23:25 davidg Exp Locker: davidg $
+ * $Id: if_ed.c,v 2.3 93/09/29 15:10:16 davidg Exp Locker: davidg $
  */
 
 /*
  * Modification history
  *
+ * Revision 2.3  93/09/29  15:10:16  davidg
+ * credit Charles Hannum
+ * 
  * Revision 2.2  93/09/29  13:23:25  davidg
  * added no multi-buffer override for 3c503
  * 
