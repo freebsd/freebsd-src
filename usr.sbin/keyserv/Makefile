@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	keyserv
-SRCS=	keyserv.c setkey.c keyserv_uid.c crypt_svc.c crypt_server.c crypt.h
+SRCS=	keyserv.c setkey.c crypt_svc.c crypt_server.c crypt.h
 
 CFLAGS+= -DKEYSERV_RANDOM -DBROKEN_DES -I.
 .if $(OBJFORMAT) == elf

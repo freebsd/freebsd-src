@@ -741,7 +741,7 @@ root_auth(trans, rqstp)
 		return (0);
 	}
 
-	if (__rpc_get_local_uid(&uid, trans) < 0) {
+	if (__rpc_get_local_uid(trans, &uid) < 0) {
 		if (debugging)
 			fprintf(stderr, "__rpc_get_local_uid failed\n");
 		return (0);
