@@ -91,7 +91,7 @@ ata_transaction(struct ata_request *request)
 			    request->u.ata.feature)) {
 		ata_prtdev(request->device, "error issueing PIO command\n");
 		request->result = EIO;
-		return ATA_OP_FINISHED;
+		break;
 	    }
 
 	    /* if write command output the data */
@@ -100,7 +100,7 @@ ata_transaction(struct ata_request *request)
 			     (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0) {
 		    ata_prtdev(request->device,"timeout waiting for write DRQ");
 		    request->result = EIO;
-		    return ATA_OP_FINISHED;
+		    break;
 		}
 		ata_pio_write(request, request->transfersize);
 	    }
@@ -116,7 +116,7 @@ ata_transaction(struct ata_request *request)
 						 request->bytecount)) {
 	    ata_prtdev(request->device, "setting up DMA failed\n");
 	    request->result = EIO;
-	    return ATA_OP_FINISHED;
+	    break;
 	}
 
 	/* issue command */
@@ -125,7 +125,7 @@ ata_transaction(struct ata_request *request)
 			request->u.ata.feature)) {
 	    ata_prtdev(request->device, "error issuing DMA command\n");
 	    request->result = EIO;
-	    return ATA_OP_FINISHED;
+	    break;
 	}
 
 	/* start DMA engine */
@@ -133,8 +133,9 @@ ata_transaction(struct ata_request *request)
 						 request->data,
 						 request->bytecount,
 						 request->flags & ATA_R_READ)) {
+	    ata_prtdev(request->device, "error starting DMA\n");
 	    request->result = EIO;
-	    return ATA_OP_FINISHED;
+	    break;
 	}
 	/* return and wait for interrupt */
 	return ATA_OP_CONTINUES;
@@ -148,7 +149,7 @@ ata_transaction(struct ata_request *request)
 	    DELAY(10);
 	    if (!(ATA_IDX_INB(request->device->channel, ATA_ALTSTAT)&ATA_S_DSC))
 		request->result = EBUSY;
-	    return ATA_OP_FINISHED;
+	    break;
 	}
 
 	/* start ATAPI operation */
@@ -156,7 +157,7 @@ ata_transaction(struct ata_request *request)
 			request->transfersize << 8, 0, 0)) {
 	    ata_prtdev(request->device, "error issuing ATA PACKET command\n");
 	    request->result = EIO;
-	    return ATA_OP_FINISHED;
+	    break;
 	}
 
 	/* command interrupt device ? just return and wait for interrupt */
@@ -179,7 +180,7 @@ ata_transaction(struct ata_request *request)
 		ata_prtdev(request->device,
 			   "timeout waiting for ATAPI ready\n");
 		request->result = EIO;
-		return ATA_OP_FINISHED;
+		break;
 	    }
 	}
 
@@ -203,7 +204,7 @@ ata_transaction(struct ata_request *request)
 	    DELAY(10);
 	    if (!(ATA_IDX_INB(request->device->channel, ATA_ALTSTAT)&ATA_S_DSC))
 		request->result = EBUSY;
-	    return ATA_OP_FINISHED;
+	    break;
 	}
 
 	/* check sanity and setup DMA engine */
@@ -212,14 +213,14 @@ ata_transaction(struct ata_request *request)
 						 request->bytecount)) {
 	    ata_prtdev(request->device, "setting up DMA failed\n");
 	    request->result = EIO;
-	    return ATA_OP_FINISHED;
+	    break;
 	}
 
 	/* start ATAPI operation */
 	if (ata_command(request->device, ATA_PACKET_CMD, 0, 0, ATA_F_DMA)) {
 	    ata_prtdev(request->device, "error issuing ATAPI packet command\n");
 	    request->result = EIO;
-	    return ATA_OP_FINISHED;
+	    break;
 	}
 
 	/* wait for ready to write ATAPI command block */
@@ -235,10 +236,9 @@ ata_transaction(struct ata_request *request)
 		DELAY(20);
 	    }
 	    if (timeout <= 0) {
-		ata_prtdev(request->device,
-			   "timeout waiting for ATAPI ready\n");
+		ata_prtdev(request->device,"timeout waiting for ATAPI ready\n");
 		request->result = EIO;
-		return ATA_OP_FINISHED;
+		break;
 	    }
 	}
 
@@ -257,12 +257,16 @@ ata_transaction(struct ata_request *request)
 						 request->bytecount,
 						 request->flags & ATA_R_READ)) {
 	    request->result = EIO;
-	    return ATA_OP_FINISHED;
+	    break;
 	}
 
 	/* return and wait for interrupt */
 	return ATA_OP_CONTINUES;
     }
+
+    /* request finish here */
+    request->device->channel->running = NULL;
+    return ATA_OP_FINISHED;
 }
 
 static void
