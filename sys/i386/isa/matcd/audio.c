@@ -204,7 +204,7 @@ static int matcd_pause(int ldrive, int cdrive, int controller, int action)
 
 	lockbus(controller, ldrive);	/*<16>Request bus*/
 	matcd_slowcmd(port,ldrive,cdrive,cmd);	/*<14>*/
-	i=waitforit(10*TICKRES,DTEN,port,"sense");	/*<14>*/
+	i=waitforit(10*TICKRES,DTEN,port,"matpau");	/*<25>*/
 	z=get_stat(port,ldrive);	/*<14>Read status byte*/
 	if ((z & MATCD_ST_ERROR)) {	/*<14>Something went wrong*/
 		i=get_error(port, ldrive, cdrive);	/*<14>*/
@@ -321,7 +321,7 @@ static int matcd_level(int ldrive, int cdrive, int controller,
 		cmd[1]=AUDIOPARM;	/*Audio/routing settings*/
 		lockbus(controller, ldrive);	/*<16>Request bus*/
 		matcd_slowcmd(port,ldrive,cdrive,cmd);
-		i=waitforit(10*TICKRES,DTEN,port,"sense");
+		i=waitforit(10*TICKRES,DTEN,port,"matlvl");	/*<25>*/
 		matcd_pread(port, 5, data);	/*Read data returned*/
 		z=get_stat(port,ldrive);/*Read status byte*/
 		unlockbus(controller, ldrive);	/*<16>Release bus*/
