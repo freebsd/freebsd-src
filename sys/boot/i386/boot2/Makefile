@@ -7,7 +7,7 @@ BINDIR?=	/boot
 BINMODE=	444
 CLEANFILES+=	boot1 boot1.out boot1.o \
 		boot2.ldr boot2.bin boot2.ld boot2.out boot2.o boot2.h \
-		boot2.s sio.o divdi3.o moddi3.o qdivrem.o
+		boot2.s sio.o
 
 NM?=		nm
 
@@ -44,7 +44,7 @@ CFLAGS=	-elf -ffreestanding -Os -fno-builtin \
 .if ${BOOT2_UFS} == "UFS1_ONLY"
 CFLAGS+= -D${BOOT2_UFS}
 .else
-
+# nothing here
 .endif
 
 LDFLAGS=-nostdlib -static -N
@@ -93,11 +93,7 @@ boot2.ldr:
 boot2.bin: boot2.out
 	objcopy -S -O binary boot2.out ${.TARGET}
 
-.if ${BOOT2_UFS} == "UFS1_ONLY"
 boot2.out: boot2.o sio.o
-.else
-boot2.out: boot2.o sio.o divdi3.o moddi3.o qdivrem.o
-.endif
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} \
 		${BTX}/lib/crt0.o ${.ALLSRC}
 
@@ -108,15 +104,6 @@ sio.o: sio.s
 		--defsym SIOFMT=${B2SIOFMT} \
 		--defsym SIOSPD=${BOOT_COMCONSOLE_SPEED} \
 		${.IMPSRC} -o ${.TARGET}
-
-moddi3.o: ${.CURDIR}/../../../libkern/moddi3.c
-	${CC} ${CFLAGS} -I${.CURDIR}/../../../ -c ${.IMPSRC}
-
-divdi3.o: ${.CURDIR}/../../../libkern/divdi3.c
-	${CC} ${CFLAGS} -I${.CURDIR}/../../../ -c ${.IMPSRC}
-
-qdivrem.o: ${.CURDIR}/../../../libkern/qdivrem.c
-	${CC} ${CFLAGS} -I${.CURDIR}/../../../ -c ${.IMPSRC}
 
 install:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
