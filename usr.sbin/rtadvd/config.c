@@ -564,6 +564,8 @@ get_prefix(struct rainfo *rai)
 		exit(1);
 	}
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		int plen;
+
 		if (strcmp(ifa->ifa_name, rai->ifname) != 0)
 			continue;
 		if (ifa->ifa_addr->sa_family != AF_INET6)
@@ -571,6 +573,21 @@ get_prefix(struct rainfo *rai)
 		a = &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
 		if (IN6_IS_ADDR_LINKLOCAL(a))
 			continue;
+
+		/* get prefix length */
+		m = (u_char *)&((struct sockaddr_in6 *)ifa->ifa_netmask)->sin6_addr;
+		lim = (u_char *)(ifa->ifa_netmask) + ifa->ifa_netmask->sa_len;
+		plen = prefixlen(m, lim);
+		if (plen < 0 || plen > 128) {
+			syslog(LOG_ERR, "<%s> failed to get prefixlen "
+			       "or prefix is invalid",
+			       __FUNCTION__);
+			exit(1);
+		}
+		if (find_prefix(rai, a, plen)) {
+			/* ignore a duplicated prefix. */
+			continue;
+		}
 
 		/* allocate memory to store prefix info. */
 		if ((pp = malloc(sizeof(*pp))) == NULL) {
@@ -581,19 +598,8 @@ get_prefix(struct rainfo *rai)
 		}
 		memset(pp, 0, sizeof(*pp));
 
-		/* set prefix length */
-		m = (u_char *)&((struct sockaddr_in6 *)ifa->ifa_netmask)->sin6_addr;
-		lim = (u_char *)(ifa->ifa_netmask) + ifa->ifa_netmask->sa_len;
-		pp->prefixlen = prefixlen(m, lim);
-		if (pp->prefixlen < 0 || pp->prefixlen > 128) {
-			syslog(LOG_ERR,
-			       "<%s> failed to get prefixlen "
-			       "or prefix is invalid",
-			       __FUNCTION__);
-			exit(1);
-		}
-
 		/* set prefix, sweep bits outside of prefixlen */
+		pp->prefixlen = plen;
 		memcpy(&pp->prefix, a, sizeof(*a));
 		p = (u_char *)&pp->prefix;
 		ep = (u_char *)(&pp->prefix + 1);
