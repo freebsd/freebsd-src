@@ -43,6 +43,8 @@
  *      is granted subject to the following conditions.
  *      1/ that the above copyright notice and this notice 
  *      are preserved in all copies.
+ *
+ * $FreeBSD$
  */
 
 #ifdef HAVE_CONFIG_H
@@ -128,10 +130,10 @@ telnet_print(register const u_char *sp, u_int length)
 				x = *sp++; /* option */
 				length--;
 				if (x >= 0 && x < NTELOPTS) {
-					(void)sprintf(tnet, "%s %s",
+					(void)snprintf(tnet, sizeof(tnet), "%s %s",
 						      telcmds[i], telopts[x]);
 				} else {
-					(void)sprintf(tnet, "%s %#x",
+					(void)snprintf(tnet, sizeof(tnet), "%s %#x",
 						      telcmds[i], x);
 				}
 				break;
