@@ -508,7 +508,7 @@ esac
 if [ -z "${NEW_UMASK}" -a -z "${AUTO_RUN}" ]; then
   USER_UMASK=`umask`
   case "${USER_UMASK}" in
-  0022) ;;
+  0022|022) ;;
   *)
     echo ''
     echo " *** Your umask is currently set to ${USER_UMASK}.  By default, this script"
@@ -601,6 +601,8 @@ mm_install () {
       DONT_INSTALL=yes
       ;;
     /.cshrc | /.profile)
+    case "${AUTO_INSTALL}" in
+    '')
       case "${LINK_EXPLAINED}" in
       '')
         echo "   *** Historically BSD derived systems have had a"
@@ -620,6 +622,11 @@ mm_install () {
       echo ''
       echo -n "  How should I handle ${COMPFILE}? [Leave it to install later] "
       read HANDLE_LINK
+      ;;
+    *)  # Part of AUTO_INSTALL
+      HANDLE_LINK=l
+      ;;
+    esac
 
       case "${HANDLE_LINK}" in
       [dD]*)
@@ -761,11 +768,11 @@ TEST_FOR_FILES=`find ${TEMPROOT} -type f -size +0 2>/dev/null`
 if [ -n "${TEST_FOR_FILES}" ]; then
   echo "*** Files that remain for you to merge by hand:"
   find "${TEMPROOT}" -type f -size +0
+  echo ''
 fi
 
 case "${AUTO_RUN}" in
 '')
-  echo ''
   echo -n "Do you wish to delete what is left of ${TEMPROOT}? [no] "
   read DEL_TEMPROOT
 
@@ -812,19 +819,26 @@ run_it_now () {
   '')
     unset YES_OR_NO
     echo ''
-    echo -n '    Would you like to run it now? [y or n] '
+    echo -n '    Would you like to run it now? y or n [n] '
     read YES_OR_NO
-
-    echo ''
 
     case "${YES_OR_NO}" in
     y)
-      echo "      Running ${1}"
+      echo "    Running ${1}"
+      echo ''
       eval "${1}"
       ;;
-    *)
-      echo "      Make sure to run ${1} yourself"
+    ''|n)
+      echo ''
+      echo "       *** Cancelled"
+      echo ''
+      echo "    Make sure to run ${1} yourself"
       ;;
+    *)
+      echo ''
+      echo "       *** Sorry, I do not understand your answer (${YES_OR_NO})"
+      echo ''
+      echo "    Make sure to run ${1} yourself"
     esac
     ;;
   *) ;;
@@ -835,9 +849,9 @@ case "${NEED_MAKEDEV}" in
 '') ;;
 *)
   echo ''
-  echo "*** You installed a new /dev/MAKEDEV script, so make sure that you run"
-  echo "    'cd /dev && /bin/sh MAKEDEV all' to rebuild your devices"
-  run_it_now 'cd /dev && /bin/sh MAKEDEV all'
+  echo "*** You installed a new ${DESTDIR}/dev/MAKEDEV script, so make sure that you run"
+  echo "    'cd ${DESTDIR}/dev && /bin/sh MAKEDEV all' to rebuild your devices"
+  run_it_now "cd ${DESTDIR}/dev && /bin/sh MAKEDEV all"
   ;;
 esac
 
@@ -845,9 +859,16 @@ case "${NEED_NEWALIASES}" in
 '') ;;
 *)
   echo ''
-  echo "*** You installed a new aliases file, so make sure that you run"
-  echo "    '/usr/bin/newaliases' to rebuild your aliases database"
-  run_it_now '/usr/bin/newaliases'
+  if [ -n "${DESTDIR}" ]; then
+    echo "*** You installed a new aliases file into ${DESTDIR}/etc/mail, but"
+    echo "    the newaliases command is limited to the directories configured"
+    echo "    in sendmail.cf.  Make sure to create your aliases database by"
+    echo "    hand when your sendmail configuration is done."
+  else
+    echo "*** You installed a new aliases file, so make sure that you run"
+    echo "    '/usr/bin/newaliases' to rebuild your aliases database"
+    run_it_now '/usr/bin/newaliases'
+  fi
   ;;
 esac
 
@@ -856,8 +877,9 @@ case "${NEED_CAP_MKDB}" in
 *)
   echo ''
   echo "*** You installed a login.conf file, so make sure that you run"
-  echo "    '/usr/bin/cap_mkdb /etc/login.conf' to rebuild your login.conf database"
-  run_it_now '/usr/bin/cap_mkdb /etc/login.conf'
+  echo "    '/usr/bin/cap_mkdb ${DESTDIR}/etc/login.conf'"
+  echo "     to rebuild your login.conf database"
+  run_it_now "/usr/bin/cap_mkdb ${DESTDIR}/etc/login.conf"
   ;;
 esac
 
@@ -866,8 +888,15 @@ case "${NEED_PWD_MKDB}" in
 *)
   echo ''
   echo "*** You installed a new master.passwd file, so make sure that you run"
-  echo "    '/usr/sbin/pwd_mkdb -p /etc/master.passwd' to rebuild your password files"
-  run_it_now '/usr/sbin/pwd_mkdb -p /etc/master.passwd'
+  if [ -n "${DESTDIR}" ]; then
+    echo "    '/usr/sbin/pwd_mkdb -d ${DESTDIR}/etc -p ${DESTDIR}/etc/master.passwd'"
+    echo "    to rebuild your password files"
+    run_it_now "/usr/sbin/pwd_mkdb -d ${DESTDIR}/etc -p ${DESTDIR}/etc/master.passwd"
+  else
+    echo "    '/usr/sbin/pwd_mkdb -p /etc/master.passwd'"
+    echo "     to rebuild your password files"
+    run_it_now '/usr/sbin/pwd_mkdb -p /etc/master.passwd'
+  fi
   ;;
 esac
 
