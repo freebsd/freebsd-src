@@ -19,5 +19,5 @@ account		required	pam_unix.so
 # session
 #session 	required	pam_kerberosIV.so
 #session 	required	pam_krb5.so
-#session 	required	pam_ssh.so
+#session 	required	pam_ssh.so		want_agent
 session		required	pam_permit.so
