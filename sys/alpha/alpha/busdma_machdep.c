@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: busdma_machdep.c,v 1.1 1998/09/16 08:20:45 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -356,6 +356,9 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 /*
  * Map the buffer buf into bus space using the dmamap map.
  */
+
+vm_offset_t alpha_XXX_dmamap_or = 1024UL*1024UL*1024UL;  /*XXX */
+
 int
 bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		bus_size_t buflen, bus_dmamap_callback_t *callback,
@@ -439,7 +442,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		}
 
 		if (sg->ds_len == 0) {
-			sg->ds_addr = paddr + 1*1024*1024*1024;	/* XXX */
+			sg->ds_addr = paddr + alpha_XXX_dmamap_or;
 			sg->ds_len = size;
 		} else if (paddr == nextpaddr) {
 			sg->ds_len += size;
@@ -449,7 +452,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			seg++;
 			if (seg > dmat->nsegments)
 				break;
-			sg->ds_addr = paddr + 1*1024*1024*1024;	/* XXX */
+			sg->ds_addr = paddr + alpha_XXX_dmamap_or;
 			sg->ds_len = size;
 		}
 		vaddr += size;

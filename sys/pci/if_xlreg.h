@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.28 1999/05/05 15:01:27 wpaul Exp $
+ *	$Id: if_xlreg.h,v 1.15 1999/05/05 17:05:07 wpaul Exp $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */
@@ -812,8 +812,8 @@ struct xl_stats {
 
 #ifdef __alpha__
 #undef vtophys
-#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
-					+ 1*1024*1024*1024)
+#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
+				
 #endif
 
 #ifndef IFM_10_FL
