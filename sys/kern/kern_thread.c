@@ -1601,7 +1601,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 		} else {
 			if (td->td_standin == NULL)
 				thread_alloc_spare(td, NULL);
-			tflags = fuword32(tmbx);
+			tflags = fuword32(&tmbx->tm_flags);
 			/*
 			 * On some architectures, TP register points to thread
 			 * mailbox but not points to kse mailbox, and userland 
