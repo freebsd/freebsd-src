@@ -80,10 +80,12 @@ sio_pccard_match(device_t dev)
 	if (error != 0)
 		return (error);
 	/*
-	 * If a serial card, we are likely the right driver.
+	 * If a serial card, we are likely the right driver.  However,
+	 * some serial cards are better servered by other drivers, so
+	 * allow other drivers to claim it, if they want.
 	 */
 	if (fcn == PCCARD_FUNCTION_SERIAL)
-		return (0);
+		return (-100);
 
 	return(ENXIO);
 }
