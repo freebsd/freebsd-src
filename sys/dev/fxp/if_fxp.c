@@ -1147,27 +1147,28 @@ static void fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count);
 static poll_handler_t fxp_poll;
 
 static void
-fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)  
+fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct fxp_softc *sc = ifp->if_softc;
-	u_int8_t statack ;
+	u_int8_t statack;
 
 	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
 		return;
 	}
 	statack = FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA |
-		FXP_SCB_STATACK_FR ;
+	    FXP_SCB_STATACK_FR;
 	if (cmd == POLL_AND_CHECK_STATUS) {
-		u_int8_t tmp ;
+		u_int8_t tmp;
+
 		tmp = CSR_READ_1(sc, FXP_CSR_SCB_STATACK);
 		if (tmp == 0xff || tmp == 0)
-			return ; /* nothing to do */
-		tmp &= ~statack ;
+			return; /* nothing to do */
+		tmp &= ~statack;
 		/* ack what we can */
 		if (tmp != 0)
 			CSR_WRITE_1(sc, FXP_CSR_SCB_STATACK, tmp);
-		statack |= tmp ;
+		statack |= tmp;
 	}
 	fxp_intr_body(sc, statack, count);
 }
@@ -1186,12 +1187,12 @@ fxp_intr(void *xsc)
 	struct ifnet *ifp = &sc->sc_if;
 
 	if (ifp->if_ipending & IFF_POLLING)
-		return ;
+		return;
 	if (ether_poll_register(fxp_poll, ifp)) {
 		/* disable interrupts */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
 		fxp_poll(ifp, 0, 1);
-		return ;
+		return;
 	}
 #endif
 
