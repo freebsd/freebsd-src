@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.20 1997/11/07 08:52:50 phk Exp $
+ * $Id: cd9660_lookup.c,v 1.21 1999/01/27 21:49:54 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -237,8 +237,7 @@ searchloop:
 					if (namelen != 1
 					    || ep->name[0] != 0)
 						goto notfound;
-				} else if (!(res = isofncmp(name,len,
-							    ep->name,namelen))) {
+				} else if (!(res = isofncmp(name, len, ep->name, namelen, imp->joliet_level))) {
 					if (isoflags & 2)
 						ino = isodirino(ep, imp);
 					else
