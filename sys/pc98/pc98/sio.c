@@ -151,6 +151,7 @@
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
+#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
@@ -175,7 +176,6 @@
 #include <machine/lock.h>
 
 #include <machine/clock.h>
-#include <machine/ipl.h>
 #ifndef SMP
 #include <machine/lock.h>
 #endif
