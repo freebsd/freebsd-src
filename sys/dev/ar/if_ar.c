@@ -234,7 +234,7 @@ static struct ng_type typestruct = {
 	.rcvdata =	ngar_rcvdata,
 	.disconnect =	ngar_disconnect,
 };
-NETGRAPH_INIT_ORDERED(sync_ar, &typestruct, SI_SUB_DRIVERS, SI_ORDER_ANY);
+NETGRAPH_INIT_ORDERED(sync_ar, &typestruct, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 #endif /* NETGRAPH */
 
 int
