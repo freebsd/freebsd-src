@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.77 1995/12/08 23:22:25 phk Exp $
+ *      $Id: sd.c,v 1.78 1995/12/09 20:42:35 phk Exp $
  */
 
 #define SPLSD splbio
@@ -45,6 +45,8 @@
 #include <machine/md_var.h>
 #include <i386/i386/cons.h>		/* XXX *//* for aborting dump */
 
+extern int	SCSI_DEVICE_ENTRIES __P((int sd));
+
 static u_int32 sdstrats, sdqueues;
 
 #define SECSIZE 512
@@ -60,6 +62,8 @@ static u_int32 sdstrats, sdqueues;
  makedev(major(DEV), dkmakeminor((U), dkslice(DEV), dkpart(DEV)))
 
 static errval	sd_get_parms __P((int unit, int flags));
+static errval	sd_reassign_blocks __P((int unit, int block));
+static u_int32	sd_size __P((int unit, int flags));
 static	void	sdstrategy1 __P((struct buf *));
 
 static int		sd_sense_handler __P((struct scsi_xfer *));
@@ -183,11 +187,14 @@ sd_registerdev(int unit)
  * The routine called by the low level scsi routine when it discovers
  * a device suitable for this driver.
  */
-errval
+static errval
 sdattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
 	struct disk_parms *dp;
+#ifdef DEVFS
+	char	name[32];
+#endif
 
 	struct scsi_data *sd = sc_link->sd;
 
