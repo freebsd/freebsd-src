@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.47 1995/12/10 21:35:19 peter Exp $
+#	$Id: BSD.usr.dist,v 1.48 1995/12/11 03:01:11 peter Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -298,6 +298,10 @@
             man7
             ..
             man8
+                i386
+                ..
+            ..
+            man9
                 i386
                 ..
             ..
