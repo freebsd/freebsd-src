@@ -931,23 +931,6 @@ installCRUNCH:
 	fi
 
 #
-# --==## BOOTMFS config file ##==--
-#
-
-createBOOTMFS:
-	@cd ${.CURDIR}/../sys/${TARGET}/conf && \
-	  sh ${.CURDIR}/scripts/dokern.sh ${FDSIZE} < ${KERNCONF} > BOOTMFS
-.if ${TARGET_ARCH} == "i386"
-	@echo "options  INTRO_USERCONFIG" >> \
-	  ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
-.endif
-.if exists(${.CURDIR}/${TARGET}/drivers.conf)
-	@perl ${.CURDIR}/scripts/driver-remove.pl \
-		${.CURDIR}/${TARGET}/drivers.conf \
-		${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
-.endif
-
-#
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
 #
 doMFSKERN:
