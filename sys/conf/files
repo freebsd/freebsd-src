@@ -958,12 +958,12 @@ isa/pnp.c		optional isa
 isa/pnpparse.c		optional isa
 dev/sound/isa/ad1816.c	optional pcm isa
 dev/sound/isa/es1888.c	optional pcm isa
-dev/sound/isa/gusc.c	optional gusc pcm isa
+dev/sound/isa/gusc.c	optional gusc isa
 dev/sound/isa/gusc.c	optional pcm isa
 dev/sound/isa/mss.c	optional pcm isa
 dev/sound/isa/sb.c	optional pcm isa
 dev/sound/isa/sbc.c	optional pcm isa
-dev/sound/isa/sbc.c	optional sbc pcm isa
+dev/sound/isa/sbc.c	optional sbc isa
 dev/sound/pcm/sound.c	optional pcm
 dev/sound/pcm/ac97.c	optional pcm
 dev/sound/pcm/dsp.c	optional pcm
@@ -971,6 +971,7 @@ dev/sound/pcm/channel.c	optional pcm
 dev/sound/pcm/feeder.c	optional pcm
 dev/sound/pcm/fake.c	optional pcm
 dev/sound/pcm/mixer.c	optional pcm
+dev/sound/pci/csa.c	optional csa pci
 dev/sound/pci/csa.c	optional pcm pci
 dev/sound/pci/csapcm.c	optional pcm pci
 dev/sound/pci/es137x.c	optional pcm pci
