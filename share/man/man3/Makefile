@@ -189,6 +189,8 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_set_name_np.3 \
 		pthread_setspecific.3 \
 		pthread_sigmask.3 \
+		pthread_spin_init.3 \
+		pthread_spin_lock.3 \
 		pthread_suspend_all_np.3 \
 		pthread_suspend_np.3 \
 		pthread_switch_add_np.3 \
@@ -231,6 +233,9 @@ PTHREAD_MLINKS+=pthread_rwlock_rdlock.3 pthread_rwlock_tryrdlock.3
 PTHREAD_MLINKS+=pthread_rwlock_wrlock.3 pthread_rwlock_trywrlock.3
 PTHREAD_MLINKS+=pthread_schedparam.3 pthread_getschedparam.3 \
 		pthread_schedparam.3 pthread_setschedparam.3
+PTHREAD_MLINKS+=pthread_spin_init.3 pthread_spin_destroy.3 \
+		pthread_spin_lock.3 pthread_spin_trylock.3 \
+		pthread_spin_lock.3 pthread_spin_unlock.3
 PTHREAD_MLINKS+=pthread_switch_add_np.3 pthread_switch_delete_np.3
 PTHREAD_MLINKS+=pthread_testcancel.3 pthread_setcancelstate.3 \
 		pthread_testcancel.3 pthread_setcanceltype.3
