@@ -53,6 +53,8 @@
  * Currently this lives here:
  *
  *	doc/en_US.ISO8859-1/books/porters-handbook/book.sgml
+ *
+ * scheme is:  <major><two digit minor><0 if release branch, otherwise 1>xx
  */
 #undef __FreeBSD_version
 #define __FreeBSD_version 501100	/* Master, propagated to newvers */
