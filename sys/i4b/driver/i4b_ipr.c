@@ -96,12 +96,8 @@
 				/* undef to uncompress in the mbuf itself    */
 #endif /* IPR_VJ */
 
-#include "bpf.h"
-
-#if NBPFILTER > 0 || NBPF > 0
 #include <sys/time.h>
 #include <net/bpf.h>
-#endif
 
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_debug.h>
@@ -271,9 +267,7 @@ i4biprattach(void *dummy)
 		
 		if_attach(&sc->sc_if);
 
-#if NBPFILTER > 0 || NBPF > 0
 		bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
-#endif		
 	}
 }
 
@@ -299,7 +293,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	
 	if(dst->sa_family != AF_INET)
 	{
-		printf("ipr%d: af%d not supported\n", (sc)->sc_if.if_unit, dst->sa_family);
+		if_printf(ifp, "af%d not supported\n", dst->sa_family);
 		m_freem(m);
 		splx(s);
 		sc->sc_if.if_noproto++;
@@ -874,7 +868,6 @@ error:
 	}
 #endif
 
-#if NBPFILTER > 0 || NBPF > 0
 	if(sc->sc_if.if_bpf)
 	{
 		/* prepend the address family as a four byte field */		
@@ -885,7 +878,6 @@ error:
 		mm.m_data = (char *)&af;
 		bpf_mtap(&sc->sc_if, &mm);
 	}
-#endif /* NBPFILTER > 0  || NBPF > 0 */
 
 	if(! IF_HANDOFF(&ipintrq, m, NULL))
 	{
@@ -933,7 +925,6 @@ ipr_tx_queue_empty(int unit)
 
 		microtime(&sc->sc_if.if_lastchange);
 		
-#if NBPFILTER > 0 || NBPF > 0
 		if(sc->sc_if.if_bpf)
 		{
 			/* prepend the address family as a four byte field */
@@ -945,7 +936,6 @@ ipr_tx_queue_empty(int unit)
 			mm.m_data = (char *)&af;
 			bpf_mtap(&sc->sc_if, &mm);
 		}
-#endif /* NBPFILTER */
 	
 #if I4BIPRACCT
 		sc->sc_outb += m->m_pkthdr.len;	/* size before compression */
