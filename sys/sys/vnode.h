@@ -459,9 +459,10 @@ extern int vfs_badlock_print;
 				 || (vp)->v_tag == VT_ISOFS		\
 				 || (vp)->v_tag == VT_MSDOSFS		\
 				 || (vp)->v_tag == VT_DEVFS		\
-				 || (vp)->v_tag == VT_UDF)		\
-				 && ((vp)->v_type != VBLK		\
-				 && (vp)->v_type != VCHR) )
+				 || (vp)->v_tag == VT_UDF		\
+				 || (vp)->v_tag == VT_PSEUDOFS		\
+				 || (vp)->v_tag == VT_PROCFS)		\
+				 && (vp)->v_type != VCHR)
 
 #define ASSERT_VOP_LOCKED(vp, str)					\
 do {									\
