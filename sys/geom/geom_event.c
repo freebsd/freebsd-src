@@ -246,7 +246,7 @@ g_post_event_x(g_event_t *func, void *arg, int flag, struct g_event **epp, va_li
 	void *p;
 	u_int n;
 
-	g_trace(G_T_TOPOLOGY, "g_post_event_x(%p, %p, %d", func, arg, flag);
+	g_trace(G_T_TOPOLOGY, "g_post_event_x(%p, %p, %d)", func, arg, flag);
 	ep = g_malloc(sizeof *ep, flag | M_ZERO);
 	if (ep == NULL)
 		return (ENOMEM);
@@ -256,7 +256,7 @@ g_post_event_x(g_event_t *func, void *arg, int flag, struct g_event **epp, va_li
 		if (p == NULL)
 			break;
 		g_trace(G_T_TOPOLOGY, "  ref %p", p);
-		ep->ref[n++] = p;
+		ep->ref[n] = p;
 	}
 	KASSERT(p == NULL, ("Too many references to event"));
 	ep->func = func;
