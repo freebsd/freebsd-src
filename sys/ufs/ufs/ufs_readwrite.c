@@ -473,12 +473,13 @@ WRITE(ap)
 	if ((ioflag & IO_SYNC) && !DOINGASYNC(vp))
 		flags = B_SYNC;
 
+#ifdef ENABLE_VFS_IOOPT
 	if (object && (object->flags & OBJ_OPT)) {
 		vm_freeze_copyopts(object,
 			OFF_TO_IDX(uio->uio_offset),
 			OFF_TO_IDX(uio->uio_offset + uio->uio_resid + PAGE_MASK));
 	}
-
+#endif
 	for (error = 0; uio->uio_resid > 0;) {
 		lbn = lblkno(fs, uio->uio_offset);
 		blkoffset = blkoff(fs, uio->uio_offset);

@@ -291,7 +291,9 @@ vnode_pager_setsize(vp, nsize)
 	 * File has shrunk. Toss any cached pages beyond the new EOF.
 	 */
 	if (nsize < object->un_pager.vnp.vnp_size) {
+#ifdef ENABLE_VFS_IOOPT
 		vm_freeze_copyopts(object, OFF_TO_IDX(nsize), object->size);
+#endif
 		if (nobjsize < object->size) {
 			vm_object_page_remove(object, nobjsize, object->size,
 				FALSE);

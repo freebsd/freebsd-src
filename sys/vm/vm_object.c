@@ -401,7 +401,9 @@ vm_object_vndeallocate(vm_object_t object)
 	object->ref_count--;
 	if (object->ref_count == 0) {
 		vp->v_flag &= ~VTEXT;
+#ifdef ENABLE_VFS_IOOPT
 		vm_object_clear_flag(object, OBJ_OPT);
+#endif
 	}
 	/*
 	 * vrele may need a vop lock
@@ -496,8 +498,10 @@ doterm:
 		if (temp) {
 			TAILQ_REMOVE(&temp->shadow_head, object, shadow_list);
 			temp->shadow_count--;
+#ifdef ENABLE_VFS_IOOPT
 			if (temp->ref_count == 0)
 				vm_object_clear_flag(temp, OBJ_OPT);
+#endif
 			temp->generation++;
 			object->backing_object = NULL;
 		}
@@ -547,11 +551,12 @@ vm_object_terminate(vm_object_t object)
 	if (object->type == OBJT_VNODE) {
 		struct vnode *vp;
 
+#ifdef ENABLE_VFS_IOOPT
 		/*
 		 * Freeze optimized copies.
 		 */
 		vm_freeze_copyopts(object, 0, object->size);
-
+#endif
 		/*
 		 * Clean pages and flush buffers.
 		 */
@@ -1783,7 +1788,10 @@ vm_object_set_writeable_dirty(vm_object_t object)
 	}
 }
 
+#ifdef ENABLE_VFS_IOOPT
 /*
+ * Experimental support for zero-copy I/O
+ *
  * Performs the copy_on_write operations necessary to allow the virtual copies
  * into user space to work.  This has to be called for write(2) system calls
  * from other processes, file unlinking, and file size shrinkage.
@@ -1859,6 +1867,7 @@ vm_freeze_copyopts(vm_object_t object, vm_pindex_t froma, vm_pindex_t toa)
 
 	vm_object_clear_flag(object, OBJ_OPT);
 }
+#endif
 
 #include "opt_ddb.h"
 #ifdef DDB
