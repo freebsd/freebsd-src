@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: realhostname.3,v 1.1 1999/04/06 23:02:35 brian Exp $
+.\"	$Id: trimdomain.3,v 1.1 1999/04/07 14:03:31 brian Exp $
 .\"
 .Dd April 7, 1999
 .Os
@@ -31,6 +31,7 @@
 .Nm trimdomain
 .Nd "trim the current domain name from a host name"
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <libutil.h>
 .Ft void
 .Fn trimdomain "char *fullhost" "int hostsize"
@@ -59,6 +60,25 @@ will only trim the domain name if the passed
 ends with the current domain name and if the length of the resulting host
 name does not exceed
 .Ar hostsize .
+.Pp
+If the passed
+.Ar fullname
+is actually a
+.Dv DISPLAY
+specification of the form
+.Sm off
+.Ar host No . Ar domain No : Ns
+.Sm on
+.Ar \&nn Oo
+.No . Ns Ar \&nn
+.Oc
+and the domain name is the same as the local domain name,
+.Fn trimdomain
+will remove the embedded domain name, copying the screen and display
+numbers to the end of the base host name and resulting in
+.Ar host No : Ns Ar \&nn Oo
+.No . Ns Ar \&nn
+.Oc .
 .Sh RETURN VALUES
 .Fn trimdomain
 does not return a value.
