@@ -42,7 +42,6 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <isa/isareg.h>
 #include <isa/isavar.h>
 
 #include <dev/aha/ahareg.h>
