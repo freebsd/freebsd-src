@@ -40,6 +40,8 @@
 #ifndef NO_RSA
 
 #include <stdio.h>
+#include <syslog.h>
+#include <unistd.h>
 #include <openssl/rsa.h>
 
 #define VERBOSE_STUBS	/* undef if you don't want missing rsaref reported */
@@ -61,11 +63,19 @@ getsym(const char *sym)
     if (rsalib)
 	ret = dlsym(rsalib, sym);
 #ifdef VERBOSE_STUBS
-     if (!ret && !whined) {
-	fprintf(stderr, "** %s: Unable to find an RSAREF shared library (%s).\n", sym, RSA_SHLIB);
-	fprintf(stderr, "** Install the /usr/ports/security/rsaref port or package and run this\n");
-	fprintf(stderr, "** program again. See the OpenSSL chapter in the FreeBSD Handbook, located at\n");
-	fprintf(stderr, "** http://www.freebsd.org/handbook/openssl.html, for more information.\n");
+    if (!ret && !whined) {
+	if (isatty(STDERR_FILENO)) {
+	    fprintf(stderr, "** %s: Unable to find an RSAREF shared library (%s).\n", sym, RSA_SHLIB);
+	    fprintf(stderr, "** Install the /usr/ports/security/rsaref port or package and run this\n");
+	    fprintf(stderr, "** program again. See the OpenSSL chapter in the FreeBSD Handbook, located at\n");
+	    fprintf(stderr, "** http://www.freebsd.org/handbook/openssl.html, for more information.\n");
+	} else {
+	    syslog(LOG_ERR, "** %s: Unable to find an RSAREF shared library \
+(%s). Install the /usr/ports/security/rsaref port or package and run this \
+program again. See the OpenSSL chapter in the FreeBSD Handbook, located at \
+http://www.freebsd.org/handbook/openssl.html, for more information.", \
+sym, RSA_SHLIB);
+	}
 	whined = 1;
      }
 #endif
