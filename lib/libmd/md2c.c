@@ -21,6 +21,7 @@
  */
 
 #include "md2.h"
+#include <string.h>
 
 
 typedef unsigned char *POINTER;
