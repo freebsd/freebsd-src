@@ -33,6 +33,7 @@ all:
 	@! ${MAKE} lhs_expn && true || ${MAKE} failure
 	@echo "PASS: Test lhs_expn detected no regression."
 
+.if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
 # switches to using the "non-right" one, it breaks things worse than a little
 # regression test.
@@ -41,11 +42,14 @@ double:
 
 double:
 	@false
+.endif
 
+.if make(sysvmatch)
 # Some versions of FreeBSD make(1) do not handle a nil LHS in sysvsubst.
 sysvmatch:
 	@echo EMPTY ${NIL:=foo} LHS | \
 		diff -u ${.CURDIR}/regress.sysvmatch.out - || false
+.endif
 
 # A bogus target for the lhs_expn test;  If this is reached, then the make(1)
 # program has not errored out because of the recursion caused by not expanding
