@@ -119,9 +119,6 @@ agp_intel_match(device_t dev)
 		return ("Intel 82845G host to AGP bridge");
 	};
 
-	if (pci_get_vendor(dev) == 0x8086)
-		return ("Intel Generic host to PCI bridge");
-
 	return NULL;
 }
 
