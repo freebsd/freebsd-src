@@ -60,7 +60,7 @@
  */
 struct sockaddr_dl {
 	u_char	sdl_len;	/* Total length of sockaddr */
-	u_char	sdl_family;	/* AF_DLI */
+	u_char	sdl_family;	/* AF_LINK */
 	u_short	sdl_index;	/* if != 0, system given index for interface */
 	u_char	sdl_type;	/* interface type */
 	u_char	sdl_nlen;	/* interface name length, no trailing 0 reqd. */
