@@ -523,6 +523,7 @@ struct aac_adapter_info {
  */
 #define AAC_MONKER_INITSTRUCT	0x05
 #define AAC_MONKER_SYNCFIB	0x0c
+#define AAC_MONKER_GETKERNVER	0x11
 
 /*
  *  Adapter Status Register

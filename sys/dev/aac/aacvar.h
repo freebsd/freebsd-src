@@ -356,6 +356,8 @@ struct aac_softc
 #define AAC_AIFFLAGS_PENDING	(1 << 1)
 #define	AAC_AIFFLAGS_EXIT	(1 << 2)
 #define AAC_AIFFLAGS_EXITED	(1 << 3)
+	u_int32_t		quirks;
+#define AAC_QUIRK_PERC2QC	(1 << 0)
 };
 
 
