@@ -33,7 +33,6 @@ LIB=		pam
 CFLAGS+=	-I${PAMDIR}/libpam/include -I.
 CFLAGS+=	-DDEFAULT_MODULE_PATH=\"${SHLIBDIR}/\"
 NOPROFILE=	yes
-CLEANFILES+=	security
 
 # Files from ${PAMDIR}/libpam:
 SRCS=		pam_account.c pam_auth.c pam_data.c pam_delay.c \
