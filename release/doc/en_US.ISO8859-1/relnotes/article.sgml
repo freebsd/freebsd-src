@@ -575,11 +575,19 @@
       support can be activated by the use of the
       <option>link0</option> option to &man.ifconfig.8;. &merged;</para>
 
+      <para arch="sparc64">The gem driver has been added to support
+      the Sun GEM Gigabit Ethernet and ERI Fast Ethernet
+      adapters.</para>
+
       <para>The &man.gx.4; driver has been added to support NICs based
       on the Intel 82542 and 82543 Gigabit Ethernet controller chips.
       Both fiber and copper variants of the cards are supported.  Both
       boards support VLAN tagging/insertion, and the 82543 additionally
       supports TCP/IP checksum offload. &merged;</para>
+
+      <para arch="sparc64">The hme driver has been added to support
+      the Sun HME Fast Ethernet adapter, onboard on many Sun Ultra
+      series machines.</para>
 
       <para>The &man.lge.4; driver has been added to support the Level
       1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
