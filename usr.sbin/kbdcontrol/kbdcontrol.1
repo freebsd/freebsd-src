@@ -36,7 +36,7 @@ characteristics etc.
 .Pp
 The following command line options are supported:
 .Bl -tag -width indent
-.It Fl b Ar duration.pitch | Ar belltype
+.It Fl b Ar duration.pitch | Ar [quiet.]belltype
 Set the bell duration in miliseconds and pitch in hertz. 
 If a 
 .Ar belltype
@@ -47,7 +47,7 @@ which set sound parameters back to normal values, or
 which set the bell to visual mode, i.e. flashes the screen instead.
 If 
 .Ar belltype
-is proceeded by the word
+is preceded by the word
 .Ar quiet. ,
 the bell will not be rung when the ringing process is in the background vty.
 .It Fl r Ar delay.repeat | Ar speed
