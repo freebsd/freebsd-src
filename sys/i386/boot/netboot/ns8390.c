@@ -489,7 +489,7 @@ eth_poll()
 	int ret = 0;
 	unsigned short type = 0;
 	unsigned char bound,curr,rstat;
-	unsigned short len;
+	unsigned short len, copylen;
 	unsigned short pktoff;
 	unsigned char *p;
 	struct ringbuffer pkthdr;
@@ -528,7 +528,7 @@ eth_poll()
 	bound = pkthdr.bound;		/* New bound ptr */
 	if ( (pkthdr.status & D8390_RSTAT_PRX) && (len > 14) && (len < 1518)) {
 		p = packet;
-		packetlen = len;
+		packetlen = copylen = len;
 		len = (eth_memsize << 8) - pktoff;
 		if (packetlen > len) {		/* We have a wrap-around */
 			if (eth_flags & FLAG_PIO)
@@ -537,12 +537,12 @@ eth_poll()
 				bcopy(eth_rmem + pktoff, p, len);
 			pktoff = (eth_tx_start + D8390_TXBUF_SIZE) << 8;
 			p += len;
-			packetlen -= len;
+			copylen -= len;
 		}
 		if (eth_flags & FLAG_PIO)
-			eth_pio_read(pktoff, p, packetlen);
+			eth_pio_read(pktoff, p, copylen);
 		else
-			bcopy(eth_rmem + pktoff, p, packetlen);
+			bcopy(eth_rmem + pktoff, p, copylen);
 
 		type = (packet[12]<<8) | packet[13];
 		ret = 1;

@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.63.2.6 1996/11/16 21:14:46 phk Exp $
+ **      $Id: userconfig.c,v 1.63.2.7 1996/11/28 21:57:07 phk Exp $
  **/
 
 /**
@@ -1413,7 +1413,8 @@ showparams(DEV_LIST *dev)
 	putxy(1,18,buf);
     } else {
 	if (dev->iobase == -2)			/* a PCI device */
-	    putmsg(" PCI devices are automatically configured.");
+	    putmsg(" PCI devices are displayed for informational purposes only, and\n"
+		   " cannot be disabled or configured here.");
     }
 	    
     if (dev->irq > 0)
@@ -2219,7 +2220,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.63.2.6 1996/11/16 21:14:46 phk Exp $
+ *      $Id: userconfig.c,v 1.63.2.7 1996/11/28 21:57:07 phk Exp $
  */
 
 #include "scbus.h"
