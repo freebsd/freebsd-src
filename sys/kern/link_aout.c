@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.19 1999/01/28 00:57:47 dillon Exp $
+ *	$Id: link_aout.c,v 1.20 1999/05/08 13:03:47 peter Exp $
  */
 
 #ifndef __alpha__
@@ -39,6 +39,13 @@
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
 #include <sys/linker.h>
+
+#ifndef __ELF__
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/vmparam.h>
+#endif
+
 #include <a.out.h>
 #include <link.h>
 
