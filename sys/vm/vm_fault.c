@@ -137,12 +137,16 @@ static void
 _unlock_things(struct faultstate *fs, int dealloc)
 {
 	GIANT_REQUIRED;
+	VM_OBJECT_LOCK(fs->object);
 	vm_object_pip_wakeup(fs->object);
+	VM_OBJECT_UNLOCK(fs->object);
 	if (fs->object != fs->first_object) {
+		VM_OBJECT_LOCK(fs->first_object);
 		vm_page_lock_queues();
 		vm_page_free(fs->first_m);
 		vm_page_unlock_queues();
 		vm_object_pip_wakeup(fs->first_object);
+		VM_OBJECT_UNLOCK(fs->first_object);
 		fs->first_m = NULL;
 	}
 	if (dealloc) {
@@ -614,7 +618,9 @@ readrest:
 			 * object with zeros.
 			 */
 			if (fs.object != fs.first_object) {
+				VM_OBJECT_LOCK(fs.object);
 				vm_object_pip_wakeup(fs.object);
+				VM_OBJECT_UNLOCK(fs.object);
 
 				fs.object = fs.first_object;
 				fs.pindex = fs.first_pindex;
@@ -635,7 +641,9 @@ readrest:
 			break;	/* break to PAGE HAS BEEN FOUND */
 		} else {
 			if (fs.object != fs.first_object) {
+				VM_OBJECT_LOCK(fs.object);
 				vm_object_pip_wakeup(fs.object);
+				VM_OBJECT_UNLOCK(fs.object);
 			}
 			KASSERT(fs.object != next_object, ("object loop %p", next_object));
 			fs.object = next_object;
@@ -739,7 +747,9 @@ readrest:
 			 * fs.object != fs.first_object due to above 
 			 * conditional
 			 */
+			VM_OBJECT_LOCK(fs.object);
 			vm_object_pip_wakeup(fs.object);
+			VM_OBJECT_UNLOCK(fs.object);
 
 			/*
 			 * Only use the new page below...
