@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.15 1995/10/28 16:57:55 markm Exp $
+ *	$Id: mem.c,v 1.16 1995/10/29 11:37:56 bde Exp $
  */
 
 /*
@@ -351,11 +351,19 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 	struct proc *p;
 {
 #ifdef DEVRANDOM
+	int error;
+
 	if (minor(dev) != 3 && minor(dev) != 4)
 		return (ENODEV);
 
 	if (*(u_int16_t *)cmdarg >= 16)
 		return (EINVAL);
+
+	/* Only root can do this */
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error != 0) {
+		return (error);
+	}
 
 	switch (cmd){
 
