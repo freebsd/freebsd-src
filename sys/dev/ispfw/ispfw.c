@@ -40,6 +40,7 @@
 #include <dev/ispfw/asm_12160.h>
 #include <dev/ispfw/asm_2100.h>
 #include <dev/ispfw/asm_2200.h>
+#include <dev/ispfw/asm_2300.h>
 
 #define	ISPFW_VERSION	0
 
@@ -50,6 +51,8 @@
 #define	PCI_PRODUCT_QLOGIC_ISP1280	0x1280
 #define	PCI_PRODUCT_QLOGIC_ISP2100	0x2100
 #define	PCI_PRODUCT_QLOGIC_ISP2200	0x2200
+#define	PCI_PRODUCT_QLOGIC_ISP2300	0x2300
+#define	PCI_PRODUCT_QLOGIC_ISP2312	0x2312
 
 typedef void ispfwfunc __P((int, int, int, const u_int16_t **));
 extern ispfwfunc *isp_get_firmware_p;
@@ -115,6 +118,11 @@ isp_get_firmware(int version, int tgtmode, int devid, const u_int16_t **ptrp)
 			break;
 		case PCI_PRODUCT_QLOGIC_ISP2200:
 			rp = isp_2200_risc_code;
+			break;
+		case PCI_PRODUCT_QLOGIC_ISP2300:
+		case PCI_PRODUCT_QLOGIC_ISP2312:
+			rp = isp_2300_risc_code;
+			break;
 		default:
 			break;
 		}
