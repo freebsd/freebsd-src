@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.133 2002/10/12 18:26:31 ue Exp $
-  basiert auf: 1.432
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.134 2002/10/16 20:54:16 ue Exp $
+  basiert auf: 1.433
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -437,6 +437,10 @@
 
     <para>Der neue Treiber uaudio unterst&uuml;tzt USB Audio
       Ger&auml;te.  &merged;</para>
+
+    <para arch="i386">Der neue Treiber ubsa unterst&uuml;tzt den
+      Belkin F5U103 USB-nach-seriell Konverter und kompatible
+      Ger&auml;te.</para>
 
     <para arch="i386,pc98" role="historic">Der neue Treiber
       &man.umodem.4;  unterst&uuml;tzt USB Modems, zur Zeit werden das
@@ -1472,7 +1476,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para arch="i386,pc98">Der Treiber &man.matcd.4; mu&szlig;te
         entfernt werden, weil er nicht funktionierte und es
-        lizenzrechtliche Probleme gibt.</para>
+        lizenzrechtliche Probleme gibt.  &merged;</para>
 
       <para>Die Funktionalit&auml;t von &man.vn.4; wurde in &man.md.4;
         (memory disk) aufgenommen.  &man.md.4; Ger&auml;te k&ouml;nnen
@@ -1509,6 +1513,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         Loader-Variablen bzw. dem Sysctl
         <varname>kern.cam.scsi_delay</varname> ge&auml;ndert
         werden.</para>
+
+      <para>Der neue Treiber trm unterst&uuml;tzt SCSI-Kontroller auf
+	Basis des Tekram TRM-S1040 SCSI Chipsatzes.</para>
 
       <para arch="i386" role="historic">Der neue Treiber &man.twe.4; unterst&uuml;tzt
         das 3ware ATA RAID.  &merged;</para>
@@ -2444,6 +2451,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       der Modus Disk At Once (DAO) aktiviert werden.</para>
 
     <para>&man.burncd.8; kann jetzt VCDs/SVCDs erzeugen.</para>
+
+    <para>Die neuen Programme &man.bzgrep.1;, &man.bzegrep.1; und
+      &man.bzfgrep.1; stellen die von &man.grep.1; bekannte
+      Funktionalit&auml;t f&uuml;r mit &man.bzip2.1; erzeugte Archive
+      zur Verf&uuml;gung.</para>
 
     <para role="historic">&man.c89.1; ist jetzt ein echtes Programm und kein
       Shellscript mehr, im Rahmen der Umwandlung wurde einige kleinere
@@ -4125,9 +4137,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         Standard-Optionen f&uuml;r <application>GCC</application>
         enthalten kann. &merged;</para>
 
-      <para><application>gdb</application> wurde auf eine
-        Zwischenversion von <application>gdb</application> 5.2 mit
-        Stand 27. Juni 2002 aktualisiert.</para>
+      <para><application>gdb</application> steht jetzt in der Version
+	5.2.1 zur Verf&uuml;gung.</para>
 
       <para role="historic"><application>GNATS</application> wurde auf Version
         3.113 aktualisiert. &merged;</para>
@@ -4309,7 +4320,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         <title>CVS</title>
 
         <para><application>cvs</application> wurde auf Version
-          1.11.2 aktualisiert.</para>
+          1.11.2 aktualisiert.  &merged;</para>
 
         <para role="historic">Der Standardwert der von &man.cvs.1; genutzten Variable
           <envar>CVS_RSH</envar> ist jetzt <literal>ssh</literal> und
