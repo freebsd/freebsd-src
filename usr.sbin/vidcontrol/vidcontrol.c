@@ -90,48 +90,42 @@ nextarg(int ac, char **av, int *indp, int oc, int strict)
 	return(NULL);
 }
 
-char *
-mkfullname(const char *s1, const char *s2, const char *s3)
+FILE *
+openguess(char *a[], char *b[], char *c[], char *d[], char **name)
 {
-	static char *buf = NULL;
-	static int bufl = 0;
-	int f;
+	FILE *f;
+	int i, j, k, l;
 
-	f = strlen(s1) + strlen(s2) + strlen(s3) + 1;
-	if (f > bufl) {
-		if (buf)
-			buf = (char *)realloc(buf, f);
-		else
-			buf = (char *)malloc(f);
+	for (i = 0; a[i] != NULL; i++) {
+		for (j = 0; b[j] != NULL; j++) {
+			for (k = 0; c[k] != NULL; k++) {
+				for (l = 0; d[l] != NULL; l++) {
+					asprintf(name, "%s%s%s%s", a[i], b[j],
+					    c[k], d[l]);
+					f = fopen(*name, "r");
+					if (f != NULL)
+						return (f);
+					free(*name);
+				}
+			}
+		}
 	}
-	if (!buf) {
-		bufl = 0;
-		return(NULL);
-	}
-
-	bufl = f;
-	strcpy(buf, s1);
-	strcat(buf, s2);
-	strcat(buf, s3);
-	return(buf);
+	return (NULL);
 }
 
 void
 load_scrnmap(char *filename)
 {
-	FILE *fd = 0;
-	int i, size;
+	FILE *fd;
+	int size;
 	char *name;
 	scrmap_t scrnmap;
-	char *prefix[]  = {"", "", SCRNMAP_PATH, SCRNMAP_PATH, NULL};
-	char *postfix[] = {"", ".scm", "", ".scm"};
+	char *a[] = {"", SCRNMAP_PATH, NULL};
+	char *b[] = {filename, NULL};
+	char *c[] = {"", ".scm", NULL};
+	char *d[] = {"", NULL};
 
-	for (i=0; prefix[i]; i++) {
-		name = mkfullname(prefix[i], filename, postfix[i]);
-		fd = fopen(name, "r");
-		if (fd)
-			break;
-	}
+	fd = openguess(a, b, c, d, &name);
 	if (fd == NULL) {
 		warn("screenmap file not found");
 		return;
@@ -200,12 +194,15 @@ fsize(FILE *file)
 void
 load_font(char *type, char *filename)
 {
-	FILE	*fd = NULL;
+	FILE	*fd;
 	int	h, i, size, w;
 	unsigned long io = 0;	/* silence stupid gcc(1) in the Wall mode */
-	char	*name, *fontmap;
-	char	*prefix[]  = {"", "", FONT_PATH, FONT_PATH, NULL};
-	char	*postfix[] = {"", ".fnt", "", ".fnt"};
+	char	*name, *fontmap, size_sufx[6];
+	char	*a[] = {"", FONT_PATH, NULL};
+	char	*b[] = {filename, NULL};
+	char	*c[] = {"", size_sufx, NULL};
+	char	*d[] = {"", ".fnt", NULL};
+	vid_info_t info;
 
 	struct sizeinfo {
 		int w;
@@ -216,12 +213,13 @@ load_font(char *type, char *filename)
 		     {8,  8,  PIO_FONT8x8},
 		     {0,  0,            0}};
 
-	for (i=0; prefix[i]; i++) {
-		name = mkfullname(prefix[i], filename, postfix[i]);
-		fd = fopen(name, "r");
-		if (fd)
-			break;
+	info.size = sizeof(info);
+	if (ioctl(0, CONS_GETINFO, &info) == -1) {
+		warn("failed to obtain current video mode parameters");
+		return;
 	}
+	snprintf(size_sufx, sizeof(size_sufx), "-8x%d", info.font_size);
+	fd = openguess(a, b, c, d, &name);
 	if (fd == NULL) {
 		warn("%s: can't load font file", filename);
 		return;
