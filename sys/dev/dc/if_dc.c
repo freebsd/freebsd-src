@@ -1347,6 +1347,8 @@ static void dc_setcfg(sc, media)
 			if (!DC_IS_DAVICOM(sc))
 				DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			DC_CLRBIT(sc, DC_10BTCTRL, 0xFFFF);
+			if (DC_IS_INTEL(sc))
+				dc_apply_fixup(sc, IFM_AUTO);
 		} else {
 			if (DC_IS_PNIC(sc)) {
 				DC_PN_GPIO_SETBIT(sc, DC_PN_GPIO_SPEEDSEL);
@@ -1385,6 +1387,8 @@ static void dc_setcfg(sc, media)
 			if (!DC_IS_DAVICOM(sc))
 				DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			DC_CLRBIT(sc, DC_10BTCTRL, 0xFFFF);
+			if (DC_IS_INTEL(sc))
+				dc_apply_fixup(sc, IFM_AUTO);
 		} else {
 			if (DC_IS_PNIC(sc)) {
 				DC_PN_GPIO_CLRBIT(sc, DC_PN_GPIO_SPEEDSEL);
