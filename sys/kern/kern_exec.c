@@ -400,7 +400,7 @@ int
 exec_map_first_page(imgp)
 	struct image_params *imgp;
 {
-	int s, rv, i;
+	int rv, i;
 	int initial_pagein;
 	vm_page_t ma[VM_INITIAL_PAGEIN];
 	vm_object_t object;
@@ -411,7 +411,6 @@ exec_map_first_page(imgp)
 	}
 
 	VOP_GETVOBJECT(imgp->vp, &object);
-	s = splvm();
 	mtx_lock(&vm_mtx);
 
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
@@ -443,7 +442,6 @@ exec_map_first_page(imgp)
 				vm_page_protect(ma[0], VM_PROT_NONE);
 				vm_page_free(ma[0]);
 			}
-			splx(s);
 			mtx_unlock(&vm_mtx);
 			return EIO;
 		}
@@ -451,7 +449,6 @@ exec_map_first_page(imgp)
 
 	vm_page_wire(ma[0]);
 	vm_page_wakeup(ma[0]);
-	splx(s);
 
 	pmap_kenter((vm_offset_t) imgp->image_header, VM_PAGE_TO_PHYS(ma[0]));
 	imgp->firstpage = ma[0];
