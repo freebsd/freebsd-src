@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.18 1996/05/09 20:14:57 wollman Exp $
+ * $Id: uipc_socket.c,v 1.19 1996/07/11 16:31:56 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -144,6 +144,7 @@ sofree(so)
 	if (head != NULL) {
 		if (so->so_state & SS_INCOMP) {
 			TAILQ_REMOVE(&head->so_incomp, so, so_list);
+			head->so_incqlen--;
 		} else if (so->so_state & SS_COMP) {
 			TAILQ_REMOVE(&head->so_comp, so, so_list);
 		} else {

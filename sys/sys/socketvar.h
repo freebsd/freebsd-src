@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $Id: socketvar.h,v 1.13 1996/03/11 15:37:44 davidg Exp $
+ * $Id: socketvar.h,v 1.14 1996/05/01 01:53:59 bde Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -69,6 +69,8 @@ struct socket {
 	TAILQ_HEAD(, socket) so_comp;	/* queue of complete unaccepted connections */
 	TAILQ_ENTRY(socket) so_list;	/* list of unaccepted connections */
 	short	so_qlen;		/* number of unaccepted connections */
+	short	so_incqlen;		/* number of unaccepted incomplete
+					   connections */
 	short	so_qlimit;		/* max number queued connections */
 	short	so_timeo;		/* connection timeout */
 	u_short	so_error;		/* error affecting connection */
@@ -255,6 +257,8 @@ void	soisconnecting __P((struct socket *so));
 void	soisdisconnected __P((struct socket *so));
 void	soisdisconnecting __P((struct socket *so));
 int	solisten __P((struct socket *so, int backlog));
+struct socket *
+	sodropablereq __P((struct socket *head));
 struct socket *
 	sonewconn1 __P((struct socket *head, int connstatus));
 int	soreceive __P((struct socket *so, struct mbuf **paddr, struct uio *uio,

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.50 1996/09/21 06:30:06 ache Exp $
+ *	$Id: tcp_input.c,v 1.51 1996/09/21 06:39:20 pst Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -411,20 +411,25 @@ findpcb:
 		if (so->so_options & SO_ACCEPTCONN) {
 			register struct tcpcb *tp0 = tp;
 			struct socket *so2;
-			/*
-			 * If the attempt to get onto the socket queue failed,
-			 * drop the oldest queue entry and try again.
-			 */
-			so2 = sonewconn(so, 0);
-			if (!so2) {
-				tcpstat.tcps_listendrop++;
-				so2 = TAILQ_FIRST(&so->so_incomp);
-				if (so2) {
-					tcp_drop(sototcpcb(so2), ETIMEDOUT);
-					so2 = sonewconn(so, 0);
+			if ((tiflags & (TH_RST|TH_ACK|TH_SYN)) != TH_SYN) {
+				/*
+				 * Note: dropwithreset makes sure we don't
+				 * send a RST in response to a RST.
+				 */
+				if (tiflags & TH_ACK) {
+					tcpstat.tcps_badsyn++;
+					goto dropwithreset;
 				}
-				if (!so2)
-					goto drop;
+				goto drop;
+			}
+			so2 = sonewconn(so, 0);
+			if (so2 == 0) {
+				tcpstat.tcps_listendrop++;
+				so2 = sodropablereq(so);
+				if (so2)
+				    tcp_drop(sototcpcb(so2), ETIMEDOUT);
+				else
+				    goto drop;
 			}
 			so = so2;
 			/*
@@ -753,6 +758,8 @@ findpcb:
 		}
 
 	/*
+	 * If the state is SYN_RECEIVED:
+	 *	do just the ack and RST checks from SYN_SENT state.
 	 * If the state is SYN_SENT:
 	 *	if seg contains an ACK, but not for our SYN, drop the input.
 	 *	if seg contains a RST, then drop the connection.
@@ -764,6 +771,7 @@ findpcb:
 	 *	arrange for segment to be acked (eventually)
 	 *	continue processing rest of data/controls, beginning with URG
 	 */
+	case TCPS_SYN_RECEIVED:
 	case TCPS_SYN_SENT:
 		if ((taop = tcp_gettaocache(inp)) == NULL) {
 			taop = &tao_noncached;
@@ -791,6 +799,8 @@ findpcb:
 				tp = tcp_drop(tp, ECONNREFUSED);
 			goto drop;
 		}
+		if (tp->t_state == TCPS_SYN_RECEIVED)
+			break;
 		if ((tiflags & TH_SYN) == 0)
 			goto drop;
 		tp->snd_wnd = ti->ti_win;	/* initial send window */

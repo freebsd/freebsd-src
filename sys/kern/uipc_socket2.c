@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.13 1996/08/19 19:22:26 julian Exp $
+ * $Id: uipc_socket2.c,v 1.14 1996/09/19 00:54:36 pst Exp $
  */
 
 #include <sys/param.h>
@@ -59,9 +59,6 @@ SYSCTL_INT(_kern, KERN_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, &sb_max, 0, "")
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 SYSCTL_INT(_kern, OID_AUTO, sockbuf_waste_factor, CTLFLAG_RW, &sb_efficiency,
 	   0, "");
-
-static int sominqueue = 0;
-SYSCTL_INT(_kern, KERN_SOMINQUEUE, sominqueue, CTLFLAG_RW, &sominqueue, 0, "");
 
 /*
  * Procedures to manipulate state flags of socket
@@ -113,6 +110,7 @@ soisconnected(so)
 	if (head && (so->so_state & SS_INCOMP)) {
 		TAILQ_REMOVE(&head->so_incomp, so, so_list);
 		so->so_state &= ~SS_INCOMP;
+		so->so_incqlen--;
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
 		so->so_state |= SS_COMP;
 		sorwakeup(head);
@@ -149,6 +147,47 @@ soisdisconnected(so)
 }
 
 /*
+ * Return a random connection that hasn't been serviced yet and
+ * is eligible for discard.
+ *
+ * This may be used in conjunction with protocol specific queue
+ * congestion routines.
+ */
+struct socket *
+sodropablereq(head)
+	register struct socket *head;
+{
+	register struct socket *so;
+	unsigned int i, j, qlen;
+
+	static int rnd;
+	static long old_mono_secs;
+	static unsigned int cur_cnt, old_cnt;
+
+	so = TAILQ_FIRST(&head->so_incomp);
+	if (!so)
+		return (so);
+
+	qlen = head->so_incqlen;
+
+	if ((i = (mono_time.tv_sec - old_mono_secs)) != 0) {
+		old_mono_secs = mono_time.tv_sec;
+		old_cnt = cur_cnt / i;
+		cur_cnt = 0;
+	}
+
+	if (++cur_cnt > qlen || old_cnt > qlen) {
+		rnd = (314159 * rnd + 66329) & 0xffff;
+		j = ((qlen + 1) * rnd) >> 16;
+
+		while (j-- && so)
+		    so = TAILQ_NEXT(so, so_list);
+	}
+
+	return (so);
+}
+
+/*
  * When an attempt at a new connection is noted on a socket
  * which accepts connections, sonewconn is called.  If the
  * connection is possible (subject to space constraints, etc.)
@@ -166,8 +205,7 @@ sonewconn1(head, connstatus)
 {
 	register struct socket *so;
 
-	if ((head->so_qlen > 3 * head->so_qlimit / 2) &&
-	    (head->so_qlen > sominqueue))
+	if (head->so_qlen > 3 * head->so_qlimit / 2)
 		return ((struct socket *)0);
 	MALLOC(so, struct socket *, sizeof(*so), M_SOCKET, M_DONTWAIT);
 	if (so == NULL)
@@ -188,6 +226,7 @@ sonewconn1(head, connstatus)
 	} else {
 		TAILQ_INSERT_TAIL(&head->so_incomp, so, so_list);
 		so->so_state |= SS_INCOMP;
+		head->so_incqlen++;
 	}
 	head->so_qlen++;
 	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0)) {
@@ -195,6 +234,7 @@ sonewconn1(head, connstatus)
 			TAILQ_REMOVE(&head->so_comp, so, so_list);
 		} else {
 			TAILQ_REMOVE(&head->so_incomp, so, so_list);
+			head->so_incqlen--;
 		}
 		head->so_qlen--;
 		(void) free((caddr_t)so, M_SOCKET);
