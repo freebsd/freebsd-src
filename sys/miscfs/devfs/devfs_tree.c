@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.22 1996/04/03 03:03:27 scrappy Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.23 1996/04/06 13:34:35 joerg Exp $
  */
 
 #include "param.h"
@@ -32,8 +32,9 @@ int devfs_up_and_going;
  * Notice that the ops are by indirection.. as they haven't
  * been set up yet!
  */
+/*proto*/
 void
-devfs_sinit(void *junk) /*proto*/
+devfs_sinit(void *junk)
 {
 	int retval; /* we will discard this */
 	devnm_p new;
@@ -67,8 +68,9 @@ devfs_sinit(void *junk) /*proto*/
 * Search down the linked list off a dir to find "name"		*
 * return the dn_p for that node.
 \***************************************************************/
+/*proto*/
 devnm_p
-dev_findname(dn_p dir,char *name) /*proto*/
+dev_findname(dn_p dir,char *name)
 {
 	devnm_p newfp;
 	DBPRINT(("	dev_findname(%s)\n",name));
@@ -109,8 +111,9 @@ dev_findname(dn_p dir,char *name) /*proto*/
 *	int	create,		 create path if not found 		*
 *	dn_p	*dn_pp)		 where to return the node of the dir	*
 \***********************************************************************/
+/*proto*/
 int
-dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*/
+dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp)
 {
 	devnm_p	devnmp;
 	dn_p	dnp;
@@ -218,9 +221,10 @@ dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*/
 *									*
 * Creates a name node, and links it to the supplied node		*
 \***********************************************************************/
+/*proto*/
 int
 dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp,
-	     devnm_p *devnm_pp) /*proto*/
+	     devnm_p *devnm_pp)
 {
 	devnm_p devnmp;
 	devnm_p realthing;	/* needed to create an alias */
@@ -350,8 +354,9 @@ dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp,
 * but it is only cleared on a transition				*
 * so this is ok till we link it to something				*
 \***********************************************************************/
+/*proto*/
 int
-dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp) /*proto*/
+dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp)
 {
 	dn_p	dnp;
 	int	retval;
@@ -442,15 +447,18 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp) /*proto
 * DEV_NODE reference count manipulations.. when a ref count	*
 * reaches 0, the node is to be deleted				*
 \***************************************************************/
+/*proto*/
 int
-dev_touch(devnm_p key)		/* update the node for this dev */ /*proto*/
+dev_touch(devnm_p key)		/* update the node for this dev */
 {
 	DBPRINT(("dev_touch\n"));
 	TIMEVAL_TO_TIMESPEC(&time,&(key->dnp->mtime))
 	return 0; /*XXX*/
 }
 
-void	devfs_dn_free(dn_p dnp) /*proto*/
+/*proto*/
+void
+devfs_dn_free(dn_p dnp)
 {
 	if(--dnp->links <= 0 ) /* can be -1 for initial free, on error */
 	{
@@ -477,8 +485,9 @@ void	devfs_dn_free(dn_p dnp) /*proto*/
 * This allows a new node to be propogated through all mounted planes	*
 *									*
 \***********************************************************************/
+/*proto*/
 int
-devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
+devfs_add_fronts(devnm_p parent,devnm_p child)
 {
 	int	error;
 	devnm_p newnmp;
@@ -553,8 +562,9 @@ devfs_remove_dev(void *devnmp)
  * up the tree..
  * If we are the first plane, just return the base root 
  **************************************************************/
+/*proto*/
 int
-dev_dup_plane(struct devfsmount *devfs_mp_p) /*proto*/
+dev_dup_plane(struct devfsmount *devfs_mp_p)
 {
 	devnm_p	new;
 	int	error = 0;
@@ -577,8 +587,9 @@ dev_dup_plane(struct devfsmount *devfs_mp_p) /*proto*/
 /***************************************************************\
 * Free a whole plane
 \***************************************************************/
+/*proto*/
 void
-devfs_free_plane(struct devfsmount *devfs_mp_p) /*proto*/
+devfs_free_plane(struct devfsmount *devfs_mp_p)
 {
 	devnm_p devnmp;
 
@@ -595,9 +606,10 @@ devfs_free_plane(struct devfsmount *devfs_mp_p) /*proto*/
 * recursively will create subnodes corresponding to equivalent	*
 * child nodes in the base level					*
 \***************************************************************/
+/*proto*/
 int
 dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp,
-	      struct devfsmount *dvm) /*proto*/
+	      struct devfsmount *dvm)
 {
 	devnm_p	newnmp;
 	struct	devfsmount *dmt;
@@ -662,8 +674,9 @@ dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp,
 * dev_node then it may not get freed yet			*
 * can handle if there is no dnp 				*
 \***************************************************************/
+/*proto*/
 void
-dev_free_name(devnm_p devnmp) /*proto*/
+dev_free_name(devnm_p devnmp)
 {
 	dn_p	parent = devnmp->parent;
 	dn_p	dnp = devnmp->dnp;
@@ -741,8 +754,9 @@ dev_free_name(devnm_p devnmp) /*proto*/
 * Theoretically this could be called for any kind of 	*
 * vnode, however in practice it must be a DEVFS vnode	*
 \*******************************************************/
+/*proto*/
 int
-devfs_vntodn(struct vnode *vn_p, dn_p *dn_pp) /*proto*/
+devfs_vntodn(struct vnode *vn_p, dn_p *dn_pp)
 {
 
 DBPRINT(("	vntodn "));
@@ -777,8 +791,9 @@ DBPRINT(("	vntodn "));
 * associated, or get a new one an associate it with the dev_node*
 * need to check about vnode references.. should we increment it?*
 \***************************************************************/
+/*proto*/
 int
-devfs_dntovn(dn_p dnp, struct vnode **vn_pp) /*proto*/
+devfs_dntovn(dn_p dnp, struct vnode **vn_pp)
 {
 	struct vnode *vn_p, *nvp;
 	int error = 0;
@@ -886,9 +901,10 @@ DBPRINT(("(New vnode)"));
 /***********************************************************************\
 * add a whole device, with no prototype.. make name element and node	*
 \***********************************************************************/
+/*proto*/
 int
 dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by,
-	      devnm_p *nm_pp) /*proto*/ 
+	      devnm_p *nm_pp)
 {
 	dn_p	dnp;
 	int	error = 0;

@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.18 1995/12/14 19:04:09 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.19 1996/04/06 13:34:37 joerg Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -1616,9 +1616,9 @@ devfs_nullop(void *junk)
 	return (0);
 }
 
-
+/*proto*/
 void
-devfs_dropvnode(dn_p dnp) /*proto*/
+devfs_dropvnode(dn_p dnp)
 {
 	struct vnode *vn_p;
 
