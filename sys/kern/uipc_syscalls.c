@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/vnode.h>
 #ifdef KTRACE
@@ -83,6 +84,21 @@ static int getsockname1(struct thread *td, struct getsockname_args *uap,
 			int compat);
 static int getpeername1(struct thread *td, struct getpeername_args *uap,
 			int compat);
+
+/*
+ * NSFBUFS-related variables and associated sysctls
+ */
+int nsfbufs;
+int nsfbufspeak;
+int nsfbufsused;
+
+SYSCTL_DECL(_kern_ipc);
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
+    "Maximum number of sendfile(2) sf_bufs available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
+    "Number of sendfile(2) sf_bufs at peak usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
+    "Number of sendfile(2) sf_bufs in use");
 
 /*
  * System call interface to the socket abstraction.
