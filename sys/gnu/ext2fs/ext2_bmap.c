@@ -132,41 +132,10 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 		*runb = 0;
 	}
 
-	maxrun = 0;
-	if (runp || runb || (vp->v_maxio == 0)) {
-
-		struct vnode *devvp;
-		int blksize;
-
-		blksize = mp->mnt_stat.f_iosize;
-
-		/*
-		 * XXX
-		 * If MAXPHYS is the largest transfer the disks can handle,
-		 * we probably want maxrun to be 1 block less so that we
-		 * don't create a block larger than the device can handle.
-		 */
-		devvp = ip->i_devvp;
-
-		if (devvp != NULL && devvp->v_tag != VT_MFS &&
-		    devvp->v_type == VBLK) {
-			if (devsw(devvp->v_rdev)->d_maxio > MAXPHYS) {
-				maxrun = MAXPHYS;
-				vp->v_maxio = MAXPHYS;
-			} else {
-				maxrun = devsw(devvp->v_rdev)->d_maxio;
-				vp->v_maxio = devsw(devvp->v_rdev)->d_maxio;
-			}
-			maxrun = maxrun / blksize;
-			maxrun -= 1;
-		}
-
-		if (maxrun <= 0) {
-			vp->v_maxio = DFLTPHYS;
-			maxrun = DFLTPHYS / blksize;
-			maxrun -= 1;
-		}
-	}
+	if (vn_isdisk(vp))
+		maxrun = vp->v_rdev->si_iosize_max / mp->mnt_stat.f_iosize - 1;
+	else
+		maxrun = 0;
 
 	xap = ap == NULL ? a : ap;
 	if (!nump)
