@@ -338,7 +338,7 @@ reinstall:
 # be set to cross-build, we have to make sure MACHINE is set
 # properly.
 
-KERNEL?=	GENERIC GENERIC98
+KERNEL?=	GENERIC
 
 # The only exotic MACHINE_ARCH/MACHINE combination valid at this
 # time is i386/pc98. In all other cases set MACHINE equal to
