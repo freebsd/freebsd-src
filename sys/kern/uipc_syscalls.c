@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.48 1998/12/03 12:35:47 dg Exp $
+ * $Id: uipc_syscalls.c,v 1.49 1998/12/07 21:58:29 archie Exp $
  */
 
 #include "opt_compat.h"
@@ -1543,7 +1543,14 @@ retry_lookup:
 					VM_WAIT;
 					goto retry_lookup;
 				}
-				vm_page_flag_clear(pg, PG_BUSY);
+				/*
+				 * don't just clear PG_BUSY manually -
+				 * vm_page_alloc() should be considered opaque,
+				 * use the VM routine provided to clear
+				 * PG_BUSY.
+				 */
+				vm_page_wakeup(pg);
+
 			}
 			/*
 			 * Ensure that our page is still around when the I/O completes.
