@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: crypt_client.c,v 1.2 1997/05/28 05:05:10 wpaul Exp $
  */
 
 #include <sys/types.h>
@@ -39,7 +39,7 @@
 #include <rpcsvc/crypt.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: crypt_client.c,v 1.2 1997/05/28 05:05:10 wpaul Exp $";
 #endif
 
 #ifndef KEYSERVSOCK
@@ -71,6 +71,7 @@ _des_crypt_call(buf, len, dparms)
 
 	result_1 = des_crypt_1(&des_crypt_1_arg, clnt);
 	if (result_1 == (desresp *) NULL) {
+		clnt_destroy(clnt);
 		return(DESERR_HWERROR);
 	}
 
