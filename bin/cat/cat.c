@@ -298,11 +298,11 @@ udom_open(const char *path, int flags)
 		switch(flags & O_ACCMODE) {
 		case O_RDONLY:
 			if (shutdown(fd, SHUT_WR) == -1)
-				perror("cat");
+				warn(NULL);
 			break;
 		case O_WRONLY:
 			if (shutdown(fd, SHUT_RD) == -1)
-				perror("cat");
+				warn(NULL);
 			break;
 		default:
 			break;
