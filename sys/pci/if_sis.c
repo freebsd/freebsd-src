@@ -2044,6 +2044,7 @@ sis_init(xsc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	sis_stop(sc);
+	sc->sis_stopped = 0;
 
 #ifdef notyet
 	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr >= NS_SRR_16A) {
@@ -2379,6 +2380,8 @@ sis_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
+	if (sc->sis_stopped)
+		return;
 	SIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
@@ -2431,6 +2434,7 @@ sis_stop(sc)
 	bzero(sc->sis_ldata.sis_tx_list,
 		sizeof(sc->sis_ldata.sis_tx_list));
 
+	sc->sis_stopped = 1;
 	SIS_UNLOCK(sc);
 
 	return;
