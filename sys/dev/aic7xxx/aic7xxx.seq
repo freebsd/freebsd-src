@@ -938,6 +938,7 @@ ultra2_dmafinish:
 		test	DFCNTRL, SCSIEN jnz .;
 ultra2_dmafifoflush:
 		or	DFCNTRL, FIFOFLUSH;
+		/*
 		 * The FIFOEMP status bit on the Ultra2 class
 		 * of controllers seems to be a bit flaky.
 		 * It appears that if the FIFO is full and the
