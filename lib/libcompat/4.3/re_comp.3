@@ -39,6 +39,8 @@
 .Nm re_comp ,
 .Nm re_exec
 .Nd regular expression handler
+.Sh LIBRARY
+.Lb libcompat
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
 .Ft char *
@@ -46,9 +48,10 @@
 .Ft int
 .Fn re_exec "const char *s"
 .Sh DESCRIPTION
+.Bf -symbolic
 This interface is made obsolete by
 .Xr regex 3 .
-It is available from the compatibility library, libcompat.
+.Ef
 .Pp
 The
 .Fn re_comp
