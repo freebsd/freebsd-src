@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.13 1999/05/09 13:11:37 phk Exp $
+ *  $Id: coda_vfsops.c,v 1.14 1999/05/31 11:24:18 phk Exp $
  * 
  */
 
@@ -47,6 +47,32 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
+ * Revision 1.14  1999/05/31 11:24:18  phk
+ * Simplify cdevsw registration.
+ *
+ * The cdevsw_add() function now finds the major number(s) in the
+ * struct cdevsw passed to it.  cdevsw_add_generic() is no longer
+ * needed, cdevsw_add() does the same thing.
+ *
+ * cdevsw_add() will print an message if the d_maj field looks bogus.
+ *
+ * Remove nblkdev and nchrdev variables.  Most places they were used
+ * bogusly.  Instead check a dev_t for validity by seeing if devsw()
+ * or bdevsw() returns NULL.
+ *
+ * Move bdevsw() and devsw() functions to kern/kern_conf.c
+ *
+ * Bump __FreeBSD_version to 400006
+ *
+ * This commit removes:
+ *         72 bogus makedev() calls
+ *         26 bogus SYSINIT functions
+ *
+ * if_xe.c bogusly accessed cdevsw[], author/maintainer please fix.
+ *
+ * I4b and vinum not changed.  Patches emailed to authors.  LINT
+ * probably broken until they catch up.
+ *
  * Revision 1.13  1999/05/09 13:11:37  phk
  * remove cast from dev_t to dev_t.
  *
@@ -342,7 +368,7 @@ coda_mount(vfsp, path, data, ndp, p)
 	vrele(dvp);
 	return(ENXIO);
     }
-    dev = dvp->v_specinfo->si_rdev;
+    dev = dvp->v_rdev;
     vrele(dvp);
 
     /*
