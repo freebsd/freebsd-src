@@ -265,51 +265,48 @@ DECODE_PROTOTYPE(funce)
 
 DECODE_PROTOTYPE(bar)
 {
+	struct cardbus_devinfo *dinfo = device_get_ivars(child);
+	int type;
+	int reg;
+	u_int32_t bar;
+
 	if (len != 6) {
 		printf("*** ERROR *** BAR length not 6 (%d)\n", len);
 		return (EINVAL);
-	} else {
-		struct cardbus_devinfo *dinfo = device_get_ivars(child);
-		int type;
-		int reg;
-		u_int32_t bar;
-
-		reg = *(u_int16_t*)tupledata;
-		len = *(u_int32_t*)(tupledata + 2);
-		if (reg & TPL_BAR_REG_AS) {
-			type = SYS_RES_IOPORT;
-		} else {
-			type = SYS_RES_MEMORY;
-		}
-		bar = (reg & TPL_BAR_REG_ASI_MASK) - 1;
-		if (bar < 0 || bar > 5 ||
-		    (type == SYS_RES_IOPORT && bar == 5)) {
-			device_printf(cbdev, "Invalid BAR number: %02x(%02x)\n",
-			    reg, bar);
-			return (0);
-		}
-		bar = CARDBUS_BASE0_REG + bar * 4;
-		if (type == SYS_RES_MEMORY) {
-			if (bar & TPL_BAR_REG_PREFETCHABLE)
-				dinfo->mprefetchable |= BARBIT(bar);
-			if (bar & TPL_BAR_REG_BELOW1MB)
-				dinfo->mbelow1mb |= BARBIT(bar);
-		} else if (type == SYS_RES_IOPORT) {
-			if (bar & TPL_BAR_REG_BELOW1MB)
-				dinfo->ibelow1mb |= BARBIT(bar);
-		}
-		DEVPRINTF((cbdev, "Opening BAR: type=%s, bar=%02x, "
-		    "len=%04x%s%s\n",
-		    (type==SYS_RES_MEMORY)?"MEM":"IO", bar, len,
-		    (type==SYS_RES_MEMORY&&dinfo->mprefetchable&BARBIT(bar))?
-		    " (Prefetchable)":"",
-		    type==SYS_RES_MEMORY?
-		    ((dinfo->mbelow1mb&BARBIT(bar))?" (Below 1Mb)":"")
-		    :(dinfo->ibelow1mb&BARBIT(bar))?" (Below 1Mb)":""
-		    ));
-
-		resource_list_add(&dinfo->pci.resources, type, bar, 0UL, ~0UL, len);
 	}
+	reg = *(u_int16_t*)tupledata;
+	len = *(u_int32_t*)(tupledata + 2);
+	if (reg & TPL_BAR_REG_AS) {
+		type = SYS_RES_IOPORT;
+	} else {
+		type = SYS_RES_MEMORY;
+	}
+	bar = (reg & TPL_BAR_REG_ASI_MASK) - 1;
+	if (bar < 0 || bar > 5 ||
+	    (type == SYS_RES_IOPORT && bar == 5)) {
+		device_printf(cbdev, "Invalid BAR number: %02x(%02x)\n",
+		    reg, bar);
+		return (0);
+	}
+	bar = CARDBUS_BASE0_REG + bar * 4;
+	if (type == SYS_RES_MEMORY) {
+		if (bar & TPL_BAR_REG_PREFETCHABLE)
+			dinfo->mprefetchable |= BARBIT(bar);
+		if (bar & TPL_BAR_REG_BELOW1MB)
+			dinfo->mbelow1mb |= BARBIT(bar);
+	} else if (type == SYS_RES_IOPORT) {
+		if (bar & TPL_BAR_REG_BELOW1MB)
+			dinfo->ibelow1mb |= BARBIT(bar);
+	}
+	DEVPRINTF((cbdev, "Opening BAR: type=%s, bar=%02x, len=%04x%s%s\n",
+	    (type == SYS_RES_MEMORY) ? "MEM" : "IO", bar, len,
+	    (type == SYS_RES_MEMORY && dinfo->mprefetchable & BARBIT(bar)) ?
+	    " (Prefetchable)" : "", type == SYS_RES_MEMORY ?
+	    ((dinfo->mbelow1mb & BARBIT(bar)) ? " (Below 1Mb)" : "") :
+	    (dinfo->ibelow1mb & BARBIT(bar)) ? " (Below 1Mb)" : "" ));
+
+	resource_list_add(&dinfo->pci.resources, type, bar, 0UL, ~0UL, len);
+
 	return (0);
 }
 
@@ -412,7 +409,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 
 	switch (CARDBUS_CIS_SPACE(*start)) {
 	case CARDBUS_CIS_ASI_TUPLE:
-		/* CIS in tuple space need no initialization */
+		/* CIS in PCI config space need no initialization */
 		return ((struct resource*)~0UL);
 	case CARDBUS_CIS_ASI_BAR0:
 	case CARDBUS_CIS_ASI_BAR1:
@@ -421,11 +418,16 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 	case CARDBUS_CIS_ASI_BAR4:
 	case CARDBUS_CIS_ASI_BAR5:
 		*rid = CARDBUS_BASE0_REG + (CARDBUS_CIS_SPACE(*start) - 1) * 4;
-		pci_write_config(child, *rid, 0xffffffff, 4);
 		break;
 	case CARDBUS_CIS_ASI_ROM:
 		*rid = CARDBUS_ROM_REG;
+#if 0
+		/*
+		 * This mask doesn't contain the bit that actually enables
+		 * the Option ROM.
+		 */
 		pci_write_config(child, *rid, CARDBUS_ROM_ADDRMASK, 4);
+#endif
 		break;
 	default:
 		device_printf(cbdev, "Unable to read CIS: Unknown space: %d\n",
@@ -434,12 +436,20 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 	}
 
 	/* figure out how much space we need */
+	pci_write_config(child, *rid, 0xffffffff, 4);
 	testval = pci_read_config(child, *rid, 4);
-	if (testval & 1) {
+
+	/*
+	 * This bit has a different meaning depending if we are dealing
+	 * with normal a normal BAR or an Option ROM BAR.
+	 */
+	if (((testval & 0x1) == 0x1) && (*rid != CARDBUS_ROM_REG)) {
 		device_printf(cbdev, "CIS Space is IO, expecting memory.\n");
 		return (NULL);
 	}
+
 	size = CARDBUS_MAPREG_MEM_SIZE(testval);
+	/* XXX Is this some kind of hack? */
 	if (size < 4096)
 		size = 4096;
 	/* allocate the memory space to read CIS */
@@ -460,57 +470,73 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 	if (CARDBUS_CIS_SPACE(*start) == CARDBUS_CIS_ASI_ROM) {
 		bus_space_tag_t bt;
 		bus_space_handle_t bh;
-		int imagenum;
 		u_int32_t imagesize;
-		int mystart = 0;
+		u_int32_t imagebase = 0;
+		u_int32_t pcidata;
+		u_int16_t romsig;
 		int romnum = 0;
-		int dataptr;
+		int imagenum;
 
 		bt = rman_get_bustag(res);
 		bh = rman_get_bushandle(res);
 
 		imagenum = CARDBUS_CIS_ASI_ROM_IMAGE(*start);
 		for (romnum = 0;; romnum++) {
-			if (bus_space_read_2(bt, bh,
-			    mystart+CARDBUS_EXROM_SIGNATURE) != 0xaa55) {
+			romsig = bus_space_read_2(bt, bh,
+			    imagebase + CARDBUS_EXROM_SIGNATURE);
+			if (romsig != 0xaa55) {
 				device_printf(cbdev, "Bad header in rom %d: "
-				    "[%x] %04x\n", romnum, mystart + 
-				    CARDBUS_EXROM_SIGNATURE,
-				    bus_space_read_2(bt, bh,
-				    mystart+CARDBUS_EXROM_SIGNATURE));
+				    "[%x] %04x\n", romnum, imagebase + 
+				    CARDBUS_EXROM_SIGNATURE, romsig);
 				bus_release_resource(cbdev, SYS_RES_MEMORY,
 				    *rid, res);
 				*rid = 0;
 				return (NULL);
 			}
-			dataptr = mystart + bus_space_read_2(bt, bh,
-			    mystart + CARDBUS_EXROM_DATA_PTR);
+
+			/*
+			 * If this was the Option ROM image that we were
+			 * looking for, then we are done.
+			 */
+			if (romnum == imagenum)
+				break;
+
+			/* Find out where the next Option ROM image is */
+			pcidata = imagebase + bus_space_read_2(bt, bh,
+			    imagebase + CARDBUS_EXROM_DATA_PTR);
 			imagesize = bus_space_read_2(bt, bh,
-			    dataptr + CARDBUS_EXROM_DATA_IMAGE_LENGTH);
+			    pcidata + CARDBUS_EXROM_DATA_IMAGE_LENGTH);
 
 			if (imagesize == 0) {
 				/*
 				 * XXX some ROMs seem to have this as zero,
 				 * can we assume this means 1 block?
 				 */
+				device_printf(cbdev, "Warning, size of Option "
+				    "ROM image %d is 0 bytes, assuming 512 "
+				    "bytes.\n", romnum);
 				imagesize = 1;
 			}
+
+			/* Image size is in 512 byte units */
 			imagesize <<= 9;
 
-			if (romnum == imagenum)
-				break;
-			if ((bus_space_read_1(bt, bh, mystart + 
-			    CARDBUS_EXROM_DATA_INDICATOR) & 0x80) == 0) {
-				device_printf(cbdev, "Cannot read CIS: "
-				    "Not enough images of rom\n");
+			if ((bus_space_read_1(bt, bh, pcidata + 
+			    CARDBUS_EXROM_DATA_INDICATOR) & 0x80) == 1) {
+				device_printf(cbdev, "Cannot find CIS in "
+				    "Option ROM\n");
+				bus_release_resource(cbdev, SYS_RES_MEMORY,
+				    *rid, res);
+				*rid = 0;
 				return (NULL);
 			}
-			mystart += imagesize;
+			imagebase += imagesize;
 		}
-		*start = mystart + CARDBUS_CIS_ADDR(*start);
+		*start = imagebase + CARDBUS_CIS_ADDR(*start);
 	} else {
-		*start = CARDBUS_CIS_SPACE(*start);
+		*start = CARDBUS_CIS_ADDR(*start);
 	}
+
 	return (res);
 }
 
@@ -553,7 +579,8 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 
 	bzero(tupledata, MAXTUPLESIZE);
 	expect_linktarget = TRUE;
-	start = pci_read_config(child, CARDBUS_CIS_REG, 4);
+	if ((start = pci_read_config(child, CARDBUS_CIS_REG, 4)) == 0)
+		return (ENXIO);
 	off = 0;
 	res = cardbus_read_tuple_init(cbdev, child, &start, &rid);
 	if (res == NULL)
