@@ -16,7 +16,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)knecht.mc	8.30 (Berkeley) 6/11/1998')
+VERSIONID(`@(#)knecht.mc	8.31 (Berkeley) 1/30/1999')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 define(`confFORWARD_PATH', `$z/.forward.$w:$z/.forward+$h:$z/.forward')dnl
@@ -27,10 +27,10 @@ define(`confCOPY_ERRORS_TO', `Postmaster')dnl
 define(`confTO_QUEUEWARN', `8h')dnl
 define(`confTRUSTED_USERS', `www')dnl
 define(`confPRIVACY_FLAGS', ``authwarnings,noexpn,novrfy'')dnl
-FEATURE(virtusertable)dnl
+FEATURE(virtusertable, `hash /etc/mail/virtusertable')dnl
 FEATURE(access_db)dnl
 FEATURE(local_lmtp)dnl
-define(`LOCAL_MAILER_FLAGS', LOCAL_MAILER_FLAGS`'P)dnl
+define(`LOCAL_MAILER_FLAGS', CONCAT(LOCAL_MAILER_FLAGS,P))dnl
 MAILER(local)dnl
 MAILER(smtp)dnl
 

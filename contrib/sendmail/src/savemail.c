@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)savemail.c	8.139 (Berkeley) 8/5/1998";
+static char sccsid[] = "@(#)savemail.c	8.140 (Berkeley) 1/18/1999";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -395,7 +395,7 @@ savemail(e, sendbody)
 			mcibuf.mci_contentlen = 0;
 
 			putfromline(&mcibuf, e);
-			(*e->e_puthdr)(&mcibuf, e->e_header, e);
+			(*e->e_puthdr)(&mcibuf, e->e_header, e, M87F_OUTER);
 			(*e->e_putbody)(&mcibuf, e, NULL);
 			putline("\n", &mcibuf);
 			(void) fflush(fp);
@@ -1139,7 +1139,7 @@ errbody(mci, e, separator)
 			}
 		}
 		putline("", mci);
-		putheader(mci, e->e_parent->e_header, e->e_parent);
+		putheader(mci, e->e_parent->e_header, e->e_parent, M87F_OUTER);
 		if (sendbody)
 			putbody(mci, e->e_parent, e->e_msgboundary);
 		else if (e->e_msgboundary == NULL)

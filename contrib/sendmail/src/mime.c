@@ -14,7 +14,7 @@
 # include <string.h>
 
 #ifndef lint
-static char sccsid[] = "@(#)mime.c	8.70 (Berkeley) 11/10/1998";
+static char sccsid[] = "@(#)mime.c	8.71 (Berkeley) 1/18/1999";
 #endif /* not lint */
 
 /*
@@ -308,7 +308,7 @@ mime8to7(mci, header, e, boundaries, flags)
 			collect(e->e_dfp, FALSE, &hdr, e);
 			if (tTd(43, 101))
 				putline("+++after collect", mci);
-			putheader(mci, hdr, e);
+			putheader(mci, hdr, e, flags);
 			if (tTd(43, 101))
 				putline("+++after putheader", mci);
 			bt = mime8to7(mci, hdr, e, boundaries, flags);
@@ -360,7 +360,7 @@ mime8to7(mci, header, e, boundaries, flags)
 			collect(e->e_dfp, FALSE, &hdr, e);
 			if (tTd(43, 101))
 				putline("+++after collect", mci);
-			putheader(mci, hdr, e);
+			putheader(mci, hdr, e, flags);
 			if (tTd(43, 101))
 				putline("+++after putheader", mci);
 			if (hvalue("MIME-Version", hdr) == NULL)
@@ -442,11 +442,16 @@ mime8to7(mci, header, e, boundaries, flags)
 	if (sectionhighbits == 0)
 	{
 		/* no encoding necessary */
-		if (cte != NULL && bitset(MCIF_INMIME, mci->mci_flags))
+		if (cte != NULL &&
+		    bitset(MCIF_INMIME, mci->mci_flags) &&
+		    !bitset(M87F_NO8TO7, flags))
 		{
 			/*
-			**  Skip _unless_ in MIME mode; see putheader() for the
-			**  counterpart where this is skipped _if_ in MIME mode.
+			**  Skip _unless_ in MIME mode and potentially
+			**  converting from 8 bit to 7 bit MIME.  See
+			**  putheader() for the counterpart where the
+			**  CTE header is skipped in the opposite
+			**  situation.
 			*/
 
 			snprintf(buf, sizeof buf,

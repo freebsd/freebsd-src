@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)readcf.c	8.235 (Berkeley) 8/18/1998";
+static char sccsid[] = "@(#)readcf.c	8.238 (Berkeley) 1/28/1999";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1527,9 +1527,9 @@ struct optioninfo
 #define O_CONTROLSOCKET	0xa9
 	{ "ControlSocketName",		O_CONTROLSOCKET,	FALSE	},
 #endif
-#if _FFR_MAX_HEADER_LINES
-#define O_MAXHDRLINES	0xaa
-	{ "MaxHeaderLines",		O_MAXHDRLINES,	FALSE	},
+#if _FFR_MAX_HEADERS_LENGTH
+#define O_MAXHDRSLEN	0xaa
+	{ "MaxHeadersLength",		O_MAXHDRSLEN,	FALSE	},
 #endif
 	{ NULL,				'\0',		FALSE	}
 };
@@ -2470,22 +2470,13 @@ setoption(opt, val, safe, sticky, e)
 		break;
 #endif
 
-#if _FFR_MAX_HEADER_LINES
-	  case O_MAXHDRLINES:
-		p = strchr(val, '/');
-		if (p != NULL)
-			*p++ = '\0';
-		MaxHeaderLines = atoi(val);
-		if (p != NULL && *p != '\0')
-			MaxHeaderLineLength = atoi(p);
+#if _FFR_MAX_HEADERS_LENGTH
+	  case O_MAXHDRSLEN:
+		MaxHeadersLength = atoi(val);
 
-		if (MaxHeaderLines > 0 &&
-		    MaxHeaderLines < 50)
-			printf("Warning: MaxHeaderLines: header line limit set lower than 50\n");
-
-		if (MaxHeaderLineLength > 0 &&
-		    MaxHeaderLineLength < MAXHDRLINELEN)
-			printf("Warning: MaxHeaderLines: header line length limit set lower than %d\n", MAXHDRLINELEN);
+		if (MaxHeadersLength > 0 &&
+		    MaxHeadersLength < (MAXHDRSLEN / 2))
+			printf("Warning: MaxHeadersLength: headers length limit set lower than %d\n", MAXHDRSLEN);
 		break;
 #endif
 

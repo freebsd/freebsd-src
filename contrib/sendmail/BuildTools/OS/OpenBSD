@@ -1,3 +1,0 @@
-#	@(#)OpenBSD	8.5	(Berkeley)	3/12/1998
-define(`confMAPDEF', `-DNEWDB -DNIS -DMAP_REGEX')
-define(`confENVDEF', ` -DNETISO')

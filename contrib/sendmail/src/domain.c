@@ -14,9 +14,9 @@
 
 #ifndef lint
 #if NAMED_BIND
-static char sccsid[] = "@(#)domain.c	8.80 (Berkeley) 12/17/1998 (with name server)";
+static char sccsid[] = "@(#)domain.c	8.81 (Berkeley) 1/21/1999 (with name server)";
 #else
-static char sccsid[] = "@(#)domain.c	8.80 (Berkeley) 12/17/1998 (without name server)";
+static char sccsid[] = "@(#)domain.c	8.81 (Berkeley) 1/21/1999 (without name server)";
 #endif
 #endif /* not lint */
 
@@ -446,7 +446,6 @@ bestmx_map_lookup(map, name, av, statp)
 	int *statp;
 {
 	int nmx;
-	auto int rcode;
 	int saveopts = _res.options;
 	int i, len = 0;
 	char *p;
@@ -454,7 +453,7 @@ bestmx_map_lookup(map, name, av, statp)
 	char buf[PSBUFSIZE / 2];
 
 	_res.options &= ~(RES_DNSRCH|RES_DEFNAMES);
-	nmx = getmxrr(name, mxhosts, FALSE, &rcode);
+	nmx = getmxrr(name, mxhosts, FALSE, statp);
 	_res.options = saveopts;
 	if (nmx <= 0)
 		return NULL;
