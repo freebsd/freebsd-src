@@ -29,7 +29,6 @@
  */
 
 #include "pci.h"
-#include "apm.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
@@ -41,9 +40,6 @@
 #include <vm/pmap.h>
 #if NPCI > 0
 #include <pci/pcivar.h>
-#endif
-#if NAPM > 0
-#include <machine/apm_bios.h>
 #endif
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
@@ -64,6 +60,7 @@ void
 ata_dmainit(struct ata_softc *scp, int32_t device, 
 	    int32_t apiomode, int32_t wdmamode, int32_t udmamode)
 {
+    device_t parent = device_get_parent(scp->dev);
     int32_t devno = (scp->unit << 1) + ATA_DEV(device);
     int32_t error;
 
@@ -116,8 +113,8 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    if (!error) {
 		mask48 = (1 << devno) + (3 << (16 + (devno << 2)));
 		new48 = (1 << devno) + (2 << (16 + (devno << 2)));
-		pci_write_config(scp->dev, 0x48, 
-				 (pci_read_config(scp->dev, 0x48, 4) &
+		pci_write_config(parent, 0x48, 
+				 (pci_read_config(parent, 0x48, 4) &
 				 ~mask48) | new48, 4);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
 		return;
@@ -130,9 +127,9 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    int32_t mask40, new40, mask44, new44;
 
 	    /* if SITRE not set doit for both channels */
-	    if (!((pci_read_config(scp->dev, 0x40, 4)>>(scp->unit<<8))&0x4000)){
-		new40 = pci_read_config(scp->dev, 0x40, 4);
-		new44 = pci_read_config(scp->dev, 0x44, 4); 
+	    if (!((pci_read_config(parent, 0x40, 4)>>(scp->unit<<8))&0x4000)){
+		new40 = pci_read_config(parent, 0x40, 4);
+		new44 = pci_read_config(parent, 0x44, 4); 
 		if (!(new40 & 0x00004000)) {
 		    new44 &= ~0x0000000f;
 		    new44 |= ((new40&0x00003000)>>10)|((new40&0x00000300)>>8);
@@ -142,8 +139,8 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		    new44 |= ((new40&0x30000000)>>22)|((new40&0x03000000)>>20);
 		}
 		new40 |= 0x40004000;
-		pci_write_config(scp->dev, 0x40, new40, 4);
-		pci_write_config(scp->dev, 0x44, new44, 4);
+		pci_write_config(parent, 0x40, new40, 4);
+		pci_write_config(parent, 0x44, new44, 4);
 	    }
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -172,11 +169,11 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		    mask44 <<= 4;
 		    new44 <<= 4;
 		}
-		pci_write_config(scp->dev, 0x40,
-				 (pci_read_config(scp->dev, 0x40, 4) & ~mask40)|
+		pci_write_config(parent, 0x40,
+				 (pci_read_config(parent, 0x40, 4) & ~mask40)|
  				 new40, 4);
-		pci_write_config(scp->dev, 0x44,
-				 (pci_read_config(scp->dev, 0x44, 4) & ~mask44)|
+		pci_write_config(parent, 0x44,
+				 (pci_read_config(parent, 0x44, 4) & ~mask44)|
  				 new44, 4);
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
 		return;
@@ -189,7 +186,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	if (wdmamode >= 2 && apiomode >= 4) {
 	    int32_t word40;
 
-	    word40 = pci_read_config(scp->dev, 0x40, 4);
+	    word40 = pci_read_config(parent, 0x40, 4);
 	    word40 >>= scp->unit * 16;
 
 	    /* Check for timing config usable for DMA on controller */
@@ -218,7 +215,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    break;
 	}
 	if (udmamode >= 2) {
-	    int32_t word54 = pci_read_config(scp->dev, 0x54, 4);
+	    int32_t word54 = pci_read_config(parent, 0x54, 4);
 	
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -229,9 +226,9 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    if (!error) {
 		word54 |= 0x5555;
 		word54 |= (0x0a << (16 + (scp->unit << 3) + (device << 2)));
-		pci_write_config(scp->dev, 0x54, word54, 4);
-		pci_write_config(scp->dev, 0x53, 
-				 pci_read_config(scp->dev, 0x53, 1) | 0x03, 1);
+		pci_write_config(parent, 0x54, word54, 4);
+		pci_write_config(parent, 0x53, 
+				 pci_read_config(parent, 0x53, 1) | 0x03, 1);
 		scp->flags |= ATA_ATAPI_DMA_RO;
 		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
 		return;
@@ -245,8 +242,8 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 			   "%s setting up WDMA2 mode on Aladdin chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		pci_write_config(scp->dev, 0x53, 
-				 pci_read_config(scp->dev, 0x53, 1) | 0x03, 1);
+		pci_write_config(parent, 0x53, 
+				 pci_read_config(parent, 0x53, 1) | 0x03, 1);
 		scp->flags |= ATA_ATAPI_DMA_RO;
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
 		return;
@@ -264,7 +261,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 			   "%s setting up UDMA4 mode on VIA chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		pci_write_config(scp->dev, 0x53 - devno, 0xe8, 1);
+		pci_write_config(parent, 0x53 - devno, 0xe8, 1);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
 		return;
 	    }
@@ -277,7 +274,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 			   "%s setting up UDMA2 mode on VIA chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		pci_write_config(scp->dev, 0x53 - devno, 0xea, 1);
+		pci_write_config(parent, 0x53 - devno, 0xea, 1);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
 		return;
 	    }
@@ -293,7 +290,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 			   "%s setting up UDMA4 mode on AMD chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-	        pci_write_config(scp->dev, 0x53 - devno, 0xc3, 1);
+	        pci_write_config(parent, 0x53 - devno, 0xc3, 1);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
 		return;
 	    }
@@ -315,7 +312,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 			   (error) ? "failed" : "success",
 			   (scp->chiptype == 0x74091022) ? "AMD" : "VIA");
 	    if (!error) {
-	        pci_write_config(scp->dev, 0x53 - devno, 0xc0, 1);
+	        pci_write_config(parent, 0x53 - devno, 0xc0, 1);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
 		return;
 	    }
@@ -332,8 +329,8 @@ via_generic:
 			   (error) ? "failed" : "success",
 			   (scp->chiptype == 0x74091022) ? "AMD" : "VIA");
 	    if (!error) {
-	        pci_write_config(scp->dev, 0x53 - devno, 0x82, 1);
-	        pci_write_config(scp->dev, 0x4b - devno, 0x31, 1);
+	        pci_write_config(parent, 0x53 - devno, 0x82, 1);
+	        pci_write_config(parent, 0x4b - devno, 0x31, 1);
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
 		return;
 	    }
@@ -350,7 +347,7 @@ via_generic:
 			   "%s setting up UDMA2 mode on SiS chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		pci_write_config(scp->dev, 0x40 + (devno << 1), 0xa301, 2);
+		pci_write_config(parent, 0x40 + (devno << 1), 0xa301, 2);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
 		return;
 	    }
@@ -363,7 +360,26 @@ via_generic:
 			   "%s setting up WDMA2 mode on SiS chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		pci_write_config(scp->dev, 0x40 + (devno << 1), 0x0301, 2);
+		pci_write_config(parent, 0x40 + (devno << 1), 0x0301, 2);
+		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
+		return;
+	    }
+	}
+	/* we could set PIO mode timings, but we assume the BIOS did that */
+	break;
+
+    case 0x06461095:	/* CMD 646 ATA controller */
+	if (wdmamode >= 2 && apiomode >= 4) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device,
+			   "%s setting up WDMA2 mode on CMD646 chip\n",
+			   error ? "failed" : "success");
+	    if (!error) {
+		int32_t offset = (devno < 3) ? (devno << 1) : 7;
+
+		pci_write_config(parent, 0x54 + offset, 0x3f, 1);
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
 		return;
 	    }
@@ -379,7 +395,7 @@ via_generic:
 	    break;
 
 	if (udmamode >=4 && scp->chiptype == 0x4d38105a &&
-	    !(pci_read_config(scp->dev, 0x50, 2)&(scp->unit ? 1<<11 : 1<<10))) {
+	    !(pci_read_config(parent, 0x50, 2)&(scp->unit ? 1<<11 : 1<<10))) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -436,7 +452,7 @@ via_generic:
 	    (device == ATA_SLAVE && scp->devices & ATA_ATAPI_SLAVE))
 	    break;
 
-	if (udmamode >=4 && !(pci_read_config(scp->dev, 0x5a, 1) & 0x2)) {
+	if (udmamode >=4 && !(pci_read_config(parent, 0x5a, 1) & 0x2)) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -648,15 +664,16 @@ promise_timing(struct ata_softc *scp, int32_t devno, int32_t mode)
 	}
 	break;
     }
-    pci_write_config(scp->dev, 0x60 + (devno << 2), timing, 4);
+    pci_write_config(device_get_parent(scp->dev), 0x60 + (devno<<2), timing, 4);
 }
 
 static void
 hpt366_timing(struct ata_softc *scp, int32_t devno, int32_t mode)
 {
+    device_t parent = device_get_parent(scp->dev);
     u_int32_t timing;
 
-    switch (pci_read_config(scp->dev, 0x41 + (devno << 2), 1)) {
+    switch (pci_read_config(parent, 0x41 + (devno << 2), 1)) {
     case 0x85:	/* 25Mhz */
 	switch (mode) {
 	case ATA_PIO0:	timing = 0xc0d08585; break;
@@ -697,7 +714,7 @@ hpt366_timing(struct ata_softc *scp, int32_t devno, int32_t mode)
 	default:	timing = 0x0120d9d9;
 	}
     }
-    pci_write_config(scp->dev, 0x40 + (devno << 2) , (timing & ~0x80000000), 4);
+    pci_write_config(parent, 0x40 + (devno << 2) , (timing & ~0x80000000), 4);
 }
 
 #else /* NPCI > 0 */

@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include "apm.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -44,18 +43,15 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
-#if NAPM > 0
-#include <machine/apm_bios.h>
-#endif
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-cd.h>
 
+/* device structures */
 static d_open_t		acdopen;
 static d_close_t	acdclose;
 static d_ioctl_t	acdioctl;
 static d_strategy_t	acdstrategy;
-
 static struct cdevsw acd_cdevsw = {
 	/* open */	acdopen,
 	/* close */	acdclose,
@@ -75,7 +71,8 @@ static struct cdevsw acd_cdevsw = {
 
 /* prototypes */
 int32_t acdattach(struct atapi_softc *);
-static struct acd_softc *acd_init_lun(struct atapi_softc *, int32_t, struct devstat *);
+void acddetach(struct atapi_softc *);
+static struct acd_softc *acd_init_lun(struct atapi_softc *, struct devstat *);
 static void acd_describe(struct acd_softc *);
 static void lba2msf(int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
 static int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
@@ -101,6 +98,7 @@ static int32_t acd_mode_select(struct acd_softc *, void *, int32_t);
 static int32_t acd_set_speed(struct acd_softc *cdp, int32_t);
 
 /* internal vars */
+static u_int32_t acd_lun_map = 0;
 MALLOC_DEFINE(M_ACD, "ACD driver", "ATAPI CD driver buffers");
 
 int
@@ -109,14 +107,14 @@ acdattach(struct atapi_softc *atp)
     struct acd_softc *cdp;
     struct changer *chp;
     int32_t count, error = 0;
-    static int32_t acd_cdev_done = 0, acdnlun = 0;
+    static int32_t acd_cdev_done = 0;
 
     if (!acd_cdev_done) {
 	cdevsw_add(&acd_cdevsw);
 	acd_cdev_done++;
     }
 
-    if ((cdp = acd_init_lun(atp, acdnlun, NULL)) == NULL) {
+    if ((cdp = acd_init_lun(atp, NULL)) == NULL) {
 	printf("acd: out of memory\n");
 	return -1;
     }
@@ -162,7 +160,7 @@ acdattach(struct atapi_softc *atp)
 	    chp->table_length = htons(chp->table_length);
 	    for (count = 0; count < chp->slots; count++) {
 		if (count > 0) {
-		    tmpcdp = acd_init_lun(atp, acdnlun, cdp->stats);
+		    tmpcdp = acd_init_lun(atp, cdp->stats);
 		    if (!tmpcdp) {
 			printf("acd: out of memory\n");
 			return -1;
@@ -171,9 +169,8 @@ acdattach(struct atapi_softc *atp)
 		tmpcdp->slot = count;
 		tmpcdp->changer_info = chp;
 		if (bootverbose)
-		    printf("acd%d: changer slot %d %s\n", acdnlun, count,
+		    printf("acd%d: changer slot %d %s\n", tmpcdp->lun, count,
 			   (chp->slot[count].present ? "CD present" : "empty"));
-		acdnlun++;
 	    }
 	    sprintf(string, "acd%d-", cdp->lun);
 	    devstat_add_entry(cdp->stats, string, tmpcdp->lun, DEV_BSIZE,
@@ -187,51 +184,73 @@ acdattach(struct atapi_softc *atp)
 			  DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 			  DEVSTAT_PRIORITY_CD);
-	acdnlun++;
     }
     acd_describe(cdp);
     return 0;
 }
 
+void
+acddetach(struct atapi_softc *atp)
+{   
+    struct acd_softc *cdp = atp->driver;
+    
+    destroy_dev(cdp->dev1);
+    destroy_dev(cdp->dev2);
+    if (cdp->changer_info) {
+	/* should free all cdp's here, not possible yet SOS XXX */
+	free(cdp->changer_info, M_ACD);
+    }
+    devstat_remove_entry(cdp->stats);
+    free(cdp->stats, M_ACD);
+    free(cdp->atp->devname, M_ACD);
+    ata_free_lun(&acd_lun_map, cdp->lun);
+    free(cdp, M_ACD);
+}
+
 static struct acd_softc *
-acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
+acd_init_lun(struct atapi_softc *atp, struct devstat *stats)
 {
-    struct acd_softc *acd;
+    struct acd_softc *cdp;
     dev_t dev;
 
-    if (!(acd = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT)))
+    if (!(cdp = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT)))
 	return NULL;
-    bzero(acd, sizeof(struct acd_softc));
-    bufq_init(&acd->buf_queue);
-    acd->atp = atp;
-    acd->lun = lun;
-    acd->flags &= ~(F_WRITTEN|F_DISK_OPEN|F_TRACK_OPEN);
-    acd->block_size = 2048;
-    acd->slot = -1;
-    acd->changer_info = NULL;
-    acd->atp->flags |= ATAPI_F_MEDIA_CHANGED;
+    bzero(cdp, sizeof(struct acd_softc));
+    bufq_init(&cdp->buf_queue);
+    cdp->atp = atp;
+    cdp->lun = ata_get_lun(&acd_lun_map);
+    cdp->flags &= ~(F_WRITTEN|F_DISK_OPEN|F_TRACK_OPEN);
+    cdp->block_size = 2048;
+    cdp->slot = -1;
+    cdp->changer_info = NULL;
     if (stats == NULL) {
-	if (!(acd->stats = malloc(sizeof(struct devstat), M_ACD, M_NOWAIT))) {
-	    free(acd, M_ACD);
+	if (!(cdp->stats = malloc(sizeof(struct devstat), M_ACD, M_NOWAIT))) {
+	    free(cdp, M_ACD);
 	    return NULL;
 	}
-	bzero(acd->stats, sizeof(struct devstat));
+	bzero(cdp->stats, sizeof(struct devstat));
     }
     else
-	acd->stats = stats;
-    dev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
-		   UID_ROOT, GID_OPERATOR, 0644, "acd%da", lun);
-    dev->si_drv1 = acd;
+	cdp->stats = stats;
+
+    cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
+    cdp->atp->driver = cdp;
+
+    dev = make_dev(&acd_cdevsw, dkmakeminor(cdp->lun, 0, 0),
+		   UID_ROOT, GID_OPERATOR, 0644, "acd%da", cdp->lun);
+    dev->si_drv1 = cdp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
     dev->si_bsize_phys = 2048; /* XXX SOS */
-    dev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
-		   UID_ROOT, GID_OPERATOR, 0644, "acd%dc", lun);
-    dev->si_drv1 = acd;
+    cdp->dev1 = dev;
+    dev = make_dev(&acd_cdevsw, dkmakeminor(cdp->lun, 0, RAW_PART),
+		   UID_ROOT, GID_OPERATOR, 0644, "acd%dc", cdp->lun);
+    dev->si_drv1 = cdp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
     dev->si_bsize_phys = 2048; /* XXX SOS */
-    if ((acd->atp->devname = malloc(8, M_ACD, M_NOWAIT)))
-        sprintf(acd->atp->devname, "acd%d", acd->lun);
-    return acd;
+    cdp->dev2 = dev;
+    if ((cdp->atp->devname = malloc(8, M_ACD, M_NOWAIT)))
+        sprintf(cdp->atp->devname, "acd%d", cdp->lun);
+    return cdp;
 }
 
 static void 
@@ -249,7 +268,7 @@ acd_describe(struct acd_softc *cdp)
 		 (cdp->cap.write_cdrw) ? "CD-RW" :
 		  (cdp->cap.write_cdr) ? "CD-R" : 
 		   (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
-	       cdp->atp->controller->lun,
+	       device_get_unit(cdp->atp->controller->dev),
 	       (cdp->atp->unit == ATA_MASTER) ? "master" : "slave");
 
 	printf("acd%d:", cdp->lun);
@@ -415,7 +434,7 @@ acd_describe(struct acd_softc *cdp)
 			    (cdp->cap.write_cdr) ? "CD-R" : 
 			     (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
 	       changer, ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model,
-	       cdp->atp->controller->lun,
+	       device_get_unit(cdp->atp->controller->dev),
 	       (cdp->atp->unit == ATA_MASTER) ? "master" : "slave",
 	       ata_mode2str(cdp->atp->controller->mode[ATA_DEV(cdp->atp->unit)])
 	       );
@@ -1062,7 +1081,6 @@ acd_start(struct acd_softc *cdp)
     }
 
     acd_select_slot(cdp);
-
     if (!(bp->b_flags & B_READ) &&
 	(!(cdp->flags & F_DISK_OPEN) || !(cdp->flags & F_TRACK_OPEN))) {
 	printf("acd%d: sequence error (no open)\n", cdp->lun);
@@ -1084,7 +1102,7 @@ acd_start(struct acd_softc *cdp)
 	    ccb[0] = ATAPI_READ_BIG;
 	else {
 	    ccb[0] = ATAPI_READ_CD;
-	    ccb[9] = 0x10;
+	    ccb[9] = 0xf8;
 	}
     }
     else
@@ -1108,7 +1126,7 @@ static int32_t
 acd_done(struct atapi_request *request)
 {
     struct buf *bp = request->bp;
-    struct acd_softc *cdp = request->driver;
+    struct acd_softc *cdp = request->device->driver;
     
     if (request->error) {
 	bp->b_error = request->error;

@@ -88,12 +88,15 @@ disk_dumpcheck(dev_t dev, u_int *count, u_int *blkno, u_int *secsize)
 void 
 disk_invalidate (struct disk *disk)
 {
-	dsgone(&disk->d_slice);
+	if (disk->d_slice)
+		dsgone(&disk->d_slice);
 }
 
 void
 disk_destroy(dev_t dev)
 {
+    	dev->si_disk = NULL;
+	destroy_dev(dev);
 	return;
 }
 

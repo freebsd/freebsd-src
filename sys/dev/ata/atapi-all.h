@@ -134,8 +134,9 @@ struct atapi_reqsense {
 };  
 
 struct atapi_softc {
-    struct ata_softc		*controller;	/* ptr to parent ctrl */
+    struct ata_softc		*controller;	/* ptr to controller softc */
     int32_t			unit;		/* ATA_MASTER or ATA_SLAVE */
+    void			*driver;	/* ptr to subdriver softc */
     int8_t			*devname;	/* this devices name */
     int8_t			cmd;		/* last cmd executed */
     u_int32_t			flags;		/* drive flags */
@@ -149,7 +150,6 @@ typedef int32_t atapi_callback_t(struct atapi_request *);
 
 struct atapi_request {
     struct atapi_softc		*device;	/* ptr to parent device */
-    void			*driver;	/* ptr to calling driver */
     u_int8_t			ccb[16];	/* command control block */
     int32_t			ccbsize;	/* size of ccb (12 | 16) */
     u_int32_t			bytecount;	/* bytes to transfer */
@@ -169,6 +169,7 @@ struct atapi_request {
 };
 
 void atapi_attach(struct ata_softc *, int32_t);
+void atapi_detach(struct ata_softc *, int32_t);
 void atapi_transfer(struct atapi_request *);
 int32_t atapi_interrupt(struct atapi_request *);
 int32_t atapi_queue_cmd(struct atapi_softc *, int8_t [], void *, int32_t, int32_t, int32_t,  atapi_callback_t, void *, struct buf *);

@@ -29,8 +29,8 @@
  */
 
 #include "ata.h"
-#include "apm.h"
 #include "isa.h"
+#include "card.h"
 #include "pci.h"
 #include "atadisk.h"
 #include "atapicd.h"
@@ -65,34 +65,37 @@
 #include <machine/smp.h>
 #include <i386/isa/intr_machdep.h>
 #endif
-#if NAPM > 0
-#include <machine/apm_bios.h>
+#ifdef __alpha__
+#include <machine/md_var.h>
 #endif
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/atapi-all.h>
 
 /* misc defines */
-#if SMP == 0
-#define isa_apic_irq(x) x
-#endif
-#define IOMASK	0xfffffffc
+#define IOMASK			0xfffffffc
+#define ATA_IOADDR_RID		0
+#define ATA_ALTIOADDR_RID	1
+#define ATA_BMADDR_RID		2
 
 /* prototypes */
-static int32_t ata_probe(int32_t, int32_t, int32_t, device_t, int32_t *);
-static void ata_attach(void *);
+static int ata_probe(device_t);
+static int ata_attach(device_t);
+static int ata_detach(device_t);
+static int ata_resume(device_t);
+static void ata_boot_attach(void);
+static void ata_intr(void *);
 static int32_t ata_getparam(struct ata_softc *, int32_t, u_int8_t);
-static void ataintr(void *);
 static int8_t *active2str(int32_t);
 static void bswap(int8_t *, int32_t);
 static void btrim(int8_t *, int32_t);
 static void bpack(int8_t *, int8_t *, int32_t);
 
 /* local vars */
-static int32_t atanlun = 2;
-static struct intr_config_hook *ata_attach_hook = NULL;
 static devclass_t ata_devclass;
-struct ata_softc *atadevices[MAXATA];
+static devclass_t ata_pci_devclass;
+static struct intr_config_hook *ata_delayed_attach = NULL;
+static char ata_conf[256];
 MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 
 #if NISA > 0
@@ -105,91 +108,134 @@ static struct isa_pnp_id ata_ids[] = {
 };
 
 static int
-ata_isaprobe(device_t dev)
+ata_isa_probe(device_t dev)
 {
+    struct ata_softc *scp = device_get_softc(dev);
     struct resource *port;
     int rid;
-    int32_t ctlr, res;
-    int32_t lun;
+    u_long tmp;
 
-    /* Check isapnp ids */
+    /* check isapnp ids */
     if (ISA_PNP_PROBE(device_get_parent(dev), dev, ata_ids) == ENXIO)
 	return ENXIO;
     
-    /* Allocate the port range */
-    rid = 0;
-    port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+    /* allocate the port range */
+    rid = ATA_IOADDR_RID;
+    port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+			      ATA_IOSIZE, RF_ACTIVE);
     if (!port)
 	return ENOMEM;
 
-    /* check if allready in use by a PCI device */
-    for (ctlr = 0; ctlr < atanlun; ctlr++) {
-	if (atadevices[ctlr] && atadevices[ctlr]->ioaddr==rman_get_start(port)){
-	    printf("ata-isa%d: already registered as ata%d\n", 
-		   device_get_unit(dev), ctlr);
-	    bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
-	    return ENXIO;
-	}
+    /* alloctate the altport range */
+    if (bus_get_resource(dev, SYS_RES_IOPORT, 1, &tmp, &tmp)) {
+	bus_set_resource(dev, SYS_RES_IOPORT, 1,
+			 rman_get_start(port) + ATA_ALTPORT,
+			 ATA_ALTIOSIZE);
     }
-
-    lun = 0;
-    res = ata_probe(rman_get_start(port), rman_get_start(port) + ATA_ALTPORT,
-		    0, dev, &lun);
-
     bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
-
-    if (res) {
-	isa_set_portsize(dev, res);
-	*(int *)device_get_softc(dev) = lun;
-        atadevices[lun]->flags |= ATA_USE_16BIT;
-	return 0;
-    }
-    return ENXIO;
-}
-
-static int
-ata_isaattach(device_t dev)
-{
-    struct resource *port;
-    struct resource *irq;
-    void *ih;
-    int rid;
-
-    /* Allocate the port range and interrupt */
-    rid = 0;
-    port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
-    if (!port)
-	return (ENOMEM);
-
-    rid = 0;
-    irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
-    if (!irq) {
-	bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
-	return (ENOMEM);
-    }
-    return bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, 
-			  atadevices[*(int *)device_get_softc(dev)], &ih);
+    scp->unit = device_get_unit(dev);
+    scp->flags |= ATA_USE_16BIT;
+    return ata_probe(dev);
 }
 
 static device_method_t ata_isa_methods[] = {
-    /* Device interface */
-    DEVMETHOD(device_probe,	ata_isaprobe),
-    DEVMETHOD(device_attach,	ata_isaattach),
+    /* device interface */
+    DEVMETHOD(device_probe,	ata_isa_probe),
+    DEVMETHOD(device_attach,	ata_attach),
+    DEVMETHOD(device_resume,	ata_resume),
     { 0, 0 }
 };
 
 static driver_t ata_isa_driver = {
     "ata",
     ata_isa_methods,
-    sizeof(int),
+    sizeof(struct ata_softc),
 };
 
 DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, 0, 0);
 #endif
 
+#if NCARD > 0
+static int
+ata_pccard_probe(device_t dev)
+{
+    struct ata_softc *scp = device_get_softc(dev);
+    struct resource *port;
+    int rid;
+    u_long tmp;
+
+    /* allocate the port range */
+    rid = ATA_IOADDR_RID;
+    port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+			      ATA_IOSIZE, RF_ACTIVE);
+    if (!port)
+	return ENOMEM;
+
+    /* alloctate the altport range */
+    if (bus_get_resource(dev, SYS_RES_IOPORT, 1, &tmp, &tmp)) {
+	bus_set_resource(dev, SYS_RES_IOPORT, 1,
+			 rman_get_start(port) + ATA_ALTPORT_PCCARD,
+			 ATA_ALTIOSIZE);
+    }
+    bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
+    scp->unit = device_get_unit(dev);
+    scp->flags |= ATA_USE_16BIT;
+    return ata_probe(dev);
+}
+
+static device_method_t ata_pccard_methods[] = {
+    /* device interface */
+    DEVMETHOD(device_probe,	ata_pccard_probe),
+    DEVMETHOD(device_attach,	ata_attach),
+    DEVMETHOD(device_detach,	ata_detach),
+    DEVMETHOD(device_resume,	ata_resume),
+    { 0, 0 }
+};
+
+static driver_t ata_pccard_driver = {
+    "ata",
+    ata_pccard_methods,
+    sizeof(struct ata_softc),
+};
+
+DRIVER_MODULE(ata, pccard, ata_pccard_driver, ata_devclass, 0, 0);
+#endif
+
 #if NPCI > 0
+struct ata_pci_softc {
+    struct resource *bmio;
+    struct resource bmio_1;
+    struct resource bmio_2;
+    struct resource *irq;
+    int32_t irqcnt;
+};
+
+static int32_t
+ata_find_dev(device_t dev, int32_t type)
+{
+    device_t *children, child;
+    int nchildren, i;
+
+    if (device_get_children(device_get_parent(dev), &children, &nchildren))
+	return 0;
+
+    for (i = 0; i < nchildren; i++) {
+	child = children[i];
+
+	/* check that it's on the same silicon and the device we want */
+	if (pci_get_slot(dev) == pci_get_slot(child) &&
+	    pci_get_vendor(child) == (type & 0xffff) &&
+	    pci_get_device(child) == ((type & 0xffff0000) >> 16)) {
+	    free(children, M_TEMP);
+	    return 1;
+	}
+    }
+    free(children, M_TEMP);
+    return 0;
+}
+
 static const char *
-ata_pcimatch(device_t dev)
+ata_pci_match(device_t dev)
 {
     if (pci_get_class(dev) != PCIC_STORAGE)
 	return NULL;
@@ -204,54 +250,61 @@ ata_pcimatch(device_t dev)
 
     case 0x71118086:
     case 0x71998086:
-	return "Intel PIIX4 ATA-33 controller";
+	return "Intel PIIX4 ATA33 controller";
 
     case 0x24118086:
-	return "Intel ICH ATA-66 controller";
+	return "Intel ICH ATA66 controller";
 
     case 0x24218086:
-	return "Intel ICH0 ATA-33 controller";
+	return "Intel ICH0 ATA33 controller";
 
     case 0x522910b9:
-	return "AcerLabs Aladdin ATA-33 controller";
+	return "AcerLabs Aladdin ATA33 controller";
 
-    case 0x05711106: /* 82c586 & 82c686 */
+    case 0x05711106: 
 	if (ata_find_dev(dev, 0x05861106))
-	    return "VIA 82C586 ATA-33 controller";
+	    return "VIA 82C586 ATA33 controller";
 	if (ata_find_dev(dev, 0x05961106))
-	    return "VIA 82C596 ATA-33 controller";
+	    return "VIA 82C596 ATA33 controller";
 	if (ata_find_dev(dev, 0x06861106))
-	    return "VIA 82C686 ATA-66 controller";
+	    return "VIA 82C686 ATA66 controller";
 	return "VIA Apollo ATA controller";
 
     case 0x55131039:
-	return "SiS 5591 ATA-33 controller";
-
-    case 0x74091022:
-	return "AMD 756 ATA-66 controller";
-
-    case 0x4d33105a:
-	return "Promise ATA-33 controller";
-
-    case 0x4d38105a:
-	return "Promise ATA-66 controller";
-
-    case 0x00041103:
-	return "HighPoint HPT366 ATA-66 controller";
-
-   /* unsupported but known chipsets, generic DMA only */
-    case 0x06401095:
-	return "CMD 640 ATA controller (generic mode)";
+	return "SiS 5591 ATA33 controller";
 
     case 0x06461095:
-	return "CMD 646 ATA controller (generic mode)";
+	return "CMD 646 ATA controller";
+
+    case 0x74091022:
+	return "AMD 756 ATA66 controller";
+
+    case 0x4d33105a:
+	return "Promise ATA33 controller";
+
+    case 0x4d38105a:
+	return "Promise ATA66 controller";
+
+    case 0x00041103:
+	return "HighPoint HPT366 ATA66 controller";
+
+   /* unsupported but known chipsets, generic DMA only */
+    case 0x10001042:
+    case 0x10011042:
+	return "RZ 100? ATA controller !WARNING! buggy chip data loss possible";
+
+    case 0x06401095:
+	return "CMD 640 ATA controller !WARNING! buggy chip data loss possible";
 
     case 0xc6931080:
-	return "Cypress 82C693 ATA controller (generic mode)";
+	if (pci_get_subclass(dev) == PCIS_STORAGE_IDE)
+	    return "Cypress 82C693 ATA controller (generic mode)";
+	break;
 
     case 0x01021078:
 	return "Cyrix 5530 ATA controller (generic mode)";
 
+    /* unknown chipsets, try generic DMA if it seems possible */
     default:
 	if (pci_get_class(dev) == PCIC_STORAGE &&
 	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE))
@@ -261,9 +314,9 @@ ata_pcimatch(device_t dev)
 }
 
 static int
-ata_pciprobe(device_t dev)
+ata_pci_probe(device_t dev)
 {
-    const char *desc = ata_pcimatch(dev);
+    const char *desc = ata_pci_match(dev);
     
     if (desc) {
 	device_set_desc(dev, desc);
@@ -274,17 +327,31 @@ ata_pciprobe(device_t dev)
 }
 
 static int
-ata_pciattach(device_t dev)
+ata_pci_add_child(device_t dev, int unit)
 {
-    int unit = device_get_unit(dev);
-    struct ata_softc *scp;
-    u_int32_t type;
+    device_t child;
+    int lun;
+
+    /* check if this is located at one of the std addresses */
+    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV)
+	lun = unit;
+    else
+	lun = -1;
+
+    if (!(child = device_add_child(dev, "ata", lun)))
+	return ENOMEM;
+
+    device_set_ivars(child, (void *)(uintptr_t) unit);
+    return 0;
+}
+
+static int
+ata_pci_attach(device_t dev)
+{
+    struct ata_pci_softc *sc = device_get_softc(dev);
     u_int8_t class, subclass;
-    u_int32_t cmd;
-    int32_t iobase_1, iobase_2, altiobase_1, altiobase_2; 
-    int32_t bmaddr_1 = 0, bmaddr_2 = 0, irq1, irq2;
-    struct resource *irq = NULL;
-    int32_t lun;
+    u_int32_t type, cmd;
+    int rid;
 
     /* set up vendor-specific stuff */
     type = pci_get_devid(dev);
@@ -292,62 +359,32 @@ ata_pciattach(device_t dev)
     subclass = pci_get_subclass(dev);
     cmd = pci_read_config(dev, PCIR_COMMAND, 4);
 
-#ifdef ATA_DEBUG
-    printf("ata-pci%d: type=%08x class=%02x subclass=%02x cmd=%08x if=%02x\n",
-	   unit, type, class, subclass, cmd, pci_get_progif(dev));
-#endif
-
-    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
-	iobase_1 = IO_WD1;
-	altiobase_1 = iobase_1 + ATA_ALTPORT;
-	irq1 = 14;
-    } 
-    else {
-	iobase_1 = pci_read_config(dev, 0x10, 4) & IOMASK;
-	altiobase_1 = pci_read_config(dev, 0x14, 4) & IOMASK;
-	irq1 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
-	/* this is needed for old non-std systems */
-	if (iobase_1 == IO_WD1 && irq1 == 0x00)
-	    irq1 = 14;
-    }
-
-    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
-	iobase_2 = IO_WD2;
-	altiobase_2 = iobase_2 + ATA_ALTPORT;
-	irq2 = 15;
-    }
-    else {
-	iobase_2 = pci_read_config(dev, 0x18, 4) & IOMASK;
-	altiobase_2 = pci_read_config(dev, 0x1c, 4) & IOMASK;
-	irq2 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
-	/* this is needed for old non-std systems */
-	if (iobase_2 == IO_WD2 && irq2 == 0x00)
-	    irq2 = 15;
-    }
-
     /* is this controller busmaster DMA capable ? */
     if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
 	/* is busmastering support turned on ? */
 	if ((cmd & (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) == 
 	    (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) {
+
 	    /* is there a valid port range to connect to ? */
-	    if ((bmaddr_1 = pci_read_config(dev, 0x20, 4) & IOMASK))
-		bmaddr_2 = bmaddr_1 + ATA_BM_OFFSET1;
-	    else
-		printf("ata-pci%d: Busmastering DMA not configured\n", unit);
+	    rid = 0x20;
+	    sc->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+					  0, ~0, 1, RF_ACTIVE);
+	    if (!sc->bmio)
+		device_printf(dev, "Busmastering DMA not configured\n");
 	}
 	else
-	    printf("ata-pci%d: Busmastering DMA not enabled\n", unit);
+	    device_printf(dev, "Busmastering DMA not enabled\n");
     }
     else {
     	if (type == 0x4d33105a || type == 0x4d38105a || type == 0x00041103) {
 	    /* Promise and HPT366 controllers support busmastering DMA */
-	    bmaddr_1 = pci_read_config(dev, 0x20, 4) & IOMASK;
-	    bmaddr_2 = bmaddr_1 + ATA_BM_OFFSET1;
+	    rid = 0x20;
+	    sc->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+					  0, ~0, 1, RF_ACTIVE);
 	}
 	else
 	    /* we dont know this controller, no busmastering DMA */
-	    printf("ata-pci%d: Busmastering DMA not supported\n", unit);
+	    device_printf(dev, "Busmastering DMA not supported\n");
     }
 
     /* do extra chipset specific setups */
@@ -356,12 +393,15 @@ ata_pciattach(device_t dev)
 	pci_write_config(dev, 0x53, 
 			 (pci_read_config(dev, 0x53, 1) & ~0x01) | 0x02, 1);
 	break;
+
     case 0x4d38105a: /* Promise 66's need their clock changed */
-	outb(bmaddr_1 + 0x11, inb(bmaddr_1 + 0x11) | 0x0a);
+	outb(rman_get_start(sc->bmio) + 0x11, 
+	     inb(rman_get_start(sc->bmio) + 0x11) | 0x0a);
 	/* FALLTHROUGH */
 
     case 0x4d33105a: /* Promise's need burst mode to be turned on */
-	outb(bmaddr_1 + 0x1f, inb(bmaddr_1 + 0x1f) | 0x01);
+	outb(rman_get_start(sc->bmio) + 0x1f,
+	     inb(rman_get_start(sc->bmio) + 0x1f) | 0x01);
 	break;
 
     case 0x00041103: /* HPT366 turn of fast interrupt prediction */
@@ -388,159 +428,339 @@ ata_pciattach(device_t dev)
 	pci_write_config(dev, 0x60, DEV_BSIZE, 2);
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
 	
-	/* set the chiptype to the hostchip ID, makes life easier */
-	if (ata_find_dev(dev, 0x05861106))
-	    type = 0x05861106;
-	if (ata_find_dev(dev, 0x05961106))
-	    type = 0x05961106;
+	/* prepare for ATA-66 on the 82C686 */
 	if (ata_find_dev(dev, 0x06861106)) {
-	    type = 0x06861106;
-	    /* prepare for ATA-66 on the 82C686 */
 	    pci_write_config(dev, 0x50, 
 			     pci_read_config(dev, 0x50, 4) | 0x070f070f, 4);   
 	}
 	break;
     }
-	
-    /* now probe the addresse found for "real" ATA/ATAPI hardware */
-    lun = 0;
-    if (iobase_1 && ata_probe(iobase_1, altiobase_1, bmaddr_1, dev, &lun)) {
-	int rid;
-	void *ih;
 
-	scp = atadevices[lun];
-	scp->chiptype = type;
-	rid = 0;
-	if (iobase_1 == IO_WD1) {
-#ifdef __alpha__
-	    alpha_platform_setup_ide_intr(0, ataintr, scp);
-#else
-	    bus_set_resource(dev, SYS_RES_IRQ, rid, irq1, 1);
-	    if (!(irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					   RF_SHAREABLE | RF_ACTIVE)))
-		printf("ata_pciattach: Unable to alloc interrupt\n");
-#endif
-	} else {
-	    if (!(irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					   RF_SHAREABLE | RF_ACTIVE)))
-		printf("ata_pciattach: Unable to alloc interrupt\n");
-	}
-	if (irq)
-	    bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
-	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
-	       lun, iobase_1, isa_apic_irq(irq1), unit);
-    }
-    lun = 1;
-    if (iobase_2 && ata_probe(iobase_2, altiobase_2, bmaddr_2, dev, &lun)) {
-	int rid;
-	void *ih;
+    ata_pci_add_child(dev, 0);
 
-	scp = atadevices[lun];
-	scp->chiptype = type;
-	if (iobase_2 == IO_WD2) {
-#ifdef __alpha__
-	    alpha_platform_setup_ide_intr(1, ataintr, scp);
-#else
-	    rid = 1;
-	    bus_set_resource(dev, SYS_RES_IRQ, rid, irq2, 1);
-	    if (!(irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					   RF_SHAREABLE | RF_ACTIVE)))
-		printf("ata_pciattach: Unable to alloc interrupt\n");
-#endif
-	} else {
-	    rid = 0;
-	    if (irq1 != irq2 || irq == NULL) {
-	  	if (!(irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					       RF_SHAREABLE | RF_ACTIVE)))
-		    printf("ata_pciattach: Unable to alloc interrupt\n");
+    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV ||
+	pci_read_config(dev, 0x18, 4) & IOMASK)
+	ata_pci_add_child(dev, 1);
+
+    return bus_generic_attach(dev);
+}
+
+static int
+ata_pci_print_child(device_t dev, device_t child)
+{
+    struct ata_softc *scp = device_get_softc(child);
+    int unit = (uintptr_t) device_get_ivars(child);
+    int retval = 0;
+
+    retval += bus_print_child_header(dev, child);
+    retval += printf(": at 0x%x", scp->ioaddr);
+
+    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV)
+	retval += printf(" irq %d", 14 + unit);
+    
+    retval += bus_print_child_footer(dev, child);
+
+    return retval;
+}
+
+static struct resource *
+ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+		       u_long start, u_long end, u_long count, u_int flags)
+{
+    struct ata_pci_softc *sc = device_get_softc(dev);
+    int masterdev = pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV;
+    int unit = (int)device_get_ivars(child);
+    int myrid;
+
+    if (type == SYS_RES_IOPORT) {
+	switch (*rid) {
+	case ATA_IOADDR_RID:
+	    if (masterdev) {
+		myrid = 0;
+		start = (unit == 0 ? IO_WD1 : IO_WD2);
+		end = start + ATA_IOSIZE - 1;
+		count = ATA_IOSIZE;
 	    }
+	    else
+		myrid = 0x10 + 8 * unit;
+	    break;
+
+	case ATA_ALTIOADDR_RID:
+	    if (masterdev) {
+		myrid = 0;
+		start = (unit == 0 ? IO_WD1 : IO_WD2) + ATA_ALTPORT;
+		end = start + ATA_ALTIOSIZE - 1;
+		count = ATA_ALTIOSIZE;
+	    }
+	    else
+		myrid = 0x14 + 8 * unit;
+	    break;
+
+	case ATA_BMADDR_RID:
+	    /* the busmaster resource is shared between the two channels */
+	    if (sc->bmio) {
+		if (unit == 0) {
+		    sc->bmio_1 = *sc->bmio;
+		    sc->bmio_1.r_end = sc->bmio->r_start + ATA_BM_OFFSET1;
+		    return &sc->bmio_1;
+		} else {
+		    sc->bmio_2 = *sc->bmio;
+		    sc->bmio_2.r_start = sc->bmio->r_start + ATA_BM_OFFSET1;
+		    sc->bmio_2.r_end = sc->bmio_2.r_start + ATA_BM_OFFSET1;
+		    return &sc->bmio_2;
+		}
+	    }
+	    break;
+
+	default:
+	    return 0;
 	}
-	    if (irq)
-		bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
-	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
-	       lun, iobase_2, isa_apic_irq(irq2), unit);
+
+	if (masterdev)
+	    /* make the parent just pass through the allocation. */
+	    return BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
+				      SYS_RES_IOPORT, &myrid,
+				      start, end, count, flags);
+	else
+	    /* we are using the parent resource directly. */
+	    return BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
+				      SYS_RES_IOPORT, &myrid,
+				      start, end, count, flags);
+    }
+
+    if (type == SYS_RES_IRQ) {
+	if (*rid != 0)
+	    return 0;
+
+	if (masterdev) {
+#ifdef __i386__
+	    int irq = (unit == 0 ? 14 : 15);
+
+	    return BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
+				      SYS_RES_IRQ, rid,
+				      irq, irq, 1, flags & ~RF_SHAREABLE);
+#else
+	    return alpha_platform_alloc_ide_intr(unit);
+#endif
+	} else {
+	    /* primary and secondary channels share the same interrupt */
+	    sc->irqcnt++;
+	    if (!sc->irq)
+		sc->irq = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
+					     SYS_RES_IRQ, rid, 0, ~0, 1, flags);
+	    return sc->irq;
+	}
     }
     return 0;
 }
 
-int32_t
-ata_find_dev(device_t dev, int32_t type)
+static int
+ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
+			 struct resource *r)
 {
-    device_t *children, child;
-    int nchildren, i;
+    struct ata_pci_softc *sc = device_get_softc(dev);
+    int unit = (uintptr_t) device_get_ivars(child);
+    int masterdev = pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV;
+    int myrid = 0;
 
-    if (device_get_children(device_get_parent(dev), &children, &nchildren))
-	return 0;
+    if (type == SYS_RES_IOPORT) {
+	switch (rid) {
+	case ATA_IOADDR_RID:
+	    if (masterdev)
+		myrid = 0;
+	    else
+		myrid = 0x10 + 8 * unit;
+	    break;
 
-    for (i = 0; i < nchildren; i++) {
-	child = children[i];
+	case ATA_ALTIOADDR_RID:
+	    if (masterdev)
+		myrid = 0;
+	    else
+		myrid = 0x14 + 8 * unit;
+	    break;
 
-	/* check that it's on the same silicon and the device we want */
-	if (pci_get_slot(dev) == pci_get_slot(child) &&
-	    pci_get_vendor(child) == (type & 0xffff) &&
-	    pci_get_device(child) == ((type & 0xffff0000)>>16)) {
-	    free(children, M_TEMP);
-	    return 1;
+	case ATA_BMADDR_RID:
+	    return 0;
+
+	default:
+	    return ENOENT;
+	}
+
+	if (masterdev)
+	    /* make the parent just pass through the allocation. */
+	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
+					SYS_RES_IOPORT, myrid, r);
+	else
+	    /* we are using the parent resource directly. */
+	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
+					SYS_RES_IOPORT, myrid, r);
+    }
+    if (type == SYS_RES_IRQ) {
+	if (rid != 0)
+	    return ENOENT;
+
+	if (masterdev) {
+#ifdef __i386__
+	    return BUS_RELEASE_RESOURCE(device_get_parent(dev),
+					child, SYS_RES_IRQ, rid, r);
+#else
+	    return alpha_platform_release_ide_intr(unit, r);
+#endif
+	}
+	else {
+	    if (--sc->irqcnt)
+		return 0;
+
+	    return BUS_RELEASE_RESOURCE(device_get_parent(dev),
+					dev, SYS_RES_IRQ, rid, r);
 	}
     }
-    free(children, M_TEMP);
-    return 0;
+    return EINVAL;
+}
+
+static int
+ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, 
+		   int flags, driver_intr_t *intr, void *arg,
+		   void **cookiep)
+{
+    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
+#ifdef __i386__
+	return BUS_SETUP_INTR(device_get_parent(dev), child, irq,
+			      flags, intr, arg, cookiep);
+#else
+	return alpha_platform_setup_ide_intr(irq, intr, arg, cookiep);
+#endif
+    }
+    else
+	return BUS_SETUP_INTR(device_get_parent(dev), dev, irq,
+			      flags, intr, arg, cookiep);
+}
+
+static int
+ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
+		      void *cookie)
+{
+    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
+#ifdef __i386__
+	return BUS_TEARDOWN_INTR(device_get_parent(dev), child, irq, cookie);
+#else
+	return alpha_platform_teardown_ide_intr(irq, cookie);
+#endif
+    }
+    else
+	return BUS_TEARDOWN_INTR(device_get_parent(dev), dev, irq, cookie);
 }
 
 static device_method_t ata_pci_methods[] = {
-    /* Device interface */
-    DEVMETHOD(device_probe,	ata_pciprobe),
-    DEVMETHOD(device_attach,	ata_pciattach),
+    /* device interface */
+    DEVMETHOD(device_probe,		ata_pci_probe),
+    DEVMETHOD(device_attach,		ata_pci_attach),
+    DEVMETHOD(device_shutdown,		bus_generic_shutdown),
+    DEVMETHOD(device_suspend,		bus_generic_suspend),
+    DEVMETHOD(device_resume,		bus_generic_resume),
+
+    /* bus methods */
+    DEVMETHOD(bus_print_child,		ata_pci_print_child),
+    DEVMETHOD(bus_alloc_resource,	ata_pci_alloc_resource),
+    DEVMETHOD(bus_release_resource,	ata_pci_release_resource),
+    DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
+    DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
+    DEVMETHOD(bus_setup_intr,		ata_pci_setup_intr),
+    DEVMETHOD(bus_teardown_intr,	ata_pci_teardown_intr),
     { 0, 0 }
 };
 
 static driver_t ata_pci_driver = {
-    "ata-pci",
+    "atapci",
     ata_pci_methods,
-    sizeof(int),
+    sizeof(struct ata_pci_softc),
 };
 
-DRIVER_MODULE(ata, pci, ata_pci_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(atapci, pci, ata_pci_driver, ata_devclass, 0, 0);
+
+static int
+ata_pcisub_probe(device_t dev)
+{
+    struct ata_softc *scp = device_get_softc(dev);
+
+    /* kids of pci ata chipsets has their physical unit number in ivars */
+    scp->unit = (uintptr_t) device_get_ivars(dev);
+
+    /* set the chiptype to the hostchip ID, makes life easier */
+    if (ata_find_dev(device_get_parent(dev), 0x05861106))
+	scp->chiptype = 0x05861106;
+    else if (ata_find_dev(device_get_parent(dev), 0x05961106))
+	scp->chiptype = 0x05961106;
+    else if (ata_find_dev(device_get_parent(dev), 0x06861106))
+	scp->chiptype = 0x06861106;
+    else
+	scp->chiptype = pci_get_devid(device_get_parent(dev));
+    return ata_probe(dev);
+}
+
+static device_method_t ata_pcisub_methods[] = {
+    /* device interface */
+    DEVMETHOD(device_probe,	ata_pcisub_probe),
+    DEVMETHOD(device_attach,	ata_attach),
+    DEVMETHOD(device_detach,	ata_detach),
+    DEVMETHOD(device_resume,	ata_resume),
+    { 0, 0 }
+};
+
+static driver_t ata_pcisub_driver = {
+    "ata",
+    ata_pcisub_methods,
+    sizeof(struct ata_softc),
+};
+
+DRIVER_MODULE(ata, atapci, ata_pcisub_driver, ata_pci_devclass, 0, 0);
 #endif
 
-static int32_t
-ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
-	  device_t dev, int32_t *unit)
+static int
+ata_probe(device_t dev)
 {
-    struct ata_softc *scp;
-    int32_t lun, mask = 0;
+    struct ata_softc *scp = device_get_softc(dev);
+    struct resource *io = 0;
+    struct resource *altio = 0;
+    struct resource *bmio = 0;
+    int rid;
+    int32_t ioaddr, altioaddr, bmaddr;
+    int32_t mask = 0;
     u_int8_t status0, status1;
 
-    if (atanlun > MAXATA) {
-	printf("ata: unit out of range(%d)\n", atanlun);
-	return 0;
-    }
+    if (!scp || scp->flags & ATA_ATTACHED)
+	return ENXIO;
 
-    /* check if this is located at one of the std addresses */
-    if (ioaddr == IO_WD1)
-	lun = 0;
-    else if (ioaddr == IO_WD2)
-	lun = 1;
-    else
-	lun = atanlun++;
+    /* initialize the softc basics */
+    scp->active = ATA_IDLE;
+    scp->dev = dev;
+    scp->devices = 0;
 
-    if ((scp = atadevices[lun])) {
-	ata_printf(scp, -1, "unit already attached\n");
-	return 0;
-    }
-    scp = malloc(sizeof(struct ata_softc), M_ATA, M_NOWAIT);
-    if (scp == NULL) {
-	ata_printf(scp, -1, "failed to allocate driver storage\n");
-	return 0;
-    }
-    bzero(scp, sizeof(struct ata_softc));
+    rid = ATA_IOADDR_RID;
+    io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+    if (!io)
+	goto failure;
+    ioaddr = rman_get_start(io);
 
+    rid = ATA_ALTIOADDR_RID;
+    altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+    if (!altio)
+	goto failure;
+    altioaddr = rman_get_start(altio);
+
+    rid = ATA_BMADDR_RID;
+    bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+    bmaddr = bmio ? rman_get_start(bmio) : 0;
+
+    /* store the IO resources for eventual later release */
+    scp->r_io = io;
+    scp->r_altio = altio;
+    scp->r_bmio = bmio;
+   
+    /* store the physical IO addresse for easy access */
     scp->ioaddr = ioaddr; 
     scp->altioaddr = altioaddr;
     scp->bmaddr = bmaddr;
-    scp->lun = lun;
-    scp->unit = *unit;
-    scp->active = ATA_IDLE;
 
     if (bootverbose)
 	ata_printf(scp, -1, "iobase=0x%04x altiobase=0x%04x bmaddr=0x%04x\n", 
@@ -553,26 +773,23 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
     DELAY(1);	
     status1 = inb(scp->ioaddr + ATA_STATUS);
-    if ((status0 & 0xf8) != 0xf8)
+    if ((status0 & 0xf8) != 0xf8 && status0 != 0xa5)
 	mask |= 0x01;
-    if ((status1 & 0xf8) != 0xf8)
+    if ((status1 & 0xf8) != 0xf8 && status1 != 0xa5)
 	mask |= 0x02;
     if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
 		   mask, status0, status1);
-    if (!mask) {
-	free(scp, M_DEVBUF);
-	return 0;
-    } 
+    if (!mask)
+	goto failure;
+
     ata_reset(scp, &mask);
-    if (!mask) {
-	free(scp, M_DEVBUF);
-	return 0;
-    }
+    if (!mask)
+	goto failure;
+
     /* 
-     * OK, we have at least one device on the chain,
-     * check for ATAPI signatures, if none check if its
-     * a good old ATA device.
+     * OK, we have at least one device on the chain, check for ATAPI 
+     * signatures, if none check if its a good old ATA device.
      */ 
     outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_MASTER));
     DELAY(1);
@@ -609,92 +826,122 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t bmaddr,
     if (bootverbose)
 	ata_printf(scp, -1, "devices = 0x%x\n", scp->devices);
     if (!scp->devices) {
-	free(scp, M_DEVBUF);
-	return 0;
+	goto failure;
     }
     TAILQ_INIT(&scp->ata_queue);
     TAILQ_INIT(&scp->atapi_queue);
-    *unit = scp->lun;
-    scp->dev = dev;
-    atadevices[scp->lun] = scp;
-
-    /* register callback for when interrupts are enabled */
-    if (!ata_attach_hook) {
-	if (!(ata_attach_hook = (struct intr_config_hook *)
-				malloc(sizeof(struct intr_config_hook),
-				M_TEMP, M_NOWAIT))) {
-            ata_printf(scp, -1, "ERROR malloc attach_hook failed\n");
-            return 0;
-	}
-	bzero(ata_attach_hook, sizeof(struct intr_config_hook));
-
-	ata_attach_hook->ich_func = ata_attach;
-	if (config_intrhook_establish(ata_attach_hook) != 0) {
-            ata_printf(scp, -1, "config_intrhook_establish failed\n");
-            free(ata_attach_hook, M_TEMP);
-	}
-    }
-#if NAPM > 0
-    scp->resume_hook.ah_fun = (void *)ata_reinit;
-    scp->resume_hook.ah_arg = scp;
-    scp->resume_hook.ah_name = "ATA driver";
-    scp->resume_hook.ah_order = APM_MID_ORDER;
-    apm_hook_establish(APM_HOOK_RESUME, &scp->resume_hook);
-#endif
-    return ATA_IOSIZE;
+    return 0;
+    
+failure:
+    if (io)
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
+    if (altio)
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTIOADDR_RID, altio);
+    if (bmio)
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID, bmio);
+    if (bootverbose)
+	ata_printf(scp, -1, "probe allocation failed\n");
+    return ENXIO;
 }
 
-void 
-ata_attach(void *dummy)
+static int
+ata_attach(device_t dev)
 {
-    int32_t ctlr;
+    struct ata_softc *scp = device_get_softc(dev);
+    int rid = 0;
+    void *ih;
+
+    if (!scp || scp->flags & ATA_ATTACHED)
+	return ENXIO;
+
+    scp->r_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				    RF_SHAREABLE | RF_ACTIVE);
+    if (!scp->r_irq) {
+	ata_printf(scp, -1, "unable to allocate interrupt\n");
+	return ENXIO;
+    }
+    bus_setup_intr(dev, scp->r_irq, INTR_TYPE_BIO, ata_intr, scp, &ih);
 
     /*
-     * run through atadevices[] and look for real ATA & ATAPI devices
-     * using the hints we found in the early probe to avoid probing
-     * of non-exsistent devices and thereby long delays
+     * do not attach devices if we are in early boot, this is done later 
+     * when interrupts are enabled by a hook into the boot process.
+     * otherwise attach what the probe has found in scp->devices.
      */
-    for (ctlr=0; ctlr<MAXATA; ctlr++) {
-	if (!atadevices[ctlr]) continue;
-	if (atadevices[ctlr]->devices & ATA_ATA_SLAVE)
-	    if (ata_getparam(atadevices[ctlr], ATA_SLAVE, ATA_C_ATA_IDENTIFY))
-		atadevices[ctlr]->devices &= ~ATA_ATA_SLAVE;
-	if (atadevices[ctlr]->devices & ATA_ATAPI_SLAVE)
-	    if (ata_getparam(atadevices[ctlr], ATA_SLAVE, ATA_C_ATAPI_IDENTIFY))
-		atadevices[ctlr]->devices &= ~ATA_ATAPI_SLAVE;
-	if (atadevices[ctlr]->devices & ATA_ATA_MASTER)
-	    if (ata_getparam(atadevices[ctlr], ATA_MASTER, ATA_C_ATA_IDENTIFY))
-		atadevices[ctlr]->devices &= ~ATA_ATA_MASTER;
-	if (atadevices[ctlr]->devices & ATA_ATAPI_MASTER)
-	    if (ata_getparam(atadevices[ctlr], ATA_MASTER,ATA_C_ATAPI_IDENTIFY))
-		atadevices[ctlr]->devices &= ~ATA_ATAPI_MASTER;
-    }
-
+    if (!ata_delayed_attach) {
+	if (scp->devices & ATA_ATA_SLAVE)
+	    if (ata_getparam(scp, ATA_SLAVE, ATA_C_ATA_IDENTIFY))
+		scp->devices &= ~ATA_ATA_SLAVE;
+	if (scp->devices & ATA_ATAPI_SLAVE)
+	    if (ata_getparam(scp, ATA_SLAVE, ATA_C_ATAPI_IDENTIFY))
+		scp->devices &= ~ATA_ATAPI_SLAVE;
+	if (scp->devices & ATA_ATA_MASTER)
+	    if (ata_getparam(scp, ATA_MASTER, ATA_C_ATA_IDENTIFY))
+		scp->devices &= ~ATA_ATA_MASTER;
+	if (scp->devices & ATA_ATAPI_MASTER)
+	    if (ata_getparam(scp, ATA_MASTER,ATA_C_ATAPI_IDENTIFY))
+		scp->devices &= ~ATA_ATAPI_MASTER;
 #if NATADISK > 0
-    /* now we know whats there, do the real attach, first the ATA disks */
-    for (ctlr=0; ctlr<MAXATA; ctlr++) {
-	if (!atadevices[ctlr]) continue;
-	if (atadevices[ctlr]->devices & ATA_ATA_MASTER)
-	    ad_attach(atadevices[ctlr], ATA_MASTER);
-	if (atadevices[ctlr]->devices & ATA_ATA_SLAVE)
-	    ad_attach(atadevices[ctlr], ATA_SLAVE);
-    }
+	if (scp->devices & ATA_ATA_MASTER)
+	    ad_attach(scp, ATA_MASTER);
+	if (scp->devices & ATA_ATA_SLAVE)
+	    ad_attach(scp, ATA_SLAVE);
 #endif
 #if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
-    /* then the atapi devices */
-    for (ctlr=0; ctlr<MAXATA; ctlr++) {
-	if (!atadevices[ctlr]) continue;
-	if (atadevices[ctlr]->devices & ATA_ATAPI_MASTER)
-	    atapi_attach(atadevices[ctlr], ATA_MASTER);
-	if (atadevices[ctlr]->devices & ATA_ATAPI_SLAVE)
-	    atapi_attach(atadevices[ctlr], ATA_SLAVE);
-    }
+	if (scp->devices & ATA_ATAPI_MASTER)
+	    atapi_attach(scp, ATA_MASTER);
+	if (scp->devices & ATA_ATAPI_SLAVE)
+	    atapi_attach(scp, ATA_SLAVE);
 #endif
-    if (ata_attach_hook) {
-	config_intrhook_disestablish(ata_attach_hook);
-	free(ata_attach_hook, M_ATA);
-	ata_attach_hook = NULL;
     }
+    scp->flags |= ATA_ATTACHED;
+    return 0;
+}
+
+static int
+ata_detach(device_t dev)
+{
+    struct ata_softc *scp = device_get_softc(dev);
+ 
+    if (!scp || !(scp->flags & ATA_ATTACHED))
+	return ENXIO;
+
+#if NATADISK > 0
+    if (scp->devices & ATA_ATA_MASTER)
+	ad_detach(scp, ATA_MASTER);
+    if (scp->devices & ATA_ATA_SLAVE)
+	ad_detach(scp, ATA_SLAVE);
+#endif
+#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+    if (scp->devices & ATA_ATAPI_MASTER)
+	atapi_detach(scp, ATA_MASTER);
+    if (scp->devices & ATA_ATAPI_SLAVE)
+	atapi_detach(scp, ATA_SLAVE);
+#endif
+    if (scp->dev_param[ATA_DEV(ATA_MASTER)]) {
+	free(scp->dev_param[ATA_DEV(ATA_MASTER)], M_ATA);
+	scp->dev_param[ATA_DEV(ATA_MASTER)] = NULL;
+    }
+    if (scp->dev_param[ATA_DEV(ATA_SLAVE)]) {
+	free(scp->dev_param[ATA_DEV(ATA_SLAVE)], M_ATA);
+	scp->dev_param[ATA_DEV(ATA_SLAVE)] = NULL;
+    }
+    scp->mode[ATA_DEV(ATA_MASTER)] = ATA_PIO;
+    scp->mode[ATA_DEV(ATA_SLAVE)] = ATA_PIO;
+    bus_release_resource(dev, SYS_RES_IRQ, 0, scp->r_irq);
+    bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID, scp->r_bmio);
+    bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTIOADDR_RID, scp->r_altio);
+    bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, scp->r_io);
+    scp->flags &= ~ATA_ATTACHED;
+    return 0;
+}
+
+static int
+ata_resume(device_t dev)
+{
+    struct ata_softc *scp = device_get_softc(dev);
+
+    ata_reinit(scp);
+    return 0;
 }
 
 static int32_t
@@ -708,7 +955,7 @@ ata_getparam(struct ata_softc *scp, int32_t device, u_int8_t command)
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device);
     DELAY(1);
 
-    /* enable interrupts */
+    /* enable interrupt */
     outb(scp->altioaddr, ATA_A_4BIT);
     DELAY(1);
 
@@ -719,7 +966,7 @@ ata_getparam(struct ata_softc *scp, int32_t device, u_int8_t command)
 	    return -1;
 	}
 	if (retry++ > 4) {
-	    ata_printf(scp, device, "drive wont come ready after identify\n");
+	    ata_printf(scp, device, "identify retries exceeded\n");
 	    return -1;
 	}
     } while (ata_wait(scp, device, 
@@ -729,7 +976,7 @@ ata_getparam(struct ata_softc *scp, int32_t device, u_int8_t command)
     insw(scp->ioaddr + ATA_DATA, buffer, sizeof(buffer)/sizeof(int16_t));
     ata_parm = malloc(sizeof(struct ata_params), M_ATA, M_NOWAIT);
     if (!ata_parm) {
-	ata_printf(scp, device, "malloc for ata_param failed\n");
+	ata_printf(scp, device, "malloc for identify data failed\n");
         return -1;
     }
     bcopy(buffer, ata_parm, sizeof(struct ata_params));   
@@ -746,15 +993,72 @@ ata_getparam(struct ata_softc *scp, int32_t device, u_int8_t command)
     return 0;
 }
 
+static void 
+ata_boot_attach(void)
+{
+    struct ata_softc *scp;
+    int32_t ctlr;
+
+    /*
+     * run through all ata devices and look for real ATA & ATAPI devices
+     * using the hints we found in the early probe, this avoids some of
+     * the delays probing of non-exsistent devices can cause.
+     */
+    for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
+	if (!(scp = devclass_get_softc(ata_devclass, ctlr)))
+	    continue;
+	if (scp->devices & ATA_ATA_SLAVE)
+	    if (ata_getparam(scp, ATA_SLAVE, ATA_C_ATA_IDENTIFY))
+		scp->devices &= ~ATA_ATA_SLAVE;
+	if (scp->devices & ATA_ATAPI_SLAVE)
+	    if (ata_getparam(scp, ATA_SLAVE, ATA_C_ATAPI_IDENTIFY))
+		scp->devices &= ~ATA_ATAPI_SLAVE;
+	if (scp->devices & ATA_ATA_MASTER)
+	    if (ata_getparam(scp, ATA_MASTER, ATA_C_ATA_IDENTIFY))
+		scp->devices &= ~ATA_ATA_MASTER;
+	if (scp->devices & ATA_ATAPI_MASTER)
+	    if (ata_getparam(scp, ATA_MASTER,ATA_C_ATAPI_IDENTIFY))
+		scp->devices &= ~ATA_ATAPI_MASTER;
+    }
+
+#if NATADISK > 0
+    /* now we know whats there, do the real attach, first the ATA disks */
+    for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
+	if (!(scp = devclass_get_softc(ata_devclass, ctlr)))
+	    continue;
+	if (scp->devices & ATA_ATA_MASTER)
+	    ad_attach(scp, ATA_MASTER);
+	if (scp->devices & ATA_ATA_SLAVE)
+	    ad_attach(scp, ATA_SLAVE);
+    }
+#endif
+#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+    /* then the atapi devices */
+    for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
+	if (!(scp = devclass_get_softc(ata_devclass, ctlr)))
+	    continue;
+	if (scp->devices & ATA_ATAPI_MASTER)
+	    atapi_attach(scp, ATA_MASTER);
+	if (scp->devices & ATA_ATAPI_SLAVE)
+	    atapi_attach(scp, ATA_SLAVE);
+    }
+#endif
+    if (ata_delayed_attach) {
+	config_intrhook_disestablish(ata_delayed_attach);
+	free(ata_delayed_attach, M_ATA);
+	ata_delayed_attach = NULL;
+    }
+}
+
 static void
-ataintr(void *data)
+ata_intr(void *data)
 {
     struct ata_softc *scp = (struct ata_softc *)data;
     u_int8_t dmastat;
 
     /* 
      * since we might share the IRQ with another device, and in some
-     * case with our twin channel, we only want to process interrupts
+     * cases with our twin channel, we only want to process interrupts
      * that we know this channel generated.
      */
     switch (scp->chiptype) {
@@ -767,9 +1071,13 @@ ataintr(void *data)
 
     case 0x4d33105a:	/* Promise 33's */
     case 0x4d38105a:	/* Promise 66's */
-	if (!(inl((pci_read_config(scp->dev, 0x20, 4) & IOMASK) + 0x1c) & 
+    {
+	struct ata_pci_softc *sc=device_get_softc(device_get_parent(scp->dev));
+
+	if (!(inl(rman_get_start(sc->bmio) + 0x1c) & 
 	      ((scp->unit) ? 0x00004000 : 0x00000400)))
 	    return;
+    }
 	/* FALLTHROUGH */
 #endif
     default:
@@ -904,7 +1212,7 @@ void
 ata_reset(struct ata_softc *scp, int32_t *mask)
 {
     int32_t timeout;  
-    int8_t status0, status1;
+    u_int8_t status0 = 0, status1 = 0;
 
     /* reset channel */
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
@@ -954,29 +1262,31 @@ ata_reinit(struct ata_softc *scp)
 
     scp->active = ATA_REINITING;
     scp->running = NULL;
-    ata_printf(scp, -1, "resetting devices .. ");
     if (scp->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER))
 	mask |= 0x01;
     if (scp->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE))
 	mask |= 0x02;
-    omask = mask;
-    ata_reset(scp, &mask);
-    if (omask != mask)
-	printf(" device dissapeared! %d ", omask & ~mask);
+    if (mask) {
+	omask = mask;
+        ata_printf(scp, -1, "resetting devices .. ");
+	ata_reset(scp, &mask);
+	if (omask != mask)
+	    printf(" device dissapeared! %d ", omask & ~mask);
 
 #if NATADISK > 0
-    if (scp->devices & (ATA_ATA_MASTER) && scp->dev_softc[0])
-	ad_reinit((struct ad_softc *)scp->dev_softc[0]);
-    if (scp->devices & (ATA_ATA_SLAVE) && scp->dev_softc[1])
-	ad_reinit((struct ad_softc *)scp->dev_softc[1]);
+	if (scp->devices & (ATA_ATA_MASTER) && scp->dev_softc[0])
+	    ad_reinit((struct ad_softc *)scp->dev_softc[0]);
+	if (scp->devices & (ATA_ATA_SLAVE) && scp->dev_softc[1])
+	    ad_reinit((struct ad_softc *)scp->dev_softc[1]);
 #endif
 #if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
-    if (scp->devices & (ATA_ATAPI_MASTER) && scp->dev_softc[0])
-	atapi_reinit((struct atapi_softc *)scp->dev_softc[0]);
-    if (scp->devices & (ATA_ATAPI_SLAVE) && scp->dev_softc[1])
-	atapi_reinit((struct atapi_softc *)scp->dev_softc[1]);
+	if (scp->devices & (ATA_ATAPI_MASTER) && scp->dev_softc[0])
+	    atapi_reinit((struct atapi_softc *)scp->dev_softc[0]);
+	if (scp->devices & (ATA_ATAPI_SLAVE) && scp->dev_softc[1])
+	    atapi_reinit((struct atapi_softc *)scp->dev_softc[1]);
 #endif
-    printf("done\n");
+	printf("done\n");
+    }
     scp->active = ATA_IDLE;
     ata_start(scp);
     return 0;
@@ -1103,6 +1413,38 @@ ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
     return 0;
 }
 
+int
+ata_printf(struct ata_softc *scp, int32_t device, const char * fmt, ...)
+{
+    va_list ap;
+    int ret;
+
+    if (device == -1)
+	ret = printf("ata%d: ", device_get_unit(scp->dev));
+    else
+	ret = printf("ata%d-%s: ", device_get_unit(scp->dev),
+		     (device == ATA_MASTER) ? "master" : "slave");
+    va_start(ap, fmt);
+    ret += vprintf(fmt, ap);
+    va_end(ap);
+    return ret;
+}
+
+int
+ata_get_lun(u_int32_t *map)
+{
+    int lun = ffs(~*map) - 1;
+
+    *map |= (1 << lun);
+    return lun;
+}
+
+void
+ata_free_lun(u_int32_t *map, int lun)
+{
+    *map &= ~(1 << lun);
+}
+ 
 int8_t *
 ata_mode2str(int32_t mode)
 {
@@ -1134,6 +1476,54 @@ ata_pio2mode(int32_t pio)
     }
 }
 
+int
+ata_pmode(struct ata_params *ap)
+{
+    if (ap->atavalid & ATA_FLAG_64_70) {
+	if (ap->apiomodes & 2)
+	    return 4;
+	if (ap->apiomodes & 1) 
+	    return 3;
+    }	
+    if (ap->opiomode == 2)
+	return 2;
+    if (ap->opiomode == 1)
+	return 1;
+    if (ap->opiomode == 0)
+	return 0;
+    return -1; 
+} 
+
+int
+ata_wmode(struct ata_params *ap)
+{
+    if (ap->wdmamodes & 4)
+	return 2;
+    if (ap->wdmamodes & 2)
+	return 1;
+    if (ap->wdmamodes & 1)
+	return 0;
+    return -1;
+}
+
+int
+ata_umode(struct ata_params *ap)
+{
+    if (ap->atavalid & ATA_FLAG_88) {
+	if (ap->udmamodes & 0x10)
+	    return (ap->cblid ? 4 : 2);
+	if (ap->udmamodes & 0x08)
+	    return (ap->cblid ? 3 : 2);
+	if (ap->udmamodes & 0x04)
+	    return 2;
+	if (ap->udmamodes & 0x02)
+	    return 1;
+	if (ap->udmamodes & 0x01)
+	    return 0;
+    }
+    return -1;
+}
+
 static int8_t *
 active2str(int32_t active)
 {
@@ -1162,60 +1552,25 @@ active2str(int32_t active)
     }
 }
 
-int32_t
-ata_pmode(struct ata_params *ap)
-{
-    if (ap->atavalid & ATA_FLAG_64_70) {
-	if (ap->apiomodes & 2) return 4;
-	if (ap->apiomodes & 1) return 3;
-    }	
-    if (ap->opiomode == 2) return 2;
-    if (ap->opiomode == 1) return 1;
-    if (ap->opiomode == 0) return 0;
-    return -1; 
-} 
-
-int32_t
-ata_wmode(struct ata_params *ap)
-{
-    if (ap->wdmamodes & 4) return 2;
-    if (ap->wdmamodes & 2) return 1;
-    if (ap->wdmamodes & 1) return 0;
-    return -1;
-}
-
-int32_t
-ata_umode(struct ata_params *ap)
-{
-    if (ap->atavalid & ATA_FLAG_88) {
-	if (ap->udmamodes & 0x10) return (ap->cblid ? 4 : 2);
-	if (ap->udmamodes & 0x08) return (ap->cblid ? 3 : 2);
-	if (ap->udmamodes & 0x04) return 2;
-	if (ap->udmamodes & 0x02) return 1;
-	if (ap->udmamodes & 0x01) return 0;
-    }
-    return -1;
-}
-
 static void
 bswap(int8_t *buf, int32_t len) 
 {
-    u_int16_t *p = (u_int16_t*)(buf + len);
+    u_int16_t *ptr = (u_int16_t*)(buf + len);
 
-    while (--p >= (u_int16_t*)buf)
-	*p = ntohs(*p);
+    while (--ptr >= (u_int16_t*)buf)
+	*ptr = ntohs(*ptr);
 } 
 
 static void
 btrim(int8_t *buf, int32_t len)
 { 
-    int8_t *p;
+    int8_t *ptr;
 
-    for (p = buf; p < buf+len; ++p) 
-	if (!*p)
-	    *p = ' ';
-    for (p = buf + len - 1; p >= buf && *p == ' '; --p)
-	*p = 0;
+    for (ptr = buf; ptr < buf+len; ++ptr) 
+	if (!*ptr)
+	    *ptr = ' ';
+    for (ptr = buf + len - 1; ptr >= buf && *ptr == ' '; --ptr)
+	*ptr = 0;
 }
 
 static void
@@ -1241,25 +1596,6 @@ bpack(int8_t *src, int8_t *dst, int32_t len)
 	dst[j] = 0x00;
 }
 
-int32_t
-ata_printf(struct ata_softc *scp, int32_t device, const char * fmt, ...)
-{
-    va_list ap;
-    int ret;
-
-    if (device == -1)
-	ret = printf("ata%d: ", scp->lun);
-    else
-	ret = printf("ata%d-%s: ", scp->lun,
-		     (device == ATA_MASTER) ? "master" : "slave");
-    va_start(ap, fmt);
-    ret += vprintf(fmt, ap);
-    va_end(ap);
-    return ret;
-}
-
-static char ata_conf[1024];
- 
 static void
 ata_change_mode(struct ata_softc *scp, int32_t device, int32_t mode)
 {
@@ -1279,17 +1615,22 @@ ata_change_mode(struct ata_softc *scp, int32_t device, int32_t mode)
 static int
 sysctl_hw_ata SYSCTL_HANDLER_ARGS
 {
-    int error, i;
+    struct ata_softc *scp;
+    int ctlr, error, i;
 
     /* readout internal state */
     bzero(ata_conf, sizeof(ata_conf));
-    for (i = 0; i < (atanlun << 1); i++) {
-	if (!atadevices[i >> 1] || !atadevices[ i >> 1]->dev_softc[i & 1])
-	    strcat(ata_conf, "---,");
-	else if (atadevices[i >> 1]->mode[i & 1] >= ATA_DMA)
-	    strcat(ata_conf, "dma,");
-	else
-	    strcat(ata_conf, "pio,");
+    for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
+	if (!(scp = devclass_get_softc(ata_devclass, ctlr)))
+	    continue;
+	for (i = 0; i < 2; i++) {
+	    if (!scp->dev_softc[i])
+		strcat(ata_conf, "---,");
+	    else if (scp->mode[i] >= ATA_DMA)
+		strcat(ata_conf, "dma,");
+	    else
+		strcat(ata_conf, "pio,");
+	}
     }
     error = sysctl_handle_string(oidp, ata_conf, sizeof(ata_conf), req);   
     if (error == 0 && req->newptr != NULL) {
@@ -1299,28 +1640,44 @@ sysctl_hw_ata SYSCTL_HANDLER_ARGS
 	i = 0;
         while (*ptr) {
 	    if (!strncmp(ptr, "pio", 3) || !strncmp(ptr, "PIO", 3)) {
-		if (atadevices[i >> 1] &&
-		    atadevices[i >> 1]->dev_softc[i & 1] &&
-		    atadevices[i >>1 ]->mode[i & 1] >= ATA_DMA)
-		    ata_change_mode(atadevices[i >> 1], 
-				    (i & 1) ? ATA_SLAVE : ATA_MASTER, ATA_PIO);
+		if ((scp = devclass_get_softc(ata_devclass, i >> 1)) &&
+		    scp->dev_softc[i & 1] && scp->mode[i & 1] >= ATA_DMA)
+		    ata_change_mode(scp, (i & 1)?ATA_SLAVE:ATA_MASTER, ATA_PIO);
 	    }
 	    else if (!strncmp(ptr, "dma", 3) || !strncmp(ptr, "DMA", 3)) {
-		if (atadevices[i >> 1] &&
-		    atadevices[i >> 1]->dev_softc[i & 1] &&
-		    atadevices[i >> 1]->mode[i & 1] < ATA_DMA)
-		    ata_change_mode(atadevices[i >> 1], 
-				    (i & 1) ? ATA_SLAVE : ATA_MASTER, ATA_DMA);
+		if ((scp = devclass_get_softc(ata_devclass, i >> 1)) &&
+		    scp->dev_softc[i & 1] && scp->mode[i & 1] < ATA_DMA)
+		    ata_change_mode(scp, (i & 1)?ATA_SLAVE:ATA_MASTER, ATA_DMA);
 	    }
 	    else if (strncmp(ptr, "---", 3))
 		break;
 	    ptr+=3;
-	    if (*ptr++ != ',' || ++i > (atanlun << 1))
+	    if (*ptr++ != ',' ||
+		++i > (devclass_get_maxunit(ata_devclass) << 1))
 		break; 
         }
     }
     return error;
 }
- 
 SYSCTL_PROC(_hw, OID_AUTO, atamodes, CTLTYPE_STRING | CTLFLAG_RW,
             0, sizeof(ata_conf), sysctl_hw_ata, "A", "");
+
+static void
+ata_init(void)
+{
+    /* register boot attach to be run when interrupts are enabled */
+    if (!(ata_delayed_attach = (struct intr_config_hook *)
+			     malloc(sizeof(struct intr_config_hook),
+			     M_TEMP, M_NOWAIT))) {
+	printf("ata: malloc of delayed attach hook failed\n");
+	return;
+    }
+    bzero(ata_delayed_attach, sizeof(struct intr_config_hook));
+
+    ata_delayed_attach->ich_func = (void*)ata_boot_attach;
+    if (config_intrhook_establish(ata_delayed_attach) != 0) {
+	printf("ata: config_intrhook_establish failed\n");
+	free(ata_delayed_attach, M_TEMP);
+    }
+}
+SYSINIT(atadev, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_init, NULL)

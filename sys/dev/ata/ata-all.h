@@ -86,10 +86,13 @@
 #define		ATA_S_READY		0x40	/* drive ready */
 #define		ATA_S_BUSY		0x80	/* busy */
 
-#define ATA_ALTPORT			0x206	/* alternate Status register */
+#define ATA_ALTPORT			0x206	/* alternate status register */
+#define ATA_ALTPORT_PCCARD		0x8	/* ditto on PCCARD devices */
 #define		ATA_A_IDS		0x02	/* disable interrupts */
 #define		ATA_A_RESET		0x04	/* RESET controller */
 #define		ATA_A_4BIT		0x08	/* 4 head bits */
+
+#define ATA_ALTIOSIZE			0x01
 
 /* misc defines */
 #define ATA_MASTER			0x00
@@ -120,6 +123,8 @@
 #define ATA_BMSTAT_DMA_SIMPLEX		0x80
 
 #define ATA_BMDTP_PORT			0x04
+
+#define ATA_BMIOSIZE			0x20
 
 /* structure for holding DMA address data */
 struct ata_dmaentry {
@@ -249,12 +254,15 @@ struct ata_params {
 
 /* structure describing an ATA device */
 struct ata_softc {
-    int32_t			unit;		/* unit on this controller */
-    int32_t			lun;		/* logical unit # */
     struct device		*dev;		/* device handle */
-    int32_t			ioaddr;		/* port addr */
-    int32_t			altioaddr;	/* alternate port addr */
-    int32_t			bmaddr;		/* bus master DMA port */
+    int32_t			unit;		/* unit on this controller */
+    struct resource		*r_io;		/* io addr resource handle */
+    struct resource		*r_altio;	/* altio addr resource handle */
+    struct resource		*r_bmio;	/* bmio addr resource handle */
+    struct resource		*r_irq;		/* interrupt of this channel */
+    int32_t			ioaddr;		/* physical port addr */
+    int32_t			altioaddr;	/* physical alt port addr */
+    int32_t			bmaddr;		/* physical bus master port */
     int32_t			chiptype;	/* pciid of controller chip */
     struct ata_params		*dev_param[2];	/* ptr to devices params */
     void			*dev_softc[2];	/* ptr to devices softc's */
@@ -275,6 +283,7 @@ struct ata_softc {
 #define		ATA_DMA_ACTIVE		0x01
 #define		ATA_ATAPI_DMA_RO	0x02
 #define		ATA_USE_16BIT		0x04
+#define		ATA_ATTACHED		0x08
 
     int32_t			devices;	/* what is present */
 #define		ATA_ATA_MASTER		0x01
@@ -297,15 +306,10 @@ struct ata_softc {
     TAILQ_HEAD(, ad_request)	ata_queue;	/* head of ATA queue */
     TAILQ_HEAD(, atapi_request) atapi_queue;	/* head of ATAPI queue */
     void			*running;	/* currently running request */
-#if NAPM > 0
-    struct apmhook 		resume_hook;	/* hook for apm */
-#endif
-
 };
 
-/* array to hold all ata softc's */
-extern struct ata_softc *atadevices[];
-#define MAXATA	16
+/* To convert unit numbers to devices */
+extern devclass_t ata_devclass;
  
 /* public prototypes */
 void ata_start(struct ata_softc *);
@@ -313,15 +317,17 @@ void ata_reset(struct ata_softc *, int32_t *);
 int32_t ata_reinit(struct ata_softc *);
 int32_t ata_wait(struct ata_softc *, int32_t, u_int8_t);
 int32_t ata_command(struct ata_softc *, int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, int32_t);
+int ata_printf(struct ata_softc *, int32_t, const char *, ...) __printflike(3, 4);
+int ata_get_lun(u_int32_t *);
+void ata_free_lun(u_int32_t *, int);
+int8_t *ata_mode2str(int32_t);
+int8_t ata_pio2mode(int32_t);
+int ata_pmode(struct ata_params *);
+int ata_wmode(struct ata_params *);
+int ata_umode(struct ata_params *);
+
 void ata_dmainit(struct ata_softc *, int32_t, int32_t, int32_t, int32_t);
 int32_t ata_dmasetup(struct ata_softc *, int32_t, int8_t *, int32_t, int32_t);
 void ata_dmastart(struct ata_softc *);
 int32_t ata_dmastatus(struct ata_softc *);
 int32_t ata_dmadone(struct ata_softc *);
-int32_t ata_pmode(struct ata_params *);
-int32_t ata_wmode(struct ata_params *);
-int32_t ata_umode(struct ata_params *);
-int8_t *ata_mode2str(int32_t);
-int8_t ata_pio2mode(int32_t);
-int32_t ata_find_dev(device_t, int32_t);
-int32_t ata_printf(struct ata_softc *, int32_t, const char *, ...) __printflike(3, 4);
