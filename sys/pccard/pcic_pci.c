@@ -39,9 +39,11 @@
 #include <pci/pcic_p.h>
 
 static u_long pcic_pci_count = 0;
-static char *pcic_pci_probe  __P((pcici_t, pcidi_t));
-static void pd6832_legacy_init __P((pcici_t tag, int unit));
-static void pcic_pci_attach __P((pcici_t, int));
+
+static char *pcic_pci_probe(pcici_t, pcidi_t);
+static void  pcic_pci_attach(pcici_t, int);
+
+static void  pd6832_legacy_init(pcici_t tag, int unit);
 
 static struct pci_device pcic_pci_driver = {
 	"pcic",
@@ -51,104 +53,35 @@ static struct pci_device pcic_pci_driver = {
 	NULL
 };
 
-DATA_SET (pcidevice_set, pcic_pci_driver);
+DATA_SET(pcidevice_set, pcic_pci_driver);
 
 /*
- * Return the ID string for a PD6832 if the vendor/product id matches,
- * NULL otherwise.
+ * Return the ID string for the controller if the vendor/product id
+ * matches, NULL otherwise.
  */
-
-static char*
+static char *
 pcic_pci_probe(pcici_t tag, pcidi_t type)
 {
-	switch(type) {
-		case PCI_DEVICE_ID_PCIC_PD6832:
-			return "Cirrus Logic CL-PD6832 CardBus Adapter";
-			break;
-		default:
-			break;
+	switch (type) {
+	case PCI_DEVICE_ID_PCIC_CLPD6729:
+		return ("Cirrus Logic PD6729/6730 PC-Card Controller");
+	case PCI_DEVICE_ID_PCIC_CLPD6832:
+		return ("Cirrus Logic PD6832 CardBus Adapter");
+	case PCI_DEVICE_ID_PCIC_TI1130:
+		return ("TI 1130 PCMCIA/CardBus Bridge");
+	case PCI_DEVICE_ID_PCIC_TI1131:
+		return ("TI 1131 PCI to PCMCIA/CardBus bridge");
+	default:
+		break;
 	}
-	return NULL;
-}
-
-/*
- * Set up the CL-PD6832 to look like a ISA based PCMCIA chip (a
- * PD672X).  This routine is called once per PCMCIA socket.
- */
-
-static void
-pd6832_legacy_init(pcici_t tag, int unit)
-{
-	u_long bcr; 		/* to set interrupts */
-	u_short io_port;	/* the io_port to map this slot on */
-  
-   
-	/*
-	 * I think this should be a call to pci_map_port, but that
-	 * routine won't map regiaters above 0x28, and the register we
-	 * need to map is 0x44
-	 */
-    
-	io_port = pci_conf_read(tag, PD6832_LEGACY_16BIT_IOADDR)
-	    & ~PCI_MAP_IO;
-    
-	/*
-	 * Configure the first I/O window to contain PD6832_NUM_REGS
-	 * words and deactivate the second by setting the limit lower
-	 * than the base
-	 */
- 		
-	pci_conf_write(tag, PD6832_IO_BASE0, io_port | 1);
-	pci_conf_write(tag, PD6832_IO_LIMIT0, (io_port + PD6832_NUM_REGS) | 1);
- 		
-	pci_conf_write(tag, PD6832_IO_BASE1, (io_port +0x20) | 1);
-	pci_conf_write(tag, PD6832_IO_LIMIT1, io_port | 1 );
- 
- 	       
-	/*
-	 * Set default operating mode (I/O port space) and allocate
-	 * this socket to the current unit
-	 */
-    
-	pci_conf_write(tag, PCI_COMMAND_STATUS_REG, PD6832_COMMAND_DEFAULTS );
-	pci_conf_write(tag, PD6832_SOCKET, unit);
- 
-	/*
-	 * Set up the card inserted/card removed interrupts to come
-	 * through the isa IRQ
-	 */
- 	       
-	bcr = pci_conf_read(tag, PD6832_BRIDGE_CONTROL);
-	bcr |= (PD6832_BCR_ISA_IRQ|PD6832_BCR_MGMT_IRQ_ENA);
-	pci_conf_write(tag, PD6832_BRIDGE_CONTROL, bcr);
-
-	if (bootverbose) { 		
-		printf("CardBus: Legacy PC-card 16bit I/O address [0x%x]\n",
-		   io_port);
-#ifdef PCIC_DEBUG
-		{
-			int	i,j;
- 		
-			printf ("PCI Config space:\n");
-			for (j = 0; j < 0x98; j += 16) {
-				printf("%02x: ", j);
-				for (i = 0; i < 16; i += 4) {
-					printf(" %08x",
-					   pci_conf_read(tag, i+j));
-				}
-				printf("\n");
-			}
-		}
-#endif
-	}
+	return (NULL);
 }
 
 
 /*
- * This will be a general PCI based card dispatch routine.  Right now
- * it only understands the CL-PD6832
+ * General PCI based card dispatch routine.  Right now
+ * it only understands the CL-PD6832.
  */
-
 static void
 pcic_pci_attach(pcici_t config_id, int unit)
 {
@@ -157,11 +90,85 @@ pcic_pci_attach(pcici_t config_id, int unit)
 	pcic_type = pci_conf_read(config_id, PCI_ID_REG);
 
 	switch (pcic_type) { 
-		case PCI_DEVICE_ID_PCIC_PD6832:
-			pd6832_legacy_init(config_id,unit);
-			break;
+	case PCI_DEVICE_ID_PCIC_CLPD6832:
+		pd6832_legacy_init(config_id,unit);
+		break;
 	}
-	return;
+
+	if (bootverbose) { 		
+		int i, j;
+		u_char *p;
+		u_long *pl;
+
+		printf("PCI Config space:\n");
+		for (j = 0; j < 0x98; j += 16) {
+			printf("%02x: ", j);
+			for (i = 0; i < 16; i += 4)
+				printf(" %08x", pci_conf_read(tag, i+j));
+			printf("\n");
+		}
+		p = (u_char *)pmap_mapdev(pci_conf_read(tag, 0x10), 0x1000);
+		pl = (u_long *)p;
+		printf("Cardbus Socket registers:\n");
+		printf("00: ");
+		for (i = 0; i < 4; i += 1)
+			printf(" %08x:", pl[i]);
+		printf("\n10: ");
+		for (i = 4; i < 8; i += 1)
+			printf(" %08x:", pl[i]);
+		printf("\nExCa registers:\n");
+		for (i = 0; i < 0x40; i += 16)
+			printf("%02x: %16D\n", i, p + 0x800 + i, " ");
+	}
 }
 
+/*
+ * Set up the CL-PD6832 to look like a ISA based PCMCIA chip (a
+ * PD672X).  This routine is called once per PCMCIA socket.
+ */
+static void
+pd6832_legacy_init(pcici_t tag, int unit)
+{
+	u_long bcr; 		/* to set interrupts */
+	u_short io_port;	/* the io_port to map this slot on */
+
+	/*
+	 * I think this should be a call to pci_map_port, but that
+	 * routine won't map regiaters above 0x28, and the register we
+	 * need to map is 0x44.
+	 */
+	io_port = pci_conf_read(tag, CLPD6832_LEGACY_16BIT_IOADDR)
+	    & ~PCI_MAP_IO;
+
+	/*
+	 * Configure the first I/O window to contain CLPD6832_NUM_REGS
+	 * words and deactivate the second by setting the limit lower
+	 * than the base.
+	 */
+	pci_conf_write(tag, CLPD6832_IO_BASE0, io_port | 1);
+	pci_conf_write(tag, CLPD6832_IO_LIMIT0,
+		       (io_port + CLPD6832_NUM_REGS) | 1);
+
+	pci_conf_write(tag, CLPD6832_IO_BASE1, (io_port +0x20) | 1);
+	pci_conf_write(tag, CLPD6832_IO_LIMIT1, io_port | 1 );
+
+	/*
+	 * Set default operating mode (I/O port space) and allocate
+	 * this socket to the current unit.
+	 */
+	pci_conf_write(tag, PCI_COMMAND_STATUS_REG, CLPD6832_COMMAND_DEFAULTS );
+	pci_conf_write(tag, CLPD6832_SOCKET, unit);
+
+	/*
+	 * Set up the card inserted/card removed interrupts to come
+	 * through the isa IRQ.
+	 */
+	bcr = pci_conf_read(tag, CLPD6832_BRIDGE_CONTROL);
+	bcr |= (CLPD6832_BCR_ISA_IRQ|CLPD6832_BCR_MGMT_IRQ_ENA);
+	pci_conf_write(tag, CLPD6832_BRIDGE_CONTROL, bcr);
+
+	if (bootverbose)
+		printf("CardBus: Legacy PC-card 16bit I/O address [0x%x]\n",
+		   io_port);
+}
 #endif /* NPCI > 0 */
