@@ -42,6 +42,7 @@
 .Nm
 .Op Fl is
 .Op Fl f Ar file
+.Op Fl h Ar host
 .Op Fl p Ar pri
 .Op Fl t Ar tag
 .Op Ar message ...
@@ -60,6 +61,10 @@ with each line.
 Log the message to standard error, as well as the system log.
 .It Fl f Ar file 
 Log the specified file.
+.It Fl h Ar host 
+Send the message to the remote system 
+.Ar host
+instead of logging it locally.
 .It Fl p Ar pri 
 Enter the message with the specified priority.
 The priority may be specified numerically or as a ``facility.level''
