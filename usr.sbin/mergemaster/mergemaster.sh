@@ -10,7 +10,7 @@
 
 # $FreeBSD$
 
-PATH=/bin:/usr/bin:/usr/sbin:/sbin
+PATH=/bin:/usr/bin:/usr/sbin
 
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
@@ -124,6 +124,7 @@ diff_loop () {
         echo ''
         if mm_install "${COMPFILE}"; then
           echo "   *** ${COMPFILE} installed successfully"
+          echo ''
           # Make the list print one file per line
           AUTO_INSTALLED_FILES="${AUTO_INSTALLED_FILES}      ${DESTDIR}${COMPFILE#.}
 "
@@ -428,7 +429,12 @@ case "${RERUN}" in
   esac
 
   { cd ${SOURCEDIR} &&
-    make DESTDIR=${DESTDIR} distrib-dirs &&
+    case "${DESTDIR}" in
+    '') ;;
+    *)
+      make DESTDIR=${DESTDIR} distrib-dirs
+      ;;
+    esac
     make DESTDIR=${TEMPROOT} distrib-dirs &&
     make DESTDIR=${TEMPROOT} -DNO_MAKEDEV distribution;} ||
   { echo '';
@@ -475,7 +481,7 @@ case "${RERUN}" in
   esac
 
   # Avoid trying to update MAKEDEV if /dev is on a devfs
-  if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
+  if /sbin/sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
     rm ${TEMPROOT}/dev/MAKEDEV ${TEMPROOT}/dev/MAKEDEV.local
   fi
 
