@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.18 1995/11/14 09:40:04 phk Exp $
+ * $Id: ffs_alloc.c,v 1.19 1995/11/19 19:55:26 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -47,12 +47,15 @@
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufs_extern.h>		/* YF - needed for ufs_getlbns() */
+#include <ufs/ufs/ufs_extern.h>
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
 
 extern u_long nextgennumber;
+
+typedef long	allocfcn_t __P((struct inode *ip, int cg, daddr_t bpref,
+				int size));
 
 static daddr_t	ffs_alloccg __P((struct inode *, int, daddr_t, int));
 static daddr_t	ffs_alloccgblk __P((struct fs *, struct cg *, daddr_t));
@@ -61,7 +64,7 @@ static ino_t	ffs_dirpref __P((struct fs *));
 static daddr_t	ffs_fragextend __P((struct inode *, int, long, int, int));
 static void	ffs_fserr __P((struct fs *, u_int, char *));
 static u_long	ffs_hashalloc
-		    __P((struct inode *, int, long, int, u_long (*)()));
+		    __P((struct inode *, int, long, int, allocfcn_t *));
 static ino_t	ffs_nodealloccg __P((struct inode *, int, daddr_t, int));
 static daddr_t	ffs_mapsearch __P((struct fs *, struct cg *, daddr_t, int));
 
@@ -128,8 +131,7 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 		cg = ino_to_cg(fs, ip->i_number);
 	else
 		cg = dtog(fs, bpref);
-	bno = (daddr_t)ffs_hashalloc(ip, cg, (long)bpref, size,
-	    (u_long (*)())ffs_alloccg);
+	bno = (daddr_t)ffs_hashalloc(ip, cg, (long)bpref, size, ffs_alloccg);
 	if (bno > 0) {
 		ip->i_blocks += btodb(size);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -278,8 +280,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 		panic("ffs_realloccg: bad optim");
 		/* NOTREACHED */
 	}
-	bno = (daddr_t)ffs_hashalloc(ip, cg, (long)bpref, request,
-	    (u_long (*)())ffs_alloccg);
+	bno = (daddr_t)ffs_hashalloc(ip, cg, (long)bpref, request, ffs_alloccg);
 	if (bno > 0) {
 		bp->b_blkno = fsbtodb(fs, bno);
 		ffs_blkfree(ip, bprev, (long)osize);
@@ -413,7 +414,7 @@ ffs_reallocblks(ap)
 	 * Search the block map looking for an allocation of the desired size.
 	 */
 	if ((newblk = (daddr_t)ffs_hashalloc(ip, dtog(fs, pref), (long)pref,
-	    len, (u_long (*)())ffs_clusteralloc)) == 0)
+	    len, ffs_clusteralloc)) == 0)
 		goto fail;
 	/*
 	 * We have found a new contiguous block.
@@ -689,10 +690,10 @@ ffs_hashalloc(ip, cg, pref, size, allocator)
 	int cg;
 	long pref;
 	int size;	/* size for data blocks, mode for inodes */
-	u_long (*allocator)();
+	allocfcn_t *allocator;
 {
 	register struct fs *fs;
-	long result;
+	long result;	/* XXX why not same type as we return? */
 	int i, icg = cg;
 
 	fs = ip->i_fs;
@@ -727,7 +728,7 @@ ffs_hashalloc(ip, cg, pref, size, allocator)
 		if (cg == fs->fs_ncg)
 			cg = 0;
 	}
-	return (NULL);
+	return (0);
 }
 
 /*
