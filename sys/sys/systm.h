@@ -36,12 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.92 1999/07/17 20:47:52 phk Exp $
+ * $Id: systm.h,v 1.93 1999/07/20 21:29:01 green Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
 #define	_SYS_SYSTM_H_
 
+#include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <sys/callout.h>
 
