@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)csh.1	8.2 (Berkeley) 1/21/94
-.\"	$Id$
+.\"	$Id: csh.1,v 1.8 1997/02/22 14:01:40 peter Exp $
 .\"
 .Dd January 21, 1994
 .Dt CSH 1
@@ -2080,13 +2080,21 @@ signal; otherwise this signal is passed on to children from the state in the
 shell's parent.
 Interrupts are not allowed when a login shell is reading the file
 .Pa \&.logout .
-.Sh AUTHOR
-William Joy.
-Job control and directory stack features first implemented by J.E. Kulp of
-IIASA, Laxenburg, Austria,
+.Sh AUTHORS
+.An William Joy .
+.Pp
+Job control and directory stack features first implemented by
+.An J.E. Kulp
+of IIASA, Laxenburg, Austria,
 with different syntax than that used now.
-File name completion code written by Ken Greer, HP Labs.
-Eight-bit implementation Christos S. Zoulas, Cornell University.
+.Pp
+File name completion code written by
+.An Ken Greer ,
+HP Labs.
+.Pp
+Eight-bit implementation
+.An Christos S. Zoulas ,
+Cornell University.
 .Sh FILES
 .Bl -tag -width /etc/passwd -compact
 .It Pa ~/.cshrc
