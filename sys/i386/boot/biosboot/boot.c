@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.38 1995/04/20 18:36:14 phk Exp $
+ *	$Id: boot.c,v 1.39 1995/04/20 23:05:23 julian Exp $
  */
 
 
@@ -59,7 +59,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #define	ouraddr	(BOOTSEG << 4)		/* XXX */
 
-#define NAMEBUF_LEN	100
+#define NAMEBUF_LEN	(8*1024)
 
 char namebuf[NAMEBUF_LEN];
 struct exec head;
