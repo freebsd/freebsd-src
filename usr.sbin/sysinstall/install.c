@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.27 1995/05/18 21:58:33 phk Exp $
+ * $Id: install.c,v 1.28 1995/05/18 22:00:01 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -255,6 +255,7 @@ cpio_extract(void)
 	close(CpioFD);
 	close(pfd[1]);
 	close(1); open("/dev/null", O_WRONLY);
+	chdir("/mnt");
 	i = execl("/stand/cpio", "/stand/cpio", "-iduvm", 0);
 	msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
