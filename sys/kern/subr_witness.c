@@ -848,10 +848,10 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 				    td->td_proc->p_pid,
 				    instance->li_lock->lo_name,
 				    (*lock_list)->ll_count - 1);
-				(*lock_list)->ll_count--;
-				for (j = i; j < (*lock_list)->ll_count; j++)
+				for (j = i; j < (*lock_list)->ll_count - 1; j++)
 					(*lock_list)->ll_children[j] =
 					    (*lock_list)->ll_children[j + 1];
+				(*lock_list)->ll_count--;
 				intr_restore(s);
 				if ((*lock_list)->ll_count == 0) {
 					lle = *lock_list;
