@@ -32,16 +32,13 @@
  * Copyright (C) 1986, Sun Microsystems, Inc. 
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/cdefs.h>
 #include <rpc/des_crypt.h>
-
-#ifndef lint
-/*from: static char sccsid[] = "@(#)xcrypt.c	2.2 88/08/10 4.0 RPCSRC"; */
-static const char rcsid[] = "$FreeBSD$";
-#endif
 
 static char hex[];	/* forward */
 static char hexval __P(( char ));
