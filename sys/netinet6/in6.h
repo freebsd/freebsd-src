@@ -653,9 +653,9 @@ extern int inet6_option_space __P((int));
 extern int inet6_option_init __P((void *, struct cmsghdr **, int));
 extern int inet6_option_append __P((struct cmsghdr *, const uint8_t *,
 	int, int));
-extern u_int8_t *inet6_option_alloc __P((struct cmsghdr *, int, int, int));
-extern int inet6_option_next __P((const struct cmsghdr *, u_int8_t **));
-extern int inet6_option_find __P((const struct cmsghdr *, u_int8_t **, int));
+extern uint8_t *inet6_option_alloc __P((struct cmsghdr *, int, int, int));
+extern int inet6_option_next __P((const struct cmsghdr *, uint8_t **));
+extern int inet6_option_find __P((const struct cmsghdr *, uint8_t **, int));
 
 extern size_t inet6_rthdr_space __P((int, int));
 extern struct cmsghdr *inet6_rthdr_init __P((void *, int));
@@ -670,14 +670,14 @@ extern struct in6_addr *inet6_rthdr_getaddr __P((struct cmsghdr *, int));
 extern int inet6_rthdr_getflags __P((const struct cmsghdr *, int));
 
 extern int inet6_opt_init __P((void *, socklen_t));
-extern int inet6_opt_append __P((void *, socklen_t, int, u_int8_t, socklen_t,
-	u_int8_t, void **));
+extern int inet6_opt_append __P((void *, socklen_t, int, uint8_t, socklen_t,
+	uint8_t, void **));
 extern int inet6_opt_finish __P((void *, socklen_t, int));
 extern int inet6_opt_set_val __P((void *, int, void *, socklen_t));
 
-extern int inet6_opt_next __P((void *, socklen_t, int, u_int8_t *, socklen_t *,
+extern int inet6_opt_next __P((void *, socklen_t, int, uint8_t *, socklen_t *,
 	void **));
-extern int inet6_opt_find __P((void *, socklen_t, int, u_int8_t, socklen_t *,
+extern int inet6_opt_find __P((void *, socklen_t, int, uint8_t, socklen_t *,
 	void **));
 extern int inet6_opt_get_val __P((void *, int, void *, socklen_t));
 extern socklen_t inet6_rth_space __P((int, int));
