@@ -21,7 +21,6 @@ SUBDIR=	adjkerntz \
 	ffsinfo \
 	fsck \
 	fsck_ffs \
-	fsck_ifs \
 	fsck_msdosfs \
 	fsdb \
 	fsirand \
@@ -42,7 +41,6 @@ SUBDIR=	adjkerntz \
 	mount \
 	mount_cd9660 \
 	mount_ext2fs \
-	mount_ifs \
 	mount_msdosfs \
 	mount_nfs \
 	mount_ntfs \
