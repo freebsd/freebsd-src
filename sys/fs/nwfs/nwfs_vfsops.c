@@ -125,7 +125,6 @@ nwfs_initnls(struct nwmount *nmp) {
 		return 0;
 	}
 	MALLOC(pe, char *, 256 * 4, M_NWFSDATA, M_WAITOK);
-	if (pe == NULL) return ENOMEM;
 	pc = pe;
 	do {
 		COPY_TABLE(nmp->m.nls.to_lower, ncp_defnls.to_lower);
@@ -183,13 +182,12 @@ static int nwfs_mount(struct mount *mp, char *path, caddr_t data,
 	ncp_conn_unlock(conn,p);	/* we keep the ref */
 	mp->mnt_stat.f_iosize = conn->buffer_size;
         /* We must malloc our own mount info */
-        MALLOC(nmp,struct nwmount *,sizeof(struct nwmount),M_NWFSDATA,M_USE_RESERVE);
+        MALLOC(nmp,struct nwmount *,sizeof(struct nwmount),M_NWFSDATA,M_USE_RESERVE | M_ZERO);
         if (nmp == NULL) {
                 nwfs_printf("could not alloc nwmount\n");
                 error = ENOMEM;
 		goto bad;
         }
-	bzero(nmp,sizeof(*nmp));
         mp->mnt_data = (qaddr_t)nmp;
 	nmp->connh = handle;
 	nmp->n_root = NULL;

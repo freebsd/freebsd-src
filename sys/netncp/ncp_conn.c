@@ -189,10 +189,8 @@ ncp_conn_alloc(struct proc *p, struct ucred *cred, struct ncp_conn **conn)
 	struct ncp_conn *ncp;
 
 	MALLOC(ncp, struct ncp_conn *, sizeof(struct ncp_conn), 
-	    M_NCPDATA, M_WAITOK);
-	if (ncp == NULL) return ENOMEM;
+	    M_NCPDATA, M_WAITOK | M_ZERO);
 	error = 0;
-	bzero(ncp,sizeof(*ncp));
 	lockinit(&ncp->nc_lock, PZERO, "ncplck", 0, 0);
 	ncp_conn_cnt++;
 	ncp->nc_id = ncp_next_ref++;
@@ -413,9 +411,8 @@ ncp_conn_gethandle(struct ncp_conn *conn, struct proc *p, struct ncp_handle **ha
 		lockmgr(&lhlock, LK_RELEASE, 0, p);
 		return 0;
 	}
-	MALLOC(refp,struct ncp_handle *,sizeof(struct ncp_handle),M_NCPDATA,M_WAITOK);
-	if (refp == NULL) return ENOMEM;
-	bzero(refp,sizeof(*refp));
+	MALLOC(refp,struct ncp_handle *,sizeof(struct ncp_handle),M_NCPDATA,
+	    M_WAITOK | M_ZERO);
 	SLIST_INSERT_HEAD(&lhlist,refp,nh_next);
 	refp->nh_ref++;
 	refp->nh_proc = p;
