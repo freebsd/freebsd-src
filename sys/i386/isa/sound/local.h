@@ -94,7 +94,7 @@
 
 /* nothing but a sequencer (Adlib/OPL) ? */
 #if NGUS == 0 && NSB == 0 && NSBMIDI == 0 && NPAS == 0 && NMPU == 0 && \
-    NUART == 0
+    NUART == 0 && NMSS == 0
 #ifndef EXCLUDE_MIDI
 #define EXCLUDE_MIDI
 #endif
@@ -104,7 +104,8 @@
 #endif
 
 /* nothing but a Midi (MPU/UART) ? */
-#if NGUS == 0 && NSB == 0 && NSBMIDI == 0 && NPAS == 0 && NOPL == 0
+#if NGUS == 0 && NSB == 0 && NSBMIDI == 0 && NPAS == 0 && NOPL == 0 && \
+    NMSS == 0
 /* MPU depends on sequencer timer */
 #if NMPU == 0 && !defined(EXCLUDE_SEQUENCER)
 #define EXCLUDE_SEQUENCER
