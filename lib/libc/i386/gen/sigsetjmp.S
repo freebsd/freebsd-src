@@ -89,12 +89,11 @@ ENTRY(sigsetjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifdef _THREAD_SAFE
-ENTRY(__siglongjmp)
-#else
-ALTENTRY(__siglongjmp)
-ENTRY(siglongjmp)
+#ifndef _THREAD_SAFE
+.weak CNAME(siglongjmp);
+.set CNAME(siglongjmp),CNAME(__siglongjmp);
 #endif
+ENTRY(__siglongjmp);
 	movl	4(%esp),%edx
 	cmpl	$0,44(%edx)
 	jz	2f
