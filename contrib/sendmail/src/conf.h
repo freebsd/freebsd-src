@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 8.496.4.25 2000/08/08 23:50:40 ca Exp $
+ *	$Id: conf.h,v 8.496.4.32 2000/12/15 19:20:53 gshapiro Exp $
  */
 
 /* $FreeBSD$ */
@@ -92,6 +92,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #define MAXSHORTSTR	203		/* max short string length */
 #define MAXMACNAMELEN	25		/* max macro name length */
 #define MAXMACROID	0377		/* max macro id number */
+					/* Must match (BITMAPBITS - 1) */
 #ifndef MAXHDRSLEN
 # define MAXHDRSLEN	(32 * 1024)	/* max size of message headers */
 #endif /* ! MAXHDRSLEN */
@@ -528,12 +529,19 @@ typedef int		pid_t;
 #  if SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206)
 #   define HASSNPRINTF	1		/* has snprintf starting in 2.6 */
 #  else /* SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) */
-    typedef int int32_t;
+#   if _FFR_MILTER
+#    define SM_INT32	int	/* 32bit integer */
+#   endif /* _FFR_MILTER */
 #  endif /* SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) */
 #  if SOLARIS >= 20700 || (SOLARIS < 10000 && SOLARIS >= 207)
 #   ifndef LA_TYPE
 #    include <sys/loadavg.h>
-#    define LA_TYPE	LA_SUBR		/* getloadavg(3c) appears in 2.7 */
+#    if SOLARIS >= 20900 || (SOLARIS < 10000 && SOLARIS >= 209)
+#     include <sys/pset.h>
+#     define LA_TYPE	LA_PSET	/* pset_getloadavg(3c) appears in 2.9 */
+#    else
+#     define LA_TYPE	LA_SUBR	/* getloadavg(3c) appears in 2.7 */
+#    endif /* SOLARIS >= 20900 || (SOLARIS < 10000 && SOLARIS >= 209) */
 #   endif /* ! LA_TYPE */
 #   define HASGETUSERSHELL 1	/* getusershell(3c) bug fixed in 2.7 */
 #  endif /* SOLARIS >= 20700 || (SOLARIS < 10000 && SOLARIS >= 207) */
@@ -1700,6 +1708,7 @@ typedef int		pid_t;
 # define __svr4__
 # define SYS5SIGNALS		1
 # define HASSETSID		1
+# define HASSNPRINTF		1
 # define HASSETREUID		1
 # define HASWAITPID		1
 # define HASGETDTABLESIZE	1
@@ -1719,6 +1728,7 @@ typedef int		pid_t;
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/etc/sendmail.pid"
 # endif /* ! _PATH_SENDMAILPID */
+# undef offsetof		/* avoid stddefs.h, sys/sysmacros.h conflict */
 #endif /* __svr5__ */
 
 /* ###################################################################### */

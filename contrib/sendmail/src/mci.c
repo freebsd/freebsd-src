@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: mci.c,v 8.133.10.3 2000/06/23 16:17:06 ca Exp $";
+static char id[] = "@(#)$Id: mci.c,v 8.133.10.7 2000/12/12 00:39:34 ca Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -276,8 +276,10 @@ mci_flush(doquit, allbut)
 		return;
 
 	for (i = 0; i < MaxMciCache; i++)
+	{
 		if (allbut != MciCache[i])
 			mci_uncache(&MciCache[i], doquit);
+	}
 }
 /*
 **  MCI_GET -- get information about a particular host
@@ -302,7 +304,7 @@ mci_get(host, m)
 	(void) mci_scan(NULL);
 
 	if (m->m_mno < 0)
-		syserr("negative mno %d (%s)", m->m_mno, m->m_name);
+		syserr("!negative mno %d (%s)", m->m_mno, m->m_name);
 
 	s = stab(host, ST_MCI + m->m_mno, ST_ENTER);
 	mci = &s->s_mci;
@@ -385,7 +387,7 @@ mci_match(host, m)
 	register MCI *mci;
 	register STAB *s;
 
-	if (m->m_mno < 0)
+	if (m->m_mno < 0 || m->m_mno > MAXMAILERS)
 		return FALSE;
 	s = stab(host, ST_MCI + m->m_mno, ST_FIND);
 	if (s == NULL)
@@ -462,7 +464,7 @@ static struct mcifbits	MciFlags[] =
 	{ MCIF_8BITOK,		"8BITOK"	},
 	{ MCIF_CVT7TO8,		"CVT7TO8"	},
 	{ MCIF_INMIME,		"INMIME"	},
-	{ 0,			NULL }
+	{ 0,			NULL		}
 };
 
 
@@ -1331,12 +1333,12 @@ mci_generate_persistent_path(host, path, pathlen, createflag)
 
 #if NETINET || NETINET6
 	/* check for bogus bracketed address */
-	if (host[0] == '[' &&
+	if (host[0] == '['
 # if NETINET6
-	    inet_pton(AF_INET6, t_host, &in6_addr) != 1 &&
+	    && inet_pton(AF_INET6, t_host, &in6_addr) != 1
 # endif /* NETINET6 */
 # if NETINET
-	    inet_addr(t_host) == INADDR_NONE
+	    && inet_addr(t_host) == INADDR_NONE
 # endif /* NETINET */
 	    )
 		return -1;

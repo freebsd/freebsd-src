@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.5 2000/09/17 17:04:27 gshapiro Exp $";
+static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.6 2000/10/09 20:37:16 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -76,7 +76,11 @@ static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.5 2000/09/17 17:04:27 gshapiro Exp
 
 /* directory in which all commands must reside */
 #ifndef CMDDIR
-# define CMDDIR		"/usr/libexec/sm.bin"
+# if defined(HPUX10) || defined(HPUX11) || SOLARIS >= 20800
+#  define CMDDIR	"/var/adm/sm.bin"
+# else /* HPUX10 || HPUX11 || SOLARIS > 20800 */
+#  define CMDDIR	"/usr/libexec/sm.bin"
+# endif /* HPUX10 || HPUX11 || SOLARIS > 20800 */
 #endif /* ! CMDDIR */
 
 /* characters disallowed in the shell "-c" argument */
