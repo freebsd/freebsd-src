@@ -1289,12 +1289,12 @@ devfs_mount_jail()
 # as close as possible between 5-current and 4-stable.
 #   $1 = size
 #   $2 = mount point
-#   $3 = (optional) bytes-per-inode
+#   $3 = (optional) extra mdmfs flags
 mount_md() {
 	if [ -n "$3" ]; then
-		bpi="-i $3"
+		flags="$3"
 	fi
-	/sbin/mdmfs $bpi -s $1 -M md $2
+	/sbin/mdmfs $flags -s $1 -M md $2
 }
 
 fi
