@@ -644,7 +644,7 @@ nexus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
     int flags, bus_dmamap_t *mapp)
 {
 	return (sparc64_dmamem_alloc_size(pdmat, ddmat, vaddr, flags, mapp,
-		ddmat->maxsize));
+		ddmat->dt_maxsize));
 }
 
 /*
