@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.38 1996/12/13 21:28:37 wollman Exp $
+ * $Id: if.c,v 1.40 1997/01/08 13:20:24 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -796,7 +796,7 @@ int
 if_addmulti(ifp, sa, retifma)
 	struct ifnet *ifp;	/* interface to manipulate */
 	struct sockaddr *sa;	/* address to add */
-	struct ifmultiaddr *retifma;
+	struct ifmultiaddr **retifma;
 {
 	struct sockaddr *llsa, *dupsa;
 	int error, s;
