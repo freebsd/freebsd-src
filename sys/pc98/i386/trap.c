@@ -35,15 +35,16 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.39 1997/11/25 09:53:44 kato Exp $
+ *	$Id: trap.c,v 1.40 1997/12/03 09:46:34 kato Exp $
  */
 
 /*
  * 386 Trap and System call handling
  */
 
-#include "opt_ktrace.h"
+#include "opt_cpu.h"
 #include "opt_ddb.h"
+#include "opt_ktrace.h"
 #include "opt_vm86.h"
 
 #include <sys/param.h>
@@ -146,7 +147,7 @@ static char *trap_msg[] = {
 static void userret __P((struct proc *p, struct trapframe *frame,
 			 u_quad_t oticks));
 
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 extern struct gate_descriptor *t_idt;
 extern int has_f00f_bug;
 #endif
@@ -223,7 +224,7 @@ trap(frame)
 	vm_offset_t va;
 #endif
 
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 restart:
 #endif
 	type = frame.tf_trapno;
@@ -308,7 +309,7 @@ restart:
 #endif
 			if (i == -1)
 				return;
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 			if (i == -2)
 				goto restart;
 #endif
@@ -710,7 +711,7 @@ trap_pfault(frame, usermode)
 		 * treat it is as an illegal instruction, and not a page
 		 * fault.
 		 */
-#ifndef NO_F00F_HACK
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
 		if ((eva == (unsigned int)&t_idt[6]) && has_f00f_bug) {
 			frame->tf_trapno = T_PRIVINFLT;
 			return -2;
