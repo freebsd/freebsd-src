@@ -39,15 +39,11 @@
 #define SHELLMAGIC	0x2321
 #endif
 
-#define MAXSHELLCMDLEN	64
-
-static int	exec_shell_imgact __P((struct image_params *imgp));
-
 /*
  * Shell interpreter image activator. A interpreter name beginning
  *	at imgp->stringbase is the minimal successful exit requirement.
  */
-static int
+int
 exec_shell_imgact(imgp)
 	struct image_params *imgp;
 {

@@ -75,6 +75,7 @@ struct sysentvec {
 	int		(*sv_coredump) __P((struct proc *, struct vnode *,
 					    off_t));
 					/* function to dump core, or NULL */
+	int		(*sv_imgact_try) __P((struct image_params *));
 };
 
 #ifdef _KERNEL

@@ -56,8 +56,15 @@
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+#include <i386/linux/linux_util.h>
 
 MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define SHELLMAGIC      0x2123 /* #! */
+#else
+#define SHELLMAGIC      0x2321
+#endif
 
 extern char linux_sigcode[];
 extern int linux_szsigcode;
@@ -402,6 +409,50 @@ linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
 	*params = NULL;		/* no copyin */
 }
 
+/*
+ * If a linux binary is exec'ing something, try this image activator 
+ * first.  We override standard shell script execution in order to
+ * be able to modify the interpreter path.  We only do this if a linux
+ * binary is doing the exec, so we do not create an EXEC module for it.
+ */
+static int	exec_linux_imgact_try __P((struct image_params *iparams));
+
+static int
+exec_linux_imgact_try(imgp)
+    struct image_params *imgp;
+{
+    const char *head = (const char *)imgp->image_header;
+    int error = -1;
+
+    /*
+     * The interpreter for shell scripts run from a linux binary needs
+     * to be located in /compat/linux if possible in order to recursively
+     * maintain linux path emulation.
+     */
+    if (((const short *)head)[0] == SHELLMAGIC) {
+	    /*
+	     * Run our normal shell image activator.  If it succeeds attempt
+	     * to use the alternate path for the interpreter.  If an alternate
+	     * path is found, use our stringspace to store it.
+	     */
+	    if ((error = exec_shell_imgact(imgp)) == 0) {
+		    char *rpath = NULL;
+
+		    linux_emul_find(imgp->proc, NULL, linux_emul_path, 
+			imgp->interpreter_name, &rpath, 0);
+		    if (rpath != imgp->interpreter_name) {
+			    int len = strlen(rpath) + 1;
+
+			    if (len <= MAXSHELLCMDLEN) {
+				memcpy(imgp->interpreter_name, rpath, len);
+			    }
+			    free(rpath, M_TEMP);
+		    }
+	    }
+    }
+    return(error);
+}
+
 struct sysentvec linux_sysvec = {
 	LINUX_SYS_MAXSYSCALL,
 	linux_sysent,
@@ -417,7 +468,8 @@ struct sysentvec linux_sysvec = {
 	&linux_szsigcode,
 	linux_prepsyscall,
 	"Linux a.out",
-	aout_coredump
+	aout_coredump,
+	exec_linux_imgact_try
 };
 
 struct sysentvec elf_linux_sysvec = {
@@ -435,7 +487,8 @@ struct sysentvec elf_linux_sysvec = {
 	&linux_szsigcode,
 	linux_prepsyscall,
 	"Linux ELF",
-	elf_coredump
+	elf_coredump,
+	exec_linux_imgact_try
 };
 
 static Elf32_Brandinfo linux_brand = {
