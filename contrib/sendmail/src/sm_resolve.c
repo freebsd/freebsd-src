@@ -200,7 +200,7 @@ parse_dns_reply(data, len)
 	rr = &r->dns_r_head;
 	while (p < data + len)
 	{
-		int type, class, ttl, size;
+		int type, class, ttl, size, txtlen;
 
 		status = dn_expand(data, data + len, p, host, sizeof host);
 		if (status < 0)
@@ -213,6 +213,20 @@ parse_dns_reply(data, len)
 		GETSHORT(class, p);
 		GETLONG(ttl, p);
 		GETSHORT(size, p);
+		if (p + size > data + len)
+		{
+			/*
+			**  announced size of data exceeds length of
+			**  data paket: someone is cheating.
+			*/
+
+			if (LogLevel > 5)
+				sm_syslog(LOG_WARNING, NOQID,
+					  "ERROR: DNS RDLENGTH=%d > data len=%d",
+					  size, len - (p - data));
+			dns_free_data(r);
+			return NULL;
+		}
 		*rr = (RESOURCE_RECORD_T *) xalloc(sizeof(RESOURCE_RECORD_T));
 		if (*rr == NULL)
 		{
@@ -295,14 +309,35 @@ parse_dns_reply(data, len)
 			break;
 
 		  case T_TXT:
-			(*rr)->rr_u.rr_txt = (char *) xalloc(size + 1);
+
+			/*
+			**  The TXT record contains the length as
+			**  leading byte, hence the value is restricted
+			**  to 255, which is less than the maximum value
+			**  of RDLENGTH (size). Nevertheless, txtlen
+			**  must be less than size because the latter
+			**  specifies the length of the entire TXT
+			**  record.
+			*/
+
+			txtlen = *p;
+			if (txtlen >= size)
+			{
+				if (LogLevel > 5)
+					sm_syslog(LOG_WARNING, NOQID,
+						  "ERROR: DNS TXT record size=%d <= text len=%d",
+						  size, txtlen);
+				dns_free_data(r);
+				return NULL;
+			}
+			(*rr)->rr_u.rr_txt = (char *) xalloc(txtlen + 1);
 			if ((*rr)->rr_u.rr_txt == NULL)
 			{
 				dns_free_data(r);
 				return NULL;
 			}
-			(void) strncpy((*rr)->rr_u.rr_txt, (char*) p + 1, *p);
-			(*rr)->rr_u.rr_txt[*p] = 0;
+			(void) sm_strlcpy((*rr)->rr_u.rr_txt, (char*) p + 1,
+					  txtlen + 1);
 			break;
 
 		  default:
