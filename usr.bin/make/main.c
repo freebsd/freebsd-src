@@ -852,7 +852,7 @@ main(int argc, char **argv)
 			 * being executed should it exist).
 			 */
 			if (!queryFlag) {
-				Job_Init(maxJobs, maxJobs);
+				Job_Init(maxJobs);
 				jobsRunning = TRUE;
 			}
 
