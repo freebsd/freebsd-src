@@ -60,6 +60,7 @@ char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
 struct g_hh00 {
 	struct g_class	*mp;
 	int		error;
+	int		post;
 };
 
 /*
@@ -81,15 +82,25 @@ g_load_class(void *arg, int flag)
 
 	hh = arg;
 	mp = hh->mp;
-	g_free(hh);
+	if (hh->post)
+		g_free(hh);
+	else
+		hh->error = 0;
 	g_trace(G_T_TOPOLOGY, "g_load_class(%s)", mp->name);
 	KASSERT(mp->name != NULL && *mp->name != '\0',
 	    ("GEOM class has no name"));
 	LIST_FOREACH(mp2, &g_classes, class) {
-		KASSERT(mp2 != mp,
-		    ("The GEOM class %s already loaded", mp2->name));
-		KASSERT(strcmp(mp2->name, mp->name) != 0,
-		    ("A GEOM class named %s is already loaded", mp2->name));
+		if (mp2 == mp) {
+			printf("The GEOM class %s is already loaded.\n",
+			    mp2->name);
+			hh->error = EEXIST;
+			return;
+		} else if (strcmp(mp2->name, mp->name) == 0) {
+			printf("A GEOM class %s is already loaded.\n",
+			    mp2->name);
+			hh->error = EEXIST;
+			return;
+		}
 	}
 
 	LIST_INIT(&mp->geom);
@@ -200,11 +211,16 @@ g_modevent(module_t mod, int type, void *data)
 		 * from the userland and the g_event thread will be able
 		 * to acknowledge their completion.
 		 */
-		if (cold)
-			g_post_event(g_load_class, hh, M_WAITOK, NULL);
-		else
-			g_waitfor_event(g_load_class, hh, M_WAITOK, NULL);
-		error = 0;
+		if (cold) {
+			hh->post = 1;
+			error = g_post_event(g_load_class, hh, M_WAITOK, NULL);
+		} else {
+			error = g_waitfor_event(g_load_class, hh, M_WAITOK,
+			    NULL);
+			if (error == 0)
+				error = hh->error;
+			g_free(hh);
+		}
 		break;
 	case MOD_UNLOAD:
 		g_trace(G_T_TOPOLOGY, "g_modevent(%s, UNLOAD)", hh->mp->name);
