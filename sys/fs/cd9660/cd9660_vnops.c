@@ -733,7 +733,7 @@ cd9660_strategy(ap)
 	}
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bo = ip->i_mnt->im_bo;
-	bo->bo_ops->bop_strategy(bo, bp);
+	BO_STRATEGY(bo, bp);
 	return (0);
 }
 
