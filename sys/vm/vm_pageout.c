@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.7 1994/08/06 09:15:39 davidg Exp $
+ * $Id: vm_pageout.c,v 1.8 1994/08/18 22:36:07 wollman Exp $
  */
 
 /*
@@ -103,7 +103,7 @@ extern int swap_pager_ready();
 			/* set the "clock" hands to be (MAXSCAN * 4096) Bytes */
 #define ACT_DECLINE	1
 #define ACT_ADVANCE	3
-#define ACT_MAX		300
+#define ACT_MAX		100
 
 #define LOWATER ((2048*1024)/NBPG)
 
@@ -190,11 +190,11 @@ vm_pageout_clean(m, sync)
 	pageout_count = 1;
 	ms[0] = m;
 
-	if( pager = object->pager) {
-		for(i=1;i<vm_pageout_page_count;i++) {
-			if( ms[i] = vm_page_lookup( object, offset+i*NBPG)) {
-				if((((ms[i]->flags & (PG_CLEAN|PG_INACTIVE|PG_BUSY)) == PG_INACTIVE)
-					|| (( ms[i]->flags & PG_CLEAN) == 0 && sync == VM_PAGEOUT_FORCE))
+	if (pager = object->pager) {
+		for (i = 1; i < vm_pageout_page_count; i++) {
+			if (ms[i] = vm_page_lookup(object, offset+i*NBPG)) {
+				if (( ((ms[i]->flags & (PG_CLEAN|PG_INACTIVE|PG_BUSY)) == PG_INACTIVE)
+					|| ( (ms[i]->flags & PG_CLEAN|PG_BUSY) == 0 && sync == VM_PAGEOUT_FORCE))
 					&& (ms[i]->wire_count == 0)
 					&& (ms[i]->hold_count == 0))
 					pageout_count++;
@@ -491,7 +491,7 @@ rescanproc1:
 	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
 		vm_offset_t size;
 		int overage;
-		vm_offset_t limit;
+		quad_t limit;
 
 		/*
 		 * if this is a system process or if we have already
@@ -512,7 +512,7 @@ rescanproc1:
 		/*
 		 * get a limit
 		 */
-		limit = min(p->p_rlimit[RLIMIT_RSS].rlim_cur,
+		limit = qmin(p->p_rlimit[RLIMIT_RSS].rlim_cur,
 			    p->p_rlimit[RLIMIT_RSS].rlim_max);
 			
 		/*
@@ -523,12 +523,11 @@ rescanproc1:
 			limit = 0;
 
 		size = p->p_vmspace->vm_pmap.pm_stats.resident_count * NBPG;
-		if (size >= limit) {
+		if (limit > 0 && size >= limit) {
 			overage = (size - limit) / NBPG;
 			vm_pageout_map_deactivate_pages(&p->p_vmspace->vm_map,
 				(vm_map_entry_t) 0, &overage, vm_pageout_object_deactivate_pages);
 		}
-
 	}
 
 	if (((cnt.v_free_count + cnt.v_inactive_count) >=
