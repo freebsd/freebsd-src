@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.6 1996/12/11 04:52:59 asami Exp $
+# $Id: bsd.port.mk,v 1.227.2.7 1996/12/11 10:24:17 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -553,16 +553,16 @@ MANLANG?=	""	# english only by default
 
 .for sect in 1 2 3 4 5 6 7 8 9
 .if defined(MAN${sect})
-_MANPAGES+=	${MAN${sect}:S.^.${MAN${sect}PREFIX}/man/${lang}/man${sect}/.}
+_MANPAGES+=	${MAN${sect}:S%^%${MAN${sect}PREFIX}/man/${lang}/man${sect}/%}
 .endif
 .endfor
 
 .if defined(MANL)
-_MANPAGES+=	${MANL:S.^.${MANLPREFIX}/man/${lang}/manl/.}
+_MANPAGES+=	${MANL:S%^%${MANLPREFIX}/man/${lang}/manl/%}
 .endif
 
 .if defined(MANN)
-_MANPAGES+=	${MANN:S.^.${MANNPREFIX}/man/${lang}/mann/.}
+_MANPAGES+=	${MANN:S%^%${MANNPREFIX}/man/${lang}/mann/%}
 .endif
 
 .endfor
