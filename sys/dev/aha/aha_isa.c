@@ -108,7 +108,7 @@ aha_isa_probe(device_t dev)
 
 		/*
 		 * Ensure this port has not already been claimed already
-		 * by a PCI, EISA or ISA adapter.
+		 * by another adapter.
 		 */
 		if (aha_check_probed_iop(ioport) != 0)
 			continue;
@@ -124,8 +124,8 @@ aha_isa_probe(device_t dev)
 			continue;
 
 		/* Allocate a softc for use during probing */
-		aha = aha_alloc(device_get_unit(dev), I386_BUS_SPACE_IO,
-		    ioport);
+		aha = aha_alloc(device_get_unit(dev), rman_get_bustag(port_res),
+		    rman_get_bushandle(port_res));
 
 		if (aha == NULL) {
 			bus_release_resource(dev, SYS_RES_IOPORT, port_rid, 
