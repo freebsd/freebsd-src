@@ -108,7 +108,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.168 1998/08/14 06:21:34 phk Exp $
+#	$Id: MAKEDEV,v 1.169 1998/09/09 18:59:46 sos Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -270,15 +270,15 @@ wt*)
 od*s*|sd*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
 	umask $disk_umask
 	case $i in
+	fla*s*) name=fla; blk=28; chr=101;;
 	od*s*) name=od; blk=20; chr=70;;
 	sd*s*) name=sd; blk=4;  chr=13;;
-	wd*s*) name=wd; blk=0;  chr=3;;
 	vn*s*) name=vn; blk=15; chr=43;;
+	wd*s*) name=wd; blk=0;  chr=3;;
 	wfd*s*) name=wfd; blk=1; chr=87;;
-	fla*s*) name=fla; blk=28; chr=101;;
 	esac
 	case $i in
-	wfd*s*)
+	fla*s*|wfd*s*)
 		unit=`expr $i : '...\([0-9]*\)s'`
 		slice=`expr $i : '...[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '...[0-9]*s[0-9]*\(.*\)'`
@@ -440,15 +440,15 @@ ft*)
 od*|sd*|vn*|wd*|wfd*|fla*)
 	umask $disk_umask
 	case $i in
+	fla*) name=fla; blk=28; chr=101;;
 	od*) name=od; blk=20; chr=70;;
 	sd*) name=sd; blk=4;  chr=13;;
 	vn*) name=vn; blk=15; chr=43;;
 	wd*) name=wd; blk=0;  chr=3;;
 	wfd*) name=wfd; blk=1; chr=87;;
-	fla*) name=fla; blk=28; chr=101;;
 	esac
 	case $i in
-	wfd*)
+	fla*|wfd*)
 		unit=`expr $i : '...\(.*\)'`
 		;;
 	*)
