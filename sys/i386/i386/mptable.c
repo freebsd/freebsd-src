@@ -293,6 +293,26 @@ extern pt_entry_t *SMPpt;
 struct pcb stoppcbs[MAXCPU];
 
 int smp_started;		/* has the system started? */
+int smp_active = 0;		/* are the APs allowed to run? */
+SYSCTL_INT(_machdep, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
+
+/* XXX maybe should be hw.ncpu */
+static int smp_cpus = 1;	/* how many cpu's running */
+SYSCTL_INT(_machdep, OID_AUTO, smp_cpus, CTLFLAG_RD, &smp_cpus, 0, "");
+
+int invltlb_ok = 0;	/* throttle smp_invltlb() till safe */
+SYSCTL_INT(_machdep, OID_AUTO, invltlb_ok, CTLFLAG_RW, &invltlb_ok, 0, "");
+
+/* Enable forwarding of a signal to a process running on a different CPU */
+static int forward_signal_enabled = 1;
+SYSCTL_INT(_machdep, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
+	   &forward_signal_enabled, 0, "");
+
+/* Enable forwarding of roundrobin to all other cpus */
+static int forward_roundrobin_enabled = 1;
+SYSCTL_INT(_machdep, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
+	   &forward_roundrobin_enabled, 0, "");
+
 
 /*
  * Local data and functions.
@@ -316,8 +336,46 @@ static void	init_locks(void);
 static int	start_all_aps(u_int boot_addr);
 static void	install_ap_tramp(u_int boot_addr);
 static int	start_ap(int logicalCpu, u_int boot_addr);
+void		ap_init(void);
 static int	apic_int_is_bus_type(int intr, int bus_type);
 static void	release_aps(void *dummy);
+
+/*
+ * initialize all the SMP locks
+ */
+
+/* critical region around IO APIC, apic_imen */
+struct simplelock	imen_lock;
+
+/* lock region used by kernel profiling */
+struct simplelock	mcount_lock;
+
+#ifdef USE_COMLOCK
+/* locks com (tty) data/hardware accesses: a FASTINTR() */
+struct simplelock	com_lock;
+#endif /* USE_COMLOCK */
+
+/* lock around the MP rendezvous */
+static struct simplelock smp_rv_lock;
+
+/* only 1 CPU can panic at a time :) */
+struct simplelock	panic_lock;
+
+static void
+init_locks(void)
+{
+	s_lock_init(&mcount_lock);
+
+	s_lock_init(&imen_lock);
+	s_lock_init(&smp_rv_lock);
+	s_lock_init(&panic_lock);
+
+#ifdef USE_COMLOCK
+	s_lock_init(&com_lock);
+#endif /* USE_COMLOCK */
+
+	s_lock_init(&ap_boot_lock);
+}
 
 /*
  * Calculate usable address in base memory for AP trampoline code.
@@ -581,12 +639,6 @@ mp_enable(u_int boot_addr)
 	/* install an inter-CPU IPI for forcing an additional software trap */
 	setidt(XCPUAST_OFFSET, Xcpuast,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-
-#if 0	
-	/* install an inter-CPU IPI for interrupt forwarding */
-	setidt(XFORWARD_IRQ_OFFSET, Xforward_irq,
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#endif
 
 	/* install an inter-CPU IPI for CPU stop/restart */
 	setidt(XCPUSTOP_OFFSET, Xcpustop,
@@ -1869,55 +1921,6 @@ default_mp_table(int type)
 
 
 /*
- * initialize all the SMP locks
- */
-
-/* critical region around IO APIC, apic_imen */
-struct simplelock	imen_lock;
-
-/* critical region around splxx(), cpl, cml, cil, ipending */
-struct simplelock	cpl_lock;
-
-/* Make FAST_INTR() routines sequential */
-struct simplelock	fast_intr_lock;
-
-/* critical region around INTR() routines */
-struct simplelock	intr_lock;
-
-/* lock region used by kernel profiling */
-struct simplelock	mcount_lock;
-
-#ifdef USE_COMLOCK
-/* locks com (tty) data/hardware accesses: a FASTINTR() */
-struct simplelock	com_lock;
-#endif /* USE_COMLOCK */
-
-/* lock around the MP rendezvous */
-static struct simplelock smp_rv_lock;
-
-/* only 1 CPU can panic at a time :) */
-struct simplelock	panic_lock;
-
-static void
-init_locks(void)
-{
-	s_lock_init((struct simplelock*)&mcount_lock);
-
-	s_lock_init((struct simplelock*)&fast_intr_lock);
-	s_lock_init((struct simplelock*)&intr_lock);
-	s_lock_init((struct simplelock*)&imen_lock);
-	s_lock_init((struct simplelock*)&cpl_lock);
-	s_lock_init(&smp_rv_lock);
-	s_lock_init(&panic_lock);
-
-#ifdef USE_COMLOCK
-	s_lock_init((struct simplelock*)&com_lock);
-#endif /* USE_COMLOCK */
-
-	s_lock_init(&ap_boot_lock);
-}
-
-/*
  * start each AP in our list
  */
 static int
@@ -2236,118 +2239,9 @@ invltlb(void)
 
 
 /*
- * When called the executing CPU will send an IPI to all other CPUs
- *  requesting that they halt execution.
- *
- * Usually (but not necessarily) called with 'other_cpus' as its arg.
- *
- *  - Signals all CPUs in map to stop.
- *  - Waits for each to stop.
- *
- * Returns:
- *  -1: error
- *   0: NA
- *   1: ok
- *
- * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
- *            from executing at same time.
- */
-int
-stop_cpus(u_int map)
-{
-	int count = 0;
-
-	if (!smp_started)
-		return 0;
-
-	/* send the Xcpustop IPI to all CPUs in map */
-	selected_apic_ipi(map, XCPUSTOP_OFFSET, APIC_DELMODE_FIXED);
-	
-	while (count++ < 100000 && (stopped_cpus & map) != map)
-		/* spin */ ;
-
-#ifdef DIAGNOSTIC
-	if ((stopped_cpus & map) != map)
-		printf("Warning: CPUs 0x%x did not stop!\n",
-		    (~(stopped_cpus & map)) & map);
-#endif
-
-	return 1;
-}
-
-
-/*
- * Called by a CPU to restart stopped CPUs. 
- *
- * Usually (but not necessarily) called with 'stopped_cpus' as its arg.
- *
- *  - Signals all CPUs in map to restart.
- *  - Waits for each to restart.
- *
- * Returns:
- *  -1: error
- *   0: NA
- *   1: ok
- */
-int
-restart_cpus(u_int map)
-{
-	int count = 0;
-
-	if (!smp_started)
-		return 0;
-
-	started_cpus = map;		/* signal other cpus to restart */
-
-	/* wait for each to clear its bit */
-	while (count++ < 100000 && (stopped_cpus & map) != 0)
-		/* spin */ ;
-
-#ifdef DIAGNOSTIC
-	if ((stopped_cpus & map) != 0)
-		printf("Warning: CPUs 0x%x did not restart!\n",
-		    (~(stopped_cpus & map)) & map);
-#endif
-
-	return 1;
-}
-
-int smp_active = 0;	/* are the APs allowed to run? */
-SYSCTL_INT(_machdep, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
-
-/* XXX maybe should be hw.ncpu */
-static int smp_cpus = 1;	/* how many cpu's running */
-SYSCTL_INT(_machdep, OID_AUTO, smp_cpus, CTLFLAG_RD, &smp_cpus, 0, "");
-
-int invltlb_ok = 0;	/* throttle smp_invltlb() till safe */
-SYSCTL_INT(_machdep, OID_AUTO, invltlb_ok, CTLFLAG_RW, &invltlb_ok, 0, "");
-
-/* Warning: Do not staticize.  Used from swtch.s */
-int do_page_zero_idle = 1; /* bzero pages for fun and profit in idleloop */
-SYSCTL_INT(_machdep, OID_AUTO, do_page_zero_idle, CTLFLAG_RW,
-	   &do_page_zero_idle, 0, "");
-
-/* Is forwarding of a interrupt to the CPU holding the ISR lock enabled ? */
-int forward_irq_enabled = 1;
-SYSCTL_INT(_machdep, OID_AUTO, forward_irq_enabled, CTLFLAG_RW,
-	   &forward_irq_enabled, 0, "");
-
-/* Enable forwarding of a signal to a process running on a different CPU */
-static int forward_signal_enabled = 1;
-SYSCTL_INT(_machdep, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
-	   &forward_signal_enabled, 0, "");
-
-/* Enable forwarding of roundrobin to all other cpus */
-static int forward_roundrobin_enabled = 1;
-SYSCTL_INT(_machdep, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
-	   &forward_roundrobin_enabled, 0, "");
-
-/*
  * This is called once the rest of the system is up and running and we're
  * ready to let the AP's out of the pen.
  */
-void ap_init(void);
-
 void
 ap_init(void)
 {
@@ -2452,10 +2346,11 @@ addupc_intr_forwarded(struct proc *p, int id, int *astmap)
 	prof = &p->p_stats->p_prof;
 	if (pc >= prof->pr_off &&
 	    (i = PC_TO_INDEX(pc, prof)) < prof->pr_size) {
-		if ((p->p_flag & P_OWEUPC) == 0) {
+		mtx_assert(&sched_lock, MA_OWNED);
+		if ((p->p_sflag & PS_OWEUPC) == 0) {
 			prof->pr_addr = pc;
 			prof->pr_ticks = 1;
-			p->p_flag |= P_OWEUPC;
+			p->p_sflag |= PS_OWEUPC;
 		}
 		*astmap |= (1 << id);
 	}
@@ -2475,6 +2370,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 	int i;
 #endif
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	p = checkstate_curproc[id];
 	cpustate = checkstate_cpustate[id];
 
@@ -2486,7 +2382,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 
 	switch (cpustate) {
 	case CHECKSTATE_USER:
-		if (p->p_flag & P_PROFIL)
+		if (p->p_sflag & PS_PROFIL)
 			addupc_intr_forwarded(p, id, astmap);
 		if (pscnt > 1)
 			return;
@@ -2536,10 +2432,11 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 #endif
 		if (pscnt > 1)
 			return;
-		if (p)
-			p->p_iticks++;
+		KASSERT(p != NULL, ("NULL process in interrupt state"));
+		p->p_iticks++;
 		cp_time[CP_INTR]++;
 	}
+
 	schedclock(p);
 		
 	/* Update resource usage integrals and maximums. */
@@ -2572,6 +2469,8 @@ forward_statclock(int pscnt)
 	 * (wich determines the processor states), and do the main
 	 * work ourself.
 	 */
+
+	CTR1(KTR_SMP, "forward_statclock(%d)", pscnt);
 
 	if (!smp_started || !invltlb_ok || cold || panicstr)
 		return;
@@ -2648,6 +2547,8 @@ forward_hardclock(int pscnt)
 	 * work ourself.
 	 */
 
+	CTR1(KTR_SMP, "forward_hardclock(%d)", pscnt);
+
 	if (!smp_started || !invltlb_ok || cold || panicstr)
 		return;
 
@@ -2690,12 +2591,12 @@ forward_hardclock(int pscnt)
 			if (checkstate_cpustate[id] == CHECKSTATE_USER &&
 			    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
 			    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
-				psignal(p, SIGVTALRM);
+				p->p_sflag |= PS_ALRMPEND;
 				map |= (1 << id);
 			}
 			if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
 			    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
-				psignal(p, SIGPROF);
+				p->p_sflag |= PS_PROFPEND;
 				map |= (1 << id);
 			}
 		}
@@ -2741,6 +2642,8 @@ forward_signal(struct proc *p)
 	 * work ourself.
 	 */
 
+	CTR1(KTR_SMP, "forward_signal(%p)", p);
+
 	if (!smp_started || !invltlb_ok || cold || panicstr)
 		return;
 	if (!forward_signal_enabled)
@@ -2784,6 +2687,8 @@ forward_roundrobin(void)
 	u_int map;
 	int i;
 
+	CTR0(KTR_SMP, "forward_roundrobin()");
+
 	if (!smp_started || !invltlb_ok || cold || panicstr)
 		return;
 	if (!forward_roundrobin_enabled)
@@ -2807,6 +2712,83 @@ forward_roundrobin(void)
 			break;
 		}
 	}
+}
+
+/*
+ * When called the executing CPU will send an IPI to all other CPUs
+ *  requesting that they halt execution.
+ *
+ * Usually (but not necessarily) called with 'other_cpus' as its arg.
+ *
+ *  - Signals all CPUs in map to stop.
+ *  - Waits for each to stop.
+ *
+ * Returns:
+ *  -1: error
+ *   0: NA
+ *   1: ok
+ *
+ * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
+ *            from executing at same time.
+ */
+int
+stop_cpus(u_int map)
+{
+	int count = 0;
+
+	if (!smp_started)
+		return 0;
+
+	/* send the Xcpustop IPI to all CPUs in map */
+	selected_apic_ipi(map, XCPUSTOP_OFFSET, APIC_DELMODE_FIXED);
+	
+	while (count++ < 100000 && (stopped_cpus & map) != map)
+		/* spin */ ;
+
+#ifdef DIAGNOSTIC
+	if ((stopped_cpus & map) != map)
+		printf("Warning: CPUs 0x%x did not stop!\n",
+		    (~(stopped_cpus & map)) & map);
+#endif
+
+	return 1;
+}
+
+
+/*
+ * Called by a CPU to restart stopped CPUs. 
+ *
+ * Usually (but not necessarily) called with 'stopped_cpus' as its arg.
+ *
+ *  - Signals all CPUs in map to restart.
+ *  - Waits for each to restart.
+ *
+ * Returns:
+ *  -1: error
+ *   0: NA
+ *   1: ok
+ */
+int
+restart_cpus(u_int map)
+{
+	int count = 0;
+
+	if (!smp_started)
+		return 0;
+
+	started_cpus = map;		/* signal other cpus to restart */
+
+	/* wait for each to clear its bit */
+	while (count++ < 100000 && (stopped_cpus & map) != 0)
+		/* spin */ ;
+
+#ifdef DIAGNOSTIC
+	if ((stopped_cpus & map) != 0)
+		printf("Warning: CPUs 0x%x did not restart!\n",
+		    (~(stopped_cpus & map)) & map);
+#endif
+
+	return 1;
 }
 
 
