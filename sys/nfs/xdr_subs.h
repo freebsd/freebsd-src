@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)xdr_subs.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: xdr_subs.h,v 1.2 1994/08/02 07:52:30 davidg Exp $
  */
+
+#ifndef _NFS_XDR_SUBS_H_
+#define _NFS_XDR_SUBS_H_
 
 /*
  * Macros used for conversion to/from xdr representation by nfs...
@@ -77,3 +80,5 @@
 	((long *)(t))[0] = htonl(((long *)(f))[_QUAD_HIGHWORD]); \
 	((long *)(t))[1] = htonl(((long *)(f))[_QUAD_LOWWORD]); \
 }
+
+#endif

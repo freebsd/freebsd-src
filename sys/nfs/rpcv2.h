@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)rpcv2.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: rpcv2.h,v 1.2 1994/08/02 07:52:29 davidg Exp $
  */
+
+#ifndef _NFS_RPCV2_H_
+#define _NFS_RPCV2_H_
 
 /*
  * Definitions for Sun RPC Version 2, from
@@ -87,3 +90,5 @@
 #define	RPCMNT_NAMELEN	255
 #define	RPCMNT_PATHLEN	1024
 #define	RPCPROG_NFS	100003
+
+#endif

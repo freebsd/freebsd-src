@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: nqnfs.h,v 1.2 1994/08/02 07:52:28 davidg Exp $
  */
+
+#ifndef _NFS_NQNFS_H_
+#define _NFS_NQNFS_H_
 
 /*
  * Definitions for NQNFS (Not Quite NFS) cache consistency protocol.
@@ -197,3 +200,5 @@ extern u_long nqfheadhash;
 #define	NQNFS_EXPIRED	500
 #define	NQNFS_TRYLATER	501
 #define NQNFS_AUTHERR	502
+
+#endif
