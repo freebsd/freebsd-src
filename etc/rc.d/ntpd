@@ -15,10 +15,15 @@ name=ntpd
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
+start_precmd="ntpd_precmd"
 required_files="/etc/ntp.conf"
 
 ntpd_precmd()
 {
+	if checkyesno ntpd_sync_on_start; then
+		rc_flags="-g ${ntpd_flags}"
+	fi
+
 	if [ -z "$ntpd_chrootdir" ]; then
 		return 0;
 	fi
