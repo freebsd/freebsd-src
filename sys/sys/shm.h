@@ -83,8 +83,16 @@ struct shminfo {
 		shmseg,		/* max shared memory segments per process */
 		shmall;		/* max amount of shared memory (pages) */
 };
+
+/* 
+ * Add a kernel wrapper to the shmid_ds struct so that private info (like the
+ * MAC label) can be added to it, without changing the user interface.
+ */
+struct shmid_kernel {
+	struct shmid_ds u;
+};
+
 extern struct shminfo	shminfo;
-extern struct shmid_ds	*shmsegs;
 
 struct shm_info {
 	int used_ids;
