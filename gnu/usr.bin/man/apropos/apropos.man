@@ -30,7 +30,7 @@ searches a set of database files containing short descriptions
 of system commands for keywords and displays the result on the
 standard output.
 .Nm whatis
-display only complete word matches. 
+displays only complete word matches. 
 .Sh RETURN VALUES
 The 
 .Nm apropos
