@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.77 1998/02/04 22:33:17 eivind Exp $
+ * $Id: nfs_vnops.c,v 1.78 1998/02/06 12:13:58 eivind Exp $
  */
 
 
@@ -144,6 +144,7 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
 	{ &vop_getpages_desc,		(vop_t *) nfs_getpages },
+	{ &vop_putpages_desc,		(vop_t *) nfs_putpages },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) nfs_link },
