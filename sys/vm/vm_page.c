@@ -652,7 +652,8 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;
 
-	mtx_assert(object == kmem_object ? &object->mtx : &Giant, MA_OWNED);
+	if (!VM_OBJECT_LOCKED(object))
+		GIANT_REQUIRED;
 	m = vm_page_splay(pindex, object->root);
 	if ((object->root = m) != NULL && m->pindex != pindex)
 		m = NULL;
@@ -770,8 +771,6 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	if ((req & VM_ALLOC_NOOBJ) == 0) {
 		KASSERT(object != NULL,
 		    ("vm_page_alloc: NULL object."));
-		mtx_assert(object == kmem_object ? &object->mtx : &Giant,
-		    MA_OWNED);
 		KASSERT(!vm_page_lookup(object, pindex),
 		    ("vm_page_alloc: page already allocated"));
 		color = pindex + object->pg_color;
