@@ -170,6 +170,7 @@ static void sf_miibus_statchg	__P((device_t));
 
 static u_int32_t csr_read_4	__P((struct sf_softc *, int));
 static void csr_write_4		__P((struct sf_softc *, int, u_int32_t));
+static void sf_txthresh_adjust	__P((struct sf_softc *));
 
 #ifdef SF_USEIOSPACE
 #define SF_RES			SYS_RES_IOPORT
@@ -1039,18 +1040,22 @@ static void sf_txeof(sc)
 	while (cmpconsidx != cmpprodidx) {
 		cur_cmp = &sc->sf_ldata->sf_tx_clist[cmpconsidx];
 		cur_tx = &sc->sf_ldata->sf_tx_dlist[cur_cmp->sf_index >> 7];
-		SF_INC(cmpconsidx, SF_TX_CLIST_CNT);
 
 		if (cur_cmp->sf_txstat & SF_TXSTAT_TX_OK)
 			ifp->if_opackets++;
-		else
+		else {
+			if (cur_cmp->sf_txstat & SF_TXSTAT_TX_UNDERRUN)
+				sf_txthresh_adjust(sc);
 			ifp->if_oerrors++;
+		}
 
 		sc->sf_tx_cnt--;
 		if (cur_tx->sf_mbuf != NULL) {
 			m_freem(cur_tx->sf_mbuf);
 			cur_tx->sf_mbuf = NULL;
-		}
+		} else
+			break;
+		SF_INC(cmpconsidx, SF_TX_CLIST_CNT);
 	}
 
 	ifp->if_timer = 0;
@@ -1059,6 +1064,29 @@ static void sf_txeof(sc)
 	csr_write_4(sc, SF_CQ_CONSIDX,
 	    (txcons & ~SF_CQ_CONSIDX_TXQ) |
 	    ((cmpconsidx << 16) & 0xFFFF0000));
+
+	return;
+}
+
+static void sf_txthresh_adjust(sc)
+	struct sf_softc		*sc;
+{
+	u_int32_t		txfctl;
+	u_int8_t		txthresh;
+
+	txfctl = csr_read_4(sc, SF_TX_FRAMCTL);
+	txthresh = txfctl & SF_TXFRMCTL_TXTHRESH;
+	if (txthresh < 0xFF) {
+		txthresh++;
+		txfctl &= ~SF_TXFRMCTL_TXTHRESH;
+		txfctl |= txthresh;
+#ifdef DIAGNOSTIC
+		printf("sf%d: tx underrun, increasing "
+		    "tx threshold to %d bytes\n",
+		    sc->sf_unit, txthresh * 4);
+#endif
+		csr_write_4(sc, SF_TX_FRAMCTL, txfctl);
+	}
 
 	return;
 }
@@ -1096,9 +1124,11 @@ static void sf_intr(arg)
 
 		if (status & SF_ISR_TX_TXDONE ||
 		    status & SF_ISR_TX_DMADONE ||
-		    status & SF_ISR_TX_QUEUEDONE ||
-		    status & SF_ISR_TX_LOFIFO)
+		    status & SF_ISR_TX_QUEUEDONE)
 			sf_txeof(sc);
+
+		if (status & SF_ISR_TX_LOFIFO)
+			sf_txthresh_adjust(sc);
 
 		if (status & SF_ISR_ABNORMALINTR) {
 			if (status & SF_ISR_STATSOFLOW) {
@@ -1318,11 +1348,21 @@ static void sf_start(ifp)
 		return;
 	}
 
+	if (sc->sf_tx_cnt)
+		sf_txeof(sc);
+
 	txprod = csr_read_4(sc, SF_TXDQ_PRODIDX);
 	i = SF_IDX_HI(txprod) >> 4;
 
+	if (sc->sf_ldata->sf_tx_dlist[i].sf_mbuf != NULL) {
+		printf("sf%d: TX ring full, resetting\n", sc->sf_unit);
+		sf_init(sc);
+		txprod = csr_read_4(sc, SF_TXDQ_PRODIDX);
+		i = SF_IDX_HI(txprod) >> 4;
+	}
+
 	while(sc->sf_ldata->sf_tx_dlist[i].sf_mbuf == NULL) {
-		if (sc->sf_tx_cnt == (SF_TX_DLIST_CNT - 2)) {
+		if (sc->sf_tx_cnt >= (SF_TX_DLIST_CNT - 5)) {
 			ifp->if_flags |= IFF_OACTIVE;
 			cur_tx = NULL;
 			break;
