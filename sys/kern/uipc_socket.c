@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.52 1999/01/25 16:58:52 fenner Exp $
+ *	$Id: uipc_socket.c,v 1.53 1999/01/27 21:49:57 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -199,11 +199,12 @@ sofree(so)
 			 * accept(2) may hang after select(2) indicated
 			 * that the listening socket was ready.
 			 */
+			return;
 		} else {
 			panic("sofree: not queued");
 		}
 		head->so_qlen--;
-		so->so_state &= ~(SS_INCOMP|SS_COMP);
+		so->so_state &= ~SS_INCOMP;
 		so->so_head = NULL;
 	}
 	sbrelease(&so->so_snd);
@@ -233,7 +234,11 @@ soclose(so)
 		}
 		for (sp = so->so_comp.tqh_first; sp != NULL; sp = sonext) {
 			sonext = sp->so_list.tqe_next;
+			/* Dequeue from so_comp since sofree() won't do it */
 			TAILQ_REMOVE(&so->so_comp, sp, so_list);
+			so->so_qlen--;
+			sp->so_state &= ~SS_COMP;
+			sp->so_head = NULL;
 			(void) soabort(sp);
 		}
 	}
