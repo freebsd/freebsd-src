@@ -421,7 +421,9 @@ uhidopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	s = splhigh();
 	tty_imask |= bio_imask;
 	bio_imask |= tty_imask;
+#ifdef __i386__ 
 	update_intr_masks();
+#endif
 	splx( s );
 
 	if (sc->sc_state & UHID_OPEN)
