@@ -61,7 +61,9 @@ Simple tcsh prompt: set prompt = '%# '
 %
 If you want df(1) and other commands to display disk sizes in
 kilobytes instead of 512-byte blocks, set BLOCKSIZE in your
-environment to 'K'.
+environment to 'K'.  You can also use 'M' for Megabytes or 'G' for 
+Gigabytes.  If you want df(1) to automatically select the best size
+then use 'df -h'.
 %
 To change an environment variable in tcsh you use: setenv NAME "value"
 where NAME is the name of the variable and "value" its new value.
