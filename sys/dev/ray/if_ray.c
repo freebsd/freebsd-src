@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.17 2000/04/04 06:43:30 dmlb Exp $
+ * $Id: if_ray.c,v 1.23 2000/04/24 15:19:40 dmlb Exp $
  *
  */
 
@@ -2351,7 +2351,7 @@ ray_intr(struct pccard_devinfo *dev_p)
 		else if (ccsi <= RAY_RCS_LAST)
 			ray_intr_rcs(sc, cmd, ccs);
 		else
-		    RAY_PRINTF(sc, "bad ccs index 0x%02x\n", ccsi);
+		    RAY_PRINTF(sc, "bad ccs index 0x%x\n", ccsi);
 	}
 
 	if (count)
@@ -3163,11 +3163,11 @@ ray_com_runq(struct ray_softc *sc)
 	 * XXX network code itself. ray_stop should have prevented this
 	 * XXX command from running?
 	 *
-	 * XXX also what about sc->sc_gone?
+	 * XXX also what about sc->sc_gone and sc->sc_havenet?
 	 */
 	ifp = &sc->arpcom.ac_if;
 	if (!(ifp->if_flags & IFF_RUNNING))
-		RAY_PANIC(sc, "!IFF_RUNNING");
+		RAY_PANIC(sc, "not running");
 
 	com->c_flags |= RAY_COM_FRUNNING;
 	RAY_COM_DUMP(sc, com, "running");
