@@ -45,6 +45,7 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/lock.h>
+#include <sys/ucred.h>
 #include <sys/vnode.h>
 
 #include <ufs/ufs/quota.h>

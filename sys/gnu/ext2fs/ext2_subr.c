@@ -46,6 +46,7 @@
 
 #include <sys/lock.h>
 #include <sys/systm.h>
+#include <sys/ucred.h>
 #include <sys/vnode.h>
 #include <gnu/ext2fs/ext2_extern.h>
 #include <sys/bio.h>
