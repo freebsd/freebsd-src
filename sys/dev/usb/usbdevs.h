@@ -70,12 +70,13 @@
 #define	USB_VENDOR_KONICA	0x04c8		/* Konica Corporation */
 #define	USB_VENDOR_SHUTTLE	0x04e6		/* Shuttle Technology */
 #define	USB_VENDOR_JAZZ	0x04fa		/* Jazz */
-#define	USB_VENDOR_VISION	0x0553		/* Vision */
 #define	USB_VENDOR_AKS	0x0529		/* Aladdin Knowledge Systems */
+#define	USB_VENDOR_VISION	0x0553		/* Vision */
 #define	USB_VENDOR_ATEN	0x0557		/* ATen */
 #define	USB_VENDOR_PERACOM	0x0565		/* Peracom */
 #define	USB_VENDOR_EIZO	0x056d		/* EIZO */
 #define	USB_VENDOR_AGILER	0x056e		/* Agiler */
+#define	USB_VENDOR_ROCKFIRE	0x0583		/* Rockfire */
 #define	USB_VENDOR_IOMEGA	0x059b		/* Iomega */
 #define	USB_VENDOR_BELKIN	0x05ab		/* Belkin */
 #define	USB_VENDOR_LOGITECH	0x05ac		/* Logitech */
@@ -143,7 +144,7 @@
 #define	USB_PRODUCT_EPSON_PRINTER3	0x0003		/* ISD USB Smart Cable */
 
 /* 3Com products */
-#define	USB_PRODUCT_3COM_USR56K	0x3021		/* U.S.Robotics 56000 Voice USB Modem */
+#define	USB_PRODUCT_3COM_USR56K	0x3021		/* U.S.Robotics Voice Faxmodem Pro */
 
 /* Konica Corporation Products */
 #define	USB_PRODUCT_KONICA_CAMERA	0x0720		/* Digital Color Camera */
@@ -154,11 +155,11 @@
 /* Jazz products */
 #define	USB_PRODUCT_JAZZ_J6502	0x4201		/* J-6502 speakers */
 
-/* Vision products */
-#define	USB_PRODUCT_VISION_CAMERA	0x0002		/* VC6452V002 Camera */
-
 /* AKS products */
 #define	USB_PRODUCT_AKS_USBHASP	0x0001		/* USB-HASP 0.06 */
+
+/* Vision products */
+#define	USB_PRODUCT_VISION_CAMERA	0x0002		/* VC6452V002 Camera */
 
 /* ATen products */
 #define	USB_PRODUCT_ATEN_UC1284	0x2001		/* Parallel printer adapter */
@@ -173,6 +174,9 @@
 /* Agiler products */
 #define	USB_PRODUCT_AGILER_MOUSE29UO	0x0002		/* mouse 29UO */
 
+/* Rockfire products */
+#define	USB_PRODUCT_ROCKFIRE_GAMEPAD	0x2033		/* gamepad 203USB */
+
 /* Iomega products */
 #define	USB_PRODUCT_IOMEGA_ZIP100	0x0001		/* Zip 100 */
 
@@ -181,7 +185,7 @@
 
 /* Logitech products */
 #define	USB_PRODUCT_LOGITECH_M2452	0x0203		/* M2452 keyboard */
-#define	USB_PRODUCT_LOGITECH_M4848	0x0301		/* M4848 mouse */
+#define	USB_PRODUCT_LOGITECH_MOUSE1	0x0301		/* mouse */
 
 /* Chic Technology products */
 #define	USB_PRODUCT_CHIC_MOUSE1	0x0001		/* mouse */
