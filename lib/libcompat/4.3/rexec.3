@@ -38,6 +38,8 @@
 .Sh NAME
 .Nm rexec
 .Nd return stream to a remote command
+.Sh LIBRARY
+.Lb libcompat
 .Sh SYNOPSIS
 .Ft int
 .Fn rexec "char **ahost" "int inport" "char *user" "char *passwd" "char *cmd" "int *fd2p"
@@ -45,7 +47,6 @@
 .Bf -symbolic
 This interface is obsoleted by 
 .Xr rcmd 3 .
-It is available from the compatibility library, libcompat.
 .Ef
 .Pp
 The
