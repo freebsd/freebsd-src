@@ -39,10 +39,12 @@
 .Nd tune up an existing file system
 .Sh SYNOPSIS
 .Nm tunefs
+.Op Fl A
 .Op Fl a Ar maxcontig
 .Op Fl d Ar rotdelay
 .Op Fl e Ar maxbpg
 .Op Fl m Ar minfree
+.Op Fl p
 .Bk -words
 .Op Fl o Ar optimize_preference
 .Ek
@@ -54,6 +56,10 @@ which affect the layout policies.
 The parameters which are to be changed are indicated by the flags
 given below:
 .Bl -tag -width Ds
+.It Fl A
+The file system has several backups of the super-block.  Specifying
+this option will cause all backups to be modified as well as the
+primary super-block.  This is potentially dangerous - use with caution.
 .It Fl a Ar maxcontig
 This specifies the maximum number of contiguous blocks that will
 be laid out before forcing a rotational delay (see
@@ -103,6 +109,12 @@ fragmentation on the disk. Optimization for space has much
 higher overhead for file writes.
 The kernel normally changes the preference automatically as
 the percent fragmentation changes on the file system.
+.It Fl p
+This option shows a summary of what the current tuneable settings
+are on the selected file system.  More detailed information can be
+obtained in the
+.Xr dumpfs 8
+manual page.
 .El
 .Sh SEE ALSO
 .Xr fs 5 ,
