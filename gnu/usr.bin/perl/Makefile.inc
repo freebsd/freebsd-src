@@ -61,12 +61,14 @@ scripts: links
 	@sh cflags.sh
 	@sh writemain.sh
 	@sh myconfig.SH
-	@miniperl ${PERL5SRC}/configpm \
+	@miniperl -I. ${PERL5SRC}/configpm \
 		Config.pm Porting/Glossary myconfig
 	@ln -sf ../Config.pm lib/Config.pm
 	@touch ${.TARGET}
 
+.if !defined(NO_PERL_SCRIPT_MAKE)
 config.h:	scripts
+.endif
 
 CLEANFILES+=	links scripts
 CLEANFILES+=	config.h config.sh config_h.sh Config.pm
