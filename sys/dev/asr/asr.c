@@ -406,7 +406,6 @@ DRIVER_MODULE(asr, pci, asr_driver, asr_devclass, 0, 0);
  *
  * only ioctl is used. the sd driver provides all other access.
  */
-#define	CDEV_MAJOR 154	 /* preferred default character major */
 static struct cdevsw asr_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
@@ -414,7 +413,6 @@ static struct cdevsw asr_cdevsw = {
 	.d_close =	asr_close,
 	.d_ioctl =	asr_ioctl,
 	.d_name =	"asr",
-	.d_maj =	CDEV_MAJOR,
 };
 
 /* I2O support routines */
