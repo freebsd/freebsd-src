@@ -820,7 +820,7 @@ ibcs2_sysconf(td, uap)
 
 	mib[0] = CTL_KERN;
 	len = sizeof(value);
-	error = kernel_sysctl(td, mib, 2, &value, &len, NULL, 0, NULL);
+	error = kernel_sysctl(td, mib, 2, &value, &len, NULL, 0, NULL, 0);
 	if (error)
 		return error;
 	td->td_retval[0] = value;
