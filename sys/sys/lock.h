@@ -68,8 +68,7 @@ struct lock_class {
 #define	LO_DUPOK	0x00400000	/* Don't check for duplicate acquires */
 
 #define	LI_RECURSEMASK	0x0000ffff	/* Recursion depth of lock instance. */
-#define	LI_SLEPT	0x00010000	/* Lock instance has been slept with. */
-#define	LI_EXCLUSIVE	0x00020000	/* Exclusive lock instance. */
+#define	LI_EXCLUSIVE	0x00010000	/* Exclusive lock instance. */
 
 /*
  * Option flags passed to lock operations that witness also needs to know
@@ -205,13 +204,18 @@ void	witness_unlock(struct lock_object *, int, const char *, int);
 void	witness_save(struct lock_object *, const char **, int *);
 void	witness_restore(struct lock_object *, const char *, int);
 int	witness_list_locks(struct lock_list_entry **);
-int	witness_list(struct thread *);
-int	witness_sleep(int, struct lock_object *, const char *, int);
+int	witness_warn(int, struct lock_object *, const char *, ...);
 void	witness_assert(struct lock_object *, int, const char *, int);
 int	witness_line(struct lock_object *);
 const char *witness_file(struct lock_object *);
 
 #ifdef	WITNESS
+
+/* Flags for witness_warn(). */
+#define	WARN_GIANTOK	0x01	/* Giant is exempt from this check. */
+#define	WARN_PANIC	0x02	/* Panic if check fails. */
+#define	WARN_SLEEPOK	0x04	/* Sleepable locks are exempt from check. */
+
 #define	WITNESS_INIT(lock)						\
 	witness_init((lock))
 
@@ -230,8 +234,8 @@ const char *witness_file(struct lock_object *);
 #define	WITNESS_UNLOCK(lock, flags, file, line)				\
 	witness_unlock((lock), (flags), (file), (line))
 
-#define	WITNESS_SLEEP(check, lock) 					\
-	witness_sleep((check), (lock), __FILE__, __LINE__)
+#define	WITNESS_WARN(flags, lock, fmt, ...)				\
+	witness_warn((flags), (lock), (fmt), ## __VA_ARGS__)
 
 #define	WITNESS_SAVE_DECL(n)						\
 	const char * __CONCAT(n, __wf);					\
@@ -256,7 +260,7 @@ const char *witness_file(struct lock_object *);
 #define	WITNESS_UPGRADE(lock, flags, file, line)
 #define	WITNESS_DOWNGRADE(lock, flags, file, line)
 #define	WITNESS_UNLOCK(lock, flags, file, line)
-#define	WITNESS_SLEEP(check, lock)
+#define	WITNESS_WARN(flags, lock, fmt, ...)
 #define	WITNESS_SAVE_DECL(n)
 #define	WITNESS_SAVE(lock, n)
 #define	WITNESS_RESTORE(lock, n)
