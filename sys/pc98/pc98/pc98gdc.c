@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98gdc.c,v 1.9 1999/05/30 16:53:20 phk Exp $
+ *	$Id: pc98gdc.c,v 1.10 1999/06/24 10:51:29 kato Exp $
  */
 
 #include "gdc.h"
@@ -886,25 +886,9 @@ gdc_set_hw_cursor(video_adapter_t *adp, int col, int row)
 
     if ((col == -1) && (row == -1)) {
 	off = -1;
-	/* XXX */
-	if (epson_machine_id == 0x20) {
-	    s = spltty();
-	    outb(0x43f, 0x42);
-	    outb(0x0c17, inb(0xc17) & ~0x08);
-	    outb(0x43f, 0x40);
-	    splx(s);
-	}
     } else {
 	if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 	    return ENODEV;
-	/* XXX */
-	if (epson_machine_id == 0x20) {
-	    s = spltty();
-	    outb(0x43f, 0x42);
-	    outb(0x0c17, inb(0xc17) | 0x08);
-	    outb(0x43f, 0x40);
-	    splx(s);
-	}
 	off = row*adp->va_info.vi_width + col;
     }
 
@@ -944,14 +928,6 @@ gdc_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
 	--end;
 
     s = spltty();
-    if (epson_machine_id == 0x20) {		/* XXX */
-	outb(0x43f, 0x42);
-	if (height > 0)
-	    outb(0x0c17, inb(0xc17) | 0x08);
-	else
-	    outb(0x0c17, inb(0xc17) & ~0x08);
-	outb(0x43f, 0x40);
-    }
     master_gdc_cmd(0x4b);			/* _GDC_CSRFORM */
     master_gdc_prm(((height > 0) ? 0x80 : 0)	/* cursor on/off */
 	| ((celsize - 1) & 0x1f));		/* cel size */
@@ -987,10 +963,10 @@ gdc_blank_display(video_adapter_t *adp, int mode)
 	/* FALL THROUGH */
 
     case V_DISPLAY_BLANK:
-	if (epson_machine_id == 0x20) {		/* XXX */
+	if (epson_machine_id == 0x20) {
 	    outb(0x43f, 0x42);
-	    outb(0xc17, inb(0xc17) & ~0x08);
-	    outb(0xc16, inb(0xc16) & ~0x02);
+	    outb(0xc17, inb(0xc17) & ~0x08);	/* turn off side light */
+	    outb(0xc16, inb(0xc16) & ~0x02);	/* turn off back light */
 	    outb(0x43f, 0x40);
 	} else {
 	    while (!(inb(TEXT_GDC) & 0x20))	/* V-SYNC wait */
@@ -1000,7 +976,7 @@ gdc_blank_display(video_adapter_t *adp, int mode)
 	break;
 
     case V_DISPLAY_ON:
-	if (epson_machine_id == 0x20) {		/* XXX */
+	if (epson_machine_id == 0x20) {
 	    outb(0x43f, 0x42);
 	    outb(0xc17, inb(0xc17) | 0x08);
 	    outb(0xc16, inb(0xc16) | 0x02);
