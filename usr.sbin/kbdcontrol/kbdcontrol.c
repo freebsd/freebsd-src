@@ -24,11 +24,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdcontrol.c,v 1.1 1994/05/20 12:18:05 sos Exp $
+ *	$Id: kbdcontrol.c,v 1.1 1994/08/17 08:59:34 sos Exp $
  */
 
 #include <ctype.h>
 #include <stdio.h>
+#include <string.h>
 #include <machine/console.h>
 #include "path.h"
 #include "lex.h"
@@ -335,7 +336,7 @@ load_keymap(char *opt)
 		perror("keymap file not found");
 		return;
 	}
-	memset(map, 0, sizeof(map));
+	memset(&map, 0, sizeof(map));
 	while (1) {
 		if ((scancode = get_key_definition_line(fd, &map)) < 0)
 			break;
