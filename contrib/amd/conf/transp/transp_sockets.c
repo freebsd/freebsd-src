@@ -50,6 +50,9 @@
 #include <am_defs.h>
 #include <amu.h>
 
+#ifndef RPC_MAXDATASIZE
+#define RPC_MAXDATASIZE 9000
+#endif
 
 /*
  * find the IP address that can be used to connect to the local host
@@ -216,6 +219,8 @@ create_nfs_service(int *soNFSp, u_short *nfs_portp, SVCXPRT **nfs_xprtp, void (*
 int
 create_amq_service(int *udp_soAMQp, SVCXPRT **udp_amqpp, int *tcp_soAMQp, SVCXPRT **tcp_amqpp)
 {
+  int maxrec = RPC_MAXDATASIZE;
+
   /* first create TCP service */
   if (tcp_soAMQp) {
     *tcp_soAMQp = socket(AF_INET, SOCK_STREAM, 0);
@@ -231,6 +236,9 @@ create_amq_service(int *udp_soAMQp, SVCXPRT **udp_amqpp, int *tcp_soAMQp, SVCXPR
       return 2;
     }
   }
+#ifdef SVCSET_CONNMAXREC
+	SVC_CONTROL(*tcp_amqpp, SVCSET_CONNMAXREC, &maxrec);
+#endif
 
   /* next create UDP service */
   if (udp_soAMQp) {
