@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.25 1994/01/14 16:23:35 davidg Exp $
+ *	$Id: machdep.c,v 1.26 1994/01/20 17:21:28 davidg Exp $
  */
 
 #include "npx.h"
@@ -183,11 +183,7 @@ again:
 	    (name) = (type *)v; v = (caddr_t)((name)+(num))
 #define	valloclim(name, type, num, lim) \
 	    (name) = (type *)v; v = (caddr_t)((lim) = ((name)+(num)))
-/*	valloc(cfree, struct cblock, nclist);  no clists any more!!! - cgd */
 	valloc(callout, struct callout, ncallout);
-#ifdef NetBSD
-	valloc(swapmap, struct map, nswapmap = maxproc * 2);
-#endif
 #ifdef SYSVSHM
 	valloc(shmsegs, struct shmid_ds, shminfo.shmmni);
 #endif
@@ -247,14 +243,6 @@ again:
 	buffer_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				/* bufpages * */NBPG, TRUE);
 	/*
-	 * Allocate a submap for exec arguments.  This map effectively
-	 * limits the number of processes exec'ing at any time.
-	 */
-/*	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
- *				16*NCARGS, TRUE);
- *	NOT CURRENTLY USED -- cgd
- */
-	/*
 	 * Allocate a submap for physio
 	 */
 	phys_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
@@ -307,7 +295,7 @@ struct cpu_nameclass i386_cpus[] = {
 };
 
 static void
-identifycpu()	/* translated from hp300 -- cgd */
+identifycpu()
 {
 	printf("CPU: ");
 	if (cpu >= 0 && cpu < (sizeof i386_cpus/sizeof(struct cpu_nameclass))) {
@@ -1071,6 +1059,22 @@ init386(first)
 
 	pagesinbase = biosbasemem * 1024 / NBPG;
 	pagesinext = biosextmem * 1024 / NBPG;
+
+	/*
+	 * Special hack for chipsets that still remap the 384k hole when
+	 *	there's 16MB of memory - this really confuses people that
+	 *	are trying to use bus mastering ISA controllers with the
+	 *	"16MB limit"; they only have 16MB, but the remapping puts
+	 *	them beyond the limit.
+	 * XXX - this should be removed when bounce buffers are
+	 *	implemented.
+	 */
+	/*
+	 * If extended memory is between 15-16MB (16-17MB phys address range),
+	 *	chop it to 15MB.
+	 */
+	if ((pagesinext > 3840) && (pagesinext < 4096))
+		pagesinext = 3840;
 
 	/*
 	 * Maxmem isn't the "maximum memory", it's the highest page of
