@@ -31,8 +31,7 @@ static char rcsid[] = "$FreeBSD$";
  * TWO23 is long double instead of double to avoid a bug in gcc.  Without
  * this, gcc thinks that TWO23[sx]+x and w-TWO23[sx] already have double
  * precision and doesn't clip them to double precision when they are
- * assigned and returned.  Use long double even in the !__STDC__ case in
- * case this is compiled with gcc -traditional.
+ * assigned and returned.
  */
 static const long double
 TWO52[2]={
