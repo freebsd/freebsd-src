@@ -48,14 +48,19 @@ struct option long_opts[] =
   {"list", 0, &table_flag, TRUE},
   {"make-directories", 0, &create_dir_flag, TRUE},
   {"message", 1, 0, 'M'},
+  {"no-absolute-filenames", 0, 0, 136},
   {"no-preserve-owner", 0, 0, 134},
   {"nonmatching", 0, &copy_matching_files, FALSE},
   {"numeric-uid-gid", 0, &numeric_uid, TRUE},
+  {"only-verify-crc", 0, 0, 139},
   {"owner", 1, 0, 'R'},
   {"pass-through", 0, 0, 'p'},
   {"pattern-file", 1, 0, 'E'},
   {"preserve-modification-time", 0, &retain_time_flag, TRUE},
   {"rename", 0, &rename_flag, TRUE},
+  {"rename-batch-file", 1, 0, 137},
+  {"quiet", 0, 0, 138},
+  {"sparse", 0, 0, 135},
   {"swap", 0, 0, 'b'},
   {"swap-bytes", 0, 0, 's'},
   {"swap-halfwords", 0, 0, 'S'},
@@ -81,7 +86,7 @@ Usage: %s {-o|--create} [-0acvABLV] [-C bytes] [-H format] [-M message]\n\
        [-O [[user@]host:]archive] [-F [[user@]host:]archive]\n\
        [--file=[[user@]host:]archive] [--format=format] [--message=message]\n\
        [--null] [--reset-access-time] [--verbose] [--dot] [--append]\n\
-       [--block-size=blocks] [--dereference] [--io-size=bytes]\n\
+       [--block-size=blocks] [--dereference] [--io-size=bytes] [--quiet]\n\
        [--force-local] [--help] [--version] < name-list [> archive]\n", program_name);
   fprintf (fp, "\
        %s {-i|--extract} [-bcdfmnrtsuvBSV] [-C bytes] [-E file] [-H format]\n\
@@ -92,14 +97,15 @@ Usage: %s {-o|--create} [-0acvABLV] [-C bytes] [-H format] [-M message]\n\
        [--unconditional] [--verbose] [--block-size=blocks] [--swap-halfwords]\n\
        [--io-size=bytes] [--pattern-file=file] [--format=format]\n\
        [--owner=[user][:.][group]] [--no-preserve-owner] [--message=message]\n\
-       [--force-local] [--help] [--version] [pattern...] [< archive]\n",
+       [--force-local] [--no-absolute-filenames] [--sparse] [--only-verify-crc]\n\
+       [--quiet] [--help] [--version] [pattern...] [< archive]\n",
 	   program_name);
   fprintf (fp, "\
        %s {-p|--pass-through} [-0adlmuvLV] [-R [user][:.][group]]\n\
-       [--null] [--reset-access-time] [--make-directories] [--link]\n\
+       [--null] [--reset-access-time] [--make-directories] [--link] [--quiet]\n\
        [--preserve-modification-time] [--unconditional] [--verbose] [--dot]\n\
        [--dereference] [--owner=[user][:.][group]] [--no-preserve-owner]\n\
-       [--help] [--version] destination-directory < name-list\n", program_name);
+       [--sparse] [--help] [--version] destination-directory < name-list\n", program_name);
   exit (status);
 }
 
@@ -252,6 +258,10 @@ crc newc odc bin ustar tar (all-caps also recognized)", optarg);
 	  numeric_uid = TRUE;
 	  break;
 
+	case 136:		/* --no-absolute-filenames */
+	  no_abs_paths_flag = TRUE;
+	  break;
+	
 	case 134:		/* --no-preserve-owner */
 	  if (set_owner_flag || set_group_flag)
 	    usage (stderr, 2);
@@ -268,6 +278,10 @@ crc newc odc bin ustar tar (all-caps also recognized)", optarg);
 	  output_archive_name = optarg;
 	  break;
 
+	case 139:
+	  only_verify_crc_flag = TRUE;
+	  break;
+
 	case 'p':		/* Copy-pass mode.  */
 	  if (copy_function != 0)
 	    usage (stderr, 2);
@@ -276,6 +290,14 @@ crc newc odc bin ustar tar (all-caps also recognized)", optarg);
 
 	case 'r':		/* Interactively rename.  */
 	  rename_flag = TRUE;
+	  break;
+
+	case 137:
+	  rename_batch_file = optarg;
+	  break;
+
+	case 138:
+	  quiet_flag = TRUE;
 	  break;
 
 	case 'R':		/* Set the owner.  */
@@ -331,6 +353,10 @@ crc newc odc bin ustar tar (all-caps also recognized)", optarg);
 	  exit (0);
 	  break;
 
+	case 135:
+	  sparse_flag = TRUE;
+	  break;
+
 	case 132:		/* --help */
 	  usage (stdout, 0);
 	  break;
@@ -361,6 +387,7 @@ crc newc odc bin ustar tar (all-caps also recognized)", optarg);
     {
       archive_des = 0;
       if (link_flag || reset_time_flag || xstat != lstat || append_flag
+	  || sparse_flag
 	  || output_archive_name
 	  || (archive_name && input_archive_name))
 	usage (stderr, 2);
@@ -379,6 +406,7 @@ crc newc odc bin ustar tar (all-caps also recognized)", optarg);
 	  || retain_time_flag || no_chown_flag || set_owner_flag
 	  || set_group_flag || swap_bytes_flag || swap_halfwords_flag
 	  || (append_flag && !(archive_name || output_archive_name))
+	  || rename_batch_file || no_abs_paths_flag
 	  || input_archive_name || (archive_name && output_archive_name))
 	usage (stderr, 2);
       if (archive_format == arf_unknown)
@@ -392,7 +420,8 @@ crc newc odc bin ustar tar (all-caps also recognized)", optarg);
       archive_des = -1;
       if (argc - 1 != optind || archive_format != arf_unknown
 	  || swap_bytes_flag || swap_halfwords_flag
-	  || table_flag || rename_flag || append_flag)
+	  || table_flag || rename_flag || append_flag
+	  || rename_batch_file || no_abs_paths_flag)
 	usage (stderr, 2);
       directory_name = argv[optind];
     }
@@ -422,26 +451,39 @@ crc newc odc bin ustar tar (all-caps also recognized)", optarg);
 void
 initialize_buffers ()
 {
-  int buf_size;
+  int in_buf_size, out_buf_size;
 
-  /* Make sure buffers can always hold 2 blocks and that they
-     are big enough to hold 1 tar record (512 bytes) even if it
-     is not aligned on a block boundary.  The extra buffer space
-     is needed by process_copyin and peek_in_buf to automatically
-     figure out what kind of archive it is reading.  */
-
-  if (io_block_size >= 512)
-    buf_size = 2 * io_block_size;
+  if (copy_function == process_copy_in)
+    {
+      /* Make sure the input buffer can always hold 2 blocks and that it
+	 is big enough to hold 1 tar record (512 bytes) even if it
+	 is not aligned on a block boundary.  The extra buffer space
+	 is needed by process_copyin and peek_in_buf to automatically
+	 figure out what kind of archive it is reading.  */
+      if (io_block_size >= 512)
+	in_buf_size = 2 * io_block_size;
+      else
+	in_buf_size = 1024;
+      out_buf_size = DISK_IO_BLOCK_SIZE;
+    }
+  else if (copy_function == process_copy_out)
+    {
+      in_buf_size = DISK_IO_BLOCK_SIZE;
+      out_buf_size = io_block_size;
+    }
   else
-    buf_size = 1024;
-  input_buffer = (char *) xmalloc (buf_size);
+    {
+      in_buf_size = DISK_IO_BLOCK_SIZE;
+      out_buf_size = DISK_IO_BLOCK_SIZE;
+    }
+
+  input_buffer = (char *) xmalloc (in_buf_size);
   in_buff = input_buffer;
+  input_buffer_size = in_buf_size;
   input_size = 0;
   input_bytes = 0;
 
-  /* Leave space for an `int' sentinel for `empty_output_buffer',
-     in case we ever put back sparseness checking.  */
-  output_buffer = (char *) xmalloc (buf_size + sizeof (int) * 2);
+  output_buffer = (char *) xmalloc (out_buf_size);
   out_buff = output_buffer;
   output_size = 0;
   output_bytes = 0;

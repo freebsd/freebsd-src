@@ -22,10 +22,18 @@
    your main control loop, etc. to force garbage collection.  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-/* If compiling with GCC, this file's not needed.  */
+#ifdef emacs
+#include "blockinput.h"
+#endif
+
+/* If compiling with GCC 2, this file's not needed.  */
+#if !defined (__GNUC__) || __GNUC__ < 2
+
+/* If someone has defined alloca as a macro,
+   there must be some other way alloca is supposed to work.  */
 #ifndef alloca
 
 #ifdef emacs
@@ -45,7 +53,7 @@ lose
 /* If your stack is a linked list of frames, you have to
    provide an "address metric" ADDRESS_FUNCTION macro.  */
 
-#ifdef CRAY
+#if defined (CRAY) && defined (CRAY_STACKSEG_END)
 long i00afunc ();
 #define ADDRESS_FUNCTION(arg) (char *) i00afunc (&(arg))
 #else
@@ -72,8 +80,8 @@ typedef char *pointer;
 
 #ifndef emacs
 #define malloc xmalloc
-extern pointer xmalloc ();
 #endif
+extern pointer malloc ();
 
 /* Define STACK_DIRECTION if you know the direction of stack
    growth for your system; otherwise it will be automatically
@@ -168,6 +176,10 @@ alloca (size)
   {
     register header *hp;	/* Traverses linked list.  */
 
+#ifdef emacs
+    BLOCK_INPUT;
+#endif
+
     for (hp = last_alloca_header; hp != NULL;)
       if ((STACK_DIR > 0 && hp->h.deep > depth)
 	  || (STACK_DIR < 0 && hp->h.deep < depth))
@@ -182,6 +194,10 @@ alloca (size)
 	break;			/* Rest are not deeper.  */
 
     last_alloca_header = hp;	/* -> last valid storage.  */
+
+#ifdef emacs
+    UNBLOCK_INPUT;
+#endif
   }
 
   if (size == 0)
@@ -192,6 +208,9 @@ alloca (size)
   {
     register pointer new = malloc (sizeof (header) + size);
     /* Address of header.  */
+
+    if (new == 0)
+      abort();
 
     ((header *) new)->h.next = last_alloca_header;
     ((header *) new)->h.deep = depth;
@@ -204,7 +223,7 @@ alloca (size)
   }
 }
 
-#ifdef CRAY
+#if defined (CRAY) && defined (CRAY_STACKSEG_END)
 
 #ifdef DEBUG_I00AFUNC
 #include <stdio.h>
@@ -473,3 +492,4 @@ i00afunc (long address)
 #endif /* CRAY */
 
 #endif /* no alloca */
+#endif /* not GCC version 2 */

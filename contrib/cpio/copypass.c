@@ -169,8 +169,8 @@ process_copy_pass ()
 		  continue;
 		}
 
-	      copy_files (in_file_des, out_file_des, in_file_stat.st_size);
-	      empty_output_buffer (out_file_des);
+	      copy_files_disk_to_disk (in_file_des, out_file_des, in_file_stat.st_size, input_name.ds_string);
+	      disk_empty_output_buffer (out_file_des);
 	      if (close (in_file_des) < 0)
 		error (0, errno, "%s", input_name.ds_string);
 	      if (close (out_file_des) < 0)
@@ -235,8 +235,18 @@ process_copy_pass ()
 	    }
 	  if (res < 0)
 	    {
-	      error (0, errno, "%s", output_name.ds_string);
-	      continue;
+	      /* In some odd cases where the output_name includes `.',
+	         the directory may have actually been created by
+	         create_all_directories(), so the mkdir will fail
+	         because the directory exists.  If that's the case,
+	         don't complain about it.  */
+	      if ( (errno != EEXIST) ||
+      		   (lstat (output_name.ds_string, &out_file_stat) != 0) ||
+	           !(S_ISDIR (out_file_stat.st_mode) ) )
+		{
+		  error (0, errno, "%s", output_name.ds_string);
+		  continue;
+		}
 	    }
 	  if (!no_chown_flag)
 	    if ((chown (output_name.ds_string,
@@ -321,16 +331,18 @@ process_copy_pass ()
       else if (S_ISLNK (in_file_stat.st_mode))
 	{
 	  char *link_name;
+	  int link_size;
 	  link_name = (char *) xmalloc ((unsigned int) in_file_stat.st_size + 1);
 
-	  if (readlink (input_name.ds_string, link_name,
-			in_file_stat.st_size) < 0)
+	  link_size = readlink (input_name.ds_string, link_name,
+			        in_file_stat.st_size);
+	  if (link_size < 0)
 	    {
 	      error (0, errno, "%s", input_name.ds_string);
 	      free (link_name);
 	      continue;
 	    }
-	  link_name[in_file_stat.st_size] = '\0';
+	  link_name[link_size] = '\0';
 
 	  res = UMASKED_SYMLINK (link_name, output_name.ds_string,
 				 in_file_stat.st_mode);
@@ -370,11 +382,14 @@ process_copy_pass ()
 
   if (dot_flag)
     fputc ('\n', stderr);
-  res = (output_bytes + io_block_size - 1) / io_block_size;
-  if (res == 1)
-    fprintf (stderr, "1 block\n");
-  else
-    fprintf (stderr, "%d blocks\n", res);
+  if (!quiet_flag)
+    {
+      res = (output_bytes + io_block_size - 1) / io_block_size;
+      if (res == 1)
+	fprintf (stderr, "1 block\n");
+      else
+	fprintf (stderr, "%d blocks\n", res);
+    }
 }
 
 /* Try and create a hard link from FILE_NAME to another file 

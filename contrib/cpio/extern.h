@@ -25,6 +25,7 @@ extern int reset_time_flag;
 extern int io_block_size;
 extern int create_dir_flag;
 extern int rename_flag;
+extern char *rename_batch_file;
 extern int table_flag;
 extern int unconditional_flag;
 extern int verbose_flag;
@@ -42,6 +43,11 @@ extern uid_t set_owner;
 extern int set_group_flag;
 extern gid_t set_group;
 extern int no_chown_flag;
+extern int sparse_flag;
+extern int quiet_flag;
+extern int only_verify_crc_flag;
+extern int no_abs_paths_flag;
+
 extern int last_header_start;
 extern int copy_matching_files;
 extern int numeric_uid;
@@ -58,8 +64,13 @@ extern int debug_flag;
 
 extern char *input_buffer, *output_buffer;
 extern char *in_buff, *out_buff;
+extern long input_buffer_size;
 extern long input_size, output_size;
+#ifdef __GNUC__
+extern long long input_bytes, output_bytes;
+#else
 extern long input_bytes, output_bytes;
+#endif
 extern char zeros_512[];
 extern char *directory_name;
 extern char **save_patterns;
@@ -96,6 +107,9 @@ void process_copy_out P_((void));
 
 /* copypass.c */
 void process_copy_pass P_((void));
+int link_to_maj_min_ino P_((char *file_name, int st_dev_maj, 
+			    int st_dev_min, int st_ino));
+int link_to_name P_((char *link_name, char *link_target));
 
 /* dirname.c */
 char *dirname P_((char *path));
@@ -140,14 +154,16 @@ char *parse_user_spec P_((char *name, uid_t *uid, gid_t *gid,
 #endif
 
 /* util.c */
-void empty_output_buffer P_((int out_des));
+void tape_empty_output_buffer P_((int out_des));
+void disk_empty_output_buffer P_((int out_des));
 void swahw_array P_((char *ptr, int count));
-void fill_input_buffer P_((int in_des, int num_bytes));
-void copy_buf_out P_((char *in_buf, int out_des, long num_bytes));
-void copy_in_buf P_((char *in_buf, int in_des, long num_bytes));
-int peek_in_buf P_((char *peek_buf, int in_des, int num_bytes));
-void toss_input P_((int in_des, long num_bytes));
-void copy_files P_((int in_des, int out_des, long num_bytes));
+void tape_buffered_write P_((char *in_buf, int out_des, long num_bytes));
+void tape_buffered_read P_((char *in_buf, int in_des, long num_bytes));
+int tape_buffered_peek P_((char *peek_buf, int in_des, int num_bytes));
+void tape_toss_input P_((int in_des, long num_bytes));
+void copy_files_tape_to_disk P_((int in_des, int out_des, long num_bytes));
+void copy_files_disk_to_tape P_((int in_des, int out_des, long num_bytes, char *filename));
+void copy_files_disk_to_disk P_((int in_des, int out_des, long num_bytes, char *filename));
 void create_all_directories P_((char *name));
 void prepare_append P_((int out_file_des));
 char *find_inode_file P_((unsigned long node_num,
@@ -158,7 +174,7 @@ int open_archive P_((char *file));
 void tape_offline P_((int tape_des));
 void get_next_reel P_((int tape_des));
 void set_new_media_message P_((char *message));
-#ifdef __MSDOS__
+#if defined(__MSDOS__) && !defined(__GNUC__)
 int chown P_((char *path, int owner, int group));
 #endif
 #ifdef __TURBOC__
@@ -174,3 +190,5 @@ char *xrealloc P_((char *p, unsigned n));
 
 /* xstrdup.c */
 char *xstrdup P_((char *string));
+
+#define DISK_IO_BLOCK_SIZE	(512)

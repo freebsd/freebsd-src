@@ -1,3 +1,190 @@
+Tue Jan 16 19:03:05 1996  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* util.c: An I/O error reading a file would cause the last byte
+	of the next file to be corrupted in the archive.  Thanks to a
+	buggy NT NFS server for pointing out this problem.
+	* Version 2.4.2 released.
+
+Tue Jan  9 23:19:37 1996  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* copyout.c: missed 1 part of last bug fix.
+
+Mon Jan  8 16:49:01 1996  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* copyout.c, copypass.c: Use result of readlink() as length
+	of link name instead of size from lstat().  On some OS's lstat() 
+	doesn't return the true length in size.  Bug reported by
+	Robert Joop (rj@rainbow.IN-berlin.DE).
+
+Wed Dec 20 10:52:56 1995  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* rmt.c:  Added temporary kludge so make rmt will work on Linux.
+	* configure.in:  Only define HAVE_UTIME_H if utime.h declares
+	struct utimbuf.
+	* Makefile.in:  Change prefix, exec_prefix and bindir to get their
+	values from configure.  Added cpio.info to DISTFILES.
+	* cpio.texi:  Added INFO-DIR-ENTRY.
+	* Version 2.4.1 released.
+
+Wed Nov 22 19:37:05 1995  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+        * cpio.texi:  Updated release date and FSF's address.
+        * NEWS: Listed major new features for 2.4.
+	* mt.c, mt.1: Added seek and fsfm commands.
+	* Version 2.4 released.
+
+Tue Jun 27 19:14:27 1995  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+        * configure.in: fixed for new autoconf.  Added check to make
+	sure fnmatch() works.
+        * Makefile.in: changed realclean to maintainer-clean.  Added
+	support to handle fnmatch separate from other LIBOBJS.
+        * cpio.texi:  More changes for 2.4.
+
+Wed Dec 14 16:14:27 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* copypass.h:  When given the -a option, set the access time of
+	the copy to be the access time of the original (instead of the
+	modification time of the original).  Reported by
+	karney@pppl.gov (Charles Karney).
+	* cpio.texi:  Updated with changes for 2.4.
+
+Wed Nov  3 18:18:07 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* safe-stat.h, Makefile.in:  New file used by mkdir.c.  This will go
+	away when we get the real safe-xstat.[ch]in for mkdir.c.
+	* main.c:  Don't mention [--null] twice in -p's usage message.
+	Changed --no-absolute-paths to --no-absolute-filenames.
+	* cpio.1:  Updated man page with new features.
+	* cpio.texi, texinfo.tex, Makefile.in:  Added texi documentation
+	from Robert Carleton (rbc@gnu.ai.mit.edu).
+
+Mon Oct  3 00:46:30 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* makefile.pc, system.h:  Changes to compile with Borland C++ 4.0.
+
+Thu Sep 29 22:15:50 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* makepath.c: Don't #define index if it is already #defined.
+
+	* mt.c:  Check for __hpux defined instead of __hpux__.  Reported
+	by ericb@lsid.hp.com (Eric Backus).
+
+Thu Sep 29 11:21:31 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* extern.h, util.c, copyout.c, copypass.c, main.c, global.c:
+	Never mind --ignore-disk-input-errors flag, we'll just always
+	do that, like tar.
+
+	* global.c, extern.h, main.c, copyin.c, copyout.c, copypass.c:
+	Added --quiet flag to supress printing number of blocks copied.
+
+	* global.c, extern.h:  If compiled with gcc, make input_bytes
+	and output_bytes `long long' instead of `long'.  We need more
+	than 32 bits to keep track of the number of bytes copied to
+	and from tape drives that hold more than 4Gbytes.
+
+	* util.c, copyin.c, main.c, global.c, extern.h:  Added
+	--only-verify-crc flag to read a CRC format archive and verify
+	its contents' CRCs.
+
+	* copyout.c:  Fixed problem with creating oldc format archives
+	on machines with 16 bit ints.  Reported by mpoole@cix.compulink.co.uk
+	(Martin Poole).
+
+	* mt.c: Need to open tape WR_ONLY for erase command (and probably
+	others?).  Reported by robert@hst.e.technik.uni-kl.de (Robert
+	Vogelgesan).  Accept `eject' as a synonym for `offline'.  Accept
+	`-t' as a synonym for `-f' (to be compatible with HPUX mt, which 
+	only accepts `-t').
+
+Wed Sep 28 12:01:55 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* extern.h, global.c, main.c, util.c: only write sparse files
+	when given --sparse flag.
+	* extern.h, util.c, copyout.c, copypass.c, main.c, global.c:
+	Added support for --ignore-disk-input-errors flag.
+
+Wed Aug 24 12:55:38 1994  David J. MacKenzie  (djm@churchy.gnu.ai.mit.edu)
+
+	* configure.in: Replace calls to AC_REMOTE_TAPE and AC_RSH
+	with equivalent code, since those macros are going away.
+
+Sun Feb 13 00:56:48 1994  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+	* extern.h, global.c, main.c, util.c:  Added code to 
+	tape_buffered_peek() to properly handle large, corrutped 
+	archives, without overrunning the allocated buffer and
+	dumping core.  Also changed the way the input and output 
+	buffers are allocated in initialize_buffers().
+	
+Tue Jan 25 01:04:32 1994  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+	* copyin.c, copyout.c, copypass.c, extern.h, main.c, tar.c, util.c:
+	Redid i/o buffer code.  Previously, the same routines buffered input and
+	output for accessing the archive and the filesystem.  Now there are
+	separate routines for buffering input and output and for buffering the
+	archive and the filesystem.  This simplifies much of the buffer code
+	(e.g., only input from the archive has to check for end of tape and
+	allow the tape to be changed, only output to the filesystem has to
+	handle byte and word swapping, etc.; previously one routine had to
+	handle all of these special cases) This is how the routines got split
+	and renamed (old name -> new name):
+
+		clear_rest_of_block -> tape_clear_rest_of_block
+		copy_files -> copy_files_tape_to_disk
+		    "      -> copy_files_disk_to_disk
+		    "      -> copy_files_disk_to_tape
+		copy_buf_out -> disk_buffered_write
+		    "        -> tape_buffered_write
+		copy_in_buf -> tape_buffered_read
+		empty_output_buffer -> tape_empty_output_buffer
+		    "               -> disk_empty_output_buffer
+		fill_input_buffer -> tape_fill_input_buffer
+		    "             -> disk_fill_input_buffer
+		pad_output -> tape_pad_output
+		peek_in_buf -> tape_buffered_peek
+		skip_padding -> tape_skip_padding
+		toss_input -> tape_toss_input
+
+	* extern.h, global.c, main.c, util.c:  Added support for
+	writing sparse files.
+
+Tue Dec 28 23:01:36 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+	* util.c, system.h, makepath.c, extern.h: don't define chown() 
+	and don't typedef uid_t and gid_t if we are being compiled
+	by DJGPP.
+
+	* copyin.c, extern.h, global.c, main.c:  Added support for
+	--rename-batch-file.
+	
+	* copyin.c, copyout.c, extern.h:  Cleaned up to pass gcc -Wall.
+
+Wed Dec 22 02:17:44 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+
+	* makepath.c, copypass.c, copyin.c:  If cpio was creating a
+	directory that contained `.' in the pathname (e.g. `foo/./bar'),
+	it would complain that it could not create `.', since it already
+	exists.  From schwab@issan.informatik.uni-dortmund.de (Andreas
+	Schwab).
+
+	* mt.c:  Added "eject" as a synonym for "offline".
+
+	* util.c:  Slight modification to when we lseek with
+	BROKEN_LONG_TAPE_DRIVER (do it every 1Gb, instead 
+	of every 2Gb).
+
+	* copyin.c, global.c, extern.h:  Added --no-absolute-paths option, 
+	to ignore absolute paths in archives.
+
+Tue Dec 21 01:30:59 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+
+	* util.c:  Fix for copying new_media_message_after_number.  From
+	Christian.Kuehnke@arbi.informatik.uni-oldenburg.de (Christian
+	Kuehnke).
+
+Thu Jul 29 20:35:57 1993  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* Makefile.in (config.status): Run config.status --recheck, not
+	configure, to get the right args passed.
+
+Mon Jul 19 23:01:00 1993  David J. MacKenzie  (djm@churchy.gnu.ai.mit.edu)
+
+	* Makefile.in (libdir): Use standard GNU value --
+	$(exec_prefix)/lib, not /etc.
+	(.c.o): Put CFLAGS last.
+
+Thu Jul  8 19:43:39 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* Makefile.in: Add rules for remaking Makefile, configure,
+	config.status. 
+
 Mon Jul  5 14:54:08 1993  John Oleynick  (juo@spiff.gnu.ai.mit.edu)
 
 	* cpio.1:  Updated man page for 2.3.

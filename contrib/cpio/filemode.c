@@ -1,5 +1,5 @@
 /* filemode.c -- make a string describing file modes
-   Copyright (C) 1985, 1990 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1990, 1993 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,43 +16,69 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#ifndef S_IREAD
-#define S_IREAD S_IRUSR
-#define S_IWRITE S_IWUSR
-#define S_IEXEC S_IXUSR
+#if !S_IRUSR
+# if S_IREAD
+#  define S_IRUSR S_IREAD
+# else
+#  define S_IRUSR 00400
+# endif
 #endif
 
-#if !defined(S_ISREG) || defined(NO_MODE_T)
-/* Doesn't have POSIX.1 stat stuff or doesn't have mode_t.  */
-#define mode_t unsigned short
+#if !S_IWUSR
+# if S_IWRITE
+#  define S_IWUSR S_IWRITE
+# else
+#  define S_IWUSR 00200
+# endif
 #endif
+
+#if !S_IXUSR
+# if S_IEXEC
+#  define S_IXUSR S_IEXEC
+# else
+#  define S_IXUSR 00100
+# endif
+#endif
+
+#ifdef STAT_MACROS_BROKEN
+#undef S_ISBLK
+#undef S_ISCHR
+#undef S_ISDIR
+#undef S_ISFIFO
+#undef S_ISLNK
+#undef S_ISMPB
+#undef S_ISMPC
+#undef S_ISNWK
+#undef S_ISREG
+#undef S_ISSOCK
+#endif /* STAT_MACROS_BROKEN.  */
 
 #if !defined(S_ISBLK) && defined(S_IFBLK)
-#define	S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
+#define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
 #endif
 #if !defined(S_ISCHR) && defined(S_IFCHR)
-#define	S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
+#define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
 #endif
 #if !defined(S_ISDIR) && defined(S_IFDIR)
-#define	S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
 #if !defined(S_ISREG) && defined(S_IFREG)
-#define	S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 #endif
 #if !defined(S_ISFIFO) && defined(S_IFIFO)
-#define	S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+#define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
 #endif
 #if !defined(S_ISLNK) && defined(S_IFLNK)
-#define	S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+#define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
 #endif
 #if !defined(S_ISSOCK) && defined(S_IFSOCK)
-#define	S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+#define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
 #endif
 #if !defined(S_ISMPB) && defined(S_IFMPB) /* V7 */
 #define S_ISMPB(m) (((m) & S_IFMT) == S_IFMPB)
@@ -119,7 +145,7 @@ mode_string (mode, str)
      unsigned short mode;
      char *str;
 {
-  str[0] = ftypelet (mode);
+  str[0] = ftypelet ((long) mode);
   rwx ((mode & 0700) << 0, &str[1]);
   rwx ((mode & 0070) << 3, &str[4]);
   rwx ((mode & 0007) << 6, &str[7]);
@@ -140,7 +166,7 @@ mode_string (mode, str)
 
 static char
 ftypelet (bits)
-     mode_t bits;
+     long bits;
 {
 #ifdef S_ISBLK
   if (S_ISBLK (bits))
@@ -183,9 +209,9 @@ rwx (bits, chars)
      unsigned short bits;
      char *chars;
 {
-  chars[0] = (bits & S_IREAD) ? 'r' : '-';
-  chars[1] = (bits & S_IWRITE) ? 'w' : '-';
-  chars[2] = (bits & S_IEXEC) ? 'x' : '-';
+  chars[0] = (bits & S_IRUSR) ? 'r' : '-';
+  chars[1] = (bits & S_IWUSR) ? 'w' : '-';
+  chars[2] = (bits & S_IXUSR) ? 'x' : '-';
 }
 
 /* Set the 's' and 't' flags in file attributes string CHARS,

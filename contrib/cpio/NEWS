@@ -1,4 +1,13 @@
 
+Major changes in version 2.4:
+
+* new texinfo documentation
+* --sparse option to write sparse files
+* --only-verify-crc option to verify a CRC format archive
+* --no-absolute-paths option to ignore absolute paths
+* --quiet option to supress printing number of blocks copied
+* handle disk input errors more gracefully
+
 Major changes in version 2.3:
 
 * in newc and crc format archives, only store 1 copy of multiply linked files

@@ -1,5 +1,5 @@
 /* getopt_long and getopt_long_only entry points for GNU getopt.
-   Copyright (C) 1987, 88, 89, 90, 91, 92, 1993
+   Copyright (C) 1987, 88, 89, 90, 91, 92, 1993, 1994
 	Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify it
@@ -17,13 +17,17 @@
    Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
 #include "getopt.h"
 
-#if !__STDC__ && !defined(const) && IN_GCC
+#if !defined (__STDC__) || !__STDC__
+/* This is a separate conditional since some stdc systems
+   reject `defined (const)'.  */
+#ifndef const
 #define const
+#endif
 #endif
 
 #include <stdio.h>

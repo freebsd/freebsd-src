@@ -34,7 +34,7 @@
 #endif
 
 static void read_pattern_file ();
-static void skip_padding ();
+static void tape_skip_padding ();
 static void defer_copyin ();
 static void create_defered_links ();
 static void create_final_defers ();
@@ -62,7 +62,7 @@ read_in_header (file_hdr, in_des)
 
       while (archive_format == arf_unknown)
 	{
-	  peeked_bytes = peek_in_buf (tmpbuf, in_des, 512);
+	  peeked_bytes = tape_buffered_peek (tmpbuf, in_des, 512);
 	  if (peeked_bytes < 6)
 	    error (1, 0, "premature end of archive");
 
@@ -88,7 +88,7 @@ read_in_header (file_hdr, in_des)
 	    }
 	  else
 	    {
-	      copy_in_buf ((char *) tmpbuf, in_des, 1L);
+	      tape_buffered_read ((char *) tmpbuf, in_des, 1L);
 	      ++bytes_skipped;
 	    }
 	}
@@ -107,7 +107,7 @@ read_in_header (file_hdr, in_des)
 
   file_hdr->c_tar_linkname = NULL;
 
-  copy_in_buf ((char *) file_hdr, in_des, 6L);
+  tape_buffered_read ((char *) file_hdr, in_des, 6L);
   while (1)
     {
       if (append_flag)
@@ -149,7 +149,7 @@ read_in_header (file_hdr, in_des)
 	}
       bytes_skipped++;
       bcopy ((char *) file_hdr + 1, (char *) file_hdr, 5);
-      copy_in_buf ((char *) file_hdr + 5, in_des, 1L);
+      tape_buffered_read ((char *) file_hdr + 5, in_des, 1L);
     }
 }
 
@@ -166,7 +166,7 @@ read_in_old_ascii (file_hdr, in_des)
   unsigned long dev;
   unsigned long rdev;
 
-  copy_in_buf (ascii_header, in_des, 70L);
+  tape_buffered_read (ascii_header, in_des, 70L);
   ascii_header[70] = '\0';
   sscanf (ascii_header,
 	  "%6lo%6lo%6lo%6lo%6lo%6lo%6lo%11lo%6lo%11lo",
@@ -183,7 +183,7 @@ read_in_old_ascii (file_hdr, in_des)
   if (file_hdr->c_name != NULL)
     free (file_hdr->c_name);
   file_hdr->c_name = (char *) xmalloc (file_hdr->c_namesize + 1);
-  copy_in_buf (file_hdr->c_name, in_des, (long) file_hdr->c_namesize);
+  tape_buffered_read (file_hdr->c_name, in_des, (long) file_hdr->c_namesize);
 #ifndef __MSDOS__
   /* HP/UX cpio creates archives that look just like ordinary archives,
      but for devices it sets major = 0, minor = 1, and puts the
@@ -227,7 +227,7 @@ read_in_new_ascii (file_hdr, in_des)
 {
   char ascii_header[112];
 
-  copy_in_buf (ascii_header, in_des, 104L);
+  tape_buffered_read (ascii_header, in_des, 104L);
   ascii_header[104] = '\0';
   sscanf (ascii_header,
 	  "%8lx%8lx%8lx%8lx%8lx%8lx%8lx%8lx%8lx%8lx%8lx%8lx%8lx",
@@ -240,12 +240,12 @@ read_in_new_ascii (file_hdr, in_des)
   if (file_hdr->c_name != NULL)
     free (file_hdr->c_name);
   file_hdr->c_name = (char *) xmalloc (file_hdr->c_namesize);
-  copy_in_buf (file_hdr->c_name, in_des, (long) file_hdr->c_namesize);
+  tape_buffered_read (file_hdr->c_name, in_des, (long) file_hdr->c_namesize);
 
   /* In SVR4 ASCII format, the amount of space allocated for the header
      is rounded up to the next long-word, so we might need to drop
      1-3 bytes.  */
-  skip_padding (in_des, file_hdr->c_namesize + 110);
+  tape_skip_padding (in_des, file_hdr->c_namesize + 110);
 }
 
 /* Fill in FILE_HDR by reading a binary format cpio header from
@@ -263,7 +263,7 @@ read_in_binary (file_hdr, in_des)
      it into the argument long header.  */
   short_hdr.c_dev = ((struct old_cpio_header *) file_hdr)->c_dev;
   short_hdr.c_ino = ((struct old_cpio_header *) file_hdr)->c_ino;
-  copy_in_buf (((char *) &short_hdr) + 6, in_des, 20L);
+  tape_buffered_read (((char *) &short_hdr) + 6, in_des, 20L);
 
   /* If the magic number is byte swapped, fix the header.  */
   if (file_hdr->c_magic == swab_short ((unsigned short) 070707))
@@ -300,13 +300,13 @@ read_in_binary (file_hdr, in_des)
   if (file_hdr->c_name != NULL)
     free (file_hdr->c_name);
   file_hdr->c_name = (char *) xmalloc (file_hdr->c_namesize);
-  copy_in_buf (file_hdr->c_name, in_des, (long) file_hdr->c_namesize);
+  tape_buffered_read (file_hdr->c_name, in_des, (long) file_hdr->c_namesize);
 
   /* In binary mode, the amount of space allocated in the header for
      the filename is `c_namesize' rounded up to the next short-word,
      so we might need to drop a byte.  */
   if (file_hdr->c_namesize % 2)
-    toss_input (in_des, 1L);
+    tape_toss_input (in_des, 1L);
 
 #ifndef __MSDOS__
   /* HP/UX cpio creates archives that look just like ordinary archives,
@@ -374,6 +374,7 @@ process_copy_in ()
   dynamic_string new_name;	/* New file name for rename option.  */
   FILE *tty_in;			/* Interactive file for rename option.  */
   FILE *tty_out;		/* Interactive file for rename option.  */
+  FILE *rename_in;		/* Batch file for rename option.  */
   char *str_res;		/* Result for string function.  */
   struct utimbuf times;		/* For setting file times.  */
   struct stat file_stat;	/* Output file stat record.  */
@@ -397,9 +398,15 @@ process_copy_in ()
   /* Initialize this in case it has members we don't know to set.  */
   bzero (&times, sizeof (struct utimbuf));
 
-  /* Open interactive file pair for rename operation.  */
-  if (rename_flag)
+  if (rename_batch_file)
     {
+      rename_in = fopen (rename_batch_file, "r");
+      if (rename_in == NULL)
+	error (2, errno, CONSOLE);
+    }
+  else if (rename_flag)
+    {
+      /* Open interactive file pair for rename operation.  */
       tty_in = fopen (CONSOLE, "r");
       if (tty_in == NULL)
 	error (2, errno, CONSOLE);
@@ -472,6 +479,30 @@ process_copy_in ()
 	  break;
 	}
 
+      /* Do we have to ignore absolute paths, and if so, does the filename
+         have an absolute path?  */
+      if (no_abs_paths_flag && file_hdr.c_name && file_hdr.c_name [0] == '/')
+	{
+	  char *p;
+
+	  p = file_hdr.c_name;
+	  while (*p == '/')
+	    ++p;
+	  if (*p == '\0')
+	    {
+	      strcpy (file_hdr.c_name, ".");
+	    }
+	  else
+	    {
+	      char *non_abs_name;
+
+	      non_abs_name = (char *) xmalloc (strlen (p) + 1);
+	      strcpy (non_abs_name, p);
+	      free (file_hdr.c_name);
+	      file_hdr.c_name = non_abs_name;
+	    }
+	}
+
       /* Does the file name match one of the given patterns?  */
       if (num_patterns <= 0)
 	skip_file = FALSE;
@@ -488,8 +519,8 @@ process_copy_in ()
 
       if (skip_file)
 	{
-	  toss_input (in_file_des, file_hdr.c_filesize);
-	  skip_padding (in_file_des, file_hdr.c_filesize);
+	  tape_toss_input (in_file_des, file_hdr.c_filesize);
+	  tape_skip_padding (in_file_des, file_hdr.c_filesize);
 	}
       else if (table_flag)
 	{
@@ -502,10 +533,10 @@ process_copy_in ()
 		    {
 		      link_name = (char *) xmalloc ((unsigned int) file_hdr.c_filesize + 1);
 		      link_name[file_hdr.c_filesize] = '\0';
-		      copy_in_buf (link_name, in_file_des, file_hdr.c_filesize);
+		      tape_buffered_read (link_name, in_file_des, file_hdr.c_filesize);
 		      long_format (&file_hdr, link_name);
 		      free (link_name);
-		      skip_padding (in_file_des, file_hdr.c_filesize);
+		      tape_skip_padding (in_file_des, file_hdr.c_filesize);
 		      continue;
 		    }
 		  else
@@ -521,28 +552,66 @@ process_copy_in ()
 	  else
 	    printf ("%s\n", file_hdr.c_name);
 
-	  toss_input (in_file_des, file_hdr.c_filesize);
-	  skip_padding (in_file_des, file_hdr.c_filesize);
+	  crc = 0;
+	  tape_toss_input (in_file_des, file_hdr.c_filesize);
+	  tape_skip_padding (in_file_des, file_hdr.c_filesize);
+	  if (only_verify_crc_flag)
+	    {
+#ifdef CP_IFLNK
+	      if ((file_hdr.c_mode & CP_IFMT) == CP_IFLNK)
+		continue;   /* links don't have a checksum */
+#endif
+	      if (crc != file_hdr.c_chksum)
+		error (0, 0, "%s: checksum error (0x%x, should be 0x%x)",
+		       file_hdr.c_name, crc, file_hdr.c_chksum);
+	    }
 	}
       else if (append_flag)
 	{
-	  toss_input (in_file_des, file_hdr.c_filesize);
-	  skip_padding (in_file_des, file_hdr.c_filesize);
+	  tape_toss_input (in_file_des, file_hdr.c_filesize);
+	  tape_skip_padding (in_file_des, file_hdr.c_filesize);
+	}
+      else if (only_verify_crc_flag)
+	{
+#ifdef CP_IFLNK
+	  if ((file_hdr.c_mode & CP_IFMT) == CP_IFLNK)
+	    {
+	      if (archive_format != arf_tar && archive_format != arf_ustar)
+		{
+		  tape_toss_input (in_file_des, file_hdr.c_filesize);
+		  tape_skip_padding (in_file_des, file_hdr.c_filesize);
+		  continue;
+		}
+	    }
+#endif
+	    crc = 0;
+	    tape_toss_input (in_file_des, file_hdr.c_filesize);
+	    tape_skip_padding (in_file_des, file_hdr.c_filesize);
+	    if (crc != file_hdr.c_chksum)
+	      error (0, 0, "%s: checksum error (0x%x, should be 0x%x)",
+		     file_hdr.c_name, crc, file_hdr.c_chksum);
 	}
       else
 	{
 	  /* Copy the input file into the directory structure.  */
 
 	  /* Do we need to rename the file? */
-	  if (rename_flag)
+	  if (rename_flag || rename_batch_file)
 	    {
-	      fprintf (tty_out, "rename %s -> ", file_hdr.c_name);
-	      fflush (tty_out);
-	      str_res = ds_fgets (tty_in, &new_name);
+	      if (rename_flag)
+		{
+		  fprintf (tty_out, "rename %s -> ", file_hdr.c_name);
+		  fflush (tty_out);
+		  str_res = ds_fgets (tty_in, &new_name);
+		}
+	      else
+		{
+		  str_res = ds_fgetstr (rename_in, &new_name, '\n');
+		}
 	      if (str_res == NULL || str_res[0] == 0)
 		{
-		  toss_input (in_file_des, file_hdr.c_filesize);
-		  skip_padding (in_file_des, file_hdr.c_filesize);
+		  tape_toss_input (in_file_des, file_hdr.c_filesize);
+		  tape_skip_padding (in_file_des, file_hdr.c_filesize);
 		  continue;
 		}
 	      else
@@ -566,8 +635,8 @@ process_copy_in ()
 		{
 		  error (0, 0, "%s not created: newer or same age version exists",
 			 file_hdr.c_name);
-		  toss_input (in_file_des, file_hdr.c_filesize);
-		  skip_padding (in_file_des, file_hdr.c_filesize);
+		  tape_toss_input (in_file_des, file_hdr.c_filesize);
+		  tape_skip_padding (in_file_des, file_hdr.c_filesize);
 		  continue;	/* Go to the next file.  */
 		}
 	      else if (S_ISDIR (file_stat.st_mode) 
@@ -576,8 +645,8 @@ process_copy_in ()
 		{
 		  error (0, errno, "cannot remove current %s",
 			 file_hdr.c_name);
-		  toss_input (in_file_des, file_hdr.c_filesize);
-		  skip_padding (in_file_des, file_hdr.c_filesize);
+		  tape_toss_input (in_file_des, file_hdr.c_filesize);
+		  tape_skip_padding (in_file_des, file_hdr.c_filesize);
 		  continue;	/* Go to the next file.  */
 		}
 	    }
@@ -608,8 +677,8 @@ process_copy_in ()
 			 running as root), but there's nothing we can do about
 			 that.  */
 		      defer_copyin (&file_hdr);
-		      toss_input (in_file_des, file_hdr.c_filesize);
-		      skip_padding (in_file_des, file_hdr.c_filesize);
+		      tape_toss_input (in_file_des, file_hdr.c_filesize);
+		      tape_skip_padding (in_file_des, file_hdr.c_filesize);
 		      break;
 		    }
 		  /* If the file has data (filesize != 0), then presumably
@@ -622,8 +691,8 @@ process_copy_in ()
 				file_hdr.c_ino);
 		  if (link_res == 0)
 		    {
-		      toss_input (in_file_des, file_hdr.c_filesize);
-		      skip_padding (in_file_des, file_hdr.c_filesize);
+		      tape_toss_input (in_file_des, file_hdr.c_filesize);
+		      tape_skip_padding (in_file_des, file_hdr.c_filesize);
 		      break;
 		    }
 		}
@@ -636,8 +705,8 @@ process_copy_in ()
 				file_hdr.c_ino);
 		  if (link_res == 0)
 		    {
-		      toss_input (in_file_des, file_hdr.c_filesize);
-		      skip_padding (in_file_des, file_hdr.c_filesize);
+		      tape_toss_input (in_file_des, file_hdr.c_filesize);
+		      tape_skip_padding (in_file_des, file_hdr.c_filesize);
 		      break;
 		    }
 		}
@@ -672,8 +741,8 @@ process_copy_in ()
 		  if (out_file_des < 0)
 		    {
 		      error (0, errno, "%s", file_hdr.c_name);
-		      toss_input (in_file_des, file_hdr.c_filesize);
-		      skip_padding (in_file_des, file_hdr.c_filesize);
+		      tape_toss_input (in_file_des, file_hdr.c_filesize);
+		      tape_skip_padding (in_file_des, file_hdr.c_filesize);
 		      continue;
 		    }
 
@@ -694,8 +763,8 @@ process_copy_in ()
 			error (0, 0, "cannot swap bytes of %s: odd number of bytes",
 			       file_hdr.c_name);
 		    }
-		  copy_files (in_file_des, out_file_des, file_hdr.c_filesize);
-		  empty_output_buffer (out_file_des);
+		  copy_files_tape_to_disk (in_file_des, out_file_des, file_hdr.c_filesize);
+		  disk_empty_output_buffer (out_file_des);
 		  if (close (out_file_des) < 0)
 		    error (0, errno, "%s", file_hdr.c_name);
 
@@ -721,7 +790,7 @@ process_copy_in ()
 		      if (utime (file_hdr.c_name, &times) < 0)
 			error (0, errno, "%s", file_hdr.c_name);
 		    }
-		  skip_padding (in_file_des, file_hdr.c_filesize);
+		  tape_skip_padding (in_file_des, file_hdr.c_filesize);
 		  if (file_hdr.c_nlink > 1 && (archive_format == arf_newascii
 		      || archive_format == arf_crcascii) )
 		    {
@@ -776,8 +845,18 @@ process_copy_in ()
 		}
 	      if (res < 0)
 		{
-		  error (0, errno, "%s", file_hdr.c_name);
-		  continue;
+		  /* In some odd cases where the file_hdr.c_name includes `.',
+		     the directory may have actually been created by
+		     create_all_directories(), so the mkdir will fail
+		     because the directory exists.  If that's the case,
+		     don't complain about it.  */
+		  if ( (errno != EEXIST) ||
+		       (lstat (file_hdr.c_name, &file_stat) != 0) ||
+		       !(S_ISDIR (file_stat.st_mode) ) )
+		    {
+		      error (0, errno, "%s", file_hdr.c_name);
+		      continue;
+		    }
 		}
 	      if (!no_chown_flag)
 		if ((chown (file_hdr.c_name,
@@ -880,8 +959,8 @@ process_copy_in ()
 		  {
 		    link_name = (char *) xmalloc ((unsigned int) file_hdr.c_filesize + 1);
 		    link_name[file_hdr.c_filesize] = '\0';
-		    copy_in_buf (link_name, in_file_des, file_hdr.c_filesize);
-		    skip_padding (in_file_des, file_hdr.c_filesize);
+		    tape_buffered_read (link_name, in_file_des, file_hdr.c_filesize);
+		    tape_skip_padding (in_file_des, file_hdr.c_filesize);
 		  }
 		else
 		  {
@@ -917,8 +996,8 @@ process_copy_in ()
 
 	    default:
 	      error (0, 0, "%s: unknown file type", file_hdr.c_name);
-	      toss_input (in_file_des, file_hdr.c_filesize);
-	      skip_padding (in_file_des, file_hdr.c_filesize);
+	      tape_toss_input (in_file_des, file_hdr.c_filesize);
+	      tape_skip_padding (in_file_des, file_hdr.c_filesize);
 	    }
 
 	  if (verbose_flag)
@@ -936,11 +1015,14 @@ process_copy_in ()
 
   if (archive_format == arf_newascii || archive_format == arf_crcascii)
     create_final_defers ();
-  res = (input_bytes + io_block_size - 1) / io_block_size;
-  if (res == 1)
-    fprintf (stderr, "1 block\n");
-  else
-    fprintf (stderr, "%d blocks\n", res);
+  if (!quiet_flag)
+    {
+      res = (input_bytes + io_block_size - 1) / io_block_size;
+      if (res == 1)
+	fprintf (stderr, "1 block\n");
+      else
+	fprintf (stderr, "%d blocks\n", res);
+    }
 }
 
 /* Print the file described by FILE_HDR in long format.
@@ -1008,7 +1090,7 @@ print_name_with_quoting (p)
 {
   register unsigned char c;
 
-  while (c = *p++)
+  while ( (c = *p++) )
     {
       switch (c)
 	{
@@ -1114,7 +1196,7 @@ read_pattern_file ()
    header type.  */
 
 static void
-skip_padding (in_file_des, offset)
+tape_skip_padding (in_file_des, offset)
      int in_file_des;
      int offset;
 {
@@ -1130,7 +1212,7 @@ skip_padding (in_file_des, offset)
     pad = 0;
 
   if (pad != 0)
-    toss_input (in_file_des, pad);
+    tape_toss_input (in_file_des, pad);
 }
 
 
@@ -1216,8 +1298,6 @@ static void
 create_final_defers ()
 {
   struct deferment *d;
-  struct deferment *d_prev;
-  struct new_cpio_header *h;
   int	link_res;
   int	out_file_des;
   struct utimbuf times;		/* For setting file times.  */

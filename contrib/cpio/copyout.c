@@ -27,8 +27,8 @@
 #include "rmt.h"
 
 static unsigned long read_for_checksum ();
-static void clear_rest_of_block ();
-static void pad_output ();
+static void tape_clear_rest_of_block ();
+static void tape_pad_output ();
 static int last_link ();
 static int count_defered_links_to_dev_ino ();
 static void add_link_defer ();
@@ -61,11 +61,11 @@ write_out_header (file_hdr, out_des)
 	     file_hdr->c_filesize, file_hdr->c_dev_maj, file_hdr->c_dev_min,
 	   file_hdr->c_rdev_maj, file_hdr->c_rdev_min, file_hdr->c_namesize,
 	       file_hdr->c_chksum);
-      copy_buf_out (ascii_header, out_des, 110L);
+      tape_buffered_write (ascii_header, out_des, 110L);
 
       /* Write file name to output.  */
-      copy_buf_out (file_hdr->c_name, out_des, (long) file_hdr->c_namesize);
-      pad_output (out_des, file_hdr->c_namesize + 110);
+      tape_buffered_write (file_hdr->c_name, out_des, (long) file_hdr->c_namesize);
+      tape_pad_output (out_des, file_hdr->c_namesize + 110);
     }
   else if (archive_format == arf_oldascii || archive_format == arf_hpoldascii)
     {
@@ -112,17 +112,17 @@ write_out_header (file_hdr, out_des)
 	error (0, 0, "%s: truncating inode number", file_hdr->c_name);
 
       sprintf (ascii_header,
-	       "%06lo%06lo%06lo%06lo%06lo%06lo%06lo%06lo%011lo%06lo%011lo",
+	       "%06o%06o%06lo%06lo%06lo%06lo%06lo%06o%011lo%06lo%011lo",
 	       file_hdr->c_magic & 0xFFFF, dev & 0xFFFF,
 	       file_hdr->c_ino & 0xFFFF, file_hdr->c_mode & 0xFFFF,
 	       file_hdr->c_uid & 0xFFFF, file_hdr->c_gid & 0xFFFF,
 	       file_hdr->c_nlink & 0xFFFF, rdev & 0xFFFF,
 	       file_hdr->c_mtime, file_hdr->c_namesize & 0xFFFF,
 	       file_hdr->c_filesize);
-      copy_buf_out (ascii_header, out_des, 76L);
+      tape_buffered_write (ascii_header, out_des, 76L);
 
       /* Write file name to output.  */
-      copy_buf_out (file_hdr->c_name, out_des, (long) file_hdr->c_namesize);
+      tape_buffered_write (file_hdr->c_name, out_des, (long) file_hdr->c_namesize);
     }
   else if (archive_format == arf_tar || archive_format == arf_ustar)
     {
@@ -179,12 +179,12 @@ write_out_header (file_hdr, out_des)
       short_hdr.c_filesizes[1] = file_hdr->c_filesize & 0xFFFF;
 
       /* Output the file header.  */
-      copy_buf_out ((char *) &short_hdr, out_des, 26L);
+      tape_buffered_write ((char *) &short_hdr, out_des, 26L);
 
       /* Write file name to output.  */
-      copy_buf_out (file_hdr->c_name, out_des, (long) file_hdr->c_namesize);
+      tape_buffered_write (file_hdr->c_name, out_des, (long) file_hdr->c_namesize);
 
-      pad_output (out_des, file_hdr->c_namesize + 26);
+      tape_pad_output (out_des, file_hdr->c_namesize + 26);
     }
 }
 
@@ -383,7 +383,7 @@ process_copy_out ()
 						       input_name.ds_string);
 
 	      write_out_header (&file_hdr, out_file_des);
-	      copy_files (in_file_des, out_file_des, file_hdr.c_filesize);
+	      copy_files_disk_to_tape (in_file_des, out_file_des, file_hdr.c_filesize, input_name.ds_string);
 
 #ifndef __MSDOS__
 	      if (archive_format == arf_tar || archive_format == arf_ustar)
@@ -391,7 +391,7 @@ process_copy_out ()
 			   file_hdr.c_dev_min);
 #endif
 
-	      pad_output (out_file_des, file_hdr.c_filesize);
+	      tape_pad_output (out_file_des, file_hdr.c_filesize);
 
 	      if (close (in_file_des) < 0)
 		error (0, errno, "%s", input_name.ds_string);
@@ -451,24 +451,27 @@ process_copy_out ()
 	    case CP_IFLNK:
 	      {
 		char *link_name = (char *) xmalloc (file_stat.st_size + 1);
+		int link_size;
 
-		if (readlink (input_name.ds_string, link_name,
-			      file_stat.st_size) < 0)
+		link_size = readlink (input_name.ds_string, link_name,
+			              file_stat.st_size);
+		if (link_size < 0)
 		  {
 		    error (0, errno, "%s", input_name.ds_string);
 		    free (link_name);
 		    continue;
 		  }
+		file_hdr.c_filesize = link_size;
 		if (archive_format == arf_tar || archive_format == arf_ustar)
 		  {
-		    if (file_stat.st_size + 1 > 100)
+		    if (link_size + 1 > 100)
 		      {
 			error (0, 0, "%s: symbolic link too long",
 			       file_hdr.c_name);
 		      }
 		    else
 		      {
-			link_name[file_stat.st_size] = '\0';
+			link_name[link_size] = '\0';
 			file_hdr.c_tar_linkname = link_name;
 			write_out_header (&file_hdr, out_file_des);
 		      }
@@ -476,8 +479,8 @@ process_copy_out ()
 		else
 		  {
 		    write_out_header (&file_hdr, out_file_des);
-		    copy_buf_out (link_name, out_file_des, file_stat.st_size);
-		    pad_output (out_file_des, file_hdr.c_filesize);
+		    tape_buffered_write (link_name, out_file_des, link_size);
+		    tape_pad_output (out_file_des, link_size);
 		  }
 		free (link_name);
 	      }
@@ -516,20 +519,23 @@ process_copy_out ()
     write_out_header (&file_hdr, out_file_des);
   else
     {
-      copy_buf_out (zeros_512, out_file_des, 512);
-      copy_buf_out (zeros_512, out_file_des, 512);
+      tape_buffered_write (zeros_512, out_file_des, 512);
+      tape_buffered_write (zeros_512, out_file_des, 512);
     }
 
   /* Fill up the output block.  */
-  clear_rest_of_block (out_file_des);
-  empty_output_buffer (out_file_des);
+  tape_clear_rest_of_block (out_file_des);
+  tape_empty_output_buffer (out_file_des);
   if (dot_flag)
     fputc ('\n', stderr);
-  res = (output_bytes + io_block_size - 1) / io_block_size;
-  if (res == 1)
-    fprintf (stderr, "1 block\n");
-  else
-    fprintf (stderr, "%d blocks\n", res);
+  if (!quiet_flag)
+    {
+      res = (output_bytes + io_block_size - 1) / io_block_size;
+      if (res == 1)
+	fprintf (stderr, "1 block\n");
+      else
+	fprintf (stderr, "%d blocks\n", res);
+    }
 }
 
 /* Read FILE_SIZE bytes of FILE_NAME from IN_FILE_DES and
@@ -569,15 +575,15 @@ read_for_checksum (in_file_des, file_size, file_name)
    OUT_FILE_DES.  */
 
 static void
-clear_rest_of_block (out_file_des)
+tape_clear_rest_of_block (out_file_des)
      int out_file_des;
 {
   while (output_size < io_block_size)
     {
       if ((io_block_size - output_size) > 512)
-	copy_buf_out (zeros_512, out_file_des, 512);
+	tape_buffered_write (zeros_512, out_file_des, 512);
       else
-	copy_buf_out (zeros_512, out_file_des, io_block_size - output_size);
+	tape_buffered_write (zeros_512, out_file_des, io_block_size - output_size);
     }
 }
 
@@ -585,7 +591,7 @@ clear_rest_of_block (out_file_des)
    to the end of the header.  */
 
 static void
-pad_output (out_file_des, offset)
+tape_pad_output (out_file_des, offset)
      int out_file_des;
      int offset;
 {
@@ -601,7 +607,7 @@ pad_output (out_file_des, offset)
     pad = 0;
 
   if (pad != 0)
-    copy_buf_out (zeros_512, out_file_des, pad);
+    tape_buffered_write (zeros_512, out_file_des, pad);
 }
 
 
@@ -686,7 +692,6 @@ writeout_other_defers (file_hdr, out_des)
   int	ino;
   int 	maj;
   int   min;
-  int 	count;
   ino = file_hdr->c_ino;
   maj = file_hdr->c_dev_maj;
   min = file_hdr->c_dev_min;
@@ -754,6 +759,7 @@ writeout_final_defers(out_des)
 static void
 writeout_defered_file (header, out_file_des)
   struct new_cpio_header *header;
+  int out_file_des;
 {
   int in_file_des;
   struct new_cpio_header file_hdr;
@@ -778,7 +784,7 @@ writeout_defered_file (header, out_file_des)
 					   header->c_name);
 
   write_out_header (&file_hdr, out_file_des);
-  copy_files (in_file_des, out_file_des, file_hdr.c_filesize);
+  copy_files_disk_to_tape (in_file_des, out_file_des, file_hdr.c_filesize, header->c_name);
 
 #ifndef __MSDOS__
   if (archive_format == arf_tar || archive_format == arf_ustar)
@@ -786,7 +792,7 @@ writeout_defered_file (header, out_file_des)
 	       file_hdr.c_dev_min);
 #endif
 
-  pad_output (out_file_des, file_hdr.c_filesize);
+  tape_pad_output (out_file_des, file_hdr.c_filesize);
 
   if (close (in_file_des) < 0)
     error (0, errno, "%s", header->c_name);

@@ -46,8 +46,8 @@ char *alloca ();
 #define	S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
 
-#ifdef STDC_HEADERS
 #include <errno.h>
+#ifdef STDC_HEADERS
 #include <stdlib.h>
 #else
 extern int errno;
@@ -55,12 +55,14 @@ extern int errno;
 
 #if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
 #include <string.h>
+#ifndef index
 #define index strchr
+#endif
 #else
 #include <strings.h>
 #endif
 
-#ifdef __MSDOS__
+#if defined(__MSDOS__) && !defined(__GNUC__)
 typedef int uid_t;
 typedef int gid_t;
 #endif
@@ -208,13 +210,21 @@ make_path (argpath, mode, parent_mode, owner, group, verbose_fmt_string)
 	}
 
       /* We're done making leading directories.
-	 Make the final component of the path.  */
+	 Make the final component of the path. */
 
       if (mkdir (dirpath, mode))
 	{
-	  error (0, errno, "cannot make directory `%s'", dirpath);
-	  umask (oldmask);
-	  return 1;
+	  /* In some cases, if the final component in dirpath was `.' then we 
+	     just got an EEXIST error from that last mkdir().  If that's
+	     the case, ignore it.  */
+	  if ( (errno != EEXIST) ||
+	       (stat (dirpath, &stats) != 0) ||
+	       (!S_ISDIR (stats.st_mode) ) )
+	    {
+	      error (0, errno, "cannot make directory `%s'", dirpath);
+	      umask (oldmask);
+	      return 1;
+	    }
 	}
       if (verbose_fmt_string != NULL)
 	error (0, 0, verbose_fmt_string, dirpath);

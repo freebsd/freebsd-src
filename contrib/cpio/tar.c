@@ -165,7 +165,7 @@ write_out_tar_header (file_hdr, out_des)
 
   to_oct (tar_checksum (tar_hdr), 8, tar_hdr->chksum);
 
-  copy_buf_out ((char *) &tar_rec, out_des, TARRECORDSIZE);
+  tape_buffered_write ((char *) &tar_rec, out_des, TARRECORDSIZE);
 }
 
 /* Return nonzero iff all the bytes in BLOCK are NUL.
@@ -203,7 +203,7 @@ read_in_tar_header (file_hdr, in_des)
   gid_t *gidp;
 #endif
 
-  copy_in_buf ((char *) &tar_rec, in_des, TARRECORDSIZE);
+  tape_buffered_read ((char *) &tar_rec, in_des, TARRECORDSIZE);
 
   /* Check for a block of 0's.  */
   if (null_block ((long *) &tar_rec, TARRECORDSIZE))
@@ -216,7 +216,7 @@ read_in_tar_header (file_hdr, in_des)
       /* Commented out because GNU tar sometimes creates archives with
 	 only one block of 0's at the end.  This happened for the
 	 cpio 2.0 distribution!  */
-      copy_in_buf ((char *) &tar_rec, in_des, TARRECORDSIZE);
+      tape_buffered_read ((char *) &tar_rec, in_des, TARRECORDSIZE);
       if (null_block ((long *) &tar_rec, TARRECORDSIZE))
 #endif
 	{
@@ -249,7 +249,7 @@ read_in_tar_header (file_hdr, in_des)
 	    }
 	  bcopy (((char *) &tar_rec) + 1, (char *) &tar_rec,
 		 TARRECORDSIZE - 1);
-	  copy_in_buf (((char *) &tar_rec) + (TARRECORDSIZE - 1), in_des, 1);
+	  tape_buffered_read (((char *) &tar_rec) + (TARRECORDSIZE - 1), in_des, 1);
 	  ++bytes_skipped;
 	  continue;
 	}

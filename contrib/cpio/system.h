@@ -50,6 +50,9 @@
 #endif
 
 #ifndef _POSIX_VERSION
+#if defined(__MSDOS__) && !defined(__GNUC__)
+typedef long off_t;
+#endif
 off_t lseek ();
 #endif
 
@@ -118,7 +121,7 @@ struct utimbuf
 #define CONSOLE "con"
 #endif
 
-#ifdef __MSDOS__
+#if defined(__MSDOS__) && !defined(__GNUC__)
 typedef int uid_t;
 typedef int gid_t;
 #endif

@@ -7,8 +7,8 @@ cpio \- copy files to and from archives
 [\-O [[user@]host:]archive] [\-F [[user@]host:]archive]
 [\-\-file=[[user@]host:]archive] [\-\-format=format] [\-\-message=message]
 [\-\-null] [\-\-reset-access-time] [\-\-verbose] [\-\-dot] [\-\-append]
-[\-\-block-size=blocks] [\-\-dereference] [\-\-io-size=bytes]
-[\-\-help] [\-\-version] < name-list [> archive]
+[\-\-block-size=blocks] [\-\-dereference] [\-\-io-size=bytes] [\-\-quiet]
+[\-\-force\-local] [\-\-help] [\-\-version] < name-list [> archive]
 
 .B cpio
 {\-i|\-\-extract} [\-bcdfmnrtsuvBSV] [\-C bytes] [\-E file] [\-H format]
@@ -19,14 +19,15 @@ cpio \- copy files to and from archives
 [\-\-unconditional] [\-\-verbose] [\-\-block-size=blocks] [\-\-swap-halfwords]
 [\-\-io-size=bytes] [\-\-pattern-file=file] [\-\-format=format]
 [\-\-owner=[user][:.][group]] [\-\-no-preserve-owner] [\-\-message=message]
-[\-\-help] [\-\-version] [pattern...] [< archive]
+[\-\-force\-local] [\-\-no\-absolute\-filenames] [\-\-sparse] [\-\-only\-verify\-crc]
+[\-\-quiet] [\-\-help] [\-\-version] [pattern...] [< archive]
 
 .B cpio
 {\-p|\-\-pass-through} [\-0adlmuvLV] [\-R [user][:.][group]]
-[\-\-null] [\-\-reset-access-time] [\-\-make-directories] [\-\-link]
+[\-\-null] [\-\-reset-access-time] [\-\-make-directories] [\-\-link] [\-\-quiet]
 [\-\-preserve-modification-time] [\-\-unconditional] [\-\-verbose] [\-\-dot]
 [\-\-dereference] [\-\-owner=[user][:.][group]] [\-\-no-preserve-owner]
-[\-\-help] [\-\-version] destination-directory < name-list
+[\-\-sparse] [\-\-help] [\-\-version] destination-directory < name-list
 .SH DESCRIPTION
 This manual page
 documents the GNU version of
@@ -34,7 +35,7 @@ documents the GNU version of
 .B cpio
 copies files into or out of a cpio or tar archive, which is a file that
 contains other files plus information about them, such as their
-pathname, owner, timestamps, and access permissions.  The archive can
+file name, owner, timestamps, and access permissions.  The archive can
 be another file on the disk, a magnetic tape, or a pipe.
 .B cpio
 has three operating modes.
@@ -248,6 +249,10 @@ current volume number (starting at 1).
 In the verbose table of contents listing, show numeric UID and GID
 instead of translating them into names.
 .TP
+.I " \-\-no-absolute-filenames"
+In copy-in mode, create all files relative to the current directory,
+even if they have an absolute file name in the archive.
+.TP
 .I " \-\-no-preserve-owner"
 In copy-in mode and copy-pass mode, do not change the ownership of the
 files; leave them owned by the user extracting them.  This is the
@@ -258,29 +263,40 @@ inadvertantly give away files.
 Run in copy-out mode.
 .TP
 .I "\-O archive"
-Archive filename to use instead of standard output.  To use a
-tape drive on another machine as the archive, use a filename that
-starts with `HOSTNAME:'.  The hostname can be preceded by a
-username and an `@' to access the remote tape drive as that user, if
-you have permission to do so (typically an entry in that user's
-`~/.rhosts' file).
+Archive filename to use instead of standard output.  To use a tape
+drive on another machine as the archive, use a filename that starts
+with `HOSTNAME:'.  The hostname can be preceded by a username and an
+`@' to access the remote tape drive as that user, if you have
+permission to do so (typically an entry in that user's `~/.rhosts'
+file).
+.TP
+.I " \-\-only-verify-crc"
+When reading a CRC format archive in copy-in mode, only verify the
+CRC's of each file in the archive, don't actually extract the files.
 .TP
 .I "\-p, \-\-pass-through"
 Run in copy-pass mode.
+.TP
+.I "\-\-quiet"
+Do not print the number of blocks copied.
 .TP
 .I "\-r, \-\-rename"
 Interactively rename files.
 .TP
 .I "\-R [user][:.][group], \-\-owner [user][:.][group]"
-In copy-out and copy-pass modes, set the ownership of all files
-created to the specified user and/or group.  Either the user or the
-group, or both, must be present.  If the group is omitted but the ":"
-or "." separator is given, use the given user's login group.  Only the
+In copy-out and copy-pass modes, set the ownership of all files created
+to the specified user and/or group.  Either the user or the group, or
+both, must be present.  If the group is omitted but the ":" or "."
+separator is given, use the given user's login group.  Only the
 super-user can change files' ownership.
 .TP
+.I "\-\-sparse"
+In copy-out and copy-pass modes, write files with large blocks of zeros
+as sparse files.
+.TP
 .I "\-s, \-\-swap-bytes"
-In copy-in mode, swap the bytes of each halfword (pair of bytes) in
-the files.
+In copy-in mode, swap the bytes of each halfword (pair of bytes) in the
+files.
 .TP
 .I "\-S, \-\-swap-halfwords"
 In copy-in mode, swap the halfwords of each word (4 bytes) in the

@@ -15,6 +15,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #ifdef STDC_HEADERS
 #include <stdlib.h>
 #else
@@ -22,11 +26,11 @@ char *malloc ();
 #endif
 #if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
 #include <string.h>
-#ifndef rindex
-#define rindex strrchr
-#endif
 #else
 #include <strings.h>
+#ifndef strrchr
+#define strrchr rindex
+#endif
 #endif
 
 /* Return the leading directories part of PATH,
@@ -42,7 +46,7 @@ dirname (path)
   char *slash;
   int length;			/* Length of result, not including NUL.  */
 
-  slash = rindex (path, '/');
+  slash = strrchr (path, '/');
   if (slash == 0)
     {
       /* File is in the current directory.  */
@@ -57,7 +61,7 @@ dirname (path)
 
       length = slash - path + 1;
     }
-  newpath = malloc (length + 1);
+  newpath = (char *) malloc (length + 1);
   if (newpath == 0)
     return 0;
   strncpy (newpath, path, length);
