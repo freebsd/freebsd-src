@@ -14,7 +14,7 @@
  *
  */
 
-static	char rev[] = "$Revision: 1.3 $";
+static	char rev[] = "$Revision: 1.2 $";
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
@@ -174,7 +174,7 @@ struct	scsi_switch *scsi_switch;
 	* request must specify this.				*
 	\*******************************************************/
 	sd_get_parms(unit,  SCSI_NOSLEEP |  SCSI_NOMASK);
-	printf("	sd%d: %dMB, cyls %d, heads %d, secs %d, bytes/sec %d\n",
+	printf("sd%d: %dMB, cyls %d, heads %d, secs %d, bytes/sec %d\n",
 		unit,
 		(	  dp->cyls 
 			* dp->heads 
