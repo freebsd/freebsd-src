@@ -1,9 +1,9 @@
-# $Id: Makefile,v 1.6 1995/12/16 04:03:02 wpaul Exp $
+# $Id: Makefile,v 1.2 1996/06/05 05:42:46 wpaul Exp $
 
 PROG=	ypxfr
 SRCS=	ypxfr_clnt.c yp_clnt.c ypxfr_getmap.c yp_dblookup.c \
 	yp_error.c ypxfr_misc.c ypxfr_main.c yp_dbwrite.c \
-	ypxfrd_xdr.c ypxfrd_getmap.c
+	ypxfrd_getmap.c
 
 .PATH: ${.CURDIR}/../../usr.sbin/ypserv
 
