@@ -38,9 +38,9 @@
 #include <sys/_mutex.h>
 
 #ifdef _KERNEL
+#include <sys/pcpu.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
-#include <machine/globals.h>
 #endif	/* _KERNEL_ */
 #endif	/* !LOCORE */
 

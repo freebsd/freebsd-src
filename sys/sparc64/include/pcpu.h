@@ -27,12 +27,10 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_GLOBALDATA_H_
-#define	_MACHINE_GLOBALDATA_H_
+#ifndef	_MACHINE_PCPU_H_
+#define	_MACHINE_PCPU_H_
 
 #ifdef _KERNEL
-
-#include <sys/queue.h>
 
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
@@ -40,39 +38,25 @@
 #define	ALT_STACK_SIZE	128
 
 /*
- * This structure maps out the global data that needs to be kept on a
- * per-cpu basis.  genassym uses this to generate offsets for the assembler
- * code, which also provides external symbols so that C can get at them as
- * though they were really globals. This structure is pointed to by
- * the per-cpu system value.
  * Inside the kernel, the globally reserved register g7 is used to
  * point at the globaldata structure.
  */
-struct globaldata {
-	struct	thread *gd_curthread;		/* current thread */
-	struct	thread *gd_idlethread;		/* idle thread */
-	struct	pcb *gd_curpcb;			/* current pcb */
-	struct	timeval gd_switchtime;	
-	int	gd_switchticks;
-	u_int	gd_cpuid;			/* this cpu number */
-	u_int	gd_other_cpus;			/* all other cpus */
-	SLIST_ENTRY(globaldata) gd_allcpu;
-	struct	lock_list_entry *gd_spinlocks;
+#define	PCPU_MD_FIELDS							\
+	struct	intr_queue pc_iq;		/* interrupt queuq */	\
+	u_long	pc_alt_stack[ALT_STACK_SIZE];	/* alt global stack */	\
+	u_int	pc_wp_insn;			/* watch point support */ \
+	u_long	pc_wp_pstate;						\
+	u_long	pc_wp_va;						\
+	int	pc_wp_mask
 
-	struct	intr_queue gd_iq;		/* interrupt queuq */
-	u_long	gd_alt_stack[ALT_STACK_SIZE];	/* alternate global stack */
-	u_int	gd_wp_insn;			/* watch point support */
-	u_long	gd_wp_pstate;
-	u_long	gd_wp_va;
-	int	gd_wp_mask;
+struct pcpu;
 
-#ifdef KTR_PERCPU
-	int	gd_ktr_idx;			/* index into trace table */
-	char	*gd_ktr_buf;
-	char	gd_ktr_buf_data[0];
-#endif
-};
+register struct pcpu *pcpup __asm__("%g7");
+
+#define	PCPU_GET(member)	(pcpup->pc_ ## member)
+#define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
+#define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
 
 #endif	/* _KERNEL */
 
-#endif	/* !_MACHINE_GLOBALDATA_H_ */
+#endif	/* !_MACHINE_PCPU_H_ */

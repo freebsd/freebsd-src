@@ -905,14 +905,14 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 
 	/*
-	 * Setup the global data for the bootstrap cpu.
+	 * Setup the per-CPU data for the bootstrap cpu.
 	 */
 	{
 		/* This is not a 'struct user' */
 		size_t sz = round_page(KSTACK_PAGES * PAGE_SIZE);
-		globalp = (struct globaldata *) pmap_steal_memory(sz);
-		globaldata_init(globalp, alpha_pal_whami(), sz);
-		alpha_pal_wrval((u_int64_t) globalp);
+		pcpup = (struct pcpu *) pmap_steal_memory(sz);
+		pcpu_init(pcpup, alpha_pal_whami(), sz);
+		alpha_pal_wrval((u_int64_t) pcpup);
 		PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
 #ifdef SMP
 		thread0->td_md.md_kernnest = 1;
@@ -943,14 +943,8 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	thread0->td_frame = (struct trapframe *)thread0->td_pcb - 1;
 	thread0->td_pcb->pcb_hw.apcb_ksp = (u_int64_t)thread0->td_frame;
 
-	/*
-	 * Get the right value for the boot cpu's idle ptbr.
-	 */
-	globalp->gd_idlepcb.apcb_ptbr = thread0->td_pcb->pcb_hw.apcb_ptbr;
-
 	/* Setup curthread so that mutexes work */
 	PCPU_SET(curthread, thread0);
-	PCPU_SET(spinlocks, NULL);
 
 	LIST_INIT(&thread0->td_contested);
 
@@ -2149,18 +2143,15 @@ alpha_fpstate_switch(struct thread *td)
 }
 
 /*
- * Initialise a struct globaldata.
+ * Initialise a struct pcpu.
  */
 void
-globaldata_init(struct globaldata *globaldata, int cpuid, size_t sz)
+cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
-	bzero(globaldata, sz);
-	globaldata->gd_idlepcbphys = vtophys((vm_offset_t) &globaldata->gd_idlepcb);
-	globaldata->gd_idlepcb.apcb_ksp = (u_int64_t)
-		((caddr_t) globaldata + sz - sizeof(struct trapframe));
-	globaldata->gd_idlepcb.apcb_ptbr = thread0->td_pcb->pcb_hw.apcb_ptbr;
-	globaldata->gd_cpuid = cpuid;
-	globaldata->gd_next_asn = 0;
-	globaldata->gd_current_asngen = 1;
-	globaldata_register(globaldata);
+
+	pcpu->pc_idlepcbphys = vtophys((vm_offset_t) &pcpu->pc_idlepcb);
+	pcpu->pc_idlepcb.apcb_ksp = (u_int64_t)
+		((caddr_t) pcpu + sz - sizeof(struct trapframe));
+	pcpu->pc_idlepcb.apcb_ptbr = thread0->td_pcb->pcb_hw.apcb_ptbr;
+	pcpu->pc_current_asngen = 1;
 }

@@ -68,7 +68,7 @@ ENTRY(vm86_bioscall)
 	pushfl
 	cli
 	movl	PCPU(CURTHREAD),%ecx
-	cmpl	%ecx,PCPU(NPXTHREAD)	/* do we need to save fp? */
+	cmpl	%ecx,PCPU(FPCURTHREAD)	/* do we need to save fp? */
 	jne	1f
 	testl	%ecx,%ecx
 	je 	1f			/* no curproc/npxproc */

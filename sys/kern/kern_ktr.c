@@ -42,10 +42,10 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
+#include <sys/pcpu.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/time.h>
-#include <machine/globals.h>
 #include <machine/stdarg.h>
 
 #include <ddb/ddb.h>

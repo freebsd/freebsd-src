@@ -42,7 +42,6 @@
 #include <vm/pmap.h>
 
 #include <machine/atomic.h>
-#include <machine/globaldata.h>
 #include <machine/pal.h>
 #include <machine/pmap.h>
 #include <machine/clock.h>

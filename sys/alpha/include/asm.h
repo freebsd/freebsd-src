@@ -91,7 +91,7 @@
 
 /* In the kernel, we use t7 to point at the per-cpu globals. */
 #ifdef _KERNEL
-#define globalp $8
+#define pcpup	$8
 #endif
 
 /* Floating point registers  (XXXX VERIFY THIS) */

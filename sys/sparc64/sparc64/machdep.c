@@ -118,7 +118,7 @@ u_long debug_mask;
 struct mtx Giant;
 struct mtx sched_lock;
 
-static struct globaldata __globaldata;
+static struct pcpu __pcpu;
 /*
  * This needs not be aligned as the other user areas, provided that process 0
  * does not have an fp state (which it doesn't normally).
@@ -177,13 +177,16 @@ cpu_startup(void *arg)
 	bufinit();
 	vm_pager_bufferinit();
 
-	globaldata_register(globalp);
-
 	intr_init();
 	tick_start(clock, tick_hardclock);
 
 	EVENTHANDLER_REGISTER(shutdown_final, sparc64_shutdown_final, NULL,
 	    SHUTDOWN_PRI_LAST);
+}
+
+void
+cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
+{
 }
 
 unsigned
@@ -305,12 +308,12 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	/*
 	 * Initialize the per-cpu pointer so we can set curproc.
 	 */
-	globalp = &__globaldata;
+	pcpup = &__pcpu;
 
 	/*
-	 * Put the globaldata pointer in the alternate and interrupt %g7 also.
-	 * globaldata is tied to %g7. We could therefore also use assignments to
-	 * globaldata here.
+	 * Put the pcpu pointer in the alternate and interrupt %g7 also.
+	 * pcpu is tied to %g7. We could therefore also use assignments to
+	 * pcpu here.
 	 * The alternate %g6 additionally points to a small per-cpu stack that
 	 * is used to temporarily store global registers in special spill
 	 * handlers.
@@ -318,19 +321,19 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	ps = rdpr(pstate);
 	wrpr(pstate, ps, PSTATE_AG);
 	__asm __volatile("mov %0, %%g6" : : "r"
-	    (&__globaldata.gd_alt_stack[ALT_STACK_SIZE - 1]));
-	__asm __volatile("mov %0, %%g7" : : "r" (&__globaldata));
+	    (&__pcpu.pc_alt_stack[ALT_STACK_SIZE - 1]));
+	__asm __volatile("mov %0, %%g7" : : "r" (&__pcpu));
 	wrpr(pstate, ps, PSTATE_IG);
-	__asm __volatile("mov %0, %%g6" : : "r" (&__globaldata.gd_iq));
+	__asm __volatile("mov %0, %%g6" : : "r" (&__pcpu.pc_iq));
 	__asm __volatile("mov %0, %%g7" : : "r" (&intr_vectors));
 	wrpr(pstate, ps, 0);
 
 	/*
 	 * Initialize curproc so that mutexes work.
 	 */
+	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, thread0);
 	PCPU_SET(curpcb, thread0->td_pcb);
-	PCPU_SET(spinlocks, NULL);
 
 	/*
 	 * Initialize mutexes.

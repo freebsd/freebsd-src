@@ -31,9 +31,6 @@
 #ifndef _MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
-#include <machine/globaldata.h>
-#include <machine/globals.h>
-
 /*
  * Machine-dependent part of the proc struct for the Alpha.
  */

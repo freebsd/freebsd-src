@@ -199,7 +199,7 @@ ENTRY(suword, 2)
 (p6)	br.dpnt.few fusufault
 
 	movl	r14=fusufault			// set up fault handler.
-	add	r15=GD_CURTHREAD,r13		// find curthread
+	add	r15=PC_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
@@ -227,7 +227,7 @@ ENTRY(subyte, 2)
 (p6)	br.dpnt.few fusufault
 
 	movl	r14=fusufault			// set up fault handler.
-	add	r15=GD_CURTHREAD,r13		// find curthread
+	add	r15=PC_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
@@ -255,7 +255,7 @@ ENTRY(fuword, 1)
 (p6)	br.dpnt.few fusufault
 
 	movl	r14=fusufault			// set up fault handler.
-	add	r15=GD_CURTHREAD,r13		// find curthread
+	add	r15=PC_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
@@ -282,7 +282,7 @@ ENTRY(fubyte, 1)
 (p6)	br.dpnt.few fusufault
 
 	movl	r14=fusufault			// set up fault handler.
-	add	r15=GD_CURTHREAD,r13		// find curthread
+	add	r15=PC_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
@@ -376,7 +376,7 @@ ENTRY(copyinstr, 4)
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
-	add	r15=GD_CURTHREAD,r13		// find curthread
+	add	r15=PC_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
@@ -416,7 +416,7 @@ ENTRY(copyoutstr, 4)
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
-	add	r15=GD_CURTHREAD,r13		// find curthread
+	add	r15=PC_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
@@ -536,7 +536,7 @@ ENTRY(copyin, 3)
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
-	add	r15=GD_CURTHREAD,r13		// find curthread
+	add	r15=PC_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
@@ -576,7 +576,7 @@ ENTRY(copyout, 3)
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
-	add	r15=GD_CURTHREAD,r13		// find curthread
+	add	r15=PC_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
@@ -602,7 +602,7 @@ END(copyout)
 
 ENTRY(copyerr, 0)
 
-	add	r14=GD_CURTHREAD,r13 ;;		// find curthread
+	add	r14=PC_CURTHREAD,r13 ;;		// find curthread
 	ld8	r14=[r14] ;;
 	add	r14=TD_PCB,r14 ;;		// curthread->td_addr
 	ld8	r14=[r14] ;;

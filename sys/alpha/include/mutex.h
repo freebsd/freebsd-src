@@ -58,7 +58,7 @@ extern struct mtx	clock_lock;
 1:	ldq_l	a0, lck+MTX_LOCK;		\
 	cmpeq	a0, MTX_UNOWNED, a1;		\
 	beq	a1, 1b;				\
-	ldq	a0, PC_CURTHREAD(globalp);	\
+	ldq	a0, PC_CURTHREAD(pcpup);	\
 	stq_c	a0, lck+MTX_LOCK;		\
 	beq	a0, 1b;				\
 	mb;					\

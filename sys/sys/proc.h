@@ -52,6 +52,8 @@
 #include <sys/signal.h>
 #ifndef _KERNEL
 #include <sys/time.h>			/* For structs itimerval, timeval. */
+#else
+#include <sys/pcpu.h>
 #endif
 #include <sys/ucred.h>
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */

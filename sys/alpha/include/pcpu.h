@@ -27,48 +27,26 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_GLOBALDATA_H_
-#define	_MACHINE_GLOBALDATA_H_
+#ifndef	_MACHINE_PCPU_H_
+#define	_MACHINE_PCPU_H_
 
 #ifdef _KERNEL
 
-#include <sys/queue.h>
+#define	PCPU_MD_FIELDS							\
+	struct alpha_pcb pc_idlepcb;		/* pcb for idling */	\
+	u_int64_t	pc_idlepcbphys;		/* pa of pc_idlepcb */	\
+	u_int64_t	pc_pending_ipis;	/* pending IPI's */	\
+	u_int32_t	pc_next_asn;		/* next ASN to alloc */	\
+	u_int32_t	pc_current_asngen	/* ASN rollover check */
 
-/*
- * This structure maps out the global data that needs to be kept on a
- * per-cpu basis.  genassym uses this to generate offsets for the assembler
- * code, which also provides external symbols so that C can get at them as
- * though they were really globals. This structure is pointed to by
- * the per-cpu system value (see alpha_pal_rdval() and alpha_pal_wrval()).
- * Inside the kernel, the globally reserved register t7 is used to
- * point at the globaldata structure.
- */
-struct globaldata {
-	struct	alpha_pcb gd_idlepcb;		/* pcb for idling */
-	struct	thread *gd_curthread;		/* current thread */
-	struct	thread *gd_idlethread;		/* idle thread */
-	struct	thread *gd_fpcurthread;		/* fp state owner */
-	struct	pcb *gd_curpcb;			/* current pcb */
-	struct	timeval gd_switchtime;	
-	int	gd_switchticks;
-	u_int	gd_cpuid;			/* this cpu number */
-	u_int	gd_other_cpus;			/* all other cpus */
-	u_int64_t	gd_idlepcbphys;		/* pa of gd_idlepcb */
-	u_int64_t	gd_pending_ipis;	/* pending IPI events */
-	u_int32_t	gd_next_asn;		/* next ASN to allocate */
-	u_int32_t	gd_current_asngen;	/* ASN rollover check */
+struct pcpu;
 
-	SLIST_ENTRY(globaldata) gd_allcpu;
-	struct	lock_list_entry *gd_spinlocks;
-#ifdef KTR_PERCPU
-	int	gd_ktr_idx;			/* Index into trace table */
-	char	*gd_ktr_buf;
-	char	gd_ktr_buf_data[0];
-#endif
-};
+register struct pcpu *pcpup __asm__("$8");
 
-void globaldata_init(struct globaldata *pcpu, int cpuid, size_t sz);
+#define	PCPU_GET(member)	(pcpup->pc_ ## member)
+#define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
+#define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
 
 #endif	/* _KERNEL */
 
-#endif	/* !_MACHINE_GLOBALDATA_H_ */
+#endif	/* !_MACHINE_PCPU_H_ */

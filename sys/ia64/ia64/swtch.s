@@ -158,7 +158,7 @@ ENTRY(restorectx, 1)
 
 ENTRY(cpu_switch, 0)
 
-	add	r16=GD_CURTHREAD,r13 ;;
+	add	r16=PC_CURTHREAD,r13 ;;
 	ld8	r17=[r16] ;; 
 	add	r17=TD_PCB,r17 ;;
 	ld8	r17=[r17]
@@ -211,7 +211,7 @@ ENTRY(cpu_switch, 0)
 
 	br.call.sptk.few rp=choosethread
 
-	add	r14=GD_CURTHREAD,r13 ;;
+	add	r14=PC_CURTHREAD,r13 ;;
 	ld8	r15=[r14] ;;
 
 #if 0
@@ -228,7 +228,7 @@ ENTRY(cpu_switch, 0)
 #endif
 
 1:
-	st8	[r14]=ret0		// set r13->gd_curthread
+	st8	[r14]=ret0		// set r13->pc_curthread
 	mov	ar.k7=ret0
 	mov	r4=ret0			// save from call
 	;; 

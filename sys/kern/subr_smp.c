@@ -132,7 +132,7 @@ forward_signal(struct thread *td)
 void
 forward_roundrobin(void)
 {
-	struct globaldata *gd;
+	struct pcpu *pc;
 	struct thread *td;
 	u_int id, map;
 
@@ -145,11 +145,11 @@ forward_roundrobin(void)
 	if (!forward_roundrobin_enabled)
 		return;
 	map = 0;
-	SLIST_FOREACH(gd, &cpuhead, gd_allcpu) {
-		td = gd->gd_curthread;
-		id = gd->gd_cpuid;
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		td = pc->pc_curthread;
+		id = pc->pc_cpuid;
 		if (id != PCPU_GET(cpuid) && (id & stopped_cpus) == 0 &&
-		    td != gd->gd_idlethread) {
+		    td != pc->pc_idlethread) {
 			td->td_kse->ke_flags |= KEF_NEEDRESCHED;
 			map |= id;
 		}
