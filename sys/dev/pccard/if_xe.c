@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_xe.c,v 1.14 1999/02/22 14:16:14 root Exp $
+ *	$Id: if_xe.c,v 1.15 1999/03/05 12:11:40 root Exp $
  */
 
 /*
@@ -268,7 +268,10 @@ static int       xe_resume		(void *xunit);
 /*
  * PCMCIA driver hooks
  */
-static struct pccard_device xe_info = {
+#ifdef PCCARD_MODULE
+PCCARD_MODULE(xe, xe_card_init, xe_card_unload, xe_card_intr, 0, net_imask);
+#else
+static struct pccard_device xe_info = {	/* For pre 3.1-STABLE code */
 	"xe",
 	xe_card_init,
 	xe_card_unload,
@@ -276,8 +279,9 @@ static struct pccard_device xe_info = {
 	0,
 	&net_imask
 };
-
 DATA_SET(pccarddrv_set, xe_info);
+#endif /* PCCARD_MODULE */
+
 
 /*
  * ISA driver hooks.  I'd like to do without these but the kernel config stuff 
@@ -762,7 +766,7 @@ xe_start(struct ifnet *ifp) {
 #if NBPFILTER > 0
     /* Tap off here if there is a bpf listener */
     if (ifp->if_bpf) {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
       printf("xe%d: sending output packet to BPF\n", scp->unit);
 #endif
       bpf_mtap(ifp, mbp);
@@ -1084,7 +1088,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	   * off the raw packet to bpf.
 	   */
 	  if (ifp->if_bpf) {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
 	    printf("xe%d: passing input packet to BPF\n", scp->unit);
 #endif
 	    bpf_mtap(ifp, mbp);
