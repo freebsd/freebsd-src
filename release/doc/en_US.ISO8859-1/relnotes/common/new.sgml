@@ -703,6 +703,11 @@
 	<filename>/boot/kernel</filename>, so they can be easily
 	manipulated together.  The boot loader has been updated to
 	make this change as seamless as possible.</para>
+
+      <para arch="alpha,i386,pc98,sparc64">The boot loader now
+	supports loading kernels from both UFS1 and UFS2
+	filesystems.</para>
+
     </sect3>
 
     <sect3>
@@ -1399,7 +1404,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	2312 Optical Fibre Channel PCI cards. &merged;</para>
 
       <para arch="i386,pc98">The &man.matcd.4; driver has been removed
-        due to breakage and licensing issues. &merged;</para>
+        after falling into a state of disrepair in the source tree and
+        because of concerns over its licensing terms.  These issues
+        are currently being addressed and this driver may reappear in
+        future versions of &os;. &merged;</para>
 
       <para>&man.md.4;, the memory disk device, has had the
 	functionality of &man.vn.4; incorporated into it.  &man.md.4;
@@ -3607,6 +3615,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para role="historic">&man.syslogd.8; now accepts a <option>-c</option> flag to
       disable repeated line compression. &merged;</para>
+
+    <para>&man.systat.1; now includes an <option>-ifstat</option>
+      display mode that displays the network traffic going through
+      active intrfaces on the system.</para>
 
     <para>&man.tabs.1;, a utility to set terminal tab stops, has been
       added.</para>
