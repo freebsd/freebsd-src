@@ -95,17 +95,6 @@ static struct vfsops ifs_vfsops = {
 VFS_SET(ifs_vfsops, ifs, 0);
 
 /*
- * Initialize the filesystem; just use ufs_init.
- */
-static int
-ifs_init(vfsp)
-	struct vfsconf *vfsp;
-{
-	mtx_init(&ifs_inode_hash_mtx, "ifsvgt", MTX_DEF);
-	return (ufs_init(vfsp));
-}
-
-/*
  * ifs_mount
  *
  * A simple wrapper around ffs_mount - IFS filesystems right now can't
@@ -149,6 +138,17 @@ static int ifs_inode_hash_lock;
  * waking up.
  */
 static struct mtx ifs_inode_hash_mtx;
+
+/*
+ * Initialize the filesystem; just use ufs_init.
+ */
+static int
+ifs_init(vfsp)
+	struct vfsconf *vfsp;
+{
+	mtx_init(&ifs_inode_hash_mtx, "ifsvgt", MTX_DEF);
+	return (ufs_init(vfsp));
+}
 
 int
 ifs_vget(mp, ino, vpp)
@@ -248,7 +248,7 @@ restart:
 	 * themselves into the mutex.
 	 */
 	mtx_enter(&ifs_inode_hash_mtx, MTX_DEF);
-	want_wakeup = ffs_inode_hash_lock < 0;
+	want_wakeup = ifs_inode_hash_lock < 0;
 	ifs_inode_hash_lock = 0;
 	mtx_exit(&ifs_inode_hash_mtx, MTX_DEF);
 	if (want_wakeup)
