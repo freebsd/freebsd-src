@@ -35,7 +35,7 @@
 .\"     @(#)cut.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd June 28, 2004
 .Dt CUT 1
 .Os
 .Sh NAME
@@ -122,11 +122,9 @@ The
 .Ev LANG , LC_ALL
 and
 .Ev LC_CTYPE
-environment variables affect the execution of
+environment variables affect the execution of the
 .Nm
-if the
-.Fl n
-option is specified.
+utility.
 Their effect is described in
 .Xr environ 7 .
 .Sh EXAMPLES
@@ -158,13 +156,6 @@ command appeared in
 System III
 .Ux .
 .Sh BUGS
-The
-.Fl c
-option is a synonym for the
-.Fl b
-option, which causes incorrect behaviour in locales that support
-multibyte characters.
-.Pp
 When operating on fields
 .Fl ( f
 option is specified),
