@@ -1,4 +1,4 @@
-/*	$NetBSD: if_de.c,v 1.82 1999/02/28 17:08:51 explorer Exp $	*/
+/*	$NetBSD: if_de.c,v 1.86 1999/06/01 19:17:59 thorpej Exp $	*/
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -2372,6 +2372,45 @@ tulip_identify_asante_nic(
     }
 }
 
+static void
+tulip_identify_compex_nic(
+    tulip_softc_t * const sc)
+{
+    strcpy(sc->tulip_boardid, "COMPEX ");
+    if (sc->tulip_chipid == TULIP_21140A) {
+	int root_unit;
+	tulip_softc_t *root_sc = NULL;
+
+	strcat(sc->tulip_boardid, "400TX/PCI ");
+	/*
+	 * All 4 chips on these boards share an interrupt.  This code
+	 * copied from tulip_read_macaddr.
+	 */
+	sc->tulip_features |= TULIP_HAVE_SHAREDINTR;
+	for (root_unit = sc->tulip_unit - 1; root_unit >= 0; root_unit--) {
+	    root_sc = TULIP_UNIT_TO_SOFTC(root_unit);
+	    if (root_sc == NULL
+		|| !(root_sc->tulip_features & TULIP_HAVE_SLAVEDINTR))
+		break;
+	    root_sc = NULL;
+	}
+	if (root_sc != NULL
+	    && root_sc->tulip_chipid == sc->tulip_chipid
+	    && root_sc->tulip_pci_busno == sc->tulip_pci_busno) {
+	    sc->tulip_features |= TULIP_HAVE_SLAVEDINTR;
+	    sc->tulip_slaves = root_sc->tulip_slaves;
+	    root_sc->tulip_slaves = sc;
+	} else if(sc->tulip_features & TULIP_HAVE_SLAVEDINTR) {
+	    printf("\nCannot find master device for de%d interrupts",
+		   sc->tulip_unit);
+	}
+    } else {
+	strcat(sc->tulip_boardid, "unknown ");
+    }
+    /*      sc->tulip_boardsw = &tulip_21140_eb_boardsw; */
+    return;
+}
+
 static int
 tulip_srom_decode(
     tulip_softc_t * const sc)
@@ -2746,6 +2785,7 @@ static const struct {
     { tulip_identify_cogent_nic,	{ 0x00, 0x00, 0x92 } },
     { tulip_identify_asante_nic,	{ 0x00, 0x00, 0x94 } },
     { tulip_identify_accton_nic,	{ 0x00, 0x00, 0xE8 } },
+    { tulip_identify_compex_nic,        { 0x00, 0x80, 0x48 } },
     { NULL }
 };
 
@@ -2800,7 +2840,7 @@ tulip_read_macaddr(
 	     * it's the best we can do until every one switches to
 	     * the new SROM format.
 	     */
-	     
+
 	    sc->tulip_boardsw = &tulip_21140_eb_boardsw;
 	}
 	tulip_srom_read(sc);
@@ -3094,7 +3134,11 @@ tulip_addr_filter(
 	while (enm != NULL) {
 		if (bcmp(enm->enm_addrlo, enm->enm_addrhi, 6) == 0) {
 		    hash = tulip_mchash(enm->enm_addrlo);
+#if BYTE_ORDER == BIG_ENDIAN
+		    sp[hash >> 4] |= bswap32(1 << (hash & 0xF));
+#else
 		    sp[hash >> 4] |= 1 << (hash & 0xF);
+#endif
 		} else {
 		    sc->tulip_flags |= TULIP_ALLMULTI;
 		    sc->tulip_flags &= ~(TULIP_WANTHASHONLY|TULIP_WANTHASHPERFECT);
@@ -3108,14 +3152,28 @@ tulip_addr_filter(
 	 */
 	if ((sc->tulip_flags & TULIP_ALLMULTI) == 0) {
 	    hash = tulip_mchash(etherbroadcastaddr);
+#if BYTE_ORDER == BIG_ENDIAN
+	    sp[hash >> 4] |= bswap32(1 << (hash & 0xF));
+#else
 	    sp[hash >> 4] |= 1 << (hash & 0xF);
+#endif
 	    if (sc->tulip_flags & TULIP_WANTHASHONLY) {
 		hash = tulip_mchash(sc->tulip_enaddr);
+#if BYTE_ORDER == BIG_ENDIAN
+		sp[hash >> 4] |= bswap32(1 << (hash & 0xF));
+#else
 		sp[hash >> 4] |= 1 << (hash & 0xF);
+#endif
 	    } else {
+#if BYTE_ORDER == BIG_ENDIAN
+		sp[39] = ((u_int16_t *) sc->tulip_enaddr)[0] << 16;
+		sp[40] = ((u_int16_t *) sc->tulip_enaddr)[1] << 16;
+		sp[41] = ((u_int16_t *) sc->tulip_enaddr)[2] << 16;
+#else
 		sp[39] = ((u_int16_t *) sc->tulip_enaddr)[0]; 
 		sp[40] = ((u_int16_t *) sc->tulip_enaddr)[1]; 
 		sp[41] = ((u_int16_t *) sc->tulip_enaddr)[2];
+#endif
 	    }
 	}
     }
@@ -3129,9 +3187,15 @@ tulip_addr_filter(
 	    ETHER_FIRST_MULTI(step, TULIP_ETHERCOM(sc), enm);
 	    for (; enm != NULL; idx++) {
 		if (bcmp(enm->enm_addrlo, enm->enm_addrhi, 6) == 0) {
+#if BYTE_ORDER == BIG_ENDIAN
+		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[0] << 16;
+		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[1] << 16;
+		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[2] << 16;
+#else
 		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[0]; 
 		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[1]; 
 		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[2];
+#endif
 		} else {
 		    sc->tulip_flags |= TULIP_ALLMULTI;
 		    break;
@@ -3142,17 +3206,29 @@ tulip_addr_filter(
 	     * Add the broadcast address.
 	     */
 	    idx++;
+#if BYTE_ORDER == BIG_ENDIAN
+	    *sp++ = 0xFFFF << 16;
+	    *sp++ = 0xFFFF << 16;
+	    *sp++ = 0xFFFF << 16;
+#else
 	    *sp++ = 0xFFFF;
 	    *sp++ = 0xFFFF;
 	    *sp++ = 0xFFFF;
+#endif
 	}
 	/*
 	 * Pad the rest with our hardware address
 	 */
 	for (; idx < 16; idx++) {
+#if BYTE_ORDER == BIG_ENDIAN
+	    *sp++ = ((u_int16_t *) sc->tulip_enaddr)[0] << 16;
+	    *sp++ = ((u_int16_t *) sc->tulip_enaddr)[1] << 16;
+	    *sp++ = ((u_int16_t *) sc->tulip_enaddr)[2] << 16;
+#else
 	    *sp++ = ((u_int16_t *) sc->tulip_enaddr)[0]; 
 	    *sp++ = ((u_int16_t *) sc->tulip_enaddr)[1]; 
 	    *sp++ = ((u_int16_t *) sc->tulip_enaddr)[2];
+#endif
 	}
     }
 #if defined(IFF_ALLMULTI)
@@ -3206,7 +3282,8 @@ tulip_reset(
 		    (1 << (TULIP_BURSTSIZE(sc->tulip_unit) + 8))
 		    |TULIP_BUSMODE_CACHE_ALIGN8
 		    |TULIP_BUSMODE_READMULTIPLE
-		    |(BYTE_ORDER != LITTLE_ENDIAN ? TULIP_BUSMODE_BIGENDIAN : 0));
+		    |(BYTE_ORDER != LITTLE_ENDIAN ?
+		      TULIP_BUSMODE_DESC_BIGENDIAN : 0));
 
     sc->tulip_txtimer = 0;
     sc->tulip_txq.ifq_maxlen = TULIP_TXDESCS;
@@ -3490,7 +3567,6 @@ tulip_rx_intr(
 		    && !TULIP_ADDREQUAL(eh.ether_dhost, sc->tulip_enaddr))
 		    goto next;
 	    accept = 1;
-	    total_len -= sizeof(struct ether_header);
 	} else {
 	    ifp->if_ierrors++;
 	    if (eop->d_status & (TULIP_DSTS_RxBADLENGTH|TULIP_DSTS_RxOVERFLOW|TULIP_DSTS_RxWATCHDOG)) {
@@ -3565,7 +3641,7 @@ tulip_rx_intr(
 	    MGETHDR(m0, M_DONTWAIT, MT_DATA);
 	    if (m0 != NULL) {
 #if defined(TULIP_COPY_RXDATA)
-		if (!accept || total_len >= MHLEN) {
+		if (!accept || total_len >= (MHLEN - 2)) {
 #endif
 		    MCLGET(m0, M_DONTWAIT);
 		    if ((m0->m_flags & M_EXT) == 0) {
@@ -3585,25 +3661,30 @@ tulip_rx_intr(
 		eh.ether_type = ntohs(eh.ether_type);
 #endif
 #if !defined(TULIP_COPY_RXDATA)
-		ms->m_data += sizeof(struct ether_header);
-		ms->m_len -= sizeof(struct ether_header);
 		ms->m_pkthdr.len = total_len;
 		ms->m_pkthdr.rcvif = ifp;
+#if defined(__NetBSD__)
+		(*ifp->if_input)(ifp, ms);
+#else
+		m_adj(ms, sizeof(struct ether_header);
 		ether_input(ifp, &eh, ms);
+#endif /* __NetBSD__ */
 #else
 #ifdef BIG_PACKET
 #error BIG_PACKET is incompatible with TULIP_COPY_RXDATA
 #endif
-		if (ms == me)
-		    bcopy(mtod(ms, caddr_t) + sizeof(struct ether_header),
-			  mtod(m0, caddr_t), total_len);
-		else
-		    m_copydata(ms, 0, total_len, mtod(m0, caddr_t));
+		m0->m_data += 2;	/* align data after header */
+		m_copydata(ms, 0, total_len, mtod(m0, caddr_t));
 		m0->m_len = m0->m_pkthdr.len = total_len;
 		m0->m_pkthdr.rcvif = ifp;
+#if defined(__NetBSD__)
+		(*ifp->if_input)(ifp, m0);
+#else
+		m_adj(m0, sizeof(struct ether_header);
 		ether_input(ifp, &eh, m0);
+#endif /* __NetBSD__ */
 		m0 = ms;
-#endif
+#endif /* ! TULIP_COPY_RXDATA */
 	    }
 	    ms = m0;
 	}
@@ -4923,7 +5004,7 @@ tulip_attach(
     ifp->if_start = tulip_ifstart;
     ifp->if_watchdog = tulip_ifwatchdog;
     ifp->if_timer = 1;
-#if !defined(__bsdi__) || _BSDI_VERSION < 199401
+#if (!defined(__bsdi__) || _BSDI_VERSION < 199401) && !defined(__NetBSD__)
     ifp->if_output = ether_output;
 #endif
 #if defined(__bsdi__) && _BSDI_VERSION < 199401
@@ -5676,6 +5757,12 @@ tulip_pci_attach(
 	    printf(": unable to map device registers\n");
 	    return;
 	}
+
+	/* Make sure bus mastering is enabled. */
+	pci_conf_write(pa->pa_pc, pa->pa_tag, PCI_COMMAND_STATUS_REG,
+		       pci_conf_read(pa->pa_pc, pa->pa_tag,
+				     PCI_COMMAND_STATUS_REG) |
+		       PCI_COMMAND_MASTER_ENABLE);
     }
 #endif /* __NetBSD__ */
 
