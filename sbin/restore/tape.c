@@ -322,7 +322,7 @@ again:
 			    "Unless you know which volume your",
 			    " file(s) are on you should start\n",
 			    "with the last volume and work",
-			    " towards towards the first.\n");
+			    " towards the first.\n");
 		} else {
 			fprintf(stderr, "You have read volumes");
 			strcpy(buf, ": ");
