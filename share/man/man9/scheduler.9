@@ -44,7 +44,7 @@
 .Ft int
 .Fn curpriority_cmp "struct proc *p"
 .Ft void
-.Fn maybe_resched "struct ksegrp *kg"
+.Fn maybe_resched "struct thread *td"
 .Ft void
 .Fn propagate_priority "struct proc *p"
 .Ft void
@@ -118,14 +118,14 @@ and is stored in the private variable
 .Pp
 The
 .Fn maybe_resched
-function compares the priorities of the current process and process
-.Fa chk .
+function compares the priorities of the current thread and
+.Fa td .
 If
-.Fa chk
-has a higher priority than the current process, then a context switch is
+.Fa td
+has a higher priority than the current thread, then a context switch is
 needed, and
-.Fn need_resched
-is called to force a reschedule on the next return to userland.
+.Dv KEF_NEEDRESCHED
+is set.
 .Pp
 The
 .Fn propagate_priority
@@ -153,13 +153,13 @@ not to the priority of the previously encountered process.
 .Pp
 The
 .Fn resetpriority
-function recomputes the user priority of the process
-.Fa p
-stored in
-.Va p_usrpri
+function recomputes the user priority of the ksegrp
+.Fa kg
+(stored in
+.Va kg_user_pri )
 and calls
 .Fn maybe_resched
-to force a reschedule if needed.
+to force a reschedule of each thread in the group if needed.
 .Pp
 The
 .Fn roundrobin
@@ -181,7 +181,7 @@ The
 .Fn sched_setup
 function is a
 .Xr SYSINIT 9
-that is called to start up the callout driven scheduler functions.
+that is called to start the callout driven scheduler functions.
 It just calls the
 .Fn roundrobin
 and
@@ -195,8 +195,8 @@ The
 .Fn schedclock
 function is called by
 .Fn statclock
-to adjust the priority of the currently running process.
-It updates the process's estimated CPU time and then adjusts the priority via
+to adjust the priority of the currently running thread's ksegrp.
+It updates the group's estimated CPU time and then adjusts the priority via
 .Fn resetpriority .
 .Pp
 The
