@@ -78,8 +78,10 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	  key = '\n';
 	goto ret;
       case '\025':
+      case '\030':
       kill_it:
 	memset(instr, 0, sizeof(instr));
+      case '\001':
       case KEY_HOME:
 	input_x = scroll = 0;
 	wmove(dialog, box_y, box_x);
@@ -89,9 +91,10 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	wattrset(dialog, old_attr);
 	max_len = MIN(len,box_width);
 	for ( ; i < max_len; i++)
-	  waddch(dialog, instr[i]);
+	  waddch(dialog, instr[i] ? instr[i] : ' ');
 	wmove(dialog, box_y, box_x);
 	continue;
+      case '\005':
       case KEY_END:
 	for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
 	  instr[i] = '\0';
@@ -105,9 +108,10 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	wattrset(dialog, old_attr);
 	max_len = MIN(len-scroll,box_width);
 	for ( ; i < max_len; i++)
-	  waddch(dialog, instr[scroll+i]);
+	  waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 	wmove(dialog, box_y, input_x + box_x);
 	continue;
+      case '\002':
       case KEY_LEFT:
 	if (input_x || scroll) {
 	  if (!input_x) {
@@ -120,14 +124,16 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	    wattrset(dialog, old_attr);
 	    max_len = MIN(len-scroll,box_width);
 	    for ( ; i < max_len; i++)
-	      waddch(dialog, instr[scroll+i]);
+	      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 	    input_x = oldscroll - 1 - scroll;
 	  }
 	  else
 	    input_x--;
 	  wmove(dialog, box_y, input_x + box_x);
-	}
+	} else
+	  beep();
 	continue;
+      case '\006':
       case KEY_RIGHT:
 	  if (   scroll+input_x < MAX_LEN
 	      && (flen < 0 || scroll+input_x < flen)
@@ -143,7 +149,7 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	      wattrset(dialog, old_attr);
 	      max_len = MIN(len-scroll,box_width);
 	      for ( ; i < max_len; i++)
-		waddch(dialog, instr[scroll+i]);
+		waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 	      wmove(dialog, box_y, box_x + box_width - 1);
 	    }
 	    else {
@@ -157,32 +163,48 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
       case '\b':
       case '\177':
       case KEY_BACKSPACE:
-      case KEY_DC:
       erase_it:
 	if (input_x || scroll) {
 	  i = strlen(instr);
-	  memmove(instr+scroll+input_x-1, instr+scroll+input_x, i-scroll+input_x+1);
+	  memmove(instr+scroll+input_x-1, instr+scroll+input_x, i-(scroll+input_x)+1);
 	  if (!input_x) {
 	    int oldscroll = scroll;
 	    scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
-	    wmove(dialog, box_y, box_x);
-	    fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
-	    for (i = 0; i < fix_len; i++)
-	      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 	    input_x = oldscroll - 1 - scroll;
 	  }
 	  else
 	    input_x--;
-	  wmove(dialog, box_y, input_x + box_x);
+	  wmove(dialog, box_y, box_x);
 	  fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
-	  for (i = input_x; i < fix_len; i++)
+	  for (i = 0; i < fix_len; i++)
 	    waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 	  wattrset(dialog, old_attr);
 	  max_len = MIN(len-scroll,box_width);
 	  for ( ; i < max_len; i++)
-	    waddch(dialog, instr[scroll+i]);
+	    waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 	  wmove(dialog, box_y, input_x + box_x);
+	} else
+	  beep();
+	continue;
+      case '\004':
+      case KEY_DC:
+	for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
+	  instr[i] = '\0';
+	i++;
+	if (i == 0) {
+	  beep();
+	  continue;
 	}
+	memmove(instr+scroll+input_x, instr+scroll+input_x+1, i-(scroll+input_x));
+	wmove(dialog, box_y, box_x);
+	fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	for (i = 0; i < fix_len; i++)
+	  waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	wattrset(dialog, old_attr);
+	max_len = MIN(len-scroll,box_width);
+	for ( ; i < max_len; i++)
+	  waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	wmove(dialog, box_y, input_x + box_x);
 	continue;
       default:
 	if (CCEQ(key, erase_char))
@@ -195,31 +217,21 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	  i++;
 	  if (i < MAX_LEN && (flen < 0 || scroll+input_x < flen)) {
 	    if (flen < 0 || i < flen)
-	    memmove(instr+scroll+input_x+1, instr+scroll+input_x, i-scroll+input_x);
+	      memmove(instr+scroll+input_x+1, instr+scroll+input_x, i-(scroll+input_x));
 	    instr[scroll+input_x] = key;
-	    if (input_x == box_width-1 && (flen < 0 || i < flen)) {
+	    if (input_x == box_width-1 && (flen < 0 || i < flen))
 	      scroll++;
-	      wmove(dialog, box_y, box_x);
-	      fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
-	      for (i = 0; i < fix_len; i++)
-		waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
-	      wattrset(dialog, old_attr);
-	      max_len = MIN(len-scroll,box_width);
-	      for ( ; i < max_len; i++)
-		waddch(dialog, instr[scroll+i]);
-	      wmove(dialog, box_y, input_x + box_x);
-	    }
-	    else {
-	      wmove(dialog, box_y, input_x + box_x);
-	      fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
-	      for (i = input_x; i < fix_len; i++)
-		waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
-	      wattrset(dialog, old_attr);
-	      max_len = MIN(len-scroll,box_width);
-	      for ( ; i < max_len; i++)
-		waddch(dialog, instr[scroll+i]);
-	      wmove(dialog, box_y, ++input_x + box_x);
-	    }
+	    else
+	      input_x++;
+	    wmove(dialog, box_y, box_x);
+	    fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	    for (i = 0; i < fix_len; i++)
+	      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	    wattrset(dialog, old_attr);
+	    max_len = MIN(len-scroll,box_width);
+	    for ( ; i < max_len; i++)
+	      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	    wmove(dialog, box_y, input_x + box_x);
 	  } else
 	    beep(); /* Alarm user about overflow */
 	  continue;
@@ -231,7 +243,7 @@ ret:
     wmove(dialog, box_y, box_x);
     max_len = MIN(len-scroll,box_width);
     for (i = 0; i < max_len; i++)
-      waddch(dialog, instr[scroll+i]);
+      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
     wmove(dialog, box_y, input_x + box_x);
     wrefresh(dialog);
     strcpy(result, instr);
