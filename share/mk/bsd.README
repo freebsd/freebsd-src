@@ -167,7 +167,9 @@ BINOWN		Binary owner.
 
 BINMODE		Binary mode.
 
-CLEANFILES	Additional files to remove for the clean and cleandir targets.
+CLEANFILES	Additional files to remove and
+CLEANDIRS	additional directories to remove during clean and cleandir
+		targets.  "rm -f" and "rm -rf" used respectively.
 
 COPTS		Additional flags to the compiler when creating C objects.
 
