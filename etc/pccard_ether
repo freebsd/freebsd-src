@@ -8,42 +8,51 @@
 #
 
 # Suck in the configuration variables
-if [ -f /etc/defaults/rc.conf ]; then
+#
+if [ -r /etc/defaults/rc.conf ]; then
 	. /etc/defaults/rc.conf
-elif [ -f /etc/rc.conf ]; then
+elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
-if [ "${pccard_ifconfig}" != "NO" ] ; then
-	if [ "${pccard_ifconfig}" = "DHCP" ] ; then
-		if [ -f /sbin/dhclient ] ; then
-		    if [ -s /var/run/dhclient.pid ] ; then
+case ${pccard_ifconfig} in
+[Nn][Oo] | '')
+        ;;
+[Dd][Hh][Cc][Pp])
+	if [ -r /sbin/dhclient ]; then
+		if [ -s /var/run/dhclient.pid ]; then
 			kill `cat /var/run/dhclient.pid`
 			rm /var/run/dhclient.pid
-		    fi
-		    /sbin/dhclient
-		elif [ -f /usr/local/sbin/dhcpc ] ; then
-		    if [ -s /var/run/dhcpc.pid ] ; then
-		        kill `cat /var/run/dhcpc.pid`
-		        rm /var/run/dhcpc.pid
-		    fi
-		    /usr/local/sbin/dhcpc $* 
-		else
-		    echo "DHCP client software not available (isc-dhcp2)"
 		fi
+		/sbin/dhclient
+	elif [ -r /usr/local/sbin/dhcpc ]; then
+		if [ -s /var/run/dhcpc.pid ]; then
+			kill `cat /var/run/dhcpc.pid`
+			rm /var/run/dhcpc.pid
+		fi
+		/usr/local/sbin/dhcpc $*
 	else
-		interface=$1
-		shift
-		ifconfig ${interface} ${pccard_ifconfig} $*
+		echo "DHCP client software not available (isc-dhcp2)"
 	fi
-fi
+	;;
+*)
+	interface=$1
+	shift
+	ifconfig ${interface} ${pccard_ifconfig} $*
+	;;
+esac
 
-if [ "${defaultrouter}" != "NO" ] ; then
+case ${defaultrouter} in
+[Nn][Oo] | '')
+        ;;
+*)
 	static_routes="default ${static_routes}"
 	route_default="default ${defaultrouter}"
-fi
-    
+	;;
+esac
+
 # Set up any static routes.
+#
 if [ -n "${static_routes}" ]; then
 	# flush beforehand, just in case....
         route -n flush
