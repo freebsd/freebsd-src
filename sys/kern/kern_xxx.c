@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.11 1995/07/30 17:10:36 davidg Exp $
+ * $Id: kern_xxx.c,v 1.12 1995/08/06 19:45:34 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,6 @@
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <sys/signalvar.h>
-#include <machine/md_var.h>
 
 /* This implements a "TEXT_SET" for cleanup functions */
 
@@ -170,12 +169,12 @@ shutdown_nice(void)
 	register struct proc *p;
 
 	/* Send a signal to init(8) and have it shutdown the world */
-	if (initproc != NULL)
+	if (initproc != NULL) {
 		psignal(initproc, SIGINT);
-	else
-		/* No init(8) running, simply reset the CPU */
-		cpu_reset();
-
+	} else {
+		/* No init(8) running, so simply reboot */
+		boot(RB_NOSYNC);
+	}
 	return;
 }
 
