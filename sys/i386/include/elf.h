@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf.h,v 1.2 1997/08/30 18:59:48 peter Exp $
+ *      $Id: elf.h,v 1.3 1998/08/16 03:03:31 jdp Exp $
  */
 
 #ifndef _MACHINE_ELF_H_
@@ -37,6 +37,8 @@
 
 #define __ELF_WORD_SIZE	32	/* Used by <sys/elf_generic.h> */
 #include <sys/elf_generic.h>
+
+#define ELF_ARCH	EM_386
 
 /*
  * Auxiliary vector entries for passing information to the interpreter.

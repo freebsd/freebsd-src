@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: elf_generic.h,v 1.1 1998/08/16 03:03:38 jdp Exp $
  */
 
 #ifndef _SYS_ELF_GENERIC_H_
@@ -40,6 +40,16 @@
 #error "__ELF_WORD_SIZE must be defined as 32 or 64"
 #endif
 
+#define ELF_CLASS	__CONCAT(ELFCLASS,__ELF_WORD_SIZE)
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define ELF_DATA	ELFDATA2LSB
+#elif BYTE_ORDER == BIG_ENDIAN
+#define ELF_DATA	ELFDATA2MSB
+#else
+#error "Unknown byte order"
+#endif
+
 #define __ElfN(x)	__CONCAT(__CONCAT(__CONCAT(Elf,__ELF_WORD_SIZE),_),x)
 #define __ELFN(x)	__CONCAT(__CONCAT(__CONCAT(ELF,__ELF_WORD_SIZE),_),x)
 #define __ElfType(x)	typedef __ElfN(x) __CONCAT(Elf_,x)
@@ -54,6 +64,7 @@ __ElfType(Ehdr);
 __ElfType(Shdr);
 __ElfType(Phdr);
 __ElfType(Dyn);
+__ElfType(Note);
 __ElfType(Rel);
 __ElfType(Rela);
 __ElfType(Sym);

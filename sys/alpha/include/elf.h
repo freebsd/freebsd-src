@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf.h,v 1.3 1998/06/28 00:50:35 dfr Exp $
+ *      $Id: elf.h,v 1.4 1998/08/17 08:05:55 dfr Exp $
  */
 
 #ifndef _MACHINE_ELF_H_
@@ -37,6 +37,8 @@
 
 #define __ELF_WORD_SIZE	64	/* Used by <sys/elf_generic.h> */
 #include <sys/elf_generic.h>
+
+#define ELF_ARCH	EM_ALPHA
 
 #define ELF_MACHINE_OK(x)	((x) == EM_ALPHA)
 
