@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.6 1998/06/08 02:43:12 bde Exp $
+ * $Id: pps.c,v 1.7 1998/06/12 23:15:53 phk Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -180,39 +180,9 @@ static int
 ppsioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
 	struct pps_data *sc = softc[minor(dev)];
-	pps_params_t *pp;
-	pps_info_t *pi;
 
-	switch (cmd) {
-	case PPS_IOC_CREATE:
-		return (0);
-	case PPS_IOC_DESTROY:
-		return (0);
-	case PPS_IOC_SETPARAMS:
-		pp = (pps_params_t *)data;
-		if (pp->mode & ~ppscap) 
-			return (EINVAL);
-		sc->ppsparam = *pp;
-		return (0);
-	case PPS_IOC_GETPARAMS:
-		pp = (pps_params_t *)data;
-		*pp = sc->ppsparam;
-		return (0);
-	case PPS_IOC_GETCAP:
-		*(int*)data = ppscap;
-		return (0);
-	case PPS_IOC_FETCH:
-		pi = (pps_info_t *)data;
-		*pi = sc->ppsinfo;
-		pi->current_mode = sc->ppsparam.mode;
-		return (0);
-	case PPS_IOC_WAIT:
-		return (EOPNOTSUPP);
-	default:
-		return (ENODEV);
-	}
+	return (std_pps_ioctl(cmd, data, &sc->ppsparam, &sc->ppsinfo, ppscap));
 }
-
 
 static pps_devsw_installed = 0;
 
