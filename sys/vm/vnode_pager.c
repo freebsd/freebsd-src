@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.16 1994/11/13 22:48:55 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.17 1994/11/17 01:22:45 gibbs Exp $
  */
 
 /*
@@ -284,18 +284,20 @@ vnode_pager_haspage(pager, offset)
 	vm_offset_t offset;
 {
 	register vn_pager_t vnp = (vn_pager_t) pager->pg_data;
+	register struct vnode *vp = vnp->vnp_vp;
 	daddr_t bn;
 	int     err;
 	daddr_t block;
 
 	/*
-	 * Offset beyond end of file, do not have the page
+	 * If filesystem no longer mounted or offset beyond end of
+	 * file we do not have the page.
 	 */
-	if (offset >= vnp->vnp_size)
-		return (FALSE);
+	if ((vp->v_mount == NULL) || (offset >= vnp->vnp_size))
+		return FALSE;
 
-	block = offset / vnp->vnp_vp->v_mount->mnt_stat.f_iosize;
-	if (incore(vnp->vnp_vp, block))
+	block = offset / vp->v_mount->mnt_stat.f_iosize;
+	if (incore(vp, block))
 		return TRUE;
 	/*
 	 * Read the index to find the disk block to read from.  If there is no
@@ -303,7 +305,7 @@ vnode_pager_haspage(pager, offset)
 	 * 
 	 * Assumes that the vnode has whole page or nothing.
 	 */
-	err = VOP_BMAP(vnp->vnp_vp, block, (struct vnode **) 0, &bn, 0);
+	err = VOP_BMAP(vp, block, (struct vnode **) 0, &bn, 0);
 /*
 	printf("vnode_pager_haspage: (%d)0x%x: err: %d, bn: %d\n",
 		offset, offset, err, bn);
@@ -791,6 +793,13 @@ vnode_pager_input(vnp, m, count, reqpage)
 	paging_offset = object->paging_offset;
 
 	vp = vnp->vnp_vp;
+
+	/*
+	 * Make sure underlying filesystem is still mounted.
+	 */
+	if (vp->v_mount == NULL)
+		return VM_PAGER_FAIL;
+
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 
 	/* get the UNDERLYING device for the file with VOP_BMAP() */
@@ -1317,6 +1326,13 @@ retryoutput:
 	paging_offset = object->paging_offset;
 
 	vp = vnp->vnp_vp;
+
+	/*
+	 * Make sure underlying filesystem is still mounted.
+	 */
+	if (vp->v_mount == NULL)
+		return VM_PAGER_FAIL;
+
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 
 	for (i = 0; i < count; i++)
