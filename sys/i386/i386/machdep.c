@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.313 1998/10/09 23:36:26 peter Exp $
+ *	$Id: machdep.c,v 1.314 1998/10/30 05:41:14 msmith Exp $
  */
 
 #include "apm.h"
@@ -433,14 +433,7 @@ again:
 	}
 
 #if defined(USERCONFIG)
-#if defined(USERCONFIG_BOOT)
-	if (1) {
-#else
-        if (boothowto & RB_CONFIG) {
-#endif
-		userconfig();
-		cninit();	/* the preferred console may have changed */
-	}
+	userconfig();
 #endif
 
 	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),
