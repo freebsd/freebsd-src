@@ -70,6 +70,7 @@
 #include <machine/cpu.h>
 #include <machine/sigframe.h>
 #include <machine/proc.h>
+#include <machine/specialreg.h>
 
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
@@ -122,6 +123,8 @@ ASSYM(PCB_RSP, offsetof(struct pcb, pcb_rsp));
 ASSYM(PCB_RBX, offsetof(struct pcb, pcb_rbx));
 ASSYM(PCB_RIP, offsetof(struct pcb, pcb_rip));
 ASSYM(PCB_RFLAGS, offsetof(struct pcb, pcb_rflags));
+ASSYM(PCB_FSBASE, offsetof(struct pcb, pcb_fsbase));
+ASSYM(PCB_GSBASE, offsetof(struct pcb, pcb_gsbase));
 
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_FULLCTX, PCB_FULLCTX);
@@ -178,6 +181,8 @@ ASSYM(KDSEL, GSEL(GDATA_SEL, SEL_KPL));
 ASSYM(KUCSEL, GSEL(GUCODE_SEL, SEL_UPL));
 ASSYM(KUDSEL, GSEL(GUDATA_SEL, SEL_UPL));
 
+ASSYM(MSR_FSBASE, MSR_FSBASE);
+ASSYM(MSR_KGSBASE, MSR_KGSBASE);
 ASSYM(GPROC0_SEL, GPROC0_SEL);
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
