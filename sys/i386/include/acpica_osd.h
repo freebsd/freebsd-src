@@ -38,7 +38,15 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <dev/acpi/acpi.h>
+
 #include "pcib_if.h"
+
+#ifdef ACPI_NO_OSDFUNC_INLINE
+#define _ACPICA_INLINE_
+#else
+#define _ACPICA_INLINE_ static __inline
+#endif
 
 /*
  * ACPICA compatibility
@@ -98,28 +106,19 @@ OsdInX(ACPI_IO_ADDRESS InPort, int bytes)
 	return (retval);
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-UINT8
+_ACPICA_INLINE_ UINT8
 OsdIn8(ACPI_IO_ADDRESS InPort)
 {
 	return (OsdInX(InPort, 1) & 0xff);
 }
  
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-UINT16
+_ACPICA_INLINE_ UINT16
 OsdIn16(ACPI_IO_ADDRESS InPort)
 {
 	return (OsdInX(InPort, 2) & 0xffff);
 }
  
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-UINT32
+_ACPICA_INLINE_ UINT32
 OsdIn32(ACPI_IO_ADDRESS InPort)
 {
 	return (OsdInX(InPort, 4));
@@ -148,37 +147,25 @@ OsdOutX(ACPI_IO_ADDRESS OutPort, UINT32 Value, int bytes)
 	}
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-void
+_ACPICA_INLINE_ void
 OsdOut8(ACPI_IO_ADDRESS OutPort, UINT8 Value)
 {
 	OsdOutX(OutPort, Value, 1);
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-void    
+_ACPICA_INLINE_ void
 OsdOut16(ACPI_IO_ADDRESS OutPort, UINT16 Value)
 {
 	OsdOutX(OutPort, Value, 2);
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-void
+_ACPICA_INLINE_ void
 OsdOut32(ACPI_IO_ADDRESS OutPort, UINT32 Value)
 {
 	OsdOutX(OutPort, Value, 4);
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-ACPI_STATUS
+_ACPICA_INLINE_ ACPI_STATUS
 OsdMapMemory(void *PhysicalAddress, UINT32 Length, void **LogicalAddress)
 {
 	vm_offset_t	PhysicalEnd;
@@ -203,10 +190,7 @@ OsdMapMemory(void *PhysicalAddress, UINT32 Length, void **LogicalAddress)
 	return (AE_OK);
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-void    
+_ACPICA_INLINE_ void
 OsdUnMapMemory(void *LogicalAddress, UINT32 Length)
 {
 
@@ -234,10 +218,7 @@ OsdReadPciCfg(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT32 *Value,
 	return (AE_OK);
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-ACPI_STATUS
+_ACPICA_INLINE_ ACPI_STATUS
 OsdReadPciCfgByte(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT8 *Value)
 {
 	ACPI_STATUS	status;
@@ -248,10 +229,7 @@ OsdReadPciCfgByte(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT8 *Val
 	return (status);
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-ACPI_STATUS
+_ACPICA_INLINE_ ACPI_STATUS
 OsdReadPciCfgWord(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT16 *Value)
 {
 	ACPI_STATUS	status;
@@ -262,10 +240,7 @@ OsdReadPciCfgWord(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT16 *Va
 	return (status);
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-ACPI_STATUS
+_ACPICA_INLINE_ ACPI_STATUS
 OsdReadPciCfgDword(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT32 *Value)
 {
 	ACPI_STATUS	status;
@@ -291,29 +266,53 @@ OsdWritePciCfg(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT32 Value,
 	return (AE_OK);
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-ACPI_STATUS
+_ACPICA_INLINE_ ACPI_STATUS
 OsdWritePciCfgByte(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT8 Value)
 {
 	return (OsdWritePciCfg(Bus, DeviceFunction, Register, (UINT32) Value, 1));
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-ACPI_STATUS
+_ACPICA_INLINE_ ACPI_STATUS
 OsdWritePciCfgWord(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT16 Value)
 {
 	return (OsdWritePciCfg(Bus, DeviceFunction, Register, (UINT32) Value, 2));
 }
 
-#ifndef ACPI_NO_OSDFUNC_INLINE
-static __inline
-#endif
-ACPI_STATUS
+_ACPICA_INLINE_ ACPI_STATUS
 OsdWritePciCfgDword(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT32 Value)
 {
 	return (OsdWritePciCfg(Bus, DeviceFunction, Register, Value, 4));
 }
+
+_ACPICA_INLINE_ ACPI_STATUS
+OsdSleepUsec(UINT32 Microseconds)
+{
+	int		error;
+	ACPI_STATUS	status;
+
+	error = acpi_sleep(Microseconds);
+	switch (error) {
+	case 0:
+		/* The running thread slept for the time specified */
+		status = AE_OK;
+		break;
+	case 1:
+		/* TBD!!!! */
+		status = AE_BAD_PARAMETER;
+		break;
+	case 2:
+	default:
+		/* The running thread did not slept because of a host OS error */
+		status = AE_ERROR;
+		break;
+	}
+
+	return (status);
+}
+
+_ACPICA_INLINE_ ACPI_STATUS
+OsdSleep(UINT32 Seconds, UINT32 Milliseconds)
+{
+	return OsdSleepUsec(Seconds * 1000000L + Milliseconds * 1000);
+}
+

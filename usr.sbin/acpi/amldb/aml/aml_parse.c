@@ -55,6 +55,14 @@
 #include "debug.h"
 #else /* _KERNEL */
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <machine/clock.h>
+#include <dev/acpi/acpireg.h>
+#include <dev/acpi/acpivar.h>
+#ifndef ACPI_NO_OSDFUNC_INLINE
+#include <machine/acpica_osd.h>
+#endif
 #endif /* !_KERNEL */
 
 static int		 findsetleftbit(int num);
@@ -1484,14 +1492,18 @@ aml_parse_termobj(struct aml_environ *env, int indent)
 			aml_parse_termobj(env, indent);
 			AML_DEBUGPRINT(")");
 			break;
-		case 0x21:	/* StallOp *//* XXX Not yet */
+		case 0x21:	/* StallOp */
 			AML_DEBUGPRINT("Stall(");
-			aml_parse_termobj(env, indent);
+			num1 = aml_objtonum(env, aml_eval_name(env,
+			    aml_parse_termobj(env, indent)));
 			AML_DEBUGPRINT(")");
+			AML_STALL(num1);
 			break;
-		case 0x22:	/* SleepOp *//* XXX Not yet */
+		case 0x22:	/* SleepOp */
 			AML_DEBUGPRINT("Sleep(");
-			aml_parse_termobj(env, indent);
+			num1 = aml_objtonum(env, aml_eval_name(env,
+			    aml_parse_termobj(env, indent)));
+			AML_SLEEP(0, num1);
 			AML_DEBUGPRINT(")");
 			break;
 		case 0x23:	/* AcquireOp *//* XXX Not yet */
