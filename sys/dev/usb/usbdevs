@@ -59,7 +59,7 @@ $FreeBSD$
 vendor AOX		0x03e8	AOX, Inc.
 vendor ATMEL		0x03eb	Atmel Corp.
 vendor MITSUMI		0x03ee	Mitsumi
-vendor HP		0x03f0	Hewlett Packard
+vendor HP		0x03f0	Hewlett-Packard
 vendor ADAPTEC		0x03f3	Adaptec, Inc.
 vendor NATIONAL		0x0400	National Semiconductor
 vendor ACERLABS		0x0402	Acer Labs, Inc.
@@ -308,7 +308,7 @@ vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics, Inc.
 vendor DLINK		0x2001	D-Link Corp
 vendor INTEL		0x8086	Intel
-vendor HP2		0xf003	Hewlett Packard
+vendor HP2		0xf003	Hewlett-Packard
 
 /*
  * List of known products.  Grouped by vendor.
