@@ -182,19 +182,6 @@ List any directories that should be entered when doing
 make's in
 .Pa /usr/src
 in this variable.
-.It Va MAKE_SHELL
-.Pq Vt str
-Controls the shell used internally by
-.Xr make 1
-to process the command scripts in makefiles.
-.Xr sh 1 ,
-.Xr ksh 1 ,
-and
-.Xr csh 1
-all currently supported.
-.Bd -literal -offset indent
-MAKE_SHELL?=sh
-.Ed
 .It Va MTREE_FOLLOWS_SYMLINKS
 .Pq Vt str
 Set this to
