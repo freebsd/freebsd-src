@@ -119,9 +119,9 @@
 /*<15>	LOCKDRIVE	If enabled, when a drive is opened using a
 <15>			minor number greater than 127, the drive door is
 <15>			locked.  The drive door remains locked until all
-<15>			partitions on the drive are closed.  The EJECT
-<15>			ioctl is also refused when this locking mechanism
-<15>			is active.
+<23>			partitions on the drive are closed.  The EJECT,
+<23>			ALLOW and PREVENT ioctls are refused when this locking
+<23>			mechanism is active.
 <15>			The additional code size is small so enabling
 <15>			LOCKDRIVE is the recommended setting.
 */
