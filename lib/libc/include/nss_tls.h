@@ -64,7 +64,7 @@ name##_getstate(struct name##_state **p)			\
 	*p = _pthread_getspecific(name##_state_key);		\
 	if (*p != NULL)						\
 		return (0);					\
-	*p = calloc(1, sizeof(*p));				\
+	*p = calloc(1, sizeof(**p));				\
 	if (*p == NULL)						\
 		return (ENOMEM);				\
 	rv = _pthread_setspecific(name##_state_key, *p);	\
