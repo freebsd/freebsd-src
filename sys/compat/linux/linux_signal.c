@@ -376,6 +376,9 @@ linux_ssetmask(struct thread *td, struct linux_ssetmask_args *args)
 	return (0);
 }
 
+/*
+ * MPSAFE
+ */
 int
 linux_sigpending(struct thread *td, struct linux_sigpending_args *args)
 {
