@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uthread_gc.c,v 1.5 1999/07/05 00:35:18 jasone Exp $
+ *	$Id: uthread_gc.c,v 1.6 1999/07/06 00:25:37 jasone Exp $
  *
  * Garbage collector thread. Frees memory allocated for dead threads.
  *
@@ -113,8 +113,8 @@ _thread_gc(pthread_addr_t arg)
 		 * has memory to free.
 		 */
 		for (pthread = TAILQ_FIRST(&_dead_list);
-		    p_stack == NULL && pthread_cln == NULL && pthread != NULL;
-		    pthread = TAILQ_NEXT(pthread, dle)) {
+		     p_stack == NULL && pthread_cln == NULL && pthread != NULL;
+		     pthread = TAILQ_NEXT(pthread, dle)) {
 			/* Check if the initial thread: */
 			if (pthread == _thread_initial) {
 				/* Don't destroy the initial thread. */
@@ -123,7 +123,7 @@ _thread_gc(pthread_addr_t arg)
 			 * Check if this thread has detached:
 			 */
 			else if ((pthread->attr.flags &
-			    PTHREAD_DETACHED) != 0) {
+				  PTHREAD_DETACHED) != 0) {
 				/* Remove this thread from the dead list: */
 				TAILQ_REMOVE(&_dead_list, pthread, dle);
 
@@ -134,23 +134,28 @@ _thread_gc(pthread_addr_t arg)
 				 */
 				if (pthread->attr.stackaddr_attr == NULL &&
 				    pthread->stack != NULL) {
-#ifdef __i386__
-					if (pthread->attr.stacksize_attr == PTHREAD_STACK_DEFAULT) {
-						/* Default-size stack.  Cache it: */
-						struct stack	* spare_stack = (pthread->stack + PTHREAD_STACK_DEFAULT
-										 - sizeof(struct stack));
-						SLIST_INSERT_HEAD(&_stackq, spare_stack, qe);
+					if (pthread->attr.stacksize_attr
+					    == PTHREAD_STACK_DEFAULT) {
+						/*
+						 * Default-size stack.  Cache
+						 * it:
+						 */
+						struct stack	* spare_stack;
+
+						spare_stack
+						    = (pthread->stack
+						       + PTHREAD_STACK_DEFAULT
+						       - sizeof(struct stack));
+						SLIST_INSERT_HEAD(&_stackq,
+								  spare_stack,
+								  qe);
 					} else {
-						/* Non-standard stack size.  free() it outside the locks: */
+						/*
+						 * Non-standard stack size.
+                                                 * free() it outside the locks.
+						 */
 						p_stack = pthread->stack;
 					}
-#else
-					/*
-					 * Point to the stack that must
-					 * be freed outside the locks:
-					 */
-					p_stack = pthread->stack;
-#endif
 				}
 
 				/*
@@ -170,23 +175,28 @@ _thread_gc(pthread_addr_t arg)
 				 */
 				if (pthread->attr.stackaddr_attr == NULL &&
 				    pthread->stack != NULL) {
-#ifdef __i386__
-					if (pthread->attr.stacksize_attr == PTHREAD_STACK_DEFAULT) {
-						/* Default-size stack.  Cache it: */
-						struct stack	* spare_stack = (pthread->stack + PTHREAD_STACK_DEFAULT
-										 - sizeof(struct stack));
-						SLIST_INSERT_HEAD(&_stackq, spare_stack, qe);
+					if (pthread->attr.stacksize_attr
+					    == PTHREAD_STACK_DEFAULT) {
+						/*
+						 * Default-size stack.  Cache
+						 * it:
+						 */
+						struct stack	* spare_stack;
+
+						spare_stack
+						    = (pthread->stack
+						       + PTHREAD_STACK_DEFAULT
+						       - sizeof(struct stack));
+						SLIST_INSERT_HEAD(&_stackq,
+								  spare_stack,
+								  qe);
 					} else {
-						/* Non-standard stack size.  free() it outside the locks: */
+						/*
+						 * Non-standard stack size.
+						 * free() it outside the locks:
+						 */
 						p_stack = pthread->stack;
 					}
-#else
-					/*
-					 * Point to the stack that must
-					 * be freed outside the locks:
-					 */
-					p_stack = pthread->stack;
-#endif
 					
 					/*
 					 * NULL the stack pointer now
