@@ -11,12 +11,17 @@ OPSYSTEM=FreeBSD
 OPSYSID=165
 ROOTMIN=7
 SWAPMIN=8
+USRMIN=7
 DISKMIN=`expr $ROOTMIN + $SWAPMIN + 1`
 DEFBLOCKING=2
 DEFSECT=17
 DEFHEAD=12
 DEFCYLN=1024
 RUN_FDISK=""
+
+DOS1_ID=1
+DOS2_ID=4
+DOS3_ID=6
 
 set_arbitrary_defaults() {
 cyls_per_disk=$DEFCYLN
@@ -34,6 +39,7 @@ got_sysid=
 part_cnt=0
 sysid_cnt=0
 have_opsys_part=
+have_dos_part=
 unused_last_part=
 extent_max=0
 extent_max_part=
@@ -78,7 +84,12 @@ while read data; do
 			part_id=
 			continue
 		fi
-		[ "$sysid" = "$OPSYSID" ] && have_opsys_part=$part_id
+		if [ "$sysid" = "$OPSYSID" ]; then
+			have_opsys_part=$part_id
+		elif [ ! "$have_dos_part" -a \( "$sysid" = "$DOS1_ID" -o \
+		    "$sysid" = "$DOS2_ID" -o "$sysid" = "$DOS3_ID" \) ]; then
+			have_dos_part=$part_id
+		fi
 		eval sysid${part_id}=$sysid
 		eval sysname${part_id}=\"$sysname\"
 		got_sysid=1
@@ -591,7 +602,10 @@ echo "as small as $ROOTMIN Mb ($root_cyls_min cylinders)."
 if [ ! "$cyls_per_root" ]; then
 	# set default root partition to 15MB
 	cyls_per_root=`expr \( 15 \* $mb_sect \) /  $cylindersize`
-	[ $cyls_per_root -gt $root_cyls_max ] && cyls_per_root=$root_cyls_max
+	usr_cyls_max=`expr ${root_cyls_max} - ${cyls_per_root}`
+	mb_usr=`expr ${usr_cyls_max} \* $cylindersize / $mb_sect`
+	[ $cyls_per_root -gt $root_cyls_max  -o $mb_usr -lt $USRMIN ] &&
+	cyls_per_root=$root_cyls_max
 fi
 while :; do
 	echo -n "Root partition size (in cylinders)? [${cyls_per_root}] "
@@ -735,7 +749,24 @@ while [ $part_used -lt $partition ]; do
 		part_used=partition
 	fi
 done
-
+if [ "$have_dos_part" -a ! "$hname" ]; then
+	part_name=""
+	echo	"There appears to be a MS-DOS filesystem on disk."
+	while [ "$part_name" = "" ]; do
+		echo -n "On which directory should this filesystem be mounted? [dos] "
+		read resp junk
+		part_name=${resp:-dos}
+		part_name=`expr "$part_name" : '/*\(.*\)'`
+	done
+	hname=$part_name
+	eval offset=\$start${have_dos_part}
+	eval part_size=\$size${have_dos_part}
+	echo -n "	:ph#${part_size}:oh#${offset}" >>/etc/disktab
+	echo ":th=MSDOS:\\" >>/etc/disktab
+	part_used=partition
+else
+	have_dos_part=""
+fi
 echo	"	:pd#${disksize}:od#0:" >>/etc/disktab
 sync
 
@@ -850,9 +881,14 @@ if [ "$gname" != "" ]; then
 fi
 if [ "$hname" != "" ]; then
 	echo
-	echo	"Initializing $hname filesystem, and mounting..."
-	newfs ${rotdelay} /dev/r${drivename}h $name
+	if [ ! "$have_dos_part" ]; then
+		echo	"Initializing $hname filesystem, and mounting..."
+		newfs ${rotdelay} /dev/r${drivename}h $name
+	else
+		echo	"Initializing $hname filesystem..."
+	fi
 	mkdir -p /mnt/$hname
+	[ ! "$have_dos_part" ] &&
 	mount -v /dev/${drivename}h /mnt/$hname
 fi
 
@@ -880,7 +916,11 @@ if [ "$gname" != "" ]; then
 	echo "/dev/${drivename}g	/$gname	ufs	rw 1 4" >>etc/fstab
 fi
 if [ "$hname" != "" ]; then
-	echo "/dev/${drivename}h	/$hname	ufs	rw 1 5" >>etc/fstab
+	if [ ! "$have_dos_part" ]; then
+		echo "/dev/${drivename}h	/$hname	ufs	rw 1 5" >>etc/fstab
+	else
+		echo "/dev/${drivename}h	/$hname	pcfs	rw" >>etc/fstab
+	fi
 fi
 
 # cat /etc/disktab >etc/disktab.install
