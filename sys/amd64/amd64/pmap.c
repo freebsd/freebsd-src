@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.214 1998/11/27 01:14:21 tegge Exp $
+ *	$Id: pmap.c,v 1.215 1998/12/07 21:58:18 archie Exp $
  */
 
 /*
@@ -3205,7 +3205,7 @@ pmap_phys_address(ppn)
 int
 pmap_ts_referenced(vm_offset_t pa)
 {
-	register pv_entry_t pv;
+	register pv_entry_t pv, pvf, pvn;
 	pv_table_t *ppv;
 	unsigned *pte;
 	int s;
@@ -3226,9 +3226,9 @@ pmap_ts_referenced(vm_offset_t pa)
 	/*
 	 * Not found, check current mappings returning immediately if found.
 	 */
-	for (pv = TAILQ_FIRST(&ppv->pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
+	pvf = TAILQ_FIRST(&ppv->pv_list);
+	for (pv = pvf; pv && pv != pvf; pv = pvn) {
+		pvn = TAILQ_NEXT(pv, pv_list);
 
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		/*
