@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: cdrom.c,v 1.1 1997/07/11 05:52:39 joerg Exp $
  */
 
 
@@ -234,8 +234,18 @@ find(const char *path, int list_only)
 			 i, (int)(ptr - rootdirbuf), entrylen, entrylen));
 
 		if (entrylen == 0) {
-			DPRINTF(("EOD\n"));
-			break;
+			/*
+			 * Dir entry of length 0.  That's the last
+			 * entry in this block, advance to the next
+			 * block (if any).  In case we get beyond the
+			 * end of the directory, we'll fall off the
+			 * loop due to the rootdirsize condition in
+			 * the `for' statement.
+			 */
+			DPRINTF(("entrylen 0\n"));
+			entrylen = (~((ptr - rootdirbuf) + BLKSIZE - 1))
+				& (BLKSIZE - 1);
+			continue;
 		}
 		if (len == 0) {
 			DPRINTF(("name_len 0\n"));
