@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wicontrol.c,v 1.17 1999/05/07 03:14:21 wpaul Exp $
+ *	$Id: wicontrol.c,v 1.18 1999/05/14 15:40:19 wpaul Exp $
  */
 
 #include <sys/types.h>
@@ -56,7 +56,7 @@
 static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 	Bill Paul. All rights reserved.";
 static const char rcsid[] =
-	"@(#) $Id: wicontrol.c,v 1.17 1999/05/07 03:14:21 wpaul Exp $";
+	"@(#) $Id: wicontrol.c,v 1.18 1999/05/14 15:40:19 wpaul Exp $";
 #endif
 
 static void wi_getval		__P((char *, struct wi_req *));
@@ -421,15 +421,15 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -t tx rate\n", p);
 	fprintf(stderr, "\t%s -i iface -n network name\n", p);
 	fprintf(stderr, "\t%s -i iface -s station name\n", p);
-	fprintf(stderr, "\t%s -i iface -c create IBSS\n", p);
-	fprintf(stderr, "\t%s -i iface -q SSID of IBSS to create\n", p);
+	fprintf(stderr, "\t%s -i iface -c 0|1\n", p);
+	fprintf(stderr, "\t%s -i iface -q SSID\n", p);
 	fprintf(stderr, "\t%s -i iface -p port type\n", p);
 	fprintf(stderr, "\t%s -i iface -a access point density\n", p);
 	fprintf(stderr, "\t%s -i iface -m mac address\n", p);
 	fprintf(stderr, "\t%s -i iface -d max data length\n", p);
 	fprintf(stderr, "\t%s -i iface -r RTS threshold\n", p);
-	fprintf(stderr, "\t%s -i iface -f frequenct\n", p);
-	fprintf(stderr, "\t%s -i iface -P power mgmt\n", p);
+	fprintf(stderr, "\t%s -i iface -f frequency\n", p);
+	fprintf(stderr, "\t%s -i iface -P 0|1t\n", p);
 	fprintf(stderr, "\t%s -i iface -S max sleep duration\n", p);
 
 	exit(1);
