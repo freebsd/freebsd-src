@@ -10,12 +10,14 @@ cpu		"I486_CPU"
 ident		GENERICBT
 timezone	8 dst
 maxusers	10
-maxfdescs	2048			#Max file descriptors per process
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
-options		ISOFS			#ISO File System
+options		FFS			#Berkeley Fast File System
+options		KERNFS			#Kernel File System
+options		FDESC			#File Descriptor File System
+options		MFS			#Memory File System
+options		"CD9660"		#CD ISO9660 File System
 options		NFS			#Network File System
-options		PCFS			#MSDOS File System
 options		"COMPAT_43"		#Compatible with BSD 4.3
 options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
 options		XSERVER			#Xserver
@@ -26,7 +28,7 @@ options		"NCONS=4"		#4 virtual consoles
 options		"STAR_SAVER"		#syscons "stars" screen saver
 options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
 
-config		"386bsd"	root on wd0 swap on wd0 and wd1 and sd0 and sd1 dumps on wd0
+config		kernel	root on wd0 swap on wd0 and wd1 and sd0 and sd1 dumps on wd0
 
 controller	isa0
 
