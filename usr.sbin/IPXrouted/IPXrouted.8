@@ -179,6 +179,11 @@ to other routers.
 Hosts acting as internetwork routers gratuitously supply their
 routing tables every 30 seconds to all directly connected hosts
 and networks.
+.Pp
+If
+.Nm IPXrouted
+receives a SIGINFO signal the current contents of the RIP and SAP
+tables are appended to the file /tmp/ipxrouted.dmp.
 .Sh SEE ALSO
 .Xr ipx 3
 .Sh HISTORY

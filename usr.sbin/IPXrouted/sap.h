@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sap.h,v 1.1 1995/10/26 21:28:22 julian Exp $
+ * $Id: sap.h,v 1.2 1995/10/27 10:48:31 julian Exp $
  */
 #ifndef _SAP_H_
 #define _SAP_H_
@@ -46,6 +46,7 @@ char *sapcmds[SAPCMD_MAX] =
 	{ "#0", "REQUEST", "RESPONSE", "REQ NEAREST", "RESP NEAREST"};
 #endif
 
+#define MAXSAPENTRIES		7
 #define SAP_WILDCARD		0xFFFF
 #define SERVNAMELEN		48
 typedef struct sap_info {

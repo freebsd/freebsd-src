@@ -37,7 +37,7 @@
  *
  *	@(#)trace.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: trace.h,v 1.1 1995/10/26 21:28:30 julian Exp $
+ *	$Id: trace.h,v 1.2 1995/10/27 10:48:31 julian Exp $
  */
 
 /*
@@ -125,6 +125,7 @@ void trace(struct ifdebug *, struct sockaddr *, char *, int, int);
 void dumppacket(FILE *, char *, struct sockaddr *, char *, int);
 void dumpsappacket(FILE *, char *, struct sockaddr *, char *, int);
 void dumpsaptable(FILE *fd, struct sap_hash *sh);
+void dumpriptable(FILE *fd);
 
 char *ipxdp_nettoa(union ipx_net);
 char *ipxdp_ntoa(struct ipx_addr *);

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.2 1995/10/27 10:48:28 julian Exp $
+ *	$Id: main.c,v 1.3 1995/12/09 09:42:03 julian Exp $
  */
 
 #ifndef lint
@@ -79,7 +79,7 @@ int	noteremoterequests;	/* squawk on requests from non-local nets */
 int	r;			/* Routing socket to install updates with */
 struct	sockaddr_ipx ipx_netmask;	/* Used in installing routes */
 
-char	packet[MAXPACKETSIZE+sizeof(struct ipx)+1];
+char	packet[MAXRXPACKETSIZE+1];
 
 char	**argv0;
 
@@ -92,6 +92,7 @@ struct	sap_packet *sap_msg =
 void	hup(), fkexit(), timer();
 void	process(int fd, int pkt_type);
 int	getsocket(int type, int proto, struct sockaddr_ipx *sipx);
+void	getinfo();
 
 int
 main(argc, argv)
@@ -214,6 +215,7 @@ main(argc, argv)
 	signal(SIGHUP, hup);
 	signal(SIGINT, hup);
 	signal(SIGEMT, fkexit);
+	signal(SIGINFO, getinfo);
 	timer();
 	
 	nfds = 1 + max(sapsock, ripsock);
@@ -343,3 +345,19 @@ fkexit()
 	if (fork() == 0)
 		exit(0);
 }
+
+void
+getinfo()
+{
+	FILE *fh;
+
+	fh = fopen("/tmp/ipxrouted.dmp", "a");
+	if(fh == NULL)
+		return;
+
+	dumpriptable(fh);
+	dumpsaptable(fh, sap_head);
+
+	fclose(fh);
+}
+
