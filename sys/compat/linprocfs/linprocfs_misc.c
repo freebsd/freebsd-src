@@ -422,10 +422,12 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 
 	ps = psbuf;
 
+	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_stat > sizeof state_str / sizeof *state_str)
 		state = state_str[0];
 	else
 		state = state_str[(int)p->p_stat];
+	mtx_exit(&sched_lock, MTX_SPIN);
 
 #define PS_ADD ps += sprintf
 	PS_ADD(ps, "Name:\t%s\n",	  p->p_comm); /* XXX escape */
