@@ -39,7 +39,7 @@
 #include <gssapi.h>
 #include <krb5_err.h>
 
-RCSID("$Id: gssapi.c,v 1.19 2002/08/20 12:47:45 joda Exp $");
+RCSID("$Id: gssapi.c,v 1.20 2002/09/04 22:00:50 joda Exp $");
 
 struct gss_data {
     gss_ctx_id_t context_hdl;
@@ -81,6 +81,7 @@ gss_decode(void *app_data, void *buf, int len, int level)
     gss_qop_t qop_state;
     int conf_state;
     struct gss_data *d = app_data;
+    size_t ret_len;
 
     input.length = len;
     input.value = buf;
@@ -93,7 +94,9 @@ gss_decode(void *app_data, void *buf, int len, int level)
     if(GSS_ERROR(maj_stat))
 	return -1;
     memmove(buf, output.value, output.length);
-    return output.length;
+    ret_len = output.length;
+    gss_release_buffer(&min_stat, &output);
+    return ret_len;
 }
 
 static int

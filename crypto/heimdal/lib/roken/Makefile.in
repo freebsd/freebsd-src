@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# $Id: Makefile.am,v 1.120 2002/05/31 02:44:37 assar Exp $
+# $Id: Makefile.am,v 1.122 2002/09/09 19:17:01 joda Exp $
 
 # $Id: Makefile.am.common,v 1.5 2002/05/19 18:35:37 joda Exp $
 
@@ -207,7 +207,7 @@ ACLOCAL_AMFLAGS = -I ../../cf
 CLEANFILES = roken.h make-roken.c $(XHEADERS)
 
 lib_LTLIBRARIES = libroken.la
-libroken_la_LDFLAGS = -version-info 16:0:7
+libroken_la_LDFLAGS = -version-info 16:0:0
 
 noinst_PROGRAMS = make-roken snprintf-test
 
@@ -217,6 +217,7 @@ check_PROGRAMS = \
 		base64-test			\
 		getaddrinfo-test		\
 		parse_bytes-test		\
+		parse_reply-test		\
 		snprintf-test			\
 		strpftime-test
 
@@ -229,6 +230,9 @@ make_roken_LDADD =
 noinst_LTLIBRARIES = libtest.la
 libtest_la_SOURCES = strftime.c strptime.c snprintf.c
 libtest_la_CFLAGS = -DTEST_SNPRINTF
+
+parse_reply_test_SOURCES = parse_reply-test.c resolve.c
+parse_reply_test_CFLAGS = -DTEST_RESOLVE
 
 strpftime_test_SOURCES = strpftime-test.c
 strpftime_test_LDADD = libtest.la $(LDADD)
@@ -422,8 +426,8 @@ am_libtest_la_OBJECTS = libtest_la-strftime.lo libtest_la-strptime.lo \
 	libtest_la-snprintf.lo
 libtest_la_OBJECTS = $(am_libtest_la_OBJECTS)
 check_PROGRAMS = base64-test$(EXEEXT) getaddrinfo-test$(EXEEXT) \
-	parse_bytes-test$(EXEEXT) snprintf-test$(EXEEXT) \
-	strpftime-test$(EXEEXT)
+	parse_bytes-test$(EXEEXT) parse_reply-test$(EXEEXT) \
+	snprintf-test$(EXEEXT) strpftime-test$(EXEEXT)
 noinst_PROGRAMS = make-roken$(EXEEXT) snprintf-test$(EXEEXT)
 PROGRAMS = $(noinst_PROGRAMS)
 
@@ -446,6 +450,13 @@ parse_bytes_test_OBJECTS = parse_bytes-test.$(OBJEXT)
 parse_bytes_test_LDADD = $(LDADD)
 parse_bytes_test_DEPENDENCIES = libroken.la
 parse_bytes_test_LDFLAGS =
+am_parse_reply_test_OBJECTS = \
+	parse_reply_test-parse_reply-test.$(OBJEXT) \
+	parse_reply_test-resolve.$(OBJEXT)
+parse_reply_test_OBJECTS = $(am_parse_reply_test_OBJECTS)
+parse_reply_test_LDADD = $(LDADD)
+parse_reply_test_DEPENDENCIES = libroken.la
+parse_reply_test_LDFLAGS =
 am_snprintf_test_OBJECTS = snprintf_test-snprintf-test.$(OBJEXT)
 snprintf_test_OBJECTS = $(am_snprintf_test_OBJECTS)
 snprintf_test_DEPENDENCIES = libtest.la libroken.la
@@ -472,15 +483,15 @@ LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 CFLAGS = @CFLAGS@
 DIST_SOURCES = $(libroken_la_SOURCES) $(EXTRA_libroken_la_SOURCES) \
 	$(libtest_la_SOURCES) base64-test.c getaddrinfo-test.c \
-	parse_bytes-test.c $(snprintf_test_SOURCES) \
-	$(strpftime_test_SOURCES)
+	parse_bytes-test.c $(parse_reply_test_SOURCES) \
+	$(snprintf_test_SOURCES) $(strpftime_test_SOURCES)
 MANS = $(man_MANS)
 HEADERS = $(include_HEADERS) $(nodist_include_HEADERS)
 
 DIST_COMMON = $(include_HEADERS) ChangeLog Makefile.am Makefile.in \
 	acinclude.m4 freeaddrinfo.c getaddrinfo.c getcap.c \
 	getnameinfo.c glob.c install-sh missing mkinstalldirs
-SOURCES = $(libroken_la_SOURCES) $(EXTRA_libroken_la_SOURCES) $(libtest_la_SOURCES) base64-test.c getaddrinfo-test.c $(nodist_make_roken_SOURCES) parse_bytes-test.c $(snprintf_test_SOURCES) $(strpftime_test_SOURCES)
+SOURCES = $(libroken_la_SOURCES) $(EXTRA_libroken_la_SOURCES) $(libtest_la_SOURCES) base64-test.c getaddrinfo-test.c $(nodist_make_roken_SOURCES) parse_bytes-test.c $(parse_reply_test_SOURCES) $(snprintf_test_SOURCES) $(strpftime_test_SOURCES)
 
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -562,6 +573,11 @@ make-roken$(EXEEXT): $(make_roken_OBJECTS) $(make_roken_DEPENDENCIES)
 parse_bytes-test$(EXEEXT): $(parse_bytes_test_OBJECTS) $(parse_bytes_test_DEPENDENCIES) 
 	@rm -f parse_bytes-test$(EXEEXT)
 	$(LINK) $(parse_bytes_test_LDFLAGS) $(parse_bytes_test_OBJECTS) $(parse_bytes_test_LDADD) $(LIBS)
+parse_reply_test-parse_reply-test.$(OBJEXT): parse_reply-test.c
+parse_reply_test-resolve.$(OBJEXT): resolve.c
+parse_reply-test$(EXEEXT): $(parse_reply_test_OBJECTS) $(parse_reply_test_DEPENDENCIES) 
+	@rm -f parse_reply-test$(EXEEXT)
+	$(LINK) $(parse_reply_test_LDFLAGS) $(parse_reply_test_OBJECTS) $(parse_reply_test_LDADD) $(LIBS)
 snprintf_test-snprintf-test.$(OBJEXT): snprintf-test.c
 snprintf-test$(EXEEXT): $(snprintf_test_OBJECTS) $(snprintf_test_DEPENDENCIES) 
 	@rm -f snprintf-test$(EXEEXT)
@@ -611,6 +627,24 @@ libtest_la-snprintf.obj: snprintf.c
 
 libtest_la-snprintf.lo: snprintf.c
 	$(LIBTOOL) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtest_la_CFLAGS) $(CFLAGS) -c -o libtest_la-snprintf.lo `test -f 'snprintf.c' || echo '$(srcdir)/'`snprintf.c
+
+parse_reply_test-parse_reply-test.o: parse_reply-test.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(parse_reply_test_CFLAGS) $(CFLAGS) -c -o parse_reply_test-parse_reply-test.o `test -f 'parse_reply-test.c' || echo '$(srcdir)/'`parse_reply-test.c
+
+parse_reply_test-parse_reply-test.obj: parse_reply-test.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(parse_reply_test_CFLAGS) $(CFLAGS) -c -o parse_reply_test-parse_reply-test.obj `cygpath -w parse_reply-test.c`
+
+parse_reply_test-parse_reply-test.lo: parse_reply-test.c
+	$(LIBTOOL) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(parse_reply_test_CFLAGS) $(CFLAGS) -c -o parse_reply_test-parse_reply-test.lo `test -f 'parse_reply-test.c' || echo '$(srcdir)/'`parse_reply-test.c
+
+parse_reply_test-resolve.o: resolve.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(parse_reply_test_CFLAGS) $(CFLAGS) -c -o parse_reply_test-resolve.o `test -f 'resolve.c' || echo '$(srcdir)/'`resolve.c
+
+parse_reply_test-resolve.obj: resolve.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(parse_reply_test_CFLAGS) $(CFLAGS) -c -o parse_reply_test-resolve.obj `cygpath -w resolve.c`
+
+parse_reply_test-resolve.lo: resolve.c
+	$(LIBTOOL) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(parse_reply_test_CFLAGS) $(CFLAGS) -c -o parse_reply_test-resolve.lo `test -f 'resolve.c' || echo '$(srcdir)/'`resolve.c
 
 snprintf_test-snprintf-test.o: snprintf-test.c
 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(snprintf_test_CFLAGS) $(CFLAGS) -c -o snprintf_test-snprintf-test.o `test -f 'snprintf-test.c' || echo '$(srcdir)/'`snprintf-test.c

@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: changepw.c,v 1.35 2002/06/06 13:33:13 joda Exp $");
+RCSID("$Id: changepw.c,v 1.37 2002/09/03 16:14:34 nectar Exp $");
 
 static krb5_error_code
 send_request (krb5_context context,
@@ -57,7 +57,7 @@ send_request (krb5_context context,
 
     ret = krb5_mk_req_extended (context,
 				auth_context,
-				AP_OPTS_MUTUAL_REQUIRED,
+				AP_OPTS_MUTUAL_REQUIRED | AP_OPTS_USE_SUBKEY,
 				NULL, /* in_data */
 				creds,
 				&ap_req_data);
@@ -144,7 +144,7 @@ process_reply (krb5_context context,
     u_char reply[BUFSIZ];
     size_t len;
     u_int16_t pkt_len, pkt_ver;
-    krb5_data ap_rep_data;
+    krb5_data ap_rep_data, priv_data;
     int save_errno;
 
     ret = recvfrom (sock, reply, sizeof(reply), 0, NULL, NULL);
@@ -173,10 +173,13 @@ process_reply (krb5_context context,
 
     ap_rep_data.data = reply + 6;
     ap_rep_data.length  = (reply[4] << 8) | (reply[5]);
+    priv_data.data   = (u_char*)ap_rep_data.data + ap_rep_data.length;
+    priv_data.length = len - ap_rep_data.length - 6;
+    if ((u_char *)priv_data.data + priv_data.length >= reply + len)
+	return KRB5_KPASSWD_MALFORMED;
   
     if (ap_rep_data.length) {
 	krb5_ap_rep_enc_part *ap_rep;
-	krb5_data priv_data;
 	u_char *p;
 
 	ret = krb5_rd_rep (context,
@@ -187,9 +190,6 @@ process_reply (krb5_context context,
 	    return ret;
 
 	krb5_free_ap_rep_enc_part (context, ap_rep);
-
-	priv_data.data   = (u_char*)ap_rep_data.data + ap_rep_data.length;
-	priv_data.length = len - ap_rep_data.length - 6;
 
 	ret = krb5_rd_priv (context,
 			    auth_context,

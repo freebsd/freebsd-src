@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,53 +31,65 @@
  * SUCH DAMAGE. 
  */
 
-/* 
- * $Id: ktutil_locl.h,v 1.18 2002/09/10 20:03:45 joda Exp $
- */
-
-#ifndef __KTUTIL_LOCL_H__
-#define __KTUTIL_LOCL_H__
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
+RCSID("$Id");
 #endif
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
+#include <stdlib.h>
+#include <ctype.h>
+
+int
+main(int argc, char **argv)
+{
+    char *p;
+    FILE *f;
+    if(argc != 2) {
+	fprintf(stderr, "Usage: make_crypto file\n");
+	exit(1);
+    }
+    f = fopen(argv[1], "w");
+    if(f == NULL) {
+	perror(argv[1]);
+	exit(1);
+    }
+    for(p = argv[1]; *p; p++)
+	if(!isalnum((int)*p))
+	    *p = '_';
+    fprintf(f, "#ifndef __%s__\n", argv[1]);
+    fprintf(f, "#define __%s__\n", argv[1]);
+#ifdef HAVE_OPENSSL
+    fputs("#include <openssl/des.h>\n", f);
+    fputs("#include <openssl/rc4.h>\n", f);
+    fputs("#include <openssl/md4.h>\n", f);
+    fputs("#include <openssl/md5.h>\n", f);
+    fputs("#include <openssl/sha.h>\n", f);
+#else
+    fputs("#include <des.h>\n", f);
+    fputs("#include <md4.h>\n", f);
+    fputs("#include <md5.h>\n", f);
+    fputs("#include <sha.h>\n", f);
+    fputs("#include <rc4.h>\n", f);
+#ifdef HAVE_OLD_HASH_NAMES
+    fputs("\n", f);
+    fputs("    typedef struct md4 MD4_CTX;\n", f);
+    fputs("#define MD4_Init md4_init\n", f);
+    fputs("#define MD4_Update md4_update\n", f);
+    fputs("#define MD4_Final(D, C) md4_finito((C), (D))\n", f);
+    fputs("\n", f);
+    fputs("    typedef struct md5 MD5_CTX;\n", f);
+    fputs("#define MD5_Init md5_init\n", f);
+    fputs("#define MD5_Update md5_update\n", f);
+    fputs("#define MD5_Final(D, C) md5_finito((C), (D))\n", f);
+    fputs("\n", f);
+    fputs("    typedef struct sha SHA_CTX;\n", f);
+    fputs("#define SHA1_Init sha_init\n", f);
+    fputs("#define SHA1_Update sha_update\n", f);
+    fputs("#define SHA1_Final(D, C) sha_finito((C), (D))\n", f);
 #endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
 #endif
-#include <parse_time.h>
-#include <roken.h>
-
-#include "crypto-headers.h"
-#include <krb5.h>
-#include <kadm5/admin.h>
-#include <kadm5/kadm5_err.h>
-
-#include <sl.h>
-#include <getarg.h>
-
-extern krb5_context context;
-
-extern int verbose_flag;
-extern char *keytab_string; 
-
-krb5_keytab ktutil_open_keytab(void);
-
-int kt_add (int argc, char **argv);
-int kt_change (int argc, char **argv);
-int kt_copy (int argc, char **argv);
-int kt_get (int argc, char **argv);
-int kt_list(int argc, char **argv);
-int kt_purge(int argc, char **argv);
-int kt_remove(int argc, char **argv);
-int kt_rename(int argc, char **argv);
-int srvconv(int argc, char **argv);
-int srvcreate(int argc, char **argv);
-
-#endif /* __KTUTIL_LOCL_H__ */
+    fprintf(f, "#endif /* __%s__ */\n", argv[1]);
+    fclose(f);
+    exit(0);
+}

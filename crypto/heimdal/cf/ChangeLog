@@ -1,3 +1,31 @@
+2002-09-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* crypto.m4: use m4 macros for test cases, also test for older
+	hash names
+
+	* test-package.m4: include dep libraries in LIB_*
+
+	* crypto.m4: move krb4 test before test for openssl, and bail out
+	if krb4 is requested, but the crypto library is not the same as
+	krb4
+
+	* db.m4: filter contents of LDFLAGS
+
+2002-09-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* auth-modules.m4: rename to rk_AUTH_MODULES
+
+	* auth-modules.m4: only include modules explicitly asked for
+
+2002-09-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: test for res_nsearch
+
+2002-09-03  Assar Westerlund  <assar@kth.se>
+
+	* roken-frag.m4: check for sys/mman.h and mmap (used by
+	parse_reply-test)
+
 2002-08-28  Assar Westerlund  <assar@kth.se>
 
 	* krb-readline.m4: also add LIB_tgetent in the case of editline

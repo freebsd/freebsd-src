@@ -33,7 +33,7 @@
 
 #include "der_locl.h"
 
-RCSID("$Id: der_get.c,v 1.32 2002/08/22 19:11:07 assar Exp $");
+RCSID("$Id: der_get.c,v 1.33 2002/09/03 16:21:49 nectar Exp $");
 
 #include <version.h>
 
@@ -252,6 +252,8 @@ decode_integer (const unsigned char *p, size_t len,
     p += l;
     len -= l;
     ret += l;
+    if (reallen > len)
+	return ASN1_OVERRUN;
     e = der_get_int (p, reallen, num, &l);
     if (e) return e;
     p += l;
@@ -279,6 +281,8 @@ decode_unsigned (const unsigned char *p, size_t len,
     p += l;
     len -= l;
     ret += l;
+    if (reallen > len)
+	return ASN1_OVERRUN;
     e = der_get_unsigned (p, reallen, num, &l);
     if (e) return e;
     p += l;

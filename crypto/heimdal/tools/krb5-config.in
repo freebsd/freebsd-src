@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: krb5-config.in,v 1.8 2001/01/29 06:56:51 assar Exp $
+# $Id: krb5-config.in,v 1.9 2002/09/09 22:29:06 joda Exp $
 
 do_libs=no
 do_cflags=no
@@ -21,7 +21,7 @@ for i in $*; do
     ;;
   --version)
     echo "@PACKAGE@ @VERSION@"
-    echo '$Id: krb5-config.in,v 1.8 2001/01/29 06:56:51 assar Exp $'
+    echo '$Id: krb5-config.in,v 1.9 2002/09/09 22:29:06 joda Exp $'
     exit 0
     ;;
   --prefix=*)
@@ -104,7 +104,7 @@ if test "$do_libs" = "yes"; then
     echo $lib_flags
 fi
 if test "$do_cflags" = "yes"; then
-    echo "-I${includedir}"
+    echo "-I${includedir} @INCLUDE_des@"
 fi
 
 exit 0

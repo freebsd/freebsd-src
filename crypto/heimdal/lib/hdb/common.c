@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,35 +33,21 @@
 
 #include "hdb_locl.h"
 
-RCSID("$Id: common.c,v 1.10 2001/07/13 06:30:41 assar Exp $");
+RCSID("$Id: common.c,v 1.11 2002/09/04 16:32:30 joda Exp $");
 
 int
 hdb_principal2key(krb5_context context, krb5_principal p, krb5_data *key)
 {
     Principal new;
     size_t len;
-    unsigned char *buf;
     int ret;
 
     ret = copy_Principal(p, &new);
-    if(ret)
-	goto out;
+    if(ret) 
+	return ret;
     new.name.name_type = 0;
-    len = length_Principal(&new);
-    buf  = malloc(len);
-    if(buf == NULL){
-	krb5_set_error_string(context, "malloc: out of memory");
-	ret = ENOMEM;
-	goto out;
-    }
-    ret = encode_Principal(buf + len - 1, len, &new, &len);
-    if(ret){
-	free(buf);
-	goto out;
-    }
-    key->data = buf;
-    key->length = len;
-out:
+
+    ASN1_MALLOC_ENCODE(Principal, key->data, key->length, &new, &len, ret);
     free_Principal(&new);
     return ret;
 }
@@ -75,24 +61,11 @@ hdb_key2principal(krb5_context context, krb5_data *key, krb5_principal p)
 int
 hdb_entry2value(krb5_context context, hdb_entry *ent, krb5_data *value)
 {
-    unsigned char *buf;
     size_t len;
     int ret;
-
-    len = length_hdb_entry(ent);
-    buf = malloc(len);
-    if(buf == NULL) {
-	krb5_set_error_string(context, "malloc: out of memory");
-	return ENOMEM;
-    }
-    ret = encode_hdb_entry(buf + len - 1, len, ent, &len);
-    if(ret){
-	free(buf);
-	return ret;
-    }
-    value->data = buf;
-    value->length = len;
-    return 0;
+    
+    ASN1_MALLOC_ENCODE(hdb_entry, value->data, value->length, ent, &len, ret);
+    return ret;
 }
 
 int

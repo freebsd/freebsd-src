@@ -1,4 +1,4 @@
-dnl $Id: roken-frag.m4,v 1.42 2002/08/26 13:26:52 assar Exp $
+dnl $Id: roken-frag.m4,v 1.44 2002/09/04 20:57:30 joda Exp $
 dnl
 dnl some code to get roken working
 dnl
@@ -69,6 +69,7 @@ AC_CHECK_HEADERS([\
 	shadow.h				\
 	sys/bswap.h				\
 	sys/ioctl.h				\
+	sys/mman.h				\
 	sys/param.h				\
 	sys/proc.h				\
 	sys/resource.h				\
@@ -109,6 +110,24 @@ AC_KRB_IPV6
 AC_FIND_FUNC(gethostbyname2, inet6 ip6)
 
 AC_FIND_FUNC(res_search, resolv,
+[
+#include <stdio.h>
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#include <arpa/nameser.h>
+#endif
+#ifdef HAVE_RESOLV_H
+#include <resolv.h>
+#endif
+],
+[0,0,0,0,0])
+
+AC_FIND_FUNC(res_nsearch, resolv,
 [
 #include <stdio.h>
 #ifdef HAVE_SYS_TYPES_H
@@ -204,6 +223,8 @@ if test "$ac_cv_func_cgetent" = no; then
 fi
 
 AC_REQUIRE([AC_FUNC_GETLOGIN])
+
+AC_REQUIRE([AC_FUNC_MMAP])
 
 AC_FIND_FUNC_NO_LIBS(getsockopt,,
 [#ifdef HAVE_SYS_TYPES_H

@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.145 2002/08/29 04:02:24 assar Exp $
+# $Id: Makefile.am,v 1.147 2002/09/03 14:45:13 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -13,7 +13,8 @@ TESTS =						\
 	string-to-key-test			\
 	derived-key-test			\
 	store-test				\
-	parse-name-test
+	parse-name-test				\
+	name-45-test
 
 check_PROGRAMS = $(TESTS)
 
@@ -133,10 +134,10 @@ libkrb5_la_LDFLAGS = -version-info 18:3:1
 
 $(libkrb5_la_OBJECTS): $(srcdir)/krb5-protos.h $(srcdir)/krb5-private.h
 
-$(srcdir)/krb5-protos.h: $(ERR_FILES)
+$(srcdir)/krb5-protos.h:
 	cd $(srcdir) && perl ../../cf/make-proto.pl -q -P comment -o krb5-protos.h $(libkrb5_la_SOURCES) || rm -f krb5-protos.h
 
-$(srcdir)/krb5-private.h: $(ERR_FILES)
+$(srcdir)/krb5-private.h:
 	cd $(srcdir) && perl ../../cf/make-proto.pl -q -P comment -p krb5-private.h $(libkrb5_la_SOURCES) || rm -f krb5-private.h
 
 #libkrb5_la_LIBADD = ../com_err/error.lo ../com_err/com_err.lo
