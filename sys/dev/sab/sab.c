@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
  * SAB82532 Dual UART driver
  */
 
-#include "opt_ddb.h"
 #include "opt_comconsole.h"
 
 #include <sys/param.h>
@@ -52,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
@@ -63,8 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/serial.h>
 #include <sys/syslog.h>
 #include <sys/tty.h>
-
-#include <ddb/ddb.h>
 
 #include <dev/ofw/openfirm.h>
 #include <sparc64/ebus/ebusvar.h>
@@ -557,9 +555,10 @@ sabtty_intr(struct sabtty_softc *sc)
 	if (len != 0) {
 		for (i = 0; i < len; i++) {
 			c = SAB_READ(sc, SAB_RFIFO);
-#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
+#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
 			if (sc->sc_console != 0 && (i & 1) == 0)
-				brk = db_alt_break(c, &sc->sc_alt_break_state);
+				brk = kdb_alt_break(c,
+				    &sc->sc_alt_break_state);
 #endif
 			*sc->sc_iput++ = c;
 			if (sc->sc_iput == sc->sc_ibuf + sizeof(sc->sc_ibuf))
@@ -606,7 +605,7 @@ sabtty_intr(struct sabtty_softc *sc)
 
 	if (brk != 0)
 		breakpoint();
-	
+
 	return (needsoft);
 }
 
