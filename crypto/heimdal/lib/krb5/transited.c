@@ -308,6 +308,12 @@ krb5_domain_x500_decode(krb5_context context,
     struct tr_realm *p, **q;
     int ret;
     
+    if(tr.length == 0) {
+	*realms = NULL;
+	*num_realms = 0;
+	return 0;
+    }
+
     /* split string in components */
     ret = decode_realms(context, tr.data, tr.length, &r);
     if(ret)
@@ -362,6 +368,9 @@ krb5_domain_x500_encode(char **realms, int num_realms, krb5_data *encoding)
     char *s = NULL;
     int len = 0;
     int i;
+    krb5_data_zero(encoding);
+    if (num_realms == 0)
+	return 0;
     for(i = 0; i < num_realms; i++){
 	len += strlen(realms[i]);
 	if(realms[i][0] == '/')
@@ -369,6 +378,8 @@ krb5_domain_x500_encode(char **realms, int num_realms, krb5_data *encoding)
     }
     len += num_realms - 1;
     s = malloc(len + 1);
+    if (s == NULL)
+	return ENOMEM;
     *s = '\0';
     for(i = 0; i < num_realms; i++){
 	if(i && i < num_realms - 1)
@@ -379,6 +390,44 @@ krb5_domain_x500_encode(char **realms, int num_realms, krb5_data *encoding)
     }
     encoding->data = s;
     encoding->length = strlen(s);
+    return 0;
+}
+
+krb5_error_code
+krb5_check_transited(krb5_context context,
+		     krb5_const_realm client_realm,
+		     krb5_const_realm server_realm,
+		     krb5_realm *realms,
+		     int num_realms,
+		     int *bad_realm)
+{
+    char **tr_realms;
+    char **p;
+    int i;
+
+    if(num_realms == 0)
+	return 0;
+    
+    tr_realms = krb5_config_get_strings(context, NULL, 
+					"capaths", 
+					client_realm, 
+					server_realm, 
+					NULL);
+    for(i = 0; i < num_realms; i++) {
+	for(p = tr_realms; p && *p; p++) {
+	    if(strcmp(*p, realms[i]) == 0)
+		break;
+	}
+	if(p == NULL || *p == NULL) {
+	    krb5_config_free_strings(tr_realms);
+	    krb5_set_error_string (context, "no transit through realm %s",
+				   realms[i]);
+	    if(bad_realm)
+		*bad_realm = i;
+	    return KRB5KRB_AP_ERR_ILL_CR_TKT;
+	}
+    }
+    krb5_config_free_strings(tr_realms);
     return 0;
 }
 

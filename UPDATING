@@ -14,6 +14,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20040505:	p6	FreeBSD-SA-04:08.heimdal
+	Correctly validate the transited field in Kerberos tickets.
+
 20040415:	p5	FreeBSD-SA-04:07.cvs
 	Correct some path validation errors in CVS.
 

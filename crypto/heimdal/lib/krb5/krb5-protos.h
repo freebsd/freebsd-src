@@ -541,6 +541,15 @@ krb5_change_password (
 	krb5_data */*result_string*/);
 
 krb5_error_code
+krb5_check_transited (
+	krb5_context /*context*/,
+	krb5_const_realm /*client_realm*/,
+	krb5_const_realm /*server_realm*/,
+	krb5_realm */*realms*/,
+	int /*num_realms*/,
+	int */*bad_realm*/);
+
+krb5_error_code
 krb5_check_transited_realms (
 	krb5_context /*context*/,
 	const char *const */*realms*/,

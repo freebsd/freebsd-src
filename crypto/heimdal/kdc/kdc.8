@@ -31,7 +31,7 @@
 .\"
 .\" $Id: kdc.8,v 1.23 2003/04/06 17:48:40 lha Exp $
 .\"
-.Dd August 22, 2002
+.Dd October 22, 2003
 .Dt KDC 8
 .Os HEIMDAL
 .Sh NAME
@@ -185,6 +185,27 @@ Permit tickets with no addresses.
 This option is only relevant when check-ticket-addresses is TRUE.
 .It Li allow-anonymous = Va boolean
 Permit anonymous tickets with no addresses.
+.It Li transited-policy = Xo
+.Li always-check \*(Ba
+.Li allow-per-principal |
+.Li always-honour-request
+.Xc
+This controls how KDC requests with the
+.Li disable-transited-check
+flag are handled. It can be one of:
+.Bl -tag -width "xxx" -offset indent
+.It Li always-check
+Always check transited encoding, this is the default.
+.It Li allow-per-principal
+Currently this is identical to
+.Li always-check .
+In a future release, it will be possible to mark a principal as able
+to handle unchecked requests.
+.It Li always-honour-request
+Always do what the client asked.
+In a future release, it will be possible to force a check per
+principal.
+.El
 .It encode_as_rep_as_tgs_rep = Va boolean
 Encode AS-Rep as TGS-Rep to be bug-compatible with old DCE code.
 The Heimdal clients allow both.
