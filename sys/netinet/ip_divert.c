@@ -219,20 +219,6 @@ divert_packet(struct mbuf *m, int incoming)
 		    sizeof(divsrc.sin_zero));
 	}
 
-	/*
-	 * XXX sbappendaddr must be protected by Giant until
-	 * we have locking at the socket layer.  When entered
-	 * from below we come in w/o Giant and must take it
-	 * here.  Unfortunately we cannot tell whether we're
-	 * entering from above (already holding Giant),
-	 * below (potentially without Giant), or otherwise
-	 * (e.g. from tcp_syncache through a timeout) so we
-	 * have to grab it regardless.  This causes a LOR with
-	 * the tcp lock, at least, and possibly others.  For
-	 * the moment we're ignoring this. Once sockets are
-	 * locked this cruft can be removed.
-	 */
-	mtx_lock(&Giant);
 	/* Put packet on socket queue, if any */
 	sa = NULL;
 	nport = htons((u_int16_t)divert_info(mtag));
@@ -254,7 +240,6 @@ divert_packet(struct mbuf *m, int incoming)
 		INP_UNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&divcbinfo);
-	mtx_unlock(&Giant);
 	if (sa == NULL) {
 		m_freem(m);
 		ipstat.ips_noproto++;
