@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.8 1995/09/27 19:20:43 nate Exp $ -->
+<!-- $Id: sup.sgml,v 1.9 1995/12/19 10:11:47 gclarkii Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -58,7 +58,7 @@ a -current user.
 
 <sect1><heading>Description of FreeBSD SUP distributions</heading>
 
-<p>For the main FreeBSD distribution useing the standard-supfile:
+<p>For the main FreeBSD distribution using the standard-supfile:
 <verb>
 base:		/usr/src/...		misc files at the top of /usr/src
 bin:		/usr/src/bin		user and system binaries
