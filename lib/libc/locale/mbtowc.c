@@ -49,9 +49,5 @@ mbtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n)
 	rval = __mbrtowc(pwc, s, n, &mbs);
 	if (rval == (size_t)-1 || rval == (size_t)-2)
 		return (-1);
-	if (rval > INT_MAX) {
-		errno = ERANGE;
-		return (-1);
-	}
 	return ((int)rval);
 }

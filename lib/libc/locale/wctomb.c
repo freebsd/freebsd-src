@@ -48,9 +48,5 @@ wctomb(char *s, wchar_t wchar)
 	}
 	if ((rval = __wcrtomb(s, wchar, &mbs)) == (size_t)-1)
 		return (-1);
-	if (rval > INT_MAX) {
-		errno = ERANGE;
-		return (-1);
-	}
 	return ((int)rval);
 }
