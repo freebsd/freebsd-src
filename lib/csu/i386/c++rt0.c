@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: c++rt0.c,v 1.7 1997/02/22 14:57:42 peter Exp $
  */
 
 /*
@@ -38,8 +38,8 @@
  * number of pointers in each.
  * The tables are also null-terminated.
  */
-void (*__CTOR_LIST__[2])(void);
-void (*__DTOR_LIST__[2])(void);
+extern void (*__CTOR_LIST__[])(void);
+extern void (*__DTOR_LIST__[])(void);
 
 static void
 __dtors(void)
@@ -84,3 +84,24 @@ __fini(void)
 {
 	__dtors();
 }
+
+/*
+ * Make sure there is at least one constructor and one destructor in the
+ * shared library.  Otherwise, the linker does not realize that the
+ * constructor and destructor lists are linker sets.  It treats them as
+ * commons and resolves them to the lists from the main program.  That
+ * causes multiple invocations of the main program's static constructors
+ * and destructors, which is very bad.
+ */
+
+static void
+do_nothing(void)
+{
+}
+
+/* Linker magic to add an element to a constructor or destructor list. */
+#define TEXT_SET(set, sym) \
+	asm(".stabs \"_" #set "\", 23, 0, 0, _" #sym)
+
+TEXT_SET(__CTOR_LIST__, do_nothing);
+TEXT_SET(__DTOR_LIST__, do_nothing);
