@@ -709,7 +709,7 @@ ENTRY(memcpy)
  */
 
 /*
- * copyout(from_kernel, to_user, len)  - MP SAFE (if not I386_CPU)
+ * copyout(from_kernel, to_user, len)  - MP SAFE
  */
 ENTRY(copyout)
 	MEXITCOUNT
@@ -748,58 +748,6 @@ ENTRY(generic_copyout)
  */
 	cmpl	$VM_MAXUSER_ADDRESS,%eax
 	ja	copyout_fault
-
-#ifdef I386_CPU
-
-/*
- * We have to check each PTE for user write permission.
- * The checking may cause a page fault, so it is important to set
- * up everything for return via copyout_fault before here.
- */
-	/* compute number of pages */
-	movl	%edi,%ecx
-	andl	$PAGE_MASK,%ecx
-	addl	%ebx,%ecx
-	decl	%ecx
-	shrl	$IDXSHIFT+2,%ecx
-	incl	%ecx
-
-	/* compute PTE offset for start address */
-	movl	%edi,%edx
-	shrl	$IDXSHIFT,%edx
-	andb	$0xfc,%dl
-
-1:
-	/* check PTE for each page */
-	leal	PTmap(%edx),%eax
-	shrl	$IDXSHIFT,%eax
-	andb	$0xfc,%al
-	testb	$PG_V,PTmap(%eax)		/* PTE page must be valid */
-	je	4f
-	movb	PTmap(%edx),%al
-	andb	$PG_V|PG_RW|PG_U,%al		/* page must be valid and user writable */
-	cmpb	$PG_V|PG_RW|PG_U,%al
-	je	2f
-
-4:
-	/* simulate a trap */
-	pushl	%edx
-	pushl	%ecx
-	shll	$IDXSHIFT,%edx
-	pushl	%edx
-	call	trapwrite			/* trapwrite(addr) */
-	popl	%edx
-	popl	%ecx
-	popl	%edx
-
-	testl	%eax,%eax			/* if not ok, return EFAULT */
-	jnz	copyout_fault
-
-2:
-	addl	$4,%edx
-	decl	%ecx
-	jnz	1b				/* check next page */
-#endif /* I386_CPU */
 
 	/* bcopy(%esi, %edi, %ebx) */
 	movl	%ebx,%ecx
@@ -1284,7 +1232,7 @@ fusufault:
 
 /*
  * Store a 32-bit word, a 16-bit word, or an 8-bit byte to user memory.
- * All these functions are MPSAFE unless I386_CPU is configured.
+ * All these functions are MPSAFE.
  */
 
 ALTENTRY(suword32)
@@ -1292,34 +1240,6 @@ ENTRY(suword)
 	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
-
-#ifdef I386_CPU
-
-	/* XXX - page boundary crossing is still not handled */
-	movl	%edx,%eax
-	shrl	$IDXSHIFT,%edx
-	andb	$0xfc,%dl
-
-	leal	PTmap(%edx),%ecx
-	shrl	$IDXSHIFT,%ecx
-	andb	$0xfc,%cl
-	testb	$PG_V,PTmap(%ecx)		/* PTE page must be valid */
-	je	4f
-	movb	PTmap(%edx),%dl
-	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
-	cmpb	$PG_V|PG_RW|PG_U,%dl
-	je	1f
-
-4:
-	/* simulate a trap */
-	pushl	%eax
-	call	trapwrite
-	popl	%edx				/* remove junk parameter from stack */
-	testl	%eax,%eax
-	jnz	fusufault
-1:
-	movl	4(%esp),%edx
-#endif
 
 	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address validity */
 	ja	fusufault
@@ -1336,34 +1256,6 @@ ENTRY(suword16)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
-#ifdef I386_CPU
-
-	/* XXX - page boundary crossing is still not handled */
-	movl	%edx,%eax
-	shrl	$IDXSHIFT,%edx
-	andb	$0xfc,%dl
-
-	leal	PTmap(%edx),%ecx
-	shrl	$IDXSHIFT,%ecx
-	andb	$0xfc,%cl
-	testb	$PG_V,PTmap(%ecx)		/* PTE page must be valid */
-	je	4f
-	movb	PTmap(%edx),%dl
-	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
-	cmpb	$PG_V|PG_RW|PG_U,%dl
-	je	1f
-
-4:
-	/* simulate a trap */
-	pushl	%eax
-	call	trapwrite
-	popl	%edx				/* remove junk parameter from stack */
-	testl	%eax,%eax
-	jnz	fusufault
-1:
-	movl	4(%esp),%edx
-#endif
-
 	cmpl	$VM_MAXUSER_ADDRESS-2,%edx	/* verify address validity */
 	ja	fusufault
 
@@ -1378,33 +1270,6 @@ ENTRY(subyte)
 	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
-
-#ifdef I386_CPU
-
-	movl	%edx,%eax
-	shrl	$IDXSHIFT,%edx
-	andb	$0xfc,%dl
-
-	leal	PTmap(%edx),%ecx
-	shrl	$IDXSHIFT,%ecx
-	andb	$0xfc,%cl
-	testb	$PG_V,PTmap(%ecx)		/* PTE page must be valid */
-	je	4f
-	movb	PTmap(%edx),%dl
-	andb	$PG_V|PG_RW|PG_U,%dl		/* page must be valid and user writable */
-	cmpb	$PG_V|PG_RW|PG_U,%dl
-	je	1f
-
-4:
-	/* simulate a trap */
-	pushl	%eax
-	call	trapwrite
-	popl	%edx				/* remove junk parameter from stack */
-	testl	%eax,%eax
-	jnz	fusufault
-1:
-	movl	4(%esp),%edx
-#endif
 
 	cmpl	$VM_MAXUSER_ADDRESS-1,%edx	/* verify address validity */
 	ja	fusufault

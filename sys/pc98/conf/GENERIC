@@ -19,7 +19,6 @@
 # $FreeBSD$
 
 machine		pc98
-#cpu		I386_CPU		# Do not enable with other cpu types
 cpu		I486_CPU
 cpu		I586_CPU
 cpu		I686_CPU
