@@ -36,6 +36,7 @@ ARFLAGS = @ARFLAGS@
 RM = rm -f
 CP = cp
 MV = mv
+LN = ln
 
 SHELL = @MAKE_SHELL@
 
@@ -43,6 +44,7 @@ host_os = @host_os@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
+includedir = @includedir@
 libdir = @libdir@
 
 CFLAGS = @CFLAGS@
@@ -108,7 +110,8 @@ CSOURCES = $(topdir)/readline.c $(topdir)/funmap.c $(topdir)/keymaps.c \
 	   $(topdir)/callback.c $(topdir)/terminal.c $(topdir)/xmalloc.c \
 	   $(topdir)/history.c $(topdir)/histsearch.c $(topdir)/histexpand.c \
 	   $(topdir)/histfile.c $(topdir)/nls.c $(topdir)/search.c \
-	   $(topdir)/shell.c $(topdir)/savestring.c $(topdir)/tilde.c
+	   $(topdir)/shell.c $(topdir)/savestring.c $(topdir)/compat.c \
+	   $(topdir)/tilde.c
 
 # The header files for this library.
 HSOURCES = readline.h rldefs.h chardefs.h keymaps.h history.h histlib.h \
@@ -120,7 +123,7 @@ SHARED_TILDEOBJ = tilde.so
 SHARED_OBJ = readline.so vi_mode.so funmap.so keymaps.so parens.so search.so \
 	  rltty.so complete.so bind.so isearch.so display.so signals.so \
 	  util.so kill.so undo.so macro.so input.so callback.so terminal.so \
-	  nls.so xmalloc.so $(SHARED_HISTOBJ) $(SHARED_TILDEOBJ)
+	  nls.so xmalloc.so $(SHARED_HISTOBJ) $(SHARED_TILDEOBJ) compat.so
 
 ##########################################################################
 
@@ -173,90 +176,108 @@ force:
 bind.so: $(topdir)/ansi_stdlib.h $(topdir)/posixstat.h
 bind.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 bind.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+bind.so: $(topdir)/rltypedefs.h
 bind.so: $(topdir)/tilde.h $(topdir)/history.h
+compat.so: $(topdir)/rlstdc.h
 callback.so: $(topdir)/rlconf.h
 callback.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h
 callback.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+callback.so: $(topdir)/rltypedefs.h
 callback.so: $(topdir)/tilde.h
 complete.so: $(topdir)/ansi_stdlib.h posixdir.h $(topdir)/posixstat.h
 complete.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 complete.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+complete.so: $(topdir)/rltypedefs.h
 complete.so: $(topdir)/tilde.h
 display.so: $(topdir)/ansi_stdlib.h $(topdir)/posixstat.h
 display.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 display.so: $(topdir)/tcap.h
 display.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+display.so: $(topdir)/rltypedefs.h
 display.so: $(topdir)/tilde.h $(topdir)/history.h
 funmap.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+funmap.so: $(topdir)/rltypedefs.h
 funmap.so: $(topdir)/rlconf.h $(topdir)/ansi_stdlib.h
 funmap.so: ${BUILD_DIR}/config.h $(topdir)/tilde.h
 histexpand.so: $(topdir)/ansi_stdlib.h
-histexpand.so: $(topdir)/history.h histlib.h
+histexpand.so: $(topdir)/history.h $(topdir)/histlib.h $(topdir)/rltypedefs.h
 histexpand.so: ${BUILD_DIR}/config.h
 histfile.so: $(topdir)/ansi_stdlib.h
-histfile.so: $(topdir)/history.h histlib.h
+histfile.so: $(topdir)/history.h $(topdir)/histlib.h $(topdir)/rltypedefs.h
 histfile.so: ${BUILD_DIR}/config.h
 history.so: $(topdir)/ansi_stdlib.h
-history.so: $(topdir)/history.h histlib.h
+history.so: $(topdir)/history.h $(topdir)/histlib.h $(topdir)/rltypedefs.h
 history.so: ${BUILD_DIR}/config.h
 histsearch.so: $(topdir)/ansi_stdlib.h
-histsearch.so: $(topdir)/history.h histlib.h
+histsearch.so: $(topdir)/history.h $(topdir)/histlib.h $(topdir)/rltypedefs.h
 histsearch.so: ${BUILD_DIR}/config.h
 input.so: $(topdir)/ansi_stdlib.h
 input.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 input.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+input.so: $(topdir)/rltypedefs.h
 input.so: $(topdir)/tilde.h
 isearch.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 isearch.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+isearch.so: $(topdir)/rltypedefs.h
 isearch.so: $(topdir)/ansi_stdlib.h $(topdir)/history.h $(topdir)/tilde.h
 keymaps.so: emacs_keymap.c vi_keymap.c
 keymaps.so: $(topdir)/keymaps.h $(topdir)/chardefs.h $(topdir)/rlconf.h
 keymaps.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+keymaps.so: $(topdir)/rltypedefs.h
 keymaps.so: ${BUILD_DIR}/config.h $(topdir)/ansi_stdlib.h $(topdir)/tilde.h
 kill.so: $(topdir)/ansi_stdlib.h
 kill.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 kill.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
-kill.so: $(topdir)/tilde.h $(topdir)/history.h
+kill.so: $(topdir)/tilde.h $(topdir)/history.h  $(topdir)/rltypedefs.h
 macro.so: $(topdir)/ansi_stdlib.h
 macro.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 macro.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
-macro.so: $(topdir)/tilde.h $(topdir)/history.h
+macro.so: $(topdir)/tilde.h $(topdir)/history.h $(topdir)/rltypedefs.h
 nls.so: $(topdir)/ansi_stdlib.h
 nls.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 nls.o: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+nls.o: $(topdir)/rltypedefs.h
 nls.o: $(topdir)/tilde.h $(topdir)/history.h $(topdir)/rlstdc.h  
 parens.so: $(topdir)/rlconf.h ${BUILD_DIR}/config.h
 parens.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+parens.so: $(topdir)/rltypedefs.h
 parens.so: $(topdir)/tilde.h
 readline.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
 readline.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
+readline.so: $(topdir)/rltypedefs.h
 readline.so: $(topdir)/history.h $(topdir)/tilde.h
 readline.so: $(topdir)/posixstat.h $(topdir)/ansi_stdlib.h $(topdir)/posixjmp.h
 rltty.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 rltty.so: $(topdir)/rltty.h $(topdir)/tilde.h
 rltty.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+rltty.so: $(topdir)/rltypedefs.h
 search.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 search.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
 search.so: $(topdir)/ansi_stdlib.h $(topdir)/history.h $(topdir)/tilde.h
+search.so: $(topdir)/rltypedefs.h
 signals.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 signals.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
 signals.so: $(topdir)/history.h $(topdir)/tilde.h
+signals.so: $(topdir)/rltypedefs.h
 terminal.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 terminal.so: $(topdir)/tcap.h
 terminal.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
 terminal.so: $(topdir)/tilde.h $(topdir)/history.h
+terminal.so: $(topdir)/rltypedefs.h
 tilde.so: $(topdir)/ansi_stdlib.h ${BUILD_DIR}/config.h $(topdir)/tilde.h
 undo.so: $(topdir)/ansi_stdlib.h
 undo.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 undo.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+undo.so: $(topdir)/rltypedefs.h
 undo.so: $(topdir)/tilde.h $(topdir)/history.h
 util.so: $(topdir)/posixjmp.h $(topdir)/ansi_stdlib.h
 util.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 util.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
-util.so: $(topdir)/tilde.h
+util.so: $(topdir)/rltypedefs.h $(topdir)/tilde.h
 vi_mode.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 vi_mode.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
 vi_mode.so: $(topdir)/history.h $(topdir)/ansi_stdlib.h $(topdir)/tilde.h
+vi_mode.so: $(topdir)/rltypedefs.h
 xmalloc.so: ${BUILD_DIR}/config.h
 xmalloc.so: $(topdir)/ansi_stdlib.h
 
@@ -315,6 +336,7 @@ keymaps.so: $(topdir)/keymaps.c
 parens.so: $(topdir)/parens.c
 search.so: $(topdir)/search.c
 rltty.so: $(topdir)/rltty.c
+compat.so: $(topdir)/compat.c
 complete.so: $(topdir)/complete.c
 bind.so: $(topdir)/bind.c
 isearch.so: $(topdir)/isearch.c
@@ -344,6 +366,7 @@ keymaps.so: keymaps.c
 parens.so: parens.c
 search.so: search.c
 rltty.so: rltty.c
+comapt.so: compat.c
 complete.so: complete.c
 bind.so: bind.c
 isearch.so: isearch.c

@@ -27,6 +27,9 @@
 extern int atoi ();
 extern long int atol ();
 
+extern double atof ();
+extern double strtod ();
+
 /* Memory allocation functions. */
 extern char *malloc ();
 extern char *realloc ();

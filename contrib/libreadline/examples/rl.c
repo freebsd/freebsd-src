@@ -38,7 +38,7 @@ set_deftext ()
     {
       rl_insert_text (deftext);
       deftext = (char *)NULL;
-      rl_startup_hook = (Function *)NULL;
+      rl_startup_hook = (rl_hook_func_t *)NULL;
     }
   return 0;
 }
@@ -126,6 +126,6 @@ main (argc, argv)
   if (temp == 0)
     exit (1);
 
-  puts (temp);
+  printf ("%s\n", temp);
   exit (0);
 }

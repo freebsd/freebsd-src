@@ -35,7 +35,7 @@
  *************************************************************************/
 
 /* terminal.c */
-extern char *rl_get_termcap __P((char *));
+extern char *rl_get_termcap __P((const char *));
 
 /*************************************************************************
  *									 *
@@ -51,12 +51,8 @@ extern int rl_visible_stats;
 
 /* readline.c */
 extern int rl_line_buffer_len;
-extern int rl_numeric_arg;
 extern int rl_arg_sign;
-extern int rl_explicit_arg;
-extern int rl_editing_mode;
 extern int rl_visible_prompt_length;
-extern Function *rl_last_func;
 extern int readline_echoing_p;
 extern int rl_key_sequence_length;
 
@@ -91,7 +87,7 @@ extern void _rl_set_screen_size __P((int, int));
 extern int _rl_fix_last_undo_of_type __P((int, int, int));
 
 /* util.c */
-extern char *_rl_savestring __P((char *));
+extern char *_rl_savestring __P((const char *));
 
 /*************************************************************************
  *									 *
@@ -118,11 +114,11 @@ extern int readline_internal_char __P((void));
 #endif /* READLINE_CALLBACKS */
 
 /* bind.c */
-extern void _rl_bind_if_unbound __P((char *, Function *));
+extern void _rl_bind_if_unbound __P((const char *, rl_command_func_t *));
 
 /* display.c */
 extern char *_rl_strip_prompt __P((char *));
-extern void _rl_move_cursor_relative __P((int, char *));
+extern void _rl_move_cursor_relative __P((int, const char *));
 extern void _rl_move_vert __P((int));
 extern void _rl_save_prompt __P((void));
 extern void _rl_restore_prompt __P((void));
@@ -134,7 +130,7 @@ extern void _rl_update_final __P((void));
 extern void _rl_redisplay_after_sigwinch __P((void));
 extern void _rl_clean_up_for_exit __P((void));
 extern void _rl_erase_entire_line __P((void));
-extern int _rl_currentb_display_line __P((void));
+extern int _rl_current_display_line __P((void));
 
 /* input.c */
 extern int _rl_any_typein __P((void));
@@ -161,9 +157,10 @@ extern void _rl_set_the_line __P((void));
 extern int _rl_dispatch __P((int, Keymap));
 extern int _rl_init_argument __P((void));
 extern void _rl_fix_point __P((int));
-extern void _rl_replace_text __P((char *, int, int));
+extern void _rl_replace_text __P((const char *, int, int));
 extern int _rl_char_search_internal __P((int, int, int));
 extern int _rl_set_mark_at_pos __P((int));
+extern int _rl_free_saved_history_line __P((void));
 
 /* rltty.c */
 extern int _rl_disable_tty_signals __P((void));
@@ -171,21 +168,22 @@ extern int _rl_restore_tty_signals __P((void));
 
 /* terminal.c */
 extern void _rl_get_screen_size __P((int, int));
-extern int _rl_init_terminal_io __P((char *));
+extern int _rl_init_terminal_io __P((const char *));
 #ifdef _MINIX
 extern void _rl_output_character_function __P((int));
 #else
 extern int _rl_output_character_function __P((int));
 #endif
-extern void _rl_output_some_chars __P((char *, int));
+extern void _rl_output_some_chars __P((const char *, int));
 extern int _rl_backspace __P((int));
 extern void _rl_enable_meta_key __P((void));
 extern void _rl_control_keypad __P((int));
 
 /* util.c */
-extern int alphabetic __P((int));
+extern int rl_alphabetic __P((int));
 extern int _rl_abort_internal __P((void));
-extern char *_rl_strindex __P((char *, char *));
+extern char *_rl_strindex __P((const char *, const char *));
+extern char *_rl_strpbrk __P((const char *, const char *));
 extern int _rl_qsort_string_compare __P((char **, char **));
 extern int (_rl_uppercase_p) __P((int));
 extern int (_rl_lowercase_p) __P((int));
@@ -206,6 +204,10 @@ extern void _rl_vi_done_inserting __P((void));
  * Undocumented private variables					 *
  *************************************************************************/
 
+/* bind.c */
+extern const char *_rl_possible_control_prefixes[];
+extern const char *_rl_possible_meta_prefixes[];
+
 /* complete.c */
 extern int _rl_complete_show_all;
 extern int _rl_complete_mark_directories;
@@ -217,10 +219,6 @@ extern int _rl_vis_botlin;
 extern int _rl_last_c_pos;
 extern int _rl_suppress_redisplay;
 extern char *rl_display_prompt;
-
-/* funmap.c */
-extern char *possible_control_prefixes[];
-extern char *possible_meta_prefixes[];
 
 /* isearch.c */
 extern unsigned char *_rl_isearch_terminators;
@@ -248,20 +246,20 @@ extern procenv_t readline_top_level;
 /* terminal.c */
 extern int _rl_enable_keypad;
 extern int _rl_enable_meta;
-extern char *term_clreol;
-extern char *term_clrpag;
-extern char *term_im;
-extern char *term_ic;
-extern char *term_ei;
-extern char *term_DC;
-extern char *term_up;
-extern char *term_dc;
-extern char *term_cr;
-extern char *term_IC;
-extern int screenheight;
-extern int screenwidth;
-extern int screenchars;
-extern int terminal_can_insert;
+extern char *_rl_term_clreol;
+extern char *_rl_term_clrpag;
+extern char *_rl_term_im;
+extern char *_rl_term_ic;
+extern char *_rl_term_ei;
+extern char *_rl_term_DC;
+extern char *_rl_term_up;
+extern char *_rl_term_dc;
+extern char *_rl_term_cr;
+extern char *_rl_term_IC;
+extern int _rl_screenheight;
+extern int _rl_screenwidth;
+extern int _rl_screenchars;
+extern int _rl_terminal_can_insert;
 extern int _rl_term_autowrap;
 
 /* undo.c */
