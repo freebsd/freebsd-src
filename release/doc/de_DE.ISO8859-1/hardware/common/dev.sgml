@@ -28,11 +28,11 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.54 2003/01/09 12:42:54 ue Exp $
-	basiert auf: 1.124
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.55 2003/01/13 20:30:48 ue Exp $
+	basiert auf: 1.126
 -->
 
-<sect1>
+<sect1 id="support">
   <sect1info>
     <pubdate>$FreeBSD$</pubdate>
   </sect1info>

@@ -1,8 +1,8 @@
 <!--
 
 $FreeBSD$
-$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.15 2002/12/22 11:51:46 ue Exp $
-basiert auf: 1.17
+$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.16 2003/01/13 20:30:50 ue Exp $
+basiert auf: 1.19
 
 install.sgml
 
@@ -11,7 +11,7 @@ from {alpha,i386}/INSTALL.TXT.
 
 -->
 
-<sect1>
+<sect1 id="install">
   <title>Wie installiere ich &os;</title>
 
   <para>In diesem Kapitel erfahren Sie, wie Sie &os; installieren.
