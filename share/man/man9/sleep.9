@@ -58,7 +58,8 @@ external event, it is put on sleep by
 The parameter
 .Fa ident
 is an arbitrary address that uniquely identifies the event on which
-the process is being asleep.  All processes sleeping on a single
+the process is being asleep.
+All processes sleeping on a single
 .Fa ident
 are woken up later by
 .Fn wakeup ,
@@ -77,7 +78,8 @@ The
 function is used to make the first process in the queue that is
 sleeping on the parameter
 .Fa ident
-runnable.  This can prevent the system from becoming saturated
+runnable.
+This can prevent the system from becoming saturated
 when a large number of processes are sleeping on the same address,
 but only one of them can actually do any useful work when made
 runnable.
@@ -98,7 +100,8 @@ If
 includes the
 .Dv PCATCH
 flag, signals are checked before and after sleeping, else signals are
-not checked.  Returns 0 if awakened,
+not checked.
+Returns 0 if awakened,
 .Er EWOULDBLOCK
 if the timeout expires.
 If

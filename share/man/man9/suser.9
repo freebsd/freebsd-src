@@ -74,9 +74,10 @@ be done by setting the
 .Dv PRISON_ROOT
 bit in the flags argument to the
 .Nm suser_cred
-function.  It is important to review carefully in each case that
-this does not weaken the prison.  Generally only where the action
-is protected by the
+function.
+It is important to review carefully in each case that
+this does not weaken the prison.
+Generally only where the action is protected by the
 .Xr chroot 2
 implicit in
 .Xr jail 2
