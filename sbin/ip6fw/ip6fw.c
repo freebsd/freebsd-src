@@ -481,7 +481,7 @@ show_usage(const char *fmt, ...)
 		va_end(args);
 		warnx("error: %s", buf);
 	}
-	fprintf(stderr, "usage: ipfw6 [options]\n"
+	fprintf(stderr, "usage: ip6fw [options]\n"
 "    flush\n"
 "    add [number] rule\n"
 "    delete number ...\n"
