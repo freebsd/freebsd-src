@@ -57,6 +57,7 @@ acpi_init()
 	}
 }
 
+#if 0
 static int
 acpi_enable_disable(int enable)
 {
@@ -69,6 +70,7 @@ acpi_enable_disable(int enable)
 
 	return (0);
 }
+#endif
 
 static int
 acpi_sleep(int sleep_type)
@@ -158,12 +160,14 @@ main(int argc, char *argv[])
 		case 'i':
 			acpi_battinfo(atoi(optarg));
 			break;
+#if 0
 		case 'd':
 			acpi_enable_disable(ACPIIO_DISABLE);
 			break;
 		case 'e':
 			acpi_enable_disable(ACPIIO_ENABLE);
 			break;
+#endif
 		case 's':
 			if (optarg[0] == 'S')
 				sleep_type = optarg[1] - '0';
