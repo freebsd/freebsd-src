@@ -287,8 +287,10 @@ puc_pci_attach(device_t dev)
 		} else {
 			rle->res = malloc(sizeof(struct resource), M_DEVBUF,
 			    M_WAITOK | M_ZERO);
-			if (rle->res == NULL)
+			if (rle->res == NULL) {
+				free(pdev, M_DEVBUF);
 				return (ENOMEM);
+			}
 
 			rle->res->r_start = rman_get_start(res) +
 			    sc->sc_desc->ports[i].offset;
@@ -304,8 +306,16 @@ puc_pci_attach(device_t dev)
 
 		childunit = puc_find_free_unit(typestr);
 		sc->sc_ports[i].dev = device_add_child(dev, typestr, childunit);
-		if (sc->sc_ports[i].dev == NULL)
+		if (sc->sc_ports[i].dev == NULL) {
+			if (sc->barmuxed) {
+				bus_space_unmap(rman_get_bustag(rle->res),
+						rman_get_bushandle(rle->res),
+						8);
+				free(rle->res, M_DEVBUF);
+				free(pdev, M_DEVBUF);
+			}
 			continue;
+		}
 		device_set_ivars(sc->sc_ports[i].dev, pdev);
 		device_set_desc(sc->sc_ports[i].dev, sc->sc_desc->name);
 		if (!bootverbose)
@@ -317,7 +327,15 @@ puc_pci_attach(device_t dev)
 		    sc->sc_desc->ports[i].offset);
 		print_resource_list(&pdev->resources);
 #endif
-		device_probe_and_attach(sc->sc_ports[i].dev);
+		if (device_probe_and_attach(sc->sc_ports[i].dev) != 0) {
+			if (sc->barmuxed) {
+				bus_space_unmap(rman_get_bustag(rle->res),
+						rman_get_bushandle(rle->res),
+						8);
+				free(rle->res, M_DEVBUF);
+				free(pdev, M_DEVBUF);
+			}
+		}
 	}
 
 #ifdef PUC_DEBUG
