@@ -23,7 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_xereg.h,v 1.3 1999/02/22 14:00:53 root Exp $
+ *	$Author_Id: if_xereg.h,v 1.3 1999/02/22 14:00:53 root Exp $
+ *	$FreeBSD$
  */
 
 /*
