@@ -1,8 +1,8 @@
-#	$Id$
+#	$Id: Makefile,v 1.3 1997/02/22 16:07:20 peter Exp $
 
-LIB=	mrouted
-NOPROFILE=
-NOSHARED=
+LIB=		mrouted
+NOPROFILE=	yes
+NOPIC=		yes
 
 S=	${.CURDIR}/..
 .PATH:	$S
