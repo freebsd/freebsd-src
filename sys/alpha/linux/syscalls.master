@@ -61,11 +61,11 @@
 18	UNIMPL	LINUX
 19	STD	LINUX	{ int linux_lseek(l_uint fdes, l_off_t off, \
 				l_int whence); }
-20	STD	LINUX	{ int linux_getpid(void); } 
+20	NOPROTO	BSD	{ int getpid(void); } 
 21	UNIMPL	OSF1	osf1_mount
 22	STD	LINUX	{ int linux_umount(char *path, l_int flags); }
 23	NOPROTO	LINUX	{ int setuid(uid_t uid); }
-24	STD	LINUX	{ int linux_getuid(void); }
+24	NOPROTO	BSD	{ int getuid(void); }
 25	UNIMPL	LINUX
 26	STD	LINUX	{ int linux_ptrace(void); }
 27	UNIMPL	LINUX
@@ -83,13 +83,13 @@
 39	NOPROTO	LINUX	{ int setpgid(int pid, int pgid); }
 40	UNIMPL	LINUX
 41	NOPROTO	LINUX	{ int dup(u_int fd); }
-42	NOPROTO	LINUX	{ int pipe(void); }
+42	NOPROTO	BSD	{ int pipe(void); }
 43	UNIMPL	OSF1	osf_set_program_attributes
 44	UNIMPL	LINUX
 45	STD	LINUX	{ int linux_open(char *path, l_int flags, \
 				l_int mode); }
 46	UNIMPL	LINUX
-47	STD	LINUX	{ int linux_getgid(void); }
+47	NOPROTO	BSD	{ int getgid(void); }
 48	STD	OSF1	{ int osf1_sigprocmask(int how, u_long mask); }
 49	UNIMPL	LINUX
 50	UNIMPL	LINUX
