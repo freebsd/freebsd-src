@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.27 1997/06/27 15:42:05 tegge Exp $
+ * $Id: kern_proc.c,v 1.28 1997/08/02 14:31:33 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,8 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>
+
+MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 
 struct prochd qs[NQS];		/* as good a place as any... */
 struct prochd rtqs[NQS];	/* Space for REALTIME queues too */

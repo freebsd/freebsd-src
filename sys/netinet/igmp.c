@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.22 1997/09/02 01:19:05 bde Exp $
+ * $Id: igmp.c,v 1.23 1997/09/16 11:43:50 bde Exp $
  */
 
 /*
@@ -68,6 +68,8 @@
 #include <netinet/ip_var.h>
 #include <netinet/igmp.h>
 #include <netinet/igmp_var.h>
+
+MALLOC_DEFINE(M_MRTABLE, "mrt", "multicast routing tables");
 
 static struct router_info *
 		find_rti __P((struct ifnet *ifp));

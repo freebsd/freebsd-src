@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.57 1997/06/02 05:02:37 julian Exp $
+ *	$Id: ip_output.c,v 1.58 1997/08/02 14:32:53 bde Exp $
  */
 
 #define _IP_VHL
@@ -58,6 +58,8 @@
 #include <machine/mtpr.h>
 #endif
 #include <machine/in_cksum.h>
+
+MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 
 #if !defined(COMPAT_IPFW) || COMPAT_IPFW == 1
 #undef COMPAT_IPFW

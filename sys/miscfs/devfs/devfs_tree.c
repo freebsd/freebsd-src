@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.41 1997/09/16 09:10:18 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.42 1997/10/10 07:54:05 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -22,6 +22,10 @@
 
 #include <miscfs/devfs/devfsdefs.h>
 
+
+MALLOC_DEFINE(M_DEVFSNODE, "DEVFS node", "DEVFS node");
+MALLOC_DEFINE(M_DEVFSNAME, "DEVFS name", "DEVFS name");
+
 devnm_p	dev_root;		/* root of the backing tree */
 struct mount *devfs_hidden_mount;
 int devfs_up_and_going; 

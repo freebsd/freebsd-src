@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.161 1997/09/07 01:15:13 dyson Exp $
+ *	$Id: pmap.c,v 1.162 1997/09/21 05:50:02 dyson Exp $
  */
 
 /*
@@ -1504,7 +1504,8 @@ pmap_destroy(pmap)
 	count = --pmap->pm_count;
 	if (count == 0) {
 		pmap_release(pmap);
-		free((caddr_t) pmap, M_VMPMAP);
+		panic("destroying a pmap is not yet implemented");
+		/* free((caddr_t) pmap, M_VMPMAP); */
 	}
 }
 

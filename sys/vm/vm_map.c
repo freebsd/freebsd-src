@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.90 1997/09/12 15:58:47 jlemon Exp $
+ * $Id: vm_map.c,v 1.91 1997/09/21 04:24:20 dyson Exp $
  */
 
 /*
@@ -92,6 +92,8 @@
 #include <vm/vm_extern.h>
 #include <vm/default_pager.h>
 #include <vm/vm_zone.h>
+
+MALLOC_DEFINE(M_VMMAP, "VM map", "VM map structures");
 
 /*
  *	Virtual memory maps provide for the mapping, protection,

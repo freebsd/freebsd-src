@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.17 1997/02/22 09:39:05 peter Exp $
+ * $Id: kern_ktrace.c,v 1.18 1997/03/23 03:36:19 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -46,6 +46,8 @@
 #include <sys/ktrace.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+
+MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
 
 #ifdef KTRACE
 static struct ktr_header *ktrgetheader __P((int type));
