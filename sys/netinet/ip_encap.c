@@ -487,7 +487,7 @@ encap_fillarg(m, ep)
 {
 	struct m_tag *tag;
 
-	tag = m_tag_get(PACKET_TAG_ENCAP, sizeof (void*), M_DONTWAIT);
+	tag = m_tag_get(PACKET_TAG_ENCAP, sizeof (void*), M_NOWAIT);
 	if (tag) {
 		*(void**)(tag+1) = ep->arg;
 		m_tag_prepend(m, tag);
