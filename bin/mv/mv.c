@@ -68,7 +68,7 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
-int fflg, iflg, vflg;
+int fflg, iflg, nflg, vflg;
 
 int	copy(char *, char *);
 int	do_move(char *, char *);
@@ -85,15 +85,19 @@ main(int argc, char *argv[])
 	int ch;
 	char path[PATH_MAX];
 
-	while ((ch = getopt(argc, argv, "fiv")) != -1)
+	while ((ch = getopt(argc, argv, "finv")) != -1)
 		switch (ch) {
 		case 'i':
 			iflg = 1;
-			fflg = 0;
+			fflg = nflg = 0;
 			break;
 		case 'f':
 			fflg = 1;
-			iflg = 0;
+			iflg = nflg = 0;
+			break;
+		case 'n':
+			nflg = 1;
+			fflg = iflg = 0;
 			break;
 		case 'v':
 			vflg = 1;
@@ -172,7 +176,11 @@ do_move(char *from, char *to)
 
 #define YESNO "(y/n [n]) "
 		ask = 0;
-		if (iflg) {
+		if (nflg) {
+			if (vflg)
+				printf("%s not overwritten\n", to);
+			return (0);
+		} else if (iflg) {
 			(void)fprintf(stderr, "overwrite %s? %s", to, YESNO);
 			ask = 1;
 		} else if (access(to, W_OK) && !stat(to, &sb)) {
