@@ -823,10 +823,9 @@ lf_printlist(tag, lock)
 	if (lock->lf_inode == (struct inode *)0)
 		return;
 
-	printf("%s: Lock list for ino %ju on dev <%d, %d>:\n",
+	printf("%s: Lock list for ino %ju on dev <%s>:\n",
 	    tag, (uintmax_t)lock->lf_inode->i_number,
-	    major(lock->lf_inode->i_dev),
-	    minor(lock->lf_inode->i_dev));
+	    devtoname(lock->lf_inode->i_dev));
 	for (lf = lock->lf_inode->i_lockf; lf; lf = lf->lf_next) {
 		printf("\tlock %p for ",(void *)lf);
 		if (lf->lf_flags & F_POSIX)
