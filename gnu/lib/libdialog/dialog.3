@@ -512,7 +512,7 @@ The only reason to call
 over
 .Fn dialog_radiolist
 in the new API model is to inherit the base
-behavior, you're no longer constrained by it.
+behavior, you are no longer constrained by it.
 .Pp
 Returns 0 on success, 1 on Cancel, and -1 on failure or ESC.
 .Pp
@@ -686,7 +686,7 @@ function gets the current value of the helpful text line.
 .Pp
 The
 .Fn dialog_clear_norefresh
-function clears the screen back to the dialog background color, but don't
+function clears the screen back to the dialog background color, but do not
 refresh the contents just yet.
 .Pp
 The
@@ -810,16 +810,6 @@ If 0 is returned, result will contain a pointer from the array
 .Sh SEE ALSO
 .Xr dialog 1 ,
 .Xr ncurses 3
-.Sh AUTHORS
-The primary author would appear to be
-.An Savio Lam Aq lam836@cs.cuhk.hk
-with contributions over the years by
-.An Stuart Herbert Aq S.Herbert@sheffield.ac.uk ,
-.An Marc van Kempen Aq wmbfmk@urc.tue.nl ,
-.An Andrey Chernov Aq ache@FreeBSD.org ,
-.An Jordan Hubbard Aq jkh@FreeBSD.org
-and
-.An Anatoly A. Orehovsky Aq tolik@mpeks.tomsk.su .
 .Sh HISTORY
 These functions appeared in
 .Fx 2.0
@@ -837,5 +827,16 @@ implemented
 .Fn dialog_ftree
 and
 .Fn dialog_tree .
+.Sh AUTHORS
+.An -nosplit
+The primary author would appear to be
+.An Savio Lam Aq lam836@cs.cuhk.hk
+with contributions over the years by
+.An Stuart Herbert Aq S.Herbert@sheffield.ac.uk ,
+.An Marc van Kempen Aq wmbfmk@urc.tue.nl ,
+.An Andrey Chernov Aq ache@FreeBSD.org ,
+.An Jordan Hubbard Aq jkh@FreeBSD.org
+and
+.An Anatoly A. Orehovsky Aq tolik@mpeks.tomsk.su .
 .Sh BUGS
 Sure!
