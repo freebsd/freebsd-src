@@ -1057,7 +1057,7 @@ atm_if_ioctl(ifp, cmd, data)
 		break;
 
 	case SIOCGIFFLAGS:
-		*(short *)data = ifp->if_flags;
+		*(int *)data = ifp->if_flags;
 		break;
 
 	case SIOCSIFFLAGS:

@@ -32,7 +32,7 @@ config_vifs_from_kernel()
     register vifi_t vifi;
     int n;
     u_int32 addr, mask, subnet;
-    short flags;
+    int flags;
     int num_ifreq = 32;
 
     ifc.ifc_len = num_ifreq * sizeof(struct ifreq);
