@@ -25,17 +25,17 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd 19 February 2004
-.Dt ACPI_TOSHIBA 4
+.Dd February 19, 2004
+.Dt ACPI_TOSHIBA 4 i386
 .Os
 .Sh NAME
 .Nm acpi_toshiba
-.Nd Toshiba HCI Interface
+.Nd Toshiba HCI interface
 .Sh SYNOPSIS
-.Cd device acpi_toshiba
+.Cd "device acpi_toshiba"
 .Sh DESCRIPTION
 HCI is Toshiba's
-.Em Hardware Control Interface
+.Em "Hardware Control Interface"
 which is somewhat uniform across their models.
 The
 .Nm
@@ -44,21 +44,24 @@ driver allows the user to manipulate HCI-controlled hardware using a number of
 variables.
 .Sh SYSCTLS
 The following sysctls are currently implemented:
-.Bl -ohang -offset indent
+.Bl -tag -width indent
 .It Va hw.acpi.toshiba.force_fan
-Causes active cooling to be forcibly enabled ('1') or disabled ('0')
+Causes active cooling to be forcibly enabled
+.Pq Ql 1
+or disabled
+.Pq Ql 0
 regardless of the current temperature.
 .It Va hw.acpi.toshiba.video_output
 Sets the active display to use according to a bitwise OR of the following:
 .Pp
-.Bl -tag -width 10 -offset indent -compact
-.It 0
+.Bl -tag -width indent -compact
+.It Li 0
 No display
-.It 1
+.It Li 1
 LCD
-.It 2
+.It Li 2
 CRT
-.It 4
+.It Li 4
 TV-Out
 .El
 .It Va hw.acpi.toshiba.lcd_brightness
@@ -67,8 +70,8 @@ Makes the LCD backlight brighter or dimmer (higher values are brighter).
 Turns the LCD backlight on and off.
 .It Va hw.acpi.toshiba.cpu_speed
 Sets the CPU speed to the specified speed.
-This provides similar functionality to the
-.Em hw.acpi.cpu.throttle_state
+This provides functionality similar to the
+.Va hw.acpi.cpu.throttle_state
 variable.
 Note, however, that higher values mean higher speeds here.
 .El
@@ -78,11 +81,13 @@ Defaults for these variables can be set in
 which is parsed at boot-time.
 .Sh TUNABLES
 The
-.Em hw.acpi.toshiba.enable_fn_keys
+.Va hw.acpi.toshiba.enable_fn_keys
 tunable enables or disables the function keys on the keyboard.
 Function keys are enabled by default.
 .Pp
-This behaviour can be changed at the loader prompt or in
+This behaviour can be changed at the
+.Xr loader 8
+prompt or in
 .Xr loader.conf 5 .
 .Sh SEE ALSO
 .Xr acpi 4 ,
@@ -93,13 +98,12 @@ This behaviour can be changed at the loader prompt or in
 The
 .Nm
 driver first appeared in
-.Fx 5.1
+.Fx 5.1 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 driver was written by
 .An Hiroyuki Aizu Aq aizu@navi.org .
-.Pp
 This manual page was written by
 .An Philip Paeps Aq philip@FreeBSD.org .
