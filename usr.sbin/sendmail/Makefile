@@ -51,10 +51,9 @@ LDADD+=	${LIBSMUTIL}
 # STARTTLS support
 DISTRIBUTION=	crypto
 CFLAGS+=	-DSTARTTLS -D_FFR_TLS_O_T -D_FFR_TLS_1 -D_FFR_TLS_TOREK
-LDADD+=	-lssl -lcrypto
-DPADD+=	${LIBSSL} ${LIBCRYPTO}
+LDADD+=		-lssl -lcrypto
+DPADD+=		${LIBSSL} ${LIBCRYPTO}
 .endif
-
 
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
