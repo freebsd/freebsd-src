@@ -503,10 +503,6 @@ _games=	games/adventure games/hack games/phantasia
 _share=	share/syscons/scrnmaps
 .endif
 
-.if !defined(NO_FORTRAN)
-_fortran= gnu/usr.bin/cc/f771
-.endif
-
 .if exists(${.CURDIR}/kerberosIV) && exists(${.CURDIR}/crypto) && \
     !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
 _libroken4= kerberosIV/lib/libroken
@@ -518,7 +514,7 @@ _libroken5= kerberos5/lib/libroken
 .endif
 
 build-tools:
-.for _tool in bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
+.for _tool in bin/sh ${_games} gnu/usr.bin/cc/cc_tools \
     ${_libroken4} ${_libroken5} lib/libncurses ${_share}
 	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
