@@ -66,12 +66,14 @@
 #include <sys/bus.h>		/* XXX debugging */
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 
-#ifdef RMAN_DEBUG
-#define DPRINTF(params) printf##params
-#else
-#define DPRINTF(params)
-#endif
+int     rman_debug = 0;
+TUNABLE_INT("debug.rman_debug", &rman_debug);
+SYSCTL_INT(_debug, OID_AUTO, rman_debug, CTLFLAG_RW,
+    &rman_debug, 0, "rman debug");
+
+#define DPRINTF(params) if (rman_debug) printf params
 
 static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
