@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -74,14 +75,26 @@ ssize_t
 bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 {
 	ssize_t cnt;
+	int rofd;
 
 	ERROR(disk, NULL);
+
+	rofd = disk->d_fd;
+
+	disk->d_fd = open(disk->d_name, O_WRONLY);
+	if (disk->d_fd < 0) {
+		ERROR(disk, "failed to open disk for writing");
+		return -1;
+	}
 
 	cnt = pwrite(disk->d_fd, data, size, (off_t)(blockno * disk->d_bsize));
 	if (cnt != size) {
 		ERROR(disk, "short write to block device");
 		return -1;
 	}
+
+	close(disk->d_fd);
+	disk->d_fd = rofd;
 	
 	return cnt;
 }
