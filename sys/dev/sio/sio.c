@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.233 1999/05/07 23:08:04 mckusick Exp $
+ *	$Id: sio.c,v 1.234 1999/05/08 21:59:30 dfr Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -2631,15 +2631,11 @@ static void siocnopen	__P((struct siocnstate *sp, Port_t iobase, int speed));
 static void siocntxwait	__P((Port_t iobase));
 
 #ifdef __i386__
-/*
- * XXX: sciocnget() and sciocnputc() are not declared static, as they are
- * referred to from i386/i386/i386-gdbstub.c.
- */
 static cn_probe_t siocnprobe;
 static cn_init_t siocninit;
 static cn_checkc_t siocncheckc;
-       cn_getc_t siocngetc;
-       cn_putc_t siocnputc;
+static cn_getc_t siocngetc;
+static cn_putc_t siocnputc;
 
 CONS_DRIVER(sio, siocnprobe, siocninit, siocngetc, siocncheckc, siocnputc);
 
