@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.9 1994/11/18 13:56:57 jkh Exp $
+# $Id: instdist.sh,v 1.10 1994/11/18 14:55:12 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -105,20 +105,49 @@ to you or select \"other\" if you'd like to specify your own \n\
 choice.  Also note that not all sites carry the optional package \n\
 or XFree86 3.1 distributions!  These are only guaranteed to be \n\
 available from the primary U.S. ftp site.\n\n" -1 -1 8 \
-   "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" "Primary U.S. ftp site" \
-   "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" "United States" \
-   "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" "United States" \
-   "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" "Taiwan" \
-   "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" "Australia" \
-   "ftp://ftp.ibp.fr/pub/freeBSD/${DISTNAME}" "France" \
-   "ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}" "Finland" \
+   "Primary" "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" \
+   "U.S#1" "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" \
+   "U.S#2" "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" \
+   "Taiwan" "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" \
+   "Australia" "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" \
+   "France" "ftp://ftp.ibp.fr/pub/freeBSD/${DISTNAME}" \
+   "Finland" "ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}" \
    "other" "None of the above.  I want to specify my own." \
       2> ${TMP}/menu.tmp.$$
 	retval=$?
 	answer=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
 	if ! handle_rval $retval; then return 1; fi
-	if [ "$answer" = "other" ]; then
+	case $answer in
+	Primary)
+		ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}"
+	;;
+
+	U.S#1)
+		ftp_path=ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}"
+	;;
+
+	U.S#2)
+		ftp_path="ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}"
+	;;
+
+	Taiwan)
+		ftp_path="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}"
+	;;
+
+	Australia)
+		ftp_path="ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}"
+	;;
+
+	France)
+		ftp_path="ftp://ftp.ibp.fr/pub/freeBSD/${DISTNAME}"
+	;;
+
+	Finland)
+		ftp_path="ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}"
+	;;
+
+	other)
 		title="FTP Installation Information"
 		default_value="$ftp_path"
 		if ! input \
@@ -128,8 +157,9 @@ specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/...) or simply
 the name of a host to connect to.  If only a host name is specified,
 the installation assumes that you will properly connect and \"mget\"
 the files yourself.\n\n"; then return 1; fi
-	fi
-	ftp_path=$answer
+	;;
+	esac
+	return 0
 }
 
 media_extract_dist()
@@ -229,7 +259,7 @@ media_select_distribution()
 	dialog $clear --title "Please specify a distribution to load" \
 	--menu \
 "FreeBSD is separated into a number of distributions for ease \n\
-of installation.  Through repeated passes through this screen,\n\
+of installation.  With repeated passes through this screen,\n\
 you'll be given the chance to load one or all of them.  Mandatory \n\
 distributions MUST be loaded!  Please also note that the secrdist\n\
 is NOT FOR EXPORT from the U.S.  Please don't endanger U.S. ftp\n\
@@ -283,12 +313,13 @@ media_chose()
 	while [ "$media_device" = "" ]; do
 
 	dialog $clear --title "Installation From" \
---menu "Before installing a distribution, you need to chose \n\
-and/or configure your method of installation.  Please pick from \n\
-one of the following options.  If none of the listed options works \n\
-for you then your best bet may be to simply hit ESC twice to get \n\
-a subshell and proceed manually on your own.  If you are already \n\
-finished with installation, select cancel to go on.\n\n\
+--menu \
+"Before installing a distribution, you need to chose and/or configure\n\
+a method of installation.  Please pick from one of the following options.\n\
+If none of the listed options works for you, then your best bet may be to\n\
+simply hit ESC twice to get a subshell and proceed manually on your own.\n\
+If you are already finished with the installation process, select cancel\n\
+to proceed.\n\n\
  Please choose one of the following:" -1 -1 7 \
 	"?Kern" "Please show me the kernel boot messages again!" \
 	"Tape" "Load distribution from SCSI, QIC or floppy tape" \
