@@ -7,8 +7,6 @@ vidcontrol -f 8x14 cp866-8x14
 vidcontrol -f 8x8 cp866-8x8
 # Install JCUKEN keyboard mapping.
 kbdcontrol -l ru.koi8-r # Not needed for kernel compiled with RUKEYMAP option
-# Remap Del to Esc[K.
-kbdcontrol -f 54 "[K"
 # Maximum key rate
 kbdcontrol -r fast
 # Blank after 5 min
