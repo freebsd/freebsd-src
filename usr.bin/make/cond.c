@@ -803,7 +803,7 @@ error:
 
 		    if (condExpr[arglen] != '\0') {
 			val = Var_Parse(&condExpr[arglen - 1], VAR_CMD,
-					doEval, &length, &doFree);
+					FALSE, &length, &doFree);
 			if (val == var_Error) {
 			    t = Err;
 			} else {
