@@ -61,8 +61,13 @@ utility selects portions of each line (as specified by
 .Ar list  )
 from each
 .Ar file
-(or the standard input by default), and writes them to the
-standard output.
+and writes them to the standard output.
+If no
+.Ar file
+arguments are specified, or a file argument is a single dash
+.Pq Ql \&- ,
+.Nm
+reads from from the standard input.
 The items specified by
 .Ar list
 can be in terms of column position or in terms of fields delimited
