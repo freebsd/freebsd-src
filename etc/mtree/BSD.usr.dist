@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.93 1997/07/25 20:36:54 phk Exp $
+#	$Id: BSD.usr.dist,v 1.94 1997/08/01 13:16:40 phk Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -18,6 +18,8 @@
 	..
     ..
     libdata
+	doscmd
+	..
 	gcc
 	..
 	lint
