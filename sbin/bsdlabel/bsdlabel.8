@@ -119,12 +119,12 @@ forms require a disk device name, which should always be the raw
 .if t ``complete'' (or ``c'')
 .if n "complete" (or "c")
 partition, for example
-.Pa /dev/rda0c .
+.Pa /dev/da0c .
 .Nm
 understands the abbreviation
 .Pa da0 ,
 which it converts internally to
-.Pa /dev/rda0c .
+.Pa /dev/da0c .
 .Ss Reading the disk label
 .Pp
 To examine or save the label on a disk drive, use
@@ -139,7 +139,7 @@ without options:
 represents the raw disk in question, and may be in the form
 .Pa da0
 or
-.Pa /dev/rda0c .
+.Pa /dev/da0c .
 It will display all of the parameters associated with the drive and its
 partition layout.  Unless the
 .Fl r
@@ -354,9 +354,9 @@ on architectures like the Alpha, where only a single-stage boot is used).
 uses an ASCII version of the label when examining, editing or restoring a disk
 label.  The format is:
 .Bd -literal -offset 4n
-# /dev/rda1c:
+# /dev/da1c:
 type: SCSI
-disk: sd0s1
+disk: da0s1
 label: 
 flags:
 bytes/sector: 512
@@ -447,7 +447,7 @@ cylinder boundary.
 Display the in-core label for 
 .Pa da0
 as obtained via
-.Pa /dev/rda0c .
+.Pa /dev/da0c .
 .Pp
 .Dl disklabel da0 > savedlabel
 .Pp
@@ -459,7 +459,7 @@ This file can be used with the
 .Fl R
 flag to restore the label at a later date.
 .Pp
-.Dl disklabel -w -r /dev/rda0c da2212 foo
+.Dl disklabel -w -r /dev/da0c da2212 foo
 .Pp
 Create a label for 
 .Pa da0
@@ -501,7 +501,7 @@ and possibly
 .Pa /boot/boot2 .
 On-disk and in-core labels are unchanged.
 .Pp
-.Dl disklabel -w -B /dev/rda0c -b newboot1 -s newboot da2212
+.Dl disklabel -w -B /dev/da0c -b newboot1 -s newboot da2212
 .Pp
 Install a new label and bootstrap.
 .if t The label is derived from disktab information for ``da2212'' and
