@@ -48,19 +48,19 @@
  *	#endif
  */
 #define	_BSD_CLOCK_T_	int			/* clock() */
-#define	_BSD_CLOCKID_T_	int			/* clockid_t */
+#define	_BSD_CLOCKID_T_	int			/* clock_gettime()... */
 #define	_BSD_IN_ADDR_T_	__uint32_t		/* inet(3) functions */
 #define	_BSD_IN_PORT_T_	__uint16_t
 #define	_BSD_MBSTATE_T_	__mbstate_t		/* mbstate_t */
 #define	_BSD_PTRDIFF_T_	long			/* ptr1 - ptr2 */
 #define	_BSD_RUNE_T_	_BSD_CT_RUNE_T_		/* rune_t (see below) */
 #define	_BSD_SIZE_T_	unsigned long		/* sizeof() */
-#define	_BSD_SOCKLEN_T_	__uint32_t
+#define	_BSD_SOCKLEN_T_	__uint32_t		/* socklen_t (duh) */
 #define	_BSD_SSIZE_T_	long			/* byte count or error */
 #define	_BSD_TIME_T_	int			/* time()... */
-#define	_BSD_TIMER_T_	int			/* timer_t */
+#define	_BSD_TIMER_T_	int			/* timer_gettime()... */
 #define	_BSD_WCHAR_T_	_BSD_CT_RUNE_T_		/* wchar_t (see below) */
-#define _BSD_WINT_T_	_BSD_CT_RUNE_T_		/* wint_t (see below) */
+#define	_BSD_WINT_T_	_BSD_CT_RUNE_T_		/* wint_t (see below) */
 
 /*
  * Types which are fundamental to the implementation and must be used
@@ -142,6 +142,6 @@ typedef	unsigned long		__uintptr_t;
 typedef union {
 	char		__mbstate8[128];
 	__int64_t	_mbstateL;		/* for alignment */
- } __mbstate_t;
+} __mbstate_t;
 
-#endif	/* _MACHINE_ANSI_H_ */
+#endif	/* !_MACHINE_ANSI_H_ */
