@@ -1949,7 +1949,7 @@ send_data(instr, outstr, blksize, filesize, isreg)
 	off_t filesize;
 	int isreg;
 {
-	int c, filefd, netfd;
+	int c, cp, filefd, netfd;
 	char *buf;
 	off_t cnt;
 
@@ -1957,16 +1957,18 @@ send_data(instr, outstr, blksize, filesize, isreg)
 	switch (type) {
 
 	case TYPE_A:
+		cp = '\0';
 		while ((c = getc(instr)) != EOF) {
 			if (recvurg)
 				goto got_oob;
 			byte_count++;
-			if (c == '\n') {
+			if (c == '\n' && cp != '\r') {
 				if (ferror(outstr))
 					goto data_err;
 				(void) putc('\r', outstr);
 			}
 			(void) putc(c, outstr);
+			cp = c;
 		}
 		if (recvurg)
 			goto got_oob;
