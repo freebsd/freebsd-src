@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.7 1996/03/02 07:31:48 jkh Exp $
+ * $Id: anonFTP.c,v 1.8 1996/03/18 15:27:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -472,7 +472,7 @@ configAnonFTP(char *unused)
 	    dialog_clear();
 	    msgNotify("Uncompressing the editor - please wait..");
 	    vsystem("echo Your welcome message here. > %s/etc/%s", tconf.homedir, MOTD_FILE);
-	    sprintf(cmd, "/stand/ee %s/etc/%s", tconf.homedir, MOTD_FILE);
+	    sprintf(cmd, "%s %s/etc/%s", variable_get(VAR_EDITOR), tconf.homedir, MOTD_FILE);
 	    systemExecute(cmd);
 	}
     }
