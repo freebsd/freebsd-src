@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
-.\"	$Id: fstab.5,v 1.8 1998/02/26 02:17:42 jkh Exp $
+.\"	$Id: fstab.5,v 1.9 1998/06/28 21:33:42 hoek Exp $
 .\"
 .Dd June 5, 1993
 .Dt FSTAB 5
@@ -121,7 +121,13 @@ It is formatted as a comma separated list of options.
 It contains at least the type of mount (see
 .Fa fs_type
 below) plus any additional options
-appropriate to the filesystem type.
+appropriate to the filesystem type.  See the options flag
+.Pq Fl o
+in the
+.Xr mount 8
+page and the filesystem specific page, such as
+.Xr mount_nfs 8 ,
+for additional options that may be specified.
 .Pp
 If the options ``userquota'' and/or ``groupquota'' are specified,
 the filesystem is automatically processed by the
