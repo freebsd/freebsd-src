@@ -41,11 +41,12 @@
 #
 ##-M#########################################################################
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.13 1995/04/09 06:40:16 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.14 1995/04/15 21:45:56 gibbs Exp $"
 
 SCBMASK		= 0x1f
 
 SCSISEQ		= 0x00
+ENRSELI		= 0x10
 SXFRCTL0	= 0x01
 SXFRCTL1	= 0x02
 SCSISIGI	= 0x03
@@ -57,7 +58,10 @@ STCNT		= 0x08
 STCNT+0		= 0x08
 STCNT+1		= 0x09
 STCNT+2		= 0x0a
+CLRSINT0	= 0x0b
 SSTAT0		= 0x0b
+SELDO		= 0x40
+SELDI		= 0x20
 CLRSINT1	= 0x0c
 SSTAT1		= 0x0c
 SIMODE1		= 0x11
@@ -138,9 +142,10 @@ SCBARRAY+26	= 0xba
 SCBARRAY+27	= 0xbb
 SCBARRAY+28	= 0xbc
 SCBARRAY+29	= 0xbd
+SCBARRAY+30	= 0xbe
 
 BAD_PHASE	= 0x01				# unknown scsi bus phase
-CMDCMPLT	= 0x02
+CMDCMPLT	= 0x02				# Command Complete
 SEND_REJECT	= 0x11				# sending a message reject
 NO_IDENT	= 0x21				# no IDENTIFY after reconnect
 NO_MATCH	= 0x31				# no cmd match for reconnect
@@ -164,23 +169,23 @@ ABORT_TAG	= 0x91				# Sent an ABORT_TAG message
 #  when a WDTR or SDTR message should be sent to the target the SCB's 
 #  command references.
 #
-#  The high bit of DROPATN is set if ATN should be dropped before the ACK
-#  when outb is called.  REJBYTE contains the first byte of a MESSAGE IN
-#  message, so the driver can report an intelligible error if a message is
-#  rejected.
+#  REJBYTE contains the first byte of a MESSAGE IN message, so the driver 
+#  can report an intelligible error if a message is rejected.
 #
 #  FLAGS's high bit is true if we are currently handling a reselect;
 #  its next-highest bit is true ONLY IF we've seen an IDENTIFY message
 #  from the reselecting target.  If we haven't had IDENTIFY, then we have
 #  no idea what the lun is, and we can't select the right SCB register
 #  bank, so force a kernel panic if the target attempts a data in/out or
-#  command phase instead of corrupting something.
+#  command phase instead of corrupting something.  FLAGS also contains
+#  configuration bits so that we can optimize for TWIN and WIDE controllers
+#  as well as the MAX_SYNC bit which we set when we want to negotiate for
+#  10MHz irregardless of what the per target scratch space says.
 #
 #  Note that SG_NEXT occupies four bytes.
 #
 SYNCNEG		= 0x20
 
-DROPATN		= 0x30
 REJBYTE		= 0x31
 DISC_DSB_A	= 0x32
 DISC_DSB_B	= 0x33
@@ -218,49 +223,77 @@ FLAGS		= 0x53				# Device configuration flags
 TWIN_BUS	= 0x01
 WIDE_BUS	= 0x02
 MAX_SYNC	= 0x08
-SENSE		= 0x10
 ACTIVE_MSG	= 0x20
 IDENTIFY_SEEN	= 0x40
 RESELECTED	= 0x80
 
 ACTIVE_A	= 0x54
 ACTIVE_B	= 0x55
-SAVED_TCL	= 0x56
+SAVED_TCL	= 0x56				# Temporary storage for the 
+						# target/channel/lun of a
+						# reconnecting target
+
+# After starting the selection hardware, we return to the "poll_for_work"
+# loop so that we can check for reconnecting targets as well as for our
+# selection to complete just in case the reselection wins bus arbitration.
+# The problem with this is that we must keep track of the SCB that we've
+# already pulled from the QINFIFO and started the selection on just in case
+# the reselection wins so that we can retry the selection at a later time.
+# This problem cannot be resolved by holding a single entry in scratch
+# ram since a reconnecting target can request sense and this will create
+# yet another SCB waiting for selection.  The solution used here is to 
+# use byte 31 of the SCB as a psuedo-next pointer and to thread a list
+# of SCBs that are awaiting selection.  Since 0 is a valid SCB offset, 
+# SCB_LIST_NULL is 0x10 which is out of range.  The kernel driver must
+# add an entry to this list everytime a request sense occurs.  The sequencer
+# will automatically consume the entries.
+
+WAITING_SCBH	= 0x57				# head of list of SCBs awaiting
+						# selection
+WAITING_SCBT	= 0x58				# tail of list of SCBs awaiting
+						# selection
+SCB_LIST_NULL	= 0x10
+
+
 #  Poll QINCNT for work - the lower bits contain
 #  the number of entries in the Queue In FIFO.
 #
 start:
-	test	FLAGS,SENSE	jnz start_sense
-start_nosense:
+	test	WAITING_SCBH,SCB_LIST_NULL jz start_waiting
+poll_for_work:
 	test	FLAGS,TWIN_BUS	jz start2	# Are we a twin channel device?
 # For fairness, we check the other bus first, since we just finished a 
 # transaction on the current channel.
 	xor	SBLKCTL,0x08			# Toggle to the other bus
-	test	SCSISIGI,0x4	jnz reselect	# BSYI
+	test	SSTAT0,SELDI	jnz reselect
+	test	SSTAT0,SELDO	jnz select
 	xor	SBLKCTL,0x08			# Toggle to the original bus
 start2:
-	test	SCSISIGI,0x4	jnz reselect	# BSYI
-	test	QINCNT,SCBMASK	jz start_nosense
+	test	SSTAT0,SELDI	jnz reselect
+	test	SSTAT0,SELDO	jnz select
+	test	WAITING_SCBH,SCB_LIST_NULL jz start_waiting
+	test	QINCNT,SCBMASK	jz poll_for_work
 
-# We have at least one queued SCB now.  Set the SCB pointer
-# from the FIFO so we see the right bank of SCB registers,
-# then set SCSI options and set the initiator and target
-# SCSI IDs.
+# We have at least one queued SCB now and we don't have any 
+# SCBs in the list of SCBs awaiting selection.  Set the SCB
+# pointer from the FIFO so we see the right bank of SCB 
+# registers, then set SCSI options and set the initiator and
+# target SCSI IDs.
 #
 	mov	SCBPTR,QINFIFO
 
 # If the control byte of this SCB has the NEEDDMA flag set, we have
 # yet to DMA it from host memory
 
-test	SCBARRAY+0,NEEDDMA	jz test_busy
+test    SCBARRAY+0,NEEDDMA      jz test_busy    
 	clr	HCNT+2
 	clr	HCNT+1
 	mvi	HCNT+0,SCB_SIZEOF
 
-	mvi	DINDEX,HADDR
-	mvi	SCBARRAY+26	call bcopy_4
-
-	mvi	DFCNTRL,0xd			# HDMAEN|DIRECTION|FIFORESET
+	mvi	DINDEX,HADDR      
+	mvi	SCBARRAY+26     call bcopy_4
+        
+	mvi	DFCNTRL,0xd                     # HDMAEN|DIRECTION|FIFORESET
 
 #  Wait for DMA from host memory to data FIFO to complete, then disable
 #  DMA and wait for it to acknowledge that it's off.
@@ -270,12 +303,12 @@ test	SCBARRAY+0,NEEDDMA	jz test_busy
 # Copy the SCB from the FIFO to  the SCBARRAY
 
 	mvi	DINDEX, SCBARRAY+0
-	call	bcopy_3_dfdat
+	call	bcopy_3_dfdat 
 	call	bcopy_4_dfdat
 	call	bcopy_4_dfdat
+	call	bcopy_4_dfdat   
 	call	bcopy_4_dfdat
-	call	bcopy_4_dfdat
-   
+
 # See if there is not already an active SCB for this target.  This code
 # locks out on a per target basis instead of target/lun.  Although this
 # is not ideal for devices that have multiple luns active at the same
@@ -295,27 +328,35 @@ test_busy:
 	or	ACTIVE_B,A	# Mark the current target as busy
 	jmp	start_scb
 
-start_sense:
-# Clear the SENSE flag first, then do a normal start_scb
-	and	FLAGS,0xef
-	jmp	start_scb
-
 # Place the currently active back on the queue for later processing
 requeue:
 	mov	QINFIFO, SCBPTR
-	jmp	start_nosense
+	jmp	poll_for_work
+
+# Pull the first entry off of the waiting for selection list
+start_waiting:
+	mov	SCBPTR,WAITING_SCBH
+	jmp	start_scb
 
 test_a:
 	test	ACTIVE_A,A	jnz requeue
 	or	ACTIVE_A,A	# Mark the current target as busy
 
 start_scb:
-	or	SCBARRAY+0,NEEDDMA
 	and	SINDEX,0xf7,SBLKCTL  #Clear the channel select bit
 	and	A,0x08,SCBARRAY+1    #Get new channel bit
 	or	SINDEX,A	     
 	mov	SBLKCTL,SINDEX	# select channel
-	mov	SCBARRAY+1	call initialize
+	mov	SCBARRAY+1	call initialize_scsiid
+
+# Enable selection phase as an initiator, and do automatic ATN
+# after the selection.  We do this now so that we can overlap the
+# rest of our work to set up this target with the arbitration and
+# selection bus phases.
+#
+start_selection:
+	or	SCSISEQ,0x48			# ENSELO|ENAUTOATNO
+	mov	WAITING_SCBH, SCBPTR
 	clr	SG_NOLOAD
 	and	FLAGS,0x3f	# !RESELECTING
 
@@ -355,61 +396,30 @@ mk_tag_done:
 	mov	DINDEX	call mk_dtr	# build DTR message if needed
 
 !message:
+	jmp	poll_for_work
 
-#  Enable selection phase as an initiator, and do automatic ATN
-#  after the selection.
-#
-	mvi	SCSISEQ,0x48			# ENSELO|ENAUTOATNO
-
-#  Wait for successful arbitration.  The AIC-7770 documentation says
-#  that SELINGO indicates successful arbitration, and that it should
-#  be used to look for SELDO.  However, if the sequencer is paused at
-#  just the right time - a parallel fsck(8) on two drives did it for
-#  me - then SELINGO can flip back to false before we've seen it.  This
-#  makes the sequencer sit in the arbitration loop forever.  This is
-#  Not Good.
-#
-#  Therefore, I've added a check in the arbitration loop for SELDO
-#  too.  This could arguably be made a critical section by disabling
-#  pauses, but I don't want to make a potentially infinite loop a CS.
-#  I suppose you could fold it into the select loop, too, but since
-#  I've been hunting this bug for four days it's kinda like a trophy.
-#
-arbitrate:
-	test	SSTAT0,0x40	jnz *select	# SELDO
-	test	SSTAT0,0x10	jz arbitrate	# SELINGO
-
-#  Wait for a successful selection.  If the hardware selection
-#  timer goes off, then the driver gets the interrupt, so we don't
-#  need to worry about it.
-#
-select:
-	test	SSTAT0,0x40	jz select	# SELDO
-	jmp	*select
-
-#  Reselection is being initiated by a target - we've seen the BSY
-#  line driven active, and we didn't do it!  Enable the reselection
-#  hardware, and wait for it to finish.  Make a note that we've been
+#  Reselection has been initiated by a target. Make a note that we've been
 #  reselected, but haven't seen an IDENTIFY message from the target
 #  yet.
 #
 reselect:
-	mvi	SCSISEQ,0x10			# ENRSELI
-
-reselect1:
-	test	SSTAT0,0x20	jz reselect1	# SELDI
-	mov	SELID		call initialize
-
+	mov	SELID		call initialize_scsiid
 	and	FLAGS,0x3f			# reselected, no IDENTIFY	
-	or	FLAGS,RESELECTED		
+	or	FLAGS,RESELECTED jmp select2
 
-#  After the [re]selection, make sure that the [re]selection enable
-#  bit is off.  This chip is flaky enough without extra things
-#  turned on.  Also clear the BUSFREE bit in SSTAT1 since we'll be
-#  using it shortly.
+# After the selection, remove this SCB from the "waiting for selection"
+# list.  This is achieved by simply moving our "next" pointer into
+# WAITING_SCBH and setting our next pointer to null so that the next
+# time this SCB is used, we don't get confused.
 #
-*select:
-	clr	SCSISEQ
+select:
+	or	SCBARRAY+0,NEEDDMA
+	mov	WAITING_SCBH,SCBARRAY+30
+	mvi	SCBARRAY+30,SCB_LIST_NULL
+select2:
+	call	initialize_for_target
+	mvi	SCSISEQ,ENRSELI
+	mvi	CLRSINT0,0x60			# CLRSELDI|CLRSELDO
 	mvi	CLRSINT1,0x8			# CLRBUSFREE
 
 #  Main loop for information transfer phases.  If BSY is false, then
@@ -636,11 +646,12 @@ p_mesgin:
 #  Check status for non zero return and interrupt driver if needed
 #  This allows the driver to interpret errors only when they occur
 #  instead of always uploading the scb.  If the status is SCSI_CHECK,
-#  the driver will download a new scb requesting sense, to replace 
-#  the old one and set the SENSE sequencer flag.  If the sense flag is
-#  set, the sequencer imediately jumps to start working on the sense
-#  command.  If the kernel driver does not wish to request sense, it need
-#  do nothing, and the command is allowed to complete.  We don't 
+#  the driver will download a new scb requesting sense to replace
+#  the old one, modify the "waiting for selection" SCB list and set 
+#  RETURN_1 to 0x80.  If RETURN_1 is set to 0x80 the sequencer imediately
+#  jumps to main loop where it will run down the waiting SCB list.
+#  If the kernel driver does not wish to request sense, it need
+#  only clear RETURN_1, and the command is allowed to complete.  We don't 
 #  bother to post to the QOUTFIFO in the error case since it would require 
 #  extra work in the kernel driver to ensure that the entry was removed 
 #  before the command complete code tried processing it.
@@ -653,7 +664,7 @@ p_mesgin:
 check_status:
 	test	SCBARRAY+14,0xff	jz status_ok	# 0 Status?
 	mvi	INTSTAT,BAD_STATUS			# let driver know
-	test	FLAGS,SENSE	jz status_ok
+	test	RETURN_1, 0x80	jz status_ok
 	jmp	p_mesgin_done
 
 status_ok:
@@ -977,23 +988,21 @@ dma_finish2:
 #  the target SCSI ID to be in the upper four bits of SINDEX, and A's
 #  contents are stomped on return.
 #
-initialize:
+initialize_scsiid:
 	and	SINDEX,0xf0		# Get target ID
 	and	A,0x0f,SCSIID
 	or	SINDEX,A
-	mov	SCSIID,SINDEX
+	mov	SCSIID,SINDEX ret
 
-#  Esundry initialization.
-#
-	clr	DROPATN
-	clr	SIGSTATE
-
+initialize_for_target:
 #  Turn on Automatic PIO mode now, before we expect to see a REQ
 #  from the target.  It shouldn't hurt anything to leave it on.  Set
 #  CLRCHN here before the target has entered a data transfer mode -
 #  with synchronous SCSI, if you do it later, you blow away some
 #  data in the SCSI FIFO that the target has already sent to you.
 #
+	clr	SIGSTATE 
+
 	mvi	SXFRCTL0,0x8a			# DFON|SPIOEN|CLRCHN
 
 #  Initialize scatter-gather pointers by setting up the working copy
