@@ -33,7 +33,8 @@ use strict;
 use Data::Dumper;
 use Fcntl;
 use POSIX qw(isatty mktime strftime tzset);
-use vars qw($TTY %MONTH %PR @EVENTS %STATE %CATEGORY @COUNT);
+use vars qw($TTY $NOW %MONTH %PR @EVENTS @COUNT @AGE);
+use vars qw(%STATE %CATEGORY %OWNER %CLOSER);
 
 %MONTH = (
     'Jan' => 1,
@@ -48,6 +49,15 @@ use vars qw($TTY %MONTH %PR @EVENTS %STATE %CATEGORY @COUNT);
     'Oct' => 10,
     'Nov' => 11,
     'Dec' => 12,
+);
+
+@AGE = (
+    [ 0,	7,	0 ],	# Less than one week
+    [ 7,	30,	0 ],	# One week to one month
+    [ 30,	90,	0 ],	# One to three months
+    [ 90,	365,	0 ],	# Three months to a year
+    [ 365,	1095,	0 ],	# One to three years
+    [ 1095,	999999,	0 ],	# More than three years
 );
 
 sub GNATS_DIR			{ "/home/gnats" }
@@ -84,12 +94,13 @@ sub scan_pr($) {
 
     local *FILE;		# File handle
     my $pr = {};		# PR hash
+    my $age;			# PR age
 
     sysopen(FILE, $fn, O_RDONLY)
 	or die("$fn: open(): $!\n");
     while (<FILE>) {
 	if (m/^>([A-Za-z-]+):\s+(.*?)\s*$/o ||
-	    m/^(State-Changed-[A-Za-z-]+):\s+(.*?)\s*$/o) {
+	    m/^(Category|Responsible|State-Changed-[A-Za-z-]+):\s+(.*?)\s*$/o) {
 	    $pr->{lc($1)} = $2;
 	}
     }
@@ -113,22 +124,31 @@ sub scan_pr($) {
     if ($pr->{'state'} eq 'closed') {
 	$pr->{'_closed'} = $pr->{'closed-date'} || $pr->{'state-changed-when'};
 	$pr->{'_closed_by'} = $pr->{'state-changed-by'};
+	++$CLOSER{$pr->{'_closed_by'}};
+    } else {
+	$age = $pr->{'arrival-date'} / 86400;
+	foreach (@AGE) {
+	    if ($age >= $_->[0] && $age < $_->[1]) {
+		++$_->[2];
+		last;
+	    }
+	}
+	++$CATEGORY{$pr->{'category'}};
+	++$OWNER{$pr->{'responsible'}};
     }
+    ++$STATE{$pr->{'state'}};
 
-#    $PR{$pr->{'number'} = $pr;
     $PR{$pr->{'number'}} = {
-  	#'category'	=> $pr->{'category'},
+  	'category'	=> $pr->{'category'},
   	#'number'	=> $pr->{'number'},
-  	#'responsible'	=> $pr->{'responsible'},
+  	'responsible'	=> $pr->{'responsible'},
   	'created'	=> $pr->{'created'},
   	'closed'	=> $pr->{'closed'},
-  	#'closer'	=> $pr->{'_closed_by'},
+  	'closer'	=> $pr->{'_closed_by'},
     };
     push(@EVENTS, [ $pr->{'_created'}, +1 ]);
     push(@EVENTS, [ $pr->{'_closed'}, -1 ])
 	    if defined($pr->{'_closed'});
-    ++$STATE{$pr->{'state'}};
-    ++$CATEGORY{$pr->{'category'}};
 }
 
 sub scan_recurse($);
@@ -160,7 +180,9 @@ sub count_prs() {
     my $event;			# Iterator
     my $count;			# PR count
 
-    print(int(@EVENTS), " events\n");
+    if ($TTY) {
+	print(int(@EVENTS), " events\n");
+    }
     @COUNT = ( [ 0, 0 ] );
     foreach $event (sort({ $a->[0] <=> $b->[0] } @EVENTS)) {
 	if ($event->[0] == $COUNT[-1]->[0]) {
@@ -242,9 +264,51 @@ plot '$datfn' using 1:2 title 'Open PRs'
 ");
 }
 
-MAIN:{
-    my $now;			# Current time
+sub pr_stat_summary() {
+
+    my $n;			# Loop counter
+
+    # Overall stats
+    printf("Total PRs in database: %d\n", scalar(keys(%PR)));
+    printf("Open PRs: %d\n", scalar(keys(%PR)) - $STATE{'closed'});
+    print("\n");
     
+    # Category ranking
+    print("Number of PRs in each category:\n");
+    foreach (sort({ $CATEGORY{$b} <=> $CATEGORY{$a} } keys(%CATEGORY))) {
+	printf("%12s: %d\n", $_, $CATEGORY{$_});
+    }
+    print("\n");
+    
+    # State ranking
+    print("Number of PRs in each state:\n");
+    foreach (sort({ $STATE{$b} <=> $STATE{$a} } keys(%STATE))) {
+	printf("%12s: %d\n", $_, $STATE{$_});
+    }
+    print("\n");
+
+    # Closer ranking
+    print("Top ten PR busters:\n");
+    $n = 0;
+    foreach (sort({ $CLOSER{$b} <=> $CLOSER{$a} } keys(%CLOSER))) {
+	printf("    %2d. %s (%d)\n", ++$n, $_, $CLOSER{$_});
+	last if ($n == 10);
+    }
+    print("\n");
+    
+    # Owner ranking
+    print("Top ten owners of open PRs:\n");
+    $n = 0;
+    foreach (sort({ $OWNER{$b} <=> $OWNER{$a} } keys(%OWNER))) {
+	next if (m/^freebsd-(bugs|doc|ports)$/);
+	printf("    %2d. %s (%d)\n", ++$n, $_, $OWNER{$_});
+	last if ($n == 10);
+    }
+    print("\n");
+    
+}
+
+MAIN:{
     $| = 1;
     $TTY = isatty(*STDOUT);
 
@@ -253,7 +317,9 @@ MAIN:{
     # FreeBSD cluster and use localtime() instead.
     $ENV{'TZ'} = &GNATS_TZ;
     tzset();
+    $NOW = time();
 
+    # Read and count PRs
     if (@ARGV) {
 	foreach (@ARGV) {
 	    scan_recurse(join('/', &GNATS_DIR, $_));
@@ -265,18 +331,23 @@ MAIN:{
 	print("\r", scalar(keys(%PR)), " problem reports scanned\n");
     }
 
+    # Generate graphs
+    if (0) {
     count_prs();
     write_dat_file(&DATFILE);
-    $now = time();
-    graph_open_prs(&DATFILE, "week.png", $now - (86400 * 7) + 1, $now,
+    graph_open_prs(&DATFILE, "week.png", $NOW - (86400 * 7) + 1, $NOW,
 		   "Open FreeBSD problem reports (week view)");
-    graph_open_prs(&DATFILE, "month.png", $now - (86400 * 30) + 1, $now,
+    graph_open_prs(&DATFILE, "month.png", $NOW - (86400 * 30) + 1, $NOW,
 		   "Open FreeBSD problem reports (month view)");
-    graph_open_prs(&DATFILE, "year.png", $now - (86400 * 365) + 1, $now,
+    graph_open_prs(&DATFILE, "year.png", $NOW - (86400 * 365) + 1, $NOW,
 		   "Open FreeBSD problem reports (year view)");
-    graph_open_prs(&DATFILE, "ever.png", $COUNT[1]->[0], $now,
+    graph_open_prs(&DATFILE, "ever.png", $COUNT[1]->[0], $NOW,
 		   "Open FreeBSD problem reports (project history)");
-    graph_open_prs(&DATFILE, "drive.png", mktime(0, 0, 0, 29, 4, 101), $now,
+    graph_open_prs(&DATFILE, "drive.png", mktime(0, 0, 0, 29, 4, 101), $NOW,
 		   "Open FreeBSD problem reports (drive progress)");
     unlink(&DATFILE);
+    }
+
+    # Print summary
+    pr_stat_summary();
 }
