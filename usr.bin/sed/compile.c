@@ -467,7 +467,7 @@ compile_subst(p, s)
 	int asize, size;
 	u_char ref;
 	char c, *text, *op, *sp;
-	int more = 0;
+	int more = 1;
 
 	c = *p++;			/* Terminator character */
 	if (c == '\0')
