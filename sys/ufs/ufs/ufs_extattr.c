@@ -351,7 +351,6 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
  * attribute files.  Then invoke ufs_extattr_enable_with_open() on each
  * to attempt to start the attribute.  Leaves the directory locked on
  * exit.
- * XXX: Add a EA namespace argument
  */
 static int
 ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
@@ -454,7 +453,7 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 int
 ufs_extattr_autostart(struct mount *mp, struct proc *p)
 {
-	struct vnode *attr_dvp, /**attr_vp,*/ *rvp;
+	struct vnode *rvp, *attr_dvp, *attr_system_dvp, *attr_user_dvp;
 	int error;
 
 	/*
@@ -485,33 +484,49 @@ ufs_extattr_autostart(struct mount *mp, struct proc *p)
 	if (attr_dvp->v_type != VDIR) {
 		printf("ufs_extattr_autostart: %s != VDIR\n",
 		    UFS_EXTATTR_FSROOTSUBDIR);
-		goto return_vput;
+		goto return_vput_attr_dvp;
 	}
 
 	error = ufs_extattr_start(mp, p);
 	if (error) {
 		printf("ufs_extattr_autostart: ufs_extattr_start failed (%d)\n",
 		    error);
-		goto return_vput;
+		goto return_vput_attr_dvp;
 	}
 
 	/*
-	 * Iterate over the directory.  Eventually we will lookup sub-
-	 * directories and iterate over them independently with different
-	 * EA namespaces.
-	 *
-	 * XXX: Right now, assert that all attributes are in the system
-	 * namespace.
+	 * Look for two subdirectories: UFS_EXTATTR_SUBDIR_SYSTEM,
+	 * UFS_EXTATTR_SUBDIR_USER.  For each, iterate over the sub-directory,
+	 * and start with appropriate type.  Failures in either don't
+	 * result in an over-all failure.  attr_dvp is left locked to
+	 * be cleaned up on exit.
 	 */
-	error = ufs_extattr_iterate_directory(VFSTOUFS(mp), attr_dvp,
-	    EXTATTR_NAMESPACE_SYSTEM, p);
-	if (error)
-		printf("ufs_extattr_iterate_directory returned %d\n", error);
+	error = ufs_extattr_lookup(attr_dvp, UE_GETDIR_LOCKPARENT,
+	    UFS_EXTATTR_SUBDIR_SYSTEM, &attr_system_dvp, p);
+	if (!error) {
+		error = ufs_extattr_iterate_directory(VFSTOUFS(mp),
+		    attr_system_dvp, EXTATTR_NAMESPACE_SYSTEM, p);
+		if (error)
+			printf("ufs_extattr_iterate_directory returned %d\n",
+			    error);
+		vput(attr_system_dvp);
+	}
 
-	/* Mask startup failures. */
+	error = ufs_extattr_lookup(attr_dvp, UE_GETDIR_LOCKPARENT,
+	    UFS_EXTATTR_SUBDIR_USER, &attr_user_dvp, p);
+	if (!error) {
+		error = ufs_extattr_iterate_directory(VFSTOUFS(mp),
+		    attr_user_dvp, EXTATTR_NAMESPACE_USER, p);
+		if (error)
+			printf("ufs_extattr_iterate_directory returned %d\n",
+			    error);
+		vput(attr_user_dvp);
+	}
+
+	/* Mask startup failures in sub-directories. */
 	error = 0;
 
-return_vput:
+return_vput_attr_dvp:
 	vput(attr_dvp);
 
 	return (error);
