@@ -44,12 +44,16 @@ archive_read_data_into_fd(struct archive *a, int fd)
 
 	total_written = 0;
 	while (a->entry_bytes_remaining > 0) {
-		bytes_read = (a->compression_read_ahead)(a, &buff,
-		    a->entry_bytes_remaining);
+		/* Remember: '1' here is minimum, not maximum. */
+		/* Read-ahead function will return as much as is convenient. */
+		bytes_read = (a->compression_read_ahead)(a, &buff, 1);
 		if (bytes_read < 0)
 			return (-1);
 		if (bytes_read > a->entry_bytes_remaining)
 			bytes_read = (ssize_t)a->entry_bytes_remaining;
+		/* Don't copy more than 1 megabyte at a time. */
+		if (bytes_read > (1024*1024))
+			bytes_read = 1024*1024;
 
 		bytes_written = write(fd, buff, bytes_read);
 		if (bytes_written < 0)
@@ -57,6 +61,8 @@ archive_read_data_into_fd(struct archive *a, int fd)
 		(a->compression_read_consume)(a, bytes_written);
 		total_written += bytes_written;
 		a->entry_bytes_remaining -= bytes_written;
+		if (a->extract_progress != NULL)
+			(*a->extract_progress)(a->extract_progress_user_data);
 	}
 	return (total_written);
 }
