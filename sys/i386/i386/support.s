@@ -1588,12 +1588,12 @@ ENTRY(lgdt)
 1:
 	/* reload "stale" selectors */
 	movl	$KDSEL,%eax
-	mov	%ax,%ds
-	mov	%ax,%es
-	mov	%ax,%gs
-	mov	%ax,%ss
+	movl	%eax,%ds
+	movl	%eax,%es
+	movl	%eax,%gs
+	movl	%eax,%ss
 	movl	$KPSEL,%eax
-	mov	%ax,%fs
+	movl	%eax,%fs
 
 	/* reload code selector by turning return into intersegmental return */
 	movl	(%esp),%eax

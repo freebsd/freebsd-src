@@ -129,11 +129,11 @@ alltraps:
 	pushl	%es
 	pushl	%fs
 alltraps_with_regs_pushed:
-	mov	$KDSEL,%ax
-	mov	%ax,%ds
-	mov	%ax,%es
-	mov	$KPSEL,%ax
-	mov	%ax,%fs
+	movl	$KDSEL,%eax
+	movl	%eax,%ds
+	movl	%eax,%es
+	movl	$KPSEL,%eax
+	movl	%eax,%fs
 	FAKE_MCOUNT(13*4(%esp))
 calltrap:
 	FAKE_MCOUNT(btrap)		/* init "from" btrap -> calltrap */
@@ -167,11 +167,11 @@ IDTVEC(lcall_syscall)
 	pushl	%ds
 	pushl	%es
 	pushl	%fs
-	mov	$KDSEL,%ax		/* switch to kernel segments */
-	mov	%ax,%ds
-	mov	%ax,%es
-	mov	$KPSEL,%ax
-	mov	%ax,%fs
+	movl	$KDSEL,%eax		/* switch to kernel segments */
+	movl	%eax,%ds
+	movl	%eax,%es
+	movl	$KPSEL,%eax
+	movl	%eax,%fs
 	FAKE_MCOUNT(13*4(%esp))
 	call	syscall
 	MEXITCOUNT
@@ -192,11 +192,11 @@ IDTVEC(int0x80_syscall)
 	pushl	%ds
 	pushl	%es
 	pushl	%fs
-	mov	$KDSEL,%ax		/* switch to kernel segments */
-	mov	%ax,%ds
-	mov	%ax,%es
-	mov	$KPSEL,%ax
-	mov	%ax,%fs
+	movl	$KDSEL,%eax		/* switch to kernel segments */
+	movl	%eax,%ds
+	movl	%eax,%es
+	movl	$KPSEL,%eax
+	movl	%eax,%fs
 	FAKE_MCOUNT(13*4(%esp))
 	call	syscall
 	MEXITCOUNT
