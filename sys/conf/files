@@ -1028,6 +1028,8 @@ libkern/skpc.c		standard
 libkern/strcat.c	standard
 libkern/strcmp.c	standard
 libkern/strcpy.c	standard
+libkern/strlcat.c	standard
+libkern/strlcpy.c	standard
 libkern/strlen.c	standard
 libkern/strncmp.c	standard
 libkern/strncpy.c	standard
