@@ -114,7 +114,7 @@ MAIN:{
 		    my @stat = stat("$DIR/$log.brief");
 		    my $class = success("$DIR/$log.brief") ? "ok" : "fail";
 		    $links .= "<span class=\"$class\">" .
-			strftime("%Y-%m-%d %H:%M UTC", gmtime($stat[9])) .
+			strftime("%Y-%m-%d %H:%M&nbsp;UTC", gmtime($stat[9])) .
 			"</span><br />";
 		    my $size = sprintf("[%.1f&nbsp;kB]", $stat[7] / 1024);
 		    $links .= " <span class=\"tiny\">" .
