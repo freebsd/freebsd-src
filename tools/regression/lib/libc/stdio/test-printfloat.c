@@ -60,6 +60,8 @@ main(int argc, char *argv[])
 	testfmt("     1.000000", "%13Lf", 1.0L);
 	testfmt("            1", "%13LG", 1.0L);
 
+	testfmt("2.718282", "%.*f", -2, 2.7182818);
+
 	testfmt("1.234568e+06", "%e", 1234567.8);
 	testfmt("1234567.800000", "%f", 1234567.8);
 	testfmt("1.23457E+06", "%G", 1234567.8);
@@ -104,9 +106,13 @@ main(int argc, char *argv[])
 	assert(setlocale(LC_NUMERIC, "hi_IN.ISCII-DEV")); /* grouping == 2;3 */
 	testfmt("123,456,78.0625", "%'.4f", 12345678.0625);
 	testfmt("00123,456,78.0625", "%'017.4F", 12345678.0625);
+	testfmt(" 90,00", "%'6.0f", 9000.0);
+	testfmt("90,00.0", "%'.1f", 9000.0);
 	assert(setlocale(LC_NUMERIC, "ru_RU.ISO8859-5")); /* decimalpoint==, */
 	testfmt("3,1415", "%g", 3.1415);
 	assert(setlocale(LC_NUMERIC, ""));
+	testfmt("12345678.062500", "%'f", 12345678.0625);
+	testfmt("9000.000000", "%'f", 9000.0);
 
 	testfmt("+2.500000e-01", "%+e", 0.25);
 	testfmt("+0.000000", "%+F", 0.0);
@@ -134,7 +140,10 @@ main(int argc, char *argv[])
 	testfmt("314159.", "%#g", 3.14159e5);
 
 	testfmt(" 0.0", "%4.1f", 0.0);
+	testfmt("90.0", "%4.1f", 90.0);
 	testfmt(" 100", "%4.0f", 100.0);
+	testfmt("9.0e+01", "%4.1e", 90.0);
+	testfmt("1e+02", "%4.0e", 100.0);
 
 	printf("PASS printfloat\n");
 
