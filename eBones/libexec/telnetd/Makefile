@@ -29,7 +29,8 @@ LDADD+= -ldes -lkrb
 LDADD+= -ldes -lkrb5
 .endif
 
-LDADD+= -ldescrypt
+# Used only in krb4encpwd.c and rsaencpwd.c (libtelnet), not yet active
+#LDADD+= -ldescrypt
 
 #endif	/* ENCRYPTION */
 
