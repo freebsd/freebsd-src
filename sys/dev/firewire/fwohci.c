@@ -153,9 +153,7 @@ static void fwohci_complete(void *, int);
  */
 #define DMA_PROG_ALLOC		(8 * PAGE_SIZE)
 
-/* #define NDB 1024 */
 #define NDB FWMAXQUEUE
-#define NDVDB (DVBUF * NDB)
 
 #define	OHCI_VERSION		0x00
 #define	OHCI_ATRETRY		0x08
@@ -332,7 +330,7 @@ again:
 	}
 	if (bootverbose || retry >= MAX_RETRY)
 		device_printf(sc->fc.dev, 
-			"fwphy_rddata: loop=%d, retry=%d\n", i, retry);
+		    "fwphy_rddata: 0x%x loop=%d, retry=%d\n", addr, i, retry);
 #undef MAX_RETRY
 	return((fun >> PHYDEV_RDDATA )& 0xff);
 }
@@ -382,7 +380,22 @@ fwohci_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			err = EINVAL;
 		}
 		break;
+/* Read/Write Phy registers */
+#define OHCI_MAX_PHY_REG 0xf
+	case FWOHCI_RDPHYREG:
+		if (reg->addr <= OHCI_MAX_PHY_REG)
+			reg->data = fwphy_rddata(fc, reg->addr);
+		else
+			err = EINVAL;
+		break;
+	case FWOHCI_WRPHYREG:
+		if (reg->addr <= OHCI_MAX_PHY_REG)
+			reg->data = fwphy_wrdata(fc, reg->addr, reg->data);
+		else
+			err = EINVAL;
+		break;
 	default:
+		err = EINVAL;
 		break;
 	}
 	return err;
@@ -826,6 +839,7 @@ fwohci_start(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 	volatile struct fwohci_txpkthdr *ohcifp;
 	struct fwohcidb_tr *db_tr;
 	volatile struct fwohcidb *db;
+	volatile u_int32_t *ld;
 	struct tcode_info *info;
 	static int maxdesc=0;
 
@@ -860,17 +874,20 @@ txloop:
 	ohcifp = (volatile struct fwohci_txpkthdr *) db_tr->db[1].db.immed;
 	info = &tinfo[tcode];
 	hdr_len = pl_off = info->hdr_len;
-	for( i = 0 ; i < pl_off ; i+= 4){
-		ohcifp->mode.ld[i/4] = fp->mode.ld[i/4];
-	}
-	ohcifp->mode.common.spd = xfer->spd;
+
+	ld = &ohcifp->mode.ld[0];
+	ld[0] = ld[1] = ld[2] = ld[3] = 0;
+	for( i = 0 ; i < pl_off ; i+= 4)
+		ld[i/4] = fp->mode.ld[i/4];
+
+	ohcifp->mode.common.spd = xfer->spd & 0x7;
 	if (tcode == FWTCODE_STREAM ){
 		hdr_len = 8;
 		ohcifp->mode.stream.len = fp->mode.stream.len;
 	} else if (tcode == FWTCODE_PHY) {
 		hdr_len = 12;
-		ohcifp->mode.ld[1] = fp->mode.ld[1];
-		ohcifp->mode.ld[2] = fp->mode.ld[2];
+		ld[1] = fp->mode.ld[1];
+		ld[2] = fp->mode.ld[2];
 		ohcifp->mode.common.spd = 0;
 		ohcifp->mode.common.tcode = FWOHCITCODE_PHY;
 	} else {
@@ -881,6 +898,7 @@ txloop:
 	db = &db_tr->db[0];
  	FWOHCI_DMA_WRITE(db->db.desc.cmd,
 			OHCI_OUTPUT_MORE | OHCI_KEY_ST2 | hdr_len);
+ 	FWOHCI_DMA_WRITE(db->db.desc.addr, 0);
  	FWOHCI_DMA_WRITE(db->db.desc.res, 0);
 /* Specify bound timer of asy. responce */
 	if(&sc->atrs == dbch){
@@ -891,7 +909,7 @@ txloop:
 	if (tcode == FWTCODE_WREQQ || tcode == FWTCODE_RRESQ)
 		hdr_len = 12;
 	for (i = 0; i < hdr_len/4; i ++)
-		FWOHCI_DMA_WRITE(ohcifp->mode.ld[i], ohcifp->mode.ld[i]);
+		FWOHCI_DMA_WRITE(ld[i], ld[i]);
 #endif
 
 again:
@@ -1044,8 +1062,9 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		bus_dmamap_sync(dbch->dmat, tr->dma_map,
 			BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(dbch->dmat, tr->dma_map);
-#if 0
-		dump_db(sc, ch);
+#if 1
+		if (firewire_debug)
+			dump_db(sc, ch);
 #endif
 		if(status & OHCI_CNTL_DMA_DEAD) {
 			/* Stop DMA */
@@ -2093,11 +2112,14 @@ fwohci_tbuf_update(struct fwohci_softc *sc, int dmach)
 	ldesc = sc->it[dmach].ndesc - 1;
 	s = splfw(); /* unnecessary ? */
 	fwdma_sync_multiseg_all(sc->it[dmach].am, BUS_DMASYNC_POSTREAD);
+	if (firewire_debug)
+		dump_db(sc, ITX_CH + dmach);
 	while ((chunk = STAILQ_FIRST(&it->stdma)) != NULL) {
 		db = ((struct fwohcidb_tr *)(chunk->end))->db;
 		stat = FWOHCI_DMA_READ(db[ldesc].db.desc.res) 
 				>> OHCI_STATUS_SHIFT;
 		db = ((struct fwohcidb_tr *)(chunk->start))->db;
+		/* timestamp */
 		count = FWOHCI_DMA_READ(db[ldesc].db.desc.res)
 				& OHCI_COUNT_MASK;
 		if (stat == 0)
@@ -2441,10 +2463,10 @@ device_printf(sc->fc.dev, "DB %08x %08x %08x\n", bulkxfer, db_tr->bus_addr, fdb_
 		fp = (struct fw_pkt *)db_tr->buf;
 		ohcifp = (volatile struct fwohci_txpkthdr *) db[1].db.immed;
 		ohcifp->mode.ld[0] = fp->mode.ld[0];
+		ohcifp->mode.common.spd = 0 & 0x7;
 		ohcifp->mode.stream.len = fp->mode.stream.len;
 		ohcifp->mode.stream.chtag = chtag;
 		ohcifp->mode.stream.tcode = 0xa;
-		ohcifp->mode.stream.spd = 0;
 #if BYTE_ORDER == BIG_ENDIAN
 		FWOHCI_DMA_WRITE(db[1].db.immed[0], db[1].db.immed[0]); 
 		FWOHCI_DMA_WRITE(db[1].db.immed[1], db[1].db.immed[1]); 
@@ -2501,6 +2523,9 @@ fwohci_add_tx_buf(struct fwohci_dbch *dbch, struct fwohcidb_tr *db_tr,
 
 	FWOHCI_DMA_WRITE(db[0].db.desc.cmd,
 		OHCI_OUTPUT_MORE | OHCI_KEY_ST2 | 8);
+	FWOHCI_DMA_WRITE(db[0].db.desc.addr, 0);
+	bzero((void *)(uintptr_t)(volatile void *)
+		&db[1].db.immed[0], sizeof(db[1].db.immed));
 	FWOHCI_DMA_WRITE(db[2].db.desc.addr,
 	fwdma_bus_addr(it->buf, poffset) + sizeof(u_int32_t));
 
