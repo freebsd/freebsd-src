@@ -3141,11 +3141,24 @@ to be redirected to
 It is useful if you own a small number of real IP numbers that
 you wish to map to specific machines behind your gateway.
 .It nat deny_incoming yes|no
-If set to yes, this command will refuse all incoming connections
-by dropping the packets in much the same way as a firewall would.
+If set to yes, this command will refuse all incoming packets where an
+aliasing link doesn't already exist.
+Refer to the
+.Sx CONCEPTUAL BACKGROUND
+section of
+.Xr libalias 3
+for a description of what an
+.Dq aliasing link
+is.
 .Pp
-It should be noted that enabling this option also drops IP packets
-that cannot be identified by libalias.  This will be fixed in the future.
+It should be noted under what circumstances an aliasing link is created by
+.Xr libalias 3 .
+It may be necessary to further protect your network from outside
+connections using the
+.Dq set filter
+or
+.Dq nat target
+commands.
 .It nat help|?
 This command gives a summary of available nat commands.
 .It nat log yes|no
