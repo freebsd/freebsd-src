@@ -387,6 +387,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				error = EBADF;
 				break;
 			}
+			PROC_LOCK(p);
+			p->p_flag |= P_ADVLOCK;
+			PROC_UNLOCK(p);
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK, flp,
 			    flg);
 			break;
