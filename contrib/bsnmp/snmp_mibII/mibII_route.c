@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_route.c,v 1.3 2003/01/28 13:44:35 hbb Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII_route.c,v 1.4 2003/12/03 10:01:19 hbb Exp $
  *
  * Routing table
  */

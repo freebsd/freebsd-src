@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2003
+ * Copyright (c) 2003
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  *	All rights reserved.
  *
@@ -30,51 +30,25 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII_ifmib.c,v 1.8 2003/12/03 10:01:19 hbb Exp $
+ * $Begemot: bsnmp/snmpd/trans_udp.h,v 1.2 2003/12/09 12:28:53 hbb Exp $
  *
- * Interfaces group.
+ * UDP transport
  */
-#include "mibII.h"
-#include "mibII_oid.h"
+struct udp_port {
+	struct tport	tport;		/* must begin with this */
 
-/*
- * Scalars
- */
-int
-op_ifmib(struct snmp_context *ctx __unused, struct snmp_value *value,
-    u_int sub, u_int idx __unused, enum snmp_op op)
-{
-	switch (op) {
+	uint8_t		addr[4];	/* host byteorder */
+	uint16_t	port;		/* host byteorder */
 
-	  case SNMP_OP_GETNEXT:
-		abort();
+	struct port_input input;	/* common input stuff */
 
-	  case SNMP_OP_GET:
-		break;
+	struct sockaddr_in ret;		/* the return address */
+};
 
-	  case SNMP_OP_SET:
-		return (SNMP_ERR_NOT_WRITEABLE);
+/* argument for open call */
+struct udp_open {
+	uint8_t		addr[4];	/* host byteorder */
+	uint16_t	port;		/* host byteorder */
+};
 
-	  case SNMP_OP_ROLLBACK:
-	  case SNMP_OP_COMMIT:
-		abort();
-	}
-
-	switch (value->var.subs[sub - 1]) {
-
-	  case LEAF_ifTableLastChange:
-		if (mib_iftable_last_change > start_tick)
-			value->v.uint32 = mib_iftable_last_change - start_tick;
-		else
-			value->v.uint32 = 0;
-		break;
-
-	  case LEAF_ifStackLastChange:
-		if (mib_ifstack_last_change > start_tick)
-			value->v.uint32 = mib_ifstack_last_change - start_tick;
-		else
-			value->v.uint32 = 0;
-		break;
-	}
-	return (SNMP_ERR_NOERROR);
-}
+extern const struct transport_def udp_trans;

@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmp.h,v 1.27 2002/03/08 14:24:58 hbb Exp $
+ * $Begemot: bsnmp/lib/snmp.h,v 1.29 2003/12/08 17:11:58 hbb Exp $
  *
  * Header file for SNMP functions.
  */
@@ -163,6 +163,8 @@ int snmp_value_copy(struct snmp_value *, const struct snmp_value *);
 void snmp_pdu_free(struct snmp_pdu *);
 enum snmp_code snmp_pdu_decode(struct asn_buf *b, struct snmp_pdu *pdu, int32_t *);
 enum snmp_code snmp_pdu_encode(struct snmp_pdu *pdu, struct asn_buf *resp_b);
+
+int snmp_pdu_snoop(const struct asn_buf *);
 
 void snmp_pdu_dump(const struct snmp_pdu *pdu);
 

@@ -30,13 +30,13 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/main.c,v 1.76 2003/01/28 13:44:35 hbb Exp $
+ * $Begemot: bsnmp/snmpd/main.c,v 1.82 2003/12/09 12:28:52 hbb Exp $
  *
  * SNMPd main stuff.
  */
 #include <sys/param.h>
 #include <sys/un.h>
-#include <sys/stat.h>
+#include <sys/ucred.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -49,8 +49,6 @@
 #include <signal.h>
 #include <dlfcn.h>
 #include <inttypes.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
 #include "snmpmod.h"
 #include "snmpd.h"
@@ -82,6 +80,7 @@ struct snmpd snmpd = {
 	0,		/* comm_dis */
 	0,		/* auth_traps */
 	{0, 0, 0, 0},	/* trap1addr */
+	VERS_ENABLE_ALL,/* version_enable */
 };
 struct snmpd_stats snmpd_stats;
 
@@ -126,20 +125,14 @@ static int nprogargs;
 u_int	community;
 static struct community *comm;
 
-/* list of all IP ports we are listening on */
-struct snmp_port_list snmp_port_list =
-    TAILQ_HEAD_INITIALIZER(snmp_port_list);
-
-/* list of all local ports we are listening on */
-struct local_port_list local_port_list =
-    TAILQ_HEAD_INITIALIZER(local_port_list);
-
 /* file names */
 static char config_file[MAXPATHLEN + 1];
 static char pid_file[MAXPATHLEN + 1];
 
+#ifndef USE_LIBBEGEMOT
 /* event context */
 static evContext evctx;
+#endif
 
 /* signal mask */
 static sigset_t blocked_sigs;
@@ -178,6 +171,12 @@ options:\n\
   -p file	specify pid file\n\
 ";
 
+/* transports */
+extern const struct transport_def udp_trans;
+extern const struct transport_def lsock_trans;
+
+struct transport_list transport_list = TAILQ_HEAD_INITIALIZER(transport_list);
+
 /* forward declarations */
 static void snmp_printf_func(const char *fmt, ...);
 static void snmp_error_func(const char *err, ...);
@@ -192,7 +191,7 @@ buf_alloc(int tx)
 {
 	void *buf;
 
-	if ((buf = malloc(tx ? snmpd.txbuf : (snmpd.rxbuf + 1))) == NULL) {
+	if ((buf = malloc(tx ? snmpd.txbuf : snmpd.rxbuf)) == NULL) {
 		syslog(LOG_CRIT, "cannot allocate buffer");
 		if (tx)
 			snmpd_stats.noTxbuf++;
@@ -204,19 +203,19 @@ buf_alloc(int tx)
 }
 
 /*
- * Return the buffer size. (one more for RX).
+ * Return the buffer size.
  */
 size_t
 buf_size(int tx)
 {
-	return (tx ? snmpd.txbuf : (snmpd.rxbuf + 1));
+	return (tx ? snmpd.txbuf : snmpd.rxbuf);
 }
 
 /*
  * Prepare a PDU for output
  */
 void
-snmp_output(struct snmp_v1_pdu *pdu, u_char *sndbuf, size_t *sndlen,
+snmp_output(struct snmp_pdu *pdu, u_char *sndbuf, size_t *sndlen,
     const char *dest)
 {
 	struct asn_buf resp_b;
@@ -236,54 +235,35 @@ snmp_output(struct snmp_v1_pdu *pdu, u_char *sndbuf, size_t *sndlen,
 }
 
 /*
- * Send a PDU to a given port
- */
-void
-snmp_send_port(const struct asn_oid *port, struct snmp_v1_pdu *pdu,
-    const struct sockaddr *addr, socklen_t addrlen)
-{
-	struct snmp_port *p;
-	u_char *sndbuf;
-	size_t sndlen;
-	ssize_t len;
-
-	TAILQ_FOREACH(p, &snmp_port_list, link)
-		if (asn_compare_oid(port, &p->index) == 0)
-			break;
-
-	if (p == 0)
-		return;
-
-	if ((sndbuf = buf_alloc(1)) == NULL)
-		return;
-
-	snmp_output(pdu, sndbuf, &sndlen, "SNMP PROXY");
-
-	if ((len = sendto(p->sock, sndbuf, sndlen, 0, addr, addrlen)) == -1)
-		syslog(LOG_ERR, "sendto: %m");
-	else if ((size_t)len != sndlen)
-		syslog(LOG_ERR, "sendto: short write %zu/%zu",
-		    sndlen, (size_t)len);
-
-	free(sndbuf);
-}
-
-/*
  * SNMP input. Start: decode the PDU, find the community.
  */
 enum snmpd_input_err
 snmp_input_start(const u_char *buf, size_t len, const char *source,
-    struct snmp_v1_pdu *pdu, int32_t *ip)
+    struct snmp_pdu *pdu, int32_t *ip, size_t *pdulen)
 {
 	struct asn_buf b;
 	enum snmp_code code;
 	enum snmpd_input_err ret;
-
-	snmpd_stats.inPkts++;
+	int sret;
 
 	b.asn_cptr = buf;
 	b.asn_len = len;
+
+	/* look whether we have enough bytes for the entire PDU. */
+	switch (sret = snmp_pdu_snoop(&b)) {
+
+	  case 0:
+		return (SNMPD_INPUT_TRUNC);
+
+	  case -1:
+		snmpd_stats.inASNParseErrs++;
+		return (SNMPD_INPUT_FAILED);
+	}
+	b.asn_len = *pdulen = (size_t)sret;
+
 	code = snmp_pdu_decode(&b, pdu, ip);
+
+	snmpd_stats.inPkts++;
 
 	ret = SNMPD_INPUT_OK;
 	switch (code) {
@@ -293,6 +273,7 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 		return (SNMPD_INPUT_FAILED);
 
 	  case SNMP_CODE_BADVERS:
+	  bad_vers:
 		snmpd_stats.inBadVersions++;
 		return (SNMPD_INPUT_FAILED);
 
@@ -312,6 +293,21 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 		break;
 
 	  case SNMP_CODE_OK:
+		switch (pdu->version) {
+
+		  case SNMP_V1:
+			if (!(snmpd.version_enable & VERS_ENABLE_V1))
+				goto bad_vers;
+			break;
+
+		  case SNMP_V2c:
+			if (!(snmpd.version_enable & VERS_ENABLE_V2C))
+				goto bad_vers;
+			break;
+
+		  case SNMP_Verr:
+			goto bad_vers;
+		}
 		break;
 	}
 
@@ -449,13 +445,143 @@ snmp_input_finish(struct snmp_pdu *pdu, const u_char *rcvbuf, size_t rcvlen,
 	abort();
 }
 
+/*
+ * Insert a port into the right place in the transport's table of ports
+ */
+void
+trans_insert_port(struct transport *t, struct tport *port)
+{
+	struct tport *p;
 
+	TAILQ_FOREACH(p, &t->table, link) {
+		if (asn_compare_oid(&p->index, &port->index) > 0) {
+			TAILQ_INSERT_BEFORE(p, port, link);
+			return;
+		}
+	}
+	port->transport = t;
+	TAILQ_INSERT_TAIL(&t->table, port, link);
+}
+
+/*
+ * Remove a port from a transport's list
+ */
+void
+trans_remove_port(struct tport *port)
+{
+
+	TAILQ_REMOVE(&port->transport->table, port, link);
+}
+
+/*
+ * Find a port on a transport's list
+ */
+struct tport *
+trans_find_port(struct transport *t, const struct asn_oid *idx, u_int sub)
+{
+
+	return (FIND_OBJECT_OID(&t->table, idx, sub));
+}
+
+/*
+ * Find next port on a transport's list
+ */
+struct tport *
+trans_next_port(struct transport *t, const struct asn_oid *idx, u_int sub)
+{
+
+	return (NEXT_OBJECT_OID(&t->table, idx, sub));
+}
+
+/*
+ * Return first port
+ */
+struct tport *
+trans_first_port(struct transport *t)
+{
+
+	return (TAILQ_FIRST(&t->table));
+}
+
+/*
+ * Iterate through all ports until a function returns a 0.
+ */
+struct tport *
+trans_iter_port(struct transport *t, int (*func)(struct tport *, intptr_t),
+    intptr_t arg)
+{
+	struct tport *p;
+
+	TAILQ_FOREACH(p, &t->table, link)
+		if (func(p, arg) == 0)
+			return (p);
+	return (NULL);
+}
+
+/*
+ * Register a transport
+ */
+int
+trans_register(const struct transport_def *def, struct transport **pp)
+{
+	u_int i;
+	char or_descr[256];
+
+	if ((*pp = malloc(sizeof(**pp))) == NULL)
+		return (SNMP_ERR_GENERR);
+
+	/* construct index */
+	(*pp)->index.len = strlen(def->name) + 1;
+	(*pp)->index.subs[0] = strlen(def->name);
+	for (i = 0; i < (*pp)->index.subs[0]; i++)
+		(*pp)->index.subs[i + 1] = def->name[i];
+
+	(*pp)->vtab = def;
+
+	if (FIND_OBJECT_OID(&transport_list, &(*pp)->index, 0) != NULL) {
+		free(*pp);
+		return (SNMP_ERR_INCONS_VALUE);
+	}
+
+	/* register module */
+	snprintf(or_descr, sizeof(or_descr), "%s transport mapping", def->name);
+	if (((*pp)->or_index = or_register(&def->id, or_descr, NULL)) == 0) {
+		free(*pp);
+		return (SNMP_ERR_GENERR);
+	}
+
+	INSERT_OBJECT_OID((*pp), &transport_list);
+
+	TAILQ_INIT(&(*pp)->table);
+
+	return (SNMP_ERR_NOERROR);
+}
+
+/*
+ * Unregister transport
+ */
+int
+trans_unregister(struct transport *t)
+{
+	if (!TAILQ_EMPTY(&t->table))
+		return (SNMP_ERR_INCONS_VALUE);
+
+	or_unregister(t->or_index);
+	TAILQ_REMOVE(&transport_list, t, link);
+
+	return (SNMP_ERR_NOERROR);
+}
 
 /*
  * File descriptor support
  */
+#ifdef USE_LIBBEGEMOT
+static void
+input(int fd, int mask __unused, void *uap)
+#else
 static void
 input(evContext ctx __unused, void *uap, int fd, int mask __unused)
+#endif
 {
 	struct fdesc *f = uap;
 
@@ -467,10 +593,17 @@ fd_suspend(void *p)
 {
 	struct fdesc *f = p;
 
+#ifdef USE_LIBBEGEMOT
+	if (f->id >= 0) {
+		poll_unregister(f->id);
+		f->id = -1;
+	}
+#else
 	if (evTestID(f->id)) {
 		(void)evDeselectFD(evctx, f->id);
 		evInitID(&f->id);
 	}
+#endif
 }
 
 int
@@ -479,6 +612,16 @@ fd_resume(void *p)
 	struct fdesc *f = p;
 	int err;
 
+#ifdef USE_LIBBEGEMOT
+	if (f->id >= 0)
+		return (0);
+	if ((f->fd = poll_register(f->fd, input, f, POLL_IN)) < 0) {
+		err = errno;
+		syslog(LOG_ERR, "select fd %d: %m", f->fd);
+		errno = err;
+		return (-1);
+	}
+#else
 	if (evTestID(f->id))
 		return (0);
 	if (evSelectFD(evctx, f->fd, EV_READ, input, f, &f->id)) {
@@ -487,6 +630,7 @@ fd_resume(void *p)
 		errno = err;
 		return (-1);
 	}
+#endif
 	return (0);
 }
 
@@ -506,7 +650,11 @@ fd_select(int fd, void (*func)(int, void *), void *udata, struct lmodule *mod)
 	f->func = func;
 	f->udata = udata;
 	f->owner = mod;
+#ifdef USE_LIBBEGEMOT
+	f->id = -1;
+#else
 	evInitID(&f->id);
+#endif
 
 	if (fd_resume(f)) {
 		err = errno;
@@ -542,56 +690,237 @@ fd_flush(struct lmodule *mod)
 			fd_deselect(t);
 		t = t1;
 	}
-
 }
 
-
 /*
- * Input from UDP socket
+ * Consume a message from the input buffer
  */
 static void
-do_input(int fd, const struct asn_oid *port_index,
-    struct sockaddr *ret, socklen_t *retlen)
+snmp_input_consume(struct port_input *pi)
 {
-	u_char *resbuf, embuf[100];
+	if (!pi->stream) {
+		/* always consume everything */
+		pi->length = 0;
+		return;
+	}
+	if (pi->consumed >= pi->length) {
+		/* all bytes consumed */
+		pi->length = 0;
+		return;
+	}
+	memmove(pi->buf, pi->buf + pi->consumed, pi->length - pi->consumed);
+	pi->length -= pi->consumed;
+}
+
+struct credmsg {
+	struct cmsghdr hdr;
+	struct cmsgcred cred;
+};
+
+static void
+check_priv(struct port_input *pi, struct msghdr *msg)
+{
+	struct credmsg *cmsg;
+	struct xucred ucred;
+	socklen_t ucredlen;
+
+	pi->priv = 0;
+
+	if (msg->msg_controllen == sizeof(*cmsg)) {
+		/* process explicitely sends credentials */
+
+		cmsg = (struct credmsg *)msg->msg_control;
+		pi->priv = (cmsg->cred.cmcred_euid == 0);
+		return;
+	}
+
+	/* ok, obtain the accept time credentials */
+	ucredlen = sizeof(ucred);
+
+	if (getsockopt(pi->fd, 0, LOCAL_PEERCRED, &ucred, &ucredlen) == 0 &&
+	    ucredlen >= sizeof(ucred) && ucred.cr_version == XUCRED_VERSION)
+		pi->priv = (ucred.cr_uid == 0);
+}
+
+/*
+ * Input from a stream socket.
+ */
+static int
+recv_stream(struct port_input *pi)
+{
+	struct msghdr msg;
+	struct iovec iov[1];
+	ssize_t len;
+	struct credmsg cmsg;
+
+	if (pi->buf == NULL) {
+		/* no buffer yet - allocate one */
+		if ((pi->buf = buf_alloc(0)) == NULL) {
+			/* ups - could not get buffer. Return an error
+			 * the caller must close the transport. */
+			return (-1);
+		}
+		pi->buflen = buf_size(0);
+		pi->consumed = 0;
+		pi->length = 0;
+	}
+
+	/* try to get a message */
+	msg.msg_name = pi->peer;
+	msg.msg_namelen = pi->peerlen;
+	msg.msg_iov = iov;
+	msg.msg_iovlen = 1;
+	if (pi->cred) {
+		msg.msg_control = &cmsg;
+		msg.msg_controllen = sizeof(cmsg);
+
+		cmsg.hdr.cmsg_len = sizeof(cmsg);
+		cmsg.hdr.cmsg_level = SOL_SOCKET;
+		cmsg.hdr.cmsg_type = SCM_CREDS;
+	} else {
+		msg.msg_control = NULL;
+		msg.msg_controllen = 0;
+	}
+	msg.msg_flags = 0;
+
+	iov[0].iov_base = pi->buf + pi->length;
+	iov[0].iov_len = pi->buflen - pi->length;
+
+	len = recvmsg(pi->fd, &msg, 0);
+
+	if (len == -1 || len == 0)
+		/* receive error */
+		return (-1);
+
+	pi->length += len;
+
+	if (pi->cred)
+		check_priv(pi, &msg);
+
+	return (0);
+}
+
+/*
+ * Input from a datagram socket.
+ * Each receive should return one datagram.
+ */
+static int
+recv_dgram(struct port_input *pi)
+{
+	u_char embuf[1000];
+	struct msghdr msg;
+	struct iovec iov[1];
+	ssize_t len;
+	struct credmsg cmsg;
+
+	if (pi->buf == NULL) {
+		/* no buffer yet - allocate one */
+		if ((pi->buf = buf_alloc(0)) == NULL) {
+			/* ups - could not get buffer. Read away input
+			 * and drop it */
+			(void)recvfrom(pi->fd, embuf, sizeof(embuf),
+			    0, NULL, NULL);
+			/* return error */
+			return (-1);
+		}
+		pi->buflen = buf_size(0);
+	}
+
+	/* try to get a message */
+	msg.msg_name = pi->peer;
+	msg.msg_namelen = pi->peerlen;
+	msg.msg_iov = iov;
+	msg.msg_iovlen = 1;
+	if (pi->cred) {
+		msg.msg_control = &cmsg;
+		msg.msg_controllen = sizeof(cmsg);
+
+		cmsg.hdr.cmsg_len = sizeof(cmsg);
+		cmsg.hdr.cmsg_level = SOL_SOCKET;
+		cmsg.hdr.cmsg_type = SCM_CREDS;
+	} else {
+		msg.msg_control = NULL;
+		msg.msg_controllen = NULL;
+	}
+	msg.msg_flags = 0;
+
+	iov[0].iov_base = pi->buf;
+	iov[0].iov_len = pi->buflen;
+
+	len = recvmsg(pi->fd, &msg, 0);
+
+	if (len == -1 || len == 0)
+		/* receive error */
+		return (-1);
+
+	if (msg.msg_flags & MSG_TRUNC) {
+		/* truncated - drop */
+		snmpd_stats.silentDrops++;
+		snmpd_stats.inTooLong++;
+		return (-1);
+	}
+
+	pi->length = (size_t)len;
+
+	if (pi->cred)
+		check_priv(pi, &msg);
+
+	return (0);
+}
+
+/*
+ * Input from a socket
+ */
+int
+snmpd_input(struct port_input *pi, struct tport *tport)
+{
 	u_char *sndbuf;
 	size_t sndlen;
-	ssize_t len;
-	struct snmp_v1_pdu pdu;
+	struct snmp_pdu pdu;
 	enum snmpd_input_err ierr, ferr;
 	enum snmpd_proxy_err perr;
 	int32_t vi;
+	int ret;
+	ssize_t slen;
 
-	if ((resbuf = buf_alloc(0)) == NULL) {
-		(void)recvfrom(fd, embuf, sizeof(embuf), 0, ret, retlen);
-		return;
+	/* get input depending on the transport */
+	if (pi->stream) {
+		ret = recv_stream(pi);
+	} else {
+		ret = recv_dgram(pi);
 	}
-	if ((len = recvfrom(fd, resbuf, buf_size(0), 0, ret, retlen)) == -1) {
-		free(resbuf);
-		return;
-	}
-	if (len == 0) {
-		free(resbuf);
-		return;
-	}
-	if ((size_t)len == buf_size(0)) {
-		free(resbuf);
-		snmpd_stats.silentDrops++;
-		snmpd_stats.inTooLong++;
-		return;
-	}
+
+	if (ret == -1)
+		return (-1);
 
 	/*
 	 * Handle input
 	 */
-	ierr = snmp_input_start(resbuf, (size_t)len, "SNMP", &pdu, &vi);
+	ierr = snmp_input_start(pi->buf, pi->length, "SNMP", &pdu, &vi,
+	    &pi->consumed);
+	if (ierr == SNMPD_INPUT_TRUNC) {
+		/* need more bytes. This is ok only for streaming transports.
+		 * but only if we have not reached bufsiz yet. */
+		if (pi->stream) {
+			if (pi->length == buf_size(0)) {
+				snmpd_stats.silentDrops++;
+				return (-1);
+			}
+			return (0);
+		}
+		snmpd_stats.silentDrops++;
+		return (-1);
+	}
 
 	/* can't check for bad SET pdus here, because a proxy may have to
 	 * check the access first. We don't want to return an error response
 	 * to a proxy PDU with a wrong community */
 	if (ierr == SNMPD_INPUT_FAILED) {
-		free(resbuf);
-		return;
+		/* for streaming transports this is fatal */
+		if (pi->stream)
+			return (-1);
+		snmp_input_consume(pi);
+		return (0);
 	}
 
 	/*
@@ -599,41 +928,41 @@ do_input(int fd, const struct asn_oid *port_index,
 	 * the hand it over to the module.
 	 */
 	if (comm->owner != NULL && comm->owner->config->proxy != NULL) {
-		perr = (*comm->owner->config->proxy)(&pdu, port_index,
-		    ret, *retlen, ierr, vi);
+		perr = (*comm->owner->config->proxy)(&pdu, tport->transport,
+		    &tport->index, pi->peer, pi->peerlen, ierr, vi, pi->priv);
 
 		switch (perr) {
 
 		  case SNMPD_PROXY_OK:
-			free(resbuf);
-			return;
+			snmp_input_consume(pi);
+			return (0);
 
 		  case SNMPD_PROXY_REJ:
 			break;
 
 		  case SNMPD_PROXY_DROP:
-			free(resbuf);
+			snmp_input_consume(pi);
 			snmp_pdu_free(&pdu);
 			snmpd_stats.proxyDrops++;
-			return;
+			return (0);
 
 		  case SNMPD_PROXY_BADCOMM:
-			free(resbuf);
+			snmp_input_consume(pi);
 			snmp_pdu_free(&pdu);
 			snmpd_stats.inBadCommunityNames++;
 			if (snmpd.auth_traps)
 				snmp_send_trap(&oid_authenticationFailure,
 				    NULL);
-			return;
+			return (0);
 
 		  case SNMPD_PROXY_BADCOMMUSE:
-			free(resbuf);
+			snmp_input_consume(pi);
 			snmp_pdu_free(&pdu);
 			snmpd_stats.inBadCommunityUses++;
 			if (snmpd.auth_traps)
 				snmp_send_trap(&oid_authenticationFailure,
 				    NULL);
-			return;
+			return (0);
 		}
 	}
 
@@ -646,21 +975,22 @@ do_input(int fd, const struct asn_oid *port_index,
 		snmpd_stats.silentDrops++;
 		snmpd_stats.inBadPduTypes++;
 		snmp_pdu_free(&pdu);
-		free(resbuf);
-		return;
+		snmp_input_consume(pi);
+		return (0);
 	}
 
 	/*
 	 * Check community
 	 */
-	if (community != COMM_WRITE &&
-            (pdu.type == SNMP_PDU_SET || community != COMM_READ)) {
+	if ((pi->cred && !pi->priv && pdu.type == SNMP_PDU_SET) ||
+	    (community != COMM_WRITE &&
+            (pdu.type == SNMP_PDU_SET || community != COMM_READ))) {
 		snmpd_stats.inBadCommunityUses++;
 		snmp_pdu_free(&pdu);
-		free(resbuf);
+		snmp_input_consume(pi);
 		if (snmpd.auth_traps)
 			snmp_send_trap(&oid_authenticationFailure, NULL);
-		return;
+		return (0);
 	}
 
 	/*
@@ -669,271 +999,87 @@ do_input(int fd, const struct asn_oid *port_index,
 	if ((sndbuf = buf_alloc(1)) == NULL) {
 		snmpd_stats.silentDrops++;
 		snmp_pdu_free(&pdu);
-		free(resbuf);
-		return;
+		snmp_input_consume(pi);
+		return (0);
 	}
-	ferr = snmp_input_finish(&pdu, resbuf, len, sndbuf, &sndlen, "SNMP",
-	    ierr, vi, NULL);
+	ferr = snmp_input_finish(&pdu, pi->buf, pi->length,
+	    sndbuf, &sndlen, "SNMP", ierr, vi, NULL);
 
 	if (ferr == SNMPD_INPUT_OK) {
-		if ((len = sendto(fd, sndbuf, sndlen, 0, ret, *retlen)) == -1)
+		slen = sendto(pi->fd, sndbuf, sndlen, 0, pi->peer, pi->peerlen);
+		if (slen == -1)
 			syslog(LOG_ERR, "sendto: %m");
-		else if ((size_t)len != sndlen)
+		else if ((size_t)slen != sndlen)
 			syslog(LOG_ERR, "sendto: short write %zu/%zu",
-			    sndlen, (size_t)len);
+			    sndlen, (size_t)slen);
 	}
 	snmp_pdu_free(&pdu);
 	free(sndbuf);
-	free(resbuf);
-}
+	snmp_input_consume(pi);
 
-static void
-ssock_input(int fd, void *udata)
-{
-	struct snmp_port *p = udata;
-
-	p->retlen = sizeof(p->ret);
-	do_input(fd, &p->index, (struct sockaddr *)&p->ret, &p->retlen);
-}
-
-static void
-lsock_input(int fd, void *udata)
-{
-	struct local_port *p = udata;
-
-	p->retlen = sizeof(p->ret);
-	do_input(fd, &p->index, (struct sockaddr *)&p->ret, &p->retlen);
-}
-
-
-/*
- * Create a UDP socket and bind it to the given port
- */
-static int
-init_snmp(struct snmp_port *p)
-{
-	struct sockaddr_in addr;
-	u_int32_t ip;
-
-	if ((p->sock = socket(PF_INET, SOCK_DGRAM, 0)) < 0) {
-		syslog(LOG_ERR, "creating UDP socket: %m");
-		return (SNMP_ERR_RES_UNAVAIL);
-	}
-	ip = (p->addr[0] << 24) | (p->addr[1] << 16) | (p->addr[2] << 8) |
-	    p->addr[3];
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_addr.s_addr = htonl(ip);
-	addr.sin_port = htons(p->port);
-	addr.sin_family = AF_INET;
-	addr.sin_len = sizeof(addr);
-	if (bind(p->sock, (struct sockaddr *)&addr, sizeof(addr))) {
-		if (errno == EADDRNOTAVAIL) {
-			close(p->sock);
-			p->sock = -1;
-			return (SNMP_ERR_INCONS_NAME);
-		}
-		syslog(LOG_ERR, "bind: %s:%u %m", inet_ntoa(addr.sin_addr),
-		    p->port);
-		close(p->sock);
-		p->sock = -1;
-		return (SNMP_ERR_GENERR);
-	}
-	if ((p->id = fd_select(p->sock, ssock_input, p, NULL)) == NULL) {
-		close(p->sock);
-		p->sock = -1;
-		return (SNMP_ERR_GENERR);
-	}
-	return (SNMP_ERR_NOERROR);
-}
-
-
-/*
- * Create a new SNMP Port object and start it, if we are not
- * in initialisation mode. The arguments are in host byte order.
- */
-int
-open_snmp_port(u_int8_t *addr, u_int32_t port, struct snmp_port **pp)
-{
-	struct snmp_port *snmp, *p;
-	int err;
-
-	if (port > 0xffff)
-		return (SNMP_ERR_NO_CREATION);
-	if ((snmp = malloc(sizeof(*snmp))) == NULL)
-		return (SNMP_ERR_GENERR);
-	snmp->addr[0] = addr[0];
-	snmp->addr[1] = addr[1];
-	snmp->addr[2] = addr[2];
-	snmp->addr[3] = addr[3];
-	snmp->port = port;
-	snmp->sock = -1;
-	snmp->id = NULL;
-	snmp->index.len = 5;
-	snmp->index.subs[0] = addr[0];
-	snmp->index.subs[1] = addr[1];
-	snmp->index.subs[2] = addr[2];
-	snmp->index.subs[3] = addr[3];
-	snmp->index.subs[4] = port;
-
-	/*
-	 * Insert it into the right place
-	 */
-	TAILQ_FOREACH(p, &snmp_port_list, link) {
-		if (asn_compare_oid(&p->index, &snmp->index) > 0) {
-			TAILQ_INSERT_BEFORE(p, snmp, link);
-			break;
-		}
-	}
-	if (p == NULL)
-		TAILQ_INSERT_TAIL(&snmp_port_list, snmp, link);
-
-	if (community != COMM_INITIALIZE &&
-	    (err = init_snmp(snmp)) != SNMP_ERR_NOERROR) {
-		TAILQ_REMOVE(&snmp_port_list, snmp, link);
-		free(snmp);
-		return (err);
-	}
-	*pp = snmp;
-	return (SNMP_ERR_NOERROR);
+	return (0);
 }
 
 /*
- * Close an SNMP port
+ * Send a PDU to a given port
  */
 void
-close_snmp_port(struct snmp_port *snmp)
+snmp_send_port(void *targ, const struct asn_oid *port, struct snmp_pdu *pdu,
+    const struct sockaddr *addr, socklen_t addrlen)
 {
-	if (snmp->id != NULL)
-		fd_deselect(snmp->id);
-	if (snmp->sock >= 0)
-		(void)close(snmp->sock);
+	struct transport *trans = targ;
+	struct tport *tp;
+	u_char *sndbuf;
+	size_t sndlen;
+	ssize_t len;
 
-	TAILQ_REMOVE(&snmp_port_list, snmp, link);
-	free(snmp);
-}
-
-/*
- * Create a local socket
- */
-static int
-init_local(struct local_port *p)
-{
-	struct sockaddr_un sa;
-
-	if ((p->sock = socket(PF_LOCAL, SOCK_DGRAM, 0)) < 0) {
-		syslog(LOG_ERR, "creating local socket: %m");
-		return (SNMP_ERR_RES_UNAVAIL);
-	}
-	strcpy(sa.sun_path, p->name);
-	sa.sun_family = AF_LOCAL;
-	sa.sun_len = strlen(p->name) + offsetof(struct sockaddr_un, sun_path);
-
-	(void)remove(p->name);
-
-	if (bind(p->sock, (struct sockaddr *)&sa, sizeof(sa))) {
-		if (errno == EADDRNOTAVAIL) {
-			close(p->sock);
-			p->sock = -1;
-			return (SNMP_ERR_INCONS_NAME);
-		}
-		syslog(LOG_ERR, "bind: %s %m", p->name);
-		close(p->sock);
-		p->sock = -1;
-		return (SNMP_ERR_GENERR);
-	}
-	if (chmod(p->name, 0666) == -1)
-		syslog(LOG_WARNING, "chmod(%s,0666): %m", p->name);
-	if ((p->id = fd_select(p->sock, lsock_input, p, NULL)) == NULL) {
-		(void)remove(p->name);
-		close(p->sock);
-		p->sock = -1;
-		return (SNMP_ERR_GENERR);
-	}
-	return (SNMP_ERR_NOERROR);
-}
-
-
-/*
- * Open a local port
- */
-int
-open_local_port(u_char *name, size_t namelen, struct local_port **pp)
-{
-	struct local_port *port, *p;
-	size_t u;
-	int err;
-	struct sockaddr_un sa;
-
-	if (namelen == 0 || namelen + 1 > sizeof(sa.sun_path)) {
-		free(name);
-		return (SNMP_ERR_BADVALUE);
-	}
-	if ((port = malloc(sizeof(*port))) == NULL) {
-		free(name);
-		return (SNMP_ERR_GENERR);
-	}
-	if ((port->name = malloc(namelen + 1)) == NULL) {
-		free(name);
-		free(port);
-		return (SNMP_ERR_GENERR);
-	}
-	strncpy(port->name, name, namelen);
-	port->name[namelen] = '\0';
-
-	port->sock = -1;
-	port->id = NULL;
-	port->index.len = namelen + 1;
-	port->index.subs[0] = namelen;
-	for (u = 0; u < namelen; u++)
-		port->index.subs[u + 1] = name[u];
-
-	/*
-	 * Insert it into the right place
-	 */
-	TAILQ_FOREACH(p, &local_port_list, link) {
-		if (asn_compare_oid(&p->index, &port->index) > 0) {
-			TAILQ_INSERT_BEFORE(p, port, link);
+	TAILQ_FOREACH(tp, &trans->table, link)
+		if (asn_compare_oid(port, &tp->index) == 0)
 			break;
-		}
-	}
-	if (p == NULL)
-		TAILQ_INSERT_TAIL(&local_port_list, port, link);
+	if (tp == 0)
+		return;
 
-	if (community != COMM_INITIALIZE &&
-	    (err = init_local(port)) != SNMP_ERR_NOERROR) {
-		TAILQ_REMOVE(&local_port_list, port, link);
-		free(port->name);
-		free(port);
-		return (err);
-	}
+	if ((sndbuf = buf_alloc(1)) == NULL)
+		return;
 
-	*pp = p;
+	snmp_output(pdu, sndbuf, &sndlen, "SNMP PROXY");
 
-	return (SNMP_ERR_NOERROR);
+	len = trans->vtab->send(tp, sndbuf, sndlen, addr, addrlen);
+
+	if (len == -1)
+		syslog(LOG_ERR, "sendto: %m");
+	else if ((size_t)len != sndlen)
+		syslog(LOG_ERR, "sendto: short write %zu/%zu",
+		    sndlen, (size_t)len);
+
+	free(sndbuf);
 }
 
+
 /*
- * Close a local port
+ * Close an input source
  */
 void
-close_local_port(struct local_port *port)
+snmpd_input_close(struct port_input *pi)
 {
-	if (port->id != NULL)
-		fd_deselect(port->id);
-	if (port->sock >= 0)
-		(void)close(port->sock);
-	(void)remove(port->name);
-
-	TAILQ_REMOVE(&local_port_list, port, link);
-	free(port->name);
-	free(port);
+	if (pi->id != NULL)
+		fd_deselect(pi->id);
+	if (pi->fd >= 0)
+		(void)close(pi->fd);
+	if (pi->buf != NULL)
+		free(pi->buf);
 }
 
 /*
  * Dump internal state.
  */
+#ifdef USE_LIBBEGEMOT
+static void
+info_func(void)
+#else
 static void
 info_func(evContext ctx __unused, void *uap __unused, const void *tag __unused)
+#endif
 {
 	struct lmodule *m;
 	u_int i;
@@ -964,9 +1110,14 @@ info_func(evContext ctx __unused, void *uap __unused, const void *tag __unused)
 /*
  * Re-read configuration
  */
+#ifdef USE_LIBBEGEMOT
+static void
+config_func(void)
+#else
 static void
 config_func(evContext ctx __unused, void *uap __unused,
     const void *tag __unused)
+#endif
 {
 	struct lmodule *m;
 
@@ -985,25 +1136,23 @@ config_func(evContext ctx __unused, void *uap __unused,
 static void
 onusr1(int s __unused)
 {
+
 	work |= WORK_DOINFO;
 }
 static void
 onhup(int s __unused)
 {
+
 	work |= WORK_RECONFIG;
 }
 
 static void
 onterm(int s __unused)
 {
-	struct local_port *p;
 
-	TAILQ_FOREACH(p, &local_port_list, link)
-		(void)remove(p->name);
-
+	/* allow clean-up */
 	exit(0);
 }
-
 
 static void
 init_sigs(void)
@@ -1064,6 +1213,15 @@ static void
 term(void)
 {
 	(void)unlink(pid_file);
+}
+
+static void
+trans_stop(void)
+{
+	struct transport *t;
+
+	TAILQ_FOREACH(t, &transport_list, link)
+		(void)t->vtab->stop(1);
 }
 
 /*
@@ -1130,7 +1288,7 @@ getsubopt1(char **arg, const char *const *options, char **valp, char **optp)
 	*arg = ptr;
 
 	for (i = 0; *options != NULL; options++, i++)
-		if (strcmp(suboptarg, *options) == 0)
+		if (strcmp(*optp, *options) == 0)
 			return (i);
 	return (-1);
 }
@@ -1141,11 +1299,11 @@ main(int argc, char *argv[])
 	int opt;
 	FILE *fp;
 	int background = 1;
-	struct snmp_port *p;
-	struct local_port *pl;
+	struct tport *p;
 	const char *prefix = "snmpd";
 	struct lmodule *m;
 	char *value, *option;
+	struct transport *t;
 
 #define DBG_DUMP	0
 #define DBG_EVENTS	1
@@ -1268,22 +1426,40 @@ main(int argc, char *argv[])
 		snprintf(config_file, sizeof(config_file), PATH_CONFIG, prefix);
 
 	init_actvals();
+
+	start_tick = get_ticks();
+	this_tick = get_ticks();
+
+	/* start transports */
+	if (atexit(trans_stop) == -1) {
+		syslog(LOG_ERR, "atexit failed: %m");
+		exit(1);
+	}
+	if (udp_trans.start() != SNMP_ERR_NOERROR)
+		syslog(LOG_WARNING, "cannot start UDP transport");
+	if (lsock_trans.start() != SNMP_ERR_NOERROR)
+		syslog(LOG_WARNING, "cannot start LSOCK transport");
+
 	if (read_config(config_file, NULL)) {
 		syslog(LOG_ERR, "error in config file");
 		exit(1);
 	}
 
+#ifdef USE_LIBBEGEMOT
+	if (debug.evdebug > 0)
+		rpoll_trace = 1;
+#else
 	if (evCreate(&evctx)) {
 		syslog(LOG_ERR, "evCreate: %m");
 		exit(1);
 	}
 	if (debug.evdebug > 0)
 		evSetDebug(evctx, 10, stderr);
+#endif
 
-	TAILQ_FOREACH(p, &snmp_port_list, link)
-		(void)init_snmp(p);
-	TAILQ_FOREACH(pl, &local_port_list, link)
-		(void)init_local(pl);
+	TAILQ_FOREACH(t, &transport_list, link)
+		TAILQ_FOREACH(p, &t->table, link)
+			t->vtab->init_port(p);
 
 	init_sigs();
 
@@ -1293,11 +1469,12 @@ main(int argc, char *argv[])
 	if ((fp = fopen(pid_file, "w")) != NULL) {
 		fprintf(fp, "%u", getpid());
 		fclose(fp);
-		atexit(term);
+		if (atexit(term) == -1) {
+			syslog(LOG_ERR, "atexit failed: %m");
+			(void)remove(pid_file);
+			exit(0);
+		}
 	}
-
-	start_tick = get_ticks();
-	this_tick = get_ticks();
 
 	if (or_register(&oid_snmpMIB, "The MIB module for SNMPv2 entities.",
 	    NULL) == 0) {
@@ -1319,13 +1496,16 @@ main(int argc, char *argv[])
 	}
 
 	for (;;) {
+#ifndef USE_LIBBEGEMOT
 		evEvent event;
+#endif
 		struct lmodule *mod;
 
 		TAILQ_FOREACH(mod, &lmodules, link)
 			if (mod->config->idle != NULL)
 				(*mod->config->idle)();
 
+#ifndef USE_LIBBEGEMOT
 		if (evGetNext(evctx, &event, EV_WAIT) == 0) {
 			if (evDispatch(evctx, event))
 				syslog(LOG_ERR, "evDispatch: %m");
@@ -1333,29 +1513,42 @@ main(int argc, char *argv[])
 			syslog(LOG_ERR, "evGetNext: %m");
 			exit(1);
 		}
+#else
+		poll_dispatch(1);
+#endif
 
 		if (work != 0) {
 			block_sigs();
 			if (work & WORK_DOINFO) {
+#ifdef USE_LIBBEGEMOT
+				info_func();
+#else
 				if (evWaitFor(evctx, &work, info_func,
 				    NULL, NULL) == -1) {
 					syslog(LOG_ERR, "evWaitFor: %m");
 					exit(1);
 				}
+#endif
 			}
 			if (work & WORK_RECONFIG) {
+#ifdef USE_LIBBEGEMOT
+				config_func();
+#else
 				if (evWaitFor(evctx, &work, config_func,
 				    NULL, NULL) == -1) {
 					syslog(LOG_ERR, "evWaitFor: %m");
 					exit(1);
 				}
+#endif
 			}
 			work = 0;
 			unblock_sigs();
+#ifndef USE_LIBBEGEMOT
 			if (evDo(evctx, &work) == -1) {
 				syslog(LOG_ERR, "evDo: %m");
 				exit(1);
 			}
+#endif
 		}
 	}
 
@@ -1377,9 +1570,14 @@ get_ticks()
 /*
  * Timer support
  */
+#ifdef USE_LIBBEGEMOT
+static void
+tfunc(int tid __unused, void *uap)
+#else
 static void
 tfunc(evContext ctx __unused, void *uap, struct timespec due __unused,
 	struct timespec inter __unused)
+#endif
 {
 	struct timer *tp = uap;
 
@@ -1395,14 +1593,28 @@ void *
 timer_start(u_int ticks, void (*func)(void *), void *udata, struct lmodule *mod)
 {
 	struct timer *tp;
+#ifdef USE_LIBBEGEMOT
+	struct timeval due;
+#else
 	struct timespec due;
+#endif
 
 	if ((tp = malloc(sizeof(struct timer))) == NULL) {
 		syslog(LOG_CRIT, "out of memory for timer");
 		exit(1);
 	}
+#ifdef USE_LIBBEGEMOT
+	(void)gettimeofday(&due, NULL);
+	due.tv_sec += ticks / 100;
+	due.tv_usec += (ticks % 100) * 10000;
+	if (due.tv_usec >= 1000000) {
+		due.tv_sec++;
+		due.tv_usec -= 1000000;
+	}
+#else
 	due = evAddTime(evNowTime(),
-			evConsTime(ticks / 100, (ticks % 100) * 10000));
+	    evConsTime(ticks / 100, (ticks % 100) * 10000));
+#endif
 
 	tp->udata = udata;
 	tp->owner = mod;
@@ -1410,11 +1622,19 @@ timer_start(u_int ticks, void (*func)(void *), void *udata, struct lmodule *mod)
 
 	LIST_INSERT_HEAD(&timer_list, tp, link);
 
+#ifdef USE_LIBBEGEMOT
+	if ((tp->id = poll_start_timer(due.tv_sec * 1000 + due.tv_usec / 1000,
+	    0, tfunc, tp)) < 0) {
+		syslog(LOG_ERR, "cannot set timer: %m");
+		exit(1);
+	}
+#else
 	if (evSetTimer(evctx, tfunc, tp, due, evConsTime(0, 0), &tp->id)
 	    == -1) {
 		syslog(LOG_ERR, "cannot set timer: %m");
 		exit(1);
 	}
+#endif
 	return (tp);
 }
 
@@ -1424,10 +1644,14 @@ timer_stop(void *p)
 	struct timer *tp = p;
 
 	LIST_REMOVE(tp, link);
+#ifdef USE_LIBBEGEMOT
+	poll_stop_timer(tp->id);
+#else
 	if (evClearTimer(evctx, tp->id) == -1) {
 		syslog(LOG_ERR, "cannot stop timer: %m");
 		exit(1);
 	}
+#endif
 	free(p);
 }
 
@@ -1488,10 +1712,13 @@ snmp_error_func(const char *err, ...)
 	char errbuf[1000];
 	va_list ap;
 
+	if (!(snmp_trace & LOG_SNMP_ERRORS))
+		return;
+
 	va_start(ap, err);
 	snprintf(errbuf, sizeof(errbuf), "SNMP: ");
-	vsnprintf(errbuf+strlen(errbuf), sizeof(errbuf)-strlen(errbuf),
-	    err, ap);
+	vsnprintf(errbuf + strlen(errbuf),
+	    sizeof(errbuf) - strlen(errbuf), err, ap);
 	va_end(ap);
 
 	syslog(LOG_ERR, "%s", errbuf);
@@ -1519,18 +1746,22 @@ asn_error_func(const struct asn_buf *b, const char *err, ...)
 	va_list ap;
 	u_int i;
 
+	if (!(snmp_trace & LOG_ASN1_ERRORS))
+		return;
+
 	va_start(ap, err);
 	snprintf(errbuf, sizeof(errbuf), "ASN.1: ");
-	vsnprintf(errbuf+strlen(errbuf), sizeof(errbuf)-strlen(errbuf),
-	    err, ap);
+	vsnprintf(errbuf + strlen(errbuf),
+	    sizeof(errbuf) - strlen(errbuf), err, ap);
 	va_end(ap);
 
 	if (b != NULL) {
-		snprintf(errbuf+strlen(errbuf), sizeof(errbuf)-strlen(errbuf),
-		    " at");
+		snprintf(errbuf + strlen(errbuf),
+		    sizeof(errbuf) - strlen(errbuf), " at");
 		for (i = 0; b->asn_len > i; i++)
-			snprintf(errbuf+strlen(errbuf),
-			    sizeof(errbuf)-strlen(errbuf), " %02x", b->asn_cptr[i]);
+			snprintf(errbuf + strlen(errbuf),
+			    sizeof(errbuf) - strlen(errbuf),
+			    " %02x", b->asn_cptr[i]);
 	}
 
 	syslog(LOG_ERR, "%s", errbuf);
