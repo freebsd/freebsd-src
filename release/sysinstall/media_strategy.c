@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.13 1995/05/23 18:06:14 jkh Exp $
+ * $Id: media_strategy.c,v 1.14 1995/05/24 01:27:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,7 +68,7 @@
 #undef CD9660
 #undef NFS
 
-#define MAX_ATTRIBS	20
+#define MAX_ATTRIBS	200
 #define MAX_NAME	511
 #define MAX_VALUE	4095
 
@@ -189,10 +189,10 @@ attr_match(struct attribs *attr, char *name)
 {
     int n = 0;
 
-    while((strcmp(attr[n].name, name)!=0) && (n < num_attribs) && (n < 20))
+    while((strcasecmp(attr[n].name, name)!=0) && (n < num_attribs) && (n < 20))
 	n++;
 
-    if (strcmp(attr[n].name, name)==0)
+    if (strcasecmp(attr[n].name, name)==0)
 	return((const char *) attr[n].value);
 
     return NULL;
@@ -345,9 +345,9 @@ mediaGetCDROM(char *dist)
 }
 
 void
-mediaCloseCDROM(Device *dev)
+mediaShutdownCDROM(Device *dev)
 {
-    msgDebug("In mediaCloseCDROM\n");
+    msgDebug("In mediaShutdownCDROM\n");
     if (unmount("/cdrom", 0) != 0)
 	msgConfirm("Could not unmount the CDROM: %s\n", strerror(errno));
     msgDebug("Unmount returned\n");
@@ -388,7 +388,7 @@ mediaGetFloppy(char *dist)
 }
 
 void
-mediaCloseFloppy(Device *dev)
+mediaShutdownFloppy(Device *dev)
 {
     return;
 }
@@ -405,6 +405,7 @@ mediaInitNetwork(Device *dev)
     int i;
     char *rp;
 
+    configResolv();
     if (!strncmp("cuaa", dev->name, 4)) {
 	if (tcpStartPPP()) {
 	    msgConfirm("You have selected a serial device as your network installation device.\nThe PPP dialer is now running on the 3rd screen (type ALT-F3 to interact\nwith it) and should be used to establish the link BEFORE YOU HIT RETURN\nhere!  Once you hit return in this screen (type ALT-F1 to return to this\nscreen from the PPP screen) the installation will assume that your link\nis set up and begin transfering the distributions over PPP.");
@@ -432,12 +433,10 @@ mediaInitNetwork(Device *dev)
 
     rp = getenv(VAR_GATEWAY);
     if (!rp)
-	msgConfirm("No gateway has been set. You will not be able to access machines\n
+	msgConfirm("No gateway has been set. You will not be able to access hosts\n
 not on the local network\n");
     else
 	vsystem("route add default %s", rp);
-
-    config_resolv();
     return TRUE;
 }
 
@@ -448,13 +447,13 @@ mediaGetTape(char *dist)
 }
 
 void
-mediaCloseTape(Device *dev)
+mediaShutdownTape(Device *dev)
 {
     return;
 }
 
 void
-mediaCloseNetwork(Device *dev)
+mediaShutdownNetwork(Device *dev)
 {
     return;
 }
@@ -465,7 +464,7 @@ Boolean
 mediaInitFTP(Device *dev)
 {
     int i;
-    char *url, *hostname, *dir, *dir_p;
+    char *url, *hostname, *dir;
     char *my_name, email[BUFSIZ];
     Device *netDevice = (Device *)dev->private;
 
@@ -498,6 +497,7 @@ mediaInitFTP(Device *dev)
     *(dir++) = '\0';
     msgDebug("hostname = `%s'\n", hostname);
     msgDebug("dir = `%s'\n", dir);
+    msgNotify("Looking up %s..", hostname);
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
 	msgConfirm("Cannot resolve hostname `%s'!\n", hostname);
 	return FALSE;
@@ -506,6 +506,7 @@ mediaInitFTP(Device *dev)
     snprintf(email, BUFSIZ, "installer@%s", my_name);
     msgDebug("Using fake e-mail `%s'\n", email);
 
+    msgNotify("Logging in as anonymous.");
     if ((i = FtpOpen(ftp, hostname, "anonymous", email)) != 0) {
 	msgConfirm("Couldn't open FTP connection to %s: %s (%u)\n", hostname, strerror(i), i);
 	return FALSE;
@@ -514,12 +515,10 @@ mediaInitFTP(Device *dev)
     if (getenv("ftpPassive"))
 	FtpPassive(ftp, 1);
     FtpBinary(ftp, 1);
-    FtpChdir(ftp, "/");
-    while ((dir_p = index(dir, '/')) != NULL) {
-	*dir_p = '\0';
+    msgNotify("CD to distribution in ~ftp/%s", dir ? dir : "");
+    if (*dir != '\0')
 	FtpChdir(ftp, dir);
-	dir = ++dir_p;
-    }
+    msgDebug("leaving mediaInitFTP!\n");
     return TRUE;
 }
 
@@ -532,16 +531,19 @@ mediaGetFTP(char *dist)
     const char *tmp;
     struct attribs	*dist_attr;
     
+    msgNotify("Attempting to get distribution `%s' over FTP\n", dist);
     dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
 
     snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
 
+    msgDebug("Parsing attributes file\n");
     if (attr_parse(&dist_attr, buf) == 0)
     {
 	msgConfirm("Cannot load information file for distribution\n");
 	return -1;
     }
    
+    msgDebug("Looking for attribute `pieces'\n");
     tmp = attr_match(dist_attr, "pieces");
     numchunks = atoi(tmp);
     msgDebug("Attempting to extract distribution from %u files\n", numchunks);
@@ -596,7 +598,7 @@ mediaGetFTP(char *dist)
 }
 
 void
-mediaCloseFTP(Device *dev)
+mediaShutdownFTP(Device *dev)
 {
 }
 
@@ -612,7 +614,7 @@ mediaGetUFS(char *dist)
     return -1;
 }
 
-/* UFS has no close routine since this is handled at the device level */
+/* UFS has no Shutdown routine since this is handled at the device level */
 
 
 Boolean
@@ -628,6 +630,6 @@ mediaGetDOS(char *dist)
 }
 
 void
-mediaCloseDOS(Device *dev)
+mediaShutdownDOS(Device *dev)
 {
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.2 1995/05/23 18:06:12 jkh Exp $
+ * $Id: config.c,v 1.3 1995/05/24 01:27:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -114,7 +114,7 @@ seq_num(Chunk *c1)
 }
 
 void
-config_fstab(void)
+configFstab(void)
 {
     Device **devs;
     Disk *disk;
@@ -183,13 +183,49 @@ config_fstab(void)
     fclose(fstab);
 }
 
+/*
+ * This sucks in /etc/sysconfig, substitutes anything needing substitution, then
+ * writes it all back out.  It's pretty gross and needs re-writing at some point.
+ */
 void
-config_sysconfig(void)
+configSysconfig(void)
 {
+    FILE *fp;
+    char *lines[5001];	/* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
+    char line[256];
+    Variable *v;
+    int i, nlines = 0;
+
+    fp = fopen("/etc/sysconfig", "r");
+    if (!fp) {
+	msgConfirm("Unable to open /etc/sysconfig file!  Things may work\nrather strangely as a result of this.");
+	return;
+    }
+    for (i = 0; i < 5000; i++) {
+	if (!fgets(line, 256, fp))
+	    break;
+	lines[nlines++] = strdup(line);
+    }
+    lines[nlines] = NULL;
+    for (v = VarHead; v; v = v->next) {
+	for (i = 0; i < nlines; i++) {
+	}
+    }
+}
+
+int
+configSaverTimeout(char *str)
+{
+    char *val;
+
+    val = msgGetInput("60", "Enter time-out period in seconds for screen saver");
+    if (val)
+	variable_set2("blanktime", val);
+    return 0;
 }
 
 void
-config_resolv(void)
+configResolv(void)
 {
     static Boolean alreadyDone = FALSE;
     FILE *fp;
@@ -209,19 +245,28 @@ config_resolv(void)
     }
     fprintf(fp, "domain\t%s\n", getenv(VAR_DOMAINNAME));
     fprintf(fp, "nameserver\t%s\n", getenv(VAR_NAMESERVER));
+    msgNotify("Wrote /etc/resolv.conf");
     fclose(fp);
     alreadyDone = TRUE;
 }
 
 int
-config_packages(char *str)
+configPackages(char *str)
 {
+    if (!mediaDevice || mediaDevice->type != DEVICE_TYPE_CDROM) {
+	if (getpid() == 1) {
+	    if (!mediaSetCDROM(NULL))
+		return 0;
+	    else
+		vsystem("pkg_manage /cdrom");
+	}
+    }
+    vsystem("pkg_manage");
     return 0;
 }
 
 int
-config_ports(char *str)
+configPorts(char *str)
 {
     return 0;
 }
-
