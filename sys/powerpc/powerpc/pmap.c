@@ -1459,10 +1459,13 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	    ("pmap_protect: non current pmap"));
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
+		mtx_lock(&Giant);
 		pmap_remove(pm, sva, eva);
+		mtx_unlock(&Giant);
 		return;
 	}
 
+	mtx_lock(&Giant);
 	vm_page_lock_queues();
 	for (; sva < eva; sva += PAGE_SIZE) {
 		pvo = pmap_pvo_find_va(pm, sva, &pteidx);
@@ -1490,6 +1493,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			pmap_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
 	}
 	vm_page_unlock_queues();
+	mtx_unlock(&Giant);
 }
 
 /*

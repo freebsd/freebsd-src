@@ -1208,13 +1208,16 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	    pm->pm_context[PCPU_GET(cpuid)], sva, eva, prot);
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
+		mtx_lock(&Giant);
 		pmap_remove(pm, sva, eva);
+		mtx_unlock(&Giant);
 		return;
 	}
 
 	if (prot & VM_PROT_WRITE)
 		return;
 
+	mtx_lock(&Giant);
 	vm_page_lock_queues();
 	if (eva - sva > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, sva, eva, pmap_protect_tte);
@@ -1227,6 +1230,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		tlb_range_demap(pm, sva, eva - 1);
 	}
 	vm_page_unlock_queues();
+	mtx_unlock(&Giant);
 }
 
 /*
