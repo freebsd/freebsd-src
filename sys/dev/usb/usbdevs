@@ -989,6 +989,7 @@ product PALM ZIRE		0x0070	Palm Zire
 
 /* Panasonic products */
 product	PANASONIC KXLCB20AN	0x0d0a	CD-R Drive KXL-CB20AN
+product	PANASONIC KXLCB35AN	0x0d0e	DVD-ROM & CD-R/RW
 product PANASONIC SDCAAE	0x1b00	MultiMediaCard Adapter
 
 /* Peracom products */
