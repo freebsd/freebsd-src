@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.45.2.3 1995/06/05 21:50:41 jkh Exp $
+#	$Id: GENERIC,v 1.46 1995/06/11 19:31:11 rgrimes Exp $
 #
 
 machine		"i386"
@@ -40,6 +40,9 @@ disk		wd1	at wdc0 drive 1
 controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
+
+options         ATAPI   #Enable ATAPI support for IDE bus
+device          wcd0    #IDE CD-ROM
 
 controller	ncr0
 controller	ahc0
