@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.100 1999/08/21 06:24:11 msmith Exp $
+ *	$Id: apm.c,v 1.101 1999/08/22 14:48:00 iwasaki Exp $
  */
 
 #include "opt_devfs.h"
@@ -800,6 +800,19 @@ apm_not_halt_cpu(void)
 /* device driver definitions */
 
 /*
+ * Create "connection point"
+ */
+static void
+apm_identify(driver_t *driver, device_t parent)
+{
+	device_t child;
+
+	child = BUS_ADD_CHILD(parent, 0, "apm", 0);
+	if (child == NULL)
+		panic("apm_identify");
+}
+
+/*
  * probe for APM BIOS
  */
 static int
@@ -1363,6 +1376,7 @@ apmpoll(dev_t dev, int events, struct proc *p)
 
 static device_method_t apm_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	apm_identify),
 	DEVMETHOD(device_probe,		apm_probe),
 	DEVMETHOD(device_attach,	apm_attach),
 
