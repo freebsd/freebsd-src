@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.7 1994/09/02 10:24:55 davidg Exp $
+ * $Id: ffs_inode.c,v 1.8 1994/10/10 01:04:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -163,9 +163,10 @@ ffs_truncate(ap)
 	int aflags, error, allerror;
 	off_t osize;
 
-	if (length < 0)
-		panic("ffs_truncate: invalid length");
 	oip = VTOI(ovp);
+	fs = oip->i_fs;
+	if (length < 0 || length > fs->fs_maxfilesize)
+		return (EINVAL);
 	tv = time;
 	if (ovp->v_type == VLNK &&
 	    (oip->i_size < ovp->v_mount->mnt_maxsymlinklen || oip->i_din.di_blocks == 0)) {
@@ -188,7 +189,6 @@ ffs_truncate(ap)
 		return (error);
 #endif
 	vnode_pager_setsize(ovp, (u_long)length);
-	fs = oip->i_fs;
 	osize = oip->i_size;
 	/*
 	 * Lengthen the size of the file. We must ensure that the
