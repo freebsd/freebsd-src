@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.81 1999/05/25 12:43:40 roger Exp $ */
+/* $Id: brooktree848.c,v 1.82 1999/05/30 16:53:32 phk Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt848A, Bt849A, Bt878, Bt879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -668,6 +668,10 @@ bktr_probe(struct device *parent, struct cfdata *cf, void *aux)
     pci_devaddr_t *pa;
     pci_devres_t res;
     struct isa_attach_args *ia = aux;
+    static int once;
+
+    if (!once++)
+	cdevsw_add(&bktr_cdevsw);
 
     if (ia->ia_bustype != BUS_PCI)
 	return (0);
@@ -7017,29 +7021,6 @@ static void msp_autodetect( bktr_ptr_t bktr ) {
     /* msp_write(bktr, 0x12, 0x0014, 0x7f40); */
 }
 
-/******************************************************************************
- * magic:
- */
-
-
-#ifdef __FreeBSD__
-static int bktr_devsw_installed;
-
-static void
-bktr_drvinit( void *unused )
-{
-	dev_t dev;
-
-	if ( ! bktr_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&bktr_cdevsw, NULL);
-		bktr_devsw_installed = 1;
-	}
-}
-
-SYSINIT(bktrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bktr_drvinit,NULL)
-
-#endif  /* __FreeBSD__ */
 #endif /* !defined(__FreeBSD__) || (NBKTR > 0 && NPCI > 0) */
 
 /* Local Variables: */

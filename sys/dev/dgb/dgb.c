@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.48 1999/05/08 07:02:24 phk Exp $
+ *  dgb.c $Id: dgb.c,v 1.49 1999/05/30 16:51:56 phk Exp $
  *
  *  Digiboard driver.
  *
@@ -425,7 +425,10 @@ dgbprobe(dev)
 	int i, v;
 	u_long win_size;  /* size of vizible memory window */
 	int unit=dev->id_unit;
+	static int once;
 
+	if (!once++)
+		cdevsw_add(&dgb_cdevsw);
 	sc->unit=dev->id_unit;
 	sc->port=dev->id_iobase;
 
@@ -2300,22 +2303,5 @@ disc_optim(tp, t)
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 }
-
-
-static int dgb_devsw_installed;
-
-static void 
-dgb_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! dgb_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&dgb_cdevsw, NULL);
-		dgb_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(dgbdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,dgb_drvinit,NULL)
 
 #endif /* NDGB > 0 */

@@ -131,6 +131,10 @@ spigot_probe(struct isa_device *devp)
 {
 int			status;
 struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
+static int once;
+
+	if (!once++)
+		cdevsw_add(&spigot_cdevsw);
 
 	ss->flags = 0;
 	ss->maddr = 0;
@@ -290,22 +294,5 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 
 	return i386_btop(ss->maddr);
 }
-
-
-static int spigot_devsw_installed;
-
-static void 	spigot_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! spigot_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&spigot_cdevsw, NULL);
-		spigot_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(spigotdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spigot_drvinit,NULL)
-
 
 #endif /* NSPIGOT */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.56 1999/05/12 22:33:08 peter Exp $
+ * $Id: conf.h,v 1.57 1999/05/30 16:53:40 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -127,40 +127,6 @@ struct cdevsw {
 	int		d_bmaj;
 };
 
-#ifdef KERNEL
-extern struct cdevsw *cdevsw[];
-extern int bmaj2cmaj[];
-
-static __inline
-struct cdevsw *
-devsw(dev_t dev)
-{
-	return(cdevsw[major(dev)]);
-}
-
-static __inline
-struct cdevsw *
-bdevsw(dev_t dev)
-{
-	struct cdevsw *c;
-	int i = major(dev);
-
-	if (bmaj2cmaj[i] == 254)
-		return 0;
-
-	c = cdevsw[bmaj2cmaj[major(dev)]];
-	if (!c) {
-		printf("bogus bdev dev_t %p, no cdev\n", (void *)dev);
-		Debugger("Bummer");
-		return 0;
-	}
-	/* CMAJ zero is the console, which has no strategy so this works */
-	if (c->d_strategy)
-		return (c);
-	return (0);
-}
-#endif
-
 /*
  * Line discipline switch table
  */
@@ -214,6 +180,8 @@ d_mmap_t	nommap;
 
 d_dump_t	nodump;
 
+#define NUMCDEVSW 256
+
 /*
  * nopsize is little used, so not worth having dummy functions for.
  */
@@ -252,12 +220,13 @@ DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+cmaj*256+bmaj)
 
 int	devsw_module_handler __P((struct module *mod, int what, void *arg));
 
-int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw **old));
-void	cdevsw_add_generic __P((int bdev, int cdev, struct cdevsw *cdevsw));
+int	cdevsw_add __P((struct cdevsw *new));
 dev_t	chrtoblk __P((dev_t dev));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 void	setconf __P((void));
+struct cdevsw *bdevsw __P((dev_t dev));
+struct cdevsw *devsw __P((dev_t dev));
 #endif /* KERNEL */
 
 #endif /* !_SYS_CONF_H_ */

@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.45 1999/05/09 20:29:04 phk Exp $ */
+/* $Id: scd.c,v 1.46 1999/05/30 16:52:24 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -718,6 +718,10 @@ scd_probe(struct isa_device *dev)
 	static char namebuf[8+16+8+3];
 	char *s = namebuf;
 	int loop_count = 0;
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&scd_cdevsw);
 
 	scd_data[unit].flags = SCDPROBING;
 	scd_data[unit].iobase = dev->id_iobase;
@@ -1573,20 +1577,5 @@ scd_toc_entry (int unit, struct ioc_read_toc_single_entry *te)
 
 	return 0;
 }
-
-
-static int scd_devsw_installed;
-
-static void 	scd_drvinit(void *unused)
-{
-
-	if( ! scd_devsw_installed ) {
-		cdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &scd_cdevsw);
-		scd_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(scddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,scd_drvinit,NULL)
-
 
 #endif /* NSCD > 0 */

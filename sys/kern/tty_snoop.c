@@ -83,11 +83,7 @@ snpdevtotty (dev)
 	dev_t		dev;
 {
 	struct cdevsw	*cdp;
-	int		maj;
 
-	maj = major(dev);
-	if ((u_int)maj >= nchrdev)
-		return (NULL);
 	cdp = devsw(dev);
 	if (cdp == NULL)
 		return (NULL);
@@ -533,14 +529,12 @@ static void
 snp_drvinit(unused)
 	void *unused;
 {
-	dev_t dev;
 #ifdef DEVFS
 	int	i;
 #endif
 
 	if( ! snp_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&snp_cdevsw, NULL);
+		cdevsw_add(&snp_cdevsw);
 		snp_devsw_installed = 1;
 #ifdef DEVFS
 		for ( i = 0 ; i < NSNP ; i++) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.68 1999/05/12 11:05:23 phk Exp $
+ * $Id: vm_swap.c,v 1.69 1999/05/30 16:53:49 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -223,7 +223,7 @@ swapon(p, uap)
 	switch (vp->v_type) {
 	case VBLK:
 		dev = vp->v_rdev;
-		if (major(dev) >= nblkdev || bdevsw(dev) == NULL) {
+		if (bdevsw(dev) == NULL) {
 			error = ENXIO;
 			break;
 		}
@@ -368,7 +368,7 @@ static void 	sw_drvinit(void *unused)
 {
 
 	if( ! sw_devsw_installed ) {
-		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &sw_cdevsw);
+		cdevsw_add(&sw_cdevsw);
 		/*
 		 * XXX: This is pretty gross, but it will disappear with
 		 * the blockdevices RSN.

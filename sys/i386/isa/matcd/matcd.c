@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.39 1999/05/07 07:03:36 phk Exp $ */
+/* $Id: matcd.c,v 1.40 1999/05/30 16:52:35 phk Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -1214,7 +1214,10 @@ matcd_probe(struct isa_device *dev)
 	int	i,cdrive;
 	unsigned char	y;
 	int port = dev->id_iobase;	/*Take port hint from config file*/
+	static int once;
 
+	if (!once++)
+		cdevsw_add(&matcd_cdevsw);
 	cdrive=nextcontroller;		/*Controller defined by pass for now*/
 	if (nextcontroller==NUMCTRLRS) {
 		printf("matcdc%d: - Too many interfaces specified in config\n",
@@ -2736,22 +2739,6 @@ static int matcd_igot(struct ioc_capability * sqp)
 #include	<i386/isa/matcd/audio.c>	/*<15>ioctls related to
 						      audio are here*/
 #endif	/*FULLDRIVER*/
-
-
-static int matcd_devsw_installed;
-
-static void
-matcd_drvinit(void *unused)
-{
-
-	if( ! matcd_devsw_installed ) {
-		cdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &matcd_cdevsw);
-		matcd_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(matcddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,matcd_drvinit,NULL)
-
 
 /*End of matcd.c*/
 

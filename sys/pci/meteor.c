@@ -539,6 +539,10 @@ register int		err = 0;
 static	const char *
 met_probe (pcici_t tag, pcidi_t type)
 {
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&meteor_cdevsw);
 	
 	switch (type) {
 	case SAA7116_PHILIPS_ID:	/* meteor */
@@ -2094,23 +2098,5 @@ meteor_mmap(dev_t dev, vm_offset_t offset, int nprot)
 
 	return i386_btop(vtophys(mtr->bigbuf) + offset);
 }
-
-
-#if !defined(METEOR_FreeBSD_210)	/* XXX */
-static int meteor_devsw_installed;
-
-static void 	meteor_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! meteor_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&meteor_cdevsw, NULL);
-		meteor_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(meteordev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,meteor_drvinit,NULL)
-#endif
 
 #endif /* NMETEOR > 0 */

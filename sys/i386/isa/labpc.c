@@ -417,6 +417,7 @@ labpcinit(void)
 		bzero(labpcs, NLABPC * sizeof(struct ctlr *));
 		return 1;
 	}
+	cdevsw_add(&labpc_cdevsw);
 	return 0;
 }
 
@@ -1099,21 +1100,3 @@ labpcioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 			return ENOTTY;
 	}
 }
-
-
-static int	labpc_devsw_installed = 0;
-
-static void 	labpc_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! labpc_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&labpc_cdevsw,NULL);
-		labpc_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(labpcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,labpc_drvinit,NULL)
-
-

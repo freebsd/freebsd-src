@@ -120,6 +120,10 @@ static int get_tick __P((void));
 static int
 joyprobe (struct isa_device *dev)
 {
+    static int once;
+
+    if (!once++)
+	cdevsw_add(&joy_cdevsw);
 #ifdef WANT_JOYSTICK_CONNECTED
     outb (dev->id_iobase, 0xff);
     DELAY (10000); /*  10 ms delay */
@@ -250,22 +254,6 @@ get_tick ()
 
     return (high << 8) | low;
 }
-
-
-static int joy_devsw_installed;
-
-static void 	joy_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! joy_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&joy_cdevsw,NULL);
-		joy_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(joydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,joy_drvinit,NULL)
 
 #ifdef JOY_MODULE
 

@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.50 1999/05/07 07:03:33 phk Exp $
+ * $Id: wt.c,v 1.51 1999/05/30 16:52:31 phk Exp $
  *
  */
 
@@ -223,6 +223,10 @@ static int
 wtprobe (struct isa_device *id)
 {
 	wtinfo_t *t = wttab + id->id_unit;
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&wt_cdevsw);
 
 	t->unit = id->id_unit;
 	t->chan = id->id_drq;
@@ -992,24 +996,5 @@ wtstatus (wtinfo_t *t)
 	splx(x);
 	return (1);
 }
-
-
-static int wt_devsw_installed;
-
-static void 
-wt_drvinit(void *unused)
-{
-
-	if( ! wt_devsw_installed ) {
-		dev_t dev;
-
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &wt_cdevsw, NULL);
-		wt_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(wtdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wt_drvinit,NULL)
-
 
 #endif /* NWT */

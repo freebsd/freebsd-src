@@ -121,12 +121,10 @@ tunattach(dummy)
 {
 	register int i;
 	struct ifnet *ifp;
-	dev_t dev;
 
 	if ( tun_devsw_installed )
 		return;
-	dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &tun_cdevsw, NULL);
+	cdevsw_add(&tun_cdevsw);
 	tun_devsw_installed = 1;
 	for ( i = 0; i < NTUN; i++ ) {
 #ifdef DEVFS

@@ -276,8 +276,7 @@ ext2_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return (ENOTBLK);
 	}
-	if (major(devvp->v_rdev) >= nblkdev ||
-	    bdevsw(devvp->v_rdev) == NULL) {
+	if (bdevsw(devvp->v_rdev) == NULL) {
 		vrele(devvp);
 		return (ENXIO);
 	}

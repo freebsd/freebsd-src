@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.78 1999/05/04 15:43:02 wpaul Exp $
+ *	$Id: pccard.c,v 1.79 1999/05/30 16:53:28 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -185,6 +185,7 @@ pccard_configure(dummy)
 	printf("Initializing PC-card drivers:");
 	for (drv = drivers;  drv != NULL;  drv = drv->next)
 		printf(" %s", drv->name);
+	cdevsw_add(&crd_cdevsw);
 	printf("\n");
 }
 
@@ -1111,18 +1112,3 @@ find_driver(char *name)
 			return(drv);
 	return(0);
 }
-
-static void
-crd_drvinit(void *unused)
-{
-	static int crd_devsw_installed;
-	dev_t dev;
-
-	if (!crd_devsw_installed) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &crd_cdevsw, NULL);
-		crd_devsw_installed = 1;
-	}
-}
-
-SYSINIT(crddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,crd_drvinit,NULL)

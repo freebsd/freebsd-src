@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.26 1999/04/28 10:53:53 dt Exp $
+ *	$Id: lpt.c,v 1.27 1999/05/30 16:53:17 phk Exp $
  */
 
 /*
@@ -1443,11 +1443,9 @@ static int lpt_devsw_installed;
 
 static void 	lpt_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! lpt_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&lpt_cdevsw, NULL);
+		cdevsw_add(&lpt_cdevsw);
 		lpt_devsw_installed = 1;
     	}
 }

@@ -359,7 +359,10 @@ static int twprobe(idp)
   struct tw_sc sc;
   int d;
   int tries;
+  static int once;
 
+  if (!once++)
+	cdevsw_add(&tw_cdevsw);
   sc.sc_port = idp->id_iobase;
   /* Search for the zero crossing signal at ports, bit combinations. */
   tw_zcport = tw_control;
@@ -1167,22 +1170,5 @@ static int twchecktime(int target, int tol)
   }
 }
 #endif /* HIRESTIME */
-
-
-static int tw_devsw_installed;
-
-static void 	tw_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! tw_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&tw_cdevsw, NULL);
-		tw_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(twdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,tw_drvinit,NULL)
-
 
 #endif /* NTW */

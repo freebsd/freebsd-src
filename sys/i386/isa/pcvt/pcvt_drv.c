@@ -386,11 +386,7 @@ pcattach(struct isa_device *dev)
 	async_update(UPDATE_START);	/* start asynchronous updates */
 
 #if PCVT_FREEBSD > 205
-	{
-	dev_t dev = makedev(CDEV_MAJOR, 0);
-
-	cdevsw_add(&dev, &pc_cdevsw, NULL);
-	}
+	cdevsw_add(&pc_cdevsw);
 
 #ifdef DEVFS	
 	for(vt = 0; vt < MAXCONS; vt++) {

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kbd.c,v 1.7 1999/05/30 14:55:24 phk Exp $
+ * $Id: kbd.c,v 1.8 1999/05/30 16:51:31 phk Exp $
  */
 
 #include "kbd.h"
@@ -431,11 +431,9 @@ static void
 vkbdattach(void *arg)
 {
 	static int kbd_devsw_installed = FALSE;
-	dev_t dev;
 
 	if (!kbd_devsw_installed) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &kbd_cdevsw, NULL);
+		cdevsw_add(&kbd_cdevsw);
 		kbd_devsw_installed = TRUE;
 	}
 }
