@@ -161,7 +161,6 @@ vm_pagezero(void __unused *arg)
 			wakeup_needed = TRUE;
 			msleep(&zero_state, &vm_page_queue_mtx,
 			    PDROP | td->td_priority, "pgzero", hz * 300);
-			pages = 0;
 		}
 	}
 }
