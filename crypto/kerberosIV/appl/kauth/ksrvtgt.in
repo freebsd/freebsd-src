@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: ksrvtgt.in,v 1.2 1997/04/05 21:29:17 assar Exp $
+# $Id$
 
 usage="Usage: `basename $0` name instance [[realm] srvtab]"
 
@@ -8,7 +8,7 @@ if [ $# -lt 2 -o $# -gt 4 ]; then
 	exit 1
 fi
 
-srvtab="${4-${3-/etc/srvtab}}"
+srvtab="${4-${3-/etc/kerberosIV/srvtab}}"
 realm="${4+@$3}"
 
-%bindir%/kauth -n "$1.$2$realm" -l 5 -f "$srvtab "
+kauth -n "$1.$2$realm" -l 5 -f "$srvtab "

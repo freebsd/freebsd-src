@@ -1,5 +1,5 @@
 /*
- * $Id: krb_db.h,v 1.15 1996/12/17 20:34:32 assar Exp $ 
+ * $Id$ 
  *
  * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
  *
@@ -24,7 +24,7 @@
 #define KERB_DEFAULT_NAME	"default"
 #define KERB_DEFAULT_INST	""
 #ifndef DB_DIR
-#define DB_DIR			"/var/kerberos"
+#define DB_DIR			"/var/db/kerberos"
 #endif
 #ifndef DBM_FILE
 #define	DBM_FILE		DB_DIR "/principal"
