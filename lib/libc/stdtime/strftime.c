@@ -141,8 +141,8 @@ label:
 				** representations.
 				** (ado, 5/24/93)
 				**
-				** FreeBSD extensions
-				**      %OB %Ef %EF
+				** FreeBSD extension
+				**      %OB
 				*/
 				if (Ealternative || Oalternative)
 					break;
