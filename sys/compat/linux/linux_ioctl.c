@@ -1092,18 +1092,6 @@ bsd_to_linux_msf_lba(u_char af, union msf_lba *bp, union linux_cdrom_addr *lp)
 }
 
 static void
-linux_to_bsd_msf_lba(u_char af, union linux_cdrom_addr *lp, union msf_lba *bp)
-{
-	if (af == CD_LBA_FORMAT)
-		bp->lba = lp->lba;
-	else {
-		bp->msf.minute = lp->msf.minute;
-		bp->msf.second = lp->msf.second;
-		bp->msf.frame = lp->msf.frame;
-	}
-}
-
-static void
 set_linux_cdrom_addr(union linux_cdrom_addr *addr, int format, int lba)
 {
 	if (format == LINUX_CDROM_MSF) {
