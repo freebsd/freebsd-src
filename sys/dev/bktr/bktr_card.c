@@ -210,73 +210,73 @@ static const struct CARDTYPE cards[] = {
 	   { 0x01, 0x02, 0x01, 0x00, 1 },	/* audio MUX values */
 	   0x0f },				/* GPIO mask */
 
-        {  CARD_AVER_MEDIA,			/* the card id */
-          "AVer Media TV/FM",                   /* the 'name' */
-           NULL,                                /* the tuner */
+	{  CARD_AVER_MEDIA,			/* the card id */
+	  "AVer Media TV/FM",                   /* the 'name' */
+	   NULL,                                /* the tuner */
 	   0,					/* the tuner i2c address */
-           0,                                   /* dbx is optional */
-           0,
+	   0,                                   /* dbx is optional */
 	   0,
-           0,                                   /* EEProm type */
-           0,                                   /* EEProm size */
-           { 0x0c, 0x08, 0x04, 0x00, 1 },	/* audio MUX values */
+	   0,
+	   0,                                   /* EEProm type */
+	   0,                                   /* EEProm size */
+	   { 0x0c, 0x08, 0x04, 0x00, 1 },	/* audio MUX values */
 	   0x1f },				/* GPIO mask */
 
-        {  CARD_OSPREY,				/* the card id */
-          "MMAC Osprey",                   	/* the 'name' */
-           NULL,                                /* the tuner */
+	{  CARD_OSPREY,				/* the card id */
+	  "MMAC Osprey",                   	/* the 'name' */
+	   NULL,                                /* the tuner */
 	   0,					/* the tuner i2c address */
-           0,                                   /* dbx is optional */
+	   0,                                   /* dbx is optional */
 	   0,
-           0,
+	   0,
 	   PFC8582_WADDR,			/* EEProm type */
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
-           { 0x00, 0x00, 0x00, 0x00, 0 },	/* audio MUX values */
+	   { 0x00, 0x00, 0x00, 0x00, 0 },	/* audio MUX values */
 	   0 },					/* GPIO mask */
 
-        {  CARD_NEC_PK,                         /* the card id */
-          "NEC PK-UG-X017",                     /* the 'name' */
-           NULL,                                /* the tuner */
-           0,                                   /* the tuner i2c address */
-           0,                                   /* dbx is optional */
+	{  CARD_NEC_PK,                         /* the card id */
+	  "NEC PK-UG-X017",                     /* the 'name' */
+	   NULL,                                /* the tuner */
+	   0,                                   /* the tuner i2c address */
+	   0,                                   /* dbx is optional */
 	   0,
-           0,
-           0,                                   /* EEProm type */
-           0,                                   /* EEProm size */
-           { 0x01, 0x02, 0x01, 0x00, 1 },	/* audio MUX values */
+	   0,
+	   0,                                   /* EEProm type */
+	   0,                                   /* EEProm size */
+	   { 0x01, 0x02, 0x01, 0x00, 1 },	/* audio MUX values */
 	   0x0f },				/* GPIO mask */
 
-        {  CARD_IO_BCTV2,                       /* the card id */
-          "I/O DATA GV-BCTV2/PCI",              /* the 'name' */
-           NULL,                                /* the tuner */
-           0,                                   /* the tuner i2c address */
-           0,                                   /* dbx is optional */
-           0,
+	{  CARD_IO_BCTV2,                       /* the card id */
+	  "I/O DATA GV-BCTV2/PCI",              /* the 'name' */
+	   NULL,                                /* the tuner */
+	   0,                                   /* the tuner i2c address */
+	   0,                                   /* dbx is optional */
 	   0,
-           0,                                   /* EEProm type */
-           0,                                   /* EEProm size */
-           { 0x00, 0x00, 0x00, 0x00, 1 },	/* Has special MUX handler */
+	   0,
+	   0,                                   /* EEProm type */
+	   0,                                   /* EEProm size */
+	   { 0x00, 0x00, 0x00, 0x00, 1 },	/* Has special MUX handler */
 	   0x0f },				/* GPIO mask */
 
-        {  CARD_FLYVIDEO,			/* the card id */
-          "FlyVideo",				/* the 'name' */
-           NULL,				/* the tuner */
-           0,					/* the tuner i2c address */
-           0,					/* dbx is optional */
-           0,					/* msp34xx is optional */
-           0,					/* dpl3518a is optional */
+	{  CARD_FLYVIDEO,			/* the card id */
+	  "FlyVideo",				/* the 'name' */
+	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
+	   0,					/* dbx is optional */
+	   0,					/* msp34xx is optional */
+	   0,					/* dpl3518a is optional */
 	   0xac,				/* EEProm type */
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
-           { 0x000, 0x800, 0x400, 0x8dff00, 1 },/* audio MUX values */
+	   { 0x000, 0x800, 0x400, 0x8dff00, 1 },/* audio MUX values */
 	   0x8dff00 },				/* GPIO mask */
 
 	{  CARD_ZOLTRIX,			/* the card id */
 	  "Zoltrix",				/* the 'name' */
-           NULL,				/* the tuner */
-           0,					/* the tuner i2c address */
-           0,					/* dbx is optional */
-           0,					/* msp34xx is optional */
-           0,					/* dpl3518a is optional */
+	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
+	   0,					/* dbx is optional */
+	   0,					/* msp34xx is optional */
+	   0,					/* dpl3518a is optional */
 	   0,					/* EEProm type */
 	   0,					/* EEProm size */
 	   { 0x04, 0x01, 0x00, 0x0a, 1 },	/* audio MUX values */
@@ -284,11 +284,11 @@ static const struct CARDTYPE cards[] = {
 
 	{  CARD_KISS,				/* the card id */
 	  "KISS TV/FM PCI",			/* the 'name' */
-           NULL,				/* the tuner */
-           0,					/* the tuner i2c address */
-           0,					/* dbx is optional */
-           0,					/* msp34xx is optional */
-           0,					/* dpl3518a is optional */
+	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
+	   0,					/* dbx is optional */
+	   0,					/* msp34xx is optional */
+	   0,					/* dpl3518a is optional */
 	   0,					/* EEProm type */
 	   0,					/* EEProm size */
 	   { 0x0c, 0x00, 0x0b, 0x0b, 1 },	/* audio MUX values */
@@ -296,7 +296,7 @@ static const struct CARDTYPE cards[] = {
 
 	{  CARD_VIDEO_HIGHWAY_XTREME,		/* the card id */
 	  "Video Highway Xtreme",		/* the 'name' */
-           NULL,				/* the tuner */
+	   NULL,				/* the tuner */
 	   0,
 	   0,
 	   0,
@@ -331,27 +331,27 @@ static const struct CARDTYPE cards[] = {
 	   { 0x621000, 0x621000, 0x621000, 0xE21000, 1 }, /* audio MUX values */
 	   0xfff000 },				/* GPIO mask */
 
-        {  CARD_TERRATVPLUS,                    /* the card id */
-          "TerraTVplus",                        /* the 'name' */
-           NULL,                                /* the tuner */
+	{  CARD_TERRATVPLUS,                    /* the card id */
+	  "TerraTVplus",                        /* the 'name' */
+	   NULL,                                /* the tuner */
 	   0,
 	   0,
 	   0,
 	   0,
 	   0,					/* EEProm type */
 	   0,					/* EEProm size */
-           { 0x20000, 0x00000, 0x30000, 0x40000, 1 }, /* audio MUX values*/
-           0x70000 },                           /* GPIO mask */
+	   { 0x20000, 0x00000, 0x30000, 0x40000, 1 }, /* audio MUX values*/
+	   0x70000 },                           /* GPIO mask */
 
-        {  CARD_IO_BCTV3,                       /* the card id */
-          "I/O DATA GV-BCTV3/PCI",              /* the 'name' */
-           NULL,                                /* the tuner */
-           0,                                   /* the tuner i2c address */
-           0,                                   /* dbx is optional */
-           0,
+	{  CARD_IO_BCTV3,                       /* the card id */
+	  "I/O DATA GV-BCTV3/PCI",              /* the 'name' */
+	   NULL,                                /* the tuner */
+	   0,                                   /* the tuner i2c address */
+	   0,                                   /* dbx is optional */
 	   0,
-           0,                                   /* EEProm type */
-           0,                                   /* EEProm size */
+	   0,
+	   0,                                   /* EEProm type */
+	   0,                                   /* EEProm size */
 	   /* Tuner, Extern, Intern, Mute, Enabled */
 	   { 0x10000, 0, 0x10000, 0, 1 },	/* audio MUX values */
 	   0x10f00 },				/* GPIO mask */
@@ -380,17 +380,17 @@ static const struct CARDTYPE cards[] = {
 	   { 0x02, 0x01, 0x00, 0x0a, 1 },	/* audio MUX values */
 	   0x03000F },				/* GPIO mask */
 
-        {  CARD_PIXELVIEW_PLAYTV_PAK,       /* the card id */
-           "PixelView PlayTV Pak",              /* the 'name' */
-            NULL,                               /* the tuner */
-            0,                                  /* the tuner i2c address */
-            0,                                  /* dbx is optional */
-            0,
-            0,
-            PFC8582_WADDR,                      /* EEProm type */
-            (u_char)(256 / EEPROMBLOCKSIZE),    /* 256 bytes */
-            { 0x20000, 0x80000, 0, 0xa8000, 1 },        /* audio MUX values */
-            0xAA0000 },                         /* GPIO mask */
+	{  CARD_PIXELVIEW_PLAYTV_PAK,       /* the card id */
+	   "PixelView PlayTV Pak",              /* the 'name' */
+	    NULL,                               /* the tuner */
+	    0,                                  /* the tuner i2c address */
+	    0,                                  /* dbx is optional */
+	    0,
+	    0,
+	    PFC8582_WADDR,                      /* EEProm type */
+	    (u_char)(256 / EEPROMBLOCKSIZE),    /* 256 bytes */
+	    { 0x20000, 0x80000, 0, 0xa8000, 1 },        /* audio MUX values */
+	    0xAA0000 },                         /* GPIO mask */
 
 };
 
@@ -410,7 +410,7 @@ struct bt848_card_sig bt848_card_signature[1]= {
 int      
 writeEEProm( bktr_ptr_t bktr, int offset, int count, u_char *data )
 {
-        return( -1 );
+	return( -1 );
 }
 
 /*
@@ -603,7 +603,7 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 	int		card, i,j, card_found;
 	int		status;
 	u_char 		probe_signature[128], *probe_temp;
-        int   		any_i2c_devices;
+	int   		any_i2c_devices;
 	u_char 		eeprom[256];
 	int 		tuner_i2c_address = -1;
 	int 		eeprom_i2c_address = -1;
@@ -619,17 +619,17 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 	 * detection problems with old Bt848 based Hauppauge cards with
 	 * MSP34xx stereo audio chips. This must be user enabled because
 	 * at this point the probe function does not know the card type. */
-        OUTL(bktr, BKTR_GPIO_OUT_EN, INL(bktr, BKTR_GPIO_OUT_EN) | (1<<5));
-        OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
-        DELAY(2500); /* wait 2.5ms */
-        OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) & ~(1<<5)); /* write '0' */
-        DELAY(2500); /* wait 2.5ms */
-        OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
-        DELAY(2500); /* wait 2.5ms */
+	OUTL(bktr, BKTR_GPIO_OUT_EN, INL(bktr, BKTR_GPIO_OUT_EN) | (1<<5));
+	OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
+	DELAY(2500); /* wait 2.5ms */
+	OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) & ~(1<<5)); /* write '0' */
+	DELAY(2500); /* wait 2.5ms */
+	OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
+	DELAY(2500); /* wait 2.5ms */
 #endif
 
 	/* Check for the presence of i2c devices */
-        any_i2c_devices = check_for_i2c_devices( bktr );
+	any_i2c_devices = check_for_i2c_devices( bktr );
 
 
 	/* Check for a user specified override on the card selection */
@@ -645,7 +645,7 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 
 	/* No override, so try and determine the make of the card */
 
-        /* On BT878/879 cards, read the sub-system vendor id */
+	/* On BT878/879 cards, read the sub-system vendor id */
 	/* This identifies the manufacturer of the card and the model */
 	/* In theory this can be read from PCI registers but this does not */
 	/* appear to work on the FlyVideo 98. Hauppauge also warned that */
@@ -653,84 +653,84 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 	/* Therefore, I will read the sub-system vendor ID from the EEPROM */
 	/* (just like the Bt878 does during power up initialisation) */
 
-        if ((bktr->id==BROOKTREE_878) || (bktr->id==BROOKTREE_879)) {
+	if ((bktr->id==BROOKTREE_878) || (bktr->id==BROOKTREE_879)) {
 	    /* Try and locate the EEPROM */
 	    eeprom_i2c_address = locate_eeprom_address( bktr );
 	    if (eeprom_i2c_address != -1) {
 
-                unsigned int subsystem_vendor_id; /* vendors PCI-SIG ID */
-                unsigned int subsystem_id;        /* board model number */
+		unsigned int subsystem_vendor_id; /* vendors PCI-SIG ID */
+		unsigned int subsystem_id;        /* board model number */
 		unsigned int byte_252, byte_253, byte_254, byte_255;
 
 		bktr->card = cards[ (card = CARD_UNKNOWN) ];
 		bktr->card.eepromAddr = eeprom_i2c_address;
 		bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
 
-	        readEEProm(bktr, 0, 256, (u_char *) &eeprom );
-                byte_252 = (unsigned int)eeprom[252];
-                byte_253 = (unsigned int)eeprom[253];
-                byte_254 = (unsigned int)eeprom[254];
-                byte_255 = (unsigned int)eeprom[255];
-                
-                subsystem_id        = (byte_252 << 8) | byte_253;
-                subsystem_vendor_id = (byte_254 << 8) | byte_255;
+		readEEProm(bktr, 0, 256, (u_char *) &eeprom );
+		byte_252 = (unsigned int)eeprom[252];
+		byte_253 = (unsigned int)eeprom[253];
+		byte_254 = (unsigned int)eeprom[254];
+		byte_255 = (unsigned int)eeprom[255];
+		
+		subsystem_id        = (byte_252 << 8) | byte_253;
+		subsystem_vendor_id = (byte_254 << 8) | byte_255;
 
-	        if ( bootverbose ) 
-	            printf("%s: subsystem 0x%04x 0x%04x\n", bktr_name(bktr),
+		if ( bootverbose ) 
+		    printf("%s: subsystem 0x%04x 0x%04x\n", bktr_name(bktr),
 			   subsystem_vendor_id, subsystem_id);
 
-                if (subsystem_vendor_id == PCI_VENDOR_AVERMEDIA) {
-                    bktr->card = cards[ (card = CARD_AVER_MEDIA) ];
+		if (subsystem_vendor_id == PCI_VENDOR_AVERMEDIA) {
+		    bktr->card = cards[ (card = CARD_AVER_MEDIA) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-                }
+		    goto checkTuner;
+		}
 
-                if (subsystem_vendor_id == PCI_VENDOR_HAUPPAUGE) {
-                    bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
+		if (subsystem_vendor_id == PCI_VENDOR_HAUPPAUGE) {
+		    bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-                }
+		    goto checkTuner;
+		}
 
-                if ((subsystem_vendor_id == PCI_VENDOR_FLYVIDEO)
-                 || (subsystem_vendor_id == PCI_VENDOR_FLYVIDEO_2) ) {
-                    bktr->card = cards[ (card = CARD_FLYVIDEO) ];
+		if ((subsystem_vendor_id == PCI_VENDOR_FLYVIDEO)
+		 || (subsystem_vendor_id == PCI_VENDOR_FLYVIDEO_2) ) {
+		    bktr->card = cards[ (card = CARD_FLYVIDEO) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-                }
+		    goto checkTuner;
+		}
 
-                if (subsystem_vendor_id == PCI_VENDOR_STB) {
-                    bktr->card = cards[ (card = CARD_STB) ];
+		if (subsystem_vendor_id == PCI_VENDOR_STB) {
+		    bktr->card = cards[ (card = CARD_STB) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-                }
+		    goto checkTuner;
+		}
 
-                if (subsystem_vendor_id == PCI_VENDOR_ASKEY) {
-                    bktr->card = cards[ (card = CARD_ASKEY_DYNALINK_MAGIC_TVIEW) ];
+		if (subsystem_vendor_id == PCI_VENDOR_ASKEY) {
+		    bktr->card = cards[ (card = CARD_ASKEY_DYNALINK_MAGIC_TVIEW) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-                }
+		    goto checkTuner;
+		}
 
-                if ((subsystem_vendor_id == PCI_VENDOR_LEADTEK_ALT)
+		if ((subsystem_vendor_id == PCI_VENDOR_LEADTEK_ALT)
 		 || (subsystem_vendor_id == PCI_VENDOR_LEADTEK_ALT_2)
 		 || (subsystem_vendor_id == PCI_VENDOR_LEADTEK_ALT_3)) {
-                    bktr->card = cards[ (card = CARD_LEADTEK) ];
+		    bktr->card = cards[ (card = CARD_LEADTEK) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-                }
+		    goto checkTuner;
+		}
 
 		if (subsystem_vendor_id == PCI_VENDOR_PINNACLE_ALT ||
 		    subsystem_vendor_id == PCI_VENDOR_PINNACLE_NEW) {
-                    bktr->card = cards[ (card = CARD_MIRO) ];
+		    bktr->card = cards[ (card = CARD_MIRO) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-                }
+		    goto checkTuner;
+		}
 
 		if (subsystem_vendor_id == PCI_VENDOR_IODATA &&
 		    subsystem_id == MODEL_IODATA_GV_BCTV3_PCI) {
@@ -740,21 +740,21 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 		    goto checkTuner;
 		}
 
-                /* Vendor is unknown. We will use the standard probe code */
+		/* Vendor is unknown. We will use the standard probe code */
 		/* which may not give best results */
-                printf("%s: Warning - card vendor 0x%04x (model 0x%04x) unknown.\n",
+		printf("%s: Warning - card vendor 0x%04x (model 0x%04x) unknown.\n",
 		       bktr_name(bktr), subsystem_vendor_id, subsystem_id);
-            }
+	    }
 	    else
 	    {
-                printf("%s: Card has no configuration EEPROM. Cannot determine card make.\n",
+		printf("%s: Card has no configuration EEPROM. Cannot determine card make.\n",
 		       bktr_name(bktr));
 	    }
 	} /* end of bt878/bt879 card detection code */
 
 	/* If we get to this point, we must have a Bt848/848A/849A card */
 	/* or a Bt878/879 with an unknown subsystem vendor id */
-        /* Try and determine the make of card by clever i2c probing */
+	/* Try and determine the make of card by clever i2c probing */
 
    	/* Check for i2c devices. If none, move on */
 	if (!any_i2c_devices) {
@@ -764,52 +764,52 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 		goto checkTuner;
 	}
 
-        /* Look for Hauppauge, STB and Osprey cards by the presence */
+	/* Look for Hauppauge, STB and Osprey cards by the presence */
 	/* of an EEPROM */
-        /* Note: Bt878 based cards also use EEPROMs so we can only do this */
-        /* test on BT848/848A and 849A based cards. */
+	/* Note: Bt878 based cards also use EEPROMs so we can only do this */
+	/* test on BT848/848A and 849A based cards. */
 	if ((bktr->id==BROOKTREE_848)  ||
 	    (bktr->id==BROOKTREE_848A) ||
 	    (bktr->id==BROOKTREE_849A)) {
 
-            /* At i2c address 0xa0, look for Hauppauge and Osprey cards */
-            if ( (status = i2cRead( bktr, PFC8582_RADDR )) != ABSENT ) {
+	    /* At i2c address 0xa0, look for Hauppauge and Osprey cards */
+	    if ( (status = i2cRead( bktr, PFC8582_RADDR )) != ABSENT ) {
 
 		    /* Read the eeprom contents */
 		    bktr->card = cards[ (card = CARD_UNKNOWN) ];
 		    bktr->card.eepromAddr = PFC8582_WADDR;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-	            readEEProm(bktr, 0, 128, (u_char *) &eeprom );
+		    readEEProm(bktr, 0, 128, (u_char *) &eeprom );
 
 		    /* For Hauppauge, check the EEPROM begins with 0x84 */
 		    if (eeprom[0] == 0x84) {
-                            bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
+			    bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
 			    bktr->card.eepromAddr = PFC8582_WADDR;
 			    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                            goto checkTuner;
+			    goto checkTuner;
 		    }
 
 		    /* For Osprey, check the EEPROM begins with "MMAC" */
 		    if (  (eeprom[0] == 'M') &&(eeprom[1] == 'M')
 			&&(eeprom[2] == 'A') &&(eeprom[3] == 'C')) {
-                            bktr->card = cards[ (card = CARD_OSPREY) ];
+			    bktr->card = cards[ (card = CARD_OSPREY) ];
 			    bktr->card.eepromAddr = PFC8582_WADDR;
 			    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-                            goto checkTuner;
+			    goto checkTuner;
 		    }
 		    printf("%s: Warning: Unknown card type. EEPROM data not recognised\n",
 			   bktr_name(bktr));
 		    printf("%s: %x %x %x %x\n", bktr_name(bktr),
 			   eeprom[0],eeprom[1],eeprom[2],eeprom[3]);
-            }
+	    }
 
-            /* look for an STB card */
-            if ( (status = i2cRead( bktr, X24C01_RADDR )) != ABSENT ) {
-                    bktr->card = cards[ (card = CARD_STB) ];
+	    /* look for an STB card */
+	    if ( (status = i2cRead( bktr, X24C01_RADDR )) != ABSENT ) {
+		    bktr->card = cards[ (card = CARD_STB) ];
 		    bktr->card.eepromAddr = X24C01_WADDR;
 		    bktr->card.eepromSize = (u_char)(128 / EEPROMBLOCKSIZE);
-                    goto checkTuner;
-            }
+		    goto checkTuner;
+	    }
 
 	}
 
@@ -974,10 +974,10 @@ checkTuner:
 
 	    /* Determine the model number from the eeprom */
 	    if (bktr->card.eepromAddr != 0) {
-	        /* eeprom data block structure */
-	        unsigned char *block_1, *block_2, *block_3, *block_4;
-	        int block_1_data_size,  block_2_data_size, block_3_data_size;
-	        int block_1_total_size, block_2_total_size, block_3_total_size;
+		/* eeprom data block structure */
+		unsigned char *block_1, *block_2, *block_3, *block_4;
+		int block_1_data_size,  block_2_data_size, block_3_data_size;
+		int block_1_total_size, block_2_total_size, block_3_total_size;
 		int block_4_header_size;
 
 		unsigned int model,revision;
@@ -986,21 +986,21 @@ checkTuner:
 
 		readEEProm(bktr, 0, 128, (u_char *) &eeprom );
 
-	        /* LOCATE THE EEPROM DATA BLOCKS */
-	        block_1 = &eeprom[0];
-	        block_1_data_size = (block_1[2] << 8 | block_1[1]);
-	        block_1_total_size = block_1_data_size + 3; /* Header bytes */   
+		/* LOCATE THE EEPROM DATA BLOCKS */
+		block_1 = &eeprom[0];
+		block_1_data_size = (block_1[2] << 8 | block_1[1]);
+		block_1_total_size = block_1_data_size + 3; /* Header bytes */   
     
-	        block_2 = &eeprom[block_1_total_size];
-	        block_2_data_size = (block_2[2] << 8 | block_2[1]);
-	        block_2_total_size = block_2_data_size + 3; /* Header bytes */
+		block_2 = &eeprom[block_1_total_size];
+		block_2_data_size = (block_2[2] << 8 | block_2[1]);
+		block_2_total_size = block_2_data_size + 3; /* Header bytes */
     
-	        block_3 = &eeprom[block_1_total_size + block_2_total_size];
-	        block_3_data_size = (block_3[0] &0x07);
-	        block_3_total_size = block_3_data_size + 1; /* Header size */
+		block_3 = &eeprom[block_1_total_size + block_2_total_size];
+		block_3_data_size = (block_3[0] &0x07);
+		block_3_total_size = block_3_data_size + 1; /* Header size */
 
-	        block_4 = &eeprom[block_1_total_size +block_2_total_size +block_3_total_size];
-	        block_4_header_size = 1;
+		block_4 = &eeprom[block_1_total_size +block_2_total_size +block_3_total_size];
+		block_4_header_size = 1;
 
 		model    = (block_1[12] << 8  | block_1[11]);
 		revision = (block_1[15] << 16 | block_1[14] << 8 | block_1[13]);
@@ -1010,7 +1010,7 @@ checkTuner:
 		no_audio_mux = ((block_3[3] >> 7) &0x01);
 
 		if (no_audio_mux) bktr->audio_mux_present = 0;
-               
+	       
 		if (verbose)
 		    printf("%s: Hauppauge Model %d %c%c%c%c\n",
 			   bktr_name(bktr),
@@ -1020,62 +1020,62 @@ checkTuner:
 			   ((revision >>  6) & 0x3f) + 32,
 			   ((revision >>  0) & 0x3f) + 32 );
 
-	        /* Determine the tuner type from the eeprom */
+		/* Determine the tuner type from the eeprom */
 
 		switch (tuner_code) {
 
 		  case 0x5:
-                  case 0x0a:
-                  case 0x1a:
+		  case 0x0a:
+		  case 0x1a:
 		    select_tuner( bktr, PHILIPS_NTSC );
 		    goto checkDBX;
 
 		  case 0x4:
-                  case 0x9:
+		  case 0x9:
 		    select_tuner( bktr, PHILIPS_SECAM );
 		    goto checkDBX;
 
-                  case 0x11:
-	          case 0x16:
+		  case 0x11:
+		  case 0x16:
 		    select_tuner( bktr, PHILIPS_FR1236_SECAM );
 		    goto checkDBX;
 
-                  case 0x12:
-	          case 0x17:
+		  case 0x12:
+		  case 0x17:
 		  case 0x21:
 		    select_tuner( bktr, PHILIPS_FR1236_NTSC );
 		    goto checkDBX;
 
 		  case 0x6:
-	          case 0x8:
-	          case 0xb:
-	          case 0x1d:
-	          case 0x23:
+		  case 0x8:
+		  case 0xb:
+		  case 0x1d:
+		  case 0x23:
 		    select_tuner( bktr, PHILIPS_PALI );
 		    goto checkDBX;
 
-	          case 0xd:
+		  case 0xd:
 		    select_tuner( bktr, TEMIC_NTSC );
 		    goto checkDBX;
 
-                  case 0xe:
+		  case 0xe:
 		    select_tuner( bktr, TEMIC_PAL );
 		    goto checkDBX;
 
-	          case 0xf:
+		  case 0xf:
 		    select_tuner( bktr, TEMIC_PALI );
 		    goto checkDBX;
 
-                  case 0x15:
+		  case 0x15:
 		    select_tuner( bktr, PHILIPS_FR1216_PAL );
 		    goto checkDBX;
 
-                  case 0x2a:
+		  case 0x2a:
 		    bktr->msp_use_mono_source = 1;
 		    select_tuner( bktr, PHILIPS_FR1216_PAL );
 		    goto checkDBX;
 
-	          default :
+		  default :
 		    printf("%s: Warning - Unknown Hauppauge Tuner 0x%x\n",
 			   bktr_name(bktr), tuner_code);
 		}
@@ -1155,7 +1155,7 @@ checkTuner:
 #else
 	    select_tuner( bktr, PHILIPS_FR1236_NTSC );
 #endif
-            goto checkDBX;
+	    goto checkDBX;
 	    break;
 
 	case CARD_IO_BCTV3:
@@ -1166,24 +1166,24 @@ checkTuner:
 	} /* end switch(card) */
 
 
-        /* At this point, a goto checkDBX has not occured */
-        /* We have not been able to select a Tuner */
-        /* Some cards make use of the tuner address to */
-        /* identify the make/model of tuner */
+	/* At this point, a goto checkDBX has not occured */
+	/* We have not been able to select a Tuner */
+	/* Some cards make use of the tuner address to */
+	/* identify the make/model of tuner */
 
-        /* At address 0xc0/0xc1 we often find a TEMIC NTSC */
-        if ( i2cRead( bktr, 0xc1 ) != ABSENT ) {
+	/* At address 0xc0/0xc1 we often find a TEMIC NTSC */
+	if ( i2cRead( bktr, 0xc1 ) != ABSENT ) {
 	    select_tuner( bktr, TEMIC_NTSC );
-            goto checkDBX;
-        }
+	    goto checkDBX;
+	}
   
-        /* At address 0xc6/0xc7 we often find a PHILIPS NTSC Tuner */
-        if ( i2cRead( bktr, 0xc7 ) != ABSENT ) {
+	/* At address 0xc6/0xc7 we often find a PHILIPS NTSC Tuner */
+	if ( i2cRead( bktr, 0xc7 ) != ABSENT ) {
 	    select_tuner( bktr, PHILIPS_NTSC );
-            goto checkDBX;
-        }
+	    goto checkDBX;
+	}
 
-        /* Address 0xc2/0xc3 is default (or common address) for several */
+	/* Address 0xc2/0xc3 is default (or common address) for several */
 	/* tuners and we cannot tell which is which. */
 	/* And for all other tuner i2c addresses, select the default */
 	select_tuner( bktr, DEFAULT_TUNER );
@@ -1209,7 +1209,7 @@ checkMSP:
 	 * If this is a Hauppauge Bt848 card, reset the MSP device.
 	 * The MSP reset line is wired to GPIO pin 5. On Bt878 cards a pulldown
 	 * resistor holds the device in reset until we set GPIO pin 5.
-         */
+	 */
 
 	/* Optionally skip the MSP reset. This is handy if you initialise the
 	 * MSP audio in another operating system (eg Windows) first and then
@@ -1218,14 +1218,14 @@ checkMSP:
 
 #ifndef BKTR_NO_MSP_RESET
 	if (card == CARD_HAUPPAUGE) {
-            OUTL(bktr, BKTR_GPIO_OUT_EN, INL(bktr, BKTR_GPIO_OUT_EN) | (1<<5));
-            OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
-            DELAY(2500); /* wait 2.5ms */
-            OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) & ~(1<<5)); /* write '0' */
-            DELAY(2500); /* wait 2.5ms */
-            OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
-            DELAY(2500); /* wait 2.5ms */
-        }
+	    OUTL(bktr, BKTR_GPIO_OUT_EN, INL(bktr, BKTR_GPIO_OUT_EN) | (1<<5));
+	    OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
+	    DELAY(2500); /* wait 2.5ms */
+	    OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) & ~(1<<5)); /* write '0' */
+	    DELAY(2500); /* wait 2.5ms */
+	    OUTL(bktr, BKTR_GPIO_DATA, INL(bktr, BKTR_GPIO_DATA) | (1<<5));  /* write '1' */
+	    DELAY(2500); /* wait 2.5ms */
+	}
 #endif
 
 #if defined( BKTR_OVERRIDE_MSP )
@@ -1267,30 +1267,30 @@ checkMSPEnd:
 	}
 
 /* Start of Check Remote */
-        /* Check for the Hauppauge IR Remote Control */
-        /* If there is an external unit, the internal will be ignored */
+	/* Check for the Hauppauge IR Remote Control */
+	/* If there is an external unit, the internal will be ignored */
 
-        bktr->remote_control = 0; /* initial value */
+	bktr->remote_control = 0; /* initial value */
 
-        if (any_i2c_devices) {
-            if (i2cRead( bktr, HAUP_REMOTE_EXT_RADDR ) != ABSENT )
-                {
-                bktr->remote_control      = 1;
-                bktr->remote_control_addr = HAUP_REMOTE_EXT_RADDR;
-                }
-            else if (i2cRead( bktr, HAUP_REMOTE_INT_RADDR ) != ABSENT )
-                {
-                bktr->remote_control      = 1;
-                bktr->remote_control_addr = HAUP_REMOTE_INT_RADDR;
-                }
+	if (any_i2c_devices) {
+	    if (i2cRead( bktr, HAUP_REMOTE_EXT_RADDR ) != ABSENT )
+		{
+		bktr->remote_control      = 1;
+		bktr->remote_control_addr = HAUP_REMOTE_EXT_RADDR;
+		}
+	    else if (i2cRead( bktr, HAUP_REMOTE_INT_RADDR ) != ABSENT )
+		{
+		bktr->remote_control      = 1;
+		bktr->remote_control_addr = HAUP_REMOTE_INT_RADDR;
+		}
 
-        }
-        /* If a remote control is found, poll it 5 times to turn off the LED */
-        if (bktr->remote_control) {
-                int i;
-                for (i=0; i<5; i++)
-                        i2cRead( bktr, bktr->remote_control_addr );
-        }
+	}
+	/* If a remote control is found, poll it 5 times to turn off the LED */
+	if (bktr->remote_control) {
+		int i;
+		for (i=0; i<5; i++)
+			i2cRead( bktr, bktr->remote_control_addr );
+	}
 /* End of Check Remote */
 
 #if defined( BKTR_USE_PLL )
@@ -1334,8 +1334,8 @@ checkPLLEnd:
 			printf( ", msp3400c stereo" );
 		if ( bktr->card.dpl3518a )
 			printf( ", dpl3518a dolby" );
-                if ( bktr->remote_control )
-                        printf( ", remote control" );
+		if ( bktr->remote_control )
+			printf( ", remote control" );
 		printf( ".\n" );
 	}
 }
