@@ -1,14 +1,15 @@
 # Towers of Hanoi in sed.
 #
 #	@(#)hanoi.sed	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 #
 #
 # Ex:
 # Run "sed -f hanoi.sed", and enter:
 #
-#	:abcd: : :<CR><CR>
+#	:abcd: : :<CR>
 #
-# note -- TWO carriage returns, a peculiarity of sed), this will output the
+# note -- TWO carriage returns were once required, this will output the
 # sequence of states involved in moving 4 rings, the largest called "a" and
 # the smallest called "d", from the first to the second of three towers, so
 # that the rings on any tower at any time are in descending order of size.
@@ -50,7 +51,7 @@ d
 }
 /^:[a-z]*:[a-z]*:[a-z]*:$/!{a\
 Incorrect format: use\
-\	: string1 : string2 : string3 :<CR><CR>\
+\	: string1 : string2 : string3 :<CR>\
 Try again.
 d
 }

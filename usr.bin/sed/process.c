@@ -35,13 +35,12 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
+static const char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -271,7 +270,7 @@ new:		if (!nflag && !pd)
  */
 #define	MATCH(a)						\
 	(a)->type == AT_RE ? regexec_e((a)->u.r, ps, 0, 1, psl) :	\
-	    (a)->type == AT_LINE ? linenum == (a)->u.l : lastline
+	    (a)->type == AT_LINE ? linenum == (a)->u.l : lastline()
 
 /*
  * Return TRUE if the command applies to the current line.  Sets the inrange
@@ -472,7 +471,8 @@ lputs(s)
 	char *s;
 {
 	int count;
-	char *escapes, *p;
+	const char *escapes;
+	char *p;
 	struct winsize win;
 	static int termwidth = -1;
 
@@ -602,7 +602,7 @@ regsub(sp, string, src)
 void
 cspace(sp, p, len, spflag)
 	SPACE *sp;
-	char *p;
+	const char *p;
 	size_t len;
 	enum e_spflag spflag;
 {
