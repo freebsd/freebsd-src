@@ -226,6 +226,10 @@ ktr_getrequest(int type)
 	if (req != NULL) {
 		STAILQ_REMOVE_HEAD(&ktr_free, ktr_list);
 		req->ktr_header.ktr_type = type;
+		if (p->p_traceflag & KTRFAC_DROP) {
+			req->ktr_header.ktr_type |= KTR_DROP;
+			p->p_traceflag &= ~KTRFAC_DROP;
+		}
 		KASSERT(p->p_tracevp != NULL, ("ktrace: no trace vnode"));
 		KASSERT(p->p_tracecred != NULL, ("ktrace: no trace cred"));
 		req->ktr_vp = p->p_tracevp;
@@ -238,6 +242,7 @@ ktr_getrequest(int type)
 		req->ktr_header.ktr_buffer = NULL;
 		req->ktr_header.ktr_len = 0;
 	} else {
+		p->p_traceflag |= KTRFAC_DROP;
 		pm = print_message;
 		print_message = 0;
 		mtx_unlock(&ktrace_mtx);
@@ -762,7 +767,7 @@ ktr_writerequest(struct ktr_request *req)
 	if (vp == NULL)
 		return;
 	kth = &req->ktr_header;
-	datalen = data_lengths[kth->ktr_type];
+	datalen = data_lengths[(ushort)kth->ktr_type & ~KTR_DROP];
 	buflen = kth->ktr_len;
 	cred = req->ktr_cred;
 	td = curthread;
