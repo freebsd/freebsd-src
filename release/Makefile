@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.54 1997/07/02 08:59:34 jkh Exp $
+#	$Id: Makefile,v 1.246.2.55 1997/07/05 14:11:52 jkh Exp $
 #
 # How to roll a release:
 #
@@ -474,6 +474,9 @@ ftp.1:
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${FD}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${FD}/RELNOTES.TXT
 	echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
+.if !defined(NOPORTS)
+	tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
+.endif
 
 #
 # --==## Setup a suitable cdrom-area ##==--
@@ -515,9 +518,7 @@ ports.1:
 	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
 		mkdir -p ${CD_DISC1}/ports && tar -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
 		cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh && \
-		(cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5) &&
-		tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
-
+		(cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 
 doc.1:
 	cd /usr/doc && make all distribute DISTDIR=${RD}/trees
