@@ -17,6 +17,24 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030613: [retrospective]
+	There was a small window in which sed(1) was broken.  If you
+	happen to have sed(1) installed during that window, which is
+	evidenced by an inability to build world with the failure
+	given below, you need to manually build and install sed(1)
+	(and only sed(1)) before doing anything else. This is a one-
+	time snafu. Typical failure mode:
+
+	In file included from /usr/src/contrib/binutils/bfd/targets.c:1092:
+	targmatch.h:7:1: null character(s) ignored
+	targmatch.h:12:1: null character(s) ignored
+	targmatch.h:16:1: null character(s) ignored
+		:
+
+	The window of "sed(1)-uction" is from Wed Jun 4 15:31:55 2003 UTC
+	to Thu Jun 5 12:10:19 2003 UTC (from rev 1.30 to rev 1.31 of
+	usr.bin/sed/process.c).
+
 20030610:
 	Remove deprecated locale names and transition period code
 	for them, finishing switching to the new scheme. Check your
