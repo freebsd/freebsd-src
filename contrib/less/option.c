@@ -116,11 +116,12 @@ scan_option(s)
 			 * EVERY input file.
 			 */
 			plusoption = TRUE;
-			if (*s == '+')
-				every_first_cmd = save(++s);
+			str = s;
+			s = optstring(s, propt('+'), NULL);
+			if (*str == '+')
+				every_first_cmd = save(++str);
 			else
-				ungetsc(s);
-			s = optstring(s, propt('+'));
+				ungetsc(str);
 			continue;
 		case '0':  case '1':  case '2':  case '3':  case '4':
 		case '5':  case '6':  case '7':  case '8':  case '9':
@@ -225,7 +226,7 @@ scan_option(s)
 			 * the handling function.
 			 */
 			str = s;
-			s = optstring(s, printopt);
+			s = optstring(s, printopt, o->odesc[1]);
 			break;
 		case NUMBER:
 			if (*s == '\0')
@@ -543,11 +544,13 @@ nopendopt()
  * Return a pointer to the remainder of the string, if any.
  */
 	static char *
-optstring(s, printopt)
+optstring(s, printopt, validchars)
 	char *s;
 	char *printopt;
+	char *validchars;
 {
 	register char *p;
+	PARG parg;
 
 	if (*s == '\0')
 	{
@@ -555,8 +558,19 @@ optstring(s, printopt)
 		quit(QUIT_ERROR);
 	}
 	for (p = s;  *p != '\0';  p++)
-		if (*p == END_OPTION_STRING)
+		if (*p == END_OPTION_STRING ||
+		    (validchars != NULL && strchr(validchars, *p) == NULL))
 		{
+			switch (*p)
+			{
+			case END_OPTION_STRING:
+			case ' ':  case '\t':  case '-':
+				break;
+			default:
+				parg.p_string = p;
+				error("Option string needs delimiter before %s", &parg);
+				break;
+			}
 			*p = '\0';
 			return (p+1);
 		}

@@ -42,6 +42,7 @@ public int swindow;		/* Size of scrolling window */
 public int jump_sline;		/* Screen line of "jump target" */
 public int chopline;		/* Truncate displayed lines at screen width */
 public int no_init;		/* Disable sending ti/te termcap strings */
+public int no_keypad;		/* Disable sending ks/ke termcap strings */
 public int twiddle;             /* Show tildes after EOF */
 public int show_attn;		/* Hilite first unread line */
 public int shift_count;		/* Number of positions to shift horizontally */
@@ -102,10 +103,20 @@ static struct optname quote_optname  = { "quotes",               NULL };
 static struct optname tilde_optname  = { "tilde",                NULL };
 static struct optname query_optname  = { "help",                 NULL };
 static struct optname pound_optname  = { "shift",                NULL };
+static struct optname keypad_optname = { "no-keypad",            NULL };
 
 
 /*
  * Table of all options and their semantics.
+ *
+ * For BOOL and TRIPLE options, odesc[0], odesc[1], odesc[2] are
+ * the description of the option when set to 0, 1 or 2, respectively.
+ * For NUMBER options, odesc[0] is the prompt to use when entering
+ * a new value, and odesc[1] is the description, which should contain 
+ * one %d which is replaced by the value of the number.
+ * For STRING options, odesc[0] is the prompt to use when entering
+ * a new value, and odesc[1], if not NULL, is the set of characters
+ * that are valid in the string.
  */
 static struct option option[] =
 {
@@ -143,7 +154,9 @@ static struct option option[] =
 #if MSDOS_COMPILER
 	{ 'D', &D__optname,
 		STRING|REPAINT|NO_QUERY, 0, NULL, opt_D,
-		"color desc: ", NULL, NULL
+		"color desc: ", 
+		"Ddknsu0123456789.",
+		NULL
 	},
 #endif
 	{ 'e', &e_optname,
@@ -287,9 +300,9 @@ static struct option option[] =
 		"Highlight first unread line after any forward movement",
 	},
 	{ 'x', &x_optname,
-		NUMBER|REPAINT, 8, &tabstop, NULL,
+		STRING|REPAINT, 0, NULL, opt_x,
 		"Tab stops: ",
-		"Tab stops every %d spaces", 
+		"0123456789,",
 		NULL
 	},
 	{ 'X', &X__optname,
@@ -328,6 +341,12 @@ static struct option option[] =
 		NUMBER, 0, &shift_count, NULL,
 		"Horizontal shift: ",
 		"Horizontal shift %d positions",
+		NULL
+	},
+	{ '.', &keypad_optname,
+		BOOL|NO_TOGGLE, OPT_OFF, &no_keypad, NULL,
+		"Use keypad mode",
+		"Don't use keypad mode",
 		NULL
 	},
 	{ '\0', NULL, NOVAR, 0, NULL, NULL, NULL, NULL, NULL }
@@ -429,7 +448,7 @@ findopt_name(p_optname, p_oname, p_err)
 					maxoname = oname;
 					maxlen = len;
 					ambig = 0;
-					exact = (len == strlen(oname->oname));
+					exact = (len == (int)strlen(oname->oname));
 				}
 				if (!(o->otype & TRIPLE))
 					break;

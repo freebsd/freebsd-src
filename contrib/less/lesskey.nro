@@ -1,4 +1,4 @@
-.TH LESSKEY 1 "Version 358: 08 Jul 2000"
+.TH LESSKEY 1 "Version 371: 26 Dec 2001"
 .SH NAME
 lesskey \- specify key bindings for less
 .SH SYNOPSIS
@@ -168,6 +168,7 @@ default command keys used by less:
 	^L		repaint 
 	\eeu		undo-hilite
 	g		goto-line 
+	\ekh	goto-line
 	<		goto-line 
 	\ee<		goto-line 
 	p		percent 
@@ -187,6 +188,7 @@ default command keys used by less:
 	G		goto-end 
 	\ee>		goto-end 
 	>		goto-end 
+	\eke	goto-end
 	=		status 
 	^G		status 
 	:f		status 
@@ -206,7 +208,10 @@ default command keys used by less:
 	^X^V		examine 
 	:n		next-file 
 	:p		prev-file 
+	t		next-tag
+	T		prev-tag
 	:x		index-file 
+	:d		remove-file
 	-		toggle-option 
 	:t		toggle-option t
 	s		toggle-option o
@@ -373,7 +378,7 @@ Suite 330, Boston, MA  02111-1307, USA.
 
 .SH AUTHOR
 .PP
-Mark Nudelman <marknu@flash.net>
+Mark Nudelman <markn@greenwoodsoftware.com>
 .br
 Send bug reports or comments to the above address or to bug-less@gnu.org.
 

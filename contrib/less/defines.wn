@@ -167,6 +167,7 @@
 #define	TERMBUF_SIZE	2048	/* Termcap buffer for tgetent */
 #define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
 #define	TAGLINE_SIZE	512	/* Max size of line in tags file */
+#define	TABSTOP_MAX	32	/* Max number of custom tab stops */
 
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #define	off_t	long */
@@ -225,7 +226,7 @@
 #define MUST_DEFINE_OSPEED 0
 
 /* Define HAVE_LOCALE if you have locale.h and setlocale. */
-#define HAVE_LOCALE 1
+#define HAVE_LOCALE 0
 
 /* Define HAVE_TERMIOS_FUNCS if you have tcgetattr/tcsetattr */
 #define HAVE_TERMIOS_FUNCS 0
@@ -240,7 +241,7 @@
 #define HAVE_MEMCPY 1
 
 /* Define if you have the popen function.  */
-#define HAVE_POPEN 0
+#define HAVE_POPEN 1
 
 /* Define if you have the sigsetmask function.  */
 #define HAVE_SIGSETMASK	0

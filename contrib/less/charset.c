@@ -32,14 +32,23 @@ struct charset {
 	char *desc;
 } charsets[] = {
 	{ "ascii",	NULL,       "8bcccbcc18b95.b" },
-	{ "dos",	NULL,       "8bcccbcc12bc5b95.b." },
+	{ "dos",	NULL,       "8bcccbcc12bc5b223.b" },
 	{ "ebcdic",	NULL,       "5bc6bcc7bcc41b.9b7.9b5.b..8b6.10b6.b9.7b9.8b8.17b3.3b9.7b9.8b8.6b10.b.b.b." },
+	{ "IBM-1047",	NULL,       "4cbcbc3b9cbccbccbb4c6bcc5b3cbbc4bc4bccbc191.b" },
 	{ "iso8859",	NULL,       "8bcccbcc18b95.33b." },
 	{ "koi8-r",	NULL,       "8bcccbcc18b95.b128." },
-	{ "latin1",	NULL,       "8bcccbcc18b95.33b." },
 	{ "next",	NULL,       "8bcccbcc18b95.bb125.bb" },
 	{ "utf-8",	&utf_mode,  "8bcccbcc18b." },
 	{ NULL, NULL, NULL }
+};
+
+struct cs_alias {
+	char *name;
+	char *oname;
+} cs_aliases[] = {
+	{ "latin1",	"iso8859" },
+	{ "latin9",	"iso8859" },
+	{ NULL, NULL }
 };
 
 #define	IS_BINARY_CHAR	01
@@ -126,9 +135,20 @@ icharset(name)
 	register char *name;
 {
 	register struct charset *p;
+	register struct cs_alias *a;
 
 	if (name == NULL || *name == '\0')
 		return (0);
+
+	/* First see if the name is an alias. */
+	for (a = cs_aliases;  a->name != NULL;  a++)
+	{
+		if (strcmp(name, a->name) == 0)
+		{
+			name = a->oname;
+			break;
+		}
+	}
 
 	for (p = charsets;  p->name != NULL;  p++)
 	{
@@ -242,10 +262,17 @@ init_charset()
 	 */
 	ilocale();
 #else
+#if MSDOS_COMPILER
+	/*
+	 * Default to "dos".
+	 */
+	(void) icharset("dos");
+#else
 	/*
 	 * Default to "latin1".
 	 */
 	(void) icharset("latin1");
+#endif
 #endif
 }
 
@@ -286,8 +313,22 @@ prchar(c)
 		sprintf(buf, "%c", c);
 	else if (c == ESC)
 		sprintf(buf, "ESC");
-	else if (c < 128 && !control_char(c ^ 0100))
-		sprintf(buf, "^%c", c ^ 0100);
+#if IS_EBCDIC_HOST
+	else if (!binary_char(c) && c < 64)
+		sprintf(buf, "^%c",
+		/*
+		 * This array roughly inverts CONTROL() #defined in less.h,
+	 	 * and should be kept in sync with CONTROL() and IBM-1047.
+ 	 	 */
+		"@ABC.I.?...KLMNO"
+		"PQRS.JH.XY.."
+		"\\]^_"
+		"......W[.....EFG"
+		"..V....D....TU.Z"[c]);
+#else
+  	else if (c < 128 && !control_char(c ^ 0100))
+  		sprintf(buf, "^%c", c ^ 0100);
+#endif
 	else
 		sprintf(buf, binfmt, c);
 	return (buf);
