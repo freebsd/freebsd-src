@@ -234,7 +234,9 @@ fatal:
 		printf("        pid = %d, comm = %s\n", curproc->p_pid,
 		    curproc->p_comm);
 	printf("\n");
+#ifdef DDB
 	kdb_trap(mces, vector, param, ALPHA_KENTRY_MM, framep);
+#endif
 	panic("machine check");
 }
 
