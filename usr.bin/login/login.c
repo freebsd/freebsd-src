@@ -177,8 +177,8 @@ main(argc, argv)
 	if (setjmp(timeout_buf)) {
 		if (failures)
 			badlogin(tbuf);
-		(void)fprintf(stderr,
-			      "Login timed out after %d seconds\n", timeout);
+		(void)fprintf(stderr, "Login timed out after %d seconds\n",
+		    timeout);
 		exit(0);
 	}
 	(void)signal(SIGALRM, timedout);
@@ -220,16 +220,16 @@ main(argc, argv)
 				memset(&hints, 0, sizeof(hints));
 				hints.ai_family = AF_UNSPEC;
 				ga_err = getaddrinfo(optarg, NULL, &hints,
-						    &res);
+				    &res);
 				if (ga_err == 0) {
 					char hostbuf[MAXHOSTNAMELEN];
 
 					getnameinfo(res->ai_addr,
-						    res->ai_addrlen,
-						    hostbuf,
-						    sizeof(hostbuf), NULL, 0,
-						    NI_NUMERICHOST|
-						    NI_WITHSCOPEID);
+					    res->ai_addrlen,
+					    hostbuf,
+					    sizeof(hostbuf), NULL, 0,
+					    NI_NUMERICHOST|
+					    NI_WITHSCOPEID);
 					optarg = strdup(hostbuf);
 				} else
 					optarg = "invalid hostname";
@@ -276,8 +276,10 @@ main(argc, argv)
 	prompt = login_getcapstr(lc, "prompt", DEFAULT_PROMPT, DEFAULT_PROMPT);
 	passwd_prompt = login_getcapstr(lc, "passwd_prompt",
 	    DEFAULT_PASSWD_PROMPT, DEFAULT_PASSWD_PROMPT);
-	retries = login_getcapnum(lc, "login-retries", DEFAULT_RETRIES, DEFAULT_RETRIES);
-	backoff = login_getcapnum(lc, "login-backoff", DEFAULT_BACKOFF, DEFAULT_BACKOFF);
+	retries = login_getcapnum(lc, "login-retries", DEFAULT_RETRIES,
+	    DEFAULT_RETRIES);
+	backoff = login_getcapnum(lc, "login-backoff", DEFAULT_BACKOFF,
+	    DEFAULT_BACKOFF);
 	login_close(lc);
 	lc = NULL;
 
@@ -317,7 +319,7 @@ main(argc, argv)
 				rootlogin = 1;
 
 			if (fflag && (uid == (uid_t)0 ||
-				      uid == (uid_t)pwd->pw_uid)) {
+			    uid == (uid_t)pwd->pw_uid)) {
 				/* already authenticated */
 				break;
 			} else if (pwd->pw_passwd[0] == '\0') {
@@ -421,32 +423,31 @@ main(argc, argv)
 #define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
 
 
-	warntime = login_getcaptime(lc, "warnexpire",
-				    DEFAULT_WARN, DEFAULT_WARN);
+	warntime = login_getcaptime(lc, "warnexpire", DEFAULT_WARN,
+	    DEFAULT_WARN);
 
 	if (pwd->pw_expire) {
 		if (tp.tv_sec >= pwd->pw_expire) {
-			refused("Sorry -- your account has expired",
-				"EXPIRED", 1);
+			refused("Sorry -- your account has expired", "EXPIRED",
+			    1);
 		} else if (pwd->pw_expire - tp.tv_sec < warntime && !quietlog)
-		    (void)printf("Warning: your account expires on %s",
-				 ctime(&pwd->pw_expire));
+			(void)printf("Warning: your account expires on %s",
+			    ctime(&pwd->pw_expire));
 	}
 
-	warntime = login_getcaptime(lc, "warnpassword",
-				    DEFAULT_WARN, DEFAULT_WARN);
+	warntime = login_getcaptime(lc, "warnpassword", DEFAULT_WARN,
+	    DEFAULT_WARN);
 
 	changepass=0;
 	if (pwd->pw_change) {
 		if (tp.tv_sec >= pwd->pw_change) {
 			(void)printf("Sorry -- your password has expired.\n");
 			changepass=1;
-			syslog(LOG_INFO,
-			       "%s Password expired - forcing change",
-			       pwd->pw_name);
+			syslog(LOG_INFO, "%s Password expired - forcing change",
+			    pwd->pw_name);
 		} else if (pwd->pw_change - tp.tv_sec < warntime && !quietlog)
-		    (void)printf("Warning: your password expires on %s",
-				 ctime(&pwd->pw_change));
+			(void)printf("Warning: your password expires on %s",
+			    ctime(&pwd->pw_change));
 	}
 
 	if (lc != NULL) {
@@ -462,8 +463,8 @@ main(argc, argv)
 				char hostbuf[MAXHOSTNAMELEN];
 
 				getnameinfo(res->ai_addr, res->ai_addrlen,
-					    hostbuf, sizeof(hostbuf), NULL, 0,
-					    NI_NUMERICHOST|NI_WITHSCOPEID);
+				    hostbuf, sizeof(hostbuf), NULL, 0,
+				    NI_NUMERICHOST|NI_WITHSCOPEID);
 				optarg = strdup(hostbuf);
 			} else
 				optarg = NULL;
@@ -479,7 +480,7 @@ main(argc, argv)
 		if (!auth_timeok(lc, time(NULL)))
 			refused("Logins not available right now", "TIME", 1);
 	}
-        shell=login_getcapstr(lc, "shell", pwd->pw_shell, pwd->pw_shell);
+        shell = login_getcapstr(lc, "shell", pwd->pw_shell, pwd->pw_shell);
 	if (*pwd->pw_shell == '\0')
 		pwd->pw_shell = _PATH_BSHELL;
 	if (*shell == '\0')   /* Not overridden */
@@ -559,10 +560,10 @@ main(argc, argv)
 	{
 		if (hostname)
 			syslog(LOG_NOTICE, "ROOT LOGIN (%s) ON %s FROM %s",
-			       username, tty, full_hostname);
+			    username, tty, full_hostname);
 		else
 			syslog(LOG_NOTICE, "ROOT LOGIN (%s) ON %s",
-			       username, tty);
+			    username, tty);
 	}
 
 	/*
@@ -596,9 +597,12 @@ main(argc, argv)
 #ifdef USE_PAM
 	if (pamh) {
 		if ((e = pam_open_session(pamh, 0)) != PAM_SUCCESS) {
-			syslog(LOG_ERR, "pam_open_session: %s", pam_strerror(pamh, e));
-		} else if ((e = pam_setcred(pamh, PAM_ESTABLISH_CRED)) != PAM_SUCCESS) {
-			syslog(LOG_ERR, "pam_setcred: %s", pam_strerror(pamh, e));
+			syslog(LOG_ERR, "pam_open_session: %s",
+			    pam_strerror(pamh, e));
+		} else if ((e = pam_setcred(pamh, PAM_ESTABLISH_CRED))
+		    != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_setcred: %s",
+			    pam_strerror(pamh, e));
 		}
 
 		/*
@@ -611,13 +615,15 @@ main(argc, argv)
 			PAM_END;
 			exit(0);
 		} else if (pid) {
-			/* parent - wait for child to finish, then cleanup session */
+			/* parent - wait for child to finish, then cleanup
+			   session */
 			wait(NULL);
 			PAM_END;
 			exit(0);
 		} else {
 			if ((e = pam_end(pamh, PAM_DATA_SILENT)) != PAM_SUCCESS)
-				syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+				syslog(LOG_ERR, "pam_end: %s",
+				    pam_strerror(pamh, e));
 		}
 	}
 #endif /* USE_PAM */
@@ -639,7 +645,7 @@ main(argc, argv)
 	(void)setenv("SHELL", pwd->pw_shell, 1);
 	(void)setenv("HOME", pwd->pw_dir, 1);
 	if (term != NULL && *term != '\0')
-		(void)setenv("TERM", term, 1);	/* Preset overrides */
+		(void)setenv("TERM", term, 1);		/* Preset overrides */
 	else {
 		(void)setenv("TERM", stypeof(tty), 0);	/* Fallback doesn't */
 	}
@@ -671,11 +677,11 @@ main(argc, argv)
 			strncpy(tbuf, cw, sizeof(tbuf));
 			tbuf[sizeof(tbuf)-1] = '\0';
 		} else
-			snprintf(tbuf, sizeof(tbuf), "%s/%s",
-				 _PATH_MAILDIR, pwd->pw_name);
+			snprintf(tbuf, sizeof(tbuf), "%s/%s", _PATH_MAILDIR,
+			    pwd->pw_name);
 		if (stat(tbuf, &st) == 0 && st.st_size != 0)
 			(void)printf("You have %smail.\n",
-				     (st.st_mtime > st.st_atime) ? "new " : "");
+			    (st.st_mtime > st.st_atime) ? "new " : "");
 	}
 
 	login_close(lc);
@@ -694,7 +700,8 @@ main(argc, argv)
 	 * Login shells have a leading '-' in front of argv[0]
 	 */
 	tbuf[0] = '-';
-	(void)strcpy(tbuf + 1, (p = strrchr(pwd->pw_shell, '/')) ? p + 1 : pwd->pw_shell);
+	(void)strcpy(tbuf + 1,
+	    (p = strrchr(pwd->pw_shell, '/')) ? p + 1 : pwd->pw_shell);
 
 	execlp(shell, tbuf, 0);
 	err(1, "%s", shell);
@@ -807,7 +814,8 @@ auth_pam()
 		if (e == PAM_NEW_AUTHTOK_REQD) {
 			e = pam_chauthtok(pamh, PAM_CHANGE_EXPIRED_AUTHTOK);
 			if (e != PAM_SUCCESS) {
-				syslog(LOG_ERR, "pam_chauthtok: %s", pam_strerror(pamh, e));
+				syslog(LOG_ERR, "pam_chauthtok: %s",
+				    pam_strerror(pamh, e));
 				rval = 1;
 			}
 		} else if (e != PAM_SUCCESS) {
@@ -953,6 +961,7 @@ void
 timedout(signo)
 	int signo;
 {
+
 	longjmp(timeout_buf, signo);
 }
 
@@ -1022,7 +1031,6 @@ char *
 stypeof(ttyid)
 	char *ttyid;
 {
-
 	struct ttyent *t;
 
 	return (ttyid && (t = getttynam(ttyid)) ? t->ty_type : UNKNOWN);
@@ -1039,10 +1047,10 @@ refused(msg, rtype, lout)
 	    printf("%s.\n", msg);
 	if (hostname)
 		syslog(LOG_NOTICE, "LOGIN %s REFUSED (%s) FROM %s ON TTY %s",
-		       pwd->pw_name, rtype, full_hostname, tty);
+		    pwd->pw_name, rtype, full_hostname, tty);
 	else
 		syslog(LOG_NOTICE, "LOGIN %s REFUSED (%s) ON TTY %s",
-		       pwd->pw_name, rtype, tty);
+		    pwd->pw_name, rtype, tty);
 	if (lout)
 		sleepexit(1);
 }
