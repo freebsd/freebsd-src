@@ -43,6 +43,7 @@ void apm_getinfo(int fd, apm_info_t aip)
 void print_all_info(apm_info_t aip)
 {
 	printf("APM version: %d.%d\n", aip->ai_major, aip->ai_minor);
+	printf("APM Managment: %s\n", (aip->ai_status ? "Enabled": "Disabled"));
 	printf("AC Line status: ");
 	if (aip->ai_acline == 255) {
 		printf("unknown");
@@ -83,7 +84,7 @@ void print_all_info(apm_info_t aip)
 int main(int argc, char *argv[])
 {
 	int i, j, fd;
-	int sleep = 0, all_info = 1, batt_status = 0, batt_life = 0, ac_status = 0;
+	int sleep = 0, all_info = 1, apm_status = 0, batt_status = 0, batt_life = 0, ac_status = 0;
 	char *cmdname;
 
 	main_argc = argc;
@@ -123,6 +124,9 @@ int main(int argc, char *argv[])
 			case 'l':
 				batt_life = 1;
 				all_info = 0;
+			case 's':
+				apm_status = 1;
+				all_info = 0;
 				break;
 			default:
 				fprintf(stderr, "%s Unknown option '%s'.\n", argv[0], argv[i]);
@@ -138,8 +142,7 @@ finish_option:
 	}
 	if (sleep) {
 		apm_suspend(fd);
-	}
-	else {
+	} else {
 		struct apm_info	info;
 
 		apm_getinfo(fd, &info);
@@ -154,6 +157,9 @@ finish_option:
 		}
 		if (ac_status) {
 			printf("%d\n", info.ai_acline);
+		}
+		if (apm_status) {
+			printf("%d\n", info.ai_status);
 		}
 	}
 	close(fd);
