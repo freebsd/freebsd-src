@@ -404,7 +404,8 @@ kern_ptrace(struct proc *curp, int req, pid_t pid, void *addr, int data)
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_DETACH:
-		if ((req != PT_STEP) && ((unsigned)data > _SIG_MAXSIG))
+		/* Zero means do not send any signal */
+		if (data < 0 || data > _SIG_MAXSIG)
 			return EINVAL;
 
 		PHOLD(p);
