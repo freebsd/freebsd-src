@@ -193,8 +193,6 @@ configure(void *dummy)
 	} 
 	configure_finish();
 
-	cninit_finish();
-
 	/*
 	 * Now we're ready to handle (pending) interrupts.
 	 * XXX this is slightly misplaced.
