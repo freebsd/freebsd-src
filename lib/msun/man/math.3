@@ -43,13 +43,13 @@
 \\$1\\(if\\$2
 ..
 .Sh NAME
-math \- introduction to mathematical library functions
+math \- floating-point mathematical library
+.Sh LIBRARY
+.Lb libm
+.Sh SYNOPSIS
+.In math.h
 .Sh DESCRIPTION
-These functions constitute the C math library,
-.I libm.
-The link editor searches this library under the \*(lq\-lm\*(rq option.
-Declarations for these functions may be obtained from the include file
-.In math.h .
+These functions constitute the C math library.
 .Sh "LIST OF FUNCTIONS"
 Each of the following
 .Vt double
@@ -76,6 +76,10 @@ and
 .Ft long double
 .Fn acosl "long double x" ,
 respectively.
+.Pp
+The programs are accurate to within the numbers
+of \*(ups tabulated below; an \*(up is one \fIU\fRnit in the \fIL\fRast
+\fIP\fRlace.
 .sp 2
 .nf
 .ta \w'nexttoward'u+10n +\w'remainder with partial quot'u
@@ -83,29 +87,29 @@ respectively.
 .ta \w'nexttoward'u+4n +\w'remainder with partial quotient'u+6nC
 .sp 5p
 .\" XXX Many of these error bounds are wrong for the current implementation!
-acos	inverse trigonometric function	3
-acosh	inverse hyperbolic function	3
-asin	inverse trigonometric function	3
-asinh	inverse hyperbolic function	3
-atan	inverse trigonometric function	1
-atanh	inverse hyperbolic function	3
-atan2	inverse trigonometric function	2
+acos	inverse trigonometric function	???
+acosh	inverse hyperbolic function	???
+asin	inverse trigonometric function	???
+asinh	inverse hyperbolic function	???
+atan	inverse trigonometric function	???
+atanh	inverse hyperbolic function	???
+atan2	inverse trigonometric function	???
 cbrt	cube root	1
 ceil	integer no less than	0
 copysign	copy sign bit	0
 cos	trigonometric function	1
-cosh	hyperbolic function	3
-erf	error function	???
-erfc	complementary error function	???
+cosh	hyperbolic function	???
+erf	error function	1
+erfc	complementary error function	1
 exp	exponential base e	1
 .\" exp2	exponential base 2	???
 expm1	exp(x)\-1	1
 fabs	absolute value	0
-.\" fdim	positive difference	???
+fdim	positive difference	1
 floor	integer no greater than	0
 .\" fma	multiply-add	???
-.\" fmax	maximum function	0
-.\" fmin	minimum function	0
+fmax	maximum function	0
+fmin	minimum function	0
 fmod	remainder function	???
 frexp	extract mantissa and exponent	0
 hypot	Euclidean distance	1
@@ -114,19 +118,19 @@ j0	bessel function	???
 j1	bessel function	???
 jn	bessel function	???
 ldexp	multiply by power of 2	0
-lgamma	log gamma function	???
+lgamma	log gamma function	1
 .\" llrint	round to integer	0
 .\" llround	round to nearest integer	0
 log	natural logarithm	1
-log10	logarithm to base 10	3
+log10	logarithm to base 10	1
 log1p	log(1+x)	1
 .\" log2	base 2 logarithm	0
 logb	exponent extraction	0
 .\" lrint	round to integer	0
 .\" lround	round to nearest integer	0
-modf	extract fractional part	???
+modf	extract fractional part	0
 .\" nan	return quiet \*(Na)	0
-.\" nearbyint	round to integer	0
+nearbyint	round to integer	0
 nextafter	next representable value	0
 .\" nexttoward	next representable value	0
 pow	exponential x**y	60\-500
@@ -137,11 +141,11 @@ round	round to nearest integer	0
 scalbln	exponent adjustment	0
 scalbn	exponent adjustment	0
 sin	trigonometric function	1
-sinh	hyperbolic function	3
+sinh	hyperbolic function	???
 sqrt	square root	1
-tan	trigonometric function	3
-tanh	hyperbolic function	3
-tgamma	gamma function	???
+tan	trigonometric function	1
+tanh	hyperbolic function	???
+tgamma	gamma function	1
 trunc	round towards zero	0
 y0	bessel function	???
 y1	bessel function	???
@@ -157,12 +161,10 @@ except for the few documented in
 it primarily defines representations of numbers and abstract
 properties of arithmetic operations relating to precision, rounding,
 and exceptional cases, as described below.
-The programs are accurate to within the numbers
-of \*(ups tabulated above; an \*(up is one \fIU\fRnit in the \fIL\fRast
-\fIP\fRlace.
 .Pp
 \fBIEEE STANDARD 754 Floating\-Point Arithmetic:\fR
 .Pp
+.\" XXX mention single- and extended-/quad- precisions
 Properties of IEEE 754 Double\-Precision:
 .Bd -filled -offset indent
 Wordsize: 64 bits, 8 bytes.  Radix: Binary.
@@ -462,6 +464,14 @@ Several functions required by
 are missing, and many functions are not available in their
 .Vt long double
 variants.
+.Pp
+On some architectures, trigonometric argument reduction is not
+performed accurately, resulting in errors greater than 1 ulp for large
+arguments to
+.Fn cos ,
+.Fn sin ,
+and
+.Fn tan .
 .Sh SEE ALSO
 .Xr fenv 3 ,
 .Xr ieee 3
