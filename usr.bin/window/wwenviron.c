@@ -36,12 +36,14 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)wwenviron.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "@(#)$FreeBSD$";
 #endif /* not lint */
 
 #include "ww.h"
 #if !defined(OLD_TTY) && !defined(TIOCSCTTY) && !defined(TIOCNOTTY)
 #include <sys/ioctl.h>
 #endif
+#include <paths.h>
 #include <signal.h>
 
 /*
@@ -57,7 +59,7 @@ register struct ww *wp;
 	char buf[1024];
 
 #ifndef TIOCSCTTY
-	if ((i = open("/dev/tty", 0)) < 0)
+	if ((i = open(_PATH_TTY, 0)) < 0)
 		goto bad;
 	if (ioctl(i, TIOCNOTTY, (char *)0) < 0)
 		goto bad;
