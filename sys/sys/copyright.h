@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: copyright.h,v 1.2 1997/05/05 13:19:56 kato Exp $
+ * 	$Id: copyright.h,v 1.3 1997/12/31 11:04:01 wosch Exp $
  */
 
 
@@ -42,7 +42,7 @@
 
 /* HP + Motorola */
 #define COPYRIGHT_HPFPLIB \
-	"Copyright (c) 1992 Hewlett-Packard Company.\nCopyright (c) 1992 Motorola Inc.\nAll rights reserved.\n";
+	"Copyright (c) 1992 Hewlett-Packard Company.\nCopyright (c) 1992 Motorola Inc.\nAll rights reserved.\n"
 
 
 
