@@ -59,7 +59,7 @@
 # listening at port 2048. If all fails, a message is printed and the tests
 # using the remote server are not performed.
 #
-# SCCS: @(#) socket.test 1.82 97/08/05 13:30:55
+# SCCS: @(#) socket.test 1.83 97/09/15 16:29:47
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -402,7 +402,7 @@ test socket-2.5 {tcp connection with redundant server port} {stdio} {
     close $f
     set x
 } {ready hello}
-test socket-2.6 {tcp connection} {unixOrPc} {
+test socket-2.6 {tcp connection} {} {
     set status ok
     if {![catch {set sock [socket localhost 2828]}]} {
 	if {![catch {gets $sock}]} {
@@ -891,7 +891,7 @@ test socket-9.1 {testing spurious events} {
     close $s
     list $spurious $len
 } {0 50}
-test socket-9.2 {testing async write, fileevents, flush on close} {tempNotMac} {
+test socket-9.2 {testing async write, fileevents, flush on close} {} {
     set firstblock ""
     for {set i 0} {$i < 5} {incr i} {set firstblock "a$firstblock$firstblock"}
     set secondblock ""

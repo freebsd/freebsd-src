@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) source.n 1.7 96/04/15 13:07:38
+'\" SCCS: @(#) source.n 1.8 97/10/31 12:51:10
 '\" 
 .so man.macros
 .TH source n "" Tcl "Tcl Built-In Commands"
@@ -16,9 +16,9 @@ source \- Evaluate a file or resource as a Tcl script
 .SH SYNOPSIS
 \fBsource \fIfileName\fR
 .sp
-\fBsource \fB\-rsrc \fIresourceName \fR?\fIfileName\fR?
+\fBsource\fR \fB\-rsrc \fIresourceName \fR?\fIfileName\fR?
 .sp
-\fBsource \fB\-rsrcid \fIresourceId \fR?\fIfileName\fR?
+\fBsource\fR \fB\-rsrcid \fIresourceId \fR?\fIfileName\fR?
 .BE
 
 .SH DESCRIPTION

@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCmdAH.c 1.156 97/08/12 18:10:15
+ * SCCS: @(#) tclCmdAH.c 1.159 97/10/31 13:06:07
  */
 
 #include "tclInt.h"
@@ -590,6 +590,7 @@ Tcl_ExprObjCmd(dummy, interp, objc, objv)
 	    Tcl_SetObjResult(interp, resultPtr);
 	    Tcl_DecrRefCount(resultPtr);  /* done with the result object */
 	}
+	return result;
     }
 
     /*
@@ -1670,7 +1671,7 @@ Tcl_FormatObjCmd(dummy, interp, objc, objv)
 #   define MAX_FLOAT_SIZE 320
     
     Tcl_Obj *resultPtr;  	/* Where result is stored finally. */
-    char staticBuf[MAX_FLOAT_SIZE];
+    char staticBuf[MAX_FLOAT_SIZE + 1];
                                 /* A static buffer to copy the format results 
 				 * into */
     char *dst = staticBuf;      /* The buffer that sprintf writes into each

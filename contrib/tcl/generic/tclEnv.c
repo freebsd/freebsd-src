@@ -12,7 +12,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclEnv.c 1.49 97/08/11 20:22:40
+ * SCCS: @(#) tclEnv.c 1.54 97/10/27 17:47:52
  */
 
 #include "tclInt.h"
@@ -244,15 +244,6 @@ TclSetEnv(name, value)
 	
 
     /*
-     * Update all of the interpreters.
-     */
-
-    for (eiPtr= firstInterpPtr; eiPtr != NULL; eiPtr = eiPtr->nextPtr) {
-	(void) Tcl_SetVar2(eiPtr->interp, "env", (char *) name,
-		(char *) value, TCL_GLOBAL_ONLY);
-    }
-
-    /*
      * Create a new entry.
      */
 
@@ -276,6 +267,16 @@ TclSetEnv(name, value)
      */
 
     ReplaceString(oldValue, p);
+
+    /*
+     * Update all of the interpreters.
+     */
+
+    for (eiPtr= firstInterpPtr; eiPtr != NULL; eiPtr = eiPtr->nextPtr) {
+	(void) Tcl_SetVar2(eiPtr->interp, "env", (char *) name,
+		(char *) value, TCL_GLOBAL_ONLY);
+    }
+
 }
 
 /*
@@ -597,11 +598,15 @@ ReplaceString(oldStr, newStr)
 	    environCache[cacheSize-1] = NULL;
 	}
     } else {	
+        int allocatedSize = (cacheSize + 5) * sizeof(char *);
+
 	/*
 	 * We need to grow the cache in order to hold the new string.
 	 */
 
-	newCache = (char **) ckalloc((cacheSize + 5) * sizeof(char *));
+	newCache = (char **) ckalloc((size_t) allocatedSize);
+        (VOID *) memset(newCache, (int) 0, (size_t) allocatedSize);
+        
 	if (environCache) {
 	    memcpy((VOID *) newCache, (VOID *) environCache,
 		    (size_t) (cacheSize * sizeof(char*)));
@@ -690,5 +695,9 @@ TclFinalizeEnvironment()
     if (environCache) {
 	ckfree((char *) environCache);
 	environCache = NULL;
+	cacheSize    = 0;
+#ifndef USE_PUTENV
+	environSize  = 0;
+#endif
     }
 }

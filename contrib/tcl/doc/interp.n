@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) interp.n 1.35 97/07/31 18:04:06
+'\" SCCS: @(#) interp.n 1.37 97/10/31 12:51:11
 '\" 
 .so man.macros
 .TH interp n 7.6 Tcl "Tcl Built-In Commands"
@@ -84,21 +84,21 @@ slave interpreters, and to share or transfer
 channels between interpreters.  It can have any of several forms, depending
 on the \fIoption\fR argument:
 .TP
-\fBinterp \fBalias \fIsrcPath \fIsrcCmd\fR
+\fBinterp\fR \fBalias\fR \fIsrcPath\fR \fIsrcCmd\fR
 Returns a Tcl list whose elements are the \fItargetCmd\fR and
 \fIarg\fRs associated with the alias named \fIsrcCmd\fR
 (all of these are the values specified when the alias was
 created; it is possible that the actual source command in the
 slave is different from \fIsrcCmd\fR if it was renamed).
 .TP
-\fBinterp \fBalias \fIsrcPath \fIsrcCmd\fR \fB{}\fR
+\fBinterp\fR \fBalias\fR \fIsrcPath\fR \fIsrcCmd\fR \fB{}\fR
 Deletes the alias for \fIsrcCmd\fR in the slave interpreter identified by
 \fIsrcPath\fR.
 \fIsrcCmd\fR refers to the name under which the alias
 was created;  if the source command has been renamed, the renamed
 command will be deleted.
 .TP
-\fBinterp \fBalias \fIsrcPath \fIsrcCmd\fR \fItargetPath \fItargetCmd \fR?\fIarg arg ...\fR?
+\fBinterp\fR \fBalias\fR \fIsrcPath\fR \fIsrcCmd\fR \fItargetPath\fR \fItargetCmd \fR?\fIarg arg ...\fR?
 This command creates an alias between one slave and another (see the
 \fBalias\fR slave command below for creating aliases between a slave
 and its master).  In this command, either of the slave interpreters
@@ -122,11 +122,11 @@ in the target interpreter whenever the given source command is
 invoked in the source interpreter.  See ALIAS INVOCATION below for
 more details.
 .TP
-\fBinterp \fBaliases \fR?\fIpath\fR?
+\fBinterp\fR \fBaliases \fR?\fIpath\fR?
 This command returns a Tcl list of the names of all the source commands for
 aliases defined in the interpreter identified by \fIpath\fR.
 .TP
-\fBinterp \fBcreate \fR?\fB\-safe\fR? ?\fB\-\|\-\fR? ?\fIpath\fR?
+\fBinterp\fR \fBcreate \fR?\fB\-safe\fR? ?\fB\-\|\-\fR? ?\fIpath\fR?
 Creates a slave interpreter identified by \fIpath\fR and a new command,
 called a \fIslave command\fR. The name of the slave command is the last
 component of \fIpath\fR. The new slave interpreter and the slave command
@@ -148,14 +148,14 @@ new interpreter. The name of a slave interpreter must be unique among all
 the slaves for its master;  an error occurs if a slave interpreter by the
 given name already exists in this master.
 .TP
-\fBinterp \fBdelete \fR?\fIpath ...?\fR
+\fBinterp\fR \fBdelete \fR?\fIpath ...?\fR
 Deletes zero or more interpreters given by the optional \fIpath\fR
 arguments, and for each interpreter, it also deletes its slaves. The
 command also deletes the slave command for each interpreter deleted.
 For each \fIpath\fR argument, if no interpreter by that name
 exists, the command raises an error.
 .TP
-\fBinterp \fBeval \fIpath arg \fR?\fIarg ...\fR?
+\fBinterp\fR \fBeval\fR \fIpath arg \fR?\fIarg ...\fR?
 This command concatenates all of the \fIarg\fR arguments in the same
 fashion as the \fBconcat\fR command, then evaluates the resulting string as
 a Tcl script in the slave interpreter identified by \fIpath\fR. The result
@@ -163,13 +163,13 @@ of this evaluation (including error information such as the \fBerrorInfo\fR
 and \fBerrorCode\fR variables, if an error occurs) is returned to the
 invoking interpreter.
 .TP
-\fBinterp \fBexists \fIpath\fR
+\fBinterp exists \fIpath\fR
 Returns  \fB1\fR if a slave interpreter by the specified \fIpath\fR
 exists in this master, \fB0\fR otherwise. If \fIpath\fR is omitted, the
 invoking interpreter is used.
-.VS BR
+.VS "" BR
 .TP
-\fBinterp \fBexpose \fIpath\fR \fIhiddenName\fR ?\fIexposedCmdName\fR?
+\fBinterp expose \fIpath\fR \fIhiddenName\fR ?\fIexposedCmdName\fR?
 Makes the hidden command \fIhiddenName\fR exposed, eventually bringing
 it back under a new \fIexposedCmdName\fR name (this name is currently
 accepted only if it is a valid global name space name without any ::),
@@ -179,7 +179,7 @@ If an exposed command with the targetted name already exists, this command
 fails.
 Hidden commands are explained in more detail in HIDDEN COMMANDS, below.
 .TP
-\fBinterp \fBhide \fIpath\fR \fIexposedCmdName\fR ?\fIhiddenCmdName\fR?
+\fBinterp\fR \fBhide\fR \fIpath\fR \fIexposedCmdName\fR ?\fIhiddenCmdName\fR?
 Makes the exposed command \fIexposedCmdName\fR hidden, renaming
 it to the hidden command \fIhiddenCmdName\fR, or keeping the same name if
 \fIhiddenCmdName\fR is not given, in the interpreter denoted 
@@ -194,11 +194,11 @@ prevents slaves from fooling a master interpreter into hiding the wrong
 command, by making the current namespace be different from the global one.
 Hidden commands are explained in more detail in HIDDEN COMMANDS, below.
 .TP
-\fBinterp \fBhidden \fIpath\fR
+\fBinterp\fR \fBhidden\fR \fIpath\fR
 Returns a list of the names of all hidden commands in the interpreter
 identified by \fIpath\fR.
 .TP
-\fBinterp \fBinvokehidden\fR \fIpath\fR ?\fB-global\fR \fIhiddenCmdName\fR ?\fIarg ...\fR?
+\fBinterp\fR \fBinvokehidden\fR \fIpath\fR ?\fB-global\fR \fIhiddenCmdName\fR ?\fIarg ...\fR?
 Invokes the hidden command \fIhiddenCmdName\fR with the arguments supplied
 in the interpreter denoted by \fIpath\fR. No substitutions or evaluation
 are applied to the arguments.
@@ -209,12 +209,12 @@ frames.
 Hidden commands are explained in more detail in HIDDEN COMMANDS, below.
 .VE
 .TP
-\fBinterp \fBissafe\fR ?\fIpath\fR?
+\fBinterp issafe\fR ?\fIpath\fR?
 Returns \fB1\fR if the interpreter identified by the specified \fIpath\fR
 is safe, \fB0\fR otherwise.
-.VS BR
+.VS "" BR
 .TP
-\fBinterp \fBmarktrusted\fR \fIpath\fR
+\fBinterp marktrusted\fR \fIpath\fR
 Marks the interpreter identified by \fIpath\fR as trusted. Does
 not expose the hidden commands. This command can only be invoked from a
 trusted interpreter.
@@ -222,7 +222,7 @@ The command has no effect if the interpreter identified by \fIpath\fR is
 already trusted.
 .VE
 .TP
-\fBinterp \fBshare\fR \fIsrcPath channelId destPath\fR
+\fBinterp\fR \fBshare\fR \fIsrcPath channelId destPath\fR
 Causes the IO channel identified by \fIchannelId\fR to become shared
 between the interpreter identified by \fIsrcPath\fR and the interpreter
 identified by \fIdestPath\fR. Both interpreters have the same permissions
@@ -231,12 +231,12 @@ Both interpreters must close it to close the underlying IO channel; IO
 channels accessible in an interpreter are automatically closed when an
 interpreter is destroyed.
 .TP
-\fBinterp \fBslaves\fR ?\fIpath\fR?
+\fBinterp\fR \fBslaves\fR ?\fIpath\fR?
 Returns a Tcl list of the names of all the slave interpreters associated
 with the interpreter identified by \fIpath\fR. If \fIpath\fR is omitted,
 the invoking interpreter is used.
 .TP
-\fBinterp \fBtarget \fIpath alias\fR
+\fBinterp\fR \fBtarget\fR \fIpath alias\fR
 Returns a Tcl list describing the target interpreter for an alias. The
 alias is specified with an interpreter path and source command name, just
 as in \fBinterp alias\fR above. The name of the target interpreter is
@@ -246,7 +246,7 @@ empty list is returned. If the target interpreter for the alias is not the
 invoking interpreter or one of its descendants then an error is generated.
 The target command does not have to be defined at the time of this invocation.
 .TP
-\fBinterp \fBtransfer\fR \fIsrcPath channelId destPath\fR
+\fBinterp\fR \fBtransfer\fR \fIsrcPath channelId destPath\fR
 Causes the IO channel identified by \fIchannelId\fR to become available in
 the interpreter identified by \fIdestPath\fR and unavailable in the
 interpreter identified by \fIsrcPath\fR.
@@ -300,7 +300,7 @@ the resulting string as a Tcl script in \fIslave\fR.
 The result of this evaluation (including error information
 such as the \fBerrorInfo\fR and \fBerrorCode\fR variables, if an
 error occurs) is returned to the invoking interpreter.
-.VS BR
+.VS "" BR
 .TP
 \fIslave \fBexpose \fIhiddenName \fR?\fIexposedCmdName\fR?
 This command exposes the hidden command \fIhiddenName\fR, eventually bringing
@@ -341,7 +341,7 @@ COMMANDS, below.
 .TP
 \fIslave \fBissafe\fR
 Returns  \fB1\fR if the slave interpreter is safe, \fB0\fR otherwise.
-.VS BR
+.VS "" BR
 .TP
 \fIslave \fBmarktrusted\fR
 Marks the slave interpreter as trusted. Can only be invoked by a
@@ -391,7 +391,7 @@ split	string	subst	switch
 tell	trace	unset	update
 uplevel	upvar	vwait	while\fR
 .DE
-.VS BR
+.VS ""  BR
 The following commands are hidden by \fBinterp create\fR when it
 creates a safe interpreter:
 .DS

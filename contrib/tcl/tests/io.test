@@ -11,7 +11,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) io.test 1.128 97/08/13 10:24:56
+# SCCS: @(#) io.test 1.131 97/09/22 11:15:05
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -3439,6 +3439,58 @@ test io-16.13 {Tcl_SetChannelOption, Tcl_GetChannelOption, buffer size} {
     close $f
     set x
 } 40000
+test io-16.14 {Tcl_SetChannelOption, setting read mode independently} \
+	{socket} {
+    proc accept {s a p} {close $s}
+    set s1 [socket -server accept 0]
+    set port [lindex [fconfigure $s1 -sockname] 2]
+    set s2 [socket localhost $port]
+    update
+    fconfigure $s2 -translation {auto lf}
+    set modes [fconfigure $s2 -translation]
+    close $s1
+    close $s2
+    set modes
+} {auto lf}
+test io-16.15 {Tcl_SetChannelOption, setting read mode independently} \
+	{socket} {
+    proc accept {s a p} {close $s}
+    set s1 [socket -server accept 0]
+    set port [lindex [fconfigure $s1 -sockname] 2]
+    set s2 [socket localhost $port]
+    update
+    fconfigure $s2 -translation {auto crlf}
+    set modes [fconfigure $s2 -translation]
+    close $s1
+    close $s2
+    set modes
+} {auto crlf}
+test io-16.16 {Tcl_SetChannelOption, setting read mode independently} \
+	{socket} {
+    proc accept {s a p} {close $s}
+    set s1 [socket -server accept 0]
+    set port [lindex [fconfigure $s1 -sockname] 2]
+    set s2 [socket localhost $port]
+    update
+    fconfigure $s2 -translation {auto cr}
+    set modes [fconfigure $s2 -translation]
+    close $s1
+    close $s2
+    set modes
+} {auto cr}
+test io-16.17 {Tcl_SetChannelOption, setting read mode independently} \
+	{socket} {
+    proc accept {s a p} {close $s}
+    set s1 [socket -server accept 0]
+    set port [lindex [fconfigure $s1 -sockname] 2]
+    set s2 [socket localhost $port]
+    update
+    fconfigure $s2 -translation {auto auto}
+    set modes [fconfigure $s2 -translation]
+    close $s1
+    close $s2
+    set modes
+} {auto crlf}
 
 test io-17.1 {POSIX open access modes: RDWR} {
     removeFile test3
@@ -5053,6 +5105,25 @@ test io-32.1 {ChannelEventScriptInvoker: deletion} {
     vwait x
     set x
 } {got_error}
+
+test io-33.1 {ChannelTimerProc} {
+    set f [open fooBar w]
+    puts $f "this is a test"
+    close $f
+    set f [open fooBar r]
+    testchannelevent $f add readable {
+	read $f 1
+	incr x
+    }
+    set x 0
+    vwait x
+    vwait x
+    set result $x
+    testchannelevent $f set 0 none
+    after idle {set y done}
+    vwait y
+    lappend result $y
+} {2 done}
 
 removeFile fooBar
 removeFile longfile

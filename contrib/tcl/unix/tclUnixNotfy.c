@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixNotfy.c 1.42 97/07/02 20:55:44
+ * SCCS: @(#) tclUnixNotfy.c 1.44 97/11/05 13:02:20
  */
 
 #include "tclInt.h"
@@ -266,7 +266,8 @@ Tcl_DeleteFileHandler(fd)
     int fd;		/* Stream id for which to remove callback procedure. */
 {
     FileHandler *filePtr, *prevPtr;
-    int index, bit, mask, i;
+    int index, bit, i;
+    unsigned long flags;
 
     if (!initialized) {
 	InitNotifier();
@@ -310,12 +311,12 @@ Tcl_DeleteFileHandler(fd)
 
     if (fd+1 == notifier.numFdBits) {
 	for (notifier.numFdBits = 0; index >= 0; index--) {
-	    mask = notifier.checkMasks[index]
+	    flags = notifier.checkMasks[index]
 		| (notifier.checkMasks+MASK_SIZE)[index]
 		| (notifier.checkMasks+2*(MASK_SIZE))[index];
-	    if (mask) {
+	    if (flags) {
 		for (i = (NBBY*sizeof(fd_mask)); i > 0; i--) {
-		    if (mask & (1 << (i-1))) {
+		    if (flags & (((unsigned long)1) << (i-1))) {
 			break;
 		    }
 		}

@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclBinary.c 1.20 97/08/11 18:43:09
+ * SCCS: @(#) tclBinary.c 1.26 97/11/05 13:02:05
  */
 
 #include <math.h>
@@ -867,13 +867,20 @@ FormatNumber(interp, type, src, cursorPtr)
     char cmd = (char)type;
 
     if (cmd == 'd' || cmd == 'f') {
+	/*
+	 * For floating point types, we need to copy the data using
+	 * memcpy to avoid alignment issues.
+	 */
+
 	if (Tcl_GetDoubleFromObj(interp, src, &dvalue) != TCL_OK) {
 	    return TCL_ERROR;
 	}
 	if (cmd == 'd') {
-	    *((double *)(*cursorPtr)) = dvalue;
+	    memcpy((*cursorPtr), &dvalue, sizeof(double));
 	    (*cursorPtr) += sizeof(double);
 	} else {
+	    float fvalue;
+
 	    /*
 	     * Because some compilers will generate floating point exceptions
 	     * on an overflow cast (e.g. Borland), we restrict the values
@@ -881,13 +888,11 @@ FormatNumber(interp, type, src, cursorPtr)
 	     */
 
 	    if (fabs(dvalue) > (double)FLT_MAX) {
-		*((float *)(*cursorPtr))
-		    = (dvalue >= 0.0) ? FLT_MAX : -FLT_MAX;
-	    } else if (fabs(dvalue) < (double)FLT_MIN) {
-		*((float *)(*cursorPtr)) = (float) 0.0;
+		fvalue = (dvalue >= 0.0) ? FLT_MAX : -FLT_MAX;
 	    } else {
-		*((float *)(*cursorPtr)) = (float) dvalue;
+		fvalue = (float) dvalue;
 	    }
+	    memcpy((*cursorPtr), &fvalue, sizeof(float));
 	    (*cursorPtr) += sizeof(float);
 	}
     } else {
@@ -938,44 +943,71 @@ FormatNumber(interp, type, src, cursorPtr)
 static Tcl_Obj *
 ScanNumber(buffer, type)
     char *buffer;		/* Buffer to scan number from. */
-    int type;			/* Type of number to scan. */
+    int type;			/* Format character from "binary scan" */
 {
-    int c;
+    int value;
+
+    /*
+     * We cannot rely on the compiler to properly sign extend integer values
+     * when we cast from smaller values to larger values because we don't know
+     * the exact size of the integer types.  So, we have to handle sign
+     * extension explicitly by checking the high bit and padding with 1's as
+     * needed.
+     */
 
     switch ((char) type) {
 	case 'c':
-	    /*
-	     * Characters need special handling.  We want to produce a
-	     * signed result, but on some platforms (such as AIX) chars
-	     * are unsigned.  To deal with this, check for a value that
-	     * should be negative but isn't.
-	     */
+	    value = buffer[0];
 
-	    c = buffer[0];
-	    if (c > 127) {
-		c -= 256;
+	    if (value & 0x80) {
+		value |= -0x100;
 	    }
-	    return Tcl_NewIntObj(c);
+	    return Tcl_NewLongObj((long)value);
 	case 's':
-	    return Tcl_NewIntObj((short)(((unsigned char)buffer[0])
-		    + ((unsigned char)buffer[1] << 8)));
+	    value = (((unsigned char)buffer[0])
+		    + ((unsigned char)buffer[1] << 8));
+	    goto shortValue;
 	case 'S':
-	    return Tcl_NewIntObj((short)(((unsigned char)buffer[1])
-		    + ((unsigned char)buffer[0] << 8)));
+	    value = (((unsigned char)buffer[1])
+		    + ((unsigned char)buffer[0] << 8));
+	    shortValue:
+	    if (value & 0x8000) {
+		value |= -0x10000;
+	    }
+	    return Tcl_NewLongObj((long)value);
 	case 'i':
-	    return Tcl_NewIntObj((long) (((unsigned char)buffer[0])
+	    value =  (((unsigned char)buffer[0])
 		    + ((unsigned char)buffer[1] << 8)
 		    + ((unsigned char)buffer[2] << 16)
-		    + ((unsigned char)buffer[3] << 24)));
+		    + ((unsigned char)buffer[3] << 24));
+	    goto intValue;
 	case 'I':
-	    return Tcl_NewIntObj((long) (((unsigned char)buffer[3])
+	    value = (((unsigned char)buffer[3])
 		    + ((unsigned char)buffer[2] << 8)
 		    + ((unsigned char)buffer[1] << 16)
-		    + ((unsigned char)buffer[0] << 24)));
-	case 'f':
-	    return Tcl_NewDoubleObj(*(float*)buffer);
-	case 'd':
-	    return Tcl_NewDoubleObj(*(double*)buffer);
+		    + ((unsigned char)buffer[0] << 24));
+	    intValue:
+	    /*
+	     * Check to see if the value was sign extended properly on
+	     * systems where an int is more than 32-bits.
+	     */
+
+	    if ((value & (((unsigned int)1)<<31)) && (value > 0)) {
+		value -= (((unsigned int)1)<<31);
+		value -= (((unsigned int)1)<<31);
+	    }
+		
+	    return Tcl_NewLongObj((long)value);
+	case 'f': {
+	    float fvalue;
+	    memcpy(&fvalue, buffer, sizeof(float));
+	    return Tcl_NewDoubleObj(fvalue);
+	}
+	case 'd': {
+	    double dvalue;
+	    memcpy(&dvalue, buffer, sizeof(double));
+	    return Tcl_NewDoubleObj(dvalue);
+	}
     }
     return NULL;
 }

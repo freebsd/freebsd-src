@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) opt.test 1.1 97/08/14 00:53:59
+# SCCS: @(#) opt.test 1.2 97/08/20 15:57:18
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -149,6 +149,7 @@ test opt-8.10 {List utilities} {
 } {{b c 7 e} f}
 
 test opt-8.11 {List utilities} {
+    catch {unset x}
     set l {a {b c 7 e} f}
     list [::tcl::Lassign $l u v w x] \
 	    $u $v $w [info exists x]
@@ -173,11 +174,11 @@ test opt-9.2 {Misc utilities} {
 #### behaviour tests #####
 
 test opt-10.1 {ambigous flags} {
-    ::tcl::OptProc optTest {{-flag1xyz} {-other} {-flag2xyz} {-flag3xyz}} {}
+    ::tcl::OptProc optTest {{-fla} {-other} {-flag2xyz} {-flag3xyz}} {}
     catch {optTest -fL} msg
     set msg
 } {ambigous option "-fL", choose from:
-    -flag1xyz boolflag (false) 
+    -fla      boolflag (false) 
     -flag2xyz boolflag (false) 
     -flag3xyz boolflag (false) }
 
@@ -187,6 +188,24 @@ test opt-10.2 {non ambigous flags} {
     }
     optTest -fLaG2
 } 1
+
+test opt-10.3 {non ambigous flags because of exact match} {
+    ::tcl::OptProc optTest {{-flag1x} {-other} {-flag1} {-flag1xy}} {
+	return $flag1
+    }
+    optTest -flAg1
+} 1
+
+test opt-10.4 {ambigous flags, not exact match} {
+    ::tcl::OptProc optTest {{-flag1xy} {-other} {-flag1} {-flag1xyz}} {
+	return $flag1
+    }
+    catch {optTest -fLag1X} msg
+    set msg
+} {ambigous option "-fLag1X", choose from:
+    -flag1xy  boolflag (false) 
+    -flag1xyz boolflag (false) }
+
 
 
 # medium size overall test example: (defined once)
@@ -200,13 +219,13 @@ test opt-10.2 {non ambigous flags} {
     list $cmd $allowBoing $arg2 $arg3 $moreflags
 }
 
-test opt-10.3 {medium size overall test} {
+test opt-10.5 {medium size overall test} {
     list [catch {optTest} msg] $msg
 } {1 {no value given for parameter "cmd" (use -help for full usage) :
     cmd choice (print save delete) sub command to choose}}
 
 
-test opt-10.4 {medium size overall test} {
+test opt-10.6 {medium size overall test} {
     list [catch {optTest -help} msg] $msg
 } {1 {Usage information:
     Var/FlagName Type     Value   Help
@@ -218,19 +237,19 @@ test opt-10.4 {medium size overall test} {
     ?arg3?       int      (7)     optional number
     -moreflags   boolflag (false) }}
 
-test opt-10.5 {medium size overall test} {
+test opt-10.7 {medium size overall test} {
     optTest save tst
 } {save 1 tst 7 0}
 
-test opt-10.6 {medium size overall test} {
+test opt-10.8 {medium size overall test} {
     optTest save -allowBoing false -- 8
 } {save 0 8 7 0}
 
-test opt-10.7 {medium size overall test} {
+test opt-10.9 {medium size overall test} {
     optTest save tst -m --
 } {save 1 tst 7 1}
 
-test opt-10.8 {medium size overall test} {
+test opt-10.10 {medium size overall test} {
     list [catch {optTest save tst foo} msg] [lindex [split $msg "\n"] 0]
 } {1 {too many arguments (unexpected argument(s): foo), usage:}}
 

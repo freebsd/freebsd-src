@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) fCmd.test 1.31 97/08/05 11:42:09
+# SCCS: @(#) fCmd.test 1.33 97/11/03 15:58:08
 #
 
 if {[string compare test [info procs test]] == 1} then {source defs}
@@ -304,10 +304,15 @@ test fCmd-4.13 {TclFileMakeDirsCmd: doesn't exist: errno == ENOENT} {
     file mkdir td1
     list $x [file exist td1]
 } {0 1}
-test fCmd-4.14 {TclFileMakeDirsCmd: TclpCreateDirectory fails} {unixOnly nonPortable} {
+test fCmd-4.14 {TclFileMakeDirsCmd: TclpCreateDirectory fails} {unixOnly} {
     cleanup
-    list [catch {file mkdir /tf1} msg] $msg
-} {1 {can't create directory "/tf1": permission denied}}
+    file delete -force foo
+    file mkdir foo
+    file attr foo -perm 040000
+    set result [list [catch {file mkdir foo/tf1} msg] $msg]
+    file delete -force foo
+    set result
+} {1 {can't create directory "foo/tf1": permission denied}}
 test fCmd-4.15 {TclFileMakeDirsCmd: TclpCreateDirectory fails} {macOnly} {
     list [catch {file mkdir ${root}:} msg] $msg
 } [subst {1 {can't create directory "${root}:": no such file or directory}}]
@@ -568,15 +573,17 @@ test fCmd-6.29 {CopyRenameOneFile: TclpCopyDirectory passed} {unixOnly xdev} {
     file rename td1 /tmp
     glob td* /tmp/td1/t*
 } {/tmp/td1/td2}
-test fCmd-6.30 {CopyRenameOneFile: TclpRemoveDirectory failed} {unixOnly nonPortable} {
+test fCmd-6.30 {CopyRenameOneFile: TclpRemoveDirectory failed} {unixOnly} {
     cleanup
-    if [file exists /kernel] {
-        set msg [list [catch {file rename /kernel td1} msg] $msg]
-	set a1 {1 {can't unlink "/kernel": permission denied}}
-	expr {$msg == $a1}
-    } else {
-        list 1
-    }
+    file mkdir foo/bar
+    file attr foo -perm 040555
+    set msg [list [catch {file rename foo/bar /tmp} msg] $msg]
+    set a1 {1 {can't unlink "foo/bar": permission denied}}
+    set result [expr {$msg == $a1}]
+    catch {file delete /tmp/bar}
+    catch {file attr foo -perm 040777}
+    catch {file delete -force foo}
+    set result
 } {1}
 test fCmd-6.31 {CopyRenameOneFile: TclpDeleteFile passed} {unixOnly xdev} {
     catch {cleanup /tmp}
@@ -618,15 +625,24 @@ test fCmd-7.5 {FileForceOption: multiple times through loop} {
     list [catch {glob -- -- -force} msg] $msg
 } {1 {no files matched glob patterns "-- -force"}}
 
-test fCmd-8.1 {FileBasename: basename of ~user: argc == 1 && *path == ~} {unixOnly nonPortable} {
-    list [catch {file rename ~$user /} msg] $msg
-} "1 {error renaming \"~$user\" to \"/[file tail ~$user]\": permission denied}"
+test fCmd-8.1 {FileBasename: basename of ~user: argc == 1 && *path == ~} {unixOnly} {
+    file mkdir td1
+    file attr td1 -perm 040000
+    set result [list [catch {file rename ~$user td1} msg] $msg]
+    file delete -force td1
+    set result
+} "1 {error renaming \"~$user\" to \"td1/[file tail ~$user]\": permission denied}"
 
 test fCmd-9.1 {file rename: comprehensive: EACCES} {unixOnly} {
     cleanup
     file mkdir td1
-    list [catch {file rename td1 /} msg] $msg
-} {1 {error renaming "td1" to "/td1": permission denied}}
+    file mkdir td2
+    file attr td2 -perm 040000
+    set result [list [catch {file rename td1 td2/} msg] $msg]
+    file delete -force td2
+    file delete -force td1
+    set result
+} {1 {error renaming "td1" to "td2/td1": permission denied}}
 test fCmd-9.2 {file rename: comprehensive: source doesn't exist} {
     cleanup
     list [catch {file rename tf1 tf2} msg] $msg

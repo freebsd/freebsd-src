@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixFCmd.c 1.29 97/06/16 16:28:25
+ * SCCS: @(#) tclUnixFCmd.c 1.31 97/10/13 16:51:14
  *
  * Portions of this code were derived from NetBSD source code which has
  * the following copyright notice:
@@ -363,7 +363,12 @@ CopyFile(src, dst, srcStatBufPtr)
 	return TCL_ERROR;
     }
 
+#if HAVE_ST_BLKSIZE
     blockSize = srcStatBufPtr->st_blksize;
+#else
+    blockSize = 4096;
+#endif
+
     buffer = ckalloc(blockSize);
     while (1) {
 	nread = read(srcFd, buffer, blockSize);
@@ -937,16 +942,11 @@ GetGroupAttribute(interp, objIndex, fileName, attributePtrPtr)
 
     groupPtr = getgrgid(statBuf.st_gid);
     if (groupPtr == NULL) {
-	endgrent();
-	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-		"could not get group for file \"", fileName, "\": ",
-		Tcl_PosixError(interp), (char *) NULL);
-	return TCL_ERROR;
+	*attributePtrPtr = Tcl_NewIntObj(statBuf.st_gid);
+    } else {
+	*attributePtrPtr = Tcl_NewStringObj(groupPtr->gr_name, -1);
     }
-
-    *attributePtrPtr = Tcl_NewStringObj(groupPtr->gr_name, -1);
     endgrent();
-    
     return TCL_OK;
 }
 
@@ -986,16 +986,11 @@ GetOwnerAttribute(interp, objIndex, fileName, attributePtrPtr)
 
     pwPtr = getpwuid(statBuf.st_uid);
     if (pwPtr == NULL) {
-	endpwent();
-	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-		"could not get owner for file \"", fileName, "\": ",
-		Tcl_PosixError(interp), (char *) NULL);
-	return TCL_ERROR;
+	*attributePtrPtr = Tcl_NewIntObj(statBuf.st_uid);
+    } else {
+	*attributePtrPtr = Tcl_NewStringObj(pwPtr->pw_name, -1);
     }
-
-    *attributePtrPtr = Tcl_NewStringObj(pwPtr->pw_name, -1);
     endpwent();
-    
     return TCL_OK;
 }
 

@@ -14,7 +14,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) basic.test 1.18 97/08/07 10:36:59
+# SCCS: @(#) basic.test 1.19 97/10/31 16:02:26
 #
 
 if {[string compare test [info procs test]] == 1} then {source defs}
@@ -381,8 +381,11 @@ test basic-11.1 {TclObjInvoke, lookup of "unknown" command} {
 } {newAlias 0 {global unknown} {}}
 
 test basic-12.1 {Tcl_CreateTrace, correct command and argc/argv arguments of trace proc} {
-    testcmdtrace {set stuff [info tclversion]}
+    testcmdtrace tracetest {set stuff [info tclversion]}
 } {{info tclversion} {info tclversion} {set stuff [info tclversion]} {set stuff 8.0}}
+test basic-12.2 {Tcl_CreateTrace, correct command and argc/argv arguments of trace proc} {
+    testcmdtrace deletetest {set stuff [info tclversion]}
+} 8.0
 
 catch {eval namespace delete [namespace children :: test_ns_*]}
 catch {namespace delete george}

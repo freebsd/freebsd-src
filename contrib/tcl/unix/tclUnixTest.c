@@ -8,7 +8,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixTest.c 1.4 97/05/14 13:24:29
+ * SCCS: @(#) tclUnixTest.c 1.5 97/10/31 17:23:42
  */
 
 #include "tclInt.h"
@@ -343,6 +343,7 @@ TestfilewaitCmd(clientData, interp, argc, argv)
     int mask, result, timeout;
     Tcl_Channel channel;
     int fd;
+    ClientData data;
 
     if (argc != 4) {
 	Tcl_AppendResult(interp, "wrong # arguments: should be \"", argv[0],
@@ -366,10 +367,11 @@ TestfilewaitCmd(clientData, interp, argc, argv)
     }
     if (Tcl_GetChannelHandle(channel, 
 	    (mask & TCL_READABLE) ? TCL_READABLE : TCL_WRITABLE,
-	    (ClientData*) &fd) != TCL_OK) {
+	    (ClientData*) &data) != TCL_OK) {
 	Tcl_SetResult(interp, "couldn't get channel file", TCL_STATIC);
 	return TCL_ERROR;
     }
+    fd = (int) data;
     if (Tcl_GetInt(interp, argv[3], &timeout) != TCL_OK) {
 	return TCL_ERROR;
     }

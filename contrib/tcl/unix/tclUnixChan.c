@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixChan.c 1.203 97/06/20 13:03:18
+ * SCCS: @(#) tclUnixChan.c 1.207 97/11/04 14:45:29
  */
 
 #include	"tclInt.h"	/* Internal definitions for Tcl. */
@@ -1713,7 +1713,7 @@ TcpGetOptionProc(instanceData, interp, optionName, dsPtr)
             }
             Tcl_DStringAppendElement(dsPtr, inet_ntoa(sockname.sin_addr));
             hostEntPtr = gethostbyaddr((char *) &(sockname.sin_addr),
-                    sizeof(peername.sin_addr), AF_INET);
+                    sizeof(sockname.sin_addr), AF_INET);
             if (hostEntPtr != (struct hostent *) NULL) {
                 Tcl_DStringAppendElement(dsPtr, hostEntPtr->h_name);
             } else {
@@ -2360,6 +2360,7 @@ Tcl_GetOpenFile(interp, string, forWriting, checkUsage, filePtr)
     Tcl_Channel chan;
     int chanMode;
     Tcl_ChannelType *chanTypePtr;
+    ClientData data;
     int fd;
     FILE *f;
     
@@ -2387,8 +2388,9 @@ Tcl_GetOpenFile(interp, string, forWriting, checkUsage, filePtr)
     if ((chanTypePtr == &fileChannelType) || (chanTypePtr == &tcpChannelType)
 	    || (strcmp(chanTypePtr->typeName, "pipe") == 0)) {
         if (Tcl_GetChannelHandle(chan,
-		(forWriting ? TCL_WRITABLE : TCL_READABLE), (ClientData*) &fd)
-		== TCL_OK) {
+		(forWriting ? TCL_WRITABLE : TCL_READABLE),
+		(ClientData*) &data) == TCL_OK) {
+	    fd = (int) data;
 
 	    /*
 	     * The call to fdopen below is probably dangerous, since it will

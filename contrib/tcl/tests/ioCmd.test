@@ -11,7 +11,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# "@(#) ioCmd.test 1.48 97/08/01 11:11:23"
+# "@(#) ioCmd.test 1.49 97/10/31 17:23:22"
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -281,11 +281,11 @@ test iocmd-8.17 {fconfigure command / tcp channel} {nonPortable} {
 	update;
 	puts $cli "blah"; flush $cli; # that flush could/should fail too
 	update;
-	set r [list [catch {fconfigure $cli -peername} msg] $msg];
+	set r [catch {fconfigure $cli -peername} msg]
 	iocmdSSHTDWN
 	regsub -all {can([^:])+: } $r {} r;
 	set r
-} {1 {connection reset by peer}}
+} 1
 test iocmd-8.18 {fconfigure command / unix tty channel} {nonPortable unixOnly} {
 	# might fail if /dev/ttya is unavailable
 	set tty [open /dev/ttya]
