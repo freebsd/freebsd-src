@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id$
+ * $Id: sys_pipe.c,v 1.1 1996/01/28 23:38:26 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -147,7 +147,7 @@ static void
 pipeinit(cpipe)
 	struct pipe *cpipe;
 {
-	int npages;
+	int npages, error;
 
 	npages = round_page(PIPESIZE)/PAGE_SIZE;
 
@@ -156,15 +156,18 @@ pipeinit(cpipe)
 	 * kernel_object.
 	 */
 	cpipe->pipe_buffer.object = vm_object_allocate(OBJT_DEFAULT, npages);
+	cpipe->pipe_buffer.buffer = (caddr_t) vm_map_min(kernel_map);
 
 	/*
 	 * Insert the object into the kernel map, and allocate kva for it.
 	 * The map entry is, by default, pageable.
 	 */
-	if (vm_map_find(kernel_map, cpipe->pipe_buffer.object, 0,
+	error = vm_map_find(kernel_map, cpipe->pipe_buffer.object, 0,
 		(vm_offset_t *) &cpipe->pipe_buffer.buffer, PIPESIZE, 1,
-		VM_PROT_ALL, VM_PROT_ALL, 0) != KERN_SUCCESS)
-		panic("pipeinit: cannot allocate pipe -- out of kvm");
+		VM_PROT_ALL, VM_PROT_ALL, 0);
+
+	if (error != KERN_SUCCESS)
+		panic("pipeinit: cannot allocate pipe -- out of kvm -- code = %d", error);
 
 	cpipe->pipe_buffer.in = 0;
 	cpipe->pipe_buffer.out = 0;
