@@ -381,9 +381,12 @@ natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
 	    else
 		npcb->npcb_flags &= ~(NPCB_RAW);
 	}
+    } else {
+        splx(s);
+	if (ifp == NULL || ifp->if_ioctl == NULL)
+		return (EOPNOTSUPP);
+	return ((*ifp->if_ioctl)(ifp, cmd, arg));
     }
-    else
-	error = EOPNOTSUPP;
 
  out:
     splx(s);
