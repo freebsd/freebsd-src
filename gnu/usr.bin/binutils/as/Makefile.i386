@@ -1,6 +1,0 @@
-#
-# $Id: Makefile.i386,v 1.1 1998/03/12 02:54:57 jdp Exp $
-#
-
-BINDIR=		/usr/libexec/elf
-SRCS+=		tc-i386.c
