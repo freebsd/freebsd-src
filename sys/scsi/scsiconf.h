@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.10 1994/09/28 20:16:41 se Exp $
+ *	$Id: scsiconf.h,v 1.11 1994/10/19 01:20:44 wollman Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -288,11 +288,12 @@ int	_3btol __P((u_char *bytes));
 
 extern void sc_print_addr(struct scsi_link *);
 
-#define SCSI_EXTERNALLEN (sizeof(struct scsi_link))
 extern int scsi_externalize(struct scsi_link *, void *, size_t *);
 extern int scsi_internalize(struct scsi_link *, void **, size_t *);
 
 #endif
+
+#define SCSI_EXTERNALLEN (sizeof(struct scsi_link))
 
 #ifdef NEW_SCSICONF
 /**********************************************************************
