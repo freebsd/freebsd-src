@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.86.2.1 1999/03/22 13:09:35 phk Exp $
+ * $Id: kern_clock.c,v 1.86.2.2 1999/04/13 18:55:12 jhay Exp $
  */
 
 #include "opt_ntp.h"
@@ -657,10 +657,16 @@ tco_setscales(struct timecounter *tc)
 
 	scale = 1000000000LL << 32;
 	scale += tc->tc_adjustment;
-	scale /= tc->tc_frequency;
+	scale /= tc->tc_tweak->tc_frequency;
 	tc->tc_scale_micro = scale / 1000;
 	tc->tc_scale_nano_f = scale & 0xffffffff;
 	tc->tc_scale_nano_i = scale >> 32;
+}
+
+void
+update_timecounter(struct timecounter *tc)
+{
+	tco_setscales(tc);
 }
 
 void
@@ -671,9 +677,9 @@ init_timecounter(struct timecounter *tc)
 	int i;
 
 	tc->tc_adjustment = 0;
+	tc->tc_tweak = tc;
 	tco_setscales(tc);
 	tc->tc_offset_count = tc->tc_get_timecount(tc);
-	tc->tc_tweak = tc;
 	MALLOC(t1, struct timecounter *, sizeof *t1, M_TIMECOUNTER, M_WAITOK);
 	*t1 = *tc;
 	t2 = t1;
