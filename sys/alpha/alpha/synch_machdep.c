@@ -466,7 +466,7 @@ mtx_validate(struct mtx *m, int when)
 		for (mp = all_mtx.mtx_next; mp != &all_mtx; mp = mp->mtx_next)
 		if (mp == m) {
 			/*
-			 * Not good. This mutex already exits
+			 * Not good. This mutex already exists.
 			 */
 			retval = 1;
 #if 1
