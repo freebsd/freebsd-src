@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.39 1999/08/15 02:31:19 grog Exp $
+ * $Id: vinumio.c,v 1.7.2.7 1999/08/24 04:05:38 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -599,7 +599,7 @@ format_config(char *config, int len)
 		s++;					    /* find the end */
 	    if ((plex->organization == plex_striped)
 		|| (plex->organization == plex_raid5)) {
-		sprintf(s, "%db ", (int) plex->stripesize);
+		sprintf(s, "%ds ", (int) plex->stripesize);
 		while (*s)
 		    s++;				    /* find the end */
 	    }
@@ -626,22 +626,25 @@ format_config(char *config, int len)
 	if ((sd->state != sd_referenced)
 	    && (sd->name[0] != '\0')) {			    /* paranoia */
 	    sprintf(s,
-		"sd name %s drive %s plex %s state %s len ",
+		"sd name %s drive %s state %s len ",
 		sd->name,
 		vinum_conf.drive[sd->driveno].label.name,
-		vinum_conf.plex[sd->plexno].name,
 		sd_state(sd->state));
 	    while (*s)
 		s++;					    /* find the end */
 	    s = lltoa(sd->sectors, s);
-	    s = sappend("b driveoffset ", s);
+	    s = sappend("s driveoffset ", s);
 	    s = lltoa(sd->driveoffset, s);
 	    if (sd->plexno >= 0) {
-	        s = sappend("b plexoffset ", s);
+	        sprintf(s,
+		    "s plex %s plexoffset ",
+		    vinum_conf.plex[sd->plexno].name);
+		while (*s)
+		    s++;				    /* find the end */
 		s = lltoa(sd->plexoffset, s);
+		s = sappend("s\n", s);
 	    } else
-	        s = sappend("detached", s);
-	    s = sappend("b\n", s);
+	        s = sappend("s detached\n", s);
 	    if (s > &config[len - 80]) {
 		log(LOG_ERR, "vinum: configuration data overflow\n");
 		return;
