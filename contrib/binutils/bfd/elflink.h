@@ -1854,6 +1854,18 @@ elf_link_add_object_symbols (abfd, info)
 		    goto error_return;
 		}
 	    }
+	  else if (dynsym && h->dynindx != -1)
+	    /* If the symbol already has a dynamic index, but
+	       visibility says it should not be visible, turn it into
+	       a local symbol.  */
+	    switch (ELF_ST_VISIBILITY (h->other))
+	      {
+	      case STV_INTERNAL:
+	      case STV_HIDDEN:  
+		h->elf_link_hash_flags |= ELF_LINK_FORCED_LOCAL;
+		(*bed->elf_backend_hide_symbol) (h);
+		break;
+	      }
 	}
     }
 
@@ -3341,10 +3353,12 @@ elf_fix_symbol_flags (h, eif)
   /* If -Bsymbolic was used (which means to bind references to global
      symbols to the definition within the shared object), and this
      symbol was defined in a regular object, then it actually doesn't
-     need a PLT entry.  */
+     need a PLT entry.  Likewise, if the symbol has any kind of
+     visibility (internal, hidden, or protected), it doesn't need a
+     PLT.  */
   if ((h->elf_link_hash_flags & ELF_LINK_HASH_NEEDS_PLT) != 0
       && eif->info->shared
-      && eif->info->symbolic
+      && (eif->info->symbolic || ELF_ST_VISIBILITY (h->other))
       && (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR) != 0)
     {
       h->elf_link_hash_flags &=~ ELF_LINK_HASH_NEEDS_PLT;
@@ -5073,6 +5087,11 @@ elf_link_output_extsym (h, data)
 	bindtype = STB_WEAK;
       sym.st_info = ELF_ST_INFO (bindtype, ELF_ST_TYPE (sym.st_info));
     }
+
+  /* If a symbol is not defined locally, we clear the visibility
+     field. */
+  if ((h->elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR) == 0)
+    sym.st_other ^= ELF_ST_VISIBILITY(sym.st_other);
 
   /* If this symbol should be put in the .dynsym section, then put it
      there now.  We have already know the symbol index.  We also fill
