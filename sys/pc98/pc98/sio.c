@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.34 1997/08/21 08:25:13 kato Exp $
+ *	$Id: sio.c,v 1.35 1997/08/30 15:47:49 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -134,11 +134,6 @@
 #endif
 
 #include <machine/clock.h>
-#ifdef SMP
-#include <machine/smp.h>
-#else
-#define POSTCODE_HI(X)
-#endif
 
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
@@ -165,6 +160,11 @@
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 #endif
+
+#ifdef SMP
+#define disable_intr()	COM_DISABLE_INTR()
+#define enable_intr()	COM_ENABLE_INTR()
+#endif /* SMP */
 
 #ifdef APIC_IO
 /*
@@ -796,11 +796,11 @@ static int
 card_intr(struct pccard_dev *dp)
 {
 	struct com_s	*com;
-	MPINTR_LOCK();
+	COM_LOCK();
 	com = com_addr(dp->isahd.id_unit);
 	if (com && !com_addr(dp->isahd.id_unit)->gone)
 		siointr1(com_addr(dp->isahd.id_unit));
-	MPINTR_UNLOCK();
+	COM_UNLOCK();
 	return(1);
 }
 #endif /* NCRD > 0 */
@@ -955,9 +955,7 @@ sioprobe(dev)
 	 * but mask them in the processor as well in case there are some
 	 * (misconfigured) shared interrupts.
 	 */
-	POSTCODE_HI(0x8);
 	disable_intr();
-	POSTCODE_HI(0x9);
 /* EXTRA DELAY? */
 
 	/*
@@ -1063,9 +1061,7 @@ sioprobe(dev)
 		failures[8] = isa_irq_pending(idev) ? 1	: 0;
 	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
-	POSTCODE_HI(0xa);
 	enable_intr();
-	POSTCODE_HI(0xb);
 
 	result = IO_COMSIZE;
 	for (fn = 0; fn < sizeof failures; ++fn)
@@ -1856,9 +1852,9 @@ siointr(unit)
 	int	unit;
 {
 #ifndef COM_MULTIPORT
-	MPINTR_LOCK();
+	COM_LOCK();
 	siointr1(com_addr(unit));
-	MPINTR_UNLOCK();
+	COM_UNLOCK();
 #else /* COM_MULTIPORT */
 	struct com_s    *com;
 	bool_t		possibly_more_intrs;
@@ -1870,13 +1866,13 @@ siointr(unit)
 	 * devices, then the edge from one may be lost because another is
 	 * on.
 	 */
-	MPINTR_LOCK();
+	COM_LOCK();
 	do {
 		possibly_more_intrs = FALSE;
 		for (unit = 0; unit < NSIO; ++unit) {
 			com = com_addr(unit);
 			/*
-			 * XXX MPINTR_LOCK();
+			 * XXX COM_LOCK();
 			 * would it work here, or be counter-productive?
 			 */
 #ifdef PC98
@@ -1893,10 +1889,10 @@ siointr(unit)
 				siointr1(com);
 				possibly_more_intrs = TRUE;
 			}
-			/* XXX MPINTR_UNLOCK(); */
+			/* XXX COM_UNLOCK(); */
 		}
 	} while (possibly_more_intrs);
-	MPINTR_UNLOCK();
+	COM_UNLOCK();
 #endif /* COM_MULTIPORT */
 }
 
