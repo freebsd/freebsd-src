@@ -120,6 +120,19 @@ CTASSERT((RQB_BPW * RQB_LEN) == RQ_NQS);
 
 #define td_kse td_sched
 
+/*
+ * kern.sched.preemption allows user space to determine if preemption support
+ * is compiled in or not.  It is not currently a boot or runtime flag that
+ * can be changed.
+ */
+#ifdef PREEMPTION
+static int kern_sched_preemption = 1;
+#else
+static int kern_sched_preemption = 0;
+#endif
+SYSCTL_INT(_kern_sched, OID_AUTO, preemption, CTLFLAG_RD,
+    &kern_sched_preemption, 0, "Kernel preemption enabled");
+
 /************************************************************************
  * Functions that manipulate runnability from a thread perspective.	*
  ************************************************************************/
