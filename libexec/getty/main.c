@@ -143,7 +143,7 @@ main(argc, argv)
 	int repcnt = 0;
 
 	signal(SIGINT, SIG_IGN);
-	signal(SIGQUIT, SIG_DFL);
+	signal(SIGQUIT, SIG_IGN);
 
 	openlog("getty", LOG_ODELAY|LOG_CONS, LOG_AUTH);
 	gethostname(hostname, sizeof(hostname));
