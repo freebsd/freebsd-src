@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.66 1994/10/17 12:44:02 ache Exp $
+ *	$Id: syscons.c,v 1.67 1994/10/17 21:16:41 phk Exp $
  */
 
 #include "sc.h"
@@ -559,6 +559,31 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	switch (cmd) {	/* process console hardware related ioctl's */
 
+	case GIO_ATTR:		/* get current attributes */
+		*(int*)data = scp->term.cur_attr;
+		return 0;
+
+	case GIO_COLOR:		/* is this a color console ? */
+		if (crtc_addr == COLOR_BASE)
+			*(int*)data = 1;
+		else
+			*(int*)data = 0;
+		return 0;
+			
+	case CONS_CURRENT:	/* get current adapter type */
+		if (crtc_vga)
+			*(int*)data = KD_VGA;
+		else
+			if (crtc_addr == MONO_BASE)
+				*(int*)data = KD_MONO;
+			else	
+				*(int*)data = KD_CGA;
+		return 0;
+
+	case CONS_GET:		/* get current video mode */
+		*(int*)data = scp->mode;
+		return 0;
+
 	case CONS_BLANKTIME:	/* set screen saver timeout (0 = no saver) */
 		scrn_blank_time = *(int*)data;
 		return 0;
@@ -580,6 +605,32 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			return EIO;
 		SAVER(data)->time = scrn_blank_time;
 		strcpy(SAVER(data)->name, screen_savers[SAVER(data)->num].name);
+		return 0;
+
+	case CONS_GETINFO:	/* get current (virtual) console info */
+	{
+		vid_info_t *ptr = (vid_info_t*)data;
+		if (ptr->size == sizeof(struct vid_info)) {
+			ptr->m_num = get_scr_num();
+			ptr->mv_col = scp->xpos;
+			ptr->mv_row = scp->ypos;
+			ptr->mv_csz = scp->xsize;
+			ptr->mv_rsz = scp->ysize;
+			ptr->mv_norm.fore = (scp->term.std_attr & 0x0f00)>>8;
+			ptr->mv_norm.back = (scp->term.std_attr & 0xf000)>>12;
+			ptr->mv_rev.fore = (scp->term.rev_attr & 0x0f00)>>8;
+			ptr->mv_rev.back = (scp->term.rev_attr & 0xf000)>>12;
+			ptr->mv_grfc.fore = 0;		/* not supported */
+			ptr->mv_grfc.back = 0;		/* not supported */
+			ptr->mv_ovscan = scp->border;
+			ptr->mk_keylock = scp->status & LOCK_KEY_MASK;
+			return 0;
+		}
+		return EINVAL;
+	}
+
+	case CONS_GETVERS:	/* get version number */
+		*(int*)data = 0x103;	/* version 1.3 */
 		return 0;
 
         case SW_VGA_C40x25:  case SW_VGA_C80x25:	/* VGA TEXT MODES */
@@ -655,32 +706,6 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
             		set_mode(scp);
             	/* clear_graphics();*/
             	return 0;
-
-	case CONS_GETVERS:	/* get version number */
-		*(int*)data = 0x103;	/* version 1.3 */
-		return 0;
-
-	case CONS_GETINFO:	/* get current (virtual) console info */
-		{
-			vid_info_t *ptr = (vid_info_t*)data;
-		if (ptr->size == sizeof(struct vid_info)) {
-			ptr->m_num = get_scr_num();
-			ptr->mv_col = scp->xpos;
-			ptr->mv_row = scp->ypos;
-			ptr->mv_csz = scp->xsize;
-			ptr->mv_rsz = scp->ysize;
-			ptr->mv_norm.fore = (scp->term.std_attr & 0x0f00)>>8;
-			ptr->mv_norm.back = (scp->term.std_attr & 0xf000)>>12;
-			ptr->mv_rev.fore = (scp->term.rev_attr & 0x0f00)>>8;
-			ptr->mv_rev.back = (scp->term.rev_attr & 0xf000)>>12;
-			ptr->mv_grfc.fore = 0;		/* not supported */
-			ptr->mv_grfc.back = 0;		/* not supported */
-			ptr->mv_ovscan = scp->border;
-			ptr->mk_keylock = scp->status & LOCK_KEY_MASK;
-			return 0;
-		}
-		return EINVAL;
-		}
 
 	case VT_SETMODE:	/* set screen switcher mode */
 		bcopy(data, &scp->smode, sizeof(struct vt_mode));
