@@ -1,5 +1,3 @@
-/*	$NetBSD: wctype.h,v 1.3 2000/12/22 14:16:16 itojun Exp $	*/
-
 /*-
  * Copyright (c)1999 Citrus Project,
  * All rights reserved.
@@ -26,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	citrus Id: wctype.h,v 1.4 2000/12/21 01:50:21 itojun Exp
- *
+ *	$NetBSD: wctype.h,v 1.3 2000/12/22 14:16:16 itojun Exp $
  * $FreeBSD$
  */
 
