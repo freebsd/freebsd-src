@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.65 1998/09/05 17:13:28 bde Exp $
+ * $Id: sysctl.h,v 1.66 1998/12/13 07:19:13 truckman Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -160,11 +160,6 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define SYSCTL_LONG(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		ptr, val, sysctl_handle_long, "L", descr)
-
-/* Oid for an intptr_t.  If ptr is NULL, val is returned. */
-#define SYSCTL_INTPTR(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
-		ptr, val, sysctl_handle_intptr, "P", descr)
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \
