@@ -8,7 +8,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	@(#)op.me	8.134 (Berkeley) 9/16/1998
+.\"	@(#)op.me	8.135 (Berkeley) 1/16/1999
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -46,7 +46,7 @@ Eric Allman
 Sendmail, Inc.
 eric@Sendmail.COM
 .sp
-Version 8.134
+Version 8.135
 .sp
 For Sendmail Version 8.9
 .)l
@@ -812,7 +812,7 @@ you should create the file
 .q /etc/sendmail.st :
 .(b
 cp /dev/null /etc/sendmail.st
-chmod 666 /etc/sendmail.st
+chmod 644 /etc/sendmail.st
 .)b
 This file does not grow.
 It is printed with the program
@@ -2870,6 +2870,17 @@ forwardfileinunsafedirpathsafe
 flags with the DontBlameSendmail option
 to allow forward files in a world
 writable directory.
+This might also be used as a
+denial of service
+attack (users could create forward files for other users);
+a better approach might be to create
+/var/forward
+mode 755
+and create empty files for each user,
+owned by that user,
+mode 644.
+If you do this, you don't have to set the DontBlameSendmail options
+indicated above.
 .sh 2 "Free Space"
 .pp
 On systems that have one of the system calls in the
@@ -8213,7 +8224,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version 8.134
+.\"Version 8.135
 .\".ce 0
 .bp 3
 .ce

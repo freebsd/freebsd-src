@@ -9,7 +9,7 @@
  * the sendmail distribution.
  *
  *
- *	@(#)sendmail.h	8.292 (Berkeley) 11/21/1998
+ *	@(#)sendmail.h	8.295 (Berkeley) 1/26/1999
  */
 
 /*
@@ -19,7 +19,7 @@
 # ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailSccsId[] =	"@(#)sendmail.h	8.292		11/21/1998";
+static char SmailSccsId[] =	"@(#)sendmail.h	8.295		1/26/1999";
 # endif
 # else /*  _DEFINE */
 # define EXTERN extern
@@ -464,7 +464,7 @@ struct envelope
 	short		e_sendmode;	/* message send mode */
 	short		e_errormode;	/* error return mode */
 	short		e_timeoutclass;	/* message timeout class */
-	void		(*e_puthdr)__P((MCI *, HDR *, ENVELOPE *));
+	void		(*e_puthdr)__P((MCI *, HDR *, ENVELOPE *, int));
 					/* function to put header of message */
 	void		(*e_putbody)__P((MCI *, ENVELOPE *, char *));
 					/* function to put body of message */
@@ -522,7 +522,7 @@ extern ENVELOPE	*newenvelope __P((ENVELOPE *, ENVELOPE *));
 extern void	dropenvelope __P((ENVELOPE *, bool));
 extern void	clearenvelope __P((ENVELOPE *, bool));
 
-extern void	putheader __P((MCI *, HDR *, ENVELOPE *));
+extern void	putheader __P((MCI *, HDR *, ENVELOPE *, int));
 extern void	putbody __P((MCI *, ENVELOPE *, char *));
 /*
 **  Message priority classes.
@@ -1258,8 +1258,7 @@ EXTERN gid_t	RunAsGid;	/* GID to become for bulk of run */
 EXTERN int	MaxRcptPerMsg;	/* max recipients per SMTP message */
 EXTERN bool	DoQueueRun;	/* non-interrupt time queue run needed */
 EXTERN u_long	ConnectOnlyTo;	/* override connection address (for testing) */
-EXTERN int	MaxHeaderLines;	/* max lines of headers per message */
-EXTERN int	MaxHeaderLineLength;	/* max length of a header line */
+EXTERN int	MaxHeadersLength;	/* max length of headers */
 #if _FFR_DSN_RRT_OPTION
 EXTERN bool	RrtImpliesDsn;	/* turn Return-Receipt-To: into DSN */
 #endif
