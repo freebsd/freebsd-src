@@ -14,9 +14,6 @@
 
 #define TITLE	"FreeBSD 2.0-950128-SNAP Install"
 
-#define BOOT1 "/stand/sdboot"
-#define BOOT2 "/stand/bootsd"
-
 #define MAX_NO_DISKS	10
 #define MAX_NO_FS	30
 #define MAXFS	MAX_NO_FS
