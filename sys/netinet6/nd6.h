@@ -87,6 +87,7 @@ struct nd_ifinfo {
 };
 
 #define ND6_IFF_PERFORMNUD	0x1
+#define ND6_IFF_ACCEPT_RTADV	0x2
 
 struct in6_nbrinfo {
 	char ifname[IFNAMSIZ];	/* if name, e.g. "en0" */
