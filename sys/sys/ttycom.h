@@ -106,11 +106,12 @@ struct winsize {
 #define		TIOCM_ST	0010		/* secondary transmit */
 #define		TIOCM_SR	0020		/* secondary receive */
 #define		TIOCM_CTS	0040		/* clear to send */
-#define		TIOCM_CAR	0100		/* carrier detect */
-#define		TIOCM_CD	TIOCM_CAR
-#define		TIOCM_RNG	0200		/* ring */
-#define		TIOCM_RI	TIOCM_RNG
+#define		TIOCM_DCD	0100		/* data carrier detect */
+#define		TIOCM_RI 	0200		/* ring indicate */
 #define		TIOCM_DSR	0400		/* data set ready */
+#define		TIOCM_CD	TIOCM_DCD
+#define		TIOCM_CAR	TIOCM_DCD
+#define		TIOCM_RNG	TIOCM_RI
 #define	TIOCREMOTE	_IOW('t', 105, int)	/* remote input editing */
 #define	TIOCGWINSZ	_IOR('t', 104, struct winsize)	/* get window size */
 #define	TIOCSWINSZ	_IOW('t', 103, struct winsize)	/* set window size */
