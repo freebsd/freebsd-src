@@ -1130,7 +1130,9 @@ static void rl_rxeof(sc)
 				m_adj(m, RL_ETHER_ALIGN);
 				m_copyback(m, wrap, total_len - wrap,
 					sc->rl_cdata.rl_rx_buf);
-				m = m_pullup(m, sizeof(struct ether_header));
+				if (m->m_len < sizeof(struct ether_header))
+					m = m_pullup(m,
+					    sizeof(struct ether_header));
 				if (m == NULL) {
 					printf("rl%d: m_pullup failed",
 					    sc->rl_unit);
@@ -1385,7 +1387,11 @@ static void rl_start(ifp)
 		if (m_head == NULL)
 			break;
 
-		rl_encap(sc, m_head);
+		if (rl_encap(sc, m_head)) {
+			IF_PREPEND(&ifp->if_snd, m_head);
+			ifp->if_flags |= IFF_OACTIVE;
+			break;
+		}
 
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
