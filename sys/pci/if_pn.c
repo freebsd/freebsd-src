@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.36 1999/01/05 00:47:25 wpaul Exp $
+ *	$Id: if_pn.c,v 1.6 1999/01/05 00:59:08 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.36 1999/01/05 00:47:25 wpaul Exp $";
+	"$Id: if_pn.c,v 1.6 1999/01/05 00:59:08 wpaul Exp $";
 #endif
 
 /*
@@ -937,6 +937,7 @@ pn_attach(config_id, unit)
 	ifp->if_watchdog = pn_watchdog;
 	ifp->if_init = pn_init;
 	ifp->if_baudrate = 10000000;
+	ifp->if_snd.ifq_maxlen = PN_TX_LIST_CNT - 1;
 
 	if (bootverbose)
 		printf("pn%d: probing for a PHY\n", sc->pn_unit);
