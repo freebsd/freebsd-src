@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.29 1997/10/12 20:24:24 phk Exp $
+ * $Id: vfs_init.c,v 1.30 1997/10/16 10:47:57 phk Exp $
  */
 
 
@@ -266,31 +266,3 @@ vfsinit(dummy)
 	maxvfsconf = maxtypenum;
 }
 
-/*
- * kernel related system variables.
- */
-
-/*
- * This goop is here to support a loadable NFS module... grumble...
- *
- * XXX: NFS could plug this into default_vnodeop_p now!
- */
-int (*lease_check_hook) __P((struct vop_lease_args *))
-     = 0;
-void (*lease_updatetime) __P((int))
-     = 0;
-
-int
-lease_check(ap)
-	struct vop_lease_args /* {
-		struct vnode *a_vp;
-		struct proc *a_p;
-		struct ucred *a_cred;
-		int a_flag;
-	} */ *ap;
-{
-    if (lease_check_hook)
-	return (*lease_check_hook)(ap);
-    else
-	return 0;
-}

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.36 1997/10/15 13:58:52 peter Exp $
+ * $Id: kern_time.c,v 1.37 1997/10/20 18:43:49 ache Exp $
  */
 
 #include <sys/param.h>
@@ -63,6 +63,14 @@ static int	nanosleep1 __P((struct proc *p, struct timespec *rqt,
 		    struct timespec *rmt));
 static int	settime __P((struct timeval *));
 static void	timevalfix __P((struct timeval *));
+
+static void 
+no_lease_updatetime(deltat)
+	int deltat;
+{
+}
+
+void (*lease_updatetime) __P((int))  = no_lease_updatetime;
 
 static int
 settime(tv)
@@ -110,9 +118,7 @@ settime(tv)
 		if (p->p_sleepend)
 			timevaladd(p->p_sleepend, &delta);
 	}
-#ifdef NFS
 	lease_updatetime(delta.tv_sec);
-#endif
 	splx(s);
 	resettodr();
 	return (0);
