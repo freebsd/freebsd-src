@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.19 1996/09/03 15:14:45 bde Exp $
+# $Id: bsd.info.mk,v 1.20 1997/01/05 15:33:36 ache Exp $
 
 MAKEINFO?=	makeinfo
 MAKEINFOFLAGS+=	--no-split # simplify some things, e.g., compression
@@ -42,7 +42,7 @@ distribute: _SUBDIR
 
 .if defined(SRCS)
 ${INFO}.info: ${SRCS}
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${SRCS:S/^/${.SRCDIR}\//g} -o ${INFO}.info
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${SRCS:S/^/${SRCDIR}\//g} -o ${INFO}.info
 .endif
 
 depend: _SUBDIR
