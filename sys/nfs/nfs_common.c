@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.65 1998/09/07 05:42:15 bde Exp $
+ * $Id: nfs_subs.c,v 1.66 1998/10/31 15:31:25 peter Exp $
  */
 
 /*
@@ -1377,7 +1377,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 					np->n_size = vap->va_size;
 			} else
 				np->n_size = vap->va_size;
-			vnode_pager_setsize(vp, (u_long)np->n_size);
+			vnode_pager_setsize(vp, np->n_size);
 		} else
 			np->n_size = vap->va_size;
 	}
@@ -1463,7 +1463,7 @@ nfs_getattrcache(vp, vaper)
 					np->n_size = vap->va_size;
 			} else
 				np->n_size = vap->va_size;
-			vnode_pager_setsize(vp, (u_long)np->n_size);
+			vnode_pager_setsize(vp, np->n_size);
 		} else
 			np->n_size = vap->va_size;
 	}
