@@ -24,7 +24,9 @@ sub init_main {
 
 	# MakeMaker insist to use perl system path first;
 	# free it of this misconception, since we know better.
-	$him->{PERL_LIB} = BSDPAN->path;
+	$him->{PERL_LIB_REAL} = $him->{PERL_LIB};
+	$him->{PERL_LIB_BSDPAN} = BSDPAN->path;
+	$him->{PERL_LIB} = $him->{PERL_LIB_BSDPAN};
 
 	# MakeMaker is pretty lame when the user specifies PREFIX.
 	# It has too fine granularity regarding the various places
@@ -57,8 +59,20 @@ sub init_main {
 	return @r;
 }
 
+sub tool_xsubpp {
+	my $orig = shift;
+	my $him = $_[0];
+
+	$him->{PERL_LIB} = $him->{PERL_LIB_REAL};
+	my @r = &$orig;
+	$him->{PERL_LIB} = $him->{PERL_LIB_BSDPAN};
+
+	return @r;
+}
+
 BEGIN {
 	override 'init_main', \&init_main;
+	override 'tool_xsubpp', \&tool_xsubpp;
 }
 
 1;
@@ -72,13 +86,17 @@ BSDPAN::ExtUtils::MM_Unix - Override ExtUtils::MM_Unix functionality
 
 =head1 DESCRIPTION
 
-BSDPAN::ExtUtils::MM_Unix overrides init_main() sub of the standard perl
+BSDPAN::ExtUtils::MM_Unix overrides two subs from the standard perl
 module ExtUtils::MM_Unix.
 
 The overridden init_main() first calls the original init_main().  Then,
 if the Perl port build is detected, and the PREFIX stored in the
 ExtUtils::MM_Unix object is not F</usr/local/>, it proceeds to change
 various installation paths ExtUtils::MM_Unix maintains, to match PREFIX.
+
+The overridden tool_xsubpp() sub temporarily undoes the change in the
+environment done by the overridden init_main(), so that xsubpp(1) and
+other XS tools will be searched in the right place.
 
 Thus, BSDPAN::ExtUtils::MM_Unix is responsible for making p5- ports
 PREFIX-clean.
