@@ -122,7 +122,7 @@ main(int argc, char *argv[])
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
-	while ((ch = getopt(argc, argv, "CNd:ps:u:v")) != -1)
+	while ((ch = getopt(argc, argv, "CNd:ips:u:v")) != -1)
 		switch(ch) {
 		case 'C':                       /* verify only */
 			Cflag = 1;
