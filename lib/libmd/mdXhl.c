@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mdXhl.c,v 1.10 1997/02/22 15:07:23 peter Exp $
+ * $Id: mdXhl.c,v 1.11 1997/08/25 05:24:25 joerg Exp $
  *
  */
 
@@ -24,15 +24,15 @@ char *
 MDXEnd(MDX_CTX *ctx, char *buf)
 {
     int i;
-    unsigned char digest[16];
+    unsigned char digest[LENGTH];
     static const char hex[]="0123456789abcdef";
 
     if (!buf)
-        buf = malloc(33);
+        buf = malloc(2*LENGTH + 1);
     if (!buf)
 	return 0;
-    MDXFinal(digest,ctx);
-    for (i=0;i<16;i++) {
+    MDXFinal(digest, ctx);
+    for (i = 0; i < LENGTH; i++) {
 	buf[i+i] = hex[digest[i] >> 4];
 	buf[i+i+1] = hex[digest[i] & 0x0f];
     }
@@ -41,7 +41,7 @@ MDXEnd(MDX_CTX *ctx, char *buf)
 }
 
 char *
-MDXFile (const char *filename, char *buf)
+MDXFile(const char *filename, char *buf)
 {
     unsigned char buffer[BUFSIZ];
     MDX_CTX ctx;
