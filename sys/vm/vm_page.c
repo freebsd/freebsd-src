@@ -1351,7 +1351,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 {
 	int s;
 
-	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	/*
 	 * Ignore if already inactive.
 	 */
