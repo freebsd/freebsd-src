@@ -85,3 +85,4 @@
 /* Version number of package */
 #define VERSION "3.36"
 
+#include <fcntl.h>
