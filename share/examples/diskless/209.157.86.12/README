@@ -1,3 +1,4 @@
+$FreeBSD$
 
     kernel, rc.local, and xdm-config are typically softlinks.  Plus other
     files, of course, depending on how you setup your system.

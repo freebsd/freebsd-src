@@ -1,6 +1,8 @@
 # DISKLESS RC.CONF.LOCAL
 #
 # Override system standard /etc/rc.conf
+#
+# $FreeBSD$
 
 . /conf/HT.DISKLESS/rc.conf.local
 

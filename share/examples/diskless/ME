@@ -34,4 +34,4 @@ softlink.  The advantage is that for all the complexity of your /conf
 directory hierarchy, most of your common config files exist in only one place
 in reality.
 
-
+$FreeBSD$
