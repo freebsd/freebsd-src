@@ -60,11 +60,15 @@ a TCP reset for the connection attempt rather then simply blackholing
 the packet.  We cover these and other quirks involved with constructing
 a firewall in the sample firewall section below.
 .Sh IPFW KERNEL CONFIGURATION
-To use the ip firewall features of
+You do not need to create a customer kernel to use the IP firewalling features.
+If you enable firewalling in your
+.Em /etc/rc.conf 
+(see below), the ipfw kernel module will be loaded automatically.  However,
+if you are paranoid you can compile IPFW directly into the
 .Fx
-you must create a custom kernel with the
+kernel by using the
 .Sy IPFIREWALL
-option set.  The kernel defaults its firewall to deny all
+option set.  If compiled in the kernel defaults its firewall to deny all
 packets by default, which means that if you do not load in
 a permissive ruleset via
 .Em /etc/rc.conf ,
@@ -80,13 +84,13 @@ boot sequence, also resulting in an inaccessible machine.
 Because of these problems the
 .Sy IPFIREWALL_DEFAULT_TO_ACCEPT
 kernel option is also available which changes the default firewall
-to pass through all packets.  Note, however, that this is a very
-dangerous option to set because it means your firewall is disabled
-during booting.  You should use this option while getting up to
-speed with
+to pass through all packets.  Note, however, that using this option
+may open a small window of opportunity during booting where your
+firewall passes all packets.  Still, it's a good option to use
+while getting up to speed with
 .Fx
-firewalling, but get rid of it once you understand how it all works
-to close the loophole.  There is a third option called
+firewalling.  Get rid of it once you understand how it all works
+to close the loophole, though.  There is a third option called
 .Sy IPDIVERT
 which allows you to use the firewall to divert packets to a user program
 and is necessary if you wish to use
