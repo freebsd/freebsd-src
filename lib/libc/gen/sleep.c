@@ -100,19 +100,6 @@ sleep(seconds)
 	int alarm_blocked;
 
 	if (seconds != 0) {
-	again:
-		/*
-		 * XXX
-		 * Hack to work around itimerfix(9) gratuitously limiting
-		 * the acceptable range for a struct timeval.tv_sec to
-		 * <= ITIMERMAX
-		 */
-		if (seconds > ITIMERMAX) {
-			rest = seconds - ITIMERMAX;
-			seconds = ITIMERMAX;
-		}
-		time_to_sleep.tv_sec = seconds;
-		time_to_sleep.tv_nsec = 0;
 
 		/* Block SIGALRM while fiddling with it */
 		sigemptyset(&mask);
@@ -132,6 +119,20 @@ sleep(seconds)
 			sigaction(SIGALRM, &act, &oact);
 		}
 
+	again:
+		/*
+		 * XXX
+		 * Hack to work around itimerfix(9) gratuitously limiting
+		 * the acceptable range for a struct timeval.tv_sec to
+		 * <= ITIMERMAX
+		 */
+		if (seconds > ITIMERMAX) {
+			rest = seconds - ITIMERMAX;
+			seconds = ITIMERMAX;
+		}
+		time_to_sleep.tv_sec = seconds;
+		time_to_sleep.tv_nsec = 0;
+
   		/*
   		 * signanosleep() uses the given mask for the lifetime of
   		 * the syscall only - it resets on return.  Note that the
@@ -142,18 +143,18 @@ sleep(seconds)
   		 */
 		signanosleep(&time_to_sleep, &time_remaining, &omask);
 
-		if (!alarm_blocked) {
-			/* Unwind */
-			sigaction(SIGALRM, &oact, (struct sigaction *)0);
-			sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
-		}
-
 		if (rest != 0 &&
 		    time_remaining.tv_sec == 0 &&
 		    time_remaining.tv_nsec == 0) {
 			seconds = rest;
 			rest = 0;
 			goto again;
+		}
+
+		if (!alarm_blocked) {
+			/* Unwind */
+			sigaction(SIGALRM, &oact, (struct sigaction *)0);
+			sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
 		}
 
 		/* return how long is left */
