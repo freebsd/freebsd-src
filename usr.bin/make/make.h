@@ -125,16 +125,16 @@ typedef struct GNode {
     int        	    cmtime;    	/* The modification time of its youngest
 				 * child */
 
-    Lst     	    *iParents;  /* Links to parents for which this is an
+    Lst     	    iParents;   /* Links to parents for which this is an
 				 * implied source, if any */
-    Lst		    *cohorts;  	/* Other nodes for the :: operator */
-    Lst	            *parents;   /* Nodes that depend on this one */
-    Lst	            *children;  /* Nodes on which this one depends */
-    Lst		    *successors;/* Nodes that must be made after this one */
-    Lst		    *preds;  	/* Nodes that must be made before this one */
+    Lst		    cohorts;  	/* Other nodes for the :: operator */
+    Lst	            parents;    /* Nodes that depend on this one */
+    Lst	            children;   /* Nodes on which this one depends */
+    Lst		    successors; /* Nodes that must be made after this one */
+    Lst		    preds;  	/* Nodes that must be made before this one */
 
-    Lst            *context;   /* The local variables */
-    Lst            *commands;  /* Creation commands */
+    Lst             context;   /* The local variables */
+    Lst             commands;  /* Creation commands */
 
     /* current command executing in compat mode */
     LstNode	   *compat_command;
@@ -283,14 +283,17 @@ typedef struct IFile {
 /*
  * Global Variables
  */
-extern Lst  	*create;	/* The list of target names specified on the
-				 * command line. used to resolve #if
-				 * make(...) statements */
-extern Lst     *dirSearchPath;  /* The list of directories to search when
-				 * looking for targets */
+/* The list of target names specified on the  command line.
+ * Used to resolve #if make(...) statements */
+extern Lst create;
+
+/* The list of directories to search when looking for targets */
+extern Lst dirSearchPath;
+
 extern IFile	curFile;	/* current makefile */
-extern Lst	*parseIncPath;	/* The list of directories to search when
-				 * looking for includes */
+
+/* The list of directories to search when looking for includes */
+extern Lst parseIncPath;
 
 extern Boolean	jobsRunning;	/* True if jobs are running */
 extern Boolean	compatMake;	/* True if we are make compatible */
@@ -314,9 +317,10 @@ extern Boolean 	queryFlag;    	/* TRUE if we aren't supposed to really make
 
 extern Boolean	checkEnvFirst;	/* TRUE if environment should be searched for
 				 * all variables before the global context */
-extern Lst	*envFirstVars;	/* List of specific variables for which the
-				 * environment should be searched before the
-				 * global context */
+
+/* List of specific variables for which the environment should be
+ * searched before the global context */
+extern Lst envFirstVars;
 
 extern GNode    *DEFAULT;    	/* .DEFAULT rule */
 
@@ -333,7 +337,8 @@ extern time_t 	now;	    	/* The time at the start of this whole
 
 extern Boolean	oldVars;    	/* Do old-style variable substitution */
 
-extern Lst	*sysIncPath;	/* The system include path. */
+/* The system include path. */
+extern Lst sysIncPath;
 
 /*
  * debug control:

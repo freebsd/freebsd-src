@@ -102,11 +102,17 @@ typedef	void FreeProc(void *);
  * Creation/destruction functions
  */
 /* Create a new list */
-Lst		*Lst_Init(void);
+#define	Lst_Init(LST)	do {						\
+				(LST)->firstPtr = NULL;			\
+				(LST)->lastPtr = NULL;			\
+			} while (0)
+#define	Lst_Initializer(NAME)	{ NULL, NULL }
+
 /* Duplicate an existing list */
-Lst		*Lst_Duplicate(Lst *, DuplicateProc *);
+void	Lst_Duplicate(Lst *, Lst *, DuplicateProc *);
+
 /* Destroy an old one */
-void		Lst_Destroy(Lst *, FreeProc *);
+void	Lst_Destroy(Lst *, FreeProc *);
 
 /*
  * Functions to modify a list
@@ -125,7 +131,7 @@ void		Lst_Remove(Lst *, LstNode *);
 #define	Lst_Replace(NODE, D)	(((NODE) == NULL) ? FAILURE : \
 				    (((NODE)->datum = (D)), SUCCESS))
 /* Concatenate two lists */
-void		Lst_Concat(Lst *, Lst *, int);
+void	Lst_Concat(Lst *, Lst *, int);
 
 /*
  * Node-specific functions
