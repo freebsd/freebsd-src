@@ -392,19 +392,6 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 
 extern void	(*lease_updatetime)(int deltat);
 
-/* Requires interlock. */
-#define	VCANRECYCLE(vp)							\
-	(((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt)
-
-/* Requires interlock. */
-#define	VSHOULDFREE(vp)							\
-	(!((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt &&		\
-	 (!(vp)->v_object || !(vp)->v_object->resident_page_count))
-
-/* Requires interlock. */
-#define	VSHOULDBUSY(vp)							\
-	(((vp)->v_iflag & VI_FREE) && (vp)->v_holdcnt)
-
 #define	VI_LOCK(vp)	mtx_lock(&(vp)->v_interlock)
 #define	VI_TRYLOCK(vp)	mtx_trylock(&(vp)->v_interlock)
 #define	VI_UNLOCK(vp)	mtx_unlock(&(vp)->v_interlock)
@@ -686,7 +673,6 @@ int	vop_enotty(struct vop_generic_args *ap);
 int	vop_null(struct vop_generic_args *ap);
 int	vop_panic(struct vop_generic_args *ap);
 
-void	vfree(struct vnode *);
 void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
