@@ -1,4 +1,4 @@
-<!-- $Id: dma.sgml,v 1.1 1995/09/25 04:53:29 jfieber Exp $ -->
+<!-- $Id: dma.sgml,v 1.1.2.1 1995/10/30 15:23:53 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -14,7 +14,7 @@
     <p><em>Copyright &copy; 1995 &a.uhclem;, All Rights Reserved.<newline>
 	18 October 1995.</em>
 
-<!-- Version 1(1) -->
+<!-- Version 1(2) -->
 
       Direct Memory Access (DMA) is a method of allowing data to
       be moved from one location to another in a computer without
@@ -40,7 +40,7 @@
       the way the second controller is wired into the system.
 
       The 8237 has two electrical signals for each channel, named
-      DRQ and -DACK.  There are additional signals that with the
+      DRQ and -DACK.  There are additional signals with the
       names HRQ (Hold Request), HLDA (Hold Acknowledge), -EOP
       (End of Process), and the bus control signals -MEMR (Memory
       Read), -MEMW (Memory Write), -IOR (I/O Read), and -IOW (I/O
@@ -78,8 +78,8 @@
 	The DMA controller will note that the DRQ2 signal is asserted.
 	The DMA controller will then make sure that DMA channel 2
 	has been programmed and is enabled.  The DMA controller
-	also makes sure none of the other DMA channels is active
-	or has a higher priority.  Once these checks are
+	also makes sure that none of the other DMA channels are active
+	or have a higher priority.  Once these checks are
 	complete, the DMA asks the CPU to release the bus so that
 	the DMA may use the bus.  The DMA requests the bus by
 	asserting the HRQ signal which goes to the CPU.
@@ -145,7 +145,7 @@
 	incremented and the counter that shows how many bytes are
 	to be transferred is decremented.
 
-	When the counter reaches zero, the asserts the EOP
+	When the counter reaches zero, the DMA asserts the EOP
 	signal, which indicates that the counter has reached zero
 	and no more data will be transferred until the DMA
 	controller is reprogrammed by the CPU.  This event is
@@ -208,7 +208,7 @@
 	span a 64K physical boundary.  If the DMA accesses memory
 	location 0xffff, the DMA will then increment the address
 	register and it will access the next byte at 0x0000, not
-	0x10000.  The results of this are probably not intended.
+	0x10000.  The results of letting this happen are probably not intended.
 
 	<quote><em>Note:</em> ``Physical'' 64K boundaries should
 	  not be confused with 8086-mode 64K ``Segments'', which
@@ -268,12 +268,12 @@
 	    The difference between Block and Demand is the once a
 	    Block transfer is started, it runs until the transfer
 	    count reaches zero.  DRQ only needs to be asserted
-	    until -DACK is asserted.  Demand mode will transfer
+	    until -DACK is asserted.  Demand Mode will transfer
 	    one more bytes until DRQ is de-asserted, then when
 	    DRQ is asserted later, the transfer resumes where it
 	    was suspended.
 
-	    Older hard disk controllers used Demand mode until
+	    Older hard disk controllers used Demand Mode until
 	    CPU speeds increased to the point that it was more
 	    efficient to read the data using the CPU.
 		
@@ -429,8 +429,8 @@
 DMA Command Registers
 
 <verb>
-0x10	write	Command register
-0x10	read	Status register
+0x10	write	Command Register
+0x10	read	Status Register
 0x12	write	Request Register
 0x12	read	-
 0x14	write	Single Mask Register Bit
@@ -440,7 +440,7 @@ DMA Command Registers
 0x18	write	Clear LSB/MSB Flip-Flop
 0x18	read	-
 0x1a	write	Master Clear/Reset
-0x1a	read	Temporary register
+0x1a	read	Temporary Register
 0x1c	write	Clear Mask Register
 0x1c	read	-
 0x1e	write	Write All Mask Register Bits
@@ -476,8 +476,8 @@ DMA Command Registers
 DMA Command Registers
 
 <verb>
-0xd0	write	Command register
-0xd0	read	Status register
+0xd0	write	Command Register
+0xd0	read	Status Register
 0xd2	write	Request Register
 0xd2	read	-
 0xd4	write	Single Mask Register Bit
@@ -487,7 +487,7 @@ DMA Command Registers
 0xd8	write	Clear LSB/MSB Flip-Flop
 0xd8	read	-
 0xda	write	Master Clear/Reset
-0xda	read	Temporary register
+0xda	read	Temporary Register
 0xdc	write	Clear Mask Register
 0xdc	read	-
 0xde	write	Write All Mask Register Bits
