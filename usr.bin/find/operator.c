@@ -176,7 +176,7 @@ not_squish(plan)
 
 	tail = result = NULL;
 
-	while (next = yanknode(&plan)) {
+	while ((next = yanknode(&plan))) {
 		/*
 		 * if we encounter a ( expression ) then look for nots in
 		 * the expr subplan.
