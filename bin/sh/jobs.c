@@ -982,7 +982,7 @@ dowait(int block, struct job *job)
 				showjob(thisjob, pid, 0, 0);
 		}
 	} else {
-		TRACE(("Not printing status, rootshell=%d, job=0x%x\n", rootshell, job));
+		TRACE(("Not printing status, rootshell=%d, job=%p\n", rootshell, job));
 		if (thisjob)
 			thisjob->changed = 1;
 	}
