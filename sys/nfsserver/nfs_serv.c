@@ -310,13 +310,7 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto out;
 	}
-	if ((error = VFS_FHTOVP(mp, &fhp->fh_fid, &vp)) != 0) {
-		mp = NULL;
-		goto out;
-	}
-	(void) vn_start_write(vp, &mp, V_WAIT);
-	vput(vp);
-	vp = NULL;
+	(void) vn_start_write(NULL, &mp, V_WAIT);
 	VATTR_NULL(vap);
 	if (v3) {
 		nfsm_srvsattr(vap);
@@ -1010,13 +1004,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto ereply;
 	}
-	if ((error = VFS_FHTOVP(mntp, &fhp->fh_fid, &vp)) != 0) {
-		mntp = NULL;
-		goto ereply;
-	}
-	(void) vn_start_write(vp, &mntp, V_WAIT);
-	vput(vp);
-	vp = NULL;
+	(void) vn_start_write(NULL, &mntp, V_WAIT);
 	if (v3) {
 		tl = nfsm_dissect(u_int32_t *, 5 * NFSX_UNSIGNED);
 		off = fxdr_hyper(tl);
@@ -1588,7 +1576,6 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	u_quad_t tempsize;
 	u_char cverf[NFSX_V3CREATEVERF];
 	struct mount *mp = NULL;
-	struct vnode *vp;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 #ifndef nolint
@@ -1602,12 +1589,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto ereply;
 	}
-	if ((error = VFS_FHTOVP(mp, &fhp->fh_fid, &vp)) != 0) {
-		mp = NULL;
-		goto ereply;
-	}
-	(void) vn_start_write(vp, &mp, V_WAIT);
-	vput(vp);
+	(void) vn_start_write(NULL, &mp, V_WAIT);
 	nfsm_srvnamesiz(len);
 
 	nd.ni_cnd.cn_cred = cred;
@@ -1891,13 +1873,7 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto ereply;
 	}
-	if ((error = VFS_FHTOVP(mp, &fhp->fh_fid, &vp)) != 0) {
-		mp = NULL;
-		goto ereply;
-	}
-	(void) vn_start_write(vp, &mp, V_WAIT);
-	vput(vp);
-	vp = NULL;
+	(void) vn_start_write(NULL, &mp, V_WAIT);
 	nfsm_srvnamesiz(len);
 
 	nd.ni_cnd.cn_cred = cred;
@@ -2064,7 +2040,6 @@ nfsrv_remove(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	struct mount *mp = NULL;
-	struct vnode *vp;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	ndclear(&nd);
@@ -2075,13 +2050,7 @@ nfsrv_remove(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto ereply;
 	}
-	if ((error = VFS_FHTOVP(mp, &fhp->fh_fid, &vp)) != 0) {
-		mp = NULL;
-		goto ereply;
-	}
-	(void) vn_start_write(vp, &mp, V_WAIT);
-	vput(vp);
-	vp = NULL;
+	(void) vn_start_write(NULL, &mp, V_WAIT);
 	nfsm_srvnamesiz(len);
 
 	nd.ni_cnd.cn_cred = cred;
@@ -2178,7 +2147,6 @@ nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fhandle_t *ffhp, *tfhp;
 	uid_t saved_uid;
 	struct mount *mp = NULL;
-	struct vnode *vp;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 #ifndef nolint
@@ -2199,13 +2167,7 @@ nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto out1;
 	}
-	if ((error = VFS_FHTOVP(mp, &ffhp->fh_fid, &vp)) != 0) {
-		mp = NULL;
-		goto out1;
-	}
-	(void) vn_start_write(vp, &mp, V_WAIT);
-	vput(vp);
-	vp = NULL;
+	(void) vn_start_write(NULL, &mp, V_WAIT);
 	nfsm_srvnamesiz(len);
 	/*
 	 * Remember our original uid so that we can reset cr_uid before
@@ -2421,13 +2383,7 @@ nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto ereply;
 	}
-	if ((error = VFS_FHTOVP(mp, &fhp->fh_fid, &vp)) != 0) {
-		mp = NULL;
-		goto ereply;
-	}
-	(void) vn_start_write(vp, &mp, V_WAIT);
-	vput(vp);
-	vp = NULL;
+	(void) vn_start_write(NULL, &mp, V_WAIT);
 	nfsm_srvmtofh(dfhp);
 	nfsm_srvnamesiz(len);
 
@@ -2559,7 +2515,6 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	struct mount *mp = NULL;
-	struct vnode *vp;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	ndclear(&nd);
@@ -2570,13 +2525,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto out;
 	}
-	if ((error = VFS_FHTOVP(mp, &fhp->fh_fid, &vp)) != 0) {
-		mp = NULL;
-		goto out;
-	}
-	(void) vn_start_write(vp, &mp, V_WAIT);
-	vput(vp);
-	vp = NULL;
+	(void) vn_start_write(NULL, &mp, V_WAIT);
 	nfsm_srvnamesiz(len);
 	nd.ni_cnd.cn_cred = cred;
 	nd.ni_cnd.cn_nameiop = CREATE;
@@ -2738,7 +2687,6 @@ nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	struct mount *mp = NULL;
-	struct vnode *vp;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	ndclear(&nd);
@@ -2749,13 +2697,7 @@ nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto out;
 	}
-	if ((error = VFS_FHTOVP(mp, &fhp->fh_fid, &vp)) != 0) {
-		mp = NULL;
-		goto out;
-	}
-	(void) vn_start_write(vp, &mp, V_WAIT);
-	vput(vp);
-	vp = NULL;
+	(void) vn_start_write(NULL, &mp, V_WAIT);
 	nfsm_srvnamesiz(len);
 	nd.ni_cnd.cn_cred = cred;
 	nd.ni_cnd.cn_nameiop = CREATE;
@@ -2908,13 +2850,7 @@ nfsrv_rmdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto out;
 	}
-	if ((error = VFS_FHTOVP(mp, &fhp->fh_fid, &vp)) != 0) {
-		mp = NULL;
-		goto out;
-	}
-	(void) vn_start_write(vp, &mp, V_WAIT);
-	vput(vp);
-	vp = NULL;
+	(void) vn_start_write(NULL, &mp, V_WAIT);
 	nfsm_srvnamesiz(len);
 	nd.ni_cnd.cn_cred = cred;
 	nd.ni_cnd.cn_nameiop = DELETE;
@@ -3697,13 +3633,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto ereply;
 	}
-	if ((error = VFS_FHTOVP(mp, &fhp->fh_fid, &vp)) != 0) {
-		mp = NULL;
-		goto ereply;
-	}
-	(void) vn_start_write(vp, &mp, V_WAIT);
-	vput(vp);
-	vp = NULL;
+	(void) vn_start_write(NULL, &mp, V_WAIT);
 	tl = nfsm_dissect(u_int32_t *, 3 * NFSX_UNSIGNED);
 
 	/*
