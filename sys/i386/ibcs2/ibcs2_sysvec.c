@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_sysvec.c,v 1.2 1996/03/02 19:37:43 peter Exp $
+ * $Id: ibcs2_sysvec.c,v 1.3 1996/03/27 18:39:40 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -53,5 +53,6 @@ struct sysentvec ibcs2_svr3_sysvec = {
 	sendsig,
 	sigcode,	/* use generic trampoline */
 	&szsigcode,	/* use generic trampoline size */
-	0		/* prepsyscall */
+	0,		/* prepsyscall */
+	"IBCS2 COFF"
 };

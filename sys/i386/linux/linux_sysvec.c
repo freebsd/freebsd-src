@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.5 1996/05/01 06:31:18 jkh Exp $
+ *  $Id: linux_sysvec.c,v 1.6 1996/06/12 05:06:29 gpalmer Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -382,6 +382,7 @@ struct sysentvec linux_sysvec = {
 	linux_sigcode,	
 	&linux_szsigcode,
 	linux_prepsyscall,
+	"Linux a.out"
 };
 
 struct sysentvec elf_linux_sysvec = {
@@ -397,6 +398,7 @@ struct sysentvec elf_linux_sysvec = {
         linux_sigcode,
         &linux_szsigcode,
         linux_prepsyscall,
+	"Linux ELF"
 };
 
 /*
