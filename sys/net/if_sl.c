@@ -402,6 +402,7 @@ sltioctl(tp, cmd, data, flag, p)
 					clist_alloc_cblocks(&tp->t_outq,
 					    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1,
 					    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1);
+					sl_compress_init(&sc->sc_comp, -1);
 					goto slfound;
 				}
 			}
