@@ -70,9 +70,9 @@ DPADD+= ${LIBNETGRAPH}
 .if defined(RELEASE_CRUNCH)
 # We must create these objects because crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
-CFLAGS+=-DNONAT -DNORADIUS -DNOI4B -DNONETGRAPH
-OBJS+=	chap_ms.o ether.o nat_cmd.o radius.o
-chap_ms.o ether.o nat_cmd.o radius.o:
+CFLAGS+=-DNONAT -DNORADIUS -DNOI4B
+OBJS+=	chap_ms.o nat_cmd.o radius.o
+chap_ms.o nat_cmd.o radius.o:
 	>null_${.PREFIX}.c
 	cc -c -o ${.TARGET} null_${.PREFIX}.c
 .endif
