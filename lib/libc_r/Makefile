@@ -14,7 +14,7 @@ CFLAGS+=-I${.CURDIR}/../../include
 
 # Uncomment this if you want libc_r to contain debug information for
 # thread locking.
-#CFLAGS+=-D_LOCK_DEBUG
+CFLAGS+=-D_LOCK_DEBUG
 
 # enable extra internal consistancy checks
 # CFLAGS+=-D_PTHREADS_INVARIANTS
@@ -35,7 +35,7 @@ HIDDEN_SYSCALLS= accept.o bind.o close.o connect.o dup.o dup2.o \
 	setsockopt.o shutdown.o sigaction.o sigaltstack.o \
 	signanosleep.o sigpending.o sigprocmask.o sigreturn.o sigsetmask.o \
 	sigsuspend.o socket.o \
-        socketpair.o wait4.o write.o writev.o
+	socketpair.o wait4.o write.o writev.o
 
 .include "${.CURDIR}/../libc/Makefile.inc"
 .include "${.CURDIR}/man/Makefile.inc"

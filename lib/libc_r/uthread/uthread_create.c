@@ -37,6 +37,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/mman.h>
 #ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
@@ -75,12 +77,82 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		/* Check if a stack was specified in the thread attributes: */
 		if ((stack = pattr->stackaddr_attr) != NULL) {
 		}
-		/* Allocate memory for the stack: */
-		else if ((stack = (void *) malloc(pattr->stacksize_attr)) == NULL) {
+		/* Allocate memory for a default-size stack: */
+		else if (pattr->stacksize_attr == PTHREAD_STACK_DEFAULT) {
+			struct stack	*spare_stack;
+			
+			/* Allocate or re-use a default-size stack. */
+			
+			/*
+			 * Use the garbage collector mutex for synchronization
+			 * of the spare stack list.
+			 */
+			if (pthread_mutex_lock(&_gc_mutex) != 0)
+				PANIC("Cannot lock gc mutex");
+			
+			if ((spare_stack = SLIST_FIRST(&_stackq)) != NULL) {
+				/* Use the spare stack. */
+				SLIST_REMOVE_HEAD(&_stackq, qe);
+				
+				/* Unlock the garbage collector mutex. */
+				if (pthread_mutex_unlock(&_gc_mutex) != 0)
+					PANIC("Cannot unlock gc mutex");
+				
+				stack = sizeof(struct stack)
+				    + (void *) spare_stack
+				    - PTHREAD_STACK_DEFAULT;
+			} else {
+				/* Unlock the garbage collector mutex. */
+				if (pthread_mutex_unlock(&_gc_mutex) != 0)
+					PANIC("Cannot unlock gc mutex");
+			    
+				/* Allocate a new stack. */
+				stack = _next_stack + PTHREAD_STACK_GUARD;
+				/*
+				 * Even if stack allocation fails, we don't want
+				 * to try to use this location again, so
+				 * unconditionally decrement _next_stack.  Under
+				 * normal operating conditions, the most likely
+				 * reason for an mmap() error is a stack
+				 * overflow of the adjacent thread stack.
+				 */
+				_next_stack -= (PTHREAD_STACK_DEFAULT
+						+ PTHREAD_STACK_GUARD);
+
+				/* Red zone: */
+				if (mmap(_next_stack, PTHREAD_STACK_GUARD, 0,
+					 MAP_ANON, -1, 0) == MAP_FAILED) {
+					ret = EAGAIN;
+					free(new_thread);
+				}
+				/* Stack: */
+				else if (mmap(stack,
+					      PTHREAD_STACK_DEFAULT,
+					      PROT_READ | PROT_WRITE,
+#ifdef __i386__
+					      MAP_STACK,
+#else
+					      MAP_ANON,
+#endif
+					      -1, 0) == MAP_FAILED) {
+					ret = EAGAIN;
+					munmap(_next_stack,
+					       PTHREAD_STACK_GUARD);
+					free(new_thread);
+				}
+			}
+		}
+		/*
+		 * The user wants a stack of a particular size.  Lets hope they
+		 * really know what they want, and simply malloc the stack.
+		 */
+		else if ((stack = (void *) malloc(pattr->stacksize_attr))
+			 == NULL) {
 			/* Insufficient memory to create a thread: */
 			ret = EAGAIN;
 			free(new_thread);
 		}
+
 		/* Check for errors: */
 		if (ret != 0) {
 		} else {
@@ -158,16 +230,20 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 */
 			if (new_thread->attr.flags & PTHREAD_INHERIT_SCHED) {
 				/* Copy the scheduling attributes: */
-				new_thread->base_priority = _thread_run->base_priority;
-				new_thread->attr.prio = _thread_run->base_priority;
-				new_thread->attr.sched_policy = _thread_run->attr.sched_policy;
+				new_thread->base_priority
+				    = _thread_run->base_priority;
+				new_thread->attr.prio
+				    = _thread_run->base_priority;
+				new_thread->attr.sched_policy
+				    = _thread_run->attr.sched_policy;
 			} else {
 				/*
 				 * Use just the thread priority, leaving the
 				 * other scheduling attributes as their
 				 * default values: 
 				 */
-				new_thread->base_priority = new_thread->attr.prio;
+				new_thread->base_priority
+				    = new_thread->attr.prio;
 			}
 			new_thread->active_priority = new_thread->base_priority;
 			new_thread->inherited_priority = 0;
@@ -203,8 +279,7 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
 				new_thread->state = PS_SUSPENDED;
 				PTHREAD_WAITQ_INSERT(new_thread);
-			}
-			else {
+			} else {
 				new_thread->state = PS_RUNNING;
 				PTHREAD_PRIOQ_INSERT_TAIL(new_thread);
 			}

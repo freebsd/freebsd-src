@@ -335,6 +335,15 @@ struct pthread_attr {
  * Miscellaneous definitions.
  */
 #define PTHREAD_STACK_DEFAULT			65536
+/* Size of red zone at the end of each stack. */
+#define PTHREAD_STACK_GUARD			4096
+/*
+ * Maximum size of initial thread's stack.  This perhaps deserves to be larger
+ * than the stacks of other threads, since many applications are likely to run
+ * almost entirely on this stack.
+ */
+#define PTHREAD_STACK_INITIAL			0x100000
+/* Address immediately beyond the beginning of the initial thread stack. */
 #define PTHREAD_DEFAULT_PRIORITY		64
 #define PTHREAD_MAX_PRIORITY			126
 #define PTHREAD_MIN_PRIORITY			0
@@ -667,6 +676,11 @@ struct pthread {
 	int			lineno;	/* Source line number.      */
 };
 
+/* Spare thread stack. */
+struct stack {
+	SLIST_ENTRY(stack)	qe; /* Queue entry for this stack. */
+};
+
 /*
  * Global variables for the uthread kernel.
  */
@@ -881,13 +895,30 @@ SCLASS pthread_switch_routine_t _sched_switch_hook
 #endif
 ;
 
+/*
+ * Spare stack queue.  Stacks of default size are cached in order to reduce
+ * thread creation time.  Spare stacks are used in LIFO order to increase cache
+ * locality.
+ */
+SCLASS SLIST_HEAD(, stack)	_stackq;
+
+/* Base address of next unallocated default-size stack.  Stacks are allocated
+ * contiguously, starting below the beginning of the main stack.  When a new
+ * stack is created, a guard page is created just above it in order to (usually)
+ * detect attempts by the adjacent stack to trounce the next thread stack. */
+SCLASS void *	_next_stack
+#ifdef GLOBAL_PTHREAD_PRIVATE
+/* main stack top   - main stack size       - stack size            - (red zone + main stack red zone) */
+= (void *) USRSTACK - PTHREAD_STACK_INITIAL - PTHREAD_STACK_DEFAULT - (2 * PTHREAD_STACK_GUARD)
+#endif
+;
+
 /* Used for _PTHREADS_INVARIANTS checking. */
 SCLASS int	_thread_kern_new_state
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = 0
 #endif
 ;
-
 
 /* Undefine the storage class specifier: */
 #undef  SCLASS

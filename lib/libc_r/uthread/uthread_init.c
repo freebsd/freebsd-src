@@ -46,6 +46,9 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
+#include <sys/param.h>
+#include <sys/user.h>
+#include <sys/mman.h>
 #ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
@@ -58,8 +61,8 @@ extern void __set_dynamic_handler_allocator(dynamic_handler_allocator);
 static pthread_key_t except_head_key;
 
 typedef struct {
-  void **__dynamic_handler_chain;
-  void *top_elt[2];
+	void **__dynamic_handler_chain;
+	void *top_elt[2];
 } except_struct;
 
 static void ***dynamic_allocator_handler_fn()
@@ -104,19 +107,19 @@ _thread_init(void)
 		 * Setup a new session for this process which is
 		 * assumed to be running as root.
 		 */
-    		if (setsid() == -1)
+		if (setsid() == -1)
 			PANIC("Can't set session ID");
-    		if (revoke(_PATH_CONSOLE) != 0)
+		if (revoke(_PATH_CONSOLE) != 0)
 			PANIC("Can't revoke console");
-    		if ((fd = _thread_sys_open(_PATH_CONSOLE, O_RDWR)) < 0)
+		if ((fd = _thread_sys_open(_PATH_CONSOLE, O_RDWR)) < 0)
 			PANIC("Can't open console");
-    		if (setlogin("root") == -1)
+		if (setlogin("root") == -1)
 			PANIC("Can't set login to root");
-    		if (_thread_sys_ioctl(fd,TIOCSCTTY, (char *) NULL) == -1)
+		if (_thread_sys_ioctl(fd,TIOCSCTTY, (char *) NULL) == -1)
 			PANIC("Can't set controlling terminal");
-    		if (_thread_sys_dup2(fd,0) == -1 ||
-    		    _thread_sys_dup2(fd,1) == -1 ||
-    		    _thread_sys_dup2(fd,2) == -1)
+		if (_thread_sys_dup2(fd,0) == -1 ||
+		    _thread_sys_dup2(fd,1) == -1 ||
+		    _thread_sys_dup2(fd,2) == -1)
 			PANIC("Can't dup2");
 	}
 
@@ -180,6 +183,17 @@ _thread_init(void)
 		/* Initialize the scheduling switch hook routine: */
 		_sched_switch_hook = NULL;
 
+		/* Initialize the thread stack cache: */
+		SLIST_INIT(&_stackq);
+
+		/* Create the red zone for the main stack. */
+		if (mmap((void *) USRSTACK
+			 - PTHREAD_STACK_INITIAL,
+			 PTHREAD_STACK_GUARD, 0, MAP_ANON,
+			 -1, 0) == MAP_FAILED) {
+			PANIC("Cannot allocate red zone for initial thread");
+		}
+		
 		/*
 		 * Write a magic value to the thread structure
 		 * to help identify valid ones:
@@ -234,7 +248,7 @@ _thread_init(void)
 
 			/* Get the signal handler details: */
 			else if (_thread_sys_sigaction(i, NULL,
-			    &_thread_sigact[i - 1]) != 0) {
+						       &_thread_sigact[i - 1]) != 0) {
 				/*
 				 * Abort this process if signal
 				 * initialisation fails: 
@@ -313,7 +327,7 @@ _thread_init(void)
 #ifdef GCC_2_8_MADE_THREAD_AWARE
 	/* Create the thread-specific data for the exception linked list. */
 	if(pthread_key_create(&except_head_key, NULL) != 0)
-        	PANIC("Failed to create thread specific execption head");
+		PANIC("Failed to create thread specific execption head");
 
 	/* Setup the gcc exception handler per thread. */
 	__set_dynamic_handler_allocator( dynamic_allocator_handler_fn );

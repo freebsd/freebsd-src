@@ -38,6 +38,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/types.h>
+#include <sys/mman.h>
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -111,8 +113,8 @@ _thread_gc(pthread_addr_t arg)
 		 * has memory to free.
 		 */
 		for (pthread = TAILQ_FIRST(&_dead_list);
-		    p_stack == NULL && pthread_cln == NULL && pthread != NULL;
-		    pthread = TAILQ_NEXT(pthread, dle)) {
+		     p_stack == NULL && pthread_cln == NULL && pthread != NULL;
+		     pthread = TAILQ_NEXT(pthread, dle)) {
 			/* Check if the initial thread: */
 			if (pthread == _thread_initial) {
 				/* Don't destroy the initial thread. */
@@ -121,7 +123,7 @@ _thread_gc(pthread_addr_t arg)
 			 * Check if this thread has detached:
 			 */
 			else if ((pthread->attr.flags &
-			    PTHREAD_DETACHED) != 0) {
+				  PTHREAD_DETACHED) != 0) {
 				/* Remove this thread from the dead list: */
 				TAILQ_REMOVE(&_dead_list, pthread, dle);
 
@@ -132,11 +134,28 @@ _thread_gc(pthread_addr_t arg)
 				 */
 				if (pthread->attr.stackaddr_attr == NULL &&
 				    pthread->stack != NULL) {
-					/*
-					 * Point to the stack that must
-					 * be freed outside the locks:
-					 */
-					p_stack = pthread->stack;
+					if (pthread->attr.stacksize_attr
+					    == PTHREAD_STACK_DEFAULT) {
+						/*
+						 * Default-size stack.  Cache
+						 * it:
+						 */
+						struct stack	*spare_stack;
+
+						spare_stack
+						    = (pthread->stack
+						       + PTHREAD_STACK_DEFAULT
+						       - sizeof(struct stack));
+						SLIST_INSERT_HEAD(&_stackq,
+								  spare_stack,
+								  qe);
+					} else {
+						/*
+						 * Non-standard stack size.
+                                                 * free() it outside the locks.
+						 */
+						p_stack = pthread->stack;
+					}
 				}
 
 				/*
@@ -156,12 +175,29 @@ _thread_gc(pthread_addr_t arg)
 				 */
 				if (pthread->attr.stackaddr_attr == NULL &&
 				    pthread->stack != NULL) {
-					/*
-					 * Point to the stack that must
-					 * be freed outside the locks:
-					 */
-					p_stack = pthread->stack;
+					if (pthread->attr.stacksize_attr
+					    == PTHREAD_STACK_DEFAULT) {
+						/*
+						 * Default-size stack.  Cache
+						 * it:
+						 */
+						struct stack	*spare_stack;
 
+						spare_stack
+						    = (pthread->stack
+						       + PTHREAD_STACK_DEFAULT
+						       - sizeof(struct stack));
+						SLIST_INSERT_HEAD(&_stackq,
+								  spare_stack,
+								  qe);
+					} else {
+						/*
+						 * Non-standard stack size.
+						 * free() it outside the locks:
+						 */
+						p_stack = pthread->stack;
+					}
+					
 					/*
 					 * NULL the stack pointer now
 					 * that the memory has been freed: 

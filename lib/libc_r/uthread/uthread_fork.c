@@ -131,11 +131,28 @@ fork(void)
 
 					if (pthread_save->attr.stackaddr_attr ==
 					    NULL && pthread_save->stack != NULL)
-						/*
-						 * Free the stack of the
-						 * dead thread:
-						 */
-						free(pthread_save->stack);
+						if (pthread_save->attr.stacksize_attr
+						    == PTHREAD_STACK_DEFAULT) {
+							/*
+							 * Default-size stack.  Cache
+							 * it:
+							 */
+							struct stack	*spare_stack;
+
+							spare_stack
+							    = (pthread_save->stack
+							       + PTHREAD_STACK_DEFAULT
+							       - sizeof(struct stack));
+							SLIST_INSERT_HEAD(
+							    &_stackq,
+						  	    spare_stack,
+							    qe);
+						} else
+							/*
+							 * Free the stack of
+							 * the dead thread:
+							 */
+							free(pthread_save->stack);
 
 					if (pthread_save->specific_data != NULL)
 						free(pthread_save->specific_data);
