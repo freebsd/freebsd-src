@@ -5774,9 +5774,9 @@ to get online information about what's available.
 The following URLs contain useful information:
 .Bl -bullet -compact
 .It
-http://www.FreeBSD.org/FAQ/userppp.html
+http://www.FreeBSD.org/doc/faq/ppp.html
 .It
-http://www.FreeBSD.org/handbook/userppp.html
+http://www.FreeBSD.org/doc/handbook/userppp.html
 .El
 .Pp
 .El
