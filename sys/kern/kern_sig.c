@@ -1434,13 +1434,39 @@ psignal(p, sig)
 			SIGDELSET(p->p_siglist, sig);
 			goto out;
 		}
-		if (prop & SA_STOP) {
+		if ((p->p_flag & P_TRACED) || (action != SIG_DFL) ||
+			!(prop & SA_STOP)) {
 			mtx_lock_spin(&sched_lock);
 			FOREACH_THREAD_IN_PROC(p, td)
 				tdsignal(td, sig, action);
 			mtx_unlock_spin(&sched_lock);
 			goto out;
 		}
+		if (prop & SA_STOP) {
+			if (p->p_flag & P_PPWAIT)
+				goto out;
+			mtx_lock_spin(&sched_lock);
+			FOREACH_THREAD_IN_PROC(p, td) {
+				if (td->td_state == TDS_SLP &&
+					(td->td_flags & TDF_SINTR))
+					thread_suspend_one(td);
+			}
+			if (p->p_suspcount == p->p_numthreads) {
+				mtx_unlock_spin(&sched_lock);
+				stop(p);
+				p->p_xstat = sig;
+				SIGDELSET(p->p_siglist, sig);
+				PROC_LOCK(p->p_pptr);
+				if ((p->p_pptr->p_procsig->ps_flag &
+					PS_NOCLDSTOP) == 0) {
+					psignal(p->p_pptr, SIGCHLD);
+				}
+				PROC_UNLOCK(p->p_pptr);
+			} else {
+				mtx_unlock_spin(&sched_lock);
+			}
+			goto out;
+		} 
 		else
 			goto runfast;
 		/* NOTREACHED */
