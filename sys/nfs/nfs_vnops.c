@@ -1325,13 +1325,7 @@ nfs_mknod(ap)
 		struct vattr *a_vap;
 	} */ *ap;
 {
-	struct vnode *newvp;
-	int error;
-
-	error = nfs_mknodrpc(ap->a_dvp, &newvp, ap->a_cnp, ap->a_vap);
-	if (!error)
-		vput(newvp);
-	return (error);
+	return nfs_mknodrpc(ap->a_dvp, ap->a_vpp, ap->a_cnp, ap->a_vap);
 }
 
 static u_long create_verf;
