@@ -262,6 +262,9 @@ load_entry(file, error_func, pw, envp)
 		char		*username = cmd;	/* temp buffer */
 		char            *s, *group;
 		struct group    *grp;
+#ifdef LOGIN_CAP
+		login_cap_t *lc;
+#endif
 
 		Debug(DPARS, ("load_entry()...about to parse username\n"))
 		ch = get_string(username, MAX_COMMAND, file, " \t");
@@ -287,10 +290,11 @@ load_entry(file, error_func, pw, envp)
 			ecode = e_mem;
 			goto eof;
 		}
-		if (login_getclass(e->class) == NULL) {
+		if ((lc = login_getclass(e->class)) == NULL) {
 			ecode = e_class;
 			goto eof;
 		}
+		login_close(lc);
 #endif
 		grp = NULL;
 		if ((s = strrchr(username, ':')) != NULL) {
@@ -416,7 +420,7 @@ load_entry(file, error_func, pw, envp)
 	return e;
 
  eof:
-	free(e);
+	free_entry(e);
 	if (ecode != e_none && error_func)
 		(*error_func)(ecodes[(int)ecode]);
 	while (ch != EOF && ch != '\n')
