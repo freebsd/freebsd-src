@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.55 1998/10/22 05:58:44 bde Exp $
+ *	$Id: if_ed.c,v 1.56 1998/12/14 08:58:12 kato Exp $
  */
 
 /*
@@ -49,6 +49,7 @@
  *    MELCO LPC-TJ, LPC-TS, LGY-98, LGH-98, IND-SP, IND-SS, EGY-98
  *    PLANET SMART COM CREDITCARD/2000 PCMCIA, EN-2298
  *    Contec C-NET(98), C-NET(98)E, C-NET(98)L, C-NET(98)E-A, C-NET(98)L-A
+ *    SMC EtherEZ98
  *
  * Modified for FreeBSD(98) 2.2 by KATO T. of Nagoya University.
  *
@@ -357,6 +358,16 @@ static unsigned short ed_intr_mask[] = {
  * Interrupt conversion table for 83C790
  */
 static unsigned short ed_790_intr_mask[] = {
+#ifdef PC98
+	0,
+	IRQ3,
+	IRQ5,
+	IRQ6,
+	0,
+	IRQ9,
+	IRQ12,
+	IRQ13
+#else
 	0,
 	IRQ9,
 	IRQ3,
@@ -365,6 +376,7 @@ static unsigned short ed_790_intr_mask[] = {
 	IRQ10,
 	IRQ11,
 	IRQ15
+#endif
 };
 
 /*
