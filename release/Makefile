@@ -566,7 +566,7 @@ cdrom.1:
 	     cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; \
 	  fi; \
 	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
-	     echo "=== Platform specifics for ${MACHINE_ARCH}" >> ${FD}/$${i}; \
+	     echo "=== Platform specifics for ${MACHINE_ARCH}" >> ${CD_DISC1}/$${i}; \
 	     cat ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} >> ${CD_DISC1}/$${i}; \
 	  fi; \
         done
