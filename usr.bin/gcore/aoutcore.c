@@ -227,12 +227,12 @@ datadump(efd, fd, p, addr, npage)
 	register int npage;
 {
 	register int cc, delta;
-	char buffer[NBPG];
+	char buffer[PAGE_SIZE];
 
 	delta = data_offset - addr;
 	while (--npage >= 0) {
-		cc = kvm_uread(kd, p, addr, buffer, NBPG);
-		if (cc != NBPG) {
+		cc = kvm_uread(kd, p, addr, buffer, PAGE_SIZE);
+		if (cc != PAGE_SIZE) {
 			/* Try to read the page from the executable. */
 			if (lseek(efd, (off_t)addr + delta, SEEK_SET) == -1)
 				err(1, "seek executable: %s", strerror(errno));
@@ -244,11 +244,11 @@ datadump(efd, fd, p, addr, npage)
 				else	/* Assume untouched bss page. */
 					bzero(buffer, sizeof(buffer));
 		}
-		cc = write(fd, buffer, NBPG);
-		if (cc != NBPG)
+		cc = write(fd, buffer, PAGE_SIZE);
+		if (cc != PAGE_SIZE)
 			err(1, "write data segment: %s",
 			    cc > 0 ? strerror(EIO) : strerror(errno));
-		addr += NBPG;
+		addr += PAGE_SIZE;
 	}
 }
 
@@ -260,18 +260,18 @@ userdump(fd, p, addr, npage)
 	register int npage;
 {
 	register int cc;
-	char buffer[NBPG];
+	char buffer[PAGE_SIZE];
 
 	while (--npage >= 0) {
-		cc = kvm_uread(kd, p, addr, buffer, NBPG);
-		if (cc != NBPG)
+		cc = kvm_uread(kd, p, addr, buffer, PAGE_SIZE);
+		if (cc != PAGE_SIZE)
 			/* Could be an untouched fill-with-zero page. */
-			bzero(buffer, NBPG);
-		cc = write(fd, buffer, NBPG);
-		if (cc != NBPG)
+			bzero(buffer, PAGE_SIZE);
+		cc = write(fd, buffer, PAGE_SIZE);
+		if (cc != PAGE_SIZE)
 			err(1, "write stack segment: %s",
 			    cc > 0 ? strerror(EIO) : strerror(errno));
-		addr += NBPG;
+		addr += PAGE_SIZE;
 	}
 }
 
