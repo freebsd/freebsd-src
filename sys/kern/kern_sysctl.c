@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.26 1995/07/09 02:49:30 peter Exp $
+ * $Id: kern_sysctl.c,v 1.27 1995/07/28 18:04:47 davidg Exp $
  */
 
 /*
@@ -250,14 +250,16 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	case KERN_HOSTNAME:
 		error = sysctl_string(oldp, oldlenp, newp, newlen,
 		    hostname, sizeof(hostname));
-		if (newp && !error)
-			hostnamelen = newlen;
+		if (newp)
+			if (error == 0 || error == ENOMEM)
+				hostnamelen = newlen;
 		return (error);
 	case KERN_DOMAINNAME:
 		error = sysctl_string(oldp, oldlenp, newp, newlen,
 		    domainname, sizeof(domainname));
-		if (newp && !error)
-			domainnamelen = newlen;
+		if (newp)
+			if (error == 0 || error == ENOMEM)
+				domainnamelen = newlen;
 		return (error);
 	case KERN_HOSTID:
 		inthostid = hostid;  /* XXX assumes sizeof long <= sizeof int */
@@ -458,22 +460,28 @@ sysctl_string(oldp, oldlenp, newp, newlen, str, maxlen)
 	char *str;
 	int maxlen;
 {
-	int len, error = 0;
+	int len, error = 0, rval = 0;
 
 	len = strlen(str) + 1;
-	if (oldp && *oldlenp < len)
+	if (oldp && *oldlenp < len) {
 		len = *oldlenp;
+		rval = ENOMEM;
+	}
 	if (newp && newlen >= maxlen)
 		return (EINVAL);
 	if (oldp) {
 		*oldlenp = len;
 		error = copyout(str, oldp, len);
+		if (error)
+			rval = error;
 	}
-	if (error == 0 && newp) {
+	if ((error == 0 || error == ENOMEM) && newp) {
 		error = copyin(newp, str, newlen);
+		if (error)
+			rval = error;
 		str[newlen] = 0;
 	}
-	return (error);
+	return (rval);
 }
 
 /*
@@ -486,17 +494,21 @@ sysctl_rdstring(oldp, oldlenp, newp, str)
 	void *newp;
 	char *str;
 {
-	int len, error = 0;
+	int len, error = 0, rval = 0;
 
 	len = strlen(str) + 1;
-	if (oldp && *oldlenp < len)
-		return (ENOMEM);
+	if (oldp && *oldlenp < len) {
+		len = *oldlenp;
+		rval = ENOMEM;
+	}
 	if (newp)
 		return (EPERM);
 	*oldlenp = len;
 	if (oldp)
 		error = copyout(str, oldp, len);
-	return (error);
+		if (error)
+			rval = error;
+	return (rval);
 }
 
 /*
