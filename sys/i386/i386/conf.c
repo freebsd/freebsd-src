@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.53 1995/01/23 02:36:22 phk Exp $
+ *	$Id: conf.c,v 1.54 1995/01/23 02:52:20 phk Exp $
  */
 
 #include <sys/param.h>
@@ -722,6 +722,19 @@ d_ioctl_t gscioctl;
 #define gscioctl (d_ioctl_t *)enxio
 #endif
 
+#include "joy.h"
+#if NJOY > 0
+d_open_t joyopen;
+d_close_t joyclose;
+d_rdwr_t joyread;
+d_ioctl_t joyioctl;
+#else
+#define joyopen  (d_open_t *)enxio
+#define joyclose (d_close_t *)enxio
+#define joyread  (d_rdwr_t *)enxio
+#define	joyioctl (d_ioctl_t *)enxio
+#endif
+
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
 struct cdevsw	cdevsw[] =
 {
@@ -889,6 +902,9 @@ struct cdevsw	cdevsw[] =
 	  (d_rdwr_t *)enxio, (d_ioctl_t *)enxio, (d_stop_t *)enxio,/* pcmcia */
 	  (d_reset_t *)enxio, NULL, (d_select_t *)enxio,
 	  (d_mmap_t *)enxio, NULL },
+	{ joyopen,	joyclose,	joyread,	nowrite,	/*51*/
+	  joyioctl,	nostop,		nullreset,	NULL,	/*joystick */
+	  seltrue,	nommap,		NULL},
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
