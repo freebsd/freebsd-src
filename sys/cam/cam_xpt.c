@@ -961,6 +961,8 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 				break;
 			}
 			/* FALLTHROUGH */
+		case XPT_PATH_INQ:
+		case XPT_ENG_INQ:
 		case XPT_SCAN_LUN:
 
 			ccb = xpt_alloc_ccb();
@@ -1076,7 +1078,7 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			break;
 		}
 		default:
-			error = EINVAL;
+			error = ENOTSUP;
 			break;
 		}
 		break;
