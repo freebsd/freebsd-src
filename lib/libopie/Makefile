@@ -1,6 +1,6 @@
 # Makefile for libopie
 #
-# $Id$
+# $Id: Makefile,v 1.2 1997/02/22 15:07:48 peter Exp $
 #
 OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 DIST_DIR=	${OPIE_DIST}/${.CURDIR:T}
@@ -23,5 +23,9 @@ CFLAGS+=-I${.CURDIR} -I${OPIE_DIST} -I${DIST_DIR} \
 
 MAN4=	${OPIE_DIST}/opie.4
 MAN5=	${OPIE_DIST}/opiekeys.5 ${OPIE_DIST}/opieaccess.5
+
+beforeinstall:
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${OPIE_DIST}/opie.h \
+			${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
