@@ -2758,6 +2758,9 @@ static void type(FICL_VM *pVM)
     ** (oops), make sure the string is null terminated. If not, copy
     ** and terminate it.
     */
+    /* XXX Uses free space on top of dictionary. Is it guaranteed
+     * XXX to always fit? (abial)
+     */
     if (cp[count] != '\0')
     {
         char *pDest = (char *)ficlGetDict()->here;
@@ -4382,6 +4385,13 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "key?",	    keyQuestion,    FW_DEFAULT);
     dictAppendWord(dp, "ms",        ms,             FW_DEFAULT);
     dictAppendWord(dp, "seconds",   pseconds,       FW_DEFAULT);
+#ifdef __i386__
+    dictAppendWord(dp, "pc!",       pc_store,       FW_DEFAULT);
+    dictAppendWord(dp, "pc@",       pc_fetch,       FW_DEFAULT);
+    ficlSetEnv("arch-i386",         FICL_TRUE);
+#else
+    ficlSetEnv("arch-i386",         FICL_FALSE);
+#endif
 
     /*
     ** Set CORE environment query values
