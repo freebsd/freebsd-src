@@ -31,21 +31,15 @@
  */
 
 #include <stand.h>
+#include <string.h>
+#include <stdarg.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/udp.h>
-#include <netinet/ip.h>
-
-#include <sys/reboot.h>
-#include <string.h>
-#include <sys/reboot.h>
-#include <arpa/tftp.h>
 
 #include <net.h>
 #include <netif.h>
-
-#include <stdarg.h>
 
 #include <bootstrap.h>
 #include "btxv86.h"
@@ -285,10 +279,10 @@ pxe_open(struct open_file *f, ...)
 		 * which brought us to life and a default rootpath.
 		 */
 		bootp(pxe_sock);
-		if (rootip.s_addr == 0) {
+		if (rootip.s_addr == 0)
 			rootip.s_addr = bootplayer.sip;
+		if (!rootpath[1])
 			strcpy(rootpath, PXENFSROOTPATH);
-		}
 
 		for(i=0; i<FNAME_SIZE; i++)
 			if(rootpath[i] == ':')
