@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.18 1998/09/29 22:06:33 ache Exp $
+ *	$Id: vm86.c,v 1.19 1998/12/07 21:58:19 archie Exp $
  */
 
 #include "opt_vm86.h"
@@ -675,11 +675,11 @@ vm86_sysarch(p, args)
 	struct i386_vm86_args ua;
 	struct vm86_kernel *vm86;
 
-	if (error = copyin(args, &ua, sizeof(struct i386_vm86_args)))
+	if ((error = copyin(args, &ua, sizeof(struct i386_vm86_args))) != 0)
 		return (error);
 
 	if (p->p_addr->u_pcb.pcb_ext == 0)
-		if (error = i386_extend_pcb(p))
+		if ((error = i386_extend_pcb(p)) != 0)
 			return (error);
 	vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
 
@@ -687,7 +687,7 @@ vm86_sysarch(p, args)
 	case VM86_INIT: {
 		struct vm86_init_args sa;
 
-		if (error = copyin(ua.sub_args, &sa, sizeof(sa)))
+		if ((error = copyin(ua.sub_args, &sa, sizeof(sa))) != 0)
 			return (error);
 		if (cpu_feature & CPUID_VME)
 			vm86->vm86_has_vme = (rcr4() & CR4_VME ? 1 : 0);

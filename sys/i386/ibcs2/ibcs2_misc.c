@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.29 1998/08/17 18:12:52 bde Exp $
+ * $Id: ibcs2_misc.c,v 1.30 1998/09/26 00:55:53 des Exp $
  */
 
 /*
@@ -346,7 +346,7 @@ again:
 	 * First we read into the malloc'ed buffer, then
 	 * we massage it into user space, one record at a time.
 	 */
-	if (error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, &ncookies, &cookies))
+	if ((error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, &ncookies, &cookies)) != 0)
 		goto out;
 	inp = buf;
 	outp = SCARG(uap, buf);
@@ -454,7 +454,7 @@ ibcs2_read(p, uap)
 	u_long *cookies = NULL, *cookiep;
 	int ncookies;
 
-	if (error = getvnode(p->p_fd, SCARG(uap, fd), &fp)) {
+	if ((error = getvnode(p->p_fd, SCARG(uap, fd), &fp)) != 0) {
 		if (error == EINVAL)
 			return read(p, (struct read_args *)uap);
 		else
@@ -493,7 +493,7 @@ again:
 	 * First we read into the malloc'ed buffer, then
 	 * we massage it into user space, one record at a time.
 	 */
-	if (error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, &ncookies, &cookies)) {
+	if ((error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, &ncookies, &cookies)) != 0) {
 		DPRINTF(("VOP_READDIR failed: %d\n", error));
 		goto out;
 	}
@@ -556,7 +556,7 @@ again:
 			BSD_DIRENT(inp)->d_fileno;
 		(void)copystr(BSD_DIRENT(inp)->d_name, idb.name, 14, &size);
 		bzero(idb.name + size, 14 - size);
-		if (error = copyout(&idb, outp, sizeof(struct ibcs2_direct)))
+		if ((error = copyout(&idb, outp, sizeof(struct ibcs2_direct))) != 0)
 			goto out;
 		/* advance past this real entry */
 		if (cookiep) {
@@ -623,7 +623,7 @@ ibcs2_getgroups(p, uap)
 		iset = stackgap_alloc(&sg, SCARG(uap, gidsetsize) *
 				      sizeof(ibcs2_gid_t));
 	}
-	if (error = getgroups(p, &sa))
+	if ((error = getgroups(p, &sa)) != 0)
 		return error;
 	if (SCARG(uap, gidsetsize) == 0)
 		return 0;
@@ -654,9 +654,9 @@ ibcs2_setgroups(p, uap)
 	iset = stackgap_alloc(&sg, SCARG(&sa, gidsetsize) *
 			      sizeof(ibcs2_gid_t *));
 	if (SCARG(&sa, gidsetsize)) {
-		if (error = copyin((caddr_t)SCARG(uap, gidset), (caddr_t)iset, 
+		if ((error = copyin((caddr_t)SCARG(uap, gidset), (caddr_t)iset, 
 				   sizeof(ibcs2_gid_t *) *
-				   SCARG(uap, gidsetsize)))
+				   SCARG(uap, gidsetsize))) != 0)
 			return error;
 	}
 	for (i = 0, gp = SCARG(&sa, gidset); i < SCARG(&sa, gidsetsize); i++)
@@ -740,7 +740,7 @@ ibcs2_sysconf(p, uap)
 
 		SCARG(&ga, which) = RLIMIT_NPROC;
 		SCARG(&ga, rlp) = stackgap_alloc(&sg, sizeof(struct rlimit *));
-		if (error = getrlimit(p, &ga))
+		if ((error = getrlimit(p, &ga)) != 0)
 			return error;
 		p->p_retval[0] = SCARG(&ga, rlp)->rlim_cur;
 		return 0;
@@ -760,7 +760,7 @@ ibcs2_sysconf(p, uap)
 
 		SCARG(&ga, which) = RLIMIT_NOFILE;
 		SCARG(&ga, rlp) = stackgap_alloc(&sg, sizeof(struct rlimit *));
-		if (error = getrlimit(p, &ga))
+		if ((error = getrlimit(p, &ga)) != 0)
 			return error;
 		p->p_retval[0] = SCARG(&ga, rlp)->rlim_cur;
 		return 0;
@@ -798,7 +798,7 @@ ibcs2_sysconf(p, uap)
 	SCARG(&sa, oldlenp) = &len;
 	SCARG(&sa, new) = NULL;
 	SCARG(&sa, newlen) = 0;
-	if (error = __sysctl(p, &sa))
+	if ((error = __sysctl(p, &sa)) != 0)
 		return error;
 	p->p_retval[0] = value;
 	return 0;
@@ -878,11 +878,11 @@ ibcs2_stime(p, uap)
 
 	SCARG(&sa, tv) = stackgap_alloc(&sg, sizeof(*SCARG(&sa, tv)));
 	SCARG(&sa, tzp) = NULL;
-	if (error = copyin((caddr_t)SCARG(uap, timep),
-			   &(SCARG(&sa, tv)->tv_sec), sizeof(long)))
+	if ((error = copyin((caddr_t)SCARG(uap, timep),
+			   &(SCARG(&sa, tv)->tv_sec), sizeof(long))) != 0)
 		return error;
 	SCARG(&sa, tv)->tv_usec = 0;
-	if (error = settimeofday(p, &sa))
+	if ((error = settimeofday(p, &sa)) != 0)
 		return EPERM;
 	return 0;
 }
@@ -902,8 +902,8 @@ ibcs2_utime(p, uap)
 	if (SCARG(uap, buf)) {
 		struct ibcs2_utimbuf ubuf;
 
-		if (error = copyin((caddr_t)SCARG(uap, buf), (caddr_t)&ubuf,
-				   sizeof(ubuf)))
+		if ((error = copyin((caddr_t)SCARG(uap, buf), (caddr_t)&ubuf,
+				   sizeof(ubuf))) != 0)
 			return error;
 		SCARG(&sa, tptr) = stackgap_alloc(&sg,
 						  2 * sizeof(struct timeval *));
@@ -929,7 +929,7 @@ ibcs2_nice(p, uap)
 	SCARG(&sa, which) = PRIO_PROCESS;
 	SCARG(&sa, who) = 0;
 	SCARG(&sa, prio) = p->p_nice + SCARG(uap, incr);
-	if (error = setpriority(p, &sa))
+	if ((error = setpriority(p, &sa)) != 0)
 		return EPERM;
 	p->p_retval[0] = p->p_nice;
 	return 0;
@@ -993,7 +993,7 @@ ibcs2_plock(p, uap)
 #define IBCS2_DATALOCK	4
 
 	
-        if (error = suser(p->p_ucred, &p->p_acflag))
+        if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
                 return EPERM;
 	switch(SCARG(uap, cmd)) {
 	case IBCS2_UNLOCK:

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.220 1999/01/21 08:29:03 dillon Exp $
+ *	$Id: pmap.c,v 1.221 1999/01/24 06:04:51 dillon Exp $
  */
 
 /*
@@ -771,7 +771,7 @@ pmap_pte_quick(pmap, va)
 	vm_offset_t va;
 {
 	unsigned pde, newpf;
-	if (pde = (unsigned) pmap->pm_pdir[va >> PDRSHIFT]) {
+	if ((pde = (unsigned) pmap->pm_pdir[va >> PDRSHIFT]) != 0) {
 		unsigned frame = (unsigned) pmap->pm_pdir[PTDPTDI] & PG_FRAME;
 		unsigned index = i386_btop(va);
 		/* are we current address space or kernel? */
@@ -3371,7 +3371,7 @@ pmap_mincore(pmap, addr)
 		return 0;
 	}
 
-	if (pte = *ptep) {
+	if ((pte = *ptep) != 0) {
 		pv_table_t *ppv;
 		vm_offset_t pa;
 

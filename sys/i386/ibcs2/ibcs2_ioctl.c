@@ -508,7 +508,7 @@ ibcs2_ioctl(p, uap)
 
 		SCARG(&sa, pid) = 0;
 		SCARG(&sa, pgid) = (int)SCARG(uap, data);
-		if (error = setpgid(p, &sa))
+		if ((error = setpgid(p, &sa)) != 0)
 			return error;
 		return 0;
 	    }

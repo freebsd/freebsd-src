@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.32 1998/10/22 05:58:38 bde Exp $
+ * $Id: asc.c,v 1.33 1999/01/27 10:10:00 bde Exp $
  */
 
 #include "asc.h"
@@ -509,7 +509,7 @@ ascintr(int unit)
 
     scu->icnt++;
     /* ignore stray interrupts... */
-    if ( scu->flags & (OPEN |READING) != (OPEN | READING) ) {
+    if ((scu->flags & (OPEN |READING)) != (OPEN | READING) ) {
 	/* must be after closing... */
 	scu->flags &= ~(OPEN | READING | DMA_ACTIVE | SLEEPING | SEL_COLL);
 	return;

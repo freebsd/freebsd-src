@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_disasm.c,v 1.20 1997/04/01 16:22:31 bde Exp $
+ *	$Id: db_disasm.c,v 1.21 1998/07/08 10:53:56 bde Exp $
  */
 
 /*
@@ -834,9 +834,9 @@ static const char * const db_index_reg_16[8] = {
 };
 
 static const char * const db_reg[3][8] = {
-	"%al",  "%cl",  "%dl",  "%bl",  "%ah",  "%ch",  "%dh",  "%bh",
-	"%ax",  "%cx",  "%dx",  "%bx",  "%sp",  "%bp",  "%si",  "%di",
-	"%eax", "%ecx", "%edx", "%ebx", "%esp", "%ebp", "%esi", "%edi"
+	{ "%al",  "%cl",  "%dl",  "%bl",  "%ah",  "%ch",  "%dh",  "%bh" },
+	{ "%ax",  "%cx",  "%dx",  "%bx",  "%sp",  "%bp",  "%si",  "%di" },
+	{ "%eax", "%ecx", "%edx", "%ebx", "%esp", "%ebp", "%esi", "%edi" }
 };
 
 static const char * const db_seg_reg[8] = {

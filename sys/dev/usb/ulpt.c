@@ -437,12 +437,12 @@ ulptioctl(dev, cmd, data, flag, p)
 static int
 ulpt_detach(device_t self)
 {       
-	char *devinfo = (char *) device_get_desc(self);
+	const char *devinfo = device_get_desc(self);
 
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 	if (devinfo) {
 		device_set_desc(self, NULL);
-		free(devinfo, M_USB);
+		free((void *)devinfo, M_USB);
 	}
 	return 0;
 }
