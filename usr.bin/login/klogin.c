@@ -74,7 +74,11 @@ klogin(pw, instance, localhost, password)
 	char realm[REALM_SZ], savehost[MAXHOSTNAMELEN];
 	char tkt_location[MAXPATHLEN];
 	char *krb_get_phost();
+	extern int noticketsdontcomplain;
 
+#ifdef KLOGIN_PARANOID
+	noticketsdontcomplain = 0; /* enable warning message */
+#endif
 	/*
 	 * Root logins don't use Kerberos.
 	 * If we have a realm, try getting a ticket-granting ticket
@@ -86,6 +90,8 @@ klogin(pw, instance, localhost, password)
 	if (strcmp(pw->pw_name, "root") == 0 ||
 	    krb_get_lrealm(realm, 0) != KSUCCESS)
 		return (1);
+
+	noticketsdontcomplain = 0; /* enable warning message */
 
 	/*
 	 * get TGT for local realm
@@ -111,6 +117,7 @@ klogin(pw, instance, localhost, password)
 	}
 	kerror = krb_get_pw_in_tkt(pw->pw_name, instance,
 		    realm, INITIAL_TICKET, realm, DEFAULT_TKT_LIFE, password);
+
 	/*
 	 * If we got a TGT, get a local "rcmd" ticket and check it so as to
 	 * ensure that we are not talking to a bogus Kerberos server.
@@ -135,6 +142,7 @@ klogin(pw, instance, localhost, password)
 	(void)strncpy(savehost, krb_get_phost(localhost), sizeof(savehost));
 	savehost[sizeof(savehost)-1] = NULL;
 
+#ifdef KLOGIN_PARANOID
 	/*
 	 * if the "VERIFY_SERVICE" doesn't exist in the KDC for this host,
 	 * still allow login with tickets, but log the error condition.
@@ -186,5 +194,8 @@ klogin(pw, instance, localhost, password)
 	    krb_err_txt[kerror]);
 	dest_tkt();
 	return (1);
+#else
+	return (0);
+#endif
 }
 #endif
