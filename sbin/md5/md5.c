@@ -28,6 +28,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "global.h"
 
@@ -36,6 +37,9 @@ static const char rcsid[] =
  */
 #define TEST_BLOCK_LEN 10000
 #define TEST_BLOCK_COUNT 100000
+
+int qflag;
+int rflag;
 
 static void MDString PROTO_LIST((char *));
 static void MDTimeTrial PROTO_LIST((void));
@@ -62,10 +66,16 @@ main(argc, argv)
 	char	buf[33];
 
 	if (argc > 1) {
-		while ((ch = getopt(argc, argv, "ps:tx")) != -1) {
+		while ((ch = getopt(argc, argv, "ps:qrtx")) != -1) {
 			switch (ch) {
 			case 'p':
 				MDFilter(1);
+				break;
+			case 'q':
+				qflag = 1;
+				break;
+			case 'r':
+				rflag = 1;
 				break;
 			case 's':
 				MDString(optarg);
@@ -85,7 +95,13 @@ main(argc, argv)
 			if (!p)
 				warn("%s", argv[optind]);
 			else
-				printf("MD5 (%s) = %s\n", argv[optind], p);
+				if (qflag)
+					printf("%s\n", p);
+				else if (rflag)
+					printf("%s %s\n", p, argv[optind]);
+				else
+					printf("MD5 (%s) = %s\n", argv[optind],
+					    p);
 			optind++;
 		}
 	} else
@@ -100,10 +116,15 @@ static void
 MDString(string)
 	char   *string;
 {
-	unsigned int len = strlen(string);
+	size_t len = strlen(string);
 	char buf[33];
 
-	printf("MD5 (\"%s\") = %s\n", string, MD5Data(string, len, buf));
+	if (qflag)
+		printf("%s\n", MD5Data(string, len, buf));
+	else if (rflag)
+		printf("%s \"%s\"\n", MD5Data(string, len, buf), string);
+	else
+		printf("MD5 (\"%s\") = %s\n", string, MD5Data(string, len, buf));
 }
 /*
  * Measures the time to digest TEST_BLOCK_COUNT TEST_BLOCK_LEN-byte blocks.
