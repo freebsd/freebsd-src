@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.19 1998/01/25 01:44:41 kato Exp $
+ *	$Id: machdep.c,v 1.11.2.20 1998/01/25 15:40:40 kato Exp $
  */
 
 #include "npx.h"
@@ -98,6 +98,9 @@
 #include <ddb/ddb.h>
 
 #include <net/netisr.h>
+#ifdef DPTOPT
+#include <dev/dpt/softisr.h>
+#endif /* DPTOPT */
 
 #include <machine/cpu.h>
 #include <machine/npx.h>
@@ -157,7 +160,6 @@ int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
 u_int	atdevbase;
 
-
 int physmem = 0;
 int cold = 1;
 
@@ -195,6 +197,11 @@ vm_offset_t phys_avail[10];
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
 static void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
+#ifdef DPTOPT
+ /* XXX declare elsewhere */
+static void setup_dptisrs __P((struct linker_set *));
+extern struct linker_set dptisr_set;
+#endif /* DPTOPT */
 
 static vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
@@ -248,6 +255,9 @@ cpu_startup(dummy)
 	 * Quickly wire in netisrs.
 	 */
 	setup_netisrs(&netisr_set);
+#ifdef DPTOPT
+	setup_dptisrs(&dptisr_set);
+#endif /* DPTOPT */
 
 	/*
 	 * Allocate space for system data structures.
@@ -412,6 +422,21 @@ register_netisr(num, handler)
 	return (0);
 }
 
+#ifdef DPTOPT
+int
+register_dptisr(num, handler)
+	int num;
+	dptisr_t *handler;
+{
+	if(num < 0 || num >= (sizeof(dptisrs)/sizeof(*dptisrs)) ) {
+		printf("register_dptisrs: bad isr number: %d\n", num);
+		return (EINVAL);
+	}
+	dptisrs[num] = handler;
+	return (0);
+}
+
+#endif /* DPTOPT */
 static void
 setup_netisrs(ls)
 	struct linker_set *ls;
@@ -424,6 +449,21 @@ setup_netisrs(ls)
 		register_netisr(nit->nit_num, nit->nit_isr);
 	}
 }
+
+#ifdef DPTOPT
+static void
+setup_dptisrs(ls)
+	struct linker_set *ls;
+{
+	int i;
+	const struct dptisrtab *sint;
+
+	for(i = 0; ls->ls_items[i]; i++) {
+		sint = (const struct dptisrtab *)ls->ls_items[i];
+		register_dptisr(sint->sint_num, sint->sint_isr);
+	}
+}
+#endif /* DPTOPT */
 
 /*
  * Send an interrupt to process.

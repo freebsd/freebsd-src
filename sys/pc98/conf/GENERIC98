@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.8.2.16 1998/02/01 11:55:32 kato Exp $
+#	$Id: GENERIC98,v 1.8.2.17 1998/03/05 02:50:27 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -80,6 +80,7 @@ device		wfd0		#IDE floppy (LS-120)
 # for any number of installed devices.
 controller	ncr0
 controller	ahc0
+#controller	dpt0
 
 #
 # WD33C93 SCSI card (55/92 like board)
@@ -101,6 +102,12 @@ controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0 vector bsintr
 #controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0x50000 vector bsintr
 
 controller	aic0	at isa? port 0x1840 bio irq 5 flags 0x10000 vector aicintr
+
+#options   	DPT_MEASURE_PERFORMANCE #Leave alone for now
+#options		DPT_VERIFY_HINTR		# Some hardware MUST have it!
+#options		DPT_TRACK_CCB_STATES	# Some hardware MUST have it!
+#options    	DPT_HANDLE_TIMEOUTS		# Some hardware must have it!
+#options		DPT_TIMEOUT_FACTOR=4	# Some hardware needs more
 
 controller	scbus0
 
