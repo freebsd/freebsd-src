@@ -1,4 +1,5 @@
 /*	$NetBSD: ohci_pci.c,v 1.5 1998/11/25 22:32:04 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
