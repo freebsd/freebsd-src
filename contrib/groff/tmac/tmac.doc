@@ -266,6 +266,7 @@
 ..
 .\" NS pB macro - test for end of vector (eol) (print b1 buffer or divert)
 .de pB
+.nh
 .ie \\n(dZ==1 \{\
 .	if \\n(oM==1 \{\&\\*(b1
 .		rm S0
@@ -360,7 +361,7 @@
 .\" NS jN local register
 .\"
 .de fR
-.hy 0
+.nh
 .nr jM \\n(C\\n(aP
 .ie \\n(jM==1 \{\
 .	as b1 \&\fP\s0
@@ -398,7 +399,6 @@
 .\" NS jM local register
 .\" NS jN local register
 .de nR
-.hy 0
 .nr jM \\n(C\\n(aP
 .ie \\n(jM==1 \{\
 .	as b1 \&\f\\n(cF\s\\n(cZ
@@ -2008,6 +2008,7 @@
 ..
 .\" NS lL macro - .It item of list-type inset
 .de lL
+.nh
 .lY
 .br
 \&\\*(b1
@@ -2016,9 +2017,11 @@
 .ds b1
 .aY
 'fi
+.hy
 ..
 .\" NS hL macro - .It item of list-type hanging label (as opposed to tagged)
 .de hL
+.nh
 .lX
 .nr bb \\n(w\\n(lCu+\\n(lSu
 .ti -\\n(bbu
@@ -2029,9 +2032,11 @@
 .nr tP 0
 .aY
 'fi
+.hy
 ..
 .\" NS oL macro - .It item of list-type overhanging label
 .de oL
+.nh
 .lY
 \&\\*(b1
 .br
@@ -2040,14 +2045,17 @@
 .nr tP 0
 .aY
 'fi
+.hy
 ..
 .\" NS iT macro - .It item of list-type [empty label]
 .de iT
+.nh
 .lY
 .br
 .\" .ds b1
 .aY
 'fi
+.hy
 ..
 .\" NS nU macro - Enumerated list
 .\" NS nU register count
@@ -2087,6 +2095,7 @@
 ..
 .\" NS mL macro - .It item of list-type diagnostic-message
 .de mL
+.nh
 .nr cF \\n(.f
 .nr cZ \\n(.s
 .ie \\n(mL==1 \{\
@@ -2104,9 +2113,11 @@
 .aY
 .ds b1
 'fi
+.hy
 ..
 .\" NS tL macro - .It item of list-type "tag"
 .de tL
+.nh
 .\" tm in tL here is b1==\\*(b1
 .if \\n(tW==0 .lW
 .lX
@@ -2125,6 +2136,7 @@
 .ds b1
 .aY
 'fi
+.hy
 ..
 .\" NS lW macro - resolve unknown label/tag width (if .Bl [inset | tag] only)
 .de lW
@@ -2417,20 +2429,8 @@
 .	\}
 .	el \{\
 .		ds mN D1
-.               ds A1 \\$1
-.               ds A2 \\$2
-.               ds A3 \\$3
-.               ds A4 \\$4
-.               ds A5 \\$5
-.               ds A6 \\$6
-.               ds A7 \\$7
-.               ds A8 \\$8
-.               ds A9 \\$9
-.		nr fV \\n(.$
-.		fV
-.		nr aP \\n(aP+1
-.		ie \\n(C\\n(aP==1 .\\*(A\\n(aP
-.		el .No
+.		aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
+.		No
 .	\}
 .\}
 .el \{\
@@ -2451,55 +2451,76 @@
 .\" NS Vt macro - Variable type (for forcing old style variable declarations)
 .\" this is not done in the same manner as .Ot for fortrash - clean up later
 .de Vt
-.\" if a function declaration was the last thing given, want vertical space
-.if \\n(fD>0 \{\
-.	Pp
-.	nr fD 0
-.\}
-.\"	if a subroutine was the last thing given, want vertical space
-.if \\n(fZ>0 \{\
-.	ie \\n(fX==0 \{\
-.		Pp
-.		rs
+.if \\n(aC==0 \{\
+.       ie \\n(.$==0 .tm Usage: .Vt Variable Type ... \\*(Pu (#\\n(.c)
+.       el \{\
+.		ds mN Vt
+.		aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
 .	\}
-.	el .br
 .\}
-.nr fX \\n(fX+1
-.nr cF \\n(.f
-.nr cZ \\n(.s
-\\*(fT\&\\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
-.ie \\n(oT==0 .br
-.el \&\ \&
-.ft \\n(cF
-.fs \\n(cZ
+.if \\n(aC>\\n(aP \{\
+.	if \\n(nS>0 \{\
+.		\" if a function declaration was the last thing given, want vertical space
+.		if \\n(fD>0 \{\
+.			Pp
+.			nr fD 0
+.		\}
+.		\" if a subroutine was the last thing given, want vertical space
+.		if \\n(fZ>0 \{\
+.			ie \\n(fX==0 \{\
+.				Pp
+.				rs
+.			\}
+.			el .br
+.		\}
+.	\}
+.	nr fX \\n(fX+1
+.	as b1 \\*(fT
+.	nr aP \\n(aP+1
+.	nr cF \\n(.f
+.	nr cZ \\n(.s
+.	nR
+.	if \\n(nS>0 \{\
+.		ie \\n(oT==0 .br
+.		el .as b1 \&\ \&
+.	\}
+.\}
 ..
 .\"
 .\" NS Ft macro - Function type
 .nr fZ 0
 .de Ft
-.if \\n(nS>0 \{\
-.	if \\n(fZ>0 \{\
-.		Pp
-.		nr fD 0
-.		nr fX 0
+.if \\n(aC==0 \{\
+.       ie \\n(.$==0 .tm Usage: .Ft Function Type ... \\*(Pu (#\\n(.c)
+.       el \{\
+.		ds mN Ft
+.		aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
 .	\}
-.	if \\n(fD>0 \{\
-.		Pp
-.		nr fD 0
-.		nr fX 0
-.	\}
-.	if \\n(fX>0 \{\
-.		Pp
-.		nr fX 0
-.	\}
-.	nr fY 1
 .\}
-.nr cF \\n(.f
-.nr cZ \\n(.s
-\&\\*(fT\\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
-.ft \\n(cF
-.fs \\n(cZ
-.\" .br
+.if \\n(aC>\\n(aP \{\
+.	if \\n(nS>0 \{\
+.		if \\n(fZ>0 \{\
+.			Pp
+.			nr fD 0
+.			nr fX 0
+.		\}
+.		if \\n(fD>0 \{\
+.			Pp
+.			nr fD 0
+.			nr fX 0
+.		\}
+.		if \\n(fX>0 \{\
+.			Pp
+.			nr fX 0
+.		\}
+.		nr fY 1
+.	\}
+.	as b1 \\*(fT
+.	nr aP \\n(aP+1
+.	nr cF \\n(.f
+.	nr cZ \\n(.s
+.	nR
+.\}
 ..
 .\"
 .\" NS Ot macro - Old Function type (fortran - no newline)
@@ -2722,7 +2743,7 @@
 .el .aZ
 ..
 .de Fo
-.hy 0
+.nh
 .if \\n(aC==0 \{\
 .	ie \\n(.$==0 .tm Usage: .Fo function_name
 .	el \{\
@@ -3295,7 +3316,7 @@
 .\" NS jM local register
 .\" NS jN local register
 .de rR
-.hy 0
+.nh
 .nr jM \\n(C\\n(aP
 .ie \\n(jM==1 \{\
 .\" .	as b1 \&\f\\n(cF\s\\n(cZ
