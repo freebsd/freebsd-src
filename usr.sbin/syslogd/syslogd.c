@@ -287,33 +287,33 @@ int	KeepKernFac = 0;	/* Keep remotely logged kernel facility */
 
 volatile sig_atomic_t MarkSet, WantDie;
 
-int	allowaddr __P((char *));
-void	cfline __P((const char *, struct filed *, const char *, const char *));
-const char	*cvthname __P((struct sockaddr *));
-void	deadq_enter __P((pid_t, const char *));
-int	deadq_remove __P((pid_t));
-int	decode __P((const char *, CODE *));
-void	die __P((int));
-void	dodie __P((int));
-void	domark __P((int));
-void	fprintlog __P((struct filed *, int, const char *));
-int*	socksetup __P((int, const char *));
-void	init __P((int));
-void	logerror __P((const char *));
-void	logmsg __P((int, const char *, const char *, int));
-void	log_deadchild __P((pid_t, int, const char *));
-void	markit __P((void));
-void	printline __P((const char *, char *));
-void	printsys __P((char *));
-int	p_open __P((const char *, pid_t *));
-void	readklog __P((void));
-void	reapchild __P((int));
-static void	usage __P((void));
-int	validate __P((struct sockaddr *, const char *));
-static void	unmapped __P((struct sockaddr *));
-void	wallmsg __P((struct filed *, struct iovec *));
-int	waitdaemon __P((int, int, int));
-void	timedout __P((int));
+int	allowaddr(char *);
+void	cfline(const char *, struct filed *, const char *, const char *);
+const char	*cvthname(struct sockaddr *);
+void	deadq_enter(pid_t, const char *);
+int	deadq_remove(pid_t);
+int	decode(const char *, CODE *);
+void	die(int);
+void	dodie(int);
+void	domark(int);
+void	fprintlog(struct filed *, int, const char *);
+int*	socksetup(int, const char *);
+void	init(int);
+void	logerror(const char *);
+void	logmsg(int, const char *, const char *, int);
+void	log_deadchild(pid_t, int, const char *);
+void	markit(void);
+void	printline(const char *, char *);
+void	printsys(char *);
+int	p_open(const char *, pid_t *);
+void	readklog(void);
+void	reapchild(int);
+static void	usage(void);
+int	validate(struct sockaddr *, const char *);
+static void	unmapped(struct sockaddr *);
+void	wallmsg(struct filed *, struct iovec *);
+int	waitdaemon(int, int, int);
+void	timedout(int);
 
 int
 main(argc, argv)
