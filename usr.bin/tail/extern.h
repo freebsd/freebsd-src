@@ -52,8 +52,8 @@ struct mapinfo {
 
 enum STYLE { NOTSET = 0, FBYTES, FLINES, RBYTES, RLINES, REVERSE };
 
-void forward __P((FILE *, enum STYLE, long, struct stat *));
-void reverse __P((FILE *, enum STYLE, long, struct stat *));
+void forward __P((FILE *, enum STYLE, off_t, struct stat *));
+void reverse __P((FILE *, enum STYLE, off_t, struct stat *));
 
 int bytes __P((FILE *, off_t));
 int lines __P((FILE *, off_t));
