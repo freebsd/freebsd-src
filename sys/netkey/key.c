@@ -89,17 +89,14 @@ Research Laboratory (NRL).
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/time.h>
 
 #include <net/raw_cb.h>
 #include <net/if.h>
-#include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#include <netinet/if_ether.h>
 
 #ifdef INET6
 #include <netinet6/in6.h>
