@@ -61,11 +61,22 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	char *p, *q;
-	int ch;
+	char *p, *q, *suffix;
+	size_t suffixlen;
+	int aflag, ch;
 
-	while ((ch = getopt(argc, argv, "")) != -1)
+	aflag = 0;
+	suffix = NULL;
+	suffixlen = 0;
+
+	while ((ch = getopt(argc, argv, "as:")) != -1)
 		switch(ch) {
+		case 'a':
+			aflag = 1;
+			break;
+		case 's':
+			suffix = optarg;
+			break;
 		case '?':
 		default:
 			usage();
@@ -73,7 +84,7 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 1 && argc != 2)
+	if (argc < 1)
 		usage();
 
 	if (!*argv[0]) {
@@ -82,10 +93,21 @@ main(argc, argv)
 	}
 	if ((p = basename(argv[0])) == NULL)
 		err(1, "%s", argv[0]);
-	if (*++argv && (q = strchr(p, '\0') - strlen(*argv)) > p &&
-	    strcmp(*argv, q) == 0)
+	if ((suffix == NULL && !aflag) && argc == 2) {
+		suffix = argv[1];
+		argc--;
+	}
+	if (suffix != NULL)
+		suffixlen = strlen(suffix);
+	while (argc--) {
+		if ((p = basename(*argv)) == NULL)
+			err(1, "%s", argv[0]);
+		if (suffixlen && (q = strchr(p, '\0') - suffixlen) > p &&
+		    strcmp(suffix, q) == 0)
 			*q = '\0';
-	(void)printf("%s\n", p);
+		argv++;
+		(void)printf("%s\n", p);
+	}
 	exit(0);
 }
 
@@ -93,6 +115,8 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: basename string [suffix]\n");
+	(void)fprintf(stderr,
+"usage: basename string [suffix]\n"
+"       basename [-a] [-s suffix] string [...]\n");
 	exit(1);
 }

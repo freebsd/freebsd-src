@@ -45,6 +45,11 @@
 .Nm
 .Ar string
 .Op Ar suffix
+.Nm
+.Op Fl a
+.Op Fl s Ar suffix
+.Ar string
+.Op Ar ...
 .Nm dirname
 .Ar string
 .Sh DESCRIPTION
@@ -64,6 +69,19 @@ is not stripped if it is identical to the remaining characters in
 .Ar string .
 The resulting filename is written to the standard output.
 A non-existent suffix is ignored.
+If
+.Fl a
+is specified, then every argument is treated as a
+.Ar string
+as if
+.Nm
+were invoked with just one argument.
+If
+.Fl s
+is specified, then the
+.Ar suffix
+is taken as its argument, and all other arguments are treated as a
+.Ar string .
 .Pp
 The
 .Nm dirname
