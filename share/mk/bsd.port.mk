@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.206 1996/06/13 06:03:39 asami Exp $
+# $Id: bsd.port.mk,v 1.207 1996/06/19 01:04:23 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -239,9 +239,9 @@ obj:
 cleandir:
 	@${DO_NADA}
 .else
-cleandir:
-	@rm -rf ${WRKDIR}/${DISTNAME}
-	@rm -f ${WRKDIR}/.*_done
+cleandir: clean
+	@if [ "${WRKDIR}" != "${.CURDIR}" ]; then ${RM} -rf ${WRKDIR}/; fi
+	@rm -f ${.CURDIR}/obj
 .endif
 .endif
 
