@@ -946,7 +946,7 @@ set_fflags(struct archive *a, const char *name, mode_t mode,
 	if (stat(name, &extract->st) == 0) {
 		extract->st.st_flags &= ~clear;
 		extract->st.st_flags |= set;
-		if (chflags(name, extract->pst->st_flags) != 0) {
+		if (chflags(name, extract->st.st_flags) != 0) {
 			archive_set_error(a, errno,
 			    "Failed to set file flags");
 			ret = ARCHIVE_WARN;
