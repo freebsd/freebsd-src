@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.16 1999/04/05 19:38:27 julian Exp $
+ *	$Id: pmap.c,v 1.17 1999/04/07 03:34:32 msmith Exp $
  */
 
 /*
@@ -2830,17 +2830,19 @@ int
 pmap_ts_referenced(vm_offset_t pa)
 {
 	pv_table_t *ppv;
-	int ret;
 
 	if (!pmap_is_managed(pa))
-		return FALSE;
+		return 0;
 
 	ppv = pa_to_pvh(pa);
 
-	ret = (ppv->pv_flags & PV_TABLE_REF) != 0;
-	ppv->pv_flags &= ~PV_TABLE_REF;
+	if (ppv->pv_flags & PV_TABLE_REF) {
+		pmap_changebit(pa, PG_FOR|PG_FOE|PG_FOW, TRUE);
+		ppv->pv_flags &= ~PV_TABLE_REF;
+		return 1;
+	}
 
-	return ret;
+	return 0;
 }
 
 /*
