@@ -30,9 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)err.3	8.1 (Berkeley) 6/9/93
-.\"	$Id: err.3,v 1.8 1998/04/22 19:59:55 rnordier Exp $
+.\"	$Id: err.3,v 1.9 1998/09/12 21:02:22 wollman Exp $
 .\"
-.Dd April 13, 1995
+.Dd Mar 6, 1999
 .Dt ERR 3
 .Os BSD 4
 .Sh NAME
@@ -48,13 +48,17 @@
 .Nm vwarnc ,
 .Nm warnx ,
 .Nm vwarnx ,
-.Nm err_set_file ,
-.Nm err_set_exit
+.Nm err_set_exit ,
+.Nm err_set_file
 .Nd formatted error messages
 .Sh SYNOPSIS
 .Fd #include <err.h>
 .Ft void
 .Fn err "int eval" "const char *fmt" "..."
+.Ft void
+.Fn err_set_exit "void (*exitf)(int)"
+.Ft void
+.Fn err_set_file "void *vfp"
 .Ft void
 .Fn errc "int eval" "int code" "const char *fmt" "..."
 .Ft void
@@ -65,11 +69,6 @@
 .Fn warnc "int code" "const char *fmt" "..."
 .Ft void
 .Fn warnx "const char *fmt" "..."
-.Fd #include <stdio.h>
-.Ft void
-.Fn err_set_file "FILE *fp"
-.Ft void
-.Fn err_set_exit "void (*exitf)(int)"
 .Fd #include <stdarg.h>
 .Ft void
 .Fn verr "int eval" "const char *fmt" "va_list args"
@@ -141,6 +140,15 @@ function can be used to specify a function which is called before
 to perform any necessary cleanup; passing a null function pointer for
 .Va exitf
 resets the hook to do nothing.
+The
+.Fn err_set_file
+function sets the output stream used by the other functions.
+Its
+.Va vfp
+argument must be either a pointer to an open stream
+(possibly already converted to void *)
+or a null pointer
+(in which case the output stream is set to standard error).
 .Sh EXAMPLES
 Display the current errno information string and exit:
 .Bd -literal -offset indent
@@ -183,9 +191,9 @@ and
 functions first appeared in
 .Bx 4.4 .
 The
-.Fn err_set_file
-and
 .Fn err_set_exit
+and
+.Fn err_set_file
 functions first appeared in
 .Fx 2.1 .
 The
