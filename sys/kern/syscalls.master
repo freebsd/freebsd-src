@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.49 1998/03/28 11:50:01 dufault Exp $
+	$Id: syscalls.master,v 1.50 1998/05/11 03:55:27 dyson Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -442,8 +442,7 @@
 310	STD	BSD	{ int getsid(pid_t pid); }
 311	UNIMPL	NOHIDE	setresuid
 312	UNIMPL	NOHIDE	setresgid
-313	STD	BSD	{ int signanosleep(const struct timespec *rqtp, \
-			    struct timespec *rmtp, sigset_t *mask); }
+313	OBSOL	NOHIDE	signanosleep
 314     STD     BSD     { int aio_return(struct aiocb *aiocbp); }
 315     STD     BSD     { int aio_suspend(struct aiocb * const * aiocbp, int nent, const struct timespec *timeout); }
 316     STD     BSD     { int aio_cancel(int fd, struct aiocb *aiocbp); }
