@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.3 1998/08/10 07:53:59 dfr Exp $
+ *	$Id: isa.c,v 1.4 1998/09/16 08:23:51 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -130,7 +130,7 @@ isa_intr_enable(int irq)
 	if (irq < 8)
 		outb(IO_ICU1+1, inb(IO_ICU1+1) & ~(1 << irq));
 	else
-		outb(IO_ICU2+1, inb(IO_ICU2+1) & ~(1 << irq));
+		outb(IO_ICU2+1, inb(IO_ICU2+1) & ~(1 << (irq - 8)));
 	splx(s);
 }
 
@@ -141,7 +141,7 @@ isa_intr_disable(int irq)
 	if (irq < 8)
 		outb(IO_ICU1+1, inb(IO_ICU1+1) | (1 << irq));
 	else
-		outb(IO_ICU2+1, inb(IO_ICU2+1) | (1 << irq));
+		outb(IO_ICU2+1, inb(IO_ICU2+1) | (1 << (irq - 8)));
 	splx(s);
 }
 
