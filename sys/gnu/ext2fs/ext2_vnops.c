@@ -91,7 +91,6 @@ static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_read_desc,		(vop_t *) ext2_read },
 	{ &vop_readdir_desc,		(vop_t *) ext2_readdir },
 	{ &vop_reallocblks_desc,	(vop_t *) ext2_reallocblks },
-	{ &vop_update_desc,		(vop_t *) ext2_update },
 	{ &vop_write_desc,		(vop_t *) ext2_write },
 	{ NULL, NULL }
 };
@@ -103,7 +102,6 @@ static struct vnodeopv_entry_desc ext2_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatespec },
 	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
 	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
-	{ &vop_update_desc,		(vop_t *) ext2_update },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ext2fs_specop_opv_desc =
@@ -114,7 +112,6 @@ static struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatefifo },
 	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
 	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
-	{ &vop_update_desc,		(vop_t *) ext2_update },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ext2fs_fifoop_opv_desc =
@@ -200,5 +197,5 @@ loop:
 	}
 	splx(s);
 	gettime(&tv);
-	return (VOP_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
+	return (UFS_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
 }

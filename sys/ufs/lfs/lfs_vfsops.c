@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.20 (Berkeley) 6/10/95
- * $Id: lfs_vfsops.c,v 1.24 1997/10/12 20:26:17 phk Exp $
+ * $Id: lfs_vfsops.c,v 1.25 1997/10/16 08:16:34 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -385,6 +385,11 @@ lfs_mountfs(devvp, mp, p)
 	ump = (struct ufsmount *)malloc(sizeof *ump, M_UFSMNT, M_WAITOK);
 	bzero(ump, sizeof *ump);
 	ump->um_malloctype = M_LFSNODE;
+	ump->um_blkatoff = lfs_blkatoff;
+	ump->um_truncate = lfs_truncate;
+	ump->um_update = lfs_update;
+	ump->um_valloc = lfs_valloc;
+	ump->um_vfree = lfs_vfree;
 	fs = ump->um_lfs = malloc(sizeof(struct lfs), M_UFSMNT, M_WAITOK);
 	bcopy(bp->b_data, fs, sizeof(struct lfs));
 	if (sizeof(struct lfs) < LFS_SBPAD)			/* XXX why? */

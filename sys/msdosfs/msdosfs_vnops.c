@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.47 1997/10/15 10:05:03 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.48 1997/10/16 10:48:52 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -79,18 +79,13 @@
  */
 static int msdosfs_create __P((struct vop_create_args *));
 static int msdosfs_mknod __P((struct vop_mknod_args *));
-static int msdosfs_open __P((struct vop_open_args *));
 static int msdosfs_close __P((struct vop_close_args *));
 static int msdosfs_access __P((struct vop_access_args *));
 static int msdosfs_getattr __P((struct vop_getattr_args *));
 static int msdosfs_setattr __P((struct vop_setattr_args *));
 static int msdosfs_read __P((struct vop_read_args *));
 static int msdosfs_write __P((struct vop_write_args *));
-static int msdosfs_ioctl __P((struct vop_ioctl_args *));
-static int msdosfs_poll __P((struct vop_poll_args *));
-static int msdosfs_mmap __P((struct vop_mmap_args *));
 static int msdosfs_fsync __P((struct vop_fsync_args *));
-static int msdosfs_seek __P((struct vop_seek_args *));
 static int msdosfs_remove __P((struct vop_remove_args *));
 static int msdosfs_link __P((struct vop_link_args *));
 static int msdosfs_rename __P((struct vop_rename_args *));
@@ -98,7 +93,6 @@ static int msdosfs_mkdir __P((struct vop_mkdir_args *));
 static int msdosfs_rmdir __P((struct vop_rmdir_args *));
 static int msdosfs_symlink __P((struct vop_symlink_args *));
 static int msdosfs_readdir __P((struct vop_readdir_args *));
-static int msdosfs_readlink __P((struct vop_readlink_args *));
 static int msdosfs_abortop __P((struct vop_abortop_args *));
 static int msdosfs_lock __P((struct vop_lock_args *));
 static int msdosfs_unlock __P((struct vop_unlock_args *));
@@ -106,9 +100,7 @@ static int msdosfs_bmap __P((struct vop_bmap_args *));
 static int msdosfs_strategy __P((struct vop_strategy_args *));
 static int msdosfs_print __P((struct vop_print_args *));
 static int msdosfs_islocked __P((struct vop_islocked_args *));
-static int msdosfs_advlock __P((struct vop_advlock_args *));
 static int msdosfs_pathconf __P((struct vop_pathconf_args *ap));
-static int msdosfs_reallocblks __P((struct vop_reallocblks_args *));
 
 /*
  * Some general notes:
@@ -212,18 +204,6 @@ msdosfs_mknod(ap)
 		break;
 	}
 	return error;
-}
-
-static int
-msdosfs_open(ap)
-	struct vop_open_args /* {
-		struct vnode *a_vp;
-		int a_mode;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-	return 0;
 }
 
 static int
@@ -826,45 +806,6 @@ errexit:
 	return error;
 }
 
-static int
-msdosfs_ioctl(ap)
-	struct vop_ioctl_args /* {
-		struct vnode *a_vp;
-		int a_command;
-		caddr_t a_data;
-		int a_fflag;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-	return ENOTTY;
-}
-
-static int
-msdosfs_poll(ap)
-	struct vop_poll_args /* {
-		struct vnode *a_vp;
-		int a_events;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-	/* DOS filesystems never block? */
-	return (ap->a_events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
-}
-
-static int
-msdosfs_mmap(ap)
-	struct vop_mmap_args /* {
-		struct vnode *a_vp;
-		int a_fflags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-	return EINVAL;
-}
-
 /*
  * Flush the blocks of a file to disk.
  *
@@ -917,22 +858,6 @@ loop:
 	splx(s);
 	TIMEVAL_TO_TIMESPEC(&time, &ts);
 	return deupdat(VTODE(vp), &ts, wait);
-}
-
-/*
- * Now the whole work of extending a file is done in the write function.
- * So nothing to do here.
- */
-static int
-msdosfs_seek(ap)
-	struct vop_seek_args /* {
-		struct vnode *a_vp;
-		off_t a_oldoff;
-		off_t a_newoff;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	return 0;
 }
 
 static int
@@ -1772,20 +1697,6 @@ out:	;
 	return error;
 }
 
-/*
- * DOS filesystems don't know what symlinks are.
- */
-static int
-msdosfs_readlink(ap)
-	struct vop_readlink_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	return EINVAL;
-}
-
 static int
 msdosfs_abortop(ap)
 	struct vop_abortop_args /* {
@@ -1873,17 +1784,6 @@ msdosfs_bmap(ap)
 }
 
 static int
-msdosfs_reallocblks(ap)
-	struct vop_reallocblks_args /* {
-		struct vnode *a_vp;
-		struct cluster_save *a_buflist;
-	} */ *ap;
-{
-	/* Currently no support for clustering */		/* XXX */
-	return ENOSPC;
-}
-
-static int
 msdosfs_strategy(ap)
 	struct vop_strategy_args /* {
 		struct buf *a_bp;
@@ -1943,19 +1843,6 @@ msdosfs_print(ap)
 }
 
 static int
-msdosfs_advlock(ap)
-	struct vop_advlock_args /* {
-		struct vnode *a_vp;
-		caddr_t a_id;
-		int a_op;
-		struct flock *a_fl;
-		int a_flags;
-	} */ *ap;
-{
-	return EINVAL;		/* we don't do locking yet		 */
-}
-
-static int
 msdosfs_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -1990,7 +1877,6 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
 	{ &vop_abortop_desc,		(vop_t *) msdosfs_abortop },
 	{ &vop_access_desc,		(vop_t *) msdosfs_access },
-	{ &vop_advlock_desc,		(vop_t *) msdosfs_advlock },
 	{ &vop_bmap_desc,		(vop_t *) msdosfs_bmap },
 	{ &vop_cachedlookup_desc,	(vop_t *) msdosfs_lookup },
 	{ &vop_close_desc,		(vop_t *) msdosfs_close },
@@ -1998,27 +1884,20 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) msdosfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) msdosfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) msdosfs_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) msdosfs_ioctl },
 	{ &vop_islocked_desc,		(vop_t *) msdosfs_islocked },
 	{ &vop_link_desc,		(vop_t *) msdosfs_link },
 	{ &vop_lock_desc,		(vop_t *) msdosfs_lock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) msdosfs_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) msdosfs_mknod },
-	{ &vop_mmap_desc,		(vop_t *) msdosfs_mmap },
-	{ &vop_open_desc,		(vop_t *) msdosfs_open },
 	{ &vop_pathconf_desc,		(vop_t *) msdosfs_pathconf },
-	{ &vop_poll_desc,		(vop_t *) msdosfs_poll },
 	{ &vop_print_desc,		(vop_t *) msdosfs_print },
 	{ &vop_read_desc,		(vop_t *) msdosfs_read },
 	{ &vop_readdir_desc,		(vop_t *) msdosfs_readdir },
-	{ &vop_readlink_desc,		(vop_t *) msdosfs_readlink },
-	{ &vop_reallocblks_desc,	(vop_t *) msdosfs_reallocblks },
 	{ &vop_reclaim_desc,		(vop_t *) msdosfs_reclaim },
 	{ &vop_remove_desc,		(vop_t *) msdosfs_remove },
 	{ &vop_rename_desc,		(vop_t *) msdosfs_rename },
 	{ &vop_rmdir_desc,		(vop_t *) msdosfs_rmdir },
-	{ &vop_seek_desc,		(vop_t *) msdosfs_seek },
 	{ &vop_setattr_desc,		(vop_t *) msdosfs_setattr },
 	{ &vop_strategy_desc,		(vop_t *) msdosfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) msdosfs_symlink },

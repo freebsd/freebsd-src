@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.9 (Berkeley) 5/14/95
- * $Id: ufs_inode.c,v 1.18 1997/10/14 18:46:48 phk Exp $
+ * $Id: ufs_inode.c,v 1.19 1997/10/16 10:50:14 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -92,7 +92,7 @@ ufs_inactive(ap)
 	}
 	if (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) {
 		gettime(&tv);
-		VOP_UPDATE(vp, &tv, &tv, 0);
+		UFS_UPDATE(vp, &tv, &tv, 0);
 	}
 out:
 	VOP_UNLOCK(vp, 0, p);

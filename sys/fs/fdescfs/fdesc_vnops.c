@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.28 1997/10/15 10:04:12 phk Exp $
+ * $Id: fdesc_vnops.c,v 1.29 1997/10/16 10:48:18 phk Exp $
  */
 
 /*
@@ -91,7 +91,6 @@ static int	fdesc_inactive __P((struct vop_inactive_args *ap));
 static int	fdesc_ioctl __P((struct vop_ioctl_args *ap));
 static int	fdesc_lookup __P((struct vop_lookup_args *ap));
 static int	fdesc_open __P((struct vop_open_args *ap));
-static int	fdesc_pathconf __P((struct vop_pathconf_args *ap));
 static int	fdesc_print __P((struct vop_print_args *ap));
 static int	fdesc_read __P((struct vop_read_args *ap));
 static int	fdesc_readdir __P((struct vop_readdir_args *ap));
@@ -831,43 +830,6 @@ fdesc_reclaim(ap)
 }
 
 /*
- * Return POSIX pathconf information applicable to special devices.
- */
-static int
-fdesc_pathconf(ap)
-	struct vop_pathconf_args /* {
-		struct vnode *a_vp;
-		int a_name;
-		int *a_retval;
-	} */ *ap;
-{
-
-	switch (ap->a_name) {
-	case _PC_LINK_MAX:
-		*ap->a_retval = LINK_MAX;
-		return (0);
-	case _PC_MAX_CANON:
-		*ap->a_retval = MAX_CANON;
-		return (0);
-	case _PC_MAX_INPUT:
-		*ap->a_retval = MAX_INPUT;
-		return (0);
-	case _PC_PIPE_BUF:
-		*ap->a_retval = PIPE_BUF;
-		return (0);
-	case _PC_CHOWN_RESTRICTED:
-		*ap->a_retval = 1;
-		return (0);
-	case _PC_VDISABLE:
-		*ap->a_retval = _POSIX_VDISABLE;
-		return (0);
-	default:
-		return (EINVAL);
-	}
-	/* NOTREACHED */
-}
-
-/*
  * Print out the contents of a /dev/fd vnode.
  */
 /* ARGSUSED */
@@ -897,8 +859,6 @@ static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
 	{ &vop_access_desc,		(vop_t *) nullop },
 	{ &vop_bmap_desc,		(vop_t *) fdesc_badop },
-	{ &vop_close_desc,		(vop_t *) nullop },
-	{ &vop_fsync_desc,		(vop_t *) nullop },
 	{ &vop_getattr_desc,		(vop_t *) fdesc_getattr },
 	{ &vop_inactive_desc,		(vop_t *) fdesc_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) fdesc_ioctl },
@@ -906,14 +866,13 @@ static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) fdesc_lookup },
 	{ &vop_open_desc,		(vop_t *) fdesc_open },
-	{ &vop_pathconf_desc,		(vop_t *) fdesc_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_poll_desc,		(vop_t *) fdesc_poll },
 	{ &vop_print_desc,		(vop_t *) fdesc_print },
 	{ &vop_read_desc,		(vop_t *) fdesc_read },
 	{ &vop_readdir_desc,		(vop_t *) fdesc_readdir },
 	{ &vop_readlink_desc,		(vop_t *) fdesc_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) fdesc_reclaim },
-	{ &vop_seek_desc,		(vop_t *) nullop },
 	{ &vop_setattr_desc,		(vop_t *) fdesc_setattr },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) fdesc_write },

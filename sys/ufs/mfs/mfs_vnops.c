@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.24 1997/10/15 13:23:57 phk Exp $
+ * $Id: mfs_vnops.c,v 1.25 1997/10/16 10:50:03 phk Exp $
  */
 
 #include <sys/param.h>
@@ -56,7 +56,6 @@ static int	mfs_badop __P((void));
 static int	mfs_bmap __P((struct vop_bmap_args *));
 static int	mfs_close __P((struct vop_close_args *));
 static int	mfs_fsync __P((struct vop_fsync_args *));
-static int	mfs_ioctl __P((struct vop_ioctl_args *));
 static int	mfs_inactive __P((struct vop_inactive_args *)); /* XXX */
 static int	mfs_open __P((struct vop_open_args *));
 static int	mfs_print __P((struct vop_print_args *)); /* XXX */
@@ -71,7 +70,6 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_close_desc,		(vop_t *) mfs_close },
 	{ &vop_fsync_desc,		(vop_t *) mfs_fsync },
 	{ &vop_inactive_desc,		(vop_t *) mfs_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) mfs_ioctl },
 	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_open_desc,		(vop_t *) mfs_open },
@@ -117,25 +115,6 @@ mfs_fsync(ap)
 {
 
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_fsync), ap));
-}
-
-/*
- * Ioctl operation.
- */
-/* ARGSUSED */
-static int
-mfs_ioctl(ap)
-	struct vop_ioctl_args /* {
-		struct vnode *a_vp;
-		int  a_command;
-		caddr_t  a_data;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	return (ENOTTY);
 }
 
 /*

@@ -62,7 +62,7 @@ int	ext2_reallocblks __P((struct vop_reallocblks_args *));
 int	ext2_reclaim __P((struct vop_reclaim_args *));
 void	ext2_setblock __P((struct ext2_sb_info *, u_char *, daddr_t));
 int	ext2_truncate __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
-int	ext2_update __P((struct vop_update_args *));
+int	ext2_update __P((struct vnode *, struct timeval *, struct timeval *, int));
 int	ext2_valloc __P((struct vnode *, int, struct ucred *, struct vnode **));
 int	ext2_vfree __P((struct vnode *, ino_t, int));
 int 	ext2_lookup __P((struct vop_cachedlookup_args *));
