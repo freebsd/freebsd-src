@@ -127,9 +127,7 @@ static u_int8_t	wi_mcast_addr[6] = { 0x01, 0x60, 0x1D, 0x00, 0x01, 0x00 };
 
 static int wi_probe		__P((struct isa_device *));
 static int wi_attach		__P((struct isa_device *));
-#ifdef PCCARD_MODULE
-static ointhand2_t		wi_intr;
-#endif
+ointhand2_t			wi_intr;
 static void wi_reset		__P((struct wi_softc *));
 static int wi_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void wi_init		__P((void *));
