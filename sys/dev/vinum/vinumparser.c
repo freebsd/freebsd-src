@@ -66,7 +66,6 @@
 /* All this mess for a single struct definition */
 #include <sys/uio.h>
 #include <sys/namei.h>
-#include <sys/disklabel.h>
 #include <sys/mount.h>
 
 #include <dev/vinum/vinumvar.h>
