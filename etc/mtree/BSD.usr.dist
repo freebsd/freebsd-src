@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.14 1994/05/31 15:59:14 ache Exp $
+#	$Id: BSD.usr.dist,v 1.15 1994/06/01 02:39:37 ache Exp $
 #
 
 /set type=file uname=bin gname=bin mode=0755
@@ -20,6 +20,8 @@ include	type=dir uname=bin gname=bin mode=0755
 		..
 		sys	type=dir uname=bin gname=bin mode=0755
 		..
+	..
+	md		type=dir uname=bin gname=bin mode=0755
 	..
 	objc		type=dir uname=bin gname=bin mode=0755
 	..
