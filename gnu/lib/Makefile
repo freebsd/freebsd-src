@@ -1,6 +1,13 @@
 # $FreeBSD$
 
-SUBDIR= csu libdialog libgcc libregex libreadline
+.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "sparc64"
+SUBDIR+= csu libgcc
+NO_CXX=	yes
+NO_OBJC=yes
+NO_FORTRAN=yes
+.endif
+
+SUBDIR+= libdialog libregex libreadline
 
 .if ${OBJFORMAT} == aout
 .if !defined(NOLIBC_R)
