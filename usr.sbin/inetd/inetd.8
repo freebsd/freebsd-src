@@ -42,6 +42,7 @@
 .Sh SYNOPSIS
 .Nm inetd
 .Op Fl d
+.Op Fl l
 .Op Fl R Ar rate
 .Op Ar configuration file
 .Sh DESCRIPTION
@@ -72,6 +73,8 @@ The options available for
 .Bl -tag -width Ds
 .It Fl d
 Turns on debugging.
+.It Fl l
+Turns on logging.
 .It Fl R Ar rate
 Specifies the maximum number of times a service can be invoked
 in one minute; the default is 1000.
@@ -298,6 +301,15 @@ in the form of the number of seconds since midnight, January
 details of these services, consult the appropriate
 .Tn RFC
 from the Network Information Center.
+.Pp
+When given the
+.Fl l
+option
+.Nm Inetd
+will log an entry to syslog each time an 
+.Xr accept 2 
+is made, which notes the
+service selected and the IP-number of the remote requestor.
 .Pp
 The
 .Nm inetd
