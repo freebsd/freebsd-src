@@ -7,7 +7,8 @@ CFLAGS+=-I${KRB5DIR}/lib/gssapi	\
 	-I${KRB5DIR}/lib/roken  \
 	-I${KRB5DIR}/lib/des	\
 	-I${KRB5DIR}/include	\
-	-I${ASN1OBJDIR}
+	-I${ASN1OBJDIR}		\
+	-I${.OBJDIR}
 
 SRCS=				\
 	8003.c			\
@@ -49,8 +50,10 @@ SRCS=				\
         wrap.c                  \
         address_to_krb5addr.c
 
-INCLUDES=${KRB5DIR}/lib/gssapi/gssapi.h
+INCLUDES=${KRB5DIR}/lib/gssapi/gssapi.h heim_err.h krb5_err.h
 
 .include <bsd.lib.mk>
 
 .PATH:		${KRB5DIR}/lib/gssapi
+
+beforedepend all:	heim_err.h krb5_err.h
