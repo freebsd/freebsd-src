@@ -47,9 +47,6 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-#include <machine/clock.h>
-#include <machine/laptops.h>
-
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
@@ -62,6 +59,9 @@
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
+
+#include <machine/clock.h>
+#include <machine/laptops.h>
 
 extern struct kern_devconf kdc_cpu0;
 
@@ -320,8 +320,8 @@ disable_slot(struct slot *sp)
 			splx(s);
 		}
 	}
-	/* Power off the slot */
-	timeout(power_off_slot, (caddr_t)sp, hz / 4);
+	/* Power off the slot 1/2 second after remove of the card */
+	timeout(power_off_slot, (caddr_t)sp, hz / 2);
 	sp->pwr_off_pending = 1;
 
 	/* De-activate all contexts.  */
@@ -365,7 +365,7 @@ slot_resume(void *arg)
 	if (sp->irq)
 		sp->ctrl->mapirq(sp, sp->irq);
 	for (dp = sp->devices; dp; dp = dp->next)
-	(void) dp->drv->init(dp, 0);
+		(void) dp->drv->init(dp, 0);
 	return (0);
 }
 #endif	/* NAPM > 0 */
@@ -649,7 +649,7 @@ static void enable_beep(void *dummy)
 void
 pccard_event(struct slot *sp, enum card_event event)
 {
-int s;
+	int s;
 
 	if (sp->insert_seq) {
 		sp->insert_seq = 0;
@@ -667,10 +667,9 @@ int s;
 			sp->state = empty;
 			splx(s);
 			printf("Card removed, slot %d\n", sp->slot);
-			if (beepok) {
+			if (beepok)
 				sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
-				beepok = 0;
-			}
+			beepok = 0;
 			timeout(enable_beep, (void *)NULL, hz/5);
 			selwakeup(&sp->selp);
 		}
@@ -678,10 +677,9 @@ int s;
 	case card_inserted:
 		sp->insert_seq = 1;
 		timeout(inserted, (void *)sp, hz/4);
-		if (beepok) {
+		if (beepok)
 			sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
-			beepok = 0;
-		}
+		beepok = 0;
 		timeout(enable_beep, (void *)NULL, hz/5);
 		break;
 	}
@@ -707,13 +705,13 @@ slot_irq_handler(int sp)
 		((struct slot *)sp)->slot, ((struct slot *)sp)->irq);
 }
 
-	/*
-	 *	Device driver interface.
-	 */
+/*
+ *	Device driver interface.
+ */
 int
 crdopen(dev_t dev, int oflags, int devtype, struct proc *p)
 {
-struct slot *sp;
+	struct slot *sp;
 
 	if (minor(dev) >= MAXSLOT)
 		return(ENXIO);
