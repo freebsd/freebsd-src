@@ -40,7 +40,7 @@
 .Nd display disk usage statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl P | Fl H | Fl L
+.Op Fl H | L | P
 .Op Fl a | s | d Ar depth
 .Op Fl c
 .Op Fl h | k
@@ -64,14 +64,14 @@ Partial numbers of blocks are rounded up.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl P
-No symbolic links are followed.
-(default)
 .It Fl H
 Symbolic links on the command line are followed, symbolic links in file
 hierarchies are not followed.
 .It Fl L
 Symbolic links on the command line and in file hierarchies are followed.
+.It Fl P
+No symbolic links are followed.
+This is the default.
 .It Fl a
 Display an entry for each file in a file hierarchy.
 .It Fl h
