@@ -1658,7 +1658,7 @@ int radeon_cp_vertex( DRM_IOCTL_ARGS )
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_file_t *filp_priv;
-	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
+	drm_radeon_sarea_t *sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_t *buf;
 	drm_radeon_vertex_t vertex;
@@ -1670,6 +1670,7 @@ int radeon_cp_vertex( DRM_IOCTL_ARGS )
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
 		return DRM_ERR(EINVAL);
 	}
+	sarea_priv = dev_priv->sarea_priv;
 
 	DRM_GET_PRIV_WITH_RETURN( filp_priv, filp );
 
@@ -1748,7 +1749,7 @@ int radeon_cp_indices( DRM_IOCTL_ARGS )
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_file_t *filp_priv;
-	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
+	drm_radeon_sarea_t *sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_t *buf;
 	drm_radeon_indices_t elts;
@@ -1761,6 +1762,7 @@ int radeon_cp_indices( DRM_IOCTL_ARGS )
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
 		return DRM_ERR(EINVAL);
 	}
+	sarea_priv = dev_priv->sarea_priv;
 
 	DRM_GET_PRIV_WITH_RETURN( filp_priv, filp );
 
@@ -1979,7 +1981,7 @@ int radeon_cp_vertex2( DRM_IOCTL_ARGS )
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_file_t *filp_priv;
-	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
+	drm_radeon_sarea_t *sarea_priv;
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_t *buf;
 	drm_radeon_vertex2_t vertex;
@@ -1992,6 +1994,7 @@ int radeon_cp_vertex2( DRM_IOCTL_ARGS )
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
 		return DRM_ERR(EINVAL);
 	}
+	sarea_priv = dev_priv->sarea_priv;
 
 	DRM_GET_PRIV_WITH_RETURN( filp_priv, filp );
 
