@@ -158,8 +158,8 @@ struct promise_raid_conf {
 
     u_int32_t		dummy_0;
     u_int64_t		magic_0;
-#define PR_MAGIC0(x)	((u_int64_t)x.device->channel->unit << 48) | \
-			((u_int64_t)(x.device->unit != 0) << 56)
+#define PR_MAGIC0(x)	(x.device ? ((u_int64_t)x.device->channel->unit<<48) | \
+			((u_int64_t)(x.device->unit != 0) << 56) : 0)
     u_int16_t		magic_1;
     u_int32_t		magic_2;
     u_int8_t		filler1[470];
