@@ -1,0 +1,123 @@
+this version modified to fit in with the 386bsd release.
+this isn't gnu software, so we're not obligated to give
+you the original sources -- if you want them, get them
+from prep.ai.mit.edu:pub/gnu/patch-2.0.12u8.tar.z
+
+					-- cgd
+
+#######################################################################
+
+
+This version of patch contains modifications made by the Free Software
+Foundation, summarized in the file ChangeLog.  Primarily they are to
+support the unified context diff format that GNU diff can produce, and
+to support making GNU Emacs-style backup files.  They also include
+fixes for some bugs.
+
+There are two GNU variants of patch: this one, which retains Larry
+Wall's interactive Configure script and has patchlevels starting with
+`12u'; and another one that has a GNU-style non-interactive configure
+script and accepts long-named options, and has patchlevels starting
+with `12g'.  Unlike the 12g variant, the 12u variant contains no
+copylefted code, for the paranoid.  The two variants are otherwise the
+same.  They should be available from the same places.
+
+The FSF is distributing this version of patch independently because as
+of this writing, Larry Wall has not released a new version of patch
+since mid-1988.  I have heard that he has been too busy working on
+other things, like Perl.
+
+Here is a wish list of some projects to improve patch:
+
+1.  Correctly handle files and patchfiles that contain NUL characters.
+This is hard to do straightforwardly; it would be less work to
+adopt a kind of escape encoding internally.
+Let ESC be a "control prefix".  ESC @ stands for NUL.  ESC [ stands for ESC.
+You need to crunch this when reading input (replace fgets),
+and when writing the output file (replace fputs),
+but otherwise everything can go along as it does now.
+Be careful to handle reject files correctly;
+I think they are currently created using `write', not `fputs'.
+
+2.  Correctly handle patches produced by GNU diff for files that do
+not end with a newline.
+
+Please send bug reports for this version of patch to
+bug-gnu-utils@prep.ai.mit.edu as well as to Larry Wall (lwall@netlabs.com).
+ --djm@gnu.ai.mit.edu (David MacKenzie)
+
+			Patch Kit, Version 2.0
+
+		    Copyright (c) 1988, Larry Wall
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following condition
+is met:
+ 1. Redistributions of source code must retain the above copyright
+    notice, this condition and the following disclaimer.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+--------------------------------------------------------------------------
+
+Please read all the directions below before you proceed any further, and
+then follow them carefully.  Failure to do so may void your warranty. :-)
+
+After you have unpacked your kit, you should have all the files listed
+in MANIFEST.
+
+Installation
+
+1)  Run Configure.  This will figure out various things about your system.
+    Some things Configure will figure out for itself, other things it will
+    ask you about.  It will then proceed to make config.h, config.sh, and
+    Makefile.
+
+    You might possibly have to trim # comments from the front of Configure
+    if your sh doesn't handle them, but all other # comments will be taken
+    care of.
+
+    If you don't have sh, you'll have to rip the prototype of config.h out
+    of Configure and generate the defines by hand.
+
+2)  Glance through config.h to make sure system dependencies are correct.
+    Most of them should have been taken care of by running the
+    Configure script. 
+
+    If you have any additional changes to make to the C definitions, they
+    can be done in the Makefile, or in config.h.  Bear in mind that they may
+    get undone next time you run Configure.
+
+3)  make
+
+    This will attempt to make patch in the current directory.
+
+4)  make install
+
+    This will put patch into a public directory (normally /usr/local/bin).
+    It will also try to put the man pages in a reasonable place.  It will not
+    nroff the man page, however.
+
+5)  Read the manual entry before running patch.
+
+6)  IMPORTANT!  Help save the world!  Communicate any problems and
+    suggested patches to me, lwall@netlabs.com (Larry Wall),
+    so we can keep the world in sync.  If you have a problem, there's
+    someone else out there who either has had or will have the same problem.
+
+    If possible, send in patches such that the patch program will apply them.
+    Context diffs are the best, then normal diffs.  Don't send ed scripts--
+    I've probably changed my copy since the version you have.
+
+    Watch for patch patches in comp.sources.bugs.  Patches will generally be
+    in a form usable by the patch program.  Your current patch level
+    is shown in patchlevel.h.
