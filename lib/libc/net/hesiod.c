@@ -386,8 +386,8 @@ get_txt_records(qclass, name)
 
 		/* Send the query. */
 	n = res_send(qbuf, n, abuf, MAX_HESRESP);
-	if (n < 0) {
-		errno = ECONNREFUSED;
+	if (n < 0 || n > MAX_HESRESP) {
+		errno = ECONNREFUSED; /* XXX */
 		return NULL;
 	}
 		/* Parse the header of the result. */
