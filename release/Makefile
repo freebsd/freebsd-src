@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.309 1997/06/28 08:21:10 pst Exp $
+#	$Id: Makefile,v 1.310 1997/06/28 16:24:09 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -105,8 +105,8 @@ REDOSED=	sed -e 's/dirs/release.1/' -e 's/trees/release.2/' \
 REDOREDO!=	echo ${REDO} | ${REDOSED}
 
 rerelease release:
-.if !defined(CHROOTDIR) || !defined(BUILDNAME)
-	@echo "To make a release you must set CHROOTDIR and BUILDNAME" && false
+.if !defined(CHROOTDIR) || !defined(BUILDNAME) || !defined(CVSROOT)
+	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
 .endif
 .if make(release)
 .if exists(${CHROOTDIR})
