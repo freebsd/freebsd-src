@@ -79,6 +79,11 @@
 #include <machine/clock.h>
 #endif
 
+#include "mca.h"
+#if NMCA > 0
+#include <i386/isa/mca_machdep.h>
+#endif
+
 /* XXX should be in suitable include files */
 #ifdef PC98
 #define	ICU_IMR_OFFSET		2		/* IO_ICU{1,2} + 2 */
@@ -169,6 +174,11 @@ isa_nmi(cd)
 	int isa_port = inb(0x61);
 	int eisa_port = inb(0x461);
 
+#if NMCA > 0
+	if (MCA_system && mca_bus_nmi())
+		return;
+#endif
+	
 	if (isa_port & NMI_PARITY)
 		panic("RAM parity error, likely hardware failure.");
 
@@ -211,7 +221,12 @@ isa_defaultirq()
 		icu_unset(i, (inthand2_t *)NULL);
 
 	/* initialize 8259's */
-	outb(IO_ICU1, 0x11);		/* reset; program device, four bytes */
+#if NMCA > 0
+	if (MCA_system)
+		outb(IO_ICU1, 0x19);		/* reset; program device, four bytes */
+	else
+#endif
+		outb(IO_ICU1, 0x11);		/* reset; program device, four bytes */
 
 	outb(IO_ICU1+ICU_IMR_OFFSET, NRSVIDT);	/* starting at this vector index */
 	outb(IO_ICU1+ICU_IMR_OFFSET, IRQ_SLAVE);		/* slave on line 7 */
@@ -234,7 +249,13 @@ isa_defaultirq()
 	outb(IO_ICU1, 0xc0 | (3 - 1));	/* pri order 3-7, 0-2 (com2 first) */
 #endif /* !PC98 */
 
-	outb(IO_ICU2, 0x11);		/* reset; program device, four bytes */
+#if NMCA > 0
+	if (MCA_system)
+		outb(IO_ICU2, 0x19);		/* reset; program device, four bytes */
+	else
+#endif
+		outb(IO_ICU2, 0x11);		/* reset; program device, four bytes */
+
 	outb(IO_ICU2+ICU_IMR_OFFSET, NRSVIDT+8); /* staring at this vector index */
 	outb(IO_ICU2+ICU_IMR_OFFSET, ICU_SLAVEID);         /* my slave id is 7 */
 #ifdef PC98
