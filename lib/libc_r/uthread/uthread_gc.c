@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uthread_gc.c,v 1.3 1999/03/23 05:07:55 jb Exp $
+ *	$Id: uthread_gc.c,v 1.4 1999/06/20 08:28:25 jb Exp $
  *
  * Garbage collector thread. Frees memory allocated for dead threads.
  *
@@ -38,6 +38,10 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
+#ifdef _PTHREAD_GSTACK
+#include <sys/types.h>
+#include <sys/mman.h>
+#endif
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -132,11 +136,23 @@ _thread_gc(pthread_addr_t arg)
 				 */
 				if (pthread->attr.stackaddr_attr == NULL &&
 				    pthread->stack != NULL) {
+#ifdef _PTHREAD_GSTACK
+					if (pthread->attr.stacksize_attr == PTHREAD_STACK_DEFAULT) {
+						/* Default-size stack.  Cache it: */
+						struct stack	* spare_stack = (pthread->stack + PTHREAD_STACK_DEFAULT
+										 - sizeof(struct stack));
+						SLIST_INSERT_HEAD(&_stackq, spare_stack, qe);
+					} else {
+						/* Non-standard stack size.  free() it outside the locks: */
+						p_stack = pthread->stack;
+					}
+#else
 					/*
 					 * Point to the stack that must
 					 * be freed outside the locks:
 					 */
 					p_stack = pthread->stack;
+#endif
 				}
 
 				/*
@@ -156,12 +172,24 @@ _thread_gc(pthread_addr_t arg)
 				 */
 				if (pthread->attr.stackaddr_attr == NULL &&
 				    pthread->stack != NULL) {
+#ifdef _PTHREAD_GSTACK
+					if (pthread->attr.stacksize_attr == PTHREAD_STACK_DEFAULT) {
+						/* Default-size stack.  Cache it: */
+						struct stack	* spare_stack = (pthread->stack + PTHREAD_STACK_DEFAULT
+										 - sizeof(struct stack));
+						SLIST_INSERT_HEAD(&_stackq, spare_stack, qe);
+					} else {
+						/* Non-standard stack size.  free() it outside the locks: */
+						p_stack = pthread->stack;
+					}
+#else
 					/*
 					 * Point to the stack that must
 					 * be freed outside the locks:
 					 */
 					p_stack = pthread->stack;
-
+#endif
+					
 					/*
 					 * NULL the stack pointer now
 					 * that the memory has been freed: 

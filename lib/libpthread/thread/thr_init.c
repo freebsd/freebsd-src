@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_init.c,v 1.11 1999/06/20 08:28:28 jb Exp $
+ * $Id: uthread_init.c,v 1.12 1999/06/23 15:01:21 dt Exp $
  */
 
 /* Allocate space for global thread variables here: */
@@ -45,6 +45,10 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
+#ifdef _PTHREAD_GSTACK
+#include <sys/types.h>
+#include <sys/mman.h>
+#endif
 #ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
@@ -57,8 +61,8 @@ extern void __set_dynamic_handler_allocator(dynamic_handler_allocator);
 static pthread_key_t except_head_key;
 
 typedef struct {
-  void **__dynamic_handler_chain;
-  void *top_elt[2];
+	void **__dynamic_handler_chain;
+	void *top_elt[2];
 } except_struct;
 
 static void ***dynamic_allocator_handler_fn()
@@ -103,26 +107,26 @@ _thread_init(void)
 		 * Setup a new session for this process which is
 		 * assumed to be running as root.
 		 */
-    		if (setsid() == -1)
+		if (setsid() == -1)
 			PANIC("Can't set session ID");
-    		if (revoke(_PATH_CONSOLE) != 0)
+		if (revoke(_PATH_CONSOLE) != 0)
 			PANIC("Can't revoke console");
-    		if ((fd = _thread_sys_open(_PATH_CONSOLE, O_RDWR)) < 0)
+		if ((fd = _thread_sys_open(_PATH_CONSOLE, O_RDWR)) < 0)
 			PANIC("Can't open console");
-    		if (setlogin("root") == -1)
+		if (setlogin("root") == -1)
 			PANIC("Can't set login to root");
-    		if (_thread_sys_ioctl(fd,TIOCSCTTY, (char *) NULL) == -1)
+		if (_thread_sys_ioctl(fd,TIOCSCTTY, (char *) NULL) == -1)
 			PANIC("Can't set controlling terminal");
-    		if (_thread_sys_dup2(fd,0) == -1 ||
-    		    _thread_sys_dup2(fd,1) == -1 ||
-    		    _thread_sys_dup2(fd,2) == -1)
+		if (_thread_sys_dup2(fd,0) == -1 ||
+		    _thread_sys_dup2(fd,1) == -1 ||
+		    _thread_sys_dup2(fd,2) == -1)
 			PANIC("Can't dup2");
 	}
 
 	/* Get the standard I/O flags before messing with them : */
 	for (i = 0; i < 3; i++)
 		if ((_pthread_stdio_flags[i] =
-		    _thread_sys_fcntl(i,F_GETFL, NULL)) == -1)
+		     _thread_sys_fcntl(i,F_GETFL, NULL)) == -1)
 			PANIC("Cannot get stdio flags");
 
 	/*
@@ -178,6 +182,15 @@ _thread_init(void)
 		/* Initialize the scheduling switch hook routine: */
 		_sched_switch_hook = NULL;
 
+#ifdef _PTHREAD_GSTACK
+		/* Initialize the thread stack cache: */
+		SLIST_INIT(&_stackq);
+
+		/* Create the red zone for the main stack. */
+		if (MAP_FAILED == mmap((void *) PTHREAD_STACK_TOP - PTHREAD_STACK_INITIAL, PTHREAD_STACK_GUARD, 0, MAP_ANON, -1, 0)) {
+			PANIC("Cannot allocate red zone for initial thread");
+		}
+#endif
 		/*
 		 * Write a magic value to the thread structure
 		 * to help identify valid ones:
@@ -228,7 +241,7 @@ _thread_init(void)
 
 			/* Get the signal handler details: */
 			else if (_thread_sys_sigaction(i, NULL,
-			    &_thread_sigact[i - 1]) != 0) {
+						       &_thread_sigact[i - 1]) != 0) {
 				/*
 				 * Abort this process if signal
 				 * initialisation fails: 
@@ -296,7 +309,7 @@ _thread_init(void)
 			    (_thread_fd_table_init(1) != 0) ||
 			    (_thread_fd_table_init(2) != 0)) {
 				PANIC("Cannot initialize stdio file descriptor "
-				    "table entries");
+				      "table entries");
 			}
 		}
 	}
@@ -304,7 +317,7 @@ _thread_init(void)
 #ifdef GCC_2_8_MADE_THREAD_AWARE
 	/* Create the thread-specific data for the exception linked list. */
 	if(pthread_key_create(&except_head_key, NULL) != 0)
-        	PANIC("Failed to create thread specific execption head");
+		PANIC("Failed to create thread specific execption head");
 
 	/* Setup the gcc exception handler per thread. */
 	__set_dynamic_handler_allocator( dynamic_allocator_handler_fn );
