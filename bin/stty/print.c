@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.2 1994/09/24 02:58:59 davidg Exp $
+ *	$Id: print.c,v 1.3 1995/04/28 19:29:30 ache Exp $
  */
 
 #ifndef lint
@@ -45,6 +45,8 @@ static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 
 #include "stty.h"
 #include "extern.h"
+
+#include <sys/ioctl_compat.h>	/* XXX NTTYDISC is too well hidden */
 
 static void  binit __P((char *));
 static void  bput __P((char *));
@@ -71,6 +73,9 @@ print(tp, wp, ldisc, fmt)
 		case TABLDISC:	
 			cnt += printf("tablet disc; ");
 			break;
+		case NTTYDISC:
+			cnt += printf("new tty disc; ");
+			break;
 		case SLIPDISC:	
 			cnt += printf("slip disc; ");
 			break;
@@ -96,10 +101,10 @@ print(tp, wp, ldisc, fmt)
 	if (cnt)
 		(void)printf("\n");
 
-#define	on(f)	((tmp&f) != 0)
+#define	on(f)	((tmp & (f)) != 0)
 #define put(n, f, d) \
-	if (fmt >= BSD || on(f) != d) \
-		bput(n + on(f));
+	if (fmt >= BSD || on(f) != (d)) \
+		bput((n) + on(f));
 
 	/* "local" flags */
 	tmp = tp->c_lflag;
@@ -169,8 +174,20 @@ print(tp, wp, ldisc, fmt)
 	put("-hupcl", HUPCL, 1);
 	put("-clocal", CLOCAL, 0);
 	put("-cstopb", CSTOPB, 0);
-	put("-crtscts", CRTSCTS, 0);
-	put("-mdmbuf", MDMBUF, 0);
+	switch(tmp & (CCTS_OFLOW | CRTS_IFLOW)) {
+	case CCTS_OFLOW:
+		bput("ctsflow");
+		break;
+	case CRTS_IFLOW:
+		bput("rtsflow");
+		break;
+	default:
+		put("-crtscts", CCTS_OFLOW | CRTS_IFLOW, 0);
+		break;
+	}
+	put("-dsrflow", CDSR_OFLOW, 0);
+	put("-dtrflow", CDTR_IFLOW, 0);
+	put("-mdmbuf", MDMBUF, 0);	/* XXX mdmbuf ==  dtrflow */
 
 	/* special control characters */
 	cc = tp->c_cc;

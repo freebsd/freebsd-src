@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: modes.c,v 1.2 1994/09/24 02:58:59 davidg Exp $
  */
 
 #ifndef lint
@@ -81,6 +81,14 @@ struct modes cmodes[] = {
 	{ "-clocal",	0, CLOCAL },
 	{ "crtscts",	CRTSCTS, 0 },
 	{ "-crtscts",	0, CRTSCTS },
+	{ "ctsflow",	CCTS_OFLOW, 0 },
+	{ "-ctsflow",	0, CCTS_OFLOW },
+	{ "dsrflow",	CDSR_OFLOW, 0 },
+	{ "-dsrflow",	0, CDSR_OFLOW },
+	{ "dtrflow",	CDTR_IFLOW, 0 },
+	{ "-dtrflow",	0, CDTR_IFLOW },
+	{ "rtsflow",	CRTS_IFLOW, 0 },
+	{ "-rtsflow",	0, CRTS_IFLOW },
 	{ "mdmbuf",	MDMBUF, 0 },
 	{ "-mdmbuf",	0, MDMBUF },
 	{ NULL },
