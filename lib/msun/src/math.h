@@ -64,6 +64,8 @@ extern  _LIB_VERSION_TYPE  _LIB_VERSION;
 #define _XOPEN_ fdlibm_xopen
 #define _POSIX_ fdlibm_posix
 
+/* We have a problem when using C++ since `exception' is a reserved
+   name in C++.  */
 #ifndef __cplusplus
 struct exception {
 	int type;
