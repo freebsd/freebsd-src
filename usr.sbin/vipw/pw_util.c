@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
+static const char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 /*
@@ -126,7 +126,7 @@ pw_tmp()
 	int fd;
 	char *p;
 
-	if (p = strrchr(path, '/'))
+	if ((p = strrchr(path, '/')))
 		++p;
 	else
 		p = path;
@@ -172,7 +172,7 @@ pw_edit(notsetuid)
 
 	if (!(editor = getenv("EDITOR")))
 		editor = _PATH_VI;
-	if (p = strrchr(editor, '/'))
+	if ((p = strrchr(editor, '/')))
 		++p;
 	else
 		p = editor;
