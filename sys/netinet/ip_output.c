@@ -669,6 +669,15 @@ skip_ipsec:
 
 		/* NB: callee frees mbuf */
 		error = ipsec4_process_packet(m, sp->req, flags, 0);
+		/*
+		 * Preserve KAME behaviour: ENOENT can be returned
+		 * when an SA acquire is in progress.  Don't propagate
+		 * this to user-level; it confuses applications.
+		 *
+		 * XXX this will go away when the SADB is redone.
+		 */
+		if (error == ENOENT)
+			error = 0;
 		splx(s);
 		goto done;
 	} else {
