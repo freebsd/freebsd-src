@@ -16,6 +16,7 @@
 
 #define MAN_MAIN
 
+#include <sys/types.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -104,6 +105,13 @@ static char args[] = "M:P:S:adfhkp:w?";
 #endif
 #endif
 
+#ifdef SETREUID
+uid_t ruid;
+uid_t euid;
+uid_t rgid;
+uid_t egid;
+#endif
+
 int
 main (argc, argv)
      int argc;
@@ -137,6 +145,15 @@ main (argc, argv)
       if (tmp != NULL)
 	gripe_no_name (tmp);
     }
+
+#ifdef SETREUID
+  ruid = getuid();
+  rgid = getgid();
+  euid = geteuid();
+  egid = getegid();
+  setreuid(-1, ruid);
+  setregid(-1, rgid);
+#endif
 
   while (optind < argc)
     {
@@ -1136,7 +1153,28 @@ format_and_display (path, man_file, cat_file)
 	    }
 	  else
 	    {
+
+#ifdef SETREUID
+	      setreuid(-1, euid);
+	      setregid(-1, egid);
+#endif
+
 	      found = make_cat_file (path, man_file, cat_file);
+
+#ifdef SETREUID
+	      setreuid(-1, ruid);
+	      setregid(-1, rgid);
+
+	      if (!found)
+	        {
+		  /* Try again as real user - see note below.
+		     By running with 
+		       effective group (user) ID == real group (user) ID
+		     except for the call above, I believe the problems
+		     of reading private man pages is avoided.  */
+		  found = make_cat_file (path, man_file, cat_file);
+	        }
+#endif
 #ifdef SECURE_MAN_UID
 	      if (!found)
 		{
