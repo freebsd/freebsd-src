@@ -6,6 +6,9 @@
 
 # Alpha-specific bootstrap sources
 SRCS+=		main.c conf.c
+.if ${BASE} == netboot
+SRCS+=		dev_net.c
+.endif
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
