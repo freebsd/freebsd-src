@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: main.c,v 1.13 1997/06/25 08:56:42 msmith Exp $ */
 /*	$NetBSD: main.c,v 1.22 1997/06/10 07:04:43 lukem Exp $	*/
 
 /*
@@ -44,7 +44,7 @@ static char copyright[] =
 #if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 10/9/94";
 #else
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: main.c,v 1.13 1997/06/25 08:56:42 msmith Exp $";
 #endif
 #endif /* not lint */
 
@@ -55,6 +55,7 @@ static char rcsid[] = "$Id$";
 #include <sys/socket.h>
 
 #include <err.h>
+#include <locale.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -74,6 +75,8 @@ main(argc, argv)
 	struct passwd *pw = NULL;
 	char *cp, homedir[MAXPATHLEN];
 	int dumbterm;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	sp = getservbyname("ftp", "tcp");
 	if (sp == 0)
