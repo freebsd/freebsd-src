@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_pcb.c	8.1 (Berkeley) 6/10/93
- * $Id: ns_pcb.c,v 1.2 1994/08/02 07:51:52 davidg Exp $
+ * $Id: ns_pcb.c,v 1.3 1995/05/30 08:12:28 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/route.h>
