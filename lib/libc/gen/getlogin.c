@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -54,6 +56,22 @@ getlogin()
 		if (__getlogin(logname, sizeof(logname) - 1) < 0)
 #else
 		if (_getlogin(logname, sizeof(logname)) < 0)
+#endif
+			return ((char *)NULL);
+		_logname_valid = 1;
+	}
+	return (*logname ? logname : (char *)NULL);
+}
+
+
+char *
+getlogin_r(char *logname, int namelen)
+{
+	if (_logname_valid == 0) {
+#ifdef __NETBSD_SYSCALLS
+		if (__getlogin(logname, namelen - 1) < 0)
+#else
+		if (_getlogin(logname, namelen) < 0)
 #endif
 			return ((char *)NULL);
 		_logname_valid = 1;
