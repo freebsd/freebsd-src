@@ -1599,7 +1599,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    vname[1] = '\0';
 		    v = VarFind(vname, ctxt, 0);
 
-		    if (v != (Var *)NULL) {
+		    if (v != (Var *)NULL && !haveModifier) {
 			/*
 			 * No need for nested expansion or anything, as we're
 			 * the only one who sets these things and we sure don't
