@@ -58,6 +58,7 @@ struct pcib_softc
     u_int8_t	seclat;		/* secondary bus latency timer */
 };
 
+int		pcib_attach(device_t dev);
 void		pcib_attach_common(device_t dev);
 int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
