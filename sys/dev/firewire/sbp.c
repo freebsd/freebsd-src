@@ -1597,7 +1597,7 @@ END_DEBUG
 
 	sbp->ocb = (struct sbp_ocb *) contigmalloc(
 		sizeof (struct sbp_ocb) * SBP_NUM_OCB,
-		M_SBP, M_DONTWAIT, 0x10000, 0xffffffff, PAGE_SIZE, 0ul);
+		M_SBP, M_NOWAIT, 0x10000, 0xffffffff, PAGE_SIZE, 0ul);
 	bzero(sbp->ocb, sizeof (struct sbp_ocb) * SBP_NUM_OCB);
 
 	if (sbp->ocb == NULL) {
