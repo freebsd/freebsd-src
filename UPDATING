@@ -5,6 +5,33 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20001031:
+	cvs updated to 1.11.
+
+20001020:
+	The random device needs more entropy, so you need to make sure
+	that you've run mergemaster to get a /etc/rc which will seed
+	/dev/random.  If you don't and the system hangs after ldconfig,
+	then banging on the keyboard randomly until it unhangs is one
+	workaround.
+
+20001010:
+	****************************** WARNING ******************************
+				Sendmail has been updated.
+	****************************** WARNING ******************************
+	o mail.local(8) is no longer installed as a set-user-id binary.
+	o sendmail(8) is now built with STARTTLS support unless NO_OPENSSL
+	  is set.
+	o The default /etc/mail/sendmail.cf disables the SMTP EXPN and VRFY
+	  commands.
+	o Now using sendmail's version of vacation(1).
+	o The sendmail cf building tools (contrib/sendmail/cf) are installed
+	  in /usr/share/sendmail/cf.
+	o sendmail.cw changed to local-host-names
+
+	More details can be found at
+		http://people.freebsd.org/~imp/UPDATING/sendmail-20001010
+
 20001009:
 	The ports tree's new layout is in place.  Be sure to update
 	your entire ports tree, or you will have problems.
@@ -20,6 +47,9 @@ ITEMS:'
 	file, or with asami-san's message to the relevant mailing
 	lists.  With this new layout, you'll need to update the whole
 	tree for anything to work.
+
+20000928:
+	There was a change in the passwd format.  Need more information.
 
 20000916:
 	/boot/kernel/kernel.ko -> /boot/kernel/kernel change has taken
