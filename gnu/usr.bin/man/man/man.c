@@ -94,6 +94,8 @@ static int print_where;
 #ifdef __FreeBSD__
 static char *locale, *locale_opts, *locale_nroff, *locale_codeset;
 static char locale_terr[3], locale_lang[3];
+static char *man_locale;
+static int use_man_locale;
 static int use_original;
 struct ltable {
 	char *lcode;
@@ -453,6 +455,7 @@ man_getopt (argc, argv)
 				break;
 			}
 		}
+		asprintf(&man_locale, "%s.%s", locale_lang, locale_codeset);
 	}
   } else {
 	if (locale == NULL) {
@@ -1040,8 +1043,10 @@ parse_roff_directive (cp, file, buf, bufsize)
 #ifdef __FreeBSD__
       char lbuf[FILENAME_MAX];
 
-      snprintf(lbuf, sizeof(lbuf), "%s -T%s", NROFF,
-	       locale_opts == NULL ? "ascii" : locale_opts);
+      snprintf(lbuf, sizeof(lbuf), "%s -T%s%s%s", NROFF,
+	       locale_opts == NULL ? "ascii" : locale_opts,
+	       use_man_locale ? " -dlocale=" : "",
+	       use_man_locale ? man_locale : "");
 	    add_directive (&first, lbuf, file, buf, bufsize);
 #else
       add_directive (&first, NROFF " -Tascii", file, buf, bufsize);
@@ -1622,6 +1627,7 @@ man (name)
 	  l_found = 0;
 	  if (locale != NULL) {
 	    locale_opts = locale_nroff;
+	    use_man_locale = 1;
 	    if (*locale_lang != '\0' && *locale_terr != '\0') {
 	      snprintf(buf, sizeof(buf), "%s/%s_%s.%s", *mp,
 		       locale_lang, locale_terr, locale_codeset);
@@ -1635,6 +1641,7 @@ man (name)
 		if (is_directory (buf) == 1)
 		  l_found = try_section (buf, shortsec, longsec, name, glob);
 	      }
+	      use_man_locale = 0;
 	      if (!l_found && strcmp(locale_lang, "en") != 0) {
 		snprintf(buf, sizeof(buf), "%s/en.%s", *mp,
 			 locale_codeset);
@@ -1643,6 +1650,7 @@ man (name)
 	      }
 	    }
 	    locale_opts = NULL;
+	    use_man_locale = 0;
 	  }
 	  if (!l_found) {
 #endif
@@ -1671,6 +1679,7 @@ man (name)
 	      l_found = 0;
 	      if (locale != NULL) {
 		locale_opts = locale_nroff;
+		use_man_locale = 1;
 		if (*locale_lang != '\0' && *locale_terr != '\0') {
 		  snprintf(buf, sizeof(buf), "%s/%s_%s.%s", *mp,
 			   locale_lang, locale_terr, locale_codeset);
@@ -1684,6 +1693,7 @@ man (name)
 		    if (is_directory (buf) == 1)
 		      l_found = try_section (buf, *sp, longsec, name, glob);
 		  }
+		  use_man_locale = 0;
 		  if (!l_found && strcmp(locale_lang, "en") != 0) {
 		    snprintf(buf, sizeof(buf), "%s/en.%s", *mp,
 			     locale_codeset);
@@ -1692,6 +1702,7 @@ man (name)
 		  }
 		}
 		locale_opts = NULL;
+		use_man_locale = 0;
 	      }
 	      if (!l_found) {
 #endif
