@@ -199,7 +199,8 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 			_thread_link_list = new_thread;
 
 			/* Return a pointer to the thread structure: */
-			(*thread) = new_thread;
+			if(thread)
+				(*thread) = new_thread;
 
 			/* Check if a parent thread was specified: */
 			if (parent != NULL) {

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uthread_writev.c,v 1.3 1997/04/01 22:44:18 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -47,8 +47,8 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 	int	ret;
 	int	status;
 
-	/* Lock the file descriptor for read and write: */
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL,
+	/* Lock the file descriptor for write: */
+	if ((ret = _thread_fd_lock(fd, FD_WRITE, NULL,
 	    __FILE__, __LINE__)) == 0) {
 		/* Perform a non-blocking writev syscall: */
 		while ((ret = _thread_sys_writev(fd, iov, iovcnt)) < 0) {
