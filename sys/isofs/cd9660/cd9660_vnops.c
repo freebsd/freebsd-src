@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.50 1997/11/18 14:40:36 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.51 1997/12/27 02:56:20 bde Exp $
  */
 
 #include <sys/param.h>
@@ -53,7 +53,9 @@
 #include <sys/dirent.h>
 #include <sys/unistd.h>
 
+#include <vm/vm.h>
 #include <vm/vm_zone.h>
+#include <vm/vnode_pager.h>
 
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/cd9660_node.h>
@@ -73,6 +75,8 @@ static int cd9660_readlink __P((struct vop_readlink_args *ap));
 static int cd9660_abortop __P((struct vop_abortop_args *));
 static int cd9660_strategy __P((struct vop_strategy_args *));
 static int cd9660_print __P((struct vop_print_args *));
+static int cd9660_getpages __P((struct vop_getpages_args *));
+static int cd9660_putpages __P((struct vop_putpages_args *));
 
 /*
  * Setattr call. Only allowed for block and character special devices.
@@ -810,6 +814,34 @@ cd9660_pathconf(ap)
 }
 
 /*
+ * get page routine
+ *
+ * XXX By default, wimp out... note that a_offset is ignored (and always
+ * XXX has been).
+ */
+int
+cd9660_getpages(ap)
+	struct vop_getpages_args *ap;
+{
+	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_reqpage);
+}
+
+/*
+ * put page routine
+ *
+ * XXX By default, wimp out... note that a_offset is ignored (and always
+ * XXX has been).
+ */
+int
+cd9660_putpages(ap)
+	struct vop_putpages_args *ap;
+{
+	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_sync, ap->a_rtvals);
+}
+
+/*
  * Global vfs data structures for cd9660
  */
 vop_t **cd9660_vnodeop_p;
@@ -833,6 +865,8 @@ static struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
 	{ &vop_strategy_desc,		(vop_t *) cd9660_strategy },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
+	{ &vop_getpages_desc,		(vop_t *) cd9660_getpages },
+	{ &vop_putpages_desc,		(vop_t *) cd9660_putpages },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc cd9660_vnodeop_opv_desc =

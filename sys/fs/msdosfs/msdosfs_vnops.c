@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.63 1998/03/01 21:26:09 msmith Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.64 1998/03/03 02:50:24 msmith Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -67,6 +67,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_zone.h>
+#include <vm/vnode_pager.h>
 
 #include <msdosfs/bpb.h>
 #include <msdosfs/direntry.h>
@@ -98,6 +99,8 @@ static int msdosfs_bmap __P((struct vop_bmap_args *));
 static int msdosfs_strategy __P((struct vop_strategy_args *));
 static int msdosfs_print __P((struct vop_print_args *));
 static int msdosfs_pathconf __P((struct vop_pathconf_args *ap));
+static int msdosfs_getpages __P((struct vop_getpages_args *));
+static int msdosfs_putpages __P((struct vop_putpages_args *));
 
 /*
  * Some general notes:
@@ -1928,6 +1931,34 @@ msdosfs_pathconf(ap)
 	/* NOTREACHED */
 }
 
+/*
+ * get page routine
+ *
+ * XXX By default, wimp out... note that a_offset is ignored (and always
+ * XXX has been).
+ */
+int
+msdosfs_getpages(ap)
+	struct vop_getpages_args *ap;
+{
+	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_reqpage);
+}
+
+/*
+ * put page routine
+ *
+ * XXX By default, wimp out... note that a_offset is ignored (and always
+ * XXX has been).
+ */
+int
+msdosfs_putpages(ap)
+	struct vop_putpages_args *ap;
+{
+	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_sync, ap->a_rtvals);
+}
+
 /* Global vfs data structures for msdosfs */
 vop_t **msdosfs_vnodeop_p;
 static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
@@ -1960,6 +1991,8 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_symlink_desc,		(vop_t *) msdosfs_symlink },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) msdosfs_write },
+	{ &vop_getpages_desc,		(vop_t *) msdosfs_getpages },
+	{ &vop_putpages_desc,		(vop_t *) msdosfs_putpages },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc msdosfs_vnodeop_opv_desc =
