@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.6 1995/12/08 11:18:45 julian Exp $
+ *	$Id: od.c,v 1.7 1995/12/08 23:22:20 phk Exp $
  */
 
 /*
@@ -126,7 +126,7 @@ static	d_strategy_t	odstrategy;
 extern	struct cdevsw od_cdevsw;
 static struct bdevsw od_bdevsw = 
 	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
-	  nxdump,	odsize,		0,	"od",	&od_cdevsw,	-1 };
+	  nodump,	odsize,		0,	"od",	&od_cdevsw,	-1 };
 
 static struct cdevsw od_cdevsw = 
 	{ odopen,	odclose,	rawread,	rawwrite,	/*70*/

@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.12 1995/12/08 11:16:24 julian Exp $ */
+/* $Id: matcd.c,v 1.13 1995/12/10 13:40:42 phk Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -566,7 +566,7 @@ static d_strategy_t	matcdstrategy;
 extern	struct cdevsw matcd_cdevsw;
 static struct bdevsw matcd_bdevsw = 
 	{ matcdopen,	matcdclose,	matcdstrategy,	matcdioctl,	/*17*/
-	  nxdump,	matcdsize,	0,		"matcd",
+	  nodump,	matcdsize,	0,		"matcd",
 	  &matcd_cdevsw,	-1 };
 
 static struct cdevsw matcd_cdevsw = 
