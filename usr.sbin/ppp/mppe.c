@@ -234,7 +234,7 @@ MPPEInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 
   if (!MPPE_MasterKeyValid) {
     log_Printf(LogCCP, "MPPE: MasterKey is invalid,"
-               " MPPE is capable only with CHAP81 authentication\n");
+               " MPPE is available only with CHAP81 authentication\n");
     *(u_int32_t *)o->data = htonl(0x0);
     return;
   }
@@ -321,7 +321,7 @@ MPPEInitInput(struct lcp_opt *o)
   log_Printf(LogCCP, "MPPE: InitInput\n");
 
   if (!MPPE_MasterKeyValid) {
-    log_Printf(LogERROR, "MPPE: InitInput: MasterKey is invalid!!!!\n");
+    log_Printf(LogWARN, "MPPE: Cannot initialise without CHAP81\n");
     return NULL;
   }
 
@@ -363,7 +363,7 @@ MPPEInitOutput(struct lcp_opt *o)
   log_Printf(LogCCP, "MPPE: InitOutput\n");
 
   if (!MPPE_MasterKeyValid) {
-    log_Printf(LogERROR, "MPPE: InitOutput: MasterKey is invalid!!!!\n");
+    log_Printf(LogWARN, "MPPE: Cannot initialise without CHAP81\n");
     return NULL;
   }
 
