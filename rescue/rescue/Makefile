@@ -4,9 +4,6 @@
 PROG=	rescue
 BINDIR?=/rescue
 
-# Uncomment to exclude tcsh
-#NO_TCSH=1
-
 # Shell scripts need #! line to be edited from /bin/sh to /rescue/sh
 SCRIPTS= nextboot_FIXED
 SCRIPTSNAME_nextboot_FIXED= nextboot.sh
@@ -105,14 +102,18 @@ CRUNCH_SRCDIRS+= sbin
 CRUNCH_PROGS_sbin= atm adjkerntz atacontrol badsect bsdlabel camcontrol \
 	ccdconfig clri comcontrol conscontrol devfs dmesg dump		\
 	dumpfs dumpon fore_dnld fsck fsck_ffs fsck_msdosfs fsdb		\
-	fsirand gbde growfs ifconfig ilmid init ip6fw ipf ipfs ipfstat	\
-	ipfw ipmon ipnat kldconfig kldload kldstat kldunload ldconfig 	\
+	fsirand gbde growfs ifconfig ilmid init ip6fw 			\
+	ipfw kldconfig kldload kldstat kldunload ldconfig 		\
 	md5 mdconfig mdmfs mknod mount mount_cd9660 mount_ext2fs	\
 	mount_msdosfs mount_nfs mount_ntfs mount_nullfs			\
 	mount_std mount_udf mount_umapfs mount_unionfs natd newfs	\
 	newfs_msdos nfsiod nos-tun ping ping6 quotacheck raidctl reboot	\
 	restore rcorder route routed rtquery rtsol savecore shutdown	\
 	slattach spppcontrol startslip swapon sysctl tunefs umount vinum
+
+.if !defined(NO_IPFILTER)
+CRUNCH_PROGS_sbin+= ipf ipfs ipfstat ipmon ipnat
+.endif
 
 # crunchgen does not like C++ programs; this should be fixed someday
 # CRUNCH_PROGS+= devd
