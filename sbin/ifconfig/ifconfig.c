@@ -185,7 +185,7 @@ struct afswtch {
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
 	{ "iso", AF_ISO, iso_status, iso_getaddr,
 	     SIOCDIFADDR_ISO, SIOCAIFADDR_ISO, C(iso_ridreq), C(iso_addreq) },
-/*	{ "ether", AF_INET, ether_status, NULL }, XXX - broken */
+	{ "ether", AF_INET, ether_status, NULL },
 	{ 0,	0,	    0,		0 }
 };
 
@@ -425,6 +425,13 @@ ifconfig(argc,argv,af,rafp)
 			Perror("Encapsulation Routing");
 	}
 	if (clearaddr) {
+		if (rafp->af_ridreq == NULL || rafp->af_difaddr == 0) {
+			warnx("interface %s cannot change %s addresses!",
+			      name, rafp->af_name);
+			clearaddr = NULL;
+		}
+	}
+	if (clearaddr) {
 		int ret;
 		strncpy(rafp->af_ridreq, name, sizeof ifr.ifr_name);
 		if ((ret = ioctl(s, rafp->af_difaddr, rafp->af_ridreq)) < 0) {
@@ -432,6 +439,13 @@ ifconfig(argc,argv,af,rafp)
 				/* means no previous address for interface */
 			} else
 				Perror("ioctl (SIOCDIFADDR)");
+		}
+	}
+	if (newaddr) {
+		if (rafp->af_ridreq == NULL || rafp->af_difaddr == 0) {
+			warnx("interface %s cannot change %s addresses!",
+			      name, rafp->af_name);
+			newaddr = NULL;
 		}
 	}
 	if (newaddr) {
@@ -583,6 +597,13 @@ status()
 		printf(" mtu %d", mtu);
 	putchar('\n');
 
+	/*
+	 * XXX: Sigh. This is bad, I know.  At this point, we may have
+	 * *zero* RTM_NEWADDR's, so we have to "feel the water" before
+	 * incrementing the loop.  One day, I might feel inspired enough
+	 * to get the top level loop to pass a count down here so we
+	 * dont have to mess with this.  -Peter
+	 */
 	myifm = ifm;
 
 	while (1) {
@@ -610,13 +631,16 @@ status()
 
 
 		if ((p = afp) != NULL) {
-			(*p->af_status)(1);
+			if (p->af_status != ether_status)
+				(*p->af_status)(1);
 		} else for (p = afs; p->af_name; p++) {
 			ifr.ifr_addr.sa_family = p->af_af;
-			(*p->af_status)(0);
+			if (p->af_status != ether_status)
+				(*p->af_status)(0);
 		}
 	}
-	ether_status();
+	if (afp == NULL || afp->af_status == ether_status)
+		ether_status();
 }
 
 in_status(force)
@@ -629,10 +653,10 @@ in_status(force)
 	memset(&null_sin, 0, sizeof(null_sin));
 
 	sin = (struct sockaddr_in *)info.rti_info[RTAX_IFA];
-	if (!sin) {
+	if (!sin || sin->sin_family != AF_INET) {
 		if (!force)
 			return;
-		warnx("%s has no AF_INET IFA address!", name);
+		/* warnx("%s has no AF_INET IFA address!", name); */
 		sin = &null_sin;
 	}
 	printf("\tinet %s ", inet_ntoa(sin->sin_addr));
@@ -676,10 +700,10 @@ ipx_status(force)
 	memset(&null_sipx, 0, sizeof(null_sipx));
 
 	sipx = (struct sockaddr_ipx *)info.rti_info[RTAX_IFA];
-	if (!sipx) {
+	if (!sipx || sipx->sipx_family != AF_IPX) {
 		if (!force)
 			return;
-		warnx("%s has no AF_IPX IFA address!", name);
+		/* warnx("%s has no AF_IPX IFA address!", name); */
 		sipx = &null_sipx;
 	}
 	printf("\tipx %s ", ipx_ntoa(sipx->sipx_addr));
@@ -710,10 +734,10 @@ xns_status(force)
 	memset(&null_sns, 0, sizeof(null_sns));
 
 	sns = (struct sockaddr_ns *)info.rti_info[RTAX_IFA];
-	if (!sns) {
+	if (!sns || sns->sns_family != AF_NS) {
 		if (!force)
 			return;
-		warnx("%s has no AF_NS IFA address!", name);
+		/* warnx("%s has no AF_NS IFA address!", name); */
 		sns = &null_sns;
 	}
 	printf("\tns %s ", ns_ntoa(sns->sns_addr));
@@ -745,10 +769,10 @@ iso_status(force)
 	memset(&null_siso, 0, sizeof(null_siso));
 
 	siso = (struct sockaddr_iso *)info.rti_info[RTAX_IFA];
-	if (!siso) {
+	if (!siso || siso->siso_family != AF_ISO) {
 		if (!force)
 			return;
-		warnx("%s has no AF_ISO IFA address!", name);
+		/* warnx("%s has no AF_ISO IFA address!", name); */
 		siso = &null_siso;
 	}
 	printf("\tiso %s ", iso_ntoa(&siso->siso_addr));
