@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.24 1995/02/22 09:15:35 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.25 1995/02/22 10:34:34 davidg Exp $
  */
 
 /*
@@ -644,7 +644,6 @@ vnode_pager_input_smlfs(vnp, m)
 			 * free the buffer header back to the swap buffer pool
 			 */
 			relpbuf(bp);
-			HOLDRELE(vp);
 			if (error)
 				break;
 
@@ -966,7 +965,6 @@ vnode_pager_input(vnp, m, count, reqpage)
 	 * free the buffer header back to the swap buffer pool
 	 */
 	relpbuf(bp);
-	HOLDRELE(vp);
 
 finishup:
 	for (i = 0; i < count; i++) {
@@ -1132,7 +1130,6 @@ vnode_pager_output_smlfs(vnp, m)
 			 * free the buffer header back to the swap buffer pool
 			 */
 			relpbuf(bp);
-			HOLDRELE(vp);
 		}
 	}
 	vm_pager_unmap_page(kva);
@@ -1305,7 +1302,6 @@ retryoutput:
 	 * free the buffer header back to the swap buffer pool
 	 */
 	relpbuf(bp);
-	HOLDRELE(vp);
 
 	if (!error) {
 		for (i = 0; i < count; i++) {
