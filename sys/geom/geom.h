@@ -197,6 +197,7 @@ struct g_magicspaces {
 	uintptr_t		geom_id;
 	char			class[8];
 	uint			nmagic;
+	uint			nspace;
 	struct g_magicspace	*magicspace;
 };
 
@@ -223,7 +224,7 @@ void g_silence(void);
 int g_access_abs(struct g_consumer *cp, int read, int write, int exclusive);
 int g_access_rel(struct g_consumer *cp, int read, int write, int exclusive);
 void g_add_class(struct g_class *mp);
-int g_add_magicspace(struct g_geom *gp, u_int index, const char *name, off_t start, u_int len, u_int flags);
+int g_add_magicspace(struct g_geom *gp, const char *name, off_t start, u_int len, u_int flags);
 int g_attach(struct g_consumer *cp, struct g_provider *pp);
 struct g_geom *g_create_geomf(char *class, struct g_provider *, char *fmt, ...);
 void g_destroy_consumer(struct g_consumer *cp);
@@ -239,7 +240,6 @@ int g_haveattr_off_t(struct bio *bp, char *attribute, off_t val);
 struct g_geom * g_insert_geom(char *class, struct g_consumer *cp);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
 struct g_geom * g_new_geomf(struct g_class *mp, char *fmt, ...);
-int g_new_magicspaces(struct g_geom *gp, int nspaces);
 struct g_provider * g_new_providerf(struct g_geom *gp, char *fmt, ...);
 void g_sanity(void *ptr);
 void g_spoil(struct g_provider *pp, struct g_consumer *cp);

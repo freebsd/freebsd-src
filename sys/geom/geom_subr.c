@@ -114,28 +114,39 @@ g_new_geomf(struct g_class *mp, char *fmt, ...)
 	return (gp);
 }
 
-int
-g_new_magicspaces(struct g_geom *gp, int nspaces)
-{
-	gp->magicspaces = g_malloc(sizeof *gp->magicspaces, M_WAITOK | M_ZERO);
-	gp->magicspaces->magicspace =
-	    g_malloc(sizeof *gp->magicspaces->magicspace * nspaces,
-	    M_WAITOK | M_ZERO);
-	gp->magicspaces->geom_id = (uintptr_t)gp;
-	strncpy(gp->magicspaces->class, gp->class->name,
-	    sizeof gp->magicspaces->class);
-	gp->magicspaces->nmagic = nspaces;
-	return (0);
-}
+/*
+ * Add a magic space to a geom.  There is no locking here because nobody
+ * should be modifying these except the geom itself during configuration,
+ * so it cannot go away while we fiddling it.
+ * For now, no provision exists for removing magic spaces or for changing
+ * them on the fly.
+ */
 
 int
-g_add_magicspace(struct g_geom *gp, u_int index, const char *name, off_t start, u_int len, u_int flags)
+g_add_magicspace(struct g_geom *gp, const char *name, off_t start, u_int len, u_int flags)
 {
-	struct g_magicspace *msp;
+	int i;
+	struct g_magicspaces *msps;
+	struct g_magicspace *msp, *msp2;
 
-	/* KASSERT gp->magicspaces != NULL */
-	/* KASSERT index < gp->magicspaces->nmagic */
-	msp = &gp->magicspaces->magicspace[index];
+	if (gp->magicspaces == NULL) {
+		msps = g_malloc(sizeof *gp->magicspaces, M_WAITOK | M_ZERO);
+		msps->geom_id = (uintptr_t)gp;
+		strncpy(msps->class, gp->class->name, sizeof msps->class);
+		gp->magicspaces = msps;
+	}
+	msps = gp->magicspaces;
+	if (msps->nmagic >= msps->nspace) {
+		i = msps->nspace + 1;
+		msp = g_malloc(sizeof(*msp) * i, M_WAITOK | M_ZERO);
+		bcopy(msps->magicspace, msp, sizeof(*msp) * msps->nmagic);
+		msp2 = msps->magicspace;
+		msps->magicspace = msp;
+		if (msp2 != NULL)
+			g_free(msp2);
+		msps->nspace = i;
+	}
+	msp = &msps->magicspace[msps->nmagic++];
 	strncpy(msp->name, name, sizeof msp->name);
 	msp->offset = start;
 	msp->len = len;
