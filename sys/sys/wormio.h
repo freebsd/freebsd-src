@@ -59,5 +59,6 @@ struct wormio_fixation
 };
 
 #define WORMIOCFIXATION		_IOW('W', 22, struct wormio_fixation)
+#define	WORMIOCFINISHTRACK	_IO('W', 23)
 
 #endif /* !_SYS_WORMIO_H_ */
