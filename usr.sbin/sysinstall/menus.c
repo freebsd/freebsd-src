@@ -60,6 +60,7 @@ clearSrc(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
+#ifndef X_AS_PKG
 static int
 setX11Misc(dialogMenuItem *self)
 {
@@ -108,6 +109,7 @@ clearX11Fonts(dialogMenuItem *self)
     XF86FontDists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
+#endif /* !X_AS_PKG */
 
 #define _IS_SET(dist, set) (((dist) & (set)) == (set))
 
@@ -162,11 +164,15 @@ checkDistMinimum(dialogMenuItem *self)
 static int
 checkDistEverything(dialogMenuItem *self)
 {
-    return Dists == DIST_ALL && CRYPTODists == DIST_CRYPTO_ALL && \
-	_IS_SET(SrcDists, DIST_SRC_ALL) && \
-	_IS_SET(XF86Dists, DIST_XF86_ALL) && \
-	_IS_SET(XF86ServerDists, DIST_XF86_SERVER_ALL) && \
+    return Dists == DIST_ALL && CRYPTODists == DIST_CRYPTO_ALL &&
+	_IS_SET(SrcDists, DIST_SRC_ALL) &&
+#ifndef X_AS_PKG
+	_IS_SET(XF86Dists, DIST_XF86_ALL) &&
+	_IS_SET(XF86ServerDists, DIST_XF86_SERVER_ALL) &&
 	_IS_SET(XF86FontDists, DIST_XF86_FONTS_ALL);
+#else
+	1;
+#endif
 }
 
 static int
@@ -218,7 +224,9 @@ DMenu MenuIndex = {
       { " Dists, User",		"Select average user distribution.",	checkDistUser, distSetUser },
       { " Dists, X User",	"Select average X user distribution.",	checkDistXUser, distSetXUser },
       { " Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
+#ifndef X_AS_PKG
       { " Distributions, XFree86","XFree86 distribution menu.",		NULL, distSetXF86 },
+#endif
       { " Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { " Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "README" },
       { " Doc, Early Adopter's",		"Early Adopter's Guide to FreeBSD 5.0.",	NULL, dmenuDisplayFile, NULL, "EARLY" },
@@ -280,10 +288,12 @@ DMenu MenuIndex = {
       { " Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { " Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
       { " User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
+#ifndef X_AS_PKG
       { " XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
       { " XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
 #if defined(__i386__) && defined(PC98)
       { " XFree86, PC98 Server",	"XFree86 PC98 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectPC98Server },
+#endif
 #endif
       { NULL } },
 };
@@ -1101,6 +1111,7 @@ DMenu MenuXDesktops = {
       { NULL } },
 };
 
+#ifndef X_AS_PKG
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
     "XFree86 Distribution",
@@ -1279,6 +1290,7 @@ Mono servers are particularly well-suited to most LCD displays).",
       { NULL } }
 };
 #endif
+#endif /* !X_AS_PKG */
 
 DMenu MenuDiskDevices = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
