@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: test1.c,v 1.2 1995/12/23 14:53:07 jkh Exp $
+ * $Id: check1.c,v 1.1 1996/01/01 03:45:22 jkh Exp $
  */
 
 #include <stdio.h>
@@ -73,7 +73,7 @@ main(int argc, unsigned char *argv[])
 
   retval = dialog_checklist("this is a dialog_checklist() in action, test #1",
 			    "this checklist menu shows off some of the straight-forward features\n"
-			    "of the new menu system's check & fire dispatch hooks", -1, -1, 4, -4, &menu2, NULL);
+			    "of the new menu system's check & fire dispatch hooks", -1, -1, 4, -4, menu2, NULL);
   dialog_clear();
   fprintf(stderr, "returned value for dialog_checklist was %d (%d %d %d)\n", retval, german_book, italian_book, slang_book);
 
