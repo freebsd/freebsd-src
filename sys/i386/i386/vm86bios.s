@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86bios.s,v 1.10 1999/05/11 15:57:42 luoqi Exp $
+ *	$Id: vm86bios.s,v 1.11 1999/05/11 16:04:40 luoqi Exp $
  */
 
 #include "opt_vm86.h"
@@ -89,7 +89,7 @@ ENTRY(vm86_bioscall)
 	movl	SCR_VMFRAME(%edx),%ebx	/* target frame location */
 	movl	%ebx,%edi		/* destination */
 	movl    SCR_ARGFRAME(%edx),%esi	/* source (set on entry) */
-	movl	$VM86_FRAMESIZE,%ecx	/* sizeof(struct vm86frame)/4 */
+	movl	$VM86_FRAMESIZE/4,%ecx	/* sizeof(struct vm86frame)/4 */
 	cld
 	rep
 	movsl				/* copy frame to new stack */
@@ -162,7 +162,7 @@ ENTRY(vm86_biosret)
 
 	movl	4(%esp),%esi		/* source */
 	movl	SCR_ARGFRAME(%edx),%edi	/* destination */
-	movl	$VM86_FRAMESIZE,%ecx	/* size */
+	movl	$VM86_FRAMESIZE/4,%ecx	/* size */
 	cld
 	rep
 	movsl				/* copy frame to original frame */
