@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.49 1999/08/19 00:16:51 peter Exp $
+ *	$Id: machdep.c,v 1.50 1999/08/22 18:50:43 msmith Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -434,7 +434,7 @@ again:
 	 */
 	bufinit();
 	vm_pager_bufferinit();
-	EVENTHANDLER_REGISTER(shutdown_final, alpha_srm_shutdown, 0
+	EVENTHANDLER_REGISTER(shutdown_final, alpha_srm_shutdown, 0,
 			      SHUTDOWN_PRI_LAST);
 }
 
