@@ -107,7 +107,7 @@ g_orphan_register(struct g_provider *pp)
 
 	/*
 	 * Tell all consumers the bad news.
-	 * Don't get surprised if they self-destruct.
+	 * Don't be surprised if they self-destruct.
 	 */
 	cp = LIST_FIRST(&pp->consumers);
 	while (cp != NULL) {
