@@ -49,7 +49,7 @@
 	struct	segment_descriptor *pc_tss_gdt;				\
 	int	pc_currentldt;						\
 	u_int	pc_acpi_id;						\
-	u_int	pc_apic_id;
+	u_int	pc_apic_id
 
 #if defined(lint)
  

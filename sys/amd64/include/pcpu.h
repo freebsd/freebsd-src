@@ -41,7 +41,7 @@
 #define	PCPU_MD_FIELDS							\
 	struct	pcpu *pc_prvspace;	/* Self-reference */		\
 	register_t pc_scratch_rsp;	/* User %rsp in syscall */	\
-	u_int   pc_acpi_id;		/* ACPI CPU id */
+	u_int   pc_acpi_id		/* ACPI CPU id */
 
 #if defined(lint)
  
