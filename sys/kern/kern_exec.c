@@ -167,6 +167,9 @@ kern_execve(td, fname, argv, envv)
 	struct vnode *textvp = NULL;
 	int credential_changing;
 	int textset;
+#ifdef MAC
+	int will_transition;
+#endif
 
 	imgp = &image_params;
 
@@ -436,6 +439,10 @@ interpret:
 	    attr.va_uid;
 	credential_changing |= (attr.va_mode & VSGID) && oldcred->cr_gid !=
 	    attr.va_gid;
+#ifdef MAC
+	will_transition = mac_execve_will_transition(oldcred, imgp->vp);
+	credential_changing |= will_transition;
+#endif
 
 	if (credential_changing &&
 	    (imgp->vp->v_mount->mnt_flag & MNT_NOSUID) == 0 &&
@@ -478,8 +485,16 @@ interpret:
 			change_euid(newcred, euip);
 		if (attr.va_mode & VSGID)
 			change_egid(newcred, attr.va_gid);
+#ifdef MAC
+		if (will_transition)
+			mac_execve_transition(oldcred, newcred, imgp->vp);
+#endif
 		/*
 		 * Implement correct POSIX saved-id behavior.
+		 *
+		 * XXXMAC: Note that the current logic will save the
+		 * uid and gid if a MAC domain transition occurs, even
+		 * though maybe it shouldn't.
 		 */
 		change_svuid(newcred, newcred->cr_uid);
 		change_svgid(newcred, newcred->cr_gid);
