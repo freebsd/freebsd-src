@@ -33,8 +33,7 @@
  *
  */
 
-#include "hash.h" 
-
+#include <strhash.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

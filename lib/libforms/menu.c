@@ -32,7 +32,7 @@
  *
  */
 
-#include <hash.h>
+#include <strhash.h>
 #include <forms.h>
 #include <stdlib.h>
 #include <string.h>
