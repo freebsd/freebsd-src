@@ -78,6 +78,7 @@ struct pass_softc {
 	struct		buf_queue_head buf_queue;
 	union ccb	saved_ccb;
 	struct devstat	device_stats;
+	dev_t		dev;
 };
 
 #ifndef MIN
@@ -170,9 +171,6 @@ passinit(void)
 	if (status != CAM_REQ_CMP) {
 		printf("pass: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
-	} else {
-		/* If we were successfull, register our devsw */
-		cdevsw_add(&pass_cdevsw);
 	}
 	
 }
@@ -236,6 +234,8 @@ passcleanup(struct cam_periph *periph)
 	softc = (struct pass_softc *)periph->softc;
 
 	devstat_remove_entry(&softc->device_stats);
+
+	destroy_dev(softc->dev);
 
 	cam_extend_release(passperiphs, periph->unit_number);
 
@@ -331,6 +331,12 @@ passregister(struct cam_periph *periph, void *arg)
 			  DEVSTAT_TYPE_IF_SCSI |
 			  DEVSTAT_TYPE_PASS,
 			  DEVSTAT_PRIORITY_PASS);
+
+	/* Register the device */
+	softc->dev = make_dev(&pass_cdevsw, periph->unit_number, UID_ROOT,
+			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
+			      periph->unit_number);
+
 	/*
 	 * Add an async callback so that we get
 	 * notified if this device goes away.
