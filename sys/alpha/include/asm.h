@@ -246,8 +246,8 @@
 #define PALVECT(_name_)						\
 	ESETUP(_name_);						\
 	ERSAVE();						\
-	br	pv, _name_##lgp;				\
-_name_##lgp:;							\
+	br	pv, 1001f;					\
+1001:;								\
 	LDGP(pv)
 
 #define	ESETUP(_name_)						\
