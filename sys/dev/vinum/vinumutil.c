@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumutil.c,v 1.10 1999/01/02 00:39:04 grog Exp grog $
+ * $Id: vinumutil.c,v 1.11 1999/03/19 06:50:44 grog Exp grog $
  */
 
 /* This file contains utility routines used both in kernel and user context */
@@ -162,7 +162,7 @@ VolState(char *text)
     int i;
     for (i = 0; i < STATECOUNT(vol); i++)
 	if (strcmp(text, volstatetext[i]) == 0)		    /* found it */
-	    return (enum volstate) i;
+	    return (enum volumestate) i;
     return -1;
 }
 
@@ -182,37 +182,50 @@ sizespec(char *spec)
 {
     u_int64_t size;
     char *s;
+    int sign = 1;					    /* -1 if negative */
 
     size = 0;
-    s = spec;
-    if ((*s >= '0') && (*s <= '9')) {			    /* it's numeric */
-	while ((*s >= '0') && (*s <= '9'))		    /* it's numeric */
-	    size = size * 10 + *s++ - '0';		    /* convert it */
-	switch (*s) {
-	case '\0':
-	    return size;
-
-	case 'B':
-	case 'b':
-	    return size * 512;
-
-	case 'K':
-	case 'k':
-	    return size * 1024;
-
-	case 'M':
-	case 'm':
-	    return size * 1024 * 1024;
-
-	case 'G':
-	case 'g':
-	    return size * 1024 * 1024 * 1024;
+    if (spec != NULL) {					    /* we have a parameter */
+	s = spec;
+	if (*s == '-') {				    /* negative, */
+	    sign = -1;
+	    s++;					    /* skip */
 	}
+	if ((*s >= '0') && (*s <= '9')) {		    /* it's numeric */
+	    while ((*s >= '0') && (*s <= '9'))		    /* it's numeric */
+		size = size * 10 + *s++ - '0';		    /* convert it */
+	    switch (*s) {
+	    case '\0':
+		return size * sign;
+
+	    case 'B':
+	    case 'b':
+		return size * sign * 512;
+
+	    case 'K':
+	    case 'k':
+		return size * sign * 1024;
+
+	    case 'M':
+	    case 'm':
+		return size * sign * 1024 * 1024;
+
+	    case 'G':
+	    case 'g':
+		return size * sign * 1024 * 1024 * 1024;
+	    }
+	}
+#ifdef REALLYKERNEL
+	throw_rude_remark(EINVAL, "Invalid length specification: %s", spec);
+#else
+	fprintf(stderr, "Invalid length specification: %s", spec);
+	longjmp(command_fail, -1);
+#endif
     }
 #ifdef REALLYKERNEL
-    throw_rude_remark(EINVAL, "Invalid length specification: %s", spec);
+    throw_rude_remark(EINVAL, "Missing length specification");
 #else
-    fprintf(stderr, "Invalid length specification: %s", spec);
+    fprintf(stderr, "Missing length specification");
     longjmp(command_fail, -1);
 #endif
     /* NOTREACHED */
@@ -243,7 +256,7 @@ Plexno(dev_t dev)
     switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
     case VINUM_DRIVE_TYPE:
-    case VINUM_SUPERDEV_TYPE:
+    case VINUM_SUPERDEV_TYPE:				    /* ordinary super device */
     case VINUM_RAWSD_TYPE:
 	return -1;
 
@@ -273,7 +286,7 @@ Sdno(dev_t dev)
     switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
     case VINUM_DRIVE_TYPE:
-    case VINUM_SUPERDEV_TYPE:
+    case VINUM_SUPERDEV_TYPE:				    /* ordinary super device */
     case VINUM_PLEX_TYPE:
     case VINUM_RAWPLEX_TYPE:
 	return -1;

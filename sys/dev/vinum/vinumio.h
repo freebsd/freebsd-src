@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.h,v 1.14 1999/01/18 05:00:30 grog Exp grog $
+ * $Id: vinumio.h,v 1.15 1999/03/23 03:51:27 grog Exp grog $
  */
 
 #ifdef VINUMDEBUG
@@ -59,7 +59,7 @@ struct _ioctl_reply {
 #define VINUM_VOLCONFIG		_IOWR(L, 69, struct volume) /* get volume config */
 #define VINUM_PLEXSDCONFIG	_IOWR(L, 70, struct sd)	    /* get sd config for plex (plex, sdno) */
 #define VINUM_GETFREELIST	_IOWR(L, 71, struct drive_freelist) /* get freelist element (drive, fe) */
-#define VINUM_SAVECONFIG	_IOC(0, L, 72, 0)	    /* release locks, update, write config to disk */
+#define VINUM_SAVECONFIG	_IOW(L, 72, int)	    /* write config to disk */
 #define VINUM_RESETCONFIG	_IOC(0, L, 73, 0)	    /* trash config on disk */
 #define VINUM_INIT		_IOC(0, L, 74, 0)	    /* read config from disk */
 #ifdef VINUMDEBUG
@@ -118,16 +118,16 @@ struct vinum_ioctl_msg {
 };
 
 #define VINUM_RELEASECONFIG	_IOC(0, L, 77, 0)	    /* release locks and write config to disk */
-#define VINUM_STARTCONFIG	_IOC(0, L, 78, 0)	    /* start a configuration operation */
+#define VINUM_STARTCONFIG	_IOW(L, 78, int)	    /* start a configuration operation */
 #define VINUM_MEMINFO 		_IOR(L, 79, struct meminfo) /* get memory usage summary */
 #define VINUM_MALLOCINFO	_IOWR(L, 80, struct mc)	    /* get specific malloc information [i] */
 #define VINUM_LABEL 		_IOC(IOC_IN | IOC_OUT, L, 81, MAX_IOCTL_REPLY) /* label a volume */
 #define VINUM_INITSD 		_IOW(L, 82, int)	    /* initialize a subdisk */
-#define VINUM_REMOVE 		_IOC(IOC_IN | IOC_OUT, L, 83, MAX_IOCTL_REPLY) /* remove an object */
+#define VINUM_REMOVE 		_IOWR(L, 83, struct vinum_ioctl_msg) /* remove an object */
 /* 84, 85 going begging */
-#define VINUM_RESETSTATS	_IOC(IOC_IN | IOC_OUT, L, 86, MAX_IOCTL_REPLY) /* reset object stats */
-#define VINUM_ATTACH		_IOC(IOC_IN | IOC_OUT, L, 87, MAX_IOCTL_REPLY) /* reset object stats */
-#define VINUM_DETACH		_IOC(IOC_IN | IOC_OUT, L, 88, MAX_IOCTL_REPLY) /* reset object stats */
+#define VINUM_RESETSTATS	_IOWR(L, 86, struct vinum_ioctl_msg) /* reset object stats */
+#define VINUM_ATTACH		_IOWR(L, 87, struct vinum_ioctl_msg) /* attach an object */
+#define VINUM_DETACH		_IOWR(L, 88, struct vinum_ioctl_msg) /* remove an object */
 
 struct vinum_rename_msg {
     int index;
@@ -136,8 +136,8 @@ struct vinum_rename_msg {
     char newname[MAXNAME];				    /* new name to give to object */
 };
 
-#define VINUM_RENAME		_IOC(IOC_IN | IOC_OUT, L, 89, MAX_IOCTL_REPLY) /* reset object stats */
-#define VINUM_REPLACE		_IOC(IOC_IN | IOC_OUT, L, 90, MAX_IOCTL_REPLY) /* reset object stats */
+#define VINUM_RENAME		_IOWR(L, 89, struct vinum_ioctl_msg) /* rename an object */
+#define VINUM_REPLACE		_IOWR(L, 90, struct vinum_ioctl_msg) /* replace an object */
 
 #ifdef VINUMDEBUG
 #define VINUM_RQINFO		_IOWR(L, 91, struct rqinfo) /* get request info [i] from trace buffer */

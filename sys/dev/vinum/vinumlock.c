@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumlock.c,v 1.8 1999/01/14 02:52:13 grog Exp grog $
+ * $Id: vinumlock.c,v 1.9 1999/03/13 03:26:00 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -53,6 +53,13 @@ lockdrive(struct drive *drive)
     int error;
 
     /* XXX get rid of     drive->flags |= VF_LOCKING; */
+    if ((drive->flags & VF_LOCKED)			    /* it's locked */
+    &&(drive->pid == curproc->p_pid)) {			    /* by us! */
+	log(LOG_WARNING,
+	    "vinum lockdrive: already locking %s\n",
+	    drive->label.name);
+	return 0;
+    }
     while ((drive->flags & VF_LOCKED) != 0) {
 	/*
 	 * There are problems sleeping on a unique identifier,

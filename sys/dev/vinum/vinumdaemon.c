@@ -34,7 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.3 1999/01/18 04:32:50 grog Exp grog $
+ * $Id: vinumdaemon.c,v 1.4 1999/03/16 03:40:59 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -72,7 +72,7 @@ vinum_daemon(void)
 	 */
 	if (curproc->p_pid != daemonpid) {		    /* we've been ousted in our sleep */
 	    if (daemon_options & daemon_verbose)
-		printf("vinumd: abdicating\n");
+		log(LOG_INFO, "vinumd: abdicating\n");
 	    return;
 	}
 	while (daemonq != NULL) {			    /* we have work to do, */
@@ -92,7 +92,8 @@ vinum_daemon(void)
 		if (daemon_options & daemon_verbose) {
 		    struct request *rq = request->info.rq;
 
-		    printf("vinumd: recovering I/O request: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+		    log(LOG_WARNING,
+			"vinumd: recovering I/O request: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
 			(u_int) rq,
 			rq->bp->b_flags & B_READ ? "Read" : "Write",
 			rq->bp->b_dev,
@@ -110,9 +111,18 @@ vinum_daemon(void)
 	    case daemonrq_saveconfig:
 		if ((daemonq == NULL)			    /* no more requests */
 		||(daemonq->type != daemonrq_saveconfig)) { /* or the next isn't the same */
-		    if ((daemon_options & daemon_noupdate) == 0) { /* we can do it */
+		    if (((daemon_options & daemon_noupdate) == 0) /* we're allowed to do it */
+		    &&((vinum_conf.flags & VF_READING_CONFIG) == 0)) { /* and we're not building the config now */
+			/*
+			   * We obviously don't want to save a
+			   * partial configuration.  Less obviously,
+			   * we don't need to do anything if we're
+			   * asked to write the config when we're
+			   * building it up, because we save it at
+			   * the end.
+			 */
 			if (daemon_options & daemon_verbose)
-			    printf("vinumd: saving config\n");
+			    log(LOG_INFO, "vinumd: saving config\n");
 			daemon_save_config();		    /* save it */
 		    }
 		}
@@ -120,14 +130,20 @@ vinum_daemon(void)
 
 	    case daemonrq_return:			    /* been told to stop */
 		if (daemon_options & daemon_verbose)
-		    printf("vinumd: stopping\n");
+		    log(LOG_INFO, "vinumd: stopping\n");
 		daemon_options |= daemon_stopped;	    /* note that we've stopped */
-		wakeup(vinum_daemon);			    /* in case somebody's waiting for us to stop */
+		Free(request);
+		while (daemonq != NULL) {		    /* backed up requests, */
+		    request = daemonq;			    /* get the request */
+		    daemonq = daemonq->next;		    /* and detach it */
+		    Free(request);			    /* then free it */
+		}
+		wakeup(&vinumclose);			    /* and wake any waiting vinum(8)s */
 		return;
 
 	    case daemonrq_ping:				    /* tell the caller we're here */
 		if (daemon_options & daemon_verbose)
-		    printf("vinumd: ping reply\n");
+		    log(LOG_INFO, "vinumd: ping reply\n");
 		wakeup(&vinum_finddaemon);		    /* wake up the caller */
 		break;
 
@@ -136,10 +152,9 @@ vinum_daemon(void)
 	    case daemonrq_revive:			    /* revive a subdisk */
 		/* XXX */
 	    default:
-		printf("Invalid request\n");
+		log(LOG_WARNING, "Invalid request\n");
 		break;
 	    }
-	    Free(request);
 	}
     }
 }
@@ -198,17 +213,14 @@ vinum_finddaemon()
 {
     int result;
 
-    int i;
-
-    for (i = 0; i < 2; i++) {				    /* try twice */
-	queue_daemon_request(daemonrq_ping, NULL);	    /* queue a ping */
-	do
-	    result = tsleep(&vinum_finddaemon, PUSER, "recolte", 20 * hz);
-	while (result == ERESTART);			    /* let it finish */
+    if (daemonpid != 0) {				    /* we think we have a daemon, */
+	queue_daemon_request(daemonrq_ping, (union daemoninfo) NULL); /* queue a ping */
+	result = tsleep(&vinum_finddaemon, PUSER, "reap", 2 * hz);
+	if (result == 0)				    /* yup, the daemon's up and running */
+	    return 0;
     }
-
-    if (result)						    /* will be EWOULDBLOCK or EINTR */
-	vinum_daemon();					    /* start the daemon */
+    /* no daemon, or we couldn't talk to it: start it */
+    vinum_daemon();					    /* start the daemon */
     return 0;
 }
 
