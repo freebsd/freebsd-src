@@ -3,7 +3,7 @@
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=        af_ZA.ISO8859-1 \
+LOCALES=	af_ZA.ISO8859-1 \
 		bg_BG.CP1251 \
 		cs_CZ.ISO8859-2 \
 		da_DK.ISO8859-1 \
@@ -19,6 +19,8 @@ LOCALES=        af_ZA.ISO8859-1 \
 		hu_HU.ISO8859-2 \
 		is_IS.ISO8859-1 \
 		it_IT.ISO8859-1 \
+		ja_JP.eucJP \
+		ko_KR.eucKR \
 		nl_NL.ISO8859-1 \
 		no_NO.ISO8859-1 \
 		pl_PL.ISO8859-2 \
@@ -32,25 +34,19 @@ LOCALES=        af_ZA.ISO8859-1 \
 		tr_TR.ISO8859-9 \
 		uk_UA.ISO8859-5 \
 		uk_UA.KOI8-U \
-		ko_KR.eucKR \
-		ja_JP.eucJP \
-		zh_TW.Big5 \
-		zh_CN.eucCN
+		zh_CN.eucCN \
+		zh_TW.Big5
 
-LOCALEDIR=      ${DESTDIR}/usr/share/locale
+LOCALEDIR=	${DESTDIR}/usr/share/locale
 
-ASCIILINKS =    en_US
-8859_15_LINKS = af_ZA da_DK de_DE en_US es_ES fi_FI fr_FR is_IS is_IS \
+ASCIILINKS=	en_US
+LATIN15LINKS=	af_ZA da_DK de_DE en_US es_ES fi_FI fr_FR is_IS \
 		it_IT nl_NL no_NO pt_PT sv_SE
 
-USENGLISH=      en_US
-USENGLISHLINKS= en_CA en_GB
-GBENGLISH=      en_GB
-GBENGLISHLINKS= en_AU en_NZ
-FRENCH=         fr_FR
-FRENCHLINKS=    fr_CA fr_CH
-GERMAN=         de_DE
-GERMANLINKS=    de_AT
+US_LINKS=	en_CA en_GB
+GB_LINKS=	en_AU en_NZ
+FR_LINKS=	fr_CA fr_CH
+DE_LINKS=	de_AT
 
 .SUFFIXES: .src .out
 
@@ -64,36 +60,36 @@ afterinstall:
 	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
 			   ${LOCALEDIR}/${lang}/LC_NUMERIC
 .endfor
-.for link in ${8859_15_LINKS}
+.for link in ${LATIN15LINKS}
 	ln -sf ../${link}.ISO8859-1/LC_NUMERIC \
 	       ${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
 .endfor
-.for link in ${USENGLISHLINKS}
-	ln -sf ../${USENGLISH}.ISO8859-1/LC_NUMERIC \
+.for link in ${US_LINKS}
+	ln -sf ../en_US.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
-	ln -sf ../${USENGLISH}.ISO8859-1/LC_NUMERIC \
+	ln -sf ../en_US.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
-	ln -sf ../${USENGLISH}.ISO8859-1/LC_NUMERIC \
+	ln -sf ../en_US.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.US-ASCII/LC_NUMERIC
 .endfor
-.for link in ${GBENGLISHLINKS}
-	ln -sf ../${GBENGLISH}.ISO8859-1/LC_NUMERIC \
+.for link in ${GB_LINKS}
+	ln -sf ../en_GB.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
-	ln -sf ../${GBENGLISH}.ISO8859-1/LC_NUMERIC \
+	ln -sf ../en_GB.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
-	ln -sf ../${GBENGLISH}.ISO8859-1/LC_NUMERIC \
+	ln -sf ../en_GB.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.US-ASCII/LC_NUMERIC
 .endfor
-.for link in ${FRENCHLINKS}
-	ln -sf ../${FRENCH}.ISO8859-1/LC_NUMERIC \
+.for link in ${FR_LINKS}
+	ln -sf ../fr_FR.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
-	ln -sf ../${FRENCH}.ISO8859-1/LC_NUMERIC \
+	ln -sf ../fr_FR.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
 .endfor
-.for link in ${GERMANLINKS}
-	ln -sf ../${GERMAN}.ISO8859-1/LC_NUMERIC \
+.for link in ${DE_LINKS}
+	ln -sf ../de_DE.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
-	ln -sf ../${GERMAN}.ISO8859-1/LC_NUMERIC \
+	ln -sf ../de_DE.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
 .endfor
 .for link in ${ASCIILINKS}

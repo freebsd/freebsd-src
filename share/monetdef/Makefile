@@ -18,13 +18,15 @@ LOCALES=        af_ZA.ISO8859-1 \
 		es_ES.ISO8859-1 \
 		et_EE.ISO8859-15 \
 		fi_FI.ISO8859-1 \
-		fr_FR.ISO8859-1 \
 		fr_CA.ISO8859-1 \
+		fr_FR.ISO8859-1 \
 		hi_IN.ISCII-DEV \
 		hr_HR.ISO8859-2 \
 		hu_HU.ISO8859-2 \
 		is_IS.ISO8859-1 \
 		it_IT.ISO8859-1 \
+		ja_JP.eucJP \
+		ko_KR.eucKR \
 		nl_NL.ISO8859-1 \
 		no_NO.ISO8859-1 \
 		pl_PL.ISO8859-2 \
@@ -38,15 +40,13 @@ LOCALES=        af_ZA.ISO8859-1 \
 		tr_TR.ISO8859-9 \
 		uk_UA.ISO8859-5 \
 		uk_UA.KOI8-U \
-		ko_KR.eucKR \
-		ja_JP.eucJP \
-		zh_TW.Big5 \
-		zh_CN.eucCN
+		zh_CN.eucCN \
+		zh_TW.Big5
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
-ASCIILINKS    = en_AU en_CA en_GB en_NZ en_US
-8859_15_LINKS = af_ZA da_DK de_AT de_DE en_AU en_CA en_GB en_NZ en_US \
+ASCIILINKS=	en_AU en_CA en_GB en_NZ en_US
+LATIN15LINKS=	af_ZA da_DK de_AT de_DE en_AU en_CA en_GB en_NZ en_US \
 		es_ES fi_FI fr_CA fr_FR is_IS is_IS it_IT nl_NL no_NO \
 		pt_PT sv_SE
 
@@ -62,7 +62,7 @@ afterinstall:
 	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
 		${LOCALEDIR}/${lang}/LC_MONETARY
 .endfor
-.for link in ${8859_15_LINKS}
+.for link in ${LATIN15LINKS}
 	ln -sf ../${link}.ISO8859-1/LC_MONETARY \
 	       ${LOCALEDIR}/${link}.ISO8859-15/LC_MONETARY
 .endfor
