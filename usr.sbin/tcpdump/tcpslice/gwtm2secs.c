@@ -20,16 +20,14 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#)$Header: gwtm2secs.c,v 1.1 92/06/02 11:35:19 mccanne Exp $ (LBL)";
+    "@(#)$Header: gwtm2secs.c,v 1.2 93/11/18 13:11:30 vern Exp $ (LBL)";
 #endif
 
 /*
  * gwtm2secs.c - convert "tm" structs for Greenwich time to Unix timestamp
  */
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <time.h>
+#include "tcpslice.h"
 
 static int days_in_month[] =
 	/* Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec */
@@ -38,8 +36,7 @@ static int days_in_month[] =
 #define IS_LEAP_YEAR(year)	\
 	(year % 4 == 0 && (year % 100 != 0 || year % 400 == 0))
 
-time_t gwtm2secs( tm )
-struct tm *tm;
+time_t gwtm2secs( struct tm *tm )
 	{
 	int i, days, year;
 

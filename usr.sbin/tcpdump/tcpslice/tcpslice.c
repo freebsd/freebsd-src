@@ -22,42 +22,19 @@
 char copyright[] =
     "@(#) Copyright (c) 1987-1990 The Regents of the University of California.\nAll rights reserved.\n";
 static  char rcsid[] =
-    "@(#)$Header: tcpslice.c,v 1.10 92/06/02 17:57:44 mccanne Exp $ (LBL)";
+    "@(#)$Header: tcpslice.c,v 1.13 93/11/18 13:12:02 vern Exp $ (LBL)";
 #endif
 
 /*
  * tcpslice - extract pieces of and/or glue together tcpdump files
  */
 
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/timeb.h>
-#include <netinet/in.h>
-#include <varargs.h>
-
-#include "savefile.h"
-#include "version.h"
-
+#include "tcpslice.h"
 
 int tflag = 0;	/* global that util routines are sensitive to */
+int fddipad;	/* XXX: libpcap needs this global */
 
 char *program_name;
-
-long thiszone;			/* gmt to local correction in trace file */
-
-/* Length of saved portion of packet. */
-int snaplen;
-
-/* Length of saved portion of data past link level protocol.  */
-int snapdlen;
-
-/* Precision of clock used to generate trace file. */
-int precision;
-
-static int linkinfo;
 
 /* Style in which to print timestamps; RAW is "secs.usecs"; READABLE is
  * ala the Unix "date" tool; and PARSEABLE is tcpslice's custom format,
@@ -66,25 +43,28 @@ static int linkinfo;
 enum stamp_styles { TIMESTAMP_RAW, TIMESTAMP_READABLE, TIMESTAMP_PARSEABLE };
 enum stamp_styles timestamp_style = TIMESTAMP_RAW;
 
+#ifndef __FreeBSD__
+extern int getopt( int argc, char **argv, char *optstring );
+#endif
 
-time_t gwtm2secs( /* struct tm *tmp */ );
+int is_timestamp( char *str );
+long local_time_zone(long timestamp);
+struct timeval parse_time(char *time_string, struct timeval base_time);
+void fill_tm(char *time_string, int is_delta, struct tm *t, time_t *usecs_addr);
+void get_file_range( char filename[], pcap_t **p,
+			struct timeval *first_time, struct timeval *last_time );
+struct timeval first_packet_time(char filename[], pcap_t **p_addr);
+void extract_slice(char filename[], char write_file_name[],
+			struct timeval *start_time, struct timeval *stop_time);
+char *timestamp_to_string(struct timeval *timestamp);
+void dump_times(pcap_t **p, char filename[]);
+void usage(void);
 
 
-long local_time_zone( /* timestamp */ );
-struct timeval parse_time(/* time_string, base_time*/);
-void fill_tm(/* time_string, is_delta, t, usecs_addr */);
-void get_file_range( /* filename, first_time, last_time */ );
-struct timeval first_packet_time(/* filename */);
-void extract_slice(/* filename, start_time, stop_time */);
-char *timestamp_to_string( /* timestamp */ );
-void dump_times(/* filename */);
-void usage();
-
+pcap_dumper_t *dumper = 0;
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int op;
 	int dump_flag = 0;
@@ -93,6 +73,7 @@ main(argc, argv)
 	char *stop_time_string = 0;
 	char *write_file_name = "-";	/* default is stdout */
 	struct timeval first_time, start_time, stop_time;
+	pcap_t *pcap;
 
 	extern char *optarg;
 	extern int optind, opterr;
@@ -151,8 +132,8 @@ main(argc, argv)
 		error("at least one input file must be given");
 
 
-	first_time = first_packet_time(argv[optind]);
-	fclose( sf_readfile );
+	first_time = first_packet_time(argv[optind], &pcap);
+	pcap_close(pcap);
 
 
 	if (start_time_string)
@@ -172,9 +153,9 @@ main(argc, argv)
 
 	if (report_times) {
 		for (; optind < argc; ++optind)
-			dump_times(argv[optind]);
+			dump_times(&pcap, argv[optind]);
 	}
-	
+
 	if (dump_flag) {
 		printf( "start\t%s\nstop\t%s\n",
 			timestamp_to_string( &start_time ),
@@ -186,13 +167,9 @@ main(argc, argv)
 		     isatty( fileno(stdout) ) )
 			error("stdout is a terminal; redirect or use -w");
 
-		sf_write_init(write_file_name, linkinfo, thiszone, snaplen,
-			precision);
-
 		for (; optind < argc; ++optind)
-			extract_slice(argv[optind], &start_time, &stop_time);
-
-		fclose( sf_writefile );
+			extract_slice(argv[optind], write_file_name,
+					&start_time, &stop_time);
 	}
 
 	return 0;
@@ -202,8 +179,7 @@ main(argc, argv)
 /* Returns non-zero if a string matches the format for a timestamp,
  * 0 otherwise.
  */
-int is_timestamp( str )
-char *str;
+int is_timestamp( char *str )
 	{
 	while ( isdigit(*str) || *str == '.' )
 		++str;
@@ -215,8 +191,7 @@ char *str;
 /* Return the correction in seconds for the local time zone with respect
  * to Greenwich time.
  */
-long local_time_zone(timestamp)
-long timestamp;
+long local_time_zone(long timestamp)
 {
 	struct timeval now;
 	struct timezone tz;
@@ -240,9 +215,7 @@ long timestamp;
  */
 
 struct timeval
-parse_time(time_string, base_time)
-	char *time_string;
-	struct timeval base_time;
+parse_time(char *time_string, struct timeval base_time)
 {
 	struct tm *bt = localtime((time_t *) &base_time.tv_sec);
 	struct tm t;
@@ -351,11 +324,7 @@ parse_time(time_string, base_time)
  * of microseconds, if any.
  */
 void
-fill_tm(time_string, is_delta, t, usecs_addr)
-	char *time_string;
-	int is_delta;	/* if true, add times in instead of replacing */
-	struct tm *t;	/* tm struct to be filled from time_string */
-	time_t *usecs_addr;
+fill_tm(char *time_string, int is_delta, struct tm *t, time_t *usecs_addr)
 {
 	char *t_start, *t_stop, format_ch;
 	int val;
@@ -433,17 +402,16 @@ fill_tm(time_string, is_delta, t, usecs_addr)
  * last packets in the given file.
  */
 void
-get_file_range( filename, first_time, last_time )
-	char filename[];
-	struct timeval *first_time;
-	struct timeval *last_time;
+get_file_range( char filename[], pcap_t **p,
+		struct timeval *first_time, struct timeval *last_time )
 {
-	*first_time = first_packet_time( filename );
+	*first_time = first_packet_time( filename, p );
 
-	if ( ! sf_find_end( first_time, last_time ) )
+	if ( ! sf_find_end( *p, first_time, last_time ) )
 		error( "couldn't find final packet in file %s", filename );
 }
 
+int snaplen;
 
 /* Returns the timestamp of the first packet in the given tcpdump save
  * file, which as a side-effect is initialized for further save-file
@@ -451,21 +419,20 @@ get_file_range( filename, first_time, last_time )
  */
 
 struct timeval
-first_packet_time(filename)
-	char filename[];
+first_packet_time(char filename[], pcap_t **p_addr)
 {
-	struct packet_header hdr;
-	u_char *buf;
+	struct pcap_pkthdr hdr;
+	pcap_t *p;
+	char errbuf[PCAP_ERRBUF_SIZE];
 
-	if (sf_read_init(filename, &linkinfo, &thiszone, &snaplen, &precision))
-		error( "bad tcpdump file %s", filename );
+	p = *p_addr = pcap_open_offline(filename, errbuf);
+	if (! p)
+		error( "bad tcpdump file %s: %s", filename, errbuf );
 
-	buf = (u_char *)malloc((unsigned)snaplen);
+	snaplen = pcap_snapshot( p );
 
-	if (sf_next_packet(&hdr, buf, snaplen))
+	if (pcap_next(p, &hdr) == 0)
 		error( "bad status reading first packet in %s", filename );
-
-	free((char *)buf);
 
 	return hdr.ts;
 }
@@ -473,44 +440,49 @@ first_packet_time(filename)
 
 /* Extract from the given file all packets with timestamps between
  * the two time values given (inclusive).  These packets are written
- * to the save file output set up by a previous call to sf_write_init().
+ * to the save file given by write_file_name.
+ *
  * Upon return, start_time is adjusted to reflect a time just after
  * that of the last packet written to the output.
  */
 
 void
-extract_slice(filename, start_time, stop_time)
-	char filename[];
-	struct timeval *start_time;
-	struct timeval *stop_time;
+extract_slice(char filename[], char write_file_name[],
+		struct timeval *start_time, struct timeval *stop_time)
 {
 	long start_pos, stop_pos;
 	struct timeval file_start_time, file_stop_time;
-	int status;
-	struct packet_header hdr;
-	u_char *buf;
+	struct pcap_pkthdr hdr;
+	pcap_t *p;
+	char errbuf[PCAP_ERRBUF_SIZE];
 
+	p = pcap_open_offline(filename, errbuf);
+	if (! p)
+		error( "bad tcpdump file %s: %s", filename, errbuf );
 
-	if (sf_read_init(filename, &linkinfo, &thiszone, &snaplen, &precision))
-		error( "bad tcpdump file %s", filename );
+	snaplen = pcap_snapshot( p );
+	start_pos = ftell( pcap_file( p ) );
 
-	buf = (u_char *)malloc((unsigned)snaplen);
+	if ( ! dumper )
+		{
+		dumper = pcap_dump_open(p, write_file_name);
+		if ( ! dumper )
+			error( "error creating output file %s: ",
+				write_file_name, pcap_geterr( p ) );
+		}
 
-	start_pos = ftell( sf_readfile );
-
-
-	if ( (status = sf_next_packet( &hdr, buf, snaplen )) )
-		error( "bad status %d reading packet in %s",
-			status, filename );
+	if (pcap_next(p, &hdr) == 0)
+		error( "error reading packet in %s: ",
+			filename, pcap_geterr( p ) );
 
 	file_start_time = hdr.ts;
 
 
-	if ( ! sf_find_end( &file_start_time, &file_stop_time ) )
+	if ( ! sf_find_end( p, &file_start_time, &file_stop_time ) )
 		error( "problems finding end packet of file %s",
 			filename );
 
-	stop_pos = ftell( sf_readfile );
+	stop_pos = ftell( pcap_file( p ) );
 
 
 	/* sf_find_packet() requires that the time it's passed as its last
@@ -524,20 +496,23 @@ extract_slice(filename, start_time, stop_time)
 		return;	/* there aren't any packets of interest in the file */
 
 
-	sf_find_packet( &file_start_time, start_pos,
+	sf_find_packet( p, &file_start_time, start_pos,
 			&file_stop_time, stop_pos,
 			start_time );
 
 	for ( ; ; )
 		{
 		struct timeval *timestamp;
-		status = sf_next_packet( &hdr, buf, snaplen );
+		const u_char *pkt = pcap_next( p, &hdr );
 
-		if ( status )
+		if ( pkt == 0 )
 			{
+#ifdef notdef
+			int status;
 			if ( status != SFERR_EOF )
 				error( "bad status %d reading packet in %s",
 					status, filename );
+#endif
 			break;
 			}
 
@@ -551,8 +526,8 @@ extract_slice(filename, start_time, stop_time)
 				 */
 				break;
 
-			sf_write( buf, timestamp, (int) hdr.len,
-				  (int) hdr.caplen );
+			pcap_dump((u_char *) dumper, &hdr, pkt);
+
 			*start_time = *timestamp;
 
 			/* We know that each packet is guaranteed to have
@@ -564,8 +539,7 @@ extract_slice(filename, start_time, stop_time)
 			}
 		}
 
-	fclose( sf_readfile );
-	free( (char *) buf );
+	pcap_close( p );
 }
 
 
@@ -578,8 +552,7 @@ extract_slice(filename, start_time, stop_time)
  */
 
 char *
-timestamp_to_string(timestamp)
-	struct timeval *timestamp;
+timestamp_to_string(struct timeval *timestamp)
 {
 	struct tm *t;
 #define NUM_BUFFERS 2
@@ -593,7 +566,7 @@ timestamp_to_string(timestamp)
 	switch ( timestamp_style )
 	    {
 	    case TIMESTAMP_RAW:
-		sprintf( buf, "%d.%d", timestamp->tv_sec, timestamp->tv_usec );
+		sprintf(buf, "%ld.%ld", timestamp->tv_sec, timestamp->tv_usec);
 		break;
 
 	    case TIMESTAMP_READABLE:
@@ -604,7 +577,7 @@ timestamp_to_string(timestamp)
 
 	    case TIMESTAMP_PARSEABLE:
 		t = localtime((time_t *) &timestamp->tv_sec);
-		sprintf( buf, "%02dy%02dm%02dd%02dh%02dm%02ds%06du",
+		sprintf( buf, "%02dy%02dm%02dd%02dh%02dm%02ds%06ldu",
 			t->tm_year, t->tm_mon + 1, t->tm_mday, t->tm_hour,
 			t->tm_min, t->tm_sec, timestamp->tv_usec );
 		break;
@@ -620,12 +593,11 @@ timestamp_to_string(timestamp)
  */
 
 void
-dump_times(filename)
-	char filename[];
+dump_times(pcap_t **p, char filename[])
 {
 	struct timeval first_time, last_time;
 
-	get_file_range( filename, &first_time, &last_time );
+	get_file_range( filename, p, &first_time, &last_time );
 
 	printf( "%s\t%s\t%s\n",
 		filename,
@@ -634,7 +606,7 @@ dump_times(filename)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "tcpslice for tcpdump version %d.%d\n",
 		      VERSION_MAJOR, VERSION_MINOR);
@@ -643,3 +615,4 @@ usage()
 
 	exit(-1);
 }
+

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1990, 1991, 1993, 1994
+ * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -18,43 +18,53 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: os-bsd.h,v 1.18 94/06/14 20:15:17 leres Exp $ (LBL)
+ * @(#) $Header: ethertype.h,v 1.4 94/06/14 20:11:45 leres Exp $ (LBL)
  */
 
-#include <sys/param.h>
+/* Map between Ethernet protocol types and names */
 
-#ifndef BSD
-#define BSD
+/* Add other Ethernet packet types here */
+#ifndef	ETHERTYPE_SPRITE
+#define	ETHERTYPE_SPRITE	0x0500
+#endif
+#ifndef	ETHERTYPE_MOPDL
+#define	ETHERTYPE_MOPDL		0x6001
+#endif
+#ifndef	ETHERTYPE_MOPRC
+#define	ETHERTYPE_MOPRC		0x6002
+#endif
+#ifndef	ETHERTYPE_DN
+#define	ETHERTYPE_DN		0x6003
+#endif
+#ifndef	ETHERTYPE_LAT
+#define	ETHERTYPE_LAT		0x6004
+#endif
+#ifndef	ETHERTYPE_LANBRIDGE
+#define	ETHERTYPE_LANBRIDGE	0x8038
+#endif
+#ifndef	ETHERTYPE_DECDNS
+#define	ETHERTYPE_DECDNS	0x803c
+#endif
+#ifndef	ETHERTYPE_DECDTS
+#define	ETHERTYPE_DECDTS	0x803e
+#endif
+#ifndef	ETHERTYPE_VEXP
+#define	ETHERTYPE_VEXP		0x805b
+#endif
+#ifndef	ETHERTYPE_VPROD
+#define	ETHERTYPE_VPROD		0x805c
+#endif
+#ifndef	ETHERTYPE_LOOPBACK
+#define	ETHERTYPE_LOOPBACK	0x9000
 #endif
 
-#define SHA(ap) ((ap)->arp_sha)
-#define SPA(ap) ((ap)->arp_spa)
-#define THA(ap) ((ap)->arp_tha)
-#define TPA(ap) ((ap)->arp_tpa)
-
-#define EDST(ep) ((ep)->ether_dhost)
-#define ESRC(ep) ((ep)->ether_shost)
-
-#ifndef ETHERTYPE_REVARP
-#define ETHERTYPE_REVARP 0x8035
+#ifndef ETHERTYPE_ATALK
+#define ETHERTYPE_ATALK		0x809b
+#endif
+#ifndef ETHERTYPE_AARP
+#define ETHERTYPE_AARP		0x80f3
+#endif
+#ifndef ETHERTYPE_NS
+#define ETHERTYPE_NS		0x0600
 #endif
 
-#ifndef	IPPROTO_ND
-/* From <netinet/in.h> on a Sun somewhere. */
-#define	IPPROTO_ND	77
-#endif
-
-#ifndef REVARP_REQUEST
-#define REVARP_REQUEST 3
-#endif
-#ifndef REVARP_REPLY
-#define REVARP_REPLY 4
-#endif
-
-/* newish RIP commands */
-#ifndef	RIPCMD_POLL
-#define	RIPCMD_POLL 5
-#endif
-#ifndef	RIPCMD_POLLENTRY
-#define	RIPCMD_POLLENTRY 6
-#endif

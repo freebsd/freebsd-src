@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1988, 1989, 1990, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -20,8 +20,17 @@
  *
  * AppleTalk protocol formats (courtesy Bill Croft of Stanford/SUMEX).
  *
- * @(#) $Header: appletalk.h,v 1.6 90/10/03 22:14:26 leres Exp $ (LBL)
+ * @(#) $Header: appletalk.h,v 1.10 94/06/14 20:11:44 leres Exp $ (LBL)
  */
+
+struct LAP {
+	u_char	dst;
+	u_char	src;
+	u_char	type;
+};
+#define lapShortDDP	1	/* short DDP type */
+#define lapDDP		2	/* DDP type */
+#define lapKLAP		'K'	/* Kinetics KLAP type */
 
 /* Datagram Delivery Protocol */
 
@@ -67,7 +76,7 @@ struct atATP {
 	u_char	control;
 	u_char	bitmap;
 	u_short	transID;
-	long	userData;
+	int32	userData;
 };
 
 #define	atpReqCode	0x40
@@ -117,7 +126,9 @@ struct atNBPtuple {
 #define	nbpTupleMax	15
 
 #define	nbpHeaderSize	2
-#define nbpTupleSize	5;
+#define nbpTupleSize	5
+
+#define nbpSkt		2		/* NIS */
 
 
 /* Routing Table Maint. Protocol */

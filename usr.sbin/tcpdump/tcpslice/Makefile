@@ -1,12 +1,12 @@
 #	@(#)Makefile	0.1 (RWGrimes) 3/24/93
 
 PROG=	tcpslice
-CFLAGS+=-DCSLIP -I. -I$(.CURDIR)/../tcpdump
+CFLAGS+=-Wall
 MAN1=	tcpslice.1
-SRCS=	version.c tcpslice.c gwtm2secs.c search.c \
-	savefile.c bpf_filter.c md.c util.c
-.PATH:	${.CURDIR}/../tcpdump ${.CURDIR}/../../../sys/net
+SRCS=	version.c tcpslice.c gwtm2secs.c search.c util.c
 CLEANFILES+=	version.c version.h
+DPADD+=	${LIBPCAP}
+LDADD+= -lpcap
 
 version.c version.h: $(.CURDIR)/../tcpdump/VERSION
 	rm -f version.c ; \

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1990, 1991, 1993, 1994
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1988-1990 The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -17,44 +17,40 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @(#) $Header: os-bsd.h,v 1.18 94/06/14 20:15:17 leres Exp $ (LBL)
  */
 
-#include <sys/param.h>
-
-#ifndef BSD
-#define BSD
+#ifndef lint
+static char rcsid[] =
+    "@(#) $Header: util.c,v 1.2 93/11/18 13:11:07 vern Exp $ (LBL)";
 #endif
 
-#define SHA(ap) ((ap)->arp_sha)
-#define SPA(ap) ((ap)->arp_spa)
-#define THA(ap) ((ap)->arp_tha)
-#define TPA(ap) ((ap)->arp_tpa)
+#include "tcpslice.h"
 
-#define EDST(ep) ((ep)->ether_dhost)
-#define ESRC(ep) ((ep)->ether_shost)
+/* VARARGS */
+void
+#if __STDC__
+error(const char *fmt, ...)
+#else
+error(fmt, va_alist)
+	char *fmt;
+	va_dcl
+#endif
+{
+	va_list ap;
 
-#ifndef ETHERTYPE_REVARP
-#define ETHERTYPE_REVARP 0x8035
+	(void)fprintf(stderr, "tcpslice: ");
+#if __STDC__
+	va_start(ap, fmt);
+#else
+	va_start(ap);
 #endif
-
-#ifndef	IPPROTO_ND
-/* From <netinet/in.h> on a Sun somewhere. */
-#define	IPPROTO_ND	77
-#endif
-
-#ifndef REVARP_REQUEST
-#define REVARP_REQUEST 3
-#endif
-#ifndef REVARP_REPLY
-#define REVARP_REPLY 4
-#endif
-
-/* newish RIP commands */
-#ifndef	RIPCMD_POLL
-#define	RIPCMD_POLL 5
-#endif
-#ifndef	RIPCMD_POLLENTRY
-#define	RIPCMD_POLLENTRY 6
-#endif
+	(void)vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	if (*fmt) {
+		fmt += strlen(fmt);
+		if (fmt[-1] != '\n')
+			(void)fputc('\n', stderr);
+	}
+	exit(1);
+	/* NOTREACHED */
+}

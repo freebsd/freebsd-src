@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988-1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1989, 1990, 1991, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -21,12 +21,14 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/print-rip.c,v 1.2 1994/02/10 09:17:57 davidg Exp $ (LBL)";
+    "@(#) $Header: print-rip.c,v 1.20 94/06/14 20:18:47 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -34,41 +36,16 @@ static char rcsid[] =
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#include <protocols/routed.h>
+
 #include <errno.h>
+#include <stdio.h>
 
 #include "interface.h"
 #include "addrtoname.h"
 
-#define RIPVERSION	1
-
-struct netinfo {
-	struct	osockaddr rip_dst;	/* destination net/host */
-	int	rip_metric;		/* cost of route */
-};
-
-struct rip {
-	u_char	rip_cmd;		/* request/response */
-	u_char	rip_vers;		/* protocol version # */
-	u_char	rip_res1[2];		/* pad to 32-bit boundary */
-	union {
-		struct	netinfo ru_nets[1];	/* variable length... */
-		char	ru_tracefile[1];	/* ditto ... */
-	} ripun;
-#define	rip_nets	ripun.ru_nets
-#define	rip_tracefile	ripun.ru_tracefile
-};
- 
-/*
- * Packet types.
- */
-#define	RIPCMD_REQUEST		1	/* want info */
-#define	RIPCMD_RESPONSE		2	/* responding to request */
-#define	RIPCMD_TRACEON		3	/* turn tracing on */
-#define	RIPCMD_TRACEOFF		4	/* turn it off */
-
 static void
-rip_entry_print(ni)
-	register struct netinfo *ni;
+rip_entry_print(register const struct netinfo *ni)
 {
 	if (ntohs(ni->rip_dst.sa_family) != AF_INET) {
 		register int i;
@@ -79,7 +56,7 @@ rip_entry_print(ni)
 				(u_char)ni->rip_dst.sa_data[i+1]);
 		printf("]");
 	} else {
-		register struct sockaddr_in *sin = 
+		register struct sockaddr_in *sin =
 				(struct sockaddr_in *)&ni->rip_dst;
 		printf(" %s", ipaddr_string(&sin->sin_addr));
 		if (sin->sin_port)
@@ -89,18 +66,16 @@ rip_entry_print(ni)
 }
 
 void
-rip_print(dat, length)
-	u_char *dat;
-	int length;
+rip_print(const u_char *dat, int length)
 {
-	register struct rip *rp = (struct rip *)dat;
-	register struct netinfo *ni;
-	register int amt = (u_char *)snapend - dat;
+	register const struct rip *rp = (struct rip *)dat;
+	register const struct netinfo *ni;
+	register int amt = snapend - dat;
 	register int i = min(length, amt) -
 			 (sizeof(struct rip) - sizeof(struct netinfo));
 	int j;
 	int trunc;
-	
+
 	if (i < 0)
 		return;
 

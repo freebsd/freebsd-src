@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988-1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -21,11 +21,13 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-tcp.c,v 1.18 92/05/25 14:29:04 mccanne Exp $ (LBL)";
+    "@(#) $Header: print-tcp.c,v 1.28 94/06/16 01:26:40 mccanne Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/types.h>
+
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -33,10 +35,11 @@ static char rcsid[] =
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
-#ifdef X10
-#include <X/X.h>
-#include <X/Xproto.h>
+#include <stdio.h>
+#ifdef __STDC__
+#include <stdlib.h>
 #endif
+#include <unistd.h>
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -55,6 +58,9 @@ static char rcsid[] =
 #endif
 #ifndef TCPOPT_ECHOREPLY
 #define	TCPOPT_ECHOREPLY	7	/* echo (rfc1072) */
+#endif
+#ifndef TCPOPT_TIMESTAMP
+#define TCPOPT_TIMESTAMP	8	/* timestamps (rfc1323) */
 #endif
 
 struct tha {
@@ -76,15 +82,19 @@ static struct tcp_seq_hash tcp_seq_hash[TSEQ_HASHSIZE];
 
 
 void
-tcp_print(tp, length, ip)
-	register struct tcphdr *tp;
-	register int length;
-	register struct ip *ip;
+tcp_print(register const u_char *bp, register int length,
+	  register const u_char *bp2)
 {
+	register const struct tcphdr *tp;
+	register const struct ip *ip;
 	register u_char flags;
 	register int hlen;
+	u_short sport, dport, win, urp;
+	u_int32 seq, ack;
 
-	if ((u_char *)(tp + 1)  > snapend) {
+	tp = (struct tcphdr *)bp;
+	ip = (struct ip *)bp2;
+	if ((const u_char *)(tp + 1)  > snapend) {
 		printf("[|tcp]");
 		return;
 	}
@@ -93,32 +103,16 @@ tcp_print(tp, length, ip)
 		return;
 	}
 
-	NTOHS(tp->th_sport);
-	NTOHS(tp->th_dport);
-	NTOHL(tp->th_seq);
-	NTOHL(tp->th_ack);
-	NTOHS(tp->th_win);
-	NTOHS(tp->th_urp);
+	sport = ntohs(tp->th_sport);
+	dport = ntohs(tp->th_dport);
+	seq = ntohl(tp->th_seq);
+	ack = ntohl(tp->th_ack);
+	win = ntohs(tp->th_win);
+	urp = ntohs(tp->th_urp);
 
 	(void)printf("%s.%s > %s.%s: ",
-		ipaddr_string(&ip->ip_src), tcpport_string(tp->th_sport),
-		ipaddr_string(&ip->ip_dst), tcpport_string(tp->th_dport));
-
-	if (!qflag) {
-#ifdef X10
-		register int be;
-
-		if ((be = (tp->th_sport == X_TCP_BI_PORT ||
-		    tp->th_dport == X_TCP_BI_PORT)) ||
-		    tp->th_sport == X_TCP_LI_PORT ||
-		    tp->th_dport == X_TCP_LI_PORT) {
-			register XReq *xp = (XReq *)(tp + 1);
-
-			x10_print(xp, length - sizeof(struct tcphdr), be);
-			return;
-		}
-#endif
-	}
+		ipaddr_string(&ip->ip_src), tcpport_string(sport),
+		ipaddr_string(&ip->ip_dst), tcpport_string(dport));
 
 	if (qflag) {
 		(void)printf("tcp %d", length - tp->th_off * 4);
@@ -146,15 +140,15 @@ tcp_print(tp, length, ip)
 		 * collating order so there's only one entry for
 		 * both directions).
 		 */
-		if (tp->th_sport < tp->th_dport ||
-		    (tp->th_sport == tp->th_dport &&
+		if (sport < dport ||
+		    (sport == dport &&
 		     ip->ip_src.s_addr < ip->ip_dst.s_addr)) {
 			tha.src = ip->ip_src, tha.dst = ip->ip_dst;
-			tha.port = tp->th_sport << 16 | tp->th_dport;
+			tha.port = sport << 16 | dport;
 			rev = 0;
 		} else {
 			tha.src = ip->ip_dst, tha.dst = ip->ip_src;
-			tha.port = tp->th_dport << 16 | tp->th_sport;
+			tha.port = dport << 16 | sport;
 			rev = 1;
 		}
 
@@ -171,33 +165,32 @@ tcp_print(tp, length, ip)
 					calloc(1, sizeof (*th));
 			th->addr = tha;
 			if (rev)
-				th->ack = tp->th_seq, th->seq = tp->th_ack - 1;
+				th->ack = seq, th->seq = ack - 1;
 			else
-				th->seq = tp->th_seq, th->ack = tp->th_ack - 1;
+				th->seq = seq, th->ack = ack - 1;
 		} else {
 			if (rev)
-				tp->th_seq -= th->ack, tp->th_ack -= th->seq;
+				seq -= th->ack, ack -= th->seq;
 			else
-				tp->th_seq -= th->seq, tp->th_ack -= th->ack;
+				seq -= th->seq, ack -= th->ack;
 		}
 	}
 	hlen = tp->th_off * 4;
 	length -= hlen;
 	if (length > 0 || flags & (TH_SYN | TH_FIN | TH_RST))
-		(void)printf(" %lu:%lu(%d)", tp->th_seq, tp->th_seq + length, 
-			     length);
+		(void)printf(" %u:%u(%d)", seq, seq + length, length);
 	if (flags & TH_ACK)
-		(void)printf(" ack %lu", tp->th_ack);
+		(void)printf(" ack %u", ack);
 
-	(void)printf(" win %d", tp->th_win);
+	(void)printf(" win %d", win);
 
 	if (flags & TH_URG)
-		(void)printf(" urg %d", tp->th_urp);
+		(void)printf(" urg %d", urp);
 	/*
 	 * Handle any options.
 	 */
 	if ((hlen -= sizeof(struct tcphdr)) > 0) {
-		register u_char *cp = (u_char *)tp + sizeof(struct tcphdr);
+		register const u_char *cp = (const u_char *)tp + sizeof(*tp);
 		int i;
 		char ch = '<';
 
@@ -207,14 +200,7 @@ tcp_print(tp, length, ip)
 			switch (*cp++) {
 			case TCPOPT_MAXSEG:
 			{
-				u_short mss;
-#ifdef TCPDUMP_ALIGN
-				bcopy((char *)cp + 1, (char *)&mss, 
-				      sizeof(mss));
-#else
-				mss = *(u_short *)(cp + 1);
-#endif				
-				(void)printf("mss %d", ntohs(mss));
+				(void)printf("mss %d", cp[1] << 8 | cp[2]);
 				if (*cp != 4)
 					(void)printf("[len %d]", *cp);
 				cp += 3;
@@ -243,14 +229,9 @@ tcp_print(tp, length, ip)
 				break;
 			case TCPOPT_ECHO:
 			{
-				u_long v;
-#ifdef TCPDUMP_ALIGN
-				bcopy((char *)cp + 1, (char *)&v, 
-				      sizeof(v));
-#else
-				v = *(u_long *)(cp + 1);
-#endif				
-				(void)printf("echo %lu", v);
+				(void)printf("echo %u",
+					     cp[1] << 24 | cp[2] << 16 |
+					     cp[3] << 8 | cp[4]);
 				if (*cp != 6)
 					(void)printf("[len %d]", *cp);
 				cp += 5;
@@ -259,20 +240,28 @@ tcp_print(tp, length, ip)
 			}
 			case TCPOPT_ECHOREPLY:
 			{
-				u_long v;
-#ifdef TCPDUMP_ALIGN
-				bcopy((char *)cp + 1, (char *)&v, 
-				      sizeof(v));
-#else
-				v = *(u_long *)(cp + 1);
-#endif				
-				(void)printf("echoreply %lu", v);
+				(void)printf("echoreply %u",
+					     cp[1] << 24 | cp[2] << 16 |
+					     cp[3] << 8 | cp[4]);
 				if (*cp != 6)
 					(void)printf("[len %d]", *cp);
 				cp += 5;
 				hlen -= 5;
 				break;
 			}
+			case TCPOPT_TIMESTAMP:
+			{
+				(void)printf("timestamp %lu %lu",
+					     cp[1] << 24 | cp[2] << 16 |
+					     cp[3] << 8 | cp[4],
+					     cp[5] << 24 | cp[6] << 16 |
+					     cp[7] << 8 | cp[8]);
+				if (*cp != 10)
+					(void)printf("[len %d]", *cp);
+				cp += 9;
+				hlen -= 9;
+				break;
+  			}
 			default:
 				(void)printf("opt-%d:", cp[-1]);
 				for (i = *cp++ - 2, hlen -= i + 1; i > 0; --i)

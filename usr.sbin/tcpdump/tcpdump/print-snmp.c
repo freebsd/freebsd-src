@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1990, by John Robert LoVerso.
- * All rights reserved.
+ * Copyright (c) 1990, 1991, 1993, 1994
+ *    John Robert LoVerso.  All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
@@ -12,10 +12,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * This implementaion has been influenced by the CMU SNMP release,
+ * This implementation has been influenced by the CMU SNMP release,
  * by Steve Waldbusser.  However, this shares no code with that system.
  * Additional ASN.1 insight gained from Marshall T. Rose's _The_Open_Book_.
- * Earlier forms of this implemention were derived and/or inspired by an
+ * Earlier forms of this implementation were derived and/or inspired by an
  * awk script originally written by C. Philip Wood of LANL (but later
  * heavily modified by John Robert LoVerso).  The copyright notice for
  * that work is preserved below, even though it may not rightly apply
@@ -45,9 +45,12 @@ static char rcsid[] =
 #endif
 
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/types.h>
+
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -194,13 +197,13 @@ struct obj {
  * RFC-1156 format files into "makemib".  "mib.h" MUST define at least
  * a value for `mibroot'.
  *
- * In particluar, this is gross, as this is including initialized structures,
+ * In particular, this is gross, as this is including initialized structures,
  * and by right shouldn't be an "include" file.
  */
 #include "mib.h"
 
 /*
- * This defines a list of OIDs which will be abreviated on output.
+ * This defines a list of OIDs which will be abbreviated on output.
  * Currently, this includes the prefixes for the Internet MIB, the
  * private enterprises tree, and the experimental tree.
  */
@@ -211,7 +214,7 @@ struct obj_abrev {
 } obj_abrev_list[] = {
 #ifndef NO_ABREV_MIB
 	/* .iso.org.dod.internet.mgmt.mib */
-	{ "",	&_mib_obj,	 	"\53\6\1\2\1" },
+	{ "",	&_mib_obj,		"\53\6\1\2\1" },
 #endif
 #ifndef NO_ABREV_ENTER
 	/* .iso.org.dod.internet.private.enterprises */
@@ -234,7 +237,7 @@ struct obj_abrev {
 		do { \
 			if ((o) == objp->oid) \
 				break; \
-		} while (objp = objp->next); \
+		} while ((objp = objp->next) != NULL); \
 	} \
 	if (objp) { \
 		printf(suppressdot?"%s":".%s", objp->desc); \
@@ -248,14 +251,14 @@ struct obj_abrev {
  * temporary internal representation while decoding an ASN.1 data stream.
  */
 struct be {
-	unsigned long asnlen;
+	u_long asnlen;
 	union {
 		caddr_t raw;
 		long integer;
-		unsigned long uns;
-		unsigned char *str;
+		u_long uns;
+		const u_char *str;
 	} data;
-	unsigned char form, class, id;		/* tag info */
+	u_char form, class, id;		/* tag info */
 	u_char type;
 #define BE_ANY		255
 #define BE_NONE		0
@@ -309,15 +312,11 @@ static int truncated;
  * This returns -l if it fails (i.e., the ASN.1 stream is not valid).
  * O/w, this returns the number of bytes parsed from "p".
  */
-int
-asn1_parse(p, len, elem)
-	register u_char *p;
-	int len;
-	struct be *elem;
+static int
+asn1_parse(register const u_char *p, int len, struct be *elem)
 {
-	unsigned char form, class, id;
-	int indent=0, i, hdr;
-	char *classstr;
+	u_char form, class, id;
+	int i, hdr;
 
 	elem->asnlen = 0;
 	elem->type = BE_ANY;
@@ -455,7 +454,7 @@ asn1_parse(p, len, elem)
 			case COUNTER:
 			case GAUGE:
 			case TIMETICKS: {
-				register unsigned long data;
+				register u_long data;
 				elem->type = BE_UNS;
 				data = 0;
 				for (i = elem->asnlen; i-- > 0; p++)
@@ -523,9 +522,8 @@ asn1_parse(p, len, elem)
  * This used to be an integral part of asn1_parse() before the intermediate
  * BE form was added.
  */
-void
-asn1_print(elem)
-	struct be *elem;
+static void
+asn1_print(struct be *elem)
 {
 	u_char *p = (u_char *)elem->data.raw;
 	u_long asnlen = elem->asnlen;
@@ -547,7 +545,7 @@ asn1_print(elem)
 		if (!nflag && asnlen > 2) {
 			struct obj_abrev *a = &obj_abrev_list[0];
 			for (; a->node; a++) {
-				if (!memcmp(a->oid, p, strlen(a->oid))) {
+				if (!bcmp(a->oid, (char *)p, strlen(a->oid))) {
 					objp = a->node->child;
 					i -= strlen(a->oid);
 					p += strlen(a->oid);
@@ -590,12 +588,12 @@ asn1_print(elem)
 
 	case BE_STR: {
 		register int printable = 1, first = 1;
-		u_char *p = elem->data.str;
+		const u_char *p = elem->data.str;
 		for (i = asnlen; printable && i-- > 0; p++)
 			printable = isprint(*p) || isspace(*p);
 		p = elem->data.str;
 		if (printable)
-			(void)printfn(p, p+asnlen);
+			(void)fn_print(p, p + asnlen);
 		else
 			for (i = asnlen; i-- > 0; p++) {
 				printf(first ? "%.2x" : "_%.2x", *p);
@@ -646,10 +644,8 @@ asn1_print(elem)
  *
  * This is not currently used.
  */
-void
-asn1_decode(p, length)
-	u_char *p;
-	int length;
+static void
+asn1_decode(u_char *p, int length)
 {
 	struct be elem;
 	int i = 0;
@@ -676,7 +672,7 @@ asn1_decode(p, length)
  *	SEQUENCE {
  *		version INTEGER {version-1(0)},
  *		community OCTET STRING,
- *		data ANY 	-- PDUs
+ *		data ANY	-- PDUs
  *	}
  * PDUs for all but Trap: (see rfc1157 from page 15 on)
  *	SEQUENCE {
@@ -707,13 +703,11 @@ asn1_decode(p, length)
 /*
  * Decode SNMP varBind
  */
-void
-varbind_print (pduid, np, length, error)
-	u_char pduid, *np;
-	int length, error;
+static void
+varbind_print(u_char pduid, const u_char *np, int length, int error)
 {
 	struct be elem;
-	int count = 0, index;
+	int count = 0, ind;
 
 	/* Sequence of varBind */
 	if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -729,11 +723,11 @@ varbind_print (pduid, np, length, error)
 	length = elem.asnlen;
 	np = (u_char *)elem.data.raw;
 
-	for (index = 1; length > 0; index++) {
-		u_char *vbend;
+	for (ind = 1; length > 0; ind++) {
+		const u_char *vbend;
 		int vblength;
 
-		if (!error || index == error)
+		if (!error || ind == error)
 			fputs(" ", stdout);
 
 		/* Sequence */
@@ -758,7 +752,7 @@ varbind_print (pduid, np, length, error)
 			asn1_print(&elem);
 			return;
 		}
-		if (!error || index == error)
+		if (!error || ind == error)
 			asn1_print(&elem);
 		length -= count;
 		np += count;
@@ -775,9 +769,9 @@ varbind_print (pduid, np, length, error)
 				asn1_print(&elem);
 			}
 		} else
-			if (error && index == error && elem.type != BE_NULL)
+			if (error && ind == error && elem.type != BE_NULL)
 				fputs("[err objVal!=NULL]", stdout);
-			if (!error || index == error)
+			if (!error || ind == error)
 				asn1_print(&elem);
 
 		length = vblength;
@@ -788,10 +782,8 @@ varbind_print (pduid, np, length, error)
 /*
  * Decode SNMP PDUs: GetRequest, GetNextRequest, GetResponse, and SetRequest
  */
-void
-snmppdu_print (pduid, np, length)
-	u_char pduid, *np;
-	int length;
+static void
+snmppdu_print(u_char pduid, const u_char *np, int length)
 {
 	struct be elem;
 	int count = 0, error;
@@ -820,7 +812,7 @@ snmppdu_print (pduid, np, length)
 	if ((pduid == GETREQ || pduid == GETNEXTREQ)
 	    && elem.data.integer != 0) {
 		char errbuf[10];
-		printf("[errorStatus(%s)!=0]", 
+		printf("[errorStatus(%s)!=0]",
 			DECODE_ErrorStatus(elem.data.integer));
 	} else if (elem.data.integer != 0) {
 		char errbuf[10];
@@ -863,10 +855,8 @@ snmppdu_print (pduid, np, length)
 /*
  * Decode SNMP Trap PDU
  */
-void
-trap_print (np, length)
-	u_char *np;
-	int length;
+static void
+trap_print(const u_char *np, int length)
 {
 	struct be elem;
 	int count = 0, generic;
@@ -953,9 +943,7 @@ trap_print (np, length)
  * Decode SNMP header and pass on to PDU printing routines
  */
 void
-snmp_print (np, length)
-	u_char *np;
-	int length;
+snmp_print(const u_char *np, int length)
 {
 	struct be elem, pdu;
 	int count = 0;
@@ -1008,9 +996,10 @@ snmp_print (np, length)
 		return;
 	}
 	/* default community */
-	if (strncmp(elem.data.str, DEF_COMMUNITY, sizeof(DEF_COMMUNITY)-1))
+	if (strncmp((char *)elem.data.str, DEF_COMMUNITY,
+	    sizeof(DEF_COMMUNITY) - 1))
 		/* ! "public" */
-		printf("C=%.*s ", elem.asnlen, elem.data.str);
+		printf("C=%.*s ", (int)elem.asnlen, elem.data.str);
 	length -= count;
 	np += count;
 

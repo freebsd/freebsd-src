@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: extract.h,v 1.4 92/05/25 14:28:36 mccanne Exp $ (LBL)
+ * @(#) $Header: extract.h,v 1.7 94/06/14 20:11:45 leres Exp $ (LBL)
  */
 
 #ifdef TCPDUMP_ALIGN
@@ -28,22 +28,22 @@
 		((u_short)*((u_char *)p+1)<<8|\
 		 (u_short)*((u_char *)p+0)<<0))
 #define EXTRACT_LONG(p)\
-		((u_long)*((u_char *)p+3)<<24|\
-		 (u_long)*((u_char *)p+2)<<16|\
-		 (u_long)*((u_char *)p+1)<<8|\
-		 (u_long)*((u_char *)p+0)<<0)
+		((u_int32)*((u_char *)p+3)<<24|\
+		 (u_int32)*((u_char *)p+2)<<16|\
+		 (u_int32)*((u_char *)p+1)<<8|\
+		 (u_int32)*((u_char *)p+0)<<0)
 #else
 #define EXTRACT_SHORT(p)\
 	((u_short)\
 		((u_short)*((u_char *)p+0)<<8|\
 		 (u_short)*((u_char *)p+1)<<0))
 #define EXTRACT_LONG(p)\
-		((u_long)*((u_char *)p+0)<<24|\
-		 (u_long)*((u_char *)p+1)<<16|\
-		 (u_long)*((u_char *)p+2)<<8|\
-		 (u_long)*((u_char *)p+3)<<0)
+		((u_int32)*((u_char *)p+0)<<24|\
+		 (u_int32)*((u_char *)p+1)<<16|\
+		 (u_int32)*((u_char *)p+2)<<8|\
+		 (u_int32)*((u_char *)p+3)<<0)
 #endif
 #else
 #define EXTRACT_SHORT(p)	((u_short)ntohs(*(u_short *)p))
-#define EXTRACT_LONG(p)		(ntohl(*(u_long *)p))
+#define EXTRACT_LONG(p)		(ntohl(*(u_int32 *)p))
 #endif
