@@ -139,17 +139,24 @@ static int shm_use_phys;
 static int shm_allow_removed;
 
 SYSCTL_DECL(_kern_ipc);
-SYSCTL_INT(_kern_ipc, OID_AUTO, shmmax, CTLFLAG_RW, &shminfo.shmmax, 0, "");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shmmin, CTLFLAG_RW, &shminfo.shmmin, 0, "");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shmmni, CTLFLAG_RDTUN, &shminfo.shmmni, 0, "");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shmseg, CTLFLAG_RDTUN, &shminfo.shmseg, 0, "");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RW, &shminfo.shmall, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, shmmax, CTLFLAG_RW, &shminfo.shmmax, 0,
+    "Maximum shared memory segment size");
+SYSCTL_INT(_kern_ipc, OID_AUTO, shmmin, CTLFLAG_RW, &shminfo.shmmin, 0,
+    "Minimum shared memory segment size");
+SYSCTL_INT(_kern_ipc, OID_AUTO, shmmni, CTLFLAG_RDTUN, &shminfo.shmmni, 0,
+    "Number of shared memory identifiers");
+SYSCTL_INT(_kern_ipc, OID_AUTO, shmseg, CTLFLAG_RDTUN, &shminfo.shmseg, 0,
+    "Number of segments per process");
+SYSCTL_INT(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RW, &shminfo.shmall, 0,
+    "Maximum number of pages available for shared memory");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RW,
-    &shm_use_phys, 0, "");
+    &shm_use_phys, 0, "Enable/Disable locking of shared memory pages in core");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shm_allow_removed, CTLFLAG_RW,
-    &shm_allow_removed, 0, "");
+    &shm_allow_removed, 0,
+    "Enable/Disable attachment to attached segments marked for removal");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, shmsegs, CTLFLAG_RD,
-    NULL, 0, sysctl_shmsegs, "", "");
+    NULL, 0, sysctl_shmsegs, "",
+    "Current number of shared memory segments allocated");
 
 static int
 shm_find_segment_by_key(key)
