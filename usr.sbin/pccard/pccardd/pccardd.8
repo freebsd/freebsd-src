@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: pccardd.8,v 1.11 1999/02/05 15:59:57 kuriyama Exp $
+.\"	$Id: pccardd.8,v 1.12 1999/06/26 23:16:40 mpp Exp $
 .\"
 .Dd November 1, 1994
 .Dt PCCARDD 8
@@ -144,14 +144,6 @@ Developed by
 .Nm Pccardd
 can set up card parameters, but cannot guarantee that
 particular drivers can work with the card.
-.Pp
-Since
-.Nm FreeBSD
-does not currently support loadable kernel modules, any
-.Em irq
-specifications in the configuration file must match the
-.Nm config
-entry for the kernel.
 .Pp
 Removing cards may cause problems if system resources
 have been associated with the card, such as network
