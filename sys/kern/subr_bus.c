@@ -2168,7 +2168,7 @@ root_bus_module_handler(module_t mod, int what, void* arg)
     switch (what) {
     case MOD_LOAD:
 	compile_methods(&root_driver);
-	root_bus = make_device(NULL, "root", 0, NULL);
+	root_bus = make_device(NULL, "root", 0);
 	root_bus->desc = "System root bus";
 	root_bus->ops = root_driver.ops;
 	root_bus->driver = &root_driver;
