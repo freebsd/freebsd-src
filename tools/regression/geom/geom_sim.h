@@ -133,6 +133,7 @@ void g_simdisk_restart(char *name);
 		g_add_class(&class);		\
 	}
 
+void g_pc98_init(void);
 void g_sunlabel_init(void);
 void g_bsd_init(void);
 void g_mbr_init(void);
