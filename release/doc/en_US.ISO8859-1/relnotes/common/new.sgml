@@ -343,6 +343,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
       </para>
 
+    <para>&new.461; The original fix for security advisory SA-02:23 (which
+      addressed the use of file descriptors by set-user-id or
+      set-group-id programs) contained an error.  It was still
+      possible for systems using &man.procfs.5; or &man.linprocfs.5;
+      to be exploited.  This error has now been corrected; a revised
+      version of security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>
+      contains more details.</para>
+
     <para>Some unexpected behavior could be allowed with &man.k5su.8;
       because it does not require that an invoking user be a member of
       the <groupname>wheel</groupname> group when attempting to become
@@ -400,6 +409,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       For more information, see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.</para>
 
+    <para>&new.461; Multiple buffer overflows in
+      <application>OpenSSL</application> have been corrected, by way
+      of an upgrade to the base system version of
+      <application>OpenSSL</application>.  More details can be found
+      in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.</para>
   </sect2>
 
   <sect2 id="userland">
