@@ -1,3 +1,4 @@
+BOUNCE_BUFFERS	opt_bounce.h
 DDB
 FDESC		opt_staticfs.h
 KERNFS		opt_staticfs.h

@@ -36,10 +36,13 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.17 1995/11/10 14:54:16 davidg Exp $
+ * $Id: scsi_ioctl.c,v 1.18 1995/12/14 09:54:27 phk Exp $
  *
  *
  */
+
+#include "opt_bounce.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>

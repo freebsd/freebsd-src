@@ -8,8 +8,10 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.33 1995/12/14 09:54:26 phk Exp $
+ *      $Id: scsi_base.c,v 1.34 1995/12/17 21:23:36 phk Exp $
  */
+
+#include "opt_bounce.h"
 
 #define SPLSD splbio
 #define ESUCCESS 0

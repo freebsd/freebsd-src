@@ -28,13 +28,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.9 1995/12/10 20:19:32 bde Exp $
+ *	$Id: od.c,v 1.10 1995/12/14 09:54:22 phk Exp $
  */
 
 /*
  * TODO:
  *   1. Add optical disk specific ioctl functions, such as eject etc.
  */
+
+#include "opt_bounce.h"
 
 #define SPLOD splbio
 #include <sys/types.h>
