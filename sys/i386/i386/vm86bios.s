@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86bios.s,v 1.5 1998/09/28 03:26:22 tegge Exp $
+ *	$Id: vm86bios.s,v 1.6 1998/09/29 18:01:18 jlemon Exp $
  */
 
 #include "opt_vm86.h"
@@ -75,6 +75,8 @@ ENTRY(vm86_bioscall)
 	movl	_curproc,%ecx
 	cmpl	%ecx,_npxproc		/* do we need to save fp? */
 	jne	1f
+	testl	%ecx,%ecx
+	je 	1f			/* no curproc/npxproc */
 	pushl	%edx
 	movl	P_ADDR(%ecx),%ecx
 	addl	$PCB_SAVEFPU,%ecx
