@@ -123,8 +123,8 @@ const struct in6_addr in6mask64 = IN6MASK64;
 const struct in6_addr in6mask96 = IN6MASK96;
 const struct in6_addr in6mask128 = IN6MASK128;
 
-const struct sockaddr_in6 sa6_any = {sizeof(sa6_any), AF_INET6,
-				     0, 0, IN6ADDR_ANY_INIT, 0};
+const struct sockaddr_in6 sa6_any =
+	{ sizeof(sa6_any), AF_INET6, 0, 0, IN6ADDR_ANY_INIT, 0 };
 
 static int in6_lifaddr_ioctl __P((struct socket *, u_long, caddr_t,
 	struct ifnet *, struct thread *));
@@ -495,12 +495,12 @@ in6_control(so, cmd, data, ifp, td)
 			return (EADDRNOTAVAIL);
 		/* sanity for overflow - beware unsigned */
 		lt = &ifr->ifr_ifru.ifru_lifetime;
-		if (lt->ia6t_vltime != ND6_INFINITE_LIFETIME
-		 && lt->ia6t_vltime + time_second < time_second) {
+		if (lt->ia6t_vltime != ND6_INFINITE_LIFETIME &&
+		    lt->ia6t_vltime + time_second < time_second) {
 			return EINVAL;
 		}
-		if (lt->ia6t_pltime != ND6_INFINITE_LIFETIME
-		 && lt->ia6t_pltime + time_second < time_second) {
+		if (lt->ia6t_pltime != ND6_INFINITE_LIFETIME &&
+		    lt->ia6t_pltime + time_second < time_second) {
 			return EINVAL;
 		}
 		break;
@@ -793,16 +793,16 @@ in6_update_ifa(ifp, ifra, ia)
 	dst6 = ifra->ifra_dstaddr;
 	if ((ifp->if_flags & (IFF_POINTOPOINT|IFF_LOOPBACK)) != 0 &&
 	    (dst6.sin6_family == AF_INET6)) {
-		int scopeid;
+		u_int32_t zoneid;
 
 		if ((error = in6_recoverscope(&dst6,
 		    &ifra->ifra_dstaddr.sin6_addr, ifp)) != 0)
 			return (error);
-		if (in6_addr2zoneid(ifp, &dst6.sin6_addr, &scopeid))
+		if (in6_addr2zoneid(ifp, &dst6.sin6_addr, &zoneid))
 			return (EINVAL);
 		if (dst6.sin6_scope_id == 0) /* user omit to specify the ID. */
-			dst6.sin6_scope_id = scopeid;
-		else if (dst6.sin6_scope_id != scopeid)
+			dst6.sin6_scope_id = zoneid;
+		else if (dst6.sin6_scope_id != zoneid)
 			return (EINVAL); /* scope ID mismatch. */
 		if ((error = in6_embedscope(&dst6.sin6_addr, &dst6, NULL, NULL))
 		    != 0)
@@ -816,6 +816,7 @@ in6_update_ifa(ifp, ifra, ia)
 	 */
 	if (ifra->ifra_dstaddr.sin6_family == AF_INET6) {
 		if ((ifp->if_flags & (IFF_POINTOPOINT|IFF_LOOPBACK)) == 0) {
+			/* XXX: noisy message */
 			nd6log((LOG_INFO, "in6_update_ifa: a destination can "
 			    "be specified for a p2p or a loopback IF only\n"));
 			return (EINVAL);
@@ -1324,8 +1325,8 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 
 			/* hostid part must be zero. */
 			sin6 = (struct sockaddr_in6 *)&iflr->addr;
-			if (sin6->sin6_addr.s6_addr32[2] != 0
-			 || sin6->sin6_addr.s6_addr32[3] != 0) {
+			if (sin6->sin6_addr.s6_addr32[2] != 0 ||
+			    sin6->sin6_addr.s6_addr32[3] != 0) {
 				return EINVAL;
 			}
 		} else
@@ -1436,7 +1437,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 				s6->sin6_addr.s6_addr16[1] = 0;
 				if (in6_addr2zoneid(ifp, &s6->sin6_addr,
 				    &s6->sin6_scope_id))
-					return (EINVAL);/* XXX */
+					return (EINVAL);	/* XXX */
 			}
 			if ((ifp->if_flags & IFF_POINTOPOINT) != 0) {
 				bcopy(&ia->ia_dstaddr, &iflr->dstaddr,
@@ -1710,8 +1711,8 @@ ip6_sprintf(addr)
 	static char ip6buf[8][48];
 	int i;
 	char *cp;
-	const u_short *a = (const u_short *)addr;
-	const u_char *d;
+	const u_int16_t *a = (const u_int16_t *)addr;
+	const u_int8_t *d;
 	int dcolon = 0;
 
 	ip6round = (ip6round + 1) & 7;
