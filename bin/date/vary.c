@@ -29,6 +29,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <err.h>
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
@@ -93,7 +94,8 @@ vary_append(struct vary *v, char *arg)
   } else
     nextp = &result;
 
-  *nextp = (struct vary *)malloc(sizeof(struct vary));
+  if ((*nextp = (struct vary *)malloc(sizeof(struct vary))) == NULL)
+    err(1, "malloc");
   (*nextp)->arg = arg;
   (*nextp)->next = NULL;
   return result;
