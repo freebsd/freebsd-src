@@ -33,13 +33,15 @@ struct md_ioctl mdio;
 
 enum {UNSET, ATTACH, DETACH, LIST} action = UNSET;
 
+int nflag;
+
 void
 usage()
 {
 	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "\tmdconfig -a -t type [-o [no]option]... [ -f file] [-s size] [-S sectorsize] [-u unit]\n");
+	fprintf(stderr, "\tmdconfig -a -t type [-n] [-o [no]option]... [ -f file] [-s size] [-S sectorsize] [-u unit]\n");
 	fprintf(stderr, "\tmdconfig -d -u unit\n");
-	fprintf(stderr, "\tmdconfig -l [-u unit]\n");
+	fprintf(stderr, "\tmdconfig -l [-n] [-u unit]\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
 	fprintf(stderr, "\t\toption = {cluster, compress, reserve}\n");
 	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%dk (kB), %%dm (MB) or %%dg (GB)\n");
@@ -54,7 +56,7 @@ main(int argc, char **argv)
 	int cmdline = 0;
 
 	for (;;) {
-		ch = getopt(argc, argv, "ab:df:lo:s:S:t:u:x:y:");
+		ch = getopt(argc, argv, "ab:df:lno:s:S:t:u:x:y:");
 		if (ch == -1)
 			break;
 		switch (ch) {
@@ -77,6 +79,9 @@ main(int argc, char **argv)
 			action = LIST;
 			mdio.md_options = MD_AUTOUNIT;
 			cmdline = 3;
+			break;
+		case 'n':
+			nflag = 1;
 			break;
 		case 't':
 			if (cmdline != 1)
@@ -202,7 +207,7 @@ main(int argc, char **argv)
 		if (i < 0)
 			err(1, "ioctl(/dev/%s)", MDCTL_NAME);
 		if (mdio.md_options & MD_AUTOUNIT)
-			printf("%s%d\n", MD_NAME, mdio.md_unit);
+			printf("%s%d\n", nflag ? "" : MD_NAME, mdio.md_unit);
 	} else if (action == DETACH) {
 		if (mdio.md_options & MD_AUTOUNIT)
 			usage();
@@ -230,7 +235,8 @@ list(const int fd)
 	if (ioctl(fd, MDIOCLIST, &mdio) < 0)
 		err(1, "ioctl(/dev/%s)", MDCTL_NAME);
 	for (unit = 0; unit < mdio.md_pad[0] && unit < MDNPAD - 1; unit++) {
-		printf("%smd%d", unit > 0 ? " " : "", mdio.md_pad[unit + 1]);
+		printf("%s%s%d", unit > 0 ? " " : "",
+		    nflag ? "" : MD_NAME, mdio.md_pad[unit + 1]);
 	}
 	if (mdio.md_pad[0] - unit > 0)
 		printf(" ... %d more", mdio.md_pad[0] - unit);
