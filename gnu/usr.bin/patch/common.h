@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/common.h,v 1.3 1995/05/30 05:02:30 rgrimes Exp $
+/* $FreeBSD$
  *
  * $Log: common.h,v $
+ * Revision 1.5  1998/01/21 14:37:16  ache
+ * Resurrect patch 2.1 without FreeBSD Index: hack
+ *
  * Revision 1.3  1995/05/30 05:02:30  rgrimes
  * Remove trailing whitespace.
  *

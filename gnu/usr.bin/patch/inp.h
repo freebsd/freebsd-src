@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.h,v 1.2 1995/05/30 05:02:33 rgrimes Exp $
+/* $FreeBSD$
  *
  * $Log: inp.h,v $
+ * Revision 1.4  1998/01/21 14:37:20  ache
+ * Resurrect patch 2.1 without FreeBSD Index: hack
+ *
  * Revision 1.2  1995/05/30 05:02:33  rgrimes
  * Remove trailing whitespace.
  *

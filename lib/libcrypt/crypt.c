@@ -11,7 +11,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Header: /home/ncvs/src/lib/libcrypt/crypt.c,v 1.9 1999/01/23 08:27:36 markm Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <unistd.h>

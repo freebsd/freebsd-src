@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.h,v 1.2 1995/05/30 05:02:36 rgrimes Exp $
+/* $FreeBSD$
  *
  * $Log: pch.h,v $
+ * Revision 1.4  1998/01/21 14:37:24  ache
+ * Resurrect patch 2.1 without FreeBSD Index: hack
+ *
  * Revision 1.2  1995/05/30 05:02:36  rgrimes
  * Remove trailing whitespace.
  *
