@@ -32,9 +32,7 @@
 #include <sys/kernel.h>
 
 #include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_pci.h>
-#include <dev/ofw/ofw_pci2.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
