@@ -201,8 +201,8 @@ static struct cluster_softc *clusters;
 static int bdginit(void);
 static void parse_bdg_cfg(void);
 
-static int bdg_ipf = 0;		/* IPFilter enabled in bridge */
-static int bdg_ipfw = 0 ;
+static int bdg_ipf;		/* IPFilter enabled in bridge */
+static int bdg_ipfw;
 
 #if 0 /* debugging only */
 static char *bdg_dst_names[] = {
@@ -396,7 +396,7 @@ reconfigure_bridge(void)
     }
 }
 
-static char bridge_cfg[1024] = { "" } ;
+static char bridge_cfg[1024]; /* in BSS so initialized to all NULs */
 
 /*
  * parse the config string, set IFF_USED, name and cluster_id
@@ -581,7 +581,7 @@ static int bdg_loops ;
 static void
 bdg_timeout(void *dummy)
 {
-    static int slowtimer = 0 ;
+    static int slowtimer; /* in BSS so initialized to 0 */
 
     if (do_bridge) {
 	static int age_index = 0 ; /* index of table position to age */
