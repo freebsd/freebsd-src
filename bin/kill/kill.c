@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 
+int main __P((int, char *[]));
 void nosig __P((char *));
 void printsignals __P((FILE *));
 int signame_to_signum __P((char *));
@@ -144,7 +145,7 @@ signame_to_signum(sig)
 {
 	int n;
 
-	if (!strncasecmp(sig, "sig", 3))
+	if (!strncasecmp(sig, "sig", (size_t)3))
 		sig += 3;
 	for (n = 1; n < NSIG; n++) {
 		if (!strcasecmp(sys_signame[n], sig))
