@@ -18,6 +18,7 @@
 %token	CPU
 %token	CSR
 %token	DEVICE
+%token	DISABLE
 %token	DISK
 %token	DRIVE
 %token	DRQ
@@ -644,6 +645,8 @@ Info:
 	      = { cur.d_mask = "net"; } |
 	FLAGS NUMBER
 	      = { cur.d_flags = $2; } |
+	DISABLE	
+	      = { cur.d_disabled = 1; } |
 	CONFLICTS
 	      = { cur.d_conflicts = 1; };
 
@@ -922,6 +925,7 @@ init_dev(dp)
 	dp->d_type = DEVICE;
 	dp->d_conn = 0;
 	dp->d_conflicts = 0;
+	dp->d_disabled = 0;
 	dp->d_vec = 0;
 	dp->d_addr = dp->d_flags = dp->d_dk = 0;
 	dp->d_pri = -1;
