@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.1 1996/08/19 02:19:21 julian Exp $
+ * $Id: kern_shutdown.c,v 1.2 1996/08/19 20:06:59 julian Exp $
  */
 
 #include "opt_ddb.h"
@@ -102,7 +102,12 @@ typedef struct shutdown_list_element {
 	void *arg;
 } *sle_p;
 
-static sle_p shutdown_list;
+/*
+ * there are two shutdown lists. Some things need to be shut down
+ * Earlier than others.
+ */
+static sle_p shutdown_list1;
+static sle_p shutdown_list2;
 
 
 
@@ -170,7 +175,7 @@ __dead void
 boot(howto)
 	int howto;
 {
-	sle_p ep = shutdown_list;
+	sle_p ep;
 
 	/*
 	 * eventually the at_shutdown() method will totally replace the
@@ -180,14 +185,15 @@ boot(howto)
 	 */
 	if ((howto & RB_NOSYNC) == 0 ) {
 		printf("\ncleaning up... ");
-                while(*cleanups) {
+                while (*cleanups) {
 			printf("Using obsolete shutdown callout..\n");
 			printf("update code to use at_shutdown()\n");
                         (**cleanups++)();
                 }
 	}
-	while(ep) {
-		shutdown_list = ep->next;
+	ep = shutdown_list1;
+	while (ep) {
+		shutdown_list1 = ep->next;
 		(*ep->function)(howto, ep->arg);
 		ep = ep->next;
 	}
@@ -238,6 +244,12 @@ boot(howto)
 		}
 		DELAY(100000);			/* wait for console output to finish */
 		dev_shutdownall(FALSE);
+	}
+	ep = shutdown_list2;
+	while (ep) {
+		shutdown_list2 = ep->next;
+		(*ep->function)(howto, ep->arg);
+		ep = ep->next;
 	}
 	splhigh();
 	if (howto & RB_HALT) {
@@ -378,53 +390,78 @@ panic(const char *fmt, ...)
 	boot(bootopt);
 }
 
-
-/*********************************************************
- * general routines to handle adding/deleting items on the
- * shutdown callout list
- *****
+/*
+ * Two routines to handle adding/deleting items on the
+ * shutdown callout lists
+ *
+ * at_shutdown():
  * Take the arguments given and put them onto the shutdown callout list.
  * However first make sure that it's not already there.
  * returns 0 on success.
  */
 int
-at_shutdown(bootlist_fn function, void *arg)
+at_shutdown(bootlist_fn function, void *arg, int position)
 {
-	sle_p ep;
-	if(rm_at_shutdown(function, arg)) {
-		printf("exit callout entry already present\n");
+	sle_p ep, *epp;
+
+	switch(position) {
+	case SHUTDOWN_PRE_SYNC:
+		epp = &shutdown_list1;
+		break;
+	case SHUTDOWN_POST_SYNC:
+		epp = &shutdown_list2;
+		break;
+	default:
+		printf("bad exit callout list specified\n");
+		return (EINVAL);
 	}
-	ep = malloc(sizeof(*ep),M_TEMP,M_NOWAIT);
-	if(!ep) return ENOMEM;
-	ep->next = shutdown_list;
+	if (rm_at_shutdown(function, arg))
+		printf("exit callout entry already present\n");
+	ep = malloc(sizeof(*ep), M_TEMP, M_NOWAIT);
+	if (ep == NULL)
+		return (ENOMEM);
+	ep->next = *epp;
 	ep->function = function;
 	ep->arg = arg;
-	shutdown_list = ep;
-	return 0;
+	*epp = ep;
+	return (0);
 }
+
 /*
- * Scan the exit callout list for the given items and remove them.
+ * Scan the exit callout lists for the given items and remove them.
  * Returns the number of items removed.
  */
 int
 rm_at_shutdown(bootlist_fn function, void *arg)
 {
-	sle_p *epp,ep;
-	int count = 0;
+	sle_p *epp, ep;
+	int count;
 
-	epp = &shutdown_list;
+	count = 0;
+	epp = &shutdown_list1;
 	ep = *epp;
-	while(ep) {
-		if((ep->function == function) && (ep->arg = arg)) {
+	while (ep) {
+		if ((ep->function == function) && (ep->arg = arg)) {
 			*epp = ep->next;
-			free(ep,M_TEMP);
+			free(ep, M_TEMP);
 			count++;
 		} else {
 			epp = &ep->next;
 		}
 		ep = *epp;
 	}
-	return count;
+	epp = &shutdown_list2;
+	ep = *epp;
+	while (ep) {
+		if ((ep->function == function) && (ep->arg = arg)) {
+			*epp = ep->next;
+			free(ep, M_TEMP);
+			count++;
+		} else {
+			epp = &ep->next;
+		}
+		ep = *epp;
+	}
+	return (count);
 }
-
 
