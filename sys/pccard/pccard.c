@@ -378,6 +378,11 @@ slot_suspend(void *arg)
 		splx(s);
 		printf("Card disabled, slot %d\n", slt->slotnum);
 	}
+	/*
+	 * Disable any pending timeouts for this slot since we're
+	 * powering it down/disabling now.
+	 */
+	untimeout(power_off_slot, (caddr_t)slt); 
 	slt->ctrl->disable(slt);
 	return (0);
 }
