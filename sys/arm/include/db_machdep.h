@@ -47,7 +47,7 @@ typedef int		db_expr_t;
 #define	BKPT_SET(inst)	(BKPT_INST)
 
 #define	BKPT_SKIP do {							\
-	kdb_frame->tf_pc -= BKPT_SIZE; \
+	kdb_frame->tf_pc += BKPT_SIZE; \
 } while (0)
 
 #define	db_clear_single_step(regs)
@@ -56,9 +56,25 @@ typedef int		db_expr_t;
 #define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
 #define	IS_WATCHPOINT_TRAP(type, code)	(0)
 
+
 #define	inst_trap_return(ins)	(0)
-#define	inst_return(ins)	(0)
-#define	inst_call(ins)		(0)
+/* ldmxx reg, {..., pc}
+					    01800000  stack mode
+					    000f0000  register
+					    0000ffff  register list */
+/* mov pc, reg
+					    0000000f  register */
+#define	inst_return(ins)	(((ins) & 0x0e108000) == 0x08108000 || \
+				 ((ins) & 0x0ff0fff0) == 0x01a0f000)
+/* bl ...
+					    00ffffff  offset>>2 */
+#define	inst_call(ins)		(((ins) & 0x0f000000) == 0x0b000000)
+/* b ...
+					    00ffffff  offset>>2 */
+/* ldr pc, [pc, reg, lsl #2]
+					    0000000f  register */
+
+
 #define	inst_load(ins)		(0)
 #define	inst_store(ins)		(0)
 
