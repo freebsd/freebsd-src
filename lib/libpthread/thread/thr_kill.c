@@ -46,18 +46,48 @@ pthread_kill(pthread_t pthread, int sig)
 		/* Invalid signal: */
 		ret = EINVAL;
 
+	/* Ignored signals get dropped on the floor. */
+	else if (_thread_sigact[sig - 1].sa_handler == SIG_IGN)
+		ret = 0;
+
 	/* Find the thread in the list of active threads: */
 	else if ((ret = _find_thread(pthread)) == 0) {
-		if ((pthread->state == PS_SIGWAIT) &&
-		    sigismember(&pthread->sigmask, sig)) {
-			/* Change the state of the thread to run: */
-			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+		switch (pthread->state) {
+		case PS_SIGSUSPEND:
+			/*
+			 * Only wake up the thread if the signal is unblocked
+			 * and there is a handler installed for the signal.
+			 */
+			if (!sigismember(&pthread->sigmask, sig) &&
+			    _thread_sigact[sig - 1].sa_handler != SIG_DFL) {
+				/* Change the state of the thread to run: */
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 
-			/* Return the signal number: */
-			pthread->signo = sig;
-		} else
+				/* Return the signal number: */
+				pthread->signo = sig;
+			}
 			/* Increment the pending signal count: */
 			sigaddset(&pthread->sigpend,sig);
+			break;
+
+		case PS_SIGWAIT:
+			/* Wake up the thread if the signal is blocked. */
+			if (sigismember(pthread->data.sigwait, sig)) {
+				/* Change the state of the thread to run: */
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+				/* Return the signal number: */
+				pthread->signo = sig;
+			} else
+				/* Increment the pending signal count. */
+				sigaddset(&pthread->sigpend,sig);
+			break;
+
+		default:
+			/* Increment the pending signal count: */
+			sigaddset(&pthread->sigpend,sig);
+			break;
+		}
 	}
 
 	/* Return the completion status: */

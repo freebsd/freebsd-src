@@ -39,9 +39,7 @@
 #include "pthread_private.h"
 
 /* Static variables: */
-static int		volatile yield_on_unlock_dead	= 0;
 static int		volatile yield_on_unlock_thread	= 0;
-static spinlock_t	thread_dead_lock	= _SPINLOCK_INITIALIZER;
 static spinlock_t	thread_link_list_lock	= _SPINLOCK_INITIALIZER;
 
 /* Lock the thread list: */
@@ -50,14 +48,6 @@ _lock_thread_list()
 {
 	/* Lock the thread list: */
 	_SPINLOCK(&thread_link_list_lock);
-}
-
-/* Lock the dead thread list: */
-void
-_lock_dead_thread_list()
-{
-	/* Lock the dead thread list: */
-	_SPINLOCK(&thread_dead_lock);
 }
 
 /* Lock the thread list: */
@@ -74,26 +64,6 @@ _unlock_thread_list()
 	if (yield_on_unlock_thread) {
 		/* Reset the interrupt flag: */
 		yield_on_unlock_thread = 0;
-
-		/* This thread has overstayed it's welcome: */
-		sched_yield();
-	}
-}
-
-/* Lock the dead thread list: */
-void
-_unlock_dead_thread_list()
-{
-	/* Unlock the dead thread list: */
-	_SPINUNLOCK(&thread_dead_lock);
-
-	/*
-	 * Check if a scheduler interrupt occurred while the dead
-	 * thread list was locked:
-	 */
-	if (yield_on_unlock_dead) {
-		/* Reset the interrupt flag: */
-		yield_on_unlock_dead = 0;
 
 		/* This thread has overstayed it's welcome: */
 		sched_yield();
@@ -144,18 +114,6 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 			 */
 			yield_on_unlock_thread = 1;
 
-		/* Check if the scheduler interrupt has come at an
-		 * unfortunate time which one of the threads is
-		 * modifying the dead thread list:
-		 */
-		if (thread_dead_lock.access_lock)
-			/*
-			 * Set a flag so that the thread that has
-			 * the lock yields when it unlocks the
-			 * dead thread list:
-			 */
-			yield_on_unlock_dead = 1;
-
 		/*
 		 * Check if the kernel has not been interrupted while
 		 * executing scheduler code:
@@ -198,7 +156,7 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 
 		/*
 		 * POSIX says that pending SIGCONT signals are
-		 * discarded when one of there signals occurs.
+		 * discarded when one of these signals occurs.
 		 */
 		if (sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
 			/*
@@ -209,6 +167,31 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 			    pthread != NULL;
 			    pthread = pthread->nxt)
 				sigdelset(&pthread->sigpend,SIGCONT);
+		}
+
+		/*
+		 * Enter a loop to process each thread in the linked
+		 * list that is sigwait-ing on a signal.  Since POSIX
+		 * doesn't specify which thread will get the signal
+		 * if there are multiple waiters, we'll give it to the
+		 * first one we find.
+		 */
+		for (pthread = _thread_link_list; pthread != NULL;
+		    pthread = pthread->nxt) {
+			if ((pthread->state == PS_SIGWAIT) &&
+			    sigismember(pthread->data.sigwait, sig)) {
+				/* Change the state of the thread to run: */
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+				/* Return the signal number: */
+				pthread->signo = sig;
+
+				/*
+				 * Do not attempt to deliver this signal
+				 * to other threads.
+				 */
+				return;
+			}
 		}
 
 		/* Check if the signal is not being ignored: */
@@ -255,6 +238,7 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_RUNNING:
 	case PS_STATE_MAX:
 	case PS_SIGTHREAD:
+	case PS_SIGWAIT:
 	case PS_SUSPENDED:
 		/* Nothing to do here. */
 		break;
@@ -287,12 +271,26 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_FDW_WAIT:
 	case PS_SLEEP_WAIT:
 	case PS_SELECT_WAIT:
-	case PS_SIGWAIT:
 		if (sig != SIGCHLD ||
 		    _thread_sigact[sig - 1].sa_handler != SIG_DFL) {
 			/* Flag the operation as interrupted: */
 			pthread->interrupted = 1;
 
+			/* Change the state of the thread to run: */
+			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+			/* Return the signal number: */
+			pthread->signo = sig;
+		}
+		break;
+
+	case PS_SIGSUSPEND:
+		/*
+		 * Only wake up the thread if the signal is unblocked
+		 * and there is a handler installed for the signal.
+		 */
+		if (!sigismember(&pthread->sigmask, sig) &&
+		    _thread_sigact[sig - 1].sa_handler != SIG_DFL) {
 			/* Change the state of the thread to run: */
 			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 

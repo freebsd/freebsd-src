@@ -41,7 +41,7 @@ sigwait(const sigset_t * set, int *sig)
 {
 	int		ret = 0;
 	int		i;
-	sigset_t	oset;
+	sigset_t	tempset;
 	struct sigaction act;
 	
 	/*
@@ -60,31 +60,48 @@ sigwait(const sigset_t * set, int *sig)
 	sigdelset(&act.sa_mask, SIGCHLD);
 	sigdelset(&act.sa_mask, SIGINFO);
 
+	/* Check to see if a pending signal is in the wait mask. */
+	if (tempset = (_thread_run->sigpend & act.sa_mask)) {
+		/* Enter a loop to find a pending signal: */
+		for (i = 1; i < NSIG; i++) {
+			if (sigismember (&tempset, i))
+				break;
+		}
+
+		/* Clear the pending signal: */
+		sigdelset(&_thread_run->sigpend,i);
+
+		/* Return the signal number to the caller: */
+		*sig = i;
+
+		return (0);
+	}
+
 	/*
 	 * Enter a loop to find the signals that are SIG_DFL.  For
 	 * these signals we must install a dummy signal handler in
 	 * order for the kernel to pass them in to us.  POSIX says
 	 * that the application must explicitly install a dummy
 	 * handler for signals that are SIG_IGN in order to sigwait
-	 * on them, so we ignore SIG_IGN signals.
+	 * on them.  Note that SIG_IGN signals are left in the
+	 * mask because a subsequent sigaction could enable an
+	 * ignored signal.
 	 */
 	for (i = 1; i < NSIG; i++) {
 		if (sigismember(&act.sa_mask, i)) {
-			if (_thread_sigact[i - 1].sa_handler == SIG_DFL) {
+			if (_thread_sigact[i - 1].sa_handler == SIG_DFL)
 				if (_thread_sys_sigaction(i,&act,NULL) != 0)
 					ret = -1;
-			}
-			else if (_thread_sigact[i - 1].sa_handler == SIG_IGN)
-				sigdelset(&act.sa_mask, i);
 		}
 	}
 	if (ret == 0) {
 
-		/* Save the current signal mask: */
-		oset = _thread_run->sigmask;
-
-		/* Combine the caller's mask with the current one: */
-		_thread_run->sigmask |= act.sa_mask;
+		/*
+		 * Save the wait signal mask.  The wait signal
+		 * mask is independent of the threads signal mask
+		 * and requires separate storage.
+		 */
+		_thread_run->data.sigwait = &act.sa_mask;
 
 		/* Wait for a signal: */
 		_thread_kern_sched_state(PS_SIGWAIT, __FILE__, __LINE__);
@@ -92,8 +109,11 @@ sigwait(const sigset_t * set, int *sig)
 		/* Return the signal number to the caller: */
 		*sig = _thread_run->signo;
 
-		/* Restore the signal mask: */
-		_thread_run->sigmask = oset;
+		/*
+		 * Probably unnecessary, but since it's in a union struct
+		 * we don't know how it could be used in the future.
+		 */
+		_thread_run->data.sigwait = NULL;
 	}
 
 	/* Restore the sigactions: */
