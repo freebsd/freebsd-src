@@ -1227,9 +1227,6 @@ pipeclose(cpipe)
 		 * free resources
 		 */
 		pipe_free_kmem(cpipe);
-		/* XXX: erm, doesn't zalloc already have its own locks and
-		 * not need the giant vm lock?
-		 */
 		zfree(pipe_zone, cpipe);
 	}
 }
