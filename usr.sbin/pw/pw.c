@@ -422,7 +422,7 @@ cmdhelp(int mode, int which)
 			}
 		};
 
-		fprintf(stderr, help[which][mode]);
+		fprintf(stderr, "%s", help[which][mode]);
 	}
 	exit(EXIT_FAILURE);
 }
