@@ -1,0 +1,1566 @@
+<!-- This is a SGML version of the FreeBSD FAQ made by Gary Clark II.
+     
+     This conversion has been made by Ollivier Robert.
+
+     This is the 2.0 version of the FAQ for FreeBSD 2.0
+
+     $Id: freebsd-faq.sgml,v 1.6 1995/04/11 22:23:16 roberto Exp $
+-->
+<!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
+
+  <article>
+
+      <title>Frequently Asked Questions for FreeBSD 2.0
+      <author>Gary Clark II, <tt/FAQ@FreeBSD.ORG/
+      <date>v1.5, 6 April 1995
+      <abstract>
+        This is the FAQ for FreeBSD systems version 2.0.  All entries are
+        assumed to be relevant to FreeBSD 2.0. Any entries with a
+        &lt;XXX&gt; are under construction.  unless otherwise noted.
+      </abstract>
+
+    <toc>
+
+    <sect>Preface
+
+      <p>
+        Welcome to the FreeBSD 2.0 FAQ !  This document tries to answer
+        some of the most frequently asked questions about FreeBSD 2.0 (or
+        later, unless specifically indicated).  If there's something you're
+        having trouble with and you just don't see it here, then please
+        send mail to:
+
+        <verb>
+          questions@FreeBSD.ORG
+        </verb>
+
+        This version of the FAQ use the <tt>linuxdoc-sgml</tt> utility
+        written for Linux by Matt Welsh. The SGML translation was made by
+        Ollivier Robert <tt/&lt;roberto@FreeBSD.ORG&gt;/
+
+        Some of the instructions here will also refer to auxiliary
+        utilities in the <tt>/usr/src/share/FAQ directory</tt>.  CDROM
+        purchasers and net folks who've grabbed the FreeBSD 2.0
+        ``<tt/srcdist/'' will have these files.  If you don't have the
+        source distribution, then you can either grab the whole thing from:
+
+        <verb>
+          ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current
+        </verb>
+
+        Or you can grab only those files you're interested in straight out
+        of the FreeBSD-current distribution in:
+        
+        <verb>
+          ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src
+        </verb>
+
+      <sect1>What is FreeBSD?
+
+        <p>
+          FreeBSD 2.0 is a UN*X type operating system based on
+          U.C. Berkeley's 4.4BSD-lite release for the i386 platform.  It is
+          also based indirectly on William Jolitz's port of U.C. Berkeley's
+          Net/2 to the i386, 386BSD.  There have been many additions and
+          bug fixes made throughout the entire system, some of the
+          highlights of which are:
+
+
+          <itemize>
+            <item>More robust and extensive PC device support
+            <item>System V-style IPC, messaging and semaphores
+            <item>Shared Libraries
+            <item>Much improved virtual memory code
+            <item>Better console driver support
+            <item>Network booting (diskless) support
+            <item>YP support
+            <item>Full support of the PCI bus
+            <item>Loadable kernel modules
+            <item>Too many additional utilities and applications to mention
+          </itemize>
+
+          &lt;2.X-Current&gt;
+          <itemize>
+            <item>Serial Console Support
+            <item>Merged VM/Buffer Cache
+            <item>On demand PPP
+            <item>Sync PPP
+            <item>Improved SCSI support
+          </itemize>
+
+      <sect1>What are the FreeBSD mailing lists, and how can I get on them?
+
+        <p>
+          The following mailing lists are provided for FreeBSD users and
+          developers.  For more information, send to
+          &lt;majordomo@FreeBSD.ORG&gt; and include a single line saying
+          ``help'' in the body of your message.
+
+          <descrip>
+            <tag/announce/ For announcements about or on FreeBSD.
+            <tag/hackers/ Useful for persons wishing to work on the internals. 
+            <tag/questions/ General questions on FreeBSD. 
+            <tag/bugs/ Where bugs should be sent.
+            <tag/SCSI/ Mailing list for SCSI developers. 
+            <tag/current/ This list is for persons wishing to run
+              FreeBSD-current and carries announcements and discussions on
+              current.
+            <tag/security/  For issues dealing with system security. 
+            <tag/platforms/ Deals with ports to non-Intel platforms
+            <tag/ports/     Discussion of <tt>/usr/ports/???</tt>
+            <tag/fs/        Discussion of FreeBSD Filesystems
+            <tag/hardware/  Discussion on hardware requirements for FreeBSD.
+          </descrip>
+
+        <p>
+          The FreeBSD-commit list has been broken up into groups dealing
+          with different areas of interest.  Please see the FreeBSD mailing
+          list FAQ in:
+ 
+          <verb>
+            /usr/src/share/FAQ/mailing-list.FAQ
+          </verb>
+
+      <sect1>What are the various FreeBSD news groups?
+
+        <p>
+	  There are two newsgroups currently dedicated to FreeBSD:
+	  <descrip>
+	    <tag/comp.unix.bsd.freebsd.announce/ For announcements
+	    <tag/comp.unix.bsd.freebsd.misc/ General discussion
+	  </descrip>
+	  The following newsgroups may also be of interest to
+	  general BSD enthusiasts:
+	  <descrip>
+	    <tag/omp.unix.bsd/ General BSD topics
+	    <tag/comp.os.386bsd.*/ Ongoing, active FreeBSD discussions
+	  </descrip>
+
+      </sect1>
+    <sect>Installation
+
+      <sect1>I want to install FreeBSD onto a SCSI disk that has more than
+          1024 cylinders.  How do I do it?
+          
+        <p>
+          This depends.  If you don't have DOS (or another operating
+          system) on the system, you can just keep the drive in native mode
+          and simply make sure that your root partition is below 1024 so
+          the BIOS can boot the kernel from it.  It you also have DOS/some
+          other OS on the drive then your best bet is to find out what
+          parameters that it thinks you have before installing FreeBSD.
+          When FreeBSD's installation procedure prompts you for these
+          values, you should then enter them rather than simply going with
+          the defaults.
+
+          There is a freely available utility distributed with FreeBSD
+          called ``<tt/pfdisk/'' (located in the <tt>tools/dos-tools</tt>
+          subdirectory) which can be used for this purpose.
+
+
+      <sect1>When I boot FreeBSD it says ``Missing Operating System''.
+
+        <p>
+          See question above.  This is classically a case of FreeBSD and
+          DOS or some other OS conflicting over their ideas of disk
+          geometry.  You will have to reinstall FreeBSD, but obeying the
+          instructions given above will almost always get you going.
+
+      <sect1>When I install the boot manager and try to boot FreeBSD for
+          the first time, it just comes back with the boot manager prompt
+          again.
+
+        <p>
+          This is another symptom of the problem described in the preceding
+          question.  Your BIOS geometry and FreeBSD geometry settings do
+          not agree!  If your controller or BIOS supports cylinder
+          translation (often marked as ``&gt;1GB drive support''), try
+          toggling its setting and reinstalling FreeBSD.
+
+      <sect1>I have an IDE drive with lots of bad blocks on it and FreeBSD
+          doesn't seem to install properly.
+
+        <p>
+          FreeBSD's bad block (the ``<tt/bad144/'' command) handling is
+          still not 100&percnt; (to put it charitably) and it must
+          unfortunately be said that if you've got an IDE or ESDI drive
+          with lots of bad blocks, then FreeBSD is probably not for you!
+          That said, it does work on thousands of IDE based systems, so
+          you'd do well to try it first before simply giving up.
+
+          IDE drives are <em/supposed/ to come with built-in bad-block
+          remapping; if you have documentation for your drive, you may want
+          to see if this feature has been disabled on your drive.  However,
+          ESDI, RLL, and ST-506 drives normally do not do this.
+
+      <sect1>I have 32MB of memory, should I expect any special problems?
+          <label id="bigram">
+
+        <p>
+          No.  FreeBSD 2.0 comes with bounce buffers which allows your bus
+          mastering controller access to greater than 16MB.
+
+      <sect1>Do I need to install the complete sources? 
+
+        <p> In general, no.  However, we would strongly recommend that you
+          install, at a minimum, the ``<tt/base/'' source kit, which
+          includes several of the files mentioned here, and the
+          ``<tt/sys/'' (kernel) source kit, which includes sources for the
+          kernel.  There is nothing in the system which requires the
+          presence of the sources to operate, however, except for the
+          kernel-configuration program <tt/config(8)/.  With the exception
+          of the kernel sources, our build structure is set up so that you
+          can read-only mount the sources from elsewhere via NFS and still
+          be able to make new binaries.  (Because of the kernel-source
+          restriction, we recommend that you not mount this on
+          <tt>/usr/src</tt> directly, but rather in some other location
+          with appropriate symbolic links to duplicate the top-level
+          structure of the source tree.)
+
+          Having the sources on-line and knowing how to build a system with
+          them will make it much easier for you to upgrade to future
+          releases of FreeBSD.
+
+
+      <sect1>DES encryption software can not be exported from the United
+          States.  If I live outside the US, how can I encrypt passwords?
+
+        <p> If it is not absolutely imperative that you use DES style
+          encryption, you can use FreeBSD's default encryption for even
+          <bf/better/ security, and with no export restrictions.  FreeBSD
+          2.0's password default scrambler is now <bf/MD5/-based, and is
+          more CPU-intensive to crack with an automated password cracker
+          than DES.
+
+          Since the DES encryption algorithm cannot legally be exported
+          from the US, non-US users should not download this software (as
+          part of the <tt/secrdist/ from US FTP sites.
+
+          There is however a replacement libcrypt available, based on
+          sources written in Australia by David Burren.  This code is now
+          available on some non-US FreeBSD mirror sites.  Sources for the
+          unencumbered libcrypt, and binaries of the programs which use it,
+          can be obtained from the following FTP sites:
+
+          <descrip>
+            <tag/South Africa/
+              <tt>braae.ru.ac.za:/pub/FreeBSD/securedist/</tt><p>
+              <tt>owl.und.ac.za</tt> (currently uncertain)
+            <tag/Iceland/
+              <tt>ftp.veda.is:/pub/crypt/FreeBSD/</tt>
+          </descrip>
+
+          The non-US <tt/securedist/ can be used as a direct replacement
+          for the encumbered US <tt/securedist/.  This <tt/securedist/
+          package is installed the same way as the US package (see
+          installation notes for details).  If you are going to install DES
+          encryption, you should do so as soon as possible, before
+          installing other software.
+
+          Non-US users should please not download any encryption software
+          from the USA.  This can get the maintainers of the sites from
+          which the software is downloaded into severe legal difficulties.
+
+          A non-US distribution of Kerberos is also being developed, and
+          current versions can generally be obtained by anonymous FTP from
+          <tt>braae.ru.ac.za</tt>.
+
+          There is a mailing list for the discussion of non-US encryption
+          software.  For more information, send an email message with a
+          single line saying ``<tt/help/'' in the body of your message to
+          <tt>&lt;majordomo@braae.ru.ac.za&gt;</tt>.
+
+      </sect1>
+    </sect>
+    <sect>Hardware compatibility
+
+      <sect1>What kind of hard drives does FreeBSD run on?
+
+        <p>
+          FreeBSD supports ST-506 (sometimes called ``MFM''), RLL, and ESDI
+          drives, which are usually connected to WD-1002, WD-1003, or
+          WD-1006 controllers (although clones should also work).
+
+          FreeBSD also supports IDE and SCSI hard drives.
+
+      <sect1>What SCSI controllers are supported?
+
+        <p>
+          FreeBSD supports the following SCSI controllers:
+
+          <descrip>
+            <tag/Adaptec/
+              AH-154x Series &lt;ISA&gt; <newline>
+              AH-174x Series &lt;EISA&gt; <newline>
+              AH-152x Series &lt;ISA&gt; <newline>
+              Sound Blaster SCSI (AH-152x compat) &lt;ISA&gt; <newline>
+              AH-2742/2842 Series &lt;ISA/EISA&gt; <newline>
+              AH-2820/2822/2825 Series &lt;VLB&gt; <newline>
+            <tag/Buslogic/
+              BT-445 Series &lt;VLB&gt; (but see section <ref id="bigram"
+                name="on 32 MB machines">) <newline>
+              BT-545 Series &lt;ISA&gt; <newline>
+              BT-742 Series &lt;EISA&gt;<newline>
+              BT-747 Series &lt;EISA&gt;<newline>
+              BT-946 Series &lt;PCI&gt; <newline>
+            <tag/Future Domain/
+              TMC-950 Series &lt;ISA&gt; <newline>
+            <tag/PCI Generic/
+              NCR 53C810 based controllers &lt;PCI&gt; <newline>
+            <tag/ProAudioSpectrum/
+              Zilog 5380 based controllers &lt;ISA&gt; <newline>
+            <tag/Seagate/
+              ST-01/02 Series &lt;ISA&gt;<newline>
+            <tag/UltraStor/
+              UH-14f Series &lt;ISA&gt;<newline>
+              UH-24f Series &lt;EISA&gt; <newline>
+              UH-34f Series &lt;VLB&gt;<newline>
+          </descrip>
+
+          &lt;2.X-current Only&gt;
+          <descrip>
+            <tag/Western Digital/
+              WD7000 &lt;ISA&gt; &lt;No scatter/gather&gt;
+            <tag/Adaptec/
+              AH-294x and aic7870 MB controllers &lt;PCI&gt;
+            <tag/ProAudioSpectrum/
+              Trantor 130 based controllers &lt;ISA&gt;
+          </descrip>
+
+      <sect1>What CD-ROM drives are supported by FreeBSD?
+
+        <p>
+          Any SCSI drive connected to a supported controller.
+
+          Mitsumi LU002 (8bit), LU005 (16bit) and FX001D (16bit 2x Speed).
+
+          &lt;2.X-Current&gt; <newline>
+          Sound Blaster Non-SCSI CD-ROM
+ 
+          FreeBSD does not support any of the ``IDE'' CD-ROM interfaces.
+          All non-SCSI cards are known to be extremely slow compared to
+          SCSI drives.
+ 
+      <sect1>What multi-port serial cards are supported by FreeBSD?
+
+        <p>
+          <itemize>
+            <item>AST/4
+            <item>BOCA 4/8/16 port cards.  
+          </itemize>
+
+          &lt;2.X-Current&gt; <newline>
+          Cyclades 8/16 port &lt;Alpha&gt;
+
+          Some unnamed clone cards have also been known to work, especially
+          those that claim to be AST compatible.
+
+          Check the <tt/sio(4)/ man page to get more information on
+          configuring such cards.
+
+
+      <sect1>Does FreeBSD support the AHA-27xx SCSI adapters from Adaptec?
+
+        <p>
+          Yes, though portions of the sources are currenty GPL'd (that is
+          to say, distributed under the GNU Public License), so be aware of
+          the fact should you wish to distribute kernel binaries compiled
+          with it - you <bf/MUST/ also provide the sources to the driver
+          with the kernel image to stay legal with the GPL!  This is easily
+          enough done by simply including the contents of
+          <tt>/usr/src/sys/gnu/&lcub;aic7770,misc&rcub;</tt> on whatever
+          media you distribute the kernel.
+
+          We are working to get the GPL restriction removed, but for now
+          you should at least be aware of it.
+
+ 
+      <sect1>I have a Mumbleco bus mouse.  Is it supported and if so, how
+          do I set it up for XFree86?
+
+        <p>
+          FreeBSD supports the Logitech and ATI Inport bus mice.  You need
+          to add the following line to the kernel config file and recompile
+          for the Logitech and ATI mice:
+          
+          <verb>
+            device        mse0    at isa? port 0x23c tty irq6 vector mseintr
+          </verb>
+          
+      <sect1>I have a PS/2 mouse (``keyboard'' mouse) (Alternatively: I
+          have a laptop with a track-ball mouse).  How do I use it?
+          
+      <sect1>What types of tape drives are supported under FreeBSD?
+          
+        <p>
+          FreeBSD supports SCSI, QIC-02 and QIC-40/80 (Floppy based) tape
+          drives.  This includes 8-mm (aka Exabyte) and DAT drives.
+          
+      <sect1>What sound cards are supported by FreeBSD?
+          
+        <p>
+          FreeBSD supports the SoundBlaster, SoundBlaster Pro, Pro Audio
+          Spectrum 16, AdLib and Gravis UltraSound sound cards. There is
+          also limited support for MPU-401 and compatible MIDI cards.  The
+          SoundBlaster 16 and SoundBlaster 16 ASP cards are not yet
+          supported.
+          
+          NOTE: This is only for sound!  This driver does not support
+          CD-ROMs, SCSI or joysticks on these cards.
+          
+          
+      <sect1>What network cards does FreeBSD support?
+
+        <p>
+          There is support for the following cards:
+
+          <descrip>
+            <tag/``de'' driver/
+              DEC and compatible PCI controllers <newline>
+            <tag/``ed'' driver/
+              NE2000 and 1000<newline>
+              WD/SMC 8003, 8013 and Elite Ultra (8216)<newline>
+              3Com 3c503 <newline>
+              And clones of the above <newline>
+            <tag/``le'' driver/
+              DEC EtherWORKS II and EtherWORKS III controllers. <newline>
+            <tag/``ie'' driver/
+              AT&amp;T EN100/StarLAN 10 <newline>
+            <tag/``is'' driver/
+              Isolan AT 4141-0 <newline>
+              Isolink 4110 <newline>
+            <tag/``el'' driver/
+              3com 3c501 (does not support Multicast or DMA) <newline>
+            <tag/``ze'' driver/
+              IBM PCMCIA credit card adapter <newline>
+            <tag/``lnc'' drive/
+              Unknown Lance based (*) <newline>
+            <tag/``ep'' driver/
+              3com 3c509 (*)
+          </descrip>
+
+          &lt;2.X-Current&gt;
+
+          <descrip>
+            <tag/``cx'' driver/
+              Cronyx/Sigma multiport Sync/Async (Cisco and PPP framing)
+            <tag/``zp'' driver/
+              3Com PCMCIA Etherlink III
+            <tag/``fea'' driver/
+              DEC DEFEA EISA FDDI controller
+            <tag/``fpa'' driver/
+              DEC DEFPA PCI FDDI controller
+          </descrip>
+
+          NOTE:	Drivers marked with (*) are known to have problems.
+
+          NOTE: We also support TCP/IP over parallel lines.  At this point
+          we are incompatiable with other versions, but we hope to correct
+          this in the near future.
+
+
+      <sect1>I have a 386/486sx/486SLC machine without a math co-processor.
+          Will this cause me any problems?
+
+        <p>
+          Generally no, but there are circumstances where you will take a
+          hit, either in performance or accuracy of the math emulation code
+          (see the section <ref id="emul" name="on FP emulation">).  In
+          particular, drawing arcs in X will be VERY slow.  It is highly
+          recommended that you lay out the &dollar;50 or so for a math
+          co-processor; it's well worth it.
+
+          NOTE: Some math co-processors are better than others.  It pains
+          us to say it, but nobody ever got fired for buying Intel.  Unless
+          you're sure it works with FreeBSD, beware of clones.
+
+      <sect1>What other devices does 2.X support?
+
+        <p>
+          Here is a listing of drivers that do not fit into any of the
+          above areas.
+
+          <descrip>
+            <tag><tt/b004.c/</tag>
+              Driver for B004 compatiable Transputer boards <newline>
+            <tag><tt/ctx.c/</tag>
+              Driver for CORTEX-I Frame grabber <newline>
+            <tag><tt/gpib.c/</tag>
+              Driver for National Instruments AT-GPIB and
+              AT-GPIB/TNT boards <newline>
+            <tag><tt/pcaudio.c/</tag>
+              Driver for PC speakers to allow the playing of audio files
+              <newline>
+            <tag><tt/tw.c/</tag>
+              Driver for the X-10 POWERHOUSE <newline>
+          </descrip>
+
+          &lt;2.X-Current&gt;
+          <descrip>
+            <tag><tt/spigot.c/</tag>
+              Driver for the Creative Labs Video Spigot <newline>
+            <tag><tt/gsc.c/</tag>
+              Driver for the Genuis GS-4500 Hand scanner <newline>
+            <tag><tt/joy.c/</tag>
+              Driver for a joystick <newline>
+          </descrip>
+
+      <sect1>I am about to buy a new machine to run FreeBSD on and want an
+          idea of what other people are running. Is there list of other
+          systems anywhere?
+
+        <p>
+          Yes.  Please look at the file <tt>Systems.FAQ</tt>.  This file is
+          a listing of hardware that people are running in their machines.
+          Please note, this is a raw listing of equipment that other users
+          have sent in, and does not constitute any kind of endorsement by
+          the FreeBSD Project.
+
+      <sect1>I have a lap-top with power management.  Can FreeBSD take
+          advantage of this?
+        <p>
+          Yes it can on certain machines.  Please look in the <tt/LINT/
+          kernel config file under <tt/APM/.
+
+
+    <sect>Commercial Applications
+
+      <p>
+        Note: This section is still very sparse, though we're hoping, of
+        course, that companies will add to it! :) The FreeBSD group has no
+        financial interest in any of the companies listed here but simply
+        lists them as a public service (and feels that commercial interest
+        in FreeBSD can have very positive effects on FreeBSD's long-term
+        viability).  We encourage commercial software vendors to send their
+        entries here for inclusion.
+
+
+      <sect1>Where can I get Motif for FreeBSD?
+
+        <p>
+          You can purchase Motif 1.2.3 for FreeBSD (SWiM) from the ACC
+          Bookstore, P.O. Box 3364, Westport CT. 06880.  1-800-546-7274 or
+          FAX: 1-203-454-2582
+
+          This software works flawlessly for for FreeBSD 1.1.5 but has
+          shown one problem with 2.0 in that the "uil" program core dumps.
+          This is apparently because of the way uil is installed, and it's
+          quite possible that ACC will have a fixed version by the time you
+          read this.  No other compatibility problems with the programs or
+          libraries have been found, and ACC can hardly be blamed for
+          failing to work perfectly with a brand-new release they haven't
+          even seen yet! :)
+
+      <sect1>Are there any commercial X servers for some of the high-end
+          graphics cards like the Matrox or &num;9 I-128, or offering
+          8/16/24 bit deep pallettes?
+          <label id="xinside">
+        <p>
+          Yes, X Inside Incorporated sells their Accelerated-X product for
+          FreeBSD and other Intel based systems.
+
+          This high performance X Server offers easy configuration, support
+          for multiple concurrent video boards and is distributed in binary
+          form only.
+
+          Price is &dollar;99.50 (promotional price for Linux/FreeBSD
+          version) for the 1.1 version, which is available now.
+
+          This product is for FreeBSD 1.1 and runs under 2.0 with the
+          FreeBSD 1.1 compatibility libs (``<tt/compat1xdist/'').
+
+          <descrip>
+            <tag/More info/
+              <url url="http://www.xinside.com/" name="X inside WWW page">
+            <tag/or/
+              <url url="ftp://ftp.xinside.com/accelx/1.1/prodinfo.txt"
+              name="Products information">
+            <tag/or/
+              email &lt;<tt/info@xinside.com/&gt;
+            <tag/or/
+              phone +1(303)384-9999
+          </descrip>
+
+      <sect1>Any other applications I might be interested in?
+
+        <p>
+          RenderMorphics, Ltd. sells a high-speed 3D rendering package for
+          FreeBSD called ``Reality Lab'' (tm).  Send email to
+          <tt/info@render.com/ or call: +44(0)71-251-4411 / FAX:
+          +44(0)71-251-0939
+
+          This package is also for FreeBSD 1.1.5 but has been tested and
+          shown to run under FreeBSD 2.0 with the ``<tt/compat1xdist/''
+          installed.
+
+          Thanks must be extended to all of these companies for showing
+          enough faith in FreeBSD to port their products to it.  While we
+          get no direct benefit from the sales of these products, the
+          indirect benefits of FreeBSD proving itself to be a successful
+          platform for such commercial interests will be immense!  We wish
+          these companies every measure of success, and can only hope that
+          others are encouraged to follow suit.
+
+      </sect1>
+
+    <sect>User Applications
+        
+      <sect1>I want to run X, how do I go about it?
+
+        <p>
+          First, get the XFree86(tm) distribution of X11R6 from
+          XFree86.cdrom.com The version you want for FreeBSD 2.X and
+          later is <tt/XFree86 3.1.1/.  Follow the instructions for
+          installation carefully. You may then wish to read the
+          documentation for the <tt/ConfigXF86/ tool, which assists you in
+          configuring XFree86(tm) for your particular graphics
+          card/mouse/etc.
+
+          You may also wish to investigate the Xaccel server, which is
+          available at a very reasonable price.  See section
+          <ref id="xinside" name="on Xaccel"> for more details.
+
+      <sect1>I've been trying to run ghostscript on a 386 (or 486sx) with
+          no math co-processor and I keep getting errors. What's up? <label
+          id="emul">
+
+        <p>
+          You will need to add the alternate math emulator to your kernel,
+          you do this by adding the following to your kernel config file
+          and it will be compiled in.
+
+          <verb>
+            options GPL_MATH_EMULATE
+          </verb>
+
+          NOTE: You will need to remove the MATH_EMULATE option when you do
+          this.
+
+      <sect1>I want all this neat software, but I haven't got the space or
+          CPU power to compile it all myself.  Is there any way of getting
+          binaries?
+
+        <p>
+          Yes.  We support the concept of a ``package'', which is
+          essentially a gzipped binary distribution with a little extra
+          intelligence embedded in it for doing any custom installation
+          work required.  Packages can also be installed or deinstalled
+          again easily without having to know the gory details.  CDROM
+          people will have a <tt>packages/</tt> directory on their CD,
+          others can get the currently available packages from:
+
+          <verb>
+            ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages
+          </verb>
+
+          Note that all ports may not be available as packages, and that
+          new packages are constantly being added.  It is always a good
+          idea to check periodically to see which packages are available.
+          A <tt/README/ file in the packages directory provides more
+          details on the care and feeding of the package software, so no
+          explicit details will be given here.
+
+    <sect>Miscellaneous Questions
+
+      <sect1>I've heard of something called FreeBSD-current.  How do I run
+          it, and where can I get more information?
+
+        <p>
+          Read the file <tt>/usr/src/share/FAQ/current-policy.FAQ</tt>,
+          it will tell you all you need to know.
+          
+      <sect1>What is this thing called ``<tt/sup/'', and how do I use it?
+
+        <p>
+          SUP stands for Software Update Protocol, and was developed by CMU
+          for keeping their development trees in sync.  We use it to keep
+          remote sites in sync with our central development sources.
+
+          Unless you have direct internet connectivity, and don't care too
+          much about the cost/duration of the sessions, you shouldn't use
+          sup.  For those ``low/expensive-bandwidth'' applications, we have
+          developed <tt/CTM/, see the section <ref id="ctm" name="on CTM">
+          for more about that.
+
+          To use it, you need to have direct internet connectivity (not
+          just mail or news).  First, pick up the <tt/sup.tgz/ package
+          from:
+
+          <verb>
+            ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages/sup.tgz
+          </verb>
+
+          Second, read the file <tt>/usr/src/share/FAQ/sup.FAQ</tt>.
+
+          This file describes how to setup sup on your machine.  You may
+          also want to look at
+          <tt>/usr/src/share/FAQ/extras/*.supfile</tt>, or you may grab
+          updated supfiles from:
+
+          <verb>
+            ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/extras
+          </verb>
+
+          which are a set of supfiles for supping from <tt/FreeBSD.ORG/.
+
+
+      <sect1>How do I create customized installation disks that I can give
+          out to other people at my site?
+
+        <p>
+          The entire process of creating installation disks and source and
+          binary archives is automated by various targets in
+          <tt>/usr/src/etc/Makefile</tt>.  The information there should be
+          enough to get you started.
+
+      <sect1>How do I re-build my system without clobbering the existing
+          installed binaries?
+
+        <p>
+          If you define the environment variable <tt/DESTDIR/ while running
+          ``<tt/make world/'' or ``<tt/make install/'', the newly-created
+          binaries will be deposited in a directory tree identical to the
+          installed one, rooted at <tt>&dollar;&lcub;DESTDIR&rcub;</tt>.
+          Some random combination of shared libraries modifications and
+          program rebuilds can cause this to fail in ``<tt/make world/'',
+          however.
+
+
+      <sect1>When my system booted, it told me that ``(bus speed
+          defaulted)''.  What does that mean?
+
+        <p>
+          The Adaptec 1542 SCSI host adapters allow the user to configure
+          their bus access speed in software.  Previous versions of the
+          1542 driver tried to determine the fastest usable speed and set
+          the adapter to that.  We found that this breaks some users'
+          systems, so you now have to define the ``<tt/TUNE_1542/'' kernel
+          configuration option in order to have this take place.  Using it
+          on those systems where it works may make your disks run faster,
+          but on those systems where it doesn't, your data could be
+          corrupted.
+
+      <sect1>I would like to track changes to current and do not have net
+          access.  Is there any way besides downloading the whole tree?
+          <label id="ctm">
+
+        <p>
+          Yes, you can use the <tt/CTM/ facility.  Check out the
+          <tt/ctm.FAQ/ file or
+          <verb>
+            ftp://freefall.cdrom.com/pub/CTM/README
+          </verb>
+          for more information.
+
+      <sect1>How do I split up large binary files into smaller 240k files
+          like the distribution does?
+
+        <p>
+          Newer BSD based systems have a ``<tt/-b/'' option to split that
+          allows them to split files on arbitary byte bondaries.
+
+          Here is an example from <tt>/usr/src/Makefile</tt>.
+
+          <verb>
+            bin-tarball:
+            (cd $&lcub;DISTDIR&rcub;; \
+            tar cf - . \
+            gzip --no-name -9 -c | \
+            split -b 240640 - \
+            $&lcub;RELEASEDIR&rcub;/tarballs/bindist/bin_tgz.)
+          </verb>
+
+      <sect1>&lt;XXX&gt; I've had a couple of system panics and would like
+          to be able browse the system dumps.  The normal kernel is
+          stripped and I don't want to run a bloated kernel.  What can I
+          do?</>
+
+      <sect1>I just got a Perl application and it's bombing looking for
+          <tt/*.ph/.  Where is it?
+
+        <p>
+          There was a minor SNAFU in the 2.0-R bindist and they got left
+          out.  If you have the source, you just have to do a ``<tt/make
+          install/'' from <tt>/usr/src/gnu/usr.bin/perl/lib</tt> and
+          everything will be fine.  Or you may ftp to
+          <tt/phoenix-gw.gbdata.com/ and grab them from
+          <tt>~/pub/perl/libs.tar.gz</tt>.
+
+      <sect1>I've got this neato kernel extension I just know everyone will
+          will want.  How do I get it included into the distribution?
+        <p>
+          Please take a look at the FAQ for submiting code to FreeBSD at:
+          <verb>
+            ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/submitters.FAQ
+          </verb>
+          And thanks for the thought.
+
+      </sect1>
+
+    <sect>Kernel Configuration
+      <p>
+      <sect1>Ok, so how DO I compile my own kernel, anyway? <label
+            id="make-kernel">
+        <p>
+          Before you can compile a kernel, you need either the complete
+          <tt/srcdist/ or, at the minimum, the <tt/kerndist/ loaded on your
+          system.  This provides the necessary sources for building the
+          kernel, as we have a policy of <bf/NOT/ shipping our kernels in
+          linkable object form as most commercial UNIX vendors do.
+          Shipping the source takes a bit more space, but it also means
+          that you can refer to the actual kernel sources in case of
+          difficulty or to further your understanding of what's
+          <bf/actually/ happening.
+
+          Anyway, to answer the question, once you have the <tt/kerndist/
+          or <tt/srcdist/ loaded, do this:
+
+          <enum>
+            <item> <tt>cd /usr/src/sys/i386/conf</tt>
+            <item> <tt/cp GENERIC MYKERNEL/
+            <item> <tt/vi MYKERNEL/
+            <item> <tt/config MYKERNEL/
+            <item> <tt>cd ../../compile/MYKERNEL</tt>
+            <item> <tt/make all/
+            <item> <tt/make install/
+            <item> <tt/reboot/
+          </enum>
+
+          Step 2 may not be necessary if you already have a kernel
+          configuration file from a previous release of FreeBSD 2.x. -
+          simply bring your old one over and check it carefully for any
+          drivers that may have changed boot syntax or been rendered
+          obsolete.
+
+          A good kernel config file to look into is <tt/LINT/, which
+          contains entries for <bf/all/ possible kernel options and
+          documents them fairly well.  The <tt/GENERIC/ kernel config file
+          is used to build the initial release you probably loaded (unless
+          you upgraded in-place) and contains entries for the most common
+          configurations.  It's a pretty good place to start from.
+
+          If you don't need to make any changes to <tt/GENERIC/, you can
+          also skip step 3, where you customize the kernel for your
+          configuration.  Step 7 should only be undertaken if step 6
+          succeeds.  This will copy the new kernel image to
+          <tt>/kernel</tt> and <bf/BACK UP YOUR OLD ONE IN/
+          <tt>/kernel.old</tt>!  It's very important to remember this in
+          case the new kernel fails to work for some reason - you can still
+          select <tt>/kernel.old</tt> at the boot prompt to boot the old
+          one.  When you reboot, the new kernel will boot by default.
+
+          If the compile in 6 falls over for some reason, then it's
+          recommended that you start from step 4 but substitute
+          <tt/GENERIC/ for <tt/MYKERNEL/.  If you can generate a
+          <tt/GENERIC/ kernel, then it's likely something in your special
+          configuration file that's bad (or you've uncovered a bug!).  If
+          the build of the <tt/GENERIC/ kernel does <bf/NOT/ succeed, then
+          it's very likely that your sources are somehow corrupted.
+
+          Finally, if you need to see your original boot messages again to
+          compile a new kernel that's better tailored to your hardware, try
+          the <tt/dmesg(8)/ command.  It should print out all the boot-time
+          messages printed by your old kernel, some of which may be quite
+          helpful in configuring the new one.
+
+      <sect1>When I compile a kernel with multi-port serial code, it tells
+          me that only the first port is probed and the rest skipped due to
+          interrupt conflicts.  How do I fix this?
+
+        <p>
+          The problem here is that FreeBSD has code built-in to keep the
+          kernel from getting trashed due t hardware or software
+          conflicts.  The way to fix this is to leave out the IRQ settings
+          on other ports besides the first.  Here is a example:
+
+<verb>
+#
+# Multiport high-speed serial line - 16550 UARTS
+#
+device    sio2    at isa? port 0x2a0 tty irq 5 flags 0x501 vector siointr
+device    sio3    at isa? port 0x2a8 tty flags 0x501 vector siointr 
+device    sio4    at isa? port 0x2b0 tty flags 0x501 vector siointr
+device    sio5    at isa? port 0x2b8 tty flags 0x501 vector siointr
+</verb>
+
+      <sect1>FreeBSD is supposed to come with support for QIC-40/80 drives
+          but when I look, I can't find it.
+
+        <p>
+          You need to uncomment the following line in the generic config
+          file (or add it to your config file), add a ``<tt/flags 0x1/''
+          on the <tt/fdc/ line and recompile.
+          
+<verb>
+controller  fdc0  at isa? port "IO_FD1" bio irq 6 drq 2 flags 0x1 vector fdintr
+disk        fd0   at fdc0 drive 0                       ^^^^^^^^^
+disk        fd1   at fdc0 drive 1
+#tape       ft0   at fdc0 drive 2
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+</verb>
+
+          Next, you create a device called <tt>/dev/ft0</tt> by going into
+          <tt>/dev</tt> and run the following command:
+
+          <verb>
+            sh MAKEDEV ft0
+          </verb>
+
+          for the first device. <tt/ft1/ for a second one and so on.
+
+          You will have a device called <tt>/dev/ft0</tt>, which you can
+          write to through a special program to manage it called
+          ``<tt/ft/'' - see the man page on <tt/ft/ for further details.
+          Versions previous to <tt/-current/ also had some trouble dealing
+          wiht bad tape media; if you have trouble where <tt/ft/ seems to
+          go back and forth over the same spot, try grabbing the latest
+          version of <tt/ft/ from <tt>/usr/src/sbin/ft</tt> in
+          <tt/-current/ and try that.
+
+
+      <sect1>Does FreeBSD support IPC primitives like those in System V?
+
+        <p>
+          Yes, FreeBSD supports System V-style IPC.  This includes shared
+          memory, messages and semaphores.  You need to add the following
+          lines to your kernel config to enable them.
+
+          <verb>
+            options    SYSVSHM
+            options    "SHMMAXPGS=64"   # 256Kb of sharable memory
+            options    SYSVSEM          # enable for semaphores
+            options    SYSVMSG          # enable for messaging
+          </verb>
+
+          Recompile and install.
+
+      <sect1>Will FreeBSD ever support other architectures?
+
+        <p>
+          Several different groups have expressed interest in working on
+          multi-architecture support for FreeBSD.  If you are interested in
+          doing so, please contact the developers at
+          <tt>&lt;hackers@FreeBSD.ORG&gt;</tt> for more information on our
+          strategy for porting.
+
+      <sect1>I just wrote a device driver for a Foobar Systems, Inc.
+          Integrated Adaptive Gronkulator card.  How do I get the
+          appropriate major numbers assigned?
+
+        <p>
+          This depends on whether or not you plan on making the driver
+          publicly available.  If you do, then please send us a copy of the
+          driver source code, plus the appropriate modifications to
+          <tt>files.i386</tt>, a sample configuration file entry, and the
+          appropriate <tt>MAKEDEV</tt> code to create any special files
+          your device uses.  If you do not, or are unable to because of
+          licensing restrictions, then character major number 32 and block
+          major number 8 have been reserved specifically for this purpose;
+          please use them.  In any case, we'd appreciate hearing about your
+          driver on <tt>&lt;hackers@FreeBSD.ORG&gt;</tt>.
+
+      </sect1>
+
+    <sect>System Administration
+
+      <sect1>How do I add a user easily?  I read the man page and am more
+          confused than ever!  (Alternatively: I didn't read the man page,
+          I never read man pages! :-) )
+
+        <p>
+          Use the <tt/adduser/ command.
+
+          There is another package called ``<tt/new-account/'' also written
+          in Perl by Ollivier Robert. Ask
+          <tt>&lt;roberto@FreeBSD.ORG&gt;</tt> about it.  It is currently
+          under further development.
+
+      <sect1>&lt;XXX&gt; I'm trying to use my printer and keep running into
+          problems.  I tried looking at <tt>/etc/printcap</tt>, but it's
+          close to useless.  Any ideas?
+        <p>
+          Still under construction.
+      </sect1>
+
+      <sect1>My keyboard mappings are wrong for my system. How can I fix
+          them?
+        <p>
+          The kbdcontrol program has an option to load a keyboard map file.
+          Under <tt>/usr/share/syscons/keymaps</tt> are a number of map
+          files.  Choose the one relevant to your system and load it.
+
+          <verb>
+            kbdcontrol -l uk.iso
+          </verb>
+          Both the <tt>/usr/share/syscons/keymaps</tt> and the <tt/.kbd/
+          extension are assumed by <tt/kbdcontrol(1)/.
+
+          This could be run at boot time by adding the command to
+          <tt>/etc/rc.local</tt>
+
+          <tt>/etc/rc.local</tt> also has a comment at the end of it
+          relating to loading fonts/keyboard examples. See
+          <tt>/usr/share/examples/syscons</tt>.
+
+          The following mappings are currently supported:
+          <itemize>
+            <item>Danish (both ISO and cp865),
+            <item>French (ISO only),
+            <item>German (both ISO and cp850),
+            <item>Russian
+            <item>Swedish (both ISO and cp850),
+            <item>U.K. (both ISO and cp850),
+            <item>U.S.A. (ISO only).
+          </itemize>
+      </sect1>
+
+    <sect>Networking
+
+      <sect1>Where can I get information booting FreeBSD ``diskless'', that
+          is booting and running a FreeBSD box from a server rather than
+          having a local disk?
+
+        <p>
+          Please read <tt>/sys/i386/boot/netboot/netboot.doc</tt>.
+
+      <sect1>I've heard that you can use a FreeBSD box as a dedicated
+          network router - is there any easy support for this?
+
+        <p>
+          Internet standards and good engineering practice prohibit us from
+          providing packet forwarding by default in FreeBSD.  You can
+          enable this support by adding ``<tt/options GATEWAY/'' to your
+          kernel configuration file and recompiling.  In most cases, you
+          will also need to run a routing process to tell other systems on
+          your network about your router; FreeBSD comes with the standard
+          BSD routing daemon <tt/routed(8)/, or for more complex situations
+          you may want to try <em/GaTeD/ (available by FTP from
+          <tt/gated.Cornell.edu/) which supports FreeBSD as of 3_5Alpha7.
+
+          It is our duty to warn you that, even when FreeBSD is configured
+          in this way, it does not completely comply with the Internet
+          standard requirements for routers; however, it comes close enough
+          for ordinary usage.
+
+      <sect1>Does FreeBSD support SLIP and PPP?</>
+
+        <p>
+          Yes.  See the man pages for <tt/slattach(8)/ and/or <tt/pppd(8)/
+          if you're using FreeBSD to connect to another site.  If you're
+          using FreeBSD as a server for other machines, look at the man
+          page for <tt/sliplogin(8)/.  You may also want to take a look at
+          the slip FAQ in:
+
+          <verb>
+            /usr/src/share/FAQ/Slip.FAQ
+          </verb>
+
+      <sect1>How do I get my network set up? I don't see how to make my
+          <tt>/dev/ed0</tt> device!
+
+        <p>
+          In the Berkeley networking framework, network interfaces are only
+          directly accessible by kernel code.  Please see the
+          <tt>/etc/netstart</tt> file and the manual pages for the various
+          network programs mentioned there for more information.  If this
+          leaves you totally confused, then you should pick up a book
+          describing network administration on another BSD-related
+          operating system; with few significant exceptions, administering
+          networking on FreeBSD is basically the same as on SunOS 4.0 or
+          Ultrix.
+
+      <sect1>How do I get my 3C503 to use the other network port?
+
+        <p>
+          Use ``<tt/ifconfig ed0/'' to see whether the ALTPHYS flag is set,
+          and then use either ``<tt/ifconfig ed0 altphys/'' if it was off,
+          or ``<tt/ifconfig ed0 -altphys/'' if it was on.
+
+      <sect1>I'm having problems with NFS to/from FreeBSD and my
+          Wuffotronics Workstation / generic NFS appliance, where should I
+          look first?
+
+        <p>
+          Certain PC network cards are better than others (to put it
+          mildly) and can sometimes cause problems with network intensive
+          applications like NFS.
+
+          See <tt>/usr/src/share/FAQ/NFS.FAQ</tt> for more information on
+          this topic.
+
+      <sect1>I want to enable IP multicast support on my FreeBSD box, how
+          do I do it?  (Alternatively: What the heck IS multicasting and
+          what applications make use of it?)
+
+        <p>
+          Multicast host operations are fully supported in FreeBSD 2.0 by
+          default.  If you want your box to run as a multicast router, you
+          will need to load the <tt/ip_mroute_mod/ loadable kernel module
+          and run <tt/mrouted/.
+
+For more information:
+<verb>
+Product		Description		Where
+--------------- ----------------------- ---------------------------------------
+faq.txt		Mbone FAQ		ftp.isi.edu:/mbone/faq.txt
+imm/immserv	IMage Multicast 	ftp.hawaii.edu:/paccom/imm.src.tar.Z
+		for jpg/gif images.
+nv		Network Video.		ftp.parc.xerox.com:
+					/pub/net-reseach/exp/nv3.3alpha.tar.Z
+vat		LBL Visual Audio Tool.	ftp.ee.lbl.gov:
+					/conferencing/vat/i386-vat.tar.Z
+wb		LBL White Board.	ftp.ee.lbl.gov:
+					/conferencing/wb/i386-wb.tar.Z
+mmcc		MultiMedia Conference	ftp.isi.edu:
+		Control program		/confctrl/mmcc/mmcc-intel.tar.Z
+rtpqual		Tools for testing the	ftp.psc.edu:/pub/net_tools/rtpqual.c
+		quality of RTP packets.
+vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
+		and nv.
+</verb>
+
+      </sect1>
+
+    <sect> Serial Communications
+      <p>
+        This section answers common questions about serial communications
+        with FreeBSD.
+
+      <sect1> How do I tell if FreeBSD found my serial ports or modem
+          cards?
+        <p>
+          As the FreeBSD kernel boots, it will probe for the serial ports
+          in your system for which the kernel was configured.  You can
+          either watch your system closely for the messages it prints or
+          run the command
+          <verb>
+            dmesg | grep sio
+          </verb>
+          after your system's up and running.
+
+          Here's some example output from the above command:
+          <verb>
+            sio0 at 0x3f8-0x3ff irq 4 on isa
+            sio0: type 16550A
+            sio1 at 0x2f8-0x2ff irq 3 on isa
+            sio1: type 16550A
+          </verb>
+
+          This shows two serial ports.  The first is on irq 4, is using
+          port address <tt/0x3f8/, and has a 16550A-type UART chip.  The
+          second uses the same kind of chip but is on irq 3 and is at port
+          address <tt/0x2f8/.  Internal modem cards are treated just like
+          serial ports---except that they always have a modem ``attached''
+          to the port.
+
+          The <tt/GENERIC/ kernel includes support for two serial ports
+          using the same irq and port address settings in the above
+          example.  If these settings aren't right for your system, or if
+          you've added modem cards or have more serial ports than your
+          kernel is configured for, just reconfigure your kernel.  See
+          section <ref id="make-kernel" name="about building a kernel"> for
+          more details.
+
+      <sect1> How do I access the serial ports once FreeBSD is running?
+        <p>
+          The third serial port, <tt/sio2/ (known as COM3 in DOS), is on
+          <tt>/dev/tty02</tt> for directly-connected devices, on
+          <tt>/dev/cuaa2</tt> for dial-out devices, and on
+          <tt>/dev/ttyd2</tt> for dial-in devices.  What's the difference
+          between these three classes of devices?
+
+          You use <tt/ttyXX /for directly-connected or hardwired devices,
+          like printers or terminals.
+
+          In place of <tt/ttyXX/, you can use the pair of devices
+          <tt/cuaaX/ and <tt/ttydX/.  You use <tt/ttydX/ for dial-ins.  The
+          <tt/ttydX/ device acts like the <tt/ttyXX/ device, but it also
+          uses the modem control lines.  When opening <tt>/dev/ttydX</tt>
+          in blocking mode, a process will wait for the corresponding
+          <tt/cuaaX/ device to become inactive, and then wait for the
+          carrier detect line to go active.  When you open the <tt/cuaaX/
+          device, it makes sure the serial port isn't already in use by the
+          <tt/ttydX/ device.  If the port's available, it ``steals'' it
+          from the <tt/ttydX/ device.  Also, the <tt/cuaXX/ device doesn't
+          care about carrier detect.  With this scheme and an auto-answer
+          modem, you can have remote users log in and you can still dialout
+          with the same modem and the system will take care of all the
+          conflicts.
+
+      <sect1> How do I configure the kernel for my multiport serial card?
+        <p>
+          Again, the section on kernel configuration provides information
+          about configuring your kernel.  For a multiport serial card,
+          place an <tt/sio/ line for each serial port on the card in the
+          kernel configuration file.  But place the irq and vector
+          specifiers on only one of the entries.  All of the ports on the
+          card should share one irq.  For consistency, use the last serial
+          port to specify the irq.  Also, specify the
+          <tt/COM&lowbar;MULTIPORT/ option.
+
+          The following example is for an AST 4-port serial card on irq 7:
+          <verb>
+            options "COM_MULTIPORT"
+            device sio4 at isa? port 0x2a0 tty flags 0x781
+            device sio5 at isa? port 0x2a8 tty flags 0x781
+            device sio6 at isa? port 0x2b0 tty flags 0x781
+            device sio7 at isa? port 0x2b8 tty flags 0x781 irq 7 vector siointr
+          </verb>
+          The flags indicate that the master port has minor number 7
+          (<tt/0x700/), diagnostics enabled during probe (<tt/0x080/), and
+          all the ports share an irq (<tt/0x001/).
+
+      <sect1> I have two multiport serial cards that can share irqs. Can
+          FreeBSD handle this?
+        <p>
+          Not yet. You'll have to use a different irq for each card.
+
+      <sect1> What's the difference between <tt/ttyd1/, <tt/ttyid1/, and
+          <tt/ttyld1/?  Or, how can I set the default serial parameters for
+          a port?
+        <p>
+          The <tt/ttyXX/ (or <tt/cuaaX/ or <tt/ttydX/) device is the
+          regular device you'll want to open for your applications.  When a
+          process opens the device, it'll have a default set of terminal
+          I/O settings.  You can see these settings with the command
+          <verb>
+            stty -a -f /dev/tty01
+          </verb>
+
+          When you change the settings to this device, the settings are in
+          effect until the device is closed.  When it's reopened, it goes
+          back to the default set.  To make changes to the default set, you
+          can open and adjust the settings of the ``initial state'' device.
+          For example, to turn on <tt/CLOCAL/ mode, 8 bits, and
+          <tt>XON/XOFF</tt> flow control by default for tty05, do:
+          <verb>
+            stty -f /dev/ttyi05 clocal cs8 ixon ixoff
+          </verb>
+
+          A good place to do this is in <tt>/etc/rc.serial</tt>. Now, an
+          application will have these settings by default when it opens
+          <tt/tty05/.  It can still change these settings to its liking,
+          though.
+
+          You can also prevent certain settings from being changed by an
+          application by making adjustments to the ``lock state'' device.
+          For example, to lock the speed of <tt/tty05/ to 57600 bps, do
+          <verb>
+            stty -f /dev/ttyl05 57600
+          </verb>
+
+          Now, an application that opens <tt/tty05/ and tries to change the
+          speed of the port will be stuck with 57600 bps.
+
+          Naturally, you should make the initial state and lock state
+          devices writable only by <tt/root/. The <tt/MAKEDEV/ script does
+          <bf/NOT/ do this when it creates the device entries.
+
+      <sect1> How can I enable dialup logins on my modem?
+        <p>
+          So you want to become an Internet service provider, eh?  First,
+          you'll need one or more modems that can autoanswer.  Your modem
+          will need to assert carrier-detect when it detects a carrier and
+          not assert it all the time.  It will need to hang up the phone
+          and reset itself when the data terminal ready (<tt/DTR/) line
+          goes from on to off.  It should probably use <tt>RTS/CTS</tt>
+          flow control or no local flow control at all.  Finally, it must
+          use a constant speed between the computer and itself, but (to be
+          nice to your callers) it should negotiate a speed between itself
+          and the remote modem.
+
+          For many Hayes command-set--compatible modems, this command will
+          make these settings and store them in nonvolatile memory:
+          <verb>
+            AT &ero;C1 &ero;D3 &ero;K3 &ero;Q6 S0=1 &ero;W
+          </verb>
+          See the section <ref id="direct-at" name="on sending AT
+          commands"> below for information on how to make these settings
+          without resorting to an MS-DOS terminal program.
+
+          Next, make an entry in <tt>/etc/ttys</tt> for the modem.  This
+          file lists all the ports on which the operating system will await
+          logins.  Add a line that looks something like this:
+          <verb>
+            ttyd1 "/usr/libexec/getty std.57600" dialup on insecure
+          </verb>
+          This line indicates that the second serial port
+          (<tt>/dev/ttyd1</tt>) has a modem connected running at 57600 bps
+          and no parity (<tt/std.57600/, which comes from the file
+          <tt>/etc/gettytab</tt>). The terminal type for this port is
+          ``dialup.''  The port is ``on'' and is ``insecure''---meaning
+          root logins on the port aren't allowed.  For dialin ports like
+          this one, use the <tt/ttydX/ entry.
+
+          It's common practice to use ``dialup'' as the terminal type.
+          Many users set up in their .profile or .login files a prompt for
+          the actual terminal type if the starting type is dialup.  The
+          example shows the port as insecure.  To become root on this port,
+          you have to login as a regular user, then ``<tt/su/'' to
+          <tt/root/.  If you use ``secure'' then <tt/root/ can login in
+          directly.
+
+          After making modifications to <tt>/etc/ttys</tt>, you need to
+          send a hangup or <tt/HUP/ signal to the <tt/init/ process:
+          <verb>
+            kill -1 1
+          </verb>
+          This forces the init process to reread <tt>/etc/ttys</tt>.  The
+          init process will then start getty processes on all ``on'' ports.
+          You can find out if logins are available for your port by typing
+          <verb>
+            ps -ax | grep '[t]tyd1'
+          </verb>
+
+          You should see something like:
+          <verb>
+            747 ??  I      0:00.04 /usr/libexec/getty std.57600 ttyd1 
+          </verb>
+
+      <sect1> How can I make my spare computer a dumb terminal connected to
+          my FreeBSD box?
+        <p>
+          If you're using another computer as a terminal into your FreeBSD
+          system, get a null modem cable to go between the two serial
+          ports.  If you're using an actual terminal, see its accompanying
+          instructions.
+
+          Then, modify <tt>/etc/ttys</tt>, like above.  For example, if
+          you're hooking up a WYSE-50 terminal to the fifth serial port,
+          use an entry like this:
+          <verb>
+            tty04 "/usr/libexec/getty std.38400" wyse50 on secure
+          </verb>
+          This example shows that the port on <tt>/dev/tty04</tt> has a
+          wyse50 terminal connected at 38400 bps with no parity
+          (<tt/std.38400/ from <tt>/etc/gettytab</tt>) and <tt/root/ logins
+          are allowed (secure).  For directly-connected terminals, use the
+          <tt/ttyXX/ entry.
+
+      <sect1>  Why can't I run <tt/tip/ or <tt/cu/?
+        <p>
+          On your system, the programs <tt/tip/ and <tt/cu/ are probably
+          executable only by <tt/uucp/ and group <tt/dialer/.  You can use
+          the group <tt/dialer/ to control who has access to your modem or
+          remote systems.  Just add yourself to group dialer.
+
+          Alternatively, you can let everyone on your system run <tt/tip/
+          and <tt/cu/ by typing:
+          <verb>
+            chmod 4511 /usr/bin/tip
+          </verb>
+          You don't have to run this command for <tt/cu/, since <tt/cu/ is
+          just a hard link to <tt/tip/.
+
+      <sect1> My stock Hayes modem isn't supported---what should I do?
+        <p>
+          Actually, the man page for <tt/tip/ is out of date.  There is a
+          generic Hayes dialer already built in.  Just use
+          ``<tt/at=hayes/'' in your <tt>/etc/remote</tt> file.
+
+          The Hayes driver isn't smart enough to recognize some of the
+          advanced features of newer modems---messages like <tt/BUSY/,
+          <tt/NO DIALTONE/, or <tt/CONNECT 115200/ will just confuse it.
+          You should turn those messages off when you use <tt/tip/ (using
+          <tt/ATX0&amp;W/).
+
+          Also, the dial timeout for <tt/tip/ is 60 seconds.  Your modem
+          should use something less, or else tip will think there's a
+          communication problem.  Try <tt/ATS7=45&amp;W/.
+
+      <sect1> How am I expected to enter these AT commands without resorting
+          to some DOS-based terminal program? <label id="direct-at">
+        <p>
+          Make what's called a ``<tt/direct/'' entry in your
+          <tt>/etc/remote</tt> file.  For example, if your modem's hooked
+          up to the first serial port, <tt>/dev/cuaa0</tt>, then put in the
+          following line:
+          <verb>
+            cuaa0:dv=/dev/cuaa0:br#19200:pa=none
+          </verb>
+          Use the highest bps rate your modem supports in the br
+          capability.  Then, type ``<tt/tip cuaa0/'' and you'll be
+          connected to your modem.
+
+          If there is no <tt>/dev/cuaa0</tt> on your system, do this:
+          <verb>
+            cd /dev
+            MAKEDEV cuaa0
+          </verb>
+
+      <sect1> Why doesn't the <tt/@/ sign for the phone number capability
+          work?
+        <p>
+          The <tt/@/ sign in the pn capability tells tip to look in
+          <tt>/etc/phones</tt> for a phone number.  But the <tt/@/ sign is
+          also a special character in capability files like
+          <tt>/etc/remote</tt>.  Escape it with a backslash:
+          <verb>
+            pn=\@
+          </verb>
+
+      <sect1> How can I dial a phone number on the command line?
+        <p>
+          Put what's called a ``<tt/generic/'' entry in your
+          <tt>/etc/remote</tt> file.  For example:
+          <verb>
+            tip115200|Dial any phone number at 115200 bps:\
+            :dv=/dev/cuaa0:br#115200:at=hayes:pa=none:du:
+            tip57600|Dial any phone number at 57600 bps:\
+            :dv=/dev/cuaa0:br#57600:at=hayes:pa=none:du:
+          </verb>
+
+          Then you can things like ``<tt/tip -115200 5551234/''.  If you
+          prefer <tt/cu/ over <tt/tip/, use a generic cu entry:
+          <verb>
+            cu115200|Use cu to dial any number at 115200bps:\
+            :dv=/dev/cuaa1:br#57600:at=hayes:pa=none:du:
+          </verb>
+          and type ``<tt/cu 5551234 -s 115200/''.
+
+      <sect1> Great---but how can I do that without having to specify the
+          bps rate on the command line?
+        <p>
+          Put in an entry for <tt/tip1200/ or <tt/cu1200/, but go ahead and
+          use whatever bps rate is appropriate with the br
+          capability. <tt/tip/ thinks a good default is 1200 bps which is
+          why it looks for a ``<tt/tip1200/'' entry.  You don't have to use
+          1200 bps, though.
+
+      <sect1> I want separate entries for various hosts I access through a
+          terminal server, but I don't want to type ``<tt/CONNECT
+          &lt;host&gt;/'' each time once I'm connected. Can <tt/tip/ do
+          that for me?
+        <p>
+          Yes. Use the <tt/cm/ capability. For example, these entries in
+          <tt>/etc/remote</tt>:
+          <verb>
+            pain|pain.deep13.com|Forrester's machine:\
+            :cm=CONNECT pain\n:tc=deep13:
+            muffin|muffin.deep13.com|Frank's machine:\
+            :cm=CONNECT muffin\n:tc=deep13:
+            deep13:Gizmonics Institute terminal server:\
+            :dv=/dev/cua02:br#38400:at=hayes:du:pa=none:pn=5551234:
+          </verb>
+
+          will let you type ``<tt/tip pain/'' or ``<tt/tip muffin/'' to
+          connect to the hosts pain or muffin; and ``<tt/tip deep13/'' to
+          get to the terminal server.
+
+      <sect1> My university has 42 billion students but only 4 modem lines.
+          Can tip automatically try each line?
+        <p>
+          Sure.  Make an entry for your university in <tt>/etc/remote</tt>
+          and use <tt>\@</tt> for the <tt/pn/ capability:
+          <verb>
+            big-university:\
+            :pn=\@:tc=dialout
+            dialout:\
+            :dv=/dev/cuaa3:br#9600:at=courier:du:pa=none:
+          </verb>
+
+          Then, list the phone numbers for the university in
+          <tt>/etc/phones</tt>:
+          <verb>
+            big-university 5551111
+            big-university 5551112
+            big-university 5551113
+            big-university 5551114
+          </verb>
+
+          <tt/tip/ will try each one in the listed order, then give up.  If
+          you want to keep retrying, run <tt/tip/ in a while loop.
+
+      <sect1> How come I have to hit CTRL+P twice to send CTRL+P once?
+        <p>
+          CTRL+P is the default ``force'' character, used to tell <tt/tip/
+          that the next character is literal data.  You can set the force
+          character to any other character with the <tt/~s/ escape, which
+          means ``set a variable.''
+
+          Type ``<tt/~sforce=&lt;single-char&gt;/'' followed by a newline.
+          <tt/&lt;single-char&gt;/ is any single character.  If you leave
+          out <tt/&lt;single-char&gt;/, then the force character is the nul
+          character, which you can get by typing CTRL+2 or CTRL+SPACE.  A
+          pretty good value for <tt/&lt;single-char&gt;/ is SHIFT+CTRL+6,
+          which I've seen only used on some terminal servers.
+
+          You can have the force character be whatever you want by
+          specifying the following in your <tt>&dollar;HOME/.tiprc</tt>
+          file:
+          <verb>
+            force=<single-char>
+          </verb>
+
+      <sect1> Suddenly everything I type is all UPPER CASE.  What gives?
+        <p>
+          You must've pressed CTRL+A, <tt/tip/'s ``raise character,''
+          specially designed for people with broken caps-lock keys. Use
+          <tt/~s/ as above and set the variable ``raisechar'' to something
+          reasonable.  In fact, you can set it to the same as the force
+          character, if you never expect to use either of these features.
+
+          Here's a sample .tiprc file perfect for Emacs users who need to
+          type CTRL+2 and CTRL+A a lot:
+          <verb>
+            force=^^
+            raisechar=^^
+          </verb>
+          The ^^ is SHIFT+CTRL+6.
+
+      <sect1> How can I do file transfers with <tt/tip/?
+        <p>
+          If you're talking to another UNIX system, you can send and
+          receive files with <tt/~p/ (put) and <tt/~t/ (take).  These
+          commands run ``<tt/cat/'' and ``<tt/echo/'' on the remote system
+          to accept and send files.  The syntax is:
+          <verb>
+            ~p <local-file> [<remote-file>]
+            ~t <remote-file> [<local-file>]
+          </verb>
+
+          There's no error checking, so you probably should use another
+          protocol, like zmodem.
+
+      <sect1> Okay, how can I run zmodem with <tt/tip/?
+        <p>
+          To receive files, start the sending program on the remote end.
+          Then, type ``<tt/~C rz/'' to begin receiving them locally.
+
+          To send files, start the receiving program on the remote end.
+          Then, type ``<tt/~C sz &lt;files&gt;/'' to send them to the
+          remote system.
+
+    </sect>
+
+    <sect>ACKNOWLEDGMENTS
+
+      <p>
+        <code>
+          If you see a problem with this FAQ, or wish to submit an entry,
+          please mail us at <FAQ@FreeBSD.ORG>.  We appreciate your
+          feedback, and cannot make this a better FAQ without your help!
+
+
+                                              FreeBSD Core Team
+        </code>
+
+        <descrip>
+          <tag/Ollivier Robert/
+            FreeBSD FAQ maintenance man 
+          <tag/Gary Clark II/
+            Ex-FreeBSD FAQ maintenance man  
+          <tag/Jordan Hubbard/
+            Janitorial services (I don't do windows)
+          <tag/Garrett Wollman/
+            Networking and formatting
+          <tag/Robert Oliver, Jr./
+            Ideas and dumb questions (That made me think)
+          <tag/Jim Lowe/
+            Multicast information 
+          <tag/The FreeBSD Team/
+            Kvetching, moaning, submitting data
+        </descrip>
+
+        And to any others we've forgotten, apologies and heartfelt thanks!
+  </article>
