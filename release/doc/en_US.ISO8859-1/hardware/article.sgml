@@ -788,7 +788,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Promise SuperTrak ATA RAID controllers (pst
+    <para arch="i386">Promise SuperTrak ATA RAID controllers (&man.pst.4;
     driver)
       <itemizedlist>
 	<listitem>
