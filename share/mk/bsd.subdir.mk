@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 # The include file <bsd.subdir.mk> contains the default targets
-# for building subdirectories. 
+# for building subdirectories.
 #
 # For all of the directories listed in the variable SUBDIRS, the
 # specified directory will be visited and the target made. There is

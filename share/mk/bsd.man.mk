@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# The include file <bsd.man.mk> handles installing manual pages and 
+# The include file <bsd.man.mk> handles installing manual pages and
 # their links.
 #
 #
@@ -26,11 +26,11 @@
 #		stdout. [${COMPRESS_CMD}]
 #
 # MLINKS	List of manual page links (using a suffix). The
-#		linked-to file must come first, the linked file 
-#		second, and there may be multiple pairs. The files 
+#		linked-to file must come first, the linked file
+#		second, and there may be multiple pairs. The files
 #		are hard-linked.
 #
-# NO_MANCOMPRESS	If you do not want unformatted manual pages to be 
+# NO_MANCOMPRESS	If you do not want unformatted manual pages to be
 #		compressed when they are installed. [not set]
 #
 # NO_MLINKS	If you do not want install manual page links. [not set]

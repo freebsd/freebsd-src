@@ -11,7 +11,7 @@
 # DISTDIR	Change the tree where the file for a distribution
 # 		gets installed (see /usr/src/release/Makefile). [not set]
 #
-# COMPRESS_CMD	Program to compress documents. 
+# COMPRESS_CMD	Program to compress documents.
 #		Output is to stdout. [gzip -cn]
 #
 # COMPRESS_EXT	File name extension of ${COMPRESS_CMD} command. [.gz]
