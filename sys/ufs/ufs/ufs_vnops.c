@@ -444,7 +444,7 @@ ufs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != ip->i_uid &&
-		    (error = suser_xxx(cred, p, PRISON_ROOT)))
+		    (error = suser(p)))
 			return (error);
 		if (cred->cr_uid == 0) {
 			if ((ip->i_flags
