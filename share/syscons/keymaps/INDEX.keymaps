@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.18 1998/06/13 18:39:22 steve Exp $
+# $Id: INDEX.keymaps,v 1.19 1998/07/29 18:49:45 sos Exp $
 #
 # database for kbdmap(8) 
 #
@@ -79,6 +79,8 @@ german.cp850.kbd:en:German Codepage 850
 german.cp850.kbd:de:Deutsch Codeseite 850
 german.cp850.kbd:fr:Allemand Code page 850
 german.cp850.kbd:pt:Alemão Codepage 850
+
+hungarian.iso2.kbd:en:Hungarian ISO-8859-2
 
 icelandic.iso.kbd:en:Icelandic ISO-8859-1
 icelandic.iso.kbd:pt:Islandês ISO-8859-1
