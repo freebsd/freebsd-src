@@ -49,6 +49,8 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 
+#include <vm/vm_zone.h>
+
 #include <stddef.h>
 
 static MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
@@ -280,6 +282,7 @@ ktrace(curp, uap)
 			curp->p_traceflag &= ~KTRFAC_ACTIVE;
 			return (error);
 		}
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vp = nd.ni_vp;
 		VOP_UNLOCK(vp, 0, curp);
 		if (vp->v_type != VREG) {

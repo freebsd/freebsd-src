@@ -1650,7 +1650,7 @@ svr4_sys_resolvepath(p, uap)
 	*retval = strlen(nd.ni_cnd.cn_pnbuf) < SCARG(uap, bufsiz) ? 
 	  strlen(nd.ni_cnd.cn_pnbuf) + 1 : SCARG(uap, bufsiz);
 bad:
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
-	zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
 	return error;
 }

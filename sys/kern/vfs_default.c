@@ -63,7 +63,6 @@ static int vop_nostrategy __P((struct vop_strategy_args *));
 vop_t **default_vnodeop_p;
 static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_eopnotsupp },
-	{ &vop_abortop_desc,		(vop_t *) vop_null },
 	{ &vop_advlock_desc,		(vop_t *) vop_einval },
 	{ &vop_bwrite_desc,		(vop_t *) vop_stdbwrite },
 	{ &vop_close_desc,		(vop_t *) vop_null },

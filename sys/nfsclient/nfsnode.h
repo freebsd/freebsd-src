@@ -194,7 +194,6 @@ int	nfs_getpages __P((struct vop_getpages_args *));
 int	nfs_putpages __P((struct vop_putpages_args *));
 int	nfs_write __P((struct vop_write_args *));
 int	nqnfs_vop_lease_check __P((struct vop_lease_args *));
-int	nfs_abortop __P((struct vop_abortop_args *));
 int	nfs_inactive __P((struct vop_inactive_args *));
 int	nfs_reclaim __P((struct vop_reclaim_args *));
 

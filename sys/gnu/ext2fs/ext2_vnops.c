@@ -329,22 +329,18 @@ ext2_link(ap)
 		panic("ufs_link: no name");
 #endif
 	if (tdvp->v_mount != vp->v_mount) {
-		VOP_ABORTOP(tdvp, cnp);
 		error = EXDEV;
 		goto out2;
 	}
 	if (tdvp != vp && (error = vn_lock(vp, LK_EXCLUSIVE, p))) {
-		VOP_ABORTOP(tdvp, cnp);
 		goto out2;
 	}
 	ip = VTOI(vp);
 	if ((nlink_t)ip->i_nlink >= LINK_MAX) {
-		VOP_ABORTOP(tdvp, cnp);
 		error = EMLINK;
 		goto out1;
 	}
 	if (ip->i_flags & (IMMUTABLE | APPEND)) {
-		VOP_ABORTOP(tdvp, cnp);
 		error = EPERM;
 		goto out1;
 	}
@@ -357,7 +353,6 @@ ext2_link(ap)
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
 	}
-	zfree(namei_zone, cnp->cn_pnbuf);
 out1:
 	if (tdvp != vp)
 		VOP_UNLOCK(vp, 0, p);
@@ -405,14 +400,12 @@ ext2_rename(ap)
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
 		error = EXDEV;
 abortit:
-		VOP_ABORTOP(tdvp, tcnp); /* XXX, why not in NFS? */
 		if (tdvp == tvp)
 			vrele(tdvp);
 		else
 			vput(tdvp);
 		if (tvp)
 			vput(tvp);
-		VOP_ABORTOP(fdvp, fcnp); /* XXX, why not in NFS? */
 		vrele(fdvp);
 		vrele(fvp);
 		return (error);
@@ -446,7 +439,6 @@ abortit:
 		}
 
 		/* Release destination completely. */
-		VOP_ABORTOP(tdvp, tcnp);
 		vput(tdvp);
 		vput(tvp);
 
@@ -460,8 +452,6 @@ abortit:
 		vrele(fvp);
 		fcnp->cn_flags &= ~MODMASK;
 		fcnp->cn_flags |= LOCKPARENT | LOCKLEAF;
-		if ((fcnp->cn_flags & SAVESTART) == 0)
-			panic("ufs_rename: lost from startdir");
 		fcnp->cn_nameiop = DELETE;
 		VREF(fdvp);
 		error = relookup(fdvp, &fvp, fcnp);
@@ -558,8 +548,6 @@ abortit:
 		error = ext2_checkpath(ip, dp, tcnp->cn_cred);
 		if (error)
 			goto out;
-		if ((tcnp->cn_flags & SAVESTART) == 0)
-			panic("ufs_rename: lost to startdir");
 		VREF(tdvp);
 		error = relookup(tdvp, &tvp, tcnp);
 		if (error)
@@ -687,8 +675,6 @@ abortit:
 	 */
 	fcnp->cn_flags &= ~MODMASK;
 	fcnp->cn_flags |= LOCKPARENT | LOCKLEAF;
-	if ((fcnp->cn_flags & SAVESTART) == 0)
-		panic("ufs_rename: lost from startdir");
 	VREF(fdvp);
 	error = relookup(fdvp, &fvp, fcnp);
 	if (error == 0)
@@ -873,7 +859,6 @@ ext2_mkdir(ap)
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
 	    	(error = chkiq(ip, 1, ucp, 0))) {
-			zfree(namei_zone, cnp->cn_pnbuf);
 			UFS_VFREE(tvp, ip->i_number, dmode);
 			vput(tvp);
 			return (error);
@@ -885,7 +870,6 @@ ext2_mkdir(ap)
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
-		zfree(namei_zone, cnp->cn_pnbuf);
 		UFS_VFREE(tvp, ip->i_number, dmode);
 		vput(tvp);
 		return (error);
@@ -956,7 +940,6 @@ bad:
 	} else
 		*ap->a_vpp = tvp;
 out:
-	zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 #undef  DIRBLKSIZ
 #define DIRBLKSIZ  DEV_BSIZE
@@ -1093,7 +1076,6 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 
 	error = UFS_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
 	if (error) {
-		zfree(namei_zone, cnp->cn_pnbuf);
 		return (error);
 	}
 	ip = VTOI(tvp);
@@ -1138,7 +1120,6 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
 	    	(error = chkiq(ip, 1, ucp, 0))) {
-			zfree(namei_zone, cnp->cn_pnbuf);
 			UFS_VFREE(tvp, ip->i_number, mode);
 			vput(tvp);
 			return (error);
@@ -1150,7 +1131,6 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
-		zfree(namei_zone, cnp->cn_pnbuf);
 		UFS_VFREE(tvp, ip->i_number, mode);
 		vput(tvp);
 		return (error);
@@ -1178,8 +1158,6 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	if (error)
 		goto bad;
 
-	if ((cnp->cn_flags & SAVESTART) == 0)
-		zfree(namei_zone, cnp->cn_pnbuf);
 	*vpp = tvp;
 	return (0);
 
@@ -1188,7 +1166,6 @@ bad:
 	 * Write error occurred trying to update the inode
 	 * or the directory so must deallocate the inode.
 	 */
-	zfree(namei_zone, cnp->cn_pnbuf);
 	ip->i_nlink = 0;
 	ip->i_flag |= IN_CHANGE;
 	vput(tvp);

@@ -44,6 +44,8 @@
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_util.h>
 
+#include <vm/vm_zone.h>
+
 struct linux_newstat {
 	u_short	stat_dev;
 	u_short	__pad1;
@@ -118,6 +120,7 @@ linux_newstat(struct proc *p, struct linux_newstat_args *args)
 	error = namei(&nd);
 	if (error)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	error = vn_stat(nd.ni_vp, &buf, p);
 	vput(nd.ni_vp);
@@ -154,6 +157,7 @@ linux_newlstat(p, uap)
 	error = namei(&nd);
 	if (error)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF); 
 
 	vp = nd.ni_vp;
 	error = vn_stat(vp, &sb, p);
@@ -224,6 +228,7 @@ linux_statfs(struct proc *p, struct linux_statfs_args *args)
 	error = namei(ndp);
 	if (error)
 		return error;
+	NDFREE(ndp, NDF_ONLY_PNBUF);
 	mp = ndp->ni_vp->v_mount;
 	bsd_statfs = &mp->mnt_stat;
 	vrele(ndp->ni_vp);

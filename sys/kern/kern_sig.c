@@ -62,6 +62,8 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 
+#include <vm/vm_zone.h>
+
 #include <machine/cpu.h>
 #ifdef SMP
 #include <machine/smp.h>
@@ -1604,6 +1606,7 @@ coredump(p)
 	free(name, M_TEMP);
 	if (error)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
 	/* Don't dump to non-regular files or files with links. */

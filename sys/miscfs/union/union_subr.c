@@ -846,8 +846,6 @@ union_relookup(um, dvp, vpp, cnp, cn, path, pathlen)
 	 * by namei, some of the work done by lookup and some of
 	 * the work done by VOP_LOOKUP when given a CREATE flag.
 	 * Conclusion: Horrible.
-	 *
-	 * The pathname buffer will be FREEed by VOP_MKDIR.
 	 */
 	cn->cn_namelen = pathlen;
 	cn->cn_pnbuf = zalloc(namei_zone);
@@ -874,8 +872,6 @@ union_relookup(um, dvp, vpp, cnp, cn, path, pathlen)
 	 */
 
 	if ((error = relookup(dvp, vpp, cn)) != 0) {
-		zfree(namei_zone, cn->cn_pnbuf);
-		cn->cn_pnbuf = NULL;
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, cnp->cn_proc);
 		return(error);
 	}
@@ -921,7 +917,10 @@ union_mkshadow(um, dvp, cnp, vpp)
 		return (error);
 
 	if (*vpp) {
-		VOP_ABORTOP(dvp, &cn);
+		if (cn.cn_flags & HASBUF) {
+			zfree(namei_zone, cn.cn_pnbuf);
+			cn.cn_flags &= ~HASBUF;
+		}
 		if (dvp == *vpp)
 			vrele(*vpp);
 		else
@@ -946,6 +945,10 @@ union_mkshadow(um, dvp, cnp, vpp)
 	VOP_LEASE(dvp, p, cn.cn_cred, LEASE_WRITE);
 
 	error = VOP_MKDIR(dvp, vpp, &cn, &va);
+	if (cn.cn_flags & HASBUF) {
+		zfree(namei_zone, cn.cn_pnbuf);
+		cn.cn_flags &= ~HASBUF;
+	}
 	/*vput(dvp);*/
 	return (error);
 }
@@ -976,7 +979,10 @@ union_mkwhiteout(um, dvp, cnp, path)
 		return (error);
 
 	if (wvp) {
-		VOP_ABORTOP(dvp, &cn);
+		if (cn.cn_flags & HASBUF) {
+			zfree(namei_zone, cn.cn_pnbuf);
+			cn.cn_flags &= ~HASBUF;
+		}
 		if (wvp == dvp)
 			vrele(wvp);
 		else
@@ -988,8 +994,10 @@ union_mkwhiteout(um, dvp, cnp, path)
 	VOP_LEASE(dvp, p, p->p_ucred, LEASE_WRITE);
 
 	error = VOP_WHITEOUT(dvp, &cn, CREATE);
-	if (error)
-		VOP_ABORTOP(dvp, &cn);
+	if (cn.cn_flags & HASBUF) {
+		zfree(namei_zone, cn.cn_pnbuf);
+		cn.cn_flags &= ~HASBUF;
+	}
 	return (error);
 }
 
@@ -1059,7 +1067,10 @@ union_vn_create(vpp, un, p)
 	 */
 	if (vp) {
 		vput(un->un_dirvp);
-		VOP_ABORTOP(un->un_dirvp, &cn);
+		if (cn.cn_flags & HASBUF) {
+			zfree(namei_zone, cn.cn_pnbuf);
+			cn.cn_flags &= ~HASBUF;
+		}
 		if (vp == un->un_dirvp)
 			vrele(vp);
 		else
@@ -1082,6 +1093,10 @@ union_vn_create(vpp, un, p)
 	vap->va_mode = cmode;
 	VOP_LEASE(un->un_dirvp, p, cred, LEASE_WRITE);
 	error = VOP_CREATE(un->un_dirvp, &vp, &cn, vap);
+	if (cn.cn_flags & HASBUF) {
+		zfree(namei_zone, cn.cn_pnbuf);
+		cn.cn_flags &= ~HASBUF;
+	}
 	vput(un->un_dirvp);
 	if (error)
 		return (error);

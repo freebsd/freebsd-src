@@ -138,7 +138,6 @@ static int	nfs_bwrite __P((struct vop_bwrite_args *));
 vop_t **nfsv2_vnodeop_p;
 static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_abortop_desc,		(vop_t *) nfs_abortop },
 	{ &vop_access_desc,		(vop_t *) nfs_access },
 	{ &vop_advlock_desc,		(vop_t *) nfs_advlock },
 	{ &vop_bmap_desc,		(vop_t *) nfs_bmap },
@@ -1249,11 +1248,9 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 	else if (vap->va_type == VFIFO || vap->va_type == VSOCK)
 		rdev = nfs_xdrneg1;
 	else {
-		VOP_ABORTOP(dvp, cnp);
 		return (EOPNOTSUPP);
 	}
 	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) != 0) {
-		VOP_ABORTOP(dvp, cnp);
 		return (error);
 	}
 	nfsstats.rpccnt[NFSPROC_MKNOD]++;
@@ -1304,7 +1301,6 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 			cache_enter(dvp, newvp, cnp);
 		*vpp = newvp;
 	}
-	zfree(namei_zone, cnp->cn_pnbuf);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
@@ -1363,7 +1359,6 @@ nfs_create(ap)
 		return (nfs_mknodrpc(dvp, ap->a_vpp, cnp, vap));
 
 	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) != 0) {
-		VOP_ABORTOP(dvp, cnp);
 		return (error);
 	}
 	if (vap->va_vaflags & VA_EXCLUSIVE)
@@ -1430,8 +1425,6 @@ again:
 			cache_enter(dvp, newvp, cnp);
 		*ap->a_vpp = newvp;
 	}
-	if (error || (cnp->cn_flags & SAVESTART) == 0)
-		zfree(namei_zone, cnp->cn_pnbuf);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
@@ -1503,7 +1496,6 @@ nfs_remove(ap)
 			error = 0;
 	} else if (!np->n_sillyrename)
 		error = nfs_sillyrename(dvp, vp, cnp);
-	zfree(namei_zone, cnp->cn_pnbuf);
 	np->n_attrstamp = 0;
 	return (error);
 }
@@ -1623,14 +1615,12 @@ nfs_rename(ap)
 	}
 
 out:
-	VOP_ABORTOP(tdvp, tcnp);
 	if (tdvp == tvp)
 		vrele(tdvp);
 	else
 		vput(tdvp);
 	if (tvp)
 		vput(tvp);
-	VOP_ABORTOP(fdvp, fcnp);
 	vrele(fdvp);
 	vrele(fvp);
 	/*
@@ -1722,7 +1712,6 @@ nfs_link(ap)
 	int v3;
 
 	if (vp->v_mount != tdvp->v_mount) {
-		VOP_ABORTOP(tdvp, cnp);
 		return (EXDEV);
 	}
 
@@ -1746,7 +1735,6 @@ nfs_link(ap)
 		nfsm_wcc_data(tdvp, wccflag);
 	}
 	nfsm_reqdone;
-	zfree(namei_zone, cnp->cn_pnbuf);
 	VTONFS(tdvp)->n_flag |= NMODIFIED;
 	if (!attrflag)
 		VTONFS(vp)->n_attrstamp = 0;
@@ -1856,12 +1844,6 @@ nfs_symlink(ap)
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
-	/*
-	 * cnp's buffer expected to be freed if SAVESTART not set or
-	 * if an error was returned.
-	 */
-	if (error || (cnp->cn_flags & SAVESTART) == 0)
-		zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 }
 
@@ -1895,7 +1877,6 @@ nfs_mkdir(ap)
 	int v3 = NFS_ISV3(dvp);
 
 	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) != 0) {
-		VOP_ABORTOP(dvp, cnp);
 		return (error);
 	}
 	len = cnp->cn_namelen;
@@ -1946,8 +1927,6 @@ nfs_mkdir(ap)
 			vrele(newvp);
 	} else
 		*ap->a_vpp = newvp;
-	if (error || (cnp->cn_flags & SAVESTART) == 0)
-		zfree(namei_zone, cnp->cn_pnbuf);
 	return (error);
 }
 
@@ -1984,7 +1963,6 @@ nfs_rmdir(ap)
 	if (v3)
 		nfsm_wcc_data(dvp, wccflag);
 	nfsm_reqdone;
-	zfree(namei_zone, cnp->cn_pnbuf);
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;

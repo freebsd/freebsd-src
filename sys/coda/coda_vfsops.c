@@ -56,6 +56,8 @@
 #include <sys/mount.h>
 #include <sys/select.h>
 
+#include <vm/vm_zone.h>
+
 #include <coda/coda.h>
 #include <coda/cnode.h>
 #include <coda/coda_vfsops.h>
@@ -134,7 +136,6 @@ coda_mount(vfsp, path, data, ndp, p)
     }
     
     /* Validate mount device.  Similar to getmdev(). */
-
     NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, data, p);
     error = namei(ndp);
     dvp = ndp->ni_vp;
@@ -146,10 +147,12 @@ coda_mount(vfsp, path, data, ndp, p)
     if (dvp->v_type != VCHR) {
 	MARK_INT_FAIL(CODA_MOUNT_STATS);
 	vrele(dvp);
+	NDFREE(ndp, NDF_ONLY_PNBUF);
 	return(ENXIO);
     }
     dev = dvp->v_rdev;
     vrele(dvp);
+    NDFREE(ndp, NDF_ONLY_PNBUF);
 
     /*
      * See if the device table matches our expectations.

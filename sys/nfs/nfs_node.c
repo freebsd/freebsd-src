@@ -388,20 +388,3 @@ nfs_islocked(ap)
 }
 #endif
 
-/*
- * Nfs abort op, called after namei() when a CREATE/DELETE isn't actually
- * done. Currently nothing to do.
- */
-/* ARGSUSED */
-int
-nfs_abortop(ap)
-	struct vop_abortop_args /* {
-		struct vnode *a_dvp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-
-	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
-	return (0);
-}

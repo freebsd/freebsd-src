@@ -534,6 +534,7 @@ vniocattach_file(vn, vio, dev, flag, p)
 		if (error)
 			return (error);
 	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG ||
 	    (error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, p))) {
 		VOP_UNLOCK(nd.ni_vp, 0, p);
