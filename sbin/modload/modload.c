@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.2 1994/08/19 13:28:21 davidg Exp $
+ *	$Id: modload.c,v 1.3 1994/09/18 04:12:13 davidg Exp $
  */
 
 #include <stdio.h>
@@ -65,6 +65,8 @@
 
 int debug = 0;
 int verbose = 0;
+int quiet = 0;
+int dounlink = 0;
 
 int
 linkcmd(kernel, entry, outfile, address, object)
@@ -108,7 +110,7 @@ usage()
 {
 
 	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "modload [-d] [-v] [-A <kernel>] [-e <entry]\n");
+	fprintf(stderr, "modload [-d] [-v] [-q] [-u] [-A <kernel>] [-e <entry]\n");
 	fprintf(stderr,
 	    "[-p <postinstall>] [-o <output file>] <input file>\n");
 	exit(1);
@@ -159,7 +161,7 @@ main(argc, argv)
 	int sz, bytesleft;
 	char buf[MODIOBUF];
 
-	while ((c = getopt(argc, argv, "dvA:e:p:o:")) != EOF) {
+	while ((c = getopt(argc, argv, "dvquA:e:p:o:")) != EOF) {
 		switch (c) {
 		case 'd':
 			debug = 1;
@@ -167,6 +169,12 @@ main(argc, argv)
 		case 'v':
 			verbose = 1;
 			break;	/* verbose */
+		case 'u':
+			dounlink = 1;
+			break;
+		case 'q':
+			quiet = 1;
+			break;
 		case 'A':
 			kname = optarg;
 			break;	/* kernel */
@@ -329,7 +337,7 @@ main(argc, argv)
 	 * Success!
 	 */
 	fileopen &= ~PART_RESRV;	/* loaded */
-	printf("Module loaded as ID %d\n", resrv.slot);
+	if(!quiet) printf("Module loaded as ID %d\n", resrv.slot);
 
 	if (post) {
 	    struct lmc_stat sbuf;
@@ -346,5 +354,12 @@ main(argc, argv)
 	    execl(post, post, id, type, offset, 0);
 	    err(16, "can't exec '%s'", post);
 	}
+
+	if(dounlink) {
+		if(unlink(out)) {
+			err(17, "unlink(%s)", out);
+		}
+	}
+
 	return 0;
 }
