@@ -490,6 +490,7 @@ trchan_trigger(void *data, int go)
 {
 	struct tr_chinfo *ch = data;
 	struct tr_info *tr = ch->parent;
+	if (go == PCMTRIG_EMLDMAWR) return 0;
 	if (ch->index >= 0) {
 		if (go == PCMTRIG_START) tr_startch(tr, ch->index);
 		else tr_stopch(tr, ch->index);

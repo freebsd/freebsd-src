@@ -860,6 +860,7 @@ static int
 sbchan_trigger(void *data, int go)
 {
 	struct sb_chinfo *ch = data;
+	if (go == PCMTRIG_EMLDMAWR) return 0;
 	buf_isadma(ch->buffer, go);
 	if (go == PCMTRIG_START) sb_start(ch); else sb_stop(ch);
 	return 0;
@@ -928,6 +929,7 @@ static int
 esschan_trigger(void *data, int go)
 {
 	struct sb_chinfo *ch = data;
+	if (go == PCMTRIG_EMLDMAWR) return 0;
 	switch (go) {
 	case PCMTRIG_START:
 		if (!ch->ess_dma_started)

@@ -1720,6 +1720,7 @@ msschan_trigger(void *data, int go)
 {
 	struct mss_chinfo *ch = data;
 
+	if (go == PCMTRIG_EMLDMAWR) return 0;
 	buf_isadma(ch->buffer, go);
 	mss_trigger(ch, go);
 	return 0;

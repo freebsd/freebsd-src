@@ -217,14 +217,14 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
      	 * we start with the new ioctl interface.
      	 */
     	case AIONWRITE:	/* how many bytes can write ? */
-		if (wrch && wrch->buffer.dl) chn_dmaupdate(wrch);
-		*arg_i = wrch? wrch->buffer.fl : 0;
+		if (wrch && wrch->buffer.dl)
+			while (chn_wrfeed(wrch) > 0);
+		*arg_i = wrch? wrch->buffer2nd.fl : 0;
 		break;
 
     	case AIOSSIZE:     /* set the current blocksize */
 		{
 	    		struct snd_size *p = (struct snd_size *)arg;
-	    		splx(s);
 	    		if (wrch) chn_setblocksize(wrch, p->play_size);
 	    		if (rdch) chn_setblocksize(rdch, p->rec_size);
 		}
@@ -232,15 +232,14 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case AIOGSIZE:	/* get the current blocksize */
 		{
 	    		struct snd_size *p = (struct snd_size *)arg;
-	    		if (wrch) p->play_size = wrch->blocksize;
-	    		if (rdch) p->rec_size = rdch->blocksize;
+	    		if (wrch) p->play_size = wrch->blocksize2nd;
+	    		if (rdch) p->rec_size = rdch->blocksize2nd;
 		}
 		break;
 
     	case AIOSFMT:
 		{
 	    		snd_chan_param *p = (snd_chan_param *)arg;
-	    		splx(s);
 	    		if (wrch) {
 				chn_setformat(wrch, p->play_format);
 				chn_setspeed(wrch, p->play_rate);
@@ -272,8 +271,8 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	                      		  pcaps? pcaps->minspeed : 0);
 	    		p->rate_max = min(rcaps? rcaps->maxspeed : 1000000,
 	                      		  pcaps? pcaps->maxspeed : 1000000);
-	    		p->bufsize = min(rdch? rdch->buffer.bufsize : 1000000,
-	                     		 wrch? wrch->buffer.bufsize : 1000000);
+	    		p->bufsize = min(rdch? rdch->buffer2nd.bufsize : 1000000,
+	                     		 wrch? wrch->buffer2nd.bufsize : 1000000);
 			/* XXX bad on sb16 */
 	    		p->formats = (rcaps? rcaps->formats : 0xffffffff) &
 			 	     (pcaps? pcaps->formats : 0xffffffff);
@@ -287,7 +286,6 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		if (*arg_i == AIOSYNC_PLAY && wrch) *arg_i = chn_abort(wrch);
 		else if (*arg_i == AIOSYNC_CAPTURE && rdch) *arg_i = chn_abort(rdch);
 		else {
-		    	splx(s);
 	   	 	printf("AIOSTOP: bad channel 0x%x\n", *arg_i);
 	    		*arg_i = 0;
 		}
@@ -301,8 +299,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	 * here follow the standard ioctls (filio.h etc.)
 	 */
     	case FIONREAD: /* get # bytes to read */
-		if (rdch && rdch->buffer.dl) chn_dmaupdate(rdch);
-		*arg_i = rdch? rdch->buffer.rl : 0;
+		if (rdch && rdch->buffer.dl)
+			while (chn_rdfeed(rdch) > 0);
+		*arg_i = rdch? rdch->buffer2nd.rl : 0;
 		break;
 
     	case FIOASYNC: /*set/clear async i/o */
@@ -325,17 +324,22 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 #define THE_REAL_SNDCTL_DSP_GETBLKSIZE _IOWR('P', 4, int)
     	case THE_REAL_SNDCTL_DSP_GETBLKSIZE:
     	case SNDCTL_DSP_GETBLKSIZE:
-		*arg_i = CHN_2NDBUFBLKSIZE;
+		if (wrch)
+			*arg_i = wrch->blocksize2nd;
+		else if (rdch)
+			*arg_i = rdch->blocksize2nd;
+		else
+			*arg_i = 0;
 		break ;
 
     	case SNDCTL_DSP_SETBLKSIZE:
-		splx(s);
 		if (wrch) chn_setblocksize(wrch, *arg_i);
 		if (rdch) chn_setblocksize(rdch, *arg_i);
 		break;
 
     	case SNDCTL_DSP_RESET:
 		DEB(printf("dsp reset\n"));
+		splx(s);
 		if (wrch) chn_abort(wrch);
 		if (rdch) chn_abort(rdch);
 		break;
@@ -343,7 +347,7 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case SNDCTL_DSP_SYNC:
 		DEB(printf("dsp sync\n"));
 		splx(s);
-		if (wrch) chn_sync(wrch, wrch->buffer.bufsize - 4);
+		if (wrch) chn_sync(wrch, wrch->buffer2nd.bufsize - 4);
 		break;
 
     	case SNDCTL_DSP_SPEED:
@@ -400,30 +404,49 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		    	int bytes = 1 << min(*arg_i & 0xffff, 16);
      		    	int count = (*arg_i >> 16) & 0xffff;
 			pcm_channel *c = wrch? wrch : rdch;
-	    		splx(s);
-		    	if (rdch) chn_setblocksize(rdch, bytes);
-		    	if (wrch) chn_setblocksize(wrch, bytes);
+			if (count == 0)
+				count = CHN_2NDBUFWHOLESIZE / bytes;
+			if (count < 2) {
+				ret = EINVAL;
+				break;
+			}
+		    	if (rdch) {
+				chn_setblocksize(rdch, bytes * count);
+				rdch->blocksize2nd = bytes;
+				rdch->fragments = rdch->buffer2nd.bufsize / rdch->blocksize2nd;
+			}
+		    	if (wrch) {
+				chn_setblocksize(wrch, bytes * count);
+				wrch->blocksize2nd = bytes;
+				wrch->fragments = wrch->buffer2nd.bufsize / wrch->blocksize2nd;
+			}
 
 			/* eg: 4dwave can only interrupt at buffer midpoint, so
 			 * it will force blocksize == bufsize/2
 			 */
-	    		count = c->buffer.bufsize / c->blocksize;
-	    		bytes = ffs(c->blocksize) - 1;
+	    		count = c->buffer2nd.bufsize / c->blocksize2nd;
+	    		bytes = ffs(c->blocksize2nd) - 1;
 	    		*arg_i = (count << 16) | bytes;
 		}
 		break;
 
-    	case SNDCTL_DSP_GETISPACE:
-		/* return space available in the input queue */
+    	case SNDCTL_DSP_GETISPACE: /* XXX Space for reading? Makes no sense... */
+		/* return the size of data available in the input queue */
 		{
 	    		audio_buf_info *a = (audio_buf_info *)arg;
 	    		if (rdch) {
 	        		snd_dbuf *b = &rdch->buffer;
-	        		if (b->dl) chn_dmaupdate(rdch);
-				a->bytes = b->fl;
-	        		a->fragments = 1;
-	        		a->fragstotal = b->bufsize / rdch->blocksize;
-	        		a->fragsize = rdch->blocksize;
+	        		snd_dbuf *bs = &rdch->buffer2nd;
+				if (b->dl)
+					/*
+					 * Suck up the secondary and DMA buffer.
+					 * chn_rdfeed*() takes care of the alignment.
+					 */
+					while (chn_rdfeed(rdch) > 0);
+				a->bytes = bs->rl;
+	        		a->fragments = a->bytes / rdch->blocksize2nd;
+	        		a->fragstotal = bs->bufsize / rdch->blocksize2nd;
+	        		a->fragsize = rdch->blocksize2nd;
 	    		}
 		}
 		break;
@@ -434,11 +457,20 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	    		audio_buf_info *a = (audio_buf_info *)arg;
 	    		if (wrch) {
 	        		snd_dbuf *b = &wrch->buffer;
-	        		if (b->dl) chn_dmaupdate(wrch);
-				a->bytes = b->fl;
-	        		a->fragments = 1;
-	        		a->fragstotal = b->bufsize / wrch->blocksize;
-	        		a->fragsize = wrch->blocksize;
+	        		snd_dbuf *bs = &wrch->buffer2nd;
+				if (b->dl) {
+					/*
+					 * Fill up the secondary and DMA buffer.
+					 * chn_wrfeed*() takes care of the alignment.
+					 * Check for underflow before writing into the buffers.
+					 */
+					chn_checkunderflow(wrch);
+					while (chn_wrfeed(wrch) > 0);
+				}
+				a->bytes = bs->fl;
+	        		a->fragments = a->bytes / wrch->blocksize2nd;
+	        		a->fragstotal = bs->bufsize / wrch->blocksize2nd;
+	        		a->fragsize = wrch->blocksize2nd;
 	    		}
 		}
 		break;
@@ -447,12 +479,17 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		{
 	    		count_info *a = (count_info *)arg;
 	    		if (rdch) {
-    	        		snd_dbuf *b = &rdch->buffer;
-	        		if (b->dl) chn_dmaupdate(rdch);
-	        		a->bytes = b->total;
-	        		a->blocks = (b->total - b->prev_total) / rdch->blocksize;
-	        		a->ptr = b->fp;
-	        		b->prev_total += a->blocks * rdch->blocksize;
+	        		snd_dbuf *b = &rdch->buffer;
+	        		snd_dbuf *bs = &rdch->buffer2nd;
+	        		if (b->dl)
+					/*
+					 * Suck up the secondary and DMA buffer.
+					 * chn_rdfeed*() takes care of the alignment.
+					 */
+					while (chn_rdfeed(rdch) > 0);
+	        		a->bytes = bs->total;
+	        		a->blocks = bs->rl / rdch->blocksize2nd;
+	        		a->ptr = bs->rl % rdch->blocksize2nd;
 	    		} else ret = EINVAL;
 		}
 		break;
@@ -462,11 +499,19 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	    		count_info *a = (count_info *)arg;
 	    		if (wrch) {
     	        		snd_dbuf *b = &wrch->buffer;
-	        		if (b->dl) chn_dmaupdate(wrch);
-	        		a->bytes = b->total;
-	        		a->blocks = (b->total - b->prev_total) / wrch->blocksize;
-	        		a->ptr = b->rp;
-	        		b->prev_total += a->blocks * wrch->blocksize;
+	        		snd_dbuf *bs = &wrch->buffer2nd;
+				if (b->dl) {
+					/*
+					 * Fill up the secondary and DMA buffer.
+					 * chn_wrfeed*() takes care of the alignment.
+					 * Check for underflow before writing into the buffers.
+					 */
+					chn_checkunderflow(wrch);
+					while (chn_wrfeed(wrch) > 0);
+				}
+	        		a->bytes = bs->total;
+	        		a->blocks = bs->rl / wrch->blocksize2nd;
+	        		a->ptr = bs->fl % wrch->blocksize2nd;
 	    		} else ret = EINVAL;
 		}
 		break;
@@ -504,15 +549,17 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			*arg_i |= PCM_ENABLE_INPUT;
 		break;
 
-		case SNDCTL_DSP_GETODELAY:
-			if (wrch) {
-				snd_dbuf *b = &wrch->buffer;
-				if (b->dl)
-					chn_dmaupdate(wrch);
-				*arg = b->total;
-			} else
-				ret = EINVAL;
-			break;
+	case SNDCTL_DSP_GETODELAY:
+		if (wrch) {
+			snd_dbuf *b = &wrch->buffer;
+			if (b->dl) {
+				chn_checkunderflow(wrch);
+				while (chn_wrfeed(wrch) > 0);
+			}
+			*arg = b->total;
+		} else
+			ret = EINVAL;
+		break;
 
     	case SNDCTL_DSP_MAPINBUF:
     	case SNDCTL_DSP_MAPOUTBUF:
@@ -556,8 +603,9 @@ dsp_mmap(snddev_info *d, int chan, vm_offset_t offset, int nprot)
 	if (1 || (wrch && (nprot & PROT_WRITE))) c = wrch;
 	else if (rdch && (nprot & PROT_READ)) c = rdch;
 	if (c) {
+		printf("dsp_mmap.\n");
 		c->flags |= CHN_F_MAPPED;
-		return atop(vtophys(c->buffer.buf + offset));
+		return atop(vtophys(c->buffer2nd.buf + offset));
 	}
 	return -1;
 }

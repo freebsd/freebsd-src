@@ -35,8 +35,13 @@
 
 #define ISA_DMA(b) (((b)->chan >= 0 && (b)->chan != 4 && (b)->chan < 8))
 #define CANCHANGE(c) (!(c)->buffer.dl)
-
-static void chn_clearbuf(pcm_channel *c, int length);
+/*
+#define DEB(x) x
+*/
+static void chn_clearbuf(pcm_channel *c, snd_dbuf *b, int length);
+static void chn_dmaupdate(pcm_channel *c);
+static void chn_wrintr(pcm_channel *c);
+static void chn_rdintr(pcm_channel *c);
 /*
  * SOUND OUTPUT
 
@@ -109,23 +114,23 @@ chn_isadmabounce(pcm_channel *c)
 static int
 chn_polltrigger(pcm_channel *c)
 {
-	snd_dbuf *b = &c->buffer;
-	unsigned lim = (c->flags & CHN_F_HAS_SIZE)? c->blocksize : 1;
+	snd_dbuf *bs = &c->buffer2nd;
+	unsigned lim = (c->flags & CHN_F_HAS_SIZE)? c->blocksize2nd : 1;
 	int trig = 0;
 
 	if (c->flags & CHN_F_MAPPED)
-		trig = ((b->int_count > b->prev_int_count) || b->first_poll);
-	else trig = (((c->direction == PCMDIR_PLAY)? b->fl : b->rl) >= lim);
+		trig = ((bs->int_count > bs->prev_int_count) || bs->first_poll);
+	else trig = (((c->direction == PCMDIR_PLAY)? bs->rl : bs->fl) < lim);
 	return trig;
 }
 
 static int
 chn_pollreset(pcm_channel *c)
 {
-	snd_dbuf *b = &c->buffer;
+	snd_dbuf *bs = &c->buffer;
 
-	if (c->flags & CHN_F_MAPPED) b->prev_int_count = b->int_count;
-	b->first_poll = 0;
+	if (c->flags & CHN_F_MAPPED) bs->prev_int_count = bs->int_count;
+	bs->first_poll = 0;
 	return 1;
 }
 
@@ -138,15 +143,17 @@ chn_dmadone(pcm_channel *c)
 {
 	snd_dbuf *b = &c->buffer;
 
-	chn_dmaupdate(c);
+	if (c->direction == PCMDIR_PLAY)
+		chn_checkunderflow(c);
+	else
+		chn_dmaupdate(c);
 	if (ISA_DMA(b)) chn_isadmabounce(c); /* sync bounce buffer */
 	b->int_count++;
-	if (b->sel.si_pid && chn_polltrigger(c)) selwakeup(&b->sel);
 }
 
 /*
  * chn_dmawakeup() wakes up any process sleeping. Separated from
- * chn_dma_done() so that wakeup occurs only when feed from a
+ * chn_dmadone() so that wakeup occurs only when feed from a
  * secondary buffer to a DMA buffer takes place. Must be called
  * at spltty().
  */
@@ -167,7 +174,7 @@ chn_dmawakeup(pcm_channel *c)
  */
 DEB (static int chn_updatecount=0);
 
-void
+static void
 chn_dmaupdate(pcm_channel *c)
 {
 	snd_dbuf *b = &c->buffer;
@@ -180,13 +187,18 @@ chn_dmaupdate(pcm_channel *c)
 		b->rp = hwptr;
 		b->rl -= delta;
 		b->fl += delta;
-		DEB(if (b->rl<0) printf("OUCH!(%d) rl %d(%d) delta %d bufsize %d hwptr %d rp %d(%d)\n", chn_updatecount++, b->rl, b_rl, delta, b->bufsize, hwptr, b->rp, b_rp));
+
+		if (b->rl < 0) {
+			DEB(printf("OUCH!(%d) rl %d(%d) delta %d bufsize %d hwptr %d rp %d(%d)\n", chn_updatecount++, b->rl, b_rl, delta, b->bufsize, hwptr, b->rp, b_rp));
+		}
 	} else {
 		delta = (b->bufsize + hwptr - b->fp) % b->bufsize;
 		b->fp = hwptr;
 		b->rl += delta;
 		b->fl -= delta;
-		DEB(if (b->fl<0) printf("OUCH!(%d) fl %d(%d) delta %d bufsize %d hwptr %d fp %d(%d)\n", chn_updatecount++, b->fl, b_fl, delta, b->bufsize, hwptr, b->fp, b_fp));
+		if (b->fl < 0) {
+			DEB(printf("OUCH!(%d) fl %d(%d) delta %d bufsize %d hwptr %d fp %d(%d)\n", chn_updatecount++, b->fl, b_fl, delta, b->bufsize, hwptr, b->fp, b_fp));
+		}
 	}
 	b->total += delta;
 }
@@ -196,7 +208,7 @@ chn_dmaupdate(pcm_channel *c)
  * underflow, so that new data can go into the buffer. It must be
  * called at spltty().
  */
-static void
+void
 chn_checkunderflow(pcm_channel *c)
 {
     	snd_dbuf *b = &c->buffer;
@@ -216,7 +228,7 @@ chn_checkunderflow(pcm_channel *c)
 		b->fp = (b->rp + b->bufsize / 4) % b->bufsize;
 		b->rl = b->bufsize / 4;
 		b->fl = b->bufsize - b->rl;
-	  	b->underflow=0;
+	  	b->underflow = 0;
 	} else {
 		chn_dmaupdate(c);
 	}
@@ -226,7 +238,7 @@ chn_checkunderflow(pcm_channel *c)
  * Feeds new data to the write dma buffer. Can be called in the bottom half.
  * Hence must be called at spltty.
  */
-static int
+int
 chn_wrfeed(pcm_channel *c)
 {
     	snd_dbuf *b = &c->buffer;
@@ -250,8 +262,13 @@ chn_wrfeed(pcm_channel *c)
 		b->rl += l;
 		b->fl -= l;
 		b->fp = (b->fp + l) % b->bufsize;
+		/* Clear the new space in the secondary buffer. */
+		chn_clearbuf(c, bs, l);
 		/* Accumulate the total bytes of the moved samples. */
 		lacc += l;
+		/* A feed to the DMA buffer is equivalent to an interrupt. */
+		bs->int_count++;
+		if (bs->sel.si_pid && chn_polltrigger(c)) selwakeup(&bs->sel);
 	}
 
 	return lacc;
@@ -263,6 +280,9 @@ chn_wrfeed2nd(pcm_channel *c, struct uio *buf)
 {
     	snd_dbuf *bs = &c->buffer2nd;
 	int l, w, wacc;
+
+	/* The DMA buffer may have some space. */
+	while (chn_wrfeed(c) > 0);
 
 	/* ensure we always have a whole number of samples */
 	wacc = 0;
@@ -280,7 +300,12 @@ chn_wrfeed2nd(pcm_channel *c, struct uio *buf)
 		bs->fl -= w;
 		bs->fp = (bs->fp + w) % bs->bufsize;
 		/* Accumulate the total bytes of the moved samples. */
+		bs->total += w;
 		wacc += w;
+
+		/* If any pcm data gets moved, push it to the DMA buffer. */
+		if (w > 0)
+			while (chn_wrfeed(c) > 0);
 	}
 
 	return wacc;
@@ -294,34 +319,52 @@ static void
 chn_wrintr(pcm_channel *c)
 {
     	snd_dbuf *b = &c->buffer;
-    	int start;
+    	int start, dl, l;
 
-    	if (b->underflow && !(c->flags & CHN_F_MAPPED)) return; /* nothing new happened */
+    	if (b->underflow && !(c->flags & CHN_F_MAPPED)) {
+/*		printf("underflow return\n");
+*/		return; /* nothing new happened */
+	}
 	if (b->dl) chn_dmadone(c);
 
     	/*
-     	* start another dma operation only if have ready data in the buffer,
-     	* there is no pending abort, have a full-duplex device, or have a
-     	* half duplex device and there is no pending op on the other side.
-     	*
-     	* Force transfers to be aligned to a boundary of 4, which is
-     	* needed when doing stereo and 16-bit.
-     	*/
-    	if (c->flags & CHN_F_MAPPED) start = c->flags & CHN_F_TRIGGERED;
-    	else {
-		/*
-		 * Fill up the DMA buffer. This may result in making new
-		 * free space in the secondary buffer, thus we can wake up
-		 * the top half if feed occurs.
-		 */
-		if (chn_wrfeed(c) > 0) {
-			chn_dmawakeup(c);
-			while (chn_wrfeed(c) > 0);
-		}
-		start = (b->rl >= DMA_ALIGN_THRESHOLD && !(c->flags & CHN_F_ABORTING));
+	 * start another dma operation only if have ready data in the buffer,
+	 * there is no pending abort, have a full-duplex device, or have a
+	 * half duplex device and there is no pending op on the other side.
+	 *
+	 * Force transfers to be aligned to a boundary of 4, which is
+	 * needed when doing stereo and 16-bit.
+	 */
+
+	/*
+	 * Prepare new space of at least c->blocksize in the DMA
+	 * buffer for mmap.
+	 */
+    	if (c->flags & CHN_F_MAPPED && b->fl < c->blocksize) {
+		dl = c->blocksize - b->fl;
+		b->fl += dl;
+		b->rl -= dl;
+		b->rp = (b->rp + dl) % b->bufsize;
+		chn_clearbuf(c, b, dl);
+	}
+
+	/* Check underflow and update the pointers. */
+	chn_checkunderflow(c);
+
+	/*
+	 * Fill up the DMA buffer, followed by waking up the top half.
+	 * If some of the pcm data in uio are still left, the top half
+	 * goes to sleep by itself.
+	 */
+	while (chn_wrfeed(c) > 0);
+	chn_dmawakeup(c);
+    	if (c->flags & CHN_F_MAPPED)
+		start = c->flags & CHN_F_TRIGGERED;
+	else {
+/*		printf("%d >= %d && !(%x & %x)\n", b->rl, DMA_ALIGN_THRESHOLD, c->flags, CHN_F_ABORTING | CHN_F_CLOSING);
+*/		start = (b->rl >= DMA_ALIGN_THRESHOLD && !(c->flags & (CHN_F_ABORTING | CHN_F_CLOSING)));
 	}
     	if (start) {
-		int l;
 		chn_dmaupdate(c);
 		if (c->flags & CHN_F_MAPPED) l = c->blocksize;
 		else l = min(b->rl, c->blocksize) & DMA_ALIGN_MASK;
@@ -334,21 +377,25 @@ chn_wrintr(pcm_channel *c)
 	    		b->dl = c->blocksize; /* record new transfer size */
 	    		chn_trigger(c, PCMTRIG_START);
 		}
-		if (b->dl != l)
+ 		/*
+ 		 * Emulate writing by DMA, i.e. transfer the pcm data from
+ 		 * the emulated-DMA buffer to the device itself.
+ 		 */
+ 		chn_trigger(c, PCMTRIG_EMLDMAWR);
+		if (b->dl != l) {
+			DEB(printf("near underflow %d, %d, %d\n", l, b->dl, b->fl));
 			/*
 			 * we are near to underflow condition, so to prevent
 			 * audio 'clicks' clear next b->fl bytes
 			 */
-			 chn_clearbuf(c, b->fl);
+ 			 chn_clearbuf(c, b, b->fl);
+		}
     	} else {
 		/* cannot start a new dma transfer */
-		DEB(printf("cannot start wr-dma flags 0x%08x rp %d rl %d\n",
-			   c->flags, b->rp, b->rl));
+		DEB(printf("underflow, flags 0x%08x rp %d rl %d\n", c->flags, b->rp, b->rl));
 		if (b->dl) { /* DMA was active */
-	    		chn_trigger(c, PCMTRIG_STOP);
-			b->dl = 0;
 			b->underflow = 1; /* set underflow flag */
-			chn_clearbuf(c, b->bufsize); /* and clear all DMA buffer */
+ 			chn_clearbuf(c, b, b->bufsize); /* and clear all DMA buffer */
 		}
     	}
 }
@@ -372,9 +419,10 @@ chn_wrintr(pcm_channel *c)
 int
 chn_write(pcm_channel *c, struct uio *buf)
 {
-	int 		ret = 0, timeout;
+	int 		ret = 0, timeout, res, newsize;
 	long		s;
 	snd_dbuf       *b = &c->buffer;
+	snd_dbuf       *bs = &c->buffer2nd;
 
 	if (c->flags & CHN_F_WRITING) {
 		/* This shouldn't happen and is actually silly
@@ -384,37 +432,70 @@ chn_write(pcm_channel *c, struct uio *buf)
 		return EBUSY;
 	}
 	c->flags |= CHN_F_WRITING;
+	c->flags &= ~CHN_F_ABORTING;
+	s = spltty();
+
+	/*
+	 * XXX Certain applications attempt to write larger size
+	 * of pcm data than c->blocksize2nd without blocking,
+	 * resulting partial write. Expand the block size so that
+	 * the write operation avoids blocking.
+	 */
+	if ((c->flags & CHN_F_NBIO) && buf->uio_resid > c->blocksize2nd) {
+		for (newsize = 1 ; newsize < min(buf->uio_resid, CHN_2NDBUFWHOLESIZE) ; newsize <<= 1);
+		chn_setblocksize(c, newsize * c->fragments);
+		c->blocksize2nd = newsize;
+		c->fragments = bs->bufsize / c->blocksize2nd;
+	}
+
+	/* Store the initial size in the uio. */
+	res = buf->uio_resid;
+
 	/*
 	 * Fill up the secondary and DMA buffer.
 	 * chn_wrfeed*() takes care of the alignment.
 	 */
-	s = spltty();
+
 	/* Check for underflow before writing into the buffers. */
 	chn_checkunderflow(c);
-  	while (chn_wrfeed2nd(c, buf) > 0 || chn_wrfeed(c) > 0);
+  	while (chn_wrfeed2nd(c, buf) > 0);
+
 	/* Start playing if not yet. */
-	if (b->rl && !b->dl) chn_wrintr(c);
-   	if (!(c->flags & CHN_F_NBIO)) {
+	if ((bs->rl || b->rl) && !b->dl) {
+		chn_wrintr(c);
+	}
+
+   	if (c->flags & CHN_F_NBIO) {
+		/* If no pcm data was written on nonblocking, return EAGAIN. */
+		if (buf->uio_resid == res)
+			ret = EAGAIN;
+	} else {
    		/* Wait until all samples are played in blocking mode. */
    		while (buf->uio_resid > 0) {
-			splx(s);
-			/* Wait for new free space to write new pcm samples. */
-			timeout = (buf->uio_resid >= b->dl)? hz / 20 : 1;
-   			ret = tsleep(b, PRIBIO | PCATCH, "pcmwr", timeout);
-   			s = spltty();
- 			if (ret == EINTR) chn_abort(c);
- 			if (ret == EINTR || ret == ERESTART) break;
 			/* Check for underflow before writing into the buffers. */
 			chn_checkunderflow(c);
 			/* Fill up the buffers with new pcm data. */
-  			while (chn_wrfeed2nd(c, buf) > 0 || chn_wrfeed(c) > 0);
+  			while (chn_wrfeed2nd(c, buf) > 0);
+
 			/* Start playing if necessary. */
-  			if (b->rl && !b->dl) chn_wrintr(c);
+  			if ((bs->rl || b->rl) && !b->dl) chn_wrintr(c);
+
+			/* Have we finished to feed the secondary buffer? */
+			if (buf->uio_resid == 0)
+				break;
+
+			/* Wait for new free space to write new pcm samples. */
+			splx(s);
+			timeout = (buf->uio_resid >= b->dl)? hz / 20 : 1;
+   			ret = tsleep(b, PRIBIO | PCATCH, "pcmwr", timeout);
+   			s = spltty();
+ 			/* if (ret == EINTR) chn_abort(c); */
+ 			if (ret == EINTR || ret == ERESTART) break;
  		}
   	}
 	c->flags &= ~CHN_F_WRITING;
    	splx(s);
-	return (ret > 0)? ret : 0;
+	return ret;
 }
 
 /*
@@ -451,7 +532,7 @@ rec_blocksize, and fallback to smaller sizes if no space is available.
  * Feed new data from the read buffer. Can be called in the bottom half.
  * Hence must be called at spltty.
  */
-static int
+int
 chn_rdfeed(pcm_channel *c)
 {
     	snd_dbuf *b = &c->buffer;
@@ -470,8 +551,13 @@ chn_rdfeed(pcm_channel *c)
 		b->rl -= l;
 		b->fl += l;
 		b->rp = (b->rp + l) % b->bufsize;
+		/* Clear the new space in the DMA buffer. */
+		chn_clearbuf(c, b, l);
 		/* Accumulate the total bytes of the moved samples. */
 		lacc += l;
+		/* A feed from the DMA buffer is equivalent to an interrupt. */
+		bs->int_count++;
+		if (bs->sel.si_pid && chn_polltrigger(c)) selwakeup(&bs->sel);
 	}
 
 	return lacc;
@@ -483,6 +569,9 @@ chn_rdfeed2nd(pcm_channel *c, struct uio *buf)
 {
     	snd_dbuf *bs = &c->buffer2nd;
 	int l, w, wacc;
+
+	/* The DMA buffer may have pcm data. */
+	while(chn_rdfeed(c) > 0);
 
 	/* ensure we always have a whole number of samples */
 	wacc = 0;
@@ -499,8 +588,15 @@ chn_rdfeed2nd(pcm_channel *c, struct uio *buf)
 		bs->fl += w;
 		bs->rl -= w;
 		bs->rp = (bs->rp + w) % bs->bufsize;
+		/* Clear the new space in the secondary buffer. */
+		chn_clearbuf(c, bs, l);
 		/* Accumulate the total bytes of the moved samples. */
+		bs->total += w;
 		wacc += w;
+
+		/* If any pcm data gets moved, suck up the DMA buffer. */
+		if (w > 0)
+			while (chn_rdfeed(c) > 0);
 	}
 
 	return wacc;
@@ -511,26 +607,41 @@ static void
 chn_rdintr(pcm_channel *c)
 {
     	snd_dbuf *b = &c->buffer;
-    	int start;
+    	snd_dbuf *bs = &c->buffer2nd;
+    	int start, dl;
 
     	if (b->dl) chn_dmadone(c);
 
     	DEB(printf("rdintr: start dl %d, rp:rl %d:%d, fp:fl %d:%d\n",
 		b->dl, b->rp, b->rl, b->fp, b->fl));
     	/* Restart if have enough free space to absorb overruns */
-    	if (c->flags & CHN_F_MAPPED) start = c->flags & CHN_F_TRIGGERED;
-    	else {
-		/*
-		 * Suck up the DMA buffer. This may result in making new
-		 * captured data in the secondary buffer, thus we can wake
-		 * up the top half if feed occurs.
-		 */
-		if (chn_rdfeed(c) > 0) {
-			chn_dmawakeup(c);
-			while (chn_rdfeed(c) > 0);
-		}
-		start = (b->fl > 0x200 && !(c->flags & CHN_F_ABORTING));
+
+	/*
+	 * Prepare new space of at least c->blocksize in the secondary
+	 * buffer for mmap.
+	 */
+    	if (c->flags & CHN_F_MAPPED && bs->fl < c->blocksize) {
+		dl = c->blocksize - bs->fl;
+		bs->fl += dl;
+		bs->rl -= dl;
+		bs->rp = (bs->rp + dl) % bs->bufsize;
+		chn_clearbuf(c, bs, dl);
 	}
+
+	/* Update the pointers. */
+	chn_dmaupdate(c);
+
+	/*
+	 * Suck up the DMA buffer, followed by waking up the top half.
+	 * If some of the pcm data in the secondary buffer are still left,
+	 * the top half goes to sleep by itself.
+	 */
+	while(chn_rdfeed(c) > 0);
+	chn_dmawakeup(c);
+    	if (c->flags & CHN_F_MAPPED)
+		start = c->flags & CHN_F_TRIGGERED;
+    	else
+		start = (b->fl > 0x200 && !(c->flags & CHN_F_ABORTING));
     	if (start) {
 		int l = min(b->fl - 0x100, c->blocksize);
 		if (c->flags & CHN_F_MAPPED) l = c->blocksize;
@@ -551,8 +662,8 @@ chn_rdintr(pcm_channel *c)
     	} else {
 		if (b->dl) { /* was active */
 	    		b->dl = 0;
-	    		chn_dmaupdate(c);
 	    		chn_trigger(c, PCMTRIG_STOP);
+	    		chn_dmaupdate(c);
 		}
     	}
 }
@@ -578,9 +689,10 @@ chn_rdintr(pcm_channel *c)
 int
 chn_read(pcm_channel *c, struct uio *buf)
 {
-	int		ret = 0, timeout, limit;
+	int		ret = 0, timeout, limit, res;
 	long		s;
 	snd_dbuf       *b = &c->buffer;
+	snd_dbuf       *bs = &c->buffer2nd;
 
 	if (c->flags & CHN_F_READING) {
 		/* This shouldn't happen and is actually silly */
@@ -589,28 +701,48 @@ chn_read(pcm_channel *c, struct uio *buf)
 	}
 
   	s = spltty();
+
+	/* Store the initial size in the uio. */
+	res = buf->uio_resid;
+
 	c->flags |= CHN_F_READING;
+	c->flags &= ~CHN_F_ABORTING;
 	limit = buf->uio_resid - c->blocksize;
 	if (limit < 0) limit = 0;
+
+	/* Update the pointers and suck up the DMA and secondary buffers. */
+	chn_dmaupdate(c);
+ 	while (chn_rdfeed2nd(c, buf) > 0);
+
 	/* Start capturing if not yet. */
-  	if (!b->rl & !b->dl) chn_rdintr(c);
-	/* Suck up the DMA and secondary buffers. */
- 	while (chn_rdfeed(c) > 0 || chn_rdfeed2nd(c, buf) > 0);
+  	if ((!bs->rl || !b->rl) && !b->dl) chn_rdintr(c);
+
   	if (!(c->flags & CHN_F_NBIO)) {
   		/* Wait until all samples are captured. */
   		while (buf->uio_resid > 0) {
-			splx(s);
+			/* Suck up the DMA and secondary buffers. */
+			chn_dmaupdate(c);
+ 			while (chn_rdfeed2nd(c, buf) > 0);
+
+			/* Start capturing if necessary. */
+ 			if ((!bs->rl || !b->rl) && !b->dl) chn_rdintr(c);
+
+			/* Have we finished to feed the uio? */
+			if (buf->uio_resid == 0)
+				break;
+
 			/* Wait for new pcm samples. */
+			splx(s);
 			timeout = (buf->uio_resid - limit >= b->dl)? hz / 20 : 1;
   			ret = tsleep(b, PRIBIO | PCATCH, "pcmrd", timeout);
   			s = spltty();
 			if (ret == EINTR) chn_abort(c);
 			if (ret == EINTR || ret == ERESTART) break;
-			/* Start capturing if necessary. */
- 			if (!b->rl & !b->dl) chn_rdintr(c);
-			/* Suck up the DMA and secondary buffers. */
- 			while (chn_rdfeed(c) > 0 || chn_rdfeed2nd(c, buf) > 0);
 		}
+	} else {
+		/* If no pcm data was read on nonblocking, return EAGAIN. */
+		if (buf->uio_resid == res)
+			ret = EAGAIN;
 	}
 	c->flags &= ~CHN_F_READING;
   	splx(s);
@@ -635,6 +767,10 @@ chn_dma_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	}
 }
 
+/*
+ * Allocate memory for DMA buffer. If the device do not perform DMA transfer,
+ * the drvier can call malloc(9) by its own.
+ */
 int
 chn_allocbuf(snd_dbuf *b, bus_dma_tag_t parent_dmat)
 {
@@ -646,12 +782,11 @@ chn_allocbuf(snd_dbuf *b, bus_dma_tag_t parent_dmat)
 }
 
 static void
-chn_clearbuf(pcm_channel *c, int length)
+chn_clearbuf(pcm_channel *c, snd_dbuf *b, int length)
 {
-int i;
-u_int16_t data, *p;
+	int i;
+	u_int16_t data, *p;
 
-	snd_dbuf *b = &c->buffer;
 	/* rely on length & DMA_ALIGN_MASK == 0 */
 	length&=DMA_ALIGN_MASK;
 	if (c->hwfmt & AFMT_SIGNED)	data = 0x00; else data = 0x80;
@@ -673,35 +808,47 @@ chn_resetbuf(pcm_channel *c)
 	snd_dbuf *bs = &c->buffer2nd;
 
 	c->smegcnt = 0;
-	c->buffer.sample_size = 1;
-	c->buffer.sample_size <<= (c->hwfmt & AFMT_STEREO)? 1 : 0;
-	c->buffer.sample_size <<= (c->hwfmt & AFMT_16BIT)? 1 : 0;
+
+	b->sample_size = 1;
+	b->sample_size <<= (c->hwfmt & AFMT_STEREO)? 1 : 0;
+	b->sample_size <<= (c->hwfmt & AFMT_16BIT)? 1 : 0;
+
 	b->rp = b->fp = 0;
 	b->dl = b->rl = 0;
 	b->fl = b->bufsize;
-	chn_clearbuf(c, b->bufsize);
 	b->prev_total = b->total = 0;
 	b->prev_int_count = b->int_count = 0;
 	b->first_poll = 1;
-	b->underflow=0;
+	b->underflow = 0;
+	chn_clearbuf(c, b, b->bufsize);
+
 	bs->rp = bs->fp = 0;
 	bs->dl = bs->rl = 0;
 	bs->fl = bs->bufsize;
+	bs->prev_total = bs->total = 0;
+	b->prev_int_count = b->int_count = 0;
+	b->first_poll = 1;
+	b->underflow = 0;
+	chn_clearbuf(c, bs, bs->bufsize);
 }
 
 void
 buf_isadma(snd_dbuf *b, int go)
 {
 	if (ISA_DMA(b)) {
-        	if (go == PCMTRIG_START) {
+		switch (go) {
+		case PCMTRIG_START:
 			DEB(printf("buf 0x%p ISA DMA started\n", b));
 			isa_dmastart(b->dir | B_RAW, b->buf,
 					b->bufsize, b->chan);
-		} else {
+			break;
+		case PCMTRIG_STOP:
+		case PCMTRIG_ABORT:
 			DEB(printf("buf 0x%p ISA DMA stopped\n", b));
 			isa_dmastop(b->chan);
 			isa_dmadone(b->dir | B_RAW, b->buf, b->bufsize,
 				    b->chan);
+			break;
 		}
     	} else KASSERT(1, ("buf_isadma called on invalid channel"));
 }
@@ -718,7 +865,7 @@ buf_isadmaptr(snd_dbuf *b)
 }
 
 /*
- * snd_sync waits until the space in the given channel goes above
+ * chn_sync waits until the space in the given channel goes above
  * a threshold. The threshold is checked against fl or rl respectively.
  * Assume that the condition can become true, do not check here...
  */
@@ -728,11 +875,13 @@ chn_sync(pcm_channel *c, int threshold)
     	u_long s, rdy;
     	int ret;
     	snd_dbuf *b = &c->buffer;
+    	snd_dbuf *bs = &c->buffer2nd;
 
     	for (;;) {
 		s = spltty();
-		chn_dmaupdate(c);
-		rdy = (c->direction == PCMDIR_PLAY)? b->fl : b->rl;
+		chn_checkunderflow(c);
+		while (chn_wrfeed(c) > 0);
+		rdy = (c->direction == PCMDIR_PLAY)? bs->fl : bs->rl;
 		if (rdy <= threshold) {
 	    		ret = tsleep((caddr_t)b, PRIBIO | PCATCH, "pcmsyn", 1);
 	    		splx(s);
@@ -750,14 +899,31 @@ int
 chn_poll(pcm_channel *c, int ev, struct proc *p)
 {
 	snd_dbuf *b = &c->buffer;
-	u_long s = spltty();
-	if (b->dl) chn_dmaupdate(c);
-	splx(s);
-	if (chn_polltrigger(c) && chn_pollreset(c)) return ev;
-	else {
-		selrecord(p, &b->sel);
-		return 0;
+	snd_dbuf *bs = &c->buffer2nd;
+	u_long s;
+	int ret;
+
+	s = spltty();
+	if (c->direction == PCMDIR_PLAY) {
+		/* Fill up the DMA buffer. */
+		chn_checkunderflow(c);
+		while(chn_wrfeed(c) > 0);
+		if (!b->dl) chn_wrintr(c);
+	} else {
+		/* Suck up the DMA buffer. */
+		chn_dmaupdate(c);
+		while(chn_rdfeed(c) > 0);
+		if (!b->dl) chn_rdintr(c);
 	}
+	ret = 0;
+	if (chn_polltrigger(c) && chn_pollreset(c))
+		ret = ev;
+	else {
+		selrecord(p, &bs->sel);
+		ret = 0;
+	}
+	splx(s);
+	return ret;
 }
 
 /*
@@ -780,7 +946,11 @@ chn_abort(pcm_channel *c)
 	}
 	chn_trigger(c, PCMTRIG_ABORT);
 	b->dl = 0;
-    	missing = b->rl + bs->rl;
+	if (c->direction == PCMDIR_PLAY)
+		chn_checkunderflow(c);
+	else
+		chn_dmaupdate(c);
+    	missing = bs->rl;
     	return missing;
 }
 
@@ -793,27 +963,26 @@ chn_abort(pcm_channel *c)
 int
 chn_flush(pcm_channel *c)
 {
-    	int ret, count = 10;
+    	int ret, count = 50;
     	snd_dbuf *b = &c->buffer;
 
-    	DEB(printf("snd_flush c->flags 0x%08x\n", c->flags));
+    	DEB(printf("chn_flush c->flags 0x%08x\n", c->flags));
     	c->flags |= CHN_F_CLOSING;
-    	if (c->direction != PCMDIR_PLAY) chn_abort(c);
-    	else if (b->dl) while (!b->underflow) {
-		/* still pending output data. */
-		ret = tsleep((caddr_t)b, PRIBIO | PCATCH, "pcmflu", hz);
-		DEB(chn_dmaupdate(c));
-		DEB(printf("snd_sync: now rl : fl  %d : %d\n", b->rl, b->fl));
-		if (ret == EINTR || ret == ERESTART) {
-	    		DEB(printf("chn_flush: tsleep returns %d\n", ret));
-	    		return -1;
-		}
-		if (ret && --count == 0) {
-	    		DEB(printf("chn_flush: timeout flushing dbuf_out, cnt 0x%x flags 0x%x\n",\
-			       b->rl, c->flags));
-	    		break;
-		}
-    	}
+    	if (c->direction == PCMDIR_REC) chn_abort(c);
+    	else if (b->dl) {
+		while (!b->underflow && (count-- > 0)) {
+			/* still pending output data. */
+			ret = tsleep((caddr_t)b, PRIBIO | PCATCH, "pcmflu", hz/10);
+			DEB(chn_dmaupdate(c));
+			DEB(printf("chn_flush: now rl = %d, fl = %d\n", b->rl, b->fl));
+			if (ret == EINTR || ret == ERESTART) {
+	    			DEB(printf("chn_flush: tsleep returns %d\n", ret));
+	    			return ret;
+			}
+    		}
+	}
+	if (count == 0)
+		DEB(printf("chn_flush: timeout flushing dbuf_out, cnt 0x%x flags 0x%x\n", b->rl, c->flags));
     	c->flags &= ~CHN_F_CLOSING;
     	if (c->direction == PCMDIR_PLAY) chn_abort(c);
     	return 0;
@@ -835,13 +1004,10 @@ chn_reinit(pcm_channel *c)
 	if ((c->flags & CHN_F_INIT) && CANCHANGE(c)) {
 		chn_setformat(c, c->format);
 		chn_setspeed(c, c->speed);
-		chn_setblocksize(c, (c->flags & CHN_F_HAS_SIZE) ? c->blocksize : 0);
 		chn_setvolume(c, (c->volume >> 8) & 0xff, c->volume & 0xff);
 		c->flags &= ~CHN_F_INIT;
 		return 1;
 	}
-	if (CANCHANGE(c) && !(c->flags & CHN_F_HAS_SIZE) )
-		chn_setblocksize(c, 0); /* Apply new block size */
 	return 0;
 }
 
@@ -850,13 +1016,20 @@ chn_init(pcm_channel *c, void *devinfo, int dir)
 {
 	snd_dbuf       *bs = &c->buffer2nd;
 
+	/* Initialize the hardware and DMA buffer first. */
 	c->flags = 0;
 	c->feeder = &feeder_root;
 	c->buffer.chan = -1;
 	c->devinfo = c->init(devinfo, &c->buffer, c, dir);
 	chn_setdir(c, dir);
-	bs->bufsize = CHN_2NDBUFBLKSIZE * CHN_2NDBUFBLKNUM;
+
+	/* And the secondary buffer. */
+	c->blocksize2nd = CHN_2NDBUFBLKSIZE;
+	c->fragments = CHN_2NDBUFBLKNUM;
+	bs->bufsize = c->blocksize2nd * c->fragments;
 	bs->buf = malloc(bs->bufsize, M_DEVBUF, M_NOWAIT);
+	if (bs->buf == NULL)
+		return 1;
 	bzero(bs->buf, bs->bufsize);
 	bs->rl = bs->rp = bs->fp = 0;
 	bs->fl = bs->bufsize;
@@ -866,10 +1039,13 @@ chn_init(pcm_channel *c, void *devinfo, int dir)
 int
 chn_setdir(pcm_channel *c, int dir)
 {
+	int r;
+
 	c->direction = dir;
-	if (ISA_DMA(&c->buffer))
+	r = c->setdir(c->devinfo, c->direction);
+	if (!r && ISA_DMA(&c->buffer))
 		c->buffer.dir = (dir == PCMDIR_PLAY)? B_WRITE : B_READ;
-	return c->setdir(c->devinfo, c->direction);
+	return r;
 }
 
 int
@@ -912,22 +1088,63 @@ chn_setformat(pcm_channel *c, u_int32_t fmt)
 	return 0;
 }
 
+/*
+ * The seconday buffer is modified only during interrupt.
+ * Hence the size of the secondary buffer can be changed
+ * at any time as long as an interrupt is disabled.
+ */
 int
 chn_setblocksize(pcm_channel *c, int blksz)
 {
-	if (CANCHANGE(c)) {
-		c->flags &= ~CHN_F_HAS_SIZE;
-		if (blksz >= 2) c->flags |= CHN_F_HAS_SIZE;
-		if (blksz < 0) blksz = -blksz;
-		if (blksz < 2) blksz = c->buffer.sample_size * (c->speed >> 2);
-		RANGE(blksz, 1024, c->buffer.bufsize / 4);
-		blksz &= DMA_ALIGN_MASK;
-		c->blocksize = c->setblocksize(c->devinfo, blksz) & DMA_ALIGN_MASK;
-		return c->blocksize;
+	snd_dbuf *bs = &c->buffer2nd;
+	u_int8_t *tmpbuf;
+	int s, tmpbuf_fl, tmpbuf_fp, l;
+
+	c->flags &= ~CHN_F_HAS_SIZE;
+	if (blksz >= 2) c->flags |= CHN_F_HAS_SIZE;
+	if (blksz < 0) blksz = -blksz;
+	if (blksz < 2) blksz = c->buffer.sample_size * (c->speed >> 2);
+	/* XXX How small can the lower bound be? */
+	RANGE(blksz, 64, CHN_2NDBUFWHOLESIZE);
+
+	/*
+	 * Allocate a temporary buffer. It holds the pcm data
+	 * until the size of the secondary buffer gets changed.
+	 * bs->buf is not affected, so mmap should work fine.
+	 */
+	tmpbuf = malloc(blksz, M_TEMP, M_NOWAIT);
+	if (tmpbuf == NULL) {
+		DEB(printf("chn_setblocksize: out of memory."));
+		return 1;
 	}
-	c->blocksize = blksz;
-	c->flags |= CHN_F_INIT;
-	return 0;
+	bzero(tmpbuf, blksz);
+	tmpbuf_fl = blksz;
+	tmpbuf_fp = 0;
+	s = spltty();
+	while (bs->rl > 0 && tmpbuf_fl > 0) {
+		l = min(min(bs->rl, bs->bufsize - bs->rp), tmpbuf_fl);
+		bcopy(bs->buf + bs->rp, tmpbuf + tmpbuf_fp, l);
+		tmpbuf_fl -= l;
+		tmpbuf_fp = (tmpbuf_fp + l) % blksz;
+		bs->rl -= l;
+		bs->fl += l;
+		bs->rp = (bs->rp + l) % bs->bufsize;
+	}
+	/* Change the size of the seconary buffer. */
+	bs->bufsize = blksz;
+	c->fragments = CHN_2NDBUFBLKNUM;
+	c->blocksize2nd = bs->bufsize / c->fragments;
+	/* Clear the secondary buffer and restore the pcm data. */
+	bzero(bs->buf, bs->bufsize);
+	bs->rl = bs->bufsize - tmpbuf_fl;
+	bs->rp = 0;
+	bs->fl = tmpbuf_fl;
+	bs->fp = tmpbuf_fp;
+	bcopy(tmpbuf, bs->buf, bs->rl);
+
+	free(tmpbuf, M_TEMP);
+	splx(s);
+	return c->blocksize2nd;
 }
 
 int
