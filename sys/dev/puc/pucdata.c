@@ -750,6 +750,16 @@ const struct puc_device_description puc_devices[] = {
             },
         },
 
+	{   "Titan VScom PCI-200HV2",	/* 2S */
+	    NULL,
+	    {	0x14d2,	0xe020,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 8 },
+	    },
+	},
+
 	/* NEC PK-UG-X001 K56flex PCI Modem card.
 	   NEC MARTH bridge chip and Rockwell RCVDL56ACF/SP using. */
 	{   "NEC PK-UG-X001 K56flex PCI Modem",
