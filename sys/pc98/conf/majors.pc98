@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.25 1998/02/20 12:24:18 kato Exp $
+$Id: majors.pc98,v 1.26 1998/02/21 15:49:45 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -135,3 +135,4 @@ chrdev	name		comments
 91	vinum		RAID fs
 92      bktr            Bt848 video capture driver (hasty@star-gate.com)
 93	coda		CODA filesystem.
+94	loran		Loran-C Receiver
