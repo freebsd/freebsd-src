@@ -164,7 +164,6 @@ main(argc, argv)
 	int ch;
 	char *mastername;
 	char myname[MAXHOSTNAMELEN + 2];
-	extern int errno;
 	extern int debug;
 
 	debug = 1;
