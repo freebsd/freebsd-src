@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.12 1995/05/23 02:41:11 jkh Exp $
+ * $Id: media_strategy.c,v 1.13 1995/05/23 18:06:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,6 +54,9 @@
 #include <sys/param.h>
 #include <sys/dkbad.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include "ftp.h"
 
@@ -400,6 +403,7 @@ Boolean
 mediaInitNetwork(Device *dev)
 {
     int i;
+    char *rp;
 
     if (!strncmp("cuaa", dev->name, 4)) {
 	if (tcpStartPPP()) {
@@ -413,18 +417,26 @@ mediaInitNetwork(Device *dev)
     else {
 	char *cp, ifconfig[64];
 
-	sprintf(ifconfig, "%s%s", VAR_IFCONFIG, dev->name);
+	snprintf(ifconfig, 64, "%s%s", VAR_IFCONFIG, dev->name);
 	cp = getenv(ifconfig);
 	if (!cp) {
 	    msgConfirm("The %s device is not configured.  You will need to do so\nin the Networking configuration menu before proceeding.");
 	    return FALSE;
 	}
-	i = vsystem("ifconfig %s", ifconfig);
+	i = vsystem("ifconfig %s %s", dev->name, cp);
 	if (i) {
-	    msgConfirm("Unable to configure the %s interface!\nThis installation method cannot be used.");
+	    msgConfirm("Unable to configure the %s interface!\nThis installation method cannot be used.", dev->name);
 	    return FALSE;
 	}
     }
+
+    rp = getenv(VAR_GATEWAY);
+    if (!rp)
+	msgConfirm("No gateway has been set. You will not be able to access machines\n
+not on the local network\n");
+    else
+	vsystem("route add default %s", rp);
+
     config_resolv();
     return TRUE;
 }
@@ -455,6 +467,10 @@ mediaInitFTP(Device *dev)
     int i;
     char *url, *hostname, *dir, *dir_p;
     char *my_name, email[BUFSIZ];
+    Device *netDevice = (Device *)dev->private;
+
+    if (netDevice->init)
+	(*netDevice->init)(netDevice);
 
     if ((ftp = FtpInit()) == NULL) {
 	msgConfirm("FTP initialisation failed!");
@@ -476,18 +492,22 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     }
 
+    msgDebug("Using URL `%s'\n", url);
     hostname = url + 6;
     dir = index(hostname, '/');
     *(dir++) = '\0';
-    if (gethostbyname(hostname) == NULL) {
+    msgDebug("hostname = `%s'\n", hostname);
+    msgDebug("dir = `%s'\n", dir);
+    if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
 	msgConfirm("Cannot resolve hostname `%s'!\n", hostname);
 	return FALSE;
     }
 
     snprintf(email, BUFSIZ, "installer@%s", my_name);
+    msgDebug("Using fake e-mail `%s'\n", email);
 
     if ((i = FtpOpen(ftp, hostname, "anonymous", email)) != 0) {
-	msgConfirm("Couldn't open FTP connection to %s (%u)\n", strerror(i), i);
+	msgConfirm("Couldn't open FTP connection to %s: %s (%u)\n", hostname, strerror(i), i);
 	return FALSE;
     }
 
@@ -506,7 +526,73 @@ mediaInitFTP(Device *dev)
 int
 mediaGetFTP(char *dist)
 {
-    return -1;
+    int 	fd;
+    char 	buf[512];
+    int		pfd[2], pid, numchunks;
+    const char *tmp;
+    struct attribs	*dist_attr;
+    
+    dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
+
+    snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
+
+    if (attr_parse(&dist_attr, buf) == 0)
+    {
+	msgConfirm("Cannot load information file for distribution\n");
+	return -1;
+    }
+   
+    tmp = attr_match(dist_attr, "pieces");
+    numchunks = atoi(tmp);
+    msgDebug("Attempting to extract distribution from %u files\n", numchunks);
+
+    if (numchunks == 1)
+    {
+	snprintf(buf, 512, "%s.aa", dist);
+	return(FtpGet(ftp, buf));
+    }
+
+    pipe(pfd);
+    pid = fork();
+    if (!pid)
+    {
+	int		chunk = 0;
+	int		retval;
+	
+	dup2(pfd[1], 1); close(pfd[1]);
+	close(pfd[0]);
+	
+	while (chunk < numchunks)
+	{
+	    int n;
+	    char *buffer;
+	    
+	    buffer = safe_malloc(1024);
+	    
+	    snprintf(buf, 512, "%s.%c%c", dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
+	    fd = FtpGet(ftp, buf);
+	    
+	    while ((n = read(fd, buffer, 1024))>0)
+	    {
+		retval = write(1, buffer, n);
+		if (retval != n)
+		{
+		    msgConfirm("write didn't write out the complete file!\n
+(wrote %d bytes of %d bytes)\n", retval, n);
+		    exit(1);
+		}
+		
+		close(fd);
+		++chunk;
+	    }
+	    FtpEOF(ftp);
+	}
+	close(1);
+	msgDebug("Extract of %s finished!!!\n", dist);
+	exit(0);
+    }
+    close(pfd[1]);
+    return(pfd[0]);
 }
 
 void
