@@ -56,15 +56,9 @@ The pathname info should NOT be released on exit because it is done
 by the caller.
 The directory and file vnodes should NOT be released on exit.
 .Sh LOCKS
-The directory,
-.Fa dvp
-is locked on entry and should remain locked on return.
-The file
-.Fa vp
-is not locked on entry and should remain that way on return.
-If your VOP code locks
-.Fa vp ,
-it must be sure to unlock prior to returning.
+.Xr VOP_LINK 9
+expects the directory and file vnodes to be locked on entry and will leave
+the vnodes locked on return.  
 .Sh RETURN VALUES
 Zero is returned if the file was linked successfully, otherwise an
 error is returned.
@@ -77,23 +71,12 @@ vop_link(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 
     if (vp->v_mount != dvp->v_mount)
 	return (EXDEV);
-    if (vp != dvp && (error = VOP_LOCK(vp))) {
-	goto out2;
-    }
 
-    /*
-     * now that we've locked vp, we have to use out1 instead of out2
-     */
+    if (vp would have too many links)
+	return (EMLINK);
 
-    if (vp would have too many links) {
-	error = EMLINK;
-	goto out1;
-    }
-
-    if (vp is immutable) {
-	error = EPERM;
-	goto out1;
-    }
+    if (vp is immutable)
+	return (EPERM);
 
     /*
      * Increment link count of vp and write back the on-disc version of it.
@@ -106,11 +89,6 @@ vop_link(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 	 */
 	...;
     }
-
-out1:
-    if (vp != dvp)
-	VOP_UNLOCK(vp);
-out2:
 
     return error;
 }
