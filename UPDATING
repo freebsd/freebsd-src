@@ -21,6 +21,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040817:
+	IPFW has been converted to use PFIL_HOOKS.  This change is
+	transparent to userland and preserves the ipfw ABI.  The ipfw
+	core packet inspection and filtering functions have not been
+	changed, only how ipfw is invoked is different.  Note that
+	"option PFIL_HOOKS" is required to use IPFIREWALL compiled
+	into the kernel or as KLD.
+
 20040814:
 	The RANDOM_IP_ID option has been replaced by the sysctl
 	net.inet.ip.random_id. If you had RANDOM_IP_ID in your kernel then
