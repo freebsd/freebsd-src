@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.6 1995/10/02 04:44:39 jkh Exp $
+#	$Id: LINT,v 1.184.4.7 1995/10/03 01:13:47 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -670,7 +670,7 @@ device pca0 at isa? port IO_TIMER1 tty
 # apm: Laptop Advanced Power Management (experimental)
 # spigot: The Creative Labs Video Spigot video-aquisition board
 # meteor: Matrox Meteor video capture board
-# cy: Cyclades high-speed serial driver (ALPHA QUALITY!)
+# cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
@@ -714,7 +714,7 @@ device		apm0	at isa?
 device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
 device		joy0	at isa? port "IO_GAME"
-device		cy0	at isa? tty irq 10 iomem 0xd4000 vector cyintr
+device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000 vector cyintr
 device		dgb0	at isa? port 0x220 iomem 0xfc0000 iosiz ? tty
 device		labpc0	at isa? port 0x260 tty irq 5 vector labpcintr
 device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
