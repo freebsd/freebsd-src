@@ -1636,6 +1636,9 @@ sis_intr(void *arg)
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
+	if (sc->sis_stopped)	/* Most likely shared interrupt */
+		return;
+
 	SIS_LOCK(sc);
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING)
@@ -1646,12 +1649,6 @@ sis_intr(void *arg)
 		goto done;
 	}
 #endif /* DEVICE_POLLING */
-
-	/* Supress unwanted interrupts */
-	if (!(ifp->if_flags & IFF_UP)) {
-		sis_stop(sc);
-		goto done;
-	}
 
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, SIS_IER, 0);
@@ -1689,10 +1686,8 @@ sis_intr(void *arg)
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sis_startl(ifp);
-done:
-	SIS_UNLOCK(sc);
 
-	return;
+	SIS_UNLOCK(sc);
 }
 
 /*
