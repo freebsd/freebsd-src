@@ -114,7 +114,7 @@ check_ifnet_incoming(struct ifnet *ifnet, int viabpf)
 	if (!mac_ifoff_enabled)
 		return (0);
 
-	if (mac_ifoff_lo_enabled && ifnet->if_type == IFT_LOOP)  
+	if (mac_ifoff_lo_enabled && ifnet->if_type == IFT_LOOP)
 		return (0);
 
 	if (mac_ifoff_other_enabled && ifnet->if_type != IFT_LOOP)

@@ -343,7 +343,7 @@ mac_lomac_high_single(struct mac_lomac *mac_lomac)
 
 	KASSERT((mac_lomac->ml_flags & MAC_LOMAC_FLAG_SINGLE) != 0,
 	    ("mac_lomac_high_single: mac_lomac not single"));
- 
+
 	return (mac_lomac->ml_single.mle_type == MAC_LOMAC_TYPE_HIGH);
 }
 
