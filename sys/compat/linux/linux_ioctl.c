@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.26 1998/08/31 06:55:02 jkh Exp $
+ *  $Id: linux_ioctl.c,v 1.27 1998/08/31 10:51:19 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -897,27 +897,27 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 
     case LINUX_KDGETMODE:
 	args->cmd = KDGETMODE;
-	return	ioctl(p, (struct ioctl_args *)args, retval);
+	return	ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_KDSETMODE:
 	args->cmd = KDSETMODE;
-	return	ioctl(p, (struct ioctl_args *)args, retval);
+	return	ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_KDSETLED:
 	args->cmd = KDSETLED;
-	return  ioctl(p, (struct ioctl_args *)args, retval);
+	return  ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_KDGETLED:
 	args->cmd = KDGETLED;
-	return  ioctl(p, (struct ioctl_args *)args, retval);
+	return  ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_KIOCSOUND:
 	args->cmd = KIOCSOUND;
-	return  ioctl(p, (struct ioctl_args *)args, retval);
+	return  ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_KDMKTONE:
 	args->cmd = KDMKTONE;
-	return  ioctl(p, (struct ioctl_args *)args, retval);
+	return  ioctl(p, (struct ioctl_args *)args);
     }
 
     uprintf("LINUX: 'ioctl' fd=%d, typ=0x%x(%c), num=0x%x not implemented\n",
