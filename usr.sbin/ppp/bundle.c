@@ -1782,7 +1782,7 @@ bundle_setsid(struct bundle *bundle, int holdsession)
         waitpid(pid, &status, 0);
         /* Tweak our process arguments.... */
         ID0setproctitle("session owner");
-        setuid(geteuid());
+        setuid(ID0realuid());
         /*
          * Hang around for a HUP.  This should happen as soon as the
          * ppp that we passed our ctty descriptor to closes it.

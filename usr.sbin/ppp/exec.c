@@ -126,7 +126,7 @@ exec_Create(struct physical *p)
         case  0:
           close(fids[0]);
           timer_TermService();
-          setuid(geteuid());
+          setuid(ID0realuid());
 
           switch (fork()) {
             case 0:

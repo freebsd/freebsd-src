@@ -78,7 +78,7 @@ InterpretArg(const char *from, char *to)
     ptr = strchr(++from, '/');
     len = ptr ? ptr - from : strlen(from);
     if (len == 0) {
-      pwd = getpwuid(getuid());
+      pwd = getpwuid(ID0realuid());
     } else {
       strncpy(to, from, len);
       to[len] = '\0';
@@ -184,7 +184,7 @@ AllowUsers(struct cmdargs const *arg)
   struct passwd *pwd;
 
   userok = 0;
-  pwd = getpwuid(getuid());
+  pwd = getpwuid(ID0realuid());
   if (pwd != NULL)
     for (f = arg->argn; f < arg->argc; f++)
       if (!strcmp("*", arg->argv[f]) || !strcmp(pwd->pw_name, arg->argv[f])) {
