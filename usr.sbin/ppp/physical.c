@@ -92,6 +92,8 @@
 #endif
 
 
+#define PPPOTCPLINE "ppp"
+
 static int physical_DescriptorWrite(struct descriptor *, struct bundle *,
                                     const fd_set *);
 static void physical_DescriptorRead(struct descriptor *, struct bundle *,
@@ -310,7 +312,46 @@ physical_Close(struct physical *p)
 
   physical_StopDeviceTimer(p);
   if (p->Utmp) {
-    ID0logout(p->name.base);
+    if (p->handler && (p->handler->type == TCP_DEVICE ||
+                       p->handler->type == UDP_DEVICE)) {
+      /*
+       * We've got to do more than logout() does here... we need to identify
+       * the entry that we made at login time....
+       */
+      struct utmp ut, want;
+      char *colon;
+      int fd;
+
+      strncpy(want.ut_line, PPPOTCPLINE, sizeof want.ut_line);
+      strncpy(want.ut_host, p->name.base, sizeof want.ut_host);
+      colon = memchr(want.ut_host, ':', sizeof want.ut_host);
+      if (colon)
+        *colon = '\0';
+
+      if ((fd = ID0open(_PATH_WTMP, O_RDWR, 0)) >= 0) {
+        lseek(fd, -(off_t)sizeof(struct utmp), L_XTND);
+        while (read(fd, &ut, sizeof(struct utmp)) == sizeof(struct utmp)) {
+          if (*ut.ut_name &&
+              !memcmp(ut.ut_line, want.ut_line, sizeof ut.ut_line) &&
+              !memcmp(ut.ut_host, want.ut_host, sizeof ut.ut_host) &&
+              p->Utmp == ut.ut_time) {
+            memset(ut.ut_name, '\0', sizeof ut.ut_name);
+            memset(ut.ut_host, '\0', sizeof ut.ut_name);
+            time(&ut.ut_time);
+            lseek(fd, 0, L_XTND);
+            write(fd, &ut, sizeof ut);
+            *want.ut_line = '\0';
+            break;
+          }
+          lseek(fd, -((off_t)sizeof(struct utmp) << 1), L_INCR);
+        }
+        close(fd);
+        if (*want.ut_line)
+          log_Printf(LogWARN, "Cannot locate %s/%.*s in %s\n", PPPOTCPLINE,
+                     (int)(sizeof want.ut_host), want.ut_host, _PATH_WTMP);
+      }
+    } else
+      ID0logout(p->name.base);
     p->Utmp = 0;
   }
   newsid = tcgetpgrp(p->fd) == getpgrp();
@@ -838,7 +879,7 @@ physical_Login(struct physical *p, const char *name)
     strncpy(ut.ut_name, name, sizeof ut.ut_name);
     if (p->handler && (p->handler->type == TCP_DEVICE ||
                        p->handler->type == UDP_DEVICE)) {
-      strncpy(ut.ut_line, "ppp", sizeof ut.ut_line);
+      strncpy(ut.ut_line, PPPOTCPLINE, sizeof ut.ut_line);
       strncpy(ut.ut_host, p->name.base, sizeof ut.ut_host);
       colon = memchr(ut.ut_host, ':', sizeof ut.ut_host);
       if (colon)
@@ -849,7 +890,7 @@ physical_Login(struct physical *p, const char *name)
       /* mgetty sets this to the connection speed */
       strncpy(ut.ut_host, connstr, sizeof ut.ut_host);
     ID0login(&ut);
-    p->Utmp = 1;
+    p->Utmp = ut.ut_time;
   }
 }
 
