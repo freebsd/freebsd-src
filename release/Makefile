@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.84 1995/01/17 19:57:35 jkh Exp $
+#	$Id: Makefile,v 1.85 1995/01/27 01:47:32 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -228,10 +228,10 @@ beforetarballs:
 
 tarballs:
 	rm -rf ${RELEASEDIR}/tarballs
-	mkdir ${RELEASEDIR}/tarballs
+	mkdir -p ${RELEASEDIR}/tarballs
 	@for i in ${DISTRIBUTIONS} ; \
 	do \
-		mkdir ${RELEASEDIR}/tarballs/$${i} ; \
+		mkdir -p ${RELEASEDIR}/tarballs/$${i} ; \
 		( cd ${RELEASEDIR}/$${i}; \
 			tar cf - . | \
 			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/$$i/$${i}.) ; \
