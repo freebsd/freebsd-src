@@ -29,40 +29,12 @@
  * $FreeBSD$
  */
 
-/*
- * if_gif.h
- */
+#ifndef _NETINET6_IN6_GIF_H_
+#define	_NETINET6_IN6_GIF_H_
 
-#ifndef _NET_IF_GIF_H_
-#define _NET_IF_GIF_H_
+#define	GIF_HLIM	30
 
-struct gif_softc {
-	struct	ifnet		gif_if;	   /* common area */
-	struct	sockaddr	*gif_psrc; /* Physical src addr */
-	struct	sockaddr	*gif_pdst; /* Physical dst addr */
-	union {
-		struct	route  gifscr_ro;    /* xxx */
-		struct	route_in6 gifscr_ro6; /* xxx */
-	} gifsc_gifscr;
-	int	gif_flags;
-};
+int in6_gif_input __P((struct mbuf **, int *, int));
+int in6_gif_output __P((struct ifnet *, int, struct mbuf *, struct rtentry *));
 
-#define	gif_ro gifsc_gifscr.gifscr_ro
-#define	gif_ro6 gifsc_gifscr.gifscr_ro6
-
-#define	GIFF_INUSE	0x1	/* gif is in use */
-
-#define	GIF_MTU		(1280)	/* Default MTU */
-#define	GIF_MTU_MIN	(1280)	/* Minimum MTU */
-#define	GIF_MTU_MAX	(8192)	/* Maximum MTU */
-
-extern int	ngif;
-extern struct	gif_softc *gif;
-
-/* Prototypes */
-void	gif_input __P((struct mbuf *, int, struct ifnet *));
-int	gif_output __P((struct ifnet *, struct mbuf *,
-		    struct sockaddr *, struct rtentry *));
-int	gif_ioctl __P((struct ifnet *, u_long, caddr_t));
-
-#endif /* _NET_IF_GIF_H_ */
+#endif /*_NETINET6_IN6_GIF_H_*/

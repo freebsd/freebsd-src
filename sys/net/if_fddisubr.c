@@ -38,6 +38,7 @@
 
 #include "opt_atalk.h"
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -52,10 +53,13 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
+#endif
+#ifdef INET6
+#include <netinet6/nd6.h>
 #endif
 #if defined(__FreeBSD__)
 #include <netinet/if_fddi.h>
@@ -185,6 +189,16 @@ fddi_output(ifp, m0, dst, rt0)
 		type = htons(ETHERTYPE_IP);
 		break;
 	}
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if (!nd6_storelladdr(&ac->ac_if, rt, m, dst, (u_char *)edst)) {
+			/* this must be impossible, so we bark */
+			printf("nd6_storelladdr failed\n");
+			return(0);
+		}
+		type = htons(ETHERTYPE_IPV6);
+		break;
 #endif
 #ifdef IPX
 	case AF_IPX:
@@ -481,7 +495,7 @@ fddi_input(ifp, fh, m)
 
 	l = mtod(m, struct llc *);
 	switch (l->llc_dsap) {
-#if defined(INET) || defined(NS) || defined(DECNET) || defined(IPX) || defined(NETATALK)
+#if defined(INET) || defined(INET6) || defined(NS) || defined(DECNET) || defined(IPX) || defined(NETATALK)
 	case LLC_SNAP_LSAP:
 	{
 		u_int16_t type;
@@ -527,6 +541,12 @@ fddi_input(ifp, fh, m)
 			arpinput((struct arpcom *)ifp, m);
 			return;
 #endif
+#endif
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+			schednetisr(NETISR_IPV6);
+			inq = &ip6intrq;
+			break;
 #endif
 #ifdef IPX      
 		case ETHERTYPE_IPX: 

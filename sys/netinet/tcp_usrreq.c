@@ -34,6 +34,7 @@
  * $FreeBSD$
  */
 
+#include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -535,7 +536,7 @@ tcp_connect(tp, nam, p)
 	    sin->sin_addr, sin->sin_port,
 	    inp->inp_laddr.s_addr != INADDR_ANY ? inp->inp_laddr
 						: ifaddr->sin_addr,
-	    inp->inp_lport,  0);
+	    inp->inp_lport,  0, NULL);
 	if (oinp) {
 		if (oinp != inp && (otp = intotcpcb(oinp)) != NULL &&
 		otp->t_state == TCPS_TIME_WAIT &&
@@ -731,6 +732,9 @@ tcp_attach(so, p)
 	if (error)
 		return (error);
 	inp = sotoinpcb(so);
+#ifdef INET6
+	inp->inp_vflag |= INP_IPV4;
+#endif
 	tp = tcp_newtcpcb(inp);
 	if (tp == 0) {
 		int nofd = so->so_state & SS_NOFDREF;	/* XXX */

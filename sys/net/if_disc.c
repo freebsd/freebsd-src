@@ -52,6 +52,7 @@
 #include <net/bpf.h>
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #ifdef TINY_DSMTU
 #define	DSMTU	(1024+512)
@@ -178,6 +179,10 @@ discioctl(ifp, cmd, data)
 
 #ifdef INET
 		case AF_INET:
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
 			break;
 #endif
 

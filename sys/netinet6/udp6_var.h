@@ -68,6 +68,8 @@
 #define	_NETINET6_UDP6_VAR_H_
 
 #ifdef KERNEL
+SYSCTL_DECL(_net_inet6_udp6);
+
 extern struct	pr_usrreqs udp6_usrreqs;
 
 void	udp6_ctlinput __P((int, struct sockaddr *, void *));

@@ -437,6 +437,11 @@ device		mn0	# Munich32x/Falc54 Nx64kbit/sec cards.
 #  included for testing purposes.
 #  The `tun' pseudo-device implements (user-)ppp and nos-tun
 #  The `streams' pseudo-device implements SysVR4 STREAMS emulation.
+#  The `gif' pseudo-device implements IPv6 over IP4 tunneling,
+#  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
+#  IPv6 over IPv6 tunneling.
+#  The `faith' pseudo-device captures packets sent to it and diverts them
+#  to the IPv4/IPv6 translation daemon.
 #
 # The PPP_BSDCOMP option enables support for compress(1) style entire
 # packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
@@ -458,6 +463,10 @@ pseudo-device	streams
 options 	PPP_BSDCOMP		#PPP BSD-compress support
 options 	PPP_DEFLATE		#PPP zlib/deflate/gzip support
 options 	PPP_FILTER		#enable bpf filtering (needs bpf)
+
+# for IPv6
+pseudo-device	gif	4		#IPv6 and IPv4 tunneling
+pseudo-device	faith	1		#for IPv6 and IPv4 translation
 
 #
 # Internet family options:

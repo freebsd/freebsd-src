@@ -29,7 +29,6 @@
  * $FreeBSD$
  */
 
-#include "opt_inet.h"
 #include "opt_key.h"
 
 #include <sys/param.h>
@@ -56,15 +55,10 @@
 
 #ifdef IPSEC_IPV6FWD
 #include <netinet6/ipsec.h>
-#ifdef INET6
 #include <netinet6/ipsec6.h>
-#endif /* INET6 */
 #include <netkey/key.h>
 #ifdef KEY_DEBUG
 #include <netkey/key_debug.h>
-#ifdef INET6
-#include <netkey/key_debug6.h>
-#endif /* INET6 */
 #else
 #define DPRINTF(lev,arg)
 #define DDO(lev, stmt)
