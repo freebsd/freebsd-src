@@ -1247,6 +1247,7 @@ xl_choose_xcvr(sc, verbose)
 	case TC_DEVICEID_HURRICANE_656:		/* 3c656 */
 	case TC_DEVICEID_HURRICANE_656B:	/* 3c656B */
 	case TC_DEVICEID_TORNADO_656C:		/* 3c656C */
+	case TC_DEVICEID_TORNADO_10_100BT_NVIDIA: /* nVidia nForce2 */
 		sc->xl_media = XL_MEDIAOPT_MII;
 		sc->xl_xcvr = XL_XCVR_MII;
 		if (verbose)
@@ -1343,6 +1344,8 @@ xl_attach(dev)
 	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_656B)
 		sc->xl_flags |= XL_FLAG_INVERT_MII_PWR |
 		    XL_FLAG_INVERT_LED_PWR;
+	if (pci_get_device(dev) == TC_DEVICEID_TORNADO_10_100BT_NVIDIA)
+		sc->xl_flags |= XL_FLAG_PHYOK;
 
 	/*
 	 * If this is a 3c905B, we have to check one extra thing.
