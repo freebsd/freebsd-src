@@ -354,8 +354,9 @@ printit(pp, file)
 	char *file;
 {
 	register int i;
-	char *cp;
-	int bombed = OK;
+	char	*cp;
+	int	 bombed = OK;
+	int	 didignorehdr = 0;
 
 	/*
 	 * open control file; ignore if no longer there.
