@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Low level interface for debugging FreeBSD user threads for GDB, the GNU debugger.
    Copyright 1996, 1999 Free Software Foundation, Inc.
 
@@ -17,6 +16,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+
+/* $FreeBSD$ */
 
 /* This module implements a sort of half target that sits between the
    machine-independent parts of GDB and the ptrace interface (infptrace.c) to
