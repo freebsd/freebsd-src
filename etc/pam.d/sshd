@@ -15,7 +15,7 @@ account		required	pam_login_access.so
 account		required	pam_unix.so
 
 # session
-session		required	pam_lastlog.so	no_warn no_fail
+session		required	pam_permit.so
 
 # password
 password	required	pam_permit.so
