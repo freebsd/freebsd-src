@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.157 1999/03/15 06:24:52 alc Exp $
+ * $Id: vm_map.c,v 1.158 1999/03/21 23:37:00 alc Exp $
  */
 
 /*
@@ -104,18 +104,6 @@
  *	Maps consist of an ordered doubly-linked list of simple
  *	entries; a single hint is used to speed up lookups.
  *
- *	In order to properly represent the sharing of virtual
- *	memory regions among maps, the map structure is bi-level.
- *	Top-level ("address") maps refer to regions of sharable
- *	virtual memory.  These regions are implemented as
- *	("sharing") maps, which then refer to the actual virtual
- *	memory objects.  When two address maps "share" memory,
- *	their top-level maps both have references to the same
- *	sharing map.  When memory is virtual-copied from one
- *	address map to another, the references in the sharing
- *	maps are actually copied -- no copying occurs at the
- *	virtual memory object level.
- *
  *	Since portions of maps are specified by start/end addreses,
  *	which may not align with existing map entries, all
  *	routines merely "clip" entries to these start/end values.
@@ -123,16 +111,10 @@
  *	start or end value.]  Note that these clippings may not
  *	always be necessary (as the two resulting entries are then
  *	not changed); however, the clipping is done for convenience.
- *	No attempt is currently made to "glue back together" two
- *	abutting entries.
  *
  *	As mentioned above, virtual copy operations are performed
- *	by copying VM object references from one sharing map to
+ *	by copying VM object references from one map to
  *	another, and then marking both regions as copy-on-write.
- *	It is important to note that only one writeable reference
- *	to a VM object region exists in any map -- this means that
- *	shadow object creation can be delayed until a write operation
- *	occurs.
  */
 
 /*
@@ -1647,8 +1629,8 @@ vm_map_pageable(map, start, end, new_pageable)
 				 * object for a zero-fill region.
 				 *
 				 * We don't have to do this for entries that
-				 * point to sharing maps, because we won't
-				 * hold the lock on the sharing map.
+				 * point to sub maps, because we won't
+				 * hold the lock on the sub map.
 				 */
 				if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 					int copyflag = entry->eflags & MAP_ENTRY_NEEDS_COPY;
@@ -1920,9 +1902,6 @@ vm_map_entry_delete(map, entry)
  *
  *	Deallocates the given address range from the target
  *	map.
- *
- *	When called with a sharing map, removes pages from
- *	that region from all physical maps.
  */
 int
 vm_map_delete(map, start, end)
@@ -1991,11 +1970,6 @@ vm_map_delete(map, start, end)
 		}
 
 		offidxend = offidxstart + count;
-		/*
-		 * If this is a sharing map, we must remove *all* references
-		 * to this data, since we can't find all of the physical maps
-		 * which are sharing it.
-		 */
 
 		if ((object == kernel_object) || (object == kmem_object)) {
 			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
@@ -2322,7 +2296,7 @@ vmspace_fork(vm1)
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
 
 			/*
-			 * Clone the entry, referencing the sharing map.
+			 * Clone the entry, referencing the shared object.
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
@@ -2543,7 +2517,7 @@ RetryLookup:;
 	if (entry->eflags & MAP_ENTRY_NEEDS_COPY) {
 		/*
 		 * If we want to write the page, we may as well handle that
-		 * now since we've got the sharing map locked.
+		 * now since we've got the map locked.
 		 *
 		 * If we don't need to write the page, we just demote the
 		 * permissions allowed.
@@ -2553,7 +2527,7 @@ RetryLookup:;
 			/*
 			 * Make a new object, and place it in the object
 			 * chain.  Note that no new references have appeared
-			 * -- one just moved from the share map to the new
+			 * -- one just moved from the map to the new
 			 * object.
 			 */
 
