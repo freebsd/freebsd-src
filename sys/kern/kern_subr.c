@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.24 1999/01/10 01:58:24 eivind Exp $
+ * $Id: kern_subr.c,v 1.25 1999/02/02 12:11:01 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -51,8 +52,6 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-
-#include <machine/cpu.h>
 
 static void	uio_yield __P((void));
 
@@ -86,7 +85,7 @@ uiomove(cp, n, uio)
 
 		case UIO_USERSPACE:
 		case UIO_USERISPACE:
-			if (resched_wanted())
+			if (ticks - switchticks >= hogticks)
 				uio_yield();
 			if (uio->uio_rw == UIO_READ)
 				error = copyout(cp, iov->iov_base, cnt);
@@ -146,7 +145,7 @@ uiomoveco(cp, n, uio, obj)
 
 		case UIO_USERSPACE:
 		case UIO_USERISPACE:
-			if (resched_wanted())
+			if (ticks - switchticks >= hogticks)
 				uio_yield();
 			if (uio->uio_rw == UIO_READ) {
 				if (vfs_ioopt && ((cnt & PAGE_MASK) == 0) &&
@@ -223,7 +222,7 @@ uioread(n, uio, obj, nread)
 
 			cnt &= ~PAGE_MASK;
 
-			if (resched_wanted())
+			if (ticks - switchticks >= hogticks)
 				uio_yield();
 			error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
 						uio->uio_offset, cnt,
@@ -408,6 +407,7 @@ uio_yield()
 	int s;
 
 	p = curproc;
+	p->p_priority = p->p_usrpri;
 	s = splhigh();
 	setrunqueue(p);
 	p->p_stats->p_ru.ru_nivcsw++;
