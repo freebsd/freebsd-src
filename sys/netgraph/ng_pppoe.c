@@ -238,6 +238,10 @@ struct PPPOE {
 };
 typedef struct PPPOE *priv_p;
 
+/*
+ * XXXRW: Leave this unsynchronized, since only a single field is modified,
+ * and it's done so infrequently.  Likewise, pppoe_mode.
+ */
 struct ether_header eh_prototype =
 	{{0xff,0xff,0xff,0xff,0xff,0xff},
 	 {0x00,0x00,0x00,0x00,0x00,0x00},
