@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.26 1998/10/03 17:23:25 jdp Exp $
+ * $Id: asnames.h,v 1.27 1999/01/30 15:38:48 kato Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -297,7 +297,7 @@
 #define _other_cpus			other_cpus
 #define _ovbcopy_vector			ovbcopy_vector
 #define _panic				panic
-#define	_pc98_system_parameter	pc98_system_parameter
+#define _pc98_system_parameter		pc98_system_parameter
 #define _poly_div16			poly_div16
 #define _poly_div2			poly_div2
 #define _poly_div4			poly_div4
@@ -310,10 +310,10 @@
 #define _prv_CMAP1			prv_CMAP1
 #define _prv_CMAP2			prv_CMAP2
 #define _prv_CMAP3			prv_CMAP3
-#define _prv_PMAP1			prv_PMAP1
 #define _prv_CPAGE1			prv_CPAGE1
 #define _prv_CPAGE2			prv_CPAGE2
 #define _prv_CPAGE3			prv_CPAGE3
+#define _prv_PMAP1			prv_PMAP1
 #define _prv_PPAGE1			prv_PPAGE1
 #define _qs				qs
 #define _rcpoll				rcpoll
@@ -347,6 +347,9 @@
 #define _ss_unlock			ss_unlock
 #define _started_cpus			started_cpus
 #define _stopped_cpus			stopped_cpus
+#define _svr4_sigcode			svr4_sigcode
+#define _svr4_sys_context		svr4_sys_context
+#define _svr4_szsigcode			svr4_szsigcode
 #define _swi_dispatcher			swi_dispatcher
 #define _swi_generic			swi_generic
 #define _swi_null			swi_null
