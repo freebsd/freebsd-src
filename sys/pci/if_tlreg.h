@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tlreg.h,v 1.9 1999/03/31 04:04:14 wpaul Exp $
+ *	$Id: if_tlreg.h,v 1.11 1999/07/23 02:06:57 wpaul Exp $
  */
 
 
@@ -812,6 +812,5 @@ struct tl_stats {
 
 #ifdef __alpha__
 #undef vtophys
-#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
-					+ 1*1024*1024*1024)
+#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
 #endif

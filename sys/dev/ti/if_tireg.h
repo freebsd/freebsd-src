@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tireg.h,v 1.46 1999/07/05 19:20:31 wpaul Exp wpaul $
+ *	$Id: if_tireg.h,v 1.6 1999/07/23 02:10:11 wpaul Exp $
  */
 
 /*
@@ -1176,9 +1176,8 @@ struct ti_softc {
 	TI_CLRBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_TXEN); /* Disable xmit. */	\
 	TI_CLRBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_CLK); /* Pull clock low again */
 
+
 #ifdef __alpha__
 #undef vtophys
-#define vtophys(va)     (pmap_kextract(((vm_offset_t) (va))) \
-                         + 1*1024*1024*1024)
+#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
 #endif
-
