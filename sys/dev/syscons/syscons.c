@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.308 1999/06/24 09:21:27 yokota Exp $
+ *	$Id: syscons.c,v 1.309 1999/06/26 11:00:17 peter Exp $
  */
 
 #include "sc.h"
@@ -481,6 +481,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     int unit = scdevtounit(dev);
     sc_softc_t *sc;
     keyarg_t key;
+    int error;
 
     if (!tp)
 	return(ENXIO);
@@ -518,6 +519,9 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     else
 	if (tp->t_state & TS_XCLUDE && suser(p))
 	    return(EBUSY);
+
+    error = (*linesw[tp->t_line].l_open)(dev, tp);
+
     if ((SC_VTY(dev) != SC_CONSOLECTL) && (SC_VTY(dev) != SC_MOUSE)) {
 	/* assert(sc != NULL) */
 	if (sc->console[SC_VTY(dev) - sc->first_vty] == NULL) {
@@ -534,7 +538,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 		= sc->console[SC_VTY(dev) - sc->first_vty]->ysize;
 	}
     }
-    return ((*linesw[tp->t_line].l_open)(dev, tp));
+    return error;
 }
 
 int
