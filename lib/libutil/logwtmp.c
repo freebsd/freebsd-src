@@ -50,7 +50,9 @@ static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 
 void
 logwtmp(line, name, host)
-	char *line, *name, *host;
+	const char *line;
+	const char *name;
+	const char *host;
 {
 	struct utmp ut;
 	struct stat buf;
