@@ -383,7 +383,7 @@ vop_stdfsync(ap)
 	struct bufobj *bo;
 	struct buf *nbp;
 	int s, error = 0;
-	int maxretry = 100;     /* large, arbitrarily chosen */
+	int maxretry = 1000;     /* large, arbitrarily chosen */
 
 	VI_LOCK(vp);
 loop1:
@@ -398,7 +398,7 @@ loop1:
 	splx(s);
 
 	/*
-	 * Flush all dirty buffers associated with a block device.
+	 * Flush all dirty buffers associated with a vnode.
 	 */
 loop2:
 	s = splbio();
@@ -445,11 +445,12 @@ loop2:
 				splx(s);
 				goto loop1;
 			}
-			vprint("fsync: giving up on dirty", vp);
 			error = EAGAIN;
 		}
 	}
 	VI_UNLOCK(vp);
+	if (error == EAGAIN)
+		vprint("fsync: giving up on dirty", vp);
 	splx(s);
 
 	return (error);
