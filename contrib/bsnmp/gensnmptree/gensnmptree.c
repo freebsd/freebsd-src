@@ -3,39 +3,41 @@
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  *	All rights reserved.
  *
+ * Copyright (c) 2004
+ *	Hartmut Brandt.
+ *	All rights reserved.
+ *
  * Author: Harti Brandt <harti@freebsd.org>
- *
- * Redistribution of this software and documentation and use in source and
- * binary forms, with or without modification, are permitted provided that
- * the following conditions are met:
- *
- * 1. Redistributions of source code or documentation must retain the above
- *    copyright notice, this list of conditions and the following disclaimer.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Institute nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- * THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY FRAUNHOFER FOKUS
- * AND ITS CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
- * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
- * FRAUNHOFER FOKUS OR ITS CONTRIBUTORS  BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
- * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.37 2004/04/13 15:18:15 novo Exp $
+ * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.38 2004/08/06 08:46:46 brandt Exp $
  *
  * Generate OID table from table description.
  *
  * Syntax is:
  * ---------
+ * file := tree | tree file
+ *
  * tree := head elements ')'
  *
  * entry := head ':' index STRING elements ')'
@@ -61,8 +63,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
+#include <errno.h>
+#ifdef HAVE_ERR_H
 #include <err.h>
+#endif
 #include <sys/queue.h>
+#include "support.h"
 #include "asn1.h"
 #include "snmp.h"
 #include "snmpagent.h"
@@ -123,7 +130,7 @@ struct node {
 	  }		tree;
 
 	  struct entry {
-	    u_int32_t	index;	/* index for table entry */
+	    uint32_t	index;	/* index for table entry */
 	    char	*func;	/* function for tables */
 	    struct node_list subs;
 	  }		entry;
@@ -199,6 +206,7 @@ static const struct {
 char	str[MAXSTR];
 u_long	val;		/* integer values */
 u_int 	lno = 1;	/* current line number */
+int	all_cond;	/* all conditions are true */
 
 static void report(const char *, ...) __dead2 __printflike(1, 2);
 static void report_node(const struct node *, const char *, ...)
@@ -584,6 +592,7 @@ gen_table(struct node *node)
 
 	fprintf(fp, "#include <sys/types.h>\n");
 	fprintf(fp, "#include <stdio.h>\n");
+	fprintf(fp, "#include <stdint.h>\n");
 	if (localincs) {
 		fprintf(fp, "#include \"asn1.h\"\n");
 		fprintf(fp, "#include \"snmp.h\"\n");
@@ -605,8 +614,74 @@ gen_table(struct node *node)
 	fprintf(fp, "};\n\n");
 }
 
+static void
+print_syntax(u_int syntax)
+{
+	u_int i;
+
+	for (i = 0; keywords[i].str != NULL; i++)
+		if (keywords[i].tok == TOK_TYPE &&
+		    keywords[i].val == syntax) {
+			printf(" %s", keywords[i].str);
+			return;
+	}
+	abort();
+}
+
+/*
+ * Generate a tree definition file
+ */
+static void
+gen_tree(const struct node *np, int level)
+{
+	const struct node *sp;
+	u_int i;
+
+	printf("%*s(%u %s", 2 * level, "", np->id, np->name);
+
+	switch (np->type) {
+
+	  case NODE_LEAF:
+		print_syntax(np->u.leaf.syntax);
+		printf(" %s%s%s)\n", np->u.leaf.func,
+		    (np->flags & FL_GET) ? " GET" : "",
+		    (np->flags & FL_SET) ? " SET" : "");
+		break;
+
+	  case NODE_TREE:
+		if (TAILQ_EMPTY(&np->u.tree.subs)) {
+			printf(")\n");
+		} else {
+			printf("\n");
+			TAILQ_FOREACH(sp, &np->u.tree.subs, link)
+				gen_tree(sp, level + 1);
+			printf("%*s)\n", 2 * level, "");
+		}
+		break;
+
+	  case NODE_ENTRY:
+		printf(" :");
+
+		for (i = 0; i < SNMP_INDEX_COUNT(np->u.entry.index); i++)
+			print_syntax(SNMP_INDEX(np->u.entry.index, i));
+		printf(" %s\n", np->u.entry.func);
+		TAILQ_FOREACH(sp, &np->u.entry.subs, link)
+			gen_tree(sp, level + 1);
+		printf("%*s)\n", 2 * level, "");
+		break;
+
+	  case NODE_COLUMN:
+		print_syntax(np->u.column.syntax);
+		printf("%s%s)\n", (np->flags & FL_GET) ? " GET" : "",
+		    (np->flags & FL_SET) ? " SET" : "");
+		break;
+
+	}
+}
+
 static int
-extract(const struct node *np, struct asn_oid *oid, const char *obj)
+extract(const struct node *np, struct asn_oid *oid, const char *obj,
+    const struct asn_oid *idx, const char *iname)
 {
 	struct node *sub;
 	u_long n;
@@ -616,22 +691,29 @@ extract(const struct node *np, struct asn_oid *oid, const char *obj)
 	oid->subs[oid->len++] = np->id;
 
 	if (strcmp(obj, np->name) == 0) {
-		fprintf(fp, "#define OID_%s\t%u\n", np->name, np->id);
-		fprintf(fp, "#define OIDLEN_%s\t%u\n", np->name, oid->len);
-		fprintf(fp, "#define OIDX_%s\t{ %u, {", np->name, oid->len);
+		if (oid->len + idx->len >= ASN_MAXOIDLEN)
+			report_node(np, "OID too long");
+		fprintf(fp, "#define OID_%s%s\t%u\n", np->name,
+		    iname ? iname : "", np->id);
+		fprintf(fp, "#define OIDLEN_%s%s\t%u\n", np->name,
+		    iname ? iname : "", oid->len + idx->len);
+		fprintf(fp, "#define OIDX_%s%s\t{ %u, {", np->name,
+		    iname ? iname : "", oid->len + idx->len);
 		for (n = 0; n < oid->len; n++)
 			fprintf(fp, " %u,", oid->subs[n]);
+		for (n = 0; n < idx->len; n++)
+			fprintf(fp, " %u,", idx->subs[n]);
 		fprintf(fp, " } }\n");
 		return (0);
 	}
 
 	if (np->type == NODE_TREE) {
 		TAILQ_FOREACH(sub, &np->u.tree.subs, link)
-			if (!extract(sub, oid, obj))
+			if (!extract(sub, oid, obj, idx, iname))
 				return (0);
 	} else if (np->type == NODE_ENTRY) {
 		TAILQ_FOREACH(sub, &np->u.entry.subs, link)
-			if (!extract(sub, oid, obj))
+			if (!extract(sub, oid, obj, idx, iname))
 				return (0);
 	}
 	oid->len--;
@@ -639,13 +721,57 @@ extract(const struct node *np, struct asn_oid *oid, const char *obj)
 }
 
 static int
-gen_extract(const struct node *root, const char *object)
+gen_extract(const struct node *root, char *object)
 {
 	struct asn_oid oid;
+	struct asn_oid idx;
+	char *s, *e, *end, *iname;
+	u_long ul;
+	int ret;
+
+	/* look whether the object to extract has an index part */
+	idx.len = 0;
+	iname = NULL;
+	s = strchr(object, '.');
+	if (s != NULL) {
+		iname = malloc(strlen(s) + 1);
+		if (iname == NULL)
+			err(1, "cannot allocated index");
+
+		strcpy(iname, s);
+		for (e = iname; *e != '\0'; e++)
+			if (*e == '.')
+				*e = '_';
+
+		*s++ = '\0';
+		while (s != NULL) {
+			if (*s == '\0')
+				errx(1, "bad index syntax");
+			if ((e = strchr(s, '.')) != NULL)
+				*e++ = '\0';
+
+			errno = 0;
+			ul = strtoul(s, &end, 0);
+			if (*end != '\0')
+				errx(1, "bad index syntax '%s'", end);
+			if (errno != 0)
+				err(1, "bad index syntax");
+
+			if (idx.len == ASN_MAXOIDLEN)
+				errx(1, "index oid too large");
+			idx.subs[idx.len++] = ul;
+
+			s = e;
+		}
+	}
 
 	oid.len = PREFIX_LEN;
 	memcpy(oid.subs, prefix, sizeof(prefix));
-	return (extract(root, &oid, object));
+	ret = extract(root, &oid, object, &idx, iname);
+	if (iname != NULL)
+		free(iname);
+
+	return (ret);
 }
 
 
@@ -698,15 +824,80 @@ check_tree(struct node *np)
 	}
 }
 
+static void
+merge_subs(struct node_list *s1, struct node_list *s2)
+{
+	struct node *n1, *n2;
+
+	while (!TAILQ_EMPTY(s2)) {
+		n2 = TAILQ_FIRST(s2);
+		TAILQ_REMOVE(s2, n2, link);
+
+		TAILQ_FOREACH(n1, s1, link)
+			if (n1->id >= n2->id)
+				break;
+		if (n1 == NULL)
+			TAILQ_INSERT_TAIL(s1, n2, link);
+		else if (n1->id > n2->id)
+			TAILQ_INSERT_BEFORE(n1, n2, link);
+		else {
+			if (n1->type == NODE_TREE && n2->type == NODE_TREE) {
+				if (strcmp(n1->name, n2->name) != 0)
+					errx(1, "trees to merge must have "
+					    "same name '%s' '%s'", n1->name,
+					    n2->name);
+				merge_subs(&n1->u.tree.subs, &n2->u.tree.subs);
+				free(n2);
+			} else if (n1->type == NODE_ENTRY &&
+			    n2->type == NODE_ENTRY) {
+				if (strcmp(n1->name, n2->name) != 0)
+					errx(1, "entries to merge must have "
+					    "same name '%s' '%s'", n1->name,
+					    n2->name);
+				if (n1->u.entry.index != n2->u.entry.index)
+					errx(1, "entries to merge must have "
+					    "same index '%s'", n1->name);
+				if (strcmp(n1->u.entry.func,
+				    n2->u.entry.func) != 0)
+					errx(1, "entries to merge must have "
+					    "same op '%s'", n1->name);
+				merge_subs(&n1->u.entry.subs,
+				    &n2->u.entry.subs);
+				free(n2);
+			} else
+				errx(1, "entities to merge must be both "
+				    "trees or both entries: %s, %s",
+				    n1->name, n2->name);
+		}
+	}
+}
+
+static void
+merge(struct node *root, struct node *t)
+{
+
+	/* both must be trees */
+	if (root->type != NODE_TREE)
+		errx(1, "root is not a tree");
+	if (t->type != NODE_TREE)
+		errx(1, "can merge only with tree");
+	if (root->id != t->id)
+		errx(1, "trees to merge must have same id");
+
+	merge_subs(&root->u.tree.subs, &t->u.tree.subs);
+}
+
 int
 main(int argc, char *argv[])
 {
 	int do_extract = 0;
+	int do_tree = 0;
 	int opt;
 	struct node *root;
 	char fname[MAXPATHLEN + 1];
+	int tok;
 
-	while ((opt = getopt(argc, argv, "help:")) != EOF)
+	while ((opt = getopt(argc, argv, "help:t")) != EOF)
 		switch (opt) {
 
 		  case 'h':
@@ -727,16 +918,22 @@ main(int argc, char *argv[])
 			    MAXPATHLEN)
 				errx(1, "prefix too long");
 			break;
+
+		  case 't':
+			do_tree = 1;
+			break;
 		}
 
+	if (do_extract && do_tree)
+		errx(1, "conflicting options -e and -t");
 	if (!do_extract && argc != optind)
 		errx(1, "no arguments allowed");
 	if (do_extract && argc == optind)
 		errx(1, "no objects specified");
 
 	root = parse(gettoken());
-	if (gettoken() != TOK_EOF)
-		report("junk after closing ')'");
+	while ((tok = gettoken()) != TOK_EOF)
+		merge(root, parse(tok));
 
 	check_tree(root);
 
@@ -748,6 +945,10 @@ main(int argc, char *argv[])
 			optind++;
 		}
 
+		return (0);
+	}
+	if (do_tree) {
+		gen_tree(root, 0);
 		return (0);
 	}
 	sprintf(fname, "%stree.h", file_prefix);

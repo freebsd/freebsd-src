@@ -4,33 +4,29 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- *
- * Redistribution of this software and documentation and use in source and
- * binary forms, with or without modification, are permitted provided that
- * the following conditions are met:
- *
- * 1. Redistributions of source code or documentation must retain the above
- *    copyright notice, this list of conditions and the following disclaimer.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Institute nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- * THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY FRAUNHOFER FOKUS
- * AND ITS CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
- * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
- * FRAUNHOFER FOKUS OR ITS CONTRIBUTORS  BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
- * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Begemot: bsnmp/snmpd/main.c,v 1.85 2004/04/14 15:39:14 novo Exp $
+ * $Begemot: bsnmp/snmpd/main.c,v 1.89 2004/08/06 08:47:11 brandt Exp $
  *
  * SNMPd main stuff.
  */
@@ -328,10 +324,11 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 		snmpd_stats.inBadCommunityNames++;
 		snmp_pdu_free(pdu);
 		if (snmpd.auth_traps)
-			snmp_send_trap(&oid_authenticationFailure, NULL);
-		return (SNMPD_INPUT_FAILED);
-	}
-	community = comm->value;
+			snmp_send_trap(&oid_authenticationFailure,
+			    (struct snmp_value *)NULL);
+		ret = SNMPD_INPUT_BAD_COMM;
+	} else
+		community = comm->value;
 
 	/* update uptime */
 	this_tick = get_ticks();
@@ -922,6 +919,10 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 		snmp_input_consume(pi);
 		return (0);
 	}
+	if (ierr == SNMPD_INPUT_BAD_COMM) {
+		snmp_input_consume(pi);
+		return (0);
+	}
 
 	/*
 	 * If that is a module community and the module has a proxy function,
@@ -929,7 +930,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	 */
 	if (comm->owner != NULL && comm->owner->config->proxy != NULL) {
 		perr = (*comm->owner->config->proxy)(&pdu, tport->transport,
-		    &tport->index, pi->peer, pi->peerlen, ierr, vi, pi->priv);
+		    &tport->index, pi->peer, pi->peerlen, ierr, vi,
+		    !pi->cred || pi->priv);
 
 		switch (perr) {
 
@@ -952,7 +954,7 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 			snmpd_stats.inBadCommunityNames++;
 			if (snmpd.auth_traps)
 				snmp_send_trap(&oid_authenticationFailure,
-				    NULL);
+				    (struct snmp_value *)NULL);
 			return (0);
 
 		  case SNMPD_PROXY_BADCOMMUSE:
@@ -961,7 +963,7 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 			snmpd_stats.inBadCommunityUses++;
 			if (snmpd.auth_traps)
 				snmp_send_trap(&oid_authenticationFailure,
-				    NULL);
+				    (struct snmp_value *)NULL);
 			return (0);
 		}
 	}
@@ -989,7 +991,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 		snmp_pdu_free(&pdu);
 		snmp_input_consume(pi);
 		if (snmpd.auth_traps)
-			snmp_send_trap(&oid_authenticationFailure, NULL);
+			snmp_send_trap(&oid_authenticationFailure,
+			    (struct snmp_value *)NULL);
 		return (0);
 	}
 
@@ -1440,11 +1443,6 @@ main(int argc, char *argv[])
 	if (lsock_trans.start() != SNMP_ERR_NOERROR)
 		syslog(LOG_WARNING, "cannot start LSOCK transport");
 
-	if (read_config(config_file, NULL)) {
-		syslog(LOG_ERR, "error in config file");
-		exit(1);
-	}
-
 #ifdef USE_LIBBEGEMOT
 	if (debug.evdebug > 0)
 		rpoll_trace = 1;
@@ -1456,6 +1454,11 @@ main(int argc, char *argv[])
 	if (debug.evdebug > 0)
 		evSetDebug(evctx, 10, stderr);
 #endif
+
+	if (read_config(config_file, NULL)) {
+		syslog(LOG_ERR, "error in config file");
+		exit(1);
+	}
 
 	TAILQ_FOREACH(t, &transport_list, link)
 		TAILQ_FOREACH(p, &t->table, link)
@@ -1487,7 +1490,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	snmp_send_trap(&oid_coldStart, NULL);
+	snmp_send_trap(&oid_coldStart, (struct snmp_value *)NULL);
 
 	while ((m = TAILQ_FIRST(&modules_start)) != NULL) {
 		m->flags &= ~LM_ONSTARTLIST;
