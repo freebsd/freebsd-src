@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.63 1998/04/04 13:25:11 phk Exp $
+ * $Id: kern_clock.c,v 1.64 1998/04/04 18:46:09 phk Exp $
  */
 
 #include <sys/param.h>
@@ -823,7 +823,7 @@ static struct timecounter dummy_timecounter[3] = {
 		0,
 		dummy_get_timecount,
 		~0,
-		100000,
+		1000000,
 		"dummy"
 	}
 };
