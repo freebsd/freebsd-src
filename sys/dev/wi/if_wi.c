@@ -71,6 +71,7 @@
 #include <sys/socket.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/random.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 
@@ -95,10 +96,7 @@
 #include <net/bpf.h>
 
 #include <dev/wi/if_wavelan_ieee.h>
-#ifdef WI_HOSTAP
 #include <dev/wi/wi_hostap.h>
-#include <sys/random.h>
-#endif
 #include <dev/wi/if_wivar.h>
 #include <dev/wi/if_wireg.h>
 
@@ -613,7 +611,6 @@ wi_rxeof(sc)
 		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
 
-#ifdef WI_HOSTAP
 		if (rx_frame.wi_status == WI_STAT_MGMT &&
 		    sc->wi_ptype == WI_PORTTYPE_AP) {
 			if ((WI_802_11_OFFSET_RAW + rx_frame.wi_dat_len + 2) >
@@ -643,7 +640,6 @@ wi_rxeof(sc)
 			wihap_mgmt_input(sc, &rx_frame, m);
 			return;
 		}
-#endif /* WI_HOSTAP */
 
 		if (rx_frame.wi_status == WI_STAT_1042 ||
 		    rx_frame.wi_status == WI_STAT_TUNNEL ||
@@ -711,7 +707,6 @@ wi_rxeof(sc)
 
 		ifp->if_ipackets++;
 
-#ifdef WI_HOSTAP
 		if (sc->wi_ptype == WI_PORTTYPE_AP) {
 			/* 
 			 * Give host AP code first crack at data
@@ -722,7 +717,6 @@ wi_rxeof(sc)
 			if (wihap_data_input(sc, &rx_frame, m))
 				return;
 		}
-#endif
 		/* Receive packet. */
 		m_adj(m, sizeof(struct ether_header));
 #ifdef WICACHE
@@ -1123,14 +1117,12 @@ wi_write_record(sc, ltv)
 			if (le16toh(ltv->wi_val)) {
 				p2ltv.wi_val =htole16(PRIVACY_INVOKED |
 				    EXCLUDE_UNENCRYPTED);
-#ifdef WI_HOSTAP
 				if (sc->wi_ptype == WI_PORTTYPE_AP)
 					/* 
 					 * Disable tx encryption...
 					 * it's broken.
 					 */
 					p2ltv.wi_val |= htole16(HOST_ENCRYPT);
-#endif
 			} else
 				p2ltv.wi_val =
 				    htole16(HOST_ENCRYPT | HOST_DECRYPT);
@@ -1845,7 +1837,6 @@ wi_ioctl(ifp, command, data)
 		wi_init(sc);
 
 	break;
-#ifdef WI_HOSTAP
 	case SIOCHOSTAP_ADD:
 	case SIOCHOSTAP_DEL:
 	case SIOCHOSTAP_GET:
@@ -1855,7 +1846,6 @@ wi_ioctl(ifp, command, data)
 		/* Send all Host AP specific ioctl's to Host AP code. */
 		error = wihap_ioctl(sc, command, data);
 		break;
-#endif
 	default:
 		error = EINVAL;
 		break;
@@ -1986,15 +1976,8 @@ wi_init(xsc)
 	/* enable interrupts */
 	CSR_WRITE_2(sc, WI_INT_EN, WI_INTRS);
 
-#ifdef WI_HOSTAP
 	wihap_init(sc);
 
-	/* 
-	 * Initialize ICV to something random.  XXX: this doesn't work
-	 * if init happens in early boot-up.  Fix later.
-	 */
-	read_random(&sc->wi_icv, sizeof(sc->wi_icv));
-#endif
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
@@ -2004,7 +1987,6 @@ wi_init(xsc)
 	return;
 }
 
-#ifdef WI_HOSTAP
 static u_int32_t crc32_tab[] = {
 	0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 0x076dc419L,
 	0x706af48fL, 0xe963a535L, 0x9e6495a3L, 0x0edb8832L, 0x79dcb8a4L,
@@ -2139,7 +2121,6 @@ wi_do_hostencrypt(struct wi_softc *sc, caddr_t buf, int len)
 		dat[i] ^= state[(state[x] + state[y]) % RC4STATE];
 	}
 }
-#endif /* WI_HOSTAP */
 
 static void
 wi_start(ifp)
@@ -2164,9 +2145,7 @@ wi_start(ifp)
 		return;
 	}
 
-#ifdef WI_HOSTAP
 nextpkt:
-#endif
 	IF_DEQUEUE(&ifp->if_snd, m0);
 	if (m0 == NULL) {
 		WI_UNLOCK(sc);
@@ -2178,7 +2157,6 @@ nextpkt:
 	id = sc->wi_tx_data_id;
 	eh = mtod(m0, struct ether_header *);
 
-#ifdef WI_HOSTAP
 	if (sc->wi_ptype == WI_PORTTYPE_AP) {
 		if (!wihap_check_tx(&sc->wi_hostap_info,
 		    eh->ether_dhost, &tx_frame.wi_tx_rate)) {
@@ -2189,7 +2167,6 @@ nextpkt:
 			goto nextpkt;
 		}
 	}
-#endif
 	/*
 	 * Use RFC1042 encoding for IP and ARP datagrams,
 	 * 802.3 for anything else.
@@ -2197,7 +2174,6 @@ nextpkt:
 	if (ntohs(eh->ether_type) > ETHER_MAX_LEN) {
 		bcopy((char *)&eh->ether_dhost,
 		    (char *)&tx_frame.wi_addr1, ETHER_ADDR_LEN);
-#ifdef WI_HOSTAP
 		if (sc->wi_ptype == WI_PORTTYPE_AP) {
 			tx_frame.wi_tx_ctl = WI_ENC_TX_MGMT; /* XXX */
 			tx_frame.wi_frame_ctl |= WI_FCTL_FROMDS;
@@ -2209,7 +2185,6 @@ nextpkt:
 			      (char *)&tx_frame.wi_addr3, ETHER_ADDR_LEN);
 		}
 		else
-#endif
 			bcopy((char *)&eh->ether_shost,
 			    (char *)&tx_frame.wi_addr2, ETHER_ADDR_LEN);
 		bcopy((char *)&eh->ether_dhost,
@@ -2223,7 +2198,6 @@ nextpkt:
 		tx_frame.wi_len = htons(m0->m_pkthdr.len - WI_SNAPHDR_LEN);
 		tx_frame.wi_type = eh->ether_type;
 
-#ifdef WI_HOSTAP
 		if (sc->wi_ptype == WI_PORTTYPE_AP && sc->wi_use_wep) {
 			/* Do host encryption. */
 			bcopy(&tx_frame.wi_dat[0], &sc->wi_txbuf[4], 8);
@@ -2239,10 +2213,7 @@ nextpkt:
 			wi_write_data(sc, id, WI_802_11_OFFSET_RAW,
 			    (caddr_t)&sc->wi_txbuf, (m0->m_pkthdr.len -
 			    sizeof(struct ether_header)) + 18);
-		}
-		else
-#endif
-		{
+		} else {
 			m_copydata(m0, sizeof(struct ether_header),
 			    m0->m_pkthdr.len - sizeof(struct ether_header),
 			    (caddr_t)&sc->wi_txbuf);
@@ -2255,14 +2226,10 @@ nextpkt:
 	} else {
 		tx_frame.wi_dat_len = m0->m_pkthdr.len;
 
-#ifdef WI_HOSTAP
 		if (sc->wi_ptype == WI_PORTTYPE_AP && sc->wi_use_wep) {
 			/* Do host encryption. */
 			printf( "XXX: host encrypt not implemented for 802.3\n" );
-		}
-		else
-#endif
-		{
+		} else {
 			eh->ether_type = htons(m0->m_pkthdr.len -
 			    WI_SNAPHDR_LEN);
 			m_copydata(m0, 0, m0->m_pkthdr.len,
@@ -2351,9 +2318,7 @@ wi_stop(sc)
 		return;
 	}
 
-#ifdef WI_HOSTAP
 	wihap_shutdown(sc);
-#endif
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -2705,12 +2670,10 @@ wi_get_cur_ssid(sc, ssid, len)
 
 	wreq.wi_len = WI_MAX_DATALEN;
 	switch (sc->wi_ptype) {
-#ifdef WI_HOSTAP
 	case WI_PORTTYPE_AP:
 		*len = IEEE80211_NWID_LEN;
 		bcopy(sc->wi_net_name, ssid, IEEE80211_NWID_LEN);
 		break;
-#endif
 	case WI_PORTTYPE_ADHOC:
 		wreq.wi_type = WI_RID_CURRENT_SSID;
 		error = wi_read_record(sc, (struct wi_ltv_gen *)&wreq);
@@ -2763,7 +2726,7 @@ wi_media_change(ifp)
 
 	if ((sc->ifmedia.ifm_cur->ifm_media & IFM_IEEE80211_ADHOC) != 0)
 		sc->wi_ptype = WI_PORTTYPE_ADHOC;
-#if defined(WI_HOSTAP) && defined(IFM_IEEE80211_HOSTAP)
+#if defined(IFM_IEEE80211_HOSTAP)
 	else if ((sc->ifmedia.ifm_cur->ifm_media & IFM_IEEE80211_HOSTAP) != 0)
 		sc->wi_ptype = WI_PORTTYPE_AP;
 #endif
@@ -2807,7 +2770,7 @@ wi_media_status(ifp, imr)
 		imr->ifm_active = IFM_IEEE80211|IFM_AUTO;
 		if (sc->wi_ptype == WI_PORTTYPE_ADHOC)
 			imr->ifm_active |= IFM_IEEE80211_ADHOC;
-#if defined(WI_HOSTAP) && defined(IFM_IEEE80211_HOSTAP)
+#if defined(IFM_IEEE80211_HOSTAP)
 		else if (sc->wi_ptype == WI_PORTTYPE_AP)
 			imr->ifm_active |= IFM_IEEE80211_HOSTAP;
 #endif
@@ -2841,10 +2804,8 @@ wi_media_status(ifp, imr)
 		 * created one ourselves.
 		 */
 		imr->ifm_status |= IFM_ACTIVE;
-#ifdef WI_HOSTAP
 	else if (sc->wi_ptype == WI_PORTTYPE_AP)
 		imr->ifm_status |= IFM_ACTIVE;
-#endif
 	else {
 		wreq.wi_type = WI_RID_COMMQUAL;
 		wreq.wi_len = WI_MAX_DATALEN;

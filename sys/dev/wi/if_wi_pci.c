@@ -59,9 +59,7 @@
 #include <net/if_ieee80211.h>
 
 #include <dev/wi/if_wavelan_ieee.h>
-#ifdef WI_HOSTAP
 #include <dev/wi/wi_hostap.h>
-#endif
 #include <dev/wi/if_wivar.h>
 #include <dev/wi/if_wireg.h>
 
