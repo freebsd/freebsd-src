@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.17 1997/08/10 20:59:07 fsmp Exp $
+ * $Id: mplock.s,v 1.18 1997/08/20 05:25:47 fsmp Exp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -445,7 +445,7 @@ NON_GPROF_ENTRY(rel_altsyscall_lock)
  * 
  */
 	.data
-	.align  2			/* xx_lock aligned on int boundary */
+	.p2align 2			/* xx_lock aligned on int boundary */
 
 	.globl _mp_lock
 _mp_lock:	.long	0		
