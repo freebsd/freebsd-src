@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.199 1998/02/27 06:39:32 msmith Exp $
+ *	$Id: sio.c,v 1.200 1998/05/04 10:35:13 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2951,6 +2951,7 @@ static struct siopnp_ids {
 	u_long vend_id;
 	char *id_str;
 } siopnp_ids[] = {
+	{ 0x5015f435, "MOT1550"},
 	{ 0x8113b04e, "Supra1381"},
 	{ 0x9012b04e, "Supra1290"},
 	{ 0x11007256, "USR0011"},
