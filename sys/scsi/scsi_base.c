@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.18 1995/01/24 12:04:54 dufault Exp $
+ *      $Id: scsi_base.c,v 1.19 1995/01/31 11:41:44 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -661,7 +661,7 @@ void scsi_sense_print(xs)
 	 */
 	static char *sense_key_text[] =
 	{
-		"RECOVERED ERROR",
+	    "NO SENSE", "RECOVERED ERROR",
 	    "NOT READY", "MEDIUM ERROR",
 	    "HARDWARE FAILURE", "ILLEGAL REQUEST",
 	    "UNIT ATTENTION", "DATA PROTECT",
@@ -686,7 +686,7 @@ void scsi_sense_print(xs)
 
 	case 0x70:
 
-		printf("%s", sense_key_text[key - 1]);
+		printf("%s", sense_key_text[key]);
 		info = ntohl(*((long *) ext->info));
 
 		if (sense->error_code & SSD_ERRCODE_VALID) {
