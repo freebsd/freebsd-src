@@ -41,6 +41,7 @@
 #include <sys/errno.h>
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/iec13213.h>
+#include <dev/firewire/fwphyreg.h>
 
 #include <netinet/in.h>
 #include <fcntl.h>
@@ -98,10 +99,10 @@ list_dev(int fd)
 
 	data = get_dev(fd);
 	printf("%d devices (info_len=%d)\n", data->n, data->info_len);
-	printf("node       EUI64       status\n");
+	printf("node        EUI64        status\n");
 	for (i = 0; i < data->info_len; i++) {
 		devinfo = &data->dev[i];
-		printf("%4d  %08x%08x %6d\n",
+		printf("%4d  0x%08x%08x %6d\n",
 			(devinfo->status || i == 0) ? devinfo->dst : -1,
 			devinfo->eui.hi,
 			devinfo->eui.lo,
@@ -424,6 +425,93 @@ show_topology_map(int fd)
 }
 
 static void
+read_phy_registers(int fd, u_int8_t *buf, int offset, int len)
+{
+	struct fw_reg_req_t reg;
+	int i;
+
+	for (i = 0; i < len; i++) {
+		reg.addr = offset + i;
+		if (ioctl(fd, FWOHCI_RDPHYREG, &reg) < 0)
+       			err(1, "ioctl");
+		buf[i] = (u_int8_t) reg.data;
+		printf("0x%02x ",  reg.data);
+	}
+	printf("\n");
+}
+
+static void
+read_phy_page(int fd, u_int8_t *buf, int page, int port)
+{
+	struct fw_reg_req_t reg;
+
+	reg.addr = 0x7;
+	reg.data = ((page & 7) << 5) | (port & 0xf);
+	if (ioctl(fd, FWOHCI_WRPHYREG, &reg) < 0)
+       		err(1, "ioctl");
+	read_phy_registers(fd, buf, 8, 8);
+}
+
+static void
+dump_phy_registers(int fd)
+{
+	struct phyreg_base b;
+	struct phyreg_page0 p;
+	struct phyreg_page1 v;
+	int i;
+
+	printf("=== base register ===\n");
+	read_phy_registers(fd, (u_int8_t *)&b, 0, 8);
+	printf(
+	    "Physical_ID:%d  R:%d  CPS:%d\n"
+	    "RHB:%d  IBR:%d  Gap_Count:%d\n"
+	    "Extended:%d Num_Ports:%d\n"
+	    "PHY_Speed:%d Delay:%d\n"
+	    "LCtrl:%d C:%d Jitter:%d Pwr_Class:%d\n"
+	    "WDIE:%d ISBR:%d CTOI:%d CPSI:%d STOI:%d PEI:%d EAA:%d EMC:%d\n"
+	    "Max_Legacy_SPD:%d BLINK:%d Bridge:%d\n"
+	    "Page_Select:%d Port_Select%d\n",
+	    b.phy_id, b.r, b.cps,
+	    b.rhb, b.ibr, b.gap_count, 
+	    b.extended, b.num_ports,
+	    b.phy_speed, b.delay,
+	    b.lctrl, b.c, b.jitter, b.pwr_class,
+	    b.wdie, b.isbr, b.ctoi, b.cpsi, b.stoi, b.pei, b.eaa, b.emc,
+	    b.legacy_spd, b.blink, b.bridge,
+	    b.page_select, b.port_select
+	);
+
+	for (i = 0; i < b.num_ports; i ++) {
+		printf("\n=== page 0 port %d ===\n", i);
+		read_phy_page(fd, (u_int8_t *)&p, 0, i);
+		printf(
+		    "Astat:%d BStat:%d Ch:%d Con:%d RXOK:%d Dis:%d\n"
+		    "Negotiated_speed:%d PIE:%d Fault:%d Stanby_fault:%d Disscrm:%d B_Only:%d\n"
+		    "DC_connected:%d Max_port_speed:%d LPP:%d Cable_speed:%d\n"
+		    "Connection_unreliable:%d Beta_mode:%d\n"
+		    "Port_error:0x%x\n"
+		    "Loop_disable:%d In_standby:%d Hard_disable:%d\n",
+		    p.astat, p.bstat, p.ch, p.con, p.rxok, p.dis,
+		    p.negotiated_speed, p.pie, p.fault, p.stanby_fault, p.disscrm, p.b_only,
+		    p.dc_connected, p.max_port_speed, p.lpp, p.cable_speed,
+		    p.connection_unreliable, p.beta_mode,
+		    p.port_error,
+		    p.loop_disable, p.in_standby, p.hard_disable
+		);
+	}
+	printf("\n=== page 1 ===\n");
+	read_phy_page(fd, (u_int8_t *)&v, 1, 0);
+	printf(
+	    "Compliance:%d\n"
+	    "Vendor_ID:0x%06x\n"
+	    "Product_ID:0x%06x\n",
+	    v.compliance,
+	    (v.vendor_id[0] << 16) | (v.vendor_id[1] << 8) | v.vendor_id[2],
+	    (v.product_id[0] << 16) | (v.product_id[1] << 8) | v.product_id[2]
+	);
+}
+
+static void
 open_dev(int *fd, char *devbase)
 {
 	char devname[256];
@@ -455,7 +543,7 @@ main(int argc, char **argv)
 		list_dev(fd);
 	}
 
-	while ((ch = getopt(argc, argv, "g:o:s:b:rtc:d:l:u:R:S:")) != -1)
+	while ((ch = getopt(argc, argv, "g:o:s:b:prtc:d:l:u:R:S:")) != -1)
 		switch(ch) {
 		case 'b':
 			tmp = strtol(optarg, NULL, 0);
@@ -487,6 +575,10 @@ main(int argc, char **argv)
 			tmp = strtol(optarg, NULL, 0);
 			open_dev(&fd, devbase);
 			send_link_on(fd, tmp);
+			break;
+		case 'p':
+			open_dev(&fd, devbase);
+			dump_phy_registers(fd);
 			break;
 		case 'r':
 			open_dev(&fd, devbase);
