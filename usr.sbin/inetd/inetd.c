@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.68 1999/07/22 16:29:48 sheldonh Exp $";
+	"$Id: inetd.c,v 1.69 1999/07/23 14:45:21 des Exp $";
 #endif /* not lint */
 
 /*
@@ -1057,7 +1057,7 @@ enter(cp)
 
 	sep = (struct servtab *)malloc(sizeof (*sep));
 	if (sep == (struct servtab *)0) {
-		syslog(LOG_ERR, "Out of memory.");
+		syslog(LOG_ERR, "malloc: %m");
 		exit(EX_OSERR);
 	}
 	*sep = *cp;
@@ -1348,7 +1348,7 @@ more:
 	if (sep->se_maxchild) {
 		sep->se_pids = malloc(sep->se_maxchild * sizeof(*sep->se_pids));
 		if (sep->se_pids == NULL) {
-			syslog(LOG_ERR, "Out of memory.");
+			syslog(LOG_ERR, "malloc: %m");
 			exit(EX_OSERR);
 		}
 	}
