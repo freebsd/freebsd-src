@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.11 1996/02/07 17:15:01 wollman Exp $";
+	"$Id: inetd.c,v 1.12 1996/07/17 15:00:28 davidg Exp $";
 #endif /* not lint */
 
 /*
@@ -143,6 +143,7 @@ int	timingout;
 int	toomany = TOOMANY;
 struct	servent *sp;
 struct	rpcent *rpc;
+struct	in_addr bind_address;
 
 struct	servtab {
 	char	*se_service;		/* name of service */
@@ -238,6 +239,7 @@ struct biltin {
 
 #define NUMINT	(sizeof(intab) / sizeof(struct inent))
 char	*CONFIG = _PATH_INETDCONF;
+char	*pid_file = _PATH_INETDPID;
 
 #ifdef OLD_SETPROCTITLE
 char	**Argv;
@@ -270,7 +272,8 @@ main(argc, argv, envp)
 
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
-	while ((ch = getopt(argc, argv, "dlR:")) != EOF)
+	bind_address.s_addr = htonl(INADDR_ANY);
+	while ((ch = getopt(argc, argv, "dlR:a:p:")) != EOF)
 		switch(ch) {
 		case 'd':
 			debug = 1;
@@ -291,10 +294,21 @@ main(argc, argv, envp)
 				toomany = tmpint;
 			break;
 		}
+		case 'a':
+			if (!inet_aton(optarg, &bind_address)) {
+				syslog(LOG_ERR,
+			         "-a %s: invalid IP address", optarg);
+				 exit(1);
+			}
+			break;
+		case 'p':
+			pid_file = optarg;
+			break;
 		case '?':
 		default:
 			syslog(LOG_ERR,
-				"usage: inetd [-dl] [-R rate] [conf-file]");
+				"usage: inetd [-dl] [-a address] [-R rate]"
+				" [-p pidfile] [conf-file]");
 			exit(1);
 		}
 	argc -= optind;
@@ -317,12 +331,12 @@ main(argc, argv, envp)
 			/* no big deal if it fails.. */
 		}
 		pid = getpid();
-		fp = fopen(_PATH_INETDPID, "w");
+		fp = fopen(pid_file, "w");
 		if (fp) {
 			fprintf(fp, "%ld\n", (long)pid);
 			fclose(fp);
 		} else {
-			syslog(LOG_WARNING, _PATH_INETDPID ": %m");
+			syslog(LOG_WARNING, "%s: %m", pid_file);
 		}
 	}
 	memset(&sv, 0, sizeof(sv));
@@ -918,7 +932,7 @@ more:
 			sep->se_rpc_lowvers = 0;
                 sep->se_ctrladdr.sin_family = AF_INET;
                 sep->se_ctrladdr.sin_port = 0;
-                sep->se_ctrladdr.sin_addr.s_addr = htonl(INADDR_ANY);
+                sep->se_ctrladdr.sin_addr = bind_address;
                 if ((versp = rindex(sep->se_service, '/'))) {
                         *versp++ = '\0';
                         switch (sscanf(versp, "%d-%d",

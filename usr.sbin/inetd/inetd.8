@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.7 1996/01/30 13:49:13 mpp Exp $
+.\"	$Id: inetd.8,v 1.8 1996/02/07 17:15:00 wollman Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -44,6 +44,8 @@
 .Op Fl d
 .Op Fl l
 .Op Fl R Ar rate
+.Op Fl a Ar address
+.Op Fl p Ar filename
 .Op Ar configuration file
 .Sh DESCRIPTION
 The
@@ -78,6 +80,10 @@ Turns on logging.
 .It Fl R Ar rate
 Specifies the maximum number of times a service can be invoked
 in one minute; the default is 256.
+.It Fl a
+Specify a specific IP address to bind to.
+.It Fl p
+Specify an alternate file in which to store the process ID.
 .El
 .Pp
 Upon execution,
