@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	comcontrol
-WARNS=	0
 MAN=	comcontrol.8
 
 .include <bsd.prog.mk>
