@@ -1,5 +1,5 @@
 /* flonum_mult.c - multiply two flonums
-   Copyright 1987, 1990, 1991, 1992, 1995, 2000
+   Copyright 1987, 1990, 1991, 1992, 1995, 2000, 2002
    Free Software Foundation, Inc.
 
    This file is part of Gas, the GNU Assembler.
@@ -19,7 +19,7 @@
    in a file named COPYING.  Among other things, the copyright
    notice and this notice must be preserved on all copies.  */
 
-#include <ansidecl.h>
+#include "ansidecl.h"
 #include "flonum.h"
 
 /*	plan for a . b => p(roduct)

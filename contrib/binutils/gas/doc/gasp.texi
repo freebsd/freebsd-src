@@ -3,7 +3,7 @@
 @c
 @c This file documents the assembly preprocessor "GASP"
 @c
-@c Copyright 1994, 1995, 2000 Free Software Foundation, Inc.
+@c Copyright 1994, 1995, 2000, 2002 Free Software Foundation, Inc.
 @c
 @c    Permission is granted to copy, distribute and/or modify this document
 @c    under the terms of the GNU Free Documentation License, Version 1.1
@@ -41,7 +41,7 @@ END-INFO-DIR-ENTRY
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1994, 1995, 2000 Free Software Foundation, Inc.
+Copyright @copyright{} 1994, 1995, 2000, 2002 Free Software Foundation, Inc.
 
       Permission is granted to copy, distribute and/or modify this document
       under the terms of the GNU Free Documentation License, Version 1.1
@@ -53,7 +53,7 @@ Copyright @copyright{} 1994, 1995, 2000 Free Software Foundation, Inc.
 @end titlepage
 
 @ifinfo
-Copyright @copyright{} 1994, 1995, 2000 Free Software Foundation, Inc.
+Copyright @copyright{} 1994, 1995, 2000, 2002 Free Software Foundation, Inc.
 
 @ignore
 Permission is granted to process this file through TeX and print the
@@ -107,6 +107,11 @@ preprocessor, rather than part of the assembler, allows the maximum
 flexibility: you can use it with hand-coded assembly, without paying a
 penalty of added complexity in the assembler you use for compiler
 output.
+
+@emph{Note} The use of @sc{gasp} has now been deprecated.  Anything
+that it could do can now be done by the macro facilities built into
+@sc{gas} itself.  At some point in the future the @{gasp} sources will
+be removed entirely from the binutils distribution.
 
 Here is a small example to give the flavor of @sc{gasp}.  This input to
 @sc{gasp}
@@ -942,6 +947,11 @@ by a single quote followed by digits @var{ddd}.  The base specifier
 character matches those you can specify with @code{.RADIX}: @samp{B} for
 base 2, @samp{Q} for base 8, @samp{D} for base 10, and @samp{H} for base
 16.  (You can write this character in lower case if you prefer.)
+
+You can write floating point constants using the same syntax recognised
+by GAS @ref{Flonums,,Flonums,as,The GNU Assembler.}.  A constraint is
+that these constants will be interpreted as decimal values irrespective
+of the currently selected base.
 
 @c FIXME! What are rules for recognizing number in deflt base?  Whatever
 @c        is left over after parsing other things??

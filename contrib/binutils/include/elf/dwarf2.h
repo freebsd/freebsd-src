@@ -649,8 +649,8 @@ enum dwarf_call_frame_info
 #define DW_CIE_VERSION	  1
 
 #define DW_CFA_extended   0
-#define DW_CFA_low_user   0x1c
-#define DW_CFA_high_user  0x3f
+#define DW_CFA_lo_user    0x1c
+#define DW_CFA_hi_user    0x3f
 
 #define DW_CHILDREN_no		     0x00
 #define DW_CHILDREN_yes		     0x01

@@ -366,7 +366,6 @@ warn_stab (p, err)
 
 /* Create a handle to parse stabs symbols with.  */
 
-/*ARGSUSED*/
 PTR
 start_stab (dhandle, abfd, sections, syms, symcount)
      PTR dhandle ATTRIBUTE_UNUSED;
@@ -562,7 +561,7 @@ parse_stab (dhandle, handle, type, desc, value, string)
 
 	  f = info->so_string;
 
-          if (IS_ABSOLUTE_PATH (string))
+	  if (IS_ABSOLUTE_PATH (string))
 	    info->so_string = xstrdup (string);
 	  else
 	    info->so_string = concat (info->so_string, string,
@@ -1912,7 +1911,7 @@ parse_stab_sun_builtin_type (dhandle, pp)
     }
   ++*pp;
 
-  /* The second number is always 0, so ignore it too. */
+  /* The second number is always 0, so ignore it too.  */
   (void) parse_number (pp, (boolean *) NULL);
   if (**pp != ';')
     {
@@ -1921,7 +1920,7 @@ parse_stab_sun_builtin_type (dhandle, pp)
     }
   ++*pp;
 
-  /* The third number is the number of bits for this type. */
+  /* The third number is the number of bits for this type.  */
   bits = parse_number (pp, (boolean *) NULL);
 
   /* The type *should* end with a semicolon.  If it are embedded
@@ -1974,7 +1973,7 @@ parse_stab_sun_floating_type (dhandle, pp)
       || details == NF_COMPLEX32)
     return debug_make_complex_type (dhandle, bytes);
 
-  return debug_make_float_type (dhandle, bytes);      
+  return debug_make_float_type (dhandle, bytes);
 }
 
 /* Handle an enum type.  */
@@ -2308,7 +2307,7 @@ parse_stab_struct_fields (dhandle, info, pp, retp, staticsp)
       /* Look for the ':' that separates the field name from the field
 	 values.  Data members are delimited by a single ':', while member
 	 functions are delimited by a pair of ':'s.  When we hit the member
-	 functions (if any), terminate scan loop and return. */
+	 functions (if any), terminate scan loop and return.  */
 
       p = strchr (p, ':');
       if (p == NULL)
@@ -2759,27 +2758,27 @@ parse_stab_members (dhandle, info, tagname, pp, typenums, retp)
 		  /* Figure out from whence this virtual function
 		     came.  It may belong to virtual function table of
 		     one of its baseclasses.  */
-		    look_ahead_type = parse_stab_type (dhandle, info,
-						       (const char *) NULL,
-						       pp,
-						       (debug_type **) NULL);
-		    if (**pp == ':')
-		      {
-			/* g++ version 1 overloaded methods.  */
-			context = DEBUG_TYPE_NULL;
-		      }
-		    else
-		      {
-			context = look_ahead_type;
-			look_ahead_type = DEBUG_TYPE_NULL;
-			if (**pp != ';')
-			  {
-			    bad_stab (orig);
-			    return false;
-			  }
-			++*pp;
-		      }
-		  }
+		  look_ahead_type = parse_stab_type (dhandle, info,
+						     (const char *) NULL,
+						     pp,
+						     (debug_type **) NULL);
+		  if (**pp == ':')
+		    {
+		      /* g++ version 1 overloaded methods.  */
+		      context = DEBUG_TYPE_NULL;
+		    }
+		  else
+		    {
+		      context = look_ahead_type;
+		      look_ahead_type = DEBUG_TYPE_NULL;
+		      if (**pp != ';')
+			{
+			  bad_stab (orig);
+			  return false;
+			}
+		      ++*pp;
+		    }
+		}
 	      break;
 
 	    case '?':
@@ -3035,7 +3034,7 @@ parse_stab_tilde_field (dhandle, info, pp, typenums, retvptrbase, retownvptr)
 
   orig = *pp;
 
-  /* If we are positioned at a ';', then skip it. */
+  /* If we are positioned at a ';', then skip it.  */
   if (**pp == ';')
     ++*pp;
 
@@ -3047,7 +3046,7 @@ parse_stab_tilde_field (dhandle, info, pp, typenums, retvptrbase, retownvptr)
   if (**pp == '=' || **pp == '+' || **pp == '-')
     {
       /* Obsolete flags that used to indicate the presence of
-	 constructors and/or destructors. */
+	 constructors and/or destructors.  */
       ++*pp;
     }
 
@@ -3088,7 +3087,7 @@ parse_stab_tilde_field (dhandle, info, pp, typenums, retvptrbase, retownvptr)
       *pp = p + 1;
     }
 
-  return true;    
+  return true;
 }
 
 /* Read a definition of an array type.  */

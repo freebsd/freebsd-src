@@ -1545,9 +1545,9 @@ Define @samp{ELF_ARCH} to the BFD architecture (an element of the
 @item
 Define @samp{ELF_MACHINE_CODE} to the magic number which should appear
 in the @samp{e_machine} field of the ELF header.  As of this writing,
-these magic numbers are assigned by SCO; if you want to get a magic
+these magic numbers are assigned by Caldera; if you want to get a magic
 number for a particular processor, try sending a note to
-@email{registry@@sco.com}.  In the BFD sources, the magic numbers are
+@email{registry@@caldera.com}.  In the BFD sources, the magic numbers are
 found in @file{include/elf/common.h}; they have names beginning with
 @samp{EM_}.
 @item

@@ -1,6 +1,6 @@
 /* Support for the generic parts of COFF, for BFD.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -178,6 +178,7 @@ coff_real_object_p (abfd, nscns, internal_f, internal_a)
   flagword oflags = abfd->flags;
   bfd_vma ostart = bfd_get_start_address (abfd);
   PTR tdata;
+  PTR tdata_save;
   bfd_size_type readsize;	/* length of file_info */
   unsigned int scnhsz;
   char *external_sections;
@@ -206,9 +207,10 @@ coff_real_object_p (abfd, nscns, internal_f, internal_a)
 
   /* Set up the tdata area.  ECOFF uses its own routine, and overrides
      abfd->flags.  */
+  tdata_save = abfd->tdata.any;
   tdata = bfd_coff_mkobject_hook (abfd, (PTR) internal_f, (PTR) internal_a);
   if (tdata == NULL)
-    return 0;
+    goto fail2;
 
   scnhsz = bfd_coff_scnhsz (abfd);
   readsize = (bfd_size_type) nscns * scnhsz;
@@ -221,7 +223,7 @@ coff_real_object_p (abfd, nscns, internal_f, internal_a)
 
   /* Set the arch/mach *before* swapping in sections; section header swapping
      may depend on arch/mach info.  */
-  if (bfd_coff_set_arch_mach_hook (abfd, (PTR) internal_f) == false)
+  if (! bfd_coff_set_arch_mach_hook (abfd, (PTR) internal_f))
     goto fail;
 
   /* Now copy data as required; construct all asections etc */
@@ -245,6 +247,8 @@ coff_real_object_p (abfd, nscns, internal_f, internal_a)
 
  fail:
   bfd_release (abfd, tdata);
+ fail2:
+  abfd->tdata.any = tdata_save;
   abfd->flags = oflags;
   bfd_get_start_address (abfd) = ostart;
   return (const bfd_target *) NULL;
@@ -270,12 +274,13 @@ coff_object_p (abfd)
 
   filehdr = bfd_alloc (abfd, filhsz);
   if (filehdr == NULL)
-    return 0;
+    return NULL;
   if (bfd_bread (filehdr, filhsz, abfd) != filhsz)
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_wrong_format);
-      return 0;
+      bfd_release (abfd, filehdr);
+      return NULL;
     }
   bfd_coff_swap_filehdr_in (abfd, filehdr, &internal_f);
   bfd_release (abfd, filehdr);
@@ -288,11 +293,11 @@ coff_object_p (abfd)
      only read in f_opthdr bytes in the call to bfd_bread.  We should
      also attempt to catch corrupt or non-COFF binaries with a strange
      value for f_opthdr.  */
-  if (bfd_coff_bad_format_hook (abfd, &internal_f) == false
+  if (! bfd_coff_bad_format_hook (abfd, &internal_f)
       || internal_f.f_opthdr > aoutsz)
     {
       bfd_set_error (bfd_error_wrong_format);
-      return 0;
+      return NULL;
     }
   nscns = internal_f.f_nscns;
 
@@ -302,13 +307,15 @@ coff_object_p (abfd)
 
       opthdr = bfd_alloc (abfd, aoutsz);
       if (opthdr == NULL)
-	return 0;
+	return NULL;
       if (bfd_bread (opthdr, (bfd_size_type) internal_f.f_opthdr, abfd)
 	  != internal_f.f_opthdr)
 	{
-	  return 0;
+	  bfd_release (abfd, opthdr);
+	  return NULL;
 	}
       bfd_coff_swap_aouthdr_in (abfd, opthdr, (PTR) &internal_a);
+      bfd_release (abfd, opthdr);
     }
 
   return coff_real_object_p (abfd, nscns, &internal_f,
@@ -1438,13 +1445,13 @@ coff_section_symbol (abfd, name)
 	  combined_entry_type e[10];
 	};
       struct foo *f;
-      f = (struct foo *) bfd_alloc (abfd, (bfd_size_type) sizeof (*f));
+
+      f = (struct foo *) bfd_zalloc (abfd, (bfd_size_type) sizeof (*f));
       if (!f)
 	{
 	  bfd_set_error (bfd_error_no_error);
 	  return NULL;
 	}
-      memset ((char *) f, 0, sizeof (*f));
       coff_symbol_from (abfd, sym)->native = csym = f->e;
     }
   csym[0].u.syment.n_sclass = C_STAT;
@@ -1835,10 +1842,9 @@ coff_get_normalized_symtab (abfd)
 		if (internal_ptr->u.syment._n._n_name[i] == '\0')
 		  break;
 
-	      newstring = (PTR) bfd_alloc (abfd, (bfd_size_type) (i + 1));
+	      newstring = (PTR) bfd_zalloc (abfd, (bfd_size_type) (i + 1));
 	      if (newstring == NULL)
 		return (NULL);
-	      memset (newstring, 0, i + 1);
 	      strncpy (newstring, internal_ptr->u.syment._n._n_name, i);
 	      internal_ptr->u.syment._n._n_n._n_offset = (long int) newstring;
 	      internal_ptr->u.syment._n._n_n._n_zeroes = 0;
@@ -1897,10 +1903,9 @@ coff_make_empty_symbol (abfd)
      bfd *abfd;
 {
   bfd_size_type amt = sizeof (coff_symbol_type);
-  coff_symbol_type *new = (coff_symbol_type *) bfd_alloc (abfd, amt);
+  coff_symbol_type *new = (coff_symbol_type *) bfd_zalloc (abfd, amt);
   if (new == NULL)
     return (NULL);
-  memset (new, 0, sizeof *new);
   new->symbol.section = 0;
   new->native = 0;
   new->lineno = (alent *) NULL;
@@ -2415,7 +2420,7 @@ coff_sizeof_headers (abfd, reloc)
 {
   size_t size;
 
-  if (reloc == false)
+  if (! reloc)
     {
       size = bfd_coff_filhsz (abfd) + bfd_coff_aoutsz (abfd);
     }
@@ -2453,11 +2458,9 @@ bfd_coff_set_symbol_class (abfd, symbol, class)
       combined_entry_type * native;
       bfd_size_type amt = sizeof (* native);
 
-      native = (combined_entry_type *) bfd_alloc (abfd, amt);
+      native = (combined_entry_type *) bfd_zalloc (abfd, amt);
       if (native == NULL)
 	return false;
-
-      memset (native, 0, sizeof (* native));
 
       native->u.syment.n_type   = T_NULL;
       native->u.syment.n_sclass = class;

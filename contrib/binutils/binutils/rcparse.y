@@ -219,7 +219,7 @@ acc_entry:
 	    $$.id = $2;
 	    $$.flags |= $4;
 	    if (($$.flags & ACC_VIRTKEY) == 0
-		&& ($$.flags & (ACC_SHIFT | ACC_CONTROL | ACC_ALT)) != 0)
+		&& ($$.flags & (ACC_SHIFT | ACC_CONTROL)) != 0)
 	      rcparse_warning (_("inappropriate modifiers for non-VIRTKEY"));
 	  }
 	;

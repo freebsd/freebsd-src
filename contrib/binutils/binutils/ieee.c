@@ -1,5 +1,5 @@
 /* ieee.c -- Read and write IEEE-695 debugging information.
-   Copyright 1996, 1998, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1996, 1998, 2000, 2001, 2002 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -344,7 +344,7 @@ ieee_read_number (info, pp, pv)
 }
 
 /* Read a number in an IEEE file.  If ppresent is not NULL, the number
-   need not be there. */
+   need not be there.  */
 
 static boolean
 ieee_read_optional_number (info, pp, pv, ppresent)
@@ -1036,7 +1036,7 @@ parse_ieee_bb (info, pp)
 
     case 2:
       /* BB2: Global type definitions.  The name is supposed to be
-	 empty, but we don't check. */
+	 empty, but we don't check.  */
       if (! debug_set_filename (info->dhandle, "*global*"))
 	return false;
       info->saw_filename = true;
@@ -1916,7 +1916,7 @@ parse_ieee_ty (info, pp)
 	switch (kind)
 	  {
 	  default:
-	    ieee_error (info, ty_start, _("unsupported qualifer"));
+	    ieee_error (info, ty_start, _("unsupported qualifier"));
 	    return false;
 
 	  case 1:
@@ -4102,7 +4102,6 @@ static const struct debug_write_fns ieee_fns =
 
 /* Initialize a buffer to be empty.  */
 
-/*ARGSUSED*/
 static boolean
 ieee_init_buffer (info, buflist)
      struct ieee_handle *info ATTRIBUTE_UNUSED;
@@ -4143,7 +4142,6 @@ ieee_change_buffer (info, buflist)
 
 /* Append a buffer chain.  */
 
-/*ARGSUSED*/
 static boolean
 ieee_append_buffer (info, mainbuf, newbuf)
      struct ieee_handle *info ATTRIBUTE_UNUSED;
@@ -5273,7 +5271,6 @@ ieee_add_bb11 (info, sec, low, high)
    down the file name anyhow.  IEEE debugging information doesn't seem
    to store this information anywhere.  */
 
-/*ARGSUSED*/
 static boolean
 ieee_start_source (p, filename)
      PTR p ATTRIBUTE_UNUSED;
@@ -5737,7 +5734,6 @@ ieee_range_type (p, low, high)
 
 /* Make an array type.  */
 
-/*ARGSUSED*/
 static boolean
 ieee_array_type (p, low, high, stringp)
      PTR p;
@@ -6207,7 +6203,7 @@ ieee_end_struct_type (p)
 
   /* If we were ignoring this struct definition because it was a
      duplicate defintion, just through away whatever bytes we have
-     accumulated.  Leave the type on the stack. */
+     accumulated.  Leave the type on the stack.  */
   if (info->type_stack->type.ignorep)
     return true;
 
@@ -6761,7 +6757,7 @@ ieee_tag_type (p, name, id, kind)
       if (! nt->type.localp)
 	{
 	  /* This is a duplicate of a global type, so it must be
-             local. */
+             local.  */
 	  localp = true;
 	}
     }

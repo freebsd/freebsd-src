@@ -1,6 +1,6 @@
 /* symbols.h -
-   Copyright 1987, 1990, 1992, 1993, 1994, 1995, 1997, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+   Copyright 1987, 1990, 1992, 1993, 1994, 1995, 1997, 1999, 2000, 2001,
+   2002 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -48,13 +48,14 @@ extern int symbol_table_frozen;
 extern int symbols_case_sensitive;
 
 char *decode_local_label_name PARAMS ((char *s));
-symbolS *symbol_find PARAMS ((CONST char *name));
-symbolS *symbol_find_base PARAMS ((CONST char *name, int strip_underscore));
+symbolS *symbol_find PARAMS ((const char *name));
+symbolS *symbol_find_exact PARAMS ((const char *name));
+symbolS *symbol_find_base PARAMS ((const char *name, int strip_underscore));
 symbolS *symbol_find_or_make PARAMS ((const char *name));
-symbolS *symbol_make PARAMS ((CONST char *name));
-symbolS *symbol_new PARAMS ((CONST char *name, segT segment, valueT value,
+symbolS *symbol_make PARAMS ((const char *name));
+symbolS *symbol_new PARAMS ((const char *name, segT segment, valueT value,
 			     fragS * frag));
-symbolS *symbol_create PARAMS ((CONST char *name, segT segment, valueT value,
+symbolS *symbol_create PARAMS ((const char *name, segT segment, valueT value,
 				fragS * frag));
 symbolS *colon PARAMS ((const char *sym_name));
 void local_colon PARAMS ((int n));
@@ -93,7 +94,7 @@ extern int S_IS_DEBUG PARAMS ((symbolS *));
 extern int S_IS_LOCAL PARAMS ((symbolS *));
 extern int S_IS_EXTERN PARAMS ((symbolS *));
 extern int S_IS_STABD PARAMS ((symbolS *));
-extern CONST char *S_GET_NAME PARAMS ((symbolS *));
+extern const char *S_GET_NAME PARAMS ((symbolS *));
 extern segT S_GET_SEGMENT PARAMS ((symbolS *));
 extern void S_SET_SEGMENT PARAMS ((symbolS *, segT));
 extern void S_SET_EXTERNAL PARAMS ((symbolS *));

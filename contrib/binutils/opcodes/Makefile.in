@@ -121,7 +121,10 @@ MKDEP = gcc -MM
 WARN_CFLAGS = @WARN_CFLAGS@
 AM_CFLAGS = $(WARN_CFLAGS)
 
-lib_LTLIBRARIES = libopcodes.la
+bfdlibdir = @bfdlibdir@
+bfdincludedir = @bfdincludedir@
+
+bfdlib_LTLIBRARIES = libopcodes.la
 
 # This is where bfd.h lives.
 BFD_H = ../bfd/bfd.h
@@ -133,15 +136,16 @@ LIBIBERTY = ../libiberty/libiberty.a
 HFILES = \
 	arm-opc.h \
 	fr30-desc.h fr30-opc.h \
+	frv-desc.h frv-opc.h \
 	h8500-opc.h \
+	ia64-asmtab.h \
+	ia64-opc.h \
 	m32r-desc.h m32r-opc.h \
 	mcore-opc.h \
 	openrisc-desc.h openrisc-opc.h \
 	sh-opc.h \
+	sh64-opc.h \
 	sysdep.h \
-	ia64-asmtab.h \
-	ia64-opc.h \
-	  sh64-opc.h \
 	w65-opc.h \
 	xstormy16-desc.h xstormy16-opc.h \
 	z8k-opc.h
@@ -166,6 +170,7 @@ CFILES = \
 	d10v-opc.c \
 	d30v-dis.c \
 	d30v-opc.c \
+	dlx-dis.c \
 	dis-buf.c \
 	disassemble.c \
 	fr30-asm.c \
@@ -173,6 +178,11 @@ CFILES = \
 	fr30-dis.c \
 	fr30-ibld.c \
 	fr30-opc.c \
+	frv-asm.c \
+	frv-desc.c \
+	frv-dis.c \
+	frv-ibld.c \
+	frv-opc.c \
 	h8300-dis.c \
 	h8500-dis.c \
 	hppa-dis.c \
@@ -230,6 +240,8 @@ CFILES = \
 	s390-opc.c \
 	s390-dis.c \
 	sh-dis.c \
+	sh64-dis.c \
+	sh64-opc.c \
 	sparc-dis.c \
 	sparc-opc.c \
 	tic30-dis.c \
@@ -240,8 +252,6 @@ CFILES = \
 	v850-dis.c \
 	v850-opc.c \
 	vax-dis.c \
-	  sh64-dis.c \
-	  sh64-opc.c \
 	w65-dis.c \
 	xstormy16-asm.c \
 	xstormy16-desc.c \
@@ -270,11 +280,17 @@ ALL_MACHINES = \
 	d10v-opc.lo \
 	d30v-dis.lo \
 	d30v-opc.lo \
+	dlx-dis.lo \
 	fr30-asm.lo \
 	fr30-desc.lo \
 	fr30-dis.lo \
 	fr30-ibld.lo \
 	fr30-opc.lo \
+	frv-asm.lo \
+	frv-desc.lo \
+	frv-dis.lo \
+	frv-ibld.lo \
+	frv-opc.lo \
 	h8300-dis.lo \
 	h8500-dis.lo \
 	hppa-dis.lo \
@@ -323,6 +339,8 @@ ALL_MACHINES = \
 	s390-dis.lo \
 	s390-opc.lo \
 	sh-dis.lo \
+	sh64-dis.lo \
+	sh64-opc.lo \
 	sparc-dis.lo \
 	sparc-opc.lo \
 	tic30-dis.lo \
@@ -333,8 +351,6 @@ ALL_MACHINES = \
 	v850-dis.lo \
 	v850-opc.lo \
 	vax-dis.lo \
-	  sh64-dis.lo \
-	  sh64-opc.lo \
 	w65-dis.lo \
 	xstormy16-asm.lo \
 	xstormy16-desc.lo \
@@ -363,7 +379,7 @@ noinst_LIBRARIES = libopcodes.a
 POTFILES = $(HFILES) $(CFILES)
 
 CLEANFILES = \
-	stamp-m32r stamp-fr30 stamp-openrisc \
+	stamp-m32r stamp-fr30 stamp-frv stamp-openrisc \
 	stamp-xstormy16 \
 	libopcodes.a stamp-lib dep.sed DEP DEPA DEP1 DEP2
 
@@ -373,7 +389,7 @@ CPUDIR = $(CGENDIR)/cpu
 CGEN = `if test -f ../guile/libguile/guile ; then echo ../guile/libguile/guile; else echo guile ; fi`
 CGENFLAGS = -v
 
-CGENDEPS = ../cgen/stamp-cgen \
+CGENDEPS = \
 	$(CGENDIR)/desc.scm $(CGENDIR)/desc-cpu.scm \
 	$(CGENDIR)/opcodes.scm $(CGENDIR)/opc-asmdis.scm \
 	$(CGENDIR)/opc-ibld.scm $(CGENDIR)/opc-itab.scm \
@@ -384,6 +400,8 @@ CGENDEPS = ../cgen/stamp-cgen \
 @CGEN_MAINT_FALSE@M32R_DEPS = 
 @CGEN_MAINT_TRUE@FR30_DEPS = @CGEN_MAINT_TRUE@stamp-fr30
 @CGEN_MAINT_FALSE@FR30_DEPS = 
+@CGEN_MAINT_TRUE@FRV_DEPS = @CGEN_MAINT_TRUE@stamp-frv
+@CGEN_MAINT_FALSE@FRV_DEPS = 
 @CGEN_MAINT_TRUE@OPENRISC_DEPS = @CGEN_MAINT_TRUE@stamp-openrisc
 @CGEN_MAINT_FALSE@OPENRISC_DEPS = 
 @CGEN_MAINT_TRUE@XSTORMY16_DEPS = @CGEN_MAINT_TRUE@stamp-xstormy16
@@ -402,7 +420,7 @@ LIBS = @LIBS@
 libopcodes_a_LIBADD = 
 libopcodes_a_SOURCES = libopcodes.a.c
 libopcodes_a_OBJECTS =  libopcodes.a.$(OBJEXT)
-LTLIBRARIES =  $(lib_LTLIBRARIES)
+LTLIBRARIES =  $(bfdlib_LTLIBRARIES)
 
 libopcodes_la_OBJECTS =  dis-buf.lo disassemble.lo
 CFLAGS = @CFLAGS@
@@ -517,33 +535,17 @@ distclean-libtool:
 
 maintainer-clean-libtool:
 
-mostlyclean-libLTLIBRARIES:
+mostlyclean-bfdlibLTLIBRARIES:
 
-clean-libLTLIBRARIES:
-	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
+clean-bfdlibLTLIBRARIES:
+	-test -z "$(bfdlib_LTLIBRARIES)" || rm -f $(bfdlib_LTLIBRARIES)
 
-distclean-libLTLIBRARIES:
+distclean-bfdlibLTLIBRARIES:
 
-maintainer-clean-libLTLIBRARIES:
-
-install-libLTLIBRARIES: $(lib_LTLIBRARIES)
-	@$(NORMAL_INSTALL)
-	$(mkinstalldirs) $(DESTDIR)$(libdir)
-	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
-	  if test -f $$p; then \
-	    echo "$(LIBTOOL)  --mode=install $(INSTALL) $$p $(DESTDIR)$(libdir)/$$p"; \
-	    $(LIBTOOL)  --mode=install $(INSTALL) $$p $(DESTDIR)$(libdir)/$$p; \
-	  else :; fi; \
-	done
-
-uninstall-libLTLIBRARIES:
-	@$(NORMAL_UNINSTALL)
-	list='$(lib_LTLIBRARIES)'; for p in $$list; do \
-	  $(LIBTOOL)  --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p; \
-	done
+maintainer-clean-bfdlibLTLIBRARIES:
 
 libopcodes.la: $(libopcodes_la_OBJECTS) $(libopcodes_la_DEPENDENCIES)
-	$(LINK) -rpath $(libdir) $(libopcodes_la_LDFLAGS) $(libopcodes_la_OBJECTS) $(libopcodes_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(bfdlibdir) $(libopcodes_la_LDFLAGS) $(libopcodes_la_OBJECTS) $(libopcodes_la_LIBADD) $(LIBS)
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run `make' without going through this Makefile.
@@ -705,16 +707,16 @@ install-info: install-info-recursive
 all-recursive-am: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
-install-exec-am: install-libLTLIBRARIES
+install-exec-am:
 install-exec: install-exec-recursive
 
-install-data-am:
+install-data-am: install-bfdlibLTLIBRARIES
 install-data: install-data-recursive
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
 install: install-recursive
-uninstall-am: uninstall-libLTLIBRARIES
+uninstall-am: uninstall-bfdlibLTLIBRARIES
 uninstall: uninstall-recursive
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) config.h
 all-redirect: all-recursive-am
@@ -722,7 +724,7 @@ install-strip:
 	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
 installdirs: installdirs-recursive
 installdirs-am:
-	$(mkinstalldirs)  $(DESTDIR)$(libdir)
+	$(mkinstalldirs)  $(DESTDIR)$(bfdlibdir)
 
 
 mostlyclean-generic:
@@ -737,19 +739,19 @@ distclean-generic:
 maintainer-clean-generic:
 mostlyclean-am:  mostlyclean-hdr mostlyclean-noinstLIBRARIES \
 		mostlyclean-compile mostlyclean-libtool \
-		mostlyclean-libLTLIBRARIES mostlyclean-tags \
+		mostlyclean-bfdlibLTLIBRARIES mostlyclean-tags \
 		mostlyclean-generic
 
 mostlyclean: mostlyclean-recursive
 
 clean-am:  clean-hdr clean-noinstLIBRARIES clean-compile clean-libtool \
-		clean-libLTLIBRARIES clean-tags clean-generic \
+		clean-bfdlibLTLIBRARIES clean-tags clean-generic \
 		mostlyclean-am
 
 clean: clean-recursive
 
 distclean-am:  distclean-hdr distclean-noinstLIBRARIES distclean-compile \
-		distclean-libtool distclean-libLTLIBRARIES \
+		distclean-libtool distclean-bfdlibLTLIBRARIES \
 		distclean-tags distclean-generic clean-am
 	-rm -f libtool
 
@@ -759,8 +761,9 @@ distclean: distclean-recursive
 maintainer-clean-am:  maintainer-clean-hdr \
 		maintainer-clean-noinstLIBRARIES \
 		maintainer-clean-compile maintainer-clean-libtool \
-		maintainer-clean-libLTLIBRARIES maintainer-clean-tags \
-		maintainer-clean-generic distclean-am
+		maintainer-clean-bfdlibLTLIBRARIES \
+		maintainer-clean-tags maintainer-clean-generic \
+		distclean-am
 	@echo "This command is intended for maintainers to use;"
 	@echo "it deletes files that may require special tools to rebuild."
 
@@ -772,14 +775,14 @@ mostlyclean-noinstLIBRARIES distclean-noinstLIBRARIES \
 clean-noinstLIBRARIES maintainer-clean-noinstLIBRARIES \
 mostlyclean-compile distclean-compile clean-compile \
 maintainer-clean-compile mostlyclean-libtool distclean-libtool \
-clean-libtool maintainer-clean-libtool mostlyclean-libLTLIBRARIES \
-distclean-libLTLIBRARIES clean-libLTLIBRARIES \
-maintainer-clean-libLTLIBRARIES uninstall-libLTLIBRARIES \
-install-libLTLIBRARIES install-data-recursive uninstall-data-recursive \
-install-exec-recursive uninstall-exec-recursive installdirs-recursive \
-uninstalldirs-recursive all-recursive check-recursive \
-installcheck-recursive info-recursive dvi-recursive \
-mostlyclean-recursive distclean-recursive clean-recursive \
+clean-libtool maintainer-clean-libtool mostlyclean-bfdlibLTLIBRARIES \
+distclean-bfdlibLTLIBRARIES clean-bfdlibLTLIBRARIES \
+maintainer-clean-bfdlibLTLIBRARIES uninstall-bfdlibLTLIBRARIES \
+install-bfdlibLTLIBRARIES install-data-recursive \
+uninstall-data-recursive install-exec-recursive \
+uninstall-exec-recursive installdirs-recursive uninstalldirs-recursive \
+all-recursive check-recursive installcheck-recursive info-recursive \
+dvi-recursive mostlyclean-recursive distclean-recursive clean-recursive \
 maintainer-clean-recursive tags tags-recursive mostlyclean-tags \
 distclean-tags clean-tags maintainer-clean-tags distdir info-am info \
 dvi-am dvi check check-am installcheck-am installcheck install-info-am \
@@ -812,6 +815,30 @@ po/POTFILES.in: @MAINT@ Makefile
 config.status: $(srcdir)/configure $(srcdir)/../bfd/configure.in
 	$(SHELL) ./config.status --recheck
 
+install-bfdlibLTLIBRARIES: @INSTALL_LIBBFD_TRUE@install_libopcodes
+	@$(NORMAL_INSTALL)
+
+uninstall-bfdlibLTLIBRARIES: @INSTALL_LIBBFD_TRUE@uninstall_libopcodes
+	@$(NORMAL_UNINSTALL)
+
+.PHONY: install_libopcodes uninstall_libopcodes
+install_libopcodes: $(bfdlib_LTLIBRARIES)
+	$(mkinstalldirs) $(DESTDIR)$(bfdlibdir)
+	$(mkinstalldirs) $(DESTDIR)$(bfdincludedir)
+	@list='$(bfdlib_LTLIBRARIES)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    echo "$(LIBTOOL)  --mode=install $(INSTALL) $$p $(DESTDIR)$(bfdlibdir)/$$p"; \
+	    $(LIBTOOL)  --mode=install $(INSTALL) $$p $(DESTDIR)$(bfdlibdir)/$$p; \
+	  else :; fi; \
+	done
+	$(INSTALL_DATA) $(INCDIR)/dis-asm.h $(DESTDIR)$(bfdincludedir)/dis-asm.h
+
+uninstall_libopcodes:
+	list='$(bfdlib_LTLIBRARIES)'; for p in $$list; do \
+	  $(LIBTOOL)  --mode=uninstall rm -f $(DESTDIR)$(bfdlibdir)/$$p; \
+	done
+	rm -f $(DESTDIR)$(bfdincludedir)/dis-asm.h
+
 run-cgen:
 	$(SHELL) $(srcdir)/cgen.sh opcodes $(srcdir) $(CGEN) \
 	  $(CGENDIR) "$(CGENFLAGS)" $(arch) $(prefix) \
@@ -830,9 +857,10 @@ $(srcdir)/fr30-desc.h $(srcdir)/fr30-desc.c $(srcdir)/fr30-opc.h $(srcdir)/fr30-
 stamp-fr30: $(CGENDEPS) $(CPUDIR)/fr30.cpu $(CPUDIR)/fr30.opc
 	$(MAKE) run-cgen arch=fr30 prefix=fr30 options= extrafiles=
 
-sh64-opc.lo: sh64-opc.c sh64-opc.h
-sh64-dis.lo: sh64-dis.c sysdep.h config.h $(INCDIR)/ansidecl.h \
-  sh64-opc.h $(INCDIR)/dis-asm.h $(BFD_H) opintl.h
+$(srcdir)/frv-desc.h $(srcdir)/frv-desc.c $(srcdir)/frv-opc.h $(srcdir)/frv-opc.c $(srcdir)/frv-ibld.c $(srcdir)/frv-asm.c $(srcdir)/frv-dis.c: $(FRV_DEPS)
+	@true
+stamp-frv: $(CGENDEPS) $(CPUDIR)/frv.cpu $(CPUDIR)/frv.opc
+	$(MAKE) run-cgen arch=frv prefix=frv options= extrafiles=
 
 $(srcdir)/openrisc-desc.h $(srcdir)/openrisc-desc.c $(srcdir)/openrisc-opc.h $(srcdir)/openrisc-opc.c $(srcdir)/openrisc-ibld.c $(srcdir)/openrisc-asm.c $(srcdir)/openrisc-dis.c: $(OPENRISC_DEPS)
 	@true
@@ -858,6 +886,9 @@ s390-mkopc: s390-mkopc.c
 
 s390-opc.tab: s390-mkopc s390-opc.txt
 	./s390-mkopc < $(srcdir)/s390-opc.txt > s390-opc.tab
+
+sh-dis.lo: sh-dis.c
+	$(LIBTOOL) --mode=compile $(COMPILE) -c @archdefs@ $<
 
 Makefile: $(BFDDIR)/configure.in
 
@@ -956,6 +987,8 @@ d30v-dis.lo: d30v-dis.c sysdep.h config.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/symcat.h opintl.h
 d30v-opc.lo: d30v-opc.c sysdep.h config.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/opcode/d30v.h
+dlx-dis.lo: dlx-dis.c sysdep.h config.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/symcat.h $(INCDIR)/opcode/dlx.h
 dis-buf.lo: dis-buf.c sysdep.h config.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/symcat.h opintl.h
 disassemble.lo: disassemble.c sysdep.h config.h $(INCDIR)/ansidecl.h \
@@ -976,6 +1009,23 @@ fr30-ibld.lo: fr30-ibld.c sysdep.h config.h $(INCDIR)/ansidecl.h \
 fr30-opc.lo: fr30-opc.c sysdep.h config.h $(INCDIR)/ansidecl.h \
   $(BFD_H) $(INCDIR)/symcat.h fr30-desc.h $(INCDIR)/opcode/cgen.h \
   fr30-opc.h $(INCDIR)/libiberty.h
+frv-asm.lo: frv-asm.c sysdep.h config.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h $(INCDIR)/symcat.h frv-desc.h \
+  $(INCDIR)/opcode/cgen.h frv-opc.h opintl.h
+frv-desc.lo: frv-desc.c sysdep.h config.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h $(INCDIR)/symcat.h frv-desc.h \
+  $(INCDIR)/opcode/cgen.h frv-opc.h opintl.h
+frv-dis.lo: frv-dis.c sysdep.h config.h $(INCDIR)/dis-asm.h \
+  $(BFD_H) $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h frv-desc.h $(INCDIR)/opcode/cgen.h \
+  frv-opc.h opintl.h
+frv-ibld.lo: frv-ibld.c sysdep.h config.h $(INCDIR)/dis-asm.h \
+  $(BFD_H) $(INCDIR)/ansidecl.h \
+  $(INCDIR)/symcat.h frv-desc.h $(INCDIR)/opcode/cgen.h \
+  frv-opc.h opintl.h
+frv-opc.lo: frv-opc.c sysdep.h config.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h $(INCDIR)/symcat.h frv-desc.h \
+  $(INCDIR)/opcode/cgen.h frv-opc.h
 h8300-dis.lo: h8300-dis.c sysdep.h config.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/opcode/h8300.h $(INCDIR)/dis-asm.h $(BFD_H) \
   $(INCDIR)/symcat.h opintl.h
@@ -1120,6 +1170,12 @@ s390-dis.lo: s390-dis.c $(INCDIR)/ansidecl.h sysdep.h \
   $(INCDIR)/opcode/s390.h
 sh-dis.lo: sh-dis.c sysdep.h config.h $(INCDIR)/ansidecl.h \
   sh-opc.h $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/symcat.h
+sh64-dis.lo: sh64-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h $(INCDIR)/symcat.h sysdep.h config.h \
+  sh64-opc.h $(INCDIR)/libiberty.h $(BFDDIR)/elf-bfd.h \
+  $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+  $(INCDIR)/bfdlink.h $(INCDIR)/elf/sh.h $(INCDIR)/elf/reloc-macros.h
+sh64-opc.lo: sh64-opc.c sh64-opc.h
 sparc-dis.lo: sparc-dis.c sysdep.h config.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/opcode/sparc.h $(INCDIR)/dis-asm.h $(BFD_H) \
   $(INCDIR)/symcat.h $(INCDIR)/libiberty.h opintl.h
@@ -1145,12 +1201,6 @@ v850-opc.lo: v850-opc.c sysdep.h config.h $(INCDIR)/ansidecl.h \
 vax-dis.lo: vax-dis.c sysdep.h config.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/opcode/vax.h $(INCDIR)/dis-asm.h $(BFD_H) \
   $(INCDIR)/symcat.h
-sh64-dis.lo: sh64-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
-  $(INCDIR)/ansidecl.h $(INCDIR)/symcat.h sysdep.h config.h \
-  sh64-opc.h $(INCDIR)/libiberty.h $(BFDDIR)/elf-bfd.h \
-  $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
-  $(INCDIR)/bfdlink.h $(INCDIR)/elf/sh.h $(INCDIR)/elf/reloc-macros.h
-sh64-opc.lo: sh64-opc.c sh64-opc.h
 w65-dis.lo: w65-dis.c sysdep.h config.h $(INCDIR)/ansidecl.h \
   w65-opc.h $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/symcat.h
 xstormy16-asm.lo: xstormy16-asm.c sysdep.h config.h \

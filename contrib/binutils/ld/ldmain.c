@@ -34,9 +34,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ldmain.h"
 #include "ldmisc.h"
 #include "ldwrite.h"
-#include "ldgram.h"
 #include "ldexp.h"
 #include "ldlang.h"
+#include "ldgram.h"
 #include "ldlex.h"
 #include "ldfile.h"
 #include "ldemul.h"
@@ -239,11 +239,14 @@ main (argc, argv)
   link_info.optimize = false;
   link_info.no_undefined = false;
   link_info.allow_shlib_undefined = false;
+  link_info.allow_multiple_definition = false;
+  link_info.allow_undefined_version = true;
   link_info.strip = strip_none;
   link_info.discard = discard_sec_merge;
   link_info.keep_memory = true;
   link_info.input_bfds = NULL;
   link_info.create_object_symbols_section = NULL;
+  link_info.gc_sym_list = NULL;
   link_info.hash = NULL;
   link_info.keep_hash = NULL;
   link_info.notice_all = false;
@@ -259,7 +262,8 @@ main (argc, argv)
   link_info.flags = (bfd_vma) 0;
   link_info.flags_1 = (bfd_vma) 0;
   link_info.pei386_auto_import = false;
-  link_info.combreloc = false;
+  link_info.pei386_auto_import = -1;
+  link_info.combreloc = true;
   link_info.spare_dynamic_tags = 5;
 
   ldfile_add_arch ("");
@@ -318,12 +322,12 @@ main (argc, argv)
   if (saved_script_handle == NULL)
     {
       int isfile;
-      char *s = ldemul_get_script (& isfile);
+      char *s = ldemul_get_script (&isfile);
 
       if (isfile)
 	ldfile_open_command_file (s);
       else
-	{	
+	{
 	  lex_string = s;
 	  lex_redirect (s);
 	}
@@ -349,7 +353,7 @@ main (argc, argv)
 	  rewind (saved_script_handle);
 	  while ((n = fread (buf, 1, ld_bufsz - 1, saved_script_handle)) > 0)
 	    {
-	      buf [n] = 0;
+	      buf[n] = 0;
 	      info_msg (buf);
 	    }
 	  rewind (saved_script_handle);
@@ -359,9 +363,9 @@ main (argc, argv)
 	{
 	  int isfile;
 
-	  info_msg (ldemul_get_script (& isfile));
+	  info_msg (ldemul_get_script (&isfile));
 	}
-      
+
       info_msg ("\n==================================================\n");
     }
 

@@ -370,7 +370,7 @@ check_eh_frame (exp, pnbytes)
 	d->state = state_error;
       else
 	{
-          int left = (d->aug_size -= *pnbytes);
+	  int left = (d->aug_size -= *pnbytes);
 	  if (left == 0)
 	    d->state = state_wait_loc4;
 	  else if (left < 0)

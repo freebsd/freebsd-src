@@ -1,5 +1,5 @@
 /* Core file generic interface routines for BFD.
-   Copyright 1990, 1991, 1992, 1993, 1994, 2000, 2001
+   Copyright 1990, 1991, 1992, 1993, 1994, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -44,7 +44,7 @@ DESCRIPTION
 
 */
 
-CONST char *
+const char *
 bfd_core_file_failing_command (abfd)
      bfd *abfd;
 {

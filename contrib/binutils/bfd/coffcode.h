@@ -341,6 +341,11 @@ static PTR coff_mkobject_hook PARAMS ((bfd *, PTR,  PTR));
 #ifdef COFF_WITH_PE
 static flagword handle_COMDAT PARAMS ((bfd *, flagword, PTR, const char *, asection *));
 #endif
+#ifdef COFF_IMAGE_WITH_PE
+static boolean coff_read_word PARAMS ((bfd *, unsigned int *));
+static unsigned int coff_compute_checksum PARAMS ((bfd *));
+static boolean coff_apply_checksum PARAMS ((bfd *));
+#endif
 
 /* void warning(); */
 
@@ -1493,12 +1498,12 @@ coff_new_section_hook (abfd, section)
   section->alignment_power = COFF_DEFAULT_SECTION_ALIGNMENT_POWER;
 
 #ifdef RS6000COFF_C
-  if (xcoff_data (abfd)->text_align_power != 0
+  if (bfd_xcoff_text_align_power (abfd) != 0
       && strcmp (bfd_get_section_name (abfd, section), ".text") == 0)
-    section->alignment_power = xcoff_data (abfd)->text_align_power;
-  if (xcoff_data (abfd)->data_align_power != 0
+    section->alignment_power = bfd_xcoff_text_align_power (abfd);
+  if (bfd_xcoff_data_align_power (abfd) != 0
       && strcmp (bfd_get_section_name (abfd, section), ".data") == 0)
-    section->alignment_power = xcoff_data (abfd)->data_align_power;
+    section->alignment_power = bfd_xcoff_data_align_power (abfd);
 #endif
 
   /* Allocate aux records for section symbols, to store size and
@@ -1734,7 +1739,7 @@ coff_mkobject_hook (abfd, filehdr, aouthdr)
   struct internal_filehdr *internal_f = (struct internal_filehdr *) filehdr;
   coff_data_type *coff;
 
-  if (coff_mkobject (abfd) == false)
+  if (! coff_mkobject (abfd))
     return NULL;
 
   coff = coff_data (abfd);
@@ -1777,8 +1782,8 @@ coff_mkobject_hook (abfd, filehdr, aouthdr)
       xcoff->toc = internal_a->o_toc;
       xcoff->sntoc = internal_a->o_sntoc;
       xcoff->snentry = internal_a->o_snentry;
-      xcoff->text_align_power = internal_a->o_algntext;
-      xcoff->data_align_power = internal_a->o_algndata;
+      bfd_xcoff_text_align_power (abfd) = internal_a->o_algntext;
+      bfd_xcoff_data_align_power (abfd) = internal_a->o_algndata;
       xcoff->modtype = internal_a->o_modtype;
       xcoff->cputype = internal_a->o_cputype;
       xcoff->maxdata = internal_a->o_maxdata;
@@ -1964,6 +1969,7 @@ coff_set_arch_mach_hook (abfd, filehdr)
 
 #ifdef RS6000COFF_C
 #ifdef XCOFF64
+    case U64_TOCMAGIC:
     case U803XTOCMAGIC:
 #else
     case U802ROMAGIC:
@@ -2152,6 +2158,13 @@ coff_set_arch_mach_hook (abfd, filehdr)
       arch = bfd_arch_mcore;
       break;
 #endif
+
+#ifdef W65MAGIC
+    case W65MAGIC:
+      arch = bfd_arch_w65;
+      break;
+#endif
+
     default:			/* Unreadable input file type */
       arch = bfd_arch_obscure;
       break;
@@ -2171,7 +2184,7 @@ symname_in_debug_hook (abfd, sym)
      bfd * abfd ATTRIBUTE_UNUSED;
      struct internal_syment *sym;
 {
-  return SYMNAME_IN_DEBUG (sym) ? true : false;
+  return SYMNAME_IN_DEBUG (sym) != 0;
 }
 
 #else
@@ -2388,7 +2401,7 @@ coff_write_relocs (abfd, first_undef)
 	return false;
 
 #ifdef COFF_WITH_PE
-      if (s->reloc_count > 0xffff)
+      if (obj_pe (abfd) && s->reloc_count >= 0xffff)
 	{
 	  /* encode real count here as first reloc */
 	  struct internal_reloc n;
@@ -2768,14 +2781,8 @@ coff_set_flags (abfd, magicp, flagsp)
 #ifndef PPCMAGIC
     case bfd_arch_powerpc:
 #endif
-#ifdef XCOFF64
-      if (bfd_get_mach (abfd) == bfd_mach_ppc_620
-	  && !strncmp (abfd->xvec->name,"aix", 3))
-	*magicp = U803XTOCMAGIC;
-      else
-#else
-    	*magicp = U802TOCMAGIC;
-#endif
+      BFD_ASSERT (bfd_get_flavour (abfd) == bfd_target_xcoff_flavour);
+      *magicp = bfd_xcoff_magic_number (abfd);
       return true;
       break;
 #endif
@@ -2822,8 +2829,8 @@ coff_set_arch_mach (abfd, arch, machine)
   if (! bfd_default_set_arch_mach (abfd, arch, machine))
     return false;
 
-  if (arch != bfd_arch_unknown &&
-      coff_set_flags (abfd, &dummy1, &dummy2) != true)
+  if (arch != bfd_arch_unknown
+      && ! coff_set_flags (abfd, &dummy1, &dummy2))
     return false;		/* We can't represent this type */
 
   return true;			/* We're easy ...  */
@@ -3084,8 +3091,10 @@ coff_compute_section_file_positions (abfd)
 	     AIX executable is stripped with gnu strip because the default vma
 	     of native is 0x10000150 but default for gnu is 0x10000140.  Gnu
 	     stripped gnu excutable passes this check because the filepos is 
-	     0x0140. */
-	  if (!strcmp (current->name, _TEXT)) 
+	     0x0140.  This problem also show up with 64 bit shared objects. The
+	     data section must also be aligned.  */
+	  if (!strcmp (current->name, _TEXT) 
+	      || !strcmp (current->name, _DATA)) 
 	    {
 	      bfd_vma pad;
 	      bfd_vma align;
@@ -3276,6 +3285,100 @@ coff_add_missing_symbols (abfd)
 
 #endif /* 0 */
 
+#ifdef COFF_IMAGE_WITH_PE
+
+static unsigned int pelength;
+static unsigned int peheader;
+
+static boolean
+coff_read_word (abfd, value)
+  bfd *abfd;
+  unsigned int *value;
+{
+  unsigned char b[2];
+  int status;
+
+  status = bfd_bread (b, (bfd_size_type) 2, abfd);
+  if (status < 1)
+    {
+      *value = 0;
+      return false;
+    }
+
+  if (status == 1)
+    *value = (unsigned int) b[0];
+  else
+    *value = (unsigned int) (b[0] + (b[1] << 8));
+
+  pelength += (unsigned int) status;
+
+  return true;
+}
+
+static unsigned int
+coff_compute_checksum (abfd)
+  bfd *abfd;
+{
+  boolean more_data;
+  file_ptr filepos;
+  unsigned int value;
+  unsigned int total;
+
+  total = 0;
+  pelength = 0;
+  filepos = (file_ptr) 0;
+
+  do
+    {
+      if (bfd_seek (abfd, filepos, SEEK_SET) != 0)
+	return 0;
+
+      more_data = coff_read_word (abfd, &value);
+      total += value;
+      total = 0xffff & (total + (total >> 0x10));
+      filepos += 2;
+    }
+  while (more_data);
+
+  return (0xffff & (total + (total >> 0x10)));
+}
+
+static boolean
+coff_apply_checksum (abfd)
+  bfd *abfd;
+{
+  unsigned int computed;
+  unsigned int checksum = 0;
+
+  if (bfd_seek (abfd, 0x3c, SEEK_SET) != 0)
+    return false;
+
+  if (!coff_read_word (abfd, &peheader))
+    return false;
+
+  if (bfd_seek (abfd, peheader + 0x58, SEEK_SET) != 0)
+    return false;
+
+  checksum = 0;
+  bfd_bwrite (&checksum, (bfd_size_type) 4, abfd);
+
+  if (bfd_seek (abfd, peheader, SEEK_SET) != 0)
+    return false;
+
+  computed = coff_compute_checksum (abfd);
+
+  checksum = computed + pelength;
+
+  if (bfd_seek (abfd, peheader + 0x58, SEEK_SET) != 0)
+    return false;
+
+  bfd_bwrite (&checksum, (bfd_size_type) 4, abfd);
+
+  return true;
+}
+
+#endif /* COFF_IMAGE_WITH_PE */
+
 /* SUPPRESS 558 */
 /* SUPPRESS 529 */
 static boolean
@@ -3309,7 +3412,7 @@ coff_write_object_contents (abfd)
 
   lnno_size = coff_count_linenumbers (abfd) * bfd_coff_linesz (abfd);
 
-  if (abfd->output_has_begun == false)
+  if (! abfd->output_has_begun)
     {
       if (! coff_compute_section_file_positions (abfd))
 	return false;
@@ -3324,7 +3427,7 @@ coff_write_object_contents (abfd)
     {
 #ifdef COFF_WITH_PE
       /* we store the actual reloc count in the first reloc's addr */
-      if (current->reloc_count > 0xffff)
+      if (obj_pe (abfd) && current->reloc_count >= 0xffff)
 	reloc_count ++;
 #endif
       reloc_count += current->reloc_count;
@@ -3355,7 +3458,7 @@ coff_write_object_contents (abfd)
 	  reloc_base += current->reloc_count * bfd_coff_relsz (abfd);
 #ifdef COFF_WITH_PE
 	  /* extra reloc to hold real count */
-	  if (current->reloc_count > 0xffff)
+	  if (obj_pe (abfd) && current->reloc_count >= 0xffff)
 	    reloc_base += bfd_coff_relsz (abfd);
 #endif
 	}
@@ -4066,6 +4169,11 @@ coff_write_object_contents (abfd)
 
       if (amount != bfd_coff_aoutsz (abfd))
 	return false;
+
+#ifdef COFF_IMAGE_WITH_PE
+      if (! coff_apply_checksum (abfd))
+	return false;
+#endif
     }
 #ifdef RS6000COFF_C
   else
@@ -4095,7 +4203,7 @@ coff_set_section_contents (abfd, section, location, offset, count)
      file_ptr offset;
      bfd_size_type count;
 {
-  if (abfd->output_has_begun == false)	/* set by bfd.c handler */
+  if (! abfd->output_has_begun)	/* set by bfd.c handler */
     {
       if (! coff_compute_section_file_positions (abfd))
 	return false;
@@ -5049,6 +5157,10 @@ dummy_reloc16_extra_cases (abfd, link_info, link_order, reloc, data, src_ptr,
 }
 #endif
 
+#ifndef coff_bfd_link_hash_table_free
+#define coff_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
+#endif
+
 /* If coff_relocate_section is defined, we can use the optimized COFF
    backend linker.  Otherwise we must continue to use the old linker.  */
 #ifdef coff_relocate_section
@@ -5072,6 +5184,7 @@ dummy_reloc16_extra_cases (abfd, link_info, link_order, reloc, data, src_ptr,
 #define coff_bfd_final_link _bfd_generic_final_link
 #endif /* ! defined (coff_relocate_section) */
 
+#define coff_bfd_link_just_syms _bfd_generic_link_just_syms
 #define coff_bfd_link_split_section  _bfd_generic_link_split_section
 
 #ifndef coff_start_final_link
@@ -5266,6 +5379,10 @@ static const bfd_coff_backend_data bfd_coff_std_swap_table =
 
 #ifndef coff_bfd_merge_sections
 #define coff_bfd_merge_sections		    bfd_generic_merge_sections
+#endif
+
+#ifndef coff_bfd_discard_group
+#define coff_bfd_discard_group		    bfd_generic_discard_group
 #endif
 
 #define CREATE_BIG_COFF_TARGET_VEC(VAR, NAME, EXTRA_O_FLAGS, EXTRA_S_FLAGS, UNDER, ALTERNATIVE)	\

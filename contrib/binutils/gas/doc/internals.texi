@@ -1151,6 +1151,16 @@ a pointer to a integer that should be filled in with the number of
 gas/bignum.h).  The function should return NULL upon success or an error string
 upon failure.
 
+@item TC_LARGEST_EXPONENT_IS_NORMAL
+@cindex TC_LARGEST_EXPONENT_IS_NORMAL (@var{precision})
+This macro is used only by @file{atof-ieee.c}.  It should evaluate to true
+if floats of the given precision use the largest exponent for normal numbers
+instead of NaNs and infinities.  @var{precision} is @samp{F_PRECISION} for
+single precision, @samp{D_PRECISION} for double precision, or
+@samp{X_PRECISION} for extended double precision.
+
+The macro has a default definition which returns 0 for all cases.
+
 @item md_reloc_size
 @cindex md_reloc_size
 This variable is only used in the original version of gas (not

@@ -44,15 +44,18 @@ unw_print_brmask (cp, mask)
      char * cp;
      unsigned int mask;
 {
-  char *sep = "";
+  int sep = 0;
   int i;
 
   for (i = 0; mask && (i < 5); ++i)
     {
       if (mask & 1)
 	{
-	  cp += sprintf (cp, "%sb%u", sep, i + 1);
-	  sep = ",";
+	  if (sep)
+	    *cp++ = ',';
+	  *cp++ = 'b';
+	  *cp++ = i + 1 + '0';
+	  sep = 1;
 	}
       mask >>= 1;
     }
@@ -64,19 +67,22 @@ unw_print_grmask (cp, mask)
      char * cp;
      unsigned int mask;
 {
-  char *sep = "";
+  int sep = 0;
   int i;
 
-  *cp = '\0';
   for (i = 0; i < 4; ++i)
     {
       if (mask & 1)
 	{
-	  cp += sprintf (cp, "%sr%u", sep, i + 4);
-	  sep = ",";
+	  if (sep)
+	    *cp++ = ',';
+	  *cp++ = 'r';
+	  *cp++ = i + 4 + '0';
+	  sep = 1;
 	}
       mask >>= 1;
     }
+  *cp = '\0';
 }
 
 static void
@@ -84,19 +90,28 @@ unw_print_frmask (cp, mask)
      char * cp;
      unsigned int mask;
 {
-  char *sep = "";
+  int sep = 0;
   int i;
 
-  *cp = '\0';
   for (i = 0; i < 20; ++i)
     {
       if (mask & 1)
 	{
-	  cp += sprintf (cp, "%sf%u", sep, (i < 4) ? (i + 2) : (i + 12));
-	  sep = ",";
+	  if (sep)
+	    *cp++ = ',';
+	  *cp++ = 'f';
+	  if (i < 4)
+	    *cp++ = i + 2 + '0';
+	  else
+	    {
+	      *cp++ = (i + 2) / 10 + 1 + '0';
+	      *cp++ = (i + 2) % 10 + '0';
+	    }
+	  sep = 1;
 	}
       mask >>= 1;
     }
+  *cp = '\0';
 }
 
 static void
@@ -475,7 +490,7 @@ typedef bfd_vma unw_word;
  * macros/constants before including this file:
  *
  *  Types:
- *	unw_word	Unsigned integer type with at least 64 bits 
+ *	unw_word	Unsigned integer type with at least 64 bits
  *
  *  Register names:
  *	UNW_REG_BSP

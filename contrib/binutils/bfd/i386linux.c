@@ -597,10 +597,9 @@ bfd_i386linux_size_dynamic_sections (output_bfd, info)
     {
       s->_raw_size = linux_hash_table (info)->fixup_count + 1;
       s->_raw_size *= 8;
-      s->contents = (bfd_byte *) bfd_alloc (output_bfd, s->_raw_size);
+      s->contents = (bfd_byte *) bfd_zalloc (output_bfd, s->_raw_size);
       if (s->contents == NULL)
 	return false;
-      memset (s->contents, 0, (size_t) s->_raw_size);
     }
 
   return true;

@@ -518,7 +518,7 @@ bin_to_res_dialog (data, length, big_endian)
 
   d->caption = get_unicode (data + off, length - off, big_endian, &sublen);
   off += sublen * 2 + 2;
-  if (sublen == 0) 
+  if (sublen == 0)
     d->caption = NULL;
 
   if ((d->style & DS_SETFONT) == 0)
@@ -595,9 +595,9 @@ bin_to_res_dialog (data, length, big_endian)
       dc->height = get_16 (big_endian, data + off + 6);
 
       if (d->ex != NULL)
-        dc->id = get_32 (big_endian, data + off + 8);
+	dc->id = get_32 (big_endian, data + off + 8);
       else
-        dc->id = get_16 (big_endian, data + off + 8);
+	dc->id = get_16 (big_endian, data + off + 8);
 
       off += 10 + (d->ex != NULL ? 2 : 0);
 
@@ -629,7 +629,7 @@ bin_to_res_dialog (data, length, big_endian)
 	  dc->data->u.buffer.length = datalen;
 	  dc->data->u.buffer.data = data + off;
 
-	  off += datalen;	  
+	  off += datalen;
 	}
 
       dc->next = NULL;
@@ -1219,7 +1219,7 @@ bin_to_res_version (data, length, big_endian)
 
       vi->next = NULL;
       *pp = vi;
-      pp = &vi->next;      
+      pp = &vi->next;
     }
 
   v = (struct versioninfo *) res_alloc (sizeof *v);
@@ -1230,7 +1230,7 @@ bin_to_res_version (data, length, big_endian)
   r->type = RES_TYPE_VERSIONINFO;
   r->u.versioninfo = v;
 
-  return r;  
+  return r;
 }
 
 /* Convert an arbitrary user defined resource from binary.  */
@@ -1685,9 +1685,9 @@ res_to_bin_dialog (dialog, big_endian)
       put_16 (big_endian, dc->height, d->data + dcoff + 6);
 
       if (dialogex)
-        put_32 (big_endian, dc->id, d->data + dcoff + 8);
+	put_32 (big_endian, dc->id, d->data + dcoff + 8);
       else
-        put_16 (big_endian, dc->id, d->data + dcoff + 8);
+	put_16 (big_endian, dc->id, d->data + dcoff + 8);
 
       *pp = d;
       pp = &d->next;
@@ -1776,12 +1776,12 @@ res_to_bin_fontdir (fontdirs, big_endian)
 
       d->next = NULL;
       *pp = d;
-      pp = &d->next;      
+      pp = &d->next;
     }
 
   put_16 (big_endian, c, first->data);
 
-  return first;  
+  return first;
 }
 
 /* Convert a group icon resource to binary.  */
@@ -2093,7 +2093,7 @@ res_to_bin_stringtable (st, big_endian)
 
       d->next = NULL;
       *pp = d;
-      pp = &d->next;      
+      pp = &d->next;
     }
 
   return first;
@@ -2122,7 +2122,7 @@ string_to_unicode_bin (s, big_endian)
 
   d->next = NULL;
 
-  return d;  
+  return d;
 }
 
 /* Convert a versioninfo resource to binary.  */
@@ -2287,7 +2287,7 @@ res_to_bin_versioninfo (versioninfo, big_endian)
 		vsslen += length - hold;
 
 		*pp = unicode_to_bin (vs->value, big_endian);
- 		put_16 (big_endian, (*pp)->length / 2, vssd->data + 2);
+		put_16 (big_endian, (*pp)->length / 2, vssd->data + 2);
 		length += (*pp)->length;
 		vilen += (*pp)->length;
 		vslen += (*pp)->length;

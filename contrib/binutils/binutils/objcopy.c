@@ -32,7 +32,7 @@
 /* A list of symbols to explicitly strip out, or to keep.  A linked
    list is good enough for a small number from the command line, but
    this will slow things down a lot if many symbols are being
-   deleted. */
+   deleted.  */
 
 struct symlist
 {
@@ -97,7 +97,7 @@ static asymbol **osympp = NULL;	/* Output symbols that survive stripping */
 static int copy_byte = -1;
 static int interleave = 4;
 
-static boolean verbose;		/* Print file and target names. */
+static boolean verbose;		/* Print file and target names.  */
 static boolean preserve_dates;	/* Preserve input file timestamp.  */
 static int status = 0;		/* Exit status.  */
 
@@ -110,7 +110,7 @@ enum strip_action
     STRIP_ALL			/* strip all symbols */
   };
 
-/* Which symbols to remove. */
+/* Which symbols to remove.  */
 static enum strip_action strip_symbols;
 
 enum locals_action
@@ -339,7 +339,7 @@ extern char *program_name;
 
 /* This flag distinguishes between strip and objcopy:
    1 means this is 'strip'; 0 means this is 'objcopy'.
-   -1 means if we should use argv[0] to decide. */
+   -1 means if we should use argv[0] to decide.  */
 extern int is_strip;
 
 /* The maximum length of an S record.  This variable is declared in srec.c
@@ -564,7 +564,7 @@ add_specific_symbol (name, list)
   *list = tmp_list;
 }
 
-/* Add symbols listed in `filename' to strip_specific_list. */
+/* Add symbols listed in `filename' to strip_specific_list.  */
 
 #define IS_WHITESPACE(c)      ((c) == ' ' || (c) == '\t')
 #define IS_LINE_TERMINATOR(c) ((c) == '\n' || (c) == '\r' || (c) == '\0')
@@ -579,7 +579,7 @@ add_specific_symbols (filename, list)
   char * line;
   char * buffer;
   unsigned int line_count;
-  
+
   if (stat (filename, & st) < 0)
     fatal (_("cannot stat: %s: %s"), filename, strerror (errno));
   if (st.st_size == 0)
@@ -598,7 +598,7 @@ add_specific_symbols (filename, list)
   buffer [st.st_size + 1] = '\0';
 
   line_count = 1;
-  
+
   for (line = buffer; * line != '\0'; line ++)
     {
       char * eol;
@@ -617,7 +617,7 @@ add_specific_symbols (filename, list)
 		++ eol;
 	      finished = true;
 	      break;
-	      
+
 	    case '\r':
 	      * eol = '\0';
 	      /* Cope with \r\n.  */
@@ -625,18 +625,18 @@ add_specific_symbols (filename, list)
 		++ eol;
 	      finished = true;
 	      break;
-	      
+
 	    case 0:
 	      finished = true;
 	      break;
-	      
+
 	    case '#':
 	      /* Line comment, Terminate the line here, in case a
 		 name is present and then allow the rest of the
 		 loop to find the real end of the line.  */
 	      * eol = '\0';
 	      break;
-	      
+
 	    default:
 	      break;
 	    }
@@ -653,8 +653,8 @@ add_specific_symbols (filename, list)
       for (name_end = name;
 	   (! IS_WHITESPACE (* name_end))
 	   && (! IS_LINE_TERMINATOR (* name_end));
-           name_end ++)
-        ;
+	   name_end ++)
+	;
 
       if (! IS_LINE_TERMINATOR (* name_end))
 	{
@@ -667,7 +667,7 @@ add_specific_symbols (filename, list)
 	    non_fatal (_("Ignoring rubbish found on line %d of %s"),
 		       line_count, filename);
 	}
-  
+
       * name_end = '\0';
 
       if (name_end > name)
@@ -797,7 +797,7 @@ filter_symbols (abfd, obfd, osyms, isyms, symcount)
 		   && ((*bfd_get_section (sym)->symbol_ptr_ptr)->flags
 		       & BSF_KEEP) != 0))
 	keep = 1;
-      else if (relocatable			/* Relocatable file. */
+      else if (relocatable			/* Relocatable file.  */
 	       && (flags & (BSF_GLOBAL | BSF_WEAK)) != 0)
 	keep = 1;
       else if (bfd_decode_symclass (sym) == 'I')
@@ -960,8 +960,8 @@ copy_object (ibfd, obfd)
     start = bfd_get_start_address (ibfd);
   start += change_start;
 
-  /* Neither the start address nor the flags 
-     need to be set for a core file. */
+  /* Neither the start address nor the flags
+     need to be set for a core file.  */
   if (bfd_get_format (obfd) != bfd_core)
     {
       if (!bfd_set_start_address (obfd, start)
@@ -1088,8 +1088,8 @@ copy_object (ibfd, obfd)
 					      size + (gap_stop - gap_start)))
 		    {
 		      non_fatal (_("Can't fill gap after %s: %s"),
-			       bfd_get_section_name (obfd, osections[i]),
-			       bfd_errmsg (bfd_get_error ()));
+				 bfd_get_section_name (obfd, osections[i]),
+				 bfd_errmsg (bfd_get_error ()));
 		      status = 1;
 		      break;
 		    }
@@ -1113,8 +1113,8 @@ copy_object (ibfd, obfd)
 					  pad_to - lma))
 		{
 		  non_fatal (_("Can't add padding to %s: %s"),
-			   bfd_get_section_name (obfd, osections[c - 1]),
-			   bfd_errmsg (bfd_get_error ()));
+			     bfd_get_section_name (obfd, osections[c - 1]),
+			     bfd_errmsg (bfd_get_error ()));
 		  status = 1;
 		}
 	      else
@@ -1363,7 +1363,7 @@ copy_archive (ibfd, obfd, output_target)
       if (!bfd_close (output_bfd))
 	{
 	  bfd_nonfatal (bfd_get_filename (output_bfd));
-	  /* Error in new object file. Don't change archive. */
+	  /* Error in new object file. Don't change archive.  */
 	  status = 1;
 	}
 
@@ -1493,7 +1493,7 @@ add_section_rename (old_name, new_name, flags)
 	if (strcmp (rename->new_name, new_name) == 0
 	    && rename->flags == flags)
 	  return;
-	
+
 	fatal (_("Multiple renames of section %s"), old_name);
       }
 
@@ -1503,7 +1503,7 @@ add_section_rename (old_name, new_name, flags)
   rename->new_name = new_name;
   rename->flags    = flags;
   rename->next     = section_rename_list;
-  
+
   section_rename_list = rename;
 }
 
@@ -1553,7 +1553,7 @@ setup_section (ibfd, isection, obfdarg)
   flagword flags;
   const char *err;
   const char * name;
-  
+
   if ((bfd_get_section_flags (ibfd, isection) & SEC_DEBUGGING) != 0
       && (strip_symbols == STRIP_DEBUG
 	  || strip_symbols == STRIP_UNNEEDED
@@ -1573,7 +1573,7 @@ setup_section (ibfd, isection, obfdarg)
 
   /* Get the, possibly new, name of the output section.  */
   name = find_section_rename (ibfd, isection, & flags);
-  
+
   osection = bfd_make_section_anyway (obfd, name);
 
   if (osection == NULL)
@@ -1684,18 +1684,23 @@ copy_section (ibfd, isection, obfdarg)
   sec_ptr osection;
   bfd_size_type size;
   long relsize;
+  flagword flags;
 
   /* If we have already failed earlier on,
      do not keep on generating complaints now.  */
   if (status != 0)
     return;
 
-  if ((bfd_get_section_flags (ibfd, isection) & SEC_DEBUGGING) != 0
+  flags = bfd_get_section_flags (ibfd, isection);
+  if ((flags & SEC_DEBUGGING) != 0
       && (strip_symbols == STRIP_DEBUG
 	  || strip_symbols == STRIP_UNNEEDED
 	  || strip_symbols == STRIP_ALL
 	  || discard_locals == LOCALS_ALL
 	  || convert_debugging))
+    return;
+
+  if ((flags & SEC_GROUP) != 0)
     return;
 
   p = find_section_list (bfd_section_name (ibfd, isection), false);
@@ -1711,7 +1716,7 @@ copy_section (ibfd, isection, obfdarg)
   if (size == 0 || osection == 0)
     return;
 
-  /* Core files do not need to be relocated. */
+  /* Core files do not need to be relocated.  */
   if (bfd_get_format (obfd) == bfd_core)
     relsize = 0;
   else
@@ -1732,7 +1737,7 @@ copy_section (ibfd, isection, obfdarg)
       if (strip_symbols == STRIP_ALL)
 	{
 	  /* Remove relocations which are not in
-	     keep_strip_specific_list. */
+	     keep_strip_specific_list.  */
 	  arelent **temp_relpp;
 	  long temp_relcount = 0;
 	  long i;
@@ -1755,7 +1760,7 @@ copy_section (ibfd, isection, obfdarg)
   isection->_cooked_size = isection->_raw_size;
   isection->reloc_done = true;
 
-  if (bfd_get_section_flags (ibfd, isection) & SEC_HAS_CONTENTS 
+  if (bfd_get_section_flags (ibfd, isection) & SEC_HAS_CONTENTS
       && bfd_get_section_flags (obfd, osection) & SEC_HAS_CONTENTS)
     {
       PTR memhunk = (PTR) xmalloc ((unsigned) size);
@@ -2124,9 +2129,9 @@ copy_main (argc, argv)
 	    fatal (_("byte number must be non-negative"));
 	  break;
 
-        case 'B':
-          binary_architecture = optarg;
-          break;
+	case 'B':
+	  binary_architecture = optarg;
+	  break;
 
 	case 'i':
 	  interleave = atoi (optarg);
@@ -2492,13 +2497,13 @@ copy_main (argc, argv)
 	  set_start_set = true;
 	  break;
 
-        case OPTION_SREC_LEN:
-          Chunk = parse_vma (optarg, "--srec-len");
-          break;
+	case OPTION_SREC_LEN:
+	  Chunk = parse_vma (optarg, "--srec-len");
+	  break;
 
-        case OPTION_SREC_FORCES3:
+	case OPTION_SREC_FORCES3:
 	  S3Forced = true;
-          break;
+	  break;
 
 	case OPTION_STRIP_SYMBOLS:
 	  add_specific_symbols (optarg, &strip_specific_list);
@@ -2561,16 +2566,16 @@ copy_main (argc, argv)
   if (binary_architecture != (char *) NULL)
     {
       if (input_target && strcmp (input_target, "binary") == 0)
-        {
-          const bfd_arch_info_type * temp_arch_info;
+	{
+	  const bfd_arch_info_type * temp_arch_info;
 
 	  temp_arch_info = bfd_scan_arch (binary_architecture);
 
-          if (temp_arch_info != NULL)
-            bfd_external_binary_architecture = temp_arch_info->arch;
-          else
-            fatal (_("architecture %s unknown"), binary_architecture);
-        }
+	  if (temp_arch_info != NULL)
+	    bfd_external_binary_architecture = temp_arch_info->arch;
+	  else
+	    fatal (_("architecture %s unknown"), binary_architecture);
+	}
       else
 	{
 	  non_fatal (_("Warning: input target 'binary' required for binary architecture parameter."));

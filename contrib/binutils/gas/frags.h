@@ -38,7 +38,7 @@ struct obstack;
    of a particular frag}+offset.
 
    BUG: it may be smarter to have a single pointer off to various different
-   notes for different frag kinds.  See how code pans.   */
+   notes for different frag kinds.  See how code pans.  */
 
 struct frag {
   /* Object file address (as an octet offset).  */
