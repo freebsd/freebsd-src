@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: sendfile.2,v 1.1 1998/11/05 14:43:29 dg Exp $
 .\"
 .Dd November 5, 1998
 .Dt SENDFILE 2
@@ -82,6 +82,16 @@ variable pointed to by
 The
 .Fa flags
 argument is currently undefined and should be specified as 0.
+.Pp
+When using a socket marked for non-blocking I/O,
+.Fn sendfile
+may send fewer bytes than requested. In this case, the number of bytes successfully
+written is returned in
+.Fa *sbytes
+(if specified),
+and the error
+.Er EAGAIN
+is returned.
 .Sh IMPLEMENTATION NOTES
 .Pp
 The FreeBSD implementation of
@@ -123,6 +133,10 @@ An error occurred while reading from
 .Fa fd .
 .It Bq Er EFAULT
 An invalid address was specified for a parameter.
+.It Bq Er EAGAIN
+The socket is marked for non-blocking I/O and not all data was sent due to the socket buffer being filled.
+If specified, the number of bytes successfully sent will be returned in
+.Fa *sbytes .
 .El
 .Sh SEE ALSO
 .Xr open 2 ,
