@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.77 1998/10/22 05:58:39 bde Exp $
+ *  $Id: if_ep.c,v 1.78 1999/01/19 00:21:39 peter Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -95,6 +95,10 @@
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
+#endif
+#include "opt_bdg.h"
+#ifdef BRIDGE
+#include <net/bridge.h>
 #endif
 
 #if defined(__FreeBSD__)
@@ -1132,36 +1136,51 @@ read_again:
     top->m_pkthdr.len = sc->cur_len;
 
 #if NBPFILTER > 0
-    if (ifp->if_bpf) {
+    if (ifp->if_bpf)
 	bpf_mtap(ifp, top);
-
-	/*
-	 * Note that the interface cannot be in promiscuous mode if there are
-	 * no BPF listeners.  And if we are in promiscuous mode, we have to
-	 * check if this packet is really ours.
-	 */
-	eh = mtod(top, struct ether_header *);
-	if ((ifp->if_flags & IFF_PROMISC) &&
-	    (eh->ether_dhost[0] & 1) == 0 &&
-	    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		 sizeof(eh->ether_dhost)) != 0 &&
-	    bcmp(eh->ether_dhost, etherbroadcastaddr,
-		 sizeof(eh->ether_dhost)) != 0) {
-	    if (sc->top) {
-		m_freem(sc->top);
-		sc->top = 0;
-	    }
-	    ep_fset(F_RX_FIRST);
-#ifdef EP_LOCAL_STATS
-	    sc->rx_bpf_disc++;
 #endif
-	    while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
-	    outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
-	    return;
-	}
+#ifdef BRIDGE
+    if (do_bridge) {
+	struct ifnet * bdg_ifp ;
+
+	bdg_ifp = bridge_in(top);
+	if (bdg_ifp == BDG_DROP)
+	    goto dropit ;
+	if (bdg_ifp != BDG_LOCAL)
+	    bdg_forward(&(sc->top), bdg_ifp);
+	if (bdg_ifp !=BDG_LOCAL && bdg_ifp !=BDG_BCAST && bdg_ifp !=BDG_MCAST)
+	    goto dropit ;
+	/* all others accepted locally */
+	goto getit ;
+
     }
 #endif
 
+    /*
+     * If we are in promiscuous mode, we have to
+     * check if this packet is really ours.
+     */
+    eh = mtod(top, struct ether_header *);
+    if ((ifp->if_flags & IFF_PROMISC) &&
+	(eh->ether_dhost[0] & 1) == 0 &&
+	bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
+	     sizeof(eh->ether_dhost)) != 0 &&
+	bcmp(eh->ether_dhost, etherbroadcastaddr,
+	     sizeof(eh->ether_dhost)) != 0) {
+dropit:
+	if (sc->top) {
+	    m_freem(sc->top);
+	    sc->top = 0;
+	}
+	ep_fset(F_RX_FIRST);
+#ifdef EP_LOCAL_STATS
+	sc->rx_bpf_disc++;
+#endif
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
+	return;
+    }
+getit:
     eh = mtod(top, struct ether_header *);
     m_adj(top, sizeof(struct ether_header));
     ether_input(ifp, eh, top);
