@@ -64,6 +64,14 @@ necessary to size the dump device larger than the actual amount of RAM
 available in the machine.
 .Pp
 The
+.Nm
+utility will refuse to enable a dump device which is smaller than the
+total amount of physical memory as reported by the
+.Va hw.physmem
+.Xr sysctl 8
+variable.
+.Pp
+The
 .Fl v
 flag causes
 .Nm
