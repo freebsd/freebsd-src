@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcf.c,v 1.2 1998/10/22 05:58:40 bde Exp $
+ *	$Id: pcf.c,v 1.3 1998/10/31 11:37:09 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -108,10 +108,10 @@ static void pcf_print_child(device_t, device_t);
 static int pcf_repeated_start(device_t, u_char, int);
 static int pcf_start(device_t, u_char, int);
 static int pcf_stop(device_t);
-static int pcf_write(device_t, char *, int, int *);
-static int pcf_read(device_t, char *, int, int *);
+static int pcf_write(device_t, char *, int, int *, int);
+static int pcf_read(device_t, char *, int, int *, int, int);
 static ointhand2_t pcfintr;
-static int pcf_rst_card(device_t, u_char);
+static int pcf_rst_card(device_t, u_char, u_char, u_char *);
 
 static device_method_t pcf_methods[] = {
 	/* device interface */
