@@ -317,7 +317,8 @@ g_wither_washer()
 					result |= 1;
 					continue;
 				}
-				g_detach(cp);
+				if (cp->provider != NULL)
+					g_detach(cp);
 				g_destroy_consumer(cp);
 				result |= 2;
 			}
