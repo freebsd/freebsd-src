@@ -134,10 +134,12 @@ from {alpha,i386}/INSTALL.TXT.
   supports bootable CDROMs, the steps outlined in this section will
   not be needed and can be skipped.</para>
 
-  <para arch="i386,alpha">For a normal CDROM or network installation, all you need to
+  <para arch="i386,alpha">For most CDROM or network installations, all you need to
   copy onto actual floppies from the <filename>floppies/</filename> directory are the
   <filename>kern.flp</filename> and <filename>mfsroot.flp</filename>
-  images (for 1.44MB floppies).</para>
+  images (for 1.44MB floppies).  Depending on your hardware, you may
+  also need to make the third <filename>drivers.flp</filename> image
+  to provide necessary device drivers.</para>
 
   <para arch="pc98">For a normal CDROM or network installation, all you need
   to copy onto actual floppies from the <filename>floppies/</filename>
@@ -147,9 +149,10 @@ from {alpha,i386}/INSTALL.TXT.
 
   <para arch="i386,alpha,pc98">Getting these images over the network is easy.  Simply fetch
   the
-  <replaceable>release</replaceable><filename>/floppies/kern.flp</filename>
+  <replaceable>release</replaceable><filename>/floppies/kern.flp</filename>,
+  <replaceable>release</replaceable><filename>/floppies/mfsroot.flp</filename>,
   and
-  <replaceable>release</replaceable><filename>/floppies/mfsroot.flp</filename>
+  <replaceable>release</replaceable><filename>/floppies/drivers.flp</filename>
   files from <ulink
   url="&release.url;"></ulink>
   or one of the many mirrors listed at <ulink
