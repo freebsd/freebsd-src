@@ -7,7 +7,8 @@
 # XXX Use GNU versions: apropos bc dc diff grep ld man patch whatis
 # Moved to secure: bdes
 #
-SUBDIR=	apply \
+SUBDIR=	alias \
+	apply \
 	asa \
 	at \
 	awk \
@@ -20,7 +21,6 @@ SUBDIR=	apply \
 	calendar \
 	cap_mkdb \
 	catman \
-	cd \
 	chat \
 	checknr \
 	chflags \
@@ -33,7 +33,6 @@ SUBDIR=	apply \
 	colrm \
 	column \
 	comm \
-	command \
 	compile_et \
 	compress \
 	csplit \
