@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.54 1997/09/21 20:26:47 brian Exp $
+ * $Id: modem.c,v 1.55 1997/09/22 00:46:56 brian Exp $
  *
  *  TODO:
  */
@@ -878,13 +878,7 @@ ShowModemStatus()
   if (!VarTerm)
     return 1;
 
-  if (mode & MODE_DIRECT)
-    if (isatty(0))
-      dev = ctermid(NULL);
-    else
-      dev = "network";
-  else
-    dev = VarDevice;
+  dev = *VarDevice ? VarDevice : "network";
 
   fprintf(VarTerm, "device: %s  speed: ", dev);
   if (DEV_IS_SYNC)
