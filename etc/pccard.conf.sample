@@ -112,7 +112,7 @@ card "3Com Corporation" "3C589D"
 	remove	/sbin/ifconfig ep0 delete
 
 # 3Com Fast Etherlink 3C574TX
-card "3Com" "3C574-TX Fast EtherLink PC Ca"
+card "3Com" "3C574-TX Fast EtherLink PC Card"
 	config	0x1 "ep0" ? 0x1
 	insert	echo 3Com Fast Etherlink 3C574TX inserted
 	insert	/etc/pccard_ether ep0
@@ -128,7 +128,7 @@ card "E-CARD" "E-CARD"
 	remove	/sbin/ifconfig ed0 delete
 
 # Linksys Combo PCMCIA EthernetCard (model EC2T on box) 
-card "Linksys" "Combo PCMCIA EthernetCard (EC" 
+card "Linksys" "Combo PCMCIA EthernetCard (EC2T)" 
 	config 0x1 "ed0" ? 
 	insert echo Linksys Ethernet inserted 
 	insert /etc/pccard_ether ed0 
