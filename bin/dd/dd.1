@@ -181,7 +181,9 @@ The value
 .Cm oldascii
 specifies the one used in historic
 .Tn AT&T
-and pre-4.3BSD-reno systems.
+and
+.No pre- Ns Bx 4.3 reno
+systems.
 .It Cm block
 Treats the input as a sequence of newline or end-of-file terminated variable
 length records independent of input and output block boundaries.
@@ -226,7 +228,9 @@ and
 .Cm oldibm
 are maps used in historic
 .Tn AT&T
-and pre-4.3BSD-reno systems.
+and
+.No pre- Ns Bx 4.3 reno
+systems.
 .It Cm lcase
 Transform uppercase characters into lowercase characters.
 .It Cm noerror
@@ -343,9 +347,7 @@ in the same format as the standard completion message and
 .Nm
 will exit.
 .Sh DIAGNOSTICS
-The
-.Nm
-utility exits 0 on success or >0 if an error occurs.
+.Ex -std
 .Sh SEE ALSO
 .Xr cp 1 ,
 .Xr mt 1 ,

@@ -50,22 +50,16 @@
 .Oo
 .Fl v
 .Sm off
-.Op Cm + | - Xo
+.Op Cm + | -
 .Ar val Op Ar ymwdHMS
-.Xc
 .Sm on
 .Oc
-.Ar ...\&
+.Ar ...
 .Oo
 .Fl f
 .Ar fmt date |
 .Sm off
-.Oo Oo Oo Oo Oo
-.Ar cc Oc
-.Ar yy Oc
-.Ar mm Oc
-.Ar dd Oc
-.Ar HH Oc
+.Op Oo Oo Oo Oo Ar cc Oc Ar yy Oc Ar mm Oc Ar dd Oc Ar HH
 .Ar MM Op Ar .ss
 .Sm on
 .Oc
@@ -166,13 +160,11 @@ The date can be adjusted as many times as required using these flags.
 Flags are processed in the order given.
 .Pp
 When setting values
-.Pq rather than adjusting them ,
+(rather than adjusting them),
 seconds are in the range 0-59, minutes are in the range 0-59, hours are
 in the range 1-12, month days are in the range 1-31, week days are in the
-range 0-6
-.Pq Sun-Sat ,
-months are in the range 1-12
-.Pq Jan-Dec
+range 0-6 (Sun-Sat),
+months are in the range 1-12 (Jan-Dec)
 and years are in the range 80-38 or 1980-2038.
 .Pp
 If
@@ -191,11 +183,11 @@ must be used to specify which part of the date is to be adjusted.
 The week day or month may be specified using a name rather than a
 number.
 If a name is used with the plus
-.Pq or minus
+(or minus)
 sign, the date will be put forwards
-.Pq or backwards
+(or backwards)
 to the next
-.Pq previous
+(previous)
 date that matches the given week day or month.
 This will not adjust the date,
 if the given week day or month is the same as the current one.
@@ -213,13 +205,11 @@ the clock goes back at 02:00 to 01:00, using
 will be necessary to reach October 29, 2:30.
 .Pp
 When the date is adjusted to a specific value that doesn't actually exist
-.Po
-for example March 26, 1:30 BST 2000 in the Europe/London timezone
-.Pc ,
+(for example March 26, 1:30 BST 2000 in the Europe/London timezone),
 the date will be silently adjusted forwards in units of one hour until it
 reaches a valid time.
 When the date is adjusted to a specific value that occurs twice
-.Pq for example October 29, 1:30 2000 ,
+(for example October 29, 1:30 2000),
 the resulting timezone will be set so that the date matches the earlier of
 the two times.
 .Pp
@@ -248,11 +238,11 @@ The canonical representation for setting the date and time is:
 .Bl -tag -width Ds -compact -offset indent
 .It Ar cc
 Century
-.Pq either 19 or 20
+(either 19 or 20)
 prepended to the abbreviated year.
 .It Ar yy
 Year in abbreviated form
-.Pq e.g. 89 for 1989, 06 for 2006 .
+(e.g. 89 for 1989, 06 for 2006).
 .It Ar mm
 Numeric month, a number from 1 to 12.
 .It Ar dd
@@ -263,7 +253,7 @@ Hour, a number from 0 to 23.
 Minutes, a number from 0 to 59.
 .It Ar ss
 Seconds, a number from 0 to 61
-.Pq 59 plus a maximum of two leap seconds .
+(59 plus a maximum of two leap seconds).
 .El
 .Pp
 Everything but the minutes is optional.

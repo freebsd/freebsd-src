@@ -38,7 +38,7 @@
 .\"
 .Dd April 18, 1994
 .Dt PAX 1
-.Os BSD 4.4
+.Os
 .Sh NAME
 .Nm pax
 .Nd read and write file archives and copy directory hierarchies
@@ -485,9 +485,8 @@ Link files.
 (The letter ell).
 In the
 .Em copy
-mode (
-.Fl r
-.Fl w ) ,
+mode
+.Pq Fl r w ,
 hard links are made between the source and destination file hierarchies
 whenever possible.
 .It Fl n
@@ -676,8 +675,8 @@ Where <ls -l listing> is the output format specified by the
 utility when used with the
 .Fl l
 option.
-Otherwise for all the other operational modes (
-.Em read , write ,
+Otherwise for all the other operational modes
+.Em ( read , write ,
 and
 .Em copy ) ,
 pathnames are written and flushed to
@@ -728,7 +727,10 @@ by this format) which may be truncated by this format is detected by
 .Nm
 and is repaired.
 .It Ar tar
-The old BSD tar format as found in BSD4.3.
+The old
+.Bx
+tar format as found in
+.Bx 4.3 .
 The default blocksize for this format is 10240 bytes.
 Pathnames stored by this format must be 100 characters or less in length.
 Only
@@ -966,8 +968,8 @@ option, except that the modification time is checked using the
 pathname created after all the file name modifications have completed.
 .El
 .Pp
-The options that operate on the names of files or archive members (
-.Fl c ,
+The options that operate on the names of files or archive members
+.Fl ( c ,
 .Fl i ,
 .Fl n ,
 .Fl s ,

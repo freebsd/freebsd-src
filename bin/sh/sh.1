@@ -37,7 +37,7 @@
 .\"
 .Dd May 5, 1995
 .Dt SH 1
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm sh
 .Nd command interpreter (shell)
@@ -191,11 +191,11 @@ Flag variables for export when assignments are made to them.
 .It Fl b Li notify
 Enable asynchronous notification of background job
 completion.
-.Pq UNIMPLEMENTED
+(UNIMPLEMENTED)
 .It Fl C Li noclobber
 Do not overwrite existing files with
 .Dq Li > .
-.Pq UNIMPLEMENTED
+(UNIMPLEMENTED)
 .It Fl E Li emacs
 Enable the builtin
 .Xr emacs 1
@@ -265,7 +265,7 @@ sh -T -c "trap 'exit 1' 2 ; some-blocking-program"
 Write a message to standard error when attempting
 to expand a variable that is not set, and if the
 shell is not interactive, exit immediately.
-.Pq UNIMPLEMENTED
+(UNIMPLEMENTED)
 .It Fl V Li vi
 Enable the builtin
 .Xr vi 1
@@ -364,8 +364,7 @@ meaning of all characters except dollarsign
 backquote
 .Pq Li ` ,
 and backslash
-.Po Li \e\"
-.Pc .
+.Pq Li \e .
 The backslash inside double quotes is historically weird.
 It remains literal unless it precedes the following characters,
 which it serves to quote:
@@ -1943,8 +1942,8 @@ emacs-style command line editing features.
 .Xr builtin 1 ,
 .Xr echo 1 ,
 .Xr expr 1 ,
-.Xr pwd 1 ,
 .Xr printf 1 ,
+.Xr pwd 1 ,
 .Xr test 1
 .Sh HISTORY
 A
