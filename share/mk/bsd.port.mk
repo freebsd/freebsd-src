@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.284 1998/08/15 17:34:00 markm Exp $
+#	$Id: bsd.port.mk,v 1.285 1998/08/27 00:18:50 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -501,6 +501,7 @@ PERL_VERSION=	5.00502
 PERL_VER=		5.005
 PLIST_SUB+=		PERL_VERSION=${PERL_VERSION} \
 				PERL_VER=${PERL_VER}
+PERL5=			${PREFIX}/bin/perl${PERL_VERSION}
 			
 .if defined(USE_PERL5)
 BUILD_DEPENDS+=		perl${PERL_VERSION}:${PORTSDIR}/lang/perl5
