@@ -382,7 +382,7 @@ chn_rdintr(struct pcm_channel *c)
 }
 
 /*
- * user read routine - trigger if necessary, uiomove data from secondary bufhard
+ * user read routine - trigger if necessary, uiomove data from secondary buffer
  * if blocking, sleep, rinse and repeat.
  *
  * called externally, so must handle locking
@@ -571,7 +571,7 @@ chn_abort(struct pcm_channel *c)
 /*
  * this routine tries to flush the dma transfer. It is called
  * on a close. We immediately abort any read DMA
- * operation, and then wait for the play bufhard to drain.
+ * operation, and then wait for the play buffer to drain.
  *
  * called from: dsp_close
  */
@@ -961,7 +961,7 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 		blksz <<= 1;
 	blksz >>= 1;
 
-	/* round down to fit hw bufhard size */
+	/* round down to fit hw buffer size */
 	RANGE(blksz, 16, sndbuf_getmaxsize(b) / 2);
 	DEB(printf("%s: hard blksz requested %d (maxsize %d), ", __func__, blksz, sndbuf_getmaxsize(b)));
 
