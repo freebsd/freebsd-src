@@ -31,14 +31,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)ctime.3	8.1 (Berkeley) 6/4/93
+.\"     From: @(#)ctime.3	8.1 (Berkeley) 6/4/93
+.\"	$Id$
 .\"
-.Dd June 4, 1993
+.Dd January 2, 1999
 .Dt CTIME 3
 .Os BSD 4.3
 .Sh NAME
 .Nm asctime ,
-.Nm asctime_r,
+.Nm asctime_r ,
 .Nm ctime ,
 .Nm ctime_r ,
 .Nm difftime ,
@@ -142,7 +143,7 @@ provides the same functionality as
 .Fn ctime
 except the caller must provide the output buffer
 .Fa buf
-to store the result, which must be at least 26 bytes long.
+to store the result, which must be at least 26 characters long.
 .Fn localtime_r
 and
 .Fn gmtime_r 
@@ -168,7 +169,7 @@ provides the same functionality as
 .Fn asctime
 except the caller provide the output buffer
 .Fa buf
-to store the result, which must be at least 26 bytes long.
+to store the result, which must be at least 26 characters long.
 .Pp
 The functions
 .Fn mktime
@@ -275,6 +276,33 @@ values indicating east of the Prime Meridian.
 .Xr time 3 ,
 .Xr tzset 3 ,
 .Xr tzfile 5
+.Sh STANDARDS
+The
+.Fn asctime ,
+.Fn ctime ,
+.Fn difftime ,
+.Fn gmtime ,
+.Fn localtime ,
+and
+.Fn mktime
+functions conform to
+.St -isoC ,
+and conform to
+.St -p1003.1
+provided the selected local timezone does not contain a leap-second table
+(see
+.Xr zic 8 ) .
+.Pp
+The
+.Fn asctime_r ,
+.Fn ctime_r ,
+.Fn gmtime_r ,
+and
+.Fn localtime_r
+functions are expected to conform to
+.St -iso9945-1
+(again provided the selected local timezone does not contain a leap-second
+table).
 .Sh HISTORY
 This manual page is derived from
 the time package contributed to Berkeley by
@@ -294,7 +322,10 @@ function will modify the same object.
 The C Standard provides no mechanism for a program to modify its current
 local timezone setting, and the
 .Tn POSIX Ns No \&-standard
-method is not reentrant.
+method is not reentrant.  (However, thread-safe implementations are provided
+in the
+.Tn POSIX
+threaded environment.)
 .Pp
 The
 .Fa tm_zone
