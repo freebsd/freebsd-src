@@ -42,16 +42,15 @@ struct fxp_softc {
 #if defined(__NetBSD__)
 	struct device sc_dev;		/* generic device structures */
 	void *sc_ih;			/* interrupt handler cookie */
-	bus_space_tag_t sc_st;		/* bus space tag */
-	bus_space_handle_t sc_sh;	/* bus space handle */
 	struct ethercom sc_ethercom;	/* ethernet common part */
 #else
 	struct arpcom arpcom;		/* per-interface network data */
-	caddr_t csr;			/* control/status registers */
 	struct resource *mem;		/* resource descriptor for registers */
 	struct resource *irq;		/* resource descriptor for interrupt */
 	void *ih;			/* interrupt handler cookie */
 #endif /* __NetBSD__ */
+	bus_space_tag_t sc_st;		/* bus space tag */
+	bus_space_handle_t sc_sh;	/* bus space handle */
 	struct mbuf *rfa_headm;		/* first mbuf in receive frame area */
 	struct mbuf *rfa_tailm;		/* last mbuf in receive frame area */
 	struct fxp_cb_tx *cbl_first;	/* first active TxCB in list */
@@ -71,7 +70,6 @@ struct fxp_softc {
 };
 
 /* Macros to ease CSR access. */
-#if defined(__NetBSD__)
 #define	CSR_READ_1(sc, reg)						\
 	bus_space_read_1((sc)->sc_st, (sc)->sc_sh, (reg))
 #define	CSR_READ_2(sc, reg)						\
@@ -84,20 +82,6 @@ struct fxp_softc {
 	bus_space_write_2((sc)->sc_st, (sc)->sc_sh, (reg), (val))
 #define	CSR_WRITE_4(sc, reg, val)					\
 	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
-#else
-#define	CSR_READ_1(sc, reg)						\
-	(*((u_int8_t *)((sc)->csr + (reg))))
-#define	CSR_READ_2(sc, reg)						\
-	(*((u_int16_t *)((sc)->csr + (reg))))
-#define	CSR_READ_4(sc, reg)						\
-	(*((u_int32_t *)((sc)->csr + (reg))))
-#define	CSR_WRITE_1(sc, reg, val)					\
-	(*((u_int8_t *)((sc)->csr + (reg)))) = (val)
-#define	CSR_WRITE_2(sc, reg, val)					\
-	(*((u_int16_t *)((sc)->csr + (reg)))) = (val)
-#define	CSR_WRITE_4(sc, reg, val)					\
-	(*((u_int32_t *)((sc)->csr + (reg)))) = (val)
-#endif /* __NetBSD__ */
 
 /* Deal with slight differences in software interfaces. */
 #if defined(__NetBSD__)
