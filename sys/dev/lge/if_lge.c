@@ -648,6 +648,8 @@ static int lge_attach(dev)
 	ifp->if_init = lge_init;
 	ifp->if_baudrate = 1000000000;
 	ifp->if_snd.ifq_maxlen = LGE_TX_LIST_CNT - 1;
+	ifp->if_capabilities = IFCAP_RXCSUM;
+	ifp->if_capenable = ifp->if_capabilities;
 
 	if (CSR_READ_4(sc, LGE_GMIIMODE) & LGE_GMIIMODE_PCSENH)
 		sc->lge_pcs = 1;
