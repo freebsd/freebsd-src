@@ -72,7 +72,6 @@ MALLOC_DECLARE(M_SMBFSMNT);
 struct smbnode;
 struct smb_share;
 struct u_cred;
-struct vop_ioctl_args;
 struct buf;
 
 struct smbmount {
@@ -97,7 +96,6 @@ struct smbmount {
 #define VTOVFS(vp)		((vp)->v_mount)
 #define	VTOSMBFS(vp)		(VFSTOSMBFS(VTOVFS(vp)))
 
-int smbfs_ioctl(struct vop_ioctl_args *ap);
 int smbfs_doio(struct buf *bp, struct ucred *cr, struct thread *td);
 int smbfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred, 
 	struct thread *td, int intrflg);
