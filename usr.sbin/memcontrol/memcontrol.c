@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: memcontrol.c,v 1.1.1.1 1999/04/07 04:11:14 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -315,11 +315,27 @@ clearfunc(int memfd, int argc, char *argv[])
 static void
 helpfunc(int memfd, int argc, char *argv[])
 {
-    help(NULL);
+    help(argv[1]);
 }
 
 static void
 help(char *what)
 {
-    errx(1, "help!");
+    int		i;
+
+    if (what != NULL) {
+	/* find a function that matches */
+	for (i = 0; functions[i].cmd != NULL; i++)
+	    if (!strcmp(what, functions[i].cmd)) {
+		fprintf(stderr, "%s\n", functions[i].desc);
+		return;
+	    }
+	fprintf(stderr, "Unknown command '%s'\n", what);
+    }
+    
+    /* print general help */
+    fprintf(stderr, "Valid commands are :\n");
+    for (i = 0; functions[i].cmd != NULL; i++)
+	fprintf(stderr, "    %s\n", functions[i].cmd);
+    fprintf(stderr, "Use help <command> for command-specific help\n");
 }
