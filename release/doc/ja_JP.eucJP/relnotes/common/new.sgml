@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.327
+    Original revision: 1.22.2.328
 -->
 
 <articleinfo>
@@ -116,6 +116,8 @@
       初期的な対応が追加されました
       (詳細は &man.firewire.4; をご覧ください)。</para>
 
+    <para arch="i386,pc98">CanBe の電源管理コントローラに対応しました。</para>
+
     <para arch="i386,pc98">Belkin F5U103 USB-シリアル変換アダプタ
       (およびその互換製品) に対応する ubsa ドライバが追加されました。</para>
 
@@ -168,6 +170,9 @@
             IPv6 または <literal>INET6</literal> オプションと共存できません。
             </para>
 	</note></para>
+
+      <para>NewReno を有効にしていると高速リカバリが途中で終了してしまうという、
+        TCP NewReno のバグが修正されました。</para>
 
       <para>&man.gre.4; ドライバが追加されました。
         これは IP パケットを GRE (RFC 1701) や
@@ -349,8 +354,11 @@
         スイート全体、特に <command>bzip2recover</command>
         がインストールされるようになりました。</para>
 
-      <para><application>cvs</application> がバージョン
+      <para><application>CVS</application> がバージョン
 	 1.11.5 に更新されました。</para>
+
+      <para><application>groff</application> と関連ユーティリティが
+	FSF バージョン 1.18.1 に更新されました。</para>
 
       <para><application>Heimdal Kerberos</application> がバージョン
 	0.5.1 に更新されました。</para>
@@ -360,6 +368,9 @@
 
       <para><application>OpenSSH</application> がバージョン
         3.5p1 に更新されました。</para>
+
+      <para><application>sendmail</application> がバージョン
+        8.12.7 に更新されました。</para>
 
       <para>タイムゾーンデータベースが
 	<filename>tzdata2002d</filename> release に更新されました。</para>
