@@ -492,7 +492,6 @@ fill_kinfo_proc(p, kp)
 
 	bzero(kp, sizeof(*kp));
 
-	td = FIRST_THREAD_IN_PROC(p);
 	kp->ki_structsize = sizeof(*kp);
 	kp->ki_paddr = p;
 	PROC_LOCK(p);
@@ -540,6 +539,7 @@ fill_kinfo_proc(p, kp)
 		kp->ki_childtime.tv_usec = p->p_stats->p_cru.ru_utime.tv_usec +
 		    p->p_stats->p_cru.ru_stime.tv_usec;
 	}
+	td = FIRST_THREAD_IN_PROC(p);
 	if (td->td_wmesg != NULL)
 		strncpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg) - 1);
 	if (p->p_stat == SMTX) {
