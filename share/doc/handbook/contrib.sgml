@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.114 1996/08/03 19:51:06 chuckr Exp $ -->
+<!-- $Id: contrib.sgml,v 1.115 1996/08/04 19:30:34 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -97,6 +97,7 @@
         <item>&a.se;  
         <item>&a.fenner;
         <item>&a.jfieber;
+	<item>&a.jfitz;
 	<item>&a.scrappy;
 	<item>&a.jhay;
         <item>&a.lars;
@@ -223,7 +224,6 @@
 	  <item>Ishii Masahiro, R. Kym Horsell
 	  <item>J.T. Conklin &lt;jtc@cygnus.com&gt;
 	  <item>James Clark &lt;jjc@jclark.com&gt;
-	  <item>James FitzGibbon &lt;james@nexis.net&gt;
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
 	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
 	  <item>Javier Martin Rueda &lt;jmrueda@diatel.upm.es&gt;
