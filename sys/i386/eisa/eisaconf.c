@@ -1,211 +1,457 @@
 /*
- * Written by Billie Alsup (balsup@tfs.com)
- * for TRW Financial Systems for use under the MACH(2.5)and OSF/1 operating
- * systems.
+ * EISA bus probe and attach routines 
  *
- * TRW Financial Systems, in accordance with their agreement with Carnegie
- * Mellon University, makes this software available to CMU to distribute
- * or use in any manner that they see fit as long as this message is kept with
- * the software. For this reason TFS also grants any other persons or
- * organisations permission to use or modify this software.
+ * Copyright (c) 1995 Justin T. Gibbs.
+ * All rights reserved.
  *
- * TFS supplies this software to be publicly redistributed
- * on the understanding that TFS is not responsible for the correct
- * functioning of this software in any circumstances.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice immediately at the beginning of the file, without modification,
+ *    this list of conditions, and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Absolutely no warranty of function or purpose is made by the author
+ *    Justin T. Gibbs.
+ * 4. Modifications may be freely made to this file if the above conditions
+ *    are met.
  *
- * $Id: eisaconf.c,v 1.1 1995/04/23 08:55:41 julian Exp $
+ *	$Id$
  */
-
-/*
- * Ported to run under FreeBSD by Julian Elischer (julian@tfs.com) Sept 1992
- */
-
-
 #include <sys/param.h>
-#include <sys/systm.h>          /* isn't it a joy */
-#include <sys/kernel.h>         /* to have three of these */
+#include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/malloc.h>
 
 #include "sys/types.h"
-#include "i386/isa/icu.h"
-#include "i386/isa/isa_device.h" /*we're a superset, so we need this */
+#include "i386/isa/icu.h"	 /* Hmmm.  Interrupt stuff? */
+#include <sys/devconf.h>
 #include "eisaconf.h"
 
+struct eisa_device_node{
+	struct eisa_device	 dev;
+	struct eisa_device_node	*next;
+};
 
-struct isa_device eisaSlot[EISA_SLOTS];
-struct isa_device isa_devtab_eisa[EISA_SLOTS+1];
-int nexttab = 0;
-extern struct eisa_dev eisa_dev[];
+extern struct kern_devconf kdc_cpu0;
+extern int bootverbose;
+ 
+struct kern_devconf kdc_eisa0 = {
+	0, 0, 0,                /* filled in by dev_attach */ 
+	"eisa", 0, { MDDT_BUS, 0 },
+	0, 0, 0, BUS_EXTERNALLEN,
+	&kdc_cpu0,              /* parent is the CPU */
+	0,                      /* no parentdata */
+	DC_BUSY,                /* busses are always busy */
+	"EISA bus",        
+	DC_CLS_BUS              /* class */
+};
 
-#define EISA_MAKEID(p) ((((p)[0]&0x1F)<<10)|(((p)[1]&0x1F)<<5)|(((p)[2]&0x1F)))
-#define EISA_ID0(i) ((((i)>>10)&0x1F)+0x40)
-#define EISA_ID1(i) ((((i)>>5)&0x1F)+0x40)
-#define EISA_ID2(i) (((i)&0x1F)+0x40)
+/* 
+ * This should probably be a list of "struct device" once it exists.
+ * A struct device will incorperate ioconf and driver entry point data
+ * regardless of how its attached to the system (via unions) as well
+ * as more generic information that all device types should support (unit
+ * number, if its installed, etc).
+ */
+static struct eisa_device_node *eisa_dev_list;
+static struct eisa_device_node **eisa_dev_list_tail = &eisa_dev_list;
+static u_long eisa_unit;
+
+static struct eisa_driver mainboard_drv = {
+				     "eisa",
+				     NULL,
+				     NULL,
+				     NULL,
+				     &eisa_unit
+				   };
 /*
 ** probe for EISA devices
 */
 void
 eisa_configure()
 {
-    int i,j,slot,found,numports;
+    int i,j,slot;
+    char *id_string;
     unsigned int checkthese;
-    struct eisa_dev *edev_p;
+    struct eisa_device_node *dev_node;
+    struct eisa_driver **e_drvp = (struct eisa_driver**)eisadriver_set.ls_items;
+    struct eisa_driver *e_drv;
+    struct eisa_device *e_dev;
     int eisaBase = 0xC80;
-    unsigned short productID, productType;
-    unsigned char productRevision,controlBits;
-	static char hexdigit[] = "0123456789ABCDEF";
-#define HEXDIGIT(i) hexdigit[(i)&0x0f]
+    eisa_id_t eisa_id;
 
     outb(eisaBase,0xFF);
-    productID = inb(eisaBase);
-    if (productID & 0x80) {
-      printf("Warning: running EISA kernel on non-EISA system board\n");
-      return;
+    eisa_id = inb(eisaBase);
+    if (eisa_id & 0x80) {
+	/* Not an EISA machine */
+	return;
     }
-    printf("Probing for devices on EISA bus\n");
-    productID = (productID<<8) | inb(eisaBase+1);
-    productRevision = inb(eisaBase+2);
 
-    printf("EISA0: %c%c%c v%d (System Board)\n"
-                ,EISA_ID0(productID)
-                ,EISA_ID1(productID)
-                ,EISA_ID2(productID)
-                ,(productRevision&7));
+    for (slot = 0; slot < EISA_SLOTS; eisaBase+=0x1000, slot++) {
+	int id_size = sizeof(eisa_id);
+	eisa_id = 0;
+    	for( i = 0; i < id_size; i++ ) {
+		outb(eisaBase,0xc80 + i); /* Some cards require priming */
+		eisa_id |= inb(eisaBase + i) << ((id_size - i - 1) * CHAR_BIT);
+	}
+	if (eisa_id & 0x80000000)
+	    continue;  /* no EISA card in slot */
 
-    for (slot=1; eisaBase += 0x1000, slot < EISA_SLOTS; slot++) {
-      outb(eisaBase,0xFF);
-      productID = inb(eisaBase);
-      if (productID & 0x80) continue;  /* no EISA card in slot */
+	/* Prepare an eisa_device_node for this slot */
+	dev_node = (struct eisa_device_node *)malloc(sizeof(*dev_node),
+						     M_DEVBUF, M_NOWAIT);
+	if (!dev_node) {
+		printf("eisa0: cannot malloc eisa_device_node");
+		break; /* Try to attach what we have already */
+	}
+	bzero(dev_node, sizeof(*dev_node));
+	e_dev = &(dev_node->dev);
+	e_dev->id = eisa_id;
+	/*
+	 * Add an EISA ID based descriptive name incase we don't
+	 * have a driver for it.  We do this now instead of after all
+	 * probes because in the future, the eisa module will only
+	 * be responsible for creating the list of devices in the system
+	 * for the configuration manager to use.
+	 */
+	e_dev->full_name = (char *)malloc(14*sizeof(char), M_DEVBUF, M_NOWAIT);
+	if (!e_dev->full_name) {
+	    panic("Eisa probe unable to malloc");
+	}
+	sprintf(e_dev->full_name, "%c%c%c%lx rev %lx",
+		EISA_MFCTR_CHAR0(e_dev->id),
+		EISA_MFCTR_CHAR1(e_dev->id),
+		EISA_MFCTR_CHAR2(e_dev->id),
+		EISA_PRODUCT_ID(e_dev->id),
+		EISA_REVISION_ID(e_dev->id));
+	e_dev->ioconf.slot = slot; 
+	/* Is iobase defined in any EISA specs? */
+	e_dev->ioconf.iobase = eisaBase & 0xff00;
+	*eisa_dev_list_tail = dev_node;
+	eisa_dev_list_tail = &dev_node->next;
+    }
 
-      productID = (productID<<8) | inb(eisaBase+1);
-      productType = inb(eisaBase+2);
-      productRevision = inb(eisaBase+3);
-      productType = (productType<<4) | (productRevision>>4);
-      productRevision &= 15;
-      controlBits = inb(eisaBase+4);
+    dev_node = eisa_dev_list;
 
-      printf("EISA%d: %c%c%c-%c%c%c.%x\n"
-        ,slot,EISA_ID0(productID),EISA_ID1(productID),EISA_ID2(productID)
-        ,HEXDIGIT(productType>>8)
-		,HEXDIGIT(productType>>4)
-		,HEXDIGIT(productType)
-		,productRevision);
+    /*
+     * "Attach" the system board
+     */
 
-      if (!(controlBits & 1)) {
-        printf("...Card is disabled\n");
-		/* continue;*/
-      }
+    /* The first entry had better be the motherboard */
+    if (!dev_node || (dev_node->dev.ioconf.slot != 0))
+	panic("EISA system board not in eisa_dev_list");
 
-      /*
-      ** See if we recognize this product
-      */
+    e_dev = &dev_node->dev;
+    e_dev->driver = &mainboard_drv;
+    e_dev->unit = (*e_dev->driver->unit)++; 
+    id_string = e_dev->full_name;
+    e_dev->full_name = (char *)malloc(strlen(e_dev->full_name)
+				     + sizeof(" (System Board)")
+				     + 1, M_DEVBUF, M_NOWAIT);
+    if (!e_dev->full_name) {
+	panic("Eisa probe unable to malloc");
+    }
+    sprintf(e_dev->full_name, "%s (System Board)", id_string);
+    free(id_string, M_DEVBUF);
 
-      for (edev_p = eisa_dev,found=0; edev_p->productID[0]; edev_p++) {
-        struct isa_device *dev_p;
-        struct  isa_driver  *drv_p;
-        unsigned short configuredID;
+    printf("%s%d: <%s>\n",
+	   e_dev->driver->name,
+	   e_dev->unit,
+	   e_dev->full_name);
 
-        configuredID = EISA_MAKEID(edev_p->productID);
-        if (configuredID != productID) continue;
-        if (edev_p->productType != productType) continue;
-        if (edev_p->productRevision > productRevision) continue;
+    /* Should set the iosize, but I don't have a spec handy */
 
-        /*
-        ** we're assuming:
-        **      if different drivers for the same board exist
-        **      (due to some revision incompatibility), that the
-        **      drivers will be listed in descending revision
-        **      order.  The revision in the eisaDevs structure
-        **      should indicate the lowest revision supported
-        **      by the code.
-        **
-        */
-        dev_p = &eisaSlot[slot];
-        memcpy(dev_p,&edev_p->isa_dev,sizeof(edev_p->isa_dev));
+    dev_attach(&kdc_eisa0);
 
-        drv_p = dev_p->id_driver;
-        dev_p->id_iobase = eisaBase; /* may get ammended by driver */
+    printf("Probing for devices on the EISA bus\n");
 
-#if defined(DEBUG)
-        printf("eisaProbe: probing %s%d\n"
-                ,drv_p->driver_name, dev_p->id_unit);
-#endif /* defined(DEBUG) */
+    /*
+     * See what devices we recognize.
+     */
+    while(e_drv = *e_drvp++) {
+	   (*e_drv->probe)();
+    }
 
-        if (!(numports = drv_p->probe(dev_p))) {
-            continue;  /* try another eisa device */
-        }
-        edev_p->isa_dev.id_unit++; /*dubious*/
-/** this should all be put in some common routine **/
-	printf("%s%d", drv_p->name, dev_p->id_unit);
-	if (numports != -1) {
-		printf(" at 0x%x", dev_p->id_iobase);
-		if ((dev_p->id_iobase + numports - 1) != dev_p->id_iobase) {
-			printf("-0x%x", dev_p->id_iobase + numports - 1);
+    /*
+     * Attach the devices we found in slot order
+     */
+    for (dev_node = eisa_dev_list->next; dev_node; dev_node = dev_node->next) {
+	e_dev = &dev_node->dev;
+	e_drv = e_dev->driver;
+	if (e_drv) {
+	    /*
+	     * Determine the proper unit number for this device.
+	     * Here we should look in the device table generated
+	     * by config to see if this type of device is enabled
+	     * either generically or for this particular address
+	     * as well as determine if a reserved unit number should
+	     * be used.  We should also ensure that the "next availible
+	     * unit number" skips over "wired" unit numbers. This will
+	     * be done after config is fixed or some other configuration
+	     * method is chosen.
+	     */
+	    e_dev->unit = (*e_drv->unit)++;
+	    if ((*e_drv->attach)(e_dev) < 0) {
+		/* Clean up after the device?? */
+	    }
+	    e_dev->kdc->kdc_unit = e_dev->unit;
+	}
+	else {
+	    /* Announce unattached device */
+	    printf("%s%d:%d <%s> unknown device\n",
+		   eisa_dev_list->dev.driver->name, /* Mainboard */
+		   eisa_dev_list->dev.unit,
+		   e_dev->ioconf.slot,
+		   e_dev->full_name);
+	}
+    }
+}
+
+struct eisa_device *
+eisa_match_dev(e_dev, match_func)
+	struct eisa_device *e_dev;
+	char* (*match_func)(eisa_id_t);
+{
+	struct eisa_device_node *e_node = eisa_dev_list;
+
+	if(e_dev)
+	    /* Start our search from the last successful match */
+	    e_node = (struct eisa_device_node *)e_dev;
+
+	/*
+	 * The first node in the list is the motherboard, so don't bother
+	 * to look at it.
+	 */
+	while (e_node->next != NULL) {
+		char *result;
+		e_node = e_node->next;
+		if (e_node->dev.driver)
+			/* Already claimed */
+			continue;
+		result = (*match_func)(e_node->dev.id);
+		if (result) {
+			free(e_node->dev.full_name, M_DEVBUF);
+			e_node->dev.full_name = result;
+			return (&(e_node->dev));
 		}
 	}
+	return NULL;
+}
 
-	if (dev_p->id_irq)
-		printf(" irq %d", ffs(dev_p->id_irq) - 1);
-	if (dev_p->id_drq != -1)
-		printf(" drq %d", dev_p->id_drq);
-	if (dev_p->id_maddr)
-		printf(" maddr 0x%lx", kvtop(dev_p->id_maddr));
-	if (dev_p->id_msize)
-		printf(" msize %d", dev_p->id_msize);
-	if (dev_p->id_flags)
-		printf(" flags 0x%x", dev_p->id_flags);
-	if (dev_p->id_iobase) {
-		if (dev_p->id_iobase < 0x100) {
-			printf(" on motherboard\n");
-		} else {
-			if (dev_p->id_iobase >= 0x1000) {
-				printf (" on EISA\n");
-			} else {
-				printf (" on ISA emulation\n");
-			}
-		}
+/* Interrupt and I/O space registration facitlities */
+void
+eisa_reg_start(e_dev)
+	struct eisa_device *e_dev;
+{
+    /*
+     * Announce the device.
+     */
+    printf("%s%d: <%s>",
+	   e_dev->driver->name,
+	   e_dev->unit,
+	   e_dev->full_name);
+}
+
+/* Interrupt and I/O space registration facitlities */
+void
+eisa_reg_end(e_dev)
+	struct eisa_device *e_dev;
+{
+	printf(" on %s%d slot %d\n",
+		eisa_dev_list->dev.driver->name, /* Mainboard */
+		eisa_dev_list->dev.unit,
+		e_dev->ioconf.slot);
+}
+
+int
+eisa_add_intr(e_dev, irq)
+	struct eisa_device *e_dev;
+	int irq;
+{
+    e_dev->ioconf.irq |= 1ul << irq;
+    return 0;
+}
+
+int
+eisa_reg_intr(e_dev, irq, func, arg, maskptr, shared)
+	struct eisa_device *e_dev;
+	int   irq;
+	void  (*func)(void *);
+	void  *arg;
+	u_int *maskptr;
+	int   shared;
+{
+    int result;
+    int s;
+
+#if NOT_YET
+    /* 
+     * Punt on conflict detection for the moment.
+     * I want to develop a generic routine to do
+     * this for all device types.
+     */
+    int checkthese = CC_IRQ;
+    if(haveseen_dev(dev, checkthese))
+        return 1;
+#endif
+    s = splhigh();
+    /*
+     * This should really go to a routine that can optionally
+     * handle shared interrupts.
+     */
+    result = register_intr(irq,                /* isa irq      */
+			   0,                  /* deviced??    */
+			   0,                  /* flags?       */
+			   (inthand2_t*) func, /* handler      */
+			   maskptr,            /* mask pointer */
+			   (int)arg);          /* handler arg  */
+
+    if (result) {
+        printf ("eisa_reg_int: result=%d\n", result);
+	splx(s);
+        return (result);
+    };
+    update_intr_masks();
+    splx(s);
+
+    e_dev->ioconf.irq |= 1ul << irq;
+    printf(" irq %d", irq);
+    return (0);
+}
+
+int
+eisa_release_intr(e_dev, irq, func)
+	struct eisa_device *e_dev;
+	int   irq;
+	void  (*func)(void *);
+{
+    int result;
+    int s;
+        
+    if (!(e_dev->ioconf.irq & (1ul << irq))) {
+	printf("%s%d: Attempted to release an interrupt (%d) it doesn't own\n",
+		e_dev->driver->name, e_dev->unit, irq);
+	return (-1);
+    }
+
+    s = splhigh();
+    INTRDIS ((1ul<<irq));
+        
+    result = unregister_intr (irq, (inthand2_t*)func);
+        
+    if (result)
+	printf ("eisa_release_intr: result=%d\n", result);
+  
+    update_intr_masks();
+
+    splx(s);
+    return (result);
+}
+
+int
+eisa_enable_intr(e_dev, irq)
+	struct eisa_device *e_dev;
+	int irq;
+{
+    int s;
+
+    if (!(e_dev->ioconf.irq & (1ul << irq))) {
+	printf("%s%d: Attempted to enable an interrupt (%d) it doesn't own\n",
+		e_dev->driver->name, e_dev->unit, irq);
+	return (-1);
+    }
+    s = splhigh();
+    INTREN((1ul << irq));
+    splx(s);
+    return 0;
+}
+
+int
+eisa_add_iospace(e_dev, iobase, iosize)
+	struct eisa_device *e_dev;
+	u_long	iobase;
+	int	iosize;
+{
+    /*
+     * We should develop a scheme for storing the results of
+     * multiple calls to this function.
+     */
+    e_dev->ioconf.iobase = iobase;
+    e_dev->ioconf.iosize = iosize;
+    return 0;
+}
+
+int
+eisa_reg_iospace(e_dev, iobase, iosize)
+	struct eisa_device *e_dev;
+	u_long	iobase;
+	int	iosize;
+{
+    /*
+     * We should develop a scheme for storing the results of
+     * multiple calls to this function.
+     */
+#ifdef NOT_YET
+    /* 
+     * Punt on conflict detection for the moment.
+     * I want to develop a generic routine to do
+     * this for all device types.
+     */
+    int checkthese = CC_IOADDR;
+    if(haveseen_dev(dev, checkthese))
+        return -1;
+#endif
+    e_dev->ioconf.iobase = iobase;
+    e_dev->ioconf.iosize = iosize;
+
+    printf(" at 0x%lx-0x%lx", iobase, iobase + iosize - 1);
+    return (0);
+}
+
+int
+eisa_registerdev(e_dev, driver, kdc_template)
+	struct eisa_device *e_dev;
+	struct eisa_driver *driver;
+	struct kern_devconf *kdc_template;
+{
+	e_dev->driver = driver;	/* Driver now owns this device */
+	e_dev->kdc = (struct kern_devconf *)malloc(sizeof(struct kern_devconf),
+						   M_DEVBUF, M_NOWAIT);
+	if (!e_dev->kdc) {
+		printf("WARNING: eisa_registerdev unable to malloc! "
+		       "Device kdc will not be registerd\n");
+		return 1;
 	}
-        /*
-        ** Now look for any live devices with the same starting I/O port and
-	** give up if we clash
-        **
-        ** what i'd really like is to set is how many i/o ports are in use.
-        ** but that isn't in this structure...
-        **
-        */
-	checkthese = 0;
-	if(dev_p->id_iobase )	checkthese |= CC_IOADDR;
-	if(dev_p->id_drq != -1 ) checkthese |= CC_DRQ;
-	if(dev_p->id_irq )	checkthese |= CC_IRQ;
-	if(dev_p->id_maddr )	checkthese |= CC_MEMADDR;
-	/* this may be stupid, it's probably too late if we clash here */
-	if(haveseen_isadev( dev_p,checkthese))
-		break;	/* we can't proceed due to collision. bail */
-	/* mark ourselves in existence and then put us in the eisa list */
-	/* so that other things check against US for a clash */
-        dev_p->id_alive = (numports == -1? 1 : numports);
-	memcpy(&(isa_devtab_eisa[nexttab]),dev_p,sizeof(edev_p->isa_dev));
-        drv_p->attach(dev_p);
+	bcopy(kdc_template, e_dev->kdc, sizeof(*kdc_template));
+	e_dev->kdc->kdc_description = e_dev->full_name;
+	dev_attach(e_dev->kdc);
+	return (0);
+}
 
-	if (dev_p->id_irq) {
-		if (edev_p->imask)
-			INTRMASK(*(edev_p->imask), dev_p->id_irq);
-		register_intr(ffs(dev_p->id_irq) - 1, dev_p->id_id,
-			dev_p->id_ri_flags, dev_p->id_intr,
-			edev_p->imask, dev_p->id_unit);
-		INTREN(dev_p->id_irq);
+/*
+ * Provide EISA-specific device information to user programs using the
+ * hw.devconf interface.
+ */
+int
+eisa_externalize(struct eisa_device *id, void *userp, size_t *maxlen)
+{
+	int rv;
+
+	if(*maxlen < (sizeof *id)) {
+		return ENOMEM;
 	}
-	found = 1;
-	nexttab++;
-        break; /* go look at next slot*/
-     }/* end of loop on known devices */
-     if (!found) {
-      printf("...No driver installed for board\n");
-     }
-  }/* end of loop on slots */
-}/* end of routine */
+	*maxlen -= (sizeof *id);
+	return (copyout(id, userp, sizeof *id));
+}
 
 
-
-
-
+int
+eisa_generic_externalize(struct proc *p, struct kern_devconf *kdc,
+			 void *userp, size_t l)
+{
+	return eisa_externalize(kdc->kdc_eisa, userp, &l);
+}
