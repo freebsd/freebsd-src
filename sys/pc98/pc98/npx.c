@@ -56,6 +56,7 @@
 #include <sys/syslog.h>
 #endif
 #include <sys/signalvar.h>
+#include <sys/user.h>
 
 #ifndef SMP
 #include <machine/asmacros.h>
@@ -98,7 +99,6 @@
 #define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
 #define	fnclex()		__asm("fnclex")
 #define	fninit()		__asm("fninit")
-#define	fnop()			__asm("fnop")
 #define	fnsave(addr)		__asm __volatile("fnsave %0" : "=m" (*(addr)))
 #define	fnstcw(addr)		__asm __volatile("fnstcw %0" : "=m" (*(addr)))
 #define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=m" (*(addr)))
@@ -113,7 +113,6 @@
 void	fldcw		__P((caddr_t addr));
 void	fnclex		__P((void));
 void	fninit		__P((void));
-void	fnop		__P((void));
 void	fnsave		__P((caddr_t addr));
 void	fnstcw		__P((caddr_t addr));
 void	fnstsw		__P((caddr_t addr));
@@ -143,9 +142,6 @@ SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	"Floatingpoint instructions executed in hardware");
 
 #ifndef SMP
-static	u_int			npx0_imask = 0;
-static	struct gate_descriptor	npx_idt_probeintr;
-static	int			npx_intrno;
 static	volatile u_int		npx_intrs_while_probing;
 static	volatile u_int		npx_traps_while_probing;
 #endif
@@ -201,7 +197,6 @@ __asm("								\n\
 ");
 #endif /* SMP */
 
-
 /*
  * Identify routine.  Create a connection point on our parent for probing.
  */
@@ -239,6 +234,7 @@ npx_probe(dev)
 
 #else /* SMP */
 
+	int	npx_intrno;
 	int	result;
 	critical_t	savecrit;
 	u_char	save_icu1_mask;
@@ -278,7 +274,6 @@ npx_probe(dev)
 #endif
 	setidt(16, probetrap, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(npx_intrno, probeintr, SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	npx_idt_probeintr = idt[npx_intrno];
 
 	/*
 	 * XXX This looks highly bogus, but it appears that npc_probe1
@@ -418,10 +413,6 @@ npx_probe1(dev)
 				 * Bad, we are stuck with IRQ13.
 				 */
 				npx_irq13 = 1;
-				/*
-				 * npxattach would be too late to set npx0_imask
-				 */
-				npx0_imask |= (1 << npx_irq);
 
 				/*
 				 * We allocate these resources permanently,
@@ -534,6 +525,7 @@ npxinit(control)
 	u_short control;
 {
 	struct save87 dummy;
+	critical_t savecrit;
 
 	if (!npx_exists)
 		return;
@@ -542,12 +534,14 @@ npxinit(control)
 	 * fnsave to throw away any junk in the fpu.  npxsave() initializes
 	 * the fpu and sets npxproc = NULL as important side effects.
 	 */
+	savecrit = critical_enter();
 	npxsave(&dummy);
 	stop_emulating();
 	fldcw(&control);
 	if (PCPU_GET(curpcb) != NULL)
 		fnsave(&PCPU_GET(curpcb)->pcb_savefpu);
 	start_emulating();
+	critical_exit(savecrit);
 }
 
 /*
@@ -557,9 +551,12 @@ void
 npxexit(p)
 	struct proc *p;
 {
+	critical_t savecrit;
 
+	savecrit = critical_enter();
 	if (p == PCPU_GET(npxproc))
 		npxsave(&PCPU_GET(curpcb)->pcb_savefpu);
+	critical_exit(savecrit);
 #ifdef NPX_DEBUG
 	if (npx_exists) {
 		u_int	masked_exceptions;
@@ -898,79 +895,37 @@ npxdna()
 }
 
 /*
- * Wrapper for fnsave instruction to handle h/w bugs.  If there is an error
- * pending, then fnsave generates a bogus IRQ13 on some systems.  Force
- * any IRQ13 to be handled immediately, and then ignore it.  This routine is
- * often called at splhigh so it must not use many system services.  In
- * particular, it's much easier to install a special handler than to
- * guarantee that it's safe to use npxintr() and its supporting code.
+ * Wrapper for fnsave instruction, partly to handle hardware bugs.  When npx
+ * exceptions are reported via IRQ13, spurious IRQ13's may be triggered by
+ * no-wait npx instructions.  See the Intel application note AP-578 for
+ * details.  This doesn't cause any additional complications here.  IRQ13's
+ * are inherently asynchronous unless the CPU is frozen to deliver them --
+ * one that started in userland may be delivered many instructions later,
+ * after the process has entered the kernel.  It may even be delivered after
+ * the fnsave here completes.  A spurious IRQ13 for the fnsave is handled in
+ * the same way as a very-late-arriving non-spurious IRQ13 from user mode:
+ * it is normally ignored at first because we set npxproc to NULL; it is
+ * normally retriggered in npxdna() after return to user mode.
+ *
+ * npxsave() must be called with interrupts disabled, so that it clears
+ * npxproc atomically with saving the state.  We require callers to do the
+ * disabling, since most callers need to disable interrupts anyway to call
+ * npxsave() atomically with checking npxproc.
+ *
+ * A previous version of npxsave() went to great lengths to excecute fnsave
+ * with interrupts enabled in case executing it froze the CPU.  This case
+ * can't happen, at least for Intel CPU/NPX's.  Spurious IRQ13's don't imply
+ * spurious freezes.
  */
 void
 npxsave(addr)
 	struct save87 *addr;
 {
-#ifdef SMP
 
 	stop_emulating();
 	fnsave(addr);
-	/* fnop(); */
 	start_emulating();
 	PCPU_SET(npxproc, NULL);
-
-#else /* SMP */
-
-	critical_t savecrit;
-	u_char	icu1_mask;
-	u_char	icu2_mask;
-	u_char	old_icu1_mask;
-	u_char	old_icu2_mask;
-	struct gate_descriptor	save_idt_npxintr;
-
-	savecrit = critical_enter();
-#ifdef PC98
-	old_icu1_mask = inb(IO_ICU1 + 2);
-	old_icu2_mask = inb(IO_ICU2 + 2);
-#else
-	old_icu1_mask = inb(IO_ICU1 + 1);
-	old_icu2_mask = inb(IO_ICU2 + 1);
-#endif
-	save_idt_npxintr = idt[npx_intrno];
-#ifdef PC98
-	outb(IO_ICU1 + 2, old_icu1_mask & ~(IRQ_SLAVE | npx0_imask));
-	outb(IO_ICU2 + 2, old_icu2_mask & ~(npx0_imask >> 8));
-#else
-	outb(IO_ICU1 + 1, old_icu1_mask & ~(IRQ_SLAVE | npx0_imask));
-	outb(IO_ICU2 + 1, old_icu2_mask & ~(npx0_imask >> 8));
-#endif
-	idt[npx_intrno] = npx_idt_probeintr;
-	critical_exit(savecrit);
-	stop_emulating();
-	fnsave(addr);
-	fnop();
-	start_emulating();
-	PCPU_SET(npxproc, NULL);
-	savecrit = critical_enter();
-#ifdef PC98
-	icu1_mask = inb(IO_ICU1 + 2);	/* masks may have changed */
-	icu2_mask = inb(IO_ICU2 + 2);
-	outb(IO_ICU1 + 2,
-	     (icu1_mask & ~npx0_imask) | (old_icu1_mask & npx0_imask));
-	outb(IO_ICU2 + 2,
-	     (icu2_mask & ~(npx0_imask >> 8))
-	     | (old_icu2_mask & (npx0_imask >> 8)));
-#else
-	icu1_mask = inb(IO_ICU1 + 1);	/* masks may have changed */
-	icu2_mask = inb(IO_ICU2 + 1);
-	outb(IO_ICU1 + 1,
-	     (icu1_mask & ~npx0_imask) | (old_icu1_mask & npx0_imask));
-	outb(IO_ICU2 + 1,
-	     (icu2_mask & ~(npx0_imask >> 8))
-	     | (old_icu2_mask & (npx0_imask >> 8)));
-#endif
-	idt[npx_intrno] = save_idt_npxintr;
-	critical_exit(savecrit);		/* back to previous state */
-
-#endif /* SMP */
 }
 
 #ifdef I586_CPU
