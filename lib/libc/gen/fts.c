@@ -124,7 +124,7 @@ fts_open(argv, options, compar)
 	parent->fts_level = FTS_ROOTPARENTLEVEL;
 
 	/* Allocate/initialize root(s). */
-	for (root = NULL, nitems = 0; *argv; ++argv, ++nitems) {
+	for (root = NULL, nitems = 0; *argv != NULL; ++argv, ++nitems) {
 		/* Don't allow zero-length paths. */
 		if ((len = strlen(*argv)) == 0) {
 			errno = ENOENT;
@@ -231,7 +231,7 @@ fts_close(sp)
 	if (sp->fts_cur) {
 		for (p = sp->fts_cur; p->fts_level >= FTS_ROOTLEVEL;) {
 			freep = p;
-			p = p->fts_link ? p->fts_link : p->fts_parent;
+			p = p->fts_link != NULL ? p->fts_link : p->fts_parent;
 			free(freep);
 		}
 		free(p);
@@ -332,7 +332,7 @@ fts_read(sp)
 		}
 
 		/* Rebuild if only read the names and now traversing. */
-		if (sp->fts_child && ISSET(FTS_NAMEONLY)) {
+		if (sp->fts_child != NULL && ISSET(FTS_NAMEONLY)) {
 			CLR(FTS_NAMEONLY);
 			fts_lfree(sp->fts_child);
 			sp->fts_child = NULL;
@@ -350,11 +350,12 @@ fts_read(sp)
 		 * If haven't read do so.  If the read fails, fts_build sets
 		 * FTS_STOP or the fts_info field of the node.
 		 */
-		if (sp->fts_child) {
+		if (sp->fts_child != NULL) {
 			if (fts_safe_changedir(sp, p, -1)) {
 				p->fts_errno = errno;
 				p->fts_flags |= FTS_DONTCHDIR;
-				for (p = sp->fts_child; p; p = p->fts_link)
+				for (p = sp->fts_child; p != NULL; 
+				    p = p->fts_link)
 					p->fts_accpath =
 					    p->fts_parent->fts_accpath;
 			}
@@ -370,7 +371,7 @@ fts_read(sp)
 
 	/* Move to the next node on this level. */
 next:	tmp = p;
-	if ((p = p->fts_link)) {
+	if ((p = p->fts_link) != NULL) {
 		free(tmp);
 
 		/*
@@ -471,7 +472,7 @@ fts_set(sp, p, instr)
 	FTSENT *p;
 	int instr;
 {
-	if (instr && instr != FTS_AGAIN && instr != FTS_FOLLOW &&
+	if (instr != 0 && instr != FTS_AGAIN && instr != FTS_FOLLOW &&
 	    instr != FTS_NOINSTR && instr != FTS_SKIP) {
 		errno = EINVAL;
 		return (1);
@@ -488,7 +489,7 @@ fts_children(sp, instr)
 	register FTSENT *p;
 	int fd;
 
-	if (instr && instr != FTS_NAMEONLY) {
+	if (instr != 0 && instr != FTS_NAMEONLY) {
 		errno = EINVAL;
 		return (NULL);
 	}
@@ -519,7 +520,7 @@ fts_children(sp, instr)
 		return (NULL);
 
 	/* Free up any previous child list. */
-	if (sp->fts_child)
+	if (sp->fts_child != NULL)
 		fts_lfree(sp->fts_child);
 
 	if (instr == FTS_NAMEONLY) {
@@ -685,7 +686,7 @@ fts_build(sp, type)
 			goto mem1;
 		if (dp->d_namlen >= maxlen) {	/* include space for NUL */
 			oldaddr = sp->fts_path;
-			if (fts_palloc(sp, dp->d_namlen +len + 1)) {
+			if (fts_palloc(sp, dp->d_namlen + len + 1)) {
 				/*
 				 * No more memory for path or structures.  Save
 				 * errno, free up the current structure and the
@@ -923,18 +924,12 @@ fts_sort(sp, head, nitems)
 	 * 40 so don't realloc one entry at a time.
 	 */
 	if (nitems > sp->fts_nitems) {
-		struct _ftsent **a;
-
 		sp->fts_nitems = nitems + 40;
-		if ((a = realloc(sp->fts_array,
+		if ((sp->fts_array = reallocf(sp->fts_array,
 		    sp->fts_nitems * sizeof(FTSENT *))) == NULL) {
-			if (sp->fts_array)
-				free(sp->fts_array);
-			sp->fts_array = NULL;
 			sp->fts_nitems = 0;
 			return (head);
 		}
-		sp->fts_array = a;
 	}
 	for (ap = sp->fts_array, p = head; p; p = p->fts_link)
 		*ap++ = p;
@@ -1008,7 +1003,6 @@ fts_palloc(sp, more)
 	FTS *sp;
 	size_t more;
 {
-	char *p;
 
 	sp->fts_pathlen += more + 256;
 	/*
@@ -1023,15 +1017,8 @@ fts_palloc(sp, more)
 		errno = ENAMETOOLONG;
 		return (1);
 	}
-	p = realloc(sp->fts_path, sp->fts_pathlen);
-	if (p == NULL) {
-		if (sp->fts_path)
-			free(sp->fts_path);
-		sp->fts_path = NULL;
-		return (1);
-	}
-	sp->fts_path = p;
-	return (0);
+	sp->fts_path = reallocf(sp->fts_path, sp->fts_pathlen);
+	return (sp->fts_path == NULL);
 }
 
 /*
@@ -1046,13 +1033,13 @@ fts_padjust(sp, head)
 	FTSENT *p;
 	char *addr = sp->fts_path;
 
-#define	ADJUST(p) {							\
+#define	ADJUST(p) do {							\
 	if ((p)->fts_accpath != (p)->fts_name) {			\
 		(p)->fts_accpath =					\
 		    (char *)addr + ((p)->fts_accpath - (p)->fts_path);	\
 	}								\
 	(p)->fts_path = addr;						\
-}
+} while (0)
 	/* Adjust the current set of children. */
 	for (p = sp->fts_child; p; p = p->fts_link)
 		ADJUST(p);
