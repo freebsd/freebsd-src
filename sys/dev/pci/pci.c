@@ -78,6 +78,9 @@ static int		pci_describe_parse_line(char **ptr, int *vendor,
 						int *device, char **desc);
 static char		*pci_describe_device(device_t dev);
 static int		pci_modevent(module_t mod, int what, void *arg);
+static void		pci_hdrtypedata(device_t pcib, int b, int s, int f, 
+					pcicfgregs *cfg);
+static void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
 
 static device_method_t pci_methods[] = {
 	/* Device interface */
@@ -291,7 +294,7 @@ pci_fixancient(pcicfgregs *cfg)
 
 /* extract header type specific config data */
 
-void
+static void
 pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 {
 #define REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
@@ -389,7 +392,7 @@ pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 #undef REG
 }
 
-void
+static void
 pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 {
 #define REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
