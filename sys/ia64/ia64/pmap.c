@@ -256,6 +256,7 @@ static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static pv_entry_t get_pv_entry __P((void));
 static void	ia64_protection_init __P((void));
 
+static void	pmap_invalidate_all  __P((pmap_t pmap));
 static void	pmap_remove_all __P((vm_page_t m));
 static void	pmap_enter_quick __P((pmap_t pmap, vm_offset_t va, vm_page_t m));
 
@@ -391,6 +392,11 @@ pmap_bootstrap()
 	pvbootentries = (struct pv_entry *)
 		pmap_steal_memory(pvbootmax * sizeof(struct pv_entry));
 	pvbootnext = 0;
+
+	/*
+	 * Clear out any random TLB entries left over from booting.
+	 */
+	pmap_invalidate_all(kernel_pmap);
 }
 
 /*
@@ -1689,11 +1695,8 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	oldpmap = pmap_install(pmap);
 
 	pte = pmap_find_pte(va);
-	if (pte->pte_p) {
-		if (pmap_pte_pa(pte) != VM_PAGE_TO_PHYS(m))
-			panic("pmap_enter_quick: page is already mapped to different address");
+	if (pte->pte_p)
 		return;
-	}
 
 	PMAP_DEBUG_VA(va);
 	pmap_insert_entry(pmap, va, m);
