@@ -192,7 +192,9 @@ looutput(ifp, m, dst, rt)
 	struct sockaddr *dst;
 	register struct rtentry *rt;
 {
+#ifdef INET6
 	struct mbuf *n;
+#endif
 
 	M_ASSERTPKTHDR(m); /* check if we have the packet header */
 
