@@ -100,6 +100,10 @@ sound drivers.
 Separate drivers for the SoundBlaster 8 and Soundblaster 16 now
 replace an older, unified driver.
 
+A driver for the ESS Maestro-3/Allegro has been added, however due to
+the amount of GPL firmware included, it will only be built as a
+module.
+
 The isp(4) driver has been updated.
 
 ipfilter has been updated to 3.4.16.
@@ -136,6 +140,10 @@ controlled by the net.inet.tcp.icmp_may_rst sysctl.
 The ida disk driver now has crashdump support.
 
 AlphaServer 2100A ('Lynx') support has been added. 
+
+The if(4) and an(4) drivers now default to BSS (infrastructure) mode;
+previously the default was ad-hoc mode.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -179,6 +187,12 @@ A number of programs that use temporary files now do so more securely.
 
 A bug in ICMP that could cause an attacker to disrupt TCP and UDP
 "sessions" has been corrected.
+
+A bug in timed(8), which caused it to crash if send certain malformed
+packets, has been corrected (see security advisory FreeBSD-SA-01:28).
+
+A bug in rwhod(8), which caused it to crash if send certain malformed
+packets, has been corrected (see security advisory FreeBSD-SA-01:29).
 
 
 1.3. USERLAND CHANGES
@@ -323,6 +337,48 @@ display.
 
 pkg_sign(1) and pkg_check(1) have been added to digitally sign and 
 verify the signatures on binary package files.
+
+tftpd(8) now takes the -c and -C options, which allow the server to
+chroot(2) based on the IP address of the connecting client.  tftp(1)
+and tftpd(8) can now transfer files larger than 65535 blocks.
+
+The lastlogin(1) utility, which prints the last login time of each
+user, has been imported from NetBSD.
+
+/usr/src/share/examples/BSD_daemon/ now contains a scalable Beastie
+graphic.
+
+bc has been updated from 1.04 to 1.06.
+
+pkg_update(1), a utility to update installed packages and update their
+dependencies, has been added.
+
+savecore(8) now supports a -k option to prevent clearing a crash dump
+after saving it.  It also attempts to avoid writing large stretches of
+zeros to crash dump files to save space and time.
+
+tcsh has been updated to version 6.10.
+
+The default value for the CVS_RSH variable (used by cvs(1)) is now
+ssh, rather than rsh.
+
+pkg_delete(1) now can perform glob/regexp matching of package names.
+In addition, it supports the -a option for removing all packages and
+the -i option for rm(1)-style interactive confirmation.
+
+disklabel(8) now supports partition sizes expressed in kilobytes,
+megabytes, or gigabytes, in addition to sectors.
+
+Kerberos IV has been updated to 1.0.5.
+
+Heimdal has been updated to 0.3e.
+
+The new CPUTYPE make.conf variable controls the compilation of
+processor-specific optimizations in various pieces of code such as
+OpenSSL.
+
+OpenSSL now has support for machine-dependent ASM optimizations,
+activated by the new CPUTYPE/MACHINE_CPU Makefile variables.
 
 2. Supported Configurations
 ---------------------------
@@ -659,6 +715,7 @@ Crystal Semiconductor CS461x/462x/428x
 ENSONIQ AudioPCI ES1370/1371
 ESS ES1868, ES1869, ES1879 and ES1888
 ESS Maestro-1, Maestro-2, and Maestro-2E
+ESS Maestro-3
 ForteMedia fm801
 Gravis UltraSound MAX/PnP
 MSS/WSS Compatible DSPs
