@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.29 1996/03/19 12:02:20 jkh Exp $
+ * $Id: media.c,v 1.30 1996/03/21 17:20:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -87,7 +87,7 @@ cpioVerbosity()
  * be a CD.
  */
 int
-mediaSetCDROM(char *str)
+mediaSetCDROM(dialogMenuItem *self)
 {
     Device **devs;
     int cnt;
@@ -130,7 +130,7 @@ floppyHook(char *str)
  * be a floppy
  */
 int
-mediaSetFloppy(char *str)
+mediaSetFloppy(dialogMenuItem *self)
 {
     Device **devs;
     int cnt;
@@ -172,7 +172,7 @@ DOSHook(char *str)
  * be a DOS partition.
  */
 int
-mediaSetDOS(char *str)
+mediaSetDOS(dialogMenuItem *self)
 {
     Device **devs;
     int cnt;
@@ -212,7 +212,7 @@ tapeHook(char *str)
  * be a tape drive.
  */
 int
-mediaSetTape(char *str)
+mediaSetTape(dialogMenuItem *self)
 {
     Device **devs;
     int cnt;
@@ -261,12 +261,12 @@ mediaSetTape(char *str)
  * be an ftp server
  */
 int
-mediaSetFTP(char *str)
+mediaSetFTP(dialogMenuItem *self)
 {
     static Device ftpDevice;
     char *cp;
 
-    if (!(str && !strcmp(str, "script") && (cp = variable_get(VAR_FTP_PATH)))) {
+    if (!(cp = variable_get(VAR_FTP_PATH))) {
 	if (!dmenuOpenSimple(&MenuMediaFTP))
 	    return RET_FAIL;
 	else
@@ -296,8 +296,7 @@ mediaSetFTP(char *str)
     }
     strcpy(ftpDevice.name, cp);
 
-    /* If str == NULL || "script", we were called just to change FTP sites, not network devices */
-    if (str && strcmp(str, "script") && !tcpDeviceSelect())
+    if (!tcpDeviceSelect())
 	return RET_FAIL;
 
     ftpDevice.type = DEVICE_TYPE_FTP;
@@ -311,26 +310,26 @@ mediaSetFTP(char *str)
 }
 
 int
-mediaSetFTPActive(char *str)
+mediaSetFTPActive(dialogMenuItem *self)
 {
     variable_set2(VAR_FTP_STATE, "active");
-    return mediaSetFTP(str);
+    return mediaSetFTP(self);
 }
 
 int
-mediaSetFTPPassive(char *str)
+mediaSetFTPPassive(dialogMenuItem *self)
 {
     variable_set2(VAR_FTP_STATE, "passive");
-    return mediaSetFTP(str);
+    return mediaSetFTP(self);
 }
 
 int
-mediaSetUFS(char *str)
+mediaSetUFS(dialogMenuItem *self)
 {
     static Device ufsDevice;
     char *val;
 
-    if (!(str && !strcmp(str, "script") && (val = variable_get(VAR_UFS_PATH)))) {
+    if (!(val = variable_get(VAR_UFS_PATH))) {
 	val = variable_get_value(VAR_UFS_PATH, "Enter a fully qualified pathname for the directory\n"
 				 "containing the FreeBSD distribution files:");
 	if (!val)
@@ -348,21 +347,19 @@ mediaSetUFS(char *str)
 }
 
 int
-mediaSetNFS(char *str)
+mediaSetNFS(dialogMenuItem *self)
 {
     static Device nfsDevice;
     char *cp;
 
-    if (!(str && !strcmp(str, "script") && (cp = variable_get(VAR_NFS_PATH)))) {
-	cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
-				"host and directory containing the FreeBSD distribution files.\n"
-				"This should be in the format:  hostname:/some/freebsd/dir");
-	if (!cp)
-	    return RET_FAIL;
-    }
+    cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
+			    "host and directory containing the FreeBSD distribution files.\n"
+			    "This should be in the format:  hostname:/some/freebsd/dir");
+    if (!cp)
+	return RET_FAIL;
     strncpy(nfsDevice.name, cp, DEV_NAME_MAX);
     /* str == NULL means we were just called to change NFS paths, not network interfaces */
-    if (str && strcmp(str, "script") && !tcpDeviceSelect())
+    if (!tcpDeviceSelect())
 	return RET_FAIL;
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
@@ -519,7 +516,7 @@ mediaExtractDist(char *dir, int fd)
 }
 
 int
-mediaGetType(char *unused)
+mediaGetType(dialogMenuItem *self)
 {
     if (!dmenuOpenSimple(&MenuMedia))
 	return RET_FAIL;
@@ -541,7 +538,7 @@ mediaVerify(void)
 
 /* Set FTP error behavior */
 int
-mediaSetFtpOnError(char *str)
+mediaSetFtpOnError(dialogMenuItem *self)
 {
     char *cp = variable_get(VAR_FTP_ONERROR);
 
@@ -563,7 +560,7 @@ mediaSetFtpOnError(char *str)
 
 /* Set the FTP username and password fields */
 int
-mediaSetFtpUserPass(char *str)
+mediaSetFtpUserPass(dialogMenuItem *self)
 {
     char *pass;
 
@@ -578,7 +575,7 @@ mediaSetFtpUserPass(char *str)
 
 /* Set CPIO verbosity level */
 int
-mediaSetCPIOVerbosity(char *str)
+mediaSetCPIOVerbosity(dialogMenuItem *self)
 {
     char *cp = variable_get(VAR_CPIO_VERBOSITY);
 

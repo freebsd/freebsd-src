@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.21 1996/03/21 09:30:08 jkh Exp $
+ * $Id: config.c,v 1.22 1996/03/24 18:57:34 joerg Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -326,16 +326,30 @@ configSysconfig(void)
 }
 
 int
-configSaverTimeout(char *str)
+configSaverTimeout(dialogMenuItem *self)
 {
-    return variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver")
-	? RET_SUCCESS : RET_FAIL;
+    return variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver") ?
+	RET_SUCCESS : RET_FAIL;
 }
 
 int
-configNTP(char *str)
+configNTP(dialogMenuItem *self)
 {
     return variable_get_value(VAR_NTPDATE, "Enter the name of an NTP server") ? RET_SUCCESS : RET_FAIL;
+}
+
+int
+configXFree86(dialogMenuItem *self)
+{
+    if (file_executable("/usr/X11R6/bin/xf86config")) {
+	systemExecute("/usr/X11R6/bin/xf86config");
+	return RET_SUCCESS;
+    }
+    else {
+	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
+		   "The XFree86 distribution before attempting to configure it.");
+	return RET_FAIL;
+    }
 }
 
 void
@@ -398,7 +412,7 @@ skip:
 }
 
 int
-configRoutedFlags(char *str)
+configRoutedFlags(dialogMenuItem *self)
 {
     return variable_get_value(VAR_ROUTEDFLAGS, 
 			      "Specify the flags for routed; -q is the default, -s is\n"
@@ -406,7 +420,7 @@ configRoutedFlags(char *str)
 }
 
 int
-configPackages(char *str)
+configPackages(dialogMenuItem *self)
 {
     static PkgNode top, plist;
     static Boolean index_initted = FALSE;
@@ -483,7 +497,7 @@ configPackages(char *str)
 }
 
 int
-configPorts(char *str)
+configPorts(dialogMenuItem *self)
 {
     char *cp, *dist = NULL; /* Shut up compiler */
 
