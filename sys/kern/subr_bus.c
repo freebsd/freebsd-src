@@ -210,13 +210,11 @@ devclass_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	buf = NULL;
 	switch (arg2) {
 	case DEVCLASS_SYSCTL_PARENT:
-		value = dc->parent ? dc->parent->name : NULL;
+		value = dc->parent ? dc->parent->name : "";
 		break;
 	default:
 		return (EINVAL);
 	}
-	if (value == NULL)
-		value = "?";
 	error = SYSCTL_OUT(req, value, strlen(value));
 	if (buf != NULL)
 		free(buf, M_BUS);
@@ -258,10 +256,10 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	buf = NULL;
 	switch (arg2) {
 	case DEVICE_SYSCTL_DESC:
-		value = dev->desc;
+		value = dev->desc ? dev->desc : "";
 		break;
 	case DEVICE_SYSCTL_DRIVER:
-		value = dev->driver ? dev->driver->name : NULL;
+		value = dev->driver ? dev->driver->name : "";
 		break;
 	case DEVICE_SYSCTL_LOCATION:
 		value = buf = malloc(1024, M_BUS, M_WAITOK | M_ZERO);
@@ -272,13 +270,11 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 		bus_child_pnpinfo_str(dev, buf, 1024);
 		break;
 	case DEVICE_SYSCTL_PARENT:
-		value = dev->parent ? dev->parent->nameunit : NULL;
+		value = dev->parent ? dev->parent->nameunit : "";
 		break;
 	default:
 		return (EINVAL);
 	}
-	if (value == NULL)
-		value = "?";
 	error = SYSCTL_OUT(req, value, strlen(value));
 	if (buf != NULL)
 		free(buf, M_BUS);
