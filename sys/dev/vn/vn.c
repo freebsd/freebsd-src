@@ -82,6 +82,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 
 static	d_ioctl_t	vnioctl;
