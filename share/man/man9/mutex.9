@@ -457,6 +457,26 @@ This option is used to quiet logging messages during individual mutex
 operations.
 This can be used to trim superfluous logging messages for debugging purposes.
 .El
+.Ss Giant
+If Giant must be acquired, it must be acquired prior to acquiring
+other mutexes.
+Put another way: it is impossible to acquire Giant non-recursively while
+holding another mutex.
+It is possible to acquire other mutexes while holding Giant, and it is
+possible to acquire Giant recursively while holding other mutexes.
+.Ss Sleeping
+Sleeping while holding a mutex (except for Giant) is almost never safe
+and should be avoided.
+There are numerous assertions which will fail if this is attempted.
+.Ss Functions Which Access Memory in Userspace
+No mutexes should be held (except for Giant) across functions which
+access memory in userspace, such as
+.Xr copyin 9 ,
+.Xr copyout 9 ,
+.Xr uiomove 9 ,
+.Xr fuword 9 ,
+etc.
+No locks are needed when calling these functions.
 .Sh SEE ALSO
 .Xr condvar 9 ,
 .Xr msleep 9 ,
