@@ -251,12 +251,14 @@ iface_inClear(struct iface *iface, int how)
 {
   int n, addrs;
 
-  addrs = n = how == IFACE_CLEAR_ALL ? 0 : 1;
-  for (; n < iface->in_addrs; n++)
-    iface_addr_Zap(iface->name, iface->in_addr + n);
+  if (iface->in_addrs) {
+    addrs = n = how == IFACE_CLEAR_ALL ? 0 : 1;
+    for (; n < iface->in_addrs; n++)
+      iface_addr_Zap(iface->name, iface->in_addr + n);
 
-  iface->in_addrs = addrs;
-  /* Don't bother realloc()ing - we have little to gain */
+    iface->in_addrs = addrs;
+    /* Don't bother realloc()ing - we have little to gain */
+  }
 }
 
 int
