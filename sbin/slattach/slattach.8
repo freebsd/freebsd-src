@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)slattach.8	6.4 (Berkeley) 3/16/91
 .\"
-.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.6 1995/09/18 14:06:36 ache Exp $
+.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.7 1995/09/20 04:53:06 ache Exp $
 .\"
 .Dd April 4, 1993
 .Dt SLATTACH 8
@@ -129,19 +129,18 @@ Use uucp-style device locking. You need it unless you start
 from external program which already does uucp locking.
 Default case is no uucp locking to satisfy such programs.
 .It Fl K Ar keepalive
-Set SLIP "keep alive" timeout in seconds. If FRAME_END not received in this
-timeout, reconnect occurse. Active "out fill" timeout expected from other
-side.
-Default value is no timeout.
+Set SLIP "keep alive" timeout in seconds. If FRAME_END is not received in
+this amount of time, re-connect occurs.
+The default value is no timeout.
 .It Fl O Ar outfill
-Set SLIP "out fill" timeout in seconds. It cause at least one FRAME_END
-will be sended during this timeout.
-Needed for "keep alive" timeout on other side.
-Default value is no timeout.
+Set SLIP "out fill" timeout in seconds.  It forces at least one FRAME_END
+to be sent during this time period, which is necessary for the "keep alive"
+timeout on the remote side.
+The default value is no timeout.
 .It Fl S Ar unit
-Set SLIP unit number directly. Use with caution, no check for two
-interfaces with same number made.
-Default is dynamic assignment.
+Set the SLIP unit number directly. Use with caution, because no check is made
+for two interfaces with same number.
+By default sliplogin dynamically assigns the unit number.
 .It Ar ttyname
 Specifies the name of the tty device.
 .Ar Ttyname
