@@ -2156,15 +2156,6 @@ fildesc_drvinit(void *unused)
 	make_dev_alias(dev, "stdout");
 	dev = make_dev(&fildesc_cdevsw, 2, UID_ROOT, GID_WHEEL, 0666, "fd/2");
 	make_dev_alias(dev, "stderr");
-#ifdef NODEVFS
-	{
-	int fd;
-
-	for (fd = 3; fd < NUMFDESC; fd++)
-		make_dev(&fildesc_cdevsw, fd, UID_ROOT, GID_WHEEL,
-		    0666, "fd/%d", fd);
-	}
-#endif
 }
 
 static fo_rdwr_t	badfo_readwrite;
