@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13.2.1 1997/02/02 20:46:32 joerg Exp $
+#	$Id: Makefile,v 1.13.2.2 1997/05/01 00:13:56 pst Exp $
 
 PROG = gdb
 
@@ -71,8 +71,6 @@ LDADD+=   -L${.CURDIR}/../libiberty/ -liberty
 DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
 .endif
 
-.include <bsd.prog.mk>
-
 # We do this by grepping through sources.  If that turns out to be too slow,
 # maybe we could just require every .o file to have an initialization routine
 # of a given name (remote-udi.o -> _initialize_remote_udi, etc.).
@@ -86,11 +84,11 @@ DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
 
 ${.OBJDIR}/init.c: ${XSRCS}
 	@echo Making init.c
-	rm -f init.c-tmp
-	echo '/* Do not modify this file.  */' >init.c-tmp
-	echo '/* It is created automatically by the Makefile.  */'>>init.c-tmp
-	echo 'void initialize_all_files () {' >>init.c-tmp
-	for i in ${XSRCS} ; do \
+	@rm -f init.c-tmp
+	@echo '/* Do not modify this file.  */' >init.c-tmp
+	@echo '/* It is created automatically by the Makefile.  */'>>init.c-tmp
+	@echo 'void initialize_all_files () {' >>init.c-tmp
+	@for i in ${XSRCS} ; do \
 	  filename=`echo $$i | sed \
 	    -e '/^Onindy.c/d' \
 	    -e '/^nindy.c/d' \
@@ -113,7 +111,9 @@ ${.OBJDIR}/init.c: ${XSRCS}
 	-e '/^_initialize_[a-z_0-9A-Z]* *(/s/^\([a-z_0-9A-Z]*\).*/  {extern void \1 (); \1 ();}/p' ; ;; \
 	  esac ; \
 	done
-	echo '}' >>init.c-tmp
-	mv init.c-tmp init.c
+	@echo '}' >>init.c-tmp
+	@mv init.c-tmp init.c
 
 .PRECIOUS: init.c
+
+.include <bsd.prog.mk>
