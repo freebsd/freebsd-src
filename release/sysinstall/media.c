@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.31 1996/06/17 09:04:52 jkh Exp $
+ * $Id: media.c,v 1.25.2.32 1996/06/17 21:57:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -315,7 +315,7 @@ mediaSetFTP(dialogMenuItem *self)
     }
     variable_set2(VAR_FTP_HOST, hostname);
     variable_set2(VAR_FTP_DIR, dir ? dir : "/");
-    variable_set2(VAR_FTP_PORT, itoa(port));
+    variable_set2(VAR_FTP_PORT, itoa(FtpPort));
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
