@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.2 1995/04/30 06:09:29 phk Exp $
+ * $Id: write_disk.c,v 1.3 1995/04/30 07:30:45 phk Exp $
  *
  */
 
@@ -64,6 +64,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 		}
 		dl->d_partitions[j].p_size = c2->size;
 		dl->d_partitions[j].p_offset = c2->offset - c1->offset;
+		dl->d_partitions[j].p_fstype = c2->subtype;
 		
 	}
 
@@ -71,10 +72,12 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 
 	strcpy(dl->d_typename,c1->name);
 
+	dl->d_secsize = 512;
 	dl->d_secperunit = new->chunks->size;
 	dl->d_secpercyl = new->real_cyl ? new->real_cyl : new->bios_cyl;
 	dl->d_ntracks = new->real_hd ? new->real_hd : new->bios_hd;
 	dl->d_nsectors = new->real_sect ? new->real_sect : new->bios_sect;
+	dl->d_secpercyl = dl->d_ntracks * dl->d_nsectors;
 
 	dl->d_npartitions = MAXPARTITIONS;
 
@@ -97,7 +100,6 @@ int
 Write_Extended(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 {
 	printf("--> Write_Extended()\n");
-	Print_Chunk(c1);	
 	return 0;
 }
 
@@ -185,6 +187,8 @@ Write_Disk(struct disk *d1)
 				break;
 			case foo:
 				dp[j].dp_typ = - c1->subtype;
+				break;
+			default:
 				break;
 		}	
 	}
