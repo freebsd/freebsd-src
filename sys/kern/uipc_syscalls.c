@@ -115,7 +115,7 @@ socket(td, uap)
 	fdp = td->td_proc->p_fd;
 	error = falloc(td, &fp, &fd);
 	if (error)
-		goto done2;
+		return (error);
 	/* An extra reference on `fp' has been held for us by falloc(). */
 	mtx_lock(&Giant);
 	error = socreate(uap->domain, &so, uap->type, uap->protocol,
@@ -140,7 +140,6 @@ socket(td, uap)
 		td->td_retval[0] = fd;
 	}
 	fdrop(fp, td);
-done2:
 	return (error);
 }
 
