@@ -66,8 +66,7 @@
 static int ext2_fhtovp(struct mount *, struct fid *, struct vnode **);
 static int ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
 static int ext2_init(struct vfsconf *);
-static int ext2_mount(struct mount *,
-	    char *, caddr_t, struct nameidata *, struct thread *);
+static int ext2_mount(struct mount *, struct nameidata *, struct thread *);
 static int ext2_mountfs(struct vnode *, struct mount *, struct thread *);
 static int ext2_reload(struct mount *mountp, struct ucred *cred,
 			struct thread *td);
@@ -84,7 +83,7 @@ MALLOC_DEFINE(M_EXT2NODE, "EXT2 node", "EXT2 vnode private part");
 static MALLOC_DEFINE(M_EXT2MNT, "EXT2 mount", "EXT2 mount structure");
 
 static struct vfsops ext2fs_vfsops = {
-	ext2_mount,
+	NULL,
 	vfs_stdstart,
 	ext2_unmount,
 	ext2_root,		/* root inode via vget */
@@ -98,6 +97,7 @@ static struct vfsops ext2fs_vfsops = {
 	ext2_init,
 	ext2_uninit,
 	vfs_stdextattrctl,
+	ext2_mount,
 };
 
 VFS_SET(ext2fs_vfsops, ext2fs, 0);
@@ -175,27 +175,33 @@ ext2_mountroot()
  * mount system call
  */
 static int
-ext2_mount(mp, path, data, ndp, td)
+ext2_mount(mp, ndp, td)
 	struct mount *mp;
-	char *path;
-	caddr_t data;		/* this is actually a (struct ext2_args *) */
 	struct nameidata *ndp;
 	struct thread *td;
 {
+	struct export_args *export;
+	struct vfsoptlist *opts;
 	struct vnode *devvp;
-	struct ext2_args args;
 	struct ext2mount *ump = 0;
 	struct ext2_sb_info *fs;
+	char *path, *fspec;
 	size_t size;
-	int error, flags;
+	int error, flags, len;
 	mode_t accessmode;
 
+	opts = mp->mnt_optnew;
+
+	vfs_getopt(opts, "fspath", (void **)&path, NULL);
 	/* Double-check the length of path.. */
 	if (strlen(path) >= MAXMNTLEN - 1)
 		return (ENAMETOOLONG);
-	error = copyin(data, (caddr_t)&args, sizeof (struct ext2_args));
-	if (error != 0)
-		return (error);
+
+	fspec = NULL;
+	error = vfs_getopt(opts, "from", (void **)&fspec, &len);
+	if (!error && fspec[len - 1] != '\0')
+		return (EINVAL);
+
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
@@ -258,18 +264,22 @@ ext2_mount(mp, path, data, ndp, td)
 			ext2_sbupdate(ump, MNT_WAIT);
 			fs->s_rd_only = 0;
 		}
-		if (args.fspec == 0) {
-			/*
-			 * Process export requests.
-			 */
-			return (vfs_export(mp, &args.export));
+		if (fspec == NULL) {
+			error = vfs_getopt(opts, "export", (void **)&export,
+			    &len);
+			if (error || len != sizeof(struct export_args))
+				return (EINVAL);
+				/* Process export requests. */
+			return (vfs_export(mp, export));
 		}
 	}
 	/*
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
+	if (fspec == NULL)
+		return (EINVAL);
+	NDINIT(ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, fspec, td);
 	if ((error = namei(ndp)) != 0)
 		return (error);
 	NDFREE(ndp, NDF_ONLY_PNBUF);
@@ -316,8 +326,7 @@ ext2_mount(mp, path, data, ndp, td)
 	 */
 	strncpy(fs->fs_fsmnt, path, MAXMNTLEN);
 	fs->fs_fsmnt[MAXMNTLEN - 1] = '\0';
-	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, 
-	    &size);
+	(void)copystr(fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 	(void)ext2_statfs(mp, &mp->mnt_stat, td);
 	return (0);
