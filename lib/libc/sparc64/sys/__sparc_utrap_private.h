@@ -43,6 +43,8 @@ struct utrapframe {
 	u_long	uf_sfsr;
 	u_long	uf_tar;
 	u_long	uf_type;
+	u_long	uf_state;
+	u_long	uf_fsr;
 };
 
 extern char __sparc_utrap_fp_disabled[];
