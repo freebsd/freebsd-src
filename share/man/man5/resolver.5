@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)resolver.5	8.1 (Berkeley) 6/5/93
-.\"	$Id: resolver.5,v 1.3 1997/03/07 03:28:05 jmg Exp $
+.\"	$Id: resolver.5,v 1.4 1997/05/15 20:05:16 peter Exp $
 .\"
 .Dd November 11, 1993
 .Dt RESOLVER 5
@@ -116,17 +116,16 @@ e.g. sortlist 130.155.160.0/255.255.240.0 130.155.0.0
 Options allows certain internal resolver variables to be modified.
 The syntax is
 .Pp
--\fBoptions\fP \fIoption\fP \fI...\fP
+\fBoptions\fP \fIoption\fP \fI...\fP
 .Pp
 where
 .Sy option
 is one of the following:
 .Pp
-.Bl -tag -width nameserver
+.Bl -tag -width no_tld_query
 .It Sy debug
 sets
-.Dv
-RES_DEBUG
+.Dv RES_DEBUG
 in _res.options.
 .It Sy ndots:n
 sets a threshold for the number of dots which must appear in a name given to
@@ -143,13 +142,19 @@ meaning that if there are any dots in a name, the name
 will be tried first as an absolute name before any
 .Em search list
 elements are appended to it.
-.Pp
-The
+.It Sy no_tld_query
+tells the resolver not to attempt to resolve a top level domain name, that
+is, a name that contains no dots.  Use of this option doesn't prevent
+the resolver from obeying the standard
 .Sy domain
 and
 .Sy search
-keywords are mutually exclusive.
+rules with the given name.
 .El
+.Pp
+Options may also be specified as a space or tab separated list using the
+.Dv RES_OPTIONS
+environment variable.
 .El
 .Pp
 The
