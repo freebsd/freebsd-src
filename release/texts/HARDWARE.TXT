@@ -84,6 +84,7 @@ sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
 lpt0    dyn     7       n/a     n/a     Printer Port 0
 lpt1    dyn     dyn     n/a     n/a     Printer Port 1
 
+ax0     dyn     dyn     n/a     dyn     ASIX AX88140A PCI based cards
 de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
                                         (including 21140 100bT cards)
 ed0     280     10      dyn     d8000   WD & SMC 80xx; Novell NE1000 &
@@ -94,8 +95,6 @@ ex0     dyn     dyn     dyn     n/a     Intel EtherExpress Pro/10 cards
 fe0     300     dyn     n/a     n/a     Allied-Telesis AT1700, RE2000 and
                                         Fujitsu FMV-180 series cards.
 fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
-rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
-tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
 ie0     300     10      dyn     d0000   AT&T StarLAN 10 and EN100;
                                         3Com 3C507; NI5210
 ix0     300     10      dyn     d0000   Intel EtherExpress cards
@@ -105,6 +104,12 @@ le0     300     5       dyn     d0000   Digital Equipment EtherWorks
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
                                         (Isolan, Novell NE2100, NE32-VL,
 					 some PCnet-PCI cards)
+mx0     dyn     dyn     n/a     dyn     Macronix 98713/15/25 PCI based cards
+pn0     dyn     dyn     n/a     dyn     Lite-On PNIC PCI based cards
+rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
+tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
+wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
+vr0     dyn     dyn     n/a     dyn     VIA VT3043/VT86C100A PCI based cards.
 vx0     dyn     dyn     n/a     dyn     3Com 3c59x ((Fast) Etherlink III)
 xl0     dyn     dyn     n/a     dyn     3Com 3c900, 3c905 and 3c905B
                                         ((Fast) Etherlink XL)
@@ -406,11 +411,46 @@ SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra is also supported.
 
+RealTek 8129/8139 fast ethernet NICs including the following:
+  Allied Telesyn AT2550
+  Allied Telesyn AT2500TX
+  Genius GF100TXR (RTL8139)
+  NDC Communications NE100TX-E
+  OvisLink LEF-8129TX
+  OvisLink LEF-8139TX
+  Netronix Inc. EA-1210 NetEther 10/100
+  KTX-9130TX 10/100 Fast Ethernet
+  Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
+  SMC EZ Card 10/100 PCI 1211-TX
+
+Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
+  LinkSys EtherFast LNE100TX
+  NetGear FA310-TX Rev. D1
+  Matrox FastNIC 10/100
+
+Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
+  NDC Communications SFA100A (98713A)
+  CNet Pro120A (98713 or 98713A)
+  CNet Pro120B (98715)
+  SVEC PN102TX (98713)
+
+Winbond W89C840F fast ethernet NICs including the following:
+  Trendware TE100-PCIE
+
+VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
+NICs including the following:
+  Hawking Technologies PN102TX
+  D-Link DFE530TX
+
 Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
   Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
   Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
   Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
+
+ASIX Electronics AX88140A PCI NICs, including the following:
+  Alfa Inc. GFC2204
+  CNet Pro110B
 
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
@@ -444,6 +484,8 @@ Novell NE1000, NE2000, and NE2100 ethernet interface.
 
 3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B PCI and EISA
 (Fast) Etherlink III / (Fast) Etherlink XL
+
+3Com 3c980 Fast Etherlink XL server adapter
 
 Toshiba ethernet cards
 
