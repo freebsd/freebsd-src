@@ -2255,6 +2255,12 @@ options 	NSFBUFS=1024
 #
 options 	DEBUG_LOCKS
 
+# Set the amount of time (in seconds) the system will wait before
+# rebooting automatically when a kernel panic occurs.  If set to (-1),
+# the system will wait indefinitely until a key is pressed on the
+# console.
+options 	PANIC_REBOOT_WAIT_TIME=16
+
 #
 # SysVR4 ABI emulation
 #
@@ -2430,7 +2436,6 @@ options 	NMBCLUSTERS=1024
 #options 	OLTR_NO_BULLSEYE_MAC
 #options 	OLTR_NO_HAWKEYE_MAC
 #options 	OLTR_NO_TMS_MAC
-options 	PANIC_REBOOT_WAIT_TIME=16
 options 	PNPBIOS
 options 	PSM_DEBUG=1
 options 	SCSI_NCR_DEBUG
