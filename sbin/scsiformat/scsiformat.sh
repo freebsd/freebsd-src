@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-# $Id: scsiformat.sh,v 1.1.4.1 1996/11/04 10:11:50 phk Exp $
+# $Id$
 #
 
 PATH="/sbin:/usr/sbin:/bin:/usr/bin"; export PATH
@@ -140,5 +140,5 @@ then
 	fi
 	# formatting may take a huge amount of time, set timeout to 2 hours
 	echo "Formatting... this may take a while."
-	scsi -s 7200 -f $RAW -c "4 0 0 0 0 0"
+	scsi -s 10800 -f $RAW -c "4 0 0 0 0 0"
 fi
