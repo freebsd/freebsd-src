@@ -371,13 +371,8 @@ release rerelease:
 	else \
 		mkdir -p ${CHROOTDIR}/usr/ports/distfiles; \
 	fi
-.if defined(PREFETCHDISTFILES)
-	@for i in ${DOCPORTS}; do \
-		cd ${CHROOTDIR}/usr/ports/$$i && \
-			make PORTSDIR=${CHROOTDIR}/usr/ports BATCH=yes \
-			WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes \
-			checksum-recursive ; \
-	done
+.if !defined(NO_PREFETCHDISTFILES)
+	@cd ${.CURDIR} && ${MAKE} fetch-distfiles
 .endif
 .endif
 .endif
@@ -481,6 +476,14 @@ release rerelease:
 
 clean:
 	rm -rf boot_crunch release.[0-9]
+
+fetch-distfiles:
+	@for i in ${DOCPORTS}; do \
+		cd ${CHROOTDIR}/usr/ports/$$i && \
+			make PORTSDIR=${CHROOTDIR}/usr/ports BATCH=yes \
+			WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes \
+			checksum-recursive ; \
+	done
 
 # Clean out ${_R} and make the directory structure.
 release.1:
