@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)globals.h	8.1 (Berkeley) 6/6/93
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>
@@ -137,7 +138,7 @@ extern struct hosttbl hosttbl[NHOSTS+1];
 struct netinfo {
 	struct	netinfo *next;
 	struct	in_addr net;
-	u_long	mask;
+	u_int32_t	mask;
 	struct	in_addr my_addr;
 	struct	sockaddr_in dest_addr;	/* broadcast addr or point-point */
 	long	status;
