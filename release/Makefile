@@ -827,8 +827,8 @@ doMFSKERN:
 	    ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints > \
 	    ${RD}/image.${FSIMAGE}/boot/device.hints && \
 	  echo "include /boot/device.hints" > ${RD}/image.${FSIMAGE}/boot/loader.rc
-.if !defined(FDSIZE) || ${FDSIZE} != "BIG"
 	@echo "load /kernel" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+.if !defined(FDSIZE) || ${FDSIZE} != "BIG"
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
