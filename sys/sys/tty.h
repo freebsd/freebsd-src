@@ -230,25 +230,20 @@ int	 b_to_q __P((char *cp, int cc, struct clist *q));
 void	 catq __P((struct clist *from, struct clist *to));
 void	 clist_alloc_cblocks __P((struct clist *q, int ccmax, int ccres));
 void	 clist_free_cblocks __P((struct clist *q));
-/* void	 clist_init __P((void)); */ /* defined in systm.h for main() */
 int	 getc __P((struct clist *q));
 void	 ndflush __P((struct clist *q, int cc));
-int	 ndqb __P((struct clist *q, int flag));
-void	 nottystop __P((struct tty*, int rw));
 char	*nextc __P((struct clist *q, char *cp, int *c));
+void	 nottystop __P((struct tty *tp, int rw));
 int	 putc __P((int c, struct clist *q));
 int	 q_to_b __P((struct clist *q, char *cp, int cc));
-int	 unputc __P((struct clist *q));
-
-int	ttcompat __P((struct tty *tp, u_long com, caddr_t data, int flag));
-int     ttsetcompat __P((struct tty *tp, u_long *com, caddr_t data, struct termios *term));
-
 void	 termioschars __P((struct termios *t));
 int	 tputchar __P((int c, struct tty *tp));
+int	 ttcompat __P((struct tty *tp, u_long com, caddr_t data, int flag));
 int	 ttioctl __P((struct tty *tp, u_long com, void *data, int flag));
 int	 ttread __P((struct tty *tp, struct uio *uio, int flag));
 void	 ttrstrt __P((void *tp));
-int	 ttypoll __P((dev_t dev, int events, struct proc *p));
+int	 ttsetcompat __P((struct tty *tp, u_long *com, caddr_t data,
+	    struct termios *term));
 void	 ttsetwater __P((struct tty *tp));
 int	 ttspeedtab __P((int speed, struct speedtab *table));
 int	 ttstart __P((struct tty *tp));
@@ -260,19 +255,21 @@ void	 ttychars __P((struct tty *tp));
 int	 ttycheckoutq __P((struct tty *tp, int wait));
 int	 ttyclose __P((struct tty *tp));
 void	 ttyflush __P((struct tty *tp, int rw));
+void	 ttyfree __P((struct tty *tp));
 void	 ttyinfo __P((struct tty *tp));
 int	 ttyinput __P((int c, struct tty *tp));
 int	 ttylclose __P((struct tty *tp, int flag));
+struct tty *ttymalloc __P((struct tty *tp));
 int	 ttymodem __P((struct tty *tp, int flag));
 int	 ttyopen __P((dev_t device, struct tty *tp));
+int	 ttypoll __P((dev_t dev, int events, struct proc *p));
 int	 ttyread __P((dev_t dev, struct uio *uio, int flag));
 void	 ttyregister __P((struct tty *tp));
-int	 ttysleep __P((struct tty *tp,
-	    void *chan, int pri, char *wmesg, int timeout));
+int	 ttysleep __P((struct tty *tp, void *chan, int pri, char *wmesg,
+	    int timeout));
 int	 ttywait __P((struct tty *tp));
 int	 ttywrite __P((dev_t dev, struct uio *uio, int flag));
-struct tty *ttymalloc __P((struct tty *tp));
-void     ttyfree __P((struct tty *));
+int	 unputc __P((struct clist *q));
 
 #endif /* KERNEL */
 
