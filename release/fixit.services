@@ -1,0 +1,108 @@
+#
+# Network services, Internet style
+#
+# Stripped-down version.
+#
+# $Id$
+#
+# WELL KNOWN PORT NUMBERS
+#
+echo		  7/tcp
+echo		  7/udp
+discard		  9/tcp	   sink null
+discard		  9/udp	   sink null
+systat		 11/tcp	   users	#Active Users
+systat		 11/udp	   users	#Active Users
+daytime		 13/tcp
+daytime		 13/udp
+chargen		 19/tcp	   ttytst source	#Character Generator
+chargen		 19/udp	   ttytst source	#Character Generator
+ftp-data	 20/tcp	   #File Transfer [Default Data]
+ftp-data	 20/udp	   #File Transfer [Default Data]
+ftp		 21/tcp	   #File Transfer [Control]
+ftp		 21/udp	   #File Transfer [Control]
+ssh		 22/tcp    #Secure Shell Login
+ssh		 22/udp    #Secure Shell Login
+telnet		 23/tcp
+telnet		 23/udp
+#		 24/tcp	   any private mail system
+#		 24/udp	   any private mail system
+smtp		 25/tcp	   mail		#Simple Mail Transfer
+smtp		 25/udp	   mail		#Simple Mail Transfer
+time		 37/tcp	   timserver
+time		 37/udp	   timserver
+domain		 53/tcp	   #Domain Name Server
+domain		 53/udp	   #Domain Name Server
+bootps		 67/tcp	   dhcps	#Bootstrap Protocol Server
+bootps		 67/udp	   dhcps	#Bootstrap Protocol Server
+bootpc		 68/tcp	   dhcpc	#Bootstrap Protocol Client
+bootpc		 68/udp	   dhcpc	#Bootstrap Protocol Client
+tftp		 69/tcp	   #Trivial File Transfer
+tftp		 69/udp	   #Trivial File Transfer
+gopher		 70/tcp
+gopher		 70/udp
+finger		 79/tcp
+finger		 79/udp
+http		 80/tcp	   www www-http		#World Wide Web HTTP
+http		 80/udp	   www www-http		#World Wide Web HTTP
+sunrpc		111/tcp	   rpcbind	#SUN Remote Procedure Call
+sunrpc		111/udp	   rpcbind	#SUN Remote Procedure Call
+auth		113/tcp	   ident tap	#Authentication Service
+auth		113/udp	   ident tap	#Authentication Service
+nntp		119/tcp	   usenet	#Network News Transfer Protocol
+nntp		119/udp	   usenet	#Network News Transfer Protocol
+rmt		411/tcp	   #Remote MT Protocol
+rmt		411/udp	   #Remote MT Protocol
+https		443/tcp
+https		443/udp
+#
+# Berkeley-specific services
+#
+exec		512/tcp	   #remote process execution;
+#			   authentication performed using
+#			   passwords and UNIX loppgin names
+biff		512/udp	   comsat	#used by mail system to notify users
+#					of new mail received; currently
+#					receives messages only from
+#					processes on the same machine
+login		513/tcp	   #remote login a la telnet;
+#			   automatic authentication performed
+#			   based on priviledged port numbers
+#			   and distributed data bases which
+#			   identify "authentication domains"
+who		513/udp	   whod		#maintains data bases showing who's
+#					logged in to machines on a local
+#					net and the load average of the
+#					machine
+cmd		514/tcp	   shell	#like exec, but automatic
+#					authentication is performed as for
+#					login server
+syslog		514/udp
+printer		515/tcp	   spooler
+printer		515/udp	   spooler
+talk		517/tcp	   #like tenex link, but across
+#			   machine - unfortunately, doesn't
+#			   use link protocol (this is actually
+#			   just a rendezvous port from which a
+#			   tcp connection is established)
+talk		517/udp	   #like tenex link, but across
+#			   machine - unfortunately, doesn't
+#			   use link protocol (this is actually
+#			   just a rendezvous port from which a
+#			   tcp connection is established)
+ntalk		518/tcp
+ntalk		518/udp
+utime		519/tcp	   unixtime
+utime		519/udp	   unixtime
+efs		520/tcp	   #extended file name server
+router		520/udp	   route routed	   #local routing process (on site);
+#					   uses variant of Xerox NS routing
+#					   information protocol
+uucp		540/tcp	   uucpd
+uucp		540/udp	   uucpd
+uucp-rlogin	541/tcp
+uucp-rlogin	541/udp
+klogin		543/tcp			# Kerberos (v4/v5)
+klogin		543/udp			# Kerberos (v4/v5)
+kshell		544/tcp	   krcmd	# Kerberos (v4/v5)
+kshell		544/udp	   krcmd	# Kerberos (v4/v5)
