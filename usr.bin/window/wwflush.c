@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)wwflush.c	8.1 (Berkeley) 6/6/93";
 
 #include "ww.h"
 #include "tt.h"
-#include <sys/signal.h>
+#include <signal.h>
 
 wwflush()
 {

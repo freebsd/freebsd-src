@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)wwenviron.c	8.1 (Berkeley) 6/6/93";
 #if !defined(OLD_TTY) && !defined(TIOCSCTTY) && !defined(TIOCNOTTY)
 #include <sys/ioctl.h>
 #endif
-#include <sys/signal.h>
+#include <signal.h>
 
 /*
  * Set up the environment of this process to run in window 'wp'.
