@@ -49,10 +49,10 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-unsigned long amd64_get_fsbase(void);
-unsigned long amd64_set_fsbase(unsigned long);
-unsigned long amd64_get_gsbase(void);
-unsigned long amd64_set_gsbase(unsigned long);
+int amd64_get_fsbase(void **);
+int amd64_set_fsbase(void *);
+int amd64_get_gsbase(void **);
+int amd64_set_gsbase(void *);
 __END_DECLS
 #endif
 
