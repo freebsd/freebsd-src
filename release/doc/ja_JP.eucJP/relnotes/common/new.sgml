@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.158
+    Original revision: 1.22.2.168
 -->
 
 <articleinfo>
@@ -16,6 +16,7 @@
   <copyright>
     <year>2000</year>
     <year>2001</year>
+    <year>2002</year>
     <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
   </copyright>
 
@@ -24,7 +25,8 @@
       &os; &release.prev; のリリース以降に &os;
       ベースシステムに対して加えられた変更点がまとめられています.
       変更点はカーネル, ユーザランドにおけるものだけでなく,
-      前回のリリース以降に発行され, 影響のあるセキュリティ勧告も含まれています.
+      前回のリリース以降に発行され,
+      ベースシステムに影響のあるセキュリティ勧告も含まれています.
       また, アップグレードの際の注意点についても簡単に説明しています.</para>
   </abstract>
 </articleinfo>
@@ -90,7 +92,8 @@
     新しいコマンドや新しいオプションの導入,
     大規模なバグ修正, 寄贈ソフトウェアのアップグレードが含まれており,
     それに加えて
-    &release.prev; 以降に発行されたセキュリティ勧告も記載されています.</para>
+    &release.prev; 以降に発行され,
+    ベースシステムに影響のあるセキュリティ勧告も記載されています.</para>
 
   <para>&os; に加えられた変更点のうち,
     スペースの都合上ここに書かれていないものも多数存在します.
@@ -142,7 +145,9 @@
       <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
       <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
       <varname>MAXSSIZ</varname>, <varname>SGROWSIZ</varname> は,
-      すべてローダからも設定することが可能になりました.</para>
+      すべてローダからも (<varname>kern.maxtsiz</varname>,
+      <varname>kern.maxdfldsiz</varname> などの変数で)
+      設定することが可能になりました.</para>
 
     <para>カーネル設定パラメータ
       <varname>maxusers</varname> に <literal>0</literal>
@@ -204,7 +209,7 @@
 
       <para arch="alpha">マシン依存コードが修正され,
         &os; が EV5 Alpha プロセッサベースの
-        Alphaserver 2100 および 2100A で動作するようになりました.
+        Alphaserver 2100 および 2100A マシンで動作するようになりました.
         EV4 Alpha プロセッサを搭載したマシンはすでに対応済みです.</para>
     </sect3>
     
@@ -226,6 +231,9 @@
         送信側における TCP/IP チェックサムの負荷低減機能,
         ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
         割り込み低減機能に対応しています.</para>
+
+      <para>&man.dc.4; ドライバが新しく
+        Conexant LANfinity RS7112 チップをベースにした NIC に対応しました.</para>
 
       <para>&man.de.4;
         ドライバは従来の受信ユニットに優先度を与えるという方式ではなく,
@@ -263,7 +271,11 @@
       <para arch="i386">sbni ドライバが新しく追加されました.
         これは ISA および PCI バス版の 2 点間通信インターフェイス
         (point-to-point communications interface)
-        である Granch SBNI12 シリーズに対応しています.</para>
+        である Granch SBNI12 シリーズに対応しています.
+        これらのデバイスの設定には,
+        &os; Ports Collection に含まれている
+        <port>sysutil/sbniconfig</port> の port
+        が利用可能です.</para>
       
       <para>&man.sis.4; ドライバが VLAN に対応しました.</para>
 
@@ -275,7 +287,10 @@
         Intel Pro/1000 ギガビット Ethernet
         インターフェイスを利用する場合は &man.em.4; もしくは
         &man.gx.4; ドライバを使ってください (&man.em.4; ドライバは
-        i386 アーキテクチャでのみ動作します).</para>
+        Intel の支援を受けて開発されたものですが,
+        動作するのは i386 アーキテクチャのみです.
+        &man.gx.4; ドライバは &os; プロジェクトが独自に開発したもので,
+        複数のプラットフォームで動作します).</para>
 
       <para>&man.xl.4; ドライバが新しく,
         送信側・受信側双方における TCP/IP チェックサムの負荷低減機能に対応しました.
@@ -346,12 +361,19 @@
     <sect3>
       <title>ディスク・記憶装置</title>
 
-      <para>&man.aac.4; ドライバが &os; -CURRENT の変更を受けて更新されました.
+      <para arch="i386">&man.aac.4; ドライバが &os; -CURRENT の変更を受けて更新されました.
         この更新には, アダプタの発行するコマンドの正しい処理,
         ディスクデバイスの脱着, クラッシュダンプ機能, CLI 管理に必要な
         &man.ioctl.2; コマンドの追加が含まれています.</para>
 
-      <para>ciss ドライバが新しく追加されました.
+      <para>&man.ata.4;
+        ドライバが新しくたくさんの種類のチップセットに対応しました.
+        対応チップセットはハードウェアノートに記載されています.</para>
+
+      <para>&man.ata.4; ドライバが 48 ビットアドレスに対応しました.
+        これにより 137GB を超えるドライブが使用可能になっています.</para>
+
+      <para arch="i386">ciss ドライバが新しく追加されました.
         これは SCSI-3 共通インターフェイス (Common Interface for SCSI-3 Support)
         を使ったデバイスに対応するものです.
         対応デバイスには, 
@@ -398,7 +420,8 @@
         カーネルの標準設定で有効化されるようになりました.</para>
 
       <para>ファイルシステムのコードに存在する多数のバグが修正されました.
-        それらはファイルシステム試験ツールによって発見されたもので
+        それらは <application>fsx</application>
+        というファイルシステム試験ツールによって発見されたもので
         (主に NFS の利用と関連する) ある条件下で,
         データの損壊やカーネルパニックを引き起こす可能性を持っていました.</para>
     </sect3>
@@ -406,7 +429,7 @@
     <sect3>
       <title>PCCARD 対応状況</title>
 
-      <para arch="i386">&os; CURRENT の &man.pcic.4; ドライバから,
+      <para arch="i386">&os; -CURRENT の &man.pcic.4; ドライバから,
         たくさんの機能が統合されました.
         それにはバグ修正, ToPIC ベースのラップトップへの対応の強化,
         いくつかのコントローラにおける 3.3V カード対応などが含まれます.</para>
@@ -454,7 +477,21 @@
       <application>OpenSSH</application>
       にあったセキュリティホールへの対応が行なわれました.
       ちなみに, この設定項目の標準値は <literal>UseLogin no</literal>
-      です (セキュリティ勧告 FreeBSD-SA-01:63 参照).</para>
+      です (セキュリティ勧告
+      <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-01:63.openssh.asc">FreeBSD-SA-01:63</ulink> 参照).</para>
+
+    <para>&man.pkg.add.1;
+      が安全でない一時ディレクトリを使用していたことにより,
+      ローカルの攻撃者がインストール中のバイナリパッケージの内容を
+      改ざんできる可能性があったセキュリティホールへの対応が行なわれました
+      (セキュリティ勧告
+      <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:01.pkg_add.asc">FreeBSD-SA-02:01</ulink> 参照).</para>
+
+    <para>
+      &man.pw.8; において, <filename>/etc/master.passwd</filename>
+      漏洩の危険性があった競合状態を解決するための対応が行なわれました
+      (セキュリティ勧告
+      <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:02.pw.asc">FreeBSD-SA-02:02</ulink> 参照).</para>
   </sect2>
 
   <sect2 id="userland">
@@ -511,13 +548,61 @@
       C プログラムになりました.</para>
 
     <para><filename>libfetch</filename> が,
-      &os; CURRENT に含まれているものと同じになりました.
+      &os; -CURRENT に含まれているものと同じになりました.
       これには, コールバック認証機能への対応が含まれています.</para>
 
     <para><filename>libstand</filename> が新しく,
       <application>bzip2</application>
       で圧縮されたファイルが含まれるファイルシステムに対応しました.</para>
 
+    <para>X11R6 や他の UNIX 系 OS で使われているものと互換性を向上させるため,
+      locale 名が変更されました.
+      たとえば
+      <literal>en_US.ISO_8859-1</literal> という locale 名は
+      <literal>en_US.ISO8859-1</literal> に変わっています.
+      後方互換性は
+      <filename>/etc/locale.alias</filename>,
+      <filename>/etc/man.alias</filename>,
+      <filename>/etc/nls.alias</filename>
+      の各ファイル中のエントリによって実現されます.
+      次の表は locale 名の変更をまとめたものです.
+      
+      <informaltable>
+        <tgroup cols=2 align=left>
+          <colspec colwidth="*">
+            <colspec colwidth="*">
+              <thead>
+                <row>
+                  <entry>&os; &release.prev;</entry>
+                  <entry>&os; &release.current;</entry>
+                </row>
+              </thead>
+              <tbody>
+                <row>
+                  <entry><literal>ISO_</literal><replaceable>*</replaceable></entry>
+                  <entry><literal>ISO</literal><replaceable>*</replaceable></entry>
+                </row>
+                <row>
+                  <entry><literal>ru_SU</literal><replaceable>*</replaceable></entry>
+                  <entry><literal>ru_RU</literal><replaceable>*</replaceable></entry>
+                </row>
+                <row>
+                  <entry><literal>DIS_</literal><replaceable>*</replaceable></entry>
+                  <entry><literal>ISO</literal><replaceable>*</replaceable><literal>-15</literal></entry>
+                </row>
+                <row>
+                  <entry><replaceable>*</replaceable><literal>.EUC</literal></entry>
+                  <entry><replaceable>*</replaceable><literal>.euc</literal><replaceable>??</replaceable></entry>
+                </row>
+                <row>
+                  <entry><replaceable>*</replaceable><literal>.ASCII</literal></entry>
+                  <entry><replaceable>*</replaceable><literal>.US-ASCII</literal></entry>
+                </row>
+              </tbody>
+        </tgroup>
+      </informaltable>
+    </para>
+    
     <para>&man.lpd.8; の制御ファイルに新しく,
       <literal>o</literal> という型のプリントファイル動作指定が追加されました.
       これは <application>MacOS</application> 10.1
@@ -533,7 +618,7 @@
     <para>&man.newfs.8; の設定に含まれる
       1 グループに対するシリンダ数 (cylinders/group) の標準が,
       現在のファイルシステムパラメータに設定可能な最大値に設定されるように
-      なりました.  以前はこの標準値が 16 に固定されており,
+      なりました.  以前はこの標準値が 16 に固定されていましたが,
       現在は <option>-c</option> オプションで値を設定することが可能になっています.
       この変更には, &man.fsck.8; の性能向上と断片化 (fragmentation)
       の低減という効果があります.</para>
@@ -597,8 +682,8 @@
       (ただしルートファイルシステムを除く) において,
       標準で Soft Updates が有効化されるようになりました.</para>
 
-    <para>&man.syslogd.8; に新しく,
-      利用可能なすべてのアドレスを使うのではなく,
+    <para>&man.syslogd.8; に新しく
+      (利用可能なすべてのアドレスを使うのではなく)
       指定アドレスのみに bind する機能が追加されました.
       有効にするには
       <option>-b</option> オプションを使います.</para>
@@ -612,6 +697,10 @@
       が追加されました.
       これは指定されたグループのユーザすべてにメッセージを送ります.</para>
  
+    <para>&man.whois.1; に新しいオプション <option>-c</option> が追加されました.
+      これは国コードを指定することで,
+      問い合わせを特定の whois サーバに直接送るようにするためのものです.</para>
+
     <sect3>
       <title>寄贈ソフトウェア</title>
 
@@ -619,8 +708,10 @@
         &man.ipfs.8; プログラムが追加されました.
         これは NAT
         エントリおよびステートフルルールの処理用に作成される状態情報をディスクに保存し,
-        再起動後に復元することを可能にするものです.</para>
-
+        再起動後に復元することを可能にするものです.
+        起動時に復元するための設定は
+        &man.rc.conf.5; の機能で対応しています.</para>
+      
       <para><application>NTP</application>
         プログラムスイートがバージョン
         4.1.0 に更新されました.</para>
@@ -651,7 +742,8 @@
         <port>net/smbfs</port> の port を使う必要はなくなっています.
         &man.mount.smbfs.8; は, たとえ <literal>LIBMCHAIN</literal> および
         <literal>LIBICONV</literal> がカーネルに組み込まれていなくとも,
-        自動的に smbfs モジュールをカーネルにロードすることに注意してください.</para>
+        自動的に <filename>smbfs.ko</filename>
+        モジュールをカーネルにロードすることに注意してください.</para>
 
       <para>タイムゾーンデータベースが
         <filename>tzdata2001d</filename>
@@ -680,6 +772,10 @@
         オプションが追加されました.
         これはローカルにインストールされた package
         から package ファイルを生成します.</para>
+
+      <para>&man.pkg.delete.1; に新しく <option>-r</option>
+        オプションが追加されました.
+        これは package の再帰的な削除を行ないます.</para>
     </sect3>
   </sect2>
 </sect1>
