@@ -609,6 +609,12 @@ aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
 		do
 			sh MAKEDEV $name$unit$slicepartname
 		done
+		if [ "x$name" = "xvn" ] ; then
+			# We need to control device so we can configure
+			# the vn disks with vnconfig
+			mknod  $name$unit.ctl c \
+			    $chr `expr $unit '*' 8 + 33554432` root:operator
+		fi
 		;;
 	*)
 		echo bad unit for disk in: $i
