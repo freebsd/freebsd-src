@@ -806,7 +806,7 @@ case ${local_startup} in
 			(set -T
 			trap 'exit 1' 2
 			${script} start)
-		else
+		elif [ -f "${script}" ]; then
 			echo "Skipping ${script}, not executable"
 		fi
 	done
