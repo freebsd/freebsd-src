@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.35 1995/09/25 16:57:47 wollman Exp $
+ *	$Id: lpt.c,v 1.36 1995/11/04 17:07:35 bde Exp $
  */
 
 /*
@@ -237,8 +237,8 @@ struct lpt_softc {
 #define	MAX_SPIN	20	/* Max delay for device ready in usecs */
 
 static void	lptout (struct lpt_softc * sc);
-int		lptprobe (struct isa_device *dvp);
-int		lptattach (struct isa_device *isdp);
+static int	lptprobe (struct isa_device *dvp);
+static int	lptattach (struct isa_device *isdp);
 
 #ifdef INET
 

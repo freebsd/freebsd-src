@@ -85,7 +85,7 @@ typedef struct mixer_def mixer_ent;
 #define MIX_ENT(name, reg_l, pola_l, pos_l, len_l, reg_r, pola_r, pos_r, len_r)	\
 	{{reg_l, pola_l, pos_r, len_l}, {reg_r, pola_r, pos_r, len_r}}
 
-mixer_ent mix_devices[32][2] = {	/* As used in GUS MAX */
+static mixer_ent mix_devices[32][2] = {	/* As used in GUS MAX */
 MIX_ENT(SOUND_MIXER_VOLUME,	 0, 0, 0, 0,	 0, 0, 0, 0),
 MIX_ENT(SOUND_MIXER_BASS,	 0, 0, 0, 0,	 0, 0, 0, 0),
 MIX_ENT(SOUND_MIXER_TREBLE,	 0, 0, 0, 0,	 0, 0, 0, 0),
