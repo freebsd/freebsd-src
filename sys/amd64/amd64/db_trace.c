@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.25 1997/08/21 06:32:37 charnier Exp $
+ *	$Id: db_trace.c,v 1.26 1997/10/27 17:23:18 bde Exp $
  */
 
 #include <sys/param.h>
@@ -97,8 +97,12 @@ db_numargs(fp)
 	int	args;
 
 	argp = (int *)db_get_value((int)&fp->f_retaddr, 4, FALSE);
-	if (argp < (int *)VM_MIN_KERNEL_ADDRESS ||
-	    argp > (int *)etext) {
+	/*
+	 * XXX etext is wrong for LKMs.  We should attempt to interpret
+	 * the instruction at the return address in all cases.  This
+	 * may require better fault handling.
+	 */
+	if (argp < (int *)btext || argp >= (int *)etext) {
 		args = 5;
 	} else {
 		inst = db_get_value((int)argp, 4, FALSE);
