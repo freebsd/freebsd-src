@@ -36,6 +36,9 @@ AC_CHECK_TYPE(__int64_t, [long long])
 AC_CHECK_TYPE(_int64_t, [__int64_t])
 AC_CHECK_TYPE(int64_t, [_int64_t])
 
+# Likewise, consider defining "intmax_t" in terms of int64_t
+AC_CHECK_TYPE(intmax_t, [int64_t])
+
 #
 # If any of the common 64-bit unsigned types is defined, set "uint64_t"
 #
@@ -43,6 +46,9 @@ AC_CHECK_TYPE(__uint64_t, [unsigned long long])
 AC_CHECK_TYPE(_uint64_t, [__uint64_t])
 AC_CHECK_TYPE(u_int64_t, [_uint64_t])
 AC_CHECK_TYPE(uint64_t, [u_int64_t])
+
+# Likewise, consider defining "uintmax_t" in terms of uint64_t
+AC_CHECK_TYPE(uintmax_t, [uint64_t])
 
 AC_CHECK_MEMBERS([struct stat.st_rdev, struct stat.st_mtimespec.tv_nsec, struct stat.st_mtim.tv_nsec])
 
