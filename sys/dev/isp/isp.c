@@ -1154,6 +1154,16 @@ isp_fibre_init(struct ispsoftc *isp)
 			icbp->icb_xfwoptions = ICBXOPT_LOOP_2_PTP;
 			break;
 		}
+		/*
+		 * Turn on LIP F8 async event (1)
+		 * Turn on generate AE 8013 on all LIP Resets (2)
+		 * Disable LIP F7 switching (8)
+		 */
+		mbs.param[0] = MBOX_SET_FIRMWARE_OPTIONS;
+		mbs.param[1] = 0xb;
+		mbs.param[2] = 0;
+		mbs.param[3] = 0;
+		isp_mboxcmd(isp, &mbs, MBLOGALL);
 	}
 	icbp->icb_logintime = 60;	/* 60 second login timeout */
 
@@ -2179,10 +2189,40 @@ isp_scan_fabric(struct ispsoftc *isp)
 		mbs.param[3] = DMA_LSW(fcp->isp_scdma);
 		mbs.param[6] = 0;
 		mbs.param[7] = 0;
-		isp_mboxcmd(isp, &mbs, MBLOGALL);
+		isp_mboxcmd(isp, &mbs, MBLOGNONE);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			if (fcp->isp_loopstate == LOOP_SCANNING_FABRIC) {
 				fcp->isp_loopstate = LOOP_PDB_RCVD;
+			}
+			if (mbs.param[0] == MBOX_COMMAND_ERROR) {
+				char tbuf[16];
+				char *m;
+				switch (mbs.param[1]) {
+				case 1:
+					m = "No Loop";
+					break;
+				case 2:
+					m = "Failed to allocate IOCB buffer";
+					break;
+				case 3:
+					m = "Failed to allocate XCB buffer";
+					break;
+				case 4:
+					m = "timeout or transmit failed";
+					break;
+				case 5:
+					m = "no fabric loop";
+					break;
+				case 6:
+					m = "remote device not a target";
+					break;
+				default:
+					SNPRINTF(tbuf, sizeof tbuf, "%x",
+					    mbs.param[1]);
+					m = tbuf;
+					break;
+				}
+				isp_prt(isp, ISP_LOGERR, "SNS Failed- %s", m);
 			}
 			return (-1);
 		}
@@ -3335,6 +3375,7 @@ isp_parse_async(struct ispsoftc *isp, int mbox)
 #endif
 		break;
 
+	case ASYNC_LIP_F8:
 	case ASYNC_LIP_OCCURRED:
 		FCPARAM(isp)->isp_lipseq =
 		    ISP_READ(isp, OUTMAILBOX1);
@@ -3759,8 +3800,8 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 		break;
 
 	case RQCS_PHASE_SKIPPED:
-		isp_prt(isp, ISP_LOGERR, pskip,
-		    XS_TGT(xs), XS_LUN(xs), XS_CHANNEL(xs));
+		isp_prt(isp, ISP_LOGERR, pskip, XS_CHANNEL(xs)
+		    XS_TGT(xs), XS_LUN(xs));
 		break;
 
 	case RQCS_ARQS_FAILED:
@@ -4126,7 +4167,7 @@ static u_int16_t mbpfc[] = {
 	ISPOPMAP(0x00, 0x00),	/* 0x25: */
 	ISPOPMAP(0x00, 0x00),	/* 0x26: */
 	ISPOPMAP(0x00, 0x00),	/* 0x27: */
-	ISPOPMAP(0x0f, 0x1),	/* 0x28: MBOX_GET_FIRMWARE_OPTIONS */
+	ISPOPMAP(0x01, 0x3),	/* 0x28: MBOX_GET_FIRMWARE_OPTIONS */
 	ISPOPMAP(0x03, 0x07),	/* 0x29: MBOX_GET_PORT_QUEUE_PARAMS */
 	ISPOPMAP(0x00, 0x00),	/* 0x2a: */
 	ISPOPMAP(0x00, 0x00),	/* 0x2b: */
