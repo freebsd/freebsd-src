@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ipfw.c,v 1.70 1999/06/11 09:43:53 ru Exp $";
+	"$Id: ipfw.c,v 1.64.2.6 1999/06/17 13:03:39 ru Exp $";
 #endif /* not lint */
 
 
@@ -244,7 +244,12 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		default:
 			errx(EX_OSERR, "impossible");
 	}
-   
+
+	if (chain->fw_flg & IP_FW_F_RND_MATCH) {
+		double d = 1.0 * (int)(chain->pipe_ptr) ;
+		d = 1 - (d / 0x7fffffff) ;
+		printf(" prob %f", d);
+	}
 	if (chain->fw_flg & IP_FW_F_PRN)
 		printf(" log");
 
@@ -580,7 +585,7 @@ show_usage(const char *fmt, ...)
 "    [pipe] show [number ...]\n"
 "    zero [number ...]\n"
 "    pipe number config [pipeconfig]\n"
-"  rule:  action proto src dst extras...\n"
+"  rule: [prob <match_probability>] action proto src dst extras...\n"
 "    action:\n"
 "      {allow|permit|accept|pass|deny|drop|reject|unreach code|\n"
 "       reset|count|skipto num|divert port|tee port|fwd ip|\n"
@@ -1046,6 +1051,18 @@ add(ac,av)
 	}
 
 	/* Action */
+	if (ac > 1 && !strncmp(*av, "prob", strlen(*av) ) ) {
+		double d = strtod(av[1], NULL);
+		if (d <= 0 || d > 1)
+			show_usage("illegal match prob. %s", av[1]);
+		if (d != 1) { /* 1 means always match */
+			rule.fw_flg |= IP_FW_F_RND_MATCH ;
+			/* we really store dont_match probability */
+			(long)rule.pipe_ptr = (long)((1 - d) * 0x7fffffff) ;
+		}
+		av += 2 ; ac -= 2 ;
+	}
+
 	if (ac == 0)
 		show_usage("missing action");
 	if (!strncmp(*av,"accept",strlen(*av))
