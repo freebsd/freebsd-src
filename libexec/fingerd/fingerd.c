@@ -45,6 +45,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -54,6 +55,7 @@ static const char rcsid[] =
 
 #include <unistd.h>
 #include <syslog.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -118,11 +120,13 @@ main(argc, argv)
 
 		end = memchr(line, 0, sizeof(line));
 		if (end == NULL) {
-			t = malloc(sizeof(line) + 1);
+			if ((t = malloc(sizeof(line) + 1)) == NULL)
+				logerr("malloc: %s", strerror(errno));
 			memcpy(t, line, sizeof(line));
 			t[sizeof(line)] = 0;
 		} else {
-			t = strdup(line);
+			if ((t = strdup(line)) == NULL)
+				logerr("strdup: %s", strerror(errno));
 		}
 		for (end = t; *end; end++)
 			if (*end == '\n' || *end == '\r')
