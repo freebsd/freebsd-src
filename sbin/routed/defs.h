@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
- *	$Id: defs.h,v 1.3 1996/11/19 20:42:11 wollman Exp $
+ *	$Id: defs.h,v 1.4 1996/12/10 17:07:36 wollman Exp $
  */
 
 /* Definitions for RIPv2 routing process.
@@ -119,7 +119,8 @@
  */
 /* #define MCAST_PPP_BUG */
 
-#define NEVER (24*60*60)		/* a long time */
+#define DAY (24*60*60)
+#define NEVER DAY			/* a long time */
 #define EPOCH NEVER			/* bias time by this to avoid <0 */
 
 /* Scan the kernel regularly to see if any interfaces have appeared or been
@@ -288,15 +289,13 @@ struct interface {
 #endif
 		time_t	ts;		/* timestamp on network stats */
 	} int_data;
+#	define MAX_AUTH_KEYS 5
 	struct auth {			/* authentication info */
 	    u_char  type;
-#	    define MAX_AUTH_KEYS 3
-	    struct auth_key {
-		u_char	key[RIP_AUTH_PW_LEN];
-		u_char  keyid;
-		time_t  start, end;
-	    } keys[MAX_AUTH_KEYS];
-	} int_auth;
+	    u_char	key[RIP_AUTH_PW_LEN];
+	    u_char  keyid;
+	    time_t  start, end;
+	} int_auth[MAX_AUTH_KEYS];
 	int	int_rdisc_pref;		/* advertised rdisc preference */
 	int	int_rdisc_int;		/* MaxAdvertiseInterval */
 	int	int_rdisc_cnt;
@@ -313,10 +312,10 @@ struct interface {
 #define IS_ALL_HOSTS	    0x0000040	/* in INADDR_ALLHOSTS_GROUP */
 #define IS_ALL_ROUTERS	    0x0000080	/* in INADDR_ALLROUTERS_GROUP */
 #define IS_DISTRUST	    0x0000100	/* ignore untrusted routers */
-#define IS_BROKE	    0x0000200	/* seems to be broken */
-#define IS_SICK		    0x0000400	/* seems to be broken */
-#define IS_DUP		    0x0000800	/* has a duplicate address */
-/*			    0x0001000      spare */
+#define IS_REDIRECT_OK	    0x0000200	/* accept ICMP redirects */
+#define IS_BROKE	    0x0000400	/* seems to be broken */
+#define IS_SICK		    0x0000800	/* seems to be broken */
+#define IS_DUP		    0x0001000	/* has a duplicate address */
 #define IS_NEED_NET_SYN	    0x0002000	/* need RS_NET_SYN route */
 #define IS_NO_AG	    0x0004000	/* do not aggregate subnets */
 #define IS_NO_SUPER_AG	    0x0008000	/* do not aggregate networks */
@@ -395,7 +394,7 @@ extern struct parm {
 	u_int	parm_int_state;
 	int	parm_rdisc_pref;
 	int	parm_rdisc_int;
-	struct auth parm_auth;
+	struct auth parm_auth[MAX_AUTH_KEYS];
 } *parms;
 
 /* authority for internal networks */
@@ -471,13 +470,14 @@ extern int	need_flash;		/* flash update needed */
 extern struct timeval need_kern;	/* need to update kernel table */
 extern int	update_seqno;		/* a route has changed */
 
-extern u_int	tracelevel, new_tracelevel;
+extern int	tracelevel, new_tracelevel;
 #define MAX_TRACELEVEL 4
 #define TRACEKERNEL (tracelevel >= 4)	/* log kernel changes */
 #define	TRACECONTENTS (tracelevel >= 3)	/* display packet contents */
 #define TRACEPACKETS (tracelevel >= 2)	/* note packets */
 #define	TRACEACTIONS (tracelevel != 0)
 extern FILE	*ftrace;		/* output trace file */
+extern char inittracename[MAXPATHLEN+1];
 
 extern struct radix_node_head *rhead;
 
@@ -495,7 +495,7 @@ extern void rip_on(struct interface *);
 extern void bufinit(void);
 extern int  output(enum output_type, struct sockaddr_in *,
 		   struct interface *, struct rip *, int);
-extern void clr_ws_buf(struct ws_buf *, struct auth_key *, struct interface *);
+extern void clr_ws_buf(struct ws_buf *, struct auth *);
 extern void rip_query(void);
 extern void rip_bcast(int);
 extern void supply(struct sockaddr_in *, struct interface *,
@@ -503,8 +503,12 @@ extern void supply(struct sockaddr_in *, struct interface *,
 
 extern void	msglog(char *, ...);
 struct msg_limit {
+    time_t	reuse;
+    struct msg_sub {
 	naddr	addr;
 	time_t	until;
+#   define MSG_SUBJECT_N 8
+    } subs[MSG_SUBJECT_N];
 };
 extern void	msglim(struct msg_limit *, naddr, char *, ...);
 #define	LOGERR(msg) msglog(msg ": %s", strerror(errno))
@@ -524,15 +528,16 @@ extern void	intvl_random(struct timeval *, u_long, u_long);
 extern int	getnet(char *, naddr *, naddr *);
 extern int	gethost(char *, naddr *);
 extern void	gwkludge(void);
-extern char	*parse_parms(char *);
+extern char	*parse_parms(char *, int);
 extern char	*check_parms(struct parm *);
 extern void	get_parms(struct interface *);
 
 extern void	lastlog(void);
-extern void	trace_on(char *, int);
+extern void	set_tracefile(char *, char *, int);
+extern void	tracelevel_msg(char *, int);
 extern void	trace_off(char*, ...);
+extern void	set_tracelevel(void);
 extern void	trace_flush(void);
-extern void	set_tracelevel(int);
 extern void	trace_kernel(char *, ...);
 extern void	trace_act(char *, ...);
 extern void	trace_pkt(char *, ...);
@@ -615,7 +620,7 @@ extern struct interface *ifwithname(char *, naddr);
 extern struct interface *ifwithindex(u_short);
 extern struct interface *iflookup(naddr);
 
-extern struct auth_key *find_auth(struct interface *);
-extern void end_md5_auth(struct ws_buf *, struct auth_key *);
+extern struct auth *find_auth(struct interface *);
+extern void end_md5_auth(struct ws_buf *, struct auth *);
 
 #include <md5.h>

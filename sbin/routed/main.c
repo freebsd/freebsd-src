@@ -39,7 +39,6 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.18 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -201,10 +200,13 @@ main(int argc,
 			/* handle arbirary, (usually) per-interface
 			 * parameters.
 			 */
-			p = parse_parms(optarg);
-			if (p != 0)
-				msglog("bad \"%s\" in \"%s\"",
-				       p, optarg);
+			p = parse_parms(optarg, 0);
+			if (p != 0) {
+				if (strcasecmp(p,optarg))
+					msglog("%s in \"%s\"", p, optarg);
+				else
+					msglog("bad \"-P %s\"", optarg);
+			}
 			break;
 
 		default:
@@ -218,9 +220,11 @@ main(int argc,
 		tracename = *argv++;
 		argc--;
 	}
+	if (tracename != 0 && tracename[0] == '\0')
+		goto usage;
 	if (argc != 0) {
 usage:
-		logbad(0, "usage: routed [-sqdghmpAt] [-T /tracefile]"
+		logbad(0, "usage: routed [-sqdghmpAt] [-T tracefile]"
 		       " [-F net[,metric]] [-P parms]");
 	}
 	if (geteuid() != 0)
@@ -263,18 +267,16 @@ usage:
 	signal(SIGUSR2, sigtrace_off);
 
 	/* get into the background */
-	if (background) {
 #ifdef sgi
-		if (0 > _daemonize(_DF_NOCHDIR,
-				   new_tracelevel == 0 ? -1 : STDOUT_FILENO,
-				   new_tracelevel == 0 ? -1 : STDERR_FILENO,
-				   -1))
-			BADERR(0, "_daemonize()");
+	if (0 > _daemonize(background ? 0 : (_DF_NOCHDIR|_DF_NOFORK),
+			   new_tracelevel == 0 ? -1 : STDOUT_FILENO,
+			   new_tracelevel == 0 ? -1 : STDERR_FILENO,
+			   -1))
+		BADERR(0, "_daemonize()");
 #else
-		if (daemon(1, 1) < 0)
-			BADERR(0,"daemon()");
+	if (background && daemon(0, new_tracelevel) < 0)
+		BADERR(0,"daemon()");
 #endif
-	}
 
 	mypid = getpid();
 	srandom((int)(clk.tv_sec ^ clk.tv_usec ^ mypid));
@@ -297,11 +299,11 @@ usage:
 	if (background && new_tracelevel == 0)
 		ftrace = 0;
 	if (tracename != 0) {
-		trace_on(tracename, 1);
-		if (new_tracelevel == 0)	/* use stdout if file is bad */
-			new_tracelevel = 1;
+		strncpy(inittracename, tracename, sizeof(inittracename)-1);
+		set_tracefile(inittracename, "%s\n", -1);
+	} else {
+		tracelevel_msg("%s\n", -1); /* turn on tracing to stdio */
 	}
-	set_tracelevel(1);
 
 	bufinit();
 
@@ -354,8 +356,8 @@ usage:
 		now_expire = now.tv_sec - EXPIRE_TIME;
 		now_garbage = now.tv_sec - GARBAGE_TIME;
 
-		/* deal with interrupts that should affect tracing */
-		set_tracelevel(0);
+		/* deal with signals that should affect tracing */
+		set_tracelevel();
 
 		if (stopint != 0) {
 			rip_bcast(0);
@@ -491,7 +493,7 @@ usage:
 
 /* ARGSUSED */
 void
-sigalrm(int sig)
+sigalrm(int s)
 {
 	/* Historically, SIGALRM would cause the daemon to check for
 	 * new and broken interfaces.
@@ -816,20 +818,53 @@ msglog(char *p, ...)
 }
 
 
-/* Put a message about a bad router into the system log if
+/* Put a message about a bad system into the system log if
  * we have not complained about it recently.
+ *
+ * It is desirable to complain about all bad systems, but not too often.
+ * In the worst case, it is not practical to keep track of all bad systems.
+ * For example, there can be many systems with the wrong password.
  */
 void
 msglim(struct msg_limit *lim, naddr addr, char *p, ...)
 {
 	va_list args;
+	int i;
+	struct msg_sub *ms1, *ms;
 	char *p1;
 
 	va_start(args, p);
 
-	if ( lim->addr != addr || lim->until <= now.tv_sec) {
-		lim->addr = addr;
-		lim->until = now.tv_sec + 60*60;
+	/* look for the oldest slot in the table
+	 * or the slot for the bad router.
+	 */
+	ms = ms1 = lim->subs;
+	for (i = MSG_SUBJECT_N; ; i--, ms1++) {
+		if (i == 0) {
+			/* Reuse a slot at most once every 10 minutes.
+			 */
+			if (lim->reuse > now.tv_sec) {
+				ms = 0;
+			} else {
+				ms = ms1;
+				lim->reuse = now.tv_sec + 10*60;
+			}
+			break;
+		}
+		if (ms->addr == addr) {
+			/* Repeat a complaint about a given system at
+			 * most once an hour.
+			 */
+			if (ms->until > now.tv_sec)
+				ms = 0;
+			break;
+		}
+		if (ms->until < ms1->until)
+			ms = ms1;
+	}
+	if (ms != 0) {
+		ms->addr = addr;
+		ms->until = now.tv_sec + 60*60;	/* 60 minutes */
 
 		trace_flush();
 		for (p1 = p; *p1 == ' '; p1++)
@@ -837,6 +872,7 @@ msglim(struct msg_limit *lim, naddr addr, char *p, ...)
 		vsyslog(LOG_ERR, p1, args);
 	}
 
+	/* always display the message if tracing */
 	if (ftrace != 0) {
 		(void)vfprintf(ftrace, p, args);
 		(void)fputc('\n', ftrace);
