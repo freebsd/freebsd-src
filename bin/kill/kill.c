@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kill.c,v 1.7 1997/06/03 06:24:50 charnier Exp $
+ *	$Id: kill.c,v 1.8 1997/06/06 06:36:20 charnier Exp $
  */
 
 #ifndef lint
@@ -78,7 +78,7 @@ main(argc, argv)
 			if (!isdigit(**argv))
 				usage();
 			numsig = strtol(*argv, &ep, 10);
-			if (!*argv || *ep)
+			if (!**argv || *ep)
 				errx(1, "illegal signal number: %s", *argv);
 			if (numsig >= 128)
 				numsig -= 128;
@@ -110,7 +110,7 @@ main(argc, argv)
 				nosig(*argv);
 		} else if (isdigit(**argv)) {
 			numsig = strtol(*argv, &ep, 10);
-			if (!*argv || *ep)
+			if (!**argv || *ep)
 				errx(1, "illegal signal number: %s", *argv);
 			if (numsig < 0 || numsig >= NSIG)
 				nosig(*argv);
@@ -124,7 +124,7 @@ main(argc, argv)
 
 	for (errors = 0; argc; argc--, argv++) {
 		pid = strtol(*argv, &ep, 10);
-		if (!*argv || *ep) {
+		if (!**argv || *ep) {
 			warnx("illegal process id: %s", *argv);
 			errors = 1;
 		} else if (kill(pid, numsig) == -1) {
