@@ -1,5 +1,5 @@
 /* grep.c - main driver file for grep.
-   Copyright (C) 1992, 1997, 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1992, 1997-1999, 2000 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -121,7 +121,6 @@ static struct option long_options[] =
 };
 
 /* Define flags declared in grep.h. */
-char const *matcher;
 int match_icase;
 int match_words;
 int match_lines;
@@ -1492,7 +1491,7 @@ main (int argc, char **argv)
       printf (_("%s (GNU grep) %s\n"), matcher, VERSION);
       printf ("\n");
       printf (_("\
-Copyright (C) 1988, 1992-1998, 1999 Free Software Foundation, Inc.\n"));
+Copyright 1988, 1992-1999, 2000 Free Software Foundation, Inc.\n"));
       printf (_("\
 This is free software; see the source for copying conditions. There is NO\n\
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"));
