@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <alpha/tlsb/dwlpxreg.h>
 #include <alpha/tlsb/dwlpxvar.h>
 #include <alpha/pci/pcibus.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 
 #include "alphapci_if.h"
 #include "pcib_if.h"

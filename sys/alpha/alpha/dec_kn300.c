@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/rpb.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <alpha/mcbus/mcbusreg.h>
 #include <alpha/mcbus/mcbusvar.h>
