@@ -181,6 +181,11 @@ Disable write clustering.
 Do not allow execution of any binaries on the mounted file system.
 This option is useful for a server that has file systems containing
 binaries for architectures other than its own.
+Note: This option was not designed as a security feature and no
+guarantee is made that it will prevent malicious code execution; for
+example, it is still possible to execute scripts which reside on a
+.Cm noexec
+mounted partition.
 .It Cm nosuid
 Do not allow set-user-identifier or set-group-identifier bits to take effect.
 Note: this option is worthless if a public available suid or sgid
