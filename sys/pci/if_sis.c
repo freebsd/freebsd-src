@@ -1054,7 +1054,6 @@ sis_attach(dev)
 	waittime = 0;
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
-	bzero(sc, sizeof(struct sis_softc));
 
 	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -1102,13 +1101,13 @@ sis_attach(dev)
 #ifdef SIS_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("sis%d: failed to enable I/O ports!\n", unit);
-		error = ENXIO;;
+		error = ENXIO;
 		goto fail;
 	}
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("sis%d: failed to enable memory mapping!\n", unit);
-		error = ENXIO;;
+		error = ENXIO;
 		goto fail;
 	}
 #endif
@@ -1133,18 +1132,7 @@ sis_attach(dev)
 
 	if (sc->sis_irq == NULL) {
 		printf("sis%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
 		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->sis_irq, INTR_TYPE_NET,
-	    sis_intr, sc, &sc->sis_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
-		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
-		printf("sis%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -1276,9 +1264,13 @@ sis_attach(dev)
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */ 
 			BUS_DMA_ALLOCNOW,	/* flags */
 			&sc->sis_parent_tag);
+	if (error)
+		goto fail;
 
 	/*
-	 * Now allocate a tag for the DMA descriptor lists.
+	 * Now allocate a tag for the DMA descriptor lists and a chunk
+	 * of DMA-able memory based on the tag.  Also obtain the physical
+	 * addresses of the RX and TX ring, which we'll need later.
 	 * All of our lists are allocated as a contiguous block
 	 * of memory.
 	 */
@@ -1291,6 +1283,33 @@ sis_attach(dev)
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			0,			/* flags */
 			&sc->sis_ldata.sis_rx_tag);
+	if (error)
+		goto fail;
+
+	error = bus_dmamem_alloc(sc->sis_ldata.sis_rx_tag,
+	    (void **)&sc->sis_ldata.sis_rx_list, BUS_DMA_NOWAIT,
+	    &sc->sis_ldata.sis_rx_dmamap);
+
+	if (error) {
+		printf("sis%d: no memory for rx list buffers!\n", unit);
+		bus_dma_tag_destroy(sc->sis_ldata.sis_rx_tag);
+		sc->sis_ldata.sis_rx_tag = NULL;
+		goto fail;
+	}
+
+	error = bus_dmamap_load(sc->sis_ldata.sis_rx_tag,
+	    sc->sis_ldata.sis_rx_dmamap, &(sc->sis_ldata.sis_rx_list[0]),
+	    sizeof(struct sis_desc), sis_dma_map_ring,
+	    &sc->sis_cdata.sis_rx_paddr, 0);
+
+	if (error) {
+		printf("sis%d: cannot get address of the rx ring!\n", unit);
+		bus_dmamem_free(sc->sis_ldata.sis_rx_tag,
+		    sc->sis_ldata.sis_rx_list, sc->sis_ldata.sis_rx_dmamap);
+		bus_dma_tag_destroy(sc->sis_ldata.sis_rx_tag);
+		sc->sis_ldata.sis_rx_tag = NULL;
+		goto fail;
+	}
 
 	error = bus_dma_tag_create(sc->sis_parent_tag,	/* parent */
 			1, 0,			/* alignment, boundary */
@@ -1301,6 +1320,33 @@ sis_attach(dev)
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			0,			/* flags */
 			&sc->sis_ldata.sis_tx_tag);
+	if (error)
+		goto fail;
+
+	error = bus_dmamem_alloc(sc->sis_ldata.sis_tx_tag,
+	    (void **)&sc->sis_ldata.sis_tx_list, BUS_DMA_NOWAIT,
+	    &sc->sis_ldata.sis_tx_dmamap);
+
+	if (error) {
+		printf("sis%d: no memory for tx list buffers!\n", unit);
+		bus_dma_tag_destroy(sc->sis_ldata.sis_tx_tag);
+		sc->sis_ldata.sis_tx_tag = NULL;
+		goto fail;
+	}
+
+	error = bus_dmamap_load(sc->sis_ldata.sis_tx_tag,
+	    sc->sis_ldata.sis_tx_dmamap, &(sc->sis_ldata.sis_tx_list[0]),
+	    sizeof(struct sis_desc), sis_dma_map_ring,
+	    &sc->sis_cdata.sis_tx_paddr, 0);
+
+	if (error) {
+		printf("sis%d: cannot get address of the tx ring!\n", unit);
+		bus_dmamem_free(sc->sis_ldata.sis_tx_tag,
+		    sc->sis_ldata.sis_tx_list, sc->sis_ldata.sis_tx_dmamap);
+		bus_dma_tag_destroy(sc->sis_ldata.sis_tx_tag);
+		sc->sis_ldata.sis_tx_tag = NULL;
+		goto fail;
+	}
 
 	error = bus_dma_tag_create(sc->sis_parent_tag,	/* parent */
 			1, 0,			/* alignment, boundary */
@@ -1311,43 +1357,8 @@ sis_attach(dev)
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			0,			/* flags */
 			&sc->sis_tag);
-
-	/*
-	 * Now allocate a chunk of DMA-able memory based on the
-	 * tag we just created.
-	 */
-	error = bus_dmamem_alloc(sc->sis_ldata.sis_tx_tag,
-	    (void **)&sc->sis_ldata.sis_tx_list, BUS_DMA_NOWAIT,
-	    &sc->sis_ldata.sis_tx_dmamap);
-
-	if (error) {
-		printf("sis%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
-		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
-		bus_dma_tag_destroy(sc->sis_ldata.sis_rx_tag);
-		bus_dma_tag_destroy(sc->sis_ldata.sis_tx_tag);
-		error = ENXIO;
+	if (error)
 		goto fail;
-	}
-
-	error = bus_dmamem_alloc(sc->sis_ldata.sis_rx_tag,
-	    (void **)&sc->sis_ldata.sis_rx_list, BUS_DMA_NOWAIT,
-	    &sc->sis_ldata.sis_rx_dmamap);
-
-	if (error) {
-		printf("sis%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
-		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
-		bus_dmamem_free(sc->sis_ldata.sis_rx_tag,
-		    sc->sis_ldata.sis_tx_list, sc->sis_ldata.sis_tx_dmamap);
-		bus_dma_tag_destroy(sc->sis_ldata.sis_rx_tag);
-		bus_dma_tag_destroy(sc->sis_ldata.sis_tx_tag);
-		error = ENXIO;
-		goto fail;
-	}
-
 
 	bzero(sc->sis_ldata.sis_tx_list, SIS_TX_LIST_SZ);
 	bzero(sc->sis_ldata.sis_rx_list, SIS_RX_LIST_SZ);
@@ -1356,14 +1367,6 @@ sis_attach(dev)
 	 * Obtain the physical addresses of the RX and TX
 	 * rings which we'll need later in the init routine.
 	 */
-	bus_dmamap_load(sc->sis_ldata.sis_tx_tag,
-	    sc->sis_ldata.sis_tx_dmamap, &(sc->sis_ldata.sis_tx_list[0]),
-	    sizeof(struct sis_desc), sis_dma_map_ring,
-	    &sc->sis_cdata.sis_tx_paddr, 0);
-	bus_dmamap_load(sc->sis_ldata.sis_rx_tag,
-	    sc->sis_ldata.sis_rx_dmamap, &(sc->sis_ldata.sis_rx_list[0]),
-	    sizeof(struct sis_desc), sis_dma_map_ring,
-	    &sc->sis_cdata.sis_rx_paddr, 0);
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
@@ -1385,18 +1388,11 @@ sis_attach(dev)
 	if (mii_phy_probe(dev, &sc->sis_miibus,
 	    sis_ifmedia_upd, sis_ifmedia_sts)) {
 		printf("sis%d: MII without any PHY!\n", sc->sis_unit);
-		bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
-		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
-		bus_dmamem_free(sc->sis_ldata.sis_rx_tag,
-		    sc->sis_ldata.sis_rx_list, sc->sis_ldata.sis_rx_dmamap);
-		bus_dmamem_free(sc->sis_ldata.sis_rx_tag,
-		    sc->sis_ldata.sis_tx_list, sc->sis_ldata.sis_tx_dmamap);
-		bus_dma_tag_destroy(sc->sis_ldata.sis_rx_tag);
-		bus_dma_tag_destroy(sc->sis_ldata.sis_tx_tag);
 		error = ENXIO;
 		goto fail;
 	}
+
+	callout_handle_init(&sc->sis_stat_ch);
 
 	/*
 	 * Call MI attach routine.
@@ -1409,11 +1405,18 @@ sis_attach(dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
-	callout_handle_init(&sc->sis_stat_ch);
-	return(0);
+	error = bus_setup_intr(dev, sc->sis_irq, INTR_TYPE_NET,
+	    sis_intr, sc, &sc->sis_intrhand);
+
+	if (error) {
+		printf("sis%d: couldn't set up irq\n", unit);
+		goto fail;
+	}
 
 fail:
-	mtx_destroy(&sc->sis_mtx);
+	if (error)
+		sis_detach(dev);
+
 	return(error);
 }
 
@@ -1424,33 +1427,46 @@ sis_detach(dev)
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
 
-
 	sc = device_get_softc(dev);
+	KASSERT(mtx_initialized(&sc->sis_mtx), "sis mutex not initialized");
 	SIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	sis_reset(sc);
-	sis_stop(sc);
-	ether_ifdetach(ifp);
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev)) {
+			sis_reset(sc);
+			sis_stop(sc);
+		}
+		ether_ifdetach(ifp);
+		device_delete_child(dev, sc->sis_miibus);
+		bus_generic_detach(dev);
+	}
 
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->sis_miibus);
+	if (sc->sis_intrhand)
+		bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);
+	if (sc->sis_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
+	if (sc->sis_res)
+		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
 
-	bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
-	bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
-
-	bus_dmamap_unload(sc->sis_ldata.sis_rx_tag,
-	    sc->sis_ldata.sis_rx_dmamap);
-	bus_dmamap_unload(sc->sis_ldata.sis_tx_tag,
-	    sc->sis_ldata.sis_tx_dmamap);
-	bus_dmamem_free(sc->sis_ldata.sis_rx_tag,
-	    sc->sis_ldata.sis_rx_list, sc->sis_ldata.sis_rx_dmamap);
-	bus_dmamem_free(sc->sis_ldata.sis_rx_tag,
-	    sc->sis_ldata.sis_tx_list, sc->sis_ldata.sis_tx_dmamap);
-	bus_dma_tag_destroy(sc->sis_ldata.sis_rx_tag);
-	bus_dma_tag_destroy(sc->sis_ldata.sis_tx_tag);
-	bus_dma_tag_destroy(sc->sis_parent_tag);
+	if (sc->sis_ldata.sis_rx_tag) {
+		bus_dmamap_unload(sc->sis_ldata.sis_rx_tag,
+		    sc->sis_ldata.sis_rx_dmamap);
+		bus_dmamem_free(sc->sis_ldata.sis_rx_tag,
+		    sc->sis_ldata.sis_rx_list, sc->sis_ldata.sis_rx_dmamap);
+		bus_dma_tag_destroy(sc->sis_ldata.sis_rx_tag);
+	}
+	if (sc->sis_ldata.sis_tx_tag) {
+		bus_dmamap_unload(sc->sis_ldata.sis_tx_tag,
+		    sc->sis_ldata.sis_tx_dmamap);
+		bus_dmamem_free(sc->sis_ldata.sis_tx_tag,
+		    sc->sis_ldata.sis_tx_list, sc->sis_ldata.sis_tx_dmamap);
+		bus_dma_tag_destroy(sc->sis_ldata.sis_tx_tag);
+	}
+	if (sc->sis_parent_tag)
+		bus_dma_tag_destroy(sc->sis_parent_tag);
+	if (sc->sis_tag)
+		bus_dma_tag_destroy(sc->sis_tag);
 
 	SIS_UNLOCK(sc);
 	mtx_destroy(&sc->sis_mtx);

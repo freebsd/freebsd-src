@@ -918,7 +918,6 @@ ste_attach(dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
-	bzero(sc, sizeof(struct ste_softc));
 	sc->ste_dev = dev;
 
 	/*
@@ -933,7 +932,6 @@ ste_attach(dev)
 
 	mtx_init(&sc->ste_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	STE_LOCK(sc);
 
 	/*
 	 * Handle power management nonsense.
@@ -993,24 +991,14 @@ ste_attach(dev)
 	sc->ste_btag = rman_get_bustag(sc->ste_res);
 	sc->ste_bhandle = rman_get_bushandle(sc->ste_res);
 
+	/* Allocate interrupt */
 	rid = 0;
 	sc->ste_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->ste_irq == NULL) {
 		printf("ste%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
 		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->ste_irq, INTR_TYPE_NET,
-	    ste_intr, sc, &sc->ste_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
-		printf("ste%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -1025,9 +1013,6 @@ ste_attach(dev)
 	if (ste_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
 	    STE_EEADDR_NODE0, 3, 0)) {
 		printf("ste%d: failed to read station address\n", unit);
-		bus_teardown_intr(dev, sc->ste_irq, sc->ste_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
 		error = ENXIO;;
 		goto fail;
 	}
@@ -1046,9 +1031,6 @@ ste_attach(dev)
 
 	if (sc->ste_ldata == NULL) {
 		printf("ste%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->ste_irq, sc->ste_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1057,13 +1039,8 @@ ste_attach(dev)
 
 	/* Do MII setup. */
 	if (mii_phy_probe(dev, &sc->ste_miibus,
-		ste_ifmedia_upd, ste_ifmedia_sts)) {
+	    ste_ifmedia_upd, ste_ifmedia_sts)) {
 		printf("ste%d: MII without any phy!\n", sc->ste_unit);
-		bus_teardown_intr(dev, sc->ste_irq, sc->ste_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
-		contigfree(sc->ste_ldata,
-		    sizeof(struct ste_list_data), M_DEVBUF);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1095,12 +1072,18 @@ ste_attach(dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
-	STE_UNLOCK(sc);
-	return(0);
+	error = bus_setup_intr(dev, sc->ste_irq, INTR_TYPE_NET,
+	    ste_intr, sc, &sc->ste_intrhand);
+
+	if (error) {
+		printf("ste%d: couldn't set up irq\n", unit);
+		goto fail;
+	}
 
 fail:
-	STE_UNLOCK(sc);
-	mtx_destroy(&sc->ste_mtx);
+	if (error)
+		ste_detach(dev);
+
 	return(error);
 }
 
@@ -1112,20 +1095,29 @@ ste_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
+	KASSERT(mtx_initialized(&sc->ste_mtx), "ste mutex not initialized");
 	STE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	ste_stop(sc);
-	ether_ifdetach(ifp);
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev))
+			ste_stop(sc);
+		ether_ifdetach(ifp);
+		device_delete_child(dev, sc->ste_miibus);
+		bus_generic_detach(dev);
+	}
 
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->ste_miibus);
+	if (sc->ste_intrhand)
+		bus_teardown_intr(dev, sc->ste_irq, sc->ste_intrhand);
+	if (sc->ste_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
+	if (sc->ste_res)
+		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
 
-	bus_teardown_intr(dev, sc->ste_irq, sc->ste_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
-	bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
-
-	contigfree(sc->ste_ldata, sizeof(struct ste_list_data), M_DEVBUF);
+	if (sc->ste_ldata) {
+		contigfree(sc->ste_ldata, sizeof(struct ste_list_data),
+		    M_DEVBUF);
+	}
 
 	STE_UNLOCK(sc);
 	mtx_destroy(&sc->ste_mtx);

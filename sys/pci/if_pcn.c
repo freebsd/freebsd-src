@@ -521,7 +521,6 @@ pcn_attach(dev)
 	/* Initialize our mutex. */
 	mtx_init(&sc->pcn_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	PCN_LOCK(sc);
 
 	/*
 	 * Handle power management nonsense.
@@ -557,13 +556,13 @@ pcn_attach(dev)
 #ifdef PCN_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("pcn%d: failed to enable I/O ports!\n", unit);
-		error = ENXIO;;
+		error = ENXIO;
 		goto fail;
 	}
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("pcn%d: failed to enable memory mapping!\n", unit);
-		error = ENXIO;;
+		error = ENXIO;
 		goto fail;
 	}
 #endif
@@ -589,14 +588,6 @@ pcn_attach(dev)
 	if (sc->pcn_irq == NULL) {
 		printf("pcn%d: couldn't map interrupt\n", unit);
 		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->pcn_irq, INTR_TYPE_NET,
-	    pcn_intr, sc, &sc->pcn_intrhand);
-
-	if (error) {
-		printf("pcn%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -657,21 +648,18 @@ pcn_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, (u_int8_t *) eaddr);
-	PCN_UNLOCK(sc);
-	return(0);
+
+	error = bus_setup_intr(dev, sc->pcn_irq, INTR_TYPE_NET,
+	    pcn_intr, sc, &sc->pcn_intrhand);
+
+	if (error) {
+		printf("pcn%d: couldn't set up irq\n", unit);
+		goto fail;
+	}
 
 fail:
-	PCN_UNLOCK(sc);
-
-	if (sc->pcn_intrhand)
-		bus_teardown_intr(dev, sc->pcn_irq, sc->pcn_intrhand);
-	if (sc->pcn_irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pcn_irq);
-	if (sc->pcn_res)
-		bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
-
-	if (mtx_initialized(&sc->pcn_mtx) != 0)
-		mtx_destroy(&sc->pcn_mtx);
+	if (error)
+		pcn_detach(dev);
 
 	return(error);
 }
@@ -686,22 +674,30 @@ pcn_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
+	KASSERT(mtx_initialized(&sc->pcn_mtx), "pcn mutex not initialized");
 	PCN_LOCK(sc);
 
-	pcn_reset(sc);
-	pcn_stop(sc);
-	ether_ifdetach(ifp);
-
-	if (sc->pcn_miibus != NULL) {
-		bus_generic_detach(dev);
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev)) {
+			pcn_reset(sc);
+			pcn_stop(sc);
+		}
+		ether_ifdetach(ifp);
 		device_delete_child(dev, sc->pcn_miibus);
+		bus_generic_detach(dev);
 	}
 
-	bus_teardown_intr(dev, sc->pcn_irq, sc->pcn_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pcn_irq);
-	bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
+	if (sc->pcn_intrhand)
+		bus_teardown_intr(dev, sc->pcn_irq, sc->pcn_intrhand);
+	if (sc->pcn_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->pcn_irq);
+	if (sc->pcn_res)
+		bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
 
-	contigfree(sc->pcn_ldata, sizeof(struct pcn_list_data), M_DEVBUF);
+	if (sc->pcn_ldata) {
+		contigfree(sc->pcn_ldata, sizeof(struct pcn_list_data),
+		    M_DEVBUF);
+	}
 	PCN_UNLOCK(sc);
 
 	mtx_destroy(&sc->pcn_mtx);

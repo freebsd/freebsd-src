@@ -744,11 +744,9 @@ vr_attach(dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
-	bzero(sc, sizeof(struct vr_softc *));
 
 	mtx_init(&sc->vr_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	VR_LOCK(sc);
 
 	/*
 	 * Handle power management nonsense.
@@ -785,12 +783,13 @@ vr_attach(dev)
 #ifdef VR_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("vr%d: failed to enable I/O ports!\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("vr%d: failed to enable memory mapping!\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 #endif
@@ -815,18 +814,7 @@ vr_attach(dev)
 
 	if (sc->vr_irq == NULL) {
 		printf("vr%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, VR_RES, VR_RID, sc->vr_res);
 		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->vr_irq, INTR_TYPE_NET,
-	    vr_intr, sc, &sc->vr_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vr_irq);
-		bus_release_resource(dev, VR_RES, VR_RID, sc->vr_res);
-		printf("vr%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -873,9 +861,6 @@ vr_attach(dev)
 
 	if (sc->vr_ldata == NULL) {
 		printf("vr%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->vr_irq, sc->vr_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vr_irq);
-		bus_release_resource(dev, VR_RES, VR_RID, sc->vr_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -902,11 +887,6 @@ vr_attach(dev)
 	if (mii_phy_probe(dev, &sc->vr_miibus,
 	    vr_ifmedia_upd, vr_ifmedia_sts)) {
 		printf("vr%d: MII without any phy!\n", sc->vr_unit);
-		bus_teardown_intr(dev, sc->vr_irq, sc->vr_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vr_irq);
-		bus_release_resource(dev, VR_RES, VR_RID, sc->vr_res);
-		contigfree(sc->vr_ldata,
-		    sizeof(struct vr_list_data), M_DEVBUF);
 		error = ENXIO;
 		goto fail;
 	}
@@ -917,12 +897,18 @@ vr_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
-	VR_UNLOCK(sc);
-	return(0);
+
+	error = bus_setup_intr(dev, sc->vr_irq, INTR_TYPE_NET,
+	    vr_intr, sc, &sc->vr_intrhand);
+
+	if (error) {
+		printf("vr%d: couldn't set up irq\n", unit);
+		goto fail;
+	}
 
 fail:
-	VR_UNLOCK(sc);
-	mtx_destroy(&sc->vr_mtx);
+	if (error)
+		vr_detach(dev);
 
 	return(error);
 }
@@ -935,20 +921,27 @@ vr_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
+	KASSERT(mtx_initialized(&sc->vr_mtx), "vr mutex not initialized");
 	VR_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	vr_stop(sc);
-	ether_ifdetach(ifp);
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev))
+			vr_stop(sc);
+		ether_ifdetach(ifp);
+		device_delete_child(dev, sc->vr_miibus);
+		bus_generic_detach(dev);
+	}
 
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->vr_miibus);
+	if (sc->vr_intrhand)
+		bus_teardown_intr(dev, sc->vr_irq, sc->vr_intrhand);
+	if (sc->vr_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vr_irq);
+	if (sc->vr_res)
+		bus_release_resource(dev, VR_RES, VR_RID, sc->vr_res);
 
-	bus_teardown_intr(dev, sc->vr_irq, sc->vr_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vr_irq);
-	bus_release_resource(dev, VR_RES, VR_RID, sc->vr_res);
-
-	contigfree(sc->vr_ldata, sizeof(struct vr_list_data), M_DEVBUF);
+	if (sc->vr_ldata)
+		contigfree(sc->vr_ldata, sizeof(struct vr_list_data), M_DEVBUF);
 
 	VR_UNLOCK(sc);
 	mtx_destroy(&sc->vr_mtx);
