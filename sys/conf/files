@@ -594,6 +594,7 @@ dev/patm/if_patm_rx.c	optional patm pci
 dev/patm/if_patm_tx.c	optional patm pci
 dev/patm/if_patm_attach.c	optional patm pci
 dev/patm/if_patm_rtables.c	optional patm pci
+dev/pbio/pbio.c		optional pbio isa
 dev/pccard/card_if.m	standard
 dev/pccard/pccard.c	optional pccard
 dev/pccard/pccard_cis.c	optional pccard
