@@ -208,17 +208,26 @@ protopr(proto, name, af)
 			continue;
 
 		if (first) {
-			printf("Active Internet connections");
-			if (aflag)
-				printf(" (including servers)");
+			if (!Lflag) {
+				printf("Active Internet connections");
+				if (aflag)
+					printf(" (including servers)");
+			} else
+				printf(
+	"Current listen queue sizes (qlen/incqlen/maxqlen)");
 			putchar('\n');
 			if (Aflag)
 				printf("%-8.8s ", "Socket");
-			printf(Aflag ?
-				"%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s %s\n" :
-				"%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s %s\n",
-				"Proto", "Recv-Q", "Send-Q",
-				"Local Address", "Foreign Address", "(state)");
+			if (Lflag)
+				printf("%-14.14s %-21.21s\n",
+					"Listen", "Local Address");
+			else
+				printf(Aflag ?
+		"%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s %s\n" :
+		"%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s %s\n",
+					"Proto", "Recv-Q", "Send-Q",
+					"Local Address", "Foreign Address",
+					"(state)");
 			first = 0;
 		}
 		if (Aflag) {
@@ -227,63 +236,81 @@ protopr(proto, name, af)
 			else
 				printf("%8lx ", (u_long)so->so_pcb);
 		}
-		printf("%-3.3s%s%s %6ld %6ld ", name,
-		       (inp->inp_vflag & INP_IPV4) ? "4" : "",
+		if (Lflag)
+			if (so->so_qlimit) {
+				char buf[15];
+
+				snprintf(buf, 15, "%d/%d/%d", so->so_qlen,
+					 so->so_incqlen, so->so_qlimit);
+				printf("%-14.14s ", buf);
+			} else
+				continue;
+		else
+			printf("%-3.3s%s%s %6ld %6ld ", name,
+			       (inp->inp_vflag & INP_IPV4) ? "4" : "",
 #ifdef INET6
-		       (inp->inp_vflag & INP_IPV6) ? "6" :
+			       (inp->inp_vflag & INP_IPV6) ? "6" :
 #endif
-		       "",
-		       so->so_rcv.sb_cc,
-		       so->so_snd.sb_cc);
+			       "",
+			       so->so_rcv.sb_cc,
+			       so->so_snd.sb_cc);
 		if (nflag) {
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint(&inp->inp_laddr, (int)inp->inp_lport,
 					  name, 1);
-				inetprint(&inp->inp_faddr, (int)inp->inp_fport,
-					  name, 1);
+				if (!Lflag)
+					inetprint(&inp->inp_faddr,
+						  (int)inp->inp_fport, name, 1);
 			}
 #ifdef INET6
 			else if (inp->inp_vflag & INP_IPV6) {
 				inet6print(&inp->in6p_laddr,
 					   (int)inp->inp_lport, name, 1);
-				inet6print(&inp->in6p_faddr,
-					   (int)inp->inp_fport, name, 1);
+				if (!Lflag)
+					inet6print(&inp->in6p_faddr,
+						   (int)inp->inp_fport, name, 1);
 			} /* else nothing printed now */
 #endif /* INET6 */
 		} else if (inp->inp_flags & INP_ANONPORT) {
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint(&inp->inp_laddr, (int)inp->inp_lport,
 					  name, 1);
-				inetprint(&inp->inp_faddr, (int)inp->inp_fport,
-					  name, 0);
+				if (!Lflag)
+					inetprint(&inp->inp_faddr,
+						  (int)inp->inp_fport, name, 0);
 			}
 #ifdef INET6
 			else if (inp->inp_vflag & INP_IPV6) {
 				inet6print(&inp->in6p_laddr,
 					   (int)inp->inp_lport, name, 1);
-				inet6print(&inp->in6p_faddr,
-					   (int)inp->inp_fport, name, 0);
+				if (!Lflag)
+					inet6print(&inp->in6p_faddr,
+						   (int)inp->inp_fport, name, 0);
 			} /* else nothing printed now */
 #endif /* INET6 */
 		} else {
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint(&inp->inp_laddr, (int)inp->inp_lport,
 					  name, 0);
-				inetprint(&inp->inp_faddr, (int)inp->inp_fport,
-					  name,
-					  inp->inp_lport != inp->inp_fport);
+				if (!Lflag)
+					inetprint(&inp->inp_faddr,
+						  (int)inp->inp_fport, name,
+						  inp->inp_lport !=
+							inp->inp_fport);
 			}
 #ifdef INET6
 			else if (inp->inp_vflag & INP_IPV6) {
 				inet6print(&inp->in6p_laddr,
 					   (int)inp->inp_lport, name, 0);
-				inet6print(&inp->in6p_faddr,
-					   (int)inp->inp_fport, name,
-					   inp->inp_lport != inp->inp_fport);
+				if (!Lflag)
+					inet6print(&inp->in6p_faddr,
+						   (int)inp->inp_fport, name,
+						   inp->inp_lport !=
+							inp->inp_fport);
 			} /* else nothing printed now */
 #endif /* INET6 */
 		}
-		if (istcp) {
+		if (istcp && !Lflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
 				printf("%d", tp->t_state);
                       else {
