@@ -23,66 +23,82 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2005
+.Dd March 02,2004
 .Dt AMR 4
 .Os
 .Sh NAME
 .Nm amr
-.Nd AMI MegaRAID PCI-SCSI/SATA RAID driver
+.Nd MegaRAID SCSI/ATA/SATA RAID driver
 .Sh SYNOPSIS
 .Cd device pci
 .Cd device amr
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for American Megatrends MegaRAID Express,
-Elite and Enterprise family SCSI RAID controllers,
-including models relabeled and sold by Hewlett-Packard and Dell.
-Also supported are LSI Logic MegaRAID SATA cards.
-.Sh HARDWARE
-The
-.Nm
-driver supports the following:
+driver provides support for LSI Logic MegaRAID SCSI 
+RAID controllers and legacy American Megatrends MegaRAID 
+SCSI RAID controllers, including models relabeled 
+and sold by Dell and Hewlett-Packard.
+
+Supported controllers include:
 .Pp
 .Bl -bullet -compact
 .It
-AMI/LSI MegaRAID 320-1
+MegaRAID SCSI 320-1E
 .It
-AMI/LSI MegaRAID 320-2
+MegaRAID SCSI 320-2E
 .It
-AMI/LSI MegaRAID 320-2E
+MegaRAID SCSI 320-4E
 .It
-AMI/LSI MegaRAID 320-4X
+MegaRAID SCSI 320-0X
 .It
-AMI MegaRAID Series 418
+MegaRAID SCSI 320-2X
 .It
-AMI MegaRAID Enterprise 1200 (Series 428)
+MegaRAID SCSI 320-4X
 .It
-AMI MegaRAID Enterprise 1300 (Series 434)
+MegaRAID SATA 300-4X
 .It
-AMI MegaRAID Enterprise 1400 (Series 438)
+MegaRAID SATA 300-8X
 .It
-AMI MegaRAID Enterprise 1500 (Series 467)
+MegaRAID SATA 150-4
 .It
-AMI MegaRAID Enterprise 1600 (Series 471)
+MegaRAID SATA 150-6
 .It
-AMI MegaRAID Elite 1500 (Series 467)
+MegaRAID i4 133 RAID
 .It
-AMI MegaRAID Elite 1600 (Series 493)
+MegaRAID SCSI 320-0
 .It
-AMI MegaRAID Elite 1650 (Series 4xx)
+MegaRAID SCSI 320-1
 .It
-AMI MegaRAID Express 100 (Series 466WS)
+MegaRAID SCSI 320-2
 .It
-AMI MegaRAID Express 200 (Series 466)
+MegaRAID SCSI 320-4
 .It
-AMI MegaRAID Express 300 (Series 490)
+MegaRAID Series 418
 .It
-AMI MegaRAID Express 500 (Series 475)
+MegaRAID Enterprise 1200 (Series 428)
 .It
-LSI MegaRAID SATA 150-4
+MegaRAID Enterprise 1300 (Series 434)
 .It
-LSI MegaRAID SATA 150-6
+MegaRAID Enterprise 1400 (Series 438)
+.It
+MegaRAID Enterprise 1500 (Series 467)
+.It
+MegaRAID Enterprise 1600 (Series 471)
+.It
+MegaRAID Elite 1500 (Series 467)
+.It
+MegaRAID Elite 1600 (Series 493)
+.It
+MegaRAID Elite 1650 (Series 4xx)
+.It
+MegaRAID Express 100 (Series 466WS)
+.It
+MegaRAID Express 200 (Series 466)
+.It
+MegaRAID Express 300 (Series 490)
+.It
+MegaRAID Express 500 (Series 475)
 .It
 Dell PERC
 .It
