@@ -3,8 +3,6 @@
 # $FreeBSD$
 
 PROG=	slattach
-SRCS=   slattach.c
-MAN8=	slattach.8
 MLINKS=	slattach.8 slip.8
 LDADD=	-lutil
 DPADD=	${LIBUTIL}

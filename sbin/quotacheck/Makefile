@@ -3,7 +3,6 @@
 
 PROG=	quotacheck
 SRCS=	quotacheck.c preen.c utilities.c
-MAN8=	quotacheck.8
 .PATH:	${.CURDIR}/../fsck_ffs
 
 .include <bsd.prog.mk>
