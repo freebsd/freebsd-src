@@ -669,7 +669,8 @@ allocdir(parent, request, mode)
 	ino_t ino;
 	char *cp;
 	struct dinode *dp;
-	register struct bufarea *bp;
+	struct bufarea *bp;
+	struct inoinfo *inp;
 	struct dirtemplate *dirp;
 
 	ino = allocino(request, IFDIR|mode);
@@ -704,6 +705,9 @@ allocdir(parent, request, mode)
 		return (0);
 	}
 	cacheino(dp, ino);
+	inp = getinoinfo(ino);
+	inp->i_parent = parent;
+	inp->i_dotdot = parent;
 	inoinfo(ino)->ino_state = inoinfo(parent)->ino_state;
 	if (inoinfo(ino)->ino_state == DSTATE) {
 		inoinfo(ino)->ino_linkcnt = dp->di_nlink;
