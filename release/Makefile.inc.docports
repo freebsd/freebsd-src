@@ -14,7 +14,7 @@ MINIMALDOCPORTS= \
 	ports/devel/gettext \
 	ports/devel/gmake \
 	ports/devel/libtool \
-	ports/graphics/eps2png \
+	ports/graphics/peps \
 	ports/graphics/jpeg \
 	ports/graphics/netpbm \
 	ports/graphics/png \
