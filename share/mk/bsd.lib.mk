@@ -54,7 +54,15 @@ STRIP?=	-s
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
 # .So used for PIC object files
 .SUFFIXES:
-.SUFFIXES: .out .o .po .So .S .s .c .cc .cpp .cxx .m .C .f .y .l
+.SUFFIXES: .out .o .po .So .S .s .c .cc .cpp .cxx .m .C .f .y .l .ln
+
+.c.ln:
+	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC} || \
+		touch ${.TARGET}
+
+.cc.ln .C.ln .cpp.ln .cxx.ln:
+	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC} || \
+		touch ${.TARGET}
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -157,6 +165,14 @@ _LIBS=lib${LIB}.a
 .endif
 .endif
 
+LINTOBJS+= ${SRCS:M*.c:C/\..+$/.ln/}
+
+.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && (${LINTOBJS} != "")
+LINTLIB=llib-l${LIB}.ln
+.else
+LINTLIB=
+.endif
+
 .if defined(SHLIB_NAME)
 _LIBS+=${SHLIB_NAME}
 .endif
@@ -173,9 +189,9 @@ PICFLAG=-fpic
 .endif
 
 .if !defined(NOMAN)
-all: objwarn ${_LIBS} all-man _SUBDIR # llib-l${LIB}.ln
+all: objwarn ${_LIBS} all-man _SUBDIR ${LINTLIB}
 .else
-all: objwarn ${_LIBS} _SUBDIR # llib-l${LIB}.ln
+all: objwarn ${_LIBS} _SUBDIR ${LINTLIB}
 .endif
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
@@ -223,17 +239,22 @@ lib${LIB}_pic.a:: ${SOBJS}
 	${RANLIB} lib${LIB}_pic.a
 .endif
 
-llib-l${LIB}.ln: ${SRCS}
-	${LINT} -C${LIB} ${CFLAGS:M-[DIU]*} ${.ALLSRC:M*.c}
+.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && (${LINTOBJS} != "")
+${LINTLIB}: ${LINTOBJS}
+	@${ECHO} building lint library ${SHLIB_NAME}
+	@rm -f ${LINTLIB}
+	${LINT} ${LINTLIBFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
+.endif
 
 .if !target(clean)
 clean:	_SUBDIR
 	rm -f a.out ${OBJS} ${STATICOBJS} ${OBJS:S/$/.tmp/} ${CLEANFILES}
-	rm -f lib${LIB}.a # llib-l${LIB}.ln
+	rm -f lib${LIB}.a ${LINTLIB}
 	rm -f ${POBJS} ${POBJS:S/$/.tmp/} lib${LIB}_p.a
 	rm -f ${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/} \
 	    ${SHLIB_NAME} ${SHLIB_LINK} \
 	    lib${LIB}.so.* lib${LIB}.so lib${LIB}_pic.a
+	rm -f ${LINTOBJS} ${LINTLIB}
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
@@ -327,6 +348,10 @@ realinstall: beforeinstall
 		ln -fs $$l $$t; \
 	done; true
 .endif
+.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && (${LINTOBJS} != "")
+	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
+.endif
 
 install: afterinstall _SUBDIR
 .if !defined(NOMAN)
@@ -349,8 +374,10 @@ distribute:	_SUBDIR
 .endif
 
 .if !target(lint)
-lint:
+lint: ${SRCS:M*.c} _SUBDIR
+	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC} | more 2>&1
 .endif
+
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
