@@ -98,11 +98,13 @@ The
 .Ql \&:
 character is not allowed.
 .It shell
-Only valid shells from the shell database
+Unless the
+.Fl S
+argument is supplied only valid shells from the shell database
 .Pq Pa /etc/shells
 are allowed.
-In
-addition, only the base name of the shell is necessary, not the full path.
+In addition,
+either the base name or the full path of the shell may be supplied.
 .It UID
 Automatically generated or your choice.
 It must be less than 32000.
@@ -245,10 +247,10 @@ standard output.
 Default shell for new users.
 The
 .Ar shell
-argument must be the base name of the shell,
-.Em not
-the full path.
-It must exist in
+argument may be the base name of the shell or the full path.
+Unless the
+.Fl S
+argument is supplied the shell must exist in
 .Pa /etc/shells
 or be the special shell
 .Em nologin
@@ -372,7 +374,8 @@ is understood to mean that no home directory is to be
 created for the user.
 .It Ar shell
 Login shell.
-This field should contain the full path to a valid login shell.
+This field should contain either the base name or
+the full path to a valid login shell.
 .It Ar password
 User password.
 This field should contain a plaintext string, which will
