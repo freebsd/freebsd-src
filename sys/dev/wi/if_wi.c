@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wi.c,v 1.53 1999/05/07 03:14:21 wpaul Exp $
+ *	$Id: if_wi.c,v 1.54 1999/05/20 04:10:40 wpaul Exp $
  */
 
 /*
@@ -41,7 +41,7 @@
  */
 
 /*
- * The WaveLAN IEEE adapter is the second generation of the WaveLAN
+ * The WaveLAN/IEEE adapter is the second generation of the WaveLAN
  * from Lucent. Unlike the older cards, the new ones are programmed
  * entirely via a firmware-driven controller called the Hermes.
  * Unfortunately, Lucent will not release the Hermes programming manual
@@ -49,7 +49,7 @@
  * called the HCF (Hardware Control Functions) which is supposed to
  * do the device-specific operations of a device driver for you. The
  * publically available version of the HCF library (the 'HCF Light') is 
- * a) extremely gross, b) lacks certain fearures, particularly support
+ * a) extremely gross, b) lacks certain features, particularly support
  * for 802.11 frames, and c) is contaminated by the GNU Public License.
  *
  * This driver does not use the HCF or HCF Light at all. Instead, it
@@ -116,13 +116,13 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_wi.c,v 1.53 1999/05/07 03:14:21 wpaul Exp $";
+	"$Id: if_wi.c,v 1.54 1999/05/20 04:10:40 wpaul Exp $";
 #endif
 
 static struct wi_softc wi_softc[NWI];
 
 #ifdef foo
-static u_int8_t	wi_mcast_addr[6] = { 0x00, 0x60, 0x1D, 0x00, 0x01, 0x00 };
+static u_int8_t	wi_mcast_addr[6] = { 0x01, 0x60, 0x1D, 0x00, 0x01, 0x00 };
 #endif
 
 static int wi_probe		__P((struct isa_device *));
@@ -262,7 +262,7 @@ static int wi_probe(isa_dev)
 {
 	/*
 	 * The ISA WaveLAN/IEEE card is actually not an ISA card:
-	 * it's a PCMCIA card plugged into a PCMCIA expander card
+	 * it's a PCMCIA card plugged into a PCMCIA bridge adapter
 	 * that fits into an ISA slot. Consequently, we will always
 	 * be using the pccard support to probe and attach these
 	 * devices, so we can never actually probe one from here.
@@ -688,7 +688,7 @@ static int wi_read_record(sc, ltv)
 	/*
 	 * Read the length and record type and make sure they
 	 * match what we expect (this verifies that we have enough
-	 * room to hold all of the returned data.
+	 * room to hold all of the returned data).
 	 */
 	len = CSR_READ_2(sc, WI_DATA1);
 	if (len > ltv->wi_len)
@@ -1099,7 +1099,7 @@ static void wi_init(xsc)
 	/* Program max data length. */
 	WI_SETVAL(WI_RID_MAX_DATALEN, sc->wi_max_data_len);
 
-	/* Enable/disable IBSS ctration. */
+	/* Enable/disable IBSS creation. */
 	WI_SETVAL(WI_RID_CREATE_IBSS, sc->wi_create_ibss);
 
 	/* Set the port type. */
@@ -1199,7 +1199,7 @@ static void wi_start(ifp)
 	eh = mtod(m0, struct ether_header *);
 
 	/*
-	 * Use RFC1042 encoding for IP and ARP datagrames,
+	 * Use RFC1042 encoding for IP and ARP datagrams,
 	 * 802.3 for anything else.
 	 */
 	if (ntohs(eh->ether_type) == ETHERTYPE_IP ||
