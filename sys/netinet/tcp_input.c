@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.76 1998/05/18 17:07:58 guido Exp $
+ *	$Id: tcp_input.c,v 1.77 1998/05/18 17:11:24 guido Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -538,8 +538,7 @@ findpcb:
 				else if (tp->t_timer[TCPT_PERSIST] == 0)
 					tp->t_timer[TCPT_REXMT] = tp->t_rxtcur;
 
-				if (so->so_snd.sb_flags & SB_NOTIFY)
-					sowwakeup(so);
+				sowwakeup(so);
 				if (so->so_snd.sb_cc)
 					(void) tcp_output(tp);
 				return;
@@ -1373,8 +1372,7 @@ process_ACK:
 			tp->snd_wnd -= acked;
 			ourfinisacked = 0;
 		}
-		if (so->so_snd.sb_flags & SB_NOTIFY)
-			sowwakeup(so);
+		sowwakeup(so);
 		tp->snd_una = ti->ti_ack;
 		if (SEQ_LT(tp->snd_nxt, tp->snd_una))
 			tp->snd_nxt = tp->snd_una;
