@@ -517,13 +517,38 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	if (m == NULL) /* fail... */
 	    return 0 ;
 
-	off=(*ip_fw_chk_ptr)(NULL, 0, src, &dummy, &m, &rule) ;
+	/*
+	 * before calling the firewall, swap fields the same as IP does.
+	 * here we assume the pkt is an IP one and the header is contiguous
+	 */
+	eh = mtod(m, struct ether_header *);
+	ip = (struct ip *)(eh + 1 ) ;
+	NTOHS(ip->ip_len);
+	NTOHS(ip->ip_id);
+	NTOHS(ip->ip_off);
+
+	/*
+	 * The third parameter to the firewall code is the dst.  interface.
+	 * Since we apply checks only on input pkts we use NULL.
+	 */
+	off = (*ip_fw_chk_ptr)(NULL, 0, NULL, &dummy, &m, &rule) ;
 	if (m == NULL) { /* pkt discarded by firewall */
-	    printf("-- bdg: firewall discarded pkt\n");
 	    if (canfree)
 		*m0 = NULL ;
 	    return 0 ;
 	}
+	/*
+	 * on return, the mbuf pointer might have changed. Restore
+	 * *m0 (if it was the same as m), eh, ip and then
+	 * restore original ordering.
+	 */
+	eh = mtod(m, struct ether_header *);
+	ip = (struct ip *)(eh + 1 ) ;
+	if (canfree) /* m was a reference to *m0, so update *m0 */
+	    *m0 = m ;
+	HTONS(ip->ip_len);
+	HTONS(ip->ip_id);
+	HTONS(ip->ip_off);
 	if (off == 0) {
 	    if (canfree == 0)
 		m_freem(m);
@@ -542,7 +567,6 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	}
 #endif
 	/* if none of the above matches, we have to drop the pkt */
-	printf("-- bdg: fw: drop\n");
 	if (m)
 	    m_freem(m);
 	if (canfree && m != *m0) {

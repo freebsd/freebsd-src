@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.21 1998/10/14 16:29:58 luigi Exp $
+ *	$Id: ip_fw.c,v 1.51.2.22 1999/01/10 17:36:58 luigi Exp $
  */
 
 /*
@@ -473,7 +473,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 		    printf("-- m_len %d, need more...\n", (*m)->m_len);
 		    goto non_ip ;
 		}
-		offset = (ntohs(ip->ip_off) & IP_OFFMASK);
+		offset = (ip->ip_off & IP_OFFMASK);
 		break ;
 	    default :
 non_ip:		ip = NULL ;
@@ -553,13 +553,13 @@ again:
 		     *   2 src ports (interval) is match ether type
 		     *   3 src ports is match ether address
 		     */
-		    if (f->fw_src.s_addr != 0 || f->fw_prot != IPPROTO_UDP)
+		    if (f->fw_src.s_addr != 0 || f->fw_prot != IPPROTO_UDP
+			|| f->fw_smsk.s_addr != 0xffffffff )
 			continue ;
 		    switch (IP_FW_GETNSRCP(f)) {
 		    case 1: /* match one type */
 			if (  /* ( (f->fw_flg & IP_FW_F_INVSRC) != 0) ^ */
 			      ( f->fw_pts[0] == ntohs(eh->ether_type) )  ) {
-			    printf("match!\n");
 			    goto got_match ;
 			}
 		    default:
@@ -614,16 +614,21 @@ again:
 		if (ip->ip_p != f->fw_prot) 
 			continue;
 
-#define PULLUP_TO(len)	do {						\
+/*
+ * here, pip==NULL for bridged pkts -- they include the ethernet
+ * header so i have to adjust lengths accordingly
+ */
+#define PULLUP_TO(l)	do {						\
+			    int len = (pip ? l : l + 14 ) ;		\
 			    if ((*m)->m_len < (len) ) {			\
 				if ( (*m = m_pullup(*m, (len))) == 0) 	\
 				    goto bogusfrag;			\
 				ip = mtod(*m, struct ip *);		\
-				if (pip) {				\
+				if (pip) 				\
 				    *pip = ip ;				\
-				    offset = (ip->ip_off & IP_OFFMASK);	\
-				} else					\
-				    offset = (ntohs(ip->ip_off) & IP_OFFMASK);\
+				else					\
+				    ip = (struct ip *)((int)ip + 14);   \
+				offset = (ip->ip_off & IP_OFFMASK);	\
 			    }						\
 			} while (0)
 
@@ -722,9 +727,8 @@ got_match:
 #endif /* IPFW_DIVERT_RESTART */
 		/* Update statistics */
 		f->fw_pcnt += 1;
-		if (ip) {
-		    f->fw_bcnt += pip ? ip->ip_len : ntohs(ip->ip_len);
-		}
+		if (ip)
+		    f->fw_bcnt += ip->ip_len ;
 		f->timestamp = time.tv_sec;
 
 		/* Log to console if desired */
