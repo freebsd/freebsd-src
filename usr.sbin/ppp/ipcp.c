@@ -17,10 +17,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.56 1998/06/15 19:06:12 brian Exp $
+ * $Id: ipcp.c,v 1.57 1998/06/16 19:40:38 brian Exp $
  *
  *	TODO:
- *		o More RFC1772 backwoard compatibility
+ *		o More RFC1772 backward compatibility
  */
 #include <sys/param.h>
 #include <netinet/in_systm.h>
@@ -606,10 +606,14 @@ IpcpSendTerminateAck(struct fsm *fp, u_char id)
 }
 
 static void
-IpcpLayerStart(struct fsm * fp)
+IpcpLayerStart(struct fsm *fp)
 {
   /* We're about to start up ! */
+  struct ipcp *ipcp = fsm2ipcp(fp);
+
   log_Printf(LogIPCP, "%s: IpcpLayerStart.\n", fp->link->name);
+  throughput_start(&ipcp->throughput, "IPCP throughput",
+                   Enabled(fp->bundle, OPT_THROUGHPUT));
 
   /* This is where we should be setting up the interface in AUTO mode */
 }
@@ -618,7 +622,11 @@ static void
 IpcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
+  struct ipcp *ipcp = fsm2ipcp(fp);
+
   log_Printf(LogIPCP, "%s: IpcpLayerFinish.\n", fp->link->name);
+  throughput_stop(&ipcp->throughput);
+  throughput_log(&ipcp->throughput, LogIPCP, NULL);
 }
 
 void
@@ -670,8 +678,6 @@ IpcpLayerDown(struct fsm *fp)
   s = inet_ntoa(ipcp->peer_ifip);
   log_Printf(LogIPCP, "%s: IpcpLayerDown: %s\n", fp->link->name, s);
 
-  throughput_stop(&ipcp->throughput);
-  throughput_log(&ipcp->throughput, LogIPCP, NULL);
   /*
    * XXX this stuff should really live in the FSM.  Our config should
    * associate executable sections in files with events.
@@ -687,6 +693,8 @@ IpcpLayerDown(struct fsm *fp)
 
   if (!(ipcp->fsm.bundle->phys_type.all & PHYS_AUTO))
     ipcp_CleanInterface(ipcp);
+
+  ipcp_Setup(ipcp);
 }
 
 int
@@ -736,8 +744,6 @@ IpcpLayerUp(struct fsm *fp)
       system_Select(fp->bundle, "MYADDR", LINKUPFILE, NULL, NULL);
   }
 
-  throughput_start(&ipcp->throughput, "IPCP throughput",
-                   Enabled(fp->bundle, OPT_THROUGHPUT));
   log_DisplayPrompts();
   return 1;
 }
