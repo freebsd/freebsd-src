@@ -51,7 +51,7 @@ int	 len_octal __P((const char *, int));
 int	 prn_octal __P((const char *));
 int	 prn_printable __P((const char *));
 #ifdef COLORLS
-void	 parsecolors __P((char *cs));
+void	 parsecolors __P((const char *cs));
 void     colorquit __P((int));
 
 extern  char    *ansi_fgcol;
