@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.27 1995/05/26 02:02:44 davidg Exp $
+ * $Id: if_de.c,v 1.28 1995/05/30 08:13:02 rgrimes Exp $
  *
  */
 
@@ -916,7 +916,7 @@ tulip_start(
 		addr += slen;
 		clsize = CLBYTES;
 	    }
-	} while ((m0 = m0->m_next) != NULL);
+	} while ((m0 != NULL) && ((m0 = m0->m_next) != NULL));
 
 	/*
 	 * The packet exceeds the number of transmit buffer
