@@ -32,19 +32,23 @@
 .Ar name ...
 .Sh DESCRIPTION
 .Nm Man
-formats and displays the on-line manual pages.  This version knows
+formats and displays the on-line manual pages.
+This version knows
 about the
 .Ev MANPATH
 and
 .Ev PAGER
 environment variables, so you can have
 your own set(s) of personal man pages and choose whatever program you
-like to display the formatted pages.  If section is specified,
+like to display the formatted pages.
+If section is specified,
 .Nm
-only looks in that section of the manual.  You may also specify the
+only looks in that section of the manual.
+You may also specify the
 order to search the sections for entries and which preprocessors to
 run on the source files via command line options or environment
-variables.  If enabled by the system administrator, formatted man
+variables.
+If enabled by the system administrator, formatted man
 pages will also be compressed with the `%compress%' command to save
 space.
 .Pp
@@ -59,7 +63,8 @@ uses
 (which is built into the
 .Nm
 binary)
-to determine the path to search.  This option overrides the
+to determine the path to search.
+This option overrides the
 .Ev MANPATH
 environment variable.
 .It Fl P Ar pager
@@ -80,7 +85,8 @@ environment variable.
 By default,
 .Nm
 will exit after displaying the first manual page it
-finds.  Using this option forces
+finds.
+Using this option forces
 .Nm
 to display all the manual pages
 that match
@@ -208,7 +214,8 @@ is set, its value is used as the path to search for manual pages.
 If
 .Ev MANROFFSEQ
 is set, its value is used to determine the set of preprocessors run
-before running nroff or troff.  By default, pages are passed through
+before running nroff or troff.
+By default, pages are passed through
 the table preprocessor before nroff.
 .It Ev MANSECT
 If
@@ -218,7 +225,8 @@ is set, its value is used to determine which manual sections to search.
 If
 .Ev PAGER
 is set, its value is used as the name of the program to use to display
-the man page.  By default,
+the man page.
+By default,
 .Nm %pager%
 is used.
 .El
