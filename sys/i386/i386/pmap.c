@@ -2526,6 +2526,16 @@ pagezero(void *page)
 		bzero(page, PAGE_SIZE);
 }
 
+static __inline void
+invlcaddr(void *caddr)
+{
+#ifdef I386_CPU
+	invltlb();
+#else
+	invlpg((u_int)caddr);
+#endif
+}
+
 /*
  *	pmap_zero_page zeros the specified hardware page by mapping 
  *	the page into KVM and using bzero to clear its contents.
@@ -2543,11 +2553,7 @@ pmap_zero_page(vm_page_t m)
 	*CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
 	pagezero(CADDR2);
 	*CMAP2 = 0;
-#ifdef I386_CPU
-	invltlb();
-#else
-	invlpg((u_int)CADDR2);
-#endif
+	invlcaddr(CADDR2);
 #ifdef SMP
 	curthread->td_pcb->pcb_switchout = NULL;
 #endif
@@ -2576,11 +2582,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	else
 		bzero((char *)CADDR2 + off, size);
 	*CMAP2 = 0;
-#ifdef I386_CPU
-	invltlb();
-#else
-	invlpg((u_int)CADDR2);
-#endif
+	invlcaddr(CADDR2);
 #ifdef SMP
 	curthread->td_pcb->pcb_switchout = NULL;
 #endif
@@ -2605,11 +2607,7 @@ pmap_zero_page_idle(vm_page_t m)
 	*CMAP3 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
 	pagezero(CADDR3);
 	*CMAP3 = 0;
-#ifdef I386_CPU
-	invltlb();
-#else
-	invlpg((u_int)CADDR3);
-#endif
+	invlcaddr(CADDR3);
 #ifdef SMP
 	curthread->td_pcb->pcb_switchout = NULL;
 #endif
