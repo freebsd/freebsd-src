@@ -59,9 +59,12 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	ucred.9 uidinfo.9 uio.9 \
 	vcount.9 vfs_busy.9 vfs_mount.9 vfs_unbusy.9 vfs_unmountall.9 vget.9 \
 	vinvalbuf.9 \
-	vm_page_alloc.9 vm_page_copy.9 vm_page_flag.9 vm_page_hold.9 \
+	vm_page_alloc.9 vm_page_cache.9 \
+	vm_page_copy.9 vm_page_deactivate.9 \
+	vm_page_flag.9 vm_page_free.9 vm_page_hold.9 \
 	vm_page_insert.9 vm_page_io.9 vm_page_lookup.9 \
-	vm_page_protect.9 vm_page_sleep_busy.9 vm_page_wakeup.9 \
+	vm_page_protect.9 vm_page_rename.9 \
+	vm_page_sleep_busy.9 vm_page_wakeup.9 \
 	vm_page_wire.9 vm_page_zero_fill.9 vm_set_page_size.9 \
 	vn_isdisk.9 vnode.9 vput.9 vref.9 vrele.9 \
 	vslock.9 \
@@ -171,6 +174,9 @@ MLINKS+=uidinfo.9 uihashinit.9 uidinfo.9 uifind.9
 MLINKS+=uidinfo.9 uihold.9 uidinfo.9 uifree.9
 MLINKS+=uio.9 uiomove.9
 MLINKS+=vm_page_flag.9 vm_page_flag_clear.9 vm_page_flag.9 vm_page_flag_set.9
+MLINKS+=vm_page_free.9 vm_page_free_toq.9
+MLINKS+=vm_page_free.9 vm_page_free_zero.9
+MLINKS+=vm_page_free.9 vm_page_try_to_free.9
 MLINKS+=vm_page_hold.9 vm_page_unhold.9
 MLINKS+=vm_page_insert.9 vm_page_remove.9
 MLINKS+=vm_page_io.9 vm_page_io_start.9 vm_page_io.9 vm_page_io_finised.9
