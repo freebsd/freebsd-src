@@ -250,32 +250,32 @@ int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
  * mtx_recursed(m) returns non-zero if the lock `m' is presently recursed.
  */ 
 #define mtx_lock(m) do {						\
-	MPASS(CURPROC != NULL);						\
-	_get_sleep_lock((m), CURTHD, 0);				\
+	MPASS(curproc != NULL);						\
+	_get_sleep_lock((m), curproc, 0);				\
 	CTR5(KTR_LOCK, STR_mtx_lock_slp, (m)->mtx_description, (m),	\
 	    (m)->mtx_recurse, __FILE__,	__LINE__);			\
 	WITNESS_ENTER((m), (m)->mtx_flags, __FILE__, __LINE__);		\
 } while (0)
 
 #define mtx_lock_spin(m) do {						\
-	MPASS(CURPROC != NULL);						\
-	_get_spin_lock((m), CURTHD, 0);					\
+	MPASS(curproc != NULL);						\
+	_get_spin_lock((m), curproc, 0);				\
 	CTR5(KTR_LOCK, STR_mtx_lock_spn, (m)->mtx_description, (m),	\
 	    (m)->mtx_recurse, __FILE__,	__LINE__);			\
 	WITNESS_ENTER((m), (m)->mtx_flags, __FILE__, __LINE__);		\
 } while (0)
 
 #define mtx_unlock(m) do {						\
-	MPASS(CURPROC != NULL);						\
+	MPASS(curproc != NULL);						\
 	WITNESS_EXIT((m), (m)->mtx_flags, __FILE__, __LINE__);		\
 	mtx_assert((m), MA_OWNED);					\
-	_rel_sleep_lock((m), CURTHD, 0);				\
+	_rel_sleep_lock((m), curproc, 0);				\
 	CTR5(KTR_LOCK, STR_mtx_unlock_slp, (m)->mtx_description, (m),	\
 	    (m)->mtx_recurse, __FILE__,	__LINE__);			\
 } while (0)
 
 #define mtx_unlock_spin(m) do {						\
-	MPASS(CURPROC != NULL);						\
+	MPASS(curproc != NULL);						\
 	WITNESS_EXIT((m), (m)->mtx_flags, __FILE__, __LINE__);		\
 	mtx_assert((m), MA_OWNED);					\
 	_rel_spin_lock((m));						\
@@ -284,8 +284,8 @@ int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
 } while (0)
 
 #define mtx_lock_flags(m, opts) do {					\
-	MPASS(CURPROC != NULL);						\
-	_get_sleep_lock((m), CURTHD, (opts));				\
+	MPASS(curproc != NULL);						\
+	_get_sleep_lock((m), curproc, (opts));				\
 	if (((opts) & MTX_QUIET) == 0)					\
 		CTR5(KTR_LOCK, STR_mtx_lock_slp,			\
 		    (m)->mtx_description, (m), (m)->mtx_recurse, 	\
@@ -295,8 +295,8 @@ int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
 } while (0)
 
 #define mtx_lock_spin_flags(m, opts) do {				\
-	MPASS(CURPROC != NULL);						\
-	_get_spin_lock((m), CURTHD, (opts));				\
+	MPASS(curproc != NULL);						\
+	_get_spin_lock((m), curproc, (opts));				\
 	if (((opts) & MTX_QUIET) == 0)					\
 		CTR5(KTR_LOCK, STR_mtx_lock_spn,			\
 		    (m)->mtx_description, (m), (m)->mtx_recurse, 	\
@@ -306,11 +306,11 @@ int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
 } while (0)
 
 #define mtx_unlock_flags(m, opts) do {					\
-	MPASS(CURPROC != NULL);						\
+	MPASS(curproc != NULL);						\
 	WITNESS_EXIT((m), ((m)->mtx_flags | (opts)), __FILE__,		\
 	    __LINE__);							\
 	mtx_assert((m), MA_OWNED);					\
-	_rel_sleep_lock((m), CURTHD, (opts));				\
+	_rel_sleep_lock((m), curproc, (opts));				\
 	if (((opts) & MTX_QUIET) == 0)					\
 		CTR5(KTR_LOCK, STR_mtx_unlock_slp,			\
 		    (m)->mtx_description, (m), (m)->mtx_recurse, 	\
@@ -323,7 +323,7 @@ int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
  * check will be optimized out.
  */
 #define mtx_unlock_spin_flags(m, opts) do {				\
-	MPASS(CURPROC != NULL);						\
+	MPASS(curproc != NULL);						\
 	WITNESS_EXIT((m), ((m)->mtx_flags | (opts)), __FILE__,		\
 	    __LINE__);							\
 	mtx_assert((m), MA_OWNED);					\
@@ -340,7 +340,7 @@ int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
 #define mtx_trylock_flags(m, opts)					\
 	_mtx_trylock((m), (opts), __FILE__, __LINE__)
 
-#define mtx_owned(m)	(((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)CURTHD)
+#define mtx_owned(m)	(((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)curproc)
 
 #define mtx_recursed(m)	((m)->mtx_recurse != 0)
 

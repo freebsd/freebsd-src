@@ -287,7 +287,7 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 {
 	int rval;
 
-	MPASS(CURPROC != NULL);
+	MPASS(curproc != NULL);
 
 	/*
 	 * _mtx_trylock does not accept MTX_NOSWITCH option.
@@ -295,7 +295,7 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 	KASSERT((opts & MTX_NOSWITCH) == 0,
 	    ("mtx_trylock() called with invalid option flag(s) %d", opts));
 
-	rval = _obtain_lock(m, CURTHD);
+	rval = _obtain_lock(m, curproc);
 
 #ifdef WITNESS
 	if (rval && m->mtx_witness != NULL) {
@@ -325,7 +325,7 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 void
 _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
-	struct proc *p = CURPROC;
+	struct proc *p = curproc;
 
 	if ((m->mtx_lock & MTX_FLAGMASK) == (uintptr_t)p) {
 		m->mtx_recurse++;
@@ -473,7 +473,7 @@ _mtx_lock_spin(struct mtx *m, int opts, u_int mtx_intr, const char *file,
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 
 	for (;;) {
-		if (_obtain_lock(m, CURPROC))
+		if (_obtain_lock(m, curproc))
 			break;
 
 		while (m->mtx_lock != MTX_UNOWNED) {
@@ -511,7 +511,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	struct mtx *m1;
 	int pri;
 
-	p = CURPROC;
+	p = curproc;
 	MPASS4(mtx_owned(m), "mtx_owned(mpp)", file, line);
 
 	if (mtx_recursed(m)) {
@@ -987,7 +987,7 @@ witness_destroy(struct mtx *m)
 {
 	struct mtx *m1;
 	struct proc *p;
-	p = CURPROC;
+	p = curproc;
 	LIST_FOREACH(m1, &p->p_heldmtx, mtx_held) {
 		if (m1 == m) {
 			LIST_REMOVE(m, mtx_held);
@@ -1072,7 +1072,7 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 	if (witness_cold || m->mtx_witness == NULL || panicstr)
 		return;
 	w = m->mtx_witness;
-	p = CURPROC;
+	p = curproc;
 
 	if (flags & MTX_SPIN) {
 		if ((m->mtx_flags & MTX_SPIN) == 0)
@@ -1256,7 +1256,7 @@ witness_try_enter(struct mtx *m, int flags, const char *file, int line)
 	w->w_line = line;
 	m->mtx_line = line;
 	m->mtx_file = file;
-	p = CURPROC;
+	p = curproc;
 	MPASS(m->mtx_held.le_prev == NULL);
 	LIST_INSERT_HEAD(&p->p_heldmtx, (struct mtx*)m, mtx_held);
 }
@@ -1315,7 +1315,7 @@ witness_sleep(int check_only, struct mtx *mtx, const char *file, int line)
 	int n = 0;
 
 	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
-	p = CURPROC;
+	p = curproc;
 	LIST_FOREACH(m, &p->p_heldmtx, mtx_held) {
 		if (m == mtx)
 			continue;
@@ -1643,7 +1643,7 @@ witness_list(struct proc *p)
 DB_SHOW_COMMAND(mutexes, db_witness_list)
 {
 
-	witness_list(CURPROC);
+	witness_list(curproc);
 }
 
 DB_SHOW_COMMAND(witness, db_witness_display)
