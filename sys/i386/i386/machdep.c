@@ -2314,9 +2314,6 @@ set_dbregs(p, dbregs)
 			if ((dbregs->dr7 & mask1) == mask2)
 				return (EINVAL);
 		
-		if (dbregs->dr7 & 0x0000fc00)
-			return (EINVAL);
-
 		pcb = &p->p_addr->u_pcb;
 		
 		/*

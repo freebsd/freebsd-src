@@ -104,7 +104,7 @@ ENTRY(cpu_switch)
 	jz      1f                              /* no, skip over */
 	movl    %dr7,%eax                       /* yes, do the save */
 	movl    %eax,PCB_DR7(%edx)
-	andl    $0x0000ff00, %eax               /* disable all watchpoints */
+	andl    $0x0000fc00, %eax               /* disable all watchpoints */
 	movl    %eax,%dr7
 	movl    %dr6,%eax
 	movl    %eax,PCB_DR6(%edx)
@@ -271,7 +271,13 @@ cpu_switch_load_gs:
 	movl    %eax,%dr1
 	movl    PCB_DR0(%edx),%eax
 	movl    %eax,%dr0
-	movl    PCB_DR7(%edx),%eax
+	movl	%dr7,%eax                /* load dr7 so as not to disturb */
+	andl    $0x0000fc00,%eax         /*   reserved bits               */
+	pushl   %ebx
+	movl    PCB_DR7(%edx),%ebx
+	andl	$~0x0000fc00,%ebx
+	orl     %ebx,%eax
+	popl	%ebx
 	movl    %eax,%dr7
 1:
 	ret
