@@ -74,23 +74,6 @@ devfs_remove_t *devfs_remove_hook;
 static int free_devt;
 SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
-/*
- * Routine to convert from character to block device number.
- *
- * A minimal stub routine can always return NODEV.
- */
-dev_t
-chrtoblk(dev_t dev)
-{
-	struct cdevsw *cd;
-
-	if((cd = devsw(dev)) != NULL) {
-          if (cd->d_bmaj != -1)
-	    return(makebdev(cd->d_bmaj,minor(dev)));
-	}
-	return(NODEV);
-}
-
 struct cdevsw *
 devsw(dev_t dev)
 {
