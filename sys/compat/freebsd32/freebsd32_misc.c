@@ -84,156 +84,6 @@ CTASSERT(sizeof(struct timespec32) == 8);
 CTASSERT(sizeof(struct statfs32) == 256);
 CTASSERT(sizeof(struct rusage32) == 72);
 
-/*
- * [ taken from the linux emulator ]
- * Search an alternate path before passing pathname arguments on
- * to system calls. Useful for keeping a separate 'emulation tree'.
- *
- * If cflag is set, we check if an attempt can be made to create
- * the named file, i.e. we check if the directory it should
- * be in exists.
- */
-int
-freebsd32_emul_find(td, sgp, prefix, path, pbuf, cflag)
-	struct thread	*td;
-	caddr_t		*sgp;		/* Pointer to stackgap memory */
-	const char	*prefix;
-	char		*path;
-	char		**pbuf;
-	int		cflag;
-{
-	int			error;
-	size_t			len, sz;
-	char			*buf, *cp, *ptr;
-	struct ucred		*ucred;
-	struct nameidata	nd;
-	struct nameidata	ndroot;
-	struct vattr		vat;
-	struct vattr		vatroot;
-
-	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	*pbuf = path;
-
-	for (ptr = buf; (*ptr = *prefix) != '\0'; ptr++, prefix++)
-		continue;
-
-	sz = MAXPATHLEN - (ptr - buf);
-
-	/*
-	 * If sgp is not given then the path is already in kernel space
-	 */
-	if (sgp == NULL)
-		error = copystr(path, ptr, sz, &len);
-	else
-		error = copyinstr(path, ptr, sz, &len);
-
-	if (error) {
-		free(buf, M_TEMP);
-		return error;
-	}
-
-	if (*ptr != '/') {
-		free(buf, M_TEMP);
-		return EINVAL;
-	}
-
-	/*
-	 *  We know that there is a / somewhere in this pathname.
-	 *  Search backwards for it, to find the file's parent dir
-	 *  to see if it exists in the alternate tree. If it does,
-	 *  and we want to create a file (cflag is set). We don't
-	 *  need to worry about the root comparison in this case.
-	 */
-
-	if (cflag) {
-		for (cp = &ptr[len] - 1; *cp != '/'; cp--)
-			;
-		*cp = '\0';
-
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
-
-		if ((error = namei(&nd)) != 0) {
-			free(buf, M_TEMP);
-			return error;
-		}
-
-		*cp = '/';
-	} else {
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
-
-		if ((error = namei(&nd)) != 0) {
-			free(buf, M_TEMP);
-			return error;
-		}
-
-		/*
-		 * We now compare the vnode of the freebsd32_root to the one
-		 * vnode asked. If they resolve to be the same, then we
-		 * ignore the match so that the real root gets used.
-		 * This avoids the problem of traversing "../.." to find the
-		 * root directory and never finding it, because "/" resolves
-		 * to the emulation root directory. This is expensive :-(
-		 */
-		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE,
-		    freebsd32_emul_path, td);
-
-		if ((error = namei(&ndroot)) != 0) {
-			/* Cannot happen! */
-			free(buf, M_TEMP);
-			vrele(nd.ni_vp);
-			return error;
-		}
-
-		ucred = td->td_ucred;
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, ucred, td)) != 0) {
-			goto bad;
-		}
-
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, ucred,
-		    td)) != 0) {
-			goto bad;
-		}
-
-		if (vat.va_fsid == vatroot.va_fsid &&
-		    vat.va_fileid == vatroot.va_fileid) {
-			error = ENOENT;
-			goto bad;
-		}
-
-	}
-	if (sgp == NULL)
-		*pbuf = buf;
-	else {
-		sz = &ptr[len] - buf;
-		*pbuf = stackgap_alloc(sgp, sz + 1);
-		error = copyout(buf, *pbuf, sz);
-		free(buf, M_TEMP);
-	}
-
-	vrele(nd.ni_vp);
-	if (!cflag)
-		vrele(ndroot.ni_vp);
-
-	return error;
-
-bad:
-	vrele(ndroot.ni_vp);
-	vrele(nd.ni_vp);
-	free(buf, M_TEMP);
-	return error;
-}
-
-int
-freebsd32_open(struct thread *td, struct freebsd32_open_args *uap)
-{
-	caddr_t sg;
-
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
-
-	return open(td, (struct open_args *) uap);
-}
-
 int
 freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 {
@@ -333,28 +183,6 @@ freebsd32_getfsstat(struct thread *td, struct freebsd32_getfsstat_args *uap)
 	return (error);
 }
 
-int
-freebsd32_access(struct thread *td, struct freebsd32_access_args *uap)
-{
-	caddr_t sg;
-
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
-
-	return access(td, (struct access_args *)uap);
-}
-
-int
-freebsd32_chflags(struct thread *td, struct freebsd32_chflags_args *uap)
-{
-	caddr_t sg;
-
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
-
-	return chflags(td, (struct chflags_args *)uap);
-}
-
 struct sigaltstack32 {
 	u_int32_t	ss_sp;
 	u_int32_t	ss_size;
@@ -402,7 +230,6 @@ freebsd32_execve(struct thread *td, struct freebsd32_execve_args *uap)
 	int count;
 
 	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->fname);
 	ap.fname = uap->fname;
 
 	if (uap->argv) {
