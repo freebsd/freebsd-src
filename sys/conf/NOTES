@@ -644,7 +644,7 @@ device		hfa			#FORE PCA-200E ATM PCI
 #
 # Only the root, /usr, and /tmp filesystems need be statically
 # compiled; everything else will be automatically loaded at mount
-# time.  (Exception: the UFS family---FFS, and MFS --- cannot
+# time.  (Exception: the UFS family--- FFS --- cannot
 # currently be demand-loaded.)  Some people still prefer to statically
 # compile other filesystems as well.
 #
@@ -656,7 +656,6 @@ device		hfa			#FORE PCA-200E ATM PCI
 
 # One of these is mandatory:
 options 	FFS			#Fast filesystem
-options 	MFS			#Memory File System
 options 	NFS			#Network File System
 
 # The rest are optional:
