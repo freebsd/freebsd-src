@@ -942,6 +942,9 @@ core_file_command(filename, from_tty)
 		 */
 		reg_offset = (int) u.u_ar0 - KERNEL_U_ADDR;
 #else
+		stack_end = (CORE_ADDR) u.u_kproc.kp_eproc.e_vm.vm_maxsaddr
+			+ MAXSSIZ;
+
 		data_end = data_start +
 			NBPG * u.u_kproc.kp_eproc.e_vm.vm_dsize;
 		stack_start = stack_end -
