@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b daemon - main program entry
  *	-------------------------------
  *
- *	$Id: main.c,v 1.54 2000/10/09 12:53:29 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Oct  2 22:57:08 2000]
+ *      last edit-date: [Wed May  2 10:05:55 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -89,8 +87,8 @@ usage(void)
 	fprintf(stderr, "    -d <level>    set debug flag bits:\n");
 	fprintf(stderr, "                  general = 0x%04x, rates  = 0x%04x, timing   = 0x%04x\n", DL_MSG,   DL_RATES, DL_TIME);
 	fprintf(stderr, "                  state   = 0x%04x, retry  = 0x%04x, dial     = 0x%04x\n", DL_STATE, DL_RCVRY, DL_DIAL);
-	fprintf(stderr, "                  process = 0x%04x, kernio = 0x%04x  ctrlstat = 0x%04x\n", DL_PROC,  DL_DRVR,  DL_CNST);
-	fprintf(stderr, "                  rc-file = 0x%04x, budget = 0x%04x\n", DL_RCCF, DL_BDGT);
+	fprintf(stderr, "                  process = 0x%04x, kernio = 0x%04x, ctrlstat = 0x%04x\n", DL_PROC,  DL_DRVR,  DL_CNST);
+	fprintf(stderr, "                  rc-file = 0x%04x, budget = 0x%04x, valid    = 0x%04x\n", DL_RCCF,  DL_BDGT, DL_VALID);
 	fprintf(stderr, "    -dn           no debug output on fullscreen display\n");
 #endif
 	fprintf(stderr, "    -f            fullscreen status display\n");
