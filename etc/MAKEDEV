@@ -1228,7 +1228,7 @@ ttyA*)
 	units=`expr $i : 'ttyA\(.*\)$'`
 	port=1
 	while [ $port -le $units ]; do
-		minor=$(expr $port - 1)
+		minor=$(($port - 1))
 		name=$(zeropad 2 $port)
 		mknod ttyA$name c $major $minor
 		mknod ttyiA$name c $major $(($minor + 65536))
@@ -1245,7 +1245,7 @@ cuaA*)
 	units=`expr $i : 'cuaA\(.*\)$'`
 	port=1
 	while [ $port -le $units ]; do
-		minor=$(expr $port - 1)
+		minor=$(($port - 1))
 		name=$(zeropad 2 $port)
 		mknod cuaA$name c $major $(($minor + 128)) uucp:dialer
 		mknod cuaiA$name c $major $(($minor + 128 + 65536)) \
