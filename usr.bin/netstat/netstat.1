@@ -40,7 +40,7 @@
 .Nd show network status
 .Sh SYNOPSIS
 .Nm
-.Op Fl AaLln
+.Op Fl AaLlnW
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -256,6 +256,9 @@ When
 is also present,
 .Nm
 assumes more columns are there.
+.It Fl W
+In certain displays, avoid truncating addresses even if this causes
+some fields to overflow.
 .It Fl w Ar wait
 Show network interface statistics at intervals of
 .Ar wait

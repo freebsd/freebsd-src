@@ -36,27 +36,28 @@
 
 #include <sys/cdefs.h>
 
-int	Aflag;		/* show addresses of protocol control block */
-int	aflag;		/* show all sockets (including servers) */
-int	bflag;		/* show i/f total bytes in/out */
-int	dflag;		/* show i/f dropped packets */
-int	gflag;		/* show group (multicast) routing or stats */
-int	iflag;		/* show interfaces */
-int	lflag;		/* show routing table with use and ref */
-int	Lflag;		/* show size of listen queues */
-int	mflag;		/* show memory stats */
-int	nflag;		/* show addresses numerically */
-int	pflag;		/* show given protocol */
-int	rflag;		/* show routing tables (or routing stats) */
-int	sflag;		/* show protocol statistics */
-int	tflag;		/* show i/f watchdog timers */
+extern int	Aflag;	/* show addresses of protocol control block */
+extern int	aflag;	/* show all sockets (including servers) */
+extern int	bflag;	/* show i/f total bytes in/out */
+extern int	dflag;	/* show i/f dropped packets */
+extern int	gflag;	/* show group (multicast) routing or stats */
+extern int	iflag;	/* show interfaces */
+extern int	lflag;	/* show routing table with use and ref */
+extern int	Lflag;	/* show size of listen queues */
+extern int	mflag;	/* show memory stats */
+extern int	nflag;	/* show addresses numerically */
+extern int	pflag;	/* show given protocol */
+extern int	rflag;	/* show routing tables (or routing stats) */
+extern int	sflag;	/* show protocol statistics */
+extern int	tflag;	/* show i/f watchdog timers */
+extern int	Wflag;	/* wide display */
 
-int	interval;	/* repeat interval for i/f stats */
+extern int	interval; /* repeat interval for i/f stats */
 
-char	*interface;	/* desired i/f for stats, or NULL for all i/fs */
-int	unit;		/* unit number for above */
+extern char	*interface; /* desired i/f for stats, or NULL for all i/fs */
+extern int	unit;	/* unit number for above */
 
-int	af;		/* address family */
+extern int	af;	/* address family */
 
 int	kread __P((u_long addr, char *buf, int size));
 char	*plural __P((int));
