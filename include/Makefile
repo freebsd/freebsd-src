@@ -17,8 +17,8 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	paths.h pthread.h pthread_np.h pwd.h \
 	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h \
 	search.h setjmp.h sgtty.h \
-	signal.h stab.h stddef.h stdio.h stdlib.h string.h stringlist.h \
-	strings.h struct.h sysexits.h tar.h time.h timers.h \
+	signal.h stab.h stdbool.h stddef.h stdio.h stdlib.h string.h \
+	stringlist.h strings.h struct.h sysexits.h tar.h time.h timers.h \
 	ttyent.h unistd.h utime.h utmp.h vis.h
 .if defined(WANT_CSRG_LIBM)
 FILES+=	math.h
