@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.201
+    Original revision: 1.22.2.244
 -->
 
 <articleinfo>
@@ -21,13 +21,13 @@
   </copyright>
 
   <abstract>
-    <para>この &os; &release.current; リリースノートには,
+    <para>この &os; &release.current; リリースノートには、
       &os; &release.prev; のリリース以降に &os;
-      ベースシステムに対して加えられた変更点がまとめられています.
-      変更点はカーネル, ユーザランドにおけるものだけでなく,
-      前回のリリース以降に発行され,
-      ベースシステムに影響のあるセキュリティ勧告も含まれています.
-      また, アップグレードの際の注意点についても簡単に説明しています.</para>
+      ベースシステムに対して加えられた変更点がまとめられています。
+      変更点はカーネル、ユーザランドにおけるものだけでなく、
+      前回のリリース以降に発行され、
+      ベースシステムに影響のあるセキュリティ勧告も含まれています。
+      また、アップグレードの際の注意点についても簡単に説明しています。</para>
   </abstract>
 </articleinfo>
 
@@ -35,31 +35,31 @@
   <title>はじめに</title>
 
   <para>この文書は &arch.print; アーキテクチャ版 &os; &release.current;
-    のリリースノートです.
+    のリリースノートです。
     これには &release.prev; 以降に追加 (変更)
-    された新機能および, 前のバージョンの &os;
-    からアップグレードする場合におけるいくつかの注意点か書かれています.</para>
+    された新機能および、前のバージョンの &os;
+    からアップグレードする場合におけるいくつかの注意点か書かれています。</para>
 
 <![ %release.type.snapshot [
 
-  <para>リリースノートが対象としているこの &release.type; は,
+  <para>リリースノートが対象としているこの &release.type; は、
     &release.branch; 開発ブランチの
-    &release.prev; と, リリースが予定されている
-    &release.next; の中間点に対応します.
+    &release.prev; と、リリースが予定されている
+    &release.next; の中間点に対応します。
     このブランチにおける構築済みのバイナリ &release.type;
-    は <ulink url="&release.url;"></ulink> から入手可能です.</para>
+    は <ulink url="&release.url;"></ulink> から入手可能です。</para>
 
 ]]>
 
 <![ %release.type.release [
 
-  <para>この &os; &release.current は &release.type; 版であり,
+  <para>この &os; &release.current は &release.type; 版であり、
     <ulink url="&release.url;"></ulink>
-    および各ミラーサイトで公開されています.
+    および各ミラーサイトで公開されています。
     &os; の &release.type; 版 (またはそれ以外) の入手法については
     <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
       ハンドブック</ulink>の<ulink url="http://www.FreeBSD.org/handbook/mirrors.html">
-      <quote>&os; を入手するには</quote></ulink>をご覧ください.</para>
+      <quote>&os; を入手するには</quote></ulink>をご覧ください。</para>
 
 ]]>
 </sect1>
@@ -87,42 +87,64 @@
   <title>更新情報</title>
 
   <para>この節では &release.prev; 以降に新たに追加・変更された
-    ユーザに影響する機能について説明します.
-    リリースノートの項目には通常, 新しいドライバや新しいハードウェアへの対応,
-    新しいコマンドや新しいオプションの導入,
-    大規模なバグ修正, 寄贈ソフトウェアのアップグレードが含まれており,
+    ユーザに影響する機能について説明します。
+    リリースノートの項目には通常、新しいドライバや新しいハードウェアへの対応、
+    新しいコマンドや新しいオプションの導入、
+    大規模なバグ修正、寄贈ソフトウェアのアップグレードが含まれており、
     それに加えて
-    &release.prev; 以降に発行され,
-    ベースシステムに影響のあるセキュリティ勧告も記載されています.</para>
-
-  <para>&os; に加えられた変更点のうち,
-    スペースの都合上ここに書かれていないものも多数存在します.
-    それらはたとえば文書の修正や改良, ごく影響の小さいバグの修正,
-    監査で見つかったセキュリティ上好ましくないスタイルで書かれたコードの修正,
-    ソースコードの整理などです.</para>
+    &release.prev; 以降に発行され、
+    ベースシステムに影響のあるセキュリティ勧告も記載されています。</para>
 
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
 
-    <para></para>
+    <para arch="i386">&man.puc.4;
+      (PCI <quote>ユニバーサル</quote> コミュンケーション)
+      ドライバが追加されました。
+      これは PCI ベースのシリアルポートを
+      &man.sio.4; ドライバへ接続するのに役立ちます。</para>
 
     <para>新しくローダから変更可能な変数 <varname>dumpdev</varname>
       が追加され、カーネルダンプデバイスが設定できるようになりました。
       これにより、カーネル初期化の後の方 (システムがシングルユーザモードに入る前)
       で発生した panic のクラッシュダンプを取得することが可能になっています。</para>
 
+    <para>&man.snp.4; ドライバはスタティックなものではなくなり、
+      モジュールとしてコンパイルできるようになりました。</para>
+
+    <para arch="i386">Sony の laptop で、
+      ジョグダイアルへアクセスする機能を提供する
+      &man.spic.4; ドライバが追加されました。
+      同様に、このデバイスに対する
+      &man.moused.8 のサポートも追加されました。</para>
+
+    <para arch="i386">VIA SMBus パワーマネジメントコントローラ用の
+      &man.viapm.4; ドライバが追加されました。</para>
+
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
-      <para></para>
+      <para arch="i386">カーネルオプションに
+	<literal>CPU_ATHLON_SSE_HACK</literal>
+	が追加されました。
+	これは最近の Athlon CPU において SSE 機能が
+	BIOS で無効にされていた場合に有効化しようと試みるものです。</para>
+
+      <para arch="i386">いくつかのシステムでは、
+	BIOS がデバイスの I/O ポートやメモリを活動させず、
+	利用することができません。
+	カーネルオプション <literal>PCI_ENABLE_IO_MODES</literal> は
+	デバイスを利用するために &os; に強制的に有効化させます。</para>
     </sect3>
 
     <sect3>
       <title>起動ローダ関連</title>
 
-      <para></para>
+      <para arch="i386"><filename>boot2</filename>が
+	キーボード操作による boot 中断を無効化する
+	<option>-n</option> オプションをサポートするようになりました。</para>
       
 <!-- Above this line, order boot loader changes by manpage/variable name-->
       
@@ -144,6 +166,29 @@
       
       <para>&man.dc.4; ドライバが VLAN に対応しました。</para>
 
+      <para arch="i386">Intel Gigabit Ethernet カードのサポートが
+	<filename>GENERIC</filename> カーネルで	&man.wx.4; ドライバではなく
+	&man.em.4; ドライバで提供されるようになりました。
+	前者のドライバは &os; 4.5-RELEASE 以来、
+	その性能を酷評されていたものです。</para>
+
+      <para arch="alpha">&man.fpa.4; ドライバが
+	Alpha マシンで動作するようになりました。</para>
+
+      <para>my ドライバが追加されました。
+	これは Myson Fast Ethernet アダプタおよび
+	Gigabit Ethernet アダプタをサポートするものです。</para>
+
+      <para>&man.wi.4; ドライバが
+	Prism II および Prism 2.5 ベースの NIC をサポートするようになりました。
+	104/128 ビット WEP 暗号化が Prism カードで動作するようになりました。</para>
+
+      <para>&man.wi.4; ドライバが
+	<application>bsd-airtools</application>
+	をサポートするようになりました。</para>
+
+      <para>xe ドライバがモジュールとしてビルドできるようになりました。</para>
+
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
       <para>ネットワーク攻撃や過負荷に対するシステムの耐性を強化するため、
@@ -160,7 +205,7 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
         この時、<varname>kern.polling.user_frac</varname> sysctl 変数は
         ユーザランド用に予約された CPU 時間の百分率を示します。
         ポーリングに対応したデバイスは今のところ
-        &man.dc.4;, &man.fxp.4;, &man.sis.4; です。
+        &man.dc.4;、&man.fxp.4;、&man.rl.4;、&man.sis.4; です。
         詳細については &man.polling.4; のマニュアルページを参照してください。</para>
     </sect3>
 
@@ -168,9 +213,20 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       <title>ネットワークプロトコル</title>
 
       <para>&man.bridge.4;
-        が複数の完全に独立したブリッジクラスタに対応し、
-        ブリッジの動的な追加・削除に対する安定性が向上しました。
-        また、VLAN にも完全に対応しています。</para>
+	が複数の完全に独立したブリッジクラスタに対応し、
+	ブリッジの動的な追加・削除に対する安定性が向上しました。
+	また、VLAN にも完全に対応しています。</para>
+
+      <para>IPSec にあった IPv4 を処理する際の
+	上り SPD チェックが無視される可能性があるバグが修正されました。</para>
+
+      <para>新しい ng_eiface netgraph モジュールが追加されました。
+	これはイーサネットインターフェースとして振舞いますが、
+	Netgraph フックへイーサネットフレームを配送するものです。</para>
+
+      <para>新しい &man.ng.etf.4; netgraph ノードが
+	ethertype に依存する異なるフックに対してフィルタリングされるべき
+	イーサネットタイプのパケットを許可するようになりました。</para>
 
       <para>&man.tcp.4; syncache 実装に存在していた、
         カーネルパニックを引き起こす可能性のあったバグが修正されました。</para>
@@ -182,13 +238,24 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
     <sect3>
       <title>ディスク・記憶装置</title>
 
-      <para></para>
+      <para>&man.ahc.4; ドライバが
+	2002 年 4 月 29 日時点の &os; -CURRENT と同期しました。</para>
+
+      <para>&man.ata.4; ドライバが
+	2002 年 5 月 18 時点の &os; -CURRENT と同期しました。</para>
+
+      <para>&man.ata.4; ドライバが &man.atacontrol.8; の制御化の下に
+	ATA RAID の生成、削除、クエリ、再構築をサポートするようになりました。</para>
     </sect3>
 
     <sect3>
       <title>ファイルシステム</title>
 
-      <para></para>
+      <para>soft updates において、
+	新しいカーネルやソフトウェアをインストールするといった
+	ファイルシステムに負荷のかかる作業を行った直後に
+	システムをシャットダウンした場合、
+	ファイルシステムがまれに汚染を引き起こす可能性があるバグが修正されました。</para>
     </sect3>
 
     <sect3>
@@ -200,18 +267,42 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
     <sect3>
       <title>マルチメディアへの対応状況</title>
       
-      <para></para>
+      <para arch="i386">ufm ドライバが追加されました。
+	これは D-Link DSB-R100 USB Radio をサポートするものです。</para>
+
+      <para arch="i386">via82c686 サウンドドライバが
+	VIA VT8233 をサポートするようになりました。</para>
+
+      <para arch="i386">ich サウンドドライバが
+	SiS 7012 チップセットをサポートするようになりました。</para>
+
+      <para arch="i386">&man.pcm.4; ドライバが
+	2002 年 4 月 22 日時点の &os; -CURRENT と同期しました。</para>
+
     </sect3>
 
     <sect3>
       <title>寄贈ソフトウェア</title>
 
-      <para></para>
+      <sect4>
+	<title>IPFilter</title>
+
+	<para><application>IPFilter</application> が 3.4.27 に更新されました。</para>
+
+      </sect4>
+
+      <sect4 arch="i386">
+	<title>isdn4bsd</title>
+
+	<para>AVM Fritz!Card PCI version 2 コントローラをサポートする
+	  &man.ifpi2.4; ドライバが追加されました。</para>
+
+      </sect4>
     </sect3>
   </sect2>
 
   <sect2 id="security">
-    <title>セキュリティ関連の修正</title>
+    <title>セキュリティ勧告</title>
 
     <para></para>
   </sect2>
@@ -219,8 +310,29 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
 
+    <para>&man.atacontrol.8; が &man.ata.4; ドライバの
+      様々の側面を制御するために追加されました。</para>
+
+    <para>ATAPI CDROM ドライブにおいて、
+      &man.cdcontrol.1; が ドライブの最大速度を制御するために
+      <literal>speed</literal> コマンドをサポートするようになりました。</para>
+
+    <para>&man.ctags.1; が、ソースファイルが (C++ スタイルの)
+      <literal>//</literal> コメントが使用している場合に
+      腐ったタグファイルを生成しなくなりました。</para>
+
     <para>&man.dump.8; は進行状況をプロセスタイトルに出力するようになりました。
       これは自動化したバックアップを監視する際に有用です。</para>
+
+    <para><filename>/etc/rc.firewall</filename> と
+      <filename>/etc/rc.firewall6</filename> は
+      <varname>firewall_type</varname> 変数にセットしたルールファイルや
+      存在しない防火壁の種類が指定された場合に
+      ハードコーディングされたルールを追加しなくなりました
+      (この変更をすることになったきっかけは
+      サイトの防火壁のポリシーについての仮定に従う動作を回避するためです)。
+      さらに、<literal>closed</literal> と設定された防火壁は
+      &man.rc.firewall.8; のマニュアルに記述されているように動作するようになりました。</para>
 
     <para>ローカルでのカスタマイズや保守の手間を軽減するため、
       <filename>/etc/security</filename> の機能が
@@ -228,85 +340,292 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       現在、これらのスクリプトは
       <filename>/etc/periodic/security/</filename> に置かれています。</para>
 
+    <para>&man.ifconfig.8; の
+      <option>ether</option> アドレスファミリーが
+      より一般的な <option>link</option> ファミリーに変更されました
+      (<option>ether</option> は後方互換性のためにまた許容されています)。</para>
+
+    <para>&man.fsdb.8; が
+      特定の inode によって配分されるブロックを一覧にするために、
+      <literal>blocks</literal> コマンドをサポートするようになりました。</para>
+
+    <para>&man.ispppcontrol.8; が削除され、
+      その機能が &man.spppcontrol.8; に統合されました。</para>
+
+    <para>&man.k5su.8; がデフォルトで <username>root</username> に
+      SUID されたバイナリとしてインストールされなくなりました。
+      この機能をユーザは手動で
+      &man.k5su.8; の実行ファイルのパーミッションを変更するか、
+      ソースアップグレードの前に
+      <literal>ENABLE_SUID_K5SU=yes</literal> を
+      <filename>/etc/make.conf</filename> に加えてください。</para>
+
     <para>&man.ldd.1; が実行ファイルに加え、
       共有ライブラリに対しても使用できるようになりました。</para>
+
+    <para>&man.last.1; が
+      <option>-y</option> フラグをサポートするようになりました。
+      セッションの開始時刻に含まれるべき年をもたらすものです。</para>
+
+    <para><filename>libstand</filename> が
+      いくつかの物理メディアをまたがって分割された
+      大きなカーネルとモジュールをロードできるようになりました。</para>
+
+    <para><filename>libusb</filename> の名前が
+      <filename>libusbhid</filename> に変更されました。
+      これは NetBSD の命名規則に従ったものです。</para>
+
+    <para>&man.lpd.8; が
+      <option>-p</option> フラグにとってより好まれる類義語として
+      <option>-s</option> フラグを認識するようになりました
+      (これらのフラグは &man.lpd.8; に
+      ネットワークプリンタジョブへ対するソケットをオープンさせません)。</para>
+
+    <para>&man.lpd.8; へ
+      新たに <literal>rc</literal> printcap オプションが実装されました。
+      リモートホストのプリントキューに指定されると、
+      ブールオプションにより
+      <command>lpr -#<replaceable>n</replaceable></command>
+      を通してユーザがリクエストしたデータファイルのコピーを
+      &man.lpd.8; に再送させます。</para>
+
+    <para>&man.ls.1; が
+      <option>-h</option> フラグを受け付けるようになりました。
+      <option>-l</option> フラグと組み合わせると、
+      ファイルに単位 (訳注: B, KB, MB など) をつけて
+      3 以下の桁数でファイルサイズを出力させることができます。</para>
+
+    <para>&man.m4.1; が &man.cpp.1; で利用するために
+      <literal>#line</literal> ディレクティブを出力する
+      <option>-s</option> フラグを受け付けるようになりました。</para>
+
+    <para>&man.mergemaster.8; が新たに
+      2 つのフラグをサポートするようになりました。
+      <option>-p</option> フラグは
+      システムのアップグレードステップの
+      <literal>buildworld</literal> と
+      <literal>installworld</literal> の
+      成功に不可欠として知られているファイルに
+      <quote>pre-<literal>buildworld</literal></quote>
+      モードを有効にします。
+      <option>-C</option> フラグは &man.mergemaster.8; がうまく動作した後、
+      <filename>/etc/rc.conf</filename> と
+      デフォルトのオプションが定義されている
+      <filename>/etc/defaults/rc.conf</filename> のオプションを比較します。</para>
 
     <para>&man.ngctl.8; が新しく <option>write</option>
       コマンドに対応しました。
       これはデータパケットを指定したフックに送ります。</para>
 
+    <para>&man.patch.1; が
+      標準入力よりもファイルからパッチを読み込むために
+      <option>-i</option> コマンドラインフラグを受け付けるようになりました。</para>
+
+    <para>&man.pam.ssh.8; モジュールが
+      SSH パスフレーズと鍵認証の利用を受け付けるために追加されました。
+      このモジュールは &man.ssh-agent.1; を用いるセッション管理も処理します。</para>
+
+    <para>&man.pr.1; が端末への出力を停止するために
+      <option>-f</option>、<option>-p</option>
+      フラグをサポートするようになりました。</para>
+
     <para>&man.ps.1; の <option>-W</option> オプション
       (指定したスワップデバイスから情報を抽出する) が削除されました。
       このオプションは少し前から使えなくなっていたものです。</para>
+
+    <para>&man.reboot.8; が次の起動時のカーネルを指定するために
+      <option>-k</option> をつけることができるようになりました。</para>
+
+    <para>&man.sshd.8; が S/Key が有効化されていないクライアントに
+      偽の S/Key チャレンジに対する応答をしないようになりました。
+      最近の SSH クライアントが &os; システムに接続した時に
+      one-time-password を促さない限り、
+      上述の振舞いは混乱をもたらすからです。</para>
+
+    <para>未完成ですが、&man.sysinstall.8; が
+      (複数の CD による配布のような)
+      複数のボリュームの正しいボリュームから
+      package を拾い出す機能をサポートするようになりました。</para>
+
+    <para>&man.tftp.1; と &man.tftpd.8; が
+      IPv6 をサポートするようになりました。</para>
+
+    <para>The &man.usbhidctl.1; ユーティリティが
+      USB Human Interface Device を操作するために追加されました。</para>
+
+    <para>&man.uuencode.1; と &man.uudecode.1; が出力ファイルを指定するために
+      <option>-o</option> オプションを受け付けるようになりました。
+      また、<option>-m</option> フラグが与えられた時に
+      &man.uuencode.1; が base64 エンコーディングをするようなり、
+      一包、&man.uudecode.1; は自動的に
+      base64 ファイルをデコードするようになりました。</para>
+
+    <para>&man.watch.8; が
+      利用する &man.snp.4 デバイスを指定するために
+      <option>-f</option> オプションをとるようになりました。</para>
+
+<!-- Above this line, order userland changes by manpage/variable name-->
+
+    <para><literal>*.EUC</literal> 形式の locale 名が
+      <literal>*.euc??</literal> 形式へ改名されました。
+      例えば、<literal>ja_JP.EUC</literal> は
+      <literal>ja_JP.eucJP</literal> になります。
+      これは &os; CURRENT、X11R6 およびたくさんの UNIX のバージョンとの
+      locale 名の互換性を改善するものです。</para>
+
+    <para>locale のサポートが &os; -CURRENT のコードと同期しました。
+      この変更は
+      <literal>LC_NUMERIC</literal>、
+      <literal>LC_MONETARY</literal> および
+      <literal>LC_MESSAGES</literal> カテゴリのサポートをもたらすもので、
+      &man.strftime.3; の改善と同様に、
+      locale の定義を改訂し、
+      多くのベースシステムプログラムの地域化の改善しました。</para>
 
     <sect3>
       <title>寄贈ソフトウェア</title>
 
       <para><application>BIND</application> が
-        8.3.1-REL に更新されました。</para>
+        8.3.2-T1B に更新されました。</para>
 
       <para><application>bzip2</application> が
         1.0.2 に更新されました。</para>
+
+      <para><application>Heimdal Kerberos</application> が
+	0.4e に更新されました。</para>
+
+      <para><application>ISC DHCP</application> クライアントが
+	to 3.0.1RC8 に更新されました</para>
+
+      <para><application>texinfo</application> が
+	4.1 に更新されました</para>
+
+      <para>timezone database が
+	<filename>tzdata2002c</filename> リリースに更新されました。</para>
+
+      <sect4>
+
+	<title>Sendmail</title>
+
+	<para><application>sendmail</application> が
+	  8.12.3 に更新されました。
+	  &man.sendmail.8; は root に set-user-ID されたバイナリとして
+	  インストールされなくなりました (smmsp に set-group-ID されています)。
+	  詳細は
+	  <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename> と
+	  <filename>/etc/mail/README</filename>
+	  をご覧ください。</para>
+
+	<para>この <application>sendmail</application> の更新に伴い、
+	  <application>sendmail</application> デーモン
+	  (外へ出ていくメールを扱うためにこれを要求するものがあります) は
+	  <varname>sendmail_enable</varname> 変数が
+	  <literal>NO</literal> にセットされていても
+	  &man.rc.8; によって起動されるようになりました。
+	  <application>sendmail</application> を完全に無効化するには、
+	  <varname>sendmail_enable</varname> を
+	  <literal>NONE</literal> にセットしなければなりません。
+	  代わりに、別の MTA を利用するシステムでは
+	  <varname>mta_start_script</varname>
+	  を用いて異なる起動スクリプトを指定することが可能です
+	  (詳細は &man.rc.sendmail.8; をご覧ください)。</para>
+
+	<para><filename>/etc/mail/Makefile</filename> をから構築される
+	  <application>sendmail</application> のエイリアスと
+	  map database のパーミッションは
+	  ローカルのサービス拒否をロックするファイルに対して防御するために
+	  デフォルトでモード 0640 になりました。
+	  これは <filename>make.conf</filename> の
+	  <varname>SENDMAIL_MAP_PERMS</varname>
+	  オプションをセットして変更することが可能です。</para>
+
+	<para><application>sendmail</application> の統計ファイル
+	  (<filename>/var/log/sendmail.st</filename>)
+	  のパーミッションが
+	  ローカルのサービス拒否をロックするファイルに対して防御するために
+	  モード 0644 から 0640 へ変更されました。</para>
+
+      </sect4>
+
     </sect3>
     
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para></para>
+      <para>Ports Collection の基盤は、依存関係を満足するために
+	X Window System のデフォルトのバージョンとして
+	<application>XFree86</application> 4.2.0 を利用するようになりました。
+	<application>XFree86</application> 3.3.6 へ戻すには、
+	次の行を <filename>/etc/make.conf</filename> へ加えてください。</para>
+
+      <programlisting>XFREE86_VERSION=3</programlisting>
+
     </sect3>
+  </sect2>
+
+  <sect2>
+    <title>Release Engineering and Integration</title>
+
+    <para arch="i386,alpha"><application>XFree86</application> 4.2.0 は
+      &man.sysinstall.8; でサポートされる
+      X Window System のデフォルトのバージョンになりました。
+      標準のバイナリパッケージセットとして
+      <application>XFree86</application> がインストールされるので、
+      &man.pkg.info.1; のような通常の package ユーティリティは
+      このコンポーネントを調べ、巧妙に操作して利用することができます。</para>
   </sect2>
 </sect1>
 
 <sect1>
   <title>以前の &os; リリース版からのアップグレード</title>
 
-  <para>以前の &os; リリース版からのアップグレードを行なうには,
-    主に次の 3 つの方法があります.</para>
+  <para>以前の &os; リリース版からのアップグレードを行なうには、
+    主に次の 3 つの方法があります。</para>
 
   <itemizedlist>
     <listitem>
-      <para>&man.sysinstall.8; のバイナリアップグレード機能を使う方法.
-        おそらくこの方法が最も時間のかからない方法なのですが,
+      <para>&man.sysinstall.8; のバイナリアップグレード機能を使う方法。
+        おそらくこの方法が最も時間のかからない方法なのですが、
         これは &os; のインストール時に
-        特別なコンパイルオプションを指定していないことを前提としています.</para>
+        特別なコンパイルオプションを指定していないことを前提としています。</para>
     </listitem>
     
     <listitem>
-      <para>&os; を完全に再インストールする方法.
-        技術的にはアップグレード手段の一つとは言えませんし,
+      <para>&os; を完全に再インストールする方法。
+        技術的にはアップグレード手段の一つとは言えませんし、
         <filename>/etc</filename>
-        の内容を手動で退避・復元したりする必要があるなど,
-        大抵の場合はバイナリアップグレード機能を使うより手間がかかります.
-        しかし, ディスクのパーティション分割を変更したい (とか,
-        変更しなければならない) 場合などには便利な方法でしょう.</para>
+        の内容を手動で退避・復元したりする必要があるなど、
+        大抵の場合はバイナリアップグレード機能を使うより手間がかかります。
+        しかし、ディスクのパーティション分割を変更したい (とか、
+        変更しなければならない) 場合などには便利な方法でしょう。</para>
     </listitem>
     
     <listitem>
-      <para><filename>/usr/src</filename> のソースコードから構築する方法.
-        この手段は非常に柔軟な対応が可能ですが,
-        ディスク空間と時間, そして専門的なノウハウを必要とします.
-        また, 非常に古いバージョンの &os;
-        からのアップグレードは問題が発生することが多いため,
-        そのような場合にはバイナリアップグレード,
-        もしくは完全な再インストールを行なった方が効果的でしょう.</para>
+      <para><filename>/usr/src</filename> のソースコードから構築する方法。
+        この手段は非常に柔軟な対応が可能ですが、
+        ディスク空間と時間、そして専門的なノウハウを必要とします。
+        また、非常に古いバージョンの &os;
+        からのアップグレードは問題が発生することが多いため、
+        そのような場合にはバイナリアップグレード、
+        もしくは完全な再インストールを行なった方が効果的でしょう。</para>
     </listitem>
   </itemizedlist>
   
   <para>なるべくアップグレードを始める前に詳細について
-    <filename>INSTALL.TXT</filename> をご覧ください.
+    <filename>INSTALL.TXT</filename> をご覧ください。
     ソースからアップグレードする場合は
-    <filename>/usr/src/UPDATING</filename> にも目を通す必要があります.</para>
+    <filename>/usr/src/UPDATING</filename> にも目を通す必要があります。</para>
 
-  <para>最後になりますが, &os; の -STABLE もしくは -CURRENT
-    ブランチを追いかけるために用意された手段の一つをとりたいと考えているなら,
+  <para>最後になりますが、&os; の -STABLE もしくは -CURRENT
+    ブランチを追いかけるために用意された手段の一つをとりたいと考えているなら、
     <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
       ハンドブック</ulink>の
     <ulink url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
-        vs. -STABLE</quote></ulink> の節をご覧になるようお願いします.</para>
+        vs. -STABLE</quote></ulink> の節をご覧になるようお願いします。</para>
 
   <important>
-    <para>もちろん言うまでもないことですが,
-      &os; のアップグレードは, データと設定ファイルを
-      <emphasis>すべて</emphasis>退避させた後に行なうべきです.</para>
+    <para>もちろん言うまでもないことですが、
+      &os; のアップグレードは、データと設定ファイルを
+      <emphasis>すべて</emphasis>退避させた後に行なうべきです。</para>
   </important>
 </sect1>
