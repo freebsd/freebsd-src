@@ -106,6 +106,7 @@ SUP?=		cvsup
 SUPFLAGS?=	-g -L 2 -P -
 
 MAKEOBJDIRPREFIX?=	/usr/obj
+TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH!=	sysctl -n hw.machine_arch
 .if ${BUILD_ARCH} == ${MACHINE_ARCH}
 OBJTREE=	${MAKEOBJDIRPREFIX}
@@ -113,10 +114,11 @@ OBJTREE=	${MAKEOBJDIRPREFIX}
 OBJTREE=	${MAKEOBJDIRPREFIX}/${MACHINE_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/${BUILD_ARCH}
-STRICTTMPPATH=	${WORLDTMP}/bin:${WORLDTMP}/usr/bin
+# /usr/games added for fortune which depend on strfile and caesar.
+STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
-# bootstrap/tools make
+# bootstrap make
 BMAKEENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR=${WORLDTMP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -126,25 +128,31 @@ BMAKEENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
 BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO \
 		-DNO_FORTRAN -DNO_GDB
 
+# script/tool make
+TMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
+		INSTALL="sh ${.CURDIR}/tools/install.sh"
+TMAKE=		${TMAKEENV} ${MAKE} -f Makefile.inc1
+
 CROSSENV=	COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
-		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.00503 \
-		MAKEOBJDIRPREFIX=${OBJTREE}
+		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.00503
 
 # cross make used for compilation
-XMAKEENV=	${CROSSENV} \
+XMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
+		${CROSSENV} \
 		DESTDIR=${WORLDTMP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
 XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1
 
 # cross make used for final installation
-IMAKEENV=	${CROSSENV}
+IMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
+		${CROSSENV}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
-		usr/libexec/${OBJFORMAT} usr/share/misc
+		usr/libexec/${OBJFORMAT} usr/sbin usr/share/misc
 
 .if ${MACHINE_ARCH} == "i386" && ${MACHINE} == "pc98"
 USRDIRS+=	usr/libexec/aout
@@ -165,6 +173,9 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 .if !defined(NOCLEAN)
 	rm -rf ${WORLDTMP}
+.else
+	rm -rf ${WORLDTMP}/usr/bin
+	rm -f ${WORLDTMP}/sys
 .endif
 .for _dir in ${USRDIRS}
 	mkdir -p ${WORLDTMP}/${_dir}
@@ -172,27 +183,33 @@ buildworld:
 .for _dir in ${INCDIRS}
 	mkdir -p ${WORLDTMP}/usr/include/${_dir}
 .endfor
-.if defined(NOCLEAN)
-	rm -f ${WORLDTMP}/sys
-.endif
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}/sys
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding tools"
+	@echo ">>> Rebuilding bootstrap tools"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} tools
+	cd ${.CURDIR}; ${BMAKE} bootstrap-tools
+.if !empty(.MAKEFLAGS:M-j)
+	# Work-around for broken sh(1) hashing.
+	-hash -r
+.endif
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} ${CLEANDIR:S/^/par-/}
+	cd ${.CURDIR}; ${TMAKE} ${CLEANDIR:S/^/par-/}
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} par-obj
+	cd ${.CURDIR}; ${TMAKE} par-obj
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Rebuilding build tools"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}; ${TMAKE} build-tools
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding ${WORLDTMP}/usr/include"
@@ -333,18 +350,34 @@ installmost:
 #
 
 #
-# tools - Build tools needed to run the actual build.
+# bootstrap-tools - Build tools needed to run the actual build.
+#
+# WARNING: Because the bootstrap tools are expected to run on the
+# build-machine, MACHINE_ARCH is *always* set to BUILD_ARCH when this
+# target is being made. TARGET_ARCH is *always* set to reflect the
+# target-machine (which you can set by specifying MACHINE_ARCH on
+# make's command-line, get it?).
+# The reason is simple: we build these tools not to be run on the
+# architecture we're cross-building, but on the architecture we're
+# currently building on (ie the host-machine) and we expect these
+# tools to produce output for the architecture we're trying to
+# cross-build.
 #
 .if exists(${.CURDIR}/games) && !defined(NOGAMES)
-_strfile=	games/fortune/strfile
+_games_tools=	games/caesar games/fortune/strfile
 .endif
 
-.if ${MACHINE_ARCH} == "i386" && ${MACHINE} == "pc98"
+# XXX - MACHINE should actually be TARGET. But we don't set that...
+.if ${TARGET_ARCH} == "i386" && ${MACHINE} == "pc98"
 _aout_tools=	usr.bin/size usr.bin/strip gnu/usr.bin/as gnu/usr.bin/ld
 .endif
 
-tools::
-.for _tool in ${_strfile} ${_aout_tools} usr.bin/gensetdefs \
+.if ${TARGET_ARCH} == "alpha" && ${MACHINE_ARCH} != "alpha"
+_elf2exe=	usr.sbin/elf2exe
+.endif
+
+bootstrap-tools:
+.for _tool in ${_games_tools} ${_aout_tools} ${_elf2exe} usr.bin/gensetdefs \
     gnu/usr.bin/binutils usr.bin/objformat usr.bin/yacc usr.bin/colldef \
     gnu/usr.bin/bison gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
@@ -352,6 +385,23 @@ tools::
 		${MAKE} depend; \
 		${MAKE} all; \
 		${MAKE} install
+.endfor
+
+#
+# build-tools
+#
+.if exists(${.CURDIR}/games) && !defined(NOGAMES)
+_games=	games/adventure games/hack games/phantasia
+.endif
+
+.if exists(${.CURDIR}/share) && !defined(NOSHARE)
+_share=	share/syscons/scrnmaps
+.endif
+
+build-tools:
+.for _tool in bin/sh ${_games} gnu/usr.bin/cc/cc_tools gnu/usr.bin/cc/f771 \
+    lib/libncurses ${_share}
+	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
 
 #
