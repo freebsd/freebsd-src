@@ -251,7 +251,6 @@ Int_Open_Disk(const char *name)
 		}
 		if (platform == p_alpha && !strcmp(t, "BSD") &&
 		    d->chunks->part->part == NULL) {
-			o = d->chunks->size;
 			if (Add_Chunk(d, 0, d->chunks->size, name, freebsd, 0, 0, "-"))
 				DPRINT(("Failed to add 'freebsd' chunk"));
 		}
