@@ -8,6 +8,14 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20020704:
+	OpenSSH has been upgraded to 3.4p1 and fully PAMified.  Note
+	that the protocol version now defaults to 2 rather than 1,
+	which means clients might get warnings about unknown host keys
+	their hostfiles only list the ssh1 RSA key.  See ssh_config(5)
+	and sshd_config(5) for more information on configuring ssh and
+	sshd.
+
 20020703:
 	The install(1) utility no longer allows the -d and -C options
 	to be specified together.  "INSTALL=install -C" in make.conf
