@@ -98,9 +98,8 @@
 	.data
 	ALIGN_DATA			/* just to be sure */
 
-	.globl	HIDENAME(tmpstk)
 	.space	0x2000			/* space for tmpstk - temporary stack */
-HIDENAME(tmpstk):
+tmpstk:
 
 	.globl	bootinfo
 bootinfo:	.space	BOOTINFO_SIZE	/* bootinfo that we can handle */
@@ -244,7 +243,7 @@ NON_GPROF_ENTRY(btext)
  * the old stack, but it need not be, since recover_bootinfo actually
  * returns via the old frame.
  */
-	movl	$R(HIDENAME(tmpstk)),%esp
+	movl	$R(tmpstk),%esp
 
 #ifdef PC98
 	/* pc98_machine_type & M_EPSON_PC98 */
