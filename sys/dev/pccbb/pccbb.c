@@ -976,14 +976,10 @@ cbb_intr(void *arg)
 	/*
 	 * This ISR needs work XXX
 	 */
-printf("Cbb 1\n");
 	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
-printf("Cbb 2\n");
 	if (sockevent) {
-printf("Cbb 3\n");
 		/* ack the interrupt */
 		cbb_setb(sc, CBB_SOCKET_EVENT, sockevent);
-printf("Cbb 4\n");
 
 		/*
 		 * If anything has happened to the socket, we assume that
@@ -999,13 +995,11 @@ printf("Cbb 4\n");
 		 * excellent results.
 		 */
 		if (sockevent & CBB_SOCKET_EVENT_CD) {
-printf("Cbb 5\n");
 			mtx_lock(&sc->mtx);
 			sc->flags &= ~CBB_CARD_OK;
 			cv_signal(&sc->cv);
 			mtx_unlock(&sc->mtx);
 		}
-printf("Cbb 6\n");
 		if (sockevent & CBB_SOCKET_EVENT_CSTS) {
 			DPRINTF((" cstsevent occured: 0x%08x\n",
 			    cbb_get(sc, CBB_SOCKET_STATE)));
@@ -1017,9 +1011,7 @@ printf("Cbb 6\n");
 		/* Other bits? */
 	}
 	if (sc->flags & CBB_CARD_OK) {
-printf("Cbb 7\n");
 		STAILQ_FOREACH(ih, &sc->intr_handlers, entries) {
-printf("Cbb 8\n");
 			(*ih->intr)(ih->arg);
 		}
 	}
