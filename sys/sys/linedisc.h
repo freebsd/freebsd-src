@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.22 1995/11/06 00:36:14 bde Exp $
+ * $Id: conf.h,v 1.23 1995/11/29 14:41:17 julian Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -191,21 +191,25 @@ d_select_t	nxselect;
 d_dump_t	nxdump;
 #define	nxpsize	nopsize		/* one NULL value is as good as another */
 
+d_rdwr_t	rawread;
+d_rdwr_t	rawwrite;
+
 l_read_t	l_noread;
 l_write_t	l_nowrite;
 
+#ifdef JREMOD
+int	bdevsw_add __P((dev_t *descrip,struct bdevsw *new,struct bdevsw *old));
+int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw *old));
+#endif
 dev_t	chrtoblk __P((dev_t dev));
 int	getmajorbyname __P((const char *name));
 int	isdisk __P((dev_t dev, int type));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 int	register_cdev __P((const char *name, const struct cdevsw *cdp));
+void	setconf __P((void));
 int	setdumpdev __P((dev_t));
 int	unregister_cdev __P((const char *name, const struct cdevsw *cdp));
-#ifdef JREMOD
-int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw *old));
-int	bdevsw_add __P((dev_t *descrip,struct bdevsw *new,struct bdevsw *old));
-#endif
 #endif /* KERNEL */
 
 #include <machine/conf.h>
