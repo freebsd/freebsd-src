@@ -734,6 +734,7 @@ getnewvnode(tag, mp, vops, vpp)
 {
 	struct vnode *vp = NULL;
 	struct vpollinfo *pollinfo = NULL;
+	struct bufobj *bo;
 
 	mtx_lock(&vnode_free_list_mtx);
 
@@ -782,6 +783,7 @@ getnewvnode(tag, mp, vops, vpp)
 	}
 	if (vp) {
 		freevnodes--;
+		bo = &vp->v_bufobj;
 		mtx_unlock(&vnode_free_list_mtx);
 
 #ifdef INVARIANTS
@@ -790,7 +792,7 @@ getnewvnode(tag, mp, vops, vpp)
 				printf("cleaned vnode isn't, "
 				       "address %p, inode %p\n",
 				       vp, vp->v_data);
-			if (vp->v_numoutput)
+			if (bo->bo_numoutput)
 				panic("Clean vnode has pending I/O's");
 			if (vp->v_writecount != 0)
 				panic("Non-zero write count");
@@ -816,10 +818,10 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_socket = 0;
 		lockdestroy(vp->v_vnlock);
 		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
-		KASSERT(vp->v_cleanbufcnt == 0, ("cleanbufcnt not 0"));
-		KASSERT(vp->v_cleanblkroot == NULL, ("cleanblkroot not NULL"));
-		KASSERT(vp->v_dirtybufcnt == 0, ("dirtybufcnt not 0"));
-		KASSERT(vp->v_dirtyblkroot == NULL, ("dirtyblkroot not NULL"));
+		KASSERT(bo->bo_clean.bv_cnt == 0, ("cleanbufcnt not 0"));
+		KASSERT(bo->bo_clean.bv_root == NULL, ("cleanblkroot not NULL"));
+		KASSERT(bo->bo_dirty.bv_cnt == 0, ("dirtybufcnt not 0"));
+		KASSERT(bo->bo_dirty.bv_root == NULL, ("dirtyblkroot not NULL"));
 	} else {
 		numvnodes++;
 		mtx_unlock(&vnode_free_list_mtx);
@@ -828,6 +830,8 @@ getnewvnode(tag, mp, vops, vpp)
 		mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
 		VI_LOCK(vp);
 		vp->v_dd = vp;
+		bo = &vp->v_bufobj;
+		bo->bo_mtx = &vp->v_interlock;
 		vp->v_vnlock = &vp->v_lock;
 		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
 		cache_purge(vp);		/* Sets up v_id. */
@@ -835,8 +839,8 @@ getnewvnode(tag, mp, vops, vpp)
 		TAILQ_INIT(&vp->v_cache_dst);
 	}
 
-	TAILQ_INIT(&vp->v_cleanblkhd);
-	TAILQ_INIT(&vp->v_dirtyblkhd);
+	TAILQ_INIT(&bo->bo_clean.bv_hd);
+	TAILQ_INIT(&bo->bo_dirty.bv_hd);
 	vp->v_type = VNON;
 	vp->v_tag = tag;
 	vp->v_op = vops;
