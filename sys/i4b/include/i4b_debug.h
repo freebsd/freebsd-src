@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed May 31 09:51:34 2000]
+ *      last edit-date: [Wed Oct 18 09:48:16 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -78,24 +78,24 @@ extern unsigned int i4b_l4_debug;
 
 /* Layer 1 */
 
-#define L1_ERROR	0x0001		/* general error message*/
-#define L1_PRIM		0x0002		/* interlayer primitives*/
-#define L1_BCHAN	0x0004		/* B channel action	*/
-#define L1_H_ERR	0x0008		/* HSCX errors		*/
-#define L1_H_IRQ	0x0010		/* HSCX IRQ messages	*/
-#define L1_I_ERR	0x0020		/* ISAC errors		*/
-#define L1_I_MSG	0x0040		/* ISAC messages	*/
-#define L1_I_SETUP	0x0080		/* ISAC setup messages	*/
-#define L1_F_MSG	0x0100		/* FSM messages		*/
-#define L1_F_ERR	0x0200		/* FSM error messages	*/
-#define L1_T_MSG	0x0400		/* Timer messages	*/
-#define L1_T_ERR	0x0800		/* Timer error messages	*/
-#define L1_H_XFRERR	0x1000		/* HSCX data xfer error */
-#define L1_I_CICO	0x2000		/* ISAC command in/out	*/
-#define L1_S_MSG	0x4000		/* silent messages (soft-HDLC)	*/
-#define L1_S_ERR	0x8000		/* error messages (soft-HDLC)	*/
-
-#define L1_DEBUG_MAX	0xffef		/* all messages on except IRQ!	*/
+#define L1_ERROR	0x000001	/* general error message*/
+#define L1_PRIM		0x000002	/* interlayer primitives*/
+#define L1_BCHAN	0x000004	/* B channel action	*/
+#define L1_H_ERR	0x000008	/* HSCX errors		*/
+#define L1_H_IRQ	0x000010	/* HSCX IRQ messages	*/
+#define L1_I_ERR	0x000020	/* ISAC errors		*/
+#define L1_I_MSG	0x000040	/* ISAC messages	*/
+#define L1_I_SETUP	0x000080	/* ISAC setup messages	*/
+#define L1_F_MSG	0x000100	/* FSM messages		*/
+#define L1_F_ERR	0x000200	/* FSM error messages	*/
+#define L1_T_MSG	0x000400	/* Timer messages	*/
+#define L1_T_ERR	0x000800	/* Timer error messages	*/
+#define L1_H_XFRERR	0x001000	/* HSCX data xfer error */
+#define L1_I_CICO	0x002000	/* ISAC command in/out	*/
+#define L1_S_MSG	0x004000	/* silent messages (soft-HDLC)	*/
+#define L1_S_ERR	0x008000	/* error messages (soft-HDLC)	*/
+#define L1_HFC_DBG	0x010000	/* HFC-S PCI messages */
+#define L1_DEBUG_MAX	0x01ffef	/* all messages on except IRQ!	*/
 #define L1_DEBUG_ERR (L1_S_ERR | L1_H_ERR | L1_I_ERR | L1_F_ERR | L1_T_ERR | L1_ERROR)
 
 #ifndef L1_DEBUG_DEFAULT
