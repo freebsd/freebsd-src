@@ -147,6 +147,7 @@ struct	ipstat {
 	u_long	ips_badvers;		/* ip version != 4 */
 	u_long	ips_rawout;		/* total raw ip packets generated */
 	u_long	ips_toolong;		/* ip length > max ip packet size */
+	u_long	ips_notmember;		/* multicasts for unregistered grps */
 };
 
 #ifdef KERNEL
