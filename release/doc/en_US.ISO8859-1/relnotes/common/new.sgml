@@ -358,7 +358,7 @@
       console. &merged;</para>
 
     <para>The uaudio driver, for USB audio devices, has been
-      added.</para>
+      added. &merged;</para>
 
     <para arch="i386,pc98" role="historic">The &man.umodem.4; driver for USB modems
       has been added. Support is provided for the 3Com 5605 and
@@ -997,6 +997,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The &man.ng.ip.input.4; netgraph node, for queueing IP
 	packets into the main IP input processing code, has been
 	added.</para>
+
+      <para>A new &man.ng.l2tp.4; netgraph node type, which implements
+	the encapsulation layer of the L2TP protocol as described in
+	RFC 2661, has been added. &merged;</para>
 
       <para role="historic">The &man.ng.mppc.4; and &man.ng.bridge.4; node types have
 	been added to the &man.netgraph.4; subsystem.  The
@@ -2210,7 +2214,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       &man.daemon.3;, has been added.  It detaches itself from its
       controlling terminal and executes a program specified on the
       command line.  This allows the user to run an arbitrary program
-      as if it were written to be a daemon.</para>
+      as if it were written to be a daemon. &merged;</para>
 
     <para>&man.devinfo.8;, a simple tool to print the device tree and resource
       usage by devices, has been added.</para>
@@ -2462,6 +2466,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       media by default.  Instead it displays it when the
       <option>-m</option> flag is given. &merged;</para>
 
+    <para>&man.ifconfig.8; now has the ability to set promiscuous mode
+      on an interface, via the new <option>promisc</option>
+      flag. &merged;</para>
+
     <para role="historic">The syntax of &man.inetd.8;'s support for &man.faithd.8; is
       now compatible with that of other BSDs. &merged;</para>
 
@@ -2478,6 +2486,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>/etc/rc.conf</filename>:</para>
 
     <programlisting>inetd_enable="YES"</programlisting>
+
+    <para>&man.inetd.8; now has the capability for limiting the
+      maximum number of simultaneous invocations of each service from
+      a single IP address. &merged;</para>
 
     <para role="historic">&man.install.1; has a number of new features, including the
       <option>-b</option> and <option>-B</option> options for backing up
@@ -3706,7 +3718,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	standard &os; installation (because &man.inetd.8; already
 	incorporates this functionality), this may be useful for
 	&man.inetd.8; replacements such as
-	<application>xinetd</application>.</para>
+	<application>xinetd</application>. &merged;</para>
 
       <para><application>texinfo</application> has been updated to
 	4.2. &merged;</para>
