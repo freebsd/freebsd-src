@@ -48,8 +48,16 @@ struct ed_softc {
 	struct resource* irq_res; /* resource for irq */
 	void*	irq_handle;	/* handle for irq handler */
 
+	bus_space_tag_t		bst;	/* Bus Space tag */
+	bus_space_handle_t	bsh;	/* Bus Space handle */
+
+#ifdef __alpha__
+	u_int asic_addr;	/* ASIC I/O bus address */
+	u_int nic_addr;		/* NIC (DS8390) I/O bus address */
+#else
 	u_short asic_addr;	/* ASIC I/O bus address */
 	u_short nic_addr;	/* NIC (DS8390) I/O bus address */
+#endif
 
 /*
  * The following 'proto' variable is part of a work-around for 8013EBT asics
@@ -66,12 +74,12 @@ struct ed_softc {
 
 	u_short	hpp_options;	/* flags controlling behaviour of the HP card */
 	u_short hpp_id;		/* software revision and other fields */
-	caddr_t hpp_mem_start;	/* Memory-mapped IO register address */
+	u_long hpp_mem_start;	/* Memory-mapped IO register address */
 
-	caddr_t mem_start;	/* NIC memory start address */
-	caddr_t mem_end;	/* NIC memory end address */
-	u_long  mem_size;	/* total NIC memory size */
-	caddr_t mem_ring;	/* start of RX ring-buffer (in NIC mem) */
+	u_long mem_start;	/* NIC memory start address */
+	u_long mem_end;		/* NIC memory end address */
+	u_int32_t mem_size;	/* total NIC memory size */
+	u_long mem_ring;	/* start of RX ring-buffer (in NIC mem) */
 
 	u_char  mem_shared;	/* NIC memory is shared with host */
 	u_char  xmit_busy;	/* transmitter is busy */
@@ -100,6 +108,7 @@ int	ed_probe_Novell		__P((device_t));
 int	ed_probe_Novell_generic	__P((device_t, int, int));
 int	ed_probe_HP_pclanp	__P((device_t));
 int	ed_get_Linksys		__P((struct ed_softc *));
+void	ed_ax88190_geteprom	__P((struct ed_softc *));
 
 int	ed_attach		__P((struct ed_softc *, int, int));
 void	ed_stop			__P((struct ed_softc *));
