@@ -3,6 +3,7 @@
 
 PROG=	find
 SRCS=	find.c function.c ls.c main.c misc.c operator.c option.c parsedate.y
+CFLAGS+= -I${.CURDIR}
 YFLAGS=
 
 .include <bsd.prog.mk>
