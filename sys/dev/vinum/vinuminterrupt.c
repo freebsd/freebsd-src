@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.7 1999/10/12 04:34:50 grog Exp grog $
+ * $Id$
  * $FreeBSD$
  */
 
@@ -208,27 +208,27 @@ sdio_done(struct buf *bp)
 
     sbp = (struct sdbuf *) bp;
     if (sbp->b.b_flags & B_ERROR) {			    /* had an error */
-	bp->b_flags |= B_ERROR;
-	bp->b_error = sbp->b.b_error;
+	sbp->bp->b_flags |= B_ERROR;			    /* propagate upwards */
+	sbp->bp->b_error = sbp->b.b_error;
     }
 #ifdef VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_sdiodone, (union rqinfou) bp, bp);
 #endif
     sbp->bp->b_resid = sbp->b.b_resid;			    /* copy the resid field */
-    biodone(sbp->bp);					    /* complete the caller's I/O */
     /* Now update the statistics */
     if (bp->b_flags & B_READ) {				    /* read operation */
 	DRIVE[sbp->driveno].reads++;
-	DRIVE[sbp->driveno].bytes_read += bp->b_bcount;
+	DRIVE[sbp->driveno].bytes_read += sbp->b.b_bcount;
 	SD[sbp->sdno].reads++;
-	SD[sbp->sdno].bytes_read += bp->b_bcount;
+	SD[sbp->sdno].bytes_read += sbp->b.b_bcount;
     } else {						    /* write operation */
 	DRIVE[sbp->driveno].writes++;
-	DRIVE[sbp->driveno].bytes_written += bp->b_bcount;
+	DRIVE[sbp->driveno].bytes_written += sbp->b.b_bcount;
 	SD[sbp->sdno].writes++;
-	SD[sbp->sdno].bytes_written += bp->b_bcount;
+	SD[sbp->sdno].bytes_written += sbp->b.b_bcount;
     }
+    biodone(sbp->bp);					    /* complete the caller's I/O */
     Free(sbp);
 }
 
