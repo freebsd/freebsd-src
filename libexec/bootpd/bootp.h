@@ -38,6 +38,8 @@ SOFTWARE.
 #define BP_FILE_LEN	128
 #define BP_VEND_LEN	 64
 #define BP_MINPKTSZ	300	/* to check sizeof(struct bootp) */
+/* Overhead to fit a bootp message into an Ethernet packet. */
+#define BP_MSG_OVERHEAD	(14 + 20 + 8)	/* Ethernet + IP + UDP headers */
 
 struct bootp {
     unsigned char    bp_op;			/* packet opcode type */
