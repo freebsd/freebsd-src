@@ -44,7 +44,7 @@ previous commands in tcsh.
 %
 You can disable tcsh's terminal beep if you `set nobeep'.
 %
-If you `set watch (0 any any)' in tcsh, you will be notified when
+If you `set watch = (0 any any)' in tcsh, you will be notified when
 someone logs in or out of your system.
 %
 Nice tcsh prompt: set prompt = '%m %# '
