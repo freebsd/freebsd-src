@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id: kern_proc.c,v 1.9 1994/10/10 01:00:45 phk Exp $
+ * $Id: kern_proc.c,v 1.10 1995/05/30 08:05:37 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -148,6 +148,21 @@ pfind(pid)
 	register struct proc *p;
 
 	for (p = pidhash[PIDHASH(pid)]; p != NULL; p = p->p_hash)
+		if (p->p_pid == pid)
+			return (p);
+	return (NULL);
+}
+
+/*
+ * Locate a zombie process by number
+ */
+struct proc *
+zpfind(pid)
+	pid_t pid;
+{
+	struct proc *p;
+
+	for (p = zombproc; p != NULL; p = p->p_next) 
 		if (p->p_pid == pid)
 			return (p);
 	return (NULL);
