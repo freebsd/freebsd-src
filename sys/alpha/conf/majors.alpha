@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.37 1998/04/17 20:26:43 julian Exp $
+$Id: majors.alpha,v 1.1 1998/06/10 10:54:12 dfr Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -138,4 +138,5 @@ chrdev	name		comments
 94	loran		Loran-C Receiver
 95	gd		Geometry disk
 96	altq		alternate queueing (including cbq, red, wfq)
-97	zsc		TurboLaser console uart
+97	prom		Alpha PROM console
+98	zsc		TurboLaser console uart
