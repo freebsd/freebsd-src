@@ -124,7 +124,7 @@ ipatm_nifstat(cmd, nip, arg)
 		/*
 		 * Get a new interface block
 		 */
-		inp = (struct ip_nif *)atm_allocate(&ipatm_nifpool);
+		inp = uma_zalloc(ipatm_nif_zone, M_WAITOK);
 		if (inp == NULL) {
 			err = ENOMEM;
 			break;
@@ -168,7 +168,7 @@ ipatm_nifstat(cmd, nip, arg)
 		 * Clean up and free block
 		 */
 		UNLINK(inp, struct ip_nif, ipatm_nif_head, inf_next);
-		atm_free((caddr_t)inp);
+		uma_zfree(ipatm_nif_zone, inp);
 		break;
 
 	case NCM_SETADDR:
