@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .Dd January 12, 1995
 .Dt MAKEWHATIS 1
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm makewhatis
 .Nd create whatis database
@@ -49,7 +49,8 @@ database.
 can read gzip'ed manpages.
 .Ar Directory
 names a directory containing manpage subdirectories
-.Pq named Pa man.+ .
+(named
+.Pa man.+ ) .
 Colons are treated as spaces, hence
 .Ic makewhatis $MANPATH
 or
@@ -66,7 +67,8 @@ does not check if old entries are valid.
 Print options and exit.
 .It Fl i , Fl indent Ar column
 Justify description strings to
-.Ar column Pq default 24 .
+.Ar column
+(default 24).
 .It Fl L , Fl locale
 Sense locale environment variables for possible localized man subdirectories
 and process this entries only.
@@ -82,7 +84,7 @@ instead of
 .Pa dirname/whatis Ns .
 .It Fl v , Fl verbose
 Issue more warnings
-.Pq to stderr .
+(to stderr).
 For every parsed man page write a single char:
 .Ql .\&
 for an uncompressed page,
