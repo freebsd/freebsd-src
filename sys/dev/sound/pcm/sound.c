@@ -536,7 +536,7 @@ pcm_killchan(device_t dev)
 	snd_mtxunlock(d->lock);
 	ch = sce->channel;
 
-	error = pcm_chn_remove(d, sce->channel, 1);
+	error = pcm_chn_remove(d, sce->channel, SLIST_EMPTY(&ch->children));
 	if (error)
 		return (error);
 	return (pcm_chn_destroy(ch));
