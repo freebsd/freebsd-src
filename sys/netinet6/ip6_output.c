@@ -1504,9 +1504,11 @@ do { \
 
 				if (ip6_fw_ctl_ptr == NULL)
 					return EINVAL;
-				if (error = soopt_getm(sopt, &m)) /* XXX */
+				/* XXX */
+				if ((error = soopt_getm(sopt, &m)) != 0)
 					break;
-				if (error = soopt_mcopyin(sopt, m)) /* XXX */
+				/* XXX */
+				if ((error = soopt_mcopyin(sopt, m)) != 0)
 					break;
 				error = (*ip6_fw_ctl_ptr)(optname, mp);
 				m = *mp;
