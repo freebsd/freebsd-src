@@ -1091,7 +1091,8 @@ pci_driver_added(device_t dev, driver_t *driver)
 	struct pci_devinfo *dinfo;
 	int i;
 
-	device_printf(dev, "driver added\n");
+	if (bootverbose)
+		device_printf(dev, "driver added\n");
 	DEVICE_IDENTIFY(driver, dev);
 	device_get_children(dev, &devlist, &numdevs);
 	for (i = 0; i < numdevs; i++) {
@@ -1101,8 +1102,9 @@ pci_driver_added(device_t dev, driver_t *driver)
 		dinfo = device_get_ivars(child);
 		pci_print_verbose(dinfo);
 /*XXX???*/	/* resource_list_init(&dinfo->cfg.resources); */
-		printf("pci%d:%d:%d: reprobing on driver added\n",
-		    dinfo->cfg.bus, dinfo->cfg.slot, dinfo->cfg.func);
+		if (bootverbose)
+			printf("pci%d:%d:%d: reprobing on driver added\n",
+			    dinfo->cfg.bus, dinfo->cfg.slot, dinfo->cfg.func);
 		pci_cfg_restore(child, dinfo);
 		if (device_probe_and_attach(child) != 0)
 			pci_cfg_save(child, dinfo, 1);
@@ -1582,9 +1584,10 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	if (rle == NULL)
 		panic("pci_alloc_map: unexpedly can't find resource.");
 	rle->res = res;
-	/* if (bootverbose) */
-	device_printf(child, "Lazy allocation of %#lx bytes rid %#x type %d at %#lx\n",
-	    count, *rid, type, rman_get_start(res));
+	if (bootverbose)
+		device_printf(child,
+		    "Lazy allocation of %#lx bytes rid %#x type %d at %#lx\n",
+		    count, *rid, type, rman_get_start(res));
 	map = rman_get_start(res);
 out:;
 	pci_write_config(child, *rid, map, 4);
@@ -1653,11 +1656,11 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 */
 		rle = resource_list_find(rl, type, *rid);
 		if (rle != NULL && rle->res != NULL) {
-			/* if (bootverbose) */
-			device_printf(child,
+			if (bootverbose)
+				device_printf(child,
 			    "Reserved %#lx bytes for rid %#x type %d at %#lx\n",
-			    rman_get_size(rle->res), *rid, type,
-			    rman_get_start(rle->res));
+				    rman_get_size(rle->res), *rid, type,
+				    rman_get_start(rle->res));
 			if ((flags & RF_ACTIVE) && 
 			    bus_generic_activate_resource(dev, child, type,
 			    *rid, rle->res) != 0)
@@ -1817,9 +1820,11 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	 * state D0.
 	 */
 	if (pci_do_powerstate && (pci_get_powerstate(dev) != PCI_POWERSTATE_D0)) {
-		printf("pci%d:%d:%d: Transition from D%d to D0\n", dinfo->cfg.bus,
-		    dinfo->cfg.slot, dinfo->cfg.func,
-		    pci_get_powerstate(dev));
+		if (bootverbose)
+			printf(
+			    "pci%d:%d:%d: Transition from D%d to D0\n",
+			    dinfo->cfg.bus, dinfo->cfg.slot, dinfo->cfg.func,
+			    pci_get_powerstate(dev));
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	}
 	for (i = 0; i < dinfo->cfg.nummaps; i++)
@@ -1888,13 +1893,19 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 		 */
 		ps = pci_get_powerstate(dev);
 		if (ps != PCI_POWERSTATE_D0 && ps != PCI_POWERSTATE_D3) {
-			printf("pci%d:%d:%d: Transition from D%d to D0\n", dinfo->cfg.bus,
-			    dinfo->cfg.slot, dinfo->cfg.func, ps);
+			if (bootverbose)
+				printf(
+				    "pci%d:%d:%d: Transition from D%d to D0\n",
+				    dinfo->cfg.bus, dinfo->cfg.slot,
+				    dinfo->cfg.func, ps);
 			pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 		}
 		if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3) {
-			printf("pci%d:%d:%d: Transition from D0 to D3\n", dinfo->cfg.bus,
-			    dinfo->cfg.slot, dinfo->cfg.func);
+			if (bootverbose)
+				printf(
+				    "pci%d:%d:%d: Transition from D0 to D3\n",
+				    dinfo->cfg.bus, dinfo->cfg.slot,
+				    dinfo->cfg.func);
 			pci_set_powerstate(dev, PCI_POWERSTATE_D3);
 		}
 	}
