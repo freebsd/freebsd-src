@@ -99,7 +99,6 @@ isab_probe(device_t dev)
     case 0x04848086:	/* Intel 82378ZB/82378IB */
     case 0x122e8086:	/* Intel 82371FB */
     case 0x70008086:	/* Intel 82371SB */
-    case 0x71108086:	/* Intel 82371AB */
     case 0x71988086:	/* Intel 82443MX */
     case 0x24108086:	/* Intel 82801AA (ICH) */
     case 0x24208086:	/* Intel 82801AB (ICH0) */
@@ -107,7 +106,6 @@ isab_probe(device_t dev)
     case 0x00061004:	/* VLSI 82C593 */
     case 0x05861106:	/* VIA 82C586 */
     case 0x05961106:	/* VIA 82C596 PCI-ISA */
-    case 0x06861106:	/* VIA 82C686 PCI-ISA */
 	/* AcerLabs -- vendor 0x10b9 */
 	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
 	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
