@@ -478,16 +478,16 @@ v86mon.2:	cmpb $0xf4,%al			# HLT?
 		cmpl $inthlt+0x1,%esi		# Is inthlt?
 		jne v86mon.7			# No (ignore)
 		jmp intrtn			# Return to user mode
-v86mon.3:	cmpb $0xf,%al			# Is
-		jne v86mon.3.1			#  this
-		cmpb $0x20,(%esi)		#  a
-		jne v86mon.3.1			#  MOV EAX,CR0
-		cmpb $0xc0,0x1(%esi)		#  instruction?
-		je v86mov			# Yes
-v86mon.3.1:	cmpb $0x30,(%esi)		# Is it a WRMSR?
+v86mon.3:	cmpb $0xf,%al			# Prefixed instruction?
+		jne v86mon.4			# No
+		cmpb $0x30,(%esi)		# Is it a WRMSR?
 		je v86wrmsr			# Yes
 		cmpb $0x32,(%esi)		# Is it a RDMSR?
 		je v86rdmsr			# Yes
+		cmpb $0x20,(%esi)		# Is this a
+		jne v86mon.4			#  MOV EAX,CR0
+		cmpb $0xc0,0x1(%esi)		#  instruction?
+		je v86mov			# Yes
 v86mon.4:	cmpb $0xfa,%al			# CLI?
 		je v86cli			# Yes
 		cmpb $0xfb,%al			# STI?
