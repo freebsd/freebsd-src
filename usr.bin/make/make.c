@@ -232,15 +232,8 @@ Make_OODate (gn)
 	    DEBUGF(MAKE, (":: operator and no sources..."));
 	}
 	oodate = TRUE;
-    } else {
-#if 0
-	/* WHY? */
-	DEBUGF(MAKE, ("source %smade...", gn->childMade ? "" : "not "));
-	oodate = gn->childMade;
-#else
+    } else
 	oodate = FALSE;
-#endif /* 0 */
-    }
 
     /*
      * If the target isn't out-of-date, the parents need to know its
