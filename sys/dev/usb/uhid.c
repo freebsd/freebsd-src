@@ -52,6 +52,7 @@
 #include <sys/ioctl.h>
 #elif defined(__FreeBSD__)
 #include <sys/ioccom.h>
+#include <sys/conf.h>
 #include <sys/filio.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -114,12 +115,31 @@ struct uhid_softc {
 #define	UHID_CHUNK	128	/* chunk size for read */
 #define	UHID_BSIZE	1020	/* buffer size */
 
+#if defined(__NetBSD__)
 int uhidopen __P((dev_t, int, int, struct proc *));
 int uhidclose __P((dev_t, int, int, struct proc *p));
 int uhidread __P((dev_t, struct uio *uio, int));
 int uhidwrite __P((dev_t, struct uio *uio, int));
 int uhidioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
 int uhidpoll __P((dev_t, int, struct proc *));
+#elif defined(__FreeBSD__)
+d_open_t	uhidopen;
+d_close_t	uhidclose;
+d_read_t	uhidread;
+d_write_t	uhidwrite;
+d_ioctl_t	uhidioctl;
+d_poll_t	uhidpoll;
+
+#define		UHID_CDEV_MAJOR 122
+
+static struct cdevsw uhid_cdevsw = {
+	uhidopen,	uhidclose,	uhidread,	uhidwrite,
+	uhidioctl,	nostop,		nullreset,	nodevtotty,
+	uhidpoll,	nommap,		nostrat,
+	"uhid",		NULL,		-1
+};
+#endif
+
 void uhid_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
 void uhid_disco __P((void *));
 
@@ -542,5 +562,6 @@ uhidpoll(dev, events, p)
 }
 
 #if defined(__FreeBSD__)
-DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, usbd_driver_load, 0);
+DEV_DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass,
+		UHID_CDEV_MAJOR, NOMAJ, uhid_cdevsw, usbd_driver_load, 0);
 #endif
