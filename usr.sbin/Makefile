@@ -47,6 +47,7 @@ SUBDIR=	ac \
 	fdformat \
 	fdread \
 	fdwrite \
+	flowctl \
 	fwcontrol \
 	getfmac \
 	getpmac \
