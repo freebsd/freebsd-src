@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.19 1995/11/29 09:45:13 tg Exp $ -->
+<!-- $Id: install.sgml,v 1.20 1995/12/04 17:58:40 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -259,6 +259,7 @@ Boot:
 		<item>ASUS		PCI-L101-TB
 		<item>Accton		ENI1203
 		<item>Cogent		EM960PCI
+		<item>Compex 		CPXPCI/32C
 		<item>D-Link		DE-530
 		<item>DEC		DE435
 		<item>Danpex		EN-9400P3
