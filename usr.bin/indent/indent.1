@@ -87,7 +87,7 @@ program formatter.  It reformats the
 program in the
 .Ar input-file
 according to the switches.  The switches which can be
-specified are described below. They may appear before or after the file
+specified are described below.  They may appear before or after the file
 names.
 .Pp
 .Sy NOTE  :
@@ -136,12 +136,12 @@ If
 .Fl \&bc
 is specified, then a newline is forced after each comma in a declaration.
 .Fl nbc
-turns off this option.  The default is
-.Fl \&bc  .
+turns off this option.  Default:
+.Fl \&nbc  .
 .It Fl \&br , \&bl
 Specifying
 .Fl \&bl
-lines up compound statements like this:
+lines-up compound statements like this:
 .ne 4
 .Bd -literal -offset indent
 if (...)
@@ -184,7 +184,7 @@ This only affects block comments, not comments to the right of
 code.  The default is
 .Fl cdb  .
 .It Fl ce , nce
-Enables (disables) forcing `else's to cuddle up to the immediately preceding
+Enables (disables) forcing of `else's to cuddle up to the immediately preceding
 `}'.  The default is
 .Fl \&ce  .
 .It Fl \&ci Ns Ar n 
@@ -211,12 +211,12 @@ default is
 .Fl cli0  .
 .It Fl d Ns Ar n 
 Controls the placement of comments which are not to the
-right of code.  The default
+right of code.  For example,
 .Fl \&d\&1
 means that such comments are placed one indentation level to the
-left of code.  Specifying
+left of code.  Specifying the default
 .Fl \&d\&0
-lines up these comments with the code.  See the section on comment
+lines-up these comments with the code.  See the section on comment
 indentation below.
 .It Fl \&di Ns Ar n 
 Specifies the indentation, in character positions, from a declaration keyword
@@ -237,7 +237,8 @@ following an
 .Ic else
 will have the same indentation as the preceding
 .Ic \&if
-statement.
+statement.  The default is
+.Fl ei  .
 .It Fl fc1 , nfc1
 Enables (disables) the formatting of comments that start in column 1.
 Often, comments whose leading `/' is in column 1 have been carefully
@@ -247,15 +248,15 @@ should be
 used.  The default is
 .Fl fc1  .
 .It Fl i Ns Ar n 
-The number of spaces for one indentation level.  The default is 4.
+The number of spaces for one indentation level.  The default is 8.
 .It Fl \&ip , nip
 Enables (disables) the indentation of parameter declarations from the left
 margin.  The default is
 .Fl \&ip  .
 .It Fl l Ns Ar n 
-Maximum length of an output line.  The default is 75.
+Maximum length of an output line.  The default is 78.
 .It Fl \&lp , nlp
-Lines up code surrounded by parenthesis in continuation lines.  If a line
+Lines-up code surrounded by parenthesis in continuation lines.  If a line
 has a left paren which is not closed on that line, then continuation lines
 will be lined up to start at the character position just after the left
 paren.  For example, here is how a piece of continued code looks with
@@ -305,7 +306,8 @@ default is
 .Fl psl  .
 .It Fl \&sc , nsc
 Enables (disables) the placement of asterisks (`*'s) at the left edge of all
-comments.
+comments.  The default is
+.Fl sc  .
 .It Fl sob , nsob
 If
 .Fl sob
@@ -315,7 +317,7 @@ get rid of blank lines after declarations.  Default:
 .It Fl \&st
 Causes
 .Nm
-to take its input from stdin, and put its output to stdout.
+to take its input from stdin and put its output to stdout.
 .It Fl T Ns Ar typename 
 Adds
 .Ar typename
@@ -352,7 +354,7 @@ turns on `verbose' mode;
 turns it off.  When in verbose mode,
 .Nm
 reports when it splits one line of input into two or more lines of output,
-and gives some size statistics at completion. The default is
+and gives some size statistics at completion.  The default is
 .Fl \&nv  .
 .El
 .Pp
