@@ -84,7 +84,7 @@ struct mntopt mopts[] = {
 };
 
 #if __STDC__
-void	fatal(const char *fmt, ...);
+void	fatal(const char *fmt, ...) __printflike(1, 2);
 #else
 void	fatal();
 #endif
@@ -562,9 +562,9 @@ main(argc, argv)
 }
 
 #ifdef COMPAT
-char lmsg[] = "%s: can't read disk label; disk type must be specified";
+const char lmsg[] = "%s: can't read disk label; disk type must be specified";
 #else
-char lmsg[] = "%s: can't read disk label";
+const char lmsg[] = "%s: can't read disk label";
 #endif
 
 struct disklabel *
