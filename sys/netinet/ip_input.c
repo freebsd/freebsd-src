@@ -225,6 +225,7 @@ ip_dn_io_t *ip_dn_io_ptr;
  * using IP source routing.  This allows connection establishment and
  * maintenance when the remote end is on a network that is not known
  * to us.
+ * XXX: Broken on SMP and possibly preemption!
  */
 static int	ip_nhops = 0;
 static	struct ip_srcrt {
