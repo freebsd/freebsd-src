@@ -86,7 +86,7 @@ LEAF(setjmp, 1)
 	mov	s0, a0
 	ldq	s0, (( 9 + 4) * 8)(a0)
 
-	ldiq	t0, 0xacedbade			/* sigcontext magic number */
+	ldiq	t0, 0xacedbadd			/* sigcontext magic number */
 	stq	t0, ((31 + 4) * 8)(a0)		/* magic in sc_regs[31] */
 	/* Too bad we can't check if we actually used FP */
 	ldiq	t0, 1
@@ -120,8 +120,16 @@ END(setjmp)
 XLEAF(longjmp, 2)
 LEAF(__longjmp, 2)
 	LDGP(pv)
-	stq	a1, (( 0 + 4) * 8)(a0)		/* save return value */
-	CALL(_sigreturn)			/* use sigreturn to return */
+	mov	a1, s1				/* save return value */
+	mov	a0, s0				/* save the sc pointer */
+	/* restore the mask */
+	mov	zero, a2			/* oset:  NULL */
+	lda	a1, (71 * 8)(a0)		/* set: sc_reserved */
+	addq	a2, 3, a0			/* how:	 SIG_SET */
+	CALL(_sigprocmask)			/* restore the mask */
+	mov	s0, a0				/* restore the sc pointer */
+	mov	s1, a1				/* restore the return value */
+	jmp	zero, ___longjmp		/* use ___longjmp to return */
 
 botch:
 	CALL(longjmperror)
