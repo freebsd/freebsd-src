@@ -263,6 +263,7 @@ void	splsoftcamnetassert __P((const char *msg));
 void	splsoftclockassert __P((const char *msg));
 void	splsoftttyassert __P((const char *msg));
 void	splsoftvmassert __P((const char *msg));
+void	splsofttqassert __P((const char *msg));
 void	splstatclockassert __P((const char *msg));
 void	splttyassert __P((const char *msg));
 void	splvmassert __P((const char *msg));
