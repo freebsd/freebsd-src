@@ -135,7 +135,8 @@ does not exist.
 .Pp
 The
 .Fl s
-option is used for setting up the posting of messages.  The line
+option is used for setting up the posting of messages.
+The line
 .Pp
 .Dl msgs: \&"\&| /usr/bin/msgs \-s\&"
 .Pp
@@ -157,9 +158,11 @@ option should be placed in
 .Pa /etc/periodic/daily
 (see
 .Xr periodic 8 )
-to run every night.  This will remove all messages over 21 days old.
+to run every night.
+This will remove all messages over 21 days old.
 A different expiration may be specified on the command line to override
 the default.
+You must be the superuser to use this option.
 .Pp
 Options when reading messages include:
 .Bl -tag -width Fl
@@ -175,7 +178,7 @@ The command ``msgs \-q'' is often used in login scripts.
 .It Fl h
 Print the first part of messages only.
 .It Fl l
-Option causes only locally originated messages to be reported.
+Cause only locally originated messages to be reported.
 .It Ar num
 A message number can be given
 on the command line, causing
