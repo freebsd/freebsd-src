@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)file.h	8.3 (Berkeley) 1/9/95
- * $Id: file.h,v 1.13 1997/03/23 03:37:29 bde Exp $
+ * $Id: file.h,v 1.14 1997/09/14 02:25:40 peter Exp $
  */
 
 #ifndef _SYS_FILE_H_
@@ -84,6 +84,10 @@ struct file {
 	off_t	f_offset;
 	caddr_t	f_data;		/* vnode or socket */
 };
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_FILE);
+#endif
 
 LIST_HEAD(filelist, file);
 extern struct filelist filehead; /* head of list of open files */
