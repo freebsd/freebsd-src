@@ -125,7 +125,8 @@ svr4_sock_ioctl(fp, td, retval, fd, cmd, data)
 			(void) strncpy(br.ifr_name, sr.svr4_ifr_name,
 			    sizeof(br.ifr_name));
 			if ((error = fo_ioctl(fp, SIOCGIFFLAGS, 
-					    (caddr_t) &br, td)) != 0) {
+					    (caddr_t) &br, td->td_ucred,
+					    td)) != 0) {
 				DPRINTF(("SIOCGIFFLAGS (%s) %s: error %d\n", 
 					 br.ifr_name, sr.svr4_ifr_name, error));
 				return error;
@@ -149,7 +150,8 @@ svr4_sock_ioctl(fp, td, retval, fd, cmd, data)
 				sc.svr4_ifc_len));
 
 			if ((error = fo_ioctl(fp, OSIOCGIFCONF,
-					    (caddr_t) &sc, td)) != 0)
+					    (caddr_t) &sc, td->td_ucred,
+					    td)) != 0)
 				return error;
 
 			DPRINTF(("SIOCGIFCONF\n"));

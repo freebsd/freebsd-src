@@ -101,7 +101,7 @@ static int do_dup(struct filedesc *fdp, int old, int new, register_t *retval,
 static int badfo_readwrite(struct file *fp, struct uio *uio,
     struct ucred *active_cred, int flags, struct thread *td);
 static int badfo_ioctl(struct file *fp, u_long com, void *data,
-    struct thread *td);
+    struct ucred *active_cred, struct thread *td);
 static int badfo_poll(struct file *fp, int events,
     struct ucred *active_cred, struct thread *td);
 static int badfo_kqfilter(struct file *fp, struct knote *kn);
@@ -315,34 +315,35 @@ fcntl(td, uap)
 		fp->f_flag &= ~FCNTLFLAGS;
 		fp->f_flag |= FFLAGS(uap->arg & ~O_ACCMODE) & FCNTLFLAGS;
 		tmp = fp->f_flag & FNONBLOCK;
-		error = fo_ioctl(fp, FIONBIO, &tmp, td);
+		error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
 		if (error) {
 			fdrop(fp, td);
 			break;
 		}
 		tmp = fp->f_flag & FASYNC;
-		error = fo_ioctl(fp, FIOASYNC, &tmp, td);
+		error = fo_ioctl(fp, FIOASYNC, &tmp, td->td_ucred, td);
 		if (!error) {
 			fdrop(fp, td);
 			break;
 		}
 		fp->f_flag &= ~FNONBLOCK;
 		tmp = 0;
-		(void)fo_ioctl(fp, FIONBIO, &tmp, td);
+		(void)fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
 		fdrop(fp, td);
 		break;
 
 	case F_GETOWN:
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
-		error = fo_ioctl(fp, FIOGETOWN, (void *)td->td_retval, td);
+		error = fo_ioctl(fp, FIOGETOWN, (void *)td->td_retval,
+		    td->td_ucred, td);
 		fdrop(fp, td);
 		break;
 
 	case F_SETOWN:
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
-		error = fo_ioctl(fp, FIOSETOWN, &uap->arg, td);
+		error = fo_ioctl(fp, FIOSETOWN, &uap->arg, td->td_ucred, td);
 		fdrop(fp, td);
 		break;
 
@@ -2159,10 +2160,11 @@ badfo_readwrite(fp, uio, active_cred, flags, td)
 }
 
 static int
-badfo_ioctl(fp, com, data, td)
+badfo_ioctl(fp, com, data, active_cred, td)
 	struct file *fp;
 	u_long com;
 	void *data;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 

@@ -351,7 +351,7 @@ int	soo_write(struct file *fp, struct uio *uio,
 	    struct ucred *active_cred, int flags, struct thread *td);
 int	soo_close(struct file *fp, struct thread *td);
 int	soo_ioctl(struct file *fp, u_long cmd, void *data,
-	    struct thread *td);
+	    struct ucred *active_cred, struct thread *td);
 int	soo_poll(struct file *fp, int events, struct ucred *active_cred,
 	    struct thread *td);
 int	soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,

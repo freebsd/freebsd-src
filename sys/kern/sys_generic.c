@@ -656,7 +656,7 @@ ioctl(td, uap)
 		else
 			fp->f_flag &= ~FNONBLOCK;
 		FILE_UNLOCK(fp);
-		error = fo_ioctl(fp, FIONBIO, &tmp, td);
+		error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
 		break;
 
 	case FIOASYNC:
@@ -666,11 +666,11 @@ ioctl(td, uap)
 		else
 			fp->f_flag &= ~FASYNC;
 		FILE_UNLOCK(fp);
-		error = fo_ioctl(fp, FIOASYNC, &tmp, td);
+		error = fo_ioctl(fp, FIOASYNC, &tmp, td->td_ucred, td);
 		break;
 
 	default:
-		error = fo_ioctl(fp, com, data, td);
+		error = fo_ioctl(fp, com, data, td->td_ucred, td);
 		/*
 		 * Copy any data to user, size was
 		 * already set and checked above.

@@ -365,7 +365,8 @@ ibcs2_ioctl(td, uap)
 		struct ibcs2_termios sts;
 		struct ibcs2_termio st;
 	
-		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts, td)) != 0)
+		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts,
+		    td->td_ucred, td)) != 0)
 			break;
 	
 		btios2stios (&bts, &sts);
@@ -403,7 +404,8 @@ ibcs2_ioctl(td, uap)
 		}
 
 		/* get full BSD termios so we don't lose information */
-		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts, td)) != 0) {
+		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts,
+		    td->td_ucred, td)) != 0) {
 			DPRINTF(("ibcs2_ioctl(%d): TCSET ctl failed fd %d ",
 				 p->p_pid, SCARG(uap, fd)));
 			break;
@@ -418,7 +420,7 @@ ibcs2_ioctl(td, uap)
 		stios2btios(&sts, &bts);
 
 		error = fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_TCSETA + TIOCSETA,
-			      (caddr_t)&bts, td);
+			      (caddr_t)&bts, td->td_ucred, td);
 		break;
 	    }
 
@@ -434,7 +436,7 @@ ibcs2_ioctl(td, uap)
 			break;
 		stios2btios (&sts, &bts);
 		error = fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_XCSETA + TIOCSETA,
-			      (caddr_t)&bts, td);
+			      (caddr_t)&bts, td->td_ucred, td);
 		break;
 	    }
 
@@ -450,7 +452,7 @@ ibcs2_ioctl(td, uap)
 			break;
 		stios2btios (&sts, &bts);
 		error = fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_OXCSETA + TIOCSETA,
-			      (caddr_t)&bts, td);
+			      (caddr_t)&bts, td->td_ucred, td);
 		break;
 	    }
 
@@ -468,10 +470,12 @@ ibcs2_ioctl(td, uap)
 			error = ENOSYS;
 			break;
 		case 2:
-			error = fo_ioctl(fp, TIOCSTOP, (caddr_t)0, td);
+			error = fo_ioctl(fp, TIOCSTOP, (caddr_t)0,
+			    td->td_ucred, td);
 			break;
 		case 3:
-			error = fo_ioctl(fp, TIOCSTART, (caddr_t)1, td);
+			error = fo_ioctl(fp, TIOCSTART, (caddr_t)1,
+			    td->td_ucred, td);
 			break;
 		default:
 			error = EINVAL;
@@ -498,7 +502,8 @@ ibcs2_ioctl(td, uap)
 			fdrop(fp, td);
 			return EINVAL;
 		}
-		error = fo_ioctl(fp, TIOCFLUSH, (caddr_t)&arg, td);
+		error = fo_ioctl(fp, TIOCFLUSH, (caddr_t)&arg, td->td_ucred,
+		    td);
 		break;
 	    }
 
