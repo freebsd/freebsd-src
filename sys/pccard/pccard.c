@@ -224,6 +224,8 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	devi->running = 1;
 	devi->slt = slt;
 	bcopy(desc->misc, devi->misc, sizeof(desc->misc));
+	strcpy(devi->manufstr, desc->manufstr);
+	strcpy(devi->versstr, desc->versstr);
 	devi->manufacturer = desc->manufacturer;
 	devi->product = desc->product;
 	devi->prodext = desc->prodext;
