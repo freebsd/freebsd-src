@@ -58,7 +58,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/ctype.h>
+/* #include <sys/ctype.h> */
 #include <machine/clock.h>
 
 #include <netgraph/ng_message.h>
