@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
+#include <netinet/if_ether.h>
 #include <netatalk/at.h>
 #ifdef NS
 #include <netns/ns.h>
@@ -94,6 +95,7 @@ union	sockunion {
 	struct	sockaddr_ns sns;
 #endif
 	struct	sockaddr_dl sdl;
+	struct	sockaddr_inarp sinarp;
 	struct	sockaddr_storage ss; /* added to avoid memory overrun */
 } so_dst, so_gate, so_mask, so_genmask, so_ifa, so_ifp;
 
@@ -581,7 +583,7 @@ newroute(argc, argv)
 	register char **argv;
 {
 	char *cmd, *dest = "", *gateway = "", *err;
-	int ishost = 0, ret, attempts, oerrno, flags = RTF_STATIC;
+	int ishost = 0, proxy = 0, ret, attempts, oerrno, flags = RTF_STATIC;
 	int key;
 	struct hostent *hp = 0;
 
@@ -652,6 +654,9 @@ newroute(argc, argv)
 				break;
 			case K_PROTO2:
 				flags |= RTF_PROTO2;
+				break;
+			case K_PROXY:
+				proxy = 1;
 				break;
 			case K_CLONING:
 				flags |= RTF_CLONING;
@@ -750,6 +755,10 @@ newroute(argc, argv)
 		flags |= RTF_HOST;
 	if (iflag == 0)
 		flags |= RTF_GATEWAY;
+	if (proxy) {
+		so_dst.sinarp.sin_other = SIN_PROXY;
+		flags |= RTF_ANNOUNCE;
+	}
 	for (attempts = 1; ; attempts++) {
 		errno = 0;
 		if ((ret = rtmsg(*cmd, flags)) == 0)
