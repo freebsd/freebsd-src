@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:26  rpd
- *	$Id: boot2.S,v 1.3 1993/11/13 04:43:25 rgrimes Exp $
+ *	$Id: boot2.S,v 1.4 1994/06/22 05:52:25 jkh Exp $
  */
 
 #include	"asm.h"
@@ -33,10 +33,13 @@
 #define BOOT_CS_INDEX		3
 #define BOOT_CS16_INDEX		5
 #define BOOT_DS_INDEX		4
+
+#ifdef BDE_DEBUGGER
 #define DB_CS_INDEX		14
 #define DB_CS16_INDEX		15
 #define DB_DS_INDEX		16
 #define GDT_INDEX		17
+#endif
 
 /* Vector numbers. */
 #define BREAKPOINT_VECTOR	3
@@ -73,17 +76,22 @@ ENTRY(boot2)
 	FIXUP(BOOT_CS16_INDEX)
 	FIXUP(BOOT_DS_INDEX)
 
-	/* fix up GDT entry for GDT, and GDT and IDT pointers */
+	/* fix up GDT pointer */
 	data32
 	movl	%eax, %ecx
 	data32
 	addl	$ EXT(Gdt), %eax
-	data32
-	shld	$16, %eax, %ebx
-	FIXUP(GDT_INDEX)
 	addr32
 	data32
 	movl	%eax, EXT(Gdtr)+2
+
+#ifdef BDE_DEBUGGER
+	/* fix up GDT entry for GDT */
+	data32
+	shld	$16, %eax, %ebx
+	FIXUP(GDT_INDEX)
+
+	/* fix up IDT pointer */
 	data32
 	addl	$ EXT(Idt), %ecx
 	addr32
@@ -147,6 +155,7 @@ ENTRY(boot2)
 
 	/* finished with groping in real mode segments */
 	pop	%es
+#endif /* BDE_DEBUGGER */
 
 	/* change to protected mode */
 	data32
