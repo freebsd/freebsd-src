@@ -1,7 +1,8 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/6/93
+#	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
+#	$Id$
 
 PROG=	msgs
-DPADD=	${LIBTERMCAP} ${LIBCOMPAT}
-LDADD=	-ltermcap -lcompat
+DPADD=	${LIBTERMCAP}
+LDADD=	-ltermcap
 
 .include <bsd.prog.mk>

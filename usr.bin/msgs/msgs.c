@@ -75,7 +75,7 @@ static char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
 #include <errno.h>
 #include <pwd.h>
 #include <setjmp.h>
-#include <sgtty.h>
+#include <termios.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,7 +130,6 @@ int	nlines;
 int	Lpp = 0;
 time_t	t;
 time_t	keep;
-struct	sgttyb	otty;
 
 char	*mktemp();
 char	*nxtfld();
@@ -162,7 +161,7 @@ int argc; char *argv[];
 	setbuf(stdout, NULL);
 #endif
 
-	gtty(fileno(stdout), &otty);
+	
 	time(&t);
 	setuid(uid = getuid());
 	ruptible = (signal(SIGINT, SIG_IGN) == SIG_DFL);
@@ -632,8 +631,8 @@ int length;
 		fflush(stdout);
 	}
 
-	/* trick to force wait on output */
-	stty(fileno(stdout), &otty);
+	/* force wait on output */
+	tcdrain(fileno(stdout));
 }
 
 void
