@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.22 1997/11/25 19:15:59 nate Exp $";
+	"$Id: cardd.c,v 1.23 1997/12/08 06:35:07 nate Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -220,19 +220,31 @@ slot_change(struct slot *sp)
 	if (state.state == sp->state)
 		logmsg("State same as before, continuing anyway");
 #endif
-	sp->state = state.state;
-	switch (sp->state) {
+	switch (state.state) {
 	case empty:
 	case noslot:
 		card_removed(sp);
 		break;
 	case filled:
+		/*
+		 * If state was already filled, fake a removal first to get
+		 * our state in sync with the kernel. This happens when the
+		 * systems resumes and we only get to process the state 
+		 * change from suspend to empty after inserted() has run.
+		 * In that case the kernel state is perfectly normal.
+		 *
+		 * The reason for not doing nothing is that the kernel
+		 * has to be informed again about IRQ and IO window.
+		 */
+		if (state.state == sp->state)
+			card_removed(sp);
 		card_inserted(sp);
 		break;
 	case suspend:
 		/* ignored */
 		break;
 	}
+	sp->state = state.state;
 }
 
 /*
