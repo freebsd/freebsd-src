@@ -64,6 +64,7 @@
  */
 static int		get_muncontested(pthread_mutex_t, int);
 static void		get_mcontested(pthread_mutex_t);
+static int		mutex_init(pthread_mutex_t *, int);
 static int		mutex_lock_common(pthread_mutex_t *, int);
 static inline int	mutex_self_trylock(pthread_mutex_t);
 static inline int	mutex_self_lock(pthread_mutex_t);
@@ -267,23 +268,16 @@ _pthread_mutex_destroy(pthread_mutex_t * mutex)
 }
 
 static int
-init_static(pthread_mutex_t *mutex)
+mutex_init(pthread_mutex_t *mutex, int private)
 {
-	int error = 0;
-	_SPINLOCK(&static_init_lock);
-	if (*mutex == PTHREAD_MUTEX_INITIALIZER)
-		error = _pthread_mutex_init(mutex, NULL);
-	_SPINUNLOCK(&static_init_lock);
-	return (error);
-}
+	pthread_mutexattr_t *pma;
+	int error;
 
-static int
-init_static_private(pthread_mutex_t *mutex)
-{
-	int error = 0;
+	error = 0;
+	pma = private ? &static_mattr : NULL;
 	_SPINLOCK(&static_init_lock);
 	if (*mutex == PTHREAD_MUTEX_INITIALIZER)
-		error = _pthread_mutex_init(mutex, &static_mattr);
+		error = _pthread_mutex_init(mutex, pma);
 	_SPINUNLOCK(&static_init_lock);
 	return (error);
 }
@@ -301,7 +295,7 @@ __pthread_mutex_trylock(pthread_mutex_t *mutex)
 	 * initialization:
 	 */
 	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
-	    (ret = init_static(mutex)) == 0)
+	    (ret = mutex_init(mutex, 0)) == 0)
 		ret = mutex_lock_common(mutex, 1);
 
 	return (ret);
@@ -320,7 +314,7 @@ _pthread_mutex_trylock(pthread_mutex_t *mutex)
 	 * initialization marking the mutex private (delete safe):
 	 */
 	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
-	    (ret = init_static_private(mutex)) == 0)
+	    (ret = mutex_init(mutex, 1)) == 0)
 		ret = mutex_lock_common(mutex, 1);
 
 	return (ret);
@@ -505,7 +499,7 @@ __pthread_mutex_lock(pthread_mutex_t *mutex)
 	 * initialization:
 	 */
 	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
-	    ((ret = init_static(mutex)) == 0))
+	    ((ret = mutex_init(mutex, 0)) == 0))
 		ret = mutex_lock_common(mutex, 0);
 
 	return (ret);
@@ -527,7 +521,7 @@ _pthread_mutex_lock(pthread_mutex_t *mutex)
 	 * initialization marking it private (delete safe):
 	 */
 	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
-	    ((ret = init_static_private(mutex)) == 0))
+	    ((ret = mutex_init(mutex, 1)) == 0))
 		ret = mutex_lock_common(mutex, 0);
 
 	return (ret);
