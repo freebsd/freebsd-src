@@ -205,7 +205,7 @@ wihap_init(struct wi_softc *sc)
 	struct wihap_info *whi = &sc->wi_hostap_info;
 
 	if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
-		printf("wihap_init: sc=0x%x whi=0x%x\n", (int)sc, (int)whi);
+		printf("wihap_init: sc=%p whi=%p\n", sc, whi);
 
 	bzero(whi, sizeof(struct wihap_info));
 
@@ -289,8 +289,7 @@ wihap_shutdown(struct wi_softc *sc)
 	int s;
 
 	if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
-		printf("wihap_shutdown: sc=0x%x whi=0x%x\n",
-		    (int)sc, (int)whi);
+		printf("wihap_shutdown: sc=%p whi=%p\n", sc, whi);
 
 	if (!(whi->apflags & WIHAPFL_ACTIVE))
 		return;
@@ -316,7 +315,7 @@ wihap_shutdown(struct wi_softc *sc)
 
 		/* Delete the structure. */
 		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
-			printf("wihap_shutdown: FREE(sta=0x%x)\n", (int)sta);
+			printf("wihap_shutdown: FREE(sta=%p)\n", sta);
 		next = LIST_NEXT(sta, list);
 		FREE(sta, M_HAP_STA);
 		sta = next;
