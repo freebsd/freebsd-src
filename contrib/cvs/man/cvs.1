@@ -244,6 +244,25 @@ Overrides the setting of the
 .SM CVSREAD
 environment variable.
 .TP
+.B \-g
+Forces group-write perms on working files.  This option is typically
+used when you have multiple users sharing a single checked out source
+tree, allowing them to operate their shells with a less dangerous umask.
+To use this feature, create a directory to hold the checked-out source
+tree, set it to a private group, and set up the directory such that
+files created under it inherit the group id of the directory.  This occurs 
+automatically with FreeBSD.  With SysV you must typically set the SGID bit
+on the directory.  The users who are to share the checked out tree must
+be placed in that group.  Note that the sharing of a single checked-out
+source tree is very different from giving several users access to a common
+CVS repository.  Access to a common CVS repository already maintains shared
+group-write perms and does not require this option.
+
+To use the option transparently, simply place the line 'cvs -g' in your
+~/.cvsrc file.  Doing this is not recommended unless you firewall all your
+source checkouts within a private group or within a private mode 0700
+directory.
+.TP
 .B \-x
 Encrypt all communication between the client and the server.  As of
 this writing, this is only implemented when using a Kerberos

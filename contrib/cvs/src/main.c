@@ -211,6 +211,7 @@ static const char *const opt_usage[] =
     "    -q           Cause CVS to be somewhat quiet.\n",
     "    -r           Make checked-out files read-only.\n",
     "    -w           Make checked-out files read-write (default).\n",
+    "    -g           Force group-write perms on checked-out files.\n",
     "    -l           Turn history logging off.\n",
     "    -n           Do not execute anything that will change the disk.\n",
     "    -t           Show trace of program execution -- try with -n.\n",
@@ -480,7 +481,7 @@ main (argc, argv)
     opterr = 1;
 
     while ((c = getopt_long
-            (argc, argv, "+QqrwtnRlvb:T:e:d:Hfz:s:xaU", long_options, &option_index))
+            (argc, argv, "+QqgrwtnRlvb:T:e:d:Hfz:s:xaU", long_options, &option_index))
            != EOF)
     {
 	switch (c)
@@ -512,6 +513,13 @@ main (argc, argv)
 		break;
 	    case 'w':
 		cvswrite = 1;
+		break;
+	    case 'g':
+		/*
+		 * force full group write perms (used for shared checked-out
+		 * source trees, see manual page)
+		 */
+		umask(mask(077) & 007);
 		break;
 	    case 't':
 		trace = 1;
