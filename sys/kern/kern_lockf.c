@@ -39,7 +39,6 @@
 
 #include "opt_debug_lockf.h"
 
-#include <machine/limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -50,8 +49,9 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
-
 #include <sys/lockf.h>
+
+#include <machine/limits.h>
 
 /*
  * This variable controls the maximum number of processes that will
