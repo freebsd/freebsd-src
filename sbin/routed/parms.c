@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.12 $"
+#ident "$Revision: 1.1.1.3 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -557,7 +557,7 @@ parse_parms(char *line,
 
 	/* "subnet=x.y.z.u/mask,metric" must be alone on the line */
 	if (!strncasecmp(line, "subnet=", sizeof("subnet=")-1)
-	    && *(val = &line[sizeof("subnet=")]) != '\0') {
+	    && *(val = &line[sizeof("subnet=")-1]) != '\0') {
 		intnetp = (struct intnet*)malloc(sizeof(*intnetp));
 		intnetp->intnet_metric = 1;
 		if ((p = strrchr(val,','))) {
