@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.42 1996/07/12 05:17:36 bde Exp $
+#	$Id: Makefile,v 1.43 1996/09/04 18:28:33 julian Exp $
 #
 
 PROG=	boot
@@ -75,7 +75,7 @@ boot1:		boot.nohdr
 
 boot2:		boot.nohdr
 	dd if=boot.nohdr of=boot2 bs=512 skip=1
-	@dd if=boot2 skip=15 of=sizetest 2> /dev/null
+	@dd if=boot2 skip=14 of=sizetest 2> /dev/null
 	@if [ -s sizetest ] ; then \
 		echo "*** Boot2 is too BIG ***" ; exit 2 ; \
 	fi

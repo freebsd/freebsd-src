@@ -62,36 +62,33 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define NAMEBUF_LEN	(8*1024)
 
 #ifdef NAMEBLOCK
-char *dflt_name ;
-/*char *dflt_name = (char *)0x0000ffb0; */ /* force it to not be in the BSS */
+char *dflt_name;
 #endif
 char namebuf[NAMEBUF_LEN];
 struct exec head;
 struct bootinfo bootinfo;
 int loadflags;
 
+static void getbootdev(char *ptr, int *howto);
 static void loadprog(void);
 
 /* NORETURN */
 void
 boot(int drive)
 {
-	char *ptr;
-	int	howto;
-	char c;
 	int ret;
 
 #ifdef PROBE_KEYBOARD
 	if (probe_keyboard()) {
 		init_serial();
-		loadflags = RB_SERIAL;
+		loadflags |= RB_SERIAL;
 		printf("\nNo keyboard found.");
 	}
 #endif
 
 #ifdef FORCE_COMCONSOLE
 	init_serial();
-	loadflags = RB_SERIAL;
+	loadflags |= RB_SERIAL;
 	printf("\nSerial console forced.");
 #endif
 
@@ -134,15 +131,17 @@ boot(int drive)
 	}
 #ifdef	NAMEBLOCK
 	/*
-	 * this is set by the code in boot2.S
+	 * XXX
+	 * DAMN! I don't understand why this is not being set 
+	 * by the code in boot2.S
 	 */
+	dflt_name= (char *)0x0000ffb0;
 	if( (*dflt_name++ == 'D') && (*dflt_name++ == 'N')) {
-		strcpy(namebuf,dflt_name);
+		name = dflt_name;
 	} else
 #endif	/*NAMEBLOCK*/
 loadstart:
-	strcpy(namebuf,dflname);/* re-initialize in case of loop */
-	name = dflname; /* XXX check if needed */
+	name = dflname;		/* re-initialize in case of loop */
 	/* print this all each time.. (saves space to do so) */
 	/* If we have looped, use the previous entries as defaults */
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
@@ -152,85 +151,17 @@ loadstart:
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
 	       dosdev & 0x7f, devs[maj], unit, name);
 
-	/*
-	 * Be paranoid and make doubly sure that the input buffer is empty.
-	 */
-	if(howto = (loadflags &= RB_SERIAL))
-		init_serial();	/* clear all, but leave serial console */
-
-	if (!gets(namebuf)) {
-		putchar('\n');
-	}
-	ptr = namebuf;
-	/*
-	 * now parse out the boot options from what was given to us
-	 * (or was read from the default string)
-	 */
-	while ((c = *ptr) != '\0') {
-		/*
-		 * pass any leading (or inter-arg) spaces
-		 */
-		if (c == ' ') {
-			ptr++;
-			continue;
-		}
-		/*
-		 * If it's an arg, take as many letters as we can
-		 */
-		if (c == '-') {
-			while ((c = *++ptr) != '\0') {
-				if (c == ' ')
-					break;
-				if (c == 'C')
-					howto |= RB_CDROM;
-				if (c == 'a')
-					howto |= RB_ASKNAME;
-				if (c == 'b')
-					howto |= RB_HALT;
-				if (c == 'c')
-					howto |= RB_CONFIG;
-				if (c == 'd')
-					howto |= RB_KDB;
-				if (c == 'h') {
-					howto ^= RB_SERIAL;
-					if (howto & RB_SERIAL)
-						init_serial();
-				}
-				if (c == 'g')
-					howto |= RB_GDB;
-				if (c == 'r')
-					howto |= RB_DFLTROOT;
-				if (c == 's')
-					howto |= RB_SINGLE;
-				if (c == 'v')
-					howto |= RB_VERBOSE;
-			}
-			continue;
-		} 
-		/*
-		 * we have struck something that's not an arg,
-		 * nor a space.
-		 * break it off into a separate string.. "name"
-		 * The default string will at least hit this..
-		 */
-		name = ptr;
-		while (*++ptr != '\0') {
-			if (*ptr == ' ') {
-				*ptr++ = '\0';
-				break;
-			}
-		}
-	}
-	loadflags = howto;
-	/*
-	 * Now use "name" to try open the device and file for reading
-	 */
+	loadflags &= RB_SERIAL;	/* clear all, but leave serial console */
+	getbootdev(namebuf, &loadflags);
 	ret = openrd();
 	if (ret != 0) {
 		if (ret > 0)
 			printf("Can't find %s\n", name);
 		goto loadstart;
 	}
+/*	if (inode.i_mode&IEXEC)
+		loadflags |= RB_KDB;
+*/
 	loadprog();
 	goto loadstart;
 }
@@ -363,3 +294,61 @@ loadprog(void)
 		  (int)&bootinfo + ouraddr);
 }
 
+void
+getbootdev(char *ptr, int *howto)
+{
+	char c;
+
+	/*
+	 * Be paranoid and make doubly sure that the input buffer is empty.
+	 */
+	if (*howto & RB_SERIAL)
+		init_serial();
+
+	if (!gets(ptr)) {
+		putchar('\n');
+		return;
+	}
+	while ((c = *ptr) != '\0') {
+nextarg:
+		while (c == ' ')
+			c = *++ptr;
+		if (c == '-')
+			while ((c = *++ptr) != '\0') {
+				if (c == ' ')
+					goto nextarg;
+				if (c == 'C')
+					*howto |= RB_CDROM;
+				if (c == 'a')
+					*howto |= RB_ASKNAME;
+				if (c == 'b')
+					*howto |= RB_HALT;
+				if (c == 'c')
+					*howto |= RB_CONFIG;
+				if (c == 'd')
+					*howto |= RB_KDB;
+				if (c == 'h') {
+					*howto ^= RB_SERIAL;
+					if (*howto & RB_SERIAL)
+						init_serial();
+				}
+				if (c == 'g')
+					*howto |= RB_GDB;
+				if (c == 'r')
+					*howto |= RB_DFLTROOT;
+				if (c == 's')
+					*howto |= RB_SINGLE;
+				if (c == 'v')
+					*howto |= RB_VERBOSE;
+			}
+		if (c == '\0')
+			return;
+		name = ptr;
+		while (*++ptr != '\0') {
+			if (*ptr == ' ') {
+				*ptr++ = '\0';
+				break;
+			}
+		}
+	}
+}
