@@ -18,6 +18,7 @@ SUBDIR=	colldef \
 	numericdef \
 	${_sendmail} \
 	skel \
+	snmp \
 	syscons \
 	tabset \
 	termcap \
