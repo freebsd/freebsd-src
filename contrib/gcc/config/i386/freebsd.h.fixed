@@ -158,12 +158,6 @@ Boston, MA 02111-1307, USA.  */
 #undef  LPREFIX
 #define LPREFIX ((TARGET_UNDERSCORES) ? "L" : ".L")
 
-/* FreeBSD ELF using our home-grown crtbegin.o/crtend.o does not support the
-   DWARF2 unwinding mechanisms.  Once `make world' bootstraping problems with
-   the EGCS crtstuff.c is overcome, we will switch to the non-sjlj-exceptions 
-   type exception machanism.  */
-#define DWARF2_UNWIND_INFO 0
-
 /* The a.out tools do not support "linkonce" sections. */
 #undef  SUPPORTS_ONE_ONLY
 #define SUPPORTS_ONE_ONLY	TARGET_ELF
