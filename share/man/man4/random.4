@@ -32,25 +32,35 @@
 .Sh DESCRIPTION
 The
 .Nm
-device accepts and reads data as any ordinary (and willing) file,
-but throws away any data written to it,
-and returns an endless supply of random bytes when read.
+returns an endless supply of random bytes when read.
+It also accepts and reads data
+as any ordinary (and willing) file,
+but discards data written to it.
+The device will probe for
+certain hardware entropy sources,
+and use these in preference to the fallback,
+which is a generator implemented in software.
 .Pp
-The only purpose of writing data to
+If the device has is using
+the software generator,
+writing data to
 .Nm
-is to perturb the internal state.
+would perturb the internal state.
 This perturbation of the internal state
 is the only userland method of introducing
 extra entropy into the device.
 If the writer has superuser privilege,
 then closing the device after writing
-will make the internal generator reseed itself.
+will make the software generator reseed itself.
 This can be used for extra security,
 as it immediately introduces any/all new entropy
 into the PRNG.
-The
+The hardware generators will generate
+sufficient quantities of entropy,
+and will therefore ignore user-supplied input.
+The software
 .Nm
-device can be controlled with
+device may be controlled with
 .Xr sysctl 8 .
 .Pp
 To see the devices' current settings, use the command line:
@@ -71,6 +81,8 @@ kern.random.yarrow.fastthresh: 100
 kern.random.yarrow.slowthresh: 160
 kern.random.yarrow.slowoverthresh: 2
 .Ed
+(These would not be seen if a
+hardware generator is present.)
 .Pp
 All settings are read/write.
 .Pp
@@ -299,7 +311,7 @@ A
 device appeared in
 .Fx 2.2 .
 The early version was taken from Theodore Ts'o's entropy driver for Linux.
-The current implementation,
+The current software implementation,
 introduced in
 .Fx 5.0 ,
 is a complete rewrite by
@@ -308,3 +320,12 @@ and is an implementation of the
 .Em Yarrow
 algorithm by Bruce Schneier,
 .Em et al .
+The only hardware implementation
+currently is for the
+.Em VIA C3 Nehemiah
+(stepping 3 or greater)
+CPU.
+More will be added in the future.
+.Pp
+The author gratefully acknowledges
+significant assistance from VIA Technologies, Inc.
