@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fs.h	8.7 (Berkeley) 4/19/94
- * $Id: fs.h,v 1.5 1995/05/30 08:15:07 rgrimes Exp $
+ * $Id: fs.h,v 1.6 1996/01/30 23:02:01 mpp Exp $
  */
 
 #ifndef _UFS_FFS_FS_H_
@@ -433,7 +433,10 @@ struct	ocg {
 	((loc) & (fs)->fs_qbmask)
 #define fragoff(fs, loc)	/* calculates (loc % fs->fs_fsize) */ \
 	((loc) & (fs)->fs_qfmask)
-#define lblktosize(fs, blk)	/* calculates (blk * fs->fs_bsize) */ \
+#define lblktosize(fs, blk)	/* calculates ((off_t)blk * fs->fs_bsize) */ \
+	((off_t)(blk) << (fs)->fs_bshift)
+/* Use this only when `blk' is known to be small, e.g., < NDADDR. */
+#define smalllblktosize(fs, blk)    /* calculates (blk * fs->fs_bsize) */ \
 	((blk) << (fs)->fs_bshift)
 #define lblkno(fs, loc)		/* calculates (loc / fs->fs_bsize) */ \
 	((loc) >> (fs)->fs_bshift)
@@ -464,11 +467,11 @@ struct	ocg {
  * Determining the size of a file block in the file system.
  */
 #define blksize(fs, ip, lbn) \
-	(((lbn) >= NDADDR || (ip)->i_size >= ((lbn) + 1) << (fs)->fs_bshift) \
+	(((lbn) >= NDADDR || (ip)->i_size >= smalllblktosize(fs, (lbn) + 1)) \
 	    ? (fs)->fs_bsize \
 	    : (fragroundup(fs, blkoff(fs, (ip)->i_size))))
 #define dblksize(fs, dip, lbn) \
-	(((lbn) >= NDADDR || (dip)->di_size >= ((lbn) + 1) << (fs)->fs_bshift) \
+	(((lbn) >= NDADDR || (dip)->di_size >= smalllblktosize(fs, (lbn) + 1)) \
 	    ? (fs)->fs_bsize \
 	    : (fragroundup(fs, blkoff(fs, (dip)->di_size))))
 
