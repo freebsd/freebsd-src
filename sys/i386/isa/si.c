@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.9.2.3 1996/05/05 18:17:06 peter Exp $
+ *	$Id$
  */
 
 #ifndef lint
@@ -1062,7 +1062,7 @@ siioctl(dev, cmd, data, flag, p)
 			ct = IS_CALLOUT(mynor) ? &pp->sp_iout : &pp->sp_iin;
 			break;
 		case SI_LOCK_STATE_MASK:
-			ct = IS_CALLOUT(mynor) ? &pp->sp_iout : &pp->sp_iin;
+			ct = IS_CALLOUT(mynor) ? &pp->sp_lout : &pp->sp_lin;
 			break;
 		default:
 			return (ENODEV);
