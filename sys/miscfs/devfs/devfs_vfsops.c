@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.16 1997/02/12 16:19:08 mpp Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.17 1997/05/03 21:19:54 joerg Exp $
  *
  *
  */
@@ -258,7 +258,6 @@ loop:
 			if (vget(vp, LK_EXCLUSIVE, p))
 				goto loop;
 			error = VOP_FSYNC(vp, cred, waitfor, p);
-printf("syncing device\n");
 			if (error)
 				allerror = error;
 			vput(vp);
