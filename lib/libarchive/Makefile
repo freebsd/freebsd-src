@@ -165,7 +165,7 @@ MLINKS+=	archive_write.3 archive_write_set_format_ustar.3
 MLINKS+=	libarchive.3 archive.3
 
 # Build archive.h from archive.h.in
-${.OBJDIR}/archive.h:	archive.h.in Makefile
+archive.h:	archive.h.in Makefile
 	cat ${.CURDIR}/archive.h.in |					\
 		sed 's/@ARCHIVE_API_VERSION@/${ARCHIVE_API_VERSION}/' |	\
 		sed 's/@ARCHIVE_API_FEATURE@/${ARCHIVE_API_FEATURE}/' |	\
