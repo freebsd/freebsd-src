@@ -552,7 +552,6 @@ vm_object_terminate(vm_object_t object)
 	 * wait for the pageout daemon to be done with the object
 	 */
 	vm_object_pip_wait(object, "objtrm");
-	VM_OBJECT_UNLOCK(object);
 
 	KASSERT(!object->paging_in_progress,
 		("vm_object_terminate: pageout in progress"));
@@ -562,17 +561,17 @@ vm_object_terminate(vm_object_t object)
 	 * object are gone, so we don't need to lock it.
 	 */
 	if (object->type == OBJT_VNODE) {
-		struct vnode *vp;
+		struct vnode *vp = (struct vnode *)object->handle;
 
 		/*
 		 * Clean pages and flush buffers.
 		 */
-		VM_OBJECT_LOCK(object);
 		vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 		VM_OBJECT_UNLOCK(object);
 
-		vp = (struct vnode *) object->handle;
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
+
+		VM_OBJECT_LOCK(object);
 	}
 
 	KASSERT(object->ref_count == 0, 
@@ -601,6 +600,7 @@ vm_object_terminate(vm_object_t object)
 	}
 	vm_page_unlock_queues();
 	splx(s);
+	VM_OBJECT_UNLOCK(object);
 
 	/*
 	 * Let the pager know object is dead.
