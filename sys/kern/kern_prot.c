@@ -981,9 +981,14 @@ p_cansee(const struct proc *p1, const struct proc *p2, int *privused)
 	if (!PRISON_CHECK(p1, p2))
 		return (ESRCH);
 
-	if (!ps_showallprocs && (p1->p_ucred->cr_uid != p2->p_ucred->cr_uid) &&
-	    suser_xxx(NULL, p1, PRISON_ROOT))
+	if (!ps_showallprocs && p1->p_ucred->cr_uid != p2->p_ucred->cr_uid) {
+		if (suser_xxx(NULL, p1, PRISON_ROOT) == 0) {
+			if (privused != NULL)
+				*privused = 1;
+			return (0);
+		}
 		return (ESRCH);
+	}
 
 	return (0);
 }
