@@ -725,6 +725,14 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 #undef RATE
 }
 
+static void
+rate_cb(void *arg, struct ieee80211_node *ni)
+{
+	struct ath_softc *sc = arg;
+
+	ath_rate_newassoc(sc, ATH_NODE(ni), 1);
+}
+
 /*
  * Reset the rate control state for each 802.11 state transition.
  */
@@ -733,8 +741,15 @@ ath_rate_newstate(struct ath_softc *sc, enum ieee80211_state state)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 
-	if (state == IEEE80211_S_RUN)
+	if (state == IEEE80211_S_RUN) {
+		if (ic->ic_opmode != IEEE80211_M_STA) {
+			/*
+			 * Sync rates for associated stations and neighbors.
+			 */
+			ieee80211_iterate_nodes(&ic->ic_sta, rate_cb, sc);
+		}
 		ath_rate_newassoc(sc, ATH_NODE(ic->ic_bss), 1);
+	}
 }
 
 static void
