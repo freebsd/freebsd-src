@@ -293,24 +293,19 @@ nanosleep(struct thread *td, struct nanosleep_args *uap)
 	if (error)
 		return (error);
 
+	if (uap->rmtp &&
+	    !useracc((caddr_t)uap->rmtp, sizeof(rmt), VM_PROT_WRITE))
+			return (EFAULT);
 	mtx_lock(&Giant);
-	if (uap->rmtp) {
-		if (!useracc((caddr_t)uap->rmtp, sizeof(rmt), 
-		    VM_PROT_WRITE)) {
-			error = EFAULT;
-			goto done2;
-		}
-	}
 	error = nanosleep1(td, &rqt, &rmt);
+	mtx_unlock(&Giant);
 	if (error && uap->rmtp) {
 		int error2;
 
 		error2 = copyout(&rmt, uap->rmtp, sizeof(rmt));
-		if (error2)	/* XXX shouldn't happen, did useracc() above */
+		if (error2)
 			error = error2;
 	}
-done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
