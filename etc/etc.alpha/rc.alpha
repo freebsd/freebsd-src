@@ -1,0 +1,8 @@
+#!/bin/sh -
+#
+#	$Id: rc.i386,v 1.34 1998/04/02 15:33:49 ache Exp $
+#	Do alpha specific processing
+#
+
+echo -n 'Initial rc.alpha initialization:'
+echo '.'
