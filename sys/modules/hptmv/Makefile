@@ -4,8 +4,8 @@
 #
 # $FreeBSD$
 
-HPTMV= ${.CURDIR}/../../contrib/dev/hptmv
-.PATH: ${.CURDIR}/../../dev/hptmv ${HPTMV}
+HPTMV= ${.CURDIR}/../../dev/hptmv
+.PATH: ${HPTMV}
 
 KMOD= hptmv
 SRCS= opt_scsi.h opt_cam.h

@@ -1,5 +1,6 @@
 RocketRAID 182x Driver for FreeBSD
 Copyright (C) 2003-2004 HighPoint Technologies, Inc. All rights reserved.
+$FreeBSD$
 
 #############################################################################
 Revision History:

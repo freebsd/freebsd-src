@@ -62,8 +62,8 @@ opt_ah.h			optional	ath_hal			\
 	clean		"opt_ah.h"
 #
 hptmvraid.o			optional	hptmv			\
-	dependency	"$S/contrib/dev/hptmv/i386-elf.raid.o.uu"	\
-	compile-with	"uudecode < $S/contrib/dev/hptmv/i386-elf.raid.o.uu" \
+	dependency	"$S/dev/hptmv/i386-elf.raid.o.uu"	\
+	compile-with	"uudecode < $S/dev/hptmv/i386-elf.raid.o.uu" \
 	no-implicit-rule
 #
 #
@@ -104,9 +104,6 @@ compat/svr4/svr4_sysent.c	optional compat_svr4
 compat/svr4/svr4_sysvec.c	optional compat_svr4
 compat/svr4/svr4_termios.c	optional compat_svr4
 compat/svr4/svr4_ttold.c	optional compat_svr4
-contrib/dev/hptmv/gui_lib.c	optional hptmv
-contrib/dev/hptmv/hptproc.c	optional hptmv
-contrib/dev/hptmv/ioctl.c	optional hptmv
 contrib/dev/oltr/if_oltr.c	optional oltr
 contrib/dev/oltr/if_oltr_isa.c	optional oltr isa
 contrib/dev/oltr/if_oltr_pci.c	optional oltr pci
@@ -160,6 +157,9 @@ dev/fdc/fdc_pccard.c		optional fdc pccard
 dev/fe/if_fe_isa.c		optional fe isa
 dev/hptmv/entry.c		optional hptmv
 dev/hptmv/mv.c			optional hptmv
+dev/hptmv/gui_lib.c		optional hptmv
+dev/hptmv/hptproc.c		optional hptmv
+dev/hptmv/ioctl.c		optional hptmv
 dev/ichwd/ichwd.c		optional ichwd
 dev/if_ndis/if_ndis.c		optional ndis
 dev/if_ndis/if_ndis_pccard.c	optional ndis pccard
