@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldd.c,v 1.8.2.1 1996/11/23 08:22:05 phk Exp $
+ *	$Id: ldd.c,v 1.13 1997/02/22 15:46:43 peter Exp $
  */
 
 #include <sys/types.h>
@@ -100,7 +100,7 @@ char	*argv[];
 	}
 
 	/* ld.so magic */
-	setenv("LD_TRACE_LOADED_OBJECTS", "", 1);
+	setenv("LD_TRACE_LOADED_OBJECTS", "1", 1);
 	if (fmt1)
 		setenv("LD_TRACE_LOADED_OBJECTS_FMT1", fmt1, 1);
 	if (fmt2)

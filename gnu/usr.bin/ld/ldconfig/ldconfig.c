@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.16 1996/11/08 02:12:40 jdp Exp $
+ *	$Id: ldconfig.c,v 1.19 1997/07/11 14:45:41 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -120,7 +120,7 @@ char	*argv[];
 			verbose = 1;
 			break;
 		default:
-			errx(1, "Usage: %s [-mrsv] [-f hints_file] [dir ...]",
+			errx(1, "Usage: %s [-mrsv] [-f hints_file] [dir | file ...]",
 				__progname);
 			break;
 		}
@@ -136,13 +136,24 @@ char	*argv[];
 	if (!nostd && !merge)
 		std_search_path();
 
-	if (!justread) {  /* Add any directories from the command line */
+	/* Add any directories/files from the command line */
+	if (!justread) {
 		for (i = optind; i < argc; i++) {
-			if (access(argv[i], F_OK) == -1) {  /* Doesn't exist */
+			struct stat stbuf;
+
+			if (stat(argv[i], &stbuf) == -1) {
 				warn("%s", argv[i]);
 				rval = -1;
-			} else
-				add_search_path(argv[i]);
+			} else {
+				/*
+				 * See if this is a directory-containing
+				 * file instead of a directory
+				 */
+				if (S_ISREG(stbuf.st_mode))
+					rval |= dofile(argv[i], 0);
+				else
+					add_search_path(argv[i]);
+			}
 		}
 	}
 
@@ -162,6 +173,45 @@ char	*argv[];
 
 	rval |= buildhints();
 
+	return rval;
+}
+
+int
+dofile(fname, silent)
+char	*fname;
+int	silent;
+{
+	FILE *hfp;
+	char buf[MAXPATHLEN];
+	int rval = 0;
+	char *cp, *sp;
+
+	if ((hfp = fopen(fname, "r")) == NULL) {
+		warn("%s", fname);
+		return -1;
+	}
+
+	while (fgets(buf, sizeof(buf), hfp)) {
+		cp = buf;
+		while (isspace(*cp))
+			cp++;
+		if (*cp == '#' || *cp == '\0')
+			continue;
+		sp = cp;
+		while (!isspace(*cp) && *cp != '\0')
+			cp++;
+
+		if (*cp != '\n') {
+			*cp = '\0';
+			warnx("%s: Trailing characters ignored", sp);
+		}
+
+		*cp = '\0';
+
+		rval |= dodir(sp, silent);
+	}
+
+	(void)fclose(hfp);
 	return rval;
 }
 
@@ -218,6 +268,7 @@ int	silent;
 		enter(dir, dp->d_name, name, dewey, ndewey);
 	}
 
+	closedir(dd);
 	return 0;
 }
 

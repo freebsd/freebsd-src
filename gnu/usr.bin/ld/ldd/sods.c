@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: sods.c,v 1.4 1997/02/22 15:46:44 peter Exp $
  */
 
 #include <assert.h>
@@ -386,8 +386,11 @@ dump_sods()
 	const struct sod *sodp = (const struct sod *) (text_addr + sod_offset);
 	const char *name = (const char *) (text_addr + sodp->sod_name);
 
-	printf("    -l%-16s version %d.%d\n", name, sodp->sod_major,
-	    sodp->sod_minor);
+	if (sodp->sod_library)
+	    printf("    -l%-16s version %d.%d\n", name, sodp->sod_major,
+		sodp->sod_minor);
+	else
+	    printf("    %s\n", name);
 	sod_offset = sodp->sod_next;
     }
     paths_offset = sdt->sdt_paths;
