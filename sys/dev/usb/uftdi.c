@@ -1,4 +1,4 @@
-/*	$NetBSD: uftdi.c,v 1.12 2002/07/18 14:44:10 scw Exp $	*/
+/*	$NetBSD: uftdi.c,v 1.13 2002/09/23 05:51:23 simonb Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -282,7 +282,6 @@ uftdi_activate(device_ptr_t self, enum devact act)
 	switch (act) {
 	case DVACT_ACTIVATE:
 		return (EOPNOTSUPP);
-		break;
 
 	case DVACT_DEACTIVATE:
 		if (sc->sc_subdev != NULL)

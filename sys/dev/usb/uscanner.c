@@ -1,6 +1,10 @@
 /*	$NetBSD: uscanner.c,v 1.30 2002/07/11 21:14:36 augustss Exp$	*/
 /*	$FreeBSD$	*/
 
+/* Also already merged from NetBSD:
+ *	$NetBSD: uscanner.c,v 1.33 2002/09/23 05:51:24 simonb Exp $
+ */
+
 /*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -597,7 +601,6 @@ uscanner_activate(device_ptr_t self, enum devact act)
 	switch (act) {
 	case DVACT_ACTIVATE:
 		return (EOPNOTSUPP);
-		break;
 
 	case DVACT_DEACTIVATE:
 		sc->sc_dying = 1;
