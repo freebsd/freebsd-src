@@ -37,6 +37,7 @@ foreign-language documentation or ports, use the following patterns:
     doc/ru_*
     doc/sr_*
     doc/zh_*
+    ports/arabic
     ports/chinese
     ports/french
     ports/german
