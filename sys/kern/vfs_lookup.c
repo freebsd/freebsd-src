@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.16 1997/02/22 09:39:33 peter Exp $
+ * $Id: vfs_lookup.c,v 1.17 1997/04/04 17:46:13 dfr Exp $
  */
 
 #include "opt_ktrace.h"
