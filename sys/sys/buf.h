@@ -456,8 +456,10 @@ bufq_first(struct buf_queue_head *head)
 }
 
 /* Flags to low-level allocation routines. */
-#define B_CLRBUF	0x01	/* Request allocated buffer be cleared. */
-#define B_SYNC		0x02	/* Do all allocations synchronously. */
+#define B_SEQMASK	0x7FFF0000	/* sequential heuristic mask */
+#define B_SEQSHIFT	16		/* sequential heuristic shift */
+#define B_CLRBUF	0x01		/* cleared invalid areas of buffer */
+#define B_SYNC		0x02		/* Do all allocations synchronously. */
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
