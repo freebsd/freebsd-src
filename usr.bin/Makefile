@@ -65,6 +65,7 @@ SUBDIR=	apply \
 	join \
 	jot \
 	kdump \
+	kenv \
 	key \
 	keyinfo \
 	keyinit \
