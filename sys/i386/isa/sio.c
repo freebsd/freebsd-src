@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.147.2.9 1997/10/30 00:38:22 nate Exp $
+ *	$Id: sio.c,v 1.147.2.10 1997/11/02 21:24:36 nate Exp $
  */
 
 #include "opt_comconsole.h"
@@ -85,7 +85,11 @@
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
+#ifndef DPTOPT /* not sure why this is in dpt.. latency requirements? [JRE]  */
 #define	RS_IBUFSIZE	256
+#else
+#define	RS_IBUFSIZE	512
+#endif /* DPTOPT */
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60

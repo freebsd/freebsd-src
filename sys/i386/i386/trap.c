@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.83.2.4 1997/12/04 14:36:57 jkh Exp $
+ *	$Id: trap.c,v 1.83.2.5 1997/12/05 07:26:39 jmg Exp $
  */
 
 /*
@@ -750,6 +750,10 @@ trap_fatal(frame)
 		printf("tty ");
 	if ((cpl & bio_imask) == bio_imask)
 		printf("bio ");
+#ifdef DPTOPT
+	if ((cpl & dpt_imask) == dpt_imask)
+		printf("dpt ");
+#endif /* DPTOPT */
 	if (cpl == 0)
 		printf("none");
 	printf("\n");
