@@ -2,9 +2,9 @@
      The FreeBSD Documentation Project
      The FreeBSD French Documentation Project
 
-     $Id: proc-i386.sgml,v 1.2 2002/09/28 23:23:21 eagle Exp $
+     $Id$
      $FreeBSD$
-     Original revision: 1.3
+     Original revision: 1.1.2.4
 -->
 <sect1>
   <title>Processeurs et carte m&egrave;res support&eacute;es</title>
@@ -50,5 +50,5 @@
   diff&eacute;rentes entre les machines, et requi&egrave;rent souvent un
   support sp&eacute;cifique pour que &os; fonctionne correctement en
   by-passant les bogues mat&eacute;riel. Dans le doute, une recherche dans
-  les archives de la liste  &a.mobile; est tr&egrave;s util.</para>
+  les archives de la liste  &a.mobile; est tr&egrave;s utile.</para>
 </sect1>

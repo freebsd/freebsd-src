@@ -4,7 +4,7 @@
 #
 #      $Id$
 #      $FreeBSD$
-#      Original revision: 1.6
+#      Original revision: 1.3.2.2
 
 RELN_ROOT?= ${.CURDIR}/../../..
 
@@ -21,6 +21,7 @@ SRCS+=	proc-alpha.sgml
 SRCS+=	../common/hw.ent
 SRCS+=	../common/artheader.sgml
 SRCS+=	../common/dev.sgml
+SRCS+=	../common/config.sgml
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.project.mk"

@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.4
+     Original revision: 1.1.2.3
 -->
 
 
@@ -14,7 +14,7 @@
 <!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
 %authors;
 <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//FR">
-%mlists;
+ %mlists; 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 <!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
@@ -30,5 +30,5 @@
   &artheader;
   &sect.intro;
   &sect.proc.alpha;
-  &sect.dev;
+  &sect.dev; 
 </article>
