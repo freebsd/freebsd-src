@@ -197,7 +197,7 @@ res_init()
 	if (!_res.retrans)
 		_res.retrans = RES_TIMEOUT;
 	if (!_res.retry)
-		_res.retry = 4;
+		_res.retry = RES_DFLRETRY;
 	if (!(_res.options & RES_INIT))
 		_res.options = RES_DEFAULT;
 
