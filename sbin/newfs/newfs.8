@@ -289,9 +289,9 @@ man page for possible options and their meanings.
 .El
 .Sh EXAMPLES
 .Pp
-.Dl mount_mfs -s=20480 -o nosuid,nodev /dev/sd0b /tmp
+.Dl mount_mfs -s 131072 -o nosuid,nodev /dev/sd0s1b /tmp
 .Pp
-Mount a 10240 KB large memory file system on /tmp, with
+Mount a 64 MB large memory file system on /tmp, with
 .Xr mount 8
 options nosuid and nodev.
 .Sh SEE ALSO
