@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, Robert N. M. Watson
+ * Copyright (c) 2004 Robert N. M. Watson
  * Copyright (c) 1995, Mike Mitchell
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
