@@ -32,11 +32,8 @@
 219:Hammond:Indiana:IN
 301:Bethesda:Maryland:MD
 302::Delaware:DE
-303:Aspen:Colorado:CO
 303:Boulder:Colorado:CO
 303:Denver:Colorado:CO
-303:Durango:Colorado:CO
-303:Ft. Collins:Colorado:CO
 304::West Virginia:WV
 305:Cape Canaveral:Florida:FL
 305:Cape Kennedy:Florida:FL
@@ -247,3 +244,6 @@
 919:Asheboro:North Carolina:NC
 919:Burlington:North Carolina:NC
 919:Fayetteville:North Carolina:NC
+970:Aspen:Colorado:CO
+970:Durango:Colorado:CO
+970:Ft. Collins:Colorado:CO
