@@ -1021,7 +1021,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 		 */
 		bcopy(dst, new, dlen);
 		Free(rt_key(rt));	/* free old block, if any */
-		rt_key(rt) = new;
+		rt_key(rt) = (struct sockaddr *)new;
 		rt->rt_gateway = (struct sockaddr *)(new + dlen);
 	}
 

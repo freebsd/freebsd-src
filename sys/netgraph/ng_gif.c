@@ -88,6 +88,7 @@
 #include <netgraph/ng_gif.h>
 
 #define IFP2NG(ifp)  ((struct ng_node *)((struct gif_softc *)(ifp))->gif_netgraph)
+#define IFP2NG_SET(ifp, val)  (((struct gif_softc *)(ifp))->gif_netgraph = (val))
 
 /* Per-node private data */
 struct private {
@@ -247,7 +248,7 @@ ng_gif_attach(struct ifnet *ifp)
 	}
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->ifp = ifp;
-	IFP2NG(ifp) = node;
+	IFP2NG_SET(ifp, node);
 
 	/* Try to give the node the same name as the interface */
 	if (ng_name_node(node, ifp->if_xname) != 0) {
@@ -275,7 +276,7 @@ ng_gif_detach(struct ifnet *ifp)
 	 * So zap it now. XXX We HOPE that anything running at this time
 	 * handles it (as it should in the non netgraph case).
 	 */
-	IFP2NG(ifp) = NULL;
+	IFP2NG_SET(ifp, NULL);
 	priv->ifp = NULL;	/* XXX race if interrupted an output packet */
 	ng_rmnode_self(node);		/* remove all netgraph parts */
 }

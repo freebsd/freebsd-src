@@ -345,6 +345,7 @@ static const struct {
 
 
 #define	IFP2NG(IFP)	((node_p)((struct ifatm *)(IFP))->ngpriv)
+#define	IFP2NG_SET(IFP, val)	(((struct ifatm *)(IFP))->ngpriv = (val))
 
 #define	IFFLAGS "\020\001UP\002BROADCAST\003DEBUG\004LOOPBACK" \
 		 "\005POINTOPOINT\006SMART\007RUNNING\010NOARP" \
@@ -1280,7 +1281,7 @@ ng_atm_attach(struct ifnet *ifp)
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->ifp = ifp;
 	LIST_INIT(&priv->vccs);
-	IFP2NG(ifp) = node;
+	IFP2NG_SET(ifp, node);
 
 	if (ng_name_node(node, name) != 0) {
 		log(LOG_WARNING, "%s: can't name node %s\n",
@@ -1303,7 +1304,7 @@ ng_atm_detach(struct ifnet *ifp)
 	NG_NODE_REALLY_DIE(node);
 
 	priv = NG_NODE_PRIVATE(node);
-	IFP2NG(priv->ifp) = NULL;
+	IFP2NG_SET(priv->ifp, NULL);
 	priv->ifp = NULL;
 
 	ng_rmnode_self(node);
@@ -1334,7 +1335,7 @@ ng_atm_shutdown(node_p node)
 	if (!allow_shutdown)
 		NG_NODE_REVIVE(node);		/* we persist */
 	else {
-		IFP2NG(priv->ifp) = NULL;
+		IFP2NG_SET(priv->ifp, NULL);
 		NG_NODE_SET_PRIVATE(node, NULL);
 		free(priv, M_NETGRAPH);
 		NG_NODE_UNREF(node);

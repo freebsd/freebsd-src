@@ -65,6 +65,7 @@
 #include <netgraph/ng_ether.h>
 
 #define IFP2NG(ifp)  ((struct ng_node *)((struct arpcom *)(ifp))->ac_netgraph)
+#define IFP2NG_SET(ifp, val)	(((struct arpcom *)(ifp))->ac_netgraph = (val))
 
 /* Per-node private data */
 struct private {
@@ -276,7 +277,7 @@ ng_ether_attach(struct ifnet *ifp)
 	}
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->ifp = ifp;
-	IFP2NG(ifp) = node;
+	IFP2NG_SET(ifp, node);
 	priv->autoSrcAddr = 1;
 	priv->hwassist = ifp->if_hwassist;
 
@@ -305,7 +306,7 @@ ng_ether_detach(struct ifnet *ifp)
 	 * So zap it now. XXX We HOPE that anything running at this time
 	 * handles it (as it should in the non netgraph case).
 	 */
-	IFP2NG(ifp) = NULL;
+	IFP2NG_SET(ifp, NULL);
 	priv->ifp = NULL;	/* XXX race if interrupted an output packet */
 	ng_rmnode_self(node);		/* remove all netgraph parts */
 }
