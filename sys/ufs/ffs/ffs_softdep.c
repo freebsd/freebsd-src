@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
- *	$Id: ffs_softdep.c,v 1.19 1999/01/06 18:18:04 bde Exp $
+ *	$Id: ffs_softdep.c,v 1.20 1999/01/07 16:14:10 bde Exp $
  */
 
 /*
@@ -4178,43 +4178,8 @@ void
 softdep_deallocate_dependencies(bp)
 	struct buf *bp;
 {
-	struct worklist *wk;
-
-	if ((bp->b_flags & B_ERROR) == 0)
-		panic("softdep_deallocate_dependencies: dangling deps");
 	softdep_error(bp->b_vp->v_mount->mnt_stat.f_mntonname, bp->b_error);
-	ACQUIRE_LOCK(&lk);
-	while ((wk = LIST_FIRST(&bp->b_dep)) != NULL) {
-		WORKLIST_REMOVE(wk);
-		FREE_LOCK(&lk);
-		switch (wk->wk_type) {
-		/*
-		 * XXX - should really clean up, but for now we will
-		 * just leak memory and not worry about it. Also should
-		 * mark the filesystem permanently dirty so that it will
-		 * force fsck to be run (though this would best be done
-		 * in the mainline code).
-		 */
-		case D_PAGEDEP:
-		case D_INODEDEP:
-		case D_BMSAFEMAP:
-		case D_ALLOCDIRECT:
-		case D_INDIRDEP:
-		case D_ALLOCINDIR:
-		case D_MKDIR:
-#ifdef DEBUG
-			printf("Lost type %s\n", TYPENAME(wk->wk_type));
-#endif
-			break;
-		default:
-			panic("%s: Unexpected type %s",
-			    "softdep_deallocate_dependencies",
-			    TYPENAME(wk->wk_type));
-			/* NOTREACHED */
-		}
-		ACQUIRE_LOCK(&lk);
-	}
-	FREE_LOCK(&lk);
+	panic("softdep_deallocate_dependencies: dangling deps");
 }
 
 /*
@@ -4225,9 +4190,6 @@ softdep_error(func, error)
 	char *func;
 	int error;
 {
-
 	/* XXX should do something better! */
-	log(LOG_ERR, "%s: got error %d while accessing filesystem\n",
-	    func, error);
+	printf("%s: got error %d while accessing filesystem\n", func, error);
 }
-
