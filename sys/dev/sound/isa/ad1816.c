@@ -88,13 +88,13 @@ static struct pcmchan_caps ad1816_caps = {4000, 55200, ad1816_fmt, 0};
 static void
 ad1816_lock(struct ad1816_info *ad1816)
 {
-	snd_mtxlock(ad1816);
+	snd_mtxlock(ad1816->lock);
 }
 
 static void
 ad1816_unlock(struct ad1816_info *ad1816)
 {
-	snd_mtxunlock(ad1816);
+	snd_mtxunlock(ad1816->lock);
 }
 
 static int
