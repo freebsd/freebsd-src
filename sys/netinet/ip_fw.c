@@ -464,7 +464,6 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 		}
 	}
 
-	len = 0;
 	switch (ip->ip_p) {
 	case IPPROTO_TCP:
 		len = snprintf(SNPARGS(proto, 0), "TCP %s",
@@ -500,12 +499,14 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 			    icmp->icmp_type, icmp->icmp_code);
 		else
 			len = snprintf(SNPARGS(proto, 0), "ICMP ");
-		snprintf(SNPARGS(proto, len), "%s %s", inet_ntoa(ip->ip_src),
-		    inet_ntoa(ip->ip_dst));
+		len += snprintf(SNPARGS(proto, len), "%s",
+		    inet_ntoa(ip->ip_src));
+		snprintf(SNPARGS(proto, len), " %s", inet_ntoa(ip->ip_dst));
 		break;
 	default:
-		snprintf(SNPARGS(proto, 0), "P:%d %s %s", ip->ip_p,
-		    inet_ntoa(ip->ip_src), inet_ntoa(ip->ip_dst));
+		len = snprintf(SNPARGS(proto, 0), "P:%d %s", ip->ip_p,
+		    inet_ntoa(ip->ip_src));
+		snprintf(SNPARGS(proto, len), " %s", inet_ntoa(ip->ip_dst));
 		break;
 	}
 
