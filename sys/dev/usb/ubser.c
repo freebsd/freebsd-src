@@ -161,8 +161,7 @@ struct ubser_softc {
 	u_int			sc_opkthdrlen;	/* header length of
 						   output packet */
 
-	struct ubser_port	sc_port[8];
-
+	struct ubser_port	*sc_port;
 };
 
 Static int ubserparam(struct tty *, struct termios *);
@@ -242,6 +241,8 @@ USB_ATTACH(ubser)
 
 	sc->sc_udev = udev = uaa->device;
 	sc->sc_iface = uaa->iface;
+	sc->sc_numser = 0;
+	sc->sc_port = NULL;
 
 	/* get interface index */
 	id = usbd_get_interface_descriptor(uaa->iface);
@@ -260,7 +261,7 @@ USB_ATTACH(ubser)
 	err = usbd_do_request_flags(udev, &req, &sc->sc_numser,
 	    USBD_SHORT_XFER_OK, &alen, USBD_DEFAULT_TIMEOUT);
 	if (err) {
-		printf("%s: cannot get number of serials\n",
+		printf("%s: failed to get number of serials\n",
 		    USBDEVNAME(sc->sc_dev));
 		goto bad;
 	} else if (alen != 1) {
@@ -268,14 +269,12 @@ USB_ATTACH(ubser)
 		    USBDEVNAME(sc->sc_dev));
 		goto bad;
 	}
-	if (sc->sc_numser > 8)
-		sc->sc_numser = 8;
+	if (sc->sc_numser > MAX_SER)
+		sc->sc_numser = MAX_SER;
 	printf("%s: found %i serials\n", USBDEVNAME(sc->sc_dev), sc->sc_numser);
 
-	sc->sc_ibufsize = 7;
-	sc->sc_ibufsizepad = 8;
-	sc->sc_obufsize = 7;
-	sc->sc_opkthdrlen = 1;
+	sc->sc_port = malloc(sizeof(*sc->sc_port) * sc->sc_numser,
+	    M_USBDEV, M_WAITOK);
 
 	/* find our bulk endpoints */
 	epcount = 0;
@@ -292,16 +291,20 @@ USB_ATTACH(ubser)
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
 		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK) {
 			sc->sc_bulkin_no = ed->bEndpointAddress;
+			sc->sc_ibufsizepad = UGETW(ed->wMaxPacketSize);
+			sc->sc_ibufsizepad = UGETW(ed->wMaxPacketSize) - 1;
 		} else if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT &&
 		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK) {
 			sc->sc_bulkout_no = ed->bEndpointAddress;
+			sc->sc_obufsize = UGETW(ed->wMaxPacketSize) - 1;
+			sc->sc_opkthdrlen = 1;
 		}
 	}
 	if (sc->sc_bulkin_no == -1 || sc->sc_bulkout_no == -1) {
 		printf("%s: could not find bulk in/out endpoint\n",
 		    USBDEVNAME(sc->sc_dev));
 		sc->sc_dying = 1;
-		USB_ATTACH_ERROR_RETURN;
+		goto bad;
 	}
 
 	/* Open the bulk pipes */
@@ -324,7 +327,7 @@ USB_ATTACH(ubser)
 		goto fail_1;
 	}
 
-	/* Allocate a request and an input buffer and start reading. */
+	/* Allocate a request and an input buffer */
 	sc->sc_ixfer = usbd_alloc_xfer(sc->sc_udev);
 	if (sc->sc_ixfer == NULL) {
 		goto fail_2;
@@ -339,6 +342,7 @@ USB_ATTACH(ubser)
 	for (i = 0; i < sc->sc_numser; i++) {
 		pp = &sc->sc_port[i];
 		pp->p_port = i;
+		pp->p_sc = sc;
 		tp = pp->p_tty = ttyalloc();
 		tp->t_sc = pp;
 		DPRINTF(("ubser_attach: tty_attach tp = %p\n", tp));
@@ -353,7 +357,7 @@ USB_ATTACH(ubser)
 	}
 
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < sc->sc_numser; i++) {
 		sc->sc_port[i].p_oxfer = NULL;
 		sc->sc_port[i].p_obuf = NULL;
 	}
@@ -398,10 +402,14 @@ fail_0:
 
 bad:
 	ubser_cleanup(sc);
-	for (i = 0; i < 8; i++) {
-		pp = &sc->sc_port[i];
-		if (pp->p_tty != NULL)
-			ttyfree(pp->p_tty);
+	if (sc->sc_port != NULL) {
+		for (i = 0; i < sc->sc_numser; i++) {
+			pp = &sc->sc_port[i];
+			if (pp->p_tty != NULL)
+				ttyfree(pp->p_tty);
+		}
+		free(sc->sc_port, M_USBDEV);
+		sc->sc_port = NULL;
 	}
 
 	DPRINTF(("ubser_attach: ATTACH ERROR\n"));
@@ -430,10 +438,14 @@ USB_DETACH(ubser)
 	if (sc->sc_bulkout_pipe != NULL)
 		usbd_abort_pipe(sc->sc_bulkout_pipe);
 
-	for (i = 0; i < sc->sc_numser; i++) {
-		pp = &sc->sc_port[i];
-		if (pp->p_tty != NULL)
-			ttyfree(pp->p_tty);
+	if (sc->sc_port != NULL) {
+		for (i = 0; i < sc->sc_numser; i++) {
+			pp = &sc->sc_port[i];
+			if (pp->p_tty != NULL)
+				ttyfree(pp->p_tty);
+		}
+		free(sc->sc_port, M_USBDEV);
+		sc->sc_port = NULL;
 	}
 
 	s = splusb();
