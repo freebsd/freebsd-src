@@ -308,8 +308,10 @@ boot(int howto)
 				DROP_GIANT();
    				for (subiter = 0; subiter < 50 * iter; subiter++) {
      					mtx_lock_spin(&sched_lock);
-					curthread->td_proc->p_stats->p_ru.ru_nvcsw++;
-     					mi_switch(); /* Allow interrupt threads to run */
+					/*
+					 * Allow interrupt threads to run
+					 */
+     					mi_switch(SW_VOL);
      					mtx_unlock_spin(&sched_lock);
      					DELAY(1000);
    				}
