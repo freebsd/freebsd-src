@@ -905,10 +905,10 @@
   <sect2>
     <title>Miscellaneous Networks</title>
 
-    <para arch="i386">Cronyx-Sigma synchronous / asynchronous serial
+    <para arch="i386">Cronyx Sigma synchronous / asynchronous serial
       adapters (&man.cx.4; driver)</para>
 
-    <para arch="i386">Cronyx-Tau synchronous serial adapters for ISA bus
+    <para arch="i386">Cronyx Tau synchronous serial adapters for ISA bus
       (&man.ctau.4; driver)
       <itemizedlist>
         <listitem>
