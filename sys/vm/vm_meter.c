@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.7 1995/07/13 08:48:30 davidg Exp $
+ * $Id: vm_meter.c,v 1.8 1995/07/29 11:44:25 bde Exp $
  */
 
 #include <sys/param.h>
@@ -61,8 +61,7 @@ fixpt_t cexp[3] = {
  * 1, 5 and 15 minute intervals.
  */
 static void
-loadav(avg)
-	register struct loadavg *avg;
+loadav(struct loadavg *avg)
 {
 	register int i, nrun;
 	register struct proc *p;
@@ -93,69 +92,43 @@ vmmeter()
 		wakeup(&proc0);
 }
 
-/*
- * Attributes associated with virtual memory.
- */
-int
-vm_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-	struct proc *p;
+SYSCTL_INT(_vm, VM_V_FREE_MIN, v_free_min,
+	CTLFLAG_RW, &cnt.v_free_min, 0, "");
+SYSCTL_INT(_vm, VM_V_FREE_TARGET, v_free_target,
+	CTLFLAG_RW, &cnt.v_free_target, 0, "");
+SYSCTL_INT(_vm, VM_V_FREE_RESERVED, v_free_reserved,
+	CTLFLAG_RW, &cnt.v_free_reserved, 0, "");
+SYSCTL_INT(_vm, VM_V_INACTIVE_TARGET, v_inactive_target,
+	CTLFLAG_RW, &cnt.v_inactive_target, 0, "");
+SYSCTL_INT(_vm, VM_V_CACHE_MIN, v_cache_min,
+	CTLFLAG_RW, &cnt.v_cache_min, 0, "");
+SYSCTL_INT(_vm, VM_V_CACHE_MAX, v_cache_max,
+	CTLFLAG_RW, &cnt.v_cache_max, 0, "");
+SYSCTL_INT(_vm, VM_V_PAGEOUT_FREE_MIN, v_pageout_free_min,
+	CTLFLAG_RW, &cnt.v_pageout_free_min, 0, "");
+
+static int
+vm_loadavg SYSCTL_HANDLER_ARGS
 {
-	struct vmtotal vmtotals;
-
-	/* all sysctl names at this level are terminal */
-	if (namelen != 1)
-		return (ENOTDIR);	/* overloaded */
-
-	switch (name[0]) {
-	case VM_LOADAVG:
-		averunnable.fscale = FSCALE;
-		return (sysctl_rdstruct(oldp, oldlenp, newp, &averunnable,
-			sizeof(averunnable)));
-	case VM_METER:
-		vmtotal(&vmtotals);
-		return (sysctl_rdstruct(oldp, oldlenp, newp, &vmtotals,
-			sizeof(vmtotals)));
-	case VM_V_FREE_MIN:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_free_min));
-	case VM_V_FREE_TARGET:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_free_target));
-	case VM_V_FREE_RESERVED:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_free_reserved));
-	case VM_V_INACTIVE_TARGET:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_inactive_target));
-	case VM_V_CACHE_MIN:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_cache_min));
-	case VM_V_CACHE_MAX:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_cache_max));
-	case VM_V_PAGEOUT_FREE_MIN:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &cnt.v_pageout_free_min));
-
-	default:
-		return (EOPNOTSUPP);
-	}
-	/* NOTREACHED */
+	averunnable.fscale = FSCALE;
+	return (sysctl_handle_opaque(oidp, 
+		oidp->oid_arg1, oidp->oid_arg2, req));
 }
 
-/*
- * Calculate the current state of the system.
- * Done on demand from getkerninfo().
- */
-void
-vmtotal(totalp)
-	register struct vmtotal *totalp;
+SYSCTL_PROC(_vm, VM_LOADAVG, loadavg, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	&averunnable, sizeof(averunnable), vm_loadavg, "");
+
+static int
+vmtotal SYSCTL_HANDLER_ARGS
 {
-	register struct proc *p;
-	register vm_map_entry_t entry;
-	register vm_object_t object;
-	register vm_map_t map;
+	struct proc *p;
+	struct vmtotal total, *totalp;
+	vm_map_entry_t entry;
+	vm_object_t object;
+	vm_map_t map;
 	int paging;
 
+	totalp = &total;
 	bzero(totalp, sizeof *totalp);
 	/*
 	 * Mark all objects as inactive.
@@ -235,4 +208,8 @@ vmtotal(totalp)
 		}
 	}
 	totalp->t_free = cnt.v_free_count + cnt.v_cache_count;
+	return (sysctl_handle_opaque(oidp, totalp, sizeof total, req));
 }
+
+SYSCTL_PROC(_vm, VM_METER, vmmeter, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	0, sizeof(struct vmtotal), vmtotal, "");
