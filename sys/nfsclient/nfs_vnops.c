@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.100 1998/05/31 19:24:19 peter Exp $
+ * $Id: nfs_vnops.c,v 1.101 1998/05/31 19:28:15 peter Exp $
  */
 
 
@@ -1232,7 +1232,7 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 	if (vap->va_type == VCHR || vap->va_type == VBLK)
 		rdev = txdr_unsigned(vap->va_rdev);
 	else if (vap->va_type == VFIFO || vap->va_type == VSOCK)
-		rdev = 0xffffffff;
+		rdev = nfs_xdrneg1;
 	else {
 		VOP_ABORTOP(dvp, cnp);
 		return (EOPNOTSUPP);
