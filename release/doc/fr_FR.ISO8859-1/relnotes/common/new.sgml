@@ -2972,7 +2972,6 @@ options HZ=1000 # pas obligatoire, mais fortemment recommand&eacute;</programlis
 	<filename>make.conf</filename>. &merged;</para>
       </sect4>
 
-
       <sect4>
 	<title>sendmail</title>
 
@@ -3056,14 +3055,97 @@ options HZ=1000 # pas obligatoire, mais fortemment recommand&eacute;</programlis
 	configuration.</para>
       </sect4>
 
-
-
     </sect3>
 
     <sect3>
       <title>Collection des Ports/Packages</title>
 
-      <para></para>
+      <para><application>BSDPAN</application>, une collection de modules 
+      permettant une meilleur int&eacute;gration de 
+      <application>Perl</application> dans la collection des Ports de &os;, a 
+      &eacute;t&eacute; ajout&eacute;e.</para>
+
+      <para>&man.pkg.create.1; et &man.pkg.add.1; peuvent maintenant utiliser 
+      les pacquetages compress&eacute;s avec &man.bzip2.1;. &man.pkg.add.1; 
+      utilise la variable d'environnement PACKAGEROOT pour d&eacute;terminer 
+      le site mirroir &agrave; utiliser pour les nouveaux pacquetages. 
+      &merged;</para>
+
+      <para>&man.pkg.create.1; &eacute;crit les d&eacute;pendences dans 
+      l'ordre de ces d&eacute;pendences plutot que dans l'ordre 
+      sp&eacute;cifi&eacute; en ligne de commande. Cela permet 
+      d'am&eacute;liorer le fonctionnement de <command>pkg_add -r</command>. 
+      &merged;</para>
+
+      <para>&man.pkg.create.1; supporte l'option <option>-b</option> 
+      permettant de cr&eacute;er un fichier de pacquetage depuis un pacquetage 
+      install&eacute; localement. &merged;</para>
+
+      <para>Lors de l'effacement de plusieurs pacquetages, &man.pkg.delete.1; 
+      essaie de les effacer dans l'ordre des d&eacute;pendences plutôt que 
+      dans celui pass&eacute; en ligne de commande. &merged;</para>
+
+      <para>&man.pkg.delete.1; peut maintenant fonctionner avec des 
+      expressions r&eacute;guli&egrave;res sur le nom des pacquetages. En 
+      plus, il supporte l'option <option>-a</option> pour effacer tous les 
+      pacquetages et l'option <option>-i</option> pour la confirmation dans 
+      le style de &man.rm.1;. &merged;</para>
+
+      <para>&man.pkg.delete.1; supporte l'option <option>-r</option>, pour un 
+      effacement r&eacute;cursif des pacquetages. &merged;</para>
+
+      <para>&man.pkg.info.1; supporte le "globbing" dans le nom des 
+      pacquetages install&eacute;s. L'option <option>-G</option> 
+      d&eacute;sactive cette fonctionnalit&eacute;, et l'option 
+      <option>-x</option> permet d'utiliser les expressions 
+      r&eacute;guli&egrave;res &agrave; la place.. &merged;</para>
+
+      <para>&man.pkg.info.1; dispose de l'option <option>-g</option> 
+      permettant de v&eacute;rifier le pacquetage install&eacute; avec sa 
+      somme de controle (pour v&eacute;rifier s'il a &eacute;t&eacute; 
+      modifi&eacute; depuis son installation). Bien sur, ce m&eacute;canisme 
+      n'est pas plus s&eacute;curis&eacute; que le contenu de 
+      <filename>/var/db/pkg</filename> s'il est utilis&eacute; &agrave; des 
+      fins d'audit. &merged;</para>
+
+      <para>&man.pkg.sign.1; et &man.pkg.check.1; ont &eacute;t&eacute; 
+      ajout&eacute;s pour permettre de signer et de v&eacute;rifier les 
+      signatures des pacquetages binaires. &merged;</para>
+
+      <para>&man.pkg.update.1;, un utilitaire pour mettre &agrave; jour les 
+      pacquetages install&eacute;s et leurs d&eacute;pendences, a 
+      &eacute;t&eacute; ajout&eacute;. &merged;</para>
+
+      <para>&man.pkg.version.1; dispose d'une routine de comparaison des 
+      num&eacute;ros de versions, correspondant au Porters Handbook. Il 
+      dispose aussi d'une option <option>-t</option> permettant de tester. 
+      &merged;</para>
+
+      <para>&man.pkg.version.1; supporte l'option <option>-s</option> pour 
+      limiter ses op&eacute;rations aux pacquetages v&eacute;rifiant une 
+      chaine donn&eacute;e. &merged;</para>
+
+      <para>Les num&eacute;ros de version des pacquetages install&eacute;s 
+      ont une nouvelle syntaxe, qui permet de supporter les variables 
+      <varname>PORTREVISION</varname> et <varname>PORTEPOCH</varname> des  
+      <filename>Makefile</filename>s de la collection des Ports. Ces 
+      changements permettent de v&eacute;rifier les modifications dans les 
+      entr&eacute;es de la collection des ports, comme les patches de 
+      s&eacute;curit&eacute; ou les changements sp&eacute;cifiques 
+      &agrave; &os;, qui ne sont pas refl&egrave;t&eacute;s dans les 
+      distributions des logiciels originaux. &man.pkg.version.1; peut 
+      comparer ces num&eacute;ros de versions. &merged;</para>
+
+      <para>Pour am&eacute;liorer les performances et l'utilisation des 
+      disques, les <quote>squelettes de ports</quote>  de la collection des 
+      ports de &os; ont &eacute;t&eacute; restructur&eacute;s. Les ports et 
+      pacquetages install&eacute;s ne doivent pas &ecirc;tre affect&eacute;s 
+      par ce changement. &merged;</para>
+
+      <para>Tous les ports et pacquetages contiennent maintenant une directive
+      <quote>origin</quote>, qui permet de d&eacute;terminer de façon plus 
+      simple, pour les programmes comme &man.pkg.version.1;, le 
+      r&eacute;pertoire de compilation du pacquetages.. &merged;</para>
     </sect3>
   </sect2>
 </sect1>
