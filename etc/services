@@ -2033,7 +2033,7 @@ ricardo-lm	6148/tcp   #Ricardo North America License Manager
 ricardo-lm	6148/udp   #Ricardo North America License Manager
 xdsxdm		6558/tcp	
 xdsxdm		6558/udp	
-irc		6667/tcp   #Internet Relay Chat
+irc-client	6667/tcp   #Internet Relay Chat
 acmsoda		6969/tcp
 acmsoda		6969/udp
 afs3-fileserver 7000/tcp   #file server itself
