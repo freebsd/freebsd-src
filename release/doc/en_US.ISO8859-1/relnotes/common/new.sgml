@@ -285,6 +285,16 @@
       <para><application>IPFilter</application> now supports
       IPv6.</para>
 
+      <sect4 arch="i386">
+        <title>isdn4bsd</title>
+
+	<para>&man.isdnphone.8; now supports a <option>-k</option> option for
+	sending messages via the keypad facility to a PBX or exchange
+	office.</para>
+
+	<para>The &man.isic.4; driver now supports the Compaq Microcom
+	610 ISDN ISA PnP card.</para>
+      </sect4>
     </sect3>
   </sect2>
   <sect2 id="security">

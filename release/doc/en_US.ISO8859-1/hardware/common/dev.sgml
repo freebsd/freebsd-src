@@ -1729,10 +1729,10 @@
 
   <sect2 arch="i386">
     <title>ISDN Interfaces</title>
-    <para>AcerISDN P10 ISA PnP (experimental)</para>
-    <para>Asuscom ISDNlink 128K ISA</para>
-    <para>ASUSCOM P-IN100-ST-D (and other Winbond W6692-based cards)</para>
-    <para>AVM
+    <para arch="i386">AcerISDN P10 ISA PnP (experimental)</para>
+    <para arch="i386">Asuscom ISDNlink 128K ISA</para>
+    <para arch="i386">ASUSCOM P-IN100-ST-D (and other Winbond W6692-based cards)</para>
+    <para arch="i386">AVM
       <itemizedlist>
         <listitem>
 	  <para>A1</para>
@@ -1757,7 +1757,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>Creatix
+    <para arch="i386">Creatix
       <itemizedlist>
         <listitem>
 	  <para>ISDN-S0</para>
@@ -1767,10 +1767,11 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>Dr. Neuhaus Niccy Go@ and compatibles</para>
-    <para>Dynalink IS64PH</para>
-    <para>Eicon Diehl DIVA 2.0 and 2.02</para>
-    <para>ELSA
+    <para arch="i386">Compaq Microcom 610 ISDN (Compaq series PSB2222I) ISA PnP</para>
+    <para arch="i386">Dr. Neuhaus Niccy Go@ and compatibles</para>
+    <para arch="i386">Dynalink IS64PH</para>
+    <para arch="i386">Eicon Diehl DIVA 2.0 and 2.02</para>
+    <para arch="i386">ELSA
       <itemizedlist>
         <listitem>
 	  <para>ELSA PCC-16</para>
@@ -1786,11 +1787,11 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>ITK ix1 Micro ( &lt; V.3, non-PnP version )</para>
-    <para>Sedlbauer Win Speed</para>
-    <para>Siemens I-Surf 2.0</para>
-    <para>TELEINT ISDN SPEED No.1 (experimental)</para>
-    <para>Teles
+    <para arch="i386">ITK ix1 Micro ( &lt; V.3, non-PnP version )</para>
+    <para arch="i386">Sedlbauer Win Speed</para>
+    <para arch="i386">Siemens I-Surf 2.0</para>
+    <para arch="i386">TELEINT ISDN SPEED No.1 (experimental)</para>
+    <para arch="i386">Teles
       <itemizedlist>
         <listitem>
 	  <para>S0/8</para>
@@ -1812,9 +1813,9 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para>Traverse Technologies NETjet-S PCI</para>
-    <para>USRobotics Sportster ISDN TA intern</para>
-    <para>Winbond W6692 based PCI cards</para>
+    <para arch="i386">Traverse Technologies NETjet-S PCI</para>
+    <para arch="i386">USRobotics Sportster ISDN TA intern</para>
+    <para arch="i386">Winbond W6692 based PCI cards</para>
   </sect2>
 
   <sect2>
