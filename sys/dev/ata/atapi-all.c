@@ -62,7 +62,11 @@ int32_t acdattach(struct atapi_softc *);
 int32_t afdattach(struct atapi_softc *);
 int32_t astattach(struct atapi_softc *);
 
+/* internal vars */
 static struct intr_config_hook *atapi_attach_hook;
+
+/* defines */
+#define ATAPI_MAX_RETRIES  5
 
 static __inline int
 apiomode(struct atapi_params *ap)
@@ -401,7 +405,8 @@ atapi_interrupt(struct atapi_request *request)
     if (atapi_wait(atp, 0) < 0) {
 	printf("atapi_interrupt: timeout waiting for status");
 	atp->flags &= ~ATAPI_F_DMA_USED; 
-	request->result = inb(atp->controller->ioaddr + ATA_ERROR) | 0xf0;
+	request->result = inb(atp->controller->ioaddr + ATA_ERROR) | 
+			  ATAPI_SK_RESERVED;
 	goto op_finished;
     }
 
@@ -528,6 +533,16 @@ atapi_timeout(struct atapi_request *request)
     if (request->flags & ATAPI_F_DMA_USED)
 	ata_dmadone(atp->controller, atp->unit);
 
+    if (request->retries < ATAPI_MAX_RETRIES) {
+        /* reinject this request */
+        request->retries++;
+        TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
+    }
+    else {
+        /* retries all used up, return error */
+	request->result = ATAPI_SK_RESERVED | ATAPI_E_ABRT;
+	wakeup((caddr_t)request);
+    } 
     ata_reinit(atp->controller);
 }
 
