@@ -41,9 +41,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -59,6 +60,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fstab.h>
 #include <paths.h>
+#include <stdlib.h>
 
 #include "fsck.h"
 
@@ -395,11 +397,9 @@ getmntpt(const char *name)
 static void
 usage(void)
 {
-        extern char *__progname;
-
         (void) fprintf(stderr,
             "Usage: %s [-dfnpy] [-B be|le] [-b block] [-c level] [-m mode] "
                         "filesystem ...\n",
-            __progname);
+            getprogname());
         exit(1);
 }
