@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.22 1997/08/29 18:16:17 fsmp Exp $
+ * $Id: mplock.s,v 1.23 1997/08/30 08:08:10 fsmp Exp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -77,7 +77,7 @@
 /***********************************************************************
  *  void MPgetlock(unsigned int *lock)
  *  ----------------------------------
- *  Destroys	%eax, %ecx and %edx.
+ *  Destroys	%eax, %ecx, %edx and 12(%esp).
  */
 
 NON_GPROF_ENTRY(MPgetlock)
@@ -213,7 +213,6 @@ NON_GPROF_ENTRY(get_mplock)
 	pushfl				/* save current EFLAGS */
 	testl	$(1<<9), (%esp)		/* test EI bit */
 	jnz	1f			/* INTs currently enabled */
-	movl	$TPR_IGNORE_HWI, lapic_tpr	/* CHEAP_TPR */
 	sti				/* allow IPI and FAST INTs */
 1:
 	pushl	$_mp_lock
@@ -238,9 +237,19 @@ NON_GPROF_ENTRY(boot_get_mplock)
 	pushl	%ecx
 	pushl	%edx
 
+#ifdef GRAB_LOPRIO	
+	pushl	$0
+	pushfl
+#endif
+	
 	pushl	$_mp_lock
 	call	_MPgetlock
 	add	$4, %esp
+
+#ifdef GRAB_LOPRIO	
+	popfl
+	addl	$4, %esp
+#endif
 
 	popl	%edx
 	popl	%ecx
@@ -298,7 +307,6 @@ NON_GPROF_ENTRY(get_isrlock)
 	/* block all HW INTs via Task Priority Register */
 	pushl	lapic_tpr		/* save current TPR */
 	pushfl				/* save current EFLAGS */
-	movl	$TPR_IGNORE_HWI, lapic_tpr	/* CHEAP_TPR */
 	sti				/* allow IPI and FAST INTs */
 
 	pushl	$_mp_lock
@@ -344,7 +352,6 @@ NON_GPROF_ENTRY(rel_isrlock)
 NON_GPROF_ENTRY(get_fpu_lock)
 	pushl	lapic_tpr
 	pushfl
-	movl	$TPR_IGNORE_HWI, lapic_tpr	/* CHEAP_TPR */
 	sti
 	pushl	$_mp_lock
 	call	_MPgetlock
@@ -375,7 +382,6 @@ NON_GPROF_ENTRY(rel_fpu_lock)
 NON_GPROF_ENTRY(get_align_lock)
 	pushl	lapic_tpr
 	pushfl
-	movl	$TPR_IGNORE_HWI, lapic_tpr	/* CHEAP_TPR */
 	sti
 	pushl	$_mp_lock
 	call	_MPgetlock
@@ -406,7 +412,6 @@ NON_GPROF_ENTRY(rel_align_lock)
 NON_GPROF_ENTRY(get_syscall_lock)
 	pushl	lapic_tpr
 	pushfl
-	movl	$TPR_IGNORE_HWI, lapic_tpr	/* CHEAP_TPR */
 	sti
 	pushl	$_mp_lock
 	call	_MPgetlock
@@ -437,7 +442,6 @@ NON_GPROF_ENTRY(rel_syscall_lock)
 NON_GPROF_ENTRY(get_altsyscall_lock)
 	pushl	lapic_tpr
 	pushfl
-	movl	$TPR_IGNORE_HWI, lapic_tpr	/* CHEAP_TPR */
 	sti
 	pushl	$_mp_lock
 	call	_MPgetlock
@@ -473,9 +477,19 @@ NON_GPROF_ENTRY(get_mpintrlock)
 	pushl	%ecx
 	pushl	%edx
 
+#ifdef GRAB_LOPRIO
+	pushl	lapic_tpr
+	pushfl
+#endif
+
 	pushl	$_mpintr_lock
 	call	_MPgetlock
 	add	$4, %esp
+
+#ifdef GRAB_LOPRIO	
+	popfl
+	popl	lapic_tpr
+#endif
 
 	popl	%edx
 	popl	%ecx

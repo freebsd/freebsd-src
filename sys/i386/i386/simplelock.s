@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simplelock.s,v 1.7 1997/12/15 02:18:22 tegge Exp $
+ *	$Id: simplelock.s,v 1.8 1998/01/19 17:33:08 tegge Exp $
  */
 
 /*
@@ -31,6 +31,7 @@
 
 #include <machine/asmacros.h>			/* miscellaneous macros */
 #include <i386/isa/intr_machdep.h>
+#include <machine/psl.h>
 	
 #include <machine/smptests.h>			/** FAST_HI */
 
@@ -102,9 +103,6 @@ gotit:
 #else /* SL_DEBUG */
 
 ENTRY(s_lock)
-	cmpl	$0, _smp_active
-	je	gotit
-
 	movl	4(%esp), %edx		/* get the address of the lock */
 setlock:
 	movl	_cpu_lockid, %ecx	/* add cpu id portion */
@@ -190,16 +188,17 @@ ENTRY(test_and_set)
 
 
 /*
- * These versions of simple_lock block hardware INTS,
+ * These versions of simple_lock block interrupts,
  * making it suitable for regions accessed by both top and bottom levels.
- * This is done by saving the current value of the TPR in a per-cpu global,
- * then taking the lock.  On the way out the lock is released, then the
- * original value of the TPR is restored.
+ * This is done by saving the current value of the cpu flags in a per-cpu
+ * global, and disabling interrupts when the lock is taken.  When the
+ * lock is released, interrupts might be enabled, depending upon the saved
+ * cpu flags.
  * Because of this, it must ONLY be used for SHORT, deterministic paths!
  *
  * Note:
  * It would appear to be "bad behaviour" to blindly store a value in
- * ss_tpr, as this could destroy the previous contents.  But since ss_tpr
+ * ss_eflags, as this could destroy the previous contents.  But since ss_eflags
  * is a per-cpu variable, and its fatal to attempt to acquire a simplelock
  * that you already hold, we get away with it.  This needs to be cleaned
  * up someday...
@@ -214,40 +213,29 @@ ENTRY(ss_lock)
 	movl	4(%esp), %eax		/* get the address of the lock */
 	movl	$1, %ecx		/* value for a held lock */
 ssetlock:
-	pushl	lapic_tpr		/* save current task priority */
-#ifdef FAST_HI
-	movl	$TPR_BLOCK_FHWI, lapic_tpr	/* block FAST hw INTs */
-#else
-	movl	$TPR_BLOCK_HWI, lapic_tpr	/* block hw INTs */
-#endif
+	pushfl
+	cli
 	xchgl	%ecx, (%eax)		/* compete */
 	testl	%ecx, %ecx
 	jz	sgotit			/* it was clear, return */
-	popl	lapic_tpr		/* previous value while waiting */
+	popfl				/* previous value while waiting */
 swait:
 	cmpl	$0, (%eax)		/* wait to empty */
 	jne	swait			/* still set... */
 	jmp	ssetlock		/* empty again, try once more */
 sgotit:
-	popl	_ss_tpr			/* save the old task priority */
+	popl	_ss_eflags		/* save the old eflags */
 	ret
 
 #else /* SL_DEBUG */
 
 ENTRY(ss_lock)
-	cmpl	$0, _smp_active
-	je	sgotit2
-
 	movl	4(%esp), %edx		/* get the address of the lock */
 ssetlock:
 	movl	_cpu_lockid, %ecx	/* add cpu id portion */
 	incl	%ecx			/* add lock portion */
-	pushl	lapic_tpr		/* save current task priority */
-#ifdef FAST_HI
-	movl	$TPR_BLOCK_FHWI, lapic_tpr	/* block FAST hw INTs */
-#else
-	movl	$TPR_BLOCK_HWI, lapic_tpr	/* block hw INTs */
-#endif
+	pushfl
+	cli
 	movl	$0, %eax
 	lock
 	cmpxchgl %ecx, (%edx)		/* compete */
@@ -257,13 +245,13 @@ ssetlock:
 	cmpl	_cpu_lockid, %eax	/* do we hold it? */
 	je	sbad_slock		/* yes, thats not good... */
 	addl	$4, %esp		/* clear the stack */
-	popl	lapic_tpr		/* previous value while waiting */
+	popfl
 swait:
 	cmpl	$0, (%edx)		/* wait to empty */
 	jne	swait			/* still set... */
 	jmp	ssetlock		/* empty again, try once more */
 sgotit:
-	popl	_ss_tpr			/* save the old task priority */
+	popl	_ss_eflags		/* save the old task priority */
 sgotit2:
 	ret
 
@@ -285,8 +273,10 @@ sbsl1:	.asciz	"rsslock: cpu: %d, addr: 0x%08x, lock: 0x%08x"
 ENTRY(ss_unlock)
 	movl	4(%esp), %eax		/* get the address of the lock */
 	movl	$0, (%eax)		/* clear the simple lock */
-	movl	_ss_tpr, %eax
-	movl	%eax, lapic_tpr		/* restore the old task priority */
+	testl	$PSL_I, _ss_eflags
+	jz	ss_unlock2
+	sti
+ss_unlock2:	
 	ret
 
 /* 
