@@ -456,8 +456,7 @@ oshmctl(td, uap)
 			goto done2;
 		break;
 	default:
-		/* XXX casting to (sy_call_t *) is bogus, as usual. */
-		error = ((sy_call_t *)shmctl)(td, uap);
+		error = shmctl(td, (struct shmctl_args *)uap);
 		break;
 	}
 done2:

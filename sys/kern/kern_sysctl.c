@@ -389,8 +389,8 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	oidp->oid_kind = CTLFLAG_DYN | kind;
 	if ((kind & CTLTYPE) == CTLTYPE_NODE) {
 		/* Allocate space for children */
-		SYSCTL_CHILDREN(oidp) = malloc(sizeof(struct sysctl_oid_list),
-		    M_SYSCTLOID, M_WAITOK);
+		SYSCTL_CHILDREN_SET(oidp, malloc(sizeof(struct sysctl_oid_list),
+		    M_SYSCTLOID, M_WAITOK));
 		SLIST_INIT(SYSCTL_CHILDREN(oidp));
 	} else {
 		oidp->oid_arg1 = arg1;
@@ -1208,7 +1208,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 		return EINVAL;
 
 	if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
-		(int *)arg1 += indx;
+		arg1 = (int *)arg1 + indx;
 		arg2 -= indx;
 	} else {
 		arg1 = oid->oid_arg1;
