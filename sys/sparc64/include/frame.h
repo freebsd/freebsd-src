@@ -39,7 +39,8 @@ struct	trapframe {
 	u_long	tf_tpc;
 	u_long	tf_tstate;
 	u_long	tf_type;
-	void	*tf_arg;
+	u_long	tf_wstate;
+	uintptr_t tf_arg;
 };
 #define	tf_sp	tf_out[6]
 
@@ -74,12 +75,15 @@ struct	frame {
 /*
  * Frame used for pcb_wscratch.
  */
-struct	wsframe {
-	u_long	wsf_local[8];
-	u_long	wsf_in[8];
-	u_long	wsf_sp;
-	u_long	wsf_inuse;
+struct	rwindow {
+	u_long	rw_local[8];
+	u_long	rw_in[8];
 };
+
+struct proc;
+
+int	rwindow_save(struct proc *p);
+int	rwindow_load(struct proc *p, struct trapframe *tf, int n);
 
 int	kdb_trap(struct trapframe *tf);
 
