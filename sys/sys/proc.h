@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.67 1999/01/26 02:38:11 julian Exp $
+ * $Id: proc.h,v 1.68 1999/02/01 13:23:18 newton Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -44,16 +44,14 @@
 
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
 #include <sys/callout.h>		/* For struct callout_handle. */
+#include <sys/filedesc.h>
+#include <sys/queue.h>
 #include <sys/rtprio.h>			/* For struct rtprio. */
-#include <sys/select.h>			/* For struct selinfo. */
 #include <sys/signal.h>
-#include <sys/signalvar.h>
 #ifndef KERNEL
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #endif
 #include <sys/ucred.h>
-#include <sys/queue.h>
-#include <sys/filedesc.h>
 
 /*
  * One structure allocated per session.
