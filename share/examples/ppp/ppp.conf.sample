@@ -23,7 +23,7 @@
 # Default setup. Always executed when PPP is invoked.
 #  This section is *not* pre-loaded by the ``load'' or ``dial'' commands.
 #
-#  This is the best place to specify your modem device, it's DTR rate,
+#  This is the best place to specify your modem device, its DTR rate,
 #  your dial script and any logging specification.  Logging specs should
 #  be done first so that the results of subsequent commands are logged.
 #
@@ -55,7 +55,7 @@ default:
 #  specified IP actually being correct, therefore, the other side can assign
 #  any IP number.
 #
-#  The forth arg to "set ifaddr" makes us send "0.0.0.0" as our requested
+#  The fourth arg to "set ifaddr" makes us send "0.0.0.0" as our requested
 #  IP number, forcing the peer to make the decision.  This is necessary
 #  when negotiating with some (broken) ppp implementations.
 #
@@ -425,7 +425,7 @@ dodgynet:
 #  (although refer to the ``set radius'' command below for an alternative).
 #
 #  Note:  We may supply a third field in ppp.secret specifying the IP
-#         address for that user, a forth field to specify the
+#         address for that user, a fourth field to specify the
 #         ppp.link{up,down} label to use and a fifth field to specify
 #         callback characteristics.
 #
