@@ -29,10 +29,20 @@
 # rc.diskless2
 #
 
+# Provide a function for normalizing the mounting of memory
+# filesystems.  This should allow the rest of the code here to remain
+# as close as possible between 5-current and 4-stable.
+#   $1 = size
+#   $2 = mount point
+#   $3 = md unit number (ignored in pre 5.0 systems)
+#   $4 = (optional) bytes-per-inode
 mount_md() {
+	if [ -n "$4" ]; then
+		bpi="-i $4"
+	fi
 	/sbin/mdconfig -a -t malloc -s $1 -u $3
 	/sbin/disklabel -r -w md$3 auto
-	/sbin/newfs /dev/md$3c
+	/sbin/newfs $bpi /dev/md$3c
 	/sbin/mount /dev/md$3c $2
 }
 
@@ -46,7 +56,7 @@ elif [ -r /etc/rc.conf ]; then
 fi
 
 echo "+++ mfs_mount of /var"
-mount_md ${varsize:=65536} /var 2
+mount_md ${varsize:=65536} /var 1
 
 echo "+++ populate /var using /etc/mtree/BSD.var.dist"
 /usr/sbin/mtree -deU -f /etc/mtree/BSD.var.dist -p /var
@@ -63,11 +73,11 @@ mount -a       # chown and chgrp are in /usr
 # XXX make sure to create one dir for each printer as requested by lpd
 #
 
-# We assume that /tmp is symlinked to /var/tmp on the shared root
-# partition. mount_null seems to have problems.
-#if [ ! -h /tmp -a ! -h /var/tmp ]; then
-#	mount_null /var/tmp /tmp
-#fi
+# If /tmp is a symlink, assume it points to somewhere writable, like
+# /var/tmp, otherwise, use a small memory filesystem for /tmp.
+if [ ! -h /tmp ]; then
+	mount_md ${tmpsize:=20480} /tmp 2
+fi
 
 if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
 	# we have DEVFS, no worries...
@@ -75,6 +85,6 @@ if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
 else
 	# extract a list of device entries, then copy them to a writable fs
 	(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
-	mount_mfs -s 4096 -i 512 -T qp120at dummy /dev
+	mount_md 4096 /dev 3 512
 	(cd /; cpio -i -H newc -d < /tmp/dev.tmp)
 fi
