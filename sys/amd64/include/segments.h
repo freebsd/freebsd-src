@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.16 1997/08/18 06:58:31 charnier Exp $
+ *	$Id: segments.h,v 1.17 1997/08/21 06:32:49 charnier Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
@@ -229,7 +229,8 @@ struct region_descriptor {
 #define	LSYS5SIGR_SEL	1
 #define	L43BSDCALLS_SEL	2	/* notyet */
 #define	LUCODE_SEL	3
-#define	LUDATA_SEL	4
+#define LSOL26CALLS_SEL	4	/* Solaris >= 2.6 system call gate */
+#define	LUDATA_SEL	5
 /* separate stack, es,fs,gs sels ? */
 /* #define	LPOSIXCALLS_SEL	5*/	/* notyet */
 #define LBSDICALLS_SEL	16	/* BSDI system call gate */
