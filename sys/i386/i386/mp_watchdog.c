@@ -119,7 +119,7 @@ watchdog_change(int wdcpu)
 
 	if (wdcpu == -1 || wdcpu == 0xffffffff) {
 		/*
-		 * Disable the watcdog.
+		 * Disable the watchdog.
 		 */
 		watchdog_cpu = -1;
 		watchdog_dontfire = 1;
