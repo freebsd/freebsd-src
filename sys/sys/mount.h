@@ -43,6 +43,7 @@
  */
 #include <sys/lockmgr.h>
 
+#include <sys/mac.h>
 #include <sys/ucred.h>
 #include <sys/queue.h>
 #include <sys/uio.h>
@@ -149,6 +150,8 @@ struct mount {
 	time_t		mnt_time;		/* last time written*/
 	u_int		mnt_iosize_max;		/* max IO request size */
 	struct netexport *mnt_export;		/* export list */
+	struct label	mnt_mntlabel;		/* MAC label for the mount */
+	struct label	mnt_fslabel;		/* MAC label for the fs */
 };
 #endif /* _KERNEL */
 
