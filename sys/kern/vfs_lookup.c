@@ -104,7 +104,7 @@ namei(ndp)
 	struct thread *td = cnp->cn_thread;
 	struct proc *p = td->td_proc;
 
-	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_proc->p_ucred;
+	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
 	KASSERT(cnp->cn_cred && p, ("namei: bad cred/proc"));
 	KASSERT((cnp->cn_nameiop & (~OPMASK)) == 0,
 	    ("namei: nameiop contaminated with flags"));
