@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.49 1999/05/06 18:12:44 peter Exp $
+ * $Id: kern_proc.c,v 1.50 1999/05/11 19:54:29 phk Exp $
  */
 
 #include <sys/param.h>
@@ -443,7 +443,7 @@ fill_eproc(p, ep)
 	if ((p->p_flag & P_CONTROLT) &&
 	    (ep->e_sess != NULL) &&
 	    ((tp = ep->e_sess->s_ttyp) != NULL)) {
-		ep->e_tdev = tp->t_dev;
+		ep->e_tdev = dev2udev(tp->t_dev);
 		ep->e_tpgid = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
 		ep->e_tsess = tp->t_session;
 	} else
