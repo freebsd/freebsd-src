@@ -1,6 +1,5 @@
 #!/bin/sh
 # $FreeBSD$
-
 # This script sets up an Ethernet bridging network across multiple
 # Ethernet interfaces using the ng_bridge(4) and ng_ether(4) netgraph
 # node types.
@@ -12,7 +11,7 @@
 # 1. Give your bridging network a name by editing the definition of
 #    ${BRIDGE_NAME} below. It must be a valid netgraph node name.
 #
-# 2. Edit the definitions of ${BRIDGE_IFACES} and ${LOCAL_IFACE}
+# 2. Edit the definitions of ${BRIDGE_IFACES} and ${LOCAL_IFACES}
 #    as described below to define your bridging interfaces.
 #
 # 3. Run this script with "start" as the command line argument.
@@ -25,6 +24,11 @@
 #
 # To run multiple independent bridging networks, create multiple
 # copies of this script with different variable definitions.
+#
+# To make a "brouted" network, with IP being routed and other protocols being
+# bridged, add all the interface in the BRIDGE_IFACES to the LOCAL_IFACES.
+# I you just want a normal bridge, just one will surfice.
+# in some cases you may want some mixture. 
 # 
 
 # Give each bridging network a unique name here
@@ -33,13 +37,13 @@ BRIDGE_NAME="bnet0"
 
 # List the names of the interfaces that you want to bridge across
 # here in ${BRIDGE_IFACES}. If you want to include the local host
-# machine as well then set ${LOCAL_IFACE} as well (it may also be
+# machine as well then set ${LOCAL_IFACES} as well (they may also be
 # listed in ${BRIDGE_IFACES}). Of course, any ${LOCAL_IFACE} must
 # be ifconfig(8)ured separately. If you don't want a ${LOCAL_IFACE}
 # then leave it defined as the emtpy string.
 
-BRIDGE_IFACES="ed0 fxp0 fxp1"
-LOCAL_IFACE="fxp0"
+BRIDGE_IFACES="de0 fxp0 fxp1"
+LOCAL_IFACES="fxp0 fxp1"
 
 ####################################################################
 #### Everything below this point should not need to be modified ####
@@ -81,7 +85,7 @@ bridge_start() {
 	bridge_stop
 
 	# Verify all interfaces exist
-	for ETHER in ${BRIDGE_IFACES} ${LOCAL_IFACE}; do
+	for ETHER in ${BRIDGE_IFACES} ${LOCAL_IFACES}; do
 		if ngctl info ${ETHER}: >/dev/null 2>&1; then
 		else
 			echo "Error: interface ${ETHER} does not exist"
@@ -106,10 +110,11 @@ bridge_start() {
 	done
 
 	# Hook up local interface, if any
-	if [ "${LOCAL_IFACE}" != "" ]; then
+	for LOCAL_IFACE in ${LOCAL_IFACES}; do
 		ngctl connect ${LOCAL_IFACE}: ${BRIDGE_NAME}: \
 		    upper link${LINKNUM} || exit 1
-	fi
+		LINKNUM=`expr ${LINKNUM} + 1`
+	done
 
 	# Set all interfaces in promiscuous mode and don't overwrite src addr
 	for ETHER in ${BRIDGE_IFACES}; do
@@ -121,7 +126,7 @@ bridge_start() {
 # Stop routine
 bridge_stop() {
 	ngctl kill ${BRIDGE_NAME}: >/dev/null 2>&1
-	for ETHER in ${BRIDGE_IFACES} ${LOCAL_IFACE}; do
+	for ETHER in ${BRIDGE_IFACES} ${LOCAL_IFACES}; do
 		ngctl kill ${ETHER}: >/dev/null 2>&1
 	done
 }
@@ -141,10 +146,11 @@ bridge_stats() {
 		bridge_linkstats ${LINKNUM}
 		LINKNUM=`expr ${LINKNUM} + 1`
 	done
-	if [ "${LOCAL_IFACE}" != "" ]; then
+	for LOCAL_IFACE in ${LOCAL_IFACES}; do
 		echo "Local host interface ${LOCAL_IFACE}:"
 		bridge_linkstats ${LINKNUM}
-	fi
+		LINKNUM=`expr ${LINKNUM} + 1`
+	done
 }
 
 # Main entry point
