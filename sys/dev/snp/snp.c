@@ -119,6 +119,19 @@ static int		snp_detach(struct snoop *snp);
 static int		snp_down(struct snoop *snp);
 static int		snp_in(struct snoop *snp, char *buf, int n);
 static int		snp_modevent(module_t mod, int what, void *arg);
+static struct snoop	*ttytosnp(struct tty *);
+
+static struct snoop *
+ttytosnp(struct tty *tp)
+{
+	struct snoop *snp;
+	
+	LIST_FOREACH(snp, &snp_sclist, snp_list) {
+		if (snp->snp_tty == tp)
+			return (snp);
+	}
+	return (NULL);
+}
 
 static int
 snplclose(tp, flag)
@@ -128,7 +141,7 @@ snplclose(tp, flag)
 	struct snoop *snp;
 	int error;
 
-	snp = tp->t_sc;
+	snp = ttytosnp(tp);
 	error = snp_down(snp);
 	if (error != 0)
 		return (error);
@@ -150,7 +163,7 @@ snplwrite(tp, uio, flag)
 
 	error = 0;
 	ibuf = NULL;
-	snp = tp->t_sc;
+	snp = ttytosnp(tp);
 	while (uio->uio_resid > 0) {
 		ilen = imin(512, uio->uio_resid);
 		ibuf = malloc(ilen, M_SNP, M_WAITOK);
@@ -217,8 +230,7 @@ snpwrite(dev, uio, flag)
 	tp = snp->snp_tty;
 	if (tp == NULL)
 		return (EIO);
-	if ((tp->t_sc == snp) && (tp->t_state & TS_SNOOP) &&
-	    tp->t_line == snooplinedisc)
+	if ((tp->t_state & TS_SNOOP) && tp->t_line == snooplinedisc)
 		goto tty_input;
 
 	printf("snp%d: attempt to write to bad tty\n", snp->snp_unit);
@@ -442,9 +454,7 @@ snp_detach(snp)
 	if (tp == NULL)
 		goto detach_notty;
 
-	if (tp && (tp->t_sc == snp) && (tp->t_state & TS_SNOOP) &&
-	    tp->t_line == snooplinedisc) {
-		tp->t_sc = NULL;
+	if ((tp->t_state & TS_SNOOP) && tp->t_line == snooplinedisc) {
 		tp->t_state &= ~TS_SNOOP;
 		tp->t_line = snp->snp_olddisc;
 	} else
@@ -530,7 +540,6 @@ snpioctl(dev, cmd, data, flags, td)
 				tpo->t_state &= ~TS_SNOOP;
 		}
 
-		tp->t_sc = (caddr_t)snp;
 		tp->t_state |= TS_SNOOP;
 		snp->snp_olddisc = tp->t_line;
 		tp->t_line = snooplinedisc;
