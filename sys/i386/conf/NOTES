@@ -183,6 +183,10 @@ options 	GPL_MATH_EMULATE	#Support for x87 emulation via
 #
 options 	PERFMON
 
+#
+# Stuff specific to the AMD Elan Sc520 cpu.
+device 		elan-mmcr		# Support mapping MMCR in userland.
+
 
 #####################################################################
 # NETWORKING OPTIONS
