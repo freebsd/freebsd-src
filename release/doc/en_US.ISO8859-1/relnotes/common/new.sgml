@@ -421,6 +421,9 @@
       to operate in a more consistent fashion for certain common
       misconfigurations.</para>
 
+      <para><application>BIND</application> has been updated to
+      8.2.4-REL.</para>
+
       <para><application>Binutils</application> have been upgraded to
       2.11.2.</para>
 
