@@ -787,8 +787,11 @@ _lkm_exec(lkmtp, cmd)
 	struct lkm_exec *args = lkmtp->private.lkm_exec;
 	int i;
 	int err = 0;
+	extern const struct linker_set execsw_set;
+	const struct execsw **execsw = 
+		(const struct execsw **)&execsw_set.ls_items[0];
 
-#if 0
+#if 1
 	switch(cmd) {
 	case LKM_E_LOAD:
 		/* don't load twice! */
@@ -798,29 +801,24 @@ _lkm_exec(lkmtp, cmd)
 			/*
 			 * Search the table looking for a slot...
 			 */
-			for (i = 0; i < nexecs; i++)
-				if (execsw[i].es_check == NULL)
+			for (i = 0; execsw[i] != NULL; i++)
+				if (execsw[i]->ex_imgact == NULL)
 					break;		/* found it! */
 			/* out of allocable slots? */
-			if (i == nexecs) {
+			if (execsw[i] == NULL) {
 				err = ENFILE;
 				break;
 			}
 		} else {				/* assign */
-			if (i < 0 || i >= nexecs) {
-				err = EINVAL;
-				break;
-			}
+			err = EINVAL;
+			break;
 		}
 
 		/* save old */
-		bcopy(&execsw[i], &(args->lkm_oldexec), sizeof(struct execsw));
+		bcopy(&execsw[i], &(args->lkm_oldexec), sizeof(struct execsw*));
 
 		/* replace with new */
-		bcopy(args->lkm_exec, &execsw[i], sizeof(struct execsw));
-
-		/* realize need to recompute max header size */
-		exec_maxhdrsz = 0;
+		bcopy(&(args->lkm_exec), &execsw[i], sizeof(struct execsw*));
 
 		/* done! */
 		args->lkm_offset = i;	/* slot in execsw[] */
@@ -832,10 +830,7 @@ _lkm_exec(lkmtp, cmd)
 		i = args->lkm_offset;
 
 		/* replace current slot contents with old contents */
-		bcopy(&(args->lkm_oldexec), &execsw[i], sizeof(struct execsw));
-
-		/* realize need to recompute max header size */
-		exec_maxhdrsz = 0;
+		bcopy(&(args->lkm_oldexec), &execsw[i], sizeof(struct execsw*));
 
 		break;
 
@@ -847,6 +842,12 @@ _lkm_exec(lkmtp, cmd)
 #endif
 	return(err);
 }
+
+static const struct execsw lkm_exec_dummy = { NULL, "lkm" };
+TEXT_SET(execsw_set, lkm_exec_dummy);
+TEXT_SET(execsw_set, lkm_exec_dummy);
+TEXT_SET(execsw_set, lkm_exec_dummy);
+TEXT_SET(execsw_set, lkm_exec_dummy);
 
 /*
  * This code handles the per-module type "wiring-in" of loadable modules
