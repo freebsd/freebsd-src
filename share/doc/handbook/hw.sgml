@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.55 1996/12/27 07:14:11 obrien Exp $ -->
+<!-- $Id: hw.sgml,v 1.56 1996/12/27 08:09:52 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -313,7 +313,8 @@ Slippery when wet.  Beware of dog.
 		space restriction of 128MB, though it does add support for
 		SDRAM.  However, it will not cache memory above 64MB.
 		
-	      <tag>Orion:</tag> Early versions of this chipset suffered from
+	      <tag>Orion <em>(ie, 450KX)</em>:</tag> Early versions of this
+	        chipset suffered from
 	 	a PCI write-posting bug which can cause noticeable performance
 		degradation in applications where large amounts of PCI bus
 		traffic is involved.  B0 stepping or later revisions of the
@@ -321,7 +322,7 @@ Slippery when wet.  Beware of dog.
 
 	      <tag><htmlurl
 	      url="http://www.intel.com/design/motherbd/vs/index.htm"
-	      name="VS440FX">:</tag>This <htmlurl
+	      name="VS440FX"><em>(ie, Natoma)</em>:</tag>This <htmlurl
 	      url="http://www.intel.com/procs/ppro/intro/index.htm"
 	      name="Pentium Pro"> support chipset seems to work well,
 	      and does not suffer from any of the early Orion chipset
