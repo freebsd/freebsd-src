@@ -90,25 +90,28 @@ friendly(uuid_t *t)
 static void
 show(int fd __unused)
 {
-	off_t start, end;
+	off_t start;
 	map_t *m, *p;
 	struct mbr *mbr;
 	struct gpt_ent *ent;
 	unsigned int i;
 
 	printf("  %*s", lbawidth, "start");
-	printf("  %*s", lbawidth, "end");
 	printf("  %*s", lbawidth, "size");
-	printf("  %s\n", "contents");
+	printf("  index  contents\n");
 
 	m = map_first();
 	while (m != NULL) {
-		end = m->map_start + m->map_size - 1;
 		printf("  %*llu", lbawidth, (long long)m->map_start);
-		printf("  %*llu", lbawidth, (long long)end);
 		printf("  %*llu", lbawidth, (long long)m->map_size);
-
-		putchar(' '); putchar(' ');
+		putchar(' ');
+		putchar(' ');
+		if (m->map_index > 0)
+			printf("%5d", m->map_index);
+		else
+			printf("     ");
+		putchar(' ');
+		putchar(' ');
 		switch (m->map_type) {
 		case MAP_TYPE_MBR:
 			if (m->map_start != 0)

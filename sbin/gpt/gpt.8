@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2004
+.Dd August 6, 2004
 .Os
 .Dt GPT 8
 .Sh NAME
@@ -43,7 +43,7 @@ utility provides the necessary functionality to manipulate GUID partition
 tables (GPTs), but see
 .Sx BUGS
 below for how and where functionality is missing.
-The general usage model of the
+The basic usage model of the
 .Nm
 tool follows that of the
 .Xr cvs 1
@@ -94,6 +94,7 @@ There is no formalized definition of the different levels yet.
 .Nm
 .Ic add
 .Op Fl b Ar number
+.Op Fl i Ar index
 .Op Fl s Ar count
 .Op Fl t Ar type
 .Ar device ...
@@ -113,6 +114,12 @@ The minimum sector number is 1, but has to fall inside an unused region of
 disk space that is covered by the GPT.
 .Pp
 The
+.Fl i Ar index
+option allows the user to specify which (free) entry in the GPT table is to
+be used for the new partition.
+By default the first free entry is selected.
+.Pp
+The
 .Fl s Ar count
 option allows the user to specify the size of the partition in sectors.
 The minimum size is 1.
@@ -122,11 +129,11 @@ The
 option allows the user to specify the partition type.
 The type is given as an UUID, but
 .Nm
-has created
+accepts
 .Cm efi , swap , ufs , linux
 and
 .Cm windows
-as aliases for some most commonly used partition types.
+as aliases for the most commonly used partition types.
 .\" ==== create ====
 .It Xo
 .Nm
@@ -221,7 +228,7 @@ However, it is believed that the currently present functionality is reliable
 and stable enough that this tool can be used without bullet-proof footware if
 one thinks one does not make mistakes.
 .Pp
-It is expected that the generic usage model does not change, but it is
+It is expected that the basic usage model does not change, but it is
 possible that future versions will not be compatible in the strictest sense
 of the word.
 For example, the
