@@ -233,8 +233,8 @@ L_arg2_not_inf:
 #endif DENORM_OPERAND
 
 L_copy_arg1:
-	movb	TAG(%esi),%ax
-	movb	%ax,TAG(%edi)
+	movb	TAG(%esi),%al
+	movb	%al,TAG(%edi)
 	movl	EXP(%esi),%eax
 	movl	%eax,EXP(%edi)
 	movl	SIGL(%esi),%eax
