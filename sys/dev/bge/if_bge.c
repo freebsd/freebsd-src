@@ -1003,6 +1003,7 @@ bge_chipinit(sc)
 	struct bge_softc *sc;
 {
 	int			i;
+	u_int32_t		dma_rw_ctl;
 
 	/* Set endianness before we access any non-PCI registers. */
 #if BYTE_ORDER == BIG_ENDIAN
@@ -1042,13 +1043,44 @@ bge_chipinit(sc)
 	if (pci_read_config(sc->bge_dev, BGE_PCI_PCISTATE, 4) &
 	    BGE_PCISTATE_PCI_BUSMODE) {
 		/* Conventional PCI bus */
-		pci_write_config(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
-		    BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD|0x3F000F, 4);
+		dma_rw_ctl = BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD |
+		    (0x7 << BGE_PCIDMARWCTL_RD_WAT_SHIFT) |
+		    (0x7 << BGE_PCIDMARWCTL_WR_WAT_SHIFT) |
+		    (0x0F);
 	} else {
 		/* PCI-X bus */
-		pci_write_config(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
-		    BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD|0x1B000F, 4);
+		/*
+		 * The 5704 uses a different encoding of read/write
+		 * watermarks.
+		 */
+		if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5704)
+			dma_rw_ctl = BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD |
+			    (0x7 << BGE_PCIDMARWCTL_RD_WAT_SHIFT) |
+			    (0x3 << BGE_PCIDMARWCTL_WR_WAT_SHIFT);
+		else
+			dma_rw_ctl = BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD |
+			    (0x3 << BGE_PCIDMARWCTL_RD_WAT_SHIFT) |
+			    (0x3 << BGE_PCIDMARWCTL_WR_WAT_SHIFT) |
+			    (0x0F);
+
+		/*
+		 * 5703 and 5704 need ONEDMA_AT_ONCE as a workaround
+		 * for hardware bugs.
+		 */
+		if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5703 ||
+		    BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5704) {
+			u_int32_t tmp;
+
+			tmp = CSR_READ_4(sc, BGE_PCI_CLKCTL) & 0x1f;
+			if (tmp == 0x6 || tmp == 0x7)
+				dma_rw_ctl |= BGE_PCIDMARWCTL_ONEDMA_ATONCE;
+		}
 	}
+
+	if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5703 ||
+	    BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5704)
+		dma_rw_ctl &= ~BGE_PCIDMARWCTL_MINDMA;
+	pci_write_config(sc->bge_dev, BGE_PCI_DMA_RW_CTL, dma_rw_ctl, 4);
 
 	/*
 	 * Set up general mode register.
@@ -1415,7 +1447,7 @@ bge_blockinit(sc)
 		CSR_WRITE_4(sc, BGE_MI_STS, BGE_MISTS_LINK);
  	} else {
 		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL|10<<16);
-		if (sc->bge_asicrev == BGE_ASICREV_BCM5700)
+		if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5700)
 			CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
 			    BGE_EVTENB_MI_INTERRUPT);
 	}
@@ -1619,10 +1651,6 @@ bge_attach(dev)
 	sc->bge_asicrev =
 	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) &
 	    BGE_PCIMISCCTL_ASICREV;
-
-	/* Pretend all 5700s are the same */
-	if ((sc->bge_asicrev & 0xFF000000) == BGE_ASICREV_BCM5700)
-		sc->bge_asicrev = BGE_ASICREV_BCM5700;
 
 	/*
 	 * Figure out what sort of media we have by checking the
@@ -2037,7 +2065,7 @@ bge_intr(xsc)
 	 * the interrupt handler.
 	 */
 
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
+	if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5700) {
 		u_int32_t		status;
 
 		status = CSR_READ_4(sc, BGE_MAC_STS);
