@@ -27,11 +27,11 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: sa.8,v 1.1 1994/03/24 18:41:59 cgd Exp $
+.\"	$Id: sa.8,v 1.1.1.1 1994/09/26 21:22:56 davidg Exp $
 .\"
 .Dd February 25, 1994
 .Dt SA 8
-.Os NetBSD 0.9a
+.Os
 .Sh NAME
 .Nm sa
 .Nd print system accounting statistics
@@ -217,7 +217,7 @@ that there's not much logic behind their lettering.
 .Pp
 The field labels should be more consistent.
 .Pp
-NetBSD's VM system does not record the CPU storage integral.
+The VM system does not record the CPU storage integral.
 .Sh CAVEATS
 While the behavior of the options in this version of
 .Nm sa
@@ -234,12 +234,6 @@ The formats of the summary files created by this version of
 are very different than the those used by the original version.
 This is not considered a problem, however, because the accounting record
 format has changed as well (since user ids are now 32 bits).
-.Sh HISTORY
-.Nm Sa
-was written for
-.Nx 0.9a
-from the specification provided by various systems' manual pages.
-Its date of origin is unknown to the author.
 .Sh AUTHOR
 .Bl -tag
 Chris G. Demetriou, cgd@postgres.berkeley.edu
