@@ -39,15 +39,12 @@
 #include <sys/domain.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/mutex.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -430,10 +427,8 @@ key_attach(struct socket *so, int proto, struct thread *td)
 	key_cb.any_count++;
 	kp->kp_raw.rcb_laddr = &key_src;
 	kp->kp_raw.rcb_faddr = &key_dst;
-	SIGIO_SLOCK();
 	soisconnected_locked(so);
 	so->so_options |= SO_USELOOPBACK;
-	SIGIO_SUNLOCK();
 
 	splx(s);
 	return 0;

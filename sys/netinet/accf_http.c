@@ -31,12 +31,10 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/socketvar.h>
-#include <sys/sx.h>
 
 /* check for GET/HEAD */
 static void sohashttpget(struct socket *so, void *arg, int waitflag);
@@ -203,11 +201,9 @@ sohashttpget(struct socket *so, void *arg, int waitflag)
 
 fallout:
 	DPRINT("fallout");
-	SIGIO_SLOCK();
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
 	soisconnected_locked(so);
-	SIGIO_SUNLOCK();
 	return;
 }
 
@@ -287,11 +283,9 @@ readmore:
 
 fallout:
 	DPRINT("fallout");
-	SIGIO_SLOCK();
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
 	soisconnected_locked(so);
-	SIGIO_SUNLOCK();
 	return;
 }
 
@@ -359,10 +353,8 @@ readmore:
 	return;
 
 gotit:
-	SIGIO_SLOCK();
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
 	soisconnected_locked(so);
-	SIGIO_SUNLOCK();
 	return;
 }
