@@ -1,9 +1,9 @@
 /* crypto/des/rand_key.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -62,17 +62,13 @@
 static int seed=0;
 static des_cblock init;
 
-void des_random_seed(key)
-des_cblock key;
+void des_random_seed(des_cblock *key)
 	{
-	memcpy(init,key,sizeof(des_cblock));
+	memcpy(&init,key,sizeof(des_cblock));
 	seed=1;
 	}
 
-/* Old source */
-/*
-void des_random_key(ret)
-unsigned char *ret;
+void des_random_key(des_cblock *ret)
 	{
 	des_key_schedule ks;
 	static DES_LONG c=0;
@@ -83,7 +79,7 @@ unsigned char *ret;
 	DES_LONG t;
 	int i;
 
-#if defined(MSDOS) || defined(WIN32)
+#ifdef MSDOS
 	pid=1;
 #else
 	if (!pid) pid=getpid();
@@ -103,19 +99,16 @@ unsigned char *ret;
 	t=(DES_LONG)((pid)|((c++)<<16));
 	l2c(t,p);
 
-	des_set_odd_parity((des_cblock *)data);
-	des_set_key((des_cblock *)data,ks);
-	des_cbc_cksum((des_cblock *)key,(des_cblock *)key,
-		(long)sizeof(key),ks,(des_cblock *)data);
+	des_set_odd_parity(&data);
+	des_set_key(&data,ks);
+	des_cbc_cksum(key,&key,sizeof(key),ks,&data);
 
-	des_set_odd_parity((des_cblock *)key);
-	des_set_key((des_cblock *)key,ks);
-	des_cbc_cksum((des_cblock *)key,(des_cblock *)data,
-		(long)sizeof(key),ks,(des_cblock *)key);
+	des_set_odd_parity(&key);
+	des_set_key(&key,ks);
+	des_cbc_cksum(key,&data,sizeof(key),ks,&key);
 
 	memcpy(ret,data,sizeof(key));
 	memset(key,0,sizeof(key));
 	memset(ks,0,sizeof(ks));
 	t=0;
 	}
-*/

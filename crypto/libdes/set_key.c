@@ -1,9 +1,9 @@
 /* crypto/des/set_key.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -67,16 +67,10 @@
 #include "podd.h"
 #include "sk.h"
 
-#ifndef NOPROTO
-static int check_parity(des_cblock (*key));
-#else
-static int check_parity();
-#endif
+static int check_parity(const_des_cblock *key);
+OPENSSL_GLOBAL int des_check_key=0;
 
-int des_check_key=0;
-
-void des_set_odd_parity(key)
-des_cblock (*key);
+void des_set_odd_parity(des_cblock *key)
 	{
 	int i;
 
@@ -84,8 +78,7 @@ des_cblock (*key);
 		(*key)[i]=odd_parity[(*key)[i]];
 	}
 
-static int check_parity(key)
-des_cblock (*key);
+static int check_parity(const_des_cblock *key)
 	{
 	int i;
 
@@ -111,8 +104,8 @@ static des_cblock weak_keys[NUM_WEAK_KEY]={
 	/* weak keys */
 	{0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01},
 	{0xFE,0xFE,0xFE,0xFE,0xFE,0xFE,0xFE,0xFE},
-	{0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F},
-	{0xE0,0xE0,0xE0,0xE0,0xE0,0xE0,0xE0,0xE0},
+	{0x1F,0x1F,0x1F,0x1F,0x0E,0x0E,0x0E,0x0E},
+	{0xE0,0xE0,0xE0,0xE0,0xF1,0xF1,0xF1,0xF1},
 	/* semi-weak keys */
 	{0x01,0xFE,0x01,0xFE,0x01,0xFE,0x01,0xFE},
 	{0xFE,0x01,0xFE,0x01,0xFE,0x01,0xFE,0x01},
@@ -127,8 +120,7 @@ static des_cblock weak_keys[NUM_WEAK_KEY]={
 	{0xE0,0xFE,0xE0,0xFE,0xF1,0xFE,0xF1,0xFE},
 	{0xFE,0xE0,0xFE,0xE0,0xFE,0xF1,0xFE,0xF1}};
 
-int des_is_weak_key(key)
-des_cblock (*key);
+int des_is_weak_key(const_des_cblock *key)
 	{
 	int i;
 
@@ -136,8 +128,10 @@ des_cblock (*key);
 		/* Added == 0 to comparision, I obviously don't run
 		 * this section very often :-(, thanks to
 		 * engineering@MorningStar.Com for the fix
-		 * eay 93/06/29 */
-		if (memcmp(weak_keys[i],key,sizeof(key)) == 0) return(1);
+		 * eay 93/06/29
+		 * Another problem, I was comparing only the first 4
+		 * bytes, 97/03/18 */
+		if (memcmp(weak_keys[i],key,sizeof(des_cblock)) == 0) return(1);
 	return(0);
 	}
 
@@ -155,13 +149,11 @@ des_cblock (*key);
  * return -1 if key parity error,
  * return -2 if illegal weak key.
  */
-int des_set_key(key, schedule)
-des_cblock (*key);
-des_key_schedule schedule;
+int des_set_key(const_des_cblock *key, des_key_schedule schedule)
 	{
 	static int shifts2[16]={0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0};
 	register DES_LONG c,d,t,s,t2;
-	register unsigned char *in;
+	register const unsigned char *in;
 	register DES_LONG *k;
 	register int i;
 
@@ -174,8 +166,8 @@ des_key_schedule schedule;
 			return(-2);
 		}
 
-	k=(DES_LONG *)schedule;
-	in=(unsigned char *)key;
+	k = &schedule->ks.deslong[0];
+	in = &(*key)[0];
 
 	c2l(in,c);
 	c2l(in,d);
@@ -236,9 +228,7 @@ des_key_schedule schedule;
 	return(0);
 	}
 
-int des_key_sched(key, schedule)
-des_cblock (*key);
-des_key_schedule schedule;
+int des_key_sched(const_des_cblock *key, des_key_schedule schedule)
 	{
 	return(des_set_key(key,schedule));
 	}

@@ -1,9 +1,9 @@
 /* crypto/des/cbc_cksm.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -58,21 +58,15 @@
 
 #include "des_locl.h"
 
-DES_LONG des_cbc_cksum(input, output, length, schedule, ivec)
-des_cblock (*input);
-des_cblock (*output);
-long length;
-des_key_schedule schedule;
-des_cblock (*ivec);
+DES_LONG des_cbc_cksum(const unsigned char *in, des_cblock *output,
+		long length,
+		des_key_schedule schedule, const_des_cblock *ivec)
 	{
 	register DES_LONG tout0,tout1,tin0,tin1;
 	register long l=length;
 	DES_LONG tin[2];
-	unsigned char *in,*out,*iv;
-
-	in=(unsigned char *)input;
-	out=(unsigned char *)output;
-	iv=(unsigned char *)ivec;
+	unsigned char *out = &(*output)[0];
+	const unsigned char *iv = &(*ivec)[0];
 
 	c2l(iv,tout0);
 	c2l(iv,tout1);

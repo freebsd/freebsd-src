@@ -1,9 +1,9 @@
 /* crypto/des/rpc_enc.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -60,32 +60,23 @@
 #include "des_locl.h"
 #include "des_ver.h"
 
-#ifndef NOPROTO
 int _des_crypt(char *buf,int len,struct desparams *desp);
-#else
-int _des_crypt();
-#endif
-
-int _des_crypt(buf, len, desp)
-char *buf;
-int len;
-struct desparams *desp;
+int _des_crypt(char *buf, int len, struct desparams *desp)
 	{
 	des_key_schedule ks;
 	int enc;
 
-	des_set_key((des_cblock *)desp->des_key,ks);
+	des_set_key(&desp->des_key,ks);
 	enc=(desp->des_dir == ENCRYPT)?DES_ENCRYPT:DES_DECRYPT;
 
 	if (desp->des_mode == CBC)
-		des_ecb_encrypt((des_cblock *)desp->UDES.UDES_buf,
-				(des_cblock *)desp->UDES.UDES_buf,ks,enc);
+		des_ecb_encrypt((const_des_cblock *)desp->UDES.UDES_buf,
+				(des_cblock *)desp->UDES.UDES_buf,ks,
+				enc);
 	else
 		{
-		des_ncbc_encrypt((des_cblock *)desp->UDES.UDES_buf,
-				(des_cblock *)desp->UDES.UDES_buf,
-				(long)len,ks,
-				(des_cblock *)desp->des_ivec,enc);
+		des_ncbc_encrypt(desp->UDES.UDES_buf,desp->UDES.UDES_buf,
+				len,ks,&desp->des_ivec,enc);
 #ifdef undef
 		/* len will always be %8 if called from common_crypt
 		 * in secure_rpc.

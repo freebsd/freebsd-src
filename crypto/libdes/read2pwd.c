@@ -1,4 +1,4 @@
-/* crypto/des/rpw.c */
+/* crypto/des/read2pwd.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -56,44 +56,29 @@
  * [including the GNU Public Licence.]
  */
 
-#include <stdio.h>
-#include <openssl/des.h>
+#include "des_locl.h"
 
-int main(int argc, char *argv[])
+int des_read_password(des_cblock *key, const char *prompt, int verify)
 	{
-	des_cblock k,k1;
-	int i;
+	int ok;
+	char buf[BUFSIZ],buff[BUFSIZ];
 
-	printf("read passwd\n");
-	if ((i=des_read_password(&k,"Enter password:",0)) == 0)
-		{
-		printf("password = ");
-		for (i=0; i<8; i++)
-			printf("%02x ",k[i]);
-		}
-	else
-		printf("error %d\n",i);
-	printf("\n");
-	printf("read 2passwds and verify\n");
-	if ((i=des_read_2passwords(&k,&k1,
-		"Enter verified password:",1)) == 0)
-		{
-		printf("password1 = ");
-		for (i=0; i<8; i++)
-			printf("%02x ",k[i]);
-		printf("\n");
-		printf("password2 = ");
-		for (i=0; i<8; i++)
-			printf("%02x ",k1[i]);
-		printf("\n");
-		exit(1);
-		}
-	else
-		{
-		printf("error %d\n",i);
-		exit(0);
-		}
-#ifdef LINT
-	return(0);
-#endif
+	if ((ok=des_read_pw(buf,buff,BUFSIZ,prompt,verify)) == 0)
+		des_string_to_key(buf,key);
+	memset(buf,0,BUFSIZ);
+	memset(buff,0,BUFSIZ);
+	return(ok);
+	}
+
+int des_read_2passwords(des_cblock *key1, des_cblock *key2, const char *prompt,
+	     int verify)
+	{
+	int ok;
+	char buf[BUFSIZ],buff[BUFSIZ];
+
+	if ((ok=des_read_pw(buf,buff,BUFSIZ,prompt,verify)) == 0)
+		des_string_to_2keys(buf,key1,key2);
+	memset(buf,0,BUFSIZ);
+	memset(buff,0,BUFSIZ);
+	return(ok);
 	}
