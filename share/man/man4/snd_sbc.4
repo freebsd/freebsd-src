@@ -25,14 +25,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 18, 1999
-.Dt SBC 4
+.Dd August 28, 2004
+.Dt SND_SBC 4
 .Os
 .Sh NAME
-.Nm sbc
+.Nm snd_sbc
 .Nd Creative Sound Blaster ISA and compatible bridge device driver
 .Sh SYNOPSIS
-.Cd "device sbc"
+.Cd "device sound"
+.Cd "device snd_sbc"
 .Pp
 Non-PnP cards require the following lines in
 .Pa /boot/device.hints :
@@ -45,7 +46,7 @@ Non-PnP cards require the following lines in
 The
 .Nm
 bridge driver allows the generic audio drivers including
-.Xr pcm 4
+.Xr sound 4
 to attach to the following ISA sound cards:
 .Bl -bullet -width 2m
 .It
@@ -75,6 +76,6 @@ The
 device driver first appeared in
 .Fx 4.0 .
 .Sh SEE ALSO
-.Xr pcm 4
+.Xr sound 4
 .Sh AUTHORS
 .An Seigo Tanimura Aq tanimura@r.dl.itc.u-tokyo.ac.jp

@@ -24,14 +24,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2001
-.Dt MAESTRO3 4
+.Dd August 28, 2004
+.Dt SND_MAESTRO3 4
 .Os
 .Sh NAME
-.Nm maestro3
+.Nm snd_maestro3
 .Nd FreeBSD audio sub-driver for ESS Maestro3/Allegro-1 hardware
 .Sh SYNOPSIS
-.Li "kldload snd_maestro3"
+.Cd "device sound"
+.Cd "device snd_maestro3"
 .Sh DESCRIPTION
 The
 .Nm
@@ -45,7 +46,7 @@ The firmware for the sound processor is licensed under the GNU Public
 License, and thus this driver is not included in the default
 .Pa GENERIC
 kernel, nor is it compiled into the kernel when
-.Cd "device pcm"
+.Cd "device sound"
 is specified in the kernel config file.
 A convenient way to automatically load the driver is to add the line
 .Pp
@@ -64,7 +65,7 @@ to the file
 .Pa /boot/device.hints
 to override the default setting.
 .Sh SEE ALSO
-.Xr pcm 4 ,
+.Xr sound 4 ,
 .Xr loader.conf 5
 .Sh HISTORY
 The
