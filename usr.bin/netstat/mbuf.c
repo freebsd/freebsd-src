@@ -98,11 +98,11 @@ static struct mbtypenames {
 void
 mbpr()
 {
-	register int totmem, totfree, totmbufs;
+	u_long totmem, totpossible, totmbufs;
 	register int i;
 	struct mbtypenames *mp;
-	int name[3], nmbclusters, nmbufs, nmbtypes;
-	size_t nmbclen, nmbuflen, mbstatlen, mbtypeslen;
+	int name[3], nmbclusters, nmbufs, nmbcnt, nmbtypes;
+	size_t nmbclen, nmbuflen, nmbcntlen, mbstatlen, mbtypeslen;
 	u_long *mbtypes;
 	bool *seen;	/* "have we seen this type yet?" */
 
@@ -151,6 +151,12 @@ mbpr()
 		goto err;
 	}
 
+	nmbcntlen = sizeof(int);
+	if (sysctlbyname("kern.ipc.nmbcnt", &nmbcnt, &nmbcntlen, 0, 0) < 0) {
+		warn("sysctl: retrieving nmbcnt");
+		goto err;
+	}
+
 #undef MSIZE
 #define MSIZE		(mbstat.m_msize)
 #undef MCLBYTES
@@ -159,7 +165,7 @@ mbpr()
 	totmbufs = 0;
 	for (mp = mbtypenames; mp->mt_name; mp++)
 		totmbufs += mbtypes[mp->mt_type];
-	printf("%u/%lu/%u mbufs in use (current/peak/max):\n", totmbufs,
+	printf("%lu/%lu/%u mbufs in use (current/peak/max):\n", totmbufs,
 	    mbstat.m_mbufs, nmbufs);
 	for (mp = mbtypenames; mp->mt_name; mp++)
 		if (mbtypes[mp->mt_type]) {
@@ -180,11 +186,10 @@ mbpr()
 		mbstat.m_refcnt - mbstat.m_refree, mbstat.m_refcnt);
 	totmem = mbstat.m_mbufs * MSIZE + mbstat.m_clusters * MCLBYTES +
 	    mbstat.m_refcnt * sizeof(union mext_refcnt);
-	totfree = mbstat.m_clfree * MCLBYTES + 
-	    MSIZE * (mbstat.m_mbufs - totmbufs) + mbstat.m_refree *
-	    sizeof(union mext_refcnt);
-	printf("%u Kbytes allocated to network (%d%% in use)\n",
-		totmem / 1024, (unsigned) (totmem - totfree) * 100 / totmem);
+	totpossible = nmbclusters * MCLBYTES + nmbufs * MSIZE +
+	    nmbcnt * sizeof(union mext_refcnt); 
+	printf("%lu Kbytes allocated to network (%lu%% of mb_map in use)\n",
+		totmem / 1024, (totmem * 100) / totpossible);
 	printf("%lu requests for memory denied\n", mbstat.m_drops);
 	printf("%lu requests for memory delayed\n", mbstat.m_wait);
 	printf("%lu calls to protocol drain routines\n", mbstat.m_drain);
