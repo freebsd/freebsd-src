@@ -506,6 +506,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 	    break;
 
 	case 'C':   /* set cursor type & shape */
+	    i = spltty();
 	    if (!ISGRAPHSC(sc->cur_scp))
 		sc_remove_cursor_image(sc->cur_scp);
 	    if (tcp->num_param == 1) {
@@ -528,11 +529,10 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 	     * are affected. Update the cursor in the current console...
 	     */
 	    if (!ISGRAPHSC(sc->cur_scp)) {
-		i = spltty();
 		sc_set_cursor_image(sc->cur_scp);
 		sc_draw_cursor_image(sc->cur_scp);
-		splx(i);
 	    }
+	    splx(i);
 	    break;
 
 	case 'F':   /* set ansi foreground */
