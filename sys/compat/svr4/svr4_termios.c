@@ -493,7 +493,7 @@ svr4_term_ioctl(fp, p, retval, fd, cmd, data)
 
 	*retval = 0;
 
-	DPRINTF(("TERM ioctl %x\n", cmd));
+	DPRINTF(("TERM ioctl %lx\n", cmd));
 
 	switch (cmd) {
 	case SVR4_TCGETA:
