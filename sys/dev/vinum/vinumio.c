@@ -87,6 +87,9 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
     else if (bcmp(dname, "amrd", 4) == 0) {
 	devmajor = 133;
 	dname += 2;
+    } else if (bcmp(dname, "idad", 4) == 0) {
+	devmajor = 109;
+	dname += 2;
     } else
 	return ENODEV;
     dname += 2;						    /* point past */
@@ -110,14 +113,16 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	if (((dname[1] < '1') || (dname[1] > '4'))	    /* invalid slice */
 	||((dname[2] < 'a') || (dname[2] > 'h')))	    /* or invalid partition */
 	    return ENODEV;
-	devminor = (unit << 3)				    /* unit */
-+(dname[2] - 'a')					    /* partition */
-	+((dname[1] - '0' + 1) << 16);			    /* slice */
+	devminor = ((unit & 31) << 3)			    /* unit */
+	    +(dname[2] - 'a')				    /* partition */
+	    +((dname[1] - '0' + 1) << 16)		    /* slice */
+	    +((unit & ~31) << 16);			    /* high-order unit bits */
     } else {						    /* compatibility partition */
 	if ((*dname < 'a') || (*dname > 'h'))		    /* or invalid partition */
 	    return ENODEV;
 	devminor = (*dname - 'a')			    /* partition */
-	+(unit << 3);					    /* unit */
+            +((unit & 31) << 3)				    /* unit */
+	    +((unit & ~31) << 16);			    /* high-order unit bits */
     }
 
     drive->dev = makedev(devmajor, devminor);		    /* find the device */
@@ -406,8 +411,8 @@ check_drive(char *devicename)
     if (read_drive_label(drive, 0) == DL_OURS) {	    /* one of ours */
 	for (i = 0; i < vinum_conf.drives_allocated; i++) { /* see if the name already exists */
 	    if ((i != driveno)				    /* not this drive */
-&&(DRIVE[i].state != drive_unallocated)			    /* and it's allocated */
-	    &&(strcmp(DRIVE[i].label.name,
+		&&(DRIVE[i].state != drive_unallocated)	    /* and it's allocated */
+		&&(strcmp(DRIVE[i].label.name,
 			DRIVE[driveno].label.name) == 0)) { /* and it has the same name */
 		struct drive *mydrive = &DRIVE[i];
 
