@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#include <machine/cpu.h>
 #include <machine/fpu.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
