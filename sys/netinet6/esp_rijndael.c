@@ -51,7 +51,7 @@
 #include <net/net_osdep.h>
 
 /* as rijndael uses assymetric scheduled keys, we need to do it twice. */
-int
+size_t
 esp_rijndael_schedlen(algo)
 	const struct esp_algorithm *algo;
 {

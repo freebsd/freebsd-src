@@ -1731,6 +1731,7 @@ Currently supported algorithms are:
 	HMAC SHA2-384 with 96bit crypto checksum (no document)
 	HMAC SHA2-512 with 96bit crypto checksum (no document)
 	HMAC RIPEMD160 with 96bit crypto checksum (RFC2857)
+	AES XCBC MAC with 96bit crypto checksum (RFC3566)
     new IPsec ESP
 	null encryption (rfc2410.txt)
 	DES-CBC with derived IV
@@ -1739,9 +1740,9 @@ Currently supported algorithms are:
 	3DES-CBC with explicit IV (rfc2451.txt)
 	BLOWFISH CBC (rfc2451.txt)
 	CAST128 CBC (rfc2451.txt)
-	RIJNDAEL/AES CBC (draft-ietf-ipsec-ciph-aes-cbc-00.txt,
-		uses IANA-assigned protocol number)
-	TWOFISH CBC (draft-ietf-ipsec-ciph-aes-cbc-00.txt)
+	RIJNDAEL/AES CBC (rfc3602.txt)
+	AES counter mode (draft-ietf-ipsec-ciph-aes-ctr-03.txt)
+
 	each of the above can be combined with:
 	    ESP authentication with HMAC-MD5(96bit)
 	    ESP authentication with HMAC-SHA1(96bit)

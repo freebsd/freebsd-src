@@ -78,7 +78,7 @@ struct esp_algorithm {
 	int (*mature) __P((struct secasvar *));
 	int keymin;	/* in bits */
 	int keymax;	/* in bits */
-	int (*schedlen) __P((const struct esp_algorithm *));
+	size_t (*schedlen) __P((const struct esp_algorithm *));
 	const char *name;
 	int (*ivlen) __P((const struct esp_algorithm *, struct secasvar *));
 	int (*decrypt) __P((struct mbuf *, size_t,

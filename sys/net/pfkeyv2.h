@@ -319,22 +319,22 @@ struct sadb_x_ipsecrequest {
 #define SADB_EALG_DESCBC	2
 #define SADB_EALG_3DESCBC	3
 #define SADB_EALG_NULL		11
-#define SADB_EALG_MAX		12
+#define SADB_EALG_MAX		250
 /* private allocations - based on RFC2407/IANA assignment */
 #define SADB_X_EALG_CAST128CBC	6
 #define SADB_X_EALG_BLOWFISHCBC	7
 #define SADB_X_EALG_RIJNDAELCBC	12
 #define SADB_X_EALG_AES		12
 /* private allocations should use 249-255 (RFC2407) */
-#define	SADB_X_EALG_SKIPJACK	249
+#define SADB_X_EALG_SKIPJACK	249	/*250*/ /* for FAST_IPSEC */
+#define SADB_X_EALG_AESCTR	250	/*249*/ /* draft-ietf-ipsec-ciph-aes-ctr-03 */
 
-#if 1	/*nonstandard */
+/* private allocations - based on RFC2407/IANA assignment */
 #define SADB_X_CALG_NONE	0
 #define SADB_X_CALG_OUI		1
 #define SADB_X_CALG_DEFLATE	2
 #define SADB_X_CALG_LZS		3
 #define SADB_X_CALG_MAX		4
-#endif
 
 #define SADB_IDENTTYPE_RESERVED   0
 #define SADB_IDENTTYPE_PREFIX     1
