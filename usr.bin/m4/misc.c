@@ -77,6 +77,8 @@ int c;
 {
 	if (c == EOF)
 		c = 0;
+	else if (c == 0)
+		return;
 	if (bp < endpbb)
 		*bp++ = c;
 	else
