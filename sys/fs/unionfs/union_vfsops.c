@@ -85,9 +85,7 @@ union_mount(mp, path, data, ndp, p)
 	int len;
 	u_int size;
 
-#ifdef DEBUG
-	printf("union_mount(mp = %p)\n", (void *)mp);
-#endif
+	UDEBUG(("union_mount(mp = %p)\n", (void *)mp));
 
 	/*
 	 * Disable clustered write, otherwise system becomes unstable.
@@ -114,24 +112,35 @@ union_mount(mp, path, data, ndp, p)
 	if (error)
 		goto bad;
 
+	/*
+	 * Obtain lower vnode.  Vnode is stored in mp->mnt_vnodecovered.
+	 * We need to reference it but not lock it.
+	 */
+
 	lowerrootvp = mp->mnt_vnodecovered;
 	VREF(lowerrootvp);
 
+#if 0
 	/*
 	 * Unlock lower node to avoid deadlock.
 	 */
 	if (lowerrootvp->v_op == union_vnodeop_p)
 		VOP_UNLOCK(lowerrootvp, 0, p);
+#endif
 
 	/*
-	 * Find upper node.
+	 * Obtain upper vnode by calling namei() on the path.  The
+	 * upperrootvp will be turned referenced but not locked.
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT,
 	       UIO_USERSPACE, args.target, p);
 
 	error = namei(ndp);
+
+#if 0
 	if (lowerrootvp->v_op == union_vnodeop_p)
 		vn_lock(lowerrootvp, LK_EXCLUSIVE | LK_RETRY, p);
+#endif
 	if (error)
 		goto bad;
 
@@ -139,8 +148,11 @@ union_mount(mp, path, data, ndp, p)
 	vrele(ndp->ni_dvp);
 	ndp->ni_dvp = NULL;
 
+	UDEBUG(("mount_root UPPERVP %p locked = %d\n", upperrootvp, VOP_ISLOCKED(upperrootvp)));
+
 	/*
 	 * Check multi union mount to avoid `lock myself again' panic.
+	 * Also require that it be a directory.
 	 */
 	if (upperrootvp == VTOUNION(lowerrootvp)->un_uppervp) {
 #ifdef DIAGNOSTIC
@@ -155,35 +167,43 @@ union_mount(mp, path, data, ndp, p)
 		goto bad;
 	}
 
-	um = (struct union_mount *) malloc(sizeof(struct union_mount),
-				M_UNIONFSMNT, M_WAITOK);	/* XXX */
-
 	/*
-	 * Keep a held reference to the target vnodes.
-	 * They are vrele'd in union_unmount.
-	 *
-	 * Depending on the _BELOW flag, the filesystems are
-	 * viewed in a different order.  In effect, this is the
-	 * same as providing a mount under option to the mount syscall.
+	 * Allocate our union_mount structure and populate the fields.
+	 * The vnode references are stored in the union_mount as held,
+	 * unlocked references.  Depending on the _BELOW flag, the
+	 * filesystems are viewed in a different order.  In effect this
+	 * is the same as providing a mount-under option to the mount
+	 * syscall.
 	 */
 
+	um = (struct union_mount *) malloc(sizeof(struct union_mount),
+				M_UNIONFSMNT, M_WAITOK);
+
+	bzero(um, sizeof(struct union_mount));
+
 	um->um_op = args.mntflags & UNMNT_OPMASK;
+
 	switch (um->um_op) {
 	case UNMNT_ABOVE:
 		um->um_lowervp = lowerrootvp;
 		um->um_uppervp = upperrootvp;
+		upperrootvp = NULL;
+		lowerrootvp = NULL;
 		break;
 
 	case UNMNT_BELOW:
 		um->um_lowervp = upperrootvp;
 		um->um_uppervp = lowerrootvp;
+		upperrootvp = NULL;
+		lowerrootvp = NULL;
 		break;
 
 	case UNMNT_REPLACE:
 		vrele(lowerrootvp);
-		lowerrootvp = NULLVP;
+		lowerrootvp = NULL;
 		um->um_uppervp = upperrootvp;
 		um->um_lowervp = lowerrootvp;
+		upperrootvp = NULL;
 		break;
 
 	default:
@@ -196,7 +216,7 @@ union_mount(mp, path, data, ndp, p)
 	 * supports whiteout operations
 	 */
 	if ((mp->mnt_flag & MNT_RDONLY) == 0) {
-		error = VOP_WHITEOUT(um->um_uppervp, (struct componentname *) 0, LOOKUP);
+		error = VOP_WHITEOUT(um->um_uppervp, NULL, LOOKUP);
 		if (error)
 			goto bad;
 	}
@@ -258,15 +278,19 @@ union_mount(mp, path, data, ndp, p)
 
 	(void)union_statfs(mp, &mp->mnt_stat, p);
 
-#ifdef DEBUG
-	printf("union_mount: from %s, on %s\n",
-		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname);
-#endif
+	UDEBUG(("union_mount: from %s, on %s\n",
+		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname));
 	return (0);
 
 bad:
-	if (um)
+	if (um) {
+		if (um->um_uppervp)
+			vrele(um->um_uppervp);
+		if (um->um_lowervp)
+			vrele(um->um_lowervp);
+		/* XXX other fields */
 		free(um, M_UNIONFSMNT);
+	}
 	if (cred)
 		crfree(cred);
 	if (upperrootvp)
@@ -291,9 +315,7 @@ union_unmount(mp, mntflags, p)
 	int freeing;
 	int flags = 0;
 
-#ifdef DEBUG
-	printf("union_unmount(mp = %p)\n", (void *)mp);
-#endif
+	UDEBUG(("union_unmount(mp = %p)\n", (void *)mp));
 
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
@@ -365,55 +387,25 @@ union_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
 {
-	struct proc *p = curproc;	/* XXX */
 	struct union_mount *um = MOUNTTOUNIONMOUNT(mp);
 	int error;
-	int loselock;
-	int lockadj = 0;
-
-	if (um->um_lowervp && um->um_op != UNMNT_BELOW &&
-		VOP_ISLOCKED(um->um_lowervp)) {
-		VREF(um->um_lowervp);
-		VOP_UNLOCK(um->um_lowervp, 0, p);
-		lockadj = 1;
-	}
 
 	/*
-	 * Return locked reference to root.
+	 * Supply an unlocked reference to um_uppervp and to um_lowervp.  It
+	 * is possible for um_uppervp to be locked without the associated
+	 * root union_node being locked.  We let union_allocvp() deal with
+	 * it.
 	 */
+	UDEBUG(("union_root UPPERVP %p locked = %d\n", um->um_uppervp, VOP_ISLOCKED(um->um_uppervp)));
+
 	VREF(um->um_uppervp);
-	if ((um->um_op == UNMNT_BELOW) &&
-	    VOP_ISLOCKED(um->um_uppervp)) {
-		loselock = 1;
-	} else {
-		vn_lock(um->um_uppervp, LK_EXCLUSIVE | LK_RETRY, p);
-		loselock = 0;
-	}
 	if (um->um_lowervp)
 		VREF(um->um_lowervp);
-	error = union_allocvp(vpp, mp,
-			      (struct vnode *) 0,
-			      (struct vnode *) 0,
-			      (struct componentname *) 0,
-			      um->um_uppervp,
-			      um->um_lowervp,
-			      1);
 
-	if (error) {
-		if (loselock)
-			vrele(um->um_uppervp);
-		else
-			vput(um->um_uppervp);
-		if (um->um_lowervp)
-			vrele(um->um_lowervp);
-	} else {
-		if (loselock)
-			VTOUNION(*vpp)->un_flags &= ~UN_ULOCK;
-	}
-	if (lockadj) {
-		vn_lock(um->um_lowervp, LK_EXCLUSIVE | LK_RETRY, p);
-		vrele(um->um_lowervp);
-	}
+	error = union_allocvp(vpp, mp, NULLVP, NULLVP, NULL, 
+		    um->um_uppervp, um->um_lowervp, 1);
+	UDEBUG(("error %d\n", error));
+	UDEBUG(("union_root2 UPPERVP %p locked = %d\n", um->um_uppervp, VOP_ISLOCKED(um->um_uppervp)));
 
 	return (error);
 }
@@ -429,10 +421,8 @@ union_statfs(mp, sbp, p)
 	struct statfs mstat;
 	int lbsize;
 
-#ifdef DEBUG
-	printf("union_statfs(mp = %p, lvp = %p, uvp = %p)\n",
-	    (void *)mp, (void *)um->um_lowervp, (void *)um->um_uppervp);
-#endif
+	UDEBUG(("union_statfs(mp = %p, lvp = %p, uvp = %p)\n",
+	    (void *)mp, (void *)um->um_lowervp, (void *)um->um_uppervp));
 
 	bzero(&mstat, sizeof(mstat));
 
