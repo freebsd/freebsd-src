@@ -58,17 +58,12 @@ __FBSDID("$FreeBSD$");
 #include <utmp.h>
 #include "finger.h"
 
-extern int lflag;		/* XXX finger.h? */
-extern int Tflag;		/* XXX finger.h? */
-extern sa_family_t family;
-
 static void cleanup(int sig);;
 static int do_protocol(const char *name, const struct addrinfo *ai);
 static void trying(const struct addrinfo *ai);
 
 void
-netfinger(name)
-	char *name;
+netfinger(char *name)
 {
 	int error, multi;
 	char *host;

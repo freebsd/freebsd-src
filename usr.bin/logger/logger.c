@@ -85,9 +85,7 @@ int	send_to_all = 0;	/* send message to all IPv4/IPv6 addresses */
  *	log.
  */
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, logflags, pri;
 	char *tag, *host, buf[1024];
@@ -142,7 +140,7 @@ main(argc, argv)
 
 	/* log input line if appropriate */
 	if (argc > 0) {
-		register char *p, *endp;
+		char *p, *endp;
 		size_t len;
 
 		for (p = buf, endp = buf + sizeof(buf) - 2; *argv;) {
@@ -240,8 +238,7 @@ logmessage(int pri, char *host, char *buf)
  *  Decode a symbolic name to a numeric value
  */
 int
-pencode(s)
-	register char *s;
+pencode(char *s)
 {
 	char *save;
 	int fac, lev;
@@ -265,11 +262,9 @@ pencode(s)
 }
 
 int
-decode(name, codetab)
-	char *name;
-	CODE *codetab;
+decode(char *name, CODE *codetab)
 {
-	register CODE *c;
+	CODE *c;
 
 	if (isdigit(*name))
 		return (atoi(name));
@@ -282,7 +277,7 @@ decode(name, codetab)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: %s\n",
 	    "logger [-46Ais] [-f file] [-h host] [-p pri] [-t tag] [message ...]"

@@ -68,11 +68,9 @@ int bflag;			/* Count bytes, not columns */
 int sflag;			/* Split on word boundaries */
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
-	register int ch;
+	int ch;
 	int rval, width;
 	char *p;
 
@@ -123,7 +121,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: fold [-bs] [-w width] [file ...]\n");
 	exit(1);
@@ -141,8 +139,7 @@ usage()
  * returns embedded in the input stream.
  */
 void
-fold(width)
-	register int width;
+fold(int width)
 {
 	static char *buf;
 	static int buf_max;
@@ -196,8 +193,7 @@ fold(width)
  * Update the current column position for a character.
  */
 static int
-newpos(col, ch)
-	int col, ch;
+newpos(int col, int ch)
 {
 
 	if (bflag)

@@ -64,9 +64,7 @@ __FBSDID("$FreeBSD$");
 void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	long niceness = DEFNICE;
 	int ch;
@@ -108,7 +106,7 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "usage: nice [-n incr] utility [arguments]\n");

@@ -60,9 +60,7 @@ void process(FILE *);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	FILE *fp;
 	int ch;
@@ -129,7 +127,7 @@ main(argc, argv)
 
 
 static void
-usage()
+usage(void)
 {
 #ifdef DEBUG
 	fprintf(stderr, "usage: vis [-cbflnostwd] [-F foldwidth] [file ...]\n");
@@ -140,13 +138,12 @@ usage()
 }
 
 void
-process(fp)
-	FILE *fp;
+process(FILE *fp)
 {
 	static int col = 0;
 	static char dummy[] = "\0";
-	register char *cp = dummy+1; /* so *(cp-1) starts out != '\n' */
-	register int c, rachar;
+	char *cp = dummy+1; /* so *(cp-1) starts out != '\n' */
+	int c, rachar;
 	char buff[5];
 
 	c = getc(fp);

@@ -6,9 +6,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 int
-main(argc, argv)
-int argc;
-char *argv[];
+main(int argc, char *argv[])
 {
 	int c;
 	int status = 0;

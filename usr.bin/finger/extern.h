@@ -38,15 +38,21 @@ extern char tbuf[1024];			/* Temp buffer for anybody. */
 extern int entries;			/* Number of people. */
 extern DB *db;				/* Database. */
 extern int d_first;
+extern sa_family_t family;
 extern int gflag;
+extern int lflag;
+extern time_t now;
+extern int oflag;
+extern int pplan;			/* don't show .plan/.project */
+extern int Tflag;
 
 void	 enter_lastlog(PERSON *);
 PERSON	*enter_person(struct passwd *);
 void	 enter_where(struct utmp *, PERSON *);
-PERSON	*find_person(char *);
-int		hide(struct passwd *);
+PERSON	*find_person(const char *);
+int	 hide(struct passwd *);
 void	 lflag_print(void);
-int	 match(struct passwd *, char *);
+int	 match(struct passwd *, const char *);
 void	 netfinger(char *);
 PERSON	*palloc(void);
 char	*prphone(char *);

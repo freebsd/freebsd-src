@@ -120,7 +120,7 @@
 static const struct map *in_word_set(const char *str, unsigned int len);
 
 %}
-struct map { char *name; int key; };
+struct map { const char *name; int key; };
 %%
 AIO_LISTIO_MAX, _SC_AIO_LISTIO_MAX
 AIO_MAX, _SC_AIO_MAX

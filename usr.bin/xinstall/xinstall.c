@@ -100,9 +100,7 @@ int	trymmap(int);
 void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat from_sb, to_sb;
 	mode_t *set;
@@ -238,8 +236,7 @@ main(argc, argv)
 }
 
 u_long
-numeric_id(name, type)
-	const char *name, *type;
+numeric_id(const char *name, const char *type)
 {
 	u_long val;
 	char *ep;
@@ -262,10 +259,7 @@ numeric_id(name, type)
  *	build a path name and install the file
  */
 void
-install(from_name, to_name, fset, flags)
-	const char *from_name, *to_name;
-	u_long fset;
-	u_int flags;
+install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 {
 	struct stat from_sb, temp_sb, to_sb;
 	struct utimbuf utb;
@@ -575,10 +569,7 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
  *	create a temporary file based on path and open it
  */
 int
-create_tempfile(path, temp, tsize)
-	const char *path;
-	char *temp;
-	size_t tsize;
+create_tempfile(const char *path, char *temp, size_t tsize)
 {
 	char *p;
 
@@ -598,10 +589,7 @@ create_tempfile(path, temp, tsize)
  *	create a new file, overwriting an existing one if necessary
  */
 int
-create_newfile(path, target, sbp)
-	const char *path;
-	int target;
-	struct stat *sbp;
+create_newfile(const char *path, int target, struct stat *sbp)
 {
 	char backup[MAXPATHLEN];
 
@@ -638,12 +626,10 @@ create_newfile(path, target, sbp)
  *	copy from one file to another
  */
 void
-copy(from_fd, from_name, to_fd, to_name, size)
-	register int from_fd, to_fd;
-	const char *from_name, *to_name;
-	off_t size;
+copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
+    off_t size)
 {
-	register int nr, nw;
+	int nr, nw;
 	int serrno;
 	char *p, buf[MAXBSIZE];
 	int done_copy;
@@ -693,8 +679,7 @@ copy(from_fd, from_name, to_fd, to_name, size)
  *	use strip(1) to strip the target file
  */
 void
-strip(to_name)
-	const char *to_name;
+strip(const char *to_name)
 {
 	const char *stripbin;
 	int serrno, status;
@@ -726,10 +711,9 @@ strip(to_name)
  *	build directory heirarchy
  */
 void
-install_dir(path)
-	char *path;
+install_dir(char *path)
 {
-	register char *p;
+	char *p;
 	struct stat sb;
 	int ch;
 
@@ -761,7 +745,7 @@ install_dir(path)
  *	print a usage message and die
  */
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "\
 usage: install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n\
@@ -778,8 +762,7 @@ usage: install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n\
  *	return true (1) if mmap should be tried, false (0) if not.
  */
 int
-trymmap(fd)
-	int fd;
+trymmap(int fd)
 {
 /*
  * The ifdef is for bootstrapping - f_fstypename doesn't exist in

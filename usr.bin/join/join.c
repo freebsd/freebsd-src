@@ -77,7 +77,7 @@ typedef struct {
 	FILE *fp;		/* file descriptor */
 	u_long joinf;		/* join field (-1, -2, -j) */
 	int unpair;		/* output unpairable lines (-a) */
-	int number;		/* 1 for file 1, 2 for file 2 */
+	u_long number;		/* 1 for file 1, 2 for file 2 */
 
 	LINE *set;		/* set of lines with same field */
 	int pushbool;		/* if pushback is set */
@@ -114,9 +114,7 @@ void slurp(INPUT *);
 void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	INPUT *F1, *F2;
 	int aflag, ch, cval, vflag;
@@ -270,8 +268,7 @@ main(argc, argv)
 }
 
 void
-slurp(F)
-	INPUT *F;
+slurp(INPUT *F)
 {
 	LINE *lp, *lastlp, tmp;
 	size_t len;
@@ -360,9 +357,7 @@ slurp(F)
 }
 
 int
-cmp(lp1, fieldno1, lp2, fieldno2)
-	LINE *lp1, *lp2;
-	u_long fieldno1, fieldno2;
+cmp(LINE *lp1, u_long fieldno1, LINE *lp2, u_long fieldno2)
 {
 	if (lp1->fieldcnt <= fieldno1)
 		return (lp2->fieldcnt <= fieldno2 ? 0 : 1);
@@ -372,10 +367,9 @@ cmp(lp1, fieldno1, lp2, fieldno2)
 }
 
 void
-joinlines(F1, F2)
-	INPUT *F1, *F2;
+joinlines(INPUT *F1, INPUT *F2)
 {
-	unsigned int cnt1, cnt2;
+	u_long cnt1, cnt2;
 
 	/*
 	 * Output the results of a join comparison.  The output may be from
@@ -393,11 +387,9 @@ joinlines(F1, F2)
 }
 
 void
-outoneline(F, lp)
-	INPUT *F;
-	LINE *lp;
+outoneline(INPUT *F, LINE *lp)
 {
-	unsigned int cnt;
+	u_long cnt;
 
 	/*
 	 * Output a single line from one of the files, according to the
@@ -423,11 +415,9 @@ outoneline(F, lp)
 }
 
 void
-outtwoline(F1, lp1, F2, lp2)
-	INPUT *F1, *F2;
-	LINE *lp1, *lp2;
+outtwoline(INPUT *F1, LINE *lp1, INPUT *F2, LINE *lp2)
 {
-	unsigned int cnt;
+	u_long cnt;
 
 	/* Output a pair of lines according to the join list (if any). */
 	if (olist)
@@ -461,10 +451,7 @@ outtwoline(F1, lp1, F2, lp2)
 }
 
 void
-outfield(lp, fieldno, out_empty)
-	LINE *lp;
-	u_long fieldno;
-	int out_empty;
+outfield(LINE *lp, u_long fieldno, int out_empty)
 {
 	if (needsep++)
 		(void)printf("%c", *tabchar);
@@ -487,8 +474,7 @@ outfield(lp, fieldno, out_empty)
  * fields.
  */
 void
-fieldarg(option)
-	char *option;
+fieldarg(char *option)
 {
 	u_long fieldno, filenum;
 	char *end, *token;
@@ -522,10 +508,9 @@ fieldarg(option)
 }
 
 void
-obsolete(argv)
-	char **argv;
+obsolete(char **argv)
 {
-	unsigned int len;
+	size_t len;
 	char **p, *ap, *t;
 
 	while ((ap = *++argv) != NULL) {
@@ -588,8 +573,8 @@ jbad:				errx(1, "illegal option -- %s", ap);
 			if (ap[2] != '\0')
 				break;
 			for (p = argv + 2; *p; ++p) {
-				if (p[0][0] == '0' || (p[0][0] != '1' &&
-				    p[0][0] != '2' || p[0][1] != '.'))
+				if (p[0][0] == '0' || ((p[0][0] != '1' &&
+				    p[0][0] != '2') || p[0][1] != '.'))
 					break;
 				len = strlen(*p);
 				if (len - 2 != strspn(*p + 2, "0123456789"))
@@ -608,7 +593,7 @@ jbad:				errx(1, "illegal option -- %s", ap);
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s %s\n%s\n",
 	    "usage: join [-a fileno | -v fileno ] [-e string] [-1 field]",

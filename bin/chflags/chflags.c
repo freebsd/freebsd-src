@@ -60,9 +60,7 @@ __FBSDID("$FreeBSD$");
 void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	FTS *ftsp;
 	FTSENT *p;
@@ -177,7 +175,7 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: chflags [-R [-H | -L | -P]] flags file ...\n");

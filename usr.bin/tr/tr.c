@@ -106,9 +106,7 @@ static void setup(int *, char *, STR *, int, int);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	static int collorder[NCHARS], tmpmap[NCHARS];
 	int ch, cnt, lastch, *p;
@@ -280,12 +278,7 @@ main(argc, argv)
 }
 
 static void
-setup(string, arg, str, cflag, Cflag)
-	int *string;
-	char *arg;
-	STR *str;
-	int cflag;
-	int Cflag;
+setup(int *string, char *arg, STR *str, int cflag, int Cflag)
 {
 	int cnt, *p;
 
@@ -313,7 +306,7 @@ charcoll(const void *a, const void *b)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
 		"usage: tr [-Ccsu] string1 string2",

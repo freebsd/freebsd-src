@@ -67,9 +67,7 @@ struct passwd *
 int isgroups, iswhoami;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct group *gr;
 	struct passwd *pw;
@@ -177,8 +175,7 @@ main(argc, argv)
 }
 
 void
-pretty(pw)
-	struct passwd *pw;
+pretty(struct passwd *pw)
 {
 	struct group *gr;
 	u_int eid, rid;
@@ -218,7 +215,7 @@ pretty(pw)
 }
 
 void
-current()
+current(void)
 {
 	struct group *gr;
 	struct passwd *pw;
@@ -259,8 +256,7 @@ current()
 }
 
 void
-user(pw)
-	struct passwd *pw;
+user(struct passwd *pw)
 {
 	struct group *gr;
 	const char *fmt;
@@ -287,9 +283,7 @@ user(pw)
 }
 
 void
-group(pw, nflag)
-	struct passwd *pw;
-	int nflag;
+group(struct passwd *pw, int nflag)
 {
 	struct group *gr;
 	int cnt, id, lastid, ngroups;
@@ -324,8 +318,7 @@ group(pw, nflag)
 }
 
 struct passwd *
-who(u)
-	char *u;
+who(char *u)
 {
 	struct passwd *pw;
 	long id;
@@ -345,8 +338,7 @@ who(u)
 }
 
 void
-pline(pw)
-	struct passwd *pw;
+pline(struct passwd *pw)
 {
 	u_int rid;
 
@@ -363,7 +355,7 @@ pline(pw)
 
 
 void
-usage()
+usage(void)
 {
 
 	if (isgroups)

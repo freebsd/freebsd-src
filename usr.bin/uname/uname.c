@@ -56,9 +56,7 @@ static const char sccsid[] = "@(#)uname.c	8.2 (Berkeley) 5/4/95";
 void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 #define	MFLAG	0x01
 #define	NFLAG	0x02
@@ -174,7 +172,7 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: uname [-amnprsv]\n");
 	exit(1);

@@ -30,9 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 int 
-main(argc, argv)
-	int	argc;
-	char  **argv;
+main(int argc, char **argv)
 {
 	char  **list, **p, *bindname, *name, *type;
 	int     lflag = 0, errflg = 0, bflag = 0, c;

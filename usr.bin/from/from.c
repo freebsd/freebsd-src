@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-int match(char *, char *);
+int match(const char *, const char *);
 static void usage(void);
 
 int
@@ -64,7 +64,8 @@ main(int argc, char **argv)
 	FILE *mbox;
 	struct passwd *pwd;
 	int ch, count, newline;
-	char *file, *sender, *p;
+	const char *file;
+	char *sender, *p;
 #if MAXPATHLEN > BUFSIZ
 	char buf[MAXPATHLEN];
 #else
@@ -146,9 +147,10 @@ usage(void)
 }
 
 int
-match(char *line, char *sender)
+match(const char *line, const char *sender)
 {
-	char ch, pch, first, *p, *t;
+	char ch, pch, first;
+	const char *p, *t;
 
 	for (first = *sender++;;) {
 		if (isspace(ch = *line))

@@ -64,9 +64,7 @@ static void odoffset(int, char ***);
 static void odusage(void);
 
 void
-oldsyntax(argc, argvp)
-	int argc;
-	char ***argvp;
+oldsyntax(int argc, char ***argvp)
 {
 	static char empty[] = "", padding[] = PADDING;
 	int ch;
@@ -193,9 +191,7 @@ odusage(void)
 }
 
 static void
-odoffset(argc, argvp)
-	int argc;
-	char ***argvp;
+odoffset(int argc, char ***argvp)
 {
 	unsigned char *p, *num, *end;
 	int base;
