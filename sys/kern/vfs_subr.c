@@ -3541,12 +3541,16 @@ vn_isdisk(vp, errp)
 	int error;
 
 	error = 0;
+	dev_lock();
 	if (vp->v_type != VCHR)
 		error = ENOTBLK;
 	else if (vp->v_rdev == NULL)
 		error = ENXIO;
-	else if (!(devsw(vp->v_rdev)->d_flags & D_DISK))
+	else if (vp->v_rdev->si_devsw == NULL)
+		error = ENXIO;
+	else if (!(vp->v_rdev->si_devsw->d_flags & D_DISK))
 		error = ENOTBLK;
+	dev_unlock();
 	if (errp != NULL)
 		*errp = error;
 	return (error == 0);
