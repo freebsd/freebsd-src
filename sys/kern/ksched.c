@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 /* ksched: Soft real time scheduling based on "rtprio".
@@ -93,7 +94,7 @@ int ksched_detach(struct ksched *p)
 #define P1B_PRIO_MAX rtpprio_to_p4prio(RTP_PRIO_MIN)
 
 static __inline int
-getscheduler(int *ret, struct ksched *ksched, struct proc *p)
+getscheduler(register_t *ret, struct ksched *ksched, struct proc *p)
 {
 	int e = 0;
 
@@ -115,10 +116,11 @@ getscheduler(int *ret, struct ksched *ksched, struct proc *p)
 	return e;
 }
 
-int ksched_setparam(int *ret, struct ksched *ksched,
+int ksched_setparam(register_t *ret, struct ksched *ksched,
 	struct proc *p, const struct sched_param *param)
 {
-	int e, policy;
+	register_t policy;
+	int e;
 
 	e = getscheduler(&policy, ksched, p);
 
@@ -133,7 +135,7 @@ int ksched_setparam(int *ret, struct ksched *ksched,
 	return e;
 }
 
-int ksched_getparam(int *ret, struct ksched *ksched,
+int ksched_getparam(register_t *ret, struct ksched *ksched,
 	struct proc *p, struct sched_param *param)
 {
 	if (RTP_PRIO_IS_REALTIME(p->p_rtprio.type))
@@ -149,7 +151,7 @@ int ksched_getparam(int *ret, struct ksched *ksched,
  * The permissions to modify process p were checked in "p31b_proc()".
  *
  */
-int ksched_setscheduler(int *ret, struct ksched *ksched,
+int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 	struct proc *p, int policy, const struct sched_param *param)
 {
 	int e = 0;
@@ -196,20 +198,20 @@ int ksched_setscheduler(int *ret, struct ksched *ksched,
 	return e;
 }
 
-int ksched_getscheduler(int *ret, struct ksched *ksched, struct proc *p)
+int ksched_getscheduler(register_t *ret, struct ksched *ksched, struct proc *p)
 {
 	return getscheduler(ret, ksched, p);
 }
 
 /* ksched_yield: Yield the CPU.
  */
-int ksched_yield(int *ret, struct ksched *ksched)
+int ksched_yield(register_t *ret, struct ksched *ksched)
 {
 	need_resched();
 	return 0;
 }
 
-int ksched_get_priority_max(int *ret, struct ksched *ksched, int policy)
+int ksched_get_priority_max(register_t*ret, struct ksched *ksched, int policy)
 {
 	int e = 0;
 
@@ -231,7 +233,7 @@ int ksched_get_priority_max(int *ret, struct ksched *ksched, int policy)
 	return e;
 }
 
-int ksched_get_priority_min(int *ret, struct ksched *ksched, int policy)
+int ksched_get_priority_min(register_t *ret, struct ksched *ksched, int policy)
 {
 	int e = 0;
 
@@ -253,7 +255,7 @@ int ksched_get_priority_min(int *ret, struct ksched *ksched, int policy)
 	return e;
 }
 
-int ksched_rr_get_interval(int *ret, struct ksched *ksched,
+int ksched_rr_get_interval(register_t *ret, struct ksched *ksched,
 	struct proc *p, struct timespec *timespec)
 {
 	*timespec = ksched->rr_interval;
