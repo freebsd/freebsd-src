@@ -34,13 +34,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)find.h	8.1 (Berkeley) 6/6/93
+ *	$FreeBSD$
  */
 
 /* node type */
 enum ntype {
 	N_AND = 1, 				/* must start > 0 */
 	N_AMIN, N_ATIME, N_CLOSEPAREN, N_CMIN, N_CTIME, N_DEPTH, 
-	N_EXEC, N_EXECDIR, N_EXPR,
+	N_EXEC, N_EXECDIR, N_EXPR, N_FLAGS,
 	N_FOLLOW, N_FSTYPE, N_GROUP, N_INUM, N_LINKS, N_LS, N_MMIN, 
         N_MTIME, N_NAME,
 	N_NEWER, N_NOGROUP, N_NOT, N_NOUSER, N_OK, N_OPENPAREN, N_OR, N_PATH,
@@ -66,6 +67,10 @@ typedef struct _plandata {
 		gid_t _g_data;			/* gid */
 		ino_t _i_data;			/* inode */
 		mode_t _m_data;			/* mode mask */
+		struct {
+			u_long _f_flags;
+			u_long _f_mask;
+		} fl;
 		nlink_t _l_data;		/* link count */
 		off_t _o_data;			/* file size */
 		time_t _t_data;			/* time value */
@@ -83,8 +88,10 @@ typedef struct _plandata {
 } PLAN;
 #define	a_data	p_un._a_data
 #define	c_data	p_un._c_data
-#define	i_data	p_un._i_data
+#define fl_flags	p_un.fl._f_flags
+#define fl_mask		p_un.fl._f_mask
 #define	g_data	p_un._g_data
+#define	i_data	p_un._i_data
 #define	l_data	p_un._l_data
 #define	m_data	p_un._m_data
 #define	mt_data	p_un._mt_data

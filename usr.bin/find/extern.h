@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/16/94
+ *	$FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -54,6 +55,7 @@ PLAN	*c_ctime __P((char *));
 PLAN	*c_delete __P((void));
 PLAN	*c_depth __P((void));
 PLAN	*c_exec __P((char ***, int));
+PLAN	*c_flags __P((char *));
 PLAN	*c_execdir __P((char ***));
 PLAN	*c_follow __P((void));
 #if !defined(__NetBSD__)
