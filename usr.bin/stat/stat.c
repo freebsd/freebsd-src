@@ -38,19 +38,20 @@
 
 #if 0
 #ifndef lint
-__RCSID("$NetBSD: stat.c,v 1.6 2002/07/09 21:25:00 atatat Exp $");
+__RCSID("$NetBSD: stat.c,v 1.8 2002/08/13 20:15:06 atatat Exp $");
 #endif
 #endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/syslimits.h>
 
 #include <ctype.h>
 #include <err.h>
 #include <grp.h>
+#include <limits.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
