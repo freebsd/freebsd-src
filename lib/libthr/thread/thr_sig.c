@@ -130,6 +130,13 @@ _thread_sig_wrapper(int sig, siginfo_t *info, void *context)
 	 * after cleanup handling.
 	 */
 	switch (curthread->state) {
+	case PS_BARRIER_WAIT:
+		/*
+		 * XXX - The thread has reached the barrier. We can't
+		 *	 "back it away" from the barrier.
+		 */
+		_thread_critical_enter(curthread);
+		break;
 	case PS_COND_WAIT:
 		/*
 		 * Cache the address, since it will not be available

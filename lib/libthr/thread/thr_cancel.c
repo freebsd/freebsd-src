@@ -93,6 +93,7 @@ retry:
 			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
 			break;
 
+		case PS_BARRIER_WAIT:
 		case PS_MUTEX_WAIT:
 		case PS_COND_WAIT:
 			/*
