@@ -115,7 +115,7 @@ sbni_attach_isa(device_t dev)
 	sc = device_get_softc(dev);
 
 	printf("sbni%d: <Granch SBNI12/ISA adapter> port 0x%x",
-	       next_sbni_unit, rman_get_start(sc->io_res));
+	       next_sbni_unit, sc->base_addr);
 	sc->irq_res = bus_alloc_resource(
 	    dev, SYS_RES_IRQ, &sc->irq_rid, 0ul, ~0ul, 1, RF_ACTIVE);
 
