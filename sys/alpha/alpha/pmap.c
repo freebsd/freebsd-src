@@ -2078,7 +2078,6 @@ pmap_remove_all(vm_page_t m)
 	vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
 
 	splx(s);
-	return;
 }
 
 /*
@@ -2936,7 +2935,6 @@ pmap_phys_address(ppn)
  *	pmap_ts_referenced:
  *
  *	Return the count of reference bits for a page, clearing all of them.
- *	
  */
 int
 pmap_ts_referenced(vm_page_t m)
