@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/param.h>
 #include "y.tab.h"
 #include "config.h"
 #include "configvers.h"
@@ -286,7 +287,7 @@ read_files(void)
 	struct device *save_dp;
 	struct opt *op;
 	char *wd, *this, *needs, *special, *depends, *clean, *warn;
-	char fname[80];
+	char fname[MAXPATHLEN];
 	int ddwarned = 0;
 	int nreqs, first = 1, configdep, isdup, std, filetype,
 	    imp_rule, no_obj, needcount, before_depend, mandatory;
@@ -297,7 +298,7 @@ read_files(void)
 		printf("no ident line specified\n");
 		exit(1);
 	}
-	(void) snprintf(fname, sizeof fname, "../../conf/files");
+	(void) snprintf(fname, sizeof(fname), "../../conf/files");
 openit:
 	fp = fopen(fname, "r");
 	if (fp == 0)
@@ -316,16 +317,19 @@ next:
 		(void) fclose(fp);
 		if (first == 1) {
 			first++;
-			(void) snprintf(fname, sizeof fname, "../../conf/files.%s", machinename);
+			(void) snprintf(fname, sizeof(fname),
+			    "../../conf/files.%s", machinename);
 			fp = fopen(fname, "r");
 			if (fp != 0)
 				goto next;
-			(void) snprintf(fname, sizeof fname, "files.%s", machinename);
+			(void) snprintf(fname, sizeof(fname),
+			    "files.%s", machinename);
 			goto openit;
 		}
 		if (first == 2) {
 			first++;
-			(void) snprintf(fname, sizeof fname, "files.%s", raisestr(ident));
+			(void) snprintf(fname, sizeof(fname),
+			    "files.%s", raisestr(ident));
 			fp = fopen(fname, "r");
 			if (fp != 0)
 				goto next;
