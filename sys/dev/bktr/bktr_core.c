@@ -452,6 +452,13 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 1.72    31 Aug 1999 Juha Nurmela <Juha.Nurmela@quicknet.inet.fi>
                     Clear cap_ctl register when restarting the RISC program.
                     This fixes the freezes experienced when changing changes.
+
+1.73    10 Sep 1999 Roger Hardiman <roger@freebsd.org>
+                    Add Hauppauge tuner #6 for Brian Somers <brian@freebsd.org>
+		    Add card type for Aimslabs Video Highway Xtreme for
+		    Ladislav Kostal <kostal@pefstud.uniag.sk>
+                    Added select() code (for VBI) for the 2.2.x driver
+                    tested by Steve Richards <steve@richsoft.demon.co.uk>
 */
 
 #ifdef __FreeBSD__
@@ -479,7 +486,6 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 #include <sys/kernel.h>
 #include <sys/signalvar.h>
 #include <sys/mman.h>
-#include <sys/poll.h>
 #include <sys/select.h>
 #include <sys/vnode.h>
 
@@ -492,6 +498,15 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 /* *** FreeBSD *** */
 /*******************/
 #ifdef __FreeBSD__
+
+/* __FreeBSD_version is not defined on 2.2.x systems */
+#ifndef __FreeBSD_version
+#define __FreeBSD_version 228000
+#endif
+
+#if (__FreeBSD_version >= 300000)
+#include <sys/poll.h>
+#endif
 
 /* Read NSMBUS on FreeBSD 3.1 or later */
 #if (__FreeBSD_version >= 310000)
@@ -545,7 +560,7 @@ SYSCTL_INT(_hw_bt848, OID_AUTO, reverse_mute, CTLFLAG_RW, &bt848_reverse_mute, -
 SYSCTL_INT(_hw_bt848, OID_AUTO, format, CTLFLAG_RW, &bt848_format, -1, "");
 
 #if (__FreeBSD_version >= 300000)
-  typedef u_long ioctl_cmd_t;
+typedef u_long ioctl_cmd_t;
 #endif
 
 #if (__FreeBSD__ == 2)
@@ -1062,7 +1077,8 @@ static const struct TUNER tuners[] = {
 #define CARD_FLYVIDEO		10
 #define CARD_ZOLTRIX            11
 #define CARD_KISS               12
-#define Bt848_MAX_CARD		13 
+#define CARD_VIDEO_HIGHWAY_XTREME	13
+#define Bt848_MAX_CARD		14 
 
 /*
  * the data for each type of card
@@ -1214,6 +1230,18 @@ static const struct CARDTYPE cards[] = {
 	   0,					/* EEProm size */
 	   { 0x0c, 0x00, 0x0b, 0x0b, 1 },	/* audio MUX values */
 	   0x0f },				/* GPIO mask */
+
+	{  CARD_VIDEO_HIGHWAY_XTREME,		/* the card id */
+	  "Video Highway Xtreme",		/* the 'name' */
+	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
+	   0,					/* dbx is optional */
+	   0,
+	   0,					/* EEProm type */
+	   0,					/* EEProm size */
+	   { 0x00, 0x02, 0x01, 0x04, 1 },	/* audio MUX values */
+	   0x0f },				/* GPIO mask */
+
 };
 
 struct bt848_card_sig bt848_card_signature[1]= {
@@ -5609,7 +5637,7 @@ checkTuner:
 		 3 Philips FI1216       BG 
 		 4 Philips FI1216MF     BGLL' 
 		 5 Philips FI1236       MN 		PHILIPS_NTSC
-		 6 Philips FI1246       I 
+		 6 Philips FI1246       I 		PHILIPS_PALI
 		 7 Philips FI1256       DK 
 		 8 Philips FI1216 MK2   BG 		PHILIPS_PALI
 		 9 Philips FI1216MF MK2 BGLL' 
@@ -5674,6 +5702,7 @@ checkTuner:
 		 bktr->card.tuner = &tuners[ PHILIPS_FR1236_NTSC  ];
 		 goto checkDBX;
 
+	       case 0x6:
 	       case 0x8:
 	       case 0xb:
 	       case 0x1d:
@@ -5827,6 +5856,10 @@ checkMSPEnd:
 	/* Enable PLL mode for PAL/SECAM users on FlyVideo 878 cards */
 	if ((card == CARD_FLYVIDEO) &&
 	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
+		bktr->xtal_pll_mode = BT848_USE_PLL;
+
+	/* Enable PLL mode for Video Highway Xtreme users */
+	if (card == CARD_VIDEO_HIGHWAY_XTREME)
 		bktr->xtal_pll_mode = BT848_USE_PLL;
 
 #if defined( BKTR_USE_PLL )
