@@ -43,9 +43,9 @@
 Get a vnode from the free list and increment its reference count.
 .Bl -tag -width lockflag
 .It Fa vp
-the vnode to remove from the free list
+The vnode to remove from the free list.
 .It Fa lockflag
-if non-zero, the vnode will also be locked
+If non-zero, the vnode will also be locked.
 .El
 .Pp
 When not in use, vnodes are kept on a free list.
