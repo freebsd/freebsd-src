@@ -161,7 +161,7 @@
       <para>A bug in the &man.bge.4; driver that prevented it from
 	working correctly at 10 Mbps has been fixed.</para>
 
-      <para>The 802.11 support layer has been reorganized to allow for
+      <para>The 802.11 support layer has been rewritten to allow for
 	future growth and new features.</para>
 
     </sect3>
