@@ -12,8 +12,11 @@
 .undef SHLIB_NAME
 .undef INSTALL_PIC_ARCHIVE
 .else
-.if !defined(SHLIB_NAME) && defined(LIB) && defined(SHLIB_MAJOR)
-SHLIB_NAME=	lib${LIB}.so.${SHLIB_MAJOR}
+.if !defined(SHLIB) && defined(LIB)
+SHLIB=		${LIB}
+.endif
+.if !defined(SHLIB_NAME) && defined(SHLIB) && defined(SHLIB_MAJOR)
+SHLIB_NAME=	lib${SHLIB}.so.${SHLIB_MAJOR}
 .endif
 .if defined(SHLIB_NAME) && !empty(SHLIB_NAME:M*.so.*)
 SHLIB_LINK?=	${SHLIB_NAME:R}
