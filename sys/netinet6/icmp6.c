@@ -1063,7 +1063,6 @@ icmp6_notify_error(m, off, icmp6len, code)
 			icmp6dst.sin6_addr = *finaldst;
 		icmp6dst.sin6_scope_id = in6_addr2scopeid(m->m_pkthdr.rcvif,
 							  &icmp6dst.sin6_addr);
-#ifndef SCOPEDROUTING
 		if (in6_embedscope(&icmp6dst.sin6_addr, &icmp6dst,
 				   NULL, NULL)) {
 			/* should be impossbile */
@@ -1071,7 +1070,6 @@ icmp6_notify_error(m, off, icmp6len, code)
 			    "icmp6_notify_error: in6_embedscope failed\n"));
 			goto freeit;
 		}
-#endif
 
 		/*
 		 * retrieve parameters from the inner IPv6 header, and convert
@@ -1083,7 +1081,6 @@ icmp6_notify_error(m, off, icmp6len, code)
 		icmp6src.sin6_addr = eip6->ip6_src;
 		icmp6src.sin6_scope_id = in6_addr2scopeid(m->m_pkthdr.rcvif,
 							  &icmp6src.sin6_addr);
-#ifndef SCOPEDROUTING
 		if (in6_embedscope(&icmp6src.sin6_addr, &icmp6src,
 				   NULL, NULL)) {
 			/* should be impossbile */
@@ -1091,7 +1088,6 @@ icmp6_notify_error(m, off, icmp6len, code)
 			    "icmp6_notify_error: in6_embedscope failed\n"));
 			goto freeit;
 		}
-#endif
 		icmp6src.sin6_flowinfo = (eip6->ip6_flow & IPV6_FLOWLABEL_MASK);
 
 		if (finaldst == NULL)
@@ -1290,18 +1286,14 @@ ni6_input(m, off)
 			    subjlen, (caddr_t)&sin6.sin6_addr);
 			sin6.sin6_scope_id = in6_addr2scopeid(m->m_pkthdr.rcvif,
 							      &sin6.sin6_addr);
-#ifndef SCOPEDROUTING
 			in6_embedscope(&sin6.sin6_addr, &sin6, NULL, NULL);
-#endif
 			bzero(&sin6_d, sizeof(sin6_d));
 			sin6_d.sin6_family = AF_INET6; /* not used, actually */
 			sin6_d.sin6_len = sizeof(sin6_d); /* ditto */
 			sin6_d.sin6_addr = ip6->ip6_dst;
 			sin6_d.sin6_scope_id = in6_addr2scopeid(m->m_pkthdr.rcvif,
 								&ip6->ip6_dst);
-#ifndef SCOPEDROUTING
 			in6_embedscope(&sin6_d.sin6_addr, &sin6_d, NULL, NULL);
-#endif
 			subj = (char *)&sin6;
 			if (SA6_ARE_ADDR_EQUAL(&sin6, &sin6_d))
 				break;

@@ -530,11 +530,6 @@ skip_ipsec2:;
 		dst->sin6_family = AF_INET6;
 		dst->sin6_len = sizeof(struct sockaddr_in6);
 		dst->sin6_addr = ip6->ip6_dst;
-#ifdef SCOPEDROUTING
-		/* XXX: sin6_scope_id should already be fixed at this point */
-		if (IN6_IS_SCOPE_LINKLOCAL(&dst->sin6_addr))
-			dst->sin6_scope_id = ntohs(dst->sin6_addr.s6_addr16[1]);
-#endif
 	}
 #if defined(IPSEC) || defined(FAST_IPSEC)
 	if (needipsec && needipsectun) {
@@ -866,14 +861,12 @@ skip_ipsec2:;
 	}
 	else
 		origifp = ifp;
-#ifndef SCOPEDROUTING
 	/*
 	 * clear embedded scope identifiers if necessary.
 	 * in6_clearscope will touch the addresses only when necessary.
 	 */
 	in6_clearscope(&ip6->ip6_src);
 	in6_clearscope(&ip6->ip6_dst);
-#endif
 
 	/*
 	 * Check with the firewall...
@@ -2534,14 +2527,12 @@ ip6_mloopback(ifp, m, dst)
 #endif
 
 	ip6 = mtod(copym, struct ip6_hdr *);
-#ifndef SCOPEDROUTING
 	/*
 	 * clear embedded scope identifiers if necessary.
 	 * in6_clearscope will touch the addresses only when necessary.
 	 */
 	in6_clearscope(&ip6->ip6_src);
 	in6_clearscope(&ip6->ip6_dst);
-#endif
 
 	(void)if_simloop(ifp, copym, dst->sin6_family, NULL);
 }

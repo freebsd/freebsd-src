@@ -444,11 +444,7 @@ in6_ifattach_linklocal(ifp, altifp)
 	ifra.ifra_addr.sin6_family = AF_INET6;
 	ifra.ifra_addr.sin6_len = sizeof(struct sockaddr_in6);
 	ifra.ifra_addr.sin6_addr.s6_addr16[0] = htons(0xfe80);
-#ifdef SCOPEDROUTING
-	ifra.ifra_addr.sin6_addr.s6_addr16[1] = 0
-#else
 	ifra.ifra_addr.sin6_addr.s6_addr16[1] = htons(ifp->if_index); /* XXX */
-#endif
 	ifra.ifra_addr.sin6_addr.s6_addr32[1] = 0;
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		ifra.ifra_addr.sin6_addr.s6_addr32[2] = 0;
@@ -460,18 +456,10 @@ in6_ifattach_linklocal(ifp, altifp)
 			return (-1);
 		}
 	}
-#ifdef SCOPEDROUTING
-	ifra.ifra_addr.sin6_scope_id =
-		in6_addr2scopeid(ifp,  &ifra.ifra_addr.sin6_addr);
-#endif
 
 	ifra.ifra_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
 	ifra.ifra_prefixmask.sin6_family = AF_INET6;
 	ifra.ifra_prefixmask.sin6_addr = in6mask64;
-#ifdef SCOPEDROUTING
-	/* take into accound the sin6_scope_id field for routing */
-	ifra.ifra_prefixmask.sin6_scope_id = 0xffffffff;
-#endif
 	/* link-local addresses should NEVER expire. */
 	ifra.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
 	ifra.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;

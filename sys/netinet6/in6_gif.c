@@ -328,9 +328,7 @@ gif_validate6(ip6, sc, ifp)
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_len = sizeof(struct sockaddr_in6);
 		sin6.sin6_addr = ip6->ip6_src;
-#ifndef SCOPEDROUTING
 		sin6.sin6_scope_id = 0; /* XXX */
-#endif
 
 		rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL);
 		if (!rt || rt->rt_ifp != ifp) {
