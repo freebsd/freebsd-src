@@ -49,6 +49,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/conf.h>
+#include <sys/stat.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/swap_pager.h>
@@ -63,13 +64,14 @@
  * provided as a character (raw) device.
  */
 
+static	d_open_t	swopen;
 static	d_strategy_t    swstrategy;
 
 #define CDEV_MAJOR 4
 #define BDEV_MAJOR 26
 
 static struct cdevsw sw_cdevsw = {
-	/* open */	nullopen,
+	/* open */	swopen,
 	/* close */	nullclose,
 	/* read */	physread,
 	/* write */	physwrite,
@@ -107,6 +109,20 @@ int vm_swap_size;
  *
  *	The bp is expected to be locked and *not* B_DONE on call.
  */
+
+static int
+swopen(dev, flag, mode, p)
+	dev_t           dev;
+	int             flag;
+	int             mode;
+	struct proc     *p;
+{
+
+	if (mode == S_IFBLK || minor(dev))
+		return (ENXIO);
+	return (0);
+}
+
 
 static void
 swstrategy(bp)
