@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.9 1998/10/12 17:16:47 ken Exp $
+ *      $Id: scsi_da.c,v 1.10 1998/10/13 08:24:29 dg Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -137,6 +137,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * in NetBSD PR kern/6027, August 24, 1998.
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "MICROP", "2217*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Doesn't like the synchronize cache command.
+		 * Reported by: Blaz Zupan <blaz@gold.amis.net>
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "NEC", "D3847*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	}
 };
