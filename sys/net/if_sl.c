@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.23 1995/06/21 10:13:23 davidg Exp $
+ * $Id: if_sl.c,v 1.24 1995/07/02 09:01:02 joerg Exp $
  */
 
 /*
@@ -909,9 +909,14 @@ slioctl(ifp, cmd, data)
 	switch (cmd) {
 
 	case SIOCSIFADDR:
-		if (ifa->ifa_addr->sa_family == AF_INET)
-			ifp->if_flags |= IFF_UP;
-		/* FALLTHROUGH */
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			if (sl_softc[ifp->if_unit].sc_ttyp != NULL)
+				if_up(ifp);
+		} else {
+			error = EAFNOSUPPORT;
+		}
+		break;
+
 	case SIOCSIFDSTADDR:
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			error = EAFNOSUPPORT;
