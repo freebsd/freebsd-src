@@ -72,13 +72,8 @@ find_pal_proc(void)
 	};
 	u_int8_t *p;
 
-	for (i = 0; i < ST->NumberOfTableEntries; i++) {
-		if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
-				 &sal, sizeof(EFI_GUID)))
-			saltab = ST->ConfigurationTable[i].VendorTable;
-	}
-
-	if (!saltab) {
+	saltab = efi_get_table(&sal);
+	if (saltab == NULL) {
 		printf("Can't find SAL System Table\n");
 		return;
 	}
@@ -336,13 +331,8 @@ command_sal(int argc, char *argv[])
 	};
 	u_int8_t *p;
 
-	for (i = 0; i < ST->NumberOfTableEntries; i++) {
-		if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
-				 &sal, sizeof(EFI_GUID)))
-			saltab = ST->ConfigurationTable[i].VendorTable;
-	}
-
-	if (!saltab) {
+	saltab = efi_get_table(&sal);
+	if (saltab == NULL) {
 		printf("Can't find SAL System Table\n");
 		return CMD_ERROR;
 	}
