@@ -2,8 +2,6 @@
 #	FreeBSD $FreeBSD$
 
 PROG=	usbdevs
-SRCS=	usbdevs.c
-MAN8=	usbdevs.8
 CFLAGS+=-I${.CURDIR}/../../sys
 
 .include <bsd.prog.mk>

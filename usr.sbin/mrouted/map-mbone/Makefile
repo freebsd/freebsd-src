@@ -9,6 +9,5 @@ DPADD=	${LIBMROUTED}
 LDADD=	${LIBMROUTED}
 
 SRCS=	mapper.c
-MAN8=	map-mbone.8
 
 .include <bsd.prog.mk>

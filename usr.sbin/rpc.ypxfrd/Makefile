@@ -8,8 +8,6 @@ RPCDIR=	${.CURDIR}/../../include/rpcsvc
 
 .PATH:	${.CURDIR}/../../usr.sbin/ypserv
 
-MAN8=	rpc.ypxfrd.8
-
 CFLAGS+= -I. -DXFRBLOCKSIZE=65535
 
 DPADD=	${LIBRPCSVC}
