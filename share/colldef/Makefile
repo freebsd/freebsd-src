@@ -3,7 +3,8 @@
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=	cs_CZ.ISO_8859-2 \
+LOCALES=	bg_BG.CP1251 \
+		cs_CZ.ISO_8859-2 \
 		de_DE.DIS_8859-15 \
 		de_DE.ISO_8859-1 \
 		es_ES.DIS_8859-15 \
