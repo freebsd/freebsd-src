@@ -204,7 +204,7 @@ pkg_do(char *pkg)
     }
 
     if (!Fake) {
-	if (vsystem("%s -r %s", REMOVE_CMD, LogDir)) {
+	if (vsystem("%s -r%c %s", REMOVE_CMD, Force ? 'f' : ' ', LogDir)) {
 	    warnx("couldn't remove log entry in %s, deinstall failed", LogDir);
 	    if (!Force)
 		return 1;
