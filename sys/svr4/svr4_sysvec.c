@@ -6,9 +6,9 @@
 #endif
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
