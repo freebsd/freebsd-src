@@ -87,48 +87,15 @@ hpfs_fsync(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	int s;
-	struct buf *bp, *nbp;
-
 	/*
-	 * Flush all dirty buffers associated with a vnode.
+	 * Flush our dirty buffers.
 	 */
-loop:
-	VI_LOCK(vp);
-	s = splbio();
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		VI_UNLOCK(vp);
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-			VI_LOCK(vp);
-			continue;
-		}
-		if ((bp->b_flags & B_DELWRI) == 0)
-			panic("hpfs_fsync: not dirty");
-		bremfree(bp);
-		splx(s);
-		(void) bwrite(bp);
-		goto loop;
-	}
-	while (vp->v_numoutput) {
-		vp->v_iflag |= VI_BWAIT;
-		msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp), PRIBIO + 1,
-		    "hpfsn", 0);
-	}
-#ifdef DIAGNOSTIC
-	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
-		vprint("hpfs_fsync: dirty", vp);
-		goto loop;
-	}
-#endif
-	VI_UNLOCK(vp);
-	splx(s);
+	vop_stdfsync(ap);
 
 	/*
 	 * Write out the on-disc version of the vnode.
 	 */
-	return hpfs_update(VTOHP(vp));
+	return hpfs_update(VTOHP(ap->a_vp));
 }
 
 static int

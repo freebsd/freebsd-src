@@ -416,89 +416,10 @@ spec_fsync(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct buf *bp;
-	struct buf *nbp;
-	int s, error = 0;
-	int maxretry = 100;	/* large, arbitrarily chosen */
-
-	if (!vn_isdisk(vp, NULL))
+	if (!vn_isdisk(ap->a_vp, NULL))
 		return (0);
 
-	VI_LOCK(vp);
-loop1:
-	/*
-	 * MARK/SCAN initialization to avoid infinite loops.
-	 */
-	s = splbio();
-        TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs) {
-                bp->b_flags &= ~B_SCANNED;
-		bp->b_error = 0;
-	}
-	splx(s);
-
-	/*
-	 * Flush all dirty buffers associated with a block device.
-	 */
-loop2:
-	s = splbio();
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp != NULL; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		if ((bp->b_flags & B_SCANNED) != 0)
-			continue;
-		VI_UNLOCK(vp);
-		bp->b_flags |= B_SCANNED;
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-			VI_LOCK(vp);
-			continue;
-		}
-		if ((bp->b_flags & B_DELWRI) == 0)
-			panic("spec_fsync: not dirty");
-		if ((vp->v_vflag & VV_OBJBUF) && (bp->b_flags & B_CLUSTEROK)) {
-			BUF_UNLOCK(bp);
-			vfs_bio_awrite(bp);
-			splx(s);
-		} else {
-			bremfree(bp);
-			splx(s);
-			bawrite(bp);
-		}
-		VI_LOCK(vp);
-		goto loop2;
-	}
-
-	/*
-	 * If synchronous the caller expects us to completely resolve all
-	 * dirty buffers in the system.  Wait for in-progress I/O to
-	 * complete (which could include background bitmap writes), then
-	 * retry if dirty blocks still exist.
-	 */
-	if (ap->a_waitfor == MNT_WAIT) {
-		while (vp->v_numoutput) {
-			vp->v_iflag |= VI_BWAIT;
-			msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
-			    PRIBIO + 1, "spfsyn", 0);
-		}
-		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
-			/*
-			 * If we are unable to write any of these buffers
-			 * then we fail now rather than trying endlessly
-			 * to write them out.
-			 */
-			TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs)
-				if ((error = bp->b_error) == 0)
-					continue;
-			if (error == 0 && --maxretry >= 0) {
-				splx(s);
-				goto loop1;
-			}
-			vprint("spec_fsync: giving up on dirty", vp);
-			error = EAGAIN;
-		}
-	}
-	VI_UNLOCK(vp);
-	splx(s);
-	return (error);
+	return (vop_stdfsync(ap));
 }
 
 /*
