@@ -20,10 +20,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 20031112:
 	The statfs structure has been updated with 64-bit fields to
 	allow accurate reporting of multi-terabyte filesystem
-	sizes. You should build and boot a new kernel BEFORE doing a
-	`make world' as the new kernel will know about binaries using
-	the old statfs structure, but an old kernel will not know
-	about the new system calls that support the new statfs
+	sizes. You should build world, then build and boot the new kernel
+	BEFORE doing a `installworld' as the new kernel will know about
+	binaries using the old statfs structure, but an old kernel will
+	not know about the new system calls that support the new statfs
 	structure.
 	Note that the backwards compatibility is only present when the
 	kernel is configured with the COMPAT_FREEBSD4 option. Since
