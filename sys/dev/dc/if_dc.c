@@ -3539,15 +3539,13 @@ dc_ioctl(ifp, command, data)
 	switch(command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC &&
-			    !(sc->dc_if_flags & IFF_PROMISC)) {
-				dc_setfilt(sc);
-			} else if (ifp->if_flags & IFF_RUNNING &&
-			    !(ifp->if_flags & IFF_PROMISC) &&
-			    sc->dc_if_flags & IFF_PROMISC) {
-				dc_setfilt(sc);
-			} else if (!(ifp->if_flags & IFF_RUNNING)) {
+			int need_setfilt = (ifp->if_flags ^ sc->dc_if_flags) &
+				(IFF_PROMISC | IFF_ALLMULTI);
+
+			if (ifp->if_flags & IFF_RUNNING) {
+				if (need_setfilt)
+					dc_setfilt(sc);
+			} else {
 				sc->dc_txthresh = 0;
 				dc_init(sc);
 			}
