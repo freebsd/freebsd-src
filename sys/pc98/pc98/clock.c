@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.21 1997/05/05 13:13:47 kato Exp $
+ *	$Id: clock.c,v 1.22 1997/05/28 09:04:26 kato Exp $
  */
 
 /*
@@ -53,7 +53,6 @@
  */
 
 #include "opt_clock.h"
-#include "opt_smp.h"
 #include "opt_cpu.h"
 
 #include <sys/param.h>
