@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_user.c,v 1.3 1994/08/02 07:55:42 davidg Exp $
  */
 
 /*
@@ -286,7 +286,6 @@ vm_allocate_with_pager(map, addr, size, anywhere, pager, poffset, internal)
 	 *	it.
 	 */
 	object = vm_object_lookup(pager);
-	cnt.v_lookups++;
 	if (object == NULL) {
 		object = vm_object_allocate(size);
 		/*
@@ -297,8 +296,7 @@ vm_allocate_with_pager(map, addr, size, anywhere, pager, poffset, internal)
 		 */
 		if (!internal)
 			vm_object_enter(object, pager);
-	} else
-		cnt.v_hits++;
+	}
 	if (internal)
 		object->flags |= OBJ_INTERNAL;
 	else {
