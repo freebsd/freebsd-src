@@ -152,11 +152,11 @@ CLEANFILES+=	openpam_static.o \
 openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
 
+# Can't put openpam_static.c in SRCS but want .o in .depend.
+DPSRCS=		openpam_static.c
+
 # Headers
 INCS=		${HEADERS} ${ADD_HEADERS}
 INCSDIR=	${INCLUDEDIR}/security
 
 .include <bsd.lib.mk>
-
-# Can't put openpam_static.c in SRCS but want it in .depend.
-${DEPENDFILE}: openpam_static.c
