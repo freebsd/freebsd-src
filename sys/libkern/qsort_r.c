@@ -1,4 +1,4 @@
-/*
+/*-
  * This file is in the public domain.  Originally written by Garrett
  * A. Wollman.
  *
