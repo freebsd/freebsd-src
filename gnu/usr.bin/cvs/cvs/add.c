@@ -25,17 +25,18 @@
  */
 
 #include "cvs.h"
+#include "save-cwd.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)add.c 1.55 94/10/22 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)add.c 1.55 94/10/22 $";
+USE(rcsid);
 #endif
 
 static int add_directory PROTO((char *repository, char *dir));
 static int build_entry PROTO((char *repository, char *user, char *options,
 		        char *message, List * entries, char *tag));
 
-static char *add_usage[] =
+static const char *const add_usage[] =
 {
     "Usage: %s %s [-k rcs-kflag] [-m message] files...\n",
     "\t-k\tUse \"rcs-kflag\" to add the file with the specified kflag.\n",
@@ -46,7 +47,7 @@ static char *add_usage[] =
 int
 add (argc, argv)
     int argc;
-    char *argv[];
+    char **argv;
 {
     char *message = NULL;
     char *user;
@@ -61,6 +62,8 @@ add (argc, argv)
 
     if (argc == 1 || argc == -1)
 	usage (add_usage);
+
+    wrap_setup ();
 
     /* parse args */
     optind = 1;
@@ -91,12 +94,54 @@ add (argc, argv)
 
     /* find the repository associated with our current dir */
     repository = Name_Repository ((char *) NULL, (char *) NULL);
-    entries = ParseEntries (0);
+
+#ifdef CLIENT_SUPPORT
+    if (client_active)
+      {
+	int i;
+	start_server ();
+	ign_setup ();
+	if (options) send_arg(options);
+	option_with_arg ("-m", message);
+	for (i = 0; i < argc; ++i)
+	  /* FIXME: Does this erroneously call Create_Admin in error
+	     conditions which are only detected once the server gets its
+	     hands on things?  */
+	  if (isdir (argv[i]))
+	    {
+	      char *tag;
+	      char *date;
+	      char *rcsdir = xmalloc (strlen (repository)
+				      + strlen (argv[i]) + 10);
+
+	      /* before we do anything else, see if we have any
+		 per-directory tags */
+	      ParseTag (&tag, &date);
+
+	      sprintf (rcsdir, "%s/%s", repository, argv[i]);
+
+	      Create_Admin (argv[i], argv[i], rcsdir, tag, date);
+
+	      if (tag)
+		free (tag);
+	      if (date)
+		free (date);
+	      free (rcsdir);
+	    }
+	send_files (argc, argv, 0, 0);
+	if (fprintf (to_server, "add\n") < 0)
+	  error (1, errno, "writing to server");
+	return get_responses_and_close ();
+      }
+#endif
+
+    entries = Entries_Open (0);
 
     /* walk the arg list adding files/dirs */
     for (i = 0; i < argc; i++)
     {
 	int begin_err = err;
+	int begin_added_files = added_files;
 
 	user = argv[i];
 	strip_trailing_slashes (user);
@@ -122,7 +167,7 @@ add (argc, argv)
 		    error (0, 0, "nothing known about %s", user);
 		    err++;
 		}
-		else if (!isdir (user))
+		else if (!isdir (user) || wrap_name_has (user, WRAP_TOCVS))
 		{
 		    /*
 		     * See if a directory exists in the repository with
@@ -143,15 +188,53 @@ add (argc, argv)
 		    /* There is a user file, so build the entry for it */
 		    if (build_entry (repository, user, vers->options,
 				     message, entries, vers->tag) != 0)
-		      err++;
+			err++;
 		    else 
 		    {
-		      added_files++;
-		      if (!quiet)
-		        error (0, 0, "scheduling file `%s' for addition", user);
+			added_files++;
+			if (!quiet)
+			{
+#ifdef DEATH_SUPPORT
+			    if (vers->tag)
+				error (0, 0, "\
+scheduling %s `%s' for addition on branch `%s'",
+				       (wrap_name_has (user, WRAP_TOCVS)
+					? "wrapper"
+					: "file"),
+				       user, vers->tag);
+			    else
+#endif /* DEATH_SUPPORT */
+			    error (0, 0, "scheduling %s `%s' for addition",
+				   (wrap_name_has (user, WRAP_TOCVS)
+				    ? "wrapper"
+				    : "file"),
+				   user);
+			}
 		    }
 		}
 	    }
+#ifdef DEATH_SUPPORT
+	    else if (RCS_isdead (vers->srcfile, vers->vn_rcs))
+	    {
+		if (isdir (user) && !wrap_name_has (user, WRAP_TOCVS))
+		{
+		    error (0, 0, "the directory `%s' cannot be added because a file of the", user);
+		    error (1, 0, "same name already exists in the repository.");
+		}
+		else
+		{
+		    if (vers->tag)
+			error (0, 0, "file `%s' will be added on branch `%s' from version %s",
+			       user, vers->tag, vers->vn_rcs);
+		    else
+			error (0, 0, "version %s of `%s' will be resurrected",
+			       vers->vn_rcs, user);
+		    Register (entries, user, "0", vers->ts_user, NULL,
+			      vers->tag, NULL, NULL);
+		    ++added_files;
+		}
+	    }
+#endif /* DEATH_SUPPORT */
 	    else
 	    {
 		/*
@@ -206,6 +289,9 @@ add (argc, argv)
 		    free (tmp);
 
 		    /* XXX - bugs here; this really resurrect the head */
+		    /* Note that this depends on the Register above actually
+		       having written Entries, or else it won't really
+		       check the file out.  */
 		    if (update (2, argv + i - 1) == 0)
 		    {
 			error (0, 0, "%s, version %s, resurrected", user,
@@ -235,16 +321,23 @@ add (argc, argv)
 	freevers_ts (&vers);
 
 	/* passed all the checks.  Go ahead and add it if its a directory */
-	if (begin_err == err && isdir (user))
+	if (begin_err == err
+	    && isdir (user)
+	    && !wrap_name_has (user, WRAP_TOCVS))
 	{
 	    err += add_directory (repository, user);
 	    continue;
 	}
+#ifdef SERVER_SUPPORT
+	if (server_active && begin_added_files != added_files)
+	    server_checked_in (user, ".", repository);
+#endif
     }
     if (added_files)
 	error (0, 0, "use 'cvs commit' to add %s permanently",
 	       (added_files == 1) ? "this file" : "these files");
-    dellist (&entries);
+
+    Entries_Close (entries);
 
     if (message)
 	free (message);
@@ -264,7 +357,8 @@ add_directory (repository, dir)
     char *repository;
     char *dir;
 {
-    char cwd[PATH_MAX], rcsdir[PATH_MAX];
+    char rcsdir[PATH_MAX];
+    struct saved_cwd cwd;
     char message[PATH_MAX + 100];
     char *tag, *date;
 
@@ -274,9 +368,9 @@ add_directory (repository, dir)
 	       "directory %s not added; must be a direct sub-directory", dir);
 	return (1);
     }
-    if (strcmp (dir, CVSADM) == 0 || strcmp (dir, OCVSADM) == 0)
+    if (strcmp (dir, CVSADM) == 0)
     {
-	error (0, 0, "cannot add a `%s' or a `%s' directory", CVSADM, OCVSADM);
+	error (0, 0, "cannot add a `%s' directory", CVSADM);
 	return (1);
     }
 
@@ -284,20 +378,20 @@ add_directory (repository, dir)
     ParseTag (&tag, &date);
 
     /* now, remember where we were, so we can get back */
-    if (getwd (cwd) == NULL)
-    {
-	error (0, 0, "cannot get working directory: %s", cwd);
+    if (save_cwd (&cwd))
 	return (1);
-    }
     if (chdir (dir) < 0)
     {
 	error (0, errno, "cannot chdir to %s", dir);
 	return (1);
     }
-    if (isfile (CVSADM) || isfile (OCVSADM))
+#ifdef SERVER_SUPPORT
+    if (!server_active && isfile (CVSADM))
+#else
+    if (isfile (CVSADM))
+#endif
     {
-	error (0, 0,
-	       "%s/%s (or %s/%s) already exists", dir, CVSADM, dir, OCVSADM);
+	error (0, 0, "%s/%s already exists", dir, CVSADM);
 	goto out;
     }
 
@@ -344,14 +438,14 @@ add_directory (repository, dir)
 	}
 #endif
 
-	omask = umask (2);
-	if (mkdir (rcsdir, 0777) < 0)
+	omask = umask (cvsumask);
+	if (CVS_MKDIR (rcsdir, 0777) < 0)
 	{
 	    error (0, errno, "cannot mkdir %s", rcsdir);
-	    (void) umask ((int) omask);
+	    (void) umask (omask);
 	    goto out;
 	}
-	(void) umask ((int) omask);
+	(void) umask (omask);
 
 	/*
 	 * Set up an update list with a single title node for Update_Logfile
@@ -367,7 +461,12 @@ add_directory (repository, dir)
 	dellist (&ulist);
     }
 
-    Create_Admin (".", rcsdir, tag, date);
+#ifdef SERVER_SUPPORT
+    if (!server_active)
+	Create_Admin (".", dir, rcsdir, tag, date);
+#else
+    Create_Admin (".", dir, rcsdir, tag, date);
+#endif
     if (tag)
 	free (tag);
     if (date)
@@ -375,8 +474,9 @@ add_directory (repository, dir)
 
     (void) printf ("%s", message);
 out:
-    if (chdir (cwd) < 0)
-	error (1, errno, "cannot chdir to %s", cwd);
+    if (restore_cwd (&cwd, NULL))
+      exit (1);
+    free_cwd (&cwd);
     return (0);
 }
 
@@ -397,6 +497,8 @@ build_entry (repository, user, options, message, entries, tag)
     char line[MAXLINELEN];
     FILE *fp;
 
+#ifndef DEATH_SUPPORT
+ /* when using the rcs death support, this case is not a problem. */
     /*
      * There may be an old file with the same name in the Attic! This is,
      * perhaps, an awkward place to check for this, but other places are
@@ -409,21 +511,13 @@ build_entry (repository, user, options, message, entries, tag)
 	       repository, CVSATTIC);
 	return (1);
     }
+#endif /* no DEATH_SUPPORT */
 
     if (noexec)
 	return (0);
 
     /*
-     * The options for the "add" command are store in the file CVS/user,p
-     * XXX - no they are not!
-     */
-    (void) sprintf (fname, "%s/%s%s", CVSADM, user, CVSEXT_OPT);
-    fp = open_file (fname, "w+");
-    if (fclose (fp) == EOF)
-	error(1, errno, "cannot close %s", fname);
-
-    /*
-     * And the requested log is read directly from the user and stored in the
+     * The requested log is read directly from the user and stored in the
      * file user,t.  If the "message" argument is set, use it as the
      * initial creation log (which typically describes the file).
      */
@@ -436,8 +530,8 @@ build_entry (repository, user, options, message, entries, tag)
 
     /*
      * Create the entry now, since this allows the user to interrupt us above
-     * without needing to clean anything up (well, we could clean up the ,p
-     * and ,t files, but who cares).
+     * without needing to clean anything up (well, we could clean up the
+     * ,t file, but who cares).
      */
     (void) sprintf (line, "Initial %s", user);
     Register (entries, user, "0", line, options, tag, (char *) 0, (char *) 0);

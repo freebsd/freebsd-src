@@ -1,4 +1,5 @@
-#!/usr/bin/perl
+#! xPERL_PATHx
+# -*-Perl-*-
 #
 # From: clyne@niwot.scd.ucar.EDU (John Clyne)
 # Date: Fri, 28 Feb 92 09:54:21 MST
@@ -11,7 +12,7 @@
 # Especially if they regularly beat on the same directory. Anyway if you 
 # think anyone would be interested here it is. 
 #
-#      $Id: mfpipe.pl,v 1.1 1992/03/02 01:22:41 berliner Exp $
+#      $Id: mfpipe.pl,v 1.2 1995/07/10 02:01:57 kfogel Exp $
 #
 #
 #	File:		mfpipe
