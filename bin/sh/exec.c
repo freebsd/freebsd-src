@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: exec.c,v 1.9 1997/02/22 13:58:25 peter Exp $
  */
 
 #ifndef lint
@@ -75,6 +75,7 @@ static char const sccsid[] = "@(#)exec.c	8.4 (Berkeley) 6/8/95";
 #include "mystring.h"
 #include "show.h"
 #include "jobs.h"
+#include "alias.h"
 
 
 #define CMDTABLESIZE 31		/* should be prime */
@@ -287,7 +288,7 @@ padvance(path, name)
 	char **path;
 	char *name;
 	{
-	register char *p, *q;
+	char *p, *q;
 	char *start;
 	int len;
 
@@ -554,7 +555,7 @@ int
 find_builtin(name)
 	char *name;
 {
-	register const struct builtincmd *bp;
+	const struct builtincmd *bp;
 
 	for (bp = builtincmd ; bp->name ; bp++) {
 		if (*bp->name == *name && equal(bp->name, name))
@@ -717,7 +718,7 @@ cmdlookup(name, add)
 	int add;
 {
 	int hashval;
-	register char *p;
+	char *p;
 	struct tblentry *cmdp;
 	struct tblentry **pp;
 
@@ -840,4 +841,78 @@ unsetfunc(name)
 		return (0);
 	}
 	return (1);
+}
+
+/*
+ * Locate and print what a word is...
+ */
+
+int
+typecmd(argc, argv)
+	int argc;
+	char **argv;
+{
+	struct cmdentry entry;
+	struct tblentry *cmdp;
+	char **pp;
+	struct alias *ap;
+	int i;
+	int error = 0;
+	extern char *const parsekwd[];
+
+	for (i = 1; i < argc; i++) {
+		out1str(argv[i]);
+		/* First look at the keywords */
+		for (pp = (char **)parsekwd; *pp; pp++)
+			if (**pp == *argv[i] && equal(*pp, argv[i]))
+				break;
+
+		if (*pp) {
+			out1str(" is a shell keyword\n");
+			continue;
+		}
+
+		/* Then look at the aliases */
+		if ((ap = lookupalias(argv[i], 1)) != NULL) {
+			out1fmt(" is an alias for %s\n", ap->val);
+			continue;
+		}
+
+		/* Then check if it is a tracked alias */
+		if ((cmdp = cmdlookup(argv[i], 0)) != NULL) {
+			entry.cmdtype = cmdp->cmdtype;
+			entry.u = cmdp->param;
+		}
+		else {
+			/* Finally use brute force */
+			find_command(argv[i], &entry, 0, pathval());
+		}
+
+		switch (entry.cmdtype) {
+		case CMDNORMAL: {
+			int j = entry.u.index;
+			char *path = pathval(), *name;
+			do { 
+				name = padvance(&path, argv[i]);
+				stunalloc(name);
+			} while (--j >= 0);
+			out1fmt(" is%s %s\n",
+			    cmdp ? " a tracked alias for" : "", name);
+			break;
+		}
+		case CMDFUNCTION:
+			out1str(" is a shell function\n");
+			break;
+
+		case CMDBUILTIN:
+			out1str(" is a shell builtin\n");
+			break;
+
+		default:
+			out1str(" not found\n");
+			error |= 127;
+			break;
+		}
+	}
+	return error;
 }
