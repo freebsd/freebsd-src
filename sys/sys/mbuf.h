@@ -272,7 +272,7 @@ struct mbstat {
 #define	M_DONTWAIT	0x4		/* don't conflict with M_NOWAIT */
 #define	M_TRYWAIT	0x8		/* or M_WAITOK */
 #define	M_WAIT		M_TRYWAIT	/* XXX: Deprecated. */
-#define	MBTOM(how)	((how) == M_TRYWAIT ? M_WAITOK : M_NOWAIT)
+#define	MBTOM(how)	((how) & M_TRYWAIT ? M_WAITOK : M_NOWAIT)
 
 #ifdef _KERNEL
 /*-
