@@ -12,91 +12,92 @@ come from the old ABOUT.TXT.
 <sect1>
   <title>About &os;</title>
 
-  <para>What is &os;?  &os; is an operating system based on 4.4 BSD
+  <para>&os; is an operating system based on 4.4 BSD
   Lite for Intel, AMD, Cyrix or NexGen <quote>x86</quote> based PC
   hardware and Compaq (formerly DEC) Alpha computers.  Versions for
   the IA64 and PowerPC architectures are currently under
   development as well.  &os; works with a
-  very wide variety of PC peripherals and configurations and can be
-  used for everything from software development to Internet Service
+  wide variety of peripherals and configurations and can be
+  used for everything from software development to games to Internet Service
   Provision.</para>
 
   <para>This release of &os; contains everything you need to run
-  such a system, including full source code for everything.  With the
-  source distribution installed you can literally recompile the entire
+  such a system, including full source code for the kernel and all
+  utilities in the base distribution.  With the
+  source distribution installed, you can literally recompile the entire
   system from scratch with one command, making it ideal for students,
-  researchers or folks who simply want to see how it all works.</para>
+  researchers, or users who simply want to see how it all works.</para>
 
-  <para>A large collection of third party ported software (the
-  <quote>Ports Collection</quote>) is also provided to make it easier
-  for you to obtain and install all your favorite traditional UNIX
-  utilities for &os;.  Over 5000 ports, from editors to programming
+  <para>A large collection of third-party ported software (the
+  <quote>Ports Collection</quote>) is also provided to make it easy
+  to obtain and install all your favorite traditional UNIX
+  utilities for &os;.  Each
+  <quote>port</quote> consists of a set of scripts to retrieve,
+  configure, build, and install a piece of software, with a single
+  command.  Over 5000 ports, from editors to programming
   languages to graphical applications, make &os; a powerful and
   comprehensive operating environment that extends far beyond what's
-  provided by many commercial versions of UNIX.</para>
+  provided by many commercial versions of UNIX.  Most ports are also
+  available as pre-compiled <quote>packages</quote>, which can be
+  quickly installed from the installation program.</para>
 
-  <para>For more documentation on this system it is recommended that
-  you purchase The Complete FreeBSD, available from local bookstores
-  and from The FreeBSD Mall (<ulink
-  url="http://www.freebsdmall.com">http://www.freebsdmall.com</ulink>),
-  as well as the 4.4BSD Document Set from O'Reilly Associates and the
-  USENIX Association, ISBN 1-56592-082-1.  We have no connection with
-  O'Reilly, we're just satisfied customers!</para>
+  <para>Pointers to more documentation on &os; can be found in the
+  <ulink
+  url="http://www.freebsd.org/handbook/bibliography.html#BIBLIOGRAPHY-FREEBSD">Books
+  &amp; Magazines Specific to FreeBSD</ulink> section of the <ulink
+  url="http://www.freebsd.org/handbook/">FreeBSD Handbook</ulink>.
+  Because of &os;'s strong UNIX heritage, many other documents written
+  for UNIX systems are applicable as well.  A selection of these books
+  can be found in the Handbook's <ulink
+  url="http://www.freebsd.org/handbook/bibliography.html">Bibliography</ulink>.
+  </para>
 
   <para>If you're new to &os; then you should also read
-  <emphasis>everything</emphasis>
-  listed in the Documentation menu on the boot floppy.  It may seem
-  like a lot to read, but you should at least acquaint yourself with
-  the types of information available should you later get stuck.  Once
-  the system is installed, you can also revisit this menu and use a
-  Web browser to read the installed FAQ (Frequently Asked Questions)
-  and Handbook HTML documentation sets for &os;.  Note that on-line
+  all of the documentation files listed in <xref linkend="release-docs">,
+  all of which are available from the Documentation menu in the
+  installation program.
+  It may seem
+  like a lot to read, but it's important to at least acquaint yourself with
+  the types of information available, should you run into problems later.  Once
+  the system is installed, you can also revisit this menu by running
+  the &man.sysinstall.8; utility.</para>
+
+  <para>On-line
   versions of the <ulink
-  url="http://www.freebsd.org/faq/">FAQ</ulink> and <ulink
-  url="http://www.freebsd.org/handbook/">Handbook</ulink> are also
+  url="http://www.freebsd.org/faq/">FAQ (Frequently Asked
+  Questions)</ulink> document and <ulink
+  url="http://www.freebsd.org/handbook/">Handbook</ulink> are always
   available from the <ulink
   url="http://www.freebsd.org/">FreeBSD Project Web
-  site</ulink>, if you have an Internet connection. See
-  <filename>README.TXT</filename> for more information on the
-  resources available to you.</para>
+  site</ulink> or its mirrors.
+  If you install the
+  <filename>doc</filename> distribution set, you can use a
+  Web browser to read the FAQ and Handbook locally.</para>
 
   <note>
-    <para>If you read no other documentation before installing a given
-    version of &os;, you should at least by all means <emphasis>read
-    the errata</emphasis> for that release so that you don't stumble
-    over problems which have already been found and fixed.  The
-    <filename>ERRATA.TXT</filename> file accompanying your release (it
-    should be right next to this file) is obviously already out of
-    date by definition, but other copies are kept updated on the net
+    <para>It is extremely important to read the errata for any given
+    release before installing it, to learn about any
+    <quote>late-breaking news</quote> or post-release problems.
+    The
+    errata file accompanying each release 
+    (most likely right next to this file) is already out of
+    date by definition, but other copies are kept updated on the Internet
     and should be consulted as the <quote>current errata</quote> for
-    your release (this is also what your
-    <filename>ERRATA.TXT</filename> file says, by the way).  These
-    other copies of the errata are located at:
-
-      <orderedlist>
-        <listitem>
-	  <para><ulink url="http://www.freebsd.org/releases/">http://www.freebsd.org/releases/</ulink></para>
-        </listitem>
-        <listitem>
-          <para>ftp://ftp.freebsd.org/pub/FreeBSD/releases/your-release/ERRATA.TXT
-          (and any sites which keep up-to-date mirrors of this
-          location).</para>
-	</listitem>
-      </orderedlist>
-    </para>
+    this release.  These
+    other copies of the errata are located at
+    <ulink url="http://www.freebsd.org/releases/"></ulink>
+    (as well as any sites which keep up-to-date mirrors of this
+    location).</para>
   </note>
 
   <warning>
 
     <para>While &os; does its best to safeguard against accidental
-    loss of data, it's still more than possible to <emphasis>wipe out
-    your entire disk</emphasis>
-    with this installation!  Please do not proceed to the
-    final &os; installation menu unless you've adequately backed up
-    any important data first!  We really mean it!</para>
+    loss of data, it is still more than possible to accidentally <emphasis>erase
+    entire disks</emphasis>
+    with this installation.  Please remember to back up any important
+    data <emphasis>before</emphasis> beginning the &os;
+    installation process.</para>
 
   </warning>
 </sect1>
-
-
-
