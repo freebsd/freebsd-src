@@ -41,6 +41,9 @@ phandle_t	ofw_finddevice(int, char *);
 int		ofw_firstprop(int, phandle_t, char *, int);
 int		ofw_nextprop(int, phandle_t, char *, char *, int);
 int		ofw_getprop(int, phandle_t, const char *, void *, int);
+int		ofw_getproplen(int, phandle_t, const char *);
+int		ofw_getprop_alloc(int, phandle_t, const char *, void **, int *,
+    int);
 
 void		ofw_dump(int, char *, int, int, char *, int, int);
 
