@@ -87,10 +87,9 @@ sbni_pci_probe(device_t dev)
 	if (pci_get_subdevice(dev) == 2) {
 		ports <<= 1;
 		sc->slave_sc = malloc(sizeof(struct sbni_softc),
-				      M_DEVBUF, M_NOWAIT);
+				      M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (!sc->slave_sc)
 			return (ENOMEM);
-		bzero(sc->slave_sc, sizeof(struct sbni_softc));
 		device_set_desc(dev, "Granch SBNI12/PCI Dual adapter");
 	} else
 		device_set_desc(dev, "Granch SBNI12/PCI adapter");
@@ -105,9 +104,10 @@ sbni_pci_probe(device_t dev)
 		return (ENOENT);
 	}
 
-	sc->base_addr = rman_get_start(sc->io_res);
-	if (sc->slave_sc)
-		sc->slave_sc->base_addr = sc->base_addr + 4;
+	if (sc->slave_sc) {
+		sc->slave_sc->io_res = sc->io_res;
+		sc->slave_sc->io_off = 4;
+	}
 	if (sbni_probe(sc) != 0) {
 		bus_release_resource(dev, SYS_RES_IOPORT,
 				     sc->io_rid, sc->io_res);
@@ -130,7 +130,8 @@ sbni_pci_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	printf("sbni%d: <Granch SBNI12/PCI%sadapter> port 0x%x",
-	       next_sbni_unit, sc->slave_sc ? " Dual " : " ", sc->base_addr);
+	       next_sbni_unit, sc->slave_sc ? " Dual " : " ",
+	       rman_get_start(sc->io_res));
 	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
 					 0ul, ~0ul, 1, RF_SHAREABLE);
 
@@ -157,6 +158,10 @@ sbni_pci_attach(device_t dev)
 
 attach_failed:
 	bus_release_resource(dev, SYS_RES_IOPORT, sc->io_rid, sc->io_res);
+	if (sc->irq_res) {
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, sc->irq_rid, sc->irq_res);
+	}
 	if (sc->slave_sc)
 		free(sc->slave_sc, M_DEVBUF);
 	return (error);
