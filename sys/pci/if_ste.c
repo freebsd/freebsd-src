@@ -380,6 +380,11 @@ static int ste_miibus_readreg(dev, phy, reg)
 
 	sc = device_get_softc(dev);
 
+	if (pci_get_vendor(dev) == DL_VENDORID &&
+	    pci_get_device(dev) == DL_DEVICEID_550TX &&
+	    phy != 0)
+		return (0);
+
 	bzero((char *)&frame, sizeof(frame));
 
 	frame.mii_phyaddr = phy;
