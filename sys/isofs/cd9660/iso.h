@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.2 (Berkeley) 1/23/94
- * $Id$
+ * $Id: iso.h,v 1.2 1994/08/02 07:41:38 davidg Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -165,6 +165,9 @@ struct iso_mnt {
 #define iso_lblkno(imp, loc) ((loc) >> (imp)->im_bshift)
 #define iso_blksize(imp, ip, lbn) ((imp)->logical_block_size)
 #define iso_lblktosize(imp, blk) ((blk) << (imp)->im_bshift)
+#define iso_lblktodaddr(imp, lbn) btodb(iso_lblktosize(imp, lbn))
+#define iso_dblkinc(imp, lbn) ((lbn) + iso_lblktodaddr(imp, 1))
+#define iso_dblkno(imp, loc) iso_lblktodaddr(imp, iso_lblkno(imp, loc))
 
 int cd9660_mount __P((struct mount *,
 	    char *, caddr_t, struct nameidata *, struct proc *));
