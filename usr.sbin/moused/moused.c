@@ -68,6 +68,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
 
@@ -104,38 +105,26 @@ static const char rcsid[] =
 #define ID_MODEL	8
 #define ID_ALL		(ID_PORT | ID_IF | ID_TYPE | ID_MODEL)
 
-#define debug(fmt,args...) \
-	if (debug&&nodaemon) warnx(fmt, ##args)
+#define debug(fmt, args...) do {				\
+	if (debug && nodaemon)					\
+		warnx(fmt, ##args);				\
+} while (0)
 
-#define logerr(e, fmt, args...) {				\
-	if (background) {					\
-	    syslog(LOG_DAEMON | LOG_ERR, fmt ": %m", ##args);	\
-	    exit(e);						\
-	} else							\
-	    err(e, fmt, ##args);				\
-}
+#define logerr(e, fmt, args...) do {				\
+	log_or_warn(LOG_DAEMON | LOG_ERR, errno, fmt, ##args);	\
+	exit(e);						\
+} while (0)
 
-#define logerrx(e, fmt, args...) {				\
-	if (background) {					\
-	    syslog(LOG_DAEMON | LOG_ERR, fmt, ##args);		\
-	    exit(e);						\
-	} else							\
-	    errx(e, fmt, ##args);				\
-}
+#define logerrx(e, fmt, args...) do {				\
+	log_or_warn(LOG_DAEMON | LOG_ERR, 0, fmt, ##args);	\
+	exit(e);						\
+} while (0)
 
-#define logwarn(fmt, args...) {					\
-	if (background)						\
-	    syslog(LOG_DAEMON | LOG_WARNING, fmt ": %m", ##args); \
-	else							\
-	    warn(fmt, ##args);					\
-}
+#define logwarn(fmt, args...)					\
+	log_or_warn(LOG_DAEMON | LOG_WARNING, errno, fmt, ##args)
 
-#define logwarnx(fmt, args...) {				\
-	if (background)						\
-	    syslog(LOG_DAEMON | LOG_WARNING, fmt, ##args);	\
-	else							\
-	    warnx(fmt, ##args);					\
-}
+#define logwarnx(fmt, args...)					\
+	log_or_warn(LOG_DAEMON | LOG_WARNING, 0, fmt, ##args)
 
 /* structures */
 
@@ -475,6 +464,8 @@ static void	moused(void);
 static void	hup(int sig);
 static void	cleanup(int sig);
 static void	usage(void);
+static void	log_or_warn(int log_pri, int errnum, const char *fmt, ...)
+		    __printflike(3, 4);
 
 static int	r_identify(void);
 static char	*r_if(int type);
@@ -838,11 +829,11 @@ moused(void)
     int i;
 
     if ((rodent.cfd = open("/dev/consolectl", O_RDWR, 0)) == -1)
-	logerr(1, "cannot open /dev/consolectl", 0);
+	logerr(1, "cannot open /dev/consolectl");
 
-    if (!nodaemon && !background)
+    if (!nodaemon && !background) {
 	if (daemon(0, 0)) {
-	    logerr(1, "failed to become a daemon", 0);
+	    logerr(1, "failed to become a daemon");
 	} else {
 	    background = TRUE;
 	    fp = fopen(pidfile, "w");
@@ -851,6 +842,7 @@ moused(void)
 		fclose(fp);
 	    }
 	}
+    }
 
     /* clear mouse data */
     bzero(&action0, sizeof(action0));
@@ -888,7 +880,7 @@ moused(void)
 	c = select(FD_SETSIZE, &fds, NULL, NULL,
 		   (rodent.flags & Emulate3Button) ? &timeout : NULL);
 	if (c < 0) {                    /* error */
-	    logwarn("failed to read from mouse", 0);
+	    logwarn("failed to read from mouse");
 	    continue;
 	} else if (c == 0) {            /* timeout */
 	    /* assert(rodent.flags & Emulate3Button) */
@@ -1015,6 +1007,30 @@ usage(void)
 	"              [-t <mousetype>] [-3 [-E timeout]] -p <port>",
 	"       moused [-d] -i <port|if|type|model|all> -p <port>");
     exit(1);
+}
+
+/*
+ * Output an error message to syslog or stderr as appropriate. If
+ * `errnum' is non-zero, append its string form to the message.
+ */
+static void
+log_or_warn(int log_pri, int errnum, const char *fmt, ...)
+{
+	va_list ap;
+	char buf[256];
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	if (errnum) {
+		strlcat(buf, ": ", sizeof(buf));
+		strlcat(buf, strerror(errnum), sizeof(buf));
+	}
+
+	if (background)
+		syslog(log_pri, "%s", buf);
+	else
+		warnx("%s", buf);
 }
 
 /**
@@ -2304,7 +2320,7 @@ setmousespeed(int old, int new, unsigned cflag)
 
 	if (tcgetattr(rodent.mfd, &tty) < 0)
 	{
-		logwarn("unable to get status of mouse fd", 0);
+		logwarn("unable to get status of mouse fd");
 		return;
 	}
 
@@ -2337,7 +2353,7 @@ setmousespeed(int old, int new, unsigned cflag)
 
 	if (tcsetattr(rodent.mfd, TCSADRAIN, &tty) < 0)
 	{
-		logwarn("unable to set status of mouse fd", 0);
+		logwarn("unable to set status of mouse fd");
 		return;
 	}
 
@@ -2370,14 +2386,14 @@ setmousespeed(int old, int new, unsigned cflag)
 	{
 		if (write(rodent.mfd, c, 2) != 2)
 		{
-			logwarn("unable to write to mouse fd", 0);
+			logwarn("unable to write to mouse fd");
 			return;
 		}
 	}
 	usleep(100000);
 
 	if (tcsetattr(rodent.mfd, TCSADRAIN, &tty) < 0)
-		logwarn("unable to set status of mouse fd", 0);
+		logwarn("unable to set status of mouse fd");
 }
 
 /* 
@@ -2539,7 +2555,6 @@ pnpgets(char *buf)
 	 * assuming there is something at the port even if it didn't 
 	 * respond to the PnP enumeration procedure.
 	 */
-disconnect_idle:
 	i = TIOCM_DTR | TIOCM_RTS;		/* DTR = 1, RTS = 1 */
 	ioctl(rodent.mfd, TIOCMBIS, &i);
 	return 0;
@@ -2839,7 +2854,7 @@ typedef enum {
 static int
 kidspad(u_char rxc, mousestatus_t *act)
 {
-    static buf[5];
+    static int buf[5];
     static int buflen = 0, b_prev = 0 , x_prev = -1, y_prev = -1 ;
     static k_status status = S_IDLE ;
     static struct timeval old, now ;
