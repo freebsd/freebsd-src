@@ -41,7 +41,7 @@
 
 rm -f tags tags.tmp tags.cfiles tags.sfiles tags.hfiles
 MACHINE=`uname -m`
-sed -e "s, machine/, ../../$MACHINE/include/,g" \
+sed -e "s, machine/, ../../../$MACHINE/include/,g" \
 	-e 's,[a-z][^/    ]*/\.\./,,g' .depend | awk '{
 		for (i = 1; i <= NF; ++i) {
 			t = substr($i, length($i) - 1)
