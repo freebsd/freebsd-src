@@ -107,17 +107,17 @@ void
 usage(const char *comm)
 {
 	fprintf(stderr,
-	    "usage: %s label [-hnv] [-b balance] [-s slice] name prov [prov [...]]\n"
-	    "       %s clear [-v] prov [prov [...]]\n"
-	    "       %s dump prov [prov [...]]\n"
+	    "usage: %s label [-hnv] [-b balance] [-s slice] name prov ...\n"
+	    "       %s clear [-v] prov ...\n"
+	    "       %s dump prov ...\n"
 	    "       %s configure [-adhnv] [-b balance] [-s slice] name\n"
-	    "       %s rebuild [-v] name prov [prov [...]]\n"
-	    "       %s insert [-hiv] [-p priority] name prov [prov [...]]\n"
-	    "       %s remove [-v] name prov [prov [...]]\n"
-	    "       %s activate [-v] name prov [prov [...]]\n"
-	    "       %s deactivate [-v] name prov [prov [...]]\n"
-	    "       %s forget name [name [...]]\n"
-	    "       %s stop [-fv] name [...]\n",
+	    "       %s rebuild [-v] name prov ...\n"
+	    "       %s insert [-hiv] [-p priority] name prov ...\n"
+	    "       %s remove [-v] name prov ...\n"
+	    "       %s activate [-v] name prov ...\n"
+	    "       %s deactivate [-v] name prov ...\n"
+	    "       %s forget name ...\n"
+	    "       %s stop [-fv] name ...\n",
 	    comm, comm, comm, comm, comm, comm, comm, comm, comm, comm, comm);
 }
 
