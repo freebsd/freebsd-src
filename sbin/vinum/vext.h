@@ -35,7 +35,7 @@
  */
 
 /*
- * $Id: vext.h,v 1.13 1999/10/12 05:41:36 grog Exp grog $
+ * $Id: vext.h,v 1.14 1999/12/27 03:55:26 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -69,6 +69,7 @@ void vinum_list(int argc, char *argv[], char *arg0[]);
 void vinum_info(int argc, char *argv[], char *arg0[]);
 void vinum_set(int argc, char *argv[], char *arg0[]);
 void vinum_rm(int argc, char *argv[], char *arg0[]);
+void vinum_mv(int argc, char *argv[], char *arg0[]);
 void vinum_init(int argc, char *argv[], char *arg0[]);
 void initvol(int volno);
 void initplex(int plexno, char *name);
@@ -126,13 +127,13 @@ void get_plex_info(struct plex *plex, int index);
 void get_volume_info(struct volume *volume, int index);
 struct drive *find_drive_by_devname(char *name);
 int find_object(const char *name, enum objecttype *type);
-char *lltoa(long long l, char *s);
+char *lltoa(int64_t l, char *s);
 void vinum_ldi(int, int);
 void vinum_lvi(int, int);
 void vinum_lpi(int, int);
 void vinum_lsi(int, int);
 int vinum_li(int object, enum objecttype type);
-char *roughlength(long long bytes, int);
+char *roughlength(int64_t bytes, int);
 u_int64_t sizespec(char *spec);
 
 void timestamp();
