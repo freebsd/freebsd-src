@@ -192,15 +192,17 @@ static uma_slab_t
 uma_dbg_getslab(uma_zone_t zone, void *item)
 {
 	uma_slab_t slab;
+	uma_keg_t keg;
 	u_int8_t *mem;
 
+	keg = zone->uz_keg;
 	mem = (u_int8_t *)((unsigned long)item & (~UMA_SLAB_MASK));
-	if (zone->uz_flags & UMA_ZONE_MALLOC) {
+	if (keg->uk_flags & UMA_ZONE_MALLOC) {
 		slab = vtoslab((vm_offset_t)mem);
-	} else if (zone->uz_flags & UMA_ZONE_HASH) {
-		slab = hash_sfind(&zone->uz_hash, mem);
+	} else if (keg->uk_flags & UMA_ZONE_HASH) {
+		slab = hash_sfind(&keg->uk_hash, mem);
 	} else {
-		mem += zone->uz_pgoff;
+		mem += keg->uk_pgoff;
 		slab = (uma_slab_t)mem;
 	}
 
@@ -215,8 +217,10 @@ uma_dbg_getslab(uma_zone_t zone, void *item)
 void
 uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 {
+	uma_keg_t keg;
 	int freei;
 
+	keg = zone->uz_keg;
 	if (slab == NULL) {
 		slab = uma_dbg_getslab(zone, item);
 		if (slab == NULL) 
@@ -225,9 +229,9 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 	}
 
 	freei = ((unsigned long)item - (unsigned long)slab->us_data)
-	    / zone->uz_rsize;
+	    / keg->uk_rsize;
 
-	slab->us_freelist[freei] = 255;
+	slab->us_freelist[freei].us_item = 255;
 
 	return;
 }
@@ -241,8 +245,10 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 void
 uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 {
+	uma_keg_t keg;
 	int freei;
 
+	keg = zone->uz_keg;
 	if (slab == NULL) {
 		slab = uma_dbg_getslab(zone, item);
 		if (slab == NULL) 
@@ -251,22 +257,22 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 	}
 
 	freei = ((unsigned long)item - (unsigned long)slab->us_data)
-	    / zone->uz_rsize;
+	    / keg->uk_rsize;
 
-	if (freei >= zone->uz_ipers)
+	if (freei >= keg->uk_ipers)
 		panic("zone: %s(%p) slab %p freelist %d out of range 0-%d\n",
-		    zone->uz_name, zone, slab, freei, zone->uz_ipers-1);
+		    zone->uz_name, zone, slab, freei, keg->uk_ipers-1);
 
-	if (((freei * zone->uz_rsize) + slab->us_data) != item) {
+	if (((freei * keg->uk_rsize) + slab->us_data) != item) {
 		printf("zone: %s(%p) slab %p freed address %p unaligned.\n",
 		    zone->uz_name, zone, slab, item);
 		panic("should be %p\n",
-		    (freei * zone->uz_rsize) + slab->us_data);
+		    (freei * keg->uk_rsize) + slab->us_data);
 	}
 
-	if (slab->us_freelist[freei] != 255) {
+	if (slab->us_freelist[freei].us_item != 255) {
 		printf("Slab at %p, freei %d = %d.\n",
-		    slab, freei, slab->us_freelist[freei]);
+		    slab, freei, slab->us_freelist[freei].us_item);
 		panic("Duplicate free of item %p from zone %p(%s)\n",
 		    item, zone, zone->uz_name);
 	}
@@ -276,5 +282,5 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 	 * Until then the count of valid slabs will make sure we don't
 	 * accidentally follow this and assume it's a valid index.
 	 */
-	slab->us_freelist[freei] = 0;
+	slab->us_freelist[freei].us_item = 0;
 }

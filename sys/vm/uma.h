@@ -43,7 +43,7 @@
 
 /* Types and type defs */
 
-struct uma_zone; 
+struct uma_zone;
 /* Opaque type used as a handle to the zone */
 typedef struct uma_zone * uma_zone_t;
 
@@ -157,10 +157,44 @@ typedef void (*uma_fini)(void *mem, int size);
  *	A pointer to a structure which is intended to be opaque to users of
  *	the interface.  The value may be null if the wait flag is not set.
  */
-
 uma_zone_t uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 			uma_init uminit, uma_fini fini, int align,
 			u_int16_t flags);
+
+/*
+ * Create a secondary uma zone
+ *
+ * Arguments:
+ *	name  The text name of the zone for debugging and stats, this memory
+ *		should not be freed until the zone has been deallocated.
+ *	ctor  The constructor that is called when the object is allocated
+ *	dtor  The destructor that is called when the object is freed.
+ *	zinit  An initializer that sets up the initial state of the memory
+ *		as the object passes from the Keg's slab to the Zone's cache.
+ *	zfini  A discard function that undoes initialization done by init
+ *		as the object passes from the Zone's cache to the Keg's slab.
+ *
+ *		ctor/dtor/zinit/zfini may all be null, see notes above.
+ *		Note that the zinit and zfini specified here are NOT
+ *		exactly the same as the init/fini specified to uma_zcreate()
+ *		when creating a master zone.  These zinit/zfini are called
+ *		on the TRANSITION from keg to zone (and vice-versa). Once
+ *		these are set, the primary zone may alter its init/fini
+ *		(which are called when the object passes from VM to keg)
+ *		using uma_zone_set_init/fini()) as well as its own
+ *		zinit/zfini (unset by default for master zone) with
+ *		uma_zone_set_zinit/zfini() (note subtle 'z' prefix).
+ *
+ *	align A bitmask that corisponds to the requested alignment
+ *		eg 4 would be 0x3
+ *	flags A set of parameters that control the behavior of the zone
+ *
+ * Returns:
+ *	A pointer to a structure which is intended to be opaque to users of
+ *	the interface.  The value may be null if the wait flag is not set.
+ */
+uma_zone_t uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
+		    uma_init zinit, uma_fini zfini, uma_zone_t master);
 
 /*
  * Definitions for uma_zcreate flags
@@ -185,6 +219,9 @@ uma_zone_t uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 					 * Use a hash table instead of caching
 					 * information in the vm_page.
 					 */
+#define	UMA_ZONE_SECONDARY	0x0200	/* Zone is a Secondary Zone */
+#define	UMA_ZONE_REFCNT		0x0400	/* Allocate refcnts in slabs */
+#define	UMA_ZONE_MAXBUCKET	0x0800	/* Use largest buckets */
 
 /* Definitions for align */
 #define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */
@@ -201,7 +238,6 @@ uma_zone_t uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
  *	zone  The zone we want to destroy.
  *
  */
-
 void uma_zdestroy(uma_zone_t zone);
 
 /*
@@ -376,6 +412,28 @@ int uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int size);
 void uma_zone_set_max(uma_zone_t zone, int nitems);
 
 /*
+ * The following two routines (uma_zone_set_init/fini)
+ * are used to set the backend init/fini pair which acts on an
+ * object as it becomes allocated and is placed in a slab within
+ * the specified zone's backing keg.  These should probably not
+ * be changed once allocations have already begun and only
+ * immediately upon zone creation.
+ */
+void uma_zone_set_init(uma_zone_t zone, uma_init uminit);
+void uma_zone_set_fini(uma_zone_t zone, uma_fini fini);
+
+/*
+ * The following two routines (uma_zone_set_zinit/zfini) are
+ * used to set the zinit/zfini pair which acts on an object as
+ * it passes from the backing Keg's slab cache to the
+ * specified Zone's bucket cache.  These should probably not
+ * be changed once allocations have already begun and
+ * only immediately upon zone creation.
+ */
+void uma_zone_set_zinit(uma_zone_t zone, uma_init zinit);
+void uma_zone_set_zfini(uma_zone_t zone, uma_fini zfini);
+
+/*
  * Replaces the standard page_alloc or obj_alloc functions for this zone
  *
  * Arguments:
@@ -430,5 +488,19 @@ void uma_zone_set_freef(uma_zone_t zone, uma_free freef);
  */
 void uma_prealloc(uma_zone_t zone, int itemcnt);
 
+/*
+ * Used to lookup the reference counter allocated for an item
+ * from a UMA_ZONE_REFCNT zone.  For UMA_ZONE_REFCNT zones,
+ * reference counters are allocated for items and stored in
+ * the underlying slab header.
+ *
+ * Arguments:
+ * 	zone  The UMA_ZONE_REFCNT zone to which the item belongs.
+ *	item  The address of the item for which we want a refcnt.
+ *
+ * Returns:
+ * 	A pointer to a u_int32_t reference counter.
+ */
+u_int32_t *uma_find_refcnt(uma_zone_t zone, void *item);
 
 #endif

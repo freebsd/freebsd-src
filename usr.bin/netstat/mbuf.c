@@ -99,17 +99,12 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
     u_long mbhiaddr, u_long clhiaddr, u_long mbloaddr, u_long clloaddr,
     u_long cpusaddr __unused, u_long pgsaddr, u_long mbpaddr)
 {
-	int i, j, nmbufs, nmbclusters, page_size, num_objs;
+	int i, nmbclusters;
 	int nsfbufs, nsfbufspeak, nsfbufsused;
-	u_int mbuf_hiwm, clust_hiwm, mbuf_lowm, clust_lowm;
-	u_long totspace[2], totused[2];
-	u_long gentotnum, gentotfree, totnum, totfree;
-	u_long totmem, totmemalloced, totmemused;
 	short nmbtypes;
 	size_t mlen;
 	long *mbtypes = NULL;
 	struct mbstat *mbstat = NULL;
-	struct mbpstat **mbpstat = NULL;
 	struct mbtypenames *mp;
 	bool *seen = NULL;
 
@@ -119,50 +114,12 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 		goto err;
 	}
 
-	/*
-	 * XXX: Unfortunately, for the time being, we have to fetch
-	 * the total length of the per-CPU stats area via sysctl
-	 * (regardless of whether we're looking at a core or not.
-	 */
-	if (sysctlbyname("kern.ipc.mb_statpcpu", NULL, &mlen, NULL, 0) < 0) {
-		warn("sysctl: retrieving mb_statpcpu len");
-		goto err;
-	} 
-	num_objs = (int)(mlen / sizeof(struct mbpstat));
-	if ((mbpstat = calloc(num_objs, sizeof(struct mbpstat *))) == NULL) {
-		warn("calloc: cannot allocate memory for mbpstats pointers");
-		goto err;
-	}
-	if ((mbpstat[0] = calloc(num_objs, sizeof(struct mbpstat))) == NULL) {
-		warn("calloc: cannot allocate memory for mbpstats");
-		goto err;
-	}
-
 	if (mbaddr) {
-		if (kread(mbpaddr, (char *)mbpstat[0], mlen))
-			goto err; 
 		if (kread(mbaddr, (char *)mbstat, sizeof mbstat))
 			goto err;
 		if (kread(nmbcaddr, (char *)&nmbclusters, sizeof(int)))
 			goto err;
-		if (kread(nmbufaddr, (char *)&nmbufs, sizeof(int)))
-			goto err;
-		if (kread(mbhiaddr, (char *)&mbuf_hiwm, sizeof(u_int)))
-			goto err;
-		if (kread(clhiaddr, (char *)&clust_hiwm, sizeof(u_int)))
-			goto err;
-		if (kread(mbloaddr, (char *)&mbuf_lowm, sizeof(u_int)))
-			goto err;
-		if (kread(clloaddr, (char *)&clust_lowm, sizeof(u_int)))
-			goto err;
-		if (kread(pgsaddr, (char *)&page_size, sizeof(int)))
-			goto err;
 	} else {
-		if (sysctlbyname("kern.ipc.mb_statpcpu", mbpstat[0], &mlen,
-		    NULL, 0) < 0) {
-			warn("sysctl: retrieving mb_statpcpu");
-			goto err;
-		}
 		mlen = sizeof *mbstat;
 		if (sysctlbyname("kern.ipc.mbstat", mbstat, &mlen, NULL, 0)
 		    < 0) {
@@ -175,43 +132,9 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 			warn("sysctl: retrieving nmbclusters");
 			goto err;
 		}
-		mlen = sizeof(int);
-		if (sysctlbyname("kern.ipc.nmbufs", &nmbufs, &mlen, NULL, 0)
-		    < 0) {
-			warn("sysctl: retrieving nmbufs");
-			goto err;
-		}
-		mlen = sizeof(u_int);
-		if (sysctlbyname("kern.ipc.mbuf_hiwm", &mbuf_hiwm, &mlen,
-		    NULL, 0) < 0) {
-			warn("sysctl: retrieving mbuf_hiwm");
-			goto err;
-		}
-		mlen = sizeof(u_int);
-		if (sysctlbyname("kern.ipc.clust_hiwm", &clust_hiwm, &mlen,
-		    NULL, 0) < 0) {
-			warn("sysctl: retrieving clust_hiwm");
-			goto err;
-		}
-		mlen = sizeof(u_int);
-		if (sysctlbyname("kern.ipc.mbuf_lowm", &mbuf_lowm, &mlen,
-		    NULL, 0) < 0) {
-			warn("sysctl: retrieving mbuf_lowm");
-			goto err;
-		}
-		mlen = sizeof(u_int);
-		if (sysctlbyname("kern.ipc.clust_lowm", &clust_lowm, &mlen,
-		    NULL, 0) < 0) {
-			warn("sysctl: retrieving clust_lowm");
-			goto err;
-		}
-		mlen = sizeof(int);
-		if (sysctlbyname("hw.pagesize", &page_size, &mlen, NULL, 0)
-		    < 0) {
-			warn("sysctl: retrieving hw.pagesize");
-			goto err;
-		}
 	}
+	if (mbstat->m_mbufs < 0) mbstat->m_mbufs = 0;		/* XXX */
+	if (mbstat->m_mclusts < 0) mbstat->m_mclusts = 0;	/* XXX */
 
 	nmbtypes = mbstat->m_numtypes;
 	if ((seen = calloc(nmbtypes, sizeof(*seen))) == NULL) {
@@ -223,59 +146,13 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 		goto err;
 	}
 
-	for (i = 0; i < num_objs; i++)
-		mbpstat[i] = mbpstat[0] + i;
-
 #undef MSIZE
 #define MSIZE		(mbstat->m_msize)
 #undef MCLBYTES
 #define	MCLBYTES	(mbstat->m_mclbytes)
-#define	GENLST		(num_objs - 1)
 
-	totnum = mbpstat[GENLST]->mb_mbbucks * mbstat->m_mbperbuck;
-	totfree = mbpstat[GENLST]->mb_mbfree;
-	for (j = 1; j < nmbtypes; j++)
-		mbtypes[j] += mbpstat[GENLST]->mb_mbtypes[j];
-	totspace[0] = mbpstat[GENLST]->mb_mbbucks * mbstat->m_mbperbuck * MSIZE;
-	for (i = 0; i < (num_objs - 1); i++) {
-		if (mbpstat[i]->mb_active == 0)
-			continue;
-		totspace[0] += mbpstat[i]->mb_mbbucks*mbstat->m_mbperbuck*MSIZE;
-		totnum += mbpstat[i]->mb_mbbucks * mbstat->m_mbperbuck;
-		totfree += mbpstat[i]->mb_mbfree;
-		for (j = 1; j < nmbtypes; j++)
-			mbtypes[j] += mbpstat[i]->mb_mbtypes[j]; 
-	}
-	totused[0] = totnum - totfree;
-	if (cflag) {
-		printf("mbuf usage:\n"
-		    "\tTotal:\t\t%lu/%lu/%d (in use/in pool/max)\n",
-		    totused[0], totnum, nmbufs);
-		gentotnum = mbpstat[GENLST]->mb_mbbucks * mbstat->m_mbperbuck;
-		gentotfree = mbpstat[GENLST]->mb_mbfree;
-		printf("\tGEN cache:\t%lu/%lu (in use/in pool)\n",
-		    gentotnum - gentotfree, gentotnum);
-	} else {
-		/* XXX: peak is now wrong. */
-		printf("%lu/%lu/%d mbufs in use (current/peak/max):\n",
-		    totused[0], totnum, nmbufs);
-	}
+	printf("%lu mbufs in use\n", mbstat->m_mbufs);
 
-	for (i = 0; cflag && i < (num_objs - 1); i++) {
-		if (mbpstat[i]->mb_active == 0)
-			continue;
-		printf("\tCPU #%d cache:\t%lu/%lu (in use/in pool)\n",
-		    i,
-		    (mbpstat[i]->mb_mbbucks * mbstat->m_mbperbuck -
-		     mbpstat[i]->mb_mbfree),
-		    (mbpstat[i]->mb_mbbucks * mbstat->m_mbperbuck));
-	}
-	if (cflag) {
-		printf("\tMbuf cache high watermark: %d\n", mbuf_hiwm);
-#ifdef NOTYET
-		printf("\tMbuf cache low watermark: %d\n", mbuf_lowm);
-#endif
-	}
 	for (mp = mbtypenames; mp->mt_name; mp++) {
 		if (mbtypes[mp->mt_type]) {
 			seen[mp->mt_type] = YES;
@@ -288,53 +165,10 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 			printf("\t  %lu mbufs allocated to <mbuf type: %d>\n",
 			    mbtypes[i], i);
 	}
-	if (cflag)
-		printf("\t%.1f%% of mbuf map consumed\n",
-		    totspace[0] * 100.0 / (nmbufs * MSIZE));
 
-	totnum = mbpstat[GENLST]->mb_clbucks * mbstat->m_clperbuck;
-	totfree = mbpstat[GENLST]->mb_clfree;
-	totspace[1] = mbpstat[GENLST]->mb_clbucks*mbstat->m_clperbuck*MCLBYTES;
-	for (i = 0; i < (num_objs - 1); i++) {
-		if (mbpstat[i]->mb_active == 0)
-			continue;
-		totspace[1] += mbpstat[i]->mb_clbucks * mbstat->m_clperbuck
-		    * MCLBYTES;
-		totnum += mbpstat[i]->mb_clbucks * mbstat->m_clperbuck;
-		totfree += mbpstat[i]->mb_clfree;
-	}
-	totused[1] = totnum - totfree;
-	if (cflag) {
-		printf("mbuf cluster usage:\n"
-		    "\tTotal:\t\t%lu/%lu/%d (in use/in pool/max)\n",
-		    totused[1], totnum, nmbclusters);
-		gentotnum = mbpstat[GENLST]->mb_clbucks * mbstat->m_clperbuck;
-		gentotfree = mbpstat[GENLST]->mb_clfree;
-		printf("\tGEN cache:\t%lu/%lu (in use/in pool)\n",
-		    gentotnum - gentotfree, gentotnum);
-	} else {
-		/* XXX: peak is now wrong. */
-		printf("%lu/%lu/%d mbuf clusters in use (current/peak/max)\n",
-		    totused[1], totnum, nmbclusters);
-	}
-	for (i = 0; cflag && i < (num_objs - 1); i++) {
-		if (mbpstat[i]->mb_active == 0)
-			continue;
-		printf("\tCPU #%d cache:\t%lu/%lu (in use/in pool)\n",
-		    i,
-		    (mbpstat[i]->mb_clbucks * mbstat->m_clperbuck -
-		     mbpstat[i]->mb_clfree),
-		    (mbpstat[i]->mb_clbucks * mbstat->m_clperbuck));
-	}
-	if (cflag) {
-		printf("\tCluster cache high watermark: %d\n", clust_hiwm);
-#ifdef NOTYET
-		printf("\tCluster cache low watermark: %d\n", clust_lowm);
-#endif
-	}
-	if (cflag)
-		printf("\t%.1f%% of cluster map consumed\n",
-		    totspace[1] * 100.0 / (nmbclusters * MCLBYTES));
+	printf("%lu/%d mbuf clusters in use (current/max)\n",
+	    mbstat->m_mclusts, nmbclusters);
+
 	mlen = sizeof(nsfbufs);
 	if (!sysctlbyname("kern.ipc.nsfbufs", &nsfbufs, &mlen, NULL, 0) &&
 	    !sysctlbyname("kern.ipc.nsfbufsused", &nsfbufsused, &mlen, NULL,
@@ -344,15 +178,8 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 		printf("%d/%d/%d sfbufs in use (current/peak/max)\n",
 		    nsfbufsused, nsfbufspeak, nsfbufs);
 	}
-	totmem = nmbufs * MSIZE + nmbclusters * MCLBYTES;
-	totmemalloced = totspace[0] + totspace[1];
-	totmemused = totused[0] * MSIZE + totused[1] * MCLBYTES;
-	printf(
-	    "%lu KBytes allocated to network (%.1f%% in use, %.1f%% wired)\n",
-	    totmem / 1024, totmemused * 100.0 / totmem,
-	    totmemalloced * 100.0 / totmem);
-	printf("%lu requests for memory denied\n", mbstat->m_drops);
-	printf("%lu requests for memory delayed\n", mbstat->m_wait);
+	printf("%lu KBytes allocated to network\n", (mbstat->m_mbufs * MSIZE +
+	    mbstat->m_mclusts * MCLBYTES) / 1024);
 	printf("%lu requests for sfbufs denied\n", mbstat->sf_allocfail);
 	printf("%lu requests for sfbufs delayed\n", mbstat->sf_allocwait);
 	printf("%lu requests for I/O initiated by sendfile\n",
@@ -366,9 +193,4 @@ err:
 		free(seen);
 	if (mbstat != NULL)
 		free(mbstat);
-	if (mbpstat != NULL) {
-		if (mbpstat[0] != NULL)
-			free(mbpstat[0]);
-		free(mbpstat);
-	}
 }
