@@ -613,8 +613,6 @@ ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 			return;
 		}
 		if (bif != BDG_LOCAL) {
-			struct mbuf *oldm = m ;
-
 			save_eh = *eh ; /* because it might change */
 			m = bdg_forward_ptr(m, eh, bif); /* needs forwarding */
 			/*
@@ -627,8 +625,7 @@ ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 				printf("bdg_forward drop MULTICAST PKT\n");
 			    return;
 			}
-			if (m != oldm) /* m changed! */
-			    eh = &save_eh ;
+			eh = &save_eh ;
 		}
 		if (bif == BDG_LOCAL
 		    || bif == BDG_BCAST
