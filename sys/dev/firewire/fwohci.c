@@ -2771,7 +2771,9 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 					dbch->buf_offset = - dbch->buf_offset;
 					/* sanity check */
 					if (resCount != 0) 
-						printf("resCount != 0 !?\n");
+						printf("resCount = %d !?\n",
+						    resCount);
+					/* XXX clear pdb_tr */
 					goto out;
 				}
 				offset = 0;
@@ -2783,6 +2785,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				= sizeof(fw_pkt) so this shouldn't happens */
 				printf("plen(%d) is negative! offset=%d\n",
 				    plen, offset);
+				/* XXX clear pdb_tr */
 				goto out;
 			}
 			if (plen > 0) {
@@ -2793,7 +2796,9 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 						printf("splitted payload\n");
 					/* sanity check */
 					if (resCount != 0) 
-						printf("resCount != 0 !?\n");
+						printf("resCount = %d !?\n",
+						    resCount);
+					/* XXX clear pdb_tr */
 					goto out;
 				}
 				vec[nvec].iov_base = ld;
