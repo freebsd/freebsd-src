@@ -125,10 +125,6 @@ ata_probe(device_t dev)
     mtx_init(&ch->queue_mtx, "ATA queue lock", MTX_DEF, 0);
     TAILQ_INIT(&ch->ata_queue);
 
-    mtx_init(&ch->request_lock, "ATA completion lock", MTX_DEF, 0);
-    TAILQ_INIT(&ch->complete_tqh);
-    TASK_INIT(&ch->task, 0, ata_completed, ch);
-
     /* initialise device(s) on this channel */
     ch->locking(ch, ATA_LF_LOCK);
     ch->hw.reset(ch);

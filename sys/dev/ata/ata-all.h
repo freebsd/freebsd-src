@@ -205,9 +205,9 @@ struct ata_request {
     int				timeout;	/* timeout for this cmd */
     struct callout_handle	timeout_handle; /* handle for untimeout */
     int				result;		/* result error code */
+    struct task			task;		/* task management */
     TAILQ_ENTRY(ata_request)	sequence;	/* sequence management */
     TAILQ_ENTRY(ata_request)	chain;		/* list management */
-    TAILQ_ENTRY(ata_request)	request_link;
 };
 
 /* define this for debugging request processing */
@@ -332,10 +332,6 @@ struct ata_channel {
     struct mtx			queue_mtx;	/* queue lock */
     TAILQ_HEAD(, ata_request)	ata_queue;	/* head of ATA queue */
     void			*running;	/* currently running request */
-
-    struct task			task;		/* task management */
-    struct mtx			request_lock;	/* queue lock */
-    TAILQ_HEAD(,ata_request)	complete_tqh;
 };
 
 /* ATAPI request sense structure */
@@ -399,7 +395,6 @@ int ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data, int cou
 void ata_queue_request(struct ata_request *request);
 void ata_finish(struct ata_request *request);
 char *ata_cmd2str(struct ata_request *request);
-void ata_completed(void *context, int pending);
 
 /* ata-lowlevel.c: */
 void ata_generic_hw(struct ata_channel *ch);

@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-all.h>
 
 /* prototypes */
+static void ata_completed(void *, int);
 static void ata_timeout(struct ata_request *);
 static char *ata_skey2str(u_int8_t);
 
@@ -204,40 +205,26 @@ ata_start(struct ata_channel *ch)
 void
 ata_finish(struct ata_request *request)
 {
-    struct ata_channel *channel;
-
     ATA_DEBUG_RQ(request, "taskqueue completition");
-
-    channel = request->device->channel;
-
-    mtx_lock(&channel->request_lock);
-    TAILQ_INSERT_TAIL(&channel->complete_tqh, request, request_link);
-    mtx_unlock(&channel->request_lock);
 
     /* request is done schedule it for completition */
     if (request->device->channel->flags & ATA_IMMEDIATE_MODE) {
-	ata_completed(channel, 0);
+	ata_completed(request, 0);
     }
     else {
-	taskqueue_enqueue(taskqueue_swi, &channel->task);
+	TASK_INIT(&request->task, 0, ata_completed, request);
+	taskqueue_enqueue(taskqueue_swi, &request->task);
     }
 }
 
 /* current command finished, clean up and return result */
-void
+static void
 ata_completed(void *context, int pending)
 {
-    struct ata_request *request;
-    struct ata_channel *channel;
+    struct ata_request *request = (struct ata_request *)context;
+    struct ata_channel *channel = request->device->channel;
 
     ATA_DEBUG_RQ(request, "completed called");
-
-    channel = (struct ata_channel *)context;
-
-    mtx_lock(&channel->request_lock);
-    while ((request = TAILQ_FIRST(&channel->complete_tqh)) != NULL) {
-	TAILQ_REMOVE(&channel->complete_tqh, request, request_link);
-	mtx_unlock(&channel->request_lock);
 
     if (request->flags & ATA_R_TIMEOUT) {
 	ata_reinit(channel);
@@ -369,22 +356,15 @@ ata_completed(void *context, int pending)
     else
 	sema_post(&request->done);
 
-	mtx_lock(&channel->request_lock);
-    }
-    mtx_unlock(&channel->request_lock);
-
     ata_start(channel);
 }
 
 static void
 ata_timeout(struct ata_request *request)
 {
-    struct ata_channel *channel;
-
     ATA_DEBUG_RQ(request, "timeout");
 
     /* clear timeout etc */
-    channel = request->device->channel;
     request->timeout_handle.callout = NULL;
 
     if (request->flags & ATA_R_INTR_SEEN) {
@@ -410,11 +390,7 @@ ata_timeout(struct ata_request *request)
 	    if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
 		printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
 	    printf("\n");
-
-	    mtx_lock(&channel->request_lock);
-	    TAILQ_INSERT_TAIL(&channel->complete_tqh, request, request_link);
-	    mtx_unlock(&channel->request_lock);
-	    ata_completed(channel, 0);
+	    ata_completed(request, 0);
 	}
 	return;
     }
