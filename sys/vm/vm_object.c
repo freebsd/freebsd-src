@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.18 1995/01/13 13:30:24 davidg Exp $
+ * $Id: vm_object.c,v 1.19 1995/01/24 10:13:14 davidg Exp $
  */
 
 /*
@@ -384,7 +384,8 @@ vm_object_terminate(object)
 	 * object are gone, so we don't need to lock it.
 	 */
 
-	if ((object->flags & OBJ_INTERNAL) == 0) {
+	if (((object->flags & OBJ_INTERNAL) == 0) &&
+	    object->pager && (object->pager->pg_type != PG_DEVICE)) {
 		(void) vm_object_page_clean(object, 0, 0, TRUE, TRUE);
 	}
 	/*
