@@ -1071,12 +1071,8 @@ inserted:
 	m->m_len += (IP_VHL_HL(ip->ip_vhl) << 2);
 	m->m_data -= (IP_VHL_HL(ip->ip_vhl) << 2);
 	/* some debugging cruft by sklower, below, will go away soon */
-	if (m->m_flags & M_PKTHDR) { /* XXX this should be done elsewhere */
-		register int plen = 0;
-		for (t = m; t; t = t->m_next)
-			plen += t->m_len;
-		m->m_pkthdr.len = plen;
-	}
+	if (m->m_flags & M_PKTHDR)	/* XXX this should be done elsewhere */
+		m_fixhdr(m);
 	return (m);
 
 dropfrag:
