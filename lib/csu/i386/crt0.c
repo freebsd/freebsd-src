@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.12 1994/09/18 22:21:04 ache Exp $
+ *	$Id: crt0.c,v 1.13 1994/09/19 02:00:21 ache Exp $
  */
 
 
@@ -41,6 +41,7 @@ int _callmain();
 #include <sys/param.h>
 #include <locale.h>
 #include <stdlib.h>
+extern void _startup_setlocale __P((int, const char *));
 
 #ifdef DYNAMIC
 #include <sys/types.h>
@@ -178,7 +179,7 @@ asm("eprol:");
 #endif /* MCRT0 */
 
 	if (getenv("ENABLE_STARTUP_LOCALE") != NULL)
-		(void) setlocale(LC_ALL, "");
+		_startup_setlocale(LC_ALL, "");
 
 asm ("__callmain:");		/* Defined for the benefit of debuggers */
 	exit(main(kfp->kargc, argv, environ));
