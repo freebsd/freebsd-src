@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_extern.h	8.4 (Berkeley) 3/30/95
- * $Id$
+ * $Id: mfs_extern.h,v 1.9 1997/02/22 09:47:31 peter Exp $
  */
 
 #ifndef _UFS_MFS_MFS_EXTERN_H_
@@ -43,7 +43,5 @@ struct vnode;
 void	mfs_doio __P((struct buf *bp, caddr_t base));
 int	mfs_mountfs __P((struct vnode *, struct mount *, struct proc *));
 int	mfs_mountroot __P((void));
-
-#define	mfs_revoke vop_revoke
 
 #endif /* !_UFS_MFS_MFS_EXTERN_H_ */

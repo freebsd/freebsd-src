@@ -156,21 +156,18 @@ ext2_update(ap)
  * disk blocks.
  */
 int
-ext2_truncate(ap)
-	struct vop_truncate_args /* {
-		struct vnode *a_vp;
-		off_t a_length;
-		int a_flags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
+ext2_truncate(vp, length, flags, cred, p)
+	struct vnode *vp;
+	off_t length;
+	int flags;
+	struct ucred *cred;
+	struct proc *p;
 {
-	register struct vnode *ovp = ap->a_vp;
+	register struct vnode *ovp = vp;
 	register daddr_t lastblock;
 	register struct inode *oip;
 	daddr_t bn, lbn, lastiblock[NIADDR], indir_lbn[NIADDR];
 	daddr_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
-	off_t length = ap->a_length;
 	register struct ext2_sb_info *fs;
 	struct buf *bp;
 	int offset, size, level;
@@ -180,7 +177,7 @@ ext2_truncate(ap)
 	int aflags, error, allerror;
 	off_t osize;
 /*
-printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, ap->a_length);
+printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 */	/* 
 	 * negative file sizes will totally break the code below and
 	 * are not meaningful anyways.
@@ -221,10 +218,10 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, ap->a_length);
 		offset = blkoff(fs, length - 1);
 		lbn = lblkno(fs, length - 1);
 		aflags = B_CLRBUF;
-		if (ap->a_flags & IO_SYNC)
+		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
 		vnode_pager_setsize(ovp, length);
-		if (error = ext2_balloc(oip, lbn, offset + 1, ap->a_cred, &bp,
+		if (error = ext2_balloc(oip, lbn, offset + 1, cred, &bp,
 		    aflags))
 			return (error);
 		oip->i_size = length;
@@ -252,9 +249,9 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, ap->a_length);
 	} else {
 		lbn = lblkno(fs, length);
 		aflags = B_CLRBUF;
-		if (ap->a_flags & IO_SYNC)
+		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
-		if (error = ext2_balloc(oip, lbn, offset, ap->a_cred, &bp,
+		if (error = ext2_balloc(oip, lbn, offset, cred, &bp,
 		    aflags))
 			return (error);
 		oip->i_size = length;
@@ -307,7 +304,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, ap->a_length);
 	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof oldblks);
 	oip->i_size = osize;
 	vflags = ((length > 0) ? V_SAVE : 0) | V_SAVEMETA;
-	allerror = vinvalbuf(ovp, vflags, ap->a_cred, ap->a_p, 0, 0);
+	allerror = vinvalbuf(ovp, vflags, cred, p, 0, 0);
 
 	/*
 	 * Indirect blocks first.

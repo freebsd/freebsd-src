@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufsmount.h	8.6 (Berkeley) 3/30/95
- * $Id: ufsmount.h,v 1.9 1997/10/10 18:18:13 phk Exp $
+ * $Id: ufsmount.h,v 1.10 1997/10/12 20:26:28 phk Exp $
  */
 
 #ifndef _UFS_UFS_UFSMOUNT_H_
@@ -97,7 +97,16 @@ struct ufsmount {
 	struct	netexport um_export;		/* export information */
 	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
 	struct malloc_type *um_malloctype;	/* The inodes malloctype */
+	int	(*um_blkatoff) __P((struct vnode *, off_t, char **, struct buf **));
+	int	(*um_truncate) __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
+	int	(*um_valloc) __P((struct vnode *, int, struct ucred *, struct vnode **));
+	int	(*um_vfree) __P((struct vnode *, ino_t, int));
 };
+
+#define UFS_BLKATOFF(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_blkatoff(aa, bb, cc, dd)
+#define UFS_TRUNCATE(aa, bb, cc, dd, ee) VFSTOUFS((aa)->v_mount)->um_truncate(aa, bb, cc, dd, ee)
+#define UFS_VALLOC(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_valloc(aa, bb, cc, dd)
+#define UFS_VFREE(aa, bb, cc) VFSTOUFS((aa)->v_mount)->um_vfree(aa, bb, cc)
 
 /*
  * Flags describing the state of quotas.

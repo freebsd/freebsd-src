@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.22 1997/10/15 09:21:11 phk Exp $
+ * $Id: portal_vnops.c,v 1.23 1997/10/15 10:04:34 phk Exp $
  */
 
 /*
@@ -78,7 +78,6 @@ static int	portal_print __P((struct vop_print_args *ap));
 static int	portal_readdir __P((struct vop_readdir_args *ap));
 static int	portal_reclaim __P((struct vop_reclaim_args *ap));
 static int	portal_setattr __P((struct vop_setattr_args *ap));
-static int	portal_vfree __P((struct vop_vfree_args *ap));
 
 static void
 portal_closefd(p, fd)
@@ -612,19 +611,6 @@ portal_print(ap)
 	return (0);
 }
 
-/*void*/
-static int
-portal_vfree(ap)
-	struct vop_vfree_args /* {
-		struct vnode *a_pvp;
-		ino_t a_ino;
-		int a_mode;
-	} */ *ap;
-{
-
-	return (0);
-}
-
 
 /*
  * Portal vnode unsupported operation
@@ -647,94 +633,26 @@ portal_badop()
 	/* NOTREACHED */
 }
 
-#define portal_create ((int (*) __P((struct vop_create_args *)))portal_enotsupp)
-#define portal_mknod ((int (*) __P((struct  vop_mknod_args *)))portal_enotsupp)
-#define portal_close ((int (*) __P((struct  vop_close_args *)))nullop)
-#define portal_access ((int (*) __P((struct  vop_access_args *)))nullop)
-#define portal_read ((int (*) __P((struct  vop_read_args *)))portal_enotsupp)
-#define portal_write ((int (*) __P((struct  vop_write_args *)))portal_enotsupp)
-#define portal_ioctl ((int (*) __P((struct  vop_ioctl_args *)))portal_enotsupp)
-#define portal_mmap ((int (*) __P((struct  vop_mmap_args *)))portal_enotsupp)
-#define	portal_poll vop_nopoll
-#define	portal_revoke vop_revoke
-#define portal_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
-#define portal_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
-#define portal_remove ((int (*) __P((struct vop_remove_args *)))portal_enotsupp)
-#define portal_link ((int (*) __P((struct  vop_link_args *)))portal_enotsupp)
-#define portal_rename ((int (*) __P((struct vop_rename_args *)))portal_enotsupp)
-#define portal_mkdir ((int (*) __P((struct  vop_mkdir_args *)))portal_enotsupp)
-#define portal_rmdir ((int (*) __P((struct  vop_rmdir_args *)))portal_enotsupp)
-#define portal_symlink \
-	((int (*) __P((struct  vop_symlink_args *)))portal_enotsupp)
-#define portal_readlink \
-	((int (*) __P((struct  vop_readlink_args *)))portal_enotsupp)
-#define portal_abortop ((int (*) __P((struct  vop_abortop_args *)))nullop)
-#define portal_lock ((int (*) __P((struct  vop_lock_args *)))vop_nolock)
-#define portal_unlock ((int (*) __P((struct  vop_unlock_args *)))vop_nounlock)
-#define portal_bmap ((int (*) __P((struct  vop_bmap_args *)))portal_badop)
-#define portal_strategy \
-	((int (*) __P((struct  vop_strategy_args *)))portal_badop)
-#define portal_islocked \
-	((int (*) __P((struct vop_islocked_args *)))vop_noislocked)
-#define fifo_islocked ((int(*) __P((struct vop_islocked_args *)))vop_noislocked)
-#define portal_advlock \
-	((int (*) __P((struct  vop_advlock_args *)))portal_enotsupp)
-#define portal_blkatoff \
-	((int (*) __P((struct  vop_blkatoff_args *)))portal_enotsupp)
-#define portal_valloc ((int(*) __P(( \
-		struct vnode *pvp, \
-		int mode, \
-		struct ucred *cred, \
-		struct vnode **vpp))) portal_enotsupp)
-#define portal_truncate \
-	((int (*) __P((struct  vop_truncate_args *)))portal_enotsupp)
-#define portal_update ((int (*) __P((struct vop_update_args *)))portal_enotsupp)
-#define portal_bwrite ((int (*) __P((struct vop_bwrite_args *)))portal_enotsupp)
-
 vop_t **portal_vnodeop_p;
 static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
-	{ &vop_abortop_desc,		(vop_t *) portal_abortop },
-	{ &vop_access_desc,		(vop_t *) portal_access },
-	{ &vop_advlock_desc,		(vop_t *) portal_advlock },
-	{ &vop_blkatoff_desc,		(vop_t *) portal_blkatoff },
-	{ &vop_bmap_desc,		(vop_t *) portal_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) portal_bwrite },
-	{ &vop_close_desc,		(vop_t *) portal_close },
-	{ &vop_create_desc,		(vop_t *) portal_create },
-	{ &vop_fsync_desc,		(vop_t *) portal_fsync },
+	{ &vop_access_desc,		(vop_t *) nullop },
+	{ &vop_bmap_desc,		(vop_t *) portal_badop },
+	{ &vop_close_desc,		(vop_t *) nullop },
+	{ &vop_fsync_desc,		(vop_t *) nullop },
 	{ &vop_getattr_desc,		(vop_t *) portal_getattr },
 	{ &vop_inactive_desc,		(vop_t *) portal_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) portal_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) portal_islocked },
-	{ &vop_link_desc,		(vop_t *) portal_link },
-	{ &vop_lock_desc,		(vop_t *) portal_lock },
+	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
+	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) portal_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) portal_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) portal_mknod },
-	{ &vop_mmap_desc,		(vop_t *) portal_mmap },
 	{ &vop_open_desc,		(vop_t *) portal_open },
 	{ &vop_pathconf_desc,		(vop_t *) portal_pathconf },
-	{ &vop_poll_desc,		(vop_t *) portal_poll },
 	{ &vop_print_desc,		(vop_t *) portal_print },
-	{ &vop_read_desc,		(vop_t *) portal_read },
 	{ &vop_readdir_desc,		(vop_t *) portal_readdir },
-	{ &vop_readlink_desc,		(vop_t *) portal_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) portal_reclaim },
-	{ &vop_remove_desc,		(vop_t *) portal_remove },
-	{ &vop_rename_desc,		(vop_t *) portal_rename },
-	{ &vop_revoke_desc,		(vop_t *) portal_revoke },
-	{ &vop_rmdir_desc,		(vop_t *) portal_rmdir },
-	{ &vop_seek_desc,		(vop_t *) portal_seek },
+	{ &vop_seek_desc,		(vop_t *) nullop },
 	{ &vop_setattr_desc,		(vop_t *) portal_setattr },
-	{ &vop_strategy_desc,		(vop_t *) portal_strategy },
-	{ &vop_symlink_desc,		(vop_t *) portal_symlink },
-	{ &vop_truncate_desc,		(vop_t *) portal_truncate },
-	{ &vop_unlock_desc,		(vop_t *) portal_unlock },
-	{ &vop_update_desc,		(vop_t *) portal_update },
-	{ &vop_valloc_desc,		(vop_t *) portal_valloc },
-	{ &vop_vfree_desc,		(vop_t *) portal_vfree },
-	{ &vop_write_desc,		(vop_t *) portal_write },
+	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc portal_vnodeop_opv_desc =

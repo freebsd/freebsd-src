@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.6 (Berkeley) 3/30/95
- * $Id: ffs_extern.h,v 1.17 1997/09/27 13:40:05 kato Exp $
+ * $Id: ffs_extern.h,v 1.18 1997/10/10 18:16:58 phk Exp $
  */
 
 #ifndef _UFS_FFS_EXTERN_H
@@ -65,7 +65,7 @@ int	ffs_alloc __P((struct inode *,
 	    ufs_daddr_t, ufs_daddr_t, int, struct ucred *, ufs_daddr_t *));
 int	ffs_balloc __P((struct inode *,
 	    ufs_daddr_t, int, struct ucred *, struct buf **, int));
-int	ffs_blkatoff __P((struct vop_blkatoff_args *));
+int	ffs_blkatoff __P((struct vnode *, off_t, char **, struct buf **));
 void	ffs_blkfree __P((struct inode *, ufs_daddr_t, long));
 ufs_daddr_t ffs_blkpref __P((struct inode *, ufs_daddr_t, int, ufs_daddr_t *));
 int	ffs_bmap __P((struct vop_bmap_args *));
@@ -84,11 +84,12 @@ int	ffs_realloccg __P((struct inode *,
 void	ffs_setblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_statfs __P((struct mount *, struct statfs *, struct proc *));
 int	ffs_sync __P((struct mount *, int, struct ucred *, struct proc *));
-int	ffs_truncate __P((struct vop_truncate_args *));
+int	ffs_truncate __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
 int	ffs_unmount __P((struct mount *, int, struct proc *));
 int	ffs_update __P((struct vop_update_args *));
-int	ffs_valloc __P((struct vop_valloc_args *));
-int	ffs_vfree __P((struct vop_vfree_args *));
+int	ffs_valloc __P((struct vnode *, int, struct ucred *, struct vnode **));
+
+int	ffs_vfree __P((struct vnode *, ino_t, int));
 int	ffs_vget __P((struct mount *, ino_t, struct vnode **));
 int	ffs_vptofh __P((struct vnode *, struct fid *));
 

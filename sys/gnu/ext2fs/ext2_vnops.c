@@ -69,6 +69,7 @@
 #endif
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 #include <ufs/ffs/ffs_extern.h>
 
@@ -84,17 +85,13 @@ static int ext2_write __P((struct vop_write_args *));
 vop_t **ext2_vnodeop_p;
 static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperate },
-	{ &vop_blkatoff_desc,		(vop_t *) ext2_blkatoff },
 	{ &vop_cachedlookup_desc,	(vop_t *) ext2_lookup },
 	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
 	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
 	{ &vop_read_desc,		(vop_t *) ext2_read },
 	{ &vop_readdir_desc,		(vop_t *) ext2_readdir },
 	{ &vop_reallocblks_desc,	(vop_t *) ext2_reallocblks },
-	{ &vop_truncate_desc,		(vop_t *) ext2_truncate },
 	{ &vop_update_desc,		(vop_t *) ext2_update },
-	{ &vop_valloc_desc,		(vop_t *) ext2_valloc },
-	{ &vop_vfree_desc,		(vop_t *) ext2_vfree },
 	{ &vop_write_desc,		(vop_t *) ext2_write },
 	{ NULL, NULL }
 };
@@ -107,7 +104,6 @@ static struct vnodeopv_entry_desc ext2_specop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
 	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
 	{ &vop_update_desc,		(vop_t *) ext2_update },
-	{ &vop_vfree_desc,		(vop_t *) ext2_vfree },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ext2fs_specop_opv_desc =
@@ -119,7 +115,6 @@ static struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
 	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
 	{ &vop_update_desc,		(vop_t *) ext2_update },
-	{ &vop_vfree_desc,		(vop_t *) ext2_vfree },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ext2fs_fifoop_opv_desc =

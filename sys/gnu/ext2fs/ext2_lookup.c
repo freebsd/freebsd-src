@@ -349,7 +349,7 @@ ext2_lookup(ap)
 	} else {
 		dp->i_offset = dp->i_diroff;
 		if ((entryoffsetinblock = dp->i_offset & bmask) &&
-		    (error = VOP_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp)))
+		    (error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp)))
 			return (error);
 		numdirpasses = 2;
 		nchstats.ncs_2passes++;
@@ -367,7 +367,7 @@ searchloop:
 			if (bp != NULL)
 				brelse(bp);
 			if (error =
-			    VOP_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp))
+			    UFS_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp))
 				return (error);
 			entryoffsetinblock = 0;
 		}
@@ -802,7 +802,7 @@ ext2_direnter(ip, dvp, cnp)
 	/*
 	 * Get the block containing the space for the new directory entry.
 	 */
-	if (error = VOP_BLKATOFF(dvp, (off_t)dp->i_offset, &dirbuf, &bp))
+	if (error = UFS_BLKATOFF(dvp, (off_t)dp->i_offset, &dirbuf, &bp))
 		return (error);
 	/*
 	 * Find space for the new entry. In the simple case, the entry at
@@ -848,7 +848,7 @@ ext2_direnter(ip, dvp, cnp)
 	error = VOP_BWRITE(bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
-		error = VOP_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC,
+		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC,
 		    cnp->cn_cred, cnp->cn_proc);
 	return (error);
 }
@@ -881,7 +881,7 @@ ext2_dirremove(dvp, cnp)
 		 * First entry in block: set d_ino to zero.
 		 */
 		if (error =
-		    VOP_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp))
+		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp))
 			return (error);
 		ep->inode = 0;
 		error = VOP_BWRITE(bp);
@@ -891,7 +891,7 @@ ext2_dirremove(dvp, cnp)
 	/*
 	 * Collapse new free space into previous entry.
 	 */
-	if (error = VOP_BLKATOFF(dvp, (off_t)(dp->i_offset - dp->i_count),
+	if (error = UFS_BLKATOFF(dvp, (off_t)(dp->i_offset - dp->i_count),
 	    (char **)&ep, &bp))
 		return (error);
 	ep->rec_len += dp->i_reclen;
@@ -915,7 +915,7 @@ ext2_dirrewrite(dp, ip, cnp)
 	struct vnode *vdp = ITOV(dp);
 	int error;
 
-	if (error = VOP_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp))
+	if (error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp))
 		return (error);
 	ep->inode = ip->i_number;
 	error = VOP_BWRITE(bp);

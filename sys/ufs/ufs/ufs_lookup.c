@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id: ufs_lookup.c,v 1.16 1997/09/02 20:06:58 bde Exp $
+ * $Id: ufs_lookup.c,v 1.17 1997/09/10 19:47:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -185,7 +185,7 @@ ufs_lookup(ap)
 	} else {
 		dp->i_offset = dp->i_diroff;
 		if ((entryoffsetinblock = dp->i_offset & bmask) &&
-		    (error = VOP_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp)))
+		    (error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp)))
 			return (error);
 		numdirpasses = 2;
 		nchstats.ncs_2passes++;
@@ -203,7 +203,7 @@ searchloop:
 			if (bp != NULL)
 				brelse(bp);
 			error =
-			    VOP_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp);
+			    UFS_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp);
 			if (error)
 				return (error);
 			entryoffsetinblock = 0;
@@ -715,7 +715,7 @@ ufs_direnter2(dvp, dirp, cr, p)
 	/*
 	 * Get the block containing the space for the new directory entry.
 	 */
-	error = VOP_BLKATOFF(dvp, (off_t)dp->i_offset, &dirbuf, &bp);
+	error = UFS_BLKATOFF(dvp, (off_t)dp->i_offset, &dirbuf, &bp);
 	if (error)
 		return (error);
 	/*
@@ -770,7 +770,7 @@ ufs_direnter2(dvp, dirp, cr, p)
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
-		error = VOP_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC, cr, p);
+		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC, cr, p);
 	return (error);
 }
 
@@ -803,7 +803,7 @@ ufs_dirremove(dvp, cnp)
 		 * Whiteout entry: set d_ino to WINO.
 		 */
 		if (error =
-		    VOP_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp))
+		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp))
 			return (error);
 		ep->d_ino = WINO;
 		ep->d_type = DT_WHT;
@@ -817,7 +817,7 @@ ufs_dirremove(dvp, cnp)
 		 * First entry in block: set d_ino to zero.
 		 */
 		error =
-		    VOP_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp);
+		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp);
 		if (error)
 			return (error);
 		ep->d_ino = 0;
@@ -828,7 +828,7 @@ ufs_dirremove(dvp, cnp)
 	/*
 	 * Collapse new free space into previous entry.
 	 */
-	error = VOP_BLKATOFF(dvp, (off_t)(dp->i_offset - dp->i_count),
+	error = UFS_BLKATOFF(dvp, (off_t)(dp->i_offset - dp->i_count),
 	    (char **)&ep, &bp);
 	if (error)
 		return (error);
@@ -858,7 +858,7 @@ ufs_dirrewrite(dp, ip, cnp)
 	struct vnode *vdp = ITOV(dp);
 	int error;
 
-	error = VOP_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp);
+	error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp);
 	if (error)
 		return (error);
 	ep->d_ino = ip->i_number;

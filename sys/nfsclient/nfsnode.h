@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.9 (Berkeley) 5/14/95
- * $Id: nfsnode.h,v 1.21 1997/05/19 14:36:51 dfr Exp $
+ * $Id: nfsnode.h,v 1.22 1997/10/15 07:42:34 phk Exp $
  */
 
 
@@ -163,16 +163,10 @@ extern	vop_t	**spec_nfsv2nodeop_p;
  */
 int	nfs_getpages __P((struct vop_getpages_args *));
 int	nfs_write __P((struct vop_write_args *));
-#define	nfs_lease_check ((int (*) __P((struct  vop_lease_args *)))nullop)
 int	nqnfs_vop_lease_check __P((struct vop_lease_args *));
-#define nfs_revoke vop_revoke
-#define nfs_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
 int	nfs_abortop __P((struct vop_abortop_args *));
 int	nfs_inactive __P((struct vop_inactive_args *));
 int	nfs_reclaim __P((struct vop_reclaim_args *));
-#define nfs_lock ((int (*) __P((struct vop_lock_args *)))vop_sharedlock)
-#define nfs_unlock ((int (*) __P((struct vop_unlock_args *)))vop_nounlock)
-#define nfs_islocked ((int (*) __P((struct vop_islocked_args *)))vop_noislocked)
 
 /* other stuff */
 int	nfs_removeit __P((struct sillyrename *));

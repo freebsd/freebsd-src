@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.46 1997/10/15 09:21:39 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.47 1997/10/15 10:05:03 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1992,7 +1992,6 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) msdosfs_access },
 	{ &vop_advlock_desc,		(vop_t *) msdosfs_advlock },
 	{ &vop_bmap_desc,		(vop_t *) msdosfs_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
 	{ &vop_cachedlookup_desc,	(vop_t *) msdosfs_lookup },
 	{ &vop_close_desc,		(vop_t *) msdosfs_close },
 	{ &vop_create_desc,		(vop_t *) msdosfs_create },
