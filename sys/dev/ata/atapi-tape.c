@@ -466,16 +466,10 @@ ast_start(struct atapi_softc *atp)
 
     bzero(ccb, sizeof(ccb));
 
-    if (bp->b_flags & B_READ) {
+    if (bp->b_flags & B_READ)
 	ccb[0] = ATAPI_READ;
-	if (!(stp->flags & ATAPI_F_DSC_USED))
-	    atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 2*60, NULL, NULL);
-    } 
-    else {
+    else
 	ccb[0] = ATAPI_WRITE;
-	if (!(stp->flags & ATAPI_F_DSC_USED))
-	    atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 2*60, NULL, NULL);
-    } 
     
     bufq_remove(&stp->buf_queue, bp);
     blkcount = bp->b_bcount / stp->blksize;
