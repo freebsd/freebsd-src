@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: manctl,v 1.5 1994/04/18 15:39:29 g89r4222 Exp $
+# $Id: manctl.sh,v 1.4 1994/04/18 18:46:50 csgr Exp $
 #
 # manctl: 
 #	a utility for manipulating manual pages
@@ -162,7 +162,7 @@ so_purge_page()
 	local	fname
 
 	so_entries=`grep "^\.so" $1 | wc -l`
-	if [ $so_entries -eq 0 ] ; then ; return 0 ; fi
+	if [ $so_entries -eq 0 ] ; then return 0 ; fi
 
 	# we have a page with a .so in it
 	echo $1 contains a .so entry 2>&1
@@ -366,7 +366,7 @@ do_compress()
 #
 # dispatch options
 #
-if [ $# = 0 ] ; then ; ctl_usage $0 ; fi ;
+if [ $# = 0 ] ; then ctl_usage $0 ; fi ;
 
 case "$1" in
 	-compress)	shift ; do_compress "$@" ;;
