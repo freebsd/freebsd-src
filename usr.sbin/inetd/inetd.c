@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.8 1995/10/30 14:03:00 adam Exp $";
+	"$Id: inetd.c,v 1.9 1995/11/03 09:30:13 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -123,6 +123,7 @@ static char inetd_c_rcsid[] =
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <libutil.h>
 
 #include "pathnames.h"
 
@@ -237,8 +238,11 @@ struct biltin {
 
 #define NUMINT	(sizeof(intab) / sizeof(struct inent))
 char	*CONFIG = _PATH_INETDCONF;
+
+#ifdef OLD_SETPROCTITLE
 char	**Argv;
 char 	*LastArg;
+#endif
 
 int
 main(argc, argv, envp)
@@ -254,12 +258,15 @@ main(argc, argv, envp)
 	struct  sockaddr_in peer;
 	int i;
 
+
+#ifdef OLD_SETPROCTITLE
 	Argv = argv;
 	if (envp == 0 || *envp == 0)
 		envp = argv;
 	while (*envp)
 		envp++;
 	LastArg = envp[-1] + strlen(envp[-1]);
+#endif
 
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
@@ -1082,8 +1089,9 @@ newstr(cp)
 	exit(-1);
 }
 
+#ifdef OLD_SETPROCTITLE
 void
-setproctitle(a, s)
+inetd_setproctitle(a, s)
 	char *a;
 	int s;
 {
@@ -1103,6 +1111,25 @@ setproctitle(a, s)
 	while (cp < LastArg)
 		*cp++ = ' ';
 }
+#else
+void
+inetd_setproctitle(a, s)
+	char *a;
+	int s;
+{
+	int size;
+	struct sockaddr_in sin;
+	char buf[80];
+
+	size = sizeof(sin);
+	if (getpeername(s, (struct sockaddr *)&sin, &size) == 0)
+		(void) sprintf(buf, "%s [%s]", a, inet_ntoa(sin.sin_addr));
+	else
+		(void) sprintf(buf, "%s", a);
+	setproctitle("%s", buf);
+}
+#endif
+
 
 /*
  * Internet services provided internally by inetd:
@@ -1118,7 +1145,7 @@ echo_stream(s, sep)		/* Echo service -- echo data back */
 	char buffer[BUFSIZE];
 	int i;
 
-	setproctitle(sep->se_service, s);
+	inetd_setproctitle(sep->se_service, s);
 	while ((i = read(s, buffer, sizeof(buffer))) > 0 &&
 	    write(s, buffer, i) > 0)
 		;
@@ -1178,7 +1205,7 @@ discard_stream(s, sep)		/* Discard service -- ignore data */
 	int ret;
 	char buffer[BUFSIZE];
 
-	setproctitle(sep->se_service, s);
+	inetd_setproctitle(sep->se_service, s);
 	while (1) {
 		while ((ret = read(s, buffer, sizeof(buffer))) > 0)
 			;
@@ -1225,7 +1252,7 @@ chargen_stream(s, sep)		/* Character generator */
 	int len;
 	char *rs, text[LINESIZ+2];
 
-	setproctitle(sep->se_service, s);
+	inetd_setproctitle(sep->se_service, s);
 
 	if (!endring) {
 		initring();
