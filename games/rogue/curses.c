@@ -168,7 +168,7 @@ char *str;
 }
 
 addch(ch)
-register int ch;
+int ch;
 {
 	short row, col;
 
@@ -193,7 +193,7 @@ int ch;
 
 refresh()
 {
-	register i, j, line;
+	i, j, line;
 	short old_row, old_col, first_row;
 
 	if (screen_dirty) {
@@ -303,7 +303,7 @@ nonl()
 
 clear_buffers()
 {
-	register i, j;
+	i, j;
 
 	screen_dirty = 0;
 
@@ -317,7 +317,7 @@ clear_buffers()
 }
 
 put_char_at(row, col, ch)
-register row, col, ch;
+row, col, ch;
 {
 	put_cursor(row, col);
 	put_st_char(ch);
@@ -326,9 +326,9 @@ register row, col, ch;
 }
 
 put_cursor(row, col)
-register row, col;
+row, col;
 {
-	register i, rdif, cdif;
+	i, rdif, cdif;
 	short ch, t;
 
 	rdif = (row > cur_row) ? row - cur_row : cur_row - row;
@@ -380,7 +380,7 @@ register row, col;
 }
 
 put_st_char(ch)
-register ch;
+ch;
 {
 	if ((ch & ST_MASK) && (!term_stand_out)) {
 		ch &= ~ST_MASK;

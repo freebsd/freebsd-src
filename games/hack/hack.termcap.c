@@ -20,8 +20,8 @@ int CO, LI;		/* used in pri.c and whatis.c */
 
 startup()
 {
-	register char *term;
-	register char *tptr;
+	char *term;
+	char *tptr;
 	char *tbufptr, *pc;
 
 	tptr = (char *) alloc(1024);
@@ -92,7 +92,7 @@ end_screen()
 extern xchar curx, cury;
 
 curs(x, y)
-register int x, y;	/* not xchar: perhaps xchar is unsigned and
+int x, y;	/* not xchar: perhaps xchar is unsigned and
 			   curx-x would be unsigned as well */
 {
 
@@ -160,7 +160,7 @@ nocmov(x, y)
 }
 
 cmov(x, y)
-register x, y;
+x, y;
 {
 	xputs(tgoto(CM, x-1, y-1));
 	cury = y;
@@ -181,7 +181,7 @@ cl_end() {
 	else {	/* no-CE fix - free after Harold Rynes */
 		/* this looks terrible, especially on a slow terminal
 		   but is better than nothing */
-		register cx = curx, cy = cury;
+		cx = curx, cy = cury;
 
 		while(curx < COLNO) {
 			xputc(' ');
@@ -250,8 +250,8 @@ delay_output() {
 	}
 	else if(ospeed > 0 || ospeed < SIZE(tmspc10)) if(CM) {
 		/* delay by sending cm(here) an appropriate number of times */
-		register int cmlen = strlen(tgoto(CM, curx-1, cury-1));
-		register int i = 500 + tmspc10[ospeed]/2;
+		int cmlen = strlen(tgoto(CM, curx-1, cury-1));
+		int i = 500 + tmspc10[ospeed]/2;
 
 		while(i > 0) {
 			cmov(curx, cury);
@@ -267,7 +267,7 @@ cl_eos()			/* free after Robert Viduya */
 	if(CD)
 		xputs(CD);
 	else {
-		register int cx = curx, cy = cury;
+		int cx = curx, cy = cury;
 		while(cury <= LI-2) {
 			cl_end();
 			xputc('\n');

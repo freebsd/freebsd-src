@@ -156,7 +156,7 @@ sncbr()
  */
 newgame()
 	{
-	register long *p,*pe;
+	long *p,*pe;
 	for (p=c,pe=c+100; p<pe; *p++ =0);
 	time(&initialtime);             srandomdev();
 	lcreat((char*)0);	/* open buffering for output to terminal */
@@ -198,9 +198,9 @@ lprintf(va_alist)
 va_dcl
     {
 	va_list ap;	/* pointer for variable argument list */
-	register char *fmt;
-	register char *outb,*tmpb;
-	register long wide,left,cont,n;		/* data for lprintf	*/
+	char *fmt;
+	char *outb,*tmpb;
+	long wide,left,cont,n;		/* data for lprintf	*/
 	char db[12];			/* %d buffer in lprintf	*/
 
 	va_start(ap);	/* initialize the var args pointer */
@@ -280,7 +280,7 @@ va_dcl
  *	Returns nothing of value.
  */
 lprint(x)
-	register long x;
+	long x;
 	{
 	if (lpnt >= lpend) lflush();
 	*lpnt++ =  255 & x;			*lpnt++ =  255 & (x>>8);
@@ -296,11 +296,11 @@ lprint(x)
  *	Returns nothing of value
  */
 lwrite(buf,len)
-    register char *buf;
+    char *buf;
     int len;
     {
-	register char *str;
-	register int num2;
+	char *str;
+	int num2;
 	if (len > 399)  /* don't copy data if can just write it */
 		{
 #ifdef EXTRA
@@ -333,7 +333,7 @@ lwrite(buf,len)
  */
 long lgetc()
     {
-    register int i;
+    int i;
     if (ipoint != iepoint)  return(inbuffer[ipoint++]);
     if (iepoint!=MAXIBUF)   return(0);
     if ((i=read(fd,inbuffer,MAXIBUF))<=0)
@@ -359,7 +359,7 @@ long lgetc()
  */
 long lrint()
 	{
-	register unsigned long i;
+	unsigned long i;
 	i  = 255 & lgetc();				i |= (255 & lgetc()) << 8;
 	i |= (255 & lgetc()) << 16;		i |= (255 & lgetc()) << 24;
 	return(i);
@@ -374,11 +374,11 @@ long lrint()
  *	Returns nothing of value
  */
 lrfill(adr,num)
-	register char *adr;
+	char *adr;
 	int num;
 	{
-	register char *pnt;
-	register int num2;
+	char *pnt;
+	int num2;
 	while (num)
 		{
 		if (iepoint == ipoint)
@@ -408,8 +408,8 @@ lrfill(adr,num)
  */
 char *lgetw()
 	{
-	register char *lgp,cc;
-	register int n=LINBUFSIZE,quote=0;
+	char *lgp,cc;
+	int n=LINBUFSIZE,quote=0;
 	lgp = lgetwbuf;
 	do cc=lgetc();  while ((cc <= 32) && (cc > NULL));  /* eat whitespace */
 	for ( ; ; --n,cc=lgetc())
@@ -427,8 +427,8 @@ char *lgetw()
  */
 char *lgetl()
 	{
-	register int i=LINBUFSIZE,ch;
-	register char *str=lgetwbuf;
+	int i=LINBUFSIZE,ch;
+	char *str=lgetwbuf;
 	for ( ; ; --i)
 		{
 		if ((*str++ = ch = lgetc()) == NULL)
@@ -523,9 +523,9 @@ lwclose()
  *								    avoids calls to lprintf (time consuming)
  */
 lprcat(str)
-    register char *str;
+    char *str;
     {
-	register char *str2;
+	char *str2;
 	if (lpnt >= lpend) lflush();
 	str2 = lpnt;
 	while (*str2++ = *str++);
@@ -557,7 +557,7 @@ static char *x_num[]= { "H","H",";2H",";3H",";4H",";5H",";6H",";7H",";8H",";9H",
 cursor(x,y)
 	int x,y;
 	{
-	register char *p;
+	char *p;
 	if (lpnt >= lpend) lflush();
 
 	p = y_num[y];	/* get the string to print */
@@ -679,12 +679,12 @@ cl_line(x,y)
  * cl_up(x,y) Clear screen from [x,1] to current position. Leave cursor at [x,y]
  */
 cl_up(x,y)
-	register int x,y;
+	int x,y;
 	{
 #ifdef VT100
 	cursor(x,y);  lprcat("\33[1J\33[2K");
 #else VT100
-	register int i;
+	int i;
 	cursor(1,1);
 	for (i=1; i<=y; i++)   { *lpnt++ = CL_LINE;  *lpnt++ = '\n'; }
 	cursor(x,y);
@@ -695,12 +695,12 @@ cl_up(x,y)
  * cl_dn(x,y) 	Clear screen from [1,y] to end of display. Leave cursor at [x,y]
  */
 cl_dn(x,y)
-	register int x,y;
+	int x,y;
 	{
 #ifdef VT100
 	cursor(x,y); lprcat("\33[J\33[2K");
 #else VT100
-	register int i;
+	int i;
 	cursor(1,y);
 	if (!CD)
 		{
@@ -718,7 +718,7 @@ cl_dn(x,y)
  * standout(str)	Print the argument string in inverse video (standout mode).
  */
 standout(str)
-	register char *str;
+	char *str;
 	{
 #ifdef VT100
 	setbold();
@@ -752,8 +752,8 @@ set_score_output()
 static int scrline=18; /* line # for wraparound instead of scrolling if no DL */
 lflush ()
 	{
-	register int lpoint;
-	register char *str;
+	int lpoint;
+	char *str;
 	static int curx = 0;
 	static int cury = 0;
 
@@ -838,7 +838,7 @@ lflush ()
  */
 lflush()
     {
-	register int lpoint;
+	int lpoint;
 	if ((lpoint = lpnt - lpbuf) > 0)
         {
 #ifdef EXTRA
@@ -878,9 +878,9 @@ flush_buf()
  *	Processes only the \33[#m sequence (converts . files for termcap use
  */
 char *tmcapcnv(sd,ss)
-	register char *sd,*ss;
+	char *sd,*ss;
 	{
-	register int tmstate=0;	/* 0=normal, 1=\33 2=[ 3=# */
+	int tmstate=0;	/* 0=normal, 1=\33 2=[ 3=# */
 	char tmdigit=0;	/* the # in \33[#m */
 	while (*ss)
 		{

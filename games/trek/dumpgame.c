@@ -78,9 +78,9 @@ struct dump	Dump_template[] =
 dumpgame()
 {
 	int			version;
-	register int		fd;
-	register struct dump	*d;
-	register int		i;
+	int		fd;
+	struct dump	*d;
+	int		i;
 
 	if ((fd = creat("trek.dump", 0644)) < 0)
 		return (printf("cannot dump\n"));
@@ -112,7 +112,7 @@ dumpgame()
 
 restartgame()
 {
-	register int	fd;
+	int	fd;
 	int		version;
 
 	if ((fd = open("trek.dump", O_RDONLY)) < 0 ||
@@ -142,9 +142,9 @@ restartgame()
 readdump(fd1)
 int	fd1;
 {
-	register int		fd;
-	register struct dump	*d;
-	register int		i;
+	int		fd;
+	struct dump	*d;
+	int		i;
 	long			junk;
 
 	fd = fd1;

@@ -53,8 +53,8 @@ static char sccsid[] = "@(#)ram.c	8.1 (Berkeley) 5/31/93";
 ram(ix, iy)
 int	ix, iy;
 {
-	register int		i;
-	register char		c;
+	int		i;
+	char		c;
 
 	printf("\07RED ALERT\07: collision imminent\n");
 	c = Sect[ix][iy];

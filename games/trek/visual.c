@@ -66,9 +66,9 @@ struct xy	Visdelta[11] =
 
 visual()
 {
-	register int		ix, iy;
+	int		ix, iy;
 	int			co;
-	register struct xy	*v;
+	struct xy	*v;
 
 	co = getintpar("direction");
 	if (co < 0 || co > 360)

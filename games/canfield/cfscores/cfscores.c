@@ -66,7 +66,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register struct passwd *pw;
+	struct passwd *pw;
 	int uid;
 
 	if (argc > 2) {
@@ -108,7 +108,7 @@ main(argc, argv)
  * print out info for specified password entry
  */
 printuser(pw, printfail)
-	register struct passwd *pw;
+	struct passwd *pw;
 	int printfail;
 {
 	struct betinfo total;

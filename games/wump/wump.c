@@ -227,7 +227,7 @@ quiver holds %d custom super anti-evil Wumpus arrows.  Good luck.\n",
 
 display_room_stats()
 {
-	register int i;
+	int i;
 
 	/*
 	 * Routine will explain what's going on with the current room, as well
@@ -487,7 +487,7 @@ The arrow is weakly shot and can go no further!\n");
 
 cave_init()
 {
-	register int i, j, k, link;
+	int i, j, k, link;
 	int delta, int_compare();
 
 	/*
@@ -560,7 +560,7 @@ try_again:		link = (random() % room_num) + 1;
 
 clear_things_in_cave()
 {
-	register int i;
+	int i;
 
 	/*
 	 * remove bats and pits from the current cave in preparation for us
@@ -572,7 +572,7 @@ clear_things_in_cave()
 
 initialize_things_in_cave()
 {
-	register int i, loc;
+	int i, loc;
 
 	/* place some bats, pits, the wumpus, and the player. */
 	for (i = 0; i < bat_num; ++i) {
@@ -636,7 +636,7 @@ getans(prompt)
 
 bats_nearby()
 {
-	register int i;
+	int i;
 
 	/* check for bats in the immediate vicinity */
 	for (i = 0; i < link_num; ++i)
@@ -647,7 +647,7 @@ bats_nearby()
 
 pit_nearby()
 {
-	register int i;
+	int i;
 
 	/* check for pits in the immediate vicinity */
 	for (i = 0; i < link_num; ++i)
@@ -658,7 +658,7 @@ pit_nearby()
 
 wump_nearby()
 {
-	register int i, j;
+	int i, j;
 
 	/* check for a wumpus within TWO caves of where we are */
 	for (i = 0; i < link_num; ++i) {

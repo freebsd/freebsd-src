@@ -66,10 +66,10 @@ static char sccsid[] = "@(#)abandon.c	8.1 (Berkeley) 5/31/93";
 
 abandon()
 {
-	register struct quad	*q;
-	register int		i;
+	struct quad	*q;
+	int		i;
 	int			j;
-	register struct event	*e;
+	struct event	*e;
 
 	if (Ship.ship == QUEENE)
 		return (printf("You may not abandon ye Faire Queene\n"));

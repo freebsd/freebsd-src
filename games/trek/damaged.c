@@ -49,9 +49,9 @@ static char sccsid[] = "@(#)damaged.c	8.1 (Berkeley) 5/31/93";
 damaged(dev)
 int	dev;
 {
-	register int		d;
-	register struct event	*e;
-	register int		i;
+	int		d;
+	struct event	*e;
+	int		i;
 
 	d = dev;
 

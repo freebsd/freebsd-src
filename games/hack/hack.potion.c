@@ -9,9 +9,9 @@ extern struct monst youmonst;
 extern struct monst *makemon();
 
 dodrink() {
-	register struct obj *otmp,*objs;
-	register struct monst *mtmp;
-	register int unkn = 0, nothing = 0;
+	struct obj *otmp,*objs;
+	struct monst *mtmp;
+	int unkn = 0, nothing = 0;
 
 	otmp = getobj("!", "drink");
 	if(!otmp) return(0);
@@ -191,7 +191,7 @@ use_it:
 
 pluslvl()
 {
-	register num;
+	num;
 
 	pline("You feel more experienced.");
 	num = rnd(10);
@@ -207,8 +207,8 @@ pluslvl()
 }
 
 strange_feeling(obj,txt)
-register struct obj *obj;
-register char *txt;
+struct obj *obj;
+char *txt;
 {
 	if(flags.beginner)
 	    pline("You have a strange feeling for a moment, then it passes.");
@@ -224,11 +224,11 @@ char *bottlenames[] = {
 };
 
 potionhit(mon, obj)
-register struct monst *mon;
-register struct obj *obj;
+struct monst *mon;
+struct obj *obj;
 {
 	extern char *xname();
-	register char *botlnam = bottlenames[rn2(SIZE(bottlenames))];
+	char *botlnam = bottlenames[rn2(SIZE(bottlenames))];
 	boolean uclose, isyou = (mon == &youmonst);
 
 	if(isyou) {
@@ -296,7 +296,7 @@ register struct obj *obj;
 }
 
 potionbreathe(obj)
-register struct obj *obj;
+struct obj *obj;
 {
 	switch(obj->otyp) {
 	case POT_RESTORE_STRENGTH:
@@ -355,7 +355,7 @@ register struct obj *obj;
  * --   become a jug? Etc.
  */
 dodip(){
-	register struct obj *potion, *obj;
+	struct obj *potion, *obj;
 
 	if(!(obj = getobj("#", "dip")))
 		return(0);
@@ -374,7 +374,7 @@ dodip(){
 
 ghost_from_bottle(){
 	extern struct permonst pm_ghost;
-	register struct monst *mtmp;
+	struct monst *mtmp;
 
 	if(!(mtmp = makemon(PM_GHOST,u.ux,u.uy))){
 		pline("This bottle turns out to be empty.");

@@ -48,8 +48,8 @@ static char sccsid[] = "@(#)print.c	8.1 (Berkeley) 5/31/93";
 
 prboard() {
 
-	reg PLAY	*pp;
-	reg int		i, j, k, temp;
+	PLAY	*pp;
+	int	i, j, k, temp;
 
 	for (k = 0; k < 2; k++) {
 		pp = &Player[k];
@@ -64,8 +64,8 @@ prboard() {
 		show_card(14, temp, pp->battle, &pp->sh_battle);
 		show_card(16, temp, pp->speed, &pp->sh_speed);
 		for (i = C_25; i <= C_200; i++) {
-			reg char	*name;
-			reg int		end;
+			char	*name;
+			int		end;
 
 			if (pp->nummiles[i] == pp->sh_nummiles[i])
 				continue;
@@ -102,7 +102,7 @@ prboard() {
  */
 show_card(y, x, c, lc)
 int		y, x;
-register CARD	c, *lc;
+CARD	c, *lc;
 {
 	if (c == *lc)
 		return;
@@ -114,10 +114,10 @@ register CARD	c, *lc;
 static char	Score_fmt[] = "%4d";
 
 prscore(for_real)
-reg bool	for_real; {
+bool	for_real; {
 
-	reg PLAY	*pp;
-	reg int		x;
+	PLAY	*pp;
+	int		x;
 
 	stdscr = Score;
 	for (pp = Player; pp < &Player[2]; pp++) {
@@ -161,7 +161,7 @@ reg bool	for_real; {
  */
 show_score(y, x, s, ls)
 int		y, x;
-register int	s, *ls;
+int	s, *ls;
 {
 	if (s == *ls)
 		return;

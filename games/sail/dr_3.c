@@ -41,9 +41,9 @@ static char sccsid[] = "@(#)dr_3.c	8.1 (Berkeley) 5/31/93";
 
 moveall()		/* move all comp ships */
 {
-	register struct ship *sp, *sq;		/* r11, r10 */
-	register int n;				/* r9 */
-	register int k, l;			/* r8, r7 */
+	struct ship *sp, *sq;		/* r11, r10 */
+	int n;				/* r9 */
+	int k, l;			/* r8, r7 */
 	int row[NSHIP], col[NSHIP], dir[NSHIP], drift[NSHIP];
 	char moved[NSHIP];
 
@@ -178,9 +178,9 @@ moveall()		/* move all comp ships */
 }
 
 stillmoving(k)
-register int k;
+int k;
 {
-	register struct ship *sp;
+	struct ship *sp;
 
 	foreachship(sp)
 		if (sp->file->movebuf[k])
@@ -189,9 +189,9 @@ register int k;
 }
 
 isolated(ship)
-register struct ship *ship;
+struct ship *ship;
 {
-	register struct ship *sp;
+	struct ship *sp;
 
 	foreachship(sp) {
 		if (ship != sp && range(ship, sp) <= 10)
@@ -201,9 +201,9 @@ register struct ship *ship;
 }
 
 push(from, to)
-register struct ship *from, *to;
+struct ship *from, *to;
 {
-	register int bs, sb;
+	int bs, sb;
 
 	sb = to->specs->guns;
 	bs = from->specs->guns;
@@ -216,10 +216,10 @@ register struct ship *from, *to;
 
 step(com, sp, moved)
 char com;
-register struct ship *sp;
+struct ship *sp;
 char *moved;
 {
-	register int dist;
+	int dist;
 
 	switch (com) {
 	case 'r':
@@ -257,12 +257,12 @@ char *moved;
 }
 
 sendbp(from, to, sections, isdefense)
-register struct ship *from, *to;
+struct ship *from, *to;
 int sections;
 char isdefense;
 {
 	int n;
-	register struct BP *bp;
+	struct BP *bp;
 
 	bp = isdefense ? from->file->DBP : from->file->OBP;
 	for (n = 0; n < NBP && bp[n].turnsent; n++)
@@ -279,11 +279,11 @@ char isdefense;
 }
 
 toughmelee(ship, to, isdefense, count)
-register struct ship *ship, *to;
+struct ship *ship, *to;
 int isdefense, count;
 {
-	register struct BP *bp;
-	register obp = 0;
+	struct BP *bp;
+	obp = 0;
 	int n, OBP = 0, DBP = 0, dbp = 0;
 	int qual;
 
@@ -312,7 +312,7 @@ int isdefense, count;
 
 reload()
 {
-	register struct ship *sp;
+	struct ship *sp;
 
 	foreachship(sp) {
 		sp->file->loadwith = 0;
@@ -321,8 +321,8 @@ reload()
 
 checksails()
 {
-	register struct ship *sp;
-	register int rig, full;
+	struct ship *sp;
+	int rig, full;
 	struct ship *close;
 
 	foreachship(sp) {

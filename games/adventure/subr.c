@@ -73,7 +73,7 @@ int pbotl;
 }
 
 liq()
-{       register int i;
+{       int i;
 	i=prop[bottle];
 	if (i>-1-i) return(liq2(i));
 	else return(liq2(-1-i));
@@ -81,7 +81,7 @@ liq()
 
 liqloc(locc)     /* may want to clean this one up a bit */
 int locc;
-{       register int i,j,l;
+{       int i,j,l;
 	i=cond[locc]/2;
 	j=((i*2)%8)-5;
 	l=cond[locc]/4;
@@ -115,8 +115,8 @@ int n;
 
 
 fdwarf()		/* 71 */
-{	register int i,j;
-	register struct travlist *kk;
+{	int i,j;
+	struct travlist *kk;
 
 	if (newloc!=loc&&!forced(loc)&&!bitset(loc,3))
 	{	for (i=1; i<=5; i++)
@@ -233,7 +233,7 @@ fdwarf()		/* 71 */
 
 
 march()                                        /* label 8              */
-{       register int ll1,ll2;
+{       int ll1,ll2;
 
 	if ((tkk=travel[newloc=loc])==0) bug(26);
 	if (k==null) return(2);
@@ -298,8 +298,8 @@ l12:    /* alternative to probability move      */
 
 
 mback()                                         /* 20                   */
-{       register struct travlist *tk2,*j;
-	register int ll;
+{       struct travlist *tk2,*j;
+	int ll;
 	if (forced(k=oldloc)) k=oldlc2;         /* k=location           */
 	oldlc2=oldloc;
 	oldloc=loc;
@@ -399,7 +399,7 @@ int n;
 
 void
 checkhints()                                    /* 2600 &c              */
-{       register int hint;
+{       int hint;
 	for (hint=4; hint<=hntmax; hint++)
 	{       if (hinted[hint]) continue;
 		if (!bitset(loc,hint)) hintlc[hint]= -1;
@@ -437,7 +437,7 @@ checkhints()                                    /* 2600 &c              */
 
 
 trsay()                                         /* 9030                 */
-{       register int i;
+{       int i;
 	if (*wd2!=0) strcpy(wd1,wd2);
 	i=vocab(wd1,-1);
 	if (i==62||i==65||i==71||i==2025)
@@ -451,7 +451,7 @@ trsay()                                         /* 9030                 */
 
 
 trtake()                                        /* 9010                 */
-{       register int i;
+{       int i;
 	if (toting(obj)) return(2011);  /* 9010 */
 	spk=25;
 	if (obj==plant&&prop[plant]<=0) spk=115;
@@ -607,7 +607,7 @@ tropen()                                        /* 9040                 */
 
 
 trkill()                                /* 9120                         */
-{       register int i;
+{       int i;
 	for (i=1; i<=5; i++)
 		if (dloc[i]==loc&&dflag>=2) break;
 	if (i==6) i=0;
@@ -664,7 +664,7 @@ trkill()                                /* 9120                         */
 
 
 trtoss()                                /* 9170: throw                  */
-{       register int i;
+{       int i;
 	if (toting(rod2)&&obj==rod&&!toting(rod)) obj=rod2;
 	if (!toting(obj)) return(2011);
 	if (obj>=50&&obj<=maxtrs&&at(troll))
@@ -781,7 +781,7 @@ trfill()                                        /* 9220 */
 
 void
 closing()                               /* 10000 */
-{       register int i;
+{       int i;
 
 	prop[grate]=prop[fissur]=0;
 	for (i=1; i<=6; i++)
@@ -806,7 +806,7 @@ closing()                               /* 10000 */
 
 void
 caveclose()                             /* 11000 */
-{       register int i;
+{       int i;
 	prop[bottle]=put(bottle,115,1);
 	prop[plant]=put(plant,115,0);
 	prop[oyster]=put(oyster,115,0);

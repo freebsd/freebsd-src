@@ -82,10 +82,10 @@ double	speed;
 {
 	double			angle;
 	double			x, y, dx, dy;
-	register int		ix, iy;
+	int		ix, iy;
 	double			bigger;
 	int			n;
-	register int		i;
+	int		i;
 	double			dist;
 	double			sectsize;
 	double			xn;

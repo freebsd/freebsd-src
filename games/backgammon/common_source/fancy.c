@@ -86,7 +86,7 @@ int	realc;
 int	addbuf __P((int));
 
 fboard ()  {
-	register int	i, j, l;
+	int	i, j, l;
 
 	curmove (0,0);				/* do top line */
 	for (i = 0; i < 53; i++)
@@ -200,9 +200,9 @@ int	cpos;					/* column of position */
 int	cnext;					/* direction of position */
 
 {
-	register int	j;			/* index */
-	register int	n;			/* number of men on position */
-	register int	bct;			/* counter */
+	int		j;			/* index */
+	int		n;			/* number of men on position */
+	int		bct;			/* counter */
 	int		k;			/* index */
 	char		pc;			/* color of men on position */
 
@@ -254,7 +254,7 @@ int	cnext;					/* direction of position */
 }
 
 refresh()  {
-	register int	i, r, c;
+	int	i, r, c;
 
 	r = curr;				/* save current position */
 	c = curc;
@@ -314,7 +314,7 @@ fixpos (old,new,r,c,inc)
 int	old, new, r, c, inc;
 
 {
-	register int	o, n, nv;
+	int		o, n, nv;
 	int		ov, nc;
 	char		col;
 
@@ -381,11 +381,10 @@ int	old, new, r, c, inc;
 }
 
 fixcol (r,c,l,ch,inc)
-register int	l, ch;
-int		r, c, inc;
+int		l, ch, r, c, inc;
 
 {
-	register int	i;
+	int	i;
 
 	curmove (r,c);
 	fancyc (ch);
@@ -396,7 +395,7 @@ int		r, c, inc;
 }
 
 curmove (r,c)
-register int	r, c;
+int	r, c;
 
 {
 	if (curr == r && curc == c)
@@ -410,9 +409,9 @@ register int	r, c;
 }
 
 newpos ()  {
-	register int	r;		/* destination row */
-	register int	c;		/* destination column */
-	register int	mode = -1;	/* mode of movement */
+	int	r;		/* destination row */
+	int	c;		/* destination column */
+	int	mode = -1;	/* mode of movement */
 
 	int	count = 1000;		/* character count */
 	int	i;			/* index */
@@ -577,7 +576,7 @@ newpos ()  {
 }
 
 clear ()  {
-	register int	i;
+	int	i;
 
 					/* double space if can't clear */
 	if (CL == 0)  {
@@ -595,9 +594,9 @@ clear ()  {
 
 
 fancyc (c)
-register char	c;			/* character to output */
+char	c;			/* character to output */
 {
-	register int	sp;		/* counts spaces in a tab */
+	int	sp;		/* counts spaces in a tab */
 
 	if (c == '\007')  {		/* bells go in blindly */
 		addbuf (c);
@@ -651,8 +650,8 @@ register char	c;			/* character to output */
 }
 
 clend()  {
-	register int	i;
-	register char	*s;
+	int	i;
+	char	*s;
 
 
 	if (CD)  {
@@ -673,9 +672,9 @@ clend()  {
 }
 
 cline ()  {
-	register int	i;
-	register int	c;
-	register char	*s;
+	int	i;
+	int	c;
+	char	*s;
 
 	if (curc > linect[curr])
 		return;
@@ -707,8 +706,8 @@ getcaps (s)
 const char	*s;
 
 {
-	register char	*code;		/* two letter code */
-	register char	***cap;		/* pointer to cap string */
+	char	*code;		/* two letter code */
+	char	***cap;		/* pointer to cap string */
 	char		*bufp;		/* pointer to cap buffer */
 	char		tentry[1024];	/* temporary uncoded caps buffer */
 

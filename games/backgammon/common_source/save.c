@@ -53,11 +53,11 @@ static const char	rec[] = "\" to recover your game.\n\n";
 static const char	cantrec[] = "Can't recover file:  ";
 
 save (n)
-register int	n;
+int	n;
 
 {
-	register int	fdesc;
-	register char	*fs;
+	int	fdesc;
+	char	*fs;
 	char		fname[50];
 
 	if (n)  {
@@ -148,7 +148,7 @@ recover (s)
 const char	*s;
 
 {
-	register int	i;
+	int	i;
 	int		fdesc;
 
 	if ((fdesc = open (s,O_RDONLY)) == -1)

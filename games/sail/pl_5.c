@@ -51,7 +51,7 @@ acceptmove()
 	int vma, dir;
 	char prompt[60];
 	char buf[60], last = '\0';
-	register char *p;
+	char *p;
 
 	if (!mc->crew3 || snagged(ms) || !windspeed) {
 		Signal("Unable to move", (struct ship *)0);
@@ -148,8 +148,8 @@ acceptmove()
 
 acceptboard()
 {
-	register struct ship *sp;
-	register int n;
+	struct ship *sp;
+	int n;
 	int crew[3];
 	int men = 0;
 	char c;
@@ -199,12 +199,12 @@ acceptboard()
 }
 
 parties(crew, to, isdefense, buf)
-register struct ship *to;
+struct ship *to;
 int crew[3];
 char isdefense;
 char buf;
 {
-	register int k, j, men;
+	int k, j, men;
 	struct BP *ptr;
 	int temp[3];
 

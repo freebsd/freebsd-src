@@ -167,10 +167,6 @@
 # endif
 # endif	SYSV
 
-#ifndef reg
-#define reg /* register */
-#endif
-
 typedef struct {
 	bool	coups[NUM_SAFE];
 	bool	can_go;

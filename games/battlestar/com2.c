@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)com2.c	8.1 (Berkeley) 5/31/93";
 
 wearit()		/* synonyms = {sheathe, sheath} */
 {
-	register int n;
+	int n;
 	int firstnumber, value;
 
 	firstnumber = wordnumber;
@@ -160,7 +160,7 @@ use()
 
 murder()
 {
-	register int n;
+	int n;
 
 	for (n=0; !((n == SWORD || n == KNIFE || n == TWO_HANDED || n == MACE || n == CLEAVER || n == BROAD || n == CHAIN || n == SHOVEL || n == HALBERD) && testbit(inven,n)) && n < NUMOFOBJECTS; n++);
 	if (n == NUMOFOBJECTS)

@@ -53,10 +53,10 @@ static char sccsid[] = "@(#)dcrept.c	8.1 (Berkeley) 5/31/93";
 
 dcrept()
 {
-	register int		i, f;
+	int		i, f;
 	double			x;
 	double			m1, m2;
-	register struct event	*e;
+	struct event	*e;
 
 	/* set up the magic factors to output the time till fixed */
 	if (Ship.cond == DOCKED)

@@ -56,7 +56,7 @@ int object;
 
 juggle(object)
 int object;
-{       register int i,j;
+{       int i,j;
 
 	i=place[object];
 	j=fixed[object];
@@ -67,7 +67,7 @@ int object;
 
 move(object,where)
 int object,where;
-{       register int from;
+{       int from;
 
 	if (object<=100)
 		from=place[object];
@@ -86,7 +86,7 @@ int object,where,pval;
 
 carry(object,where)
 int object,where;
-{       register int temp;
+{       int temp;
 
 	if (object<=100)
 	{       if (place[object]== -1) return;
@@ -119,9 +119,9 @@ vocab(word,type,value)                  /* look up or store a word      */
 const char *word;
 int type;       /* -2 for store, -1 for user word, >=0 for canned lookup*/
 int value;                              /* used for storing only        */
-{       register int adr;
+{       int adr;
 	const char *s;
-	register char *t;
+	char *t;
 	int hash, i;
 	struct hashtab *h;
 
@@ -175,7 +175,7 @@ int value;                              /* used for storing only        */
 }
 
 prht()                                  /* print hash table             */
-{       register int i,j,l;
+{       int i,j,l;
 	char *c;
 	struct hashtab *h;
 	for (i=0; i<HTSIZE/10+1; i++)

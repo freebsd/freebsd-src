@@ -53,8 +53,8 @@ static char sccsid[] = "@(#)lrscan.c	8.1 (Berkeley) 5/31/93";
 
 lrscan()
 {
-	register int			i, j;
-	register struct quad		*q;
+	int			i, j;
+	struct quad		*q;
 
 	if (check_out(LRSCAN))
 	{

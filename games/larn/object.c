@@ -12,7 +12,7 @@
  */
 lookforobject()
 {
-register int i,j;
+int i,j;
 if (c[TIMESTOP])  return;	/* can't find objects is time is stopped	*/
 i=item[playerx][playery];	if (i==0) return;
 showcell(playerx,playery);  cursors();  yrepcount=0;
@@ -289,7 +289,7 @@ finditem(itm)
 ostairs(dir)
 	int dir;
 	{
-	register int k;
+	int k;
 	lprcat("\nDo you (s) stay here  ");
 	if (dir > 0)	lprcat("(u) go up  ");	else	lprcat("(d) go down  ");
 	lprcat("or (f) kick stairs? ");
@@ -345,7 +345,7 @@ ostairs(dir)
 oteleport(err)
 	int err;
 	{
-	register int tmp;
+	int tmp;
 	if (err) if (rnd(151)<3)  died(264);  /*	stuck in a rock */
 	c[TELEFLAG]=1;	/*	show ?? on bottomline if been teleported	*/
 	if (level==0) tmp=0;
@@ -390,7 +390,7 @@ opotion(pot)
 quaffpotion(pot)
 	int pot;
 	{
-	register int i,j,k;
+	int i,j,k;
 	if (pot<0 || pot>=MAXPOTION) return; /* check for within bounds */
 	potionname[pot][0] = ' ';
 	switch(pot)
@@ -534,9 +534,9 @@ char time_change[] = { HASTESELF,HERO,ALTPRO,PROTECTIONTIME,DEXCOUNT,
  *	function to adjust time when time warping and taking courses in school
  */
 adjtime(tim)
-	register long tim;
+	long tim;
 	{
-	register int j;
+	int j;
 	for (j=0; j<26; j++)	/* adjust time related parameters */
 		if (c[time_change[j]])
 			if ((c[time_change[j]] -= tim) < 1) c[time_change[j]]=1;
@@ -549,7 +549,7 @@ adjtime(tim)
 read_scroll(typ)
 	int typ;
 	{
-	register int i,j;
+	int i,j;
 	if (typ<0 || typ>=MAXSCROLL) return;  /* be sure we are within bounds */
 	scrollname[typ][0] = ' ';
 	switch(typ)
@@ -640,7 +640,7 @@ oorb()
 
 opit()
 	{
-	register int i;
+	int i;
 	if (rnd(101)<81)
 	  if (rnd(70) > 9*c[DEXTERITY]-packweight() || rnd(101)<5)
 		if (level==MAXLEVEL-1) obottomless(); else
@@ -704,9 +704,9 @@ obook()
 	function to read a book
  */
 readbook(lev)
-	register int lev;
+	int lev;
 	{
-	register int i,tmp;
+	int i,tmp;
 	if (lev<=3) i = rund((tmp=splev[lev])?tmp:1); else
 		i = rnd((tmp=splev[lev]-9)?tmp:1) + 9;
 	spelknow[i]=1;
@@ -741,7 +741,7 @@ ocookie()
 ogold(arg)
 	int arg;
 	{
-	register long i;
+	long i;
 	i = iarg[playerx][playery];
 	if (arg==OMAXGOLD) i *= 100;
 		else if (arg==OKGOLD) i *= 1000;
@@ -752,7 +752,7 @@ ogold(arg)
 
 ohome()
 	{
-	register int i;
+	int i;
 	nosignal = 1;	/* disable signals */
 	for (i=0; i<26; i++) if (iven[i]==OPOTION) if (ivenarg[i]==21)
 		{

@@ -114,7 +114,7 @@ flushall()
 sethard(hard)
 	int hard;
 	{
-	register int j,k,i;
+	int j,k,i;
 	j=c[HARDGAME]; hashewon();
 	if (restorflag==0)	/* don't set c[HARDGAME] if restoring game */
 		{
@@ -143,8 +143,8 @@ sethard(hard)
  */
 readopts()
 	{
-	register char *i;
-	register int j,k;
+	char *i;
+	int j,k;
 	int flag;
 	flag=1;	/* set to 0 if he specifies a name for his character */
 	if (lopen(optsfile) < 0)

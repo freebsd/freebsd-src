@@ -87,8 +87,8 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register int ch, dot, i, nread, winnerdot = 0;
-	register char *inbuf;
+	int ch, dot, i, nread, winnerdot = 0;
+	char *inbuf;
 	int obs[26], try, winner;
 
 	/* revoke setgid privileges */
@@ -159,7 +159,7 @@ main(argc, argv)
 void printit(arg)
 	char *arg;
 {
-	register int ch, rot;
+	int ch, rot;
 
 	if ((rot = atoi(arg)) < 0) {
 		(void)fprintf(stderr, "caesar: bad rotation value.\n");

@@ -113,7 +113,7 @@ main(argc, argv)
 	while ((ch = getopt(argc, argv, "r:o:")) != -1)
 		switch(ch) {
 		case 'o': {
-			register const char *p;
+			const char *p;
 
 			for (p = keys = optarg; *p; ++p)
 				if (!index(keylist, *p)) {
@@ -184,7 +184,7 @@ showstats()
  */
 problem()
 {
-	register char *p;
+	char *p;
 	time_t start, finish;
 	int left, op, right, result;
 	char line[80];
@@ -317,7 +317,7 @@ getrandom(maxval, op, operand)
 	int maxval, op, operand;
 {
 	int value;
-	register struct penalty **pp, *p;
+	struct penalty **pp, *p;
 
 	op = opnum(op);
 	value = random() % (maxval + penalty[op][operand]);

@@ -44,7 +44,7 @@ done_hangup(){
 	done_intr();
 }
 
-done_in_by(mtmp) register struct monst *mtmp; {
+done_in_by(mtmp) struct monst *mtmp; {
 static char buf[BUFSZ];
 	pline("You die ...");
 	if(mtmp->data->mlet == ' '){
@@ -65,7 +65,7 @@ static char buf[BUFSZ];
    "burned", "starved" or "tricked" */
 /* Be careful not to call panic from here! */
 done(st1)
-register char *st1;
+char *st1;
 {
 
 #ifdef WIZARD
@@ -120,10 +120,10 @@ register char *st1;
 	}
 	if(*st1 == 'e') {
 		extern struct monst *mydogs;
-		register struct monst *mtmp;
-		register struct obj *otmp;
-		register int i;
-		register unsigned worthlessct = 0;
+		struct monst *mtmp;
+		struct obj *otmp;
+		int i;
+		unsigned worthlessct = 0;
 		boolean has_amulet = FALSE;
 
 		killer = st1;
@@ -219,12 +219,12 @@ topten(){
 	int uid = getuid();
 	int rank, rank0 = -1, rank1 = 0;
 	int occ_cnt = PERSMAX;
-	register struct toptenentry *t0, *t1, *tprev;
+	struct toptenentry *t0, *t1, *tprev;
 	char *recfile = RECORD;
 	char *reclock = "record_lock";
 	int sleepct = 300;
 	FILE *rfile;
-	register flg = 0;
+	flg = 0;
 	extern char *getdate();
 #define	HUP	if(!done_hup)
 	while(link(recfile, reclock) == -1) {
@@ -374,7 +374,7 @@ unlock:
 
 outheader() {
 char linebuf[BUFSZ];
-register char *bp;
+char *bp;
 	(void) strcpy(linebuf, "Number Points  Name");
 	bp = eos(linebuf);
 	while(bp < linebuf + COLNO - 9) *bp++ = ' ';
@@ -384,7 +384,7 @@ register char *bp;
 
 /* so>0: standout line; so=0: ordinary line; so<0: no output, return lth */
 int
-outentry(rank,t1,so) register struct toptenentry *t1; {
+outentry(rank,t1,so) struct toptenentry *t1; {
 boolean quit = FALSE, killed = FALSE, starv = FALSE;
 char linebuf[BUFSZ];
 	linebuf[0] = 0;
@@ -426,7 +426,7 @@ char linebuf[BUFSZ];
 	  t1->death);
 	Sprintf(eos(linebuf), ".");
 	if(t1->maxhp) {
-	  register char *bp = eos(linebuf);
+	  char *bp = eos(linebuf);
 	  char hpbuf[10];
 	  int hppos;
 	  Sprintf(hpbuf, (t1->hp > 0) ? itoa(t1->hp) : "-");
@@ -439,7 +439,7 @@ char linebuf[BUFSZ];
 	}
 	if(so == 0) puts(linebuf);
 	else if(so > 0) {
-	  register char *bp = eos(linebuf);
+	  char *bp = eos(linebuf);
 	  if(so >= COLNO) so = COLNO-1;
 	  while(bp < linebuf + so) *bp++ = ' ';
 	  *bp = 0;
@@ -460,13 +460,13 @@ static char buf[12];
 
 char *
 ordin(n) int n; {
-register int d = n%10;
+int d = n%10;
 	return((d==0 || d>3 || n/10==1) ? "th" : (d==1) ? "st" :
 		(d==2) ? "nd" : "rd");
 }
 
 clearlocks(){
-register x;
+x;
 	(void) signal(SIGHUP,SIG_IGN);
 	for(x = maxdlevel; x >= 0; x--) {
 		glo(x);
@@ -485,14 +485,14 @@ hangup()
 
 char *
 eos(s)
-register char *s;
+char *s;
 {
 	while(*s) s++;
 	return(s);
 }
 
 /* it is the callers responsibility to check that there is room for c */
-charcat(s,c) register char *s, c; {
+charcat(s,c) char *s, c; {
 	while(*s) s++;
 	*s++ = c;
 	*s = 0;
@@ -508,11 +508,11 @@ prscore(argc,argv) int argc; char **argv; {
 	char **players;
 	int playerct;
 	int rank;
-	register struct toptenentry *t1, *t2;
+	struct toptenentry *t1, *t2;
 	char *recfile = RECORD;
 	FILE *rfile;
-	register flg = 0;
-	register int i;
+	flg = 0;
+	int i;
 #ifdef nonsense
 	long total_score = 0L;
 	char totchars[10];

@@ -41,8 +41,8 @@ static char sccsid[] = "@(#)dr_main.c	8.2 (Berkeley) 4/16/94";
 
 dr_main()
 {
-	register int n;
-	register struct ship *sp;
+	int n;
+	struct ship *sp;
 	int nat[NNATION];
 	int value = 0;
 

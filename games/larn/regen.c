@@ -11,8 +11,8 @@
  */
 regen()
 	{
-	register int i,flag;
-	register long *d;
+	int i,flag;
+	long *d;
 	d = c;
 #ifdef EXTRA
 	d[MOVESMADE]++;

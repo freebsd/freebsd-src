@@ -91,12 +91,12 @@ struct banks
 
 phaser()
 {
-	register int		i;
+	int		i;
 	int			j;
-	register struct kling	*k;
+	struct kling	*k;
 	double			dx, dy;
 	double			anglefactor, distfactor;
-	register struct banks	*b;
+	struct banks	*b;
 	int			manual, flag, extra;
 	int			hit;
 	double			tot;

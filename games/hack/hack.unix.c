@@ -46,7 +46,7 @@ char *
 getdate()
 {
 	static char datestr[7];
-	register struct tm *lt = getlt();
+	struct tm *lt = getlt();
 
 	(void) snprintf(datestr, sizeof(datestr), "%02d%02d%02d",
 		lt->tm_year % 100, lt->tm_mon + 1, lt->tm_mday);
@@ -56,8 +56,8 @@ getdate()
 phase_of_the_moon()			/* 0-7, with 0: new, 4: full */
 {					/* moon period: 29.5306 days */
 					/* year: 365.2422 days */
-	register struct tm *lt = getlt();
-	register int epact, diy, golden;
+	struct tm *lt = getlt();
+	int epact, diy, golden;
 
 	diy = lt->tm_yday;
 	golden = (lt->tm_year % 19) + 1;
@@ -70,7 +70,7 @@ phase_of_the_moon()			/* 0-7, with 0: new, 4: full */
 
 night()
 {
-	register int hour = getlt()->tm_hour;
+	int hour = getlt()->tm_hour;
 
 	return(hour < 6 || hour > 21);
 }
@@ -84,7 +84,7 @@ struct stat buf, hbuf;
 
 gethdate(name) char *name; {
 /* old version - for people short of space */
-register char *np;
+char *np;
 
 	name = "/usr/games/hide/hack";
 	if(stat(name, &hbuf))
@@ -101,7 +101,7 @@ register char *np;
  */
 #define		MAXPATHLEN	1024
 
-register char *np, *path;
+char *np, *path;
 char filename[MAXPATHLEN+1];
 	if (index(name, '/') != NULL || (path = getenv("PATH")) == NULL)
 		path = "";
@@ -141,7 +141,7 @@ uptodate(fd) {
 
 /* see whether we should throw away this xlock file */
 veryold(fd) {
-	register int i;
+	int i;
 	time_t date;
 
 	if(fstat(fd, &buf)) return(0);			/* cannot get status */
@@ -175,13 +175,13 @@ veryold(fd) {
 getlock()
 {
 	extern int errno, hackpid, locknum;
-	register int i = 0, fd;
+	int i = 0, fd;
 
 	(void) fflush(stdout);
 
 	/* we ignore QUIT and INT at this point */
 	if (link(HLOCK, LLOCK) == -1) {
-		register int errnosv = errno;
+		int errnosv = errno;
 
 		perror(HLOCK);
 		printf("Cannot link %s to %s\n", LLOCK, HLOCK);
@@ -316,8 +316,8 @@ ckmailstatus() {
 
 newmail() {
 	/* produce a scroll of mail */
-	register struct obj *obj;
-	register struct monst *md;
+	struct obj *obj;
+	struct monst *md;
 	extern char plname[];
 	extern struct obj *mksobj(), *addinv();
 	extern struct monst *makemon();
@@ -344,14 +344,14 @@ newmail() {
 
 /* make md run through the cave */
 mdrush(md,away)
-register struct monst *md;
+struct monst *md;
 boolean away;
 {
-	register int uroom = inroom(u.ux, u.uy);
+	int uroom = inroom(u.ux, u.uy);
 	if(uroom >= 0) {
-		register int tmp = rooms[uroom].fdoor;
-		register int cnt = rooms[uroom].doorct;
-		register int fx = u.ux, fy = u.uy;
+		int tmp = rooms[uroom].fdoor;
+		int cnt = rooms[uroom].doorct;
+		int fx = u.ux, fy = u.uy;
 		while(cnt--) {
 			if(dist(fx,fy) < dist(doors[tmp].x, doors[tmp].y)){
 				fx = doors[tmp].x;
@@ -366,7 +366,7 @@ boolean away;
 			tmp = fy; fy = md->my; md->my = tmp;
 		}
 		while(fx != md->mx || fy != md->my) {
-			register int dx,dy,nfx = fx,nfy = fy,d1,d2;
+			int dx,dy,nfx = fx,nfy = fy,d1,d2;
 
 			tmp_at(fx,fy);
 			d1 = DIST(fx,fy,md->mx,md->my);
@@ -398,7 +398,7 @@ boolean away;
 
 readmail() {
 #ifdef DEF_MAILREADER			/* This implies that UNIX is defined */
-	register char *mr = 0;
+	char *mr = 0;
 	more();
 	if(!(mr = getenv("MAILREADER")))
 		mr = DEF_MAILREADER;
@@ -416,9 +416,9 @@ readmail() {
 #endif MAIL
 
 regularize(s)	/* normalize file name - we don't like ..'s or /'s */
-register char *s;
+char *s;
 {
-	register char *lp;
+	char *lp;
 
 	while((lp = index(s, '.')) || (lp = index(s, '/')))
 		*lp = '_';

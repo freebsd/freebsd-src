@@ -58,7 +58,7 @@ static char sccsid[] = "@(#)kill.c	8.1 (Berkeley) 5/31/93";
 killk(ix, iy)
 int	ix, iy;
 {
-	register int		i, j;
+	int		i, j;
 
 	printf("   *** Klingon at %d,%d destroyed ***\n", ix, iy);
 
@@ -98,8 +98,8 @@ int	ix, iy;
 killb(qx, qy)
 int	qx, qy;
 {
-	register struct quad	*q;
-	register struct xy	*b;
+	struct quad	*q;
+	struct xy	*b;
 
 	q = &Quad[qx][qy];
 
@@ -146,9 +146,9 @@ kills(x, y, f)
 int	x, y;	/* quad coords if f == 0, else sector coords */
 int	f;	/* f != 0 -- this quad;  f < 0 -- Enterprise's fault */
 {
-	register struct quad	*q;
-	register struct event	*e;
-	register char		*name;
+	struct quad	*q;
+	struct event	*e;
+	char		*name;
 	char			*systemname();
 
 	if (f)
@@ -190,9 +190,9 @@ killd(x, y, f)
 int	x, y;		/* quadrant coordinates */
 int	f;		/* set if user is to be informed */
 {
-	register struct event	*e;
-	register int		i;
-	register struct quad	*q;
+	struct event	*e;
+	int		i;
+	struct quad	*q;
 
 	q = &Quad[x][y];
 	for (i = 0; i < MAXEVENTS; i++)

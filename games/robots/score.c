@@ -63,10 +63,10 @@ static SCORE	Top[MAXSCORES];
  */
 score()
 {
-	register int	inf;
-	register SCORE	*scp;
-	register int	uid;
-	register bool	done_show = FALSE;
+	int	inf;
+	SCORE	*scp;
+	int	uid;
+	bool	done_show = FALSE;
 	static int	numscores, max_uid;
 
 	Newscore = FALSE;
@@ -139,9 +139,9 @@ score()
 }
 
 set_name(scp)
-register SCORE	*scp;
+SCORE	*scp;
 {
-	register PASSWD	*pp;
+	PASSWD	*pp;
 
 	if ((pp = getpwuid(scp->s_uid)) == NULL)
 		pp->pw_name = "???";
@@ -153,7 +153,7 @@ register SCORE	*scp;
  *	Compare two scores.
  */
 cmp_sc(s1, s2)
-register SCORE	*s1, *s2;
+SCORE	*s1, *s2;
 {
 	return s2->s_score - s1->s_score;
 }
@@ -164,8 +164,8 @@ register SCORE	*s1, *s2;
  */
 show_score()
 {
-	register SCORE	*scp;
-	register int	inf;
+	SCORE	*scp;
+	int	inf;
 	static int	max_score;
 
 	if ((inf = open(Scorefile, 0)) < 0) {

@@ -65,8 +65,8 @@ double	d;
 	double			time;
 	double			speed;
 	double			frac;
-	register int		percent;
-	register int		i;
+	int		percent;
+	int		i;
 	extern double		move();
 
 	if (Ship.cond == DOCKED)

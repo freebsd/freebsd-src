@@ -116,7 +116,7 @@ struct isave	/* used for altar reality */
 createmonster(mon)
 	int mon;
 	{
-	register int x,y,k,i;
+	int x,y,k,i;
 	if (mon<1 || mon>MAXMONST+8)	/* check for monster number out of bounds */
 		{
 		beep(); lprintf("\ncan't createmonst(%d)\n",(long)mon); nap(3000); return;
@@ -152,7 +152,7 @@ createmonster(mon)
  *	This routine will return FALSE if at a wall or the dungeon exit on level 1
  */
 int cgood(x,y,itm,monst)
-	register int x,y;
+	int x,y;
 	int itm,monst;
 	{
 	if ((y>=0) && (y<=MAXY-1) && (x>=0) && (x<=MAXX-1)) /* within bounds? */
@@ -174,7 +174,7 @@ int cgood(x,y,itm,monst)
 createitem(it,arg)
 	int it,arg;
 	{
-	register int x,y,k,i;
+	int x,y,k,i;
 	if (it >= MAXOBJ) return;	/* no such object */
 	for (k=rnd(8), i= -8; i<0; i++,k++)	/* choose direction, then try all */
 		{
@@ -195,7 +195,7 @@ createitem(it,arg)
 static char eys[] = "\nEnter your spell: ";
 cast()
 	{
-	register int i,j,a,b,d;
+	int i,j,a,b,d;
 	cursors();
 	if (c[SPELLS]<=0) {	lprcat("\nYou don't have any spells!");	return;	}
 	lprcat(eys);		--c[SPELLS];
@@ -229,9 +229,9 @@ static int dirsub();
 speldamage(x)
 	int x;
 	{
-	register int i,j,clev;
+	int i,j,clev;
 	int xl,xh,yl,yh;
-	register char *p,*kn,*pm;
+	char *p,*kn,*pm;
 	if (x>=SPNUM) return;	/* no such spell */
 	if (c[TIMESTOP])  { lprcat("  It didn't seem to work"); return; }  /* not if time stopped */
 	clev = c[LEVEL];
@@ -487,7 +487,7 @@ isconfuse()
 nospell(x,monst)
 	int x,monst;
 	{
-	register int tmp;
+	int tmp;
 	if (x>=SPNUM || monst>=MAXMONST+8 || monst<0 || x<0) return(0);	/* bad spell or monst */
 	if ((tmp=spelweird[monst-1][x])==0) return(0);
 	cursors();  lprc('\n');  lprintf(spelmes[tmp],monster[monst].name);  return(1);
@@ -503,7 +503,7 @@ nospell(x,monst)
 fullhit(xx)
 	int xx;
 	{
-	register int i;
+	int i;
 	if (xx<0 || xx>20) return(0);	/* fullhits are out of range */
 	if (c[LANCEDEATH]) return(10000);	/* lance of death */
 	i = xx * ((c[WCLASS]>>1)+c[STRENGTH]+c[STREXTRA]-c[HARDGAME]-12+c[MOREDAM]);
@@ -525,7 +525,7 @@ direct(spnum,dam,str,arg)
 	char *str;
 	{
 	int x,y;
-	register int m;
+	int m;
 	if (spnum<0 || spnum>=SPNUM || str==0) return; /* bad arguments */
 	if (isconfuse()) return;
 	dirsub(&x,&y);
@@ -575,8 +575,8 @@ godirect(spnum,dam,str,delay,cshow)
 	int spnum,dam,delay;
 	char *str,cshow;
 	{
-	register char *p;
-	register int x,y,m;
+	char *p;
+	int x,y,m;
 	int dx,dy;
 	if (spnum<0 || spnum>=SPNUM || str==0 || delay<0) return; /* bad args */
 	if (isconfuse()) return;
@@ -683,7 +683,7 @@ tdirect(spnum)
 	int spnum;
 	{
 	int x,y;
-	register int m;
+	int m;
 	if (spnum<0 || spnum>=SPNUM) return; /* bad args */
 	if (isconfuse()) return;
 	dirsub(&x,&y);
@@ -708,7 +708,7 @@ omnidirect(spnum,dam,str)
 	int spnum,dam;
 	char *str;
 	{
-	register int x,y,m;
+	int x,y,m;
 	if (spnum<0 || spnum>=SPNUM || str==0) return; /* bad args */
 	for (x=playerx-1; x<playerx+2; x++)
 		for (y=playery-1; y<playery+2; y++)
@@ -738,7 +738,7 @@ static int
 dirsub(x,y)
 	int *x,*y;
 	{
-	register int i;
+	int i;
 	lprcat("\nIn What Direction? ");
 	for (i=0; ; )
 		switch(getchar())
@@ -813,7 +813,7 @@ dirpoly(spnum)
 hitmonster(x,y)
 	int x,y;
 	{
-	register int tmp,monst,damag,flag;
+	int tmp,monst,damag,flag;
 	if (c[TIMESTOP])  return;  /* not if time stopped */
 	vxy(&x,&y);	/* verify coordinates are within range */
 	if ((monst = mitem[x][y]) == 0) return;
@@ -853,9 +853,9 @@ hitmonster(x,y)
  */
 hitm(x,y,amt)
 	int x,y;
-	register amt;
+	amt;
 	{
-	register int monst;
+	int monst;
 	int hpoints,amt2;
 	vxy(&x,&y);	/* verify coordinates are within range */
 	amt2 = amt;		/* save initial damage so we can return it */
@@ -898,7 +898,7 @@ hitm(x,y,amt)
 hitplayer(x,y)
 	int x,y;
 	{
-	register int dam,tmp,mster,bias;
+	int dam,tmp,mster,bias;
 	vxy(&x,&y);	/* verify coordinates are within range */
 	lastnum = mster = mitem[x][y];
 /*	spirit naga's and poltergeist's do nothing if scarab of negate spirit	*/
@@ -973,7 +973,7 @@ dropsomething(monst)
  *	Returns nothing of value.
  */
 dropgold(amount)
-	register int amount;
+	int amount;
 	{
 	if (amount > 250) createitem(OMAXGOLD,amount/100);  else  createitem(OGOLDPILE,amount);
 	}
@@ -989,7 +989,7 @@ dropgold(amount)
 something(level)
 	int level;
 	{
-	register int j;
+	int j;
 	int i;
 	if (level<0 || level>MAXLEVEL+MAXVLEVEL) return;	/* correct level? */
 	if (rnd(101)<8) something(level); /* possibly more than one item */
@@ -1012,9 +1012,9 @@ static char nobjtab[] = { 0, OSCROLL,  OSCROLL,  OSCROLL,  OSCROLL, OPOTION,
 	OLONGSWORD };
 
 newobject(lev,i)
-	register int lev,*i;
+	int lev,*i;
 	{
-	register int tmp=32,j;
+	int tmp=32,j;
 	if (level<0 || level>MAXLEVEL+MAXVLEVEL) return(0);	/* correct level? */
 	if (lev>6) tmp=37; else if (lev>4) tmp=35;
 	j = nobjtab[tmp=rnd(tmp)];	/* the object type */
@@ -1079,8 +1079,8 @@ static char spsel[] = { 1, 2, 3, 5, 6, 8, 9, 11, 13, 14 };
 spattack(x,xx,yy)
 	int x,xx,yy;
 	{
-	register int i,j=0,k,m;
-	register char *p=0;
+	int i,j=0,k,m;
+	char *p=0;
 	if (c[CANCELLATION]) return(0);
 	vxy(&xx,&yy);	/* verify x & y coordinates */
 	switch(x)
@@ -1226,8 +1226,8 @@ checkloss(x)
 annihilate()
 	{
 	int i,j;
-	register long k;
-	register char *p;
+	long k;
+	char *p;
 	for (k=0, i=playerx-1; i<=playerx+1; i++)
 	  for (j=playery-1; j<=playery+1; j++)
 		if (!vxy(&i,&j)) /* if not out of bounds */
@@ -1326,7 +1326,7 @@ boom:	sphboom(x,y);	/* blow up stuff around sphere */
 rmsphere(x,y)
 	int x,y;
 	{
-	register struct sphere *sp,*sp2=0;
+	struct sphere *sp,*sp2=0;
 	for (sp=spheres; sp; sp2=sp,sp=sp->p)
 	  if (level==sp->lev)	/* is sphere on this level? */
 	    if ((x==sp->x) && (y==sp->y))	/* locate sphere at this location */
@@ -1351,7 +1351,7 @@ rmsphere(x,y)
 sphboom(x,y)
 	int x,y;
 	{
-	register int i,j;
+	int i,j;
 	if (c[HOLDMONST]) c[HOLDMONST]=1;
 	if (c[CANCELLATION]) c[CANCELLATION]=1;
 	for (j=max(1,x-2); j<min(x+3,MAXX-1); j++)
@@ -1376,7 +1376,7 @@ sphboom(x,y)
  */
 genmonst()
 	{
-	register int i,j;
+	int i,j;
 	cursors();  lprcat("\nGenocide what monster? ");
 	for (i=0; (!isalpha(i)) && (i!=' '); i=getchar());
 	lprc(i);

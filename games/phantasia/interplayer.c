@@ -114,7 +114,7 @@ long	foeplace;
 {
 double	dtemp;		/* for temporary calculations */
 double	oldhits = 0.0;	/* previous damage inflicted by foe */
-register int	loop;	/* for timing out */
+int	loop;	/* for timing out */
 int	ch;		/* input */
 short	oldtampered;	/* old value of foe's p_tampered */
 
@@ -733,7 +733,7 @@ long	loc;			/* location in file of other players */
 userlist(ingameflag)
 bool	ingameflag;
 {
-register int	numusers = 0;	/* number of users on file */
+int	numusers = 0;	/* number of users on file */
 
     if (ingameflag && Player.p_blindness)
 	{
@@ -1160,7 +1160,7 @@ FILE	*fp;				/* for opening gold file */
 *************************************************************************/
 
 writevoid(vp, loc)
-register struct energyvoid	*vp;
+struct energyvoid	*vp;
 long	loc;
 {
 

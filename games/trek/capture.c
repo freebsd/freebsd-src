@@ -55,8 +55,8 @@ static char sccsid[] = "@(#)capture.c	8.1 (Berkeley) 5/31/93";
 
 capture()
 {
-	register int		i;
-	register struct kling	*k;
+	int		i;
+	struct kling	*k;
 	double			x;
 	extern struct kling	*selectklingon();
 
@@ -120,7 +120,7 @@ capture()
 
 struct kling	*selectklingon()
 {
-	register int		i;
+	int		i;
 
 	if (Etc.nkling < 2)
 		i = 0;

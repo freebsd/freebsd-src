@@ -103,7 +103,7 @@ Start()
 }
 
 wizard()                /* not as complex as advent/10 (for now)        */
-{       register int wiz;
+{       int wiz;
 	char *word,*x;
 	if (!yesm(16,0,7)) return(FALSE);
 	mspeak(17);
@@ -117,8 +117,8 @@ wizard()                /* not as complex as advent/10 (for now)        */
 }
 
 ciao()
-{       register char *c;
-	register int outfd, size;
+{       char *c;
+	int outfd, size;
 	char fname[80], buf[512];
 	extern unsigned filesize;
 

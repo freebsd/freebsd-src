@@ -64,10 +64,10 @@ static void usage __P((void));
 
 int
 main(ac, av)
-reg int		ac;
-reg char	*av[]; {
+	int	ac;
+	char	*av[]; {
 
-	reg bool	restore;
+	bool	restore;
 
 	/* revoke */
 	setgid(getgid());

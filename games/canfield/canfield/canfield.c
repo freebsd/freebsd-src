@@ -632,7 +632,7 @@ fndbase(cp, column, row)
  */
 initgame()
 {
-	register i;
+	int i;
 
 	for (i=0; i<18; i++) {
 		deck[i]->visible = TRUE;
@@ -677,7 +677,7 @@ initgame()
  */
 startgame()
 {
-	register int j;
+	int j;
 
 	shuffle(deck);
 	initgame();
@@ -907,7 +907,7 @@ movetotalon()
 showstat()
 {
 	int row, col;
-	register struct cardtype *ptr;
+	struct cardtype *ptr;
 
 	if (!Cflag)
 		return;
@@ -1003,7 +1003,7 @@ usedstock()
  */
 showcards()
 {
-	register struct cardtype *ptr;
+	struct cardtype *ptr;
 	int row;
 
 	if (!Cflag || cardsoff == 52)
@@ -1053,7 +1053,7 @@ updatebettinginfo()
 	long thiscosts, gamecosts, totalcosts;
 	double thisreturn, gamereturn, totalreturn;
 	time_t now;
-	register long dollars;
+	long dollars;
 
 	time(&now);
 	dollars = (now - acctstart) / secondsperdollar;
@@ -1163,7 +1163,7 @@ tabprint(sour, des)
  * procedure to move from the tableau to the tableau
  */
 tabtotab(sour, des)
-	register int sour, des;
+	int sour, des;
 {
 	struct cardtype *temp;
 
@@ -1536,7 +1536,7 @@ char *bettinginstructions[] = {
  */
 instruct()
 {
-	register char **cp;
+	char **cp;
 
 	move(originrow, origincol);
 	printw("This is the game of solitaire called Canfield.  Do\n");

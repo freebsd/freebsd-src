@@ -169,7 +169,7 @@ prhand(h, n, win, blank)
 	WINDOW *win;
 	BOOLEAN blank;
 {
-	register int i;
+	int i;
 
 	werase(win);
 	for (i = 0; i < n; i++)
@@ -188,7 +188,7 @@ infrom(hand, n, prompt)
 	int n;
 	char *prompt;
 {
-	register int i, j;
+	int i, j;
 	CARD crd;
 
 	if (n < 1) {
@@ -242,7 +242,7 @@ int
 incard(crd)
 	CARD *crd;
 {
-	register int i;
+	int i;
 	int rnk, sut;
 	char *line, *p, *p1;
 	BOOLEAN retval;
@@ -326,7 +326,7 @@ gotit:
 int
 getuchar()
 {
-	register int c;
+	int c;
 
 	c = readchar();
 	if (islower(c))
@@ -345,8 +345,8 @@ number(lo, hi, prompt)
 	int lo, hi;
 	char *prompt;
 {
-	register char *p;
-	register int sum;
+	char *p;
+	int sum;
 
 	for (sum = 0;;) {
 		msg(prompt);
@@ -441,8 +441,8 @@ void
 endmsg()
 {
 	static int lastline = 0;
-	register int len;
-	register char *mp, *omp;
+	int len;
+	char *mp, *omp;
 
 	/* All messages should start with uppercase */
 	mvaddch(lastline + Y_MSG_START, SCORE_X, ' ');
@@ -510,9 +510,9 @@ do_wait()
  */
 void
 wait_for(ch)
-	register int ch;
+	int ch;
 {
-	register char c;
+	char c;
 
 	if (ch == '\n')
 		while ((c = readchar()) != '\n')
@@ -529,7 +529,7 @@ wait_for(ch)
 int
 readchar()
 {
-	register int cnt;
+	int cnt;
 	char c;
 
 over:
@@ -557,9 +557,9 @@ over:
 char *
 getline()
 {
-	register char *sp;
-	register int c, oy, ox;
-	register WINDOW *oscr;
+	char *sp;
+	int c, oy, ox;
+	WINDOW *oscr;
 
 	oscr = stdscr;
 	stdscr = Msgwin;
@@ -572,7 +572,7 @@ getline()
 		else
 			if (c == erasechar()) {	/* process erase character */
 				if (sp > linebuf) {
-					register int i;
+					int i;
 
 					sp--;
 					for (i = strlen(unctrl(*sp)); i; i--)

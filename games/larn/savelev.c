@@ -8,10 +8,10 @@ extern struct cel *cell;
  */
 savelevel()
 	{
-	register struct cel *pcel;
-	register char *pitem,*pknow,*pmitem;
-	register short *phitp,*piarg;
-	register struct cel *pecel;
+	struct cel *pcel;
+	char *pitem,*pknow,*pmitem;
+	short *phitp,*piarg;
+	struct cel *pecel;
 	pcel = &cell[level*MAXX*MAXY];	/* pointer to this level's cells */
 	pecel = pcel + MAXX*MAXY;	/* pointer to past end of this level's cells */
 	pitem=item[0]; piarg=iarg[0]; pknow=know[0]; pmitem=mitem[0]; phitp=hitp[0];
@@ -30,10 +30,10 @@ savelevel()
  */
 getlevel()
 	{
-	register struct cel *pcel;
-	register char *pitem,*pknow,*pmitem;
-	register short *phitp,*piarg;
-	register struct cel *pecel;
+	struct cel *pcel;
+	char *pitem,*pknow,*pmitem;
+	short *phitp,*piarg;
+	struct cel *pecel;
 	pcel = &cell[level*MAXX*MAXY];	/* pointer to this level's cells */
 	pecel = pcel + MAXX*MAXY;	/* pointer to past end of this level's cells */
 	pitem=item[0]; piarg=iarg[0]; pknow=know[0]; pmitem=mitem[0]; phitp=hitp[0];

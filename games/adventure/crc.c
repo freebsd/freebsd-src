@@ -118,8 +118,8 @@ u_long crc(ptr, nr) /* Process nr bytes at a time; ptr points to them */
 const char *ptr;
 int nr;
 {
-	register int i;
-	register const char *p;
+	int 	i;
+	const char 	*p;
 
 	while (nr > 0)
 		for (p = ptr; nr--; ++p)

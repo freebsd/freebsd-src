@@ -65,9 +65,9 @@ loselevel()
 	subroutine to increase experience points
  */
 raiseexperience(x)
-	register long x;
+	long x;
 	{
-	register int i,tmp;
+	int i,tmp;
 	i=c[LEVEL];	c[EXPERIENCE]+=x;
 	while (c[EXPERIENCE] >= skill[c[LEVEL]] && (c[LEVEL] < MAXPLEVEL))
 		{
@@ -93,9 +93,9 @@ raiseexperience(x)
 	subroutine to lose experience points
  */
 loseexperience(x)
-	register long x;
+	long x;
 	{
-	register int i,tmp;
+	int i,tmp;
 	i=c[LEVEL];		c[EXPERIENCE]-=x;
 	if (c[EXPERIENCE] < 0) c[EXPERIENCE]=0;
 	while (c[EXPERIENCE] < skill[c[LEVEL]-1])
@@ -125,7 +125,7 @@ loseexperience(x)
 	warning -- will kill player if hp goes to zero
  */
 losehp(x)
-	register int x;
+	int x;
 	{
 	if ((c[HP] -= x) <= 0)
 		{
@@ -134,7 +134,7 @@ losehp(x)
 	}
 
 losemhp(x)
-	register int x;
+	int x;
 	{
 	c[HP] -= x;		if (c[HP] < 1)		c[HP]=1;
 	c[HPMAX] -= x;	if (c[HPMAX] < 1)	c[HPMAX]=1;
@@ -150,13 +150,13 @@ losemhp(x)
 	subroutine to gain maximum hit points
  */
 raisehp(x)
-	register int x;
+	int x;
 	{
 	if ((c[HP] += x) > c[HPMAX]) c[HP] = c[HPMAX];
 	}
 
 raisemhp(x)
-	register int x;
+	int x;
 	{
 	c[HPMAX] += x;	c[HP] += x;
 	}
@@ -171,13 +171,13 @@ raisemhp(x)
 	subroutine to gain maximum spells
  */
 raisespells(x)
-	register int x;
+	int x;
 	{
 	if ((c[SPELLS] += x) > c[SPELLMAX])	c[SPELLS] = c[SPELLMAX];
 	}
 
 raisemspells(x)
-	register int x;
+	int x;
 	{
 	c[SPELLMAX]+=x; c[SPELLS]+=x;
 	}
@@ -192,13 +192,13 @@ raisemspells(x)
 	subroutine to lose maximum spells
  */
 losespells(x)
-	register int x;
+	int x;
 	{
 	if ((c[SPELLS] -= x) < 0) c[SPELLS]=0;
 	}
 
 losemspells(x)
-	register int x;
+	int x;
 	{
 	if ((c[SPELLMAX] -= x) < 0) c[SPELLMAX]=0;
 	if ((c[SPELLS] -= x) < 0) c[SPELLS]=0;
@@ -212,9 +212,9 @@ losemspells(x)
 		for the given cave level
  */
 makemonst(lev)
-	register int lev;
+	int lev;
 	{
-	register int tmp,x;
+	int tmp,x;
 	if (lev < 1)	lev = 1;			if (lev > 12)	lev = 12;
 	tmp=WATERLORD;
 	if (lev < 5)
@@ -250,7 +250,7 @@ positionplayer()
  */
 recalc()
 	{
-	register int i,j,k;
+	int i,j,k;
 	c[AC] = c[MOREDEFENSES];
 	if (c[WEAR] >= 0)
 		switch(iven[c[WEAR]])
@@ -315,7 +315,7 @@ recalc()
  */
 quit()
 	{
-	register int i;
+	int i;
 	cursors();	strcpy(lastmonst,"");
 	lprcat("\n\nDo you really want to quit?");
 	while (1)
@@ -344,7 +344,7 @@ more()
 take(itm,arg)
 	int itm,arg;
 	{
-	register int i,limit;
+	int i,limit;
 /*	cursors(); */
 	if ((limit = 15+(c[LEVEL]>>1)) > 26)  limit=26;
 	for (i=0; i<limit; i++)
@@ -401,7 +401,7 @@ drop_object(k)
  */
 enchantarmor()
 	{
-	register int tmp;
+	int tmp;
 	if (c[WEAR]<0) { if (c[SHIELD] < 0)
 		{ cursors(); beep(); lprcat("\nYou feel a sense of loss"); return; }
 					else { tmp=iven[c[SHIELD]]; if (tmp != OSCROLL) if (tmp != OPOTION) { ivenarg[c[SHIELD]]++; bottomline(); } } }
@@ -414,7 +414,7 @@ enchantarmor()
  */
 enchweapon()
 	{
-	register int tmp;
+	int tmp;
 	if (c[WIELD]<0)
 		{ cursors(); beep(); lprcat("\nYou feel a sense of loss"); return; }
 	tmp = iven[c[WIELD]];
@@ -431,7 +431,7 @@ enchweapon()
  */
 pocketfull()
 	{
-	register int i,limit;
+	int i,limit;
 	if ((limit = 15+(c[LEVEL]>>1)) > 26)  limit=26;
 	for (i=0; i<limit; i++) if (iven[i]==0) return(0);
 	return(1);
@@ -442,7 +442,7 @@ pocketfull()
  */
 nearbymonst()
 	{
-	register int tmp,tmp2;
+	int tmp,tmp2;
 	for (tmp=playerx-1; tmp<playerx+2; tmp++)
 		for (tmp2=playery-1; tmp2<playery+2; tmp2++)
 			if (mitem[tmp][tmp2]) return(1); /* if monster nearby */
@@ -455,7 +455,7 @@ nearbymonst()
  */
 stealsomething()
 	{
-	register int i,j;
+	int i,j;
 	j=100;
 	while (1)
 		{
@@ -474,7 +474,7 @@ stealsomething()
  */
 emptyhanded()
 	{
-	register int i;
+	int i;
 	for (i=0; i<26; i++)
 		if (iven[i]) if (i!=c[WIELD]) if (i!=c[WEAR]) if (i!=c[SHIELD]) return(0);
 	return(1);
@@ -485,7 +485,7 @@ emptyhanded()
  */
 creategem()
 	{
-	register int i,j;
+	int i,j;
 	switch(rnd(4))
 		{
 		case 1:	 i=ODIAMOND;	j=50;	break;
@@ -503,7 +503,7 @@ creategem()
 adjustcvalues(itm,arg)
 	int itm,arg;
 	{
-	register int flag;
+	int flag;
 	flag=0;
 	switch(itm)
 		{
@@ -530,9 +530,9 @@ adjustcvalues(itm,arg)
 	returns a pointer to the string
  */
 gettokstr(str)
-	register char *str;
+	char *str;
 	{
-	register int i,j;
+	int i,j;
 	i=50;
 	while ((getchar() != '"') && (--i > 0));
 	i=36;
@@ -552,8 +552,8 @@ gettokstr(str)
 static char gpwbuf[33];
 getpassword()
 	{
-	register int i,j;
-	register char *gpwp;
+	int i,j;
+	char *gpwp;
 	extern char *password;
 	scbr();	/*	system("stty -echo cbreak"); */
 	gpwp = gpwbuf;	lprcat("\nEnter Password: "); lflush();
@@ -571,7 +571,7 @@ getpassword()
  */
 getyn()
 	{
-	register int i;
+	int i;
 	i=0; while (i!='y' && i!='n' && i!='\33') i=getchar();
 	return(i);
 	}
@@ -582,7 +582,7 @@ getyn()
  */
 packweight()
 	{
-	register int i,j,k;
+	int i,j,k;
 	k=c[GOLD]/1000; j=25;  while ((iven[j]==0) && (j>0)) --j;
 	for (i=0; i<=j; i++)
 		switch(iven[i])

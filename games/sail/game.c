@@ -40,10 +40,10 @@ static char sccsid[] = "@(#)game.c	8.1 (Berkeley) 5/31/93";
 #include "externs.h"
 
 maxturns(ship, af)
-register struct ship *ship;
+struct ship *ship;
 char *af;
 {
-	register int turns;
+	int turns;
 
 	turns = ship->specs->ta;
 	if (*af = (ship->file->drift > 1 && turns)) {
@@ -55,10 +55,10 @@ char *af;
 }
 
 maxmove(ship, dir, fs)
-register struct ship *ship;
+struct ship *ship;
 int dir, fs;
 {
-	register int riggone = 0, Move, flank = 0;
+	int riggone = 0, Move, flank = 0;
 
 	Move = ship->specs->bs;
 	if (!ship->specs->rig1)

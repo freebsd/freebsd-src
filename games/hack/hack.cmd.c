@@ -91,11 +91,11 @@ struct ext_func_tab extcmdlist[] = {
 extern char *parse(), lowc(), unctrl(), quitchars[];
 
 rhack(cmd)
-register char *cmd;
+char *cmd;
 {
-	register struct func_tab *tlist = cmdlist;
+	struct func_tab *tlist = cmdlist;
 	boolean firsttime = FALSE;
-	register res;
+	res;
 
 	if(!cmd) {
 		firsttime = TRUE;
@@ -170,7 +170,7 @@ register char *cmd;
 		tlist++;
 	}
 	{ char expcmd[10];
-	  register char *cp = expcmd;
+	  char *cp = expcmd;
 	  while(*cmd && cp-expcmd < sizeof(expcmd)-2) {
 		if(*cmd >= 040 && *cmd < 0177)
 			*cp++ = *cmd++;
@@ -188,7 +188,7 @@ register char *cmd;
 doextcmd()	/* here after # - now read a full-word command */
 {
 	char buf[BUFSZ];
-	register struct ext_func_tab *efp = extcmdlist;
+	struct ext_func_tab *efp = extcmdlist;
 
 	pline("# ");
 	getlin(buf);
@@ -227,7 +227,7 @@ schar zdir[10] = {  0, 0, 0, 0, 0, 0, 0, 0, 1,-1 };
 movecmd(sym)	/* also sets u.dz, but returns false for <> */
 char sym;
 {
-	register char *dp;
+	char *dp;
 
 	u.dz = 0;
 	if(!(dp = index(sdir, sym))) return(0);
@@ -256,14 +256,14 @@ boolean s;
 
 confdir()
 {
-	register x = rn2(8);
+	x = rn2(8);
 	u.dx = xdir[x];
 	u.dy = ydir[x];
 }
 
 #ifdef QUEST
 finddir(){
-register int i, ui = u.di;
+int i, ui = u.di;
 	for(i = 0; i <= 8; i++){
 		if(flags.run & 1) ui++; else ui += 7;
 		ui %= 8;
@@ -291,13 +291,13 @@ register int i, ui = u.di;
 	u.dy = ydir[ui];
 }
 
-isroom(x,y)  register x,y; {		/* what about POOL? */
+isroom(x,y)  x,y; {		/* what about POOL? */
 	return(isok(x,y) && (levl[x][y].typ == ROOM ||
 				(levl[x][y].typ >= LDOOR && flags.run >= 6)));
 }
 #endif QUEST
 
-isok(x,y) register x,y; {
+isok(x,y) x,y; {
 	/* x corresponds to curx, so x==1 is the first column. Ach. %% */
 	return(x >= 1 && x <= COLNO-1 && y >= 0 && y <= ROWNO-1);
 }

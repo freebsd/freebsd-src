@@ -125,9 +125,9 @@ struct shk_nx {
 };
 
 findname(nampt, let) char *nampt; char let; {
-register struct shk_nx *p = shk_nx;
-register char **q;
-register int i;
+struct shk_nx *p = shk_nx;
+char **q;
+int i;
 	while(p->x && p->x != let) p++;
 	q = p->xn;
 	for(i=0; i<dlevel; i++) if(!q[i]){
