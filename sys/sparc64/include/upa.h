@@ -31,4 +31,10 @@
 #define	UPA_MEMSTART	0x1fc00000000UL
 #define	UPA_MEMEND	0x1ffffffffffUL
 
+#define	UPA_CR_MID_SHIFT	(17)
+#define	UPA_CR_MID_SIZE		(5)
+#define	UPA_CR_MID_MASK		(((1 << UPA_CR_MID_SIZE) - 1) << UPA_CR_MID_SHIFT)
+
+#define	UPA_CR_GET_MID(cr)	((cr & UPA_CR_MID_MASK) >> UPA_CR_MID_SHIFT)
+
 #endif /* _MACHINE_UPA_H_ */
