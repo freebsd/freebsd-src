@@ -4,13 +4,15 @@
 #	/etc/rc.isdn - isdn4bsd startup script
 #	--------------------------------------
 #
-#	last edit-date: [Tue Jan 12 15:35:36 1999]
+#	last edit-date: [Mon Mar  8 12:15:56 1999]
 #
-#	$Id:$
+#	$Id: rc.isdn,v 1.1 1999/01/13 08:20:55 hm Exp $
 #
 #---------------------------------------------------------------------------
 
 if [ "X${isdn_enable}" = X"YES" ] ; then
+
+	echo -n 'ISDN subsystem setup:'
 
 	# terminal type for fullscreen mode, default to syscons driver
 	isdn_ttype=cons25
@@ -41,4 +43,6 @@ if [ "X${isdn_enable}" = X"YES" ] ; then
 		echo -n ' isdntrace'
 		nohup /usr/sbin/isdntrace ${isdn_traceflags} >/dev/null 2>&1 &
 	fi
+
+	echo '.'
 fi
