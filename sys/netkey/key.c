@@ -1957,7 +1957,6 @@ key_spdadd(so, m, mhp)
 	newsp->lifetime = lft ? lft->sadb_lifetime_addtime : 0;
 	newsp->validtime = lft ? lft->sadb_lifetime_usetime : 0;
 
-	newsp->refcnt = 1;	/* do not reclaim until I say I do */
 	newsp->state = IPSEC_SPSTATE_ALIVE;
 	LIST_INSERT_TAIL(&sptree[newsp->dir], newsp, secpolicy, chain);
 
@@ -7588,9 +7587,10 @@ key_sp_unlink(sp)
 {
 
 	/* remove from SP index */
-	if (__LIST_CHAINED(sp))
+	if (__LIST_CHAINED(sp)) {
 		LIST_REMOVE(sp, chain);
-	key_freesp(sp);
+		key_freesp(sp);
+	}
 }
 
 /* XXX too much? */
