@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.17 1995/01/07 22:53:41 jkh Exp $
+$Id: MIRROR.SITES,v 1.18 1995/01/08 12:18:50 jkh Exp $
 
 The latest versions of FreeBSD (2.0 or later) are being mirrored at the
 following locations:
@@ -32,7 +32,7 @@ Russia		ftp://ftp.kiae.su/FreeBSD
 Taiwan		ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD
 		<ftp@netbsd.csie.nctu.edu.tw>
 
-Thailand	ftp.nectec.or.th/pub/FreeBSD
+Thailand	ftp://ftp.nectec.or.th/pub/FreeBSD
 		<ftpadmin@ftp.nectec.or.th>
 
 USA		ftp://gatekeeper.dec.com/pub/BSD/FreeBSD
