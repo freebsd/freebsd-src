@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.17 1995/03/16 18:16:22 bde Exp $
+ * $Id: proc.h,v 1.18 1995/07/13 08:48:03 davidg Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -233,6 +233,13 @@ struct	pcred {
 	if (--(s)->s_count == 0)					\
 		FREE(s, M_SESSION);					\
 }
+
+/* hold process U-area in memory, normally for ptrace/procfs work */
+#define PHOLD(p) {							\
+	if ((p)->p_lock++ == 0 && ((p)->p_flag & P_INMEM) == 0)	\
+		faultin(p);						\
+}
+#define PRELE(p)	(--(p)->p_lock)
 
 extern struct proc *pidhash[];		/* In param.c. */
 extern struct pgrp *pgrphash[];		/* In param.c. */
