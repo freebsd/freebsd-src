@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.52 1998/09/24 15:02:46 luoqi Exp $
+ * $Id: ffs_vnops.c,v 1.53 1998/10/31 15:31:27 peter Exp $
  */
 
 #include <sys/param.h>
@@ -122,7 +122,6 @@ ffs_fsync(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct buf *bp;
-	struct timeval tv;
 	struct buf *nbp;
 	int s, error, passes, skipmeta;
 	daddr_t lbn;
@@ -248,6 +247,5 @@ loop2:
 		}
 	}
 	splx(s);
-	getmicrotime(&tv);
-	return (UFS_UPDATE(vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
+	return (UFS_UPDATE(vp, ap->a_waitfor == MNT_WAIT));
 }

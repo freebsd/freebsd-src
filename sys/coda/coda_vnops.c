@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.10 1998/12/04 18:44:21 rvb Exp $
+ *  $Id: coda_vnops.c,v 1.11 1999/01/05 18:49:51 eivind Exp $
  * 
  */
 
@@ -48,6 +48,9 @@
 /*
  * HISTORY
  * $Log: coda_vnops.c,v $
+ * Revision 1.11  1999/01/05 18:49:51  eivind
+ * Remove the 'waslocked' parameter to vfs_object_create().
+ *
  * Revision 1.10  1998/12/04 18:44:21  rvb
  * Don't print diagnostic anymore
  *
@@ -362,7 +365,7 @@ struct vnodeopv_entry_desc coda_vnodeop_entries[] = {
 #define UFS_VALLOC(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_valloc(aa, bb, cc, dd)
 #define UFS_VFREE(aa, bb, cc) VFSTOUFS((aa)->v_mount)->um_vfree(aa, bb, cc)
 #define UFS_TRUNCATE(aa, bb, cc, dd, ee) VFSTOUFS((aa)->v_mount)->um_truncate(aa, bb, cc, dd, ee)
-#define UFS_UPDATE(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_update(aa, bb, cc, dd)
+#define UFS_UPDATE(aa, bb) VFSTOUFS((aa)->v_mount)->um_update(aa, bb)
 
     missing
     { &vop_reallocblks_desc,	(vop_t *) ufs_missingop },

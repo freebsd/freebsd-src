@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufsmount.h	8.6 (Berkeley) 3/30/95
- * $Id: ufsmount.h,v 1.12 1997/10/16 20:32:40 phk Exp $
+ * $Id: ufsmount.h,v 1.13 1998/01/30 11:34:06 phk Exp $
  */
 
 #ifndef _UFS_UFS_UFSMOUNT_H_
@@ -97,14 +97,14 @@ struct ufsmount {
 	struct malloc_type *um_malloctype;	/* The inodes malloctype */
 	int	(*um_blkatoff) __P((struct vnode *, off_t, char **, struct buf **));
 	int	(*um_truncate) __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
-	int	(*um_update) __P((struct vnode *, struct timeval *, struct timeval *, int));
+	int	(*um_update) __P((struct vnode *, int));
 	int	(*um_valloc) __P((struct vnode *, int, struct ucred *, struct vnode **));
 	int	(*um_vfree) __P((struct vnode *, ino_t, int));
 };
 
 #define UFS_BLKATOFF(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_blkatoff(aa, bb, cc, dd)
 #define UFS_TRUNCATE(aa, bb, cc, dd, ee) VFSTOUFS((aa)->v_mount)->um_truncate(aa, bb, cc, dd, ee)
-#define UFS_UPDATE(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_update(aa, bb, cc, dd)
+#define UFS_UPDATE(aa, bb) VFSTOUFS((aa)->v_mount)->um_update(aa, bb)
 #define UFS_VALLOC(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_valloc(aa, bb, cc, dd)
 #define UFS_VFREE(aa, bb, cc) VFSTOUFS((aa)->v_mount)->um_vfree(aa, bb, cc)
 

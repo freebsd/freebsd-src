@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.9 (Berkeley) 5/14/95
- * $Id: ufs_inode.c,v 1.22 1998/03/30 09:56:16 phk Exp $
+ * $Id: ufs_inode.c,v 1.23 1998/07/03 22:17:02 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -66,7 +66,6 @@ ufs_inactive(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 	struct proc *p = ap->a_p;
-	struct timeval tv;
 	int mode, error = 0;
 
 	if (prtactive && vp->v_usecount != 0)
@@ -89,10 +88,8 @@ ufs_inactive(ap)
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		UFS_VFREE(vp, ip->i_number, mode);
 	}
-	if (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) {
-		getmicrotime(&tv);
-		UFS_UPDATE(vp, &tv, &tv, 0);
-	}
+	if (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE))
+		UFS_UPDATE(vp, 0);
 out:
 	VOP_UNLOCK(vp, 0, p);
 	/*
@@ -116,7 +113,6 @@ ufs_reclaim(ap)
 {
 	register struct inode *ip;
 	register struct vnode *vp = ap->a_vp;
-	struct timeval tv;
 #ifdef QUOTA
 	int i;
 #endif
@@ -126,8 +122,7 @@ ufs_reclaim(ap)
 	ip = VTOI(vp);
 	if (ip->i_flag & IN_LAZYMOD) {
 		ip->i_flag |= IN_MODIFIED;
-		getmicrotime(&tv);
-		UFS_UPDATE(vp, &tv, &tv, 0);
+		UFS_UPDATE(vp, 0);
 	}
 	/*
 	 * Remove the inode from its hash chain.
