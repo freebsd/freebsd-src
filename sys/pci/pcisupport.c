@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.108 1999/05/09 16:32:00 peter Exp $
+**  $Id: pcisupport.c,v 1.109 1999/05/10 14:07:14 n_hibma Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -834,6 +834,8 @@ static device_method_t pcib_methods[] = {
 	DEVMETHOD(device_probe,		pcib_probe),
 	DEVMETHOD(device_attach,	pcib_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
@@ -974,6 +976,8 @@ static device_method_t isab_methods[] = {
 	DEVMETHOD(device_probe,		isab_probe),
 	DEVMETHOD(device_attach,	bus_generic_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
