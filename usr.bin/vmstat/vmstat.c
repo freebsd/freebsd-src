@@ -66,6 +66,7 @@ static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #include <paths.h>
 #include <limits.h>
 
+#define NEWVM			/* XXX till old has been updated or purged */
 struct nlist namelist[] = {
 #define	X_CPTIME	0
 	{ "_cp_time" },
@@ -115,8 +116,8 @@ struct nlist namelist[] = {
 	{ "_hp_dinit" },
 #endif
 #if defined(i386)
-#define	X_ISA_BIO	(X_END)
-	{ "_isa_devtab_bio" },
+#define X_DK_NAMES	(X_END)
+	{ "_dk_names" },
 #endif
 #ifdef mips
 #define	X_SCSI_DINIT	(X_END)
@@ -425,13 +426,26 @@ dovmstat(interval, reps)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
 		(void)printf("%6ld%6ld ",
 		    pgtok(total.t_avm), pgtok(total.t_free));
-		(void)printf("%4lu ", rate(sum.v_vm_faults - osum.v_vm_faults));
+#ifdef NEWVM
+		(void)printf("%4lu ", rate(sum.v_faults - osum.v_faults));
 		(void)printf("%3lu ",
 		    rate(sum.v_reactivated - osum.v_reactivated));
-		(void)printf("%3lu ", rate(sum.v_swapin + sum.v_vnodein -
-		    (osum.v_swapin + osum.v_vnodein)));
-		(void)printf("%3lu %3lu ", rate(sum.v_swapout + sum.v_vnodeout -
-		    (osum.v_swapout + osum.v_vnodeout)), 0);
+		(void)printf("%3lu ", rate(sum.v_pageins - osum.v_pageins));
+		(void)printf("%3lu %3lu ",
+		    rate(sum.v_pageouts - osum.v_pageouts), 0);
+#else
+		(void)printf("%3lu %2lu ",
+		    rate(sum.v_pgrec - (sum.v_xsfrec+sum.v_xifrec) -
+		    (osum.v_pgrec - (osum.v_xsfrec+osum.v_xifrec))),
+		    rate(sum.v_xsfrec + sum.v_xifrec -
+		    osum.v_xsfrec - osum.v_xifrec));
+		(void)printf("%3lu ",
+		    rate(pgtok(sum.v_pgpgin - osum.v_pgpgin)));
+		(void)printf("%3lu %3lu ",
+		    rate(pgtok(sum.v_pgpgout - osum.v_pgpgout)),
+		    rate(pgtok(sum.v_dfree - osum.v_dfree)));
+		(void)printf("%3d ", pgtok(deficit));
+#endif
 		(void)printf("%3lu ", rate(sum.v_scan - osum.v_scan));
 		dkstats();
 		(void)printf("%4lu %4lu %3lu ",
@@ -449,10 +463,7 @@ dovmstat(interval, reps)
 		 * We round upward to avoid losing low-frequency events
 		 * (i.e., >= 1 per interval but < 1 per second).
 		 */
-		if (interval != 1)
-			halfuptime = (uptime + 1) / 2;
-		else
-			halfuptime = 0;
+		halfuptime = (uptime + 1) / 2;
 		(void)sleep(interval);
 	}
 }
@@ -467,7 +478,11 @@ printhdr()
 		   ndrives * 3 - 6, "");
 	else
 		(void)printf("%*s  faults      cpu\n", ndrives * 3, "");
+#ifndef NEWVM
+	(void)printf(" r b w   avm   fre  re at  pi  po  fr  de  sr ");
+#else
 	(void)printf(" r b w   avm   fre  flt  re  pi  po  fr  sr ");
+#endif
 	for (i = 0; i < dk_ndrive; i++)
 		if (dr_select[i])
 			(void)printf("%c%c ", dr_name[i][0],
@@ -527,6 +542,9 @@ void
 dosum()
 {
 	struct nchstats nchstats;
+#ifndef NEWVM
+	struct xstats xstats;
+#endif
 	long nchtotal;
 #if defined(tahoe)
 	struct keystats keystats;
@@ -541,20 +559,22 @@ dosum()
 #endif
 	(void)printf("%9u traps\n", sum.v_trap);
 	(void)printf("%9u system calls\n", sum.v_syscall);
-	(void)printf("%9u swap pager pageins\n", sum.v_swapin);
-	(void)printf("%9u swap pager pageouts\n", sum.v_swapout);
-	(void)printf("%9u swap pager pages paged in\n", sum.v_swappgsin);
-	(void)printf("%9u swap pager pages paged out\n", sum.v_swappgsout);
-	(void)printf("%9u vnode pager pageins\n", sum.v_vnodein);
-	(void)printf("%9u vnode pager pageouts\n", sum.v_vnodeout);
-	(void)printf("%9u vnode pager pages paged in\n", sum.v_vnodepgsin);
-	(void)printf("%9u vnode pager pages paged out\n", sum.v_vnodepgsout);
+	(void)printf("%9u total faults taken\n", sum.v_faults);
+	(void)printf("%9u swap ins\n", sum.v_swpin);
+	(void)printf("%9u swap outs\n", sum.v_swpout);
+	(void)printf("%9u pages swapped in\n", sum.v_pswpin / CLSIZE);
+	(void)printf("%9u pages swapped out\n", sum.v_pswpout / CLSIZE);
+	(void)printf("%9u page ins\n", sum.v_pageins);
+	(void)printf("%9u page outs\n", sum.v_pageouts);
+	(void)printf("%9u pages paged in\n", sum.v_pgpgin);
+	(void)printf("%9u pages paged out\n", sum.v_pgpgout);
 	(void)printf("%9u pages reactivated\n", sum.v_reactivated);
 	(void)printf("%9u intransit blocking page faults\n", sum.v_intrans);
-	(void)printf("%9u zero fill pages created\n", sum.v_nzfod);
-	(void)printf("%9u zero fill page faults\n", sum.v_zfod);
+	(void)printf("%9u zero fill pages created\n", sum.v_nzfod / CLSIZE);
+	(void)printf("%9u zero fill page faults\n", sum.v_zfod / CLSIZE);
 	(void)printf("%9u pages examined by the clock daemon\n", sum.v_scan);
 	(void)printf("%9u revolutions of the clock hand\n", sum.v_rev);
+#ifdef NEWVM
 	(void)printf("%9u VM object cache lookups\n", sum.v_lookups);
 	(void)printf("%9u VM object hits\n", sum.v_hits);
 	(void)printf("%9u total VM faults taken\n", sum.v_vm_faults);
@@ -566,6 +586,24 @@ dosum()
 	(void)printf("%9u pages active\n", sum.v_active_count);
 	(void)printf("%9u pages inactive\n", sum.v_inactive_count);
 	(void)printf("%9u bytes per page\n", sum.v_page_size);
+#else
+	(void)printf("%9u sequential process pages freed\n", sum.v_seqfree);
+	(void)printf("%9u total reclaims (%d%% fast)\n", sum.v_pgrec,
+	    PCT(sum.v_fastpgrec, sum.v_pgrec));
+	(void)printf("%9u reclaims from free list\n", sum.v_pgfrec);
+	(void)printf("%9u executable fill pages created\n",
+	    sum.v_nexfod / CLSIZE);
+	(void)printf("%9u executable fill page faults\n",
+	    sum.v_exfod / CLSIZE);
+	(void)printf("%9u swap text pages found in free list\n",
+	    sum.v_xsfrec);
+	(void)printf("%9u inode text pages found in free list\n",
+	    sum.v_xifrec);
+	(void)printf("%9u file fill pages created\n", sum.v_nvrfod / CLSIZE);
+	(void)printf("%9u file fill page faults\n", sum.v_vrfod / CLSIZE);
+	(void)printf("%9u pages freed by the clock daemon\n",
+	    sum.v_dfree / CLSIZE);
+#endif
 	kread(X_NCHSTATS, &nchstats, sizeof(nchstats));
 	nchtotal = nchstats.ncs_goodhits + nchstats.ncs_neghits +
 	    nchstats.ncs_badhits + nchstats.ncs_falsehits +
@@ -580,6 +618,16 @@ dosum()
 	    PCT(nchstats.ncs_badhits, nchtotal),
 	    PCT(nchstats.ncs_falsehits, nchtotal),
 	    PCT(nchstats.ncs_long, nchtotal));
+#ifndef NEWVM
+	kread(X_XSTATS, &xstats, sizeof(xstats));
+	(void)printf("%9lu total calls to xalloc (cache hits %d%%)\n",
+	    xstats.alloc, PCT(xstats.alloc_cachehit, xstats.alloc));
+	(void)printf("%9s sticky %lu flushed %lu unused %lu\n", "",
+	    xstats.alloc_inuse, xstats.alloc_cacheflush, xstats.alloc_unused);
+	(void)printf("%9lu total calls to xfree", xstats.free);
+	(void)printf(" (sticky %lu cached %lu swapped %lu)\n",
+	    xstats.free_inuse, xstats.free_cache, xstats.free_cacheswap);
+#endif
 #if defined(tahoe)
 	kread(X_CKEYSTATS, &keystats, sizeof(keystats));
 	(void)printf("%9d %s (free %d%% norefs %d%% taken %d%% shared %d%%)\n",
@@ -828,7 +876,12 @@ void
 usage()
 {
 	(void)fprintf(stderr,
+#ifndef NEWVM
+	    "usage: vmstat [-fimst] [-c count] [-M core] \
+[-N system] [-w wait] [disks]\n");
+#else
 	    "usage: vmstat [-ims] [-c count] [-M core] \
 [-N system] [-w wait] [disks]\n");
+#endif
 	exit(1);
 }

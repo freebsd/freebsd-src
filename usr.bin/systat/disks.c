@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)disks.c	8.1 (Berkeley) 6/6/93";
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/buf.h>
+#include <sys/dkstat.h>
 
 #include <nlist.h>
 #include <ctype.h>
@@ -60,8 +61,8 @@ static struct nlist namelist[] = {
         { "_hp_dinit" }, 
 #endif
 #if defined(i386)
-#define X_ISA_BIO	(X_DK_WPMS+1)
-	{ "_isa_devtab_bio" },
+#define X_DK_NAMES	(X_DK_WPMS+1)
+	{ "_dk_names" },
 #endif
 #ifdef mips
 #define X_SCSI_DINIT	(X_DK_WPMS+1)
