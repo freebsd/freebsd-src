@@ -463,9 +463,9 @@ agg_init(struct agg_info* ess)
 	bus_space_write_2(ess->st, ess->sh, PORT_HOSTINT_CTRL, 0);
 	DELAY(10000);
 
-	/* Enable direct sound interruption. */
+	/* Enable direct sound interruption and hardware volume control. */
 	bus_space_write_2(ess->st, ess->sh, PORT_HOSTINT_CTRL,
-	    HOSTINT_CTRL_DSOUND_INT_ENABLED);
+	    HOSTINT_CTRL_DSOUND_INT_ENABLED | HOSTINT_CTRL_HWVOL_ENABLED);
 
 	/* Setup Wave Processor. */
 
@@ -843,26 +843,31 @@ agg_intr(void *sc)
 
 	/* Acknowledge all. */
 	bus_space_write_2(ess->st, ess->sh, PORT_INT_STAT, 1);
-	bus_space_write_1(ess->st, ess->sh, PORT_HOSTINT_STAT, 0);
-#if 0	/* XXX - HWVOL */
+	bus_space_write_1(ess->st, ess->sh, PORT_HOSTINT_STAT, 0xff);
+
 	if (status & HOSTINT_STAT_HWVOL) {
-		u_int delta;
-		delta = bus_space_read_1(ess->st, ess->sh, PORT_HWVOL_MASTER)
-		    - 0x88;
-		if (delta & 0x11)
-			mixer_set(device_get_softc(ess->dev),
-			    SOUND_MIXER_VOLUME, 0);
-		else {
-			mixer_set(device_get_softc(ess->dev),
-			    SOUND_MIXER_VOLUME,
-			    mixer_get(device_get_softc(ess->dev),
-				SOUND_MIXER_VOLUME)
-			    + ((delta >> 5) & 0x7) - 4
-			    + ((delta << 7) & 0x700) - 0x400);
+		u_int event;
+
+		event = bus_space_read_1(ess->st, ess->sh, PORT_HWVOL_MASTER);
+		switch (event) {
+		case HWVOL_MUTE:
+			mixer_hwmute(ess->dev);
+			break;
+		case HWVOL_UP:
+			mixer_hwstep(ess->dev, 1, 1);
+			break;
+		case HWVOL_DOWN:
+			mixer_hwstep(ess->dev, -1, -1);
+			break;
+		case HWVOL_NOP:
+			break;
+		default:
+			device_printf(ess->dev, "%s: unknown HWVOL event 0x%x\n",
+			    device_get_nameunit(ess->dev), event);
 		}
-		bus_space_write_1(ess->st, ess->sh, PORT_HWVOL_MASTER, 0x88);
+		bus_space_write_1(ess->st, ess->sh, PORT_HWVOL_MASTER,
+		    HWVOL_NOP);
 	}
-#endif	/* XXX - HWVOL */
 
 	for (i = 0; i < ess->playchns; i++)
 		if (ess->active & (1 << i)) {
