@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.145 1999/01/09 21:47:01 jdp Exp $
+#	$Id: BSD.usr.dist,v 1.146 1999/01/18 13:58:47 hm Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -661,31 +661,59 @@
 	    ..
 	    da_DK.ISO_8859-1
             ..
+	    da_DK.DIS_8859-15
+            ..
 	    de_AT.ISO_8859-1
+            ..
+	    de_AT.DIS_8859-15
             ..
 	    de_CH.ISO_8859-1
             ..
+	    de_CH.DIS_8859-15
+            ..
 	    de_DE.ISO_8859-1
+            ..
+	    de_DE.DIS_8859-15
             ..
 	    en_AU.ISO_8859-1
             ..
+	    en_AU.DIS_8859-15
+            ..
 	    en_CA.ISO_8859-1
+            ..
+	    en_CA.DIS_8859-15
             ..
 	    en_GB.ISO_8859-1
             ..
+	    en_GB.DIS_8859-15
+            ..
 	    en_US.ISO_8859-1
+            ..
+	    en_US.DIS_8859-15
             ..
 	    es_ES.ISO_8859-1
             ..
+	    es_ES.DIS_8859-15
+            ..
 	    fi_FI.ISO_8859-1
+            ..
+	    fi_FI.DIS_8859-15
             ..
 	    fr_BE.ISO_8859-1
             ..
+	    fr_BE.DIS_8859-15
+            ..
 	    fr_CA.ISO_8859-1
+            ..
+	    fr_CA.DIS_8859-15
             ..
 	    fr_CH.ISO_8859-1
             ..
+	    fr_CH.DIS_8859-15
+            ..
 	    fr_FR.ISO_8859-1
+	    ..
+	    fr_FR.DIS_8859-15
 	    ..
 	    hr_HR.ISO_8859-2
             ..
@@ -693,9 +721,15 @@
             ..
 	    is_IS.ISO_8859-1
             ..
+	    is_IS.DIS_8859-15
+            ..
 	    it_CH.ISO_8859-1
             ..
+	    it_CH.DIS_8859-15
+            ..
 	    it_IT.ISO_8859-1
+            ..
+	    it_IT.DIS_8859-15
             ..
             ja_JP.EUC
             ..
@@ -728,6 +762,8 @@
 	    sl_SI.ISO_8859-2
             ..
 	    sv_SE.ISO_8859-1
+            ..
+	    sv_SE.DIS_8859-15
             ..
 	    zh_CN.EUC
 	    ..
