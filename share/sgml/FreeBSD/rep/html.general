@@ -49,11 +49,11 @@
 <!entity lt sdata "&lt;" >
 <!entity amp sdata "&amp;" >
 <!entity ero sdata "&amp;" >
-<!entity etago sdata "</" >
-<!entity dquot sdata '"' >
+<!entity etago sdata "&lt;/" >
+<!entity dquot sdata "&quot;" >
 <!entity num sdata "#" >
 <!entity percnt sdata "%" >
-<!entity quot sdata "&quot;" >
+<!entity quot sdata "'" >
 <!entity lpar sdata "&lpar;" >
 <!entity rpar sdata "&rpar;" >
 <!entity ast sdata "&ast;" >

@@ -3,6 +3,7 @@
 <!entity Aacute sdata "\'{A}" >
 <!entity Acirc sdata "\^{A}" >
 <!entity Agrave sdata "\`{A}" >
+<!entity Aring sdata "{\AA}" >
 <!entity Atilde sdata "\~{A}" >
 <!entity Ccedil sdata "\c{C}" >
 <!entity Eacute sdata "\'{E}" >
@@ -48,8 +49,8 @@
 <!entity yuml sdata '\"{y}' >
 <!entity lt sdata "{$<$}" >
 <!entity amp sdata "\&" >
-<!entity ero sdata "&" >
-<!entity etago sdata "</" >
+<!entity ero sdata "\&" >
+<!entity etago sdata "{$<$}/" >
 <!entity dquot sdata '{\tt "}' >
 <!entity num sdata "\#" >
 <!entity percnt sdata "\%" >

@@ -163,6 +163,11 @@
 			"<@@endurl>"		+
 </url>
 
+<htmlurl>	+	"<@@url>[URL]\n"
+			"[NAME]</a>\n"
+			"<@@endurl>"		+
+</htmlurl>
+
 % ref modified to have an optional name field 
 <ref>		+	"<@@ref>[ID]\n"
 			"[NAME]</A>\n"
@@ -368,8 +373,8 @@
 <address>	+	"<ADDRESS>"	+
 </address>	+	"</ADDRESS>"	+
 
-<email>		+	"<EMAIL>"
-</email>		"</EMAIL>"	+
+<email>		+	"<@@email>"
+</email>		"<@@endemail>"	+
 
 <phone>		+	"<PHONE>"	
 </phone>		"</PHONE>"	+
