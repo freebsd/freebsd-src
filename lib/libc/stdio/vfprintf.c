@@ -384,9 +384,11 @@ __wcsconv(wchar_t *wcsarg, int prec)
 			break;
 		mbp += clen;
 	}
-	*mbp = '\0';
-	if (clen == (size_t)-1)
+	if (clen == (size_t)-1) {
+		free(convbuf);
 		return (NULL);
+	}
+	*mbp = '\0';
 
 	return (convbuf);
 }
