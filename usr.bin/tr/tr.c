@@ -38,14 +38,17 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)tr.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <locale.h>
 #include <sys/types.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
 #include "extern.h"
 
 static int string1[NCHARS] = {
