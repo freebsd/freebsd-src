@@ -360,7 +360,7 @@ struct mbstat {
  */
 #define	M_LEADINGSPACE(m)						\
 	((m)->m_flags & M_EXT ?						\
-	    /* (m)->m_data - (m)->m_ext.ext_buf */ 0 :			\
+	    (M_WRITABLE(m) ? (m)->m_data - (m)->m_ext.ext_buf : 0):	\
 	    (m)->m_flags & M_PKTHDR ? (m)->m_data - (m)->m_pktdat :	\
 	    (m)->m_data - (m)->m_dat)
 
