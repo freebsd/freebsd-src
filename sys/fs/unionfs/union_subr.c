@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.14 1997/02/22 09:40:40 peter Exp $
+ * $Id: union_subr.c,v 1.15 1997/03/23 03:36:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -895,7 +895,7 @@ union_vn_create(vpp, un, p)
 	 * copied in the first place).
 	 */
 	cn.cn_namelen = strlen(un->un_path);
-	cn.cn_pnbuf = (caddr_t) malloc(cn.cn_namelen, M_NAMEI, M_WAITOK);
+	cn.cn_pnbuf = (caddr_t) malloc(cn.cn_namelen+1, M_NAMEI, M_WAITOK);
 	bcopy(un->un_path, cn.cn_pnbuf, cn.cn_namelen+1);
 	cn.cn_nameiop = CREATE;
 	cn.cn_flags = (LOCKPARENT|HASBUF|SAVENAME|SAVESTART|ISLASTCN);
