@@ -35,11 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cond.c,v 1.8 1999/05/25 13:45:08 hoek Exp $
+ *	$Id: cond.c,v 1.9 1999/08/12 13:30:08 hoek Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)cond.c	8.2 (Berkeley) 1/2/94";
+#else
+static const char rcsid[] =
+	"$Id";
+#endif
 #endif /* not lint */
 
 /*-
@@ -290,8 +295,7 @@ CondDoDefined (argLen, arg)
     } else {
 	result = FALSE;
     }
-    if (p1)
-	free(p1);
+    efree(p1);
     arg[argLen] = savec;
     return (result);
 }

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
-.\"	$Id: make.1,v 1.21 1999/08/12 20:49:20 chris Exp $
+.\"	$Id: make.1,v 1.22 1999/08/14 06:47:13 chris Exp $
 .\"
 .Dd March 19, 1994
 .Dt MAKE 1
@@ -40,7 +40,7 @@
 .Nd maintain program dependencies
 .Sh SYNOPSIS
 .Nm make
-.Op Fl Beiknqrstv
+.Op Fl BPSeiknqrstv
 .Op Fl D Ar variable
 .Op Fl d Ar flags
 .Op Fl E Ar variable
@@ -51,29 +51,30 @@
 .Op Fl m Ar directory
 .Ek
 .Op Fl V Ar variable
-.Op Ar variable=value
+.Op Ar variable Ns No = Ns Ar value
 .Op Ar target ...
 .Sh DESCRIPTION
 .Nm Make
 is a program designed to simplify the maintenance of other programs.
-Its input is a list of specifications as to the files upon which programs
-and other files depend.
-.Nm Make
-searches a built-in path for this list.
-If the file
+Its input is a list of specifications 
+describing dependency relationships between the generation of
+files and programs.
+The first of
 .Ql Pa makefile
-exists along this path, it is read for this list of specifications.
-If it does not exist, the file
+and
 .Ql Pa Makefile
-is used.
+that can be found in either the current directory or a special object directory
+(see
+.Ql Va .OBJDIR )
+will be read for this list of specifications.
 If the file
 .Ql Pa .depend
-exists, it is also read (see
+can be found, it is also read (see
 .Xr mkdep 1) .
 .Pp
 This manual page is intended as a reference document only.
-For a more thorough description of
-.Nm make
+For a more thorough introduction to
+.Nm
 and makefiles, please refer to
 .%T "Make \- A Tutorial" .
 .Pp
@@ -82,15 +83,19 @@ The options are as follows:
 .It Fl B
 Try to be backwards compatible by executing a single shell per command and
 by executing the commands to make the sources of a dependency line in sequence.
+This is turned on by default unless
+.Fl j
+is used.
 .It Fl D Ar variable
 Define
 .Ar variable
 to be 1, in the global context.
 .It Fl d Ar flags
 Turn on debugging, and specify which portions of
-.Nm make
+.Nm
 are to print debugging information.
-.Ar Flags
+Argument
+.Ar flags
 is one or more of the following:
 .Bl -tag -width Ds
 .It Ar A
@@ -102,6 +107,9 @@ Print debugging information about archive searching and caching.
 Print debugging information about conditional evaluation.
 .It Ar d
 Print debugging information about directory searching and caching.
+.It Ar f
+Print debugging information about the execution of for loops. Currently a
+no-op.
 .It Ar "g1"
 Print the input graph before making anything.
 .It Ar "g2"
@@ -133,9 +141,9 @@ and
 If
 .Ar makefile
 is
-.Ql Fl ,
+.Ql \- ,
 standard input is read.
-Multiple makefile's may be specified, and are read in the order specified.
+Multiple makefiles may be specified, and are read in the order specified.
 .It Fl I Ar directory
 Specify a directory in which to search for makefiles and included makefiles.
 The system makefile directory (or directories, see the
@@ -144,11 +152,11 @@ option) is automatically included as part of this list.
 .It Fl i
 Ignore non-zero exit of shell commands in the makefile.
 Equivalent to specifying
-.Ql Fl
+.Ql \-
 before each command line in the makefile.
 .It Fl j Ar max_jobs
 Specify the maximum number of jobs that
-.Nm make
+.Nm
 may have running at any one time. Turns compatibility mode off, unless the
 .Ar B
 flag is also specified.
@@ -158,19 +166,31 @@ that do not depend on the target whose creation caused the error.
 .It Fl m Ar directory
 Specify a directory in which to search for sys.mk and makefiles included
 via the <...> style.  Multiple directories can be added to form a search path.
-This path will override the default system include path: /usr/share/mk.
-Furthermore the system include path will be appended to the search path used
+This path will override the default system include path:
+.Pa /usr/share/mk .
+Furthermore, the system include path will be appended to the search path used
 for "..."-style inclusions (see the
 .Fl I
 option).
 .It Fl n
 Display the commands that would have been executed, but do not actually
 execute them.
+.It Fl P
+Collate the output of a given job and display it only when the job finishes,
+instead of mixing the output of parallel jobs together.
+This option has no effect unless
+.Fl j
+is used too.
 .It Fl q
 Do not execute any commands, but exit 0 if the specified targets are
 up-to-date and 1, otherwise.
 .It Fl r
 Do not use the built-in rules specified in the system makefile.
+.It Fl S
+Stop processing when an error is encountered.
+Default behaviour.  This is needed to negate the
+.Fl k
+option during recursive builds.
 .It Fl s
 Do not echo any commands as they are executed.
 Equivalent to specifying
@@ -192,7 +212,7 @@ with a blank line for each null or undefined variable.
 .It Fl v
 Be extra verbose.
 For multi-job makes, this will cause file banners to be generated.
-.It Ar variable=value
+.It Ar variable Ns No = Ns Ar value
 Set the value of the variable
 .Ar variable
 to
@@ -211,7 +231,9 @@ line are compressed into a single space.
 .Sh FILE DEPENDENCY SPECIFICATIONS
 Dependency lines consist of one or more targets, an operator, and zero
 or more sources.
-This creates a relationship where the targets ``depend'' on the sources
+This creates a relationship where the targets
+.Dq depend
+on the sources
 and are usually created from them.
 The exact relationship between the target and the source is determined
 by the operator that separates them.
@@ -223,7 +245,7 @@ those of any of its sources.
 Sources for a target accumulate over dependency lines when this operator
 is used.
 The target is removed if
-.Nm make
+.Nm
 is interrupted.
 .It Ic \&!
 Targets are always re-created, but not until all sources have been
@@ -231,7 +253,7 @@ examined and re-created as necessary.
 Sources for a target accumulate over dependency lines when this operator
 is used.
 The target is removed if
-.Nm make
+.Nm
 is interrupted.
 .It Ic \&::
 If no sources are specified, the target is always re-created.
@@ -240,17 +262,17 @@ been modified more recently than the target.
 Sources for a target do not accumulate over dependency lines when this
 operator is used.
 The target will not be removed if
-.Nm make
+.Nm
 is interrupted.
 .El
 .Pp
-Targets and sources may contain the shell wildcard values
+Targets and sources may contain the shell wildcard expressions
 .Ql ? ,
 .Ql * ,
 .Ql []
 and
 .Ql {} .
-The values
+The expressions
 .Ql ? ,
 .Ql *
 and
@@ -258,7 +280,7 @@ and
 may only be used as part of the final
 component of the target or source, and must be used to describe existing
 files.
-The value
+The expression
 .Ql {}
 need not necessarily be used to describe existing files.
 Expansion is in directory order, not alphabetically as done in the shell.
@@ -285,7 +307,9 @@ A
 .Ql Ic \-
 causes any non-zero exit status of the command line to be ignored.
 .Sh VARIABLE ASSIGNMENTS
-Variables in make are much like variables in the shell, and, by tradition,
+Variables in
+.Nm
+are much like variables in the shell, and, by tradition,
 consist of all upper-case letters.
 The five operators that can be used to assign values to variables are as
 follows:
@@ -307,7 +331,7 @@ the result to the variable.
 Any newlines in the result are replaced with spaces.
 .El
 .Pp
-Any white-space before the assigned
+Any whitespace before the assigned
 .Ar value
 is removed; if the value is being appended, a single space is inserted
 between the previous contents of the variable and the appended value.
@@ -349,13 +373,17 @@ The seven local variables are as follows:
 The list of all sources for this target; also known as
 .Ql Va \&> .
 .It Va .ARCHIVE
-The name of the archive file.
+The name of the archive file; also known as
+.Ql Va \&! .
 .It Va .IMPSRC
 The name/path of the source from which the target is to be transformed
-(the ``implied'' source); also known as
+(the
+.Dq implied
+source); also known as
 .Ql Va \&< .
 .It Va .MEMBER
-The name of the archive member.
+The name of the archive member; also known as
+.Ql Va \&% .
 .It Va .OODATE
 The list of sources for this target that were deemed out-of-date; also
 known as
@@ -371,8 +399,11 @@ The name of the target; also known as
 .Pp
 The shorter forms
 .Ql Va @ ,
+.Ql Va ! ,
+.Ql Va \&< ,
+.Ql Va \&% ,
 .Ql Va ? ,
-.Ql Va \&>
+.Ql Va \&> ,
 and
 .Ql Va *
 are permitted for backward
@@ -382,7 +413,7 @@ The six variables
 .Ql Va "@D" ,
 .Ql Va "<F" ,
 .Ql Va "<D" ,
-.Ql Va "*F"
+.Ql Va "*F" ,
 and
 .Ql Va "*D"
 are
@@ -398,10 +429,12 @@ These variables are
 .Ql Va .ARCHIVE ,
 and
 .Ql Va .MEMBER .
+.El
 .Pp
 In addition,
-.Nm make
-sets or knows about the following variables:
+.Nm
+sets or knows about the following internal variables or environment
+variables:
 .Bl -tag -width MAKEFLAGS
 .It Va \&$
 A single dollar sign
@@ -412,57 +445,129 @@ expands to a single dollar
 sign.
 .It Va .MAKE
 The name that
-.Nm make
+.Nm
 was executed with
-.Pq Va argv Op 0
+.Pq Va argv Ns Op 0 .
 .It Va .CURDIR
 A path to the directory where
-.Nm make
+.Nm
 was executed.
 .It Va .OBJDIR
 A path to the directory where the targets are built.
-.It Ev MAKEFLAGS
+At startup,
+.Nm
+searches for an alternate directory to place target files.
+It will attempt to change into this special directory
+and will search this directory for makefiles
+not found in the current directory.
+The following directories are tried in order:
+.Pp
+.Bl -enum -compact
+.It
+${MAKEOBJDIRPREFIX}/`cwd`
+.It
+${MAKEOBJDIR}
+.It
+obj.${MACHINE}
+.It
+obj
+.It
+/usr/obj/`cwd`
+.El
+.Pp
+The first directory that
+.Nm
+successfully changes into is used.
+If either
+.Ev MAKEOBJDIRPREFIX
+or
+.Ev MAKEOBJDIR
+is defined but
+.Nm
+is unable to change into the corresponding directory,
+then the current directory is used
+without checking the remainder of the list.
+If they are undefined and
+.Nm
+is unable to change into any of the remaining three directories,
+then the current directory is used.
+.It Va .MAKEFLAGS
 The environment variable
-.Ql Ev MAKEFLAGS
+.Ev MAKEFLAGS
 may contain anything that
 may be specified on
 .Nm make Ns 's
-command line.
+command line. Its contents are stored in
+.Nm make Ns 's
+.Va .MAKEFLAGS
+variable.
 Anything specified on
 .Nm make Ns 's
 command line is appended to the
-.Ql Ev MAKEFLAGS
+.Va .MAKEFLAGS
 variable which is then
-entered into the environment for all programs which
-.Nm make
+entered into the environment as
+.Ev MAKEFLAGS
+for all programs which
+.Nm
 executes.
+.It Va MFLAGS
+A synonym for
+.Va .MAKEFLAGS
+provided for backward compatibility.
 .It Ev PWD
-Alternate path to the current directory.  Supported if built with WANT_ENV_PWD
-defined.
-.Nm make
+Alternate path to the current directory.
+Supported if built with WANT_ENV_PWD defined.
+.Nm
 normally sets
 .Ql Va .CURDIR
 to the canonical path given by
 .Xr getcwd 3 .
 However, if the environment variable
-.Ql Ev PWD
+.Ev PWD
 is set and gives a path to the current directory, then
-.Nm make
+.Nm
 sets
 .Ql Va .CURDIR
 to the value of
-.Ql Ev PWD
+.Ev PWD
 instead.
-.Ql Ev PWD
-is set to the value of
+.Ev PWD
+is always set to the value of
 .Ql Va .OBJDIR
 for all programs which
-.Nm make
+.Nm
 executes.
+.It Va .TARGETS
+List of targets
+.Nm
+is currently building.
+.It Va .INCLUDES
+See
+.Ic .INCLUDES
+special target.
+.It Va .LIBS
+See
+.Ic .LIBS
+special target.
+.It Va MACHINE
+Name of the machine architecture
+.Nm
+is running on, obtained from the
+.Ev MACHINE
+environment variable, or through
+.Xr uname 2
+if not defined.
+.It Va MACHINE_ARCH
+Name of the machine architecture
+.Nm
+was compiled for, defined at compilation time.
 .El
 .Pp
 Variable expansion may be modified to select or modify each word of the
-variable (where a ``word'' is white-space delimited sequence of characters).
+variable (where a
+.Dq word
+is whitespace delimited sequence of characters).
 The general format of a variable expansion is as follows:
 .Pp
 .Dl {variable[:modifier[:...]]}
@@ -489,7 +594,7 @@ The wildcard characters may be escaped with a backslash
 .Pq Ql \e .
 .It Cm N Ns Ar pattern
 This is identical to
-.Ql Cm M ,
+.Cm M ,
 but selects all words which do not match
 the rest of the modifier.
 .It Cm Q
@@ -499,27 +604,27 @@ safely through recursive invocations of
 .It Cm R
 Replaces each word in the variable with everything but its suffix.
 .Sm off
-.It Cm S No \&/ Ar old_pattern Xo
-.No \&/ Ar new_pattern
+.It Cm S No \&/ Ar old_string Xo
+.No \&/ Ar new_string
 .No \&/ Op Cm g
 .Xc
 .Sm on
 Modify the first occurrence of
-.Ar old_pattern
-in each word to be replaced with
-.Ar new_pattern .
+.Ar old_string
+in each word of the variable's value, replacing it with
+.Ar new_string .
 If a
 .Ql g
 is appended to the last slash of the pattern, all occurrences
 in each word are replaced.
 If
-.Ar old_pattern
-begins with a carat
+.Ar old_string
+begins with a caret
 .Pq Ql ^ ,
-.Ar old_pattern
+.Ar old_string
 is anchored at the beginning of each word.
 If
-.Ar old_pattern
+.Ar old_string
 ends with a dollar sign
 .Pq Ql \&$ ,
 it is anchored at the end of each word.
@@ -528,10 +633,10 @@ Inside
 an ampersand
 .Pq Ql &
 is replaced by
-.Ar old_pattern .
+.Ar old_string .
 Any character may be used as a delimiter for the parts of the modifier
 string.
-The anchoring, ampersand and delimiter characters may be escaped with a
+The anchoring, ampersand, and delimiter characters may be escaped with a
 backslash
 .Pq Ql \e .
 .Pp
@@ -541,7 +646,7 @@ and
 .Ar new_string
 with the single exception that a backslash is used to prevent the expansion
 of a dollar sign
-.Pq Ql \&$
+.Pq Ql \&$ ,
 not a preceding dollar sign as is usual.
 .It Cm T
 Replaces each word in the variable with its last component.
@@ -565,8 +670,8 @@ is the substring of
 to be replaced in
 .Ar new_string
 .El
-.Sh DIRECTIVES, CONDITIONALS AND FOR LOOPS
-Directives, conditionals and for loops reminiscent
+.Sh DIRECTIVES, CONDITIONALS, AND FOR LOOPS
+Directives, conditionals, and for loops reminiscent
 of the C programming language are provided in
 .Nm make .
 All such structures are identified by a line beginning with a single
@@ -694,7 +799,7 @@ of higher precedence than
 .El
 .Pp
 As in C,
-.Nm make
+.Nm
 will only evaluate a conditional as far as is necessary to determine
 its value.
 Parentheses may be used to change the order of evaluation.
@@ -732,7 +837,8 @@ Takes a target name as an argument and evaluates to true if the target
 has been defined.
 .El
 .Pp
-.Ar Expression
+An
+.Ar expression
 may also be an arithmetic or string comparison.  Variable expansion is
 performed on both sides of the comparison, after which the integral
 values are compared.  A value is interpreted as hexadecimal if it is
@@ -749,20 +855,26 @@ If no relational operator is given, it is assumed that the expanded
 variable is being compared against 0.
 .Pp
 When
-.Nm make
-is evaluating one of these conditional expression, and it encounters
-a word it doesn't recognize, either the ``make'' or ``defined''
+.Nm
+is evaluating one of these conditional expressions, and it encounters
+a word it doesn't recognize, either the
+.Dq make
+or
+.Dq defined
 expression is applied to it, depending on the form of the conditional.
 If the form is
 .Ql Ic .ifdef
 or
 .Ql Ic .ifndef ,
-the ``defined'' expression
-is applied.
+the
+.Dq defined
+expression is applied.
 Similarly, if the form is
 .Ql Ic .ifmake
 or
-.Ql Ic .ifnmake , the ``make''
+.Ql Ic .ifnmake ,
+the
+.Dq make
 expression is applied.
 .Pp
 If the conditional evaluates to true the parsing of the makefile continues
@@ -791,10 +903,10 @@ The syntax of a for loop is:
 .Xc
 .El
 After the for
-.Ic expression
+.Ar expression
 is evaluated, it is split into words. The
 iteration
-.Ic variable
+.Ar variable
 is successively set to each word, and substituted in the
 .Ic make-rules
 inside the body of the for loop.
@@ -819,18 +931,18 @@ Normally used to mark recursive
 .Nm make Ns 's .
 .It Ic .NOTMAIN
 Normally
-.Nm make
+.Nm
 selects the first target it encounters as the default target to be built
 if no target was specified.
 This source prevents this target from being selected.
 .It Ic .OPTIONAL
 If a target is marked with this attribute and
-.Nm make
+.Nm
 can't figure out how to create it, it will ignore this fact and assume
 the file isn't needed or already exists.
 .It Ic .PRECIOUS
 When
-.Nm make
+.Nm
 is interrupted, it removes any partially made targets.
 This source prevents the target from being removed.
 .It Ic .SILENT
@@ -839,7 +951,7 @@ as if they all were preceded by an at sign
 .Pq Ql @ .
 .It Ic .USE
 Turn the target into
-.Nm make Ns 's .
+.Nm make Ns 's
 version of a macro.
 When the target is used as a source for another target, the other target
 acquires the commands, sources, and attributes (except for
@@ -869,7 +981,7 @@ This is sort of a
 .Ic .USE
 rule for any target (that was used only as a
 source) that
-.Nm make
+.Nm
 can't figure out any other way to create.
 Only the shell script is used.
 The
@@ -888,17 +1000,38 @@ attribute.
 If no sources are specified, this is the equivalent of specifying the
 .Fl i
 option.
+.It Ic .INCLUDES
+A list of suffixes that indicate files that can be included in a source
+file. The suffix must have already been declared with
+.Ic .SUFFIXES ;
+any suffix so declared will have the directories on its search path (see
+.Ic .PATH )
+placed in the
+.Va .INCLUDES
+special variable, each preceeded by a
+.Fl I
+flag.
 .It Ic .INTERRUPT
 If
-.Nm make
+.Nm
 is interrupted, the commands for this target will be executed.
+.It Ic .LIBS
+This does for libraries what
+.Ic .INCLUDES
+does for include files, except that the flag used is
+.Fl L .
 .It Ic .MAIN
 If no target is specified when
-.Nm make
+.Nm
 is invoked, this target will be built.
+This is always set, either
+explicitly, or implicitly when
+.Nm
+selects the default target, to give the user a way to refer to the default
+target on the command line.
 .It Ic .MAKEFLAGS
 This target provides a way to specify flags for
-.Nm make
+.Nm
 when the makefile is used.
 The flags are as if typed to the shell, though the
 .Fl f
@@ -928,6 +1061,17 @@ The variable
 .Ql Ev VPATH
 used to add directories to the search path is permitted only for backward
 compatibility, and is not recommended for use in new Makefiles.
+.It Ic .PATH\fIsuffix\fR
+The sources are directories which are to be searched for suffixed files
+not found in the current directory.
+.Nm Make
+first searches the suffixed search path, before reverting to the default
+path if the file is not found there.
+This form is required for
+.Ic .LIBS
+and
+.Ic .INCLUDES
+to work.
 .It Ic .PHONY
 Apply the
 .Ic .PHONY
@@ -953,36 +1097,26 @@ command in the file.
 Each source specifies a suffix to
 .Nm make .
 If no sources are specified, any previous specified suffices are deleted.
-.Sh SEARCH PATH
-.Nm Make
-searches for
-.Ql Pa Makefile
-in the following directories, in order:
+.Sh COMPATIBILITY
+Older versions of
+.Nm
+used
+.Ev MAKE
+instead of
+.Ev MAKEFLAGS .
+This was removed for POSIX compatibility.
+The internal variable
+.Va MAKE
+is set to the same value as
+.Va .MAKE ;
+support for this may be removed in the future.
 .Pp
-.Bl -enum -compact
-.It
-${MAKEOBJDIRPREFIX}`cwd`
-.It
-${MAKEOBJDIR}
-.It
-obj.${MACHINE}
-.It
-obj 
-.It
-/usr/obj${MACHINE}`cwd`
-.It
-The current directory (`cwd`).
-.El
-.Pp
-If
-.Nm make
-finds the
-.Ql Pa Makefile
-someplace other than the current working directory, it adds the CWD to
-the search path.
+Most of the more esoteric features of
+.Nm
+should probably be avoided for greater compatibility.
 .Sh ENVIRONMENT
 .Nm Make
-utilizes the following environment variables, if they exist:
+uses the following environment variables, if they exist:
 .Ev MACHINE ,
 .Ev MAKE ,
 .Ev MAKEFLAGS ,
@@ -992,23 +1126,60 @@ and
 .Ev PWD .
 .Sh FILES
 .Bl -tag -width /usr/share/doc/psd/12.make -compact
-.It .depend
+.It Pa .depend
 list of dependencies
-.It Makefile
+.It Pa Makefile
 list of dependencies
-.It makefile
+.It Pa makefile
 list of dependencies
 .It obj
 object directory
-.It sys.mk
+.It Pa sys.mk
 system makefile
-.It /usr/share/mk
+.It Pa /usr/share/mk
 system makefile directory
 .It /usr/share/doc/psd/12.make
 PMake tutorial
-.It /usr/obj
-system object directory prefix
+.It Pa /usr/obj
+default
+.Ev MAKEOBJDIRPREFIX
+directory.
 .El
+.Sh BUGS
+The determination of
+.Va .OBJDIR
+is contorted to the point of absurdity.
+.Pp
+In the presence of several
+.Ic .MAIN
+special targets,
+.Nm
+silently ignores all but the first.
+.Pp
+.Va .TARGETS
+is not set to the default target when
+.Nm
+is invoked without a target name and no
+.Ic .MAIN
+special target exists.
+.Pp
+The evaluation of
+.Ar expression
+in a test is very simple-minded. Currently, the only form that works is
+.Ql .if ${VAR} op something
+For instance, you should write tests as
+.Ql .if ${VAR} = "string"
+not the other way around, which doesn't work.
+.Pp
+For loops are expanded before tests, so a fragment such as:
+.Bd -literal
+\&.for TMACHINE in ${SHARED_ARCHS}
+\&.if ${TMACHINE} = ${MACHINE}
+     ...
+\&.endif
+\&.endfor
+.Ed
+won't work, and should be rewritten the other way around.
 .Sh SEE ALSO
 .Xr mkdep 1
 .Rs
@@ -1016,6 +1187,6 @@ system object directory prefix
 .Re
 .Sh HISTORY
 A
-.Nm Make
+.Nm
 command appeared in
 .At v7 .

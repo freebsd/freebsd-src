@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sprite.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: sprite.h,v 1.7 1997/02/22 19:27:21 peter Exp $
  */
 
 /*
@@ -57,10 +57,10 @@
 typedef int Boolean;
 #ifndef TRUE
 #define TRUE	1
-#endif TRUE
+#endif /* TRUE */
 #ifndef FALSE
 #define FALSE	0
-#endif FALSE
+#endif /* FALSE */
 
 /*
  * Functions that must return a status can return a ReturnStatus to
@@ -91,7 +91,7 @@ typedef int  ReturnStatus;
 #define USER_NIL 	0
 #ifndef NULL
 #define NULL	 	0
-#endif NULL
+#endif /* NULL */
 
 /*
  * An address is just a pointer in C.  It is defined as a character pointer
