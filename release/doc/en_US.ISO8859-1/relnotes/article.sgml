@@ -183,7 +183,7 @@
       default.  This change greatly decreases the need for a static,
       centralized table of major number assignments to device drivers
       (a few drivers retain their old static major numbers for
-      compatability), and also reduces the possibility of running out
+      compatibility), and also reduces the possibility of running out
       of device major numbers.</para>
 
     <sect3>
@@ -323,7 +323,7 @@
 
       <para>A number of changes have been made to the &man.cd.4;
         driver.  The primary user-visible change is improved
-        compatability with ATAPI/USB/Firewire CDROM drives.</para>
+        compatibility with ATAPI/USB/Firewire CDROM drives.</para>
 
       <para>&man.geom.4; is now mandatory; the
         <literal>NO_GEOM</literal> has been removed from the set of
@@ -590,7 +590,7 @@
 	form of <application>KTH eBones</application>) has been
 	removed.  Users requiring this functionality can still get it
 	from the <filename role="port">security/krb4</filename> port
-	(or package).  Kerberos IV compatability mode for Kerberos 5
+	(or package).  Kerberos IV compatibility mode for Kerberos 5
 	has been removed, and the
 	<literal>k5<replaceable>program</replaceable></literal>
 	userland utilities have been renamed to
