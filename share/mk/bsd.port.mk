@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.166 1995/06/24 10:27:23 asami Exp $
+# $Id: bsd.port.mk,v 1.167 1995/06/25 06:30:51 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -775,7 +775,12 @@ install: build ${INSTALL_COOKIE}
 ${INSTALL_COOKIE}:
 	@${ECHO_MSG} "===>  Installing for ${PKGNAME}"
 .if !defined(NO_MTREE)
-	@${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/;
+	@if [ `id -u` = 0 ]; then \
+		${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/; \
+	else \
+		echo "Warning: not superuser, can't run mtree."; \
+		echo "Become root and try again to ensure correct permissions."; \
+	fi
 .endif
 .if target(pre-install)
 	@${MAKE} ${.MAKEFLAGS} pre-install
