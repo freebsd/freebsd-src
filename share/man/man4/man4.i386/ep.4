@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ep.4,v 1.4 1996/12/29 20:35:54 wosch Exp $
+.\"	$Id: ep.4,v 1.2.4.1 1996/12/31 22:44:37 mpp Exp $
 .\"
 .Dd February 04, 1993
 .Dt EP 4 i386
@@ -56,7 +56,9 @@ UTP, also known as twisted pair
 The default port to use is the BNC. To choose an alternate port,
 use the following flag combinations with
 .Xr ifconfig 8
-or in your /etc/hostname.ep? file.
+or in your
+.Pa /etc/rc.conf
+file.
 .Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It -link0
