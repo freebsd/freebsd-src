@@ -42,4 +42,5 @@ void	psum1 __P((char *, unsigned long, unsigned long));
 void	psum2 __P((char *, unsigned long, unsigned long));
 int	csum1 __P((int, unsigned long *, unsigned long *));
 int	csum2 __P((int, unsigned long *, unsigned long *));
+int	crc32 __P((int, unsigned long *, unsigned long *));
 __END_DECLS

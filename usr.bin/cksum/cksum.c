@@ -32,22 +32,25 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: cksum.c,v 1.1.1.1.8.2 1997/08/29 05:29:00 imp Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)cksum.c	8.1 (Berkeley) 6/6/93";
+#if 0
+static char sccsid[] = "@(#)cksum.c	8.2 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id: cksum.c,v 1.7 1997/11/09 05:35:26 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -81,28 +84,31 @@ main(argc, argv)
 	} else {
 		cfncn = crc;
 		pfncn = pcrc;
-	}
 
-	while ((ch = getopt(argc, argv, "o:")) != -1)
-		switch (ch) {
-		case 'o':
-			if (!strcmp(optarg, "1")) {
-				cfncn = csum1;
-				pfncn = psum1;
-			} else if (!strcmp(optarg, "2")) {
-				cfncn = csum2;
-				pfncn = psum2;
-			} else {
-				warnx("illegal argument to -o option");
+		while ((ch = getopt(argc, argv, "o:")) != -1)
+			switch (ch) {
+			case 'o':
+				if (!strcmp(optarg, "1")) {
+					cfncn = csum1;
+					pfncn = psum1;
+				} else if (!strcmp(optarg, "2")) {
+					cfncn = csum2;
+					pfncn = psum2;
+				} else if (*optarg == '3') {
+					cfncn = crc32;
+					pfncn = pcrc;
+				} else {
+					warnx("illegal argument to -o option");
+					usage();
+				}
+				break;
+			case '?':
+			default:
 				usage();
 			}
-			break;
-		case '?':
-		default:
-			usage();
-		}
-	argc -= optind;
-	argv += optind;
+		argc -= optind;
+		argv += optind;
+	}
 
 	fd = STDIN_FILENO;
 	fn = NULL;

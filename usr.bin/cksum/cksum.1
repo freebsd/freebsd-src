@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)cksum.1	8.2 (Berkeley) 4/28/95
-.\"	$Id$
+.\"	$Id: cksum.1,v 1.6 1997/09/26 08:02:17 phk Exp $
 .\"
 .Dd April 28, 1995
 .Dt CKSUM 1
@@ -97,6 +97,11 @@ s = sum of all bytes;
 r = s % 2^16 + (s % 2^32) / 2^16;
 cksum = (r % 2^16) + r / 2^16;
 .Ed
+.Pp
+Algorithm 3 is what is commonly called the
+.Ql 32bit CRC
+algorithm.
+This is a 32-bit checksum.
 .Pp
 Both algorithm 1 and 2 write to the standard output the same fields as
 the default algorithm except that the size of the file in bytes is
