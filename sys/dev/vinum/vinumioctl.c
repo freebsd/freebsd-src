@@ -43,10 +43,10 @@
 #define REALLYKERNEL
 #include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
+#include <dev/vinum/request.h>
 #include <sys/sysproto.h>				    /* for sync(2) */
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
-#include <dev/vinum/request.h>
 #endif
 
 jmp_buf command_fail;					    /* return on a failed command */
@@ -291,7 +291,7 @@ vinumioctl(dev_t dev,
 	printf("vinumioctl: invalid ioctl from process %d (%s): %lx\n",
 	    curproc->p_pid,
 	    curproc->p_comm,
-	    cmd);					    /* XXX */
+	    cmd);
 	return EINVAL;
 
     case VINUM_DRIVE_TYPE:
