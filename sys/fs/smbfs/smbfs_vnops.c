@@ -1024,8 +1024,6 @@ smbfs_advlock(ap)
 		if (oadd > OFF_MAX - start)
 			return EOVERFLOW;
 		end = start + oadd;
-		if (end < start)
-			return EINVAL;
 	}
 	smb_makescred(&scred, p, p ? p->p_ucred : NULL);
 	switch (ap->a_op) {
