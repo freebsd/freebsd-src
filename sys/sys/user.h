@@ -176,17 +176,12 @@ void fill_kinfo_proc __P((struct proc *, struct kinfo_proc *));
 /*
  * Per process structure containing data that isn't needed in core
  * when the process isn't running (esp. when swapped out).
- * This structure may or may not be at the same kernel address
- * in all processes.
  */
-
 struct user {
 	struct	sigacts u_sigacts;	/* *p_sigacts */
 	struct	pstats u_stats;		/* *p_stats */
 	/*
-	 * Remaining fields only for
-	 * core dump and/or ptrace--
-	 * not valid at other times!
+	 * Remaining fields for a.out core dumps - not valid at other times!
 	 */
 	struct	kinfo_proc u_kproc;	/* eproc */
 	struct	md_coredump u_md;	/* glop */
