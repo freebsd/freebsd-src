@@ -106,7 +106,6 @@ kern/kern_lockf.c	standard
 kern/kern_malloc.c	standard
 kern/kern_mib.c		standard
 kern/kern_ntptime.c	standard
-kern/kern_opt.c		standard
 kern/kern_physio.c	standard
 kern/kern_proc.c	standard
 kern/kern_prot.c	standard

@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.80 1998/06/30 08:32:51 jmg Exp $
+#	$Id: options.i386,v 1.81 1998/06/30 08:40:32 jmg Exp $
 
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
@@ -24,16 +24,11 @@ AUTO_EOI_1		opt_auto_eoi.h
 AUTO_EOI_2		opt_auto_eoi.h
 BREAK_TO_DEBUGGER	opt_comconsole.h
 CONSPEED		opt_comconsole.h
-COMCONSOLE		opt_defunct.h
-CONADDR			opt_defunct.h
-CONUNIT			opt_defunct.h
 COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
 EXTRA_SIO		opt_sio.h
-I586_CTR_GUPROF		opt_defunct.h
 I586_PMC_GUPROF		opt_i586_guprof.h
-TSC_GUPROF		opt_defunct.h
 WLCACHE			opt_wavelan.h
 WLDEBUG			opt_wavelan.h
 
