@@ -280,6 +280,7 @@ tcp_timer_2msl_reset(struct tcptw *tw, int timeo)
 	struct tcptw *tw_tail;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	INP_LOCK_ASSERT(tw->tw_inpcb);
 	if (tw->tw_time != 0)
 		LIST_REMOVE(tw, tw_2msl);
 	tw->tw_time = timeo + ticks;
