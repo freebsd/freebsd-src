@@ -66,6 +66,7 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 CFLAGS+= -D_IEEE_LIBM
 
 LIB=	m
+SHLIBDIR?= /lib
 COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 	e_atan2.c e_atan2f.c e_atanh.c e_atanhf.c e_cosh.c e_coshf.c e_exp.c \

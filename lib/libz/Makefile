@@ -5,6 +5,7 @@
 MAINTAINER=peter@FreeBSD.org
 
 LIB=		z
+SHLIBDIR?=	/lib
 MAN=		zlib.3
 
 #CFLAGS+=	-DMAX_WBITS=14 -DMAX_MEM_LEVEL=7

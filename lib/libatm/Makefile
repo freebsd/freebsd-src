@@ -28,6 +28,7 @@
 #
 
 LIB=	atm
+SHLIBDIR?=	/lib
 SRCS=	atm_addr.c cache_key.c ioctl_subr.c ip_addr.c ip_checksum.c timer.c
 INCS=	libatm.h
 

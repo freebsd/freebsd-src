@@ -10,6 +10,7 @@
 # system call stubs.
 LIB=c
 SHLIB_MAJOR= 5
+SHLIBDIR?=/lib
 CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
 CFLAGS+=-I${.CURDIR}/${MACHINE_ARCH}
 CLEANFILES+=tags

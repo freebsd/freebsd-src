@@ -3,6 +3,7 @@
 NCURSES=${.CURDIR}/../../contrib/ncurses
 
 LIB=	ncurses
+SHLIBDIR?=	/lib
 SHLIB_MAJOR=5
 
 # Should be elsewhere
@@ -233,11 +234,11 @@ SYMLINKS+=libncurses.a ${LIBDIR}/libmytinfo.a
 SYMLINKS+=libncurses.a ${LIBDIR}/libtinfo.a
 .if !defined(NOPIC)
 # no need for major at all, it's an ld-time redirection only
-SYMLINKS+=libncurses.so ${SHLIBDIR}/libcurses.so
-SYMLINKS+=libncurses.so ${SHLIBDIR}/libtermcap.so
-SYMLINKS+=libncurses.so ${SHLIBDIR}/libtermlib.so
-SYMLINKS+=libncurses.so ${SHLIBDIR}/libmytinfo.so
-SYMLINKS+=libncurses.so ${SHLIBDIR}/libtinfo.so
+SYMLINKS+=libncurses.so ${LIBDIR}/libcurses.so
+SYMLINKS+=libncurses.so ${LIBDIR}/libtermcap.so
+SYMLINKS+=libncurses.so ${LIBDIR}/libtermlib.so
+SYMLINKS+=libncurses.so ${LIBDIR}/libmytinfo.so
+SYMLINKS+=libncurses.so ${LIBDIR}/libtinfo.so
 .endif
 .if !defined(NOPROFILE)
 SYMLINKS+=libncurses_p.a ${LIBDIR}/libcurses_p.a
