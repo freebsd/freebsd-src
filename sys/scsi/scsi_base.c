@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.38 1996/05/03 21:01:42 phk Exp $
+ *      $Id: scsi_base.c,v 1.39 1996/07/14 10:46:48 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -932,11 +932,12 @@ scsi_interpret_sense(xs)
 	struct scsi_xfer *xs;
 {
 	struct scsi_sense_data *sense;
+	struct scsi_sense_extended *ext;
 	struct scsi_link *sc_link = xs->sc_link;
 	u_int32_t key;
 	u_int32_t silent;
 	errval  errcode;
-	int error_code;
+	int error_code, asc, ascq;
 
 	/*
 	 * If the flags say errs are ok, then always return ok.
@@ -946,6 +947,7 @@ scsi_interpret_sense(xs)
 		return (ESUCCESS);
 
 	sense = &(xs->sense);
+	ext = &(sense->ext.extended);
 #ifdef	SCSIDEBUG
 	if (sc_link->flags & SDEV_DB1) {
 
@@ -1016,9 +1018,21 @@ scsi_interpret_sense(xs)
 	}
 
 	/* otherwise use the default */
-	silent = (xs->flags & SCSI_SILENT);
-	key = sense->ext.extended.flags & SSD_KEY;
+	silent = xs->flags & SCSI_SILENT;
+	key = ext->flags & SSD_KEY;
 	error_code = sense->error_code & SSD_ERRCODE;
+	asc = (ext->extra_len >= 5) ? ext->add_sense_code : 0;
+	ascq = (ext->extra_len >= 6) ? ext->add_sense_code_qual : 0;
+
+	/*
+	 * Retry while the device is returning a ``Logical unit
+	 * is in the process of becoming ready.'' (until it either
+	 * eventually yields an error, or finally succeeds).
+	 */
+	if (error_code == 0x70 /* current error */ &&
+	    (int)key == 0x2 /* not ready */ &&
+	    asc == 4 && ascq == 1 /* logical unit i i t p o b r */)
+		return (SCSIRET_DO_RETRY);
 
 	if (!silent) {
 		scsi_sense_print(xs);
