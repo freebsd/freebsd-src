@@ -365,6 +365,7 @@ pecoff_load_file(struct thread * td, const char *file, u_long * addr, u_long * e
 	imgp->proc = td->td_proc;
 	imgp->userspace_argv = NULL;
 	imgp->userspace_envv = NULL;
+	imgp->execlabel = NULL;
 	imgp->attr = &attr;
 	imgp->firstpage = NULL;
 
