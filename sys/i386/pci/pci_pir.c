@@ -51,7 +51,10 @@
 
 #include "pcib_if.h"
 
-#define PRVERB(a) printf a
+#define PRVERB(a) do {							\
+	if (bootverbose)						\
+		printf a ;						\
+} while(0)
 
 static int cfgmech;
 static int devmax;
