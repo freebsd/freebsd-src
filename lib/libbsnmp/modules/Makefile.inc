@@ -14,12 +14,12 @@ ${MOD}_tree.c ${MOD}_tree.h: ${MOD}_tree.def
 
 .if defined(DEFS)
 FILESGROUPS+=	DEFS
-DEFSDIR=	${SHAREDIR}/bsnmp/defs
 .endif
+DEFSDIR=	${SHAREDIR}/snmp/defs
 
 .if defined(BMIBS)
 FILESGROUPS+=	BMIBS
-BMIBSDIR=	${SHAREDIR}/bsnmp/mibs
 .endif
+BMIBSDIR=	${SHAREDIR}/snmp/mibs
 
 .include "../Makefile.inc"
