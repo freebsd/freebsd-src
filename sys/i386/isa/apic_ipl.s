@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.35 1997/09/07 19:23:45 smp Exp smp $
+ *	$Id: apic_ipl.s,v 1.16 1997/09/07 22:02:28 fsmp Exp $
  */
 
 
@@ -137,7 +137,9 @@ splz_unpend:
 	je	splz_next		/* "can't happen" */
 	cmpl	$NHWI,%ecx
 	jae	splz_swi
+	pushl	%ecx
 	AICPL_UNLOCK
+	popl	%ecx
 
 	/*
 	 * We would prefer to call the intr handler directly here but that
@@ -158,7 +160,9 @@ splz_swi:
 	pushl	%eax
 	orl	imasks(,%ecx,4),%eax
 	movl	%eax,_cpl
+	pushl	%edx
 	AICPL_UNLOCK
+	popl	%edx
 	call	%edx
 	AICPL_LOCK
 	popl	%eax

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.62 1997/12/12 21:45:23 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.63 1997/12/15 01:14:10 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -1512,6 +1512,9 @@ struct simplelock	intr_lock;
 /* lock regions protected in UP kernel via cli/sti */
 struct simplelock	mpintr_lock;
 
+/* lock region used by kernel profiling */
+struct simplelock	mcount_lock;
+
 #ifdef USE_COMLOCK
 /* locks com (tty) data/hardware accesses: a FASTINTR() */
 struct simplelock	com_lock;
@@ -1535,6 +1538,8 @@ init_locks(void)
 	isr_lock = FREE_LOCK;
 
 	s_lock_init((struct simplelock*)&mpintr_lock);
+
+	s_lock_init((struct simplelock*)&mcount_lock);
 
 	s_lock_init((struct simplelock*)&fast_intr_lock);
 	s_lock_init((struct simplelock*)&intr_lock);

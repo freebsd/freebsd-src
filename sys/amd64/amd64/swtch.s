@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.64 1997/10/10 09:44:06 peter Exp $
+ *	$Id: swtch.s,v 1.65 1997/12/14 02:11:13 dyson Exp $
  */
 
 #include "npx.h"
@@ -260,7 +260,8 @@ _idle:
 #if defined(SWTCH_OPTIM_STATS)
 	incl	_tlb_flush_count
 #endif
-	movl	$_idlestack_top,%ecx
+	/* Keep space for nonexisting return addr, or profiling bombs */
+	movl	$_idlestack_top-4,%ecx	
 	movl	%ecx,%esp
 
 	/* update common_tss.tss_esp0 pointer */
