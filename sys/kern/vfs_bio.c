@@ -3224,7 +3224,8 @@ vfs_bio_set_validclean(struct buf *bp, int base, int size)
  */
 
 void
-vfs_bio_clrbuf(struct buf *bp) {
+vfs_bio_clrbuf(struct buf *bp) 
+{
 	int i, mask = 0;
 	caddr_t sa, ea;
 
@@ -3236,13 +3237,17 @@ vfs_bio_clrbuf(struct buf *bp) {
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
 		    (bp->b_offset & PAGE_MASK) == 0) {
 			mask = (1 << (bp->b_bufsize / DEV_BSIZE)) - 1;
-			if (((bp->b_pages[0]->flags & PG_ZERO) == 0) &&
-			    ((bp->b_pages[0]->valid & mask) != mask)) {
-				bzero(bp->b_data, bp->b_bufsize);
+			if ((bp->b_pages[0]->valid & mask) == mask) {
+				bp->b_resid = 0;
+				return;
 			}
-			bp->b_pages[0]->valid |= mask;
-			bp->b_resid = 0;
-			return;
+			if (((bp->b_pages[0]->flags & PG_ZERO) == 0) &&
+			    ((bp->b_pages[0]->valid & mask) == 0)) {
+				bzero(bp->b_data, bp->b_bufsize);
+				bp->b_pages[0]->valid |= mask;
+				bp->b_resid = 0;
+				return;
+			}
 		}
 		ea = sa = bp->b_data;
 		for(i=0;i<bp->b_npages;i++,sa=ea) {
