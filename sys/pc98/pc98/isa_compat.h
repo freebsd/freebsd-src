@@ -35,8 +35,6 @@
 #include "cx.h"
 #include "el.h"
 #include "ed.h"
-#include "ep.h"
-#include "ex.h"
 #include "fe.h"
 #include "ie.h"
 #include "le.h"
@@ -106,7 +104,6 @@ extern struct isa_driver  csdriver;
 extern struct isa_driver  cxdriver;
 extern struct isa_driver  eddriver;
 extern struct isa_driver  eldriver;
-extern struct isa_driver  epdriver;
 extern struct isa_driver  fedriver;
 extern struct isa_driver  iedriver;
 extern struct isa_driver  ledriver;
@@ -260,9 +257,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NED > 0
 	{ INTR_TYPE_NET, &eddriver },
-#endif
-#if NEP > 0
-	{ INTR_TYPE_NET, &epdriver },
 #endif
 #if NLE > 0
 	{ INTR_TYPE_NET, &ledriver },
