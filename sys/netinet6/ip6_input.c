@@ -143,6 +143,9 @@ int ip6_sourcecheck_interval;		/* XXX */
 
 int ip6_ours_check_algorithm;
 
+#ifdef PFIL_HOOKS
+struct pfil_head inet6_pfil_hook;
+#endif
 
 /* firewall hooks */
 ip6_fw_chk_t *ip6_fw_chk_ptr;
@@ -184,6 +187,13 @@ ip6_init()
 		if (pr->pr_domain->dom_family == PF_INET6 &&
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
 			ip6_protox[pr->pr_protocol] = pr - inet6sw;
+#ifdef PFIL_HOOKS
+	inet6_pfil_hook.ph_type = PFIL_TYPE_AF;
+	inet6_pfil_hook.ph_af = AF_INET6;
+	if ((i = pfil_head_register(&inet6_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to register pfil hook, "
+			"error %d\n", __func__, i);
+#endif /* PFIL_HOOKS */
 	ip6intrq.ifq_maxlen = ip6qmaxlen;
 	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq);
@@ -241,11 +251,6 @@ ip6_input(m)
 	u_int32_t rtalert = ~0;
 	int nxt, ours = 0;
 	struct ifnet *deliverifp = NULL;
-#ifdef  PFIL_HOOKS
-	struct packet_filter_hook *pfh;
-	struct mbuf *m0;
-	int rv;
-#endif  /* PFIL_HOOKS */
 
 #ifdef IPSEC
 	/*
@@ -340,25 +345,13 @@ ip6_input(m)
 
 #ifdef PFIL_HOOKS
 	/*
-	 * Run through list of hooks for input packets.  If there are any
-	 * filters which require that additional packets in the flow are
-	 * not fast-forwarded, they must clear the M_CANFASTFWD flag.
-	 * Note that filters must _never_ set this flag, as another filter
-	 * in the list may have previously cleared it.
+	 * Run through list of hooks for input packets.
 	 */
-	m0 = m;
-	pfh = pfil_hook_get(PFIL_IN, &inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
-	for (; pfh; pfh = pfh->pfil_link.tqe_next)
-		if (pfh->pfil_func) {
-			rv = pfh->pfil_func(ip6, sizeof(*ip6),
-					    m->m_pkthdr.rcvif, 0, &m0);
-			if (rv)
-				return;
-			m = m0;
-			if (m == NULL)
-				return;
-			ip6 = mtod(m, struct ip6_hdr *);
-		}
+	if (pfil_run_hooks(&inet6_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN))
+		return;
+	if (m == NULL)			/* consumed by filter */
+		return;
+	ip6 = mtod(m, struct ip6_hdr *);
 #endif /* PFIL_HOOKS */
 
 	ip6stat.ip6s_nxthist[ip6->ip6_nxt]++;
