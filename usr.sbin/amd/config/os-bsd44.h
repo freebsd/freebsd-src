@@ -35,9 +35,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)os-bsd44.h	8.1 (Berkeley) 6/6/93
+ *	@(#)os-bsd44.h	8.2 (Berkeley) 5/10/95
  *
- * $Id$
+ * $Id: os-bsd44.h,v 5.2.2.1 1992/02/09 15:10:11 jsp beta $
  *
  * 4.4 BSD definitions for Amd (automounter)
  */
@@ -53,6 +53,12 @@
  * the protocol revision number.
  */
 #define	RPC_4
+
+#include <sys/param.h>
+#if BSD >= 199506
+#define NFS_HDR "misc-bsd44l.h"
+#define UFS_HDR "misc-bsd44l.h"
+#endif
 
 /*
  * Which version of the NFS interface are we using.
@@ -88,14 +94,6 @@
  */
 #undef	MNTENT_HDR
 
-/*
- * Name of filesystem types
- */
-#define	MOUNT_TYPE_NFS	MOUNT_NFS
-#define	MOUNT_TYPE_UFS	MOUNT_UFS
-#undef MTAB_TYPE_UFS
-#define	MTAB_TYPE_UFS	"ufs"
-#define	MTAB_TYPE_MFS	"mfs"
 
 /*
  * How to unmount filesystems
@@ -108,12 +106,31 @@
  * How to copy an address into an NFS filehandle
  */
 #undef NFS_SA_DREF
+#if BSD >= 199506
+#define	NFS_SA_DREF(dst, src) { \
+		(dst).addr = (struct sockaddr *) (src); \
+		(dst).addrlen = sizeof(*src); \
+		(dst).sotype = SOCK_DGRAM; \
+		(dst).proto = 0; \
+		(dst).fhsize = FHSIZE; \
+		(dst).wsize = NFS_WSIZE; \
+		(dst).rsize =  NFS_RSIZE; \
+		(dst).readdirsize =  NFS_READDIRSIZE; \
+		(dst).timeo = 10; \
+		(dst).retrans = NFS_RETRANS; \
+		(dst).maxgrouplist = NFS_MAXGRPS; \
+		(dst).readahead = NFS_DEFRAHEAD; \
+		(dst).leaseterm = 0; \
+		(dst).deadthresh = 0; \
+	}
+#else
 #define	NFS_SA_DREF(dst, src) { \
 		(dst).addr = (struct sockaddr *) (src); \
 		(dst).addrlen = sizeof(*src); \
 		(dst).sotype = SOCK_DGRAM; \
 		(dst).proto = 0; \
 	}
+#endif
 
 /*
  * Byte ordering
@@ -195,7 +212,27 @@ struct mntent {
  */
 #undef RE_HDR
 #define RE_HDR <regexp.h>
+
 /*
  * Need precise length links
  */
 #define PRECISE_SYMLINKS
+
+#if BSD >= 199506
+#undef MTYPE_TYPE
+#define MTYPE_TYPE	char *
+#endif
+
+struct mount;
+#define mount __kern_mount	/* fsinfo also uses "struct mount" */
+#include <sys/mount.h>
+#undef mount
+
+/*
+ * Name of filesystem types
+ */
+#define	MOUNT_TYPE_NFS	"nfs"
+#define	MOUNT_TYPE_UFS	"ufs"
+#undef MTAB_TYPE_UFS
+#define	MTAB_TYPE_UFS	"ufs"
+#define	MTAB_TYPE_MFS	"mfs"
