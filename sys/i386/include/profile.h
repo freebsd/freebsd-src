@@ -65,7 +65,7 @@
 #define	MCOUNT_DECL(s)	u_long s;
 #ifdef SMP
 #define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); \
- 			  while (!atomic_cmpset_acq_int(&mcount_lock, 0, 1) \
+ 			  while (!atomic_cmpset_acq_int(&mcount_lock, 0, 1)) \
 			  	/* nothing */ ; }
 #define	MCOUNT_EXIT(s)	{ atomic_store_rel_int(&mcount_lock, 0); \
 			  write_eflags(s); }
