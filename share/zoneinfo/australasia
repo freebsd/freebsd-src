@@ -1,4 +1,4 @@
-# @(#)australasia	7.58
+# @(#)australasia	7.60
 # This file also includes Pacific islands.
 # $FreeBSD$
 # Notes are at the end of this file
@@ -153,14 +153,14 @@ Zone Australia/Broken_Hill 9:25:48 -	LMT	1895 Feb
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	LH	1981	1984	-	Oct	lastSun	2:00s	1:00	-
 Rule	LH	1982	1985	-	Mar	Sun>=1	2:00s	0	-
-Rule	LH	1985	only	-	Oct	lastSun	2:00s	0:30	-
-Rule	LH	1986	1989	-	Mar	Sun>=15	2:00s	0	-
-Rule	LH	1986	only	-	Oct	19	2:00s	0:30	-
-Rule	LH	1987	1999	-	Oct	lastSun	2:00s	0:30	-
-Rule	LH	1990	1995	-	Mar	Sun>=1	2:00s	0	-
-Rule	LH	1996	max	-	Mar	lastSun	2:00s	0	-
-Rule	LH	2000	only	-	Aug	lastSun	2:00s	0:30	-
-Rule	LH	2001	max	-	Oct	lastSun	2:00s	0:30	-
+Rule	LH	1985	only	-	Oct	lastSun	2:30s	0:30	-
+Rule	LH	1986	1989	-	Mar	Sun>=15	2:30s	0	-
+Rule	LH	1986	only	-	Oct	19	2:30s	0:30	-
+Rule	LH	1987	1999	-	Oct	lastSun	2:30s	0:30	-
+Rule	LH	1990	1995	-	Mar	Sun>=1	2:30s	0	-
+Rule	LH	1996	max	-	Mar	lastSun	2:30s	0	-
+Rule	LH	2000	only	-	Aug	lastSun	2:30s	0:30	-
+Rule	LH	2001	max	-	Oct	lastSun	2:30s	0:30	-
 Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 			10:00	-	EST	1981 Mar
 			10:30	LH	LHST
@@ -823,9 +823,14 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Capital Territory, New South Wales except Lord Howe Island and Broken
 # Hill, and Victoria will be August 27, presumably due to the Sydney Olympics.
 
+# From Eric Ulevik, referring to Sydney's Sun Herald (2000-08-13), page 29:
+# Twin Towns Services Club (in Tweed Heads, near the Queensland border)
+# will maintain Queensland time. The Queensland Premier Peter Beattie
+# is encouraging northern NSW towns to use Queensland time.
+
 # Yancowinna
 
-# From John Basser (1989-01-04):
+# From John Mackin (1989-01-04):
 # `Broken Hill' means the County of Yancowinna.
 
 # From George Shepherd via Simon Woodhead via Robert Elz (1991-03-06):
@@ -863,8 +868,17 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # arrangements.  The starting date for summer time on the Island will
 # however always coincide with the rest of NSW.
 
-# From Paul Eggert (2000-01-31):
-# For Lord Howe we use Shanks through 1989, and Lonergan thereafter.
+# From Jesper Norgaard <jnorgard@Prodigy.net.mx> (2000-09-04):
+# James Lonergan said that the island always tries to stay in sync
+# with the rest of NSW at all time except for the fact that they stay
+# ahead half an hour when DST is not observed. If this is interpreted
+# literally, they should change clocks at the exact moment that
+# e.g. Canberra changes from normal to daylight saving and vice versa.
+
+# From Paul Eggert (2000-10-02):
+# For Lord Howe we use Shanks through 1989, and Lonergan thereafter,
+# However, as per Norgaard we modify Shanks by assuming 02:30s switchover
+# for half-hour DST.
 
 ###############################################################################
 
