@@ -160,7 +160,7 @@ dumpfs(name)
 		printf("blocks available in each of %d rotational positions",
 		     afs.fs_nrpos);
 	else
-		printf("insufficient space to maintain rotational tables\n");
+		printf("(no rotational position table)\n");
 	for (c = 0; c < afs.fs_cpc; c++) {
 		printf("\ncylinder number %d:", c);
 		for (i = 0; i < afs.fs_nrpos; i++) {
