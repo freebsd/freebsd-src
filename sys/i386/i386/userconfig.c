@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.35 1995/10/06 05:36:51 jkh Exp $
+ **      $Id: userconfig.c,v 1.28.4.3 1995/10/06 05:43:44 jkh Exp $
  **/
 
 /**
@@ -329,6 +329,7 @@ setdev(DEV_LIST *dev, int enabled)
     dev->device->id_drq = (short)dev->drq;
     dev->device->id_maddr = (caddr_t)dev->maddr;
     dev->device->id_msize = dev->msize;
+    dev->device->id_flags = dev->flags;
     dev->device->id_enabled = enabled;
 }
 
@@ -356,6 +357,7 @@ getdevs(void)
 	    scratch.drq = ap[i].id_drq;
 	    scratch.maddr = (int)ap[i].id_maddr;
 	    scratch.msize = ap[i].id_msize;
+	    scratch.flags = ap[i].id_flags;
 	    scratch.conflict_ok = ap[i].id_conflicts;
 
 	    scratch.comment = DEV_DEVICE;		/* admin stuff */
@@ -379,6 +381,7 @@ getdevs(void)
 		scratch.drq = -2;
 		scratch.maddr = -2;
 		scratch.msize = -2;
+		scratch.flags = 0;
 		scratch.conflict_ok = 0;			/* shouldn't conflict */
 		scratch.comment = DEV_DEVICE;			/* is a device */
 		scratch.unit = 0;				/* arbitrary number of them */
@@ -2143,7 +2146,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.35 1995/10/06 05:36:51 jkh Exp $
+ *      $Id: userconfig.c,v 1.28.4.3 1995/10/06 05:43:44 jkh Exp $
  */
 
 
