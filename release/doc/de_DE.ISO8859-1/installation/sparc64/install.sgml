@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/sparc64/install.sgml,v 1.6 2002/04/20 18:02:17 ue Exp $
-  basiert auf: 1.11
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/sparc64/install.sgml,v 1.7 2002/05/26 19:29:55 ue Exp $
+  basiert auf: 1.12
   This file contains sparc64-specific installation instructions.
 -->
 <sect1>

@@ -1,8 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.3 2002/03/12 17:24:26 ue Exp $
-  $Id: trouble.sgml,v 1.3 2002/03/10 15:37:18 ue Exp $
-  basiert auf: 1.4
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.4 2002/05/26 13:42:22 ue Exp $
+  basiert auf: 1.5
 
 	This file contains the comments of the old TROUBLE.TXT file.
 -->
