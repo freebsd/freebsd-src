@@ -74,6 +74,9 @@
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+
+/* This must come first */
+#include "opt_tdfx.h"
 #ifdef TDFX_LINUX
 #include <dev/tdfx/tdfx_linux.h>
 #endif
@@ -82,7 +85,6 @@
 #include <dev/tdfx/tdfx_vars.h>
 #include <dev/tdfx/tdfx_pci.h>
 
-#include "opt_tdfx.h"
 
 static devclass_t tdfx_devclass;
 
