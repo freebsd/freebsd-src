@@ -609,15 +609,14 @@ pccbb_attach(device_t brdev)
 				cv_destroy(&sc->cv);
 				return (ENOMEM);
 			}
+			sc->flags |= PCCBB_KLUDGE_ALLOC;
 			pci_write_config(brdev, CBBR_SOCKBASE,
 			    rman_get_start(sc->base_res), 4);
 			DEVPRINTF((brdev, "PCI Memory allocated: %08lx\n",
 			    rman_get_start(sc->base_res)));
 		} else {
 			device_printf(brdev, "Could not map register memory\n");
-			mtx_destroy(&sc->mtx);
-			cv_destroy(&sc->cv);
-			return (ENOMEM);
+			goto err;
 		}
 	}
 
@@ -650,22 +649,14 @@ pccbb_attach(device_t brdev)
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		printf("pccbb: Unable to map IRQ...\n");
-		bus_release_resource(brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
-		    sc->base_res);
-		mtx_destroy(&sc->mtx);
-		cv_destroy(&sc->cv);
+		goto err;
 		return (ENOMEM);
 	}
 
 	if (bus_setup_intr(brdev, sc->irq_res, INTR_TYPE_AV, pccbb_intr, sc,
 	    &sc->intrhand)) {
 		device_printf(brdev, "couldn't establish interrupt");
-		bus_release_resource(brdev, SYS_RES_IRQ, 0, sc->irq_res);
-		bus_release_resource(brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
-		    sc->base_res);
-		mtx_destroy(&sc->mtx);
-		cv_destroy(&sc->cv);
-		return (ENOMEM);
+		goto err;
 	}
 
 	/* reset 16-bit pcmcia bus */
@@ -688,6 +679,21 @@ pccbb_attach(device_t brdev)
 	}
 
 	return (0);
+err:
+	if (sc->irq_res)
+		bus_release_resource(brdev, SYS_RES_IRQ, 0, sc->irq_res);
+	if (sc->base_res) {
+		if (sc->flags & PCCBB_KLUDGE_ALLOC)
+			bus_generic_release_resource(device_get_parent(brdev),
+			    brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
+			    sc->base_res);
+		else
+			bus_release_resource(brdev, SYS_RES_MEMORY,
+			    CBBR_SOCKBASE, sc->base_res);
+	}
+	mtx_destroy(&sc->mtx);
+	cv_destroy(&sc->cv);
+	return (ENOMEM);
 }
 
 static int
