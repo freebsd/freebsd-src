@@ -61,6 +61,7 @@ struct cdev {
 #define SI_DUMPDEV	0x0080	/* is kernel dumpdev */
 #define SI_CANDELETE	0x0100	/* can do BIO_DELETE */
 #define SI_CLONELIST	0x0200	/* on a clone list */
+#define SI_ISDISK	0x0400	/* device is a disk */
 	struct timespec	si_atime;
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;
@@ -261,6 +262,8 @@ int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **
 int	count_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
 struct cdevsw *devsw(struct cdev *_dev);
+struct cdevsw *dev_refthread(struct cdev *_dev);
+void	dev_relthread(struct cdev *_dev);
 const char *devtoname(struct cdev *_dev);
 int	dev_named(struct cdev *_pdev, const char *_name);
 void	dev_depends(struct cdev *_pdev, struct cdev *_cdev);
