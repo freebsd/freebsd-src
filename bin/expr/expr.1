@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 1993
+.Dd March 22, 2002
 .Dt EXPR 1
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@
 .Nd evaluate expression
 .Sh SYNOPSIS
 .Nm
+.Op Fl \&-
 .Ar expression
 .Sh DESCRIPTION
 The
@@ -46,12 +47,21 @@ utility evaluates
 .Ar expression
 and writes the result on standard output.
 .Pp
-All operators are separate arguments to the
-.Nm
-utility.
-Characters special to the command interpreter must be escaped.
+All operators and operands must be passed as separate arguments.
+Several of the operators have special meaning to command interpreters
+and must therefore be quoted appropriately.
 .Pp
-Operators are listed below in order of increasing precedence.
+Arithmetic operations are performed using signed integer math,
+in the largest integral type available in the C language.  The
+.Nm
+utility will detect arithmetic overflow and division by zero, and
+returns with an exit status of 2 in those cases.  If a numeric operand
+is specified which is so large as to overflow conversion to an integer,
+it is parsed as a string instead.  All numeric operands are interpreted
+in base 10.
+.Pp
+Operators are listed below in order of increasing precedence; all
+are left-associative.
 Operators with equal precedence are grouped within { } symbols.
 .Bl -tag -width indent
 .It Ar expr1 Li | Ar expr2
@@ -82,8 +92,9 @@ operator matches
 .Ar expr1
 against
 .Ar expr2 ,
-which must be a regular expression.  The regular expression is anchored
-to the beginning of  the string with an implicit
+which must be a basic regular expression.
+The regular expression is anchored
+to the beginning of the string with an implicit
 .Dq ^ .
 .Pp
 If the match succeeds and the pattern contains at least one regular
@@ -99,19 +110,89 @@ otherwise 0.
 .El
 .Pp
 Parentheses are used for grouping in the usual manner.
+.Pp
+This version of
+.Nm
+adheres to the
+.Tn POSIX
+Utility Syntax Guidelines, which require that a leading argument beginning
+with a minus sign be considered an option to the program.
+The standard
+.Ql \&--
+syntax may be used to prevent this interpretation.
+However, many historic implementations of
+.Nm ,
+including the one in previous versions of
+.Fx ,
+will not permit this syntax.
+See the examples below for portable ways to guarantee the correct
+interpretation.
+.Pp
+The
+.Nm
+utility makes no lexical distinction between arguments which may be
+operators and arguments which may be operands.
+An operand which is lexically identical to an operator will be considered a
+syntax error.
+See the examples below for a work-around.
+.Pp
+The syntax of the
+.Nm
+command in general is historic and inconvenient.
+New applications are advised to use shell arithmetic rather than
+.Nm .
 .Sh EXAMPLES
 .Bl -enum
 .It
-The following example adds one to the variable a.
-.Dl a=`expr $a + 1`
+The following example (in
+.Xr sh 1
+syntax) adds one to the variable
+.Va a .
+.Dl a=$(expr $a + 1)
+.Li
+This will fail if the value if
+.Va a
+is a negative number.
+To protect negative values of
+.Va a
+from being interpreted as options to the
+.Nm
+command, one might rearrange the expression:
+.Dl a=$(expr 1 + $a)
+.Li
+More generally, parenthesize possibly-negative values:
+.Dl a=$(expr \e( $a \e) + 1)
 .It
-The following example returns the filename portion of a pathname stored
-in variable a.  The // characters act to eliminate ambiguity with the
-division operator.
-.Dl expr "//$a" Li : '.*/\e(.*\e)'
+The following example prints the filename portion of a pathname stored
+in variable
+.Va a .
+Since
+.Va a
+might represent the path
+.Pa / ,
+it is necessary to prevent it from being interpreted as the division operator.
+The
+.Li //
+characters resolve this ambiguity.
+.Dl expr \*q//$a\*q \&: '.*/\e(.*\e)'
 .It
-The following example returns the number of characters in variable a.
-.Dl expr $a Li : '.*'
+The following examples output the number of characters in variable
+.Va a .
+Again, if
+.Va a
+might begin with a hyphen, it is necessary to prevent it from being
+interpreted as an option to
+.Nm .
+If the
+.Nm
+command conforms to
+.St -p1003.1-2001 ,
+this is simple:
+.Dl expr -- \*q$a\*q \&: \*q.*\*q
+.Li
+For portability to older systems, however, a more complicated command
+is required:
+.Dl expr \e( \*qX$a\*q \&: \*q.*\*q \e) - 1
 .El
 .Sh DIAGNOSTICS
 The
@@ -132,4 +213,4 @@ the expression is invalid.
 The
 .Nm
 utility conforms to
-.St -p1003.2 .
+.St -p1003.1-2001 .
