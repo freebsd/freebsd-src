@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.44 1994/06/04 11:01:15 davidg Exp $
+ *	$Id: machdep.c,v 1.45 1994/08/03 02:45:26 davidg Exp $
  */
 
 #include "npx.h"
@@ -1353,33 +1353,6 @@ test_page(address, pattern)
 			return (1);
 	}
 	return(0);
-}
-
-/*
- * insert an element into a queue 
- */
-#undef insque
-void				/* XXX replace with inline FIXME! */
-_insque(element, head)
-	register struct prochd *element, *head;
-{
-	element->ph_link = head->ph_link;
-	head->ph_link = (struct proc *)element;
-	element->ph_rlink = (struct proc *)head;
-	((struct prochd *)(element->ph_link))->ph_rlink=(struct proc *)element;
-}
-
-/*
- * remove an element from a queue
- */
-#undef remque
-void				/* XXX replace with inline FIXME! */
-_remque(element)
-	register struct prochd *element;
-{
-	((struct prochd *)(element->ph_link))->ph_rlink = element->ph_rlink;
-	((struct prochd *)(element->ph_rlink))->ph_link = element->ph_link;
-	element->ph_rlink = (struct proc *)0;
 }
 
 /*
