@@ -197,32 +197,33 @@ main(argc, argv)
 	int argc;
 	char *const *argv;
 {
+	struct in_addr ifaddr;
+	struct iovec iov;
+	struct msghdr msg;
+	struct sigaction si_sa;
+	struct sockaddr_in from, sin;
+	struct termios ts;
 	struct timeval last, intvl;
 	struct hostent *hp;
-	struct sockaddr_in *to, sin;
-	struct termios ts;
-	int i;
-	int ch, hold, packlen, preload, sockerrno, almost_done = 0, ttl;
-	struct in_addr ifaddr;
-	unsigned char mttl, loop;
+	struct sockaddr_in *to;
 	u_char *datap, *packet;
-	char *source = NULL, *target, hnamebuf[MAXHOSTNAMELEN];
-	char snamebuf[MAXHOSTNAMELEN];
-	char *ep;
-	u_long ultmp;
+	char *ep, *source, *target;
+#ifdef IPSEC_POLICY_IPSEC
+	char *policy_in, *policy_out;
+#endif
+	u_long alarmtimeout, ultmp;
+	int ch, hold, i, packlen, preload, sockerrno, almost_done = 0, ttl;
+	char ctrl[CMSG_SPACE(sizeof(struct timeval))];
+	char hnamebuf[MAXHOSTNAMELEN], snamebuf[MAXHOSTNAMELEN];
 #ifdef IP_OPTIONS
 	char rspace[3 + 4 * NROUTES + 1];	/* record route space */
 #endif
-	struct sigaction si_sa;
-	struct iovec iov;
-	struct msghdr msg;
-	struct sockaddr_in from;
-	char ctrl[CMSG_SPACE(sizeof(struct timeval))];
+	unsigned char mttl, loop;
+
+	source = NULL;
 #ifdef IPSEC_POLICY_IPSEC
-	char *policy_in = NULL;
-	char *policy_out = NULL;
+	policy_in = policy_out = NULL;
 #endif
-	unsigned long alarmtimeout;
 
 	/*
 	 * Do the stuff that we need root priv's for *first*, and
@@ -733,6 +734,7 @@ void
 stopit(sig)
 	int sig;
 {
+
 	finish_up = 1;
 }
 
@@ -748,8 +750,7 @@ static void
 pinger(void)
 {
 	struct icmp *icp;
-	int cc;
-	int i;
+	int cc, i;
 
 	icp = (struct icmp *)outpack;
 	icp->icmp_type = ICMP_ECHO;
@@ -804,15 +805,14 @@ pr_pack(buf, cc, from, tv)
 	struct timeval *tv;
 {
 	struct icmp *icp;
-	u_long l;
-	int i, j;
-	u_char *cp,*dp;
-	static int old_rrlen;
-	static char old_rr[MAX_IPOPTLEN];
 	struct ip *ip;
 	struct timeval *tp;
+	u_char *cp, *dp;
 	double triptime;
-	int hlen, dupflag, seq;
+	u_long l;
+	int dupflag, hlen, i, j, seq;
+	static int old_rrlen;
+	static char old_rr[MAX_IPOPTLEN];
 
 	/* Check the IP header */
 	ip = (struct ip *)buf;
@@ -1041,14 +1041,17 @@ in_cksum(addr, len)
 	u_short *addr;
 	int len;
 {
-	int nleft = len;
-	u_short *w = addr;
-	int sum = 0;
+	int nleft, sum;
+	u_short *w;
 	union {
 		u_short	us;
 		u_char	uc[2];
 	} last;
 	u_short answer;
+
+	nleft = len;
+	sum = 0;
+	w = addr;
 
 	/*
 	 * Our algorithm is simple, using a 32 bit accumulator (sum), we add
@@ -1083,6 +1086,7 @@ static void
 tvsub(out, in)
 	struct timeval *out, *in;
 {
+
 	if ((out->tv_usec -= in->tv_usec) < 0) {
 		--out->tv_sec;
 		out->tv_usec += 1000000;
@@ -1099,12 +1103,14 @@ static void
 status(sig)
 	int sig;
 {
+
 	siginfo_p = 1;
 }
 
 static void
 check_status()
 {
+
 	if (siginfo_p) {
 		siginfo_p = 0;
 		(void)fprintf(stderr,
@@ -1124,6 +1130,7 @@ check_status()
 static void
 finish()
 {
+
 	struct termios ts;
 
 	(void)signal(SIGINT, SIG_IGN);
@@ -1187,6 +1194,7 @@ static void
 pr_icmph(icp)
 	struct icmp *icp;
 {
+
 	switch(icp->icmp_type) {
 	case ICMP_ECHOREPLY:
 		(void)printf("Echo Reply\n");
@@ -1334,8 +1342,8 @@ static void
 pr_iph(ip)
 	struct ip *ip;
 {
-	int hlen;
 	u_char *cp;
+	int hlen;
 
 	hlen = ip->ip_hl << 2;
 	cp = (u_char *)ip + 20;		/* point to options */
@@ -1387,8 +1395,8 @@ static void
 pr_retip(ip)
 	struct ip *ip;
 {
-	int hlen;
 	u_char *cp;
+	int hlen;
 
 	pr_iph(ip);
 	hlen = ip->ip_hl << 2;
@@ -1406,9 +1414,9 @@ static void
 fill(bp, patp)
 	char *bp, *patp;
 {
-	int ii, jj, kk;
-	int pat[16];
 	char *cp;
+	int pat[16];
+	int ii, jj, kk;
 
 	for (cp = patp; *cp; cp++) {
 		if (!isxdigit(*cp))
