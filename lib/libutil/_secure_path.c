@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- *	$Id$
+ *	$Id: _secure_path.c,v 1.1 1997/05/10 18:55:37 davidn Exp $
  */
 
 
@@ -57,7 +57,7 @@ _secure_path(const char *path, uid_t uid, gid_t gid)
     	msg = "%s: %s is not a regular file";
     else if (sb.st_mode & S_IWOTH)
     	msg = "%s: %s is world writable";
-    else if (uid != -1 && sb.st_uid != uid) {
+    else if (uid != -1 && sb.st_uid != uid && sb.st_uid != 0) {
     	if (uid == 0)
     		msg = "%s: %s is not owned by root";
     	else
