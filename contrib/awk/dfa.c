@@ -132,6 +132,23 @@ static char **comsubs _RE_ARGS((char *left, char *right));
 static char **addlists _RE_ARGS((char **old, char **new));
 static char **inboth _RE_ARGS((char **left, char **right));
 
+#ifdef __FreeBSD__
+static int collate_range_cmp (a, b)
+	int a, b;
+{
+	int r;
+	static char s[2][2];
+
+	if ((unsigned char)a == (unsigned char)b)
+		return 0;
+	s[0][0] = a;
+	s[1][0] = b;
+	if ((r = strcoll(s[0], s[1])) == 0)
+		r = (unsigned char)a - (unsigned char)b;
+	return r;
+}
+#endif
+
 static ptr_t
 xcalloc(n, s)
      size_t n;
@@ -700,6 +717,27 @@ lex()
 		}
 	      else
 		c2 = c;
+#ifdef __FreeBSD__
+	      { token c3;
+
+		if (collate_range_cmp(c, c2) > 0) {
+		  FETCH(c2, "Invalid range");
+		  goto skip;
+		}
+
+		for (c3 = 0; c3 < NOTCHAR; ++c3)
+		  if (   collate_range_cmp(c, c3) <= 0
+		      && collate_range_cmp(c3, c2) <= 0
+		     ) {
+		    setbit(c3, ccl);
+		    if (case_fold)
+		      if (ISUPPER(c3))
+			setbit(tolower(c3), ccl);
+		      else if (ISLOWER(c3))
+			setbit(toupper(c3), ccl);
+		  }
+	      }
+#else
 	      while (c <= c2)
 		{
 		  setbit(c, ccl);
@@ -710,6 +748,7 @@ lex()
 		      setbit(toupper(c), ccl);
 		  ++c;
 		}
+#endif
 	    skip:
 	      ;
 	    }
