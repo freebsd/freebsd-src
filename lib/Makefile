@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.87 1998/12/17 23:02:11 dfr Exp $
+#	$Id: Makefile,v 1.88 1999/03/14 17:55:55 markm Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
@@ -7,7 +7,7 @@
 # csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libss.
 # libcrypt must be built before libskey.
-# libm must be built before libf2c, libg++ and libstdc++.
+# libm must be built before libstdc++.
 # libmd must be built before libatm, libopie, libradius, libskey,
 # and libtacplus.
 # libmytinfo must be built before libdialog and libncurses.
