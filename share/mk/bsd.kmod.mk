@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.32 1997/04/28 00:02:22 fsmp Exp $
+#	$Id: bsd.kmod.mk,v 1.33 1997/04/30 06:04:17 ache Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -96,14 +96,14 @@ MODUNLOAD?=	/sbin/modunload
 #
 # A temporary fix to survive SMP changes.   
 #
-CFLAGS+= -I.
-beforedepend: opt_smp.h opt_smp_invltlb.h
+CFLAGS+=	-I.
+CLEANFILES=	${SMPHDRS}
+SMPHDRS=	opt_smp.h opt_smp_invltlb.h
 
-opt_smp.h:
-	touch opt_smp.h
+beforedepend: ${SMPHDRS}
 
-opt_smp_invltlb.h:
-	touch opt_smp_invltlb.h
+${SMPHDRS}:
+	touch ${.TARGET}
 
 #
 # Assume that we are in /usr/src/foo/bar, so /sys is
@@ -141,6 +141,9 @@ ${PROG}: ${DPSRCS} ${OBJS} ${DPADD}
 	@rm -f symb.tmp
 .endif
 	mv tmp.o ${.TARGET}
+
+# Temporary SMP fix continued.
+${OBJS}: ${SMPHDRS}
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
