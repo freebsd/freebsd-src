@@ -75,6 +75,7 @@ amd64/amd64/support.S		standard
 amd64/amd64/sys_machdep.c	standard
 amd64/amd64/trap.c		standard
 amd64/amd64/tsc.c		standard
+amd64/amd64/uio_machdep.c	standard
 amd64/amd64/uma_machdep.c	standard
 amd64/amd64/vm_machdep.c	standard
 amd64/isa/atpic.c		optional	atpic isa
