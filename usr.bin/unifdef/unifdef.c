@@ -37,19 +37,19 @@
 #include <sys/cdefs.h>
 
 #ifndef lint
+#if 0
 static const char copyright[] =
 "@(#) Copyright (c) 1985, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
+#endif
 
 #ifdef __IDSTRING
 __IDSTRING(Berkeley, "@(#)unifdef.c	8.1 (Berkeley) 6/6/93");
 __IDSTRING(NetBSD, "$NetBSD: unifdef.c,v 1.8 2000/07/03 02:51:36 matt Exp $");
 __IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.148 2003/01/20 12:05:41 fanf2 Exp $");
 #endif
-#ifdef __FBSDID
+#endif /* not lint */
 __FBSDID("$FreeBSD$");
-#endif
-#endif
 
 /*
  * unifdef - remove ifdef'ed lines
