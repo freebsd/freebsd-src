@@ -854,6 +854,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		if (res == NULL) {
 			device_printf(cbdev,
 			    "Can't get memory for prefetch mem\n");
+			free(barlist, M_DEVBUF);
 			return (EIO);
 		}
 		start = rman_get_start(res);
@@ -900,6 +901,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		if (res == NULL) {
 			device_printf(cbdev,
 			    "Can't get memory for non-prefetch mem\n");
+			free(barlist, M_DEVBUF);
 			return (EIO);
 		}
 		start = rman_get_start(res);
@@ -945,6 +947,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		if (res == NULL) {
 			device_printf(cbdev,
 			    "Can't get memory for IO ports\n");
+			free(barlist, M_DEVBUF);
 			return (EIO);
 		}
 		start = rman_get_start(res);
@@ -970,6 +973,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	    RF_SHAREABLE);
 	if (res == NULL) {
 		device_printf(cbdev, "Can't get memory for irq\n");
+		free(barlist, M_DEVBUF);
 		return (EIO);
 	}
 	start = rman_get_start(res);
