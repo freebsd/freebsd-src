@@ -181,11 +181,7 @@ int uwx_get_nat(struct uwx_env *env, int regid, int *natp)
 	}
 	bsp = uwx_add_to_bsp(bsp, regid);
 	natcollp = bsp | 0x01f8;
-	if (natcollp >= bsp)
-	    n = (*env->copyin)(UWX_COPYIN_REG, (char *)&natcoll,
-			(uint64_t)UWX_REG_AR_RNAT, DWORDSZ, env->cb_token);
-	else
-	    n = (*env->copyin)(UWX_COPYIN_RSTACK, (char *)&natcoll,
+	n = (*env->copyin)(UWX_COPYIN_RSTACK, (char *)&natcoll,
 			bsp, DWORDSZ, env->cb_token);
 	if (n != DWORDSZ)
 	    return UWX_ERR_COPYIN_RSTK;
@@ -319,28 +315,86 @@ uint64_t uwx_add_to_bsp(uint64_t bsp, int nslots)
      *                          bsp
      *   <------- adjusted (nslots + bias) ------->
 
-     *  When subtracting from bsp, we bias the bsp in the opposite
-     *  direction so that it is at the next NaT collection.
+     *  When subtracting from bsp, we avoid depending on the sign of
+     *  the quotient by adding 63*8 before division and subtracting 8
+     *  after division. (Assumes that we will never be called upon
+     *  to subtract more than 504 slots from bsp.)
      *
      *   0                           1f8                             3f8
      *  +---------------------------------------------------------------+
      *  |                              X                               X|
      *  +---------------------------------------------------------------+
-     *                                           <------- bias ------->
-     *                           <--- nslots --->
-     *                                           ^
-     *                                           |
-     *                                          bsp
-     *                         <------ adjusted (nslots + bias) ------>
+     *                                  <-- bias -->
+     *                            <--- |nslots| --->
+     *                                              ^
+     *                                              |
+     *                                             bsp
+     *                           <----------------->
+     *                        adjusted |nslots + bias|
      */
 
-    if (nslots > 0) {
-	bias = ((unsigned int)bsp & 0x1f8) / DWORDSZ;
-	nslots += (nslots + bias) / 63;
-    }
-    else if (nslots < 0) {
-	bias = (0x1f8 - ((unsigned int)bsp & 0x1f8)) / DWORDSZ;
-	nslots -= (-nslots + bias) / 63;
-    }
+    bias = ((unsigned int)bsp & 0x1f8) / DWORDSZ;
+    nslots += (nslots + bias + 63*8) / 63 - 8;
     return bsp + nslots * DWORDSZ;
 }
+
+#if 0
+int uwx_selftest_bsp_arithmetic()
+{
+    int i;
+    int j;
+    int r;
+    uint64_t bstore[161];
+    uint64_t *bsp;
+    uint64_t *p;
+    int failed = 0;
+
+    printf("uwx_selftest_bsp_arithmetic: bsp at %08lx\n", (unsigned int)bstore);
+    r = 0;
+    bsp = bstore;
+    for (i = 0; i < 161; i++) {
+	if (((unsigned int)bsp & 0x1f8) == 0x1f8)
+	    *bsp++ = 1000 + r;
+	else
+	    *bsp++ = r++;
+    }
+
+    printf("uwx_selftest_bsp_arithmetic: plus tests...\n");
+    bsp = bstore;
+    for (i = 0; i < 64; i++) {
+	r = (int)*bsp;
+	if (r >= 1000)
+	    r -= 1000;
+	for (j = 0; j < 96; j++) {
+	    p = (uint64_t *)uwx_add_to_bsp((uint64_t)bsp, j);
+	    if (*p != (r + j)) {
+		failed++;
+		printf("%d [%08lx] + %d -> %08lx ",
+				i, (unsigned int)bsp, j, (unsigned int)p);
+		printf("(read %d instead of %d)\n", (int)*p, r + j);
+	    }
+	}
+	bsp++;
+    }
+
+    printf("uwx_selftest_bsp_arithmetic: minus tests...\n");
+    bsp = &bstore[161];
+    for (i = 63; i >= 0; i--) {
+	bsp--;
+	r = (int)*bsp;
+	if (r >= 1000)
+	    r -= 1000;
+	for (j = 0; j < 96; j++) {
+	    p = (uint64_t *)uwx_add_to_bsp((uint64_t)bsp, -j);
+	    if (*p != (r - j)) {
+		failed++;
+		printf("%d [%08lx] - %d -> %08lx ",
+				i, (unsigned int)bsp, j, (unsigned int)p);
+		printf("(read %d instead of %d)\n", (int)*p, r - j);
+	    }
+	}
+    }
+
+    return failed;
+}
+#endif

@@ -22,13 +22,11 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef _KERNEL
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <sys/ttrace.h>
 #include <sys/uc_access.h>
 #include <machine/sys/uregs.h>
-#endif
 
 #include "uwx_env.h"
 #include "uwx_context.h"
@@ -238,7 +236,11 @@ int uwx_ttrace_copyin(
     else if (request == UWX_COPYIN_RSTACK && len == 8) {
 	if (info->have_ucontext == 0 || rem < info->bspstore) {
 	    status = ttrace(TT_PROC_RDDATA, info->pid, 0, rem, 8, (uint64_t)loc);
-	    TRACE_SELF_COPYIN4(rem, len, dp)
+	    TRACE_SELF_COPYIN8(rem, len, dp)
+	}
+	else if (info->have_ucontext == 0) {
+	    status = ttrace(TT_LWP_RDRSEBS, info->pid, info->lwpid, rem, 8, (uint64_t)loc);
+	    TRACE_SELF_COPYIN8(rem, len, dp)
 	}
 	else {
 	    status = __uc_get_rsebs(&info->ucontext, (uint64_t *)rem, 1, dp);
