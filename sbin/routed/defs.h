@@ -622,4 +622,12 @@ extern struct interface *iflookup(naddr);
 extern struct auth_key *find_auth(struct interface *);
 extern void end_md5_auth(struct ws_buf *, struct auth_key *);
 
-#include <md5.h>
+#define MD5_DIGEST_LEN 16
+typedef struct {
+	u_int32_t state[4];		/* state (ABCD) */
+	u_int32_t count[2];		/* # of bits, modulo 2^64 (LSB 1st) */
+	unsigned char buffer[64];	/* input buffer */
+} MD5_CTX;
+extern void MD5Init(MD5_CTX*);
+extern void MD5Update(MD5_CTX*, u_char*, u_int);
+extern void MD5Final(u_char[MD5_DIGEST_LEN], MD5_CTX*);
