@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.112 1996/07/27 21:27:11 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.113 1996/07/30 23:56:45 chuckr Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -240,6 +240,7 @@
 	  <item>Marc Frajola &lt;marc@dev.com&gt;
 	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu
 	  <item>Marc van Kempen &lt;wmbfmk@urc.tue.nl&gt;
+	  <item>Mark Huizer &lt;xaa@stack.urc.tue.nl&gt;
 	  <item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
 	    &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	  <item>Martin Birgmeier
