@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#41 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#44 $
  *
  * $FreeBSD$
  */
@@ -791,7 +791,9 @@ ahd_aic7902_setup(struct ahd_softc *ahd)
 			  |  AHD_LQO_ATNO_BUG|AHD_AUTOFLUSH_BUG
 			  |  AHD_CLRLQO_AUTOCLR_BUG|AHD_PCIX_MMAPIO_BUG
 			  |  AHD_PCIX_CHIPRST_BUG|AHD_PKTIZED_STATUS_BUG
-			  |  AHD_PKT_LUN_BUG;
+			  |  AHD_PKT_LUN_BUG|AHD_MDFF_WSCBPTR_BUG
+			  |  AHD_REG_SLOW_SETTLE_BUG|AHD_SET_MODE_BUG
+			  |  AHD_BUSFREEREV_BUG;
 	}
 
 	ahd->channel = ahd_get_pci_function(pci) + 'A';
