@@ -219,6 +219,8 @@ encode(void)
 static void
 usage(void)
 {
-	(void)fprintf(stderr,"usage: uuencode [-m] [-o outfile] [infile] remotefile\n");
+	(void)fprintf(stderr,
+"usage: uuencode [-m] [-o outfile] [infile] remotefile\n"
+"       b64encode [-o outfile] [infile] remotefile\n");
 	exit(1);
 }
