@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.7 1996/06/22 21:43:54 jkh Exp $
+ * $Id: ftpio.c,v 1.8 1996/07/04 00:55:20 jkh Exp $
  *
  */
 
@@ -57,7 +57,7 @@ static __inline char *get_a_line(FTP_t ftp);
 static int	get_a_number(FTP_t ftp, char **q);
 static int	botch(char *func, char *botch_state);
 static int	cmd(FTP_t ftp, const char *fmt, ...);
-static int	ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port);
+static int	ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port, int verbose);
 static int	ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *seekto);
 static int	ftp_close(FTP_t ftp);
 static int	get_url_info(char *url_in, char *host_ret, int *port_ret, char *name_ret);
@@ -231,7 +231,7 @@ ftpGet(FILE *fp, char *file, int *seekto)
 
 /* Returns a standard FILE pointer type representing an open control connection */
 FILE *
-ftpLogin(char *host, char *user, char *passwd, int port)
+ftpLogin(char *host, char *user, char *passwd, int port, int verbose)
 {
     FTP_t n;
     FILE *fp;
@@ -241,7 +241,7 @@ ftpLogin(char *host, char *user, char *passwd, int port)
 
     n = ftp_new();
     fp = NULL;
-    if (n && ftp_login_session(n, host, user, passwd, port) == SUCCESS) {
+    if (n && ftp_login_session(n, host, user, passwd, port, verbose) == SUCCESS) {
 	fp = funopen(n, ftp_read_method, ftp_write_method, NULL, ftp_close_method);	/* BSD 4.4 function! */
 	fp->_file = n->fd_ctrl;
     }
@@ -289,7 +289,7 @@ ftpGetURL(char *url, char *user, char *passwd)
 	fp = NULL;
     }
     if (get_url_info(url, host, &port, name) == SUCCESS) {
-	fp = ftpLogin(host, user, passwd, port);
+	fp = ftpLogin(host, user, passwd, port, 0);
 	if (fp) {
 	    fp2 = ftpGet(fp, name, NULL);
 	    return fp2;
@@ -311,7 +311,7 @@ ftpPutURL(char *url, char *user, char *passwd)
 	fp = NULL;
     }
     if (get_url_info(url, host, &port, name) == SUCCESS) {
-	fp = ftpLogin(host, user, passwd, port);
+	fp = ftpLogin(host, user, passwd, port, 0);
 	if (fp) {
 	    fp2 = ftpPut(fp, name);
 	    return fp2;
@@ -550,7 +550,7 @@ cmd(FTP_t ftp, const char *fmt, ...)
 }
 
 static int
-ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port)
+ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port, int verbose)
 {
     struct hostent	*he = NULL;
     struct sockaddr_in 	sin;
@@ -600,6 +600,7 @@ ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port)
 
     ftp->fd_ctrl = s;
     ftp->con_state = isopen;
+    ftp->is_verbose = verbose;
 
     i = cmd(ftp, "USER %s", user);
     if (i >= 300 && i < 400)
