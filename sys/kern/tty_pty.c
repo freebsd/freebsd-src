@@ -118,6 +118,7 @@ struct	pt_ioctl {
 	u_char	pt_ucntl;
 	struct tty pt_tty;
 	dev_t	devs, devc;
+	struct	prison *pt_prison;
 };
 
 #define	PF_PKT		0x08		/* packet mode */
@@ -170,6 +171,7 @@ ptsopen(dev, flag, devtype, p)
 	int error;
 	int minr;
 	dev_t nextdev;
+	struct pt_ioctl *pti;
 
 	/*
 	 * XXX: Gross hack for DEVFS:
@@ -187,6 +189,7 @@ ptsopen(dev, flag, devtype, p)
 		ptyinit(minor(dev));
 	if (!dev->si_drv1)
 		return(ENXIO);	
+	pti = dev->si_drv1;
 	tp = dev->si_tty;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		ttychars(tp);		/* Set up default chars */
@@ -195,8 +198,11 @@ ptsopen(dev, flag, devtype, p)
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-	} else if (tp->t_state & TS_XCLUDE && suser(p))
+	} else if (tp->t_state & TS_XCLUDE && suser(p)) {
 		return (EBUSY);
+	} else if (pti->pt_prison != p->p_prison) {
+		return (EBUSY);
+	}
 	if (tp->t_oproc)			/* Ctrlr still around. */
 		(void)(*linesw[tp->t_line].l_modem)(tp, 1);
 	while ((tp->t_state & TS_CARR_ON) == 0) {
@@ -354,6 +360,7 @@ ptcopen(dev, flag, devtype, p)
 	(void)(*linesw[tp->t_line].l_modem)(tp, 1);
 	tp->t_lflag &= ~EXTPROC;
 	pti = dev->si_drv1;
+	pti->pt_prison = p->p_prison;
 	pti->pt_flags = 0;
 	pti->pt_send = 0;
 	pti->pt_ucntl = 0;
