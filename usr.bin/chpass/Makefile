@@ -20,10 +20,10 @@ COPTS+=	-DYP -I. -I${.CURDIR}/../../libexec/ypxfr \
 #Some people need this, uncomment to activate
 #COPTS+= -DRESTRICT_FULLNAME_CHANGE
 
-SRCS+=	yppasswd_private_xdr.c yppasswd_comm.c yp_clnt.c \
+SRCS+=	yppasswd_private_xdr.c yppasswd_private_clnt.c yp_clnt.c \
 	yppasswd_clnt.c pw_yp.c ypxfr_misc.c
 CLEANFILES= yp_clnt.c yp.h yppasswd_clnt.c yppasswd.h \
-	    yppasswd_private_xdr.c yppasswd_private.h
+	    yppasswd_private_xdr.c yppasswd_private_clnt.c yppasswd_private.h
 
 DPADD=	${LIBRPCSVC} ${LIBCRYPT}
 LDADD+=	-lrpcsvc -lcrypt
@@ -50,6 +50,9 @@ yppasswd_private.h: ${RPCSRC_PRIV}
 
 yppasswd_private_xdr.c: ${RPCSRC_PRIV} yppasswd_private.h
 	${RPCGEN} -c -o ${.TARGET} ${RPCSRC_PRIV}
+
+yppasswd_private_clnt.c: ${RPCSRC_PRIV} yppasswd_private.h
+	${RPCGEN} -l -o ${.TARGET} ${RPCSRC_PRIV}
 
 beforeinstall:
 .for i in chpass chfn chsh ypchpass ypchfn ypchsh

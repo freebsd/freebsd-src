@@ -45,7 +45,7 @@
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/yppasswd.h>
 #include <pw_yp.h>
-#include "yppasswd_comm.h"
+#include "yppasswd_private.h"
 
 extern char *getnewpasswd __P(( struct passwd * , int ));
 
@@ -61,6 +61,7 @@ yp_passwd(char *user)
 	char   *master;
 	int    *status = NULL;
 	uid_t	uid;
+	char			*sockname = YP_SOCKNAME;
 
 	_use_yp = 1;
 
@@ -143,11 +144,12 @@ for other users");
 	}
 
 	if (suser_override) {
-		if (senddat(&master_yppasswd)) {
-			warnx("failed to send request to rpc.yppasswdd");
+		if ((clnt = clnt_create(sockname, MASTER_YPPASSWDPROG,
+				MASTER_YPPASSWDVERS, "unix")) == NULL) {
+			warnx("failed to contact rpc.yppasswdd on host %s: %s",
+				master, clnt_spcreateerror(""));
 			return(1);
 		}
-		status = getresp();
 	} else {
 		if ((clnt = clnt_create(master, YPPASSWDPROG,
 				YPPASSWDVERS, "udp")) == NULL) {
@@ -155,32 +157,32 @@ for other users");
 				master, clnt_spcreateerror(""));
 			return(1);
 		}
+	}
 	/*
 	 * The yppasswd.x file said `unix authentication required',
 	 * so I added it. This is the only reason it is in here.
 	 * My yppasswdd doesn't use it, but maybe some others out there
 	 * do. 					--okir
 	 */
-		clnt->cl_auth = authunix_create_default();
+	clnt->cl_auth = authunix_create_default();
 
+	if (suser_override)
+		status = yppasswdproc_update_master_1(&master_yppasswd, clnt);
+	else
 		status = yppasswdproc_update_1(&yppasswd, clnt);
-		clnt_geterr(clnt, &err);
 
-		auth_destroy(clnt->cl_auth);
-		clnt_destroy(clnt);
-	}
+	clnt_geterr(clnt, &err);
 
-	if ((!suser_override && err.re_status != RPC_SUCCESS) ||
-						status == NULL || *status) {
+	auth_destroy(clnt->cl_auth);
+	clnt_destroy(clnt);
+
+	if (err.re_status != RPC_SUCCESS || status == NULL || *status) {
 		errx(1, "Failed to change NIS password: %s", 
-			(err.re_status != RPC_SUCCESS && !suser_override) ?
-			clnt_sperrno(err.re_status) :
-			"rpc.yppasswdd returned error status");
+			clnt_sperrno(err.re_status));
 	}
 
 	printf("\nNIS password has%s been changed on %s.\n",
-		((err.re_status != RPC_SUCCESS && !suser_override)
-		|| status == NULL || *status) ?
+		(err.re_status != RPC_SUCCESS || status == NULL || *status) ?
 		" not" : "", master);
 
 	return ((err.re_status || status == NULL || *status));

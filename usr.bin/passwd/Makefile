@@ -1,8 +1,8 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.23 1997/02/22 19:56:34 peter Exp $
+# $Id: Makefile,v 1.2 1997/07/28 18:31:45 wpaul Exp $
 
 PROG=	passwd
-SRCS=	local_passwd.c yppasswd_private_xdr.c yppasswd_comm.c yp_passwd.c \
+SRCS=	local_passwd.c yppasswd_private_xdr.c yp_passwd.c \
 	passwd.c pw_copy.c pw_util.c pw_yp.c
 
 DPADD=	${LIBCRYPT} ${LIBRPCSVC} ${LIBUTIL}
@@ -18,10 +18,10 @@ CFLAGS+= -DLOGIN_CAP -DCRYPT -DYP -I. -I${.CURDIR} \
 	-I${.CURDIR}/../../usr.sbin/rpc.yppasswdd \
 	-Dyp_error=warnx -DLOGGING
 
-SRCS+= ypxfr_misc.c yp_clnt.c yppasswd_clnt.c
+SRCS+= ypxfr_misc.c yp_clnt.c yppasswd_clnt.c yppasswd_private_clnt.c
 
 CLEANFILES= yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c \
-	    yppasswd_private.h yppasswd_private_xdr.c
+	    yppasswd_private.h yppasswd_private_xdr.c yppasswd_private_clnt.c
 
 RPCGEN= rpcgen -C
 RPCSRC= ${DESTDIR}/usr/include/rpcsvc/yp.x
@@ -45,6 +45,9 @@ yppasswd_private.h: ${RPCSRC_PRIV}
 
 yppasswd_private_xdr.c: ${RPCSRC_PRIV} yppasswd_private.h
 	${RPCGEN} -c -o ${.TARGET} ${RPCSRC_PRIV}
+
+yppasswd_private_clnt.c: ${RPCSRC_PRIV} yppasswd_private.h
+	${RPCGEN} -l -o ${.TARGET} ${RPCSRC_PRIV}
 
 BINOWN=	root
 BINMODE=4555
