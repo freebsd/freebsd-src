@@ -14,7 +14,7 @@ CFLAGS+=	-I${TELNETDIR}
 WARNS?=		0
 
 .if !defined(RELEASE_CRUNCH)
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 SRCS+=		encrypt.c auth.c enc_des.c sra.c pk.c
 CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA
 .if !defined(NO_KERBEROS)
