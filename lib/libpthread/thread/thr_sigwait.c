@@ -42,7 +42,7 @@
 __weak_reference(_sigwait, sigwait);
 
 int
-_sigwait(const sigset_t *set, int *sig)
+_sigwait(const sigset_t * __restrict set, int * __restrict sig)
 {
 
 	/*

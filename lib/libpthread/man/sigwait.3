@@ -37,7 +37,7 @@
 .Sh SYNOPSIS
 .In signal.h
 .Ft int
-.Fn sigwait "const sigset_t *set" "int *sig"
+.Fn sigwait "const sigset_t * restrict set" "int * restrict sig"
 .Sh DESCRIPTION
 The
 .Fn sigwait
