@@ -361,7 +361,7 @@ extern	int	hz;
 extern	int	matcd_probe(struct isa_device *dev);
 extern	int	matcd_attach(struct isa_device *dev);
 struct	isa_driver	matcddriver={matcd_probe, matcd_attach,
-				     "matcd interface "};
+				     "matcd"};
 
 
 /*---------------------------------------------------------------------------
