@@ -40,8 +40,8 @@
  * $Whistle: ng_vjc.h,v 1.6 1999/01/25 02:40:22 archie Exp $
  */
 
-#ifndef _NETGRAPH_VJC_H_
-#define _NETGRAPH_VJC_H_
+#ifndef _NETGRAPH_NG_VJC_H_
+#define _NETGRAPH_NG_VJC_H_
 
  /* Node type name and magic cookie */
 #define NG_VJC_NODE_TYPE	"vjc"
@@ -83,4 +83,4 @@ enum {
 	NGM_VJC_RECV_ERROR,	/* Indicate loss of incoming frame */
 };
 
-#endif /* _NETGRAPH_VJC_H_ */
+#endif /* _NETGRAPH_NG_VJC_H_ */

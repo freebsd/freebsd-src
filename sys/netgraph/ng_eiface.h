@@ -29,8 +29,8 @@
  * 	$FreeBSD$
  */
 
-#ifndef _NETGRAPH_EIFACE_H_
-#define _NETGRAPH_EIFACE_H_
+#ifndef _NETGRAPH_NG_EIFACE_H_
+#define _NETGRAPH_NG_EIFACE_H_
 
 /* Node type name and magic cookie */
 #define NG_EIFACE_NODE_TYPE		"eiface"
@@ -79,4 +79,4 @@ struct ng_eiface_par {
     { NULL }							\
 }
 
-#endif /* _NETGRAPH_EIFACE_H_ */
+#endif /* _NETGRAPH_NG_EIFACE_H_ */

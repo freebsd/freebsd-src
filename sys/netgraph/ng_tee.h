@@ -40,8 +40,8 @@
  * $Whistle: ng_tee.h,v 1.2 1999/01/20 00:22:14 archie Exp $
  */
 
-#ifndef _NETGRAPH_TEE_H_
-#define _NETGRAPH_TEE_H_
+#ifndef _NETGRAPH_NG_TEE_H_
+#define _NETGRAPH_NG_TEE_H_
 
 /* Node type name and magic cookie */
 #define NG_TEE_NODE_TYPE	"tee"
@@ -94,4 +94,4 @@ enum {
 	NGM_TEE_GETCLR_STATS,		/* atomically get and clear stats */
 };
 
-#endif /* _NETGRAPH_TEE_H_ */
+#endif /* _NETGRAPH_NG_TEE_H_ */

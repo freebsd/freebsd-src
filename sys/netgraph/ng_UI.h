@@ -40,8 +40,8 @@
  * $Whistle: ng_UI.h,v 1.6 1999/01/20 00:54:15 archie Exp $
  */
 
-#ifndef _NETGRAPH_UI_H_
-#define _NETGRAPH_UI_H_
+#ifndef _NETGRAPH_NG_UI_H_
+#define _NETGRAPH_NG_UI_H_
 
 /* Node type name and cookie */
 #define NG_UI_NODE_TYPE		"UI"
@@ -51,5 +51,5 @@
 #define NG_UI_HOOK_DOWNSTREAM	"downstream"
 #define NG_UI_HOOK_UPSTREAM	"upstream"
 
-#endif /* _NETGRAPH_UI_H_ */
+#endif /* _NETGRAPH_NG_UI_H_ */
 
