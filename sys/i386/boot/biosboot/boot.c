@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.44.2.1 1995/08/23 04:29:21 davidg Exp $
+ *	$Id: boot.c,v 1.44.2.2 1996/06/02 15:10:07 gpalmer Exp $
  */
 
 
@@ -104,7 +104,7 @@ boot(int drive)
 	/***************************************************************\
 	* As a default set it to the first partition of the boot	*
 	* floppy or hard drive						*
-	* Define BOOT_HT to boot sd0 when wd0 is also installed		*
+	* Define BOOT_HD to boot sd0 when wd0 is also installed		*
 	\***************************************************************/
 	part = 0;
 	unit = drive & 0x7f;

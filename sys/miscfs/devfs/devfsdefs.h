@@ -7,7 +7,7 @@
 /*
  * Written by Julian Elischer (julian@DIALIX.oz.au)
  *
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/miscfs/devfs/devfsdefs.h,v 1.4 1995/05/30 08:06:55 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.4 1995/05/30 08:06:55 rgrimes Exp $
  */
 
 /* first a couple of defines for compatibility with inodes */

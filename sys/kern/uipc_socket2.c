@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.5.4.1 1996/02/16 19:04:52 davidg Exp $
+ * $Id: uipc_socket2.c,v 1.5.4.2 1996/05/31 08:04:12 peter Exp $
  */
 
 #include <sys/param.h>
@@ -56,9 +56,10 @@ char	netio[] = "netio";
 char	netcon[] = "netcon";
 char	netcls[] = "netcls";
 
+/* these two are sysctl visible */
 u_long	sb_max = SB_MAX;		/* patchable */
 
-static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
+u_long	sb_efficiency = 8;		/* parameter for sbreserve() */
 
 /*
  * Procedures to manipulate state flags of socket
