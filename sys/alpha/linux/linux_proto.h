@@ -69,15 +69,9 @@ struct linux_lseek_args {
 	char off_l_[PADL_(l_off_t)]; l_off_t off; char off_r_[PADR_(l_off_t)];
 	char whence_l_[PADL_(l_int)]; l_int whence; char whence_r_[PADR_(l_int)];
 };
-struct linux_getpid_args {
-	register_t dummy;
-};
 struct linux_umount_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
 	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
-};
-struct linux_getuid_args {
-	register_t dummy;
 };
 struct linux_ptrace_args {
 	register_t dummy;
@@ -94,9 +88,6 @@ struct linux_open_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
 	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
 	char mode_l_[PADL_(l_int)]; l_int mode; char mode_r_[PADR_(l_int)];
-};
-struct linux_getgid_args {
-	register_t dummy;
 };
 struct osf1_sigprocmask_args {
 	char how_l_[PADL_(int)]; int how; char how_r_[PADR_(int)];
@@ -599,14 +590,11 @@ int	linux_chmod __P((struct thread *, struct linux_chmod_args *));
 int	linux_chown __P((struct thread *, struct linux_chown_args *));
 int	linux_brk __P((struct thread *, struct linux_brk_args *));
 int	linux_lseek __P((struct thread *, struct linux_lseek_args *));
-int	linux_getpid __P((struct thread *, struct linux_getpid_args *));
 int	linux_umount __P((struct thread *, struct linux_umount_args *));
-int	linux_getuid __P((struct thread *, struct linux_getuid_args *));
 int	linux_ptrace __P((struct thread *, struct linux_ptrace_args *));
 int	linux_access __P((struct thread *, struct linux_access_args *));
 int	linux_kill __P((struct thread *, struct linux_kill_args *));
 int	linux_open __P((struct thread *, struct linux_open_args *));
-int	linux_getgid __P((struct thread *, struct linux_getgid_args *));
 int	osf1_sigprocmask __P((struct thread *, struct osf1_sigprocmask_args *));
 int	linux_sigpending __P((struct thread *, struct linux_sigpending_args *));
 int	linux_ioctl __P((struct thread *, struct linux_ioctl_args *));
