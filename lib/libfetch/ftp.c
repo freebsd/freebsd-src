@@ -876,8 +876,12 @@ _ftp_get_proxy(void)
     
     if (((p = getenv("FTP_PROXY")) || (p = getenv("HTTP_PROXY"))) &&
 	*p && (purl = fetchParseURL(p)) != NULL) {
-	if (!*purl->scheme)
-	    strcpy(purl->scheme, SCHEME_HTTP);
+	if (!*purl->scheme) {
+	    if (getenv("FTP_PROXY"))
+		strcpy(purl->scheme, SCHEME_FTP);
+	    else
+		strcpy(purl->scheme, SCHEME_HTTP);
+	}
 	if (!purl->port)
 	    purl->port = _fetch_default_proxy_port(purl->scheme);
 	if (strcasecmp(purl->scheme, SCHEME_FTP) == 0 ||
