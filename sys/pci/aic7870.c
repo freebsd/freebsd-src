@@ -19,13 +19,14 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.4 1995/02/02 12:36:14 davidg Exp $
+ *	$Id: aic7870.c,v 1.5 1995/02/02 13:12:13 davidg Exp $
  */
 
 #include <pci.h>
 #if NPCI > 0
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <kernel.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <pci/pcireg.h>
