@@ -70,6 +70,8 @@ struct consdev {
 	dev_t	cn_dev;		/* major/minor of device */
 	short	cn_pri;		/* pecking order; the higher the better */
 	void	*cn_arg;	/* drivers method argument */
+	int	cn_unit;	/* some drivers prefer this */
+	char	cn_name[SPECNAMELEN + 1];	/* console (device) name */
 };
 
 /* values for cn_pri - reflect our policy for console selection */
