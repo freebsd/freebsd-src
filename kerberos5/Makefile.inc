@@ -45,9 +45,9 @@ ROKENOBJDIR=	${.CURDIR}/../../lib/libroken
 .endif
 
 .if exists(${.OBJDIR}/../../lib/libvers)
-VERSOBJDIR=	${.OBJDIR}/../../lib/libvers
+LIBVERS=	${.OBJDIR}/../../lib/libvers/libvers.a
 .else
-VERSOBJDIR=	${.CURDIR}/../../lib/libvers
+LIBVERS=	${.CURDIR}/../../lib/libvers/libvers.a
 .endif
 
 .if exists(${.OBJDIR}/../../lib/libkrb5)
@@ -56,40 +56,10 @@ KRB5OBJDIR=	${.OBJDIR}/../../lib/libkrb5
 KRB5OBJDIR=	${.CURDIR}/../../lib/libkrb5
 .endif
 
-.if exists(${.OBJDIR}/../../lib/libkadm5clnt)
-KADM5COBJDIR=	${.OBJDIR}/../../lib/libkadm5clnt
-.else
-KADM5COBJDIR=	${.CURDIR}/../../lib/libkadm5clnt
-.endif
-
-.if exists(${.OBJDIR}/../../lib/libkadm5srv)
-KADM5SOBJDIR=	${.OBJDIR}/../../lib/libkadm5srv
-.else
-KADM5SOBJDIR=	${.CURDIR}/../../lib/libkadm5srv
-.endif
-
-.if exists(${.OBJDIR}/../../lib/libkafs5)
-KAFS5OBJDIR=	${.OBJDIR}/../../lib/libkafs5
-.else
-KAFS5OBJDIR=	${.CURDIR}/../../lib/libkafs5
-.endif
-
-.if exists(${.OBJDIR}/../../lib/libkrb5util)
-KRB5UTILOBJDIR=	${.OBJDIR}/../../lib/libkrb5util
-.else
-KRB5UTILOBJDIR=	${.CURDIR}/../../lib/libkrb5util
-.endif
-
-.if exists(${.OBJDIR}/../../lib/libkdb5)
-KDB5OBJDIR=	${.OBJDIR}/../../lib/libkdb5
-.else
-KDB5OBJDIR=	${.CURDIR}/../../lib/libkdb5
-.endif
-
 .if exists(${.OBJDIR}/../../lib/libsl)
-SLOBJDIR=	${.OBJDIR}/../../lib/libsl
+LIBSL=		${.OBJDIR}/../../lib/libsl/libsl.a
 .else
-SLOBJDIR=	${.CURDIR}/../../lib/libsl
+LIBSL=		${.CURDIR}/../../lib/libsl/libsl.a
 .endif
 
 .if exists(${.OBJDIR}/../../lib/libtelnet)

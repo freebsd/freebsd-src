@@ -17,8 +17,7 @@ DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBMP} \
 		${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN} \
 		${LIBCRYPTO} ${LIBCRYPT} ${LIBIPSEC} ${LIBPAM}
 LDADD=		-ltermcap ${LIBTELNET} -lmp \
-		-L${KRB5OBJDIR} -lkrb5 -L${ASN1OBJDIR} -lasn1 -lcom_err \
-		-L${ROKENOBJDIR} -lroken \
+		-lkrb5 -lasn1 -lcom_err -lroken \
 		-lcrypto -lcrypt -lipsec ${MINUSLPAM}
 
 .include <bsd.prog.mk>
