@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah.h,v 1.43 2003/11/25 22:17:40 sam Exp $
+ * $Id: ah.h,v 1.45 2003/12/06 22:58:09 sam Exp $
  */
 
 #ifndef _ATH_AH_H_
