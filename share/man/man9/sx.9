@@ -42,6 +42,7 @@
 .Nm sx_try_upgrade ,
 .Nm sx_downgrade ,
 .Nm sx_assert ,
+.Nm sx_unlock ,
 .Nm SX_SYSINIT
 .Nd kernel shared/exclusive lock
 .Sh SYNOPSIS
@@ -68,13 +69,16 @@
 .Fn sx_try_upgrade "struct sx *sx"
 .Ft void
 .Fn sx_downgrade "struct sx *sx"
-.Pp
-.Cd "options INVARIANTS"
-.Cd "options INVARIANT_SUPPORT"
 .Ft void
 .Fn sx_assert "struct sx *sx" "int what"
-.In sys/kernel.h
+.\"
+.Ss sx utility macros
+.Fn sx_unlock "struct sx *sx"
 .Fn SX_SYSINIT "name" "struct sx *sx" "const char *description"
+.\"
+.Ss Kernel options
+.Cd "options INVARIANTS"
+.Cd "options INVARIANT_SUPPORT"
 .Sh DESCRIPTION
 Shared/exclusive locks are used to protect data that are read far more often
 than they are written.
@@ -98,13 +102,17 @@ Threads acquire and release a shared lock by calling
 or
 .Fn sx_try_slock
 and
-.Fn sx_sunlock .
+.Fn sx_sunlock
+or
+.Fn sx_unlock .
 Threads acquire and release an exclusive lock by calling
 .Fn sx_xlock
 or
 .Fn sx_try_xlock
 and
-.Fn sx_xunlock .
+.Fn sx_xunlock
+or
+.Fn sx_unlock .
 A thread can attempt to upgrade a currently held shared lock to an exclusive
 lock by calling
 .Fn sx_try_upgrade .
@@ -157,6 +165,15 @@ Assert that the current thread has no lock on the
 lock pointed to
 by the first argument.
 .El
+.Pp
+For ease of programming,
+.Fn sx_unlock
+is provided as a macro frontend to the respective functions,
+.Fn sx_sunlock
+and
+.Fn sx_xunlock .
+Algorithms that are aware of what state the lock is in should use either
+of the two specific functions for a minor performance benefit.
 .Pp
 The
 .Fn SX_SYSINIT
