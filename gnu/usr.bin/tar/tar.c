@@ -990,9 +990,10 @@ name_gather ()
 	{
 	  if (*p == '-' && p[1] == 'C' && p[2] == '\0')
 	    {
-	      chdir_name = name_next (0);
 	      p = name_next (0);
-	      if (!p)
+	      chdir_name = p ? strdup(p) : p;
+	      p = name_next (0);
+	      if (!chdir_name)
 		{
 		  msg ("Missing file name after -C");
 		  exit (EX_ARGSBAD);
@@ -1034,7 +1035,8 @@ addname (name)
 
   if (name[0] == '-' && name[1] == 'C' && name[2] == '\0')
     {
-      chdir_name = name_next (0);
+      name = name_next (0);
+      chdir_name = name ? strdup(name) : name;
       name = name_next (0);
       if (!chdir_name)
 	{
