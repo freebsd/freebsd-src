@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)curses.h	8.3 (Berkeley) 7/27/94
+ *	$Id$
  */
 
 #ifndef _CURSES_H_
@@ -336,7 +337,6 @@ int	 wrefresh __P((WINDOW *));
 int	 wscanw __P((WINDOW *, const char *, ...));
 int      wstandend __P((WINDOW *));
 int      wstandout __P((WINDOW *));
-int	 vwprintw __P((WINDOW *, const char *, _BSD_VA_LIST_));
 
 /* Private functions that are needed for user programs prototypes. */
 void	 __cputchar __P((int));
