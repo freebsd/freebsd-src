@@ -35,7 +35,7 @@
 .\"     @(#)pwd.1	8.2 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 28, 1995
+.Dd February 4, 2002
 .Dt PWD 1
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@
 .Nd return working directory name
 .Sh SYNOPSIS
 .Nm
+.Op Fl L | P
 .Sh DESCRIPTION
 .Nm Pwd
 writes the absolute pathname of the current working directory to
@@ -54,17 +55,32 @@ command which is similar or identical to this utility.
 Consult the
 .Xr builtin 1
 manual page.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl L
+Display the logical current working directory.
+.It Fl P
+Display the physical current working directory (all symbolic links resolved).
+.El
+.Pp
+If no options are specified, the
+.Fl P
+option is assumed.
+.Sh ENVIRONMENT
+Environment variables used by
+.Nm :
+.Bl -tag -width PWD
+.It Ev PWD
+Logical current working directory.
+.El
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh STANDARDS
 The
 .Nm
-utility is expected to be
-.St -p1003.2
-compatible.
-The
-.Fl L
-flag is not supported.
+utility conforms to
+.St -p1003.1-2001 .
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr cd 1 ,
@@ -80,3 +96,9 @@ is always faster because it is built into that shell.
 However, it can give a different answer in the rare case
 that the current directory or a containing directory was moved after
 the shell descended into it.
+.Pp
+The
+.Fl L
+option does not work unless the
+.Ev PWD
+environment variable is exported by the shell.
