@@ -127,8 +127,7 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	}
 	swapused = swaptotal - swapfree;
 	memshared = 0;
-	for (object = TAILQ_FIRST(&vm_object_list); object != NULL;
-	    object = TAILQ_NEXT(object, object_list))
+	TAILQ_FOREACH(object, &vm_object_list, object_list)
 		if (object->shadow_count > 1)
 			memshared += object->resident_page_count;
 	memshared *= PAGE_SIZE;
@@ -474,6 +473,7 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	 */
 	sbuf_printf(&sb, "Pid:\t%d\n",		p->p_pid);
 	sbuf_printf(&sb, "PPid:\t%d\n",		ppid);
+	PROC_LOCK(p);
 	sbuf_printf(&sb, "Uid:\t%d %d %d %d\n", p->p_cred->p_ruid,
 			                        p->p_ucred->cr_uid,
 			                        p->p_cred->p_svuid,
@@ -487,6 +487,7 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	sbuf_cat(&sb, "Groups:\t");
 	for (i = 0; i < p->p_ucred->cr_ngroups; i++)
 		sbuf_printf(&sb, "%d ", p->p_ucred->cr_groups[i]);
+	PROC_UNLOCK(p);
 	sbuf_putc(&sb, '\n');
 	
 	/*
@@ -521,6 +522,7 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	 * supports 64 signals, but this code is a long way from
 	 * running on anything but i386, so ignore that for now.
 	 */
+	PROC_LOCK(p);
 	sbuf_printf(&sb, "SigPnd:\t%08x\n",	p->p_siglist.__bits[0]);
 	/*
 	 * I can't seem to find out where the signal mask is in
@@ -529,6 +531,7 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	sbuf_printf(&sb, "SigBlk:\t%08x\n",	0); /* XXX */
 	sbuf_printf(&sb, "SigIgn:\t%08x\n",	p->p_sigignore.__bits[0]);
 	sbuf_printf(&sb, "SigCgt:\t%08x\n",	p->p_sigcatch.__bits[0]);
+	PROC_UNLOCK(p);
 	
 	/*
 	 * Linux also prints the capability masks, but we don't have
