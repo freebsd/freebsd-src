@@ -160,7 +160,7 @@ product	ARCHOS ARC_ATAPI	0x0043 MiniCD
 product ARTEM ONAIR		0x0001 ARtem OnAir
 
 /* ASUS WL-100 */
-product	ASUS WL-100		0x0002 ASUS ASUS SpaceLink WL-100 Wireless LAN
+product	ASUS WL-100		0x0002 ASUS SpaceLink WL-100 Wireless LAN
 
 /* Bay Networks */
 product BAY STACK_650		0x0804 BayStack 650 Wireless LAN
