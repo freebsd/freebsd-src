@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.55 1996/10/01 14:08:28 jkh Exp $
+ * $Id: media.c,v 1.56 1996/10/02 00:41:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -259,6 +259,7 @@ mediaSetFTP(dialogMenuItem *self)
     static Device ftpDevice;
     char *cp, *hostname, *dir;
     extern int FtpPort;
+    static Boolean network_init = 1;
     int what = DITEM_RESTORE;
 
     cp = variable_get(VAR_FTP_PATH);
@@ -291,13 +292,20 @@ mediaSetFTP(dialogMenuItem *self)
     }
     strcpy(ftpDevice.name, cp);
 
-    if (!tcpDeviceSelect())
-	return DITEM_FAILURE | what;
-    if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
-	if (isDebug())
-	    msgDebug("mediaSetFTP: Net device init failed.\n");
-	return DITEM_FAILURE | what;
+    dialog_clear_norefresh();
+    if (network_init || msgYesNo("You've already done the network configuration once,\n"
+			       "would you like to skip over it now?")) {
+	if (!tcpDeviceSelect())
+	    return DITEM_FAILURE | what;
+	if (!network_init)
+	    mediaDevice->shutdown(mediaDevice);
+	if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
+	    if (isDebug())
+		msgDebug("mediaSetFTP: Net device init failed.\n");
+	    return DITEM_FAILURE | what;
+	}
     }
+    network_init = FALSE;
     hostname = cp + 6;
     if ((cp = index(hostname, ':')) != NULL) {
 	*(cp++) = '\0';
@@ -318,6 +326,7 @@ mediaSetFTP(dialogMenuItem *self)
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", hostname);
 	    mediaDevice->shutdown(mediaDevice);
+	    network_init = TRUE;
 	    return DITEM_FAILURE | what;
 	}
     }
