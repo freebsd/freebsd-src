@@ -189,6 +189,11 @@ update (argc, argv)
     argc -= optind;
     argv += optind;
 
+#ifdef FREEBSD_DEVELOPER
+    if (!K_flag && freebsd)
+	K_flag = "-KeAuthor,eDate,eHeader,eId,eLocker,eLog,eRCSfile,eRevision,eSource,eState,iFreeBSD";
+#endif /* FREEBSD_DEVELOPER */
+
     /*
      * If we are updating the entire directory (for real) and building dirs
      * as we go, we make sure there is no static entries file and write the

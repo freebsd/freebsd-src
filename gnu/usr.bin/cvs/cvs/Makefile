@@ -1,4 +1,9 @@
+.if !defined(FREEBSD_DEVELOPER)
 PROG = cvs
+.else
+PROG = ncvs
+.endif
+
 CFLAGS +=	-I${.CURDIR}/../lib \
 		-DDIRENT -DSTDC_HEADERS -DPOSIX -DBROKEN_SIGISMEMBER \
 		-DFTIME_MISSING -DHAVE_TIMEZONE -DUTIME_NULL_MISSING
@@ -7,6 +12,12 @@ CFLAGS +=	-I${.CURDIR}/../lib \
 LDADD=  -L${.CURDIR}/../lib/obj -lcvs
 .else
 LDADD=  -L${.CURDIR}/../lib/ -lcvs
+.endif
+
+.if defined(FREEBSD_DEVELOPER)
+CFLAGS+= -DFREEBSD_DEVELOPER
+BINGRP=	ncvs
+#BINMODE=2555
 .endif
 
 SRCS = add.c admin.c checkin.c checkout.c classify.c commit.c \
