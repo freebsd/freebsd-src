@@ -510,10 +510,9 @@ watchdog_config(void *unused __unused, u_int cmd, int *err)
 {
 	u_int u;
 
-	if (cmd) {
+	u = cmd & WD_INTERVAL;
+	if (cmd && u >= WD_TO_1SEC) {
 		u = cmd & WD_INTERVAL;
-		if (u < WD_TO_1SEC)
-			return;
 		watchdog_ticks = (1 << (u - WD_TO_1SEC)) * hz;
 		watchdog_enabled = 1;
 		*err = 0;
