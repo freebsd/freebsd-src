@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_input.c,v 1.17 1997/02/22 09:28:23 peter Exp $
  */
 
 /*
@@ -120,7 +120,44 @@ int
 db_inputchar(c)
 	int	c;
 {
+	static int escstate;
+
+	if (escstate == 1) {
+		/* ESC seen, look for [ or O */
+		if (c == '[' || c == 'O')
+			escstate++;
+		else
+			escstate = 0; /* re-init state machine */
+		return (0);
+	} else if (escstate == 2) {
+		escstate = 0;
+		/*
+		 * If a valid cursor key has been found, translate
+		 * into an emacs-style control key, and fall through.
+		 * Otherwise, drop off.
+		 */
+		switch (c) {
+		case 'A':	/* up */
+			c = CTRL('p');
+			break;
+		case 'B':	/* down */
+			c = CTRL('n');
+			break;
+		case 'C':	/* right */
+			c = CTRL('f');
+			break;
+		case 'D':	/* left */
+			c = CTRL('b');
+			break;
+		default:
+			return (0);
+		}
+	}
+
 	switch (c) {
+	    case CTRL('['):
+		escstate = 1;
+		break;
 	    case CTRL('b'):
 		/* back up one character */
 		if (db_lc > db_lbuf_start) {
