@@ -859,6 +859,10 @@ mtx_validate(struct mtx *m)
 {
 
 /*
+ * XXX: When kernacc() does not require Giant we can reenable this check
+ */
+#ifdef notyet
+/*
  * XXX - When kernacc() is fixed on the alpha to handle K0_SEG memory properly
  * we can re-enable the kernacc() checks.
  */
@@ -872,6 +876,7 @@ mtx_validate(struct mtx *m)
 		if (!kernacc((caddr_t)m, sizeof(m),
 		    VM_PROT_READ | VM_PROT_WRITE))
 			panic("Can't read and write to mutex %p", m);
+#endif
 #endif
 }
 #endif
