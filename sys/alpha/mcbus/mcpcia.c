@@ -246,7 +246,6 @@ mcpcia_attach(device_t dev)
 static void
 mcpcia_enable_intr(struct mcpcia_softc *sc, int irq)
 {
-	alpha_mb();
 	REGVAL(MCPCIA_INT_MASK0(sc)) |= (1 << irq);
 	alpha_mb();
 }
@@ -254,9 +253,15 @@ mcpcia_enable_intr(struct mcpcia_softc *sc, int irq)
 static void
 mcpcia_disable_intr(struct mcpcia_softc *sc, int irq)
 {
-	alpha_mb();
-	REGVAL(MCPCIA_INT_MASK0(sc)) &= ~(1 << irq);
-	alpha_mb();
+	/*
+	 * We need to write to INT_REQ as well as INT_MASK0 in case we
+	 * are trying to mask an interrupt which is already
+	 * asserted. Writing a 1 bit to INT_REQ clears the
+	 * corresponding bit in the register.
+	 */
+ 	REGVAL(MCPCIA_INT_MASK0(sc)) &= ~(1 << irq);
+	REGVAL(MCPCIA_INT_REQ(sc)) = (1 << irq);
+ 	alpha_mb();
 }
 
 static void
@@ -284,8 +289,7 @@ mcpcia_disable_intr_vec(int vector)
 			return;
 		}
 		tmp -= (2 * MCPCIA_VECWIDTH_PER_SLOT);
-		irq = (tmp / MCPCIA_VECWIDTH_PER_INTPIN);
-		irq = ((vector - 0x900) >> 4) - 8;
+		irq = (tmp >> MCPCIA_VECWIDTH_PER_INTPIN) & 0xf;
 	}
 /*	printf("D<%03x>=%d,%d\n", vector, mid, irq); */
 	while (sc) {
@@ -325,7 +329,7 @@ mcpcia_enable_intr_vec(int vector)
 			return;
 		}
 		tmp -= (2 * MCPCIA_VECWIDTH_PER_SLOT);
-		irq = (tmp / MCPCIA_VECWIDTH_PER_INTPIN);
+		irq = (tmp >> MCPCIA_VECWIDTH_PER_INTPIN) & 0xf;
 	}
 /*	printf("E<%03x>=%d,%d\n", vector, mid, irq); */
 	while (sc) {
@@ -372,7 +376,7 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
 	if (mid == 5 && slot == 1) {
 		irq = 16;	/* MID 5, slot 1, is the internal NCR 53c810 */
 	} else if (slot >= 2 && slot <= 5) {
-		irq = (slot - 2) * 4;
+		irq = ((slot - 2) * 4) + (intpin - 1);
 	} else {
 		device_printf(child, "weird slot number (%d); can't make irq\n",
 		    slot);
@@ -389,12 +393,13 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
 	if (irq == 16) {
 		h = MCPCIA_VEC_NCR;
 	} else {
-		h = MCPCIA_VEC_PCI + ((mid - 4) * MCPCIA_VECWIDTH_PER_MCPCIA) +
+		h = MCPCIA_VEC_PCI +
+		    ((mid - MCPCIA_PCI_MIDMIN) * MCPCIA_VECWIDTH_PER_MCPCIA) +
 		    (slot * MCPCIA_VECWIDTH_PER_SLOT) +
 		    ((intpin - 1) * MCPCIA_VECWIDTH_PER_INTPIN);
 	}
 	birq = irq + INTRCNT_KN300_IRQ;
-	error = alpha_setup_intr(device_get_nameunit(child ? child : dev), h,
+	error = alpha_setup_intr(device_get_nameunit(child), h,
 	    intr, arg, flags, cp, &intrcnt[birq],
 	    mcpcia_disable_intr_vec, mcpcia_enable_intr_vec);
 	if (error)
@@ -409,7 +414,17 @@ static int
 mcpcia_teardown_intr(device_t dev, device_t child, struct resource *i, void *c)
 {
 	struct mcpcia_softc *sc = MCPCIA_SOFTC(dev);
-	int slot, mid, irq;
+	int slot, mid, intpin, irq;
+
+	intpin = pci_get_intpin(child);
+	if (intpin == 0) {
+		/* No IRQ used */
+		return (0);
+	}
+	if (intpin < 1 || intpin > 4) {
+		/* Bad IRQ */
+		return (ENXIO);
+	}
 
 	slot = pci_get_slot(child);
 	mid = mcbus_get_mid(dev);
@@ -417,7 +432,7 @@ mcpcia_teardown_intr(device_t dev, device_t child, struct resource *i, void *c)
 	if (mid == 5 && slot == 1) {
 		irq = 16;
 	} else if (slot >= 2 && slot <= 5) {
-		irq = (slot - 2) * 4;
+		irq = ((slot - 2) << 4) + (intpin - 1);
 	} else {
 		return (ENXIO);
 	}
