@@ -186,7 +186,8 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 			continue;
 		if (!aflag &&
 		    (
-		     (af1 == AF_INET &&
+		     (istcp && tp->t_state == TCPS_LISTEN)
+		     || (af1 == AF_INET &&
 		      inet_lnaof(inp->inp_laddr) == INADDR_ANY)
 #ifdef INET6
 		     || (af1 == AF_INET6 &&
