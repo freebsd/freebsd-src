@@ -230,7 +230,6 @@ twed_attach(device_t dev)
 {
     struct twed_softc	*sc = (struct twed_softc *)device_get_softc(dev);
     device_t		parent;
-    char		*state;
     dev_t		dsk;
     
     debug_called(4);
@@ -241,24 +240,10 @@ twed_attach(device_t dev)
     sc->twed_drive = device_get_ivars(dev);
     sc->twed_dev = dev;
 
-    /* report some basic status */
-    switch(sc->twed_drive->td_state) {
-    case TWE_DRIVE_READY:
-	state = "ready";
-	break;
-    case TWE_DRIVE_DEGRADED:
-	state = "degraded";
-	break;
-    case TWE_DRIVE_OFFLINE:
-	state = "offline";
-	break;
-    default:
-	state = "unknown";
-	break;
-    }
-    device_printf(dev, "%uMB (%u sectors) RAID %d (%s)\n",
+    /* report the drive */
+    device_printf(dev, "%uMB (%u sectors)\n",
 		  sc->twed_drive->td_size / ((1024 * 1024) / TWE_BLOCK_SIZE),
-		  sc->twed_drive->td_size, sc->twed_drive->td_raidlevel, state);
+		  sc->twed_drive->td_size);
 
     devstat_add_entry(&sc->twed_stats, "twed", device_get_unit(dev), TWE_BLOCK_SIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
