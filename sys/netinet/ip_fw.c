@@ -478,6 +478,7 @@ lookup_next_rule(struct ip_fw_chain *me)
  *	hlen	Packet header length
  *	oif	Outgoing interface, or NULL if packet is incoming
  *	*cookie Skip up to the first rule past this rule number;
+ *		upon return, non-zero port number for divert or tee
  *	*m	The packet; we set to NULL when/if we nuke it.
  *	*flow_id pointer to the last matching rule (in/out)
  *	*next_hop socket we are forwarding to (in/out).
@@ -487,7 +488,13 @@ lookup_next_rule(struct ip_fw_chain *me)
  *	0	The packet is to be accepted and routed normally OR
  *      	the packet was denied/rejected and has been dropped;
  *		in the latter case, *m is equal to NULL upon return.
- *	port	Divert the packet to port.
+ *	port	Divert the packet to port, with these caveats:
+ *
+ *		- If IP_FW_PORT_TEE_FLAG is set, tee the packet instead
+ *		  of diverting it (ie, 'ipfw tee').
+ *
+ *		- If IP_FW_PORT_DYNT_FLAG is set, interpret the lower
+ *		  16 bits as a dummynet pipe number instead of diverting
  */
 
 static int 
@@ -502,7 +509,11 @@ ip_fw_chk(struct ip **pip, int hlen,
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
 	u_short offset = 0 ;
 	u_short src_port, dst_port;
-	u_int16_t skipto = *cookie;
+	u_int16_t skipto;
+
+	/* Grab and reset cookie */
+	skipto = *cookie;
+	*cookie = 0;
 
 	if (pip) { /* normal ip packet */
 	    ip = *pip;
@@ -532,34 +543,37 @@ non_ip:         ip = NULL ;
 	}
 
 	if (*flow_id) {
-	    if (fw_one_pass)
-		return 0 ; /* accept if passed first test */
-	    /*
-	     * pkt has already been tagged. Look for the next rule
-	     * to restart processing
-	     */
-	    chain = LIST_NEXT( *flow_id, chain);
 
-	    if ( (chain = (*flow_id)->rule->next_rule_ptr) == NULL )
-		chain = (*flow_id)->rule->next_rule_ptr =
-			lookup_next_rule(*flow_id) ;
-		if (! chain) goto dropit;
-	} else {
-	/*
-	 * Go down the chain, looking for enlightment
-	 * If we've been asked to start at a given rule immediatly, do so.
-	 */
-	chain = LIST_FIRST(&ip_fw_chain);
-	if ( skipto ) {
-		if (skipto >= IPFW_DEFAULT_RULE)
+		/* Accept if passed first test */
+		if (fw_one_pass)
+			return 0;
+
+		/*
+		 * Packet has already been tagged. Look for the next rule
+		 * to restart processing.
+		 */
+		chain = LIST_NEXT(*flow_id, chain);
+
+		if ((chain = (*flow_id)->rule->next_rule_ptr) == NULL)
+			chain = (*flow_id)->rule->next_rule_ptr =
+			    lookup_next_rule(*flow_id);
+		if (chain == NULL)
 			goto dropit;
-		while (chain && (chain->rule->fw_number <= skipto)) {
-			chain = LIST_NEXT(chain, chain);
+	} else {
+		/*
+		 * Go down the chain, looking for enlightment.
+		 * If we've been asked to start at a given rule, do so
+		 */
+		chain = LIST_FIRST(&ip_fw_chain);
+		if (skipto != 0) {
+			if (skipto >= IPFW_DEFAULT_RULE)
+				goto dropit;
+			while (chain && chain->rule->fw_number <= skipto)
+				chain = LIST_NEXT(chain, chain);
+			if (chain == NULL)
+				goto dropit;
 		}
-		if (! chain) goto dropit;
 	}
-	}
-	*cookie = 0;
 	for (; chain; chain = LIST_NEXT(chain, chain)) {
 		register struct ip_fw * f ;
 again:
@@ -661,8 +675,8 @@ again:
  * here, pip==NULL for bridged pkts -- they include the ethernet
  * header so i have to adjust lengths accordingly
  */
-#define PULLUP_TO(l)	do {                                            \
-			    int len = (pip ? l : l + 14 ) ;             \
+#define PULLUP_TO(l)	do {						\
+			    int len = (pip ? (l) : (l) + 14 );		\
 			    if ((*m)->m_len < (len) ) {                 \
 				if ( (*m = m_pullup(*m, (len))) == 0)   \
 				    goto bogusfrag;                     \
@@ -706,8 +720,8 @@ again:
 				} else if (!groupmember(f->fw_gid,
 					    P->inp_socket->so_cred))
 						continue;
-			    } else continue;
-
+			    } else
+				continue;
 			    break;
 			}
 
@@ -737,24 +751,14 @@ again:
 				} else if (!groupmember(f->fw_gid,
 					    P->inp_socket->so_cred))
 						continue;
-			    } else continue;
-
+			    } else
+				continue;
 			    break;
 			}
 
-			default:
-				continue;
-/*
- * XXX Shouldn't GCC be allowing two bogusfrag labels if they're both inside
- * separate blocks? Hmm.... It seems it's got incorrect behavior here.
- */
-#if 0
-bogusfrag:
-				if (fw_verbose)
-					ipfw_report(NULL, ip, rif, oif);
-				goto dropit;
-#endif
-			}
+		    default:
+			    continue;
+		    }
 		}
 		    
 		/* Protocol specific checks */
@@ -831,10 +835,14 @@ check_ports:
 		    }
 #undef PULLUP_TO
 
+		default:
+			break;
+
 bogusfrag:
-			if (fw_verbose)
-				ipfw_report(NULL, ip, rif, oif);
-			goto dropit;
+		if (fw_verbose)
+			ipfw_report(NULL, ip, rif, oif);
+		goto dropit;
+
 		}
 
 rnd_then_got_match:
@@ -865,15 +873,8 @@ got_match:
 			*cookie = f->fw_number;
 			return(f->fw_divert_port);
 		case IP_FW_F_TEE:
-			/*
-			 * XXX someday tee packet here, but beware that you
-			 * can't use m_copym() or m_copypacket() because
-			 * the divert input routine modifies the mbuf
-			 * (and these routines only increment reference
-			 * counts in the case of mbuf clusters), so need
-			 * to write custom routine.
-			 */
-			continue;
+			*cookie = f->fw_number;
+			return(f->fw_divert_port | IP_FW_PORT_TEE_FLAG);
 #endif
 		case IP_FW_F_SKIPTO: /* XXX check */
 			if ( f->next_rule_ptr )
@@ -884,7 +885,7 @@ got_match:
 			goto again ;
 #ifdef DUMMYNET
 		case IP_FW_F_PIPE:
-			return(f->fw_pipe_nr | 0x10000 );
+			return(f->fw_pipe_nr | IP_FW_PORT_DYNT_FLAG);
 #endif
 #ifdef IPFIREWALL_FORWARD
 		case IP_FW_F_FWD:
@@ -968,7 +969,6 @@ dropit:
 	/*
 	 * Finally, drop the packet.
 	 */
-	/* *cookie = 0; */ /* XXX is this necessary ? */
 	if (*m) {
 		m_freem(*m);
 		*m = NULL;
