@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.11 1994/10/27 20:12:46 se Exp $
+**  $Id: ncr.c,v 1.12 1994/10/30 00:30:27 ats Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -144,7 +144,7 @@
 **    Write disk status information to dkstat ?
 */
 
-#define DK  0
+/* #define DK */
 
 /*==========================================================
 **
@@ -1222,7 +1222,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.11 1994/10/27 20:12:46 se Exp $\n";
+	"\n$Id: ncr.c,v 1.12 1994/10/30 00:30:27 ats Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3327,7 +3327,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 1.11 $)\n",
+	printf ("%s scanning for targets 0..%d ($Revision: 1.12 $)\n",
 		ncr_name (np), MAX_TARGET-1);
 
 	/*
