@@ -230,7 +230,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, msgbuf_clear, CTLTYPE_INT|CTLFLAG_RW,
 	&msgbuf_clear, 0, sysctl_machdep_msgbuf_clear, "I",
 	"Clear kernel message buffer");
 
-int bootverbose = 0, Maxmem = 0;
+int Maxmem = 0;
 long dumplo;
 
 vm_offset_t phys_avail[10];
@@ -261,13 +261,9 @@ cpu_startup(dummy)
 	vm_offset_t minaddr;
 	int physmem_est;
 
-	if (boothowto & RB_VERBOSE)
-		bootverbose++;
-
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
-	printf("%s", version);
 	earlysetcpuclass();
 	startrtclock();
 	printcpuinfo();
