@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.2 1994/10/19 01:58:53 wollman Exp $
+ * $Id: aic6360.c,v 1.3 1994/10/23 21:27:07 wollman Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -137,7 +137,6 @@
 #include <sys/devconf.h>
 #include <i386/isa/isa_device.h>
 
-#include "ddb.h"
 #include <sys/kernel.h>
 #else
 #include <i386/isa/isavar.h>
@@ -495,12 +494,9 @@
 
 
 
-/* Grabbed from Julians SCSI aha-drivers */
-#ifdef	DDB
-int	Debugger();
-#else	DDB
-#define	Debugger() panic("should call debugger here (aic6360.c)")
-#endif	DDB
+#if defined(KERNEL) && !defined(DDB)
+#define	fatal_if_no_DDB() panic("panic for historical reasons")
+#endif
 
 typedef u_long physaddr;
 
@@ -1511,7 +1507,8 @@ aic_done(acb)
 			printf("%s: can't find matching acb\n",
 			    aic->sc_dev.dv_xname);
 #endif
-			Debugger();
+			Debugger("aic6360");
+			fatal_if_no_DDB();
 		}
 	}
 	/* Put it on the free list. */
@@ -1861,7 +1858,8 @@ aic_msgout(aic)
 		case SEND_IDENTIFY:
 			if (aic->state != AIC_HASNEXUS) {
 				printf("aic at line %d: no nexus", __LINE__);
-				Debugger();
+				Debugger("aic6360");
+				fatal_if_no_DDB();
 			}
 			acb = aic->nexus;
 			aic->omess[0] = MSG_IDENTIFY(acb->xs->sc_link->lun);
@@ -2299,7 +2297,8 @@ aicintr(aic)
 				 * Pull the brakes, i.e. RST
 				 */
 				printf("aic at line %d: target didn't identify\n", __LINE__);
-				Debugger();
+				Debugger("aic6360");
+				fatal_if_no_DDB();
 				aic_init(aic);
 				return 1;
 			}
@@ -2323,7 +2322,8 @@ aicintr(aic)
 			acb = aic->nexus;
 			if (!acb) {
 				printf("aic at line %d: missing acb", __LINE__);
-				Debugger();
+				Debugger("aic6360");
+				fatal_if_no_DDB();
 			}
 			sc = acb->xs->sc_link;
 			ti = &aic->tinfo[sc->target];
@@ -2375,7 +2375,8 @@ aicintr(aic)
 			acb = aic->nexus;
 			if (!acb) {
 				printf("aic at line %d: missing acb", __LINE__);
-				Debugger();
+				Debugger("aic6360");
+				fatal_if_no_DDB();
 			}
 			outb(SCSISEQ, ENRESELI|ENAUTOATNP);
 			outb(SXFRCTL1, 0);
@@ -2408,7 +2409,8 @@ aicintr(aic)
 	acb = aic->nexus;
 	if (aic->state != AIC_HASNEXUS || acb == NULL) {
 		printf("aic: no nexus!!\n");
-		Debugger();
+		Debugger("aic6360");
+		fatal_if_no_DDB();
 	}
 	
 	/* What sort of transfer does the bus signal? */
@@ -2460,7 +2462,8 @@ aicintr(aic)
 		if (!(inb(SSTAT2) & SEMPTY)) {
 			printf("aic at line %d: SCSI-FIFO didn't drain\n",
 			    __LINE__);
-			Debugger();
+			Debugger("aic6360");
+			fatal_if_no_DDB();
 			acb->xs->error = XS_DRIVER_STUFFUP;
 			untimeout(aic_timeout, (caddr_t)acb);
 			aic_done(acb);
@@ -2477,7 +2480,8 @@ aicintr(aic)
 		if (sxfrctl0 & SCSIEN) {
 			printf("aic at line %d: scsi xfer never finished\n",
 			    __LINE__);
-			Debugger();
+			Debugger("aic6360");
+			fatal_if_no_DDB();
 			acb->xs->error = XS_DRIVER_STUFFUP;
 			untimeout(aic_timeout, (caddr_t)acb);
 			aic_done(acb);
@@ -2536,12 +2540,14 @@ aicintr(aic)
 		} else {
 			printf("aic at line %d: unexpected busfree phase\n",
 			    __LINE__);
-			Debugger();
+			Debugger("aic6360");
+			fatal_if_no_DDB();
 		}
 		break;
         default:
 		printf("aic at line %d: bogus bus phase\n", __LINE__);
-		Debugger();
+		Debugger("aic6360");
+		fatal_if_no_DDB();
 		break;
 	}
 	LOGLINE(aic);
