@@ -1289,8 +1289,10 @@ fdc_add_child(device_t dev, const char *name, int unit)
 	if (resource_int_value(name, unit, "drive", &ivar->fdunit) != 0)
 		ivar->fdunit = 0;
 	child = device_add_child(dev, name, unit);
-	if (child == NULL)
+	if (child == NULL) {
+		free(ivar, M_DEVBUF);
 		return;
+	}
 	device_set_ivars(child, ivar);
 	if (resource_int_value(name, unit, "flags", &flags) == 0)
 		 device_set_flags(child, flags);
@@ -1546,7 +1548,13 @@ fd_probe(device_t dev)
 #endif /* EPSON_NRDISK */
 	}
 #else /* PC98 */
-#if _MACHINE_ARCH == i386
+/*
+ * XXX I think using __i386__ is wrong here since we actually want to probe
+ * for the machine type, not the CPU type (so non-PC arch's like the PC98 will
+ * fail the probe).  However, for whatever reason, testing for _MACHINE_ARCH
+ * == i386 breaks the test on FreeBSD/Alpha.
+ */
+#ifdef __i386__
 	if (fd->type == FDT_NONE && (fd->fdu == 0 || fd->fdu == 1)) {
 		/* Look up what the BIOS thinks we have. */
 		if (fd->fdu == 0) {
@@ -1566,7 +1574,7 @@ fd_probe(device_t dev)
 		if (fd->type == FDT_288M_1)
 			fd->type = FDT_288M;
 	}
-#endif /* _MACHINE_ARCH == i386 */
+#endif /* __i386__ */
 #endif /* PC98 */
 
 	/* is there a unit? */
