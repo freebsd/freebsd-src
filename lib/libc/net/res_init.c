@@ -91,7 +91,14 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <netdb.h>
 
+#include "namespace.h"
+#include "reentrant.h"
+#include "un-namespace.h"
 #include "res_config.h"
+#include "res_send_private.h"
+
+#undef h_errno
+extern int h_errno;
 
 static void res_setoptions(char *, char *);
 
@@ -106,16 +113,14 @@ static u_int32_t net_mask(struct in_addr);
 #endif
 
 /*
- * Resolver state default settings.
+ * Check structure for failed per-thread allocations.
  */
-
-struct __res_state _res
-# if defined(__BIND_RES_TEXT)
-	= { RES_TIMEOUT, }	/* Motorola, et al. */
-# endif
-	;
-
-struct __res_state_ext _res_ext;
+static struct res_per_thread {
+	struct __res_state res_state;
+	struct __res_state_ext res_state_ext;
+	struct __res_send_private res_send_private;
+	int h_errno;
+} _res_per_thread_bogus = { .res_send_private = { .s = -1 } }; /* socket */
 
 /*
  * Set up default settings.  If the configuration file exist, the values
@@ -142,6 +147,7 @@ int
 res_init()
 {
 	FILE *fp;
+	struct __res_send_private *rsp;
 	char *cp, **pp;
 	int n;
 	char buf[MAXDNAME];
@@ -156,6 +162,19 @@ res_init()
 	int dots;
 #endif
 
+	/*
+	 * If allocation of memory for this thread's resolver has failed,
+	 * return the error to the user.
+	 */
+	if (&_res == &_res_per_thread_bogus.res_state)
+		return (-1);
+	rsp = ___res_send_private();
+	rsp->s = -1;
+	rsp->connected = 0;
+	rsp->vc = 0;
+	rsp->af = 0;
+	rsp->Qhook = NULL;
+	rsp->Rhook = NULL;
 	/*
 	 * These three fields used to be statically initialized.  This made
 	 * it hard to use this code in a shared library.  It is necessary,
@@ -595,6 +614,97 @@ res_randomid()
 
 	gettimeofday(&now, NULL);
 	return (0xffff & (now.tv_sec ^ now.tv_usec ^ getpid()));
+}
+
+/*
+ * Resolver state default settings.
+ */
+
+#undef _res
+#undef _res_ext
+#ifdef __BIND_RES_TEXT
+struct __res_state _res = { RES_TIMEOUT };	/* Motorola, et al. */
+#else
+struct __res_state _res;
+#endif
+struct __res_state_ext _res_ext;
+static struct __res_send_private _res_send_private = { .s = -1 }; /* socket */
+
+static thread_key_t res_key;
+static once_t res_init_once = ONCE_INITIALIZER;
+static int res_thr_keycreated = 0;
+
+static void
+free_res(void *ptr)
+{
+	struct res_per_thread *myrsp = ptr;
+
+	if (myrsp->res_state.options & RES_INIT)
+		res_close();
+	free(myrsp);
+}
+
+static void
+res_keycreate(void)
+{
+	res_thr_keycreated = thr_keycreate(&res_key, free_res) == 0;
+}
+
+static struct res_per_thread *
+allocate_res(void)
+{
+	struct res_per_thread *myrsp;
+	
+	if (thr_once(&res_init_once, res_keycreate) != 0 ||
+	    !res_thr_keycreated)
+		return (&_res_per_thread_bogus);
+
+	myrsp = thr_getspecific(res_key);
+	if (myrsp != NULL)
+		return (myrsp);
+	myrsp = calloc(1, sizeof(*myrsp));
+	if (myrsp == NULL)
+		return (&_res_per_thread_bogus);
+#ifdef __BIND_RES_TEXT
+	myrsp->res_state.options = RES_TIMEOUT;		/* Motorola, et al. */
+#endif
+	myrsp->res_send_private.s = -1;			/* socket */
+	if (thr_setspecific(res_key, myrsp) == 0)
+		return (myrsp);
+	free(myrsp);
+	return (&_res_per_thread_bogus);
+}
+
+struct __res_state *
+___res(void)
+{
+	if (thr_main() != 0)
+		return (&_res);
+	return (&allocate_res()->res_state);
+}
+
+struct __res_state_ext *
+___res_ext(void)
+{
+	if (thr_main() != 0)
+		return (&_res_ext);
+	return (&allocate_res()->res_state_ext);
+}
+
+struct __res_send_private *
+___res_send_private(void)
+{
+	if (thr_main() != 0)
+		return (&_res_send_private);
+	return (&allocate_res()->res_send_private);
+}
+
+int *
+__h_error(void)
+{
+	if (thr_main() != 0)
+		return (&h_errno);
+	return (&allocate_res()->h_errno);
 }
 
 /*

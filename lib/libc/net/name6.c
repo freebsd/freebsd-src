@@ -211,10 +211,10 @@ static int	 _icmp_ghbyaddr(void *, void *, va_list);
 #endif /* ICMPNL */
 
 /*
- * XXX: Our res_*() is not thread-safe.  So, we share lock between
+ * XXX: Many dependencies are not thread-safe.  So, we share lock between
  * getaddrinfo() and getipnodeby*().  Still, we cannot use
  * getaddrinfo() and getipnodeby*() in conjunction with other
- * functions which call res_*().
+ * functions which call them.
  */
 #include "libc_private.h"
 extern pthread_mutex_t __getaddrinfo_thread_lock;
@@ -309,10 +309,8 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 		}
 	}
 
-	THREAD_LOCK();
 	rval = _nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyname", default_src,
 			  name, af, errp);
-	THREAD_UNLOCK();
 	return (rval == NS_SUCCESS) ? hp : NULL;
 }
 
@@ -456,10 +454,8 @@ getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 		return NULL;
 	}
 
-	THREAD_LOCK();
 	rval = _nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyaddr", default_src,
 			  src, len, af, errp);
-	THREAD_UNLOCK();
 	return (rval == NS_SUCCESS) ? hp : NULL;
 }
 
@@ -1169,9 +1165,11 @@ _nis_ghbyname(void *rval, void *cb_data, va_list ap)
 	if (af == AF_UNSPEC)
 		af = AF_INET;
 	if (af == AF_INET) {
+		THREAD_LOCK();
 		hp = _gethostbynisname(name, af);
 		if (hp != NULL)
 			hp = _hpcopy(hp, errp);
+		THREAD_UNLOCK();
 	}
 	
 	*(struct hostent **)rval = hp;
@@ -1193,9 +1191,11 @@ _nis_ghbyaddr(void *rval, void *cb_data, va_list ap)
 	af = va_arg(ap, int);
 
 	if (af == AF_INET) {
+		THREAD_LOCK();
 		hp = _gethostbynisaddr(addr, addrlen, af);
 		if (hp != NULL)
 			hp = _hpcopy(hp, errp);
+		THREAD_UNLOCK();
 	}
 	*(struct hostent **)rval = hp;
 	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
@@ -1932,17 +1932,16 @@ _icmp_fqdn_query(const struct in6_addr *addr, int ifindex)
 	struct timeval tout;
 	int len;
 	char *name;
-	static int pid;
 	static struct _icmp_host_cache *hc_head;
 
+	THREAD_LOCK();
 	for (hc = hc_head; hc; hc = hc->hc_next) {
 		if (hc->hc_ifindex == ifindex
-		&&  IN6_ARE_ADDR_EQUAL(&hc->hc_addr, addr))
-			return hc->hc_name;
+		&&  IN6_ARE_ADDR_EQUAL(&hc->hc_addr, addr)) {
+			THREAD_UNLOCK();
+			return hc->hc_name;	/* XXX: never freed */
+		}
 	}
-
-	if (pid == 0)
-		pid = getpid();
 
 	ICMP6_FILTER_SETBLOCKALL(&filter);
 	ICMP6_FILTER_SETPASS(ICMP6_FQDN_REPLY, &filter);
@@ -1955,7 +1954,7 @@ _icmp_fqdn_query(const struct in6_addr *addr, int ifindex)
 	fq->icmp6_fqdn_type = ICMP6_FQDN_QUERY;
 	fq->icmp6_fqdn_code = 0;
 	fq->icmp6_fqdn_cksum = 0;
-	fq->icmp6_fqdn_id = (u_short)pid;
+	fq->icmp6_fqdn_id = (u_short)getpid();
 	fq->icmp6_fqdn_unused = 0;
 	fq->icmp6_fqdn_cookie[0] = 0;
 	fq->icmp6_fqdn_cookie[1] = 0;
@@ -2038,8 +2037,10 @@ _icmp_fqdn_query(const struct in6_addr *addr, int ifindex)
 	hc->hc_ifindex = ifindex;
 	hc->hc_addr = *addr;
 	hc->hc_name = strdup(name);
+	THREAD_LOCK();
 	hc->hc_next = hc_head;
 	hc_head = hc;
+	THREAD_UNLOCK();
 	return hc->hc_name;
 }
 
