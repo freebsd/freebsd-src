@@ -129,6 +129,9 @@ acphy_probe(dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxALTIMA &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxALTIMA_AC101) {
 		device_set_desc(dev, MII_STR_xxALTIMA_AC101);
+	} else if(MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxALTIMA &&
+	          MII_MODEL(ma->mii_id2) == MII_MODEL_xxALTIMA_AC101L) {
+		device_set_desc(dev, MII_STR_xxALTIMA_AC101L);
 	} else 
 		return (ENXIO);
 

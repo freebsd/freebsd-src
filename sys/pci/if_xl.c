@@ -183,6 +183,8 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c905B-COMBO Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_TORNADO_10_100BT,
 		"3Com 3c905C-TX Fast Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_TORNADO_10_100BT_NVIDIA,
+		"3Com 3c905C-TX on nVidia nForce2 chipset" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_10_100BT_SERV,
 		"3Com 3c980 Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_TORNADO_10_100BT_SERV,
