@@ -512,6 +512,9 @@ drive_decompressor(struct archive *a, struct private_data *state)
 				return (ARCHIVE_OK);
 			default:
 				/* Any other return value is an error. */
+				archive_set_error(a, ARCHIVE_ERRNO_MISC,
+				    "gzip decompression failed (%s)",
+				    state->stream.msg);
 				goto fatal;
 			}
 		}
