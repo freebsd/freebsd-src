@@ -296,13 +296,13 @@ struct ECDTbody {
 /*
  * Addresses to scan on ia32 for the RSD PTR.  According to section 5.2.2
  * of the ACPI spec, we only consider two regions for the base address:
- * 1. EBDA (0x0 - 0x3FF)
+ * 1. EBDA (1 KB area addressed to by 16 bit pointer at 0x40E)
  * 2. High memory (0xE0000 - 0xFFFFF)
  */
 #define RSDP_EBDA_PTR	0x40E
-#define RSDP_EBDA_SIZE	(1024 - sizeof(struct ACPIrsdp))
+#define RSDP_EBDA_SIZE	0x400
 #define RSDP_HI_START	0xE0000
-#define RSDP_HI_END	(0x100000 - sizeof(struct ACPIrsdp))
+#define RSDP_HI_SIZE	0x20000
 
 /* Find and map the RSD PTR structure and return it for parsing */
 struct ACPIsdt  *sdt_load_devmem(void);
