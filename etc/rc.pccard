@@ -10,7 +10,7 @@ if [ "x$apm_enable" = "xYES" ] ; then
 fi
 
 if [ "x$pccard_enable" != "xNO" ] ; then
-	if [ "x$pccard_mem" != "xNO" ] ; then
+	if [ "x$pccard_mem" != "xDEFAULT" ] ; then
 		/usr/sbin/pccardc pccardmem $pccard_mem
 	else
 		/usr/sbin/pccardc pccardmem 0xd0000
