@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: syslogd.8,v 1.11 1997/05/03 22:17:43 joerg Exp $
+.\"	$Id: syslogd.8,v 1.12 1997/09/19 22:22:03 brian Exp $
 .\"
 .Dd October 12, 1995
 .Dt SYSLOGD 8
@@ -51,12 +51,12 @@ The
 daemon reads and logs messages to the system console, log files, other
 machines and/or users as specified by its configuration file.
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a Ar allowed_peer
 Allow
 .Ar allowed_peer
 to log to this
-.Nm syslogd
+.Nm
 using UDP datagrams.  Multiple
 .Fl a
 options may be specified.
@@ -163,16 +163,16 @@ include file
 .Sh FILES
 .Bl -tag -width /var/run/syslog.pid -compact
 .It Pa /etc/syslog.conf
-The configuration file.
+configuration file
 .It Pa /var/run/syslog.pid
-The process id of current
-.Nm Ns .
+process id of current
+.Nm
 .It Pa /var/run/log
-Name of the
+name of the
 .Tn UNIX
-domain datagram log socket.
+domain datagram log socket
 .It Pa /dev/klog
-The kernel log device.
+kernel log device
 .El
 .Sh SEE ALSO
 .Xr logger 1 ,
