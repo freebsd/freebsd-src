@@ -1,6 +1,6 @@
 <!--
     $FreeBSD$
-    Original revision: 1.13
+    Original revision: 1.14
 -->
 
 <sect1 id="proc">
@@ -11,12 +11,13 @@
     &os; が対応しているすべての機器の組み合わせのリストを作成することは
     不可能です。ここでは、一般的に言えるいくつかのことについて紹介します。</para>
 
-  <para>ほぼすべての i386 互換プロセッサに対応しています。
-    80386, 80486, Pentium, Pentium Pro, Pentium II, Pentium III, Pentium 4,
+  <para>浮動小数点演算プロセッサを備えた、ほぼすべての i386
+    互換プロセッサに対応しています。
+    80486, Pentium, Pentium Pro, Pentium II, Pentium III, Pentium 4,
     および、Xeon, Celeron プロセッサといった変種を含む、
-    80386 以降の Intel プロセッサすべてに対応しています
-    (ただし &os; 5.2-RELEASE 以降では、もはや 80386SX プロセッサには対
-    応しません)。
+    80486 以降の Intel プロセッサすべてに対応しています
+    (ただし &os; 5.2-RELEASE 以降では 80386SX プロセッサには対
+    応していません)。
     Am486, Am5x86, K5, K6 (およびその仲間),
     Athlon (Athlon-MP, Athlon-XP, Athlon-4, Athlon Thunderbird を含む),
     Duron プロセッサを含む、
