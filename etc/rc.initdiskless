@@ -1,0 +1,100 @@
+#
+# /etc/rc.diskless - general BOOTP startup
+#
+#	BOOTP has mounted / for us.  Assume a read-only mount.  We must then
+#	- figure out where the NFS mount is coming from
+#	- figure out our IP by querying the interface
+#	- retarget /conf/ME softlink to proper configuration script directory
+#
+#	It is expected that /etc/fstab and /etc/rc.conf.local will be
+#	set by the system operator on the server to be softlinks to
+#	/conf/ME/fstab and /conf/ME/rc.conf.local.  The system operator may
+#	choose to retarget other files as well.  The server itself boots
+#	properly with its default /conf/ME softlink pointing to 
+#	/conf/server.host.name.  
+#
+#	During a diskless boot, we retarget the /conf/ME softlink to point
+#	to /conf/DISKLESS.CLIENT.IP.ADDRESS.  Thus, various system config
+#	files that are softlinks through /conf/ME also get retargeted.
+#
+# SEE SAMPLE FILES IN /usr/share/examples/diskless. 
+
+# chkerr:
+#
+# Routine to check for error
+#
+#	checks error code and drops into shell on failure.
+#	if shell exits, terminates script as well as /etc/rc.
+
+chkerr() {
+	if [ $1 != 0 ]; then
+		echo "$2 failed: dropping into /bin/sh"
+		/bin/sh
+		# RESUME
+	fi
+}
+
+# DEBUGGING
+#
+set -v
+
+#  Figure out where the root mount is coming from, synthesize a mount
+#  for /usr and mount it.
+#
+#  e.g. nfs_root might wind up as "A.B.C.D:/"
+#
+#  NOTE! the /usr mount is only temporary so we can access commands necessary
+#  to retarget /conf/ME.  The actual /usr mount should be part of the
+#  retargeted /etc/fstab.  See instructions in /usr/share/examples/diskless.
+#
+set `/bin/df /`
+nfs_root=$8
+mount_nfs -o ro ${nfs_root}/usr /usr
+
+chkerr $? "mount of /usr"
+
+#  Figure out our interface and IP.
+#
+
+bootp_ifc=`route -n get default | fgrep interface | awk '{ print $2; }'`
+bootp_ipa=`ifconfig $bootp_ifc | fgrep inet | head -1 | awk '{ print $2; }'`
+
+echo "Interface $bootp_ifc IP-Address $bootp_ipa"
+
+umount /usr
+
+# retarget /conf/ME
+#
+# MFS's background process takes a bit to startup.  Various config files
+# on server should be softlinks through /conf/ME.  The server's own /conf/ME
+# points to the server's version of the files.
+#
+# We retarget /conf/ME using a -o union mount.  This allows
+# us to 'mkdir' over whatever was there previously.
+#
+# WARNING! null mounts cannot handle mmap, and since many programs
+# use mmap (such as 'cp'), we have to copy.
+
+mount_mfs -s 256 -T qp120at -o union dummy /conf
+chkerr $? "MFS mount on /conf"
+
+mkdir /conf/ME
+cp -Rp /conf/$bootp_ipa/* /conf/ME
+
+# retarget the kernel
+#
+
+sysctl -w kern.bootfile=/conf/ME/kernel
+
+# Tell /etc/rc to run the specified script after
+# it does its mounts but before it does anything
+# else.
+#
+# This script is responsible for setting up the
+# diskless mount environment.  This can be 
+# overriden by /conf/ME/rc.conf.local if, for
+# example, you do not want to run the standard
+# system /etc/rc.diskless2
+
+diskless_mount="/etc/rc.diskless2"
+
