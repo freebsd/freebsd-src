@@ -889,8 +889,6 @@ readrest:
 	 */
 	KASSERT(fs.m->flags & PG_BUSY,
 		("vm_fault: page %p not busy!", fs.m));
-	unlock_things(&fs);
-
 	/*
 	 * Sanity check: page must be completely valid or it is not fit to
 	 * map into user space.  vm_pager_get_pages() ensures this.
@@ -899,6 +897,8 @@ readrest:
 		vm_page_zero_invalid(fs.m, TRUE);
 		printf("Warning: page %p partially invalid on fault\n", fs.m);
 	}
+	unlock_things(&fs);
+
 	pmap_enter(fs.map->pmap, vaddr, fs.m, prot, wired);
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
 		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
@@ -994,12 +994,13 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			VM_OBJECT_UNLOCK(lobject);
 			lobject = backing_object;
 		}
-		VM_OBJECT_UNLOCK(lobject);
 		/*
 		 * give-up when a page is not in memory
 		 */
-		if (m == NULL)
+		if (m == NULL) {
+			VM_OBJECT_UNLOCK(lobject);
 			break;
+		}
 		vm_page_lock_queues();
 		if (((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 			(m->busy == 0) &&
@@ -1010,11 +1011,14 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			}
 			vm_page_busy(m);
 			vm_page_unlock_queues();
+			VM_OBJECT_UNLOCK(lobject);
 			mpte = pmap_enter_quick(pmap, addr, m, mpte);
+			VM_OBJECT_LOCK(lobject);
 			vm_page_lock_queues();
 			vm_page_wakeup(m);
 		}
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(lobject);
 	}
 }
 
