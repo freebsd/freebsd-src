@@ -435,7 +435,7 @@ ohci_alloc_std(sc)
 	std = sc->sc_freetds;
 	sc->sc_freetds = std->nexttd;
 	memset(&std->td, 0, sizeof(ohci_td_t));
-	std->nexttd = 0;
+	std->nexttd = NULL;
 	return (std);
 }
 
@@ -2398,7 +2398,7 @@ ohci_device_clear_toggle(pipe)
 {
 	struct ohci_pipe *opipe = (struct ohci_pipe *)pipe;
 
-	opipe->sed->ed.ed_tailp &= LE(~OHCI_TOGGLECARRY);
+	opipe->sed->ed.ed_headp &= LE(~OHCI_TOGGLECARRY);
 }
 
 static void
