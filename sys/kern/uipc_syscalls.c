@@ -1835,7 +1835,7 @@ retry_lookup:
 		pg = vm_page_lookup(obj, pindex);
 
 		if (pg == NULL) {
-			pg = vm_page_alloc(obj, pindex,
+			pg = vm_page_alloc(obj, pindex, VM_ALLOC_NOBUSY |
 			    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
 			if (pg == NULL) {
 				VM_OBJECT_UNLOCK(obj);
@@ -1844,7 +1844,6 @@ retry_lookup:
 				goto retry_lookup;
 			}
 			vm_page_lock_queues();
-			vm_page_wakeup(pg);
 		} else {
 			vm_page_lock_queues();
 			if (vm_page_sleep_if_busy(pg, TRUE, "sfpbsy"))
