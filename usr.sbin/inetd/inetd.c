@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.31 1998/05/07 18:32:00 guido Exp $";
+	"$Id: inetd.c,v 1.32 1998/05/08 19:15:44 guido Exp $";
 #endif /* not lint */
 
 /*
@@ -400,8 +400,11 @@ main(argc, argv, envp)
 			syslog(LOG_WARNING, "%s: %m", pid_file);
 		}
 	}
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_mask = SIGBLOCK;
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	sigaddset(&sa.sa_mask, SIGALRM);
+	sigaddset(&sa.sa_mask, SIGCHLD);
+	sigaddset(&sa.sa_mask, SIGHUP);
 	sa.sa_handler = retry;
 	sigaction(SIGALRM, &sa, (struct sigaction *)0);
 	config(SIGHUP);
@@ -410,7 +413,7 @@ main(argc, argv, envp)
 	sa.sa_handler = reapchild;
 	sigaction(SIGCHLD, &sa, (struct sigaction *)0);
 	sa.sa_handler = SIG_IGN;
-	sigaction(SIGPIPE, &sa, (struct sigaction *)0);
+	sigaction(SIGPIPE, &sa, &sapipe);
 
 	{
 		/* space for daemons to overwrite environment for ps */
@@ -622,8 +625,8 @@ main(argc, argv, envp)
 					}
 				}
 #endif
-				sigaction(SIGCHLD, &sapipe,
-					  (struct sigaction *)0);
+				sigaction(SIGPIPE, &sapipe,
+				    (struct sigaction *)0);
 				execv(sep->se_server, sep->se_argv);
 				if (sep->se_socktype != SOCK_STREAM)
 					recv(0, buf, sizeof (buf), 0);
@@ -1745,7 +1748,8 @@ getline(fd, buf, len)
 	int count = 0, n;
 	struct sigaction sa;
 
-	memset(&sa, 0, sizeof(sa));
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
 	sa.sa_handler = SIG_DFL;
 	sigaction(SIGALRM, &sa, (struct sigaction *)0);
 	do {
