@@ -29,7 +29,7 @@
 #ifndef _SYS_EVENTVAR_H_
 #define _SYS_EVENTVAR_H_
 
-#define KQ_NEVENTS	8		/* minimize copyout calls */
+#define KQ_NEVENTS	8		/* minimize copy{in,out} calls */
 #define KQEXTENT	256		/* linear growth by this amount */
 
 struct kqueue {
@@ -40,12 +40,7 @@ struct kqueue {
 	int		kq_state;
 #define KQ_SEL		0x01
 #define KQ_SLEEP	0x02
-	union {
-		struct	kevent *b_kevp[KQ_NEVENTS];
-		struct	kevent b_kev[KQ_NEVENTS];
-	} kq_buf;
-#define kq_kevp 	kq_buf.b_kevp
-#define kq_kev 		kq_buf.b_kev
+	struct		kevent kq_kev[KQ_NEVENTS];
 };
 
 #endif /* !_SYS_EVENTVAR_H_ */
