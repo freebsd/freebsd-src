@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.31 1996/01/30 23:00:54 mpp Exp $
+ *	$Id: mount.h,v 1.32 1996/09/03 07:09:09 davidg Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -42,7 +42,7 @@
 #endif
 #include <sys/queue.h>
 
-typedef struct { long val[2]; } fsid_t;		/* file system id type */
+typedef struct fsid { long val[2]; } fsid_t;	/* file system id type */
 
 /*
  * File identifier.
