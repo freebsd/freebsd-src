@@ -418,8 +418,6 @@ cardbus_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 static int
 cardbus_freecfg(struct cardbus_devinfo *dinfo)
 {
-	if (dinfo->cfg.hdrspec != NULL)
-		free(dinfo->cfg.hdrspec, M_DEVBUF);
 	free(dinfo, M_DEVBUF);
 
 	return (0);
