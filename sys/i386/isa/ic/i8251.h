@@ -31,11 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns16550.h	7.1 (Berkeley) 5/9/91
+ * $FreeBSD$
  */
 
 /*
  * modified for PC9801 by M.Ishii 
  *			Kyoto University Microcomputer Club (KMC)
+ */
+
+/*
+ * modified for 8251(FIFO) by Seigo TANIMURA <tanimura@FreeBSD.org>
  */
 
 /* define command and status code */
@@ -57,6 +62,26 @@
 #define	STS8251_BD_SD	0x40	/* break detect (async) / sync detect (sync) */
 #define	STS8251_DSR	0x80	/* DSR is asserted */
 
+#define	STS8251F_TxEMP	0x01	/* transmit buffer EMPTY */
+#define	STS8251F_TxRDY	0x02	/* transmit READY */
+#define	STS8251F_RxRDY	0x04	/* data exists in receive buffer */
+#define	STS8251F_OE	0x10	/* overrun error */
+#define	STS8251F_PE	0x20	/* perity error */
+#define	STS8251F_BD_SD	0x80	/* break detect (async) / sync detect (sync) */
+
+#define	INTR8251F_DTCT	0x60	/* FIFO detection mask */
+#define	INTR8251F_INTRV	0x0e	/* interrupt event */
+#define	INTR8251F_TO	0x0c	/* receive timeout */
+#define	INTR8251F_LSTS	0x06	/* line status */
+#define	INTR8251F_RxRDY	0x04	/* receive READY */
+#define	INTR8251F_TxRDY	0x02	/* transmit READY */
+#define	INTR8251F_ISEV	0x01	/* event occured */
+#define	INTR8251F_MSTS	0x00	/* modem status */
+
+#define	CTRL8251F_ENABLE	0x01	/* enable FIFO */
+#define	CTRL8251F_RCV_RST	0x02	/* reset receive FIFO */
+#define	CTRL8251F_XMT_RST	0x04	/* reset transmit FIFO */
+
 #define	MOD8251_5BITS	0x00
 #define	MOD8251_6BITS	0x04
 #define	MOD8251_7BITS	0x08
@@ -69,9 +94,14 @@
 #define	MOD8251_CLKX16	0x02	/* x16 */
 #define	MOD8251_CLKX1	0x01	/* x1 */
 
-#define	CICSCD_CI	0x80	/* CI */
-#define	CICSCD_CS	0x40	/* CS */
 #define	CICSCD_CD	0x20	/* CD */
+#define	CICSCD_CS	0x40	/* CS */
+#define	CICSCD_CI	0x80	/* CI */
+
+#define	CICSCDF_CS	0x10	/* CS */
+#define	CICSCDF_DR	0x20	/* DR */
+#define	CICSCDF_CI	0x40	/* CI */
+#define	CICSCDF_CD	0x80	/* CD */
 
 /* interrupt mask control */
 #define	IEN_Rx		0x01
