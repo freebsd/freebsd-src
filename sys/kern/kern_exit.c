@@ -62,8 +62,6 @@
 #include <sys/aio.h>
 #include <sys/jail.h>
 
-#include <machine/limits.h>	/* for UCHAR_MAX = typeof(p_priority)_MAX */
-
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <sys/lock.h>
@@ -430,8 +428,8 @@ loop:
 		if (p->p_stat == SZOMB) {
 			/* charge childs scheduling cpu usage to parent */
 			if (curproc->p_pid != 1) {
-				curproc->p_estcpu = min(curproc->p_estcpu +
-				    p->p_estcpu, UCHAR_MAX);
+				curproc->p_estcpu =
+				    ESTCPULIM(curproc->p_estcpu + p->p_estcpu);
 			}
 
 			q->p_retval[0] = p->p_pid;
