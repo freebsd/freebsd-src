@@ -226,7 +226,7 @@ FreeBSD 1.0		1993-11-xx [FOO]
 4.4BSD Lite             1994-03-01 [USE]
 FreeBSD 1.1		1994-04-xx [FBD]
 FreeBSD 1.1.5.1		1994-07-xx [FBD]
-				supercedes 1.1.5 3 days after release.
+				supersedes 1.1.5 3 days after release.
 NetBSD 1.0              1994-11-08 [NBD]
 386BSD 1.0              1994-11-12 [USE]
 FreeBSD 2.0		1995-01-xx [FBD]
@@ -307,4 +307,4 @@ Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 Copyright (c) 1997-1999 Wolfram Schneider <wosch@FreeBSD.ORG>
 URL: ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/misc/bsd-family-tree
 
-$Date: 1999/04/05 21:51:32 $ $Revision: 1.12 $
+$Date: 1999/05/02 16:23:53 $ $Revision: 1.14 $
