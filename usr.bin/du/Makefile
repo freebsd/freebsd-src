@@ -3,7 +3,7 @@
 
 PROG=	du
 CFLAGS+= -Wall
-DPADD+=	${LIBM}
-LDADD+=	${LIBM}
+DPADD=	${LIBM}
+LDADD=	-lm
 
 .include <bsd.prog.mk>
