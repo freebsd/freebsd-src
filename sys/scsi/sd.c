@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.65 1995/05/30 08:13:51 rgrimes Exp $
+ *      $Id: sd.c,v 1.66 1995/08/07 11:56:31 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -93,18 +93,18 @@ SCSI_DEVICE_ENTRIES(sd)
 
 struct scsi_device sd_switch =
 {
-    sd_sense_handler,
-    sdstart,			/* have a queue, served by this */
-    NULL,			/* have no async handler */
-    NULL,			/* Use default 'done' routine */
-    "sd",
-    0,
+	sd_sense_handler,
+	sdstart,			/* have a queue, served by this */
+	NULL,			/* have no async handler */
+	NULL,			/* Use default 'done' routine */
+	"sd",
+	0,
 	{0, 0},
 	0,				/* Link flags */
 	sdattach,
 	"Direct-Access",
 	sdopen,
-    sizeof(struct scsi_data),
+	sizeof(struct scsi_data),
 	T_DIRECT,
 	sdunit,
 	sdsetunit,
@@ -372,6 +372,11 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 		bp->b_error = EIO;
 		goto bad;
 	}
+
+	/*
+	 * check it's not too big a transfer for our adapter
+	 */
+        scsi_minphys(bp,&sd_switch);
 
 	/*
 	 * Odd number of bytes
