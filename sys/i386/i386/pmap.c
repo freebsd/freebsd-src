@@ -2903,15 +2903,12 @@ pmap_unmapdev(va, size)
 	vm_size_t size;
 {
 	vm_offset_t base, offset, tmpva;
-	pt_entry_t *pte;
 
 	base = va & PG_FRAME;
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
-	for (tmpva = base; tmpva < (base + size); tmpva += PAGE_SIZE) {
-		pte = vtopte(tmpva);
-		pte_clear(pte);
-	}
+	for (tmpva = base; tmpva < (base + size); tmpva += PAGE_SIZE)
+		pmap_kremove(tmpva);
 	pmap_invalidate_range(kernel_pmap, va, tmpva);
 	kmem_free(kernel_map, base, size);
 }
