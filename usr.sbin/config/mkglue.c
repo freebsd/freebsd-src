@@ -363,7 +363,11 @@ vector()
 	fprintf(fp, "pci irqnn\\0\\\n");
 	fprintf(fp, "pci irqnn\\0\\\n");
 	fprintf(fp, "pci irqnn\\0\\\n");
-	dev_id = 6;
+	fprintf(fp, "ipi irqnn\\0\\\n");
+	fprintf(fp, "ipi irqnn\\0\\\n");
+	fprintf(fp, "ipi irqnn\\0\\\n");
+	fprintf(fp, "ipi irqnn\\0\\\n");
+	dev_id = 10;
 	vector_devtab(fp, "bio", &dev_id);
 	vector_devtab(fp, "tty", &dev_id);
 	vector_devtab(fp, "net", &dev_id);
