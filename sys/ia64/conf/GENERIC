@@ -32,7 +32,7 @@ maxusers	0
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	NO_CPU_COPTFLAGS=true	#Ignore any x86 CPUTYPE
 
-options		SKI			#Support for HP simulator
+#options 	SKI			#Support for HP simulator
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
@@ -55,6 +55,9 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options		P1003_1B		#Posix P1003_1B real-time extentions
 options 	_KPOSIX_PRIORITY_SCHEDULING
+
+# SMP
+options 	SMP
 
 # Debugging for use in -current
 options 	DDB			#Enable the kernel debugger
