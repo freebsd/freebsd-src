@@ -149,8 +149,6 @@ ffs_truncate(vp, length, flags, cred, p)
 	off_t osize;
 
 	oip = VTOI(ovp);
-	if (oip->i_size == length)
-		return (0);
 	fs = oip->i_fs;
 	if (length < 0)
 		return (EINVAL);
