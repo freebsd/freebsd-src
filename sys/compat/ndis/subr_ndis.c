@@ -1841,7 +1841,7 @@ NdisAllocatePacket(status, packet, pool)
          * correctly.
 	 */
 	pkt->np_private.npp_ndispktflags = NDIS_PACKET_ALLOCATED_BY_NDIS;
-	pkt->np_private.npp_validcounts = 0;
+	pkt->np_private.npp_validcounts = FALSE;
 
 	*packet = pkt;
 
