@@ -157,16 +157,16 @@ device		faith		# IPv6-to-IPv4 relaying (translation)
 device		bpf		#Berkeley packet filter
 
 # USB support
-device		uhci		# UHCI PCI->USB interface
-device		ohci		# OHCI PCI->USB interface
-device		usb		# USB Bus (required)
-device		ugen		# Generic
-device		uhid		# "Human Interface Devices"
-device		ukbd		# Keyboard
-device		ulpt		# Printer
-device		umass		# Disks/Mass storage - Requires scbus and da0
-device		ums		# Mouse
+#device		uhci		# UHCI PCI->USB interface
+#device		ohci		# OHCI PCI->USB interface
+#device		usb		# USB Bus (required)
+#device		ugen		# Generic
+#device		uhid		# "Human Interface Devices"
+#device		ukbd		# Keyboard
+#device		ulpt		# Printer
+#device		umass		# Disks/Mass storage - Requires scbus and da0
+#device		ums		# Mouse
 # USB Ethernet
-device		aue		# ADMtek USB ethernet
-device		cue		# CATC USB ethernet
-device		kue		# Kawasaki LSI USB ethernet
+#device		aue		# ADMtek USB ethernet
+#device		cue		# CATC USB ethernet
+#device		kue		# Kawasaki LSI USB ethernet
