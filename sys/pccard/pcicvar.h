@@ -34,6 +34,7 @@ struct pcic_slot {
 	char controller;		/* Device type */
 	char revision;			/* Device Revision */
 	struct slot *slt;		/* Back ptr to slot */
+	struct pcic_softc *sc;		/* Back pointer to softc */
 	u_char (*getb)(struct pcic_slot *, int);
 	void   (*putb)(struct pcic_slot *, int, u_char);
 	u_char	*regs;			/* Pointer to regs in mem */
@@ -43,8 +44,13 @@ struct pcic_softc
 {
 	u_int32_t		slotmask;	/* Mask of valid slots */
 	u_int32_t		flags;		/* Interesting flags */
-#define PCIC_IO_MAPPED	0x00000001
-#define PCIC_MEM_MAPPED	0x00000002
+#define PCIC_IO_MAPPED	0x00000001	/* ExCA registers are io mapped */
+#define PCIC_MEM_MAPPED	0x00000002	/* ExCA registers mem mapped */
+#define	PCIC_VG_POWER	0x00000004	/* Uses VG power regs */
+#define PCIC_DF_POWER	0x00000008	/* Uses DF step regs  */
+#define PCIC_PD_POWER	0x00000010	/* Uses CL-PD regs  */
+#define PCIC_KING_POWER	0x00000020	/* Uses IBM KING regs  */
+#define PCIC_AB_POWER	0x00000040	/* Use old A/B step power */
 	int			iorid;		/* Rid of I/O region */
 	struct resource 	*iores;		/* resource for I/O region */
 	int			memrid;

@@ -122,6 +122,7 @@
 #define PCIC_PCPWRE	0x10	/* PC Card Power Enable */
 #define	PCIC_VCC	0x18	/* Vcc control bits */
 #define	PCIC_VCC_5V	0x10	/* 5 volts */
+#define	PCIC_VCC_ON	0x10	/* Turn on VCC on some chips. */
 #define	PCIC_VCC_3V	0x18	/* 3 volts */
 #define	PCIC_VCC_5V_KING	0x14	/* 5 volts for KING PCIC */
 #define	PCIC_VPP	0x03	/* Vpp control bits */
