@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.h,v 1.1 1998/09/12 22:03:20 luigi Exp $
+ *	$Id: ip_dummynet.h,v 1.1.2.1 1998/09/17 04:01:20 luigi Exp $
  */
 
 #ifndef _IP_DUMMYNET_H
@@ -39,7 +39,7 @@ struct dn_pkt {
 	struct m_hdr hdr ;
 #define dn_next	hdr.mh_nextpkt	/* next element in queue */
 #define dn_m	hdr.mh_next	/* packet to be forwarded */
-#define dn_hlen	hdr.mh_len	/* hlen, for ip_output			*/
+#define dn_dst	hdr.mh_len	/* dst, for ip_output			*/
 #define dn_dir	hdr.mh_flags	/* IP_FW_F_IN or IP_FW_F_OUT		*/
         int     delay;		/* stays queued until delay=0		*/
         struct ifnet *ifp;	/* interface, for ip_output		*/
@@ -82,6 +82,7 @@ struct dn_pipe {			/* a pipe */
         struct	dn_queue p ;
         int     ticks_from_last_insert;
         long    numbytes;		/* which can send or receive */
+		/* 990421 -- numbytes is scaled by 8*hz */
 };
 
 /*
@@ -102,7 +103,8 @@ struct dn_pipe {			/* a pipe */
 void ip_dn_init(void);	/* called in ip_input.c */
 void dn_rule_delete(void *r);		/* used in ip_fw.c */
 int dummynet_io(int pipe, int dir,
-	struct mbuf *m, struct ifnet *ifp, struct route *ro, int hlen,
+	struct mbuf *m, struct ifnet *ifp, struct route *ro,
+	struct sockaddr_in * dst,
 	struct ip_fw_chain *rule);
 #endif
 #endif /* _IP_DUMMYNET_H */
