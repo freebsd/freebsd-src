@@ -5,7 +5,7 @@ $FreeBSD$
 The UFS Access Control Lists implementation is copyright Robert Watson,
 and is made available under a Berkeley-style license.
 
-About UFS Access Control Lists (ACLs)
+  About UFS Access Control Lists (ACLs)
 
 Access control lists allow the association of fine-grained discretionary
 access control information with files and directories, extending the
@@ -14,7 +14,7 @@ implementation largely follows the POSIX.1e model, and relies on the
 availability of extended attributes to store extended components of
 the ACL, while maintaining the base permission information in the inode.
 
-Using UFS Access Control Lists (ACLs)
+  Using UFS Access Control Lists (ACLs)
 
 Support for UFS access control lists may be enabled by adding:
 
