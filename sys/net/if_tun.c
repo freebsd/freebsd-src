@@ -361,7 +361,7 @@ tunoutput(ifp, m0, dst, rt)
 		 * try to free it or keep a pointer to it).
 		 */
 		struct mbuf m;
-		u_int af = dst->sa_family;
+		uint32_t af = dst->sa_family;
 
 		m.m_next = m0;
 		m.m_len = 4;
@@ -618,7 +618,7 @@ tunwrite(dev, uio, flag)
 	struct ifnet	*ifp = &tp->tun_if;
 	struct mbuf	*top, **mp, *m;
 	int		error=0, tlen, mlen;
-	u_int32_t	family;
+	uint32_t	family;
 
 	TUNDEBUG("%s%d: tunwrite\n", ifp->if_name, ifp->if_unit);
 
@@ -665,13 +665,20 @@ tunwrite(dev, uio, flag)
 	top->m_pkthdr.rcvif = ifp;
 
 	if (ifp->if_bpf) {
-		if (tp->tun_flags & TUN_IFHEAD)
+		if (tp->tun_flags & TUN_IFHEAD) {
 			/*
 			 * Conveniently, we already have a 4-byte address
 			 * family prepended to our packet !
+			 * Inconveniently, it's in the wrong byte order !
 			 */
+			if ((top = m_pullup(top, sizeof(family))) == NULL)
+				return ENOBUFS;
+			*mtod(top, u_int32_t *) =
+			    ntohl(*mtod(top, u_int32_t *));
 			bpf_mtap(ifp, top);
-		else {
+			*mtod(top, u_int32_t *) =
+			    htonl(*mtod(top, u_int32_t *));
+		} else {
 			/*
 			 * We need to prepend the address family as
 			 * a four byte field.  Cons up a dummy header
@@ -680,7 +687,7 @@ tunwrite(dev, uio, flag)
 			 * try to free it or keep a pointer to it).
 			 */
 			struct mbuf m;
-			u_int af = AF_INET;
+			uint32_t af = AF_INET;
 
 			m.m_next = top;
 			m.m_len = 4;
