@@ -147,7 +147,6 @@ vinum_create(int argc, char *argv[], char *arg0[])
 void
 vinum_read(int argc, char *argv[], char *arg0[])
 {
-    int error;
     char buffer[BUFSIZE];				    /* read config file in here */
     struct _ioctl_reply *reply;
     int i;
@@ -161,16 +160,10 @@ vinum_read(int argc, char *argv[], char *arg0[])
 	}
     }
     ioctl(superdev, VINUM_READCONFIG, &buffer);
-    if (reply->error != 0) {				    /* error in config */
+    if (reply->error != 0) 				    /* error in config */
 	fprintf(stdout, "** %s: %s\n", reply->msg, strerror(reply->error));
-	if (error != 0)
-	    perror("Can't save Vinum config");
-    } else {
-	if (error != 0)
-	    perror("Can't save Vinum config");
-	if (no_devfs)
-	    make_devices();
-    }
+    else if (no_devfs)
+	make_devices();
     checkupdates();					    /* make sure we're updating */
 }
 
