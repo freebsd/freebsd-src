@@ -815,7 +815,7 @@ fileline=
 savedpwtype=
 defaultclass=
 defaultLgroup=
-defaultgoups=
+defaultgroups=
 defaultshell="${DEFAULTSHELL}"
 
 # Make sure the user running this program is root. This isn't a security
