@@ -637,17 +637,15 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			struct thread *td,
 			int flags,
 			vm_offset_t *lastaddrp,
+			bus_dma_segment_t *segs,
 			int *segp,
 			int first)
 {
-	bus_dma_segment_t *segs;
 	bus_size_t sgsize;
 	bus_addr_t curaddr, lastaddr, baddr, bmask;
 	vm_offset_t vaddr = (vm_offset_t)buf;
 	int seg;
 	pmap_t pmap;
-
-	segs = dmat->segments;
 
 	if (td != NULL)
 		pmap = vmspace_pmap(td->td_proc->p_vmspace);
@@ -745,7 +743,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 				error = _bus_dmamap_load_buffer(dmat,
 						m->m_data, m->m_len,
 						NULL, flags, &lastaddr,
-						&nsegs, first);
+						dmat->segments, &nsegs, first);
 				first = 0;
 			}
 		}
@@ -760,6 +758,41 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 		(*callback)(callback_arg, dmat->segments,
 			    nsegs+1, m0->m_pkthdr.len, error);
 	}
+	return (error);
+}
+
+int
+bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
+			struct mbuf *m0, bus_dma_segment_t *segs,
+			int *nsegs, int flags)
+{
+	int error;
+
+	KASSERT(dmat->lowaddr >= ptoa(Maxmem) || map != NULL,
+		("bus_dmamap_load_mbuf: No support for bounce pages!"));
+	M_ASSERTPKTHDR(m0);
+
+	*nsegs = 0;
+	error = 0;
+	if (m0->m_pkthdr.len <= dmat->maxsize) {
+		int first = 1;
+		bus_addr_t lastaddr = 0;
+		struct mbuf *m;
+
+		for (m = m0; m != NULL && error == 0; m = m->m_next) {
+			if (m->m_len > 0) {
+				error = _bus_dmamap_load_buffer(dmat,
+						m->m_data, m->m_len,
+						NULL, flags, &lastaddr,
+						segs, nsegs, first);
+				first = 0;
+			}
+		}
+		++*nsegs;
+	} else {
+		error = EINVAL;
+	}
+
 	return (error);
 }
 
@@ -804,7 +837,8 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 		if (minlen > 0) {
 			error = _bus_dmamap_load_buffer(dmat, addr, minlen,
-					td, flags, &lastaddr, &nsegs, first);
+					td, flags, &lastaddr, dmat->segments,
+					&nsegs, first);
 			first = 0;
 
 			resid -= minlen;
