@@ -10,11 +10,7 @@ OpenSSL 0.9.6 or greater:
 http://www.openssl.org/
 
 (OpenSSL 0.9.5a is partially supported, but some ciphers (SSH protocol 1 
-Blowfish included) do not work correctly.)
-
-RPMs of OpenSSL are available at http://violet.ibs.com.au/openssh/files/support.
-For Red Hat Linux 6.2, they have been released as errata.  RHL7 includes
-these.
+Blowfish) do not work correctly.)
 
 OpenSSH can utilise Pluggable Authentication Modules (PAM) if your system
 supports it. PAM is standard on Redhat and Debian Linux, Solaris and
@@ -221,4 +217,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.54 2002/06/24 16:26:49 stevesk Exp $
+$Id: INSTALL,v 1.55 2002/07/25 04:36:25 djm Exp $

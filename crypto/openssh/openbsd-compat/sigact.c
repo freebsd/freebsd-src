@@ -33,7 +33,7 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-#include "config.h"
+#include "includes.h"
 #include <signal.h>
 #include "sigact.h"
 

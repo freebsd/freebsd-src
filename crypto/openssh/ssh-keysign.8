@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-keysign.8,v 1.2 2002/06/10 16:56:30 stevesk Exp $
+.\" $OpenBSD: ssh-keysign.8,v 1.3 2002/07/03 14:21:05 markus Exp $
 .\"
 .\" Copyright (c) 2002 Markus Friedl.  All rights reserved.
 .\"
@@ -36,6 +36,16 @@ is used by
 .Xr ssh 1
 to access the local host keys and generate the digital signature
 required during hostbased authentication with SSH protocol version 2.
+.Pp
+.Nm
+is disabled by default and can only be enabled in the
+the global client configuration file
+.Pa /etc/ssh/ssh_config
+by setting
+.Cm HostbasedAuthentication
+to
+.Dq yes .
+.Pp
 .Nm
 is not intended to be invoked by the user, but from
 .Xr ssh 1 .
@@ -46,6 +56,10 @@ and
 for more information about hostbased authentication.
 .Sh FILES
 .Bl -tag -width Ds
+.It Pa /etc/ssh/ssh_config
+Controls whether
+.Nm
+is enabled.
 .It Pa /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_rsa_key
 These files contain the private parts of the host keys used to
 generate the digital signature.  They
@@ -58,6 +72,7 @@ must be set-uid root if hostbased authentication is used.
 .Sh SEE ALSO
 .Xr ssh 1 ,
 .Xr ssh-keygen 1 ,
+.Xr ssh_config 5 ,
 .Xr sshd 8
 .Sh AUTHORS
 Markus Friedl <markus@openbsd.org>

@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.35 2002/06/20 20:00:05 stevesk Exp $
+.\" $OpenBSD: sftp.1,v 1.36 2002/09/11 22:41:50 djm Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -203,12 +203,18 @@ to
 .Ar newpath .
 .It Ic lpwd
 Print local working directory.
-.It Ic ls Op Ar path
+.It Xo Ic ls
+.Op Ar flags
+.Op Ar path
+.Xc
 Display remote directory listing of either
 .Ar path
 or current directory if
 .Ar path
-is not specified.
+is not specified. If the
+.Fl l
+flag is specified, then display additional details including permissions
+and ownership information.
 .It Ic lumask Ar umask
 Set local umask to
 .Ar umask .
