@@ -82,7 +82,7 @@ MLINKS+= \
 	pthread_attr.3 pthread_attr_setschedparam.3 \
 	pthread_attr.3 pthread_attr_setschedpolicy.3 \
 	pthread_attr.3 pthread_attr_setscope.3 \
-	pthread_attr.3 pthread_attr_setsstack.3 \
+	pthread_attr.3 pthread_attr_setstack.3 \
 	pthread_attr.3 pthread_attr_setstackaddr.3 \
 	pthread_attr.3 pthread_attr_setstacksize.3 \
 	pthread_condattr.3 pthread_condattr_init.3 \
