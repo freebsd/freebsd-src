@@ -65,8 +65,8 @@ struct filedesc {
 	struct	vnode *fd_rdir;		/* root directory */
 	struct	vnode *fd_jdir;		/* jail root directory */
 	int	fd_nfiles;		/* number of open files allocated */
-	u_short	fd_lastfile;		/* high-water mark of fd_ofiles */
-	u_short	fd_freefile;		/* approx. next free file */
+	u_int	fd_lastfile;		/* high-water mark of fd_ofiles */
+	u_int	fd_freefile;		/* approx. next free file */
 	u_short	fd_cmask;		/* mask for file creation */
 	u_short	fd_refcnt;		/* reference count */
 
