@@ -26,7 +26,7 @@
 #
 # kbdmap/vidfont - front end for syscons
 #
-# $Id$
+# $Id: kbdmap.pl,v 1.6 1997/02/22 16:06:02 peter Exp $
 
 
 # simple test if syscons works
@@ -44,13 +44,13 @@ sub variables_static {
     $program = $0; $program =~ s|.*/||; $program =~ s/\.(pl|perl)$//;
     $keymapdir = "/usr/share/syscons/keymaps";
     $fontdir = "/usr/share/syscons/fonts";
-    $sysconfig = "/etc/sysconfig";
+    $sysconfig = "/etc/rc.conf";
 
     # for test only
     #$keymapdir = "/tmp/kbdmap/syscons/keymaps";
     #$fontdir = "/tmp/kbdmap/syscons/fonts";
 
-    # read current font from sysconfig
+    # read current font from rc.conf
     $font_default = "cp437-8x16.fnt";
     $font_current = &font_current($font_default);
 
@@ -239,16 +239,16 @@ sub dialog {
 -1 -1 10";
 
     ## *always* start right font, don't believe that your current font
-    ## is equal with default font in /etc/sysconfig
+    ## is equal with default font in /etc/rc.conf
     ## see also at end of this function
     ## if ($font) {
 
     # start right font, assume that current font is equal
-    # to default font in /etc/sysconfig
+    # to default font in /etc/rc.conf
     #
     # $font is the font which require the language $lang; e.g.
     # russian *need* a koi8 font
-    # $font_current is the current font from /etc/sysconfig
+    # $font_current is the current font from /etc/rc.conf
     if ($font && $font ne $font_current) {
 	&vidcontrol($font);
     }
