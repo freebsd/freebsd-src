@@ -65,9 +65,16 @@ static const char rcsid[] =
 
 #define REPORT_PERIOD (30*60)
 
+static void fake __P((int));
 static void usage __P((void));
 
-void fake() {}
+static void
+fake(unused)
+	int unused __unused;
+{
+
+	/* Do nothing. */
+}
 
 int main(argc, argv)
 	int argc;
