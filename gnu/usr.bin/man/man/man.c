@@ -1131,7 +1131,9 @@ make_cat_file (path, man_file, cat_file)
 	}
       }
 
-      if (rename(temp, cat_file) == -1) {
+      if (debug)
+	unlink(temp);
+      else if (rename(temp, cat_file) == -1) {
 	s = errno;
 	fprintf(stderr,
 		 "\nHmm!  Can't seem to rename %s to %s, check permissions on man dir!\n",
@@ -1147,10 +1149,16 @@ make_cat_file (path, man_file, cat_file)
 
       if (fclose(fp)) {
 	s = errno;
-	unlink(cat_file);
+	if (!debug)
+	  unlink(cat_file);
 	fprintf(stderr, "Failed.\n");
 	errno = s;
 	perror("fclose");
+	return 0;
+      }
+
+      if (debug) {
+	fprintf(stderr, "No output, debug mode.\n");
 	return 0;
       }
 
