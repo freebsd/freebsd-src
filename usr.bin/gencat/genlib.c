@@ -74,7 +74,7 @@ static void warning(cptr, msg)
 char *cptr;
 char *msg;
 {
-    warnx("%s on line %d\n%s", msg, lineno, curline);
+    warnx("%s on line %ld\n%s", msg, lineno, curline);
     if (cptr) {
 	char	*tptr;
 	for (tptr = curline; tptr < cptr; ++tptr) putc(' ', stderr);
@@ -877,7 +877,7 @@ FILE  *fp;
 		errx(1, "no catalog open");
 
     for (set = cat->first; set; set = set->next) {
-	fprintf(fp, "$set %d", set->setId);
+	fprintf(fp, "$set %ld", set->setId);
 	if (set->hconst)
 	    fprintf(fp, " # %s", set->hconst);
 	fprintf(fp, "\n\n");
@@ -885,7 +885,7 @@ FILE  *fp;
 	for (msg = set->first; msg; msg = msg->next) {
 	    if (msg->hconst)
 		fprintf(fp, "# %s\n", msg->hconst);
-	    fprintf(fp, "%d\t%s\n", msg->msgId, msg->str);
+	    fprintf(fp, "%ld\t%s\n", msg->msgId, msg->str);
 	}
 	fprintf(fp, "\n");
     }
