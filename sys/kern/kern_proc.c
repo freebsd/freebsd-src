@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.38 1998/11/09 15:07:41 truckman Exp $
+ * $Id: kern_proc.c,v 1.39 1998/11/11 10:03:55 truckman Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/filedesc.h>
 #include <sys/tty.h>
 #include <sys/signalvar.h>
 #include <vm/vm.h>
@@ -48,7 +49,6 @@
 #include <vm/vm_map.h>
 #include <sys/user.h>
 #include <vm/vm_zone.h>
-#include <sys/filedesc.h>
 
 static MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");

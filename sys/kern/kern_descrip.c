@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.55 1998/07/29 17:38:13 bde Exp $
+ * $Id: kern_descrip.c,v 1.56 1998/11/11 10:03:54 truckman Exp $
  */
 
 #include "opt_compat.h"
@@ -398,15 +398,16 @@ fsetown(pgid, sigiop)
 	pid_t pgid;
 	struct sigio **sigiop;
 {
-	struct proc *proc = NULL;
-	struct pgrp *pgrp = NULL;
+	struct proc *proc;
+	struct pgrp *pgrp;
 	struct sigio *sigio;
 	int s;
 
 	if (pgid == 0) {
 		funsetown(*sigiop);
 		return (0);
-	} else if (pgid > 0) {
+	}
+	if (pgid > 0) {
 		proc = pfind(pgid);
 		if (proc == NULL)
 			return (ESRCH);
@@ -420,6 +421,7 @@ fsetown(pgid, sigiop)
 		 */
 		else if (proc->p_session != curproc->p_session)
 			return (EPERM);
+		pgrp = NULL;
 	} else /* if (pgid < 0) */ {
 		pgrp = pgfind(-pgid);
 		if (pgrp == NULL)
@@ -434,6 +436,7 @@ fsetown(pgid, sigiop)
 		 */
 		else if (pgrp->pg_session != curproc->p_session)
 			return (EPERM);
+		proc = NULL;
 	}
 	funsetown(*sigiop);
 	MALLOC(sigio, struct sigio *, sizeof(struct sigio), M_SIGIO,
