@@ -146,14 +146,6 @@ CTASSERT(sizeof(u_long) >= 8);
 #endif
 #endif
 
-/*
- * note: currently use SWAPBLK_NONE as an absolute value rather then 
- * a flag bit.
- */
-
-#define SWAPBLK_MASK	((daddr_t)((u_daddr_t)-1 >> 1))		/* mask */
-#define SWAPBLK_NONE	((daddr_t)((u_daddr_t)SWAPBLK_MASK + 1))/* flag */
-
 #if !defined(KLD_MODULE)
 /*
  * Page coloring parameters
