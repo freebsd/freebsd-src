@@ -1553,8 +1553,7 @@ vfs_vmio_release(bp)
 	vm_page_t m;
 
 	GIANT_REQUIRED;
-	if (bp->b_object != NULL)
-		VM_OBJECT_LOCK(bp->b_object);
+	VM_OBJECT_LOCK(bp->b_object);
 	vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
@@ -1592,8 +1591,7 @@ vfs_vmio_release(bp)
 		}
 	}
 	vm_page_unlock_queues();
-	if (bp->b_object != NULL)
-		VM_OBJECT_UNLOCK(bp->b_object);
+	VM_OBJECT_UNLOCK(bp->b_object);
 	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
 	
 	if (bp->b_bufsize) {
@@ -3291,8 +3289,6 @@ vfs_unbusy_pages(struct buf * bp)
 {
 	int i;
 
-	GIANT_REQUIRED;
-
 	runningbufwakeup(bp);
 	if (bp->b_flags & B_VMIO) {
 		vm_object_t obj;
@@ -3536,8 +3532,7 @@ vfs_bio_clrbuf(struct buf *bp)
 	if ((bp->b_flags & (B_VMIO | B_MALLOC)) == B_VMIO) {
 		bp->b_flags &= ~B_INVAL;
 		bp->b_ioflags &= ~BIO_ERROR;
-		if (bp->b_object != NULL)
-			VM_OBJECT_LOCK(bp->b_object);
+		VM_OBJECT_LOCK(bp->b_object);
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
 		    (bp->b_offset & PAGE_MASK) == 0) {
 			mask = (1 << (bp->b_bufsize / DEV_BSIZE)) - 1;
@@ -3581,8 +3576,7 @@ vfs_bio_clrbuf(struct buf *bp)
 			vm_page_unlock_queues();
 		}
 unlock:
-		if (bp->b_object != NULL)
-			VM_OBJECT_UNLOCK(bp->b_object);
+		VM_OBJECT_UNLOCK(bp->b_object);
 		bp->b_resid = 0;
 	} else {
 		clrbuf(bp);
