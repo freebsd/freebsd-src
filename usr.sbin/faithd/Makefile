@@ -18,6 +18,6 @@ PROG=	faithd
 MAN=	faithd.8
 SRCS=	faithd.c tcp.c ftp.c prefix.c
 
-CFLAGS=	-DHAVE_POLL_H
+CFLAGS+= -DHAVE_POLL_H
 
 .include <bsd.prog.mk>
