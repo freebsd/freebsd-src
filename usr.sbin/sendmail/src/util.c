@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.105 (Berkeley) 10/12/96";
+static char sccsid[] = "@(#)util.c	8.109 (Berkeley) 11/16/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1011,6 +1011,15 @@ putxline(l, mci, pxflags)
 			(void) putc('.', mci->mci_out);
 			if (TrafficLogFile != NULL)
 				(void) putc('.', TrafficLogFile);
+		}
+		else if (l[0] == 'F' && slop == 0 &&
+			 bitset(PXLF_MAPFROM, pxflags) &&
+			 strncmp(l, "From ", 5) == 0 &&
+			 bitnset(M_ESCFROM, mci->mci_mailer->m_flags))
+		{
+			(void) putc('>', mci->mci_out);
+			if (TrafficLogFile != NULL)
+				(void) putc('>', TrafficLogFile);
 		}
 		if (TrafficLogFile != NULL)
 			fprintf(TrafficLogFile, "%.*s\n", p - l, l);
@@ -2197,11 +2206,24 @@ proc_list_add(pid)
 	pid_t pid;
 {
 	int i;
+	extern void proc_list_probe __P((void));
 
 	for (i = 0; i < ProcListSize; i++)
 	{
 		if (ProcListVec[i] == NO_PID)
 			break;
+	}
+	if (i >= ProcListSize)
+	{
+		/* probe the existing vector to avoid growing infinitely */
+		proc_list_probe();
+
+		/* now scan again */
+		for (i = 0; i < ProcListSize; i++)
+		{
+			if (ProcListVec[i] == NO_PID)
+				break;
+		}
 	}
 	if (i >= ProcListSize)
 	{
@@ -2244,8 +2266,42 @@ proc_list_drop(pid)
 		if (ProcListVec[i] == pid)
 		{
 			ProcListVec[i] = NO_PID;
-			CurChildren--;
 			break;
 		}
 	}
+	if (CurChildren > 0)
+		CurChildren--;
+}
+/*
+**  PROC_LIST_PROBE -- probe processes in the list to see if they still exist
+**
+**	Parameters:
+**		none
+**
+**	Returns:
+**		none
+*/
+
+void
+proc_list_probe()
+{
+	int i;
+
+	for (i = 0; i < ProcListSize; i++)
+	{
+		if (ProcListVec[i] == NO_PID)
+			continue;
+		if (kill(ProcListVec[i], 0) < 0)
+		{
+#ifdef LOG
+			if (LogLevel > 3)
+				syslog(LOG_DEBUG, "proc_list_probe: lost pid %d",
+					ProcListVec[i]);
+#endif
+			ProcListVec[i] = NO_PID;
+			CurChildren--;
+		}
+	}
+	if (CurChildren < 0)
+		CurChildren = 0;
 }
