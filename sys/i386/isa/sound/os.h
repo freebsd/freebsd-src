@@ -189,13 +189,11 @@ struct snd_wait {
 	  f.mode = WK_SLEEP; \
 	  flag=tsleep(&q, (PRIBIO-5)|PCATCH, "sndint", time_limit); \
 	  f.mode &= ~WK_SLEEP; \
-	  if (flag == EINTR) \
-		f.aborting = 1; \
-	  else { \
+	  if (flag == EWOULDBLOCK) { \
+		f.mode |= WK_TIMEOUT; \
 		f.aborting = 0; \
-		if (flag == EWOULDBLOCK) \
-			f.mode |= WK_TIMEOUT; \
-	  } \
+	  } else \
+		f.aborting = flag; \
 	}
 /* An the following wakes up a process */
 #define WAKE_UP(q, f)   wakeup(&q)
