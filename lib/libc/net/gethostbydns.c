@@ -388,6 +388,7 @@ gethostanswer(answer, anslen, qname, qtype)
 				buflen -= nn;
 			}
 
+			buflen -= sizeof(align) - ((u_long)bp % sizeof(align));
 			bp += sizeof(align) - ((u_long)bp % sizeof(align));
 
 			if (bp + n >= &hostbuf[sizeof hostbuf]) {
