@@ -237,6 +237,8 @@ msgYesNo(char *fmt, ...)
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
+    if (variable_get(VAR_NONINTERACTIVE))
+	return 1;	/* If non-interactive, return YES all the time */
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
     restorescr(w);
     return ret;
@@ -261,6 +263,8 @@ msgNoYes(char *fmt, ...)
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
+    if (variable_get(VAR_NONINTERACTIVE))
+	return 0;	/* If non-interactive, return NO all the time */
     ret = dialog_noyes("User Confirmation Requested", errstr, -1, -1);
     restorescr(w);
     return ret;

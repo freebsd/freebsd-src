@@ -323,10 +323,8 @@ mediaSetFTP(dialogMenuItem *self)
     mediaClose();
     cp = variable_get(VAR_FTP_PATH);
     /* If we've been through here before ... */
-    if (!variable_get(VAR_NONINTERACTIVE))
-	if (networkDev && cp && msgYesNo("Re-use old FTP site selection values?"))
-	    cp = NULL;
-
+    if (networkDev && cp && msgYesNo("Re-use old FTP site selection values?"))
+	cp = NULL;
     if (!cp) {
 	if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
 	    return DITEM_FAILURE;
