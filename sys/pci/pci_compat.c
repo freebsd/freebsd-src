@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.3 1997/05/30 20:58:04 se Exp $
+ * $Id: pci_compat.c,v 1.2 1997/08/21 07:00:12 smp Exp smp $
  *
  */
 
@@ -169,7 +169,7 @@ pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
 		void *dev_instance = (void *)-1; /* XXX use cfg->devdata  */
 		void *idesc;
 
-		idesc = intr_create(dev_instance, irq, func, arg, maskptr, 0);
+		idesc = intr_create(dev_instance, irq, (inthand2_t*)func, arg, maskptr, 0);
 		return (intr_connect(idesc) == 0);
 	}
 	return (1);
