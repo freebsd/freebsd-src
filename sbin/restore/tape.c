@@ -231,7 +231,9 @@ setup()
 		fprintf(stderr, "cannot stat .: %s\n", strerror(errno));
 		done(1);
 	}
-	if (stbuf.st_blksize > 0 && stbuf.st_blksize <= MAXBSIZE)
+	if (stbuf.st_blksize > 0 && stbuf.st_blksize < TP_BSIZE )
+		fssize = TP_BSIZE;
+	if (stbuf.st_blksize >= TP_BSIZE && stbuf.st_blksize <= MAXBSIZE)
 		fssize = stbuf.st_blksize;
 	if (((fssize - 1) & fssize) != 0) {
 		fprintf(stderr, "bad block size %d\n", fssize);
