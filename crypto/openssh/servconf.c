@@ -109,7 +109,7 @@ fill_default_server_options(ServerOptions *options)
 	if (options->ignore_user_known_hosts == -1)
 		options->ignore_user_known_hosts = 0;
 	if (options->check_mail == -1)
-		options->check_mail = 0;
+		options->check_mail = 1;
 	if (options->print_motd == -1)
 		options->print_motd = 1;
 	if (options->x11_forwarding == -1)
