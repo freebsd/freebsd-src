@@ -2518,7 +2518,7 @@ malloc(size)
 
 		newbrk = (char *)
 		    roundup2((unsigned long)rtld_alloc_lev, PAGSIZ);
-		if (brk(newbrk) == (char *)-1)
+		if (brk(newbrk) == -1)
 			return NULL;
 	}
 

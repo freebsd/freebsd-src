@@ -42,11 +42,12 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.In sys/types.h
 .In unistd.h
-.Ft char *
-.Fn brk "const char *addr"
-.Ft char *
-.Fn sbrk "int incr"
+.Ft int
+.Fn brk "const void *addr"
+.Ft void *
+.Fn sbrk "intptr_t incr"
 .Sh DESCRIPTION
 .Bf -symbolic
 The
@@ -116,22 +117,13 @@ value is returned from a call to
 for the definition of
 .Va etext ) .
 .Sh RETURN VALUES
-The
-.Fn brk
-function returns
-.Po Vt "char *" Pc Ns 0
-if successful;
-otherwise the value
-.Po Vt "char *" Pc Ns \-1
-is returned and the global variable
-.Va errno
-is set to indicate the error.
+.Rv -std brk
 .Pp
 The
 .Fn sbrk
 function returns the prior break value if successful;
 otherwise the value
-.Po Vt "char *" Pc Ns \-1
+.Po Vt "void *" Pc Ns \-1
 is returned and the global variable
 .Va errno
 is set to indicate the error.
