@@ -48,6 +48,8 @@ command_t rule_main, ruleset_main;
 int atonum(const char *, uint16_t *);
 int eatoi(const char *);
 uint16_t eatonum(const char *);
+size_t efgetln(FILE *, char **);
+void tokenize(const char *, int *, char ***);
 void usage(void) __dead2;
 
 extern int mpfd;		/* Mount-point file descriptor. */
