@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.5 1999/02/28 10:53:28 bde Exp $
+ *	$Id: genassym.c,v 1.6 1999/06/26 12:45:12 peter Exp $
  */
 
 #include <sys/param.h>
@@ -53,7 +53,9 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#define KERNEL	/* Avoid userland compatability headers */
 #include <sys/user.h>
+#undef KERNEL
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
