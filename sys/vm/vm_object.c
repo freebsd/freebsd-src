@@ -78,6 +78,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>		/* for curproc, pageproc */
 #include <sys/socket.h>
+#include <sys/stdint.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/sx.h>
@@ -2113,16 +2114,13 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 		return;
 
 	db_iprintf(
-	    "Object %p: type=%d, size=0x%lx, res=%d, ref=%d, flags=0x%x\n",
-	    object, (int)object->type, (u_long)object->size,
+	    "Object %p: type=%d, size=0x%jx, res=%d, ref=%d, flags=0x%x\n",
+	    object, (int)object->type, (uintmax_t)object->size,
 	    object->resident_page_count, object->ref_count, object->flags);
-	/*
-	 * XXX no %qd in kernel.  Truncate object->backing_object_offset.
-	 */
-	db_iprintf(" sref=%d, backing_object(%d)=(%p)+0x%lx\n",
+	db_iprintf(" sref=%d, backing_object(%d)=(%p)+0x%jx\n",
 	    object->shadow_count, 
 	    object->backing_object ? object->backing_object->ref_count : 0,
-	    object->backing_object, (long)object->backing_object_offset);
+	    object->backing_object, (uintmax_t)object->backing_object_offset);
 
 	if (!full)
 		return;
@@ -2140,8 +2138,8 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 			db_printf(",");
 		count++;
 
-		db_printf("(off=0x%lx,page=0x%lx)",
-		    (u_long) p->pindex, (u_long) VM_PAGE_TO_PHYS(p));
+		db_printf("(off=0x%jx,page=0x%jx)",
+		    (uintmax_t)p->pindex, (uintmax_t)VM_PAGE_TO_PHYS(p));
 	}
 	if (count != 0)
 		db_printf("\n");
