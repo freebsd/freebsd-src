@@ -4398,15 +4398,6 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	size_t size, *sizep;
 	int error;
 
-	/*
-	 * XXX: Temporary API compatibility for applications that know
-	 * about this hack ("" means list), but haven't been updated
-	 * for the extattr_list_*() system calls yet.  This will go
-	 * away for FreeBSD 5.3.
-	 */
-	if (strlen(attrname) == 0)
-		return (extattr_list_vp(vp, attrnamespace, data, nbytes, td));
-
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_READ);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
