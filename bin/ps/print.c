@@ -696,7 +696,7 @@ printval(void *bp, VAR *v)
 	case KPTR:
 		(void)printf(ofmt, v->width, *(u_long *)bp);
 		break;
-	case PLONG:
+	case PGTOK:
 		(void)printf(ofmt, v->width, ps_pgtok(*(u_long *)bp));
 		break;
 	default:
