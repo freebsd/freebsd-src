@@ -408,7 +408,7 @@ main(argc, argv, envp)
 			exit(EX_OSERR);
 		    }
 		    if (debug)
-			warnx("Handling signal flag %c", c);
+			warnx("handling signal flag %c", c);
 		    switch(c) {
 		    case 'A': /* sigalrm */
 			retry();
@@ -576,7 +576,7 @@ main(argc, argv, envp)
 				dup2(0, 2);
 				if ((pwd = getpwnam(sep->se_user)) == NULL) {
 					syslog(LOG_ERR,
-					    "%s/%s: %s: No such user",
+					    "%s/%s: %s: no such user",
 						sep->se_service, sep->se_proto,
 						sep->se_user);
 					if (sep->se_socktype != SOCK_STREAM)
@@ -588,7 +588,7 @@ main(argc, argv, envp)
 				    && (grp = getgrnam(sep->se_group)) == NULL
 				   ) {
 					syslog(LOG_ERR,
-					    "%s/%s: %s: No such group",
+					    "%s/%s: %s: no such group",
 						sep->se_service, sep->se_proto,
 						sep->se_group);
 					if (sep->se_socktype != SOCK_STREAM)
@@ -762,13 +762,13 @@ void config()
 	while ((new = getconfigent())) {
 		if (getpwnam(new->se_user) == NULL) {
 			syslog(LOG_ERR,
-				"%s/%s: No such user '%s', service ignored",
+				"%s/%s: no such user '%s', service ignored",
 				new->se_service, new->se_proto, new->se_user);
 			continue;
 		}
 		if (new->se_group && getgrnam(new->se_group) == NULL) {
 			syslog(LOG_ERR,
-				"%s/%s: No such group '%s', service ignored",
+				"%s/%s: no such group '%s', service ignored",
 				new->se_service, new->se_proto, new->se_group);
 			continue;
 		}
