@@ -3,23 +3,23 @@
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
 # ------------------------------------------------------------------
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
-  001   esc    esc    nop    nop    esc    esc    nop    nop     O
+  001   esc    esc    esc    esc    esc    esc    nop    nop     O
   002   '&'    '1'    nop    nop    '|'    '|'    nop    nop     O
   003   233    '2'    nul    nul    '@'    '@'    nul    nul     O
   004   '"'    '3'    nop    nop    '#'    '#'    nop    nop     O
   005   '''    '4'    nop    nop    '''    '4'    nop    nop     O
   006   '('    '5'    nop    nop    '('    '5'    nop    nop     O
-  007   167    '6'    rs     rs     '^'    '^'    rs     rs      O
+  007   167    '6'    nop    nop    '^'    '^'    rs     rs      O
   008   232    '7'    nop    nop    232    '7'    nop    nop     O
-  009   '|'    '8'    nop    nop    '|'    '8'    nop    nop     O
+  009   '!'    '8'    nop    nop    '!'    '8'    nop    nop     O
   010   231    '9'    nop    nop    '{'    '{'    nop    nop     O
   011   225    '0'    nop    nop    '}'    '}'    nop    nop     O
-  012   ')'    176    ns     ns     ')'    176    ns     ns      O
+  012   ')'    176    nop    nop    ')'    176    ns     ns      O
   013   '-'    '_'    nop    nop    '-'    '_'    nop    nop     O
   014   bs     bs     del    del    bs     bs     del    del     O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
-  016   'a'    'A'    dc1    dc1    'a'    'A'    dc1    dc1     C
-  017   'z'    'Z'    etb    etb    'z'    'Z'    etb    etb     C
+  016   'a'    'A'    soh    soh    'a'    'A'    dc1    dc1     C
+  017   'z'    'Z'    sub    sub    'z'    'Z'    etb    etb     C
   018   'e'    'E'    enq    enq    'e'    'E'    enq    enq     C
   019   'r'    'R'    dc2    dc2    'r'    'R'    dc2    dc2     C
   020   't'    'T'    dc4    dc4    't'    'T'    dc4    dc4     C
@@ -32,7 +32,7 @@
   027   '$'    '*'    gs     gs     ']'    ']'    gs     gs      O
   028   cr     cr     nl     nl     cr     cr     nl     nl      O
   029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
-  030   'q'    'Q'    soh    soh    'q'    'Q'    soh    soh     C
+  030   'q'    'Q'    dc1    dc1    'q'    'Q'    soh    soh     C
   031   's'    'S'    dc3    dc3    's'    'S'    dc3    dc3     C
   032   'd'    'D'    eot    eot    'd'    'D'    eot    eot     C
   033   'f'    'F'    ack    ack    'f'    'F'    ack    ack     C
@@ -41,18 +41,18 @@
   036   'j'    'J'    nl     nl     'j'    'J'    nl     nl      C
   037   'k'    'K'    vt     vt     'k'    'K'    vt     vt      C
   038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
-  039   'm'    'M'    nop    nop    'm'    'M'    nop    nop     O
-  040   249    '%'    nop    nop    '''    '"'    nop    nop     O
+  039   'm'    'M'    cr     cr     'm'    'M'    nop    nop     O
+  040   249    '%'    nul    nul    '''    '"'    nop    nop     O
   041   178    nop    nop    nop    '|'    '|'    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
-  043   181    163    fs     fs      96     96    fs     fs      O
-  044   'w'    'W'    sub    sub    'w'    'W'    sub    sub     C
+  043   181    163    nop    nop     96     96    fs     fs      O
+  044   'w'    'W'    etb    etb    'w'    'W'    sub    sub     C
   045   'x'    'X'    can    can    'x'    'X'    can    can     C
   046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C
   047   'v'    'V'    syn    syn    'v'    'V'    syn    syn     C
   048   'b'    'B'    stx    stx    'b'    'B'    stx    stx     C
   049   'n'    'N'    so     so     'n'    'N'    so     so      C
-  050   ','    '?'    cr     cr     ','    '?'    cr     cr      C
+  050   ','    '?'    nop    nop    ','    '?'    cr     cr      C
   051   ';'    '.'    nop    nop    ';'    '.'    nop    nop     O
   052   ':'    '/'    nop    nop    ':'    '/'    nop    nop     O
   053   '='    '+'    nop    nop    '~'    '~'    nop    nop     O
@@ -71,8 +71,8 @@
   066   fkey08 fkey20 fkey32 fkey44 scr08  scr08  scr08  scr08   O
   067   fkey09 fkey21 fkey33 fkey45 scr09  scr09  scr09  scr09   O
   068   fkey10 fkey22 fkey34 fkey46 scr10  scr10  scr10  scr10   O
-  069   nlock  nlock  nlock  nlock  nlock  nlock  nlock  nlock   O
-  070   slock  slock  slock  slock  slock  slock  slock  slock   O
+  069   nlock  nlock  dc3    dc3    nlock  nlock  nlock  nlock   O
+  070   slock  slock  del    del    slock  slock  slock  slock   O
   071   fkey49 '7'    '7'    '7'    '7'    '7'    '7'    '7'     N
   072   fkey50 '8'    '8'    '8'    '8'    '8'    '8'    '8'     N
   073   fkey51 '9'    '9'    '9'    '9'    '9'    '9'    '9'     N
@@ -86,15 +86,15 @@
   081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
   082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
   083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
-  084   ns     ns     ns     ns     ns     ns     ns     ns      O
+  084   ns     ns     nop    nop    ns     ns     ns     ns      O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
-  086   '>'    '<'    nop    nop    '\'    '\'    nop    nop     O
+  086   '<'    '>'    fs     fs     '\'    '\'    nop    nop     O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
   088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
   089   cr     cr     nl     nl     cr     cr     nl     nl      O
   090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     N
-  092   nscr   nop    debug  nop    nop    nop    nop    nop     O
+  092   nscr   nop    '*'    '*'    nop    nop    nop    nop     O
   093   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
   094   fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49  O
   095   fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50  O
