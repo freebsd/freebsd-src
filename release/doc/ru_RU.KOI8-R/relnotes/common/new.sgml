@@ -1,9 +1,9 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.2 2004/05/21 10:59:34 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.4 2004/06/29 07:19:51 den Exp $
 
-     Original revision: 1.731
+     Original revision: 1.732
 -->
 
 <articleinfo>
@@ -504,7 +504,8 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	предоставляет защиту от целого класса исчерпывающих ресурсы
 	атак.</para>
 
-      <para>Реализация TCP теперь включает частичную поддержку (только
+      <para>Реализация TCP теперь включает частичную поддержку
+	RFC 2385 (TCP-MD5) digest (только
 	на вывод).  Эта возможность, включаемая параметрами ядра
 	<literal>TCP_SIGNATURE</literal> и <literal>FAST_IPSEC</literal>,
 	является расширением TCP для аутентификации TCP сессий.
@@ -623,7 +624,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       времени в заданном пределе.  Эта возможность предназначена для
       уменьшения пиков нагрузки, появляющихся при выполнении большого
       количества задач, запланированных на определенный момент
-      времени.</para>
+      времени. &merged;</para>
 
     <para>&man.df.1; теперь поддерживает параметр <option>-c</option>
       для отображения полной статистики файловых систем.</para>
