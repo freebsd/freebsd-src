@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psparse - Parser top level AML parse routines
- *              $Revision: 69 $
+ *              $Revision: 71 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -381,9 +381,9 @@ AcpiPsCompleteThisOp (
                 break;
 
             case OPTYPE_NAMED_OBJECT:   /* Scope, method, etc. */
-                
-                /* 
-                 * These opcodes contain TermArg operands.  The current          
+
+                /*
+                 * These opcodes contain TermArg operands.  The current
                  * op must be replace by a placeholder return op
                  */
 
@@ -800,8 +800,8 @@ AcpiPsParseLoop (
                          * because we don't have enough info in the first pass
                          * to parse it correctly (i.e., there may be method
                          * calls within the TermArg elements of the body.
-                         * 
-                         * However, we must continue parsing because 
+                         *
+                         * However, we must continue parsing because
                          * the opregion is not a standalone package --
                          * we don't know where the end is at this point.
                          *
@@ -833,7 +833,7 @@ AcpiPsParseLoop (
                     (Op->Opcode == AML_DWORD_FIELD_OP))
                  {
                     /*
-                     * Backup to beginning of CreateXXXfield declaration 
+                     * Backup to beginning of CreateXXXfield declaration
                      * BodyLength is unknown until we parse the body
                      */
                     DeferredOp = (ACPI_PARSE2_OBJECT *) Op;
@@ -1228,7 +1228,6 @@ AcpiPsParseAml (
     ACPI_OPERAND_OBJECT     *ReturnDesc;
     ACPI_OPERAND_OBJECT     *EffectiveReturnDesc = NULL;
     ACPI_OPERAND_OBJECT     *MthDesc = NULL;
-    ACPI_NAMESPACE_NODE     *StartNode;
 
 
     FUNCTION_TRACE ("PsParseAml");
@@ -1277,21 +1276,17 @@ AcpiPsParseAml (
 
     if (MethodNode)
     {
-        StartNode               = MethodNode;
         ParserState->StartNode  = MethodNode;
         WalkState->WalkType     = WALK_METHOD;
 
-        if (StartNode)
+        /* Push start scope on scope stack and make it current  */
+
+        Status = AcpiDsScopeStackPush (MethodNode, ACPI_TYPE_METHOD, WalkState);
+        if (ACPI_FAILURE (Status))
         {
-            /* Push start scope on scope stack and make it current  */
-
-            Status = AcpiDsScopeStackPush (StartNode, ACPI_TYPE_METHOD, WalkState);
-            if (ACPI_FAILURE (Status))
-            {
-                return_ACPI_STATUS (Status);
-            }
-
+            return_ACPI_STATUS (Status);
         }
+
         /* Init arguments if this is a control method */
         /* TBD: [Restructure] add walkstate as a param */
 
@@ -1303,6 +1298,8 @@ AcpiPsParseAml (
         /* Setup the current scope */
 
         Node = ParserState->StartOp->Node;
+        ParserState->StartNode = Node;
+
         if (Node)
         {
             /* Push start scope on scope stack and make it current  */
