@@ -1,19 +1,21 @@
-# $Id: Makefile,v 1.8 1997/02/22 14:57:39 peter Exp $
+# $Id: Makefile,v 1.11 1999/05/21 18:40:48 obrien Exp $
 
 DISTRIBUTION=	compat21
 
 LIBS=	libc.so.2.2 libg++.so.3.0 libgmp.so.2.0
 
-CLEANFILES+=	${LIBS}
+CLEANFILES+=	${LIBS} ld.so
 
-all:	${LIBS}
+all:	${LIBS} ld.so
 
-.for lib in ${LIBS}
+.for lib in ${LIBS} ld.so
 ${lib}:	${lib}.gz.uu
 	uudecode -p ${.CURDIR}/${lib}.gz.uu | gunzip > ${lib}
 .endfor
 
 beforeinstall:
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ld.so \
+		${DESTDIR}/usr/libexec
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
 		${DESTDIR}${LIBCOMPATDIR}
 
