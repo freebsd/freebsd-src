@@ -57,7 +57,7 @@
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 
-#define BSD_CLASS_NAME "BSD-class"
+#define BSD_CLASS_NAME "BSD"
 
 struct g_bsd_softc {
 	off_t	labeloffset;
