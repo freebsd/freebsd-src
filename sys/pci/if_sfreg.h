@@ -1048,7 +1048,7 @@ struct sf_softc {
 	struct mtx		sf_mtx;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
-#endif
+#endif /* DEVICE_POLLING */
 };
 
 
