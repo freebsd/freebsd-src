@@ -1,4 +1,4 @@
-/*
+/*-
  * msdos common header file
  * [obtained from mtools -wfj]
  * how to decipher DOS disk structures in coexisting with DOS

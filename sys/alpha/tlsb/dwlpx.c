@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/*
+/*-
  * Based very closely on NetBSD version-
  *
  * Copyright (c) 1997 by Matthew Jacob

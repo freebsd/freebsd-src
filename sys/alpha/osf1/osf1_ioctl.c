@@ -1,5 +1,5 @@
 /*	$NetBSD: osf1_ioctl.c,v 1.5 1996/10/13 00:46:53 christos Exp $	*/
-/*
+/*-
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.
  * All rights reserved.
  *

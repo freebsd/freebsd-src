@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1995, 1996, 1997 Carnegie-Mellon University.
  * All rights reserved.
  *
@@ -24,10 +24,10 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
-/*
+/*-
  * Additional Copyright (c) 1997 by Matthew Jacob for NASA/Ames Research Center
  */
-/*
+/*-
  * Additional Copyright (c) 1998 by Andrew Gallatin for Duke University
  */
 
