@@ -421,6 +421,10 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_ARGS		7	/* get/set arguments/proctitle */
 #define	KERN_PROC_PROC		8	/* only return procs */
 #define	KERN_PROC_SV_NAME	9	/* get syscall vector name */
+#define	KERN_PROC_INC_THREAD	0x10	/*
+					 * modifier for pid, pgrp, tty,
+					 * uid, ruid, and proc
+					 */
 
 /*
  * KERN_IPC identifiers
