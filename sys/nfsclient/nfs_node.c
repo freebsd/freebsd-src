@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.20 1997/10/11 18:31:34 phk Exp $
+ * $Id: nfs_node.c,v 1.21 1997/10/12 20:25:40 phk Exp $
  */
 
 
@@ -48,6 +48,7 @@
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
+#include <nfs/nfs.h>
 #include <nfs/nfsnode.h>
 #include <nfs/nfsmount.h>
 
