@@ -123,16 +123,7 @@ The
 .Fa flags
 argument specifies how and when the handler should be run and is a mask of one
 or more of the following flags:
-.Bl -tag -width SWI_NOSWITCH
-.It Dv SWI_SWITCH
-Specifies that the kernel should schedule the software interrupt thread
-associated with the specified handler to run.  If lightweight context switches
-are in place, then the kernel will switch to this thread and run it
-immediately.
-.It Dv SWI_NOSWITCH
-Specifies that the kernel should schedule the software interrupt thread
-associated with the specified handler to run, but it should not attempt to
-switch to the thread immediately.
+.Bl -tag -width SWI_DELAY
 .It Dv SWI_DELAY
 Specifies that the kernel should mark the specified handler as needing to run,
 but the kernel should not schedule the software interrupt thread to run.
@@ -142,8 +133,10 @@ will be executed the next time that the software interrupt thread runs after
 being scheduled by another event.
 Attaching a handler to the clock software interrupt thread and using this flag
 when scheduling a software interrupt handler can be used to implement the
-functionality previously performed by
-.Fn setdelayed .
+functionality performed by
+.Fn setdelayed
+in earlier versions of
+.Fx . 
 .El
 .Pp
 The
