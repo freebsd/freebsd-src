@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.26 1998/05/14 10:13:24 jkoshy Exp $";
+	"$Id: w.c,v 1.27 1998/05/21 08:46:48 jkoshy Exp $";
 #endif /* not lint */
 
 /*
@@ -135,7 +135,7 @@ main(argc, argv)
 	u_long l;
 	size_t arglen;
 	int ch, i, nentries, nusers, wcmd, longidle;
-	char *memf, *nlistf, *p, *vis_args, *x;
+	char *memf, *nlistf, *p, *x;
 	char buf[MAXHOSTNAMELEN], errbuf[256];
 
 	(void) setlocale(LC_ALL, "");
@@ -338,8 +338,6 @@ main(argc, argv)
 			memmove(domain, p, strlen(p) + 1);
 		}
 
-	if ((vis_args = malloc(argwidth * 4 + 1)) == NULL)
-		errx(1, "malloc");
 	for (ep = ehead; ep != NULL; ep = ep->next) {
 		p = *ep->utmp.ut_host ? ep->utmp.ut_host : "-";
 		if ((x = strchr(p, ':')) != NULL)
@@ -392,12 +390,6 @@ main(argc, argv)
 		longidle=pr_idle(ep->idle);
 		if (longidle)
 			argwidth--;
-		if (ep->args != NULL) {
-			arglen = strlen(ep->args);
-			strvisx(vis_args, ep->args,
-			    arglen > argwidth ? argwidth : arglen,
-			    VIS_TAB | VIS_NL | VIS_NOSLASH);
-		}
 		(void)printf("%.*s\n", argwidth, ep->args);
 	}
 	exit(0);
