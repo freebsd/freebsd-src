@@ -1,0 +1,5320 @@
+# 1 "/usr/src/gnu/cvs/mkmodules/mkmodules.c"
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/syslimits.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 14 "/usr/src/gnu/cvs/mkmodules/mkmodules.c" 2
+
+# 1 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 1
+ 
+
+# 1 "/usr/src/gnu/cvs/mkmodules/../lib/system.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+# 1 "/usr/include/sys/types.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+typedef	unsigned char	u_char;
+typedef	unsigned short	u_short;
+typedef	unsigned int	u_int;
+typedef	unsigned long	u_long;
+typedef	unsigned short	ushort;		 
+
+typedef	char *	caddr_t;		 
+typedef	long	daddr_t;		 
+typedef	short	dev_t;			 
+typedef	u_long	ino_t;			 
+typedef	long	off_t;			 
+typedef	u_short	nlink_t;		 
+typedef	long	swblk_t;		 
+typedef	long	segsz_t;		 
+typedef	u_short	uid_t;			 
+typedef	u_short	gid_t;			 
+typedef	short	pid_t;			 
+typedef	u_short	mode_t;			 
+typedef u_long	fixpt_t;		 
+
+
+typedef	struct	_uquad	{ u_long val[2]; } u_quad;
+typedef	struct	_quad	{   long val[2]; } quad;
+typedef	long *	qaddr_t;	 
+
+
+
+
+
+
+# 1 "/usr/include/machine/ansi.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 69 "/usr/include/sys/types.h" 2
+
+
+# 1 "/usr/include/machine/types.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+typedef struct _physadr {
+	int r[1];
+} *physadr;
+
+typedef struct label_t {
+	int val[6];
+} label_t;
+
+typedef	u_long	vm_offset_t;
+typedef	u_long	vm_size_t;
+
+
+# 71 "/usr/include/sys/types.h" 2
+
+
+
+
+typedef	unsigned long			clock_t;
+
+
+
+
+typedef	unsigned int			size_t;
+
+
+
+
+typedef	long				time_t;
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+typedef long	fd_mask;
+
+
+
+
+
+
+typedef	struct fd_set {
+	fd_mask	fds_bits[(((256 )+(( (sizeof(fd_mask) * 8		)	)-1))/( (sizeof(fd_mask) * 8		)	)) ];
+} fd_set;
+
+
+
+
+
+
+# 132 "/usr/include/sys/types.h"
+
+
+
+
+# 20 "/usr/src/gnu/cvs/mkmodules/../lib/system.h" 2
+
+# 1 "/usr/include/sys/stat.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+struct stat
+{
+	dev_t	st_dev;			 
+	ino_t	st_ino;			 
+	mode_t	st_mode;		 
+	nlink_t	st_nlink;		 
+	uid_t	st_uid;			 
+	gid_t	st_gid;			 
+	dev_t	st_rdev;		 
+	off_t	st_size;		 
+	time_t	st_atime;		 
+	long	st_spare1;
+	time_t	st_mtime;		 
+	long	st_spare2;
+	time_t	st_ctime;		 
+	long	st_spare3;
+	long	st_blksize;		 
+	long	st_blocks;		 
+	u_long	st_flags;		 
+	u_long	st_gen;			 
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+					 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/cdefs.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+# 76 "/usr/include/sys/cdefs.h"
+
+
+
+# 114 "/usr/include/sys/stat.h" 2
+
+
+ 
+mode_t	umask (mode_t)		;
+int	chmod (const char *, mode_t)		;
+int	fstat (int, struct stat *)		;
+int	mkdir (const char *, mode_t)		;
+int	mkfifo (const char *, mode_t)		;
+int	stat (const char *, struct stat *)		;
+
+int	fchmod (int, mode_t)		;
+int	lstat (const char *, struct stat *)		;
+
+ 
+
+# 21 "/usr/src/gnu/cvs/mkmodules/../lib/system.h" 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+off_t lseek ();
+
+
+
+
+
+# 1 "/usr/include/time.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/machine/ansi.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 57 "/usr/include/machine/ansi.h"
+
+# 39 "/usr/include/time.h" 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+struct tm {
+	int	tm_sec;		 
+	int	tm_min;		 
+	int	tm_hour;	 
+	int	tm_mday;	 
+	int	tm_mon;		 
+	int	tm_year;	 
+	int	tm_wday;	 
+	int	tm_yday;	 
+	int	tm_isdst;	 
+	long	tm_gmtoff;	 
+	char	*tm_zone;	 
+};
+
+# 1 "/usr/include/sys/cdefs.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 78 "/usr/include/sys/cdefs.h"
+
+# 74 "/usr/include/time.h" 2
+
+
+ 
+char *asctime (const struct tm *)		;
+clock_t clock (void)		;
+char *ctime (const time_t *)		;
+double difftime (time_t, time_t)		;
+struct tm *gmtime (const time_t *)		;
+struct tm *localtime (const time_t *)		;
+time_t mktime (struct tm *)		;
+size_t strftime (char *, size_t, const char *, const struct tm *)		;
+time_t time (time_t *)		;
+
+
+void tzset (void)		;
+
+
+
+char *timezone (int, int)		;
+void tzsetwall (void)		;
+
+ 
+
+
+# 72 "/usr/src/gnu/cvs/mkmodules/../lib/system.h" 2
+
+
+
+# 86 "/usr/src/gnu/cvs/mkmodules/../lib/system.h"
+
+# 1 "/usr/include/sys/timeb.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+struct timeb {
+	time_t	time;			 
+	unsigned short millitm;		 
+	short	timezone;		 
+	short	dstflag;		 
+};
+# 87 "/usr/src/gnu/cvs/mkmodules/../lib/system.h" 2
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/param.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/types.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 135 "/usr/include/sys/types.h"
+
+# 46 "/usr/include/sys/param.h" 2
+
+
+
+ 
+
+
+
+
+
+
+# 1 "/usr/include/sys/syslimits.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 56 "/usr/include/sys/param.h" 2
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+ 
+# 1 "/usr/include/sys/signal.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/machine/trap.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+ 
+
+# 42 "/usr/include/sys/signal.h" 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/cdefs.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 78 "/usr/include/sys/cdefs.h"
+
+# 90 "/usr/include/sys/signal.h" 2
+
+
+
+typedef	void (*sig_t) (int)		;
+
+
+typedef void (*__sighandler_t) (int)		;
+typedef unsigned int sigset_t;
+
+ 
+int	sigaddset (sigset_t *, int)		;
+int	sigdelset (sigset_t *, int)		;
+int	sigemptyset (sigset_t *)		;
+int	sigfillset (sigset_t *)		;
+int	sigismember (const sigset_t *, int)		;
+ 
+
+
+
+
+
+
+
+ 
+
+
+struct	sigaction {
+	__sighandler_t  sa_handler;      
+	sigset_t sa_mask;		 
+	int	sa_flags;		 
+};
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+
+
+struct	sigvec {
+	void	(*sv_handler)();	 
+	int	sv_mask;		 
+	int	sv_flags;		 
+};
+
+
+
+
+ 
+
+
+struct	sigaltstack {
+	char	*ss_base;		 
+	int	ss_len;			 
+	int	ss_onstack;		 
+};
+
+ 
+
+
+struct	sigstack {
+	char	*ss_sp;			 
+	int	ss_onstack;		 
+};
+
+ 
+
+
+
+
+
+
+struct	sigcontext {
+	int	sc_onstack;		 
+	int	sc_mask;		 
+	int	sc_sp;			 
+	int	sc_fp;			 
+	int	sc_ap;			 
+	int	sc_pc;			 
+	int	sc_ps;			 
+};
+
+ 
+
+
+
+
+
+
+
+  
+
+
+
+
+# 1 "/usr/include/sys/types.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 135 "/usr/include/sys/types.h"
+
+# 195 "/usr/include/sys/signal.h" 2
+
+
+ 
+ 
+__sighandler_t signal (int, __sighandler_t)		;
+int	raise (int)		;
+
+int	kill (pid_t, int)		;
+int	sigaction (int, const struct sigaction *, struct sigaction *)		;
+int	sigpending (sigset_t *)		;
+int	sigprocmask (int, const sigset_t *, sigset_t *)		;
+int	sigsuspend (const sigset_t *)		;
+
+
+int	killpg (pid_t, int)		;
+void	psignal (unsigned, const char *)		;
+int	sigblock (int)		;
+int	siginterrupt (int, int)		;
+int	sigpause (int)		;
+int	sigreturn (struct sigcontext *)		;
+int	sigsetmask (int)		;
+int	sigstack (const struct sigstack *, struct sigstack *)		;
+int	sigvec (int, struct sigvec *, struct sigvec *)		;
+
+ 
+
+
+
+# 79 "/usr/include/sys/param.h" 2
+
+
+ 
+# 1 "/usr/include/machine/param.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+ 
+
+
+
+ 
+
+
+ 
+
+
+
+ 
+
+
+
+
+ 
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 82 "/usr/include/sys/param.h" 2
+
+# 1 "/usr/include/machine/endian.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/cdefs.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 78 "/usr/include/sys/cdefs.h"
+
+# 55 "/usr/include/machine/endian.h" 2
+
+
+
+
+
+
+
+
+
+# 77 "/usr/include/machine/endian.h"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+# 106 "/usr/include/machine/endian.h"
+
+
+
+
+
+
+
+
+
+
+
+
+# 83 "/usr/include/sys/param.h" 2
+
+# 1 "/usr/include/machine/limits.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 84 "/usr/include/sys/param.h" 2
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				 
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+ 
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+# 97 "/usr/src/gnu/cvs/mkmodules/../lib/system.h" 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+struct utimbuf
+{
+  long actime;
+  long modtime;
+};
+
+int utime ();
+
+
+# 145 "/usr/src/gnu/cvs/mkmodules/../lib/system.h"
+
+# 1 "/usr/include/strings.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/string.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/machine/ansi.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 57 "/usr/include/machine/ansi.h"
+
+# 38 "/usr/include/string.h" 2
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/cdefs.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 78 "/usr/include/sys/cdefs.h"
+
+# 49 "/usr/include/string.h" 2
+
+
+ 
+void	*memchr (const void *, int, size_t)		;
+int	 memcmp (const void *, const void *, size_t)		;
+void	*memcpy (void *, const void *, size_t)		;
+void	*memmove (void *, const void *, size_t)		;
+void	*memset (void *, int, size_t)		;
+char	*strcat (char *, const char *)		;
+char	*strchr (const char *, int)		;
+int	 strcmp (const char *, const char *)		;
+int	 strcoll (const char *, const char *)		;
+char	*strcpy (char *, const char *)		;
+size_t	 strcspn (const char *, const char *)		;
+char	*strerror (int)		;
+size_t	 strlen (const char *)		;
+char	*strncat (char *, const char *, size_t)		;
+int	 strncmp (const char *, const char *, size_t)		;
+char	*strncpy (char *, const char *, size_t)		;
+char	*strpbrk (const char *, const char *)		;
+char	*strrchr (const char *, int)		;
+size_t	 strspn (const char *, const char *)		;
+char	*strstr (const char *, const char *)		;
+char	*strtok (char *, const char *)		;
+size_t	 strxfrm (char *, const char *, size_t)		;
+
+ 
+
+int	 bcmp (const void *, const void *, size_t)		;
+void	 bcopy (const void *, void *, size_t)		;
+void	 bzero (void *, size_t)		;
+int	 ffs (int)		;
+char	*index (const char *, int)		;
+void	*memccpy (void *, const void *, int, size_t)		;
+char	*rindex (const char *, int)		;
+int	 strcasecmp (const char *, const char *)		;
+char	*strdup (const char *)		;
+void	 strmode (int, char *)		;
+int	 strncasecmp (const char *, const char *, size_t)		;
+char	*strsep (char **, const char *)		;
+void	 swab (const void *, void *, size_t)		;
+
+ 
+
+
+# 36 "/usr/include/strings.h" 2
+
+# 146 "/usr/src/gnu/cvs/mkmodules/../lib/system.h" 2
+
+
+
+# 1 "/usr/include/errno.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+extern int errno;			 
+
+
+
+
+
+
+
+
+
+
+
+
+
+					 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+ 
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+ 
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 149 "/usr/src/gnu/cvs/mkmodules/../lib/system.h" 2
+
+
+
+
+char *getenv ();
+char *malloc ();
+char *realloc ();
+char *calloc ();
+extern int errno;
+
+
+
+
+
+
+# 173 "/usr/src/gnu/cvs/mkmodules/../lib/system.h"
+
+
+
+
+
+
+# 1 "/usr/include/sys/file.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/fcntl.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+# 1 "/usr/include/sys/types.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 135 "/usr/include/sys/types.h"
+
+# 46 "/usr/include/sys/fcntl.h" 2
+
+
+
+ 
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+# 99 "/usr/include/sys/fcntl.h"
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+ 
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+struct flock {
+	short	l_type;		 
+	short	l_whence;	 
+	off_t	l_start;	 
+	off_t	l_len;		 
+	pid_t	l_pid;		 
+};
+
+
+
+ 
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/cdefs.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 78 "/usr/include/sys/cdefs.h"
+
+# 169 "/usr/include/sys/fcntl.h" 2
+
+
+ 
+int	open (const char *, int, ...)		;
+int	creat (const char *, mode_t)		;
+int	fcntl (int, int, ...)		;
+
+int	flock (int, int)		;
+
+ 
+
+
+
+# 36 "/usr/include/sys/file.h" 2
+
+# 1 "/usr/include/sys/unistd.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+ 
+
+
+				 
+
+
+ 
+
+
+
+
+
+ 
+
+
+
+
+
+ 
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+# 37 "/usr/include/sys/file.h" 2
+
+
+# 73 "/usr/include/sys/file.h"
+
+# 179 "/usr/src/gnu/cvs/mkmodules/../lib/system.h" 2
+
+char *getwd ();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/dir.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+# 1 "/usr/include/dirent.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+struct dirent {
+	u_long	d_fileno;		 
+	u_short	d_reclen;		 
+	u_short	d_namlen;		 
+
+
+
+
+	char	d_name[255  + 1];	 
+
+};
+
+
+
+
+
+
+
+ 
+
+
+ 
+typedef struct _dirdesc {
+	int	dd_fd;		 
+	long	dd_loc;		 
+	long	dd_size;	 
+	char	*dd_buf;	 
+	int	dd_len;		 
+	long	dd_seek;	 
+} DIR;
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/cdefs.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 78 "/usr/include/sys/cdefs.h"
+
+# 88 "/usr/include/dirent.h" 2
+
+
+ 
+DIR *opendir (const char *)		;
+struct dirent *readdir (DIR *)		;
+void rewinddir (DIR *)		;
+int closedir (DIR *)		;
+
+long telldir (const DIR *)		;
+void seekdir (DIR *, long)		;
+int scandir (const char *, struct dirent ***,
+    int (*)(struct dirent *), int (*)(const void *, const void *))		;
+int alphasort (const void *, const void *)		;
+int getdirentries (int, char *, int, long *)		;
+
+ 
+
+
+
+
+# 44 "/usr/include/sys/dir.h" 2
+
+
+ 
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+# 208 "/usr/src/gnu/cvs/mkmodules/../lib/system.h" 2
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+# 3 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+# 1 "/usr/include/stdio.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/cdefs.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 78 "/usr/include/sys/cdefs.h"
+
+# 42 "/usr/include/stdio.h" 2
+
+
+# 1 "/usr/include/machine/ansi.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 57 "/usr/include/machine/ansi.h"
+
+# 44 "/usr/include/stdio.h" 2
+
+
+
+
+
+
+
+
+
+
+typedef long fpos_t;		 
+
+
+
+ 
+
+
+
+
+
+ 
+struct __sbuf {
+	unsigned char *_base;
+	int	_size;
+};
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+typedef	struct __sFILE {
+	unsigned char *_p;	 
+	int	_r;		 
+	int	_w;		 
+	short	_flags;		 
+	short	_file;		 
+	struct	__sbuf _bf;	 
+	int	_lbfsize;	 
+
+	 
+	void	*_cookie;	 
+	int	(*_close) (void *)		;
+	int	(*_read)  (void *, char *, int)		;
+	fpos_t	(*_seek)  (void *, fpos_t, int)		;
+	int	(*_write) (void *, const char *, int)		;
+
+	 
+	struct	__sbuf _ub;	 
+	unsigned char *_up;	 
+	int	_ur;		 
+
+	 
+	unsigned char _ubuf[3];	 
+	unsigned char _nbuf[1];	 
+
+	 
+	struct	__sbuf _lb;	 
+
+	 
+	int	_blksize;	 
+	int	_offset;	 
+} FILE;
+
+ 
+extern FILE __sF[];
+ 
+
+
+
+
+
+	 
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+ 
+void	 clearerr (FILE *)		;
+int	 fclose (FILE *)		;
+int	 feof (FILE *)		;
+int	 ferror (FILE *)		;
+int	 fflush (FILE *)		;
+int	 fgetc (FILE *)		;
+int	 fgetpos (FILE *, fpos_t *)		;
+char	*fgets (char *, size_t, FILE *)		;
+FILE	*fopen (const char *, const char *)		;
+int	 fprintf (FILE *, const char *, ...)		;
+int	 fputc (int, FILE *)		;
+int	 fputs (const char *, FILE *)		;
+int	 fread (void *, size_t, size_t, FILE *)		;
+FILE	*freopen (const char *, const char *, FILE *)		;
+int	 fscanf (FILE *, const char *, ...)		;
+int	 fseek (FILE *, long, int)		;
+int	 fsetpos (FILE *, const fpos_t *)		;
+long	 ftell (const FILE *)		;
+int	 fwrite (const void *, size_t, size_t, FILE *)		;
+int	 getc (FILE *)		;
+int	 getchar (void)		;
+char	*gets (char *)		;
+
+extern int sys_nerr;			 
+extern char *sys_errlist[];
+
+void	 perror (const char *)		;
+int	 printf (const char *, ...)		;
+int	 putc (int, FILE *)		;
+int	 putchar (int)		;
+int	 puts (const char *)		;
+int	 remove (const char *)		;
+int	 rename  (const char *, const char *)		;
+void	 rewind (FILE *)		;
+int	 scanf (const char *, ...)		;
+void	 setbuf (FILE *, char *)		;
+int	 setvbuf (FILE *, char *, int, size_t)		;
+int	 sprintf (char *, const char *, ...)		;
+int	 sscanf (char *, const char *, ...)		;
+FILE	*tmpfile (void)		;
+char	*tmpnam (char *)		;
+int	 ungetc (int, FILE *)		;
+int	 vfprintf (FILE *, const char *, char *			)		;
+int	 vprintf (const char *, char *			)		;
+int	 vsprintf (char *, const char *, char *			)		;
+ 
+
+ 
+
+
+
+
+
+
+ 
+char	*ctermid (char *)		;
+FILE	*fdopen (int, const char *)		;
+int	 fileno (FILE *)		;
+ 
+
+
+ 
+
+
+
+ 
+char	*fgetline (FILE *, size_t *)		;
+int	 fpurge (FILE *)		;
+int	 getw (FILE *)		;
+int	 pclose (FILE *)		;
+FILE	*popen (const char *, const char *)		;
+int	 putw (int, FILE *)		;
+void	 setbuffer (FILE *, char *, int)		;
+int	 setlinebuf (FILE *)		;
+char	*tempnam (const char *, const char *)		;
+int	 snprintf (char *, size_t, const char *, ...)		;
+int	 vsnprintf (char *, size_t, const char *, char *			)		;
+int	 vscanf (const char *, char *			)		;
+int	 vsscanf (const char *, const char *, char *			)		;
+ 
+
+ 
+
+
+
+
+
+
+ 
+
+
+ 
+FILE	*funopen (const void *,
+		int (*)(void *, char *, int),
+		int (*)(void *, const char *, int),
+		fpos_t (*)(void *, fpos_t, int),
+		int (*)(void *))		;
+ 
+
+
+
+
+ 
+
+
+ 
+int	__srget (FILE *)		;
+int	__svfscanf (FILE *, const char *, char *			)		;
+int	__swbuf (int, FILE *)		;
+ 
+
+ 
+
+
+
+
+
+static inline int __sputc(int _c, FILE *_p) {
+	if (--_p->_w >= 0 || (_p->_w >= _p->_lbfsize && (char)_c != '\n'))
+		return (*_p->_p++ = _c);
+	else
+		return (__swbuf(_c, _p));
+}
+# 331 "/usr/include/stdio.h"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 4 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+# 1 "/usr/include/ctype.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+extern char	_ctype_[];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 5 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+# 1 "/usr/include/pwd.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 1 "/usr/include/sys/types.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 135 "/usr/include/sys/types.h"
+
+# 39 "/usr/include/pwd.h" 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+struct passwd {
+	char	*pw_name;		 
+	char	*pw_passwd;		 
+	int	pw_uid;			 
+	int	pw_gid;			 
+	time_t	pw_change;		 
+	char	*pw_class;		 
+	char	*pw_gecos;		 
+	char	*pw_dir;		 
+	char	*pw_shell;		 
+	time_t	pw_expire;		 
+};
+
+# 1 "/usr/include/sys/cdefs.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 78 "/usr/include/sys/cdefs.h"
+
+# 72 "/usr/include/pwd.h" 2
+
+
+ 
+struct passwd	*getpwuid (uid_t)		;
+struct passwd	*getpwnam (const char *)		;
+
+struct passwd	*getpwent (void)		;
+int		 setpassent (int)		;
+int		 setpwent (void)		;
+void		 endpwent (void)		;
+
+ 
+
+
+# 6 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+# 1 "/usr/include/signal.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 222 "/usr/include/signal.h"
+
+# 7 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+# 1 "/usr/src/gnu/cvs/mkmodules/../cvs/hash.h" 1
+ 
+
+ 
+
+
+
+
+
+
+ 
+
+
+
+
+
+ 
+
+
+enum ntype
+{
+    UNKNOWN, HEADER, ENTRIES, FILES, LIST, RCSNODE,
+    RCSVERS, DIRS, UPDATE, LOCK, NDBMNODE
+};
+typedef enum ntype Ntype;
+
+struct node
+{
+    Ntype type;
+    struct node *next;
+    struct node *prev;
+    struct node *hashnext;
+    struct node *hashprev;
+    char *key;
+    char *data;
+    void (*delproc) ();
+};
+typedef struct node Node;
+
+struct list
+{
+    Node *list;
+    Node *hasharray[151 ];
+    struct list *next;
+};
+typedef struct list List;
+
+struct entnode
+{
+    char *version;
+    char *timestamp;
+    char *options;
+    char *tag;
+    char *date;
+};
+typedef struct entnode Entnode;
+
+
+List *getlist (void);
+Node *findnode (List * list, char *key);
+Node *getnode (void);
+int addnode (List * list, Node * p);
+int walklist (List * list, int (*proc) ());
+void dellist (List ** listp);
+void delnode (Node * p);
+void freenode (Node * p);
+void sortlist (List * list, int (*comp) ());
+# 77 "/usr/src/gnu/cvs/mkmodules/../cvs/hash.h"
+
+# 8 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+# 1 "/usr/src/gnu/cvs/mkmodules/../cvs/rcs.h" 1
+ 
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+struct rcsnode
+{
+    int refcount;
+    int flags;
+    char *path;
+    char *head;
+    char *branch;
+    List *symbols;
+    List *versions;
+    List *dates;
+};
+typedef struct rcsnode RCSNode;
+
+struct rcsversnode
+{
+    char *version;
+    char *date;
+    char *next;
+    List *branches;
+};
+typedef struct rcsversnode RCSVers;
+
+ 
+
+
+
+
+
+
+
+
+ 
+
+
+
+List *RCS_parsefiles (List * files, char *xrepos);
+RCSNode *RCS_parse (char *file, char *repos);
+RCSNode *RCS_parsercsfile (char *rcsfile);
+char *RCS_check_kflag (char *arg);
+char *RCS_getdate (RCSNode * rcs, char *date, int force_tag_match);
+char *RCS_gettag (RCSNode * rcs, char *tag, int force_tag_match);
+char *RCS_getversion (RCSNode * rcs, char *tag, char *date,
+		      int force_tag_match);
+char *RCS_magicrev (RCSNode *rcs, char *rev);
+int RCS_isbranch (char *file, char *rev, List *srcfiles);
+char *RCS_whatbranch (char *file, char *tag, List *srcfiles);
+char *RCS_head (RCSNode * rcs);
+int RCS_datecmp (char *date1, char *date2);
+time_t RCS_getrevtime (RCSNode * rcs, char *rev, char *date, int fudge);
+void RCS_check_tag (char *tag);
+void freercsnode (RCSNode ** rnodep);
+# 102 "/usr/src/gnu/cvs/mkmodules/../cvs/rcs.h"
+
+# 9 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+# 1 "/usr/src/gnu/cvs/mkmodules/../lib/regex.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+ 
+
+
+
+
+typedef unsigned reg_syntax_t;
+
+ 
+
+
+
+ 
+
+
+
+
+ 
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+
+ 
+
+
+
+
+ 
+
+
+
+ 
+
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+ 
+
+
+ 
+
+
+ 
+
+
+ 
+
+
+
+
+ 
+
+
+
+extern reg_syntax_t obscure_syntax;
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+ 
+
+
+
+
+ 
+
+ 
+
+
+
+ 
+
+
+ 
+ 
+
+
+
+
+ 
+
+
+
+
+ 
+
+ 
+
+
+
+
+
+
+ 
+
+
+
+ 
+
+typedef enum
+{
+  REG_NOERROR = 0,	 
+  REG_NOMATCH,		 
+
+   
+
+  REG_BADPAT,		 
+  REG_ECOLLATE,		 
+  REG_ECTYPE,		 
+  REG_EESCAPE,		 
+  REG_ESUBREG,		 
+  REG_EBRACK,		 
+  REG_EPAREN,		  
+  REG_EBRACE,		 
+  REG_BADBR,		 
+  REG_ERANGE,		 
+  REG_ESPACE,		 
+  REG_BADRPT,		 
+
+   
+  REG_EEND,		 
+  REG_ESIZE,		 
+  REG_ERPAREN		 
+} reg_errcode_t;
+
+
+
+
+ 
+
+
+
+
+
+struct re_pattern_buffer
+{
+ 
+	 
+
+
+  unsigned char *buffer;
+
+	 
+  unsigned long allocated;
+
+	 
+  unsigned long used;	
+
+         
+  reg_syntax_t syntax;
+
+         
+
+
+  char *fastmap;
+
+         
+
+
+
+  char *translate;
+
+	 
+  size_t re_nsub;
+
+         
+
+
+
+
+  unsigned can_be_null : 2;
+
+         
+
+  unsigned fastmap_accurate : 1;
+
+         
+
+  unsigned no_sub : 1;
+
+         
+ 
+  unsigned not_bol : 1;
+
+         
+  unsigned not_eol : 1;
+
+         
+  unsigned newline_anchor : 1;
+
+         
+
+
+  unsigned caller_allocated_regs : 1;
+ 
+};
+
+typedef struct re_pattern_buffer regex_t;
+
+
+ 
+
+
+
+
+
+
+ 
+
+typedef int regoff_t;
+
+
+ 
+
+struct re_registers
+{
+  unsigned num_regs;
+  regoff_t *start;
+  regoff_t *end;
+};
+
+
+ 
+
+
+
+
+
+
+ 
+
+
+typedef struct
+{
+  regoff_t rm_so;   
+  regoff_t rm_eo;   
+} regmatch_t;
+
+
+
+
+ 
+
+
+
+ 
+
+extern reg_syntax_t re_set_syntax (reg_syntax_t syntax);
+
+ 
+
+
+extern const char *re_compile_pattern (const char *pattern, int length,
+                                       struct re_pattern_buffer *buffer);
+
+
+ 
+
+
+extern int re_compile_fastmap (struct re_pattern_buffer *buffer);
+
+
+ 
+
+
+
+
+extern int re_search (struct re_pattern_buffer *buffer,
+                      const char *string, int length,
+                      int start, int range, 
+		      struct re_registers *regs);
+
+
+ 
+
+extern int re_search_2 (struct re_pattern_buffer *buffer,
+                        const char *string1, int length1,
+		        const char *string2, int length2,
+                        int start, int range, 
+                        struct re_registers *regs,
+                        int stop);
+
+
+ 
+
+extern int re_match (const struct re_pattern_buffer *buffer,
+                     const char *string, int length,
+                     int start, struct re_registers *regs);
+
+
+ 
+extern int re_match_2 (const struct re_pattern_buffer *buffer,
+                       const char *string1, int length1,
+	               const char *string2, int length2,
+                       int start,
+                       struct re_registers *regs,
+                       int stop);
+
+
+
+
+
+
+
+
+
+
+ 
+extern int regcomp (regex_t *preg, const char *pattern, int cflags);
+extern int regexec (const regex_t *preg, const char *string, size_t nmatch,
+		    regmatch_t pmatch[], int eflags);
+extern size_t regerror (int errcode, const regex_t *preg, char *errbuf, 
+			size_t errbuf_size);
+extern void regfree (regex_t *preg);
+
+# 468 "/usr/src/gnu/cvs/mkmodules/../lib/regex.h"
+
+
+
+
+
+ 
+
+
+
+
+
+
+# 10 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+# 1 "/usr/src/gnu/cvs/mkmodules/../lib/fnmatch.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+ 
+
+
+extern int fnmatch (const char *pattern, const char *string, int flags);
+
+
+
+
+
+# 11 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+# 1 "/usr/src/gnu/cvs/mkmodules/../lib/getopt.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+ 
+
+
+
+
+
+extern char *optarg;
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+extern int optind;
+
+ 
+
+
+extern int opterr;
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+struct option
+{
+  char *name;
+  int has_arg;
+  int *flag;
+  int val;
+};
+
+
+extern const struct option *_getopt_long_options;
+
+
+
+
+ 
+
+
+extern int _getopt_long_only;
+
+ 
+
+
+
+extern int option_index;
+
+
+int gnu_getopt (int argc, char **argv, const char *shortopts);
+int gnu_getopt_long (int argc, char **argv, const char *shortopts,
+		     const struct option *longopts, int *longind);
+int gnu_getopt_long_only (int argc, char **argv, const char *shortopts,
+			  const struct option *longopts, int *longind);
+
+
+
+
+
+# 12 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+# 1 "/usr/src/gnu/cvs/mkmodules/../lib/wait.h" 1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 13 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+# 1 "/usr/src/gnu/cvs/mkmodules/../cvs/config.h" 1
+ 
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+ 
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+ 
+
+
+
+
+
+
+
+
+
+ 
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+ 
+
+
+
+
+extern void exit ();
+
+
+
+extern char *getwd ();
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+# 14 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+
+# 1 "/usr/src/gnu/cvs/mkmodules/../cvs/myndbm.h" 1
+ 
+
+
+
+
+
+typedef struct
+{
+    List *dbm_list;			 
+    Node *dbm_next;			 
+} DBM;
+
+typedef struct
+{
+    char *dptr;
+    int dsize;
+} datum;
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+DBM *mydbm_open (char *file, int flags, int mode);
+void mydbm_close (DBM * db);
+datum mydbm_fetch (DBM * db, datum key);
+datum mydbm_firstkey (DBM * db);
+datum mydbm_nextkey (DBM * db);
+
+
+
+
+
+
+
+
+
+# 16 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h" 2
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+ 
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+
+
+
+ 
+
+
+ 
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+ 
+enum mtype
+{
+    CHECKOUT, TAG, PATCH
+};
+
+ 
+
+
+
+
+enum classify_type
+{
+    T_UNKNOWN = 1,			 
+    T_CONFLICT,				 
+    T_NEEDS_MERGE,			 
+    T_MODIFIED,				 
+    T_CHECKOUT,				 
+    T_ADDED,				 
+    T_REMOVED,				 
+    T_REMOVE_ENTRY,			 
+    T_UPTODATE,				 
+    T_TITLE				 
+};
+typedef enum classify_type Ctype;
+
+ 
+
+
+
+
+
+
+struct vers_ts
+{
+    char *vn_user;			 
+
+
+
+
+
+    char *vn_rcs;			 
+
+    char *ts_user;			 
+    char *ts_rcs;			 
+    char *options;			 
+
+    char *tag;				 
+    char *date;				 
+    Entnode *entdata;			 
+    RCSNode *srcfile;			 
+};
+typedef struct vers_ts Vers_TS;
+
+ 
+
+
+
+struct stickydirtag
+{
+    int aflag;
+    char *tag;
+    char *date;
+    char *options;
+};
+
+ 
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+ 
+enum direnter_type
+{
+    R_PROCESS = 1,			 
+    R_SKIP_FILES,			 
+    R_SKIP_DIRS,			 
+    R_SKIP_ALL				 
+};
+typedef enum direnter_type Dtype;
+
+extern char *program_name, *command_name;
+extern char *Rcsbin, *Editor, *CVSroot;
+extern char *CurDir;
+extern int really_quiet, quiet;
+extern int use_editor;
+extern int cvswrite;
+
+extern int trace;			 
+extern int noexec;			 
+extern int logoff;			 
+
+ 
+
+int Reader_Lock (char *xrepository);
+DBM *open_module (void);
+FILE *Fopen (char *name, char *mode);
+FILE *open_file (char *name, char *mode);
+List *Find_Dirs (char *repository, int which);
+List *ParseEntries (int aflag);
+char *Make_Date (char *rawdate);
+char *Name_Repository (char *dir, char *update_dir);
+char *Short_Repository (char *repository);
+char *getcaller (void);
+char *time_stamp (char *file);
+char *xmalloc (int bytes);
+char *xrealloc (char *ptr, int bytes);
+char *xstrdup (char *str);
+int No_Difference (char *file, Vers_TS * vers, List * entries);
+int Parse_Info (char *infofile, char *repository, int (*callproc) (), int all);
+int Reader_Lock (char *xrepository);
+int SIG_register (int sig, void  (*fn) ());
+int Writer_Lock (List * list);
+int gethostname (char *name, int namelen);
+int ign_name (char *name);
+int isdir (char *file);
+int isfile (char *file);
+int islink (char *file);
+int isreadable (char *file);
+int iswritable (char *file);
+int link_file (char *from, char *to);
+int numdots (char *s);
+int run_exec (char *stin, char *stout, char *sterr, int flags);
+int unlink_file (char *f);
+int update (int argc, char *argv[]);
+int xcmp (char *file1, char *file2);
+int yesno (void);
+time_t get_date (char *date, struct timeb *now);
+void Create_Admin (char *dir, char *repository, char *tag, char *date);
+void Lock_Cleanup (void);
+void ParseTag (char **tagp, char **datep);
+void Scratch_Entry (List * list, char *fname);
+void WriteTag (char *dir, char *tag, char *date);
+void cat_module (int status);
+void check_entries (char *dir);
+void close_module (DBM * db);
+void copy_file (char *from, char *to);
+void error (int status, int errnum, char *message,...);
+void fperror (FILE * fp, int status, int errnum, char *message,...);
+void free_names (int *pargc, char *argv[]);
+void freevers_ts (Vers_TS ** versp);
+void ign_add (char *ign, int hold);
+void ign_add_file (char *file, int hold);
+void ign_setup (void);
+void line2argv (int *pargc, char *argv[], char *line);
+void make_directories (char *name);
+void make_directory (char *name);
+void rename_file (char *from, char *to);
+void run_arg (char *s);
+void run_args (char *fmt,...);
+void run_print (FILE * fp);
+void run_setup (char *fmt,...);
+void strip_path (char *path);
+void update_delproc (Node * p);
+void usage (char **cpp);
+void xchmod (char *fname, int writable);
+int Checkin (int type, char *file, char *repository, char *rcs, char *rev,
+	     char *tag, char *message, List * entries);
+Ctype Classify_File (char *file, char *tag, char *date, char *options,
+		     int force_tag_match, int aflag, char *repository,
+		     List *entries, List *srcfiles, Vers_TS **versp);
+List *Find_Names (char *repository, int which, int aflag,
+		  List ** optentries);
+void Register (List * list, char *fname, char *vn, char *ts,
+	       char *options, char *tag, char *date);
+void Update_Logfile (char *repository, char *xmessage, char *xrevision,
+		     FILE * xlogfp, List * xchanges);
+Vers_TS *Version_TS (char *repository, char *options, char *tag,
+		     char *date, char *user, int force_tag_match,
+		     int set_time, List * entries, List * xfiles);
+void do_editor (char *dir, char *message, char *repository,
+		List * changes);
+int do_module (DBM * db, char *mname, enum mtype m_type, char *msg,
+	       int (*callback_proc) (), char *where, int shorten,
+	       int local_specified, int run_module_prog, char *extra_arg);
+int do_recursion (int (*xfileproc) (), int (*xfilesdoneproc) (),
+		  Dtype (*xdirentproc) (), int (*xdirleaveproc) (),
+		  Dtype xflags, int xwhich, int xaflag, int xreadlock,
+		  int xdosrcs);
+int do_update (int argc, char *argv[], char *xoptions, char *xtag,
+	       char *xdate, int xforce, int local, int xbuild,
+	       int xaflag, int xprune, int xpipeout, int which,
+	       char *xjoin_rev1, char *xjoin_rev2, char *preload_update_dir);
+void history_write (int type, char *update_dir, char *revs, char *name,
+		    char *repository);
+int start_recursion (int (*fileproc) (), int (*filesdoneproc) (),
+		     Dtype (*direntproc) (), int (*dirleaveproc) (),
+		     int argc, char *argv[], int local, int which,
+		     int aflag, int readlock, char *update_preload,
+		     int dosrcs);
+void SIG_beginCrSect ();
+void SIG_endCrSect ();
+# 438 "/usr/src/gnu/cvs/mkmodules/../cvs/cvs.h"
+
+# 15 "/usr/src/gnu/cvs/mkmodules/mkmodules.c" 2
+
+
+
+
+
+
+PATH_MAX +2 
+
+
+static char rcsid[] = "@(#)mkmodules.c 1.39 92/03/31";
+
+
+
+
+
+
+char *program_name, *command_name;
+
+char *Rcsbin = "" ;
+int noexec = 0;				 
+int trace = 0;				 
+
+
+static int checkout_file (char *file, char *temp);
+static void make_tempfile (char *temp);
+static void mkmodules_usage (void);
+static void rename_rcsfile (char *temp, char *real);
+
+
+
+
+
+
+# 60 "/usr/src/gnu/cvs/mkmodules/mkmodules.c"
+
+
+int
+main (argc, argv)
+    int argc;
+    char *argv[];
+{
+    extern char *getenv ();
+    char temp[PATH_MAX +2 ];
+    char *cp;
+
+    DBM *db;
+
+
+     
+
+
+    if ((program_name = rindex (argv[0], '/')) == 0 )
+	program_name = argv[0];
+    else
+	program_name++;
+
+    if (argc != 2)
+	mkmodules_usage ();
+
+    if ((cp = getenv ("RCSBIN"	)) != 0 )
+	Rcsbin = cp;
+
+     
+
+
+
+    if (Rcsbin[0] != '\0')
+    {
+	int len = strlen (Rcsbin);
+	char *rcsbin;
+
+	if (Rcsbin[len - 1] != '/')
+	{
+	    rcsbin = Rcsbin;
+	    Rcsbin = xmalloc (len + 2);	 
+	    (void) strcpy (Rcsbin, rcsbin);
+	    (void) strcat (Rcsbin, "/");
+	}
+    }
+
+    if (chdir (argv[1]) < 0)
+	error (1, errno, "cannot chdir to %s", argv[1]);
+
+     
+
+
+    make_tempfile (temp);
+    switch (checkout_file ("modules" , temp))
+    {
+
+	case 0:			 
+
+	     
+	    if ((db = mydbm_open  (temp, 0x0000		, 0666)) != 0 )
+		mydbm_close  (db);
+
+
+
+
+	    rename_rcsfile (temp, "modules" );
+	    break;
+
+	case -1:			 
+	    (void) unlink_file (temp);
+	    exit (1);
+	     
+
+	default:
+	    error (0, 0, 
+		"'cvs checkout' is less functional without a %s file",
+		"modules" );
+	    break;
+    }					 
+
+    (void) unlink_file (temp);
+
+     
+
+
+
+    make_tempfile (temp);
+    if (checkout_file ("loginfo" , temp) == 0)
+	rename_rcsfile (temp, "loginfo" );
+    else
+	error (0, 0, 
+	"no logging of 'cvs commit' messages is done without a %s file",
+	       "loginfo" );
+    (void) unlink_file (temp);
+
+     
+
+
+
+    make_tempfile (temp);
+    if (checkout_file ("rcsinfo" , temp) == 0)
+	rename_rcsfile (temp, "rcsinfo" );
+    else
+	error (0, 0, 
+	    "a %s file can be used to configure 'cvs commit' templates",
+	    "rcsinfo" );
+    (void) unlink_file (temp);
+
+     
+
+
+
+    make_tempfile (temp);
+    if (checkout_file ("editinfo" , temp) == 0)
+	rename_rcsfile (temp, "editinfo" );
+    else
+	error (0, 0, 
+	       "a %s file can be used to validate log messages",
+	       "editinfo" );
+    (void) unlink_file (temp);
+
+     
+
+
+
+    make_tempfile (temp);
+    if (checkout_file ("commitinfo" , temp) == 0)
+	rename_rcsfile (temp, "commitinfo" );
+    else
+	error (0, 0, 
+	    "a %s file can be used to configure 'cvs commit' checking",
+	    "commitinfo" );
+    (void) unlink_file (temp);
+    return (0);
+}
+
+ 
+
+
+static void
+make_tempfile (temp)
+    char *temp;
+{
+    static int seed = 0;
+    int fd;
+
+    if (seed == 0)
+	seed = getpid ();
+    while (1)
+    {
+	(void) sprintf (temp, "%s%d", ".#"		, seed++);
+	if ((fd = open (temp, 	0x0200		|	0x0800		|	0x0002		, 0666)) != -1)
+	    break;
+	if (errno != 	17		)
+	    error (1, errno, "cannot create temporary file %s", temp);
+    }
+    if (close(fd) < 0)
+	error(1, errno, "cannot close temporary file %s", temp);
+}
+
+static int
+checkout_file (file, temp)
+    char *file;
+    char *temp;
+{
+    char rcs[PATH_MAX +2 ];
+    int retcode = 0;
+
+    (void) sprintf (rcs, "%s%s", file, 	",v" );
+    if (!isfile (rcs))
+	return (1);
+    run_setup ("%s%s -q -p", Rcsbin, 	"co" );
+    run_arg (rcs);
+    if ((retcode = run_exec (	(char *)0	, temp, 	(char *)0	, 	0x0000	)) != 0)
+    {
+	error (0, retcode == -1 ? errno : 0, "failed to check out %s file", file);
+    }
+    return (retcode);
+}
+
+# 369 "/usr/src/gnu/cvs/mkmodules/mkmodules.c"
+
+
+static void
+rename_rcsfile (temp, real)
+    char *temp;
+    char *real;
+{
+    char bak[50];
+
+    if (chmod (temp, 0444) < 0)		 
+	error (0, errno, "warning: cannot chmod %s", temp);
+    (void) sprintf (bak, "%s%s", ".#"		, real);
+    (void) unlink_file (bak);		 
+    (void) rename (real, bak);		 
+    (void) rename (temp, real);		 
+}
+
+ 
+
+
+void
+Lock_Cleanup ()
+{
+}
+
+static void
+mkmodules_usage ()
+{
+    (void) fprintf ((&__sF[2]) , "Usage: %s modules-directory\n", program_name);
+    exit (1);
+}
