@@ -67,6 +67,11 @@ int dialog_radiolist(char *title, char *prompt, int height, int width, int list_
     draw_shadow(stdscr, y, x, height, width);
 #endif
   dialog = newwin(height, width, y, x);
+  if (dialog == NULL) {
+    endwin();
+    fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", height,width,y,x);
+    exit(1);
+  }
   keypad(dialog, TRUE);
 
   draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
@@ -99,6 +104,11 @@ int dialog_radiolist(char *title, char *prompt, int height, int width, int list_
 
   /* create new window for the list */
   list = subwin(dialog, list_height, list_width, y + box_y + 1, x + box_x + 1);
+  if (list == NULL) {
+    endwin();
+    fprintf(stderr, "\nsubwin(dialog,%d,%d,%d,%d) failed, maybe wrong dims\n", list_height,list_width,y+box_y+1,x+box_x+1);
+    exit(1);
+  }
   keypad(list, TRUE);
 
   /* draw a box around the list items */
