@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.46 1999/04/28 10:52:45 dt Exp $
+ *	$Id: pcaudio.c,v 1.47 1999/05/06 18:12:29 peter Exp $
  */
 
 #include "pca.h"
@@ -69,7 +69,7 @@ static struct pca_status {
 	unsigned	processed;	/* samples processed */
 	unsigned	volume;		/* volume for pc-speaker */
 	char		encoding;	/* Ulaw, Alaw or linear */
-	char		current;	/* current buffer */
+	u_char		current;	/* current buffer */
 	unsigned char	oldval;		/* old timer port value */
 	char		timer_on;	/* is playback running */
 	struct selinfo	wsel;		/* select/poll status */
