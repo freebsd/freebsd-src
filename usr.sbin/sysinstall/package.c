@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.68 1999/05/07 20:31:36 jkh Exp $
+ * $Id: package.c,v 1.69 1999/05/12 06:11:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,7 +99,7 @@ package_exists(char *name)
 int
 package_extract(Device *dev, char *name, Boolean depended)
 {
-    char tmp[200], path[511];
+    char path[511];
     int ret, last_msg = 0;
     FILE *fp;
 
@@ -135,11 +135,7 @@ package_extract(Device *dev, char *name, Boolean depended)
     else
 	sprintf(path, "%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
 
-    /* Set hints for pkg_add */
-    snprintf(tmp, sizeof tmp, "%s/Packages/All/", dev->name);
-    setenv("PKG_ADD_BASE", tmp, 1);
-    if (isDebug())
-	msgDebug("Set PKG_ADD_BASE to %s\n", tmp);
+    /* We have a path, call the device strategy routine to get the file */
     fp = dev->get(dev, path, TRUE);
     if (fp) {
 	int i = 0, tot, pfd[2];
