@@ -1280,6 +1280,7 @@ AcpiPsParseAml (
     ACPI_NAMESPACE_NODE     *Node = NULL;
     ACPI_WALK_LIST          *PrevWalkList = AcpiGbl_CurrentWalkList;
     ACPI_OPERAND_OBJECT     *ReturnDesc;
+    ACPI_OPERAND_OBJECT     *EffectiveReturnDesc = NULL;
     ACPI_OPERAND_OBJECT     *MthDesc = NULL;
     ACPI_NAMESPACE_NODE     *StartNode;
 
@@ -1424,6 +1425,14 @@ AcpiPsParseAml (
 
         ReturnDesc = WalkState->ReturnDesc;
 
+        /* Save the last effective return value */
+
+        if (CallerReturnDesc && ReturnDesc)
+        {
+            EffectiveReturnDesc = ReturnDesc;
+            AcpiCmAddReference (EffectiveReturnDesc);
+        }
+
         DEBUG_PRINT (TRACE_PARSE,
             ("PsParseAml: ReturnValue=%p, State=%p\n",
             WalkState->ReturnDesc, WalkState));
@@ -1472,6 +1481,16 @@ AcpiPsParseAml (
 
         else if (CallerReturnDesc)
         {
+            /*
+             * Some AML code expects return value w/o ReturnOp.
+             * Return the saved effective return value instead.
+             */
+
+            if (ReturnDesc == NULL && EffectiveReturnDesc != NULL)
+            {
+                AcpiCmRemoveReference (ReturnDesc);
+                ReturnDesc = EffectiveReturnDesc;
+            }
             *CallerReturnDesc = ReturnDesc; /* NULL if no return value */
         }
 
