@@ -567,7 +567,9 @@ mpu_xmit(sc_p scp)
 
 	/* Transmit the data in the queue. */
 	while ((devinfo->flags & MIDI_F_WRITING) != 0) {
-		if (dbuf->rl > 0) {
+		if (dbuf->rl == 0) 
+			break;
+		else {
 			mtx_lock(&scp->mtx);
 			/* XXX Wait until we can write the data. */
 			if ((mpu_status(scp) & MPU_OUTPUTBUSY) == 0) {
@@ -585,7 +587,10 @@ mpu_xmit(sc_p scp)
 }
 
 
-/* Reset mpu. */
+/* 
+ * Reset mpu.
+ * The caller must lock scp->mtx before calling this function if needed.
+ */
 static int
 mpu_resetmode(sc_p scp)
 {
@@ -593,13 +598,11 @@ mpu_resetmode(sc_p scp)
 
 	/* Reset the mpu. */
 	resp = 0;
-	mtx_lock(&scp->mtx);
 	for (i = 0 ; i < MPU_TRYDATA ; i++) {
 		resp = mpu_command(scp, MPU_RESET);
 		if (resp == 0)
 			break;
 	}
-	mtx_unlock(&scp->mtx);
 	if (resp != 0)
 		return (1);
 
@@ -607,7 +610,10 @@ mpu_resetmode(sc_p scp)
 	return (0);
 }
 
-/* Switch to uart mode. */
+/*
+ * Switch to uart mode.
+ * The caller must lock scp->mtx before calling this function if needed.
+ */
 static int
 mpu_uartmode(sc_p scp)
 {
@@ -615,13 +621,11 @@ mpu_uartmode(sc_p scp)
 
 	/* Switch to uart mode. */
 	resp = 0;
-	mtx_lock(&scp->mtx);
 	for (i = 0 ; i < MPU_TRYDATA ; i++) {
 		resp = mpu_command(scp, MPU_UART);
 		if (resp == 0)
 			break;
 	}
-	mtx_unlock(&scp->mtx);
 	if (resp != 0)
 		return (1);
 
@@ -629,20 +633,21 @@ mpu_uartmode(sc_p scp)
 	return (0);
 }
 
-/* Wait to see an ACK. */
+/*
+ * Wait to see an ACK.
+ * The caller must lock scp->mtx before calling this function if needed.
+ */
 static int
 mpu_waitack(sc_p scp)
 {
 	int i, resp;
 
 	resp = 0;
-	mtx_lock(&scp->mtx);
 	for (i = 0 ; i < MPU_TRYDATA ; i++) {
 		resp = mpu_readdata(scp);
 		if (resp >= 0)
 			break;
 	}
-	mtx_unlock(&scp->mtx);
 	if (resp != MPU_ACK)
 		return (1);
 
