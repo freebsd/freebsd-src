@@ -28,7 +28,6 @@
 
 #include "acpi.h"
 
-void cpu_mp_add(uint, uint, uint);
 struct sapic *sapic_create(int, int, u_int64_t);
 
 #pragma pack(1)
