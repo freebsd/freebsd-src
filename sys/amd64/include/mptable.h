@@ -282,6 +282,13 @@ int     cpu_num_to_apic_id[NAPICID];
 int     io_num_to_apic_id[NAPICID];
 int     apic_id_to_logical[NAPICID];
 
+/*
+ * CPU topology map datastructures for HTT.
+ */
+struct	cpu_group	mp_groups[NAPICID];
+struct	cpu_top mp_top;
+struct	cpu_top *smp_topology;
+
 
 /* AP uses this during bootstrap.  Do not staticize.  */
 char *bootSTK;
@@ -1069,6 +1076,7 @@ static void
 mptable_hyperthread_fixup(u_int id_mask)
 {
 	u_int i, id;
+	int logical;
 
 	/* Nothing to do if there is no HTT support. */
 	if ((cpu_feature & CPUID_HTT) == 0)
@@ -1101,6 +1109,29 @@ mptable_hyperthread_fixup(u_int id_mask)
 	need_hyperthreading_fixup = 1;
 	mp_maxid *= logical_cpus;
 	mp_naps *= logical_cpus;
+
+	/*
+	 * Now setup the cpu topology map.
+	 */
+	mp_top.ct_count = mp_naps / logical_cpus;
+	mp_top.ct_group = mp_groups;
+
+	/*
+	 * The first logical id is directly after the last valid physical id.
+	 */
+	logical = mp_top.ct_count + 1;
+
+	for (i = 0; i < mp_top.ct_count; i++) {
+		int j;
+
+		mp_groups[i].cg_mask = (1 << i);
+		for (j = 1; j < logical_cpus; j++)
+			mp_groups[i].cg_mask |= (1 << logical++);
+		mp_groups[i].cg_count = logical_cpus;
+		mp_groups[i].cg_children = 0;
+	}
+
+	smp_topology = &mp_top;
 }
 
 void
