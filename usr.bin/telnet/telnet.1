@@ -42,7 +42,7 @@
 protocol
 .Sh SYNOPSIS
 .Nm
-.Op Fl 468EFKLNacdfrx
+.Op Fl u468EFKLNacdfrx
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
 .Op Fl e Ar escapechar
@@ -75,6 +75,11 @@ command with those arguments.
 .Pp
 Options:
 .Bl -tag -width indent
+.It Fl u
+Forces
+.Nm
+to use
+AF_UNIX addresses only (e.g. unix domain sockets, accessed with a file path)
 .It Fl 4
 Forces
 .Nm
@@ -205,7 +210,11 @@ option is not available outside of the United States and
 Canada.
 .It Ar host
 Indicates the official name, an alias, or the Internet address
-of a remote host.
+of a remote host. If
+.Ar host
+starts with a /,
+.Nm
+establishes a connection to the corresponding named socket.
 .It Ar port
 Indicates a port number (address of an application).  If a number is
 not specified, the default
