@@ -110,12 +110,14 @@ main(int argc, char *argv[])
 			printf("?Invalid command\n");
 			exit(1);
 		}
-		if (c->c_priv && getuid() && ingroup(LPR_OPER) == 0) {
+		if ((c->c_opts & LPC_PRIVCMD) && getuid() &&
+		    ingroup(LPR_OPER) == 0) {
 			printf("?Privileged command\n");
 			exit(1);
 		}
 		if (c->c_generic != 0)
-			generic(c->c_generic, c->c_handler, argc, argv);
+			generic(c->c_generic, c->c_opts, c->c_handler,
+			    argc, argv);
 		else
 			(*c->c_handler)(argc, argv);
 		exit(0);
@@ -210,7 +212,8 @@ cmdscanner(void)
 			printf("?Invalid command\n");
 			continue;
 		}
-		if (c->c_priv && getuid() && ingroup(LPR_OPER) == 0) {
+		if ((c->c_opts & LPC_PRIVCMD) && getuid() &&
+		    ingroup(LPR_OPER) == 0) {
 			printf("?Privileged command\n");
 			continue;
 		}
@@ -223,7 +226,8 @@ cmdscanner(void)
 		 * initial parameter processing.
 		 */
 		if (c->c_generic != 0)
-			generic(c->c_generic, c->c_handler, margc, margv);
+			generic(c->c_generic, c->c_opts, c->c_handler,
+			    margc, margv);
 		else
 			(*c->c_handler)(margc, margv);
 	}
