@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.576 1999/04/09 21:14:56 nik Exp $
+#	$Id: LINT,v 1.577 1999/04/10 15:23:12 n_hibma Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -2125,5 +2125,13 @@ device        uhid0
 # Generic USB device driver
 device        ugen0
 #
+options       UHCI_DEBUG
+options       OHCI_DEBUG
 options       USB_DEBUG
-options       USBVERBOSE
+options       UHUB_DEBUG
+options       UMS_DEBUG
+options       UKBD_DEBUG
+options       UMASS_DEBUG
+options       UHID_DEBUG
+options       UGEN_DEBUG
+options       ULPT_DEBUG
