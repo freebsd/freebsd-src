@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Paul Borman at Krystal Technologies.
+ * Copyright (c) 2002, 2003 Tim J. Robbins.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,18 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -38,24 +28,30 @@
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
-#include <stddef.h>
-#include <rune.h>
+#include <string.h>
+#include <wchar.h>
 
 int
 mbtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n)
 {
-	const char *e;
-	rune_t r;
+	size_t rval;
 
 	if (s == NULL)
 		/* No support for state dependent encodings. */
-		return (0);	
-	if ((r = sgetrune(s, n, &e)) == _INVALID_RUNE) {
-		errno = EILSEQ;
+		return (0);
+	/*
+	 * We pass NULL as the state pointer to mbrtowc() because we don't
+	 * support state-dependent encodings and don't want to waste time
+	 * creating a zeroed mbstate_t that will not be used.
+	 */
+	rval = mbrtowc(pwc, s, n, NULL);
+	if (rval == (size_t)-1 || rval == (size_t)-2)
+		return (-1);
+	if (rval > INT_MAX) {
+		errno = ERANGE;
 		return (-1);
 	}
-	if (pwc != NULL)
-		*pwc = r;
-	return (r == 0 ? 0 : e - s);
+	return ((int)rval);
 }
