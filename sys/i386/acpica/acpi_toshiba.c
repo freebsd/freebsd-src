@@ -147,6 +147,8 @@ static void	acpi_toshiba_notify(ACPI_HANDLE h, UINT32 notify,
 static int	acpi_toshiba_video_probe(device_t dev);
 static int	acpi_toshiba_video_attach(device_t dev);
 
+ACPI_SERIAL_DECL(toshiba, "ACPI Toshiba Extras");
+
 /* Table of sysctl names and HCI functions to call. */
 static struct {
 	char		*name;
@@ -292,18 +294,21 @@ acpi_toshiba_sysctl(SYSCTL_HANDLER_ARGS)
 	handler = sysctl_table[function].handler;
 
 	/* Get the current value from the appropriate function. */
+	ACPI_SERIAL_BEGIN(toshiba);
 	error = handler(sc->handle, HCI_GET, &arg);
 	if (error != 0)
-		return (error);
+		goto out;
 
 	/* Send the current value to the user and return if no new value. */
 	error = sysctl_handle_int(oidp, &arg, 0, req);
 	if (error != 0 || req->newptr == NULL)
-		return (error);
+		goto out;
 
 	/* Set the new value via the appropriate function. */
 	error = handler(sc->handle, HCI_SET, &arg);
 
+out:
+	ACPI_SERIAL_END(toshiba);
 	return (error);
 }
 
@@ -312,6 +317,7 @@ hci_force_fan(ACPI_HANDLE h, int op, UINT32 *state)
 {
 	int		ret;
 
+	ACPI_SERIAL_ASSERT(toshiba);
 	if (op == HCI_SET) {
 		if (*state < 0 || *state > 1)
 			return (EINVAL);
@@ -329,6 +335,7 @@ hci_video_output(ACPI_HANDLE h, int op, UINT32 *video_output)
 	int		ret;
 	ACPI_STATUS	status;
 
+	ACPI_SERIAL_ASSERT(toshiba);
 	if (op == HCI_SET) {
 		if (*video_output < 1 || *video_output > 7)
 			return (EINVAL);
@@ -354,6 +361,7 @@ hci_lcd_brightness(ACPI_HANDLE h, int op, UINT32 *brightness)
 {
 	int		ret;
 
+	ACPI_SERIAL_ASSERT(toshiba);
 	if (op == HCI_SET) {
 		if (*brightness < 0 || *brightness > HCI_LCD_BRIGHTNESS_MAX)
 			return (EINVAL);
@@ -368,6 +376,8 @@ hci_lcd_brightness(ACPI_HANDLE h, int op, UINT32 *brightness)
 static int
 hci_lcd_backlight(ACPI_HANDLE h, int op, UINT32 *backlight)
 {
+
+	ACPI_SERIAL_ASSERT(toshiba);
 	if (op == HCI_SET) {
 		if (*backlight < 0 || *backlight > 1)
 			return (EINVAL);
@@ -380,6 +390,7 @@ hci_cpu_speed(ACPI_HANDLE h, int op, UINT32 *speed)
 {
 	int		ret;
 
+	ACPI_SERIAL_ASSERT(toshiba);
 	if (op == HCI_SET) {
 		if (*speed < 0 || *speed > HCI_CPU_SPEED_MAX)
 			return (EINVAL);
@@ -400,6 +411,7 @@ hci_call(ACPI_HANDLE h, int op, int function, UINT32 *arg)
 	ACPI_OBJECT	*res;
 	int		status, i, ret;
 
+	ACPI_SERIAL_ASSERT(toshiba);
 	status = ENXIO;
 
 	for (i = 0; i < HCI_WORDS; i++) {
@@ -433,6 +445,9 @@ hci_call(ACPI_HANDLE h, int op, int function, UINT32 *arg)
 		/*
 		 * Sometimes system events are disabled without us requesting
 		 * it.  This workaround attempts to re-enable them.
+		 *
+		 * XXX This call probably shouldn't be recursive.  Queueing
+		 * a task via AcpiOsQueueForExecution() might be better.
 		 */
 		 i = 1;
 		 hci_call(h, HCI_SET, HCI_REG_SYSTEM_EVENT, &i);
@@ -454,6 +469,7 @@ hci_key_action(struct acpi_toshiba_softc *sc, ACPI_HANDLE h, UINT32 key)
 {
 	UINT32		arg;
 
+	ACPI_SERIAL_ASSERT(toshiba);
 	switch (key) {
 	case FN_F6_RELEASE:
 		/* Decrease LCD brightness. */
@@ -501,10 +517,12 @@ acpi_toshiba_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	sc = (struct acpi_toshiba_softc *)context;
 
 	if (notify == 0x80) {
+		ACPI_SERIAL_BEGIN(toshiba);
 		while (hci_call(h, HCI_GET, HCI_REG_SYSTEM_EVENT, &key) == 0) {
 			hci_key_action(sc, h, key);
 			acpi_UserNotify("TOSHIBA", h, (uint8_t)key);
 		}
+		ACPI_SERIAL_END(toshiba);
 	} else
 		device_printf(sc->dev, "unknown notify: 0x%x\n", notify);
 }
