@@ -109,36 +109,36 @@ __FBSDID("$FreeBSD$");
 
 typedef	char	bool;
 
-FILE		*msgsrc;
-FILE		*newmsg;
-const char	*sep = "-";
-char		inbuf[BUFSIZ];
-char		fname[MAXPATHLEN];
-char		cmdbuf[MAXPATHLEN + MAXPATHLEN];
-char		subj[128];
-char		from[128];
-char		date[128];
-char		*ptr;
-char		*in;
-bool		local;
-bool		ruptible;
-bool		totty;
-bool		seenfrom;
-bool		seensubj;
-bool		blankline;
-bool		printing = NO;
-bool		mailing = NO;
-bool		quitit = NO;
-bool		sending = NO;
-bool		intrpflg = NO;
-uid_t		uid;
-int		msg;
-int		prevmsg;
-int		lct;
-int		nlines;
-int		Lpp = 0;
-time_t		t;
-time_t		keep;
+FILE	*msgsrc;
+FILE	*newmsg;
+const char *sep = "-";
+char	inbuf[BUFSIZ];
+char	fname[MAXPATHLEN];
+char	cmdbuf[MAXPATHLEN + MAXPATHLEN];
+char	subj[128];
+char	from[128];
+char	date[128];
+char	*ptr;
+char	*in;
+bool	local;
+bool	ruptible;
+bool	totty;
+bool	seenfrom;
+bool	seensubj;
+bool	blankline;
+bool	printing = NO;
+bool	mailing = NO;
+bool	quitit = NO;
+bool	sending = NO;
+bool	intrpflg = NO;
+uid_t	uid;
+int	msg;
+int	prevmsg;
+int	lct;
+int	nlines;
+int	Lpp = 0;
+time_t	t;
+time_t	keep;
 
 /* option initialization */
 bool	hdrs = NO;
@@ -152,16 +152,16 @@ bool	lastcmd = NO;
 jmp_buf	tstpbuf;
 
 
-void		ask(const char *);
-void		gfrsub(FILE *);
-int		linecnt(FILE *);
-int		main(int, char *[]);
-int		next(char *);
-char		*nxtfld(unsigned char *);
-void		onsusp(int);
-void		onintr(int);
-void		prmesg(int);
-static void	usage(void);
+void	ask(const char *);
+void	gfrsub(FILE *);
+int	linecnt(FILE *);
+int	main(int, char *[]);
+int	next(char *);
+char	*nxtfld(unsigned char *);
+void	onsusp(int);
+void	onintr(int);
+void	prmesg(int);
+static void usage(void);
 
 int
 main(argc, argv)
@@ -450,7 +450,7 @@ int argc; char *argv[];
 			Lpp = win.ws_row;
 		if (Lpp <= 0) {
 			if (tgetent(inbuf, getenv("TERM")) <= 0
-			    || (Lpp = tgetnum(__DECONST(char *, "li"))) <= 0) {
+			    || (Lpp = tgetnum("li")) <= 0) {
 				Lpp = NLINES;
 			}
 		}
