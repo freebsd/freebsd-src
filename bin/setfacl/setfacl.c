@@ -70,15 +70,15 @@ get_file_acls(const char *filename)
 	}
 
 	acl = zmalloc(sizeof(acl_t) * 2);
-	acl[0] = acl_get_file(filename, ACL_TYPE_ACCESS);
-	if (acl[0] == NULL)
+	acl[ACCESS_ACL] = acl_get_file(filename, ACL_TYPE_ACCESS);
+	if (acl[ACCESS_ACL] == NULL)
 		err(1, "acl_get_file() failed");
 	if (S_ISDIR(sb.st_mode)) {
-		acl[1] = acl_get_file(filename, ACL_TYPE_DEFAULT);
-		if (acl[1] == NULL)
+		acl[DEFAULT_ACL] = acl_get_file(filename, ACL_TYPE_DEFAULT);
+		if (acl[DEFAULT_ACL] == NULL)
 			err(1, "acl_get_file() failed");
 	} else
-		acl[1] = NULL;
+		acl[DEFAULT_ACL] = NULL;
 
 	return (acl);
 }
@@ -230,9 +230,9 @@ main(int argc, char *argv[])
 		}
 
 		if (acl_type == ACL_TYPE_ACCESS)
-			final_acl = acl[0];
+			final_acl = acl[ACCESS_ACL];
 		else
-			final_acl = acl[1];
+			final_acl = acl[DEFAULT_ACL];
 
 		if (need_mask && (set_acl_mask(&final_acl) == -1)) {
 			warnx("failed to set ACL mask on %s", file->filename);
@@ -243,8 +243,8 @@ main(int argc, char *argv[])
 			warn("acl_set_file() failed for %s", file->filename);
 		}
 
-		acl_free(acl[0]);
-		acl_free(acl[1]);
+		acl_free(acl[ACCESS_ACL]);
+		acl_free(acl[DEFAULT_ACL]);
 		free(acl);
 	}
 
