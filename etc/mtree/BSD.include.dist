@@ -122,6 +122,8 @@
     netkey
     ..
     netnatm
+        msg
+        ..
         saal
         ..
     ..
