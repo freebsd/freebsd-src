@@ -160,13 +160,13 @@ struct protosw inetsw[] = {
 #endif /* IPSEC */
 #ifdef FAST_IPSEC
 { SOCK_RAW,	&inetdomain,	IPPROTO_AH,	PR_ATOMIC|PR_ADDR,
-  ah4_input,	0,	 	0,		0,
+  ah4_input,	0,	 	ah4_ctlinput,	0,
   0,	  
   0,		0,		0,		0,
   &nousrreqs
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_ESP,	PR_ATOMIC|PR_ADDR,
-  esp4_input,	0,	 	0,		0,
+  esp4_input,	0,	 	esp4_ctlinput,	0,
   0,	  
   0,		0,		0,		0,
   &nousrreqs
