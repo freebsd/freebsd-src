@@ -196,37 +196,38 @@ dkminor()
 	echo $(($1 << 25 | ($2 / 32) << 21 | ($2 % 32) << 3 | $3 << 16 | $4))
 }
 
-# Print the hexadecimal representation of a decimal value from 0 to 15
-hexdigit () {
+# Print the hexadecimal representation of a decimal value from 0 to 15.
+hexdigit() {
+	local d
+
 	if [ $1 -lt 10 ]; then
-		echo $1
+		d=$1
 	else
 		case $1 in
-		10)	echo a ;;
-		11)	echo b ;;
-		12)	echo c ;;
-		13)	echo d ;;
-		14)	echo e ;;
-		15)	echo f ;;
+		10) d=a;; 11) d=b;; 12) d=c;; 13) d=d;; 14) d=e;; 15) d=f;;
+		*) d="?";;
 		esac
 	fi
+	echo $d
 }
 
-# Print the hexadecimal representation of an arbitrary decimal value
-hexprint () {
+# Print the hexadecimal representation of an arbitrary decimal value.
+hexprint() {
+	local dig
+	local str
+	local val
+
 	val=$1
 	str=''
-
-	dig=`hexdigit $((${val} & 15))`
-	str=${dig}${str}
-	val=$((${val} >> 4))
-	while [ ${val} -gt 0 ]; do
-		dig=`hexdigit $((${val} & 15))`
-		str=${dig}${str}
-		val=$((${val} >> 4))
+	dig=`hexdigit $(($val & 15))`
+	str=$dig$str
+	val=$(($val >> 4))
+	while [ $val -gt 0 ]; do
+		dig=`hexdigit $(($val & 15))`
+		str=$dig$str
+		val=$(($val >> 4))
 	done
-
-	echo ${str}
+	echo $str
 }
 
 # Override mknod(2) to add extra handling to it.
@@ -269,19 +270,20 @@ ttyminor()
 # Convert a unit number to a minor number.
 unit2minor()
 {
-  echo $(((($1 >> 8) << 16) | ($1 % 256)))
+	echo $(((($1 >> 8) << 16) | ($1 % 256)))
 }
 
-# Zero-pad a value to the appropriate minimum length
-zeropad () {
+# Zero-pad a value to the appropriate minimum length.
+zeropad() {
+	local min
+	local val
+
 	min=$1
 	val=$2
-
-	while [ ${#val} -lt ${min} ]; do
-		val=0${val}
+	while [ ${#val} -lt $min ]; do
+		val=0$val
 	done
-
-	echo ${val}
+	echo $val
 }
 
 # Raw partition for disks
