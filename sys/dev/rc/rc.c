@@ -387,15 +387,15 @@ rcintr(unit)
 						  works even if IGN* is set.
 						*/
 						if (   !(iack & (RCSR_PE|RCSR_FE|RCSR_Break))
-						    || (!(iack & (RCSR_PE|RCSR_FE))
+						    || ((!(iack & (RCSR_PE|RCSR_FE))
 						    ||  !(rc->rc_tp->t_iflag & IGNPAR))
 						    && (!(iack & RCSR_Break)
-						    ||  !(rc->rc_tp->t_iflag & IGNBRK))) {
+						    ||  !(rc->rc_tp->t_iflag & IGNBRK)))) {
 							if (   (iack & (RCSR_PE|RCSR_FE))
 							    && (t_state & TS_CAN_BYPASS_L_RINT)
 							    && ((iack & RCSR_FE)
-							    ||  (iack & RCSR_PE)
-							    &&  (rc->rc_tp->t_iflag & INPCK)))
+							    ||  ((iack & RCSR_PE)
+							    &&  (rc->rc_tp->t_iflag & INPCK))))
 								val = 0;
 							else if (val != 0 && val == rc->rc_hotchar)
 								setsofttty();
@@ -851,9 +851,9 @@ register struct rc_chans *rc;
 	/* Disable rx/tx intrs */
 	rcout(CD180_IER, rc->rc_ier = 0);
 	if (   (tp->t_cflag & HUPCL)
-	    || !(rc->rc_flags & RC_ACTOUT)
+	    || (!(rc->rc_flags & RC_ACTOUT)
 	       && !(rc->rc_msvr & MSVR_CD)
-	       && !(tp->t_cflag & CLOCAL)
+	       && !(tp->t_cflag & CLOCAL))
 	    || !(tp->t_state & TS_ISOPEN)
 	   ) {
 		CCRCMD(rc->rc_rcb->rcb_unit, rc->rc_chan, CCR_ResetChan);
