@@ -31,7 +31,7 @@ SI386=	${SYS}/i386/apm/*.[ch] ${SYS}/i386/eisa/*.[ch] \
 AI386=	${SYS}/i386/i386/*.s
 
 tags::
-	-ctags -wdt ${COMM} ${I386}
+	-ctags -wdt ${COMM} ${SI386}
 	egrep "^ENTRY(.*)|^ALTENTRY(.*)" ${AI386} | \
 	    sed "s;\([^:]*\):\([^(]*\)(\([^, )]*\)\(.*\);\3 \1 /^\2(\3\4$$/;" \
 		>> tags
