@@ -110,7 +110,7 @@ msdosfs_filestat(vp, fsp)
 		}
 	}
 
-	fsp->fsid = dev2udev(denode.de_dev) & 0xffff;
+	fsp->fsid = dev2udev(denode.de_dev);
 	fsp->mode = 0555;
 	fsp->mode |= denode.de_Attributes & ATTR_READONLY ? 0 : 0222;
 	fsp->mode &= mnt->data.pm_mask;
