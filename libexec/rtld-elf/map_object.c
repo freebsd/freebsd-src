@@ -56,10 +56,10 @@ map_object(int fd, const char *path, const struct stat *sb)
 	Elf_Ehdr hdr;
 	char buf[PAGE_SIZE];
     } u;
-    int nbytes;
+    int nbytes, i;
     Elf_Phdr *phdr;
     Elf_Phdr *phlimit;
-    Elf_Phdr *segs[2];
+    Elf_Phdr **segs;
     int nsegs;
     Elf_Phdr *phdyn;
     Elf_Phdr *phphdr;
@@ -74,8 +74,10 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Addr data_vaddr;
     Elf_Addr data_vlimit;
     caddr_t data_addr;
+    int data_prot;
     Elf_Addr clear_vaddr;
     caddr_t clear_addr;
+    caddr_t clear_page;
     size_t nclear;
     Elf_Addr bss_vaddr;
     Elf_Addr bss_vlimit;
@@ -137,8 +139,9 @@ map_object(int fd, const char *path, const struct stat *sb)
      */
     phdr = (Elf_Phdr *) (u.buf + u.hdr.e_phoff);
     phlimit = phdr + u.hdr.e_phnum;
-    nsegs = 0;
+    nsegs = -1;
     phdyn = phphdr = phinterp = NULL;
+    segs = alloca(sizeof(segs[0]) * u.hdr.e_phnum);
     while (phdr < phlimit) {
 	switch (phdr->p_type) {
 
@@ -147,12 +150,12 @@ map_object(int fd, const char *path, const struct stat *sb)
 	    break;
 
 	case PT_LOAD:
-	    if (nsegs >= 2) {
-		_rtld_error("%s: too many PT_LOAD segments", path);
+	    segs[++nsegs] = phdr;
+    	    if (segs[nsegs]->p_align < PAGE_SIZE) {
+		_rtld_error("%s: PT_LOAD segment %d not page-aligned",
+		    path, nsegs);
 		return NULL;
 	    }
-	    segs[nsegs] = phdr;
-	    ++nsegs;
 	    break;
 
 	case PT_PHDR:
@@ -171,12 +174,8 @@ map_object(int fd, const char *path, const struct stat *sb)
 	return NULL;
     }
 
-    if (nsegs < 2) {
+    if (nsegs < 0) {
 	_rtld_error("%s: too few PT_LOAD segments", path);
-	return NULL;
-    }
-    if (segs[0]->p_align < PAGE_SIZE || segs[1]->p_align < PAGE_SIZE) {
-	_rtld_error("%s: PT_LOAD segments not page-aligned", path);
 	return NULL;
     }
 
@@ -186,7 +185,7 @@ map_object(int fd, const char *path, const struct stat *sb)
      */
     base_offset = trunc_page(segs[0]->p_offset);
     base_vaddr = trunc_page(segs[0]->p_vaddr);
-    base_vlimit = round_page(segs[1]->p_vaddr + segs[1]->p_memsz);
+    base_vlimit = round_page(segs[nsegs]->p_vaddr + segs[nsegs]->p_memsz);
     mapsize = base_vlimit - base_vaddr;
     base_addr = u.hdr.e_type == ET_EXEC ? (caddr_t) base_vaddr : NULL;
 
@@ -204,32 +203,51 @@ map_object(int fd, const char *path, const struct stat *sb)
 	return NULL;
     }
 
-    /* Overlay the data segment onto the proper region. */
-    data_offset = trunc_page(segs[1]->p_offset);
-    data_vaddr = trunc_page(segs[1]->p_vaddr);
-    data_vlimit = round_page(segs[1]->p_vaddr + segs[1]->p_filesz);
-    data_addr = mapbase + (data_vaddr - base_vaddr);
-    if (mmap(data_addr, data_vlimit - data_vaddr, protflags(segs[1]->p_flags),
-      MAP_PRIVATE|MAP_FIXED, fd, data_offset) == (caddr_t) -1) {
-	_rtld_error("%s: mmap of data failed: %s", path, strerror(errno));
-	return NULL;
-    }
-
-    /* Clear any BSS in the last page of the data segment. */
-    clear_vaddr = segs[1]->p_vaddr + segs[1]->p_filesz;
-    clear_addr = mapbase + (clear_vaddr - base_vaddr);
-    if ((nclear = data_vlimit - clear_vaddr) > 0)
-	memset(clear_addr, 0, nclear);
-
-    /* Overlay the BSS segment onto the proper region. */
-    bss_vaddr = data_vlimit;
-    bss_vlimit = round_page(segs[1]->p_vaddr + segs[1]->p_memsz);
-    bss_addr = mapbase +  (bss_vaddr - base_vaddr);
-    if (bss_vlimit > bss_vaddr) {	/* There is something to do */
-	if (mmap(bss_addr, bss_vlimit - bss_vaddr, protflags(segs[1]->p_flags),
-	  MAP_PRIVATE|MAP_FIXED|MAP_ANON, -1, 0) == (caddr_t) -1) {
-	    _rtld_error("%s: mmap of bss failed: %s", path, strerror(errno));
+    for (i = 0; i <=  nsegs; i++) {
+	/* Overlay the segment onto the proper region. */
+	data_offset = trunc_page(segs[i]->p_offset);
+	data_vaddr = trunc_page(segs[i]->p_vaddr);
+	data_vlimit = round_page(segs[i]->p_vaddr + segs[i]->p_filesz);
+	data_addr = mapbase + (data_vaddr - base_vaddr);
+	data_prot = protflags(segs[i]->p_flags);
+	/* Do not call mmap on the first segment - this is redundant */
+	if (i && mmap(data_addr, data_vlimit - data_vaddr, data_prot,
+	  MAP_PRIVATE|MAP_FIXED, fd, data_offset) == (caddr_t) -1) {
+	    _rtld_error("%s: mmap of data failed: %s", path, strerror(errno));
 	    return NULL;
+	}
+
+	/* Clear any BSS in the last page of the segment. */
+	clear_vaddr = segs[i]->p_vaddr + segs[i]->p_filesz;
+	clear_addr = mapbase + (clear_vaddr - base_vaddr);
+	clear_page = mapbase + (trunc_page(clear_vaddr) - base_vaddr);
+	if ((nclear = data_vlimit - clear_vaddr) > 0) {
+	    /* Make sure the end of the segment is writable */
+	    if ((data_prot & PROT_WRITE) == 0 &&
+		-1 ==  mprotect(clear_page, PAGE_SIZE, data_prot|PROT_WRITE)) {
+			_rtld_error("%s: mprotect failed: %s", path,
+			    strerror(errno));
+			return NULL;
+	    }
+
+	    memset(clear_addr, 0, nclear);
+
+	    /* Reset the data protection back */
+	    if ((data_prot & PROT_WRITE) == 0)
+		 mprotect(clear_page, PAGE_SIZE, data_prot);
+	}
+
+	/* Overlay the BSS segment onto the proper region. */
+	bss_vaddr = data_vlimit;
+	bss_vlimit = round_page(segs[i]->p_vaddr + segs[i]->p_memsz);
+	bss_addr = mapbase +  (bss_vaddr - base_vaddr);
+	if (bss_vlimit > bss_vaddr) {	/* There is something to do */
+	    if (mmap(bss_addr, bss_vlimit - bss_vaddr, data_prot,
+		MAP_PRIVATE|MAP_FIXED|MAP_ANON, -1, 0) == (caddr_t) -1) {
+		    _rtld_error("%s: mmap of bss failed: %s", path,
+			strerror(errno));
+		return NULL;
+	    }
 	}
     }
 
