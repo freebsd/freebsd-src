@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.65 1998/05/31 19:07:47 peter Exp $
+ * $Id: nfs_serv.c,v 1.66 1998/05/31 19:10:52 peter Exp $
  */
 
 /*
@@ -2908,7 +2908,7 @@ again:
 	 * increase.
 	 */
 	while (cpos < cend && ncookies > 0 &&
-		(dp->d_fileno == 0 || dp->d_type == DT_WHT) ||
+		(dp->d_fileno == 0 || dp->d_type == DT_WHT ||
 		 ((u_quad_t)(*cookiep)) <= toff)) {
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
