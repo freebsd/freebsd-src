@@ -129,6 +129,10 @@ main(void)
 	if (devsw[i]->dv_init != NULL)
 	    (devsw[i]->dv_init)();
     printf("BIOS %dkB/%dkB available memory\n", bios_basemem / 1024, bios_extmem / 1024);
+    if (initial_bootinfo != NULL) {
+	initial_bootinfo->bi_basemem = bios_basemem / 1024;
+	initial_bootinfo->bi_extmem = bios_extmem / 1024;
+    }
 
     /* detect ACPI for future reference */
     biosacpi_detect();
