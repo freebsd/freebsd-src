@@ -1,0 +1,90 @@
+$FreeBSD$
+
+libarchive: a library for reading and writing streaming archives
+
+This is all under a BSD license.  Use, enjoy, but don't blame me if it breaks!
+
+As of February, 2004, the library proper is fairly complete and compiles
+cleanly on FreeBSD 5-CURRENT.  The API should be stable now.
+
+Documentation:
+ * libarchive(3) gives an overview of the library as a whole
+ * archive_read(3) and archive_write(3) provide detailed calling
+   sequences for the read and write APIs
+ * archive_entry(3) details the "struct archive_entry" utility class
+ * tar(5) documents the "tar" file formats supported by the library
+
+You should also read the copious comments in "archive.h" and the source
+code for the sample "bsdtar" program for more details.  Please let me know
+about any errors or omissions you find.  (In particular, I no doubt missed
+a few things when researching the tar(5) page.)
+
+Notes:
+ * This is a heavily stream-oriented system.  There is no direct
+   support for in-place modification or random access and no intention
+   of ever adding such support.  Adding such support would require
+   sacrificing a lot of other features, so don't bother asking.
+
+ * The library is designed to be extended with new compression and
+   archive formats.  The only requirement is that the format be
+   readable or writable as a stream and that each archive entry be
+   independent.  For example, zip archives can't be written as a
+   stream because they require the compressed size of the data as part
+   of the file header.  Similarly, some file attributes for zip
+   archives can't be extracted when streaming because those attributes
+   are only stored in the end-of-archive central directory and thus
+   aren't available when the corresponding entry is actually
+   extracted.
+
+ * Under certain circumstances, you can append entries to an archive
+   by opening the file for reading, skimming to the end of the archive,
+   noting the file location, then opening it for write with a custom write
+   callback that seeks to the appropriate position before writing.  Be
+   sure to not enable any compression support if you do this!
+
+ * Compression and blocking are handled implicitly and, as far as
+   possible, transparently.  All archive I/O is correctly blocked, even if
+   it's compressed.  On read, the compression format is detected
+   automatically and the appropriate decompressor is invoked.
+
+ * It should be easy to implement a system that reads one
+   archive and writes entries to another archive, omitting
+   or adding entries as appropriate along the way.  This permits
+   "re-writing" of archive streams in lieu of in-place modification.
+   bsdtar has some code to demonstrate this.
+
+ * The archive itself is read/written using callback functions.
+   You can read an archive directly from an in-memory buffer or
+   write it to a socket, if you wish.  There are some utility
+   functions to provide easy-to-use "open file," etc, capabilities.
+
+ * The read/write APIs are designed to allow individual entries
+   to be read or written to any data source:  You can create
+   a block of data in memory and add it to a tar archive without
+   first writing a temporary file.  You can also read an entry from
+   an archive and write the data directly to a socket.  If you want
+   to read/write entries to disk, there are convenience functions to
+   make this especially easy.
+
+ * Read supports most common tar formats, including GNU tar,
+   POSIX-compliant "ustar interchange format", and the
+   shiny-and-improved POSIX "pax extended interchange format."  The
+   pax format, in particular, eliminates most of the traditional tar
+   limitations in a standard way that is increasingly well supported.
+   (GNU tar notably does not support "pax interchange format"; the
+   GPL-licensed 'star' archiver does, however.)  GNU format is only
+   incompletely supported at this time; if you really need GNU-format
+   sparse file support, volume headers, or GNU-format split archives,
+   let me know.
+
+   There's also support for a grab-bag of non-tar formats, including
+   POSIX cpio and shar.
+
+ * When writing tar formats, consider using "pax restricted" format
+   by default.  This avoids the pax extensions whenever it can, enabling
+   them only on entries that cannot be correctly archived with ustar
+   format.  Thus, you get the broad compatibility of ustar with the
+   safety of pax's support for very long filenames, etc.
+
+ * Note: "pax interchange format" is really an extended tar format,
+   despite what the name says.
