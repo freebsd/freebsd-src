@@ -173,7 +173,7 @@ vi_prev_space_word(el, c)
     el->el_line.cursor = cv_prev_word(el, el->el_line.cursor,
 				      el->el_line.buffer,
 			 	      el->el_state.argument,
-				      cv__isword);
+				      c___isword);
 
     if (el->el_chared.c_vcmd.action & DELETE) {
 	cv_delfini(el);
@@ -186,7 +186,7 @@ vi_prev_space_word(el, c)
 
 /* vi_prev_word():
  *	Vi move to the previous word
- *	[B]
+ *	[b]
  */
 protected el_action_t
 /*ARGSUSED*/
@@ -200,7 +200,7 @@ vi_prev_word(el, c)
     el->el_line.cursor = cv_prev_word(el, el->el_line.cursor,
 				      el->el_line.buffer,
 			 	      el->el_state.argument,
-				      ce__isword);
+				      cv__isword);
 
     if (el->el_chared.c_vcmd.action & DELETE) {
 	cv_delfini(el);
@@ -227,7 +227,7 @@ vi_next_space_word(el, c)
     el->el_line.cursor = cv_next_word(el, el->el_line.cursor,
 				      el->el_line.lastchar,
 				      el->el_state.argument,
-				      cv__isword);
+				      c___isword);
 
     if (el->el_map.type == MAP_VI)
 	if (el->el_chared.c_vcmd.action & DELETE) {
@@ -254,7 +254,7 @@ vi_next_word(el, c)
     el->el_line.cursor = cv_next_word(el, el->el_line.cursor,
 				      el->el_line.lastchar,
 				      el->el_state.argument,
-				      ce__isword);
+				      cv__isword);
 
     if (el->el_map.type == MAP_VI)
 	if (el->el_chared.c_vcmd.action & DELETE) {
@@ -346,7 +346,7 @@ vi_replace_char(el, c)
     el->el_chared.c_undo.ptr = el->el_line.cursor;
     el->el_chared.c_undo.isize = 0;
     el->el_chared.c_undo.dsize = 0;
-    return CC_NORM;
+    return CC_ARGHACK;
 }
 
 
@@ -366,13 +366,13 @@ vi_replace_mode(el, c)
     el->el_chared.c_undo.ptr = el->el_line.cursor;
     el->el_chared.c_undo.isize = 0;
     el->el_chared.c_undo.dsize = 0;
-    return CC_NORM;
+    return CC_ARGHACK;
 }
 
 
 /* vi_substitute_char():
  *	Vi replace character under the cursor and enter insert mode
- *	[r]
+ *	[s]
  */
 protected el_action_t
 /*ARGSUSED*/
@@ -448,7 +448,8 @@ vi_add(el, c)
     EditLine *el;
     int c;
 {
-    int ret;
+    el_action_t ret;
+
     el->el_map.current = el->el_map.key;
     if (el->el_line.cursor < el->el_line.lastchar) {
 	el->el_line.cursor++;
@@ -661,6 +662,21 @@ vi_undo(el, c)
     }
 
     return CC_REFRESH;
+}
+
+
+/* vi_undo_line():
+ *	Vi undo all changes
+ *	[U]
+ */
+protected el_action_t
+/*ARGSUSED*/
+vi_undo_line(el, c)
+    EditLine *el;
+    int c;
+{
+
+    return hist_get(el);
 }
 
 

@@ -196,10 +196,10 @@ read_getcmd(el, cmdnum, ch)
     el_action_t *cmdnum;
     char *ch;
 {
-    el_action_t  cmd = 0;
+    el_action_t  cmd = ED_UNASSIGNED;
     int     num;
 
-    while (cmd == 0 || cmd == ED_SEQUENCE_LEAD_IN) {
+    while (cmd == ED_UNASSIGNED || cmd == ED_SEQUENCE_LEAD_IN) {
 	if ((num = el_getc(el, ch)) != 1)	/* if EOF or error */
 	    return num;
 
