@@ -184,6 +184,9 @@ main(argc, argv)
 #undef IPSECOPT
 	{
 		switch(ch) {
+		case 'u':
+			family = AF_UNIX;
+			break;
 		case '4':
 			family = AF_INET;
 			break;
