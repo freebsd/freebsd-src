@@ -13,9 +13,17 @@ CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 		termstat.c utility.c authenc.c
 
-DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBMP} ${LIBCRYPTO} \
+DPADD=
+LDADD=
+
+.if defined(MAKE_KERBEROS4)
+DPADD+=		${LIBKRB} ${LIBCOM_ERR}
+LDADD+=		-lkrb -lcom_err
+.endif
+
+DPADD+=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBMP} ${LIBCRYPTO} \
 		${LIBCRYPT} ${LIBPAM}
-LDADD=		-lutil -ltermcap ${LIBTELNET} -lmp -lcrypto \
+LDADD+=		-lutil -ltermcap ${LIBTELNET} -lmp -lcrypto \
 		-lcrypt ${MINUSLPAM}
 
 .include <bsd.prog.mk>
