@@ -128,6 +128,12 @@ int des_cfb64_encrypt(unsigned char *in, unsigned char *out, long length,
 int des_ofb64_encrypt(unsigned char *in, unsigned char *out, long length,
 	des_key_schedule schedule, des_cblock *ivec, int *num);
 void des_cblock_print_file(des_cblock *cb, FILE *fp);
+int des_new_random_key(des_cblock *key);
+void des_init_random_number_generator(des_cblock *key);
+void des_set_random_generator_seed(des_cblock *key);
+void des_set_sequence_number(des_cblock new_sequence_number);
+void des_generate_random_block(des_cblock *block);
+
 #else
 
 int des_2ecb_encrypt();
@@ -166,5 +172,10 @@ int des_string_to_2keys();
 int des_cfb64_encrypt();
 int des_ofb64_encrypt();
 void des_cblock_print_file();
+int des_new_random_key();
+void des_init_random_number_generator();
+void des_set_random_generator_seed();
+void des_set_sequence_number();
+void des_generate_random_block();
 #endif
 #endif
