@@ -57,6 +57,7 @@ extern int sc_height;
 extern int sc_window;
 extern int curr_ac;
 extern int ac;
+extern char **av;
 extern int quitting;
 extern int scroll;
 extern int screen_trashed;	/* The screen has been overwritten */
@@ -511,6 +512,10 @@ again:		if (sigs)
 			    number, wsearch);
 			break;
 		case A_HELP:			/* help */
+			if (!strcmp(_PATH_HELPFILE, av[curr_ac])) {
+				error("Already viewing help.");
+				break;
+			}
 			lower_left();
 			clear_eol();
 			putstr("help");
@@ -633,7 +638,6 @@ editfile()
 showlist()
 {
 	extern int sc_width;
-	extern char **av;
 	register int indx, width;
 	int len;
 	char *p;
