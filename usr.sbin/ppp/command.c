@@ -597,7 +597,6 @@ static struct cmdtab const NatCommands[] =
    (const void *) PKT_ALIAS_LOG},
   {"port", NULL, nat_RedirectPort, LOCAL_AUTH, "port redirection",
    "nat port proto localaddr:port[-port] aliasport[-aliasport]"},
-  {"pptp", NULL, nat_Pptp, LOCAL_AUTH, "Set the PPTP address", "nat pptp IP"},
   {"proxy", NULL, nat_ProxyRule, LOCAL_AUTH,
    "proxy control", "nat proxy server host[:port] ..."},
   {"same_ports", NULL, NatOption, LOCAL_AUTH,

@@ -101,3 +101,4 @@ o Unbalanced quotes in commands are now warned about and the entire command
 o It is now only necessary to escape the `-' character in chat scripts twice.
   See the example files for details.
 o Environment variables and ~ are expanded on in commands
+o ``nat pptp'' is no longer necessary as this is now done transparently
