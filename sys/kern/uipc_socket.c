@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.9 1995/02/16 01:07:43 wollman Exp $
+ * $Id: uipc_socket.c,v 1.10 1995/05/30 08:06:21 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -784,8 +784,7 @@ dontblock:
 			so->so_rcv.sb_mb = nextrecord;
 		if (pr->pr_flags & PR_WANTRCVD && so->so_pcb)
 			(*pr->pr_usrreq)(so, PRU_RCVD, (struct mbuf *)0,
-			    (struct mbuf *)flags, (struct mbuf *)0,
-			    (struct mbuf *)0);
+			    (struct mbuf *)flags, (struct mbuf *)0);
 	}
 	if (orig_resid == uio->uio_resid && orig_resid &&
 	    (flags & MSG_EOR) == 0 && (so->so_state & SS_CANTRCVMORE) == 0) {
