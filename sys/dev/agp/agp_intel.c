@@ -153,33 +153,45 @@ agp_intel_attach(device_t dev)
 	/* Install the gatt. */
 	pci_write_config(dev, AGP_INTEL_ATTBASE, gatt->ag_physical, 4);
 	
+	/* Enable the GLTB and setup the control register. */
+	switch (type) {
+	case 0x71908086: /* 440LX/EX */
+		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x2080, 4);
+		break;
+	case 0x71808086: /* 440BX */
+		/*
+		 * XXX: Should be 0xa080?  Bit 9 is undefined, and
+		 * bit 13 being on and bit 15 being clear is illegal.
+		 */
+		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x2280, 4);
+		break;
+	default:
+		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x0080, 4);
+	}
+
 	/* Enable things, clear errors etc. */
 	switch (type) {
 	case 0x1a218086: /* i840 */
 	case 0x25308086: /* i850 */
 	case 0x25318086: /* i860 */
-		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x0000, 4);
 		pci_write_config(dev, AGP_INTEL_MCHCFG,
 				 (pci_read_config(dev, AGP_INTEL_MCHCFG, 2)
 				  | (1 << 9)), 2);
 		break;
 
 	case 0x25008086: /* i820 */
-		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x0000, 4);
 		pci_write_config(dev, AGP_INTEL_I820_RDCR,
 				 (pci_read_config(dev, AGP_INTEL_I820_RDCR, 1)
 				  | (1 << 1)), 1);
 		break;
 
 	case 0x1a308086: /* i845 */
-		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x0000, 4);
 		pci_write_config(dev, AGP_INTEL_I845_MCHCFG,
 				 (pci_read_config(dev, AGP_INTEL_I845_MCHCFG, 1)
 				  | (1 << 1)), 1);
 		break;
 
 	default: /* Intel Generic (maybe) */
-		pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x2280, 4);
 		pci_write_config(dev, AGP_INTEL_NBXCFG,
 				 (pci_read_config(dev, AGP_INTEL_NBXCFG, 4)
 				  & ~(1 << 10)) | (1 << 9), 4);
@@ -322,8 +334,11 @@ agp_intel_unbind_page(device_t dev, int offset)
 static void
 agp_intel_flush_tlb(device_t dev)
 {
-	pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x2200, 4);
-	pci_write_config(dev, AGP_INTEL_AGPCTRL, 0x2280, 4);
+	u_int32_t val;
+
+	val = pci_read_config(dev, AGP_INTEL_AGPCTRL, 4);
+	pci_write_config(dev, AGP_INTEL_AGPCTRL, val & ~(1 << 8), 4);
+	pci_write_config(dev, AGP_INTEL_AGPCTRL, val, 4);
 }
 
 static device_method_t agp_intel_methods[] = {
