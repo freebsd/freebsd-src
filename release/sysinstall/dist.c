@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.29 1995/05/28 07:05:21 phk Exp $
+ * $Id: dist.c,v 1.30 1995/05/28 09:43:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -147,11 +147,11 @@ static Distribution DistTable[] = {
 { "manpages",	"/",			&Dists,		DIST_MANPAGES,		NULL		},
 { "proflibs",	"/",			&Dists,		DIST_PROFLIBS,		NULL		},
 { "dict",	"/",			&Dists,		DIST_DICT,		NULL		},
-{ "src/",	"/",			&Dists,		DIST_SRC,		SrcDistTable	},
+{ "src",	"/",			&Dists,		DIST_SRC,		SrcDistTable	},
 { "des",	"/",			&Dists,		DIST_DES,		NULL		},
 { "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
-{ "XF86311/",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
+{ "XF86311",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
 
@@ -171,7 +171,8 @@ static Distribution SrcDistTable[] = {
 { "ssys",	"/usr/src",		&SrcDists,	DIST_SRC_SYS,		NULL		},
 { "subin",	"/usr/src",		&SrcDists,	DIST_SRC_UBIN,		NULL		},
 { "susbin",	"/usr/src",		&SrcDists,	DIST_SRC_USBIN,		NULL		},
-{ "xf86",	"/usr/X11R6/src",	&SrcDists,	DIST_SRC_XF86,		NULL		},
+{ "XF86-xc",	"/usr/X11R6/src",	&SrcDists,	DIST_SRC_XF86,		NULL		},
+{ "XF86-co",	"/usr/X11R6/src",	&SrcDists,	DIST_SRC_XF86,		NULL		},
 { NULL },
 };
 
@@ -180,7 +181,7 @@ static Distribution XF86DistTable[] = {
 { "X311bin",	"/usr",			&XF86Dists,	DIST_XF86_BIN,		NULL		},
 { "X311lib",	"/usr",			&XF86Dists,	DIST_XF86_LIB,		NULL		},
 { "X311doc",	"/usr",			&XF86Dists,	DIST_XF86_DOC,		NULL		},
-{ "Xf86311/",	"/usr",			&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
+{ "Xf86311",	"/usr",			&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
 { "X311man",	"/usr",			&XF86Dists,	DIST_XF86_MAN,		NULL		},
 { "X311prog",	"/usr",			&XF86Dists,	DIST_XF86_PROG,		NULL		},
 { "X311link",	"/usr",			&XF86Dists,	DIST_XF86_LINK,		NULL		},
@@ -188,7 +189,7 @@ static Distribution XF86DistTable[] = {
 { "X311lbx",	"/usr",			&XF86Dists,	DIST_XF86_LBX,		NULL		},
 { "X311xicf",	"/usr",			&XF86Dists,	DIST_XF86_XINIT,	NULL		},
 { "X311xdmcf",	"/usr",			&XF86Dists,	DIST_XF86_XDMCF,	NULL		},
-{ "Xf86311/",	"/usr",			&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
+{ "Xf86311",	"/usr",			&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
 { NULL },
 };
 
@@ -246,7 +247,7 @@ distExtract(char *parent, Distribution *me)
 	dist = me[i].my_name;
 	path = parent ? parent : me[i].my_name;
 
-        snprintf(buf, 512, "%s%s.tgz", path, dist);
+        snprintf(buf, 512, "%s/%s.tgz", path, dist);
 	fd = (*mediaDevice->get)(buf);
 	if (fd != -1) {
 	    status = mediaExtractDist(me[i].my_name, me[i].my_dir, fd);
@@ -257,7 +258,7 @@ distExtract(char *parent, Distribution *me)
 	    goto done;
 	}
 
-	snprintf(buf, sizeof buf, "/stand/info/%s%s.inf", path, dist);
+	snprintf(buf, sizeof buf, "/stand/info/%s/%s.inf", path, dist);
 	if (!access(buf, R_OK)) {
 	    msgDebug("Parsing attributes file for %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
@@ -279,7 +280,7 @@ distExtract(char *parent, Distribution *me)
 	msgDebug("Attempting to extract distribution from %u chunks.\n", numchunks);
 
 	if (numchunks < 2 ) {
-	    snprintf(buf, 512, "%s%s", path, dist);
+	    snprintf(buf, 512, "%s/%s", path, dist);
 	    if (numchunks)
 		strcat(buf,".aa");
 	    fd = (*mediaDevice->get)(buf);
@@ -299,7 +300,7 @@ distExtract(char *parent, Distribution *me)
 	for (chunk = 0; chunk < numchunks; chunk++) {
 	    int n, retval;
 
-	    snprintf(buf, 512, "%s%s.%c%c", path, dist,	(chunk / 26) + 'a', (chunk % 26) + 'a');
+	    snprintf(buf, 512, "%s/%s.%c%c", path, dist,	(chunk / 26) + 'a', (chunk % 26) + 'a');
 	    fd = (*mediaDevice->get)(buf);
 	    if (fd < 0) {
 		msgConfirm("failed to retreive piece file %s!\nAborting the transfer", buf);
