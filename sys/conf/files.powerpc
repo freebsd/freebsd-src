@@ -25,6 +25,7 @@ powerpc/powerpc/nexus.c		standard
 powerpc/powerpc/ofwmagic.s	standard
 powerpc/powerpc/ofw_machdep.c	standard
 powerpc/powerpc/pmap.c		standard
+powerpc/powerpc/sigcode.S	standard
 powerpc/powerpc/suswintr.c	standard
 powerpc/powerpc/syncicache.c	standard
 powerpc/powerpc/sys_machdep.c	standard
