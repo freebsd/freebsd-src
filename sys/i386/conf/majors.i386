@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.35 1998/02/24 22:08:05 phk Exp $
+$Id: majors.i386,v 1.36 1998/02/27 06:15:50 jkh Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -137,3 +137,5 @@ chrdev	name		comments
 93	coda		CODA filesystem.
 94	loran		Loran-C Receiver
 95	gd		Geometry disk
+96	altq		alternate queueing (including cbq, red, wfq)
+
