@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.12 1995/05/03 18:54:09 ache Exp $
+# $Id: Makefile,v 1.13 1995/05/08 16:08:49 ache Exp $
 
 LIB=    ncurses
 SHLIB_MAJOR= 3
@@ -25,10 +25,10 @@ beforedepend: keys.tries
 beforeinstall:
 	@cd ${.CURDIR}; for i in unctrl.h; do \
 	  cmp -s $$i ${DESTDIR}/usr/include/$$i || \
-	  $(INSTALL) $(COPY) -m 444 -o $(BINOWN) -g $(BINGRP) $$i \
+	  $(INSTALL) -c -m 444 -o $(BINOWN) -g $(BINGRP) $$i \
 	  ${DESTDIR}/usr/include; done
 	@cd ${.CURDIR}; cmp -s curses.h ${DESTDIR}/usr/include/ncurses.h || \
-	  $(INSTALL) $(COPY) -m 444 -o $(BINOWN) -g $(BINGRP) curses.h \
+	  $(INSTALL) -c -m 444 -o $(BINOWN) -g $(BINGRP) curses.h \
 	  ${DESTDIR}/usr/include/ncurses.h
 
 keys.tries: ${.CURDIR}/keys.list ${.CURDIR}/MKkeys.awk
