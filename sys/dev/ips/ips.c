@@ -248,7 +248,7 @@ static int ips_diskdev_init(ips_softc_t *sc)
 	for(i=0; i < IPS_MAX_NUM_DRIVES; i++){
 		if(sc->drives[i].state & IPS_LD_OKAY){
 			sc->diskdev[i] = device_add_child(sc->dev, NULL, -1);
-			device_set_ivars(sc->diskdev[i],(void *) i);
+			device_set_ivars(sc->diskdev[i],(void *)(uintptr_t) i);
 		}
 	}
 	if(bus_generic_attach(sc->dev)){

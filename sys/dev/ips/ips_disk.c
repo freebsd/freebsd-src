@@ -97,7 +97,7 @@ static void ipsd_strategy(struct bio *iobuf)
 
 	dsc = iobuf->bio_disk->d_drv1;	
 	DEVICE_PRINTF(8,dsc->dev,"in strategy\n");
-	(uint32_t)iobuf->bio_driver1 = dsc->sc->drives[dsc->disk_number].drivenum;
+	iobuf->bio_driver1 = (void *)(uintptr_t)dsc->sc->drives[dsc->disk_number].drivenum;
 	ips_start_io_request(dsc->sc, iobuf);
 }
 
@@ -122,7 +122,7 @@ static int ipsd_attach(device_t dev)
 	dsc->dev = dev;
 	dsc->sc = device_get_softc(adapter);
 	dsc->unit = device_get_unit(dev);
-	dsc->disk_number = (int) device_get_ivars(dev);
+	dsc->disk_number = (uintptr_t) device_get_ivars(dev);
 	dsc->ipsd_disk.d_drv1 = dsc;
 	dsc->ipsd_disk.d_name = "ipsd";
 	dsc->ipsd_disk.d_maxsize = IPS_MAX_IO_SIZE;
