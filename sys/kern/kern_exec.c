@@ -145,6 +145,7 @@ execve(td, uap)
 	struct vnode *tracevp = NULL;
 #endif
 	struct vnode *textvp = NULL;
+	int credential_changing;
 
 	imgp = &image_params;
 
@@ -378,8 +379,13 @@ interpret:
 	 * the process is being traced.
 	 */
 	oldcred = p->p_ucred;
-	if ((((attr.va_mode & VSUID) && oldcred->cr_uid != attr.va_uid) ||
-	     ((attr.va_mode & VSGID) && oldcred->cr_gid != attr.va_gid)) &&
+	credential_changing = 0;
+	credential_changing |= (attr.va_mode & VSUID) && oldcred->cr_uid !=
+	    attr.va_uid;
+	credential_changing |= (attr.va_mode & VSGID) && oldcred->cr_gid !=
+	    attr.va_gid;
+
+	if (credential_changing &&
 	    (imgp->vp->v_mount->mnt_flag & MNT_NOSUID) == 0 &&
 	    (p->p_flag & P_TRACED) == 0) {
 		/*
