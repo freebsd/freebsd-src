@@ -928,6 +928,7 @@ getaddr(which, s, hpp)
 		if (IN6_IS_ADDR_LINKLOCAL(&su->sin6.sin6_addr))
 			*(u_short *)&su->sin6.sin6_addr.s6_addr[2] =
 				ntohs(su->sin6.sin6_scope_id);
+		su->sin6.sin6_scope_id = 0;
 		return 0;
 	  }
 #endif
