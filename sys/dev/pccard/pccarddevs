@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: pcmciadevs,v 1.59 1999/11/27 01:03:18 soren Exp $ */
+/* $NetBSD: pcmciadevs,v 1.60 1999/11/29 02:28:19 jun Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -155,6 +155,7 @@ product SOCEKT LP_ETHER_CF	0x0075 Socket Communications Low Power Ethernet CF
 /* TDK Products */
 product TDK LAK_CD021BX		0x0200 TDK LAK-CD021BX Ethernet
 product TDK DFL9610		0x0d0a TDK DFL9610 Ethernet & Digital Cellular
+product	TDK LAK_CF010		0x0900 TDK LAC-CF010
 
 /* TDK Vendor ID also used by Xircom! */
 product TDK XIR_CE_10		0x0108 Xircom CreditCard Ethernet
