@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.1 1998/01/16 22:13:07 pst Exp $
+ *      $Id: wfd.c,v 1.2 1998/01/16 22:43:33 pst Exp $
  */
 
 /*
@@ -131,6 +131,7 @@ struct wfd {
 	int lun;                        /* Logical device unit */
 	int flags;                      /* Device state flags */
 	int refcnt;                     /* The number of raw opens */
+	int maxblks;			/* transfer size limit */
 	struct buf_queue_head buf_queue;  /* Queue of i/o requests */
 	struct atapi_params *param;     /* Drive parameters table */
 	struct cappage cap;             /* Capabilities page info */
@@ -237,6 +238,21 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 			wfd_dump (t->lun, "cap", &t->cap, sizeof t->cap);
 	} else
 		return -1;
+
+	/*
+	 * The IOMEGA ZIP 100, at firmware 21.* and 23.* at least
+	 * is known to lock up if transfers > 64 blocks are
+	 * requested.
+	 */
+	if (!strcmp(ap->model, "IOMEGA  ZIP 100       ATAPI")) {
+		printf("wfd%d: buggy Zip drive, 64-block transfer limit set\n",
+		       unit);
+		t->maxblks = 64;
+	} else {
+		t->maxblks = 0;	/* no limit */
+	}
+	
+	
 
 #ifdef DEVFS
 	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
@@ -455,6 +471,9 @@ static void wfd_start (struct wfd *t)
 	u_long blkno, nblk;
 	u_char op_code;
 	long count;
+	int pxcount, pxnblk;
+	u_char *pxdest;
+	
 
 	/* See if there is a buf to do and we are not already doing one. */
 	if (! bp)
@@ -470,30 +489,90 @@ static void wfd_start (struct wfd *t)
 	blkno = bp->b_blkno / (t->cap.sector_size / 512);
 	nblk = (bp->b_bcount + (t->cap.sector_size - 1)) / t->cap.sector_size;
 
-	if(bp->b_flags & B_READ) {
-		op_code = ATAPI_READ_BIG;
-		count = bp->b_bcount;
-	} else {
-		op_code = ATAPI_WRITE_BIG;
-		count = -bp->b_bcount;
-	}
+	if ((t->maxblks == 0) || (nblk <= t->maxblks)) {
 
-	atapi_request_callback (t->ata, t->unit, op_code, 0,
-		blkno>>24, blkno>>16, blkno>>8, blkno, 0, nblk>>8, nblk, 0, 0,
-		0, 0, 0, 0, 0, (u_char*) bp->b_data, count,
-		(void*)wfd_done, t, bp);
+		if(bp->b_flags & B_READ) {
+			op_code = ATAPI_READ_BIG;
+			count = bp->b_bcount;
+		} else {
+			op_code = ATAPI_WRITE_BIG;
+			count = -bp->b_bcount;
+		}
+
+		/* only one transfer */
+		(int)bp->b_driver1 = 0;
+		(int)bp->b_driver2 = 0;
+		atapi_request_callback (t->ata, t->unit, op_code, 0,
+					blkno>>24, blkno>>16, blkno>>8, blkno,
+					0, nblk>>8, nblk, 0, 0,
+					0, 0, 0, 0, 0, 
+					(u_char*) bp->b_data, count, 
+					(void*)wfd_done, t, bp);
+	} else {
+
+		/*
+		 * We can't handle this request in a single
+		 * read/write operation.  Instead, queue a set of
+		 * transfers, and record the number of transfers
+		 * and the running residual in the b_driver
+		 * fields of the bp.
+		 */ 
+
+		if(bp->b_flags & B_READ) {
+			op_code = ATAPI_READ_BIG;
+		} else {
+			op_code = ATAPI_WRITE_BIG;
+		}
+
+		/* calculate number of transfers */
+		(int)bp->b_driver1 = (nblk - 1) / t->maxblks;
+		(int)bp->b_driver2 = 0;
+
+		pxdest = (u_char *)bp->b_data;
+		pxcount = bp->b_bcount;
+
+		/* construct partial transfer requests */
+		while (nblk > 0) {
+			pxnblk = min(nblk, t->maxblks);
+			count = min(pxcount, t->maxblks * t->cap.sector_size);
+
+			atapi_request_callback(t->ata, t->unit, op_code, 0,
+					       blkno>>24, blkno>>16, blkno>>8,
+					       blkno, 0, pxnblk>>8, pxnblk, 
+					       0, 0, 0, 0, 0, 0, 0,
+					       pxdest, 
+					       (bp->b_flags & B_READ) ?
+					       count : -count, 
+					       (void*)wfd_done, t, bp);
+			nblk -= pxnblk;
+			pxcount -= count;
+			pxdest += count;
+			blkno += pxnblk;
+		}
+	}
 }
 
 static void wfd_done (struct wfd *t, struct buf *bp, int resid,
 	struct atapires result)
 {
+		
 	if (result.code) {
 		wfd_error (t, result);
 		bp->b_error = EIO;
 		bp->b_flags |= B_ERROR;
 	} else
-		bp->b_resid = resid;
-	biodone (bp);
+		(int)bp->b_driver2 += resid;
+	/*
+	 * We can't call biodone until all outstanding
+	 * transfer fragments are handled.  If one hits
+	 * an error, we will be returning an error, but
+	 * only when all are complete.
+	 */
+	if (((int)bp->b_driver1)-- <= 0) {
+		bp->b_resid = (int)bp->b_driver2;
+		biodone (bp);
+	}
+	
 	wfd_start (t);
 }
 
