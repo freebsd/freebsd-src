@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.86 1999/06/19 18:42:49 alc Exp $
+ * $Id: vm_glue.c,v 1.87 1999/07/21 18:02:26 alc Exp $
  */
 
 #include "opt_rlimit.h"
@@ -515,7 +515,7 @@ swapout(p)
 	p->p_flag &= ~P_INMEM;
 	p->p_flag |= P_SWAPPING;
 	if (p->p_stat == SRUN)
-		remrq(p);
+		remrunqueue(p);
 	(void) spl0();
 
 	pmap_swapout_proc(p);
