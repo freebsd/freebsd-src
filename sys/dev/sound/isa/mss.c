@@ -49,6 +49,7 @@ struct mss_chinfo {
 	pcm_channel *channel;
 	snd_dbuf *buffer;
 	int dir;
+	u_int32_t fmt;
 };
 
 struct mss_info {
@@ -1293,6 +1294,7 @@ mss_format(struct mss_chinfo *ch, u_int32_t format)
         	{AFMT_U8, AFMT_MU_LAW, AFMT_S16_LE, AFMT_A_LAW,
 		-1, AFMT_IMA_ADPCM, AFMT_U16_BE, -1};
 
+	ch->fmt = format;
     	for (i = 0; i < 8; i++) if (arg == fmts[i]) break;
     	arg = i << 1;
     	if (format & AFMT_STEREO) arg |= 1;
@@ -1309,13 +1311,17 @@ mss_trigger(struct mss_chinfo *ch, int go)
 {
     	struct mss_info *mss = ch->parent;
     	u_char m;
-    	int retry, wr, cnt;
+    	int retry, wr, cnt, ss;
 
-    	wr = (ch->dir == PCMDIR_PLAY)? 1 : 0;
+	ss = 1;
+	ss <<= (ch->fmt & AFMT_STEREO)? 1 : 0;
+	ss <<= (ch->fmt & AFMT_16BIT)? 1 : 0;
+
+	wr = (ch->dir == PCMDIR_PLAY)? 1 : 0;
     	m = ad_read(mss, 9);
     	switch (go) {
     	case PCMTRIG_START:
-		cnt = (ch->buffer->dl / ch->buffer->sample_size) - 1;
+		cnt = (ch->buffer->dl / ss) - 1;
 
 		DEB(if (m & 4) printf("OUCH! reg 9 0x%02x\n", m););
 		m |= wr? I9_PEN : I9_CEN; /* enable DMA */
@@ -1768,7 +1774,9 @@ msschan_trigger(void *data, int go)
 {
 	struct mss_chinfo *ch = data;
 
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
 	buf_isadma(ch->buffer, go);
 	mss_trigger(ch, go);
 	return 0;

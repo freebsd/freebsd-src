@@ -672,7 +672,9 @@ emuchan_trigger(void *data, int go)
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc  = ch->parent;
 
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
 	if (go == PCMTRIG_START) {
 		emu_vsetup(ch);
 		emu_vwrite(sc, ch->master);
