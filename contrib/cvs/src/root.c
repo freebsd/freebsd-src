@@ -2,7 +2,7 @@
  * Copyright (c) 1992, Mark D. Baushke
  *
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Name of Root
  * 
@@ -18,15 +18,15 @@
    Watch out if the enum is changed in cvs.h! */
 
 char *method_names[] = {
-  "local", "server (rsh)", "pserver", "kserver", "ext"
+    "local", "server (rsh)", "pserver", "kserver", "gserver", "ext"
 };
 
 #ifndef DEBUG
 
 char *
-Name_Root(dir, update_dir)
-     char *dir;
-     char *update_dir;
+Name_Root (dir, update_dir)
+    char *dir;
+    char *update_dir;
 {
     FILE *fpin;
     char *ret, *xupdate_dir;
@@ -133,41 +133,14 @@ Name_Root(dir, update_dir)
 }
 
 /*
- * Returns non-zero if the two directories have the same stat values
- * which indicates that they are really the same directories.
- */
-int
-same_directories (dir1, dir2)
-     char *dir1;
-     char *dir2;
-{
-    struct stat sb1;
-    struct stat sb2;
-    int ret;
-
-    if ( CVS_STAT (dir1, &sb1) < 0)
-        return (0);
-    if ( CVS_STAT (dir2, &sb2) < 0)
-        return (0);
-    
-    ret = 0;
-    if ( (memcmp( &sb1.st_dev, &sb2.st_dev, sizeof(dev_t) ) == 0) &&
-	 (memcmp( &sb1.st_ino, &sb2.st_ino, sizeof(ino_t) ) == 0))
-        ret = 1;
-
-    return (ret);
-}
-
-
-/*
  * Write the CVS/Root file so that the environment variable CVSROOT
  * and/or the -d option to cvs will be validated or not necessary for
  * future work.
  */
 void
 Create_Root (dir, rootdir)
-     char *dir;
-     char *rootdir;
+    char *dir;
+    char *rootdir;
 {
     FILE *fout;
     char *tmp;
@@ -272,6 +245,23 @@ root_allow_ok (arg)
     char *arg;
 {
     unsigned int i;
+
+    if (root_allow_count == 0)
+    {
+	/* Probably someone upgraded from CVS before 1.9.10 to 1.9.10
+	   or later without reading the documentation about
+	   --allow-root.  Printing an error here doesn't disclose any
+	   particularly useful information to an attacker because a
+	   CVS server configured in this way won't let *anyone* in.  */
+
+	/* Note that we are called from a context where we can spit
+	   back "error" rather than waiting for the next request which
+	   expects responses.  */
+	printf ("\
+error 0 Server configuration missing --allow-root in inetd.conf\n");
+	error_exit ();
+    }
+
     for (i = 0; i < root_allow_count; ++i)
 	if (strcmp (root_allow_vector[i], arg) == 0)
 	    return 1;
@@ -327,6 +317,7 @@ parse_cvsroot (CVSroot)
 {
     static int cvsroot_parsed = 0;
     char *cvsroot_copy, *p;
+    int check_hostname;
 
     /* Don't go through the trouble twice. */
     if (cvsroot_parsed)
@@ -366,6 +357,8 @@ parse_cvsroot (CVSroot)
 	    CVSroot_method = pserver_method;
 	else if (strcmp (method, "kserver") == 0)
 	    CVSroot_method = kserver_method;
+	else if (strcmp (method, "gserver") == 0)
+	    CVSroot_method = gserver_method;
 	else if (strcmp (method, "server") == 0)
 	    CVSroot_method = server_method;
 	else if (strcmp (method, "ext") == 0)
@@ -445,6 +438,7 @@ parse_cvsroot (CVSroot)
 	return 1;
     }
 
+    check_hostname = 0;
     switch (CVSroot_method)
     {
     case local_method:
@@ -471,15 +465,31 @@ parse_cvsroot (CVSroot)
 	error (0, 0, "(%s)", CVSroot);
 	return 1;
 #endif
+	check_hostname = 1;
+	break;
+    case gserver_method:
+#ifndef HAVE_GSSAPI
+	error (0, 0, "Your CVSROOT is set for a GSSAPI access method");
+	error (0, 0, "but your CVS executable doesn't support it");
+	error (0, 0, "(%s)", CVSroot);
+	return 1;
+#endif
+	check_hostname = 1;
+	break;
     case server_method:
     case ext_method:
     case pserver_method:
+	check_hostname = 1;
+	break;
+    }
+
+    if (check_hostname)
+    {
 	if (! CVSroot_hostname)
 	{
 	    error (0, 0, "didn't specify hostname in CVSROOT: %s", CVSroot);
 	    return 1;
 	}
-	break;
     }
 
     if (*CVSroot_directory == '\0')

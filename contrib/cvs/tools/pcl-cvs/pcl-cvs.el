@@ -1,7 +1,7 @@
 ;;;
 ;;;#ident "@(#)OrigId: pcl-cvs.el,v 1.93 1993/05/31 22:44:00 ceder Exp "
 ;;;
-;;;#ident "@(#)cvs/contrib/pcl-cvs:$Name:  $:$Id: pcl-cvs.el,v 1.6 1996/11/06 17:29:31 jimb Exp $"
+;;;#ident "@(#)cvs/contrib/pcl-cvs:$Name:  $:$Id: pcl-cvs.el,v 1.7 1998/01/04 14:24:13 kingdon Exp $"
 ;;;
 ;;; pcl-cvs.el -- A Front-end to CVS 1.3 or later.
 ;;; Release 1.05-CVS-$Name:  $.
@@ -1014,7 +1014,7 @@ ERR-BUF should be 'STDOUT or 'STDERR."
     (insert "Pcl-cvs Version: "
 	    "@(#)OrigId: pcl-cvs.el,v 1.93 1993/05/31 22:44:00 ceder Exp\n")
     (insert "CVS Version: "
-	    "@(#)cvs/contrib/pcl-cvs:$Name:  $:$Id: pcl-cvs.el,v 1.6 1996/11/06 17:29:31 jimb Exp $\n\n")
+	    "@(#)cvs/contrib/pcl-cvs:$Name:  $:$Id: pcl-cvs.el,v 1.7 1998/01/04 14:24:13 kingdon Exp $\n\n")
     (insert (format "--- Contents of stdout buffer (%d chars) ---\n"
 		    (length stdout)))
     (insert stdout)
@@ -3288,7 +3288,13 @@ for more details."
   "See if ChangeLog entry at point is for the current user, today.
 Return non-nil iff it is."
   ;; Code adapted from add-change-log-entry.
-  (looking-at (concat (regexp-quote (substring (current-time-string)
+  (or (looking-at
+       (regexp-quote (format "%s  %s  <%s>"
+			     (format-time-string "%Y-%m-%d")
+			     add-log-full-name
+			     add-log-mailing-address)))
+      (looking-at
+       (concat (regexp-quote (substring (current-time-string)
                                                0 10))
                       ".* "
                       (regexp-quote (substring (current-time-string) -4))
@@ -3301,7 +3307,7 @@ Return non-nil iff it is."
 		      (regexp-quote (if (and (boundp 'add-log-mailing-address)
 					     add-log-mailing-address)
 					add-log-mailing-address
-				      user-mail-address)))))
+			       user-mail-address))))))
 
 (defun cvs-relative-path (base child)
   "Return a directory path relative to BASE for CHILD.

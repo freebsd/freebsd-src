@@ -1,12 +1,12 @@
-See the README file for information on how to report bugs (and what
-will happen to your bug reports if you do).
+See the Cederqvist manual (cvs.texinfo) for information on how to
+report bugs (and what will happen to your bug reports if you do).
 
 The following is a list of some of the known bugs.  It may or may not
 be comprehensive.  We would dearly love for people to volunteer to
 help us keep it up to date (for starters, if you notice any
-inaccuracies, please let bug-cvs know as described in README).  There
-are some other reported bugs in MINOR-BUGS; the difference, at least
-in theory, is that those bugs are less serious.
+inaccuracies, please let bug-cvs know as described in the Cederqvist
+manual).  There are some other reported bugs in MINOR-BUGS; the
+difference, at least in theory, is that those bugs are less serious.
 
 
 * For platform-specific information (in some cases including known
@@ -15,25 +15,45 @@ similar file for the unix-like operating systems (not yet, at least).
 This file also might contain some platform-specific bugs.
 
 
-* Exporting binary files on non-unix clients with "cvs export" does
-not work.  The workaround is to use "cvs checkout" instead.  If you
-are thinking of fixing this, check out the comment "For cvs export,
-assume it is a text file." in client.c.
+* One cannot specify some files as binary in a "cvs import" using
+CVSROOT/cvswrappers (for why, note that client_process_import_file has
+no way of knowing about CVSROOT/cvswrappers which is off on the
+server).
 
 
-* Wrappers do not work client/server, and there are a variety of other
+* I don't think that "cvs add" honors any of the -k wrappers, at least
+not in client/server mode.  I would think it should.  Getting
+CVSROOT/cvswrappers to work would presumably best be done by keeping a
+copy of it in the CVS directory on the client, as has also been
+discussed for CVS/Template, &c.  Getting a client-side .cvswrappers to
+work is a separate issue.
+
+
+* Need more work on the procedure for fixing it if a binary file is
+accidentally added in text mode (sanity.sh test cases, better
+documentation, probably update and/or admin -kb should update
+the -k setting in CVS/Entries).
+
+
+* Wrappers (-t/-f) do not work client/server, and there are a variety of other
 bugs and annoyances with wrappers.
 
 
-* Some people have reported seeing the message "dying gasps from %s
-unexpected" (where %s is the name of your server) when using
-client/server CVS.  One person reported that this had to do with using
-pserver and trying to run a program not in the PATH (which is set up
-by inetd, I think) from one of the *info scripts.  But noone has
-carefully tracked this down (is it caused by something in the server
-writing to stdout or stderr when it shouldn't?  But then wouldn't the
-"dying gasps" message be preceded by "warning: unrecognized response
-`%s' from cvs server"?).
+* If your login name contains a space or various other characters
+(particularly an issue on Windows), CVS will have trouble (it will
+write invalid RCS files, probably).  The fix would be to have CVS
+change such characters to underscores before writing them to the RCS
+file.  Furthermore, the LOGNAME or USER environment variables usually
+won't override the system login name, so this can be hard to work
+around.
+
+
+* If you specify the -w global option to client/server CVS, it only
+overrides a CVSREAD environment variable set on the client, not a
+CVSREAD variable which was set on the server (for example, in .bashrc
+when the server was run via rsh).  The fix of course will be to
+provide a "Option-read-write" request which sends -w, in addition to
+"Global_option -r" which sends -r.
 
 
 * "make remotecheck" sometimes fails on test 187a3 with
@@ -55,11 +75,6 @@ file's description.
 
 * 'cvs admin' dumped core when files were missing from working directory
   (and from the repository)?
-
-
-* `cvs checkout -d nested/dir/path <module>' just doesn't work.  The
-  simpler version -- `cvs checkout -d single-dir <module>' works,
-  however.
 
 
 * The following bug was reported against CVS 1.9:

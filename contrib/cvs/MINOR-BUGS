@@ -45,8 +45,8 @@ particular reason to think the bug is fixed -kingdon, Sep 96).
   ...
   
   I claim that CVS dirs should be ignored.
-  (I don't *think* this always happens; is "-I !" getting picked up somewhere
-  something like that? -kingdon, Sep 96)
+  (This reportedly happens if "cvs add CVS" (or "cvs add *")
+  is followed by "cvs status", in client/server mode - CVS 1.9).
 
 * On remote checkout, files don't have the right time/date stamps in
   the CVS/Entries files.  Doesn't look like the C/S protocol has any

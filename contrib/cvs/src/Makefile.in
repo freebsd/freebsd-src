@@ -60,7 +60,7 @@ HEADERS = buffer.h cvs.h rcs.h hash.h myndbm.h \
 TAGFILES = $(HEADERS) options.h.in $(SOURCES)
 
 DISTFILES = .cvsignore Makefile.in \
-	    ChangeLog ChangeLog-96 ChangeLog-9395 ChangeLog-9194 \
+	    ChangeLog ChangeLog-97 ChangeLog-96 ChangeLog-9395 ChangeLog-9194 \
             sanity.sh cvsbug.sh $(TAGFILES) build_src.com
 
 PROGS = cvs cvsbug
@@ -144,10 +144,10 @@ dist-dir:
 
 # Linking rules.
 
-$(PROGS): ../lib/libcvs.a ../zlib/libz.a
+$(PROGS): ../lib/libcvs.a ../zlib/libz.a ../diff/libdiff.a
 
 cvs: $(OBJECTS)
-	$(CC) $(OBJECTS) ../lib/libcvs.a ../zlib/libz.a $(LIBS) $(LDFLAGS) -o $@ 
+	$(CC) $(OBJECTS) ../lib/libcvs.a ../zlib/libz.a ../diff/libdiff.a $(LIBS) $(LDFLAGS) -o $@ 
 
 xlint: $(SOURCES)
 	files= ; \

@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Create Version
  * 
@@ -61,6 +61,7 @@ static const char *const checkout_usage[] =
     "\t-d dir\tCheck out into dir instead of module name.\n",
     "\t-k kopt\tUse RCS kopt -k option on checkout.\n",
     "\t-j rev\tMerge in changes made between current revision and rev.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -76,6 +77,7 @@ static const char *const export_usage[] =
     "\t-D date\tExport revisions as of date.\n",
     "\t-d dir\tExport into dir instead of module name.\n",
     "\t-k kopt\tUse RCS kopt -k option on checkout.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -257,7 +259,7 @@ checkout (argc, argv)
            server send the check-in and update programs for the
            various modules/dirs requested.  If we turn this off and
            simply request the names of the modules and directories (as
-           below in !expand_modules), those files (CVS/Checking.prog
+           below in !expand_modules), those files (CVS/Checkin.prog
            or CVS/Update.prog) don't get created.  Grrr.  */
 	
 	expand_modules = (!cat && !status && !pipeout
@@ -332,54 +334,16 @@ checkout (argc, argv)
     }
     db = open_module ();
 
-    /*
-     * if we have more than one argument and where was specified, we make the
-     * where, cd into it, and try to shorten names as much as possible.
-     * Otherwise, we pass the where as a single argument to do_module.
-     */
-    if (argc > 1 && where != NULL)
-    {
-	(void) CVS_MKDIR (where, 0777);
-	if ( CVS_CHDIR (where) < 0)
-	    error (1, errno, "cannot chdir to %s", where);
-	preload_update_dir = xstrdup (where);
-	where = (char *) NULL;
-	if (!isfile (CVSADM))
-	{
-	    char *repository;
 
-	    repository = xmalloc (strlen (CVSroot_directory) + 80);
-	    (void) sprintf (repository, "%s/%s/%s", CVSroot_directory,
-			    CVSROOTADM, CVSNULLREPOS);
-	    if (!isfile (repository))
-	    {
-		mode_t omask;
-		omask = umask (cvsumask);
-		(void) CVS_MKDIR (repository, 0777);
-		(void) umask (omask);
-	    }
+    /* If we've specified something like "cvs co foo/bar baz/quux"
+       don't try to shorten names.  There are a few cases in which we
+       could shorten (e.g. "cvs co foo/bar foo/baz"), but we don't
+       handle those yet.  Better to have an extra directory created
+       than the thing checked out under the wrong directory name. */
 
-	    /* I'm not sure whether this check is redundant.  */
-	    if (!isdir (repository))
-		error (1, 0, "there is no repository %s", repository);
+    if (argc > 1)
+	shorten = 0;
 
-	    Create_Admin (".", preload_update_dir, repository,
-			  (char *) NULL, (char *) NULL, 0);
-	    if (!noexec)
-	    {
-		FILE *fp;
-
-		fp = open_file (CVSADM_ENTSTAT, "w+");
-		if (fclose(fp) == EOF)
-		    error(1, errno, "cannot close %s", CVSADM_ENTSTAT);
-#ifdef SERVER_SUPPORT
-		if (server_active)
-		    server_set_entstat (preload_update_dir, repository);
-#endif
-	    }
-	    free (repository);
-	}
-    }
 
     /* If we will be calling history_write, work out the name to pass
        it.  */
@@ -396,29 +360,6 @@ checkout (argc, argv)
 	    history_name = date;
     }
 
-    /*
-     * if where was specified (-d) and we have not taken care of it already
-     * with the multiple arg stuff, and it was not a simple directory name
-     * but rather a path, we strip off everything but the last component and
-     * attempt to cd to the indicated place.  where then becomes simply the
-     * last component
-     */
-    if (where != NULL && strchr (where, '/') != NULL)
-    {
-	char *slash;
-
-	slash = strrchr (where, '/');
-	*slash = '\0';
-
-	if ( CVS_CHDIR (where) < 0)
-	    error (1, errno, "cannot chdir to %s", where);
-
-	preload_update_dir = xstrdup (where);
-
-	where = slash + 1;
-	if (*where == '\0')
-	    where = NULL;
-    }
 
     for (i = 0; i < argc; i++)
 	err += do_module (db, argv[i], m_type, "Updating", checkout_proc,
@@ -456,6 +397,8 @@ safe_location ()
         hardpath[x] = '\0';
     }
     current = xgetwd ();
+    if (current == NULL)
+	error (1, errno, "could not get working directory");
     hardpath_len = strlen (hardpath);
     if (strlen (current) >= hardpath_len
 	&& strncmp (current, hardpath, hardpath_len) == 0)
@@ -506,17 +449,18 @@ build_one_dir (repository, dirpath, sticky)
 	if (!isdir (repository))
 	    error (1, 0, "there is no repository %s", repository);
 
-	Create_Admin (".", dirpath, repository,
-		      sticky ? (char *) NULL : tag,
-		      sticky ? (char *) NULL : date,
+	if (Create_Admin (".", dirpath, repository,
+			  sticky ? (char *) NULL : tag,
+			  sticky ? (char *) NULL : date,
 
-		      /* FIXME?  This is a guess.  If it is important
-			 for nonbranch to be set correctly here I
-			 think we need to write it one way now and
-			 then rewrite it later via WriteTag, once
-			 we've had a chance to call RCS_nodeisbranch
-			 on each file.  */
-		      0);
+			  /* FIXME?  This is a guess.  If it is important
+			     for nonbranch to be set correctly here I
+			     think we need to write it one way now and
+			     then rewrite it later via WriteTag, once
+			     we've had a chance to call RCS_nodeisbranch
+			     on each file.  */
+			  0, 1))
+	    return;
 
 	if (!noexec)
 	{
@@ -536,11 +480,11 @@ build_one_dir (repository, dirpath, sticky)
  */
 /* ARGSUSED */
 static int
-checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
+checkout_proc (pargc, argv, where_orig, mwhere, mfile, shorten,
 	       local_specified, omodule, msg)
     int *pargc;
     char **argv;
-    char *where;
+    char *where_orig;
     char *mwhere;
     char *mfile;
     int shorten;
@@ -551,11 +495,9 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
     int err = 0;
     int which;
     char *cp;
-    char *cp2;
     char *repository;
-    char *xwhere = NULL;
     char *oldupdate = NULL;
-    char *prepath;
+    char *where;
 
     /*
      * OK, so we're doing the checkout! Our args are as follows: 
@@ -563,152 +505,172 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
      *  where contains where to put it (if supplied by checkout) 
      *  mwhere contains the module name or -d from module file 
      *  mfile says do only that part of the module
-     *  shorten = TRUE says shorten as much as possible 
+     *  shorten = 1 says shorten as much as possible 
      *  omodule is the original arg to do_module()
      */
 
-    /* set up the repository (maybe) for the bottom directory */
-    repository = xmalloc (strlen (CVSroot_directory) + strlen (argv[0]) + 5);
+    /* Set up the repository (maybe) for the bottom directory.
+       Allocate more space than we need so we don't need to keep
+       reallocating this string. */
+    repository = xmalloc (strlen (CVSroot_directory)
+			  + strlen (argv[0])
+			  + (mfile == NULL ? 0 : strlen (mfile))
+			  + 10);
     (void) sprintf (repository, "%s/%s", CVSroot_directory, argv[0]);
+    Sanitize_Repository_Name (repository);
+
 
     /* save the original value of preload_update_dir */
     if (preload_update_dir != NULL)
 	oldupdate = xstrdup (preload_update_dir);
 
-    /* fix up argv[] for the case of partial modules */
+
+    /* Allocate space and set up the where variable.  We allocate more
+       space than necessary here so that we don't have to keep
+       reallocaing it later on. */
+    
+    where = xmalloc (strlen (argv[0])
+		     + (mfile == NULL ? 0 : strlen (mfile))
+		     + (mwhere == NULL ? 0 : strlen (mwhere))
+		     + (where_orig == NULL ? 0 : strlen (where_orig))
+		     + 10);
+
+    /* Yes, this could be written in a less verbose way, but in this
+       form it is quite easy to read.
+    
+       FIXME?  The following code that sets should probably be moved
+       to do_module in modules.c, since there is similar code in
+       patch.c and rtag.c. */
+    
+    if (shorten)
+    {
+	if (where_orig != NULL)
+	{
+	    /* If the user has specified a directory with `-d' on the
+	       command line, use it preferentially, even over the `-d'
+	       flag in the modules file. */
+    
+	    (void) strcpy (where, where_orig);
+	}
+	else if (mwhere != NULL)
+	{
+	    /* Second preference is the value of mwhere, which is from
+	       the `-d' flag in the modules file. */
+
+	    (void) strcpy (where, mwhere);
+	}
+	else
+	{
+	    /* Third preference is the directory specified in argv[0]
+	       which is this module'e directory in the repository. */
+	    
+	    (void) strcpy (where, argv[0]);
+	}
+    }
+    else
+    {
+	/* Use the same preferences here, bug don't shorten -- that
+           is, tack on where_orig if it exists. */
+
+	*where = '\0';
+
+	if (where_orig != NULL)
+	{
+	    (void) strcat (where, where_orig);
+	    (void) strcat (where, "/");
+	}
+
+	if (mwhere != NULL)
+	    (void) strcat (where, mwhere);
+	else
+	    (void) strcat (where, argv[0]);
+    }
+    strip_trailing_slashes (where); /* necessary? */
+
+
+    /* At this point, the user may have asked for a single file or
+       directory from within a module.  In that case, we should modify
+       where, repository, and argv as appropriate. */
+
     if (mfile != NULL)
     {
-	char *file;
+	/* The mfile variable can have one or more path elements.  If
+	   it has multiple elements, we want to tack those onto both
+	   repository and where.  The last element may refer to either
+	   a file or directory.  Here's what to do:
 
-	/* if mfile is really a path, straighten it out first */
-	if ((cp = strrchr (mfile, '/')) != NULL)
+	   it refers to a directory
+	     -> simply tack it on to where and repository
+	   it refers to a file
+	     -> munge argv to contain `basename mfile` */
+
+	char *cp;
+	char *path;
+
+
+	/* Paranoia check. */
+
+	if (mfile[strlen (mfile) - 1] == '/')
 	{
-	    *cp = 0;
-	    repository = xrealloc (repository,
-				   strlen (repository) + strlen (mfile) + 10);
+	    error (0, 0, "checkout_proc: trailing slash on mfile (%s)!",
+		   mfile);
+	}
+
+
+	/* Does mfile have multiple path elements? */
+
+	cp = strrchr (mfile, '/');
+	if (cp != NULL)
+	{
+	    *cp = '\0';
 	    (void) strcat (repository, "/");
 	    (void) strcat (repository, mfile);
-
-	    /*
-	     * Now we need to fill in the where correctly. if !shorten, tack
-	     * the rest of the path onto where if where is filled in
-	     * otherwise tack the rest of the path onto mwhere and make that
-	     * the where
-	     * 
-	     * If shorten is enabled, we might use mwhere to set where if 
-	     * nobody set it yet, so we'll need to setup mwhere as the last
-	     * component of the path we are tacking onto repository
-	     */
-	    if (!shorten)
-	    {
-		if (where != NULL)
-		{
-		    xwhere = xmalloc (strlen (where) + strlen (mfile) + 5);
-		    (void) sprintf (xwhere, "%s/%s", where, mfile);
-		}
-		else
-		{
-		    xwhere = xmalloc (strlen (mwhere) + strlen (mfile) + 5);
-		    (void) sprintf (xwhere, "%s/%s", mwhere, mfile);
-		}
-		where = xwhere;
-	    }
-	    else
-	    {
-		char *slash;
-
-		if ((slash = strrchr (mfile, '/')) != NULL)
-		    mwhere = slash + 1;
-		else
-		    mwhere = mfile;
-	    }
+	    (void) strcat (where, "/");
+	    (void) strcat (where, mfile);
 	    mfile = cp + 1;
 	}
+	
 
-	file = xmalloc (strlen (repository) + strlen (mfile) + 5);
-	(void) sprintf (file, "%s/%s", repository, mfile);
-	if (isdir (file))
+	/* Now mfile is a single path element. */
+
+	path = xmalloc (strlen (repository) + strlen (mfile) + 5);
+	(void) sprintf (path, "%s/%s", repository, mfile);
+	if (isdir (path))
 	{
+	    /* It's a directory, so tack it on to repository and
+               where, as we did above. */
 
-	    /*
-	     * The portion of a module was a directory, so kludge up where to
-	     * be the subdir, and fix up repository
-	     */
-	    free (repository);
-	    repository = xstrdup (file);
-
-	    /*
-	     * At this point, if shorten is not enabled, we make where either
-	     * where with mfile concatenated, or if where hadn't been set we
-	     * set it to mwhere with mfile concatenated.
-	     * 
-	     * If shorten is enabled and where hasn't been set yet, then where
-	     * becomes mfile
-	     */
-	    if (!shorten)
-	    {
-		if (where != NULL)
-		{
-		    xwhere = xmalloc (strlen (where) + strlen (mfile) + 5);
-		    (void) sprintf (xwhere, "%s/%s", where, mfile);
-		}
-		else
-		{
-		    xwhere = xmalloc (strlen (mwhere) + strlen (mfile) + 5);
-		    (void) sprintf (xwhere, "%s/%s", mwhere, mfile);
-		}
-		where = xwhere;
-	    }
-	    else if (where == NULL)
-		where = mfile;
+	    (void) strcat (repository, "/");
+	    (void) strcat (repository, mfile);
+	    (void) strcat (where, "/");
+	    (void) strcat (where, mfile);
 	}
 	else
 	{
+	    /* It's a file, which means we have to screw around with
+               argv. */
+
 	    int i;
 
-	    /*
-	     * The portion of a module was a file, so kludge up argv to be
-	     * correct
-	     */
-	    for (i = 1; i < *pargc; i++)/* free the old ones */
+
+	    /* Paranoia check. */
+	    
+	    if (*pargc > 1)
+	    {
+		error (0, 0, "checkout_proc: trashing argv elements!");
+		for (i = 1; i < *pargc; i++)
+		{
+		    error (0, 0, "checkout_proc: argv[%d] `%s'",
+			   i, argv[i]);
+		}
+	    }
+
+	    for (i = 1; i < *pargc; i++)
 		free (argv[i]);
-	    /* FIXME: Normally one has to realloc argv to make sure
-               argv[1] exists.  But this argv does not points to the
-               beginning of an allocated block.  For now we allocate
-               at least 4 entries for argv (in line2argv).  */
-	    argv[1] = xstrdup (mfile);	/* set up the new one */
-	    *pargc = 2;
-
-	    /* where gets mwhere if where isn't set */
-	    if (where == NULL)
-		where = mwhere;
+	    argv[1] = xstrdup (mfile);
+	    (*pargc) = 2;
 	}
-	free (file);
-    }
-
-    /*
-     * if shorten is enabled and where isn't specified yet, we pluck the last
-     * directory component of argv[0] and make it the where
-     */
-    if (shorten && where == NULL)
-    {
-	if ((cp = strrchr (argv[0], '/')) != NULL)
-	{
-	    xwhere = xstrdup (cp + 1);
-	    where = xwhere;
-	}
-    }
-
-    /* if where is still NULL, use mwhere if set or the argv[0] dir */
-    if (where == NULL)
-    {
-	if (mwhere)
-	    where = mwhere;
-	else
-	{
-	    xwhere = xstrdup (argv[0]);
-	    where = xwhere;
-	}
+	free (path);
     }
 
     if (preload_update_dir != NULL)
@@ -725,6 +687,12 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
     /*
      * At this point, where is the directory we want to build, repository is
      * the repository for the lowest level of the path.
+     *
+     * We need to tell build_dirs not only the path we want it to
+     * build, but also the repositories we want it to populate the
+     * path with.  To accomplish this, we walk the path backwards, one
+     * pathname component at a time, constucting a linked list of
+     * struct dir_to_build.
      */
 
     /*
@@ -733,20 +701,11 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
      */
     if (!pipeout)
     {
-	size_t root_len;
 	struct dir_to_build *head;
+	char *reposcopy;
 
-	/* We need to tell build_dirs not only the path we want it to
-	   build, but also the repositories we want it to populate the
-	   path with. To accomplish this, we walk the path backwards,
-	   one pathname component at a time, constucting a linked
-	   list of struct dir_to_build.  */
-	prepath = xstrdup (repository);
-
-	/* We don't want to start stripping elements off prepath after we
-	   get to CVSROOT.  */
-	root_len = strlen (CVSroot_directory);
-	if (strncmp (repository, CVSroot_directory, root_len) != 0)
+	if (strncmp (repository, CVSroot_directory,
+		     strlen (CVSroot_directory)) != 0)
 	    error (1, 0, "\
 internal error: %s doesn't start with %s in checkout_proc",
 		   repository, CVSroot_directory);
@@ -760,9 +719,14 @@ internal error: %s doesn't start with %s in checkout_proc",
 	head->dirpath = xstrdup (where);
 	head->next = NULL;
 
-	cp = strrchr (where, '/');
-	cp2 = strrchr (prepath, '/');
 
+	/* Make a copy of the repository name to play with. */
+	reposcopy = xstrdup (repository);
+
+	/* FIXME: this should be written in terms of last_component instead
+	   of hardcoding '/'.  This presumably affects OS/2, NT, &c, if
+	   the user specifies '\'.  Likewise for the call to findslash.  */
+	cp = strrchr (where, '/');
 	while (cp != NULL)
 	{
 	    struct dir_to_build *new;
@@ -771,42 +735,97 @@ internal error: %s doesn't start with %s in checkout_proc",
 	    new->dirpath = xmalloc (strlen (where));
 	    strncpy (new->dirpath, where, cp - where);
 	    new->dirpath[cp - where] = '\0';
-	    if (cp2 == NULL || cp2 < prepath + root_len)
+
+	    /* Now figure out what repository directory to generate.
+               The most complete case would be something like this:
+
+	       The modules file contains
+	         foo -d bar/baz quux
+
+	       The command issued was:
+	         cvs co -d what/ever -N foo
+	       
+	       The results in the CVS/Repository files should be:
+	         .     -> .          (this is where we executed the cmd)
+		 what  -> Emptydir   (generated dir -- not in repos)
+		 ever  -> .          (same as "cd what/ever; cvs co -N foo")
+		 bar   -> Emptydir   (generated dir -- not in repos)
+		 baz   -> quux       (finally!) */
+	    
+	    if (strcmp (reposcopy, CVSroot_directory) == 0)
 	    {
-		/* Don't walk up past CVSROOT; instead put in CVSNULLREPOS.  */
-		new->repository =
-		    xmalloc (strlen (CVSroot_directory) + 80);
-		(void) sprintf (new->repository, "%s/%s/%s",
-				CVSroot_directory,
-				CVSROOTADM, CVSNULLREPOS);
-		if (!isfile (new->repository))
-		{
-		    mode_t omask;
-		    omask = umask (cvsumask);
-		    if (CVS_MKDIR (new->repository, 0777) < 0)
-			error (0, errno, "cannot create %s",
-			       new->repository);
-		    (void) umask (omask);
-		}
+		/* We can't walk up past CVSROOT.  Instead, the
+                   repository should be Emptydir. */
+		new->repository = emptydir_name ();
 	    }
 	    else
 	    {
-		new->repository = xmalloc (strlen (prepath));
-		strncpy (new->repository, prepath, cp2 - prepath);
-		new->repository[cp2 - prepath] = '\0';
+		if ((where_orig != NULL)
+		    && (strcmp (new->dirpath, where_orig) == 0))
+		{
+		    /* It's the case that the user specified a
+		     * destination directory with the "-d" flag.  The
+		     * repository in this directory should be "."
+		     * since the user's command is equivalent to:
+		     *
+		     *   cd <dir>; cvs co blah   */
+
+		    strcpy (reposcopy, CVSroot_directory);
+		    goto allocate_repos;
+		}
+		else if (mwhere != NULL)
+		{
+		    /* This is a generated directory, so point to
+                       CVSNULLREPOS. */
+
+		    new->repository = emptydir_name ();
+		}
+		else
+		{
+		    /* It's a directory in the repository! */
+		    
+		    char *rp = strrchr (reposcopy, '/');
+		    
+		    /* We'll always be below CVSROOT, but check for
+		       paranoia's sake. */
+		    if (rp == NULL)
+			error (1, 0,
+			       "internal error: %s doesn't contain a slash",
+			       reposcopy);
+			   
+		    *rp = '\0';
+		
+		allocate_repos:
+		    new->repository = xmalloc (strlen (reposcopy) + 5);
+		    (void) strcpy (new->repository, reposcopy);
+		    
+		    if (strcmp (reposcopy, CVSroot_directory) == 0)
+		    {
+			/* Special case -- the repository name needs
+			   to be "/path/to/repos/." (the trailing dot
+			   is important).  We might be able to get rid
+			   of this after the we check out the other
+			   code that handles repository names. */
+			(void) strcat (new->repository, "/.");
+		    }
+		}
 	    }
+	    
 	    new->next = head;
 	    head = new;
 
 	    cp = findslash (where, cp - 1);
-	    cp2 = findslash (prepath, cp2 - 1);
 	}
 
-	/* First build the top-level CVSADM directory.  The value we
-	   pass in here for repository is probably wrong; see modules3-7f
-	   in the testsuite.  */
-	build_one_dir (head->repository != NULL ? head->repository : prepath,
-		       ".", *pargc <= 1);
+	/* clean up */
+	free (reposcopy);
+
+	/* The top-level CVSADM directory should always be
+           CVSroot_directory.  Create it.
+	
+	   It may be argued that we shouldn't set any sticky bits for
+	   the top-level repository.  FIXME?  */
+	build_one_dir (CVSroot_directory, ".", *pargc <= 1);
 
 	/*
 	 * build dirs on the path if necessary and leave us in the bottom
@@ -817,13 +836,9 @@ internal error: %s doesn't start with %s in checkout_proc",
 	if (build_dirs_and_chdir (head, *pargc <= 1) != 0)
 	{
 	    error (0, 0, "ignoring module %s", omodule);
-	    free (prepath);
 	    err = 1;
 	    goto out;
 	}
-
-	/* clean up */
-	free (prepath);
 
 	/* set up the repository (or make sure the old one matches) */
 	if (!isfile (CVSADM))
@@ -837,7 +852,7 @@ internal error: %s doesn't start with %s in checkout_proc",
 		    error (1, 0, "there is no repository %s", repository);
 
 		Create_Admin (".", preload_update_dir, repository,
-			      (char *) NULL, (char *) NULL, 0);
+			      (char *) NULL, (char *) NULL, 0, 0);
 		fp = open_file (CVSADM_ENTSTAT, "w+");
 		if (fclose(fp) == EOF)
 		    error(1, errno, "cannot close %s", CVSADM_ENTSTAT);
@@ -860,7 +875,7 @@ internal error: %s doesn't start with %s in checkout_proc",
 				 then rewrite it later via WriteTag, once
 				 we've had a chance to call RCS_nodeisbranch
 				 on each file.  */
-			      0);
+			      0, 0);
 	    }
 	}
 	else
@@ -1004,8 +1019,7 @@ internal error: %s doesn't start with %s in checkout_proc",
 out:
     free (preload_update_dir);
     preload_update_dir = oldupdate;
-    if (xwhere != NULL)
-	free (xwhere);
+    free (where);
     free (repository);
     return (err);
 }
@@ -1024,6 +1038,32 @@ findslash (start, p)
 	return (NULL);
     else
 	return (p);
+}
+
+/* Return a newly malloc'd string containing a pathname for CVSNULLREPOS,
+   and make sure that it exists.  If there is an error creating the
+   directory, give a fatal error.  Otherwise, the directory is guaranteed
+   to exist when we return.  */
+char *
+emptydir_name ()
+{
+    char *repository;
+
+    repository = xmalloc (strlen (CVSroot_directory) 
+			  + sizeof (CVSROOTADM)
+			  + sizeof (CVSNULLREPOS)
+			  + 10);
+    (void) sprintf (repository, "%s/%s/%s", CVSroot_directory,
+		    CVSROOTADM, CVSNULLREPOS);
+    if (!isfile (repository))
+    {
+	mode_t omask;
+	omask = umask (cvsumask);
+	if (CVS_MKDIR (repository, 0777) < 0)
+	    error (1, errno, "cannot create %s", repository);
+	(void) umask (omask);
+    }
+    return repository;
 }
 
 /* Build all the dirs along the path to DIRS with CVS subdirs with appropriate
