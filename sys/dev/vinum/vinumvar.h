@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.24 2000/03/01 02:34:57 grog Exp grog $
+ * $Id: vinumvar.h,v 1.36 2001/01/14 06:34:57 grog Exp $
  * $FreeBSD$
  */
 
@@ -216,7 +216,7 @@ struct devcode {
     unsigned signbit:1;					    /* to make 32 bits */
 };
 
-#define VINUM_DIR   "/dev/vinum"
+#define VINUM_DIR   "vinum"
 
 /*
  * These definitions help catch
@@ -451,6 +451,7 @@ struct sd {
     int init_blocksize;					    /* init block size (bytes) */
     int init_interval;					    /* and time to wait between transfers */
     char name[MAXSDNAME];				    /* name of subdisk */
+    dev_t dev;
 };
 
 /*** Plex definitions ***/
@@ -498,6 +499,7 @@ struct plex {
     u_int64_t multistripe;				    /* requests that needed more than one stripe */
     int sddowncount;					    /* number of subdisks down */
     char name[MAXPLEXNAME];				    /* name of plex */
+    dev_t dev;
 };
 
 /*** Volume definitions ***/
@@ -537,6 +539,7 @@ struct volume {
     int plex[MAXPLEX];					    /* index of plexes */
     char name[MAXVOLNAME];				    /* name of volume */
     struct disklabel label;				    /* for DIOCGPART */
+    dev_t dev;
 };
 
 /*
