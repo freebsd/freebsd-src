@@ -62,7 +62,8 @@ The boot program can be stored in the BIOS, in a BOOT ROM
 located on the network card (PXE, etherboot, netboot),
 or come from a disk unit (e.g. etherboot or netboot).
 .Pp
-In phase 2, the boot program loads a kernel.  Operation in
+In phase 2, the boot program loads a kernel.
+Operation in
 this phase depends on the design of the boot program.
 Typically, the boot program uses the
 .Tn BOOTP
@@ -205,9 +206,13 @@ You will also probably need to set
 so that the server's
 local startup files will not be used.
 .Pp
-While an md-backed file system is mounted on /var by the startup scripts,
+While an
+.Xr md 4 Ns -backed
+file system is mounted on
+.Pa /var
+by the startup scripts,
 some sites may want to disable the saving of entropy by setting
-.Va entropy_dir Ns = Ns Qq NO
+.Va entropy_dir Ns = Ns Qq Li NO
 in
 .Pa /etc/defaults/rc.conf .
 .Pp
@@ -241,7 +246,8 @@ This manpage is probably incomplete.
 .Pp
 .Fx
 sometimes requires to write onto
-the root partition, so the startup scripts create and mount md-backed
+the root partition, so the startup scripts create and mount
+.Xr md 4 Ns -backed
 filesystems on some locations (e.g.\&
 .Pa /etc
 and
@@ -250,6 +256,7 @@ while
 trying to preserve the original content.
 The process might not handle all cases.
 .Sh SEE ALSO
+.Xr md 4 ,
 .Xr ethers 5 ,
 .Xr exports 5 ,
 .Xr bootpd 8 ,
