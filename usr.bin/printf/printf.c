@@ -58,15 +58,20 @@ static char sccsid[] = "@(#)printf.c	8.1 (Berkeley) 7/20/93";
 #endif
 
 #define PF(f, func) { \
+	char *b = NULL; \
 	if (fieldwidth) \
 		if (precision) \
-			(void)printf(f, fieldwidth, precision, func); \
+			(void)asprintf(&b, f, fieldwidth, precision, func); \
 		else \
-			(void)printf(f, fieldwidth, func); \
+			(void)asprintf(&b, f, fieldwidth, func); \
 	else if (precision) \
-		(void)printf(f, precision, func); \
+		(void)asprintf(&b, f, precision, func); \
 	else \
-		(void)printf(f, func); \
+		(void)asprintf(&b, f, func); \
+	if (b) { \
+		(void)fputs(b, stdout); \
+		free(b); \
+	} \
 }
 
 static int	 asciicode __P((void));
