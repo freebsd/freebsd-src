@@ -2222,7 +2222,7 @@ cons25w|ansiw|ansi80x25-raw:\
 	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:bl=^G:\
 	:ve=\E[=S:vi=\E[=1S:vs=\E[=2S:
 cons25|ansis|ansi80x25:\
-	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261i^U0\333y\363z\362:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305a\260f\370g\361~\371h\2610\333y\363z\362:\
 	:tc=cons25w:
 cons25-m|ansis-mono|ansi80x25-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25:
@@ -2244,7 +2244,7 @@ cons60-m|ansi80x60-mono:\
 	:li#60:tc=cons25-m:
 # KOI8-R/KOI8-U FreeBSD console with ACS support
 cons25r|cons25u|pc3r|ibmpc3r|cons25-koi8:\
-	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221`^D.^Y-^Xi^U0\215:\
+	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\2210\215:\
 	:tc=cons25w:
 cons25r-m|cons25u-m|pc3r-m|ibmpc3r-mono|cons25-koi8-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25r:
@@ -2266,7 +2266,7 @@ cons60r-m|cons60u-m|cons60-koi8-mono:\
 	:li#60:tc=cons25r-m:
 # ISO 8859-2 FreeBSD console with ACS support
 cons25l2|cons25-iso8859-2:\
-	:ac=f\260`^D.^Y-^Xi\247:\
+	:ac=f\260i\247:\
 	:tc=cons25w:
 cons25l2-m|cons25-iso8859-2-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25l2:
@@ -2288,7 +2288,7 @@ cons60l2-m|cons60-iso8859-2-mono:\
 	:li#60:tc=cons25l2-m:
 # ISO 8859-1 FreeBSD console with ACS support
 cons25l1|cons25-iso8859-1:\
-	:ac=f\260g\261}\243`^D.^Y-^X+\253,\273i\247:\
+	:ac=f\260g\261}\243+\253,\273i\247:\
 	:tc=cons25w:
 cons25l1-m|cons25-iso8859-1-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25l1:
@@ -2310,7 +2310,7 @@ cons60l1-m|cons60-iso8859-1-mono:\
 	:li#60:tc=cons25l1-m:
 # ISO 8859-7 FreeBSD console with ACS support
 cons25l7:cons25-iso8859-7:\
-	:ac=f\260g\261{\360}\243`^D.^Y-^X+\253,\273i\247:\
+	:ac=f\260g\261{\360}\243+\253,\273i\247:\
 	:tc=cons25w:
 cons25l7-m|cons25-iso8859-7-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25l7:
