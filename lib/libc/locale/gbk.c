@@ -68,7 +68,7 @@ _gbk_check(u_int c)
 {
 
 	c &= 0xff;
-	return ((c >= 0x80 && c <= 0xfe) ? 2 : 1);
+	return ((c >= 0x81 && c <= 0xfe) ? 2 : 1);
 }
 
 size_t
