@@ -510,7 +510,7 @@ ng_ID2node(ng_ID_t ID)
 {
 	node_p np;
 	LIST_FOREACH(np, &ID_hash[ID % ID_HASH_SIZE], idnodes) {
-		if (np->ID == ID)
+		if ((np->flags & NG_INVALID) == 0 && np->ID == ID)
 			break;
 	}
 	return(np);
@@ -597,7 +597,9 @@ ng_findname(node_p this, const char *name)
 
 	/* Find node by name */
 	LIST_FOREACH(node, &nodelist, nodes) {
-		if (node->name != NULL && strcmp(node->name, name) == 0)
+		if (node->name != NULL
+		    && strcmp(node->name, name) == 0
+		    && (node->flags & NG_INVALID) == 0)
 			break;
 	}
 	return (node);
@@ -766,7 +768,9 @@ ng_findhook(node_p node, const char *name)
 	if (node->type->findhook != NULL)
 		return (*node->type->findhook)(node, name);
 	LIST_FOREACH(hook, &node->hooks, hooks) {
-		if (hook->name != NULL && strcmp(hook->name, name) == 0)
+		if (hook->name != NULL
+		    && strcmp(hook->name, name) == 0
+		    && (hook->flags & HK_INVALID) == 0)
 			return (hook);
 	}
 	return (NULL);
@@ -1369,7 +1373,8 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 
 		/* Count number of nodes */
 		LIST_FOREACH(node, &nodelist, nodes) {
-			if (unnamed || node->name != NULL)
+			if ((node->flags & NG_INVALID) == 0
+			    && (unnamed || node->name != NULL))
 				num++;
 		}
 
