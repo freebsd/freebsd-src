@@ -48,7 +48,7 @@ MAN+=	alarm.3 arc4random.3 \
 	getmntinfo.3 getnetgrent.3 getobjformat.3 getosreldate.3 \
 	getpagesize.3 getpass.3 getpeereid.3 getprogname.3 getpwent.3 \
 	getttyent.3 getusershell.3 getvfsbyname.3 getvfsent.3 \
-	glob.3 initgroups.3 isinf.3 ldexp.3 lockf.3 makecontext.3 \
+	glob.3 initgroups.3 isgreater.3 ldexp.3 lockf.3 makecontext.3 \
 	modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
 	nice.3 nlist.3 pause.3 popen.3 pselect.3 psignal.3 pwcache.3 \
 	raise.3 rand48.3 readpassphrase.3 rfork_thread.3 \
@@ -72,6 +72,8 @@ MLINKS+=err.3 err_set_exit.3 err.3 err_set_file.3 err.3 errc.3 err.3 errx.3 \
 	err.3 vwarnx.3 err.3 warnc.3 err.3 warn.3 err.3 warnx.3
 MLINKS+=exec.3 execl.3 exec.3 execle.3 exec.3 execlp.3 exec.3 exect.3 \
 	exec.3 execv.3 exec.3 execvp.3
+MLINKS+=fpclassify.3 isfinite.3 fpclassify.3 isinf.3 fpclassify.3 isnan.3 \
+	fpclassify.3 isnormal.3
 MLINKS+=fts.3 fts_children.3 fts.3 fts_close.3 fts.3 fts_open.3 \
 	fts.3 fts_read.3 fts.3 fts_set.3
 MLINKS+=getcap.3 cgetcap.3 getcap.3 cgetclose.3 getcap.3 cgetent.3 \
@@ -99,7 +101,9 @@ MLINKS+=getvfsent.3 endvfsent.3 getvfsent.3 getvfsbytype.3 \
 	getvfsent.3 setvfsent.3 getvfsent.3 vfsisloadable.3 \
 	getvfsent.3 vfsload.3
 MLINKS+=glob.3 globfree.3
-MLINKS+=isinf.3 isnan.3 isinf.3 isnanf.3
+MLINKS+=isgreater.3 isgreaterequal.3 isgreater.3 isless.3 \
+	isgreater.3 islessequal.3 isgreater.3 islessgreater.3 \
+	isgreater.3 isunordered.3
 MLINKS+=makecontext.3 swapcontext.3
 MLINKS+=popen.3 pclose.3
 MLINKS+=psignal.3 strsignal.3 psignal.3 sys_siglist.3 psignal.3 sys_signame.3
