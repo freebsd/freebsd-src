@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mail.local.c,v 1.12 1997/02/22 14:21:48 peter Exp $
  */
 
 #ifndef lint
@@ -94,7 +94,7 @@ main(argc, argv)
 
 	from = NULL;
 	nobiff = 0;
-	while ((ch = getopt(argc, argv, "bdf:r:")) != EOF)
+	while ((ch = getopt(argc, argv, "bdf:r:")) != -1)
 		switch(ch) {
 		case 'b':
 			nobiff++;

@@ -71,7 +71,7 @@
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: atrun.c,v 1.8 1997/02/22 14:20:54 peter Exp $";
 static debug = 0;
 
 void perr(const char *a);
@@ -390,7 +390,7 @@ main(int argc, char *argv[])
 
     opterr = 0;
     errno = 0;
-    while((c=getopt(argc, argv, "dl:"))!= EOF)
+    while((c=getopt(argc, argv, "dl:"))!= -1)
     {
 	switch (c)
 	{

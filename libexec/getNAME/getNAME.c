@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: getNAME.c,v 1.4 1997/02/22 14:21:35 peter Exp $
  *
  */
 
@@ -73,7 +73,7 @@ main(argc, argv)
 	extern int optind;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "itw")) != EOF)
+	while ((ch = getopt(argc, argv, "itw")) != -1)
 		switch(ch) {
 		case 'i':
 			intro = 1;
