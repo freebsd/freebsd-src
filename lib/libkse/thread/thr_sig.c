@@ -217,7 +217,10 @@ _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 		    THR_IS_EXITING(thread) || THR_IS_SUSPENDED(thread)) {
 			KSE_SCHED_UNLOCK(curkse, thread->kseg);
 			_thr_ref_delete(NULL, thread);
-		} else if (SIGISMEMBER(thread->sigmask, sig)) {
+		} else if ((thread->state == PS_SIGWAIT &&
+			    SIGISMEMBER(thread->oldsigmask, sig)) ||
+			   (thread->state != PS_SIGWAIT &&
+			    SIGISMEMBER(thread->sigmask, sig))) {
 			KSE_SCHED_UNLOCK(curkse, thread->kseg);
 			_thr_ref_delete(NULL, thread);
 		} else {
@@ -415,10 +418,10 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 		if ((pthread->state == PS_DEAD)		||
 		    (pthread->state == PS_DEADLOCK)	||
 		    THR_IS_EXITING(pthread)		||
-		    THR_IS_SUSPENDED(pthread)		||
-		    SIGISMEMBER(pthread->sigmask, sig)) {
+		    THR_IS_SUSPENDED(pthread)) {
 			; /* Skip this thread. */
-		} else if (pthread->state == PS_SIGWAIT) {
+		} else if (pthread->state == PS_SIGWAIT &&
+			   !SIGISMEMBER(pthread->sigmask, sig)) {
 			/*
 			 * retrieve signal from kernel, if it is job control
 			 * signal, and sigaction is SIG_DFL, then we will
@@ -447,7 +450,9 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 			 */
 			KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 			return (NULL);
-		} else  {
+		} else if (!SIGISMEMBER(pthread->sigmask, sig) ||
+			(!SIGISMEMBER(pthread->oldsigmask, sig) &&
+			 pthread->state == PS_SIGWAIT)) {
 			if (pthread->state == PS_SIGSUSPEND) {
 				if (suspended_thread == NULL) {
 					suspended_thread = pthread;
@@ -490,6 +495,8 @@ void
 _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
     struct pthread_sigframe *psf)
 {
+	int interrupted = curthread->interrupted;
+	int timeout = curthread->timeout;
 	siginfo_t siginfo;
 	int i;
 	kse_critical_t crit;
@@ -562,6 +569,9 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 	KSE_LOCK_RELEASE(curkse, &_thread_signal_lock);
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
 	_kse_critical_leave(&curthread->tmbx);
+
+	curthread->interrupted = interrupted;
+	curthread->timeout = timeout;
 
 	DBG_MSG("<<< thr_sig_rundown %p\n", curthread);
 }
@@ -659,7 +669,8 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 #endif
 
 	if (pthread->curframe == NULL ||
-	    SIGISMEMBER(pthread->sigmask, sig) ||
+	    (pthread->state != PS_SIGWAIT &&
+	    SIGISMEMBER(pthread->sigmask, sig)) ||
 	    THR_IN_CRITICAL(pthread)) {
 		/* thread is running or signal was being masked */
 		if (!fromproc) {
@@ -760,6 +771,9 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 				/* Increment the pending signal count. */
 				SIGADDSET(pthread->sigpend, sig);
 				pthread->check_pending = 1;
+				pthread->interrupted = 1;
+				pthread->sigmask = pthread->oldsigmask;
+				_thr_setrunnable_unlocked(pthread);
 			}
 		
 			return;
@@ -823,6 +837,9 @@ thr_sig_check_state(struct pthread *pthread, int sig)
 			/* Increment the pending signal count. */
 			SIGADDSET(pthread->sigpend, sig);
 			pthread->check_pending = 1;
+			pthread->interrupted = 1;
+			pthread->sigmask = pthread->oldsigmask;
+			_thr_setrunnable_unlocked(pthread);
 		}
 		break;
 
