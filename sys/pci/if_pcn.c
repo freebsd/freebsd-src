@@ -486,7 +486,6 @@ pcn_probe(dev)
 				break;
 			default:
 				return(ENXIO);
-				break;
 			}
 			device_set_desc(dev, t->pcn_name);
 			return(0);
@@ -726,11 +725,9 @@ static int
 pcn_list_rx_init(sc)
 	struct pcn_softc	*sc;
 {
-	struct pcn_list_data	*ld;
 	struct pcn_ring_data	*cd;
 	int			i;
 
-	ld = sc->pcn_ldata;
 	cd = &sc->pcn_cdata;
 
 	for (i = 0; i < PCN_RX_LIST_CNT; i++) {
@@ -793,7 +790,6 @@ static void
 pcn_rxeof(sc)
 	struct pcn_softc	*sc;
 {
-        struct ether_header	*eh;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	struct pcn_rx_desc	*cur_rx;
@@ -832,7 +828,6 @@ pcn_rxeof(sc)
 
 		/* No errors; receive the packet. */
 		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
 		m->m_len = m->m_pkthdr.len =
 		    cur_rx->pcn_rxlen - ETHER_CRC_LEN;
 		m->m_pkthdr.rcvif = ifp;
