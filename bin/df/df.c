@@ -59,6 +59,7 @@ static char const sccsid[] = "@(#)df.c	8.9 (Berkeley) 5/8/95";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ufs/ufs/ufsmount.h>
 
 /* XXX assumes MOUNT_MAXTYPE < 32 */
 #define MT(m)		(1 << (m))
