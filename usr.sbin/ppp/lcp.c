@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.10.2.3 1997/05/10 01:24:36 brian Exp $
+ * $Id: lcp.c,v 1.10.2.4 1997/05/12 02:42:20 ache Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -123,18 +123,11 @@ int new;
     IpcpOpen();
     CcpUp();
     CcpOpen();
-    if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
-        char c = EX_NORMAL;
-        if (write(BGFiledes[1],&c,1) == 1)
-          LogPrintf(LOG_PHASE_BIT,"Parent notified of success.\n");
-        else
-          LogPrintf(LOG_PHASE_BIT,"Failed to notify parent of success.\n");
-        close(BGFiledes[1]);
-        BGFiledes[1] = -1;
-    }
     break;
   case PHASE_DEAD:
-    if (mode & (MODE_DIRECT|MODE_BACKGROUND))
+    if (mode & MODE_DIRECT)
+      Cleanup(EX_DEAD);
+    if (mode & MODE_BACKGROUND && !reconnectRequired)
       Cleanup(EX_DEAD);
     break;
   }
