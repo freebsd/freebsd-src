@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: semget.2,v 1.1 1995/10/03 19:17:18 joerg Exp $
+.\" $Id: semget.2,v 1.1.4.1 1996/12/04 16:02:41 phk Exp $
 .\"
 .Dd September 12, 1995
 .Dt SEMGET 2
@@ -36,7 +36,7 @@
 .Fd #include <sys/ipc.h>
 .Fd #include <sys/sem.h>
 .Ft int
-.Fn "semget" "key_t key" "int nsems" "int flag"
+.Fn semget "key_t key" "int nsems" "int flag"
 .Sh DESCRIPTION
 Based on the values of
 .Fa key
@@ -134,4 +134,5 @@ No semaphore set was found corresponding to
 and IPC_CREAT was not specified.
 .Sh SEE ALSO
 .Xr semctl 2 ,
-.Xr semop 2
+.Xr semop 2 ,
+.Xr ftok 3

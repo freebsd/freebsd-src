@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: shmctl.2,v 1.2.2.1 1997/03/03 14:46:33 bde Exp $
 .\"
 .Dd July 17, 1995
 .Dt SHMCTL 2
@@ -36,7 +36,7 @@
 .Fd #include <sys/ipc.h>
 .Fd #include <sys/shm.h>
 .Ft int
-.Fn "shmctl" "int shmid" "int cmd" "struct shmid_ds *buf"
+.Fn shmctl "int shmid" "int cmd" "struct shmid_ds *buf"
 .Sh DESCRIPTION
 Performs the action specified by
 .Fa cmd
@@ -86,7 +86,7 @@ or the process must have superuser privileges.
 .El
 .Pp
 The
-.Fa "shmid_ds" 
+.Fa shmid_ds
 struct is defined as follows:
 .\"
 .\" I fiddled with the spaces a bit to make it fit well when viewed

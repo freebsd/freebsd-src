@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: shmat.2,v 1.5 1997/02/22 15:04:25 peter Exp $
+.\" $Id: shmat.2,v 1.2.2.1 1997/02/28 05:51:00 mpp Exp $
 .\"
 .Dd August 2, 1995
 .Dt SHMAT 2
@@ -37,9 +37,9 @@
 .Fd #include <sys/ipc.h>
 .Fd #include <sys/shm.h>
 .Ft void *
-.Fn "shmat" "int shmid" "void *addr" "int flag"
+.Fn shmat "int shmid" "void *addr" "int flag"
 .Ft int
-.Fn "shmdt" "void *addr"
+.Fn shmdt "void *addr"
 .Sh DESCRIPTION
 .Fn Shmat
 attaches the shared memory segment identified by
