@@ -87,6 +87,8 @@ _pthread_exit(void *status)
 {
 	struct pthread *curthread = _get_curthread();
 
+	if (!_kse_isthreaded())
+		exit(0);
 	/* Check if this thread is already in the process of exiting: */
 	if ((curthread->flags & THR_FLAGS_EXITING) != 0) {
 		char msg[128];
