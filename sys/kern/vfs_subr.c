@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.82 1997/04/04 17:46:16 dfr Exp $
+ * $Id: vfs_subr.c,v 1.83 1997/04/25 06:47:12 peter Exp $
  */
 
 /*
@@ -78,7 +78,7 @@ extern void	printlockedvnodes __P((void));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 static void	vgonel __P((struct vnode *vp, struct proc *p));
 unsigned long	numvnodes;
-extern void	vputrele __P((struct vnode *vp, int put));
+static void	vputrele __P((struct vnode *vp, int put));
 
 enum vtype iftovt_tab[16] = {
 	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
@@ -1074,7 +1074,7 @@ vref(vp)
  * Vnode put/release.
  * If count drops to zero, call inactive routine and return to freelist.
  */
-void
+static void
 vputrele(vp, put)
 	struct vnode *vp;
 	int put;
