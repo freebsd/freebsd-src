@@ -70,5 +70,4 @@ display_disklabel(int disk)
 		key = wgetch(window);
 	delwin(window);
 	dialog_clear();
-	dialog_update();
 }
