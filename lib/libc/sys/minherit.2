@@ -55,6 +55,36 @@ changes the specified pages to have the inheritance characteristic
 Not all implementations will guarantee that the inheritance characteristic
 can be set on a page basis;
 the granularity of changes may be as large as an entire region.
+.Fx
+is capable of adjusting inheritance characteristics on a page basis.
+Inheritance only effects children created by
+.Fn fork .
+It has no effect on
+.Fn exec .
+exec'd processes replace their address space entirely.  This function also
+has no effect on the parent's address space (other then to potentially
+share the address space with its children).
+.Pp
+Inheritance is a rather esoteric feature largely superceeded by the
+MAP_SHARED feature of 
+.Fn mmap .
+However, it is possible to use
+.Fn minherit
+to share a block of memory between parent and child that has been mapped
+MAP_PRIVATE.  That is, modifications made by parent or child are shared but
+the original underlying file is left untouched.
+.Bl -tag -width MAP_HASSEMAPHORE
+.It Dv MAP_SHARED
+This option causes the address space in question to be shared between
+parent and child.  It has no effect on how the original underlying backing
+store was mapped.
+.It Dv MAP_PRIVATE
+This option prevents the address space in question from being inherited 
+at all.  The address space will be unmapped in the child.
+.It Dv MAP_COPY
+This option has been deprecated.  It had the same effect as MAP_PRIVATE,
+which is not what one would expected for an option called MAP_COPY.
+.El
 .Sh RETURN VALUES
 .Rv -std minherit
 .Sh ERRORS
@@ -78,6 +108,10 @@ and
 .Fa len
 arguments.
 .El
+.Sh BUGS
+Once you set inheritance to MAP_PRIVATE or MAP_SHARED, there is no way to
+recover the originanl copy-on-write semantics short of unmapping and remapping
+the area.
 .Sh SEE ALSO
 .Xr fork 2 ,
 .Xr madvise 2 ,
