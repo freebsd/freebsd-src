@@ -210,6 +210,43 @@ fwmem_read_block(
 	return NULL;
 }
 
+struct fw_xfer *
+fwmem_write_block(
+	struct fw_device *fwdev,
+	caddr_t	sc,
+	u_int8_t spd,
+	u_int16_t dst_hi,
+	u_int32_t dst_lo,
+	int len,
+	char *data,
+	void (*hand)(struct fw_xfer *))
+{
+	struct fw_xfer *xfer;
+	struct fw_pkt *fp;
+
+	xfer = fwmem_xfer_req(fwdev, sc, spd, 16 + roundup(len, 4), hand);
+	if (xfer == NULL)
+		return NULL;
+
+	fp = (struct fw_pkt *)xfer->send.buf;
+	fp->mode.wreqb.tcode = FWTCODE_RREQB;
+	fp->mode.wreqb.dst = htons(xfer->dst);
+	fp->mode.wreqb.dest_hi = htons(dst_hi);
+	fp->mode.wreqb.dest_lo = htonl(dst_lo);
+	fp->mode.wreqb.len = htons(len);
+	bcopy(data, &fp->mode.wreqb.payload[0], len);
+
+	if (fwmem_debug)
+		printf("fwmem_write_block: %d %04x:%08x %d\n", fwdev->dst,
+				dst_hi, dst_lo, len);
+	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
+		return xfer;
+
+	fw_xfer_free(xfer);
+	return NULL;
+}
+
+
 int
 fwmem_open (dev_t dev, int flags, int fmt, fw_proc *td)
 {
@@ -232,7 +269,7 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 	struct firewire_softc *sc;
 	struct fw_device *fwdev;
 	struct fw_xfer *xfer;
-	int err = 0, pad;
+	int err = 0;
         int unit = DEV2UNIT(dev);
 	u_int16_t dst_hi;
 	u_int32_t dst_lo;
@@ -247,50 +284,103 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 		return EINVAL;
 	}
 
-	pad = uio->uio_offset % 4;
-	if  (fwmem_debug && pad != 0)
-		printf("unaligned\n");
 	while(uio->uio_resid > 0) {
 		offset = uio->uio_offset;
-		offset -= pad;
 		dst_hi = (offset >> 32) & 0xffff;
 		dst_lo = offset & 0xffffffff;
-#if USE_QUAD
-		xfer = fwmem_read_quad(fwdev, NULL, fwmem_speed,
-				dst_hi, dst_lo, fw_asy_callback);
-		if (xfer == NULL)
-			return EINVAL;
-		err = tsleep((caddr_t)xfer, FWPRI, "fwmem", hz);
-		if (err !=0 || xfer->resp != 0 || xfer->recv.buf == NULL)
-			return EINVAL; /* XXX */
-		err = uiomove(xfer->recv.buf + xfer->recv.off + 4*3 + pad,
-			4 - pad, uio);
-#else
 		len = uio->uio_resid;
-		if (len > MAXLEN)
-			len = MAXLEN;
-		xfer = fwmem_read_block(fwdev, NULL, fwmem_speed,
+		if (len == 4 && (dst_lo & 3) == 0) {
+			xfer = fwmem_read_quad(fwdev, NULL, fwmem_speed,
+				dst_hi, dst_lo, fw_asy_callback);
+			if (xfer == NULL)
+				return EINVAL;
+			err = tsleep((caddr_t)xfer, FWPRI, "fwmrq", hz);
+			if (err !=0 || xfer->resp != 0 
+					|| xfer->recv.buf == NULL)
+				return EINVAL; /* XXX */
+			err = uiomove(xfer->recv.buf + xfer->recv.off + 4*3,
+								4, uio);
+		} else {
+			if (len > MAXLEN)
+				len = MAXLEN;
+			xfer = fwmem_read_block(fwdev, NULL, fwmem_speed,
 				dst_hi, dst_lo, len, fw_asy_callback);
-		if (xfer == NULL)
-			return EINVAL;
-		err = tsleep((caddr_t)xfer, FWPRI, "fwmem", hz);
-		if (err != 0 || xfer->resp != 0 || xfer->recv.buf == NULL)
-			return EINVAL; /* XXX */
-		err = uiomove(xfer->recv.buf + xfer->recv.off + 4*4 + pad,
-			len - pad, uio);
-#endif
+			if (xfer == NULL)
+				return EINVAL;
+			err = tsleep((caddr_t)xfer, FWPRI, "fwmrb", hz);
+			if (err != 0 || xfer->resp != 0
+					|| xfer->recv.buf == NULL)
+				return EINVAL; /* XXX */
+			err = uiomove(xfer->recv.buf + xfer->recv.off + 4*4,
+								len, uio);
+		}
+		fw_xfer_free(xfer);
 		if (err)
 			return err;
-		fw_xfer_free(xfer);
-		pad = 0;
 	}
 	return err;
 }
 int
 fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 {
-	return EINVAL;
+	struct firewire_softc *sc;
+	struct fw_device *fwdev;
+	struct fw_xfer *xfer;
+	int err = 0;
+        int unit = DEV2UNIT(dev);
+	u_int16_t dst_hi;
+	u_int32_t dst_lo, quad;
+	char *data;
+	off_t offset;
+	int len;
+
+	sc = devclass_get_softc(firewire_devclass, unit);
+	fwdev = fw_noderesolve_eui64(sc->fc, fwmem_eui64);
+	if (fwdev == NULL) {
+		printf("fwmem: no such device ID:%08x%08x\n",
+			fwmem_eui64.hi, fwmem_eui64.lo);
+		return EINVAL;
+	}
+
+	data = malloc(MAXLEN, M_FW, 0);
+	if (data == NULL)
+		return ENOMEM;
+
+	while(uio->uio_resid > 0) {
+		offset = uio->uio_offset;
+		dst_hi = (offset >> 32) & 0xffff;
+		dst_lo = offset & 0xffffffff;
+		len = uio->uio_resid;
+		if (len == 4 && (dst_lo & 3) == 0) {
+			err = uiomove((char *)&quad, sizeof(quad), uio);
+			xfer = fwmem_write_quad(fwdev, NULL, fwmem_speed,
+				dst_hi, dst_lo, quad, fw_asy_callback);
+			if (xfer == NULL)
+				return EINVAL;
+			err = tsleep((caddr_t)xfer, FWPRI, "fwmwq", hz);
+			if (err !=0 || xfer->resp != 0 
+					|| xfer->recv.buf == NULL)
+				return EINVAL; /* XXX */
+		} else {
+			if (len > MAXLEN)
+				len = MAXLEN;
+			err = uiomove(data, len, uio);
+			if (err)
+				return err;
+			xfer = fwmem_write_block(fwdev, NULL, fwmem_speed,
+				dst_hi, dst_lo, len, data, fw_asy_callback);
+			if (xfer == NULL)
+				return EINVAL;
+			err = tsleep((caddr_t)xfer, FWPRI, "fwmwb", hz);
+			if (err != 0 || xfer->resp != 0
+					|| xfer->recv.buf == NULL)
+				return EINVAL; /* XXX */
+			fw_xfer_free(xfer);
+		}
+	}
+	return err;
 }
+
 int
 fwmem_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 {
