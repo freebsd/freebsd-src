@@ -35,6 +35,7 @@
 #############################################################################
 # $MindStep_Id: dhclient-script.sh,v 1.8 1999/12/07 22:11:08 patrick Exp $
 # $MindStep_Tag: CONTRIB_19991207 $
+# $FreeBSD$
 #############################################################################
 
 
@@ -82,10 +83,12 @@ post_state_TIMEOUT_hook () { }
 #############################################################################
 make_resolv_conf () 
 {
-  echo search $new_domain_name >/etc/resolv.conf
-  for nameserver in $new_domain_name_servers; do
-    echo nameserver $nameserver >>/etc/resolv.conf
-  done
+   if [ "x$new_domain_name" != x ] && [ "x$new_domain_name_servers" != x ]; then
+     echo search $new_domain_name >/etc/resolv.conf
+     for nameserver in $new_domain_name_servers; do
+       echo nameserver $nameserver >>/etc/resolv.conf
+     done
+   fi
 }
 
 # Must be used on exit.   Invokes the local dhcp client exit hooks, if any.
