@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97 1998/01/27 23:14:53 brian Exp $
+.\" $Id: ppp.8,v 1.98 1998/03/12 02:23:42 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2384,7 +2384,7 @@ can also be used, but link encryption may be implemented in the future, so
 should not be relied upon.
 .It set speed value
 This sets the speed of the serial device.
-.Dq set timeout idle [LQR [FSM-resend]]
+.It set timeout idle [LQR [FSM-resend]]
 This command allows the setting of the idle timer, the LQR timer (if
 enabled) and the finite state machine
 .Pq FSM
