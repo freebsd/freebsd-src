@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.16 1994/10/19 01:59:00 wollman Exp $
+ *	$Id: if_ie.c,v 1.17 1994/10/23 21:27:20 wollman Exp $
  */
 
 /*
@@ -459,7 +459,7 @@ static int el_probe(dvp)
   c = (inb(PORT + IE507_MADDR) & 0x1c) + 0xc0;
   
   if (kvtop(dvp->id_maddr) != ((int)c << 12)) {
-    printf("ie%d: kernel configured maddr %x doesn't match board configured maddr %x\n",
+    printf("ie%d: kernel configured maddr %lx doesn't match board configured maddr %x\n",
 	   unit, kvtop(dvp->id_maddr),(int)c << 12);
     return 0;
   }
@@ -503,8 +503,6 @@ static int ni_probe(dvp)
 {
   int unit = dvp->id_unit;
   int boardtype, c;
-
-struct ie_softc *ie = &ie_softc[unit];
 
   ie_softc[unit].port = dvp->id_iobase;
   ie_softc[unit].iomembot = dvp->id_maddr;
@@ -1639,7 +1637,7 @@ static void run_tdr(unit, cmd)
     printf("ie%d: TDR detected a short %d clocks away\n", unit,
 	   result & IE_TDR_TIME);
   } else {
-    printf("ie%d: TDR returned unknown status %x\n", result);
+    printf("ie%d: TDR returned unknown status %x\n", unit, result);
   }
 }
 

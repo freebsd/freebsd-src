@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.32 1994/10/23 21:27:26 wollman Exp $
+ *	$Id: isa.c,v 1.33 1994/10/25 23:06:15 se Exp $
  */
 
 /*
@@ -50,6 +50,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>		/* isn't it a joy */
 #include <sys/kernel.h>		/* to have three of these */
+#include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/buf.h>
