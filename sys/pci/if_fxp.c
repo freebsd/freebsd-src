@@ -1053,7 +1053,19 @@ tbdinit:
 		/*
 		 * Advance the end of list forward.
 		 */
+
+#ifdef __alpha__
+		/*
+		 * On platforms which can't access memory in 16-bit
+		 * granularities, we must prevent the card from DMA'ing
+		 * up the status while we update the command field.
+		 * This could cause us to overwrite the completion status.
+		 */
+		atomic_clear_short(&sc->cbl_last->cb_command,
+		    FXP_CB_COMMAND_S);
+#else
 		sc->cbl_last->cb_command &= ~FXP_CB_COMMAND_S;
+#endif /*__alpha__*/
 		sc->cbl_last = txp;
 
 		/*
