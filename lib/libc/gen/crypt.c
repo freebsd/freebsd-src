@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 __warn_references(des_setkey,
 	"WARNING!  des_setkey(3) not present in the system!");
 
+/* ARGSUSED */
 int
 des_setkey(const char *key __unused)
 {
@@ -65,6 +66,7 @@ des_setkey(const char *key __unused)
 __warn_references(des_cipher,
 	"WARNING!  des_cipher(3) not present in the system!");
 
+/* ARGSUSED */
 int
 des_cipher(const char *in, char *out, long salt __unused, int num_iter __unused)
 {
@@ -76,6 +78,7 @@ des_cipher(const char *in, char *out, long salt __unused, int num_iter __unused)
 __warn_references(setkey,
 	"WARNING!  setkey(3) not present in the system!");
 
+/* ARGSUSED */
 int
 setkey(const char *key __unused)
 {
@@ -86,6 +89,7 @@ setkey(const char *key __unused)
 __warn_references(encrypt,
 	"WARNING!  encrypt(3) not present in the system!");
 
+/* ARGSUSED */
 int
 encrypt(char *block __unused, int flag __unused)
 {
