@@ -1,0 +1,622 @@
+Thu Mar 14 15:22:44 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* internal.h (R_MEM_INDIRECT): New reloc for the h8300.
+ 
+Fri Feb  9 10:44:11 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* aux-coff.h: Rename from aux.h, to avoid problems on hapless DOS
+	systems which think that aux is a com port.
+
+Mon Feb  5 18:35:00 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* i960.h (F_I960HX): Define.
+
+Wed Jan 31 13:11:54 1996  Richard Henderson  <rth@tamu.edu>
+
+	* aux.h: New file.
+	* internal.h, m68k.h: Protect against multiple inclusion.
+
+Wed Nov 22 13:48:39 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ecoff.h (_RCONST, STYP_RCONST, RELOC_SECTION_RCONST): Define.
+	(NUM_RELOC_SECTIONS): Update.
+	* symconst.h (scRConst): Define.
+
+Tue Nov 14 18:54:29 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* internal.h (C_NT_WEAK): Define.
+
+Thu Nov  9 14:08:30 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* rs6000.h (STYP_OVRFLO): Define.
+
+Tue Nov  7 14:38:45 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* coff/powerpc.h (IMAGE_NT_OPTIONAL_HDR_MAGIC): Added define.
+	* coff/pe.h: Added defines for file level flags
+
+Mon Nov  6 17:28:01 1995  Harry Dolan  <dolan@ssd.intel.com>
+
+	* i860.h: New file, based on i386.h.
+
+Wed Nov  1 15:25:18 1995  Manfred Hollstein KS/EF4A 60/1F/110 #40283  <manfred@lts.sel.alcatel.de>
+
+	* m68k.h (PAGEMAGICEXECSWAPPED): Define.
+	(PAGEMAGICPEXECSWAPPED): Define.
+	(PAGEMAGICPEXECTSHLIB): Define.
+	(PAGEMAGICPEXECPAGED): Define.
+	(_COMMENT): DEFINE.
+	* m88k.h (_COMMENT): Define.
+
+Wed Oct 18 18:36:19 1995  Geoffrey Noer  <noer@cygnus.com>
+
+	* sym.h: #if 0'd out runtime_pdr struct because it chokes 
+	Visual C++ and there aren't any references to it elsewhere in gdb.
+
+Mon Oct 16 11:12:24 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* rs6000.h (SMALL_AOUTSZ): Define.
+
+	* internal.h (XMC_TD): Define.
+
+Tue Oct 10 18:41:03 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* internal.h (struct internal_aouthdr): Add o_cputype field.
+	* rs6000.h (AOUTHDR): Rename o_resv1 to o_cputype.
+
+Mon Oct  9 14:45:46 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* rs6000.h (AOUTHDR): Add o_maxdata field.  Add comments.
+	(_PAD, _LOADER): Define.
+	(STYP_LOADER): Define.
+	* internal.h (struct internal_aouthdr): Add o_maxdata field.
+
+Thu Oct  5 10:02:57 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ecoff.h: Define section name macros and STYP macros for various
+	Alpha sections: .got, .hash, .dynsym, .dynstr, .rel.dyn, .conflic,
+	.comment, .liblist, .dynamic.
+
+Wed Oct  4 10:56:35 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* pe.h: Moved DOSMAGIC and NT_SIGNATURE defines here
+	* powerpc.h: removed DOSMAGIC, NT_SIGNATURE, and DEFAULT_* defines
+	Also removed other unused defines (various MAGIC ones)
+	* i386.h: removed DOSMAGIC, NT_SIGNATURE, and DEFAULT_* defines
+	* arm.h: removed DOSMAGIC, NT_SIGNATURE, and DEFAULT_* defines
+	* apollo.h: removed unused DEFAULT_* defines
+	* alpha.h: removed unused DEFAULT_* defines
+	* h8500.h: removed unused DEFAULT_* defines
+	* h8300.h: removed unused DEFAULT_* defines
+	* i960.h: removed unused DEFAULT_* defines
+	* m88k.h: removed unused DEFAULT_* defines
+	* we32k.h: removed unused DEFAULT_* defines
+	* rs6000.h: removed unused DEFAULT_* defines
+	* mips.h: removed unused DEFAULT_* defines
+	* m68k.h: removed unused DEFAULT_* defines
+	* z8k.h: removed unused DEFAULT_* defines
+	* w65.h: removed unused DEFAULT_* defines
+	* sparc.h: removed unused DEFAULT_* defines
+	* sh.h: removed unused DEFAULT_* defines
+
+Fri Sep 29 08:40:08 1995  Kim Knuttila  <krk@cygnus.com>
+
+	* powerpc.h: Reformatted to GNU coding conventions.
+
+Wed Sep 27 06:50:50 1995  Kim Knuttila  <krk@nellie>
+
+	* pe.h: added defines for more section characteristics
+	* powerpc.h (new file): base coff definitions for ppc PE
+
+Tue Sep 12 12:08:20 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* internal.h (struct internal_syment): Change n_numaux field from
+	char to unsigned char.
+
+Fri Sep  1 15:39:36 1995  Kazumoto Kojima  <kkojima@info.kanagawa-u.ac.jp>
+
+	* mips.h (struct rpdr_ext): Define.
+
+Thu Aug 31 16:51:50 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* internal.h (internal_aouthdr, internal_filehdr):
+	don't indirect the pe stuff.
+
+Tue Aug 29 14:16:07 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* i386.h (NT_DEF_RESERVE, NT_DEF_COMMIT): Make the same
+	as 'the other' compiler.
+	* internal.h (NT_IMAGE_BASE): Deleted.
+	(NT_EXE_IMAGE_BASE, NT_DLL_IMAGE_BASE): New.
+	(PE_DEF_SECTION_ALIGNMENT, PE_DEF_FILE_ALIGNMENT): New.
+	(R_IMAGEBASE): New.
+
+Mon Aug 21 18:12:19 1995  steve chamberlain  <sac@slash.cygnus.com>
+
+	* internal.h: (internal_filehdr): Moved PE stuff into
+	internal_extra_pe_filehdr.
+	(internal_aouthdr): Moved PE stuff into
+	interanl_extra_pe_aouthdr.
+
+Mon Jul 24 14:05:39 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* internal.h: Move R_SH_* relocs from here...
+	* sh.h: ...to here.
+	(R_SH_SWITCH16, R_SH_SWITCH32): Define.
+	(R_SH_USES, R_SH_COUNT, R_SH_ALIGN): Define.
+
+Thu Jun 29 00:04:25 1995  Steve Chamberlain  <sac@slash.cygnus.com>
+
+	* internal.h (NT_DEF_RESERVE, NT_DEF_COMMIT): Increase a lot.
+
+Tue May 16 15:08:20 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* internal.h (NT_subsystem, NT_stack_heap): Delete
+
+Tue May 16 15:08:20 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* internal.h (NT_subsystem, NT_stack_heap): Now extern.
+
+Tue Feb 14 17:59:37 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ecoff.h (struct ecoff_fdrtab_entry): Define.
+	(struct ecoff_find_line): Define.
+
+Sat Feb  4 14:38:03 1995  David Mosberger-Tang  <davidm@piston.cs.arizona.edu>
+
+	* sym.h (struct pdr): field "prof" added.
+
+	* alpha.h (PDR_BITS1_PROF_*): added, macros for PDR_BITS*_RESERVED_*
+	updated accordingly.
+
+Sun Jan 15 18:38:33 1995  Steve Chamberlain  <sac@splat>
+
+	* w65.h: New file.
+
+Wed Nov 23 22:43:38 1994  Steve Chamberlain  (sac@jonny.cygnus.com)
+
+	* sh.h (SH_ARCH_MAGIC_BIG, SH_ARCH_MAGIC_LITTLE): New.
+	(SHBADMAG): Changed to suit.
+
+Tue Jul 26 17:46:08 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* i960.h (F_I960JX): New macro.
+
+Wed Jul  6 00:48:57 1994  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+
+	* alpha.h:  Add definitions for alpha file header flags, encoding
+	the object type of the file.
+
+Mon Jun 20 13:47:01 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* ecoff.h (ecoff_swap_tir_in): Remove declaration.
+	(ecoff_swap_tir_out): Likewise.
+	(ecoff_swap_rndx_in, ecoff_swap_rndx_out): Likewise.
+	(struct ecoff_debug_swap): Add new fields: swap_tir_in,
+	swap_rndx_in, swap_tir_out, swap_rndx_out, read_debug_info.
+
+Sun Jun 12 03:51:52 1994  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+
+	* symconst.h:  Pick up SGI define for stIndirect.
+
+Fri Apr 22 13:05:28 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff.h (REGINFO): Don't define.
+	(struct ecoff_reginfo): Don't define.
+
+	* sh.h (SH_ARCH_MAGIC): Rename from SHMAGIC.  SHMAGIC is used by
+	several targets to mean a shared library.
+	(SHBADMAG): Corresponding change.
+
+Thu Apr 14 13:00:53 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h (RELOC_BITS3_TYPE_BIG): Changed from 0x1e to 0x3e.
+	(RELOC_BITS3_TYPEHI_LITTLE): Define.
+	(RELOC_BITS3_TYPEHI_SH_LITTLE): Define.
+	(MIPS_R_PCREL16): Change value from 8 to 12 to match Irix 4.
+	(MIPS_R_RELHI): Define.
+	(MIPS_R_RELLO): Define.
+	(MIPS_R_SWITCH): Change value from 9 to 22.
+
+Thu Apr  7 14:19:35 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h (MIPS_R_SWITCH): Define.
+
+Thu Mar 31 19:28:33 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* internal.h (internal_aouthdr): Added comments for Apollo fields.
+
+Thu Mar 31 16:28:02 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff.h (STYP_ECOFF_LIB): Define as used on Irix 4.
+
+Fri Mar 25 17:16:55 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff.h (struct ecoff_debug_info): Add adjust field.
+	(struct ecoff_value_adjust): Define.
+
+Tue Mar 22 13:22:47 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h (MIPS_R_PCREL16): Define.
+
+Sat Feb 26 10:26:38 1994  Ian Lance Taylor  (ian@cygnus.com)
+
+	* ecoff.h: Add casts to avoid warnings from SVR4 cc.
+
+Mon Feb 21 09:48:46 1994  Ian Lance Taylor  (ian@lisa.cygnus.com)
+
+	* sym.h (struct runtime_pdr): Make field adr bfd_vma, not unsigned
+	long.
+	(SYMR): Make field value bfd_vma, not long.
+
+Fri Feb  4 23:35:53 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* rs6000.h (STYP_DEBUG): Define.
+
+Wed Feb  2 14:31:37 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* internal.h (union internal_auxent): Change x_csect.x_scnlen into
+	a union of a long and a pointer to a symbol.  XCOFF sometimes uses
+	this field as a symbol index.
+
+Mon Jan 10 23:54:25 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff.h (ecoff_debug_info): Remove fields line_end,
+	external_dnr_end, external_pdr_end, external_sym_end,
+	external_opt_end, external_aux_end, ss_end, external_fdr_end.
+	Replace ifdbase with ifdmap.
+
+Wed Jan  5 17:05:36 1994  Ken Raeburn  (raeburn@deneb.cygnus.com)
+
+	* ecoff.h (STYP_EXTENDESC, STYP_COMMENT, STYP_XDATA, STYP_PDATA):
+	Define.
+
+Wed Jan  5 16:58:24 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff.h (NUM_RELOC_SECTIONS): Define.
+
+Tue Dec 21 09:24:56 1993  Ken Raeburn  (raeburn@rtl.cygnus.com)
+
+	* sparc.h (struct external_reloc): Rename field r_addend to
+	r_offset.
+
+Sat Dec 11 16:12:32 1993  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* internal.h (R_DISP7, R_SH_IMM16): New reloc types.
+
+Tue Nov 23 14:23:19 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff.h (struct ecoff_debug_swap): Added *_end fields for all
+	the symbolic information pointers.
+
+	* sym.h: Named the EXTR structure ecoff_extr.
+
+Fri Nov 19 08:21:18 1993  Ken Raeburn  (raeburn@rover.cygnus.com)
+
+	* sparc.h (RELSZ): Use correct size.
+
+Wed Nov 17 17:18:16 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h (struct ecoff_debug_info): Define.
+
+Tue Nov  2 17:56:57 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff.h (struct ecoff_debug_swap): Define.
+
+Thu Oct 28 17:07:50 1993  Stan Shebs  (shebs@rtl.cygnus.com)
+
+	* i386.h (I386LYNXMAGIC): Rename to LYNXCOFFMAGIC.
+	* m68k.h (LYNXCOFFMAGIC): Define.
+	* sparc.h: New file.
+
+Tue Oct 19 15:34:50 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* alpha.h (external_aouthdr): Split four byte padding field into
+	two byte bldrev field and two byte padding field.
+
+	* ecoff.h (_LITA, _PDATA, _XDATA, STYP_LITA): Defined.
+
+Wed Oct 13 15:52:34 1993  Ken Raeburn  (raeburn@cygnus.com)
+
+	Sun Oct 10 17:27:10 1993  Troy Rollo (troy@cbme.unsw.edu.au)
+
+	* coff/internal.h: Added o_sri, o_inlib and o_vid for Apollos
+			as well as R_DIR16.
+
+	* coff/apollo.h: New file
+
+Mon Oct 11 17:16:48 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff.h (REGINFO, struct ecoff_reginfo): Define.
+
+Tue Oct  5 10:52:53 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* rs6000.h: Change non-ASCII characters in comment to octal
+	escapes.
+
+Tue Sep 28 03:27:04 1993  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+
+	* ecoff.h (_FINI, STYP_ECOFF_FINI):  Add to support .fini section.
+
+Fri Sep 24 11:53:53 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h (BADMAG): Recognize MIPS_MAGIC_LITTLE3 and MIPS_MAGIC_BIG3.
+	* ecoff.h: Define MIPS_MAGIC_LITTLE3 and MIPS_MAGIC_BIG3.
+
+Thu Sep 23 21:07:14 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* mips.h (BADMAG): Recognize MIPS_MAGIC_LITTLE2 and MIPS_MAGIC_BIG2.
+	* ecoff.h: Define MIPS_MAGIC_LITTLE2 and MIPS_MAGIC_BIG2.
+
+Thu Sep 16 20:27:21 1993  Jim Kingdon  (kingdon@cirdan.cygnus.com)
+
+	* sym.h, symconst.h: Add comment stating these files are not part
+	of GDB, GAS, etc.  In 1991, when we asked rms whether we could
+	include these files in GDB (although they are copyrighted by
+	someone besides the FSF), he said it was OK if they were not
+	considered part of GDB.
+
+Fri Sep 10 17:40:35 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff.h (AUX_PUT_ANY): Cast val argument to bfd_vma.
+
+	* alpha.c (external_aouthdr): Need four bytes of padding between
+	vstamp and tsize.
+
+Tue Sep  7 14:20:43 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff.h (AUX_GET_ANY, AUX_PUT_ANY): Changed to reflect further
+	change in bfd swapping routine names.
+
+Tue Sep  7 10:15:17 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* ecoff.h (AUX_GET_ANY): Change name of _do_getb32 to reflect bfd
+	changes.
+
+Fri Aug 13 14:30:32 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* ecoff.h (RELOC_SECTION_NONE): Define.
+
+Thu Aug 12 11:24:42 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* alpha.h (struct external_reloc): Add r_symndx field.
+	(RELSZ): Correct.
+	(RELOC_BITS*): Correct.
+	(ALPHA_R_*): Define.
+	* ecoff.h (RELOC_SECTION_{XDATA,PDATA,FINI,LITA,ABS}): Define.
+	(r_extern): Undefine.
+	* internal.h (struct internal_reloc): Make r_vaddr bfd_vma rather
+	than long.  Add r_extern field.
+
+	* alpha.h (PDR_BITS*): Define.
+	* sym.h (PDR): Give correct names to new fields.
+
+	* ecoff.h: Moved MIPS reloc definitions from here...
+	* mips.h: to here.
+
+Tue Aug  3 11:17:53 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* alpha.h: Corrected external symbolic debugging structures to
+	match actual usage.
+	* internal.h (internal_filehdr, internal_aouthdr,
+	internal_scnhdr): Changed type of some fields to bfd_vma so they
+	can hold 64 bits.
+	* sym.h (HDRR, FDR, PDR, EXTR): Likewise.
+	(PDR): Added new fields found on Alpha.
+	* symconst.h (magicSym2): Define; new value found on Alpha.
+
+	* ecoff.h: New file.
+	* alpha.h, mips.h: Moved common information into ecoff.h.  Moved
+	external structure definitions in from ecoff-ext.h.
+	* ecoff-ext.h: Removed; information now in alpha.h and mips.h.
+
+Sun Jul 18 21:43:59 1993  Jim Kingdon  (kingdon@rtl.cygnus.com)
+
+	* i386.h: Recognize I386PTXMAGIC.
+
+Fri Jul 16 09:54:35 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* mips.h (MIPS_AOUT_{OZ}MAGIC): Renamed from {OZ}MAGIC.
+
+Thu Jul 15 12:23:55 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* m88k.h (union external_auxent): Move x_fcn back inside x_fcnary.
+	({GET,PUT}_FCN_{LNNOPTR,ENDNDX}): Adjust accordingly.
+
+Sun Jul 11 18:00:18 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* m68k.h: Define MC68KBCSMAGIC.
+
+Thu Jun 10 11:46:28 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* mips.h (_INIT, STYP_MIPS_INIT): Define (used on Irix4).
+	(STYP_OTHER_LOAD): Define as STYP_MIPS_INIT.
+
+Wed Jun  9 15:09:09 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* mips.h (OMAGIC): Define.
+
+Mon Apr 26 18:04:47 1993  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* internal.h, sh.h: Support for SH.
+
+Sat Apr 24 21:34:59 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* a29k.h: Define _LIT.
+
+Fri Apr 23 18:41:23 1993  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* alpha.h: New file.
+
+Thu Apr  8 12:36:34 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* internal.h (C_SHADOW, C_VERSION): Copied in from m88k.h.
+	* m88k.h, i386.h, we32k.h: Don't define all the storage classes;
+	they're already in internal.h.
+
+Wed Apr  7 11:51:24 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* internal.h: Change n_sclass to unsigned char.
+	Change C_EFCN to 0xff, change RS/6000 dbx symbols
+	to no longer be signed.
+
+Fri Mar 19 14:52:56 1993  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* internal.h: Add H8/500 reloc types.
+
+Wed Mar 17 09:46:03 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* ecoff-ext.h (AUX_PUT_ANY): Don't use void values in branches of
+	conditional expression.
+
+Thu Mar  4 14:12:06 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* ecoff-ext.h (AUX_GET_*): Rewrote to use new macro AUX_GET_ANY.
+	(AUX_PUT_*): New macros corresponding to the AUX_GET macros.
+	(ecoff_swap_tir_out): Added prototype.
+
+	* mips.h (N_BTMASK, N_TMASK, N_BTSHFT, N_TSHIFT): Define; these
+	are needed to interpret gcc debugging output.
+
+Tue Feb  9 07:43:27 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* we32k.h (BTYPE, ISPTR, ISFCN, ISARY, DECREF): Removed
+	more definitions duplicated in internal.h.
+
+Wed Feb  3 09:18:24 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* mips.h (RELOC_BITS3_TYPE_*): Correct for big endian machines.
+
+Mon Jan 25 11:35:51 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* internal.h (internal_aouthdr): Added additional fields used only
+	by MIPS ECOFF.
+
+Thu Jan 21 10:28:38 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* mips.h (AOUTHDR): Added additional fields used by ECOFF.
+
+Tue Jan 19 12:21:19 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* i386.h, we32k.h (N_*, T_*, DT_*): Removed still more definitions
+	duplicated in internal.h.
+
+	* mips.h (RELOC_SECTION_*, ECOFF_R_*): Defined constants for ECOFF
+	relocs.
+
+Fri Jan 15 18:17:00 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff-ext.h: Added prototypes for new ECOFF swapping functions.
+	(opt_ext): New structure.
+	* mips.h (ZMAGIC): Defined to be 0413.
+	(_LIB): Defined to be ".lib"
+	(external_reloc): MIPS ECOFF relocs are only 8 bytes.  Added
+	macros to aid in swapping.
+
+Fri Jan  8 16:19:26 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ecoff-ext.h: Added prototypes for ECOFF swapping functions.
+	* internal.h (internal_scnhdr): Always provide s_align field, not
+	just on i960.
+	(internal_reloc): Always provide r_size field, not just on
+	RS/6000.
+	* mips.h (_RDATA, _SDATA, _SBSS, _LIT4, _LIT8, STYP_RDATA,
+	STYP_SDATA, STYP_SBSS, STYP_LIT4, STYP_LIT8): Defined.
+	(CODE_MASK, MIPS_IS_STAB, MIPS_MARK_STAB, MIPS_UNMARK_STAB,
+	STABS_SYMBOL): Moved in from gdb/mipsread.c.
+
+Wed Jan  6 14:01:46 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* i386.h, we32k.h: removed STYP_* defines, since they duplicated
+	those in internal.h.
+
+Tue Dec 29 15:40:07 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* i386.h: define I386AIXMAGIC for Danbury AIX PS/2 compiler.
+
+Sat Dec 12 16:07:57 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* i386.h: don't define BTYPE, ISPTR, ISFCN, ISARY, DECREF: they
+	are defined in internal.h.
+
+Thu Nov 12 09:52:01 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* internal.h: (internal_reloc): r_offset is now a long.
+	* z8k.h: slight comment enhancement
+
+Wed Sep 30 07:46:08 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* internal.h: changed z8k reloc types
+
+Fri Aug 28 10:16:31 1992  Brendan Kehoe  (brendan@cygnus.com)
+
+	* we32k.h: new file
+
+Thu Aug 27 13:00:01 1992  Brendan Kehoe  (brendan@cygnus.com)
+
+	* symconst.h: comment out cruft at the end of #endif
+
+Tue Aug 25 15:06:49 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* internal.h: added #define for STYP_LIT, removed from a29k and
+	h8300.
+
+	* z8k.h: added z8000 support
+
+Thu Jul 16 16:32:00 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* internal.h: added R_RELLONG_NEG reloc type
+
+Fri Jun 12 20:11:04 1992  John Gilmore  (gnu at cygnus.com)
+
+	* symconst.h:  Fix unterminated comment.
+
+Wed Jun 10 07:57:49 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* i386.h: a.out magic numbers from
+	mohring@informatik.tu-muenchen.de
+
+Mon Jun  8 20:13:33 1992  John Gilmore  (gnu at cygnus.com)
+
+	* ecoff-ext.h, mips.h:  Use unsigned chars everywhere.
+	(Suggested by Antti Miettinen.)
+
+Tue Apr 14 15:18:44 1992  John Gilmore  (gnu at cygnus.com)
+
+	* sym.h:  Add comments.
+	* symconst.h:  Merge with Fred's changes.
+
+Tue Apr 14 14:30:05 1992  Fred Fish  (fnf@cygnus.com)
+
+	* symconst.h:  Pick up SGI defines for stStruct, stUnion, stEnum,
+	langCplusplus, and langCplusplusV2.
+
+Thu Apr  2 19:47:43 1992  John Gilmore  (gnu at cygnus.com)
+
+	* sym.h, symconst.h:  MIPS has provided redistributable versions
+	of these files.  Thanks!
+	* ecoff-ext.h:  Add weakext bit to match new sym.h.
+
+Fri Mar  6 00:10:46 1992  John Gilmore  (gnu at cygnus.com)
+
+	* ecoff-ext.h:  Add relative file descriptors.
+
+Thu Feb 27 11:53:04 1992  John Gilmore  (gnu at cygnus.com)
+
+	* ecoff-ext.h:  New file for external (in-file) form of ecoff
+	symbol structures.
+
+Thu Feb  6 11:33:32 1992  Steve Chamberlain  (sac at rtl.cygnus.com)
+
+	* h8300.h: made the external_lineno l_lnno field 4 bytes wide.
+	andded GET/PUT_LINENO_LNNO macros
+
+Sat Nov 30 20:38:35 1991  Steve Chamberlain  (sac at rtl.cygnus.com)
+
+	* ChangeLog, a29k.h, h8300.h, i386.h, i960.h, internal.h, m68k.h,
+	m88k.h, mips.h, rs6000.h: move from above coff-<foo>.h
+
+
+Local Variables:
+version-control: never
+End:
