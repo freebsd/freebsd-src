@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.10 1995/05/19 17:19:39 jkh Exp $
+ * $Id: dist.c,v 1.11 1995/05/20 00:13:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -248,7 +248,5 @@ distExtract(char *parent, Distribution *me)
 void
 distExtractAll(void)
 {
-    if (!mediaVerify())
-	return;
     distExtract(NULL, DistTable);
 }

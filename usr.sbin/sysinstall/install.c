@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.33 1995/05/20 08:31:40 jkh Exp $
+ * $Id: install.c,v 1.34 1995/05/20 10:33:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,8 +72,6 @@ preInstallCheck(void)
 	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
 	return FALSE;
     }
-    if (!mediaVerify())
-	return FALSE;
     return TRUE;
 }
 
@@ -153,6 +151,8 @@ int
 installCommit(char *str)
 {
     installInitial();
+    if (!mediaVerify())
+	return 0;
     distExtractAll();
     installFinal();
     return 0;
