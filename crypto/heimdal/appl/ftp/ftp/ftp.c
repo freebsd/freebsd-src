@@ -32,7 +32,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID ("$Id: ftp.c,v 1.75 2002/10/16 15:46:43 joda Exp $");
+RCSID ("$Id: ftp.c,v 1.75.2.1 2004/08/20 14:59:06 lha Exp $");
 
 struct sockaddr_storage hisctladdr_ss;
 struct sockaddr *hisctladdr = (struct sockaddr *)&hisctladdr_ss;
@@ -1741,8 +1741,11 @@ abort_remote (FILE * din)
     snprintf (buf, sizeof (buf), "%c%c%c", IAC, IP, IAC);
     if (send (fileno (cout), buf, 3, MSG_OOB) != 3)
 	warn ("abort");
-    fprintf (cout, "%cABOR\r\n", DM);
-    fflush (cout);
+    fprintf (cout, "%c", DM);
+    sec_fprintf(cout, "ABOR");
+    sec_fflush (cout);
+    fprintf (cout, "\r\n");
+    fflush(cout);
     FD_ZERO (&mask);
     if (fileno (cin) >= FD_SETSIZE)
 	errx (1, "fd too large");

@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kerberos5.c,v 1.145.2.3 2003/12/14 19:43:04 lha Exp $");
+RCSID("$Id: kerberos5.c,v 1.145.2.4 2004/08/13 19:28:26 lha Exp $");
 
 #define MAX_TIME ((time_t)((1U << 31) - 1))
 
@@ -331,6 +331,9 @@ get_pa_etype_info(METHOD_DATA *md, hdb_entry *client,
 	return ENOMEM;
 
     for(j = 0; j < etypes_len; j++) {
+	for (i = 0; i < n; i++)
+	    if (pa.val[i].etype == etypes[j])
+		goto skip1;
 	for(i = 0; i < client->keys.len; i++) {
 	    if(client->keys.val[i].key.keytype == etypes[j])
 		if((ret = make_etype_info_entry(&pa.val[n++], 
@@ -339,18 +342,19 @@ get_pa_etype_info(METHOD_DATA *md, hdb_entry *client,
 		    return ret;
 		}
 	}
+    skip1:;
     }
     for(i = 0; i < client->keys.len; i++) {
 	for(j = 0; j < etypes_len; j++) {
 	    if(client->keys.val[i].key.keytype == etypes[j])
-		goto skip;
+		goto skip2;
 	}
 	if((ret = make_etype_info_entry(&pa.val[n++], 
 					&client->keys.val[i])) != 0) {
 	    free_ETYPE_INFO(&pa);
 	    return ret;
 	}
-      skip:;
+      skip2:;
     }
     
     if(n != pa.len) {
