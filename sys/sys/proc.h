@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.46 1997/11/06 19:29:45 phk Exp $
+ * $Id: proc.h,v 1.47 1997/11/21 11:37:02 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -225,7 +225,6 @@ struct	proc {
 
 #define	P_SWAPPING	0x40000	/* Process is being swapped. */
 #define	P_SWAPINREQ	0x80000	/* Swapin request due to wakeup */
-#define	P_IDLEPROC	0x100000 /* Process is an idle-eater, don't count */
 
 /* Marked a kernel thread */
 #define P_KTHREADP	0x200000 /* Process is really a kernel thread */
