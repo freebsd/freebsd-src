@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -72,6 +72,7 @@
 #include <sys/rman.h>
 #include <sys/systm.h>
 
+#include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/stdarg.h>
 
@@ -91,25 +92,6 @@
 #endif
 
 #define FDBIO_FORMAT	BIO_CMD2
-
-/*
- * fdc maintains a set (1!) of ivars per child of each controller.
- */
-enum fdc_device_ivars {
-	FDC_IVAR_FDUNIT,
-};
-
-/*
- * Simple access macros for the ivars.
- */
-#define FDC_ACCESSOR(A, B, T)						\
-static __inline T fdc_get_ ## A(device_t dev)				\
-{									\
-	uintptr_t v;							\
-	BUS_READ_IVAR(device_get_parent(dev), dev, FDC_IVAR_ ## B, &v);	\
-	return (T) v;							\
-}
-FDC_ACCESSOR(fdunit,	FDUNIT,	int)
 
 /* configuration flags for fdc */
 #define FDC_NO_FIFO	(1 << 2)	/* do not enable FIFO  */
@@ -283,7 +265,9 @@ static bus_addr_t fdc_iat[] = {0, 2, 4};
 
 struct fdc_ivars {
 	int	fdunit;
+	int	fdtype;
 };
+
 static devclass_t fd_devclass;
 
 /* configuration flags for fd */
@@ -727,6 +711,52 @@ static int pc98_fd_check_ready(fdu_t fdu)
 	}
 	return -1;
 }
+
+static void pc98_fd_check_type(struct fd_data *fd)
+{
+	struct fdc_data *fdc;
+
+	if (fd->type != FDT_NONE || fd->fdu < 0 || fd->fdu > 3)
+		return;
+
+	fdc = fd->fdc;
+
+	/* Look up what the BIOS thinks we have. */
+	if (!((PC98_SYSTEM_PARAMETER(0x55c) >> fd->fdu) & 0x01)) {
+		fd->type = FDT_NONE;
+		return;
+	}
+	if ((PC98_SYSTEM_PARAMETER(0x5ae) >> fd->fdu) & 0x01) {
+		/* Check 3mode I/F */
+		fd->pc98_trans = 0;
+		bus_space_write_1(fdc->sc_fdemsiot, fdc->sc_fdemsioh, 0,
+				  (fd->fdu << 5) | 0x10);
+		if (!(bus_space_read_1(fdc->sc_fdemsiot, fdc->sc_fdemsioh, 0) &
+		    0x01)) {
+			fd->type = FDT_144M;
+			return;
+		}
+		device_printf(fd->dev,
+			      "Warning: can't control 3mode I/F, fallback to 2mode.\n");
+	}
+
+	fd->type = FDT_12M;
+
+	switch (epson_machine_id) {
+	case 0x20:
+	case 0x27:
+		if ((PC98_SYSTEM_PARAMETER(0x488) >> fd->fdu) & 0x01) {
+#ifdef EPSON_NRDISK
+			if (nrd_check_ready()) {
+				nrd_LED_on();
+				nrdu = fd->fdu;
+			} else
+#endif
+				fd->type = FDT_NONE;
+		}
+		break;
+	}
+}
 #endif /* PC98 */
 
 int
@@ -981,10 +1011,53 @@ fdc_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case FDC_IVAR_FDUNIT:
 		*result = ivars->fdunit;
 		break;
+	case FDC_IVAR_FDTYPE:
+		*result = ivars->fdtype;
+		break;
 	default:
-		return ENOENT;
+		return (ENOENT);
 	}
-	return 0;
+	return (0);
+}
+
+int
+fdc_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+{
+	struct fdc_ivars *ivars = device_get_ivars(child);
+
+	switch (which) {
+	case FDC_IVAR_FDUNIT:
+		ivars->fdunit = value;
+		break;
+	case FDC_IVAR_FDTYPE:
+		ivars->fdtype = value;
+		break;
+	default:
+		return (ENOENT);
+	}
+	return (0);
+}
+
+int
+fdc_initial_reset(struct fdc_data *fdc)
+{
+#ifdef PC98
+	/* see if it can handle a command */
+	if (fd_cmd(fdc, 3, NE7CMD_SPECIFY, NE7_SPEC_1(4, 240), 
+		   NE7_SPEC_2(2, 0), 0))
+		return (ENXIO);
+#else
+	/* First, reset the floppy controller. */
+	fdout_wr(fdc, 0);
+	DELAY(100);
+	fdout_wr(fdc, FDO_FRST);
+
+	/* Then, see if it can handle a command. */
+	if (fd_cmd(fdc, 3, NE7CMD_SPECIFY, NE7_SPEC_1(3, 240), 
+	    NE7_SPEC_2(2, 0), 0))
+		return (ENXIO);
+#endif
+	return (0);
 }
 
 int
@@ -1025,23 +1098,25 @@ fdc_detach(device_t dev)
 static void
 fdc_add_child(device_t dev, const char *name, int unit)
 {
-	int	flags;
+	int	fdu, flags;
 	struct fdc_ivars *ivar;
 	device_t child;
 
 	ivar = malloc(sizeof *ivar, M_DEVBUF /* XXX */, M_NOWAIT | M_ZERO);
 	if (ivar == NULL)
 		return;
-	if (resource_int_value(name, unit, "drive", &ivar->fdunit) != 0)
-		ivar->fdunit = 0;
 	child = device_add_child(dev, name, unit);
 	if (child == NULL) {
 		free(ivar, M_DEVBUF);
 		return;
 	}
 	device_set_ivars(child, ivar);
+	if (resource_int_value(name, unit, "drive", &fdu) != 0)
+		fdu = 0;
+	fdc_set_fdunit(child, fdu);
+	fdc_set_fdtype(child, FDT_NONE);
 	if (resource_int_value(name, unit, "flags", &flags) == 0)
-		 device_set_flags(child, flags);
+		device_set_flags(child, flags);
 	if (resource_disabled(name, unit))
 		device_disable(child);
 }
@@ -1054,6 +1129,7 @@ fdc_attach(device_t dev)
 	int	i, error, dunit;
 
 	fdc = device_get_softc(dev);
+	fdc->fdc_dev = dev;
 	error = fdc_alloc_resources(fdc);
 	if (error) {
 		device_printf(dev, "cannot re-acquire resources\n");
@@ -1123,49 +1199,33 @@ fd_probe(device_t dev)
 	struct	fd_data *fd;
 	struct	fdc_data *fdc;
 	fdsu_t	fdsu;
-	int	flags;
+	int	flags, type;
 
-	fdsu = *(int *)device_get_ivars(dev); /* xxx cheat a bit... */
+	fdsu = fdc_get_fdunit(dev);
 	fd = device_get_softc(dev);
 	fdc = device_get_softc(device_get_parent(dev));
 	flags = device_get_flags(dev);
 
-	bzero(fd, sizeof *fd);
 	fd->dev = dev;
 	fd->fdc = fdc;
 	fd->fdsu = fdsu;
 	fd->fdu = device_get_unit(dev);
-	fd->flags = FD_UA;	/* make sure fdautoselect() will be called */
 
-	fd->type = FD_DTYPE(flags);
-#ifdef PC98
-	if (fd->type == FDT_NONE && fd->fdu >= 0 && fd->fdu <= 3) {
-		/* Look up what the BIOS thinks we have. */
-		if ((PC98_SYSTEM_PARAMETER(0x55c) >> fd->fdu) & 0x01) {
-			if ((PC98_SYSTEM_PARAMETER(0x5ae) >> fd->fdu) & 0x01)
-				fd->type = FDT_144M;
-			else {
-				fd->type = FDT_12M;
-				switch (epson_machine_id) {
-				case 0x20:
-				case 0x27:
-					if ((PC98_SYSTEM_PARAMETER(0x488) >>
-					     fd->fdu) & 0x01) {
-#ifdef EPSON_NRDISK
-						if (nrd_check_ready()) {
-							nrd_LED_on();
-							nrdu = fd->fdu;
-						} else
-#endif
-							fd->type = FDT_NONE;
-					}
-					break;
-				}
-			}
-		} else
-			fd->type = FDT_NONE;
+	type = FD_DTYPE(flags);
+
+	/* Auto-probe if fdinfo is present, but always allow override. */
+	if (type == FDT_NONE && (type = fdc_get_fdtype(dev)) != FDT_NONE) {
+		fd->type = type;
+		goto done;
+	} else {
+		/* make sure fdautoselect() will be called */
+		fd->flags = FD_UA;
+		fd->type = type;
 	}
-#else /* PC98 */
+
+#ifdef PC98
+	pc98_fd_check_type(fd);
+#else
 /*
  * XXX I think using __i386__ is wrong here since we actually want to probe
  * for the machine type, not the CPU type (so non-PC arch's like the PC98 will
@@ -1204,15 +1264,6 @@ fd_probe(device_t dev)
 	set_motor(fdc, fdsu, TURNON);
 	fdc_reset(fdc);		/* XXX reset, then unreset, etc. */
 	DELAY(1000000);	/* 1 sec */
-
-	/* XXX This doesn't work before the first set_motor() */
-	if ((fdc->flags & FDC_HAS_FIFO) == 0  &&
-	    fdc->fdct == FDC_ENHANCED &&
-	    (device_get_flags(fdc->fdc_dev) & FDC_NO_FIFO) == 0 &&
-	    enable_fifo(fdc) == 0) {
-		device_printf(device_get_parent(dev),
-		    "FIFO enabled, %d bytes threshold\n", fifo_threshold);
-	}
 
 	if ((flags & FD_NO_PROBE) == 0) {
 		/* If we're at track 0 first seek inwards. */
@@ -1254,23 +1305,23 @@ fd_probe(device_t dev)
 		return (ENXIO);
 #endif /* PC98 */
 
+done:
+#ifndef PC98
+	/* This doesn't work before the first reset.  Or set_motor?? */
+	if ((fdc->flags & FDC_HAS_FIFO) == 0 &&
+	    fdc->fdct == FDC_ENHANCED &&
+	    (device_get_flags(fdc->fdc_dev) & FDC_NO_FIFO) == 0 &&
+	    enable_fifo(fdc) == 0) {
+		device_printf(device_get_parent(dev),
+		    "FIFO enabled, %d bytes threshold\n", fifo_threshold);
+	}
+#endif /* PC98 */
+
 #ifdef PC98
 	switch (fd->type) {
 	case FDT_144M:
-		/* Check 3mode I/F */
-		fd->pc98_trans = 0;
-		bus_space_write_1(fdc->sc_fdemsiot, fdc->sc_fdemsioh, 0,
-				  (fd->fdu << 5) | 0x10);
-		if (!(bus_space_read_1(fdc->sc_fdemsiot, fdc->sc_fdemsioh, 0) &
-		      0x01)) {
-			device_set_desc(dev, "1.44M FDD");
-			fd->type = FDT_144M;
-			break;
-		}
-
-		device_printf(dev,
-		    "Warning: can't control 3mode I/F, fallback to 2mode.\n");
-		/* FALLTHROUGH */
+		device_set_desc(dev, "1.44M FDD");
+		break;
 	case FDT_12M:
 #ifdef EPSON_NRDISK
 		if (fd->fdu == nrdu) {
@@ -1281,7 +1332,6 @@ fd_probe(device_t dev)
 #else
 		device_set_desc(dev, "1M/640K FDD");
 #endif
-		fd->type = FDT_12M;
 		break;
 	default:
 		return (ENXIO);
@@ -1290,23 +1340,18 @@ fd_probe(device_t dev)
 	switch (fd->type) {
 	case FDT_12M:
 		device_set_desc(dev, "1200-KB 5.25\" drive");
-		fd->type = FDT_12M;
 		break;
 	case FDT_144M:
 		device_set_desc(dev, "1440-KB 3.5\" drive");
-		fd->type = FDT_144M;
 		break;
 	case FDT_288M:
 		device_set_desc(dev, "2880-KB 3.5\" drive (in 1440-KB mode)");
-		fd->type = FDT_288M;
 		break;
 	case FDT_360K:
 		device_set_desc(dev, "360-KB 5.25\" drive");
-		fd->type = FDT_360K;
 		break;
 	case FDT_720K:
 		device_set_desc(dev, "720-KB 3.5\" drive");
-		fd->type = FDT_720K;
 		break;
 	default:
 		return (ENXIO);
