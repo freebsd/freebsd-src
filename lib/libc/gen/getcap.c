@@ -810,7 +810,11 @@ cgetstr(buf, cap, str)
 			bp++;
 			if (*bp == ':' || *bp == '\0')
 				break;	/* drop unfinished escape */
-			*mp++ = *bp++ & 037;
+			if (*bp == '?') {
+				*mp++ = '\177';
+				bp++;
+			} else
+				*mp++ = *bp++ & 037;
 		} else if (*bp == '\\') {
 			bp++;
 			if (*bp == ':' || *bp == '\0')
