@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: BSD.root.dist,v 1.9 1994/02/15 10:38:47 rgrimes Exp $
 #
 
 # top-level files are owned by root.wheel
@@ -9,7 +9,7 @@
 sys	type=link size=12 link=usr/src/sys
 
 dev	type=dir
-	fd	type=dir uname=bin gname=bin mode=555
+	fd	type=dir uname=bin gname=bin mode=0555
 	..
 ..
 
@@ -20,11 +20,14 @@ etc	type=dir
 	..
 	namedb	type=dir
 	..
-	uucp	type=dir uname=root gname=wheel mode=755
+	uucp	type=dir uname=root gname=wheel mode=0755
 	..
 ..
 
 mnt	type=dir
+..
+
+proc	type=dir uname=root gname=wheel mode=0555
 ..
 
 root	type=dir
