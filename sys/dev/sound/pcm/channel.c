@@ -118,7 +118,6 @@ chn_polltrigger(pcm_channel *c)
 	unsigned lim = (c->flags & CHN_F_HAS_SIZE)? c->blocksize2nd : 0;
 	int trig = 0;
 
-	lim = 0;
 	if (c->flags & CHN_F_MAPPED)
 		trig = ((bs->int_count > bs->prev_int_count) || bs->first_poll);
 	else
