@@ -257,8 +257,3 @@ extern void isp_uninit(struct ispsoftc *);
 #define	INLINE	__inline
 #include <dev/isp/isp_inline.h>
 #endif	/* _ISP_FREEBSD_H */
-
-/*
- * There seems to be some problems with Fast Posting for us.
- */
-#define	ISP_NO_FASTPOST_SCSI	1
