@@ -153,7 +153,6 @@ static struct ng_type ng_gif_typestruct = {
 	.disconnect =	ng_gif_disconnect,
 	.cmdlist =	ng_gif_cmdlist,
 };
-MODULE_VERSION(ng_gif, 1);
 MODULE_DEPEND(ng_gif, if_gif, 1,1,1);
 NETGRAPH_INIT(gif, &ng_gif_typestruct);
 
