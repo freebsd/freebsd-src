@@ -266,13 +266,13 @@ which means the key can be specified as either a 13 character text
 string or 26 hex digits in addition to the formats supported by the
 Silver cards.
 .Pp
-Both 128-bit and 64-bit WEP have been broken.
+Note: Both 128-bit and 64-bit WEP have been broken.
 See the BUGS section for details.
 .It Fl i Ar iface Fl T Ar 1|2|3|4
 Specify which of the four WEP encryption keys will be used to
 encrypt transmitted packets.
 .Pp
-Both 128-bit and 64-bit WEP have been broken.
+Note: Both 128-bit and 64-bit WEP have been broken.
 See the BUGS section for details.
 .It Fl i Ar iface Fl r Ar RTS threshold
 Set the RTS/CTS threshold for a given interface.
@@ -365,24 +365,35 @@ better signal quality).
 .Xr wi 4 ,
 .Xr ifconfig 8
 .Sh BUGS
-WEP has been broken.
-Do not use it.
-Use IPSEC instead.
-Do not trust access points.
+The WEP encryption method has been broken so that third parties
+can recover the keys in use relatively quickly at distances that are
+surprising to most people.
+Do not rely on WEP for anything but the most basic, remedial security.
+IPSEC will give you a higher level of security and should be used
+whenever possible.
+Do not trust access points or wireless machines that connect through
+them as they can provide no assurance that the traffic is legitimate.
+MAC addresses can easily be forged and should therefore not be used as
+the only access control.
 .Pp
 The attack on WEP is a passive attack, requiring only the ability to
 sniff packets on the network.
 The passive attack can be launched at a distance larger, up to many
 miles, than one might otherwise expect given a specialized antenna
 used in point to point applications.
-The attacker can recover the keys from a 128-bit WEP network after
-at most 5,000,000 or 6,000,000 packets.
+The attacker can recover the keys from a 128-bit WEP network with only
+5,000,000 to 6,000,000 packets.
 While this may sound like a large number of packets, emperical
 evidence suggests that this amount of traffic is generated in a few
 hours on a partially loaded network.
+Once a key has been compromised, the only remedial action is to
+discontinue it and use a new key.
 .Pp
 See http://www.cs.rice.edu/~astubble/wep/wep_attack.html for details
 of the attack.
+.Pp
+If you must use WEP, you are strongly encouraged to pick keys whose
+bytes are random and not confined to ASCII characters.
 .Sh HISTORY
 The
 .Nm
