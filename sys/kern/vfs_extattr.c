@@ -3744,7 +3744,8 @@ extattrctl(td, uap)
 	if (uap->filename != NULL) {
 		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
 		    uap->filename, td);
-		if ((error = namei(&nd)) != 0)
+		error = namei(&nd);
+		if (error)
 			return (error);
 		filename_vp = nd.ni_vp;
 		NDFREE(&nd, NDF_NO_VP_RELE | NDF_NO_VP_UNLOCK);
@@ -3752,7 +3753,8 @@ extattrctl(td, uap)
 
 	/* uap->path is always defined. */
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0) {
+	error = namei(&nd);
+	if (error) {
 		if (filename_vp != NULL)
 			vput(filename_vp);
 		return (error);
@@ -3776,7 +3778,6 @@ extattrctl(td, uap)
 	 */
 	if (filename_vp != NULL)
 		vrele(filename_vp);
-
 	return (error);
 }
 
@@ -3800,7 +3801,8 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	ssize_t cnt;
 	int error;
 
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+	if (error)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
@@ -3857,7 +3859,8 @@ extattr_set_fd(td, uap)
 	if (error)
 		return (error);
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	if (error)
 		return (error);
 
 	error = extattr_set_vp((struct vnode *)fp->f_data, uap->attrnamespace,
@@ -3887,7 +3890,8 @@ extattr_set_file(td, uap)
 		return (error);
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
+	error = namei(&nd);
+	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
@@ -3918,7 +3922,8 @@ extattr_set_link(td, uap)
 		return (error);
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
+	error = namei(&nd);
+	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
@@ -4018,7 +4023,8 @@ extattr_get_fd(td, uap)
 	if (error)
 		return (error);
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	if (error)
 		return (error);
 
 	error = extattr_get_vp((struct vnode *)fp->f_data, uap->attrnamespace,
@@ -4048,7 +4054,8 @@ extattr_get_file(td, uap)
 		return (error);
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
+	error = namei(&nd);
+	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
@@ -4079,7 +4086,8 @@ extattr_get_link(td, uap)
 		return (error);
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
+	error = namei(&nd);
+	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
@@ -4107,7 +4115,8 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	struct mount *mp;
 	int error;
 
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+	if (error)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
@@ -4115,11 +4124,15 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 #ifdef MAC
 	error = mac_check_vnode_setextattr(td->td_ucred, vp, attrnamespace,
 	    attrname, NULL);
+	if (error)
+		goto done;
 #endif
 
 	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, NULL, td->td_ucred,
 	    td);
-
+#ifdef MAC
+done:
+#endif
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return (error);
@@ -4143,12 +4156,12 @@ extattr_delete_fd(td, uap)
 	if (error)
 		return (error);
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	if (error)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 
 	error = extattr_delete_vp(vp, uap->attrnamespace, attrname, td);
-
 	fdrop(fp, td);
 	return (error);
 }
@@ -4171,12 +4184,12 @@ extattr_delete_file(td, uap)
 		return(error);
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
+	error = namei(&nd);
+	if (error)
 		return(error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	error = extattr_delete_vp(nd.ni_vp, uap->attrnamespace, attrname, td);
-
 	vrele(nd.ni_vp);
 	return(error);
 }
@@ -4199,12 +4212,12 @@ extattr_delete_link(td, uap)
 		return(error);
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
+	error = namei(&nd);
+	if (error)
 		return(error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	error = extattr_delete_vp(nd.ni_vp, uap->attrnamespace, attrname, td);
-
 	vrele(nd.ni_vp);
 	return(error);
 }
