@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#92 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#93 $
  *
  * $FreeBSD$
  */
@@ -231,6 +231,7 @@ typedef enum {
 	AHD_NEW_DFCNTRL_OPTS	= 0x10000,/* SCSIENWRDIS bit */
 	AHD_REMOVABLE		= 0x00000,/* Hot-Swap supported - None so far*/
 	AHD_AIC7901_FE		= AHD_FENONE,
+	AHD_AIC7901A_FE		= AHD_FENONE,
 	AHD_AIC7902_FE		= AHD_MULTI_FUNC
 } ahd_feature;
 
