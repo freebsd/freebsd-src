@@ -55,19 +55,18 @@ MALLOC_DEFINE(M_HPFSNO, "HPFS node", "HPFS node structure");
 
 struct sockaddr;
 
-static int	hpfs_root(struct mount *, struct vnode **);
-static int	hpfs_statfs(struct mount *, struct statfs *, struct thread *);
-static int	hpfs_unmount(struct mount *, int, struct thread *);
-static int	hpfs_vget(struct mount *mp, ino_t ino, int flags,
-			       struct vnode **vpp);
 static int	hpfs_mountfs(register struct vnode *, struct mount *, 
 				  struct hpfs_args *, struct thread *);
-static int	hpfs_vptofh(struct vnode *, struct fid *);
-static int	hpfs_fhtovp(struct mount *, struct fid *, struct vnode **);
-static int	hpfs_mount(struct mount *, char *, caddr_t,
-				struct nameidata *, struct thread *);
-static int	hpfs_init(struct vfsconf *);
-static int	hpfs_uninit(struct vfsconf *);
+
+static vfs_init_t       hpfs_init;
+static vfs_uninit_t     hpfs_uninit;
+static vfs_fhtovp_t     hpfs_fhtovp;
+static vfs_vget_t       hpfs_vget;
+static vfs_mount_t      hpfs_mount;
+static vfs_root_t       hpfs_root;
+static vfs_statfs_t     hpfs_statfs;
+static vfs_unmount_t    hpfs_unmount;
+static vfs_vptofh_t     hpfs_vptofh;
 
 static int
 hpfs_init (
@@ -571,19 +570,14 @@ hpfs_vget(
 }
 
 static struct vfsops hpfs_vfsops = {
-	hpfs_mount,
-	vfs_stdstart,
-	hpfs_unmount,
-	hpfs_root,
-	vfs_stdquotactl,
-	hpfs_statfs,
-	vfs_stdnosync,
-	hpfs_vget,
-	hpfs_fhtovp,
-	vfs_stdcheckexp,
-	hpfs_vptofh,
-	hpfs_init,
-	hpfs_uninit,
-	vfs_stdextattrctl,
+	.vfs_fhtovp =		hpfs_fhtovp,
+	.vfs_init =		hpfs_init,
+	.vfs_mount =		hpfs_mount,
+	.vfs_root =		hpfs_root,
+	.vfs_statfs =		hpfs_statfs,
+	.vfs_uninit =		hpfs_uninit,
+	.vfs_unmount =		hpfs_unmount,
+	.vfs_vget =		hpfs_vget,
+	.vfs_vptofh =		hpfs_vptofh,
 };
 VFS_SET(hpfs_vfsops, hpfs, 0);

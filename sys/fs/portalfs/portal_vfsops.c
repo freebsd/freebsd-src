@@ -62,13 +62,10 @@
 
 static MALLOC_DEFINE(M_PORTALFSMNT, "PORTAL mount", "PORTAL mount structure");
 
-static int	portal_mount(struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct thread *td);
-static int	portal_unmount(struct mount *mp, int mntflags,
-				    struct thread *td);
-static int	portal_root(struct mount *mp, struct vnode **vpp);
-static int	portal_statfs(struct mount *mp, struct statfs *sbp,
-				   struct thread *td);
+static vfs_mount_t	portal_mount;
+static vfs_unmount_t	portal_unmount;
+static vfs_root_t	portal_root;
+static vfs_statfs_t	portal_statfs;
 
 /*
  * Mount the per-process file descriptors (/dev/fd)
@@ -243,20 +240,10 @@ portal_statfs(mp, sbp, td)
 }
 
 static struct vfsops portal_vfsops = {
-	portal_mount,
-	vfs_stdstart,
-	portal_unmount,
-	portal_root,
-	vfs_stdquotactl,
-	portal_statfs,
-	vfs_stdnosync,
-	vfs_stdvget,
-	vfs_stdfhtovp,
-	vfs_stdcheckexp,
-	vfs_stdvptofh,
-	vfs_stdinit,
-	vfs_stduninit,
-	vfs_stdextattrctl,
+	.vfs_mount =		portal_mount,
+	.vfs_root =		portal_root,
+	.vfs_statfs =		portal_statfs,
+	.vfs_unmount =		portal_unmount,
 };
 
 VFS_SET(portal_vfsops, portalfs, VFCF_SYNTHETIC);

@@ -250,21 +250,12 @@ _##name##_uninit(struct vfsconf *vfc) {					\
 }									\
 									\
 static struct vfsops name##_vfsops = {					\
-	NULL,								\
-	vfs_stdstart,							\
-	pfs_unmount,							\
-	pfs_root,							\
-	vfs_stdquotactl,						\
-	pfs_statfs,							\
-	vfs_stdnosync,							\
-	vfs_stdvget,							\
-	vfs_stdfhtovp,							\
-	vfs_stdcheckexp,						\
-	vfs_stdvptofh,							\
-	_##name##_init,							\
-	_##name##_uninit,						\
-	vfs_stdextattrctl,						\
-	_##name##_mount,						\
+	.vfs_init =		_##name##_init,				\
+	.vfs_nmount =		_##name##_mount,			\
+	.vfs_root =		pfs_root,				\
+	.vfs_statfs =		pfs_statfs,				\
+	.vfs_uninit =		_##name##_uninit,			\
+	.vfs_unmount =		pfs_unmount,				\
 };									\
 VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC);				\
 MODULE_VERSION(name, version);						\

@@ -70,31 +70,25 @@ SYSCTL_INT(_vfs_nwfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nwfs_debuglevel, 0, "")
 MODULE_DEPEND(nwfs, ncp, 1, 1, 1);
 MODULE_DEPEND(nwfs, libmchain, 1, 1, 1);
 
-static int nwfs_mount(struct mount *, char *, caddr_t,
-			struct nameidata *, struct thread *);
-static int nwfs_quotactl(struct mount *, int, uid_t, caddr_t, struct thread *);
-static int nwfs_root(struct mount *, struct vnode **);
-static int nwfs_start(struct mount *, int, struct thread *);
-static int nwfs_statfs(struct mount *, struct statfs *, struct thread *);
-static int nwfs_unmount(struct mount *, int, struct thread *);
-static int nwfs_init(struct vfsconf *vfsp);
-static int nwfs_uninit(struct vfsconf *vfsp);
+static vfs_mount_t	nwfs_mount;
+static vfs_quotactl_t	nwfs_quotactl;
+static vfs_root_t	nwfs_root;
+static vfs_start_t	nwfs_start;
+static vfs_statfs_t	nwfs_statfs;
+static vfs_unmount_t	nwfs_unmount;
+static vfs_init_t	nwfs_init;
+static vfs_uninit_t	nwfs_uninit;
 
 static struct vfsops nwfs_vfsops = {
-	nwfs_mount,
-	nwfs_start,
-	nwfs_unmount,
-	nwfs_root,
-	nwfs_quotactl,
-	nwfs_statfs,
-	vfs_stdsync,
-	vfs_stdvget,
-	vfs_stdfhtovp,		/* shouldn't happen */
-	vfs_stdcheckexp,
-	vfs_stdvptofh,		/* shouldn't happen */
-	nwfs_init,
-	nwfs_uninit,
-	vfs_stdextattrctl,
+	.vfs_init =		nwfs_init,
+	.vfs_mount =		nwfs_mount,
+	.vfs_quotactl =		nwfs_quotactl,
+	.vfs_root =		nwfs_root,
+	.vfs_start =		nwfs_start,
+	.vfs_statfs =		nwfs_statfs,
+	.vfs_sync =		vfs_stdsync,
+	.vfs_uninit =		nwfs_uninit,
+	.vfs_unmount =		nwfs_unmount,
 };
 
 

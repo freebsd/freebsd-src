@@ -101,32 +101,27 @@ uma_zone_t udf_zone_trans = NULL;
 uma_zone_t udf_zone_node = NULL;
 uma_zone_t udf_zone_ds = NULL;
 
-static int udf_init(struct vfsconf *);
-static int udf_uninit(struct vfsconf *);
-static int udf_mount(struct mount *, struct nameidata *, struct thread *);
-static int udf_unmount(struct mount *, int, struct thread *);
-static int udf_root(struct mount *, struct vnode **);
-static int udf_statfs(struct mount *, struct statfs *, struct thread *);
-static int udf_fhtovp(struct mount *, struct fid *, struct vnode **);
-static int udf_vptofh(struct vnode *, struct fid *);
+static vfs_init_t      udf_init;
+static vfs_uninit_t    udf_uninit;
+static vfs_nmount_t    udf_mount;
+static vfs_root_t      udf_root;
+static vfs_statfs_t    udf_statfs;
+static vfs_unmount_t   udf_unmount;
+static vfs_fhtovp_t	udf_fhtovp;
+static vfs_vptofh_t	udf_vptofh;
+
 static int udf_find_partmaps(struct udf_mnt *, struct logvol_desc *);
 
 static struct vfsops udf_vfsops = {
-	NULL,
-	vfs_stdstart,
-	udf_unmount,
-	udf_root,
-	vfs_stdquotactl,
-	udf_statfs,
-	vfs_stdnosync,
-	udf_vget,
-	udf_fhtovp,
-	vfs_stdcheckexp,
-	udf_vptofh,
-	udf_init,
-	udf_uninit,
-	vfs_stdextattrctl,
-	udf_mount,
+	.vfs_fhtovp =		udf_fhtovp,
+	.vfs_init =		udf_init,
+	.vfs_nmount =		udf_mount,
+	.vfs_root =		udf_root,
+	.vfs_statfs =		udf_statfs,
+	.vfs_uninit =		udf_uninit,
+	.vfs_unmount =		udf_unmount,
+	.vfs_vget =		udf_vget,
+	.vfs_vptofh =		udf_vptofh,
 };
 VFS_SET(udf_vfsops, udf, VFCF_READONLY);
 
