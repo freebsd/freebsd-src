@@ -181,9 +181,26 @@ SYSCTL_INT(_debug, OID_AUTO, ubsec, CTLFLAG_RW, &ubsec_debug,
 struct ubsec_stats ubsecstats;
 SYSCTL_STRUCT(_kern, OID_AUTO, ubsec_stats, CTLFLAG_RD, &ubsecstats,
 	    ubsec_stats, "Broadcom driver statistics");
-static	int ubsec_maxbatch = 2;		/* XXX tune based on part+sys speed */
+/*
+ * ubsec_maxbatch controls the number of crypto ops to voluntarily 
+ * collect into one submission to the hardware.  This batching happens
+ * when ops are dispatched from the crypto subsystem with a hint that
+ * more are to follow immediately.  These ops must also not be marked
+ * with a ``no delay'' flag.
+ */
+static	int ubsec_maxbatch = 1;
 SYSCTL_INT(_kern, OID_AUTO, ubsec_maxbatch, CTLFLAG_RW, &ubsec_maxbatch,
 	    0, "Broadcom driver: max ops to batch w/o interrupt");
+/*
+ * ubsec_maxaggr controls the number of crypto ops to submit to the
+ * hardware as a unit.  This aggregation reduces the number of interrupts
+ * to the host at the expense of increased latency (for all but the last
+ * operation).  For network traffic setting this to one yields the highest
+ * performance but at the expense of more interrupt processing.
+ */
+static	int ubsec_maxaggr = 1;
+SYSCTL_INT(_kern, OID_AUTO, ubsec_maxaggr, CTLFLAG_RW, &ubsec_maxaggr,
+	    0, "Broadcom driver: max ops to aggregate under one interrupt");
 
 static int
 ubsec_probe(device_t dev)
@@ -561,6 +578,7 @@ ubsec_intr(void *arg)
 			SIMPLEQ_REMOVE_HEAD(&sc->sc_qchip, q, q_next);
 
 			npkts = q->q_nstacked_mcrs;
+			sc->sc_nqchip -= 1+npkts;
 			/*
 			 * search for further sc_qchip ubsec_q's that share
 			 * the same MCR, and complete them too, they must be
@@ -661,8 +679,24 @@ ubsec_feed(struct ubsec_softc *sc)
 	u_int32_t stat;
 
 	npkts = sc->sc_nqueue;
+	if (npkts > ubsecstats.hst_maxqueue)
+		ubsecstats.hst_maxqueue = npkts;
+	/*
+	 * Decide how many ops to combine in a single MCR.  We cannot
+	 * aggregate more than UBS_MAX_AGGR because this is the number
+	 * of slots defined in the data structure.  Otherwise we clamp
+	 * based on the tunable parameter ubsec_maxaggr.  Note that
+	 * aggregation can happen in two ways: either by batching ops
+	 * from above or because the h/w backs up and throttles us. 
+	 * Aggregating ops reduces the number of interrupts to the host
+	 * but also (potentially) increases the latency for processing
+	 * completed ops as we only get an interrupt when all aggregated
+	 * ops have completed.
+	 */
 	if (npkts > UBS_MAX_AGGR)
 		npkts = UBS_MAX_AGGR;
+	if (npkts > ubsec_maxaggr)
+		npkts = ubsec_maxaggr;
 	if (npkts > ubsecstats.hst_maxbatch)
 		ubsecstats.hst_maxbatch = npkts;
 	if (npkts < 2)
@@ -670,10 +704,11 @@ ubsec_feed(struct ubsec_softc *sc)
 	ubsecstats.hst_totbatch += npkts-1;
 
 	if ((stat = READ_REG(sc, BS_STAT)) & (BS_STAT_MCR1_FULL | BS_STAT_DMAERR)) {
-		if(stat & BS_STAT_DMAERR) {
+		if (stat & BS_STAT_DMAERR) {
 			ubsec_totalreset(sc);
 			ubsecstats.hst_dmaerr++;
-		}
+		} else
+			ubsecstats.hst_mcr1full++;
 		return (0);
 	}
 
@@ -709,6 +744,9 @@ ubsec_feed(struct ubsec_softc *sc)
 	}
 	q->q_dma->d_dma->d_mcr.mcr_pkts = htole16(npkts);
 	SIMPLEQ_INSERT_TAIL(&sc->sc_qchip, q, q_next);
+	sc->sc_nqchip += npkts;
+	if (sc->sc_nqchip > ubsecstats.hst_maxqchip)
+		ubsecstats.hst_maxqchip = sc->sc_nqchip;
 	bus_dmamap_sync(sc->sc_dmat, q->q_dma->d_alloc.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	WRITE_REG(sc, BS_MCR1, q->q_dma->d_alloc.dma_paddr +
@@ -718,10 +756,11 @@ ubsec_feed(struct ubsec_softc *sc)
 feed1:
 	while (!SIMPLEQ_EMPTY(&sc->sc_queue)) {
 		if ((stat = READ_REG(sc, BS_STAT)) & (BS_STAT_MCR1_FULL | BS_STAT_DMAERR)) {
-			if(stat & BS_STAT_DMAERR) {
+			if (stat & BS_STAT_DMAERR) {
 				ubsec_totalreset(sc);
 				ubsecstats.hst_dmaerr++;
-			}
+			} else
+				ubsecstats.hst_mcr1full++;
 			break;
 		}
 
@@ -746,7 +785,10 @@ feed1:
 		SIMPLEQ_REMOVE_HEAD(&sc->sc_queue, q, q_next);
 		--sc->sc_nqueue;
 		SIMPLEQ_INSERT_TAIL(&sc->sc_qchip, q, q_next);
+		sc->sc_nqchip++;
 	}
+	if (sc->sc_nqchip > ubsecstats.hst_maxqchip)
+		ubsecstats.hst_maxqchip = sc->sc_nqchip;
 	return (0);
 }
 
@@ -950,7 +992,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 		return (EINVAL);
 	}
 	if (UBSEC_SESSION(crp->crp_sid) >= sc->sc_nsessions) {
-		ubsecstats.hst_invalid++;
+		ubsecstats.hst_badsession++;
 		return (EINVAL);
 	}
 
@@ -981,7 +1023,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 		q->q_src_io = (struct uio *)crp->crp_buf;
 		q->q_dst_io = (struct uio *)crp->crp_buf;
 	} else {
-		ubsecstats.hst_invalid++;
+		ubsecstats.hst_badflags++;
 		err = EINVAL;
 		goto errout;	/* XXX we don't handle contiguous blocks! */
 	}
@@ -994,7 +1036,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 
 	crd1 = crp->crp_desc;
 	if (crd1 == NULL) {
-		ubsecstats.hst_invalid++;
+		ubsecstats.hst_nodesc++;
 		err = EINVAL;
 		goto errout;
 	}
@@ -1010,7 +1052,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 			maccrd = NULL;
 			enccrd = crd1;
 		} else {
-			ubsecstats.hst_invalid++;
+			ubsecstats.hst_badalg++;
 			err = EINVAL;
 			goto errout;
 		}
@@ -1033,7 +1075,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 			/*
 			 * We cannot order the ubsec as requested
 			 */
-			ubsecstats.hst_invalid++;
+			ubsecstats.hst_badalg++;
 			err = EINVAL;
 			goto errout;
 		}
@@ -1345,7 +1387,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 				}
 			}
 		} else {
-			ubsecstats.hst_invalid++;
+			ubsecstats.hst_badflags++;
 			err = EINVAL;
 			goto errout;
 		}
@@ -1889,6 +1931,7 @@ ubsec_cleanchip(struct ubsec_softc *sc)
 		SIMPLEQ_REMOVE_HEAD(&sc->sc_qchip, q, q_next);
 		ubsec_free_q(sc, q);
 	}
+	sc->sc_nqchip = 0;
 }
 
 /*
