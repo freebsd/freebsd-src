@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.52 1997/07/17 04:33:48 dyson Exp $
+ * 	$Id: pmap.h,v 1.53 1997/08/05 00:42:01 dyson Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -238,7 +238,10 @@ extern caddr_t	CADDR1;
 extern pt_entry_t *CMAP1;
 extern vm_offset_t avail_end;
 extern vm_offset_t avail_start;
+extern vm_offset_t clean_eva;
+extern vm_offset_t clean_sva;
 extern vm_offset_t phys_avail[];
+extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 

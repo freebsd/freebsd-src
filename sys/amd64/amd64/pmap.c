@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.171 1997/11/07 09:20:18 phk Exp $
+ *	$Id: pmap.c,v 1.172 1997/11/07 19:58:34 tegge Exp $
  */
 
 /*
@@ -158,8 +158,6 @@ int pv_npg;
 
 int nkpt;
 vm_offset_t kernel_vm_end;
-
-extern vm_offset_t clean_sva, clean_eva;
 
 /*
  * Data for the pv entry allocation mechanism
