@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.29 1995/05/30 08:29:00 rgrimes Exp $
+ * $Id: tcpip.c,v 1.29.2.1 1995/05/31 00:17:12 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -438,25 +438,39 @@ netHook(char *str)
 }
 
 /* Get a network device */
-int
-tcpDeviceSelect(char *str)
+Boolean
+tcpDeviceSelect(void)
 {
     DMenu *menu;
     Device **devs;
     int cnt;
+    int status;
 
     devs = deviceFind(NULL, DEVICE_TYPE_NETWORK);
     cnt = deviceCount(devs);
-    if (!cnt)
+    if (!cnt) {
 	msgConfirm("No network devices available!");
-    else if (cnt == 1)
+	status = FALSE;
+    }
+    else if (cnt == 1) {
 	mediaDevice = devs[0];
+	status = TRUE;
+    }
     else {
+
 	menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook);
 	if (!menu)
 	    msgFatal("Unable to create network device menu!  Argh!");
-	dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu);
 	free(menu);
     }
+    return status;
+}
+
+/* Do it from a menu that doesn't care about status */
+int
+tcpMenuSelect(char *str)
+{
+    (void)tcpDeviceSelect();
     return 0;
 }

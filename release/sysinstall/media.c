@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.23 1995/05/30 05:13:21 jkh Exp $
+ * $Id: media.c,v 1.24 1995/05/30 08:28:47 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -101,12 +101,15 @@ mediaSetCDROM(char *str)
         }
 	else if (cnt > 1) {
 	    DMenu *menu;
+	    int status;
 
 	    menu = deviceCreateMenu(&MenuMediaCDROM, DEVICE_TYPE_CDROM, cdromHook);
 	    if (!menu)
 		msgFatal("Unable to create CDROM menu!  Something is seriously wrong.");
-	    dmenuOpenSimple(menu);
+	    status = dmenuOpenSimple(menu);
 	    free(menu);
+	    if (!status)
+		return 0;
 	}
 	else
 	    mediaDevice = devs[0];
@@ -138,12 +141,15 @@ mediaSetFloppy(char *str)
     }
     else if (cnt > 1) {
 	DMenu *menu;
+	int status;
 
 	menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyHook);
 	if (!menu)
 	    msgFatal("Unable to create Floppy menu!  Something is seriously wrong.");
-	dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu);
 	free(menu);
+	if (!status)
+	    return 0;
     }
     else
 	mediaDevice = devs[0];
@@ -174,12 +180,15 @@ mediaSetDOS(char *str)
     }
     else if (cnt > 1) {
 	DMenu *menu;
+	int status;
 
 	menu = deviceCreateMenu(&MenuMediaDOS, DEVICE_TYPE_DOS, DOSHook);
 	if (!menu)
 	    msgFatal("Unable to create DOS menu!  Something is seriously wrong.");
-	dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu);
 	free(menu);
+	if (!status)
+	    return 0;
     }
     else
 	mediaDevice = devs[0];
@@ -210,12 +219,15 @@ mediaSetTape(char *str)
     }
     else if (cnt > 1) {
 	DMenu *menu;
+	int status;
 
 	menu = deviceCreateMenu(&MenuMediaTape, DEVICE_TYPE_TAPE, tapeHook);
 	if (!menu)
 	    msgFatal("Unable to create tape drive menu!  Something is seriously wrong.");
-	dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu);
 	free(menu);
+	if (!status)
+	    return 0;
     }
     else
 	mediaDevice = devs[0];
@@ -232,7 +244,8 @@ mediaSetFTP(char *str)
     static Device ftpDevice;
     char *cp;
 
-    dmenuOpenSimple(&MenuMediaFTP);
+    if (!dmenuOpenSimple(&MenuMediaFTP))
+	return 0;
     cp = getenv("ftp");
     if (!cp)
 	return 0;
@@ -243,7 +256,8 @@ mediaSetFTP(char *str)
 	else
 	    variable_set2("ftp", cp);
     }
-    tcpDeviceSelect(NULL);
+    if (!tcpDeviceSelect())
+	return 0;
     strcpy(ftpDevice.name, cp);
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
@@ -279,9 +293,8 @@ mediaSetNFS(char *str)
     char *val;
 
     val = msgGetInput(NULL, "Please enter the full NFS file specification for the remote\nhost and directory containing the FreeBSD distribution files.\nThis should be in the format:  hostname:/some/freebsd/dir");
-    if (!val)
+    if (!val || !tcpDeviceSelect())
 	return 0;
-    tcpDeviceSelect(NULL);
     strncpy(nfsDevice.name, val, DEV_NAME_MAX);
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
@@ -436,7 +449,8 @@ mediaExtractDist(char *dir, int fd)
 Boolean
 mediaGetType(void)
 {
-    dmenuOpenSimple(&MenuMedia);
+    if (!dmenuOpenSimple(&MenuMedia))
+	return FALSE;
     return TRUE;
 }
 

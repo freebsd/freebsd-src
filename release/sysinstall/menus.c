@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.1 1995/05/31 07:13:51 jkh Exp $
+ * $Id: menus.c,v 1.41.2.2 1995/05/31 09:05:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,6 +99,8 @@ answers in the FAQ.",
 	DMENU_DISPLAY_FILE,	"RELNOTES", 0, 0	},
       { "FAQ", "Frequently Asked Questions about FreeBSD.",		/* F */
 	DMENU_DISPLAY_FILE,	"faq.hlp", 0, 0		},
+      { "Exit", "Exit this menu (returning to previous)",		/* E */
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -423,16 +425,17 @@ DMenu MenuXF86Select = {
     "XFree86 3.1.1u1 Distribution",
     "Please select the components you need from the XFree86 3.1.1u1\n\
 distribution.  We recommend that you select what you need from the basic\n\
-components set and at least one entry from the Server and Font set menus.\n\n\
-When you're finished, select Cancel.",
+components set and at least one entry from the Server and Font set menus.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86.hlp",
-    { { "Basic", "Basic component menu (required)",
+    { { "Basic", "Basic component menu (required)",			/* B */
 	DMENU_SUBMENU, &MenuXF86SelectCore, 0, 0	},
-      { "Server", "X server menu",
+      { "Server", "X server menu",					/* S */
 	DMENU_SUBMENU, &MenuXF86SelectServer, 0, 0	},
-      { "Fonts", "Font set menu",
+      { "Fonts", "Font set menu",					/* F */
 	DMENU_SUBMENU, &MenuXF86SelectFonts, 0, 0	},
+      { "Exit", "Exit this menu (returning to previous)",		/* E */
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -544,8 +547,7 @@ DMenu MenuOptions = {
     "Choose Installation Options",
     "The following options control how this utility will deal\n\
 with various possible error conditions and how verbose it will\n\
-be at various stages.\n\n\
-When you're done setting options, select Cancel",
+be at various stages.",
     NULL,
     NULL,
     { { "Ftp Options", "Ftp options menu",
@@ -560,6 +562,8 @@ When you're done setting options, select Cancel",
 	DMENU_SET_VARIABLE,	"debug=no", 0, 0		},
       { "Yes To All", "Assume \"Yes\" answers to all non-critical dialogs",
 	DMENU_SET_VARIABLE,	"noConfirmation=Yes", 0, 0	},
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -593,7 +597,7 @@ details on the type of distribution you wish to have, where you wish\n\
 to install it from and how you wish to allocate disk storage to FreeBSD.\n\n\
 None of the items in this menu will actually modify the contents of\n\
 your disk until you select the \"Install\" menu item (and even then, only\n\
-after a final confirmation).  Select Cancel to leave this menu.",
+after a final confirmation).",
     "Press F1 to read the installation guide",
     "install.hlp",
     { { "Partition", "Allocate disk space for FreeBSD",		/* P */
@@ -608,6 +612,8 @@ after a final confirmation).  Select Cancel to leave this menu.",
 	DMENU_CALL,	installCommit, 0, 0		},
       { "Configure", "Do post-install configuration of FreeBSD", /* C */
 	DMENU_SUBMENU,	&MenuConfigure, 0, 0		},
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -641,8 +647,7 @@ DMenu MenuConfigure = {
     "If you've already installed FreeBSD, you may use this menu to\n\
 customize it somewhat to suit your particular configuration.  Most\n\
 importantly, you can use the Packages utility to load extra \"3rd party\"\n\
-software not provided in the base distributions.\n\n\
-When you're done, select Cancel",
+software not provided in the base distributions.",
     "Press F1 for more information on these options",
     "configure.hlp",
     { { "Add User",	"Add users to the system",
@@ -661,6 +666,8 @@ When you're done, select Cancel",
 	DMENU_SYSTEM_COMMAND, "passwd root", 0, 0		},
       { "XFree86",	"Configure XFree86 (if installed)",
 	DMENU_SYSTEM_COMMAND, "PATH=/usr/bin:/bin:/usr/X11R6/bin xf86config", 0, 0 },
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -670,8 +677,7 @@ DMenu MenuNetworking = {
     "You may have already configured one network device (and the\n\
 other various hostname/gateway/name server parameters) in the process\n\
 of installing FreeBSD.  This menu allows you to configure other\n\
-aspects of your system's network configuration.\n\n\
-When you are done, select Cancel.",
+aspects of your system's network configuration.",
     NULL,
     NULL,
     { { "NFS client",	"This machine will be an NFS client",
@@ -679,13 +685,15 @@ When you are done, select Cancel.",
       { "NFS server",	"This machine will be an NFS server",
 	DMENU_SET_VARIABLE, "nfs_server=YES", 0, 0		},
       { "interfaces",	"Configure additional interfaces",
-	DMENU_CALL,	tcpDeviceSelect, 0, 0			},
+	DMENU_CALL,	tcpMenuSelect, 0, 0			},
       { "ntpdate",	"Select a clock-syncronization server",
 	DMENU_SUBMENU,	&MenuNTP, 0, 0				},
       { "routed",	"Set flags for routed (default: -q)",
 	DMENU_CALL,	configRoutedFlags, 0, 0			},
       { "rwhod",	"This machine wants to run the rwho daemon",
 	DMENU_SET_VARIABLE, "rwhod=YES", 0, 0			},
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -753,6 +761,8 @@ When you are done setting configuration options, select Cancel.",
 	DMENU_SUBMENU, &MenuSysconsKeyrate, 0, 0	},
       { "Saver", "Configure the screen saver",
 	DMENU_SUBMENU, &MenuSysconsSaver, 0, 0		},
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -831,5 +841,7 @@ probably enable one of these screen savers to prevent phosphor burn-in.",
 	DMENU_SET_VARIABLE, "saver=star", 0, 0		},
       { "Timeout", "Set the screen saver timeout interval",
 	DMENU_CALL, configSaverTimeout, 0, 0		},
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };

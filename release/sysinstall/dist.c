@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.1 1995/05/31 07:13:48 jkh Exp $
+ * $Id: dist.c,v 1.35.2.2 1995/05/31 07:17:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -113,7 +113,8 @@ distSetEverything(char *str)
 int
 distSetSrc(char *str)
 {
-    dmenuOpenSimple(&MenuSrcDistributions);
+    if (!dmenuOpenSimple(&MenuSrcDistributions))
+	return 0;
     if (SrcDists)
 	Dists |= DIST_SRC;
     return 0;
@@ -122,11 +123,12 @@ distSetSrc(char *str)
 static int
 distSetXF86(char *str)
 {
-    dmenuOpenSimple(&MenuXF86Select);
+    if (!dmenuOpenSimple(&MenuXF86Select))
+	return 0;
     if (XF86ServerDists)
 	XF86Dists |= DIST_XF86_FONTS;
     if (XF86FontDists)
-	XF86Dists |= DIST_XF86_FONTS
+	XF86Dists |= DIST_XF86_FONTS;
     if (XF86Dists)
 	Dists |= DIST_XF86;
     return 0;
@@ -194,8 +196,8 @@ static Distribution XF86DistTable[] = {
 { "X311xicf",	"/usr",			&XF86Dists,	DIST_XF86_XINIT,	NULL		},
 { "X311xdcf",	"/usr",			&XF86Dists,	DIST_XF86_XDMCF,	NULL		},
 { "XF86311",	"/usr",			&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
-{ "XF86-xc",	"/usr/X11R6/src",	&XF86Dists,	DIST_SRC_XF86,		NULL		},
-{ "XF86-co",	"/usr/X11R6/src",	&XF86Dists,	DIST_SRC_XF86,		NULL		},
+{ "XF86-xc",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
+{ "XF86-co",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
 { NULL },
 };
 
@@ -235,19 +237,25 @@ distExtract(char *parent, Distribution *me)
     Attribs *dist_attr;
 
     status = FALSE;
-    if (mediaDevice->init)
-	if (!(*mediaDevice->init)(mediaDevice))
-	    return FALSE;
+    /* Nothing left to do?  Bail! */
+    if (!*(me[0].my_mask))
+	return TRUE;
 
+    /* Otherwise, loop through to see if we're in our parent's plans */
     for (i = 0; me[i].my_name; i++) {
-	/* If we're not doing it, we're not doing it */
+	/* If our bit isn't set, go to the next */
 	if (!(me[i].my_bit & *(me[i].my_mask)))
 	    continue;
 
 	/* Recurse if actually have a sub-distribution */
 	if (me[i].my_dist) {
-	    status = distExtract(me[i].my_name, me[i].my_dist);
-	    goto done;
+	    (void)distExtract(me[i].my_name, me[i].my_dist);
+	    /* If all the subdistribution bits are cleared, we're done with it */
+	    if (!*(me[i].my_dist->my_mask)) {
+		*(me[i].my_mask) &= ~(me[i].my_bit);
+		return TRUE;
+	    }
+	    return FALSE;
 	}
 
 	dist = me[i].my_name;
@@ -358,14 +366,9 @@ retry:
 	    else
 		status = msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);
 	}
-	if (status) {
-	    /* Extract was successful, remove ourselves from further consideration */
+	/* Extract was successful, remove ourselves from further consideration */
+	if (status)
 	    *(me[i].my_mask) &= ~(me[i].my_bit);
-	}
-    }
-    if (mediaDevice->shutdown && parent == NULL) {
-	(*mediaDevice->shutdown)(mediaDevice);
-	mediaDevice = NULL;
     }
     return status;
 }
@@ -375,9 +378,20 @@ distExtractAll(void)
 {
     int retries = 0;
 
+    /* First try to initialize the state of things */
+    if (mediaDevice->init)
+	if (!(*mediaDevice->init)(mediaDevice))
+	    return;
+
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
+
+    /* Anything left? */
     if (Dists)
 	msgConfirm("Couldn't extract all of the dists.  Residue: %0x", Dists);
+
+    /* Close up shop and go home */
+    if (mediaDevice->shutdown)
+	(*mediaDevice->shutdown)(mediaDevice);
 }

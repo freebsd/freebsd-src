@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.34 1995/05/29 11:01:08 jkh Exp $
+ * $Id: devices.c,v 1.35 1995/05/30 08:28:25 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -96,6 +96,7 @@ static struct {
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"			},
     { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
     { DEVICE_TYPE_NETWORK,	"ppp",		"Point-to-Point Protocol (PPP) interface"		},
+    { DEVICE_TYPE_NETWORK,	"de",		"DEC DE435 PCI NIC or other DC21040-AA based card"	},
     { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 cards"	},
     { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"el",		"3Com 3C501 ethernet card"				},
@@ -134,12 +135,6 @@ deviceTry(char *name, char *try)
     snprintf(try, FILENAME_MAX, "/mnt/dev/%s", name);
     fd = open(try, O_RDWR);
     return fd;
-}
-
-static void
-deviceDiskFree(Device *dev)
-{
-    Free_Disk(dev->private);
 }
 
 /* Register a new device in the devices array */
