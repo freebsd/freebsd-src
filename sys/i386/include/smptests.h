@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.27 1997/08/31 03:02:19 smp Exp smp $
+ *	$Id: smptests.h,v 1.28 1997/09/01 07:37:58 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -52,25 +52,10 @@
 
 
 /*
- * There are places in the current kernel where it thinks it has exclusive
- * access to the world by bracketing things with disable_intr()/enable_intr().
- * Now that we started letting multiple CPUs into the kernel this is no
- * longer true.
  *
- * SIMPLE_MPINTRLOCK activates code that uses a simplelock to protect
- * all code suppossedly protected by disable_intr()/enable_intr().
- *
- * RECURSIVE_MPINTRLOCK is an attept to provide a recursive lock, doesn't work!
- *
- * Only define one of these (on neither, but FAST_HI is then problamatic):
-#define SIMPLE_MPINTRLOCK
-#define RECURSIVE_MPINTRLOCK
  */
-#define SIMPLE_MPINTRLOCK
-
-
-/*  */
 #define USE_COMLOCK
+#define USE_CLOCKLOCK
 
 
 /*
