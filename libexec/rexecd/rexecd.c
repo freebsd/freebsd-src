@@ -60,6 +60,7 @@ static const char rcsid[] =
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
@@ -76,10 +77,9 @@ char	remote[MAXHOSTNAMELEN];
 
 struct	sockaddr_in asin = { AF_INET };
 
-void doit __P((int, struct sockaddr_in *));
-void getstr __P((char *, int, char *));
-/*VARARGS1*/
-void error __P(());
+void doit(int, struct sockaddr_in *);
+void getstr(char *, int, char *);
+void error(const char *fmt, ...);
 
 int no_uid_0 = 1;
 
@@ -99,9 +99,7 @@ usage(void)
  */
 /*ARGSUSED*/
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	struct sockaddr_in from;
 	int fromlen;
@@ -110,13 +108,13 @@ main(argc, argv)
 	openlog("rexecd", LOG_PID, LOG_AUTH);
 
 	while ((ch = getopt(argc, argv, "i")) != -1)
-	  switch (ch) {
-	  case 'i':
-		no_uid_0 = 0;
-		break;
-	  default:
-		usage();
-	  }
+		switch (ch) {
+		case 'i':
+			no_uid_0 = 0;
+			break;
+		default:
+			usage();
+		}
 	argc -= optind;
 	argv += optind;
 
@@ -131,9 +129,7 @@ main(argc, argv)
 }
 
 void
-doit(f, fromp)
-	int f;
-	struct sockaddr_in *fromp;
+doit(int f, struct sockaddr_in *fromp)
 {
 	FILE *fp;
 	char cmdbuf[NCARGS+1], *cp;
@@ -304,24 +300,21 @@ doit(f, fromp)
 	err(1, "%s", pwd->pw_shell);
 }
 
-/*VARARGS1*/
 void
-error(fmt, a1, a2, a3)
-	char *fmt;
-	int a1, a2, a3;
+error(const char *fmt, ...)
 {
 	char buf[BUFSIZ];
+	va_list ap;
 
+	va_start(ap, fmt);
 	buf[0] = 1;
-	(void) snprintf(buf+1, sizeof(buf) - 1, fmt, a1, a2, a3);
-	(void) write(STDERR_FILENO, buf, strlen(buf));
+	(void)vsnprintf(buf + 1, sizeof(buf) - 1, fmt, ap);
+	(void)write(STDERR_FILENO, buf, strlen(buf));
+	va_end(ap);
 }
 
 void
-getstr(buf, cnt, err)
-	char *buf;
-	int cnt;
-	char *err;
+getstr(char *buf, int cnt, char *err)
 {
 	char c;
 
