@@ -857,7 +857,7 @@ smbfs_pathconf (ap)
 		*retval = 0;
 		break;
 	    case _PC_NAME_MAX:
-		*retval = (vcp->vc_flags & SMBV_LONGNAMES) ? 255 : 12;
+		*retval = (vcp->vc_hflags2 & SMB_FLAGS2_KNOWS_LONG_NAMES) ? 255 : 12;
 		break;
 	    case _PC_PATH_MAX:
 		*retval = 800;	/* XXX: a correct one ? */
