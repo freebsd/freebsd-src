@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.10 1995/04/10 01:45:43 ache Exp $
+ * $Id: tty_pty.c,v 1.11 1995/05/30 08:06:14 rgrimes Exp $
  */
 
 /*
@@ -122,7 +122,6 @@ ptsopen(dev, flag, devtype, p)
 		return (ENXIO);
 	tp = &pt_tty[minor(dev)];
 	if ((tp->t_state & TS_ISOPEN) == 0) {
-		tp->t_state |= TS_WOPEN;
 		ttychars(tp);		/* Set up default chars */
 		tp->t_iflag = TTYDEF_IFLAG;
 		tp->t_oflag = TTYDEF_OFLAG;
@@ -135,7 +134,6 @@ ptsopen(dev, flag, devtype, p)
 	if (tp->t_oproc)			/* Ctrlr still around. */
 		tp->t_state |= TS_CARR_ON;
 	while ((tp->t_state & TS_CARR_ON) == 0) {
-		tp->t_state |= TS_WOPEN;
 		if (flag&FNONBLOCK)
 			break;
 		error = ttysleep(tp, (caddr_t)&tp->t_rawq, TTIPRI | PCATCH,
