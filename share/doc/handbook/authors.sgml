@@ -1,4 +1,4 @@
-<!-- $Id: authors.sgml,v 1.62 1997/03/31 04:58:46 jb Exp $ -->
+<!-- $Id: authors.sgml,v 1.63 1997/04/14 13:20:16 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -195,6 +195,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.jfitz "James FitzGibbon
   <tt><htmlurl url='mailto:james@nexis.net'
   name='&lt;james@nexis.net&gt;'></tt>">
+
+<!ENTITY a.jgreco "Joe Greco
+  <tt><htmlurl url='mailto:jgreco@FreeBSD.ORG'
+  name='&lt;jgreco@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.jhay "John Hay
   <tt><htmlurl url='mailto:jhay@FreeBSD.ORG'
@@ -407,6 +411,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.swallace  "Steven Wallace
   <tt><htmlurl url='mailto:swallace@FreeBSD.ORG'
   name='&lt;swallace@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.tedm "Ted Mittelstaedt
+  <tt><htmlurl url='mailto:tedm@FreeBSD.ORG' 
+  name='&lt;tedm@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.tegge "Tor Egge 
   <tt><htmlurl url='mailto:tegge@FreeBSD.ORG' 
