@@ -56,7 +56,7 @@ as local time.
 .Nm Zic
 will act as if the input contained a link line of the form
 .Bd -literal -offset indent
-Link	timezone		localtime
+.No "Link	timezone		localtime
 .Ed
 (Note that this action has no effect on
 .Fx ,
@@ -78,7 +78,7 @@ time zone environment variables.
 .Nm Zic
 will act as if the input contained a link line of the form
 .Bd -literal -offset indent
-Link	timezone		posixrules
+.No "Link	timezone		posixrules
 .Ed
 .It Fl u Ar user
 After creating each output file, change its owner to
@@ -113,9 +113,9 @@ Non-blank lines are expected to be of one of three types:
 rule lines, zone lines, and link lines.
 .Pp
 A rule line has the form:
-.Dl Rule	NAME	FROM	TO	TYPE	IN	ON		AT	SAVE	LETTER/S
+.Dl "Rule	NAME	FROM	TO	TYPE	IN	ON		AT	SAVE	LETTER/S
 For example:
-.Dl Rule	US	1967	1973	\-	Apr	lastSun	2:00	1:00	D
+.Dl "Rule	US	1967	1973	\-	Apr	lastSun	2:00	1:00	D
 .Pp
 The fields that make up a rule line are:
 .Bl -tag -width "LETTER/S" -offset indent
@@ -194,7 +194,7 @@ field.
 Give the time of day at which the rule takes effect.
 Recognized forms include:
 .Pp
-.Bl -tag -width "1:28:14" -offset indent -compact
+.Bl -tag -width "\&1:28:14" -offset indent -compact
 .It 2
 time in hours
 .It 2:00
@@ -253,9 +253,9 @@ the variable part is null.
 .El
 .Pp
 A zone line has the form:
-.Dl Zone	NAME	GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+.Dl "Zone	NAME	GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
 For example:
-.Dl Zone	Australia/Adelaide	9:30	Aus	CST	1971 Oct 31 2:00
+.Dl "Zone	Australia/Adelaide	9:30	Aus	CST	1971 Oct 31 2:00
 The fields that make up a zone line are:
 .Bl -tag -width indent
 .It NAME
@@ -312,9 +312,9 @@ continuation.
 .El
 .Pp
 A link line has the form
-.Dl Link	LINK-FROM	LINK-TO
+.Dl "Link	LINK-FROM	LINK-TO
 For example:
-.Dl Link	Europe/Istanbul	Asia/Istanbul
+.Dl "Link	Europe/Istanbul	Asia/Istanbul
 The
 .Em LINK-FROM
 field should appear as the
@@ -328,9 +328,9 @@ Except for continuation lines,
 lines may appear in any order in the input.
 .Pp
 Lines in the file that describes leap seconds have the following form:
-.Dl Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S
+.Dl "Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S
 For example:
-.Dl Leap	1974	Dec	31	23:59:60	+	S
+.Dl "Leap	1974	Dec	31	23:59:60	+	S
 The
 .Em YEAR ,
 .Em MONTH ,

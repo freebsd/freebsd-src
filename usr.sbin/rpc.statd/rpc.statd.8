@@ -91,12 +91,12 @@ disappeared permanently (eg. catastrophic hardware failure), as opposed
 to transient failure of the host or an intermediate router.  At present,
 it will re-try notification attempts at frequent intervals for 10 minutes,
 then hourly, and finally gives up after 24 hours.
-
+.Pp
 The protocol requires that symmetric monitor requests are made to both
 the local and remote daemon in order to establish a monitored relationship.
 This is convenient for the NFS locking protocol, but probably reduces the
 usefulness of the monitoring system for other applications.
-
+.Pp
 The current implementation uses more than 1Kbyte per monitored host in
 the status file (and also in VM).  This may be inefficient for NFS servers
 with large numbers of clients.

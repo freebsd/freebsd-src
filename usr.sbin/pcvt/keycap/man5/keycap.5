@@ -63,10 +63,10 @@ upper case and blanks for readability.
 .Sh CAPABILITIES
 .Pp
 .Bl -column indent indent
-.Sy Name	Type	Description
+.Sy "Name	Type	Description
 .It "de	bool	Resets Keyboard mapping to compiled-in default"
 .It "D<n>	bool	Disables key <n> completely"
-
+.It "
 .It "m<n>	num	specify key numbers for ALT keys 
 .It "l<n>	num	specify key numbers for ALTGR keys
 .It "h<n>	num	specify key numbers for SHIFT keys
@@ -75,19 +75,18 @@ upper case and blanks for readability.
 .It "sh<n>	num	specify key number for the SHIFT LOCK key
 .It "nl<n>	num	specify key number for the NUM LOCK key
 .It "sc<n>	num	specify key number for the SCROLL LOCK key
-
+.It "
 .It "K<n>	str	bind a string to a unshifted (normal) key
 .It "S<n>	str	bind a string to a shifted key
 .It "C<n>	str	bind a string to a control key
 .It "A<n>	str	bind a string to a altgr key
-
+.It "
 .It "tc	str	Entry of similar map \- must be last."
 .El
-
+.Pp
 Parameter <n> describing the key number can have values from 1 to 128.
-
+.Pp
 A string parameter may have up to 15 characters.
-
 .Pp
 .Ss A Sample Entry
 The following entry, which describes a test entry, is among the very
@@ -99,7 +98,6 @@ file as of this writing.
 tt\||test\||Test entry which swaps y and z:\e
 	:K22=z:S22=Z:C22=\e032:\e
 	:K46=y:S46=Y:C46=\e031:
-
 .Ed
 .Pp
 Entries may continue onto multiple lines by giving a \e as the last
@@ -118,15 +116,15 @@ File containing keyboard mapping descriptions.
 The entry
 .Dq Li l1#60
 sets the keynumber for the ALTGR key to 60.
-
+.Pp
 The entry
 .Dq Li K100=hugo
 binds the string 'hugo' to the key number 100.
-
+.Pp
 The entry
 .Dq Li K100=^D
 binds the control character EOT (0x04) to the key number 100.
-
+.Pp
 The entry
 .Dq Li K100=\e000
 binds the control character NUL (0x00) to the key number 100.

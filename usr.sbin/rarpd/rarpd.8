@@ -43,7 +43,7 @@ and
 databases.
 If a host does not exist in both databases, the translation cannot
 proceed and a reply will not be sent.
-
+.Pp
 By default, a request is honored only if the server
 (i.e., the host that
 .Nm
@@ -62,13 +62,12 @@ exist.
 This requirement can be overridden with the
 .Fl s
 flag (see below).
-
+.Pp
 In normal operation, 
 .Nm
 forks a copy of itself and runs in
 the background.  Anomalies and errors are reported via 
 .Xr syslog 3 .
-
 .Pp
 The following options are available:
 .Bl -tag -width indent

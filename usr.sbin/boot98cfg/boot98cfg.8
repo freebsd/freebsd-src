@@ -53,16 +53,16 @@ and
 .Sq HDD boot menu.
 The IPL occupies sector 0 of a disk and is followed by the partition
 table.  The IPL loads the HDD boot menu that starts from 0x400.
-
+.Pp
 The
 .Nm
 installs and makes backup copy of the IPL and the HDD boot menu; and
 allows changing the version number field in the sector 0.
-
+.Pp
 Note that the format command in NEC's OSs replaces the HDD boot menu
 with its own HDD boot menu when the version number field is smaller
 than that in the format command.
-
+.Pp
 The options are:
 .Bl -tag -width indent
 .It Fl B

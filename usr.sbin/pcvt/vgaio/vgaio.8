@@ -52,12 +52,10 @@ silly,
 .Nm
 cares of all the things necessary and allows the user to access the
 registers of several register groups with their symbolic names.
-
 .Ss Options
 .Bl -tag -width 10n -offset indent
 .It Fl d
 Turn on the grammar parser debugger.
-
 .El
 .Ss Command language
 The command language of
@@ -67,11 +65,11 @@ Commands are executed
 line by line as they are entered.
 Each line may contain any number of
 semicolon-separated input/output commands.
-
+.Pp
 Symbolic register names look like:
-
-.D1 Ao Em reggroup Ac Ao Em regnumber Ac
-
+.Pp
+.D1 Ao Em reggroup Ac Aq Em regnumber
+.Pp
 with
 .Aq Em regnumber
 being any hexadecimal number
@@ -93,52 +91,46 @@ standing for the
 or
 .Em Timing sequencer ,
 respectively.
-
+.Pp
 An input instruction has the form
-
-.D1 Ao Em regname Ac ?
-
+.Pp
+.D1 Ao Em regname Ac \&?
+.Pp
 and will cause
 .Nm
 to output a line like
-
 .Bd -ragged -offset indent
-.Ao Em regname Ac \& = 0x Ns
-.Aq Em number
+.Aq Em regname
+.No = 0x Ns Aq Em number
 .Ed
-
+.Pp
 An output instruction looks like
-
 .Bd -ragged -offset indent
 .Ao Em regname Ac =
 .Aq Em number
 .Ed
-
+.Pp
 Spaces or Tabs between the
 .Aq Em reggroup ,
 the
 .Aq Em regnumber ,
 or any of the other tokens are ignored.
 They are not required anyway.
-
+.Pp
 The 
 .Dq Em mi
 needs a single unused argument to satisfy the syntax :-) (-hm).
-
-
 .Ss Access control
 The caller must have uid 0 in order to gain the required access to
 the IO registers.
-
 .Sh HISTORY
 This program is considered
 .Dq hackware .
 It has been developed in order to simplify the process of developing other
 software that needs to program the Video Graphics Array.
-
+.Pp
 Remember, to use this program, your kernel has to be compiled with XSERVER
-being defined !
-
+being defined!
 .Sh AUTHORS
 The program has been contributed by
 .An J\(:org Wunsch ,
