@@ -70,7 +70,9 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_fb.h"
 
+#if 0
 static devclass_t gfb_devclass;
+#endif
 
 #ifdef __alpha__
 

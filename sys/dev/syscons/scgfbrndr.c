@@ -256,7 +256,8 @@ gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 	video_adapter_t *adp;
 
 	adp = scp->sc->adp;
-	if (scp->cursor_height <= 0)	/* the text cursor is disabled */
+	if (scp->curs_attr.height <= 0) 
+		/* the text cursor is disabled */
 		return;
 
 	if (on) {

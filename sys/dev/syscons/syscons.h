@@ -129,8 +129,15 @@
 /* misc defines */
 #define FALSE		0
 #define TRUE		1
-#define	COL		80
-#define	ROW		25
+
+/*
+   The following #defines are hard-coded for a maximum text
+   resolution corresponding to a maximum framebuffer
+   resolution of 1600x1200 with an 8x8 font...
+*/
+#define	COL		200
+#define	ROW		150
+
 #define PCBURST		128
 
 #ifndef BELL_DURATION

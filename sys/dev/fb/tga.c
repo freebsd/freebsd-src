@@ -105,10 +105,12 @@ static void tga2_init(struct gfb_softc *, int);
 /* TGA-specific functionality. */
 static gfb_builtin_save_palette_t tga_builtin_save_palette;
 static gfb_builtin_load_palette_t tga_builtin_load_palette;
+#ifdef TGA2
 static gfb_builtin_save_palette_t tga2_builtin_save_palette;
 static gfb_builtin_load_palette_t tga2_builtin_load_palette;
 static gfb_builtin_save_cursor_palette_t tga2_builtin_save_cursor_palette;
 static gfb_builtin_load_cursor_palette_t tga2_builtin_load_cursor_palette;
+#endif 
 static gfb_builtin_read_hw_cursor_t tga_builtin_read_hw_cursor;
 static gfb_builtin_set_hw_cursor_t tga_builtin_set_hw_cursor;
 static gfb_builtin_set_hw_cursor_shape_t tga_builtin_set_hw_cursor_shape;
@@ -128,8 +130,10 @@ static void tga2_ics9110_wr(struct gfb_softc *, int);
 /* RAMDAC-specific functions */
 static gfb_ramdac_init_t bt463_init;
 static void bt463_update_window_type(struct gfb_softc *);
+#if 0
 static gfb_ramdac_save_palette_t bt463_save_palette;
 static gfb_ramdac_load_palette_t bt463_load_palette;
+#endif 
 static gfb_ramdac_save_cursor_palette_t bt463_save_cursor_palette;
 static gfb_ramdac_load_cursor_palette_t bt463_load_cursor_palette;
 static gfb_ramdac_init_t bt485_init;
@@ -150,7 +154,9 @@ static gfb_ramdac_load_cursor_palette_t ibm561_load_cursor_palette;
 static vi_query_mode_t tga_query_mode;
 static vi_set_mode_t tga_set_mode;
 static vi_blank_display_t tga_blank_display;
+#if 0
 static vi_ioctl_t tga_ioctl;
+#endif
 static vi_set_border_t tga_set_border;
 static vi_set_win_org_t tga_set_win_org;
 static vi_fill_rect_t tga_fill_rect;
@@ -670,7 +676,7 @@ tga_set_mode(video_adapter_t *adp, int mode)
 	/* Assume the best... */
 	error = 0;
 	
-	gder = READ_GFB_REGISTER(video_adapter_t *adp, TGA_REG_GDER);
+	gder = READ_GFB_REGISTER(adp, TGA_REG_GDER);
 
 	/*
 	   Determine the adapter type first
@@ -686,13 +692,13 @@ tga_set_mode(video_adapter_t *adp, int mode)
 		switch(mode) {
 		case TGA2_2DA_MODE:
 			vgae_mask = ~0x00400000;
-			WRITE_GFB_REGISTER(video_adapter_t *adp, TGA_REG_GDER,
+			WRITE_GFB_REGISTER(adp, TGA_REG_GDER,
 			    gder & vgae_mask);
 			adp->va_mode = mode;
 			break;
 		case TGA2_VGA_MODE:
 			vgae_mask = 0x00400000;
-			WRITE_GFB_REGISTER(video_adapter_t *adp, TGA_REG_GDER,
+			WRITE_GFB_REGISTER(adp, TGA_REG_GDER,
 			    gder | vgae_mask);
 			adp->va_mode = mode;
 			break;
@@ -757,6 +763,8 @@ tga_blank_display(video_adapter_t *adp, int mode)
 	return(0);
 }
 
+#if 0
+
 static int
 tga_ioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 {
@@ -783,6 +791,8 @@ tga_ioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 	}
 	return(error);
 }
+
+#endif /* 0 */
 
 static int
 tga_set_border(video_adapter_t *adp, int color) {
@@ -916,7 +926,7 @@ tga_bitblt(video_adapter_t *adp, ...) {
 static int
 #if 0
 tga_clear(video_adapter_t *adp, int n)
-else
+#else
 tga_clear(video_adapter_t *adp)
 #endif
 {
@@ -1410,6 +1420,7 @@ tga_builtin_load_palette(video_adapter_t *adp, video_color_palette_t *palette)
 	return(error);
 }
 
+#ifdef TGA2
 static int
 tga2_builtin_save_palette(video_adapter_t *adp, video_color_palette_t *palette)
 {
@@ -1512,8 +1523,10 @@ tga2_builtin_load_cursor_palette(video_adapter_t *adp, struct fbcmap *palette)
 	return(error);
 }
 
+#endif /* TGA2 */
+
 static int
-tga_builtin_read_hw_cursor(video_adapter_t *adp, int col, int row)
+tga_builtin_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
 {
 	gfb_reg_t cxyr;
 	int error;
@@ -1969,6 +1982,7 @@ bt463_update_window_type(struct gfb_softc *sc)
 	}
 }
 
+#if 0
 static int
 bt463_save_palette(video_adapter_t *adp, video_color_palette_t *palette)
 {
@@ -2016,6 +2030,8 @@ bt463_load_palette(video_adapter_t *adp, video_color_palette_t *palette)
 	return(error);
 }
 
+#endif /* 0 */
+
 static int
 bt463_save_cursor_palette(video_adapter_t *adp, struct fbcmap *palette)
 {
@@ -2040,7 +2056,7 @@ bt463_save_cursor_palette(video_adapter_t *adp, struct fbcmap *palette)
 }
 
 static int
-bt463_load_cursor_palette(video_adapter_t *adp, struct bfcmap *palette)
+bt463_load_cursor_palette(video_adapter_t *adp, struct fbcmap *palette)
 {
 	struct gfb_softc *sc;
 	int error, i;
