@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.50 1995/05/30 08:02:35 rgrimes Exp $
+ *	$Id: isa.c,v 1.51 1995/09/10 21:35:09 bde Exp $
  */
 
 /*
@@ -675,7 +675,6 @@ void isa_dmastart(int flags, caddr_t addr, unsigned nbytes, unsigned chan)
 	if (isa_dmarangecheck(addr, nbytes, chan)) {
 		if (dma_bounce[chan] == 0)
 			dma_bounce[chan] =
-				/*(caddr_t)malloc(MAXDMASZ, M_TEMP, M_WAITOK);*/
 				(caddr_t) isaphysmem + NBPG*chan;
 		bounced[chan] = 1;
 		newaddr = dma_bounce[chan];
@@ -801,48 +800,6 @@ isa_dmarangecheck(caddr_t va, unsigned length, unsigned chan) {
 		priorpage = phys;
 	}
 	return (0);
-}
-
-/* head of queue waiting for physmem to become available */
-struct buf isa_physmemq;
-
-/* blocked waiting for resource to become free for exclusive use */
-static isaphysmemflag;
-/* if waited for and call requested when free (B_CALL) */
-static void (*isaphysmemunblock)(); /* needs to be a list */
-
-/*
- * Allocate contiguous physical memory for transfer, returning
- * a *virtual* address to region. May block waiting for resource.
- * (assumed to be called at splbio())
- */
-caddr_t
-isa_allocphysmem(caddr_t va, unsigned length, void (*func)()) {
-
-	isaphysmemunblock = func;
-	while (isaphysmemflag & B_BUSY) {
-		isaphysmemflag |= B_WANTED;
-		tsleep((caddr_t)&isaphysmemflag, PRIBIO, "isaphys", 0);
-	}
-	isaphysmemflag |= B_BUSY;
-
-	return((caddr_t)isaphysmem);
-}
-
-/*
- * Free contiguous physical memory used for transfer.
- * (assumed to be called at splbio())
- */
-void
-isa_freephysmem(caddr_t va, unsigned length) {
-
-	isaphysmemflag &= ~B_BUSY;
-	if (isaphysmemflag & B_WANTED) {
-		isaphysmemflag &= B_WANTED;
-		wakeup((caddr_t)&isaphysmemflag);
-		if (isaphysmemunblock)
-			(*isaphysmemunblock)();
-	}
 }
 
 #define NMI_PARITY (1 << 7)
