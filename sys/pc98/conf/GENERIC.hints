@@ -84,7 +84,7 @@ hint.npx.0.irq="8"
 #hint.apm.0.flags="0x20"
 
 hint.pcic.0.at="isa"
-hint.pcic.0.irq="6"
+#hint.pcic.0.irq="6"	# Default to polling
 hint.pcic.0.port="0x3e0"
 
 # COM1
