@@ -52,7 +52,12 @@ extract_plist(char *home, Package *pkg)
 	    if (Verbose)
 		printf("extract: %s/%s\n", Directory, p->name);
 	    if (!Fake) {
-		copy_hierarchy(Directory, p->name, TRUE);
+		char try[FILENAME_MAX];
+
+		/* first try to rename it into place */
+		sprintf(try, "%s/%s", Directory, p->name);
+		if (rename(p->name, try) == FAIL)
+		    copy_hierarchy(Directory, p->name, TRUE);
 		apply_perms(Directory, p->name);
 	    }
 	    break;

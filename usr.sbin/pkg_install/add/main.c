@@ -26,7 +26,7 @@ static char *rcsid = "$Id: main.c,v 1.6 1993/09/04 05:06:28 jkh Exp $";
 #include "lib.h"
 #include "add.h"
 
-static char Options[] = "hvIRnp:";
+static char Options[] = "hvIRnp:SM";
 
 char	*Prefix		= NULL;
 Boolean	NoInstall	= FALSE;
@@ -37,6 +37,8 @@ char	*Owner		= NULL;
 char	*Group		= NULL;
 char	*PkgName	= NULL;
 char	*Directory	= NULL;
+char	*PlayPen	= NULL;
+add_mode_t AddMode	= NORMAL;
 
 int
 main(int argc, char **argv)
@@ -69,6 +71,18 @@ main(int argc, char **argv)
 	    Verbose = TRUE;
 	    break;
 
+	case 't':
+	    PlayPen = optarg;
+	    break;
+
+	case 'S':
+	    AddMode = SLAVE;
+	    break;
+
+	case 'M':
+	    AddMode = MASTER;
+	    break;
+
 	case 'h':
 	case '?':
 	default:
@@ -84,9 +98,13 @@ main(int argc, char **argv)
 	*pkgs++ = *argv++;
 
     /* If no packages, yelp */
-    if (pkgs == start)
-	usage(prog_name, "Missing package name(s)");
     *pkgs = NULL;
+    if (pkgs == start && AddMode != SLAVE)
+	usage(prog_name, "Missing package name(s)");
+    else if (start[1] && AddMode == MASTER)
+	usage(prog_name, "Only one package name may be specified with master mode");
+    else if (pkgs != start && AddMode == SLAVE)
+	whinge("Package names ignored in slave mode.");
     if ((err = pkg_perform(start)) != NULL) {
 	if (Verbose)
 	    fprintf(stderr, "%d package addition(s) failed.\n", err);
@@ -115,5 +133,8 @@ usage(const char *name, const char *fmt, ...)
     fprintf(stderr, "-I         don't execute pkg install script, if any\n");
     fprintf(stderr, "-R         don't record installation (can't delete!)\n");
     fprintf(stderr, "-n         don't actually install, just show steps\n");
+    fprintf(stderr, "-t temp    use temp as template for mktemp()\n");
+    fprintf(stderr, "-S         run in SLAVE mode\n");
+    fprintf(stderr, "-M         run in MASTER mode\n");
     exit(1);
 }
