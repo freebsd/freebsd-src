@@ -318,7 +318,8 @@ gv_drive_orphan(struct g_consumer *cp)
 			s->provider = NULL;
 			s->consumer = NULL;
 		}
-		gv_set_drive_state(d, GV_DRIVE_DOWN, GV_SETSTATE_FORCE);
+		gv_set_drive_state(d, GV_DRIVE_DOWN,
+		    GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
 	}
 	gp->softc = NULL;
 	g_wither_geom(gp, error);
