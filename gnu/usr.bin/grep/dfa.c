@@ -102,11 +102,7 @@ extern void free();
 # endif
 #endif
 
-#ifdef __FreeBSD__
-#include <gnuregex.h>
-#else
 #include "regex.h"
-#endif
 #include "dfa.h"
 
 /* HPUX, define those as macros in sys/param.h */

@@ -26,11 +26,7 @@
 #include <sys/types.h>
 #include "system.h"
 #include "grep.h"
-#ifdef __FreeBSD__
-#include <gnuregex.h>
-#else
 #include "regex.h"
-#endif
 #include "dfa.h"
 #include "kwset.h"
 
