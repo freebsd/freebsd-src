@@ -15,15 +15,15 @@
 #include <sys/libkern.h>
 #include <sys/time.h>
 
-#define	ARC4_MAXRUNS 16384
+#define	ARC4_RESEED_BYTES 65536
 #define	ARC4_RESEED_SECONDS 300
-#define	ARC4_KEYBYTES 32 /* 256 bit key */
+#define	ARC4_KEYBYTES (256 / 8)
 
 static u_int8_t arc4_i, arc4_j;
 static int arc4_initialized = 0;
 static int arc4_numruns = 0;
 static u_int8_t arc4_sbox[256];
-static struct timeval arc4_tv_nextreseed;
+static time_t arc4_t_reseed;
 
 static u_int8_t arc4_randbyte(void);
 
@@ -45,6 +45,7 @@ arc4_randomstir (void)
 {
 	u_int8_t key[256];
 	int r, n;
+	struct timeval tv_now;
 
 	/*
 	 * XXX read_random() returns unsafe numbers if the entropy
@@ -52,21 +53,19 @@ arc4_randomstir (void)
 	 */
 	r = read_random(key, ARC4_KEYBYTES);
 	/* If r == 0 || -1, just use what was on the stack. */
-	if (r > 0)
-	{
+	if (r > 0) {
 		for (n = r; n < sizeof(key); n++)
 			key[n] = key[n % r];
 	}
 
-	for (n = 0; n < 256; n++)
-	{
+	for (n = 0; n < 256; n++) {
 		arc4_j = (arc4_j + arc4_sbox[n] + key[n]) % 256;
 		arc4_swap(&arc4_sbox[n], &arc4_sbox[arc4_j]);
 	}
 
 	/* Reset for next reseed cycle. */
-	getmicrotime(&arc4_tv_nextreseed);
-	arc4_tv_nextreseed.tv_sec += ARC4_RESEED_SECONDS;
+	getmicrouptime(&tv_now);
+	arc4_t_reseed = tv_now.tv_sec + ARC4_RESEED_SECONDS;
 	arc4_numruns = 0;
 }
 
@@ -111,27 +110,33 @@ arc4_randbyte(void)
 	return arc4_sbox[arc4_t];
 }
 
-u_int32_t
-arc4random(void)
+void
+arc4rand(void *ptr, u_int len, int reseed)
 {
-	u_int32_t ret;
-	struct timeval tv_now;
+	u_char *p;
+	struct timeval tv;
 
 	/* Initialize array if needed. */
 	if (!arc4_initialized)
 		arc4_init();
 
-	getmicrotime(&tv_now);
-	if ((++arc4_numruns > ARC4_MAXRUNS) || 
-	    (tv_now.tv_sec > arc4_tv_nextreseed.tv_sec))
-	{
+	getmicrouptime(&tv);
+	arc4_numruns += len;
+	if (reseed || 
+	   (arc4_numruns > ARC4_RESEED_BYTES) ||
+	   (tv.tv_sec > arc4_t_reseed))
 		arc4_randomstir();
-	}
 
-	ret = arc4_randbyte();
-	ret |= arc4_randbyte() << 8;
-	ret |= arc4_randbyte() << 16;
-	ret |= arc4_randbyte() << 24;
+	p = ptr;
+	while (len--)
+		*p++ = arc4_randbyte();
+}
 
+uint32_t
+arc4random(void)
+{
+	uint32_t ret;
+
+	arc4rand(&ret, sizeof ret, 0);
 	return ret;
 }
