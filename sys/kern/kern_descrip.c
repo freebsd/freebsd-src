@@ -203,7 +203,7 @@ struct fcntl_args {
 int
 fcntl(td, uap)
 	struct thread *td;
-	register struct fcntl_args *uap;
+	struct fcntl_args *uap;
 {
 	struct flock fl;
 	intptr_t arg;
@@ -234,11 +234,11 @@ fcntl(td, uap)
 int
 kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 {
-	register struct filedesc *fdp;
+	struct filedesc *fdp;
 	struct flock *flp;
-	register struct file *fp;
+	struct file *fp;
 	struct proc *p;
-	register char *pop;
+	char *pop;
 	struct vnode *vp;
 	u_int newmin;
 	int error, flg, tmp;
@@ -446,7 +446,7 @@ do_dup(td, type, old, new, retval)
 	register_t *retval;
 	struct thread *td;
 {
-	register struct filedesc *fdp;
+	struct filedesc *fdp;
 	struct proc *p;
 	struct file *fp;
 	struct file *delfp;
@@ -784,8 +784,8 @@ close(td, uap)
 	struct thread *td;
 	struct close_args *uap;
 {
-	register struct filedesc *fdp;
-	register struct file *fp;
+	struct filedesc *fdp;
+	struct file *fp;
 	int fd, error;
 
 	fd = uap->fd;
@@ -843,7 +843,7 @@ struct ofstat_args {
 int
 ofstat(td, uap)
 	struct thread *td;
-	register struct ofstat_args *uap;
+	struct ofstat_args *uap;
 {
 	struct file *fp;
 	struct stat ub;
@@ -915,7 +915,7 @@ struct nfstat_args {
 int
 nfstat(td, uap)
 	struct thread *td;
-	register struct nfstat_args *uap;
+	struct nfstat_args *uap;
 {
 	struct file *fp;
 	struct stat ub;
@@ -952,7 +952,7 @@ struct fpathconf_args {
 int
 fpathconf(td, uap)
 	struct thread *td;
-	register struct fpathconf_args *uap;
+	struct fpathconf_args *uap;
 {
 	struct file *fp;
 	struct vnode *vp;
@@ -1005,8 +1005,8 @@ fdalloc(td, want, result)
 	int *result;
 {
 	struct proc *p = td->td_proc;
-	register struct filedesc *fdp = td->td_proc->p_fd;
-	register int i;
+	struct filedesc *fdp = td->td_proc->p_fd;
+	int i;
 	int lim, last, nfiles;
 	struct file **newofile, **oldofile;
 	char *newofileflags;
@@ -1107,12 +1107,12 @@ fdalloc(td, want, result)
 int
 fdavail(td, n)
 	struct thread *td;
-	register int n;
+	int n;
 {
 	struct proc *p = td->td_proc;
-	register struct filedesc *fdp = td->td_proc->p_fd;
-	register struct file **fpp;
-	register int i, lim, last;
+	struct filedesc *fdp = td->td_proc->p_fd;
+	struct file **fpp;
+	int i, lim, last;
 
 	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
 
@@ -1134,12 +1134,12 @@ fdavail(td, n)
  */
 int
 falloc(td, resultfp, resultfd)
-	register struct thread *td;
+	struct thread *td;
 	struct file **resultfp;
 	int *resultfd;
 {
 	struct proc *p = td->td_proc;
-	register struct file *fp, *fq;
+	struct file *fp, *fq;
 	int error, i;
 
 	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
@@ -1189,7 +1189,7 @@ falloc(td, resultfp, resultfd)
  */
 void
 ffree(fp)
-	register struct file *fp;
+	struct file *fp;
 {
 
 	KASSERT(fp->f_count == 0, ("ffree: fp_fcount not 0!"));
@@ -1209,7 +1209,7 @@ struct filedesc *
 fdinit(fdp)
 	struct filedesc *fdp;
 {
-	register struct filedesc0 *newfdp;
+	struct filedesc0 *newfdp;
 
 	MALLOC(newfdp, struct filedesc0 *, sizeof(struct filedesc0),
 	    M_FILEDESC, M_WAITOK | M_ZERO);
@@ -1254,9 +1254,9 @@ struct filedesc *
 fdcopy(td)
 	struct thread *td;
 {
-	register struct filedesc *newfdp, *fdp;
-	register struct file **fpp;
-	register int i, j;
+	struct filedesc *newfdp, *fdp;
+	struct file **fpp;
+	int i, j;
 
 	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
@@ -1367,9 +1367,9 @@ void
 fdfree(td)
 	struct thread *td;
 {
-	register struct filedesc *fdp;
+	struct filedesc *fdp;
 	struct file **fpp;
-	register int i;
+	int i;
 
 	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
@@ -1438,7 +1438,7 @@ setugidsafety(td)
 	struct thread *td;
 {
 	struct filedesc *fdp;
-	register int i;
+	int i;
 
 	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
@@ -1492,7 +1492,7 @@ fdcloseexec(td)
 	struct thread *td;
 {
 	struct filedesc *fdp;
-	register int i;
+	int i;
 
 	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
@@ -1603,8 +1603,8 @@ fdcheckstd(td)
  */
 int
 closef(fp, td)
-	register struct file *fp;
-	register struct thread *td;
+	struct file *fp;
+	struct thread *td;
 {
 	struct vnode *vp;
 	struct flock lf;
@@ -1869,7 +1869,7 @@ struct flock_args {
 int
 flock(td, uap)
 	struct thread *td;
-	register struct flock_args *uap;
+	struct flock_args *uap;
 {
 	struct file *fp;
 	struct vnode *vp;
@@ -1954,7 +1954,7 @@ dupfdopen(td, fdp, indx, dfd, mode, error)
 	int mode;
 	int error;
 {
-	register struct file *wfp;
+	struct file *wfp;
 	struct file *fp;
 
 	/*
