@@ -56,15 +56,6 @@ extern cc_t ttydefchars;
 #define termioschars(t) memcpy((t)->c_cc, &ttydefchars, sizeof((t)->c_cc))
 #endif
 
-#ifdef __FreeBSD__
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#include "opt_devfs.h"
-#endif
-
-
-#endif /* __FreeBSD__ */
-
 #ifdef __NetBSD__
 #include <sys/filio.h>
 #define bootverbose 0

@@ -37,8 +37,6 @@
  *
  */
 
-#include "opt_devfs.h"
-
 #include <dev/sound/midi/midi.h>
 #include <dev/sound/chip.h>
 #include <machine/cpufunc.h>

@@ -46,8 +46,6 @@
  *
  */
 
-#include "opt_devfs.h"
-
 #include <isa/sioreg.h>
 #include <isa/ic/ns16550.h>
 #include <dev/sound/midi/midi.h>

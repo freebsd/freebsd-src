@@ -42,6 +42,7 @@
 #include <sys/conf.h>
 #include <sys/vnode.h>
 #include <sys/queue.h>
+#include <sys/ctype.h>
 #include <machine/stdarg.h>
 
 #define cdevsw_ALLOCSTART	(NUMCDEVSW/2)
@@ -69,7 +70,8 @@ static LIST_HEAD(, specinfo) dev_hash[DEVT_HASH];
 static LIST_HEAD(, specinfo) dev_free;
 
 devfs_create_t *devfs_create_hook;
-devfs_remove_t *devfs_remove_hook;
+devfs_destroy_t *devfs_destroy_hook;
+int devfs_present;
 
 static int free_devt;
 SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
@@ -352,8 +354,8 @@ make_dev_alias(dev_t pdev, char *fmt, ...)
 void
 destroy_dev(dev_t dev)
 {
-	if (devfs_remove_hook)
-		devfs_remove_hook(dev);
+	if (devfs_destroy_hook)
+		devfs_destroy_hook(dev);
 	dev->si_drv1 = 0;
 	dev->si_drv2 = 0;
 	dev->si_devsw = 0;
@@ -380,4 +382,27 @@ devtoname(dev_t dev)
 			sprintf(p, "%d", mynor);
 	}
 	return (dev->si_name);
+}
+
+int
+dev_stdclone(char *name, char **namep, char *stem, int *unit)
+{
+	int u, i;
+
+	if (bcmp(stem, name, strlen(stem)) != 0)
+		return (0);
+	i = strlen(stem);
+	if (!isdigit(name[i]))
+		return (0);
+	u = 0;
+	while (isdigit(name[i])) {
+		u *= 10;
+		u += name[i++] - '0';
+	}
+	*unit = u;
+	if (namep)
+		*namep = &name[i];
+	if (name[i]) 
+		return (2);
+	return (1);
 }

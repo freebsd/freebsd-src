@@ -10,8 +10,6 @@
  *
  */
 
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -22,12 +20,7 @@
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 #include <machine/md_var.h>
-
-#ifdef DEVFS
-#include <sys/eventhandler.h>
-#include <fs/devfs/devfs.h>
 #include <sys/ctype.h>
-#endif
 
 MALLOC_DEFINE(M_DISK, "disk", "disk data");
 
@@ -39,7 +32,6 @@ static d_psize_t diskpsize;
 
 static LIST_HEAD(, disk) disklist = LIST_HEAD_INITIALIZER(&disklist);
 
-#ifdef DEVFS
 static void
 disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -95,7 +87,6 @@ disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 		return;
 	}
 }
-#endif
 
 static void
 inherit_raw(dev_t pdev, dev_t dev)
@@ -138,9 +129,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	dp->d_devsw = cdevsw;
 	LIST_INSERT_HEAD(&disklist, dp, d_list);
 	if (!once) {
-#ifdef DEVFS
-		EVENTHANDLER_REGISTER(devfs_clone, disk_clone, 0, 1000);
-#endif
+		EVENTHANDLER_REGISTER(dev_clone, disk_clone, 0, 1000);
 		once++;
 	}
 	return (dev);
