@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lkm.h,v 1.12 1996/09/03 22:52:27 bde Exp $
+ * $Id: lkm.h,v 1.12.2.1 1997/06/29 08:45:45 obrien Exp $
  */
 
 #ifndef _SYS_LKM_H_
@@ -234,7 +234,7 @@ struct lkm_table {
 
 #define	MOD_DEV(name,devtype,devslot,devp)	\
 	MOD_DECL(name);				\
-	static struct lkm_dev name ## _module = {	\
+	static struct lkm_dev _module = {	\
 		LM_DEV,				\
 		LKM_VERSION,			\
 		#name ## "_mod",		\
