@@ -2284,7 +2284,7 @@ PacketAliasInit(void)
     }
 
     aliasAddress.s_addr = INADDR_ANY;
-    targetAddress.s_addr = INADDR_NONE;
+    targetAddress.s_addr = INADDR_ANY;
 
     icmpLinkCount = 0;
     udpLinkCount = 0;
