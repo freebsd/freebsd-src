@@ -469,7 +469,7 @@ typedef struct sdp_attr *	sdp_attr_p;
 #endif /* BYTE_ORDER */
 
 void *             sdp_open       (bdaddr_t const *l, bdaddr_t const *r);
-void *             sdp_open_local (void);
+void *             sdp_open_local (char const *control);
 int32_t            sdp_close      (void *xs);
 int32_t            sdp_error      (void *xs);
 
