@@ -62,8 +62,8 @@ struct elf_file {
 __BEGIN_DECLS
 int ef_open(const char *filename, struct elf_file *ef, int verbose);
 int ef_obj_open(const char *filename, struct elf_file *ef, int verbose);
-int ef_reloc(struct elf_file *ef, const void *data, int type, Elf_Off offset,
-    size_t len, void *dest);
+int ef_reloc(struct elf_file *ef, const void *reldata, int reltype,
+    Elf_Off relbase, Elf_Off dataoff, size_t len, void *dest);
 __END_DECLS
 
 #endif /* _EF_H_*/
