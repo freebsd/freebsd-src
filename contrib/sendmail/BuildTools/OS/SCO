@@ -1,9 +1,0 @@
-#	@(#)SCO	8.3	(Berkeley)	2/8/1998
-define(`confENVDEF', `-D_SCO_unix_ ')
-define(`confLIBS', `-lsocket -lprot_s -lx -lc_s')
-define(`confMBINDIR', `/usr/lib')
-define(`confSBINDIR', `/usr/etc')
-define(`confUBINDIR', `/usr/ucb')
-define(`confEBINDIR', `/usr/lib')
-define(`confSTDIR', `/usr/lib')
-define(`confHFDIR', `/usr/lib')

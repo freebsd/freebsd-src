@@ -1,9 +1,0 @@
-#	@(#)CSOS	8.5	(Berkeley)	2/8/1998
-define(`confLIBS', `-lnet')
-define(`confMBINDIR', `/usr/lib')
-define(`confSBINDIR', `/usr/etc')
-define(`confEBINDIR', `/usr/lib')
-define(`confUBINDIR', `/usr/ucb')
-define(`confSTDIR', `/usr/lib')
-define(`confHFDIR', `/usr/lib')
-define(`confINSTALL', `${BUILDBIN}/install.sh')

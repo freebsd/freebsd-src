@@ -1,3 +1,0 @@
-#	@(#)Linux.ppc	8.3	(Berkeley)	2/12/1998
-define(`confHFDIR', `/usr/lib')
-define(`confSBINGRP', `mail')
