@@ -77,7 +77,7 @@ int	debug = 1;
 int	debug = 0;
 #endif
 
-#define	MAXNFSDCNT	20
+#define	MAXNFSDCNT	256
 #define	DEFNFSDCNT	 4
 pid_t	children[MAXNFSDCNT];	/* PIDs of children */
 int	nfsdcnt;		/* number of children */
