@@ -35,7 +35,7 @@ usage(int devmask, int recmask)
 {
 	int i, n;
 
-	printf("usage: mixer [-s] [[dev [voll[:volr]] | recsrc | {^|+|-|=}rec recdev] ... ]\n");
+	printf("usage: mixer [-f device] [-s] [[dev [voll[:volr]] | recsrc | {^|+|-|=}rec recdev] ... ]\n");
 	printf(" devices: ");
 	for (i = 0, n = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		if ((1 << i) & devmask)  {
@@ -91,6 +91,7 @@ main(int argc, char *argv[])
 	int devmask = 0, recmask = 0, recsrc = 0, orecsrc;
 	int dusage = 0, drecsrc = 0, shortflag = 0;
 	int l, r;
+	char ch;
 
 	char *name;
 
@@ -101,14 +102,19 @@ main(int argc, char *argv[])
 	else if (!strcmp(argv[0], "mixer3"))
 		name = strdup("/dev/mixer2");
 
-	if (argc > 1 && strcmp(argv[1], "-s") == 0) {
-		shortflag = 1;
-		argc -= 1; argv += 1;
-	}
-	if (argc > 2 && strcmp(argv[1], "-f") == 0) {
-		name = strdup(argv[2]);
-		argc -= 2; argv += 2;
-	}
+	while ((ch = getopt(argc, argv, "f:s")) != -1)
+		switch (ch) {
+			case 'f':
+				name = strdup(optarg);
+				break;
+			case 's':
+				shortflag = 1;
+				break;
+			default:
+				dusage = 1;
+		}
+	argc -= (optind - 1);
+	argv += (optind - 1);
 
 	if ((baz = open(name, O_RDWR)) < 0)
 		err(1, "%s", name);
@@ -121,7 +127,7 @@ main(int argc, char *argv[])
 		err(1, "SOUND_MIXER_READ_RECSRC");
 	orecsrc = recsrc;
 
-	if (argc == 1) {
+	if ((argc == 1) && (dusage == 0)) {
 		for (foo = 0; foo < SOUND_MIXER_NRDEVICES; foo++) {
 			if (!((1 << foo) & devmask)) 
 				continue;
@@ -139,7 +145,7 @@ main(int argc, char *argv[])
 
 	argc--; argv++;
 
-	while (argc) {
+	while ((argc) && (dusage == 0)) {
 		if (!strcmp("recsrc", *argv)) {
 			drecsrc = 1;
 			argc--; argv++;
@@ -147,14 +153,14 @@ main(int argc, char *argv[])
 		} else if (argc > 1 && !strcmp("rec", *argv + 1)) {
 			if (**argv != '+' && **argv != '-' &&
 			    **argv != '=' && **argv != '^') {
+				warnx("unknown modifier: %c", **argv);
 				dusage = 1;
-				argc -= 1; argv += 1;
-				continue;
+				break;
 			}
 			if ((dev = res_name(argv[1], recmask)) == -1) {
+				warnx("unknown recording device: %s", argv[1]);
 				dusage = 1;
-				argc -= 1; argv += 1;
-				continue;
+				break;
 			}
 			switch(**argv) {
 			case '+':
@@ -176,9 +182,9 @@ main(int argc, char *argv[])
 		}
 
 		if ((dev = res_name(*argv, devmask)) == -1) {
+			warnx("unknown device: %s", *argv);
 			dusage = 1;
-			argc--; argv++;
-			continue;
+			break;
 		}
 
 		switch(argc > 1 ? sscanf(argv[1], "%d:%d", &l, &r) : 0) {
@@ -220,6 +226,12 @@ main(int argc, char *argv[])
 		}
 	}
 
+	if (dusage) {
+		close(baz);
+		usage(devmask, recmask);
+		/* Not reached */
+	}
+
 	if (orecsrc != recsrc)
 		if (ioctl(baz, SOUND_MIXER_WRITE_RECSRC, &recsrc) == -1)
 			err(1, "SOUND_MIXER_WRITE_RECSRC");
@@ -231,9 +243,6 @@ main(int argc, char *argv[])
 	}
 
 	close(baz);
-
-	if (dusage)
-		usage(devmask, recmask);
 
 	exit(0);
 }
