@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.40 1998/09/15 14:10:56 kato Exp $
+$Id: majors.pc98,v 1.41 1998/09/22 16:11:38 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -40,6 +40,9 @@ blkdev	name		comments
 26	sw		VM internal swap device
 27	myx		Mylex RAID (ulf@alameda.net)
 28	fla		M-Systems DiskOnChip(r)
+29	id		Intelligent Disk [Array] (md@doc.ic.ac.uk)
+500	??		entries from 500-600 are reserved for local use
+600	??		entries from 500-600 are reserved for local use
 
 chrdev	name		comments
 0	cn		console
@@ -149,3 +152,6 @@ chrdev	name		comments
 105	iic		I2C bus generic i/o
 106	smb		System Management Bus generic i/o
 107	3dfx		3Dfx driver (shocking@prth.pgs.com)
+108	usb		Universal Serial Bus (nick.hibma@jrc.it)
+500	??		entries from 500-600 are reserved for local use
+600	??		entries from 500-600 are reserved for local use
