@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_defs.h,v 1.15.2.9 2001/04/07 00:47:44 ib42 Exp $
+ * $Id: am_defs.h,v 1.15.2.13 2002/12/27 22:45:09 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -594,24 +594,6 @@ struct ypall_callback;
 #ifdef HAVE_LINUX_AUTO_FS_H
 # include <linux/auto_fs.h>
 #endif /* HAVE_LINUX_AUTO_FS_H */
-
-/*
- * Actions to take if <sys/fs/autofs.h> exists.
- */
-#ifdef HAVE_SYS_FS_AUTOFS_H
-# include <sys/fs/autofs.h>
-#endif /* HAVE_SYS_FS_AUTOFS_H */
-
-/*
- * Actions to take if <sys/fs/autofs_prot.h> exists.
- * We really don't want <linux/fs.h> pulled in here
- */
-#ifndef _LINUX_FS_H
-#define _LINUX_FS_H
-#endif /* _LINUX_FS_H */
-#ifdef HAVE_SYS_FS_AUTOFS_PROT_H
-# include <sys/fs/autofs_prot.h>
-#endif /* HAVE_SYS_FS_AUTOFS_PROT_H */
 
 /*
  * NFS PROTOCOL HEADER FILES:
@@ -1412,6 +1394,10 @@ extern int wait3(int *statusp, int options, struct rusage *rusage);
 #if defined(HAVE_VSNPRINTF) && !defined(HAVE_EXTERN_VSNPRINTF)
 extern int vsnprintf(char *, int, const char *, ...);
 #endif /* defined(HAVE_VSNPRINTF) && !defined(HAVE_EXTERN_VSNPRINTF) */
+
+#ifndef HAVE_EXTERN_XDR_CALLMSG
+extern bool_t xdr_callmsg(XDR *xdrs, struct rpc_msg *msg);
+#endif /* not HAVE_EXTERN_XDR_CALLMSG */
 
 #ifndef HAVE_EXTERN_XDR_OPAQUE_AUTH
 extern bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *auth);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: srvr_nfs.c,v 1.7.2.5 2001/04/14 21:08:23 ezk Exp $
+ * $Id: srvr_nfs.c,v 1.7.2.10 2002/12/29 01:55:43 ib42 Exp $
  * $FreeBSD$
  *
  */
@@ -412,21 +412,23 @@ nfs_timed_out(voidp v)
    * Another ping has failed
    */
   np->np_ping++;
+  if (np->np_ping > 1)
+    srvrlog(fs, "not responding");
 
   /*
    * Not known to be up any longer
    */
-  if (FSRV_ISUP(fs)) {
+  if (FSRV_ISUP(fs))
     fs->fs_flags &= ~FSF_VALID;
-    if (np->np_ping > 1)
-      srvrlog(fs, "not responding");
-  }
 
   /*
    * If ttl has expired then guess that it is dead
    */
   if (np->np_ttl < clocktime()) {
     int oflags = fs->fs_flags;
+#ifdef DEBUG
+    dlog("ttl has expired");
+#endif /* DEBUG */
     if ((fs->fs_flags & FSF_DOWN) == 0) {
       /*
        * Server was up, but is now down.
@@ -452,12 +454,22 @@ nfs_timed_out(voidp v)
     }
     if (oflags != fs->fs_flags && (fs->fs_flags & FSF_WANT))
       wakeup_srvr(fs);
+    /*
+     * Reset failed ping count
+     */
+    np->np_ping = 0;
   } else {
 #ifdef DEBUG
     if (np->np_ping > 1)
       dlog("%d pings to %s failed - at most %d allowed", np->np_ping, fs->fs_host, MAX_ALLOWED_PINGS);
 #endif /* DEBUG */
   }
+
+  /*
+   * New RPC xid, so any late responses to the previous ping
+   * get ignored...
+   */
+  np->np_xid = NPXID_ALLOC(struct );
 
   /*
    * Run keepalive again
@@ -595,21 +607,22 @@ nfs_srvr_port(fserver *fs, u_short *port, voidp wchan)
 static void
 start_nfs_pings(fserver *fs, int pingval)
 {
-  if (!(fs->fs_flags & FSF_PINGING)) {
-    fs->fs_flags |= FSF_PINGING;
-    if (fs->fs_cid)
-      untimeout(fs->fs_cid);
-    if (pingval < 0) {
-      srvrlog(fs, "wired up");
-      fs->fs_flags |= FSF_VALID;
-      fs->fs_flags &= ~FSF_DOWN;
-    } else {
-      nfs_keepalive(fs);
-    }
-  } else {
+  if (fs->fs_flags & FSF_PINGING) {
 #ifdef DEBUG
     dlog("Already running pings to %s", fs->fs_host);
 #endif /* DEBUG */
+    return;
+  }
+
+  if (fs->fs_cid)
+    untimeout(fs->fs_cid);
+  if (pingval < 0) {
+    srvrlog(fs, "wired up");
+    fs->fs_flags |= FSF_VALID;
+    fs->fs_flags &= ~FSF_DOWN;
+  } else {
+    fs->fs_flags |= FSF_PINGING;
+    nfs_keepalive(fs);
   }
 }
 
