@@ -51,7 +51,7 @@ my %CONFIGS	= (
 	    'sparc64'	=> [ 'sparc64' ],
 	},
 	'ENV'		=> [ ],
-#	'EMAIL'		=> 'current@freebsd.org,%%arch%%@freebsd.org',
+	'EMAIL'		=> 'current@freebsd.org,%%arch%%@freebsd.org',
     },
     # 4-STABLE tinderbox
     'triangle' => {
