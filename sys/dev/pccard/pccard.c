@@ -108,6 +108,7 @@ static int	pccard_set_res_flags(device_t dev, device_t child, int type,
 		    int rid, u_int32_t flags);
 static int	pccard_set_memory_offset(device_t dev, device_t child, int rid,
 		    u_int32_t offset, u_int32_t *deltap);
+static void	pccard_probe_nomatch(device_t cbdev, device_t child);
 static int	pccard_read_ivar(device_t bus, device_t child, int which,
 		    u_char *result);
 static void	pccard_driver_added(device_t dev, driver_t *driver);
@@ -199,7 +200,7 @@ pccard_attach_card(device_t dev)
 		pf->cfe = NULL;
 		pf->dev = NULL;
 	}
-	DEVPRINTF((dev, "Card has %d functions. pccard_mfc is %d\n", i,
+	DEVPRINTF((dev, "Card has %d functions. pccard_mfc is %d\n", i + 1,
 	    pccard_mfc(sc)));
 
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
@@ -212,9 +213,15 @@ pccard_attach_card(device_t dev)
 		 * routines will do the right thing.  This many mean a
 		 * departure from the current NetBSD model.
 		 *
-		 * This could get really ugly for multifunction cards.  But
-		 * it might also just fall out of the FreeBSD resource model.
-		 *
+		 * This seems to work well in practice for most cards.
+		 * However, there are two cases that are problematic.
+		 * If a driver wishes to pick and chose which config
+		 * entry to use, then this method falls down.  These
+		 * are usually older cards.  In addition, there are
+		 * some cards that have multiple hardware units on the
+		 * cards, but presents only one CIS chain.  These cards
+		 * are combination cards, but only one of these units
+		 * can be on at a time.
 		 */
 		ivar = malloc(sizeof(struct pccard_ivar), M_DEVBUF,
 		    M_WAITOK | M_ZERO);
@@ -918,6 +925,47 @@ pccard_set_memory_offset(device_t dev, device_t child, int rid,
 	    offset, deltap));
 }
 
+static void
+pccard_probe_nomatch(device_t bus, device_t child)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
+	struct pccard_function *func = devi->fcn;
+	struct pccard_softc *sc = PCCARD_SOFTC(bus);
+
+	device_printf(bus, "<unknown card>");
+	printf(" (manufacturer=0x%04x, product=0x%04x) at function %d\n",
+	  sc->card.manufacturer, sc->card.product, func->number);
+	device_printf(bus, "   CIS info: %s, %s, %s\n", sc->card.cis1_info[0],
+	  sc->card.cis1_info[1], sc->card.cis1_info[2]);
+	return;
+}
+
+static int
+pccard_child_location_str(device_t bus, device_t child, char *buf,
+    size_t buflen)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
+	struct pccard_function *func = devi->fcn;
+
+	snprintf(buf, buflen, "function=%d", func->number);
+	return (0);
+}
+
+static int
+pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
+    size_t buflen)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
+	struct pccard_function *func = devi->fcn;
+	struct pccard_softc *sc = PCCARD_SOFTC(bus);
+
+	snprintf(buf, buflen, "manufacturer=0x%04x product=0x%04x "
+	    "cisvendor=\"%s\" cisproduct=\"%s\" function_type=%d",
+	    sc->card.manufacturer, sc->card.product, sc->card.cis1_info[0],
+	    sc->card.cis1_info[1], func->function);
+	return (0);
+}
+
 static int
 pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 {
@@ -1003,6 +1051,7 @@ pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct pccard_ivar *dinfo;
 	struct resource_list_entry *rle = 0;
 	int passthrough = (device_get_parent(child) != dev);
+	struct resource *r = NULL;
 
 	if (passthrough) {
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
@@ -1012,31 +1061,50 @@ pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	dinfo = device_get_ivars(child);
 	rle = resource_list_find(&dinfo->resources, type, *rid);
 
-	if (!rle)
-		return NULL;		/* no resource of that type/rid */
+	if (rle == NULL)
+		return (NULL);		/* no resource of that type/rid */
 
-	if (!rle->res) {
-		device_printf(dev, "WARNING: Resource not reserved by pccard bus\n");
-		return NULL;
-	} else {
-		if (rle->res->r_dev != dev)
-			return (NULL);
-		bus_release_resource(dev, type, *rid, rle->res);
-		rle->res = NULL;
+	if (rle->res == NULL) {
 		switch(type) {
 		case SYS_RES_IOPORT:
+			r = bus_alloc_resource(dev, type, rid, start, end,
+			    count, rman_make_alignment_flags(count));
+			if (r == NULL)
+				goto bad;
+			resource_list_add(&dinfo->resources, type, *rid,
+			    rman_get_start(r), rman_get_end(r), count);
+			rle = resource_list_find(&dinfo->resources, type, *rid);
+			if (!rle)
+				goto bad;
+			rle->res = r;
+			break;
 		case SYS_RES_MEMORY:
-			if (!(flags & RF_ALIGNMENT_MASK))
-				flags |= rman_make_alignment_flags(rle->count);
 			break;
 		case SYS_RES_IRQ:
-			flags |= RF_SHAREABLE;
 			break;
 		}
-		rle->res = resource_list_alloc(&dinfo->resources, dev, child,
-		    type, rid, rle->start, rle->end, rle->count, flags);
 		return (rle->res);
 	}
+	if (rle->res->r_dev != dev)
+		return (NULL);
+	bus_release_resource(dev, type, *rid, rle->res);
+	rle->res = NULL;
+	switch(type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		if (!(flags & RF_ALIGNMENT_MASK))
+			flags |= rman_make_alignment_flags(rle->count);
+		break;
+	case SYS_RES_IRQ:
+		flags |= RF_SHAREABLE;
+		break;
+	}
+	rle->res = resource_list_alloc(&dinfo->resources, dev, child,
+	    type, rid, rle->start, rle->end, rle->count, flags);
+	return (rle->res);
+bad:;
+	device_printf(dev, "WARNING: Resource not reserved by pccard\n");
+	return (NULL);
 }
 
 static int
@@ -1201,7 +1269,10 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(bus_set_resource,	pccard_set_resource),
 	DEVMETHOD(bus_get_resource,	pccard_get_resource),
 	DEVMETHOD(bus_delete_resource,	pccard_delete_resource),
+	DEVMETHOD(bus_probe_nomatch,	pccard_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	pccard_read_ivar),
+	DEVMETHOD(bus_child_pnpinfo_str, pccard_child_pnpinfo_str),
+	DEVMETHOD(bus_child_location_str, pccard_child_location_str),
 
 	/* Card Interface */
 	DEVMETHOD(card_set_res_flags,	pccard_set_res_flags),
