@@ -726,7 +726,6 @@ return_drive_space(int driveno, int64_t offset, int length)
 void
 free_sd(int sdno)
 {
-    struct plex *plex = &PLEX[sdno];
     struct sd *sd;
 
     sd = &SD[sdno];
@@ -736,9 +735,7 @@ free_sd(int sdno)
 	    sd->driveoffset,
 	    sd->sectors);
     if (sd->plexno >= 0)
-	plex->subdisks--;			    /* one less subdisk */
-    if (isstriped (plex))
-	mtx_destroy(&plex->lockmtx);
+	PLEX[sd->plexno].subdisks--;			    /* one less subdisk */
     destroy_dev(sd->dev);
     bzero(sd, sizeof(struct sd));			    /* and clear it out */
     sd->state = sd_unallocated;
@@ -817,6 +814,8 @@ free_plex(int plexno)
 	Free(plex->sdnos);
     if (plex->lock)
 	Free(plex->lock);
+    if (isstriped (plex))
+	mtx_destroy(&plex->lockmtx);
     destroy_dev(plex->dev);
     bzero(plex, sizeof(struct plex));			    /* and clear it out */
     plex->state = plex_unallocated;
