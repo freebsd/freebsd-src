@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 #include <paths.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
@@ -93,7 +94,6 @@ grantpt(int fildes)
 	gid_t gid;
 	char *slave;
 	sigset_t oblock, nblock;
-	struct stat sbuf;
 	struct group *grp;
 
 	retval = -1;
@@ -188,7 +188,7 @@ posix_openpt(int oflag)
 
 		/* Cycle through all possible master PTY devices. */
 		for (pc1 = PT_DEV1; !bflag && (*mc1 = *pc1); ++pc1)
-			for (pc2 = PT_DEV2; *mc2 = *pc2; ++pc2) {
+			for (pc2 = PT_DEV2; (*mc2 = *pc2) != '\0'; ++pc2) {
 				/*
 				 * Break out if we successfully open a PTY,
 				 * or if open() fails due to limits.
