@@ -103,6 +103,7 @@ el_init(prog, fin, fout)
     (void) prompt_init(el);
     (void) sig_init(el);
     el->el_flags = 0;
+    el->data = NULL;
 
     return el;
 } /* end el_init */
@@ -335,4 +336,23 @@ el_resize(el)
 	term_change_size(el, lins, cols);
 
     (void) sigprocmask(SIG_SETMASK, &oset, NULL);
+}
+
+public void
+el_data_set (el, data)
+    EditLine *el;
+    void *data;
+{
+    el->data = data;
+
+    return;
+}
+
+public void *
+el_data_get (el)
+    EditLine *el;
+{
+    if (el->data)
+	return (el->data);
+    return (NULL);
 }
