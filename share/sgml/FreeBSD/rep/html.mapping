@@ -108,17 +108,17 @@
 <p>			"<p>"
 </p>			"</p>"			+
 
-<itemize>	+	"<ul>"		+
+<itemize>	+	"<p> </p><ul>"		+
 </itemize>	+	"</ul>"		+
 
-<enum>		+	"<ol>"		+
+<enum>		+	"<p> </p><ol>"		+
 </enum>		+	"</ol>"		+
 
-<descrip>	+	"<dl>"		+
+<descrip>	+	"<p> </p><dl>"		+
 </descrip>	+	"</dl>"		+
 
 <item>		+	"<li>"
-</item>			"</li>"		+
+</item>			"<p> </p></li>"		+
 
 <tag>			"<dt><b>"
 </tag>			"</b><dd>"
