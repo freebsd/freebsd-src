@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.42 1996/09/22 15:40:16 wosch Exp $ -->
+<!-- $Id: hw.sgml,v 1.43 1996/10/01 05:28:20 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -297,7 +297,7 @@ Slippery when wet.  Beware of dog.
 		problems.
 
 	      <tag>Orion:</tag> Early versions of this chipset suffered from
-	 	a PCI write-posting bug which can cause noticable performance
+	 	a PCI write-posting bug which can cause noticeable performance
 		degradation in applications where large amounts of PCI bus
 		traffic is involved.  B0 stepping or later revisions of the
 		chipset fixed this problem.
@@ -961,7 +961,7 @@ tape drive and media around.  QIC tape drives are the least
 expensive "serious" backup drives.  The downside is the cost of
 media.  QIC tapes are expensive compared to 8mm or 4mm tapes, up
 to 5 times the price per GB data storage.  But, if your needs can
-be satisified with a half-dozen tapes, QIC may be the correct
+be satisfied with a half-dozen tapes, QIC may be the correct
 choice.  QIC is the <em>most</em> common tape drive.  Every site
 has a QIC drive of some density or another.  Therein lies the
 rub, QIC has a large number of densities on physically similar
@@ -1072,7 +1072,7 @@ overridden on the command line to utilize the capacity of current
 tape drives.
 
 	<p><tt>rdump(8)</tt> and <tt>rrestore(8)</tt> backup data
-aross the network to a tape drive attached to another computer.
+across the network to a tape drive attached to another computer.
 Both programs rely upon <tt>rcmd(3)</tt> and <tt>ruserok(3)</tt>
 to access the remote tape drive.  Therefore, the user performing
 the backup must have <tt>rhosts</tt> access to the remote

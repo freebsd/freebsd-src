@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.35 1996/09/09 03:57:46 jkh Exp $ -->
+<!-- $Id: install.sgml,v 1.36 1996/09/21 17:51:46 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -375,7 +375,7 @@ Boot:
 	  other types of installation media should be required.
 
 	  After your system is fully installed and you have rebooted
-	  from the hard disk, you can mount the cdrom at any time by
+	  from the hard disk, you can mount the CDROM at any time by
 	  typing: <tt>mount /cdrom</tt>
 
 	  Before removing the CD again, also note that it is necessary to first

@@ -12,8 +12,8 @@ name="list of contributors">. We are constantly on the lookout for
 new developers and ideas, and those interested in becoming more
 closely involved with the project need simply contact us at our
 <htmlurl url="mailto:hackers@freebsd.org" name="hackers@freebsd.org">
-mailing list.  Those who prefer to work more independantly are also
-accomodated, and they are free to use our FTP facilities at <htmlurl
+mailing list.  Those who prefer to work more independently are also
+accommodated, and they are free to use our FTP facilities at <htmlurl
 url="ftp://ftp.freebsd.org/pub/FreeBSD/incoming"
 name="ftp.freebsd.org"> to distribute their own patches or work-in-progress
 sources.  Our <htmlurl url="mailto:announce@freebsd.org"
@@ -21,7 +21,7 @@ name="announcements mailing list"> is also available to those wishing
 to make other FreeBSD users aware of major areas of work.
 
 Useful things to know about the FreeBSD project and its development process,
-whether working independantly or in close cooperation:
+whether working independently or in close cooperation:
 
 <descrip>
 <itemize>

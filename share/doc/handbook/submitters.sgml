@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.31 1996/08/03 13:46:00 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.32 1996/09/22 15:40:46 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -332,7 +332,7 @@ diff -c -r olddir newdir
 <p>In the case of a significant contribution of a large body
    work, or the addition of an important new feature to FreeBSD,
    it becomes almost always necessary to either send changes as
-   uuencoded tar files or upload them to our ftp site <url
+   uuencode'd tar files or upload them to our ftp site <url
    url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/incoming">.
 
    When working with large amounts of code, the touchy subject of
@@ -395,7 +395,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.31 1996/08/03 13:46:00 jkh Exp $
+	$Id: submitters.sgml,v 1.32 1996/09/22 15:40:46 wosch Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.

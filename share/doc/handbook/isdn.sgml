@@ -1,4 +1,4 @@
-<!-- $Id$-->
+<!-- $Id: isdn.sgml,v 1.4 1996/09/29 16:52:40 jfieber Exp $-->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>ISDN<label id="isdn"></heading>
@@ -203,7 +203,7 @@ Network is Twisted Pair ethernet.
 </verb> 
 
 One large advantage of most routers/bridges is that they allow you to
-have 2 SEPERATE INDEPENDANT PPP connections to 2 seperate sites at the
+have 2 SEPERATE INDEPENDANT PPP connections to 2 separate sites at the
 SAME time.  This is not supported on most TA's, except for
 specific(expensive) models that have two serial ports.  Do not confuse
 this with channel bonding.
