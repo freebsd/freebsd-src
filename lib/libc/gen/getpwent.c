@@ -83,7 +83,7 @@ enum constants {
 };
 
 static const ns_src defaultsrc[] = {
-	{ NSSRC_FILES, NS_SUCCESS },
+	{ NSSRC_COMPAT, NS_SUCCESS },
 	{ NULL, 0 }
 };
 
