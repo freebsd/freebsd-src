@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.132 1996/02/15 23:37:01 joerg Exp $
+#	$Id: Makefile,v 1.133 1996/03/17 08:48:20 markm Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -7,7 +7,7 @@ BINGRP= wheel
 BIN1=   aliases amd.map csh.cshrc csh.login csh.logout dm.conf \
 	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
 	inetd.conf login.access motd modems netstart networks \
-	newsyslog.conf phones pccard.conf printcap profile protocols \
+	newsyslog.conf phones pccard.conf.sample printcap profile protocols \
 	rc rc.local rc.serial etc.${MACHINE}/rc.${MACHINE} \
 	remote security services sysconfig shells \
 	syslog.conf ttys etc.${MACHINE}/disktab rpc make.conf \
@@ -18,7 +18,7 @@ BIN1=   aliases amd.map csh.cshrc csh.login csh.logout dm.conf \
 BIN2=	motd
 
 # -rwxr-xr-x root.wheel, for the new cron root.wheel
-BIN3=	daily weekly monthly
+BIN3=	daily weekly monthly pccard_ether
 
 MTREE=	BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 NAMEDB=	PROTO.localhost.rev named.boot named.root make-localhost
