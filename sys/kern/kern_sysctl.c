@@ -891,8 +891,8 @@ kernel_sysctlbyname(struct proc *p, char *name, void *old, size_t *oldlenp,
     void *new, size_t newlen, size_t *retval)
 {
         int oid[CTL_MAXNAME];
-        size_t oidlen;
-	int error, plen;
+        size_t oidlen, plen;
+	int error;
 
 	oid[0] = 0;		/* sysctl internal magic */
 	oid[1] = 3;		/* name2oid */
