@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.21 1997/02/22 19:57:55 peter Exp $";
+	"$Id: xinstall.c,v 1.22 1997/03/29 04:34:07 imp Exp $";
 #endif /* not lint */
 
 /*-
@@ -79,6 +79,11 @@ static const char rcsid[] =
 #include <utime.h>
 
 #include "pathnames.h"
+
+/* Bootstrap aid - this doesn't exist in most older releases */
+#ifndef MAP_FAILED
+#define MAP_FAILED ((caddr_t)-1)	/* from <sys/mman.h> */
+#endif
 
 int debug, docompare, docopy, dodir, dopreserve, dostrip, verbose;
 int mode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
