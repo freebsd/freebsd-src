@@ -153,7 +153,9 @@ maps:		${SENDMAIL_MAP_OBJ}
 aliases:	${SENDMAIL_ALIASES}.db
 
 install:	${INSTALL_CF}
+.if ${INSTALL_CF} != /etc/mail/sendmail.cf
 	${INSTALL} -c -m ${SHAREMODE} ${INSTALL_CF} /etc/mail/sendmail.cf
+.endif
 
 start:
 	(. /etc/defaults/rc.conf; source_rc_confs; \
