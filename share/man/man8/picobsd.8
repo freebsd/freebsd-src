@@ -39,7 +39,7 @@ As a result, only static executables may be executed.
 .It
 In order to reduce the size of the executables, all executables on a specific
 floppy are joined together as a single executable built with
-.Nm crunchgen(1) .
+.Xr crunchgen 1 .
 .It
 Some programs are supplied in minimalistic versions, specifically
 .Nm ns ,
@@ -217,7 +217,7 @@ If you have a disk driver and a disk with a swap partition on it, and the swap
 partition does not contain a dump you want to keep, you can use this swap with
 .Nm PicoBSD .
 Use the
-.Nm swapon(8)
+.Xr swapon 8
 command.
 .Sh RECOVERING CRASHED SYSTEMS
 The
@@ -229,12 +229,13 @@ floppy, so you can use it instead of the fixit floppy.
 .Sh SEE ALSO
 .Xr crunchgen 1 ,
 .Xr swapon 8 ,
-.Xr vnconfig 8 .
+.Xr vnconfig 8
 .\" .Sh STANDARDS
 .\" .Sh HISTORY
 .Sh AUTHORS
-Andrzej Bialecki <abial@FreeBSD.org>.  Man page and Makefiles created by Greg
-Lehey <grog@lemis.com>.
+.An Andrzej Bialecki Aq abial@FreeBSD.org .
+Man page and Makefiles created by
+.An Greg Lehey Aq grog@lemis.com .
 .Sh BUGS
 In order to build 
 .Nm PicoBSD ,
@@ -265,7 +266,7 @@ Nevertheless, it should be possible to create minimal kernels which will fit
 alongside sufficient other programs on a single floppy.
 .Pp
 The approach of building executables with
-.Nm crunchgen(1) 
+.Xr crunchgen 1
 means that considerable duplication of libraries occurs between the floppies.
 .Pp
 At the current time (December 1999), the old-style build is broken in FreeBSD
