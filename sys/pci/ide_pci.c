@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.21 1999/01/11 22:49:16 julian Exp $
+ *	$Id: ide_pci.c,v 1.22 1999/01/12 01:36:46 eivind Exp $
  */
 
 #include "pci.h"
@@ -118,6 +118,15 @@ via_571_dmainit(struct	ide_pci_cookie *cookie,
 	struct	wdparams *wp, 
 	int	(*wdcmd)(int, void *),
 	void	*wdinfo);
+
+static void
+acer_status(struct ide_pci_cookie *cookie);
+
+static int 
+acer_dmainit(struct ide_pci_cookie *cookie,
+	struct  wdparams *wp,
+	int	(*wdcmd)(int, void *),
+	void 	*wdinfo);
 
 static void
 intel_piix_dump_drive(char	*ctlr,
@@ -267,8 +276,14 @@ generic_dmainit(struct ide_pci_cookie *cookie,
 		printf("ide_pci: generic_dmainit %04x:%d: warning, IDE controller timing not set\n",
 			cookie->iobase_wd,
 			cookie->unit);
+		/* If we're here, then this controller is most likely not set 
+		   for UDMA, even if the drive may be. Make the drive wise
+		   up. */  
+		   
+		if(!wdcmd(WDDMA_MDMA2, wdinfo)) 
+			printf("generic_dmainit: could not set multiword DMA mode!\n");
 		return 1;
-	}
+	}	
 #ifdef IDE_PCI_DEBUG
 	printf("pio_mode: %d, mwdma_mode(wp): %d, udma_mode(wp): %d\n",
 		pio_mode(wp), mwdma_mode(wp), udma_mode(wp));
@@ -1005,6 +1020,70 @@ static struct vendor_fns vs_intel_piix =
 	intel_piix_status
 };
 
+
+static void
+acer_status(struct ide_pci_cookie *cookie) {
+	/* XXX does not do anything right now */
+}
+
+static int
+acer_dmainit(struct ide_pci_cookie *cookie,
+                   struct wdparams *wp,
+                   int(*wdcmd)(int, void *),
+                   void *wdinfo)
+{
+	/* Acer Aladdin DMA setup code. UDMA looks to be sinfully easy to set
+	   on this thing - just one register. */
+	
+	u_long word54 = pci_conf_read(cookie->tag, 0x54);
+	
+	/* Set the default Acer FIFO settings (0x55 = 13-word depth and
+	   slave operation mode 1) */
+	
+	word54 |= 0x5555;
+	
+	/* Is this drive UDMA? Set it up if so... */
+	if(udma_mode(wp) >= 2) {
+		/* This is really easy to do. Just write 0xa (enable 
+		   UDMA mode with 2T timing) into the word at the right
+		   places. */
+		word54 |= (0xA << (16 + (cookie->ctlr * 8) + (cookie->unit * 4)));
+		
+		/* Now set the drive for UDMA2. */
+		if(!wdcmd(WDDMA_UDMA2, wdinfo)) {
+			printf("acer_dmainit: could not set UDMA2 mode on wdc%d:%d!\n", cookie->ctlr, cookie->unit);
+			return 0;
+		}
+		
+		/* Write the new config into the registers. I'm not 
+		   sure if I'm doing this in the right order. */
+		
+		pci_conf_write(cookie->tag, 0x54, word54);
+		
+	} else if(mwdma_mode(wp) >= 2 && pio_mode(wp) >=4) {
+	
+	
+		/* Otherwise, we're already set for regular DMA. */
+
+		if(!wdcmd(WDDMA_MDMA2, wdinfo)) {
+			printf("acer_dmainit: could not set MWDMA2 mode on wdc%d:%d!\n", 
+			     cookie->ctlr, cookie->unit);
+			return 0;
+		}
+		return 1;
+	}
+	
+	return 0;
+}
+ 
+static struct vendor_fns vs_acer = 
+{
+	acer_dmainit,
+	acer_status
+};
+	
+	 
+
 /* Generic SFF-8038i code-- all code below here, except for PCI probes,
  * more or less conforms to the SFF-8038i spec as extended for PCI.
  * There should be no code that goes beyond that feature set below.
@@ -1089,6 +1168,8 @@ ide_pci_probe(pcici_t tag, pcidi_t type)
 		      return ("VIA 82C586x (Apollo) Bus-master IDE controller");
 		if (type == 0x01021078)
 			return ("Cyrix 5530 Bus-master IDE controller");
+		if (type == 0x522910b9)
+			return ("Acer Aladdin IV/V (M5229) Bus-master IDE controller");
 		if (data & 0x8000)
 			return ("PCI IDE controller (busmaster capable)");
 #ifndef CMD640
@@ -1155,6 +1236,9 @@ ide_pci_attach(pcici_t tag, int unit)
 	case 0x01021078: /* cyrix 5530 */
 		printf("cyrix 5530\n");
 		vp = &vs_cyrix_5530;
+		break;
+	case 0x522910B9: /* Acer Aladdin IV/V (M5229) */
+		vp = &vs_acer;
 		break;
 	default:
 		/* everybody else */
@@ -1318,9 +1402,7 @@ ide_pci_attach(pcici_t tag, int unit)
 		}
 	}
 
-	if (bmista_1 & BMISTA_SIMPLEX || bmista_2 & BMISTA_SIMPLEX) {
-		printf("ide_pci: controller is simplex, no DMA on secondary channel\n");
-	} else if (iobase_wd_2 != 0) {
+	if (iobase_wd_2 != 0) {
 		cookie = mkcookie(iobase_wd_2,
 				  ctlridx + 1,
 				  0, 
