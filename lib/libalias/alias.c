@@ -321,12 +321,12 @@ IcmpAliasIn2(struct ip *pip)
         link = FindUdpTcpIn(ip->ip_dst, ip->ip_src,
                             tc->th_dport, tc->th_sport,
                             IPPROTO_TCP);
-    else if (ip->ip_p == IPPROTO_ICMP)
+    else if (ip->ip_p == IPPROTO_ICMP) {
         if (ic2->icmp_type == ICMP_ECHO || ic2->icmp_type == ICMP_TSTAMP)
             link = FindIcmpIn(ip->ip_dst, ip->ip_src, ic2->icmp_id);
          else
             link = NULL;
-    else
+    } else
         link = NULL;
 
     if (link != NULL)
