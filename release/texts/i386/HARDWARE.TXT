@@ -643,10 +643,13 @@ Trust Ami Mouse (3 buttons).
 ----    -------------------------------------------
 
 Asuscom I-IN100-ST-DV (experimental, may work)
+Asuscom ISDNlink 128K
 
 AVM A1
 AVM Fritz!Card classic
+AVM Fritz!Card PCI
 AVM Fritz!Card PCMCIA
+AVM Fritz!Card PnP
 
 Creatix ISDN-S0/8
 Creatix ISDN-S0/16
@@ -660,12 +663,16 @@ Dynalink IS64PH (no longer maintained)
 
 ELSA 1000pro ISA
 ELSA 1000pro PCI
+ELSA PCC-16 
 
 ITK ix1 micro
+ITK ix1 micro V.3
 
 Sagem Cybermod (ISA PnP, may work)
 
 Sedlbauer Win Speed
+
+Siemens I-Surf 2.0 
 
 Stollmann Tina-pp (under development)
 
