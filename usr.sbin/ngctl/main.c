@@ -73,6 +73,7 @@ static const struct ngcmd *const cmds[] = {
 	&shutdown_cmd,
 	&status_cmd,
 	&types_cmd,
+	&write_cmd,
 	&quit_cmd,
 	NULL
 };
