@@ -1,24 +1,26 @@
 /*
- * Copyright (c) 2002,2003 Hewlett-Packard Company
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- */
+Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the "Software"), to deal in the Software without
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+*/
 
 #ifndef _KERNEL
 #include <stdlib.h>
@@ -211,12 +213,12 @@ extern int uwx_get_abi_context_code(struct uwx_env *env);
 #define UWX_REG_PFS		6	/* pfs (pseudo-register) */
 #define UWX_REG_PREDS		7	/* p0 - p63 */
 #define UWX_REG_PRIUNAT		8	/* primary unat (pseudo-register) */
-#define UWX_REG_AR_PFS		9	/* ar.pfs */
-#define UWX_REG_AR_BSPSTORE	10	/* ar.bspstore */
-#define UWX_REG_AR_RNAT		11	/* ar.rnat */
-#define UWX_REG_AR_UNAT		12	/* ar.unat */
-#define UWX_REG_AR_FPSR		13	/* ar.fpsr */
-#define UWX_REG_AR_LC		14	/* ar.lc */
+#define UWX_REG_AR_BSPSTORE	9	/* ar.bspstore */
+#define UWX_REG_AR_RNAT		10	/* ar.rnat */
+#define UWX_REG_AR_UNAT		11	/* ar.unat */
+#define UWX_REG_AR_FPSR		12	/* ar.fpsr */
+#define UWX_REG_AR_LC		13	/* ar.lc */
+#define UWX_REG_AR_PFS		14	/* ar.pfs */
 #define UWX_REG_GR(gr)		(0x100 | (gr))
 #define UWX_REG_FR(fr)		(0x200 | (fr))
 #define UWX_REG_BR(br)		(0x300 | (br))
