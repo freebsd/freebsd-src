@@ -542,6 +542,9 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 		*next = oidp->oid_number;
 		*oidpp = oidp;
 
+		if (oidp->oid_kind & CTLFLAG_SKIP)
+			continue;
+
 		if (!namelen) {
 			if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE) 
 				return 0;
