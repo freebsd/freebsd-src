@@ -30,15 +30,11 @@
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
 #include "opt_ipdivert.h"
-#include "opt_pfil_hooks.h"
 #include "opt_inet.h"
 #ifndef INET
 #error IPFIREWALL requires INET.
 #endif /* INET */
-#if !defined(PFIL_HOOKS)
-#error IPFIREWALL requires PFIL_HOOKS.
-#endif
-#endif
+#endif /* KLD_MODULE */
 
 #include <sys/param.h>
 #include <sys/systm.h>
