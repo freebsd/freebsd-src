@@ -320,6 +320,7 @@ tooshort:
 #ifdef IPDIVERT
 		action = (*ip_fw_chk_ptr)(&ip, hlen,
 				m->m_pkthdr.rcvif, ip_divert_ignore, &m);
+		ip_divert_ignore = 0;
 #else
 		action = (*ip_fw_chk_ptr)(&ip, hlen, m->m_pkthdr.rcvif, 0, &m);
 #endif
