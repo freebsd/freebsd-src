@@ -12,7 +12,7 @@
 MINIMALDOCPORTS= \
 	ports/Mk \
 	ports/archivers/unzip \
-	ports/converters/libiconv
+	ports/converters/libiconv \
 	ports/devel/gettext \
 	ports/devel/gmake \
 	ports/devel/libtool \
