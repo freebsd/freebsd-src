@@ -94,7 +94,7 @@ protopr(proto, name)
 	static int first = 1;
 	char *buf;
 	const char *mibvar;
-	struct tcpcb *tp;
+	struct tcpcb *tp = NULL;
 	struct inpcb *inp;
 	struct xinpgen *xig, *oxig;
 	struct xsocket *so;

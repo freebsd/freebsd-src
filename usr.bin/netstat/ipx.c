@@ -262,6 +262,7 @@ ipx_stats(off, name)
 	ANYl(ipxstat.ipxs_mtutoosmall, "packet", " too big");
 }
 
+#ifdef IPXERRORMSGS
 static	struct {
 	u_short code;
 	char *name;
@@ -278,7 +279,6 @@ static	struct {
 	{-1, 0, 0},
 };
 
-#ifdef IPXERRORMSGS
 /*
  * Dump IPX Error statistics structure.
  */
