@@ -42,11 +42,11 @@
 .Sh SYNOPSIS
 .Nm expand
 .Op Fl Ns Ar tabstop
-.Op Fl Ns Ar tab1,tab2,...,tabn
-.Ar
+.Op Fl t Ar tab1,tab2,...,tabn
+.Op Ar
 .Nm unexpand
 .Op Fl a
-.Ar
+.Op Ar
 .Sh DESCRIPTION
 .Nm Expand
 processes the named files or the standard input writing
@@ -73,7 +73,7 @@ files and writes the result on the standard output.
 Option (with
 .Nm unexpand
 only):
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl a
 By default, only leading blanks and tabs
 are reconverted to maximal strings of tabs.  If the
@@ -83,6 +83,6 @@ resultant file by replacing two or more characters.
 .El
 .Sh HISTORY
 The
-.Nm expand
+.Nm
 command appeared in
 .Bx 3.0 .
