@@ -517,7 +517,7 @@ installExpress(dialogMenuItem *self)
 
     dialog_clear_norefresh();
     variable_set2(SYSTEM_STATE, "express", 0);
-#if defined(__i386__) || defined(__ia64__)
+#ifdef WITH_SLICES
     if (DITEM_STATUS((i = diskPartitionEditor(self))) == DITEM_FAILURE)
 	return i;
 #endif
@@ -545,7 +545,7 @@ installStandard(dialogMenuItem *self)
 
     variable_set2(SYSTEM_STATE, "standard", 0);
     dialog_clear_norefresh();
-#if defined(__i386__) || defined(__ia64__)
+#ifdef WITH_SLICES
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
 	       "to FreeBSD (overwriting anything else that might be on the disk(s) selected)\n"
@@ -563,9 +563,7 @@ nodisks:
 	++tries;
 	goto nodisks;
     }
-#endif
 
-#if defined(__i386__) || defined(__ia64__)
     msgConfirm("Now you need to create BSD partitions inside of the fdisk partition(s)\n"
 	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
@@ -573,7 +571,7 @@ nodisks:
 	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
 	       "manual layout.");
 #else
-    msgConfirm("Now you need to create BSD partitions on the disk which you are\n"
+    msgConfirm("First you need to create BSD partitions on the disk which you are\n"
 	       "installing to.  If you have a reasonable amount of disk space (200MB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
 	       "allocate space automatically.  If you have more specific needs or just don't\n"
@@ -639,23 +637,33 @@ nodisks:
     else
 	configSecurityModerate(self);
 
+#ifdef WITH_SYSCONS
     dialog_clear_norefresh();
     if (!msgNoYes("Would you like to customize your system console settings?"))
 	dmenuOpenSimple(&MenuSyscons, FALSE);
+#endif
 
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to set this machine's time zone now?"))
 	systemExecute("tzsetup");
 
-#ifdef __i386__
+#ifdef WITH_LINUX
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to enable Linux binary compatibility?"))
 	(void)configLinux(self);
 #endif
 
+#ifdef __alpha__
+    dialog_clear_norefresh();
+    if (!msgYesNo("Would you like to enable OSF/1 binary compatibility?"))
+	(void)configOSF1(self);
+#endif
+
+#ifdef WITH_MICE
     dialog_clear_norefresh();
     if (!msgNoYes("Does this system have a non-USB mouse attached to it?"))
 	dmenuOpenSimple(&MenuMouse, FALSE);
+#endif
 
     /* Now would be a good time to checkpoint the configuration data */
     configRC_conf();
