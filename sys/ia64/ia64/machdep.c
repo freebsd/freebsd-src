@@ -518,9 +518,14 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 * Find the beginning and end of the kernel.
 	 */
 	kernstart = trunc_page(kernel_text);
+#ifdef DDB
 	ksym_start = (void *)bootinfo.bi_symtab;
-	ksym_end   = (void *)bootinfo.bi_esymtab;
+	ksym_end = (void *)bootinfo.bi_esymtab;
 	kernend = (vm_offset_t)round_page(ksym_end);
+#else
+	kernend = (vm_offset_t)round_page(_end);
+#endif
+
 	/* But if the bootstrap tells us otherwise, believe it! */
 	if (bootinfo.bi_kernend)
 		kernend = round_page(bootinfo.bi_kernend);
