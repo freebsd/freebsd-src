@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_socket.c,v 1.3 1998/07/30 22:30:53 mks Exp $
+ *	@(#) $Id: atm_socket.c,v 1.1 1998/09/15 08:22:58 phk Exp $
  *
  */
 
@@ -35,11 +35,11 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_socket.c,v 1.3 1998/07/30 22:30:53 mks Exp $";
-#endif
-
 #include <netatm/kern_include.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: atm_socket.c,v 1.1 1998/09/15 08:22:58 phk Exp $");
+#endif
 
 
 /*

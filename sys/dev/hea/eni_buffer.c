@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni_buffer.c,v 1.8 1998/08/26 23:28:53 mks Exp $
+ *	@(#) $Id: eni_buffer.c,v 1.1 1998/09/15 08:22:53 phk Exp $
  *
  */
 
@@ -35,15 +35,15 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: eni_buffer.c,v 1.8 1998/08/26 23:28:53 mks Exp $";
-#endif
-
 #include <netatm/kern_include.h>
 
 #include <dev/hea/eni_stats.h>
 #include <dev/hea/eni.h>
 #include <dev/hea/eni_var.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: eni_buffer.c,v 1.1 1998/09/15 08:22:53 phk Exp $");
+#endif
 
 static int	eni_test_memory __P((Eni_unit *));
 

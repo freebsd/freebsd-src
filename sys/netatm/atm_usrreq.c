@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_usrreq.c,v 1.7 1998/06/29 21:51:29 mks Exp $
+ *	@(#) $Id: atm_usrreq.c,v 1.1 1998/09/15 08:22:59 phk Exp $
  *
  */
 
@@ -35,11 +35,11 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_usrreq.c,v 1.7 1998/06/29 21:51:29 mks Exp $";
-#endif
-
 #include <netatm/kern_include.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: atm_usrreq.c,v 1.1 1998/09/15 08:22:59 phk Exp $");
+#endif
 
 
 /*
@@ -98,7 +98,6 @@ struct pr_usrreqs	atm_dgram_usrreqs = {
 #endif
 
 #define	ATM_OUTRO()						\
-done:								\
 	/*							\
 	 * Drain any deferred calls				\
 	 */							\
@@ -109,7 +108,7 @@ done:								\
 
 #define	ATM_RETERR(errno) {					\
 	err = errno;						\
-	goto done;						\
+	goto out;						\
 }
 
 
@@ -438,6 +437,7 @@ atm_dgram_control(so, cmd, data, ifp, p)
 		err = EOPNOTSUPP;
 	}
 
+out:
 	ATM_OUTRO();
 }
 

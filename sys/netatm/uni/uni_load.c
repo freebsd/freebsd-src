@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uni_load.c,v 1.6 1997/05/06 22:20:43 mks Exp $
+ *	@(#) $Id: uni_load.c,v 1.1 1998/09/15 08:23:09 phk Exp $
  *
  */
 
@@ -35,10 +35,6 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: uni_load.c,v 1.6 1997/05/06 22:20:43 mks Exp $";
-#endif
-
 #ifndef ATM_UNI_MODULE
 #include "opt_atm.h"
 #endif
@@ -46,6 +42,10 @@ static char *RCSid = "@(#) $Id: uni_load.c,v 1.6 1997/05/06 22:20:43 mks Exp $";
 #include <netatm/kern_include.h>
 
 #include <netatm/uni/uni.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: uni_load.c,v 1.1 1998/09/15 08:23:09 phk Exp $");
+#endif
 
 /*
  * External functions

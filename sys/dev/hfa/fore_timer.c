@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_timer.c,v 1.5 1997/05/06 22:10:24 mks Exp $
+ *	@(#) $Id: fore_timer.c,v 1.1 1998/09/15 08:22:56 phk Exp $
  *
  */
 
@@ -35,11 +35,11 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: fore_timer.c,v 1.5 1997/05/06 22:10:24 mks Exp $";
-#endif
-
 #include <dev/hfa/fore_include.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: fore_timer.c,v 1.1 1998/09/15 08:22:56 phk Exp $");
+#endif
 
 
 /*

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_aal5.c,v 1.1 1998/09/15 08:22:57 phk Exp $
+ *	@(#) $Id: atm_aal5.c,v 1.2 1998/09/17 09:34:59 phk Exp $
  *
  */
 
@@ -35,12 +35,12 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_aal5.c,v 1.1 1998/09/15 08:22:57 phk Exp $";
-#endif
-
 #include <netatm/kern_include.h>
 #include <sys/stat.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: atm_aal5.c,v 1.2 1998/09/17 09:34:59 phk Exp $");
+#endif
 
 
 /*
@@ -193,15 +193,14 @@ static Atm_attributes	atm_aal5_defattr = {
 	if (atm_stackq_head != NULL)				\
 		panic("atm_aal5: stack queue not empty");	\
 	;
-#else
+#else /* !DIAGNOSTIC */
 #define ATM_INTRO(f)						\
 	int		s, err = 0;				\
 	s = splnet();						\
 	;
-#endif
+#endif /* DIAGNOSTIC */
 
 #define	ATM_OUTRO()						\
-out:								\
 	/*							\
 	 * Drain any deferred calls				\
 	 */							\
@@ -244,7 +243,7 @@ atm_aal5_attach(so, proto, p)
 	 */
 	err = atm_sock_attach(so, atm_aal5_sendspace, atm_aal5_recvspace);
 	if (err)
-		goto out;
+		ATM_RETERR(err);
 
 	/*
 	 * Finish up any protocol specific stuff
@@ -258,6 +257,7 @@ atm_aal5_attach(so, proto, p)
 	atp->atp_attr = atm_aal5_defattr;
 	strncpy(atp->atp_name, "(AAL5)", T_ATM_APP_NAME_LEN);
 
+out:
 	ATM_OUTRO();
 }
 
@@ -521,6 +521,7 @@ atm_aal5_send(so, flags, m, addr, control, p)
 		KB_FREEALL(m);
 	}
 
+out:
 	ATM_OUTRO();
 }
 
@@ -852,6 +853,7 @@ atm_aal5_ctloutput(so, sopt)
 		break;
 	}
 
+out:
 	ATM_OUTRO();
 }
 
