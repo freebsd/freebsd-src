@@ -328,7 +328,7 @@
       &man.sysinstall.8;, but it <filename>/rescue</filename> includes
       more functionality and is updated by as part of
       buildworld/installworld operations.  More details can be found in
-      &man.rescue.7;.
+      &man.rescue.8;.
       </para>
 
   </sect2>
