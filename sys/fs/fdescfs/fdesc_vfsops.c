@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.15 1998/05/06 05:29:33 msmith Exp $
+ * $Id: fdesc_vfsops.c,v 1.16 1998/09/07 13:17:00 bde Exp $
  */
 
 /*
@@ -55,13 +55,8 @@
 
 static MALLOC_DEFINE(M_FDESCMNT, "FDESC mount", "FDESC mount structure");
 
-static int	fdesc_fhtovp __P((struct mount *mp, struct fid *fhp,
-				  struct mbuf *nam, struct vnode **vpp,
-				  int *exflagsp, struct ucred **credanonp));
 static int	fdesc_mount __P((struct mount *mp, char *path, caddr_t data,
 				 struct nameidata *ndp, struct proc *p));
-static int	fdesc_quotactl __P((struct mount *mp, int cmd, uid_t uid,
-				    caddr_t arg, struct proc *p));
 static int	fdesc_start __P((struct mount *mp, int flags, struct proc *p));
 static int	fdesc_unmount __P((struct mount *mp, int mntflags,
 				   struct proc *p));
@@ -69,9 +64,6 @@ static int	fdesc_statfs __P((struct mount *mp, struct statfs *sbp,
 				  struct proc *p));
 static int	fdesc_sync __P((struct mount *mp, int waitfor,
 				struct ucred *cred, struct proc *p));
-static int	fdesc_vget __P((struct mount *mp, ino_t ino,
-				struct vnode **vpp));
-static int	fdesc_vptofh __P((struct vnode *vp, struct fid *fhp));
   
 /*
  * Mount the per-process file descriptors (/dev/fd)
