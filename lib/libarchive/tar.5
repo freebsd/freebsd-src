@@ -78,13 +78,13 @@ The header record for an old-style
 archive consists of the following:
 .Bd -literal -offset indent
 struct tarfile_header_old {
-  char name[100];
-  char mode[8];
-  char uid[8];
-  char gid[8];
-  char size[12];
-  char mtime[12];
-  char checksum[8];
+char name[100];
+char mode[8];
+char uid[8];
+char gid[8];
+char size[12];
+char mtime[12];
+char checksum[8];
 };
 .Ed
 The remaining bytes in the header record are filled with nulls.
@@ -157,15 +157,15 @@ and
 fields were added:
 .Bd -literal -offset indent
 struct tarfile_entry_common {
-  char name[100];
-  char mode[8];
-  char uid[8];
-  char gid[8];
-  char size[12];
-  char mtime[12];
-  char checksum[8];
-  char linktype[1];
-  char linkname[100];
+char name[100];
+char mode[8];
+char uid[8];
+char gid[8];
+char size[12];
+char mtime[12];
+char checksum[8];
+char linktype[1];
+char linkname[100];
 };
 .Ed
 .Pp
@@ -196,22 +196,22 @@ It extends the format above
 with new fields:
 .Bd -literal -offset indent
 struct tarfile_entry_posix {
-  char name[100];
-  char mode[8];
-  char uid[8];
-  char gid[8];
-  char size[12];
-  char mtime[12];
-  char checksum[8];
-  char typeflag[1];
-  char linkname[100];
-  char magic[6];
-  char version[2];
-  char uname[32];
-  char gname[32];
-  char devmajor[8];
-  char devminor[8];
-  char prefix[155];
+char name[100];
+char mode[8];
+char uid[8];
+char gid[8];
+char size[12];
+char mtime[12];
+char checksum[8];
+char typeflag[1];
+char linkname[100];
+char magic[6];
+char version[2];
+char uname[32];
+char gname[32];
+char devmajor[8];
+char devminor[8];
+char prefix[155];
 };
 .Ed
 .Bl -tag -width indent
@@ -426,32 +426,32 @@ more lenient POSIX-compliant readers can successfully extract most
 GNU tar archives.
 .Bd -literal -offset indent
 struct tarfile_entry_gnu {
-  char name[100];
-  char mode[8];
-  char uid[8];
-  char gid[8];
-  char size[12];
-  char mtime[12];
-  char checksum[8];
-  char typeflag[1];
-  char linkname[100];
-  char magic[6];
-  char version[2];
-  char uname[32];
-  char gname[32];
-  char devmajor[8];
-  char devminor[8];
-  char atime[12];
-  char ctime[12];
-  char offset[12];
-  char longnames[4];
-  char unused[1];
-  struct {
-    char offset[12];
-    char numbytes[12];
-  } sparse[4];
-  char isextended[1];
-  char realsize[12];
+char name[100];
+char mode[8];
+char uid[8];
+char gid[8];
+char size[12];
+char mtime[12];
+char checksum[8];
+char typeflag[1];
+char linkname[100];
+char magic[6];
+char version[2];
+char uname[32];
+char gname[32];
+char devmajor[8];
+char devminor[8];
+char atime[12];
+char ctime[12];
+char offset[12];
+char longnames[4];
+char unused[1];
+struct {
+char offset[12];
+char numbytes[12];
+} sparse[4];
+char isextended[1];
+char realsize[12];
 };
 .Ed
 .Bl -tag -width indent
@@ -569,8 +569,42 @@ additional
 records.
 Each such record contains XXX more details needed XXX
 .It Va realsize
-A binary representation of the size, with a much larger range
+A binary representation of the file's complete size, with a much larger range
 than the POSIX file size.
+In particular, with
+.Cm M
+type files, the current entry is only a portion of the file.
+In that case, the POSIX size field will indicate the size of this
+entry; the
+.Va realsize
+field will indicate the total size of the file.
+.El
+.Ss Solaris Tar
+XXX More Details Needed XXX
+.Pp
+Solaris tar supports an
+.Dq extended
+format that is fundamentally similar to pax interchange format,
+with the following differences:
+.Bl -bullet -compact -width indent
+.Li
+Extended attributes are stored in an entry whose type is
+.Cm X ,
+not
+.Cm x ,
+as used by pax interchange format.
+The detailed format of this entry appears to be the same
+as detailed above for the
+.Cm x
+entry.
+.Li
+An additional
+.Cm A
+entry is used to store an ACL for the following regular entry.
+The body of this entry contains a seven-digit octal number
+(whose value is 01000000 plus the number of ACL entries)
+followed by a zero byte, followed by the
+textual ACL description.
 .El
 .Ss Other Extensions
 One common extension, utilized by GNU tar, star, and other newer

@@ -50,13 +50,14 @@ struct archive_string {
 	size_t	 buffer_length; /* Length of malloc-ed storage */
 };
 
-#define	EMPTY_ARCHIVE_STRING {0,0,0}
+/* Initialize an archive_string object on the stack or elsewhere. */
+#define archive_string_init(a)	\
+	do { (a)->s = NULL; (a)->length = 0; (a)->buffer_length = 0; } while(0)
 
 /* Append a C char to an archive_string, resizing as necessary. */
 struct archive_string *
 __archive_strappend_char(struct archive_string *, char);
 #define	archive_strappend_char __archive_strappend_char
-
 
 /* Append a char to an archive_string using UTF8. */
 struct archive_string *
@@ -86,7 +87,7 @@ __archive_strncat(struct archive_string *, const char *, size_t);
 
 /* Copy a C string to an archive_string with limit, resizing as necessary. */
 #define	archive_strncpy(as,p,l) \
-	((as)->length=0,archive_strncat((as), (p), (l)))
+	((as)->length=0, archive_strncat((as), (p), (l)))
 
 /* Return length of string. */
 #define	archive_strlen(a) ((a)->length)

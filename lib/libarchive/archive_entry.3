@@ -30,13 +30,20 @@
 .Sh NAME
 .Nm archive_entry_clear
 .Nm archive_entry_clone
+.Nm archive_entry_copy_gname_w
+.Nm archive_entry_copy_hardlink_w
+.Nm archive_entry_copy_pathname_w
 .Nm archive_entry_copy_stat
-.Nm archive_entry_dup
+.Nm archive_entry_copy_symlink_w
+.Nm archive_entry_copy_uname_w
 .Nm archive_entry_free
 .Nm archive_entry_gname
+.Nm archive_entry_gname_w
 .Nm archive_entry_hardlink
+.Nm archive_entry_hardlink_w
 .Nm archive_entry_new
 .Nm archive_entry_pathname
+.Nm archive_entry_pathname_w
 .Nm archive_entry_set_devmajor
 .Nm archive_entry_set_devminor
 .Nm archive_entry_set_gid
@@ -51,8 +58,10 @@
 .Nm archive_entry_size
 .Nm archive_entry_stat
 .Nm archive_entry_symlink
+.Nm archive_entry_symlink_w
 .Nm archive_entry_tartype
 .Nm archive_entry_uname
+.Nm archive_entry_uname_w
 .Nd functions for manipulating archive entry descriptions
 .Sh SYNOPSIS
 .In archive_entry.h
@@ -61,19 +70,33 @@
 .Ft struct archive_entry *
 .Fn archive_entry_clone "struct archive_entry *"
 .Ft void
+.Fn archive_entry_copy_gname_w "struct archive_entry *" "const wchar_t *"
+.Ft void
+.Fn archive_entry_copy_hardlink_w "struct archive_entry *" "const wchar_t *"
+.Ft void
+.Fn archive_entry_copy_pathname_w "struct archive_entry *" "const wchar_t *"
+.Ft void
 .Fn archive_entry_copy_stat "struct archive_entry *" "struct stat *"
-.Ft struct archive_entry *
-.Fn archive_entry_dup "struct archive_entry *"
+.Ft void
+.Fn archive_entry_copy_symlink_w "struct archive_entry *" "const wchar_t *"
+.Ft void
+.Fn archive_entry_copy_uname_w "struct archive_entry *" "const wchar_t *"
 .Ft void
 .Fn archive_entry_free "struct archive_entry *"
 .Ft const char *
 .Fn archive_entry_gname "struct archive_entry *"
+.Ft const wchar_t *
+.Fn archive_entry_gname_w "struct archive_entry *"
 .Ft const char *
 .Fn archive_entry_hardlink "struct archive_entry *"
+.Ft const wchar_t *
+.Fn archive_entry_hardlink_w "struct archive_entry *"
 .Ft struct archive_entry *
 .Fn archive_entry_new "void"
 .Ft const char *
 .Fn archive_entry_pathname "struct archive_entry *"
+.Ft const wchar_t *
+.Fn archive_entry_pathname_w "struct archive_entry *"
 .Ft void
 .Fn archive_entry_set_devmajor "struct archive_entry *" "dev_t"
 .Ft void
@@ -102,24 +125,64 @@
 .Fn archive_entry_stat "struct archive_entry *"
 .Ft const char *
 .Fn archive_entry_symlink "struct archive_entry *"
+.Ft const wchar_t *
+.Fn archive_entry_symlink_w "struct archive_entry *"
 .Ft int
 .Fn archive_entry_tartype "struct archive_entry *"
 .Ft const char *
 .Fn archive_entry_uname "struct archive_entry *"
+.Ft const wchar_t *
+.Fn archive_entry_uname_w "struct archive_entry *"
 .Sh DESCRIPTION
 These functions create and manipulate data objects that
 represent entries within an archive.
 You can think of a
 .Tn struct archive_entry
-as a
-.Tn struct stat
-on steroids:  it includes everything from
+as a heavy-duty version of
+.Tn struct stat :
+it includes everything from
 .Tn struct stat
 plus associated pathname, textual group and user names, etc.
 These objects are used by
 .Xr libarchive 3
 to represent the metadata associated with a particular
 entry in an archive.
+.Pp
+Most of the functions here set or read entries
+in an object.  Such functions have one of the
+following forms:
+.Bl -tag -compact -width indent
+.It Fn archive_entry_set_XXXX
+Stores the provided data in the object.
+In particular, for strings, the pointer is stored,
+not the referenced string.
+.It Fn archive_entry_copy_XXXX
+As above, except that the referenced data is copied
+into the object.
+.It Fn archive_entry_XXXX
+Returns the specified data.
+In the case of strings, a const-qualified pointer to
+the string is returned.
+.El
+The string data can be accessed as wide character strings
+(which are suffixed with
+.Cm _w )
+or normal
+.Va char
+strings.
+Note that these are different representations of the same
+data:
+For example, if you store a narrow string and read the corresponding
+wide string, the object will transparently convert formats
+using the current locale.
+Similarly, if you store a wide string and then store a
+narrow string for the same data, the previously-set wide string will
+be discarded in favor of the new data.
+.Pp
+The remaining functions allocate, destroy, clear, and copy
+.Va archive_entry
+objects.
+These functions are described below:
 .Bl -tag -compact -width indent
 .It Fn archive_entry_clear
 Erases the object, resetting all internal fields to the
@@ -128,76 +191,20 @@ This is provided to allow you to quickly recycle objects
 without thrashing the heap.
 .It Fn archive_entry_clone
 A deep copy operation; all text fields are duplicated.
-.It Fn archive_entry_copy_stat
-Copies the contents of the provided
-.Tn struct stat
-into the
-.Tn struct archive_entry
-object.
-.It Fn archive_entry_dup
-A shallow copy; text fields are not duplicated.
 .It Fn archive_entry_free
 Releases the
 .Tn struct archive_entry
 object.
-.It Fn archive_entry_gname
-Returns a pointer to the textual group name.
-.It Fn archive_entry_hardlink
-If this function returns non-NULL, then this object represents
-a hardlink to another filesystem object.
-The contents contain the pathname of the object.
 .It Fn archive_entry_new
 Allocate and return a blank
 .Tn struct archive_entry
 object.
-.It Fn archive_entry_pathname
-Returns a pointer to the pathname.
-.It Fn archive_entry_set_devmajor
-Sets the device major number (only valid for objects representing
-block and character devices).
-.It Fn archive_entry_set_devminor
-Sets the device minor number (only valid for objects representing
-block and character devices).
-.It Fn archive_entry_set_gid
-Sets the group ID for the object.
-.It Fn archive_entry_set_gname
-Sets a pointer to the textual group name.
-Note that the name itself is not copied.
-.It Fn archive_entry_set_hardlink
-Sets the hardlink property; see
-.Fn archive_entry_hardlink
-above.
-.It Fn archive_entry_set_mode
-Sets the file mode.
-.It Fn archive_entry_set_pathname
-Sets a pointer to the pathname.
-Note that the pathname text is not copied.
-.It Fn archive_entry_set_symlink
-Sets a pointer to the contents of a symbolic link.
-Note that the pathname text is not copied.
 .It Fn archive_entry_set_tartype
 Sets the value to be used in a tar-format header
 for this entry.
 Client code should generally not set this; if it
 is left unset, the library will automatically determine
 an appropriate value.
-.It Fn archive_entry_set_uid
-Set the user ID for the object.
-.It Fn archive_entry_set_uname
-Sets a pointer to the textual user name.
-Note that the name itself is not copied.
-.It Fn archive_entry_size
-Returns the size of the object on disk in bytes.
-.It Fn archive_entry_stat
-Returns a pointer to a populated
-.Tn struct stat .
-.It Fn archive_entry_symlink
-Returns a pointer to the symlink contents.
-.It Fn archive_entry_tartype
-Returns the value used in a tar-format header.
-Not generally useful to clients.
-.It Fn archive_entry_uname
-Returns a pointer to the textual user name.
 .El
 .\" .Sh EXAMPLE
 .\" .Sh RETURN VALUES
@@ -215,4 +222,4 @@ The
 .Nm libarchive
 library was written by
 .An Tim Kientzle Aq kientzle@acm.org .
-.Sh BUGS
+.\" .Sh BUGS

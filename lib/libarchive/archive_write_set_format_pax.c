@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -54,6 +55,8 @@ static void		 add_pax_attr_int(struct archive_string *,
 static void		 add_pax_attr_time(struct archive_string *,
 			     const char *key, int64_t sec,
 			     unsigned long nanos);
+static void		 add_pax_attr_w(struct archive_string *,
+			     const char *key, const wchar_t *wvalue);
 static int		 archive_write_pax_data(struct archive *,
 			     const void *, size_t);
 static int		 archive_write_pax_finish(struct archive *);
@@ -183,6 +186,73 @@ add_pax_attr_int(struct archive_string *as, const char *key, int64_t value)
 	add_pax_attr(as, key, format_int(tmp + sizeof(tmp) - 1, value));
 }
 
+static void
+add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
+{
+	int	utf8len;
+	const wchar_t *wp;
+	wchar_t wc;
+	char *utf8_value, *p;
+
+	utf8len = 0;
+	for (wp = wval; *wp != L'\0'; ) {
+		wc = *wp++;
+		if (wc <= 0x7f)
+			utf8len++;
+		else if (wc <= 0x7ff)
+			utf8len += 2;
+		else if (wc <= 0xffff)
+			utf8len += 3;
+		else if (wc <= 0x1fffff)
+			utf8len += 4;
+		else if (wc <= 0x3ffffff)
+			utf8len += 5;
+		else
+			utf8len += 6;
+	}
+
+	utf8_value = malloc(utf8len + 1);
+	for (wp = wval, p = utf8_value; *wp != L'\0'; ) {
+		wc = *wp++;
+		if (wc <= 0x7f) {
+			*p++ = (char)wc;
+		} else if (wc <= 0x7ff) {
+			p[0] = 0xc0 | ((wc >> 6) & 0x1f);
+			p[1] = 0x80 | (wc & 0x3f);
+			p += 2;
+		} else if (wc <= 0xffff) {
+			p[0] = 0xe0 | ((wc >> 12) & 0x0f);
+			p[1] = 0x80 | ((wc >> 6) & 0x3f);
+			p[2] = 0x80 | (wc & 0x3f);
+			p += 3;
+		} else if (wc <= 0x1fffff) {
+			p[0] = 0xf0 | ((wc >> 18) & 0x07);
+			p[1] = 0x80 | ((wc >> 12) & 0x3f);
+			p[2] = 0x80 | ((wc >> 6) & 0x3f);
+			p[3] = 0x80 | (wc & 0x3f);
+			p += 4;
+		} else if (wc <= 0x3ffffff) {
+			p[0] = 0xf8 | ((wc >> 24) & 0x03);
+			p[1] = 0x80 | ((wc >> 18) & 0x3f);
+			p[2] = 0x80 | ((wc >> 12) & 0x3f);
+			p[3] = 0x80 | ((wc >> 6) & 0x3f);
+			p[4] = 0x80 | (wc & 0x3f);
+			p += 5;
+		} else if (wc <= 0x7fffffff) {
+			p[0] = 0xfc | ((wc >> 30) & 0x01);
+			p[1] = 0x80 | ((wc >> 24) & 0x3f);
+			p[1] = 0x80 | ((wc >> 18) & 0x3f);
+			p[2] = 0x80 | ((wc >> 12) & 0x3f);
+			p[3] = 0x80 | ((wc >> 6) & 0x3f);
+			p[4] = 0x80 | (wc & 0x3f);
+			p += 6;
+		}
+	}
+
+	add_pax_attr(as, key, utf8_value);
+	free(utf8_value);
+}
+
 /*
  * Add a key/value attribute to the pax header.  This function handles
  * the length field and various other syntactic requirements.
@@ -243,16 +313,18 @@ archive_write_pax_header(struct archive *a,
     struct archive_entry *entry_original)
 {
 	struct archive_entry *entry_main;
-	const char *linkname, *name_start, *p;
+	const char *linkname, *p;
+	const wchar_t *wp, *wp2, *wname_start;
 	int need_extension, oldstate, r, ret;
 	struct pax *pax;
 	const struct stat *st_main, *st_original;
 
-	struct archive_string pax_entry_name = EMPTY_ARCHIVE_STRING;
+	struct archive_string pax_entry_name;
 	char paxbuff[512];
 	char ustarbuff[512];
 	char ustar_entry_name[256];
 
+	archive_string_init(&pax_entry_name);
 	need_extension = 0;
 	pax = a->format_data;
 	pax->written = 1;
@@ -281,7 +353,7 @@ archive_write_pax_header(struct archive *a,
 	}
 
 	/* Copy entry so we can modify it as needed. */
-	entry_main = archive_entry_dup(entry_original);
+	entry_main = archive_entry_clone(entry_original);
 	archive_string_empty(&(pax->pax_header)); /* Blank our work area. */
 	st_main = archive_entry_stat(entry_main);
 
@@ -291,16 +363,26 @@ archive_write_pax_header(struct archive *a,
 	 * 'prefix' fields.  Here, I pick out the longest possible
 	 * suffix, then test whether the remaining prefix is too long.
 	 */
+	wp = archive_entry_pathname_w(entry_main);
 	p = archive_entry_pathname(entry_main);
-	if (strlen(p) <= 100)	/* Short enough for just 'name' field */
-		name_start = p;	/* Record a zero-length prefix */
+	if (wcslen(wp) <= 100)	/* Short enough for just 'name' field */
+		wname_start = wp;	/* Record a zero-length prefix */
 	else
 		/* Find the largest suffix that fits in 'name' field. */
-		name_start = strchr(p + strlen(p) - 100 - 1, '/');
+		wname_start = wcschr(wp + wcslen(wp) - 100 - 1, '/');
 
-	/* If name is too long, add 'path' to pax extended attrs. */
-	if (name_start == NULL || name_start - p > 155) {
-		add_pax_attr(&(pax->pax_header), "path", p);
+	/* Find non-ASCII character, if any. */
+	wp2 = wp;
+	while (*wp2 != L'\0' && *wp2 < 128)
+		wp2++;
+
+	/*
+	 * If name is too long, or has non-ASCII characters, add
+	 * 'path' to pax extended attrs.
+	 */
+	if (wname_start == NULL || wname_start - wp > 155 ||
+	    *wp2 != L'\0') {
+		add_pax_attr_w(&(pax->pax_header), "path", wp);
 		archive_entry_set_pathname(entry_main,
 		    build_ustar_entry_name(ustar_entry_name, p));
 		need_extension = 1;

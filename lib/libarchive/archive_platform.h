@@ -38,14 +38,38 @@
 /* FreeBSD-specific definitions. */
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
+/*
+ * Note that SUSv3 says that inttypes.h includes stdint.h.
+ * Since inttypes.h predates stdint.h, it's safest to always
+ * use inttypes.h instead of stdint.h.
+ */
+#include <inttypes.h>  /* For int64_t, etc. */
+
 #define HAVE_POSIX_ACL 1
 #define HAVE_CHFLAGS 1
 #define HAVE_LUTIMES 1
 #define HAVE_LCHMOD 1
 #define ARCHIVE_ERRNO_FILE_FORMAT EFTYPE
-#define ARCHIVE_ERRNO_PROGRAMMER EDOOFUS
+#define ARCHIVE_ERRNO_PROGRAMMER EINVAL
 #define ARCHIVE_ERRNO_MISC (-1)
+
+/*
+ * Older versions of inttypes.h don't have INT64_MAX, etc.  Since
+ * SUSv3 requires them to be macros when they are defined, we can
+ * easily test for and define them here if necessary.
+ */
+#ifndef INT64_MAX
+/* XXX Is this really necessary? XXX */
+#ifdef __i386__
+#define INT64_MAX 0x7fffffffffffffffLL
+#define UINT64_MAX 0xffffffffffffffffULL
+#else /* __alpha__ */
+#define INT64_MAX 0x7fffffffffffffffL
+#define UINT64_MAX 0xffffffffffffffffUL
 #endif
+#endif /* ! INT64_MAX */
+
+#endif /*  __FreeBSD__ */
 
 /* No non-FreeBSD platform will have __FBSDID, so just define it here. */
 #ifndef __FreeBSD__
@@ -54,6 +78,7 @@
 
 /* Linux */
 #ifdef LINUX
+#include <inttypes.h>
 #define ARCHIVE_ERRNO_FILE_FORMAT EILSEQ
 #define ARCHIVE_ERRNO_PROGRAMMER EINVAL
 #define ARCHIVE_ERRNO_MISC (-1)
