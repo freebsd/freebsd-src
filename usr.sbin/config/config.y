@@ -120,6 +120,9 @@ Config_spec:
 		} else if (!strcmp($2, "alpha")) {
 			machine = MACHINE_ALPHA;
 			machinename = "alpha";
+		} else if (!strcmp($2, "ia64")) {
+			machine = MACHINE_IA64;
+			machinename = "ia64";
 		} else
 			yyerror("Unknown machine type");
 	      } |
