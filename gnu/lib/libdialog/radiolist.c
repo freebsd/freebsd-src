@@ -49,7 +49,7 @@ dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int wi
   dialogMenuItem *ditems;
 
   /* Allocate space for storing item on/off status */
-  if ((status = alloca(sizeof(int)*item_no)) == NULL) {
+  if ((status = alloca(sizeof(int) * abs(item_no))) == NULL) {
     endwin();
     fprintf(stderr, "\nCan't allocate memory in dialog_radiolist().\n");
     exit(-1);
