@@ -1,4 +1,4 @@
-/* $Id: interrupt.c,v 1.6 1998/11/15 18:25:15 dfr Exp $ */
+/* $Id: interrupt.c,v 1.7 1998/11/18 23:51:40 dfr Exp $ */
 /* $NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $ */
 
 /*
@@ -50,13 +50,11 @@
 #include <machine/bwx.h>
 #include <machine/intr.h>
 
-#if 0
 #ifdef EVCNT_COUNTERS
 #include <sys/device.h>
 struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 #else
 #include <machine/intrcnt.h>
-#endif
 #endif
 
 volatile int mc_expected, mc_received;
@@ -84,12 +82,10 @@ interrupt(a0, a1, a2, framep)
 		
 	case ALPHA_INTR_CLOCK:	/* clock interrupt */
 		cnt.v_intr++;
-#if 0
 #ifdef EVCNT_COUNTERS
 		clock_intr_evcnt.ev_count++;
 #else
 		intrcnt[INTRCNT_CLOCK]++;
-#endif
 #endif
 		if (platform.clockintr)
 			(*platform.clockintr)(framep);
@@ -287,12 +283,13 @@ struct alpha_intr {
     int			vector;	/* vector to match */
     driver_intr_t	*intr;	/* handler function */
     void		*arg;	/* argument to handler */
+    volatile long	*cntp;  /* interrupt counter */
 };
 
 static struct alpha_intr_list alpha_intr_hash[31];
 
 int alpha_setup_intr(int vector, driver_intr_t *intr, void *arg,
-		     void **cookiep)
+		     void **cookiep, volatile long *cntp)
 {
 	int h = HASHVEC(vector);
 	struct alpha_intr *i;
@@ -304,6 +301,10 @@ int alpha_setup_intr(int vector, driver_intr_t *intr, void *arg,
 	i->vector = vector;
 	i->intr = intr;
 	i->arg = arg;
+	if (cntp)
+		i->cntp = cntp;
+	else
+		i->cntp = NULL;
 
 	s = splhigh();
 	LIST_INSERT_HEAD(&alpha_intr_hash[h], i, list);
@@ -331,8 +332,13 @@ void
 alpha_dispatch_intr(void *frame, unsigned long vector)
 {
 	struct alpha_intr *i;
+	volatile long *cntp;
+
 	int h = HASHVEC(vector);
 	for (i = LIST_FIRST(&alpha_intr_hash[h]); i; i = LIST_NEXT(i, list))
-		if (i->vector == vector)
+		if (i->vector == vector) {
+			if (cntp = i->cntp)
+				(*cntp) ++;
 			i->intr(i->arg);
+		}
 }
