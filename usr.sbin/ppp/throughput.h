@@ -23,35 +23,44 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.h,v 1.5 1998/06/12 20:12:26 brian Exp $
+ *	$Id: throughput.h,v 1.6 1999/05/08 11:07:49 brian Exp $
  */
 
-#define SAMPLE_PERIOD 5
+#define SAMPLE_PERIOD 5		/* Default sample period */
 
 #define THROUGHPUT_OVERALL 0x0001
 #define THROUGHPUT_CURRENT 0x0002
 #define THROUGHPUT_PEAK    0x0004
-#define THROUGHPUT_ALL     THROUGHPUT_OVERALL | THROUGHPUT_CURRENT \
-                           | THROUGHPUT_PEAK	
+#define THROUGHPUT_ALL     0x0007
 
 struct pppThroughput {
-  time_t uptime;
+  time_t uptime, downtime;
   unsigned long long OctetsIn;
   unsigned long long OctetsOut;
-  unsigned long long SampleOctets[SAMPLE_PERIOD];
+  int SamplePeriod;
+  unsigned long long *SampleOctets;
   unsigned long long OctetsPerSecond;
   unsigned long long BestOctetsPerSecond;
   time_t BestOctetsPerSecondTime;
   int nSample;
   unsigned rolling : 1;
   struct pppTimer Timer;
+  struct {
+    void *data;
+    void (*fn)(void *v);
+  } callback;
 };
 
-extern void throughput_init(struct pppThroughput *);
+extern void throughput_init(struct pppThroughput *, int);
+extern void throughput_destroy(struct pppThroughput *);
 extern void throughput_disp(struct pppThroughput *, struct prompt *);
 extern void throughput_log(struct pppThroughput *, int, const char *);
 extern void throughput_start(struct pppThroughput *, const char *, int);
+extern void throughput_restart(struct pppThroughput *, const char *, int);
 extern void throughput_stop(struct pppThroughput *);
 extern void throughput_addin(struct pppThroughput *, long long);
 extern void throughput_addout(struct pppThroughput *, long long);
 extern void throughput_clear(struct pppThroughput *, int, struct prompt *);
+extern void throughput_callback(struct pppThroughput *, void (*)(void *),
+                                void *);
+extern int throughput_uptime(struct pppThroughput *);

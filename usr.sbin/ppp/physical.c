@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.17 1999/06/05 21:35:51 brian Exp $
+ *  $Id: physical.c,v 1.18 1999/06/11 13:28:29 brian Exp $
  *
  */
 
@@ -137,7 +137,9 @@ physical_Create(struct datalink *dl, int type)
   p->link.type = PHYSICAL_LINK;
   p->link.name = dl->name;
   p->link.len = sizeof *p;
-  throughput_init(&p->link.throughput);
+
+  /* The sample period is fixed - see physical2iov() & iov2physical() */
+  throughput_init(&p->link.throughput, SAMPLE_PERIOD);
 
   memset(p->link.Queue, '\0', sizeof p->link.Queue);
   memset(p->link.proto_in, '\0', sizeof p->link.proto_in);
@@ -232,7 +234,7 @@ physical_GetSpeed(struct physical *p)
   if (p->handler && p->handler->speed)
     return (*p->handler->speed)(p);
 
-  return 115200;
+  return 0;
 }
 
 int
@@ -347,6 +349,7 @@ void
 physical_Destroy(struct physical *p)
 {
   physical_Close(p);
+  throughput_destroy(&p->link.throughput);
   free(p);
 }
 
@@ -526,7 +529,6 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
 
   p = (struct physical *)iov[(*niov)++].iov_base;
   p->link.name = dl->name;
-  throughput_init(&p->link.throughput);
   memset(p->link.Queue, '\0', sizeof p->link.Queue);
 
   p->desc.UpdateSet = physical_UpdateSet;
@@ -565,6 +567,7 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
   p->hdlc.lqm.timer.state = TIMER_STOPPED;
 
   p->fd = fd;
+  p->link.throughput.SampleOctets = (long long *)iov[(*niov)++].iov_base;
 
   type = (long)p->handler;
   p->handler = NULL;
@@ -584,8 +587,8 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
     lqr_reStart(&p->link.lcp);
   hdlc_StartTimer(&p->hdlc);
 
-  throughput_start(&p->link.throughput, "physical throughput",
-                   Enabled(dl->bundle, OPT_THROUGHPUT));
+  throughput_restart(&p->link.throughput, "physical throughput",
+                     Enabled(dl->bundle, OPT_THROUGHPUT));
 
   return p;
 }
@@ -638,8 +641,9 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
     physical_ChangedPid(p, newpid);
   }
 
-  if (*niov + 1 >= maxiov) {
-    log_Printf(LogERROR, "physical2iov: No room for physical + device !\n");
+  if (*niov + 2 >= maxiov) {
+    log_Printf(LogERROR, "physical2iov: No room for physical + throughput"
+               " + device !\n");
     if (p)
       free(p);
     return -1;
@@ -647,6 +651,11 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
 
   iov[*niov].iov_base = p ? (void *)p : malloc(sizeof *p);
   iov[*niov].iov_len = sizeof *p;
+  (*niov)++;
+
+  iov[*niov].iov_base = p ? (void *)p->link.throughput.SampleOctets :
+                            malloc(SAMPLE_PERIOD * sizeof(long long));
+  iov[*niov].iov_len = SAMPLE_PERIOD * sizeof(long long);
   (*niov)++;
 
   sz = physical_MaxDeviceSize();

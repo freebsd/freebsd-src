@@ -87,3 +87,7 @@ o The ``show modem'' command is depricated and has been changed to
   ``show physical''.
 o The words ``host'' and ``port'' are no longer accepted by the ``set filter''
   command.  Removing them should yield the same results as before.
+o The ``set weight'' command has been depricated.  The ``set bandwidth''
+  command should now be used instead.
+o The ``set autoload'' command syntax and implementation have changed as the
+  old implementation was mis-designed and dysfunctional.

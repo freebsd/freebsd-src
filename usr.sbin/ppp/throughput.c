@@ -23,12 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.8 1998/06/12 20:12:26 brian Exp $
+ *	$Id: throughput.c,v 1.9 1999/05/08 11:07:47 brian Exp $
  */
 
 #include <sys/types.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <time.h>
@@ -40,42 +41,71 @@
 #include "prompt.h"
 
 void
-throughput_init(struct pppThroughput *t)
+throughput_init(struct pppThroughput *t, int period)
 {
-  int f;
-
   t->OctetsIn = t->OctetsOut = 0;
-  for (f = 0; f < SAMPLE_PERIOD; f++)
-    t->SampleOctets[f] = 0;
-  t->OctetsPerSecond = t->BestOctetsPerSecond = t->nSample = 0;
-  t->BestOctetsPerSecondTime = time(NULL);
+  t->SamplePeriod = period;
+  t->SampleOctets = (long long *)calloc(period, sizeof *t->SampleOctets);
+  t->OctetsPerSecond = t->BestOctetsPerSecond = 0;
+  t->nSample = 0;
+  time(&t->BestOctetsPerSecondTime);
   memset(&t->Timer, '\0', sizeof t->Timer);
   t->Timer.name = "throughput";
   t->uptime = 0;
+  t->downtime = 0;
   t->rolling = 0;
+  t->callback.data = NULL;
+  t->callback.fn = NULL;
   throughput_stop(t);
+}
+
+void
+throughput_destroy(struct pppThroughput *t)
+{
+  if (t && t->SampleOctets) {
+    throughput_stop(t);
+    free(t->SampleOctets);
+    t->SampleOctets = 0;
+  }
+}
+
+int
+throughput_uptime(struct pppThroughput *t)
+{
+  time_t downat;
+
+  downat = t->downtime ? t->downtime : time(NULL);
+  return t->uptime ? downat - t->uptime : 0;
 }
 
 void
 throughput_disp(struct pppThroughput *t, struct prompt *prompt)
 {
-  int secs_up;
+  int secs_up, divisor;
 
-  secs_up = t->uptime ? time(NULL) - t->uptime : 0;
-  prompt_Printf(prompt, "Connect time: %d secs\n", secs_up);
-  if (secs_up == 0)
-    secs_up = 1;
+  secs_up = throughput_uptime(t);
+  prompt_Printf(prompt, "Connect time: %d:%02d:%02d", secs_up / 3600,
+                (secs_up / 60) % 60, secs_up % 60);
+  if (t->downtime)
+    prompt_Printf(prompt, " - down at %s", ctime(&t->downtime));
+  else
+    prompt_Printf(prompt, "\n");
+
+  divisor = secs_up ? secs_up : 1;
   prompt_Printf(prompt, "%qu octets in, %qu octets out\n",
                 t->OctetsIn, t->OctetsOut);
   if (t->rolling) {
     prompt_Printf(prompt, "  overall   %6qu bytes/sec\n",
-                  (t->OctetsIn+t->OctetsOut)/secs_up);
-    prompt_Printf(prompt, "  currently %6qu bytes/sec\n", t->OctetsPerSecond);
+                  (t->OctetsIn + t->OctetsOut) / divisor);
+    prompt_Printf(prompt, "  %s %6qu bytes/sec (over the last"
+                  " %d secs)\n", t->downtime ? "average  " : "currently",
+                  t->OctetsPerSecond,
+                  secs_up > t->SamplePeriod ? t->SamplePeriod : secs_up);
     prompt_Printf(prompt, "  peak      %6qu bytes/sec on %s",
                   t->BestOctetsPerSecond, ctime(&t->BestOctetsPerSecondTime));
   } else
     prompt_Printf(prompt, "Overall %qu bytes/sec\n",
-                  (t->OctetsIn+t->OctetsOut)/secs_up);
+                  (t->OctetsIn + t->OctetsOut) / divisor);
 }
 
 
@@ -85,22 +115,22 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
   if (t->uptime) {
     int secs_up;
 
-    secs_up = t->uptime ? time(NULL) - t->uptime : 0;
+    secs_up = throughput_uptime(t);
     if (title)
       log_Printf(level, "%s: Connect time: %d secs: %qu octets in, %qu octets"
                 " out\n", title, secs_up, t->OctetsIn, t->OctetsOut);
     else
-      log_Printf(level, "Connect time: %d secs: %qu octets in, %qu octets out\n",
-                secs_up, t->OctetsIn, t->OctetsOut);
+      log_Printf(level, "Connect time: %d secs: %qu octets in,"
+                 " %qu octets out\n", secs_up, t->OctetsIn, t->OctetsOut);
     if (secs_up == 0)
       secs_up = 1;
     if (t->rolling)
       log_Printf(level, " total %qu bytes/sec, peak %qu bytes/sec on %s",
-                (t->OctetsIn+t->OctetsOut)/secs_up, t->BestOctetsPerSecond,
-                ctime(&t->BestOctetsPerSecondTime));
+                 (t->OctetsIn + t->OctetsOut) / secs_up, t->BestOctetsPerSecond,
+                 ctime(&t->BestOctetsPerSecondTime));
     else
       log_Printf(level, " total %qu bytes/sec\n",
-                (t->OctetsIn+t->OctetsOut)/secs_up);
+                 (t->OctetsIn + t->OctetsOut) / secs_up);
   }
 }
 
@@ -109,18 +139,24 @@ throughput_sampler(void *v)
 {
   struct pppThroughput *t = (struct pppThroughput *)v;
   unsigned long long old;
+  int uptime, divisor;
 
   timer_Stop(&t->Timer);
 
+  uptime = throughput_uptime(t);
+  divisor = uptime < t->SamplePeriod ? uptime + 1 : t->SamplePeriod;
   old = t->SampleOctets[t->nSample];
   t->SampleOctets[t->nSample] = t->OctetsIn + t->OctetsOut;
-  t->OctetsPerSecond = (t->SampleOctets[t->nSample] - old) / SAMPLE_PERIOD;
+  t->OctetsPerSecond = (t->SampleOctets[t->nSample] - old) / divisor;
   if (t->BestOctetsPerSecond < t->OctetsPerSecond) {
     t->BestOctetsPerSecond = t->OctetsPerSecond;
-    t->BestOctetsPerSecondTime = time(NULL);
+    time(&t->BestOctetsPerSecondTime);
   }
-  if (++t->nSample == SAMPLE_PERIOD)
+  if (++t->nSample == t->SamplePeriod)
     t->nSample = 0;
+
+  if (t->callback.fn != NULL && uptime >= t->SamplePeriod)
+    (*t->callback.fn)(t->callback.data);
 
   timer_Start(&t->Timer);
 }
@@ -128,22 +164,44 @@ throughput_sampler(void *v)
 void
 throughput_start(struct pppThroughput *t, const char *name, int rolling)
 {
+  int i;
   timer_Stop(&t->Timer);
-  throughput_init(t);
-  t->rolling = rolling ? 1 : 0;
+
+  for (i = 0; i < t->SamplePeriod; i++)
+    t->SampleOctets[i] = 0;
+  t->nSample = 0;
+  t->OctetsIn = t->OctetsOut = 0;
+  t->OctetsPerSecond = t->BestOctetsPerSecond = 0;
+  time(&t->BestOctetsPerSecondTime);
+  t->downtime = 0;
   time(&t->uptime);
+  throughput_restart(t, name, rolling);
+}
+
+void
+throughput_restart(struct pppThroughput *t, const char *name, int rolling)
+{
+  timer_Stop(&t->Timer);
+  t->rolling = rolling ? 1 : 0;
   if (t->rolling) {
     t->Timer.load = SECTICKS;
     t->Timer.func = throughput_sampler;
     t->Timer.name = name;
     t->Timer.arg = t;
     timer_Start(&t->Timer);
+  } else {
+    t->Timer.load = 0;
+    t->Timer.func = NULL;
+    t->Timer.name = NULL;
+    t->Timer.arg = NULL;
   }
 }
 
 void
 throughput_stop(struct pppThroughput *t)
 {
+  if (t->Timer.state != TIMER_STOPPED)
+    time(&t->downtime);
   timer_Stop(&t->Timer);
 }
 
@@ -165,19 +223,21 @@ throughput_clear(struct pppThroughput *t, int clear_type, struct prompt *prompt)
   if (clear_type & (THROUGHPUT_OVERALL|THROUGHPUT_CURRENT)) {
     int i;
 
-    for (i = 0; i < SAMPLE_PERIOD; i++)
+    for (i = 0; i < t->SamplePeriod; i++)
       t->SampleOctets[i] = 0;
     t->nSample = 0;
   }
 
   if (clear_type & THROUGHPUT_OVERALL) {
-    int secs_up;
+    int divisor;
 
-    secs_up = t->uptime ? time(NULL) - t->uptime : 1;
+    if ((divisor = throughput_uptime(t)) == 0)
+      divisor = 1;
     prompt_Printf(prompt, "overall cleared (was %6qu bytes/sec)\n",
-                  (t->OctetsIn + t->OctetsOut)/secs_up);
+                  (t->OctetsIn + t->OctetsOut) / divisor);
     t->OctetsIn = t->OctetsOut = 0;
-    t->uptime = time(NULL);
+    t->downtime = 0;
+    time(&t->uptime);
   } 
 
   if (clear_type & THROUGHPUT_CURRENT) {
@@ -194,8 +254,15 @@ throughput_clear(struct pppThroughput *t, int clear_type, struct prompt *prompt)
     if (last > time_buf && *--last == '\n')
       *last = '\0';
     prompt_Printf(prompt, "peak    cleared (was %6qu bytes/sec on %s)\n",
-                   t->BestOctetsPerSecond, time_buf); 
+                  t->BestOctetsPerSecond, time_buf); 
     t->BestOctetsPerSecond = 0;
-    t->BestOctetsPerSecondTime = time(NULL);
+    time(&t->BestOctetsPerSecondTime);
   }
+}
+
+void
+throughput_callback(struct pppThroughput *t, void (*fn)(void *), void *data)
+{
+  t->callback.fn = fn;
+  t->callback.data = data;
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.203 1999/06/23 16:48:19 brian Exp $
+ * $Id: command.c,v 1.204 1999/08/02 21:45:35 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -143,8 +143,8 @@
 #define NEG_SHORTSEQ	52
 #define NEG_VJCOMP	53
 
-const char Version[] = "2.22";
-const char VersionDate[] = "$Date: 1999/06/23 16:48:19 $";
+const char Version[] = "2.23";
+const char VersionDate[] = "$Date: 1999/08/02 21:45:35 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1428,19 +1428,42 @@ SetVariable(struct cmdargs const *arg)
     break;
 
   case VAR_AUTOLOAD:
-    if (arg->argc == arg->argn + 2 || arg->argc == arg->argn + 4) {
-      arg->bundle->autoload.running = 1;
-      arg->bundle->cfg.autoload.max.timeout = atoi(arg->argv[arg->argn]);
-      arg->bundle->cfg.autoload.max.packets = atoi(arg->argv[arg->argn + 1]);
-      if (arg->argc == arg->argn + 4) {
-        arg->bundle->cfg.autoload.min.timeout = atoi(arg->argv[arg->argn + 2]);
-        arg->bundle->cfg.autoload.min.packets = atoi(arg->argv[arg->argn + 3]);
-      } else {
-        arg->bundle->cfg.autoload.min.timeout = 0;
-        arg->bundle->cfg.autoload.min.packets = 0;
+    if (arg->argc == arg->argn + 3) {
+      int v1, v2, v3; 
+      char *end;
+
+      v1 = strtol(arg->argv[arg->argn], &end, 0);
+      if (v1 < 0 || *end) {
+        log_Printf(LogWARN, "autoload: %s: Invalid min percentage\n",
+                   arg->argv[arg->argn]);
+        return 1;
       }
+
+      v2 = strtol(arg->argv[arg->argn + 1], &end, 0);
+      if (v2 < 0 || *end) {
+        log_Printf(LogWARN, "autoload: %s: Invalid max percentage\n",
+                   arg->argv[arg->argn + 1]);
+        return 1;
+      }
+      if (v2 < v1) {
+        v3 = v1;
+        v1 = v2;
+        v2 = v3;
+      }
+
+      v3 = strtol(arg->argv[arg->argn + 2], &end, 0);
+      if (v3 <= 0 || *end) {
+        log_Printf(LogWARN, "autoload: %s: Invalid throughput period\n",
+                   arg->argv[arg->argn + 2]);
+        return 1;
+      }
+
+      arg->bundle->ncp.mp.cfg.autoload.min = v1;
+      arg->bundle->ncp.mp.cfg.autoload.max = v2;
+      arg->bundle->ncp.mp.cfg.autoload.period = v3;
+      mp_RestartAutoloadTimer(&arg->bundle->ncp.mp);
     } else {
-      err = "Set autoload requires two or four arguments\n";
+      err = "Set autoload requires three arguments\n";
       log_Printf(LogWARN, err);
     }
     break;
@@ -1873,8 +1896,8 @@ static struct cmdtab const SetCommands[] = {
   "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
   {"vj", NULL, ipcp_vjset, LOCAL_AUTH,
   "vj values", "set vj slots|slotcomp [value]"},
-  {"weight", NULL, mp_SetDatalinkWeight, LOCAL_AUTH | LOCAL_CX,
-  "datalink weighting", "set weight n"},
+  {"bandwidth", NULL, mp_SetDatalinkBandwidth, LOCAL_AUTH | LOCAL_CX,
+  "datalink bandwidth", "set bandwidth value"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "set help|? [command]", SetCommands},
   {NULL, NULL, NULL},
