@@ -88,6 +88,7 @@ static const char rcsid[] =
 Static struct cue_type cue_devs[] = {
 	{ USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE },
 	{ USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE2 },
+	{ USB_VENDOR_SMARTBRIDGES, USB_PRODUCT_SMARTBRIDGES_SMARTLINK },
 	{ 0, 0 }
 };
 
@@ -581,6 +582,7 @@ Static int cue_detach(dev)
 
 	sc->cue_gone = 1;
 	untimeout(cue_tick, sc, sc->cue_stat_ch);
+	bpfdetach(ifp);
 	if_detach(ifp);
 
 	if (sc->cue_ep[CUE_ENDPT_TX] != NULL)
