@@ -39,7 +39,7 @@ struct rtentry;
 #include <net/if.h>
 
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
+#include <net/ethernet.h>
 
 #include <stdio.h>
 
