@@ -1748,7 +1748,7 @@ siointr1(com)
 			}
 			++com->bytes_in;
 			if (com->hotchar != 0 && recv_data == com->hotchar)
-				swi_sched(sio_fast_ih, SWI_NOSWITCH);
+				swi_sched(sio_fast_ih, 0);
 			ioptr = com->iptr;
 			if (ioptr >= com->ibufend)
 				CE_RECORD(com, CE_INTERRUPT_BUF_OVERFLOW);
@@ -1759,7 +1759,7 @@ siointr1(com)
 				swi_sched(sio_slow_ih, SWI_DELAY);
 #if 0 /* for testing input latency vs efficiency */
 if (com->iptr - com->ibuf == 8)
-	swi_sched(sio_fast_ih, SWI_NOSWITCH);
+	swi_sched(sio_fast_ih, 0);
 #endif
 				ioptr[0] = recv_data;
 				ioptr[com->ierroff] = line_status;
@@ -1797,7 +1797,7 @@ cont:
 			if (!(com->state & CS_CHECKMSR)) {
 				com_events += LOTS_OF_EVENTS;
 				com->state |= CS_CHECKMSR;
-				swi_sched(sio_fast_ih, SWI_NOSWITCH);
+				swi_sched(sio_fast_ih, 0);
 			}
 
 			/* handle CTS change immediately for crisp flow ctl */
@@ -1852,7 +1852,7 @@ cont:
 					com_events += LOTS_OF_EVENTS;
 					com->state |= CS_ODONE;
 					/* handle at high level ASAP */
-					swi_sched(sio_fast_ih, SWI_NOSWITCH);
+					swi_sched(sio_fast_ih, 0);
 				}
 			}
 			if (COM_IIR_TXRDYBUG(com->flags) && (int_ctl != int_ctl_new)) {

@@ -268,7 +268,7 @@ boot(int howto)
 			pbusy = nbusy;
 			sync(thread0, NULL);
  			if (curthread != NULL) {
-				DROP_GIANT_NOSWITCH();
+				DROP_GIANT();
    				for (subiter = 0; subiter < 50 * iter; subiter++) {
      					mtx_lock_spin(&sched_lock);
      					setrunqueue(curthread);

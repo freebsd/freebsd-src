@@ -242,7 +242,7 @@ hardclock(frame)
 	 * callout_lock held; incorrect locking order.
 	 */
 	if (need_softclock)
-		swi_sched(softclock_ih, SWI_NOSWITCH);
+		swi_sched(softclock_ih, 0);
 }
 
 /*

@@ -82,9 +82,7 @@ struct ithd {
 #define	IT_DEAD		0x000004	/* Thread is waiting to exit. */
 
 /* Flags to pass to sched_swi. */
-#define	SWI_NOSWITCH	0x0
-#define	SWI_SWITCH	0x1
-#define	SWI_DELAY	0x2	/* implies NOSWITCH */
+#define	SWI_DELAY	0x2
 
 /*
  * Software interrupt bit numbers in priority order.  The priority only

@@ -381,9 +381,9 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	 * Set it_need to tell the thread to keep running if it is already
 	 * running.  Then, grab sched_lock and see if we actually need to
 	 * put this thread on the runqueue.  If so and the do_switch flag is
-	 * true, then switch to the ithread immediately.  Otherwise, set the
-	 * needresched flag to guarantee that this ithread will run before any
-	 * userland processes.
+	 * true and it is safe to switch, then switch to the ithread
+	 * immediately.  Otherwise, set the needresched flag to guarantee
+	 * that this ithread will run before any userland processes.
 	 */
 	ithread->it_need = 1;
 	mtx_lock_spin(&sched_lock);
@@ -391,7 +391,8 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 		CTR2(KTR_INTR, "%s: setrunqueue %d", __func__, p->p_pid);
 		p->p_stat = SRUN;
 		setrunqueue(td); /* XXXKSE */
-		if (do_switch && curthread->td_proc->p_stat == SRUN) {
+		if (do_switch && curthread->td_critnest == 1 &&
+		    curthread->td_proc->p_stat == SRUN) {
 			if (curthread != PCPU_GET(idlethread))
 				setrunqueue(curthread);
 			curthread->td_proc->p_stats->p_ru.ru_nivcsw++;
@@ -458,7 +459,7 @@ swi_sched(void *cookie, int flags)
 	 */
 	atomic_store_rel_int(&ih->ih_need, 1);
 	if (!(flags & SWI_DELAY)) {
-		error = ithread_schedule(it, !cold && flags & SWI_SWITCH);
+		error = ithread_schedule(it, !cold);
 		KASSERT(error == 0, ("stray software interrupt"));
 	}
 }
@@ -580,7 +581,7 @@ SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
 void
 legacy_setsoftnet(void)
 {
-	swi_sched(net_ih, SWI_NOSWITCH);
+	swi_sched(net_ih, 0);
 }
 
 /*
