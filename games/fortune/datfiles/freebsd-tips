@@ -336,8 +336,8 @@ the scroll lock key and use your page up button. When you're finished,
 press the scroll lock key again to get your prompt back.
 		-- Dru <genesis@istar.ca>
 %
-To save disk space in your home directory, can compress files you
-rarely use with "gzip filename".
+To save disk space in your home directory, compress files you rarely
+use with "gzip filename".
 		-- Dru <genesis@istar.ca>
 %
 To read a compressed file without having to first uncompress it, use
