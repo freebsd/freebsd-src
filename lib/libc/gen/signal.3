@@ -39,8 +39,13 @@
 .Nd simplified software signal facilities
 .Sh SYNOPSIS
 .Fd #include <signal.h>
-.Ft void
-.Fn *signal "int sig" "void \*(lp*func\*(rp\*(lpint\*(rp"
+.Ft void \*(lp*\*(rp
+.Fn \*(lpsignal "int sig" "void \*(lp*func\*(rp\*(lpint\*(rp\*(rp\*(rp\*(lpint"
+
+or in FreeBSD's equivalent but easier to read typedef'd version:
+.Ft typedef "void \*(lp*sig_t\*(rp \*(lpint\*(rp"
+.Ft sig_t 
+.Fn signal "int sig" "sig_t func"
 .Sh DESCRIPTION
 This
 .Fn signal
