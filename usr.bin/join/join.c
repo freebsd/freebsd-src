@@ -53,11 +53,13 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
 /*
  * There's a structure per input file which encapsulates the state of the
@@ -100,17 +102,20 @@ int joinout = 1;		/* show lines with matched join fields (-v) */
 int needsep;			/* need separator character */
 int spans = 1;			/* span multiple delimiters (-t) */
 char *empty;			/* empty field replacement string (-e) */
-static char default_tabchar[] = " \t";
-char *tabchar = default_tabchar;/* delimiter characters (-t) */
+static wchar_t default_tabchar[] = L" \t";
+wchar_t *tabchar = default_tabchar;/* delimiter characters (-t) */
 
 int  cmp(LINE *, u_long, LINE *, u_long);
 void fieldarg(char *);
 void joinlines(INPUT *, INPUT *);
+int  mbscoll(const char *, const char *);
+char *mbssep(char **, const wchar_t *);
 void obsolete(char **);
 void outfield(LINE *, u_long, int);
 void outoneline(INPUT *, LINE *);
 void outtwoline(INPUT *, LINE *, INPUT *, LINE *);
 void slurp(INPUT *);
+wchar_t *towcs(const char *);
 void usage(void);
 
 int
@@ -180,8 +185,10 @@ main(int argc, char *argv[])
 			break;
 		case 't':
 			spans = 0;
-			if (strlen(tabchar = optarg) != 1)
+			if (mbrtowc(&tabchar[0], optarg, MB_LEN_MAX, NULL) !=
+			    strlen(optarg))
 				errx(1, "illegal tab character specification");
+			tabchar[1] = L'\0';
 			break;
 		case 'v':
 			vflag = 1;
@@ -335,7 +342,7 @@ slurp(INPUT *F)
 
 		/* Split the line into fields, allocate space as necessary. */
 		lp->fieldcnt = 0;
-		while ((fieldp = strsep(&bp, tabchar)) != NULL) {
+		while ((fieldp = mbssep(&bp, tabchar)) != NULL) {
 			if (spans && *fieldp == '\0')
 				continue;
 			if (lp->fieldcnt == lp->fieldalloc) {
@@ -356,6 +363,35 @@ slurp(INPUT *F)
 	}
 }
 
+char *
+mbssep(char **stringp, const wchar_t *delim)
+{
+	char *s, *tok;
+	const wchar_t *spanp;
+	wchar_t c, sc;
+	size_t n;
+
+	if ((s = *stringp) == NULL)
+		return (NULL);
+	for (tok = s;;) {
+		n = mbrtowc(&c, s, MB_LEN_MAX, NULL);
+		if (n == (size_t)-1 || n == (size_t)-2)
+			errc(1, EILSEQ, NULL);	/* XXX */
+		s += n;
+		spanp = delim;
+		do {
+			if ((sc = *spanp++) == c) {
+				if (c == 0)
+					s = NULL;
+				else
+					s[-n] = '\0';
+				*stringp = s;
+				return (tok);
+			}
+		} while (sc != 0);
+	}
+}
+
 int
 cmp(LINE *lp1, u_long fieldno1, LINE *lp2, u_long fieldno2)
 {
@@ -363,7 +399,37 @@ cmp(LINE *lp1, u_long fieldno1, LINE *lp2, u_long fieldno2)
 		return (lp2->fieldcnt <= fieldno2 ? 0 : 1);
 	if (lp2->fieldcnt <= fieldno2)
 		return (-1);
-	return (strcoll(lp1->fields[fieldno1], lp2->fields[fieldno2]));
+	return (mbscoll(lp1->fields[fieldno1], lp2->fields[fieldno2]));
+}
+
+int
+mbscoll(const char *s1, const char *s2)
+{
+	wchar_t *w1, *w2;
+	int ret;
+
+	if (MB_CUR_MAX == 1)
+		return (strcoll(s1, s2));
+	if ((w1 = towcs(s1)) == NULL || (w2 = towcs(s2)) == NULL)
+		err(1, NULL);	/* XXX */
+	ret = wcscoll(w1, w2);
+	free(w1);
+	free(w2);
+	return (ret);
+}
+
+wchar_t *
+towcs(const char *s)
+{
+	wchar_t *wcs;
+	size_t n;
+
+	if ((n = mbsrtowcs(NULL, &s, 0, NULL)) == (size_t)-1)
+		return (NULL);
+	if ((wcs = malloc((n + 1) * sizeof(*wcs))) == NULL)
+		return (NULL);
+	mbsrtowcs(wcs, &s, n + 1, NULL);
+	return (wcs);
 }
 
 void
@@ -454,7 +520,7 @@ void
 outfield(LINE *lp, u_long fieldno, int out_empty)
 {
 	if (needsep++)
-		(void)printf("%c", *tabchar);
+		(void)printf("%lc", *tabchar);
 	if (!ferror(stdout)) {
 		if (lp->fieldcnt <= fieldno || out_empty) {
 			if (empty != NULL)
