@@ -79,7 +79,6 @@ SUBDIR=	${_3dfx} \
 	fxp \
 	${_gem} \
 	geom \
-	gx \
 	harp \
 	hatm \
 	${_hfa} \

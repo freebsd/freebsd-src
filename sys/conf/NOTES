@@ -1638,7 +1638,6 @@ device		miibus
 # fpa:  Support for the Digital DEFPA PCI FDDI. `device fddi' is also needed.
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
-# gx:   Intel Pro/1000 Gigabit Ethernet (82542, 82543-F, 82543-T)
 # hme:  Sun HME (Happy Meal Ethernet)
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
@@ -1762,7 +1761,6 @@ device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Gigabit & FDDI NICs.
 device		bge
-device		gx
 device		lge
 device		nge
 device		sk
