@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2003 Erez Zadok
+ * Copyright (c) 1997-2004 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_defs.h,v 1.15.2.13 2002/12/27 22:45:09 ezk Exp $
+ * $Id: am_defs.h,v 1.15.2.16 2004/05/12 15:54:31 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -69,6 +69,26 @@
 # endif /* not HAVE_STRCHR */
 char *strchr(), *strrchr(), *strdup();
 #endif /* not STDC_HEADERS */
+
+/* AIX requires this to be the first thing in the file. */
+#ifndef __GNUC__
+# if HAVE_ALLOCA_H
+#  include <alloca.h>
+# else /* not HAVE_ALLOCA_H */
+#  ifdef _AIX
+/*
+ * This pragma directive is indented so that pre-ANSI C compilers will
+ * ignore it, rather than choke on it.
+ */
+ #pragma alloca
+#  else /* not _AIX */
+#   ifndef alloca
+/* predefined by HP cc +Olibcalls */
+voidp alloca();
+#   endif /* not alloca */
+#  endif /* not _AIX */
+# endif /* not HAVE_ALLOCA_H */
+#endif /* not __GNUC__ */
 
 /*
  * Handle gcc __attribute__ if available.
@@ -276,10 +296,13 @@ typedef bool_t (*xdrproc_t) __P ((XDR *, __ptr_t, ...));
 
 /*
  * Actions to take if <malloc.h> exists.
+ * Don't include malloc.h if stdlib.h exists, because modern
+ * systems complain if you use malloc.h instead of stdlib.h.
+ * XXX: let's hope there are no systems out there that need both.
  */
-#ifdef HAVE_MALLOC_H
+#if defined(HAVE_MALLOC_H) && !defined(HAVE_STDLIB_H)
 # include <malloc.h>
-#endif /* HAVE_MALLOC_H */
+#endif /* defined(HAVE_MALLOC_H) && !defined(HAVE_STDLIB_H) */
 
 /*
  * Actions to take if <mntent.h> exists.
@@ -326,21 +349,13 @@ extern int errno;
  * Should be included before <rpcsvc/yp_prot.h> because on some systems
  * like Linux, it also defines "struct datum".
  */
-#ifdef HAVE_NDBM_H
-# include <ndbm.h>
+#ifdef HAVE_MAP_NDBM
+# include NEW_DBM_H
 # ifndef DATUM
 /* ensure that struct datum is not included again from <rpcsvc/yp_prot.h> */
 #  define DATUM
 # endif /* not DATUM */
-#else /* not HAVE_NDBM_H */
-# ifdef HAVE_DB1_NDBM_H
-#  include <db1/ndbm.h>
-#  ifndef DATUM
-/* ensure that struct datum is not included again from <rpcsvc/yp_prot.h> */
-#   define DATUM
-#  endif /* not DATUM */
-# endif /* HAVE_DB1_NDBM_H */
-#endif /* HAVE_NDBM_H */
+#endif /* HAVE_MAP_NDBM */
 
 /*
  * Actions to take if <net/errno.h> exists.
