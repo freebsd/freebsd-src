@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.107 1998/06/16 23:23:57 brian Exp $
+.\" $Id: ppp.8,v 1.108 1998/06/18 01:24:29 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -780,7 +780,7 @@ for details.
 .It
 Support for IPCP Domain Name Server and NetBIOS Name Server negotiation
 can be enabled using the
-.Dq enable dns
+.Dq accept dns
 and
 .Dq set nbns
 commands.  Refer to their descriptions below.
