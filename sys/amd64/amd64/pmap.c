@@ -1431,12 +1431,6 @@ get_pv_entry(void)
 	return uma_zalloc(pvzone, M_NOWAIT);
 }
 
-/*
- * If it is the first entry on the list, it is actually
- * in the header and we must copy the following entry up
- * to the header.  Otherwise we must search the list for
- * the entry.  In either case we free the now unused entry.
- */
 
 static int
 pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
