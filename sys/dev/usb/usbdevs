@@ -626,6 +626,9 @@ product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial converter
 /* Fuji photo products */
 product FUJIPHOTO MASS0100	0x0100	Mass Storage
 
+/* Fujitsu protducts */
+product	FUJITSU	AH_F401U	0x105b	AH-F401U Air H device
+
 /* Genesys Logic products */
 product	GENESYS GL650		0x0604	GL650 Hub
 product	GENESYS GL641USB	0x0700	GL641USB CompactFlash Card Reader
