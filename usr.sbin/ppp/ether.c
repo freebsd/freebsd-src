@@ -595,6 +595,12 @@ ether_Create(struct physical *p)
       return ether_Abandon(dev, p);
     }
 
+    /* Bring the Ethernet interface up */
+    path[ifacelen] = '\0';	/* Remove the trailing ':' */
+    if (!iface_SetFlags(path, IFF_UP))
+      log_Printf(LogWARN, "%s: Failed to set the IFF_UP flag on %s\n",
+                 p->link.name, path);
+
     /* And finally, request a connection to the given provider */
 
     data = (struct ngpppoe_init_data *)alloca(sizeof *data + providerlen);
@@ -675,16 +681,6 @@ ether_Create(struct physical *p)
 
   if (dev) {
     physical_SetupStack(p, dev->dev.name, PHYSICAL_FORCE_SYNCNOACF);
-
-    if (path != NULL) {
-      /* Mark the interface as UP if it's not already */
-
-      path[ifacelen] = '\0';		/* Remove the trailing ':' */
-      if (!iface_SetFlags(path, IFF_UP))
-        log_Printf(LogWARN, "%s: Failed to set the IFF_UP flag on %s\n",
-                   p->link.name, path);
-    }
-
     return &dev->dev;
   }
 
