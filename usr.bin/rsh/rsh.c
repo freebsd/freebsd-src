@@ -42,8 +42,8 @@ static char sccsid[] = "@(#)rsh.c	8.3 (Berkeley) 4/6/94";
 #endif /* not lint */
 
 /*
- * $Source: mit/rsh/RCS/rsh.c,v $
- * $Header: mit/rsh/RCS/rsh.c,v 5.1 89/07/31 19:28:59 kfall Exp Locker: kfall $
+ * $Source: /home/ncvs/src/usr.bin/rsh/rsh.c,v $
+ * $Header: /home/ncvs/src/usr.bin/rsh/rsh.c,v 1.1.1.1 1994/05/27 12:32:35 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -162,7 +162,6 @@ main(argc, argv)
 #ifdef CRYPT
 		case 'x':
 			doencrypt = 1;
-			des_set_key(cred.session, schedule);
 			break;
 #endif
 #endif
@@ -234,10 +233,11 @@ try_connect:
 			dest_realm = krb_realmofhost(host);
 
 #ifdef CRYPT
-		if (doencrypt)
+		if (doencrypt) {
 			rem = krcmd_mutual(&host, sp->s_port, user, args,
 			    &rfd2, dest_realm, &cred, schedule);
-		else
+			des_set_key(cred.session, schedule);
+		} else
 #endif
 			rem = krcmd(&host, sp->s_port, user, args, &rfd2,
 			    dest_realm);
