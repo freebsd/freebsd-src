@@ -678,6 +678,10 @@ mdcreate_vnode(struct md_ioctl *mdio, struct proc *p)
 		sc->nsect = mdio->md_size;
 	else
 		sc->nsect = vattr.va_size / sc->secsize; /* XXX: round up ? */
+	if (sc->nsect == 0) {
+		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
+		return (EINVAL);
+	}
 	error = mdsetcred(sc, p->p_ucred);
 	if (error) {
 		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
