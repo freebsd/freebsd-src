@@ -4,7 +4,7 @@
 .\"
 .\"    nroff -man ee.1
 .\"
-.\"  $Header: /home/hugh/sources/old_ae/RCS/ee.1,v 1.19 1995/11/29 04:03:15 hugh Exp $
+.\"  $Header: /home/hugh/sources/old_ae/RCS/ee.1,v 1.19 1995/11/29 04:03:15 hugh Exp hugh $
 .\"
 .\"
 .TH ee 1 "" "" "" ""
@@ -323,8 +323,11 @@ brackets (e.g. "<220>") or as a character.
 .IP "\fBinfo window\fR"
 A window showing the keyboard operations that can be performed can be 
 displayed or not.
-.IP"\fBemacs keys\fR"
+.IP "\fBemacs keys\fR"
 Control keys may be given bindings similar to emacs, or not.
+.IP "\f16 bit characters\fR"
+Toggles whether sixteen bit characters are handled as one 16-bit quantities or 
+two 8-bit quantities.  This works primarily with the Chinese Big 5 code set.
 .RE
 .PP
 You may set these modes via the initialization file (see below), or with a 
@@ -452,6 +455,10 @@ Turns on display of eight bit characters.
 .IP \fBnoeightbit\fR
 Turns off display of eight bit characters (they are displayed as their decimal 
 value inside angle brackets, e.g., "<220>").
+.IP \fB16bit\fR
+Turns on handling of 16-bit characters.
+.IP \fbno16bit\fR
+Turns off handling of 16-bit characters.
 .IP \fBemacs\fR
 Turns on emacs key bindings.
 .IP \fBnoemacs\fR
@@ -501,7 +508,10 @@ Always make a copy of files that cannot be easily reproduced before
 editing.  Save files early, and save often.
 .SS "International Code Set Support"
 .I ee 
-supports single-byte character code sets (eight-bit clean).
+supports single-byte character code sets (eight-bit clean), or the 
+Chinese Big-5 code set.  (Other multi-byte code sets may function, but the 
+reason Big-5 works is that a two-byte character also takes up two columns on 
+the screen.)
 .SH WARNINGS
 The automatic paragraph formatting operation 
 may be too slow for slower systems.
@@ -522,7 +532,7 @@ This software and documentation contains
 proprietary information which is protected by 
 copyright.  All rights are reserved. 
 .PP
-Copyright (c) 1990, 1991, 1992, 1993, 1995 Hugh Mahon.
+Copyright (c) 1990, 1991, 1992, 1993, 1995, 1996 Hugh Mahon.
 .SH "SEE ALSO"
 .PP
 termcap(4), terminfo(4), environ(5), spell(1), ispell(1), lp(1)
