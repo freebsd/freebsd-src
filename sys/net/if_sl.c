@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.71 1999/01/21 08:29:07 dillon Exp $
+ * $Id: if_sl.c,v 1.72 1999/01/27 22:42:14 dillon Exp $
  */
 
 /*
@@ -222,7 +222,7 @@ slattach(dummy)
 #ifdef SLIP_IFF_OPTS
 		    SLIP_IFF_OPTS;
 #else
-		    IFF_BROADCAST | IFF_POINTOPOINT | SC_AUTOCOMP | IFF_MULTICAST;
+		    IFF_POINTOPOINT | SC_AUTOCOMP | IFF_MULTICAST;
 #endif
 		sc->sc_if.if_type = IFT_SLIP;
 		sc->sc_if.if_ioctl = slioctl;
