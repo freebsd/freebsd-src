@@ -223,8 +223,9 @@ static int		sysctl_hw_fxp_bundle_max(SYSCTL_HANDLER_ARGS);
 static int		sysctl_hw_fxp_int_delay(SYSCTL_HANDLER_ARGS);
 static __inline void 	fxp_scb_wait(struct fxp_softc *sc);
 static __inline void	fxp_scb_cmd(struct fxp_softc *sc, int cmd);
-static __inline void	fxp_dma_wait(volatile u_int16_t *status,
-			    struct fxp_softc *sc);
+static __inline void	fxp_dma_wait(struct fxp_softc *sc,
+    			    volatile u_int16_t *status, bus_dma_tag_t dmat,
+			    bus_dmamap_t map);
 
 static device_method_t fxp_methods[] = {
 	/* Device interface */
@@ -288,12 +289,16 @@ fxp_scb_cmd(struct fxp_softc *sc, int cmd)
 }
 
 static __inline void
-fxp_dma_wait(volatile u_int16_t *status, struct fxp_softc *sc)
+fxp_dma_wait(struct fxp_softc *sc, volatile u_int16_t *status,
+    bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	int i = 10000;
 
-	while (!(le16toh(*status) & FXP_CB_STATUS_C) && --i)
+	bus_dmamap_sync(dmat, map, BUS_DMASYNC_POSTREAD);
+	while (!(le16toh(*status) & FXP_CB_STATUS_C) && --i) {
 		DELAY(2);
+		bus_dmamap_sync(dmat, map, BUS_DMASYNC_POSTREAD);
+	}
 	if (i == 0)
 		device_printf(sc->dev, "DMA timeout\n");
 }
@@ -1904,7 +1909,7 @@ fxp_init(void *xsc)
 		CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->mcs_addr);
 		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 		/* ...and wait for it to complete. */
-		fxp_dma_wait(&mcsp->cb_status, sc);
+		fxp_dma_wait(sc, &mcsp->cb_status, sc->mcs_tag, sc->mcs_map);
 		bus_dmamap_sync(sc->mcs_tag, sc->mcs_map,
 		    BUS_DMASYNC_POSTWRITE);
 	}
@@ -2016,7 +2021,7 @@ fxp_init(void *xsc)
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->fxp_desc.cbl_addr);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
-	fxp_dma_wait(&cbp->cb_status, sc);
+	fxp_dma_wait(sc, &cbp->cb_status, sc->cbl_tag, sc->cbl_map);
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_POSTWRITE);
 
 	/*
@@ -2037,7 +2042,7 @@ fxp_init(void *xsc)
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
-	fxp_dma_wait(&cb_ias->cb_status, sc);
+	fxp_dma_wait(sc, &cb_ias->cb_status, sc->cbl_tag, sc->cbl_map);
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_POSTWRITE);
 
 	/*
@@ -2555,7 +2560,7 @@ fxp_load_ucode(struct fxp_softc *sc)
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->fxp_desc.cbl_addr);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
-	fxp_dma_wait(&cbp->cb_status, sc);
+	fxp_dma_wait(sc, &cbp->cb_status, sc->cbl_tag, sc->cbl_map);
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_POSTWRITE);
 	device_printf(sc->dev,
 	    "Microcode loaded, int_delay: %d usec  bundle_max: %d\n",
