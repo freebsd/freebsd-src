@@ -766,7 +766,7 @@ getloginname()
 			if (p < nbuf + (NBUFSIZ - 1))
 				*p++ = ch;
 		}
-		if (p > nbuf)
+		if (p > nbuf) {
 			if (nbuf[0] == '-')
 				(void)fprintf(stderr,
 				    "login names may not start with '-'.\n");
@@ -775,6 +775,7 @@ getloginname()
 				username = nbuf;
 				break;
 			}
+		}
 	}
 }
 
