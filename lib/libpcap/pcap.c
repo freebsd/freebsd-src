@@ -33,12 +33,13 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: pcap.c,v 1.12 94/06/12 14:32:23 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/lib/libpcap/pcap.c,v 1.1.1.1 1995/01/20 04:13:03 jkh Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
 
 #include <unistd.h>
+#include <string.h>
 
 #include "pcap-int.h"
 
@@ -151,16 +152,7 @@ pcap_geterr(pcap_t *p)
 char *
 pcap_strerror(int errnum)
 {
-	extern int sys_nerr;
-/*
-	extern char *sys_errlist[];
-*/
-	static char ebuf[20];
-
-	if ((unsigned int)errnum < sys_nerr)
-		return (sys_errlist[errnum]);
-	(void)sprintf(ebuf, "Unknown error: %d", errnum);
-	return(ebuf);
+	return strerror(errnum);
 }
 
 void
