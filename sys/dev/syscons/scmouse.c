@@ -39,8 +39,7 @@
 #include <sys/malloc.h>
 #include <sys/consio.h>
 #include <sys/fbio.h>
-
-#include <machine/mouse.h>
+#include <sys/mouse.h>
 
 #include <dev/syscons/syscons.h>
 
