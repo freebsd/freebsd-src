@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.24 1995/11/10 06:49:03 jkh Exp $
+ * $Id: package.c,v 1.25 1995/11/10 15:10:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,6 +69,10 @@ package_extract(Device *dev, char *name)
     char pen[FILENAME_MAX];
     char *where;
     int fd, ret;
+
+    /* If necessary, initialize the ldconfig hints */
+    if (!file_readable("/var/run/ld.so.hints"))
+	vsystem("ldconfig /usr/lib /usr/local/lib /usr/X11R6/lib");
 
     /* Check to make sure it's not already there */
     if (!vsystem("pkg_info -e %s", name)) {
