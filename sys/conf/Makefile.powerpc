@@ -39,6 +39,7 @@ M=	${MACHINE_ARCH}
 
 SIZE?=		size
 OBJCOPY?=	objcopy
+NM?=		nm
 
 COPTFLAGS?=-O -pipe
 .if !defined(NO_CPU_COPTFLAGS)
@@ -61,6 +62,8 @@ INCLUDES+= -I/usr/include
 .endif
 
 COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -D__ELF__ -D__FreeBSD__ -include opt_global.h -msoft-float
+CWARNFLAGS=-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
+	-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
@@ -69,7 +72,7 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 # Select the correct set of tools. Can't set OBJFORMAT here because it
 # doesn't get exported into the environment, and if it were exported
 # then it might break building of utilities.
-FMT=		-elf
+FMT=
 CFLAGS+=	${FMT}
 
 DEFINED_PROF=	${PROF}
@@ -180,7 +183,7 @@ hack.So: Makefile
 ./assym.s: assym.s
 
 assym.s: $S/kern/genassym.sh genassym.o
-	OBJFORMAT=elf sh $S/kern/genassym.sh genassym.o > ${.TARGET}
+	NM=${NM} OBJFORMAT=elf sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
 genassym.o: $S/$M/$M/genassym.c
 	${CC} -c ${CFLAGS} -elf $S/$M/$M/genassym.c
