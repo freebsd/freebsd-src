@@ -95,6 +95,9 @@
 #include <vm/vm_extern.h>
 
 #include <sys/user.h>
+#ifdef	SMP
+#include <machine/smp.h>
+#endif
 
 /*
  * quick version of vm_fault
@@ -388,6 +391,14 @@ vunmapbuf(bp)
 void
 cpu_reset()
 {
+#ifdef	SMP
+	printf("sending IPI_HALT to other processors\n");
+	DELAY(1000000);
+	ipi_all_but_self(IPI_HALT);
+	DELAY(1000000);
+	printf("Rebooting Self\n");
+	DELAY(1000000);
+#endif
 	prom_halt(0);
 }
 
