@@ -733,6 +733,38 @@ struct	lchown_args {
 	int uid;
 	int gid;
 };
+struct	modnext_args {
+	int modid;
+};
+struct	modstat_args {
+	int modid;
+	struct module_stat * stat;
+};
+struct	modfnext_args {
+	int modid;
+};
+struct	modfind_args {
+	char * name;
+};
+struct	kldload_args {
+	const char * file;
+};
+struct	kldunload_args {
+	int fileid;
+};
+struct	kldfind_args {
+	const char * file;
+};
+struct	kldnext_args {
+	int fileid;
+};
+struct	kldstat_args {
+	int fileid;
+	struct kld_file_stat * stat;
+};
+struct	kldfirstmod_args {
+	int fileid;
+};
 int	nosys __P((struct proc *, struct nosys_args *, int []));
 void	exit __P((struct proc *, struct rexit_args *, int [])) __dead2;
 int	fork __P((struct proc *, struct fork_args *, int []));
@@ -905,6 +937,16 @@ int	minherit __P((struct proc *, struct minherit_args *, int []));
 int	rfork __P((struct proc *, struct rfork_args *, int []));
 int	issetugid __P((struct proc *, struct issetugid_args *, int []));
 int	lchown __P((struct proc *, struct lchown_args *, int []));
+int	modnext __P((struct proc *, struct modnext_args *, int []));
+int	modstat __P((struct proc *, struct modstat_args *, int []));
+int	modfnext __P((struct proc *, struct modfnext_args *, int []));
+int	modfind __P((struct proc *, struct modfind_args *, int []));
+int	kldload __P((struct proc *, struct kldload_args *, int []));
+int	kldunload __P((struct proc *, struct kldunload_args *, int []));
+int	kldfind __P((struct proc *, struct kldfind_args *, int []));
+int	kldnext __P((struct proc *, struct kldnext_args *, int []));
+int	kldstat __P((struct proc *, struct kldstat_args *, int []));
+int	kldfirstmod __P((struct proc *, struct kldfirstmod_args *, int []));
 
 #ifdef COMPAT_43
 
