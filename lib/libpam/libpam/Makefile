@@ -47,6 +47,7 @@ WARNS		?= 4
 
 SRCS		 =
 SRCS		+= openpam_borrow_cred.c
+SRCS		+= openpam_configure.c
 SRCS		+= openpam_dispatch.c
 SRCS		+= openpam_dynamic.c
 SRCS		+= openpam_findenv.c
@@ -127,6 +128,7 @@ SRCS		+= pam_std_option.c
 
 HEADERS		 =
 HEADERS		+= security/openpam.h
+HEADERS		+= security/openpam_version.h
 HEADERS		+= security/pam_appl.h
 HEADERS		+= security/pam_constants.h
 HEADERS		+= security/pam_modules.h
