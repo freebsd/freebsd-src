@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.16 1997/02/22 16:10:06 peter Exp $
+ * $Id: chat.c,v 1.17 1997/02/25 14:04:55 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -404,9 +404,9 @@ char *command, *out;
   pipe(fids);
   pid = fork();
   if (pid == 0) {
-    pending_signal(SIGINT, SIG_DFL);
-    pending_signal(SIGQUIT, SIG_DFL);
-    pending_signal(SIGTERM, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
     pending_signal(SIGHUP, SIG_DFL);
     close(fids[0]);
     dup2(fids[1], 1);
