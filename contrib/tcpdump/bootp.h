@@ -1,4 +1,4 @@
-/* @(#) $Header: bootp.h,v 1.7 95/05/04 17:52:46 mccanne Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/bootp.h,v 1.8 1999/10/17 23:35:46 mcr Exp $ (LBL) */
 /*
  * Bootstrap Protocol (BOOTP).  RFC951 and RFC1048.
  *
@@ -27,7 +27,7 @@ struct bootp {
 	unsigned char	bp_hops;	/* gateway hops */
 	u_int32_t	bp_xid;		/* transaction ID */
 	unsigned short	bp_secs;	/* seconds since boot began */
-	unsigned short	bp_unused;
+	unsigned short	bp_flags;	/* flags: 0x8000 is broadcast */
 	struct in_addr	bp_ciaddr;	/* client IP address */
 	struct in_addr	bp_yiaddr;	/* 'your' IP address */
 	struct in_addr	bp_siaddr;	/* server IP address */
@@ -86,7 +86,74 @@ struct bootp {
 #define	TAG_SWAP_SERVER		((unsigned char)  16)
 #define	TAG_ROOTPATH		((unsigned char)  17)
 #define	TAG_EXTPATH		((unsigned char)  18)
+/* RFC2132 */
+#define	TAG_IP_FORWARD		((unsigned char)  19)
+#define	TAG_NL_SRCRT		((unsigned char)  20)
+#define	TAG_PFILTERS		((unsigned char)  21)
+#define	TAG_REASS_SIZE		((unsigned char)  22)
+#define	TAG_DEF_TTL		((unsigned char)  23)
+#define	TAG_MTU_TIMEOUT		((unsigned char)  24)
+#define	TAG_MTU_TABLE		((unsigned char)  25)
+#define	TAG_INT_MTU		((unsigned char)  26)
+#define	TAG_LOCAL_SUBNETS	((unsigned char)  27)
+#define	TAG_BROAD_ADDR		((unsigned char)  28)
+#define	TAG_DO_MASK_DISC	((unsigned char)  29)
+#define	TAG_SUPPLY_MASK		((unsigned char)  30)
+#define	TAG_DO_RDISC		((unsigned char)  31)
+#define	TAG_RTR_SOL_ADDR	((unsigned char)  32)
+#define	TAG_STATIC_ROUTE	((unsigned char)  33)
+#define	TAG_USE_TRAILERS	((unsigned char)  34)
+#define	TAG_ARP_TIMEOUT		((unsigned char)  35)
+#define	TAG_ETH_ENCAP		((unsigned char)  36)
+#define	TAG_TCP_TTL		((unsigned char)  37)
+#define	TAG_TCP_KEEPALIVE	((unsigned char)  38)
+#define	TAG_KEEPALIVE_GO	((unsigned char)  39)
+#define	TAG_NIS_DOMAIN		((unsigned char)  40)
+#define	TAG_NIS_SERVERS		((unsigned char)  41)
+#define	TAG_NTP_SERVERS		((unsigned char)  42)
+#define	TAG_VENDOR_OPTS		((unsigned char)  43)
+#define	TAG_NETBIOS_NS		((unsigned char)  44)
+#define	TAG_NETBIOS_DDS		((unsigned char)  45)
+#define	TAG_NETBIOS_NODE	((unsigned char)  46)
+#define	TAG_NETBIOS_SCOPE	((unsigned char)  47)
+#define	TAG_XWIN_FS		((unsigned char)  48)
+#define	TAG_XWIN_DM		((unsigned char)  49)
+#define	TAG_NIS_P_DOMAIN	((unsigned char)  64)
+#define	TAG_NIS_P_SERVERS	((unsigned char)  65)
+#define	TAG_MOBILE_HOME		((unsigned char)  68)
+#define	TAG_SMPT_SERVER		((unsigned char)  69)
+#define	TAG_POP3_SERVER		((unsigned char)  70)
+#define	TAG_NNTP_SERVER		((unsigned char)  71)
+#define	TAG_WWW_SERVER		((unsigned char)  72)
+#define	TAG_FINGER_SERVER	((unsigned char)  73)
+#define	TAG_IRC_SERVER		((unsigned char)  74)
+#define	TAG_STREETTALK_SRVR	((unsigned char)  75)
+#define	TAG_STREETTALK_STDA	((unsigned char)  76)
+/* DHCP options */
+#define	TAG_REQUESTED_IP	((unsigned char)  50)
+#define	TAG_IP_LEASE		((unsigned char)  51)
+#define	TAG_OPT_OVERLOAD	((unsigned char)  52)
+#define	TAG_TFTP_SERVER		((unsigned char)  66)
+#define	TAG_BOOTFILENAME	((unsigned char)  67)
+#define	TAG_DHCP_MESSAGE	((unsigned char)  53)
+#define	TAG_SERVER_ID		((unsigned char)  54)
+#define	TAG_PARM_REQUEST	((unsigned char)  55)
+#define	TAG_MESSAGE		((unsigned char)  56)
+#define	TAG_MAX_MSG_SIZE	((unsigned char)  57)
+#define	TAG_RENEWAL_TIME	((unsigned char)  58)
+#define	TAG_REBIND_TIME		((unsigned char)  59)
+#define	TAG_VENDOR_CLASS	((unsigned char)  60)
+#define	TAG_CLIENT_ID		((unsigned char)  61)
 
+/* DHCP Message types (values for TAG_DHCP_MESSAGE option) */
+#define		DHCPDISCOVER	1
+#define		DHCPOFFER	2
+#define		DHCPREQUEST	3
+#define		DHCPDECLINE	4
+#define		DHCPACK		5
+#define		DHCPNAK		6
+#define		DHCPRELEASE	7
+#define		DHCPINFORM	8
 
 
 /*

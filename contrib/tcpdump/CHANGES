@@ -1,4 +1,48 @@
-@(#) $Header: CHANGES,v 1.54 98/07/25 12:41:06 leres Exp $ (LBL)
+v3.5 Fri Jan 28 18:00:00 PST 2000
+
+Bill Fenner <fenner@research.att.com>
+- switch to config.h for autoconf
+- unify RCSID strings
+- Updated PIMv1, PIMv2, DVMRP, IGMP parsers, add Cisco Auto-RP parser
+- Really fix the RIP printer
+- Fix MAC address -> name translation.
+- some -Wall -Wformat fixes
+- update makemib to parse much of SMIv2
+- Print TCP sequence # with -vv even if you normally wouldn't
+- Print as much of IP/TCP/UDP headers as possible even if truncated.
+
+itojun@iijlab.net
+- -X will make a ascii dump.  from netbsd.
+- telnet command sequence decoder (ff xx xx).  from netbsd.
+- print-bgp.c: improve options printing.  ugly code exists for
+  unaligned option parsing (need some fix).
+- const poisoning in SMB decoder.
+- -Wall -Werror clean checks.
+- bring in KAME IPv6/IPsec decoding code.
+
+Assar Westerlund  <assar@sics.se>
+- SNMPv2 and SNMPv3 printer
+- If compiled with libsmi, tcpdump can load MIBs on the fly to decode
+  SNMP packets.
+- Incorporate NFS parsing code from NetBSD.  Adds support for nfsv3.
+- portability fixes
+- permit building in different directories.
+
+Ken Hornstein <kenh@cmf.nrl.navy.mil>
+- bring in code at
+  /afs/transarc.com/public/afs-contrib/tools/tcpdump for parsing
+  AFS3 packets
+
+Andrew Tridgell <tridge@linuxcare.com>
+- SMB printing code
+
+Love <lha@stacken.kth.se>
+- print-rx.c: add code for printing MakeDir and StoreStatus.  Also
+  change date format to the right one.
+
+Michael C. Richardson  <mcr@sandelman.ottawa.on.ca>
+- Created tcpdump.org repository
+
 
 v3.4 Sat Jul 25 12:40:55 PDT 1998
 
@@ -513,3 +557,5 @@ v2.0.1 Sun Jan 26 21:10:10 PDT
 v2.0 Sun Jan 13 12:20:40 PST 1991
 
 - Initial public release.
+
+@(#) $Header: /tcpdump/master/tcpdump/CHANGES,v 1.63.2.1 2000/01/27 23:18:19 fenner Exp $ (LBL)
