@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.43 1999/05/08 21:59:20 dfr Exp $
+ *	$Id: eisaconf.c,v 1.44 1999/05/18 21:03:30 peter Exp $
  */
 
 #include "opt_eisa.h"
@@ -310,7 +310,7 @@ eisa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				return 0;
 
 			start = resv->addr;
-			end = resv->size - 1;
+			end = resv->addr + (resv->size - 1);
 			count = resv->size;
 			rvp = &resv->res;
 		}
@@ -325,7 +325,7 @@ eisa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				return 0;
 
 			start = resv->addr;
-			end = resv->size - 1;
+			end = resv->addr + (resv->size - 1);
 			count = resv->size;
 			rvp = &resv->res;
 		}
