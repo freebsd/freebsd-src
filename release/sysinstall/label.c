@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.63.2.3 1997/01/24 21:05:55 jkh Exp $
+ * $Id: label.c,v 1.63.2.4 1997/03/08 16:16:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -150,7 +150,8 @@ check_conflict(char *name)
     int i;
 
     for (i = 0; label_chunk_info[i].c; i++)
-	if (label_chunk_info[i].type == PART_FILESYSTEM && label_chunk_info[i].c->private_data
+	if ((label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT)
+	    && label_chunk_info[i].c->private_data
 	    && !strcmp(((PartInfo *)label_chunk_info[i].c->private_data)->mountpoint, name))
 	    return TRUE;
     return FALSE;
@@ -837,13 +838,13 @@ diskLabel(char *str)
 
 	case 'T':	/* Toggle newfs state */
 	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
-		    PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
-		    label_chunk_info[here].c->private_data =
-			new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
-		    safe_free(pi);
-		    label_chunk_info[here].c->private_free = safe_free;
-		    if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
-			variable_set2(DISK_LABELLED, "yes");
+		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
+		label_chunk_info[here].c->private_data =
+		    new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
+		safe_free(pi);
+		label_chunk_info[here].c->private_free = safe_free;
+		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		    variable_set2(DISK_LABELLED, "yes");
 	    }
 	    else
 		msg = MSG_NOT_APPLICABLE;
