@@ -946,6 +946,9 @@ ASR_ccbAdd (
         IN Asr_softc_t      * sc,
         INOUT union asr_ccb * ccb)
 {
+	int s;
+
+	s = splcam();
         LIST_INSERT_HEAD(&(sc->ha_ccb), &(ccb->ccb_h), sim_links.le);
         if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
                 if (ccb->ccb_h.timeout == CAM_TIME_DEFAULT) {
@@ -959,6 +962,7 @@ ASR_ccbAdd (
                 ccb->ccb_h.timeout_ch = timeout(asr_timeout, (caddr_t)ccb,
                   (ccb->ccb_h.timeout * hz) / 1000);
         }
+	splx(s);
 } /* ASR_ccbAdd */
 
 /*
@@ -969,8 +973,12 @@ ASR_ccbRemove (
         IN Asr_softc_t      * sc,
         INOUT union asr_ccb * ccb)
 {
+	int s;
+
+	s = splcam();
         untimeout(asr_timeout, (caddr_t)ccb, ccb->ccb_h.timeout_ch);
         LIST_REMOVE(&ccb->ccb_h, sim_links.le);
+	splx(s);
 } /* ASR_ccbRemove */
 
 /*
@@ -984,6 +992,7 @@ ASR_failActiveCommands (
         struct ccb_hdr                         * ccb;
         defAlignLong(I2O_EXEC_LCT_NOTIFY_MESSAGE,Message);
         PI2O_EXEC_LCT_NOTIFY_MESSAGE             Message_Ptr;
+	int                                      s;
 
         /* Send a blind LCT command to wait for the enableSys to complete */
         Message_Ptr = (PI2O_EXEC_LCT_NOTIFY_MESSAGE)ASR_fillMessage(Message,
@@ -994,6 +1003,7 @@ ASR_failActiveCommands (
           I2O_CLASS_MATCH_ANYCLASS);
         (void)ASR_queue_c(sc, (PI2O_MESSAGE_FRAME)Message_Ptr);
 
+	s  = splcam();
         LIST_FOREACH(ccb, &(sc->ha_ccb), sim_links.le) {
 
                 ASR_ccbRemove (sc, (union asr_ccb *)ccb);
@@ -1009,6 +1019,7 @@ ASR_failActiveCommands (
                         wakeup ((caddr_t)ccb);
                 }
         }
+	splx(s);
 } /* ASR_failActiveCommands */
 
 /*
