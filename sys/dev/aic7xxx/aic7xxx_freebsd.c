@@ -1542,7 +1542,7 @@ bus_reset:
 			}
 
 			ahc_set_recoveryscb(ahc, active_scb);
-			ahc_outb(ahc, MSG_OUT, MSG_BUS_DEV_RESET);
+			ahc_outb(ahc, MSG_OUT, HOST_MSG);
 			ahc_outb(ahc, SCSISIGO, last_phase|ATNO);
 			ahc_print_path(ahc, active_scb);
 			printf("BDR message in message buffer\n");
@@ -1581,19 +1581,25 @@ bus_reset:
 
 				ahc_set_recoveryscb(ahc, scb);
 				/*
-				 * Simply set the MK_MESSAGE control bit.
-				 */
-				scb->hscb->control |= MK_MESSAGE;
-				scb->flags |= SCB_QUEUED_MSG
-					   |  SCB_DEVICE_RESET;
-
-				/*
 				 * Actually re-queue this SCB in an attempt
 				 * to select the device before it reconnects.
 				 * In either case (selection or reselection),
 				 * we will now issue a target reset to the
 				 * timed-out device.
 				 *
+				 * Set the MK_MESSAGE control bit indicating
+				 * that we desire to send a message.  We
+				 * also set the disconnected flag since
+				 * in the paging case there is no guarantee
+				 * that our SCB control byte matches the
+				 * version on the card.  We don't want the
+				 * sequencer to abort the command thinking
+				 * an unsolicited reselection occurred.
+				 */
+				scb->hscb->control |= MK_MESSAGE|DISCONNECTED;
+				scb->flags |= SCB_DEVICE_RESET;
+
+				/*
 				 * Remove any cached copy of this SCB in the
 				 * disconnected list in preparation for the
 				 * queuing of our abort SCB.  We use the
@@ -1604,7 +1610,21 @@ bus_reset:
 						     lun, scb->hscb->tag,
 						     /*stop_on_first*/TRUE,
 						     /*remove*/TRUE,
-						     /*save_state*/TRUE);
+						     /*save_state*/FALSE);
+
+				/*
+				 * In the non-paging case, the sequencer will
+				 * never re-reference the in-core SCB.
+				 * To make sure we are notified during
+				 * reslection, set the MK_MESSAGE flag in
+				 * the card's copy of the SCB.
+				 */
+				if ((ahc->flags & AHC_PAGESCBS) != 0) {
+					ahc_outb(ahc, SCBPTR, scb->hscb->tag);
+					ahc_outb(ahc, SCB_CONTROL,
+						 ahc_inb(ahc, SCB_CONTROL)
+						| MK_MESSAGE);
+				}
 
 				/*
 				 * Clear out any entries in the QINFIFO first
@@ -1630,6 +1650,7 @@ bus_reset:
 								  prev_tag);
 				}
 				ahc_qinfifo_requeue(ahc, prev_scb, scb);
+				ahc_outb(ahc, SCBPTR, active_scb_index);
 				scb->io_ctx->ccb_h.timeout_ch =
 				    timeout(ahc_timeout, (caddr_t)scb, 2 * hz);
 				unpause_sequencer(ahc);
