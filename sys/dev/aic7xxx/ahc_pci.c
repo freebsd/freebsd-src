@@ -1263,7 +1263,6 @@ ahc_ultra2_term_detect(struct ahc_softc *ahc, int *enableSEC_low,
 	 * BRDDAT3 = Enable Primary low byte termination
 	 */
 	brdctl = read_brdctl(ahc);
-	printf("BRDCTL = 0x%x\n", brdctl);
 
 	*eeprom_present = brdctl & BRDDAT7;
 	*enableSEC_high = (brdctl & BRDDAT6);
