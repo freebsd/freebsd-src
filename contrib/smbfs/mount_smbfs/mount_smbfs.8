@@ -1,0 +1,158 @@
+.\" $Id: mount_smbfs.8,v 1.8 2000/06/09 13:52:56 bp Exp $
+.Dd Mar 10, 2000
+.Dt MOUNT_SMBFS 8
+.Os FreeBSD
+.Sh NAME
+.Nm mount_smbfs
+.Nd mounts a shared resource from an SMB file server
+.Sh SYNOPSIS
+.Nm mount_smbfs
+.Op Fl E Ar cs1:cs2
+.Op Fl I Ar host
+.Op Fl L Ar locale
+.Op Fl M Ar crights:srights
+.Op Fl N
+.Op Fl O Ar cowner:cgroup/sowner:sgroup
+.Op Fl R Ar retrycount
+.Op Fl T Ar timeout
+.Op Fl W Ar workgroup
+.Op Fl c Ar case
+.Op Fl d Ar mode
+.Op Fl f Ar mode
+.Op Fl g Ar gid
+.Op Fl n Ar opt
+.Op Fl u Ar uid
+.Ar //user@server/share
+.Ar node
+.Sh DESCRIPTION
+The
+.Nm
+command mounts a share from a remote server using SMB/CIFS protocol.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl E Ar cs1:cs2
+Specifies local
+.Ar (cs1)
+and server's
+.Ar (cs2)
+character sets.
+.It Fl I Ar host
+Do not use NetBIOS name resolver and connect directly to
+.Ar host ,
+which can be either a valid DNS name or an IP address.
+.It Fl L Ar locale
+Use
+.Ar locale
+for lower/upper case conversion routines.
+Set the locale for case conversion.
+By default
+.Nm
+tries to use an environment variable
+.Ev LC_* 
+to determine it.
+.It Fl M Ar crights:srights
+Assign access rights to the newly created connection.
+See
+.Xr nsmb 8
+for theory.
+.It Fl N
+Do not ask for a password.
+At run time,
+.Nm
+reads the
+.Pa ~/.nsmbrc
+file for additional configuration parameters and a password.
+If no password is found the
+.Nm
+prompts for it.
+.It Fl O Ar cowner:cgroup/sowner:sgroup
+Assign owner/group attributes to the newly created connection.
+See
+.Xr nsmb 8
+for theory.
+.It Fl R Ar retrycount
+How many retries should be done before the SMB requester decides to drop
+the connection.
+.It Fl T Ar timeout
+Timeout in seconds for each request.
+.It Fl W Ar workgroup
+This option specifies the workgroup to be used in the authentication request.
+.It Fl c Ar case
+Set a
+.Ar case 
+option which affects name representation.
+.Ar case 
+can be one of the following:
+.Bl -tag -width "ValueXX"
+.It Em Value
+.Em Meaning
+.It l
+All existing file names converted to lower case. 
+Newly created file gets a lower case.
+.It u
+All existing file names converted to upper case.
+Newly created file gets an upper case unde.
+.El
+.It Fl f Ar mode , Fl d Ar mode
+Specify permissions that should be assigned to files and directories.
+The values must be specified as octal numbers.
+Default value for the file mode
+is taken from mount point, default value for the dir mode adds execute
+permission where the file mode gives read permission.
+
+Note that these permissions can differ from the rights granted by SMB
+server. 
+.It Fl u Ar uid , Fl g Ar gid
+User id and group id assigned to files.
+The default is owner and group id from
+directory where the volume is mounted.
+.It Ar //user@server/share
+The
+.Nm
+command will use
+.Ar server
+as the NetBIOS name of remote computer,
+.Ar user
+as the remote user name and
+.Ar share
+as the resource name on a remote server.
+.It Ar node
+Path to mount point.
+.El
+.Sh FILES
+.Bl -tag -width /var/log/wtmp -compact
+.It Pa ~/.nsmbrc
+Keeps static parameters for connections and other information.
+See
+.Pa ./examples/dot.nsmbrc
+for details.
+.El
+
+.Sh EXAMPLES
+The following examples illustrate how to connect to a SMB server
+.Em SAMBA
+as user
+.Em GUEST
+and mount shares
+.Em PUBLIC
+and
+.Em TMP :
+.Bd -literal -offset indent
+mount_smbfs -I samba.mydomain.com //guest@samba/public /smb/public
+mount_smbfs -I 192.168.20.3 -E koi8-r:cp866 //guest@samba/tmp /smb/tmp
+.Ed
+.Pp
+It is possible to use
+.Xr fstab 5
+for smbfs mounts:
+.Bd -literal -offset indent
+//guest@samba/public    /smb/public     smbfs  rw,noauto 0   0
+.Ed
+
+.Sh BUGS
+Please report bugs to the author.
+
+.Sh AUTHORS
+.An Boris Popov Aq bp@butya.kz ,
+.Aq bp@freebsd.org
