@@ -275,7 +275,7 @@ Fdisk()
     u_long l, l1, l2, l3, l4;
     
     *buf = 0;
-    i = AskEm(stdscr, "Enter number of disk to Fdisk ", buf, 2);
+    i = AskEm(stdscr, "Enter number of disk to Fdisk> ", buf, 2);
     printf("%d", i);
     if(i != '\n' && i != '\r') return;
     diskno = atoi(buf);
@@ -330,10 +330,14 @@ Fdisk()
 	    }
 	}
 	mvprintw(21, 0, "Commands available:");
-	mvprintw(22, 0, "(D)elete  (E)dit  (R)eread  (W)rite  (Q)uit");
+	mvprintw(22, 0, "(H)elp  (D)elete  (E)dit  (R)eread  (W)rite  (Q)uit");
 	mvprintw(23, 0, "Enter Command> ");
 	i=getch();
 	switch(i) {
+
+	case 'h': case 'H':
+            ShowFile(HELPME_FILE,"Help file for disklayout");
+	    break;
 
 	case 'r': case 'R':
 	    read_dospart(Dfd[diskno], dp);
@@ -341,7 +345,7 @@ Fdisk()
 
 	case 'e': case 'E':
 	    *buf = 0;
-	    i = AskEm(stdscr, "Edit which Slice ? ", buf, 2);
+	    i = AskEm(stdscr, "Edit which Slice> ", buf, 2);
 	    if(i != '\n' && i != '\r') break;
 	    l = strtol(buf, 0, 0);
 	    if(l < 1 || l > NDOSPART) break;
@@ -365,7 +369,7 @@ Fdisk()
 		    l1 = dp[i].dp_start + dp[i].dp_size;
 	    }
 	    sprintf(buf, "%lu", (l2-l1+1024L)/2048L);
-	    i = AskEm(stdscr, "Size of slice in MB ", buf, 10);
+	    i = AskEm(stdscr, "Size of slice in MB> ", buf, 10);
 	    l3=strtol(buf, 0, 0) * 2048L;
 	    if(!l3) break;
 	    if(l3 > l2-l1)
@@ -403,7 +407,7 @@ Fdisk()
 	    l4 = dp[l-1].dp_typ;
 	    if(!l4) l4 = MBR_PTYPE_FreeBSD;
 	    sprintf(buf, "0x%lx", l4);
-	    i = AskEm(stdscr, "Type of slice (0xa5=FreeBSD) ", buf, 5);
+	    i = AskEm(stdscr, "Type of slice (0xa5=FreeBSD)> ", buf, 5);
 	    l3 = strtol(buf, 0, 0);
 	    if(l3 == MBR_PTYPE_FreeBSD) {
 		for(i=0;i<NDOSPART;i++)
@@ -414,13 +418,13 @@ Fdisk()
 		sprintf(buf, "0");
 	    }
 	    dp[l-1].dp_typ=l3;
-	    i = AskEm(stdscr, "Bootflag (0x80 for YES) ", buf, 5);
+	    i = AskEm(stdscr, "Bootflag (0x80 for YES)> ", buf, 5);
 	    dp[l-1].dp_flag=strtol(buf, 0, 0);
 	    break;
 
 	case 'd': case 'D':
 	    *buf = 0;
-	    i = AskEm(stdscr, "Delete which Slice ? ",  buf,  2);
+	    i = AskEm(stdscr, "Delete which Slice> ",  buf,  2);
 	    if(i != '\n' && i != '\r') break;
 	    l = strtol(buf, 0, 0);
 	    if(l < 1 || l > NDOSPART) break;
@@ -429,7 +433,7 @@ Fdisk()
 
 	case 'w': case 'W':
 	    strcpy(buf, "N");
-	    i = AskEm(stdscr, "Confirm write ", buf, 2);
+	    i = AskEm(stdscr, "Confirm write> ", buf, 2);
 	    if(*buf != 'y' && *buf != 'Y') break;
 	    write_dospart(Dfd[diskno], dp);
 	    Dlbl[diskno]->d_partitions[OURPART].p_offset = 0;

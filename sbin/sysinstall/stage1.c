@@ -259,8 +259,40 @@ stage1()
     int i,j;
     int ok = 0;
     int ready = 0;
+    int foundroot=0,foundusr=0,foundswap=0;
 
     query_disks();
+    /* 
+     * Try to be intelligent about this and assign some mountpoints
+     */
+#define LEGAL(disk,part) ( 						\
+	Dlbl[disk]->d_partitions[part].p_size &&			\
+	(Dlbl[disk]->d_partitions[part].p_offset >= 			\
+	    Dlbl[disk]->d_partitions[OURPART].p_offset) &&		\
+	((Dlbl[disk]->d_partitions[part].p_size + 			\
+		Dlbl[disk]->d_partitions[part].p_offset) <=		\
+	    (Dlbl[disk]->d_partitions[OURPART].p_offset + 		\
+		Dlbl[disk]->d_partitions[OURPART].p_size)))
+	
+    for(i = 0; i < MAX_NO_DISKS && Dname[i]; i++) {
+	if (Dlbl[i]->d_partitions[OURPART].p_size == 0)
+	    break;
+	if (!foundroot && LEGAL(i,0) && 
+		Dlbl[i]->d_partitions[0].p_fstype == FS_BSDFFS) {
+	    SetMount(i,0,"/");
+	    foundroot++;
+	}
+	if (!foundswap && LEGAL(i,1) &&
+		Dlbl[i]->d_partitions[1].p_fstype == FS_SWAP) {
+	    SetMount(i,1,"swap");
+	    foundswap++;
+	}
+	if (!foundusr && LEGAL(i,4) &&
+		Dlbl[i]->d_partitions[4].p_fstype == FS_BSDFFS) {
+	    SetMount(i,4,"/usr");
+	    foundusr++;
+	}
+    }
     while (!ready) {
 	clear(); standend();
 	j = 0;
@@ -268,9 +300,7 @@ stage1()
 	j++;
 	mvprintw(j++, 0, "Disks         Total   FreeBSD ");
 	j++;
-	for(i = 0; i < MAX_NO_DISKS; i++) {
-	    if(!Dname[i])
-		continue;
+	for(i = 0; i < MAX_NO_DISKS && Dname[i]; i++) {
 	    mvprintw(j++, 0, "%2d: %-6s %5lu MB  %5lu MB",
 		     i,
 		     Dname[i],
@@ -288,10 +318,13 @@ stage1()
 	}
 
 	mvprintw(21, 0, "Commands available:");
-	mvprintw(22, 0, "(F)disk  (D)isklabel  (Q)uit");
+	mvprintw(22, 0, "(H)elp  (F)disk  (D)isklabel  (Q)uit");
 	mvprintw(23, 0, "Enter Command> ");
 	i = getch();
 	switch(i) {
+	case 'h': case 'H':
+            ShowFile(HELPME_FILE,"Help file for disklayout");
+	    break;
 	case 'q': case 'Q':
 	    return;
 	case 'f': case 'F':

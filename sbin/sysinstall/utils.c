@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.20 1994/11/03 00:28:05 ache Exp $
+ * $Id: utils.c,v 1.21 1994/11/04 21:38:37 phk Exp $
  *
  */
 
@@ -290,4 +290,59 @@ PartMb(struct disklabel *lbl,int part)
 	u_long l;
 	l = 1024*1024/lbl->d_secsize;
 	return (lbl->d_partitions[part].p_size + l/2)/l;
+}
+
+void
+CleanMount(int disk, int part)
+{
+    int i = MP[disk][part];
+    if (Fmount[i]) {
+        free(Fmount[i]);
+        Fmount[i] = 0;
+    }           
+    if (Fname[i]) {
+        free(Fname[i]);
+        Fname[i] = 0;
+    }       
+    if (Ftype[i]) {
+        free(Ftype[i]);
+        Ftype[i] = 0;
+    }
+    MP[disk][part] = 0;
+}
+
+char *
+SetMount(int disk, int part, char *path)
+{
+    int k;
+    char buf[80];
+
+    CleanMount(disk,part);
+    for (k = 1; k < MAX_NO_FS; k++)
+	if (!Fmount[k])
+	    break;
+
+    if (k >= MAX_NO_FS) 
+	return "Maximum number of filesystems exceeded";
+
+    Fmount[k] = StrAlloc(path);
+    sprintf(buf, "%s%c", Dname[disk], part + 'a');
+    Fname[k] = StrAlloc(buf);
+    switch (Dlbl[disk]->d_partitions[part].p_fstype) {
+	case FS_BSDFFS:
+	    Ftype[k] = StrAlloc("ufs");
+	    break;
+	case FS_MSDOS:
+	    Ftype[k] = StrAlloc("msdos");
+	    break;
+	case FS_SWAP:
+	    Ftype[k] = StrAlloc("swap");
+	    break;
+	default:
+	    CleanMount(disk,part);
+	    return "Unknown filesystem-type";
+    }
+    Fsize[k] = (Dlbl[disk]->d_partitions[part].p_size+1024)/2048;
+    
+    MP[disk][part] = k;
 }
