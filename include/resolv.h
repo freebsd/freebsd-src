@@ -180,14 +180,14 @@ struct __res_state_ext {
 typedef enum { res_goahead, res_nextns, res_modified, res_done, res_error }
 	res_sendhookact;
 
-typedef res_sendhookact (*res_send_qhook)(struct sockaddr_in * const *ns,
+typedef res_sendhookact (*res_send_qhook)(struct sockaddr * const *ns,
 					  const u_char **query,
 					  int *querylen,
 					  u_char *ans,
 					  int anssiz,
 					  int *resplen);
 
-typedef res_sendhookact (*res_send_rhook)(const struct sockaddr_in *ns,
+typedef res_sendhookact (*res_send_rhook)(const struct sockaddr *ns,
 					  const u_char *query,
 					  int querylen,
 					  u_char *ans,
