@@ -323,7 +323,8 @@ tlb_init(void)
 		if (OF_getprop(child, "device_type", buf, sizeof(buf)) > 0 &&
 		    strcmp(buf, "cpu") == 0) {
 			if (OF_getprop(child, "upa-portid", &cpu,
-			    sizeof(cpu)) == -1)
+			    sizeof(cpu)) == -1 && OF_getprop(child, "portid",
+			    &cpu, sizeof(cpu)) == -1)
 				panic("main: OF_getprop");
 			if (cpu == bootcpu)
 				break;
