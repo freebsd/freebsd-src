@@ -123,7 +123,7 @@ ip_output(m0, opt, ro, flags, imo)
 	int hlen = sizeof (struct ip);
 	int len, off, error = 0;
 	struct sockaddr_in *dst = NULL;	/* keep compiler happy */
-	struct in_ifaddr *ia;
+	struct in_ifaddr *ia = NULL;
 	int isbroadcast, sw_csum;
 	struct in_addr pkt_dst;
 #ifdef IPSEC
@@ -190,7 +190,8 @@ ip_output(m0, opt, ro, flags, imo)
 	if (args.rule != NULL) {	/* dummynet already saw us */
 		ip = mtod(m, struct ip *);
 		hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
-		ia = ifatoia(ro->ro_rt->rt_ifa);
+		if (ro->ro_rt)
+			ia = ifatoia(ro->ro_rt->rt_ifa);
 		goto sendit;
 	}
 
