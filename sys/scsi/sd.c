@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.112 1997/10/12 08:54:47 joerg Exp $
+ *      $Id: sd.c,v 1.113 1997/11/07 08:53:32 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -457,22 +457,21 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	{
 		int status;
 		int sec_blk_ratio = secsize/DEV_BSIZE;
-		/* save original block number and size */
 		int b_blkno = bp->b_blkno;
-		int b_bcount = bp->b_bcount;
 
-		/* replace with scaled values */
+		/* Replace blkno and count with scaled values. */
 		bp->b_blkno /= sec_blk_ratio;
 		bp->b_bcount /= sec_blk_ratio;
 	
 		/* enforce limits and map to physical block number */
 		status = dscheck(bp, sd->dk_slices);
 
-		/* prevent bad side effects in block system */
+		/*
+		 * Restore blkno and unscale the values set by dscheck(),
+		 * except for b_pblkno.
+		 */
 		bp->b_blkno = b_blkno;
-		bp->b_bcount = b_bcount;
-
-		/* scale resid */
+		bp->b_bcount *= sec_blk_ratio;
 		bp->b_resid *= sec_blk_ratio;
 
 		/* see if the mapping failed */
