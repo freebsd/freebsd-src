@@ -1,14 +1,8 @@
 /*
- * Copyright (C) 1997-2000 by Darren Reed.
+ * Copyright (C) 1997-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-/*static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.2.2.1 1999/09/19 12:18:19 darrenr Exp $";*/
-static const char rcsid[] = "@(#)$FreeBSD$";
-#endif
 
 #if defined(__FreeBSD__) && defined(KERNEL) && !defined(_KERNEL)
 # define	_KERNEL
@@ -77,6 +71,11 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #include "netinet/ip_state.h"
 #if (__FreeBSD_version >= 300000)
 # include <sys/malloc.h>
+#endif
+
+#if !defined(lint)
+/* static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.9.2.6 2001/07/15 22:06:15 darrenr Exp $"; */
+static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 
@@ -217,9 +216,13 @@ ip_t *ip;
 fr_info_t *fin;
 nat_t *nat;
 {
+#if SOLARIS && defined(_KERNEL) && (SOLARIS2 >= 6)
+	mb_t *m = fin->fin_qfm;
+	int dosum = 1;
+#endif
+	tcphdr_t *tcp = NULL;
 	ap_session_t *aps;
 	aproxy_t *apr;
-	tcphdr_t *tcp = NULL;
 	u_32_t sum;
 	short rv;
 	int err;
@@ -235,8 +238,13 @@ nat_t *nat;
 			 * verify that the checksum is correct.  If not, then
 			 * don't do anything with this packet.
 			 */
-#if SOLARIS && defined(_KERNEL)
-			sum = fr_tcpsum(fin->fin_qfm, ip, tcp);
+#if SOLARIS && defined(_KERNEL) && (SOLARIS2 >= 6)
+			if (dohwcksum && (m->b_ick_flag == ICK_VALID)) {
+				sum = tcp->th_sum;
+				dosum = 0;
+			}
+			if (dosum)
+				sum = fr_tcpsum(fin->fin_qfm, ip, tcp);
 #else
 			sum = fr_tcpsum(*(mb_t **)fin->fin_mp, ip, tcp);
 #endif
@@ -262,8 +270,9 @@ nat_t *nat;
 
 		if (tcp != NULL) {
 			err = appr_fixseqack(fin, ip, aps, APR_INC(err));
-#if SOLARIS && defined(_KERNEL)
-			tcp->th_sum = fr_tcpsum(fin->fin_qfm, ip, tcp);
+#if SOLARIS && defined(_KERNEL) && (SOLARIS2 >= 6)
+			if (dosum)
+				tcp->th_sum = fr_tcpsum(fin->fin_qfm, ip, tcp);
 #else
 			tcp->th_sum = fr_tcpsum(*(mb_t **)fin->fin_mp, ip, tcp);
 #endif

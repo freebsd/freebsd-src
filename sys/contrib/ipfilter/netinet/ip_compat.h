@@ -1,9 +1,7 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_compat.h	1.8 1/14/96
  * $Id: ip_compat.h,v 2.26.2.9 2001/01/14 14:58:01 darrenr Exp $
@@ -27,6 +25,9 @@
 
 #ifndef	SOLARIS
 #define	SOLARIS	(defined(sun) && (defined(__svr4__) || defined(__SVR4)))
+#endif
+#if SOLARIS && !defined(SOLARIS2)
+# define	SOLARIS2	4	/* Pick an old version */
 #endif
 #if SOLARIS2 >= 8
 # ifndef	USE_INET6
@@ -120,10 +121,34 @@ struct  ether_addr {
 #   define	V4_PART_OF_V6(v6)	v6.s6_addr32[3]
 #  endif
 # endif
-#else
+
+typedef	struct	qif	{
+	struct	qif	*qf_next;
+	ill_t	*qf_ill;
+	kmutex_t	qf_lock;
+	void	*qf_iptr;
+	void	*qf_optr;
+	queue_t	*qf_in;
+	queue_t	*qf_out;
+	struct	qinit	*qf_wqinfo;
+	struct	qinit	*qf_rqinfo;
+	struct	qinit	qf_wqinit;
+	struct	qinit	qf_rqinit;
+	mblk_t	*qf_m;	/* These three fields are for passing data up from */
+	queue_t	*qf_q;	/* fr_qin and fr_qout to the packet processing. */
+	size_t	qf_off;
+	size_t	qf_len;	/* this field is used for in ipfr_fastroute */
+	char	qf_name[8];
+	/*
+	 * in case the ILL has disappeared...
+	 */
+	size_t	qf_hl;	/* header length */
+	int	qf_sap;
+} qif_t;
+#else /* SOLARIS */
 # if !defined(__sgi)
 typedef	 int	minor_t;
-#endif
+# endif
 #endif /* SOLARIS */
 #define	IPMINLEN(i, h)	((i)->ip_len >= ((i)->ip_hl * 4 + sizeof(struct h)))
 
@@ -265,10 +290,26 @@ union	i6addr	{
 
 #if defined(__FreeBSD__) && (defined(KERNEL) || defined(_KERNEL))
 # ifdef IPFILTER_LKM
-#  include <sys/param.h>
+#  ifndef __FreeBSD_cc_version
+#   include <osreldate.h>
+#  else
+#   if __FreeBSD_cc_version < 430000
+#    include <osreldate.h>
+#   else
+#    include <sys/param.h>
+#   endif
+#  endif
 #  define       ACTUALLY_LKM_NOT_KERNEL
 # else
-#  include <sys/param.h>
+#  ifndef __FreeBSD_cc_version
+#   include <sys/osreldate.h>
+#  else
+#   if __FreeBSD_cc_version < 430000
+#    include <sys/osreldate.h>
+#   else
+#    include <sys/param.h>
+#   endif
+#  endif
 # endif
 # if __FreeBSD__ < 3
 #  include <machine/spl.h>
@@ -326,6 +367,7 @@ typedef struct {
 #   define	ATOMIC_DEC32(x)		atomic_add_32((uint32_t*)&(x), -1)
 #   define	ATOMIC_DEC16(x)		atomic_add_16((uint16_t*)&(x), -1)
 #  else
+#   define	IRE_CACHE		IRE_ROUTE
 #   define	ATOMIC_INC(x)		{ mutex_enter(&ipf_rw); (x)++; \
 					  mutex_exit(&ipf_rw); }
 #   define	ATOMIC_DEC(x)		{ mutex_enter(&ipf_rw); (x)--; \
@@ -375,29 +417,6 @@ typedef struct {
 #  define	KMALLOC(a,b)	(a) = (b)kmem_alloc(sizeof(*(a)), KM_NOSLEEP)
 #  define	KMALLOCS(a,b,c)	(a) = (b)kmem_alloc((c), KM_NOSLEEP)
 #  define	GET_MINOR(x)	getminor(x)
-typedef	struct	qif	{
-	struct	qif	*qf_next;
-	ill_t	*qf_ill;
-	kmutex_t	qf_lock;
-	void	*qf_iptr;
-	void	*qf_optr;
-	queue_t	*qf_in;
-	queue_t	*qf_out;
-	struct	qinit	*qf_wqinfo;
-	struct	qinit	*qf_rqinfo;
-	struct	qinit	qf_wqinit;
-	struct	qinit	qf_rqinit;
-	mblk_t	*qf_m;	/* These three fields are for passing data up from */
-	queue_t	*qf_q;	/* fr_qin and fr_qout to the packet processing. */
-	size_t	qf_off;
-	size_t	qf_len;	/* this field is used for in ipfr_fastroute */
-	char	qf_name[8];
-	/*
-	 * in case the ILL has disappeared...
-	 */
-	size_t	qf_hl;	/* header length */
-	int	qf_sap;
-} qif_t;
 extern	ill_t	*get_unit __P((char *, int));
 #  define	GETUNIT(n, v)	get_unit(n, v)
 #  define	IFNAME(x)	((ill_t *)x)->ill_name
@@ -453,7 +472,9 @@ extern	ill_t	*get_unit __P((char *, int));
         (defined(OpenBSD) && (OpenBSD >= 199603))
 #    define	IFNAME(x)	((struct ifnet *)x)->if_xname
 #   else
-#    define	IFNAME(x)	((struct ifnet *)x)->if_name
+#    define	USE_GETIFNAME	1
+#    define	IFNAME(x)	get_ifname((struct ifnet *)x)
+extern	char	*get_ifname __P((struct ifnet *));
 #   endif
 #  endif
 # endif /* sun */
@@ -509,7 +530,8 @@ extern	vm_map_t	kmem_map;
 #  define	SLEEP(id, n)	tsleep((id), PPAUSE|PCATCH, n, 0)
 #  define	WAKEUP(id)	wakeup(id)
 # endif /* BSD */
-# if defined(NetBSD) && NetBSD <= 1991011 && NetBSD >= 199407
+# if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199407)) || \
+     (defined(OpenBSD) && (OpenBSD >= 200006))
 #  define	SPL_NET(x)	x = splsoftnet()
 #  define	SPL_X(x)	(void) splx(x)
 # else
@@ -518,7 +540,7 @@ extern	vm_map_t	kmem_map;
 #   define	SPL_NET(x)	x = splnet()
 #   define	SPL_X(x)	(void) splx(x)
 #  endif
-# endif /* NetBSD && NetBSD <= 1991011 && NetBSD >= 199407 */
+# endif /* NetBSD && (NetBSD <= 1991011) && (NetBSD >= 199407) */
 # define	PANIC(x,y)	if (x) panic y
 #else /* KERNEL */
 # define	SLEEP(x,y)	;
@@ -577,7 +599,6 @@ typedef struct mbuf mb_t;
 # endif
 #endif /* SOLARIS */
 
-#if defined(linux) || defined(__sgi)
 /*
  * These #ifdef's are here mainly for linux, but who knows, they may
  * not be in other places or maybe one day linux will grow up and some
@@ -615,6 +636,9 @@ typedef struct mbuf mb_t;
 #endif
 #ifndef ICMP_MASKREPLY
 # define	ICMP_MASKREPLY	ICMP_ADDRESSREPLY
+#endif
+#ifndef	ICMP_PARAMPROB_OPTABSENT
+# define	ICMP_PARAMPROB_OPTABSENT	1
 #endif
 #ifndef	IPVERSION
 # define	IPVERSION	4
@@ -703,7 +727,6 @@ typedef struct mbuf mb_t;
 #ifndef IPOPT_OLEN
 # define	IPOPT_OLEN	1
 #endif
-#endif /* linux || __sgi */
 
 #ifdef	linux
 #include <linux/in_systm.h>

@@ -1,14 +1,8 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$FreeBSD$";
-#endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
 # define      _KERNEL
@@ -81,13 +75,22 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #  ifndef IPFILTER_LKM
 #   include <sys/libkern.h>
 #   include <sys/systm.h>
-# endif
+#  endif
 extern struct callout_handle ipfr_slowtimer_ch;
 # endif
 #endif
 #if defined(__NetBSD__) && (__NetBSD_Version__ >= 104230000)
 # include <sys/callout.h>
 extern struct callout ipfr_slowtimer_ch;
+#endif
+#if defined(__OpenBSD__)
+# include <sys/timeout.h>
+extern struct timeout ipfr_slowtimer_ch;
+#endif
+
+#if !defined(lint)
+static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-2000 Darren Reed";
+static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 
@@ -147,7 +150,7 @@ ipfr_t *table[];
 	if (ipfr_inuse >= IPFT_SIZE)
 		return NULL;
 
-	if (!(fin->fin_fi.fi_fl & FI_FRAG))
+	if (!(fin->fin_fl & FI_FRAG))
 		return NULL;
 
 	frag.ipfr_p = ip->ip_p;
@@ -162,6 +165,10 @@ ipfr_t *table[];
 	frag.ipfr_ifp = fin->fin_ifp;
 	idx *= 127;
 	idx %= IPFT_SIZE;
+
+	frag.ipfr_optmsk = fin->fin_fi.fi_optmsk & IPF_OPTCOPY;
+	frag.ipfr_secmsk = fin->fin_fi.fi_secmsk;
+	frag.ipfr_auth = fin->fin_fi.fi_auth;
 
 	/*
 	 * first, make sure it isn't already there...
@@ -225,7 +232,12 @@ u_int pass;
 	WRITE_ENTER(&ipf_frag);
 	ipf = ipfr_new(ip, fin, pass, ipfr_heads);
 	RWLOCK_EXIT(&ipf_frag);
-	return ipf ? 0 : -1;
+	if (ipf == NULL) {
+		ATOMIC_INCL(frstats[fin->fin_out].fr_bnfr);
+		return -1;
+	}
+	ATOMIC_INCL(frstats[fin->fin_out].fr_nfr);
+	return 0;
 }
 
 
@@ -236,9 +248,16 @@ u_int pass;
 nat_t *nat;
 {
 	ipfr_t	*ipf;
+	int off;
 
 	if ((ip->ip_v != 4) || (fr_frag_lock))
 		return -1;
+
+	off = fin->fin_off;
+	off <<= 3;
+	if ((off + fin->fin_dlen) > 0xffff || (fin->fin_dlen == 0))
+		return NULL;
+
 	WRITE_ENTER(&ipf_natfrag);
 	ipf = ipfr_new(ip, fin, pass, ipfr_nattab);
 	if (ipf != NULL) {
@@ -283,6 +302,10 @@ ipfr_t *table[];
 	frag.ipfr_ifp = fin->fin_ifp;
 	idx *= 127;
 	idx %= IPFT_SIZE;
+
+	frag.ipfr_optmsk = fin->fin_fi.fi_optmsk & IPF_OPTCOPY;
+	frag.ipfr_secmsk = fin->fin_fi.fi_secmsk;
+	frag.ipfr_auth = fin->fin_fi.fi_auth;
 
 	/*
 	 * check the table, careful to only compare the right amount of data
@@ -342,11 +365,18 @@ nat_t *ipfr_nat_knownfrag(ip, fin)
 ip_t *ip;
 fr_info_t *fin;
 {
-	nat_t	*nat;
-	ipfr_t	*ipf;
+	ipfr_t *ipf;
+	nat_t *nat;
+	int off;
 
-	if ((ip->ip_v != 4) || (fr_frag_lock))
+	if ((fin->fin_v != 4) || (fr_frag_lock))
 		return NULL;
+
+	off = fin->fin_off;
+	off <<= 3;
+	if ((off + fin->fin_dlen) > 0xffff || (fin->fin_dlen == 0))
+		return NULL;
+
 	READ_ENTER(&ipf_natfrag);
 	ipf = ipfr_lookup(ip, fin, ipfr_nattab);
 	if (ipf != NULL) {
@@ -372,15 +402,24 @@ frentry_t *ipfr_knownfrag(ip, fin)
 ip_t *ip;
 fr_info_t *fin;
 {
-	frentry_t *fr = NULL;
-	ipfr_t	*fra;
+	frentry_t *fr;
+	ipfr_t *fra;
+	int off;
 
-	if ((ip->ip_v != 4) || (fr_frag_lock))
+	if ((fin->fin_v != 4) || (fr_frag_lock))
 		return NULL;
+
+	off = fin->fin_off;
+	off <<= 3;
+	if ((off + fin->fin_dlen) > 0xffff || (fin->fin_dlen == 0))
+		return NULL;
+
 	READ_ENTER(&ipf_frag);
 	fra = ipfr_lookup(ip, fin, ipfr_heads);
 	if (fra != NULL)
 		fr = fra->ipfr_rule;
+	else
+		fr = NULL;
 	RWLOCK_EXIT(&ipf_frag);
 	return fr;
 }
@@ -565,7 +604,11 @@ int ipfr_slowtimer()
 #   if (__FreeBSD_version >= 300000)
 	ipfr_slowtimer_ch = timeout(ipfr_slowtimer, NULL, hz/2);
 #   else
+#    if defined(__OpenBSD_)
+	timeout_add(&ipfr_slowtimer_ch, hz/2, ipfr_slowtimer, NULL);
+#    else
 	timeout(ipfr_slowtimer, NULL, hz/2);
+#    endif
 #   endif
 #   if (BSD < 199306) && !defined(__sgi)
 	return 0;
