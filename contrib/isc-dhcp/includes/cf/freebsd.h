@@ -103,6 +103,10 @@ extern int h_errno;
 #define SOCKLEN_T int
 #endif
 
+#ifdef RESCUE
+#define _PATH_DHCLIENT_SCRIPT	"/rescue/dhclient-script"
+#endif
+
 #if defined (USE_DEFAULT_NETWORK)
 #  define USE_BPF
 #endif
@@ -113,6 +117,9 @@ extern int h_errno;
  #endif /* HAVE_DEV_RANDOM */
 
 const char *cmds[] = {
+#ifndef RESCUE
+	/* rescue environment can't rely on these ... */
+	/* Actually, /sbin/dhclient shouldn't use these, either. */
 	"/bin/ps -axlw 2>&1",
 	"/usr/sbin/arp -an 2>&1",
 	"/usr/bin/netstat -an 2>&1",
@@ -123,10 +130,12 @@ const char *cmds[] = {
 	"/usr/sbin/iostat  2>&1",
 	"/usr/bin/vmstat  2>&1",
 	"/usr/bin/w  2>&1",
+#endif
 	NULL
 };
 
 const char *dirs[] = {
+#ifndef RESCUE
 	"/tmp",
 	"/usr/tmp",
 	".",
@@ -136,13 +145,16 @@ const char *dirs[] = {
 	"/var/mail",
 	"/home",
 	"/usr/home",
+#endif
 	NULL
 };
 
 const char *files[] = {
+#ifndef RESCUE
 	"/var/log/messages",
 	"/var/log/wtmp",
 	"/var/log/lastlog",
+#endif
 	NULL
 };
 #endif /* NEED_PRAND_CONF */
