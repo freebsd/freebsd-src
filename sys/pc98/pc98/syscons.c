@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.36 1998/11/14 02:58:17 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.37 1998/11/30 00:28:10 kato Exp $
  */
 
 #include "sc.h"
@@ -4657,7 +4657,7 @@ next_code:
 	    goto next_code;
 
 #ifdef PC98
-	case 0x36:  /* roll up key */
+	case 0x37:  /* roll down key */
 #else
 	case 0x49:  /* page up key */
 #endif
@@ -4669,7 +4669,7 @@ next_code:
 	    goto next_code;
 
 #ifdef PC98
-	case 0x37:  /* roll down key */
+	case 0x36:  /* roll up key */
 #else
 	case 0x51:  /* page down key */
 #endif
