@@ -319,6 +319,10 @@ struct umass_devdescr_t {
 #	define NO_GETMAXLUN		0x0100
 	/* The device uses a weird CSWSIGNATURE. */
 #	define WRONG_CSWSIG		0x0200
+	/* Device cannot handle INQUIRY so fake a generic response */
+#	define NO_INQUIRY		0x0400
+	/* Device cannot handle INQUIRY EVPD, return CHECK CONDITION */
+#	define NO_INQUIRY_EVPD		0x0800
 };
 
 Static struct umass_devdescr_t umass_devdescrs[] = {
@@ -542,7 +546,11 @@ char *states[TSTATE_STATES+1] = {
 #endif
 
 Static struct cam_sim *umass_sim;	/* SCSI Interface Module */
-
+/* If device cannot return valid inquiry data, fake it */
+Static uint8_t fake_inq_data[SHORT_INQUIRY_LENGTH] = {
+	0, /*removable*/ 0x80, SCSI_REV_2, SCSI_REV_2,
+	/*additional_length*/ 31, 0, 0, 0
+};
 
 /* USB device probe/attach/detach functions */
 USB_DECLARE_DRIVER(umass);
@@ -708,16 +716,25 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	 * check for wildcarded and fully matched. First match wins.
 	 */
 	for (i = 0; umass_devdescrs[i].vid != VID_EOT && !found; i++) {
-		if (umass_devdescrs[i].vid == UGETW(dd->idVendor)
-		    && umass_devdescrs[i].pid == UGETW(dd->idProduct)) {
+		if (umass_devdescrs[i].vid == VID_WILDCARD &&
+		    umass_devdescrs[i].pid == PID_WILDCARD &&
+		    umass_devdescrs[i].rid == RID_WILDCARD) {
+			printf("umass: ignoring invalid wildcard quirk\n");
+			continue;
+		}
+		if ((umass_devdescrs[i].vid == UGETW(dd->idVendor) ||
+		     umass_devdescrs[i].vid == VID_WILDCARD)
+		 && (umass_devdescrs[i].pid == UGETW(dd->idProduct) ||
+		     umass_devdescrs[i].pid == PID_WILDCARD)) {
 		    	if (umass_devdescrs[i].rid == RID_WILDCARD) {
-			    sc->proto = umass_devdescrs[i].proto;
-			    sc->quirks = umass_devdescrs[i].quirks;
-			    return UMATCH_VENDOR_PRODUCT;
-			} else if (umass_devdescrs[i].rid == UGETW(dd->bcdDevice)) {
-			    sc->proto = umass_devdescrs[i].proto;
-			    sc->quirks = umass_devdescrs[i].quirks;
-			    return UMATCH_VENDOR_PRODUCT_REV;
+				sc->proto = umass_devdescrs[i].proto;
+				sc->quirks = umass_devdescrs[i].quirks;
+				return (UMATCH_VENDOR_PRODUCT);
+			} else if (umass_devdescrs[i].rid ==
+			    UGETW(dd->bcdDevice)) {
+				sc->proto = umass_devdescrs[i].proto;
+				sc->quirks = umass_devdescrs[i].quirks;
+				return (UMATCH_VENDOR_PRODUCT_REV);
 			} /* else RID does not match */
 		}
 	}
@@ -2386,7 +2403,39 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 
 		if (sc->transform(sc, cmd, cmdlen, &rcmd, &rcmdlen)) {
-			if ((sc->quirks & FORCE_SHORT_INQUIRY) && (rcmd[0] == INQUIRY)) {
+			/* 
+			 * Handle EVPD inquiry for broken devices first
+			 * NO_INQUIRY also implies NO_INQUIRY_EVPD
+			 */
+			if ((sc->quirks & (NO_INQUIRY_EVPD | NO_INQUIRY)) &&
+			    rcmd[0] == INQUIRY && (rcmd[1] & SI_EVPD)) {
+				struct scsi_sense_data *sense;
+
+				sense = &ccb->csio.sense_data;
+				bzero(sense, sizeof(*sense));
+				sense->error_code = SSD_CURRENT_ERROR;
+				sense->flags = SSD_KEY_ILLEGAL_REQUEST;
+				sense->add_sense_code = 0x24;
+				sense->extra_len = 10;
+ 				ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
+				ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
+				    CAM_AUTOSNS_VALID;
+				xpt_done(ccb);
+				return;
+			}
+			/* Return fake inquiry data for broken devices */
+			if ((sc->quirks & NO_INQUIRY) && rcmd[0] == INQUIRY) {
+				struct ccb_scsiio *csio = &ccb->csio;
+
+				memcpy(csio->data_ptr, &fake_inq_data,
+				    sizeof(fake_inq_data));
+				csio->scsi_status = SCSI_STATUS_OK;
+				ccb->ccb_h.status = CAM_REQ_CMP;
+				xpt_done(ccb);
+				return;
+			}
+			if ((sc->quirks & FORCE_SHORT_INQUIRY) &&
+			    rcmd[0] == INQUIRY) {
 				csio->dxfer_len = SHORT_INQUIRY_LENGTH;
 			}
 			sc->transfer(sc, ccb->ccb_h.target_lun, rcmd, rcmdlen,
