@@ -76,7 +76,7 @@ LD		?=	ld
 LDFLAGS		?=
 
 LINT		?=	lint
-LINTFLAGS	?=	-cghapbx -L /usr/libdata/lint
+LINTFLAGS	?=	-cghapbx
 LINTKERNFLAGS	?=	${LINTFLAGS}
 LINTOBJFLAGS	?=	-cghapbxu -i
 LINTLIBFLAGS	?=	-cghapbxu -C ${LIB}
