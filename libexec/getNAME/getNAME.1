@@ -37,10 +37,10 @@
 The
 .Nm
 utility
-get name sections from manual pages.
+extracts name sections from manual pages.
 Without options
 .Nm
-building
+is extracting sections suitable for building
 .Xr apropos 1
 database entries.
 .Pp
@@ -53,7 +53,9 @@ For building toc.
 .It Fl w
 Print type of manual page (OLD, NEW, UNKNOWN).
 .El
-.\" .Sh BUGS
+.Sh BUGS
+Many nonstandard manual pages from third parties
+are not processed correctly.
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr makewhatis 1 ,
