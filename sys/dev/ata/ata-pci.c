@@ -383,7 +383,8 @@ ata_pci_attach(device_t dev)
 
     /* do extra chipset specific setups */
     switch (type) {
-    case 0x522910b9: /* Aladdin need to activate the ATAPI FIFO */
+
+    case 0x522910b9: /* AcerLabs Aladdin need to activate the ATAPI FIFO */
 	pci_write_config(dev, 0x53, 
 			 (pci_read_config(dev, 0x53, 1) & ~0x01) | 0x02, 1);
 	break;
@@ -398,7 +399,7 @@ ata_pci_attach(device_t dev)
 	ATA_OUTB(controller->bmio, 0x1f, ATA_INB(controller->bmio, 0x1f)|0x01);
 	break;
 
-    case 0x00041103: /* HighPoint HPT366/368/370/372 */
+    case 0x00041103: /* HighPoint HPT366/368/370/372 default setup */
 	if (pci_get_revid(dev) < 2) {	/* HPT 366 */
 	    /* turn off interrupt prediction */
 	    pci_write_config(dev, 0x51, 
@@ -416,8 +417,8 @@ ata_pci_attach(device_t dev)
 	pci_write_config(dev, 0x5b, 0x22, 1);
 	break;
 
-    case 0x00051103: /* HighPoint HPT372 */
-    case 0x00081103: /* HighPoint HPT374 */
+    case 0x00051103: /* HighPoint HPT372 default setup */
+    case 0x00081103: /* HighPoint HPT374 default setup */
 	/* turn off interrupt prediction */
 	pci_write_config(dev, 0x51, (pci_read_config(dev, 0x51, 1) & ~0x03), 1);
 	pci_write_config(dev, 0x55, (pci_read_config(dev, 0x55, 1) & ~0x03), 1);
@@ -445,7 +446,6 @@ ata_pci_attach(device_t dev)
 
     case 0x74091022: /* AMD 756 default setup */
     case 0x74111022: /* AMD 766 default setup */
-
 	/* set prefetch, postwrite */
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
 
@@ -465,7 +465,13 @@ ata_pci_attach(device_t dev)
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
 	break;
 
-    case 0x02121166: /* ServerWorks CSB5 ATA66/100 controller */
+    case 0x02111166: /* ServerWorks ROSB4 enable UDMA33 */
+	pci_write_config(dev, 0x64,   
+			 (pci_read_config(dev, 0x64, 4) & ~0x00002000) |
+			 0x00004000, 4);
+	break;
+	
+    case 0x02121166: /* ServerWorks CSB5 enable UDMA66/100 depending on rev */
 	pci_write_config(dev, 0x5a,   
 			 (pci_read_config(dev, 0x5a, 1) & ~0x40) |
 			 (pci_get_revid(dev) >= 0x92) ? 0x03 : 0x02, 1);
