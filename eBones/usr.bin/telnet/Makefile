@@ -47,19 +47,20 @@ LDADD+= -ltermcap -ltelnet
 #ifdef	ENCRYPTION
 
 CFLAGS+=-DAUTHENTICATION -DENCRYPTION
-LDADD+= -ldescrypt
 
 .ifdef MAKE_KERBEROS
 .if exists(/usr/lib/libkrb.a)
 CFLAGS+= -DKRB4
-LDADD+= -lkrb -ldes
+LDADD+= -ldes -lkrb
 .endif
 .endif
 
 .if exists(/usr/lib/libkrb5.a)
 CFLAGS+= -DKRB5 -DFORWARD
-LDADD+=  -lkrb5 -ldes
+LDADD+=  -ldes -lkrb5
 .endif
+
+LDADD+= -ldescrypt
 
 #endif	/* ENCRYPTION */
 
