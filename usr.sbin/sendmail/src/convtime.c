@@ -33,12 +33,10 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)convtime.c	8.4 (Berkeley) 5/19/95";
+static char sccsid[] = "@(#)convtime.c	8.4.1.1 (Berkeley) 9/16/96";
 #endif /* not lint */
 
-# include <ctype.h>
-# include <string.h>
-# include "useful.h"
+# include "sendmail.h"
 
 /*
 **  CONVTIME -- convert time
@@ -165,37 +163,38 @@ pintvl(intvl, brief)
 	{
 		if (dy > 0)
 		{
-			(void) sprintf(p, "%d+", dy);
+			(void) snprintf(p, SPACELEFT(buf, p), "%d+", dy);
 			p += strlen(p);
 		}
-		(void) sprintf(p, "%02d:%02d:%02d", hr, mi, se);
+		(void) snprintf(p, SPACELEFT(buf, p), "%02d:%02d:%02d",
+			hr, mi, se);
 		return (buf);
 	}
 
 	/* use the verbose form */
 	if (wk > 0)
 	{
-		(void) sprintf(p, ", %d week%s", wk, PLURAL(wk));
+		(void) snprintf(p, SPACELEFT(buf, p), ", %d week%s", wk, PLURAL(wk));
 		p += strlen(p);
 	}
 	if (dy > 0)
 	{
-		(void) sprintf(p, ", %d day%s", dy, PLURAL(dy));
+		(void) snprintf(p, SPACELEFT(buf, p), ", %d day%s", dy, PLURAL(dy));
 		p += strlen(p);
 	}
 	if (hr > 0)
 	{
-		(void) sprintf(p, ", %d hour%s", hr, PLURAL(hr));
+		(void) snprintf(p, SPACELEFT(buf, p), ", %d hour%s", hr, PLURAL(hr));
 		p += strlen(p);
 	}
 	if (mi > 0)
 	{
-		(void) sprintf(p, ", %d minute%s", mi, PLURAL(mi));
+		(void) snprintf(p, SPACELEFT(buf, p), ", %d minute%s", mi, PLURAL(mi));
 		p += strlen(p);
 	}
 	if (se > 0)
 	{
-		(void) sprintf(p, ", %d second%s", se, PLURAL(se));
+		(void) snprintf(p, SPACELEFT(buf, p), ", %d second%s", se, PLURAL(se));
 		p += strlen(p);
 	}
 

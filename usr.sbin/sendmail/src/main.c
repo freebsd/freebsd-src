@@ -39,7 +39,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.162 (Berkeley) 11/18/95";
+static char sccsid[] = "@(#)main.c	8.162.1.3 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 #define	_DEFINE
@@ -144,6 +144,7 @@ main(argc, argv, envp)
 	extern void sigusr1();
 	extern void sighup();
 	extern void initmacros __P((ENVELOPE *));
+	extern void resetlimits __P((void));
 
 	/*
 	**  Check to see if we reentered.
@@ -224,9 +225,9 @@ main(argc, argv, envp)
 
 	pw = sm_getpwuid(RealUid);
 	if (pw != NULL)
-		(void) strcpy(rnamebuf, pw->pw_name);
+		(void) snprintf(rnamebuf, sizeof rnamebuf, "%s", pw->pw_name);
 	else
-		(void) sprintf(rnamebuf, "Unknown UID %d", RealUid);
+		(void) snprintf(rnamebuf, sizeof rnamebuf, "Unknown UID %d", RealUid);
 	RealUserName = rnamebuf;
 
 	/* save command line arguments */
@@ -431,7 +432,7 @@ main(argc, argv, envp)
 			{
 				char ipbuf[103];
 
-				sprintf(ipbuf, "[%.100s]",
+				snprintf(ipbuf, sizeof ipbuf, "[%.100s]",
 					inet_ntoa(*((struct in_addr *) hp->h_addr_list[i])));
 				if (tTd(0, 4))
 					printf("\ta.k.a.: %s\n", ipbuf);
@@ -706,6 +707,9 @@ main(argc, argv, envp)
 	vendor_pre_defaults(CurEnv);
 	readcf(getcfname(), safecf, CurEnv);
 	vendor_post_defaults(CurEnv);
+
+	/* avoid denial-of-service attacks */
+	resetlimits();
 
 	/* suppress error printing if errors mailed back or whatever */
 	if (CurEnv->e_errormode != EM_PRINT)
@@ -1569,7 +1573,7 @@ auth_warning(e, msg, va_alist)
 		if (hostbuf[0] == '\0')
 			(void) myhostname(hostbuf, sizeof hostbuf);
 
-		(void) sprintf(buf, "%s: ", hostbuf);
+		(void) snprintf(buf, sizeof buf, "%s: ", hostbuf);
 		p = &buf[strlen(buf)];
 		VA_START(msg);
 		vsnprintf(p, sizeof buf - (p - buf), msg, ap);
@@ -1928,6 +1932,11 @@ testmodeline(line, e)
 			if (*p == '\0')
 			{
 				printf("Usage: /canon address\n");
+				return;
+			}
+			else if (strlen(p) >= sizeof host)
+			{
+				printf("Name too long\n");
 				return;
 			}
 			strcpy(host, p);

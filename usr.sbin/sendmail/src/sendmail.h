@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)sendmail.h	8.159 (Berkeley) 11/18/95
+ *	@(#)sendmail.h	8.159.1.3 (Berkeley) 9/16/96
  */
 
 /*
@@ -41,7 +41,7 @@
 # ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailSccsId[] =	"@(#)sendmail.h	8.159		11/18/95";
+static char SmailSccsId[] =	"@(#)sendmail.h	8.159.1.3		9/16/96";
 # endif
 # else /*  _DEFINE */
 # define EXTERN extern
@@ -121,6 +121,14 @@ typedef int	BITMAP[BITMAPBYTES / sizeof (int)];
 
 /* clear an entire bit map */
 #define clrbitmap(map)		bzero((char *) map, BITMAPBYTES)
+
+
+/*
+**  Utility macros
+*/
+
+/* return number of bytes left in a buffer */
+#define SPACELEFT(buf, ptr)	(sizeof buf - ((ptr) - buf))
 /*
 **  Address structure.
 **	Addresses are stored internally in this structure.
@@ -1199,6 +1207,7 @@ extern void	setclass __P((int, char *));
 extern void	inittimeouts __P((char *));
 extern void	logdelivery __P((MAILER *, MCI *, const char *, ADDRESS *, time_t, ENVELOPE *));
 extern void	giveresponse __P((int, MAILER *, MCI *, ADDRESS *, time_t, ENVELOPE *));
+extern void	buildfname __P((char *, char *, char *, int));
 
 extern const char	*errstring __P((int));
 extern sigfunc_t	setsignal __P((int, sigfunc_t));
@@ -1228,10 +1237,10 @@ extern void		nmessage();
 
 #if !HASSNPRINTF
 # ifdef __STDC__
-extern void		snprintf(char *, size_t, const char *, ...);
-extern void		vsnprintf(char *, size_t, const char *, va_list);
+extern int		snprintf(char *, size_t, const char *, ...);
+extern int		vsnprintf(char *, size_t, const char *, va_list);
 # else
-extern void		snprintf();
-extern void		vsnprintf();
+extern int		snprintf();
+extern int		vsnprintf();
 # endif
 #endif

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mci.c	8.22 (Berkeley) 11/18/95";
+static char sccsid[] = "@(#)mci.c	8.22.1.1 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -372,24 +372,27 @@ mci_dump(mci, logit)
 
 	sep = logit ? " " : "\n\t";
 	p = buf;
-	sprintf(p, "MCI@%x: ", mci);
+	snprintf(p, SPACELEFT(buf, p), "MCI@%x: ", mci);
 	p += strlen(p);
 	if (mci == NULL)
 	{
-		sprintf(p, "NULL");
+		snprintf(p, SPACELEFT(buf, p), "NULL");
 		goto printit;
 	}
-	sprintf(p, "flags=%x, errno=%d, herrno=%d, exitstat=%d, state=%d, pid=%d,%s",
+	snprintf(p, SPACELEFT(buf, p),
+		"flags=%x, errno=%d, herrno=%d, exitstat=%d, state=%d, pid=%d,%s",
 		mci->mci_flags, mci->mci_errno, mci->mci_herrno,
 		mci->mci_exitstat, mci->mci_state, mci->mci_pid, sep);
 	p += strlen(p);
-	sprintf(p, "maxsize=%ld, phase=%s, mailer=%s,%s",
+	snprintf(p, SPACELEFT(buf, p),
+		"maxsize=%ld, phase=%s, mailer=%s,%s",
 		mci->mci_maxsize,
 		mci->mci_phase == NULL ? "NULL" : mci->mci_phase,
 		mci->mci_mailer == NULL ? "NULL" : mci->mci_mailer->m_name,
 		sep);
 	p += strlen(p);
-	sprintf(p, "host=%s, lastuse=%s",
+	snprintf(p, SPACELEFT(buf, p),
+		"host=%s, lastuse=%s",
 		mci->mci_host == NULL ? "NULL" : mci->mci_host,
 		ctime(&mci->mci_lastuse));
 printit:
