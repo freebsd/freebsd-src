@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.30 1996/07/16 15:56:58 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.31 1996/08/03 13:46:00 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -320,8 +320,7 @@ diff -c -r olddir newdir
    If your change is of a potentially sensitive nature, e.g.
    you are unsure of copyright issues governing its further distribution
    or you are simply not ready to release it without a tighter review first,
-   then you should send it to <tt><htmlurl url="mailto:core@FreeBSD.ORG"
-   name="&lt;core@FreeBSD.ORG&gt;"></tt> rather than the &a.hackers
+   then you should send it to &a.core; rather than the &a.hackers
    The core mailing list
    reaches a much smaller group of people who do much of the
    day-to-day work on FreeBSD.  Note that this group is also
@@ -396,7 +395,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.30 1996/07/16 15:56:58 jkh Exp $
+	$Id: submitters.sgml,v 1.31 1996/08/03 13:46:00 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
@@ -468,8 +467,7 @@ motherboards, etc) and if you would like to make such a donation, please contact
 &a.davidg for information on which items are still required.
 
 <item>Hardware currently unsupported by FreeBSD for which you would like to
-see such support added.  Please contact the <htmlurl
-url="mailto:core@FreeBSD.ORG" name="FreeBSD Core Team"> before sending
+see such support added.  Please contact the &a.core; before sending
 such items as we will need to find a developer willing to take on the task
 before we can accept delivery of them.  
 </itemize>

@@ -3,7 +3,7 @@
 #
 # Converted by Ollivier Robert <roberto@FreeBSD.ORG>
 #
-# $Id: ctm.sgml,v 1.10 1996/08/04 22:41:08 wosch Exp $
+# $Id: ctm.sgml,v 1.11 1996/08/17 23:51:44 wosch Exp $
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -187,13 +187,13 @@
     <sect1><heading>Thanks!</heading>
       <p>
         <descrip>
-          <tag/Bruce Evans/
+          <tag/&a.bde;/
             for his pointed pen and invaluable comments.
-          <tag/S&oslash;ren Schmidt/
-            for patience.
+          <tag/&a.sos;/
+	    for patience.
           <tag/Stephen McKay/
             wrote <tt/ctm_&lsqb;rs&rsqb;mail/, much appreciated.
-          <tag/Jordan Hubbard/
+          <tag/&a.jkh;/
             for being so stubborn that I had to make it better.
           <tag/All the users/
             I hope you like it...

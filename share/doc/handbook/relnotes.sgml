@@ -1,4 +1,4 @@
-<!-- $Id: relnotes.sgml,v 1.12 1996/05/16 23:25:18 mpp Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.13 1996/08/21 07:28:57 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -199,8 +199,7 @@
 		  a number of more optimal memory allocation
 		  strategies that were not possible before.
 
-		  Owner: David Greenman (davidg@FreeBSD.org) and
-                        John Dyson (dyson@implode.root.com)
+		  Owner: &a.davidg; and &a.dyson;
 
 		<tag>Network PCB hash optimization</tag> For
 		  systems with a great number of active TCP
@@ -209,7 +208,7 @@
 		  to match an incoming packet up to its
 		  associated connection.
 
-		  Owner: David Greenman (davidg@FreeBSD.org)
+		  Owner: &a.davidg;
 
 		<tag>Name cache optimization</tag> The name-cache
 		  would cache all files of the same name to the
@@ -219,8 +218,7 @@
 		  and improved the management of the cache in
 		  various other ways while we were at it.
 
-	          Owner: Poul-Henning Kamp (phk@FreeBSD.org)
-                  David Greenman (davidg@FreeBSD.org)
+	          Owner: &a.phk; and &a.davidg;
 
 		<tag>Less restrictive swap-spaces</tag> The need
 		  to compile the names of the swap devices into
@@ -229,8 +227,7 @@
 		  devices, up to the maximum number of swap
 		  devices configured in the kernel.
 
-		  Owner: Poul-Henning Kamp (phk@FreeBSD.org)
-			David Greenman (davidg@FreeBSD.org)
+		  Owner: &a.phk; and &a.davidg;
 
 		<tag>Hard Wired SCSI Devices</tag> Prior to
 		  2.0.5, FreeBSD performed dynamic assignment of
@@ -247,7 +244,7 @@
 		  syntax can be found in the <tt>scsi(4)</tt> man
 		  page or the LINT kernel config file.
 
-		  Owner: Peter Dufault (dufault@hda.com) 
+		  Owner: &a.dufault;
 
                   Sources involved: <tt>sys/scsi/*</tt>
 	          <tt>usr.sbin/config/*</tt>
@@ -258,7 +255,7 @@
 		  operating systems.  This support will allow
 		  FreeBSD to inhabit DOS extended partitions.
 
-		  Owner: Bruce Evans (bde@FreeBSD.org)
+		  Owner: &a.bde;
 
 		  Sources involved: <tt>sys/disklabel.h</tt>
 		  <tt>sys/diskslice.h</tt> <tt>sys/dkbad.h</tt>
@@ -274,7 +271,7 @@
 		  program on the boot.flp or the Ontrack Disk
 		  Manager tool under MS-DOS.
 
-		  Owner: Poul-Henning Kamp (phk@FreeBSD.org)
+		  Owner: &a.phk;
 
 		<tag>Bad144 is back and working</tag> Bad144
 		  works again, though the semantics are slightly
@@ -282,8 +279,7 @@
 		  kept relative to the slice rather than absolute
 		  on the disk.
 
-		  Owner: Bruce Evans (bde@FreeBSD.org)
-		  Poul-Henning Kamp (phk@FreeBSD.org)
+		  Owner: &a.bde; and &a.phk;
 
 	      </descrip>
 
@@ -302,8 +298,7 @@
 		are supported with the Karoke variable speed
 		playback.
 
-		Owner: Frank Durda IV
-		(bsdmail@nemesis.lonestar.org)
+		Owner: &a.uhclem;
 
 		Sources involved: <tt>isa/matcd</tt>
 
@@ -321,19 +316,19 @@
 		style copyright making the driver entirely clean
 		of the GPL.
 
-		Owner: Justin Gibbs (gibbs@FreeBSD.org)
+		Owner: &a.gibbs;
 
 		Sources involved: <tt>isa/aic7770.c</tt> <tt>pci/aic7870.c</tt>
 		<tt>i386/scsi/*</tt> <tt>sys/dev/aic7xxx/*</tt>
 
 	      <tag>NCR5380/NCR53400 SCSI (ProAudio Spectrum) driver</tag>
-                Owner: core
+                Owner: &a.core;
 
 		Submitted by: Serge Vakulenko (vak@cronyx.ru)
 
 		Sources involved: <tt>isa/ncr5380.c</tt>
 
-	      <tag>Sony CDROM driver</tag> Owner: core
+	      <tag>Sony CDROM driver</tag> Owner: &a.core;
 
 		Submitted by: Mikael Hybsch (micke@dynas.se)
 
@@ -346,13 +341,12 @@
 	  <p><descrip>
 
 	      <tag>SDL Communications Riscom/8 Serial Board Driver</tag> 
-	        Owner: Andrey Chernov
-		(ache@FreeBSD.org)
+	        Owner: &a.ache;
 
 		Sources involved: <tt>isa/rc.c</tt> <tt>isa/rcreg.h</tt>
 
 	      <tag>Cyclades Cyclom-y Serial Board Driver</tag>
-		Owner: Bruce Evans (bde@FreeBSD.org)
+		Owner: &a.bde;
 
 		Submitted by: Andrew Werple
 		(andrew@werple.apana.org.au) and Heikki Suonsivu
@@ -363,7 +357,7 @@
 		Sources involved: <tt>isa/cy.c</tt>
 
 	      <tag>Cronyx/Sigma sync/async serial driver</tag>
-		Owner: core
+		Owner: &a.core;
 
 		Submitted by: Serge Vakulenko
 
@@ -388,14 +382,14 @@
 	      DC21140 chipset including the 100Mb DEC DE-500-XA
 	      and SMC 9332.
 
-	      Owner: core
+	      Owner: &a.core;
 
 	      Submitted by: Matt Thomas (thomas@lkg.dec.com)
 
 	      Sources involved: <tt>pci/if_de.c</tt> <tt>pci/dc21040.h</tt>
 
 
-	    <tag>DEC FDDI (DEFPA/DEFEA) driver</tag> Owner: core
+	    <tag>DEC FDDI (DEFPA/DEFEA) driver</tag> Owner: &a.core;
 
 	      Submitted by: Matt Thomas (thomas@lkg.dec.com)
 
@@ -404,7 +398,7 @@
 
 
 	    <tag>3Com 3c505 (Etherlink/+) NIC driver</tag> Owner:
-	      core
+	      &a.core;
 
 	      Submitted by: Dean Huxley (dean@fsa.ca)
 
@@ -414,7 +408,7 @@
 
 
 	    <tag>Fujitsu MB86960A family of NICs driver</tag>
-	      Owner: core
+	      Owner: &a.core;
 
 	      Submitted by: M.S. (seki@sysrap.cs.fujitsu.co.jp)
 
@@ -427,7 +421,7 @@
 	      Sources involved: <tt>isa/if_ix.c</tt> <tt>isa/if_ixreg.h</tt>
 
 
-	    <tag>3Com 3c589 driver</tag> Owner: core
+	    <tag>3Com 3c589 driver</tag> Owner: &a.core;
 
 	      Submitted by: "HOSOKAWA Tatsumi"
 	      (hosokawa@mt.cs.keio.ac.jp), Seiji Murata
@@ -437,7 +431,7 @@
 	      Sources involved: <tt>isa/if_zp.c</tt>
 
 
-	    <tag>IBM Credit Card Adapter driver</tag> Owner: core
+	    <tag>IBM Credit Card Adapter driver</tag> Owner: &a.core;
 
 	      Submitted by: "HOSOKAWA Tatsumi"
 	      (hosokawa@mt.cs.keio.ac.jp), 
@@ -446,7 +440,7 @@
 
 
 	    <tag>EDSS1 and 1TR6 ISDN interface driver</tag>
-	      Owner: core
+	      Owner: &a.core;
 
 	      Submitted by: Dietmar Friede
 	      (dfriede@drnhh.neuhaus.de) and Juergen Krause
@@ -460,36 +454,33 @@
 
 	<p><descrip>
 
-	    <tag>Joystick driver</tag> Owner: Jean-Marc Zucconi
-	      (jmz@FreeBSD.org)
+	    <tag>Joystick driver</tag> Owner: &a.jmz;
 
 	      Sources involved: <tt>isa/joy.c</tt>
 	      
 	    <tag>National Instruments ``LabPC'' driver</tag> Owner:
-	      Peter Dufault (dufault@hda.com)
+	      &a.dufault;
 
 	      Sources involved: <tt>isa/labpc.c</tt>
 	      
 	    <tag>WD7000 driver</tag> Owner: Olof Johansson
 	      (offe@ludd.luth.se)
 	      
-	    <tag>Pcvt Console driver</tag> Owner: J&ouml;rg Wunsch
-	      (joerg@FreeBSD.org)
+	    <tag>Pcvt Console driver</tag> Owner: &a.joerg;
 
-	      Submitted by: Hellmuth Michaelis
-	      (hm@altona.hamburg.com)
+	      Submitted by: &a.hm;
 
 	      Sources involved: <tt>isa/pcvt/*</tt>
 
 	    <tag>BSD-audio emulator for VAT driver</tag> Owner:
 	      Amancio Hasty (ahasty@FreeBSD.org) and
-	      Paul Traina (pst@FreeBSD.org)
+	      &a.pst;
 
 	      Sources involved: <tt>isa/sound/vat_audio.c</tt>
 	      <tt>isa/sound/vat_audioio.h</tt>
 
 	    <tag>National Instruments AT-GPIB and AT-GPIB/TNT GPIB driver</tag>
-              Owner: core
+              Owner: &a.core;
 
 	      Submitted by: Fred Cawthorne
 	      (fcawth@delphi.umd.edu)
@@ -498,14 +489,14 @@
 	      <tt>isa/gpibreg.h</tt>
 
 	    <tag>Genius GS-4500 hand scanner driver</tag> Owner:
-	      core
+	      &a.core;
 
 	      Submitted by: Gunther Schadow
 	      (gusw@fub46.zedat.fu-berlin.de)
 
 	      Sources involved: <tt>isa/gsc.c</tt> <tt>isa/gscreg.h</tt>
 
-	    <tag>CORTEX-I Frame Grabber</tag> Owner: core
+	    <tag>CORTEX-I Frame Grabber</tag> Owner: &a.core;
 
 	      Submitted by: Paul S. LaFollette, Jr. (
 
@@ -540,7 +531,7 @@
 	    way for ELF and XOUT loaders, and most of the svr4
 	    syscall wrappers are written.
 
-	    Owner: S&oslash;ren Schmidt (sos) and Sean Eric Fagan (sef)
+	    Owner: &a.sos; and &a.sef;
 
 	    Sources involved: <tt>sys/i386/ibcs2/*</tt> and misc
 	    kernel changes.
