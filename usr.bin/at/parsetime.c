@@ -31,6 +31,8 @@
  *     |MIDNIGHT                   | |[DAY OF WEEK]                       |
  *     \TEATIME                    / |NUMBER [SLASH NUMBER [SLASH NUMBER]]|
  *                                   \PLUS NUMBER MINUTES|HOURS|DAYS|WEEKS/
+ *
+ *	$Id$
  */
 
 /* System Headers */
@@ -47,6 +49,7 @@
 #ifndef __FreeBSD__
 #include <getopt.h>
 #endif
+#include <err.h>
 
 /* Local headers */
 
@@ -130,7 +133,7 @@ static size_t sc_len;   /* scanner - lenght of token buffer */
 static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: parsetime.c,v 1.9 1997/02/22 19:54:07 peter Exp $";
 
 /* Local functions */
 
@@ -323,7 +326,7 @@ plus(struct tm *tm)
 	    delay *= 60;
     case MINUTES:
 	    if (expectplur != sc_tokplur)
-		fprintf(stderr, "at: pluralization is wrong\n");
+		warnx("pluralization is wrong");
 	    dateadd(delay, tm);
 	    return;
     }
@@ -369,10 +372,10 @@ tod(struct tm *tm)
 
 	if (sc_tokid == PM) {
 	    if (hour != 12)	/* 12:xx PM is 12:xx, not 24:xx */
-		hour += 12;
+			hour += 12;
 	} else {
 	    if (hour == 12)	/* 12:xx AM is 00:xx, not 12:xx */
-		hour -= 12;
+			hour = 0;
 	}
 	token();
     }
