@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 
 MODULE_DEPEND(ndis, pci, 1, 1, 1);
 MODULE_DEPEND(ndis, ether, 1, 1, 1);
+MODULE_DEPEND(ndis, wlan, 1, 1, 1);
 MODULE_DEPEND(ndis, ndisapi, 1, 1, 1);
 
 /*
