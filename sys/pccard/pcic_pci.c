@@ -194,6 +194,9 @@ struct pcic_pci_table
 	u_int32_t	flags;
 	struct pcic_chip *chip;
 } pcic_pci_devs[] = {
+	{ PCI_DEVICE_ID_OMEGA_82C094,
+	  "Omega 82C094G",
+	  PCIC_I82365, PCIC_DF_POWER, &pcic_pci_pd67xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6729,
 	  "Cirrus Logic PD6729/6730 PC-Card Controller",
 	  PCIC_PD6729, PCIC_PD_POWER, &pcic_pci_pd67xx_chip },
@@ -1040,7 +1043,8 @@ pcic_pci_probe(device_t dev)
 	 * parallel interrupt routing.
 	 *
 	 * Note: The CLPD6729 is a special case.  See its init function
-	 * for an explaination of ISA vs PCI interrupts.
+	 * for an explaination of ISA vs PCI interrupts. XXX Might be other
+	 * special cases as well.
 	 */
 	if (pcic_intr_path == pcic_iw_pci && 
 	    device_id != PCI_DEVICE_ID_PCIC_CLPD6729) {
