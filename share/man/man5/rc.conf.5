@@ -474,15 +474,15 @@ for a detailled discussion.
 .It Va tcp_extensions
 .Pq Vt bool
 Set to
-.Ar NO
+.Ar YES
 by default.
-Setting this to YES enables certain TCP options as described by
+Setting this to NO disables certain TCP options as described by
 .Rs
 .%T RFC 1323
 .Re
 If you have problems with connections
 randomly hanging or other weird behavior of such nature, you might
-try setting this back to
+try setting this to
 .Ar NO
 and seeing if that helps.  Some hardware/software out there is known
 to be broken with respect to these options.
