@@ -3,8 +3,19 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
-19990214:
-	The nlpt driver has changed names back to be the lpt driver.
+19990510:
+	Previously, one would define "NOAOUT" to keep from building
+	the legacy a.out bits.  Now one would define "WANT_AOUT" to
+	build them.
+
+19990507:
+	New devstat API requires recompilation of libdevstat, systat,
+	iostat, vmstat and rpc.rstatd.  A new kernel is also required.
+	make world + building a kernel should do all of this.  Any
+	ports that use devstat need to be recompiled as well.
+
+19990424:
+	The 'nlpt' driver has changed names to become the 'lpt' driver.
 	See ppbus(4) or http://www.freebsd.org/~nsouch/ppbus.html
 	for proper configuration details.
 
@@ -116,11 +127,11 @@ http://www.freebsd.org/cgi/getmsg.cgi?fetch=800363+0+current/freebsd-current
 	See src/etc/pam.conf for a sample.
 
 This file contains a list, in reverse chronologocal order, of major
-breakages in tracking -current.  Not all things will be listed here,
+breakages in tracking -stable.  Not all things will be listed here,
 and it only starts on Novemeber 18, 1998.  If you have an earlier
 version of FreeBSD, you are on your own to get to November 18, 1998.
 
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.31 1999/04/28 05:18:46 imp Exp $
+$Id: UPDATING,v 1.14.2.1 1999/05/10 09:22:47 jkh Exp $
