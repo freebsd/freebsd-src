@@ -186,7 +186,7 @@ _mcleanup()
 		_warn("_mcleanup: gmon.log");
 		return;
 	}
-	len = sprintf(buf, "[mcleanup1] kcount 0x%x ssiz %d\n",
+	len = sprintf(buf, "[mcleanup1] kcount 0x%p ssiz %lu\n",
 	    p->kcount, p->kcountsize);
 	_write(log, buf, len);
 #endif
@@ -210,7 +210,7 @@ _mcleanup()
 		     toindex = p->tos[toindex].link) {
 #ifdef DEBUG
 			len = sprintf(buf,
-			"[mcleanup2] frompc 0x%x selfpc 0x%x count %d\n" ,
+			"[mcleanup2] frompc 0x%lx selfpc 0x%lx count %lu\n" ,
 				frompc, p->tos[toindex].selfpc,
 				p->tos[toindex].count);
 			_write(log, buf, len);
