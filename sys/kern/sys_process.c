@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.31 1997/11/06 19:29:22 phk Exp $
+ *	$Id: sys_process.c,v 1.32 1997/11/12 12:28:12 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -502,4 +502,23 @@ trace_req(p)
 	struct proc *p;
 {
 	return 1;
+}
+
+/*
+ * stopevent()
+ * Stop a process because of a procfs event;
+ * stay stopped until p->p_step is cleared
+ * (cleared by PIOCCONT in procfs).
+ */
+
+void
+stopevent(struct proc *p, unsigned int event, unsigned int val) {
+	p->p_step = 1;
+
+	do {
+		p->p_xstat = val;
+		p->p_stype = event;	/* Which event caused the stop? */
+		wakeup(&p->p_stype);	/* Wake up any PIOCWAIT'ing procs */
+		tsleep(&p->p_step, PWAIT, "stopevent", 0);
+	} while (p->p_step);
 }
