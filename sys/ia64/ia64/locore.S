@@ -136,17 +136,10 @@ ENTRY(fork_trampoline, 0)
 	.global		enter_userland
 	.type		enter_userland, @function
 enter_userland:
-{	.mmi
-	add		r14=24,sp
-	;;
-	ld8		r14=[r14]
+{	.mfb
 	nop		0
-	;;
-}
-{	.mbb
-	cmp.eq		p6,p7=r0,r14
-(p6)	br.sptk		exception_restore
-(p7)	br.sptk		epc_syscall_return
+	nop		0
+	br.sptk		epc_syscall_return
 	;;
 }
 END(fork_trampoline)

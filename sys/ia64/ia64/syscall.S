@@ -378,6 +378,8 @@ ENTRY(epc_syscall, 8)
 	br.call.sptk	rp=syscall
 	;;
 }
+	.global		epc_syscall_return
+epc_syscall_return:
 {	.mfb
 	add		out0=16,sp
 	nop		0
@@ -402,9 +404,6 @@ ENTRY(epc_syscall, 8)
 (p15)	br.spnt		exception_restore
 	;;
 }
-
-	.global		epc_syscall_return
-epc_syscall_return:
 {	.mmi
 	alloc		r31=ar.pfs,0,0,0,0
 	add		r14=32,sp
