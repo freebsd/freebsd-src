@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: nfs_ops.c,v 5.2.2.2 1992/05/31 16:35:05 jsp Exp $
+ * $Id: nfs_ops.c,v 1.1.1.1 1994/05/26 05:22:02 rgrimes Exp $
  */
 
 #ifndef lint
@@ -555,6 +555,15 @@ mntfs *mf;
 
 	if (nfs_args.retrans = hasmntval(&mnt, "retrans"))
 		nfs_args.flags |= NFSMNT_RETRANS;
+
+/*
+ * How is it possible that 4.4BSD has NFSMNT_RESVPORT but amd
+ * doesn't know about it?!!
+ */
+#ifdef NFSMNT_RESVPORT
+	if (hasmntopt(&mnt, "resvport") != NULL)
+		nfs_args.flags |= NFSMNT_RESVPORT;
+#endif
 
 #ifdef NFSMNT_BIODS
 	if (nfs_args.biods = hasmntval(&mnt, "biods"))
