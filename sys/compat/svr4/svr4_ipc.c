@@ -83,7 +83,7 @@
 #include <sys/proc.h>
 #include <sys/time.h>
 
-
+#include <svr4/svr4.h>
 #include <svr4/svr4_types.h>
 #include <svr4/svr4_signal.h>
 #include <svr4/svr4_proto.h>

@@ -2,26 +2,23 @@
 
 .PATH:	${.CURDIR}/../../i386/svr4 ${.CURDIR}/../../svr4
 KMOD=	svr4
-SRCS=	svr4_sysent.c svr4_sysvec.c opt_compat.h opt_vmpage.h vnode_if.h \
-	imgact_svr4.c svr4_signal.c svr4_fcntl.c svr4_misc.c svr4_ioctl.c \
-	svr4_stat.c svr4_filio.c svr4_ttold.c svr4_termios.c svr4_stream.c \
-	svr4_socket.c svr4_sockio.c svr4_machdep.c svr4_resource.c \
-	svr4_ipc.c
+SRCS=	svr4_sysent.c svr4_sysvec.c opt_compat.h opt_global.h opt_vmpage.h \
+	vnode_if.h imgact_svr4.c svr4_signal.c svr4_fcntl.c svr4_misc.c \
+	svr4_ioctl.c svr4_stat.c svr4_filio.c svr4_ttold.c svr4_termios.c \
+	svr4_stream.c svr4_socket.c svr4_sockio.c svr4_machdep.c \
+	svr4_resource.c svr4_ipc.c
 OBJS=	svr4_locore.o 
 NOMAN=1
 MAN8=	svr4.8
 CFLAGS+= -DKERNEL
 MAINTAINER=	newton@freebsd.org
 
-CFLAGS+= -DCOMPAT_SVR4
-.if defined(DEBUG)
-CFLAGS+= -DDEBUG_SVR4
-.endif
-
 EXPORT_SYMS=_svr4_mod
-CLEANFILES= svr4_assym.h svr4_genassym svr4_genassym.o
+CLEANFILES= svr4_assym.h svr4_genassym svr4_genassym.o opt_svr4.h
 
 build-tools: svr4_genassym
+
+svr4.h:	opt_global.h opt_svr4.h
 
 svr4_assym.h:	svr4_genassym
 	./svr4_genassym > svr4_assym.h
@@ -38,6 +35,15 @@ svr4_genassym:	svr4_genassym.o
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
+
+opt_svr4.h:
+	echo "#define COMPAT_SVR4 1" > opt_svr4.h
+.if defined(DEBUG)
+	echo "#define DEBUG_SVR4 1" >> opt_svr4.h
+.endif
+
+opt_global.h:
+	touch opt_global.h
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
