@@ -381,6 +381,7 @@ dev/si/si_pci.c		optional si pci
 dev/sn/if_sn.c		optional sn
 dev/sn/if_sn_isa.c	optional sn isa
 dev/sn/if_sn_pccard.c	optional sn card
+dev/snp/snp.c		optional snp
 dev/stg/tmc18c30.c	optional stg
 dev/stg/tmc18c30_isa.c	optional stg isa
 dev/stg/tmc18c30_pccard.c	optional stg card
@@ -596,7 +597,6 @@ kern/tty_compat.c	standard
 kern/tty_conf.c		standard
 kern/tty_cons.c		standard
 kern/tty_pty.c		optional pty
-kern/tty_snoop.c	optional snp
 kern/tty_subr.c		standard
 kern/tty_tty.c		standard
 kern/uipc_accf.c	optional inet

@@ -51,6 +51,7 @@ static struct cdevsw snp_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
+	/* bmaj */	-1
 };
 
 static struct linesw snpdisc = {
@@ -103,14 +104,11 @@ static MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
  * module load time.
  */
 static int snooplinedisc;
-static udev_t snpbasedev = NOUDEV;
 
 
 static LIST_HEAD(, snoop) snp_sclist = LIST_HEAD_INITIALIZER(&snp_sclist);
 
 static struct tty	*snpdevtotty __P((dev_t dev));
-static void		snp_clone __P((void *arg, char *name,
-			    int namelen, dev_t *dev));
 static int		snp_detach __P((struct snoop *snp));
 static int		snp_down __P((struct snoop *snp));
 static int		snp_in __P((struct snoop *snp, char *buf, int n));
@@ -163,7 +161,7 @@ snplwrite(tp, uio, flag)
 		uio2.uio_resid = ilen;
 		uio2.uio_segflg = UIO_SYSSPACE;
 		uio2.uio_rw = UIO_WRITE;
-		uio2.uio_td = uio->uio_td;
+		uio2.uio_procp = uio->uio_procp;
 		error = ttwrite(tp, &uio2, flag);
 		if (error != 0)
 			break;
@@ -379,17 +377,16 @@ snp_in(snp, buf, n)
 }
 
 static int
-snpopen(dev, flag, mode, td)
+snpopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
-	struct thread *td;
+	struct proc *p;
 {
 	struct snoop *snp;
 
 	if (dev->si_drv1 == NULL) {
-		if (!(dev->si_flags & SI_NAMED))
-			make_dev(&snp_cdevsw, minor(dev), UID_ROOT, GID_WHEEL,
-			    0600, "snp%d", dev2unit(dev));
+		make_dev(&snp_cdevsw, minor(dev), UID_ROOT, GID_WHEEL,
+		    0600, "snp%d", minor(dev));
 		dev->si_drv1 = snp = malloc(sizeof(*snp), M_SNP,
 		    M_WAITOK | M_ZERO);
 	} else
@@ -455,11 +452,11 @@ detach_notty:
 }
 
 static int
-snpclose(dev, flags, fmt, td)
+snpclose(dev, flags, fmt, p)
 	dev_t dev;
 	int flags;
 	int fmt;
-	struct thread *td;
+	struct proc *p;
 {
 	struct snoop *snp;
 
@@ -489,12 +486,12 @@ snp_down(snp)
 }
 
 static int
-snpioctl(dev, cmd, data, flags, td)
+snpioctl(dev, cmd, data, flags, p)
 	dev_t dev;
 	u_long cmd;
 	caddr_t data;
 	int flags;
-	struct thread *td;
+	struct proc *p;
 {
 	struct snoop *snp;
 	struct tty *tp, *tpo;
@@ -580,10 +577,10 @@ snpioctl(dev, cmd, data, flags, td)
 }
 
 static int
-snppoll(dev, events, td)
+snppoll(dev, events, p)
 	dev_t dev;
 	int events;
-	struct thread *td;
+	struct proc *p;
 {
 	struct snoop *snp;
 	int revents;
@@ -599,32 +596,9 @@ snppoll(dev, events, td)
 		if (snp->snp_flags & SNOOP_DOWN || snp->snp_len > 0)
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(td, &snp->snp_sel);
+			selrecord(p, &snp->snp_sel);
 	}
 	return (revents);
-}
-
-static void
-snp_clone(arg, name, namelen, dev)
-	void *arg;
-	char *name;
-	int namelen;
-	dev_t *dev;
-{
-	int u;
-
-	if (*dev != NODEV)
-		return;
-	if (dev_stdclone(name, NULL, "snp", &u) != 1)
-		return;
-	*dev = make_dev(&snp_cdevsw, unit2minor(u), UID_ROOT, GID_WHEEL, 0600,
-	    "snp%d", u);
-	if (snpbasedev == NOUDEV)
-		snpbasedev = (*dev)->si_udev;
-	else {
-		(*dev)->si_flags |= SI_CHEAPCLONE;
-		dev_depends(udev2dev(snpbasedev, 0), *dev);
-	}
 }
 
 static int
@@ -633,21 +607,15 @@ snp_modevent(mod, type, data)
 	int type;
 	void *data;
 {
-	static eventhandler_tag eh_tag;
 
 	switch (type) {
 	case MOD_LOAD:
-		/* XXX error checking. */
-		eh_tag = EVENTHANDLER_REGISTER(dev_clone, snp_clone, 0, 1000);
 		snooplinedisc = ldisc_register(LDISC_LOAD, &snpdisc);
 		cdevsw_add(&snp_cdevsw);
 		break;
 	case MOD_UNLOAD:
 		if (!LIST_EMPTY(&snp_sclist))
 			return (EBUSY);
-		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
-		if (snpbasedev != NOUDEV)
-			destroy_dev(udev2dev(snpbasedev, 0));
 		ldisc_deregister(snooplinedisc);
 		cdevsw_remove(&snp_cdevsw);
 		break;
