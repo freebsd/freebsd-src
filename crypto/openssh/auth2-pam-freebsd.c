@@ -187,6 +187,14 @@ pam_thread(void *ctxtp)
 	Buffer buffer;
 	struct pam_conv pam_conv = { pam_thread_conv, ctxt };
 
+#ifndef USE_POSIX_THREADS
+	{
+		const char *pam_user;
+
+		pam_get_item(pam_handle, PAM_USER, (const void **)&pam_user);
+		setproctitle("%s [pam]", pam_user);
+	}
+#endif
 	buffer_init(&buffer);
 	pam_err = pam_set_item(pam_handle, PAM_CONV, (const void *)&pam_conv);
 	if (pam_err != PAM_SUCCESS)
@@ -195,10 +203,10 @@ pam_thread(void *ctxtp)
 	if (pam_err != PAM_SUCCESS)
 		goto auth_fail;
 	pam_err = pam_acct_mgmt(pam_handle, 0);
-	if (pam_err != PAM_SUCCESS)
+	if (pam_err != PAM_SUCCESS && pam_err != PAM_NEW_AUTHTOK_REQD)
 		goto auth_fail;
 	buffer_put_cstring(&buffer, "OK");
-	ssh_msg_send(ctxt->pam_csock, PAM_SUCCESS, &buffer);
+	ssh_msg_send(ctxt->pam_csock, pam_err, &buffer);
 	buffer_free(&buffer);
 	pthread_exit(NULL);
  auth_fail:
@@ -356,6 +364,9 @@ pam_query(void *ctx, char **name, char **info,
 			plen += sprintf(**prompts + plen, "%s", msg);
 			xfree(msg);
 			break;
+		case PAM_NEW_AUTHTOK_REQD:
+			pam_new_authtok_reqd = 1;
+			/* FALLTHROUGH */
 		case PAM_SUCCESS:
 		case PAM_AUTH_ERR:
 			if (**prompts != NULL) {
