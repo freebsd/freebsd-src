@@ -39,40 +39,42 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-static MALLOC_DEFINE(M_ACPICA, "acpica", "ACPI CA memory pool");
+MALLOC_DEFINE(M_ACPICA, "acpica", "ACPI CA memory pool");
 
 void *
 AcpiOsAllocate(ACPI_SIZE Size)
 {
-    return(malloc(Size, M_ACPICA, M_NOWAIT));
+    return (malloc(Size, M_ACPICA, M_NOWAIT));
 }
 
 void
-AcpiOsFree (void *Memory)
+AcpiOsFree(void *Memory)
 {
     free(Memory, M_ACPICA);
 }
 
 ACPI_STATUS
-AcpiOsMapMemory (ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length, void **LogicalAddress)
+AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length,
+    void **LogicalAddress)
 {
     *LogicalAddress = pmap_mapdev((vm_offset_t)PhysicalAddress, Length);
     if (*LogicalAddress == NULL)
-	return(AE_BAD_ADDRESS);
-    return(AE_OK);
+	return (AE_BAD_ADDRESS);
+    return (AE_OK);
 }
 
 void
-AcpiOsUnmapMemory (void *LogicalAddress, ACPI_SIZE Length)
+AcpiOsUnmapMemory(void *LogicalAddress, ACPI_SIZE Length)
 {
     pmap_unmapdev((vm_offset_t)LogicalAddress, Length);
 }
 
 ACPI_STATUS
-AcpiOsGetPhysicalAddress(void *LogicalAddress, ACPI_PHYSICAL_ADDRESS *PhysicalAddress)
+AcpiOsGetPhysicalAddress(void *LogicalAddress,
+    ACPI_PHYSICAL_ADDRESS *PhysicalAddress)
 {
-    /* we can't necessarily do this, so cop out */
-    return(AE_BAD_ADDRESS);
+    /* We can't necessarily do this, so cop out. */
+    return (AE_BAD_ADDRESS);
 }
 
 /*
@@ -82,26 +84,22 @@ AcpiOsGetPhysicalAddress(void *LogicalAddress, ACPI_PHYSICAL_ADDRESS *PhysicalAd
 BOOLEAN
 AcpiOsReadable (void *Pointer, ACPI_SIZE Length)
 {
-    return(TRUE);
+    return (TRUE);
 }
 
 BOOLEAN
 AcpiOsWritable (void *Pointer, ACPI_SIZE Length)
 {
-    return(TRUE);
+    return (TRUE);
 }
 
 ACPI_STATUS
-AcpiOsReadMemory (
-    ACPI_PHYSICAL_ADDRESS	Address,
-    UINT32			*Value,
-    UINT32			Width)
+AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 *Value, UINT32 Width)
 {
     void	*LogicalAddress;
 
-    if (AcpiOsMapMemory(Address, Width / 8, &LogicalAddress) != AE_OK) {
-	return(AE_NOT_EXIST);
-    }
+    if (AcpiOsMapMemory(Address, Width / 8, &LogicalAddress) != AE_OK)
+	return (AE_NOT_EXIST);
 
     switch (Width) {
     case 8:
@@ -123,20 +121,16 @@ AcpiOsReadMemory (
 
     AcpiOsUnmapMemory(LogicalAddress, Width / 8);
 
-    return(AE_OK);
+    return (AE_OK);
 }
 
 ACPI_STATUS
-AcpiOsWriteMemory (
-    ACPI_PHYSICAL_ADDRESS	Address,
-    UINT32			Value,
-    UINT32			Width)
+AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 Value, UINT32 Width)
 {
     void	*LogicalAddress;
 
-    if (AcpiOsMapMemory(Address, Width / 8, &LogicalAddress) != AE_OK) {
-	return(AE_NOT_EXIST);
-    }
+    if (AcpiOsMapMemory(Address, Width / 8, &LogicalAddress) != AE_OK)
+	return (AE_NOT_EXIST);
 
     switch (Width) {
     case 8:
@@ -158,5 +152,5 @@ AcpiOsWriteMemory (
 
     AcpiOsUnmapMemory(LogicalAddress, Width / 8);
 
-    return(AE_OK);
+    return (AE_OK);
 }
