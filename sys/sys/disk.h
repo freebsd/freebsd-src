@@ -58,9 +58,9 @@ struct disk {
 	off_t			d_mediasize;
 	u_int			d_fwsectors;
 	u_int			d_fwheads;
-	u_int			d_stripe_offset;
-	u_int			d_stripe_width;
-	u_int			d_max_request;
+	u_int			d_maxsize;
+	u_int			d_stripeoffset;
+	u_int			d_stripesize;
 
 	/* Fields private to the driver */
 	void			*d_drv1;

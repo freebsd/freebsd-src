@@ -78,6 +78,8 @@ struct cdev {
 	void		*si_drv1, *si_drv2;
 	struct cdevsw	*si_devsw;
 	int		si_iosize_max;	/* maximum I/O size (for physio &al) */
+	u_int		si_stripesize;
+	u_int		si_stripeoffset;
 	uid_t		si_uid;
 	gid_t		si_gid;
 	mode_t		si_mode;
