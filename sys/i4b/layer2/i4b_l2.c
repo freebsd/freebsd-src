@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *      i4b_l2.c - ISDN layer 2 (Q.921)
  *	-------------------------------
  *
- *	$Id: i4b_l2.c,v 1.35 2000/08/24 11:48:57 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Aug 24 13:40:35 2000]
+ *      last edit-date: [Fri Jan 12 16:43:31 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -277,7 +275,10 @@ i4b_mph_status_ind(int unit, int status, int parm)
 		case STI_ATTACH:
 			l2sc->unit = unit;
 			l2sc->i_queue.ifq_maxlen = IQUEUE_MAXLEN;
+
+#if defined(__FreeBSD__) && __FreeBSD__ > 4
 			mtx_init(&l2sc->i_queue.ifq_mtx, "i4b_l2sc", MTX_DEF);
+#endif
 			l2sc->ua_frame = NULL;
 			bzero(&l2sc->stat, sizeof(lapdstat_t));			
 			i4b_l2_unit_init(unit);

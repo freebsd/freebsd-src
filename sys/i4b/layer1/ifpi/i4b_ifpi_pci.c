@@ -37,7 +37,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jun  2 13:58:02 2000]
+ *      last edit-date: [Fri Jan 12 17:01:26 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -648,6 +648,7 @@ avma1pp_attach_avma1pp(device_t dev)
 	/* init the ISAC */
 	ifpi_isac_init(sc);
 
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	/* Init the channel mutexes */
 	chan = &sc->sc_chan[HSCX_CH_A];
 	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp_rx", MTX_DEF);
@@ -655,6 +656,7 @@ avma1pp_attach_avma1pp(device_t dev)
 	chan = &sc->sc_chan[HSCX_CH_B];
 	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp_rx", MTX_DEF);
 	mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp_tx", MTX_DEF);
+#endif
 
 	/* init the "HSCX" */
 	avma1pp_bchannel_setup(sc->sc_unit, HSCX_CH_A, BPROT_NONE, 0);
@@ -872,8 +874,18 @@ avma1pp_hscx_intr(int h_chan, u_int stat, struct l1_softc *sc)
 				
 					  /* move rx'd data to rx queue */
 
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 					  (void) IF_HANDOFF(&chan->rx_queue, chan->in_mbuf, NULL);
-
+#else
+					  if(!(IF_QFULL(&chan->rx_queue)))
+					  {
+						IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
+					  }
+					  else
+					  {
+						i4b_Bfreembuf(chan->in_mbuf);
+					  }
+#endif					
 					  /* signal upper layer that data are available */
 					  (*chan->isic_drvr_linktab->bch_rx_data_ready)(chan->isic_drvr_linktab->unit);
 

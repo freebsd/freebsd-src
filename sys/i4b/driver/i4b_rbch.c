@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_rbch.c - device driver for raw B channel data
  *	---------------------------------------------------
  *
- *	$Id: i4b_rbch.c,v 1.52 2000/10/06 08:37:43 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Oct  2 10:13:09 2000]
+ *	last edit-date: [Fri Jan 12 14:32:16 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -60,10 +58,6 @@ extern cc_t ttydefchars;
 #endif
 
 #ifdef __FreeBSD__
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#include "opt_devfs.h"
-#endif
 
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -103,7 +97,7 @@ extern cc_t ttydefchars;
 #include <sys/ioctl.h>
 #endif
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__)
 #include <sys/filio.h>
 #endif
 
@@ -135,12 +129,6 @@ static struct rbch_softc {
 #define I4BRBCHMAXQLEN	10
 
 	struct selinfo selp;		/* select / poll	*/
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#ifdef DEVFS
-	void *devfs_token;		/* device filesystem	*/
-#endif	
-#endif
 
 #if I4BRBCHACCT
 #if defined(__FreeBSD__)
@@ -201,7 +189,6 @@ PDEVSTATIC d_select_t i4brbchselect;
 
 #define CDEV_MAJOR 57
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 static struct cdevsw i4brbch_cdevsw = {
 	/* open */      i4brbchopen,
 	/* close */     i4brbchclose,
@@ -218,13 +205,6 @@ static struct cdevsw i4brbch_cdevsw = {
 	/* flags */     0,
 	/* bmaj */      -1
 };
-#else
-static struct cdevsw i4brbch_cdevsw = {
-	i4brbchopen,	i4brbchclose,	i4brbchread,	i4brbchwrite,
-  	i4brbchioctl,	nostop,		noreset,	nodevtotty,
-	POLLFIELD,	nommap, 	NULL, "i4brbch", NULL, -1
-};
-#endif
 
 static void i4brbchattach(void *);
 PSEUDO_SET(i4brbchattach, i4b_rbch);
@@ -239,12 +219,7 @@ PSEUDO_SET(i4brbchattach, i4b_rbch);
 static void
 i4brbchinit(void *unused)
 {
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 	cdevsw_add(&i4brbch_cdevsw);
-#else
-	dev_t dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &i4brbch_cdevsw, NULL);
-#endif
 }
 
 SYSINIT(i4brbchdev, SI_SUB_DRIVERS,
@@ -300,19 +275,8 @@ i4brbchattach()
 	for(i=0; i < NI4BRBCH; i++)
 	{
 #if defined(__FreeBSD__)
-#if __FreeBSD__ == 3
-
-#ifdef DEVFS
-		rbch_softc[i].devfs_token =
-			devfs_add_devswf(&i4brbch_cdevsw, i, DV_CHR,
-				     UID_ROOT, GID_WHEEL, 0600,
-				     "i4brbch%d", i);
-#endif
-
-#else
 		make_dev(&i4brbch_cdevsw, i,
 			UID_ROOT, GID_WHEEL, 0600, "i4brbch%d", i);
-#endif
 #endif
 
 #if I4BRBCHACCT
@@ -327,7 +291,9 @@ i4brbchattach()
 		rbch_softc[i].sc_unit = i;
 		rbch_softc[i].sc_devstate = ST_IDLE;
 		rbch_softc[i].sc_hdlcq.ifq_maxlen = I4BRBCHMAXQLEN;
+#if defined(__FreeBSD__) && __FreeBSD__ > 4
 		mtx_init(&rbch_softc[i].sc_hdlcq.ifq_mtx, "i4b_rbch", MTX_DEF);
+#endif		
 		rbch_softc[i].it_in.c_ispeed = rbch_softc[i].it_in.c_ospeed = 64000;
 		termioschars(&rbch_softc[i].it_in);
 		rbch_init_linktab(i);
@@ -590,7 +556,14 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 		
 		error = uiomove(m->m_data, m->m_len, uio);
 
+#if defined (__FreeBSD__) && __FreeBSD__ > 4		
 		(void) IF_HANDOFF(isdn_linktab[unit]->tx_queue, m, NULL);
+#else
+		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
+			m_freem(m);
+		else
+			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
+#endif
 		(*isdn_linktab[unit]->bch_tx_start)(isdn_linktab[unit]->unit, isdn_linktab[unit]->channel);
 	}
 
@@ -955,10 +928,22 @@ rbch_rx_data_rdy(int unit)
 
 		m->m_pkthdr.len = m->m_len;
 
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 		if (! IF_HANDOFF(&(rbch_softc[unit].sc_hdlcq), m, NULL))
 		{
 			NDBGL4(L4_RBCHDBG, "unit %d: hdlc rx queue full!", unit);
 		}
+#else
+                if(IF_QFULL(&(rbch_softc[unit].sc_hdlcq)))
+		{
+			NDBGL4(L4_RBCHDBG, "unit %d: hdlc rx queue full!", unit);
+			m_freem(m);
+		}			
+		else
+		{
+			IF_ENQUEUE(&(rbch_softc[unit].sc_hdlcq), m);
+		}
+#endif		
 	}
 
 	if(rbch_softc[unit].sc_devstate & ST_RDWAITDATA)
@@ -1014,10 +999,25 @@ static void
 rbch_clrq(int unit)
 {
 	CRIT_VAR;
-	
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	CRIT_BEG;
 	IF_DRAIN(&rbch_softc[unit].sc_hdlcq);
 	CRIT_END;
+#else
+	struct mbuf *m;
+        for(;;)
+        {
+                CRIT_BEG;
+                IF_DEQUEUE(&rbch_softc[unit].sc_hdlcq, m);
+                CRIT_END;
+
+                if(m)
+                        m_freem(m);
+                else
+                        break;
+        }
+#endif	
 }
 				
 /*---------------------------------------------------------------------------*

@@ -15,18 +15,12 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
- *
- * From: if_spppsubr.c,v 1.55 1999/03/30 13:28:26 phk Exp
- *
- * $Id: i4b_ispppsubr.c,v 1.8 2000/09/01 14:11:51 hm Exp $
- *
  * $FreeBSD$
  */
 
 #define USE_ISPPP
 
-#if defined(__NetBSD__) || (defined(__FreeBSD__) && __FreeBSD__ >= 3)
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 #include "opt_inet.h"
 #include "opt_ipx.h"
 #endif
@@ -107,6 +101,7 @@
 #include <net/if_sppp.h>
 #else
 #include <machine/i4b_isppp.h>
+#include <i4b/include/i4b_global.h>
 #endif
 
 #else
@@ -116,21 +111,17 @@
 #include <machine/cpu.h> /* XXX for softnet */
 #endif
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__)
 # define UNTIMEOUT(fun, arg, handle) untimeout(fun, arg, handle)
 # define TIMEOUT(fun, arg1, arg2, handle) handle = timeout(fun, arg1, arg2)
-# define IOCTL_CMD_T    u_long
 #else
 # define UNTIMEOUT(fun, arg, handle) untimeout(fun, arg)
 # define TIMEOUT(fun, arg1, arg2, handle) timeout(fun, arg1, arg2)
-#ifdef __FreeBSD__
-# define IOCTL_CMD_T    int
-#else
-# define IOCTL_CMD_T    u_long
-#endif
 #endif
 
-#if defined(__FreeBSD_version) && (__FreeBSD_version > 300005)
+# define IOCTL_CMD_T    u_long
+
+#if defined(__FreeBSD__)
 #define HAS_SNPRINTF
 #endif
 
@@ -288,7 +279,8 @@ struct cp {
 };
 
 static struct sppp *spppq;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+
+#if defined(__FreeBSD__)
 static struct callout_handle keepalive_ch;
 #endif
 
@@ -675,6 +667,8 @@ isppp_input(struct ifnet *ifp, struct mbuf *m)
 
 	/* Check queue. */
 	s = splimp();
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	if (! IF_HANDOFF(inq, m, NULL)) {
 		++ifp->if_ierrors;
 		++ifp->if_iqdrops;
@@ -684,6 +678,19 @@ isppp_input(struct ifnet *ifp, struct mbuf *m)
 	} else {
 		sp->pp_last_recv = time_second;
 	}
+#else
+        if (IF_QFULL (inq)) {
+		/* Queue overflow. */
+		IF_DROP(inq);
+		splx(s);
+		if (debug)
+			log(LOG_DEBUG, SPP_FMT "protocol queue overflow\n",
+				SPP_ARGS(ifp));
+                goto drop;
+        }
+	IF_ENQUEUE(inq, m);
+	sp->pp_last_recv = time_second;
+#endif
 	splx(s);
 }
 
@@ -875,6 +882,7 @@ nosupport:
 		return (EAFNOSUPPORT);
 	}
 
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	/*
 	 * Queue message on interface, and start output if interface
 	 * not yet active.
@@ -889,6 +897,29 @@ nosupport:
 		return (rv? rv: ENOBUFS);
 	}
 
+#else
+	/*
+	 * Queue message on interface, and start output if interface
+	 * not yet active.
+	 */
+	if (IF_QFULL (ifq)) {
+		IF_DROP (&ifp->if_snd);
+		m_freem (m);
+		++ifp->if_oerrors;
+		splx (s);
+		return (rv? rv: ENOBUFS);
+	}
+	IF_ENQUEUE (ifq, m);
+	if (! (ifp->if_flags & IFF_OACTIVE))
+		(*ifp->if_start) (ifp);
+
+	/*
+	 * Count output packets and bytes.
+	 * The packet length includes header, FCS and 1 flag,
+	 * according to RFC 1333.
+	 */
+        ifp->if_obytes += m->m_pkthdr.len + 3;	 
+#endif	
 	sp->pp_last_sent = time_second;
 	splx (s);
 	return (0);
@@ -922,8 +953,12 @@ isppp_attach(struct ifnet *ifp)
 
 	sp->pp_fastq.ifq_maxlen = 32;
 	sp->pp_cpq.ifq_maxlen = 20;
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	mtx_init(&sp->pp_fastq.ifq_mtx, "i4b_isppp_fastq", MTX_DEF);
 	mtx_init(&sp->pp_cpq.ifq_mtx, "i4b_isppp_cpq", MTX_DEF);
+#endif
+
 	sp->pp_loopcnt = 0;
 	sp->pp_alivecnt = 0;
 	sp->pp_seq = 0;
@@ -1319,7 +1354,21 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 			SPP_ARGS(ifp), (u_long)ntohl (ch->type), (u_long)ch->par1,
 			(u_long)ch->par2, (u_int)ch->rel, (u_int)ch->time0, (u_int)ch->time1);
 
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	(void) IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3);
+#else
+	if (IF_QFULL (&sp->pp_cpq)) {
+		IF_DROP (&sp->pp_fastq);
+		IF_DROP (&ifp->if_snd);
+		m_freem (m);
+	} else {
+		IF_ENQUEUE (&sp->pp_cpq, m);
+	}
+	if (! (ifp->if_flags & IFF_OACTIVE))
+		(*ifp->if_start) (ifp);
+
+	ifp->if_obytes += m->m_pkthdr.len + 3;
+#endif	
 }
 
 /*
@@ -1367,8 +1416,25 @@ sppp_cp_send(struct sppp *sp, u_short proto, u_char type,
 		sppp_print_bytes ((u_char*) (lh+1), len);
 		log(-1, ">\n");
 	}
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
 		++ifp->if_oerrors;
+#else
+	if (IF_QFULL (&sp->pp_cpq)) {
+		IF_DROP (&sp->pp_fastq);
+		IF_DROP (&ifp->if_snd);
+		m_freem (m);
+		++ifp->if_oerrors;
+	} else {
+		IF_ENQUEUE (&sp->pp_cpq, m);
+	}
+
+	if (! (ifp->if_flags & IFF_OACTIVE))
+		(*ifp->if_start) (ifp);
+
+	ifp->if_obytes += m->m_pkthdr.len + 3;
+#endif		
 }
 
 /*
@@ -4022,8 +4088,24 @@ sppp_auth_send(const struct cp *cp, struct sppp *sp,
 		sppp_print_bytes((u_char*) (lh+1), len);
 		log(-1, ">\n");
 	}
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
 		++ifp->if_oerrors;
+#else
+	if (IF_QFULL (&sp->pp_cpq)) {
+		IF_DROP (&sp->pp_fastq);
+		IF_DROP (&ifp->if_snd);
+		m_freem (m);
+		++ifp->if_oerrors;
+	} else {
+		IF_ENQUEUE (&sp->pp_cpq, m);
+	}
+	
+	if (! (ifp->if_flags & IFF_OACTIVE))
+		(*ifp->if_start) (ifp);
+
+	ifp->if_obytes += m->m_pkthdr.len + 3;
+#endif
 }
 
 /*
