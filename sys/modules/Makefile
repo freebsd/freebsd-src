@@ -48,6 +48,13 @@ SUBDIR=	3dfx \
 	libmchain \
 	lnc \
 	lpt \
+	mac_biba \
+	mac_bsdextended \
+	mac_ifoff \
+	mac_mls \
+	mac_none \
+	mac_seeotheruids \
+	mac_test \
 	md \
 	mii \
 	mlx \
