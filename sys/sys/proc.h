@@ -48,9 +48,7 @@
 #include <sys/queue.h>
 #include <sys/rtprio.h>			/* For struct rtprio. */
 #include <sys/signal.h>
-#ifdef _KERNEL
-#include <machine/frame.h>
-#else
+#ifndef _KERNEL
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #endif
 #include <sys/ucred.h>
@@ -496,6 +494,7 @@ extern struct vm_zone *proc_zone;
 #define	PPQ		(128 / NQS)	/* Priorities per queue. */
 
 struct mtx;
+struct trapframe;
 
 struct	proc *pfind __P((pid_t));	/* Find process by id. */
 struct	pgrp *pgfind __P((pid_t));	/* Find process group by id. */
@@ -507,7 +506,7 @@ void	faultin __P((struct proc *p));
 void	fixjobc __P((struct proc *p, struct pgrp *pgrp, int entering));
 int	fork1 __P((struct proc *, int, struct proc **));
 void	fork_exit __P((void *(void *, struct trapframe *), void *,
-	    struct trapframe));
+	    struct trapframe *));
 void	fork_return __P((struct proc *, struct trapframe *));
 int	inferior __P((struct proc *p));
 int	leavepgrp __P((struct proc *p));
