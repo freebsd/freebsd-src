@@ -59,8 +59,6 @@
 #include <sys/syslog.h>
 #include <sys/vnode.h>
 
-#include <ufs/ffs/fs.h>
-
 #define TRACE(str)	do { if (ds_debug) printf str; } while (0)
 
 typedef	u_char	bool_t;
@@ -113,8 +111,6 @@ clone_label(lp)
 		lp1->d_npartitions = MAXPARTITIONS;
 	if (lp1->d_bbsize == 0)
 		lp1->d_bbsize = BBSIZE;
-	if (lp1->d_sbsize == 0)
-		lp1->d_sbsize = SBSIZE;
 	lp1->d_partitions[RAW_PART].p_size = lp1->d_secperunit;
 	lp1->d_magic = DISKMAGIC;
 	lp1->d_magic2 = DISKMAGIC;
@@ -394,7 +390,7 @@ dsioctl(dev, cmd, data, flags, sspp)
 			lp->d_ntracks = 64;
 
 		lp->d_bbsize = BBSIZE;
-		lp->d_sbsize = SBSIZE;
+		lp->d_sbsize = 0;
 		lp->d_secpercyl = lp->d_nsectors * lp->d_ntracks;
 		lp->d_ncylinders = sp->ds_size / lp->d_secpercyl;
 		lp->d_secperunit = sp->ds_size;

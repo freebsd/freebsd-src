@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #define DKTYPENAMES
 #include <sys/disklabel.h>
-#include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -118,7 +116,7 @@ getdiskbyname(const char *name)
 	getnumdflt(dp->d_headswitch, "hs", 0);
 	getnumdflt(dp->d_trkseek, "ts", 0);
 	getnumdflt(dp->d_bbsize, "bs", BBSIZE);
-	getnumdflt(dp->d_sbsize, "sb", SBSIZE);
+	getnumdflt(dp->d_sbsize, "sb", 0);
 	strcpy(psize, "px");
 	strcpy(pbsize, "bx");
 	strcpy(pfsize, "fx");
