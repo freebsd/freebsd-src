@@ -84,7 +84,7 @@ typedef struct {
 #define	_BSD_VA_LIST_	__va_list		/* va_list */
 #endif /* post GCC 2.95 */
 #ifdef __GNUC__
-typedef	_BSD_VA_LIST_	__gnuc_va_list;		/* compatibility w/GNU headers*/
+typedef _BSD_VA_LIST_ __gnuc_va_list;		/* compatibility w/GNU headers*/
 #endif
 
 /*
