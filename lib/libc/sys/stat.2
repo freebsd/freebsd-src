@@ -85,36 +85,7 @@ argument is a pointer to a
 structure
 as defined by
 .Aq Pa sys/stat.h
-(shown below)
 and into which information is placed concerning the file.
-.Bd -literal
-struct stat {
-    dev_t     st_dev;               /* inode's device */
-    ino_t     st_ino;               /* inode's number */
-    mode_t    st_mode;              /* inode protection mode */
-    nlink_t   st_nlink;             /* number of hard links */
-    uid_t     st_uid;               /* user ID of the file's owner */
-    gid_t     st_gid;               /* group ID of the file's group */
-    dev_t     st_rdev;              /* device type */
-#ifndef _POSIX_SOURCE
-    struct timespec st_atimespec;  /* time of last access */
-    struct timespec st_mtimespec;  /* time of last data modification */
-    struct timespec st_ctimespec;  /* time of last file status change */
-#else
-    time_t    st_atime;             /* time of last access */
-    long      st_atimensec;         /* nsec of last access */
-    time_t    st_mtime;             /* time of last data modification */
-    long      st_mtimensec;         /* nsec of last data modification */
-    time_t    st_ctime;             /* time of last file status change */
-    long      st_ctimensec;         /* nsec of last file status change */
-#endif
-    off_t     st_size;              /* file size, in bytes */
-    int64_t   st_blocks;            /* blocks allocated for file */
-    u_int32_t st_blksize;           /* optimal blocksize for I/O */
-    fflags_t  st_flags;             /* user defined flags for file */
-    u_int32_t st_gen;               /* file generation number */
-};
-.Ed
 .Pp
 The time-related fields of
 .Fa struct stat
@@ -149,6 +120,8 @@ Changed by the
 and
 .Xr write 2
 system calls.
+.It st_birthtime
+Time when the inode was created.
 .El
 .Pp
 If
