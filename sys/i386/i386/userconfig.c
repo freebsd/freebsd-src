@@ -1,3 +1,4 @@
+/*
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1994 Jordan K. Hubbard
@@ -37,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: userconfig.c,v 1.2 1994/10/28 02:37:57 jkh Exp $
  */
 
 #include <sys/param.h>
