@@ -492,7 +492,7 @@ struct _namelist *n;
 	_pluscnt = _minuscnt = 0;
 }
 
-static void
+static int
 _pw_breakout_yp(struct passwd *pw, char *result, int master)
 {
 	char *s;
@@ -506,67 +506,73 @@ _pw_breakout_yp(struct passwd *pw, char *result, int master)
 	strcpy(dir, pw->pw_dir); pw->pw_dir = (char *)&dir;
 	strcpy(shell, pw->pw_shell); pw->pw_shell = (char *)&shell;
 
-	s = strsep(&result, ":"); /* name */
+	/*
+	 * XXX Sanity check: make sure all fields are valid (no NULLs).
+	 * If we find a badly formatted entry, we punt.
+	 */
+	if ((s = strsep(&result, ":")) == NULL) return 0; /* name */
 	if(!(pw->pw_fields & _PWF_NAME) || (pw->pw_name[0] == '+')) {
 		pw->pw_name = s;
 		pw->pw_fields |= _PWF_NAME;
 	}
 
-	s = strsep(&result, ":"); /* password */
+	if ((s = strsep(&result, ":")) == NULL) return 0; /* password */
 	if(!(pw->pw_fields & _PWF_PASSWD)) {
 		pw->pw_passwd = s;
 		pw->pw_fields |= _PWF_PASSWD;
 	}
 
-	s = strsep(&result, ":"); /* uid */
+	if ((s = strsep(&result, ":")) == NULL) return 0; /* uid */
 	if(!(pw->pw_fields & _PWF_UID)) {
 		pw->pw_uid = atoi(s);
 		pw->pw_fields |= _PWF_UID;
 	}
 
-	s = strsep(&result, ":"); /* gid */
+	if ((s = strsep(&result, ":")) == NULL) return 0; /* gid */
 	if(!(pw->pw_fields & _PWF_GID))  {
 		pw->pw_gid = atoi(s);
 		pw->pw_fields |= _PWF_GID;
 	}
 
 	if (master) {
-		s = strsep(&result, ":"); /* class */
+		if ((s = strsep(&result, ":")) == NULL) return 0; /* class */
 		if(!(pw->pw_fields & _PWF_CLASS))  {
 			pw->pw_class = s;
 			pw->pw_fields |= _PWF_CLASS;
 		}
 
-		s = strsep(&result, ":"); /* change */
+		if ((s = strsep(&result, ":")) == NULL) return 0; /* change */
 		if(!(pw->pw_fields & _PWF_CHANGE))  {
 			pw->pw_change = atol(s);
 			pw->pw_fields |= _PWF_CHANGE;
 		}
 
-		s = strsep(&result, ":"); /* expire */
+		if ((s = strsep(&result, ":")) == NULL) return 0; /* expire */
 		if(!(pw->pw_fields & _PWF_EXPIRE))  {
 			pw->pw_expire = atol(s);
 			pw->pw_fields |= _PWF_EXPIRE;
 		}
 	}
 
-	s = strsep(&result, ":"); /* gecos */
+	if ((s = strsep(&result, ":")) == NULL) return 0; /* gecos */
 	if(!(pw->pw_fields & _PWF_GECOS)) {
 		pw->pw_gecos = s;
 		pw->pw_fields |= _PWF_GECOS;
 	}
 
-	s = strsep(&result, ":"); /* dir */
+	if ((s = strsep(&result, ":")) == NULL) return 0; /* dir */
 	if(!(pw->pw_fields & _PWF_DIR)) {
 		pw->pw_dir = s;
 		pw->pw_fields |= _PWF_DIR;
 	}
 
-	s = strsep(&result, ":"); /* shell */
+	if ((s = strsep(&result, ":")) == NULL) return 0; /* shell */
 	if(!(pw->pw_fields & _PWF_SHELL)) {
 		pw->pw_shell = s;
 		pw->pw_fields |= _PWF_SHELL;
 	}
+
+	return 1;
 }
 
 static char *_pw_yp_domain;
@@ -655,9 +661,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	if (_pw_passwd.pw_fields == -1)
 		return(0);
 	result = resultbuf;
-	_pw_breakout_yp(pw, resultbuf, gotmaster);
-
-	return 1;
+	return(_pw_breakout_yp(pw, resultbuf, gotmaster));
 }
 
 static int
@@ -748,9 +752,8 @@ unpack:
 		if (_pw_passwd.pw_fields == -1)
 			goto tryagain;
 		if(result = strchr(resultbuf, '\n')) *result = '\0';
-		_pw_breakout_yp(pw, resultbuf, gotmaster);
+		return(_pw_breakout_yp(pw, resultbuf, gotmaster));
 	}
-	return 1;
 }
 
 #endif /* YP */
