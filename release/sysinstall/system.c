@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.77 1997/02/22 14:12:20 peter Exp $
+ * $Id: system.c,v 1.78 1997/04/28 06:15:49 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -20,8 +20,6 @@
 #include <signal.h>
 #include <sys/reboot.h>
 #include <machine/console.h>
-#include <sys/param.h>
-#include <sys/mount.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
@@ -86,8 +84,6 @@ systemInitialize(int argc, char **argv)
 	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
-	/* Remount root read/write in case it's R/O */
-	mount(MOUNT_MFS, "/", MNT_WANTRDWR | MNT_UPDATE, NULL);
     }
     else {
 	char hname[256];
