@@ -222,7 +222,7 @@ fddi_output(ifp, m0, dst, rt0)
 	     * ifaddr is the first thing in at_ifaddr
 	     */
 	    if ((aa = (struct at_ifaddr *)at_ifawithnet(
-			(struct sockaddr_at *)dst, ifp->if_addrlist))
+			(struct sockaddr_at *)dst, &ifp->if_addrhead))
 		== 0)
 		goto bad;
 	    
