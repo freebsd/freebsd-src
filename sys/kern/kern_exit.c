@@ -127,6 +127,9 @@ exit1(td, rv)
 	struct exitlist *ep;
 	struct vnode *ttyvp;
 	struct tty *tp;
+#ifdef KTRACE
+	struct vnode *tracevp;
+#endif
 
 	GIANT_REQUIRED;
 
@@ -293,11 +296,13 @@ exit1(td, rv)
 	/*
 	 * release trace file
 	 */
+	PROC_LOCK(p);
 	p->p_traceflag = 0;	/* don't trace the vrele() */
-	if ((vtmp = p->p_tracep) != NULL) {
-		p->p_tracep = NULL;
-		vrele(vtmp);
-	}
+	tracevp = p->p_tracep;
+	p->p_tracep = NULL;
+	PROC_UNLOCK(p);
+	if (tracevp != NULL)
+		vrele(tracevp);
 #endif
 	/*
 	 * Release reference to text vnode
@@ -306,6 +311,25 @@ exit1(td, rv)
 		p->p_textvp = NULL;
 		vrele(vtmp);
 	}
+
+	/*
+	 * Release our limits structure.
+	 */
+	mtx_assert(&Giant, MA_OWNED);
+	if (--p->p_limit->p_refcnt == 0) {
+		FREE(p->p_limit, M_SUBPROC);
+		p->p_limit = NULL;
+	}
+
+	/*
+	 * Release this thread's reference to the ucred.  The actual proc
+	 * reference will stay around until the proc is harvested by
+	 * wait().  At this point the ucred is immutable (no other threads
+	 * from this proc are around that can change it) so we leave the
+	 * per-thread ucred pointer intact in case it is needed although
+	 * in theory nothing should be using it at this point.
+	 */
+	crfree(td->td_ucred);
 
 	/*
 	 * Remove proc from allproc queue and pidhash chain.
@@ -341,6 +365,7 @@ exit1(td, rv)
 	 * Save exit status and final rusage info, adding in child rusage
 	 * info and self times.
 	 */
+	PROC_LOCK(p);
 	p->p_xstat = rv;
 	*p->p_ru = p->p_stats->p_ru;
 	mtx_lock_spin(&sched_lock);
@@ -349,21 +374,8 @@ exit1(td, rv)
 	ruadd(p->p_ru, &p->p_stats->p_cru);
 
 	/*
-	 * Pretend that an mi_switch() to the next process occurs now.  We
-	 * must set `switchtime' directly since we will call cpu_switch()
-	 * directly.  Set it now so that the rest of the exit time gets
-	 * counted somewhere if possible.
-	 */
-	mtx_lock_spin(&sched_lock);
-	binuptime(PCPU_PTR(switchtime));
-	PCPU_SET(switchticks, ticks);
-	mtx_unlock_spin(&sched_lock);
-
-	/*
 	 * notify interested parties of our demise.
 	 */
-	PROC_LOCK(p);
-	PROC_LOCK(p->p_pptr);
 	KNOTE(&p->p_klist, NOTE_EXIT);
 
 	/*
@@ -371,6 +383,7 @@ exit1(td, rv)
 	 * flag set, or if the handler is set to SIG_IGN, notify process
 	 * 1 instead (and hope it will handle this situation).
 	 */
+	PROC_LOCK(p->p_pptr);
 	if (p->p_pptr->p_procsig->ps_flag & (PS_NOCLDWAIT | PS_CLDSIGIGN)) {
 		struct proc *pp = p->p_pptr;
 		PROC_UNLOCK(pp);
@@ -397,34 +410,7 @@ exit1(td, rv)
 	if (p->p_flag & P_KTHREAD)
 		wakeup((caddr_t)p);
 	PROC_UNLOCK(p);
-	sx_xunlock(&proctree_lock);
 	
-	/*
-	 * Clear curproc after we've done all operations
-	 * that could block, and before tearing down the rest
-	 * of the process state that might be used from clock, etc.
-	 * Also, can't clear curproc while we're still runnable,
-	 * as we're not on a run queue (we are current, just not
-	 * a proper proc any longer!).
-	 *
-	 * Other substructures are freed from wait().
-	 */
-	mtx_assert(&Giant, MA_OWNED);
-	if (--p->p_limit->p_refcnt == 0) {
-		FREE(p->p_limit, M_SUBPROC);
-		p->p_limit = NULL;
-	}
-
-	/*
-	 * Release this thread's reference to the ucred.  The actual proc
-	 * reference will stay around until the proc is harvested by
-	 * wait().  At this point the ucred is immutable (no other threads
-	 * from this proc are around that can change it) so we leave the
-	 * per-thread ucred pointer intact in case it is needed although
-	 * in theory nothing should be using it at this point.
-	 */
-	crfree(td->td_ucred);
-
 	/*
 	 * Finally, call machine-dependent code to release the remaining
 	 * resources including address space, the kernel stack and pcb.
@@ -434,6 +420,8 @@ exit1(td, rv)
 	cpu_exit(td);
 
 	PROC_LOCK(p);
+	PROC_LOCK(p->p_pptr);
+	sx_xunlock(&proctree_lock);
 	mtx_lock_spin(&sched_lock);
 	while (mtx_owned(&Giant))
 		mtx_unlock(&Giant);
@@ -447,9 +435,13 @@ exit1(td, rv)
 	p->p_stat = SZOMB;
 
 	wakeup(p->p_pptr);
+	PROC_UNLOCK(p->p_pptr);
 	PROC_UNLOCK(p);
 
 	cnt.v_swtch++;
+	binuptime(PCPU_PTR(switchtime));
+	PCPU_SET(switchticks, ticks);
+
 	cpu_throw();
 	panic("exit1");
 }
@@ -503,7 +495,6 @@ wait1(td, uap, compat)
 {
 	register int nfound;
 	register struct proc *q, *p, *t;
-	struct pargs *pa;
 	int status, error;
 
 	q = td->td_proc;
@@ -517,7 +508,7 @@ wait1(td, uap, compat)
 	mtx_lock(&Giant);
 loop:
 	nfound = 0;
-	sx_slock(&proctree_lock);
+	sx_xlock(&proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
 		PROC_LOCK(p);
 		if (uap->pid != WAIT_ANY &&
@@ -541,7 +532,6 @@ loop:
 		}
 
 		nfound++;
-		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SZOMB) {
 			/*
 			 * charge childs scheduling cpu usage to parent
@@ -555,14 +545,12 @@ loop:
 			 * XXXKSE
 			 */
 			if (curthread->td_proc->p_pid != 1) {
+				mtx_lock_spin(&sched_lock);
 				curthread->td_ksegrp->kg_estcpu =
 				    ESTCPULIM(curthread->td_ksegrp->kg_estcpu +
 				    p->p_ksegrp.kg_estcpu);
+				mtx_unlock_spin(&sched_lock);
 			}
-
-			mtx_unlock_spin(&sched_lock);
-			PROC_UNLOCK(p);
-			sx_sunlock(&proctree_lock);
 
 			td->td_retval[0] = p->p_pid;
 #ifdef COMPAT_43
@@ -572,54 +560,49 @@ loop:
 #endif
 			if (uap->status) {
 				status = p->p_xstat;	/* convert to int */
+				PROC_UNLOCK(p);
 				if ((error = copyout((caddr_t)&status,
 				    (caddr_t)uap->status, sizeof(status)))) {
-					goto done2;
+					sx_xunlock(&proctree_lock);
+					mtx_unlock(&Giant);
+					return (error);
 				}
+				PROC_LOCK(p);
 			}
-			if (uap->rusage && (error = copyout((caddr_t)p->p_ru,
-			    (caddr_t)uap->rusage, sizeof (struct rusage)))) {
-				goto done2;
-			}
+			if (uap->rusage) {
+				struct rusage ru;
+
+				bcopy(p->p_ru, &ru, sizeof(ru));
+				PROC_UNLOCK(p);
+				if ((error = copyout((caddr_t)&ru,
+				    (caddr_t)uap->rusage,
+				    sizeof (struct rusage)))) {
+					sx_xunlock(&proctree_lock);
+					mtx_unlock(&Giant);
+					return (error);
+				}
+			} else
+				PROC_UNLOCK(p);
 			/*
 			 * If we got the child via a ptrace 'attach',
 			 * we need to give it back to the old parent.
 			 */
-			sx_xlock(&proctree_lock);
-			if (p->p_oppid) {
-				if ((t = pfind(p->p_oppid)) != NULL) {
-					PROC_LOCK(p);
-					p->p_oppid = 0;
-					proc_reparent(p, t);
-					PROC_UNLOCK(p);
-					psignal(t, SIGCHLD);
-					wakeup((caddr_t)t);
-					PROC_UNLOCK(t);
-					sx_xunlock(&proctree_lock);
-					error = 0;
-					goto done2;
-				}
+			if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
+				PROC_LOCK(p);
+				p->p_oppid = 0;
+				proc_reparent(p, t);
+				PROC_UNLOCK(p);
+				psignal(t, SIGCHLD);
+				wakeup((caddr_t)t);
+				PROC_UNLOCK(t);
+				sx_xunlock(&proctree_lock);
+				mtx_unlock(&Giant);
+				return (0);
 			}
-			sx_xunlock(&proctree_lock);
-			PROC_LOCK(p);
-			p->p_xstat = 0;
-			pa = p->p_args;
-			p->p_args = NULL;
-			PROC_UNLOCK(p);
-			ruadd(&q->p_stats->p_cru, p->p_ru);
-			FREE(p->p_ru, M_ZOMBIE);
-			p->p_ru = NULL;
-
 			/*
-			 * Decrement the count of procs running with this uid.
+			 * Remove other references to this process to ensure
+			 * we have an exclusive reference.
 			 */
-			(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
-
-			/*
-			 * Finally finished with old proc entry.
-			 * Unlink it from its process group and free it.
-			 */
-			sx_xlock(&proctree_lock);
 			leavepgrp(p);
 
 			sx_xlock(&allproc_lock);
@@ -630,15 +613,35 @@ loop:
 			sx_xunlock(&proctree_lock);
 
 			/*
+			 * As a side effect of this lock, we know that
+			 * all other writes to this proc are visible now, so
+			 * no more locking is needed for p.
+			 */
+			PROC_LOCK(p);
+			p->p_xstat = 0;		/* XXX: why? */
+			PROC_UNLOCK(p);
+			PROC_LOCK(q);
+			ruadd(&q->p_stats->p_cru, p->p_ru);
+			PROC_UNLOCK(q);
+			FREE(p->p_ru, M_ZOMBIE);
+			p->p_ru = NULL;
+
+			/*
+			 * Decrement the count of procs running with this uid.
+			 */
+			(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
+
+			/*
 			 * Free up credentials.
 			 */
 			crfree(p->p_ucred);
-			p->p_ucred = NULL;
+			p->p_ucred = NULL;	/* XXX: why? */
 
 			/*
 			 * Remove unused arguments
 			 */
-			pargs_drop(pa);
+			pargs_drop(p->p_args);
+			p->p_args = NULL;
 
 			if (--p->p_procsig->ps_refcnt == 0) {
 				if (p->p_sigacts != &p->p_uarea->u_sigacts)
@@ -655,50 +658,58 @@ loop:
 			vm_waitproc(p);
 			mtx_destroy(&p->p_mtx);
 			uma_zfree(proc_zone, p);
+			sx_xlock(&allproc_lock);
 			nprocs--;
-			error = 0;
-			goto done2;
+			sx_xunlock(&allproc_lock);
+			mtx_unlock(&Giant);
+			return (0);
 		}
 		if (p->p_stat == SSTOP && (p->p_flag & P_WAITED) == 0 &&
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
-			mtx_unlock_spin(&sched_lock);
 			p->p_flag |= P_WAITED;
-			PROC_UNLOCK(p);
-			sx_sunlock(&proctree_lock);
+			sx_xunlock(&proctree_lock);
 			td->td_retval[0] = p->p_pid;
 #ifdef COMPAT_43
 			if (compat) {
 				td->td_retval[1] = W_STOPCODE(p->p_xstat);
+				PROC_UNLOCK(p);
 				error = 0;
 			} else
 #endif
 			if (uap->status) {
 				status = W_STOPCODE(p->p_xstat);
+				PROC_UNLOCK(p);
 				error = copyout((caddr_t)&status,
 					(caddr_t)uap->status, sizeof(status));
-			} else
+			} else {
+				PROC_UNLOCK(p);
 				error = 0;
-			goto done2;
+			}
+			mtx_unlock(&Giant);
+			return (error);
 		}
-		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	}
-	sx_sunlock(&proctree_lock);
 	if (nfound == 0) {
-		error = ECHILD;
-		goto done2;
+		sx_xunlock(&proctree_lock);
+		mtx_unlock(&Giant);
+		return (ECHILD);
 	}
 	if (uap->options & WNOHANG) {
+		sx_xunlock(&proctree_lock);
 		td->td_retval[0] = 0;
-		error = 0;
-		goto done2;
+		mtx_unlock(&Giant);
+		return (0);
 	}
-	if ((error = tsleep((caddr_t)q, PWAIT | PCATCH, "wait", 0)) != 0)
-		goto done2;
+	PROC_LOCK(q);
+	sx_xunlock(&proctree_lock);
+	error = msleep((caddr_t)q, &q->p_mtx, PWAIT | PCATCH, "wait", 0);
+	PROC_UNLOCK(q);
+	if (error) {
+		mtx_unlock(&Giant);
+		return (error);
+	}
 	goto loop;
-done2:
-	mtx_unlock(&Giant);
-	return(error);
 }
 
 /*
