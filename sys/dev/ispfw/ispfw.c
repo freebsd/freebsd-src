@@ -37,6 +37,9 @@
 #include <dev/ispfw/asm_2100.h>
 #include <dev/ispfw/asm_2200.h>
 #include <dev/ispfw/asm_2300.h>
+#if	_MACHINE_ARCH == sparc64
+#include <dev/ispfw/asm_1000.h>
+#endif
 
 #define	ISPFW_VERSION	0
 
@@ -49,6 +52,9 @@
 #define	PCI_PRODUCT_QLOGIC_ISP2200	0x2200
 #define	PCI_PRODUCT_QLOGIC_ISP2300	0x2300
 #define	PCI_PRODUCT_QLOGIC_ISP2312	0x2312
+#if	_MACHINE_ARCH == sparc64
+#define	SBUS_PRODUCT_QLOGIC_ISP1000	0x1000
+#endif
 
 typedef void ispfwfunc(int, int, int, const u_int16_t **);
 extern ispfwfunc *isp_get_firmware_p;
@@ -119,6 +125,13 @@ isp_get_firmware(int version, int tgtmode, int devid, const u_int16_t **ptrp)
 		case PCI_PRODUCT_QLOGIC_ISP2312:
 			rp = isp_2300_risc_code;
 			break;
+#if	_MACHINE_ARCH == sparc64
+		case SBUS_PRODUCT_QLOGIC_ISP1000:
+			if (tgtmode)
+				break;
+			rp = isp_1000_risc_code;
+			break;
+#endif
 		default:
 			break;
 		}
