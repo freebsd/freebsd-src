@@ -666,6 +666,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>IP multicast now works on VLAN devices.  Several other
       bugs in the VLAN code have also been fixed.</para>
+
       <para>&man.ipfw.4; now filters correctly in the presence of ECN bits in TCP
       segments. &merged;</para>
 
