@@ -228,7 +228,6 @@ out:
 void
 cpu_initclocks()
 {
-	static int once = 1;
 	u_int32_t freq;
 
 	if (clockdev == NULL)
@@ -270,8 +269,7 @@ cpu_initclocks()
 		tc_init(&i8254_timecounter);
 	}
 
-	if (once) {
-		once = 0;
+	if (ncpus == 1) {
 		alpha_timecounter.tc_frequency = freq;
 		tc_init(&alpha_timecounter);
 	}
