@@ -734,24 +734,34 @@ readklog(void)
  * Take a raw input line from /dev/klog, format similar to syslog().
  */
 static void
-printsys(char *p)
+printsys(char *msg)
 {
-	int pri, flags;
+	char *p;
+	int flags, isprintf, n, pri;
 
 	flags = ISKERNEL | SYNC_FILE | ADDDATE;	/* fsync after write */
 	pri = DEFSPRI;
+	p = msg;
+	isprintf = 1;
 	if (*p == '<') {
-		pri = 0;
+		n = 0;
 		while (isdigit(*++p))
-			pri = 10 * pri + (*p - '0');
-		if (*p == '>')
+			n = 10 * n + (*p - '0');
+		if (*p == '>') {
 			++p;
-		if ((pri & LOG_FACMASK) == LOG_CONSOLE)
-			flags |= IGN_CONS;
-	} else {
-		/* kernel printf's come out on console */
-		flags |= IGN_CONS;
+			pri = n;
+			isprintf = 0;
+		} else {
+			/* It wasn't actually a syslog message. */
+			p = msg;
+		}
 	}
+	/*
+	 * Kernel printf's and LOG_CONSOLE messages have been displayed
+	 * on the console already.
+	 */
+	if (isprintf || (pri & LOG_FACMASK) == LOG_CONSOLE)
+		flags |= IGN_CONS;
 	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 		pri = DEFSPRI;
 	logmsg(pri, p, LocalHostName, flags);
