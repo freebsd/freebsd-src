@@ -47,8 +47,8 @@
 
 #include <fs/devfs/devfs.h>
 
-static dev_t devfs_inot[NDEVFSINO];
-static dev_t *devfs_overflow;
+static struct cdev *devfs_inot[NDEVFSINO];
+static struct cdev **devfs_overflow;
 static int devfs_ref[NDEVFSINO];
 static int *devfs_refoverflow;
 static int devfs_nextino = 3;
@@ -95,7 +95,7 @@ static int
 devfs_getref(int inode)
 {
 	int *ip, i, j;
-	dev_t *dp;
+	struct cdev **dp;
 
 	ip = devfs_itor(inode);
 	dp = devfs_itod(inode);
@@ -124,7 +124,7 @@ devfs_itode (struct devfs_mount *dm, int inode)
 	return (NULL);
 }
 
-dev_t *
+struct cdev **
 devfs_itod (int inode)
 {
 
@@ -140,7 +140,7 @@ devfs_itod (int inode)
 static void
 devfs_attemptoverflow(int insist)
 {
-	dev_t **ot;
+	struct cdev ***ot;
 	int *or;
 	int n, nb;
 
@@ -150,8 +150,8 @@ devfs_attemptoverflow(int insist)
 	ot = NULL;
 	or = NULL;
 	n = devfs_noverflowwant;
-	nb = sizeof (dev_t *) * n;
-	MALLOC(ot, dev_t **, nb, M_DEVFS, (insist ? M_WAITOK : M_NOWAIT) | M_ZERO);
+	nb = sizeof (struct cdev **) * n;
+	MALLOC(ot, struct cdev ***, nb, M_DEVFS, (insist ? M_WAITOK : M_NOWAIT) | M_ZERO);
 	if (ot == NULL)
 		goto bail;
 	nb = sizeof (int) * n;
@@ -282,7 +282,7 @@ int
 devfs_populate(struct devfs_mount *dm)
 {
 	int i, j;
-	dev_t dev, pdev;
+	struct cdev *dev, *pdev;
 	struct devfs_dirent *dd;
 	struct devfs_dirent *de, **dep;
 	char *q, *s;
@@ -377,10 +377,10 @@ devfs_populate(struct devfs_mount *dm)
 }
 
 void
-devfs_create(dev_t dev)
+devfs_create(struct cdev *dev)
 {
 	int ino, i, *ip;
-	dev_t *dp;
+	struct cdev **dp;
 
 	for (;;) {
 		/* Grab the next inode number */
@@ -426,7 +426,7 @@ devfs_create(dev_t dev)
 }
 
 void
-devfs_destroy(dev_t dev)
+devfs_destroy(struct cdev *dev)
 {
 	int ino, i;
 

@@ -1481,7 +1481,7 @@ bd_getbigeom(int bunit)
 }
 
 /*
- * Return a suitable dev_t value for (dev).
+ * Return a suitable struct cdev *value for (dev).
  *
  * In the case where it looks like (dev) is a SCSI disk, we allow the number of
  * IDE disks to be specified in $num_ide_disks.  There should be a Better Way.

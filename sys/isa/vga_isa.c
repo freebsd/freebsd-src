@@ -163,37 +163,37 @@ isavga_attach(device_t dev)
 #ifdef FB_INSTALL_CDEV
 
 static int
-isavga_open(dev_t dev, int flag, int mode, struct thread *td)
+isavga_open(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	return vga_open(dev, VGA_SOFTC(VGA_UNIT(dev)), flag, mode, td);
 }
 
 static int
-isavga_close(dev_t dev, int flag, int mode, struct thread *td)
+isavga_close(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	return vga_close(dev, VGA_SOFTC(VGA_UNIT(dev)), flag, mode, td);
 }
 
 static int
-isavga_read(dev_t dev, struct uio *uio, int flag)
+isavga_read(struct cdev *dev, struct uio *uio, int flag)
 {
 	return vga_read(dev, VGA_SOFTC(VGA_UNIT(dev)), uio, flag);
 }
 
 static int
-isavga_write(dev_t dev, struct uio *uio, int flag)
+isavga_write(struct cdev *dev, struct uio *uio, int flag)
 {
 	return vga_write(dev, VGA_SOFTC(VGA_UNIT(dev)), uio, flag);
 }
 
 static int
-isavga_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
+isavga_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	return vga_ioctl(dev, VGA_SOFTC(VGA_UNIT(dev)), cmd, arg, flag, td);
 }
 
 static int
-isavga_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+isavga_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	return vga_mmap(dev, VGA_SOFTC(VGA_UNIT(dev)), offset, paddr, prot);
 }

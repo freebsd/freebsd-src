@@ -50,7 +50,7 @@ typedef void bio_task_t(void *);
  */
 struct bio {
 	u_int	bio_cmd;		/* I/O operation. */
-	dev_t	bio_dev;		/* Device to do I/O on. */
+	struct cdev *bio_dev;		/* Device to do I/O on. */
 	struct disk *bio_disk;		/* Valid below geom_disk.c only */
 	off_t	bio_offset;		/* Offset into file. */
 	long	bio_bcount;		/* Valid bytes in buffer. */
@@ -120,7 +120,7 @@ void bioq_remove(struct bio_queue_head *head, struct bio *bp);
 
 void bio_taskqueue(struct bio *bp, bio_task_t *fund, void *arg);
 
-int	physio(dev_t dev, struct uio *uio, int ioflag);
+int	physio(struct cdev *dev, struct uio *uio, int ioflag);
 #define physread physio
 #define physwrite physio
 

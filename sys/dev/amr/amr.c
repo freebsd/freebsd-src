@@ -343,7 +343,7 @@ amr_free(struct amr_softc *sc)
     }
 
     /* destroy control device */
-    if( sc->amr_dev_t != (dev_t)NULL)
+    if( sc->amr_dev_t != (struct cdev *)NULL)
 	    destroy_dev(sc->amr_dev_t);
 }
 
@@ -365,7 +365,7 @@ amr_submit_bio(struct amr_softc *sc, struct bio *bio)
  * Accept an open operation on the control device.
  */
 static int
-amr_open(dev_t dev, int flags, int fmt, d_thread_t *td)
+amr_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
     int			unit = minor(dev);
     struct amr_softc	*sc = devclass_get_softc(devclass_find("amr"), unit);
@@ -380,7 +380,7 @@ amr_open(dev_t dev, int flags, int fmt, d_thread_t *td)
  * Accept the last close on the control device.
  */
 static int
-amr_close(dev_t dev, int flags, int fmt, d_thread_t *td)
+amr_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
     int			unit = minor(dev);
     struct amr_softc	*sc = devclass_get_softc(devclass_find("amr"), unit);
@@ -395,7 +395,7 @@ amr_close(dev_t dev, int flags, int fmt, d_thread_t *td)
  * Handle controller-specific control operations.
  */
 static int
-amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
+amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
 {
     struct amr_softc		*sc = (struct amr_softc *)dev->si_drv1;
     int				*arg = (int *)addr;

@@ -3121,7 +3121,7 @@ ti_ioctl(ifp, command, data)
 }
 
 static int
-ti_open(dev_t dev, int flags, int fmt, struct thread *td)
+ti_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct ti_softc *sc;
 
@@ -3137,7 +3137,7 @@ ti_open(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-ti_close(dev_t dev, int flag, int fmt, struct thread *td)
+ti_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct ti_softc *sc;
 
@@ -3156,7 +3156,7 @@ ti_close(dev_t dev, int flag, int fmt, struct thread *td)
  * This ioctl routine goes along with the Tigon character device.
  */
 static int 
-ti_ioctl2(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	int error;
 	struct ti_softc *sc;

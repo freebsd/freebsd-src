@@ -75,7 +75,7 @@ static devclass_t	twa_devclass;
  *			non-zero-- failure
  */
 static int
-twa_open(dev_t dev, int flags, int fmt, d_thread_t *proc)
+twa_open(struct cdev *dev, int flags, int fmt, d_thread_t *proc)
 {
 	int			unit = minor(dev);
 	struct twa_softc	*sc = devclass_get_softc(twa_devclass, unit);
@@ -100,7 +100,7 @@ twa_open(dev_t dev, int flags, int fmt, d_thread_t *proc)
  *			non-zero-- failure
  */
 static int
-twa_close(dev_t dev, int flags, int fmt, d_thread_t *proc)
+twa_close(struct cdev *dev, int flags, int fmt, d_thread_t *proc)
 {
 	int			unit = minor(dev);
 	struct twa_softc	*sc = devclass_get_softc(twa_devclass, unit);
@@ -128,7 +128,7 @@ twa_close(dev_t dev, int flags, int fmt, d_thread_t *proc)
  *			non-zero-- failure
  */
 static int
-twa_ioctl_wrapper(dev_t dev, u_long cmd, caddr_t buf,
+twa_ioctl_wrapper(struct cdev *dev, u_long cmd, caddr_t buf,
 					int flags, d_thread_t *proc)
 {
 	struct twa_softc	*sc = (struct twa_softc *)(dev->si_drv1);
@@ -367,7 +367,7 @@ twa_free(struct twa_softc *sc)
 					TWA_IO_CONFIG_REG, sc->twa_io_res);
 
 	/* Destroy the control device. */
-	if (sc->twa_ctrl_dev != (dev_t)NULL)
+	if (sc->twa_ctrl_dev != (struct cdev *)NULL)
 		destroy_dev(sc->twa_ctrl_dev);
 
 	sysctl_ctx_free(&sc->twa_sysctl_ctx);

@@ -241,7 +241,7 @@ struct bootfile {
 struct ntfsmount {
 	struct mount   *ntm_mountp;	/* filesystem vfs structure */
 	struct bootfile ntm_bootfile;
-	dev_t           ntm_dev;	/* device mounted */
+	struct cdev *ntm_dev;	/* device mounted */
 	struct vnode   *ntm_devvp;	/* block device mounted vnode */
 	struct vnode   *ntm_sysvn[NTFS_SYSNODESNUM];
 	u_int32_t       ntm_bpmftrec;

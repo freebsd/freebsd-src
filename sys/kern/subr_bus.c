@@ -390,7 +390,7 @@ static struct dev_softc
 	struct proc *async_proc;
 } devsoftc;
 
-static dev_t		devctl_dev;
+static struct cdev *devctl_dev;
 
 static void
 devinit(void)
@@ -403,7 +403,7 @@ devinit(void)
 }
 
 static int
-devopen(dev_t dev, int oflags, int devtype, d_thread_t *td)
+devopen(struct cdev *dev, int oflags, int devtype, d_thread_t *td)
 {
 	if (devsoftc.inuse)
 		return (EBUSY);
@@ -415,7 +415,7 @@ devopen(dev_t dev, int oflags, int devtype, d_thread_t *td)
 }
 
 static int
-devclose(dev_t dev, int fflag, int devtype, d_thread_t *td)
+devclose(struct cdev *dev, int fflag, int devtype, d_thread_t *td)
 {
 	devsoftc.inuse = 0;
 	mtx_lock(&devsoftc.mtx);
@@ -434,7 +434,7 @@ devclose(dev_t dev, int fflag, int devtype, d_thread_t *td)
  * programs are expected to cope.
  */
 static int
-devread(dev_t dev, struct uio *uio, int ioflag)
+devread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct dev_event_info *n1;
 	int rv;
@@ -464,7 +464,7 @@ devread(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static	int
-devioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
+devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 {
 	switch (cmd) {
 
@@ -494,7 +494,7 @@ devioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 }
 
 static	int
-devpoll(dev_t dev, int events, d_thread_t *td)
+devpoll(struct cdev *dev, int events, d_thread_t *td)
 {
 	int	revents = 0;
 

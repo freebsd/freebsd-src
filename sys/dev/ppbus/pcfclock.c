@@ -152,7 +152,7 @@ pcfclock_attach(device_t dev)
 }
 
 static int 
-pcfclock_open(dev_t dev, int flag, int fms, struct thread *td)
+pcfclock_open(struct cdev *dev, int flag, int fms, struct thread *td)
 {
 	u_int unit = minor(dev);
 	struct pcfclock_data *sc = UNITOSOFTC(unit);
@@ -173,7 +173,7 @@ pcfclock_open(dev_t dev, int flag, int fms, struct thread *td)
 }
 
 static int
-pcfclock_close(dev_t dev, int flags, int fmt, struct thread *td)
+pcfclock_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	u_int unit = minor(dev);
 	struct pcfclock_data *sc = UNITOSOFTC(unit);
@@ -188,7 +188,7 @@ pcfclock_close(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static void
-pcfclock_write_cmd(dev_t dev, unsigned char command)
+pcfclock_write_cmd(struct cdev *dev, unsigned char command)
 {
 	u_int unit = minor(dev);
 	device_t ppidev = UNITODEVICE(unit);
@@ -208,7 +208,7 @@ pcfclock_write_cmd(dev_t dev, unsigned char command)
 }
 
 static void
-pcfclock_display_data(dev_t dev, char buf[18]) 
+pcfclock_display_data(struct cdev *dev, char buf[18]) 
 {
 	u_int unit = minor(dev);
 #ifdef PCFCLOCK_VERBOSE
@@ -232,7 +232,7 @@ pcfclock_display_data(dev_t dev, char buf[18])
 }
 
 static int 
-pcfclock_read_data(dev_t dev, char *buf, ssize_t bits)
+pcfclock_read_data(struct cdev *dev, char *buf, ssize_t bits)
 {
 	u_int unit = minor(dev);
 	device_t ppidev = UNITODEVICE(unit);
@@ -271,7 +271,7 @@ pcfclock_read_data(dev_t dev, char *buf, ssize_t bits)
 }
 
 static int 
-pcfclock_read_dev(dev_t dev, char *buf, int maxretries) 
+pcfclock_read_dev(struct cdev *dev, char *buf, int maxretries) 
 {
 	u_int unit = minor(dev);
 	device_t ppidev = UNITODEVICE(unit);
@@ -301,7 +301,7 @@ pcfclock_read_dev(dev_t dev, char *buf, int maxretries)
 }
 
 static int
-pcfclock_read(dev_t dev, struct uio *uio, int ioflag)
+pcfclock_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	u_int unit = minor(dev);
 	char buf[18];

@@ -447,7 +447,7 @@ zstty_softintr(struct zstty_softc *sc)
 }
 
 static int
-zsttyopen(dev_t dev, int flags, int mode, struct thread *td)
+zsttyopen(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 	struct zstty_softc *sc;
 	struct tty *tp;
@@ -503,7 +503,7 @@ zsttyopen(dev_t dev, int flags, int mode, struct thread *td)
 }
 
 static int
-zsttyclose(dev_t dev, int flags, int mode, struct thread *td)
+zsttyclose(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 	struct tty *tp;
 
@@ -519,7 +519,7 @@ zsttyclose(dev_t dev, int flags, int mode, struct thread *td)
 }
 
 static int
-zsttyioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
+zsttyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	struct zstty_softc *sc;
 	struct tty *tp;

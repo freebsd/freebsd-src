@@ -712,25 +712,25 @@ csefree(struct csession *cse)
 }
 
 static int
-cryptoopen(dev_t dev, int oflags, int devtype, struct thread *td)
+cryptoopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	return (0);
 }
 
 static int
-cryptoread(dev_t dev, struct uio *uio, int ioflag)
+cryptoread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	return (EIO);
 }
 
 static int
-cryptowrite(dev_t dev, struct uio *uio, int ioflag)
+cryptowrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	return (EIO);
 }
 
 static int
-cryptoioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct file *f;
 	struct fcrypt *fcr;
@@ -775,7 +775,7 @@ static struct cdevsw crypto_cdevsw = {
 	.d_name =	"crypto",
 	.d_maj =	CRYPTO_MAJOR,
 };
-static dev_t crypto_dev;
+static struct cdev *crypto_dev;
 
 /*
  * Initialization code, both for static and dynamic loading.

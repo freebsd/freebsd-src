@@ -58,13 +58,13 @@ static void vid_cursor ( struct cursorshape *data );
 static void vgasetfontattr ( struct vgafontattr *data );
 static void vgagetfontattr ( struct vgafontattr *data );
 static void vgaloadchar ( struct vgaloadchar *data );
-static void vid_getscreen ( struct screeninfo *data, dev_t dev );
-static void vid_setscreen ( struct screeninfo *data, dev_t dev );
+static void vid_getscreen ( struct screeninfo *data, struct cdev *dev );
+static void vid_setscreen ( struct screeninfo *data, struct cdev *dev );
 static void setchargen ( void );
 static void setchargen3 ( void );
 static void resetchargen ( void );
-static void vgareadpel ( struct vgapel *data, dev_t dev );
-static void vgawritepel ( struct vgapel *data, dev_t dev );
+static void vgareadpel ( struct vgapel *data, struct cdev *dev );
+static void vgawritepel ( struct vgapel *data, struct cdev *dev );
 static void vgapcvtid ( struct pcvtid *data );
 static void vgapcvtinfo ( struct pcvtinfo *data );
 
@@ -102,7 +102,7 @@ static u_short getrand ( void );
  *	execute vga ioctls
  *---------------------------------------------------------------------------*/
 int
-vgaioctl(dev_t dev, int cmd, caddr_t data, int flag)
+vgaioctl(struct cdev *dev, int cmd, caddr_t data, int flag)
 {
 	if(minor(dev) >= PCVT_NSCREENS)
 		return -1;
@@ -553,7 +553,7 @@ vgaloadchar(struct vgaloadchar *data)
  *	video ioctl - get screen information
  *---------------------------------------------------------------------------*/
 static void
-vid_getscreen(struct screeninfo *data, dev_t dev)
+vid_getscreen(struct screeninfo *data, struct cdev *dev)
 {
 	int device = minor(dev);
 	data->adaptor_type = adaptor_type;	/* video adapter installed */
@@ -576,7 +576,7 @@ vid_getscreen(struct screeninfo *data, dev_t dev)
  *	video ioctl - set screen information
  *---------------------------------------------------------------------------*/
 static void
-vid_setscreen(struct screeninfo *data, dev_t dev)
+vid_setscreen(struct screeninfo *data, struct cdev *dev)
 {
 	int screen;
 
@@ -770,7 +770,7 @@ reallocate_scrollbuffer(struct video_state *svsp, int pages)
  *	VGA ioctl - read DAC palette entry
  *---------------------------------------------------------------------------*/
 static void
-vgareadpel(struct vgapel *data, dev_t dev)
+vgareadpel(struct vgapel *data, struct cdev *dev)
 {
 	register unsigned vpage = minor(dev);
 	register unsigned idx = data->idx;
@@ -788,7 +788,7 @@ vgareadpel(struct vgapel *data, dev_t dev)
  *	VGA ioctl - write DAC palette entry
  *---------------------------------------------------------------------------*/
 static void
-vgawritepel(struct vgapel *data, dev_t dev)
+vgawritepel(struct vgapel *data, struct cdev *dev)
 {
 	register unsigned vpage = minor(dev);
 	register unsigned idx = data->idx;

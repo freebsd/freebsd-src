@@ -2301,7 +2301,7 @@ aac_describe_code(struct aac_code_lookup *table, u_int32_t code)
  */
 
 static int
-aac_open(dev_t dev, int flags, int fmt, d_thread_t *td)
+aac_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
 	struct aac_softc *sc;
 
@@ -2319,7 +2319,7 @@ aac_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 }
 
 static int
-aac_close(dev_t dev, int flags, int fmt, d_thread_t *td)
+aac_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
 	struct aac_softc *sc;
 
@@ -2334,7 +2334,7 @@ aac_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 }
 
 static int
-aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
+aac_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 {
 	union aac_statrequest *as;
 	struct aac_softc *sc;
@@ -2433,7 +2433,7 @@ aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 }
 
 static int
-aac_poll(dev_t dev, int poll_events, d_thread_t *td)
+aac_poll(struct cdev *dev, int poll_events, d_thread_t *td)
 {
 	struct aac_softc *sc;
 	int revents;

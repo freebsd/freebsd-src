@@ -166,7 +166,7 @@ i4brbchattach(void *dummy)
  *	open rbch device
  *---------------------------------------------------------------------------*/
 static int
-i4brbchopen(dev_t dev, int flag, int fmt, struct thread *td)
+i4brbchopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	int unit = minor(dev);
 	
@@ -191,7 +191,7 @@ i4brbchopen(dev_t dev, int flag, int fmt, struct thread *td)
  *	close rbch device
  *---------------------------------------------------------------------------*/
 static int
-i4brbchclose(dev_t dev, int flag, int fmt, struct thread *td)
+i4brbchclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	int unit = minor(dev);
 	struct rbch_softc *sc = &rbch_softc[unit];
@@ -212,7 +212,7 @@ i4brbchclose(dev_t dev, int flag, int fmt, struct thread *td)
  *	read from rbch device
  *---------------------------------------------------------------------------*/
 static int
-i4brbchread(dev_t dev, struct uio *uio, int ioflag)
+i4brbchread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct mbuf *m;
 	int error = 0;
@@ -314,7 +314,7 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
  *	write to rbch device
  *---------------------------------------------------------------------------*/
 static int
-i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
+i4brbchwrite(struct cdev *dev, struct uio * uio, int ioflag)
 {
 	struct mbuf *m;
 	int error = 0;
@@ -432,7 +432,7 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
  *	rbch device ioctl handlibg
  *---------------------------------------------------------------------------*/
 static int
-i4brbchioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+i4brbchioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int error = 0;
 	int unit = minor(dev);
@@ -529,7 +529,7 @@ i4brbchioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
  *	device driver poll
  *---------------------------------------------------------------------------*/
 static int
-i4brbchpoll(dev_t dev, int events, struct thread *td)
+i4brbchpoll(struct cdev *dev, int events, struct thread *td)
 {
 	int revents = 0;	/* Events we found */
 	int s;

@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirmio.h>
 
-static dev_t openfirm_dev;
+static struct cdev *openfirm_dev;
 
 static d_ioctl_t openfirm_ioctl;
 
@@ -108,7 +108,7 @@ openfirm_getstr(int len, const char *user, char **cpp)
 }
 
 int
-openfirm_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
+openfirm_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
 	struct ofiocdesc *of;

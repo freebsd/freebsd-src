@@ -489,7 +489,7 @@ kbd_detach(keyboard_t *kbd)
 static kbd_callback_func_t genkbd_event;
 
 static int
-genkbdopen(dev_t dev, int mode, int flag, struct thread *td)
+genkbdopen(struct cdev *dev, int mode, int flag, struct thread *td)
 {
 	keyboard_t *kbd;
 	genkbd_softc_t *sc;
@@ -527,7 +527,7 @@ genkbdopen(dev_t dev, int mode, int flag, struct thread *td)
 }
 
 static int
-genkbdclose(dev_t dev, int mode, int flag, struct thread *td)
+genkbdclose(struct cdev *dev, int mode, int flag, struct thread *td)
 {
 	keyboard_t *kbd;
 	genkbd_softc_t *sc;
@@ -553,7 +553,7 @@ genkbdclose(dev_t dev, int mode, int flag, struct thread *td)
 }
 
 static int
-genkbdread(dev_t dev, struct uio *uio, int flag)
+genkbdread(struct cdev *dev, struct uio *uio, int flag)
 {
 	keyboard_t *kbd;
 	genkbd_softc_t *sc;
@@ -606,7 +606,7 @@ genkbdread(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-genkbdwrite(dev_t dev, struct uio *uio, int flag)
+genkbdwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	keyboard_t *kbd;
 
@@ -617,7 +617,7 @@ genkbdwrite(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-genkbdioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
+genkbdioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	keyboard_t *kbd;
 	int error;
@@ -632,7 +632,7 @@ genkbdioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 }
 
 static int
-genkbdpoll(dev_t dev, int events, struct thread *td)
+genkbdpoll(struct cdev *dev, int events, struct thread *td)
 {
 	keyboard_t *kbd;
 	genkbd_softc_t *sc;

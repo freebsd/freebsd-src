@@ -594,7 +594,7 @@ extern int	(*softdep_fsync_hook)(struct vnode *);
 extern int	(*softdep_process_worklist_hook)(struct mount *);
 
 struct	vnode *addaliasu(struct vnode *vp, udev_t nvp_rdev);
-int	bdevvp(dev_t dev, struct vnode **vpp);
+int	bdevvp(struct cdev *dev, struct vnode **vpp);
 /* cache_* may belong in namei.h. */
 void	cache_enter(struct vnode *dvp, struct vnode *vp,
 	    struct componentname *cnp);
@@ -625,7 +625,7 @@ void	vattr_null(struct vattr *vap);
 int	vcount(struct vnode *vp);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
-int	vfinddev(dev_t dev, struct vnode **vpp);
+int	vfinddev(struct cdev *dev, struct vnode **vpp);
 void	vfs_add_vnodeops(const void *);
 void	vfs_rm_vnodeops(const void *);
 int	vflush(struct mount *mp, int rootrefs, int flags);
@@ -668,7 +668,7 @@ int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, caddr_t base,
 int	vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	    struct ucred *file_cred, struct thread *td);
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
-dev_t	vn_todev(struct vnode *vp);
+struct cdev *vn_todev(struct vnode *vp);
 int	vn_write_suspend_wait(struct vnode *vp, struct mount *mp,
 	    int flags);
 int	vn_writechk(struct vnode *vp);

@@ -43,7 +43,7 @@ struct zstty_softc {
 	bus_space_tag_t		sc_bt;
 	bus_space_handle_t	sc_csr;
 	bus_space_handle_t	sc_data;
-	dev_t			sc_si;
+	struct cdev *sc_si;
 	struct tty		*sc_tty;
 	int			sc_icnt;
 	uint8_t			*sc_iput;

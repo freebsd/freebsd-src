@@ -59,11 +59,11 @@ void	ext2_dirbad(struct inode *ip, doff_t offset, char *how);
 void	ext2_ei2i(struct ext2_inode *, struct inode *);
 int	ext2_getlbns(struct vnode *, int32_t, struct indir *, int *);
 void	ext2_i2ei(struct inode *, struct ext2_inode *);
-int	ext2_ihashget(dev_t, ino_t, int, struct vnode **);
+int	ext2_ihashget(struct cdev *, ino_t, int, struct vnode **);
 void	ext2_ihashinit(void);
 void	ext2_ihashins(struct inode *);
 struct vnode *
-	ext2_ihashlookup(dev_t, ino_t);
+	ext2_ihashlookup(struct cdev *, ino_t);
 void	ext2_ihashrem(struct inode *);
 void	ext2_ihashuninit(void);
 void	ext2_itimes(struct vnode *vp);

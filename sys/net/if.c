@@ -144,19 +144,19 @@ static struct cdevsw net_cdevsw = {
 };
 
 static int
-netopen(dev_t dev, int flag, int mode, struct thread *td)
+netopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	return (0);
 }
 
 static int
-netclose(dev_t dev, int flags, int fmt, struct thread *td)
+netclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	return (0);
 }
 
 static int
-netioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+netioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct ifnet *ifp;
 	int error, idx;
@@ -185,7 +185,7 @@ netioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 }
 
 static int
-netkqfilter(dev_t dev, struct knote *kn)
+netkqfilter(struct cdev *dev, struct knote *kn)
 {
 	struct klist *klist;
 	struct ifnet *ifp;

@@ -83,9 +83,9 @@ struct acpi_asus_softc {
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 
-	dev_t			s_mled;
-	dev_t			s_tled;
-	dev_t			s_wled;
+	struct cdev *s_mled;
+	struct cdev *s_tled;
+	struct cdev *s_wled;
 
 	int			s_brn;
 	int			s_disp;

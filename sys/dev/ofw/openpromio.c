@@ -67,11 +67,11 @@ static struct cdevsw openprom_cdevsw = {
 };
 
 static int openprom_is_open;
-static dev_t openprom_dev;
+static struct cdev *openprom_dev;
 static phandle_t openprom_node;
 
 static int
-openprom_open(dev_t dev, int oflags, int devtype, struct thread *td)
+openprom_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 
 	if (openprom_is_open != 0)
@@ -81,7 +81,7 @@ openprom_open(dev_t dev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-openprom_close(dev_t dev, int fflag, int devtype, struct thread *td)
+openprom_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 
 	openprom_is_open = 0;
@@ -89,7 +89,7 @@ openprom_close(dev_t dev, int fflag, int devtype, struct thread *td)
 }
 
 static int
-openprom_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
+openprom_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
 	struct openpromio *oprom;

@@ -141,13 +141,13 @@ d_close_t vinumclose;
 d_strategy_t vinumstrategy;
 d_ioctl_t vinumioctl;
 
-int vinum_super_ioctl(dev_t, u_long, caddr_t);
+int vinum_super_ioctl(struct cdev *, u_long, caddr_t);
 int vinumstart(struct buf *bp, int reviveok);
 int launch_requests(struct request *rq, int reviveok);
 void sdio(struct buf *bp);
 
 /* XXX Do we need this? */
-int vinumpart(dev_t);
+int vinumpart(struct cdev *);
 
 extern jmp_buf command_fail;				    /* return here if config fails */
 
@@ -172,9 +172,9 @@ struct rqgroup *allocrqg(struct request *rq, int elements);
 void deallocrqg(struct rqgroup *rqg);
 
 /* Device number decoding */
-int Volno(dev_t x);
-int Plexno(dev_t x);
-int Sdno(dev_t x);
+int Volno(struct cdev *x);
+int Plexno(struct cdev *x);
+int Sdno(struct cdev *x);
 
 /* State transitions */
 int set_drive_state(int driveno, enum drivestate state, enum setstateflags flags);

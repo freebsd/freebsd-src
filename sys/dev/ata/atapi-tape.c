@@ -94,7 +94,7 @@ ast_attach(struct ata_device *atadev)
 {
     struct ast_softc *stp;
     struct ast_readposition position;
-    dev_t dev;
+    struct cdev *dev;
 
     stp = malloc(sizeof(struct ast_softc), M_AST, M_NOWAIT | M_ZERO);
     if (!stp) {
@@ -265,7 +265,7 @@ ast_describe(struct ast_softc *stp)
 }
 
 static int
-ast_open(dev_t dev, int flags, int fmt, struct thread *td)
+ast_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     struct ast_softc *stp = dev->si_drv1;
 
@@ -290,7 +290,7 @@ ast_open(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int 
-ast_close(dev_t dev, int flags, int fmt, struct thread *td)
+ast_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     struct ast_softc *stp = dev->si_drv1;
 
@@ -319,7 +319,7 @@ ast_close(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int 
-ast_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+ast_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
     struct ast_softc *stp = dev->si_drv1;
     int error = 0;

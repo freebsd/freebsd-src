@@ -69,12 +69,12 @@ struct cdevsw vinum_cdevsw = {
 /* Called by main() during pseudo-device attachment. */
 void vinumattach(void *);
 STATIC int vinum_modevent(module_t mod, modeventtype_t type, void *unused);
-STATIC void vinum_clone(void *arg, char *name, int namelen, dev_t * dev);
+STATIC void vinum_clone(void *arg, char *name, int namelen, struct cdev ** dev);
 
 struct _vinum_conf vinum_conf;				    /* configuration information */
 
-dev_t vinum_daemon_dev;
-dev_t vinum_super_dev;
+struct cdev *vinum_daemon_dev;
+struct cdev *vinum_super_dev;
 
 static eventhandler_tag dev_clone_tag;
 
@@ -334,7 +334,7 @@ DECLARE_MODULE(vinum, vinum_mod, SI_SUB_RAID, SI_ORDER_MIDDLE);
 /* ARGSUSED */
 /* Open a vinum object */
 int
-vinumopen(dev_t dev,
+vinumopen(struct cdev *dev,
     int flags,
     int fmt,
     struct thread *td)
@@ -437,7 +437,7 @@ vinumopen(dev_t dev,
 
 /* ARGSUSED */
 int
-vinumclose(dev_t dev,
+vinumclose(struct cdev *dev,
     int flags,
     int fmt,
     struct thread *td)
@@ -517,7 +517,7 @@ vinumclose(dev_t dev,
 }
 
 void
-vinum_clone(void *arg, char *name, int namelen, dev_t * dev)
+vinum_clone(void *arg, char *name, int namelen, struct cdev ** dev)
 {
     struct volume *vol;
     int i;

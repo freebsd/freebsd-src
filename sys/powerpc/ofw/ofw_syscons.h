@@ -31,7 +31,7 @@
 
 struct ofwfb_softc {
 	video_adapter_t	sc_va;
-	dev_t	       	sc_si;
+	struct cdev *sc_si;
 	phandle_t	sc_node;
 	int	       	sc_console;
 

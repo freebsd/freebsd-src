@@ -173,7 +173,7 @@ struct ucom_softc {
 	int			sc_refcnt;
 	u_char			sc_dying;	/* disconnecting */
 
-	dev_t			dev;		/* special device node */
+	struct cdev *dev;		/* special device node */
 };
 
 extern devclass_t ucom_devclass;

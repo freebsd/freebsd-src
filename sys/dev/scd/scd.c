@@ -178,7 +178,7 @@ scd_attach(struct scd_softc *sc)
 }
 
 static	int
-scdopen(dev_t dev, int flags, int fmt, struct thread *td)
+scdopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct scd_softc *sc;
 	int rc;
@@ -225,7 +225,7 @@ scdopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static	int
-scdclose(dev_t dev, int flags, int fmt, struct thread *td)
+scdclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct scd_softc *sc;
 
@@ -327,7 +327,7 @@ scd_start(struct scd_softc *sc)
 }
 
 static	int
-scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+scdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct scd_softc *sc;
 

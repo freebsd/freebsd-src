@@ -63,7 +63,7 @@ struct tap_softc {
 	struct selinfo	 tap_rsel;		/* read select               */
 
 	SLIST_ENTRY(tap_softc)	tap_next;	/* next device in chain      */
-	dev_t		 tap_dev;
+	struct cdev *tap_dev;
 	struct mtx	 tap_mtx;		/* per-softc mutex */
 };
 

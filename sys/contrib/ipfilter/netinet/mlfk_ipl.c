@@ -55,7 +55,7 @@
 #include <netinet/ip_frag.h>
 #include <netinet/ip_proxy.h>
 
-static dev_t ipf_devs[IPL_LOGMAX + 1];
+static struct cdev *ipf_devs[IPL_LOGMAX + 1];
 
 SYSCTL_DECL(_net_inet);
 SYSCTL_NODE(_net_inet, OID_AUTO, ipf, CTLFLAG_RW, 0, "IPF");

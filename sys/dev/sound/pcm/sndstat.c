@@ -62,7 +62,7 @@ struct sndstat_entry {
 static struct mtx sndstat_lock;
 #endif
 static struct sbuf sndstat_sbuf;
-static dev_t sndstat_dev = 0;
+static struct cdev *sndstat_dev = 0;
 static int sndstat_isopen = 0;
 static int sndstat_bufptr;
 static int sndstat_maxunit = -1;
@@ -103,7 +103,7 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, verbose, CTLTYPE_INT | CTLFLAG_RW,
             0, sizeof(int), sysctl_hw_sndverbose, "I", "");
 
 static int
-sndstat_open(dev_t i_dev, int flags, int mode, struct thread *td)
+sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	intrmask_t s;
 	int error;
@@ -136,7 +136,7 @@ out:
 }
 
 static int
-sndstat_close(dev_t i_dev, int flags, int mode, struct thread *td)
+sndstat_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	intrmask_t s;
 
@@ -156,7 +156,7 @@ sndstat_close(dev_t i_dev, int flags, int mode, struct thread *td)
 }
 
 static int
-sndstat_read(dev_t i_dev, struct uio *buf, int flag)
+sndstat_read(struct cdev *i_dev, struct uio *buf, int flag)
 {
 	intrmask_t s;
 	int l, err;

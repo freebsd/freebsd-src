@@ -80,7 +80,7 @@ ext2_ihashuninit()
  */
 struct vnode *
 ext2_ihashlookup(dev, inum)
-	dev_t dev;
+	struct cdev *dev;
 	ino_t inum;
 {
 	struct inode *ip;
@@ -102,7 +102,7 @@ ext2_ihashlookup(dev, inum)
  */
 int
 ext2_ihashget(dev, inum, flags, vpp)
-	dev_t dev;
+	struct cdev *dev;
 	ino_t inum;
 	int flags;
 	struct vnode **vpp;

@@ -92,7 +92,7 @@ cd9660_uninit(vfsp)
  */
 int
 cd9660_ihashget(dev, inum, flags, vpp)
-	dev_t dev;
+	struct cdev *dev;
 	ino_t inum;
 	int flags;
 	struct vnode **vpp;

@@ -344,7 +344,7 @@ struct aac_softc
 	struct intr_config_hook	aac_ich;
 
 	/* management interface */
-	dev_t			aac_dev_t;
+	struct cdev *aac_dev_t;
 	aac_lock_t		aac_aifq_lock;
 	struct aac_aif_command	aac_aifq[AAC_AIFQ_LENGTH];
 	int			aac_aifq_head;

@@ -73,7 +73,7 @@
 #include <machine/tlb.h>
 #include <machine/upa.h>
 
-static dev_t memdev, kmemdev;
+static struct cdev *memdev, *kmemdev;
 
 static	d_open_t	mmopen;
 static	d_close_t	mmclose;
@@ -92,14 +92,14 @@ static struct cdevsw mem_cdevsw = {
 };
 
 static int
-mmclose(dev_t dev, int flags, int fmt, struct thread *td)
+mmclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 
 	return (0);
 }
 
 static int
-mmopen(dev_t dev, int flags, int fmt, struct thread *td)
+mmopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	int error;
 
@@ -120,7 +120,7 @@ mmopen(dev_t dev, int flags, int fmt, struct thread *td)
 
 /*ARGSUSED*/
 static int
-mmrw(dev_t dev, struct uio *uio, int flags)
+mmrw(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct iovec *iov;
 	vm_offset_t eva;

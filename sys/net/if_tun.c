@@ -62,7 +62,7 @@
  */
 struct tun_softc {
 	TAILQ_ENTRY(tun_softc)	tun_list;
-	dev_t			tun_dev;
+	struct cdev *tun_dev;
 	u_short	tun_flags;		/* misc flags */
 #define	TUN_OPEN	0x0001
 #define	TUN_INITED	0x0002
@@ -105,8 +105,8 @@ static struct clonedevs *tunclones;
 static TAILQ_HEAD(,tun_softc)	tunhead = TAILQ_HEAD_INITIALIZER(tunhead);
 SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
 
-static void	tunclone(void *arg, char *name, int namelen, dev_t *dev);
-static void	tuncreate(dev_t dev);
+static void	tunclone(void *arg, char *name, int namelen, struct cdev **dev);
+static void	tuncreate(struct cdev *dev);
 static int	tunifioctl(struct ifnet *, u_long, caddr_t);
 static int	tuninit(struct ifnet *);
 static int	tunmodevent(module_t, int, void *);
@@ -134,7 +134,7 @@ static struct cdevsw tun_cdevsw = {
 };
 
 static void
-tunclone(void *arg, char *name, int namelen, dev_t *dev)
+tunclone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 	int u, i;
 
@@ -151,7 +151,7 @@ tunclone(void *arg, char *name, int namelen, dev_t *dev)
 	/* find any existing device, or allocate new unit number */
 	i = clone_create(&tunclones, &tun_cdevsw, &u, dev, 0);
 	if (i) {
-		/* No preexisting dev_t, create one */
+		/* No preexisting struct cdev *, create one */
 		*dev = make_dev(&tun_cdevsw, unit2minor(u),
 		    UID_UUCP, GID_DIALER, 0600, "tun%d", u);
 		if (*dev != NULL)
@@ -162,7 +162,7 @@ tunclone(void *arg, char *name, int namelen, dev_t *dev)
 static void
 tun_destroy(struct tun_softc *tp)
 {
-	dev_t dev;
+	struct cdev *dev;
 
 	/* Unlocked read. */
 	KASSERT((tp->tun_flags & TUN_OPEN) == 0,
@@ -235,7 +235,7 @@ tunstart(struct ifnet *ifp)
 }
 
 static void
-tuncreate(dev_t dev)
+tuncreate(struct cdev *dev)
 {
 	struct tun_softc *sc;
 	struct ifnet *ifp;
@@ -266,7 +266,7 @@ tuncreate(dev_t dev)
 }
 
 static int
-tunopen(dev_t dev, int flag, int mode, struct thread *td)
+tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct ifnet	*ifp;
 	struct tun_softc *tp;
@@ -307,7 +307,7 @@ tunopen(dev_t dev, int flag, int mode, struct thread *td)
  * routing info
  */
 static	int
-tunclose(dev_t dev, int foo, int bar, struct thread *td)
+tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 {
 	struct tun_softc *tp;
 	struct ifnet *ifp;
@@ -535,7 +535,7 @@ tunoutput(
  * the cdevsw interface is now pretty minimal.
  */
 static	int
-tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int		s;
 	int		error;
@@ -658,7 +658,7 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
  * least as much of a packet as can be read.
  */
 static	int
-tunread(dev_t dev, struct uio *uio, int flag)
+tunread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = &tp->tun_if;
@@ -714,7 +714,7 @@ tunread(dev_t dev, struct uio *uio, int flag)
  * the cdevsw write interface - an atomic write is a packet - or else!
  */
 static	int
-tunwrite(dev_t dev, struct uio *uio, int flag)
+tunwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = &tp->tun_if;
@@ -829,7 +829,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
  * anyway, it either accepts the packet or drops it.
  */
 static	int
-tunpoll(dev_t dev, int events, struct thread *td)
+tunpoll(struct cdev *dev, int events, struct thread *td)
 {
 	int		s;
 	struct tun_softc *tp = dev->si_drv1;

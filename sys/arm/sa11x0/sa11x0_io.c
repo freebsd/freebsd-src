@@ -225,7 +225,7 @@ sa11x0_bs_subregion(t, bsh, offset, size, nbshp)
 }
 
 int
-sa11x0_bs_mmap(dev_t t, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+sa11x0_bs_mmap(struct cdev *t, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	*paddr = offset;
 	return (0);

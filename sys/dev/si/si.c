@@ -95,7 +95,7 @@ enum si_mctl { GET, SET, BIS, BIC };
 static void si_command(struct si_port *, int, int);
 static int si_modem(struct si_port *, enum si_mctl, int);
 static void si_write_enable(struct si_port *, int);
-static int si_Sioctl(dev_t, u_long, caddr_t, int, struct thread *);
+static int si_Sioctl(struct cdev *, u_long, caddr_t, int, struct thread *);
 static void si_start(struct tty *);
 static void si_stop(struct tty *, int);
 static timeout_t si_lstart;
@@ -589,7 +589,7 @@ try_next2:
 }
 
 static	int
-siopen(dev_t dev, int flag, int mode, struct thread *td)
+siopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	int oldspl, error;
 	int card, port;
@@ -758,7 +758,7 @@ out:
 }
 
 static	int
-siclose(dev_t dev, int flag, int mode, struct thread *td)
+siclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct si_port *pp;
 	struct tty *tp;
@@ -868,7 +868,7 @@ sidtrwakeup(void *chan)
 }
 
 static	int
-siwrite(dev_t dev, struct uio *uio, int flag)
+siwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct si_port *pp;
 	struct tty *tp;
@@ -907,7 +907,7 @@ out:
 
 
 static	int
-siioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+siioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct si_port *pp;
 	struct tty *tp;
@@ -1073,7 +1073,7 @@ out:
  * Handle the Specialix ioctls. All MUST be called via the CONTROL device
  */
 static int
-si_Sioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+si_Sioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct si_softc *xsc;
 	struct si_port *xpp;

@@ -55,7 +55,7 @@ struct cdev {
 #define SI_ALIAS	0x0002	/* carrier of alias name */
 #define SI_NAMED	0x0004	/* make_dev{_alias} has been called */
 #define SI_CHEAPCLONE	0x0008	/* can be removed_dev'ed when vnode reclaims */
-#define SI_CHILD	0x0010	/* child of another dev_t */
+#define SI_CHILD	0x0010	/* child of another struct cdev **/
 #define SI_DEVOPEN	0x0020	/* opened by device */
 #define SI_CONSOPEN	0x0040	/* opened by console */
 #define SI_DUMPDEV	0x0080	/* is kernel dumpdev */
@@ -72,7 +72,7 @@ struct cdev {
 	SLIST_HEAD(, vnode)	si_hlist;
 	LIST_HEAD(, cdev)	si_children;
 	LIST_ENTRY(cdev)	si_siblings;
-	dev_t		si_parent;
+	struct cdev *si_parent;
 	u_int		si_inode;
 	char		*si_name;
 	void		*si_drv1, *si_drv2;
@@ -145,18 +145,18 @@ struct clonedevs;
 
 typedef struct thread d_thread_t;
 
-typedef int d_open_t(dev_t dev, int oflags, int devtype, struct thread *td);
-typedef int d_fdopen_t(dev_t dev, int oflags, struct thread *td, int fdidx);
-typedef int d_close_t(dev_t dev, int fflag, int devtype, struct thread *td);
+typedef int d_open_t(struct cdev *dev, int oflags, int devtype, struct thread *td);
+typedef int d_fdopen_t(struct cdev *dev, int oflags, struct thread *td, int fdidx);
+typedef int d_close_t(struct cdev *dev, int fflag, int devtype, struct thread *td);
 typedef void d_strategy_t(struct bio *bp);
-typedef int d_ioctl_t(dev_t dev, u_long cmd, caddr_t data,
+typedef int d_ioctl_t(struct cdev *dev, u_long cmd, caddr_t data,
 		      int fflag, struct thread *td);
 
-typedef int d_read_t(dev_t dev, struct uio *uio, int ioflag);
-typedef int d_write_t(dev_t dev, struct uio *uio, int ioflag);
-typedef int d_poll_t(dev_t dev, int events, struct thread *td);
-typedef int d_kqfilter_t(dev_t dev, struct knote *kn);
-typedef int d_mmap_t(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr,
+typedef int d_read_t(struct cdev *dev, struct uio *uio, int ioflag);
+typedef int d_write_t(struct cdev *dev, struct uio *uio, int ioflag);
+typedef int d_poll_t(struct cdev *dev, int events, struct thread *td);
+typedef int d_kqfilter_t(struct cdev *dev, struct knote *kn);
+typedef int d_mmap_t(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
    		     int nprot);
 
 typedef int dumper_t(
@@ -262,30 +262,30 @@ void clone_setup(struct clonedevs **cdp);
 void clone_cleanup(struct clonedevs **);
 #define CLONE_UNITMASK 0xfffff
 #define CLONE_FLAG0 (CLONE_UNITMASK + 1)
-int clone_create(struct clonedevs **, struct cdevsw *, int *unit, dev_t *dev, u_int extra);
+int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **dev, u_int extra);
 
-int	count_dev(dev_t _dev);
-void	destroy_dev(dev_t _dev);
-struct cdevsw *devsw(dev_t _dev);
+int	count_dev(struct cdev *_dev);
+void	destroy_dev(struct cdev *_dev);
+struct cdevsw *devsw(struct cdev *_dev);
 void	cdevsw_ref(struct cdevsw *);
 void	cdevsw_rel(struct cdevsw *);
-const char *devtoname(dev_t _dev);
-int	dev_named(dev_t _pdev, const char *_name);
-void	dev_depends(dev_t _pdev, dev_t _cdev);
-void	dev_ref(dev_t dev);
-void	dev_rel(dev_t dev);
+const char *devtoname(struct cdev *_dev);
+int	dev_named(struct cdev *_pdev, const char *_name);
+void	dev_depends(struct cdev *_pdev, struct cdev *_cdev);
+void	dev_ref(struct cdev *dev);
+void	dev_rel(struct cdev *dev);
 void	dev_strategy(struct buf *bp);
-dev_t	makebdev(int _maj, int _min);
-dev_t	make_dev(struct cdevsw *_devsw, int _minor, uid_t _uid, gid_t _gid,
+struct cdev *makebdev(int _maj, int _min);
+struct cdev *make_dev(struct cdevsw *_devsw, int _minor, uid_t _uid, gid_t _gid,
 		int _perms, const char *_fmt, ...) __printflike(6, 7);
-dev_t	make_dev_alias(dev_t _pdev, const char *_fmt, ...) __printflike(2, 3);
-int	dev2unit(dev_t _dev);
+struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...) __printflike(2, 3);
+int	dev2unit(struct cdev *_dev);
 int	unit2minor(int _unit);
 void	setconf(void);
-dev_t	getdiskbyname(char *_name);
+struct cdev *getdiskbyname(char *_name);
 
-void devfs_create(dev_t dev);
-void devfs_destroy(dev_t dev);
+void devfs_create(struct cdev *dev);
+void devfs_destroy(struct cdev *dev);
 
 #define		UID_ROOT	0
 #define		UID_BIN		3
@@ -298,7 +298,7 @@ void devfs_destroy(dev_t dev);
 #define		GID_GAMES	13
 #define		GID_DIALER	68
 
-typedef void (*dev_clone_fn)(void *arg, char *name, int namelen, dev_t *result);
+typedef void (*dev_clone_fn)(void *arg, char *name, int namelen, struct cdev **result);
 
 int dev_stdclone(char *_name, char **_namep, const char *_stem, int *_unit);
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);

@@ -176,8 +176,8 @@ struct psm_softc {		/* Driver status information */
     int		  watchdog;	/* watchdog timer flag */
     struct callout_handle callout;	/* watchdog timer call out */
     struct callout_handle softcallout;	/* buffer timer call out */
-    dev_t	  dev;
-    dev_t	  bdev;
+    struct cdev *dev;
+    struct cdev *bdev;
     int           lasterr;
     int           cmdcount;
 };
@@ -1307,7 +1307,7 @@ psmdetach(device_t dev)
 }
 
 static int
-psmopen(dev_t dev, int flag, int fmt, struct thread *td)
+psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
     int unit = PSM_UNIT(dev);
     struct psm_softc *sc;
@@ -1391,7 +1391,7 @@ psmopen(dev_t dev, int flag, int fmt, struct thread *td)
 }
 
 static int
-psmclose(dev_t dev, int flag, int fmt, struct thread *td)
+psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
     int unit = PSM_UNIT(dev);
     struct psm_softc *sc = PSM_SOFTC(unit);
@@ -1533,7 +1533,7 @@ tame_mouse(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *status, unsigne
 }
 
 static int
-psmread(dev_t dev, struct uio *uio, int flag)
+psmread(struct cdev *dev, struct uio *uio, int flag)
 {
     register struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
     unsigned char buf[PSM_SMALLBUFSIZE];
@@ -1681,7 +1681,7 @@ unblock_mouse_data(struct psm_softc *sc, int c)
 }
 
 static int
-psmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
     struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
     mousemode_t mode;
@@ -2506,7 +2506,7 @@ psmsoftintr(void *arg)
 }
 
 static int
-psmpoll(dev_t dev, int events, struct thread *td)
+psmpoll(struct cdev *dev, int events, struct thread *td)
 {
     struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
     int s;

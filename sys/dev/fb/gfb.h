@@ -166,7 +166,7 @@ typedef struct gfb_softc {
 	int type;
 	int model;
 	struct cdevsw *cdevsw;
-	dev_t devt;
+	struct cdev *devt;
 } *gfb_softc_t;
 
 #endif /* _FB_GFB_H_ */

@@ -97,7 +97,7 @@ VFS_SET(ext2fs_vfsops, ext2fs, 0);
 
 static int ext2fs_inode_hash_lock;
 
-static int	ext2_check_sb_compat(struct ext2_super_block *es, dev_t dev,
+static int	ext2_check_sb_compat(struct ext2_super_block *es, struct cdev *dev,
 		    int ronly);
 static int	compute_sb_data(struct vnode * devvp,
 		    struct ext2_super_block * es, struct ext2_sb_info * fs);
@@ -378,7 +378,7 @@ static int ext2_check_descriptors (struct ext2_sb_info * sb)
 static int
 ext2_check_sb_compat(es, dev, ronly)
 	struct ext2_super_block *es;
-	dev_t dev;
+	struct cdev *dev;
 	int ronly;
 {
 
@@ -635,7 +635,7 @@ ext2_mountfs(devvp, mp, td)
 	struct buf *bp;
 	struct ext2_sb_info *fs;
 	struct ext2_super_block * es;
-	dev_t dev = devvp->v_rdev;
+	struct cdev *dev = devvp->v_rdev;
 	int error;
 	int ronly;
 
@@ -1000,7 +1000,7 @@ ext2_vget(mp, ino, flags, vpp)
 	struct ext2mount *ump;
 	struct buf *bp;
 	struct vnode *vp;
-	dev_t dev;
+	struct cdev *dev;
 	int i, error;
 	int used_blocks;
 

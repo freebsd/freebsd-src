@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <machine/stdarg.h>
 
-static MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
+static MALLOC_DEFINE(M_DEVT, "struct cdev *", "struct cdev *storage");
 
 /* Built at compile time from sys/conf/majors */
 extern unsigned char reserved_majors[256];
@@ -56,7 +56,7 @@ extern unsigned char reserved_majors[256];
  */
 #define DEVT_HASH 83
 
-/* The number of dev_t's we can create before malloc(9) kick in.  */
+/* The number of struct cdev *'s we can create before malloc(9) kick in.  */
 #define DEVT_STASH 50
 
 static struct cdev devt_stash[DEVT_STASH];
@@ -69,13 +69,13 @@ static int free_devt;
 SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
 static struct mtx devmtx;
-static void freedev(dev_t dev);
+static void freedev(struct cdev *dev);
 
 static void
 devlock(void)
 {
 	if (!mtx_initialized(&devmtx))
-		mtx_init(&devmtx, "dev_t", NULL, MTX_DEF);
+		mtx_init(&devmtx, "struct cdev *", NULL, MTX_DEF);
 	mtx_lock(&devmtx);
 }
 
@@ -86,7 +86,7 @@ devunlock(void)
 }
 
 void
-dev_ref(dev_t dev)
+dev_ref(struct cdev *dev)
 {
 	devlock();
 	dev->si_refcount++;
@@ -94,7 +94,7 @@ dev_ref(dev_t dev)
 }
 
 void
-dev_rel(dev_t dev)
+dev_rel(struct cdev *dev)
 {
 	devlock();
 	dev->si_refcount--;
@@ -125,7 +125,7 @@ cdevsw_rel(struct cdevsw *csw)
 	devunlock();
 }
 
-static dev_t makedev(int x, int y);
+static struct cdev *makedev(int x, int y);
 
 int
 nullop(void)
@@ -200,7 +200,7 @@ static struct cdevsw dead_cdevsw = {
 #define no_mmap		(d_mmap_t *)enodev
 
 static int
-no_kqfilter(dev_t dev __unused, struct knote *kn __unused)
+no_kqfilter(struct cdev *dev __unused, struct knote *kn __unused)
 {
 
 	return (1);
@@ -214,7 +214,7 @@ no_strategy(struct bio *bp)
 }
 
 static int
-no_poll(dev_t dev __unused, int events, struct thread *td __unused)
+no_poll(struct cdev *dev __unused, int events, struct thread *td __unused)
 {
 	/*
 	 * Return true for read/write.  If the user asked for something
@@ -233,7 +233,7 @@ no_poll(dev_t dev __unused, int events, struct thread *td __unused)
 #define no_dump		(dumper_t *)enodev
 
 struct cdevsw *
-devsw(dev_t dev)
+devsw(struct cdev *dev)
 {
 	if (dev->si_devsw != NULL)
 		return (dev->si_devsw);
@@ -241,11 +241,11 @@ devsw(dev_t dev)
 }
 
 /*
- * dev_t and u_dev_t primitives
+ * struct cdev *and u_dev_t primitives
  */
 
 int
-major(dev_t x)
+major(struct cdev *x)
 {
 	if (x == NODEV)
 		return NOUDEV;
@@ -253,7 +253,7 @@ major(dev_t x)
 }
 
 int
-minor(dev_t x)
+minor(struct cdev *x)
 {
 	if (x == NODEV)
 		return NOUDEV;
@@ -261,7 +261,7 @@ minor(dev_t x)
 }
 
 int
-dev2unit(dev_t x)
+dev2unit(struct cdev *x)
 {
 	int i;
 
@@ -279,7 +279,7 @@ unit2minor(int unit)
 	return ((unit & 0xff) | ((unit << 8) & ~0xffff));
 }
 
-static dev_t
+static struct cdev *
 allocdev(void)
 {
 	static int stashed;
@@ -303,7 +303,7 @@ allocdev(void)
 	return (si);
 }
 
-static dev_t
+static struct cdev *
 makedev(int x, int y)
 {
 	struct cdev *si;
@@ -325,7 +325,7 @@ makedev(int x, int y)
 }
 
 static void
-freedev(dev_t dev)
+freedev(struct cdev *dev)
 {
 
 	if (dev->si_flags & SI_STASHED) {
@@ -338,14 +338,14 @@ freedev(dev_t dev)
 }
 
 udev_t
-dev2udev(dev_t x)
+dev2udev(struct cdev *x)
 {
 	if (x == NODEV)
 		return (NOUDEV);
 	return (x->si_udev);
 }
 
-dev_t
+struct cdev *
 udev2dev(udev_t udev)
 {
 	struct cdev *si;
@@ -467,10 +467,10 @@ prep_cdevsw(struct cdevsw *devsw)
 	devunlock();
 }
 
-dev_t
+struct cdev *
 make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, const char *fmt, ...)
 {
-	dev_t dev;
+	struct cdev *dev;
 	va_list ap;
 	int i;
 
@@ -515,9 +515,9 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 }
 
 int
-dev_named(dev_t pdev, const char *name)
+dev_named(struct cdev *pdev, const char *name)
 {
-	dev_t cdev;
+	struct cdev *cdev;
 
 	if (strcmp(devtoname(pdev), name) == 0)
 		return (1);
@@ -528,7 +528,7 @@ dev_named(dev_t pdev, const char *name)
 }
 
 void
-dev_depends(dev_t pdev, dev_t cdev)
+dev_depends(struct cdev *pdev, struct cdev *cdev)
 {
 
 	devlock();
@@ -538,10 +538,10 @@ dev_depends(dev_t pdev, dev_t cdev)
 	devunlock();
 }
 
-dev_t
-make_dev_alias(dev_t pdev, const char *fmt, ...)
+struct cdev *
+make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 {
-	dev_t	dev;
+	struct cdev *dev;
 	va_list ap;
 	int i;
 
@@ -564,7 +564,7 @@ make_dev_alias(dev_t pdev, const char *fmt, ...)
 }
 
 static void
-idestroy_dev(dev_t dev)
+idestroy_dev(struct cdev *dev)
 {
 	if (!(dev->si_flags & SI_NAMED)) {
 		printf( "WARNING: Driver mistake: destroy_dev on %d/%d\n",
@@ -597,7 +597,7 @@ idestroy_dev(dev_t dev)
 		/* Remove from cdevsw list */
 		LIST_REMOVE(dev, si_list);
 
-		/* If cdevsw has no dev_t's, clean it */
+		/* If cdevsw has no struct cdev *'s, clean it */
 		if (LIST_EMPTY(&dev->si_devsw->d_devs))
 			fini_cdevsw(dev->si_devsw);
 
@@ -616,7 +616,7 @@ idestroy_dev(dev_t dev)
 }
 
 void
-destroy_dev(dev_t dev)
+destroy_dev(struct cdev *dev)
 {
 
 	devlock();
@@ -625,7 +625,7 @@ destroy_dev(dev_t dev)
 }
 
 const char *
-devtoname(dev_t dev)
+devtoname(struct cdev *dev)
 {
 	char *p;
 	int mynor;
@@ -681,7 +681,7 @@ dev_stdclone(char *name, char **namep, const char *stem, int *unit)
  * we do "on-demand" devices, using rman or other "private" methods 
  * will be very tricky to lock down properly once we lock down this file.
  *
- * Instead we give the drivers these routines which puts the dev_t's that
+ * Instead we give the drivers these routines which puts the struct cdev *'s that
  * are to be managed on their own list, and gives the driver the ability
  * to ask for the first free unit number or a given specified unit number.
  *
@@ -703,10 +703,10 @@ clone_setup(struct clonedevs **cdp)
 }
 
 int
-clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, dev_t *dp, u_int extra)
+clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **dp, u_int extra)
 {
 	struct clonedevs *cd;
-	dev_t dev, dl, de;
+	struct cdev *dev, *dl, *de;
 	int unit, low, u;
 
 	KASSERT(*cdp != NULL,
@@ -766,12 +766,12 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, dev_t *dp, u_i
 
 /*
  * Kill everything still on the list.  The driver should already have
- * disposed of any softc hung of the dev_t's at this time.
+ * disposed of any softc hung of the struct cdev *'s at this time.
  */
 void
 clone_cleanup(struct clonedevs **cdp)
 {
-	dev_t dev, tdev;
+	struct cdev *dev, *tdev;
 	struct clonedevs *cd;
 	
 	cd = *cdp;
@@ -787,7 +787,7 @@ clone_cleanup(struct clonedevs **cdp)
 }
 
 /*
- * Helper sysctl for devname(3).  We're given a {u}dev_t and return
+ * Helper sysctl for devname(3).  We're given a {u}struct cdev *and return
  * the name, if any, registered by the device driver.
  */
 static int
@@ -795,7 +795,7 @@ sysctl_devname(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	udev_t ud;
-	dev_t dev;
+	struct cdev *dev;
 
 	error = SYSCTL_IN(req, &ud, sizeof (ud));
 	if (error)

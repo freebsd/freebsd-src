@@ -643,7 +643,7 @@ extern	struct mtx ifnet_lock;
 struct ifindex_entry {
 	struct	ifnet *ife_ifnet;
 	struct	ifaddr *ife_ifnet_addr;
-	dev_t	ife_dev;
+	struct cdev *ife_dev;
 };
 
 #define ifnet_byindex(idx)	ifindex_table[(idx)].ife_ifnet

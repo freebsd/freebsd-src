@@ -62,7 +62,7 @@ SYSCTL_INT(_net_ncp, OID_AUTO, version, CTLFLAG_RD, &ncp_version, 0, "");
 MODULE_VERSION(ncp, 1);
 MODULE_DEPEND(ncp, libmchain, 1, 1, 1);
 
-static dev_t		ncp_dev;
+static struct cdev *ncp_dev;
 
 static d_ioctl_t	ncp_ioctl;
 
@@ -82,7 +82,7 @@ static int sncp_connect(struct thread *, struct ncpioc_connect *);
 static int sncp_request(struct thread *, struct ncpioc_request *);
 
 static int
-ncp_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+ncp_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 
 	switch (cmd) {

@@ -223,7 +223,7 @@ struct iso_mnt {
 	int im_flags;
 
 	struct mount *im_mountp;
-	dev_t im_dev;
+	struct cdev *im_dev;
 	struct vnode *im_devvp;
 
 	int logical_block_size;
