@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.149 1998/01/24 02:54:27 eivind Exp $
+ *	$Id: wd.c,v 1.150 1998/02/01 19:10:04 bde Exp $
  */
 
 /* TODO:
@@ -66,6 +66,7 @@
 
 #include "opt_atapi.h"
 #include "opt_devfs.h"
+#include "opt_hw_wdog.h"
 #include "opt_wd.h"
 #include "pci.h"
 

@@ -1,4 +1,4 @@
-#	$Id: options,v 1.59 1998/02/06 12:41:39 eivind Exp $
+#	$Id: options,v 1.60 1998/02/12 18:02:04 eivind Exp $
 
 # Format:
 # Option name	filename
@@ -14,6 +14,7 @@ GDB_REMOTE_CHAT	opt_ddb.h
 DEVFS
 DEVFS_ROOT	opt_devfs.h
 FAILSAFE
+HW_WDOG
 KTRACE
 MD5
 MFS_AUTOLOAD	opt_mfs.h
