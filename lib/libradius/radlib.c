@@ -32,9 +32,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#ifdef WITH_SSL
+#include <openssl/hmac.h>
+#include <openssl/md5.h>
+#define MD5Init MD5_Init
+#define MD5Update MD5_Update
+#define MD5Final MD5_Final
+#else
+#define MD5_DIGEST_LENGTH 16
+#include <md5.h>
+#endif
+
+/* We need the MPPE_KEY_LEN define */
+#include <netgraph/ng_mppc.h>
 
 #include <errno.h>
-#include <md5.h>
 #include <netdb.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -50,6 +62,7 @@ static void	 generr(struct rad_handle *, const char *, ...)
 		    __printflike(2, 3);
 static void	 insert_scrambled_password(struct rad_handle *, int);
 static void	 insert_request_authenticator(struct rad_handle *, int);
+static void	 insert_message_authenticator(struct rad_handle *, int);
 static int	 is_valid_response(struct rad_handle *, int,
 		    const struct sockaddr_in *);
 static int	 put_password_attr(struct rad_handle *, int,
@@ -82,7 +95,7 @@ static void
 insert_scrambled_password(struct rad_handle *h, int srv)
 {
 	MD5_CTX ctx;
-	unsigned char md5[16];
+	unsigned char md5[MD5_DIGEST_LENGTH];
 	const struct rad_server *srvp;
 	int padded_len;
 	int pos;
@@ -129,6 +142,31 @@ insert_request_authenticator(struct rad_handle *h, int srv)
 	MD5Final(&h->request[POS_AUTH], &ctx);
 }
 
+static void
+insert_message_authenticator(struct rad_handle *h, int srv)
+{
+#ifdef WITH_SSL
+	u_char md[EVP_MAX_MD_SIZE];
+	u_int md_len;
+	const struct rad_server *srvp;
+	HMAC_CTX ctx;
+	srvp = &h->servers[srv];
+
+	if (h->authentic_pos != 0) {
+		HMAC_CTX_init(&ctx);
+		HMAC_Init(&ctx, srvp->secret, strlen(srvp->secret), EVP_md5());
+		HMAC_Update(&ctx, &h->request[POS_CODE], POS_AUTH - POS_CODE);
+		HMAC_Update(&ctx, &h->request[POS_AUTH], LEN_AUTH);
+		HMAC_Update(&ctx, &h->request[POS_ATTRS],
+		    h->req_len - POS_ATTRS);
+		HMAC_Final(&ctx, md, &md_len);
+		HMAC_CTX_cleanup(&ctx);
+		HMAC_cleanup(&ctx);
+		memcpy(&h->request[h->authentic_pos + 2], md, md_len);
+	}
+#endif
+}
+
 /*
  * Return true if the current response is valid for a request to the
  * specified server.
@@ -138,9 +176,14 @@ is_valid_response(struct rad_handle *h, int srv,
     const struct sockaddr_in *from)
 {
 	MD5_CTX ctx;
-	unsigned char md5[16];
+	unsigned char md5[MD5_DIGEST_LENGTH];
 	const struct rad_server *srvp;
 	int len;
+#ifdef WITH_SSL
+	HMAC_CTX hctx;
+	u_char resp[MSGSIZE], md[EVP_MAX_MD_SIZE];
+	int pos, md_len;
+#endif
 
 	srvp = &h->servers[srv];
 
@@ -167,6 +210,44 @@ is_valid_response(struct rad_handle *h, int srv,
 	if (memcmp(&h->response[POS_AUTH], md5, sizeof md5) != 0)
 		return 0;
 
+#ifdef WITH_SSL
+	/*
+	 * For non accounting responses check the message authenticator,
+	 * if any.
+	 */
+	if (h->response[POS_CODE] != RAD_ACCOUNTING_RESPONSE) {
+
+		memcpy(resp, h->response, MSGSIZE);
+		pos = POS_ATTRS;
+
+		/* Search and verify the Message-Authenticator */
+		while (pos < len - 2) {
+
+			if (h->response[pos] == RAD_MESSAGE_AUTHENTIC) {
+				/* zero fill the Message-Authenticator */
+				memset(&resp[pos + 2], 0, MD5_DIGEST_LENGTH);
+
+				HMAC_CTX_init(&hctx);
+				HMAC_Init(&hctx, srvp->secret,
+				    strlen(srvp->secret), EVP_md5());
+				HMAC_Update(&hctx, &h->response[POS_CODE],
+				    POS_AUTH - POS_CODE);
+				HMAC_Update(&hctx, &h->request[POS_AUTH],
+				    LEN_AUTH);
+				HMAC_Update(&hctx, &resp[POS_ATTRS],
+				    h->resp_len - POS_ATTRS);
+				HMAC_Final(&hctx, md, &md_len);
+				HMAC_CTX_cleanup(&hctx);
+				HMAC_cleanup(&hctx);
+				if (memcmp(md, &h->response[pos + 2],
+				    MD5_DIGEST_LENGTH) != 0)
+					return 0;
+				break;
+			}
+			pos += h->response[pos + 1];
+		}
+	}
+#endif
 	return 1;
 }
 
@@ -244,7 +325,7 @@ rad_add_server(struct rad_handle *h, const char *host, int port,
 		    sizeof srvp->addr.sin_addr);
 	}
 	if (port != 0)
-		srvp->addr.sin_port = htons(port);
+		srvp->addr.sin_port = htons((u_short)port);
 	else {
 		struct servent *sent;
 
@@ -482,6 +563,8 @@ rad_continue_send_request(struct rad_handle *h, int selected, int *fd,
 		if (h->pass_pos != 0)
 			insert_scrambled_password(h, h->srv);
 
+	insert_message_authenticator(h, h->srv);
+
 	/* Send the request */
 	n = sendto(h->fd, h->request, h->req_len, 0,
 	    (const struct sockaddr *)&h->servers[h->srv].addr,
@@ -514,11 +597,12 @@ rad_create_request(struct rad_handle *h, int code)
 	for (i = 0;  i < LEN_AUTH;  i += 2) {
 		long r;
 		r = random();
-		h->request[POS_AUTH+i] = r;
-		h->request[POS_AUTH+i+1] = r >> 8;
+		h->request[POS_AUTH+i] = (u_char)r;
+		h->request[POS_AUTH+i+1] = (u_char)(r >> 8);
 	}
 	h->req_len = POS_ATTRS;
 	clear_password(h);
+	h->request_created = 1;
 	return 0;
 }
 
@@ -570,7 +654,7 @@ rad_get_attr(struct rad_handle *h, const void **value, size_t *len)
 	}
 	type = h->response[h->resp_pos++];
 	*len = h->response[h->resp_pos++] - 2;
-	if (h->resp_pos + *len > h->resp_len) {
+	if (h->resp_pos + (int)*len > h->resp_len) {
 		generr(h, "Malformed attribute in response");
 		return -1;
 	}
@@ -612,18 +696,23 @@ rad_init_send_request(struct rad_handle *h, int *fd, struct timeval *tv)
 	if (h->request[POS_CODE] == RAD_ACCOUNTING_REQUEST) {
 		/* Make sure no password given */
 		if (h->pass_pos || h->chap_pass) {
-			generr(h, "User or Chap Password in accounting request");
+			generr(h, "User or Chap Password"
+			    " in accounting request");
 			return -1;
 		}
 	} else {
-		/* Make sure the user gave us a password */
-		if (h->pass_pos == 0 && !h->chap_pass) {
-			generr(h, "No User or Chap Password attributes given");
-			return -1;
-		}
-		if (h->pass_pos != 0 && h->chap_pass) {
-			generr(h, "Both User and Chap Password attributes given");
-			return -1;
+		if (h->eap_msg == 0) {
+			/* Make sure the user gave us a password */
+			if (h->pass_pos == 0 && !h->chap_pass) {
+				generr(h, "No User or Chap Password"
+				    " attributes given");
+				return -1;
+			}
+			if (h->pass_pos != 0 && h->chap_pass) {
+				generr(h, "Both User and Chap Password"
+				    " attributes given");
+				return -1;
+			}
 		}
 	}
 
@@ -671,7 +760,10 @@ rad_auth_open(void)
 		h->pass_len = 0;
 		h->pass_pos = 0;
 		h->chap_pass = 0;
+		h->authentic_pos = 0;
 		h->type = RADIUS_AUTH;
+		h->request_created = 0;
+		h->eap_msg = 0;
 	}
 	return h;
 }
@@ -704,12 +796,41 @@ rad_put_attr(struct rad_handle *h, int type, const void *value, size_t len)
 {
 	int result;
 
-	if (type == RAD_USER_PASSWORD)
+	if (!h->request_created) {
+		generr(h, "Please call rad_create_request()"
+		    " before putting attributes");
+		return -1;
+	}
+
+	if (h->request[POS_CODE] == RAD_ACCOUNTING_REQUEST) {
+		if (type == RAD_EAP_MESSAGE) {
+			generr(h, "EAP-Message attribute is not valid"
+			    " in accounting requests");
+			return -1;
+		}
+	}
+
+	/*
+	 * When proxying EAP Messages, the Message Authenticator
+	 * MUST be present; see RFC 3579.
+	 */
+	if (type == RAD_EAP_MESSAGE) {
+		if (rad_put_message_authentic(h) == -1)
+			return -1;
+	}
+
+	if (type == RAD_USER_PASSWORD) {
 		result = put_password_attr(h, type, value, len);
-	else {
+	} else if (type == RAD_MESSAGE_AUTHENTIC) {
+		result = rad_put_message_authentic(h);
+	} else {
 		result = put_raw_attr(h, type, value, len);
-		if (result == 0 && type == RAD_CHAP_PASSWORD)
-			h->chap_pass = 1;
+		if (result == 0) {
+			if (type == RAD_CHAP_PASSWORD)
+				h->chap_pass = 1;
+			else if (type == RAD_EAP_MESSAGE)
+				h->eap_msg = 1;
+		}
 	}
 
 	return result;
@@ -728,6 +849,32 @@ int
 rad_put_string(struct rad_handle *h, int type, const char *str)
 {
 	return rad_put_attr(h, type, str, strlen(str));
+}
+
+int
+rad_put_message_authentic(struct rad_handle *h)
+{
+#ifdef WITH_SSL
+	u_char md_zero[MD5_DIGEST_LENGTH];
+
+	if (h->request[POS_CODE] == RAD_ACCOUNTING_REQUEST) {
+		generr(h, "Message-Authenticator is not valid"
+		    " in accounting requests");
+		return -1;
+	}
+
+	if (h->authentic_pos == 0) {
+		h->authentic_pos = h->req_len;
+		memset(md_zero, 0, sizeof(md_zero));
+		return (put_raw_attr(h, RAD_MESSAGE_AUTHENTIC, md_zero,
+		    sizeof(md_zero)));
+	}
+	return 0;
+#else
+	generr(h, "Message Authenticator not supported,"
+	    " please recompile libradius with SSL support");
+	return -1;
+#endif
 }
 
 /*
@@ -893,6 +1040,12 @@ rad_put_vendor_attr(struct rad_handle *h, int vendor, int type,
 	struct vendor_attribute *attr;
 	int res;
 
+	if (!h->request_created) {
+		generr(h, "Please call rad_create_request()"
+		    " before putting attributes");
+		return -1;
+	}
+
 	if ((attr = malloc(len + 6)) == NULL) {
 		generr(h, "malloc failure (%d bytes)", len + 6);
 		return -1;
@@ -938,6 +1091,138 @@ rad_request_authenticator(struct rad_handle *h, char *buf, size_t len)
 	if (len > LEN_AUTH)
 		buf[LEN_AUTH] = '\0';
 	return (LEN_AUTH);
+}
+
+u_char *
+rad_demangle(struct rad_handle *h, const void *mangled, size_t mlen)
+{
+	char R[LEN_AUTH];
+	const char *S;
+	int i, Ppos;
+	MD5_CTX Context;
+	u_char b[MD5_DIGEST_LENGTH], *C, *demangled;
+
+	if ((mlen % 16 != 0) || mlen > 128) {
+		generr(h, "Cannot interpret mangled data of length %lu",
+		    (u_long)mlen);
+		return NULL;
+	}
+
+	C = (u_char *)mangled;
+
+	/* We need the shared secret as Salt */
+	S = rad_server_secret(h);
+
+	/* We need the request authenticator */
+	if (rad_request_authenticator(h, R, sizeof R) != LEN_AUTH) {
+		generr(h, "Cannot obtain the RADIUS request authenticator");
+		return NULL;
+	}
+
+	demangled = malloc(mlen);
+	if (!demangled)
+		return NULL;
+
+	MD5Init(&Context);
+	MD5Update(&Context, S, strlen(S));
+	MD5Update(&Context, R, LEN_AUTH);
+	MD5Final(b, &Context);
+	Ppos = 0;
+	while (mlen) {
+
+		mlen -= 16;
+		for (i = 0; i < 16; i++)
+			demangled[Ppos++] = C[i] ^ b[i];
+
+		if (mlen) {
+			MD5Init(&Context);
+			MD5Update(&Context, S, strlen(S));
+			MD5Update(&Context, C, 16);
+			MD5Final(b, &Context);
+		}
+
+		C += 16;
+	}
+
+	return demangled;
+}
+
+u_char *
+rad_demangle_mppe_key(struct rad_handle *h, const void *mangled,
+    size_t mlen, size_t *len)
+{
+	char R[LEN_AUTH];    /* variable names as per rfc2548 */
+	const char *S;
+	u_char b[MD5_DIGEST_LENGTH], *demangled;
+	const u_char *A, *C;
+	MD5_CTX Context;
+	int Slen, i, Clen, Ppos;
+	u_char *P;
+
+	if (mlen % 16 != SALT_LEN) {
+		generr(h, "Cannot interpret mangled data of length %lu",
+		    (u_long)mlen);
+		return NULL;
+	}
+
+	/* We need the RADIUS Request-Authenticator */
+	if (rad_request_authenticator(h, R, sizeof R) != LEN_AUTH) {
+		generr(h, "Cannot obtain the RADIUS request authenticator");
+		return NULL;
+	}
+
+	A = (const u_char *)mangled;      /* Salt comes first */
+	C = (const u_char *)mangled + SALT_LEN;  /* Then the ciphertext */
+	Clen = mlen - SALT_LEN;
+	S = rad_server_secret(h);    /* We need the RADIUS secret */
+	Slen = strlen(S);
+	P = alloca(Clen);        /* We derive our plaintext */
+
+	MD5Init(&Context);
+	MD5Update(&Context, S, Slen);
+	MD5Update(&Context, R, LEN_AUTH);
+	MD5Update(&Context, A, SALT_LEN);
+	MD5Final(b, &Context);
+	Ppos = 0;
+
+	while (Clen) {
+		Clen -= 16;
+
+		for (i = 0; i < 16; i++)
+		    P[Ppos++] = C[i] ^ b[i];
+
+		if (Clen) {
+			MD5Init(&Context);
+			MD5Update(&Context, S, Slen);
+			MD5Update(&Context, C, 16);
+			MD5Final(b, &Context);
+		}
+
+		C += 16;
+	}
+
+	/*
+	* The resulting plain text consists of a one-byte length, the text and
+	* maybe some padding.
+	*/
+	*len = *P;
+	if (*len > mlen - 1) {
+		generr(h, "Mangled data seems to be garbage %d %d",
+		    *len, mlen-1);
+		return NULL;
+	}
+
+	if (*len > MPPE_KEY_LEN * 2) {
+		generr(h, "Key to long (%d) for me max. %d",
+		    *len, MPPE_KEY_LEN * 2);
+		return NULL;
+	}
+	demangled = malloc(*len);
+	if (!demangled)
+		return NULL;
+
+	memcpy(demangled, P + 1, *len);
+	return demangled;
 }
 
 const char *
