@@ -88,7 +88,7 @@
 	advertised, &release.branch; is very much a
 	work-in-progress.</para>
 
-      <para>The basic requirements for using this &release.type are
+      <para>The basic requirements for using this &release.type; are
 	technical proficiency with &os; and an understanding of the
 	ongoing development process of &os; &release.branch; (as
 	discussed on the &a.stable;).</para>
