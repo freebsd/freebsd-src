@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include "miidevs.h"
+#include <dev/mii/miidevs.h>
 
 #include <dev/mii/tdkphyreg.h>
 
@@ -76,12 +76,13 @@ static const char rcsid[] =
 
 static int tdkphy_probe(device_t);
 static int tdkphy_attach(device_t);
+static int tdkphy_detach(device_t);
 
 static device_method_t tdkphy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		tdkphy_probe),
 	DEVMETHOD(device_attach,	tdkphy_attach),
-	DEVMETHOD(device_detach,	mii_phy_detach),
+	DEVMETHOD(device_detach,	tdkphy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	{ 0, 0 }
 };
@@ -152,11 +153,26 @@ tdkphy_attach(device_t dev)
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
-	mii_add_media(sc);
+	mii_add_media(mii, sc->mii_capabilities, sc->mii_inst);
 	printf("\n");
 #undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
+
+	return(0);
+}
+
+static int tdkphy_detach(dev)
+	device_t	dev;
+{
+	struct mii_softc *sc; 
+	struct mii_data *mii;
+        
+	sc = device_get_softc(dev);
+	mii = device_get_softc(device_get_parent(dev));
+	mii_phy_auto_stop(sc);
+	sc->mii_dev = NULL;
+	LIST_REMOVE(sc, mii_list);
 
 	return(0);
 }
@@ -200,7 +216,7 @@ tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			 */
 			if (PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN)
 				return (0);
-			(void) mii_phy_auto(sc);
+			(void) mii_phy_auto(sc, 1);
 			break;
 		case IFM_100_T4:
 			/*
@@ -223,7 +239,38 @@ tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 */
 		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
 			return (0);
-		if (mii_phy_tick(sc) == EJUSTRETURN)
+
+		/*
+		 * Only used for autonegotiation.
+		 */
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+			return (0);
+
+		/*
+		 * Is the interface even up?
+		 */
+		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
+			return (0);
+
+		/*
+		 * Check to see if we have link.  If we do, we don't
+		 * need to restart the autonegotiation process.  Read
+		 * the BMSR twice in case it's latched.
+		 */
+		reg = PHY_READ(sc, MII_BMSR) |
+		    PHY_READ(sc, MII_BMSR);
+		if (reg & BMSR_LINK)
+			return (0);
+
+		/*
+		 * Only retry autonegotiation every 5 seconds.
+		 */
+		if (++sc->mii_ticks != 5)
+			return (0);
+
+		sc->mii_ticks = 0;
+		mii_phy_reset(sc);
+		if (mii_phy_auto(sc, 0) == EJUSTRETURN)
 			return (0);
 		break;
 	}
@@ -236,7 +283,11 @@ tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		PHY_WRITE(sc, MII_BMCR, PHY_READ(sc, MII_BMCR) & ~BMCR_FDX);
 
 	/* Callback if something changed. */
-	mii_phy_update(sc, cmd);
+	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
+		MIIBUS_STATCHG(sc->mii_dev);
+		sc->mii_active = mii->mii_media_active;
+	}
+
 	return (0);
 }
 
