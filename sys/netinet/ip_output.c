@@ -255,6 +255,16 @@ ip_output(m0, opt, ro, flags, imo)
 		ip->ip_src = IA_SIN(ia)->sin_addr;
 #endif
 	/*
+	 * Verify that we have any chance at all of being able to queue
+	 *      the packet or packet fragments
+	 */
+	if ((ifp->if_snd.ifq_len + ip->ip_len / ifp->if_mtu + 1) >=
+		ifp->if_snd.ifq_maxlen) {
+			error = ENOBUFS;
+			goto bad;
+	}
+
+	/*
 	 * Look for broadcast address and
 	 * and verify user is allowed to send
 	 * such a packet.
