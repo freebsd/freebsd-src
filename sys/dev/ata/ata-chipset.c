@@ -149,7 +149,7 @@ ata_generic_intr(void *data)
     for (unit = 0; unit < 2; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
-	if (ch->dma) {
+	if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 	    int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 	    if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
@@ -250,7 +250,7 @@ ata_acard_intr(void *data)
 	    continue;
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
-	if (ch->dma) {
+	if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 	    int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 	    if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
@@ -1242,7 +1242,7 @@ ata_promise_old_intr(void *data)
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
 	if (ATA_INL(ctlr->r_io1, 0x1c) & (ch->unit ? 0x00004000 : 0x00000400)) {
-	    if (ch->dma) {
+	    if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 		int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 		if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
@@ -1269,7 +1269,7 @@ ata_promise_tx2_intr(void *data)
 	    continue;
 	ATA_IDX_OUTB(ch, ATA_BMDEVSPEC_0, 0x0b);
 	if (ATA_IDX_INB(ch, ATA_BMDEVSPEC_1) & 0x20) {
-	    if (ch->dma) {
+	    if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 		int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 		if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
@@ -1743,7 +1743,7 @@ ata_sii_intr(void *data)
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
 	if (ATA_IDX_INB(ch, ATA_BMDEVSPEC_0) & 0x08) {
-	    if (ch->dma) {
+	    if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 		int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 		if (!(bmstat & ATA_BMSTAT_INTERRUPT))
@@ -1772,7 +1772,7 @@ ata_cmd_intr(void *data)
 	     (ch->unit ? 0x08 : 0x04))) {
 	    pci_write_config(device_get_parent(ch->dev), 0x71,
 			     reg71 & ~(ch->unit ? 0x04 : 0x08), 1);
-	    if (ch->dma) {
+	    if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 		int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 		if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
