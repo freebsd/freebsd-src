@@ -136,6 +136,55 @@ struct ieee80211_frame_addr4 {
 #define	IEEE80211_NWID_LEN			32
 
 /*
+ * Control frames.
+ */
+struct ieee80211_frame_min {
+	u_int8_t	i_fc[2];
+	u_int8_t	i_dur[2];
+	u_int8_t	i_addr1[IEEE80211_ADDR_LEN];
+	u_int8_t	i_addr2[IEEE80211_ADDR_LEN];
+	/* FCS */
+} __attribute__((__packed__));
+
+struct ieee80211_frame_rts {
+	u_int8_t	i_fc[2];
+	u_int8_t	i_dur[2];
+	u_int8_t	i_ra[IEEE80211_ADDR_LEN];
+	u_int8_t	i_ta[IEEE80211_ADDR_LEN];
+	/* FCS */
+} __attribute__((__packed__));
+
+struct ieee80211_frame_cts {
+	u_int8_t	i_fc[2];
+	u_int8_t	i_dur[2];
+	u_int8_t	i_ra[IEEE80211_ADDR_LEN];
+	/* FCS */
+} __attribute__((__packed__));
+
+struct ieee80211_frame_ack {
+	u_int8_t	i_fc[2];
+	u_int8_t	i_dur[2];
+	u_int8_t	i_ra[IEEE80211_ADDR_LEN];
+	/* FCS */
+} __attribute__((__packed__));
+
+struct ieee80211_frame_pspoll {
+	u_int8_t	i_fc[2];
+	u_int8_t	i_aid[2];
+	u_int8_t	i_bssid[IEEE80211_ADDR_LEN];
+	u_int8_t	i_ta[IEEE80211_ADDR_LEN];
+	/* FCS */
+} __attribute__((__packed__));
+
+struct ieee80211_frame_cfend {		/* NB: also CF-End+CF-Ack */
+	u_int8_t	i_fc[2];
+	u_int8_t	i_dur[2];	/* should be zero */
+	u_int8_t	i_ra[IEEE80211_ADDR_LEN];
+	u_int8_t	i_bssid[IEEE80211_ADDR_LEN];
+	/* FCS */
+} __attribute__((__packed__));
+
+/*
  * BEACON management packets
  *
  *	octet timestamp[8]
@@ -314,6 +363,8 @@ enum {
 #define	IEEE80211_MTU				1500
 #define	IEEE80211_MAX_LEN			(2300 + IEEE80211_CRC_LEN + \
     (IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN + IEEE80211_WEP_CRCLEN))
+#define	IEEE80211_MIN_LEN \
+	(sizeof(struct ieee80211_frame_min) + IEEE80211_CRC_LEN)
 
 /* 
  * RTS frame length parameters.  The default is specified in
