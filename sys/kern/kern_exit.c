@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.37 1996/08/20 07:17:47 smpatel Exp $
+ * $Id: kern_exit.c,v 1.38 1996/08/22 03:50:15 julian Exp $
  */
 
 #include "opt_ktrace.h"
@@ -94,7 +94,7 @@ static ele_p exit_list;
  * exit --
  *	Death of process.
  */
-__dead void
+void
 exit(p, uap, retval)
 	struct proc *p;
 	struct rexit_args /* {
@@ -112,7 +112,7 @@ exit(p, uap, retval)
  * to zombie, and unlink proc from allproc and parent's lists.  Save exit
  * status and rusage for wait().  Check for child processes and orphan them.
  */
-__dead void
+void
 exit1(p, rv)
 	register struct proc *p;
 	int rv;
