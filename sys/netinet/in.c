@@ -423,7 +423,7 @@ in_control(so, cmd, data, ifp, td)
 		 * XXX horrible hack to detect that we are being called
 		 * from if_detach()
 		 */
-		if (ifaddr_byindex(ifp->if_index) != NULL) {
+		if (ifaddr_byindex(ifp->if_index) == NULL) {
 			in_pcbpurgeif0(&ripcbinfo, ifp);
 			in_pcbpurgeif0(&udbinfo, ifp);
 		}
