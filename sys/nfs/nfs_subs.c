@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.30 1996/06/23 17:19:25 bde Exp $
+ * $Id: nfs_subs.c,v 1.31 1996/07/16 10:19:44 dfr Exp $
  */
 
 /*
@@ -1486,7 +1486,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag)
 	    nam, &rdonly, kerbflag))
 		goto out;
 	if (dp->v_type != VDIR) {
-		nfsrv_vrele(dp);
+		vrele(dp);
 		error = ENOTDIR;
 		goto out;
 	}
@@ -1517,7 +1517,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag)
 		goto out;
 	}
 
-	nfsrv_vmio(ndp->ni_vp);
+	nfsrv_object_create(ndp->ni_vp);
 
 	/*
 	 * Check for saved name request
@@ -1748,7 +1748,7 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag)
 	else
 		*rdonlyp = 0;
 
-	nfsrv_vmio(*vpp);
+	nfsrv_object_create(*vpp);
 
 	if (!lockflag)
 		VOP_UNLOCK(*vpp);
@@ -1940,53 +1940,10 @@ nfsrv_errmap(nd, err)
 }
 
 int
-nfsrv_vmio(struct vnode *vp) {
-	vm_object_t object;
+nfsrv_object_create(struct vnode *vp) {
 
 	if ((vp == NULL) || (vp->v_type != VREG))
 		return 1;
-
-retry:
-	if ((vp->v_flag & VVMIO) == 0) {
-		struct vattr vat;
-		struct proc *p = curproc;
-
-		if (VOP_GETATTR(vp, &vat, p->p_ucred, p) != 0)
-			panic("nfsrv_vmio: VOP_GETATTR failed");
-
-		(void) vnode_pager_alloc(vp, OFF_TO_IDX(round_page(vat.va_size)), 0, 0);
-
-		vp->v_flag |= VVMIO;
-	} else {
-		if ((object = vp->v_object) &&
-			(object->flags & OBJ_DEAD)) {
-			tsleep(object, PVM, "nfdead", 0);
-			goto retry;
-		}
-		if (!object)
-			panic("nfsrv_vmio: VMIO object missing");
-		vm_object_reference(object);
-	}
-	return 0;
-}
-int
-nfsrv_vput(struct vnode *vp) {
-	if ((vp->v_flag & VVMIO) && vp->v_object) {
-		vput(vp);
-		vm_object_deallocate(vp->v_object);
-	} else {
-		vput(vp);
-	}
-	return 0;
-}
-int
-nfsrv_vrele(struct vnode *vp) {
-	if ((vp->v_flag & VVMIO) && vp->v_object) {
-		vrele(vp);
-		vm_object_deallocate(vp->v_object);
-	} else {
-		vrele(vp);
-	}
-	return 0;
+	return vfs_object_create(vp, curproc, curproc?curproc->p_ucred:NULL, 1);
 }
 #endif /* NFS_NOSERVER */

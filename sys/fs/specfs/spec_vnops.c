@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.29 1996/03/19 05:13:17 dyson Exp $
+ * $Id: spec_vnops.c,v 1.30 1996/07/27 03:50:31 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
+#include <vm/vm_extern.h>
 
 #include <miscfs/specfs/specdev.h>
 
@@ -625,9 +626,13 @@ spec_close(ap)
 		 * sum of the reference counts on all the aliased
 		 * vnodes descends to one, we are on last close.
 		 */
-		if ((vcount(vp) > ((vp->v_flag & VVMIO)?2:1)) &&
+		if ((vcount(vp) > (vp->v_object?2:1)) &&
 			(vp->v_flag & VXLOCK) == 0)
 			return (0);
+
+		if (vp->v_object)
+			vnode_pager_uncache(vp);
+
 		devclose = bdevsw[major(dev)]->d_close;
 		mode = S_IFBLK;
 		break;

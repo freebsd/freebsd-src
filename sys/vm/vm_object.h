@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.27 1996/03/02 02:54:23 dyson Exp $
+ * $Id: vm_object.h,v 1.28 1996/05/19 07:36:50 dyson Exp $
  */
 
 /*
@@ -130,6 +130,7 @@ struct vm_object {
 #define	OBJ_WRITEABLE	0x0080		/* object has been made writable */
 #define	OBJ_MIGHTBEDIRTY	0x0100	/* object might be dirty */
 #define OBJ_CLEANING	0x0200
+#define	OBJ_VFS_REF	0x0400		/* object is refed by vfs layer */
 
 
 #define OBJ_NORMAL	0x0		/* default behavior */
