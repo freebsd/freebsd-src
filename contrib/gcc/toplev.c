@@ -4691,7 +4691,7 @@ parse_options_and_default_flags (argc, argv)
 		    }
 #endif /*FORCE_OPTIMIZATION_DOWNGRADE*/
 
-#if defined(__alpha__)
+#if defined(TRY_WITHOUT_THIS__alpha__)
 		  if (optimize > 1)
 		    {
 		      warning ("\n***\n***\tThe -O%d flag TRIGGERS KNOWN OPTIMIZER BUGS ON THIS PLATFORM\n***",
