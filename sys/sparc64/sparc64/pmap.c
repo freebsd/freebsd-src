@@ -1027,12 +1027,33 @@ pmap_release(pmap_t pm)
 {
 	vm_object_t obj;
 	vm_page_t m;
+	struct pcpu *pc;
 
 	CTR2(KTR_PMAP, "pmap_release: ctx=%#x tsb=%p",
 	    pm->pm_context[PCPU_GET(cpuid)], pm->pm_tsb);
 	KASSERT(pmap_resident_count(pm) == 0,
 	    ("pmap_release: resident pages %ld != 0",
 	    pmap_resident_count(pm)));
+
+	/*
+	 * After the pmap was freed, it might be reallocated to a new process.
+	 * When switching, this might lead us to wrongly assume that we need
+	 * not switch contexts because old and new pmap pointer are equal.
+	 * Therefore, make sure that this pmap is not referenced by any PCPU
+	 * pointer any more. This could happen in two cases:
+	 * - A process that referenced the pmap is currently exiting on a CPU.
+	 *   However, it is guaranteed to not switch in any more after setting
+	 *   its state to PRS_ZOMBIE.
+	 * - A process that referenced this pmap ran on a CPU, but we switched
+	 *   to a kernel thread, leaving the pmap pointer unchanged.
+	 */
+	mtx_lock_spin(&sched_lock);
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		if (pc->pc_pmap == pm)
+			pc->pc_pmap = NULL;
+	}
+	mtx_unlock_spin(&sched_lock);
+
 	obj = pm->pm_tsb_obj;
 	VM_OBJECT_LOCK(obj);
 	KASSERT(obj->ref_count == 1, ("pmap_release: tsbobj ref count != 1"));
@@ -1825,7 +1846,7 @@ pmap_activate(struct thread *td)
 
 	pm->pm_context[PCPU_GET(cpuid)] = context;
 	pm->pm_active |= PCPU_GET(cpumask);
-	PCPU_SET(vmspace, vm);
+	PCPU_SET(pmap, pm);
 
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
 	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);

@@ -123,23 +123,6 @@ cpu_exit(struct thread *td)
 void
 cpu_sched_exit(struct thread *td)
 {
-	struct vmspace *vm;
-	struct pcpu *pc;
-	struct proc *p;
-
-	mtx_assert(&sched_lock, MA_OWNED);
-
-	p = td->td_proc;
-	vm = p->p_vmspace;
-	if (vm->vm_refcnt > 0)
-		return;
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		if (pc->pc_vmspace == vm) {
-			vm->vm_pmap.pm_active &= ~pc->pc_cpumask;
-			vm->vm_pmap.pm_context[pc->pc_cpuid] = -1;
-			pc->pc_vmspace = NULL;
-		}
-	}
 }
 
 void
