@@ -176,7 +176,6 @@ void pas_midi_interrupt(void);
 long attach_gus_card(long mem_start, struct address_info * hw_config);
 int probe_gus(struct address_info *hw_config);
 int gus_set_midi_irq(int num);
-void gusintr(INT_HANDLER_PARMS(irq, dummy));
 long attach_gus_db16(long mem_start, struct address_info * hw_config);
 int probe_gus_db16(struct address_info *hw_config);
 

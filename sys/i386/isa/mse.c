@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.13 1995/07/16 10:12:06 bde Exp $
+ * $Id: mse.c,v 1.14 1995/09/08 11:07:50 bde Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -63,7 +63,6 @@
 
 static int mseprobe(struct isa_device *);
 static int mseattach(struct isa_device *);
-void mseintr(int);
 
 struct	isa_driver msedriver = {
 	mseprobe, mseattach, "mse"

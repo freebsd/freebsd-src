@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.48 1995/10/01 15:09:51 dufault Exp $
+ *      $Id: aha1542.c,v 1.49 1995/10/28 15:38:40 phk Exp $
  */
 
 /*
@@ -318,7 +318,6 @@ static struct aha_data {
 	struct scsi_link sc_link;	/* prototype for subdevs */
 } *ahadata[NAHA];
 
-inthand2_t		ahaintr;
 static struct aha_ccb	*aha_get_ccb();
 static int		ahaprobe();
 static void		aha_done();

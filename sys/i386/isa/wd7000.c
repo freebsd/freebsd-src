@@ -228,7 +228,6 @@ static void wds_minphys(struct buf *);
 static struct wds_req *wdsr_alloc(int);
 static int32 wds_scsi_cmd(struct scsi_xfer *);
 static u_int32 wds_adapter_info(int);
-inthand2_t wdsintr;
 static int wds_done(int, struct wds_cmd *, u_char);
 static int wdsattach(struct isa_device *);
 static int wds_init(struct isa_device *);

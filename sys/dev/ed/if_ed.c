@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.82 1995/10/28 22:46:26 pst Exp $
+ * $Id: if_ed.c,v 1.83 1995/10/31 18:41:08 phk Exp $
  */
 
 #include "ed.h"
@@ -109,7 +109,6 @@ struct ed_softc {
 
 static int     ed_attach(struct isa_device *);
 static void    ed_init(int);
-void    edintr(int);
 static int     ed_ioctl(struct ifnet *, int, caddr_t);
 static int     ed_probe(struct isa_device *);
 static void    ed_start(struct ifnet *);
