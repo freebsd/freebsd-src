@@ -905,8 +905,24 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ath_mode_init(sc);
 		break;
 	case SIOCGATHSTATS:
-		copyout(&sc->sc_stats, ifr->ifr_data, sizeof (sc->sc_stats));
+		error = copyout(&sc->sc_stats,
+				ifr->ifr_data, sizeof (sc->sc_stats));
 		break;
+	case SIOCGATHDIAG: {
+		struct ath_diag *ad = (struct ath_diag *)data;
+		struct ath_hal *ah = sc->sc_ah;
+		void *data;
+		u_int size;
+
+		if (ath_hal_getdiagstate(ah, ad->ad_id, &data, &size)) {
+			if (size < ad->ad_size)
+				ad->ad_size = size;
+			if (data)
+				error = copyout(data, ad->ad_data, ad->ad_size);
+		} else
+			error = EINVAL;
+		break;
+	}
 	default:
 		error = ieee80211_ioctl(ifp, cmd, data);
 		if (error == ENETRESET) {
@@ -1599,6 +1615,9 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 static void
 ath_rx_proc(void *arg, int npending)
 {
+#define	PA2DESC(_sc, _pa) \
+	((struct ath_desc *)((caddr_t)(_sc)->sc_desc + \
+		((_pa) - (_sc)->sc_desc_paddr)))
 	struct ath_softc *sc = arg;
 	struct ath_buf *bf;
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -1631,7 +1650,20 @@ ath_rx_proc(void *arg, int npending)
 			if_printf(ifp, "ath_rx_proc: no mbuf!\n");
 			continue;
 		}
-		status = ath_hal_rxprocdesc(ah, ds);
+		/* XXX sync descriptor memory */
+		/*
+		 * Must provide the virtual address of the current
+		 * descriptor, the physical address, and the virtual
+		 * address of the next descriptor in the h/w chain.
+		 * This allows the HAL to look ahead to see if the
+		 * hardware is done with a descriptor by checking the
+		 * done bit in the following descriptor and the address
+		 * of the current descriptor the DMA engine is working
+		 * on.  All this is necessary because of our use of
+		 * a self-linked list to avoid rx overruns.
+		 */
+		status = ath_hal_rxprocdesc(ah, ds,
+				bf->bf_daddr, PA2DESC(sc, ds->ds_link));
 #ifdef AR_DEBUG
 		if (ath_debug > 1)
 			ath_printrxbuf(bf, status == HAL_OK); 
@@ -1766,6 +1798,7 @@ ath_rx_proc(void *arg, int npending)
 
 	ath_hal_rxmonitor(ah);			/* rx signal state monitoring */
 	ath_hal_rxena(ah);			/* in case of RXEOL */
+#undef PA2DESC
 }
 
 /*
@@ -2237,6 +2270,9 @@ ath_draintxq(struct ath_softc *sc)
 static void
 ath_stoprecv(struct ath_softc *sc)
 {
+#define	PA2DESC(_sc, _pa) \
+	((struct ath_desc *)((caddr_t)(_sc)->sc_desc + \
+		((_pa) - (_sc)->sc_desc_paddr)))
 	struct ath_hal *ah = sc->sc_ah;
 
 	ath_hal_stoppcurecv(ah);	/* disable PCU */
@@ -2250,12 +2286,15 @@ ath_stoprecv(struct ath_softc *sc)
 		DPRINTF(("ath_stoprecv: rx queue %p, link %p\n",
 		    (caddr_t) ath_hal_getrxbuf(ah), sc->sc_rxlink));
 		TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
-			if (ath_hal_rxprocdesc(ah, bf->bf_desc) == HAL_OK)
+			struct ath_desc *ds = bf->bf_desc;
+			if (ath_hal_rxprocdesc(ah, ds, bf->bf_daddr,
+			    PA2DESC(sc, ds->ds_link)) == HAL_OK)
 				ath_printrxbuf(bf, 1);
 		}
 	}
 #endif
 	sc->sc_rxlink = NULL;		/* just in case */
+#undef PA2DESC
 }
 
 /*
@@ -2422,7 +2461,7 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211_node *ni;
 	int i, error;
-	u_int8_t *bssid;
+	const u_int8_t *bssid;
 	u_int32_t rfilt;
 	static const HAL_LED_STATE leds[] = {
 	    HAL_LED_INIT,	/* IEEE80211_S_INIT */
@@ -2780,12 +2819,6 @@ sysctl_hw_ath_dump(SYSCTL_HANDLER_ARGS)
 		sc = ifp->if_softc;
 		if (strcmp(dmode, "hal") == 0)
 			ath_hal_dumpstate(sc->sc_ah);
-		else if (strcmp(dmode, "eeprom") == 0)
-			ath_hal_dumpeeprom(sc->sc_ah);
-		else if (strcmp(dmode, "rfgain") == 0)
-			ath_hal_dumprfgain(sc->sc_ah);
-		else if (strcmp(dmode, "ani") == 0)
-			ath_hal_dumpani(sc->sc_ah);
 		else
 			return EINVAL;
 	}
