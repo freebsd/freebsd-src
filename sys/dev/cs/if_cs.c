@@ -169,7 +169,7 @@ static int
 wait_eeprom_ready(struct cs_softc *sc)
 {
 	DELAY(30000);	/* XXX should we do some checks here ? */
-	return 0;
+	return (0);
 }
 
 static void
@@ -204,7 +204,7 @@ cs_duplex_auto(struct cs_softc *sc)
 		DELAY(1000);
 	}
 	DELAY(1000000);
-	return error;
+	return (error);
 }
 
 static int
@@ -217,10 +217,10 @@ enable_tp(struct cs_softc *sc)
 
 	if ((cs_readreg(sc, PP_LineST) & LINK_OK)==0) {
 		if_printf(&sc->arpcom.ac_if, "failed to enable TP\n");
-		return EINVAL;
+		return (EINVAL);
 	}
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -251,7 +251,7 @@ send_test_pkt(struct cs_softc *sc)
 	if (!(cs_readreg(sc, PP_BusST) & READY_FOR_TX_NOW)) {
 		for (i = 0; i < ETHER_ADDR_LEN; i++)
 			sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
-		return 0;
+		return (0);
 	}
 
 	outsw(sc->nic_addr + TX_FRAME_PORT, test_packet, sizeof(test_packet));
@@ -261,8 +261,8 @@ send_test_pkt(struct cs_softc *sc)
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
 	if ((cs_readreg(sc, PP_TxEvent) & TX_SEND_OK_BITS) == TX_OK)
-		return 1;
-	return 0;
+		return (1);
+	return (0);
 }
 
 /*
@@ -278,9 +278,9 @@ enable_aui(struct cs_softc *sc)
 
 	if (!send_test_pkt(sc)) {
 		if_printf(&sc->arpcom.ac_if, "failed to enable AUI\n");
-		return EINVAL;
+		return (EINVAL);
 	}
-	return 0;
+	return (0);
 }
 
 /*
@@ -296,9 +296,9 @@ enable_bnc(struct cs_softc *sc)
 
 	if (!send_test_pkt(sc)) {
 		if_printf(&sc->arpcom.ac_if, "failed to enable BNC\n");
-		return EINVAL;
+		return (EINVAL);
 	}
-	return 0;
+	return (0);
 }
 
 int
@@ -402,23 +402,20 @@ cs_cs89x0_probe(device_t dev)
 				 */
 				if (error) {
 					irq = sc->isa_config & INT_NO_MASK;
+					error = 0;
 					if (chip_type==CS8900) {
 						switch(irq) {
 						case 0:
 							irq=10;
-							error=0;
 							break;
 						case 1:
 							irq=11;
-							error=0;
 							break;
 						case 2:
 							irq=12;
-							error=0;
 							break;
 						case 3:
 							irq=5;
-							error=0;
 							break;
 						 default:
 							device_printf(dev, "invalid irq in EEPROM.\n");
@@ -428,11 +425,8 @@ cs_cs89x0_probe(device_t dev)
 						if (irq>CS8920_NO_INTS) {
 							device_printf(dev, "invalid irq in EEPROM.\n");
 							error=EINVAL;
-						} else {
-							error=0;
 						}
 					}
-
 					if (!error)
 						bus_set_resource(dev, SYS_RES_IRQ, 0,
 								irq, 1);
@@ -481,7 +475,7 @@ cs_cs89x0_probe(device_t dev)
 		cs_writereg(sc, pp_isadma, drq);
 	else {
 		device_printf(dev, "incorrect drq\n",);
-		return 0;
+		return (0);
 	}
 	*/
 
@@ -500,7 +494,7 @@ cs_cs89x0_probe(device_t dev)
 	else
 		sc->line_ctl = 0;
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -513,14 +507,12 @@ int cs_alloc_port(device_t dev, int rid, int size)
 
 	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 	    0ul, ~0ul, size, RF_ACTIVE);
-	if (res) {
-		sc->port_rid = rid;
-		sc->port_res = res;
-		sc->port_used = size;
-		return (0);
-	} else {
+	if (res == NULL)
 		return (ENOENT);
-	}
+	sc->port_rid = rid;
+	sc->port_res = res;
+	sc->port_used = size;
+	return (0);
 }
 
 /*
@@ -533,14 +525,12 @@ int cs_alloc_memory(device_t dev, int rid, int size)
 
 	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 	    0ul, ~0ul, size, RF_ACTIVE);
-	if (res) {
-		sc->mem_rid = rid;
-		sc->mem_res = res;
-		sc->mem_used = size;
-		return (0);
-	} else {
+	if (res == NULL)
 		return (ENOENT);
-	}
+	sc->mem_rid = rid;
+	sc->mem_res = res;
+	sc->mem_used = size;
+	return (0);
 }
 
 /*
@@ -553,13 +543,11 @@ int cs_alloc_irq(device_t dev, int rid, int flags)
 
 	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    (RF_ACTIVE | flags));
-	if (res) {
-		sc->irq_rid = rid;
-		sc->irq_res = res;
-		return (0);
-	} else {
+	if (res == NULL)
 		return (ENOENT);
-	}
+	sc->irq_rid = rid;
+	sc->irq_res = res;
+	return (0);
 }
 
 /*
@@ -811,18 +799,18 @@ cs_get_packet(struct cs_softc *sc)
 		if_printf(ifp, "bad pkt stat %x\n", status);
 #endif
 		ifp->if_ierrors++;
-		return -1;
+		return (-1);
 	}
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m==NULL)
-		return -1;
+		return (-1);
 
 	if (length > MHLEN) {
 		MCLGET(m, M_DONTWAIT);
 		if (!(m->m_flags & M_EXT)) {
 			m_freem(m);
-			return -1;
+			return (-1);
 		}
 	}
 
@@ -853,7 +841,7 @@ cs_get_packet(struct cs_softc *sc)
 		m_freem(m);
 	}
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1156,7 +1144,7 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	}
 
 	(void) splx(s);
-	return error;
+	return (error);
 }
 
 /*
@@ -1185,9 +1173,9 @@ cs_mediachange(struct ifnet *ifp)
 	struct ifmedia *ifm = &sc->media;
 
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
-		return EINVAL;
+		return (EINVAL);
 
-	return cs_mediaset(sc, ifm->ifm_media);
+	return (cs_mediaset(sc, ifm->ifm_media));
 }
 
 static void
@@ -1267,5 +1255,5 @@ cs_mediaset(struct cs_softc *sc, int media)
 	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) |
 	    SERIAL_RX_ON | SERIAL_TX_ON); 
 
-	return error;
+	return (error);
 }
