@@ -415,6 +415,10 @@ build32:
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
 .endif
 .endfor
+.for _dir in usr.sbin/pcvt/keycap usr.bin/lex/lib
+	cd ${.CURDIR}/${_dir}; \
+	    ${LIB32MAKE} DESTDIR=${LIB32TMP} obj
+.endfor
 .for _dir in lib/libncurses lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} build-tools
