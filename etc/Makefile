@@ -53,7 +53,6 @@ FILESYSTEM_FILES+=	etc/master.passwd etc/passwd etc/pwd.db etc/spwd.db
 FILESYSTEM_FILES+=	sbin/disklabel sbin/halt sbin/init
 FILESYSTEM_FILES+=	sbin/mount sbin/mount_isofs sbin/mount_pcfs
 FILESYSTEM_FILES+=	sbin/newfs
-#FILESYSTEM_FILES+=	sbin/reboot
 FILESYSTEM_FILES+=	sbin/umount
 FILESYSTEM_FILES+=	usr/bin/cpio
 FILESYSTEM_FILES+=	${MDEC}
@@ -69,7 +68,6 @@ CPIO_CPIO+=	tmp
 CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/ftp
 CPIO_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
 CPIO_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
-#CPIO_CPIO+=	usr/local/bin/mread usr/local/bin/rz
 CPIO_CPIO+=	usr/sbin/update usr/sbin/chown
 CPIO_CPIO+=	var
 
@@ -286,6 +284,18 @@ bin-tarball:
 			split -b 240640 - \
 			${RELEASEDIR}/tarballs/bin.tar.gz.)
 
+src-tarball:
+	(cd ${DESTDIR}; \
+		tar --exclude usr/src/${CRYPT_LIB} -cf - usr/src | gzip --no-name -9 -c | \
+			split -b 240640 - \
+			${RELEASEDIR}/tarballs/src.tar.gz.)
+
+ssrc-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/${CRYPT_LIB} | gzip --no-name -9 -c | \
+			split -b 240640 - \
+			${RELEASEDIR}/tarballs/ssrc.tar.gz.)
+
 des-tarball:
 	rm -rf ${RELEASEDIR}/tmpdes
 	mkdir ${RELEASEDIR}/tmpdes
@@ -330,7 +340,8 @@ distrib-dirs:
 floppies: kcopy-ah-floppy kcopy-bt-floppy filesystem-floppy \
 	  cpio-floppy
 
-release: release-dirs distribution kcopy-kernels floppies bin-tarball des-tarball
+release: release-dirs distribution kcopy-kernels floppies \
+	 bin-tarball des-tarball
 	
 release-dirs:
 	rm -rf ${RELEASEDIR}/filesystem
