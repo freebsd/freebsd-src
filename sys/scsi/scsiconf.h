@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.51 1997/03/23 06:33:50 bde Exp $
+ *	$Id: scsiconf.h,v 1.52 1997/04/02 09:05:43 jmg Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -58,6 +58,14 @@ struct scsi_xfer;
 struct cfdata;
 #endif
 
+/* Don't poke around inside of "scsi_data".  Each low level
+ * driver has its own definition for it.
+ */
+struct scsi_data;
+struct scsi_link;	/* scsi_link refers to scsi_device and vice-versa */
+
+struct proc;
+
 /*
  * These entrypoints are called by the high-end drivers to get services from
  * whatever low-end drivers they are attached to each adapter type has one of
@@ -100,14 +108,6 @@ struct scsi_adapter
  * Format of adapter_info() response data
  * e.g. maximum number of entries queuable to a device by the adapter
  */
-
-/* Don't poke around inside of "scsi_data".  Each low level
- * driver has its own definition for it.
- */
-struct scsi_data;
-struct scsi_link;	/* scsi_link refers to scsi_device and vice-versa */
-
-struct proc;
 
 /*
  * These entry points are called by the low-end drivers to get services from
