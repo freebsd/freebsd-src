@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: file.c,v 1.2 1997/11/08 22:15:55 obrien Exp $
+ *	$Id: file.c,v 1.3 1997/11/12 04:39:33 obrien Exp $
  */
 
 #include <sys/types.h>
@@ -40,7 +40,6 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -98,6 +97,8 @@ file_close(struct fetch_state *fs)
 static int
 file_retrieve(struct fetch_state *fs)
 {
+	struct stat sb;
+
 	/* XXX - this seems bogus to me! */
 	if (access(fs->fs_outputfile, F_OK) == 0) {
 		errno = EEXIST;
@@ -106,10 +107,13 @@ file_retrieve(struct fetch_state *fs)
 	}
 
 	if (fs->fs_linkfile) {
-    		struct stat sb;
+		fs->fs_status = "checking path";
+		if (stat(fs->fs_proto, &sb) == -1) {
+			warn("non-unexistent");
+			return EX_NOINPUT;
+		}
 		fs->fs_status = "symlink";
-		if (stat(fs->fs_proto, &sb) == -1
-			|| symlink(fs->fs_proto, fs->fs_outputfile) == -1) {
+		if (symlink(fs->fs_proto, fs->fs_outputfile) == -1) {
 			warn("symlink");
 			return EX_OSERR;
 		}
