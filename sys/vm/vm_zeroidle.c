@@ -30,11 +30,7 @@ static int cnt_prezero;
 SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 	cnt_prezero, CTLFLAG_RD, &cnt_prezero, 0, "");
 
-#ifdef SMP
-static int idlezero_enable = 0;
-#else
 static int idlezero_enable = 1;
-#endif
 SYSCTL_INT(_vm, OID_AUTO, idlezero_enable, CTLFLAG_RW, &idlezero_enable, 0, "");
 TUNABLE_INT("vm.idlezero_enable", &idlezero_enable);
 
