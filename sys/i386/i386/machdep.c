@@ -1143,27 +1143,8 @@ exec_setregs(td, entry, stack, ps_strings)
 	td->td_pcb->pcb_flags &= ~FP_SOFTFP;
 
 	/*
-	 * Arrange to trap the next npx or `fwait' instruction (see npx.c
-	 * for why fwait must be trapped at least if there is an npx or an
-	 * emulator).  This is mainly to handle the case where npx0 is not
-	 * configured, since the npx routines normally set up the trap
-	 * otherwise.  It should be done only at boot time, but doing it
-	 * here allows modifying `npx_exists' for testing the emulator on
-	 * systems with an npx.
-	 */
-	load_cr0(rcr0() | CR0_MP | CR0_TS);
-
-	/* Initialize the npx (if any) for the current process. */
-	/*
-	 * XXX the above load_cr0() also initializes it and is a layering
-	 * violation if NPX is configured.  It drops the npx partially
-	 * and this would be fatal if we were interrupted now, and decided
-	 * to force the state to the pcb, and checked the invariant
-	 * (CR0_TS clear) if and only if PCPU_GET(fpcurthread) != NULL).
-	 * ALL of this can happen except the check.  The check used to
-	 * happen and be fatal later when we didn't complete the drop
-	 * before returning to user mode.  This should be fixed properly
-	 * soon.
+	 * Drop the FP state if we hold it, so that the process gets a
+	 * clean FP state if it uses the FPU again.
 	 */
 	fpstate_drop(td);
 
@@ -1181,10 +1162,11 @@ cpu_setregs(void)
 	unsigned int cr0;
 
 	cr0 = rcr0();
-#ifdef SMP
-	cr0 |= CR0_NE;			/* Done by npxinit() */
-#endif
-	cr0 |= CR0_MP | CR0_TS;		/* Done at every execve() too. */
+	/*
+	 * CR0_MP, CR0_NE and CR0_TS are also set by npx_probe() for the
+	 * BSP.  See the comments there about why we set them.
+	 */
+	cr0 |= CR0_MP | CR0_NE | CR0_TS;
 #ifndef I386_CPU
 	cr0 |= CR0_WP | CR0_AM;
 #endif
