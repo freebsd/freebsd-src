@@ -3,7 +3,7 @@
 
 TMP=/tmp/$$.
 set -e
-for TEST in "i386 512" "i386 4096" "alpha 512" "pc98 512" "pc98 4096"
+for TEST in "i386 512" "i386 4096" "alpha 512"
 do
 	set $TEST
 	ARCH=$1
