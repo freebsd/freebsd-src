@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.6 1994/10/09 01:52:10 phk Exp $
+ * $Id: vm_map.c,v 1.7 1994/12/15 22:47:11 davidg Exp $
  */
 
 /*
@@ -141,7 +141,7 @@ vm_map_entry_t	kentry_free;
 vm_map_t	kmap_free;
 
 int		kentry_count;
-static vm_offset_t mapvm=0;
+static vm_offset_t mapvm=0, mapvmmax;
 static int	mapvmpgcnt=0;
 
 static void	_vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
@@ -194,6 +194,7 @@ vmspace_alloc(min, max, pageable)
 		mapvmpgcnt = (cnt.v_page_count * sizeof(struct vm_map_entry) + PAGE_SIZE - 1) / PAGE_SIZE;
 		s = splhigh();
 		mapvm = kmem_alloc_pageable(kmem_map, mapvmpgcnt * PAGE_SIZE);
+		mapvmmax = mapvm + mapvmpgcnt * PAGE_SIZE;
 		splx(s);
 		if (!mapvm)
 			mapvmpgcnt = 0;
@@ -371,11 +372,13 @@ vm_map_entry_dispose(map, entry)
 	vm_map_t	map;
 	vm_map_entry_t	entry;
 {
-	if (map == kernel_map || map == kmem_map || map == pager_map ||
-		kentry_count < KENTRY_LOW_WATER) {
+	if ( (kentry_count < KENTRY_LOW_WATER) ||
+	    (((vm_offset_t) entry) >= kentry_data && ((vm_offset_t) entry) < (kentry_data + kentry_data_size)) ||
+	    (((vm_offset_t) entry) >= mapvm && ((vm_offset_t) entry) < mapvmmax)) {
 		entry->next = kentry_free;
 		kentry_free = entry;
 		++kentry_count;
+		return;
 	} else {
 		if (mappoolcnt < MAPENTRY_LOW_WATER) {
 			entry->next = mappool;
