@@ -32,28 +32,32 @@
 #ifndef _MACHINE_KTR_H_
 #define _MACHINE_KTR_H_
 
-#ifdef LOCORE
+#include <machine/upa.h>
 
-#define	AND(var, mask, r1, r2, r3) \
-	setx	var, r2, r1 ; \
-	setx	mask, r3, r2 ; \
-	lduw	[r1], r3 ; \
-	and	r2, r3, r1
+#ifndef LOCORE
 
-#define	TEST(var, mask, r1, r2, r3, l1) \
-	AND(var, mask, r1, r2, r3) ; \
+#define	KTR_CPU	UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG))
+
+#else
+
+#define	AND(var, mask, r1, r2) \
+	SET(var, r2, r1) ; \
+	lduw	[r1], r2 ; \
+	and	r2, mask, r1
+
+#define	TEST(var, mask, r1, r2, l1) \
+	AND(var, mask, r1, r2) ; \
 	brz	r1, l1 ## f ; \
 	 nop
 
 /*
- * XXX doesn't do timestamp or ktr_cpu.
- * XXX could really use another register.
+ * XXX could really use another register...
  */
 #define	ATR(desc, r1, r2, r3, l1, l2) \
 	.sect	.rodata ; \
 l1 ## :	.asciz	desc ; \
 	.previous ; \
-	set	ktr_idx, r1 ; \
+	SET(ktr_idx, r2, r1) ; \
 	lduw	[r1], r2 ; \
 l2 ## :	add	r2, 1, r3 ; \
 	set	KTR_ENTRIES - 1, r1 ; \
@@ -63,28 +67,26 @@ l2 ## :	add	r2, 1, r3 ; \
 	cmp	r2, r3 ; \
 	bne	%icc, l2 ## b ; \
 	 mov	r3, r2 ; \
-	set	ktr_buf, r1 ; \
+	SET(ktr_buf, r3, r1) ; \
 	mulx	r2, KTR_SIZEOF, r2 ; \
 	add	r1, r2, r1 ; \
-	set	l1 ## b, r2 ; \
+	rd	%tick, r2 ; \
+	stx	r2, [r1 + KTR_TIMESTAMP] ; \
+	UPA_GET_MID(r2) ; \
+	stw	r2, [r1 + KTR_CPU] ; \
+	stw	%g0, [r1 + KTR_LINE] ; \
+	stx	%g0, [r1 + KTR_FILE] ; \
+	SET(l1 ## b, r3, r2) ; \
 	stx	r2, [r1 + KTR_DESC]
 
 #define CATR(mask, desc, r1, r2, r3, l1, l2, l3) \
-	TEST(ktr_mask, mask, r1, r2, r3, l3) ; \
+	set	mask, r1 ; \
+	TEST(ktr_mask, r1, r2, r2, l3) ; \
+	UPA_GET_MID(r1) ; \
+	mov	1, r2 ; \
+	sllx	r2, r1, r1 ; \
+	TEST(ktr_cpumask, r1, r2, r3, l3) ; \
 	ATR(desc, r1, r2, r3, l1, l2)
-
-/*
- * XXX crude conditional breakpoint and sir
- */
-#define	CBPT(mask, r1, r2, r3, l1) \
-	TEST(ktr_mask, mask, r1, r2, r3, l1) ; \
-	DEBUGGER() ; \
-l1 ## :
-
-#define	CSIR(mask, r1, r2, r3, l1) \
-	TEST(ktr_mask, mask, r1, r2, r3, l1) ; \
-	sir	42 ; \
-l1 ## :
 
 #endif /* LOCORE */
 
