@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.43 1994/04/03 11:41:11 ache Exp $
+ *	$Id: sio.c,v 1.44 1994/04/03 12:25:57 ache Exp $
  */
 
 #include "sio.h"
@@ -83,6 +83,7 @@
  */
 #define	COM_ISMULTIPORT(dev)	((dev)->id_flags & 0x01)
 #define	COM_MPMASTER(dev)	(((dev)->id_flags >> 8) & 0x0ff)
+#define COM_NOMASTER(dev)    ((dev)->id_flags & 0x04)
 #endif /* COM_MULTIPORT */
 
 #define	COM_NOFIFO(dev)	((dev)->id_flags & 0x02)
@@ -511,10 +512,12 @@ determined_type: ;
 
 #ifdef COM_MULTIPORT
 	if (COM_ISMULTIPORT(isdp)) {
-		struct isa_device *masterdev;
+	    com->multiport = TRUE;
+	    printf(" (multiport)");
 
-		com->multiport = TRUE;
-		printf(" (multiport)");
+	    /* Note: some cards have no master port (e.g., BocaBoards) */
+	    if (!COM_NOMASTER(isdp)) {
+		struct isa_device *masterdev;
 
 		/* set the master's common-interrupt-enable reg.,
 		 * as appropriate. YYY See your manual
@@ -525,6 +528,8 @@ determined_type: ;
 		masterdev = find_isadev(isa_devtab_tty, &siodriver,
 					COM_MPMASTER(isdp));
 		outb(masterdev->id_iobase + com_scr, 0x80);
+	    }
+
 	} else
 		com->multiport = FALSE;
 #endif /* COM_MULTIPORT */
