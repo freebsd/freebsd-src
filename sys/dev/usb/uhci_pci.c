@@ -1,5 +1,3 @@
-/*	$FreeBSD$ */
-
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -35,6 +33,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /* Universal Host Controller Interface
@@ -58,11 +58,12 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 #if defined(__FreeBSD__)
-#include <machine/bus_pio.h>
-#endif
+#include <sys/bus.h>
+
 #include <machine/bus.h>
-#include <sys/rman.h>
 #include <machine/resource.h>
+#include <sys/rman.h>
+#endif
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
@@ -89,6 +90,29 @@ static const char *uhci_device_vt83c572	= "VIA 83C572 USB controller";
 static const char *uhci_device_generic	= "UHCI (generic) USB controller";
 
 #define PCI_UHCI_BASE_REG               0x20
+
+static int
+uhci_pci_suspend(device_t self)
+{
+	uhci_softc_t *sc;
+
+	sc = device_get_softc(self);
+	bus_generic_suspend(self);
+
+	return 0;
+}
+
+static int
+uhci_pci_resume(device_t self)
+{
+	uhci_softc_t *sc;
+
+	sc = device_get_softc(self);
+	uhci_reset(sc);
+	bus_generic_resume(self);
+
+	return 0;
+}
 
 static const char *
 uhci_pci_match(device_t self)
@@ -148,7 +172,8 @@ uhci_pci_attach(device_t self)
 	sc->iot = rman_get_bustag(res);
 	sc->ioh = rman_get_bushandle(res);
 
-	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);	/* disable interrupts */
+	/* disable interrupts */
+	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
 	rid = 0;
 	res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
@@ -247,6 +272,8 @@ static device_method_t uhci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		uhci_pci_probe),
 	DEVMETHOD(device_attach,	uhci_pci_attach),
+	DEVMETHOD(device_suspend,	uhci_pci_suspend),
+	DEVMETHOD(device_resume,	uhci_pci_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
