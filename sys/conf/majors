@@ -165,6 +165,7 @@ chrdev	name		comments
 146	twe		3ware Escalade ATA RAID (controller)
 147	twed		3ware Escalade ATA RAID (drives)
 148	agp		AGP <dfr>
+149	tap		Ethernet tunneling device <myevmenkin@att.com>
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 253	mfs		Used by MFS
