@@ -33,7 +33,28 @@
 INTERFACE acpi;
 
 #
-# Default implementation for the probe method.
+# Callback function for each child handle traversed in acpi_scan_children().
+#
+# ACPI_HANDLE h:  current child device being considered
+#
+# device_t *dev:  pointer to the child's original device_t or NULL if there
+#   was none.  The callback should store a new device in *dev if it has
+#   created one.  The method implementation will automatically clean up the
+#   previous device and properly associate the current ACPI_HANDLE with it.
+#
+# level:  current level being scanned
+#
+# void *arg:  argument passed in original call to acpi_scan_children()
+#
+# Returns:  AE_OK if the scan should continue, otherwise an error
+#
+HEADER {
+	typedef ACPI_STATUS (*acpi_scan_cb_t)(ACPI_HANDLE h, device_t *dev,
+	    int level, void *arg);
+};
+
+#
+# Default implementation for acpi_id_probe().
 #
 CODE {
 	static char *
@@ -44,7 +65,16 @@ CODE {
 };
 
 #
-# Probe
+# Check a device for a match in a list of ID strings.  The strings can be
+# EISA PNP IDs or ACPI _HID/_CID values.
+#
+# device_t bus:  parent bus for the device
+#
+# device_t dev:  device being considered
+#
+# char **ids:  array of ID strings to consider
+#
+# Returns:  ID string matched or NULL if no match
 #
 METHOD char * id_probe {
 	device_t	bus;
@@ -53,7 +83,22 @@ METHOD char * id_probe {
 } DEFAULT acpi_generic_id_probe;
 
 #
-# AcpiEvaluateObject
+# Evaluate an ACPI method or object, given its path.
+#
+# device_t bus:  parent bus for the device
+#
+# device_t dev:  evaluate the object relative to this device's handle.
+#   Specify NULL to begin the search at the ACPI root.
+#
+# ACPI_STRING pathname:  absolute or relative path to this object
+#
+# ACPI_OBJECT_LIST *parameters:  array of arguments to pass to the object.
+#   Specify NULL if there are none.
+#
+# ACPI_BUFFER *ret:  the result (if any) of the evaluation
+#   Specify NULL if there is none.
+#
+# Returns:  AE_OK or an error value
 #
 METHOD ACPI_STATUS evaluate_object {
 	device_t	bus;
@@ -64,14 +109,28 @@ METHOD ACPI_STATUS evaluate_object {
 };
 
 #
-# AcpiWalkNamespace
+# Rescan a subtree and optionally reattach devices to handles.  Users
+# specify a callback that is called for each ACPI_HANDLE of type Device
+# that is a child of "dev".
 #
-METHOD ACPI_STATUS walk_namespace {
+# device_t bus:  parent bus for the device
+#
+# device_t dev:  begin the scan starting with this device's handle.
+#   Specify NULL to begin the scan at the ACPI root.
+# 
+# int max_depth:  number of levels to traverse (i.e., 1 means just the
+#   immediate children.
+#
+# acpi_scan_cb_t user_fn:  called for each child handle
+#
+# void *arg:  argument to pass to the callback function
+#
+# Returns:  AE_OK or an error value, based on the callback return value
+#
+METHOD ACPI_STATUS scan_children {
 	device_t	bus;
 	device_t	dev;
-	ACPI_OBJECT_TYPE type;
-	UINT32		max_depth;
-	ACPI_WALK_CALLBACK user_fn;
-	void		*context;
-	void		**ret;
+	int		max_depth;
+	acpi_scan_cb_t	user_fn;
+	void		*arg;
 };
