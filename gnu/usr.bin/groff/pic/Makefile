@@ -5,7 +5,7 @@ SRCS=		lex.cc main.cc object.cc common.cc troff.cc tex.cc
 OBJS=		pic.o
 CFLAGS+=	-I. -I${.CURDIR}/../include
 LDADD+=		${LIBGROFF} -lm
-DPADD+=		${LIBGROFF} ${LIBMATH}
+DPADD+=		${LIBGROFF} ${LIBM}
 
 MANDEPEND=	pic.1
 CLEANFILES+=	pic.cc pic.tab.h ${MANDEPEND}

@@ -4,7 +4,7 @@ PROG=		indxbib
 SRCS=		indxbib.cc dirnamemax.c signal.c
 CFLAGS+=	-I${.CURDIR}/../include
 LDADD+= 	${LIBBIB} ${LIBGROFF} -lm
-DPADD+= 	${LIBBIB} ${LIBGROFF} ${LIBMATH}
+DPADD+= 	${LIBBIB} ${LIBGROFF} ${LIBM}
 
 MANDEPEND=	indxbib.1
 CLEANFILES+=	${MANDEPEND}
