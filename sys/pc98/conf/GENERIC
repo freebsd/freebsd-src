@@ -182,6 +182,9 @@ device		ppi0	at ppbus?
 # Please stay olpt driver after ppc driver
 device		olpt0	at isa? port IO_LPT
 
+# MII bus support, required for some 10/100 NICs
+controller	miibus0
+
 #
 # The following Ethernet NICs are all PCI devices.
 #
