@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.153 1997/07/18 03:49:47 asami Exp $
+#	$Id: Makefile,v 1.154 1997/08/02 00:22:44 davidn Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -56,6 +56,7 @@ distribution:
 	    ${DESTDIR}/var/cron/log; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    master.passwd ${DESTDIR}/etc; \
+	( cd ${.CURDIR}/cron.d; ${MAKE} install );\
 	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall );\
 	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
