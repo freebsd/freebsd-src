@@ -22,7 +22,7 @@
  * These notices must be retained in any copies of any part of this
  * documentation and/or software.
  *
- * $Id: md5c.c,v 1.10 1997/10/21 13:28:36 phk Exp $
+ * $Id: md5c.c,v 1.11 1998/03/27 10:23:00 phk Exp $
  *
  * This code is the same as the code published by RSA Inc.  It has been
  * edited for clarity and style only.
@@ -38,7 +38,6 @@
 
 #include <sys/md5.h>
 
-static void MD5Transform __P((u_int32_t [4], const unsigned char [64]));
 
 #ifdef KERNEL
 #define memset(x,y,z)	bzero(x,z);
@@ -235,7 +234,7 @@ MD5Final (digest, context)
 
 /* MD5 basic transformation. Transforms state based on block. */
 
-static void
+void
 MD5Transform (state, block)
 	u_int32_t state[4];
 	const unsigned char block[64];
