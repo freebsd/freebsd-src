@@ -162,9 +162,8 @@ dsp_wrintr(snddev_info *d)
 	    b->dl, b->rp, b->rl, b->fp, b->fl));
     /*
      * start another dma operation only if have ready data in the buffer,
-     * there is no pending abort, have a full-duplex device
-     * or have half duplex device
-     * and there is no * pending op on the other side.
+     * there is no pending abort, have a full-duplex device, or have a
+     * half duplex device and there is no pending op on the other side.
      *
      * Force transfers to be aligned to a boundary of 4, which is
      * needed when doing stereo and 16-bit. We could make this
@@ -176,12 +175,24 @@ dsp_wrintr(snddev_info *d)
 	int l = min(b->rl, d->play_blocksize );	/* avoid too large transfer */
 	l &= DMA_ALIGN_MASK ; /* realign things */
 
-	if (l != b->dl) {
+	/*
+	 * check if we need to reprogram the DMA on the sound card.
+	 * This happens if the size has changed _and_ the new size
+	 * is smaller, or it matches the blocksize.
+	 */
+	if (l != b->dl && (l < b->dl || l == d->play_blocksize) ) {
 	    /* for any reason, size has changed. Stop and restart */
 	    DEB(printf("wrintr: bsz change from %d to %d, rp %d rl %d\n",
 		b->dl, l, b->rp, b->rl));
-	    b->dl = l; /* record previous transfer size */
 	    d->callback(d, SND_CB_WR | SND_CB_STOP );
+	    /*
+	     * at high speed, it might well be that the count
+	     * changes in the meantime. So we try to update b->rl
+	     */
+	    dsp_wr_dmaupdate(b) ;
+	    l = min(b->rl, d->play_blocksize );
+	    l &= DMA_ALIGN_MASK ; /* realign things */
+	    b->dl = l; /* record previous transfer size */
 	    d->callback(d, SND_CB_WR | SND_CB_START );
 	}
     } else {
@@ -193,7 +204,7 @@ dsp_wrintr(snddev_info *d)
 	    d->callback(d, SND_CB_WR | SND_CB_STOP );	/* stop dma */
 	    if (d->flags & SND_F_WRITING)
 		DEB(printf("Race! got wrint while reloading...\n"));
-	    else
+	    else if (b->rl <= 0) /* XXX added 980110 lr */
 		reset_dbuf(b, SND_CHAN_WR);
 	}
 	/*
@@ -236,7 +247,7 @@ dsp_write_body(snddev_info *d, struct uio *buf)
      * the previous operation.
      */
     bsz =  b->dl ? MIN_CHUNK_SIZE : b->bufsize ;
-    while (( n = buf->uio_resid )) {
+    while ( n = buf->uio_resid ) {
         l = min (n, bsz);       /* at most n bytes ... */
         s = spltty();  /* no interrupts here ... */
 	dsp_wr_dmaupdate(b);
@@ -750,7 +761,7 @@ snd_flush(snddev_info *d)
 	    return -1 ;
 	}
 	if ( ret && --count == 0) {
-	    printf("timeout flushing dbuf_out.chan, cnt 0x%x flags 0x%08lx\n",
+	    printf("timeout flushing dbuf_out.chan, cnt 0x%x flags 0x%08x\n",
 		    b->rl, d->flags);
 	    break;
 	}

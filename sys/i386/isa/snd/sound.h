@@ -1,3 +1,5 @@
+/* uncomment the next line for -current with select->poll changes */
+#define USE_POLL
 /*
  * sound.h
  *
@@ -62,10 +64,13 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/poll.h>
 #include <i386/isa/isa_device.h>
 #include <machine/clock.h>	/* for DELAY */
 
+#ifdef	USE_POLL
+#include <sys/poll.h>
+#define d_select_t d_poll_t
+#endif
 
 #else
 struct isa_device { int dummy ; } ;
@@ -74,7 +79,7 @@ struct isa_device { int dummy ; } ;
 #define d_read_t void
 #define d_write_t void
 #define d_ioctl_t void
-#define d_poll_t void
+#define d_select_t void
 #endif /* KERNEL */
 typedef void    (irq_proc_t) (int irq);
 
@@ -125,7 +130,7 @@ struct _snddev_info {
     d_read_t *read ;
     d_write_t *write ;
     d_ioctl_t *ioctl ;
-    d_poll_t *poll ;
+    d_select_t *select ;
     irq_proc_t  *isr ;
     snd_callback_t *callback;
 
@@ -152,6 +157,7 @@ struct _snddev_info {
 
     /*
      * whereas from here, parameters are set at runtime.
+     * io_base == 0 means that the board is not configured.
      */
 
     int     io_base ;	/* primary I/O address for the board */
@@ -159,7 +165,6 @@ struct _snddev_info {
     int     conf_base ; /* and the opti931 also has a config space */
     int     mix_base ; /* base for the mixer... */
     int     midi_base ; /* base for the midi */
-    int     synth_base ; /* base for the synth */
 
     int     irq ;
     int bd_id ;     /* used to hold board-id info, eg. sb version,
@@ -202,6 +207,7 @@ struct _snddev_info {
 #define	SND_F_BUSY_DSP		0x20000000
 #define	SND_F_BUSY_DSP16	0x40000000
 #define	SND_F_BUSY_ANY		0x70000000
+#define	SND_F_BUSY_SYNTH	0x80000000
     /*
      * the next two are used to allow only one pending operation of
      * each type.
@@ -279,6 +285,8 @@ struct _snddev_info {
     u_long	interrupts;	/* counter of interrupts */
     u_long	magic;
 #define	MAGIC(unit) ( 0xa4d10de0 + unit )
+    int     synth_base ; /* base for the synth */
+    int     synth_type ; /* type of synth */
     void    *device_data ;	/* just in case it is needed...*/
 } ;
 
@@ -434,13 +442,16 @@ typedef struct mixer_def mixer_tab[32][2];
 
 #define MIX_NONE(name) MIX_ENT(name, 0,0,0,0, 0,0,0,0)
 
+/*
+ * some macros for debugging purposes
+ * DDB/DEB to enable/disable debugging stuff
+ * BVDDB   to enable debugging when bootverbose
+ */
 #define DDB(x)	x	/* XXX */
+#define BVDDB(x) if (bootverbose) x
 
 #ifndef DEB
 #define DEB(x)
-#endif
-#ifndef DDB
-#define DDB(x)
 #endif
 
 extern snddev_info pcm_info[NPCM_MAX] ;
@@ -457,6 +468,12 @@ int pcmattach(struct isa_device * dev);
 int midiattach(struct isa_device * dev);
 int synthattach(struct isa_device * dev);
 
+/*
+ * functions in isa.c
+ */
+
+int isa_dmastatus(int chan);
+int isa_dmastop(int chan);
 /*
  *      DMA buffer calls
  */
@@ -483,7 +500,7 @@ int dsp_rdabort(snddev_info *d, int restart);
 void dsp_wr_dmaupdate(snd_dbuf *b);
 void dsp_rd_dmaupdate(snd_dbuf *b);
 
-d_poll_t sndpoll;
+d_select_t sndselect;
 
 /*
  * library functions (in sound.c)
@@ -526,10 +543,5 @@ int sb_getmixer (int io_base, u_int port);
     /* almost all modern cards do not have this set of registers,
      * so it is better to make this the default behaviour
      */
-
-/*
- * the following flags are for PnP cards only and are undocumented
- */
-#define DV_PNP_SBCODEC	0x1
 
 #endif

@@ -11,18 +11,21 @@ extern int sbc_major, sbc_minor ;
  * sound blaster registers
  */
 
-#define DSP_RESET	(io_base + 0x6)
+#define SBDSP_RST	0x6
 #define DSP_READ	(io_base + 0xA)
 #define DSP_WRITE	(io_base + 0xC)
-#define DSP_COMMAND	(io_base + 0xC)
-#define DSP_STATUS	(io_base + 0xC)
+#define SBDSP_CMD	0xC
+#define SBDSP_STATUS	0xC
 #define DSP_DATA_AVAIL	(io_base + 0xE)
 #define DSP_DATA_AVL16	(io_base + 0xF)
+
+#if 0
 #define MIXER_ADDR	(io_base + 0x4)
 #define MIXER_DATA	(io_base + 0x5)
 #define OPL3_LEFT	(io_base + 0x0)
 #define OPL3_RIGHT	(io_base + 0x2)
 #define OPL3_BOTH	(io_base + 0x8)
+#endif
 
 /*
  * DSP Commands. There are many, and in many cases they are used explicitly
