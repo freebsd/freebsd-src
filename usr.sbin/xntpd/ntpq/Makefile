@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.8 1997/02/22 16:14:28 peter Exp $
+# $Id: Makefile,v 1.9 1998/03/07 09:46:08 bde Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
@@ -13,8 +13,6 @@ CLEANFILES+= .version version.c
 BINDIR= /usr/bin
 
 SRCS= ntpq.c ntpq_ops.c version.c
-
-beforedepend: version.c
 
 version.c: ${.CURDIR}/../VERSION
 	sh -e ${.CURDIR}/../scripts/mkversion ntpq
