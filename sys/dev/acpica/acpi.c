@@ -165,8 +165,8 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_get_resource,		acpi_get_resource),
     DEVMETHOD(bus_alloc_resource,	acpi_alloc_resource),
     DEVMETHOD(bus_release_resource,	acpi_release_resource),
-    DEVMETHOD(bus_child_pnpinfo_str,    acpi_child_pnpinfo_str_method),
-    DEVMETHOD(bus_child_location_str,    acpi_child_location_str_method),
+    DEVMETHOD(bus_child_pnpinfo_str,	acpi_child_pnpinfo_str_method),
+    DEVMETHOD(bus_child_location_str,	acpi_child_location_str_method),
     DEVMETHOD(bus_driver_added,		bus_generic_driver_added),
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
@@ -699,11 +699,8 @@ acpi_print_child(device_t bus, device_t child)
     return (retval);
 }
 
-/*
- * Location hint for devctl(8)
- */
- 
-int
+/* Location hint for devctl(8) */
+static int
 acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
@@ -716,31 +713,28 @@ acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
     return (0);
 }
 
-/*
- * PnP information for devctl(8)
- */
-
-int
+/* PnP information for devctl(8) */
+static int
 acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
-    struct acpi_device *dinfo = device_get_ivars(child);
-    ACPI_DEVICE_INFO *adinfo;
     ACPI_BUFFER adbuf = {ACPI_ALLOCATE_BUFFER, NULL}; 
+    ACPI_DEVICE_INFO *adinfo;
+    struct acpi_device *dinfo = device_get_ivars(child);
     char *end;
     int error;
 
     error = AcpiGetObjectInfo(dinfo->ad_handle, &adbuf);
     adinfo = (ACPI_DEVICE_INFO *) adbuf.Pointer;
-    
+
     if (error)
 	snprintf(buf, buflen, "Unknown");
     else
 	snprintf(buf, buflen, "_HID=%s _UID=%lu", 
-		 (adinfo->Valid & ACPI_VALID_HID)?
+		 (adinfo->Valid & ACPI_VALID_HID) ?
 		 adinfo->HardwareId.Value : "UNKNOWN",
-		 ((adinfo->Valid & ACPI_VALID_UID)?
-		  strtoul(adinfo->UniqueId.Value, &end, 10):0 ));
+		 (adinfo->Valid & ACPI_VALID_UID) ?
+		 strtoul(adinfo->UniqueId.Value, &end, 10) : 0);
 
     if (adinfo)
 	AcpiOsFree(adinfo);
