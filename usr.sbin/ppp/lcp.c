@@ -408,7 +408,7 @@ LcpSendConfigReq(struct fsm *fp)
                fp->link->name, lcp->want_mru, maxmru);
     lcp->want_mru = maxmru;
   }
-  if (!REJECTED(lcp, TY_MRU) || lcp->want_mru < DEF_MRU) {
+  if (!REJECTED(lcp, TY_MRU)) {
     ua_htons(&lcp->want_mru, o->data);
     INC_LCP_OPT(TY_MRU, 4, o);
   }
