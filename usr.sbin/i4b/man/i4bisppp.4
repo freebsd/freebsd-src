@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,22 +22,19 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4bisppp.4,v 1.13 2000/08/31 08:45:07 hm Exp $
-.\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Thu Aug 31 10:40:17 2000]
+.\"	last edit-date: [Sun Jul 28 12:43:22 2002]
 .\"
-.Dd August 31, 2000
+.Dd July 28, 2002
 .Dt I4BISPPP 4
 .Os
 .Sh NAME
 .Nm i4bisppp
 .Nd isdn4bsd synchronous PPP over ISDN B-channel network driver
-.Sh FreeBSD SYNOPSIS
-.Cd pseudo-device \&"i4bisppp\&" Op count
-.Sh NetBSD SYNOPSIS
-none
+.Sh SYNOPSIS
+.Cd device \&"i4bisppp\&" Op count
+.Cd device sppp
 .Sh DESCRIPTION
 The
 .Nm
@@ -45,20 +42,19 @@ driver interfaces the IP subsystem of the operating system with the
 isdn4bsd package so that a transport of IP packets over an ISDN link
 is possible.
 .Pp
-The driver is just a glue layer between Serge Vakulenko's sppp
-backend and the ISDN4BSD package.
+The driver is just a glue layer between the
+.Xr sppp 4
+backend and the ISDN4BSD package and needs the
+.Xr sppp 4
+driver configured into the kernel.
 .Pp
-Beginning with i4b version 0.95 (and only for
-.Fx ) ,
-the sppp
-subsystem was integrated into the
-.Nm
-driver to support more i4b/ISDN specific options. As a consequence it is no
-longer necessary to add a "options sppp" to your kernel
-.Xr config 8
-file. For configuration of the i4bsppp driver, either the
-.Xr ispppcontrol 8
-utility is used or it is configured via
+The network interfaces provided by this driver are named
+.Em isp<n> ,
+where <n> is a number between 0 and count-1 from the kernel config line.
+.Pp
+For configuration of the i4bsppp driver, either the
+.Xr spppcontrol 8
+utility is used or the driver can be configured via
 .Xr isdnd 1
 and its associated
 .Xr isdnd.rc 5
@@ -77,10 +73,6 @@ with the
 .Nm isp
 interfaces.
 .Pp
-The
-.Xr ispppcontrol 8
-utility is used to configure all aspects of PPP required to connect to a
-remote site.
 .Sh LINK0 and LINK1
 The
 .Em link0
@@ -89,7 +81,7 @@ and
 flags given as parameters to
 .Xr ifconfig 8
 have the following meaning for the
-.Nm isp
+.Em isp<n>
 devices:
 .Bl -tag -width link0 -compact
 .Pp
@@ -110,14 +102,14 @@ by default.
 .Pp
 See
 .Xr sppp 4
-for a more detailed discussion of the flags,
+for a more detailed discussion of the flags.
 .Sh SEE ALSO
 .Xr tcpdump 1 ,
 .Xr bpf 4 ,
 .Xr sppp 4 ,
 .Xr isdnd.rc 5 ,
 .Xr isdnd 8 ,
-.Xr ispppcontrol 8
+.Xr spppcontrol 8
 .Sh AUTHORS
 .An -nosplit
 The
@@ -128,4 +120,4 @@ and then added to ISDN4BSD by
 .An Gary Jennejohn Aq gj@FreeBSD.org .
 .Pp
 This manpage was written by
-.An Hellmuth Michaelis Aq hm@kts.org .
+.An Hellmuth Michaelis Aq hm@freebsd.org .

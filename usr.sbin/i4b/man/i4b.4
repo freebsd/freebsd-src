@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,22 +22,18 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4b.4,v 1.9 1999/12/13 22:11:55 hm Exp $
-.\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:09:12 1999]
+.\"	last edit-date: [Sun Jul 28 12:07:13 2002]
 .\"
-.Dd February 3, 1998
+.Dd July 28,2002
 .Dt I4B 4
 .Os
 .Sh NAME
 .Nm i4b
 .Nd isdn4bsd call control ISDN driver
-.Sh FreeBSD SYNOPSIS
-.Cd pseudo-device \&"i4b\&"
-.Sh NetBSD SYNOPSIS
-none
+.Sh SYNOPSIS
+.Cd device \&"i4b\&"
 .Sh DESCRIPTION
 The
 .Nm
@@ -45,13 +41,16 @@ device driver is used by the
 .Xr isdnd 8
 daemon to exchange messages with the isdn4bsd kernel part for the purpose
 of call establishment, control and disconnection and to access various
-control and status informations.
+control and status informations. The
+.Nm
+device can only be opened by a single process and is not meant to be used
+by user programs. 
 .Pp
 The messages and message parameters are documented in the include
 file
 .Em /usr/include/machine/i4b_ioctl.h .
 .Pp
-The available ioctl's are:
+The most important available ioctl's are:
 .Pp
 .Bl -tag -width Ds -compact -offset indent
 .It Ar I4B_CDID_REQ
@@ -107,4 +106,4 @@ Charging information from the kernel.
 The
 .Nm
 device driver and this manpage were written by
-.An Hellmuth Michaelis Aq hm@kts.org .
+.An Hellmuth Michaelis Aq hm@freebsd.org .
