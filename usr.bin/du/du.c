@@ -57,7 +57,7 @@ static char sccsid[] = "@(#)du.c	8.5 (Berkeley) 5/4/95";
 #include <unistd.h>
 
 int	 linkchk __P((FTSENT *));
-void	 usage __P((void));
+static void	 usage __P((void));
 
 int
 main(argc, argv)
@@ -231,17 +231,16 @@ linkchk(p)
 
 	if (nfiles == maxfiles && (files = realloc((char *)files,
 	    (u_int)(sizeof(ID) * (maxfiles += 128)))) == NULL)
-		err(1, "");
+		err(1, "can't allocate memory");
 	files[nfiles].inode = ino;
 	files[nfiles].dev = dev;
 	++nfiles;
 	return (0);
 }
 
-void
+static void
 usage()
 {
-
 	(void)fprintf(stderr,
 		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-k] [-x] [file ...]\n");
 	exit(1);
