@@ -1,7 +1,7 @@
 /* opiepasswd.c: Add/change an OTP password in the key database.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Use OPIE_SEED_MAX instead of
+		hard coding the length. Unlock user on failed lookup.
 	Modified by cmetz for OPIE 2.3. Got of some variables and made some
 		local to where they're used. Split out the finishing code. Use
 		opielookup() instead of opiechallenge() to find user. Three
@@ -110,7 +112,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 {
   struct opie opie;
   int rval, n = 499, i, mode = MODE_DEFAULT, force = 0;
-  char seed[18];
+  char seed[OPIE_SEED_MAX+1];
   struct passwd *pp;
 
   memset(seed, 0, sizeof(seed));
@@ -126,7 +128,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
       opieversion();
     case 'f':
 #if INSECURE_OVERRIDE
-      force = 1;
+      force = OPIEPASSWD_FORCE;
 #else /* INSECURE_OVERRIDE */
       fprintf(stderr, "Sorry, but the -f option is not supported by this build of OPIE.\n");
 #endif /* INSECURE_OVERRIDE */
@@ -185,10 +187,10 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
     break;
   case 2:
     fprintf(stderr, "Error: Can't update key database.\n");
-    exit(1);
+    finish(NULL);
   default:
     fprintf(stderr, "Error reading key database\n");
-    exit(1);
+    finish(NULL);
   }
 
   if (seed[0]) {
@@ -308,7 +310,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 	  finish(NULL);
 	}
 	
-	if (!(rval = opiepasswd(&opie, 0, pp->pw_name, n, seed, tmp)))
+	if (!(rval = opiepasswd(&opie, force, pp->pw_name, n, seed, tmp)))
 	  finish(pp->pw_name);
 	
 	if (rval < 0) {
@@ -326,7 +328,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
       fprintf(stderr, "Only use this method from the console; NEVER from remote. If you are using\n");
       fprintf(stderr, "telnet, xterm, or a dial-in, type ^C now or exit with no password.\n");
       fprintf(stderr, "Then run opiepasswd without the -c parameter.\n");
-      if (opieinsecure()) {
+      if (opieinsecure() && !force) {
 	fprintf(stderr, "Sorry, but you don't seem to be on the console or a secure terminal.\n");
 	if (force)
           fprintf(stderr, "Warning: Continuing could disclose your secret pass phrase to an attacker!\n");
@@ -394,7 +396,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 	fprintf(stderr, "Sorry, no match.\n");
       }
       memset(passwd2, 0, sizeof(passwd2));
-      if (opiepasswd(&opie, 1, pp->pw_name, n, seed, passwd)) {
+      if (opiepasswd(&opie, 1 | force, pp->pw_name, n, seed, passwd)) {
 	fprintf(stderr, "Error updating key database.\n");
 	finish(NULL);
       }
