@@ -26,6 +26,7 @@
 # $FreeBSD$
 #
 
+#include <sys/bus.h>
 #include <dev/ppbus/ppbconf.h>
 
 INTERFACE ppbus;

@@ -32,7 +32,6 @@
 #include <sys/bus.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
