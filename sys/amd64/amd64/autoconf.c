@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.121 1999/05/10 17:12:40 peter Exp $
+ *	$Id: autoconf.c,v 1.122 1999/05/12 07:40:50 phk Exp $
  */
 
 /*
@@ -48,7 +48,6 @@
 #include "opt_bootp.h"
 #include "opt_ffs.h"
 #include "opt_cd9660.h"
-#include "opt_mfs.h"
 #include "opt_nfsroot.h"
 #include "opt_bus.h"
 #include "opt_rootdevname.h"
@@ -74,10 +73,6 @@
 #endif /* APIC_IO */
 
 #include <i386/isa/icu.h>
-
-#ifdef MFS_ROOT
-#include <ufs/mfs/mfs_extern.h>
-#endif
 
 #include "pnp.h"
 #if NPNP > 0
@@ -107,7 +102,9 @@ static void	configure_final __P((void *));
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
 static int	setdumpdev __P((dev_t dev));
+#if defined(FFS) || defined(FFS_ROOT)
 static void	setroot __P((void));
+#endif
 static int	setrootbyname __P((char *name));
 static void	gets __P((char *));
 
@@ -333,17 +330,6 @@ cpu_rootconf()
 	}
 #endif
 
-#ifdef MFS_ROOT
-	if (!mountrootfsname) {
-		if (bootverbose)
-			printf("Considering MFS root f/s.\n");
-		if (mfs_getimage())
-			mountrootfsname = "mfs";
-		else if (bootverbose)
-			printf("No MFS image available as root f/s.\n");
-	}
-#endif
-
 #ifdef BOOTP_NFSROOT
 	if (!mountrootfsname && !nfs_diskless_valid) {
 		if (bootverbose)
@@ -422,6 +408,7 @@ u_long	bootdev = 0;		/* not a dev_t - encoding is different */
 #define FDMAJOR 2
 #define FDUNITSHIFT     6
 
+#if defined(FFS) || defined(FFS_ROOT)
 /*
  * Attempt to find the device from which we were booted.
  * If we can do so, and not instructed not to do so,
@@ -493,6 +480,7 @@ setroot()
 	rootdevnames[1] = malloc(strlen(sname) + 2, M_DEVBUF, M_NOWAIT);
 	sprintf(rootdevnames[1], "%s%s", sname, partname);
 }
+#endif
 
 
 static int
