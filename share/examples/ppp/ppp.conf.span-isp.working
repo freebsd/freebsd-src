@@ -66,6 +66,7 @@ vpn:
   set enddisc LABEL
   set speed sync
   set mrru 1500
+  set mru 1504			# Room for the MP header
   set authname vpnname
   set authkey vpnkey
   add! default HISADDR
@@ -89,6 +90,7 @@ vpn-in:
   set enddisc label
   set speed sync
   set mrru 1500
+  set mru 1504			# Room for the MP header
   enable chap
   disable lqr
   set ifaddr 127.0.0.2 127.0.0.3
