@@ -1,4 +1,4 @@
-.\" $Id: bios.9,v 1.1 1997/08/01 06:04:08 msmith Exp $
+.\" $Id: bios.9,v 1.2 1997/08/01 15:17:54 msmith Exp $
 .\"
 .\" Copyright (c) 1997 Michael Smith
 .\" All rights reserved.
@@ -33,6 +33,7 @@
 .Nm bios32
 .Nd Interact with PC BIOS.
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <machine/pc/bios.h>
 .Ft u_int32_t
 .Fn bios_sigsearch "u_int32_t start" "u_char *sig" "int siglen" "int paralen" "int sigofs"

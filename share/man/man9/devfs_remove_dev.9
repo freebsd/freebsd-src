@@ -29,7 +29,7 @@
 .\" -translation to english:
 .\" - You can't claim it's yours without admitting to the bits I wrote.
 .\" - You don't need to say anything in binary releases unless asked.
-.\" $Id: devfs_remove_dev.9,v 1.7 1996/05/13 14:59:15 julian Exp $
+.\" $Id: devfs_remove_dev.9,v 1.1 1997/12/25 05:54:24 julian Exp $
 .\"
 .Dd December 25, 1997
 .Os FreeBSD
@@ -38,6 +38,7 @@
 .Nm devfs_remove_dev
 .Nd  remove all references to a devfs device node and delete the node.
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/devfsext.h>
 .Ft void 
 .Fn devfs_remove_dev "void * token"
