@@ -28,15 +28,19 @@
 #define After	CTM_Q_MD5_After
 #define Before	CTM_Q_MD5_Before
 #define Chunk	CTM_Q_MD5_Chunk
+#define Force	CTM_Q_MD5_Force
 
 static int ctmFM[] = /* File Make */
-    { Name|File|New, Uid, Gid, Mode, MD5|After|Chunk, Count, Bytes,0 };
+    { Name|File|New, Uid, Gid, Mode, 
+	MD5|After|Chunk, Count, Bytes,0 };
 
 static int ctmFS[] = /* File Substitute */
-    { Name|File, Uid, Gid, Mode, MD5|Before, MD5|After|Chunk, Count, Bytes,0 };
+    { Name|File, Uid, Gid, Mode, 
+	MD5|Before|Force, MD5|After|Chunk, Count, Bytes,0 };
 
 static int ctmFE[] = /* File Edit */
-    { Name|File, Uid, Gid, Mode, MD5|Before, MD5|After, Count, Bytes,0 };
+    { Name|File, Uid, Gid, Mode, 
+	MD5|Before, MD5|After, Count, Bytes,0 };
 
 static int ctmFR[] = /* File Remove */
     { Name|File, MD5|Before, 0 };

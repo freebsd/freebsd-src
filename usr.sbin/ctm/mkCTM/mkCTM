@@ -84,10 +84,10 @@ proc CTMchg {t1 n1 m1 u1 g1 b1 s1 h1 t2 n2 m2 u2 g2 b2 s2 h2} {
     }
     if {$b1 == "0" && $b2 == "0"} {
 	puts stderr "E $b1$b2 $t1$t2 $n1"
-	set i [catch "exec diff -e $d1/$n1 $d2/$n2 > tmp" j]
+	set i [catch "exec diff -n $d1/$n1 $d2/$n2 > tmp" j]
 	set s [file size tmp]
 	if {$s < $s2} {
-	    puts $fo_files "CTMFE $n1 $u2 $g2 $m2 $h1 $h2 $s"
+	    puts $fo_files "CTMFN $n1 $u2 $g2 $m2 $h1 $h2 $s"
 	    flush $fo_files
 	    exec cat tmp >@ $fo_files
 	    puts $fo_files ""
