@@ -508,7 +508,7 @@ shortdump(msg)
 	struct sadb_msg *msg;
 {
 	caddr_t mhp[SADB_EXT_MAX + 1];
-	char buf[1024], pbuf[10];
+	char buf[NI_MAXHOST], pbuf[NI_MAXSERV];
 	struct sadb_sa *sa;
 	struct sadb_address *saddr;
 	struct sadb_lifetime *lts, *lth, *ltc;
