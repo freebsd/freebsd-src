@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id:$
+ * $Id: asc.c,v 1.4 1995/09/08 18:30:33 julian Exp $
  */
 
 #include "asc.h"
@@ -473,6 +473,15 @@ ascattach(struct isa_device *isdp)
     sprintf(buf,"asc%d",unit);
 /*            path      name  devsw    minor    type   uid gid perm*/
    x=dev_add("/misc",   buf,  ascopen, unit<<6, DV_CHR, 0,  0, 0666);
+    sprintf(buf,"asc%dp",unit);
+   x=dev_add("/misc",   buf,  ascopen, ((unit<<6) + FRMT_PBM),
+						DV_CHR, 0,  0, 0666);
+    sprintf(buf,"asc%dd",unit);
+   x=dev_add("/misc",   buf,  ascopen, ((unit<<6) + DBUG_MASK),
+						DV_CHR, 0,  0, 0666);
+    sprintf(buf,"asc%dpd",unit);
+   x=dev_add("/misc",   buf,  ascopen, ((unit<<6) + DBUG_MASK + FRMT_PBM),
+						DV_CHR, 0,  0, 0666);
 #endif /*DEVFS*/
   return 1; /* attach must not fail */
 }
