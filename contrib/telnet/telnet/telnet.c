@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -970,16 +972,17 @@ suboption()
 	    unsigned char temp[50], *dp;
 	    int len;
 
-	    if ((dp = env_getvalue((unsigned char *)"DISPLAY")) == NULL) {
+	    if ((dp = env_getvalue((unsigned char *)"DISPLAY")) == NULL ||
+		strlen(dp) > sizeof(temp) - 7) {
 		/*
 		 * Something happened, we no longer have a DISPLAY
-		 * variable.  So, turn off the option.
+		 * variable.  Or it is too long.  So, turn off the option.
 		 */
 		send_wont(TELOPT_XDISPLOC, 1);
 		break;
 	    }
-	    sprintf((char *)temp, "%c%c%c%c%s%c%c", IAC, SB, TELOPT_XDISPLOC,
-		    TELQUAL_IS, dp, IAC, SE);
+	    snprintf((char *)temp, sizeof(temp), "%c%c%c%c%s%c%c", IAC, SB,
+		    TELOPT_XDISPLOC, TELQUAL_IS, dp, IAC, SE);
 	    len = strlen((char *)temp+4) + 4;	/* temp[3] is 0 ... */
 
 	    if (len < NETROOM()) {
