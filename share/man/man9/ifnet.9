@@ -961,6 +961,18 @@ Get interface capabilities, flags, metric, MTU, medium selection.
 .It Dv SIOCSIFCAP
 Enable or disable interface capabilities.
 Caller must have appropriate privilege.
+Before a call to the driver-specific
+.Fn if_ioctl
+routine, the requested mask for enabled capabilities is checked
+against the mask of capabilities supported by the interface,
+.Va if_capabilities.
+Requesting to enable an unsupported capability is invalid.
+The rest is supposed to be done by the driver,
+which includes updating
+.Va if_capenable
+and
+.Va if_data.ifi_hwassist
+appropriately.
 .Pp
 .It Dv SIOCSIFFLAGS
 Change interface flags.
