@@ -378,7 +378,7 @@ static void
 set_proc_cmd(arg)
   char *arg;
 {
-  CORE_ADDR addr;
+  CORE_ADDR addr, first_td;
   void *val;
 
   if (!arg)
@@ -389,11 +389,17 @@ set_proc_cmd(arg)
 
   addr = (CORE_ADDR)parse_and_eval_address(arg);
 
-  /* Read the PCB address in proc structure. */
-  addr += (int) &((struct proc *)0)->p_thread.td_pcb;
+  /* Find the first thread in the process  XXXKSE */
+  addr += offsetof(struct proc, p_threads.tqh_first);
+  if (kvread(addr, &first_td))
+    error("cannot read thread ptr");
+
+  /* Read the PCB address in thread structure. */
+  addr = first_td + offsetof(struct thread, td_pcb);
   if (kvread(addr, &val))
     error("cannot read pcb ptr");
 
+  /* Read the PCB address in proc structure. */
   if (set_context((CORE_ADDR)val))
     error("invalid proc address");
 }
