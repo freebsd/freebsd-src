@@ -15,6 +15,7 @@
 #define DIST_XF86		0x0400
 #define DIST_COMMERCIAL		0x0800
 #define DIST_DES		0x1000
+#define DIST_EXPERIMENTAL	0x2000
 #define DIST_ALL		0x0FFF
 
 /* Canned distribution sets */
