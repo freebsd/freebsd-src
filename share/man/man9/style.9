@@ -13,7 +13,7 @@ files in the FreeBSD source tree.
  *
  *	@(#)style	1.14 (Berkeley) 4/28/95
  *
- *	FreeBSD $Id: style.9,v 1.5 1996/03/31 22:36:14 joerg Exp $
+ *	$Id: style.9,v 1.7 1996/04/07 08:37:54 mpp Exp $
  *
  */
 
@@ -277,9 +277,8 @@ the declarations.  Use this feature only thoughtfully.
 	void *mymalloc __P((u_int));
 .Ed
 .Pp
-Casts and sizeof's are not followed by a space.  NULL is any
-pointer type, and doesn't need to be cast, so use NULL instead
-of (struct foo *)0 or (struct foo *)NULL.  Also, test pointers
+Casts and sizeof's are not followed by a space.
+Also, test pointers
 against NULL, i.e. use:
 .Bd -literal -offset 0i
 (p = f()) == NULL
