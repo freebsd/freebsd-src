@@ -37,13 +37,6 @@
 #define	ARCHIVE_WRITE_MAGIC	(0xb0c5c0deU)
 #define	ARCHIVE_READ_MAGIC	(0xdeb0c5U)
 
-/*
- * This is used by archive_extract to keep track of non-writable
- * directories so that they can be initially restored writable, then
- * fixed up at end.  This also handles mtime/atime fixups.
- */
-struct archive_extract_dir_entry;
-
 struct archive {
 	/*
 	 * The magic/state values are used to sanity-check the
@@ -190,8 +183,8 @@ struct archive {
 	/*
 	 * Various information needed by archive_extract.
 	 */
-	struct archive_string			 extract_mkdirpath;
-	struct archive_extract_dir_entry	*archive_extract_dir_list;
+	struct archive_string		 extract_mkdirpath;
+	struct archive_extract_fixup	*archive_extract_fixup;
 	void			(*extract_progress)(void *);
 	void			 *extract_progress_user_data;
 	void			(*cleanup_archive_extract)(struct archive *);
