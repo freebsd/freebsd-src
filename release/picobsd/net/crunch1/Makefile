@@ -7,7 +7,7 @@ all: crunch
 
 crunch:
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
-	@crunchgen ./crunch1.conf
+	@sh -c "NOPAM=1; export NOPAM; crunchgen ./crunch1.conf"
 	@${MAKE} -f crunch1.mk -DNOPAM all \
 	    "CFLAGS=${CFLAGS} -DRELEASE_CRUNCH -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT -DNOYPPASSWD" #2>&1 >/dev/null
 
