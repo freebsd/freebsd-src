@@ -43,6 +43,7 @@
 #include <sys/random.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/unistd.h>
 #include <machine/mutex.h>
 #include <crypto/blowfish/blowfish.h>
 
@@ -130,7 +131,7 @@ random_kthread(void *status)
 #ifdef DEBUG1
 			queuecount = 0;
 #endif
-			TAILQ_FOREACH(event, &harvestqueue, harvest) {
+			while (!TAILQ_EMPTY(&harvestqueue)) {
 #ifdef DEBUG1
 				queuecount++;
 #endif
@@ -227,7 +228,7 @@ random_init(void)
 
 	/* Start the hash/reseed thread */
 	error = kthread_create(random_kthread, &random_kthread_status,
-		&random_kthread_proc, 0, "random");
+		&random_kthread_proc, RFHIGHPID, "random");
 	if (error != 0)
 		return error;
 
