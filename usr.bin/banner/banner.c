@@ -1075,9 +1075,16 @@ main(int argc, char *argv[])
 		if ((message = malloc((size_t)MAXMSG)) == NULL)
 			err(1, "malloc");
 		fprintf(stderr,"Message: ");
-		(void)fgets(message, MAXMSG, stdin);
-		nchars = strlen(message);
-		message[nchars--] = '\0';	/* get rid of newline */
+		if (fgets(message, MAXMSG, stdin) == NULL) {
+			nchars = 0;
+			message[0] = '\0';
+		} else {
+			nchars = strlen(message);
+
+			/* Get rid of newline. */
+			if (message[nchars - 1] == '\n')
+				message[--nchars] = '\0';
+		}
 	}
 
 	/* some debugging print statements */
