@@ -105,7 +105,6 @@
 #define _Xfastintr7			Xfastintr7
 #define _Xfastintr8			Xfastintr8
 #define _Xfastintr9			Xfastintr9
-#define _Xforward_irq			Xforward_irq
 #define _Xfpu				Xfpu
 #define _Xfpusegm			Xfpusegm
 #define _Xill				Xill
@@ -195,7 +194,6 @@
 #define _cnt				cnt
 #define _copyin_vector			copyin_vector
 #define _copyout_vector			copyout_vector
-#define _cpl_lock			cpl_lock
 #define _cpu				cpu
 #define _cpu0prvpage			cpu0prvpage
 #define _cpu_apic_versions		cpu_apic_versions
@@ -219,8 +217,8 @@
 #define _end				end
 #define _etext				etext
 #define _exception			exception
-#define _fast_intr_lock			fast_intr_lock
 #define _fastmove			fastmove
+#define _fork_exit			fork_exit
 #define _gdt				gdt
 #define _generic_bcopy			generic_bcopy
 #define _generic_bzero			generic_bzero
