@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.90 1998/06/21 14:53:30 bde Exp $
+ *	$Id: ip_fw.c,v 1.91 1998/07/02 05:49:08 julian Exp $
  */
 
 /*
@@ -103,7 +103,8 @@ static ip_fw_ctl_t *old_ctl_ptr;
 #endif
 
 static int	ip_fw_chk __P((struct ip **pip, int hlen,
-			struct ifnet *oif, u_int16_t *cookie, struct mbuf **m));
+			struct ifnet *oif, u_int16_t *cookie, struct mbuf **m,
+			struct sockaddr_in **next_hop));
 static int	ip_fw_ctl __P((int stage, struct mbuf **mm));
 
 static char err_prefix[] = "ip_fw_ctl:";
@@ -320,6 +321,14 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 		case IP_FW_F_SKIPTO:
 			printf("SkipTo %d", f->fw_skipto_rule);
 			break;
+#ifdef IPFIREWALL_FORWARD
+		case IP_FW_F_FWD:
+			printf("Forward to ");
+			print_ip(f->fw_fwd_ip.sin_addr);
+			if (f->fw_fwd_ip.sin_port)
+				printf(":%d", f->fw_fwd_ip.sin_port);
+			break;
+#endif
 		default:	
 			printf("UNKNOWN");
 			break;
@@ -393,7 +402,8 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 
 static int 
 ip_fw_chk(struct ip **pip, int hlen,
-	struct ifnet *oif, u_int16_t *cookie, struct mbuf **m)
+	struct ifnet *oif, u_int16_t *cookie, struct mbuf **m,
+        struct sockaddr_in **next_hop)
 {
 	struct ip_fw_chain *chain;
 	struct ip_fw *rule = NULL;
@@ -606,11 +616,28 @@ got_match:
 #endif
 				chain = LIST_NEXT(chain, chain);
 			continue;
+#ifdef IPFIREWALL_FORWARD
+		case IP_FW_F_FWD:
+			/* Change the next-hop address for this packet.
+			 * Initially we'll only worry about directly
+			 * reachable next-hop's, but ultimately
+			 * we will work out for next-hops that aren't
+			 * direct the route we would take for it. We
+			 * [cs]ould leave this latter problem to
+			 * ip_output.c. We hope to high [name the abode of
+			 * your favourite deity] that ip_output doesn't modify
+			 * the new value of next_hop (which is dst there)
+			 */
+			if (next_hop != NULL) /* Make sure, first... */
+				*next_hop = &(f->fw_fwd_ip);
+			return(0); /* Allow the packet */
+#endif
 		}
 
 		/* Deny/reject this packet using this rule */
 		rule = f;
 		break;
+
 	}
 
 #ifdef DIAGNOSTIC
@@ -950,6 +977,9 @@ check_ipfw_struct(struct ip_fw *frwl)
 	case IP_FW_F_ACCEPT:
 	case IP_FW_F_COUNT:
 	case IP_FW_F_SKIPTO:
+#ifdef IPFIREWALL_FORWARD
+	case IP_FW_F_FWD:
+#endif
 		break;
 	default:
 		dprintf(("%s invalid command\n", err_prefix));
@@ -982,7 +1012,7 @@ ip_fw_ctl(int stage, struct mbuf **mm)
 		if (m == NULL)  
 			return (ENOBUFS);
 		MCLGET(m, M_WAIT);
-		if(!(m->m_flags & M_EXT)) {
+		if (!(m->m_flags & M_EXT)) {
 abort:			m_freem(*mm);
 			*mm = NULL;
 			return (ENOBUFS);
@@ -990,7 +1020,7 @@ abort:			m_freem(*mm);
 		m->m_len = 0;
 		for (; fcp; fcp = LIST_NEXT(fcp, chain)) {
 			/* Will we need a new cluster? */
-			if((m->m_len + sizeof *(fcp->rule)) > MCLBYTES) {
+			if ((m->m_len + sizeof *(fcp->rule)) > MCLBYTES) {
 				m = m->m_next = m_get(M_WAIT, MT_SOOPTS);
 				if (m == NULL) {
 					goto abort;
@@ -1093,6 +1123,11 @@ ip_fw_init(void)
 		"divert enabled, ");
 #else
 		"divert disabled, ");
+#endif
+#ifdef IPFIREWALL_FORWARD
+	printf("rule-based forwarding enabled, ");
+#else
+	printf("rule-based forwarding disabled, ");
 #endif
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
 	printf("default to accept, ");

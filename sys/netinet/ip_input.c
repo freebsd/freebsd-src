@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.90 1998/06/12 03:48:16 julian Exp $
+ * $Id: ip_input.c,v 1.91 1998/07/02 05:49:12 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -180,6 +180,8 @@ static	struct ip_srcrt {
  */
 static u_short	frag_divert_port;
 #endif
+
+struct sockaddr_in *ip_fw_fwd_addr;
 
 static void save_rte __P((u_char *, struct in_addr));
 static void	 ip_deq __P((struct ipasfrag *));
@@ -354,30 +356,43 @@ tooshort:
 #endif
 #ifdef COMPAT_IPFW
 	if (ip_fw_chk_ptr) {
-#ifdef IPDIVERT
-		u_short port;
+		u_int16_t	port;
 
-		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL, &ip_divert_cookie, &m);
+#ifdef IPFIREWALL_FORWARD
+		/*
+		 * If we've been forwarded from the output side, then
+		 * skip the firewall a second time
+		 */
+		if (ip_fw_fwd_addr)
+			goto ours;
+#endif	/* IPFIREWALL_FORWARD */
+#ifdef IPDIVERT
+		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL, &ip_divert_cookie,
+					&m, &ip_fw_fwd_addr);
 		if (port) {
 			/* Divert packet */
 			frag_divert_port = port;
 			goto ours;
 		}
-#else
-		u_int16_t	dummy = 0;
-		/* If ipfw says divert, we have to just drop packet */
-		if ((*ip_fw_chk_ptr)(&ip, hlen, NULL, &dummy, &m)) {
+#else	/* !DIVERT */
+		/*
+		 * If ipfw says divert, we have to just drop packet */
+		 *  Use port as a dummy argument.
+		 */
+		port = 0;
+		if ((*ip_fw_chk_ptr)(&ip, hlen, NULL, &port,
+					&m, &ip_fw_fwd_addr)) {
 			m_freem(m);
 			m = NULL;
 		}
-#endif
+#endif	/* !DIVERT */
 		if (!m)
 			return;
 	}
 
         if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, m->m_pkthdr.rcvif, IP_NAT_IN))
 		return;
-#endif
+#endif	/* !COMPAT_IPFW */
 
 	/*
 	 * Process options and, if not destined for us,
@@ -401,13 +416,24 @@ tooshort:
 	/*
 	 * Check our list of addresses, to see if the packet is for us.
 	 */
-	for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next) {
+	for (ia = TAILQ_FIRST(in_ifaddrhead); ia;
+					ia = TAILQ_NEXT(ia, ia_link)) {
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
 			goto ours;
 #ifdef BOOTP_COMPAT
 		if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
+			goto ours;
+#endif
+#ifdef IPFIREWALL_FORWARD
+		/*
+		 * If the addr to forward to is one of ours, we pretend to
+		 * be the destination for this packet.
+		 */
+		if (ip_fw_fwd_addr != NULL &&
+			IA_SIN(ia)->sin_addr.s_addr ==
+					 ip_fw_fwd_addr->sin_addr.s_addr)
 			goto ours;
 #endif
 		if (ia->ia_ifp && ia->ia_ifp->if_flags & IFF_BROADCAST) {
@@ -548,8 +574,12 @@ found:
 		if (((struct ipasfrag *)ip)->ipf_mff & 1 || ip->ip_off) {
 			ipstat.ips_fragments++;
 			ip = ip_reass((struct ipasfrag *)ip, fp, &ipq[sum]);
-			if (ip == 0)
+			if (ip == 0) {
+#ifdef	IPFIREWALL_FORWARD
+				ip_fw_fwd_addr = NULL;
+#endif
 				return;
+			}
 			/* Get the length of the reassembled packets header */
 			hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 			ipstat.ips_reassembled++;
@@ -599,8 +629,14 @@ found:
 	 */
 	ipstat.ips_delivered++;
 	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, hlen);
+#ifdef	IPFIREWALL_FORWARD
+	ip_fw_fwd_addr = NULL;	/* tcp needed it */
+#endif
 	return;
 bad:
+#ifdef	IPFIREWALL_FORWARD
+	ip_fw_fwd_addr = NULL;
+#endif
 	m_freem(m);
 }
 

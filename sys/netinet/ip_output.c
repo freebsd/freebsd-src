@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.74 1998/06/15 00:35:47 julian Exp $
+ *	$Id: ip_output.c,v 1.75 1998/06/21 14:53:32 bde Exp $
  */
 
 #define _IP_VHL
@@ -69,6 +69,13 @@ static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 #define COMPAT_IPFW 1
 #else
 #undef COMPAT_IPFW
+#endif
+
+#ifdef IPFIREWALL_FORWARD_DEBUG
+#define print_ip(a)	 printf("%ld.%ld.%ld.%ld",(ntohl(a.s_addr)>>24)&0xFF,\
+				 		  (ntohl(a.s_addr)>>16)&0xFF,\
+						  (ntohl(a.s_addr)>>8)&0xFF,\
+						  (ntohl(a.s_addr))&0xFF);
 #endif
 
 u_short ip_id;
@@ -114,6 +121,9 @@ ip_output(m0, opt, ro, flags, imo)
 	struct sockaddr_in *dst;
 	struct in_ifaddr *ia;
 	int isbroadcast;
+#ifdef IPFIREWALL_FORWARD
+	int fwd_rewrite_src = 0;
+#endif
 
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)
@@ -304,9 +314,18 @@ ip_output(m0, opt, ro, flags, imo)
 	 * If source address not specified yet, use address
 	 * of outgoing interface.
 	 */
-	if (ip->ip_src.s_addr == INADDR_ANY)
+	if (ip->ip_src.s_addr == INADDR_ANY) {
 		ip->ip_src = IA_SIN(ia)->sin_addr;
-#endif
+#ifdef IPFIREWALL_FORWARD
+		/* Keep note that we did this - if the firewall changes
+		 * the next-hop, our interface may change, changing the
+		 * default source IP. It's a shame so much effort happens
+		 * twice. Oh well. 
+		 */
+		fwd_rewrite_src++;
+#endif /* IPFIREWALL_FORWARD */
+	}
+#endif /* notdef */
 	/*
 	 * Verify that we have any chance at all of being able to queue
 	 *      the packet or packet fragments
@@ -369,27 +388,133 @@ sendit:
 	 * Check with the firewall...
 	 */
 	if (ip_fw_chk_ptr) {
+#ifdef IPFIREWALL_FORWARD
+		struct sockaddr_in *old;
+		old = dst;
+#endif
 #ifdef IPDIVERT
 		ip_divert_port = (*ip_fw_chk_ptr)(&ip,
-		    hlen, ifp, &ip_divert_cookie, &m);
+		    hlen, ifp, &ip_divert_cookie, &m, &dst);
 		if (ip_divert_port) {		/* Divert packet */
 			(*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, 0);
 			goto done;
 		}
-#else
+#else	/* !IPDIVERT */
 		u_int16_t 	dummy = 0;
 		/* If ipfw says divert, we have to just drop packet */
-		if ((*ip_fw_chk_ptr)(&ip, hlen, ifp, &dummy, &m)) {
+		if ((*ip_fw_chk_ptr)(&ip, hlen, ifp, &dummy, &m, &dst)) {
 			m_freem(m);
 			goto done;
 		}
-#endif
+#endif	/* !IPDIVERT */
 		if (!m) {
 			error = EACCES;
 			goto done;
 		}
+#ifdef IPFIREWALL_FORWARD
+		/* Here we check dst to make sure it's directly reachable on the
+		 * interface we previously thought it was.
+		 * If it isn't (which may be likely in some situations) we have
+		 * to re-route it (ie, find a route for the next-hop and the
+		 * associated interface) and set them here. This is nested
+		 * forwarding which in most cases is undesirable, except where
+		 * such control is nigh impossible. So we do it here.
+		 * And I'm babbling.
+		 */
+		if (old != dst) {
+			struct in_ifaddr *ia;
+
+			/* It's changed... */
+			/* There must be a better way to do this next line... */
+			static struct route sro_fwd, *ro_fwd = &sro_fwd;
+#ifdef IPFIREWALL_FORWARD_DEBUG
+			printf("IPFIREWALL_FORWARD: New dst ip: ");
+			print_ip(dst->sin_addr);
+			printf("\n");
+#endif
+			/*
+			 * We need to figure out if we have been forwarded
+			 * to a local socket. If so then we should somehow 
+			 * "loop back" to ip_input, and get directed to the
+			 * PCB as if we had received this packet. This is
+			 * because it may be dificult to identify the packets
+			 * you want to forward until they are being output
+			 * and have selected an interface. (e.g. locally
+			 * initiated packets) If we used the loopback inteface,
+			 * we would not be able to control what happens 
+			 * as the packet runs through ip_input() as
+			 * it is done through a ISR.
+			 */
+			for (ia = TAILQ_FIRST(in_ifaddrhead); ia;
+					ia = TAILQ_NEXT(ia, ia_link)) {
+				/*
+				 * If the addr to forward to is one
+				 * of ours, we pretend to
+				 * be the destination for this packet.
+				 */
+				if (IA_SIN(ia)->sin_addr.s_addr ==
+						 dst->sin_addr.s_addr)
+					break;
+			}
+			if (ia) {
+				/* tell ip_input "dont filter" */
+				ip_fw_fwd_addr = dst;
+				if (m->m_pkthdr.rcvif == NULL)
+					m->m_pkthdr.rcvif = ifunit("lo0");
+				ip->ip_len = htons((u_short)ip->ip_len);
+				ip->ip_off = htons((u_short)ip->ip_off);
+				ip->ip_sum = 0;
+				if (ip->ip_vhl == IP_VHL_BORING) {
+					ip->ip_sum = in_cksum_hdr(ip);
+				} else {
+					ip->ip_sum = in_cksum(m, hlen);
+				}
+				ip_input(m);
+				goto done;
+			}
+			/* Some of the logic for this was
+			 * nicked from above.
+			 *
+			 * This rewrites the cached route in a local PCB.
+			 * Is this what we want to do?
+			 */
+			bcopy(dst, &ro_fwd->ro_dst, sizeof(*dst));
+
+			ro_fwd->ro_rt = 0;
+			rtalloc_ign(ro_fwd, RTF_PRCLONING);
+
+			if (ro_fwd->ro_rt == 0) {
+				ipstat.ips_noroute++;
+				error = EHOSTUNREACH;
+				goto bad;
+			}
+
+			ia = ifatoia(ro_fwd->ro_rt->rt_ifa);
+			ifp = ro_fwd->ro_rt->rt_ifp;
+			ro_fwd->ro_rt->rt_use++;
+			if (ro_fwd->ro_rt->rt_flags & RTF_GATEWAY)
+				dst = (struct sockaddr_in *)ro_fwd->ro_rt->rt_gateway;
+			if (ro_fwd->ro_rt->rt_flags & RTF_HOST)
+				isbroadcast =
+				    (ro_fwd->ro_rt->rt_flags & RTF_BROADCAST);
+			else
+				isbroadcast = in_broadcast(dst->sin_addr, ifp);
+			RTFREE(ro->ro_rt);
+			ro->ro_rt = ro_fwd->ro_rt;
+			dst = (struct sockaddr_in *)&ro_fwd->ro_dst;
+
+			/*
+			 * If we added a default src ip earlier,
+			 * which would have been gotten from the-then
+			 * interface, do it again, from the new one.
+			 */
+			if (fwd_rewrite_src)
+				ip->ip_src = IA_SIN(ia)->sin_addr;
+		}
+#endif /* IPFIREWALL_FORWARD */
 	}
 #endif /* COMPAT_IPFW */
+
 
 	/*
 	 * If small enough for interface, can just send directly.

@@ -195,7 +195,31 @@ Send a copy of packets matching this rule to the
 .Xr divert 4
 socket bound to port
 .Ar port .
-The search continues with the next rule.
+The search continues with the next rule. This feature is not yet implemeted.
+.It Ar fwd ipaddr Op ,port
+Change the next-hop on matching packets to
+.Ar ipaddr ,
+which can be an IP address in dotted quad or a host name.
+If
+.Ar ipaddr
+is not a directly-reachable address, the route 
+as found in the local routing table for that IP is used
+instead.
+If
+.Ar ipaddr
+is a local address, then on a packet entering the system from a remote
+host it will be diverted to
+.Ar port
+on the local machine, keeping the local address of the socket set
+to the original IP address the packet was destined for. This is intended
+for use with transparent proxy servers. If the IP is not
+a local address then the port number (if specified) is ignored and
+the rule only applies to packets leaving the system. This will
+also map addresses to local ports when packets are generated locally.
+The search terminates if this rule matches. If the port number is not 
+given then the port number in the packet is used, so that a packet for
+an external machine port Y would be forwarded to local port Y. The kernel
+must have been compiled with optiions IPFIREWALL_FORWARD.
 .It Ar skipto number
 Skip all subsequent rules numbered less than
 .Ar number .
