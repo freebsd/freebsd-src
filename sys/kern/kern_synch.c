@@ -917,10 +917,6 @@ mi_switch()
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 
-#ifdef SIMPLELOCK_DEBUG
-	if (p->p_simple_locks)
-		printf("sleep: holding simple lock\n");
-#endif
 	/*
 	 * Compute the amount of time during which the current
 	 * process was running, and add that to its total so far.
