@@ -177,7 +177,7 @@ cpu_initclocks()
 	/*
 	 * XXX we should call SAL_FREQ_BASE_INTERVAL_TIMER here.
 	 */
-	cycles_per_sec = 700000000;
+	cycles_per_sec = 70000000;
 	ia64_set_itm(ia64_get_itc() + (cycles_per_sec + hz/2) / hz);
 	ia64_set_itv(240);	/* highest priority class */
 
