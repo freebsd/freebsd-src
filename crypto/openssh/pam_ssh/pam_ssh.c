@@ -30,7 +30,6 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
-#include <sys/stat.h>
 
 #include <fcntl.h>
 #include <paths.h>
@@ -45,10 +44,14 @@
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
+#include <openssl/dsa.h>
+
 #include "includes.h"
 #include "rsa.h"
+#include "key.h"
 #include "ssh.h"
 #include "authfd.h"
+#include "authfile.h"
 
 #define	MODULE_NAME	"pam_ssh"
 #define	NEED_PASSPHRASE	"Need passphrase for %s (%s).\nEnter passphrase: "
@@ -121,7 +124,7 @@ env_new(void)
 
 
 static int
-env_put(ENV *self, const char *s)
+env_put(ENV *self, char *s)
 {
 	struct env_entry	*env;
 
@@ -137,7 +140,7 @@ env_put(ENV *self, const char *s)
 
 
 static void
-env_swap(const ENV *self, int which)
+env_swap(ENV *self, int which)
 {
 	environ = which ? self->e_environ_new : self->e_environ_orig;
 }
@@ -174,10 +177,9 @@ env_destroy(ENV *self)
 	struct env_entry	 *p;
 
 	env_swap(self, 0);
-	while ((p = SLIST_FIRST(&self->e_head))) {
+	SLIST_FOREACH(p, &self->e_head, ee_entries) {
 		free(p->ee_env);
 		free(p);
-		SLIST_REMOVE_HEAD(&self->e_head, ee_entries);
 	}
 	if (self->e_committed)
 		free(self->e_environ_new);
@@ -205,11 +207,11 @@ pam_sm_authenticate(
 	char		*comment_priv;		/* on private key */
 	char		*comment_pub;		/* on public key */
 	char		*identity;		/* user's identity file */
-	RSA		*key;			/* user's private key */
+	Key		 key;			/* user's private key */
 	int		 options;		/* module options */
 	const char	*pass;			/* passphrase */
 	char		*prompt;		/* passphrase prompt */
-	RSA		*public_key;		/* user's public key */
+	Key		 public_key;		/* user's public key */
 	const PASSWD	*pwent;			/* user's passwd entry */
 	PASSWD		*pwent_keep;		/* our own copy */
 	int		 retval;		/* from calls */
@@ -235,17 +237,19 @@ pam_sm_authenticate(
 	 * Fail unless we can load the public key.  Change to the
 	 * owner's UID to appease load_public_key().
 	 */
-	key = RSA_new();
-	public_key = RSA_new();
+	key.type = KEY_RSA;
+	key.rsa = RSA_new();
+	public_key.type = KEY_RSA;
+	public_key.rsa = RSA_new();
 	saved_uid = getuid();
 	(void)setreuid(pwent->pw_uid, saved_uid);
-	retval = load_public_key(identity, public_key, &comment_pub);
+	retval = load_public_key(identity, &public_key, &comment_pub);
 	(void)setuid(saved_uid);
 	if (!retval) {
 		free(identity);
 		return PAM_AUTH_ERR;
 	}
-	RSA_free(public_key);
+	RSA_free(public_key.rsa);
 	/* build the passphrase prompt */
 	retval = asprintf(&prompt, NEED_PASSPHRASE, identity, comment_pub);
 	free(comment_pub);
@@ -266,7 +270,7 @@ pam_sm_authenticate(
 	 * If success, the user is authenticated.
 	 */
 	(void)setreuid(pwent->pw_uid, saved_uid);
-	retval = load_private_key(identity, pass, key, &comment_priv);
+	retval = load_private_key(identity, pass, &key, &comment_priv);
 	free(identity);
 	(void)setuid(saved_uid);
 	if (!retval)
@@ -275,9 +279,9 @@ pam_sm_authenticate(
 	 * Save the key and comment to pass to ssh-agent in the session
 	 * phase.
 	 */
-	if ((retval = pam_set_data(pamh, "ssh_private_key", key,
+	if ((retval = pam_set_data(pamh, "ssh_private_key", key.rsa,
 	    rsa_cleanup)) != PAM_SUCCESS) {
-		RSA_free(key);
+		RSA_free(key.rsa);
 		free(comment_priv);
 		return retval;
 	}
@@ -329,7 +333,7 @@ pam_sm_open_session(
 	char		*env_end;		/* end of env */
 	char		*env_file;		/* to store env */
 	FILE		*env_fp;		/* env_file handle */
-	RSA		*key;			/* user's private key */
+	Key		 key;			/* user's private key */
 	FILE		*pipe;			/* ssh-agent handle */
 	const PASSWD	*pwent;			/* user's passwd entry */
 	int		 retval;		/* from calls */
@@ -367,8 +371,7 @@ pam_sm_open_session(
 	/* start the agent as the user */
 	saved_uid = geteuid();
 	(void)seteuid(pwent->pw_uid);
-	if ((env_fp = fopen(env_file, "w")))
-		(void)chmod(env_file, S_IRUSR);
+	env_fp = fopen(env_file, "w");
 	pipe = popen(PATH_SSH_AGENT, "r");
 	(void)seteuid(saved_uid);
 	if (!pipe) {
@@ -424,9 +427,10 @@ pam_sm_open_session(
 		env_destroy(ssh_env);
 		return PAM_SESSION_ERR;
 	}
+	key.type = KEY_RSA;
 	/* connect to the agent and hand off the private key */
 	if ((retval = pam_get_data(pamh, "ssh_private_key",
-	    (const void **)&key)) != PAM_SUCCESS ||
+	    (const void **)&key.rsa)) != PAM_SUCCESS ||
 	    (retval = pam_get_data(pamh, "ssh_key_comment",
 	    (const void **)&comment)) != PAM_SUCCESS ||
 	    (retval = env_commit(ssh_env)) != PAM_SUCCESS) {
@@ -439,7 +443,7 @@ pam_sm_open_session(
 		env_destroy(ssh_env);
 		return PAM_SESSION_ERR;
 	}
-	retval = ssh_add_identity(ac, key, comment);
+	retval = ssh_add_identity(ac, key.rsa, comment);
 	ssh_close_authentication_connection(ac);
 	env_swap(ssh_env, 0);
 	return retval ? PAM_SUCCESS : PAM_SESSION_ERR;
