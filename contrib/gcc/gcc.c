@@ -3847,16 +3847,18 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
       fatal ("object format unknown");
     }
 #endif	/* FREEBSD_NATIVE */
-#ifndef FREEBSD_NATIVE
 #ifndef OS2
   add_prefix (&exec_prefixes, standard_exec_prefix, "GCC",
 	      PREFIX_PRIORITY_LAST, 1, warn_std_ptr);
+#ifndef FREEBSD_NATIVE
   add_prefix (&exec_prefixes, standard_exec_prefix, "BINUTILS",
 	      PREFIX_PRIORITY_LAST, 2, warn_std_ptr);
   add_prefix (&exec_prefixes, standard_exec_prefix_1, "BINUTILS",
 	      PREFIX_PRIORITY_LAST, 2, warn_std_ptr);
+#endif	/* not FREEBSD_NATIVE */
 #endif
 
+#ifndef FREEBSD_NATIVE
   add_prefix (&startfile_prefixes, standard_exec_prefix, "BINUTILS",
 	      PREFIX_PRIORITY_LAST, 1, warn_std_ptr);
   add_prefix (&startfile_prefixes, standard_exec_prefix_1, "BINUTILS",
