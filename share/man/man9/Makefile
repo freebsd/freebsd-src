@@ -42,7 +42,7 @@ MAN+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	bus_alloc_resource.9 bus_release_resource.9 \
 	VOP_ACLCHECK.9 VOP_GETACL.9 VOP_GETEXTATTR.9 VOP_SETACL.9 \
 	VOP_SETEXTATTR.9 acl.9 extattr.9 \
-	sbuf.9 sysctl_add_oid.9 sysctl_ctx_init.9
+	sbuf.9 sysctl_add_oid.9 sysctl_ctx_init.9 vfs_unmountall.9
 
 MLINKS+=MD5.9 MD5Init.9 MD5.9 MD5Transform.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9
