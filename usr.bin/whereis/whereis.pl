@@ -28,7 +28,7 @@
 #
 # Rewritten from scratch for FreeBSD after the 4.3BSD manual page.
 #
-# $Id: whereis.pl,v 1.1.2.1 1996/12/23 18:56:53 joerg Exp $
+# $Id: whereis.pl,v 1.1.2.2 1998/10/04 10:37:10 obrien Exp $
 #
 
 sub usage
@@ -96,7 +96,7 @@ if (!defined(@binaries)) {
     #
     # first, use default path, then append /usr/libexec and the user's path
     #
-    local($cs_path) = `/usr/sbin/sysctl -n user.cs_path`;
+    local($cs_path) = `/sbin/sysctl -n user.cs_path`;
     local(@list, %path);
 
     chop($cs_path);
