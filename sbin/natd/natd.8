@@ -490,6 +490,14 @@ The second line depends on your interface (change ed0 as appropriate)
 and assumes that you've updated
 .Pa /etc/services
 with the natd entry as above.
+.Pp
+You should be aware of the fact,
+that with these firewall settings everyone on your local network
+can fake his source-address using your box as gateway.
+If there are other machines on your local network,
+it is highly recommended to create firewall-rules that only allow traffic
+from and to your own machines.
+.Pp
 If you specify real firewall rules,
 it's best to specify line 2 at the start of the script so that
 .Nm
