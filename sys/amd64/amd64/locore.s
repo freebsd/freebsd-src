@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.51 1995/03/11 03:49:46 phk Exp $
+ *	$Id: locore.s,v 1.52 1995/04/16 10:12:16 davidg Exp $
  */
 
 /*
@@ -240,14 +240,20 @@ NON_GPROF_ENTRY(btext)
 	 */
 	movl	BI_KERNELNAME(%ebx),%esi
 	cmpl	$0,%esi
-	je	1f			/* No kernelname */
-	lea	_kernelname-KERNBASE,%edi
+	je	2f			/* No kernelname */
 	movl	$MAXPATHLEN,%ecx	/* Brute force!!! */
+	lea	_kernelname-KERNBASE,%edi
+	cmpb	$'/',(%esi)		/* Make sure it starts with a slash */
+	je	1f
+	movb	$'/',(%edi)
+	incl	%edi
+	decl	%ecx
+1:
 	cld
 	rep
 	movsb
 
-1:
+2:
 	/* 
 	 * Determine the size of the boot loader's copy of the bootinfo
 	 * struct.  This is impossible to do properly because old versions
