@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.15.2.9 1998/10/09 11:50:52 des Exp $";
+	"$Id: inetd.c,v 1.15.2.10 1998/12/15 05:07:08 dillon Exp $";
 #endif /* not lint */
 
 /*
@@ -654,6 +654,7 @@ main(argc, argv, envp)
 #endif
 				sigaction(SIGPIPE, &sapipe,
 				    (struct sigaction *)0);
+				(void) sigsetmask(0L);
 				execv(sep->se_server, sep->se_argv);
 				if (sep->se_socktype != SOCK_STREAM)
 					recv(0, buf, sizeof (buf), 0);
