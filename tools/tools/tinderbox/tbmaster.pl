@@ -33,7 +33,7 @@ use strict;
 
 my @BRANCHES	= qw(CURRENT);
 my @TARGETS	= qw(world generic lint);
-my @OPTIONS	= qw(--update);
+my @OPTIONS	= qw(--update --verbose);
 my %ARCHES	= (
     'alpha'	=> [ 'alpha' ],
     'i386'	=> [ 'i386', 'pc98' ],
@@ -96,7 +96,7 @@ sub tinderbox($$$$) {
 		    $messages .= $_;
 		    @accumulate = ();
 		    $error = 0;
-		} elsif (m/^\*\*\* Error code/ && !m/ignored/) {
+		} elsif (m/\bStop\b/) {
 		    push(@accumulate, $_);
 		    $error = 1;
 		} else {
