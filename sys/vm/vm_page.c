@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.43 1995/12/14 09:55:07 phk Exp $
+ *	$Id: vm_page.c,v 1.44 1995/12/17 07:19:58 bde Exp $
  */
 
 /*
@@ -67,6 +67,7 @@
 /*
  *	Resident memory management module.
  */
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

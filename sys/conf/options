@@ -1,3 +1,4 @@
+DDB
 KTRACE
 PROCFS
 SYSVSHM		opt_sysvipc.h

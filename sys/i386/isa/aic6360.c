@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.16 1995/12/10 13:38:19 phk Exp $
+ * $Id: aic6360.c,v 1.17 1995/12/15 00:53:51 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -108,42 +108,27 @@
 #error "I said not yet! Start paying attention... grumble"
 #endif
 
-#ifdef __FreeBSD__
+#include "opt_ddb.h"
 #include <aic.h>
-#endif
 
 #include <sys/types.h>
 #include <sys/param.h>
-#ifdef __FreeBSD__
 #include <sys/kernel.h>
-#endif
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
-#ifdef __FreeBSD__
 #include <sys/malloc.h>
-#else
-#include <sys/device.h>
-#endif
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
-#ifndef __FreeBSD__
-#include <machine/pio.h>
-#endif
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
-#ifdef __FreeBSD__
 #include <sys/devconf.h>
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
 
 #include <sys/kernel.h>
-#else
-#include <i386/isa/isavar.h>
-#include <i386/isa/icu.h>
-#endif
 
 /* Definitions, most of them has turned out to be unneccesary, but here they
  * are anyway.
@@ -509,11 +494,7 @@ struct aic_dma_seg {
 	long		len;
 };
 
-#ifdef __FreeBSD__
 #define DELAYCOUNT	16
-#else
-extern int delaycount;
-#endif
 
 #define FUDGE(X)	((X)>>1) 	/* get 1 ms spincount */
 #define MINIFUDGE(X)	((X)>>4) 	/* get (approx) 125us spincount */
@@ -577,24 +558,11 @@ struct aic_tinfo {
 #define LOGLINE(p)
 #endif
 
-#ifdef __FreeBSD__
 static struct aic_data { /* One of these per adapter */
-#else
-struct aic_softc { /* One of these per adapter */
-	/* Auto config stuff */
-	struct device   sc_dev; /* This one has to go first! */
-	struct isadev   sc_id;
-	struct intrhand sc_ih;
-	struct scsi_link sc_link;       /* prototype for subdevs */
-	int             id_irq;         /* IRQ on the EISA bus */
-	int             id_drq;         /* DRQ on the EISA bus */
-#endif
 	u_short		iobase;		/* Base I/O port */
-#ifdef __FreeBSD__
 	struct scsi_link sc_link;	/* prototype for subdevs */
 	int		aic_int;	/* IRQ on the EISA bus */
 	int		aic_dma;	/* DRQ on the EISA bus */
-#endif
 	/* Lists of command blocks */
 	TAILQ_HEAD(acb_list, acb) free_list, ready_list, nexus_list;
 	struct acb *nexus;	/* current command */
@@ -642,11 +610,7 @@ struct aic_softc { /* One of these per adapter */
 	u_char	imess[AIC_MAX_MSG_LEN + 1];
 	u_char	*imp;		/* Message pointer (for multibyte messages) */
 	u_char	imlen;
-#ifdef __FreeBSD__
 } *aicdata[NAIC];
-#else
-};
-#endif
 
 #define AIC_SHOWACBS 0x01
 #define AIC_SHOWINTS 0x02
@@ -672,50 +636,26 @@ static int aic_debug = 0; /* AIC_SHOWSTART|AIC_SHOWMISC|AIC_SHOWTRAC; */
 #define AIC_START(str)
 #endif
 
-#ifdef __FreeBSD__
 static int	aicprobe	__P((struct isa_device *));
 static int	aicattach	__P((struct isa_device *));
-#else
-static int	aicprobe        __P((struct device *, struct device *, void *));
-static void	aicattach       __P((struct device *, struct device *, void *));
-#endif
 static void	aic_minphys	__P((struct buf *));
-#ifdef __FreeBSD__
 static u_int32	aic_adapter_info __P((int));
 static void 	aic_init	__P((struct aic_data *));
 static int 	aic_find	__P((struct aic_data *));
-#else
-static u_int	aic_adapter_info __P((struct aic_softc *));
-int	aicintr         __P((struct aic_softc *));
-static void	aic_init        __P((struct aic_softc *));
-#endif
 static void	aic_done	__P((struct acb *));
 static void	aic_dataout	__P((struct aic_data *aic));
-#ifdef __FreeBSD__
 static void	aic_datain	__P((struct aic_data *aic));
 static int32	aic_scsi_cmd	__P((struct scsi_xfer *));
 static int	aic_poll	__P((int, struct acb *));
-#else
-static void	aic_datain	__P((struct aic_softc *aic));
-static int	aic_scsi_cmd    __P((struct scsi_xfer *));
-static int	aic_poll        __P((struct aic_softc *, struct acb *));
-#endif
 void	aic_add_timeout __P((struct acb *, int));
 void	aic_remove_timeout __P((struct acb *));
 static	void	aic6360_reset	__P((struct aic_data *aic));
 static	u_short	aicphase	__P((struct aic_data *aic));
 static	void	aic_msgin	__P((struct aic_data *aic));
 static	void	aic_msgout	__P((struct aic_data *aic));
-#ifdef __FreeBSD__
 static timeout_t aic_timeout;
 static void	aic_sched	__P((struct aic_data *));
 static void	aic_scsi_reset	__P((struct aic_data *));
-#else
-static void	aic_timeout     __P((void *arg));
-static int	aic_find        __P((struct aic_softc *));
-static void	aic_sched       __P((struct aic_softc *));
-static void	aic_scsi_reset  __P((struct aic_softc *));
-#endif
 #if AIC_DEBUG
 void	aic_print_active_acb	__P((void));
 void	aic_dump6360		__P((void));
@@ -723,16 +663,11 @@ void	aic_dump_driver		__P((void));
 #endif
 
 /* Linkup to the rest of the kernel */
-#ifdef __FreeBSD__
 struct isa_driver aicdriver = {
     aicprobe, aicattach, "aic"
 };
 
 static int aicunit = 0;
-#else
-struct cfdriver aiccd = {
-	NULL, "aic", aicprobe, aicattach, DV_DULL, sizeof(struct aic_softc)
-#endif
 
 static struct scsi_adapter aic_switch = {
 	aic_scsi_cmd,
@@ -741,9 +676,7 @@ static struct scsi_adapter aic_switch = {
 	0,
 	aic_adapter_info,
 	"aic"
-#ifdef __FreeBSD__
 	,0 , 0
-#endif
 };
 
 static struct scsi_device aic_dev = {
@@ -785,24 +718,12 @@ aic_registerdev(struct isa_device *id)
  * returns non-zero value if a controller is found.
  */
 static int
-#ifdef __FreeBSD__
 aicprobe(dev)
 	struct isa_device *dev;
-#else
-aicprobe(parent, self, aux)
-	struct device *parent, *self;
-	void *aux;
-#endif
 {
-#ifdef __FreeBSD__
 	int	unit = aicunit;
 	struct aic_data *aic;
-#else
-	struct aic_softc *aic = (void *)self;
-	struct isa_attach_args *ia = aux;
-#endif
 
-#ifdef __FreeBSD__
 	if (unit >= NAIC) {
 		printf("aic%d: unit number too high\n", unit);
 		return 0;
@@ -834,36 +755,6 @@ aicprobe(parent, self, aux)
 	}
 	aicunit++;
 	return 0x20;
-#else
-#ifdef NEWCONFIG
-	if (ia->ia_iobase == IOBASEUNK)
-		return 0;
-#endif
-	aic->iobase = ia->ia_iobase;
-	if (aic_find(aic) != 0)
-		return 0;
-#ifdef NEWCONFIG
-	if (ia->ia_irq == IRQUNK)
-		ia->ia_irq = (1 << aic->aic_int);
-	else if (ia->ia_irq != (1 << aic->aic_int)) {
-		printf("aic%d: irq mismatch, %x != %x\n",
-			aic->sc_dev.dv_unit, ia->ia_irq, 1 << aic->aic_int);
-		return 0;
-	}
-
-	if (ia->ia_drq == DRQUNK)
-		ia->ia_drq = aic->aic_dma;
-	else if (ia->ia_drq != aic->aic_dma) {
-		printf("aic%d: drq mismatch, %x != %x\n",
-			aic->sc_dev.dv_unit, ia->ia_drq, aic->aic_dma);
-		return 0;
-#endif
-		}
-	ia->ia_msize = 0;
-	ia->ia_iosize = 0x20;
-	return 1;
-	}
-#endif
 }
 
 /* Do the real search-for-device.
@@ -871,11 +762,7 @@ aicprobe(parent, self, aux)
  */
 static int
 aic_find(aic)
-#ifdef __FreeBSD__
 	struct aic_data *aic;
-#else
-	struct aic_softc *aic;
-#endif
 {
 	u_short iobase = aic->iobase;
 	char chip_id[sizeof(IDSTRING)];	/* For chips that support it */
@@ -919,35 +806,17 @@ aic_find(aic)
 	return 0;
 }
 
-#ifndef __FreeBSD__
-int
-aicprint()
-{
-}
-#endif
 
 /*
  * Attach the AIC6360, fill out some high and low level data structures
  */
-#ifdef __FreeBSD__
 static int
 aicattach(dev)
 	struct isa_device *dev;
-#else
-void
-aicattach(parent, self, aux)
-	struct device *parent, *self;
-	void *aux;
-#endif
 {
-#ifdef __FreeBSD__
 	int unit = dev->id_unit;
 	struct aic_data *aic = aicdata[unit];
 	struct scsibus_data *scbus;
-#else
-	struct isa_attach_args *ia = aux;
-	struct aic_softc *aic = (void *)self;
-#endif
 
 	AIC_TRACE(("aicattach\n"));
 	aic->state = 0;
@@ -957,16 +826,11 @@ aicattach(parent, self, aux)
 	/*
 	 * Fill in the prototype scsi_link
 	 */
-#ifdef __FreeBSD__
 	aic->sc_link.adapter_unit = unit;
-#else
-	aic->sc_link.adapter_softc = aic;
-#endif
 	aic->sc_link.adapter_targ = AIC_SCSI_HOSTID;
 	aic->sc_link.adapter = &aic_switch;
 	aic->sc_link.device = &aic_dev;
 
-#ifdef __FreeBSD__
 	/*
 	 * Prepare the scsibus_data area for the upperlevel
 	 * scsi code.
@@ -983,18 +847,6 @@ aicattach(parent, self, aux)
 	scsi_attachdevs(scbus);
 
 	return 1;
-#else
-	printf("\n");
-#ifdef NEWCONFIG
-	isa_establish(&aic->sc_id, &aic->sc_dev);
-#endif
-	aic->sc_ih.ih_fun = aicintr;
-	aic->sc_ih.ih_arg = aic;
-	aic->sc_ih.ih_level = IPL_BIO;
-	intr_establish(ia->ia_irq, &aic->sc_ih);
-
-	config_found(self, &aic->sc_link, aicprint);
-#endif
 }
 
 
@@ -1005,11 +857,7 @@ aicattach(parent, self, aux)
  */
 static void
 aic6360_reset(aic)
-#ifdef __FreeBSD__
 	struct aic_data *aic;
-#else
-	struct aic_softc *aic;
-#endif
 {
 	u_short iobase = aic->iobase;
 
@@ -1043,26 +891,14 @@ aic6360_reset(aic)
 /* Pull the SCSI RST line for 500 us */
 static void
 aic_scsi_reset(aic)
-#ifdef __FreeBSD__
 	struct aic_data *aic;
-#else
-	struct aic_softc *aic;
-#endif
 {
 	u_short iobase = aic->iobase;
 
 	outb(SCSISEQ, SCSIRSTO);
-#ifdef __FreeBSD__
 	DELAY(500);
-#else
-	delay(500);
-#endif
 	outb(SCSISEQ, 0);
-#ifdef __FreeBSD__
 	DELAY(50);
-#else
-	delay(50);
-#endif
 }
 
 /*
@@ -1071,11 +907,7 @@ aic_scsi_reset(aic)
  */
 static void
 aic_init(aic)
-#ifdef __FreeBSD__
 	struct aic_data *aic;
-#else
-	struct aic_softc *aic;
-#endif
 {
 	u_short iobase = aic->iobase;
 	struct acb *acb;
@@ -1157,21 +989,13 @@ aic_init(aic)
  * This function is called by the higher level SCSI-driver to queue/run
  * SCSI-commands.
  */
-#ifdef __FreeBSD__
 static int32
-#else
-static int
-#endif
 aic_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
 	struct scsi_link *sc = xs->sc_link;
-#ifdef __FreeBSD__
 	int	unit = sc->adapter_unit;
 	struct aic_data *aic = aicdata[unit];
-#else
-	struct aic_softc *aic = sc->adapter_softc;
-#endif
 	struct acb 	*acb;
 	int s = 0;
 	int flags;
@@ -1230,11 +1054,7 @@ aic_scsi_cmd(xs)
 	}
 
 	/* Not allowed to use interrupts, use polling instead */
-#ifdef __FreeBSD__
 	return aic_poll(unit, acb);
-#else
-	return aic_poll(aic, acb);
-#endif
 }
 
 /*
@@ -1251,15 +1071,9 @@ aic_minphys(bp)
 }
 
 
-#ifdef __FreeBSD__
 static u_int32
 aic_adapter_info(unit)
 	int	unit;
-#else
-static u_int
-aic_adapter_info(aic)
-	struct aic_softc *aic;
-#endif
 {
 
 	AIC_TRACE(("aic_adapter_info\n"));
@@ -1270,18 +1084,11 @@ aic_adapter_info(aic)
  * Used when interrupt driven I/O isn't allowed, e.g. during boot.
  */
 static int
-#ifdef __FreeBSD__
 aic_poll(unit, acb)
 	int	unit;
-#else
-aic_poll(aic, acb)
-	struct aic_softc *aic;
-#endif
 	struct acb *acb;
 {
-#ifdef __FreeBSD__
 	struct aic_data *aic = aicdata[unit];
-#endif
 	register u_short iobase = aic->iobase;
 	struct scsi_xfer *xs = acb->xs;
 	int count = xs->timeout * 10;
@@ -1289,18 +1096,10 @@ aic_poll(aic, acb)
 	AIC_TRACE(("aic_poll\n"));
 	while (count) {
 		if (inb(DMASTAT) & INTSTAT)
-#ifdef __FreeBSD__
 			aicintr(unit);
-#else
-			aicintr(aic);
-#endif
 		if (xs->flags & ITSDONE)
 			break;
-#ifdef __FreeBSD__
 		DELAY(100);
-#else
-		delay(100);
-#endif
 		count--;
 	}
 	if (count == 0) {
@@ -1327,11 +1126,7 @@ aic_poll(aic, acb)
  */
 static inline u_short
 aicphase(aic)
-#ifdef __FreeBSD__
 	struct aic_data *aic;
-#else
-	struct aic_softc *aic;
-#endif
 {
 	register u_short iobase = aic->iobase;
 	register u_char sstat0, sstat1, scsisig;
@@ -1359,11 +1154,7 @@ aicphase(aic)
  */
 static void
 aic_sched(aic)
-#ifdef __FreeBSD__
 	register struct aic_data *aic;
-#else
-	register struct aic_softc *aic;
-#endif
 {
 	struct scsi_link *sc;
 	struct acb *acb;
@@ -1422,12 +1213,8 @@ aic_done(acb)
 {
 	struct scsi_xfer *xs = acb->xs;
 	struct scsi_link *sc = xs->sc_link;
-#ifdef __FreeBSD__
 	int unit = sc->adapter_unit;
 	struct aic_data *aic = aicdata[unit];
-#else
-	struct aic_softc *aic = sc->adapter_softc;
-#endif
 
 	AIC_TRACE(("aic_done "));
 
@@ -1519,12 +1306,7 @@ aic_done(acb)
 		else if (acb->chain.tqe_next) {
 			TAILQ_REMOVE(&aic->ready_list, acb, chain);
 		} else {
-#ifdef __FreeBSD__
 			printf("aic%d: can't find matching acb\n", unit);
-#else
-			printf("%s: can't find matching acb\n",
-			    aic->sc_dev.dv_xname);
-#endif
 			Debugger("aic6360");
 			fatal_if_no_DDB();
 		}
@@ -1581,11 +1363,7 @@ aic_done(acb)
  */
 static void
 aic_msgin(aic)
-#ifdef __FreeBSD__
 	register struct aic_data *aic;
-#else
-	register struct aic_softc *aic;
-#endif
 {
 	register u_short iobase = aic->iobase;
 	int spincount, extlen;
@@ -1656,11 +1434,7 @@ aic_msgin(aic)
 		 * Therefore we will spinwait for some small amount of time
 		 * waiting for the next byte.
 		 */
-#ifdef __FreeBSD__
 		spincount = DELAYCOUNT * AIC_MSGI_SPIN;
-#else
-		spincount = MINIFUDGE(delaycount) * AIC_MSGI_SPIN;
-#endif
 		LOGLINE(aic);
 		while (spincount-- && !((sstat1 = inb(SSTAT1)) & REQINIT))
 			;
@@ -1843,11 +1617,7 @@ aic_msgin(aic)
  */
 static void
 aic_msgout(aic)
-#ifdef __FreeBSD__
 	register struct aic_data *aic;
-#else
-	register struct aic_softc *aic;
-#endif
 {
 	register u_short iobase = aic->iobase;
 	struct aic_tinfo *ti;
@@ -2074,11 +1844,7 @@ phasechange:
  */
 static void
 aic_datain(aic)
-#ifdef __FreeBSD__
 	register struct aic_data *aic;
-#else
-	register struct aic_softc *aic;
-#endif
 {
 	register u_short iobase = aic->iobase;
 	register u_char dmastat;
@@ -2199,21 +1965,10 @@ aic_datain(aic)
  * 2) doesn't support synchronous transfers properly (yet)
  */
 
-#ifdef __FreeBSD__
 void
 aicintr(int unit)
-#else
-#error /* the ifdefs for returning unused values were too much trouble */
-int
-aicintr(aic)
-	register struct aic_softc *aic;
-#endif
 {
-#ifdef __FreeBSD__
 	struct aic_data *aic = aicdata[unit];
-#else
-	struct scsi_xfer *xs;
-#endif
 	register struct acb *acb;
 	register struct scsi_link *sc;
 	register u_short iobase = aic->iobase;
@@ -2371,11 +2126,7 @@ aicintr(aic)
 				 * a "spurious" selection. Shouldn't happen.
 				 */
 				printf("aic: unexpected busfree\n");
-#ifdef __FreeBSD__
 				acb->xs->error = XS_DRIVER_STUFFUP;
-#else
-				xs->error = XS_DRIVER_STUFFUP;
-#endif
 				untimeout(aic_timeout, (caddr_t)acb);
 				aic_done(acb);
 			}
@@ -2574,19 +2325,11 @@ static void
 aic_timeout(void *arg1) {
 	int s = splbio();
 	struct acb *acb = (struct acb *)arg1;
-#ifdef __FreeBSD__
 	int     unit;
 	struct aic_data *aic;
-#else
-	struct aic_softc *aic;
-#endif
 
-#ifdef __FreeBSD__
 	unit = acb->xs->sc_link->adapter_unit;
 	aic = aicdata[unit];
-#else
-	aic = acb->xs->sc_link->adapter_softc;
-#endif
 	sc_print_addr(acb->xs->sc_link);
 	acb->xs->error = XS_TIMEOUT;
 	printf("timed out\n");
@@ -2636,11 +2379,7 @@ void
 aic_print_active_acb()
 {
 	struct acb *acb;
-#ifdef __FreeBSD__
 	struct aic_data *aic = aicdata[0];
-#else
-	struct aic_softc *aic = aiccd.cd_devs[0];
-#endif
 
 	printf("ready list:\n");
 	for (acb = aic->ready_list.tqh_first; acb; acb = acb->chain.tqe_next)
@@ -2672,11 +2411,7 @@ aic_dump6360()
 void
 aic_dump_driver()
 {
-#ifdef __FreeBSD__
 	struct aic_data *aic = aicdata[0];
-#else
-	struct aic_softc *aic = aiccd.cd_devs[0];
-#endif
 	struct aic_tinfo *ti;
 	int i;
 

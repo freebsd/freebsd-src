@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.68 1995/12/19 14:47:41 davidg Exp $
+ *	$Id: trap.c,v 1.69 1996/01/03 21:41:36 wollman Exp $
  */
 
 /*
@@ -43,6 +43,7 @@
  */
 
 #include "opt_ktrace.h"
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -61,12 +61,13 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.29 1995/12/11 04:58:12 dyson Exp $
+ * $Id: vm_map.c,v 1.30 1995/12/14 09:54:59 phk Exp $
  */
 
 /*
  *	Virtual memory mapping module.
  */
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -36,12 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.49 1995/12/17 21:23:19 phk Exp $
+ * $Id: vfs_subr.c,v 1.50 1996/01/02 18:13:20 davidg Exp $
  */
 
 /*
  * External virtual filesystem routines
  */
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
