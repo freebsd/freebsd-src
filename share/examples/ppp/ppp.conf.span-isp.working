@@ -23,7 +23,7 @@
 #
 # Something rather strange happens here.
 # If you connect to the vpn-in diagnostic socket with ``pppctl
-# /var/tmp/vpn-in'' and do a ``show links'', only a single link shows up.
+# /var/run/ppp/vpn-in'' and do a ``show links'', only a single link shows up.
 # If you connect to the vpn diagnostic socket (which is created in
 # ppp.linkup.span-isp.working, you see three links.  This is because inetd
 # is told to ``wait'' for ppp to finish and the receiving ppp gets to
