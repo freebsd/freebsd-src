@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.24 1995/12/17 21:23:16 phk Exp $
+ * $Id: kern_clock.c,v 1.25 1996/06/23 17:40:42 bde Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -862,28 +862,15 @@ statclock(frame)
 #ifdef GPROF
 	register struct gmonparam *g;
 #endif
-	register struct proc *p = curproc;
+	register struct proc *p;
 	register int i;
-
-	if (p) {
-		struct pstats *pstats;
-		struct rusage *ru;
-		struct vmspace *vm;
-
-		/* bump the resource usage of integral space use */
-		if ((pstats = p->p_stats) && (ru = &pstats->p_ru) && (vm = p->p_vmspace)) {
-			ru->ru_ixrss += vm->vm_tsize * PAGE_SIZE / 1024;
-			ru->ru_idrss += vm->vm_dsize * PAGE_SIZE / 1024;
-			ru->ru_isrss += vm->vm_ssize * PAGE_SIZE / 1024;
-			if ((vm->vm_pmap.pm_stats.resident_count * PAGE_SIZE / 1024) >
-			    ru->ru_maxrss) {
-				ru->ru_maxrss =
-				    vm->vm_pmap.pm_stats.resident_count * PAGE_SIZE / 1024;
-			}
-        	}
-	}
+	struct pstats *pstats;
+	long rss;
+	struct rusage *ru;
+	struct vmspace *vm;
 
 	if (CLKF_USERMODE(frame)) {
+		p = curproc;
 		if (p->p_flag & P_PROFIL)
 			addupc_intr(p, CLKF_PC(frame), 1);
 		if (--pscnt > 0)
@@ -925,6 +912,7 @@ statclock(frame)
 		 * so that we know how much of its real time was spent
 		 * in ``non-process'' (i.e., interrupt) work.
 		 */
+		p = curproc;
 		if (CLKF_INTR(frame)) {
 			if (p != NULL)
 				p->p_iticks++;
@@ -971,6 +959,19 @@ statclock(frame)
 			if (p->p_priority >= PUSER)
 				p->p_priority = p->p_usrpri;
 		}
+
+		/* Update resource usage integrals and maximums. */
+		if ((pstats = p->p_stats) != NULL &&
+		    (ru = &pstats->p_ru) != NULL &&
+		    (vm = p->p_vmspace) != NULL) {
+			ru->ru_ixrss += vm->vm_tsize * PAGE_SIZE / 1024;
+			ru->ru_idrss += vm->vm_dsize * PAGE_SIZE / 1024;
+			ru->ru_isrss += vm->vm_ssize * PAGE_SIZE / 1024;
+			rss = vm->vm_pmap.pm_stats.resident_count *
+			      PAGE_SIZE / 1024;
+			if (ru->ru_maxrss < rss)
+				ru->ru_maxrss = rss;
+        	}
 	}
 }
 
