@@ -336,20 +336,16 @@ gettimeofday(td, uap)
 	struct timeval atv;
 	int error = 0;
 
-	mtx_lock(&Giant);
 	if (uap->tp) {
 		microtime(&atv);
-		if ((error = copyout((caddr_t)&atv, (caddr_t)uap->tp,
-		    sizeof (atv)))) {
-			goto done2;
-		}
+		error = copyout((caddr_t)&atv, (caddr_t)uap->tp, sizeof (atv));
 	}
-	if (uap->tzp) {
+	if (error == 0 && uap->tzp != NULL) {
+		mtx_lock(&Giant);
 		error = copyout((caddr_t)&tz, (caddr_t)uap->tzp,
 		    sizeof (tz));
+		mtx_unlock(&Giant);
 	}
-done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
