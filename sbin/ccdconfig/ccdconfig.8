@@ -119,7 +119,7 @@ argument is optional.
 #
 .Pp
 # ccd           ileave  flags   component devices
-ccd0            16      none    /dev/da2e /dev/da3e
+ccd0            16      none    /dev/da2s1 /dev/da3s1
 .Ed
 .Pp
 The component devices need to name partitions of type
@@ -139,17 +139,20 @@ are exactly the same as you might place in the
 configuration file.  The first example creates a 4-disk stripe out of
 four scsi disk partitions.  The stripe uses a 64 sector interleave.
 The second example is an example of a complex stripe/mirror combination.
-It reads as a two disk stripe of da2e and da3e which is mirrored
-to a two disk stripe of da4e and da5e.  The last example is a simple
-mirror.  /dev/da2e is mirrored with /dev/da4e and assigned to ccd0.
+It reads as a two disk stripe of da4 and da5 which is mirrored
+to a two disk stripe of da6 and da7.  The last example is a simple
+mirror.  The 2nd slice of /dev/da8 is mirrored with the 3rd slice of /dev/da9
+and assigned to ccd0.
 .Pp
 .Bd -unfilled -offset
-# ccdconfig ccd0 64 none /dev/da2e /dev/da3e /dev/da4e /dev/da5e
-# ccdconfig ccd0 128 CCDF_MIRROR /dev/da2e /dev/da3e /dev/da4e /dev/da5e
-# ccdconfig ccd0 128 CCDF_MIRROR /dev/da2e /dev/da4e
+# ccdconfig ccd0 64 none /dev/da0s1 /dev/da1s1 /dev/da2s1 /dev/da3s1
+# ccdconfig ccd0 128 CCDF_MIRROR /dev/da4 /dev/da5 /dev/da6 /dev/da7
+# ccdconfig ccd0 128 CCDF_MIRROR /dev/da8s2 /dev/da9s3
 .Ed
 .Pp
 When you create a new ccd disk you generally want to
+.Xr fdisk 8
+and
 .Xr disklabel 8
 it before doing anything else.  Once you create the initial label you can
 edit it, adding additional partitions.  The label itself takes up the first
@@ -168,9 +171,8 @@ with offset 16 and size 9984.
 # disklabel -e ccd0
 .Ed
 .Pp
-The disklabeling of a ccd disk is usually a one-time affair.  Unlike other
-devices, ccd currently requires that you specify partition 'c' when
-running disklabel.  If you reboot the machine and reconfigure the ccd disk,
+The disklabeling of a ccd disk is usually a one-time affair.
+If you reboot the machine and reconfigure the ccd disk,
 the disklabel you
 had created before will still be there and not require reinitialization.
 Beware that changing any ccd parameters: interleave, flags, or the
@@ -186,9 +188,11 @@ This is a poor-man's mirroring implementation.  It works well enough that if
 you begin to get disk errors you should be able to backup the ccd disk,
 replace the broken hardware, and then regenerate the ccd disk.  If you need
 more than this you should look into external hardware RAID SCSI boxes,
-RAID controllers such as the
-.Xr dpt 4
-controller, or software RAID systems such as
+RAID controllers (see GENERIC),
+or software RAID systems such as
+RAIDframe
+.Xr raid 4
+and
 .Xr vinum 8 .
 .Sh FILES
 .Bl -tag -width /etc/ccd.conf -compact
@@ -198,8 +202,9 @@ default ccd configuration file
 .Sh SEE ALSO
 .Xr dd 1 ,
 .Xr ccd 4 ,
-.Xr dpt 4 ,
+.Xr raid 4 ,
 .Xr disklabel 8 ,
+.Xr fdisk 8 ,
 .Xr rc 8 ,
 .Xr vinum 8
 .Sh BUGS
