@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.5 1996/01/11 17:48:56 phk Exp $
+ * $Id: route.c,v 1.6 1996/05/11 20:48:42 phk Exp $
  *
  */
 #include <sys/types.h>
@@ -75,7 +75,7 @@ struct in_addr mask;
   if (cmd == RTM_ADD) rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
   rtmes.m_rtm.rtm_seq = ++seqno;
   rtmes.m_rtm.rtm_pid = getpid();
-  rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY;
+  rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
 
   bzero(&rtdata, sizeof(rtdata));
   rtdata.sin_len = 16;
