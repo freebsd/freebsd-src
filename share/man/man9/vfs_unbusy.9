@@ -33,11 +33,10 @@
 .Nm vfs_unbusy
 .Nd "Unbusy a mount point.
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
+.Fd #include <sys/mount.h>
 .Ft void
-.Fo vfs_unbusy
-.Fa "struct mount *mp"
-.Fa "struct proc *p"
-.Fc
+.Fn vfs_unbusy "struct mount *mp" "struct proc *p"
 .Sh DESCRIPTION
 The
 .Nm

@@ -33,11 +33,10 @@
 .Nm BUF_LOCKINIT
 .Nd "Unlocks a locked buffer"
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/buf.h>
 .Ft void
-.Fo BUF_LOCKINIT
-.Fa "struct buf *bp"
-.Fc
+.Fn BUF_LOCKINIT "struct buf *bp"
 .Sh DESCRIPTION
 The
 .Nm

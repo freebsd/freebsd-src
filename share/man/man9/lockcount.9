@@ -33,11 +33,10 @@
 .Nm lockcount
 .Nd "Returns the reference count of a lock"
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/lockmgr.h>
 .Ft int
-.Fo lockcount
-.Fa "struct lock *lkp"
-.Fc
+.Fn lockcount "struct lock *lkp"
 .Sh DESCRIPTION
 The
 .Nm

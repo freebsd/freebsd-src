@@ -33,12 +33,10 @@
 .Nm BUF_LOCK
 .Nd "Locks a buffer"
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/buf.h>
 .Ft int
-.Fo BUF_LOCK
-.Fa "struct buf *bp"
-.Fa "int locktype"
-.Fc
+.Fn BUF_LOCK "struct buf *bp" "int locktype"
 .Sh DESCRIPTION
 The
 .Nm

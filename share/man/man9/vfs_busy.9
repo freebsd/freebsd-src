@@ -33,13 +33,10 @@
 .Nm vfs_busy
 .Nd "Marks a mount point as busy."
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
+.Fd #include <sys/mount.h>
 .Ft int
-.Fo vfs_busy
-.Fa "struct mount *mp"
-.Fa "int flags"
-.Fa "struct mtx *interlkp"
-.Fa "struct proc *p"
-.Fc
+.Fn vfs_busy "struct mount *mp" "int flags" "struct mtx *interlkp" "struct proc *p"
 .Sh DESCRIPTION
 The
 .Nm

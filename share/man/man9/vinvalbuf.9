@@ -33,16 +33,10 @@
 .Nm vinvalbuf
 .Nd "Flushes and invalidates all buffers associated with a vnode"
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
 .Ft int
-.Fo vinvalbuf
-.Fa "struct vnode *vp"
-.Fa "int flags"
-.Fa "struct ucred *cred"
-.Fa "struct proc *p"
-.Fa "int slpflag"
-.Fa "int slptimeo"
-.Fc
+.Fn vinvalbuf "struct vnode *vp" "int flags" "struct ucred *cred" "struct proc *p" "int slpflag" "int slptimeo"
 .Sh DESCRIPTION
 The
 .Nm
