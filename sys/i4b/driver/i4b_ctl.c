@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_ctl.c - i4b system control port driver
  *	------------------------------------------
  *
- *	$Id: i4b_ctl.c,v 1.30 1999/12/13 21:25:23 hm Exp $
+ *	$Id: i4b_ctl.c,v 1.37 2000/05/31 08:04:43 hm Exp $
  *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Dec 13 21:38:15 1999]
+ *	last edit-date: [Wed May 31 09:59:01 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -62,6 +62,18 @@
 #include <net/if.h>
 
 #ifdef __FreeBSD__
+
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#include "opt_devfs.h"
+#endif
+
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif
+
+#endif /* __FreeBSD__ */
+
+#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #elif defined(__bsdi__)
@@ -76,7 +88,8 @@
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_mbuf.h>
-#include <i4b/layer1/i4b_l1.h>
+#include <i4b/include/i4b_l3l4.h>
+
 #include <i4b/layer2/i4b_l2.h>
 
 static int openflag = 0;
@@ -126,6 +139,9 @@ PSEUDO_SET(i4bctlattach, i4b_i4bctldrv);
 #endif /* __FreeBSD__ */
 
 #if defined(__FreeBSD__) && __FreeBSD__ == 3
+#ifdef DEVFS
+static void *devfs_token;
+#endif
 #endif
 
 #ifndef __FreeBSD__
@@ -204,6 +220,11 @@ i4bctlattach()
 #if defined(__FreeBSD__)
 #if __FreeBSD__ == 3
 
+#ifdef DEVFS
+	devfs_token = devfs_add_devswf(&i4bctl_cdevsw, 0, DV_CHR,
+				       UID_ROOT, GID_WHEEL, 0600,
+				       "i4bctl");
+#endif
 
 #else
 	make_dev(&i4bctl_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "i4bctl");
@@ -250,10 +271,12 @@ i4bctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 #endif
 {
+#if DO_I4B_DEBUG
 	ctl_debug_t *cdbg;	
 	int error = 0;
+#endif
 	
-#ifndef DO_I4B_DEBUG
+#if !DO_I4B_DEBUG
        return(ENODEV);
 #else
 	if(minor(dev))
@@ -277,63 +300,19 @@ i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			i4b_l4_debug = cdbg->l4;
 			break;
 
-                case I4B_CTL_GET_HSCXSTAT:
+                case I4B_CTL_GET_CHIPSTAT:
                 {
-                        hscxstat_t *hst;
-                        struct l1_softc *sc;
-                        hst = (hscxstat_t *)data;
-
-                        if( hst->unit < 0		||
-			    hst->unit > ISIC_MAXUNIT	||
-			    hst->chan < 0		||
-			    hst->chan > 1 )
-                        {
-                        	error = EINVAL;
-				break;
-			}
-			  
-#ifndef __FreeBSD__
-			sc = isic_find_sc(hst->unit);
-#else
-			sc = &l1_sc[hst->unit];
-#endif
-			hst->vfr = sc->sc_chan[hst->chan].stat_VFR;
-			hst->rdo = sc->sc_chan[hst->chan].stat_RDO;
-			hst->crc = sc->sc_chan[hst->chan].stat_CRC;
-			hst->rab = sc->sc_chan[hst->chan].stat_RAB;
-			hst->xdu = sc->sc_chan[hst->chan].stat_XDU;
-			hst->rfo = sc->sc_chan[hst->chan].stat_RFO;
+                        struct chipstat *cst;
+			cst = (struct chipstat *)data;
+			(*ctrl_desc[cst->driver_unit].N_MGMT_COMMAND)(cst->driver_unit, CMR_GCST, cst);
                         break;
                 }
 
-                case I4B_CTL_CLR_HSCXSTAT:
+                case I4B_CTL_CLR_CHIPSTAT:
                 {
-                        hscxstat_t *hst;
-                        struct l1_softc *sc;
-                        hst = (hscxstat_t *)data;
-
-                        if( hst->unit < 0		||
-			    hst->unit > ISIC_MAXUNIT	||
-			    hst->chan < 0		||
-			    hst->chan > 1 )
-                        {
-                        	error = EINVAL;
-				break;
-			}
-			  
-#ifndef __FreeBSD__
-			sc = isic_find_sc(hst->unit);
-#else
-			sc = &l1_sc[hst->unit];
-#endif
-
-			sc->sc_chan[hst->chan].stat_VFR = 0;
-			sc->sc_chan[hst->chan].stat_RDO = 0;
-			sc->sc_chan[hst->chan].stat_CRC = 0;
-			sc->sc_chan[hst->chan].stat_RAB = 0;
-			sc->sc_chan[hst->chan].stat_XDU = 0;
-			sc->sc_chan[hst->chan].stat_RFO = 0;
-			
+                        struct chipstat *cst;
+			cst = (struct chipstat *)data;
+			(*ctrl_desc[cst->driver_unit].N_MGMT_COMMAND)(cst->driver_unit, CMR_CCST, cst);
                         break;
                 }
 
@@ -343,7 +322,7 @@ i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
                         l2_softc_t *sc;
                         l2s = (l2stat_t *)data;
 
-                        if( l2s->unit < 0 || l2s->unit > ISIC_MAXUNIT)
+                        if( l2s->unit < 0 || l2s->unit > MAXL1UNITS)
                         {
                         	error = EINVAL;
 				break;
@@ -361,7 +340,7 @@ i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
                         l2_softc_t *sc;
                         up = (int *)data;
 
-                        if( *up < 0 || *up > ISIC_MAXUNIT)
+                        if( *up < 0 || *up > MAXL1UNITS)
                         {
                         	error = EINVAL;
 				break;

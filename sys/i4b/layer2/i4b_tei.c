@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_tei.c - tei handling procedures
  *	-----------------------------------
  *
- *	$Id: i4b_tei.c,v 1.17 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_tei.c,v 1.25 2000/09/01 14:11:51 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:04:24 1999]
+ *      last edit-date: [Fri Sep  1 16:04:58 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,18 +43,24 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/random.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
+
+#if defined(__FreeBSD__)
+#if defined (__FreeBSD_version) && __FreeBSD_version <= 400000
+#include <machine/random.h>
+#else
+#include <sys/random.h>
+#endif
+#endif
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -98,7 +104,7 @@ i4b_tei_rxframe(int unit, struct mbuf *m)
 
 				log(LOG_INFO, "i4b: unit %d, assigned TEI = %d = 0x%02x\n", l2sc->unit, l2sc->tei, l2sc->tei);
 
-				DBGL2(L2_TEI_MSG, "i4b_tei_rx_frame", ("TEI ID Assign - TEI = %d\n", l2sc->tei));
+				NDBGL2(L2_TEI_MSG, "TEI ID Assign - TEI = %d", l2sc->tei);
 
 				i4b_next_l2state(l2sc, EV_MDASGRQ);
 			}
@@ -114,12 +120,12 @@ i4b_tei_rxframe(int unit, struct mbuf *m)
 				if(l2sc->tei == GROUP_TEI)
 				{
 					log(LOG_WARNING, "i4b: unit %d, denied TEI, no TEI values available from exchange!\n", l2sc->unit);
-					DBGL2(L2_TEI_ERR, "i4b_tei_rx_frame", ("TEI ID Denied, No TEI values available from exchange!\n"));
+					NDBGL2(L2_TEI_ERR, "TEI ID Denied, No TEI values available from exchange!");
 				}
 				else
 				{
 					log(LOG_WARNING, "i4b: unit %d, denied TEI = %d = 0x%02x\n", l2sc->unit, l2sc->tei, l2sc->tei);
-					DBGL2(L2_TEI_ERR, "i4b_tei_rx_frame", ("TEI ID Denied - TEI = %d\n", l2sc->tei));
+					NDBGL2(L2_TEI_ERR, "TEI ID Denied - TEI = %d", l2sc->tei);
 				}					
 				MDL_Status_Ind(l2sc->unit, STI_TEIASG, -1);
 				i4b_next_l2state(l2sc, EV_MDERRRS);
@@ -135,7 +141,7 @@ i4b_tei_rxframe(int unit, struct mbuf *m)
 
 				if(l2sc->tei != lasttei)
 				{
-					DBGL2(L2_TEI_MSG, "i4b_tei_rx_frame", ("TEI ID Check Req - TEI = %d\n", l2sc->tei));
+					NDBGL2(L2_TEI_MSG, "TEI ID Check Req - TEI = %d", l2sc->tei);
 					lasttei = l2sc->tei;
 				}
 				
@@ -154,14 +160,14 @@ i4b_tei_rxframe(int unit, struct mbuf *m)
 				l2sc->tei = GET_TEIFROMAI(*(ptr+OFF_AI));
 
 				log(LOG_INFO, "i4b: unit %d, removed TEI = %d = 0x%02x\n", l2sc->unit, l2sc->tei, l2sc->tei);
-				DBGL2(L2_TEI_MSG, "i4b_tei_rx_frame", ("TEI ID Remove - TEI = %d\n", l2sc->tei));
+				NDBGL2(L2_TEI_MSG, "TEI ID Remove - TEI = %d", l2sc->tei);
 				MDL_Status_Ind(l2sc->unit, STI_TEIASG, -1);
 				i4b_next_l2state(l2sc, EV_MDREMRQ);
 			}
 			break;
 			
 		default:
-			DBGL2(L2_TEI_ERR, "i4b_tei_rx_frame", ("UNKNOWN TEI MGMT Frame, type = 0x%x\n", *(ptr + OFF_MT)));
+			NDBGL2(L2_TEI_ERR, "UNKNOWN TEI MGMT Frame, type = 0x%x", *(ptr + OFF_MT));
 			i4b_print_frame(m->m_len, m->m_data);
 			break;
 	}
@@ -225,7 +231,7 @@ i4b_tei_assign(l2_softc_t *l2sc)
 {
 	struct mbuf *m;
 
-	DBGL2(L2_TEI_MSG, "i4b_tei_assign", ("tx TEI ID_Request\n"));
+	NDBGL2(L2_TEI_MSG, "tx TEI ID_Request");
 	
 	m = build_tei_mgmt_frame(l2sc, MT_ID_REQEST);
 
@@ -246,7 +252,7 @@ i4b_tei_verify(l2_softc_t *l2sc)
 {
 	struct mbuf *m;
 
-	DBGL2(L2_TEI_MSG, "i4b_tei_verify", ("tx TEI ID_Verify\n"));
+	NDBGL2(L2_TEI_MSG, "tx TEI ID_Verify");
 
 	m = build_tei_mgmt_frame(l2sc, MT_ID_VERIFY);
 
@@ -270,7 +276,7 @@ i4b_tei_chkresp(l2_softc_t *l2sc)
 	if(l2sc->tei != lasttei)
 	{
 		lasttei = l2sc->tei;
-		DBGL2(L2_TEI_MSG, "i4b_tei_chkresp", ("tx TEI ID_Check_Response\n"));
+		NDBGL2(L2_TEI_MSG, "tx TEI ID_Check_Response");
 	}
 
 	m = build_tei_mgmt_frame(l2sc, MT_ID_CHK_RSP);
@@ -291,7 +297,12 @@ i4b_make_rand_ri(l2_softc_t *l2sc)
 #if defined(__FreeBSD__)
 
 	u_short val;
-	read_random((char *)&val, sizeof(val));
+
+#ifdef RANDOMDEV
+        read_random((char *)&val, sizeof(val));
+#else
+	val = (u_short)random();
+#endif /* RANDOMDEV */ 
 
 #else
 

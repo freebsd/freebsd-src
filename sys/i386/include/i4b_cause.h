@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_cause.h - causes and cause handling for i4b
  *	-----------------------------------------------
  *
- *	$Id: i4b_cause.h,v 1.11 1999/12/13 21:25:28 hm Exp $
+ *	$Id: i4b_cause.h,v 1.13 2000/02/06 19:01:14 hm Exp $
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:06:51 1999]
+ *      last edit-date: [Sun Feb  6 19:46:41 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -70,7 +70,8 @@
 #define CAUSE_I4B_L1ERROR	7	/* L1 error / persistent deact	*/
 #define CAUSE_I4B_LLDIAL	8	/* no dialout on leased line	*/
 #define CAUSE_I4B_MAX		9
-		/* NOTE: update isdnd/pcause.c when adding causes !!!!! */
+	/* NOTE: update isdnd/pcause.c when adding causes !!!!!		*/
+	/* NOTE: update layer3/i4b_q931.c when adding causes !!!!!	*/
 	
 /* CAUSET_Q850 - causes defined in Q.850 */
 

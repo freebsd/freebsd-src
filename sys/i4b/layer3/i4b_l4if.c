@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_l4if.c - Layer 3 interface to Layer 4
  *	-------------------------------------------
  *
- *	$Id: i4b_l4if.c,v 1.22 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_l4if.c,v 1.27 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:05:25 1999]
+ *      last edit-date: [Fri Jun  2 14:32:19 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,16 +43,15 @@
 #if NI4BQ931 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#else
-#include <sys/ioctl.h>
-#endif
-
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -83,7 +82,7 @@ static void n_connect_request(u_int cdid);
 static void n_connect_response(u_int cdid, int response, int cause);
 static void n_disconnect_request(u_int cdid, int cause);
 static void n_alert_request(u_int cdid);
-static void n_mgmt_command(int unit, int cmd, int parm);
+static void n_mgmt_command(int unit, int cmd, void *parm);
 
 /*---------------------------------------------------------------------------*
  *	i4b_mdl_status_ind - status indication from lower layers
@@ -94,12 +93,12 @@ i4b_mdl_status_ind(int unit, int status, int parm)
 	int sendup;
 	int i;
 	
-	DBGL3(L3_MSG, "i4b_mdl_status_ind", ("unit = %d, status = %d, parm = %d\n", unit, status, parm));
+	NDBGL3(L3_MSG, "unit = %d, status = %d, parm = %d", unit, status, parm);
 
 	switch(status)
 	{
 		case STI_ATTACH:
-			DBGL3(L3_MSG, "i4b_mdl_status_ind", ("STI_ATTACH: attaching unit %d to controller %d\n", unit, nctrl));
+			NDBGL3(L3_MSG, "STI_ATTACH: attaching unit %d to controller %d", unit, nctrl);
 		
 			/* init function pointers */
 			
@@ -107,8 +106,6 @@ i4b_mdl_status_ind(int unit, int status, int parm)
 			ctrl_desc[nctrl].N_CONNECT_RESPONSE = n_connect_response;
 			ctrl_desc[nctrl].N_DISCONNECT_REQUEST = n_disconnect_request;
 			ctrl_desc[nctrl].N_ALERT_REQUEST = n_alert_request;	
-			ctrl_desc[nctrl].N_SET_TRACE = isic_settrace;
-			ctrl_desc[nctrl].N_GET_TRACE = isic_gettrace;
 			ctrl_desc[nctrl].N_DOWNLOAD = NULL;	/* only used by active cards */
 			ctrl_desc[nctrl].N_DIAGNOSTICS = NULL;	/* only used by active cards */
 			ctrl_desc[nctrl].N_MGMT_COMMAND = n_mgmt_command;
@@ -138,22 +135,22 @@ i4b_mdl_status_ind(int unit, int status, int parm)
 			
 		case STI_L1STAT:
 			i4b_l4_l12stat(unit, 1, parm);
-			DBGL3(L3_MSG, "i4b_mdl_status_ind", ("STI_L1STAT: unit %d layer 1 = %s\n", unit, status ? "up" : "down"));
+			NDBGL3(L3_MSG, "STI_L1STAT: unit %d layer 1 = %s", unit, status ? "up" : "down");
 			break;
 			
 		case STI_L2STAT:
 			i4b_l4_l12stat(unit, 2, parm);
-			DBGL3(L3_MSG, "i4b_mdl_status_ind", ("STI_L2STAT: unit %d layer 2 = %s\n", unit, status ? "up" : "down"));
+			NDBGL3(L3_MSG, "STI_L2STAT: unit %d layer 2 = %s", unit, status ? "up" : "down");
 			break;
 
 		case STI_TEIASG:
 			ctrl_desc[unit].tei = parm;
 			i4b_l4_teiasg(unit, parm);
-			DBGL3(L3_MSG, "i4b_mdl_status_ind", ("STI_TEIASG: unit %d TEI = %d = 0x%02x\n", unit, parm, parm));
+			NDBGL3(L3_MSG, "STI_TEIASG: unit %d TEI = %d = 0x%02x", unit, parm, parm);
 			break;
 
 		case STI_PDEACT:	/* L1 T4 timeout */
-			DBGL3(L3_ERR, "i4b_mdl_status_ind", ("STI_PDEACT: unit %d TEI = %d = 0x%02x\n", unit, parm, parm));
+			NDBGL3(L3_ERR, "STI_PDEACT: unit %d TEI = %d = 0x%02x", unit, parm, parm);
 
 			sendup = 0;
 
@@ -181,7 +178,7 @@ i4b_mdl_status_ind(int unit, int status, int parm)
 			break;
 
 		case STI_NOL1ACC:	/* no outgoing access to S0 */
-			DBGL3(L3_ERR, "i4b_mdl_status_ind", ("STI_NOL1ACC: unit %d no outgoing access to S0\n", unit));
+			NDBGL3(L3_ERR, "STI_NOL1ACC: unit %d no outgoing access to S0", unit);
 
 			for(i=0; i < N_CALL_DESC; i++)
 			{
@@ -204,7 +201,7 @@ i4b_mdl_status_ind(int unit, int status, int parm)
 			break;
 
 		default:
-			DBGL3(L3_ERR, "i4b_mdl_status_ind", ("ERROR, unit %d, unknown status value %d!\n", unit, status));
+			NDBGL3(L3_ERR, "ERROR, unit %d, unknown status value %d!", unit, status);
 			break;
 	}		
 	return(0);
@@ -214,14 +211,14 @@ i4b_mdl_status_ind(int unit, int status, int parm)
  *	send command to the lower layers
  *---------------------------------------------------------------------------*/
 static void
-n_mgmt_command(int unit, int cmd, int parm)
+n_mgmt_command(int unit, int cmd, void *parm)
 {
 	int i;
 
 	switch(cmd)
 	{
 		case CMR_DOPEN:
-			DBGL3(L3_MSG, "n_mgmt_command", ("CMR_DOPEN for unit %d\n", unit));
+			NDBGL3(L3_MSG, "CMR_DOPEN for unit %d", unit);
 			
 			for(i=0; i < N_CALL_DESC; i++)
 			{
@@ -239,12 +236,16 @@ n_mgmt_command(int unit, int cmd, int parm)
 			break;
 
 		case CMR_DCLOSE:
-			DBGL3(L3_MSG, "n_mgmt_command", ("CMR_DCLOSE for unit %d\n", unit));
+			NDBGL3(L3_MSG, "CMR_DCLOSE for unit %d", unit);
+			break;
+			
+		case CMR_SETTRACE:
+			NDBGL3(L3_MSG, "CMR_SETTRACE for unit %d", unit);
 			break;
 			
 		default:
+			NDBGL3(L3_MSG, "unknown cmd %d for unit %d", cmd, unit);
 			break;
-			
 	}
 
 	MDL_Command_Req(unit, cmd, parm);
@@ -300,7 +301,7 @@ n_connect_response(u_int cdid, int response, int cause)
 		default:	/* failsafe */
 			next_l3state(cd, EV_SETDCRS);
 			chstate = BCH_ST_FREE;
-			DBGL3(L3_ERR, "n_connect_response", ("unknown response, doing SETUP_RESP_DNTCRE"));
+			NDBGL3(L3_ERR, "unknown response, doing SETUP_RESP_DNTCRE");
 			break;
 	}
 
@@ -310,7 +311,7 @@ n_connect_response(u_int cdid, int response, int cause)
 	}
 	else
 	{
-		DBGL3(L3_MSG, "n_connect_response", ("Warning, invalid channelid %d, response = %d\n", cd->channelid, response));
+		NDBGL3(L3_MSG, "Warning, invalid channelid %d, response = %d\n", cd->channelid, response);
 	}
 }
 

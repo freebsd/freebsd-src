@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_l2.h - ISDN layer 2 (Q.921) definitions
  *	---------------------------------------------
  *
- *	$Id: i4b_l2.h,v 1.20 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_l2.h,v 1.23 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:03:29 1999]
+ *      last edit-date: [Sat Mar 18 10:28:22 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -68,6 +68,12 @@ typedef struct {
 	struct	callout_handle T202_callout;
 	struct	callout_handle T203_callout;
 	struct	callout_handle IFQU_callout;	
+#endif
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+	struct	callout T200_callout;
+	struct	callout T202_callout;
+	struct	callout T203_callout;
+	struct	callout IFQU_callout;	
 #endif
 
 /*
@@ -314,7 +320,6 @@ extern int i4b_l2_nr_ok ( int nr, int va, int vs );
 extern void i4b_make_rand_ri ( l2_softc_t *l2sc );
 extern void i4b_mdl_assign_ind ( l2_softc_t *l2sc );
 extern void i4b_mdl_error_ind ( l2_softc_t *l2sc, char *where, int errorcode );
-extern int i4b_mph_attach_ind ( int unit, int type );
 extern int i4b_mph_status_ind ( int unit, int status, int parm );
 extern void i4b_next_l2state ( l2_softc_t *l2sc, int event );
 extern void i4b_nr_error_recovery ( l2_softc_t *l2sc );
