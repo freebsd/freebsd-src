@@ -35,7 +35,7 @@
 #include <getarg.h>
 #include <parse_bytes.h>
 #include <err.h>
-RCSID("$Id: verify_krb5_conf.c,v 1.17 2003/03/29 09:52:50 lha Exp $");
+RCSID("$Id: verify_krb5_conf.c,v 1.17.2.1 2003/09/22 18:46:58 lha Exp $");
 
 /* verify krb5.conf */
 
@@ -449,8 +449,8 @@ struct entry log_strings[] = {
 
 #if 0
 struct entry kdcdefaults_entries[] = {
-    { "kdc_ports, krb5_config_string, mit_entry },
-    { "v4_mode, krb5_config_string, mit_entry },
+    { "kdc_ports", krb5_config_string, mit_entry },
+    { "v4_mode", krb5_config_string, mit_entry },
     { NULL }
 };
 #endif
