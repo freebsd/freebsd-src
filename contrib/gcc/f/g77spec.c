@@ -18,6 +18,8 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /* This file contains a filter for the main `gcc' driver, which is
    replicated for the `g77' driver by adding this filter.  The purpose
    of this filter is to be basically identical to gcc (in that
@@ -52,13 +54,22 @@ Boston, MA 02111-1307, USA.  */
 #ifndef MATH_LIBRARY
 #define MATH_LIBRARY "-lm"
 #endif
+#ifndef MATH_LIBRARY_PROFILE
+#define MATH_LIBRARY_PROFILE "-lm"
+#endif
 
 #ifndef FORTRAN_INIT
 #define FORTRAN_INIT "-lfrtbegin"
 #endif
+#ifndef FORTRAN_INIT_PROFILE
+#define FORTRAN_INIT_PROFILE "-lfrtbegin"
+#endif
 
 #ifndef FORTRAN_LIBRARY
 #define FORTRAN_LIBRARY "-lg2c"
+#endif
+#ifndef FORTRAN_LIBRARY_PROFILE
+#define FORTRAN_LIBRARY_PROFILE "-lg2c"
 #endif
 
 /* Options this driver needs to recognize, not just know how to
@@ -79,6 +90,7 @@ typedef enum
   OPTION_nostdlib,		/* Aka --no-standard-libraries, or
 				   -nodefaultlibs. */
   OPTION_o,			/* Aka --output. */
+  OPTION_p,			/* Aka --profile. */
   OPTION_S,			/* Aka --assemble. */
   OPTION_syntax_only,		/* -fsyntax-only. */
   OPTION_v,			/* Aka --verbose. */
@@ -167,6 +179,9 @@ lookup_option (xopt, xskip, xarg, text)
     opt = OPTION_L, arg = text + 2;
   else if (text[1] == 'o')
     opt = OPTION_o;
+  else if ((text[1] == 'p') && (text[2] == '\0')
+           || (text[1] == 'p') && (text[2] == 'g') && (text[3] == '\0'))
+    opt = OPTION_p;
   else if ((text[1] == 'S') && (text[2] == '\0'))
     opt = OPTION_S, skip = 0;
   else if (text[1] == 'V')
@@ -291,6 +306,9 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
   /* By default, we throw on the math library if we have one.  */
   int need_math = (MATH_LIBRARY[0] != '\0');
 
+  /* If non-zero, the user gave us the `-p' or `-pg' flag.  */ 
+  int saw_profile_flag = 0;
+
   /* The number of input and output files in the incoming arg list.  */
   int n_infiles = 0;
   int n_outfiles = 0;
@@ -357,6 +375,11 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
 
 	case OPTION_o:
 	  ++n_outfiles;
+	  break;
+
+	case OPTION_p:
+	  saw_profile_flag = 1;
+	  library = FORTRAN_LIBRARY_PROFILE;
 	  break;
 
 	case OPTION_v:
@@ -432,7 +455,7 @@ or type the command `info -f g77 Copying'.\n\
 	  /* Not a filename or library. */
 
 	 if (saw_library == 1 && need_math)    /* -l<library>. */
-	    append_arg (MATH_LIBRARY);
+	    append_arg (saw_profile_flag ? MATH_LIBRARY_PROFILE : MATH_LIBRARY);
 
 	  saw_library = 0;
 
@@ -483,10 +506,12 @@ or type the command `info -f g77 Copying'.\n\
 		{
 		  if (0 == use_init)
 		    {
-		      append_arg (FORTRAN_INIT);
+		      append_arg (saw_profile_flag ? FORTRAN_INIT_PROFILE
+				  : FORTRAN_INIT);
 		      use_init = 1;
 		    }
-		  append_arg (FORTRAN_LIBRARY);
+		  append_arg (saw_profile_flag ? FORTRAN_LIBRARY_PROFILE
+			      : FORTRAN_LIBRARY);
 		}
 	    }
 	  else if (strcmp (argv[i], FORTRAN_LIBRARY) == 0)
@@ -494,7 +519,8 @@ or type the command `info -f g77 Copying'.\n\
 	  else
 	    {		/* Other library, or filename. */
 	     if (saw_library == 1 && need_math)
-		append_arg (MATH_LIBRARY);
+		append_arg (saw_profile_flag ? MATH_LIBRARY_PROFILE
+			    : MATH_LIBRARY);
 	      saw_library = 0;
 	    }
 	}
@@ -513,13 +539,14 @@ or type the command `info -f g77 Copying'.\n\
 	case 0:
 	  if (0 == use_init)
 	    {
-	      append_arg (FORTRAN_INIT);
+	      append_arg (saw_profile_flag ? FORTRAN_INIT_PROFILE
+			  : FORTRAN_INIT);
 	      use_init = 1;
 	    }
 	  append_arg (library);
 	case 1:
 	 if (need_math)
-	   append_arg (MATH_LIBRARY);
+	   append_arg (saw_profile_flag ? MATH_LIBRARY_PROFILE : MATH_LIBRARY);
 	default:
 	  break;
 	}
