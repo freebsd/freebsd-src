@@ -118,6 +118,7 @@
 
 #include <sys/user.h>
 
+#include <machine/pal.h>
 #include <machine/md_var.h>
 
 MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
@@ -204,11 +205,11 @@ vm_offset_t kernel_vm_end;
 /*
  * Values for ptc.e. XXX values for SKI.
  */
-static u_int64_t pmap_pte_e_base = 0x100000000;
-static u_int64_t pmap_pte_e_count1 = 3;
-static u_int64_t pmap_pte_e_count2 = 2;
-static u_int64_t pmap_pte_e_stride1 = 0x2000;
-static u_int64_t pmap_pte_e_stride2 = 0x100000000;
+static u_int64_t pmap_ptc_e_base = 0x100000000;
+static u_int64_t pmap_ptc_e_count1 = 3;
+static u_int64_t pmap_ptc_e_count2 = 2;
+static u_int64_t pmap_ptc_e_stride1 = 0x2000;
+static u_int64_t pmap_ptc_e_stride2 = 0x100000000;
 
 /*
  * Data for the RID allocator
@@ -270,6 +271,28 @@ void
 pmap_bootstrap()
 {
 	int i;
+	struct ia64_pal_result res;
+
+	/*
+	 * Query the PAL Code to find the loop parameters for the
+	 * ptc.e instruction.
+	 */
+	res = ia64_call_pal_static(PAL_PTCE_INFO, 0, 0, 0);
+	if (res.pal_status != 0)
+		panic("Can't configure ptc.e parameters");
+	pmap_ptc_e_base = res.pal_result[0];
+	pmap_ptc_e_count1 = res.pal_result[1] >> 32;
+	pmap_ptc_e_count2 = res.pal_result[1] & ((1L<<32) - 1);
+	pmap_ptc_e_stride1 = res.pal_result[2] >> 32;
+	pmap_ptc_e_stride2 = res.pal_result[2] & ((1L<<32) - 1);
+	if (bootverbose)
+		printf("ptc.e base=0x%lx, count1=%ld, count2=%ld, "
+		       "stride1=0x%lx, stride2=0x%lx\n",
+		       pmap_ptc_e_base,
+		       pmap_ptc_e_count1,
+		       pmap_ptc_e_count2,
+		       pmap_ptc_e_stride1,
+		       pmap_ptc_e_stride2);
 
 	/*
 	 * Setup RIDs. We use the bits above pmap_ridbits for a
@@ -420,13 +443,13 @@ pmap_invalidate_all(pmap_t pmap)
 		("invalidating TLB for non-current pmap"));
 
 	psr = critical_enter();
-	addr = pmap_pte_e_base;
-	for (i = 0; i < pmap_pte_e_count1; i++) {
-		for (j = 0; j < pmap_pte_e_count2; j++) {
+	addr = pmap_ptc_e_base;
+	for (i = 0; i < pmap_ptc_e_count1; i++) {
+		for (j = 0; j < pmap_ptc_e_count2; j++) {
 			ia64_ptc_e(addr);
-			addr += pmap_pte_e_stride2;
+			addr += pmap_ptc_e_stride2;
 		}
-		addr += pmap_pte_e_stride1;
+		addr += pmap_ptc_e_stride1;
 	}
 	critical_exit(psr);
 }
@@ -2149,6 +2172,15 @@ pmap_mapdev(pa, size)
 	vm_size_t size;
 {
 	return (void*) IA64_PHYS_TO_RR6(pa);
+}
+
+/*
+ * 'Unmap' a range mapped by pmap_mapdev().
+ */
+void
+pmap_unmapdev(vm_offset_t va, vm_size_t size)
+{
+	return;
 }
 
 /*
