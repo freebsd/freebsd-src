@@ -1,6 +1,8 @@
 .\"
 .\" $FreeBSD$
 .\"
+.if n .ftr C R
+.ig TL
 .ds CH "
 .nr PI 2n
 .nr PS 12
@@ -11,7 +13,7 @@
 .TL
 Jails: Confining the omnipotent root.
 .FS
-This paper was presented at the 2nd International System Administration and Networking Conference "SANE 2000" May 22-25, 2000 in Maastricht, The Netherlands and is published in the in the proceedings.
+This paper was presented at the 2nd International System Administration and Networking Conference "SANE 2000" May 22-25, 2000 in Maastricht, The Netherlands and is published in the proceedings.
 .FE
 .AU
 Poul-Henning Kamp <phk@FreeBSD.org>
@@ -341,7 +343,6 @@ prohibited.
 \(bu Changing securelevel-related file flags is prohibited.
 .IP
 \(bu Accessing network resources not associated with the jail is prohibited.
-.bp
 .PP
 Other privileged activities are permitted as long as they are limited to the
 scope of the jail:
