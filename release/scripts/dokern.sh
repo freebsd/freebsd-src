@@ -145,7 +145,6 @@ sed	\
 	-e '/	sf	/d' \
 	-e '/	sis	/d' \
 	-e '/	ste	/d' \
-	-e '/	txp/d' \
 	-e '/	wx	/d' \
 	-e '/gzip/d' \
 	-e '/	sl	/d' \
