@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.2 1993/09/03 23:01:02 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.3 1993/10/08 01:19:35 jkh Exp $";
 #endif
 
 /*
@@ -48,6 +48,7 @@ pkg_do(char *pkg)
 {
     FILE *cfile;
     char home[FILENAME_MAX];
+    PackingList p;
 
     /* Reset some state */
     if (Plist.head)
@@ -65,15 +66,6 @@ pkg_do(char *pkg)
 	return 1;
     }
     sanity_check(LogDir);
-    if (fexists(REQUIRE_FNAME)) {
-	if (Verbose)
-	    printf("Executing 'require' script.\n");
-	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
-	if (vsystem("./%s %s DEINSTALL", REQUIRE_FNAME, pkg)) {
-	    whinge("Package %s fails requirements - not deleted.", pkg);
-	    return 1;
-	}
-    }
     cfile = fopen(CONTENTS_FNAME, "r");
     if (!cfile) {
 	whinge("Unable to open '%s' file.", CONTENTS_FNAME);
@@ -84,6 +76,17 @@ pkg_do(char *pkg)
 	add_plist(&Plist, PLIST_CWD, Prefix);
     read_plist(&Plist, cfile);
     fclose(cfile);
+    setenv(PKG_PREFIX_VNAME,
+	   (p = find_plist(&Plist, PLIST_CWD)) ? p->name : NULL, 1);
+    if (fexists(REQUIRE_FNAME)) {
+	if (Verbose)
+	    printf("Executing 'require' script.\n");
+	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
+	if (vsystem("./%s %s DEINSTALL", REQUIRE_FNAME, pkg)) {
+	    whinge("Package %s fails requirements - not deleted.", pkg);
+	    return 1;
+	}
+    }
     if (!NoDeInstall && fexists(DEINSTALL_FNAME)) {
 	if (Fake)
 	    printf("Would execute de-install script at this point.\n");

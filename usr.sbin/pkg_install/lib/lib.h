@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.5 1994/04/05 14:08:46 jkh Exp $ */
+/* $Id: lib.h,v 1.6 1994/05/25 06:27:23 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -69,6 +69,8 @@
 
 #define CMD_CHAR	'@'	/* prefix for extended PLIST cmd */
 
+/* The name of the "prefix" environment variable given to scripts */
+#define PKG_PREFIX_VNAME	"PKG_PREFIX"
 
 enum _plist_t {
     PLIST_FILE, PLIST_CWD, PLIST_CMD, PLIST_CHMOD,
