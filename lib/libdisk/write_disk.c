@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.22 1998/09/30 21:40:51 jkh Exp $
+ * $Id: write_disk.c,v 1.23 1998/10/06 11:57:08 dfr Exp $
  *
  */
 
@@ -64,10 +64,10 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	for(c2=c1->part;c2;c2=c2->next) {
 		if (c2->type == unused) continue;
 		if (!strcmp(c2->name,"X")) continue;
-		j = c2->name[5] - 'a';
+		j = c2->name[strlen(new->name) + 2] - 'a';
 		if (j < 0 || j >= MAXPARTITIONS || j == RAW_PART) {
 #ifdef DEBUG
-			warn("Weird parititon letter %c",c2->name[5]);
+			warn("Weird parititon letter %c",c2->name[strlen(new->name) + 2]);
 #endif
 			continue;
 		}
@@ -173,6 +173,7 @@ Write_Disk(struct disk *d1)
 		if (c1->type == unused) continue;
 		if (!strcmp(c1->name,"X")) continue;
 		j = c1->name[4] - '1';
+		j = c1->name[strlen(d1->name) + 1] - '1';
 		if (j < 0 || j > 3)
 			continue;
 		s[j]++;
