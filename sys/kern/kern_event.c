@@ -88,13 +88,19 @@ static int	filt_procattach(struct knote *kn);
 static void	filt_procdetach(struct knote *kn);
 static int	filt_proc(struct knote *kn, long hint);
 static int	filt_fileattach(struct knote *kn);
+static void	filt_timerexpire(void *knx);
+static int	filt_timerattach(struct knote *kn);
+static void	filt_timerdetach(struct knote *kn);
+static int	filt_timer(struct knote *kn, long hint);
 
+static struct filterops file_filtops =
+	{ 1, filt_fileattach, NULL, NULL };
 static struct filterops kqread_filtops =
 	{ 1, NULL, filt_kqdetach, filt_kqueue };
 static struct filterops proc_filtops =
 	{ 0, filt_procattach, filt_procdetach, filt_proc };
-static struct filterops file_filtops =
-	{ 1, filt_fileattach, NULL, NULL };
+static struct filterops timer_filtops =
+	{ 0, filt_timerattach, filt_timerdetach, filt_timer };
 
 static vm_zone_t	knote_zone;
 
@@ -120,6 +126,7 @@ static struct filterops *sysfilt_ops[] = {
 	&file_filtops,			/* EVFILT_VNODE */
 	&proc_filtops,			/* EVFILT_PROC */
 	&sig_filtops,			/* EVFILT_SIGNAL */
+	&timer_filtops,			/* EVFILT_TIMER */
 };
 
 static int
@@ -259,6 +266,63 @@ filt_proc(struct knote *kn, long hint)
 	}
 
 	return (kn->kn_fflags != 0);
+}
+
+static void
+filt_timerexpire(void *knx)
+{
+	struct knote *kn = knx;
+	struct callout_handle ch;
+	struct timeval tv;
+	int tticks;
+
+	kn->kn_data++;
+	KNOTE_ACTIVATE(kn);
+
+	if ((kn->kn_flags & EV_ONESHOT) == 0) {
+		tv.tv_sec = kn->kn_sdata / 1000;
+		tv.tv_usec = (kn->kn_sdata % 1000) * 1000;
+		tticks = tvtohz(&tv);
+		ch = timeout(filt_timerexpire, kn, tticks);
+		kn->kn_hook = (caddr_t)ch.callout;
+	}
+}
+
+/*
+ * data contains amount of time to sleep, in milliseconds
+ */ 
+static int
+filt_timerattach(struct knote *kn)
+{
+	struct callout_handle ch;
+	struct timeval tv;
+	int tticks;
+
+	tv.tv_sec = kn->kn_sdata / 1000;
+	tv.tv_usec = (kn->kn_sdata % 1000) * 1000;
+	tticks = tvtohz(&tv);
+
+	kn->kn_flags |= EV_CLEAR;		/* automatically set */
+	ch = timeout(filt_timerexpire, kn, tticks);
+	kn->kn_hook = (caddr_t)ch.callout;
+
+	return (0);
+}
+
+static void
+filt_timerdetach(struct knote *kn)
+{
+	struct callout_handle ch;
+
+	ch.callout = (struct callout *)kn->kn_hook;
+	untimeout(filt_timerexpire, kn, ch);
+}
+
+static int
+filt_timer(struct knote *kn, long hint)
+{
+
+	return (kn->kn_data != 0);
 }
 
 int
