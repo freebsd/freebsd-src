@@ -2694,7 +2694,8 @@ fold(tn)
 	u_quad_t ul, ur;
 	tnode_t	*cn;
 
-	v = xcalloc(1, sizeof (val_t));
+	if ((v = calloc(1, sizeof (val_t))) == NULL)
+		nomem();
 	v->v_tspec = t = tn->tn_type->t_tspec;
 
 	utyp = t == PTR || isutyp(t);
@@ -2840,7 +2841,8 @@ foldtst(tn)
 	int	l, r;
 	val_t	*v;
 
-	v = xcalloc(1, sizeof (val_t));
+	if ((v = calloc(1, sizeof (val_t))) == NULL)
+		nomem();
 	v->v_tspec = tn->tn_type->t_tspec;
 	if (tn->tn_type->t_tspec != INT)
 		lerror("foldtst() 1");
@@ -2898,7 +2900,8 @@ foldflt(tn)
 	tspec_t	t;
 	ldbl_t	l, r;
 
-	v = xcalloc(1, sizeof (val_t));
+	if ((v = calloc(1, sizeof (val_t))) == NULL)
+	    	nomem();
 	v->v_tspec = t = tn->tn_type->t_tspec;
 
 	if (!isftyp(t))
@@ -3265,7 +3268,8 @@ parg(n, tp, tn)
 	tnode_t	*ln;
 	int	warn;
 
-	ln = xcalloc(1, sizeof (tnode_t));
+	if ((ln = calloc(1, sizeof (tnode_t))) == NULL)
+		nomem();
 	ln->tn_type = tduptyp(tp);
 	ln->tn_type->t_const = 0;
 	ln->tn_lvalue = 1;
@@ -3293,7 +3297,8 @@ constant(tn)
 	if (tn != NULL)
 		tn = promote(NOOP, 0, tn);
 
-	v = xcalloc(1, sizeof (val_t));
+	if ((v = calloc(1, sizeof (val_t))) == NULL)
+		nomem();
 
 	if (tn == NULL) {
 		if (nerr == 0)
@@ -3458,7 +3463,8 @@ displexpr(tn, offs)
 			char	*s;
 			size_t	n;
 			n = MB_CUR_MAX * (tn->tn_strg->st_len + 1);
-			s = xmalloc(n);
+			if ((s = malloc(n)) == NULL)
+				nomem();
 			(void)wcstombs(s, tn->tn_strg->st_wcp, n);
 			(void)printf("L\"%s\"", s);
 			free(s);
@@ -3829,12 +3835,14 @@ catstrg(strg1, strg2)
 	len = (len1 = strg1->st_len) + (len2 = strg2->st_len);
 
 	if (strg1->st_tspec == CHAR) {
-		strg1->st_cp = xrealloc(strg1->st_cp, len + 1);
+		if ((strg1->st_cp = realloc(strg1->st_cp, len + 1)) == NULL)
+			nomem();
 		(void)memcpy(strg1->st_cp + len1, strg2->st_cp, len2 + 1);
 		free(strg2->st_cp);
 	} else {
-		strg1->st_wcp = xrealloc(strg1->st_wcp,
-					 (len + 1) * sizeof (wchar_t));
+		if ((strg1->st_wcp = realloc(strg1->st_wcp, (len + 1) *
+		    sizeof (wchar_t))) == NULL)
+			nomem();
 		(void)memcpy(strg1->st_wcp + len1, strg2->st_wcp,
 			     (len2 + 1) * sizeof (wchar_t));
 		free(strg2->st_wcp);

@@ -100,9 +100,11 @@ fnnalloc(s, len)
 		return (NULL);
 
 	if ((fn = srchfn(s, len)) == NULL) {
-		fn = xmalloc(sizeof (fn_t));
+		if ((fn = malloc(sizeof (fn_t))) == NULL)
+			nomem();
 		/* Do not used strdup() because string is not NUL-terminated.*/
-		fn->fn_name = xmalloc(len + 1);
+		if ((fn->fn_name = malloc(len + 1)) == NULL)
+			nomem();
 		(void)memcpy(fn->fn_name, s, len);
 		fn->fn_name[len] = '\0';
 		fn->fn_len = len;
@@ -174,7 +176,8 @@ xnewblk()
 	mbl_t	*mb;
 	int	prot, flags;
 
-	mb = xmalloc(sizeof (mbl_t));
+	if ((mb = malloc(sizeof (mbl_t))) == NULL)
+		nomem();
 
 	/* use mmap instead of malloc to avoid malloc's size overhead */
 
@@ -252,7 +255,8 @@ initmem()
 	pgsz = getpagesize();
 	mblklen = ((MBLKSIZ + pgsz - 1) / pgsz) * pgsz;
 
-	mblks = xcalloc(nmblks = ML_INC, sizeof (mbl_t *));
+	if ((mblks = calloc(nmblks = ML_INC, sizeof (mbl_t *))) == NULL)
+		nomem();
 }
 
 	
@@ -265,7 +269,9 @@ getlblk(l, s)
 	size_t	s;
 {
 	while (l >= nmblks) {
-		mblks = xrealloc(mblks, (nmblks + ML_INC) * sizeof (mbl_t *));
+		if ((mblks = realloc(mblks, (nmblks + ML_INC) *
+		    sizeof (mbl_t *))) == NULL)
+			nomem();
 		(void)memset(&mblks[nmblks], 0, ML_INC * sizeof (mbl_t *));
 		nmblks += ML_INC;
 	}

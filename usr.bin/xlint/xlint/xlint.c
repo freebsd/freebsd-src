@@ -145,7 +145,8 @@ appstrg(lstp, s)
 
 	olst = *lstp;
 	for (i = 0; olst[i] != NULL; i++) ;
-	lst = xmalloc((i + 2) * sizeof (char *));
+	if ((lst = malloc((i + 2) * sizeof (char *))) == NULL)
+		nomem();
 	(void)memcpy(lst, olst, i * sizeof (char *));
 	lst[i] = s;
 	lst[i + 1] = NULL;
@@ -157,7 +158,11 @@ appcstrg(lstp, s)
 	char	***lstp;
 	const	char *s;
 {
-	appstrg(lstp, xstrdup(s));
+	char *p;
+
+	if ((p = strdup(s)) == NULL)
+		nomem();
+	appstrg(lstp, p);
 }
 
 static void
@@ -171,10 +176,12 @@ applst(destp, src)
 	odest = *destp;
 	for (i = 0; odest[i] != NULL; i++) ;
 	for (k = 0; src[k] != NULL; k++) ;
-	dest = xmalloc((i + k + 1) * sizeof (char *));
+	if ((dest = malloc((i + k + 1) * sizeof (char *))) == NULL)
+		nomem();
 	(void)memcpy(dest, odest, i * sizeof (char *));
 	for (k = 0; src[k] != NULL; k++)
-		dest[i + k] = xstrdup(src[k]);
+		if ((dest[i + k] = strdup(src[k])) == NULL)
+			nomem();
 	dest[i + k] = NULL;
 	*destp = dest;
 	free(odest);
@@ -201,7 +208,8 @@ concat2(s1, s2)
 {
 	char	*s;
 
-	s = xmalloc(strlen(s1) + strlen(s2) + 1);
+	if ((s = malloc(strlen(s1) + strlen(s2) + 1)) == NULL)
+		nomem();
 	(void)strcpy(s, s1);
 	(void)strcat(s, s2);
 
@@ -214,7 +222,8 @@ concat3(s1, s2, s3)
 {
 	char	*s;
 
-	s = xmalloc(strlen(s1) + strlen(s2) + strlen(s3) + 1);
+	if ((s = malloc(strlen(s1) + strlen(s2) + strlen(s3) + 1)) == NULL)
+		nomem();
 	(void)strcpy(s, s1);
 	(void)strcat(s, s2);
 	(void)strcat(s, s3);
@@ -301,14 +310,17 @@ main(argc, argv)
 	size_t	len;
 
 	if ((tmp = getenv("TMPDIR")) == NULL || (len = strlen(tmp)) == 0) {
-		tmpdir = xstrdup(_PATH_TMP);
+		if ((tmpdir = strdup(_PATH_TMP)) == NULL)
+			nomem();
 	} else {
-		s = xmalloc(len + 2);
+		if ((s = malloc(len + 2)) == NULL)
+			nomem();
 		(void)sprintf(s, "%s%s", tmp, tmp[len - 1] == '/' ? "" : "/");
 		tmpdir = s;
 	}
 
-	cppout = xmalloc(strlen(tmpdir) + sizeof ("lint0.XXXXXX"));
+	if ((cppout = malloc(strlen(tmpdir) + sizeof ("lint0.XXXXXX"))) == NULL)
+		nomem();
 	(void)sprintf(cppout, "%slint0.XXXXXX", tmpdir);
 	cppoutfd = mkstemp(cppout);
 	if (cppoutfd == -1) {
@@ -316,16 +328,26 @@ main(argc, argv)
 		terminate(-1);
 	}
 
-	p1out = xcalloc(1, sizeof (char *));
-	p2in = xcalloc(1, sizeof (char *));
-	cflags = xcalloc(1, sizeof (char *));
-	lcflags = xcalloc(1, sizeof (char *));
-	l1flags = xcalloc(1, sizeof (char *));
-	l2flags = xcalloc(1, sizeof (char *));
-	l2libs = xcalloc(1, sizeof (char *));
-	deflibs = xcalloc(1, sizeof (char *));
-	libs = xcalloc(1, sizeof (char *));
-	libsrchpath = xcalloc(1, sizeof (char *));
+	if ((p1out = calloc(1, sizeof (char *))) == NULL)
+		nomem();
+	if ((p2in = calloc(1, sizeof (char *))) == NULL)
+		nomem();
+	if ((cflags = calloc(1, sizeof (char *))) == NULL)
+		nomem();
+	if ((lcflags = calloc(1, sizeof (char *))) == NULL)
+		nomem();
+	if ((l1flags = calloc(1, sizeof (char *))) == NULL)
+		nomem();
+	if ((l2flags = calloc(1, sizeof (char *))) == NULL)
+		nomem();
+	if ((l2libs = calloc(1, sizeof (char *))) == NULL)
+		nomem();
+	if ((deflibs = calloc(1, sizeof (char *))) == NULL)
+		nomem();
+	if ((libs = calloc(1, sizeof (char *))) == NULL)
+		nomem();
+	if ((libsrchpath = calloc(1, sizeof (char *))) == NULL)
+		nomem();
 
 	appcstrg(&cflags, "-E");
 	appcstrg(&cflags, "-x");
@@ -435,7 +457,9 @@ main(argc, argv)
 				usage();
 			Cflag = 1;
 			appstrg(&l2flags, concat2("-C", optarg));
-			p2out = xmalloc(sizeof ("llib-l.ln") + strlen(optarg));
+			if ((p2out = malloc(sizeof ("llib-l.ln") +
+			    strlen(optarg))) == NULL)
+				nomem();
 			(void)sprintf(p2out, "llib-l%s.ln", optarg);
 			freelst(&deflibs);
 			break;
@@ -455,7 +479,8 @@ main(argc, argv)
 			if (Cflag || oflag)
 				usage();
 			oflag = 1;
-			outputfn = xstrdup(optarg);
+			if ((outputfn = strdup(optarg)) == NULL)
+				nomem();
 			break;
 
 		case 'L':
@@ -550,12 +575,15 @@ fname(name, last)
 		outputfn = NULL;
 		oflag = 0;
 	} else if (iflag) {
-		ofn = xmalloc(strlen(bn) + (bn == suff ? 4 : 2));
+		if ((ofn = malloc(strlen(bn) + (bn == suff ? 4 : 2))) == NULL)
+			nomem();
 		len = bn == suff ? strlen(bn) : (suff - 1) - bn;
 		(void)sprintf(ofn, "%.*s", (int)len, bn);
 		(void)strcat(ofn, ".ln");
 	} else {
-		ofn = xmalloc(strlen(tmpdir) + sizeof ("lint1.XXXXXX"));
+		if ((ofn = malloc(strlen(tmpdir) + sizeof ("lint1.XXXXXX"))) ==
+		    NULL)
+			nomem();
 		(void)sprintf(ofn, "%slint1.XXXXXX", tmpdir);
 		fd = mkstemp(ofn);
 		if (fd == -1) {
@@ -567,11 +595,13 @@ fname(name, last)
 	if (!iflag)
 		appcstrg(&p1out, ofn);
 
-	args = xcalloc(1, sizeof (char *));
+	if ((args = calloc(1, sizeof (char *))) == NULL)
+		nomem();
 
 	/* run cc */
 
-	path = xmalloc(strlen(PATH_USRBIN) + sizeof ("/cc"));
+	if ((path = malloc(strlen(PATH_USRBIN) + sizeof ("/cc"))) == NULL)
+		nomem();
 	(void)sprintf(path, "%s/cc", PATH_USRBIN);
 
 	appcstrg(&args, path);
@@ -595,7 +625,8 @@ fname(name, last)
 
 	/* run lint1 */
 
-	path = xmalloc(strlen(PATH_LIBEXEC) + sizeof ("/lint1"));
+	if ((path = malloc(strlen(PATH_LIBEXEC) + sizeof ("/lint1"))) == NULL)
+		nomem();
 	(void)sprintf(path, "%s/lint1", PATH_LIBEXEC);
 
 	appcstrg(&args, path);
@@ -682,11 +713,15 @@ findlibs(liblst)
 	for (i = 0; (lib = liblst[i]) != NULL; i++) {
 		for (k = 0; (path = libsrchpath[k]) != NULL; k++) {
 			len = strlen(path) + strlen(lib);
-			lfn = xrealloc(lfn, len + sizeof ("/llib-l.ln"));
+			if ((lfn = realloc(lfn, len + sizeof ("/llib-l.ln")))
+			    == NULL)
+			    	nomem();
 			(void)sprintf(lfn, "%s/llib-l%s.ln", path, lib);
 			if (rdok(lfn))
 				break;
-			lfn = xrealloc(lfn, len + sizeof ("/lint/llib-l.ln"));
+			if ((lfn = realloc(lfn, len +
+			    sizeof("/lint/llib-l.ln"))) == NULL)
+				nomem();
 			(void)sprintf(lfn, "%s/lint/llib-l%s.ln", path, lib);
 			if (rdok(lfn))
 				break;
@@ -721,9 +756,11 @@ lint2()
 {
 	char	*path, **args;
 
-	args = xcalloc(1, sizeof (char *));
+	if ((args = calloc(1, sizeof (char *))) == NULL)
+		nomem();
 
-	path = xmalloc(strlen(PATH_LIBEXEC) + sizeof ("/lint2"));
+	if ((path = malloc(strlen(PATH_LIBEXEC) + sizeof ("/lint2"))) == NULL)
+		nomem();
 	(void)sprintf(path, "%s/lint2", PATH_LIBEXEC);
 	
 	appcstrg(&args, path);
@@ -751,7 +788,8 @@ cat(srcs, dest)
 		terminate(-1);
 	}
 
-	buf = xmalloc(MBLKSIZ);
+	if ((buf = malloc(MBLKSIZ)) == NULL)
+		nomem();
 
 	for (i = 0; (src = srcs[i]) != NULL; i++) {
 		if ((ifd = open(src, O_RDONLY)) == -1) {

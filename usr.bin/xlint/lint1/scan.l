@@ -306,7 +306,8 @@ allocsb()
 	if ((sb = sbfrlst) != NULL) {
 		sbfrlst = sb->sb_nxt;
 	} else {
-		sb = xmalloc(sizeof (sbuf_t));
+		if ((sb = malloc(sizeof (sbuf_t))) == NULL)
+			nomem();
 	}
 	(void)memset(sb, 0, sizeof (sb));
 	return (sb);
@@ -565,7 +566,9 @@ icon(base)
 
 	uq = (u_quad_t)xsign((quad_t)uq, typ, -1);
 
-	(yylval.y_val = xcalloc(1, sizeof (val_t)))->v_tspec = typ;
+	if ((yylval.y_val = calloc(1, sizeof(val_t))) == NULL)
+		nomem();
+	yylval.y_val->v_tspec = typ;
 	yylval.y_val->v_ansiu = ansiu;
 	yylval.y_val->v_quad = (quad_t)uq;
 
@@ -672,7 +675,9 @@ fcon()
 		}
 	}
 
-	(yylval.y_val = xcalloc(1, sizeof (val_t)))->v_tspec = typ;
+	if ((yylval.y_val = calloc(1, sizeof (val_t))) == NULL)
+		nomem();
+	yylval.y_val->v_tspec = typ;
 	if (typ == FLOAT) {
 		yylval.y_val->v_ldbl = f;
 	} else {
@@ -726,7 +731,8 @@ ccon()
 		val = cv;
 	}
 	
-	yylval.y_val = xcalloc(1, sizeof (val_t));
+	if ((yylval.y_val = calloc(1, sizeof (val_t))) == NULL)
+		nomem();
 	yylval.y_val->v_tspec = INT;
 	yylval.y_val->v_quad = val;
 
@@ -772,7 +778,8 @@ wccon()
 		}
 	}
 
-	yylval.y_val = xcalloc(1, sizeof (val_t));
+	if ((yylval.y_val = calloc(1, sizeof (val_t))) == NULL)
+		nomem();
 	yylval.y_val->v_tspec = WCHAR;
 	yylval.y_val->v_quad = wc;
 
@@ -1125,13 +1132,15 @@ string()
 	size_t	len, max;
 	strg_t	*strg;
 
-	s = xmalloc(max = 64);
+	if ((s = malloc(max = 64)) == NULL)
+		nomem();
 
 	len = 0;
 	while ((c = getescc('"')) >= 0) {
 		/* +1 to reserve space for a trailing NUL character */
 		if (len + 1 == max)
-			s = xrealloc(s, max *= 2);
+			if ((s = realloc(s, max *= 2)) == NULL)
+				nomem();
 		s[len++] = (char)c;
 	}
 	s[len] = '\0';
@@ -1139,7 +1148,8 @@ string()
 		/* unterminated string constant */
 		error(258);
 
-	strg = xcalloc(1, sizeof (strg_t));
+	if ((strg = calloc(1, sizeof (strg_t))) == NULL)
+		nomem();
 	strg->st_tspec = CHAR;
 	strg->st_len = len;
 	strg->st_cp = s;
@@ -1157,12 +1167,14 @@ wcstrg()
 	wchar_t	*ws;
 	strg_t	*strg;
 
-	s = xmalloc(max = 64);
+	if ((s = malloc(max = 64)) == NULL)
+		nomem();
 	len = 0;
 	while ((c = getescc('"')) >= 0) {
 		/* +1 to save space for a trailing NUL character */
 		if (len + 1 >= max)
-			s = xrealloc(s, max *= 2);
+			if ((s = realloc(s, max *= 2)) == NULL)
+				nomem();
 		s[len++] = (char)c;
 	}
 	s[len] = '\0';
@@ -1182,7 +1194,8 @@ wcstrg()
 			n = 1;
 	}
 
-	ws = xmalloc((wlen + 1) * sizeof (wchar_t));
+	if ((ws = malloc((wlen + 1) * sizeof (wchar_t))) == NULL)
+		nomem();
 
 	/* convert from multibyte to wide char */
 	(void)mbtowc(NULL, NULL, 0);
@@ -1195,7 +1208,8 @@ wcstrg()
 	ws[wi] = 0;
 	free(s);
 
-	strg = xcalloc(1, sizeof (strg_t));
+	if ((strg = calloc(1, sizeof (strg_t))) == NULL)
+		nomem();
 	strg->st_tspec = WCHAR;
 	strg->st_len = wlen;
 	strg->st_wcp = ws;

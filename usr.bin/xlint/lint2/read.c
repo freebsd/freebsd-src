@@ -110,13 +110,17 @@ readfile(name)
 	pos_t	pos;
 
 	if (inpfns == NULL)
-		inpfns = xcalloc(ninpfns = 128, sizeof (short));
+		if ((inpfns = calloc(ninpfns = 128, sizeof (short))) == NULL)
+			nomem();
 	if (fnames == NULL)
-		fnames = xcalloc(nfnames = 256, sizeof (char *));
+		if ((fnames = calloc(nfnames = 256, sizeof (char *))) == NULL)
+			nomem();
 	if (tlstlen == 0)
-		tlst = xcalloc(tlstlen = 256, sizeof (type_t *));
+		if ((tlst = calloc(tlstlen = 256, sizeof (type_t *))) == NULL)
+			nomem();
 	if (thtab == NULL)
-		thtab = xcalloc(THSHSIZ2, sizeof (thtab_t));
+		if ((thtab = calloc(THSHSIZ2, sizeof (thtab_t))) == NULL)
+			nomem();
 
 	srcfile = getfnidx(name);
 
@@ -233,7 +237,9 @@ setfnid(fid, cp)
 		inperr();
 
 	if (fid >= ninpfns) {
-		inpfns = xrealloc(inpfns, (ninpfns * 2) * sizeof (short));
+		if ((inpfns = realloc(inpfns, (ninpfns * 2) * sizeof (short)))
+		    == NULL)
+			nomem();
 		(void)memset(inpfns + ninpfns, 0, ninpfns * sizeof (short));
 		ninpfns *= 2;
 	}
@@ -581,8 +587,9 @@ inptype(cp, epp)
 				tp->t_proto = 1;
 			narg = (int)strtol(cp, &eptr, 10);
 			cp = eptr;
-			tp->t_args = xcalloc((size_t)(narg + 1),
-					     sizeof (type_t *));
+			if ((tp->t_args = calloc((size_t)(narg + 1),
+			    sizeof (type_t *))) == NULL)
+				nomem();
 			for (i = 0; i < narg; i++) {
 				if (i == narg - 1 && *cp == 'E') {
 					tp->t_vararg = 1;
@@ -832,7 +839,9 @@ storetyp(tp, cp, len, h)
 		errx(1, "sorry, too many types");
 
 	if (tidx == tlstlen - 1) {
-		tlst = xrealloc(tlst, (tlstlen * 2) * sizeof (type_t *));
+		if ((tlst = realloc(tlst, (tlstlen * 2) * sizeof (type_t *)))
+		    == NULL)
+			nomem();
 		(void)memset(tlst + tlstlen, 0, tlstlen * sizeof (type_t *));
 		tlstlen *= 2;
 	}
@@ -883,7 +892,8 @@ inpqstrg(src, epp)
 	int	c;
 	int	v;
 
-	dst = strg = xmalloc(slen = 32);
+	if ((dst = strg = malloc(slen = 32)) == NULL)
+		nomem();
 
 	if ((c = *src++) != '"')
 		inperr();
@@ -949,7 +959,8 @@ inpqstrg(src, epp)
 		}
 		/* keep space for trailing '\0' */
 		if (dst - strg == slen - 1) {
-			strg = xrealloc(strg, slen * 2);
+			if ((strg = realloc(strg, slen * 2)) == NULL)
+				nomem();
 			dst = strg + (slen - 1);
 			slen *= 2;
 		}
@@ -980,7 +991,8 @@ inpname(cp, epp)
 		inperr();
 	cp = eptr;
 	if (len + 1 > blen)
-		buf = xrealloc(buf, blen = len + 1);
+		if ((buf = realloc(buf, blen = len + 1)) == NULL)
+			nomem();
 	for (i = 0; i < len; i++) {
 		c = *cp++;
 		if (!isalnum(c) && c != '_')
@@ -1012,12 +1024,15 @@ getfnidx(fn)
 		return (i);
 
 	if (i == nfnames - 1) {
-		fnames = xrealloc(fnames, (nfnames * 2) * sizeof (char *));
+		if ((fnames = realloc(fnames, (nfnames * 2) * sizeof (char *)))
+		    == NULL)
+			nomem();
 		(void)memset(fnames + nfnames, 0, nfnames * sizeof (char *));
 		nfnames *= 2;
 	}
 
-	fnames[i] = xstrdup(fn);
+	if ((fnames[i] = strdup(fn)) == NULL)
+		nomem();
 	return (i);
 }
 
