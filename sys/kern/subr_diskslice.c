@@ -407,6 +407,19 @@ dsioctl(dev, cmd, data, flags, sspp)
 		*(struct disklabel *)data = *lp;
 		return (0);
 
+	case DIOCGSECTORSIZE:
+		if (lp == NULL)
+			return (EINVAL);
+		*(u_int *)data = lp->d_secsize;
+		return (0);
+
+	case DIOCGMEDIASIZE:
+		if (lp == NULL)
+			return (EINVAL);
+		*(off_t *)data = (off_t)lp->d_partitions[dkpart(dev)].p_size *
+		    lp->d_secsize;
+		return (0);
+
 	case DIOCGPART:
 		if (lp == NULL)
 			return (EINVAL);
