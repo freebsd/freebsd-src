@@ -1,5 +1,5 @@
 /*
- * $Id: md5.c,v 1.6 1995/07/12 09:14:46 phk Exp $
+ * $Id: md5.c,v 1.7 1996/10/25 06:48:29 bde Exp $
  *
  * Derived from:
  */
@@ -107,7 +107,7 @@ MDTimeTrial()
 
 	printf
 	    ("MD5 time trial. Digesting %d %d-byte blocks ...",
-	    TEST_BLOCK_LEN, TEST_BLOCK_COUNT);
+	    TEST_BLOCK_COUNT, TEST_BLOCK_LEN);
 
 	/* Initialize block */
 	for (i = 0; i < TEST_BLOCK_LEN; i++)
