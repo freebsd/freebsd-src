@@ -1,23 +1,27 @@
 /*
- * (C)opyright 1995 by Darren Reed.
+ * Copyright (C) 1995-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  */
-#if !defined(lint) && defined(LIBC_SCCS)
-static	char	sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_state.c,v 2.0.2.12 1997/05/24 07:34:10 darrenr Exp $";
+#if !defined(lint)
+static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.0.2.24.2.3 1997/11/12 10:55:34 darrenr Exp $";
 #endif
 
-#if !defined(_KERNEL) && !defined(KERNEL)
+#if !defined(_KERNEL) && !defined(KERNEL) && !defined(__KERNEL__)
 # include <stdlib.h>
 # include <string.h>
+#else
+# ifdef linux
+#  include <linux/kernel.h>
+#  include <linux/module.h>
+# endif
 #endif
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/file.h>
 #if defined(KERNEL) && (__FreeBSD_version >= 220000)
 # include <sys/filio.h>
@@ -25,14 +29,19 @@ static	char	rcsid[] = "$Id: ip_state.c,v 2.0.2.12 1997/05/24 07:34:10 darrenr Ex
 #else
 # include <sys/ioctl.h>
 #endif
+#include <sys/time.h>
 #include <sys/uio.h>
+#ifndef linux
 #include <sys/protosw.h>
+#endif
 #include <sys/socket.h>
-#ifdef _KERNEL
+#if defined(_KERNEL) && !defined(linux)
 # include <sys/systm.h>
 #endif
 #if !defined(__SVR4) && !defined(__svr4__)
-# include <sys/mbuf.h>
+# ifndef linux
+#  include <sys/mbuf.h>
+# endif
 #else
 # include <sys/filio.h>
 # include <sys/byteorder.h>
@@ -49,15 +58,19 @@ static	char	rcsid[] = "$Id: ip_state.c,v 2.0.2.12 1997/05/24 07:34:10 darrenr Ex
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
 #include <netinet/tcp.h>
-#include <netinet/tcp_fsm.h>
+#ifndef linux
+# include <netinet/ip_var.h>
+# include <netinet/tcp_fsm.h>
+#endif
 #include <netinet/udp.h>
-#include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
 #include "netinet/ip_compat.h"
+#include <netinet/tcpip.h>
 #include "netinet/ip_fil.h"
 #include "netinet/ip_nat.h"
+#include "netinet/ip_frag.h"
+#include "netinet/ip_proxy.h"
 #include "netinet/ip_state.h"
 #ifndef	MIN
 #define	MIN(a,b)	(((a)<(b))?(a):(b))
@@ -68,7 +81,7 @@ static	char	rcsid[] = "$Id: ip_state.c,v 2.0.2.12 1997/05/24 07:34:10 darrenr Ex
 ipstate_t *ips_table[IPSTATE_SIZE];
 int	ips_num = 0;
 ips_stat_t ips_stats;
-#if	SOLARIS && defined(_KERNEL)
+#if	(SOLARIS || defined(__sgi)) && defined(_KERNEL)
 extern	kmutex_t	ipf_state;
 #endif
 
@@ -92,25 +105,100 @@ ips_stat_t *fr_statetstats()
 }
 
 
+/*
+ * flush state tables.  two actions currently defined:
+ * which == 0 : flush all state table entries
+ * which == 1 : flush TCP connections which have started to close but are
+ *              stuck for some reason.
+ */
+int fr_state_flush(which)
+int which;
+{
+	register int i;
+	register ipstate_t *is, **isp;
+#if defined(_KERNEL) && !SOLARIS
+	int s;
+#endif
+	int delete, removed = 0;
+
+	SPL_NET(s);
+	MUTEX_ENTER(&ipf_state);
+	for (i = 0; i < IPSTATE_SIZE; i++)
+		for (isp = &ips_table[i]; (is = *isp); ) {
+			delete = 0;
+
+			switch (which)
+			{
+			case 0 :
+				delete = 1;
+				break;
+			case 1 :
+				if ((is->is_p == IPPROTO_TCP) &&
+				    ((is->is_state[0] <= TCPS_ESTABLISHED) &&
+				     (is->is_state[1] > TCPS_ESTABLISHED)) ||
+				    ((is->is_state[1] <= TCPS_ESTABLISHED) &&
+				     (is->is_state[0] > TCPS_ESTABLISHED)))
+					delete = 1;
+				break;
+			}
+
+			if (delete) {
+				*isp = is->is_next;
+				if (is->is_p == IPPROTO_TCP)
+					ips_stats.iss_fin++;
+				else
+					ips_stats.iss_expire++;
+#ifdef	IPFILTER_LOG
+				ipstate_log(is, ISL_FLUSH);
+#endif
+				KFREE(is);
+				ips_num--;
+				removed++;
+			} else
+				isp = &is->is_next;
+		}
+	MUTEX_EXIT(&ipf_state);
+	SPL_X(s);
+	return removed;
+}
+
+
 int fr_state_ioctl(data, cmd, mode)
 caddr_t data;
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+u_long cmd;
+#else
 int cmd;
+#endif
 int mode;
 {
+	int	arg, ret, error = 0;
+
 	switch (cmd)
 	{
+	case SIOCIPFFL :
+		IRCOPY(data, (caddr_t)&arg, sizeof(arg));
+		if (arg == 0 || arg == 1) {
+			MUTEX_ENTER(&ipf_state);
+			ret = fr_state_flush(arg);
+			MUTEX_EXIT(&ipf_state);
+			IWCOPY((caddr_t)&ret, data, sizeof(ret));
+		} else
+			error = EINVAL;
+		break;
 	case SIOCGIPST :
 		IWCOPY((caddr_t)fr_statetstats(), data, sizeof(ips_stat_t));
 		break;
 	case FIONREAD :
 #ifdef	IPFILTER_LOG
-		*(int *)data = iplused[IPL_LOGSTATE];
+		IWCOPY((caddr_t)&iplused[IPL_LOGSTATE], (caddr_t)data,
+		       sizeof(iplused[IPL_LOGSTATE]));
 #endif
 		break;
 	default :
-		return -1;
+		return EINVAL;
 	}
-	return 0;
+	return error;
 }
 
 
@@ -183,7 +271,7 @@ u_int pass;
 		is->is_dwin = is->is_swin;	/* start them the same */
 		ips_stats.iss_tcp++;
 		/*
-		 * If we're creating state for a starting connectoin, start the
+		 * If we're creating state for a starting connection, start the
 		 * timer on it as we'll never see an error if it fails to
 		 * connect.
 		 */
@@ -255,17 +343,27 @@ u_short sport;
 	 */
 	seq = ntohl(tcp->th_seq);
 	ack = ntohl(tcp->th_ack);
-	if (sport == is->is_sport) {
+	source = (sport == is->is_sport);
+
+	if (!(tcp->th_flags & TH_ACK))  /* Pretend an ack was sent */
+		ack = source ? is->is_ack : is->is_seq;
+
+	if (source) {
+		if (!is->is_seq)
+			/*
+			 * Must be an outgoing SYN-ACK in reply to a SYN.
+			 */
+			is->is_seq = seq;
 		seqskew = seq - is->is_seq;
 		ackskew = ack - is->is_ack;
 	} else {
-		seqskew = ack - is->is_seq;
 		if (!is->is_ack)
 			/*
 			 * Must be a SYN-ACK in reply to a SYN.
 			 */
 			is->is_ack = seq;
 		ackskew = seq - is->is_ack;
+		seqskew = ack - is->is_seq;
 	}
 
 	/*
@@ -281,7 +379,7 @@ u_short sport;
 	 * window size of the connection, store these values and match
 	 * the packet.
 	 */
-	if ((source = (sport == is->is_sport))) {
+	if (source) {
 		swin = is->is_swin;
 		dwin = is->is_dwin;
 	} else {
@@ -440,16 +538,13 @@ void fr_stateunload()
 {
 	register int i;
 	register ipstate_t *is, **isp;
-	int s;
 
 	MUTEX_ENTER(&ipf_state);
-	SPLNET(s);
 	for (i = 0; i < IPSTATE_SIZE; i++)
 		for (isp = &ips_table[i]; (is = *isp); ) {
 			*isp = is->is_next;
 			KFREE(is);
 		}
-	SPLX(s);
 	MUTEX_EXIT(&ipf_state);
 }
 
@@ -462,10 +557,12 @@ void fr_timeoutstate()
 {
 	register int i;
 	register ipstate_t *is, **isp;
+#if defined(_KERNEL) && !SOLARIS
 	int s;
+#endif
 
+	SPL_NET(s);
 	MUTEX_ENTER(&ipf_state);
-	SPLNET(s);
 	for (i = 0; i < IPSTATE_SIZE; i++)
 		for (isp = &ips_table[i]; (is = *isp); )
 			if (is->is_age && !--is->is_age) {
@@ -481,8 +578,8 @@ void fr_timeoutstate()
 				ips_num--;
 			} else
 				isp = &is->is_next;
-	SPLX(s);
 	MUTEX_EXIT(&ipf_state);
+	SPL_X(s);
 }
 
 
@@ -580,21 +677,10 @@ struct ipstate *is;
 u_short type;
 {
 	struct	ipslog	ipsl;
+	void *items[1];
+	size_t sizes[1];
+	int types[1];
 
-	if (iplused[IPL_LOGSTATE] + sizeof(ipsl) > IPLLOGSIZE) {
-		ips_stats.iss_logfail++;
-		return;
-	}
-
-        if (iplh[IPL_LOGSTATE] == iplbuf[IPL_LOGSTATE] + IPLLOGSIZE)
-                iplh[IPL_LOGSTATE] = iplbuf[IPL_LOGSTATE];
-
-# ifdef	sun
-	uniqtime(&ipsl);
-# endif
-# if BSD >= 199306 || defined(__FreeBSD__)
-	microtime((struct timeval *)&ipsl);
-# endif
 	ipsl.isl_pkts = is->is_pkts;
 	ipsl.isl_bytes = is->is_bytes;
 	ipsl.isl_src = is->is_src;
@@ -611,12 +697,10 @@ u_short type;
 		ipsl.isl_ps.isl_filler[0] = 0;
 		ipsl.isl_ps.isl_filler[1] = 0;
 	}
+	items[0] = &ipsl;
+	sizes[0] = sizeof(ipsl);
+	types[0] = 0;
 
-	if (!fr_copytolog(IPL_LOGSTATE, (char *)&ipsl, sizeof(ipsl))) {
-		iplused[IPL_LOGSTATE] += sizeof(ipsl);
-		ips_stats.iss_logged++;
-	} else
-		ips_stats.iss_logfail++;
-	wakeup(iplbuf[IPL_LOGSTATE]);
+	(void) ipllog(IPL_LOGSTATE, 0, items, sizes, types, 1);
 }
 #endif
