@@ -147,11 +147,6 @@ int15(regcontext_t *REGS)
     }
 }
 
-
-extern void int16(regcontext_t *REGS);
-extern void int17(regcontext_t *REGS);
-extern void int1a(regcontext_t *REGS);
-
 void
 bios_init(void)
 {

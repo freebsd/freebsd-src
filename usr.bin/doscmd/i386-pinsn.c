@@ -40,7 +40,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "doscmd.h"
 
+static void	OP_E(int), OP_indirE(int), OP_G(int);
+static void	OP_I(int), OP_sI(int), OP_REG(int), OP_J(int), OP_SEG(int);
+static void	OP_DIR(int), OP_OFF(int), OP_DSSI(int), OP_ESDI(int);
+static void	OP_C(int), OP_D(int), OP_T(int), OP_rm(int);
+static void	OP_ST(void), OP_STi(void);
+static void	append_pc(unsigned long);
+static void	append_prefix(void);
 static void	dofloat(void);
+static int	get16(void);
+static int	get32(void);
 static void	oappend(char *);
 static void	putop(char *);
 
@@ -63,7 +72,6 @@ static void	putop(char *);
 #define Iw OP_I, w_mode
 #define Jb OP_J, b_mode
 #define Jv OP_J, v_mode
-#define ONE OP_ONE, 0
 #define Cd OP_C, d_mode
 #define Dd OP_D, d_mode
 #define Td OP_T, d_mode
@@ -104,12 +112,6 @@ static void	putop(char *);
 #define ds OP_REG, ds_reg
 #define fs OP_REG, fs_reg
 #define gs OP_REG, gs_reg
-
-int OP_E(), OP_indirE(), OP_G(), OP_I(), OP_sI(), OP_REG();
-int OP_J(), OP_SEG();
-int OP_DIR(), OP_OFF(), OP_DSSI(), OP_ESDI(), OP_ONE(), OP_C();
-int OP_D(), OP_T(), OP_rm();
-
 
 #define b_mode 1
 #define v_mode 2
@@ -175,11 +177,11 @@ int OP_D(), OP_T(), OP_rm();
 
 struct dis386 {
   char *name;
-  int (*op1)();
+  void (*op1)();
   int bytemode1;
-  int (*op2)();
+  void (*op2)();
   int bytemode2;
-  int (*op3)();
+  void (*op3)();
   int bytemode3;
 };
 
@@ -1143,7 +1145,6 @@ char *float_mem[] = {
 
 #define ST OP_ST, 0
 #define STi OP_STi, 0
-int OP_ST(), OP_STi();
 
 #define FGRPd9_2 NULL, NULL, 0
 #define FGRPd9_4 NULL, NULL, 1
@@ -1333,14 +1334,14 @@ dofloat ()
     }
 }
 
-/* ARGSUSED */
-OP_ST (ignore)
+static void
+OP_ST()
 {
   oappend ("%st");
 }
 
-/* ARGSUSED */
-OP_STi (ignore)
+static void
+OP_STi()
 {
   sprintf (scratchbuf, "%%st(%d)", rm);
   oappend (scratchbuf);
@@ -1389,7 +1390,8 @@ oappend(char *s)
   *obufp = 0;
 }
 
-append_prefix ()
+static void
+append_prefix()
 {
   if (prefixes & PREFIX_CS)
     oappend ("%cs:");
@@ -1405,19 +1407,20 @@ append_prefix ()
     oappend ("%gs:");
 }
 
-OP_indirE (bytemode)
+static void
+OP_indirE(int bytemode)
 {
   oappend ("*");
   OP_E (bytemode);
 }
 
-OP_E (bytemode)
+static void
+OP_E(int bytemode)
 {
   int disp;
   int havesib;
-  int didoutput = 0;
   int base;
-  int index;
+  int idx;
   int scale;
   int havebase;
   
@@ -1455,7 +1458,7 @@ OP_E (bytemode)
       havesib = 1;
       havebase = 1;
       scale = (*codep >> 6) & 3;
-      index = (*codep >> 3) & 7;
+      idx = (*codep >> 3) & 7;
       base = *codep & 7;
       codep++;
   }
@@ -1519,8 +1522,8 @@ OP_E (bytemode)
       if (havebase)
 	oappend (aflag ? names32[base] : names16_pairs[base]);
       if (havesib) {
-	  if (index != 4) {
-	      sprintf (scratchbuf, ",%s", names32[index]);
+	  if (idx != 4) {
+	      sprintf (scratchbuf, ",%s", names32[idx]);
 	      oappend (scratchbuf);
 	  }
 	  sprintf (scratchbuf, ",%d", 1 << scale);
@@ -1530,7 +1533,8 @@ OP_E (bytemode)
   }
 }
 
-OP_G (bytemode)
+static void
+OP_G(int bytemode)
 {
   switch (bytemode) 
     {
@@ -1555,7 +1559,8 @@ OP_G (bytemode)
     }
 }
 
-get32 ()
+static int
+get32()
 {
   int x = 0;
   
@@ -1566,7 +1571,8 @@ get32 ()
   return (x);
 }
 
-get16 ()
+static int
+get16()
 {
   int x = 0;
   
@@ -1575,7 +1581,8 @@ get16 ()
   return (x);
 }
 
-OP_REG (code)
+static void
+OP_REG(int code)
 {
   char *s;
   
@@ -1608,7 +1615,8 @@ OP_REG (code)
   oappend (s);
 }
 
-OP_I (bytemode)
+static void
+OP_I(int bytemode)
 {
   int op;
   
@@ -1634,7 +1642,8 @@ OP_I (bytemode)
   oappend (scratchbuf);
 }
 
-OP_sI (bytemode)
+static void
+OP_sI(int bytemode)
 {
   int op;
   
@@ -1660,7 +1669,8 @@ OP_sI (bytemode)
   oappend (scratchbuf);
 }
 
-OP_J (bytemode)
+static void
+OP_J(int bytemode)
 {
   int disp;
   
@@ -1688,13 +1698,14 @@ OP_J (bytemode)
   oappend (scratchbuf);
 }
 
+static void
 append_pc(unsigned long pc)
 {
-  sprintf(scratchbuf, "%04x:%04x", pc >> 16, pc & 0xffff);
+  sprintf(scratchbuf, "%04lx:%04lx", pc >> 16, pc & 0xffff);
 }
 
-/* ARGSUSED */
-OP_SEG (dummy)
+static void
+OP_SEG(int dummy)
 {
   static char *sreg[] = {
     "%es","%cs","%ss","%ds","%fs","%gs","%?","%?",
@@ -1703,7 +1714,8 @@ OP_SEG (dummy)
   oappend (sreg[reg]);
 }
 
-OP_DIR (size)
+static void
+OP_DIR(int size)
 {
   int seg, offset;
   
@@ -1738,8 +1750,8 @@ OP_DIR (size)
     }
 }
 
-/* ARGSUSED */
-OP_OFF (bytemode)
+static void
+OP_OFF(int bytemode)
 {
   int off;
   
@@ -1752,53 +1764,48 @@ OP_OFF (bytemode)
   oappend (scratchbuf);
 }
 
-/* ARGSUSED */
-OP_ESDI (dummy)
+static void
+OP_ESDI(int dummy)
 {
   oappend ("%es:(");
   oappend (aflag ? "%edi" : "%di");
   oappend (")");
 }
 
-/* ARGSUSED */
-OP_DSSI (dummy)
+static void
+OP_DSSI(int dummy)
 {
   oappend ("%ds:(");
   oappend (aflag ? "%esi" : "%si");
   oappend (")");
 }
 
-/* ARGSUSED */
-OP_ONE (dummy)
-{
-  oappend ("1");
-}
-
-/* ARGSUSED */
-OP_C (dummy)
+static void
+OP_C(int dummy)
 {
   codep++; /* skip mod/rm */
   sprintf (scratchbuf, "%%cr%d", reg);
   oappend (scratchbuf);
 }
 
-/* ARGSUSED */
-OP_D (dummy)
+static void
+OP_D(int dummy)
 {
   codep++; /* skip mod/rm */
   sprintf (scratchbuf, "%%db%d", reg);
   oappend (scratchbuf);
 }
 
-/* ARGSUSED */
-OP_T (dummy)
+static void
+OP_T(int dummy)
 {
   codep++; /* skip mod/rm */
   sprintf (scratchbuf, "%%tr%d", reg);
   oappend (scratchbuf);
 }
 
-OP_rm (bytemode)
+static void
+OP_rm(int bytemode)
 {
   switch (bytemode) 
     {

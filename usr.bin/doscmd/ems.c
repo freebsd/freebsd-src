@@ -64,7 +64,7 @@
 #include "ems.h"
 
 /* Will be configurable */
-u_long	ems_max_size = EMS_MAXSIZE * 1024;
+u_long ems_max_size   = EMS_MAXSIZE * 1024;
 u_long ems_frame_addr = EMS_FRAME_ADDR;
 
 /*
@@ -113,30 +113,25 @@ struct copydesc {
 
 
 /* Local prototypes */
-static int init_mapfile();
-static void map_page(u_long pagenum, u_char position, short handle, 
-	int unmaponly);
-static EMS_handle *get_new_handle(long npages);
-static void context_to_handle(short handle);
-static long find_next_free_handle();
-static short lookup_handle(Hname *hp);
-static void allocate_pages_to_handle(u_short handle, long npages);
-static void allocate_handle(short handle, long npages);
-static void reallocate_pages_to_handle(u_short handle, long npages);
-static void free_handle(short handle);
-static void free_pages_of_handle(short handle);
-static void restore_context(EMS_mapping_context *emc);
-static void save_context_to_dos(EMScontext *emp);
-static int check_saved_context(EMScontext *emp);
-static void *get_valid_pointer(u_short seg, u_short offs, u_long size);
-static u_long move_ems_to_conv(short handle, u_short src_seg, 
-			u_short src_offset, u_long dst_addr, u_long length);
-static u_long move_conv_to_ems(u_long src_addr, u_short dst_handle, 
-			u_short dst_seg, u_short dst_offset, u_long length);
-static u_long move_ems_to_ems(u_short src_hande, u_short src_seg,
-			u_short src_offset, u_short dst_handle, 
-			u_short dst_seg, u_short dst_offset, u_long length);
-
+static int	init_mapfile(void);
+static void	map_page(u_long, u_char, short,	int);
+static EMS_handle	*get_new_handle(long);
+static void	context_to_handle(short);
+static long	find_next_free_handle(void);
+static short	lookup_handle(Hname *hp);
+static void	allocate_pages_to_handle(u_short, long);
+static void	allocate_handle(short, long);
+static void	reallocate_pages_to_handle(u_short, long);
+static void	free_handle(short);
+static void	free_pages_of_handle(short);
+static void	restore_context(EMS_mapping_context *);
+static void	save_context_to_dos(EMScontext *);
+static int	check_saved_context(EMScontext *);
+static void	*get_valid_pointer(u_short, u_short, u_long);
+static u_long	move_ems_to_conv(short, u_short, u_short, u_long, u_long);
+static u_long	move_conv_to_ems(u_long, u_short, u_short, u_short, u_long);
+static u_long	move_ems_to_ems(u_short, u_short, u_short, u_short, 
+				u_short, u_short, u_long);
 
 /* 
  * EMS initialization routine: Return 1, if successful, return 0 if

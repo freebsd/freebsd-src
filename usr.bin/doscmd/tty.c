@@ -125,29 +125,24 @@ static struct termios tty_cook, tty_raw;
 #define	row (CursRow0)
 #define	col (CursCol0)
 
-inline void
-SetVREGCur()
-{
-    int cp = row * width + col;
-    VGA_CRTC[CRTC_CurLocHi] = cp >> 8;
-    VGA_CRTC[CRTC_CurLocLo] = cp & 0xff;
-}
-
-void		_kbd_event(void *);
-void		debug_event(void *);
-int		video_event();
-void		video_async_event(void *);
-void		tty_cooked();
-unsigned char	inb_port60(int);
-void		kbd_event(int);
-u_short		read_raw_kbd(int, u_short *);
-
 /* Local functions */
+void		_kbd_event(void *);
+static void	Failure(void);
+static void	SetVREGCur(void);
+static void	debug_event(void *);
+static unsigned char	inb_port60(int);
+static int	inrange(int, int, int);
+static void	kbd_event(int);
+static u_short	read_raw_kbd(int, u_short *);
+static void	setgc(u_short);
+static void	video_async_event(void *);
+
 #ifndef NO_X
 static void	dac2rgb(XColor *, int);
 static void	prepare_lut(void);
 static void	putchar_graphics(int, int, int);
 static void	tty_rwrite_graphics(int, int, int);
+static int	video_event(XEvent *ev);
 static void	video_update_graphics(void);
 static void	video_update_text(void);
 static void	vram2ximage(void);
@@ -209,11 +204,19 @@ void KbdRepl(u_short code);
 u_short KbdRead();
 u_short KbdPeek();
 
-void
+static void
 Failure()
 {
         fprintf(stderr, "X Connection shutdown\n");
 	quit(1);
+}
+
+static void
+SetVREGCur()
+{
+    int cp = row * width + col;
+    VGA_CRTC[CRTC_CurLocHi] = cp >> 8;
+    VGA_CRTC[CRTC_CurLocLo] = cp & 0xff;
 }
 
 static void
@@ -342,7 +345,7 @@ video_blink(int mode)
 	blink = mode;
 }
 
-void
+static void
 setgc(u_short attr)
 {
 #ifndef NO_X
@@ -1041,100 +1044,8 @@ video_async_event(void *pfd)
 #endif
 }
 
-void
-kbd_async_event(int fd)
-{
-    unsigned char c;
-
-    while (read(fd, &c, 1) == 1) {
-    	switch (c) {
-    	case 29:	/* Control */
-	    K1_STATUS |= K1_CTRL;
-	    K2_STATUS |= K2_LCTRL;
-	    break;
-    	case 29 | 0x80:	/* Control */
-	    K1_STATUS &= ~K1_CTRL;
-	    K2_STATUS &= ~K2_LCTRL;
-	    break;
-
-	case 42:	/* left shift */
-	    K1_STATUS |= K1_LSHIFT;
-	    break;
-	case 42 | 0x80:	/* left shift */
-	    K1_STATUS &= ~K1_LSHIFT;
-	    break;
-
-	case 54:	/* right shift */
-	    K1_STATUS |= K1_RSHIFT;
-	    break;
-	case 54 | 0x80:	/* right shift */
-	    K1_STATUS &= ~K1_RSHIFT;
-	    break;
-
-	case 56:	/* Alt */
-	    K1_STATUS |= K1_ALT;
-	    K2_STATUS |= K2_LALT;
-	    break;
-	case 56 | 0x80:	/* Alt */
-	    K1_STATUS &= ~K1_ALT;
-	    K2_STATUS &= ~K2_LALT;
-	    break;
-
-	case 58:	/* caps-lock */
-	    if (K1_STATUS ^= K1_CLOCK)
-	    	K4_STATUS &= ~K4_CLOCK_LED;
-	    else
-	    	K4_STATUS |= K4_CLOCK_LED;
-	    K2_STATUS |= K2_CLOCK;
-    	    break;
-	case 58 | 0x80:	/* caps-lock */
-	    K2_STATUS &= ~K2_CLOCK;
-    	    break;
-
-	case 69:	/* num-lock */
-	    if (K1_STATUS ^= K1_CLOCK)
-	    	K4_STATUS &= ~K4_NLOCK_LED;
-	    else
-	    	K4_STATUS |= K4_NLOCK_LED;
-	    K2_STATUS |= K2_NLOCK;
-    	    break;
-	case 69 | 0x80:	/* num-lock */
-	    K2_STATUS &= ~K2_NLOCK;
-    	    break;
-
-	case 70:	/* scroll-lock */
-	    if (K1_STATUS ^= K1_SLOCK)
-	    	K4_STATUS &= ~K4_SLOCK_LED;
-	    else
-	    	K4_STATUS |= K4_SLOCK_LED;
-	    K2_STATUS |= K2_SLOCK;
-    	    break;
-	case 70 | 0x80:	/* scroll-lock */
-	    K2_STATUS &= ~K2_SLOCK;
-    	    break;
-
-	case 82:	/* insert */
-	    K1_STATUS ^= K1_INSERT;
-	    K2_STATUS |= K2_INSERT;
-    	    break;
-	case 82 | 0x80:	/* insert */
-	    K2_STATUS &= ~K2_INSERT;
-    	    break;
-
-    	}
-
-    }
-
-#if 0 /*XXXXX*/
-    if ((K4_STATUS & 0x07) != oldled) {
-	oldled = K4_STATUS & 0x07;
-	    ioctl (fd, PCCONIOCSETLED, &oldled);
-    }
-#endif
-}
-
 #ifndef NO_X
-int
+static int
 video_event(XEvent *ev)
 {
 	switch (ev->type) {
@@ -1840,7 +1751,7 @@ tty_estate()
     return(state);
 }
 
-inline int
+static int
 inrange(int a, int n, int x)
 {
 	return(a < n ? n : a > x ? x : a);

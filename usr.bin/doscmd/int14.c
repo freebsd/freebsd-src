@@ -46,13 +46,31 @@
 
 struct com_data_struct com_data[N_COMS_MAX];
 
-struct queue *create_queue() { return(0); }
-int get_char_q() {}
-int queue_not_empty() {}
-int reset_irq_request() {}
-int set_irq_request() {}
-int test_irq_request() {}
-int write_div_latches() {}
+/* XXX where does struct queue come from? */
+static struct queue	*create_queue(unsigned char);
+static int		queue_not_empty(struct queue *);
+static int		reset_irq_request(unsigned char);
+static int		set_irq_request(unsigned char);
+static int		test_irq_request(unsigned char);
+static int		write_div_latches(struct com_data_struct *);
+
+static struct queue *
+create_queue(unsigned char irq) { return NULL; }
+
+static int
+queue_not_empty(struct queue *qp) {return 0;}
+
+static int
+reset_irq_request(unsigned char irq) {return 0;}
+
+static int
+set_irq_request(unsigned char irq) {return 0;}
+
+static int
+test_irq_request(unsigned char irq) {return 0;}
+
+static int
+write_div_latches(struct com_data_struct *cdsp) {return 0;}
 
 void
 int14(regcontext_t *REGS)
