@@ -115,6 +115,7 @@ struct pcic_reg {
  */
 struct slotstate {
 	enum cardstate state;		/* Current state of slot */
+	enum cardstate laststate;	/* Previous state of slot */
 	int	maxmem;			/* Max allowed memory windows */
 	int	maxio;			/* Max allowed I/O windows */
 	int	irqs;			/* Bitmap of IRQs allowed */
