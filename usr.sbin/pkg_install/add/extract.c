@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: extract.c,v 1.18 1997/10/24 08:32:06 max Exp $";
+	"$Id: extract.c,v 1.19 1998/01/21 00:12:56 imp Exp $";
 #endif
 
 /*
@@ -157,7 +157,11 @@ extract_plist(char *home, Package *pkg)
 		else {
 		    /* rename failed, try copying with a big tar command */
 		    if (last_chdir != Directory) {
-			PUSHOUT(last_chdir);
+			if (last_chdir == NULL) {
+			    PUSHOUT(Directory);
+			} else {
+			    PUSHOUT(last_chdir);
+			}
 			last_chdir = Directory;
 		    }
 		    else if (p->name[0] == '/' || TOOBIG(p->name)) {
