@@ -926,11 +926,21 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	for (inp = LIST_FIRST(tcbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
 		INP_LOCK(inp);
-		if (inp->inp_gencnt <= gencnt &&
-		    (((inp->inp_vflag & INP_TIMEWAIT) && 
-		    cr_cansee(req->td->td_ucred, intotw(inp)->tw_cred) == 0) ||
-		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0))
-			inp_list[i++] = inp;
+		if (inp->inp_gencnt <= gencnt) {
+			/*
+			 * XXX: This use of cr_cansee(), introduced with
+			 * TCP state changes, is not quite right, but for
+			 * now, better than nothing.
+			 */
+			if (inp->inp_vflag & INP_TIMEWAIT)
+				error = cr_cansee(req->td->td_ucred,
+				    intotw(inp)->tw_cred);
+			else
+				error = cr_canseesocket(req->td->td_ucred,
+				    inp->inp_socket);
+			if (error == 0)
+				inp_list[i++] = inp;
+		}
 		INP_UNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&tcbinfo);
