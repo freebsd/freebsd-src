@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.53 1995/06/11 19:31:14 rgrimes Exp $
+ *	$Id: trap.c,v 1.54 1995/07/14 09:25:51 davidg Exp $
  */
 
 /*
@@ -465,7 +465,7 @@ trap_pfault(frame, usermode)
 
 		/* Fault the pte only if needed: */
 		if (*((int *)vtopte(v)) == 0)
-			(void) vm_fault(map, v, VM_PROT_WRITE, FALSE);
+			(void) vm_fault(map, trunc_page(v), VM_PROT_WRITE, FALSE);
 
 		pmap_use_pt( vm_map_pmap(map), va);
 
@@ -583,7 +583,7 @@ trap_pfault(frame, usermode)
 
 		/* Fault the pte only if needed: */
 		if (*((int *)vtopte(v)) == 0)
-			(void) vm_fault(map, v, VM_PROT_WRITE, FALSE);
+			(void) vm_fault(map, trunc_page(v), VM_PROT_WRITE, FALSE);
 
 		pmap_use_pt( vm_map_pmap(map), va);
 
