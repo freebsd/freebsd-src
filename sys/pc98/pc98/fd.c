@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.61 1999/05/11 08:37:16 kato Exp $
+ *	$Id: fd.c,v 1.62 1999/05/30 16:53:16 phk Exp $
  *
  */
 
@@ -95,9 +95,9 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_dma.h>
 #include <i386/isa/fdreg.h>
+#include <isa/rtc.h>
 #endif
-#include <i386/isa/fdc.h>
-#include <i386/isa/rtc.h>
+#include <isa/fdc.h>
 
 #ifdef FDC_YE
 #undef FDC_YE
