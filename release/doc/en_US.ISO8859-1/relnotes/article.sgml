@@ -356,6 +356,10 @@
       <para>The &man.ng.atmllc.4; Netgraph node type, which handles
         RFC 1483 ATM LLC encapsulation, has been added.</para>
 
+      <para>The &man.ng.hub.4; NetGraph node type, which supports
+        a simple packet distribution that acts like an Ethernet hub
+        has been added.</para>
+
       <para>The &man.ng.vlan.4; NetGraph node type, which supports
         IEEE 802.1Q VLAN tagging has been added.  &merged;</para>
 
@@ -761,6 +765,9 @@
 
     <para><application>GNU grep</application> has been updated from
       2.4d to 2.4.2.</para>
+
+    <para><application>less</application> has been updated from
+      version 371 to version 381.</para>
 
     <para><application>GNU readline</application> 4.3 has been updated
       with official patches 001 through 005.</para>
