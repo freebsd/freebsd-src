@@ -66,6 +66,7 @@ SYSCTL_INT(_hw_firewire, OID_AUTO, try_bmr, CTLFLAG_RW, &try_bmr, 0,
 	"Try to be a bus manager");
 
 MALLOC_DEFINE(M_FW, "firewire", "FireWire");
+MALLOC_DEFINE(M_FWXFER, "fw_xfer", "XFER/FireWire");
 
 #define FW_MAXASYRTY 4
 #define FW_MAXDEVRCNT 4
@@ -809,16 +810,17 @@ fw_tl2xfer(struct firewire_comm *fc, int node, int tlabel)
  * To allocate IEEE1394 XFER structure.
  */
 struct fw_xfer *
-fw_xfer_alloc()
+fw_xfer_alloc(struct malloc_type *type)
 {
 	struct fw_xfer *xfer;
 
-	xfer = malloc(sizeof(struct fw_xfer), M_FW, M_NOWAIT | M_ZERO);
+	xfer = malloc(sizeof(struct fw_xfer), type, M_NOWAIT | M_ZERO);
 	if (xfer == NULL)
 		return xfer;
 
 	xfer->time = time_second;
 	xfer->sub = -1;
+	xfer->malloc = type;
 
 	return xfer;
 }
@@ -881,7 +883,7 @@ fw_xfer_free( struct fw_xfer* xfer)
 	if(xfer->fc != NULL){
 		fw_tl_free(xfer->fc, xfer);
 	}
-	free(xfer, M_FW);
+	free(xfer, xfer->malloc);
 }
 
 static void
@@ -908,7 +910,7 @@ fw_phy_config(struct firewire_comm *fc, int root_node, int gap_count)
 #if 0
 	DELAY(100000);
 #endif
-	xfer = fw_xfer_alloc();
+	xfer = fw_xfer_alloc(M_FWXFER);
 	xfer->send.len = 12;
 	xfer->send.off = 0;
 	xfer->fc = fc;
@@ -1211,7 +1213,7 @@ loop:
 		fw_bus_explore_callback);
 	if(xfer == NULL) goto done;
 #else
-	xfer = fw_xfer_alloc();
+	xfer = fw_xfer_alloc(M_FWXFER);
 	if(xfer == NULL){
 		goto done;
 	}
@@ -1262,7 +1264,7 @@ asyreqq(struct firewire_comm *fc, u_int8_t spd, u_int8_t tl, u_int8_t rt,
 	struct fw_pkt *fp;
 	int err;
 
-	xfer = fw_xfer_alloc();
+	xfer = fw_xfer_alloc(M_FWXFER);
 	if(xfer == NULL){
 		return NULL;
 	}
@@ -1707,7 +1709,7 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 				printf("fw_rcv: cannot response(bus reset)!\n");
 				goto err;
 			}
-			xfer = fw_xfer_alloc();
+			xfer = fw_xfer_alloc(M_FWXFER);
 			if(xfer == NULL){
 				return;
 			}
@@ -1751,7 +1753,7 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 		}
 		switch(bind->xfer->act_type){
 		case FWACT_XFER:
-			xfer = fw_xfer_alloc();
+			xfer = fw_xfer_alloc(M_FWXFER);
 			if(xfer == NULL) goto err;
 			xfer->fc = bind->xfer->fc;
 			xfer->sc = bind->xfer->sc;
@@ -1775,7 +1777,7 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 					fc->ir[bind->xfer->sub]->queued);
 				goto err;
 			}
-			xfer = fw_xfer_alloc();
+			xfer = fw_xfer_alloc(M_FWXFER);
 			if(xfer == NULL) goto err;
 			xfer->recv.buf = buf;
 			xfer->recv.len = len;
@@ -1808,7 +1810,7 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 			printf("receive queue is full\n");
 			goto err;
 		}
-		xfer = fw_xfer_alloc();
+		xfer = fw_xfer_alloc(M_FWXFER);
 		if(xfer == NULL) goto err;
 		xfer->recv.buf = buf;
 		xfer->recv.len = len;
@@ -1894,7 +1896,7 @@ fw_try_bmr(void *arg)
 	struct fw_pkt *fp;
 	int err = 0;
 
-	xfer = fw_xfer_alloc();
+	xfer = fw_xfer_alloc(M_FWXFER);
 	if(xfer == NULL){
 		return;
 	}

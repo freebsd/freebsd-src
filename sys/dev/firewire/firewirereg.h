@@ -298,11 +298,12 @@ struct fw_xfer{
 	} send, recv;
 	struct mbuf *mbuf;
 	STAILQ_ENTRY(fw_xfer) link;
+	struct malloc_type *malloc;
 };
 void fw_sidrcv __P((struct firewire_comm *, caddr_t, u_int, u_int));
 void fw_rcv __P((struct firewire_comm *, caddr_t, u_int, u_int, u_int, u_int));
 void fw_xfer_free __P(( struct fw_xfer*));
-struct fw_xfer *fw_xfer_alloc __P((void));
+struct fw_xfer *fw_xfer_alloc __P((struct malloc_type *));
 void fw_init __P((struct firewire_comm *));
 int fw_tbuf_update __P((struct firewire_comm *, int, int));
 int fw_rbuf_update __P((struct firewire_comm *, int, int));
@@ -364,3 +365,4 @@ extern devclass_t firewire_devclass;
 #endif /* __alpha__ */
 
 MALLOC_DECLARE(M_FW);
+MALLOC_DECLARE(M_FWXFER);
