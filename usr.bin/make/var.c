@@ -1158,10 +1158,11 @@ ParseModifier(const char input[], const char tstr[],
 	char startc, char endc, Boolean dynamic, Var *v,
 	GNode *ctxt, Boolean err, size_t *lengthPtr, Boolean *freePtr)
 {
-	char		*rw_str;
+	char		*value;
 	const char	*cp;
+	size_t		used;
 
-	rw_str = VarExpand(v, ctxt, err);
+	value = VarExpand(v, ctxt, err);
 	*freePtr = TRUE;
 
 	tstr++;
@@ -1171,20 +1172,20 @@ ParseModifier(const char input[], const char tstr[],
 	    Boolean	readonly = FALSE;
 	    size_t	consumed = 0;
 
-	    DEBUGF(VAR, ("Applying :%c to \"%s\"\n", *tstr, rw_str));
+	    DEBUGF(VAR, ("Applying :%c to \"%s\"\n", *tstr, value));
 	    switch (*tstr) {
 		case 'N':
 		case 'M':
 			readonly = TRUE; /* tstr isn't modified here */
 
-			newStr = modifier_M(tstr, rw_str, endc, &consumed);
+			newStr = modifier_M(tstr, value, endc, &consumed);
 			tstr += consumed;
 			break;
 		case 'S':
 
 			readonly = TRUE; /* tstr isn't modified here */
 
-			newStr = modifier_S(tstr, rw_str, v, ctxt, err, &consumed);
+			newStr = modifier_S(tstr, value, v, ctxt, err, &consumed);
 			tstr += consumed;
 			break;
 		case 'C':
@@ -1202,10 +1203,9 @@ ParseModifier(const char input[], const char tstr[],
 
 		    if ((re = VarGetPattern(ctxt, err, &cp, delim, NULL,
 			NULL, NULL)) == NULL) {
-			/* was: goto cleanup */
 			*lengthPtr = cp - input + 1;
 			if (*freePtr)
-			    free(rw_str);
+			    free(value);
 			if (delim != '\0')
 			    Fatal("Unclosed substitution for %s (%c missing)",
 				  v->name, delim);
@@ -1219,7 +1219,7 @@ ParseModifier(const char input[], const char tstr[],
 			/* was: goto cleanup */
 			*lengthPtr = cp - input + 1;
 			if (*freePtr)
-			    free(rw_str);
+			    free(value);
 			if (delim != '\0')
 			    Fatal("Unclosed substitution for %s (%c missing)",
 				  v->name, delim);
@@ -1258,7 +1258,7 @@ ParseModifier(const char input[], const char tstr[],
 			pattern.nsub = 10;
 		    pattern.matches = emalloc(pattern.nsub *
 					      sizeof(regmatch_t));
-		    newStr = VarModify(rw_str, VarRESubstitute, &pattern);
+		    newStr = VarModify(value, VarRESubstitute, &pattern);
 		    regfree(&pattern.re);
 		    free(pattern.replace);
 		    free(pattern.matches);
@@ -1268,7 +1268,7 @@ ParseModifier(const char input[], const char tstr[],
 		    if (tstr[1] == endc || tstr[1] == ':') {
 			Buffer *buf;
 			buf = Buf_Init(MAKE_BSIZE);
-			for (cp = rw_str; *cp ; cp++)
+			for (cp = value; *cp ; cp++)
 			    Buf_AddByte(buf, (Byte)tolower(*cp));
 
 			Buf_AddByte(buf, (Byte)'\0');
@@ -1282,7 +1282,7 @@ ParseModifier(const char input[], const char tstr[],
 		    /* FALLTHROUGH */
 		case 'O':
 		    if (tstr[1] == endc || tstr[1] == ':') {
-			newStr = VarSortWords(rw_str, SortIncreasing);
+			newStr = VarSortWords(value, SortIncreasing);
 			cp = tstr + 1;
 			termc = *cp;
 			break;
@@ -1290,7 +1290,7 @@ ParseModifier(const char input[], const char tstr[],
 		    /* FALLTHROUGH */
 		case 'Q':
 		    if (tstr[1] == endc || tstr[1] == ':') {
-			newStr = Var_Quote(rw_str);
+			newStr = Var_Quote(value);
 			cp = tstr + 1;
 			termc = *cp;
 			break;
@@ -1298,7 +1298,7 @@ ParseModifier(const char input[], const char tstr[],
 		    /*FALLTHRU*/
 		case 'T':
 		    if (tstr[1] == endc || tstr[1] == ':') {
-			newStr = VarModify(rw_str, VarTail, (void *)NULL);
+			newStr = VarModify(value, VarTail, (void *)NULL);
 			cp = tstr + 1;
 			termc = *cp;
 			break;
@@ -1308,7 +1308,7 @@ ParseModifier(const char input[], const char tstr[],
 		    if (tstr[1] == endc || tstr[1] == ':') {
 			Buffer *buf;
 			buf = Buf_Init(MAKE_BSIZE);
-			for (cp = rw_str; *cp ; cp++)
+			for (cp = value; *cp ; cp++)
 			    Buf_AddByte(buf, (Byte)toupper(*cp));
 
 			Buf_AddByte(buf, (Byte)'\0');
@@ -1322,7 +1322,7 @@ ParseModifier(const char input[], const char tstr[],
 		    /* FALLTHROUGH */
 		case 'H':
 		    if (tstr[1] == endc || tstr[1] == ':') {
-			newStr = VarModify(rw_str, VarHead, (void *)NULL);
+			newStr = VarModify(value, VarHead, (void *)NULL);
 			cp = tstr + 1;
 			termc = *cp;
 			break;
@@ -1330,7 +1330,7 @@ ParseModifier(const char input[], const char tstr[],
 		    /*FALLTHRU*/
 		case 'E':
 		    if (tstr[1] == endc || tstr[1] == ':') {
-			newStr = VarModify(rw_str, VarSuffix, (void *)NULL);
+			newStr = VarModify(value, VarSuffix, (void *)NULL);
 			cp = tstr + 1;
 			termc = *cp;
 			break;
@@ -1338,7 +1338,7 @@ ParseModifier(const char input[], const char tstr[],
 		    /*FALLTHRU*/
 		case 'R':
 		    if (tstr[1] == endc || tstr[1] == ':') {
-			newStr = VarModify(rw_str, VarRoot, (void *)NULL);
+			newStr = VarModify(value, VarRoot, (void *)NULL);
 			cp = tstr + 1;
 			termc = *cp;
 			break;
@@ -1350,12 +1350,12 @@ ParseModifier(const char input[], const char tstr[],
 			const char *error;
 			Buffer *buf;
 
-			buf = Cmd_Exec(rw_str, &error);
+			buf = Cmd_Exec(value, &error);
 			newStr = Buf_GetAll(buf, NULL);
 			Buf_Destroy(buf, FALSE);
 
 			if (error)
-			    Error(error, rw_str);
+			    Error(error, value);
 			cp = tstr + 2;
 			termc = *cp;
 			break;
@@ -1410,7 +1410,7 @@ ParseModifier(const char input[], const char tstr[],
 				/* was: goto cleanup */
 				*lengthPtr = cp - input + 1;
 				if (*freePtr)
-				    free(rw_str);
+				    free(value);
 				if (delim != '\0')
 				    Fatal("Unclosed substitution for %s (%c missing)",
 					  v->name, delim);
@@ -1424,7 +1424,7 @@ ParseModifier(const char input[], const char tstr[],
 				/* was: goto cleanup */
 				*lengthPtr = cp - input + 1;
 				if (*freePtr)
-				    free(rw_str);
+				    free(value);
 				if (delim != '\0')
 				    Fatal("Unclosed substitution for %s (%c missing)",
 					  v->name, delim);
@@ -1437,7 +1437,7 @@ ParseModifier(const char input[], const char tstr[],
 			 */
 			termc = *--cp;
 			delim = '\0';
-			newStr = VarModify(rw_str, VarSYSVMatch, &pattern);
+			newStr = VarModify(value, VarSYSVMatch, &pattern);
 
 			free(pattern.lhs);
 			free(pattern.rhs);
@@ -1459,10 +1459,10 @@ ParseModifier(const char input[], const char tstr[],
 
 	    DEBUGF(VAR, ("Result is \"%s\"\n", newStr));
 	    if (*freePtr) {
-		    free(rw_str);
+		    free(value);
 	    }
-	    rw_str = newStr;
-	    if (rw_str != var_Error) {
+	    value = newStr;
+	    if (value != var_Error) {
 		    *freePtr = TRUE;
 	    } else {
 		    *freePtr = FALSE;
@@ -1480,47 +1480,45 @@ ParseModifier(const char input[], const char tstr[],
 	    }
 	}
 
+	used = tstr - input + 1;
+	*lengthPtr = used;
+
 	if (v->flags & VAR_FROM_ENV) {
-	    if (rw_str == (char *)Buf_GetAll(v->val, (size_t *)NULL)) {
-		/*
-		 * Returning the value unmodified, so tell the caller to free
-		 * the thing.
-		 */
-		*freePtr = TRUE;
-		*lengthPtr = tstr - input + 1;
-		VarDestroy(v, FALSE);
-		return (rw_str);
-	    } else {
-		*lengthPtr = tstr - input + 1;
-		VarDestroy(v, TRUE);
-		return (rw_str);
-	    }
+		if (value == (char *)Buf_GetAll(v->val, (size_t *)NULL)) {
+			VarDestroy(v, FALSE);
+			*freePtr = TRUE;
+			return (value);
+		} else {
+			VarDestroy(v, TRUE);
+			return (value);
+		}
 	} else if (v->flags & VAR_JUNK) {
-	    /*
-	     * Perform any free'ing needed and set *freePtr to FALSE so the caller
-	     * doesn't try to free a static pointer.
-	     */
-	    if (*freePtr) {
-		free(rw_str);
-	    }
-	    if (dynamic) {
-		*freePtr = FALSE;
-		*lengthPtr = tstr - input + 1;
-		VarDestroy(v, TRUE);
-		rw_str = emalloc(*lengthPtr + 1);
-		strncpy(rw_str, input, *lengthPtr);
-		rw_str[*lengthPtr] = '\0';
-		*freePtr = TRUE;
-		return (rw_str);
-	    } else {
-		*freePtr = FALSE;
-		*lengthPtr = tstr - input + 1;
-		VarDestroy(v, TRUE);
-		return (err ? var_Error : varNoError);
-	    }
+		/*
+		 * Perform any free'ing needed and set *freePtr to
+		 * FALSE so the caller doesn't try to free a static
+		 * pointer.
+		 */
+		if (*freePtr) {
+			free(value);
+		}
+		if (dynamic) {
+			char	*result;
+
+			VarDestroy(v, TRUE);
+			result = emalloc(used + 1);
+			strncpy(result, input, used);
+			result[used] = '\0';
+
+			*freePtr = TRUE;
+			return (result);
+		} else {
+			VarDestroy(v, TRUE);
+
+			*freePtr = FALSE;
+			return (err ? var_Error : varNoError);
+		}
 	} else {
-	    *lengthPtr = tstr - input + 1;
-	    return (rw_str);
+		return (value);
 	}
 }
 
@@ -1744,8 +1742,11 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 	 */
 	startc = input[0];
 	endc = (startc == OPEN_PAREN) ? CLOSE_PAREN : CLOSE_BRACE;
-	ptr = input + 1;
 
+	*consumed += 1;
+	input++;
+
+	ptr = input;
 	while (*ptr != endc && *ptr != ':') {
 		if (*ptr == '\0') {
 			/*
@@ -1754,9 +1755,8 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 			 * length to be the distance to the end of
 			 * the string, since that's what make does.
 			 */
-			*freePtr = FALSE;
-			*consumed += ptr - input;
 			Buf_Destroy(buf, TRUE);
+			*freePtr = FALSE;
 			return (var_Error);
 
 		} else if (*ptr == '$') {
@@ -1772,18 +1772,20 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 			Buf_Append(buf, rval);
 			if (rfree)
 				free(rval);
-			ptr += rlen - 1;
+			*consumed += rlen;
+			ptr += rlen;
 		} else {
 			Buf_AddByte(buf, (Byte)*ptr);
+			*consumed += 1;
+			ptr++;
 		}
-		ptr++;
 	}
 
 	if (*ptr == ':') {
-		result = ParseRestModifier(input - 1, ptr, startc, endc, buf, ctxt, err, consumed, freePtr);
+		result = ParseRestModifier(input - 2, ptr, startc, endc, buf, ctxt, err, consumed, freePtr);
 	} else {
-		*consumed = ptr - (input - 1) + 1;
-		result = ParseRestEnd(input - 1, buf, ctxt, err, consumed, freePtr);
+		*consumed = ptr - (input - 2) + 1;
+		result = ParseRestEnd(input - 2, buf, ctxt, err, consumed, freePtr);
 	}
 
 	Buf_Destroy(buf, TRUE);
