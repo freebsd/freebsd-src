@@ -5516,18 +5516,15 @@ key_acquire(saidx, sp)
 #ifndef IPSEC_NONBLOCK_ACQUIRE
 	struct secacq *newacq;
 #endif
-	struct secpolicyindex *spidx = NULL;
 	u_int8_t satype;
 	int error = -1;
 	u_int32_t seq;
 
 	/* sanity check */
-	if (saidx == NULL || sp == NULL)
+	if (saidx == NULL)
 		panic("key_acquire: NULL pointer is passed.\n");
 	if ((satype = key_proto2satype(saidx->proto)) == 0)
 		panic("key_acquire: invalid proto is passed.\n");
-
-	spidx = &sp->spidx;
 
 #ifndef IPSEC_NONBLOCK_ACQUIRE
 	/*
@@ -5591,12 +5588,14 @@ key_acquire(saidx, sp)
 	/* XXX proxy address (optional) */
 
 	/* set sadb_x_policy */
-	m = key_setsadbxpolicy(sp->policy, sp->spidx.dir, sp->id);
-	if (!m) {
-		error = ENOBUFS;
-		goto fail;
+	if (sp) {
+		m = key_setsadbxpolicy(sp->policy, sp->spidx.dir, sp->id);
+		if (!m) {
+			error = ENOBUFS;
+			goto fail;
+		}
+		m_cat(result, m);
 	}
-	m_cat(result, m);
 
 	/* XXX identity (optional) */
 #if 0
