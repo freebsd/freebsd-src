@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: miscfuncs.sh,v 1.6 1994/11/20 14:49:48 jkh Exp $
+# $Id: miscfuncs.sh,v 1.7 1994/11/21 04:35:24 jkh Exp $
 
 if [ "$_MISCFUNCS_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -37,6 +37,7 @@ DICTSIZE="2MB"
 SRCSIZE="120MB"
 SECRSIZE="4MB"
 COMPATSIZE="3MB"
+X11SIZE="50MB"
 
 interrupt()
 {
