@@ -464,6 +464,7 @@ sb_doattach(device_t dev, struct sb_info *sb)
     	snddev_info *d = device_get_softc(dev);
     	void *ih;
     	char status[SND_STATUSLEN];
+	int bs = (sb->bd_flags & BD_F_ESS)? ESS_BUFFSIZE : DSP_BUFFSIZE;
 
     	if (sb_alloc_resources(sb, dev)) goto no;
     	if (sb_reset_dsp(sb)) goto no;
@@ -482,7 +483,7 @@ sb_doattach(device_t dev, struct sb_info *sb)
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
-			/*maxsize*/DSP_BUFFSIZE, /*nsegments*/1,
+			/*maxsize*/bs, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
 			/*flags*/0, &sb->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
