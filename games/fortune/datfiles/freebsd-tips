@@ -494,3 +494,10 @@ And you'll get a backup of the original in a file named 'foo.bak', but if you
 want no backup:
 
 	sed -i '' s/e/o/g foo
+%
+To obtain a neat PostScript rendering of a manual page, use ``-t'' switch
+of the man(1) utility: ``man -t <topic>''.  For example:
+
+	man -t grep > grep.ps	# Save the PostScript version to a file
+or
+	man -t printf | lp	# Send the PostScript directly to printer
