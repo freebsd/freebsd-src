@@ -295,16 +295,34 @@ struct mbstat {
  * MEXT_REM_REF(m): remove reference to m_ext object.
  *
  * MEXT_ADD_REF(m): add reference to m_ext object already
- *     referred to by (m).
+ *     referred to by (m).  XXX Note that it is VERY important that you
+ *     always set the second mbuf's m_ext.ref_cnt to point to the first
+ *     one's (i.e., n->m_ext.ref_cnt = m->m_ext.ref_cnt) AFTER you run
+ *     MEXT_ADD_REF(m).  This is because m might have a lazy initialized
+ *     ref_cnt (NULL) before this is run and it will only be looked up
+ *     from here.  We should make MEXT_ADD_REF() always take two mbufs
+ *     as arguments so that it can take care of this itself.
  */
-#define	MEXT_IS_REF(m)	(*((m)->m_ext.ref_cnt) > 1)
+#define	MEXT_IS_REF(m)	(((m)->m_ext.ref_cnt != NULL)			\
+    && (*((m)->m_ext.ref_cnt) > 1))
 
 #define	MEXT_REM_REF(m) do {						\
+	KASSERT((m)->m_ext.ref_cnt != NULL, ("m_ext refcnt lazy NULL")); \
 	KASSERT(*((m)->m_ext.ref_cnt) > 0, ("m_ext refcnt < 0"));	\
 	atomic_subtract_int((m)->m_ext.ref_cnt, 1);			\
 } while(0)
 
-#define	MEXT_ADD_REF(m)	atomic_add_int((m)->m_ext.ref_cnt, 1)
+#define	MEXT_ADD_REF(m)	do {						\
+	if ((m)->m_ext.ref_cnt == NULL) {				\
+		KASSERT((m)->m_ext.ext_type == EXT_CLUSTER ||		\
+		    (m)->m_ext.ext_type == EXT_PACKET,			\
+		    ("Unexpected mbuf type has lazy refcnt"));		\
+		(m)->m_ext.ref_cnt = (u_int *)uma_find_refcnt(		\
+		    zone_clust, (m)->m_ext.ext_buf);			\
+		*((m)->m_ext.ref_cnt) = 2;				\
+	} else								\
+		atomic_add_int((m)->m_ext.ref_cnt, 1);			\
+} while (0)
 
 #ifdef WITNESS
 #define MBUF_CHECKSLEEP(how) do {					\
