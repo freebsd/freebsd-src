@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.65.2.4 1999/05/12 10:55:13 jkh Exp $
+ * $Id: package.c,v 1.65.2.5 1999/05/14 12:15:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -160,7 +160,10 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    dup2(DebugFD, 1);
 	    close(2);
 	    close(pfd[1]);
-	    i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-", 0);
+	    if (isDebug())
+		i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-v", "-", 0);
+	    else
+		i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-", 0);
 	    if (isDebug())
 		msgDebug("pkg_add returns %d status\n", i);
 	}
