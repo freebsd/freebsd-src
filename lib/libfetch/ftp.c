@@ -645,6 +645,7 @@ _ftp_transfer(int cd, const char *oper, const char *file,
 #define UC(b)	(((int)b)&0xff)
 	    e = -1;
 	    sin6 = (struct sockaddr_in6 *)&sa;
+	    sin6->sin6_scope_id = 0;
 	    if (getnameinfo((struct sockaddr *)&sa, sa.ss_len,
 			    hname, sizeof(hname),
 			    NULL, 0, NI_NUMERICHOST) == 0) {
