@@ -221,10 +221,6 @@ targbhasync(void *callback_arg, u_int32_t code,
 					  AC_PATH_REGISTERED,
 					  cpi);
 		xpt_free_path(new_path);
-		if (status != CAM_REQ_CMP
-		 && status != CAM_REQ_INPROG)
-			printf("targbhasync: Unable to allocate new periph "
-			       "due to status 0x%x\n", status);
 		break;
 	}
 	case AC_PATH_DEREGISTERED:
