@@ -118,8 +118,9 @@
 #define __ACFREEBSD_H__
 
 /*
- * XXX this is technically correct, but will cause problems with some ASL
- *     which only works if the string names a Microsoft operating system.
+ * Some systems' ASL may have problems because they look for names 
+ * of Microsoft operating systems.  To override this, set hw.acpi.os_name
+ * to the appropriate string.
  */
 #define ACPI_OS_NAME                "FreeBSD"
 
@@ -159,6 +160,9 @@
 
 /* Not building kernel code, so use libc */
 #define ACPI_USE_STANDARD_HEADERS
+#define ACPI_FLUSH_CPU_CACHE()
+#include <sys/types.h>
+#include <ctype.h>
 
 #define __cli()
 #define __sti()
