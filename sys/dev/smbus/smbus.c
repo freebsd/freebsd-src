@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbus.c,v 1.3 1998/11/22 22:01:42 nsouch Exp $
+ *	$Id: smbus.c,v 1.4 1998/12/07 21:58:17 archie Exp $
  *
  */
 #include <sys/param.h>
@@ -107,7 +107,6 @@ smbus_probe(device_t dev)
 static int
 smbus_attach(device_t dev)
 {
-	device_t child;
 #if 0
 	struct smbus_device *smbdev;
 #endif
@@ -119,6 +118,7 @@ smbus_attach(device_t dev)
 
 	/* probe known devices */
 	for (smbdev = smbus_children; smbdev->smbd_name; smbdev++) {
+		device_t child;
 
 		child = device_add_child(dev, smbdev->smbd_name, -1, smbdev);
 		device_set_desc(child, smbdev->smbd_desc);
