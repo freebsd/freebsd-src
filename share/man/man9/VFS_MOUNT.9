@@ -50,7 +50,8 @@ Structure representing the file system.
 .It Fa path
 Pathname where the file system is being mounted.
 .It Fa data
-File system specific data.  This should be read into the kernel using
+File system specific data.
+This should be read into the kernel using
 .Xr copyin 9 .
 .It Fa ndp
 Contains the result of a
@@ -61,7 +62,8 @@ Thread which is mounting the file system.
 .El
 .Pp
 This is called both to mount new file systems and to change the
-attributes of an existing file system.  If the
+attributes of an existing file system.
+If the
 .Dv MNT_UPDATE
 flag is set in
 .Fa mp->mnt_flag
@@ -75,8 +77,8 @@ to update the NFS export information for the file system.
 .Pp
 If the
 .Dv MNT_UPDATE
-flag is not specified, then this is a newly mounted file system.  The
-file system code should allocate and initialize
+flag is not specified, then this is a newly mounted file system.
+The file system code should allocate and initialize
 any private data needed to represent
 the file system (it can use the
 .Fa mp->mnt_data

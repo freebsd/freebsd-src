@@ -70,14 +70,15 @@ This cred setting might be used to allow the kernel to authorize ACL
 changes that the active process might not be permitted to make.
 .Pp
 The vnode ACL interface defines the syntax, and not semantics, of file and
-directory ACL interfaces.  More information about ACL management in kernel
+directory ACL interfaces.
+More information about ACL management in kernel
 may be found in
 .Xr acl 9 .
 .Sh LOCKS
 The vnode will be locked on entry and should remain locked on return.
 .Sh RETURN VALUES
-If the ACL is successfully set, then zero is returned.  Otherwise, an
-appropriate error code is returned.
+If the ACL is successfully set, then zero is returned.
+Otherwise, an appropriate error code is returned.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL

@@ -60,13 +60,15 @@ pathname information about the file's new name
 .El
 .Sh LOCKS
 The source directory and file are unlocked but are expected to have their
-ref count bumped on entry.  The VOP routine is expected to
+ref count bumped on entry.
+The VOP routine is expected to
 .Fn vrele
 both prior
 to returning.
 .Pp
 The destination directory and file are locked as well as having their ref
-count bumped.  The VOP routine is expected to
+count bumped.
+The VOP routine is expected to
 .Fn vput
 both prior to
 returning.

@@ -58,12 +58,14 @@ the thread checking the ACL
 The
 .Fa cred
 pointer may be NULL to indicate that access control checks are not to be
-performed, if possible.  This cred setting might be used to allow the
+performed, if possible.
+This cred setting might be used to allow the
 kernel to authorize ACL verification that the active process might not be
 permitted to do.
 .Pp
 The vnode ACL interface defines the syntax, and not semantics, of file and
-directory ACL interfaces.  More information about ACL management in kernel
+directory ACL interfaces.
+More information about ACL management in kernel
 may be found in
 .Xr acl 9 .
 .Sh LOCKS
@@ -76,7 +78,8 @@ pointer points to a valid ACL of type
 .Fa type
 for the object
 .Fa vp ,
-then zero is returned.  Otherwise, an appropriate error code is returned.
+then zero is returned.
+Otherwise, an appropriate error code is returned.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL
