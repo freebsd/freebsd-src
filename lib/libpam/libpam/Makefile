@@ -56,6 +56,9 @@ MLINKS+=	pam_open_session.3 pam_close_session.3 \
 MAN+=		pam.8
 MLINKS+=	pam.8 pam.conf.5 pam.8 pam.d.5
 
+# Files from ${PAMDIR}/libpamc:
+HDRS0=		pam_client.h
+
 # Files from ${PAMDIR}/libpam_misc:
 SRCS+=		help_env.c misc_conv.c xstrdup.c
 HDRS2=		pam_misc.h
@@ -105,6 +108,9 @@ pam_static_modules.o:	pam_static.o ${STATIC_MODULES}
 .endif
 
 beforeinstall:
+	cd ${PAMDIR}/libpamc/include/security; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${HDRS0} ${DESTDIR}/usr/include/security
 	cd ${PAMDIR}/libpam/include/security; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${HDRS1} ${DESTDIR}/usr/include/security
