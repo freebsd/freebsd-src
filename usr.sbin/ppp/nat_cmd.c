@@ -312,7 +312,7 @@ nat_ProxyRule(struct cmdargs const *arg)
     pos += len;
   }
 
-  return PacketAliasProxyRule(cmd);
+  return PacketAliasProxyRule(cmd + strspn(cmd, " \t"));
 }
 
 int
