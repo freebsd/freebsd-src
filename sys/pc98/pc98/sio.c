@@ -319,14 +319,6 @@ struct com_s {
 
 	struct tty	*tp;	/* cross reference */
 
-	/* Initial state. */
-	struct termios	it_in;	/* should be in struct tty */
-	struct termios	it_out;
-
-	/* Lock state. */
-	struct termios	lt_in;	/* should be in struct tty */
-	struct termios	lt_out;
-
 	bool_t	do_timestamp;
 	struct timeval	timestamp;
 	struct	pps_state pps;
@@ -734,22 +726,24 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 	com = com_addr(comconsole);
 	if (com == NULL)
 		return (ENXIO);
+	tp = com->tp;
+	if (tp == NULL)
+		return (ENXIO);
 
 	/*
 	 * set the initial and lock rates for /dev/ttydXX and /dev/cuaXX
 	 * (note, the lock rates really are boolean -- if non-zero, disallow
 	 *  speed changes)
 	 */
-	com->it_in.c_ispeed  = com->it_in.c_ospeed =
-	com->lt_in.c_ispeed  = com->lt_in.c_ospeed =
-	com->it_out.c_ispeed = com->it_out.c_ospeed =
-	com->lt_out.c_ispeed = com->lt_out.c_ospeed = comdefaultrate;
+	tp->t_init_in.c_ispeed  = tp->t_init_in.c_ospeed =
+	tp->t_lock_in.c_ispeed  = tp->t_lock_in.c_ospeed =
+	tp->t_init_out.c_ispeed = tp->t_init_out.c_ospeed =
+	tp->t_lock_out.c_ispeed = tp->t_lock_out.c_ospeed = comdefaultrate;
 
 	/*
 	 * if we're open, change the running rate too
 	 */
-	tp = com->tp;
-	if (tp && (tp->t_state & TS_ISOPEN)) {
+	if (tp->t_state & TS_ISOPEN) {
 		tp->t_termios.c_ispeed =
 		tp->t_termios.c_ospeed = comdefaultrate;
 		s = spltty();
@@ -1435,6 +1429,7 @@ sioattach(dev, xrid, rclk)
 	int		rid;
 	struct resource *port;
 	int		ret;
+	struct tty	*tp;
 #ifdef PC98
 	u_char		*obuf;
 	u_long		obufsize;
@@ -1552,6 +1547,13 @@ sioattach(dev, xrid, rclk)
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
 #endif
+	tp = com->tp = ttyalloc();
+	tp->t_oproc = comstart;
+	tp->t_param = comparam;
+	tp->t_stop = comstop;
+	tp->t_modem = commodem;
+	tp->t_break = combreak;
+	tp->t_sc = com;
 
 #ifdef PC98
 	if (!IS_8251(if_type) && rclk == 0)
@@ -1568,26 +1570,26 @@ sioattach(dev, xrid, rclk)
 	 * initially so that the line doesn't start blathering before the
 	 * echo flag can be turned off.
 	 */
-	com->it_in.c_iflag = 0;
-	com->it_in.c_oflag = 0;
-	com->it_in.c_cflag = TTYDEF_CFLAG;
-	com->it_in.c_lflag = 0;
+	tp->t_init_in.c_iflag = 0;
+	tp->t_init_in.c_oflag = 0;
+	tp->t_init_in.c_cflag = TTYDEF_CFLAG;
+	tp->t_init_in.c_lflag = 0;
 	if (unit == comconsole) {
 #ifdef PC98
 		if (IS_8251(com->pc98_if_type))
 			DELAY(100000);
 #endif
-		com->it_in.c_iflag = TTYDEF_IFLAG;
-		com->it_in.c_oflag = TTYDEF_OFLAG;
-		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
-		com->it_in.c_lflag = TTYDEF_LFLAG;
-		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
-		com->lt_out.c_ispeed = com->lt_out.c_ospeed =
-		com->lt_in.c_ispeed = com->lt_in.c_ospeed =
-		com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
+		tp->t_init_in.c_iflag = TTYDEF_IFLAG;
+		tp->t_init_in.c_oflag = TTYDEF_OFLAG;
+		tp->t_init_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
+		tp->t_init_in.c_lflag = TTYDEF_LFLAG;
+		tp->t_lock_out.c_cflag = tp->t_lock_in.c_cflag = CLOCAL;
+		tp->t_lock_out.c_ispeed = tp->t_lock_out.c_ospeed =
+		tp->t_lock_in.c_ispeed = tp->t_lock_in.c_ospeed =
+		tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = comdefaultrate;
 	} else
-		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
-	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
+		tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = TTYDEF_SPEED;
+	if (siosetwater(com, tp->t_init_in.c_ispeed) != 0) {
 		mtx_unlock_spin(&sio_lock);
 		/*
 		 * Leave i/o resources allocated if this is a `cn'-level
@@ -1598,8 +1600,8 @@ sioattach(dev, xrid, rclk)
 		return (ENOMEM);
 	}
 	mtx_unlock_spin(&sio_lock);
-	termioschars(&com->it_in);
-	com->it_out = com->it_in;
+	termioschars(&tp->t_init_in);
+	tp->t_init_out = tp->t_init_in;
 
 	/* attempt to determine UART type */
 	printf("sio%d: type", unit);
@@ -1629,7 +1631,7 @@ sioattach(dev, xrid, rclk)
 	    if (com->pc98_8251fifo && !COM_NOFIFO(flags))
 		com->tx_fifo_size = 16;
 	    com_int_TxRx_disable( com );
-	    com_cflag_and_speed_set( com, com->it_in.c_cflag, comdefaultrate );
+	    com_cflag_and_speed_set( com, tp->t_init_in.c_cflag, comdefaultrate );
 	    com_tiocm_bic( com, TIOCM_DTR|TIOCM_RTS|TIOCM_LE );
 	    com_send_break_off( com );
 
@@ -1820,8 +1822,11 @@ determined_type: ;
 	com->devs[5] = make_dev(&sioc_cdevsw,
 	    minorbase | CALLOUT_MASK | CONTROL_LOCK_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
-	for (rid = 0; rid < 6; rid++)
+	tp->t_dev = com->devs[0];
+	for (rid = 0; rid < 6; rid++) {
 		com->devs[rid]->si_drv1 = com;
+		com->devs[rid]->si_tty = tp;
+	}
 	com->flags = flags;
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
 
@@ -1894,13 +1899,13 @@ sioopen(dev, flag, mode, td)
 	int		unit;
 
 	mynor = minor(dev);
-	unit = MINOR_TO_UNIT(mynor);
+	unit = dev2unit(dev);
 	com = dev->si_drv1;
 	if (com == NULL)
 		return (ENXIO);
 	if (com->gone)
 		return (ENXIO);
-	tp = dev->si_tty = com->tp = ttymalloc(com->tp);
+	tp = dev->si_tty;
 	s = spltty();
 	/*
 	 * We jump to this label after all non-interrupted sleeps to pick
@@ -1947,14 +1952,8 @@ open_top:
 		 * cases: to preempt sleeping callin opens if we are
 		 * callout, and to complete a callin open after DCD rises.
 		 */
-		tp->t_oproc = comstart;
-		tp->t_param = comparam;
-		tp->t_stop = comstop;
-		tp->t_modem = commodem;
-		tp->t_break = combreak;
-		tp->t_dev = dev;
 		tp->t_termios = mynor & CALLOUT_MASK
-				? com->it_out : com->it_in;
+				? tp->t_init_out : tp->t_init_in;
 #ifdef PC98
 		if (!IS_8251(com->pc98_if_type))
 #endif
@@ -2127,11 +2126,9 @@ sioclose(dev, flag, mode, td)
 	struct thread	*td;
 {
 	struct com_s	*com;
-	int		mynor;
 	int		s;
 	struct tty	*tp;
 
-	mynor = minor(dev);
 	com = dev->si_drv1;
 	if (com == NULL)
 		return (ENODEV);
@@ -2215,7 +2212,7 @@ comhardclose(com)
 #else
 		        && !(com->prev_modem_status & MSR_DCD)
 #endif
-		        && !(com->it_in.c_cflag & CLOCAL))
+		        && !(tp->t_init_in.c_cflag & CLOCAL))
 		    || !(tp->t_state & TS_ISOPEN)) {
 #ifdef PC98
 			if (IS_8251(com->pc98_if_type))
@@ -2967,18 +2964,20 @@ siocioctl(dev, cmd, data, flag, td)
 	int		error;
 	int		mynor;
 	struct termios	*ct;
+	struct tty	*tp;
 
 	mynor = minor(dev);
-	com = com_addr(MINOR_TO_UNIT(mynor));
+	com = dev->si_drv1;
+	tp = dev->si_tty;
 	if (com == NULL || com->gone)
 		return (ENODEV);
 
 	switch (mynor & CONTROL_MASK) {
 	case CONTROL_INIT_STATE:
-		ct = mynor & CALLOUT_MASK ? &com->it_out : &com->it_in;
+		ct = mynor & CALLOUT_MASK ? &tp->t_init_out : &tp->t_init_in;
 		break;
 	case CONTROL_LOCK_STATE:
-		ct = mynor & CALLOUT_MASK ? &com->lt_out : &com->lt_in;
+		ct = mynor & CALLOUT_MASK ? &tp->t_lock_out : &tp->t_lock_in;
 		break;
 	default:
 		return (ENODEV);	/* /dev/nodev */
@@ -3044,7 +3043,7 @@ sioioctl(dev, cmd, data, flag, td)
 		int	cc;
 		struct termios *dt = (struct termios *)data;
 		struct termios *lt = mynor & CALLOUT_MASK
-				     ? &com->lt_out : &com->lt_in;
+				     ? &tp->t_lock_out : &tp->t_lock_in;
 
 		dt->c_iflag = (tp->t_iflag & lt->c_iflag)
 			      | (dt->c_iflag & ~lt->c_iflag);
@@ -3168,7 +3167,7 @@ combreak(tp, sig)
 {
 	struct com_s	*com;
 
-	com = tp->t_dev->si_drv1;
+	com = tp->t_sc;
 
 #ifdef PC98
 	if (sig)
@@ -3196,13 +3195,11 @@ comparam(tp, t)
 	u_char		dlbl;
 	u_char		efr_flowbits;
 	int		s;
-	int		unit;
 #ifdef PC98
 	u_char		param = 0;
 #endif
 
-	unit = DEV_TO_UNIT(tp->t_dev);
-	com = com_addr(unit);
+	com = tp->t_sc;
 	if (com == NULL)
 		return (ENODEV);
 
@@ -3490,10 +3487,8 @@ comstart(tp)
 {
 	struct com_s	*com;
 	int		s;
-	int		unit;
 
-	unit = DEV_TO_UNIT(tp->t_dev);
-	com = com_addr(unit);
+	com = tp->t_sc;
 	if (com == NULL)
 		return;
 	s = spltty();
@@ -3614,7 +3609,7 @@ comstop(tp, rw)
 	int		rsa98_tmp  = 0;
 #endif
 
-	com = com_addr(DEV_TO_UNIT(tp->t_dev));
+	com = tp->t_sc;
 	if (com == NULL || com->gone)
 		return;
 	mtx_lock_spin(&sio_lock);
@@ -3678,7 +3673,7 @@ commodem(tp, sigon, sigoff)
 	int	clr, set;
 #endif
 
-	com = tp->t_dev->si_drv1;
+	com = tp->t_sc;
 	if (com->gone)
 		return(0);
 	if (sigon != 0 || sigoff != 0) {
@@ -3862,11 +3857,10 @@ commint(struct cdev *dev)
 	register struct tty *tp;
 	int	stat,delta;
 	struct com_s *com;
-	int	mynor,unit;
+	int	mynor;
 
 	mynor = minor(dev);
-	unit = MINOR_TO_UNIT(mynor);
-	com = com_addr(unit);
+	com = dev->si_drv1;
 	tp = com->tp;
 
 	stat = com_tiocm_get(com);
@@ -4393,15 +4387,11 @@ pc98_check_msr(void* chan)
 	int	s;
 	register struct tty *tp;
 	struct	com_s *com;
-	int	mynor;
-	int	unit;
 	struct cdev *dev;
 
 	dev=(struct cdev *)chan;
-	mynor = minor(dev);
-	unit = MINOR_TO_UNIT(mynor);
-	com = com_addr(unit);
-	tp = com->tp;
+	com = dev->si_drv1;
+	tp = dev->si_tty;
 
 	s = spltty();
 	msr = pc98_get_modem_status(com);
@@ -4438,13 +4428,9 @@ static void
 pc98_msrint_start(struct cdev *dev)
 {
 	struct	com_s *com;
-	int	mynor;
-	int	unit;
 	int	s = spltty();
 
-	mynor = minor(dev);
-	unit = MINOR_TO_UNIT(mynor);
-	com = com_addr(unit);
+	com = dev->si_drv1;
 	/* modem control line check routine envoke interval is 1/10 sec */
 	if ( com->modem_checking == 0 ) {
 		com->pc98_prev_modem_status = pc98_get_modem_status(com);
