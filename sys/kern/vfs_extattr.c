@@ -109,7 +109,7 @@ int async_io_version;
  */
 #ifndef _SYS_SYSPROTO_H_
 struct sync_args {
-        int     dummy;
+	int     dummy;
 };
 #endif
 
@@ -1000,8 +1000,9 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 			fdp->fd_ofiles[indx] = NULL;
 			FILEDESC_UNLOCK(fdp);
 			fdrop(fp, td);
-		} else
+		} else {
 			FILEDESC_UNLOCK(fdp);
+		}
 
 		if (error == ERESTART)
 			error = EINTR;
@@ -1032,7 +1033,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		vn_close(vp, flags & FMASK, fp->f_cred, td);
 		fdrop(fp, td);
 		td->td_retval[0] = indx;
-		return 0;
+		return (0);
 	}
 	fp->f_vnode = vp;
 	fp->f_data = vp;
@@ -1094,8 +1095,9 @@ bad:
 		fdp->fd_ofiles[indx] = NULL;
 		FILEDESC_UNLOCK(fdp);
 		fdrop(fp, td);
-	} else
+	} else {
 		FILEDESC_UNLOCK(fdp);
+	}
 	fdrop(fp, td);
 	return (error);
 }
@@ -2315,7 +2317,7 @@ chflags(td, uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setfflags(td, nd.ni_vp, uap->flags);
 	vrele(nd.ni_vp);
-	return error;
+	return (error);
 }
 
 /*
@@ -2338,7 +2340,7 @@ lchflags(td, uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setfflags(td, nd.ni_vp, uap->flags);
 	vrele(nd.ni_vp);
-	return error;
+	return (error);
 }
 
 /*
@@ -2395,7 +2397,7 @@ setfmode(td, vp, mode)
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
-	return error;
+	return (error);
 }
 
 /*
@@ -2432,7 +2434,7 @@ kern_chmod(struct thread *td, char *path, enum uio_seg pathseg, int mode)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setfmode(td, nd.ni_vp, mode);
 	vrele(nd.ni_vp);
-	return error;
+	return (error);
 }
 
 /*
@@ -2462,7 +2464,7 @@ lchmod(td, uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	error = setfmode(td, nd.ni_vp, uap->mode);
 	vrele(nd.ni_vp);
-	return error;
+	return (error);
 }
 
 /*
@@ -2522,7 +2524,7 @@ setfown(td, vp, uid, gid)
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
-	return error;
+	return (error);
 }
 
 /*
@@ -2664,7 +2666,7 @@ getutimes(usrtvp, tvpseg, tsp)
 		TIMEVAL_TO_TIMESPEC(&tvp[0], &tsp[0]);
 		TIMEVAL_TO_TIMESPEC(&tvp[1], &tsp[1]);
 	}
-	return 0;
+	return (0);
 }
 
 /*
@@ -2707,7 +2709,7 @@ setutimes(td, vp, ts, numtimes, nullflag)
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
-	return error;
+	return (error);
 }
 
 /*
@@ -3638,7 +3640,7 @@ getdents(td, uap)
 	ap.buf = uap->buf;
 	ap.count = uap->count;
 	ap.basep = NULL;
-	return getdirentries(td, &ap);
+	return (getdirentries(td, &ap));
 }
 
 /*
@@ -3834,7 +3836,7 @@ fhopen(td, uap)
 	struct file *fp;
 	register struct filedesc *fdp = p->p_fd;
 	int fmode, mode, error, type;
-	struct file *nfp; 
+	struct file *nfp;
 	int indx;
 
 	/*
@@ -3859,15 +3861,15 @@ fhopen(td, uap)
 	error = VFS_FHTOVP(mp, &fhp.fh_fid, &vp);
 	if (error)
 		return (error);
- 	/*
+	/*
 	 * from now on we have to make sure not
 	 * to forget about the vnode
-	 * any error that causes an abort must vput(vp) 
+	 * any error that causes an abort must vput(vp)
 	 * just set error = err and 'goto bad;'.
 	 */
 
-	/* 
-	 * from vn_open 
+	/*
+	 * from vn_open
 	 */
 	if (vp->v_type == VLNK) {
 		error = EMLINK;
@@ -3942,7 +3944,7 @@ fhopen(td, uap)
 		vp->v_writecount++;
 
 	/*
-	 * end of vn_open code 
+	 * end of vn_open code
 	 */
 
 	if ((error = falloc(td, &nfp, &indx)) != 0) {
@@ -3951,7 +3953,7 @@ fhopen(td, uap)
 		goto bad;
 	}
 	/* An extra reference on `nfp' has been held for us by falloc(). */
-	fp = nfp;	
+	fp = nfp;
 
 	nfp->f_vnode = vp;
 	nfp->f_data = vp;
@@ -3982,8 +3984,9 @@ fhopen(td, uap)
 				fdp->fd_ofiles[indx] = NULL;
 				FILEDESC_UNLOCK(fdp);
 				fdrop(fp, td);
-			} else
+			} else {
 				FILEDESC_UNLOCK(fdp);
+			}
 			/*
 			 * release our private reference
 			 */
@@ -4035,7 +4038,7 @@ fhstat(td, uap)
 	error = suser(td);
 	if (error)
 		return (error);
-	
+
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error)
 		return (error);
@@ -4199,7 +4202,7 @@ extattrctl(td, uap)
 
 /*-
  * Set a named extended attribute on a file or directory
- * 
+ *
  * Arguments: unlocked vnode "vp", attribute namespace "attrnamespace",
  *            kernelspace string pointer "attrname", userspace buffer
  *            pointer "data", buffer length "nbytes", thread "td".
@@ -4352,7 +4355,7 @@ extattr_set_link(td, uap)
 
 /*-
  * Get a named extended attribute on a file or directory
- * 
+ *
  * Arguments: unlocked vnode "vp", attribute namespace "attrnamespace",
  *            kernelspace string pointer "attrname", userspace buffer
  *            pointer "data", buffer length "nbytes", thread "td".
@@ -4405,8 +4408,9 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 		auio.uio_td = td;
 		auiop = &auio;
 		cnt = nbytes;
-	} else
+	} else {
 		sizep = &size;
+	}
 
 #ifdef MAC
 	error = mac_check_vnode_getextattr(td->td_ucred, vp, attrnamespace,
@@ -4421,8 +4425,9 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	if (auiop != NULL) {
 		cnt -= auio.uio_resid;
 		td->td_retval[0] = cnt;
-	} else
+	} else {
 		td->td_retval[0] = size;
+	}
 
 done:
 	VOP_UNLOCK(vp, 0, td);
@@ -4526,7 +4531,7 @@ extattr_get_link(td, uap)
 /*
  * extattr_delete_vp(): Delete a named extended attribute on a file or
  *                      directory
- * 
+ *
  * Arguments: unlocked vnode "vp", attribute namespace "attrnamespace",
  *            kernelspace string pointer "attrname", proc "p"
  * Returns: 0 on success, an error number otherwise
@@ -4691,8 +4696,9 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 		auio.uio_td = td;
 		auiop = &auio;
 		cnt = nbytes;
-	} else
+	} else {
 		sizep = &size;
+	}
 
 #ifdef MAC
 	error = mac_check_vnode_listextattr(td->td_ucred, vp, attrnamespace);
@@ -4706,8 +4712,9 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 	if (auiop != NULL) {
 		cnt -= auio.uio_resid;
 		td->td_retval[0] = cnt;
-	} else
+	} else {
 		td->td_retval[0] = size;
+	}
 
 done:
 	VOP_UNLOCK(vp, 0, td);
@@ -4790,4 +4797,3 @@ extattr_list_link(td, uap)
 	vrele(nd.ni_vp);
 	return (error);
 }
-
