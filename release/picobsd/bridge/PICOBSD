@@ -88,6 +88,7 @@ device	xl0		# 3Com
 device	ep0
 device rl0		# Realtek 8139, 4KB
 device dc0		# New Dec/Intel DC21x4x, 8KB
+device	lnc0
 
 device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
 device ed1 at isa? port 0x300 irq 5 iomem 0xd0000
