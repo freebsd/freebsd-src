@@ -147,12 +147,13 @@ The default
 image
 .El
 .Sh EXAMPLES
-The following is an example of a typical usage
-of the
-.Nm
-utility to affect the next boot:
+To boot slice 2 on the next boot:
 .Pp
 .Dl "boot0cfg -s 2 ad0"
+.Pp
+To enable just slices 1 and 2 in the menu:
+.Pp
+.Dl "boot0cfg -m 0x3 ad0"
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
