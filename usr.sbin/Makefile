@@ -49,6 +49,7 @@ SUBDIR=	IPXrouted \
 	mtree \
 	newsyslog \
 	ngctl \
+	ntp \
 	nghook \
 	pccard \
 	pciconf \
@@ -96,7 +97,6 @@ SUBDIR=	IPXrouted \
 	vnconfig \
 	watch \
 	wormcontrol \
-	xntpd \
 	xten \
 	yp_mkdb \
 	ypbind \
