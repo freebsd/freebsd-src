@@ -13,7 +13,7 @@ RELN_ROOT?= ${.CURDIR}/..
 SUBDIR = relnotes
 #SUBDIR+= hardware
 #SUBDIR+= readme
-#SUBDIR+= errata
+SUBDIR+= errata
 #SUBDIR+= installation
 
 COMPAT_SYMLINK = fr
