@@ -83,6 +83,9 @@ extern u_int g_mirror_debug;
 	}								\
 } while (0)
 
+#define	G_MIRROR_BIO_FLAG_REGULAR	0x01
+#define	G_MIRROR_BIO_FLAG_SYNC		0x02
+
 /*
  * Informations needed for synchronization.
  */
