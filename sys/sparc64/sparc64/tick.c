@@ -32,18 +32,45 @@
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/timetc.h>
+#ifdef SMP
+#include <sys/ktr.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/pcpu.h>
+#include <sys/proc.h>
+#endif
 
+#include <machine/clock.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/tick.h>
-
-extern u_long tick_increment;
-extern u_long tick_freq;
-extern u_long tick_MHz;
+#ifdef SMP
+#include <machine/cpu.h>
+#endif
 
 int tick_missed;	/* statistics */
 
 #define	TICK_GRACE	1000
+
+static __inline void
+tick_process(struct clockframe *cf)
+{
+
+#ifdef SMP
+	if (PCPU_GET(cpuid) == 0)
+		hardclock(cf);
+	else {
+		CTR1(KTR_CLK, "tick_process: AP, cpuid=%d", PCPU_GET(cpuid));
+		mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
+		hardclock_process(curthread, CLKF_USERMODE(cf));
+		statclock_process(curthread->td_kse, CLKF_PC(cf),
+		    CLKF_USERMODE(cf));
+		mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
+	}
+#else
+	hardclock(cf);
+#endif
+}
 
 void
 tick_hardclock(struct clockframe *cf)
@@ -51,7 +78,7 @@ tick_hardclock(struct clockframe *cf)
 	int missed;
 	u_long next;
 
-	hardclock(cf);
+	tick_process(cf);
 	/*
 	 * Avoid stopping of hardclock in case we missed one tick period by
 	 * ensuring that the the value of the next tick is at least TICK_GRACE
@@ -70,7 +97,7 @@ tick_hardclock(struct clockframe *cf)
 	wr(asr23, next, 0);
 	critical_exit();
 	for (; missed > 0; missed--)
-		hardclock(cf);
+		tick_process(cf);
 }
 
 void
@@ -83,6 +110,22 @@ tick_start(u_long clock, tick_func_t *func)
 	wrpr(tick, 0, 0);
 	wr(asr23, clock / hz, 0);
 }
+
+#ifdef SMP
+void
+tick_start_ap(void)
+{
+	u_long base;
+
+	/*
+	 * Try to make the ticks interrupt as synchronously as possible to
+	 * avoid inaccuracies for migrating processes. Leave out one tick to
+	 * make sure that it is not missed.
+	 */
+	base = rd(tick);
+	wr(asr23, roundup(base, tick_increment) + tick_increment, 0);
+}
+#endif
 
 void
 tick_stop(void)
