@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.22 1996/08/04 10:54:13 phk Exp $
+ * $Id: if_ethersubr.c,v 1.23 1996/08/04 11:45:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,7 @@
 #include <net/if_llc.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/ethernet.h>
 
 #ifdef INET
 #include <netinet/in.h>
