@@ -33,6 +33,7 @@ static const char rcsid[] =
 #include <stand.h>
 #include <string.h>
 #include <setjmp.h>
+#include <machine/sal.h>
 
 #include <efi.h>
 #include <efilib.h>
@@ -93,7 +94,7 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 #if 0
 	printf("Memory: %ld k\n", memsize() / 1024);
 #endif
-    
+
 	/* XXX presumes that biosdisk is first in devsw */
 	currdev.d_dev = devsw[0];
 	currdev.d_type = currdev.d_dev->dv_type;
@@ -169,13 +170,13 @@ command_memmap(int argc, char *argv[])
 	status = BS->GetMemoryMap(&sz, 0, &key, &dsz, &dver);
 	if (status != EFI_BUFFER_TOO_SMALL) {
 		printf("Can't determine memory map size\n");
-		return;
+		return CMD_ERROR;
 	}
 	map = malloc(sz);
 	status = BS->GetMemoryMap(&sz, map, &key, &dsz, &dver);
 	if (EFI_ERROR(status)) {
 		printf("Can't read memory map\n");
-		return;
+		return CMD_ERROR;
 	}
 
 	ndesc = sz / dsz;
@@ -210,5 +211,116 @@ command_memmap(int argc, char *argv[])
 	    printf("\n");
 	}
 
-	return (CMD_OK);
+	return CMD_OK;
+}
+
+COMMAND_SET(configuration, "configuration",
+	    "print configuration tables", command_configuration);
+
+static int
+command_configuration(int argc, char *argv[])
+{
+	int i;
+
+	printf("NumberOfTableEntries=%d\n", ST->NumberOfTableEntries);
+	for (i = 0; i < ST->NumberOfTableEntries; i++) {
+		static EFI_GUID mps = MPS_TABLE_GUID;
+		static EFI_GUID acpi = ACPI_TABLE_GUID;
+		static EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
+		static EFI_GUID smbios = SMBIOS_TABLE_GUID;
+		static EFI_GUID sal = SAL_SYSTEM_TABLE_GUID;
+		
+		printf("  ");
+		if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
+			    &mps, sizeof(EFI_GUID)))
+			printf("MPS Table");
+		else if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
+				 &acpi, sizeof(EFI_GUID)))
+			printf("ACPI Table");
+		else if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
+				 &acpi20, sizeof(EFI_GUID)))
+			printf("ACPI 2.0 Table");
+		else if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
+				 &smbios, sizeof(EFI_GUID)))
+			printf("SMBIOS Table");
+		else if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
+				 &sal, sizeof(EFI_GUID)))
+			printf("SAL System Table");
+		else
+			printf("Unknown Table");
+		printf(" at %p\n", ST->ConfigurationTable[i].VendorTable);
+	}
+
+	return CMD_OK;
+}    
+
+COMMAND_SET(sal, "sal", "print SAL System Table", command_sal);
+
+static int
+command_sal(int argc, char *argv[])
+{
+	int i;
+	struct sal_system_table *saltab = 0;
+	static int sizes[6] = {
+		48, 32, 16, 32, 16, 16
+	};
+	u_int8_t *p;
+
+	for (i = 0; i < ST->NumberOfTableEntries; i++) {
+		static EFI_GUID sal = SAL_SYSTEM_TABLE_GUID;
+		if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
+				 &sal, sizeof(EFI_GUID)))
+			saltab = ST->ConfigurationTable[i].VendorTable;
+	}
+
+	if (!saltab) {
+		printf("Can't find SAL System Table\n");
+		return CMD_ERROR;
+	}
+
+	if (memcmp(saltab->sal_signature, "SST_", 4)) {
+		printf("Bad signature for SAL System Table\n");
+		return CMD_ERROR;
+	}
+
+	printf("SAL Revision %x.%02x\n",
+	       saltab->sal_rev[1],
+	       saltab->sal_rev[0]);
+	printf("SAL A Version %x.%02x\n",
+	       saltab->sal_a_version[1],
+	       saltab->sal_a_version[0]);
+	printf("SAL B Version %x.%02x\n",
+	       saltab->sal_b_version[1],
+	       saltab->sal_b_version[0]);
+
+	p = (u_int8_t *) (saltab + 1);
+	for (i = 0; i < saltab->sal_entry_count; i++) {
+		printf("  Desc %d", *p);
+		if (*p == 0) {
+			struct sal_entrypoint_descriptor *dp;
+			dp = (struct sal_entrypoint_descriptor *) p;
+			printf("\n");
+			printf("    PAL Proc at 0x%lx\n",
+			       dp->sale_pal_proc);
+			printf("    SAL Proc at 0x%lx\n",
+			       dp->sale_sal_proc);
+			printf("    SAL GP at 0x%lx\n",
+			       dp->sale_sal_gp);
+		} else if (*p == 1) {
+			struct sal_memory_descriptor *dp;
+			dp = (struct sal_memory_descriptor *) p;
+			printf(" Type %d.%d, ",
+			       dp->sale_memory_type[0],
+			       dp->sale_memory_type[1]);
+			printf("Address 0x%lx, ",
+			       dp->sale_physical_address);
+			printf("Length 0x%x\n",
+			       dp->sale_length);
+		} else {
+			printf("\n");
+		}
+		p += sizes[*p];
+	}
+
+	return CMD_OK;
 }
