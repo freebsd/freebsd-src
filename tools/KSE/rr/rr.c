@@ -177,6 +177,7 @@ init_uts(struct uts_data *data, struct uts_runq *q)
 	data->mb.km_stack.ss_size = THREAD_STACK_SIZE;
 	data->mb.km_func = (void *)uts;
 	data->mb.km_udata = data;
+	data->mb.km_quantum = 10000;
 	data->cur_thread = tm;
 	data->runq = q;
 	pfmt("uts() at : 0x%x\n", uts);
@@ -341,10 +342,6 @@ uts(struct kse_mailbox *km)
 	while ((tm = p) != NULL) {
 		p = tm->tm_next;
 		UPFMT(" 0x%x", p);
-		if (tm->tm_slices <= 0) {
-			tm->tm_slices = 10;
-			pfmt("thread %x exhausted its time slice, reassign it 10 statclock ticks\n", tm);
-		}
 		runq_insert(data->runq, tm);
 	}
 	UPCHAR('\n');
@@ -364,6 +361,7 @@ uts(struct kse_mailbox *km)
 		UPFMT("eip -> 0x%x progress -> %d\n",
 		    p->tm_context.uc_mcontext.mc_eip, progress);
 		UPSTR("curthread set\n");
+		pfmt("%x\n", p);
 		uts_to_thread(p, &km->km_curthread);
 		UPSTR("\n-- uts_to_thread() failed --\n");
 	}
@@ -398,7 +396,6 @@ thread_start(struct uts_data *data, const void *func, int arg)
 	struct kse_thr_mailbox *tm2;
 
 	tm = thread_create(func, arg);
-	tm->tm_slices = 10;
 	tm2 = thread_create(enter_uts, (int)data);
 	tm->tm_context.uc_link = &tm2->tm_context;
 	runq_insert(data->runq, tm);
