@@ -247,6 +247,13 @@ METHOD struct resource_list * get_resource_list {
 #
 # Is the hardware described by _child still attached to the system?
 #
+# This method should return 0 if the device is not present.  It should
+# return -1 if it is present.  Any errors in determining should be
+# returned as a normal errno value.  Client drivers are to assume that
+# the device is present, even if there is an error determining if it is
+# there.  Busses are to try to avoid returning errors, but newcard will return
+# an error if the device fails to implement this method.
+#
 METHOD int child_present {
 	device_t	_dev;
 	device_t	_child;
