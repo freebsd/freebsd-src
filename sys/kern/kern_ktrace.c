@@ -98,10 +98,10 @@ static STAILQ_HEAD(, ktr_request) ktr_free;
 
 SYSCTL_NODE(_kern, OID_AUTO, ktrace, CTLFLAG_RD, 0, "KTRACE options");
 
-static uint ktr_requestpool = KTRACE_REQUEST_POOL;
+static u_int ktr_requestpool = KTRACE_REQUEST_POOL;
 TUNABLE_INT("kern.ktrace.request_pool", &ktr_requestpool);
 
-static uint ktr_geniosize = PAGE_SIZE;
+static u_int ktr_geniosize = PAGE_SIZE;
 TUNABLE_INT("kern.ktrace.genio_size", &ktr_geniosize);
 SYSCTL_UINT(_kern_ktrace, OID_AUTO, genio_size, CTLFLAG_RW, &ktr_geniosize,
     0, "Maximum size of genio event payload");
@@ -112,7 +112,7 @@ static struct sema ktrace_sema;
 
 static void ktrace_init(void *dummy);
 static int sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS);
-static uint ktrace_resize_pool(uint newsize);
+static u_int ktrace_resize_pool(u_int newsize);
 static struct ktr_request *ktr_getrequest(int type);
 static void ktr_submitrequest(struct ktr_request *req);
 static void ktr_freerequest(struct ktr_request *req);
@@ -144,7 +144,7 @@ static int
 sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 {
 	struct thread *td;
-	uint newsize, oldsize, wantsize;
+	u_int newsize, oldsize, wantsize;
 	int error;
 
 	/* Handle easy read-only case first to avoid warnings from GCC. */
@@ -152,10 +152,10 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 		mtx_lock(&ktrace_mtx);
 		oldsize = ktr_requestpool;
 		mtx_unlock(&ktrace_mtx);
-		return (SYSCTL_OUT(req, &oldsize, sizeof(uint)));
+		return (SYSCTL_OUT(req, &oldsize, sizeof(u_int)));
 	}
 
-	error = SYSCTL_IN(req, &wantsize, sizeof(uint));
+	error = SYSCTL_IN(req, &wantsize, sizeof(u_int));
 	if (error)
 		return (error);
 	td = curthread;
@@ -165,7 +165,7 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 	newsize = ktrace_resize_pool(wantsize);
 	mtx_unlock(&ktrace_mtx);
 	td->td_pflags &= ~TDP_INKTRACE;
-	error = SYSCTL_OUT(req, &oldsize, sizeof(uint));
+	error = SYSCTL_OUT(req, &oldsize, sizeof(u_int));
 	if (error)
 		return (error);
 	if (newsize != wantsize)
@@ -175,8 +175,8 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_ktrace, OID_AUTO, request_pool, CTLTYPE_UINT|CTLFLAG_RW,
     &ktr_requestpool, 0, sysctl_kern_ktrace_request_pool, "IU", "");
 
-static uint
-ktrace_resize_pool(uint newsize)
+static u_int
+ktrace_resize_pool(u_int newsize)
 {
 	struct ktr_request *req;
 
@@ -786,7 +786,7 @@ ktr_writerequest(struct ktr_request *req)
 	if (vp == NULL)
 		return;
 	kth = &req->ktr_header;
-	datalen = data_lengths[(ushort)kth->ktr_type & ~KTR_DROP];
+	datalen = data_lengths[(u_short)kth->ktr_type & ~KTR_DROP];
 	buflen = kth->ktr_len;
 	cred = req->ktr_cred;
 	td = curthread;

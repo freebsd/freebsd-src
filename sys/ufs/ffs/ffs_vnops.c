@@ -1239,7 +1239,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
  * the length of the EA, and possibly the pointer to the entry and to the data.
  */
 static int
-ffs_findextattr(u_char *ptr, uint length, int nspace, const char *name, u_char **eap, u_char **eac)
+ffs_findextattr(u_char *ptr, u_int length, int nspace, const char *name, u_char **eap, u_char **eac)
 {
 	u_char *p, *pe, *pn, *p0;
 	int eapad1, eapad2, ealength, ealen, nlen;

@@ -3153,7 +3153,7 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
 				/* finish the last word of the previous mbuf */
 				if (wantbyte) {
 					savebyte[1] = *data;
-					*d = *((ushort *) savebyte);
+					*d = *((u_short *) savebyte);
 					data++; len--; wantbyte = 0;
 				}
 				/* output contiguous words */

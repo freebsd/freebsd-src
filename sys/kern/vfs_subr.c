@@ -3640,7 +3640,7 @@ vn_isdisk(vp, errp)
 void
 NDFREE(ndp, flags)
      struct nameidata *ndp;
-     const uint flags;
+     const u_int flags;
 {
 	if (!(flags & NDF_NO_FREE_PNBUF) &&
 	    (ndp->ni_cnd.cn_flags & HASBUF)) {

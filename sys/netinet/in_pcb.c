@@ -365,7 +365,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 	if (*lportp != 0)
 		lport = *lportp;
 	if (lport == 0) {
-		ushort first, last;
+		u_short first, last;
 		int count;
 
 		if (laddr.s_addr != INADDR_ANY)
