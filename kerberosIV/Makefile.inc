@@ -73,14 +73,14 @@ COMPILE_ET=     compile_et
 
 .ORDER: ${KADMOBJDIR}/kadm_err.c ${KADMOBJDIR}/kadm_err.h
 ${KADMOBJDIR}/kadm_err.c ${KADMOBJDIR}/kadm_err.h: ${KRB4DIR}/lib/kadm/kadm_err.et          
-	test -e ${KADMOBJDIR}/kadm_err.et || ln -f ${.ALLSRC} ${KADMOBJDIR}
+	test -e ${KADMOBJDIR}/kadm_err.et || ln -s ${.ALLSRC} ${KADMOBJDIR}
 	cd ${KADMOBJDIR}; ${COMPILE_ET} kadm_err.et
 
 CLEANFILES+=${KADMOBJDIR}/kadm_err.h ${KADMOBJDIR}/kadm_err.c ${KADMOBJDIR}/kadm_err.et
 
 .ORDER: ${KRBOBJDIR}/krb_err.c ${KRBOBJDIR}/krb_err.h
 ${KRBOBJDIR}/krb_err.c ${KRBOBJDIR}/krb_err.h: ${KRB4DIR}/lib/krb/krb_err.et
-	test -e ${KRBOBJDIR}/krb_err.et || ln -f ${.ALLSRC} ${KRBOBJDIR}
+	test -e ${KRBOBJDIR}/krb_err.et || ln -s ${.ALLSRC} ${KRBOBJDIR}
 	cd ${KRBOBJDIR}; ${COMPILE_ET} krb_err.et
 
 CLEANFILES+=${KRBOBJDIR}/krb_err.h ${KRBOBJDIR}/krb_err.c ${KRBOBJDIR}/krb_err.et
