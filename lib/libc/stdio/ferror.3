@@ -36,14 +36,18 @@
 .\"     @(#)ferror.3	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd January 10, 2003
 .Dt FERROR 3
 .Os
 .Sh NAME
 .Nm clearerr ,
+.Nm clearerr_unlocked ,
 .Nm feof ,
+.Nm feof_unlocked ,
 .Nm ferror ,
-.Nm fileno
+.Nm ferror_unlocked ,
+.Nm fileno ,
+.Nm fileno_unlocked
 .Nd check and reset stream status
 .Sh LIBRARY
 .Lb libc
@@ -51,12 +55,20 @@
 .In stdio.h
 .Ft void
 .Fn clearerr "FILE *stream"
+.Ft void
+.Fn clearerr_unlocked "FILE *stream"
 .Ft int
 .Fn feof "FILE *stream"
 .Ft int
+.Fn feof_unlocked "FILE *stream"
+.Ft int
 .Fn ferror "FILE *stream"
 .Ft int
+.Fn ferror_unlocked "FILE *stream"
+.Ft int
 .Fn fileno "FILE *stream"
+.Ft int
+.Fn fileno_unlocked "FILE *stream"
 .Sh DESCRIPTION
 The function
 .Fn clearerr
@@ -86,6 +98,25 @@ The function
 examines the argument
 .Fa stream
 and returns its integer descriptor.
+.Pp
+The
+.Fn clearerr_unlocked ,
+.Fn feof_unlocked ,
+.Fn ferror_unlocked ,
+and
+.Fn fileno_unlocked
+functions are equivalent to
+.Fn clearerr ,
+.Fn feof ,
+.Fn ferror ,
+and
+.Fn fileno
+respectively, except that the caller is responsible for locking the stream
+with
+.Fn flockfile
+before calling them.
+These functions may be used to avoid the overhead of locking the stream
+and to prevent races when multiple threads are operating on the same stream.
 .Sh ERRORS
 These functions should not fail and do not set the external
 variable
@@ -93,6 +124,7 @@ variable
 .Sh SEE ALSO
 .Xr open 2 ,
 .Xr fdopen 3 ,
+.Xr flockfile 3 ,
 .Xr stdio 3
 .Sh STANDARDS
 The functions
