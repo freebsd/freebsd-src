@@ -823,7 +823,7 @@ key_do_allocsa_policy(sah, state)
 			/*NOTREACHED*/
 		}
 
-		/* prefered new sa rather than old sa */
+		/* preferred new sa rather than old sa */
 		if (candidate->lft_c->sadb_lifetime_addtime <
 				sav->lft_c->sadb_lifetime_addtime) {
 			d = candidate;
@@ -1797,7 +1797,7 @@ key_spdadd(so, m, mhp)
 	}
 
 	/* policy requests are mandatory when action is ipsec. */
-        if (mhp->msg->sadb_msg_type != SADB_X_SPDSETIDX &&
+	if (mhp->msg->sadb_msg_type != SADB_X_SPDSETIDX &&
 	    xpl0->sadb_x_policy_type == IPSEC_POLICY_IPSEC &&
 	    mhp->extlen[SADB_X_EXT_POLICY] <= sizeof(*xpl0)) {
 		ipseclog((LOG_DEBUG, "key_spdadd: some policy requests part required.\n"));
@@ -2102,7 +2102,8 @@ key_spddelete2(so, m, mhp)
 
 	/* Is there SP in SPD ? */
 	if ((sp = key_getspbyid(id)) == NULL) {
-		ipseclog((LOG_DEBUG, "key_spddelete2: no SP found id:%u.\n", id));
+		ipseclog((LOG_DEBUG, "key_spddelete2: no SP found id:%u.\n",
+		    id));
 		key_senderror(so, m, EINVAL);
 	}
 
@@ -3421,8 +3422,8 @@ key_setdumpsa(sav, type, satype, seq, pid)
 
 		case SADB_X_EXT_SA2:
 			m = key_setsadbxsa2(sav->sah->saidx.mode,
-					sav->replay ? sav->replay->count : 0,
-					sav->sah->saidx.reqid);
+			    sav->replay ? sav->replay->count : 0,
+			    sav->sah->saidx.reqid);
 			if (!m)
 				goto fail;
 			break;
@@ -3812,8 +3813,7 @@ key_ismyaddr(sa)
 	case AF_INET:
 		sin = (struct sockaddr_in *)sa;
 		for (ia = in_ifaddrhead.tqh_first; ia;
-		     ia = ia->ia_link.tqe_next)
-		{
+		     ia = ia->ia_link.tqe_next) {
 			if (sin->sin_family == ia->ia_addr.sin_family &&
 			    sin->sin_len == ia->ia_addr.sin_len &&
 			    sin->sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)
@@ -4189,7 +4189,6 @@ key_timehandler(void)
 		for (sp = LIST_FIRST(&sptree[dir]);
 		     sp != NULL;
 		     sp = nextsp) {
-
 			nextsp = LIST_NEXT(sp, chain);
 
 			if (sp->state == IPSEC_SPSTATE_DEAD) {
@@ -4439,13 +4438,6 @@ key_timehandler(void)
 static void
 key_srandom()
 {
-#if 0   /* Already called in kern/init_main.c:proc0_post() */
-	struct timeval tv;
-
-	microtime(&tv);
-
-	srandom(tv.tv_usec);
-#endif
 	return;
 }
 
