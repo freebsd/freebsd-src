@@ -315,6 +315,7 @@ int	count_dev __P((dev_t dev));
 void	destroy_dev __P((dev_t dev));
 struct cdevsw *devsw __P((dev_t dev));
 const char *devtoname __P((dev_t dev));
+int	dev_named __P((dev_t pdev, const char *name));
 void	dev_depends __P((dev_t pdev, dev_t cdev));
 void	freedev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
