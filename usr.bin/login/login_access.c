@@ -40,18 +40,19 @@ static char sep[] = ", \t";		/* list-element separator */
 #define YES             1
 #define NO              0
 
-static int	from_match __P((char *, char *));
-static int	list_match __P((char *, char *, int (*)(char *, char *)));
-static int	netgroup_match __P((char *, char *, char *));
-static int	string_match __P((char *, char *));
-static int	user_match __P((char *, char *));
+static int	from_match __P((const char *, const char *));
+static int	list_match __P((char *, const char *,
+				int (*)(const char *, const char *)));
+static int	netgroup_match __P((const char *, const char *, const char *));
+static int	string_match __P((const char *, const char *));
+static int	user_match __P((const char *, const char *));
 
 /* login_access - match username/group and host/tty with access control file */
 
 int
 login_access(user, from)
-char   *user;
-char   *from;
+const char   *user;
+const char   *from;
 {
     FILE   *fp;
     char    line[BUFSIZ];
@@ -111,9 +112,9 @@ char   *from;
 /* list_match - match an item against a list of tokens with exceptions */
 
 static int list_match(list, item, match_fn)
-char   *list;
-char   *item;
-int   (*match_fn) __P((char *, char *));
+char         *list;
+const char   *item;
+int         (*match_fn) __P((const char *, const char *));
 {
     char   *tok;
     int     match = NO;
@@ -145,9 +146,9 @@ int   (*match_fn) __P((char *, char *));
 /* netgroup_match - match group against machine or user */
 
 static int netgroup_match(group, machine, user)
-char   *group __unused;
-char   *machine __unused;
-char   *user __unused;
+const char   *group __unused;
+const char   *machine __unused;
+const char   *user __unused;
 {
     syslog(LOG_ERR, "NIS netgroup support not configured");
     return 0;
@@ -156,8 +157,8 @@ char   *user __unused;
 /* user_match - match a username against one token */
 
 static int user_match(tok, string)
-char   *tok;
-char   *string;
+const char   *tok;
+const char   *string;
 {
     struct group *group;
     int     i;
@@ -183,8 +184,8 @@ char   *string;
 /* from_match - match a host or tty against a list of tokens */
 
 static int from_match(tok, string)
-char   *tok;
-char   *string;
+const char   *tok;
+const char   *string;
 {
     int     tok_len;
     int     str_len;
@@ -219,8 +220,8 @@ char   *string;
 /* string_match - match a string against one token */
 
 static int string_match(tok, string)
-char   *tok;
-char   *string;
+const char   *tok;
+const char   *string;
 {
 
     /*

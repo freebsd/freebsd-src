@@ -2,11 +2,11 @@
 # $FreeBSD$
 
 PROG=	login
-SRCS=	login.c login_access.c login_fbtab.c
+SRCS=	login.c login_fbtab.c
 MAN=	login.1 login.access.5
 
-CFLAGS+=-DLOGIN_ACCESS -DLOGALL
-WARNS?=	2
+CFLAGS+=-DLOGALL
+WARNS?=	4
 NO_WERROR=
 
 DPADD=	${LIBUTIL} ${LIBCRYPT} ${LIBPAM}
