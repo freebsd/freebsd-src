@@ -75,14 +75,11 @@
 	.global ia64_vector_table
 ia64_vector_table:
 
-/* 0x0000:	VHPT Translation vector */	
-
+	.org	ia64_vector_table + 0x0000	// VHPT Translation vector
 interruption_VHPT_Translation:
 	TRAP(0)
-	.align	1024
 
-/* 0x0400:	Instruction TLB vector */
-
+	.org	ia64_vector_table + 0x0400	// Instruction TLB vector
 interruption_Instruction_TLB:
 	mov	r16=cr.ifa
 	mov	r17=pr
@@ -158,10 +155,7 @@ interruption_Instruction_TLB:
 	;; 
 	TRAP(20)			// Page Not Present trap
 
-	.align	1024
-
-/* 0x0800:	Data TLB vector */
-
+	.org	ia64_vector_table + 0x0800	// Data TLB vector
 interruption_Data_TLB:
 	mov	r16=cr.ifa
 	mov	r17=pr
@@ -237,10 +231,7 @@ interruption_Data_TLB:
 	;; 
 	TRAP(20)			// Page Not Present trap
 
-	.align	1024
-
-/* 0x0c00:	Alternate Instruction TLB vector */
-
+	.org	ia64_vector_table + 0x0c00	// Alternate ITLB vector
 interruption_Alternate_Instruction_TLB:
 	mov	r16=cr.ifa		// where did it happen
 	;; 
@@ -262,10 +253,7 @@ interruption_Alternate_Instruction_TLB:
 	;;
 	rfi
 
-	.align	1024
-
-/* 0x1000:	Alternate Data TLB vector */
-
+	.org	ia64_vector_table + 0x1000	// Alternate DTLB vector
 interruption_Alternate_Data_TLB:
 	mov	r16=cr.ifa		// where did it happen
 	mov	r18=pr			// save predicates
@@ -286,28 +274,19 @@ interruption_Alternate_Data_TLB:
 	;;
 	rfi
 
-	.align	1024
-
-/* 0x1400:	Data Nested TLB vector */
-
+	.org	ia64_vector_table + 0x1400	// Data Nested TLB vector
 interruption_Data_Nested_TLB:
 	TRAP(5)
-	.align	1024
 
-/* 0x1800:	Instruction Key Miss vector */
-
+	.org	ia64_vector_table + 0x1800	// Instr. Key Miss vector
 interruption_Instruction_Key_Miss:
 	TRAP(6)
-	.align	1024
 	
-/* 0x1c00:	Data Key Miss vector */
-
+	.org	ia64_vector_table + 0x1c00	// Data Key Miss vector
 interruption_Data_Key_Miss:
 	TRAP(7)
-	.align	1024
 
-/* 0x2000:	Dirty-Bit vector */
-
+	.org	ia64_vector_table + 0x2000	// Dirty-Bit vector
 interruption_Dirty_Bit:
 	mov	r16=cr.ifa
 	mov	r17=pr
@@ -375,10 +354,8 @@ interruption_Dirty_Bit:
 
 9:	mov	pr=r17,0x1ffff		// restore predicates
 	TRAP(8)				// die horribly
-	.align	1024
 
-/* 0x2400:	Instruction Access-Bit vector */
-
+	.org	ia64_vector_table + 0x2400	// Instr. Access-Bit vector
 interruption_Instruction_Access_Bit:
 	mov	r16=cr.ifa
 	mov	r17=pr
@@ -446,10 +423,8 @@ interruption_Instruction_Access_Bit:
 
 9:	mov	pr=r17,0x1ffff		// restore predicates
 	TRAP(9)
-	.align	1024
 
-/* 0x2800:	Data Access-Bit vector */
-
+	.org	ia64_vector_table + 0x2800	// Data Access-Bit vector
 interruption_Data_Access_Bit:
 	mov	r16=cr.ifa
 	mov	r17=pr
@@ -517,10 +492,8 @@ interruption_Data_Access_Bit:
 
 9:	mov	pr=r17,0x1ffff		// restore predicates
 	TRAP(10)
-	.align	1024
 
-/* 0x2c00:	Break Instruction vector */
-
+	.org	ia64_vector_table + 0x2c00	// Break Instruction vector
 interruption_Break:
 	mov	r16=pr			// save pr for a moment
 	mov	r17=cr.iim;;		// read break value
@@ -539,15 +512,10 @@ interruption_Break:
 
 	br.sptk.many	do_syscall
 	;;
-	
 9:	mov	pr=r16,0x1ffff		// restore pr
-
 	TRAP(11)
-	
-	.align	1024
-		
-/* 0x3000:	External Interrupt vector */
 
+	.org	ia64_vector_table + 0x3000	// External Interrupt vector
 interruption_External_Interrupt:
 	mov	r16=b0			// save user's b0
 1:	mov	r17=ip;;		// construct return address
@@ -580,342 +548,233 @@ interruption_External_Interrupt:
 	srlz.d
 	br.sptk.few 3b			// loop for more
 
-	.align	1024
-		
-/* 0x3400:	Reserved */
-
+	.org	ia64_vector_table + 0x3400	// Reserved
 interruption_3400:
 	TRAP(13)
-	.align	1024
-		
-/* 0x3800:	Reserved */
 
+	.org	ia64_vector_table + 0x3800	// Reserved
 interruption_3800:
 	TRAP(14)
-	.align	1024
-		
-/* 0x3c00:	Reserved */
 
+	.org	ia64_vector_table + 0x3c00	// Reserved
 interruption_3c00:
 	TRAP(15)
-	.align	1024
-		
-/* 0x4000:	Reserved */
 
+	.org	ia64_vector_table + 0x4000	// Reserved
 interruption_4000:
 	TRAP(16)
-	.align	1024
-		
-/* 0x4400:	Reserved */
 
+	.org	ia64_vector_table + 0x4400	// Reserved
 interruption_4400:
 	TRAP(17)
-	.align	1024
-		
-/* 0x4800:	Reserved */
 
+	.org	ia64_vector_table + 0x4800	// Reserved
 interruption_4800:
 	TRAP(18)
-	.align	1024
-		
-/* 0x4c00:	Reserved */
 
+	.org	ia64_vector_table + 0x4c00	// Reserved
 interruption_4c00:
 	TRAP(19)
-	.align	1024
-		
-/* 0x5000:	Page Not Present vector */
 
+	.org	ia64_vector_table + 0x5000	// Page Not Present vector
 interruption_Page_Not_Present:
 	TRAP(20)
-	.align	256
-		
-/* 0x5100:	Key Permission vector */
 
+	.org	ia64_vector_table + 0x5100	// Key Permission vector
 interruption_Key_Permission:
 	TRAP(21)
-	.align	256
-		
-/* 0x5200:	Instruction Access Rights vector */
 
+	.org	ia64_vector_table + 0x5200	// Instr. Access Rights vector
 interruption_Instruction_Access_Rights:
 	TRAP(22)
-	.align	256
-		
-/* 0x5300:	Data Access Rights vector */
 
+	.org	ia64_vector_table + 0x5300	// Data Access Rights vector
 interruption_Data_Access_Rights:
 	TRAP(23)
-	.align	256
-		
-/* 0x5400:	General Exception vector */
 
+	.org	ia64_vector_table + 0x5400	// General Exception vector
 interruption_General_Exception:
 	TRAP(24)
-	.align	256
-		
-/* 0x5500:	Disabled FP-Register vector */
 
+	.org	ia64_vector_table + 0x5500	// Disabled FP-Register vector
 interruption_Disabled_FP_Register:
 	TRAP(25)
-	.align	256
-		
-/* 0x5600:	NaT Consumption vector */
 
+	.org	ia64_vector_table + 0x5600	// NaT Consumption vector
 interruption_NaT_Consumption:
 	TRAP(26)
-	.align	256
-		
-/* 0x5700:	Speculation vector */
 
+	.org	ia64_vector_table + 0x5700	// Speculation vector
 interruption_Speculation:
 	TRAP(27)
-	.align	256
-		
-/* 0x5800:	Reserved */
 
+	.org	ia64_vector_table + 0x5800	// Reserved
 interruption_5800:
 	TRAP(28)
-	.align	256
-		
-/* 0x5900:	Debug vector */
 
+	.org	ia64_vector_table + 0x5900	// Debug vector
 interruption_Debug:
 	TRAP(29)
-	.align	256
-		
-/* 0x5a00:	Unaligned Reference vector */
 
+	.org	ia64_vector_table + 0x5a00	// Unaligned Reference vector
 interruption_Unaligned_Reference:
 	TRAP(30)
-	.align	256
-		
-/* 0x5b00:	Unsupported Data Reference vector */
 
+	.org	ia64_vector_table + 0x5b00	// Unsupported Data Ref. vec.
 interruption_Unsupported_Data_Reference:
 	TRAP(31)
-	.align	256
-		
-/* 0x5c00:	Floating-point Fault vector */
 
+	.org	ia64_vector_table + 0x5c00	// Floating-point Fault vector
 interruption_Floating_Point_Fault:
 	TRAP(32)
-	.align	256
-		
-/* 0x5d00:	Floating-point Trap vector */
 
+	.org	ia64_vector_table + 0x5d00	// Floating-point Trap vector
 interruption_Floating_Point_Trap:
 	TRAP(33)
-	.align	256
-		
-/* 0x5e00:	Lower-Privilege Transfer Trap vector */
 
+	.org	ia64_vector_table + 0x5e00	// Lower-Priv. Transfer Trap
 interruption_Lower_Privilege_Transfer_Trap:
 	TRAP(34)
-	.align	256
-		
-/* 0x5f00:	Taken Branch Trap vector */
 
+	.org	ia64_vector_table + 0x5f00	// Taken Branch Trap vector
 interruption_Taken_Branch_Trap:
 	TRAP(35)
-	.align	256
-		
-/* 0x6000:	Single Step Trap vector */
 
+	.org	ia64_vector_table + 0x6000	// Single Step Trap vector
 interruption_Single_Step_Trap:
 	TRAP(36)
-	.align	256
-		
-/* 0x6100:	Reserved */
 
+	.org	ia64_vector_table + 0x6100	// Reserved
 interruption_6100:
 	TRAP(37)
-	.align	256
-		
-/* 0x6200:	Reserved */
 
+	.org	ia64_vector_table + 0x6200	// Reserved
 interruption_6200:
 	TRAP(38)
-	.align	256
-		
-/* 0x6300:	Reserved */
 
+	.org	ia64_vector_table + 0x6300	// Reserved
 interruption_6300:
 	TRAP(39)
-	.align	256
-		
-/* 0x6400:	Reserved */
 
+	.org	ia64_vector_table + 0x6400	// Reserved
 interruption_6400:
 	TRAP(40)
-	.align	256
-		
-/* 0x6500:	Reserved */
 
+	.org	ia64_vector_table + 0x6500	// Reserved
 interruption_6500:
 	TRAP(41)
-	.align	256
-		
-/* 0x6600:	Reserved */
 
+	.org	ia64_vector_table + 0x6600	// Reserved
 interruption_6600:
 	TRAP(42)
-	.align	256
-		
-/* 0x6700:	Reserved */
 
+	.org	ia64_vector_table + 0x6700	// Reserved
 interruption_6700:
 	TRAP(43)
-	.align	256
-		
-/* 0x6800:	Reserved */
 
+	.org	ia64_vector_table + 0x6800	// Reserved
 interruption_6800:
 	TRAP(44)
-	.align	256
-		
-/* 0x6900:	IA-32 Exception vector */
 
+	.org	ia64_vector_table + 0x6900	// IA-32 Exception vector
 interruption_IA_32_Exception:
 	TRAP(45)
-	.align	256
-		
-/* 0x6a00:	IA-32 Intercept vector */
 
+	.org	ia64_vector_table + 0x6a00	// IA-32 Intercept vector
 interruption_IA_32_Intercept:
 	TRAP(46)
-	.align	256
-		
-/* 0x6b00:	IA-32 Interrupt vector */
 
+	.org	ia64_vector_table + 0x6b00	// IA-32 Interrupt vector
 interruption_IA_32_Interrupt:
 	TRAP(47)
-	.align	256
-	
-/* 0x6c00:	Reserved */
 
+	.org	ia64_vector_table + 0x6c00	// Reserved
 interruption_6c00:
 	TRAP(48)
-	.align	256
-	
-/* 0x6d00:	Reserved */
 
+	.org	ia64_vector_table + 0x6d00	// Reserved
 interruption_6d00:
 	TRAP(49)
-	.align	256
-	
-/* 0x6e00:	Reserved */
 
+	.org	ia64_vector_table + 0x6e00	// Reserved
 interruption_6e00:
 	TRAP(50)
-	.align	256
-	
-/* 0x6f00:	Reserved */
 
+	.org	ia64_vector_table + 0x6f00	// Reserved
 interruption_6f00:
 	TRAP(51)
-	.align	256
-	
-/* 0x7000:	Reserved */
 
+	.org	ia64_vector_table + 0x7000	// Reserved
 interruption_7000:
 	TRAP(52)
-	.align	256
-	
-/* 0x7100:	Reserved */
 
+	.org	ia64_vector_table + 0x7100	// Reserved
 interruption_7100:
 	TRAP(53)
-	.align	256
-	
-/* 0x7200:	Reserved */
 
+	.org	ia64_vector_table + 0x7200	// Reserved
 interruption_7200:
 	TRAP(54)
-	.align	256
-	
-/* 0x7300:	Reserved */
 
+	.org	ia64_vector_table + 0x7300	// Reserved
 interruption_7300:
 	TRAP(55)
-	.align	256
-	
-/* 0x7400:	Reserved */
 
+	.org	ia64_vector_table + 0x7400	// Reserved
 interruption_7400:
 	TRAP(56)
-	.align	256
-	
-/* 0x7500:	Reserved */
 
+	.org	ia64_vector_table + 0x7500	// Reserved
 interruption_7500:
 	TRAP(57)
-	.align	256
-	
-/* 0x7600:	Reserved */
 
+	.org	ia64_vector_table + 0x7600	// Reserved
 interruption_7600:
 	TRAP(58)
-	.align	256
-	
-/* 0x7700:	Reserved */
 
+	.org	ia64_vector_table + 0x7700	// Reserved
 interruption_7700:
 	TRAP(59)
-	.align	256
-	
-/* 0x7800:	Reserved */
 
+	.org	ia64_vector_table + 0x7800	// Reserved
 interruption_7800:
 	TRAP(60)
-	.align	256
-	
-/* 0x7900:	Reserved */
 
+	.org	ia64_vector_table + 0x7900	// Reserved
 interruption_7900:
 	TRAP(61)
-	.align	256
-	
-/* 0x7a00:	Reserved */
 
+	.org	ia64_vector_table + 0x7a00	// Reserved
 interruption_7a00:
 	TRAP(62)
-	.align	256
 
-/* 0x7b00:	Reserved */
-
+	.org	ia64_vector_table + 0x7b00	// Reserved
 interruption_7b00:
 	TRAP(63)
-	.align	256
-	
-/* 0x7c00:	Reserved */
 
+	.org	ia64_vector_table + 0x7c00	// Reserved
 interruption_7c00:
 	TRAP(64)
-	.align	256
-	
-/* 0x7d00:	Reserved */
 
+	.org	ia64_vector_table + 0x7d00	// Reserved
 interruption_7d00:
 	TRAP(65)
-	.align	256
-	
-/* 0x7e00:	Reserved */
 
+	.org	ia64_vector_table + 0x7e00	// Reserved
 interruption_7e00:
 	TRAP(66)
-	.align	256
-	
-/* 0x7f00:	Reserved */
 
+	.org	ia64_vector_table + 0x7f00	// Reserved
 interruption_7f00:
 	TRAP(67)
-	.align	256
+
+	// Make the IVT 32KB in size
+	.org	ia64_vector_table + 0x8000
 
 	.section .data.vhpt,"aw"
 
 	.global ia64_vhpt
-	
+
 	.align	32768
 ia64_vhpt:	.quad 0
 	.align	32768
