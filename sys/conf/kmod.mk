@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.48 1998/03/19 13:22:46 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.49 1998/06/09 02:55:40 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -106,6 +106,10 @@ CFLAGS+=	-I${.OBJDIR} -I${.OBJDIR}/@
 CFLAGS+=	-I${DESTDIR}/usr/include
 .endif
 
+.if defined(NOSHARED) && ( ${NOSHARED} != "no" && ${NOSHARED} != "NO" )
+LDFLAGS+= -static
+.endif
+
 EXPORT_SYMS?= _${KMOD}
 
 .if defined(VFS_LKM)
@@ -125,12 +129,12 @@ PROG=	${KMOD}.o
 .endif
 
 ${PROG}: ${OBJS} ${DPADD} 
-	${LD} -r ${LDFLAGS} -o tmp.o ${OBJS}
+	${LD} -r ${LDFLAGS:N-static} -o tmp.o ${OBJS}
 .if defined(EXPORT_SYMS)
-	@rm -f symb.tmp
-	@for i in ${EXPORT_SYMS} ; do echo $$i >> symb.tmp ; done
+	rm -f symb.tmp
+	for i in ${EXPORT_SYMS} ; do echo $$i >> symb.tmp ; done
 	symorder -c symb.tmp tmp.o
-	@rm -f symb.tmp
+	rm -f symb.tmp
 .endif
 	mv tmp.o ${.TARGET}
 
