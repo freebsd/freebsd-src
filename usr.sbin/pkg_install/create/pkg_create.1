@@ -23,7 +23,7 @@
 .\" [jkh] Took John's changes back and made some additional extensions for
 .\" better integration with FreeBSD's new ports collection.
 .\"
-.Dd April 21, 1995
+.Dd June 29, 2004
 .Dt PKG_CREATE 1
 .Os
 .Sh NAME
@@ -35,13 +35,13 @@
 .Op Fl C Ar conflicts
 .Op Fl P Ar pkgs
 .Op Fl p Ar prefix
-.Op Fl f Ar contents
 .Op Fl i Ar iscript
 .Op Fl I Ar piscript
 .Op Fl k Ar dscript
 .Op Fl K Ar pdscript
 .Op Fl r Ar rscript
 .Op Fl s Ar srcdir
+.Op Fl S Ar basedir
 .Op Fl t Ar template
 .Op Fl X Ar excludefile
 .Op Fl D Ar displayfile
@@ -222,6 +222,11 @@ are passed respectively, along with the package's name.
 .It Fl s Ar srcdir
 .Ar srcdir
 will override the value of
+.Cm @cwd
+during package creation.
+.It Fl S Ar basedir
+.Ar basedir
+will be prefixed to all
 .Cm @cwd
 during package creation.
 .It Fl t Ar template
@@ -544,7 +549,8 @@ command first appeared in
 .Sh AUTHORS
 .An Jordan Hubbard
 .Sh CONTRIBUTORS
-.An John Kohl Aq jtk@rational.com
+.An John Kohl Aq jtk@rational.com ,
+.An Oliver Eikemeier Aq eik@FreeBSD.org
 .Sh BUGS
 Hard links between files in a distribution must be bracketed by
 .Cm @cwd
