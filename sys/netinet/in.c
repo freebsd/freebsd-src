@@ -94,6 +94,23 @@ in_localaddr(in)
 }
 
 /*
+ * Return 1 if an internet address is for the local host and configured
+ * on one of its interfaces.
+ */
+int
+in_localip(in)
+	struct in_addr in;
+{
+	struct in_ifaddr *ia;
+
+	LIST_FOREACH(ia, INADDR_HASH(in.s_addr), ia_hash) {
+		if (IA_SIN(ia)->sin_addr.s_addr == in.s_addr)
+			return 1;
+	}
+	return 0;
+}
+
+/*
  * Determine whether an IP address is in a reserved set of addresses
  * that may not be forwarded, or whether datagrams to that destination
  * may be forwarded.
