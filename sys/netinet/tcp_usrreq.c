@@ -99,7 +99,7 @@ static struct tcpcb *
 		tcp_usrclosed __P((struct tcpcb *));
 
 #ifdef TCPDEBUG
-#define	TCPDEBUG0	int ostate
+#define	TCPDEBUG0	int ostate = 0
 #define	TCPDEBUG1()	ostate = tp ? tp->t_state : 0
 #define	TCPDEBUG2(req)	if (tp && (so->so_options & SO_DEBUG)) \
 				tcp_trace(TA_USER, ostate, tp, 0, 0, req)
@@ -415,13 +415,19 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	int s = splnet();
 	int error = 0;
 	struct inpcb *inp = sotoinpcb(so);
-	struct tcpcb *tp;
+	struct tcpcb *tp = NULL;
+	TCPDEBUG0;
 
 	if (so->so_state & SS_ISDISCONNECTED) {
 		error = ECONNABORTED;
 		goto out;
 	}
-	COMMON_START();
+	if (inp == 0) {
+		splx(s);
+		return (EINVAL);
+	}
+	tp = intotcpcb(inp);
+	TCPDEBUG1();
 	in_setpeeraddr(so, nam);
 	COMMON_END(PRU_ACCEPT);
 }
@@ -433,13 +439,19 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	int s = splnet();
 	int error = 0;
 	struct inpcb *inp = sotoinpcb(so);
-	struct tcpcb *tp;
+	struct tcpcb *tp = NULL;
+	TCPDEBUG0;
 
 	if (so->so_state & SS_ISDISCONNECTED) {
 		error = ECONNABORTED;
 		goto out;
 	}
-	COMMON_START();
+	if (inp == 0) {
+		splx(s);
+		return (EINVAL);
+	}
+	tp = intotcpcb(inp);
+	TCPDEBUG1();
 	in6_mapped_peeraddr(so, nam);
 	COMMON_END(PRU_ACCEPT);
 }
