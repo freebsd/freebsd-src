@@ -965,12 +965,9 @@ static int wb_attach(dev)
 	}
 
 	/*
-	 * Call MI attach routines.
+	 * Call MI attach routine.
 	 */
-	if_attach(ifp);
-	ether_ifattach(ifp);
-
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 fail:
 	if (error)
@@ -993,7 +990,7 @@ static int wb_detach(dev)
 	ifp = &sc->arpcom.ac_if;
 
 	wb_stop(sc);
-	if_detach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
 	/* Delete any miibus and phy devices attached to this interface */
 	bus_generic_detach(dev);

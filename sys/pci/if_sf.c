@@ -827,12 +827,9 @@ static int sf_attach(dev)
 	ifp->if_snd.ifq_maxlen = SF_TX_DLIST_CNT - 1;
 
 	/*
-	 * Call MI attach routines.
+	 * Call MI attach routine.
 	 */
-	if_attach(ifp);
-	ether_ifattach(ifp);
-
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 fail:
 	splx(s);
@@ -851,7 +848,7 @@ static int sf_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
-	if_detach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 	sf_stop(sc);
 
 	bus_generic_detach(dev);

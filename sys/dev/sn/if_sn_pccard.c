@@ -90,7 +90,7 @@ sn_pccard_detach(device_t dev)
 	struct sn_softc *sc = device_get_softc(dev);
 
 	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
-	if_detach(&sc->arpcom.ac_if);
+	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
 	sn_deactivate(dev);
 	return 0;
 }

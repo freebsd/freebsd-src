@@ -2841,14 +2841,13 @@ fe_attach ( struct isa_device * dev )
 	/* Attach and stop the interface. */
 #if NCARD > 0
 	if (already_ifattach[dev->id_unit] != 1) {
-		if_attach(&sc->sc_if);
+		ether_ifattach(&sc->sc_if, ETHER_BPF_SUPPORTED);
 		already_ifattach[dev->id_unit] = 1;
 	}
 #else
-	if_attach(&sc->sc_if);
+	ether_ifattach(&sc->sc_if, ETHER_BPF_SUPPORTED);
 #endif
 	fe_stop(sc);
- 	ether_ifattach(&sc->sc_if);
   
   	/* Print additional info when attached.  */
  	printf("fe%d: address %6D, type %s%s\n", sc->sc_unit,
@@ -2897,8 +2896,6 @@ fe_attach ( struct isa_device * dev )
 		       sc->sc_unit);
 	}
 
-	/* If BPF is in the kernel, call the attach for it.  */
- 	bpfattach(&sc->sc_if, DLT_EN10MB, sizeof(struct ether_header));
 	return 1;
 }
 

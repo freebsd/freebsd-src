@@ -830,10 +830,7 @@ ieattach(struct isa_device *dvp)
 		EVENTHANDLER_REGISTER(shutdown_post_sync, ee16_shutdown,
 				      ie, SHUTDOWN_PRI_DEFAULT);
 
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-
-	if_attach(ifp);
-	ether_ifattach(ifp);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	return (1);
 }
 

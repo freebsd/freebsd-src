@@ -192,16 +192,11 @@ el_attach(struct isa_device *idev)
 
 	/* Now we can attach the interface */
 	dprintf(("Attaching interface...\n"));
-	if_attach(ifp);
-	ether_ifattach(ifp);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 	/* Print out some information for the user */
 	printf("el%d: 3c501 address %6D\n",idev->id_unit,
 	  sc->arpcom.ac_enaddr, ":");
-
-	/* Finally, attach to bpf filter if it is present. */
-	dprintf(("Attaching to BPF...\n"));
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 	dprintf(("el_attach() finished.\n"));
 	return(1);

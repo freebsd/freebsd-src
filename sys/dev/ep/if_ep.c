@@ -318,11 +318,8 @@ ep_attach(sc)
 		ep_ifmedia_upd(ifp);
 	}
 
-	if (!attached) {
-		if_attach(ifp);
-		ether_ifattach(ifp);
-		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-	}
+	if (!attached)
+		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 #ifdef EP_LOCAL_STATS
 	sc->rx_no_first = sc->rx_no_mbuf = sc->rx_bpf_disc =

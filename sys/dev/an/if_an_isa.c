@@ -132,7 +132,7 @@ an_detach_isa(device_t dev)
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 
 	an_stop(sc);
-	if_detach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	an_release_resources(dev);
 

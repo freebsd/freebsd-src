@@ -2471,8 +2471,7 @@ ed_attach(sc, unit, flags)
 		/*
 		 * Attach the interface
 		 */
-		if_attach(ifp);
-		ether_ifattach(ifp);
+		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	}
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
@@ -2498,10 +2497,6 @@ ed_attach(sc, unit, flags)
 			 (sc->vendor == ED_VENDOR_HP)) &&
 		(ifp->if_flags & IFF_ALTPHYS)) ? " tranceiver disabled" : "");
 
-	/*
-	 * If BPF is in the kernel, call the attach for it
-	 */
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	return 1;
 }
 

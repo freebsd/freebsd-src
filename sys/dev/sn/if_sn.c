@@ -224,8 +224,7 @@ sn_attach(device_t dev)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_timer = 0;
 
-	if_attach(ifp);
-	ether_ifattach(ifp);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 	/*
 	 * Fill the hardware address into ifa_addr if we find an AF_LINK
@@ -244,8 +243,6 @@ sn_attach(device_t dev)
 		sdl->sdl_slen = 0;
 		bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
 	}
-
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 	return 0;
 }

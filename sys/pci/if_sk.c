@@ -1219,12 +1219,10 @@ static int sk_attach_xmac(dev)
 	}
 
 	/*
-	 * Call MI attach routines.
+	 * Call MI attach routine.
 	 */
-	if_attach(ifp);
-	ether_ifattach(ifp);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc_if->sk_tick_ch);
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 	return(0);
 }
@@ -1429,7 +1427,7 @@ static int sk_detach_xmac(dev)
 	sc_if = device_get_softc(dev);
 	ifp = &sc_if->arpcom.ac_if;
 	sk_stop(sc_if);
-	if_detach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 	bus_generic_detach(dev);
 	if (sc_if->sk_miibus != NULL)
 		device_delete_child(dev, sc_if->sk_miibus);

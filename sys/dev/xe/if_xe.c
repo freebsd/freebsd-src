@@ -478,7 +478,7 @@ xe_detach(device_t dev) {
   struct xe_softc *sc = device_get_softc(dev);
 
   sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
-  if_detach(&sc->arpcom.ac_if);
+  ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
   xe_deactivate(dev);
   return 0;
 }
@@ -577,14 +577,7 @@ xe_attach (device_t dev) {
   device_printf(dev, "Ethernet address %6D\n", scp->arpcom.ac_enaddr, ":");
 
   /* Attach the interface */
-  if_attach(scp->ifp);
-  ether_ifattach(scp->ifp);
-
-  /* BPF is in the kernel, call the attach for it */
-#if XE_DEBUG > 1
-  device_printf(dev, "BPF listener attached\n");
-#endif
-  bpfattach(scp->ifp, DLT_EN10MB, sizeof(struct ether_header));
+  ether_ifattach(scp->ifp, ETHER_BPF_SUPPORTED);
 
   /* Done */
   return 0;

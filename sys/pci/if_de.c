@@ -4870,11 +4870,8 @@ tulip_attach(
 
     tulip_reset(sc);
 
-    if_attach(ifp);
+    ether_ifattach(&(sc)->tulip_if, ETHER_BPF_SUPPORTED);
     ifp->if_snd.ifq_maxlen = ifqmaxlen;
-    ether_ifattach(&(sc)->tulip_if);
-
-    bpfattach(&sc->tulip_if, DLT_EN10MB, sizeof(struct ether_header));
 }
 
 #if defined(TULIP_BUS_DMA)

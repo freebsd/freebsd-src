@@ -170,9 +170,7 @@ vlaninit(void *dummy)
 		ifp->if_ioctl = vlan_ioctl;
 		ifp->if_output = ether_output;
 		ifp->if_snd.ifq_maxlen = ifqmaxlen;
-		if_attach(ifp);
-		ether_ifattach(ifp);
-		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 		/* Now undo some of the damage... */
 		ifp->if_data.ifi_type = IFT_8021_VLAN;
 		ifp->if_data.ifi_hdrlen = EVL_ENCAPLEN;

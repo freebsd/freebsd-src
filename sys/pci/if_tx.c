@@ -573,12 +573,7 @@ epic_freebsd_attach(
 			      SHUTDOWN_PRI_DEFAULT);
 
 	/*  Attach to if manager */
-	if_attach(ifp);
-	ether_ifattach(ifp);
-
-#if NBPF > 0
-	bpfattach(ifp,DLT_EN10MB, sizeof(struct ether_header));
-#endif
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 	splx(s);
 

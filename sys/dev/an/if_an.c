@@ -370,12 +370,10 @@ int an_attach(sc, unit, flags)
 	bzero((char *)&sc->an_stats, sizeof(sc->an_stats));
 
 	/*
-	 * Call MI attach routines.
+	 * Call MI attach routine.
 	 */
-	if_attach(ifp);
-	ether_ifattach(ifp);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->an_stat_ch);
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 	return(0);
 }
