@@ -22,15 +22,19 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id: cardd.c,v 1.12 1996/06/19 17:27:55 nate Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <fcntl.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -59,8 +63,6 @@ main(int argc, char *argv[])
 	struct slot *sp;
 	int     count, debug = 0;
 	int     verbose = 0;
-	extern char *optarg;
-	extern int optind, optopt;
 
 	while ((count = getopt(argc, argv, ":dvf:")) != -1) {
 		switch (count) {
@@ -76,10 +78,10 @@ main(int argc, char *argv[])
 			config_file = optarg;
 			break;
 		case ':':
-			die("No config file argument");
+			die("no config file argument");
 			break;
 		case '?':
-			die("Illegal option");
+			die("illegal option");
 			break;
 		}
 	}
@@ -107,7 +109,7 @@ main(int argc, char *argv[])
 	printf("After readslots\n");
 #endif
 	if (slots == 0)
-		die("No PC-CARD slots");
+		die("no PC-CARD slots");
 	for (;;) {
 		fd_set  mask;
 		FD_ZERO(&mask);
@@ -121,7 +123,7 @@ main(int argc, char *argv[])
 		printf("select=%d\n", count);
 #endif
 		if (count == -1) {
-			perror("Select");
+			warn("select");
 			continue;
 		}
 		if (count)
@@ -196,16 +198,16 @@ readslots(void)
 			unsigned long mem = 0;
 
 			if (ioctl(fd, PIOCRWMEM, &mem))
-				perror("ioctl (PIOCRWMEM)");
+				warn("ioctl (PIOCRWMEM)");
 #ifdef DEBUG
 			printf("mem=%x\n", mem);
 #endif
 			if (mem == 0) {
 				mem = alloc_memory(4 * 1024);
 				if (mem == 0)
-					die("Can't allocate memory for controller access");
+					die("can't allocate memory for controller access");
 				if (ioctl(fd, PIOCRWMEM, &mem))
-					perror("ioctl (PIOCRWMEM)");
+					warn("ioctl (PIOCRWMEM)");
 			}
 		}
 #ifdef DEBUG
@@ -228,7 +230,7 @@ slot_change(struct slot *sp)
 
 	current_slot = sp;
 	if (ioctl(sp->fd, PIOCGSTATE, &state)) {
-		perror("ioctl (PIOCGSTATE)");
+		warn("ioctl (PIOCGSTATE)");
 		return;
 	}
 #ifdef DEBUG

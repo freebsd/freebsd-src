@@ -22,20 +22,25 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id: enabler.c,v 1.4 1996/04/18 04:24:53 nate Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 
 #include <pccard/card.h>
 #include <pccard/cis.h>
 
-void    usage();
+static void	usage __P((char *));
 
 int
 enabler_main(argc, argv)
@@ -54,12 +59,12 @@ enabler_main(argc, argv)
 		usage("arg count");
 	slot = atoi(argv[1]);
 	if (slot < 0 || slot >= MAXSLOT)
-		usage("Illegal slot number");
+		usage("illegal slot number");
 	p = argv[2];
 	while (*p && (*p < '0' || *p > '9'))
 		p++;
 	if (*p == 0)
-		usage("No unit on device name");
+		usage("no unit on device name");
 	drv.unit = atoi(p);
 	*p = 0;
 	strcpy(drv.name, argv[2]);
@@ -68,25 +73,25 @@ enabler_main(argc, argv)
 	while (argc > 1) {
 		if (strcmp(argv[0], "-m") == 0) {
 			if (argc < 4)
-				usage("Memory argument error");
+				usage("memory argument error");
 			if (sscanf(argv[1], "%x", &card_addr) != 1)
-				usage("Bad card address");
+				usage("bad card address");
 			if (sscanf(argv[2], "%lx", &drv.mem) != 1)
-				usage("Bad memory address");
+				usage("bad memory address");
 			if (sscanf(argv[3], "%d", &i) != 1)
-				usage("Bad memory size");
+				usage("bad memory size");
 			drv.memsize = i * 1024;
 			argc -= 2;
 			argv += 2;
 		} else if (strcmp(argv[0], "-f") == 0) {
 			if (sscanf(argv[1], "%x", &drv.flags) != 1)
-				usage("Bad driver flags");
+				usage("bad driver flags");
 		} else if (strcmp(argv[0], "-a") == 0) {
 			if (sscanf(argv[1], "%x", &drv.iobase) != 1)
-				usage("Bad I/O address");
+				usage("bad I/O address");
 		} else if (strcmp(argv[0], "-i") == 0) {
 			if (sscanf(argv[1], "%d", &i) != 1 || i < 1 || i > 15)
-				usage("Illegal IRQ");
+				usage("illegal IRQ");
 			drv.irqmask = 1 << i;
 		}
 		argc -= 2;
@@ -99,10 +104,8 @@ enabler_main(argc, argv)
 		drv.irqmask, drv.flags);
 	sprintf(name, CARD_DEVICE, slot);
 	fd = open(name, 2);
-	if (fd < 0) {
-		perror(name);
-		exit(1);
-	}
+	if (fd < 0)
+		err(1, "%s", name);
 
 	/* Map the memory and I/O contexts. */
 	if (drv.mem) {
@@ -111,23 +114,19 @@ enabler_main(argc, argv)
 		mem.start = (caddr_t)drv.mem;
 		mem.size = drv.memsize;
 		mem.card = card_addr;
-		if (ioctl(fd, PIOCSMEM, &mem)) {
-			perror("Set memory context");
-			exit(1);
-		}
+		if (ioctl(fd, PIOCSMEM, &mem))
+			err(1, "set memory context");
 	}
 	if (drv.iobase) {
 		io.window = 0;
 		io.flags = IODF_ACTIVE | IODF_CS16;
 		io.start = drv.iobase;
 		io.size = 32;	/* Blah... */
-		if (ioctl(fd, PIOCSIO, &io)) {
-			perror("Set I/O context");
-			exit(1);
-		}
+		if (ioctl(fd, PIOCSIO, &io))
+			err(1, "set I/O context");
 	}
 	if (ioctl(fd, PIOCSDRV, &drv))
-		perror("set driver");
+		warn("set driver");
 	close(fd);
 	return 0;
 }
@@ -139,16 +138,16 @@ void
 usage(msg)
 	char   *msg;
 {
-	fprintf(stderr, "enabler: %s\n", msg);
+	warnx("enabler: %s", msg);
 	fprintf(stderr,
-	    "Usage: enabler slot driver [ -m addr size ] [ -a iobase ] [ -i irq ]\n");
+"usage: pccardc enabler slot driver [-m addr size] [-a iobase] [-i irq]\n");
 	fprintf(stderr,
-	    "    -m card addr size : Card address (hex), host address (hex) & size (Kb)\n");
+"    -m card addr size : card address (hex), host address (hex) & size (Kb)\n");
 	fprintf(stderr,
-	    "    -a iobase         : I/O port address (hex)\n");
+"    -a iobase         : I/O port address (hex)\n");
 	fprintf(stderr,
-	    "    -i irq            : Interrupt request number (1-15)\n");
+"    -i irq            : interrupt request number (1-15)\n");
 	fprintf(stderr,
-	    "   Example:  enabler 0 ed0 -m 2000 d4000 16 -a 300 -i 3\n");
+"   Example:  enabler 0 ed0 -m 2000 d4000 16 -a 300 -i 3\n");
 	exit(1);
 }

@@ -22,14 +22,19 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id: util.c,v 1.5 1996/04/18 04:25:17 nate Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <syslog.h>
@@ -41,11 +46,8 @@ log_1s(char *msg, char *arg)
 {
 	if (do_log)
 		syslog(LOG_ERR, msg, arg);
-	else {
-		fprintf(stderr, "cardd: ");
-		fprintf(stderr, msg, arg);
-		fprintf(stderr, "\n");
-	}
+	else
+		warnx(msg, arg);
 }
 
 void
@@ -54,7 +56,7 @@ logerr(char *msg)
 	if (do_log)
 		syslog(LOG_ERR, "%s: %m", msg);
 	else
-		perror(msg);
+		warn("%s", msg);
 }
 
 /*
@@ -66,7 +68,7 @@ die(char *msg)
 	if (do_log)
 		syslog(LOG_CRIT, "fatal error: %s", msg);
 	else
-		fprintf(stderr, "cardd fatal error: %s\n", msg);
+		warnx("fatal error: %s", msg);
 	closelog();
 	exit(1);
 }

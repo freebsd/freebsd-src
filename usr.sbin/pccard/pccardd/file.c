@@ -22,9 +22,14 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id: file.c,v 1.7 1996/06/19 01:08:58 nate Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,10 +87,8 @@ readfile(char *name)
 	struct card *cp;
 
 	in = fopen(name, "r");
-	if (in == 0) {
-		perror(name);
-		exit(1);
-	}
+	if (in == 0)
+		err(1, "%s", name);
 	parsefile();
 	for (cp = cards; cp; cp = cp->next) {
 		if (cp->config == 0)
@@ -147,7 +150,7 @@ parsefile(void)
 			parse_card();
 			break;
 		default:
-			error("Syntax error");
+			error("syntax error");
 			pusht = 0;
 			break;
 		}
@@ -178,7 +181,7 @@ parse_card(void)
 			/* config */
 			i = num_tok();
 			if (i == -1) {
-				error("Illegal card config index");
+				error("illegal card config index");
 				break;
 			}
 			confp = xmalloc(sizeof(*confp));
@@ -191,7 +194,7 @@ parse_card(void)
 				confp->flags = 0;
 			}
 			if (confp->irq < 0 || confp->irq > 15) {
-				error("Illegal card IRQ value");
+				error("illegal card IRQ value");
 				break;
 			}
 			confp->index = i & 0x3F;
@@ -215,7 +218,7 @@ parse_card(void)
 			/* reset */
 			i = num_tok();
 			if (i == -1) {
-				error("Illegal card reset time");
+				error("illegal card reset time");
 				break;
 			}
 			cp->reset_time = i;
@@ -224,7 +227,7 @@ parse_card(void)
 			/* ether */
 			cp->ether = num_tok();
 			if (cp->ether == -1) {
-				error("Illegal ether address offset");
+				error("illegal ether address offset");
 				cp->ether = 0;
 			}
 			break;
@@ -304,7 +307,7 @@ ioblk_tok(int force)
 		return (io);
 	}
 	if (force)
-		error("Illegal or missing I/O block spec");
+		error("illegal or missing I/O block spec");
 	return (0);
 }
 
@@ -319,13 +322,13 @@ memblk_tok(int force)
 
 	if ((i = num_tok()) >= 0)
 		if ((j = num_tok()) < 0)
-			error("Illegal memory block");
+			error("illegal memory block");
 		else {
 			mem = xmalloc(sizeof(*mem));
 			mem->addr = i & ~(MEMUNIT - 1);
 			mem->size = (j + MEMUNIT - 1) & ~(MEMUNIT - 1);
 			if (i < MEMSTART || (i + j) > MEMEND) {
-				error("Memory address out of range");
+				error("memory address out of range");
 				if (force) {
 					free(mem);
 					mem = 0;
@@ -335,7 +338,7 @@ memblk_tok(int force)
 			return (mem);
 		}
 	if (force)
-		error("Illegal or missing memory block spec");
+		error("illegal or missing memory block spec");
 	return (0);
 }
 
@@ -355,7 +358,7 @@ irq_tok(int force)
 	if (i > 0 && i < 16)
 		return (i);
 	if (force)
-		error("Illegal IRQ value");
+		error("illegal IRQ value");
 	return (-1);
 }
 
@@ -558,7 +561,7 @@ _next_tok(void)
 			break;
 		case '\n':
 			if (instr) {
-				error("Unterminated string");
+				error("unterminated string");
 				break;
 			}
 		case ' ':

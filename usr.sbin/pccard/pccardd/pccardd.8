@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: pccardd.8,v 1.4 1996/09/23 22:24:28 wosch Exp $
+.\"	$Id: pccardd.8,v 1.4.2.1 1997/02/09 20:40:46 joerg Exp $
 .\"
 .Dd November 1, 1994
 .Dt PCCARD 8
@@ -42,7 +42,7 @@ is normally started at boot time, and manages the insertion
 and removal of PC-CARD cards.
 .Pp
 When started,
-.Nm pccardd
+.Nm
 will read the configuration file (default name
 .Pa /etc/pccard.conf )
 and scans the available PC-CARD slots for cards.
@@ -69,7 +69,7 @@ the card description in the configuration file.
 Once matched, a driver is allocated.
 .It
 Once a free driver and device instance is located,
-.Nm pccardd
+.Nm
 will (if required) allocate resources such as an ISA memory
 block and Input/Output ports from a common pool.
 .It
@@ -85,7 +85,7 @@ for each card, driver or device, and are executed in that order.
 .El
 .Pp
 When
-.Nm pccardd
+.Nm
 detects that a card has been removed, the following sequence occurs:
 .Bl -enum
 .It
@@ -110,7 +110,7 @@ parameters. This will change significantly when loadable kernel
 modules are supported.
 .Pp
 The start options understood by
-.Nm pccardd
+.Nm
 are:
 .Bl -tag -width Ds
 .It Fl d
@@ -122,7 +122,7 @@ of it.
 .It Fl f Ar configfile
 Specifies a different configuration file to be used
 in placed of the default file
-.Pa /etc/pccard.conf.
+.Pa /etc/pccard.conf .
 The file format is detailed in
 .Xr card.conf 5 ,
 and lists the PC-CARD cards recognized by
@@ -138,7 +138,8 @@ interface to the card.
 .Xr pccard.conf 5 ,
 .Xr ifconfig 8
 .Sh AUTHOR
-Developed by Andrew McRae (andrew@mega.com.au).
+Developed by
+.An Andrew McRae Aq andrew@mega.com.au .
 .Sh BUGS
 .Nm Pccardd
 can set up card parameters, but cannot guarantee that
