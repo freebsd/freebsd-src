@@ -56,8 +56,6 @@
 #define	_BSD_VA_LIST_		__builtin_va_list /* va_list */
 #define	_BSD_CLOCKID_T_		int		/* clockid_t */
 #define	_BSD_TIMER_T_		int		/* timer_t */
-#define	_BSD_SUSECONDS_T_	int		/* suseconds_t */
-#define	_BSD_USECONDS_T_	unsigned int	/* useconds_t */
 
 /*
  * Types which are fundamental to the implementation and must be used
