@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.502 1999/08/05 01:28:00 jkh Exp $
+#	$Id: Makefile,v 1.503 1999/08/05 08:37:31 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -233,7 +233,7 @@ rerelease release:
 .if defined(ALLLANG)
 	echo "export ALLLANG=${ALLLANG}"	>> ${CHROOTDIR}/mk
 .else
-	echo "export DOC_LANG=en"		>> ${CHROOTDIR}/mk
+	echo "export DOC_LANG=en_US.ISO_8859-1"	>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
@@ -594,7 +594,7 @@ doc.1:
 	@for i in ${DOCPORTS}; do \
 	  cd /usr/ports/$$i && make all install clean JADETEX=no FORCE_PKG_REGISTER=yes; \
 	done
-	@cd /usr/doc && make all distribute DISTDIR=${RD}/trees
+	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/bin/usr/share/doc
 	touch doc.1
 
 # Various "subroutine" and other supporting targets.
