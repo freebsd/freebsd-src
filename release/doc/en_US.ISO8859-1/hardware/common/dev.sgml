@@ -2072,6 +2072,9 @@
         <listitem>
 	  <para>Netmos NM9835 PCI-2S-550</para>
 	</listitem>
+	<listitem>
+	  <para>SIIG Cyber Serial Dual PCI 16C550</para>
+	</listitem>
       </itemizedlist>
     </para>
 
