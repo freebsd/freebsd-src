@@ -26,11 +26,11 @@
  * $FreeBSD$
  */
 
-#include <sys/queue.h>
-#include <sys/mutex.h>
-
 #ifndef SYS_EVENTHANDLER_H
 #define SYS_EVENTHANDLER_H
+
+#include <sys/queue.h>
+#include <sys/mutex.h>
 
 struct eventhandler_entry 
 {
@@ -50,7 +50,6 @@ struct eventhandler_list
 };
 
 typedef struct eventhandler_entry	*eventhandler_tag;
-struct mtx				eventhandler_mutex;
 
 /* 
  * Fast handler lists require the eventhandler list be present
