@@ -892,6 +892,7 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, td);
 	error = vn_open(&nd, &flags, 0, -1);
 	if (error) {
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (error != EACCES && error != EPERM && error != EROFS)
 			return (error);
 		flags &= ~FWRITE;
