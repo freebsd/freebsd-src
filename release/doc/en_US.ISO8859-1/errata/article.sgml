@@ -16,19 +16,12 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "5.2.1-RELEASE">
+<!ENTITY release.bugfix "5.3-RELEASE">
 ]>
 
 <article>
   <articleinfo>
-    <title>&os;
-<![ %release.type.snapshot [
-    &release.prev;
-]]>
-<![ %release.type.release [
-    &release.current;
-]]>
-    Errata</title>
+    <title>&os; &release.current; Errata</title>
 
     <corpauthor>
     The &os; Project
@@ -54,13 +47,7 @@
   </articleinfo>
 
   <abstract>
-    <para>This document lists errata items for &os; 
-<![ %release.type.snapshot [
-      &release.prev;,
-]]>
-<![ %release.type.release [
-      &release.current;,
-]]>
+    <para>This document lists errata items for &os; &release.current;,
       containing significant information discovered after the release
       or too late in the release cycle to be otherwise included in the
       release documentation.
@@ -70,19 +57,7 @@
       should always be consulted before installing this version of
       &os;.</para>
 
-    <para>This document also contains errata for &os;
-      &release.bugfix;, a <quote>point release</quote> made about one
-      month after &os; &release.prev;.  Unless otherwise noted, all
-      errata items in this document apply to both &release.prev;
-      and &release.bugfix;.</para>
-
-    <para>This errata document for &os; 
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
+    <para>This errata document for &os; &release.current;
       will be maintained until the release of &os; &release.next;.</para>
   </abstract>
 
@@ -90,13 +65,7 @@
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
-      about &os;
-<![ %release.type.snapshot [
-      &release.prev;.
-]]>
-<![ %release.type.release [
-      &release.current;.
-]]>
+      about &os; &release.current;.
       Before installing this version, it is important to consult this
       document to learn about any post-release discoveries or problems
       that may already have been found and fixed.</para>
@@ -123,258 +92,19 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-<![ %release.type.release [
     <para>No advisories.</para>
-]]>
-
-<![ %release.type.snapshot [
-
-    <para>(30 Jan 2004, updated 28 Feb 2004) A bug in &man.mksnap.ffs.8; causes the creation of a
-      filesystem snapshot to reset the flags on the filesystem to
-      their default values.  The possible consequences depend on local
-      usage, but can include disabling extended access control lists
-      or enabling the use of setuid executables stored on an untrusted
-      filesystem.  This bug also affects the &man.dump.8;
-      <option>-L</option> option, which uses &man.mksnap.ffs.8;.  Note
-      that &man.mksnap.ffs.8; is normally only available to the
-      superuser and members of the <groupname>operator</groupname>
-      group.  This bug has been fixed on the &os; &release.prev;
-      security fix branch and in &os; &release.bugfix;.  For more information, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:01.mksnap_ffs.asc">FreeBSD-SA-04:01</ulink>.</para>
-
-    <para>(8 Feb 2004, updated 28 Feb 2004) A bug with the System V Shared Memory interface
-      (specifically the &man.shmat.2; system call)
-      can cause a shared memory segment to reference
-      unallocated kernel memory.  In turn, this can permit a local
-      attacker to gain unauthorized access to parts of kernel memory,
-      possibly resulting in disclosure of sensitive information,
-      bypass of access control mechanisms, or privilege escalation.
-      This bug has been fixed on the &os; &release.prev;
-      security fix branch and in &os; &release.bugfix;.
-      More details, including bugfix and workaround information,
-      can be found in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.shmat.asc">FreeBSD-SA-04:02</ulink>.</para>
-
-    <para>(28 Feb 2004) It is possible, under some circumstances, for
-      a processor with superuser privileges inside a &man.jail.8;
-      environment to change its root directory to a different jail,
-      giving it read and write access to the files and directories
-      within.  This vulnerability has been closed on the &os;
-      &release.prev; security fix branch and in &os;
-      &release.bugfix;.  Information on the bug fix can be found in
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:03.jail.asc">FreeBSD-SA-04:03</ulink>.</para>
-
-    <para>(4 Mar 2004) It is possible for a remote attacker to conduct
-      a low-bandwidth denial-of-service attack against a machine
-      providing TCP-based services, filling up the target's memory
-      buffers and potentially leading to a system crash.  This
-      vulnerability has been addressed on the &os; &release.prev;
-      security fix branch, but is present in both &os; &release.prev;
-      and &release.bugfix;.  Security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:04.tcp.asc">FreeBSD-SA-04:04</ulink>
-      contains more details, as well as information on patching
-      existing systems.</para>
-
-    <para>(17 Mar 2004) By performing a specially crafted SSL/TLS
-      handshake with an application that uses OpenSSL a null pointer
-      may be dereferenced.  This may in turn cause the application to
-      crash, resulting in a denial of service attack.  For more information
-      see the Security Advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:05.openssl.asc">FreeBSD-SA-04:05</ulink>
-      which contains more details and instructions on how to patch existing
-      systems.</para>
-
-    <para>(29 Mar 2004) A local attacker may take advantage of a
-      programming error in the handling of certain IPv6 socket options
-      in the &man.setsockopt.2; system call to read portions of kernel
-      memory without proper authorization.  This may result in disclosure
-      of sensitive data, or potentially cause a panic.  See Security
-      Advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:06.ipv6.asc">FreeBSD-SA-04:06</ulink>
-      for a more detailed description and instructions on how to patch
-      existing systems.</para>
-
-    <para>(9 May 2004) Two programming errors in
-      <application>CVS</application> can allow a server to overwrite
-      arbitrary files on the client, and a client to read arbitrary
-      files on the server when accessing remote CVS repositories.
-      More details, including patch and upgrade information, can be
-      found in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:07.cvs.asc">FreeBSD-SA-04:07</ulink>.</para>
-
-    <para>(9 May 2004) <application>Heimdal</application> may, under
-      some circumstances, not perform adequate checking of
-      authentication across autonomous realms.  For more information,
-      see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:08.heimdal.asc">FreeBSD-SA-04:08</ulink>.</para>
-
-]]>
-
   </sect1>
 
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-<![ %release.type.release [
     <para>No open issues.</para>
-]]>
-
-<![ %release.type.snapshot [
-
-    <para>(9 Jan 2004) Due to a change in &man.cpp.1; behavior, the
-      login screen for &man.xdm.1; is in black and white, even on
-      systems with color displays.  As a workaround, update to a newer
-      version of the 
-      <filename role="package">x11/XFree86-4-clients</filename>
-      port/package.</para>
-
-    <para>(9 Jan 2004) There remain some residual problems with ACPI.
-      In some cases, systems may behave erratically, or hang at boot
-      time.  As a workaround, disable ACPI, using the <quote>safe
-      mode</quote> option of the bootloader or using the
-      <varname>hint.acpi.0.disabled</varname> kernel environment
-      variable.  These problems are being investigated.  For problems
-      that have not already been reported (check the mailing list
-      archives <emphasis>before</emphasis> posting), sending the
-      output of &man.dmesg.8; and &man.acpidump.8; to the
-      &a.current; may help diagnose the problem.</para>
-
-    <para>(9 Jan 2004, updated 28 Feb 2004) In some cases, ATA devices may behave
-      erratically, particularly SATA devices.  Reported symptoms
-      include command timeouts or missing interrupts.  These problems
-      appear to be timing-dependent, making them rather difficult to
-      isolate.  Workarounds include:</para>
-
-    <itemizedlist>
-      <listitem>
-	<para>Turn off ATA DMA using the <quote>safe mode</quote>
-	  option of the bootloader or the
-	  <varname>hw.ata.ata_dma</varname> sysctl variable.</para>
-      </listitem>
-
-      <listitem>
-	<para>Use the host's BIOS setup options to put the ATA
-	  controller in its <quote>legacy mode</quote>, if
-	  available.</para>
-      </listitem>
-
-      <listitem>
-	<para>Disable ACPI, for example using the <quote>safe mode</quote>
-	  option of the bootloader or using the
-	  <varname>hint.acpi.0.disabled</varname> kernel environment
-	  variable.</para>
-      </listitem>
-    </itemizedlist>
-
-    <para>Some of these problems were addressed in &os;
-      &release.bugfix; with the import of a newer &man.ata.4; from
-      &release.current;.</para>
-
-    <para>(9 Jan 2004) Installing over NFS when using the install
-      floppies requires that the <filename>nfsclient.ko</filename>
-      module be manually loaded from the third floppy disk.  This can
-      be done by following the prompts when &man.sysinstall.8;
-      launches to load a driver off of the third floppy disk.</para>
-
-    <para>(9 Jan 2004) The use of multiple vchans (virtual audio
-      channels with dynamic mixing in software) in the &man.pcm.4;
-      driver has been known to cause some instability.</para>
-
-    <para>(10 Jan 2004) Although APIC interrupt routing seems to work
-      correctly on many systems, on some others (such as some laptops)
-      it can cause various errors, such as &man.ata.4; errors or hangs
-      when starting or exiting X11.  For these situations, it may be
-      advisable to disable APIC routing, using the <quote>safe
-      mode</quote> of the bootloader or the
-      <varname>hint.apic.0.disabled</varname> loader tunable.  Note
-      that disabling APIC is not compatible with SMP systems.</para>
-
-    <para>(10 Jan 2004, updated 28 Feb 2004) The NFSv4 client may panic when attempting an
-      NFSv4 operation against an NFSv3/NFSv2-only server.  This
-      problem has been fixed with revision 1.4 of
-      <filename>src/sys/rpc/rpcclnt.c</filename> in &os;
-      &release.current;.  It was also fixed in &os;
-      &release.bugfix;.</para>
-
-    <para>(11 Jan 2004, updated 28 Feb 2004) Some problems have been encountered when using
-      third-party NSS modules, such as <filename>nss_ldap</filename>,
-      and groups with large membership lists.  These have been fixed
-      with revision 1.2 of <filename>src/include/nss.h</filename> and
-      revision 1.2 of
-      <filename>src/lib/libc/net/nss_compat.c</filename> in &os;
-      &release.current;; this fix was backported to &os;
-      &release.bugfix;.</para>
-
-    <para>(13 Jan 2004) The &os; &release.current; release notes
-      incorrectly stated that <application>GCC</application> was a
-      post-release GCC 3.3.3 snapshot.  They should have stated that
-      GCC was a <emphasis>pre-release</emphasis> GCC 3.3.3
-      snapshot.</para>
-
-    <para>(13 Jan 2004, updated 28 Feb 2004) The <filename
-      role="package">sysutils/kdeadmin3</filename> port/package has a
-      bug in the <application>KUser</application> component that can
-      cause deletion of the <username>root</username> user from the
-      system password file.  Users are strongly urged to upgrade to
-      version 3.1.4_1 of this port/package.  The package set included
-      with &os; &release.bugfix; contains the fixed version of this
-      package.</para>
-
-    <para>(21 Jan 2004, updated 28 Feb 2004) Some bugs in the IPsec implementation imported
-      from the KAME Project can result in memory objects being freed
-      before all references to them were removed.  Reported symptoms
-      include erratic behavior or kernel panics after flushing the
-      Security Policy Database (SPD).  Some of these problems have
-      been fixed in &os; &release.current; in rev. 1.31 of
-      <filename>src/sys/netinet6/ipsec.c</filename>, rev. 1.136 of
-      <filename>src/sys/netinet/in_pcb.c</filename>, and revs. 1.63
-      and 1.64 of <filename>src/sys/netkey/key.c</filename>.  These
-      bugfixes were backported to &os; &release.bugfix;.  More
-      information about these problems has been posted to the
-      &a.current;, in particular the thread entitled <ulink 
-      url="http://lists.FreeBSD.org/pipermail/freebsd-current/2004-January/thread.html#18084">
-      <quote>[PATCH] IPSec fixes</quote></ulink>.</para>
-
-    <para>(28 Feb 2004) The edition of the Porters Handbook included
-      with &os; &release.bugfix; contained an incorrect value for
-      &release.bugfix;'s <varname>__FreeBSD_version</varname>.  The
-      correct value is <literal>502010</literal>.</para>
-
-]]>
-
   </sect1>
 
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
-<![ %release.type.release [
     <para>No news.</para>
-]]>
-
-<![ %release.type.snapshot [
-
-    <para>(10 Jan 2004, updated 28 Feb 2004) The TCP implementation in &os; now includes
-      protection against a certain class of TCP MSS resource
-      exhaustion attacks, in the form of limits on the size and rate
-      of TCP segments.  The first limit sets the minimum allowed
-      maximum TCP segment size, and is controlled by the
-      <varname>net.inet.tcp.minmss</varname> sysctl variable (the
-      default value is <literal>216</literal> bytes).  The second
-      limit is set by the
-      <varname>net.inet.tcp.minmssoverload</varname> variable, and
-      controls the maximum rate of connections whose average segment
-      size is less than <varname>net.inet.tcp.minmss</varname>.
-      Connections exceeding this packet rate are reset and dropped.
-      Because this feature was added late in the &release.prev;
-      release cycle, connection rate limiting is disabled by default,
-      but can be enabled manually by assigning a non-zero value to
-      <varname>net.inet.tcp.minmssoverload</varname>.  This feature
-      was added to &os; &release.prev; too late for inclusion in its
-      release notes.</para>
-
-]]>
-
   </sect1>
 
 </article>
