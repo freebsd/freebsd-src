@@ -458,7 +458,8 @@ static char init_path[MAXPATHLEN] =
 #else
     "/sbin/init:/sbin/oinit:/sbin/init.bak:/stand/sysinstall";
 #endif
-SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0, "");
+SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0,
+	"Path used to search the init process");
 
 /*
  * Start the initial user process; try exec'ing each pathname in init_path.
