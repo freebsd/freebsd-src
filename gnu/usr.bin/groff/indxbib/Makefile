@@ -14,7 +14,7 @@ CLEANFILES+=	${MANDEPEND}
 # Sigh... Hardcode it.  	- jkh
 #
 afterinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/eign \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/eign \
 		${DESTDIR}${SHAREDIR}/dict
 
 .include "../Makefile.cfg"

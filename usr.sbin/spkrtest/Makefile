@@ -1,7 +1,7 @@
 MAN8=	spkrtest.8
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${.CURDIR}/spkrtest.pl ${DESTDIR}${BINDIR}/spkrtest
 
 .include <bsd.prog.mk>

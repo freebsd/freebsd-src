@@ -8,7 +8,7 @@ LDADD+=	-ll
 CLEANFILES+=lex.yy.o
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/nslookup.help \
-		${DESTDIR}/usr/share/misc
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/nslookup.help ${DESTDIR}/usr/share/misc
 
 .include <bsd.prog.mk>

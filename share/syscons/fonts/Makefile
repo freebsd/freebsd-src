@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1995/02/22 21:49:46 roberto Exp $
+# $Id: Makefile,v 1.6 1995/05/30 06:58:14 rgrimes Exp $
 
 FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp437-thin-8x8.fnt cp437-thin-8x16.fnt \
@@ -22,7 +22,7 @@ all clean:
 
 install:
 	cd ${.CURDIR}; \
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FONTS} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FONTS} \
 		${DESTDIR}${FONTDIR}
 
 .include <bsd.prog.mk>

@@ -27,7 +27,7 @@ ${MAN1}: ${.CURDIR}/whatis.man
 		${.CURDIR}/whatis.man > ${.TARGET}
 
 install: ${TARG} maninstall
-	install -c -o bin -g bin -m 555 ${TARG} ${DESTDIR}/usr/bin
+	${INSTALL} -c -o bin -g bin -m 555 ${TARG} ${DESTDIR}/usr/bin
 
 .include "../Makefile.inc"
 .if make(maninstall) || make(install)

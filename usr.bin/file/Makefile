@@ -1,6 +1,6 @@
 # Makefile for file(1) cmd.
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.
-# @(#)$Id: Makefile,v 1.2 1994/09/03 19:31:14 csgr Exp $
+# @(#)$Id: Makefile,v 1.3 1995/05/30 06:29:57 rgrimes Exp $
 #
 # This software is not subject to any license of the American Telephone
 # and Telegraph Company or of the Regents of the University of California.
@@ -51,7 +51,7 @@ magic:	$(MAGFILES)
 	cat $(MAGFILES) > $(.TARGET)
 
 afterinstall:
-	install -c -o $(MAGICOWN) -g $(MAGICGRP) -m $(MAGICMODE) magic \
+	${INSTALL} -c -o $(MAGICOWN) -g $(MAGICGRP) -m $(MAGICMODE) magic \
 	$(DESTDIR)$(MAGIC)
 
 .include <bsd.prog.mk>

@@ -22,7 +22,7 @@ maninstall:
 install:
 	for f in $(FONTFILES); do \
 		ff=$$f; test -f $$f || ff=${.CURDIR}/$$f || true; \
-		install -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) $$ff \
+		$(INSTALL) -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) $$ff \
 			$(DESTDIR)$(DEVICEDIR)/$$f; \
 	done
 .endif

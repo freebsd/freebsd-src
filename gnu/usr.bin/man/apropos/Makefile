@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1994/06/05 21:57:03 csgr Exp $
+# $Id: Makefile,v 1.8 1994/08/28 18:33:42 bde Exp $
 
 .if exists(${.CURDIR}/obj)
 MAN1=  ${.CURDIR}/obj/apropos.1
@@ -29,7 +29,7 @@ ${MAN1}: ${.CURDIR}/apropos.man
 		${.CURDIR}/apropos.man > ${.TARGET}
 
 install: ${TARG} maninstall
-	install -c -o bin -g bin -m 555 ${TARG} ${DESTDIR}/usr/bin
+	${INSTALL} -c -o bin -g bin -m 555 ${TARG} ${DESTDIR}/usr/bin
 
 .include "../Makefile.inc"
 

@@ -21,7 +21,7 @@ DPADD+=		${X11BASE}/lib/libXaw.a ${X11BASE}/lib/libXmu.a \
 		${X11BASE}/lib/libX11.a
 
 afterinstall:
-		install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/GXditview.ad \
 		${DESTDIR}${X11BASE}/lib/X11/app-defaults/GXditview
 .endif

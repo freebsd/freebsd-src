@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.1 (Berkeley) 5/28/90
-#	$Id$
+#	$Id: Makefile,v 1.3 1995/05/03 03:26:53 rgrimes Exp $
 
 MAN8=	named.restart.8
 CLEANFILES+=named.restart
@@ -8,7 +8,7 @@ PIDDIR=/var/run
 INDOT=
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	    named.restart ${DESTDIR}${BINDIR}
 
 all: named.restart

@@ -24,9 +24,9 @@ send-pr.el:	send-pr-el.in Makefile
 	    ${.ALLSRC:N*Makefile} > ${.TARGET}
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		send-pr ${DESTDIR}${BINDIR}/send-pr
-	install -c -o ${BINOWN} -g ${BINGRP} -m 0644 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 0644 \
 		${.CURDIR}/categories  ${DESTDIR}/etc/gnats/freefall
 
 .include <bsd.prog.mk>

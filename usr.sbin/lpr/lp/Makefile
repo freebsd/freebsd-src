@@ -4,7 +4,7 @@ BINDIR = /usr/bin
 MAN1 = lp.1
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	     ${.CURDIR}/lp.sh ${DESTDIR}${BINDIR}/lp
 
 .include <bsd.prog.mk>

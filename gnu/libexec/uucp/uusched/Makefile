@@ -1,5 +1,5 @@
 # Makefile for uusched
-# $Id: Makefile,v 1.6 1995/01/24 17:58:35 bde Exp $
+# $Id: Makefile,v 1.7 1995/05/13 12:57:43 ache Exp $
 
 BINDIR=		$(bindir)
 CLEANFILES+=	$(ONESHPROG)
@@ -12,7 +12,7 @@ $(ONESHPROG): $(ONESHPROG).in Makefile
 		$(.ALLSRC:N*Makefile) > $(.TARGET)
 
 beforeinstall:
-	install -c -o $(BINOWN) -g $(BINGRP) -m $(BINMODE) \
+	${INSTALL} -c -o $(BINOWN) -g $(BINGRP) -m $(BINMODE) \
 		$(ONESHPROG) $(DESTDIR)$(BINDIR)/$(ONESHPROG)
 
 .include <bsd.prog.mk>

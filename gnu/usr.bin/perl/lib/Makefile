@@ -9,7 +9,7 @@ PLIB+= stat.pl syslog.pl termcap.pl timelocal.pl validate.pl
 NOOBJ=
 
 install:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${PLIB} ${PLIBDIR}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${PLIB} ${PLIBDIR}
 
 clean:
 cleandir:
