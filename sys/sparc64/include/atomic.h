@@ -78,7 +78,7 @@
  * Hopefully sun will choose not to change the bit numbers.
  */
 
-#define	itype(sz)	u_int ## sz ## _t
+#define	itype(sz)	uint ## sz ## _t
 
 #define	atomic_cas_32(p, e, s)	casa(p, e, s, __ASI_ATOMIC)
 #define	atomic_cas_64(p, e, s)	casxa(p, e, s, __ASI_ATOMIC)
