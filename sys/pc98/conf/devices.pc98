@@ -1,0 +1,17 @@
+# This file tells what major numbers the various possible swap devices have.
+#
+#	$Id: devices.i386,v 1.9 1995/08/19 15:59:25 joerg Exp $
+#
+wd	0
+dk	1
+fd	2
+wt	3
+sd	4
+st	5
+cd	6
+mcd	7
+vn	15
+scd	16
+pcd	17
+wcd	19
+od	20
