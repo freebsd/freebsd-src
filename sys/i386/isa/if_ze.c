@@ -51,8 +51,8 @@
  */
 
 /* XXX - Don't mix different PCCARD support code */
-#include "pcic.h"
 #include "crd.h"
+#include "pcic.h"
 #if NCRD > 0 || NPCIC > 0
 #ifndef LINT_PCCARD_HACK
 #error "Dedicated PCMCIA drivers and generic PCMCIA support can't be mixed"
