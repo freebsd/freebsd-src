@@ -6,7 +6,7 @@
  *
  * This code is derived from software contributed to Berkeley by
  * Vern Paxson.
- *
+ * 
  * The United States Government has rights in this work pursuant
  * to contract no. DE-AC03-76SF00098 between the United States
  * Department of Energy and the University of California.
@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: /home/ncvs/src/usr.bin/lex/ccl.c,v 1.1.1.1 1994/08/24 13:10:33 csgr Exp $ */
+/* $Header: /home/daffy/u0/vern/flex/RCS/ccl.c,v 2.9 93/09/16 20:32:14 vern Exp $ */
 
 #include "flexdef.h"
 

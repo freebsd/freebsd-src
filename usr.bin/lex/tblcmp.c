@@ -6,7 +6,7 @@
  *
  * This code is derived from software contributed to Berkeley by
  * Vern Paxson.
- *
+ * 
  * The United States Government has rights in this work pursuant
  * to contract no. DE-AC03-76SF00098 between the United States
  * Department of Energy and the University of California.
@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: /home/ncvs/src/usr.bin/lex/tblcmp.c,v 1.1.1.1 1994/08/24 13:10:31 csgr Exp $ */
+/* $Header: /home/ncvs/src/usr.bin/lex/tblcmp.c,v 1.1.1.2 1996/06/19 20:26:43 nate Exp $ */
 
 #include "flexdef.h"
 
@@ -310,7 +310,7 @@ void expand_nxt_chk()
 	chk = reallocate_integer_array( chk, current_max_xpairs );
 
 	zero_out( (char *) (chk + old_max),
-		MAX_XPAIRS_INCREMENT * sizeof( int ) / sizeof( char ) );
+		(size_t) (MAX_XPAIRS_INCREMENT * sizeof( int )) );
 	}
 
 
@@ -436,8 +436,7 @@ void inittbl()
 	{
 	register int i;
 
-	zero_out( (char *) chk,
-		current_max_xpairs * sizeof( int ) / sizeof( char ) );
+	zero_out( (char *) chk, (size_t) (current_max_xpairs * sizeof( int )) );
 
 	tblend = 0;
 	firstfree = tblend + 1;
