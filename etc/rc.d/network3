@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.1.2.1 1997/04/26 22:39:34 jkh Exp $
+#	$Id: rc.network,v 1.2 1997/04/27 03:59:14 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -100,7 +100,7 @@ network_pass1() {
 network_pass2() {
     echo -n 'Doing additional network setup:'
     if [ -n "$tcp_extensions" -a "x$tcp_extensions" != "xYES" ] ; then
-	    echon -n ' tcp extentions=0'
+	    echo -n ' tcp extentions=0'
 	    sysctl -w net.inet.tcp.rfc1323=0 >/dev/null 2>&1
 	    sysctl -w net.inet.tcp.rfc1644=0 >/dev/null 2>&1
     fi
