@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: sctarg.c,v 1.19 1997/02/22 09:44:36 peter Exp $
  */
 
 #include "opt_bounce.h"
@@ -54,7 +54,8 @@
 #endif /*DEVFS*/
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
-
+#include <scsi/scsi_debug.h>
+#include <scsi/scsi_driver.h>
 
 #define OPEN 0x01
 

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: scsi_driver.c,v 1.22 1997/02/22 09:44:31 peter Exp $
  *
  */
 
@@ -51,6 +51,7 @@
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
 #include <scsi/scsi_driver.h>
 
 #define GETUNIT(DEVICE, DEV) \
