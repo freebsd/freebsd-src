@@ -26,7 +26,7 @@ Or:
 
 2. Return to using a set-user-ID root sendmail binary by changing the
    ownership and permissions on the sendmail binary and removing the
-   /etc/mail/submit.cf file::
+   /etc/mail/submit.cf file:
 	chown root /usr/libexec/sendmail/sendmail
 	chmod 4755 /usr/libexec/sendmail/sendmail
 	rm /etc/mail/submit.cf
@@ -34,9 +34,9 @@ Or:
    /etc/make.conf.
 
 Also, as of 8.12, a new queue-running daemon is started to make sure mail
-doesn't remain in the client mail queue.  Be default, it simply runs the
-client mail queue every 30 minutes.  It's behavior can be adjusted by setting
-the sendmail_msp_queue_enable and sendmail_msp_queue_flags rc.conf options. 
+doesn't remain in the client mail queue.  By default, it simply runs the
+client mail queue every 30 minutes.  Its behavior can be adjusted by setting
+the sendmail_msp_queue_enable and sendmail_msp_queue_flags rc.conf options.
 
 
 		Filtering out SPAM from your site
