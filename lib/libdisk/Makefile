@@ -4,11 +4,21 @@ LIB=	disk
 SRCS=	blocks.c chunk.c disk.c change.c \
 	create_chunk.c rules.c write_disk.c
 INCS=	libdisk.h
+WARNS=	2
 
-CFLAGS+= 	-Wall
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-DPC98
+SRCS	+=	write_pc98_disk.c
 .endif
+
+.if ${MACHINE} == "i386"
+SRCS	+=	write_i386_disk.c
+.endif
+
+.if ${MACHINE} == "alpha"
+SRCS	+=	write_alpha_disk.c
+.endif
+
 CLEANFILES+=	tmp.c tst01 tst01.o
 NOPROFILE=	yes
 NOPIC=		yes
