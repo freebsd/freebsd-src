@@ -632,6 +632,7 @@ struct	mbuf	*m_dup(struct mbuf *, int);
 struct	mbuf	*m_free(struct mbuf *);
 void		 m_freem(struct mbuf *);
 struct	mbuf	*m_get(int, int);
+struct  mbuf	*m_getcl(int how, short type, int flags);
 struct	mbuf	*m_getclr(int, int);
 struct	mbuf	*m_gethdr(int, int);
 struct	mbuf	*m_getm(struct mbuf *, int, int, int);

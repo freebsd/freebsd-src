@@ -545,6 +545,55 @@ m_getclr(how, type)
 }
 
 /*
+ * m_getcl() returns an mbuf with an attached cluster.
+ * Because many network drivers use this kind of buffers a lot, it is
+ * convenient to keep a small pool of free buffers of this kind.
+ * Even a small size such as 10 gives about 10% improvement in the
+ * forwarding rate in a bridge or router.
+ * The size of this free list is controlled by the sysctl variable
+ * mcl_pool_max. The list is populated on m_freem(), and used in
+ * m_getcl() if elements are available.
+ */
+static struct mbuf *mcl_pool;
+static int mcl_pool_now;
+static int mcl_pool_max;
+ 
+SYSCTL_INT(_kern_ipc, OID_AUTO, mcl_pool_max, CTLFLAG_RW, &mcl_pool_max, 0,
+           "Maximum number of mbufs+cluster in free list");
+SYSCTL_INT(_kern_ipc, OID_AUTO, mcl_pool_now, CTLFLAG_RD, &mcl_pool_now, 0,
+           "Current number of mbufs+cluster in free list");
+
+struct mbuf *
+m_getcl(int how, short type, int flags)
+{
+	int s = splimp();
+	struct mbuf *mp;
+
+	if (flags & M_PKTHDR) {
+		if (type == MT_DATA && mcl_pool) {
+			mp = mcl_pool;
+			mcl_pool = mp->m_nextpkt;
+			mcl_pool_now--;
+			splx(s);
+			mp->m_nextpkt = NULL;
+			mp->m_data = mp->m_ext.ext_buf;
+			return mp;
+		} else
+			MGETHDR(mp, how, type);
+	} else
+		MGET(mp, how, type);
+	if (mp) {
+		MCLGET(mp, how);
+		if ( (mp->m_flags & M_EXT) == 0) {
+			m_free(mp);
+			mp = NULL;
+		}
+	}
+	splx(s);
+	return mp;
+}
+
+/*
  * struct mbuf *
  * m_getm(m, len, how, type)
  *
@@ -652,9 +701,23 @@ void
 m_freem(m)
 	struct mbuf *m;
 {
-	while (m) {
-		m = m_free(m);
+	int s = splimp();
+
+        if (mcl_pool_now < mcl_pool_max && m->m_next == NULL &&
+            (m->m_flags & (M_PKTHDR|M_EXT)) == (M_PKTHDR|M_EXT) &&
+            m->m_type == MT_DATA && M_EXT_WRITABLE(m) ) {
+		if (m->m_pkthdr.aux) {
+			m_freem(m->m_pkthdr.aux);
+			m->m_pkthdr.aux = NULL;
+		}
+                m->m_nextpkt = mcl_pool;
+                mcl_pool = m;
+                mcl_pool_now++;
+        } else {
+		while (m)
+			m = m_free(m);
 	}
+	splx(s);
 }
 
 /*
