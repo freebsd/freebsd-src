@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.c,v 1.5 1998/12/28 04:56:23 peter Exp $
+ * $Id: vinumrequest.c,v 1.22 1999/01/17 06:15:46 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -46,9 +46,6 @@
 #include <dev/vinum/request.h>
 #include <miscfs/specfs/specdev.h>
 #include <sys/resourcevar.h>
-
-/* pointer to ioctl p parameter, to save passing it around */
-extern struct proc *myproc;
 
 enum requeststatus bre(struct request *rq,
     int plexno,
@@ -68,7 +65,6 @@ int check_range_covered(struct request *);
 void complete_rqe(struct buf *bp);
 void complete_raid5_write(struct rqelement *);
 int abortrequest(struct request *rq, int error);
-void sdio(struct buf *bp);
 void sdio_done(struct buf *bp);
 int vinum_bounds_check(struct buf *bp, struct volume *vol);
 caddr_t allocdatabuf(struct rqelement *rqe);
@@ -81,17 +77,9 @@ struct rqinfo *rqip = rqinfo;
 void 
 logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
 {
-    BROKEN_GDB;
     int s = splhigh();
 
-    vinum_conf.rqipp = &rqip;				    /* XXX for broken gdb */
-    vinum_conf.rqinfop = rqinfo;			    /* XXX for broken gdb */
-
-#if __FreeBSD__ < 3
-    rqip->timestamp = time;				    /* when did this happen? */
-#else
     microtime(&rqip->timestamp);			    /* when did this happen? */
-#endif
     rqip->type = type;
     rqip->bp = ubp;					    /* user buffer */
     switch (type) {
@@ -121,33 +109,13 @@ logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
 void 
 vinumstrategy(struct buf *bp)
 {
-    BROKEN_GDB;
     int volno;
     struct volume *vol = NULL;
-    int s;
     struct devcode *device = (struct devcode *) &bp->b_dev; /* decode device number */
-    enum requeststatus status;
-
-    /* We may have changed the configuration in
-     * an interrupt context.  Update it now.  It
-     * could change again, so do it in a loop.
-     * XXX this is broken and contains a race condition.
-     * The correct way is to hand it off the the Vinum
-     * daemon, but I haven't found a name for it yet */
-    while (vinum_conf.flags & VF_DIRTYCONFIG) {		    /* config is dirty, save it now */
-	int driveno;
-
-	vinum_conf.flags &= ~VF_DIRTYCONFIG;		    /* turn it off */
-	for (driveno = 0; driveno < vinum_conf.drives_used; driveno++) {
-	    if ((DRIVE[driveno].state == drive_down)	    /* drive down */
-	    &&(DRIVE[driveno].vp != NULL))		    /* but still open */
-		close_drive(&DRIVE[driveno]);		    /* close it now */
-	}
-	save_config();
-    }
 
     switch (device->type) {
     case VINUM_SD_TYPE:
+    case VINUM_RAWSD_TYPE:
 	sdio(bp);
 	return;
 
@@ -161,7 +129,7 @@ vinumstrategy(struct buf *bp)
 	return;
 
     case VINUM_VOLUME_TYPE:				    /* volume I/O */
-	volno = VOLNO(bp->b_dev);
+	volno = Volno(bp->b_dev);
 	vol = &VOL[volno];
 	if (vol->state != volume_up) {			    /* can't access this volume */
 	    bp->b_error = EIO;				    /* I/O error */
@@ -178,6 +146,7 @@ vinumstrategy(struct buf *bp)
 	 * for a single plex.  Indicate this by passing a NULL
 	 * pointer (set above) for the volume */
     case VINUM_PLEX_TYPE:
+    case VINUM_RAWPLEX_TYPE:
 	bp->b_resid = bp->b_bcount;			    /* transfer everything */
 	vinumstart(bp, 0);
 	return;
@@ -195,14 +164,10 @@ vinumstrategy(struct buf *bp)
 int 
 vinumstart(struct buf *bp, int reviveok)
 {
-    BROKEN_GDB;
     int plexno;
     int maxplex;					    /* maximum number of plexes to handle */
     struct volume *vol;
-    struct rqgroup *rqg;				    /* current plex's requests */
-    struct rqelement *rqe;				    /* individual element */
     struct request *rq;					    /* build up our request here */
-    int rqno;						    /* index in request list */
     enum requeststatus status;
 
 #if VINUMDEBUG
@@ -238,13 +203,13 @@ vinumstart(struct buf *bp, int reviveok)
     rq->bp = bp;					    /* and the user buffer struct */
 
     if (DEVTYPE(bp->b_dev) == VINUM_VOLUME_TYPE) {	    /* it's a volume, */
-	rq->volplex.volno = VOLNO(bp->b_dev);		    /* get the volume number */
+	rq->volplex.volno = Volno(bp->b_dev);		    /* get the volume number */
 	vol = &VOL[rq->volplex.volno];			    /* and point to it */
 	vol->active++;					    /* one more active request */
 	maxplex = vol->plexes;				    /* consider all its plexes */
     } else {
 	vol = NULL;					    /* no volume */
-	rq->volplex.plexno = PLEXNO(bp->b_dev);		    /* point to the plex */
+	rq->volplex.plexno = Plexno(bp->b_dev);		    /* point to the plex */
 	rq->isplex = 1;					    /* note that it's a plex */
 	maxplex = 1;					    /* just the one plex */
     }
@@ -307,7 +272,7 @@ vinumstart(struct buf *bp, int reviveok)
 
 	    diskstart = bp->b_blkno;			    /* start offset of transfer */
 	    status = bre(rq,
-		PLEXNO(bp->b_dev),
+		Plexno(bp->b_dev),
 		&diskstart,
 		bp->b_blkno + (bp->b_bcount / DEV_BSIZE));  /* build requests for the plex */
 	}
@@ -321,14 +286,8 @@ vinumstart(struct buf *bp, int reviveok)
 		biodone(bp);
 	    freerq(rq);
 	    return -1;
-	} {						    /* XXX */
-	    int result;
-	    int s = splhigh();
-	    result = launch_requests(rq, reviveok);	    /* now start the requests if we can */
-	    splx(s);
-	    return result;
 	}
-	/*    return launch_requests (rq, reviveok);     *//* start the requests */
+	return launch_requests(rq, reviveok);		    /* now start the requests if we can */
     }
 }
 
@@ -348,28 +307,34 @@ launch_requests(struct request *rq, int reviveok)
      * plex we find which is reviving */
     if ((rq->flags & XFR_REVIVECONFLICT)		    /* possible revive conflict */
     &&(!reviveok)) {					    /* and we don't want to do it now, */
-	struct volume *vol = &VOL[VOLNO(rq->bp->b_dev)];
-	struct plex *plex;
-	int plexno;
+	struct sd *sd;
+	struct request *waitlist;			    /* point to the waitlist */
 
-	for (plexno = 0; plexno < vol->plexes; plexno++) {  /* find the reviving plex */
-	    plex = &PLEX[vol->plex[plexno]];
-	    if (plex->state == plex_reviving)		    /* found it */
-		break;
-	}
-	if (plexno < vol->plexes) {			    /* found it? */
-	    struct request *waitlist = plex->waitlist;	    /* point to the waiting list */
-
+	sd = &SD[rq->sdno];
+	if (sd->waitlist != NULL) {			    /* something there already, */
+	    waitlist = sd->waitlist;
 	    while (waitlist->next != NULL)		    /* find the end */
 		waitlist = waitlist->next;
 	    waitlist->next = rq;			    /* hook our request there */
-	    return 0;					    /* and get out of here */
-	} else						    /* bad vinum, bad */
-	    printf("vinum: can't find reviving plex for volume %s\n", vol->name);
+	} else
+	    sd->waitlist = rq;				    /* hook our request at the front */
+
+#if VINUMDEBUG
+	if (debug & DEBUG_REVIVECONFLICT)
+	    printf("Revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+		rq->sdno,
+		(u_int) rq,
+		rq->bp->b_flags & B_READ ? "Read" : "Write",
+		rq->bp->b_dev,
+		rq->bp->b_blkno,
+		rq->bp->b_bcount);			    /* XXX */
+#endif
+	return 0;					    /* and get out of here */
     }
     rq->active = 0;					    /* nothing yet */
     /* XXX This is probably due to a bug */
     if (rq->rqg == NULL) {				    /* no request */
+	printf("vinum: null rqg");
 	abortrequest(rq, EINVAL);
 	return -1;
     }
@@ -394,7 +359,6 @@ launch_requests(struct request *rq, int reviveok)
 	    if (rqe->flags & XFR_BAD_SUBDISK)		    /* this subdisk is bad, */
 		rqg->active--;				    /* one less active request */
 	    else {
-		struct drive *drive = &DRIVE[rqe->driveno]; /* drive to access */
 		if ((rqe->b.b_flags & B_READ) == 0)
 		    rqe->b.b_vp->v_numoutput++;		    /* one more output going */
 		rqe->b.b_flags |= B_ORDERED;		    /* XXX chase SCSI driver */
@@ -449,7 +413,6 @@ bre(struct request *rq,
     daddr_t * diskaddr,
     daddr_t diskend)
 {
-    BROKEN_GDB;
     int sdno;
     struct sd *sd;
     struct rqgroup *rqg;
@@ -473,12 +436,12 @@ bre(struct request *rq,
 	    sd = &SD[plex->sdnos[sdno]];
 	    if ((*diskaddr < (sd->plexoffset + sd->sectors)) /* The request starts before the end of this */
 	    &&(diskend > sd->plexoffset)) {		    /* subdisk and ends after the start of this sd */
-		if ((sd->state != sd_up) || (plex->state != plex_up)) {
+		if (sd->state != sd_up) {
 		    enum requeststatus s;
 
 		    s = checksdstate(sd, rq, *diskaddr, diskend); /* do we need to change state? */
-		    if (s)				    /* give up? */
-			return s;			    /* yup */
+		    if (s)
+			return s;			    /* XXX get this right */
 		}
 		rqg = allocrqg(rq, 1);			    /* space for the request */
 		if (rqg == NULL) {			    /* malloc failed */
@@ -537,7 +500,7 @@ bre(struct request *rq,
 		blockoffset = stripeoffset % plex->stripesize;
 
 		sd = &SD[plex->sdnos[sdno]];		    /* the subdisk in question */
-		if ((sd->state != sd_up) || (plex->state != plex_up)) {
+		if (sd->state != sd_up) {
 		    enum requeststatus s;
 
 		    s = checksdstate(sd, rq, *diskaddr, diskend); /* do we need to change state? */
@@ -605,7 +568,6 @@ enum requeststatus
 build_read_request(struct request *rq,			    /* request */
     int plexindex)
 {							    /* index in the volume's plex table */
-    BROKEN_GDB;
     struct buf *bp;
     daddr_t startaddr;					    /* offset of previous part of transfer */
     daddr_t diskaddr;					    /* offset of current part of transfer */
@@ -676,7 +638,6 @@ build_read_request(struct request *rq,			    /* request */
 enum requeststatus 
 build_write_request(struct request *rq)
 {							    /* request */
-    BROKEN_GDB;
     struct buf *bp;
     daddr_t diskstart;					    /* offset of current part of transfer */
     daddr_t diskend;					    /* and end offset of transfer */
@@ -690,7 +651,7 @@ build_write_request(struct request *rq)
     status = REQUEST_OK;
     for (plexno = 0; plexno < vol->plexes; plexno++) {
 	diskstart = bp->b_blkno;			    /* start offset of transfer */
-	status = min(status, bre(rq,			    /* build requests for the plex */
+	status = max(status, bre(rq,			    /* build requests for the plex */
 		vol->plex[plexno],
 		&diskstart,
 		diskend));
@@ -702,7 +663,6 @@ build_write_request(struct request *rq)
 enum requeststatus 
 build_rq_buffer(struct rqelement *rqe, struct plex *plex)
 {
-    BROKEN_GDB;
     struct sd *sd;					    /* point to subdisk */
     struct volume *vol;
     struct buf *bp;
@@ -718,8 +678,8 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     bp->b_proc = ubp->b_proc;				    /* process pointer */
     bp->b_flags = ubp->b_flags & (B_NOCACHE | B_READ | B_ASYNC); /* copy these flags from user bp */
     bp->b_flags |= B_CALL | B_BUSY;			    /* inform us when it's done */
-    if (plex->state == plex_reviving)
-	bp->b_flags |= B_ORDERED;			    /* keep request order if we're reviving */
+    /* XXX Should we check for reviving plexes here, and
+     * set B_ORDERED if so? */
     bp->b_iodone = complete_rqe;			    /* by calling us here */
     bp->b_dev = DRIVE[rqe->driveno].dev;		    /* drive device */
     bp->b_blkno = rqe->sdoffset + sd->driveoffset;	    /* start address */
@@ -779,22 +739,20 @@ sdio(struct buf *bp)
     daddr_t endoffset;
     struct drive *drive;
 
-    sd = &SD[SDNO(bp->b_dev)];				    /* point to the subdisk */
+    sd = &SD[Sdno(bp->b_dev)];				    /* point to the subdisk */
     drive = &DRIVE[sd->driveno];
 
     if (drive->state != drive_up) {			    /* XXX until we get the states fixed */
-	set_sd_state(SDNO(bp->b_dev), sd_obsolete, setstate_force);
+	if (bp->b_flags & B_WRITE)			    /* writing, */
+	    set_sd_state(Sdno(bp->b_dev), sd_stale, setstate_force);
+	else
+	    set_sd_state(Sdno(bp->b_dev), sd_crashed, setstate_force);
 	bp->b_flags |= B_ERROR;
 	bp->b_error = EIO;
 	biodone(bp);
 	return;
     }
-    /* XXX decide which states we will really accept here.  up
-     * implies it could be involved with a plex, in which
-     * case we don't want to dick with it */
-    if ((sd->state != sd_up)
-	&& (sd->state != sd_initializing)
-	&& (sd->state != sd_reborn)) {			    /* we can't access it */
+    if (sd->state < sd_empty) {				    /* nothing to talk to, */
 	bp->b_flags |= B_ERROR;
 	bp->b_flags = EIO;
 	if (bp->b_flags & B_BUSY)			    /* XXX why isn't this always the case? */
