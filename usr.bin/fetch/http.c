@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.4.2.3 1997/09/15 08:07:05 jkh Exp $
+ *	$Id: http.c,v 1.14 1997/11/01 05:47:41 ache Exp $
  */
 
 #include <sys/types.h>
@@ -125,12 +125,15 @@ static time_t parse_http_date(char *datestring);
 static void setup_http_auth(void);
 
 static int 
-http_parse(struct fetch_state *fs, const char *uri)
+http_parse(struct fetch_state *fs, const char *u)
 {
-	const char *p, *colon, *slash, *ques, *q;
-	char *hostname, *hosthdr, *trimmed_name;
+	const char *p, *colon, *slash, *q;
+	char *hostname, *hosthdr, *trimmed_name, *uri, *ques, saveq = 0;
 	unsigned port;
 	struct http_state *https;
+
+	uri = alloca(strlen(u) + 1);
+	strcpy(uri, u);
 
 	p = uri + 5;
 	port = 0;
@@ -141,6 +144,12 @@ http_parse(struct fetch_state *fs, const char *uri)
 	}
 
 	p += 2;
+
+	if ((ques = strpbrk(p, "?#")) != NULL) {
+		saveq = *ques;
+		*ques = '\0';
+	}
+
 	colon = strchr(p, ':');
 	slash = strchr(p, '/');
 	if (colon && slash && colon < slash)
@@ -175,6 +184,10 @@ http_parse(struct fetch_state *fs, const char *uri)
 
 	p = slash;
 
+	/* parsing finished, restore parm part */
+	if (ques != NULL)
+		*ques = saveq;
+
 	https = safe_malloc(sizeof *https);
 
 	/*
@@ -194,7 +207,6 @@ http_parse(struct fetch_state *fs, const char *uri)
 	 */
 	https->http_remote_request = safe_strdup(p);
 	p++;
-	ques = strpbrk(p, "?#");
 	if (ques) {
 		trimmed_name = safe_strndup(p, ques - p);
 	} else {
@@ -1297,7 +1309,6 @@ parse_http_date(char *string)
 
 	} else if (string[3] == ' ') {
 		/* Mon Jan 27 14:25:20 1997 */
-
 		if (strlen(string) < 24)
 			return -1;
 		string += 4;

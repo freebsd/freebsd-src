@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: file.c,v 1.2 1997/11/08 22:15:55 obrien Exp $
  */
 
 #include <sys/types.h>
@@ -40,6 +40,8 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 #include "fetch.h"
@@ -104,8 +106,10 @@ file_retrieve(struct fetch_state *fs)
 	}
 
 	if (fs->fs_linkfile) {
+    		struct stat sb;
 		fs->fs_status = "symlink";
-		if (symlink(fs->fs_proto, fs->fs_outputfile) == -1) {
+		if (stat(fs->fs_proto, &sb) == -1
+			|| symlink(fs->fs_proto, fs->fs_outputfile) == -1) {
 			warn("symlink");
 			return EX_OSERR;
 		}
