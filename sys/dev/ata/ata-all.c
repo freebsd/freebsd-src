@@ -303,7 +303,8 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;
 	    ATA_SLEEPLOCK_CH(ch, ATA_ACTIVE);
-	    error = ata_reinit(ch);
+	    if ((error = ata_reinit(ch)))
+		ATA_UNLOCK_CH(ch);
 	    return error;
 
 	case ATAGMODE:
@@ -838,6 +839,7 @@ ata_reinit(struct ata_channel *ch)
 
     if (!ch->r_io || !ch->r_altio || !ch->r_irq)
 	return ENXIO;
+
     ATA_FORCELOCK_CH(ch, ATA_CONTROL);
     ch->running = NULL;
     devices = ch->devices;
