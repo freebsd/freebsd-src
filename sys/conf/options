@@ -1,4 +1,4 @@
-#	$Id: options,v 1.15 1996/06/16 19:57:59 joerg Exp $
+#	$Id: options,v 1.16 1996/06/23 14:43:55 bde Exp $
 
 # Option name	filename
 
@@ -58,6 +58,7 @@ NBUF		opt_param.h
 # Generic SCSI options.
 SCSI_REPORT_GEOMETRY	opt_scsi.h
 SCSI_DELAY		opt_scsi.h
+SCSIDEBUG		opt_scsi.h
 
 # Options used only in scsi/od.c.
 OD_BOGUS_NOT_READY	opt_od.h

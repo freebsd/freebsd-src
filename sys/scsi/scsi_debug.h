@@ -1,8 +1,14 @@
-/*#define SCSIDEBUG 1*/
+/*
+ * Use
+ *	options		SCSIDEBUG
+ *
+ * in the kernel config file to get these macros into effect.
+ */
+
 /*
  * Written by Julian Elischer (julian@tfs.com)
  *
- *	$Id: scsi_debug.h,v 1.1 1993/11/18 05:02:54 rgrimes Exp $
+ *	$Id: scsi_debug.h,v 1.2 1995/05/30 08:13:32 rgrimes Exp $
  */
 #ifndef	_SCSI_SCSI_DEBUG_H
 #define _SCSI_SCSI_DEBUG_H 1
