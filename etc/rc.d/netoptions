@@ -424,7 +424,7 @@ network_pass1() {
 	[Nn][Oo] | '')
 		;;
 	*)
-		echo -n ' ip_portrange_first=$ip_portrange_first'
+		echo -n " ip_portrange_first=$ip_portrange_first"
 		sysctl -w net.inet.ip.portrange.first=$ip_portrange_first >/dev/null
 		;;
 	esac
@@ -433,7 +433,7 @@ network_pass1() {
 	[Nn][Oo] | '')
 		;;
 	*)
-		echo -n ' ip_portrange_last=$ip_portrange_last'
+		echo -n " ip_portrange_last=$ip_portrange_last"
 		sysctl -w net.inet.ip.portrange.last=$ip_portrange_last >/dev/null
 		;;
 	esac
