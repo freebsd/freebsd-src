@@ -601,7 +601,7 @@ i4b/layer4/i4b_l4mgmt.c		optional i4b
 i4b/layer4/i4b_l4timer.c	optional i4b
 #
 isa/isa_if.m		optional isa
-isa/isa_common.c	count isa
+isa/isa_common.c	optional isa
 isa/isahint.c		optional isa
 isa/joy.c		optional joy
 isa/pnp.c		optional isa

@@ -45,6 +45,7 @@
 #include "opt_clock.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
+#include "opt_isa.h"
 #include "opt_ktrace.h"
 #include "opt_npx.h"
 #include "opt_trap.h"
@@ -97,8 +98,6 @@
 #include <machine/vm86.h>
 
 #include <ddb/ddb.h>
-
-#include "isa.h"
 
 #include <sys/sysctl.h>
 
@@ -365,7 +364,7 @@ restart:
 			i = SIGFPE;
 			break;
 
-#if NISA > 0
+#ifdef DEV_ISA
 		case T_NMI:
 #ifdef POWERFAIL_NMI
 #ifndef TIMER_FREQ
@@ -398,7 +397,7 @@ restart:
 				panic("NMI indicates hardware failure");
 			break;
 #endif /* POWERFAIL_NMI */
-#endif /* NISA > 0 */
+#endif /* DEV_ISA */
 
 		case T_OFLOW:		/* integer overflow fault */
 			ucode = FPE_INTOVF;
@@ -618,7 +617,7 @@ restart:
 #endif
 			break;
 
-#if NISA > 0
+#ifdef DEV_ISA
 		case T_NMI:
 #ifdef POWERFAIL_NMI
 			mtx_enter(&Giant, MTX_DEF);
@@ -648,7 +647,7 @@ restart:
 				goto out;
 			/* FALL THROUGH */
 #endif /* POWERFAIL_NMI */
-#endif /* NISA > 0 */
+#endif /* DEV_ISA */
 		}
 
 		mtx_enter(&Giant, MTX_DEF);
