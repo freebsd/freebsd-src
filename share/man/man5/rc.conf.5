@@ -1021,19 +1021,19 @@ is set to
 these are the flags to pass to the
 .Xr sendmail 8
 daemon.
-.It Ar savecore_enable
-(bool) If set to
-.Ar YES
-then save kernel crashdumps for debugging purposes when the system
-comes back up after a crash.  Crash images are typically stored in the
-.Pa /var/crash
-directory.
 .It Ar dumpdev
 (str) If not set to
 .Ar NO
 then point kernel crash-dumps at the swap device
 specified as 
 .Em value .
+When the system restarts,
+a crash-dump found on the specified device
+will typically be stored in the
+.Pa /var/crash
+directory by the
+.Xr savecore 8
+program.
 .It Ar check_quotas
 (bool) Set to
 .Ar YES
@@ -1136,6 +1136,7 @@ at system boot time.
 .Xr rpc.lockd 8 ,
 .Xr rpc.statd 8 ,
 .Xr rwhod 8 ,
+.Xr savecore 8 ,
 .Xr sendmail 8 ,
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
