@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.51 1995/03/01 22:24:45 dufault Exp $
+ *      $Id: sd.c,v 1.52 1995/03/04 20:51:03 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -443,14 +443,6 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-/*
-	cldisksort(dp, bp, 64*1024);
-*/
-if ((bp->b_blkno < 0) || (bp->b_bcount > 3000000) /* || (bp->b_flags & B_WRITE) */) {
-	printf("blkno=%lu bcount=%ld flags=0x%lx\n",
-		(u_long)bp->b_blkno, bp->b_bcount, bp->b_flags);
-	Debugger("");
-}
 	disksort(dp, bp);
 
 	/*
