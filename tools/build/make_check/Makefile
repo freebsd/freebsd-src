@@ -1,5 +1,13 @@
 # $FreeBSD$
 
+# Test for broken LHS expansion.
+# This *must* case make(1) to detect a recursive variable, and fail as such.
+.if make(lhs_expn)
+FOO=		${BAR}
+BAR${NIL}=	${FOO}
+FOO${BAR}=	${FOO}
+.endif
+
 DATA1=	helllo
 DATA2:=	${DATA1}
 DATA3=	${DATA2:S/ll/rr/g}
@@ -21,6 +29,9 @@ all:
 	@echo "Running test sysvmatch"
 	@${MAKE} sysvmatch || ${MAKE} failure
 	@echo "PASS: Test sysvmatch detected no regression."
+	@echo "Running test lhs_expn"
+	@${MAKE} lhs_expn || ${MAKE} failure
+	@echo "PASS: Test lhs_expn detected no regression."
 
 # Doubly-defined targets.  NetBSD make(1) will warn, ours will silently use the
 # ``right'' one.
@@ -34,6 +45,12 @@ double:
 sysvmatch:
 	@echo EMPTY ${NIL:=foo} LHS | \
 		diff -u ${.CURDIR}/regress.sysvmatch.out - || false
+
+# A bogus target for the lhs_expn test;  If this is reached, then the make(1)
+# program has not errored out because of the recursion caused by not expanding
+# the left-hand-side's embedded variables above.
+lhs_expn:
+	@false
 
 failure:
 	@echo "FAIL: Test failed: regression detected.  See above."
