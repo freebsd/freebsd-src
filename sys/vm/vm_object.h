@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.29 1996/08/21 21:56:21 dyson Exp $
+ * $Id: vm_object.h,v 1.30 1996/09/08 20:44:43 dyson Exp $
  */
 
 /*
@@ -103,6 +103,7 @@ struct vm_object {
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
 	vm_offset_t last_read;		/* last read in object -- detect seq behavior */
+	vm_page_t page_hint;		/* hint for last looked-up or allocated page */
 	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	void *handle;
 	union {

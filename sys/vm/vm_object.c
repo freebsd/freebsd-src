@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.80 1996/09/08 20:44:41 dyson Exp $
+ * $Id: vm_object.c,v 1.81 1996/09/14 11:54:57 bde Exp $
  */
 
 /*
@@ -164,6 +164,7 @@ _vm_object_allocate(type, size, object)
 	object->paging_offset = (vm_ooffset_t) 0;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
+	object->page_hint = NULL;
 
 	object->last_read = 0;
 
@@ -402,7 +403,7 @@ vm_object_terminate(object)
 	 * from paging queues.
 	 */
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
-		if (p->flags & PG_BUSY)
+		if (p->busy || (p->flags & PG_BUSY))
 			printf("vm_object_terminate: freeing busy page\n");
 		PAGE_WAKEUP(p);
 		vm_page_free(p);
