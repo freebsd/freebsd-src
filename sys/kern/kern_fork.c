@@ -760,6 +760,7 @@ fork_exit(callout, arg, frame)
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
 
+	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
 	/*
 	 * Setup the sched_lock state so that we can release it.
 	 */
@@ -769,13 +770,12 @@ fork_exit(callout, arg, frame)
 	 * XXX: We really shouldn't have to do this.
 	 */
 	mtx_intr_enable(&sched_lock);
-	mtx_unlock_spin(&sched_lock);
-
-#ifdef SMP
+	CTR3(KTR_PROC, "fork_exit: new proc %p (pid %d, %s)", p, p->p_pid,
+	    p->p_comm);
 	if (PCPU_GET(switchtime.tv_sec) == 0)
 		microuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
-#endif
+	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * cpu_set_fork_handler intercepts this function call to
