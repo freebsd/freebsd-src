@@ -379,12 +379,12 @@ literal:
 						fp->_flags |= __SERR;
 						goto input_failure;
 					}
-					if (nconv == 0 && wcp != NULL)
+					if (nconv == 0 && !(flags & SUPPRESS))
 						*wcp = L'\0';
 					if (nconv != (size_t)-2) {
 						nread += n;
 						width--;
-						if (wcp != NULL)
+						if (!(flags & SUPPRESS))
 							wcp++;
 						n = 0;
 					}
@@ -396,7 +396,7 @@ literal:
 						break;
 					}
 				}
-				if (wcp != NULL)
+				if (!(flags & SUPPRESS))
 					nassigned++;
 			} else if (flags & SUPPRESS) {
 				size_t sum = 0;
@@ -471,7 +471,7 @@ literal:
 						}
 						nread += n;
 						width--;
-						if (wcp != &twc)
+						if (!(flags & SUPPRESS))
 							wcp++;
 						nchars++;
 						n = 0;
@@ -491,7 +491,7 @@ literal:
 				n = nchars;
 				if (n == 0)
 					goto match_failure;
-				if (wcp != &twc) {
+				if (!(flags & SUPPRESS)) {
 					*wcp = L'\0';
 					nassigned++;
 				}
@@ -569,7 +569,7 @@ literal:
 						}
 						nread += n;
 						width--;
-						if (wcp != &twc)
+						if (!(flags & SUPPRESS))
 							wcp++;
 						n = 0;
 					}
@@ -581,7 +581,7 @@ literal:
 						break;
 					}
 				}
-				if (wcp != &twc) {
+				if (!(flags & SUPPRESS)) {
 					*wcp = L'\0';
 					nassigned++;
 				}
