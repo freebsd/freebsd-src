@@ -101,6 +101,7 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	return rn;
 }
 
+/* MIB variables: net.inet.ip.{rtexpire,rtmaxcache,rtminexpire}. */
 int rtq_reallyold = 60*60;	/* one hour is ``really old'' */
 int rtq_toomany = 128;		/* 128 cached routes is ``too many'' */
 int rtq_minreallyold = 10;	/* never automatically crank down to less */
@@ -145,12 +146,14 @@ struct rtqk_arg {
 	int draining;
 	int killed;
 	int found;
+	int updating;
 	time_t nextstop;
 };
 
 /*
  * Get rid of old routes.  When draining, this deletes everything, even when
- * the timeout is not expired yet.
+ * the timeout is not expired yet.  When updating, this makes sure that
+ * nothing has a timeout longer than the current value of rtq_reallyold.
  */
 static int
 in_rtqkill(struct radix_node *rn, void *rock)
@@ -163,8 +166,7 @@ in_rtqkill(struct radix_node *rn, void *rock)
 	if(rt->rt_flags & RTPRF_OURS) {
 		ap->found++;
 
-		if(ap->draining || rt->rt_rmx.rmx_expire <= time.tv_sec
-		   || (rt->rt_rmx.rmx_expire - time.tv_sec > rtq_reallyold)) {
+		if(ap->draining || rt->rt_rmx.rmx_expire <= time.tv_sec) {
 			if(rt->rt_refcnt > 0)
 				panic("rtqkill route really not free\n");
 
@@ -178,6 +180,12 @@ in_rtqkill(struct radix_node *rn, void *rock)
 				ap->killed++;
 			}
 		} else {
+			if(ap->updating 
+			   && (time.tv_sec - rt->rt_rmx.rmx_expire 
+			       > rtq_reallyold)) {
+				rt->rt_rmx.rmx_expire = time.tv_sec 
+					+ rtq_reallyold;
+			}
 			ap->nextstop = lmin(ap->nextstop,
 					    rt->rt_rmx.rmx_expire);
 		}
@@ -201,7 +209,7 @@ in_rtqtimo(void *rock)
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
 	arg.nextstop = time.tv_sec + rtq_timeout;
-	arg.draining = 0;
+	arg.draining = arg.updating = 0;
 	s = splnet();
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
 	splx(s);
@@ -226,6 +234,7 @@ in_rtqtimo(void *rock)
 		log(LOG_DEBUG, "in_rtqtimo: adjusted rtq_reallyold to %d",
 		    rtq_reallyold);
 		arg.found = arg.killed = 0;
+		arg.updating = 1;
 		s = splnet();
 		rnh->rnh_walktree(rnh, in_rtqkill, &arg);
 		splx(s);
@@ -246,6 +255,7 @@ in_rtqdrain(void)
 	arg.rnh = rnh;
 	arg.nextstop = 0;
 	arg.draining = 1;
+	arg.updating = 0;
 	s = splnet();
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
 	splx(s);
