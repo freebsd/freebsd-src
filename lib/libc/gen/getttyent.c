@@ -207,11 +207,10 @@ endttyent()
 {
 	int rval;
 
-	if (line) {
-		free(line);
-		line = NULL;
-		lbsize = 0;
-	}
+	/*
+         * NB: Don't free `line' because getttynam()
+	 * may still be referencing it
+	 */
 	if (tf) {
 		rval = (fclose(tf) != EOF);
 		tf = NULL;
