@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.15 1999/01/27 21:49:56 dillon Exp $
+ *	$Id: kern_module.c,v 1.16 1999/01/29 08:36:44 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -81,22 +81,43 @@ module_register_init(const void *arg)
 {
     const moduledata_t* data = (const moduledata_t*) arg;
     int error;
+    module_t mod;
 
-    error = module_register(data->name, data->evhand, data->priv, data->_file);
-    if (error)
-	printf("module_register_init: module_register(%s, %lx, %p) error %d\n",
+    mod = module_lookupbyname(data->name);
+    if (mod == NULL) {
+#if 0
+	panic("module_register_init: module named %s not found\n", data->name);
+#else
+	/* temporary kludge until kernel `file' attachment registers modules */
+	error = module_register(data, linker_kernel_file);
+	if (error)
+	    panic("module_register_init: register of module failed! %d", error);
+	mod = module_lookupbyname(data->name);
+	if (mod == NULL)
+	    panic("module_register_init: module STILL not found!");
+#endif
+    }
+    error = MOD_EVENT(mod, MOD_LOAD);
+    if (error) {
+	MOD_EVENT(mod, MOD_UNLOAD);
+	module_release(mod);
+	printf("module_register_init: MOD_LOAD (%s, %lx, %p) error %d\n",
 	       data->name, (u_long)(uintfptr_t)data->evhand, data->priv, error);
+    }
 }
 
 int
-module_register(const char* name, modeventhand_t handler, void* arg, void *file)
+module_register(const moduledata_t *data, linker_file_t container)
 {
     size_t namelen;
     module_t newmod;
-    int error;
-    linker_file_t container = file;
 
-    namelen = strlen(name) + 1;
+    newmod = module_lookupbyname(data->name);
+    if (newmod != NULL) {
+	printf("module_register: module %s already exists!\n", data->name);
+	return EEXIST;
+    }
+    namelen = strlen(data->name) + 1;
     newmod = (module_t) malloc(sizeof(struct module) + namelen,
 			       M_MODULE, M_WAITOK);
     if (newmod == 0)
@@ -105,25 +126,16 @@ module_register(const char* name, modeventhand_t handler, void* arg, void *file)
     newmod->refs = 1;
     newmod->id = nextid++;
     newmod->name = (char *) (newmod + 1);
-    strcpy(newmod->name, name);
-    newmod->handler = handler;
-    newmod->arg = arg;
+    strcpy(newmod->name, data->name);
+    newmod->handler = data->evhand;
+    newmod->arg = data->priv;
     bzero(&newmod->data, sizeof(newmod->data));
     TAILQ_INSERT_TAIL(&modules, newmod, link);
 
     if (container == NULL)
 	container = linker_current_file;
-    if (container) {
+    if (container)
 	TAILQ_INSERT_TAIL(&container->modules, newmod, flink);
-	newmod->file = container;
-    } else
-	newmod->file = 0;
-
-    if ((error = MOD_EVENT(newmod, MOD_LOAD)) != 0) {
-	MOD_EVENT(newmod, MOD_UNLOAD);
-	module_release(newmod);
-	return error;
-    }
 
     return 0;
 }

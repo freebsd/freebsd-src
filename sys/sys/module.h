@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.h,v 1.9 1999/01/29 06:47:53 dillon Exp $
+ *	$Id: module.h,v 1.10 1999/01/29 08:36:45 dillon Exp $
  */
 
 #ifndef _SYS_MODULE_H_
@@ -47,7 +47,6 @@ typedef struct moduledata {
 	char		*name;	/* module name */
 	modeventhand_t	evhand;	/* event handler */
 	void		*priv;	/* extra data */
-	void		*_file;	/* private; used by linker */
 } moduledata_t;
 
 /*
@@ -68,8 +67,8 @@ typedef union modspecific {
     struct __hack
 
 void module_register_init(const void *data);
-int module_register(const char *name, modeventhand_t callback, void *arg,
-		    void *file);
+struct linker_file;
+int module_register(const struct moduledata *data, struct linker_file *lf);
 module_t module_lookupbyname(const char *name);
 module_t module_lookupbyid(int modid);
 void module_reference(module_t mod);
