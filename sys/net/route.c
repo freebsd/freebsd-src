@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- * $Id: route.c,v 1.10 1994/11/02 04:41:25 wollman Exp $
+ * $Id: route.c,v 1.11 1994/11/03 01:04:30 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -88,25 +88,28 @@ rtalloc(ro)
 {
 	if (ro->ro_rt && ro->ro_rt->rt_ifp && (ro->ro_rt->rt_flags & RTF_UP))
 		return;				 /* XXX */
-	ro->ro_rt = rtalloc1(&ro->ro_dst, 1);
+	ro->ro_rt = rtalloc1(&ro->ro_dst, 1, 0UL);
 }
 
 struct rtentry *
-rtalloc1(dst, report)
+rtalloc1(dst, report, ignflags)
 	register struct sockaddr *dst;
 	int report;
+	u_long ignflags;
 {
 	register struct radix_node_head *rnh = rt_tables[dst->sa_family];
 	register struct rtentry *rt;
 	register struct radix_node *rn;
 	struct rtentry *newrt = 0;
 	struct rt_addrinfo info;
+	u_long nflags;
 	int  s = splnet(), err = 0, msgtype = RTM_MISS;
 
 	if (rnh && (rn = rnh->rnh_matchaddr((caddr_t)dst, rnh)) &&
 	    ((rn->rn_flags & RNF_ROOT) == 0)) {
 		newrt = rt = (struct rtentry *)rn;
-		if (report && (rt->rt_flags & RTF_CLONING)) {
+		nflags = rt->rt_flags & ~ignflags;
+		if (report && (nflags & (RTF_CLONING | RTF_PRCLONING))) {
 			err = rtrequest(RTM_RESOLVE, dst, SA(0),
 					      SA(0), 0, &newrt);
 			if (err) {
@@ -199,7 +202,7 @@ rtredirect(dst, gateway, netmask, flags, src, rtp)
 		error = ENETUNREACH;
 		goto out;
 	}
-	rt = rtalloc1(dst, 0);
+	rt = rtalloc1(dst, 0, 0UL);
 	/*
 	 * If the redirect isn't from our current router for this dst,
 	 * it's either old or wrong.  If it redirects us to ourselves,
@@ -319,7 +322,7 @@ ifa_ifwithroute(flags, dst, gateway)
 	if (ifa == 0)
 		ifa = ifa_ifwithnet(gateway);
 	if (ifa == 0) {
-		struct rtentry *rt = rtalloc1(dst, 0);
+		struct rtentry *rt = rtalloc1(dst, 0, 0UL);
 		if (rt == 0)
 			return (0);
 		rt->rt_refcnt--;
@@ -383,8 +386,8 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		if (ret_nrt == 0 || (rt = *ret_nrt) == 0)
 			senderr(EINVAL);
 		ifa = rt->rt_ifa;
-		flags = rt->rt_flags & ~RTF_CLONING;
-		prflags = rt->rt_prflags | RTPRF_WASCLONED;
+		flags = rt->rt_flags & ~(RTF_CLONING | RTF_PRCLONING);
+		flags |= RTF_WASCLONED;
 		gateway = rt->rt_gateway;
 		if ((netmask = rt->rt_genmask) == 0)
 			flags |= RTF_HOST;
@@ -407,7 +410,6 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 			senderr(ENOBUFS);
 		Bzero(rt, sizeof(*rt));
 		rt->rt_flags = RTF_UP | flags;
-		rt->rt_prflags = prflags;
 		if (rt_setgate(rt, dst, gateway)) {
 			Free(rt);
 			senderr(ENOBUFS);
@@ -473,7 +475,7 @@ rt_setgate(rt0, dst, gate)
 		rt = rt0; rt->rt_gwroute = 0;
 	}
 	if (rt->rt_flags & RTF_GATEWAY) {
-		rt->rt_gwroute = rtalloc1(gate, 1);
+		rt->rt_gwroute = rtalloc1(gate, 1, 0UL);
 	}
 	return 0;
 }
@@ -522,7 +524,7 @@ rtinit(ifa, cmd, flags)
 			rt_maskedcopy(dst, deldst, ifa->ifa_netmask);
 			dst = deldst;
 		}
-		rt = rtalloc1(dst, 0);
+		rt = rtalloc1(dst, 0, 0UL);
 		if (rt) {
 			rt->rt_refcnt--;
 			if (rt->rt_ifa != ifa) {
