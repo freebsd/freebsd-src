@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.16 1995/05/15 00:58:25 phk Exp $
+ * $Id: create_chunk.c,v 1.17 1995/05/15 19:03:08 phk Exp $
  *
  */
 
@@ -156,6 +156,10 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subty
 {
 	int i;
 
+	if (!offset) {
+		offset += d->bios_sect;
+		size -= d->bios_sect;
+	}
 	i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
 	Fixup_Names(d);
 	return i;
