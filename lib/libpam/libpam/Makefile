@@ -80,8 +80,7 @@ SRCS=	openpam_borrow_cred.c \
 	pam_vinfo.c \
 	pam_vprompt.c
 # Local additions
-SRCS+=	pam_debug_log.c \
-	pam_std_option.c
+SRCS+=	pam_debug_log.c
 
 MAN=	openpam.3 \
 	openpam_borrow_cred.3 \
