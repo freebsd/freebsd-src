@@ -33,10 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.23 1995/12/10 13:36:30 phk Exp $
+ *	$Id: swtch.s,v 1.24 1995/12/21 19:20:58 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
+#include "opt_user_ldt.h" /* for USER_LDT */
 #include "assym.s"	/* for preprocessor defines */
 #include <sys/errno.h>	/* for error codes */
 
