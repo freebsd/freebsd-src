@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
  */
 
 #ifndef _NAMESPACE_H_
