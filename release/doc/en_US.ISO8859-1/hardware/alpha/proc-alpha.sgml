@@ -2305,8 +2305,7 @@ cpu	EV5</programlisting>
 
       <para>Currently a maximum of 2GB memory is supported by &os;.</para>
 
-      <para>The on-board Adaptec is not bootable but works with &os;
-      4.0 and later as a datadisk-only SCSI bus.</para>
+      <para>The on-board Adaptec SCSI HBAs are bootable on UP2000.</para>
 
       <para>Busmaster DMA is supported on the first IDE interface
       only. The system can boot from it's IDE hard drives and cdrom 
