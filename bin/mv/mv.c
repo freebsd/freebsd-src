@@ -212,14 +212,25 @@ do_move(from, to)
 		struct statfs sfs;
 		char path[PATH_MAX];
 
-		/* Can't mv(1) a mount point. */
-		if (realpath(from, path) == NULL) {
-			warnx("cannot resolve %s: %s", from, path);
+		/*
+		 * If the source is a symbolic link and is on another
+		 * filesystem, it can be recreated at the destination.
+		 */
+		if (lstat(from, &sb) == -1) {
+			warn("%s", from);
 			return (1);
 		}
-		if (!statfs(path, &sfs) && !strcmp(path, sfs.f_mntonname)) {
-			warnx("cannot rename a mount point");
-			return (1);
+		if (!S_ISLNK(sb.st_mode)) {
+			/* Can't mv(1) a mount point. */
+			if (realpath(from, path) == NULL) {
+				warnx("cannot resolve %s: %s", from, path);
+				return (1);
+			}
+			if (!statfs(path, &sfs) &&
+			    !strcmp(path, sfs.f_mntonname)) {
+				warnx("cannot rename a mount point");
+				return (1);
+			}
 		}
 	} else {
 		warn("rename %s to %s", from, to);
