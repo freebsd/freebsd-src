@@ -1,4 +1,4 @@
-#  $Id: Makefile,v 1.1 1999/04/18 09:48:40 obrien Exp $
+#  $Id: Makefile,v 1.2 1999/05/01 22:23:29 obrien Exp $
 
 EGCSDIR=	${.CURDIR}/../../../contrib/egcs
 
@@ -22,6 +22,12 @@ F77POW=		pow_ci.c pow_dd.c pow_di.c pow_hh.c pow_ii.c pow_ri.c pow_zi.c \
 F77CX=		c_abs.c c_cos.c c_div.c c_exp.c c_log.c c_sin.c c_sqrt.c
 F77DCX=		${F77CX:S/^c_/z_/g}
 
+F77INT=		i_abs.c i_dim.c i_dnnt.c i_indx.c i_len.c i_mod.c i_nint.c \
+		i_sign.c
+
+F77HALF=	h_abs.c h_dim.c h_dnnt.c h_indx.c h_len.c h_mod.c h_nint.c \
+		h_sign.c
+
 F77REAL=	r_abs.c r_acos.c r_asin.c r_atan.c r_atn2.c r_cnjg.c r_cos.c \
 		r_cosh.c r_dim.c r_exp.c r_imag.c r_int.c r_lg10.c r_log.c \
 		r_mod.c r_nint.c r_sign.c r_sin.c r_sinh.c r_sqrt.c r_tan.c \
@@ -36,8 +42,8 @@ F77CHAR=	s_cat.c s_cmp.c s_copy.c
 
 F77F90BIT=	lbitbits.c lbitshft.c qbitbits.c qbitshft.c
 
-F77SRCS=	${F77MISC} ${F77POW} ${F77CX} ${F77DCX} ${F77REAL} ${F77DBL} \
-		${F77CMP} ${F77EFL} ${F77CHAR} ${F77F90BIT}
+F77SRCS=	${F77MISC} ${F77POW} ${F77CX} ${F77DCX} ${F77INT} ${F77HALF} \
+		${F77REAL} ${F77DBL} ${F77CMP} ${F77EFL} ${F77CHAR} ${F77F90BIT}
 
 # I/O Library members defined in libI77
 
