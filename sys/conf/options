@@ -112,6 +112,8 @@ MSGSEG		opt_sysvipc.h
 MSGSSZ		opt_sysvipc.h
 MSGTQL		opt_sysvipc.h
 VFS_AIO
+WLCACHE		opt_wavelan.h
+WLDEBUG		opt_wavelan.h
 
 # POSIX kernel options
 P1003_1B			opt_posix.h
