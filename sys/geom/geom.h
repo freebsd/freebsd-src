@@ -225,11 +225,18 @@ int g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 
 /* geom_kern.c / geom_kernsim.c */
 
+#ifndef _SYS_CONF_H_
+typedef int d_ioctl_t(dev_t dev, u_long cmd, caddr_t data,
+		      int fflag, struct thread *td);
+#endif
+
 struct g_ioctl {
 	u_long		cmd;
 	void		*data;
 	int		fflag;
 	struct thread	*td;
+	d_ioctl_t	*func;
+	dev_t		dev;
 };
 
 #ifdef _KERNEL
