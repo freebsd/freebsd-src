@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.9 1994/11/02 23:47:13 se Exp $
+**  $Id: pci.c,v 1.14 1995/02/14 23:33:38 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -35,6 +35,8 @@
 **
 ***************************************************************************
 */
+
+#define PCI_PATCHLEVEL  "pl2 95/02/21"
 
 #include <pci.h>
 #if NPCI > 0
@@ -104,16 +106,27 @@ static	vm_offset_t pmap_mapdev (vm_offset_t paddr, vm_size_t vsize);
 /*--------------------------------------------------------
 **
 **	The pci devices can be mapped to any address.
-**	As default we start at the last gigabyte.
+**	This is a list of possible starting addresses.
+**	It can be prepended by a config option.
 **
 **--------------------------------------------------------
 */
 
-#ifndef PCI_PMEM_START
-#define PCI_PMEM_START 0xc0000000
+static	u_long	pci_stable[] = {
+#ifdef PCI_PMEM_START
+	(PCI_PMEM_START),
 #endif
+	0xf1000000,
+	0x53900000,
+	0xc0000000,
+	0x81000000,
+	0x0f000000,
+};
 
-static	vm_offset_t pci_paddr = PCI_PMEM_START;
+static	vm_offset_t pci_paddr = 0;
+static	vm_offset_t pci_pold  = 0;
+static	vm_offset_t pci_pidx  = 0;
+
 
 /*--------------------------------------------------------
 **
@@ -175,7 +188,6 @@ void pci_configure()
 	int	pciint;
 	int	irq;
 	char*	name=0;
-	vm_offset_t old_addr=pci_paddr;
 	u_short	old_ioaddr=pci_ioaddr;
 
 	int	dvi;
@@ -204,8 +216,8 @@ void pci_configure()
 	/*
 	**	hello world ..
 	*/
-
 
+	pci_pold=pci_paddr;
 	for (bus=0;bus<NPCI;bus++) {
 #ifndef PCI_QUIET
 	    printf ("%s%d: scanning device 0..%d, mechanism=%d.\n",
@@ -373,9 +385,9 @@ void pci_configure()
 	};
 
 #ifndef PCI_QUIET
-	if (pci_paddr != old_addr)
+	if (pci_paddr != pci_pold)
 		printf ("pci uses physical addresses from 0x%lx to 0x%lx\n",
-			(u_long)PCI_PMEM_START, (u_long)pci_paddr);
+			(u_long)pci_pold, (u_long)pci_paddr);
 	if (pci_ioaddr != old_ioaddr)
 		printf ("pci devices use ioports from 0x%x to 0x%x\n",
 			(unsigned)PCI_PORT_START, (unsigned)pci_ioaddr);
@@ -424,8 +436,8 @@ pci_conf_write (pcici_t tag, u_long reg, u_long data)
 
 int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 {
-	u_long	data;
-	u_short	size;
+	u_long	data,oldmap;
+	u_short	size, ioaddr;
 
 	/*
 	**	sanity check
@@ -445,6 +457,12 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 	**	n-2 bits are hardwired as 0.
 	*/
 
+#ifdef PCI_REMAP
+	oldmap = 0;
+#else
+	oldmap = pcibus.pb_read (tag, reg) & 0xfffffffc;
+	if (oldmap==0xfffffffc) oldmap=0;
+#endif
 	pcibus.pb_write (tag, reg, 0xfffffffful);
 	data = pcibus.pb_read (tag, reg);
 
@@ -468,11 +486,19 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 	if (!size) return (0);
 
 	/*
-	**	align physical address to virtual size
+	**	align physical address to virtual size,
+	**	set ioaddr,
+	**	and don't forget to increment pci_ioaddr
 	*/
 
-	if ((data = pci_ioaddr % size))
-		pci_ioaddr += size - data;
+	if (oldmap) {
+		ioaddr = oldmap;
+	} else {
+		if ((data = pci_ioaddr % size))
+			pci_ioaddr += size - data;
+		ioaddr = pci_ioaddr;
+		pci_ioaddr += size;
+	};
 
 #ifndef PCI_QUIET
 	/*
@@ -480,26 +506,20 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 	*/
 
 	printf ("\treg%d: ioaddr=0x%x size=0x%x\n",
-		(unsigned) reg, (unsigned) pci_ioaddr, (unsigned) size);
+		(unsigned) reg, (unsigned) ioaddr, (unsigned) size);
 #endif
 
 	/*
 	**	set device address
 	*/
 
-	pcibus.pb_write (tag, reg, (u_long) pci_ioaddr);
+	pcibus.pb_write (tag, reg, (u_long) ioaddr);
 
 	/*
 	**	return them to the driver
 	*/
 
 	*pa = pci_ioaddr;
-
-	/*
-	**	and don't forget to increment pci_ioaddr
-	*/
-
-	pci_ioaddr += size;
 
 	return (1);
 }
@@ -515,7 +535,7 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 
 int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
-	u_long data;
+	u_long data,oldmap,paddr;
 	vm_size_t vsize;
 	vm_offset_t vaddr;
 	int i;
@@ -531,13 +551,19 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	};
 
 	/*
-	**	get size and type of memory
+	**	save old mapping, get size and type of memory
 	**
 	**	type is in the lowest four bits.
 	**	If device requires 2^n bytes, the next
 	**	n-4 bits are read as 0.
 	*/
 
+#ifdef PCI_REMAP
+	oldmap = 0;
+#else
+	oldmap = pcibus.pb_read (tag, reg) & 0xfffffff0;
+	if (oldmap==0xfffffff0) oldmap = 0;
+#endif
 	pcibus.pb_write (tag, reg, 0xfffffffful);
 	data = pcibus.pb_read (tag, reg);
 
@@ -551,7 +577,7 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	       		(unsigned) data);
 		return (0);
 	};
-
+
 	/*
 	**	mask out the type,
 	**	and round up to a page size
@@ -560,7 +586,29 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	vsize = round_page (-(data &  PCI_MAP_MEMORY_ADDRESS_MASK));
 
 	if (!vsize) return (0);
-
+
+	if (oldmap) {
+		paddr = oldmap;
+		goto domap;
+	};
+
+next_try:
+	if (!pci_paddr) {
+		/*
+		**	Get a starting address.
+		*/
+		if (pci_pidx >= sizeof(pci_stable)/sizeof(u_long)) {
+			printf ("pci_map_mem: out of start addresses.\n");
+			return (0);
+		};
+
+		pci_paddr = pci_stable[pci_pidx++];
+		pci_pold  = 0;
+
+		if (pci_pidx>1)
+			printf ("\t(retry at 0x%x)\n",
+				(unsigned) pci_paddr);
+	};
 	/*
 	**	align physical address to virtual size
 	*/
@@ -568,53 +616,83 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	if ((data = pci_paddr % vsize))
 		pci_paddr += vsize - data;
 
-	vaddr = (vm_offset_t) pmap_mapdev (pci_paddr, vsize);
-	
+	if (!pci_pold)
+		pci_pold = pci_paddr;
+
+	/*
+	**	set physical mapping address,
+	**	and reserve physical address range
+	*/
+
+	paddr     = pci_paddr;
+	pci_paddr += vsize;
+
+domap:
+	vaddr = (vm_offset_t) pmap_mapdev (paddr, vsize);
 
 	if (!vaddr) return (0);
-
+
 #ifndef PCI_QUIET
 	/*
 	**	display values.
 	*/
 
 	printf ("\treg%d: virtual=0x%lx physical=0x%lx\n",
-		(unsigned) reg, (u_long)vaddr, (u_long)pci_paddr);
+		(unsigned) reg, (u_long)vaddr, (u_long)paddr);
 #endif
 
 	/*
 	**	probe for already mapped device.
 	*/
 
-	for (i=0; i<vsize; i+=4) {
+	if (!oldmap) for (i=0; i<vsize; i+=4) {
 		u_long* addr = (u_long*) (vaddr+i);
 		data = *addr;
 		if (data != 0xffffffff) {
-			printf ("WARNING: possible address conflict "
-				"at 0x%08x (read: 0x%08x).\n",
-				(unsigned) pci_paddr+i, (unsigned) data);
-			break;
+			printf ("\t(possible address conflict: "
+				"at 0x%x read: 0x%x)\n",
+				(unsigned) paddr+i, (unsigned) data);
+			pci_paddr = 0;
+			goto next_try;
 		};
 	};
 
 	/*
-	**	return them to the driver
+	**	Set device address
+	*/
+
+	pcibus.pb_write (tag, reg, paddr);
+
+	/*
+	**	Check if correctly mapped.
+	**
+	**	W A R N I N G
+	**
+	**	This code assumes that the device will NOT return
+	**	only ones (0xffffffff) from all offsets.
+	*/
+
+	for (i=0; i<vsize; i+=4) {
+		u_long* addr = (u_long*) (vaddr+i);
+		data = *addr;
+		if (data != 0xffffffff)
+			break;
+	};
+
+	if (data==0xffffffff) {
+		printf ("\t(possible mapping problem: "
+			"at 0x%x read 0xffffffff)\n",
+			(unsigned) paddr);
+		pci_paddr = 0;
+		goto next_try;
+	};
+
+	/*
+	**	Return addresses to the driver
 	*/
 
 	*va = vaddr;
-	*pa = pci_paddr;
-
-	/*
-	**	set device address
-	*/
-
-	pcibus.pb_write (tag, reg, pci_paddr);
-
-	/*
-	**	and don't forget to increment pci_paddr
-	*/
-
-	pci_paddr += vsize;
+	*pa = paddr;
 
 	return (1);
 }
