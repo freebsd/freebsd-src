@@ -388,40 +388,6 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 }
 
 /*
- * Map the buffer buf into bus space using the dmamap map.
- */
-int
-bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-                bus_size_t buflen, bus_dmamap_callback_t *callback,
-                void *callback_arg, int flags)
-{
-     	vm_offset_t	lastaddr = 0;
-	int		error, nsegs = -1;
-#ifdef __GNUC__
-	bus_dma_segment_t dm_segments[dmat->nsegments];
-#else
-	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
-#endif
-
-	map->flags &= ~DMAMAP_TYPE_MASK;
-	map->flags |= DMAMAP_LINEAR|DMAMAP_COHERENT;
-	map->buffer = buf;
-	map->len = buflen;
-	error = bus_dmamap_load_buffer(dmat,
-	    dm_segments, map, buf, buflen, kernel_pmap,
-	    flags, &lastaddr, &nsegs);
-	if (error)
-		(*callback)(callback_arg, NULL, 0, error);
-	else
-		(*callback)(callback_arg, dm_segments, nsegs + 1, error);
-	
-	CTR4(KTR_BUSDMA, "bus_dmamap_load: tag %p tag flags 0x%x error %d "
-	    "nsegs %d", dmat, dmat->flags, nsegs + 1, error);
-
-	return (0);
-}
-
-/*
  * Utility function to load a linear buffer.  lastaddrp holds state
  * between invocations (for multiple-buffer loads).  segp contains
  * the starting segment on entrance, and the ending segment on exit.
@@ -554,6 +520,40 @@ segdone:
 	if (buflen != 0)
 		error = EFBIG; /* XXX better return value here? */
 	return (error);
+}
+
+/*
+ * Map the buffer buf into bus space using the dmamap map.
+ */
+int
+bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
+                bus_size_t buflen, bus_dmamap_callback_t *callback,
+                void *callback_arg, int flags)
+{
+     	vm_offset_t	lastaddr = 0;
+	int		error, nsegs = -1;
+#ifdef __GNUC__
+	bus_dma_segment_t dm_segments[dmat->nsegments];
+#else
+	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
+#endif
+
+	map->flags &= ~DMAMAP_TYPE_MASK;
+	map->flags |= DMAMAP_LINEAR|DMAMAP_COHERENT;
+	map->buffer = buf;
+	map->len = buflen;
+	error = bus_dmamap_load_buffer(dmat,
+	    dm_segments, map, buf, buflen, kernel_pmap,
+	    flags, &lastaddr, &nsegs);
+	if (error)
+		(*callback)(callback_arg, NULL, 0, error);
+	else
+		(*callback)(callback_arg, dm_segments, nsegs + 1, error);
+	
+	CTR4(KTR_BUSDMA, "bus_dmamap_load: tag %p tag flags 0x%x error %d "
+	    "nsegs %d", dmat, dmat->flags, nsegs + 1, error);
+
+	return (0);
 }
 
 /*
