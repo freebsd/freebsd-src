@@ -33,12 +33,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: buf_subs.c,v 1.8 1997/08/29 16:12:20 sos Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)buf_subs.c	8.2 (Berkeley) 4/18/94";
+#if 0
+static char sccsid[] = "@(#)buf_subs.c	8.2 (Berkeley) 4/18/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>

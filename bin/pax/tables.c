@@ -33,12 +33,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: tables.c,v 1.9 1997/08/29 16:12:29 sos Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)tables.c	8.1 (Berkeley) 5/31/93";
+#if 0
+static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 5/31/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>

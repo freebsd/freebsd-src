@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: fmt.c,v 1.9 1997/02/22 14:05:00 peter Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
+#if 0
+static char sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
