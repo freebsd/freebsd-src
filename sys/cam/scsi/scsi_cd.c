@@ -496,6 +496,7 @@ cdcleanup(struct cam_periph *periph)
 		free(softc->changer, M_DEVBUF);
 		num_changers--;
 	}
+	disk_destroy(&softc->disk);
 	free(softc, M_DEVBUF);
 	splx(s);
 }
@@ -2851,6 +2852,20 @@ cdsize(struct cam_periph *periph, u_int32_t *size)
 	softc = (struct cd_softc *)periph->softc;
              
 	ccb = cdgetccb(periph, /* priority */ 1);
+
+	scsi_test_unit_ready(&ccb->csio, 0, cddone,
+	    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE, 1000);
+	ccb->ccb_h.ccb_bp = NULL;
+
+	error = cam_periph_runccb(ccb, NULL,
+				  /*cam_flags*/0,
+				  /*sense_flags*/SF_RETRY_UA,
+				  softc->disk.d_devstat);
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		xpt_release_ccb(ccb);
+		return (ENXIO);
+	}
 
 	rcap_buf = malloc(sizeof(struct scsi_read_capacity_data), 
 			  M_TEMP, M_WAITOK);
