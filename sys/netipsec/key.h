@@ -100,7 +100,14 @@ extern void key_sa_routechange __P((struct sockaddr *));
 extern void key_sa_stir_iv __P((struct secasvar *));
 
 #ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_SECA);
+MALLOC_DECLARE(M_IPSEC_SA);
+MALLOC_DECLARE(M_IPSEC_SAH);
+MALLOC_DECLARE(M_IPSEC_SP);
+MALLOC_DECLARE(M_IPSEC_SR);
+MALLOC_DECLARE(M_IPSEC_MISC);
+MALLOC_DECLARE(M_IPSEC_SAQ);
+MALLOC_DECLARE(M_IPSEC_SAR);
+MALLOC_DECLARE(M_IPSEC_INPCB);
 #endif /* MALLOC_DECLARE */
 
 #endif /* defined(_KERNEL) */

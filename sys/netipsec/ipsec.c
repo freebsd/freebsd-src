@@ -202,6 +202,8 @@ static int ipsec_get_policy __P((struct secpolicy *pcb_sp, struct mbuf **mp));
 static void vshiftl __P((unsigned char *, int, int));
 static size_t ipsec_hdrsiz __P((struct secpolicy *));
 
+MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
+
 /*
  * Return a held reference to the default SP.
  */
@@ -836,7 +838,7 @@ static void
 ipsec_delpcbpolicy(p)
 	struct inpcbpolicy *p;
 {
-	free(p, M_SECA);
+	free(p, M_IPSEC_INPCB);
 }
 
 /* initialize policy in PCB */
@@ -852,7 +854,7 @@ ipsec_init_policy(so, pcb_sp)
 		panic("ipsec_init_policy: NULL pointer was passed.\n");
 
 	new = (struct inpcbpolicy *) malloc(sizeof(struct inpcbpolicy),
-					    M_SECA, M_NOWAIT|M_ZERO);
+					    M_IPSEC_INPCB, M_NOWAIT|M_ZERO);
 	if (new == NULL) {
 		ipseclog((LOG_DEBUG, "ipsec_init_policy: No more memory.\n"));
 		return ENOBUFS;
@@ -909,6 +911,24 @@ ipsec_copy_policy(old, new)
 	return 0;
 }
 
+struct ipsecrequest *
+ipsec_newisr(void)
+{
+	struct ipsecrequest *p;
+
+	p = malloc(sizeof(struct ipsecrequest), M_IPSEC_SR, M_NOWAIT|M_ZERO);
+	if (p != NULL)
+		mtx_init(&p->lock, "ipsec request", NULL, MTX_DEF);
+	return p;
+}
+
+void
+ipsec_delisr(struct ipsecrequest *p)
+{
+	mtx_destroy(&p->lock);
+	free(p, M_IPSEC_SR);
+}
+
 /* deep-copy a policy in PCB */
 static struct secpolicy *
 ipsec_deepcopy_policy(src)
@@ -932,13 +952,9 @@ ipsec_deepcopy_policy(src)
 	 */
 	q = &newchain;
 	for (p = src->req; p; p = p->next) {
-		*q = (struct ipsecrequest *)malloc(sizeof(struct ipsecrequest),
-			M_SECA, M_NOWAIT);
+		*q = ipsec_newisr();
 		if (*q == NULL)
 			goto fail;
-		bzero(*q, sizeof(**q));
-		(*q)->next = NULL;
-
 		(*q)->saidx.proto = p->saidx.proto;
 		(*q)->saidx.mode = p->saidx.mode;
 		(*q)->level = p->level;
@@ -947,7 +963,6 @@ ipsec_deepcopy_policy(src)
 		bcopy(&p->saidx.src, &(*q)->saidx.src, sizeof((*q)->saidx.src));
 		bcopy(&p->saidx.dst, &(*q)->saidx.dst, sizeof((*q)->saidx.dst));
 
-		(*q)->sav = NULL;
 		(*q)->sp = dst;
 
 		q = &((*q)->next);
@@ -963,7 +978,7 @@ ipsec_deepcopy_policy(src)
 fail:
 	for (p = newchain; p; p = r) {
 		r = p->next;
-		free(p, M_SECA);
+		ipsec_delisr(p);
 		p = NULL;
 	}
 	return NULL;

@@ -108,7 +108,7 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	union sockaddr_union dst_address;
 	struct secasvar *sav;
 	u_int32_t spi;
-	int s, error;
+	int error;
 
 	IPSEC_ISTAT(sproto, espstat.esps_input, ahstat.ahs_input,
 		ipcompstat.ipcomps_input);
@@ -178,8 +178,6 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 		return EPFNOSUPPORT;
 	}
 
-	s = splnet();
-
 	/* NB: only pass dst since key_allocsa follows RFC2401 */
 	sav = KEY_ALLOCSA(&dst_address, sproto, spi);
 	if (sav == NULL) {
@@ -189,7 +187,6 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 			  (u_long) ntohl(spi), sproto));
 		IPSEC_ISTAT(sproto, espstat.esps_notdb, ahstat.ahs_notdb,
 		    ipcompstat.ipcomps_notdb);
-		splx(s);
 		m_freem(m);
 		return ENOENT;
 	}
@@ -202,7 +199,6 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 		IPSEC_ISTAT(sproto, espstat.esps_noxform, ahstat.ahs_noxform,
 		    ipcompstat.ipcomps_noxform);
 		KEY_FREESAV(&sav);
-		splx(s);
 		m_freem(m);
 		return ENXIO;
 	}
@@ -213,7 +209,6 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	 */
 	error = (*sav->tdb_xform->xf_input)(m, sav, skip, protoff);
 	KEY_FREESAV(&sav);
-	splx(s);
 	return error;
 }
 

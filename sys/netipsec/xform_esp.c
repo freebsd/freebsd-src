@@ -447,7 +447,7 @@ static int
 esp_input_cb(struct cryptop *crp)
 {
 	u_int8_t lastthree[3], aalg[AH_HMAC_HASHLEN];
-	int s, hlen, skip, protoff, error;
+	int hlen, skip, protoff, error;
 	struct mbuf *m;
 	struct cryptodesc *crd;
 	struct auth_hash *esph;
@@ -467,8 +467,6 @@ esp_input_cb(struct cryptop *crp)
 	protoff = tc->tc_protoff;
 	mtag = (struct m_tag *) tc->tc_ptr;
 	m = (struct mbuf *) crp->crp_buf;
-
-	s = splnet();
 
 	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
 	if (sav == NULL) {
@@ -497,7 +495,6 @@ esp_input_cb(struct cryptop *crp)
 
 		if (crp->crp_etype == EAGAIN) {
 			KEY_FREESAV(&sav);
-			splx(s);
 			return crypto_dispatch(crp);
 		}
 
@@ -610,12 +607,10 @@ DPRINTF(("esp_input_cb: %x %x\n", lastthree[0], lastthree[1]));
 	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag);
 
 	KEY_FREESAV(&sav);
-	splx(s);
 	return error;
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);
-	splx(s);
 	if (m != NULL)
 		m_freem(m);
 	if (tc != NULL)
@@ -868,15 +863,14 @@ esp_output_cb(struct cryptop *crp)
 	struct ipsecrequest *isr;
 	struct secasvar *sav;
 	struct mbuf *m;
-	int s, err, error;
+	int err, error;
 
 	tc = (struct tdb_crypto *) crp->crp_opaque;
 	KASSERT(tc != NULL, ("esp_output_cb: null opaque data area!"));
 	m = (struct mbuf *) crp->crp_buf;
 
-	s = splnet();
-
 	isr = tc->tc_isr;
+	mtx_lock(&isr->lock);
 	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
 	if (sav == NULL) {
 		espstat.esps_notdb++;
@@ -897,7 +891,7 @@ esp_output_cb(struct cryptop *crp)
 
 		if (crp->crp_etype == EAGAIN) {
 			KEY_FREESAV(&sav);
-			splx(s);
+			mtx_unlock(&isr->lock);
 			return crypto_dispatch(crp);
 		}
 
@@ -925,12 +919,13 @@ esp_output_cb(struct cryptop *crp)
 	/* NB: m is reclaimed by ipsec_process_done. */
 	err = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
-	splx(s);
+	mtx_unlock(&isr->lock);
+
 	return err;
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);
-	splx(s);
+	mtx_unlock(&isr->lock);
 	if (m)
 		m_freem(m);
 	free(tc, M_XDATA);
