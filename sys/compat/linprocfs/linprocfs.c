@@ -413,7 +413,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 static int
 linprocfs_dostat(PFS_FILL_ARGS)
 {
-	unsigned int olen, plen;
+	size_t olen, plen;
 	int name[2];
 	int i, ncpu;
 
