@@ -224,7 +224,6 @@ slot_fill(struct ksegrp *kg)
 	}
 }
 
-#ifdef SCHED_4BSD
 /*
  * Remove a thread from its KSEGRP's run queue.
  * This in turn may remove it from a KSE if it was already assigned
@@ -274,7 +273,6 @@ remrunqueue(struct thread *td)
 		/* slot_fill(kg); */ /* will replace it with another */
 	}
 }
-#endif
 
 /*
  * Change the priority of a thread that is on the run queue.
@@ -528,8 +526,18 @@ maybe_preempt(struct thread *td)
 	/*
 	 * Our thread state says that we are already on a run queue, so
 	 * update our state as if we had been dequeued by choosethread().
+	 * However we must not actually be on the system run queue yet.
 	 */
 	MPASS(TD_ON_RUNQ(td));
+	MPASS(td->td_sched->ke_state != KES_ONRUNQ);
+	if (td->td_proc->p_flag & P_HADTHREADS) {
+		/*
+		 * If this is a threaded process we actually ARE on the
+		 * ksegrp run queue so take it off that first.
+		 */
+		remrunqueue(td); /* maybe use a simpler version */
+	}
+		
 	TD_SET_RUNNING(td);
 	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
