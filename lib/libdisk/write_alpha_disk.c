@@ -23,8 +23,10 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include "libdisk.h"
 
-/* XXX: A lot of hardcoded 512s probably should be foo->sector_size;
-        I'm not sure which, so I leave it like it worked before. --schweikh */
+/*
+ * XXX: A lot of hardcoded 512s probably should be foo->sector_size;
+ *	I'm not sure which, so I leave it like it worked before. --schweikh
+ */
 int
 Write_Disk(const struct disk *d1)
 {
@@ -54,7 +56,7 @@ Write_Disk(const struct disk *d1)
 		memcpy(buf + 512 * i, p, 512);
 		free(p);
 	}
-	if(d1->boot1)
+	if (d1->boot1)
 		memcpy(buf + 512, d1->boot1, BBSIZE - 512);
 
 	dl = (struct disklabel *)(buf + 512 * LABELSECTOR + LABELOFFSET);

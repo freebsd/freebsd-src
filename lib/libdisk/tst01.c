@@ -82,7 +82,7 @@ scan_block(int fd, daddr_t block)
 
 	if (-1 == lseek(fd, (off_t)block * 512, SEEK_SET))
 		err(1, "lseek");
-	if (512 != read(fd,foo, 512))
+	if (512 != read(fd, foo, 512))
 		return 1;
 	return 0;
 }
@@ -92,27 +92,27 @@ Scan_Disk(struct disk *d)
 {
 	char device[64];
 	u_long l;
-	int i,j,fd;
+	int i, j, fd;
 
-        strcpy(device,_PATH_DEV);
-        strcat(device,d->name);
+        strcpy(device, _PATH_DEV);
+        strcat(device, d->name);
 
-        fd = open(device,O_RDWR);
+        fd = open(device, O_RDWR);
         if (fd < 0) {
-                warn("open(%s) failed",device);
+                warn("open(%s) failed", device);
                 return;
         }
-	for(i=-1,l=0;;l++) {
-		j = scan_block(fd,l);
+	for (i = -1, l = 0; ; l++) {
+		j = scan_block(fd, l);
 		if (j != i) {
 			if (i == -1) {
 				printf("%c: %lu.",j ? 'B' : 'G', l);
 				fflush(stdout);
 			} else if (i == 0) {
-				printf(".%lu\nB: %lu.",l-1,l);
+				printf(".%lu\nB: %lu.", l - 1, l);
 				fflush(stdout);
 			} else {
-				printf(".%lu\nG: %lu.",l-1,l);
+				printf(".%lu\nG: %lu.", l - 1, l);
 				fflush(stdout);
 			}
 			i = j;
@@ -129,20 +129,20 @@ main(int argc, char **argv)
 #ifndef READLINE
 	char input[BUFSIZ];
 #endif
-	char *p,*q=0;
-	char **cp,*cmds[200];
-	int ncmd,i;
+	char *p,*q = 0;
+	char **cp, *cmds[200];
+	int ncmd, i;
 
 	if (argc < 2) {
-		fprintf(stderr,"Usage:\n\t%s diskname\n",argv[0]);
+		fprintf(stderr, "Usage:\n\t%s diskname\n", argv[0]);
 		exit(1);
 	}
 	d = Open_Disk(argv[1]);
 	if (!d)
-		err(1,"Couldn't open disk %s",argv[1]);
+		err(1, "Couldn't open disk %s", argv[1]);
 
-	sprintf(myprompt,"%s %s> ",argv[0],argv[1]);
-	while(1) {
+	sprintf(myprompt, "%s %s> ", argv[0], argv[1]);
+	while (1) {
 		printf("--==##==--\n");
 		p = CheckRules(d);
 		Debug_Disk(d);
@@ -157,82 +157,84 @@ main(int argc, char **argv)
 #else
 		printf("%s", myprompt);
 		fflush(stdout);
-		q = p = fgets(input,sizeof(input),stdin);
+		q = p = fgets(input, sizeof(input), stdin);
 #endif
 		if(!p)
 			break;
-		for(cp = cmds; (*cp = strsep(&p, " \t\n")) != NULL;)
+		for (cp = cmds; (*cp = strsep(&p, " \t\n")) != NULL;)
 			if (**cp != '\0')
 				cp++;
 		ncmd = cp - cmds;
-		if(!ncmd)
+		if (!ncmd)
 			continue;
-		if (!strcasecmp(*cmds,"quit")) { break; }
-		if (!strcasecmp(*cmds,"exit")) { break; }
-		if (!strcasecmp(*cmds,"q")) { break; }
-		if (!strcasecmp(*cmds,"x")) { break; }
-		if (!strcasecmp(*cmds,"dwim") && ncmd == 6) {
+		if (!strcasecmp(*cmds, "quit"))
+			break;
+		if (!strcasecmp(*cmds, "exit"))
+			break;
+		if (!strcasecmp(*cmds, "q"))
+			break;
+		if (!strcasecmp(*cmds, "x"))
+			break;
+		if (!strcasecmp(*cmds, "dwim") && ncmd == 6) {
 			printf("dwim = %p\n",
-				Create_Chunk_DWIM(d,
-					(struct chunk *)strtol(cmds[1],0,0),
-					strtol(cmds[2],0,0),
-					strtol(cmds[3],0,0),
-					strtol(cmds[4],0,0),
-					strtol(cmds[5],0,0)));
+			       Create_Chunk_DWIM(d,
+					 (struct chunk *)strtol(cmds[1], 0, 0),
+					 strtol(cmds[2], 0, 0),
+					 strtol(cmds[3], 0, 0),
+					 strtol(cmds[4], 0, 0),
+					 strtol(cmds[5], 0, 0)));
 			continue;
 		}
-		if (!strcasecmp(*cmds,"delete") && ncmd == 2) {
+		if (!strcasecmp(*cmds, "delete") && ncmd == 2) {
 			printf("delete = %d\n",
-				Delete_Chunk(d,
-					(struct chunk *)strtol(cmds[1],0,0)));
+			       Delete_Chunk(d,
+				    (struct chunk *)strtol(cmds[1], 0, 0)));
 			continue;
 		}
-		if (!strcasecmp(*cmds,"allfreebsd")) {
+		if (!strcasecmp(*cmds, "allfreebsd")) {
 			All_FreeBSD(d, 0);
 			continue;
 		}
-		if (!strcasecmp(*cmds,"dedicate")) {
+		if (!strcasecmp(*cmds, "dedicate")) {
 			All_FreeBSD(d, 1);
 			continue;
 		}
-		if (!strcasecmp(*cmds,"sanitize")) {
+		if (!strcasecmp(*cmds, "sanitize")) {
 			Sanitize_Bios_Geom(d);
 			continue;
 		}
-		if (!strcasecmp(*cmds,"bios") && ncmd == 4) {
-			Set_Bios_Geom(d,
-				strtol(cmds[1],0,0),
-				strtol(cmds[2],0,0),
-				strtol(cmds[3],0,0));
+		if (!strcasecmp(*cmds, "bios") && ncmd == 4) {
+			Set_Bios_Geom(d, strtol(cmds[1], 0, 0),
+				      strtol(cmds[2], 0, 0),
+				      strtol(cmds[3], 0, 0));
 			continue;
 		}
-		if (!strcasecmp(*cmds,"list")) {
+		if (!strcasecmp(*cmds, "list")) {
 			cp = Disk_Names();
 			printf("Disks:");
-			for(i=0;cp[i];i++) {
-				printf(" %s",cp[i]);
+			for (i = 0; cp[i]; i++) {
+				printf(" %s", cp[i]);
 				free(cp[i]);
 			}
 			free(cp);
 			continue;
 		}
 #ifdef PC98
-		if (!strcasecmp(*cmds,"create") && ncmd == 7) {
+		if (!strcasecmp(*cmds, "create") && ncmd == 7) {
 #else
 		if (!strcasecmp(*cmds,"create") && ncmd == 6) {
 #endif
 
 			printf("Create=%d\n",
-				Create_Chunk(d,
-					strtol(cmds[1],0,0),
-					strtol(cmds[2],0,0),
-					strtol(cmds[3],0,0),
-					strtol(cmds[4],0,0),
+			       Create_Chunk(d,
+					    strtol(cmds[1], 0, 0),
+					    strtol(cmds[2], 0, 0),
+					    strtol(cmds[3], 0, 0),
+					    strtol(cmds[4], 0, 0),
 #ifdef PC98
-					strtol(cmds[5],0,0),
-					cmds[6]));
+					    strtol(cmds[5], 0, 0), cmds[6]));
 #else
-					strtol(cmds[5],0,0), NULL));
+					    strtol(cmds[5], 0, 0), NULL));
 #endif
 			continue;
 		}
@@ -254,28 +256,28 @@ main(int argc, char **argv)
 		}
 #ifndef PC98
 		if (!strcasecmp(*cmds,"bteasy")) {
-			Set_Boot_Mgr(d,bteasy17,sizeof (bteasy17));
+			Set_Boot_Mgr(d, bteasy17, sizeof (bteasy17));
 			continue;
 		}
-		if (!strcasecmp(*cmds,"mbr")) {
-			Set_Boot_Mgr(d,mbrboot,sizeof (mbrboot));
+		if (!strcasecmp(*cmds, "mbr")) {
+			Set_Boot_Mgr(d, mbrboot, sizeof (mbrboot));
 			continue;
 		}
 #endif
 #if 0		/* XXX boot1 undefined, fix me */
-		if (!strcasecmp(*cmds,"boot")) {
-			Set_Boot_Blocks(d,boot1,boot2);
+		if (!strcasecmp(*cmds, "boot")) {
+			Set_Boot_Blocks(d, boot1, boot2);
 			continue;
 		}
 #endif
-		if (!strcasecmp(*cmds,"write")) {
+		if (!strcasecmp(*cmds, "write")) {
 			printf("Write=%d\n",
 				Write_Disk(d));
 			Free_Disk(d);
 			d = Open_Disk(argv[1]);
 			continue;
 		}
-		if (strcasecmp(*cmds,"help"))
+		if (strcasecmp(*cmds, "help"))
 			printf("\007ERROR\n");
 		printf("CMDS:\n");
 		printf("\tallfreebsd\n");
@@ -308,8 +310,9 @@ main(int argc, char **argv)
 		printf("\twrite\n");
 		printf("\nENUM:\n\t");
 #if 0
-		for(i=0;chunk_n[i];i++)
-			printf("%d = %s%s",i,chunk_n[i],i == 4 ? "\n\t" : "  ");
+		for (i = 0; chunk_n[i]; i++)
+			printf("%d = %s%s", i, chunk_n[i],
+			       i == 4 ? "\n\t" : "  ");
 #endif
 		printf("\n");
 
