@@ -405,6 +405,7 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if (lun >= acdnlun || !(cdp = acdtab[lun]))
         return ENXIO;
 
+    dev->si_bsize_phys = 2048;
     if (!(cdp->flags & F_BOPEN) && !cdp->refcnt) {
 	acd_lock_device(cdp, 1); 	/* prevent user eject */
         cdp->flags |= F_LOCKED;
