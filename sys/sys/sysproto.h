@@ -844,6 +844,10 @@ struct	mlockall_args {
 struct	munlockall_args {
 	int dummy;
 };
+struct	__getcwd_args {
+	u_char * buf;
+	u_int buflen;
+};
 int	nosys __P((struct proc *, struct nosys_args *, int []));
 void	exit __P((struct proc *, struct rexit_args *, int [])) __dead2;
 int	fork __P((struct proc *, struct fork_args *, int []));
@@ -1047,6 +1051,7 @@ int	thr_sleep __P((struct proc *, struct thr_sleep_args *, int []));
 int	thr_wakeup __P((struct proc *, struct thr_wakeup_args *, int []));
 int	mlockall __P((struct proc *, struct mlockall_args *, int []));
 int	munlockall __P((struct proc *, struct munlockall_args *, int []));
+int	__getcwd __P((struct proc *, struct __getcwd_args *, int []));
 
 #ifdef COMPAT_43
 
