@@ -242,8 +242,13 @@ main(int argc, char **argv)
 
 	bzero(&iocmd, sizeof(struct ata_cmd));
 
-	if (argc > 2)
-		iocmd.channel = atoi(argv[2]);
+	if (argc > 2) {
+		int chan;
+		if (!(sscanf(argv[2], "%d", &chan) == 1 ||
+		    sscanf(argv[2], "ata%d", &chan) == 1))
+			usage();
+		iocmd.channel = chan;
+	}
 
 	if (argc > 3)
 		master = atoi(argv[3]);
