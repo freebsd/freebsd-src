@@ -1085,7 +1085,7 @@ device		amr0		# AMI MegaRAID
 #
 # The 'ATA' driver supports all ATA and ATAPI devices.
 # It can reuse the majors of wd.c for booting purposes.
-# You only need one "controller ata0" for it to find all
+# You only need one "device ata0" for it to find all
 # PCI ATA/ATAPI devices on modern machines.
 device		ata0
 device		atadisk0	# ATA disk drives
@@ -1867,7 +1867,7 @@ options 	SCSI_ISP_WWN="0x5000000099990000"
 # MII bus support is required for some PCI 10/100 ethernet NICs,
 # namely those which use MII-compliant transceivers or implement
 # tranceiver control interfaces that operate like an MII. Adding
-# "controller miibus0" to the kernel config pulls in support for
+# "device miibus0" to the kernel config pulls in support for
 # the generic miibus API and all of the PHY drivers, including a
 # generic one for PHYs that aren't specifically handled by an
 # individual driver.
@@ -1901,9 +1901,9 @@ device		meteor0
 
 # Brooktree driver has been ported to the new I2C framework. Thus,
 # you'll need to have the following 3 lines in the kernel config.
-#     controller smbus0
-#     controller iicbus0
-#     controller iicbb0
+#     device smbus0
+#     device iicbus0
+#     device iicbb0
 # The iic and smb devices are only needed if you want to control other
 # I2C slaves connected to the external connector of some cards.
 #
