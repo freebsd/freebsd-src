@@ -505,6 +505,7 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 		if (lun < 0 || lun >= 65536) {
 			ccb->ccb_h.status = CAM_LUN_INVALID;
 			return;
+		}
 #else
 		if (lun < 0 || lun >= 16) {
 			ccb->ccb_h.status = CAM_LUN_INVALID;
@@ -690,11 +691,11 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 	u_int16_t iptr, optr;
 
 	if (isp_getrqentry(isp, &iptr, &optr, &qe)) {
-		PRINTF("%s: Request Queue Overflow in isp_target_start_ctio\n",
-		    isp->isp_name);
+		xpt_print_path(ccb->ccb_h.path);
+		printf("Request Queue Overflow in isp_target_start_ctio\n");
 		return (CAM_RESRC_UNAVAIL);
 	}
-	MEMZERO(qe, QENTRY_LEN);
+	bzero(qe, QENTRY_LEN);
 
 	/*
 	 * We're either moving data or completing a command here.
@@ -705,9 +706,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		cto->ct_header.rqs_entry_count = 1;
 		cto->ct_iid = ccb->csio.init_id;
-#ifdef	ISP2100_SCCLUN
-		cto->ct_scclun = ccb->ccb_h.target_lun;
-#else
+#ifndef	ISP2100_SCCLUN
 		cto->ct_lun = ccb->ccb_h.target_lun;
 #endif
 		cto->ct_rxid = ccb->csio.tag_id;
@@ -719,12 +718,17 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			cto->ct_flags |= CT2_SENDSTATUS;
 			cto->rsp.m0.ct_scsi_status = ccb->csio.scsi_status;
 			if (ccb->csio.resid) {
-printf("resid %d\n", ccb->csio.resid);
 				cto->ct_resid = ccb->csio.resid;
 				if (ccb->csio.resid < 0)
 					cto->ct_flags |= CT2_DATA_OVER;
 				else
 					cto->ct_flags |= CT2_DATA_UNDER;
+			}
+			if (isp_tdebug && (ccb->csio.scsi_status !=
+			    SCSI_STATUS_OK || ccb->csio.resid)) {
+				printf("%s:CTIO2 RX_ID 0x%x SCSI STATUS 0x%x "
+				    "resid %d\n", isp->isp_name, cto->ct_rxid,
+				    ccb->csio.scsi_status, ccb->csio.resid);
 			}
 			/*
 			 * If we had Sense Data already,
@@ -750,12 +754,18 @@ printf("resid %d\n", ccb->csio.resid);
 			cto->ct_scsi_status = ccb->csio.scsi_status;
 			cto->ct_resid = ccb->csio.resid;
 		}
+		if (isp_tdebug && (ccb->csio.scsi_status !=
+		    SCSI_STATUS_OK || ccb->csio.resid)) {
+			printf("%s:CTIO SCSI STATUS 0x%x resid %d\n",
+			    isp->isp_name, ccb->csio.scsi_status,
+			    ccb->csio.resid);
+		}
 		hp = &cto->ct_reserved;
 	}
 
 	if (isp_save_xs(isp, (ISP_SCSI_XFER_T *)ccb, hp)) {
-		PRINTF("%s: No XFLIST pointers for isp_target_start_ctio\n",
-		    isp->isp_name);
+		xpt_print_path(ccb->ccb_h.path);
+		printf("No XFLIST pointers for isp_target_start_ctio\n");
 		return (CAM_RESRC_UNAVAIL);
 	}
 
@@ -786,7 +796,6 @@ printf("resid %d\n", ccb->csio.resid);
 		return (ccb->ccb_h.spriv_field0);
 	}
 }
-
 
 /*
  * Handle ATIO stuff that the generic code can't.
@@ -889,10 +898,9 @@ isp_handle_platform_atio(struct ispsoftc *isp, at_entry_t *aep)
 	}
 	xpt_done((union ccb*)atiop);
 	if (isp_tdebug) {
-		xpt_print_path(tptr->owner);
-		printf("CDB[0x%x] from %d for lun %d tag 0x%x tagtype 0x%x\n",
-		    aep->at_cdb[0] & 0xff, aep->at_iid, aep->at_lun,
-		    aep->at_tag_val & 0xff, aep->at_tag_type);
+		printf("%s:ATIO CDB=0x%x iid%d->lun%d tag 0x%x ttype 0x%x\n",
+		    isp->isp_name, aep->at_cdb[0] & 0xff, aep->at_iid,
+		    aep->at_lun, aep->at_tag_val & 0xff, aep->at_tag_type);
 	}
 	rls_lun_statep(isp, tptr);
 	return (0);
@@ -901,6 +909,7 @@ isp_handle_platform_atio(struct ispsoftc *isp, at_entry_t *aep)
 static int
 isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 {
+	lun_id_t lun;
 	tstate_t *tptr;
 	struct ccb_accept_tio *atiop;
 
@@ -917,7 +926,12 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		return (0);
 	}
 
-	tptr = get_lun_statep(isp, aep->at_lun);
+#ifdef	ISP2100_SCCLUN
+	lun = aep->at_scclun;
+#else
+	lun = aep->at_lun;
+#endif
+	tptr = get_lun_statep(isp, lun);
 	if (tptr == NULL) {
 		tptr = get_lun_statep(isp, CAM_LUN_WILDCARD);
 	}
@@ -925,7 +939,7 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 	if (tptr == NULL) {
 #if	0
 		/* XXX WE REALLY NEED A HARDWIRED SENSE/INQ CTIO TO USE XXX */
-		u_int32_t ccode = SCSI_STATUS_CHECK | 0x100;
+		u_int32_t ccode = SCSI_STATUS_CHECK_COND | 0x100;
 #if	NTARGBH > 0
 		/* Not Ready, Unit Not Self-Configured yet.... */
 		ccode |= (SSD_KEY_NOT_READY << 8) | (0x3E << 24);
@@ -962,7 +976,7 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		 */
 		xpt_print_path(tptr->owner);
 		printf("no ATIOS for lun %d from initiator %d\n",
-		    aep->at_lun, aep->at_iid);
+		    lun, aep->at_iid);
 		rls_lun_statep(isp, tptr);
 		if (aep->at_flags & AT_TQAE)
 			isp_endcmd(isp, aep, SCSI_STATUS_QUEUE_FULL, 0);
@@ -974,7 +988,7 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 	if (tptr == &isp->isp_osinfo.tsdflt) {
 		atiop->ccb_h.target_id =
 			((fcparam *)isp->isp_param)->isp_loopid;
-		atiop->ccb_h.target_lun = aep->at_lun;
+		atiop->ccb_h.target_lun = lun;
 	}
 	atiop->init_id = aep->at_iid;
 	atiop->cdb_len = ATIO2_CDBLEN;
@@ -1002,10 +1016,9 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 	}
 	xpt_done((union ccb*)atiop);
 	if (isp_tdebug) {
-		xpt_print_path(tptr->owner);
-		printf("CDB[0x%x] from %d for lun %d RX_ID 0x%x tflags 0x%x\n",
-		    aep->at_cdb[0] & 0xff, aep->at_iid, aep->at_lun,
-		    aep->at_rxid & 0xffff, aep->at_taskflags);
+		printf("%s:ATIO2 RX_ID 0x%x CDB=0x%x iid%d->lun%d tattr 0x%x\n",
+		    isp->isp_name, aep->at_rxid & 0xffff, aep->at_cdb[0] & 0xff,
+		    aep->at_iid, lun, aep->at_taskflags);
 	}
 	rls_lun_statep(isp, tptr);
 	return (0);
@@ -1030,7 +1043,7 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
 		sentstatus = ct->ct_flags & CT2_SENDSTATUS;
 		ok = (ct->ct_status & ~QLTM_SVALID) == CT_OK;
 		if (isp_tdebug) {
-			printf("%s: CTIO2 RX_ID 0x%x sts 0x%x flg 0x%x done\n",
+			printf("%s:CTIO2 RX_ID 0x%x sts 0x%x flg 0x%x FIN\n\n",
 			    isp->isp_name, ct->ct_rxid, ct->ct_status,
 			    ct->ct_flags);
 		}
@@ -1039,7 +1052,7 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
 		sentstatus = ct->ct_flags & CT_SENDSTATUS;
 		ok = (ct->ct_status  & ~QLTM_SVALID) == CT_OK;
 		if (isp_tdebug) {
-			printf("%s: CTIO tag 0x%x sts 0x%x flg 0x%x done\n",
+			printf("%s:CTIO tag 0x%x sts 0x%x flg 0x%x FIN\n\n",
 			    isp->isp_name, ct->ct_tag_val, ct->ct_status,
 			    ct->ct_flags);
 		}
@@ -1647,7 +1660,12 @@ isp_done(struct ccb_scsiio *sccb)
 	if ((sccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP &&
 	    (sccb->scsi_status != SCSI_STATUS_OK)) {
 		sccb->ccb_h.status &= ~CAM_STATUS_MASK;
-		sccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
+		if ((sccb->scsi_status == SCSI_STATUS_CHECK_COND) && 
+		    (sccb->ccb_h.status & CAM_AUTOSNS_VALID) == 0) {
+			sccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
+		} else {
+			sccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
+		}
 	}
 	sccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	if ((sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
