@@ -105,7 +105,7 @@
 #include <sys/sockio.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
+#if defined(__FreeBSD__) && __FreeBSD_version >= 400000
 #include <sys/bus.h>
 #else
 #include <sys/device.h>
@@ -236,7 +236,7 @@ int awi_dump_len = 28;
 #endif
 
 #ifdef __FreeBSD__
-#if __FreeBSD__ >= 4
+#if __FreeBSD_version >= 400000
 devclass_t awi_devclass;
 #endif
 
@@ -462,6 +462,13 @@ awi_ioctl(ifp, cmd, data)
 	u_int8_t *p;
 	int len;
 	u_int8_t tmpstr[IEEE80211_NWID_LEN*2];
+#ifdef __FreeBSD_version
+#if __FreeBSD_version < 500028
+	struct proc *mythread = curproc;		/* Little lie */
+#else
+	struct thread *mythread = curthread;
+#endif
+#endif
 
 	s = splnet();
 
@@ -521,11 +528,7 @@ awi_ioctl(ifp, cmd, data)
 		break;
 	case SIOCS80211NWID:
 #ifdef __FreeBSD__
-#if __FreeBSD__ >= 5
-		error = suser(curthread);
-#else
-		error = suser(curproc);
-#endif
+		error = suser(mythread);
 		if (error)
 			break;
 #endif
@@ -559,11 +562,7 @@ awi_ioctl(ifp, cmd, data)
 		break;
 	case SIOCS80211NWKEY:
 #ifdef __FreeBSD__
-#if __FreeBSD__ >= 5
-		error = suser(curthread);
-#else
-		error = suser(curproc);
-#endif
+		error = suser(mythread);
 		if (error)
 			break;
 #endif
@@ -621,12 +620,10 @@ awi_ioctl(ifp, cmd, data)
 			error = awi_wep_getkey(sc, ireq->i_val, tmpstr, &len);
 			if(error)
 				break;
-#if __FreeBSD__ >= 5
-			if(!suser(curthread))
-#else
-			if(!suser(curproc))
-#endif
+#ifdef __FreeBSD__
+			if (!suser(mythread))
 				bzero(tmpstr, len);
+#endif
 			ireq->i_len = len;
 			error = copyout(tmpstr, ireq->i_data, len);
 			break;
@@ -662,11 +659,7 @@ awi_ioctl(ifp, cmd, data)
 		}
 		break;
 	case SIOCS80211:
-#if __FreeBSD__ >= 5
-		error = suser(curthread);
-#else
-		error = suser(curproc);
-#endif
+		error = suser(mythread);
 		if(error)
 			break;
 		switch(ireq->i_type) {
@@ -1435,7 +1428,7 @@ awi_input(sc, m, rxts, rssi)
 			break;
 		}
 		ifp->if_ipackets++;
-#if !(defined(__FreeBSD__) && __FreeBSD__ >= 4)
+#if !(defined(__FreeBSD__) && __FreeBSD_version >= 400000)
 		AWI_BPF_MTAP(sc, m, AWI_BPF_NORM);
 #endif
 #ifdef __NetBSD__
