@@ -562,7 +562,8 @@ out:
 }
 
 /* Handle delayed events. */
-void rcpoll(void *arg)
+static void
+rcpoll(void *arg)
 {
 	register struct rc_chans *rc;
 	register struct rc_softc *rcb;
@@ -1218,7 +1219,8 @@ int                             bits, cmd;
 }
 
 /* Test the board. */
-int rc_test(nec, unit)
+static int
+rc_test(nec, unit)
 	register int    nec;
 	int             unit;
 {

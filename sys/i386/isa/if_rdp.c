@@ -884,7 +884,7 @@ rdp_ioctl(struct ifnet *ifp, IOCTL_CMD_T command, caddr_t data)
 /*
  * External interrupt service routine.
  */
-void 
+static void 
 rdpintr(int unit)
 {
 	struct rdp_softc *sc = rdp_softc + unit;
