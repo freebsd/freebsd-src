@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcivar.h,v 1.6 1995/05/30 08:13:12 rgrimes Exp $
+**  $Id: pcivar.h,v 1.7 1995/11/21 12:54:55 bde Exp $
 **
 **  Declarations for pci device drivers.
 **
@@ -228,17 +228,10 @@ int pci_map_port (pcici_t tag, u_long entry, u_short * pa);
 **
 **	Supports multiple handlers per irq (shared interrupts).
 **
-**	-----------------
-**
-**	There is code to support shared edge triggered ints.
-**	This relies on the cooperation of the interrupt handlers:
-**	they have to return a value <>0 if and only if something
-**	was done. Beware of the performance penalty.
-**
 **-----------------------------------------------------------------
 */
 
-typedef int pci_inthand_t(void *arg);
+typedef void pci_inthand_t(void *arg);
 
 struct pci_int_desc {
 	struct pci_int_desc * pcid_next;

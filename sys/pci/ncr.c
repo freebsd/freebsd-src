@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.59 1996/01/15 23:51:10 se Exp $
+**  $Id: ncr.c,v 1.60 1996/01/18 19:59:23 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1202,7 +1202,7 @@ static	void	ncr_getclock	(ncb_p np);
 static	ccb_p	ncr_get_ccb	(ncb_p np, u_long flags, u_long t,u_long l);
 static  U_INT32 ncr_info	(int unit);
 static	void	ncr_init	(ncb_p np, char * msg, u_long code);
-static	int	ncr_intr	(void *vnp);
+static	void	ncr_intr	(void *vnp);
 static	void	ncr_int_ma	(ncb_p np);
 static	void	ncr_int_sir	(ncb_p np);
 static  void    ncr_int_sto     (ncb_p np);
@@ -1249,7 +1249,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.59 1996/01/15 23:51:10 se Exp $\n";
+	"\n$Id: ncr.c,v 1.60 1996/01/18 19:59:23 se Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3496,12 +3496,11 @@ static	void ncr_attach (pcici_t config_id, int unit)
 **==========================================================
 */
 
-static int
+static void
 ncr_intr(vnp)
 	void *vnp;
 {
 	ncb_p np = vnp;
-	int n = 0;
 	int oldspl = splbio();
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("[");
@@ -3514,14 +3513,12 @@ ncr_intr(vnp)
 			ncr_exception (np);
 		} while (INB(nc_istat) & (INTF|SIP|DIP));
 
-		n=1;
 		np->ticks = 100;
 	};
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("]\n");
 
 	splx (oldspl);
-	return (n);
 }
 
 /*==========================================================

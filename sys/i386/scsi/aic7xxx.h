@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.17 1996/01/03 06:32:12 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.18 1996/01/07 19:24:33 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -206,7 +206,6 @@ struct ahc_data *ahc_alloc __P((int unit, u_long io_base, ahc_type type, ahc_fla
 void ahc_free __P((struct ahc_data *));
 int ahc_init __P((struct ahc_data *));
 int ahc_attach __P((struct ahc_data *));
-void ahc_eisa_intr __P((void *arg));
-int ahcintr __P((void *arg));
+void ahc_intr __P((void *arg));
 
 #endif  /* _AIC7XXX_H_ */
