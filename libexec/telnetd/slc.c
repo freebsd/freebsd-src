@@ -176,7 +176,6 @@ end_slc(bufp)
 	register unsigned char **bufp;
 {
 	register int len;
-	void netflush();
 
 	/*
 	 * If a change has occured, store the new terminal control

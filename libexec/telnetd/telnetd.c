@@ -888,8 +888,6 @@ telnet(f, p, host)
 	int if_fd;
 	struct stat statbuf;
 
-	void netflush();
-
 	/*
 	 * Initialize the slc mapping table.
 	 */
