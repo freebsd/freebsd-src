@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.52 1995/10/22 17:39:12 jkh Exp $
+ * $Id: apache.c,v 1.2 1995/10/22 21:38:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -55,6 +55,7 @@
 
 #define APACHE_BASE     "/usr/local/www"
 #define APACHE_HELPFILE "apache.html"
+#define APACHE_PACKAGE  "apache-0.8.14"
 
 typedef struct
 {
@@ -391,9 +392,11 @@ installApache(char *unused)
     char tbuf[128], company[64], file[128], cmd[256];
     char *tptr;
     FILE *fptr;
-    
-    i = apacheOpenDialog();
-    
+
+    i = package_add(APACHE_PACKAGE);
+    if (i == RET_SUCCESS)
+	i = apacheOpenDialog();
+
     if (i != RET_SUCCESS)
         return (i);
     
