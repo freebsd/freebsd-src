@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.129 1997/06/08 14:03:23 jhay Exp $
+#	$Id: Makefile,v 1.130 1997/06/08 15:04:06 jfieber Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -16,8 +16,8 @@
 #	-DNOSECURE do not go into secure subdir
 #	-DNOGAMES do not go into games subdir
 #	-DNOSHARE do not go into share subdir
-#       -DNOINFO do not make or install info files
-#       -DNOLIBC_R do not build libc_r.
+#	-DNOINFO do not make or install info files
+#	-DNOLIBC_R do not build libc_r.
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 
 #
