@@ -267,6 +267,7 @@ db_inputchar(c)
 		 */
 		c = '\r';
 	    case '\n':
+		/* FALLTHROUGH */
 	    case '\r':
 		*db_le++ = c;
 		return (1);
