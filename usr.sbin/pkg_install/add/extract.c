@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: extract.c,v 1.20 1998/07/04 14:13:01 jkh Exp $";
+	"$Id: extract.c,v 1.21 1998/09/11 07:26:54 jkh Exp $";
 #endif
 
 /*
@@ -202,7 +202,7 @@ extract_plist(char *home, Package *pkg)
 	    if (strcmp(p->name, ".")) {
 		if (!Fake && make_hierarchy(p->name) == FAIL) {
 		    cleanup(0);
-		    errx(2, "unable to make directory '%s'", p->name);
+		    errx(2, "unable to cwd to '%s'", p->name);
 		}
 		Directory = p->name;
 	    }
