@@ -9,11 +9,7 @@ NOPIC=
 	${.CURDIR}/4.3/${MACHINE} ${.CURDIR}/4.3 \
 	${.CURDIR}/4.4/${MACHINE} ${.CURDIR}/4.4 \
 	${.CURDIR}/regexp \
-	${.CURDIR}/SysV \
-	${.CURDIR}/../libc/stdlib
-
-# will be removed with the next FreeBSD release
-SRCS=	random.c
+	${.CURDIR}/SysV
 
 # compat 4.1 sources
 # XXX MISSING:	tell.c vlimit.c vtimes.c
