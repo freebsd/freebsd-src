@@ -87,53 +87,17 @@ void db_md_list_watchpoints(void);
 #define FR_RFP	(-3)
 
 static void
-db_stack_trace_cmd(db_expr_t addr, int have_addr, db_expr_t count, char *modif)
+db_stack_trace_cmd(db_expr_t addr, db_expr_t count)
 {
 	u_int32_t	*frame, *lastframe;
 	c_db_sym_t sym;
-	char c, *cp = modif;
 	const char *name;
 	db_expr_t value;
 	db_expr_t offset;
 	boolean_t	kernel_only = TRUE;
-	boolean_t	trace_thread = FALSE;
 	int	scp_offset, quit;
 
-	if (kdb_frame == NULL && !have_addr)
-		return;
-	while (modif && ((c = *cp++) != 0)) {
-		if (c == 'u')
-			kernel_only = FALSE;
-		if (c == 't')
-			trace_thread = TRUE;
-	}
-
-	if (!have_addr)
-		frame = (u_int32_t *)(kdb_frame->tf_r11);
-	else {
-		if (trace_thread) {
-			struct proc *p;
-			struct thread *td;
-			pid_t pid = (pid_t)addr;
-			LIST_FOREACH(p, &allproc, p_list) {
-				if (p->p_pid == pid)
-					break;
-			}
-
-			if (p == NULL) {
-				db_printf("not found\n");
-				return;
-			}	
-			if (!(p->p_sflag & PS_INMEM)) {
-				db_printf("swapped out\n");
-				return;
-			}
-			td = FIRST_THREAD_IN_PROC(p);
-			frame = (u_int32_t *)(td->td_pcb->un_32.pcb32_r11);
-			db_printf("at %p\n", frame);
-		} else
-			frame = (u_int32_t *)(addr);
-	}
+	frame = (u_int32_t *)addr;
 	lastframe = NULL;
 	scp_offset = -(get_pc_str_offset() >> 2);
 
@@ -152,8 +116,6 @@ db_stack_trace_cmd(db_expr_t addr, int have_addr, db_expr_t count, char *modif)
 		 */
 		scp = frame[FR_SCP];
 
-		db_printsym(scp, DB_STGY_PROC);
-		db_printf("\n\t");
 		sym = db_search_symbol(scp, DB_STGY_ANY, &offset);
 		if (sym == C_DB_SYM_NULL) {
 			value = 0;
@@ -248,7 +210,7 @@ db_trace_thread(struct thread *thr, int count)
 		addr = (uint32_t)__builtin_frame_address(0);
 	else
 		addr = thr->td_pcb->un_32.pcb32_r11;
-	db_stack_trace_cmd(addr, 1, -1, NULL);
+	db_stack_trace_cmd(addr, -1);
 	return (0);
 }
 
