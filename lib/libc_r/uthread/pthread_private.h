@@ -105,7 +105,7 @@
 		else							\
 			TAILQ_INSERT_BEFORE(tid,thrd,pqe);		\
 	}								\
-	(thrd)->flags | PTHREAD_FLAGS_IN_WAITQ;				\
+	(thrd)->flags |= PTHREAD_FLAGS_IN_WAITQ;			\
 } while (0)
 #define PTHREAD_WAITQ_CLEARACTIVE()
 #define PTHREAD_WAITQ_SETACTIVE()
