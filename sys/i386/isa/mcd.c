@@ -296,6 +296,8 @@ int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (!(cd->flags & MCDVALID) && cd->openflags)
 		return ENXIO;
 
+	dev->si_bsize_phys = 2048;
+	dev->si_bsize_max = MAXBSIZE;
 	if (mcd_getstat(unit,1) == -1)
 		return EIO;
 
