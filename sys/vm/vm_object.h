@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.8 1995/02/22 10:06:43 davidg Exp $
+ * $Id: vm_object.h,v 1.9 1995/03/01 23:29:58 davidg Exp $
  */
 
 /*
@@ -152,7 +152,7 @@ vm_object_pip_wakeup( vm_object_t object) {
 	if ((object->flags & OBJ_PIPWNT) &&
 		object->paging_in_progress == 0) {
 		object->flags &= ~OBJ_PIPWNT;
-		wakeup((caddr_t) object);
+		wakeup(object);
 	}
 }
 
