@@ -93,6 +93,7 @@ if_dump()
 {
 	struct rainfo *rai;
 	struct prefix *pfx;
+	struct rtinfo *rti;
 	char prefixbuf[INET6_ADDRSTRLEN];
 	int first;
 	struct timeval now;
@@ -147,7 +148,6 @@ if_dump()
 		fprintf(fp, "  ReachableTime: %d, RetransTimer: %d, "
 			"CurHopLimit: %d\n", rai->reachabletime,
 			rai->retranstimer, rai->hoplimit);
-
 		if (rai->clockskew)
 			fprintf(fp, "  Clock skew: %ldsec\n",
 			    rai->clockskew);
@@ -206,6 +206,24 @@ if_dump()
 					    (long)rest->tv_sec);
 				}
 			}
+			fprintf(fp, ")\n");
+		}
+		for (first = 1, rti = rai->route.next; rti != &rai->route;
+		     rti = rti->next) {
+			if (first) {
+				fprintf(fp, "  Route Information:\n");
+				first = 0;
+			}
+			fprintf(fp, "    %s/%d (",
+				inet_ntop(AF_INET6, &rti->prefix,
+					  prefixbuf, sizeof(prefixbuf)),
+				rti->prefixlen);
+			fprintf(fp, "preference: %s, ",
+				rtpref_str[0xff & (rti->rtpref >> 3)]);
+			if (rti->ltime == ND6_INFINITE_LIFETIME)
+				fprintf(fp, "lifetime: infinity");
+			else
+				fprintf(fp, "lifetime: %ld", (long)rti->ltime);
 			fprintf(fp, ")\n");
 		}
 	}
