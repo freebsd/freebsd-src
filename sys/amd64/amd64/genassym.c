@@ -174,8 +174,6 @@ ASSYM(GD_COMMON_TSSD, offsetof(struct globaldata, gd_common_tssd));
 ASSYM(GD_TSS_GDT, offsetof(struct globaldata, gd_tss_gdt));
 ASSYM(GD_CURRENTLDT, offsetof(struct globaldata, gd_currentldt));
 
-ASSYM(GD_WITNESS_SPIN_CHECK, offsetof(struct globaldata, gd_witness_spin_check));
-
 /* XXX */
 #ifdef KTR_PERCPU
 ASSYM(GD_KTR_IDX, offsetof(struct globaldata, gd_ktr_idx));
