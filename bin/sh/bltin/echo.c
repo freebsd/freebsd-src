@@ -79,8 +79,10 @@ main(argc, argv)
 		while ((c = *p++) != '\0') {
 			if (c == '\\' && eflag) {
 				switch (*p++) {
+				case 'a':  c = '\a';  break;
 				case 'b':  c = '\b';  break;
 				case 'c':  return 0;		/* exit */
+				case 'e':  c = '\e';  break;
 				case 'f':  c = '\f';  break;
 				case 'n':  c = '\n';  break;
 				case 'r':  c = '\r';  break;
