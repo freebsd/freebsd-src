@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.1 (Berkeley) 6/2/93
- * $Id: vmmeter.h,v 1.7 1995/01/09 16:05:15 davidg Exp $
+ * $Id: vmmeter.h,v 1.8 1995/02/22 18:06:49 davidg Exp $
  */
 
 #ifndef _SYS_VMMETER_H_
@@ -72,12 +72,10 @@ struct vmmeter {
 	unsigned v_pfree;	/* pages freed by exiting processes */
 	unsigned v_tfree;	/* total pages freed */
 	unsigned v_zfod;	/* pages zero filled on demand */
-	unsigned v_nzfod;	/* number of zfod's created */
 	/*
 	 * Distribution of page usages.
 	 */
 	unsigned v_page_size;	/* page size in bytes */
-	unsigned v_kernel_pages;/* number of pages in use by kernel */
 	unsigned v_page_count;	/* total number of pages in system */
 	unsigned v_free_reserved; /* number of pages reserved for deadlock */
 	unsigned v_free_target;	/* number of pages desired free */
