@@ -54,7 +54,10 @@
 .in +1i
 Attach a plex to a volume, or a subdisk to a plex.
 .in
-.\" XXX remove this
+.Cd checkparity Ar plex
+.in +1i
+Check the parity blocks of a RAID-5 plex.
+.in
 .Nm concat
 .Op Fl f
 .Op Fl n Ar name
@@ -70,7 +73,6 @@ Create a concatenated volume from the specified drives.
 Create a volume as described in
 .Ar description-file
 .in
-.\" XXX remove this
 .Cd debug
 .in +1i
 Cause the volume manager to enter the kernel debugger.
@@ -210,6 +212,10 @@ XXX
 .in +1i
 Replace the object with an identical other object.  XXX not implemented yet.
 ..
+.in
+.Cd rebuildparity Ar plex
+.in +1i
+Rebuild the parity blocks of a RAID-5 plex.
 .in
 .Cd resetconfig
 .in +1i
@@ -1201,7 +1207,6 @@ If the object is a volume or a plex,
 .Nm start
 currently has no effect: it checks the state of the subordinate subdisks (and
 plexes in the case of a volume) and sets the state of the object accordingly.
-In a later version, this operation will cause the subdisks
 .Pp
 To start a plex in a multi-plex volume, the data must be copied from another
 plex in the volume.  Since this frequently takes a long time, it is normally
@@ -1788,7 +1793,7 @@ Bad names are
 .Pa /dev/da0
 and
 .Pa /dev/da0s1 ,
-both of which represent a device, not a partition,
+both of which represent a device, not a partition, and
 .Pa /dev/wd1c ,
 which represents a complete disk and should be of type
 .Nm unused .
