@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.42 1998/05/01 19:23:57 brian Exp $
+ * $Id: ccp.c,v 1.30.2.43 1998/05/15 18:20:55 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -132,8 +132,12 @@ static const struct ccp_algorithm *algorithm[] = {
 int
 ccp_ReportStatus(struct cmdargs const *arg)
 {
-  struct link *l = command_ChooseLink(arg);
-  struct ccp *ccp = &l->ccp;
+  struct link *l;
+  struct ccp *ccp;
+
+  if (!(l = command_ChooseLink(arg)))
+    return -1;
+  ccp = &l->ccp;
 
   prompt_Printf(arg->prompt, "%s: %s [%s]\n", l->name, ccp->fsm.name,
                 State2Nam(ccp->fsm.state));

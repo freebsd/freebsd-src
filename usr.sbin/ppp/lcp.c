@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.52 1998/05/01 19:24:55 brian Exp $
+ * $Id: lcp.c,v 1.55.2.53 1998/05/06 23:49:45 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -132,8 +132,12 @@ static const char *cftypes[] = {
 int
 lcp_ReportStatus(struct cmdargs const *arg)
 {
-  struct link *l = command_ChooseLink(arg);
-  struct lcp *lcp = &l->lcp;
+  struct link *l;
+  struct lcp *lcp;
+
+  if (!(l = command_ChooseLink(arg)))
+    return -1;
+  lcp = &l->lcp;
 
   prompt_Printf(arg->prompt, "%s: %s [%s]\n", l->name, lcp->fsm.name,
                 State2Nam(lcp->fsm.state));

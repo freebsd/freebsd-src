@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.35.2.8 1998/04/30 23:53:56 brian Exp $
+ * $Id: systems.c,v 1.35.2.9 1998/05/01 19:26:01 brian Exp $
  *
  *  TODO:
  */
@@ -180,49 +180,19 @@ AllowUsers(struct cmdargs const *arg)
   return 0;
 }
 
-static struct {
-  int mode;
-  const char *name;
-} modes[] = {
-  { PHYS_MANUAL, "interactive" },
-  { PHYS_DEMAND, "auto" },
-  { PHYS_DIRECT, "direct" },
-  { PHYS_DEDICATED, "dedicated" },
-  { PHYS_PERM, "ddial" },
-  { PHYS_1OFF, "background" },
-  { PHYS_ALL, "*" },
-  { 0, 0 }
-};
-
-const char *
-mode2Nam(int mode)
-{
-  int m;
-
-  for (m = 0; modes[m].mode; m++)
-    if (modes[m].mode == mode)
-      return modes[m].name;
-
-  return "unknown";
-}
-
 int
 AllowModes(struct cmdargs const *arg)
 {
   /* arg->bundle may be NULL (see system_IsValid()) ! */
-  int f;
-  int m;
-  int allowed;
+  int f, mode, allowed;
 
   allowed = 0;
   for (f = arg->argn; f < arg->argc; f++) {
-    for (m = 0; modes[m].mode; m++)
-      if (!strcasecmp(modes[m].name, arg->argv[f])) {
-        allowed |= modes[m].mode;
-        break;
-      }
-    if (modes[m].mode == 0)
+    mode = Nam2mode(arg->argv[f]);
+    if (mode == PHYS_NONE || mode == PHYS_ALL)
       log_Printf(LogWARN, "allow modes: %s: Invalid mode\n", arg->argv[f]);
+    else
+      allowed |= mode;
   }
 
   modeok = modereq & allowed ? 1 : 0;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.50 1998/05/05 23:30:03 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.51 1998/05/06 23:50:14 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -691,6 +691,22 @@ IpcpLayerDown(struct fsm *fp)
     ipcp_CleanInterface(ipcp);
 }
 
+int
+ipcp_InterfaceUp(struct ipcp *ipcp)
+{
+  if (ipcp_SetIPaddress(ipcp->fsm.bundle, ipcp->my_ip, ipcp->peer_ip, 0) < 0) {
+    log_Printf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
+    return 0;
+  }
+
+#ifndef NOALIAS
+  if (alias_IsEnabled())
+    (*PacketAlias.SetAddress)(ipcp->my_ip);
+#endif
+
+  return 1;
+}
+
 static int
 IpcpLayerUp(struct fsm *fp)
 {
@@ -705,15 +721,8 @@ IpcpLayerUp(struct fsm *fp)
   if (ipcp->peer_compproto >> 16 == PROTO_VJCOMP)
     sl_compress_init(&ipcp->vj.cslc, (ipcp->peer_compproto >> 8) & 255);
 
-  if (ipcp_SetIPaddress(fp->bundle, ipcp->my_ip, ipcp->peer_ip, 0) < 0) {
-    log_Printf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
+  if (!ipcp_InterfaceUp(ipcp))
     return 0;
-  }
-
-#ifndef NOALIAS
-  if (alias_IsEnabled())
-    (*PacketAlias.SetAddress)(ipcp->my_ip);
-#endif
 
   /*
    * XXX this stuff should really live in the FSM.  Our config should

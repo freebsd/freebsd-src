@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.29.2.16 1998/05/01 19:20:03 brian Exp $
+ * $Id: defs.h,v 1.29.2.17 1998/05/01 19:24:26 brian Exp $
  *
  *	TODO:
  */
@@ -72,6 +72,7 @@
 #define EX_NOLOGIN	13
 
 /* physical::type values (OR'd in bundle::phys_type) */
+#define PHYS_NONE	0
 #define PHYS_MANUAL	1	/* Manual link */
 #define PHYS_DEMAND	2	/* Dial-on-demand link (-auto) */
 #define	PHYS_DIRECT	4	/* Incoming link (-direct) */
@@ -82,3 +83,5 @@
 
 extern void randinit(void);
 extern ssize_t fullread(int, void *, size_t);
+extern const char *mode2Nam(int);
+extern int Nam2mode(const char *);

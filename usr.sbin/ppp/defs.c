@@ -23,11 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.11.4.10 1998/04/30 23:53:35 brian Exp $
+ *	$Id: defs.c,v 1.11.4.11 1998/05/06 18:50:06 brian Exp $
  */
 
 
 #include <stdlib.h>
+#include <string.h>
 #include <sys/errno.h>
 #include <time.h>
 #include <unistd.h>
@@ -65,4 +66,49 @@ fullread(int fd, void *v, size_t n)
           return -1;
     }
   return total;
+}
+
+static struct {
+  int mode;
+  const char *name;
+} modes[] = {
+  { PHYS_MANUAL, "interactive" },
+  { PHYS_DEMAND, "auto" },
+  { PHYS_DIRECT, "direct" },
+  { PHYS_DEDICATED, "dedicated" },
+  { PHYS_PERM, "ddial" },
+  { PHYS_1OFF, "background" },
+  { PHYS_ALL, "*" },
+  { 0, 0 }
+};
+
+const char *
+mode2Nam(int mode)
+{
+  int m;
+
+  for (m = 0; modes[m].mode; m++)
+    if (modes[m].mode == mode)
+      return modes[m].name;
+
+  return "unknown";
+}
+
+int
+Nam2mode(const char *name)
+{
+  int m, got, len;
+
+  len = strlen(name);
+  got = -1;
+  for (m = 0; modes[m].mode; m++)
+    if (!strncasecmp(name, modes[m].name, len)) {
+      if (modes[m].name[len] == '\0')
+	return modes[m].mode;
+      if (got != -1)
+        return 0;
+      got = m;
+    }
+
+  return got == -1 ? 0 : modes[got].mode;
 }

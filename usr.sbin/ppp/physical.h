@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.24 1998/05/01 19:25:37 brian Exp $
+ *  $Id: physical.h,v 1.1.2.25 1998/05/15 18:21:45 brian Exp $
  *
  */
 
@@ -98,3 +98,4 @@ extern void physical_Login(struct physical *, const char *);
 extern void physical_Logout(struct physical *);
 extern int physical_RemoveFromSet(struct physical *, fd_set *, fd_set *,
                                   fd_set *);
+extern int physical_SetMode(struct physical *, int);

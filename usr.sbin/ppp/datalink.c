@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.60 1998/05/15 18:21:02 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.61 1998/05/15 18:21:34 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1072,4 +1072,18 @@ datalink_NextName(struct datalink *dl)
   oname = dl->name;
   dl->physical->link.name = dl->name = name;
   return oname;
+}
+
+int
+datalink_SetMode(struct datalink *dl, int mode)
+{
+  if (!physical_SetMode(dl->physical, mode))
+    return 0;
+  if (dl->physical->type & (PHYS_DIRECT|PHYS_DEDICATED))
+    dl->script.run = 0;
+  if (dl->physical->type == PHYS_DIRECT)
+    dl->reconnect_tries = 0;
+  if (mode & (PHYS_PERM|PHYS_1OFF) && dl->state <= DATALINK_READY)
+    datalink_Up(dl, 1, 1);
+  return 1;
 }

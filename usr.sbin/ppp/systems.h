@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.h,v 1.10.2.4 1998/04/10 13:19:22 brian Exp $
+ * $Id: systems.h,v 1.10.2.5 1998/05/01 19:26:02 brian Exp $
  *
  */
 
@@ -34,4 +34,3 @@ extern int AllowUsers(struct cmdargs const *);
 extern int AllowModes(struct cmdargs const *);
 extern int LoadCommand(struct cmdargs const *);
 extern int SaveCommand(struct cmdargs const *);
-extern const char *mode2Nam(int);

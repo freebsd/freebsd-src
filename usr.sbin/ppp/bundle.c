@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.82 1998/05/11 23:39:27 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.83 1998/05/15 18:21:32 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1374,4 +1374,36 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
 
   while (niov--)
     free(iov[niov].iov_base);
+}
+
+int
+bundle_SetMode(struct bundle *bundle, struct datalink *dl, int mode)
+{
+  int omode;
+
+  omode = dl->physical->type;
+  if (omode == mode)
+    return 1;
+
+  if (mode == PHYS_DEMAND && !(bundle->phys_type & PHYS_DEMAND))
+    /* Changing to demand-dial mode */
+    if (bundle->ncp.ipcp.peer_ip.s_addr == INADDR_ANY) {
+      log_Printf(LogWARN, "You must `set ifaddr' before changing mode to %s\n",
+                 mode2Nam(mode));
+      return 0;
+    }
+
+  if (!datalink_SetMode(dl, mode))
+    return 0;
+
+  if (mode == PHYS_DEMAND && !(bundle->phys_type & PHYS_DEMAND))
+    ipcp_InterfaceUp(&bundle->ncp.ipcp);
+
+  bundle_GenPhysType(bundle);
+
+  if (omode == PHYS_DEMAND && !(bundle->phys_type & PHYS_DEMAND))
+    /* Changing from demand-dial mode */
+    ipcp_CleanInterface(&bundle->ncp.ipcp);
+
+  return 1;
 }

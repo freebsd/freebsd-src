@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.82 1998/05/10 09:26:17 brian Exp $
+ * $Id: command.c,v 1.131.2.83 1998/05/15 18:20:58 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -104,6 +104,7 @@
 #define	VAR_IPCPRETRY	20
 #define	VAR_DNS		21
 #define	VAR_NBNS	22
+#define	VAR_MODE	23
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -123,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/10 09:26:17 $";
+const char VersionDate[] = "$Date: 1998/05/15 18:20:58 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -198,11 +199,6 @@ CloneCommand(struct cmdargs const *arg)
 
   if (arg->argc == arg->argn)
     return -1;
-
-  if (!arg->bundle->ncp.mp.cfg.mrru) {
-    log_Printf(LogWARN, "clone: Only available in multilink mode\n");
-    return 1;
-  }
 
   namelist[sizeof namelist - 1] = '\0';
   for (f = arg->argn; f < arg->argc; f++) {
@@ -522,6 +518,8 @@ ShowProtocolStats(struct cmdargs const *arg)
 {
   struct link *l = command_ChooseLink(arg);
 
+  if (!l)
+    return -1;
   prompt_Printf(arg->prompt, "%s:\n", l->name);
   link_ReportProtocolStatus(l, arg->prompt);
   return 0;
@@ -805,7 +803,12 @@ OpenCommand(struct cmdargs const *arg)
     bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL, PHYS_ALL);
   else if (arg->argc == arg->argn+1 &&
            !strcasecmp(arg->argv[arg->argn], "ccp")) {
-    struct fsm *fp = &command_ChooseLink(arg)->ccp.fsm;
+    struct link *l;
+    struct fsm *fp;
+
+    if (!(l = command_ChooseLink(arg)))
+      return -1;
+    fp = &l->ccp.fsm;
 
     if (fp->link->lcp.fsm.state != ST_OPENED)
       log_Printf(LogWARN, "open: LCP must be open before opening CCP\n");
@@ -834,7 +837,12 @@ CloseCommand(struct cmdargs const *arg)
   else if (arg->argc == arg->argn+1 &&
            (!strcasecmp(arg->argv[arg->argn], "ccp") ||
             !strcasecmp(arg->argv[arg->argn], "ccp!"))) {
-    struct fsm *fp = &command_ChooseLink(arg)->ccp.fsm;
+    struct link *l;
+    struct fsm *fp;
+
+    if (!(l = command_ChooseLink(arg)))
+      return -1;
+    fp = &l->ccp.fsm;
 
     if (fp->state == ST_OPENED) {
       fsm_Close(fp);
@@ -1094,8 +1102,8 @@ SetInterfaceAddr(struct cmdargs const *arg)
     ipcp->cfg.peer_range.width = 0;
   }
 
-  if (hisaddr &&
-      !ipcp_UseHisaddr(arg->bundle, hisaddr, arg->bundle->phys_type & PHYS_DEMAND))
+  if (hisaddr && !ipcp_UseHisaddr(arg->bundle, hisaddr,
+                                  arg->bundle->phys_type & PHYS_DEMAND))
     return 4;
 
   return 0;
@@ -1106,12 +1114,15 @@ SetVariable(struct cmdargs const *arg)
 {
   u_long ulong_val;
   const char *argp;
-  int param = (int)arg->cmd->args;
+  int param = (int)arg->cmd->args, mode;
   struct datalink *cx = arg->cx;	/* AUTH_CX uses this */
   const char *err = NULL;
   struct link *l = command_ChooseLink(arg);	/* AUTH_CX_OPT uses this */
   int dummyint;
   struct in_addr dummyaddr, *addr;
+
+  if (!l)
+    return -1;
 
   if (arg->argc > arg->argn)
     argp = arg->argv[arg->argn];
@@ -1193,6 +1204,14 @@ SetVariable(struct cmdargs const *arg)
       err = "No accmap specified\n";
       log_Printf(LogWARN, err);
     }
+    break;
+  case VAR_MODE:
+    mode = Nam2mode(argp);
+    if (mode == PHYS_NONE || mode == PHYS_ALL) {
+      log_Printf(LogWARN, "%s: Invalid mode\n", argp);
+      return -1;
+    }
+    bundle_SetMode(arg->bundle, cx, mode);
     break;
   case VAR_MRRU:
     if (bundle_Phase(arg->bundle) != PHASE_DEAD)
@@ -1398,6 +1417,8 @@ static struct cmdtab const SetCommands[] = {
   "Set login script", "set login chat-script", (const void *) VAR_LOGIN},
   {"lqrperiod", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set LQR period", "set lqrperiod value", (const void *)VAR_LQRPERIOD},
+  {"mode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set mode value",
+  "set mode interactive|auto|ddial|background", (const void *)VAR_MODE},
   {"mrru", NULL, SetVariable, LOCAL_AUTH, "Set MRRU value",
   "set mrru value", (const void *)VAR_MRRU},
   {"mru", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -1789,6 +1810,9 @@ NegotiateSet(struct cmdargs const *arg)
   const char *cmd;
   unsigned keep;			/* Keep these bits */
   unsigned add;				/* Add these bits */
+
+  if (!l)
+    return -1;
 
   if ((cmd = ident_cmd(arg->argv[arg->argn-2], &keep, &add)) == NULL)
     return 1;

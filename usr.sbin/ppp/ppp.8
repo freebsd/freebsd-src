@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.32 1998/05/13 19:06:27 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.33 1998/05/15 18:21:12 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2682,6 +2682,16 @@ or
 packets are sent.  The default is 30 seconds.  You must also use the
 .Dq enable lqr
 command if you wish to send LQR requests to the peer.
+.It set mode Ar interactive|auto|ddial|background
+This command allows you to change the
+.Sq mode
+of the specified link.  This is normally only useful in multilink mode,
+but may also be used in unilink mode.
+.Pp
+It is not possible to change a link that is
+.Sq direct
+or
+.Sq dedicated .
 .It set mrru Ar value
 Setting this option enables Multilink PPP negotiations, also known as
 Multilink Protocol or MP.  There is no default MRRU (Maximum
