@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: edit.c,v 1.8.2.2 1997/06/26 11:16:55 charnier Exp $
  */
 
 #ifndef lint
@@ -163,6 +163,11 @@ display(fd, pw)
 	if (!list[E_HPHONE].restricted || !uid)
 	  (void)fprintf(fp, "Home Phone: %s\n", p ? p : "");
 
+	if (bp!=NULL)
+	  list[E_OTHER].save = strdup(bp);
+	if (!list[E_OTHER].restricted || !uid)
+	  (void)fprintf(fp, "Other information: %s\n", bp ? bp : "");
+
 	(void)fchown(fd, getuid(), getgid());
 	(void)fclose(fp);
 }
@@ -231,11 +236,13 @@ bad:					(void)fclose(fp);
 
 	/* Build the gecos field. */
 	len = strlen(list[E_NAME].save) + strlen(list[E_BPHONE].save) +
-	    strlen(list[E_HPHONE].save) + strlen(list[E_LOCATE].save) + 4;
+	    strlen(list[E_HPHONE].save) + strlen(list[E_LOCATE].save) +
+	    strlen(list[E_OTHER].save) + 4;
 	if (!(p = malloc(len)))
 		err(1, NULL);
-	(void)sprintf(pw->pw_gecos = p, "%s,%s,%s,%s", list[E_NAME].save,
-	    list[E_LOCATE].save, list[E_BPHONE].save, list[E_HPHONE].save);
+	(void)sprintf(pw->pw_gecos = p, "%s,%s,%s,%s,%s", list[E_NAME].save,
+	    list[E_LOCATE].save, list[E_BPHONE].save, list[E_HPHONE].save,
+	    list[E_OTHER].save);
 
 	while ((len = strlen(pw->pw_gecos)) && pw->pw_gecos[len - 1] == ',')
 		pw->pw_gecos[len - 1] = '\0';

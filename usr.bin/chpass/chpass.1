@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chpass.1	8.2 (Berkeley) 12/30/93
-.\"     $Id: chpass.1,v 1.7.2.2 1997/06/26 11:16:53 charnier Exp $
+.\"     $Id: chpass.1,v 1.7.2.3 1998/07/16 23:50:59 jkh Exp $
 .\"
 .Dd December 30, 1993
 .Dt CHPASS 1
@@ -79,7 +79,7 @@ option attempts to change the user's shell to
 .Pp
 Possible display items are as follows:
 .Pp
-.Bl -tag -width "Home Directory:" -compact -offset indent
+.Bl -tag -width "Other Information:" -compact -offset indent
 .It Login:
 user's login name
 .It Password:
@@ -106,6 +106,8 @@ user's normal location
 user's home phone
 .It Office Phone:
 user's office phone
+.It Other Information:
+any locally defined parameters for user
 .El
 .Pp
 The
@@ -184,13 +186,15 @@ shell.
 Non-standard is defined as a shell not found in
 .Pa /etc/shells .
 .Pp
-The last four fields are for storing the user's
+The last five fields are for storing the user's
 .Ar full name , office location ,
-and
 .Ar work
 and
 .Ar home telephone
-numbers.
+numbers and finally
+.Ar other information
+which is a single comma delimited string to represent any additional
+gcos fields (typically used for site specific user information).
 .Pp
 Once the information has been verified,
 .Nm chpass
