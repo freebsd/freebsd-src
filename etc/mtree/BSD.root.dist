@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.33 1998/12/01 21:36:33 dillon Exp $
+#	$Id: BSD.root.dist,v 1.34 1998/12/02 19:57:20 dillon Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -55,7 +55,7 @@
     ..
     sbin
     ..
-    tmp             uname=root gname=wheel mode=01777
+    tmp             mode=01777
     ..
     usr
     ..
