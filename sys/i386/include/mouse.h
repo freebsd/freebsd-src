@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mouse.h,v 1.7 1997/02/22 09:34:50 peter Exp $
  */
 
 #ifndef _MACHINE_MOUSE_H_
@@ -55,7 +55,7 @@ typedef struct mouseinfo {
 #define MOVEMENT	0x40	/* Mouse movement detected */
 
 #define MOUSE_GETSTATE		_IOR('M',0,mousestatus_t)
-#define MOUSE_GETINFO		_IOR('M',1,mousehw_t)
+#define MOUSE_GETHWINFO		_IOR('M',1,mousehw_t)
 #define MOUSE_GETMODE		_IOR('M',2,mousemode_t)
 #define MOUSE_SETMODE		_IOW('M',3,mousemode_t)
 
