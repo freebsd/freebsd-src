@@ -137,12 +137,9 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 		/* Wait for pending writes to complete */
 		spl = splbio();
 		while (vp->v_numoutput) {
-			vp->v_iflag |= VI_BWAIT;
-			error = msleep((caddr_t)&vp->v_numoutput,
-				       VI_MTX(vp),
-				       PRIBIO + 1,
-				       "rawrdfls", 0);
+			error = bufobj_wwait(&vp->v_bufobj, 0, 0);
 			if (error != 0) {
+				/* XXX: can't happen with a zero timeout ??? */
 				splx(spl);
 				VI_UNLOCK(vp);
 				if (upgraded != 0)

@@ -2068,7 +2068,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	VI_LOCK(vp);
 	drain_output(vp, 1);
 restart:
-	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs) {
+	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_bobufs) {
 		if (((flags & IO_EXT) == 0 && (bp->b_xflags & BX_ALTDATA)) ||
 		    ((flags & IO_NORMAL) == 0 &&
 		      (bp->b_xflags & BX_ALTDATA) == 0))
@@ -4925,7 +4925,7 @@ softdep_fsync_mountdev(vp)
 	ACQUIRE_LOCK(&lk);
 	VI_LOCK(vp);
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
+		nbp = TAILQ_NEXT(bp, b_bobufs);
 		/* 
 		 * If it is already scheduled, skip to the next buffer.
 		 */
@@ -5185,7 +5185,7 @@ loop:
 		return (error);
 	}
 	VI_LOCK(vp);
-	nbp = getdirtybuf(&TAILQ_NEXT(bp, b_vnbufs), VI_MTX(vp), MNT_WAIT);
+	nbp = getdirtybuf(&TAILQ_NEXT(bp, b_bobufs), VI_MTX(vp), MNT_WAIT);
 	if (nbp == NULL)
 		VI_UNLOCK(vp);
 	FREE_LOCK(&lk);
@@ -5926,9 +5926,10 @@ drain_output(vp, islocked)
 
 	if (!islocked)
 		ACQUIRE_LOCK(&lk);
-	while (vp->v_numoutput) {
-		vp->v_iflag |= VI_BWAIT;
-		interlocked_sleep(&lk, SLEEP, (caddr_t)&vp->v_numoutput, 
+	while (vp->v_bufobj.bo_numoutput) {
+		vp->v_bufobj.bo_flag |= BO_WWAIT;
+		interlocked_sleep(&lk, SLEEP,
+		    (caddr_t)&vp->v_bufobj.bo_numoutput,
 		    VI_MTX(vp), PRIBIO + 1, "drainvp", 0);
 	}
 	if (!islocked)

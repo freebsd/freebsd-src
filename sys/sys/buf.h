@@ -116,7 +116,7 @@ struct buf {
 	void	(*b_iodone)(struct buf *);
 	daddr_t b_blkno;		/* Underlying physical block number. */
 	off_t	b_offset;		/* Offset into file. */
-	TAILQ_ENTRY(buf) b_vnbufs;	/* (V) Buffer's associated vnode. */
+	TAILQ_ENTRY(buf) b_bobufs;	/* (V) Buffer's associated vnode. */
 	struct buf	*b_left;	/* (V) splay tree link */
 	struct buf	*b_right;	/* (V) splay tree link */
 	uint32_t	b_vflags;	/* (V) BV_* flags */
@@ -512,7 +512,6 @@ void	vfs_bio_set_validclean(struct buf *, int base, int size);
 void	vfs_bio_clrbuf(struct buf *);
 void	vfs_busy_pages(struct buf *, int clear_modify);
 void	vfs_unbusy_pages(struct buf *);
-void	vwakeup(struct buf *);
 int	vmapbuf(struct buf *);
 void	vunmapbuf(struct buf *);
 void	relpbuf(struct buf *, int *);
