@@ -1,9 +1,11 @@
-# Cronyx Id: sys.modules.ct.Makefile,v 1.1.2.2 2003/12/08 15:39:01 rik Exp $
+# Cronyx Id: Makefile,v 1.1.2.2 2003/01/13 08:28:48 rik Exp $
 # $FreeBSD$
+
 .PATH:  ${.CURDIR}/../../dev/ctau
 KMOD=   if_ct
-SRCS=   if_ct.c ctddk.c ctau.c opt_netgraph.h opt_ng_cronyx.h bpf.h sppp.h \
-	device_if.h bus_if.h isa_if.h
+SRCS=   if_ct.c ctddk.c ctau.c ctau.h opt_netgraph.h opt_ng_cronyx.h bpf.h \
+	sppp.h device_if.h bus_if.h isa_if.h
+NOMAN=
 
 NBPF?=		0
 NCTAU?=		3
@@ -12,7 +14,10 @@ NG_CRONYX?=	0
 NETGRAPH=	${NG_CRONYX}
 
 CFLAGS+= ${PROTOS}
-CLEANFILES+= opt_ng_cronyx.h opt_netgraph.h bpf.h ctddk.c ctau.c sppp.h
+CLEANFILES+= opt_ng_cronyx.h opt_netgraph.h ctau.h bpf.h sppp.h
+
+ctau.h:
+	echo "#define NCTAU ${NCTAU}" > ctau.h
 
 opt_netgraph.h:
 	echo "#define NETGRAPH $(NETGRAPH)" > opt_netgraph.h
