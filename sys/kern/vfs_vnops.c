@@ -265,6 +265,7 @@ restart:
 	if (fmode & FWRITE)
 		vp->v_writecount++;
 	*flagp = fmode;
+	ASSERT_VOP_LOCKED(vp, "vn_open_cred");
 	return (0);
 bad:
 	NDFREE(ndp, NDF_ONLY_PNBUF);
