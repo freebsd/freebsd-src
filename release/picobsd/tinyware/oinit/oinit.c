@@ -599,6 +599,15 @@ start_session(int vty, int argc, char **argv)
  * normal /etc/rc interpreted by Bourne shell.
  */
 #ifndef OINIT_RC
+#ifndef SH_NAME
+#define SH_NAME	"-sh"
+#endif
+#ifndef SH_PATH
+#define SH_PATH	_PATH_BSHELL
+#endif
+#ifndef SH_ARG
+#define SH_ARG	"/etc/rc"
+#endif
 void
 runcom()
 {
@@ -617,10 +626,10 @@ runcom()
 		dup2(fd,1);
 		dup2(fd,2);
 		if(fd>2) close(fd);
-		argv[0]="-sh";
-		argv[1]="/etc/rc";
+		argv[0]=SH_NAME;
+		argv[1]=SH_ARG;
 		argv[2]=0;
-		execvp("/bin/sh",argv);
+		execvp(SH_PATH,argv);
 		printf("runcom(): %s\n",strerror(errno));
 		_exit(1);
 	}
