@@ -143,7 +143,7 @@ knowledge of irregular disk geometries such as track-to-track skew.
 .NH 2
 Fat Fast File System
 .PP
-The 4.2 fast file sytem [McKusick84]
+The 4.2 fast file system [McKusick84]
 contained several statically sized structures,
 imposing limits on the number of cylinders per cylinder group,
 inodes per cylinder group,
@@ -152,7 +152,7 @@ The new ``fat'' filesystem allows these limits to be set at filesystem
 creation time.
 Old kernels will treat the new filesystems as read-only,
 and new kernels
-will accomodate both formats.
+will accommodate both formats.
 The filesystem check facility, \fCfsck\fP, has also been modified to check
 either type.
 .br
@@ -202,7 +202,7 @@ A kernel version of the OSI IP and ES-IS protocols must be produced.
 We will implement the kernel version of these protocols.
 .IP 3)
 The required device drivers need to be integrated into a BSD kernel.
-4.3BSD has existing device drivers for many ethernet devices; future
+4.3BSD has existing device drivers for many Ethernet devices; future
 BSD versions may also support X.25 devices as well as token ring
 networks.
 These device drivers must be integrated
@@ -223,7 +223,7 @@ Compliance with POSIX 1003
 .PP
 Berkeley became involved several months ago in the development
 of the IEEE POSIX P1003.1 system interface standard.
-Since then, we have been parcipating in the working groups
+Since then, we have been participating in the working groups
 of P1003.2 (shell and application utility interface),
 P1003.6 (security), P1003.7 (system administration), and P1003.8
 (networking).
