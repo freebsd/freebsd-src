@@ -145,10 +145,6 @@ setup(dev)
 		pwarn("USING ALTERNATE SUPERBLOCK AT %d\n", bflag);
 		bflag = 0;
 	}
-	if (skipclean && sblock.fs_clean) {
-		pwarn("FILESYSTEM CLEAN; SKIPPING CHECKS\n");
-		return (-1);
-	}
 	maxfsblock = sblock.fs_size;
 	maxino = sblock.fs_ncg * sblock.fs_ipg;
 	/*
@@ -264,6 +260,12 @@ setup(dev)
 			asked++;
 		}
 	}
+	/*
+	 * If we survive the above basic checks and are preening,
+	 * quit here unless forced.
+	 */
+	if (skipclean && sblock.fs_clean && !fflag)
+		return (-1);
 	/*
 	 * allocate and initialize the necessary maps
 	 */
