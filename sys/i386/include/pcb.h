@@ -66,6 +66,7 @@ struct pcb {
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
 #define	PCB_DBREGS	0x02	/* process using debug registers */
 #define	PCB_NPXTRAP	0x04	/* npx trap pending */
+#define	PCB_NPXINITDONE	0x08	/* fpu state is initialized */
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 	int	pcb_gs;
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */

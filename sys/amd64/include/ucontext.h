@@ -58,11 +58,25 @@ typedef struct __mcontext {
 	int	mc_esp;			/* machine state */
 	int	mc_ss;
 
-	int	mc_fpregs[28];		/* env87 + fpacc87 + u_long */
-#define	__UC_MC_VALID	0x0001		/* mcontext register state is valid */
-#define	__UC_FP_VALID	0x0002		/* FP registers have been saved */
-	int	mc_flags;
-	int	__spare__[16];
+	int	mc_len;			/* sizeof(mcontext_t) */
+#define	_MC_FPFMT_NODEV		0	/* device not present or configured */
+#define	_MC_FPFMT_387		1
+#define	_MC_FPFMT_XMM		2
+	int	mc_fpformat;
+#define	_MC_FPOWNED_NONE	0	/* FP state not used */
+#define	_MC_FPOWNED_FPU		1	/* FP state came from FPU */
+#define	_MC_FPOWNED_PCB		2	/* FP state came from PCB */
+	int	mc_ownedfp;
+	int	mc_spare1[1];		/* align next field to 16 bytes */
+	int	mc_fpstate[128];	/* must be multiple of 16 bytes */
+	int	mc_spare2[8];
 } mcontext_t;
+
+#ifdef _KERNEL
+struct thread;
+
+void	get_mcontext(struct thread *td, mcontext_t *mcp);
+int	set_mcontext(struct thread *td, const mcontext_t *mcp);
+#endif
 
 #endif /* !_MACHINE_UCONTEXT_H_ */
