@@ -1641,8 +1641,15 @@ sogetopt(so, sopt)
 #endif
 
 		case SO_LINGER:
+			/*
+			 * XXXRW: We grab the lock here to get a consistent
+			 * snapshot of both fields.  This may not really
+			 * be necessary.
+			 */
+			SOCK_LOCK(so);
 			l.l_onoff = so->so_options & SO_LINGER;
 			l.l_linger = so->so_linger;
+			SOCK_UNLOCK(so);
 			error = sooptcopyout(sopt, &l, sizeof l);
 			break;
 
