@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.reg,v 1.4 1997/06/27 19:38:39 gibbs Exp $
+ *	$Id: aic7xxx.reg,v 1.5 1997/08/13 17:02:24 gibbs Exp $
  */
 
 /*
@@ -956,28 +956,6 @@ scratch_ram {
 		bit	FIFOFLUSH	0x02
 		bit	FIFORESET	0x01
 	}
-	/*
-	 * Number of SCBs supported by
-	 * this card.
-	 */
-	SCBCOUNT {
-		size		1
-	}
-	/*
-	 * Two's complement of SCBCOUNT
-	 */
-	COMP_SCBCOUNT {
-		size		1
-	}
-	/*
-	 * Mask of bits to test against
-	 * when looking at the Queue Count
-	 * registers.  Works around a bug
-	 * on aic7850 chips. 
-	 */
-	QCNTMASK {
-		size		1
-	}
 	SEQ_FLAGS {
 		size		1
 		bit	RESELECTED	0x80
@@ -1014,13 +992,6 @@ scratch_ram {
 		size		1
 	}
 	SAVED_SCBPTR {
-		size		1
-	}
-	/*
-	 * The sequencer will stick the frist byte of any rejected message here
-	 * so we can see what is getting thrown away.
-	 */
-	REJBYTE	{
 		size		1
 	}
 	/*
@@ -1087,13 +1058,6 @@ scratch_ram {
 	CMDOUTCNT {
 		size		1
 	}
-	/*
-	 * Maximum number of entries allowed in
-	 * the QOUT/INFIFO.
-	 */
-	FIFODEPTH {
-		size		1
-	}
 	ARG_1 {
 		size		1
 		mask	SEND_MSG	0x80
@@ -1133,3 +1097,18 @@ const BUS_16_BIT		0x01
 const BUS_32_BIT		0x02
 const MAX_OFFSET_8BIT		0x0f
 const MAX_OFFSET_16BIT	0x08
+
+/*
+ * Downloaded (kernel inserted) constants
+ */
+const SCBCOUNT		download	/* The number of SCBs on this card */
+const COMP_SCBCOUNT	download	/* Two's complement of max SCBID */
+/*
+ * The maximum number of entries allowed in the QIN/OUTFIFO.
+ */
+const FIFODEPTH		download	/* Two's complement of SCBCOUNT */
+/*
+ * Mask of bits to test against when looking at the Queue Count
+ * registers.  Works around a bug on aic7850 chips. 
+ */
+const QCNTMASK		download

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_gram.y,v 1.2 1997/06/27 19:38:49 gibbs Exp $
+ *      $Id: aicasm_gram.y,v 1.3 1997/09/03 03:44:40 gibbs Exp $
  */
 
 #include <stdio.h>
@@ -55,6 +55,7 @@ static symbol_ref_t none;
 static symbol_ref_t sindex;
 static int instruction_ptr;
 static int sram_or_scb_offset;
+static int download_constant_count;
 static patch_t *cur_patch;
 
 static void process_bitmask __P((int mask_type, symbol_t *sym, int mask));
@@ -74,6 +75,7 @@ static void type_check __P((symbol_t *symbol, expression_t *expression,
 			    int and_op));
 static void make_expression __P((expression_t *immed, int value));
 static void add_conditional __P((symbol_t *symbol));
+static int  is_download_const __P((expression_t *immed));
 
 #define YYDEBUG 1
 #define SRAM_SYMNAME "SRAM_BASE"
@@ -91,6 +93,8 @@ static void add_conditional __P((symbol_t *symbol));
 %token T_REGISTER
 
 %token <value> T_CONST
+
+%token T_DOWNLOAD
 
 %token T_SCB
 
@@ -153,6 +157,8 @@ static void add_conditional __P((symbol_t *symbol));
 %type <expression> expression immediate immediate_or_a
 
 %type <value> ret f1_opcode f2_opcode jmp_jc_jnc_call jz_jnz je_jne
+
+%type <value> numerical_value
 
 %left '|'
 %left '&'
@@ -422,6 +428,7 @@ expression:
 		case BIT:
 			$$.value = symbol->info.minfo->mask;
 			break;
+		case DOWNLOAD_CONST:
 		case CONST:
 			$$.value = symbol->info.cinfo->value;
 			break;
@@ -444,10 +451,10 @@ expression:
 ;
 
 constant:
-	T_CONST T_SYMBOL T_NUMBER	
+	T_CONST T_SYMBOL numerical_value
 	{
 		if ($2->type != UNINITIALIZED) {
-			stop("Re-definition of constant variable",
+			stop("Re-definition of symbol as a constant",
 			     EX_DATAERR);
 			/* NOTREACHED */
 		}
@@ -455,6 +462,34 @@ constant:
 		initialize_symbol($2);
 		$2->info.cinfo->value = $3;
 		$2->info.cinfo->define = $1;
+	}
+|	T_CONST T_SYMBOL T_DOWNLOAD
+	{
+		if ($1) {
+			stop("Invalid downloaded constant declaration",
+			     EX_DATAERR);
+			/* NOTREACHED */
+		}
+		if ($2->type != UNINITIALIZED) {
+			stop("Re-definition of symbol as a downloaded constant",
+			     EX_DATAERR);
+			/* NOTREACHED */
+		}
+		$2->type = DOWNLOAD_CONST;
+		initialize_symbol($2);
+		$2->info.cinfo->value = download_constant_count++;
+		$2->info.cinfo->define = FALSE;
+	}
+;
+
+numerical_value:
+	T_NUMBER
+	{
+		$$ = $1;
+	}
+|	'-' T_NUMBER
+	{
+		$$ = -$2;
 	}
 ;
 
@@ -997,6 +1032,7 @@ initialize_symbol(symbol)
 		SLIST_INIT(&(symbol->info.minfo->symrefs));
 		break;
         case CONST:
+        case DOWNLOAD_CONST:
 		symbol->info.cinfo =
 		    (struct const_info *)malloc(sizeof(struct const_info));
 		if (symbol->info.cinfo == NULL) {
@@ -1088,6 +1124,10 @@ format_1_instr(opcode, dest, immed, src, ret)
 	f1_instr->source = src->symbol->info.rinfo->address
 			 + src->offset;
 	f1_instr->immediate = immed->value;
+
+	if (is_download_const(immed))
+		f1_instr->opcode_ret |= DOWNLOAD_CONST_IMMEDIATE;
+
 	symlist_free(&immed->referenced_syms);
 	instruction_ptr++;
 }
@@ -1191,6 +1231,10 @@ format_3_instr(opcode, src, immed, address)
 	f3_instr->source = src->symbol->info.rinfo->address
 			 + src->offset;
 	f3_instr->immediate = immed->value;
+
+	if (is_download_const(immed))
+		f3_instr->opcode_addr |= DOWNLOAD_CONST_IMMEDIATE;
+
 	symlist_free(&immed->referenced_syms);
 	instruction_ptr++;
 }
@@ -1230,6 +1274,7 @@ type_check(symbol, expression, opcode)
 	and_op = FALSE;
 	if (opcode == AIC_OP_AND || opcode == AIC_OP_JNZ || AIC_OP_JZ)
 		and_op = TRUE;
+
 	/*
 	 * Make sure that we aren't attempting to write something
 	 * that hasn't been defined.  If this is an and operation,
@@ -1301,4 +1346,15 @@ yyerror(string)
 	const char *string;
 {
 	stop(string, EX_DATAERR);
+}
+
+static int
+is_download_const(immed)
+	expression_t *immed;
+{
+	if ((immed->referenced_syms.slh_first != NULL)
+	 && (immed->referenced_syms.slh_first->symbol->type == DOWNLOAD_CONST))
+		return (TRUE);
+
+	return (FALSE);
 }
