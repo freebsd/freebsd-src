@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.11 1996/04/23 01:29:20 jkh Exp $
+ * $Id: floppy.c,v 1.12 1996/05/09 09:42:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -95,7 +95,7 @@ getRootFloppy(void)
 
 	    menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyChoiceHook, NULL);
 	    menu->title = "Please insert the ROOT floppy";
-	    ret = dmenuOpenSimple(menu);
+	    ret = dmenuOpenSimple(menu, FALSE);
 	    restorescr(save);
 	    if (!ret)
 		return -1;
