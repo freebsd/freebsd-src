@@ -1,4 +1,6 @@
-#	@(#)rc	5.27 (Berkeley) 6/5/91
+#!/bin/sh
+#	$Id$
+#	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
 # or after single-user.
@@ -151,15 +153,23 @@ fi
 
 echo -n ' printer';		lpd
 
+# Portmapper should always be run, to provide RPC services for inetd.
+if [ -x /usr/sbin/portmap ]; then
+	echo -n ' portmap';		portmap
+fi
 
 if [ X${nfs_server} = X"YES" -a -r /etc/exports ]; then
-	echo -n ' portmap';		portmap
 	echo -n ' mountd';		mountd
 	echo -n ' nfsd';		nfsd -u 0,0,4 -t 0,0
 	echo -n ' nfsiod';		nfsiod 4
 fi
 
-echo -n ' sendmail';		sendmail -bd -q30m
+# $sendmail_flags is imported from /etc/netstart;
+# if $sendmail_flags is something other than NO, sendmail is run.
+if [ X${sendmail_flags} = X"NO" -a -r /etc/sendmail.cf ]; then
+	echo -n ' sendmail';		sendmail ${sendmail_flags} 
+fi
+
 echo -n ' inetd';		inetd
 echo '.'
 
