@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.44 1997/06/09 13:38:21 kato Exp $
+ *	$Id: machdep.c,v 1.45 1997/06/15 16:35:13 kato Exp $
  */
 
 #include "apm.h"
@@ -229,12 +229,6 @@ cpu_startup(dummy)
 	 * Good {morning,afternoon,evening,night}.
 	 */
 	printf(version);
-#ifdef SMP
-#if defined(LATE_START)
-	mp_start();			/* fire up the APs and APICs */
-#endif  /* LATE_START */
-	mp_announce();
-#endif  /* SMP */
 	earlysetcpuclass();
 	startrtclock();
 	printcpuinfo();
@@ -370,23 +364,6 @@ again:
 	u_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(maxproc*UPAGES*PAGE_SIZE), FALSE);
 
-#if defined(SMP) && defined(SMP_PRIVPAGES)
-	/* Per-cpu pages.. (the story so far is... subject to change)
-	 * ========= For the per-cpu data page ========
-	 * 1 private data page
-	 * 1 PDE	(per-cpu PTD entry page)
-	 * 1 PT		(per-cpu page table page)
-	 * ============ For the idle loop =============
-	 * 2 UPAGEs	(per-cpu idle procs)
-	 * 1 PTD	(for per-cpu equiv of IdlePTD)
-	 * ============================================
-	 * = total of 6 pages per cpu.  The BSP reuses the ones allocated
-	 * by locore.s during boot to remove special cases at runtime.
-	 */
-	ppage_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-				(NCPU*6*PAGE_SIZE), FALSE);
-#endif
-
 	/*
 	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
 	 * we use the more space efficient malloc in place of kmem_alloc.
@@ -429,6 +406,14 @@ again:
 
 	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),
 	    ptoa(cnt.v_free_count) / 1024);
+
+#ifdef SMP
+	/*
+	 * OK, enough kmem_alloc/malloc state should be up, lets get on with it!
+	 */
+	mp_start();			/* fire up the APs and APICs */
+	mp_announce();
+#endif  /* SMP */
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -815,8 +800,7 @@ struct region_descriptor r_gdt, r_idt;
 #endif
 
 #ifdef SMP
-struct i386tss SMPcommon_tss[NCPU];	/* One tss per cpu */
-struct i386tss *SMPcommon_tss_ptr[NCPU]; /* for the benefit of asmp code */
+extern struct i386tss common_tss;	/* One tss per cpu */
 #else
 struct i386tss common_tss;
 #endif
@@ -893,11 +877,7 @@ struct soft_segment_descriptor gdt_segs[
 	0  			/* limit granularity (byte/page units)*/ },
 /* GPROC0_SEL	6 Proc 0 Tss Descriptor */
 {
-#ifdef SMP
-	(int) &SMPcommon_tss[0],/* segment base address */
-#else
 	(int) &common_tss,	/* segment base address */
-#endif
 	sizeof(struct i386tss)-1,/* length - all address space */
 	SDT_SYS386TSS,		/* segment type */
 	0,			/* segment descriptor priority level */
@@ -1090,12 +1070,11 @@ init386(first)
 
 #ifdef SMP
 	/*
-	 * Oh puke!
+	 * Spin these up now.  init_secondary() grabs them.  We could use
+	 * #for(x,y,z) / #endfor cpp directives if they existed.
 	 */
 	for (x = 0; x < NCPU; x++) {
-		SMPcommon_tss_ptr[x] = &SMPcommon_tss[x];
 		gdt_segs[NGDT + x] = gdt_segs[GPROC0_SEL];
-		gdt_segs[NGDT + x].ssd_base = (int) SMPcommon_tss_ptr[x];
 		ssdtosd(&gdt_segs[NGDT + x], &gdt[NGDT + x].sd);
 	}
 #endif
@@ -1301,6 +1280,11 @@ init386(first)
 		Maxmem = idp->id_msize / 4;
 #endif
 
+#ifdef SMP
+	/* look for the MP hardware - needed for apic addresses */
+	mp_probe();
+#endif
+
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap (first, 0);
 
@@ -1436,40 +1420,18 @@ init386(first)
 			   avail_end + off, VM_PROT_ALL, TRUE);
 	msgbufmapped = 1;
 
-#ifdef SMP
-	/* look for the MP hardware */
-	mp_probe();
-
-	/* make the initial tss so cpu can get interrupt stack on syscall! */
-	for(x = 0; x < NCPU; x++) {
-		SMPcommon_tss[x].tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE;
-		SMPcommon_tss[x].tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
-		SMPcommon_tss[x].tss_ioopt = (sizeof SMPcommon_tss[x]) << 16;
-	}
-#if 0
-	/** XXX FIXME:
-	 *   We can't access the LOCAL APIC till mp_enable() runs.  Since
-	 *   this is run by the BSP, cpunumber() should always equal 0 anyway.
-	 */
-	gsel_tss = GSEL(NGDT + cpunumber(), SEL_KPL);
-#else
-	gsel_tss = GSEL(NGDT /** + 0 */, SEL_KPL);
-#endif  /** 0 */
-	ltr(gsel_tss);
-#else
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE;
 	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
-#endif  /* SMP */
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
 	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
 	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
 	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
-	dblfault_tss.tss_cr3 = IdlePTD;
+	dblfault_tss.tss_cr3 = (int)IdlePTD;
 	dblfault_tss.tss_eip = (int) dblfault_handler;
 	dblfault_tss.tss_eflags = PSL_KERNEL;
 	dblfault_tss.tss_ds = dblfault_tss.tss_es = dblfault_tss.tss_fs = 
@@ -1503,14 +1465,8 @@ init386(first)
 
 	/* setup proc 0's pcb */
 	proc0.p_addr->u_pcb.pcb_flags = 0;
-	proc0.p_addr->u_pcb.pcb_cr3 = IdlePTD;
+	proc0.p_addr->u_pcb.pcb_cr3 = (int)IdlePTD;
 	proc0.p_addr->u_pcb.pcb_mpnest = 1;
-
-#ifdef SMP
-#if !defined(LATE_START)
-	mp_start();			/* fire up the APs and APICs */
-#endif  /* LATE_START */
-#endif  /* SMP */
 }
 
 int
