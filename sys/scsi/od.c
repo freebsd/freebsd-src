@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.42 1998/07/13 09:53:11 bde Exp $
+ *	$Id: od.c,v 1.43 1998/07/28 18:59:49 bde Exp $
  */
 
 /*
@@ -456,7 +456,6 @@ od_strategy(struct buf *bp, struct scsi_link *sc_link)
 	u_int32_t opri;
 	struct scsi_data *od;
 	u_int32_t unit;
-	int secsize;
 
 	odstrats++;
 	unit = ODUNIT((bp->b_dev));
@@ -471,62 +470,10 @@ od_strategy(struct buf *bp, struct scsi_link *sc_link)
 	}
 
 	/*
-	 * Odd number of bytes or negative offset
-	 */
-	if (bp->b_blkno < 0 ) {
-		bp->b_error = EINVAL;
-		printf("od_strategy: Negative block number: 0x%x\n", bp->b_blkno);
-		goto bad;
-	}
-
-	
-	secsize = od->params.secsiz;
-
-	/* make sure the blkno is scalable */
-	if( (bp->b_blkno % (secsize/DEV_BSIZE)) != 0 ) {
-		bp->b_error = EINVAL;
-		printf("od_strategy: Block number is not multiple of sector size (2): 0x%x\n", bp->b_blkno);
-		goto bad;
-	}
-
-	/* make sure that the transfer size is a multiple of the sector size */
-	if( (bp->b_bcount % secsize) != 0 ) {
-		bp->b_error = EINVAL;
-		printf(
-		"od_strategy: Invalid b_bcount %ld at block number: 0x%lx\n",
-		    bp->b_bcount, (long)bp->b_blkno);
-		goto bad;
-	}
-
-	/*
 	 * Do bounds checking, adjust transfer, and set b_pblkno.
 	 */
-	{
-	int status;
-	int sec_blk_ratio = secsize/DEV_BSIZE;
-	/* save original block number and size */
-	int b_blkno = bp->b_blkno;
-	int b_bcount = bp->b_bcount;
-
-	/* replace with scaled values */
-	bp->b_blkno /= sec_blk_ratio;
-	bp->b_bcount /= sec_blk_ratio;
-	
-	/* have dscheck enforce limits and map to physical block number */
-	status = dscheck(bp, od->dk_slices);
-
-	/* restore original values to prevent bad side effects in block system */
-	bp->b_blkno = b_blkno;
-	bp->b_bcount = b_bcount;
-	/* scale resid */
-	bp->b_resid *= sec_blk_ratio;
-
-	/* see if the mapping failed */
-	if (status <= 0)
-		{
+	if (dscheck(bp, od->dk_slices) <= 0)
 		goto done;	/* XXX check b_resid */
-		}
-	}
 
 	opri = SPLOD();
 
