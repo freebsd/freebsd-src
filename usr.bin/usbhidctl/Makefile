@@ -3,8 +3,7 @@
 
 PROG=	usbhidctl
 SRCS=	usbhid.c
-
-LDADD+=	-lusbhid
-DPADD+=	${LIBUSBHID}
+DPADD=	${LIBUSBHID}
+LDADD=	-lusbhid
 
 .include <bsd.prog.mk>
