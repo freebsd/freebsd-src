@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 8.557 2001/10/05 03:49:41 ca Exp $
+ *	$Id: conf.h,v 8.560 2002/03/15 06:01:54 geir Exp $
  */
 
 /* $FreeBSD$ */
