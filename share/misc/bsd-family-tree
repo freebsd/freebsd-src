@@ -162,7 +162,8 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |      |             |      |    |            |             |
  |   FreeBSD 4.9      |      |    |        OpenBSD 3.4       |
  |      |             |      |    |            |             |
- |      v             |      |    |            |             |
+ |      v             |      | NetBSD 1.6.2    |             |
+ |                    |      |    |            |             |
  |                    |      |    v            |             |
 FreeBSD 5.0	      |      |                 |             |
  |                    |      |                 |            BSD/OS 5.0
@@ -393,6 +394,7 @@ FreeBSD 4.9		2003-10-28 [FBD]
 OpenBSD 3.4		2003-11-01 [OBD]
 FreeBSD 5.2		2004-01-12 [FBD]
 FreeBSD 5.2.1		2004-02-22 [FBD] (patch release)
+NetBSD 1.6.2		2004-03-01 [NBD]
 
 Bibliography
 ------------------------
