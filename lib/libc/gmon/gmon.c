@@ -51,7 +51,7 @@ static char sccsid[] = "@(#)gmon.c	8.1 (Berkeley) 6/4/93";
 #include <unistd.h>
 #include "un-namespace.h"
 
-#if defined(__ELF__) && defined(i386)
+#if defined(__ELF__) && (defined(i386) || defined(__sparc64__))
 extern char *minbrk asm (".minbrk");
 #else
 extern char *minbrk asm ("minbrk");
