@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.20 1995/06/11 19:29:34 rgrimes Exp $
+ * $Id: disk.c,v 1.22 1996/04/29 05:03:02 jkh Exp $
  *
  */
 
@@ -64,7 +64,9 @@ Int_Open_Disk(const char *name, u_long size)
 
 	fd = open(device,O_RDONLY);
 	if (fd < 0) {
+#ifdef DEBUG
 		warn("open(%s) failed",device);
+#endif
 		return 0;
 	}
 
@@ -72,7 +74,9 @@ Int_Open_Disk(const char *name, u_long size)
 	ioctl(fd,DIOCGDINFO,&dl);
 	i = ioctl(fd,DIOCGSLICEINFO,&ds);
 	if (i < 0) {
+#ifdef DEBUG
 		warn("DIOCGSLICEINFO(%s) failed",device);
+#endif
 		close(fd);
 		return 0;
 	}
@@ -112,8 +116,12 @@ Int_Open_Disk(const char *name, u_long size)
 	if (dl.d_ntracks && dl.d_nsectors)
 		d->bios_cyl = size/(dl.d_ntracks*dl.d_nsectors);
 
-	if (Add_Chunk(d, -offset, size, name,whole,0,0))
+	if (Add_Chunk(d, -offset, size, name, whole, 0, 0))
+#ifdef DEBUG
 		warn("Failed to add 'whole' chunk");
+#else
+		{}
+#endif
 
 	for(i=BASE_SLICE;i<ds.dss_nslices;i++) {
 		char sname[20];
@@ -141,9 +149,13 @@ Int_Open_Disk(const char *name, u_long size)
 				ce = unknown;
 				break;
 		}
-		if (Add_Chunk(d,ds.dss_slices[i].ds_offset,
-			ds.dss_slices[i].ds_size, sname,ce,subtype,flags))
-			warn("failed to add chunk for slice %d",i - 1);
+		if (Add_Chunk(d, ds.dss_slices[i].ds_offset,
+			ds.dss_slices[i].ds_size, sname, ce, subtype, flags))
+#ifdef DEBUG
+			warn("failed to add chunk for slice %d", i - 1);
+#else
+			{}
+#endif
 
 		if (ds.dss_slices[i].ds_type != 0xa5)
 			continue;
@@ -156,12 +168,16 @@ Int_Open_Disk(const char *name, u_long size)
 		strcat(pname,sname);
 		j = open(pname,O_RDONLY);
 		if (j < 0) {
+#ifdef DEBUG
 			warn("open(%s)",pname);
+#endif
 			continue;
 		}
 		k = ioctl(j,DIOCGDINFO,&dl);
 		if (k < 0) {
+#ifdef DEBUG
 			warn("ioctl(%s,DIOCGDINFO)",pname);
+#endif
 			close(j);
 			continue;
 		}
@@ -190,10 +206,14 @@ Int_Open_Disk(const char *name, u_long size)
 				pname,part,
 				dl.d_partitions[j].p_fstype,
 				0) && j != 3)
+#ifdef DEBUG
 				warn(
 			"Failed to add chunk for partition %c [%lu,%lu]",
 			j + 'a',dl.d_partitions[j].p_offset,
 			dl.d_partitions[j].p_size);
+#else
+				{}
+#endif
 		}
 		}
 	}
