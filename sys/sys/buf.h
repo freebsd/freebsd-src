@@ -195,6 +195,11 @@ struct buf {
  *			the pages underlying the buffer.   B_DIRECT is 
  *			sticky until the buffer is released and typically
  *			only has an effect when B_RELBUF is also set.
+ *
+ *	B_NOWDRAIN	This flag should be set when a device (like VN)
+ *			does a turn-around VOP_WRITE from its strategy
+ *			routine.  This flag prevents bwrite() from blocking
+ *			in wdrain, avoiding a deadlock situation.
  */
 
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
@@ -229,9 +234,9 @@ struct buf {
 #define B_RAM		0x10000000	/* Read ahead mark (flag) */
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
-#define B_AUTOCHAINDONE	0x80000000	/* Available flag */
+#define B_NOWDRAIN	0x80000000	/* Avoid wdrain deadlock */
 
-#define PRINT_BUF_FLAGS "\20\40autochain\37cluster\36vmio\35ram\34ordered" \
+#define PRINT_BUF_FLAGS "\20\40nowdrain\37cluster\36vmio\35ram\34ordered" \
 	"\33paging\32xxx\31writeinprog\30want\27relbuf\26dirty" \
 	"\25read\24raw\23phys\22clusterok\21malloc\20nocache" \
 	"\17locked\16inval\15scanned\14error\13eintr\12done\11freebuf" \
@@ -245,6 +250,7 @@ struct buf {
 #define	BX_BKGRDWRITE	0x00000004	/* Do writes in background */
 #define	BX_BKGRDINPROG	0x00000008	/* Background write in progress */
 #define	BX_BKGRDWAIT	0x00000010	/* Background write waiting */
+#define BX_AUTOCHAINDONE 0x00000020	/* pager I/O chain auto mode */
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 

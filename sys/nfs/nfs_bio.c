@@ -1051,6 +1051,12 @@ again:
 			}
 			vfs_bio_set_validclean(bp, on, n);
 		}
+		/*
+		 * If IO_NOWDRAIN then set B_NOWDRAIN (e.g. nfs-backed VN
+		 * filesystem).  XXX also use for loopback NFS mounts.
+		 */
+		if (ioflag & IO_NOWDRAIN)
+			bp->b_flags |= B_NOWDRAIN;
 
 		/*
 		 * If the lease is non-cachable or IO_SYNC do bwrite().
