@@ -26,4 +26,6 @@
  * $FreeBSD$
  */
 
+extern vm_offset_t     sable_lynx_base;
+
 extern void t2_init(void);
