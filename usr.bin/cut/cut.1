@@ -67,11 +67,11 @@ The items specified by
 can be in terms of column position or in terms of fields delimited
 by a special character. Column numbering starts from 1.
 .Pp
-.Ar List
+.Ar list
 is a comma or whitespace separated set of increasing numbers and/or
 number ranges.
 Number ranges consist of a number, a dash
-.Pq Li \- ,
+.Pq Sq \- ,
 and a second number
 and select the fields or columns from the first number to the second,
 inclusive.
@@ -109,8 +109,9 @@ Suppresses lines with no field delimiter characters.
 Unless specified, lines with no delimiters are passed through unmodified.
 .El
 .Pp
-.Nm Cut
-exits 0 on success, 1 if an error occurred.
+The
+.Nm cut
+utility exits 0 on success or 1 if an error occurred.
 .Sh SEE ALSO
 .Xr paste 1
 .Sh STANDARDS
