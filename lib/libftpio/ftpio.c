@@ -327,37 +327,12 @@ ftpPut(FILE *fp, char *file)
     return NULL;
 }
 
-/* Unlike binary mode, passive mode is a toggle! :-( */
 int
 ftpPassive(FILE *fp, int st)
 {
     FTP_t ftp = fcookie(fp);
-    int i;
 
-    if (ftp->is_passive == st)
-	return SUCCESS;
-    switch (ftp->addrtype) {
-    case AF_INET:
-	i = cmd(ftp, "PASV");
-	if (i < 0)
-	    return i;
-	if (i != FTP_PASSIVE_HAPPY)
-	    return FAILURE;
-	break;
-    case AF_INET6:
-	i = cmd(ftp, "EPSV");
-	if (i < 0)
-	    return i;
-	if (i != FTP_EPASSIVE_HAPPY) {
-	    i = cmd(ftp, "LPSV");
-	    if (i < 0)
-		return i;
-	    if (i != FTP_LPASSIVE_HAPPY)
-		return FAILURE;
-	}
-	break;
-    }
-    ftp->is_passive = !ftp->is_passive;
+    ftp->is_passive = !!st;	/* normalize "st" to zero or one */
     return SUCCESS;
 }
 
@@ -545,12 +520,17 @@ ftp_close_method(void *n)
     return i;
 }
 
+/*
+ * This function checks whether the FTP_PASSIVE_MODE environment
+ * variable is set, and, if so, enforces the desired mode.
+ */
 static void
 check_passive(FILE *fp)
 {
-    char *cp = getenv("FTP_PASSIVE_MODE");
+    const char *cp = getenv("FTP_PASSIVE_MODE");
 
-    ftpPassive(fp, (cp && strncasecmp(cp, "no", 2)));
+    if (cp != NULL)
+    	ftpPassive(fp, strncasecmp(cp, "no", 2));
 }
 
 static void
