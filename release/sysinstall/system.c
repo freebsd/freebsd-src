@@ -42,7 +42,7 @@ handle_intr(int sig)
     WINDOW *save = savescr();
 
     if (!msgYesNo("Are you sure you want to abort the installation?"))
-	systemShutdown(1);
+	systemShutdown(-1);
     else
 	restorescr(save);
 }
@@ -115,7 +115,7 @@ void
 systemShutdown(int status)
 {
     /* If some media is open, close it down */
-    if (mediaDevice)
+    if (status >=0 && mediaDevice)
 	mediaDevice->shutdown(mediaDevice);
 
     /* Shut down the dialog library */
