@@ -1,10 +1,156 @@
--- $Id: NEWS,v 1.474 1999/08/22 00:12:43 tom Exp $
+-- $Id: NEWS,v 1.504 1999/10/24 00:31:05 tom Exp $
 
 This is a log of changes that ncurses has gone through since Zeyd started
 working with Pavel Curtis' original work, pcurses, in 1992.
 
 Changes through 1.9.9e are recorded by Zeyd M. Ben-Halim.
 Changes since 1.9.9e are recorded by Thomas Dickey.
+
+19991023 5.0 release for upload to ftp.gnu.org
+	+ effective with release of 5.0, change NCURSES_VERSION_PATCH to
+	  4-digit year.
+	+ add function curses_version(), to return ncurses library version
+	  (request by Bob van der Poel).
+	+ remove rmam, smam from cygwin terminfo entry.
+	+ modify FreeBSD cons25 terminfo entry to add cnorm and cvvis, as well
+	  as update ncv to indicate that 'dim' conflicts with colors.
+	+ modify configure script to use symbolic links for FreeBSD shared
+	  libraries by default.
+	+ correct ranf() function in rain and worm programs to ensure it does
+	  not return 1.0
+	+ hide the cursor in hanoi.c if it is running automatically.
+	+ amend lrtest.c to account for optimizations that exploit margin
+	  wrapping.
+	+ add a simple terminfo demo, dots.c
+	+ modify SIGINT/SIGQUIT handler to set a flag used in _nc_outch() to
+	  tell it to use write() rather than putc(), since the latter is not
+	  safe in a signal handler according to POSIX.
+	+ add/use internal macros _nc_flush() and NC_OUTPUT to hide details
+	  of output-file pointer in ncurses library.
+	+ uncomment CC_SHARED_OPTS (see 971115), since they are needed for SCO
+	  OpenServer.
+	+ correct CC_SHARED_OPTS for building shared libraries for SCO
+	  OpenServer.
+	+ remove usleep() from alternatives in napms(), since it may interact
+	  with alarm(), causing a process to be interrupted by SIGALRM (with
+	  advice from Bela Lubkin).
+	+ modify terminal_interface-curses-forms.ads.m4 to build/work with
+	  GNAT 3.10 (patch by Juergen Pfeifer).
+	+ remove part of CF_GPP_LIBRARY configure-script macro, which did not
+	  work with gcc 2.7.2.3
+	+ minor fix to test/tclock.c to avoid beeping more than once per second
+	+ add 's' and ' ' decoding to test/rain.c
+
+991016	pre-release
+	+ corrected BeOS code for lib_twait.c, making nodelay() function work.
+
+991009	pre-release
+	+ correct ncurses' value for cursor-column in PutCharLR(), which was
+	  off-by-one in one case (patch by Ilya Zakharevich).
+	+ fix some minor errors in position_check() debugging code, found while
+	  using this to validate the PutCharLR() patch.
+	+ modify firework, lrtest, worm examples to be resizable, and to
+	  recognize 'q' for quit, 's' for single-step and ' ' for resume.
+	+ restore reverted change to  terminal_interface-curses-forms.ads.m4,
+	  add a note on building with gnat 3.10p to Ada95/TODO.
+	+ add a copy of the standalone configure script for the test-directory
+	  to simplify testing on SCO and Solaris.
+
+991002	pre-release
+	+ minor fixes for _nc_msec_cost(), color_content(), pair_content(),
+	  _nc_freewin(), ClrBottom() and onscreen_mvcur() (analysis by Philippe
+	  Blain, comments by Alexander Lukyanov).
+	+ simplify definition of PANEL and eliminate internal functions
+	  _nc_calculate_obscure(), _nc_free_obscure() and _nc_override(),
+	  (patch by Juergen Pfeifer, based on analysis by Philippe Blain
+	  <bledp@voila.fr>)).
+	+ change renaming of dft_fgbg.3x to use_default_colors.3ncurses in
+	  man_db.renames, since Debian is not concerned with 14-character
+	  filename limitation (from Debian bug report by Josip Rodin
+	  <joy@cibalia.gkvk.hr>).
+	+ corrected scoansi terminfo entry by testing with scoterm and console.
+	+ revert change from 990614 to terminal_interface-curses-forms.ads.m4,
+	  since this does not work for gnat 3.10p
+	+ modify tclock example to be resizable (if ncurses' sigwinch handler
+	  is used), and in color.
+	+ use $(CC) rather than 'gcc' in MK_SHARED_LIB symbols, used for Linux
+	  shared library rules.
+
+990925	pre-release
+	+ add newer NetBSD console terminfo entries
+	+ add amiga-8bit terminfo entry (from Henning 'Faroul' Peters
+	  <Faroul@beyond.kn-bremen.de>)
+	+ remove -lcurses -ltermcap from configure script's check for the gpm
+	  library, since they are not really necessary (a properly configured
+	  gpm library has no dependency on any curses library), and if the
+	  curses library is not installed, this would cause the test to fail.
+	+ modify tic's -C option so that terminfo "use=" clauses are translated
+	  to "tc=" clauses even when running it as captoinfo.
+	+ modify CF_STDCPP_LIBRARY configure macro to perform its check only
+	  for GNU C++, since that library conflicts with SGI's libC on IRIX-6.2
+	+ modify CF_SHARED_OPTS configure macro to support build on NetBSD with
+	  ELF libraries (patch by Bernd Ernesti <bernd@arresum.inka.de>).
+	+ correct a problem in libpanel, where the _nc_top_panel variable was
+	  not set properly when bottom_panel() is called to hide a panel which
+	  is the only one on the stack (report/analysis by Michael Andres
+	  <ma@suse.de>, patch by Juergen Pfeifer).
+
+990918	pre-release
+	+ add acsc string to HP 70092 terminfo entry (patch by Joerg Wunsch
+	  <j@interface-business.de>).
+	+ add top-level uninstall.data and uninstall.man makefile rules.
+	+ correct logic of CF_LINK_FUNCS configure script, from BeOS changes so
+	  that hard-links work on Unix again.
+	+ change default value of cf_cv_builtin_bool to 1 as suggested by
+	  Jeremy Buhler, making it less likely that a conflicting declaration
+	  of bool will be seen when compiling with C++.
+
+990911	pre-release
+	+ improved configure checks for builtin.h
+	+ minor changes to C++ binding (remove static initializations, and make
+	  configure-test for parameter initializations) for features not
+	  allowed by vendor's C++ compilers (reported by Martin Mokrejs, this
+	  applies to SGI, though I found SCO has the same characteristics).
+	+ corrected quoting of ETIP_xxx definitions which support old versions
+	  of g++, e.g., those using -lg++
+	+ remove 'L' code from safe_sprintf.c, since 'long double' is not
+	  widely portable.  safe_sprintf.c is experimental, however, and
+	  exists mainly as a fallback for systems without snprintf (reported
+	  by Martin Mokrejs <mmokrejs@natur.cuni.cz>, for IRIX 6.2)
+	+ modify definition of _nc_tinfo_fkeys in broken-linker configuration
+	  so that it is not unnecessarily made extern (Jeffrey C Honig).
+
+990904	pre-release
+	+ move definition for builtin.h in configure tests to specific check
+	  for libg++, since qt uses the same filename incompatibly.
+	+ correct logic of lib_termcap.c tgetstr function, which did not copy
+	  the result to the buffer parameter.  Testing shows Solaris does
+	  update this, though of course tgetent's buffer is untouched (from
+	  mpc.lists.freebsd.current newsgroup item by Peter Edwards
+	  <peter.edwards@ireland.com>).
+	+ corrected beterm terminfo entry, which lists some capabilities which
+	  are not actually provided by the BeOS Terminal.
+	+ add special logic to replace select() calls on BeOS, whose select()
+	  function works only for sockets.
+	+ correct missing escape in mkterm.h.awk.in, which caused part
+	  of the copyright noticed to be omitted (reported by Peter
+	  Wemm <peter@netplex.com.au>).
+	> several small changes to make the c++ binding and demo work on OS/2
+	  EMX (related to a clean reinstall of EMX):
+	+ correct library-prefix for c++ binding; none is needed.
+	+ add $x suffix to make_hash and make_keys so 'make distclean' works.
+	+ correct missing $x suffix for tack, c++ demo executables.
+	+ split CF_CXX_LIBRARY into CF_GPP_LIBRARY (for -lg++) and
+	  CF_STDCPP_LIBRARY (for -lstdc++)
+
+990828	pre-release
+	+ add cygwin terminfo entry -TD
+	+ modify CF_PROG_EXT configure macro to set .exe extension for cygwin.
+	+ add configure option --without-cxx-binding, modifying the existing
+	  --without-cxx option to check only for the C++ compiler
+	  characteristics.  Whether or not the C++ binding is needed, the
+	  configure script checks for the size/type of bool, to make ncurses
+	  match.  Otherwise C++ applications cannot use ncurses.
 
 990821	pre-release
 	+ updated configure macros CF_MAKEFLAGS, CF_CHECK_ERRNO
@@ -104,9 +250,9 @@ Changes since 1.9.9e are recorded by Thomas Dickey.
 	  handle SIGTSTP if neither is available (from report by Philippe De
 	  Muyter).
 	> patch by Philippe De Muyter:
-	+ in tic.c, use `unlink' if `remove' is not available. 
+	+ in tic.c, use `unlink' if `remove' is not available.
 	+ use only `unsigned' as fallback value for `speed_t'.  Some files used
-	  `short' instead. 
+	  `short' instead.
 
 990616	pre-release
 	+ fix some compiler warnings in tack.
@@ -122,7 +268,7 @@ Changes since 1.9.9e are recorded by Thomas Dickey.
 	  in the binding.  It should have no effect on the generated code.
 	+ improve the man page for field_buffer() to tell the people, that the
 	  whole buffer including leading/trailing spaces is returned.  This is
-	  a common source of confusion, so it's better to document it clearly. 
+	  a common source of confusion, so it's better to document it clearly.
 
 990614	pre-release
 	> patch by Juergen Pfeifer:
@@ -133,7 +279,7 @@ Changes since 1.9.9e are recorded by Thomas Dickey.
 
 990612	pre-release
 	+ modify lib_endwin.c to avoid calling reset_shell_mode(), return ERR
-	  if it appears that curses was never initialized, e.g., by initscr(). 
+	  if it appears that curses was never initialized, e.g., by initscr().
 	  For instance, this guards against setting the terminal modes to
 	  strange values if endwin() is called after setupterm().  In the same
 	  context, Solaris curses will dump core.
@@ -159,9 +305,9 @@ Changes since 1.9.9e are recorded by Thomas Dickey.
 	+ minor fix to build tack on CLIX (mismatched const).
 	> patch by Juergen Pfeifer:
 	+ change Juergen's old email address with new one in the files where it
-	  is referenced.  The Ada95 HTML pages are regenerated. 
+	  is referenced.  The Ada95 HTML pages are regenerated.
 	+ update MANIFEST to list the tack files.
- 
+
 990509	pre-release
 	+ minor fixes to make 'tack' build/link on NeXT (reported by Francisco
 	  A. Tomei Torres).
@@ -221,13 +367,13 @@ Changes since 1.9.9e are recorded by Thomas Dickey.
 	+ change inequality in hashmap.c which checks the distance traveled by
 	  a chunk so that ^D command in nvi (scrolls 1/2 screen) will use
 	  scrolling logic (patch by Alexander Lukyanov, reported by Jeffrey
-	  Honig).
+	  C Honig).
 
 990314	pre-release
 	+ modify lib_color.c to handle a special case where the curscr
 	  attributes have been made obsolete (patch by Alexander Lukyanov).
 	+ update BSD/OS console terminfo entries to use klone+sgr and
-	  klone+color (patch by Jeffrey Honig).
+	  klone+color (patch by Jeffrey C Honig).
 	+ update glibc addon configure script for extended capabilities.
 	+ correct a couple of warnings in the --enable-const configuration.
 	+ make comp_hash build properly with _nc_strdup(), on NeXT (reported by
@@ -340,7 +486,7 @@ Changes since 1.9.9e are recorded by Thomas Dickey.
 	+ cache last result from _nc_baudrate, for performance (suggested by
 	  Alexander Lukyanov).
 	+ modify ClrUpdate() function to workaround a problem in nvi, which
-	  uses redrawwin in SIGTSTP handling.  Jeffrey Honig reported that
+	  uses redrawwin in SIGTSTP handling.  Jeffrey C Honig reported that
 	  ncurses repainted the screen with nulls before resuming normal
 	  operation (patch by Alexander Lukyanov).
 	+ generalize is_xterm() function a little by letting xterm/rxvt/kterm

@@ -626,6 +626,7 @@
 ./ncurses/base/safe_sprintf.c
 ./ncurses/base/sigaction.c
 ./ncurses/base/tries.c
+./ncurses/base/version.c
 ./ncurses/base/vsscanf.c
 ./ncurses/base/wresize.c
 ./ncurses/curses.priv.h
@@ -770,8 +771,10 @@
 ./test/bs.c
 ./test/cardfile.c
 ./test/cardfile.dat
+./test/configure
 ./test/configure.in
 ./test/ditto.c
+./test/dots.c
 ./test/filter.c
 ./test/firework.c
 ./test/firstlast.c

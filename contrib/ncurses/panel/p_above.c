@@ -35,7 +35,7 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_above.c,v 1.2 1998/02/11 12:14:01 tom Exp $")
+MODULE_ID("$Id: p_above.c,v 1.3 1999/09/18 11:03:28 juergen Exp $")
 
 PANEL*
 panel_above(const PANEL *pan)
@@ -44,7 +44,7 @@ panel_above(const PANEL *pan)
     {
       /* if top and bottom are equal, we have no or only the pseudo panel;
 	 if not, we return the panel above the pseudo panel */
-      return(_nc_bottom_panel==_nc_top_panel ? (PANEL*)0 : _nc_bottom_panel->above);
+      return(EMPTY_STACK() ? (PANEL*)0 : _nc_bottom_panel->above);
     }
   else
     return(pan->above);

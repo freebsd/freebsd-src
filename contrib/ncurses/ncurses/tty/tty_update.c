@@ -42,6 +42,10 @@
  *
  *-----------------------------------------------------------------*/
 
+#ifdef __BEOS__
+#include <OS.h>
+#endif
+
 #include <curses.priv.h>
 
 #if defined(TRACE) && HAVE_SYS_TIMES_H && HAVE_TIMES
@@ -67,15 +71,9 @@
 #endif
 #endif
 
-#ifdef __BEOS__
-/* BeOS select() only works on sockets.  Use the tty hack instead */
-#include <socket.h>
-#define select check_select
-#endif
-
 #include <term.h>
 
-MODULE_ID("$Id: tty_update.c,v 1.111 1999/02/27 20:07:56 tom Exp $")
+MODULE_ID("$Id: tty_update.c,v 1.117 1999/10/22 23:28:46 tom Exp $")
 
 /*
  * This define controls the line-breakout optimization.  Every once in a
@@ -97,10 +95,10 @@ MODULE_ID("$Id: tty_update.c,v 1.111 1999/02/27 20:07:56 tom Exp $")
 
 static inline chtype ClrBlank ( WINDOW *win );
 static int ClrBottom(int total);
-static int InsStr( chtype *line, int count );
 static void ClearScreen( chtype blank );
 static void ClrUpdate( void );
 static void DelChar( int count );
+static void InsStr( chtype *line, int count );
 static void TransformLine( int const lineno );
 
 #ifdef POSITION_DEBUG
@@ -110,29 +108,40 @@ static void TransformLine( int const lineno );
  *
  ****************************************************************************/
 
-void position_check(int expected_y, int expected_x, char *legend)
+static void position_check(int expected_y, int expected_x, char *legend)
 /* check to see if the real cursor position matches the virtual */
 {
-    static char  buf[9];
+    char  buf[20];
     int y, x;
 
-    if (_nc_tracing)
+    if (!_nc_tracing || (expected_y < 0 && expected_x < 0))
 	return;
 
     memset(buf, '\0', sizeof(buf));
-    (void) write(1, "\033[6n", 4);	/* only works on ANSI-compatibles */
-    (void) read(0, (void *)buf, 8);
+    putp("\033[6n");	/* only works on ANSI-compatibles */
+    _nc_flush();
+    (void) read(0, buf, sizeof(buf)-1);
     _tracef("probe returned %s", _nc_visbuf(buf));
 
     /* try to interpret as a position report */
-    if (sscanf(buf, "\033[%d;%dR", &y, &x) != 2)
+    if (sscanf(buf, "\033[%d;%dR", &y, &x) != 2) {
 	_tracef("position probe failed in %s", legend);
-    else if (y - 1 != expected_y || x - 1 != expected_x)
-	_tracef("position seen (%d, %d) doesn't match expected one (%d, %d) in %s",
-		y-1, x-1, expected_y, expected_x, legend);
-    else
-	_tracef("position matches OK in %s", legend);
+    } else {
+	if (expected_x < 0)
+	    expected_x = x - 1;
+	if (expected_y < 0)
+	    expected_y = y - 1;
+	if (y - 1 != expected_y || x - 1 != expected_x) {
+	    beep();
+	    _tracef("position seen (%d, %d) doesn't match expected one (%d, %d) in %s",
+		    y-1, x-1, expected_y, expected_x, legend);
+	} else {
+	    _tracef("position matches OK in %s", legend);
+	}
+    }
 }
+#else
+#define position_check(expected_y, expected_x, legend) /* nothing */
 #endif /* POSITION_DEBUG */
 
 /****************************************************************************
@@ -148,9 +157,7 @@ static inline void GoTo(int const row, int const col)
 	TR(TRACE_MOVE, ("GoTo(%d, %d) from (%d, %d)",
 			row, col, SP->_cursrow, SP->_curscol));
 
-#ifdef POSITION_DEBUG
 	position_check(SP->_cursrow, SP->_curscol, "GoTo");
-#endif /* POSITION_DEBUG */
 
 	/*
 	 * Force restore even if msgr is on when we're in an alternate
@@ -168,6 +175,7 @@ static inline void GoTo(int const row, int const col)
 	mvcur(SP->_cursrow, SP->_curscol, row, col);
 	SP->_cursrow = row;
 	SP->_curscol = col;
+	position_check(SP->_cursrow, SP->_curscol, "GoTo2");
 }
 
 static inline void PutAttrChar(chtype ch)
@@ -179,10 +187,14 @@ static inline void PutAttrChar(chtype ch)
 			  _tracechtype(ch),
 			   SP->_cursrow, SP->_curscol));
 	UpdateAttrs(ch);
-	putc((int)TextOf(ch), SP->_ofp);
+	if (SP->_cleanup) {
+		_nc_outch((int)TextOf(ch));
+	} else {
+		putc((int)TextOf(ch), SP->_ofp); /* macro's fastest... */
 #ifdef TRACE
-	_nc_outchars++;
+		_nc_outchars++;
 #endif /* TRACE */
+	}
 	SP->_curscol++;
 	if (char_padding) {
 		TPUTS_TRACE("char_padding");
@@ -212,6 +224,21 @@ static bool check_pending(void)
 		{
 			have_pending = TRUE;
 		}
+#elif defined(__BEOS__)
+		/*
+		 * BeOS's select() is declared in socket.h, so the configure script does
+		 * not see it.  That's just as well, since that function works only for
+		 * sockets.  This (using snooze and ioctl) was distilled from Be's patch
+		 * for ncurses which uses a separate thread to simulate select().
+		 *
+		 * FIXME: the return values from the ioctl aren't very clear if we get
+		 * interrupted.
+		 */
+		int n = 0;
+		int howmany = ioctl(0, 'ichr', &n);
+		if (howmany >= 0 && n > 0) {
+			have_pending = TRUE;
+		}
 #elif HAVE_SELECT
 		fd_set fdset;
 		struct timeval ktimeout;
@@ -229,7 +256,7 @@ static bool check_pending(void)
 	}
 	if (have_pending) {
 		SP->_fifohold = 5;
-		fflush(SP->_ofp);
+		_nc_flush();
 	}
 	return FALSE;
 }
@@ -261,6 +288,8 @@ static void PutCharLR(chtype const ch)
 	putp(exit_am_mode);
 
 	PutAttrChar(ch);
+	SP->_curscol--;
+	position_check(SP->_cursrow, SP->_curscol, "exit_am_mode");
 
 	TPUTS_TRACE("enter_am_mode");
 	putp(enter_am_mode);
@@ -307,6 +336,7 @@ static void wrap_cursor(void)
     {
 	SP->_curscol--;
     }
+    position_check(SP->_cursrow, SP->_curscol, "wrap_cursor");
 }
 
 static inline void PutChar(chtype const ch)
@@ -320,9 +350,7 @@ static inline void PutChar(chtype const ch)
     if (SP->_curscol >= screen_columns)
 	wrap_cursor();
 
-#ifdef POSITION_DEBUG
     position_check(SP->_cursrow, SP->_curscol, "PutChar");
-#endif /* POSITION_DEBUG */
 }
 
 /*
@@ -753,7 +781,7 @@ struct tms before, after;
 	 */
 	UpdateAttrs(A_NORMAL);
 
-	fflush(SP->_ofp);
+	_nc_flush();
 	curscr->_attrs = newscr->_attrs;
 /*	curscr->_bkgd  = newscr->_bkgd; */
 
@@ -901,13 +929,14 @@ chtype	blank  = newscr->_line[total-1].text[last-1]; /* lower right char */
 
 	if ((tstLine == 0) || (last > (int)lenLine)) {
 		tstLine = typeRealloc(chtype, last, tstLine);
+		if (tstLine != 0) {
+			lenLine = last;
+			for (col = 0; col < last; col++)
+				tstLine[col] = blank;
+		}
 	}
 
 	if (tstLine != 0) {
-		lenLine = last;
-		for (col = 0; col < last; col++)
-			tstLine[col] = blank;
-
 		for (row = total-1; row >= 0; row--) {
 			if (memcmp(tstLine, newscr->_line[row].text, length))
 				break;
@@ -1212,9 +1241,7 @@ static void ClearScreen(chtype blank)
 		TPUTS_TRACE("clear_screen");
 		putp(clear_screen);
 		SP->_cursrow = SP->_curscol = 0;
-#ifdef POSITION_DEBUG
 		position_check(SP->_cursrow, SP->_curscol, "ClearScreen");
-#endif /* POSITION_DEBUG */
 	} else if (clr_eos) {
 		SP->_cursrow = SP->_curscol = -1;
 		GoTo(0,0);
@@ -1252,7 +1279,7 @@ static void ClearScreen(chtype blank)
 **
 */
 
-static int InsStr(chtype *line, int count)
+static void InsStr(chtype *line, int count)
 {
 	T(("InsStr(%p,%d) called", line, count));
 
@@ -1267,7 +1294,6 @@ static int InsStr(chtype *line, int count)
 			line++;
 			count--;
 		}
-		return(OK);
 	} else if (enter_insert_mode  &&  exit_insert_mode) {
 		TPUTS_TRACE("enter_insert_mode");
 		putp(enter_insert_mode);
@@ -1283,7 +1309,6 @@ static int InsStr(chtype *line, int count)
 		}
 		TPUTS_TRACE("exit_insert_mode");
 		putp(exit_insert_mode);
-		return(OK);
 	} else {
 		while (count) {
 			TPUTS_TRACE("insert_character");
@@ -1297,8 +1322,8 @@ static int InsStr(chtype *line, int count)
 			line++;
 			count--;
 		}
-		return(OK);
 	}
+	position_check(SP->_cursrow, SP->_curscol, "InsStr");
 }
 
 /*
@@ -1332,14 +1357,8 @@ static void DelChar(int count)
 
 void _nc_outstr(const char *str)
 {
-    FILE *ofp = SP ? SP->_ofp : stdout;
-
-    (void) fputs(str, ofp);
-    (void) fflush(ofp);
-
-#ifdef TRACE
-    _nc_outchars += strlen(str);
-#endif /* TRACE */
+    (void) putp(str);
+    _nc_flush();
 }
 
 /*

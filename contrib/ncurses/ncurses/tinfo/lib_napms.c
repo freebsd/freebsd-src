@@ -58,7 +58,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_napms.c,v 1.5 1999/06/06 00:42:47 R.Lindsay.Todd Exp $")
+MODULE_ID("$Id: lib_napms.c,v 1.6 1999/10/21 23:01:41 tom Exp $")
 
 int napms(int ms)
 {
@@ -71,8 +71,6 @@ int napms(int ms)
 		ts.tv_nsec = (ms % 1000) * 1000000;
 		nanosleep(&ts, NULL);
 	}
-#elif HAVE_USLEEP
-	usleep(1000*(unsigned)ms);
 #elif USE_FUNC_POLL
 	{
 		struct pollfd fds[1];

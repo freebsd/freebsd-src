@@ -3,7 +3,7 @@
 # This version of terminfo.src is distributed with ncurses.
 #
 #	Version 10.2.1
-#	$Date: 1999/08/22 00:05:28 $
+#	$Date: 1999/10/24 00:28:48 $
 #	terminfo syntax
 #
 #	Eric S. Raymond		(current maintainer)
@@ -532,24 +532,23 @@ nansi.sysk|nansisysk|PC-DOS Public Domain NANSI.SYS with keypad redefined for vi
 beterm|BeOS Terminal, 
 	am, eo, mir, msgr, xenl, xon, 
 	colors#8, cols#80, it#8, lines#25, ncv#5, pairs#64, 
-	bel=^G, blink=\E[5m, bold=\E[1m, clear=\E[H\E[J, cr=^M, 
+	bel=^G, bold=\E[1m, clear=\E[H\E[J, cr=^M, 
 	csr=\E[%i%p1%d;%p2%dr, cub1=^H, cud1=^J, cuf1=\E[C, 
 	cup=\E[%i%p1%d;%p2%dH, cuu1=\E[A, dch=\E[%p1%dP, 
-	dch1=\E[P, dim=\E[2m, dl=\E[%p1%dM, dl1=\E[M, ed=\E[J, 
-	el=\E[K, flash=\E[?5h\E[?5l$<200/>, home=\E[H, 
-	hpa=\E[%i%p1%dG, ht=^I, hts=\EH, ich=\E[%p1%d@, ich1=\E[@, 
-	il=\E[%p1%dL, il1=\E[L, ind=^J, invis=\E[8m, kb2=\E[G, 
-	kbs=^H, kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, 
-	kend=\E[4~, kf1=\E[11~, kf10=\E[20~, kf11=\E[21~, 
-	kf12=\E[22~, kf2=\E[12~, kf3=\E[13~, kf4=\E[14~, 
-	kf5=\E[15~, kf6=\E[16~, kf7=\E[17~, kf8=\E[18~, kf9=\E[19~, 
-	khome=\E[1~, kich1=\E[2~, knp=\E[6~, kpp=\E[5~, kspd=^Z, 
-	nel=^M^J, op=\E[m, rc=\E8, rev=\E[7m, ri=\EM, rmir=\E[4l, 
-	rmso=\E[m, rmul=\E[24m, rs1=\Ec, sc=\E7, setab=\E[4%p1%dm, 
-	setaf=\E[3%p1%dm, setb=\E[%p1%{40}%+%cm, 
-	setf=\E[%p1%{30}%+%cm, sgr0=\E[0;10m, smir=\E[4h, 
-	smso=\E[7m, smul=\E[4m, u6=\E[%i%p1%d;%p2%dR, u7=\E[6n, 
-	u8=\E[?6c, u9=\E[c, vpa=\E[%i%p1%dd, 
+	dch1=\E[P, dl=\E[%p1%dM, dl1=\E[M, ed=\E[J, el=\E[K, 
+	home=\E[H, hpa=\E[%i%p1%dG, ht=^I, hts=\EH, ich=\E[%p1%d@, 
+	ich1=\E[@, il=\E[%p1%dL, il1=\E[L, ind=^J, kbs=^H, 
+	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, 
+	kdch1=\E[3~, kend=\E[4~, kf1=\E[11~, kf10=\E[20~, 
+	kf11=\E[21~, kf12=\E[22~, kf2=\E[12~, kf3=\E[13~, 
+	kf4=\E[14~, kf5=\E[15~, kf6=\E[16~, kf7=\E[17~, kf8=\E[18~, 
+	kf9=\E[19~, khome=\E[1~, kich1=\E[2~, knp=\E[6~, kpp=\E[5~, 
+	kspd=^Z, nel=^M^J, op=\E[m, rc=\E8, rev=\E[7m, ri=\EM, 
+	rmir=\E[4l, rmso=\E[m, rmul=\E[24m, rs1=\Ec, sc=\E7, 
+	setab=\E[4%p1%dm, setaf=\E[3%p1%dm, 
+	setb=\E[%p1%{40}%+%cm, setf=\E[%p1%{30}%+%cm, 
+	sgr0=\E[0;10m, smir=\E[4h, smso=\E[7m, smul=\E[4m, 
+	u6=\E[%i%p1%d;%p2%dR, u7=\E[6n, vpa=\E[%i%p1%dd, 
 
 #### Linux consoles
 #
@@ -675,6 +674,8 @@ linux-lat|linux with latin1 or latin2 alternate character set,
 # I renamed GS/GE/HM/EN/PU/PD/RT and added klone+sgr-dumb, based
 # on the <smacs>=\E[12m  -- esr)
 #
+# klone+sgr-dumb is an error since the acsc does not match -TD
+#
 # In this description based on SCO's keyboard(HW) manpage list of default function key
 # values:
 #	F13-F24 are shifted F1-F12
@@ -682,24 +683,28 @@ linux-lat|linux with latin1 or latin2 alternate character set,
 #	F37-F48 are shift+control F1-F12
 scoansi|SCO Extended ANSI standard crt, 
 	am, eo, xon, 
-	cols#80, it#8, lines#25, 
+	colors#8, cols#80, it#8, lines#25, pairs#64, 
+	acsc=0[5566778899\:\:;;<<==>>FFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWXX`ja0fxgqh2jYk?lZm@nEqDtCu4vAwBx3~y, 
 	blink=\E[5m, bold=\E[1m, cbt=\E[Z, clear=\E[H\E[2J, 
 	cub1=\E[D, cud1=\E[B, cuf1=\E[C, cup=\E[%i%p1%d;%p2%dH, 
 	cuu1=\E[A, dch1=\E[P, dl1=\E[M, ed=\E[J, el=\E[K, home=\E[H, 
-	ht=^I, ich1=\E[@, il1=\E[L, ind=\E[S, kbs=^H, kcub1=\E[D, 
-	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kend=\E[F, kf1=\E[M, 
-	kf10=\E[V, kf12=\E[W, kf13=\E[Y, kf14=\E[Z, kf15=\E[a, 
-	kf16=\E[b, kf17=\E[c, kf18=\E[d, kf19=\E[e, kf2=\E[N, 
-	kf20=\E[f, kf21=\E[g, kf22=\E[h, kf23=\E[i, kf24=\E[j, 
-	kf25=\E[k, kf26=\E[l, kf27=\E[m, kf28=\E[n, kf29=\E[o, 
-	kf3=\E[O, kf30=\E[p, kf31=\E[q, kf32=\E[r, kf33=\E[s, 
-	kf34=\E[t, kf35=\E[u, kf36=\E[v, kf37=\E[w, kf38=\E[x, 
-	kf39=\E[y, kf4=\E[P, kf40=\E[z, kf41=\E[@, kf42=\E[[, 
-	kf43=\E[\\, kf44=\E[], kf45=\E[\014kf46=\E[_, kf47=\E[`, 
-	kf48=\E[{, kf5=\E[Q, kf6=\E[R, kf7=\E[S, kf8=\E[T, kf9=\E[U, 
-	khome=\E[H, kich1=\E[L, knp=\E[G, kpp=\E[I, krdo=\E[F, 
-	ri=\E[T, 
-	use=klone+sgr-dumb, 
+	ht=^I, ich1=\E[@, il1=\E[L, ind=\E[S, invis=\E[8m, kbeg=\E[E, 
+	kbs=^H, kcbt=\E[Z, kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, 
+	kcuu1=\E[A, kend=\E[F, kf1=\E[M, kf10=\E[V, kf11=\E[W, 
+	kf12=\E[X, kf13=\E[Y, kf15=\E[a, kf16=\E[b, kf17=\E[c, 
+	kf18=\E[d, kf19=\E[e, kf2=\E[N, kf20=\E[f, kf21=\E[g, 
+	kf22=\E[h, kf23=\E[i, kf24=\E[j, kf25=\E[k, kf26=\E[l, 
+	kf27=\E[m, kf28=\E[n, kf29=\E[o, kf3=\E[O, kf30=\E[p, 
+	kf31=\E[q, kf32=\E[r, kf33=\E[s, kf34=\E[t, kf35=\E[u, 
+	kf36=\E[v, kf37=\E[w, kf38=\E[x, kf39=\E[y, kf4=\E[P, 
+	kf40=\E[z, kf41=\E[@, kf42=\E[[, kf43=\E[\\, kf44=\E[], 
+	kf45=\E[\^, kf46=\E[_, kf47=\E[`, kf48=\E[{, kf5=\E[Q, 
+	kf6=\E[R, kf7=\E[S, kf8=\E[T, kf9=\E[U, khome=\E[H, 
+	kich1=\E[L, knp=\E[G, kpp=\E[I, op=\E[37;40m, rev=\E[7m, 
+	ri=\E[T, rmacs=\E[10m, rmso=\E[m, rmul=\E[m, 
+	setab=\E[4%p1%dm, setaf=\E[3%p1%dm, 
+	sgr=\E[0;10%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p6%t;1%;%?%p7%t;8%;%?%p9%t;12%;m, 
+	sgr0=\E[0;10m, smacs=\E[12m, smso=\E[7m, smul=\E[4m, 
 
 # This actually describes the generic SVr4 display driver for Intel boxes.
 # The <dim=\E[2m> isn't documented and therefore may not be reliable.
@@ -920,7 +925,7 @@ att7300|unixpc|pc7300|3b1|s4|AT&T UNIX PC Model 7300,
 #
 #	control-tab	\[072q
 #
-iris-ansi|IRIS emulating 40 line ANSI terminal (almost VT100), 
+iris-ansi|iris-ansi-net|IRIS emulating 40 line ANSI terminal (almost VT100), 
 	am, 
 	cols#80, it#8, lines#40, 
 	bel=^G, bold=\E[1m, clear=\E[H\E[2J, 
@@ -1188,6 +1193,46 @@ x68k|x68k-ite|NetBSD/x68k ITE,
 	cols#96, lines#32, 
 	kclr=\E[9~, khlp=\E[28~, use=vt220, 
 
+# <tv@pobox.com>:
+# Entry for the DNARD OpenFirmware console, close to ANSI but not quite.
+#
+# (still unfinished, but good enough so far.)
+ofcons, 
+	bw, 
+	cols#80, lines#30, 
+	bel=^G, blink=\2337;2m, bold=\2331m, clear=^L, cr=^M, 
+	cub=\233%p1%dD, cub1=\233D, cud=\233%p1%dB, cud1=\233B, 
+	cuf=\233%p1%dC, cuf1=\233C, cup=\233%i%p1%d;%p2%dH, 
+	cuu=\233%p1%dA, cuu1=\233A, dch=\233%p1%dP, dch1=\233P, 
+	dim=\2332m, dl=\233%p1%dM, dl1=\233M, ed=\233J, el=\233K, 
+	flash=^G, ht=^I, ich=\233%p1%d@, ich1=\233@, il=\233%p1%dL, 
+	il1=\233L, ind=^J, invis=\2338m, kbs=^H, kcub1=\233D, 
+	kcud1=\233B, kcuf1=\233C, kcuu1=\233A, kdch1=\233P, 
+	kf1=\2330P, kf10=\2330M, kf2=\2330Q, kf3=\2330W, 
+	kf4=\2330x, kf5=\2330t, kf6=\2330u, kf7=\2330q, kf8=\2330r, 
+	kf9=\2330p, knp=\233/, kpp=\233?, nel=^M^J, rev=\2337m, 
+	rmso=\2330m, rmul=\2330m, sgr0=\2330m, 
+
+# NetBSD "wscons" emulator in vt220 mode
+# These are micro-minimal and probably need to be redone for real
+# after the manner of the pcvt entries.
+wsvt25|NetBSD wscons in 25 line DEC VT220 mode, 
+	cols#80, lines#25, use=vt220, 
+
+wsvt25m|NetBSD wscons in 25 line DEC VT220 mode with Meta, 
+	km, 
+	cols#80, lines#25, use=vt220, 
+
+# `rasterconsole' provided by 4.4BSD, NetBSD and OpenBSD on SPARC, and 
+# DECstation/pmax.
+rcons|BSD rasterconsole, 
+	use=sun-il, 
+# Color version of above. Color currenly only provided by NetBSD.
+rcons-color|BSD rasterconsole with ANSI color, 
+	bce, 
+	colors#8, pairs#64, 
+	op=\E[m, setab=\E[4%dm, setaf=\E[3%dm, use=rcons, 
+
 #### FreeBSD console entries
 #
 # From: Andrey Chernov <ache@astral.msk.su> 29 Mar 1996
@@ -1213,22 +1258,23 @@ x68k|x68k-ite|NetBSD/x68k ITE,
 # Note that this disables standout with color.
 cons25w|ansiw|ansi80x25-raw|freebsd console (25-line raw mode), 
 	am, bce, bw, eo, msgr, npc, 
-	colors#8, cols#80, it#8, lines#25, ncv#5, pairs#64, 
+	colors#8, cols#80, it#8, lines#25, ncv#21, pairs#64, 
 	bel=^G, blink=\E[5m, bold=\E[1m, cbt=\E[Z, clear=\E[H\E[J, 
-	cr=^M, cub=\E[%p1%dD, cub1=^H, cud=\E[%p1%dB, cud1=\E[B, 
-	cuf=\E[%p1%dC, cuf1=\E[C, cup=\E[%i%p1%d;%p2%dH, 
-	cuu=\E[%p1%dA, cuu1=\E[A, dch=\E[%p1%dP, dch1=\E[P, 
-	dim=\E[30;1m, dl=\E[%p1%dM, dl1=\E[M, ed=\E[J, el=\E[K, 
-	home=\E[H, hpa=\E[%i%p1%d`, ht=^I, ich=\E[%p1%d@, 
-	ich1=\E[@, il=\E[%p1%dL, il1=\E[L, ind=\E[S, 
-	indn=\E[%p1%dS, kb2=\E[E, kbs=^H, kcbt=\E[Z, kcub1=\E[D, 
-	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kdch1=\177, kend=\E[F, 
-	kf1=\E[M, kf10=\E[V, kf11=\E[W, kf12=\E[X, kf2=\E[N, 
-	kf3=\E[O, kf4=\E[P, kf5=\E[Q, kf6=\E[R, kf7=\E[S, kf8=\E[T, 
-	kf9=\E[U, khome=\E[H, kich1=\E[L, knp=\E[G, kpp=\E[I, 
-	nel=\E[E, op=\E[x, rev=\E[7m, ri=\E[T, rin=\E[%p1%dT, 
-	rmso=\E[m, rs1=\E[x\E[m\Ec, setab=\E[4%p1%dm, 
-	setaf=\E[3%p1%dm, sgr0=\E[m, smso=\E[7m, vpa=\E[%i%p1%dd, 
+	cnorm=\E[=0C, cr=^M, cub=\E[%p1%dD, cub1=^H, cud=\E[%p1%dB, 
+	cud1=\E[B, cuf=\E[%p1%dC, cuf1=\E[C, 
+	cup=\E[%i%p1%d;%p2%dH, cuu=\E[%p1%dA, cuu1=\E[A, 
+	cvvis=\E[=1C, dch=\E[%p1%dP, dch1=\E[P, dim=\E[30;1m, 
+	dl=\E[%p1%dM, dl1=\E[M, ed=\E[J, el=\E[K, home=\E[H, 
+	hpa=\E[%i%p1%d`, ht=^I, ich=\E[%p1%d@, ich1=\E[@, 
+	il=\E[%p1%dL, il1=\E[L, ind=\E[S, indn=\E[%p1%dS, kb2=\E[E, 
+	kbs=^H, kcbt=\E[Z, kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, 
+	kcuu1=\E[A, kdch1=\177, kend=\E[F, kf1=\E[M, kf10=\E[V, 
+	kf11=\E[W, kf12=\E[X, kf2=\E[N, kf3=\E[O, kf4=\E[P, kf5=\E[Q, 
+	kf6=\E[R, kf7=\E[S, kf8=\E[T, kf9=\E[U, khome=\E[H, 
+	kich1=\E[L, knp=\E[G, kpp=\E[I, nel=\E[E, op=\E[x, rev=\E[7m, 
+	ri=\E[T, rin=\E[%p1%dT, rmso=\E[m, rs1=\E[x\E[m\Ec, 
+	setab=\E[4%p1%dm, setaf=\E[3%p1%dm, sgr0=\E[m, 
+	smso=\E[7m, vpa=\E[%i%p1%dd, 
 cons25|ansis|ansi80x25|freebsd console (25-line ansi mode), 
 	acsc=-\030.^Y0\333`\004a\260f\370g\361h\261i\025j\331k\277l\332m\300n\305q\304t\303u\264v\301w\302x\263y\363z\362~\371, 
 	use=cons25w, 
@@ -2737,11 +2783,7 @@ screen3|older VT 100/ANSI X3.64 virtual terminal,
 #         answerback string: "ncsa-vt220-8"
 #         setup keys: all disabled
 #
-# Application mode is not used.  The documented function-key mapping refers to
-# the Apple Extended Keyboard (e.g., NCSA Telnet's F1 corresponds to a VT220
-# F6).  We use the VT220-style codes, however, since the numeric keypad (VT100)
-# PF1-PF4 are available on some keyboards and many applications require these
-# as F1-F4.
+# Application mode is not used.
 #
 # Other special mappings:
 #	Apple		VT220
@@ -2758,7 +2800,7 @@ screen3|older VT 100/ANSI X3.64 virtual terminal,
 # The status-line manipulation is a mapping of the xterm-compatible control
 # sequences for setting the window-title.  So you must use tsl and fsl in
 # pairs, since the latter ends the string that is loaded to the window-title.
-ncsa-m|ncsa-vt220|ncsa-vt220-8|NCSA Telnet 2.6 for Macintosh in vt220-8 mode, 
+ncsa-m|ncsa-vt220-8|NCSA Telnet 2.6 for Macintosh in vt220-8 mode, 
 	am, hs, km, mir, msgr, xenl, 
 	acsc=``aaffggiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~, 
 	bel=^G, blink=\E[5m, bold=\E[1m, civis=\E[?25l, 
@@ -2770,14 +2812,13 @@ ncsa-m|ncsa-vt220|ncsa-vt220-8|NCSA Telnet 2.6 for Macintosh in vt220-8 mode,
 	dsl=\E]0;\007, ed=\E[J, el=\E[K, el1=\E[1K, enacs=\E)0, 
 	flash=\E[?5h\E[?5l, fsl=^G, home=\E[H, ht=^I, hts=\EH, 
 	ich=\E[%p1%d@, if=/usr/share/tabset/vt100, 
-	il=\E[%p1%dL, il1=\E[L, ind=^J, 
+	il=\E[%p1%dL, il1=\E[L, ind=\n$<150*>, 
 	is2=\E7\E[r\E[m\E[?7h\E[?1;4;6l\E[4l\E8\E>, kbs=^H, 
 	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, 
-	kdch1=\E[4~, kend=\E[5~, kf1=\EOP, kf10=\E[21~, 
-	kf11=\E[23~, kf12=\E[24~, kf13=\E[25~, kf14=\E[26~, 
-	kf15=\E[28~, kf16=\E[29~, kf17=\E[31~, kf18=\E[32~, 
-	kf19=\E[33~, kf2=\EOQ, kf20=\E[34~, kf3=\EOR, kf4=\EOS, 
-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, khlp=\E[1~, 
+	kdch1=\E[4~, kend=\E[5~, kf1=\E[17~, kf10=\E[28~, 
+	kf11=\E[29~, kf12=\E[31~, kf13=\E[32~, kf14=\E[33~, 
+	kf15=\E[34~, kf2=\E[18, kf3=\E[19~, kf4=\E[20~, kf5=\E[21~, 
+	kf6=\E23~, kf7=\E[24~, kf8=\E[25~, kf9=\E[26~, khlp=\E[1~, 
 	khome=\E[2~, knp=\E[6~, kpp=\E[3~, mc4=\E[4i, mc5=\E[5i, 
 	rc=\E8, rev=\E[7m, rf=/usr/share/tabset/vt100, ri=\EM, 
 	rmacs=^O, rmam=\E[?7l, rmcup=\E[2J\E8, rmir=\E[4l, 
@@ -2795,6 +2836,19 @@ ncsa-ns|NCSA Telnet 2.7 for Macintosh in vt220-8 mode,
 ncsa-m-ns|NCSA Telnet 2.6 for Macintosh in vt220-8 mode, 
 	hs@, 
 	dsl@, fsl@, tsl@, use=ncsa-m, 
+# alternate -TD:
+# The documented function-key mapping refers to the Apple Extended Keyboard
+# (e.g., NCSA Telnet's F1 corresponds to a VT220 F6).  We use the VT220-style
+# codes, however, since the numeric keypad (VT100) PF1-PF4 are available on
+# some keyboards and many applications require these as F1-F4.
+#
+ncsa-vt220|NCSA Telnet using vt220-compatible function keys, 
+	kf1=\EOP, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, 
+	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~, 
+	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf2=\EOQ, 
+	kf20=\E[34~, kf3=\EOR, kf4=\EOS, kf6=\E[17~, kf7=\E[18~, 
+	kf8=\E[19~, kf9=\E[20~, 
+	use=ncsa, 
 
 #### Pilot Pro Palm-Top
 #
@@ -3211,6 +3265,19 @@ mono-emx|stupid monochrome ansi terminal with only one kind of emphasis,
 	kf5=\0?, kf6=\0@, kf7=\0A, kf8=\0B, kf9=\0C, khome=\0G, 
 	kich1=\0R, kll=\0O, knp=\0Q, kpp=\0I, nel=^M^J, rev=\E[7m, 
 	sgr0=\E[0m, 
+
+# Use this for cygwin32 (tested with beta 19.1)
+# underline is colored bright magenta
+# shifted kf1-kf12 are kf11-kf22
+cygwin|ansi emulation for cygwin32, 
+	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, 
+	kdch1=\E[3~, kend=\E[4~, kf1=\E[[A, kf10=\E[21~, 
+	kf11=\E[23~, kf12=\E[24~, kf13=\E[25~, kf14=\E[26~, 
+	kf15=\E[28~, kf16=\E[29~, kf17=\E[31~, kf18=\E[32~, 
+	kf19=\E[33~, kf2=\E[[B, kf20=\E[34~, kf3=\E[[C, kf4=\E[[D, 
+	kf5=\E[[E, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, 
+	khome=\E[1~, kich1=\E[2~, knp=\E[6~, kpp=\E[5~, rmam@, smam@, 
+	use=ansi.sys, 
 
 # This entry fits the Windows NT console when the _POSIX_TERM environment
 # variable is set to 'on'.  While the Windows NT POSIX console is seldom used,
@@ -3922,22 +3989,22 @@ hp700-wy|HP700/41 emulating wyse30,
 	sgr0=\EG0$<10/>, smir=\Eq, smso=\EG4$<10/>, 
 	smul=\EG8$<10/>, tbc=\E0, vpa=\E[%p1%{32}%+%c, 
 # (hp70092: added empty <acsc> to avoid warnings re <smacs>/<rmacs> --esr)
-hp70092|hp70092a|hp70092A|HP 700/92, 
+hp70092|hp70092a|hp70092A|70092|HP 700/92, 
 	am, da, db, xhp, 
 	cols#80, lh#2, lines#24, lm#0, lw#8, nlab#8, 
-	acsc=, bel=^G, blink=\E&dA, bold=\E&dB, cbt=\Ei, 
-	clear=\E&a0y0C\EJ, cr=^M, cub1=^H, cud1=\EB, cuf1=\EC, 
-	cup=\E&a%p1%dy%p2%dC, cuu1=\EA, dch1=\EP, dim=\E&dH, 
-	dl1=\EM, el=\EK, hpa=\E&a%p1%dC, ht=^I, hts=\E1, il1=\EL, 
-	kbs=^H, kclr=\EJ, kctab=\E2, kcub1=\ED, kcud1=\EB, kcuf1=\EC, 
-	kcuu1=\EA, kdch1=\EP, kdl1=\EM, ked=\EJ, kel=\EK, kf1=\Ep, 
-	kf2=\Eq, kf3=\Er, kf4=\Es, kf5=\Et, kf6=\Eu, kf7=\Ev, kf8=\Ew, 
-	khome=\Eh, khts=\E1, kich1=\EQ, kil1=\EL, kind=\ES, kll=\EF, 
-	knp=\EU, kpp=\EV, kri=\ET, krmir=\ER, ktbc=\E3, rev=\E&dB, 
-	ri=\ET, rmacs=^O, rmir=\ER, rmkx=\E&s0A, rmln=\E&j@, 
-	rmso=\E&d@, rmul=\E&d@, sgr0=\E&d@, smacs=^N, smir=\EQ, 
-	smkx=\E&s1A, smln=\E&jB, smso=\E&dJ, smul=\E&dD, tbc=\E3, 
-	vpa=\E&a%p1%dY, 
+	acsc=0cjgktlrmfn/q\,t5u6v8w7x., bel=^G, blink=\E&dA, 
+	bold=\E&dB, cbt=\Ei, clear=\E&a0y0C\EJ, cr=^M, cub1=^H, 
+	cud1=\EB, cuf1=\EC, cup=\E&a%p1%dy%p2%dC, cuu1=\EA, 
+	dch1=\EP, dim=\E&dH, dl1=\EM, el=\EK, hpa=\E&a%p1%dC, ht=^I, 
+	hts=\E1, il1=\EL, kbs=^H, kclr=\EJ, kctab=\E2, kcub1=\ED, 
+	kcud1=\EB, kcuf1=\EC, kcuu1=\EA, kdch1=\EP, kdl1=\EM, 
+	ked=\EJ, kel=\EK, kf1=\Ep, kf2=\Eq, kf3=\Er, kf4=\Es, kf5=\Et, 
+	kf6=\Eu, kf7=\Ev, kf8=\Ew, khome=\Eh, khts=\E1, kich1=\EQ, 
+	kil1=\EL, kind=\ES, kll=\EF, knp=\EU, kpp=\EV, kri=\ET, 
+	krmir=\ER, ktbc=\E3, rev=\E&dB, ri=\ET, rmacs=^O, rmir=\ER, 
+	rmkx=\E&s0A, rmln=\E&j@, rmso=\E&d@, rmul=\E&d@, 
+	sgr0=\E&d@, smacs=^N, smir=\EQ, smkx=\E&s1A, smln=\E&jB, 
+	smso=\E&dJ, smul=\E&dD, tbc=\E3, vpa=\E&a%p1%dY, 
 
 bobcat|sbobcat|HP 9000 model 300 console, 
 	am, da, db, mir, xhp, 
@@ -13775,6 +13842,12 @@ amiga-h|Hans Verkuil's Amiga ANSI,
 	rmul=\2330m, rs1=\Ec, sgr0=\2330m, smacs=^N, smcup=\233?7l, 
 	smso=\2337m, smul=\2334m, 
 
+# From: Henning 'Faroul' Peters <Faroul@beyond.kn-bremen.de>, 25 Sep 1999
+amiga-8bit|Amiga ANSI using 8-bit controls, 
+	acsc=, dl=\233%p1%dM, dl1=\233M, il=\233%p1%dL, il1=\233L, 
+	ind=\204, indn@, ri=\215, rin@, 
+	use=amiga-h, 
+
 # Commodore B-128 microcomputer from Doug Tyrol <det@HEL-ACE.ARPA>
 # 	I'm trying to write a termcap for a commodore b-128, and I'm
 # having a little trouble. I've had to map most of my control characters
@@ -17244,6 +17317,31 @@ v3220|LANPAR Vision II model 3220/3221/3222,
 #
 # 1999/8/21
 #	* corrections to beterm entry -TD
+#
+# 1999/8/28
+#	* add cygwin entry -TD
+#
+# 1999/9/4
+#	* minor corrections for beterm entry -TD
+#
+# 1999/9/18
+#	* add acsc string to HP 70092 terminfo entry -Joerg Wunsch
+#
+# 1999/9/25
+#	* add amiga-8bit entry
+#	* add console entries from NetBSD: ofcons, wsvt25, wsvt25m, rcons,
+#	  rcons-color, based on
+#	  ftp://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/share/termcap/termcap.src
+#	* add alias for iris-ansi-net
+#
+# 1999/10/2
+#	* corrected scoansi entry's acsc, some function keys, add color -TD
+#
+# 1999/10/23
+#	* add cnorm, cvvis to cons25w, and modify ncv to add 'dim' -TD
+#	* reorder ncsa entries to make ncsa-vt220 use the alternate function
+#	  key mapping, leaving Potorti's entries more like he named them -TD
+#	* remove enter/exit am-mode from cygwin -TD
 #
 # The following sets edit modes for GNU EMACS.
 # Local Variables:

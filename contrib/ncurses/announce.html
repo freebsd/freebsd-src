@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 3.0//EN">
 <!--
-  $Id: announce.html,v 1.30 1999/05/16 17:01:39 juergen Exp $
+  $Id: announce.html,v 1.34 1999/10/23 21:13:11 tom Exp $
 -->
 <HTML>
 <HEAD>
@@ -32,7 +32,7 @@ the library and tools.<P>
 
 The ncurses distribution is available via anonymous FTP at
 the GNU distribution site
-<A HREF="ftp://ftp.gnu.org/pub/gnu">ftp://ftp.gnu.org/pub/gnu</A>.
+<A HREF="ftp://ftp.gnu.org/pub/gnu/ncurses">ftp://ftp.gnu.org/pub/gnu/ncurses</A>.
 It is also available at
 <A HREF="ftp://ftp.clark.net/pub/dickey/ncurses">ftp://ftp.clark.net/pub/dickey/ncurses</A>.
 
@@ -85,8 +85,8 @@ Interface changes:
 	<li>We made additional changes to reduce impact by future interface
 	  changes:
 <ul>
-	  <li>change key_names[] array to static since it is not part of the curses
-	    interface.
+	  <li>rename key_names[] array to _nc_key_names since it is not part of
+	    the curses interface.
 
 	  <li>move macro winch to a function, to hide details of struct ldat
 </ul>
@@ -184,7 +184,7 @@ Major bug fixes:
 
 <H1>Features of Ncurses</H1>
 
-The ncurses package is fully compatible with SVr4 (System V Release 4) curses:<P>
+The ncurses package is fully compatible with SVr4 (System V Release 4) curses:
 
 <UL>
 <LI>All 257 of the SVr4 calls have been implemented (and are documented).
@@ -203,7 +203,7 @@ are bit-for-bit-compatible with the entry format SVr4 curses uses.
 entries for use with less capable <STRONG>curses</STRONG>/<STRONG>terminfo</STRONG>
 versions such as the HP/UX and AIX ports.</UL>
 
-The ncurses package also has many useful extensions over SVr4:<P>
+The ncurses package also has many useful extensions over SVr4:
 
 <UL>
 <LI>The API is 8-bit clean and base-level conformant with the X/OPEN curses
@@ -212,7 +212,7 @@ but not all EXTENDED features).  Most EXTENDED-level features not directly
 concerned with wide-character support are implemented, including many
 function calls not supported under SVr4 curses (but portability of all
 calls is documented so you can use the SVr4 subset only).
-<LI>Unlike SVr4 curses, ncurses can write to the rightmost-bottommost corner
+<LI>Unlike SVr3 curses, ncurses can write to the rightmost-bottommost corner
 of the screen if your terminal has an insert-character capability.
 <LI>Ada95 and C++ bindings.
 <LI>Support for mouse event reporting with X Window xterm and OS/2 console windows.
@@ -290,24 +290,31 @@ according to gcc -Wall.  The library has been checked for malloc leaks and
 arena corruption by the Purify memory-allocation tester.<P>
 
 The ncurses code has been tested with a wide variety of applications
-including (versions starting with those noted):<P>
+including (versions starting with those noted):
 <DL>
+<DT> cdk
+<DD> Curses Development Kit
+<A HREF="http://www.vexus.ca/CDK.html">Curses Development Kit</a>
+<A HREF="ftp://ftp.clark.net/pub/dickey/cdk">ftp://ftp.clark.net/pub/dickey/cdk</A>.
 <DT> ded
 <DD> directory-editor
 <A HREF="ftp://ftp.clark.net/pub/dickey/ded">ftp://ftp.clark.net/pub/dickey/ded</A>.
 <DT> dialog
 <DD> the underlying application used in Slackware's setup, and the basis
 for similar applications on GNU/Linux.
-<DT> lynx-2.7
+<DT> lynx
 <DD> the character-screen WWW browser
 <DT> Midnight Commander 4.1
 <DD> file manager
-<DT> mutt 0.88
+<DT> mutt
 <DD> mail utility
-<DT> ncftp 2.0
+<DT> ncftp
 <DD> file-transfer utility
 <DT> nvi
 <DD> New vi versions 1.50 are able to use ncurses versions 1.9.7 and later.
+<DT> tin
+<DD> newsreader, supporting color, MIME
+<A HREF="ftp://ftp.akk.uni-karlsruhe.de/pub/news/clients/tin-unoff">ftp://ftp.akk.uni-karlsruhe.de/pub/news/clients/tin-unoff</A>.
 <DT> taper
 <DD> tape archive utility
 <DT> vh-1.6
@@ -315,11 +322,8 @@ for similar applications on GNU/Linux.
 </DL>
 as well as some that use ncurses for the terminfo support alone:
 <DL>
-<DT> minicom-1.75
+<DT> minicom
 <DD> terminal emulator
-<DT> tin-unoff
-<DD> tin 1.4 newsreader, supporting color, MIME
-<A HREF="ftp://ftp.akk.uni-karlsruhe.de/pub/news/clients/tin-unoff">ftp://ftp.akk.uni-karlsruhe.de/pub/news/clients/tin-unoff</A>.
 <DT> vile
 <DD> vi-like-emacs
 <A HREF="ftp://ftp.clark.net/pub/dickey/vile">ftp://ftp.clark.net/pub/dickey/vile</A>.
@@ -338,7 +342,7 @@ Ongoing work is being done by
 <A HREF="mailto:dickey@clark.net">Thomas Dickey</A>
 and
 <A HREF="mailto:juergen.pfeifer@gmx.net">J&uuml;rgen Pfeifer</A>.
-<A HREF="mailto:florian@gnu.org">Florian La Roche</A>
+<A HREF="mailto:dickey@clark.net">Thomas Dickey</A>
 acts as the maintainer for the Free Software Foundation, which holds the
 copyright on ncurses.
 Contact the current maintainers at
