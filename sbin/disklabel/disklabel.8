@@ -49,7 +49,7 @@
 .Fl w
 .Op Fl r
 .Op Fl n
-.Ar disk Ar disktype/auto
+.Ar disk disktype Ns | Ns Cm auto
 .Oo Ar packid Oc
 .Nm
 .Fl e
@@ -68,7 +68,7 @@
 .Fl b Ar boot
 .Oc
 .Ar disk
-.Oo Ar disktype/auto Oc
+.Op Ar disktype Ns | Ns Cm auto
 .Nm
 .Fl w
 .Fl B
@@ -76,7 +76,7 @@
 .Oo
 .Fl b Ar boot
 .Oc
-.Ar disk Ar disktype/auto
+.Ar disk disktype Ns | Ns Cm auto
 .Oo Ar packid Oc
 .Nm
 .Fl R
@@ -172,7 +172,7 @@ To write a standard label, use the form
 .Fl w
 .Op Fl r
 .Op Fl n
-.Ar disk Ar disktype/auto
+.Ar disk disktype Ns | Ns Cm auto
 .Oo Ar packid Oc
 .Pp
 .Nm
@@ -180,7 +180,7 @@ To write a standard label, use the form
 .Op Fl r
 .Op Fl n
 .Ar disk
-auto
+.Cm auto
 .Pp
 The required arguments to
 .Nm
@@ -219,7 +219,7 @@ For a virgin disk that is not known to
 .Xr disktab 5 ,
 .Ar disktype
 can be specified as
-.Dq auto .
+.Cm auto .
 In this case, the driver is requested to produce a virgin label for the
 disk.  This might or might not be successful, depending on whether the
 driver for the disk is able to get the required data without reading
@@ -444,7 +444,7 @@ Your mileage may vary.
 .Fl w
 .Fl B
 .Ar da0s1
-auto
+.Cm auto
 .Pp
 .Pp
 .Nm
