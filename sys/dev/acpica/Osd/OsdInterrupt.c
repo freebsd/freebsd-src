@@ -43,6 +43,9 @@
 #define _COMPONENT	ACPI_OS_SERVICES
 MODULE_NAME("INTERRUPT")
 
+static void		InterruptWrapper(void *arg);
+static OSD_HANDLER	InterruptHandler;
+
 /*
  * XXX this does not correctly free resources in the case of partically successful
  * attachment.
@@ -58,6 +61,11 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
     if (ServiceRoutine == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
+    if (InterruptHandler != NULL) {
+	device_printf(sc->acpi_dev, "can't register more than one ACPI interrupt\n");
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
+    }
+    InterruptHandler = ServiceRoutine;
 
     if ((sc = devclass_get_softc(acpi_devclass, 0)) == NULL)
 	panic("can't find ACPI device to register interrupt");
@@ -79,8 +87,8 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 	device_printf(sc->acpi_dev, "could not allocate SCI interrupt\n");
 	return_ACPI_STATUS(AE_EXIST);
     }
-    if (bus_setup_intr(sc->acpi_dev, sc->acpi_irq, INTR_TYPE_MISC, (driver_intr_t *)ServiceRoutine, Context, 
-		       &sc->acpi_irq_handle)) {
+    if (bus_setup_intr(sc->acpi_dev, sc->acpi_irq, INTR_TYPE_MISC, (driver_intr_t *)InterruptWrapper,
+		       Context, &sc->acpi_irq_handle)) {
 	device_printf(sc->acpi_dev, "could not set up SCI interrupt\n");
 	return_ACPI_STATUS(AE_EXIST);
     }
@@ -115,3 +123,13 @@ AcpiOsRemoveInterruptHandler (UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
     return_ACPI_STATUS(AE_OK);
 }
 
+/*
+ * Interrupt handler wrapper.
+ */
+static void
+InterruptWrapper(void *arg)
+{
+    ACPI_LOCK;
+    InterruptHandler(arg);
+    ACPI_UNLOCK;
+}
