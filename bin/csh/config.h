@@ -153,5 +153,11 @@
 # define NLS_CATALOGS
 #endif
 
+#ifdef WANT_KANJI
+#define KANJI
+#define DSPMBYTE
+#define MBYTEDEBUG
+#endif
+
 #endif /* _h_config */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
