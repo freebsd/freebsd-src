@@ -20,19 +20,19 @@
 .Sh SYNOPSIS
 .In rpc/rpc.h
 .Ft bool_t
-.Fn xdr_accepted_reply "XDR *xdrs" "const struct accepted_reply *ar"
+.Fn xdr_accepted_reply "XDR *xdrs" "struct accepted_reply *ar"
 .Ft bool_t
 .Fn xdr_authsys_parms "XDR *xdrs" "struct authsys_parms *aupp"
-.Ft void
+.Ft bool_t
 .Fn xdr_callhdr "XDR *xdrs" "struct rpc_msg *chdr"
 .Ft bool_t
 .Fn xdr_callmsg "XDR *xdrs" "struct rpc_msg *cmsg"
 .Ft bool_t
 .Fn xdr_opaque_auth "XDR *xdrs" "struct opaque_auth *ap"
 .Ft bool_t
-.Fn xdr_rejected_reply "XDR *xdrs" "const struct rejected_reply *rr"
+.Fn xdr_rejected_reply "XDR *xdrs" "struct rejected_reply *rr"
 .Ft bool_t
-.Fn xdr_replymsg "XDR *xdrs" "const struct rpc_msg *rmsg"
+.Fn xdr_replymsg "XDR *xdrs" "struct rpc_msg *rmsg"
 .Sh DESCRIPTION
 These routines are used for describing the
 RPC messages in XDR language.

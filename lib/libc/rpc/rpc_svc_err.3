@@ -22,19 +22,19 @@
 .Sh SYNOPSIS
 .In rpc/rpc.h
 .Ft void
-.Fn svcerr_auth "const SVCXPRT1 *xprt" "const enum auth_stat why"
+.Fn svcerr_auth "SVCXPRT *xprt" "enum auth_stat why"
 .Ft void
-.Fn svcerr_decode "const SVCXPRT *xprt"
+.Fn svcerr_decode "SVCXPRT *xprt"
 .Ft void
-.Fn svcerr_noproc "const SVCXPRT *xprt"
+.Fn svcerr_noproc "SVCXPRT *xprt"
 .Ft void
-.Fn svcerr_noprog "const SVCXPRT *xprt"
+.Fn svcerr_noprog "SVCXPRT *xprt"
 .Ft void
-.Fn svcerr_progvers "const SVCXPRT *xprt" "rpcvers_t low_vers" "rpcvers_t high_vers"
+.Fn svcerr_progvers "SVCXPRT *xprt" "rpcvers_t low_vers" "rpcvers_t high_vers"
 .Ft void
-.Fn svcerr_systemerr "const SVCXPRT *xprt"
+.Fn svcerr_systemerr "SVCXPRT *xprt"
 .Ft void
-.Fn svcerr_weakauth "const SVCXPRT *xprt"
+.Fn svcerr_weakauth "SVCXPRT *xprt"
 .Sh DESCRIPTION
 These routines are part of the RPC
 library which allows C language programs to make procedure

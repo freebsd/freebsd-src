@@ -20,18 +20,18 @@
 .Lb libc
 .Sh SYNOPSIS
 .In rpc/rpc.h
-.Ft bool_t
-.Fn rpc_reg "const rpcprog_t prognum" "const rpcvers_t versnum" "const rpcproc_t procnum" "const char *(*procname)()" "const xdrproc_t inproc" "const xdrproc_t outproc" "const char *nettype"
 .Ft int
-.Fn svc_reg "const SVCXPRT *xprt" "const rpcprog_t prognum" "const rpcvers_t versnum" "const void (*dispatch(struct svc_req *, SVCXPRT *)" "const struct netconfig *netconf"
+.Fn rpc_reg "rpcprog_t prognum" "rpcvers_t versnum" "rpcproc_t procnum" "char *(*procname)()" "xdrproc_t inproc" "xdrproc_t outproc" "char *nettype"
+.Ft bool_t
+.Fn svc_reg "SVCXPRT *xprt" "const rpcprog_t prognum" "const rpcvers_t versnum" "void (*dispatch)(struct svc_req *, SVCXPRT *)" "const struct netconfig *netconf"
 .Ft void
 .Fn svc_unreg "const rpcprog_t prognum" "const rpcvers_t versnum"
 .Ft int
-.Fn svc_auth_reg "const int cred_flavor" "const enum auth_stat (*handler(struct svc_req *, truct rpc_msg *))"
+.Fn svc_auth_reg "int cred_flavor" "enum auth_stat (*handler)(struct svc_req *, struct rpc_msg *)"
 .Ft void
-.Fn xprt_register "const SVCXPRT *xprt"
+.Fn xprt_register "SVCXPRT *xprt"
 .Ft void
-.Fn xprt_unregister "const SVCXPRT *xprt"
+.Fn xprt_unregister "SVCXPRT *xprt"
 .Sh DESCRIPTION
 These routines are a part of the RPC
 library which allows the RPC
