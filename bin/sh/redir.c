@@ -145,11 +145,8 @@ again:
 			}
 			if (!try) {
 				sv->renamed[fd] = i;
-				close(fd);
 			}
 			INTON;
-		} else {
-			close(fd);
 		}
 		if (fd == 0)
 			fd0_redirected++;
@@ -186,6 +183,7 @@ openredirect(redir, memory)
 			error("cannot open %s: %s", fname, errmsg(errno, E_OPEN));
 movefd:
 		if (f != fd) {
+			close(fd);
 			copyfd(f, fd);
 			close(f);
 		}
@@ -238,8 +236,10 @@ movefd:
 		if (redir->ndup.dupfd >= 0) {	/* if not ">&-" */
 			if (memory[redir->ndup.dupfd])
 				memory[fd] = 1;
-			else
+			else {
+				close(fd);
 				copyfd(redir->ndup.dupfd, fd);
+			}
 		}
 		break;
 	case NHERE:
