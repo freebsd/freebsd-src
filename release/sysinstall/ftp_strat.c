@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.13 1996/04/23 01:29:21 jkh Exp $
+ * $Id: ftp_strat.c,v 1.14 1996/04/28 03:26:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -203,8 +203,15 @@ retry:
     }
 
     /* Give it a shot - can't hurt to try and zoom in if we can, unless we get a hard error back that is! */
-    if (FtpChdir(ftp, getenv(VAR_RELNAME)) == -2)
+    i = FtpChdir(ftp, getenv(VAR_RELNAME));
+    if (i == -2)
 	goto punt;
+    else if (i == -1)
+	msgConfirm("Warning:  Can't CD to `%s' distribution on this\n"
+		   "FTP server.  You may need to visit the Options menu\n"
+		   "to set the release name explicitly if this FTP server\n"
+		   "isn't exporting a CD (or some other custom release) at\n"
+		   "the top level as a release tree.");
 
     if (isDebug())
 	msgDebug("mediaInitFTP was successful (logged in and chdir'd)\n");
