@@ -69,7 +69,7 @@ vt100|dec-vt100|vt100-am|vt100am|dec vt100:\
 	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:eo:it#8:ut:\
 	:RA=\E[?7l:SA=\E[?7h:
 xterm|vs100|xterm terminal emulator (X window system):\
-	:li#65:\
+	:li#25:\
 	:kh=\EOH:@7=\EOF:kb=^H:kD=^?:\
 	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:km:\
 	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;65r\E[65;1H:\
