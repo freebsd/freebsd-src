@@ -14,7 +14,7 @@
  * 3. Absolutely no warranty of function or purpose is made by the author
  *    Peter Wemm.
  *
- * $Id$
+ * $Id: setproctitle.c,v 1.5 1997/02/22 15:08:33 peter Exp $
  */
 
 #include <sys/types.h>
@@ -55,8 +55,10 @@ struct old_ps_strings {
 #endif
 
 
-#define SPT_BUFSIZE 2048	/* from other parts of sendmail */
+#define SPT_BUFSIZE 128	/* from other parts of sendmail */
 extern char * __progname;	/* is this defined in a .h anywhere? */
+
+static struct ps_strings *ps_strings;
 
 void
 #if defined(__STDC__)
@@ -71,7 +73,6 @@ setproctitle(fmt, va_alist)
 	static char *ps_argv[2];
 	va_list ap;
 	int mib[2];
-	struct ps_strings *ps_strings;
 	size_t len;
 
 #if defined(__STDC__)
@@ -102,13 +103,14 @@ setproctitle(fmt, va_alist)
 
 	va_end(ap);
 
-	ps_strings = NULL;
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_PS_STRINGS;
-	len = sizeof(ps_strings);
-	if (sysctl(mib, 2, &ps_strings, &len, NULL, 0) < 0 ||
-	    ps_strings == NULL)
-		ps_strings = PS_STRINGS;
+	if (ps_strings == NULL) {
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_PS_STRINGS;
+		len = sizeof(ps_strings);
+		if (sysctl(mib, 2, &ps_strings, &len, NULL, 0) < 0 ||
+		    ps_strings == NULL)
+			ps_strings = PS_STRINGS;
+	}
 
 	/* PS_STRINGS points to zeroed memory on a style #2 kernel */
 	if (ps_strings->ps_argvstr) {
