@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -41,6 +43,9 @@ static char sccsid[] = "@(#)getpagesize.c	8.1 (Berkeley) 6/4/93";
 /*
  * This is unlikely to change over the running time of any
  * program, so we cache the result to save some syscalls.
+ *
+ * NB: This function may be called from malloc(3) at initialization
+ * NB: so must not result in a malloc(3) related call!
  */
 
 int
