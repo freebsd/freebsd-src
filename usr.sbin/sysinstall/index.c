@@ -140,6 +140,7 @@ static char *descrs[] = {
     "tcl75", "TCL v7.5 and packages that depend on it.",
     "tcl76", "TCL v7.6 and packages that depend on it.",
     "tcl80", "TCL v8.0 and packages that depend on it.",
+    "tcl81", "TCL v8.1 and packages that depend on it.",
     "tcl82", "TCL v8.2 and packages that depend on it.",
     "tcl83", "TCL v8.3 and packages that depend on it.",
     "textproc", "Text processing/search utilities.",
