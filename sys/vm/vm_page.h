@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.26 1996/05/18 04:00:18 dyson Exp $
+ * $Id: vm_page.h,v 1.27 1996/06/05 03:31:49 dyson Exp $
  */
 
 /*
@@ -251,6 +251,7 @@ vm_offset_t vm_page_startup __P((vm_offset_t, vm_offset_t, vm_offset_t));
 void vm_page_unwire __P((vm_page_t));
 void vm_page_wire __P((vm_page_t));
 void vm_page_unqueue __P((vm_page_t));
+void vm_page_unqueue_nowakeup __P((vm_page_t));
 void vm_page_set_validclean __P((vm_page_t, int, int));
 void vm_page_set_invalid __P((vm_page_t, int, int));
 static __inline boolean_t vm_page_zero_fill __P((vm_page_t));
