@@ -136,8 +136,7 @@ next:		for (start = fmt;; ++fmt) {
 			if (!*fmt) {
 				/* avoid infinite loop */
 				if (end == 1) {
-					warnx("missing format character",
-					    NULL, NULL);
+					warnx("missing format character");
 					return (1);
 				}
 				end = 1;
@@ -186,7 +185,7 @@ next:		for (start = fmt;; ++fmt) {
 		} else
 			precision = 0;
 		if (!*fmt) {
-			warnx("missing format character", NULL, NULL);
+			warnx("missing format character");
 			return (1);
 		}
 
@@ -227,7 +226,7 @@ next:		for (start = fmt;; ++fmt) {
 			break;
 		}
 		default:
-			warnx("illegal format character %c",  convch, NULL);
+			warnx("illegal format character %c",  convch);
 			return (1);
 		}
 		*fmt = nextch;
@@ -360,7 +359,7 @@ getlong(lp)
 		errno = 0;
 		val = strtol(*gargv, &ep, 0);
 		if (*ep != '\0') {
-			warnx("%s: illegal number", *gargv, NULL);
+			warnx("%s: illegal number", *gargv);
 			return (1);
 		}
 		if (errno == ERANGE)
