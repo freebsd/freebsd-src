@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id$
+#	$Id: rc,v 1.113 1997/02/23 09:20:46 peter Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -157,7 +157,7 @@ fi
 
 # /var/crash should be a directory or a symbolic link
 # to the crash directory if core dumps are to be saved.
-if [ "X${savecore}" = X"YES" -a -d /var/crash ]; then
+if [ -d /var/crash ]; then
 	echo -n checking for core dump...
 	savecore /var/crash
 fi
