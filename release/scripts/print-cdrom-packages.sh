@@ -26,19 +26,27 @@
 # so that the package name and dependency list for each can be at least be
 # obtained in an automated fashion.
 
-# usage: extract-names cd#
+# The following are required if you obtained your packages from one of the
+# package building clusters or otherwise had these defined when the packages
+# were built.
+export BATCH=t
+export PACKAGE_BUILDING=t
+
+# usage: extract-names cd# [portsdir]
 extract-names()
 {
+	portsdir=${2-/usr/ports}
 	_FOO=`eval echo \\${CDROM_SET_$1}`
 	if [ "${_FOO}" ]; then
 		TMPNAME="/tmp/_extract_names$$"
 		rm -f ${TMPNAME}
 		for i in ${_FOO}; do
-			( cd /usr/ports/$i && make package-name package-depends ) >> ${TMPNAME};
+			( cd $portsdir/$i && PORTSDIR=$portsdir make package-name package-depends ) >> ${TMPNAME};
 		done
 		if [ -s "${TMPNAME}" ]; then
-			sort ${TMPNAME} | uniq
+			sort -u ${TMPNAME}
 		fi
+		rm -f ${TMPNAME}
 	else
 		exit 1
 	fi
@@ -64,9 +72,6 @@ CDROM_SET_1="${CDROM_SET_1} net/pcnfsd"
 
 # This is the set of "people really want these" packages.  Please add to
 # this list.
-if [ "X`uname -m`" = "Xi386" ]; then
-CDROM_SET_1="${CDROM_SET_1} shells/ksh93"
-fi
 CDROM_SET_1="${CDROM_SET_1} shells/bash2"
 CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
 CDROM_SET_1="${CDROM_SET_1} editors/emacs20"
@@ -100,8 +105,8 @@ CDROM_SET_1="${CDROM_SET_1} graphics/png"
 
 # Start of actual script.
 if [ $# -lt 1 ]; then
-	echo "usage: $0 cdrom-number"
+	echo "usage: $0 cdrom-number [portsdir]"
 	exit 2
 fi
-extract-names $1
+extract-names $*
 exit 0
