@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.16 1997/02/22 15:45:14 peter Exp $
+#	$Id: Makefile,v 1.17 1997/05/15 23:00:05 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -23,5 +23,16 @@ CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../lib -I${CVSDIR}/src -I${CVSDIR}/lib -DHAVE
 
 DPADD+=	${LIBCVS} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
 LDADD+=	-lcvs -lgnuregex -lmd -lcrypt -lz
+
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
+CFLAGS+=-DHAVE_KERBEROS -DHAVE_KRB_GET_ERR_TEXT
+LDADD+=	-lkrb -ldes
+DPADD+=	${LIBKRB} ${LIBDES}
+DISTRIBUTION=	krb
+# XXX do we want to mess with this?  It's probably not really worth it for
+# the public freebsd stuff, but others might want it.  It's an optional
+# feature anyway, the -x switch is needed to activate it.
+CFLAGS+= -DENCRYPTION
+.endif
 
 .include <bsd.prog.mk>
