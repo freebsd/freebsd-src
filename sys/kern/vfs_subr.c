@@ -84,7 +84,7 @@ static void	vlruvp(struct vnode *vp);
  */
 static unsigned long	numvnodes;
 
-SYSCTL_LONG(_debug, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
+SYSCTL_LONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
 
 /*
  * Conversion tables for conversion from vnode types to inode formats
@@ -109,10 +109,10 @@ static TAILQ_HEAD(freelst, vnode) vnode_free_list;
  * getnewvnode() will return a newly allocated vnode.
  */
 static u_long wantfreevnodes = 25;
-SYSCTL_LONG(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
+SYSCTL_LONG(_vfs, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
 /* Number of vnodes in the free list. */
 static u_long freevnodes;
-SYSCTL_LONG(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
+SYSCTL_LONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
 /*
  * Various variables used for debugging the new implementation of
