@@ -35,7 +35,8 @@ Write_FreeBSD(int fd, const struct disk *new, const struct chunk *c1)
 	u_char buf[BBSIZE];
 
 	for (i = 0; i < BBSIZE/512; i++) {
-		p = read_block(fd, i + c1->offset, 512);
+		if (!(p = read_block(fd, i + c1->offset, 512)))
+			return (1);
 		memcpy(buf + 512 * i, p, 512);
 		free(p);
 	}
@@ -101,7 +102,10 @@ Write_Disk(const struct disk *d1)
                 return 1;
 
 	memset(s, 0, sizeof s);
-	mbr = read_block(fd, 0, d1->sector_size);
+	if (!(mbr = read_block(fd, 0, d1->sector_size))) {
+		close (fd);
+		return (1);
+	}
 	dp = (struct dos_partition *)(mbr + DOSPARTOFF);
 	memcpy(work, dp, sizeof work);
 	dp = work;
@@ -178,7 +182,10 @@ Write_Disk(const struct disk *d1)
 			if (dp[i].dp_typ == 0xa5)
 				dp[i].dp_flag = 0x80;
 
-	mbr = read_block(fd, 0, d1->sector_size);
+	if (!(mbr = read_block(fd, 0, d1->sector_size))) {
+		close (fd);
+		return (1);
+	}
 	if (d1->bootmgr) {
 		memcpy(mbr, d1->bootmgr, DOSPARTOFF);
 		Cfg_Boot_Mgr(mbr, need_edd);

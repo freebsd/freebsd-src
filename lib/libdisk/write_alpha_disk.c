@@ -51,7 +51,10 @@ Write_Disk(const struct disk *d1)
 	}
 
 	for (i = 0; i < BBSIZE/512; i++) {
-		p = read_block(fd, i + c1->offset, 512);
+		if (!(p = read_block(fd, i + c1->offset, 512))) {
+			close (fd);
+			return (1);
+		}
 		memcpy(buf + 512 * i, p, 512);
 		free(p);
 	}
