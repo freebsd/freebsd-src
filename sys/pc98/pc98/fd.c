@@ -55,6 +55,7 @@
  */
 
 #include "opt_fdc.h"
+#include "card.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -107,6 +108,13 @@
 #define FD_FAILED -1
 #define FD_NOT_VALID -2
 #define FDC_ERRMAX	100	/* do not log more */
+/*
+ * Stop retrying after this many DMA overruns.  Since each retry takes
+ * one revolution, with 300 rpm., 25 retries take approximately 10
+ * seconds which the read attempt will block in case the DMA overrun
+ * is persistent.
+ */
+#define FDC_DMAOV_MAX	25
 
 #ifdef PC98
 #define NUMTYPES 12
@@ -393,11 +401,17 @@ fddata_rd(fdc_p fdc)
 
 #ifndef PC98
 static void
-fdctl_wr(fdc_p fdc, u_int8_t v)
+fdctl_wr_isa(fdc_p fdc, u_int8_t v)
 {
 	bus_space_write_1(fdc->ctlt, fdc->ctlh, 0, v);
 }
-#endif
+
+static void
+fdctl_wr_pcmcia(fdc_p fdc, u_int8_t v)
+{
+	bus_space_write_1(fdc->portt, fdc->porth, FDCTL+fdc->port_off, v);
+}
+#endif /* PC98 */
 
 #if 0
 
@@ -408,82 +422,6 @@ fdin_rd(fdc_p fdc)
 }
 
 #endif
-
-#ifdef FDC_YE
-#if NCARD > 0
-#include <sys/select.h>
-#include <sys/module.h>
-#include <pccard/cardinfo.h>
-#include <pccard/driver.h>
-#include <pccard/slot.h>
-
-/*
- *	PC-Card (PCMCIA) specific code.
- */
-static int yeinit(struct pccard_devinfo *);		/* init device */
-static void yeunload(struct pccard_devinfo *); 		/* Disable driver */
-static int yeintr(struct pccard_devinfo *); 		/* Interrupt handler */
-
-PCCARD_MODULE(fdc, yeinit, yeunload, yeintr, 0, bio_imask);
-
-/*
- *	Initialize the device - called from Slot manager.
- */
-static int yeinit(struct pccard_devinfo *devi)
-{
-	fdc_p fdc = &fdc_data[devi->isahd.id_unit];
-
-	fdc->baseport = devi->isahd.id_iobase;
-	/*
-	 * reset controller
-	 */
-	fdout_wr(fdc, 0);
-	DELAY(100);
-	fdout_wr(fdc, FDO_FRST);
-
-	/*
-	 * wire into system
-	 */
-	if (yeattach(&devi->isahd) == 0)
-		return(ENXIO);
-
-	return(0);
-}
-
-/*
- *	yeunload - unload the driver and clear the table.
- *	XXX TODO:
- *	This is usually called when the card is ejected, but
- *	can be caused by a modunload of a controller driver.
- *	The idea is to reset the driver's view of the device
- *	and ensure that any driver entry points such as
- *	read and write do not hang.
- */
-static void yeunload(struct pccard_devinfo *devi)
-{
-	if (fd_data[devi->isahd.id_unit].type == NO_TYPE)
-		return;
-
-	/*
-	 * this prevents Fdopen() and fdstrategy() from attempting
-	 * to access unloaded controller
-	 */
-	fd_data[devi->isahd.id_unit].type = NO_TYPE;
-
-	printf("fdc%d: unload\n", devi->isahd.id_unit);
-}
-
-/*
- *	yeintr - Shared interrupt called from
- *	front end of PC-Card handler.
- */
-static int yeintr(struct pccard_devinfo *devi)
-{
-	fdintr((fdcu_t)devi->isahd.id_unit);
-	return(1);
-}
-#endif /* NCARD > 0 */
-#endif /* FDC_YE */
 
 static	d_open_t	Fdopen;	/* NOTE, not fdopen */
 static	d_close_t	fdclose;
@@ -765,10 +703,11 @@ static int
 fdc_alloc_resources(struct fdc_data *fdc)
 {
 	device_t dev;
-	int ispnp;
+	int ispnp, ispcmcia;
 
 	dev = fdc->fdc_dev;
-	ispnp = fdc->fdc_ispnp;
+	ispnp = (fdc->flags & FDC_ISPNP) != 0;
+	ispcmcia = (fdc->flags & FDC_ISPCMCIA) != 0;
 	fdc->rid_ioport = fdc->rid_irq = fdc->rid_drq = 0;
 	fdc->res_ioport = fdc->res_irq = fdc->res_drq = 0;
 
@@ -779,13 +718,20 @@ fdc_alloc_resources(struct fdc_data *fdc)
 					     RF_ACTIVE);
 #else
 	/*
-	 * We don't just use an 8 port range (e.g. 0x3f0-0x3f7) since that
-	 * covers an IDE control register at 0x3f6.
+	 * On standard ISA, we don't just use an 8 port range
+	 * (e.g. 0x3f0-0x3f7) since that covers an IDE control
+	 * register at 0x3f6.
+	 *
 	 * Isn't PC hardware wonderful.
+	 *
+	 * The Y-E Data PCMCIA FDC doesn't have this problem, it
+	 * uses the register with offset 6 for pseudo-DMA, and the
+	 * one with offset 7 as control register.
 	 */
 	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
 					     &fdc->rid_ioport, 0ul, ~0ul, 
-					     ispnp ? 1 : 6, RF_ACTIVE);
+					     ispcmcia ? 8 : (ispnp ? 1 : 6),
+					     RF_ACTIVE);
 #endif
 	if (fdc->res_ioport == 0) {
 		device_printf(dev, "cannot reserve I/O port range\n");
@@ -795,46 +741,54 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	fdc->porth = rman_get_bushandle(fdc->res_ioport);
 
 #ifndef PC98
-	/*
-	 * Some BIOSen report the device at 0x3f2-0x3f5,0x3f7 and some at
-	 * 0x3f0-0x3f5,0x3f7. We detect the former by checking the size
-	 * and adjust the port address accordingly.
-	 */
-	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4)
-		fdc->port_off = -2;
+	if (!ispcmcia) {
+		/*
+		 * Some BIOSen report the device at 0x3f2-0x3f5,0x3f7
+		 * and some at 0x3f0-0x3f5,0x3f7. We detect the former
+		 * by checking the size and adjust the port address
+		 * accordingly.
+		 */
+		if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4)
+			fdc->port_off = -2;
 
-	/*
-	 * Register the control port range as rid 1 if it isn't there
-	 * already. Most PnP BIOSen will have already done this but
-	 * non-PnP configurations don't.
-	 *
-	 * And some (!!) report 0x3f2-0x3f5 and completely leave out the
-	 * control register!  It seems that some non-antique controller chips
-	 * have a different method of programming the transfer speed which
-	 * doesn't require the control register, but it's mighty bogus as the
-	 * chip still responds to the address for the control register.
-	 */
-	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
-		u_long ctlstart;
+		/*
+		 * Register the control port range as rid 1 if it
+		 * isn't there already. Most PnP BIOSen will have
+		 * already done this but non-PnP configurations don't.
+		 *
+		 * And some (!!) report 0x3f2-0x3f5 and completely
+		 * leave out the control register!  It seems that some
+		 * non-antique controller chips have a different
+		 * method of programming the transfer speed which
+		 * doesn't require the control register, but it's
+		 * mighty bogus as the chip still responds to the
+		 * address for the control register.
+		 */
+		if (bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
+			u_long ctlstart;
 
-		/* Find the control port, usually 0x3f7 */
-		ctlstart = rman_get_start(fdc->res_ioport) + fdc->port_off + 7;
+			/* Find the control port, usually 0x3f7 */
+			ctlstart = rman_get_start(fdc->res_ioport) +
+				fdc->port_off + 7;
 
-		bus_set_resource(dev, SYS_RES_IOPORT, 1, ctlstart, 1);
+			bus_set_resource(dev, SYS_RES_IOPORT, 1, ctlstart, 1);
+		}
+
+		/*
+		 * Now (finally!) allocate the control port.
+		 */
+		fdc->rid_ctl = 1;
+		fdc->res_ctl = bus_alloc_resource(dev, SYS_RES_IOPORT,
+						  &fdc->rid_ctl,
+						  0ul, ~0ul, 1, RF_ACTIVE);
+		if (fdc->res_ctl == 0) {
+			device_printf(dev,
+				      "cannot reserve control I/O port range\n");
+			return ENXIO;
+		}
+		fdc->ctlt = rman_get_bustag(fdc->res_ctl);
+		fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
 	}
-
-	/*
-	 * Now (finally!) allocate the control port.
-	 */
-	fdc->rid_ctl = 1;
-	fdc->res_ctl = bus_alloc_resource(dev, SYS_RES_IOPORT, &fdc->rid_ctl,
-					  0ul, ~0ul, 1, RF_ACTIVE);
-	if (fdc->res_ctl == 0) {
-		device_printf(dev, "cannot reserve control I/O port range\n");
-		return ENXIO;
-	}
-	fdc->ctlt = rman_get_bustag(fdc->res_ctl);
-	fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
 #endif
 
 	fdc->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ,
@@ -844,14 +798,17 @@ fdc_alloc_resources(struct fdc_data *fdc)
 		device_printf(dev, "cannot reserve interrupt line\n");
 		return ENXIO;
 	}
-	fdc->res_drq = bus_alloc_resource(dev, SYS_RES_DRQ,
-					  &fdc->rid_drq, 0ul, ~0ul, 1, 
-					  RF_ACTIVE);
-	if (fdc->res_drq == 0) {
-		device_printf(dev, "cannot reserve DMA request line\n");
-		return ENXIO;
+
+	if ((fdc->flags & FDC_NODMA) == 0) {
+		fdc->res_drq = bus_alloc_resource(dev, SYS_RES_DRQ,
+						  &fdc->rid_drq, 0ul, ~0ul, 1, 
+						  RF_ACTIVE);
+		if (fdc->res_drq == 0) {
+			device_printf(dev, "cannot reserve DMA request line\n");
+			return ENXIO;
+		}
+		fdc->dmachan = fdc->res_drq->r_start;
 	}
-	fdc->dmachan = fdc->res_drq->r_start;
 
 	return 0;
 }
@@ -931,12 +888,16 @@ fdc_probe(device_t dev)
 	fdc = device_get_softc(dev);
 	bzero(fdc, sizeof *fdc);
 	fdc->fdc_dev = dev;
+#ifndef PC98
+	fdc->fdctl_wr = fdctl_wr_isa;
+#endif
 
 	/* Check pnp ids */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
 	if (error == ENXIO)
 		return ENXIO;
-	fdc->fdc_ispnp = (error == 0);
+	if (error == 0)
+		fdc->flags |= FDC_ISPNP;
 
 	/* Attempt to allocate our resources for the duration of the probe */
 	error = fdc_alloc_resources(fdc);
@@ -994,6 +955,77 @@ out:
 	return (error);
 }
 
+#if NCARD > 0
+
+static int
+fdc_pccard_probe(device_t dev)
+{
+	int	error;
+	struct	fdc_data *fdc;
+
+	fdc = device_get_softc(dev);
+	bzero(fdc, sizeof *fdc);
+	fdc->fdc_dev = dev;
+#ifndef PC98
+	fdc->fdctl_wr = fdctl_wr_pcmcia;
+#endif
+
+	fdc->flags |= FDC_ISPCMCIA | FDC_NODMA;
+
+	/* Attempt to allocate our resources for the duration of the probe */
+	error = fdc_alloc_resources(fdc);
+	if (error)
+		goto out;
+
+#ifndef PC98
+	/* First - lets reset the floppy controller */
+	fdout_wr(fdc, 0);
+	DELAY(100);
+	fdout_wr(fdc, FDO_FRST);
+#endif
+
+	/* see if it can handle a command */
+	if (fd_cmd(fdc, 3, NE7CMD_SPECIFY, NE7_SPEC_1(3, 240), 
+		   NE7_SPEC_2(2, 0), 0)) {
+		error = ENXIO;
+		goto out;
+	}
+
+	device_set_desc(dev, "Y-E Data PCMCIA floppy");
+	fdc->fdct = FDC_NE765;
+
+out:
+	fdc_release_resources(fdc);
+	return (error);
+}
+
+static int
+fdc_pccard_detach(device_t dev)
+{
+	struct	fdc_data *fdc;
+	int	error;
+
+	fdc = device_get_softc(dev);
+
+	/* have our children detached first */
+	if ((error = bus_generic_detach(dev)))
+		return (error);
+
+	if ((fdc->flags & FDC_ATTACHED) == 0) {
+		device_printf(dev, "already unloaded\n");
+		return (0);
+	}
+	fdc->flags &= ~FDC_ATTACHED;
+
+	BUS_TEARDOWN_INTR(device_get_parent(dev), dev, fdc->res_irq,
+			  fdc->fdc_intr);
+	fdc_release_resources(fdc);
+	device_printf(dev, "unload\n");
+	return (0);
+}
+
+#endif /* NCARD > 0 */
+
 /*
  * Add a child device to the fdc controller.  It will then be probed etc.
  */
@@ -1040,10 +1072,12 @@ fdc_attach(device_t dev)
 	fdc->fdcu = device_get_unit(dev);
 	fdc->flags |= FDC_ATTACHED;
 
-	/* Acquire the DMA channel forever, The driver will do the rest */
+	if ((fdc->flags & FDC_NODMA) == 0) {
+		/* Acquire the DMA channel forever, The driver will do the rest */
 				/* XXX should integrate with rman */
-	isa_dma_acquire(fdc->dmachan);
-	isa_dmainit(fdc->dmachan, 128 << 3 /* XXX max secsize */);
+		isa_dma_acquire(fdc->dmachan);
+		isa_dmainit(fdc->dmachan, 128 << 3 /* XXX max secsize */);
+	}
 	fdc->state = DEVIDLE;
 
 #ifdef PC98
@@ -1104,6 +1138,35 @@ static driver_t fdc_driver = {
 };
 
 DRIVER_MODULE(fdc, isa, fdc_driver, fdc_devclass, 0, 0);
+
+#if NCARD > 0
+
+static device_method_t fdc_pccard_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		fdc_pccard_probe),
+	DEVMETHOD(device_attach,	fdc_attach),
+	DEVMETHOD(device_detach,	fdc_pccard_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	fdc_print_child),
+	DEVMETHOD(bus_read_ivar,	fdc_read_ivar),
+	/* Our children never use any other bus interface methods. */
+
+	{ 0, 0 }
+};
+
+static driver_t fdc_pccard_driver = {
+	"fdc",
+	fdc_pccard_methods,
+	sizeof(struct fdc_data)
+};
+
+DRIVER_MODULE(fdc, pccard, fdc_pccard_driver, fdc_devclass, 0, 0);
+
+#endif /* NCARD > 0 */
 
 /******************************************************************/
 /*
@@ -1178,7 +1241,9 @@ fd_probe(device_t dev)
 	/* look up what bios thinks we have */
 	switch (fd->fdu) {
 	case 0:
-		if (device_get_flags(fdc->fdc_dev) & FDC_PRETEND_D0)
+		if ((fdc->flags & FDC_ISPCMCIA))
+			fdt = RTCFDT_144M;
+		else if (device_get_flags(fdc->fdc_dev) & FDC_PRETEND_D0)
 			fdt = RTCFDT_144M | RTCFDT_144M_PRETENDED;
 		else
 			fdt = (rtcin(RTC_FDISKETTE) & 0xf0);
@@ -1368,11 +1433,22 @@ fd_attach(device_t dev)
 	return (0);
 }
 
+static int
+fd_detach(device_t dev)
+{
+	struct	fd_data *fd;
+
+	fd = device_get_softc(dev);
+	untimeout(fd_turnoff, fd, fd->toffhandle);
+
+	return (0);
+}
+
 static device_method_t fd_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fd_probe),
 	DEVMETHOD(device_attach,	fd_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	fd_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend), /* XXX */
 	DEVMETHOD(device_resume,	bus_generic_resume), /* XXX */
@@ -1387,100 +1463,6 @@ static driver_t fd_driver = {
 };
 
 DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, 0, 0);
-
-/******************************************************************/
-
-#ifdef FDC_YE
-/*
- * this is a subset of fdattach() optimized for the Y-E Data
- * PCMCIA floppy drive.
- */
-static int yeattach(struct isa_device *dev)
-{
-	fdcu_t  fdcu = dev->id_unit;
-	fdc_p   fdc = fdc_data + fdcu;
-	fdsu_t  fdsu = 0;               /* assume 1 drive per YE controller */
-	fdu_t   fdu;
-	fd_p    fd;
-	int     st0, st3, i;
-	fdc->fdcu = fdcu;
-	/*
-	 * the FDC_NODMA flag is used to to indicate special PIO is used
-	 * instead of DMA
-	 */
-	fdc->flags = FDC_ATTACHED|FDC_NODMA;
-	fdc->state = DEVIDLE;
-	/* reset controller, turn motor off, clear fdout mirror reg */
-	fdout_wr(fdc, ((fdc->fdout = 0)));
-	bufq_init(&fdc->head);
-	/*
-	 * assume 2 drives/ "normal" controller
-	 */
-	fdu = fdcu * 2;
-	if (fdu >= NFD) {
-		printf("fdu %d >= NFD\n",fdu);
-		return(0);
-	};
-	fd = &fd_data[fdu];
-
-	set_motor(fdcu, fdsu, TURNON);
-	DELAY(1000000); /* 1 sec */
-	fdc->fdct = FDC_NE765;
-
-	if ((fd_cmd(fdcu, 2, NE7CMD_SENSED, fdsu, 1, &st3) == 0) &&
-		(st3 & NE7_ST3_T0)) {
-		/* if at track 0, first seek inwards */
-		/* seek some steps: */
-		(void)fd_cmd(fdcu, 3, NE7CMD_SEEK, fdsu, 10, 0);
-		DELAY(300000); /* ...wait a moment... */
-		(void)fd_sense_int(fdc, 0, 0); /* make ctrlr happy */
-	}
-
-	/* If we're at track 0 first seek inwards. */
-	if ((fd_sense_drive_status(fdc, &st3) == 0) && (st3 & NE7_ST3_T0)) {
-		/* Seek some steps... */
-		if (fd_cmd(fdcu, 3, NE7CMD_SEEK, fdsu, 10, 0) == 0) {
-			/* ...wait a moment... */
-			DELAY(300000);
-			/* make ctrlr happy: */
-			(void)fd_sense_int(fdc, 0, 0);
-		}
-	}
-
-	for(i = 0; i < 2; i++) {
-		/*
-		 * we must recalibrate twice, just in case the
-		 * heads have been beyond cylinder 76, since most
-		 * FDCs still barf when attempting to recalibrate
-		 * more than 77 steps
-		 */
-		/* go back to 0: */
-		if (fd_cmd(fdcu, 2, NE7CMD_RECAL, fdsu, 0) == 0) {
-			/* a second being enough for full stroke seek*/
-			DELAY(i == 0? 1000000: 300000);
-
-			/* anything responding? */
-			if (fd_sense_int(fdc, &st0, 0) == 0 &&
-				(st0 & NE7_ST0_EC) == 0)
-				break; /* already probed succesfully */
-		}
-	}
-
-	set_motor(fdcu, fdsu, TURNOFF);
-
-	if (st0 & NE7_ST0_EC) /* no track 0 -> no drive present */
-		return(0);
-
-	fd->track = FD_NO_TRACK;
-	fd->fdc = fdc;
-	fd->fdsu = fdsu;
-	fd->options = 0;
-	printf("fdc%d: 1.44MB 3.5in PCMCIA\n", fdcu);
-	fd->type = FD_1440;
-
-	return (1);
-}
-#endif
 
 /****************************************************************************/
 /*                            motor control stuff                           */
@@ -1548,17 +1530,21 @@ fd_turnoff(void *xfd)
 
 	TRACE1("[fd%d: turnoff]", fd->fdu);
 
+	s = splbio();
 	/*
 	 * Don't turn off the motor yet if the drive is active.
-	 * XXX shouldn't even schedule turnoff until drive is inactive
-	 * and nothing is queued on it.
+	 *
+	 * If we got here, this could only mean we missed an interrupt.
+	 * This can e. g. happen on the Y-E Date PCMCIA floppy controller
+	 * after a controller reset.  Just schedule a pseudo-interrupt
+	 * so the state machine gets re-entered.
 	 */
 	if (fd->fdc->state != DEVIDLE && fd->fdc->fdu == fd->fdu) {
-		fd->toffhandle = timeout(fd_turnoff, fd, 4 * hz);
+		fdc_intr(fd->fdc);
+		splx(s);
 		return;
 	}
 
-	s = splbio();
 	fd->flags &= ~FD_MOTOR;
 	set_motor(fd->fdc, fd->fdsu, TURNOFF);
 	splx(s);
@@ -1791,8 +1777,19 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 #endif
 	fd->ft = fd_types + type - 1;
 	fd->flags |= FD_OPEN;
-	device_busy(fd->dev);
-	device_busy(fd->fdc->fdc_dev);
+	/*
+	 * Clearing the DMA overrun counter at open time is a bit messy.
+	 * Since we're only managing one counter per controller, opening
+	 * the second drive could mess it up.  Anyway, if the DMA overrun
+	 * condition is really persistent, it will eventually time out
+	 * still.  OTOH, clearing it here will ensure we'll at least start
+	 * trying again after a previous (maybe even long ago) failure.
+	 * Also, this is merely a stop-gap measure only that should not
+	 * happen during normal operation, so we can tolerate it to be a
+	 * bit sloppy about this.
+	 */
+	fdc->dma_overruns = 0;
+
 	return 0;
 }
 
@@ -1885,6 +1882,7 @@ fdstrategy(struct buf *bp)
 
 	/* Tell devstat we are starting on the transaction */
 	devstat_start_transaction(&fd->device_stats);
+	device_busy(fd->dev);
 
 	fdstart(fdc);
 	splx(s);
@@ -2089,7 +2087,7 @@ fdstate(fdc_p fdc)
 			fd->pc98_trans = pc98_trans;
 		}
 #else
-		fdctl_wr(fdc, fd->ft->trans);
+		fdc->fdctl_wr(fdc, fd->ft->trans);
 #endif
 		TRACE1("[0x%x->FDCTL]", fd->ft->trans);
 		/*******************************************************\
@@ -2253,9 +2251,11 @@ fdstate(fdc_p fdc)
 			if(fd_sense_drive_status(fdc, &st3) != 0)
 			{
 				/* stuck controller? */
-				isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
-					    format ? bp->b_bcount : fdblk,
-					    fdc->dmachan);
+				if (!(fdc->flags & FDC_NODMA))
+					isa_dmadone(bp->b_flags,
+						    bp->b_data + fd->skip,
+						    format ? bp->b_bcount : fdblk,
+						    fdc->dmachan);
 				fdc->retry = 6;	/* reset the beast */
 				return (retrier(fdc));
 			}
@@ -2281,10 +2281,26 @@ fdstate(fdc_p fdc)
 		}
 
 		if (format) {
-			if (fdc->flags & FDC_NODMA)
+			if (fdc->flags & FDC_NODMA) {
+				/*
+				 * This seems to be necessary for
+				 * whatever obscure reason; if we omit
+				 * it, we end up filling the sector ID
+				 * fields of the newly formatted track
+				 * entirely with garbage, causing
+				 * `wrong cylinder' errors all over
+				 * the place when trying to read them
+				 * back.
+				 *
+				 * Umpf.
+				 */
+				SET_BCDR(fdc, 1, bp->b_bcount, 0);
+
 				(void)fdcpio(fdc,bp->b_flags,
 					bp->b_data+fd->skip,
 					bp->b_bcount);
+
+			}
 			/* formatting */
 			if(fd_cmd(fdc, 6,  NE7CMD_FORMAT, head << 2 | fdu,
 				  finfo->fd_formb_secshift,
@@ -2292,9 +2308,11 @@ fdstate(fdc_p fdc)
 				  finfo->fd_formb_gaplen,
 				  finfo->fd_formb_fillbyte, 0)) {
 				/* controller fell over */
-				isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
-					    format ? bp->b_bcount : fdblk,
-					    fdc->dmachan);
+				if (!(fdc->flags & FDC_NODMA))
+					isa_dmadone(bp->b_flags,
+						    bp->b_data + fd->skip,
+						    format ? bp->b_bcount : fdblk,
+						    fdc->dmachan);
 				fdc->retry = 6;
 				return (retrier(fdc));
 			}
@@ -2327,9 +2345,11 @@ fdstate(fdc_p fdc)
 				   fd->ft->datalen,  /* data length */
 				   0)) {
 				/* the beast is sleeping again */
-				isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
-					    format ? bp->b_bcount : fdblk,
-					    fdc->dmachan);
+				if (!(fdc->flags & FDC_NODMA))
+					isa_dmadone(bp->b_flags,
+						    bp->b_data + fd->skip,
+						    format ? bp->b_bcount : fdblk,
+						    fdc->dmachan);
 				fdc->retry = 6;
 				return (retrier(fdc));
 			}
@@ -2399,9 +2419,10 @@ fdstate(fdc_p fdc)
 #endif
 
 		if (fd_read_status(fdc, fd->fdsu)) {
-			isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
-				    format ? bp->b_bcount : fdblk,
-				    fdc->dmachan);
+			if (!(fdc->flags & FDC_NODMA))
+				isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
+					    format ? bp->b_bcount : fdblk,
+					    fdc->dmachan);
 			if (fdc->retry < 6)
 				fdc->retry = 6;	/* force a reset */
 			return (retrier(fdc));
@@ -2426,16 +2447,23 @@ fdstate(fdc_p fdc)
                         if ((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_AT
 			    && fdc->status[1] & NE7_ST1_OR) {
                                 /*
-				 * DMA overrun. Someone hogged the bus
-				 * and didn't release it in time for the
-				 * next FDC transfer.
-				 * Just restart it, don't increment retry
-				 * count. (vak)
-                                 */
-                                fdc->state = SEEKCOMPLETE;
-                                return (1);
+				 * DMA overrun. Someone hogged the bus and
+				 * didn't release it in time for the next
+				 * FDC transfer.
+				 *
+				 * We normally restart this without bumping
+				 * the retry counter.  However, in case
+				 * something is seriously messed up (like
+				 * broken hardware), we rather limit the
+				 * number of retries so the IO operation
+				 * doesn't block indefinately.
+				 */
+				if (fdc->dma_overruns++ < FDC_DMAOV_MAX) {
+					fdc->state = SEEKCOMPLETE;
+					return (1);
+				} /* else fall through */
                         }
-			else if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_IV
+			if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_IV
 				&& fdc->retry < 6)
 				fdc->retry = 6;	/* force a reset */
 			else if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_AT
@@ -2445,6 +2473,8 @@ fdstate(fdc_p fdc)
 			return (retrier(fdc));
 		}
 		/* All OK */
+		/* Operation successful, retry DMA overruns again next time. */
+		fdc->dma_overruns = 0;
 		fd->skip += fdblk;
 		if (!format && fd->skip < bp->b_bcount - bp->b_resid) {
 			/* set up next transfer */
@@ -2453,6 +2483,7 @@ fdstate(fdc_p fdc)
 			/* ALL DONE */
 			fd->skip = 0;
 			fdc->bp = NULL;
+			device_unbusy(fd->dev);
 			devstat_end_transaction_buf(&fd->device_stats, bp);
 			biodone(bp);
 			fdc->fd = (fd_p) 0;
@@ -2629,6 +2660,7 @@ retrier(struct fdc_data *fdc)
 		bp->b_resid += bp->b_bcount - fdc->fd->skip;
 		fdc->bp = NULL;
 		fdc->fd->skip = 0;
+		device_unbusy(fd->dev);
 		devstat_end_transaction_buf(&fdc->fd->device_stats, bp);
 		biodone(bp);
 		fdc->state = FINDWORK;
@@ -2697,6 +2729,7 @@ fdformat(dev, finfo, p)
 	if (rv == EWOULDBLOCK) {
 		/* timed out */
 		rv = EIO;
+		device_unbusy(fd->dev);
 		biodone(bp);
 	}
 	if (bp->b_flags & B_ERROR)
