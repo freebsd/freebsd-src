@@ -1051,8 +1051,9 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	break;
 
     case 0x4d69105a:	/* Promise TX2 ATA133 controllers */
-    case 0x5275105a:	/* Promise TX2 ATA133 controllers */
     case 0x6269105a:	/* Promise TX2 ATA133 controllers */
+    case 0x1275105a:	/* Promise TX2 ATA133 controllers */
+    case 0x5275105a:	/* Promise TX2 ATA133 controllers */
     case 0x7275105a:	/* Promise TX2 ATA133 controllers */
 	ATA_OUTB(atadev->channel->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
 	if (udmamode >= 6 &&
@@ -1527,12 +1528,13 @@ ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
     case 0x4d38105a:  /* Promise Ultra/Fasttrak 66 */
     case 0x0d30105a:  /* Promise OEM ATA 100 */
     case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
-	ATA_OUTB(ch->r_bmio, 0x11,
-		 ATA_INB(ch->r_bmio, 0x11) | (atadev->unit ? 0x08 : 0x02));
-
-	ATA_OUTL(ch->r_bmio, (atadev->unit ? 0x24 : 0x20), 
+	if (ch->flags & ATA_48BIT_ACTIVE) {
+	ATA_OUTB(ch->r_bmio, (ch->unit ? 0x09 : 0x11),
+		 ATA_INB(ch->r_bmio, (ch->unit ? 0x09 : 0x11)) |
+		 (ch->unit ? 0x08 : 0x02));
+	ATA_OUTL(ch->r_bmio, (ch->unit ? 0x1c : 0x20), 
                  (dir ? 0x05000000 : 0x06000000) | (count >> 1));
-        break;
+	}
     }
 
     cba.dmatab = ds->dmatab;
@@ -1570,21 +1572,24 @@ ata_dmadone(struct ata_device *atadev)
     case 0x4d38105a:  /* Promise Ultra/Fasttrak 66 */
     case 0x0d30105a:  /* Promise OEM ATA 100 */
     case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
-	ATA_OUTL(ch->r_bmio, (atadev->unit ? 0x24 : 0x20), 0);
-	ATA_OUTB(ch->r_bmio, 0x11,
-		 ATA_INB(ch->r_bmio, 0x11) & ~(atadev->unit ? 0x08 : 0x02));
-        break;
+	if (ch->flags & ATA_48BIT_ACTIVE) {
+	ATA_OUTB(ch->r_bmio, (ch->unit ? 0x09 : 0x11),
+		 ATA_INB(ch->r_bmio, (ch->unit ? 0x09 : 0x11)) &
+		 ~(ch->unit ? 0x08 : 0x02));
+	ATA_OUTL(ch->r_bmio, (ch->unit ? 0x1c : 0x20), 0);
+	    ch->flags &= ~ATA_48BIT_ACTIVE;
+	}
     }
+
+    error = ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT);
+    ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
+	     ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
+    ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT,ATA_BMSTAT_INTERRUPT|ATA_BMSTAT_ERROR);
 
     bus_dmamap_sync(ds->ddmatag, ds->ddmamap, (ds->flags & ATA_DS_READ) != 0 ?
 		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
     bus_dmamap_unload(ds->ddmatag, ds->ddmamap);
-        
-    ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
-		ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
-    error = ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT);
-    ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, 
-	     error | ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
+
     ch->flags &= ~ATA_DMA_ACTIVE;
     ds->flags = 0;
     return (error & ATA_BMSTAT_MASK);

@@ -287,6 +287,7 @@ ata_pci_match(device_t dev)
 	}
 	return "Promise TX2 ATA100 controller";
 
+    case 0x1275105a:
     case 0x5275105a:
     case 0x7275105a: 
 	{
@@ -628,6 +629,7 @@ ata_pci_intr(struct ata_channel *ch)
     case 0x4d68105a:	/* Promise TX2 ATA100 */
     case 0x6268105a:	/* Promise TX2 ATA100 */
     case 0x4d69105a:	/* Promise TX2 ATA133 */
+    case 0x1275105a:	/* Promise TX2 ATA133 */
     case 0x5275105a:	/* Promise TX2 ATA133 */
     case 0x6269105a:	/* Promise TX2 ATA133 */
     case 0x7275105a:	/* Promise TX2 ATA133 */
@@ -694,6 +696,7 @@ ata_pci_serialize(struct ata_channel *ch, int flags)
 	if (scp->lock == -1 || scp->lock != ch->unit)
 	    break;
 	atomic_store_rel_int(&scp->lock, -1);
+	wakeup((caddr_t)ch->lock_func);
 	break;
     }
     return;
