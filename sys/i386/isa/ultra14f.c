@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.33.4.3 1995/09/14 07:09:37 davidg Exp $
+ *      $Id: ultra14f.c,v 1.33.4.4 1996/04/01 00:19:43 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -370,7 +370,7 @@ uha_send_mbox(int unit, struct mscp *mscp)
 		DELAY(100);
 	}
 	if (spincount == 0) {
-		printf("uha%d: uha_send_mbox, board not responding\n", unit);
+		printf("uha%d: uha_send_mbox, board is not responding\n", unit);
 		Debugger("ultra14f");
 	}
 	outl(ur->ogmptr, KVTOPHYS(mscp));
@@ -399,7 +399,7 @@ uha_abort(int unit, struct mscp *mscp)
 		DELAY(10);
 	}
 	if (spincount == 0) {
-		printf("uha%d: uha_abort, board not responding\n", unit);
+		printf("uha%d: uha_abort, board is not responding\n", unit);
 		Debugger("ultra14f");
 	}
 	outl(ur->ogmptr,KVTOPHYS(mscp));
@@ -412,7 +412,7 @@ uha_abort(int unit, struct mscp *mscp)
 		DELAY(10);
 	}
 	if (abortcount == 0) {
-		printf("uha%d: uha_abort, board not responding\n", unit);
+		printf("uha%d: uha_abort, board is not responding\n", unit);
 		Debugger("ultra14f");
 	}
 	if ((inb(ur->sint) & 0x10) != 0) {
@@ -447,7 +447,7 @@ uha_poll(int unit, int wait)
 		DELAY(1000);	/* 1 mSec per loop */
 	}
 	if (wait == 0) {
-		printf("uha%d: uha_poll, board not responding\n", unit);
+		printf("uha%d: uha_poll, board is not responding\n", unit);
 		return (EIO);
 	}
 	uhaintr(unit);
