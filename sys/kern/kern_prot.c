@@ -430,8 +430,8 @@ setuid(p, uap)
 		 * Transfer proc count to new user.
 		 */
 		if (uid != pc->p_ruid) {
-			(void)chgproccnt(pc->p_ruid, -1);
-			(void)chgproccnt(uid, 1);
+			(void)chgproccnt(pc->p_ruid, -1, 0);
+			(void)chgproccnt(uid, 1, 0);
 		}
 		/*
 		 * Set real uid
@@ -679,8 +679,8 @@ setreuid(p, uap)
 		setsugid(p);
 	}
 	if (ruid != (uid_t)-1 && pc->p_ruid != ruid) {
-		(void)chgproccnt(pc->p_ruid, -1);
-		(void)chgproccnt(ruid, 1);
+		(void)chgproccnt(pc->p_ruid, -1, 0);
+		(void)chgproccnt(ruid, 1, 0);
 		pc->p_ruid = ruid;
 		setsugid(p);
 	}
@@ -772,8 +772,8 @@ setresuid(p, uap)
 		setsugid(p);
 	}
 	if (ruid != (uid_t)-1 && pc->p_ruid != ruid) {
-		(void)chgproccnt(pc->p_ruid, -1);
-		(void)chgproccnt(ruid, 1);
+		(void)chgproccnt(pc->p_ruid, -1, 0);
+		(void)chgproccnt(ruid, 1, 0);
 		pc->p_ruid = ruid;
 		setsugid(p);
 	}
