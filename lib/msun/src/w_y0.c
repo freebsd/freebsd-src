@@ -1,4 +1,4 @@
-/* @(#)w_jn.c 5.1 93/09/24 */
+/* from: @(#)w_j0.c 5.1 93/09/24 */
 /*
  * ====================================================
  * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -15,27 +15,35 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 /*
- * wrapper jn(int n, double x)
+ * wrapper y0(double x)
  */
 
 #include "math.h"
 #include "math_private.h"
 
 #ifdef __STDC__
-	double jn(int n, double x)	/* wrapper jn */
+	double y0(double x)		/* wrapper y0 */
 #else
-	double jn(n,x)			/* wrapper jn */
-	double x; int n;
+	double y0(x)			/* wrapper y0 */
+	double x;
 #endif
 {
 #ifdef _IEEE_LIBM
-	return __ieee754_jn(n,x);
+	return __ieee754_y0(x);
 #else
 	double z;
-	z = __ieee754_jn(n,x);
+	z = __ieee754_y0(x);
 	if(_LIB_VERSION == _IEEE_ || isnan(x) ) return z;
-	if(fabs(x)>X_TLOSS) {
-	    return __kernel_standard((double)n,x,38); /* jn(|x|>X_TLOSS,n) */
+        if(x <= 0.0){
+                if(x==0.0)
+                    /* d= -one/(x-x); */
+                    return __kernel_standard(x,x,8);
+                else
+                    /* d = zero/(x-x); */
+                    return __kernel_standard(x,x,9);
+        }
+	if(x>X_TLOSS) {
+	        return __kernel_standard(x,x,35); /* y0(x>X_TLOSS) */
 	} else
 	    return z;
 #endif
