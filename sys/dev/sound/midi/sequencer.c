@@ -33,8 +33,6 @@
  * to and from a midi device or synthesizer.
  */
 
-#include "opt_devfs.h"
-
 #include <dev/sound/midi/midi.h>
 #include <dev/sound/midi/sequencer.h>
 

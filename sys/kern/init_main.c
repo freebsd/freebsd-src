@@ -43,7 +43,6 @@
  */
 
 #include "opt_init_path.h"
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/file.h>
@@ -62,6 +61,7 @@
 #include <sys/vmmeter.h>
 #include <sys/unistd.h>
 #include <sys/malloc.h>
+#include <sys/conf.h>
 
 #include <machine/cpu.h>
 
@@ -499,10 +499,11 @@ start_init(void *dummy)
 		(void)subyte(--ucp, 'C');
 		options = 1;
 #endif
-#ifdef DEVFS
-		(void)subyte(--ucp, 'd');
-		options = 1;
-#endif
+		if (devfs_present) {
+			(void)subyte(--ucp, 'd');
+			options = 1;
+		}
+
 		if (options == 0)
 			(void)subyte(--ucp, '-');
 		(void)subyte(--ucp, '-');		/* leading hyphen */

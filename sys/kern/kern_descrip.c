@@ -40,7 +40,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_devfs.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -61,12 +60,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-
-#ifdef DEVFS
-#include <sys/ctype.h>
-#include <sys/eventhandler.h>
-#include <fs/devfs/devfs.h>
-#endif
 
 static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
 MALLOC_DEFINE(M_FILE, "file", "Open file structure");
@@ -1322,7 +1315,6 @@ SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW,
 SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD, 
     &nfiles, 0, "System-wide number of open files");
 
-#ifdef DEVFS
 static void
 fildesc_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -1330,14 +1322,13 @@ fildesc_clone(void *arg, char *name, int namelen, dev_t *dev)
 
 	if (*dev != NODEV)
 		return;
-	if (devfs_stdclone(name, NULL, "fd/", &u) != 1)
+	if (dev_stdclone(name, NULL, "fd/", &u) != 1)
 		return;
 	if (u <= 2)
 		return;
 	*dev = make_dev(&fildesc_cdevsw, u, UID_BIN, GID_BIN, 0666, name);
 	return;
 }
-#endif
 
 static void
 fildesc_drvinit(void *unused)
@@ -1350,16 +1341,14 @@ fildesc_drvinit(void *unused)
 	make_dev_alias(dev, "stdout");
 	dev = make_dev(&fildesc_cdevsw, 2, UID_BIN, GID_BIN, 0666, "fd/2");
 	make_dev_alias(dev, "stderr");
-#ifdef DEVFS
-	EVENTHANDLER_REGISTER(devfs_clone, fildesc_clone, 0, 1000);
-#else
-	{
-	int fd;
+	EVENTHANDLER_REGISTER(dev_clone, fildesc_clone, 0, 1000);
+	if (!devfs_present) {
+		int fd;
 
-	for (fd = 3; fd < NUMFDESC; fd++)
-		make_dev(&fildesc_cdevsw, fd, UID_BIN, GID_BIN, 0666, "fd/%d", fd);
+		for (fd = 3; fd < NUMFDESC; fd++)
+			make_dev(&fildesc_cdevsw, fd, UID_BIN, GID_BIN, 0666,
+			    "fd/%d", fd);
 	}
-#endif
 }
 
 struct fileops badfileops = {

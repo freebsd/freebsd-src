@@ -12,7 +12,6 @@
 
 #include "opt_mfs.h"		/* We have adopted some tasks from MFS */
 #include "opt_md.h"
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -25,11 +24,6 @@
 #include <sys/sysctl.h>
 #include <sys/linker.h>
 #include <sys/queue.h>
-
-#ifdef DEVFS
-#include <sys/eventhandler.h>
-#include <fs/devfs/devfs.h>
-#endif
 
 #ifndef MD_NSECT
 #define MD_NSECT (10000 * 2)
@@ -124,10 +118,8 @@ mdopen(dev_t dev, int flag, int fmt, struct proc *p)
 			devtoname(dev), flag, fmt, p);
 
 	sc = dev->si_drv1;
-#ifndef DEVFS
-	if (sc->unit + 1 == mdunits)
+	if ((!devfs_present) && sc->unit + 1 == mdunits)
 		mdcreate_malloc(-1);
-#endif
 
 	dl = &sc->disk.d_label;
 	bzero(dl, sizeof(*dl));
@@ -411,7 +403,6 @@ mdcreate_malloc(int unit)
 	printf("md%d: Malloc disk\n", sc->unit);
 }
 
-#ifdef DEVFS
 static void
 md_clone (void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -419,7 +410,7 @@ md_clone (void *arg, char *name, int namelen, dev_t *dev)
 
 	if (*dev != NODEV)
 		return;
-	i = devfs_stdclone(name, NULL, "md", &u);
+	i = dev_stdclone(name, NULL, "md", &u);
 	if (i == 0)
 		return;
 	/* XXX: should check that next char is [\0sa-h] */
@@ -431,7 +422,6 @@ md_clone (void *arg, char *name, int namelen, dev_t *dev)
 	mdcreate_malloc(u);
 	return;
 }
-#endif
 
 static void
 md_drvinit(void *unused)
@@ -463,11 +453,9 @@ md_drvinit(void *unused)
 		   mdunits, name, len, ptr);
 		mdcreate_preload(ptr, len);
 	} 
-#ifdef DEVFS
-	EVENTHANDLER_REGISTER(devfs_clone, md_clone, 0, 999);
-#else
-	mdcreate_malloc(-1);
-#endif
+	EVENTHANDLER_REGISTER(dev_clone, md_clone, 0, 999);
+	if (!devfs_present)
+		mdcreate_malloc(-1);
 }
 
 SYSINIT(mddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR, md_drvinit,NULL)

@@ -4,7 +4,7 @@
 
 .PATH:		${.CURDIR}/../../net
 KMOD=		if_tap
-SRCS=		if_tap.c opt_devfs.h opt_inet.h vnode_if.h
+SRCS=		if_tap.c opt_inet.h vnode_if.h
 
 CLEANFILES+=	opt_devfs.h opt_inet.h vnode_if.h
 

@@ -35,8 +35,6 @@
  * transmit to or received from a midi interface.
  */
 
-#include "opt_devfs.h"
-
 #include <dev/sound/midi/midi.h>
 
 /* Some macros to handle the queue. */
