@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: spppcontrol.c,v 1.2 1998/01/05 07:23:02 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -40,9 +40,7 @@ static const char rcsid[] =
 #include <net/if_sppp.h>
 
 #include <err.h>
-#include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
