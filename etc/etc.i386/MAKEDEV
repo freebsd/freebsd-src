@@ -121,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.190 1999/03/01 12:13:24 roger Exp $
+#	$Id: MAKEDEV,v 1.191 1999/03/02 16:04:27 roger Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -543,6 +543,7 @@ targ[0-9]*)
 	fi
 	unit=`expr $unit + 1 - 1`
 	mknod ${name}${unit} c $chr $unit
+	mknod ${name}.ctl c $chr 0xffff00ff
 	;;
 
 # CAM transport layer device
