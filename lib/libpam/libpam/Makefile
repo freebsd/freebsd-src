@@ -65,7 +65,7 @@ STATIC_MODULES+= ${MODOBJDIR}/pam_deny/libpam_deny.a
 .if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
 STATIC_MODULES+= ${MODOBJDIR}/pam_kerberosIV/libpam_kerberosIV.a
 .endif
-.if defined(MAKE_KERBEROS5) && !defined(NOCRYPT)
+.if defined(MAKE_KERBEROS5__) && !defined(NOCRYPT)
 STATIC_MODULES+= ${MODOBJDIR}/pam_kerberos5/libpam_kerberos5.a
 .endif
 STATIC_MODULES+= ${MODOBJDIR}/pam_permit/libpam_permit.a
