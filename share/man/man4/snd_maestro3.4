@@ -31,7 +31,7 @@
 .Nm maestro3
 .Nd FreeBSD audio sub-driver for ESS Maestro3/Allegro-1 hardware
 .Sh SYNOPSIS
-.Dl kldload snd_maestro3
+.Li "kldload snd_maestro3"
 .Sh DESCRIPTION
 The
 .Nm
@@ -42,12 +42,15 @@ a multi-channel sample rate converter that can mix up to four digital audio
 streams in hardware, recording support, and external volume control buttons.
 .Pp
 The firmware for the sound processor is licensed under the GNU Public
-License, and thus this driver is not included in the default GENERIC
+License, and thus this driver is not included in the default
+.Pa GENERIC
 kernel, nor is it compiled into the kernel when
 .Cd "device pcm"
 is specified in the kernel config file.
 A convenient way to automatically load the driver is to add the line
-.Dq Li snd_maestro3=yes
+.Pp
+.Dl snd_maestro3_load="YES"
+.Pp
 to the file
 .Pa /boot/loader.conf .
 .Sh DIAGNOSTICS
@@ -69,5 +72,5 @@ The
 driver first appeared in
 .Fx 4.3 .
 .Sh AUTHORS
-.An Scott Long <scottl@freebsd.org>
-.An Darrel Anderson <anderson@cs.duke.edu>
+.An Scott Long Aq scottl@FreeBSD.org
+.An Darrel Anderson Aq anderson@cs.duke.edu
