@@ -183,9 +183,7 @@ void	nomem(void);
 void	onsig(int);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int x, y, h, n;
 	struct worm *w;
@@ -334,14 +332,13 @@ main(argc, argv)
 }
 
 void
-onsig(signo)
-	int signo;
+onsig(int signo)
 {
 	sig_caught = 1;
 }
 
 void
-nomem()
+nomem(void)
 {
 	errx(1, "not enough memory.");
 }
