@@ -294,7 +294,7 @@ options 	USER_LDT		#allow user-level control of i386 ldt
 # System V shared memory and tunable parameters
 options 	SYSVSHM		# include support for shared memory
 options 	SHMMAXPGS=1025	# max amount of shared memory pages (4k on i386)
-options 	SHMALL=1025	# max amount of shared memory (bytes)
+options 	SHMALL=1025	# max number of shared memory pages system wide
 options 	SHMMAX="(SHMMAXPGS*PAGE_SIZE+1)"
 				# max shared memory segment size (bytes)
 options 	SHMMIN=2	# min shared memory segment size (bytes)
