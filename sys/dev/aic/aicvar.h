@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include "aic.h"
-
 struct aic_transinfo {
 	u_int8_t period;
 	u_int8_t offset;
