@@ -676,7 +676,8 @@ MLINKS+=pmap_resident_count.9 pmap_wired_count.9
 MLINKS+=pmap_zero_page.9 pmap_zero_area.9 \
 	pmap_zero_page.9 pmap_zero_idle.9
 MLINKS+=printf.9 tprintf.9 \
-	printf.9 uprintf.9
+	printf.9 uprintf.9 \
+	printf.9 log.9
 MLINKS+=psignal.9 gsignal.9 \
 	psignal.9 pgsignal.9
 MLINKS+=random.9 arc4rand.9 \
