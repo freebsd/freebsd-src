@@ -286,7 +286,7 @@
     utilities such as &man.ps.1; can work with kernels compiled at
     different addresses. &merged;</para>
 
-    <para arch="i386">A new <varname>KVA_SPACE</varname>kernel option
+    <para arch="i386">A new <varname>KVA_SPACE</varname> kernel option
     can be used to reconfigure the size of the kernel virtual address
     space. &merged;</para>
 
