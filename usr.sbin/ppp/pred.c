@@ -5,7 +5,7 @@
 
 /*
  *
- * $Id: pred.c,v 1.5 1996/01/30 11:08:48 dfr Exp $
+ * $Id: pred.c,v 1.6 1996/05/11 20:48:41 phk Exp $
  *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm
@@ -219,6 +219,7 @@ struct mbuf *bp;
   else
   {
       LogDumpBp(LOG_HDLC, "Bad FCS", wp);
+      CcpSendResetReq(&CcpFsm);
       pfree(wp);
   }
   pfree(bp);
