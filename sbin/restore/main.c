@@ -82,13 +82,18 @@ main(argc, argv)
 {
 	int ch;
 	ino_t ino;
-	char *inputdev = _PATH_DEFTAPE;
+	char *inputdev;
 	char *symtbl = "./restoresymtable";
 	char *p, name[MAXPATHLEN];
+
+	/* Temp files should *not* be readable.  We set permissions later. */
+	(void) umask(077);
 
 	if (argc < 2)
 		usage();
 
+	if ((inputdev = getenv("TAPE")) == NULL)
+		inputdev = _PATH_DEFTAPE;
 	obsolete(&argc, &argv);
 	while ((ch = getopt(argc, argv, "b:cdf:himNRrs:tvxy")) != EOF)
 		switch(ch) {
