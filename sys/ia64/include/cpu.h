@@ -135,6 +135,10 @@ void	set_iointr __P((void (*)(void *, unsigned long)));
 void	fork_trampoline __P((void));				/* MAGIC */
 void	syscall __P((int, u_int64_t *, struct trapframe *));
 void	trap __P((int vector, int imm, struct trapframe *framep));
+void	ia64_probe_sapics(void);
+int	ia64_count_aps(void);
+void	map_pal_code(void);
+void	cpu_mp_add(uint, uint, uint);
 
 /*
  * Return contents of in-cpu fast counter as a sort of "bogo-time"
