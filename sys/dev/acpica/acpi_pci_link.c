@@ -807,7 +807,7 @@ acpi_pci_link_set_bootdisabled_priority(void)
 	struct acpi_pci_link_entry *link, *link_pri;
 	TAILQ_HEAD(, acpi_pci_link_entry) sorted_list;
 
-	if (bootverbose || 1) {
+	if (bootverbose) {
 		printf("---- before setting priority for links ------------\n");
 		acpi_pci_link_bootdisabled_dump();
 	}
@@ -873,7 +873,7 @@ acpi_pci_link_fixup_bootdisabled_link(void)
 	struct acpi_pci_link_entry *link;
 	ACPI_STATUS		error;
 
-	if (bootverbose || 1) {
+	if (bootverbose) {
 		printf("---- before fixup boot-disabled links -------------\n");
 		acpi_pci_link_bootdisabled_dump();
 	}
@@ -911,7 +911,7 @@ acpi_pci_link_fixup_bootdisabled_link(void)
 		}
 	}
 
-	if (bootverbose || 1) {
+	if (bootverbose) {
 		printf("---- after fixup boot-disabled links --------------\n");
 		acpi_pci_link_bootdisabled_dump();
 	}
@@ -970,7 +970,7 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 		prtp += prt->Length;
 	}
 
-	if (bootverbose || 1) {
+	if (bootverbose) {
 		printf("---- initial configuration ------------------------\n");
 		TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
 			if (entry->busno != busno) {
@@ -1031,7 +1031,7 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 	acpi_pci_link_set_bootdisabled_priority();
 	acpi_pci_link_fixup_bootdisabled_link();
 
-	if (bootverbose || 1) {
+	if (bootverbose) {
 		printf("---- arbitrated configuration ---------------------\n");
 		TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
 			if (entry->busno != busno) {
