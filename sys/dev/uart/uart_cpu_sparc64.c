@@ -94,7 +94,8 @@ static phandle_t
 uart_cpu_getdev_console(phandle_t options, char *dev, size_t devsz)
 {
 	char buf[32];
-	phandle_t input;
+	ihandle_t stdin, stdout;
+	phandle_t chosen, input;
 
 	if (OF_getprop(options, "input-device", dev, devsz) == -1)
 		return (-1);
@@ -103,9 +104,6 @@ uart_cpu_getdev_console(phandle_t options, char *dev, size_t devsz)
 	if (OF_getprop(options, "output-device", buf, sizeof(buf)) == -1)
 		return (-1);
 	if (!strcmp(dev, "keyboard") && !strcmp(buf, "screen")) {
-		phandle_t chosen;
-		ihandle_t stdin, stdout;
-
 		if ((chosen = OF_finddevice("/chosen")) == -1)
 			return (-1);
 		if (OF_getprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1)
