@@ -22,9 +22,9 @@ aren't being shown (due to insufficient screen space).  Using the
 up/down arrow keys will cause the menu to scroll.  When a symbol
 disappears, it means you are at the top (or bottom) of the menu.
 
-In text fields, the amount of text remaining will be displayed as a
-percentage in the lower right corner.  100% means you're at the bottom
-of the field.
+In text fields, the amount of text above the current point will be
+displayed as a percentage in the lower right corner.  100% means
+you're at the bottom of the field.
 
 Selecting OK in a menu will confirm whatever action it's controlling.
 Selecting Cancel will cancel the operation and generally return you to
