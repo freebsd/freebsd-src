@@ -245,7 +245,7 @@ nfssvc_iod(void *instance)
 		 */
 		timo = (myiod < nfs_iodmin) ? 0 : nfs_iodmaxidle * hz;
 		error = tsleep(&nfs_iodwant[myiod], PWAIT | PCATCH,
-		    "nfsidl", timo);
+		    "-", timo);
 	    }
 	    if (error)
 		    break;
