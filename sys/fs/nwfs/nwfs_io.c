@@ -185,7 +185,7 @@ nwfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred) {
 		error = VOP_GETATTR(vp, &vattr, cred, td);
 		if (error) return (error);
 		if (np->n_mtime != vattr.va_mtime.tv_sec) {
-			error = nwfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+			error = nwfs_vinvalbuf(vp, td);
 			if (error) return (error);
 			np->n_mtime = vattr.va_mtime.tv_sec;
 		}
@@ -219,7 +219,7 @@ nwfs_writevnode(vp, uiop, cred, ioflag)
 	if (ioflag & (IO_APPEND | IO_SYNC)) {
 		if (np->n_flag & NMODIFIED) {
 			nwfs_attr_cacheremove(vp);
-			error = nwfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+			error = nwfs_vinvalbuf(vp, td);
 			if (error) return (error);
 		}
 		if (ioflag & IO_APPEND) {
@@ -592,38 +592,28 @@ nwfs_putpages(ap)
  * doing the flush, just wait for completion.
  */
 int
-nwfs_vinvalbuf(vp, flags, cred, td, intrflg)
+nwfs_vinvalbuf(vp, td)
 	struct vnode *vp;
-	int flags;
-	struct ucred *cred;
 	struct thread *td;
-	int intrflg;
 {
 	struct nwnode *np = VTONW(vp);
 /*	struct nwmount *nmp = VTONWFS(vp);*/
-	int error = 0, slpflag, slptimeo;
+	int error = 0;
 
 	if (vp->v_iflag & VI_XLOCK)
 		return (0);
 
-	if (intrflg) {
-		slpflag = PCATCH;
-		slptimeo = 2 * hz;
-	} else {
-		slpflag = 0;
-		slptimeo = 0;
-	}
 	while (np->n_flag & NFLUSHINPROG) {
 		np->n_flag |= NFLUSHWANT;
-		error = tsleep(&np->n_flag, PRIBIO + 2, "nwfsvinv", slptimeo);
+		error = tsleep(&np->n_flag, PRIBIO + 2, "nwfsvinv", 2 * hz);
 		error = ncp_chkintr(NWFSTOCONN(VTONWFS(vp)), td);
-		if (error == EINTR && intrflg)
+		if (error == EINTR)
 			return EINTR;
 	}
 	np->n_flag |= NFLUSHINPROG;
-	error = vinvalbuf(vp, flags, td, slpflag, 0);
+	error = vinvalbuf(vp, V_SAVE, td, PCATCH, 0);
 	while (error) {
-		if (intrflg && (error == ERESTART || error == EINTR)) {
+		if (error == ERESTART || error == EINTR) {
 			np->n_flag &= ~NFLUSHINPROG;
 			if (np->n_flag & NFLUSHWANT) {
 				np->n_flag &= ~NFLUSHWANT;
@@ -631,7 +621,7 @@ nwfs_vinvalbuf(vp, flags, cred, td, intrflg)
 			}
 			return EINTR;
 		}
-		error = vinvalbuf(vp, flags, td, slpflag, 0);
+		error = vinvalbuf(vp, V_SAVE, td, PCATCH, 0);
 	}
 	np->n_flag &= ~(NMODIFIED | NFLUSHINPROG);
 	if (np->n_flag & NFLUSHWANT) {
