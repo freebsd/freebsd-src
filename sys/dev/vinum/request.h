@@ -116,8 +116,8 @@ struct rqgroup {
     short plexno;					    /* index of plex */
     int badsdno;					    /* index of bad subdisk or -1 */
     enum xferinfo flags;				    /* description of transfer */
-    struct rqelement rqe[0];				    /* and the elements of this request */
     struct rangelock *lock;				    /* lock for this transfer */
+    struct rqelement rqe[0];				    /* and the elements of this request */
 };
 
 /*
