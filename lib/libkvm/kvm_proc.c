@@ -108,7 +108,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct kinfo_proc *bp;
 	int maxcnt;
 {
-	register int cnt = 0;
+	int cnt = 0;
 	struct kinfo_proc kinfo_proc, *kp;
 	struct pgrp pgrp;
 	struct session sess;
@@ -358,8 +358,8 @@ kvm_deadprocs(kd, what, arg, a_allproc, a_zombproc, maxcnt)
 	u_long a_zombproc;
 	int maxcnt;
 {
-	register struct kinfo_proc *bp = kd->procbase;
-	register int acnt, zcnt;
+	struct kinfo_proc *bp = kd->procbase;
+	int acnt, zcnt;
 	struct proc *p;
 
 	if (KREAD(kd, a_allproc, &p)) {
@@ -505,14 +505,14 @@ static char **
 kvm_argv(kd, kp, addr, narg, maxcnt)
 	kvm_t *kd;
 	struct kinfo_proc *kp;
-	register u_long addr;
-	register int narg;
-	register int maxcnt;
+	u_long addr;
+	int narg;
+	int maxcnt;
 {
-	register char *np, *cp, *ep, *ap;
-	register u_long oaddr = -1;
-	register int len, cc;
-	register char **argv;
+	char *np, *cp, *ep, *ap;
+	u_long oaddr = -1;
+	int len, cc;
+	char **argv;
 
 	/*
 	 * Check that there aren't an unreasonable number of agruments,
@@ -620,9 +620,9 @@ kvm_argv(kd, kp, addr, narg, maxcnt)
 
 		/* will we exceed the malloc/realloced buffer? */
 		if (len + cc > kd->arglen) {
-			register int off;
-			register char **pp;
-			register char *op = kd->argspc;
+			int off;
+			char **pp;
+			char *op = kd->argspc;
 
 			kd->arglen *= 2;
 			kd->argspc = (char *)_kvm_realloc(kd, kd->argspc,
@@ -843,11 +843,11 @@ ssize_t
 kvm_uread(kd, kp, uva, buf, len)
 	kvm_t *kd;
 	struct kinfo_proc *kp;
-	register u_long uva;
-	register char *buf;
-	register size_t len;
+	u_long uva;
+	char *buf;
+	size_t len;
 {
-	register char *cp;
+	char *cp;
 	char procfile[MAXPATHLEN];
 	ssize_t amount;
 	int fd;

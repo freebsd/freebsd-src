@@ -53,7 +53,7 @@ void
 login(ut)
 	struct utmp *ut;
 {
-	register int fd;
+	int fd;
 	int tty;
 
 	tty = ttyslot();

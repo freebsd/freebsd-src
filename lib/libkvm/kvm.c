@@ -132,7 +132,7 @@ _kvm_syserr(kd, program, fmt, va_alist)
 #endif
 {
 	va_list ap;
-	register int n;
+	int n;
 
 #if __STDC__
 	va_start(ap, fmt);
@@ -144,7 +144,7 @@ _kvm_syserr(kd, program, fmt, va_alist)
 		(void)vfprintf(stderr, fmt, ap);
 		(void)fprintf(stderr, ": %s\n", strerror(errno));
 	} else {
-		register char *cp = kd->errbuf;
+		char *cp = kd->errbuf;
 
 		(void)vsnprintf(cp, sizeof(kd->errbuf), (char *)fmt, ap);
 		n = strlen(cp);
@@ -156,8 +156,8 @@ _kvm_syserr(kd, program, fmt, va_alist)
 
 void *
 _kvm_malloc(kd, n)
-	register kvm_t *kd;
-	register size_t n;
+	kvm_t *kd;
+	size_t n;
 {
 	void *p;
 
@@ -169,7 +169,7 @@ _kvm_malloc(kd, n)
 
 static kvm_t *
 _kvm_open(kd, uf, mf, flag, errout)
-	register kvm_t *kd;
+	kvm_t *kd;
 	const char *uf;
 	const char *mf;
 	int flag;
@@ -257,7 +257,7 @@ kvm_openfiles(uf, mf, sf, flag, errout)
 	int flag;
 	char *errout;
 {
-	register kvm_t *kd;
+	kvm_t *kd;
 
 	if ((kd = malloc(sizeof(*kd))) == NULL) {
 		(void)strlcpy(errout, strerror(errno), _POSIX2_LINE_MAX);
@@ -276,7 +276,7 @@ kvm_open(uf, mf, sf, flag, errstr)
 	int flag;
 	const char *errstr;
 {
-	register kvm_t *kd;
+	kvm_t *kd;
 
 	if ((kd = malloc(sizeof(*kd))) == NULL) {
 		if (errstr != NULL)
@@ -293,7 +293,7 @@ int
 kvm_close(kd)
 	kvm_t *kd;
 {
-	register int error = 0;
+	int error = 0;
 
 	if (kd->pmfd >= 0)
 		error |= close(kd->pmfd);
@@ -317,8 +317,8 @@ kvm_nlist(kd, nl)
 	kvm_t *kd;
 	struct nlist *nl;
 {
-	register struct nlist *p;
-	register int nvalid;
+	struct nlist *p;
+	int nvalid;
 	struct kld_sym_lookup lookup;
 
 	/*
@@ -360,12 +360,12 @@ kvm_nlist(kd, nl)
 ssize_t
 kvm_read(kd, kva, buf, len)
 	kvm_t *kd;
-	register u_long kva;
-	register void *buf;
-	register size_t len;
+	u_long kva;
+	void *buf;
+	size_t len;
 {
-	register int cc;
-	register void *cp;
+	int cc;
+	void *cp;
 
 	if (ISALIVE(kd)) {
 		/*
@@ -424,11 +424,11 @@ kvm_read(kd, kva, buf, len)
 ssize_t
 kvm_write(kd, kva, buf, len)
 	kvm_t *kd;
-	register u_long kva;
-	register const void *buf;
-	register size_t len;
+	u_long kva;
+	const void *buf;
+	size_t len;
 {
-	register int cc;
+	int cc;
 
 	if (ISALIVE(kd)) {
 		/*

@@ -76,7 +76,7 @@ write(fd, dest, bcount)
 	void *dest;
 	size_t bcount;
 {
-	register struct open_file *f = &files[fd];
+	struct open_file *f = &files[fd];
 	size_t resid;
 
 	if ((unsigned)fd >= SOPEN_MAX || !(f->f_flags & F_WRITE)) {
