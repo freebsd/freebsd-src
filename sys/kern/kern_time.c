@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.54 1998/05/14 11:31:08 peter Exp $
+ * $Id: kern_time.c,v 1.55 1998/05/17 11:52:48 phk Exp $
  */
 
 #include <sys/param.h>
@@ -504,7 +504,7 @@ setitimer(p, uap)
  * Else compute next time timer should go off which is > current time.
  * This is where delay in processing this timeout causes multiple
  * SIGALRM calls to be compressed into one.
- * hzto() always adds 1 to allow for the time until the next clock
+ * tvtohz() always adds 1 to allow for the time until the next clock
  * interrupt being strictly less than 1 clock tick, but we don't want
  * that here since we want to appear to be in sync with the clock
  * interrupt even when we're delayed.

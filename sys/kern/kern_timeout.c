@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_timeout.c,v 1.53 1998/02/15 14:15:21 phk Exp $
+ * $Id: kern_timeout.c,v 1.54 1998/02/25 06:13:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -244,7 +244,7 @@ adjust_timeout_calltodo(time_change)
 
 	/* 
 	 * How many ticks were we asleep?
-	 * (stolen from hzto()).
+	 * (stolen from tvtohz()).
 	 */
 
 	/* Don't do anything */
