@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.31 1995/05/19 21:30:33 jkh Exp $
+ * $Id: install.c,v 1.32 1995/05/20 00:13:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -130,6 +130,21 @@ installInitial(void)
 	    }
 	}
     }
+    make_filesystems();
+    copy_self();
+    cpio_extract();
+    alreadyDone = TRUE;
+}
+
+static void
+installFinal(void)
+{
+    static Boolean alreadyDone = FALSE;
+
+    if (alreadyDone)
+	return;
+    install_configuration_files();
+    do_final_setup();
     alreadyDone = TRUE;
 }
 
@@ -137,13 +152,9 @@ int
 installCommit(char *str)
 {
     installInitial();
-    make_filesystems();
-    copy_self();
-    cpio_extract();
     distExtractAll();
-    install_configuration_files();
-    do_final_setup();
-    return 1;
+    installFinal();
+    return 0;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
@@ -263,50 +274,65 @@ cpio_extract(void)
     int i, j, zpid, cpid, pfd[2];
     extern int wait(int *status);
 
-    while (CpioFD == -1) {
-	msgConfirm("Please Insert CPIO floppy in floppy drive 0");
-	CpioFD = open("/dev/rfd0", O_RDONLY);
-    }
-    msgNotify("Extracting contents of CPIO floppy...");
-    pipe(pfd);
-    zpid = fork();
-    if (!zpid) {
-	close(0); dup(CpioFD); close(CpioFD);
-	close(1); dup(pfd[1]); close(pfd[1]);
-	close(pfd[0]);
-	i = execl("/stand/gunzip", "/stand/gunzip", 0);
-	msgDebug("/stand/gunzip command returns %d status\n", i);
-	exit(i);
-    }
-    cpid = fork();
-    if (!cpid) {
-	close(0); dup(pfd[0]); close(pfd[0]);
-	close(CpioFD);
-	close(pfd[1]);
-        if (DebugFD != -1) {
-	    dup2(DebugFD, 1);
-	    dup2(DebugFD, 2);
+    tryagain:
+    j = fork();
+    if (!j) {
+	while (CpioFD == -1) {
+	    msgConfirm("Please Insert CPIO floppy in floppy drive 0");
+	    CpioFD = open("/dev/rfd0", O_RDONLY);
 	}
-	else {
+	chroot("/mnt");	chdir("/");
+	msgNotify("Extracting contents of CPIO floppy...");
+	pipe(pfd);
+	zpid = fork();
+	if (!zpid) {
+	    dup2(CpioFD, 0); close(CpioFD);
+	    dup2(pfd[1], 1); close(pfd[1]);
+	    close(pfd[0]);
+	    i = execl("/stand/gunzip", "/stand/gunzip", 0);
+	    msgDebug("/stand/gunzip command returns %d status\n", i);
+	    exit(i);
+	}
+	cpid = fork();
+	if (!cpid) {
+	    dup2(pfd[0], 0); close(pfd[0]);
+	    close(CpioFD);
+	    close(pfd[1]);
+	    if (DebugFD != -1) {
+		dup2(DebugFD, 1);
+		dup2(DebugFD, 2);
+	    }
+	    else {
 		close(1); open("/dev/null", O_WRONLY);
 		dup2(1, 2);
+	    }
+	    i = execl("/stand/cpio", "/stand/cpio", "-iduvm", 0);
+	    msgDebug("/stand/cpio command returns %d status\n", i);
+	    exit(i);
 	}
-	chdir("/mnt");
-	i = execl("/stand/cpio", "/stand/cpio", "-iduvm", 0);
-	msgDebug("/stand/cpio command returns %d status\n", i);
-	exit(i);
+	close(pfd[0]);
+	close(pfd[1]);
+	close(CpioFD);
+
+	i = waitpid(zpid, &j, 0);
+	if (i < 0 || j) {
+	    msgConfirm("gunzip returned status of %d, error was: %s (%d)!  Help!", j, strerror(errno), errno);
+	    exit(1);
+	}
+	i = waitpid(cpid, &j);
+	if (i < 0 || j) {
+	    msgConfirm("cpio returned status of %d, error was: %s (%d)!  Help!", j, strerror(errno), errno);
+	    exit(2);
+	}
+	exit(0);
     }
-    close(pfd[0]);
-    close(pfd[1]);
-    close(CpioFD);
-    i = wait(&j);
-    if (i < 0 || j)
-	msgFatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
-		 i, j, cpid, zpid, strerror(errno));
-    i = wait(&j);
-    if (i < 0 || j)
-	msgFatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
-		 i, j, cpid, zpid, strerror(errno));
+    else
+	i = wait(&j);
+    if (i < 0 || j || access("/mnt/OK", R_OK) == -1) {
+	msgConfirm("CPIO floppy did not extract properly!  Please verify\n\that your media is correct and try again");
+	goto tryagain;
+    }
+    unlink("/mnt/OK");
 }
 
 static void
