@@ -162,7 +162,7 @@ All forms use the backslash character
 to introduce a special
 sequence; two backslashes are used to represent a real backslash.
 These are the visual formats:
-.Bl -tag -width VIS_CSTYLE
+.Bl -tag -width VIS_HTTPSTYLE
 .It (default)
 Use an
 .Ql M
@@ -238,6 +238,13 @@ If
 .Fa nextc
 is an octal digit, the latter representation is used to
 avoid ambiguity.
+.It Dv VIS_HTTPSTYLE
+Use URI encoding as described in RFC 1808.
+The form is
+.Ql %dd
+where
+.Em d
+represents a hexadecimal digit.
 .It Dv VIS_OCTAL
 Use a three digit octal sequence.  The form is
 .Ql \eddd
