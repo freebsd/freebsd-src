@@ -6,7 +6,7 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "5.1-RC">
+<!ENTITY release.current "5.1-RELEASE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
@@ -23,26 +23,26 @@
 <!ENTITY release.prev.historic "5.0-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "5.1-RELEASE">
+<!ENTITY release.next "5.2-RELEASE">
 
 <!-- The name of this branch. -->
 <!ENTITY release.branch "5-CURRENT">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "http://snapshots.jp.FreeBSD.org/">
+<!ENTITY release.url "ftp://ftp.FreeBSD.org/">
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
-<!ENTITY release.type "snapshot">
-<!ENTITY % release.type.snapshot "INCLUDE">
-<!ENTITY % release.type.release "IGNORE">
+<!ENTITY release.type "release">
+<!ENTITY % release.type.snapshot "IGNORE">
+<!ENTITY % release.type.release "INCLUDE">
 
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
-<!ENTITY release.manpath.xfree86       "4.2.0">
-<!ENTITY release.manpath.netbsd        "1.5">
+<!ENTITY release.manpath.xfree86       "4.3.0">
+<!ENTITY release.manpath.netbsd        "1.6.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "5.0-current">
+<!ENTITY release.manpath.freebsd       "5.1-release">
 
 <!-- Text constants which probably don't need to be changed.-->
 
