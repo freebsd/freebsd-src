@@ -644,7 +644,7 @@ restart:
 #ifdef MAC
 	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
-#endif /* MAC */
+#endif
 	if (error == 0) {
 		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 		error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
