@@ -1208,6 +1208,7 @@ reassignbuf(bp, newvp)
 		tbp = TAILQ_FIRST(listheadp);
 		if (tbp == NULL ||
 		    bp->b_lblkno == 0 ||
+		    (bp->b_lblkno > 0 && tbp->b_lblkno < 0) ||
 		    (bp->b_lblkno > 0 && bp->b_lblkno < tbp->b_lblkno)) {
 			TAILQ_INSERT_HEAD(listheadp, bp, b_vnbufs);
 			++reassignbufsortgood;
@@ -1217,14 +1218,30 @@ reassignbuf(bp, newvp)
 		} else if (reassignbufmethod == 1) {
 			/*
 			 * New sorting algorithm, only handle sequential case,
-			 * otherwise guess.
+			 * otherwise append to end (but before metadata)
 			 */
 			if ((tbp = gbincore(newvp, bp->b_lblkno - 1)) != NULL &&
 			    (tbp->b_xflags & BX_VNDIRTY)) {
+				/*
+				 * Found the best place to insert the buffer
+				 */
 				TAILQ_INSERT_AFTER(listheadp, tbp, bp, b_vnbufs);
 				++reassignbufsortgood;
 			} else {
-				TAILQ_INSERT_HEAD(listheadp, bp, b_vnbufs);
+				/*
+				 * Missed, append to end, but before meta-data.
+				 * We know that the head buffer in the list is
+				 * not meta-data due to prior conditionals.
+				 *
+				 * Indirect effects:  NFS second stage write
+				 * tends to wind up here, giving maximum 
+				 * distance between the unstable write and the
+				 * commit rpc.
+				 */
+				tbp = TAILQ_LAST(listheadp, buflists);
+				while (tbp && tbp->b_lblkno < 0)
+					tbp = TAILQ_PREV(tbp, buflists, b_vnbufs);
+				TAILQ_INSERT_AFTER(listheadp, tbp, bp, b_vnbufs);
 				++reassignbufsortbad;
 			}
 		} else {
