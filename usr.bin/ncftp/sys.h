@@ -424,7 +424,6 @@ extern int errno;
 #	define TERMIOS 1
 #       define HAS_GETCWD 1
 #       define U_WAIT 1
-#	define NO_CONST 1       /* avoid prototype conflict */
 #endif
 
 #ifdef __NetBSD__
