@@ -71,7 +71,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.17 1993/12/14 11:11:37 alm Exp $
+#	$Id: MAKEDEV,v 1.19 1993/12/18 01:19:02 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -155,61 +155,61 @@ fd*)
 
 		mknod ${name}${unit}.1720  b $blk `expr $unit '*' 64 + 1`
 		mknod r${name}${unit}.1720 c $chr `expr $unit '*' 64 + 1`
-		ln ${name}${unit}.1720 ${name}${unit}135hs21
-		ln r${name}${unit}.1720 r${name}${unit}135hs21
+		# ln ${name}${unit}.1720 ${name}${unit}135hs21
+		# ln r${name}${unit}.1720 r${name}${unit}135hs21
 
 		mknod ${name}${unit}.1480  b $blk `expr $unit '*' 64 + 2`
 		mknod r${name}${unit}.1480 c $chr `expr $unit '*' 64 + 2`
-		ln ${name}${unit}.1480 ${name}${unit}135hs18
-		ln r${name}${unit}.1480 r${name}${unit}135hs18
-		ln ${name}${unit}.1480 ${name}${unit}96hs18
-		ln r${name}${unit}.1480 r${name}${unit}96hs18
+		# ln ${name}${unit}.1480 ${name}${unit}135hs18
+		# ln r${name}${unit}.1480 r${name}${unit}135hs18
+		# ln ${name}${unit}.1480 ${name}${unit}96hs18
+		# ln r${name}${unit}.1480 r${name}${unit}96hs18
 
 		mknod ${name}${unit}.1440  b $blk `expr $unit '*' 64 + 3`
 		mknod r${name}${unit}.1440 c $chr `expr $unit '*' 64 + 3`
-		ln ${name}${unit}.1440 ${name}${unit}135
-		ln r${name}${unit}.1440 r${name}${unit}135
-		ln ${name}${unit}.1440 ${name}${unit}135ds18
-		ln r${name}${unit}.1440 r${name}${unit}135ds18
-		ln ${name}${unit}.1440 ${name}${unit}96ds18
-		ln r${name}${unit}.1440 r${name}${unit}96ds18
+		# ln ${name}${unit}.1440 ${name}${unit}135
+		# ln r${name}${unit}.1440 r${name}${unit}135
+		# ln ${name}${unit}.1440 ${name}${unit}135ds18
+		# ln r${name}${unit}.1440 r${name}${unit}135ds18
+		# ln ${name}${unit}.1440 ${name}${unit}96ds18
+		# ln r${name}${unit}.1440 r${name}${unit}96ds18
 
 		mknod ${name}${unit}.1200  b $blk `expr $unit '*' 64 + 4`
 		mknod r${name}${unit}.1200 c $chr `expr $unit '*' 64 + 4`
-		ln ${name}${unit}.1200 ${name}${unit}96
-		ln r${name}${unit}.1200 r${name}${unit}96
-		ln ${name}${unit}.1200 ${name}${unit}96ds15
-		ln r${name}${unit}.1200 r${name}${unit}96ds15
-		ln ${name}${unit}.1200 ${name}${unit}135ds15
-		ln r${name}${unit}.1200 r${name}${unit}135ds15
+		# ln ${name}${unit}.1200 ${name}${unit}96
+		# ln r${name}${unit}.1200 r${name}${unit}96
+		# ln ${name}${unit}.1200 ${name}${unit}96ds15
+		# ln r${name}${unit}.1200 r${name}${unit}96ds15
+		# ln ${name}${unit}.1200 ${name}${unit}135ds15
+		# ln r${name}${unit}.1200 r${name}${unit}135ds15
 
 		mknod ${name}${unit}.820  b $blk `expr $unit '*' 64 + 5`
 		mknod r${name}${unit}.820 c $chr `expr $unit '*' 64 + 5`
-		ln ${name}${unit}.820 ${name}${unit}96hs10
-		ln r${name}${unit}.820 r${name}${unit}96hs10
-		ln ${name}${unit}.820 ${name}${unit}135hs10
-		ln r${name}${unit}.820 r${name}${unit}135hs10
+		# ln ${name}${unit}.820 ${name}${unit}96hs10
+		# ln r${name}${unit}.820 r${name}${unit}96hs10
+		# ln ${name}${unit}.820 ${name}${unit}135hs10
+		# ln r${name}${unit}.820 r${name}${unit}135hs10
 
 		mknod ${name}${unit}.800  b $blk `expr $unit '*' 64 + 6`
 		mknod r${name}${unit}.800 c $chr `expr $unit '*' 64 + 6`
-		ln ${name}${unit}.800 ${name}${unit}96ds10
-		ln r${name}${unit}.800 r${name}${unit}96ds10
-		ln ${name}${unit}.800 ${name}${unit}135ds10
-		ln r${name}${unit}.800 r${name}${unit}135ds10
+		# ln ${name}${unit}.800 ${name}${unit}96ds10
+		# ln r${name}${unit}.800 r${name}${unit}96ds10
+		# ln ${name}${unit}.800 ${name}${unit}135ds10
+		# ln r${name}${unit}.800 r${name}${unit}135ds10
 
 		mknod ${name}${unit}.720  b $blk `expr $unit '*' 64 + 7`
 		mknod r${name}${unit}.720 c $chr `expr $unit '*' 64 + 7`
-		ln ${name}${unit}.720 ${name}${unit}96ds9
-		ln r${name}${unit}.720 r${name}${unit}96ds9
-		ln ${name}${unit}.720 ${name}${unit}135ds9
-		ln r${name}${unit}.720 r${name}${unit}135ds9
+		# ln ${name}${unit}.720 ${name}${unit}96ds9
+		# ln r${name}${unit}.720 r${name}${unit}96ds9
+		# ln ${name}${unit}.720 ${name}${unit}135ds9
+		# ln r${name}${unit}.720 r${name}${unit}135ds9
 
 		mknod ${name}${unit}.360  b $blk `expr $unit '*' 64 + 8`
 		mknod r${name}${unit}.360 c $chr `expr $unit '*' 64 + 8`
-		ln ${name}${unit}.360 ${name}${unit}48
-		ln r${name}${unit}.360 r${name}${unit}48
-		ln ${name}${unit}.360 ${name}${unit}48ds9
-		ln r${name}${unit}.360 r${name}${unit}48ds9
+		# ln ${name}${unit}.360 ${name}${unit}48
+		# ln r${name}${unit}.360 r${name}${unit}48
+		# ln ${name}${unit}.360 ${name}${unit}48ds9
+		# ln r${name}${unit}.360 r${name}${unit}48ds9
 
 		chgrp operator ${name}${unit}* r${name}${unit}*
 		chmod 640 ${name}${unit}* r${name}${unit}*
