@@ -90,8 +90,8 @@ device		atapist		# ATAPI tape drives
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 #device		esp		# 53C94 & friends, not CAM-ified
 device		isp		# Qlogic family
-device		ncr		# NCR/Symbios Logic
-device		sym		# NCR/Symbios Logic (newer chipsets)
+#device		ncr		# NCR/Symbios Logic
+device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
