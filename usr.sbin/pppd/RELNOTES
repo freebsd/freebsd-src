@@ -58,9 +58,42 @@ kernel using a `modload' facility.  On others, the kernel image has to
 be recompiled and the system rebooted.  See the README.* files for
 details.
 
+N.B. Since 2.3.0, leaving the permitted IP addresses column of the
+pap-secrets or chap-secrets file empty means that no addresses are
+permitted.  You need to put a "*" in that column to allow the peer to
+use any IP address.  (This only applies where the peer is
+authenticating itself to you, of course.)
 
-What's new in ppp-2.3.1.
+
+What's new in ppp-2.3.3.
 ************************
+
+* Fixed compilation problems under SunOS.
+
+* Fixed a bug introduced into chat in 2.3.2, and compilation problems
+introduced into the MS-CHAP implementation in 2.3.2.
+
+* The linux kernel driver has been updated for recent 2.1-series
+kernel changes, and it now will ask kerneld to load compression
+modules when required, if the kernel is configured to support kerneld.
+
+* Pppd should now compile correctly under linux on systems with glibc.
+
+
+What was new in ppp-2.3.2.
+**************************
+
+* In 2.3.1, I made a change which was intended to make pppd able to
+detect loss of CD during or immediately after the connection script
+runs.  Unfortunately, this had the side-effect that the connection
+script wouldn't work at all on some systems.  This change has been
+reversed.
+
+* Fix compilation problems in the Linux kernel driver.
+
+
+What was new in ppp-2.3.1.
+**************************
 
 * Enhancements to chat, thanks to Francis Demierre.  Chat can now
 accept comments in the chat script file, and has new SAY, HANGUP,
@@ -79,9 +112,6 @@ enforce the holdoff period after the link goes down.
 modem, even when the serial port initially had CLOCAL set, and it
 should also detect loss of CD during or immediately after the
 connection script runs.
-[[ ***************************
-[[ NOTE: This change has NOT been incorporated into the FreeBSD version
-[[ due to tty handling differences!  (This causes EIO during chat(8))
 
 * Under linux, pppd will work with older 2.2.0* version kernel
 drivers, although demand-dialling is not supported with them.
@@ -89,8 +119,8 @@ drivers, although demand-dialling is not supported with them.
 * Minor bugfixes for pppd.
 
 
-What's new in ppp-2.3.
-**********************
+What was new in ppp-2.3.
+************************
 
 * Demand-dialling.  Pppd now has a mode where it will establish the
 network interface immediately when it starts, but not actually bring
