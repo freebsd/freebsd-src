@@ -106,8 +106,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
-#include <vm/vm.h>              /* for vtophys */
-#include <vm/pmap.h>            /* for vtophys */
+#include <vm/vm.h>		/* for vtophys */
+#include <vm/pmap.h>		/* for vtophys */
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -1032,7 +1032,7 @@ ti_alloc_jumbo_mem(sc)
 static void *ti_jalloc(sc)
 	struct ti_softc		*sc;
 {
-	struct ti_jpool_entry   *entry;
+	struct ti_jpool_entry	*entry;
 
 	entry = SLIST_FIRST(&sc->ti_jfree_listhead);
 
@@ -1055,8 +1055,8 @@ ti_jfree(buf, args)
 	void			*args;
 {
 	struct ti_softc		*sc;
-	int		        i;
-	struct ti_jpool_entry   *entry;
+	int			i;
+	struct ti_jpool_entry	*entry;
 
 	/* Extract the softc struct pointer. */
 	sc = (struct ti_softc *)args;
@@ -1237,15 +1237,15 @@ ti_newbuf_jumbo(sc, i, m)
 static int HDR_LEN =  TCP_HDR_LEN;
 
 
- /*
-  * Initialize a jumbo receive ring descriptor. This allocates
-  * a jumbo buffer from the pool managed internally by the driver.
-  */
+/*
+ * Initialize a jumbo receive ring descriptor. This allocates
+ * a jumbo buffer from the pool managed internally by the driver.
+ */
 static int
 ti_newbuf_jumbo(sc, idx, m_old)
-        struct ti_softc         *sc;
-        int                     idx;
-        struct mbuf             *m_old;
+	struct ti_softc		*sc;
+	int			idx;
+	struct mbuf		*m_old;
 {
 	struct mbuf		*cur, *m_new = NULL;
 	struct mbuf		*m[3] = {NULL, NULL, NULL};
@@ -1267,7 +1267,7 @@ ti_newbuf_jumbo(sc, idx, m_old)
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			printf("ti%d: mbuf allocation failed "
-   			       "-- packet dropped!\n", sc->ti_unit);
+			       "-- packet dropped!\n", sc->ti_unit);
 			goto nobufs;
 		}
 		MGET(m[NPAYLOAD], M_DONTWAIT, MT_DATA);
@@ -1292,16 +1292,16 @@ ti_newbuf_jumbo(sc, idx, m_old)
 				goto nobufs;
 			}
 			if (!(frame = jumbo_pg_alloc())){
-  				printf("ti%d: buffer allocation failed "
-   				       "-- packet dropped!\n", sc->ti_unit);
+				printf("ti%d: buffer allocation failed "
+				       "-- packet dropped!\n", sc->ti_unit);
 				printf("      index %d page %d\n", idx, i);
-   				goto nobufs;
+				goto nobufs;
 			}
 			buf[i] = jumbo_phys_to_kva(VM_PAGE_TO_PHYS(frame));
 		}
 		for (i = 0; i < NPAYLOAD; i++){
-  		/* Attach the buffer to the mbuf. */
-   			m[i]->m_data = (void *)buf[i];
+		/* Attach the buffer to the mbuf. */
+			m[i]->m_data = (void *)buf[i];
 			m[i]->m_len = PAGE_SIZE;
 			MEXTADD(m[i], (void *)buf[i], PAGE_SIZE,
 				jumbo_freem, NULL, 0, EXT_DISPOSABLE);
@@ -1313,7 +1313,7 @@ ti_newbuf_jumbo(sc, idx, m_old)
 		if (sc->ti_hdrsplit)
 			m_new->m_len = MHLEN - ETHER_ALIGN;
 		else
-   			m_new->m_len = HDR_LEN;
+			m_new->m_len = HDR_LEN;
 		m_new->m_pkthdr.len = NPAYLOAD * PAGE_SIZE + m_new->m_len;
 	}
 
@@ -1335,18 +1335,18 @@ ti_newbuf_jumbo(sc, idx, m_old)
 	} else {
 		r->ti_len3 = 0;
 	}
-        r->ti_type = TI_BDTYPE_RECV_JUMBO_BD;
+	r->ti_type = TI_BDTYPE_RECV_JUMBO_BD;
 
-        r->ti_flags = TI_BDFLAG_JUMBO_RING|TI_RCB_FLAG_USE_EXT_RX_BD;
+	r->ti_flags = TI_BDFLAG_JUMBO_RING|TI_RCB_FLAG_USE_EXT_RX_BD;
 
 	if (sc->arpcom.ac_if.if_hwassist)
 		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM|TI_BDFLAG_IP_CKSUM;
 
-        r->ti_idx = idx;
+	r->ti_idx = idx;
 
-        return (0);
+	return (0);
 
- nobufs:
+nobufs:
 
 	/*
 	 * Warning! :
@@ -1354,16 +1354,16 @@ ti_newbuf_jumbo(sc, idx, m_old)
 	 * If the mbufs are strung together, m_freem() will free the chain,
 	 * so that the later mbufs will be freed multiple times.
 	 */
-        if (m_new)
-                m_freem(m_new);
+	if (m_new)
+		m_freem(m_new);
 
-        for (i = 0; i < 3; i++) {
-                if (m[i])
-                        m_freem(m[i]);
-                if (buf[i])
-                        jumbo_pg_free((vm_offset_t)buf[i]);
-        }
-        return ENOBUFS;
+	for (i = 0; i < 3; i++) {
+		if (m[i])
+			m_freem(m[i]);
+		if (buf[i])
+			jumbo_pg_free((vm_offset_t)buf[i]);
+	}
+	return (ENOBUFS);
 }
 #endif
 
@@ -2389,7 +2389,7 @@ ti_rxeof(sc)
 				continue;
 			}
 #ifdef TI_PRIVATE_JUMBOS
-                        m->m_len = cur_rx->ti_len;
+			m->m_len = cur_rx->ti_len;
 #else /* TI_PRIVATE_JUMBOS */
 #ifdef TI_JUMBO_HDRSPLIT
 			if (sc->ti_hdrsplit)
@@ -2397,7 +2397,7 @@ ti_rxeof(sc)
 					     cur_rx->ti_len, rxidx);
 			else
 #endif /* TI_JUMBO_HDRSPLIT */
-                        	m_adj(m, cur_rx->ti_len - m->m_pkthdr.len);
+			m_adj(m, cur_rx->ti_len - m->m_pkthdr.len);
 #endif /* TI_PRIVATE_JUMBOS */
 		} else if (cur_rx->ti_flags & TI_BDFLAG_MINI_RING) {
 			TI_INC(sc->ti_mini, TI_MINI_RX_RING_CNT);
@@ -3061,11 +3061,11 @@ ti_ioctl(ifp, command, data)
 		if (mask & IFCAP_HWCSUM) {
 			if (IFCAP_HWCSUM & ifp->if_capenable)
 				ifp->if_capenable &= ~IFCAP_HWCSUM;
-                        else
-                                ifp->if_capenable |= IFCAP_HWCSUM;
+			else
+				ifp->if_capenable |= IFCAP_HWCSUM;
 			if (ifp->if_flags & IFF_RUNNING)
 				ti_init(sc);
-                }
+		}
 		error = 0;
 		break;
 	default:
@@ -3248,7 +3248,6 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 					cur_trace_ptr - trace_start;
 		} else
 			trace_buf->fill_len = 0;
-
 
 		break;
 	}
