@@ -452,9 +452,9 @@ g_fox_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 
 	g_topology_assert();
 	sc = gp->softc;
-	gp->softc = NULL;
 	mtx_destroy(&sc->lock);
 	g_free(gp->softc);
+	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
 	return (0);
 }
