@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.37 1997/08/24 00:04:59 fsmp Exp $
+ *	$Id: param.h,v 1.38 1997/08/29 09:02:40 kato Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -53,7 +53,7 @@
 #define MID_MACHINE	MID_I386
 
 /*
- * Architecture dependent constants for i386 based machines.
+ * Architecture dependent constant for i386 based machines.
  */
 #ifdef PC98
 /* NEC PC-9801/9821 series and compatibles. */
