@@ -213,13 +213,14 @@
 #define DEBUGGER_SINGLE_THREADED    0
 #define DEBUGGER_MULTI_THREADED     1
 
+#ifndef DEBUGGER_THREADING
 #ifdef ACPI_APPLICATION
 #define DEBUGGER_THREADING          DEBUGGER_SINGLE_THREADED
 
 #else
 #define DEBUGGER_THREADING          DEBUGGER_MULTI_THREADED
 #endif
-
+#endif
 
 /******************************************************************************
  *
