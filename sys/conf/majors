@@ -10,7 +10,7 @@ hackers@freebsd.org mailing list to see about having a number
 reserved for you.
 
 The most "complete" version of this will be the one in FreeBSD-current.
-(see http://www.freebsd.org/ or from ftp://ftp.freesoftware.com/pub/FreeBSD/)
+(see http://www.freebsd.org/)
 
 NOTICE: FreeBSD does not use block major numbers anymore, you neither
 need to assign nor use a block major number for any device driver any
@@ -21,7 +21,7 @@ chrdev	name		comments
 1	ctty		/dev/tty
 2	mm		/dev/mem,kmem,etc
 3	wd		ST506 disk controller (with IDE extensions)
-4	was:swap	/dev/drum
+4	geom		GEOMetry
 5	pts		pseudo tty "tty" half
 6	ptc		pseudo tty "master" half
 7	log		system log
@@ -86,6 +86,7 @@ chrdev	name		comments
 67	meteor		Matrox Meteor video capture
 68	si		Specialix SI/XIO (peter@freebsd.org)
 69	wcd		ATAPI CDROM client of "wd"
+70	crypto		Device-independent crypto interface (from openbsd)
 71	asc		AmiScan driver
 72	stl		Stallion (cd1400 based) (gerg@stallion.oz.au)
 73	??		was qcam
@@ -178,15 +179,28 @@ chrdev	name		comments
 160	spic		Sony Programmable I/O Controller (jogdial)
 161	swdoc		Sitara networks watchdog device
 162	digi		Digiboard
-163	gdt		ICP Vortex RAID controller
-164	src		Intel SRC RAID controller
+163	-		-
+164	iir		Intel Integrated RAID <boji.t.kannanthanam@intel.com>
 165	net		Network drivers <jlemon>
 166	ciss		Compaq SmartArray 5* adapter <msmith>
 167	ufm		USB Fm Radio
-168	pst		Promise SX6000 driver.
+168	pst		!!!CONFLICT!!! Promise SuperTrak (4.x)
+168	sab		Siemens SAB82532 serial chip <jake>
+169	ofwd		OpenFirmware disk <benno>
+170	pst		Promise SuperTrak (5.0)
 171	mide		LSI MegaRAID IDE (control device)
 172	mided		LSI MegaRAID IDE (disk device)
+173	devctl		Devd control device <imp>
+174	pciwd		Berkshire Watchdog PCI <marcel@progressix.com>
+175	ips		IBM/Adaptec ServeRAID (control device)
+176	ipsd		IBM/Adaptec ServeRAID (disk device)
+177	openfirm	OpenFirmware control device <tmm>
+178	raidctl		RAIDframe (control device)
+179	raid		RAIDframe (disk device)
 180	nvidia		NVIDIA (nvidiaN/nvidiactl)
+181	casm		HP/Compaq ProLiant Advanced Server Management <peter>
+182	mdsio		RS-485 driver for 8250-family UARTs <doconnor@gsoft.com.au>
+XXX	NOTE: ALLOCATE FROM -CURRENT FIRST AND USE THE SAME MAJOR NUMBER HERE
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 253	mfs		Used by MFS
