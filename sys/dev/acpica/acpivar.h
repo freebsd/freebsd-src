@@ -65,6 +65,7 @@ struct acpi_softc {
 
     int			acpi_sleep_delay;
     int			acpi_s4bios;
+    int			acpi_disable_on_poweroff;
 
     int			acpi_verbose;
 

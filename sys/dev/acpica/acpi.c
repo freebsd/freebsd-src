@@ -427,6 +427,10 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "verbose", CTLFLAG_RD | CTLFLAG_RW,
 	&sc->acpi_verbose, 0, "verbose mode");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+		   OID_AUTO, "disable_on_poweroff", CTLFLAG_RD | CTLFLAG_RW,
+		   &sc->acpi_disable_on_poweroff, 0, "ACPI subsystem disable on poweroff");
+    sc->acpi_disable_on_poweroff = 1;
     sc->acpi_sleep_delay = 0;
     sc->acpi_s4bios = 1;
     if (bootverbose)
@@ -869,8 +873,10 @@ static void
 acpi_shutdown_pre_sync(void *arg, int howto)
 {
 
+    struct acpi_softc *sc = arg;
+
     ACPI_ASSERTLOCK;
-    
+
     /*
      * Disable all ACPI events before soft off, otherwise the system
      * will be turned on again on some laptops.
@@ -879,7 +885,8 @@ acpi_shutdown_pre_sync(void *arg, int howto)
      *     before powering down, since we may still need ACPI during the
      *     shutdown process.
      */
-    acpi_Disable((struct acpi_softc *)arg);
+    if (sc->acpi_disable_on_poweroff)
+	acpi_Disable(sc);
 }
 
 static void
