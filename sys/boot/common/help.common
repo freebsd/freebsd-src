@@ -249,6 +249,12 @@
 		Overrides the compile-time set value of TCBHASHSIZE or
 		the preset default of 512.  Must be a power of 2.
 
+	hw.syscons.sc_no_suspend_vtswitch=<value>
+
+		Disable VT switching on suspend.
+
+		value is 0 (default) or non-zero to enable.
+
 	set hw.physmem=<value>			MAXMEM (i386 only)
 
 		Limits the amount of physical memory space available to
