@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.4 1998/05/27 22:43:37 brian Exp $
+ *	$Id: prompt.c,v 1.5 1998/06/15 19:06:53 brian Exp $
  */
 
 #include <sys/param.h>
@@ -155,14 +155,12 @@ prompt_IsSet(struct descriptor *d, const fd_set *fdset)
 static void
 prompt_ShowHelp(struct prompt *p)
 {
-  prompt_Printf(p, "The following commands are available:\r\n");
-  prompt_Printf(p, " ~p\tEnter Packet mode\r\n");
-  prompt_Printf(p, " ~-\tDecrease log level\r\n");
-  prompt_Printf(p, " ~+\tIncrease log level\r\n");
-  prompt_Printf(p, " ~t\tShow timers\r\n");
-  prompt_Printf(p, " ~m\tShow memory map\r\n");
-  prompt_Printf(p, " ~.\tTerminate program\r\n");
-  prompt_Printf(p, " ~?\tThis help\r\n");
+  prompt_Printf(p, "The following commands are available:\n");
+  prompt_Printf(p, " ~p\tEnter Packet mode\n");
+  prompt_Printf(p, " ~t\tShow timers\n");
+  prompt_Printf(p, " ~m\tShow memory map\n");
+  prompt_Printf(p, " ~.\tTerminate program\n");
+  prompt_Printf(p, " ~?\tThis help\n");
 }
 
 static void
@@ -250,7 +248,20 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 	timer_Show(0, p);
 	break;
       case 'm':
-	mbuf_Show(NULL);
+        {
+          struct cmdargs arg;
+
+          arg.cmdtab = NULL;
+          arg.cmd = NULL;
+          arg.argc = 0;
+          arg.argn = 0;
+          arg.argv = NULL;
+          arg.bundle = bundle;
+          arg.cx = p->TermMode;
+          arg.prompt = p;
+        
+	  mbuf_Show(&arg);
+        }
 	break;
       default:
 	if (physical_Write(p->TermMode->physical, &ch, n) < 0) {
@@ -343,11 +354,10 @@ prompt_Printf(struct prompt *p, const char *fmt,...)
 {
   if (p && p->active) {
     va_list ap;
+
     va_start(ap, fmt);
-    vfprintf(p->Term, fmt, ap);
-    fflush(p->Term);
+    prompt_vPrintf(p, fmt, ap);
     va_end(ap);
-    p->nonewline = 1;
   }
 }
 
@@ -355,7 +365,22 @@ void
 prompt_vPrintf(struct prompt *p, const char *fmt, va_list ap)
 {
   if (p && p->active) {
-    vfprintf(p->Term, fmt, ap);
+    char nfmt[LINE_LEN];
+    const char *pfmt;
+
+    if (p->TermMode) {
+      /* Stuff '\r' in front of '\n' 'cos we're in raw mode */
+      int len = strlen(fmt);
+
+      if (len && len < sizeof nfmt - 1 && fmt[len-1] == '\n') {
+        strcpy(nfmt, fmt);
+        strcpy(nfmt + len - 1, "\r\n");
+        pfmt = nfmt;
+      } else
+        pfmt = fmt;
+    } else
+      pfmt = fmt;
+    vfprintf(p->Term, pfmt, ap);
     fflush(p->Term);
     p->nonewline = 1;
   }
