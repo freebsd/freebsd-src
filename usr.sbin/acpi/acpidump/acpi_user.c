@@ -24,7 +24,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: acpi_user.c,v 1.5 2000/08/09 14:47:52 iwasaki Exp $
  *	$FreeBSD$
  */
 
@@ -32,6 +31,7 @@
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -41,8 +41,7 @@
 
 #include "acpidump.h"
 
-static char machdep_acpi_root[] = "machdep.acpi_root";
-
+static char	machdep_acpi_root[] = "machdep.acpi_root";
 static int      acpi_mem_fd = -1;
 
 struct acpi_user_mapping {
@@ -55,7 +54,7 @@ struct acpi_user_mapping {
 LIST_HEAD(acpi_user_mapping_list, acpi_user_mapping) maplist;
 
 static void
-acpi_user_init()
+acpi_user_init(void)
 {
 
 	if (acpi_mem_fd == -1) {
@@ -96,31 +95,32 @@ acpi_user_find_mapping(vm_offset_t pa, size_t size)
 /*
  * Public interfaces
  */
-
 struct ACPIrsdp *
 acpi_find_rsd_ptr()
 {
 	struct ACPIrsdp rsdp;
 	u_long		addr;
-	int		len;
+	size_t		len;
 
 	acpi_user_init();
 
+	/* Attempt to use sysctl to find RSD PTR record */
 	len = sizeof(addr);
 	if (sysctlbyname(machdep_acpi_root, &addr, &len, NULL, 0) == 0) {	
 		pread(acpi_mem_fd, &rsdp, sizeof(rsdp), addr);
-		if (memcmp(rsdp.signature, "RSD PTR ", 8))
-			errx(1, "sysctl %s does not point to RSDP\n",
-			    machdep_acpi_root);
+		if (memcmp(rsdp.signature, "RSD PTR ", 8) != 0)
+			errx(1, "sysctl %s does not point to RSDP",
+			     machdep_acpi_root);
 		len = 20;			/* size of ACPI 1.0 table */
 		if (acpi_checksum(&rsdp, len))
-			warnx("RSDP has invalid checksum\n");
+			warnx("RSDP has invalid checksum");
 		if (rsdp.revision > 0)
 			len = rsdp.length;
 		return (acpi_map_physical(addr, len));
 	}
 
-#if !defined(__ia64__)
+#if !defined(__ia64__) && !defined(__amd64__)
+	/* On ia32, scan physical memory for RSD PTR if above failed */
 	for (addr = 0UL; addr < 1024UL * 1024UL; addr += 16UL) {
 		pread(acpi_mem_fd, &rsdp, 8, addr);
 		if (memcmp(rsdp.signature, "RSD PTR ", 8))
@@ -148,35 +148,28 @@ acpi_map_physical(vm_offset_t pa, size_t size)
 	return (map->va + (pa - map->pa));
 }
 
-void
-acpi_load_dsdt(char *dumpfile, u_int8_t **dpp, u_int8_t **endp)
+struct ACPIsdt *
+dsdt_load_file(char *infile)
 {
-	u_int8_t	*dp;
-	u_int8_t	*end;
-	struct	stat sb;
+	struct ACPIsdt	*sdt;
+	uint8_t		*dp;
+	struct stat	 sb;
 
-	if ((acpi_mem_fd = open(dumpfile, O_RDONLY)) == -1) {
-		errx(1, "opening %s\n", dumpfile);
-	}
+	if ((acpi_mem_fd = open(infile, O_RDONLY)) == -1)
+		errx(1, "opening %s", infile);
 
 	LIST_INIT(&maplist);
 
-	if (fstat(acpi_mem_fd, &sb) == -1) {
-		errx(1, "fstat %s\n", dumpfile);
-	}
+	if (fstat(acpi_mem_fd, &sb) == -1)
+		errx(1, "fstat %s", infile);
 
 	dp = mmap(0, sb.st_size, PROT_READ, MAP_PRIVATE, acpi_mem_fd, 0);
-	if (dp == NULL) {
-		errx(1, "mmap %s\n", dumpfile);
-	}
+	if (dp == NULL)
+		errx(1, "mmap %s", infile);
 
-	if (strncmp(dp, "DSDT", 4) == 0) {
-		memcpy(&dsdt_header, dp, SIZEOF_SDT_HDR);
-		dp += SIZEOF_SDT_HDR;
-		sb.st_size -= SIZEOF_SDT_HDR;
-	}
+	sdt = (struct ACPIsdt *)dp;
+	if (strncmp(dp, "DSDT", 4) != 0 || acpi_checksum(sdt, sdt->len) != 0)
+		return (NULL);
 
-	end = (u_int8_t *) dp + sb.st_size;
-	*dpp = dp;
-	*endp = end;
+	return (sdt);
 }

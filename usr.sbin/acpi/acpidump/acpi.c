@@ -24,62 +24,44 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: acpi.c,v 1.4 2000/08/09 14:47:52 iwasaki Exp $
  *	$FreeBSD$
  */
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-
+#include <sys/wait.h>
 #include <assert.h>
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "acpidump.h"
 
-#include "aml/aml_env.h"
-#include "aml/aml_common.h"
-
 #define BEGIN_COMMENT	"/*\n"
 #define END_COMMENT	" */\n"
 
-struct ACPIsdt	dsdt_header = {
-	"DSDT", 0, 1, 0, "OEMID", "OEMTBLID", 0x12345678, "CRTR", 0x12345678
-};
-
-static void
-acpi_trim_string(char *s, size_t length)
-{
-
-	/* Trim trailing spaces and NULLs */
-	while (length > 0 && (s[length - 1] == ' ' || s[length - 1] == '\0'))
-		s[length-- - 1] = '\0';
-}
-
-static void
-acpi_print_dsdt_definition(void)
-{
-	char	oemid[6 + 1];
-	char	oemtblid[8 + 1];
-
-	acpi_trim_string(dsdt_header.oemid, 6);
-	acpi_trim_string(dsdt_header.oemtblid, 8);
-	strncpy(oemid, dsdt_header.oemid, 6);
-	oemid[6] = '\0';
-	strncpy(oemtblid, dsdt_header.oemtblid, 8);
-	oemtblid[8] = '\0';
-
-	printf("DefinitionBlock (\n"
-	       "    \"acpi_dsdt.aml\",	//Output filename\n"
-	       "    \"DSDT\",		//Signature\n"
-	       "    0x%x,		//DSDT Revision\n"
-	       "    \"%s\",		//OEMID\n"
-	       "    \"%s\",		//TABLE ID\n"
-	       "    0x%x		//OEM Revision\n)\n",
-		dsdt_header.rev, oemid, oemtblid, dsdt_header.oemrev);
-}
+static void	acpi_print_string(char *s, size_t length);
+static void	acpi_handle_facp(struct FACPbody *facp);
+static void	acpi_print_cpu(u_char cpu_id);
+static void	acpi_print_local_apic(u_char cpu_id, u_char apic_id,
+				      u_int32_t flags);
+static void	acpi_print_io_apic(u_char apic_id, u_int32_t int_base,
+				   u_int64_t apic_addr);
+static void	acpi_print_mps_flags(u_int16_t flags);
+static void	acpi_print_intr(u_int32_t intr, u_int16_t mps_flags);
+static void	acpi_print_apic(struct MADT_APIC *mp);
+static void	acpi_handle_apic(struct ACPIsdt *sdp);
+static void	acpi_handle_hpet(struct ACPIsdt *sdp);
+static void	acpi_print_sdt(struct ACPIsdt *sdp, int endcomment);
+static void	acpi_print_facp(struct FACPbody *facp);
+static void	acpi_print_dsdt(struct ACPIsdt *dsdp);
+static struct ACPIsdt *
+		acpi_map_sdt(vm_offset_t pa);
+static void	acpi_print_rsd_ptr(struct ACPIrsdp *rp);
+static void	acpi_handle_rsdt(struct ACPIsdt *rsdp);
 
 static void
 acpi_print_string(char *s, size_t length)
@@ -97,29 +79,15 @@ acpi_print_string(char *s, size_t length)
 }
 
 static void
-acpi_handle_dsdt(struct ACPIsdt *dsdp)
-{
-	u_int8_t       *dp;
-	u_int8_t       *end;
-
-	acpi_print_dsdt(dsdp);
-	dp = (u_int8_t *)dsdp->body;
-	end = (u_int8_t *)dsdp + dsdp->len;
-
-	acpi_dump_dsdt(dp, end);
-}
-
-static void
 acpi_handle_facp(struct FACPbody *facp)
 {
 	struct	ACPIsdt *dsdp;
 
 	acpi_print_facp(facp);
-	dsdp = (struct ACPIsdt *) acpi_map_sdt(facp->dsdt_ptr);
+	dsdp = (struct ACPIsdt *)acpi_map_sdt(facp->dsdt_ptr);
 	if (acpi_checksum(dsdp, dsdp->len))
-		errx(1, "DSDT is corrupt\n");
-	acpi_handle_dsdt(dsdp);
-	aml_dump(dsdp);
+		errx(1, "DSDT is corrupt");
+	acpi_print_dsdt(dsdp);
 }
 
 static void
@@ -149,17 +117,9 @@ acpi_print_local_apic(u_char cpu_id, u_char apic_id, u_int32_t flags)
 static void
 acpi_print_io_apic(u_char apic_id, u_int32_t int_base, u_int64_t apic_addr)
 {
-	u_int addr_hi;
-	
 	printf("\tAPIC ID=%d\n", (u_int)apic_id);
 	printf("\tINT BASE=%d\n", int_base);
-	printf("\tADDR=0x");
-	addr_hi = apic_addr >> 32;
-	if (addr_hi != 0) {
-		printf("%08x", addr_hi);
-		apic_addr &= 0xffffffff;
-	}
-	printf("%08x\n", (u_int)apic_addr);
+	printf("\tADDR=0x%016jx\n", apic_addr);
 }
 
 static void
@@ -242,9 +202,8 @@ acpi_print_apic(struct MADT_APIC *mp)
 		acpi_print_mps_flags(mp->body.local_nmi.mps_flags);
 		break;
 	case ACPI_MADT_APIC_TYPE_LOCAL_OVERRIDE:
-		printf("\tLocal APIC ADDR=0x%08x%08x\n",
-		    (u_int)(mp->body.local_apic_override.apic_addr >> 32),
-		    (u_int)(mp->body.local_apic_override.apic_addr & 0xffffffff));
+		printf("\tLocal APIC ADDR=0x%016jx\n",
+		    mp->body.local_apic_override.apic_addr);
 		break;
 	case ACPI_MADT_APIC_TYPE_IO_SAPIC:
 		acpi_print_io_apic(mp->body.io_sapic.apic_id,
@@ -268,6 +227,7 @@ acpi_print_apic(struct MADT_APIC *mp)
 		break;
 	default:
 		printf("\tUnknown type %d\n", (u_int)mp->type);
+		break;
 	}
 }
 
@@ -277,15 +237,14 @@ acpi_handle_apic(struct ACPIsdt *sdp)
 	struct MADTbody *madtp;
 	struct MADT_APIC *madt_apicp;
 
-	acpi_print_sdt(sdp);
+	acpi_print_sdt(sdp, /*endcomment*/0);
 	madtp = (struct MADTbody *) sdp->body;
-	printf(BEGIN_COMMENT);
 	printf("\tLocal APIC ADDR=0x%08x\n", madtp->lapic_addr);
 	printf("\tFlags={");
 	if (madtp->flags & ACPI_APIC_FLAG_PCAT_COMPAT)
 		printf("PC-AT");
 	printf("}\n");
-	madt_apicp = (struct MADT_APIC *) madtp->body;
+	madt_apicp = (struct MADT_APIC *)madtp->body;
 	while (((uintptr_t)madt_apicp) - ((uintptr_t)sdp) < sdp->len) {
 		printf("\n");
 		acpi_print_apic(madt_apicp);
@@ -300,9 +259,8 @@ acpi_handle_hpet(struct ACPIsdt *sdp)
 {
 	struct HPETbody *hpetp;
 
-	acpi_print_sdt(sdp);
+	acpi_print_sdt(sdp, /*endcomment*/0);
 	hpetp = (struct HPETbody *) sdp->body;
-	printf(BEGIN_COMMENT);
 	printf("\tHPET Number=%d\n", hpetp->hpet_number);
 	printf("\tADDR=0x%08x\n", hpetp->base_addr);
 	printf("\tHW Rev=0x%x\n", hpetp->block_hwrev);
@@ -319,58 +277,9 @@ acpi_handle_hpet(struct ACPIsdt *sdp)
 }
 
 static void
-init_namespace()
+acpi_print_sdt(struct ACPIsdt *sdp, int endcomment)
 {
-	struct	aml_environ env;
-	struct	aml_name *newname;
-
-	aml_new_name_group(AML_NAME_GROUP_OS_DEFINED);
-	env.curname = aml_get_rootname();
-	newname = aml_create_name(&env, "\\_OS_");
-	newname->property = aml_alloc_object(aml_t_string, NULL);
-	newname->property->str.needfree = 0;
-	newname->property->str.string = "Microsoft Windows NT";
-}
-
-/*
- * Public interfaces
- */
-
-void
-acpi_dump_dsdt(u_int8_t *dp, u_int8_t *end)
-{
-	extern struct aml_environ	asl_env;
-
-	acpi_print_dsdt_definition();
-
-	/* 1st stage: parse only w/o printing */
-	init_namespace();
-	aml_new_name_group((int)dp);
-	bzero(&asl_env, sizeof(asl_env));
-
-	asl_env.dp = dp;
-	asl_env.end = end;
-	asl_env.curname = aml_get_rootname();
-
-	aml_local_stack_push(aml_local_stack_create());
-	aml_parse_objectlist(&asl_env, 0);
-	aml_local_stack_delete(aml_local_stack_pop());
-
-	assert(asl_env.dp == asl_env.end);
-	asl_env.dp = dp;
-
-	/* 2nd stage: dump whole object list */
-	printf("\n{\n");
-	asl_dump_objectlist(&dp, end, 0);
-	printf("\n}\n");
-	assert(dp == end);
-}
-
-void
-acpi_print_sdt(struct ACPIsdt *sdp)
-{
-
-	printf(BEGIN_COMMENT);
+	printf(BEGIN_COMMENT "  ");
 	acpi_print_string(sdp->signature, 4);
 	printf(": Length=%d, Revision=%d, Checksum=%d,\n",
 	       sdp->len, sdp->rev, sdp->check);
@@ -382,20 +291,17 @@ acpi_print_sdt(struct ACPIsdt *sdp)
 	printf("\tCreator ID=");
 	acpi_print_string(sdp->creator, 4);
 	printf(", Creator Revision=0x%x\n", sdp->crerev);
-	printf(END_COMMENT);
-	if (!memcmp(sdp->signature, "DSDT", 4)) {
-		memcpy(&dsdt_header, sdp, sizeof(dsdt_header));
-	}
+	if (endcomment)
+		printf(END_COMMENT);
 }
 
-void
+static void
 acpi_print_rsdt(struct ACPIsdt *rsdp)
 {
 	int	i, entries;
 
-	acpi_print_sdt(rsdp);
+	acpi_print_sdt(rsdp, /*endcomment*/0);
 	entries = (rsdp->len - SIZEOF_SDT_HDR) / sizeof(u_int32_t);
-	printf(BEGIN_COMMENT);
 	printf("\tEntries={ ");
 	for (i = 0; i < entries; i++) {
 		if (i > 0)
@@ -406,13 +312,13 @@ acpi_print_rsdt(struct ACPIsdt *rsdp)
 	printf(END_COMMENT);
 }
 
-void
+static void
 acpi_print_facp(struct FACPbody *facp)
 {
 	char	sep;
 
 	printf(BEGIN_COMMENT);
-	printf("\tDSDT=0x%x\n", facp->dsdt_ptr);
+	printf("  FACP:\tDSDT=0x%x\n", facp->dsdt_ptr);
 	printf("\tINT_MODEL=%s\n", facp->int_model ? "APIC" : "PIC");
 	printf("\tSCI_INT=%d\n", facp->sci_int);
 	printf("\tSMI_CMD=0x%x, ", facp->smi_cmd);
@@ -486,11 +392,10 @@ acpi_print_facp(struct FACPbody *facp)
 	printf(END_COMMENT);
 }
 
-void
+static void
 acpi_print_dsdt(struct ACPIsdt *dsdp)
 {
-
-	acpi_print_sdt(dsdp);
+	acpi_print_sdt(dsdp, /*endcomment*/1);
 }
 
 int
@@ -507,7 +412,7 @@ acpi_checksum(void *p, size_t length)
 	return (sum);
 }
 
-struct ACPIsdt *
+static struct ACPIsdt *
 acpi_map_sdt(vm_offset_t pa)
 {
 	struct	ACPIsdt *sp;
@@ -517,18 +422,18 @@ acpi_map_sdt(vm_offset_t pa)
 	return (sp);
 }
 
-void
+static void
 acpi_print_rsd_ptr(struct ACPIrsdp *rp)
 {
 
 	printf(BEGIN_COMMENT);
-	printf("RSD PTR: Checksum=%d, OEMID=", rp->sum);
+	printf("  RSD PTR: Checksum=%d, OEMID=", rp->sum);
 	acpi_print_string(rp->oem, 6);
 	printf(", RsdtAddress=0x%08x\n", rp->rsdt_addr);
 	printf(END_COMMENT);
 }
 
-void
+static void
 acpi_handle_rsdt(struct ACPIsdt *rsdp)
 {
 	int	i;
@@ -538,100 +443,134 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 	entries = (rsdp->len - SIZEOF_SDT_HDR) / sizeof(u_int32_t);
 	acpi_print_rsdt(rsdp);
 	for (i = 0; i < entries; i++) {
-		sdp = (struct ACPIsdt *) acpi_map_sdt(rsdp->body[i]);
+		sdp = (struct ACPIsdt *)acpi_map_sdt(rsdp->body[i]);
 		if (acpi_checksum(sdp, sdp->len))
-			errx(1, "RSDT entry %d is corrupt\n", i);
-		if (!memcmp(sdp->signature, "FACP", 4)) {
+			errx(1, "RSDT entry %d is corrupt", i);
+		if (!memcmp(sdp->signature, "FACP", 4))
 			acpi_handle_facp((struct FACPbody *) sdp->body);
-		} else if (!memcmp(sdp->signature, "APIC", 4)) {
+		else if (!memcmp(sdp->signature, "APIC", 4))
 			acpi_handle_apic(sdp);
-		} else if (!memcmp(sdp->signature, "HPET", 4)) {
+		else if (!memcmp(sdp->signature, "HPET", 4))
 			acpi_handle_hpet(sdp);
-		} else {
-			acpi_print_sdt(sdp);
-		}
+		else
+			acpi_print_sdt(sdp, /*endcomment*/1);
 	}
 }
 
-/*
- *	Dummy functions
- */
+struct ACPIsdt *
+sdt_load_devmem()
+{
+	struct	ACPIrsdp *rp;
+	struct	ACPIsdt *rsdp;
+
+	rp = acpi_find_rsd_ptr();
+	if (!rp)
+		errx(1, "Can't find ACPI information");
+
+	if (tflag)
+		acpi_print_rsd_ptr(rp);
+	rsdp = (struct ACPIsdt *)acpi_map_sdt(rp->rsdt_addr);
+	if (memcmp(rsdp->signature, "RSDT", 4) != 0 ||
+	    acpi_checksum(rsdp, rsdp->len) != 0)
+		errx(1, "RSDT is corrupted");
+
+	return (rsdp);
+}
 
 void
-aml_dbgr(struct aml_environ *env1, struct aml_environ *env2)
+dsdt_save_file(char *outfile, struct ACPIsdt *dsdp)
 {
-	/* do nothing */
+	int	fd;
+	mode_t	mode;
+
+	assert(outfile != NULL);
+	mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+	fd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, mode);
+	if (fd == -1) {
+		perror("dsdt_save_file");
+		return;
+	}
+	write(fd, dsdp, SIZEOF_SDT_HDR);
+	write(fd, dsdp->body, dsdp->len - SIZEOF_SDT_HDR);
+	close(fd);
 }
 
-int
-aml_region_read_simple(struct aml_region_handle *h, vm_offset_t offset,
-    u_int32_t *valuep)
+void
+aml_disassemble(struct ACPIsdt *dsdp)
 {
-	return (0);
+	char tmpstr[32], buf[256];
+	FILE *fp;
+	int fd, len;
+
+	strcpy(tmpstr, "/tmp/acpidump.XXXXXX");
+	fd = mkstemp(tmpstr);
+	if (fd < 0) {
+		perror("iasl tmp file");
+		return;
+	}
+
+	/* Dump DSDT to the temp file */
+	write(fd, dsdp, SIZEOF_SDT_HDR);
+	write(fd, dsdp->body, dsdp->len - SIZEOF_SDT_HDR);
+	close(fd);
+
+	/* Run iasl -d on the temp file */
+	if (fork() == 0) {
+		close(STDOUT_FILENO);
+		if (vflag == 0)
+			close(STDERR_FILENO);
+		execl("/usr/sbin/iasl", "iasl", "-d", tmpstr, 0);
+		err(1, "exec");
+	}
+
+	wait(NULL);
+	unlink(tmpstr);
+
+	/* Dump iasl's output to stdout */
+	fp = fopen("acpidump.dsl", "r");
+	unlink("acpidump.dsl");
+	if (fp == NULL) {
+		perror("iasl tmp file (read)");
+		return;
+	}
+	while ((len = fread(buf, 1, sizeof(buf), fp)) > 0)
+		fwrite(buf, 1, len, stdout);
+	fclose(fp);
 }
 
-int
-aml_region_write_simple(struct aml_region_handle *h, vm_offset_t offset,
-    u_int32_t value)
+void
+sdt_print_all(struct ACPIsdt *rsdp)
 {
-	return (0);
+	acpi_handle_rsdt(rsdp);
 }
 
-u_int32_t
-aml_region_prompt_read(struct aml_region_handle *h, u_int32_t value)
+/* Fetch a table matching the given signature via the RSDT */
+struct ACPIsdt *
+sdt_from_rsdt(struct ACPIsdt *rsdt, const char *sig)
 {
-	return (0);
+	int	i;
+	int	entries;
+	struct	ACPIsdt *sdt;
+
+	entries = (rsdt->len - SIZEOF_SDT_HDR) / sizeof(uint32_t);
+	for (i = 0; i < entries; i++) {
+		sdt = (struct ACPIsdt *)acpi_map_sdt(rsdt->body[i]);
+		if (acpi_checksum(sdt, sdt->len))
+			errx(1, "RSDT entry %d is corrupt", i);
+		if (!memcmp(sdt->signature, sig, strlen(sig)))
+			return (sdt);
+	}
+
+	return (NULL);
 }
 
-u_int32_t
-aml_region_prompt_write(struct aml_region_handle *h, u_int32_t value)
+struct ACPIsdt *
+dsdt_from_facp(struct FACPbody *facp)
 {
-	return (0);
-}
+	struct	ACPIsdt *sdt;
 
-int
-aml_region_prompt_update_value(u_int32_t orgval, u_int32_t value,
-    struct aml_region_handle *h)
-{
-	return (0);
+	sdt = (struct ACPIsdt *)acpi_map_sdt(facp->dsdt_ptr);
+	if (acpi_checksum(sdt, sdt->len))
+		errx(1, "DSDT is corrupt\n");
+	return (sdt);
 }
-
-u_int32_t
-aml_region_read(struct aml_environ *env, int regtype, u_int32_t flags,
-    u_int32_t addr, u_int32_t bitoffset, u_int32_t bitlen)
-{
-	return (0);
-}
-
-int
-aml_region_write(struct aml_environ *env, int regtype, u_int32_t flags,
-    u_int32_t value, u_int32_t addr, u_int32_t bitoffset, u_int32_t bitlen)
-{
-	return (0);
-}
-
-int
-aml_region_write_from_buffer(struct aml_environ *env, int regtype,
-    u_int32_t flags, u_int8_t *buffer, u_int32_t addr, u_int32_t bitoffset,
-    u_int32_t bitlen)
-{
-	return (0);
-}
-
-int
-aml_region_bcopy(struct aml_environ *env, int regtype, u_int32_t flags,
-    u_int32_t addr, u_int32_t bitoffset, u_int32_t bitlen,
-    u_int32_t dflags, u_int32_t daddr,
-    u_int32_t dbitoffset, u_int32_t dbitlen)
-{
-	return (0);
-}
-
-int
-aml_region_read_into_buffer(struct aml_environ *env, int regtype,
-    u_int32_t flags, u_int32_t addr, u_int32_t bitoffset,
-    u_int32_t bitlen, u_int8_t *buffer)
-{
-	return (0);
-}
-
