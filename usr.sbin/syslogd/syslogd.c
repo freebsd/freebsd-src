@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.36 1998/06/27 21:45:59 steve Exp $";
+	"$Id: syslogd.c,v 1.37 1998/07/02 19:35:40 guido Exp $";
 #endif /* not lint */
 
 /*
@@ -701,7 +701,7 @@ logmsg(pri, msg, from, flags)
 			(void)strncpy(f->f_lasttime, timestamp, 15);
 			f->f_prevcount++;
 			dprintf("msg repeated %d times, %ld sec of %d\n",
-			    f->f_prevcount, now - f->f_time,
+			    f->f_prevcount, (long)(now - f->f_time),
 			    repeatinterval[f->f_repeatcount]);
 			/*
 			 * If domark would have logged this by now,

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pstat.c	8.16 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id: pstat.c,v 1.34 1998/01/06 05:33:28 dyson Exp $";
+	"$Id: pstat.c,v 1.35 1998/03/07 15:36:27 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -476,8 +476,8 @@ vnode_print(avnode, vp)
 	if (flag == 0)
 		*fp++ = '-';
 	*fp = '\0';
-	(void)printf("%8x %s %5s %4d %4d",
-	    avnode, type, flags, vp->v_usecount, vp->v_holdcnt);
+	(void)printf("%p %s %5s %4d %4d",
+	    (void *)avnode, type, flags, vp->v_usecount, vp->v_holdcnt);
 }
 
 void
@@ -566,7 +566,7 @@ nfs_print(vp)
 	*flags = '\0';
 
 #define VT	np->n_vattr
-	(void)printf(" %6d %5s", VT.va_fileid, flagbuf);
+	(void)printf(" %6ld %5s", VT.va_fileid, flagbuf);
 	type = VT.va_mode & S_IFMT;
 	if (S_ISCHR(VT.va_mode) || S_ISBLK(VT.va_mode))
 		if (usenumflag || ((name = devname(VT.va_rdev, type)) == NULL))
@@ -593,7 +593,7 @@ union_print(vp)
 
 	KGETRET(VTOUNION(vp), &unode, sizeof(unode), "vnode's unode");
 
-	(void)printf(" %8x %8x", up->un_uppervp, up->un_lowervp);
+	(void)printf(" %p %p", (void *)up->un_uppervp, (void *)up->un_lowervp);
 	return (0);
 }
 	
@@ -904,7 +904,7 @@ ttyprt(tp, line)
 	if (j == 0)
 		state[j++] = '-';
 	state[j] = '\0';
-	(void)printf("%-6s %8x", state, (u_long)tp->t_session);
+	(void)printf("%-6s %p", state, (void *)tp->t_session);
 	pgid = 0;
 	if (tp->t_pgrp != NULL)
 		KGET2(&tp->t_pgrp->pg_id, &pgid, sizeof(pid_t), "pgid");
@@ -962,7 +962,7 @@ filemode()
 	for (; (char *)fp < buf + len; addr = fp->f_list.le_next, fp++) {
 		if ((unsigned)fp->f_type > DTYPE_SOCKET)
 			continue;
-		(void)printf("%x ", addr);
+		(void)printf("%p ", (void *)addr);
 		(void)printf("%-8.8s", dtypes[fp->f_type]);
 		fbp = flagbuf;
 		if (fp->f_flag & FREAD)
@@ -982,7 +982,7 @@ filemode()
 		*fbp = '\0';
 		(void)printf("%6s  %3d", flagbuf, fp->f_count);
 		(void)printf("  %3d", fp->f_msgcount);
-		(void)printf("  %8.1x", fp->f_data);
+		(void)printf("  %8p", (void *)fp->f_data);
 		if (fp->f_offset < 0)
 			(void)printf("  %qx\n", fp->f_offset);
 		else
