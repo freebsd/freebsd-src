@@ -474,19 +474,17 @@ ipv6cp_LayerUp(struct fsm *fp)
 
   /* XXX: Call radius_Account() */
 
-  if (!Enabled(fp->bundle, OPT_IPCP)) {
-    /*
-     * XXX this stuff should really live in the FSM.  Our config should
-     * associate executable sections in files with events.
-     */
-    if (system_Select(fp->bundle, tbuff, LINKUPFILE, NULL, NULL) < 0) {
-      if (bundle_GetLabel(fp->bundle)) {
-	if (system_Select(fp->bundle, bundle_GetLabel(fp->bundle),
-			  LINKUPFILE, NULL, NULL) < 0)
-	  system_Select(fp->bundle, "MYADDR6", LINKUPFILE, NULL, NULL);
-      } else
+  /*
+   * XXX this stuff should really live in the FSM.  Our config should
+   * associate executable sections in files with events.
+   */
+  if (system_Select(fp->bundle, tbuff, LINKUPFILE, NULL, NULL) < 0) {
+    if (bundle_GetLabel(fp->bundle) && !Enabled(fp->bundle, OPT_IPCP)) {
+      if (system_Select(fp->bundle, bundle_GetLabel(fp->bundle),
+			LINKUPFILE, NULL, NULL) < 0)
 	system_Select(fp->bundle, "MYADDR6", LINKUPFILE, NULL, NULL);
-    }
+    } else
+      system_Select(fp->bundle, "MYADDR6", LINKUPFILE, NULL, NULL);
   }
 
   fp->more.reqs = fp->more.naks = fp->more.rejs = ipv6cp->cfg.fsm.maxreq * 3;
@@ -509,19 +507,17 @@ ipv6cp_LayerDown(struct fsm *fp)
 
     /* XXX: Call radius_Account() */
 
-    if (!Enabled(fp->bundle, OPT_IPCP)) {
-      /*
-       * XXX this stuff should really live in the FSM.  Our config should
-       * associate executable sections in files with events.
-       */
-      if (system_Select(fp->bundle, addr, LINKDOWNFILE, NULL, NULL) < 0) {
-	if (bundle_GetLabel(fp->bundle)) {
-	  if (system_Select(fp->bundle, bundle_GetLabel(fp->bundle),
-			    LINKDOWNFILE, NULL, NULL) < 0)
-	    system_Select(fp->bundle, "MYADDR6", LINKDOWNFILE, NULL, NULL);
-	} else
+    /*
+     * XXX this stuff should really live in the FSM.  Our config should
+     * associate executable sections in files with events.
+     */
+    if (system_Select(fp->bundle, addr, LINKDOWNFILE, NULL, NULL) < 0) {
+      if (bundle_GetLabel(fp->bundle) && !Enabled(fp->bundle, OPT_IPCP)) {
+	if (system_Select(fp->bundle, bundle_GetLabel(fp->bundle),
+			  LINKDOWNFILE, NULL, NULL) < 0)
 	  system_Select(fp->bundle, "MYADDR6", LINKDOWNFILE, NULL, NULL);
-      }
+      } else
+	system_Select(fp->bundle, "MYADDR6", LINKDOWNFILE, NULL, NULL);
     }
 
     ipv6cp_Setup(ipv6cp);
