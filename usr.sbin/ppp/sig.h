@@ -26,13 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sig.h,v 1.3 1997/02/23 19:28:56 brian Exp $
+ * $Id: sig.h,v 1.4 1997/02/23 20:01:20 brian Exp $
  *
  *  TODO:
  *
  */
-
-#include <signal.h>
 
 typedef void (*sig_type)(int);
 
