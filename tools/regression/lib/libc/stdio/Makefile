@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TESTS=	test-perror test-printfloat
+TESTS=	test-perror test-printfloat test-scanfloat
 
 .PHONY: tests
 tests: ${TESTS}
