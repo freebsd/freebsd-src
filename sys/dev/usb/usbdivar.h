@@ -239,7 +239,6 @@ void		usb_needs_explore __P((usbd_bus_handle));
 #ifdef DIAGNOSTIC
 #define SPLUSBCHECK \
 	do { int _s = splusb(), _su = splusb(); \
-	     extern int cold; \
              if (!cold && _s != _su) printf("SPLUSBCHECK failed 0x%x!=0x%x, %s:%d\n", \
 				   _s, _su, __FILE__, __LINE__); \
 	     splx(_s); \
