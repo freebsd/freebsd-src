@@ -122,4 +122,4 @@ extern void _BS_xor __P((_BS_word*,int, const _BS_word*,int, _BS_size_t));
 }
 #endif
 
-#endif _BS_PRIMS
+#endif /* !_BS_PRIMS */

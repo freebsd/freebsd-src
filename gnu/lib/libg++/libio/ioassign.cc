@@ -1,5 +1,5 @@
-/* 
-Copyright (C) 1993 Free Software Foundation
+/* This is part of libio/iostream, providing -*- C++ -*- input/output.
+Copyright (C) 1994 Free Software Foundation
 
 This file is part of the GNU IO Library.  This library is free
 software; you can redistribute it and/or modify it under the
@@ -22,24 +22,34 @@ the resulting executable to be covered by the GNU General Public License.
 This exception does not however invalidate any other reasons why
 the executable file might be covered by the GNU General Public License. */
 
-#include "libioP.h"
-#ifdef __STDC__
-#include <stdlib.h>
-#endif
+/* Written by Per Bothner (bothner@cygnus.com). */
 
-int
-_IO_fclose(fp)
-     register _IO_FILE *fp;
+#include <iostream.h>
+#include "libioP.h"
+
+// These method are provided for backward compatibility reasons.
+// It's generally poor style to use them.
+// They are not supported by the ANSI/ISO working paper.
+
+_IO_istream_withassign&  _IO_istream_withassign::operator=(istream& rhs)
 {
-  int status = 0;
-  CHECK_FILE(fp, EOF);
-  if (fp->_IO_file_flags & _IO_IS_FILEBUF)
-    status = _IO_file_close_it(fp);
-  fp->_jumps->__finish(fp);
-  if (fp != _IO_stdin && fp != _IO_stdout && fp != _IO_stderr)
+  if (&rhs != (istream*)this)
     {
-      fp->_IO_file_flags = 0;
-      free(fp);
+      if (!(_flags & (unsigned int)ios::dont_close)) delete rdbuf();
+      init (rhs.rdbuf ());
+      _flags |= ios::dont_close;
+      _gcount = 0;
     }
-  return status;
+  return *this;
+}
+
+_IO_ostream_withassign&  _IO_ostream_withassign::operator=(ostream& rhs)
+{
+  if (&rhs != (ostream*)this)
+    {
+      if (!(_flags & (unsigned int)ios::dont_close)) delete rdbuf();
+      init (rhs.rdbuf ());
+      _flags |= ios::dont_close;
+    }
+  return *this;
 }

@@ -92,6 +92,7 @@ class ostream : virtual public ios
 #endif
     ostream& operator<<(double n);
     ostream& operator<<(float n) { return operator<<((double)n); }
+    ostream& operator<<(long double n) { return operator<<((double)n); }
     ostream& operator<<(__omanip func) { return (*func)(*this); }
     ostream& operator<<(__manip func) {(*func)(*this); return *this;}
     ostream& operator<<(streambuf*);
@@ -103,6 +104,7 @@ class ostream : virtual public ios
 class istream : virtual public ios
 {
     // NOTE: If fields are changed, you must fix _fake_istream in stdstreams.C!
+protected:
     _IO_size_t _gcount;
 
     int _skip_ws();
@@ -198,22 +200,32 @@ class istream : virtual public ios
 #endif
     istream& operator>>(float&);
     istream& operator>>(double&);
+    istream& operator>>(long double&);
     istream& operator>>( __manip func) {(*func)(*this); return *this;}
     istream& operator>>(__imanip func) { return (*func)(*this); }
     istream& operator>>(streambuf*);
 };
 
-
 class iostream : public istream, public ostream
 {
-    _IO_size_t _gcount;
   public:
-    iostream() { _gcount = 0; }
+    iostream() { }
     iostream(streambuf* sb, ostream*tied=NULL);
 };
 
-extern istream cin;
-extern ostream cout, cerr, clog; // clog->rdbuf() == cerr->rdbuf()
+class _IO_istream_withassign : public istream {
+public:
+  _IO_istream_withassign& operator=(istream&);
+};
+
+class _IO_ostream_withassign : public ostream {
+public:
+  _IO_ostream_withassign& operator=(ostream&);
+};
+
+extern _IO_istream_withassign cin;
+// clog->rdbuf() == cerr->rdbuf()
+extern _IO_ostream_withassign cout, cerr, clog;
 
 struct Iostream_init { } ;  // Compatibility hack for AT&T library.
 

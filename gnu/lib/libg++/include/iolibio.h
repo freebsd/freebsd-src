@@ -3,6 +3,10 @@
 /* These emulate stdio functionality, but with a different name
    (_IO_ungetc instead of ungetc), and using _IO_FILE instead of FILE. */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern int _IO_fclose __P((_IO_FILE*));
 extern _IO_FILE *_IO_fdopen __P((int, const char*));
 extern int _IO_fflush __P((_IO_FILE*));
@@ -17,6 +21,7 @@ extern _IO_size_t _IO_fwrite __P((const void*,
 				      _IO_size_t, _IO_size_t, _IO_FILE*));
 extern char* _IO_gets __P((char*));
 extern void _IO_perror __P((const char*));
+extern int _IO_printf __P((const char*, ...));
 extern int _IO_puts __P((const char*));
 extern int _IO_scanf __P((const char*, ...));
 extern void _IO_setbuffer __P((_IO_FILE *, char*, _IO_size_t));
@@ -30,8 +35,6 @@ extern int _IO_vsprintf __P((char*, const char*, _IO_va_list));
 #define _IO_pos_BAD ((_IO_fpos_t)(-1))
 #endif
 #define _IO_clearerr(FP) ((FP)->_flags &= ~(_IO_ERR_SEEN|_IO_EOF_SEEN))
-#define _IO_feof(__fp) (((__fp)->_flags & _IO_EOF_SEEN) != 0)
-#define _IO_ferror(__fp) (((__fp)->_flags & _IO_ERR_SEEN) != 0)
 #define _IO_fseek(__fp, __offset, __whence) \
   (_IO_seekoff(__fp, __offset, (_IO_off_t)(__whence)) == _IO_pos_BAD ? EOF : 0)
 #define _IO_rewind(FILE) (void)_IO_seekoff(FILE, 0, 0)
@@ -44,3 +47,6 @@ extern _IO_FILE* _IO_popen __P((const char*, const char*));
 #define _IO_setbuf(_FP, _BUF) _IO_setbuffer(_FP, _BUF, _IO_BUFSIZ)
 #define _IO_setlinebuf(_FP) _IO_setvbuf(_FP, NULL, 1, 0)
 
+#ifdef __cplusplus
+}
+#endif

@@ -117,6 +117,7 @@ enum open_mode {
 #endif
 
 class ios : public _ios_fields {
+  ios& operator=(ios&);  /* Not allowed! */
   public:
     typedef __fmtflags fmtflags;
     typedef int iostate;
@@ -200,10 +201,8 @@ class ios : public _ios_fields {
     void _IO_fix_vtable();  /* TEMPORARY - for binary compatibility */
     void _IO_fix_vtable() const; /* TEMPORARY - for binary compatibility */
 #endif
-#if 0
     streambuf* rdbuf(streambuf *_s) {
-      streambuf *_old = _strbuf; _strbuf = _s; return _old; }
-#endif
+      streambuf *_old = _strbuf; _strbuf = _s; clear (); return _old; }
     void clear(iostate state = 0) {
 	_state = _strbuf ? state : state|badbit;
 	if (_state & _exceptions) _throw_failure(); }

@@ -347,7 +347,7 @@ Fix::multiply(const Rep* x, int y, Rep* r)
   a = (_G_int32_t) (_G_int16_t )x->s[0] * y + carry;
   r->s[0] = a;
   a &= 0xffff8000L;
-  if ( a != 0xffff8000L && a != 0L ) {
+  if ( a != (_G_int32_t)0xffff8000L && a != (_G_int32_t)0L ) {
     r->s[0] = 0x8000 ^ x->s[0] ^ y;
     overflow_handler(r);
   }
@@ -419,7 +419,7 @@ Fix::shift(const Rep* x, int y, Rep* r)
       return r;
     }
 
-  int ay = abs((long) y),
+  int ay = abs((_G_int32_t) y),
     ayh = ay >> 4,
     ayl = ay & 0x0f;
   int xl, u, ilow, ihigh;
@@ -492,7 +492,7 @@ Fix::printon(ostream& s, int width) const
 {
   double val = value(*this);
   int old_precision = s.precision(width-3);
-  long old_flags = s.setf(ios::fixed, ios::fixed|ios::scientific);
+  _G_int32_t old_flags = s.setf(ios::fixed, ios::fixed|ios::scientific);
   if (val >= 0)
       s << ' ';
   s.width(width-2);

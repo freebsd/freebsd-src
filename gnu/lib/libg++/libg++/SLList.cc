@@ -25,7 +25,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #include <builtin.h>
 #include "SLList.h"
 
-void BaseSLList::error(const char* msg)
+void BaseSLList::error(const char* msg) const
 {
   (*lib_error_handler)("SLList", msg);
 }
@@ -184,7 +184,7 @@ void BaseSLList::del_after(Pix p)
   delete_node(t);
 }
 
-int BaseSLList::owns(Pix p)
+int BaseSLList::owns(Pix p) const
 {
   BaseSLNode* t = last;
   if (t != 0 && p != 0)
@@ -227,7 +227,7 @@ void BaseSLList::del_front()
   delete_node(t);
 }
 
-int BaseSLList::OK()
+int BaseSLList::OK() const
 {
   int v = 1;
   if (last != 0)
