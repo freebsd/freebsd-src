@@ -334,4 +334,8 @@ dev_t udev2dev(udev_t x, int b);
 int uminor(udev_t dev);
 int umajor(udev_t dev);
 udev_t makeudev(int x, int y);
+
+/* XXX: Should be void nanodelay(u_int nsec); */
+void	DELAY __P((int usec));
+
 #endif /* !_SYS_SYSTM_H_ */

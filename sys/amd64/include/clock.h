@@ -31,7 +31,6 @@ extern int	apic_8254_intr;
  */
 struct clockframe;
 
-void	DELAY __P((int usec));
 int	acquire_timer0 __P((int rate,
 			    void (*function)(struct clockframe *frame)));
 int	acquire_timer2 __P((int mode));
