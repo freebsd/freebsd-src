@@ -126,15 +126,6 @@
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 
-#define	CALLOUT_MASK		0x80
-#define	CONTROL_MASK		0x60
-#define	CONTROL_INIT_STATE	0x20
-#define	CONTROL_LOCK_STATE	0x40
-#define	DEV_TO_UNIT(dev)	(MINOR_TO_UNIT(minor(dev)))
-#define	MINOR_TO_UNIT(mynor)	((((mynor) & ~0xffffU) >> (8 + 3)) \
-				 | ((mynor) & 0x1f))
-#define	UNIT_TO_MINOR(unit)	((((unit) & ~0x1fU) << (8 + 3)) \
-				 | ((unit) & 0x1f))
 
 /*
  * Meaning of flags:
@@ -243,7 +234,6 @@ struct lbq {
 /* com device structure */
 struct com_s {
 	u_char	state;		/* miscellaneous flag bits */
-	bool_t  active_out;	/* nonzero if the callout device is open */
 	u_char	cfcr_image;	/* copy of value written to CFCR */
 #ifdef COM_ESP
 	bool_t	esp;		/* is this unit a hayes esp board? */
@@ -264,7 +254,6 @@ struct com_s {
 	int	unit;		/* unit	number */
 	u_int	flags;		/* copy of device flags */
 	u_int	tx_fifo_size;
-	u_int	wopeners;	/* # processes waiting for DCD in open() */
 
 	/*
 	 * The high level of the driver never reads status registers directly
@@ -338,7 +327,6 @@ struct com_s {
 	struct resource *ioportres;
 	int	ioportrid;
 	void	*cookie;
-	struct cdev *devs[6];
 
 	/*
 	 * Data area for output buffers.  Someday we should build the output
@@ -361,7 +349,6 @@ static	int	espattach(struct com_s *com, Port_t esp_port);
 static	void	combreak(struct tty *tp, int sig);
 static	timeout_t siobusycheck;
 static	u_int	siodivisor(u_long rclk, speed_t speed);
-static	void	comhardclose(struct com_s *com);
 static	void	sioinput(struct com_s *com);
 static	void	siointr1(struct com_s *com);
 static	void	siointr(void *arg);
@@ -383,38 +370,8 @@ devclass_t	sio_devclass;
 #define	com_addr(unit)	((struct com_s *) \
 			 devclass_get_softc(sio_devclass, unit)) /* XXX */
 
-static	d_open_t	sioopen;
-static	d_close_t	sioclose;
-static	d_read_t	sioread;
-static	d_write_t	siowrite;
-static	d_ioctl_t	sioioctl;
-
-static struct cdevsw sio_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	sioopen,
-	.d_close =	sioclose,
-	.d_read =	sioread,
-	.d_write =	siowrite,
-	.d_ioctl =	sioioctl,
-	.d_name =	sio_driver_name,
-	.d_flags =	D_TTY | D_NEEDGIANT,
-};
-
-static	d_open_t	siocopen;
-static	d_close_t	siocclose;
-static	d_read_t	siocrdwr;
-static	d_ioctl_t	siocioctl;
-
-static struct cdevsw sioc_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	siocopen,
-	.d_close =	siocclose,
-	.d_read =	siocrdwr,
-	.d_write =	siocrdwr,
-	.d_ioctl =	siocioctl,
-	.d_name =	sio_driver_name,
-	.d_flags =	D_TTY | D_NEEDGIANT,
-};
+static	t_close_t	sioclose;
+static	t_open_t	sioopen;
 
 int	comconsole = -1;
 static	volatile speed_t	comdefaultrate = CONSPEED;
@@ -731,6 +688,10 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 	if (tp == NULL)
 		return (ENXIO);
 
+	tp = com->tp;
+	if (tp == NULL)
+		return (ENXIO);
+
 	/*
 	 * set the initial and lock rates for /dev/ttydXX and /dev/cuaXX
 	 * (note, the lock rates really are boolean -- if non-zero, disallow
@@ -741,9 +702,6 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 	tp->t_init_out.c_ispeed = tp->t_init_out.c_ospeed =
 	tp->t_lock_out.c_ispeed = tp->t_lock_out.c_ospeed = comdefaultrate;
 
-	/*
-	 * if we're open, change the running rate too
-	 */
 	if (tp->t_state & TS_ISOPEN) {
 		tp->t_termios.c_ispeed =
 		tp->t_termios.c_ospeed = comdefaultrate;
@@ -772,7 +730,6 @@ siodetach(dev)
 	device_t	dev;
 {
 	struct com_s	*com;
-	int i;
 
 	com = (struct com_s *) device_get_softc(dev);
 	if (com == NULL) {
@@ -782,8 +739,6 @@ siodetach(dev)
 	com->gone = TRUE;
 	if (com->tp)
 		ttygone(com->tp);
-	for (i = 0 ; i < 6; i++)
-		destroy_dev(com->devs[i]);
 	if (com->irqres) {
 		bus_teardown_intr(dev, com->irqres, com->cookie);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, com->irqres);
@@ -793,8 +748,7 @@ siodetach(dev)
 				     com->ioportres);
 	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
 		device_printf(dev, "still open, forcing close\n");
-		ttyld_close(com->tp, 0);
-		tty_close(com->tp);
+		ttyfree(com->tp);
 	} else {
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
@@ -803,6 +757,8 @@ siodetach(dev)
 			free(com->obuf1, M_DEVBUF);
 #endif
 		device_set_softc(dev, NULL);
+		if (com->tp)
+			ttyfree(com->tp);
 		free(com, M_DEVBUF);
 	}
 	return (0);
@@ -1548,8 +1504,9 @@ sioattach(dev, xrid, rclk)
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
 #endif
-
 	tp = com->tp = ttyalloc();
+	tp->t_open = sioopen;
+	tp->t_close = sioclose;
 	tp->t_oproc = comstart;
 	tp->t_param = comparam;
 	tp->t_stop = comstop;
@@ -1809,25 +1766,8 @@ determined_type: ;
 		swi_add(&clk_ithd, "sio", siopoll, NULL, SWI_CLOCK, 0,
 		    &sio_slow_ih);
 	}
-	minorbase = UNIT_TO_MINOR(unit);
-	com->devs[0] = make_dev(&sio_cdevsw, minorbase,
-	    UID_ROOT, GID_WHEEL, 0600, "ttyd%r", unit);
-	com->devs[1] = make_dev(&sioc_cdevsw, minorbase | CONTROL_INIT_STATE,
-	    UID_ROOT, GID_WHEEL, 0600, "ttyid%r", unit);
-	com->devs[2] = make_dev(&sioc_cdevsw, minorbase | CONTROL_LOCK_STATE,
-	    UID_ROOT, GID_WHEEL, 0600, "ttyld%r", unit);
-	com->devs[3] = make_dev(&sio_cdevsw, minorbase | CALLOUT_MASK,
-	    UID_UUCP, GID_DIALER, 0660, "cuaa%r", unit);
-	com->devs[4] = make_dev(&sioc_cdevsw,
-	    minorbase | CALLOUT_MASK | CONTROL_INIT_STATE,
-	    UID_UUCP, GID_DIALER, 0660, "cuaia%r", unit);
-	com->devs[5] = make_dev(&sioc_cdevsw,
-	    minorbase | CALLOUT_MASK | CONTROL_LOCK_STATE,
-	    UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
-	for (rid = 0; rid < 6; rid++) {
-		com->devs[rid]->si_drv1 = com;
-		com->devs[rid]->si_tty = tp;
-	}
+	minorbase = unit2minor(unit);
+	ttycreate(tp, NULL, 0, MINOR_CALLOUT, "d%r", unit);
 	com->flags = flags;
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
 
@@ -1868,300 +1808,128 @@ determined_type: ;
 }
 
 static int
-siocopen(dev, flag, mode, td)
-	struct cdev *dev;
-	int		flag;
-	int		mode;
-	struct thread	*td;
+sioopen(struct tty *tp, struct cdev *dev)
 {
 	struct com_s	*com;
 
-	com = dev->si_drv1;
-	if (com == NULL)
-		return (ENXIO);
-	if (com->gone)
-		return (ENXIO);
-	return (0);
-}
-
-static int
-sioopen(dev, flag, mode, td)
-	struct cdev *dev;
-	int		flag;
-	int		mode;
-	struct thread	*td;
-{
-	struct com_s	*com;
-	int		error;
-	int		mynor;
-	int		s;
-	struct tty	*tp;
-	int		unit;
-
-	mynor = minor(dev);
-	unit = MINOR_TO_UNIT(mynor);
-	com = dev->si_drv1;
-	if (com == NULL)
-		return (ENXIO);
-	if (com->gone)
-		return (ENXIO);
-	tp = dev->si_tty = com->tp;
-	s = spltty();
+	com = tp->t_sc;
+#ifdef PC98
+	if (!IS_8251(com->pc98_if_type))
+#endif
+	com->poll = com->no_irq;
+	com->poll_output = com->loses_outints;
+#ifdef PC98
+	if (IS_8251(com->pc98_if_type)) {
+		com_tiocm_bis(com, TIOCM_DTR|TIOCM_RTS);
+		pc98_msrint_start(dev);
+		if (com->pc98_8251fifo) {
+		    com->pc98_8251fifo_enable = 1;
+		    outb(I8251F_fcr, CTRL8251F_ENABLE |
+			 CTRL8251F_XMT_RST | CTRL8251F_RCV_RST);
+		}
+	}
+#endif
 	/*
-	 * We jump to this label after all non-interrupted sleeps to pick
-	 * up any changes of the device state.
+	 * XXX we should goto open_top if comparam() slept.
 	 */
-open_top:
-	error = ttydtrwaitsleep(tp);
-	if (error != 0)
-		goto out;
-	if (tp->t_state & TS_ISOPEN) {
+	if (com->hasfifo) {
+		int i;
 		/*
-		 * The device is open, so everything has been initialized.
-		 * Handle conflicts.
+		 * (Re)enable and drain fifos.
+		 *
+		 * Certain SMC chips cause problems if the fifos
+		 * are enabled while input is ready.  Turn off the
+		 * fifo if necessary to clear the input.  We test
+		 * the input ready bit after enabling the fifos
+		 * since we've already enabled them in comparam()
+		 * and to handle races between enabling and fresh
+		 * input.
 		 */
-		if (mynor & CALLOUT_MASK) {
-			if (!com->active_out) {
-				error = EBUSY;
-				goto out;
-			}
-		} else {
-			if (com->active_out) {
-				if (flag & O_NONBLOCK) {
-					error = EBUSY;
-					goto out;
-				}
-				error =	tsleep(&com->active_out,
-					       TTIPRI | PCATCH, "siobi", 0);
-				if (com_addr(unit) == NULL)
-					return (ENXIO);
-				if (error != 0 || com->gone)
-					goto out;
-				goto open_top;
-			}
-		}
-		if (tp->t_state & TS_XCLUDE &&
-		    suser(td)) {
-			error = EBUSY;
-			goto out;
-		}
-	} else {
-		/*
-		 * The device isn't open, so there are no conflicts.
-		 * Initialize it.  Initialization is done twice in many
-		 * cases: to preempt sleeping callin opens if we are
-		 * callout, and to complete a callin open after DCD rises.
-		 */
-		tp->t_dev = dev;
-		tp->t_termios = mynor & CALLOUT_MASK
-				? tp->t_init_out : tp->t_init_in;
+		for (i = 0; i < 500; i++) {
+			sio_setreg(com, com_fifo,
+				   FIFO_RCV_RST | FIFO_XMT_RST
+				   | com->fifo_image);
 #ifdef PC98
-		if (!IS_8251(com->pc98_if_type))
+			if (com->pc98_if_type == COM_IF_RSA98III)
+				outb(com->rsabase + rsa_frr , 0x00);
 #endif
-		(void)commodem(tp, SER_DTR | SER_RTS, 0);
-		com->poll = com->no_irq;
-		com->poll_output = com->loses_outints;
-		++com->wopeners;
-		error = comparam(tp, &tp->t_termios);
-		--com->wopeners;
-		if (error != 0)
-			goto out;
-#ifdef PC98
-		if (IS_8251(com->pc98_if_type)) {
-			com_tiocm_bis(com, TIOCM_DTR|TIOCM_RTS);
-			pc98_msrint_start(dev);
-			if (com->pc98_8251fifo) {
-			    com->pc98_8251fifo_enable = 1;
-			    outb(I8251F_fcr, CTRL8251F_ENABLE |
-				 CTRL8251F_XMT_RST | CTRL8251F_RCV_RST);
-			}
-		}
-#endif
-		/*
-		 * XXX we should goto open_top if comparam() slept.
-		 */
-		if (com->hasfifo) {
-			int i;
 			/*
-			 * (Re)enable and drain fifos.
-			 *
-			 * Certain SMC chips cause problems if the fifos
-			 * are enabled while input is ready.  Turn off the
-			 * fifo if necessary to clear the input.  We test
-			 * the input ready bit after enabling the fifos
-			 * since we've already enabled them in comparam()
-			 * and to handle races between enabling and fresh
-			 * input.
+			 * XXX the delays are for superstitious
+			 * historical reasons.  It must be less than
+			 * the character time at the maximum
+			 * supported speed (87 usec at 115200 bps
+			 * 8N1).  Otherwise we might loop endlessly
+			 * if data is streaming in.  We used to use
+			 * delays of 100.  That usually worked
+			 * because DELAY(100) used to usually delay
+			 * for about 85 usec instead of 100.
 			 */
-			for (i = 0; i < 500; i++) {
-				sio_setreg(com, com_fifo,
-					   FIFO_RCV_RST | FIFO_XMT_RST
-					   | com->fifo_image);
+			DELAY(50);
 #ifdef PC98
-				if (com->pc98_if_type == COM_IF_RSA98III)
-					outb(com->rsabase + rsa_frr , 0x00);
-#endif
-				/*
-				 * XXX the delays are for superstitious
-				 * historical reasons.  It must be less than
-				 * the character time at the maximum
-				 * supported speed (87 usec at 115200 bps
-				 * 8N1).  Otherwise we might loop endlessly
-				 * if data is streaming in.  We used to use
-				 * delays of 100.  That usually worked
-				 * because DELAY(100) used to usually delay
-				 * for about 85 usec instead of 100.
-				 */
-				DELAY(50);
-#ifdef PC98
-				if (com->pc98_if_type == COM_IF_RSA98III ?
-				    !(inb(com->rsabase + rsa_srr) & 0x08) :
-				    !(inb(com->line_status_port) & LSR_RXRDY))
-					break;
+			if (com->pc98_if_type == COM_IF_RSA98III ?
+			    !(inb(com->rsabase + rsa_srr) & 0x08) :
+			    !(inb(com->line_status_port) & LSR_RXRDY))
+				break;
 #else
-				if (!(inb(com->line_status_port) & LSR_RXRDY))
-					break;
+			if (!(inb(com->line_status_port) & LSR_RXRDY))
+				break;
 #endif
-				sio_setreg(com, com_fifo, 0);
-				DELAY(50);
-				(void) inb(com->data_port);
-			}
-			if (i == 500) {
-				error = EIO;
-				goto out;
-			}
+			sio_setreg(com, com_fifo, 0);
+			DELAY(50);
+			(void) inb(com->data_port);
 		}
+		if (i == 500) {
+			return (EIO);
+		}
+	}
 
-		mtx_lock_spin(&sio_lock);
+	mtx_lock_spin(&sio_lock);
 #ifdef PC98
-		if (IS_8251(com->pc98_if_type)) {
-		    com_tiocm_bis(com, TIOCM_LE);
-		    com->pc98_prev_modem_status = pc98_get_modem_status(com);
-		    com_int_Rx_enable(com);
-		} else {
+	if (IS_8251(com->pc98_if_type)) {
+	    com_tiocm_bis(com, TIOCM_LE);
+	    com->pc98_prev_modem_status = pc98_get_modem_status(com);
+	    com_int_Rx_enable(com);
+	} else {
 #endif
-		(void) inb(com->line_status_port);
-		(void) inb(com->data_port);
-		com->prev_modem_status = com->last_modem_status
-		    = inb(com->modem_status_port);
-		outb(com->int_ctl_port,
-		     IER_ERXRDY | IER_ERLS | IER_EMSC
-		     | (COM_IIR_TXRDYBUG(com->flags) ? 0 : IER_ETXRDY));
+	(void) inb(com->line_status_port);
+	(void) inb(com->data_port);
+	com->prev_modem_status = com->last_modem_status
+	    = inb(com->modem_status_port);
+	outb(com->int_ctl_port,
+	     IER_ERXRDY | IER_ERLS | IER_EMSC
+	     | (COM_IIR_TXRDYBUG(com->flags) ? 0 : IER_ETXRDY));
 #ifdef PC98
-		if (com->pc98_if_type == COM_IF_RSA98III) {
-			outb(com->rsabase + rsa_ier, 0x1d);
-			outb(com->int_ctl_port, IER_ERLS | IER_EMSC);
-		}
+	if (com->pc98_if_type == COM_IF_RSA98III) {
+		outb(com->rsabase + rsa_ier, 0x1d);
+		outb(com->int_ctl_port, IER_ERLS | IER_EMSC);
+	}
 #endif
 #ifdef PC98
-		}
+	}
 #endif
-		mtx_unlock_spin(&sio_lock);
-		/*
-		 * Handle initial DCD.  Callout devices get a fake initial
-		 * DCD (trapdoor DCD).  If we are callout, then any sleeping
-		 * callin opens get woken up and resume sleeping on "siobi"
-		 * instead of "siodcd".
-		 */
-		/*
-		 * XXX `mynor & CALLOUT_MASK' should be
-		 * `tp->t_cflag & (SOFT_CARRIER | TRAPDOOR_CARRIER) where
-		 * TRAPDOOR_CARRIER is the default initial state for callout
-		 * devices and SOFT_CARRIER is like CLOCAL except it hides
-		 * the true carrier.
-		 */
+	mtx_unlock_spin(&sio_lock);
+	siosettimeout();
 #ifdef PC98
-		if ((IS_8251(com->pc98_if_type) &&
-			(pc98_get_modem_status(com) & TIOCM_CAR)) ||
-		    (!IS_8251(com->pc98_if_type) &&
-			(com->prev_modem_status & MSR_DCD)) ||
-		    mynor & CALLOUT_MASK)
-			ttyld_modem(tp, 1);
+	if ((IS_8251(com->pc98_if_type) &&
+		(pc98_get_modem_status(com) & TIOCM_CAR)) ||
+	    (!IS_8251(com->pc98_if_type) &&
+		(com->prev_modem_status & MSR_DCD)) ||
+	    ISCALLOUT(dev))
+		ttyld_modem(tp, 1);
 #else
-		if (com->prev_modem_status & MSR_DCD || mynor & CALLOUT_MASK)
-			ttyld_modem(tp, 1);
+	if (com->prev_modem_status & MSR_DCD || ISCALLOUT(dev))
+		ttyld_modem(tp, 1);
 #endif
-	}
-	/*
-	 * Wait for DCD if necessary.
-	 */
-	if (!(tp->t_state & TS_CARR_ON) && !(mynor & CALLOUT_MASK)
-	    && !(tp->t_cflag & CLOCAL) && !(flag & O_NONBLOCK)) {
-		++com->wopeners;
-		error = tsleep(TSA_CARR_ON(tp), TTIPRI | PCATCH, "siodcd", 0);
-		if (com_addr(unit) == NULL)
-			return (ENXIO);
-		--com->wopeners;
-		if (error != 0 || com->gone)
-			goto out;
-		goto open_top;
-	}
-	error =	ttyld_open(tp, dev);
-	ttyldoptim(tp);
-	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
-		com->active_out = TRUE;
-	siosettimeout();
-out:
-	splx(s);
-	if (!(tp->t_state & TS_ISOPEN) && com->wopeners == 0)
-		comhardclose(com);
-	return (error);
-}
-
-static int
-siocclose(dev, flag, mode, td)
-	struct cdev *dev;
-	int		flag;
-	int		mode;
-	struct thread	*td;
-{
-
-	return (0);
-}
-
-static int
-sioclose(dev, flag, mode, td)
-	struct cdev *dev;
-	int		flag;
-	int		mode;
-	struct thread	*td;
-{
-	struct com_s	*com;
-	int		s;
-	struct tty	*tp;
-
-	com = dev->si_drv1;
-	if (com == NULL)
-		return (ENODEV);
-	tp = com->tp;
-	s = spltty();
-	ttyld_close(tp, flag);
-#ifdef PC98
-	com->modem_checking = 0;
-#endif
-	ttyldoptim(tp);
-	comhardclose(com);
-	tty_close(tp);
-	siosettimeout();
-	splx(s);
-	if (com->gone) {
-		printf("sio%d: gone\n", com->unit);
-		s = spltty();
-		if (com->ibuf != NULL)
-			free(com->ibuf, M_DEVBUF);
-		bzero(tp, sizeof *tp);
-		splx(s);
-	}
 	return (0);
 }
 
 static void
-comhardclose(com)
-	struct com_s	*com;
+sioclose(struct tty *tp)
 {
-	int		s;
-	struct tty	*tp;
+	struct com_s	*com;
+	int s;
 
+	com = tp->t_sc;
 	s = spltty();
 	com->poll = FALSE;
 	com->poll_output = FALSE;
@@ -2172,7 +1940,6 @@ comhardclose(com)
 #else
 	sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 #endif
-	tp = com->tp;
 
 #if defined(KDB) && (defined(BREAK_TO_DEBUGGER) || \
     defined(ALT_BREAK_TO_DEBUGGER))
@@ -2207,7 +1974,7 @@ comhardclose(com)
 		     * the next open because it might go up and down while
 		     * we're not watching.
 		     */
-		    || (!com->active_out
+		    || (!tp->t_actout
 #ifdef PC98
 			&& !(tmp)
 #else
@@ -2245,61 +2012,10 @@ comhardclose(com)
 		 */
 		sio_setreg(com, com_fifo, 0);
 	}
-	com->active_out = FALSE;
-	wakeup(&com->active_out);
+	tp->t_actout = FALSE;
+	wakeup(&tp->t_actout);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
 	splx(s);
-}
-
-static int
-siocrdwr(dev, uio, flag)
-	struct cdev *dev;
-	struct uio	*uio;
-	int		flag;
-{
-
-	return (ENODEV);
-}
-
-static int
-sioread(dev, uio, flag)
-	struct cdev *dev;
-	struct uio	*uio;
-	int		flag;
-{
-	struct com_s	*com;
-
-	com = dev->si_drv1;
-	if (com == NULL || com->gone)
-		return (ENODEV);
-	return (ttyld_read(com->tp, uio, flag));
-}
-
-static int
-siowrite(dev, uio, flag)
-	struct cdev *dev;
-	struct uio	*uio;
-	int		flag;
-{
-	int		mynor;
-	struct com_s	*com;
-	int		unit;
-
-	mynor = minor(dev);
-
-	unit = MINOR_TO_UNIT(mynor);
-	com = dev->si_drv1;
-	if (com == NULL || com->gone)
-		return (ENODEV);
-	/*
-	 * (XXX) We disallow virtual consoles if the physical console is
-	 * a serial port.  This is in case there is a display attached that
-	 * is not the console.  In that situation we don't need/want the X
-	 * server taking over the console.
-	 */
-	if (constty != NULL && unit == comconsole)
-		constty = NULL;
-	return (ttyld_write(com->tp, uio, flag));
 }
 
 static void
@@ -2951,136 +2667,6 @@ txrdy:
 #endif /* COM_MULTIPORT */
 			return;
 	}
-}
-
-static int
-siocioctl(dev, cmd, data, flag, td)
-	struct cdev *dev;
-	u_long		cmd;
-	caddr_t		data;
-	int		flag;
-	struct thread	*td;
-{
-	struct com_s	*com;
-	struct tty	*tp;
-	int		error;
-	int		mynor;
-	struct termios	*ct;
-
-	mynor = minor(dev);
-	com = dev->si_drv1;
-	if (com == NULL || com->gone)
-		return (ENODEV);
-	tp = com->tp;
-
-	switch (mynor & CONTROL_MASK) {
-	case CONTROL_INIT_STATE:
-		ct = mynor & CALLOUT_MASK ? &tp->t_init_out : &tp->t_init_in;
-		break;
-	case CONTROL_LOCK_STATE:
-		ct = mynor & CALLOUT_MASK ? &tp->t_lock_out : &tp->t_lock_in;
-		break;
-	default:
-		return (ENODEV);	/* /dev/nodev */
-	}
-	switch (cmd) {
-	case TIOCSETA:
-		error = suser(td);
-		if (error != 0)
-			return (error);
-		*ct = *(struct termios *)data;
-		return (0);
-	case TIOCGETA:
-		*(struct termios *)data = *ct;
-		return (0);
-	case TIOCGETD:
-		*(int *)data = TTYDISC;
-		return (0);
-	case TIOCGWINSZ:
-		bzero(data, sizeof(struct winsize));
-		return (0);
-	default:
-		return (ENOTTY);
-	}
-}
-
-static int
-sioioctl(dev, cmd, data, flag, td)
-	struct cdev *dev;
-	u_long		cmd;
-	caddr_t		data;
-	int		flag;
-	struct thread	*td;
-{
-	struct com_s	*com;
-	int		error;
-	int		mynor;
-	int		s;
-	struct tty	*tp;
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-	u_long		oldcmd;
-	struct termios	term;
-#endif
-#endif
-
-	mynor = minor(dev);
-	com = dev->si_drv1;
-	if (com == NULL || com->gone)
-		return (ENODEV);
-	tp = com->tp;
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-	term = tp->t_termios;
-	oldcmd = cmd;
-	error = ttsetcompat(tp, &cmd, data, &term);
-	if (error != 0)
-		return (error);
-	if (cmd != oldcmd)
-		data = (caddr_t)&term;
-#endif
-#endif
-	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
-		int	cc;
-		struct termios *dt = (struct termios *)data;
-		struct termios *lt = mynor & CALLOUT_MASK
-				     ? &tp->t_lock_out : &tp->t_lock_in;
-
-		dt->c_iflag = (tp->t_iflag & lt->c_iflag)
-			      | (dt->c_iflag & ~lt->c_iflag);
-		dt->c_oflag = (tp->t_oflag & lt->c_oflag)
-			      | (dt->c_oflag & ~lt->c_oflag);
-		dt->c_cflag = (tp->t_cflag & lt->c_cflag)
-			      | (dt->c_cflag & ~lt->c_cflag);
-		dt->c_lflag = (tp->t_lflag & lt->c_lflag)
-			      | (dt->c_lflag & ~lt->c_lflag);
-		for (cc = 0; cc < NCCS; ++cc)
-			if (lt->c_cc[cc] != 0)
-				dt->c_cc[cc] = tp->t_cc[cc];
-		if (lt->c_ispeed != 0)
-			dt->c_ispeed = tp->t_ispeed;
-		if (lt->c_ospeed != 0)
-			dt->c_ospeed = tp->t_ospeed;
-	}
-	error = ttyioctl(dev, cmd, data, flag, td);
-	ttyldoptim(tp);
-	if (error != ENOTTY)
-		return (error);
-	s = spltty();
-	switch (cmd) {
-	case TIOCTIMESTAMP:
-		com->do_timestamp = TRUE;
-		*(struct timeval *)data = com->timestamp;
-		break;
-	default:
-		splx(s);
-		error = pps_ioctl(cmd, data, &com->pps);
-		if (error == ENODEV)
-			error = ENOTTY;
-		return (error);
-	}
-	splx(s);
-	return (0);
 }
 
 /* software interrupt handler for SWI_TTY */
@@ -3858,9 +3444,7 @@ commint(struct cdev *dev)
 	register struct tty *tp;
 	int	stat,delta;
 	struct com_s *com;
-	int	mynor;
 
-	mynor = minor(dev);
 	com = dev->si_drv1;
 	tp = com->tp;
 
@@ -3873,7 +3457,7 @@ commint(struct cdev *dev)
 		else
 			com->state &= ~CS_ODEVREADY;
 	}
-	if ((delta & TIOCM_CAR) && (mynor & CALLOUT_MASK) == 0) {
+	if ((delta & TIOCM_CAR) && (ISCALLOUT(dev)) == 0) {
 	    if (stat & TIOCM_CAR )
 		(void)ttyld_modem(tp, 1);
 	    else if (ttyld_modem(tp, 0) == 0) {
