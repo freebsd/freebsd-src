@@ -90,7 +90,7 @@ main(int argc, char *argv[])
 	int foo, bar, baz, dev;
 	int devmask = 0, recmask = 0, recsrc = 0, orecsrc;
 	int dusage = 0, drecsrc = 0, shortflag = 0;
-	int l, r;
+	int l = 0, r = 0, t = 0;
 	char ch;
 
 	char *name;
@@ -145,7 +145,7 @@ main(int argc, char *argv[])
 
 	argc--; argv++;
 
-	while ((argc) && (dusage == 0)) {
+	while ((argc > 0) && (dusage == 0)) {
 		if (!strcmp("recsrc", *argv)) {
 			drecsrc = 1;
 			argc--; argv++;
@@ -181,13 +181,16 @@ main(int argc, char *argv[])
 			continue;
 		}
 
-		if ((dev = res_name(*argv, devmask)) == -1) {
+		if ((t = sscanf(*argv, "%d:%d", &l, &r)) > 0) {
+			dev = 0;
+		}
+		else if((dev = res_name(*argv, devmask)) == -1) {
 			warnx("unknown device: %s", *argv);
 			dusage = 1;
 			break;
 		}
 
-		switch(argc > 1 ? sscanf(argv[1], "%d:%d", &l, &r) : 0) {
+		switch(argc > 1 ? sscanf(argv[1], "%d:%d", &l, &r) : t) {
 		case 0:
 			if (ioctl(baz, MIXER_READ(dev),&bar)== -1) {
 				warn("MIXER_READ");
