@@ -18,11 +18,11 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
-#ifndef lint
+#if !defined(lint) && !defined(__GNUC__)
 char copyright[] =
     "@(#) Copyright (c) 1987-1990 The Regents of the University of California.\nAll rights reserved.\n";
 static  char rcsid[] =
-    "@(#)$Header: tcpslice.c,v 1.13 93/11/18 13:12:02 vern Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/usr.sbin/tcpdump/tcpslice/tcpslice.c,v 1.3 1995/08/23 05:18:59 pst Exp $ (LBL)";
 #endif
 
 /*

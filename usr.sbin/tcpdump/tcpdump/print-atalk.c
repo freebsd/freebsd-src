@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static  char rcsid[] =
-	"@(#)$Header: print-atalk.c,v 1.36 94/06/20 19:44:34 leres Exp $ (LBL)";
+	"@(#)$Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-atalk.c,v 1.3 1995/09/22 17:24:50 wollman Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -100,9 +100,16 @@ atalk_print(register const u_char *bp, int length)
 	register const struct atShortDDP *sdp;
 	u_short snet;
 
+#if 0
 	lp = (struct LAP *)bp;
 	bp += sizeof(*lp);
 	length -= sizeof(*lp);
+#else
+	{
+		static struct LAP lp_ = {0, 0, lapDDP};
+		lp = &lp_;
+	}
+#endif
 	switch (lp->type) {
 
 	case lapShortDDP:
@@ -532,7 +539,7 @@ ataddr_string(u_short atnet, u_char athost)
 		if (tp2->addr == i) {
 			tp->addr = (atnet << 8) | athost;
 			tp->nxt = (struct hnamemem *)calloc(1, sizeof(*tp));
-			(void)sprintf(nambuf, "%s.%d", tp2->name, athost);
+			(void)sprintf(nambuf, "%s.%02x", tp2->name, athost);
 			tp->name = savestr(nambuf);
 			return (tp->name);
 		}
@@ -540,10 +547,10 @@ ataddr_string(u_short atnet, u_char athost)
 	tp->addr = (atnet << 8) | athost;
 	tp->nxt = (struct hnamemem *)calloc(1, sizeof(*tp));
 	if (athost != 255)
-		(void)sprintf(nambuf, "%d.%d.%d",
+		(void)sprintf(nambuf, "%02x.%02x.%02x",
 		    atnet >> 8, atnet & 0xff, athost);
 	else
-		(void)sprintf(nambuf, "%d.%d", atnet >> 8, atnet & 0xff);
+		(void)sprintf(nambuf, "%02x.%02x", atnet >> 8, atnet & 0xff);
 	i = strlen(nambuf) + 1;
 	tp->name = strcpy(malloc((u_int) i), nambuf);
 
@@ -564,8 +571,8 @@ ddpskt_string(register int skt)
 	static char buf[8];
 
 	if (nflag) {
-		(void)sprintf(buf, "%d", skt);
+		(void)sprintf(buf, "%02x", skt);
 		return (buf);
 	}
-	return (tok2str(skt2str, "%d", skt));
+	return (tok2str(skt2str, "%02x", skt));
 }

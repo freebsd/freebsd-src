@@ -1,4 +1,4 @@
-.\" @(#) $Header: tcpdump.1,v 1.45 94/06/20 18:54:27 leres Exp $ (LBL)
+.\" @(#) $Id: tcpdump.1,v 1.4 1995/09/22 17:24:51 wollman Exp $ (LBL)
 .\"
 .\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994
 .\"	The Regents of the University of California.  All rights reserved.
@@ -20,7 +20,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH TCPDUMP 1  "20 Jun 1994"
+.TH TCPDUMP 1  "22 Sept 1995"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
@@ -34,6 +34,9 @@ tcpdump \- dump traffic on a network
 ] [
 .B \-F
 .I file
+] [
+.B \-T
+.I type
 ]
 .br
 .ti +8
@@ -154,6 +157,11 @@ Print absolute, rather than relative, TCP sequence numbers.
 .TP
 .B \-tt
 Print an unformatted timestamp on each dump line.
+.TP
+.B \-T
+Print unrecognized UDP packets as if they were type
+.IR type .
+Valid types are `vat', `wb', `rpc', and `rtp'.
 .TP
 .B \-v
 (Slightly more) verbose output.  For example, the time to live

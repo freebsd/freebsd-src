@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-rip.c,v 1.20 94/06/14 20:18:47 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-rip.c,v 1.5 1995/08/26 12:40:05 davidg Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -47,10 +47,10 @@ static char rcsid[] =
 static void
 rip_entry_print(register const struct netinfo *ni)
 {
-	if (ntohs(ni->rip_dst.sa_family) != AF_INET) {
+	if (ni->rip_dst.sa_family != AF_INET) {
 		register int i;
 
-		printf(" [family %d:", ntohs(ni->rip_dst.sa_family));
+		printf(" [family %d:", ni->rip_dst.sa_family);
 		for (i = 0; i < 14; i += 2)
 			printf(" %02x%02x", (u_char)ni->rip_dst.sa_data[i],
 				(u_char)ni->rip_dst.sa_data[i+1]);
