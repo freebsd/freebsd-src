@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.12 1997/03/09 20:03:51 ache Exp $
+ * $Id: timer.c,v 1.13 1997/03/09 20:09:17 ache Exp $
  *
  *  TODO:
  */
@@ -28,6 +28,8 @@
 #ifdef SIGALRM
 #include <errno.h>
 #endif
+#include "sig.h"
+
 void StopTimerNoBlock( struct pppTimer *);
 void ShowTimers(void);
 
@@ -269,7 +271,7 @@ void usleep( u_int usec)
 void InitTimerService( void ) {
   struct itimerval itimer;
 
-  signal(SIGALRM, (void (*)(int))TimerService);
+  pending_signal(SIGALRM, (void (*)(int))TimerService);
   itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
   itimer.it_interval.tv_usec = itimer.it_value.tv_usec = TICKUNIT;
   setitimer(ITIMER_REAL, &itimer, NULL);
@@ -278,13 +280,8 @@ void InitTimerService( void ) {
 void TermTimerService( void ) {
   struct itimerval itimer;
 
-  itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
   itimer.it_value.tv_usec = itimer.it_value.tv_sec = 0;
   setitimer(ITIMER_REAL, &itimer, NULL);
-  /*
-   * Notes: after disabling timer here, we will get one
-   *        SIGALRM will be got.
-   */
-  signal(SIGALRM, SIG_IGN);
+  pending_signal(SIGALRM, SIG_IGN);
 }
 #endif
