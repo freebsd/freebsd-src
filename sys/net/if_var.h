@@ -150,6 +150,7 @@ typedef void if_init_f_t __P((void *));
 #define	if_hdrlen	if_data.ifi_hdrlen
 #define	if_metric	if_data.ifi_metric
 #define	if_baudrate	if_data.ifi_baudrate
+#define	if_hwassist	if_data.ifi_hwassist
 #define	if_ipackets	if_data.ifi_ipackets
 #define	if_ierrors	if_data.ifi_ierrors
 #define	if_opackets	if_data.ifi_opackets

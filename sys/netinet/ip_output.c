@@ -96,6 +96,7 @@ static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 
 u_short ip_id;
 
+static void	in_delayed_cksum(struct mbuf *m);
 static struct mbuf *ip_insertoptions __P((struct mbuf *, struct mbuf *, int *));
 static void	ip_mloopback
 	__P((struct ifnet *, struct mbuf *, struct sockaddr_in *, int));
@@ -132,7 +133,7 @@ ip_output(m0, opt, ro, flags, imo)
 	int len, off, error = 0;
 	struct sockaddr_in *dst;
 	struct in_ifaddr *ia;
-	int isbroadcast;
+	int isbroadcast, sw_csum;
 #ifdef IPSEC
 	struct route iproute;
 	struct socket *so = NULL;
@@ -692,6 +693,15 @@ pass:
 		state.ro = ro;
 	state.dst = (struct sockaddr *)dst;
 
+	/*
+	 * XXX
+	 * delayed checksums are not currently compatible with IPsec
+	 */
+	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		in_delayed_cksum(m);
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+	}
+
 	error = ipsec4_output(&state, sp, flags);
 
 	m = state.m;
@@ -754,17 +764,29 @@ pass:
 skip_ipsec:
 #endif /*IPSEC*/
 
+	sw_csum = m->m_pkthdr.csum_flags | CSUM_IP;
+	m->m_pkthdr.csum_flags = sw_csum & ifp->if_hwassist;
+	sw_csum &= ~ifp->if_hwassist;
+	if (sw_csum & CSUM_DELAY_DATA) {
+		in_delayed_cksum(m);
+		sw_csum &= ~CSUM_DELAY_DATA;
+	}
+
 	/*
-	 * If small enough for interface, can just send directly.
+	 * If small enough for interface, or the interface will take
+	 * care of the fragmentation for us, can just send directly.
 	 */
-	if ((u_short)ip->ip_len <= ifp->if_mtu) {
+	if ((u_short)ip->ip_len <= ifp->if_mtu ||
+	    ifp->if_hwassist & CSUM_FRAGMENT) {
 		ip->ip_len = htons((u_short)ip->ip_len);
 		ip->ip_off = htons((u_short)ip->ip_off);
 		ip->ip_sum = 0;
-		if (ip->ip_vhl == IP_VHL_BORING) {
-			ip->ip_sum = in_cksum_hdr(ip);
-		} else {
-			ip->ip_sum = in_cksum(m, hlen);
+		if (sw_csum & CSUM_DELAY_IP) {
+			if (ip->ip_vhl == IP_VHL_BORING) {
+				ip->ip_sum = in_cksum_hdr(ip);
+			} else {
+				ip->ip_sum = in_cksum(m, hlen);
+			}
 		}
 		error = (*ifp->if_output)(ifp, m,
 				(struct sockaddr *)dst, ro->ro_rt);
@@ -797,9 +819,20 @@ skip_ipsec:
 		goto bad;
 	}
 
+	/*
+	 * if the interface will not calculate checksums on
+	 * fragmented packets, then do it here.
+	 */
+	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA &&
+	    (ifp->if_hwassist & CSUM_IP_FRAGS) == 0) {
+		in_delayed_cksum(m);
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+	}
+
     {
 	int mhlen, firstlen = len;
 	struct mbuf **mnext = &m->m_nextpkt;
+	int nfrags = 1;
 
 	/*
 	 * Loop through length of segment after first fragment,
@@ -814,7 +847,7 @@ skip_ipsec:
 			ipstat.ips_odropped++;
 			goto sendorfree;
 		}
-		m->m_flags |= (m0->m_flags & M_MCAST);
+		m->m_flags |= (m0->m_flags & M_MCAST) | M_FRAG;
 		m->m_data += max_linkhdr;
 		mhip = mtod(m, struct ip *);
 		*mhip = *ip;
@@ -840,17 +873,27 @@ skip_ipsec:
 		}
 		m->m_pkthdr.len = mhlen + len;
 		m->m_pkthdr.rcvif = (struct ifnet *)0;
+		m->m_pkthdr.csum_flags = m0->m_pkthdr.csum_flags;
 		mhip->ip_off = htons((u_short)mhip->ip_off);
 		mhip->ip_sum = 0;
-		if (mhip->ip_vhl == IP_VHL_BORING) {
-			mhip->ip_sum = in_cksum_hdr(mhip);
-		} else {
-			mhip->ip_sum = in_cksum(m, mhlen);
+		if (sw_csum & CSUM_DELAY_IP) {
+			if (mhip->ip_vhl == IP_VHL_BORING) {
+				mhip->ip_sum = in_cksum_hdr(mhip);
+			} else {
+				mhip->ip_sum = in_cksum(m, mhlen);
+			}
 		}
 		*mnext = m;
 		mnext = &m->m_nextpkt;
-		ipstat.ips_ofragments++;
+		nfrags++;
 	}
+	ipstat.ips_ofragments += nfrags;
+
+	/* set first/last markers for fragment chain */
+	m->m_flags |= M_LASTFRAG;
+	m0->m_flags |= M_FIRSTFRAG | M_FRAG;
+	m0->m_pkthdr.csum_data = nfrags;
+
 	/*
 	 * Update first fragment by trimming what's been copied out
 	 * and updating header, then send each fragment (in order).
@@ -861,10 +904,12 @@ skip_ipsec:
 	ip->ip_len = htons((u_short)m->m_pkthdr.len);
 	ip->ip_off = htons((u_short)(ip->ip_off | IP_MF));
 	ip->ip_sum = 0;
-	if (ip->ip_vhl == IP_VHL_BORING) {
-		ip->ip_sum = in_cksum_hdr(ip);
-	} else {
-		ip->ip_sum = in_cksum(m, hlen);
+	if (sw_csum & CSUM_DELAY_IP) {
+		if (ip->ip_vhl == IP_VHL_BORING) {
+			ip->ip_sum = in_cksum_hdr(ip);
+		} else {
+			ip->ip_sum = in_cksum(m, hlen);
+		}
 	}
 sendorfree:
 	for (m = m0; m; m = m0) {
@@ -896,6 +941,31 @@ done:
 bad:
 	m_freem(m0);
 	goto done;
+}
+
+static void
+in_delayed_cksum(struct mbuf *m)
+{
+	struct ip *ip;
+	u_short csum, offset;
+
+	ip = mtod(m, struct ip *);
+	offset = IP_VHL_HL(ip->ip_vhl) << 2 ;
+	csum = in_cksum_skip(m, ip->ip_len, offset);
+	offset += m->m_pkthdr.csum_data;	/* checksum offset */
+
+	if (offset + sizeof(u_short) > m->m_len) {
+		printf("delayed m_pullup, m->len: %d  off: %d  p: %d\n",
+		    m->m_len, offset, ip->ip_p);
+		/*
+		 * XXX
+		 * this shouldn't happen, but if it does, the
+		 * correct behavior may be to insert the checksum
+		 * in the existing chain instead of rearranging it.
+		 */
+		m = m_pullup(m, offset + sizeof(u_short));
+	}
+	*(u_short *)(m->m_data + offset) = csum;
 }
 
 /*
