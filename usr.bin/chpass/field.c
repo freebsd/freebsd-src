@@ -56,10 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 #include <paths.h>
 #include <pwd.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "chpass.h"
 
@@ -218,7 +216,6 @@ p_hdir(char *p, struct passwd *pw, ENTRY *ep __unused)
 int
 p_shell(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
-	char *t;
 	struct stat sbuf;
 
 	if (!*p) {
@@ -230,15 +227,16 @@ p_shell(char *p, struct passwd *pw, ENTRY *ep __unused)
 		warnx("%s: current shell non-standard", pw->pw_shell);
 		return (-1);
 	}
-	if (!(t = ok_shell(p))) {
+	if (!ok_shell(p)) {
 		if (!master_mode) {
 			warnx("%s: non-standard shell", p);
 			return (-1);
 		}
+		pw->pw_shell = strdup(p);
 	}
 	else
-		p = t;
-	if (!(pw->pw_shell = strdup(p))) {
+		pw->pw_shell = dup_shell(p);
+	if (!pw->pw_shell) {
 		warnx("can't save entry");
 		return (-1);
 	}
