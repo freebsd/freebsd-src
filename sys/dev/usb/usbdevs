@@ -63,6 +63,7 @@ vendor TI		0x0451	Texas Instruments
 vendor ANALOGDEVICES	0x0456	Analog Devices, Inc.
 vendor KYE		0x0458	KYE Systems Corp.
 vendor MICROSOFT	0x045e	Microsoft
+vendor SUPRA		0x045a	Supra
 vendor PRIMAX		0x0461	Primax Electronics
 vendor AMP		0x0464	AMP, Inc.
 vendor CHERRY		0x046a	Cherry Mikroschalter GmbH
@@ -223,6 +224,7 @@ vendor BOCASYSTEMS	0x0a43	Boca Systems, Inc.
 vendor BROADCOM		0x0a5c	Broadcom Corp.
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
+vendor BELKIN2		0x1293  Belkin Components (second entry)
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics, Inc.
@@ -289,6 +291,7 @@ product ATEN UC10T		0x2002	10Mbps ethernet adapter
 
 /* Belkin products */
 /*product BELKIN F5U111		0x????	F5U111 Ethernet adapter*/
+product BELKIN2 F5U002		0x0002  F5U002 Parallel printer adapter
 
 /* Billionton products */
 product BILLIONTON USB100	0x0986	USB100N 10/100 FastEthernet Adapter
@@ -584,6 +587,9 @@ product STMICRO COMMUNICATOR	0x7554	USB Communicator
 /* Sun Microsystems products */
 product SUN KEYBOARD		0x0005	Type 6 USB
 /* XXX The above is a North American PC style keyboard possibly */
+
+/* Supra products */
+product SUPRA SUPRAEXPRESS56K	0x07da	Supra Express 56K modem
 
 /* Telex Communications products */
 product TELEX MIC1		0x0001	Enhanced USB Microphone
