@@ -126,7 +126,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	int f, funix, finet, options, fromlen, i, errs;
+	int errs, f, funix, finet, fromlen, i, socket_debug;
 	fd_set defreadfds;
 	struct sockaddr_un un, fromunix;
 	struct sockaddr_in sin, frominet;
@@ -136,7 +136,7 @@ main(argc, argv)
 
 	euid = geteuid();	/* these shouldn't be different */
 	uid = getuid();
-	options = 0;
+	socket_debug = 0;
 	gethostname(host, sizeof(host));
 
 	name = "lpd";
@@ -148,7 +148,7 @@ main(argc, argv)
 	while ((i = getopt(argc, argv, "dlp")) != -1)
 		switch (i) {
 		case 'd':
-			options |= SO_DEBUG;
+			socket_debug++;
 			break;
 		case 'l':
 			lflag++;
@@ -215,7 +215,8 @@ main(argc, argv)
 #endif
 
 	openlog("lpd", LOG_PID, LOG_LPR);
-	syslog(LOG_INFO, "restarted");
+	syslog(LOG_INFO, "lpd startup: logging=%d%s", lflag,
+	    socket_debug ? " dbg" : "");
 	(void) umask(0);
 	/*
 	 * NB: This depends on O_NONBLOCK semantics doing the right thing;
@@ -282,6 +283,7 @@ main(argc, argv)
 	FD_ZERO(&defreadfds);
 	FD_SET(funix, &defreadfds);
 	listen(funix, 5);
+	finet = -1;
 	if (pflag == 0) {
 		finet = socket(AF_INET, SOCK_STREAM, 0);
 		if (finet >= 0) {
@@ -291,8 +293,9 @@ main(argc, argv)
 				syslog(LOG_ERR, "setsockopt(SO_REUSEADDR): %m");
 				mcleanup(0);
 			}
-			if (options & SO_DEBUG &&
-			    setsockopt(finet, SOL_SOCKET, SO_DEBUG, 0, 0) < 0) {
+			if (socket_debug &&
+			    setsockopt(finet, SOL_SOCKET, SO_DEBUG,
+				&socket_debug, sizeof(socket_debug)) < 0) {
 				syslog(LOG_ERR, "setsockopt (SO_DEBUG): %m");
 				mcleanup(0);
 			}
@@ -313,6 +316,8 @@ main(argc, argv)
 	 */
 	memset(&frominet, 0, sizeof(frominet));
 	memset(&fromunix, 0, sizeof(fromunix));
+	if (lflag)
+		syslog(LOG_INFO, "lpd startup: ready to accept requests");
 	/*
 	 * XXX - should be redone for multi-protocol
 	 */
@@ -544,9 +549,11 @@ startup()
 			goto next;
 		}
 		if (lflag)
-			syslog(LOG_INFO, "work for %s", pp->printer);
+			syslog(LOG_INFO, "lpd startup: work for %s",
+			    pp->printer);
 		if ((pid = fork()) < 0) {
-			syslog(LOG_WARNING, "startup: cannot fork");
+			syslog(LOG_WARNING, "lpd startup: cannot fork for %s",
+			    pp->printer);
 			mcleanup(0);
 		}
 		if (pid == 0) {
@@ -560,8 +567,8 @@ next:
 errloop:
 			if (status)
 				syslog(LOG_WARNING, 
-				       "printcap for %s has errors, skipping",
-				       pp->printer ? pp->printer : "<???>");
+				    "lpd startup: printcap entry for %s has errors, skipping",
+				    pp->printer ? pp->printer : "<???>");
 		} while (more && status);
 	}
 }
