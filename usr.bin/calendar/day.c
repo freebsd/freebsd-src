@@ -29,21 +29,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
 
+__FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
+#include <sys/uio.h>
 #include <ctype.h>
+#include <err.h>
 #include <locale.h>
 #include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <time.h>
-#include <sys/uio.h>
-#include <string.h>
 #include <stdlib.h>
-#include <err.h>
+#include <string.h>
+#include <string.h>
+#include <time.h>
 
 #include "pathnames.h"
 #include "calendar.h"
@@ -59,11 +60,11 @@ int daytab[][14] = {
 	{ 0, -1, 30, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 },
 };
 
-static char *days[] = {
+static char const *days[] = {
 	"sun", "mon", "tue", "wed", "thu", "fri", "sat", NULL,
 };
 
-static char *months[] = {
+static const char *months[] = {
 	"jan", "feb", "mar", "apr", "may", "jun",
 	"jul", "aug", "sep", "oct", "nov", "dec", NULL,
 };
@@ -391,9 +392,9 @@ isnow(endp, monthp, dayp, varp)
 
 int
 getmonth(s)
-	register char *s;
+	char *s;
 {
-	register char **p;
+	const char **p;
 	struct fixs *n;
 
 	for (n = fnmonths; n->name; ++n)
@@ -411,9 +412,9 @@ getmonth(s)
 
 int
 getday(s)
-	register char *s;
+	char *s;
 {
-	register char **p;
+	const char **p;
 	struct fixs *n;
 
 	for (n = fndays; n->name; ++n)
@@ -435,24 +436,24 @@ getday(s)
  */
 int
 getdayvar(s)
-	register char *s;
+	char *s;
 {
-	register int offset;
+	int offs;
 
 
-	offset = strlen(s);
+	offs = strlen(s);
 
 
 	/* Sun+1 or Wednesday-2
 	 *    ^              ^   */
 
-	/* fprintf(stderr, "x: %s %s %d\n", s, s + offset - 2, offset); */
-	switch(*(s + offset - 2)) {
+	/* fprintf(stderr, "x: %s %s %d\n", s, s + offs - 2, offs); */
+	switch(*(s + offs - 2)) {
 	case '-':
-	    return(-(atoi(s + offset - 1)));
+	    return(-(atoi(s + offs - 1)));
 	    break;
 	case '+':
-	    return(atoi(s + offset - 1));
+	    return(atoi(s + offs - 1));
 	    break;
 	}
 
@@ -462,15 +463,15 @@ getdayvar(s)
 	 */
 
 	/* last */
-	if      (offset > 4 && !strcasecmp(s + offset - 4, "last"))
+	if      (offs > 4 && !strcasecmp(s + offs - 4, "last"))
 	    return(-1);
-	else if (offset > 5 && !strcasecmp(s + offset - 5, "first"))
+	else if (offs > 5 && !strcasecmp(s + offs - 5, "first"))
 	    return(+1);
-	else if (offset > 6 && !strcasecmp(s + offset - 6, "second"))
+	else if (offs > 6 && !strcasecmp(s + offs - 6, "second"))
 	    return(+2);
-	else if (offset > 5 && !strcasecmp(s + offset - 5, "third"))
+	else if (offs > 5 && !strcasecmp(s + offs - 5, "third"))
 	    return(+3);
-	else if (offset > 6 && !strcasecmp(s + offset - 6, "fourth"))
+	else if (offs > 6 && !strcasecmp(s + offs - 6, "fourth"))
 	    return(+4);
 
 

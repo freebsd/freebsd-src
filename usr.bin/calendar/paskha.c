@@ -22,9 +22,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,6 +37,8 @@
 
 #define PASKHA "paskha"
 #define PASKHALEN (sizeof(PASKHA) - 1)
+
+static int paskha (int);
 
 /* return year day for Orthodox Easter using Gauss formula */
 /* (old style result) */
