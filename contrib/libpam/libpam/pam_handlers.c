@@ -90,9 +90,7 @@ static int _pam_add_handler(pam_handle_t *pamh
 
 static int _pam_parse_conf_file(pam_handle_t *pamh, FILE *f
 				, const char *known_service /* specific file */
-#ifdef PAM_READ_BOTH_CONFS
 				, int not_other
-#endif /* PAM_READ_BOTH_CONFS */
     )
 {
     char buf[BUF_SIZE];
@@ -121,12 +119,10 @@ static int _pam_parse_conf_file(pam_handle_t *pamh, FILE *f
 	    this_service = tok = _pam_StrTok(buf, " \n\t", &nexttok);
 	}
 
-#ifdef PAM_READ_BOTH_CONFS
 	if (not_other)
 	    other = 0;
 	else
-#endif /* PAM_READ_BOTH_CONFS */
-	other = !_pam_strCMP(this_service, PAM_DEFAULT_SERVICE);
+            other = !_pam_strCMP(this_service, PAM_DEFAULT_SERVICE);
 
 	/* accept "service name" or PAM_DEFAULT_SERVICE modules */
 	if (!_pam_strCMP(this_service, pamh->service_name) || other) {
@@ -253,8 +249,10 @@ static int _pam_parse_conf_file(pam_handle_t *pamh, FILE *f
 /* Parse config file, allocate handler structures, dlopen() */
 int _pam_init_handlers(pam_handle_t *pamh)
 {
+    char *filename;
     FILE *f;
     int retval;
+    int read_something;
 
     D(("_pam_init_handlers called"));
     IF_NO_PAMH("_pam_init_handlers",pamh,PAM_SYSTEM_ERR);
@@ -308,129 +306,124 @@ int _pam_init_handlers(pam_handle_t *pamh)
     /*
      * Now parse the config file(s) and add handlers
      */
-    {
-	struct stat test_d;
-	
-	/* Is there a PAM_CONFIG_D directory? */
-	if ( stat(PAM_CONFIG_D, &test_d) == 0 && S_ISDIR(test_d.st_mode) ) {
-	    char *filename;
-	    int read_something=0;
 
-	    D(("searching " PAM_CONFIG_D " for config files"));
-	    filename = malloc(sizeof(PAM_CONFIG_DF)
-			      +strlen(pamh->service_name));
-	    if (filename == NULL) {
-		_pam_system_log(LOG_ERR,
-				"_pam_init_handlers: no memory; service %s",
-				pamh->service_name);
-		return PAM_BUF_ERR;
-	    }
-	    sprintf(filename, PAM_CONFIG_DF, pamh->service_name);
-	    D(("opening %s", filename));
-	    f = fopen(filename, "r");
-	    if (f != NULL) {
-		/* would test magic here? */
-		retval = _pam_parse_conf_file(pamh, f, pamh->service_name
-#ifdef PAM_READ_BOTH_CONFS
-					      , 0
-#endif /* PAM_READ_BOTH_CONFS */
-		    );
-		fclose(f);
-		if (retval != PAM_SUCCESS) {
-		    _pam_system_log(LOG_ERR,
-				    "_pam_init_handlers: error reading %s",
-				    filename);
-		    _pam_system_log(LOG_ERR, "_pam_init_handlers: [%s]",
-				    pam_strerror(pamh, retval));
-		} else {
-		    read_something = 1;
-		}
-	    } else {
-		D(("unable to open %s", filename));
-#ifdef PAM_READ_BOTH_CONFS
-		D(("checking %s", PAM_CONFIG));
-
-		if ((f = fopen(PAM_CONFIG,"r")) != NULL) {
-		    retval = _pam_parse_conf_file(pamh, f, NULL, 1);
-		    fclose(f);
-		    if (retval != PAM_SUCCESS) {
-			    _pam_system_log(LOG_ERR, "_pam_init_handlers: "
-					    "error reading %s", PAM_CONFIG);
-			    _pam_system_log(LOG_ERR, "_pam_init_handlers: [%s]",
-					    pam_strerror(pamh, retval));
-		    } else {
-			    read_something = 1;
-		    }
-		} else
-			_pam_system_log(LOG_ERR, "_pam_init_handlers: "
-					"could not open " PAM_CONFIG);
-#endif /* PAM_READ_BOTH_CONFS */
-		retval = PAM_SUCCESS;
-		/*
-		 * XXX - should we log an error? Some people want to always
-		 * use "other"
-		 */
-	    }
-	    _pam_drop(filename);
-
-	    if (retval == PAM_SUCCESS) {
-		/* now parse the PAM_DEFAULT_SERVICE_FILE */
-
-		D(("opening %s", PAM_DEFAULT_SERVICE_FILE));
-		f = fopen(PAM_DEFAULT_SERVICE_FILE, "r");
-		if (f != NULL) {
-		    /* would test magic here? */
-		    retval = _pam_parse_conf_file(pamh, f
-						  , PAM_DEFAULT_SERVICE
-#ifdef PAM_READ_BOTH_CONFS
-						  , 0
-#endif /* PAM_READ_BOTH_CONFS */
-			);
-		    fclose(f);
-		    if (retval != PAM_SUCCESS) {
-			_pam_system_log(LOG_ERR,
-					"_pam_init_handlers: error reading %s",
-					PAM_DEFAULT_SERVICE_FILE);
-			_pam_system_log(LOG_ERR,
-					"_pam_init_handlers: [%s]",
-					pam_strerror(pamh, retval));
-		    } else {
-			read_something = 1;
-		    }
-		} else {
-		    D(("unable to open %s", PAM_DEFAULT_SERVICE_FILE));
-		    _pam_system_log(LOG_ERR,
-				    "_pam_init_handlers: no default config %s",
-				    PAM_DEFAULT_SERVICE_FILE);
-		}
-		if (!read_something) {          /* nothing read successfully */
-		    retval = PAM_ABORT;
-		}
-	    }
-	} else {
-	    if ((f = fopen(PAM_CONFIG, "r")) == NULL) {
-		_pam_system_log(LOG_ERR, "_pam_init_handlers: could not open "
-				PAM_CONFIG );
-		return PAM_ABORT;
-	    }
-
-	    retval = _pam_parse_conf_file(pamh, f, NULL
-#ifdef PAM_READ_BOTH_CONFS
-					  , 0
-#endif /* PAM_READ_BOTH_CONFS */
-		);
-
-	    D(("closing configuration file"));
+    /*
+     * 1. Try /etc/pam.d/service
+     */
+    asprintf(&filename, PAM_CONFIG_DF, pamh->service_name);
+    if (filename == NULL) {
+	_pam_system_log(LOG_ERR,
+			"_pam_init_handlers: no memory; service %s",
+			pamh->service_name);
+	return PAM_BUF_ERR;
+    }
+    D(("opening %s", filename));
+    f = fopen(filename, "r");
+    if (f != NULL) {
+	    /* would test magic here? */
+	    retval = _pam_parse_conf_file(pamh, f, pamh->service_name, 1);
 	    fclose(f);
+	    if (retval != PAM_SUCCESS) {
+		_pam_system_log(LOG_ERR,
+				"_pam_init_handlers: error reading %s",
+				filename);
+		_pam_system_log(LOG_ERR, "_pam_init_handlers: [%s]",
+				pam_strerror(pamh, retval));
+	    } else {
+		read_something = 1;
+		free(filename);
+#ifndef PAM_READ_BOTH_CONFS
+		goto other;
+#endif /* PAM_READ_BOTH_CONFS */
+	    }
+    } else {
+	D(("unable to open %s", filename));
+	free(filename);
+    }
+    
+    /*
+     * 2. Try /etc/pam.conf, looking for service
+     */
+    D(("checking %s", PAM_CONFIG));
+    if ((f = fopen(PAM_CONFIG,"r")) != NULL) {
+	retval = _pam_parse_conf_file(pamh, f, NULL, 1);
+	fclose(f);
+	if (retval != PAM_SUCCESS) {
+	    _pam_system_log(LOG_ERR, "_pam_init_handlers: "
+			    "error reading %s", PAM_CONFIG);
+	    _pam_system_log(LOG_ERR, "_pam_init_handlers: [%s]",
+			    pam_strerror(pamh, retval));
+	} else {
+		read_something = 1;
 	}
+    } else {
+	_pam_system_log(LOG_ERR, "_pam_init_handlers: "
+			"could not open " PAM_CONFIG);
     }
 
-    if (retval != PAM_SUCCESS) {
-	/* Read error */
-	_pam_system_log(LOG_ERR, "error reading PAM configuration file");
-	return PAM_ABORT;
+ other:
+    /*
+     * 3. Try /etc/pam.d/other to fill the gaps
+     */
+    asprintf(&filename, PAM_CONFIG_DF, PAM_DEFAULT_SERVICE);
+    if (filename == NULL) {
+	_pam_system_log(LOG_ERR,
+			"_pam_init_handlers: no memory; service %s",
+			pamh->service_name);
+	return PAM_BUF_ERR;
+    }
+    D(("opening %s", filename));
+    f = fopen(filename, "r");
+    if (f != NULL) {
+	    /* would test magic here? */
+	    retval = _pam_parse_conf_file(pamh, f, PAM_DEFAULT_SERVICE, 0);
+	    fclose(f);
+	    if (retval != PAM_SUCCESS) {
+		_pam_system_log(LOG_ERR,
+				"_pam_init_handlers: error reading %s",
+				filename);
+		_pam_system_log(LOG_ERR, "_pam_init_handlers: [%s]",
+				pam_strerror(pamh, retval));
+	    } else {
+		read_something = 1;
+		free(filename);
+#ifndef PAM_READ_BOTH_CONFS
+		goto success;
+#endif /* PAM_READ_BOTH_CONFS */
+	    }
+    } else {
+	D(("unable to open %s", filename));
+	free(filename);
+    }
+    
+    /*
+     * 4. Try /etc/pam.conf, looking for other
+     */
+    D(("checking %s", PAM_CONFIG));
+    if ((f = fopen(PAM_CONFIG,"r")) != NULL) {
+	retval = _pam_parse_conf_file(pamh, f, NULL, 0);
+	fclose(f);
+	if (retval != PAM_SUCCESS) {
+	    _pam_system_log(LOG_ERR, "_pam_init_handlers: "
+			    "error reading %s", PAM_CONFIG);
+	    _pam_system_log(LOG_ERR, "_pam_init_handlers: [%s]",
+			    pam_strerror(pamh, retval));
+	} else {
+		read_something = 1;
+	}
+    } else {
+	_pam_system_log(LOG_ERR, "_pam_init_handlers: "
+			"could not open " PAM_CONFIG);
     }
 
+    if (read_something)
+	goto success;
+
+    /* Read error */
+    _pam_system_log(LOG_ERR, "error reading PAM configuration file");
+    return PAM_ABORT;
+
+ success:
     pamh->handlers.handlers_loaded = 1;
 
     D(("_pam_init_handlers exiting"));
