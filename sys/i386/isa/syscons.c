@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.2 1995/08/20 00:17:12 davidg Exp $
+ *  $Id: syscons.c,v 1.117.4.3 1995/08/20 02:20:38 davidg Exp $
  */
 
 #include "sc.h"
@@ -191,7 +191,7 @@ gotack:
     kbd_wait();
     outb(KB_DATA, 0xF0);
     kbd_wait();
-    outb(KB_DATA, 1)
+    outb(KB_DATA, 1);
     kbd_wait();
 #endif /* XT_KEYBOARD */
     return (IO_KBDSIZE);
