@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.36 1998/11/01 13:04:15 wosch Exp $
+#	$Id: rc.i386,v 1.37 1998/11/11 05:25:32 peter Exp $
 #	Do i386 specific processing
 #
 
@@ -94,6 +94,9 @@ fi
 # screen saver
 if [ "X${saver}" != X"NO" ] ; then
 	echo -n ' screensaver'
+	for i in `kldstat | awk '$5 ~ "^splash_.*$" { print $5 }'`; do
+		kldunload $i
+	done
 	kldstat -v | grep -q _saver || kldload ${saver}_saver
 fi
 
