@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.17 1997/08/21 09:29:49 jmg Exp $
+#	$Id: Makefile,v 1.18 1997/08/21 18:33:13 bde Exp $
 
 .SUFFIXES: .x
 
@@ -19,9 +19,7 @@ CLEANFILES+= ${HDRS}
 
 all: ${HDRS}
 
-beforeinstall: installhdrs
-
-installhdrs:
+beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${HFILES:S;^;${.CURDIR}/;} \
 		${XFILES:S;^;${.CURDIR}/;} \
