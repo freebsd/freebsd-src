@@ -83,6 +83,9 @@ ENTRY(cpu_switch)
 	stw	%r16,PCB_CR(%r3)
 	mflr	%r16			/* Save the link register */
 	stw	%r16,PCB_LR(%r3)
+	mfsr	%r16,USER_SR		/* Save USER_SR for copyin/out */
+	isync
+	stw	%r16,PCB_USR(%r3)
 	stw	%r1,PCB_SP(%r3)		/* Save the stack pointer */
 
 #if 0
@@ -128,6 +131,9 @@ ENTRY(cpu_switch)
 	mtcr	%r5
 	lwz	%r5,PCB_LR(%r3)		/* Load the link register */
 	mtlr	%r5
+	lwz	%r5,PCB_USR(%r3)	/* Load the USER_SR segment reg */
+	mtsr	USER_SR,%r5
+	isync
 	lwz	%r1,PCB_SP(%r3)		/* Load the stack pointer */
 	blr
 
