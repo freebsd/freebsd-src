@@ -122,8 +122,8 @@ of independent queues. [MERGED]
 Several fixes to bridging, which now supports clusters of interfaces
 with bridging being done independently within each cluster. [MERGED]
 
-The top-level category "security" has been added, and IPFW now uses
-syslog(3) to log all messages to /var/log/security.
+The top-level syslog(3) category "security" has been added, and IPFW now
+uses syslog(3) to log all messages to /var/log/security.
 
 Driver support has been added for PCI fast ethernet adapters based on
 the Silicon Integrated Systems SiS 900 and SiS 7016 ethernet controllers.
@@ -178,12 +178,25 @@ adapters. This includes PCMCIA, PCI and ISA models.
 1.2. SECURITY FIXES
 -------------------
 
+Numerous security enhancements and fixes have been applied during the
+course of development of FreeBSD 4.0. Most of these have also been
+backported to the 3.x-STABLE series.
+
 A new jail(2) system call and admin command (jail(8)) have been added for
 additional flexibility in creating secure process execution environments.
 
 OpenSSL v0.9.4 (a general-purpose cryptography and SSL2/3/TLSv1 toolkit)
 has been integrated with the base system. In the future this will be used
 to provide strong cryptography for FreeBSD utilities out-of-the-box.
+
+OpenSSH 1.2 has been integrated with the base system. OpenSSH is a free
+(BSD-licensed), full-featured implementation of the SSH v1 protocol, which
+is completely interoperable with other SSH v1 clients and servers, such as
+the /usr/ports/security/ssh port.  OpenSSH provides all of the features of
+this port - in fact it is based on an older release before the software
+became restrictively licensed.  FreeBSD 4.0 provides SSH client/server
+functionality out-of-the-box if you choose to install the 'DES'
+cryptography distribution in sysinstall.
 
 Telnet has a new encrypted authentication mechanism called SRA. SRA
 uses a Diffie-Hellmen exchange to establish a session key, then uses
