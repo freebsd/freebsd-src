@@ -98,6 +98,8 @@ static	d_strategy_t	vnstrategy;
 #define CDEV_MAJOR 43
 #define BDEV_MAJOR 15
 
+#define VN_BSIZE_BEST	8192
+
 /*
  * cdevsw
  *	D_DISK		we want to look like a disk
@@ -222,10 +224,16 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 	 * Update si_bsize fields for device.  This data will be overriden by
 	 * the slice/parition code for vn accesses through partitions, and
 	 * used directly if you open the 'whole disk' device.
+	 *
+	 * si_bsize_best must be reinitialized in case VN has been 
+	 * reconfigured, plus make it at least VN_BSIZE_BEST for efficiency.
 	 */
 	dev->si_bsize_phys = vn->sc_secsize;
+	dev->si_bsize_best = vn->sc_secsize;
+	if (dev->si_bsize_best < VN_BSIZE_BEST)
+		dev->si_bsize_best = VN_BSIZE_BEST;
 
-	if (flags & FWRITE && vn->sc_flags & VNF_READONLY)
+	if ((flags & FWRITE) && (vn->sc_flags & VNF_READONLY))
 		return (EACCES);
 
 	IFOPT(vn, VN_FOLLOW)
@@ -281,7 +289,6 @@ vnstrategy(struct buf *bp)
 	struct vn_softc *vn;
 	int error;
 	int isvplocked = 0;
-	long sz;
 	struct uio auio;
 	struct iovec aiov;
 
@@ -310,17 +317,31 @@ vnstrategy(struct buf *bp)
 		}
 	} else {
 		int pbn;	/* in sc_secsize chunks */
+		long sz;	/* in sc_secsize chunks */
 
 		pbn = bp->b_blkno / (vn->sc_secsize / DEV_BSIZE);
 		sz = howmany(bp->b_bcount, vn->sc_secsize);
 
-		if (pbn < 0 || pbn + sz > vn->sc_size) {
+		/*
+		 * If out of bounds return an error.  If at the EOF point,
+		 * simply read or write less.
+		 */
+		if (pbn < 0 || pbn >= vn->sc_size) {
 			if (pbn != vn->sc_size) {
 				bp->b_error = EINVAL;
 				bp->b_flags |= B_ERROR | B_INVAL;
 			}
 			biodone(bp);
 			return;
+		}
+
+		/*
+		 * If the request crosses EOF, truncate the request.
+		 */
+		if (pbn + sz > vn->sc_size) {
+			bp->b_bcount -= (pbn + sz - vn->sc_size) * 
+			    vn->sc_secsize;
+			bp->b_resid = bp->b_bcount;
 		}
 		bp->b_pblkno = pbn;
 	}
@@ -333,6 +354,10 @@ vnstrategy(struct buf *bp)
 	} else if (vn->sc_vp) {
 		/*
 		 * VNODE I/O
+		 *
+		 * If an error occurs, we set B_ERROR but we do not set 
+		 * B_INVAL because (for a write anyway), the buffer is 
+		 * still valid.
 		 */
 		aiov.iov_base = bp->b_data;
 		aiov.iov_len = bp->b_bcount;
@@ -360,7 +385,7 @@ vnstrategy(struct buf *bp)
 		}
 		bp->b_resid = auio.uio_resid;
 
-		if( error ) {
+		if (error) {
 			bp->b_error = error;
 			bp->b_flags |= B_ERROR;
 		}
