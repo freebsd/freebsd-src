@@ -46,17 +46,21 @@
 .Sh SYNOPSIS
 .In libutil.h
 .Ft int
-.Fn humanize_number "char *buf" "size_t len" "int64_t number" "const char *suffix" "int scale" "int flags"
+.Fo humanize_number
+.Fa "char *buf" "size_t len" "int64_t number" "const char *suffix"
+.Fa "int scale" "int flags"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn humanize_number
-function formats the signed 64 bit quantity given in
+function formats the signed 64-bit quantity given in
 .Fa number
 into
 .Fa buffer .
 A space and then
 .Fa suffix
 is appended to the end.
+The buffer pointed to by
 .Fa buffer
 must be at least
 .Fa len
@@ -76,12 +80,12 @@ with the appropriate SI designator.
 The prefixes are:
 .Bl -column "Prefix" "Description" "Multiplier" -offset indent
 .It Sy "Prefix" Ta Sy "Description" Ta Sy "Multiplier"
-.It k	kilo	1024
-.It M	mega	1048576
-.It G	giga	1073741824
-.It T	tera	1099511627776
-.It P	peta	1125899906842624
-.It E	exa	1152921504606846976
+.It Li k Ta No kilo Ta 1024
+.It Li M Ta No mega Ta 1048576
+.It Li G Ta No giga Ta 1073741824
+.It Li T Ta No tera Ta 1099511627776
+.It Li P Ta No peta Ta 1125899906842624
+.It Li E Ta No exa Ta 1152921504606846976
 .El
 .Pp
 The
@@ -92,14 +96,14 @@ in order to ensure a useful result is generated into
 .Fa buffer .
 To use a specific prefix, specify this as
 .Fa scale
-(Multiplier = 1024 ^ scale).
-This can not be combined with any of the
+(multiplier = 1024 ^ scale).
+This cannot be combined with any of the
 .Fa scale
 flags below.
 .Pp
 The following flags may be passed in
-.Pa scale :
-.Bl -tag -width Dv -offset indent
+.Fa scale :
+.Bl -tag -width ".Dv HN_DIVISOR_1000" -offset indent
 .It Dv HN_AUTOSCALE
 Format the buffer using the lowest multiplier possible.
 .It Dv HN_GETSCALE
@@ -109,8 +113,8 @@ must be divided to fit) instead of formatting it to the buffer.
 .El
 .Pp
 The following flags may be passed in
-.Pa flags :
-.Bl -tag -width Dv -offset indent
+.Fa flags :
+.Bl -tag -width ".Dv HN_DIVISOR_1000" -offset indent
 .It Dv HN_DECIMAL
 If the final result is less than 10, display it using one digit.
 .It Dv HN_NOSPACE
@@ -118,7 +122,9 @@ Do not put a space between
 .Fa number
 and the prefix.
 .It Dv HN_B
-Use 'B' (bytes) as prefix if the original result does not have a prefix.
+Use
+.Ql B
+(bytes) as prefix if the original result does not have a prefix.
 .It Dv HN_DIVISOR_1000
 Divide
 .Fa number
@@ -129,7 +135,9 @@ The
 .Fn humanize_number
 function returns the number of characters stored in
 .Fa buffer
-(excluding the terminating NUL) upon success, or \-1 upon failure.
+(excluding the terminating
+.Dv NUL )
+upon success, or \-1 upon failure.
 If
 .Dv HN_GETSCALE
 is specified, the prefix index number will be returned instead.
