@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.129 1998/09/17 22:29:02 gibbs Exp $
+**  $Id: ncr.c,v 1.130 1998/09/18 22:41:12 gibbs Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -272,6 +272,13 @@
 **==========================================================
 */
 
+#ifdef __alpha__
+/* XXX */
+#undef vtophys
+#define	vtophys(va)	(pmap_kextract(((vm_offset_t) (va))) \
+			 + 1*1024*1024*1024)
+#endif
+
 #ifdef NCR_IOMAPPED
 
 #define	INB(r) inb (np->port + offsetof(struct ncr_reg, r))
@@ -281,10 +288,60 @@
 #define	OUTB(r, val) outb (np->port+offsetof(struct ncr_reg,r),(val))
 #define	OUTW(r, val) outw (np->port+offsetof(struct ncr_reg,r),(val))
 #define	OUTL(r, val) outl (np->port+offsetof(struct ncr_reg,r),(val))
+#define	OUTL_OFF(o, val) outl(np->port + (o), (val))
 
 #define	INB_OFF(o) inb (np->port + (o))
 #define	INW_OFF(o) inw (np->port + (o))
 #define	INL_OFF(o) inl (np->port + (o))
+
+#define	READSCRIPT_OFF(base, off)			\
+    (*((u_int32_t *)((char *)base + (off))))
+
+#define	WRITESCRIPT_OFF(base, off, val)				\
+    do {							\
+	*((u_int32_t *)((char *)base + (off))) = (val);		\
+    } while (0)
+
+#define	READSCRIPT(r) \
+    READSCRIPT_OFF(np->script, offsetof(struct script, r))
+
+#define	WRITESCRIPT(r, val) \
+    WRITESCRIPT_OFF(np->script, offsetof(struct script, r), val)
+
+#else
+
+#ifdef __alpha__
+
+#define	INB(r) readb (np->vaddr + offsetof(struct ncr_reg, r))
+#define	INW(r) readw (np->vaddr + offsetof(struct ncr_reg, r))
+#define	INL(r) readl (np->vaddr + offsetof(struct ncr_reg, r))
+
+#define	OUTB(r, val) writeb (np->vaddr+offsetof(struct ncr_reg,r),(val))
+#define	OUTW(r, val) writew (np->vaddr+offsetof(struct ncr_reg,r),(val))
+#define	OUTL(r, val) writel (np->vaddr+offsetof(struct ncr_reg,r),(val))
+#define	OUTL_OFF(o, val) writel (np->vaddr + (o), (val))
+
+#define	INB_OFF(o) readb (np->vaddr + (o))
+#define	INW_OFF(o) readw (np->vaddr + (o))
+#define	INL_OFF(o) readl (np->vaddr + (o))
+
+#define	READSCRIPT_OFF(base, off)			\
+    (base ? *((u_int32_t *)((char *)base + (off))) :	\
+    readl(np->vaddr2 + off))
+
+#define	WRITESCRIPT_OFF(base, off, val)				\
+    do {							\
+    	if (base)						\
+    		*((u_int32_t *)((char *)base + (off))) = (val);	\
+    	else							\
+    		writel(np->vaddr2 + off, val);			\
+    } while (0)
+
+#define	READSCRIPT(r) \
+    READSCRIPT_OFF(np->script, offsetof(struct script, r))
+
+#define	WRITESCRIPT(r, val) \
+    WRITESCRIPT_OFF(np->script, offsetof(struct script, r), val)
 
 #else
 
@@ -295,10 +352,18 @@
 #define OUTB(r, val) np->reg->r = (val)
 #define OUTW(r, val) np->reg->r = (val)
 #define OUTL(r, val) np->reg->r = (val)
+#define OUTL_OFF(o, val) *(u_int32_t *) (((u_char *) np->reg) + (o)) = (val) 
 
 #define INB_OFF(o) *( ((u_char *) np->reg) + (o) )
 #define INW_OFF(o) *((u_short *) ( ((u_char *) np->reg) + (o)) )
 #define INL_OFF(o) *((u_int32_t *)  ( ((u_char *) np->reg) + (o)) )
+
+#define	READSCRIPT_OFF(base, off) (*((volatile u_int32_t *)((char *)base + (off))))
+#define	WRITESCRIPT_OFF(base, off, val) (*((volatile u_int32_t *)((char *)base + (off))) = (val))
+#define	READSCRIPT(r) (np->script->r)
+#define	WRITESCRIPT(r, val) np->script->r = (val)
+
+#endif
 
 #endif
 
@@ -998,7 +1063,9 @@ struct ncb {
 	**	pointer to the chip's registers.
 	*/
 	volatile
+#ifdef __i386__
 	struct ncr_reg* reg;
+#endif
 
 	/*
 	**	Scripts instance virtual address.
@@ -1123,7 +1190,7 @@ struct ncb {
 	/*
 	**	address of the ncr control registers in io space
 	*/
-	u_short		port;
+	pci_port_t	port;
 #endif
 };
 
@@ -1288,7 +1355,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.129 1998/09/17 22:29:02 gibbs Exp $\n";
+	"\n$Id: ncr.c,v 1.130 1998/09/18 22:41:12 gibbs Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3022,14 +3089,17 @@ static void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int le
 {
 	ncrcmd  opcode, new, old, tmp1, tmp2;
 	ncrcmd	*start, *end;
-	int relocs;
+	int relocs, offset;
 
 	start = src;
 	end = src + len/4;
+	offset = 0;
 
 	while (src < end) {
 
-		*dst++ = opcode = *src++;
+		opcode = *src++;
+		WRITESCRIPT_OFF(dst, offset, opcode);
+		offset += 4;
 
 		/*
 		**	If we forget to change the length
@@ -3074,7 +3144,8 @@ static void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int le
 			**	the NO FLUSH bit if present.
 			*/
 			if ((opcode & SCR_NO_FLUSH) && !(np->features&FE_PFEN))
-				dst[-1] = (opcode & ~SCR_NO_FLUSH);
+				WRITESCRIPT_OFF(dst, offset - 4,
+				    (opcode & ~SCR_NO_FLUSH));
 			break;
 
 		case 0x0:
@@ -3141,14 +3212,17 @@ static void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int le
 					}
 					/* fall through */
 				default:
-					panic("ncr_script_copy_and_bind: weird relocation %x @ %d\n", old, (src - start));
+					panic("ncr_script_copy_and_bind: weird relocation %x @ %d\n", old, (int)(src - start));
 					break;
 				}
 
-				*dst++ = new;
+				WRITESCRIPT_OFF(dst, offset, new);
+				offset += 4;
 			}
-		} else
-			*dst++ = *src++;
+		} else {
+			WRITESCRIPT_OFF(dst, offset, *src++);
+			offset += 4;
+		}
 
 	};
 }
@@ -3394,7 +3468,9 @@ ncr_attach (pcici_t config_id, int unit)
 	**	can be used safely.
 	*/
 
+#ifdef __i386__
 	np->reg = (struct ncr_reg*) np->vaddr;
+#endif
 
 #ifdef NCR_IOMAPPED
 	/*
@@ -3583,7 +3659,7 @@ ncr_attach (pcici_t config_id, int unit)
 	**	Allocate structure for script relocation.
 	*/
 	if (np->vaddr2 != NULL) {
-		np->script = (struct script *) np->vaddr2;
+		np->script = NULL;
 		np->p_script = np->paddr2;
 	} else if (sizeof (struct script) > PAGE_SIZE) {
 		np->script  = (struct script*) vm_page_alloc_contig 
@@ -3682,7 +3758,8 @@ ncr_attach (pcici_t config_id, int unit)
 	*/
 	ncr_script_fill (&script0, &scripth0);
 
-	np->p_script	= vtophys(np->script);
+	if (np->script)
+		np->p_script	= vtophys(np->script);
 	np->p_scripth	= vtophys(np->scripth);
 
 	ncr_script_copy_and_bind (np, (ncrcmd *) &script0,
@@ -3696,9 +3773,9 @@ ncr_attach (pcici_t config_id, int unit)
 	*/
 
 	if (np->features & FE_LED0) {
-		np->script->reselect[0]  = SCR_REG_REG(gpreg, SCR_OR,  0x01);
-		np->script->reselect1[0] = SCR_REG_REG(gpreg, SCR_AND, 0xfe);
-		np->script->reselect2[0] = SCR_REG_REG(gpreg, SCR_AND, 0xfe);
+		WRITESCRIPT(reselect[0],  SCR_REG_REG(gpreg, SCR_OR,  0x01));
+		WRITESCRIPT(reselect1[0], SCR_REG_REG(gpreg, SCR_AND, 0xfe));
+		WRITESCRIPT(reselect2[0], SCR_REG_REG(gpreg, SCR_AND, 0xfe));
 	}
 
 	/*
@@ -4143,7 +4220,7 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		if(DEBUG_FLAGS & DEBUG_QUEUE)
 			printf("%s: queuepos=%d tryoffset=%d.\n",
 			       ncr_name (np), np->squeueput,
-			       (unsigned)(np->script->startpos[0]- 
+			       (unsigned)(READSCRIPT(startpos[0]) - 
 			       (NCB_SCRIPTH_PHYS (np, tryloop))));
 
 		/*
@@ -4411,7 +4488,7 @@ ncr_complete (ncb_p np, nccb_p cp)
 	ncb_profile (np, cp);
 
 	if (DEBUG_FLAGS & DEBUG_TINY)
-		printf ("CCB=%x STAT=%x/%x\n", (unsigned)cp & 0xfff,
+		printf ("CCB=%x STAT=%x/%x\n", (int)(intptr_t)cp & 0xfff,
 			cp->host_status,cp->s_status);
 
 	ccb = cp->ccb;
@@ -4521,8 +4598,8 @@ ncr_complete (ncb_p np, nccb_p cp)
 		**  Other protocol messes
 		*/
 		PRINT_ADDR(ccb);
-		printf ("COMMAND FAILED (%x %x) @%x.\n",
-			cp->host_status, cp->s_status, (unsigned)cp);
+		printf ("COMMAND FAILED (%x %x) @%p.\n",
+			cp->host_status, cp->s_status, cp);
 
 		ccb->ccb_h.status = CAM_CMD_TIMEOUT;
 	}
@@ -4713,8 +4790,8 @@ void ncr_init
 	*/
 
 	np->squeueput = 0;
-	np->script->startpos[0] = NCB_SCRIPTH_PHYS (np, tryloop);
-	np->script->start0  [0] = SCR_INT ^ IFFALSE (0);
+	WRITESCRIPT(startpos[0], NCB_SCRIPTH_PHYS (np, tryloop));
+	WRITESCRIPT(start0  [0], SCR_INT ^ IFFALSE (0));
 
 	/*
 	**	Wakeup all pending jobs.
@@ -5117,8 +5194,8 @@ ncr_timeout (void *arg)
 			cp->jump_nccb.l_cmd = (SCR_JUMP);
 			if (cp->phys.header.launch.l_paddr ==
 				NCB_SCRIPT_PHYS (np, select)) {
-				printf ("%s: timeout nccb=%x (skip)\n",
-					ncr_name (np), (unsigned)cp);
+				printf ("%s: timeout nccb=%p (skip)\n",
+					ncr_name (np), cp);
 				cp->phys.header.launch.l_paddr
 				= NCB_SCRIPT_PHYS (np, skip);
 			};
@@ -5228,7 +5305,7 @@ static void ncr_log_hard_error(ncb_p np, u_short sist, u_char dstat)
 	if (((script_ofs & 3) == 0) &&
 	    (unsigned)script_ofs < script_size) {
 		printf ("%s: script cmd = %08x\n", ncr_name(np),
-			(int) *(ncrcmd *)(script_base + script_ofs));
+			(int)READSCRIPT_OFF(script_base, script_ofs));
 	}
 
         printf ("%s: regdump:", ncr_name(np));
@@ -5575,7 +5652,7 @@ void ncr_int_sto (ncb_p np)
 /*	assert ((diff <= MAX_START * 20) && !(diff % 20));*/
 
 	if ((diff <= MAX_START * 20) && !(diff % 20)) {
-		np->script->startpos[0] = scratcha;
+		WRITESCRIPT(startpos[0], scratcha);
 		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, start));
 		return;
 	};
@@ -5603,7 +5680,8 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	u_int32_t	dsa;
 	u_int32_t	dsp;
 	u_int32_t	nxtdsp;
-	u_int32_t	*vdsp;
+	volatile void	*vdsp_base;
+	size_t		vdsp_off;
 	u_int32_t	oadr, olen;
 	u_int32_t	*tblp, *newcmd;
 	u_char	cmd, sbcl, ss0, ss2, ctest5;
@@ -5670,17 +5748,21 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	*/
 
 	if (dsp == vtophys (&cp->patch[2])) {
-		vdsp = &cp->patch[0];
-		nxtdsp = vdsp[3];
+		vdsp_base = cp;
+		vdsp_off = offsetof(struct nccb, patch[0]);
+		nxtdsp = READSCRIPT_OFF(vdsp_base, vdsp_off + 3*4);
 	} else if (dsp == vtophys (&cp->patch[6])) {
-		vdsp = &cp->patch[4];
-		nxtdsp = vdsp[3];
+		vdsp_base = cp;
+		vdsp_off = offsetof(struct nccb, patch[4]);
+		nxtdsp = READSCRIPT_OFF(vdsp_base, vdsp_off + 3*4);
 	} else if (dsp > np->p_script &&
 		   dsp <= np->p_script + sizeof(struct script)) {
-		vdsp = (u_int32_t *) ((char*)np->script - np->p_script + dsp-8);
+		vdsp_base = np->script;
+		vdsp_off = dsp - np->p_script - 8;
 		nxtdsp = dsp;
 	} else {
-		vdsp = (u_int32_t *) ((char*)np->scripth - np->p_scripth+dsp-8);
+		vdsp_base = np->scripth;
+		vdsp_off = dsp - np->p_scripth - 8;
 		nxtdsp = dsp;
 	};
 
@@ -5693,17 +5775,17 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 			(unsigned) rest, (unsigned) delta, ss0);
 	};
 	if (DEBUG_FLAGS & DEBUG_PHASE) {
-		printf ("\nCP=%x CP2=%x DSP=%x NXT=%x VDSP=%x CMD=%x ",
-			(unsigned)cp, (unsigned)np->header.cp,
-			(unsigned)dsp,
-			(unsigned)nxtdsp, (unsigned)vdsp, cmd);
+		printf ("\nCP=%p CP2=%p DSP=%x NXT=%x VDSP=%p CMD=%x ",
+			cp, np->header.cp,
+			dsp,
+			nxtdsp, (char*)vdsp_base+vdsp_off, cmd);
 	};
 
 	/*
 	**	get old startaddress and old length.
 	*/
 
-	oadr = vdsp[1];
+	oadr = READSCRIPT_OFF(vdsp_base, vdsp_off + 1*4);
 
 	if (cmd & 0x10) {	/* Table indirect */
 		tblp = (u_int32_t *) ((char*) &cp->phys + oadr);
@@ -5711,13 +5793,13 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 		oadr = tblp[1];
 	} else {
 		tblp = (u_int32_t *) 0;
-		olen = vdsp[0] & 0xffffff;
+		olen = READSCRIPT_OFF(vdsp_base, vdsp_off) & 0xffffff;
 	};
 
 	if (DEBUG_FLAGS & DEBUG_PHASE) {
-		printf ("OCMD=%x\nTBLP=%x OLEN=%x OADR=%x\n",
-			(unsigned) (vdsp[0] >> 24),
-			(unsigned) tblp,
+		printf ("OCMD=%x\nTBLP=%lx OLEN=%x OADR=%x\n",
+			(unsigned) (READSCRIPT_OFF(vdsp_base, vdsp_off) >> 24),
+			(u_long) tblp,
 			(unsigned) olen,
 			(unsigned) oadr);
 	};
@@ -5726,10 +5808,11 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	**	if old phase not dataphase, leave here.
 	*/
 
-	if (cmd != (vdsp[0] >> 24)) {
+	if (cmd != (READSCRIPT_OFF(vdsp_base, vdsp_off) >> 24)) {
 		PRINT_ADDR(cp->ccb);
 		printf ("internal error: cmd=%02x != %02x=(vdsp[0] >> 24)\n",
-			(unsigned)cmd, (unsigned)vdsp[0] >> 24);
+			(unsigned)cmd,
+			(unsigned)READSCRIPT_OFF(vdsp_base, vdsp_off) >> 24);
 		
 		return;
 	}
@@ -5763,7 +5846,7 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	if (DEBUG_FLAGS & DEBUG_PHASE) {
 		PRINT_ADDR(cp->ccb);
 		printf ("newcmd[%d] %x %x %x %x.\n",
-			newcmd - cp->patch,
+			(int)(newcmd - cp->patch),
 			(unsigned)newcmd[0],
 			(unsigned)newcmd[1],
 			(unsigned)newcmd[2],
@@ -5886,7 +5969,7 @@ void ncr_int_sir (ncb_p np)
 		**	no job, resume normal processing
 		*/
 		if (DEBUG_FLAGS & DEBUG_RESTART) printf (" -- remove trap\n");
-		np->script->start0[0] =  SCR_INT ^ IFFALSE (0);
+		WRITESCRIPT(start0[0], SCR_INT ^ IFFALSE (0));
 		break;
 
 	case SIR_SENSE_FAILED:
@@ -5912,7 +5995,7 @@ void ncr_int_sir (ncb_p np)
 		/*
 		**	And patch code to restart it.
 		*/
-		np->script->start0[0] =  SCR_INT;
+		WRITESCRIPT(start0[0], SCR_INT);
 		break;
 
 /*-----------------------------------------------------------------------------
@@ -6344,7 +6427,7 @@ void ncr_int_sir (ncb_p np)
 		*/
 
 		printf ("%s: queue empty.\n", ncr_name (np));
-		np->script->start1[0] =  SCR_INT ^ IFFALSE (0);
+		WRITESCRIPT(start1[0], SCR_INT ^ IFFALSE (0));
 		break;
 	};
 
@@ -6526,7 +6609,7 @@ ncr_alloc_nccb (ncb_p np, u_long target, u_long lun)
 		return (NULL);
 
 	if (DEBUG_FLAGS & DEBUG_ALLOC) { 
-		printf ("new nccb @%x.\n", (unsigned) cp);
+		printf ("new nccb @%p.\n", cp);
 	}
 
 	/*
@@ -6616,8 +6699,8 @@ static	int	ncr_scatter
 			chunk /= 2;
 
 	if(DEBUG_FLAGS & DEBUG_SCATTER)
-		printf("ncr?:\tscattering virtual=0x%x size=%d chunk=%d.\n",
-			(unsigned) vaddr, (unsigned) datalen, (unsigned) chunk);
+		printf("ncr?:\tscattering virtual=%p size=%d chunk=%d.\n",
+		       (void *) vaddr, (unsigned) datalen, (unsigned) chunk);
 
 	/*
 	**   Build data descriptors.
@@ -6690,16 +6773,15 @@ static	int	ncr_scatter
 #ifndef NCR_IOMAPPED
 static int ncr_regtest (struct ncb* np)
 {
-	register volatile u_int32_t data, *addr;
+	register volatile u_int32_t data;
 	/*
 	**	ncr registers may NOT be cached.
 	**	write 0xffffffff to a read only register area,
 	**	and try to read it back.
 	*/
-	addr = (volatile u_int32_t *) &np->reg->nc_dstat;
 	data = 0xffffffff;
-	*addr= data;
-	data = *addr;
+	OUTL_OFF(offsetof(struct ncr_reg, nc_dstat), data);
+	data = INL_OFF(offsetof(struct ncr_reg, nc_dstat));
 #if 1
 	if (data == 0xffffffff) {
 #else
