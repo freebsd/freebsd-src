@@ -1,5 +1,5 @@
 /* File I/O for GNU DIFF.
-   Copyright (C) 1988, 1989, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -31,7 +31,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define GUESS_LINES(n,s,t) (((t) - (s)) / ((n) < 10 ? 32 : (s) / ((n)-1)) + 5)
 
 /* Type used for fast prefix comparison in find_identical_ends.  */
-typedef int word;
+#ifndef word
+#define word int
+#endif
 
 /* Lines are put into equivalence classes (of lines that match in line_cmp).
    Each equivalence class is represented by one of these structures,
@@ -42,13 +44,14 @@ struct equivclass
   int next;	/* Next item in this bucket. */
   unsigned hash;	/* Hash of lines in this class.  */
   char const *line;	/* A line that fits this class. */
-  size_t length;	/* The length of that line.  */
+  size_t length;	/* That line's length, not counting its newline.  */
 };
 
-/* Hash-table: array of buckets, each being a chain of equivalence classes.  */
+/* Hash-table: array of buckets, each being a chain of equivalence classes.
+   buckets[-1] is reserved for incomplete lines.  */
 static int *buckets;
 
-/* Number of buckets in the hash table array. */
+/* Number of buckets in the hash table array, not counting buckets[-1]. */
 static int nbuckets;
 
 /* Array in which the equivalence classes are allocated.
@@ -71,7 +74,7 @@ static void prepare_text_end PARAMS((struct file_data *));
 /* Return 1 if BUF contains a non text character.
    SIZE is the number of characters in BUF.  */
 
-#define binary_file_p(buf, size) (size != 0 && memchr (buf, '\0', size) != 0)
+#define binary_file_p(buf, size) (memchr (buf, '\0', size) != 0)
 
 /* Get ready to read the current file.
    Return nonzero if SKIP_TEST is zero,
@@ -97,12 +100,23 @@ sip (current, skip_test)
       if (! skip_test)
 	{
 	  /* Check first part of file to see if it's a binary file.  */
-	  current->buffered_chars = read (current->desc,
-					  current->buffer,
-					  current->bufsize);
-	  if (current->buffered_chars == -1)
+#if HAVE_SETMODE
+	  int oldmode = setmode (current->desc, O_BINARY);
+#endif
+	  size_t n = read (current->desc, current->buffer, current->bufsize);
+	  if (n == -1)
 	    pfatal_with_name (current->name);
-	  return binary_file_p (current->buffer, current->buffered_chars);
+	  current->buffered_chars = n;
+#if HAVE_SETMODE
+	  if (oldmode != O_BINARY)
+	    {
+	      if (lseek (current->desc, - (off_t) n, SEEK_CUR) == -1)
+		pfatal_with_name (current->name);
+	      setmode (current->desc, oldmode);
+	      current->buffered_chars = 0;
+	    }
+#endif
+	  return binary_file_p (current->buffer, n);
 	}
     }
 
@@ -193,10 +207,7 @@ find_and_hash_each_line (current)
   int eqs_alloc = equivs_alloc;
   char const *suffix_begin = current->suffix_begin;
   char const *bufend = current->buffer + current->buffered_chars;
-  char const *incomplete_tail
-    = current->missing_newline && ROBUST_OUTPUT_STYLE (output_style)
-      ? bufend : (char const *) 0;
-  int varies = length_varies;
+  int use_line_cmp = ignore_some_line_changes;
 
   while ((char const *) p < suffix_begin)
     {
@@ -212,42 +223,52 @@ find_and_hash_each_line (current)
 	  if (ignore_all_space_flag)
 	    while ((c = *p++) != '\n')
 	      {
-		if (! isspace (c))
-		  h = HASH (h, isupper (c) ? tolower (c) : c);
+		if (! ISSPACE (c))
+		  h = HASH (h, ISUPPER (c) ? tolower (c) : c);
 	      }
 	  else if (ignore_space_change_flag)
 	    while ((c = *p++) != '\n')
 	      {
-		if (isspace (c))
+		if (ISSPACE (c))
 		  {
-		    while (isspace (c = *p++))
-		      if (c == '\n')
-			goto hashing_done;
+		    for (;;)
+		      {
+			c = *p++;
+			if (!ISSPACE (c))
+			  break;
+			if (c == '\n')
+			  goto hashing_done;
+		      }
 		    h = HASH (h, ' ');
 		  }
 		/* C is now the first non-space.  */
-		h = HASH (h, isupper (c) ? tolower (c) : c);
+		h = HASH (h, ISUPPER (c) ? tolower (c) : c);
 	      }
 	  else
 	    while ((c = *p++) != '\n')
-	      h = HASH (h, isupper (c) ? tolower (c) : c);
+	      h = HASH (h, ISUPPER (c) ? tolower (c) : c);
 	}
       else
 	{
 	  if (ignore_all_space_flag)
 	    while ((c = *p++) != '\n')
 	      {
-		if (! isspace (c))
+		if (! ISSPACE (c))
 		  h = HASH (h, c);
 	      }
 	  else if (ignore_space_change_flag)
 	    while ((c = *p++) != '\n')
 	      {
-		if (isspace (c))
+		if (ISSPACE (c))
 		  {
-		    while (isspace (c = *p++))
-		      if (c == '\n')
-			goto hashing_done;
+		    for (;;)
+		      {
+			c = *p++;
+			if (!ISSPACE (c))
+			  break;
+			if (c == '\n')
+			  goto hashing_done;
+		      }
 		    h = HASH (h, ' ');
 		  }
 		/* C is now the first non-space.  */
@@ -260,7 +281,22 @@ find_and_hash_each_line (current)
    hashing_done:;
 
       bucket = &buckets[h % nbuckets];
-      length = (char const *) p - ip - ((char const *) p == incomplete_tail);
+      length = (char const *) p - ip - 1;
+
+      if ((char const *) p == bufend
+	  && current->missing_newline
+	  && ROBUST_OUTPUT_STYLE (output_style))
+	{
+	  /* This line is incomplete.  If this is significant,
+	     put the line into bucket[-1].  */
+	  if (! (ignore_space_change_flag | ignore_all_space_flag))
+	    bucket = &buckets[-1];
+
+	  /* Omit the inserted newline when computing linbuf later.  */
+	  p--;
+	  bufend = suffix_begin = (char const *) p;
+	}
+
       for (i = *bucket;  ;  i = eqs[i].next)
 	if (!i)
 	  {
@@ -276,11 +312,20 @@ find_and_hash_each_line (current)
 	    *bucket = i;
 	    break;
 	  }
-	else if (eqs[i].hash == h
-		 && (eqs[i].length == length || varies)
-		 && ! line_cmp (eqs[i].line, eqs[i].length, ip, length))
-	  /* Reuse existing equivalence class.  */
-	    break;
+	else if (eqs[i].hash == h)
+	  {
+	    char const *eqline = eqs[i].line;
+
+	    /* Reuse existing equivalence class if the lines are identical.
+	       This detects the common case of exact identity
+	       faster than complete comparison would.  */
+	    if (eqs[i].length == length && memcmp (eqline, ip, length) == 0)
+	      break;
+
+	    /* Reuse existing class if line_cmp reports the lines equal.  */
+	    if (use_line_cmp && line_cmp (eqline, ip) == 0)
+	      break;
+	  }
 
       /* Maybe increase the size of the line table. */
       if (line == alloc_lines)
@@ -303,7 +348,7 @@ find_and_hash_each_line (current)
   for (i = 0;  ;  i++)
     {
       /* Record the line start for lines in the suffix that we care about.
-         Record one more line start than lines,
+	 Record one more line start than lines,
 	 so that we can compute the length of any buffered line.  */
       if (line == alloc_lines)
 	{
@@ -317,10 +362,7 @@ find_and_hash_each_line (current)
       linbuf[line] = (char const *) p;
 
       if ((char const *) p == bufend)
-	{
-	  linbuf[line]  -=  (char const *) p == incomplete_tail;
-	  break;
-	}
+	break;
 
       if (context <= i && no_diff_means_no_output)
 	break;
@@ -343,7 +385,7 @@ find_and_hash_each_line (current)
 
 /* Prepare the end of the text.  Make sure it's initialized.
    Make sure text ends in a newline,
-   but remember that we had to add one unless -B is in effect.  */
+   but remember that we had to add one.  */
 
 static void
 prepare_text_end (current)
@@ -358,7 +400,7 @@ prepare_text_end (current)
     {
       p[buffered_chars++] = '\n';
       current->buffered_chars = buffered_chars;
-      current->missing_newline = ! ignore_blank_lines_flag;
+      current->missing_newline = 1;
     }
 
   /* Don't use uninitialized storage when planting or using sentinels.  */
@@ -636,7 +678,13 @@ read_files (filevec, pretend_binary)
       filevec[1].buffered_chars = filevec[0].buffered_chars;
     }
   if (appears_binary)
-    return 1;
+    {
+#if HAVE_SETMODE
+      setmode (filevec[0].desc, O_BINARY);
+      setmode (filevec[1].desc, O_BINARY);
+#endif
+      return 1;
+    }
 
   find_identical_ends (filevec);
 
@@ -651,16 +699,16 @@ read_files (filevec, pretend_binary)
       abort ();
   nbuckets = primes[i];
 
-  buckets = (int *) xmalloc (nbuckets * sizeof (*buckets));
-  bzero (buckets, nbuckets * sizeof (*buckets));
+  buckets = (int *) xmalloc ((nbuckets + 1) * sizeof (*buckets));
+  bzero (buckets++, (nbuckets + 1) * sizeof (*buckets));
 
-  for (i = 0; i < 2; ++i)
+  for (i = 0; i < 2; i++)
     find_and_hash_each_line (&filevec[i]);
 
   filevec[0].equiv_max = filevec[1].equiv_max = equivs_index;
 
   free (equivs);
-  free (buckets);
+  free (buckets - 1);
 
   return 0;
 }

@@ -1,5 +1,5 @@
 /* Context-format output routines for GNU DIFF.
-   Copyright (C) 1988, 89, 91, 92, 93 Free Software Foundation, Inc.
+   Copyright (C) 1988,1989,1991,1992,1993,1994 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -45,9 +45,13 @@ print_context_label (mark, inf, label)
   if (label)
     fprintf (outfile, "%s %s\n", mark, label);
   else
-    /* See Posix.2 section 4.17.6.1.4 for this format.  */
-    fprintf (outfile, "%s %s\t%s",
-	     mark, inf->name, ctime (&inf->stat.st_mtime));
+    {
+      char const *ct = ctime (&inf->stat.st_mtime);
+      if (!ct)
+	ct = "?\n";
+      /* See Posix.2 section 4.17.6.1.4 for this format.  */
+      fprintf (outfile, "%s %s\t%s", mark, inf->name, ct);
+    }
 }
 
 /* Print a header for a context diff, with the file names and dates.  */
