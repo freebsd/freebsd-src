@@ -1,8 +1,8 @@
 #!/bin/sh
 #
-# $Id: 440.status-mailq,v 1.1.1.1 1997/08/16 17:04:01 pst Exp $
+# $Id: 440.status-mailq,v 1.2 1998/01/18 22:28:06 wosch Exp $
 #
-if [ -x /usr/sbin/mailq -a -d /var/spool/mqueue ] ; then
+if [ -x /usr/bin/mailq -a -d /var/spool/mqueue ] ; then
     echo ""
     echo "Mail in local queue:"
 
