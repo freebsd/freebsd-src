@@ -4,8 +4,7 @@
 #
 
 # PROVIDE: cleanvar
-# REQUIRE: adjkerntz mountcritlocal
-# BEFORE: netif
+# REQUIRE: mountcritlocal
 # KEYWORD: FreeBSD
 
 purgedir()
