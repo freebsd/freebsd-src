@@ -26,12 +26,12 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ccp.c,v 1.11 1995/08/16 04:15:38 paulus Exp $";
+static char rcsid[] = "$Id: ccp.c,v 1.2 1995/10/31 21:20:49 peter Exp $";
 #endif
 
 #include <syslog.h>
 #include <sys/ioctl.h>
-#include <net/ppp-comp.h>
+#include <net/ppp_comp.h>
 
 #include "pppd.h"
 #include "fsm.h"
