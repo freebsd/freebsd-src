@@ -127,6 +127,7 @@ static volatile int aps_ready = 0;
 struct cpu_info {
 	int	cpu_present:1;
 	int	cpu_bsp:1;
+	int	cpu_disabled:1;
 } static cpu_info[MAXCPU];
 static int cpu_apic_ids[MAXCPU];
 
@@ -350,7 +351,11 @@ cpu_mp_announce(void)
 	/* List CPUs */
 	printf(" cpu0 (BSP): APIC ID: %2d\n", boot_cpu_id);
 	for (i = 1, x = 0; x < MAXCPU; x++) {
-		if (cpu_info[x].cpu_present && !cpu_info[x].cpu_bsp) {
+		if (!cpu_info[x].cpu_present || cpu_info[x].cpu_bsp)
+			continue;
+		if (cpu_info[x].cpu_disabled)
+			printf("  cpu (AP): APIC ID: %2d (disabled)\n", x);
+		else {
 			KASSERT(i < mp_ncpus,
 			    ("mp_ncpus and actual cpus are out of whack"));
 			printf(" cpu%d (AP): APIC ID: %2d\n", i++, x);
@@ -580,9 +585,19 @@ start_all_aps(void)
 	/* start each AP */
 	cpu = 0;
 	for (apic_id = 0; apic_id < MAXCPU; apic_id++) {
+
+		/* Ignore non-existent CPUs and the BSP. */
 		if (!cpu_info[apic_id].cpu_present ||
 		    cpu_info[apic_id].cpu_bsp)
 			continue;
+
+		/* Don't use this CPU if it has been disabled by a tunable. */
+		if (resource_disabled("lapic", apic_id)) {
+			cpu_info[apic_id].cpu_disabled = 1;
+			mp_ncpus--;
+			continue;
+		}
+
 		cpu++;
 
 		/* save APIC ID for this logical ID */
