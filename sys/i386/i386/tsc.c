@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.21 1994/09/20 21:20:46 bde Exp $
+ *	$Id: clock.c,v 1.22 1994/09/29 08:24:45 sos Exp $
  */
 
 /*
@@ -420,7 +420,13 @@ inittodr(time_t base)
 	while (rtcin(RTC_STATUSA) & RTCSA_TUP);
 
 	days = 0;
+#ifdef USE_RTC_CENTURY
 	year = readrtc(RTC_YEAR) + readrtc(RTC_CENTURY)	* 100;
+#else
+	year = readrtc(RTC_YEAR) + 1900;
+	if (year < 1970)
+		year += 100;
+#endif
 	if (year < 1970)
 		goto wrong_time;
 	month =	readrtc(RTC_MONTH);
@@ -484,7 +490,9 @@ void resettodr()
 
 	/* Now we have the years in y and the day-of-the-year in tm */
 	writertc(RTC_YEAR, int2bcd(y%100));		/* Write back Year    */
+#ifdef USE_RTC_CENTURY
 	writertc(RTC_CENTURY, int2bcd(y/100));		/* ... and Century    */
+#endif
 	if (LEAPYEAR(y)	&& (tm >= 31+29))
 		tm--;					/* Subtract Feb-29 */
 	for (m=1;; m++)
