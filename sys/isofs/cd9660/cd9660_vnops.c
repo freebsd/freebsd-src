@@ -155,7 +155,7 @@ cd9660_access(ap)
 	}
 
 	return (vaccess(vp->v_type, ip->inode.iso_mode, ip->inode.iso_uid,
-	    ip->inode.iso_gid, ap->a_mode, ap->a_cred));
+	    ip->inode.iso_gid, ap->a_mode, ap->a_cred, NULL));
 }
 
 static int
