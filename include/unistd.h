@@ -436,7 +436,12 @@ ssize_t	 pwrite(int, const void *, size_t, off_t);
 int	 setpgrp(pid_t _pid, pid_t _pgrp); /* obsoleted by setpgid() */
 int	 setregid(gid_t, gid_t);
 int	 setreuid(uid_t, uid_t);
-/* void	 swab(const void * __restrict, void * __restrict, ssize_t); */
+
+#ifndef _SWAB_DECLARED
+#define _SWAB_DECLARED
+void	 swab(const void * __restrict, void * __restrict, ssize_t);
+#endif /* _SWAB_DECLARED */
+
 void	 sync(void);
 useconds_t	 ualarm(useconds_t, useconds_t);
 int	 usleep(useconds_t);
