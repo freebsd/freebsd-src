@@ -1034,7 +1034,7 @@ pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	return (NULL);
 }
 
-vm_offset_t
+vm_paddr_t
 pmap_extract(pmap_t pm, vm_offset_t va)
 {
 	struct	pvo_entry *pvo;
