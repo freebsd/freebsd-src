@@ -274,7 +274,6 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 
-	pcpu_init(GLOBALDATA, 0, sizeof(struct pcpu));
 #ifndef SMP
 	/* For SMP, we delay the cpu_setregs() until after SMP startup. */
 	cpu_setregs();
@@ -1726,6 +1725,7 @@ init386(first)
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
 #endif
+	struct pcpu *pc;
 
 	proc_linkup(&proc0);
 	proc0.p_uarea = proc0uarea;
@@ -1769,20 +1769,16 @@ init386(first)
 	gdt_segs[GCODE_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GDATA_SEL].ssd_limit = atop(0 - 1);
 #ifdef SMP
+	pc = &SMP_prvspace[0];
 	gdt_segs[GPRIV_SEL].ssd_limit =
 		atop(sizeof(struct privatespace) - 1);
-	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[0];
-	gdt_segs[GPROC0_SEL].ssd_base =
-		(int) &SMP_prvspace[0].pcpu.pc_common_tss;
-	SMP_prvspace[0].pcpu.pc_prvspace = &SMP_prvspace[0].pcpu;
 #else
+	pc = &__pcpu;
 	gdt_segs[GPRIV_SEL].ssd_limit =
 		atop(sizeof(struct pcpu) - 1);
-	gdt_segs[GPRIV_SEL].ssd_base = (int) &__pcpu;
-	gdt_segs[GPROC0_SEL].ssd_base =
-		(int) &__pcpu.pc_common_tss;
-	__pcpu.pc_prvspace = &__pcpu;
 #endif
+	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
+	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
 
 	for (x = 0; x < NGDT; x++) {
 #ifdef BDE_DEBUGGER
@@ -1797,10 +1793,11 @@ init386(first)
 	r_gdt.rd_base =  (int) gdt;
 	lgdt(&r_gdt);
 
-	/* setup curproc so that mutexes work */
+	pcpu_init(pc, 0, sizeof(struct pcpu));
+	PCPU_SET(prvspace, pc);
 
+	/* setup curproc so that mutexes work */
 	PCPU_SET(curthread, thread0);
-	PCPU_SET(spinlocks, NULL);
 
 	LIST_INIT(&thread0->td_contested);
 
@@ -1968,6 +1965,11 @@ init386(first)
 	thread0->td_pcb->pcb_cr3 = (int)IdlePTD;
 	thread0->td_pcb->pcb_ext = 0;
 	thread0->td_frame = &proc0_tf;
+}
+
+void
+cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
+{
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
