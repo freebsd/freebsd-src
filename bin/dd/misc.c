@@ -34,13 +34,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.7 1997/02/22 14:02:47 peter Exp $
+ *	$Id: misc.c,v 1.8 1997/10/08 12:59:14 eivind Exp $
  */
 
 #ifndef lint
 static char const sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
+#include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/time.h>
 
