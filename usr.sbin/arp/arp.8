@@ -41,9 +41,11 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl n
+.Op Fl i Ar interface
 .Ar hostname
 .Nm
 .Op Fl n
+.Op Fl i Ar interface
 .Fl a
 .Nm
 .Fl d Ar hostname
@@ -99,6 +101,12 @@ Alternatively, the
 flag may be combined with the
 .Fl a
 flag to delete all entries.
+.It Fl i Ar interface
+Limit the operation scope to the
+.Tn ARP
+entries on
+.Ar interface .
+Applicable to the display operations only.
 .It Fl n
 Show network addresses as numbers (normally
 .Nm
