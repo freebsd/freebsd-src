@@ -2,7 +2,12 @@
 
 PROG=	kgzldr.o
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
-CFLAGS=	-fno-builtin -Os
+CFLAGS=	-fno-builtin
+.if ${OBJFORMAT} == aout
+CFLAGS+=-O2
+.else
+CFLAGS+=-Os
+.endif
 CFLAGS+=-DKZIP
 LDFLAGS=-nostdlib -static -r
 NOMAN=
