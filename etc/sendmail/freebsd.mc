@@ -34,21 +34,29 @@ divert(-1)
 #
 
 #
-#  This is a generic configuration file for 4.4 BSD-based systems,
-#  including 4.4-Lite, BSDi, NetBSD, and FreeBSD.
-#  It has support for local and SMTP mail only.  If you want to
-#  customize it, copy it to a name appropriate for your environment
-#  and do the modifications there.
+#  This is a generic configuration file for 4.4 BSD-based systems.
+#  If you want to customize it, copy it to a name appropriate for your
+#  environment and do the modifications there.
+#
+#  The best documentation for this .mc file is:
+#  /usr/src/contrib/sendmail/cf/README
 #
 
 divert(0)dnl
-VERSIONID(`@(#)freebsd.mc	$Revision: 1.2 $')
+VERSIONID(`@(#)freebsd.mc	$Revision: 1.3 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
+FEATURE(relay_based_on_MX)dnl
+FEATURE(mailertable, `hash -o /etc/mail/mailertable')dnl
+FEATURE(access_db, hash -o /etc/mail/access')dnl
+FEATURE(blacklist_recipients)dnl
+FEATURE(virtusertable, `hash -o /etc/mail/virtusertable')dnl
+dnl Uncomment to activate Realtime Blackhole List (recommended!)
+dnl FEATURE(rbl)dnl
+FEATURE(local_lmtp)dnl
+define(`LOCAL_MAILER_FLAGS', LOCAL_MAILER_FLAGS`'P)dnl
+define(`confCW_FILE', `-o /etc/mail/sendmail.cw')dnl
+define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
+define(`confMAX_MIME_HEADER_LENGTH', `256/128')dnl
 MAILER(local)dnl
 MAILER(smtp)dnl
-FEATURE(mailertable, `hash -o /etc/mailertable')dnl
-define(`UUCP_RELAY', ucbvax.Berkeley.EDU)dnl
-define(`BITNET_RELAY', mailhost.Berkeley.EDU)dnl
-define(`CSNET_RELAY', mailhost.Berkeley.EDU)dnl
-define(`confCW_FILE', `-o /etc/sendmail.cw')dnl
