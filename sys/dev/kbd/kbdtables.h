@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.42 1998/11/18 08:33:58 kato Exp $
+ *	$Id: kbdtables.h,v 1.43 1999/01/28 01:59:48 dillon Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
@@ -33,7 +33,7 @@
 #ifdef PC98
 #define NO_ACCENTCHARS
 /* PC-9801 keymap by kuribo@isl.melco.co.jp */
-static keymap_t key_map = { 0x80,	/* PC98 keymap */
+static keymap_t key_map = { 0x80, {	/* PC98 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -167,12 +167,12 @@ static keymap_t key_map = { 0x80,	/* PC98 keymap */
 /* sc=7d */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=7e */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=7f */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
-};
+} };
 #endif
 
 #ifdef DKKEYMAP
 #define ISO_ACCENTCHARS
-static keymap_t key_map = { 0x6C,	/* DK iso8859 keymap */
+static keymap_t key_map = { 0x6D, {	/* DK iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -270,7 +270,7 @@ static keymap_t key_map = { 0x6C,	/* DK iso8859 keymap */
 /* sc=59 */ 0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x00, 0x02,
 /* sc=5a */ RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  0xFF, 0x00,
 /* sc=5b */  '/',   '/',   '/',   '/',   '/',   '/',   '/',   '/',  0x00, 0x00,
-/* sc=5c */ NEXT,   NOP,   DBG,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5c */ NEXT,  NEXT,   DBG,   DBG,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=5d */ RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  0xFF, 0x00,
 /* sc=5e */ F(49), F(49), F(49), F(49), F(49), F(49), F(49), F(49), 0xFF, 0x00,
 /* sc=5f */ F(50), F(50), F(50), F(50), F(50), F(50), F(50), F(50), 0xFF, 0x00,
@@ -282,16 +282,17 @@ static keymap_t key_map = { 0x6C,	/* DK iso8859 keymap */
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
 /* sc=67 */ F(61), F(61), F(61), F(61), F(61), F(61),  RBT,  F(61), 0xFF, 0x00,
-/* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
+/* sc=68 */  SLK,  SPSC,   SLK,  SPSC,  SUSP,   NOP,  SUSP,   NOP,  0xFF, 0x00,
 /* sc=69 */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
 /* sc=6a */ F(63), F(63), F(63), F(63), F(63), F(63), F(63), F(63), 0xFF, 0x00,
 /* sc=6b */ F(64), F(64), F(64), F(64), F(64), F(64), F(64), F(64), 0xFF, 0x00,
-};
+/* sc=6c */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+} };
 #endif
 
 #ifdef UKKEYMAP
 #define ISO_ACCENTCHARS
-static keymap_t key_map = { 0x6C,	/* uk iso8859 keymap */
+static keymap_t key_map = { 0x6D, {	/* uk iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -352,7 +353,7 @@ static keymap_t key_map = { 0x6C,	/* uk iso8859 keymap */
 /* sc=34 */  '.',   '>',   NOP,   NOP,   '.',   '>',   NOP,   NOP,  0x33, 0x00,
 /* sc=35 */  '/',   '?',   NOP,   NOP,   '/',   '?',   NOP,   NOP,  0x33, 0x00,
 /* sc=36 */  RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,  0xFF, 0x00,
-/* sc=37 */  '*',   '*',  0x0A,  0x0A,   '*',   '*',  0x0A,  0x0A,  0x33, 0x00,
+/* sc=37 */  '*',   '*',   '*',   '*',   '*',   '*',   '*',   '*',  0x00, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
 /* sc=39 */  ' ',   ' ',  0x00,   ' ',   ' ',   ' ',  SUSP,   ' ',  0x02, 0x00,
 /* sc=3a */  CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,  0xFF, 0x00,
@@ -366,15 +367,15 @@ static keymap_t key_map = { 0x6C,	/* uk iso8859 keymap */
 /* sc=42 */ F( 8), F(20), F(32), F(44), S( 8), S( 8), S( 8), S( 8), 0xFF, 0x00,
 /* sc=43 */ F( 9), F(21), F(33), F(45), S( 9), S( 9), S( 9), S( 9), 0xFF, 0x00,
 /* sc=44 */ F(10), F(22), F(34), F(46), S(10), S(10), S(10), S(10), 0xFF, 0x00,
-/* sc=45 */  NLK,   NLK,  0x13,  0x13,   NLK,   NLK,  0x13,  0x13,  0xCC, 0x00,
-/* sc=46 */  SLK,   SLK,  0x7F,  0x7F,   SLK,   SLK,  0x7F,  0x7F,  0xCC, 0x00,
+/* sc=45 */  NLK,   NLK,   NLK,   NLK,   NLK,   NLK,   NLK,   NLK,  0xFF, 0x00,
+/* sc=46 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
 /* sc=47 */ F(49),  '7',   '7',   '7',   '7',   '7',   '7',   '7',  0x80, 0x02,
 /* sc=48 */ F(50),  '8',   '8',   '8',   '8',   '8',   '8',   '8',  0x80, 0x02,
 /* sc=49 */ F(51),  '9',   '9',   '9',   '9',   '9',   '9',   '9',  0x80, 0x02,
-/* sc=4a */ F(52),  '-',  0x1F,  0x1F,   '-',   '-',   '-',   '-',  0x80, 0x02,
+/* sc=4a */ F(52),  '-',   '-',   '-',   '-',   '-',   '-',   '-',  0x80, 0x02,
 /* sc=4b */ F(53),  '4',   '4',   '4',   '4',   '4',   '4',   '4',  0x80, 0x02,
 /* sc=4c */ F(54),  '5',   '5',   '5',   '5',   '5',   '5',   '5',  0x80, 0x02,
-/* sc=4d */ F(55),  '6',  0x1E,  0x1E,   '6',   '6',   '6',   '6',  0x80, 0x02,
+/* sc=4d */ F(55),  '6',   '6',   '6',   '6',   '6',   '6',   '6',  0x80, 0x02,
 /* sc=4e */ F(56),  '+',   '+',   '+',   '+',   '+',   '+',   '+',  0x80, 0x02,
 /* sc=4f */ F(57),  '1',   '1',   '1',   '1',   '1',   '1',   '1',  0x80, 0x02,
 /* sc=50 */ F(58),  '2',   '2',   '2',   '2',   '2',   '2',   '2',  0x80, 0x02,
@@ -389,7 +390,7 @@ static keymap_t key_map = { 0x6C,	/* uk iso8859 keymap */
 /* sc=59 */ 0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0xFF, 0x02,
 /* sc=5a */ RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  0xFF, 0x00,
 /* sc=5b */  '/',   '/',   '/',   '/',   '/',   '/',   '/',   '/',  0x00, 0x02,
-/* sc=5c */ NEXT,   NOP,   DBG,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5c */ NEXT,  NEXT,   DBG,   DBG,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=5d */ RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  0xFF, 0x00,
 /* sc=5e */ F(49), F(49), F(49), F(49), F(49), F(49), F(49), F(49), 0xFF, 0x00,
 /* sc=5f */ F(50), F(50), F(50), F(50), F(50), F(50), F(50), F(50), 0xFF, 0x00,
@@ -401,16 +402,17 @@ static keymap_t key_map = { 0x6C,	/* uk iso8859 keymap */
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
 /* sc=67 */ F(61), F(61), F(61), F(61), F(61), F(61),  RBT,  F(61), 0xFF, 0x00,
-/* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
+/* sc=68 */  SLK,  SPSC,   SLK,  SPSC,  SUSP,   NOP,  SUSP,   NOP,  0xFF, 0x00,
 /* sc=69 */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
 /* sc=6a */ F(63), F(63), F(63), F(63), F(63), F(63), F(63), F(63), 0xFF, 0x00,
 /* sc=6b */ F(64), F(64), F(64), F(64), F(64), F(64), F(64), F(64), 0xFF, 0x00,
-};
+/* sc=6c */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+} };
 #endif
 
 #ifdef GRKEYMAP
 #define ISO_ACCENTCHARS
-static keymap_t key_map = { 0x6C,	/* german iso8859 keymap */
+static keymap_t key_map = { 0x6D, {	/* german iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -471,7 +473,7 @@ static keymap_t key_map = { 0x6C,	/* german iso8859 keymap */
 /* sc=34 */  '.',   ':',   NOP,   NOP,   '.',   ':',   NOP,   NOP,  0x33, 0x00,
 /* sc=35 */  '-',   '_',  0x1F,  0x1F,   '-',   '_',  0x1F,  0x1F,  0x00, 0x00,
 /* sc=36 */  RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,  0xFF, 0x00,
-/* sc=37 */  '*',   '*',  0x0A,  0x0A,   '*',   '*',  0x0A,  0x0A,  0x33, 0x00,
+/* sc=37 */  '*',   '*',   '*',   '*',   '*',   '*',   '*',   '*',  0x00, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
 /* sc=39 */  ' ',   ' ',  0x00,   ' ',   ' ',   ' ',  SUSP,   ' ',  0x02, 0x00,
 /* sc=3a */  CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,  0xFF, 0x00,
@@ -485,22 +487,22 @@ static keymap_t key_map = { 0x6C,	/* german iso8859 keymap */
 /* sc=42 */ F( 8), F(20), F(32), F(44), S( 8), S( 8), S( 8), S( 8), 0xFF, 0x00,
 /* sc=43 */ F( 9), F(21), F(33), F(45), S( 9), S( 9), S( 9), S( 9), 0xFF, 0x00,
 /* sc=44 */ F(10), F(22), F(34), F(46), S(10), S(10), S(10), S(10), 0xFF, 0x00,
-/* sc=45 */  NLK,   NLK,  0x13,  0x13,   NLK,   NLK,  0x13,  0x13,  0xCC, 0x00,
-/* sc=46 */  SLK,   SLK,  0x7F,  0x7F,   SLK,   SLK,  0x7F,  0x7F,  0xCC, 0x00,
+/* sc=45 */  NLK,   NLK,   NLK,   NLK,   NLK,   NLK,   NLK,   NLK,  0xFF, 0x00,
+/* sc=46 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
 /* sc=47 */ F(49),  '7',   '7',   '7',   '7',   '7',   '7',   '7',  0x80, 0x02,
 /* sc=48 */ F(50),  '8',   '8',   '8',   '8',   '8',   '8',   '8',  0x80, 0x02,
 /* sc=49 */ F(51),  '9',   '9',   '9',   '9',   '9',   '9',   '9',  0x80, 0x02,
-/* sc=4a */ F(52),  '-',  0x1F,  0x1F,   '-',   '-',   '-',   '-',  0x80, 0x02,
+/* sc=4a */ F(52),  '-',   '-',   '-',   '-',   '-',   '-',   '-',  0x80, 0x02,
 /* sc=4b */ F(53),  '4',   '4',   '4',   '4',   '4',   '4',   '4',  0x80, 0x02,
 /* sc=4c */ F(54),  '5',   '5',   '5',   '5',   '5',   '5',   '5',  0x80, 0x02,
-/* sc=4d */ F(55),  '6',  0x1E,  0x1E,   '6',   '6',   '6',   '6',  0x80, 0x02,
+/* sc=4d */ F(55),  '6',   '6',   '6',   '6',   '6',   '6',   '6',  0x80, 0x02,
 /* sc=4e */ F(56),  '+',   '+',   '+',   '+',   '+',   '+',   '+',  0x80, 0x02,
 /* sc=4f */ F(57),  '1',   '1',   '1',   '1',   '1',   '1',   '1',  0x80, 0x02,
 /* sc=50 */ F(58),  '2',   '2',   '2',   '2',   '2',   '2',   '2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',   '3',   '3',   '3',   '3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',   '0',   '0',   '0',   '0',  0x80, 0x02,
 /* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   RBT,  0x03, 0x02,
-/* sc=54 */ 0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x00, 0x00,
+/* sc=54 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=56 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=57 */ F(11), F(23), F(35), F(47), S(11), S(11), S(11), S(11), 0xFF, 0x00,
@@ -508,7 +510,7 @@ static keymap_t key_map = { 0x6C,	/* german iso8859 keymap */
 /* sc=59 */ 0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0xFF, 0x02,
 /* sc=5a */ RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  0xFF, 0x00,
 /* sc=5b */  '/',   '/',   '/',   '/',   '/',   '/',   '/',   '/',  0x00, 0x02,
-/* sc=5c */ NEXT,   NOP,   DBG,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5c */ NEXT,  NEXT,   DBG,   DBG,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=5d */ RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  0xFF, 0x00,
 /* sc=5e */ F(49), F(49), F(49), F(49), F(49), F(49), F(49), F(49), 0xFF, 0x00,
 /* sc=5f */ F(50), F(50), F(50), F(50), F(50), F(50), F(50), F(50), 0xFF, 0x00,
@@ -520,16 +522,17 @@ static keymap_t key_map = { 0x6C,	/* german iso8859 keymap */
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
 /* sc=67 */ F(61), F(61), F(61), F(61), F(61), F(61),  RBT,  F(61), 0xFF, 0x00,
-/* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
+/* sc=68 */  SLK,  SPSC,   SLK,  SPSC,  SUSP,   NOP,  SUSP,   NOP,  0xFF, 0x00,
 /* sc=69 */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
 /* sc=6a */ F(63), F(63), F(63), F(63), F(63), F(63), F(63), F(63), 0xFF, 0x00,
 /* sc=6b */ F(64), F(64), F(64), F(64), F(64), F(64), F(64), F(64), 0xFF, 0x00,
-};
+/* sc=6c */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+} };
 #endif
 
 #ifdef SWKEYMAP
 #define ISO_ACCENTCHARS
-static keymap_t key_map = { 0x6C,	/* swedish iso8859 keymap */
+static keymap_t key_map = { 0x6D, {	/* swedish iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -590,7 +593,7 @@ static keymap_t key_map = { 0x6C,	/* swedish iso8859 keymap */
 /* sc=34 */  '.',   ':',   NOP,   NOP,   NOP,   '>',   NOP,   NOP,  0x3B, 0x00,
 /* sc=35 */  '-',   '_',  0x1F,   NOP,   '/',   '?',   NOP,   NOP,  0x13, 0x00,
 /* sc=36 */  RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,  0xFF, 0x00,
-/* sc=37 */  '*',   '*',  0x0A,  0x0A,   '*',   '*',  0x0A,  0x0A,  0x33, 0x00,
+/* sc=37 */  '*',   '*',   '*',   '*',   '*',   '*',   '*',   '*',  0x00, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
 /* sc=39 */  ' ',   ' ',  0x00,   ' ',   ' ',   ' ',  SUSP,   ' ',  0x02, 0x00,
 /* sc=3a */  CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,  0xFF, 0x00,
@@ -604,22 +607,22 @@ static keymap_t key_map = { 0x6C,	/* swedish iso8859 keymap */
 /* sc=42 */ F( 8), F(20), F(32), F(44), S( 8), S( 8), S( 8), S( 8), 0xFF, 0x00,
 /* sc=43 */ F( 9), F(21), F(33), F(45), S( 9), S( 9), S( 9), S( 9), 0xFF, 0x00,
 /* sc=44 */ F(10), F(22), F(34), F(46), S(10), S(10), S(10), S(10), 0xFF, 0x00,
-/* sc=45 */  NLK,   NLK,  0x13,  0x13,   NLK,   NLK,  0x13,  0x13,  0xCC, 0x00,
-/* sc=46 */  SLK,   SLK,  0x7F,  0x7F,   SLK,   SLK,  0x7F,  0x7F,  0xCC, 0x00,
+/* sc=45 */  NLK,   NLK,   NLK,   NLK,   NLK,   NLK,   NLK,   NLK,  0xFF, 0x00,
+/* sc=46 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
 /* sc=47 */ F(49),  '7',   '7',   '7',   '7',   '7',   '7',   '7',  0x80, 0x02,
 /* sc=48 */ F(50),  '8',   '8',   '8',   '8',   '8',   '8',   '8',  0x80, 0x02,
 /* sc=49 */ F(51),  '9',   '9',   '9',   '9',   '9',   '9',   '9',  0x80, 0x02,
-/* sc=4a */ F(52),  '-',  0x1F,  0x1F,   '-',   '-',   '-',   '-',  0x80, 0x02,
+/* sc=4a */ F(52),  '-',   '-',   '-',   '-',   '-',   '-',   '-',  0x80, 0x02,
 /* sc=4b */ F(53),  '4',   '4',   '4',   '4',   '4',   '4',   '4',  0x80, 0x02,
 /* sc=4c */ F(54),  '5',   '5',   '5',   '5',   '5',   '5',   '5',  0x80, 0x02,
-/* sc=4d */ F(55),  '6',  0x1E,  0x1E,   '6',   '6',   '6',   '6',  0x80, 0x02,
+/* sc=4d */ F(55),  '6',   '6',   '6',   '6',   '6',   '6',   '6',  0x80, 0x02,
 /* sc=4e */ F(56),  '+',   '+',   '+',   '+',   '+',   '+',   '+',  0x80, 0x02,
 /* sc=4f */ F(57),  '1',   '1',   '1',   '1',   '1',   '1',   '1',  0x80, 0x02,
 /* sc=50 */ F(58),  '2',   '2',   '2',   '2',   '2',   '2',   '2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',   '3',   '3',   '3',   '3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',   '0',   '0',   '0',   '0',  0x80, 0x02,
 /* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   RBT,  0x03, 0x02,
-/* sc=54 */ 0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x00, 0x00,
+/* sc=54 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=56 */  '<',   '>',   NOP,   NOP,   '|',   NOP,   NOP,   NOP,  0x37, 0x00,
 /* sc=57 */ F(11), F(23), F(35), F(47), S(11), S(11), S(11), S(11), 0xFF, 0x00,
@@ -627,7 +630,7 @@ static keymap_t key_map = { 0x6C,	/* swedish iso8859 keymap */
 /* sc=59 */ 0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0xFF, 0x02,
 /* sc=5a */ RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  0xFF, 0x00,
 /* sc=5b */  '/',   '/',   '/',   '/',   '/',   '/',   '/',   '/',  0x00, 0x02,
-/* sc=5c */ NEXT,   NOP,   DBG,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5c */ NEXT,  NEXT,   DBG,   DBG,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=5d */ RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  0xFF, 0x00,
 /* sc=5e */ F(49), F(49), F(49), F(49), F(49), F(49), F(49), F(49), 0xFF, 0x00,
 /* sc=5f */ F(50), F(50), F(50), F(50), F(50), F(50), F(50), F(50), 0xFF, 0x00,
@@ -639,16 +642,17 @@ static keymap_t key_map = { 0x6C,	/* swedish iso8859 keymap */
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
 /* sc=67 */ F(61), F(61), F(61), F(61), F(61), F(61),  RBT,  F(61), 0xFF, 0x00,
-/* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
+/* sc=68 */  SLK,  SPSC,   SLK,  SPSC,  SUSP,   NOP,  SUSP,   NOP,  0xFF, 0x00,
 /* sc=69 */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
 /* sc=6a */ F(63), F(63), F(63), F(63), F(63), F(63), F(63), F(63), 0xFF, 0x00,
 /* sc=6b */ F(64), F(64), F(64), F(64), F(64), F(64), F(64), F(64), 0xFF, 0x00,
-};
+/* sc=6c */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+} };
 #endif
 
 #ifdef RUKEYMAP
 #define NO_ACCENTCHARS
-static keymap_t key_map = { 0xEC,        /* keys number */
+static keymap_t key_map = { 0xED, {	/* keys number */
 /*                                                                          alt
  * scan                          cntrl                alt        alt       cntrl
  * code     base   shift  cntrl  shift     alt       shift      cntrl      shift    spcl  flgs
@@ -746,7 +750,7 @@ static keymap_t key_map = { 0xEC,        /* keys number */
 /* sc=59 */ 0x0D,  0x0D,  0x0A,  0x0A,  SET8|0x0D, SET8|0x0D, SET8|0x0A, SET8|0x0A, 0x00, 0x00,
 /* sc=5a */ RCTR,  RCTR,  RCTR,  RCTR,    RCTR,      RCTR,      RCTR,      RCTR,    0xFF, 0x00,
 /* sc=5b */  '/',   '/',   NOP,   NOP,  SET8|'/',  SET8|'/',     NOP,       NOP,    0x33, 0x00,
-/* sc=5c */ NEXT,   NOP,   DBG,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
+/* sc=5c */ NEXT,  NEXT,   DBG,   DBG,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
 /* sc=5d */ RALT,  RALT,  RALT,  RALT,    RALT,      RALT,      RALT,      RALT,    0xFF, 0x00,
 /* sc=5e */ F(49), F(49), F(49), F(49),   F(49),     F(49),     F(49),     F(49),   0xFF, 0x00,
 /* sc=5f */ F(50), F(50), F(50), F(50),   F(50),     F(50),     F(50),     F(50),   0xFF, 0x00,
@@ -758,7 +762,7 @@ static keymap_t key_map = { 0xEC,        /* keys number */
 /* sc=65 */ F(59), F(59), F(59), F(59),   F(59),     F(59),     F(59),     F(59),   0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60),   F(60),     F(60),     F(60),     F(60),   0xFF, 0x00,
 /* sc=67 */ F(61), F(61), F(61), F(61),   F(61),     F(61),      RBT,      F(61),   0xFF, 0x00,
-/* sc=68 */  SLK,   SLK,   SLK,   SLK,     SLK,       SLK,       SLK,       SLK,    0xFF, 0x00,
+/* sc=68 */  SLK,  SPSC,   SLK,  SPSC,    SUSP,       NOP,      SUSP,       NOP,    0xFF, 0x00,
 /* sc=69 */ F(62), F(62), F(62), F(62),   F(62),     F(62),     F(62),     F(62),   0xFF, 0x00,
 /* sc=6a */ F(63), F(63), F(63), F(63),   F(63),     F(63),     F(63),     F(63),   0xFF, 0x00,
 /* sc=6b */ F(64), F(64), F(64), F(64),   F(64),     F(64),     F(64),     F(64),   0xFF, 0x00,
@@ -875,7 +879,7 @@ static keymap_t key_map = { 0xEC,        /* keys number */
 /* sc=59 */ 0x0D,  0x0D,  0x0A,  0x0A,  SET8|0x0D, SET8|0x0D, SET8|0x0A, SET8|0x0A, 0x00, 0x00,
 /* sc=5a */ RCTR,  RCTR,  RCTR,  RCTR,    RCTR,      RCTR,      RCTR,      RCTR,    0xFF, 0x00,
 /* sc=5b */  '/',   '/',   NOP,   NOP,  SET8|'/',  SET8|'/',     NOP,       NOP,    0x33, 0x00,
-/* sc=5c */ NEXT,   NOP,   DBG,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
+/* sc=5c */ NEXT,  NEXT,   DBG,   DBG,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
 /* sc=5d */ RALT,  RALT,  RALT,  RALT,    RALT,      RALT,      RALT,      RALT,    0xFF, 0x00,
 /* sc=5e */ F(49), F(49), F(49), F(49),   F(49),     F(49),     F(49),     F(49),   0xFF, 0x00,
 /* sc=5f */ F(50), F(50), F(50), F(50),   F(50),     F(50),     F(50),     F(50),   0xFF, 0x00,
@@ -887,17 +891,18 @@ static keymap_t key_map = { 0xEC,        /* keys number */
 /* sc=65 */ F(59), F(59), F(59), F(59),   F(59),     F(59),     F(59),     F(59),   0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60),   F(60),     F(60),     F(60),     F(60),   0xFF, 0x00,
 /* sc=67 */ F(61), F(61), F(61), F(61),   F(61),     F(61),      RBT,      F(61),   0xFF, 0x00,
-/* sc=68 */  SLK,   SLK,   SLK,   SLK,     SLK,       SLK,       SLK,       SLK,    0xFF, 0x00,
+/* sc=68 */  SLK,  SPSC,   SLK,  SPSC,    SUSP,       NOP,      SUSP,       NOP,    0xFF, 0x00,
 /* sc=69 */ F(62), F(62), F(62), F(62),   F(62),     F(62),     F(62),     F(62),   0xFF, 0x00,
 /* sc=6a */ F(63), F(63), F(63), F(63),   F(63),     F(63),     F(63),     F(63),   0xFF, 0x00,
 /* sc=6b */ F(64), F(64), F(64), F(64),   F(64),     F(64),     F(64),     F(64),   0xFF, 0x00,
-};
+/* sc=6c */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
+} };
 
 #endif
 
 #ifdef ESKEYMAP
 #define ISO_ACCENTCHARS
-static keymap_t key_map = { 0x69,	/* spanish iso8859 keymap */
+static keymap_t key_map = { 0x6D, {	/* spanish iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -958,7 +963,7 @@ static keymap_t key_map = { 0x69,	/* spanish iso8859 keymap */
 /* sc=34 */  '.',   ':',   NOP,   NOP,   '.',   ':',   NOP,   NOP,  0x33, 0x00,
 /* sc=35 */  '-',   '_',  0x1F,  0x1F,   '-',   '_',  0x1F,  0x1F,  0x00, 0x00,
 /* sc=36 */  RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,  0xFF, 0x00,
-/* sc=37 */  '*',   '*',  NEXT,  NEXT,   '*',   '*',  NEXT,  NEXT,  0x33, 0x00,
+/* sc=37 */  '*',   '*',   '*',   '*',   '*',   '*',   '*',   '*',  0x00, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
 /* sc=39 */  ' ',   ' ',  0x00,   ' ',   ' ',   ' ',  SUSP,   ' ',  0x00, 0x00,
 /* sc=3a */  CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,  0xFF, 0x00,
@@ -972,22 +977,22 @@ static keymap_t key_map = { 0x69,	/* spanish iso8859 keymap */
 /* sc=42 */ F( 8), F(20), F(32), F(44), S( 8), S( 8), S( 8), S( 8), 0xFF, 0x00,
 /* sc=43 */ F( 9), F(21), F(33), F(45), S( 9), S( 9), S( 9), S( 9), 0xFF, 0x00,
 /* sc=44 */ F(10), F(22), F(34), F(46), S(10), S(10), S(10), S(10), 0xFF, 0x00,
-/* sc=45 */  NLK,   NLK,  0x13,  0x13,   NLK,   NLK,  0x13,  0x13,  0xCC, 0x00,
-/* sc=46 */  SLK,   SLK,  0x7F,  0x7F,   SLK,   SLK,  0x7F,  0x7F,  0xCC, 0x00,
+/* sc=45 */  NLK,   NLK,   NLK,   NLK,   NLK,   NLK,   NLK,   NLK,  0xFF, 0x00,
+/* sc=46 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
 /* sc=47 */ F(49),  '7',   '7',   '7',   '7',   '7',   '7',   '7',  0x80, 0x02,
 /* sc=48 */ F(50),  '8',   '8',   '8',   '8',   '8',   '8',   '8',  0x80, 0x02,
 /* sc=49 */ F(51),  '9',   '9',   '9',   '9',   '9',   '9',   '9',  0x80, 0x02,
-/* sc=4a */ F(52),  '-',  0x1F,  0x1F,   '-',   '-',   '-',   '-',  0x80, 0x02,
+/* sc=4a */ F(52),  '-',   '-',   '-',   '-',   '-',   '-',   '-',  0x80, 0x02,
 /* sc=4b */ F(53),  '4',   '4',   '4',   '4',   '4',   '4',   '4',  0x80, 0x02,
 /* sc=4c */ F(54),  '5',   '5',   '5',   '5',   '5',   '5',   '5',  0x80, 0x02,
-/* sc=4d */ F(55),  '6',  0x1E,  0x1E,   '6',   '6',   '6',   '6',  0x80, 0x02,
+/* sc=4d */ F(55),  '6',   '6',   '6',   '6',   '6',   '6',   '6',  0x80, 0x02,
 /* sc=4e */ F(56),  '+',   '+',   '+',   '+',   '+',   '+',   '+',  0x80, 0x02,
 /* sc=4f */ F(57),  '1',   '1',   '1',   '1',   '1',   '1',   '1',  0x80, 0x02,
 /* sc=50 */ F(58),  '2',   '2',   '2',   '2',   '2',   '2',   '2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',   '3',   '3',   '3',   '3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',   '0',   '0',   '0',   '0',  0x80, 0x02,
-/* sc=53 */ 0x7F,   '.',  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x7F,  0x00, 0x02,
-/* sc=54 */ 0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x00, 0x00,
+/* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   RBT,  0x03, 0x02,
+/* sc=54 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=56 */  '<',   '>',  0x1C,  0x1C,  '\\',   '>',  0x1C,  0x1C,  0x00, 0x00,
 /* sc=57 */ F(11), F(23), F(35), F(47), S(11), S(11), S(11), S(11), 0xFF, 0x00,
@@ -995,7 +1000,7 @@ static keymap_t key_map = { 0x69,	/* spanish iso8859 keymap */
 /* sc=59 */ 0x0D,  0x0D,  0x0A,  0x0A,  0x0D,  0x0D,  0x0A,  0x0A,  0x00, 0x00,
 /* sc=5a */ RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  0xFF, 0x00,
 /* sc=5b */  '/',   '/',   '/',   '/',   '/',   '/',   '/',   '/',  0x00, 0x02,
-/* sc=5c */  '*',   '*',   '*',   '*',   '*',   '*',   '*',   '*',  0x00, 0x02,
+/* sc=5c */ NEXT,  NEXT,   DBG,   DBG,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=5d */ RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  0xFF, 0x00,
 /* sc=5e */ F(49), F(49), F(49), F(49), F(49), F(49), F(49), F(49), 0xFF, 0x00,
 /* sc=5f */ F(50), F(50), F(50), F(50), F(50), F(50), F(50), F(50), 0xFF, 0x00,
@@ -1006,14 +1011,18 @@ static keymap_t key_map = { 0x69,	/* spanish iso8859 keymap */
 /* sc=64 */ F(58), F(58), F(58), F(58), F(58), F(58), F(58), F(58), 0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
-/* sc=67 */ F(54), F(54), F(54), F(54), F(54), F(54),  RBT,  F(54), 0xFF, 0x00,
-/* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
-};
+/* sc=67 */ F(61), F(61), F(61), F(61), F(61), F(61),  RBT,  F(61), 0xFF, 0x00,
+/* sc=68 */  SLK,  SPSC,   SLK,  SPSC,  SUSP,   NOP,  SUSP,   NOP,  0xFF, 0x00,
+/* sc=69 */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
+/* sc=6a */ F(63), F(63), F(63), F(63), F(63), F(63), F(63), F(63), 0xFF, 0x00,
+/* sc=6b */ F(64), F(64), F(64), F(64), F(64), F(64), F(64), F(64), 0xFF, 0x00,
+/* sc=6c */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+} };
 #endif
 
 #ifdef ISKEYMAP
 #define ISO_ACCENTCHARS
-static keymap_t key_map = { 0x6C,	/* icelandic iso8859 keymap */
+static keymap_t key_map = { 0x6D, {	/* icelandic iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -1074,7 +1083,7 @@ static keymap_t key_map = { 0x6C,	/* icelandic iso8859 keymap */
 /* sc=34 */  '.',   ':',   NOP,   NOP,   NOP,   '>',   NOP,   NOP,  0x3B, 0x00,
 /* sc=35 */ 0xFE,  0xDE,  0x1F,   NOP,   '/',   '?',   NOP,   NOP,  0x13, 0x00,
 /* sc=36 */  RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,  0xFF, 0x00,
-/* sc=37 */  '*',   '*',  0x0A,  0x0A,   '*',   '*',  0x0A,  0x0A,  0x33, 0x00,
+/* sc=37 */  '*',   '*',   '*',   '*',   '*',   '*',   '*',   '*',  0x00, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
 /* sc=39 */  ' ',   ' ',  0x00,   ' ',   ' ',   ' ',  SUSP,   ' ',  0x02, 0x00,
 /* sc=3a */  CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,  0xFF, 0x00,
@@ -1088,22 +1097,22 @@ static keymap_t key_map = { 0x6C,	/* icelandic iso8859 keymap */
 /* sc=42 */ F( 8), F(20), F(32), F(44), S( 8), S( 8), S( 8), S( 8), 0xFF, 0x00,
 /* sc=43 */ F( 9), F(21), F(33), F(45), S( 9), S( 9), S( 9), S( 9), 0xFF, 0x00,
 /* sc=44 */ F(10), F(22), F(34), F(46), S(10), S(10), S(10), S(10), 0xFF, 0x00,
-/* sc=45 */  NLK,   NLK,  0x13,  0x13,   NLK,   NLK,  0x13,  0x13,  0xCC, 0x00,
-/* sc=46 */  SLK,   SLK,  0x7F,  0x7F,   SLK,   SLK,  0x7F,  0x7F,  0xCC, 0x00,
+/* sc=45 */  NLK,   NLK,   NLK,   NLK,   NLK,   NLK,   NLK,   NLK,  0xFF, 0x00,
+/* sc=46 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
 /* sc=47 */ F(49),  '7',   '7',   '7',   '7',   '7',   '7',   '7',  0x80, 0x02,
 /* sc=48 */ F(50),  '8',   '8',   '8',   '8',   '8',   '8',   '8',  0x80, 0x02,
 /* sc=49 */ F(51),  '9',   '9',   '9',   '9',   '9',   '9',   '9',  0x80, 0x02,
-/* sc=4a */ F(52),  '-',  0x1F,  0x1F,   '-',   '-',   '-',   '-',  0x80, 0x02,
+/* sc=4a */ F(52),  '-',   '-',   '-',   '-',   '-',   '-',   '-',  0x80, 0x02,
 /* sc=4b */ F(53),  '4',   '4',   '4',   '4',   '4',   '4',   '4',  0x80, 0x02,
 /* sc=4c */ F(54),  '5',   '5',   '5',   '5',   '5',   '5',   '5',  0x80, 0x02,
-/* sc=4d */ F(55),  '6',  0x1E,  0x1E,   '6',   '6',   '6',   '6',  0x80, 0x02,
+/* sc=4d */ F(55),  '6',   '6',   '6',   '6',   '6',   '6',   '6',  0x80, 0x02,
 /* sc=4e */ F(56),  '+',   '+',   '+',   '+',   '+',   '+',   '+',  0x80, 0x02,
 /* sc=4f */ F(57),  '1',   '1',   '1',   '1',   '1',   '1',   '1',  0x80, 0x02,
 /* sc=50 */ F(58),  '2',   '2',   '2',   '2',   '2',   '2',   '2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',   '3',   '3',   '3',   '3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',   '0',   '0',   '0',   '0',  0x80, 0x02,
 /* sc=53 */ 0x7F,   '.',   '.',   '.',   '.',   '.',   RBT,   RBT,  0x03, 0x02,
-/* sc=54 */ 0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x1F,  0x00, 0x00,
+/* sc=54 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=56 */  '<',   '>',   NOP,   NOP,   '|',   NOP,   NOP,   NOP,  0x37, 0x00,
 /* sc=57 */ F(11), F(23), F(35), F(47), S(11), S(11), S(11), S(11), 0xFF, 0x00,
@@ -1111,7 +1120,7 @@ static keymap_t key_map = { 0x6C,	/* icelandic iso8859 keymap */
 /* sc=59 */ 0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0xFF, 0x02,
 /* sc=5a */ RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  0xFF, 0x00,
 /* sc=5b */  '/',   '/',   '/',   '/',   '/',   '/',   '/',   '/',  0x00, 0x02,
-/* sc=5c */ NEXT,   NOP,   DBG,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5c */ NEXT,  NEXT,   DBG,   DBG,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=5d */ RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  0xFF, 0x00,
 /* sc=5e */ F(49), F(49), F(49), F(49), F(49), F(49), F(49), F(49), 0xFF, 0x00,
 /* sc=5f */ F(50), F(50), F(50), F(50), F(50), F(50), F(50), F(50), 0xFF, 0x00,
@@ -1123,16 +1132,17 @@ static keymap_t key_map = { 0x6C,	/* icelandic iso8859 keymap */
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
 /* sc=67 */ F(61), F(61), F(61), F(61), F(61), F(61),  RBT,  F(61), 0xFF, 0x00,
-/* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
+/* sc=68 */  SLK,  SPSC,   SLK,  SPSC,  SUSP,   NOP,  SUSP,   NOP,  0xFF, 0x00,
 /* sc=69 */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
 /* sc=6a */ F(63), F(63), F(63), F(63), F(63), F(63), F(63), F(63), 0xFF, 0x00,
 /* sc=6b */ F(64), F(64), F(64), F(64), F(64), F(64), F(64), F(64), 0xFF, 0x00,
-};
+/* sc=6c */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+} };
 #endif
 
 #if !defined(DKKEYMAP) && !defined(UKKEYMAP) && !defined(GRKEYMAP) && !defined(SWKEYMAP) && !defined(RUKEYMAP) && !defined(ISKEYMAP) && !defined(ESKEYMAP) && !defined(PC98)
 #define ISO_ACCENTCHARS
-static keymap_t key_map = { 0x6C, {	/* US iso8859 keymap */
+static keymap_t key_map = { 0x6D, {	/* US iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -1193,7 +1203,7 @@ static keymap_t key_map = { 0x6C, {	/* US iso8859 keymap */
 /* sc=34 */  '.',   '>',   NOP,   NOP,   '.',   '>',   NOP,   NOP,  0x33, 0x00,
 /* sc=35 */  '/',   '?',   NOP,   NOP,   '/',   '?',   NOP,   NOP,  0x33, 0x00,
 /* sc=36 */  RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,  0xFF, 0x00,
-/* sc=37 */  '*',   '*',  0x0A,  0x0A,   '*',   '*',  0x0A,  0x0A,  0x33, 0x00,
+/* sc=37 */  '*',   '*',   '*',   '*',   '*',   '*',   '*',   '*',  0x00, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
 /* sc=39 */  ' ',   ' ',  0x00,   ' ',   ' ',   ' ',  SUSP,   ' ',  0x02, 0x00,
 /* sc=3a */  CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,  0xFF, 0x00,
@@ -1230,7 +1240,7 @@ static keymap_t key_map = { 0x6C, {	/* US iso8859 keymap */
 /* sc=59 */ 0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x0D,  0x00, 0x00,
 /* sc=5a */ RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  RCTR,  0xFF, 0x00,
 /* sc=5b */  '/',   '/',   '/',   '/',   '/',   '/',   '/',   '/',  0x00, 0x00,
-/* sc=5c */ NEXT,   NOP,   DBG,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
+/* sc=5c */ NEXT,  NEXT,   DBG,   DBG,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 /* sc=5d */ RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  RALT,  0xFF, 0x00,
 /* sc=5e */ F(49), F(49), F(49), F(49), F(49), F(49), F(49), F(49), 0xFF, 0x00,
 /* sc=5f */ F(50), F(50), F(50), F(50), F(50), F(50), F(50), F(50), 0xFF, 0x00,
@@ -1242,10 +1252,11 @@ static keymap_t key_map = { 0x6C, {	/* US iso8859 keymap */
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
 /* sc=67 */ F(61), F(61), F(61), F(61), F(61), F(61),  RBT,  F(61), 0xFF, 0x00,
-/* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
+/* sc=68 */  SLK,  SPSC,   SLK,  SPSC,  SUSP,   NOP,  SUSP,   NOP,  0xFF, 0x00,
 /* sc=69 */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
 /* sc=6a */ F(63), F(63), F(63), F(63), F(63), F(63), F(63), F(63), 0xFF, 0x00,
 /* sc=6b */ F(64), F(64), F(64), F(64), F(64), F(64), F(64), F(64), 0xFF, 0x00,
+/* sc=6c */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
 } };
 #endif
 
