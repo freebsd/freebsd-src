@@ -70,6 +70,8 @@ SUBDIR=	adjkerntz \
 	nfsiod \
 	nologin \
 	nos-tun \
+	${_pfctl} \
+	${_pflogd} \
 	ping \
 	${_ping6} \
 	quotacheck \
@@ -107,6 +109,11 @@ _ipfs=		ipfs
 _ipfstat=	ipfstat
 _ipmon=		ipmon
 _ipnat=		ipnat
+.endif
+
+.if !defined(NO_PF)
+_pfctl=		pfctl
+_pflogd=	pflogd
 .endif
 
 .if !defined(NOINET6)
