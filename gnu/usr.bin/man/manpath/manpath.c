@@ -281,7 +281,6 @@ get_dirlist ()
 	    fprintf (stderr, "found manpath map %s --> %s\n",
 		     dlp->bin, dlp->mandir);
 	}
-#ifdef MAIN
       else if (!strncmp ("MANLOCALES", bp, 10))
 	{
 	  if ((p = strchr (bp, ' ')) == NULL &&
@@ -301,6 +300,7 @@ get_dirlist ()
 		*p-- = '\0';
 	  } while (p >= bp && (*p == ' ' || *p == '\t'));
 
+#ifdef MAIN
 	  if (man_locales != NULL)
 		free (man_locales);
 
@@ -308,12 +308,11 @@ get_dirlist ()
 		fclose(config);
 		return -1;
 	  }
+#endif  /* MAIN */
 
 	  if (debug)
-	    fprintf (stderr, "found man locales: %s\n",
-			     man_locales);
+	    fprintf (stderr, "found man locales: %s\n", bp);
 	}
-#endif  /* MAIN */
       else
 	{
 	  gripe_reading_mp_config (config_file);
