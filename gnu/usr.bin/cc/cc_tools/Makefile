@@ -217,6 +217,9 @@ OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
 #
 ${OBJS:Nbitmap.o:Nerrors.o:Ngenattr.o:Ngencheck.o:Ngencodes.o:Ngenconfig.o:Ngenflags.o:Ngengenrtl.o:Ngenpreds.o:Ngensupport.o:Nggc-none.o:Nhashtab.o:Nobstack.o:Nprint-rtl.o:Nread-rtl.o:Nrtl.o}: ${SRCS:M*.h}
 
+# Force these to be made absolustly first w/-j
+${OBJS}: ${COMMONHDRS}
+
 # Next, make each of the problematic objects depend on only most headers.
 # Filter out the headers that would cause problems (and a few more when it
 # is inconvenient to filter precisely).
