@@ -18,6 +18,10 @@ MAN=	hack.6
 DPADD=	${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-ltermcap -lcompat
 CFLAGS+= -fwritable-strings -I${.CURDIR} -I.
+FILES=	rumors help hh data
+FILESMODE_rumors=	440
+FILESGRP=	${BINGRP}
+FILESDIR=	/var/games/hackdir
 HIDEGAME=hidegame
 CLEANFILES=hack.onames.h makedefs makedefs.o
 
@@ -36,11 +40,6 @@ beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 460 /dev/null \
 	    ${DESTDIR}/var/games/hackdir/record
 .endif
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 440 ${.CURDIR}/rumors \
-	    ${DESTDIR}/var/games/hackdir/rumors
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${.CURDIR}/help  ${.CURDIR}/hh ${.CURDIR}/data \
-	    ${DESTDIR}/var/games/hackdir
 #	rm -f ${DESTDIR}/var/games/hackdir/bones* \
 #	    ${DESTDIR}/var/games/hackdir/save/*
 

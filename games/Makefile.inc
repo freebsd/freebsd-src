@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 BINDIR?=	/usr/games
+FILESDIR?=	${SHAREDIR}/games
 
 .if defined(HIDEGAME)
 ORIGBINDIR:=	${BINDIR}
