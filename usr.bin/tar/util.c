@@ -54,7 +54,9 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 	int length;
 	va_list ap;
 	char *p;
+	unsigned i;
 	char buff_stack[256];
+	char copy_buff[256];
 
 	/* Use a stack-allocated buffer if we can, for speed and safety. */
 	buff_heap = NULL;
@@ -77,27 +79,44 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 		}
 	}
 
-	for (p=buff; *p != '\0'; p++) {
-		unsigned char c = *p;
+	/* Write data, expanding unprintable characters. */
+	p = buff;
+	i = 0;
+	while (*p != '\0') {
+		unsigned char c = *p++;
+
 		if (isprint(c) && c != '\\')
-			putc(c, f);
-		else
+			copy_buff[i++] = c;
+		else {
+			copy_buff[i++] = '\\';
 			switch (c) {
-			case '\a': putc('\\', f); putc('a', f); break;
-			case '\b': putc('\\', f); putc('b', f); break;
-			case '\f': putc('\\', f); putc('f', f); break;
-			case '\n': putc('\\', f); putc('n', f);	break;
+			case '\a': copy_buff[i++] = 'a'; break;
+			case '\b': copy_buff[i++] = 'b'; break;
+			case '\f': copy_buff[i++] = 'f'; break;
+			case '\n': copy_buff[i++] = 'n'; break;
 #if '\r' != '\n'
 			/* On some platforms, \n and \r are the same. */
-			case '\r': putc('\\', f); putc('r', f);	break;
+			case '\r': copy_buff[i++] = 'r'; break;
 #endif
-			case '\t': putc('\\', f); putc('t', f);	break;
-			case '\v': putc('\\', f); putc('v', f);	break;
-			case '\\': putc('\\', f); putc('\\', f); break;
+			case '\t': copy_buff[i++] = 't'; break;
+			case '\v': copy_buff[i++] = 'v'; break;
+			case '\\': copy_buff[i++] = '\\'; break;
 			default:
-				fprintf(f, "\\%03o", c);
+				sprintf(copy_buff + i, "%03o", c);
+				i += 3;
 			}
+		}
+
+		/* If our temp buffer is full, dump it and keep going. */
+		if (i > (sizeof(copy_buff) - 8)) {
+			copy_buff[i++] = '\0';
+			fprintf(f, "%s", copy_buff);
+			i = 0;
+		}
 	}
+	copy_buff[i++] = '\0';
+	fprintf(f, "%s", copy_buff);
+
 	/* If we allocated a heap-based buffer, free it now. */
 	if (buff_heap != NULL)
 		free(buff_heap);
