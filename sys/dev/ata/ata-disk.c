@@ -352,8 +352,10 @@ addump(dev_t dev)
 	blkno += blkcnt * dumppages;
 	count -= blkcnt * dumppages;
 	addr += PAGE_SIZE * dumppages;
-	if (cncheckc() != -1)
+	if (cncheckc() == 0x03)
 	    return EINTR;
+	else
+	    printf("[CTRL-C to abort] ");
     }
 
     if (ata_wait(adp->controller, adp->unit, ATA_S_READY | ATA_S_DSC) < 0)
