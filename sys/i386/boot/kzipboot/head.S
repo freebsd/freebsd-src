@@ -1,12 +1,13 @@
 /*
- * Boot unpacker startup routine.
+ * Leader for kernel
+ * This needs to be at the beginning, so the start address is passed
+ * to the boot loader
  * Copyright (C) Serge Vakulenko
  */
 	.text
-start:
+	.globl	kzstart
+kzstart:
 	cli                             # disable interrupts
-	pushl	4(%esp)			# pass howto arg
-	call    _boot                   # unpack the kernel image
-	popl	%eax			# discard howto arg
-	ljmp    $CSEG, $KADDR           # jump to unpacked kernel
-	. = start + 0x500               # skip over warm boot shit
+	call   start			# unpack the kernel image
+					# never return here.
+	. = kzstart + 0x500		# skip warm boot stuff

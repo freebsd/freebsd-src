@@ -1,8 +1,10 @@
-# $Id: Makefile,v 1.2 1995/05/29 01:38:03 phk Exp $
+# $Id: Makefile,v 1.3 1995/08/15 19:36:02 joerg Exp $
 
-PROG= kzip.o
+PROG= kztail.o kzhead.o
 BINMODE = 444	# target is a relocatable object
-SRCS= head.S boot.c unzip.c misc.c malloc.c inflate.c
+SRCS= tail.S head.S boot.c unzip.c misc.c malloc.c inflate.c
+OBJS_KZHEAD= head.o
+OBJS_KZTAIL= tail.o boot.o unzip.o misc.o malloc.o inflate.o
 BINDIR= /usr/lib
 .PATH:	${.CURDIR}/../../../kern
 NOMAN= toobad
@@ -13,12 +15,15 @@ KADDR   = 0x100000
 # What segment our code lives in
 CSEG    = 0x8
 
-STRIP=	#  very important!! don't let kzip.o be stripped
+STRIP=	#  very important!! don't let kz*.o be stripped
 
 CFLAGS+= -DKADDR=$(KADDR) -DCSEG=$(CSEG)
 CFLAGS+= -DKZIP -DCOMCONSOLE=0x3F8
 
-kzip.o:  ${OBJS}
-	$(LD) -r -x -o kzip.o $(OBJS)
+kztail.o:  ${OBJS_KZTAIL}
+	$(LD) -r -x -o kztail.o $(OBJS_KZTAIL)
+
+kzhead.o:  ${OBJS_KZHEAD}
+	$(LD) -r -x -o kzhead.o $(OBJS_KZHEAD)
 
 .include <bsd.prog.mk>
