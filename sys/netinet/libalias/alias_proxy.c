@@ -42,8 +42,8 @@ __FBSDID("$FreeBSD$");
 
     There is one public API function:
 
-        PacketAliasProxyRule()    -- Adds and deletes proxy
-                                     rules.
+	PacketAliasProxyRule()    -- Adds and deletes proxy
+				     rules.
 
     Rules are stored in a linear linked list, so lookup efficiency
     won't be too good for large lists.
@@ -118,19 +118,19 @@ struct proxy_entry {
 /* Local (static) functions:
 
     IpMask()                 -- Utility function for creating IP
-                                masks from integer (1-32) specification.
+				masks from integer (1-32) specification.
     IpAddr()                 -- Utility function for converting string
-                                to IP address
+				to IP address
     IpPort()                 -- Utility function for converting string
-                                to port number
+				to port number
     RuleAdd()                -- Adds an element to the rule list.
     RuleDelete()             -- Removes an element from the rule list.
     RuleNumberDelete()       -- Removes all elements from the rule list
-                                having a certain rule number.
+				having a certain rule number.
     ProxyEncodeTcpStream()   -- Adds [DEST x.x.x.x xxxx] to the beginning
-                                of a TCP stream.
+				of a TCP stream.
     ProxyEncodeIpHeader()    -- Adds an IP option indicating the true
-                                destination of a proxied IP packet
+				destination of a proxied IP packet
 */
 
 static int	IpMask(int, struct in_addr *);
@@ -431,10 +431,10 @@ ProxyEncodeIpHeader(struct ip *pip,
 /* Functions by other packet alias source files
 
     ProxyCheck()         -- Checks whether an outgoing packet should
-                            be proxied.
+			    be proxied.
     ProxyModify()        -- Encodes the original destination address/port
-                            for a packet which is to be redirected to
-                            a proxy server.
+			    for a packet which is to be redirected to
+			    a proxy server.
 */
 
 int
