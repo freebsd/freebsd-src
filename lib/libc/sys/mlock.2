@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
-.\"	$Id$
+.\"	$Id: mlock.2,v 1.5 1999/06/27 00:28:55 mpp Exp $
 .\"
 .Dd June 2, 1993
 .Dt MLOCK 2
@@ -101,6 +101,8 @@ a system-wide ``wired pages'' limit and
 the per-process
 .Li RLIMIT_MEMLOCK
 resource limit.
+.Pp
+These calls are only available to the super-user.
 .Sh RETURN VALUES
 A return value of 0 indicates that the call
 succeeded and all pages in the range have either been locked or unlocked.
@@ -113,6 +115,8 @@ is set to indicate the error.
 .Fn Mlock
 will fail if:
 .Bl -tag -width Er
+.It Bq Er EPERM
+The caller is not the super-user.
 .It Bq Er EINVAL
 The address given is not page aligned or the length is negative.
 .It Bq Er EAGAIN
@@ -125,6 +129,8 @@ There was an error faulting/mapping a page.
 .Fn Munlock
 will fail if:
 .Bl -tag -width Er
+.It Bq Er EPERM
+The caller is not the super-user.
 .It Bq Er EINVAL
 The address given is not page aligned or the length is negative.
 .It Bq Er ENOMEM
@@ -156,6 +162,8 @@ physical pages.
 Hence a process with two distinct locked mappings of the same physical page
 counts as 2 pages against the per-process limit and as only a single page
 in the system limit.
+
+The per-process resource limit is not currently supported.
 .Sh HISTORY
 The
 .Fn mlock
