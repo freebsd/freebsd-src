@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.14 1996/04/28 03:26:57 jkh Exp $
+ * $Id: ftp_strat.c,v 1.15 1996/05/05 21:54:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,7 +108,7 @@ Boolean
 mediaInitFTP(Device *dev)
 {
     int i, retries;
-    char *cp, *hostname, *dir;
+    char *cp, *hostname, *dir, *rel;
     char *user, *login_name, password[80], url[BUFSIZ];
     Device *netDevice = (Device *)dev->private;
 
@@ -134,6 +134,7 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     }
 
+    rel = variable_get(VAR_RELNAME);
     if (isDebug())
 	msgDebug("Attempting to open connection for URL: %s\n", cp);
     hostname = variable_get(VAR_HOSTNAME);
@@ -202,8 +203,11 @@ retry:
 	}
     }
 
-    /* Give it a shot - can't hurt to try and zoom in if we can, unless we get a hard error back that is! */
-    i = FtpChdir(ftp, getenv(VAR_RELNAME));
+    /* Give it a shot - can't hurt to try and zoom in if we can, unless the release is set to __RELEASE which signifies that it's not set */
+    if (strcmp(rel, "__RELEASE"))
+	i = FtpChdir(ftp, rel);
+    else
+	i = 0;
     if (i == -2)
 	goto punt;
     else if (i == -1)
@@ -211,7 +215,7 @@ retry:
 		   "FTP server.  You may need to visit the Options menu\n"
 		   "to set the release name explicitly if this FTP server\n"
 		   "isn't exporting a CD (or some other custom release) at\n"
-		   "the top level as a release tree.");
+		   "the top level as a release tree.", rel);
 
     if (isDebug())
 	msgDebug("mediaInitFTP was successful (logged in and chdir'd)\n");

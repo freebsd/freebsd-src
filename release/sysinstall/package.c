@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.34 1996/04/30 05:40:15 jkh Exp $
+ * $Id: package.c,v 1.35 1996/04/30 06:13:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,6 +52,16 @@ package_add(char *name)
     return package_extract(mediaDevice, name, FALSE);
 }
 
+Boolean
+package_exists(char *name)
+{
+    int status = vsystem("pkg_info -e %s", name);
+
+    msgDebug("package check for %s returns %s.\n", name,
+	     status ? "failure" : "success");
+    return !status;
+}
+
 /* Extract a package based on a namespec and a media device */
 int
 package_extract(Device *dev, char *name, Boolean depended)
@@ -63,12 +73,10 @@ package_extract(Device *dev, char *name, Boolean depended)
     if (!file_readable("/var/run/ld.so.hints"))
 	vsystem("ldconfig /usr/lib /usr/local/lib /usr/X11R6/lib");
 
-    msgNotify("Checking for existence of %s package", name);
     /* Check to make sure it's not already there */
-    if (!vsystem("pkg_info -e %s", name)) {
-	msgDebug("package %s marked as already installed - return SUCCESS.\n", name);
+    msgNotify("Checking for existence of %s package", name);
+    if (package_exists(name))
 	return DITEM_SUCCESS;
-    }
 
     if (!dev->init(dev)) {
 	msgConfirm("Unable to initialize media type for package extract.");

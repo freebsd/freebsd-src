@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.23 1996/04/28 03:27:05 jkh Exp $
+ * $Id: installUpgrade.c,v 1.24 1996/04/28 20:54:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -264,10 +264,7 @@ installUpgrade(dialogMenuItem *self)
     if (!rootExtract()) {
 	msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
 		   "this problem and try again (the system will now reboot).");
-	if (RunningAsInit)
-	    reboot(0);
-	else
-	    exit(1);
+	systemShutdown(1);
     }
 
     if (extractingBin) {
@@ -292,12 +289,8 @@ installUpgrade(dialogMenuItem *self)
 		if (!msgYesNo("Hmmm!  I couldn't move the old kernel over!  Do you want to\n"
 			      "treat this as a big problem and abort the upgrade?  Due to the\n"
 			      "way that this upgrade process works, you will have to reboot\n"
-			      "and start over from the beginning.  Select Yes to reboot now")) {
-		    if (RunningAsInit)
-			reboot(0);
-		    else
-			exit(1);
-		}
+			      "and start over from the beginning.  Select Yes to reboot now"))
+		    systemShutdown(1);
 	    }
 	}
     }
@@ -309,10 +302,7 @@ installUpgrade(dialogMenuItem *self)
 		       "should be considered a failure and started from the beginning, sorry!\n"
 		       "The system will reboot now.");
 	    dialog_clear();
-	    if (RunningAsInit)
-		reboot(0);
-	    else
-		exit(1);
+	    systemShutdown(1);
 	}
 	msgConfirm("The extraction process seems to have had some problems, but we got most\n"
 		   "of the essentials.  We'll treat this as a warning since it may have been\n"
@@ -357,6 +347,7 @@ installUpgrade(dialogMenuItem *self)
     dialog_update();
     end_dialog();
     DialogActive = FALSE;
+    endwin();
 
     signal(SIGTTOU, SIG_IGN);
     if (tcgetattr(0, &foo) != -1) {
