@@ -23,6 +23,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20041219:
+	Auto-loading of ancillary wlan modules such as wlan_wep has
+	been temporarily disabled; you need to statically configure
+	the modules you need into your kernel or explicitly load them
+	prior to use.  Specifically, if you intend to use WEP encryption
+	with an 802.11 device load/configure wlan_wep; if you want to
+	use WPA with the ath driver load/configure wlan_tkip, wlan_ccmp,
+	and wlan_xauth as required.
+
 20041213:
 	The behaviour of ppp(8) has changed slightly.  If lqr is enabled
 	(``enable lqr''), older versions would revert to LCP ECHO mode on
