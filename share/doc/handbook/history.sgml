@@ -1,4 +1,4 @@
-<!-- $Id: history.sgml,v 1.4 1995/07/28 23:09:28 jkh Exp $ -->
+<!-- $Id: history.sgml,v 1.5 1995/08/26 12:07:06 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>A brief history of FreeBSD<label id="history"></heading>
@@ -77,7 +77,7 @@ significant success and has since been followed by the more robust and
 easier to install FreeBSD 2.0.5 release in June of 1995.
 
 Where to from here?  Well, we intend to release FreeBSD 2.1 sometime
-in September of 1995 and have reasonable expectations that it will
+in October of 1995 and have reasonable expectations that it will
 meet or exceed all of the standards for quality we set with FreeBSD
 1.1.5.1 back in July of 1994.  From there, we'll probably continue our now
 two-track scheme of a "stable" branch of FreeBSD and an "experimental"
