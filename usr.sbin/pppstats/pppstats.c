@@ -1,21 +1,19 @@
 /*
  * print PPP statistics:
- * 	pppstats [-i interval] [-v] [-r] [-c] [interface]
+ * 	pppstats [-a|-d] [-v|-r|-z] [-c count] [-w wait] [interface]
  *
- *   -i <update interval in seconds>
- *   -v Verbose mode for default display
- *   -r Show compression ratio in default display
- *   -c Show Compression statistics instead of default display
- *   -a Do not show relative values. Show absolute values at all times.
- *
+ *   -a Show absolute values rather than deltas
+ *   -d Show data rate (kB/s) rather than bytes
+ *   -v Show more stats for VJ TCP header compression
+ *   -r Show compression ratio
+ *   -z Show compression statistics instead of default display
  *
  * History:
  *      perkins@cps.msu.edu: Added compression statistics and alternate 
  *                display. 11/94
-
  *	Brad Parker (brad@cayman.com) 6/92
  *
- * from the original "slstats" by Van Jaconson
+ * from the original "slstats" by Van Jacobson
  *
  * Copyright (c) 1989 Regents of the University of California.
  * All rights reserved.
@@ -31,270 +29,88 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
- *	- Initial distribution.
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: pppstats.c,v 1.9 1997/02/22 16:12:12 peter Exp $";
 #endif
 
+#include <stdio.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <errno.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-
-#include <ctype.h>
-#include <errno.h>
-#include <nlist.h>
-#include <stdio.h>
-#include <signal.h>
-#include <fcntl.h>
-
 #include <net/ppp_defs.h>
 
-#ifdef __svr4__
-#include <sys/stropts.h>
-#include <net/pppio.h>		/* SVR4, Solaris 2, etc. */
-
-#else
-#include <sys/socket.h>
-#include <net/if.h>
-
 #ifndef STREAMS
-#include <net/if_ppp.h>		/* BSD, Linux, NeXT, etc. */
-
-#else				/* SunOS 4, AIX 4, OSF/1, etc. */
-#define PPP_STATS	1	/* should be defined iff it is in ppp_if.c */
-#include <sys/stream.h>
-#include <net/ppp_str.h>
-#endif
-#endif
-
-int	vflag, rflag, cflag, aflag;
-unsigned interval = 5;
-int	unit;
-int	s;			/* socket file descriptor */
-int	signalled;		/* set if alarm goes off "early" */
-
-extern	char *malloc();
-void catchalarm __P((int));
-
-main(argc, argv)
-    int argc;
-    char *argv[];
-{
-    --argc; ++argv;
-    while (argc > 0) {
-	if (strcmp(argv[0], "-a") == 0) {
-	    ++aflag;
-	    ++argv, --argc;
-	    continue;
-	}
-	if (strcmp(argv[0], "-v") == 0) {
-	    ++vflag;
-	    ++argv, --argc;
-	    continue;
-	}
-	if (strcmp(argv[0], "-r") == 0) {
-	  ++rflag;
-	  ++argv, --argc;
-	  continue;
-	}
-	if (strcmp(argv[0], "-c") == 0) {
-	  ++cflag;
-	  ++argv, --argc;
-	  continue;
-	}
-	if (strcmp(argv[0], "-i") == 0 && argv[1] &&
-	    isdigit(argv[1][0])) {
-	    interval = atoi(argv[1]);
-	    if (interval < 0)
-		usage();
-	    ++argv, --argc;
-	    ++argv, --argc;
-	    continue;
-	}
-	if (isdigit(argv[0][0])) {
-	    unit = atoi(argv[0]);
-	    if (unit < 0)
-		usage();
-	    ++argv, --argc;
-	    continue;
-	}
-	usage();
-    }
-
-#ifdef __svr4__
-    if ((s = open("/dev/ppp", O_RDONLY)) < 0) {
-	perror("pppstats: Couldn't open /dev/ppp: ");
-	exit(1);
-    }
-    if (strioctl(s, PPPIO_ATTACH, &unit, sizeof(int), 0) < 0) {
-	fprintf(stderr, "pppstats: ppp%d is not available\n", unit);
-	exit(1);
-    }
+#include <sys/socket.h>		/* *BSD, Linux, NeXT, Ultrix etc. */
+#include <net/if.h>
+#ifndef _linux_
+#include <net/if_ppp.h>
 #else
-    if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-	perror("couldn't create IP socket");
-	exit(1);
-    }
+#include <net/if_ppp.h>
 #endif
-    intpr();
-    exit(0);
-}
 
+#else	/* STREAMS */
+#include <sys/stropts.h>	/* SVR4, Solaris 2, SunOS 4, OSF/1, etc. */
+#include <net/pppio.h>
+
+#endif	/* STREAMS */
+
+int	vflag, rflag, zflag;	/* select type of display */
+int	aflag;			/* print absolute values, not deltas */
+int	dflag;			/* print data rates, not bytes */
+int	interval, count;
+int	infinite;
+int	unit;
+int	s;			/* socket or /dev/ppp file descriptor */
+int	signalled;		/* set if alarm goes off "early" */
+char	*progname;
+char	*interface;
+
+#if defined(SUNOS4) || defined(ULTRIX) || defined(NeXT)
+extern int optind;
+extern char *optarg;
+#endif
+
+static void usage __P((void));
+static void catchalarm __P((int));
+static void get_ppp_stats __P((struct ppp_stats *));
+static void get_ppp_cstats __P((struct ppp_comp_stats *));
+static void intpr __P((void));
+
+int main __P((int, char *argv[]));
+
+static void
 usage()
 {
-    fprintf(stderr, "Usage: pppstats [-v] [-r] [-c] [-i interval] [unit]\n");
+    fprintf(stderr, "Usage: %s [-a|-d] [-v|-r|-z] [-c count] [-w wait] [interface]\n",
+	    progname);
     exit(1);
 }
 
-#define V(offset) (line % 20? cur.offset - old.offset: cur.offset)
-#define W(offset) (line % 20? ccs.offset - ocs.offset: ccs.offset)
-
-#define CRATE(comp, inc, unc)	((unc) == 0? 0.0: \
-				 1.0 - (double)((comp) + (inc)) / (unc))
-
 /*
- * Print a running summary of interface statistics.
- * Repeat display every interval seconds, showing statistics
- * collected over that interval.  Assumes that interval is non-zero.
- * First line printed at top of screen is always cumulative.
- */
-intpr()
-{
-    register int line = 0;
-    sigset_t oldmask, mask;
-    struct ppp_stats cur, old;
-    struct ppp_comp_stats ccs, ocs;
-
-    memset(&old, 0, sizeof(old));
-    memset(&ocs, 0, sizeof(ocs));
-
-    while (1) {
-	get_ppp_stats(&cur);
-	if (cflag || rflag)
-	    get_ppp_cstats(&ccs);
-
-	(void)signal(SIGALRM, catchalarm);
-	signalled = 0;
-	(void)alarm(interval);
-    
-	if ((line % 20) == 0) {
-	    if (line > 0)
-		putchar('\n');
-	    if (cflag) {
-	    
-		printf("%6.6s %6.6s %6.6s %6.6s %6.6s %6.6s %6.6s",
-		       "ubyte", "upack", "cbyte", "cpack", "ibyte", "ipack", "ratio");
-		printf(" | %6.6s %6.6s %6.6s %6.6s %6.6s %6.6s %6.6s",
-		       "ubyte", "upack", "cbyte", "cpack", "ibyte", "ipack", "ratio");
-		putchar('\n');
-	    } else {
-
-		printf("%6.6s %6.6s %6.6s %6.6s %6.6s",
-		       "in", "pack", "comp", "uncomp", "err");
-		if (vflag)
-		    printf(" %6.6s %6.6s", "toss", "ip");
-		if (rflag)
-		    printf("   %6.6s %6.6s", "ratio", "ubyte");
-		printf("  | %6.6s %6.6s %6.6s %6.6s %6.6s",
-		       "out", "pack", "comp", "uncomp", "ip");
-		if (vflag)
-		    printf(" %6.6s %6.6s", "search", "miss");
-		if(rflag)
-		    printf("   %6.6s %6.6s", "ratio", "ubyte");
-		putchar('\n');
-	    }
-	    memset(&old, 0, sizeof(old));
-	    memset(&ocs, 0, sizeof(ocs));
-	}
-	
-	if (cflag) {
-	    printf("%6d %6d %6d %6d %6d %6d %6.2f",
-		   W(d.unc_bytes),
-		   W(d.unc_packets),
-		   W(d.comp_bytes),
-		   W(d.comp_packets),
-		   W(d.inc_bytes),
-		   W(d.inc_packets),
-		   W(d.ratio) == 0? 0.0: 1 - 1.0 / W(d.ratio) * 256.0);
-
-	    printf(" | %6d %6d %6d %6d %6d %6d %6.2f",
-		   W(c.unc_bytes),
-		   W(c.unc_packets),
-		   W(c.comp_bytes),
-		   W(c.comp_packets),
-		   W(c.inc_bytes),
-		   W(c.inc_packets),
-		   W(d.ratio) == 0? 0.0: 1 - 1.0 / W(d.ratio) * 256.0);
-	
-	    putchar('\n');
-	} else {
-
-	    printf("%6d %6d %6d %6d %6d",
-		   V(p.ppp_ibytes),
-		   V(p.ppp_ipackets), V(vj.vjs_compressedin),
-		   V(vj.vjs_uncompressedin), V(vj.vjs_errorin));
-	    if (vflag)
-		printf(" %6d %6d", V(vj.vjs_tossed),
-		       V(p.ppp_ipackets) - V(vj.vjs_compressedin) -
-		       V(vj.vjs_uncompressedin) - V(vj.vjs_errorin));
-	    if (rflag)
-		printf("   %6.2f %6d",
-		       CRATE(W(d.comp_bytes), W(d.unc_bytes), W(d.unc_bytes)),
-		       W(d.unc_bytes));
-	    printf("  | %6d %6d %6d %6d %6d", V(p.ppp_obytes),
-		   V(p.ppp_opackets), V(vj.vjs_compressed),
-		   V(vj.vjs_packets) - V(vj.vjs_compressed),
-		   V(p.ppp_opackets) - V(vj.vjs_packets));
-	    if (vflag)
-		printf(" %6d %6d", V(vj.vjs_searches), V(vj.vjs_misses));
-
-	    if (rflag)
-		printf("   %6.2f %6d",
-		       CRATE(W(d.comp_bytes), W(d.unc_bytes), W(d.unc_bytes)),
-		       W(c.unc_bytes));
-	    
-	    putchar('\n');
-	}
-
-	fflush(stdout);
-	line++;
-	if (interval == 0)
-	    exit(0);
-
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGALRM);
-	sigprocmask(SIG_BLOCK, &mask, &oldmask);
-	if (! signalled) {
-	    sigemptyset(&mask);
-	    sigsuspend(&mask);
-	}
-	sigprocmask(SIG_SETMASK, &oldmask, NULL);
-	signalled = 0;
-	(void)alarm(interval);
-
-	if (aflag==0) {
-	    old = cur;
-	    ocs = ccs;
-	}
-    }
-}
-
-/*
- * Called if an interval expires before sidewaysintpr has completed a loop.
+ * Called if an interval expires before intpr has completed a loop.
  * Sets a flag to not wait for the alarm.
  */
-void catchalarm(arg)
+static void
+catchalarm(arg)
     int arg;
 {
     signalled = 1;
 }
 
-#ifndef __svr4__
+
+#ifndef STREAMS
+static void
 get_ppp_stats(curp)
     struct ppp_stats *curp;
 {
@@ -308,17 +124,19 @@ get_ppp_stats(curp)
 #define ifr_name ifr__name
 #endif
 
-    sprintf(req.ifr_name, "ppp%d", unit);
+    strncpy(req.ifr_name, interface, sizeof(req.ifr_name));
     if (ioctl(s, SIOCGPPPSTATS, &req) < 0) {
+	fprintf(stderr, "%s: ", progname);
 	if (errno == ENOTTY)
-	    fprintf(stderr, "pppstats: kernel support missing\n");
+	    fprintf(stderr, "kernel support missing\n");
 	else
-	    perror("ioctl(SIOCGPPPSTATS)");
+	    perror("couldn't get PPP statistics");
 	exit(1);
     }
     *curp = req.stats;
 }
 
+static void
 get_ppp_cstats(csp)
     struct ppp_comp_stats *csp;
 {
@@ -332,49 +150,38 @@ get_ppp_cstats(csp)
 #define ifr_name ifr__name
 #endif
 
-    sprintf(creq.ifr_name, "ppp%d", unit);
+    strncpy(creq.ifr_name, interface, sizeof(creq.ifr_name));
     if (ioctl(s, SIOCGPPPCSTATS, &creq) < 0) {
+	fprintf(stderr, "%s: ", progname);
 	if (errno == ENOTTY) {
-	    fprintf(stderr, "pppstats: no kernel compression support\n");
-	    if (cflag)
+	    fprintf(stderr, "no kernel compression support\n");
+	    if (zflag)
 		exit(1);
 	    rflag = 0;
 	} else {
-	    perror("ioctl(SIOCGPPPCSTATS)");
+	    perror("couldn't get PPP compression stats");
 	    exit(1);
 	}
     }
+
+#ifdef _linux_
+    if (creq.stats.c.bytes_out == 0)
+	creq.stats.c.ratio = 0.0;
+    else
+	creq.stats.c.ratio = (double) creq.stats.c.in_count /
+			     (double) creq.stats.c.bytes_out;
+
+    if (creq.stats.d.bytes_out == 0)
+	creq.stats.d.ratio = 0.0;
+    else
+	creq.stats.d.ratio = (double) creq.stats.d.in_count /
+			     (double) creq.stats.d.bytes_out;
+#endif
+
     *csp = creq.stats;
 }
 
-#else	/* __svr4__ */
-get_ppp_stats(curp)
-    struct ppp_stats *curp;
-{
-    if (strioctl(s, PPPIO_GETSTAT, curp, 0, sizeof(*curp)) < 0) {
-	if (errno == EINVAL)
-	    fprintf(stderr, "pppstats: kernel support missing\n");
-	else
-	    perror("pppstats: Couldn't get statistics");
-	exit(1);
-    }
-}
-
-get_ppp_cstats(csp)
-    struct ppp_comp_stats *csp;
-{
-    if (strioctl(s, PPPIO_GETCSTAT, csp, 0, sizeof(*csp)) < 0) {
-	if (errno == ENOTTY) {
-	    fprintf(stderr, "pppstats: no kernel compression support\n");
-	    if (cflag)
-		exit(1);
-	    rflag = 0;
-	} else {
-	    perror("pppstats: Couldn't get compression statistics");
-	    exit(1);
-	}
-    }
-}
+#else	/* STREAMS */
 
 int
 strioctl(fd, cmd, ptr, ilen, olen)
@@ -394,4 +201,323 @@ strioctl(fd, cmd, ptr, ilen, olen)
 	       olen, str.ic_len, cmd);
     return 0;
 }
-#endif /* __svr4__ */
+
+static void
+get_ppp_stats(curp)
+    struct ppp_stats *curp;
+{
+    if (strioctl(s, PPPIO_GETSTAT, curp, 0, sizeof(*curp)) < 0) {
+	fprintf(stderr, "%s: ", progname);
+	if (errno == EINVAL)
+	    fprintf(stderr, "kernel support missing\n");
+	else
+	    perror("couldn't get PPP statistics");
+	exit(1);
+    }
+}
+
+static void
+get_ppp_cstats(csp)
+    struct ppp_comp_stats *csp;
+{
+    if (strioctl(s, PPPIO_GETCSTAT, csp, 0, sizeof(*csp)) < 0) {
+	fprintf(stderr, "%s: ", progname);
+	if (errno == ENOTTY) {
+	    fprintf(stderr, "no kernel compression support\n");
+	    if (zflag)
+		exit(1);
+	    rflag = 0;
+	} else {
+	    perror("couldn't get PPP compression statistics");
+	    exit(1);
+	}
+    }
+}
+
+#endif /* STREAMS */
+
+#define MAX0(a)		((int)(a) > 0? (a): 0)
+#define V(offset)	MAX0(cur.offset - old.offset)
+#define W(offset)	MAX0(ccs.offset - ocs.offset)
+
+#define RATIO(c, i, u)	((c) == 0? 1.0: (u) / ((double)(c) + (i)))
+#define CRATE(x)	RATIO(W(x.comp_bytes), W(x.inc_bytes), W(x.unc_bytes))
+
+#define KBPS(n)		((n) / (interval * 1000.0))
+
+/*
+ * Print a running summary of interface statistics.
+ * Repeat display every interval seconds, showing statistics
+ * collected over that interval.  Assumes that interval is non-zero.
+ * First line printed is cumulative.
+ */
+static void
+intpr()
+{
+    register int line = 0;
+    sigset_t oldmask, mask;
+    char *bunit;
+    int ratef = 0;
+    struct ppp_stats cur, old;
+    struct ppp_comp_stats ccs, ocs;
+
+    memset(&old, 0, sizeof(old));
+    memset(&ocs, 0, sizeof(ocs));
+
+    while (1) {
+	get_ppp_stats(&cur);
+	if (zflag || rflag)
+	    get_ppp_cstats(&ccs);
+
+	(void)signal(SIGALRM, catchalarm);
+	signalled = 0;
+	(void)alarm(interval);
+
+	if ((line % 20) == 0) {
+	    if (zflag) {
+		printf("IN:  COMPRESSED  INCOMPRESSIBLE   COMP | ");
+		printf("OUT: COMPRESSED  INCOMPRESSIBLE   COMP\n");
+		bunit = dflag? "KB/S": "BYTE";
+		printf("    %s   PACK     %s   PACK  RATIO | ", bunit, bunit);
+		printf("    %s   PACK     %s   PACK  RATIO", bunit, bunit);
+	    } else {
+		printf("%8.8s %6.6s %6.6s",
+		       "IN", "PACK", "VJCOMP");
+
+		if (!rflag)
+		    printf(" %6.6s %6.6s", "VJUNC", "VJERR");
+		if (vflag)
+		    printf(" %6.6s %6.6s", "VJTOSS", "NON-VJ");
+		if (rflag)
+		    printf(" %6.6s %6.6s", "RATIO", "UBYTE");
+		printf("  | %8.8s %6.6s %6.6s",
+		       "OUT", "PACK", "VJCOMP");
+
+		if (!rflag)
+		    printf(" %6.6s %6.6s", "VJUNC", "NON-VJ");
+		if (vflag)
+		    printf(" %6.6s %6.6s", "VJSRCH", "VJMISS");
+		if (rflag)
+		    printf(" %6.6s %6.6s", "RATIO", "UBYTE");
+	    }
+	    putchar('\n');
+	}
+
+	if (zflag) {
+	    if (ratef) {
+		printf("%8.3f %6u %8.3f %6u %6.2f",
+		       KBPS(W(d.comp_bytes)),
+		       W(d.comp_packets),
+		       KBPS(W(d.inc_bytes)),
+		       W(d.inc_packets),
+		       ccs.d.ratio * 256.0);
+		printf(" | %8.3f %6u %8.3f %6u %6.2f",
+		       KBPS(W(c.comp_bytes)),
+		       W(c.comp_packets),
+		       KBPS(W(c.inc_bytes)),
+		       W(c.inc_packets),
+		       ccs.c.ratio * 256.0);
+	    } else {
+		printf("%8u %6u %8u %6u %6.2f",
+		       W(d.comp_bytes),
+		       W(d.comp_packets),
+		       W(d.inc_bytes),
+		       W(d.inc_packets),
+		       ccs.d.ratio * 256.0);
+		printf(" | %8u %6u %8u %6u %6.2f",
+		       W(c.comp_bytes),
+		       W(c.comp_packets),
+		       W(c.inc_bytes),
+		       W(c.inc_packets),
+		       ccs.c.ratio * 256.0);
+	    }
+	
+	} else {
+	    if (ratef)
+		printf("%8.3f", KBPS(V(p.ppp_ibytes)));
+	    else
+		printf("%8u", V(p.ppp_ibytes));
+	    printf(" %6u %6u",
+		   V(p.ppp_ipackets),
+		   V(vj.vjs_compressedin));
+	    if (!rflag)
+		printf(" %6u %6u",
+		       V(vj.vjs_uncompressedin),
+		       V(vj.vjs_errorin));
+	    if (vflag)
+		printf(" %6u %6u",
+		       V(vj.vjs_tossed),
+		       V(p.ppp_ipackets) - V(vj.vjs_compressedin)
+		       - V(vj.vjs_uncompressedin) - V(vj.vjs_errorin));
+	    if (rflag) {
+		printf(" %6.2f ", CRATE(d));
+		if (ratef)
+		    printf("%6.2f", KBPS(W(d.unc_bytes)));
+		else
+		    printf("%6u", W(d.unc_bytes));
+	    }
+	    if (ratef)
+		printf("  | %8.3f", KBPS(V(p.ppp_obytes)));
+	    else
+		printf("  | %8u", V(p.ppp_obytes));
+	    printf(" %6u %6u",
+		   V(p.ppp_opackets),
+		   V(vj.vjs_compressed));
+	    if (!rflag)
+		printf(" %6u %6u",
+		       V(vj.vjs_packets) - V(vj.vjs_compressed),
+		       V(p.ppp_opackets) - V(vj.vjs_packets));
+	    if (vflag)
+		printf(" %6u %6u",
+		       V(vj.vjs_searches),
+		       V(vj.vjs_misses));
+	    if (rflag) {
+		printf(" %6.2f ", CRATE(c));
+		if (ratef)
+		    printf("%6.2f", KBPS(W(c.unc_bytes)));
+		else
+		    printf("%6u", W(c.unc_bytes));
+	    }
+
+	}
+
+	putchar('\n');
+	fflush(stdout);
+	line++;
+
+	count--;
+	if (!infinite && !count)
+	    break;
+
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGALRM);
+	sigprocmask(SIG_BLOCK, &mask, &oldmask);
+	if (!signalled) {
+	    sigemptyset(&mask);
+	    sigsuspend(&mask);
+	}
+	sigprocmask(SIG_SETMASK, &oldmask, NULL);
+	signalled = 0;
+	(void)alarm(interval);
+
+	if (!aflag) {
+	    old = cur;
+	    ocs = ccs;
+	    ratef = dflag;
+	}
+    }
+}
+
+int
+main(argc, argv)
+    int argc;
+    char *argv[];
+{
+    int c;
+#ifdef STREAMS
+    char *dev;
+#endif
+
+    interface = "ppp0";
+    if ((progname = strrchr(argv[0], '/')) == NULL)
+	progname = argv[0];
+    else
+	++progname;
+
+    while ((c = getopt(argc, argv, "advrzc:w:")) != -1) {
+	switch (c) {
+	case 'a':
+	    ++aflag;
+	    break;
+	case 'd':
+	    ++dflag;
+	    break;
+	case 'v':
+	    ++vflag;
+	    break;
+	case 'r':
+	    ++rflag;
+	    break;
+	case 'z':
+	    ++zflag;
+	    break;
+	case 'c':
+	    count = atoi(optarg);
+	    if (count <= 0)
+		usage();
+	    break;
+	case 'w':
+	    interval = atoi(optarg);
+	    if (interval <= 0)
+		usage();
+	    break;
+	default:
+	    usage();
+	}
+    }
+    argc -= optind;
+    argv += optind;
+
+    if (!interval && count)
+	interval = 5;
+    if (interval && !count)
+	infinite = 1;
+    if (!interval && !count)
+	count = 1;
+    if (aflag)
+	dflag = 0;
+
+    if (argc > 1)
+	usage();
+    if (argc > 0)
+	interface = argv[0];
+
+    if (sscanf(interface, "ppp%d", &unit) != 1) {
+	fprintf(stderr, "%s: invalid interface '%s' specified\n",
+		progname, interface);
+    }
+
+#ifndef STREAMS
+    {
+	struct ifreq ifr;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+	    fprintf(stderr, "%s: ", progname);
+	    perror("couldn't create IP socket");
+	    exit(1);
+	}
+
+#ifdef _linux_
+#undef  ifr_name
+#define ifr_name ifr_ifrn.ifrn_name
+#endif
+	strncpy(ifr.ifr_name, interface, sizeof(ifr.ifr_name));
+	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
+	    fprintf(stderr, "%s: nonexistent interface '%s' specified\n",
+		    progname, interface);
+	    exit(1);
+	}
+    }
+
+#else	/* STREAMS */
+#ifdef __osf__
+    dev = "/dev/streams/ppp";
+#else
+    dev = "/dev/ppp";
+#endif
+    if ((s = open(dev, O_RDONLY)) < 0) {
+	fprintf(stderr, "%s: couldn't open ", progname);
+	perror(dev);
+	exit(1);
+    }
+    if (strioctl(s, PPPIO_ATTACH, &unit, sizeof(int), 0) < 0) {
+	fprintf(stderr, "%s: ppp%d is not available\n", progname, unit);
+	exit(1);
+    }
+
+#endif	/* STREAMS */
+
+    intpr();
+    exit(0);
+}
