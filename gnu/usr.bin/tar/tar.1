@@ -174,7 +174,7 @@ Print number of buffer reads/writes while reading/writing the archive.
 Read or write the specified
 .Ar file
 (default is
-.Pa /dev/rsa0 ) .
+.Pa /dev/sa0 ) .
 If a
 .Ar hostname
 is specified,
@@ -373,15 +373,15 @@ These options are interpreted first and can be overwritten by explicit command
 line parameters.
 .Sh EXAMPLES
 To create an archive on tape drive
-.Pa /dev/rsa0
+.Pa /dev/sa0
 with a block size of 20 blocks, containing files named
 .Pa bert
 and
 .Pa ernie ,
 you can enter
-.Dl "tar cfb /dev/rsa0 20 bert ernie"
+.Dl "tar cfb /dev/sa0 20 bert ernie"
 or
-.Dl "tar --create --file /dev/rsa0 --block-size 20 bert ernie"
+.Dl "tar --create --file /dev/sa0 --block-size 20 bert ernie"
 Note that the
 .Fl f
 and
@@ -390,7 +390,7 @@ flags both require arguments, which they take from the command line in
 the order they were listed in the command word.
 .Pp
 Because
-.Pa /dev/rsa0
+.Pa /dev/sa0
 is the default device, and 20 is the default block
 size, the above example could have simply been
 .Dl "tar c bert ernie"
@@ -485,8 +485,8 @@ default tape drive (which is still overridden by the
 flag).
 .El
 .Sh FILES
-.Bl -tag -width "/dev/rsa0"
-.It Pa /dev/rsa0
+.Bl -tag -width "/dev/sa0"
+.It Pa /dev/sa0
 The default tape drive.
 .El
 .Sh COMPATIBILITY
