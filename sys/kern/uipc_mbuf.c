@@ -737,6 +737,9 @@ nospace:
  * An optimization of the common case `m_copym(m, 0, M_COPYALL, how)'.
  * Note that the copy is read-only, because clusters are not copied,
  * only their reference counts are incremented.
+ * Preserve alignment of the first mbuf so if the creator has left
+ * some room at the beginning (e.g. for inserting protocol headers)
+ * the copies also have the room available.
  */
 struct mbuf *
 m_copypacket(m, how)
@@ -785,6 +788,7 @@ m_copypacket(m, how)
 			n->m_ext = m->m_ext;
 			n->m_flags |= M_EXT;
 		} else {
+			n->m_data = n->m_pktdat + (m->m_data - m->m_pktdat );
 			bcopy(mtod(m, char *), mtod(n, char *), n->m_len);
 		}
 
