@@ -1,3 +1,4 @@
+.\"
 .\" Copyright (c) 2001 Dima Dorfman <dima@unixfreak.org>
 .\" All rights reserved.
 .\"
@@ -25,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd March 28, 2001
-.Dt EXTATTR_GET_FILE 2
+.Dt EXTATTR 2
 .Os
 .Sh NAME
 .Nm extattr_get_fd ,
@@ -34,12 +35,12 @@
 .Nm extattr_get_file ,
 .Nm extattr_set_file ,
 .Nm extattr_delete_file
-.Nd manipulate VFS extended attributes
+.Nd system calls to manipulate VFS extended attributes
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/uio.h>
 .Fd #include <sys/extattr.h>
+.Fd #include <sys/uio.h>
 .Ft int
 .Fn extattr_get_fd "int fd" "int attrnamespace" "const char *attrname" "struct iovec *iovp" "unsigned iovcnt"
 .Ft int
@@ -185,6 +186,7 @@ Search permission is denied for a component of the path prefix.
 .\" XXX are any missing?
 .El
 .Sh SEE ALSO
+.Xr extattr 3 ,
 .Xr getextattr 8 ,
 .Xr setextattr 8 ,
 .Xr extattr 9 ,
@@ -197,6 +199,3 @@ Project, and introduced in
 .Fx 5.0 .
 It was developed to support security extensions requiring additional labels
 to be associated with each file or directory.
-.Sh AUTHORS
-This manual page was written by
-.An Dima Dorfman Aq dima@unixfreak.org .
