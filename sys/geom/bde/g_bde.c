@@ -136,22 +136,6 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	g_topology_assert();
 	gp = NULL;
 
-	pass = gctl_get_param(req, "pass", &i);
-	if (pass == NULL || i != SHA512_DIGEST_LENGTH) {
-		if (pass != NULL) {
-			bzero(pass, i);
-			g_free(pass);
-		}
-		return (gctl_error(req, "No usable key presented"));
-	}
-	key = gctl_get_param(req, "key", &i);
-	if (key != NULL && i != 16) {
-		bzero(key, i);
-		bzero(pass, SHA512_DIGEST_LENGTH);
-		g_free(pass);
-		g_free(key);
-		return (gctl_error(req, "Invalid key presented"));
-	}
 
 	gp = g_new_geomf(mp, "%s.bde", pp->name);
 	gp->start = g_bde_start;
@@ -169,7 +153,19 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	}
 	g_topology_unlock();
 	g_waitidle();
-	while (1) {
+	pass = NULL;
+	key = NULL;
+	do {
+		pass = gctl_get_param(req, "pass", &i);
+		if (pass == NULL || i != SHA512_DIGEST_LENGTH) {
+			error = gctl_error(req, "No usable key presented");
+			break;
+		}
+		key = gctl_get_param(req, "key", &i);
+		if (key != NULL && i != 16) {
+			error = gctl_error(req, "Invalid key presented");
+			break;
+		}
 		sectorsize = cp->provider->sectorsize;
 		mediasize = cp->provider->mediasize;
 		sc = g_malloc(sizeof(struct g_bde_softc), M_WAITOK | M_ZERO);
@@ -179,9 +175,6 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 
 		error = g_bde_decrypt_lock(sc, pass, key,
 		    mediasize, sectorsize, NULL);
-		bzero(pass, SHA512_DIGEST_LENGTH);
-		if (key != NULL)
-			bzero(key, 16);
 		bzero(sc->sha2, sizeof sc->sha2);
 		if (error)
 			break;
@@ -224,13 +217,20 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		g_error_provider(pp, 0);
 		g_topology_unlock();
 		break;
+	} while (0);
+	if (pass != NULL) {
+		bzero(pass, SHA512_DIGEST_LENGTH);
+		g_free(pass);
+	}
+	if (key != NULL) {
+		bzero(key, 16);
+		g_free(key);
 	}
 	g_topology_lock();
 	if (error == 0) {
 		return (0);
-	} else {
-		g_access_rel(cp, -1, -1, -1);
 	}
+	g_access_rel(cp, -1, -1, -1);
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	if (gp->softc != NULL)
