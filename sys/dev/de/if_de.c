@@ -467,8 +467,9 @@ tulip_media_link_monitor(
 #if defined(DIAGNOSTIC) || defined(TULIP_DEBUG)
 	panic("tulip_media_link_monitor: %s: botch at line %d\n",
 	      tulip_mediums[sc->tulip_media],__LINE__);
-#endif
+#else
 	return TULIP_LINK_UNKNOWN;
+#endif
     }
 
 
@@ -1336,8 +1337,8 @@ tulip_mii_autonegotiate(
 	    sc->tulip_probe_timeout = 3000;
 	    sc->tulip_intrmask |= TULIP_STS_ABNRMLINTR|TULIP_STS_NORMALINTR;
 	    sc->tulip_probe_state = TULIP_PROBE_PHYRESET;
-	    /* FALLTHROUGH */
 	}
+        /* FALLTHROUGH */
         case TULIP_PROBE_PHYRESET: {
 	    u_int32_t status;
 	    u_int32_t data = tulip_mii_readreg(sc, phyaddr, PHYREG_CONTROL);
@@ -1378,8 +1379,8 @@ tulip_mii_autonegotiate(
 #endif
 	    sc->tulip_probe_state = TULIP_PROBE_PHYAUTONEG;
 	    sc->tulip_probe_timeout = 3000;
-	    /* FALLTHROUGH */
 	}
+        /* FALLTHROUGH */
         case TULIP_PROBE_PHYAUTONEG: {
 	    u_int32_t status = tulip_mii_readreg(sc, phyaddr, PHYREG_STATUS);
 	    u_int32_t data;
@@ -3350,7 +3351,6 @@ tulip_rx_intr(
 
     for (;;) {
 	TULIP_PERFSTART(rxget)
-	struct ether_header eh;
 	tulip_desc_t *eop = ri->ri_nextin;
 	int total_len = 0, last_offset = 0;
 	struct mbuf *ms = NULL, *me = NULL;
@@ -3464,7 +3464,6 @@ tulip_rx_intr(
 #endif
 #endif /* TULIP_BUS_DMA */
 
-	    eh = *mtod(ms, struct ether_header *);
 #ifndef __FreeBSD__
 	    if (sc->tulip_if.if_bpf != NULL) {
 		if (me == ms)
@@ -3862,7 +3861,7 @@ tulip_intr_handler(
 	     * Pass 2.[012] of the 21140A-A[CDE] may hang and/or corrupt data
 	     * on receive overflows.
 	     */
-	   if ((misses & 0x0FFE0000) && (sc->tulip_features & TULIP_HAVE_RXBADOVRFLW)) {
+	    if ((misses & 0x0FFE0000) && (sc->tulip_features & TULIP_HAVE_RXBADOVRFLW)) {
 		sc->tulip_dot3stats.dot3StatsInternalMacReceiveErrors++;
 		/*
 		 * Stop the receiver process and spin until it's stopped.
