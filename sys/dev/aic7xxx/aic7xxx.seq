@@ -41,7 +41,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.30 1996/01/29 03:12:02 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.31 1996/03/10 07:02:31 gibbs Exp $"
 
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
 
@@ -94,7 +94,8 @@ poll_for_work:
 start2:
 	test	SSTAT0,SELDI	jnz reselect
 	cmp	WAITING_SCBH,SCB_LIST_NULL jne start_waiting
-	test	QINCNT,0xff	jz poll_for_work
+	mov	A, QCNTMASK
+	test	QINCNT,A	jz poll_for_work
 
 /*
  * We have at least one queued SCB now and we don't have any 
@@ -273,15 +274,6 @@ ITloop:
 	test	SSTAT1,BUSFREE	jnz p_busfree
 	test	SSTAT1,REQINIT	jz ITloop
 
-/*
- * If we've had a parity error, let the driver know before
- * we overwrite LASTPHASE.
- */
-	test	SSTAT1, SCSIPERR jz parity_okay
-	or	CLRSINT1, CLRSCSIPERR
-	mvi	INTSTAT, PARITY_ERROR
-
-parity_okay:
 	and	A,PHASE_MASK,SCSISIGI
 	mov	LASTPHASE,A
 	mov	SCSISIGO,A

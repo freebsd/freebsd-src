@@ -43,7 +43,7 @@
  * are token separators.
  *
  *-M*************************************************************************/
-static char id[] = "$Id: aic7xxx_asm.c,v 1.10 1996/01/03 06:25:31 gibbs Exp $";
+static char id[] = "$Id: aic7xxx_asm.c,v 1.11 1996/01/05 01:48:07 gibbs Exp $";
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
@@ -585,7 +585,7 @@ main(int argc, char **argv)
 	int fd[2];
 
 	ofile = NULL;
-	while ((c = getopt(argc, argv, "dho:vD")) != EOF) {
+	while ((c = getopt(argc, argv, "dho:vD:")) != EOF) {
 		switch (c) {
 		    case 'd':
 			debug = !0;
@@ -603,7 +603,7 @@ main(int argc, char **argv)
 		    }
 		    case 'o':
 		        
-			if ((ofile = fopen(optarg, "w")) < 0) {
+			if ((ofile = fopen(optarg, "w")) == NULL) {
 				perror(optarg);
 				exit(EXIT_FAILURE);
 			}
@@ -636,7 +636,7 @@ main(int argc, char **argv)
 	}
 
 	if (!ofile) {
-		if ((ofile = fopen(ADOTOUT, "w")) < 0) {
+		if ((ofile = fopen(ADOTOUT, "w")) == NULL) {
 			perror(ADOTOUT);
 			exit(EXIT_FAILURE);
 		}
