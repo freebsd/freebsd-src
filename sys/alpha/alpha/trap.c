@@ -278,7 +278,10 @@ trap(a0, a1, a2, entry, framep)
 	critical_exit(s);
 #endif
 
+	/*
 	GIANT_REQUIRED;
+	 * Giant hasn't been acquired yet.
+	 */
 
 	cnt.v_trap++;
 	ucode = 0;
@@ -353,8 +356,7 @@ trap(a0, a1, a2, entry, framep)
 
 	case ALPHA_KENTRY_IF:
 		/*
-		 * These are always fatal in kernel, and should never
-		 * happen.
+		 * These are always fatal in kernel, and should never happen.
 		 */
 		if (!user) {
 #ifdef DDB
