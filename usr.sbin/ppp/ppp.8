@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.5 1995/05/21 10:52:05 jkh Exp $
+.\" $Id: ppp.8,v 1.6 1995/05/21 17:32:35 jkh Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -18,9 +18,10 @@ ppp \- Point to Point Protocol (aka iijppp)
 .SH DESCRIPTION
 .LP
 This is a user process \fIPPP\fR software package.  Normally, \fIPPP\fR
-is implemented as a part of the kernel (e.g. pppd) and it's thus somewhat
-hard to debug and/or modify its behavior.  However, in this implementation
-\fIPPP\fR is done as a user process with the help of the tunnel device driver.
+is implemented as a part of the kernel (e.g. as managed by pppd) and it's
+thus somewhat hard to debug and/or modify its behavior.  However, in this
+implementation \fIPPP\fR is done as a user process with the help of the
+tunnel device driver (tun).
 .LP
 
 .SH Major Features
@@ -29,7 +30,7 @@ hard to debug and/or modify its behavior.  However, in this implementation
 o Provides interactive user interface.
 Using its command mode, the user can
 easily enter commands to establish the connection with the remote end, check
-the status of connection, and close the connection.  All functions can
+the status of connection and close the connection.  All functions can
 also be optionally password protected for security.
 
 .TP
@@ -63,13 +64,15 @@ for your connection.
 .TP
 o Supports packet filtering.
 User can define four kinds of filters:
-ifilter for incoming packets, ofilter for outgoing packets, dfilter to
-define dialing trigger packet and afilter to keep a connection alive with
-the trigger packet.
+ifilter for incoming packets, \fIofilter\fR for outgoing packets, \fIdfilter\fR
+to define a dialing trigger packet and \fIafilter\fR for keeping a connection
+alive with the trigger packet.
 
 .TP
 o Tunnel driver supports bpf.
-That is, user can use tcpdump to check packet flow over the \fIPPP\fR link.
+That is, user can use
+.IR tcpdump (1)
+to check the packet flow over the \fIPPP\fR link.
 
 .TP 
 o Supports \fIPPP\fR over TCP capability. 
@@ -84,11 +87,11 @@ other situations, this higher speed data imposes a penalty on
 the system by increasing the number of serial interrupts the system
 has to process in talking to the modem.  Unlike VJ-compression,
 Predictor-1 compression pre-compresses \fBall\fR data flowing through
-the link and thus reduces traffic to a minimum.
+the link, thus reducing overhead to a minimum.
 
 .TP
 o Runs under BSDI-1.1 and FreeBSD.
-Patch for NeXTSTEP 3.2 is also available on the net.
+Patches for NeXTSTEP 3.2 are also available on the net.
 
 .SH GETTING STARTED
 .LP
