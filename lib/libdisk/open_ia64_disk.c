@@ -250,7 +250,7 @@ Int_Open_Disk(const char *name, char *conftxt)
 			else if (uuid_equal(&uuid, &_efi, NULL))
 				chunk.type = efi;
 			else if (uuid_equal(&uuid, &_mbr, NULL))
-				chunk.type = unknown;
+				chunk.type = mbr;
 			else if (uuid_equal(&uuid, &_fbsd, NULL)) {
 				chunk.type = freebsd;
 				chunk.subtype = 0xa5;
@@ -261,7 +261,7 @@ Int_Open_Disk(const char *name, char *conftxt)
 				chunk.type = part;
 				chunk.subtype = FS_BSDFFS;
 			} else
-				chunk.type = unknown;
+				chunk.type = part;
 		} else
 			abort();
 
