@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.17 1995/02/02 15:50:57 se Exp $
+**  $Id: ncr.c,v 1.18 1995/02/04 14:02:44 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,15 +44,11 @@
 ***************************************************************************
 */
 
-#define	NCR_PATCHLEVEL	"pl8 95/02/04"
+#define	NCR_PATCHLEVEL	"pl10 95/02/06"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
 
-#ifndef LDSC
-	/* belongs to sstat2 in ncrreg.h */
-        #define   LDSC    0x02  /* sta: disconnect & reconnect      */
-#endif
 
 /*==========================================================
 **
@@ -1231,7 +1227,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.17 1995/02/02 15:50:57 se Exp $\n";
+	"\n$Id: ncr.c,v 1.18 1995/02/04 14:02:44 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -2209,7 +2205,7 @@ static	struct script script0 = {
 	/*
 	**	Terminate cycle ...
 	*/
-	SCR_CLR (SCR_ACK),
+	SCR_CLR (SCR_ACK|SCR_ATN),
 		0,
 	/*
 	**	... and wait for the disconnect.
@@ -2366,7 +2362,7 @@ static	struct script script0 = {
 	*/
 	SCR_REG_REG (scntl2, SCR_AND, 0x7f),
 		0,
-	SCR_CLR (SCR_ACK),
+	SCR_CLR (SCR_ACK|SCR_ATN),
 		0,
 	/*
 	**	Wait for the disconnect.
@@ -2439,7 +2435,7 @@ static	struct script script0 = {
 	*/
 	SCR_REG_REG (scntl2, SCR_AND, 0x7f),
 		0,
-	SCR_CLR (SCR_ACK),
+	SCR_CLR (SCR_ACK|SCR_ATN),
 		0,
 	SCR_WAIT_DISC,
 		0,
@@ -2839,7 +2835,7 @@ static	struct script script0 = {
 	SCR_COPY (1),
 		RADDR (sfbr),
 		NADDR (lastmsg),
-	SCR_CLR (SCR_ACK),
+	SCR_CLR (SCR_ACK|SCR_ATN),
 		0,
 	SCR_WAIT_DISC,
 		0,
@@ -3371,6 +3367,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	*/
 
 	OUTB (nc_scntl1, CRST);
+	DELAY (1000);
 
 	/*
 	**	process the reset exception,
