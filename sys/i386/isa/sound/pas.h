@@ -1,6 +1,3 @@
-/*
- * pas.h,v 1.6 1994/10/01 12:42:17 ache Exp
- */
 /* 																*/
 /*	Port addresses and bit fields for the Media Vision Pro AudioSpectrum second generation sound cards.			*/
 /* 																*/
@@ -45,9 +42,11 @@
 #define WAIT_STATE			0xBF88		/* R W	Control		Four-bit bus wait-state count (~140ns ea.)	*/
 #define BOARD_REV_ID			0x2789		/* R	Control		Extended Board Revision ID			*/
 
+#define CHIP_REV			0xFF88		/* R	0=PAS, 1=PAS+, 2=CDPC, 3=PAS16C, 4=PAS16D */
+
 #define SYSTEM_CONFIGURATION_1		0x8388		/* R W	Control								*/
 	#define S_C_1_PCS_ENABLE	0x01		/* R W  PC speaker	1=enable, 0=disable PC speaker emulation	*/
-	#define S_C_1_PCM_CLOCK_SELECT	0x02		/* R W  PCM		1=14.31818Mhz/12, 0=28.224Mhz master clock	*/
+	#define S_C_1_PCM_CLOCK_SELECT	0x02		/* R W  PCM		1=14.31818Mhz/12, 0=28.224Mhz master clock	*/ 
 	#define S_C_1_FM_EMULATE_CLOCK	0x04		/* R W  FM		1=use 28.224Mhz/2, 0=use 14.31818Mhz clock	*/
 	#define S_C_1_PCS_STEREO	0x10 		/* R W  PC speaker	1=enable PC speaker stereo effect, 0=disable	*/
 	#define S_C_1_PCS_REALSOUND	0x20		/* R W  PC speaker	1=enable RealSound enhancement, 0=disable	*/
@@ -62,6 +61,7 @@
 
 #define IO_CONFIGURATION_1		0xF388		/* R W	Control								*/
 	#define I_C_1_BOOT_RESET_ENABLE	0x80		/* R W  Control		1=reset board on warm boot, 0=don't		*/
+	#define I_C_1_JOYSTICK_ENABLE	0x40		/* R W  Control		1=enable joystick port, 0=don't		        */
 #define IO_CONFIGURATION_2		0xF389		/* R W  Control								*/
 	#define	I_C_2_PCM_DMA_DISABLED	0x00		/* R W  PCM		PCM DMA disabled				*/
 #define IO_CONFIGURATION_3		0xF38A		/* R W	Control								*/
@@ -83,7 +83,7 @@
 
 #define OPERATION_MODE_1		0xEF8B		/* R	Control								*/
 	#define	O_M_1_CDROM_TYPE	0x03		/* R	CD-ROM		3=SCSI, 2=Sony, 0=no CD-ROM interface		*/
-	#define O_M_1_FM_TYPE		0x04		/* R	FM		1=stereo, 0=mono FM chip			*/
+	#define O_M_1_FM_TYPE		0x04		/* R	FM		1=sterero, 0=mono FM chip			*/
 	#define O_M_1_PCM_TYPE 		0x08		/* R	PCM		1=16-bit Codec, 0=8-bit DAC			*/
 #define OPERATION_MODE_2		0xFF8B		/* R	Control								*/
 	#define O_M_2_PCS_ENABLED	0x02		/* R	PC speaker	PC speaker emulation 1=enabled, 0=disabled	*/
@@ -114,7 +114,7 @@
 	struct {					/* R W	Mixer		Filter translation				*/
 		unsigned int freq:24;
 		unsigned int value:8;
-	} F_F_FILTER_translate[] =
+	} F_F_FILTER_translate[] = 
 	{ { 73500, 0x01 },	/* 73500Hz - divide by  16 */
 	  { 65333, 0x02 },	/* 65333Hz - divide by  18 */
 	  { 49000, 0x09 },	/* 49000Hz - divide by  24 */
@@ -131,7 +131,6 @@
 	#define F_F_PCM_RATE_COUNTER	0x40		/* R W	PCM		1=enable, 0=disable sample rate counter		*/
 	#define F_F_PCM_BUFFER_COUNTER	0x80		/* R W 	PCM		1=enable, 0=disable sample buffer counter	*/
 
-#define	CHIP_REV			0xFF88		/* R	Control		0=PAS, 1=PAS+, 2=CDPC, 3=PAS16C, 4=PAS16D	*/
 #define PAS_NONE	0
 #define PAS_PLUS	1
 #define PAS_CDPC	2
@@ -142,7 +141,7 @@
 	unsigned char I_C_2_PCM_DMA_translate[] = 		/* R W  PCM		PCM DMA channel value translations		*/
 			{ 4, 1, 2, 3, 0, 5, 6, 7 };
 	unsigned char I_C_3_PCM_IRQ_translate[] = 		/* R W	PCM		PCM IRQ level value translation			*/
-		{ 0,  0,  1,  2,  3,  4,  5,  6, 0,  1,  7,  8,  9,  0, 10, 11 };
+		{ 0,  0,  1,  2,  3,  4,  5,  6, 0,  1,  7,  8,  9,  0, 10, 11 };  
 	unsigned char E_C_MPU401_IRQ_translate[] = 		/* R W	MIDI		MPU401 emulation IRQ value translation		*/
 		{ 0x00, 0x00, 0x01, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x01, 0x05, 0x06, 0x07 };
 	unsigned char E_C_SB_IRQ_translate[] = 			/* R W	PCM		SB emulation IRQ translate			*/
@@ -150,7 +149,7 @@
 	unsigned char E_C_SB_DMA_translate[] = 			/* R W	PCM		SB emulation DMA translate			*/
 		{ 0x00, 0x40, 0x80, 0xC0, 0, 0, 0, 0 };
 	unsigned char O_M_1_to_card[] = 				/* R W	Control		Translate (OM1 & 0x0f) to card type		*/
-		{ 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 4, 0, 2, 3 };
+		{ 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 4, 0, 2, 3 };   
 #else
 	extern unsigned char I_C_2_PCM_DMA_translate[];		/* R W  PCM		PCM DMA channel value translations		*/
 	extern unsigned char I_C_3_PCM_IRQ_translate[];		/* R W	PCM		PCM IRQ level value translation			*/
@@ -251,4 +250,4 @@
 
 #define MIDI_FIFO_STATUS		0x1B89		/* R W  MIDI		Midi fifo status				*/
 #define MIDI_DATA			0x178A		/* R W  MIDI		Midi data register				*/
-#define MIDI_INPUT_AVAILABLE		0x0f		/* RW   MIDI */
+#define MIDI_INPUT_AVAILABLE		0x0f		/* RW   MIDI */ 
