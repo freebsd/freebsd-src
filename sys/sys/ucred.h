@@ -83,6 +83,7 @@ struct xucred {
 #ifdef _KERNEL
 
 
+void		cred_update_thread(struct thread *td);
 void		change_egid (struct ucred *newcred, gid_t egid);
 void		change_euid (struct ucred *newcred, uid_t euid);
 void		change_rgid (struct ucred *newcred, gid_t rgid);

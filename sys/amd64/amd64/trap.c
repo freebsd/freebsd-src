@@ -256,9 +256,8 @@ trap(frame)
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = &frame;
 		KASSERT(td->td_ucred == NULL, ("already have a ucred"));
-		PROC_LOCK(p);
-		td->td_ucred = crhold(p->p_ucred);
-		PROC_UNLOCK(p);
+		if (td->td_ucred != p->p_ucred) 
+			cred_update_thread(td);
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
@@ -644,10 +643,12 @@ user:
 	userret(td, &frame, sticks);
 	mtx_assert(&Giant, MA_NOTOWNED);
 userout:
+#ifdef	INVARIANTS
 	mtx_lock(&Giant);
 	crfree(td->td_ucred);
 	mtx_unlock(&Giant);
 	td->td_ucred = NULL;
+#endif
 out:
 	return;
 }
@@ -954,9 +955,8 @@ syscall(frame)
 	sticks = td->td_kse->ke_sticks;
 	td->td_frame = &frame;
 	KASSERT(td->td_ucred == NULL, ("already have a ucred"));
-	PROC_LOCK(p);
-	td->td_ucred = crhold(p->p_ucred);
-	PROC_UNLOCK(p);
+	if (td->td_ucred != p->p_ucred) 
+		cred_update_thread(td);
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;
 	orig_tf_eflags = frame.tf_eflags;
@@ -1099,10 +1099,12 @@ bad:
 	 */
 	STOPEVENT(p, S_SCX, code);
 
+#ifdef	INVARIANTS
 	mtx_lock(&Giant);
 	crfree(td->td_ucred);
 	mtx_unlock(&Giant);
 	td->td_ucred = NULL;
+#endif
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
