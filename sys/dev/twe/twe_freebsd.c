@@ -1012,7 +1012,7 @@ twe_setup_data_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int err
     }
 
     if (twe_start(tr) == EBUSY)
-	panic("EBUSY should not happen");
+	twe_requeue_ready(tr);
 }
 
 static void
