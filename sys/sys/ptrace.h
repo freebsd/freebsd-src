@@ -67,6 +67,7 @@ int	ptrace_single_step(struct thread *_td);
 struct reg;
 struct fpreg;
 struct dbreg;
+struct uio;
 int	proc_read_regs(struct thread *_td, struct reg *_reg);
 int	proc_write_regs(struct thread *_td, struct reg *_reg);
 int	proc_read_fpregs(struct thread *_td, struct fpreg *_fpreg);
