@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.176 1996/10/02 22:00:38 sos Exp $
+ *  $Id: syscons.c,v 1.177 1996/10/03 00:42:27 jkh Exp $
  */
 
 #include "sc.h"
@@ -1322,7 +1322,7 @@ sccnprobe(struct consdev *cp)
      * Take control if we are the highest priority enabled display device.
      */
     dvp = find_display();
-    if (dvp != NULL && dvp->id_driver != &scdriver) {
+    if (dvp == NULL || dvp->id_driver != &scdriver) {
 	cp->cn_pri = CN_DEAD;
 	return;
     }
