@@ -59,7 +59,7 @@ static void
 init_taskqueue_list(void *data __unused)
 {
 
-	mtx_init(&taskqueue_queues_mutex, "taskqueue list", MTX_DEF);
+	mtx_init(&taskqueue_queues_mutex, "taskqueue list", NULL, MTX_DEF);
 	STAILQ_INIT(&taskqueue_queues);
 }
 SYSINIT(taskqueue_list, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_taskqueue_list,
@@ -80,7 +80,7 @@ taskqueue_create(const char *name, int mflags,
 	queue->tq_enqueue = enqueue;
 	queue->tq_context = context;
 	queue->tq_draining = 0;
-	mtx_init(&queue->tq_mutex, "taskqueue", MTX_DEF);
+	mtx_init(&queue->tq_mutex, "taskqueue", NULL, MTX_DEF);
 
 	mtx_lock(&taskqueue_queues_mutex);
 	STAILQ_INSERT_TAIL(&taskqueue_queues, queue, tq_link);

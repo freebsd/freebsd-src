@@ -1365,7 +1365,7 @@ pmap_pinit0(pmap)
 	}
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
-	mtx_init(&allpmaps_lock, "allpmaps", MTX_SPIN | MTX_QUIET);
+	mtx_init(&allpmaps_lock, "allpmaps", NULL, MTX_SPIN | MTX_QUIET);
 	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
 }
 

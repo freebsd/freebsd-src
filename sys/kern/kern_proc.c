@@ -96,7 +96,7 @@ procinit()
 	sx_init(&allproc_lock, "allproc");
 	sx_init(&proctree_lock, "proctree");
 	sx_init(&pgrpsess_lock, "pgrpsess");
-	mtx_init(&pargs_ref_lock, "struct pargs.ref", MTX_DEF);
+	mtx_init(&pargs_ref_lock, "struct pargs.ref", NULL, MTX_DEF);
 	LIST_INIT(&allproc);
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
@@ -344,13 +344,13 @@ enterpgrp(p, pgid, pgrp, sess)
 	KASSERT(!SESS_LEADER(p),
 	    ("enterpgrp: session leader attempted setpgrp"));
 
-	mtx_init(&pgrp->pg_mtx, "process group", MTX_DEF|MTX_DUPOK);
+	mtx_init(&pgrp->pg_mtx, "process group", NULL, MTX_DEF | MTX_DUPOK);
 
 	if (sess != NULL) {
 		/*
 		 * new session
 		 */
-		mtx_init(&sess->s_mtx, "session", MTX_DEF);
+		mtx_init(&sess->s_mtx, "session", NULL, MTX_DEF);
 		PROC_LOCK(p);
 		p->p_flag &= ~P_CONTROLT;
 		PROC_UNLOCK(p);

@@ -304,7 +304,7 @@ slcreate()
 	sc->sc_fastq.ifq_maxlen = 32;
 	sc->sc_if.if_linkmib = sc;
 	sc->sc_if.if_linkmiblen = sizeof *sc;
-	mtx_init(&sc->sc_fastq.ifq_mtx, "sl_fastq", MTX_DEF);
+	mtx_init(&sc->sc_fastq.ifq_mtx, "sl_fastq", NULL, MTX_DEF);
 
 	/*
 	 * Find a suitable unit number.

@@ -1552,7 +1552,7 @@ sf_buf_init(void *arg)
 {
 	int i;
 
-	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", MTX_DEF);
+	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", NULL, MTX_DEF);
 	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INIT(&sf_freelist.sf_head);
 	sf_base = kmem_alloc_pageable(kernel_map, nsfbufs * PAGE_SIZE);

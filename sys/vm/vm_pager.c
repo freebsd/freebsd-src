@@ -216,7 +216,7 @@ vm_pager_bufferinit()
 	struct buf *bp;
 	int i;
 
-	mtx_init(&pbuf_mtx, "pbuf mutex", MTX_DEF);
+	mtx_init(&pbuf_mtx, "pbuf mutex", NULL, MTX_DEF);
 	bp = swbuf;
 	/*
 	 * Now set up swap and physical I/O buffer headers.

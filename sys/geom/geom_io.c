@@ -89,7 +89,7 @@ g_bioq_init(struct g_bioq *bq)
 {
 
 	TAILQ_INIT(&bq->bio_queue);
-	mtx_init(&bq->bio_queue_lock, "bio queue", MTX_DEF);
+	mtx_init(&bq->bio_queue_lock, "bio queue", NULL, MTX_DEF);
 }
 
 static struct bio *

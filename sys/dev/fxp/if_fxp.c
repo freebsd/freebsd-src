@@ -360,7 +360,8 @@ fxp_attach(device_t dev)
 	sc->dev = dev;
 	callout_handle_init(&sc->stat_ch);
 	sysctl_ctx_init(&sc->sysctl_ctx);
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 
 	s = splimp(); 
 

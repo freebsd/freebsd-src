@@ -368,9 +368,10 @@ USB_ATTACH(udbp)
 			NG_NODE_SET_PRIVATE(sc->node, sc);
 			sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 			sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
-			mtx_init(&sc->xmitq.ifq_mtx, "usb_xmitq", MTX_DEF);
+			mtx_init(&sc->xmitq.ifq_mtx, "usb_xmitq", NULL,
+			    MTX_DEF);
 			mtx_init(&sc->xmitq_hipri.ifq_mtx,
-					"usb_xmitq_hipri", MTX_DEF);
+			    "usb_xmitq_hipri", NULL, MTX_DEF);
 		}
 	}
 	sc->flags = NETGRAPH_INITIALISED;

@@ -131,7 +131,7 @@ i4btrcattach(void *dummy)
 		trace_queue[i].ifq_maxlen = IFQ_MAXLEN;
 
 		if(!mtx_initialized(&trace_queue[i].ifq_mtx))
-			mtx_init(&trace_queue[i].ifq_mtx, "i4b_trace", MTX_DEF);
+			mtx_init(&trace_queue[i].ifq_mtx, "i4b_trace", NULL, MTX_DEF);
 
 		device_state[i] = ST_IDLE;
 	}

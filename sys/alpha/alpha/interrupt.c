@@ -343,7 +343,7 @@ static void
 ithds_init(void *dummy)
 {
 
-	mtx_init(&alpha_intr_hash_lock, "ithread table lock", MTX_SPIN);
+	mtx_init(&alpha_intr_hash_lock, "ithread table lock", NULL, MTX_SPIN);
 }
 SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
 

@@ -368,7 +368,7 @@ mbuf_init(void *dummy)
 	/*
 	 * Initialize condition variables and general container mutex locks.
 	 */
-	mtx_init(&mbuf_gen, "mbuf subsystem general lists lock", 0);
+	mtx_init(&mbuf_gen, "mbuf subsystem general lists lock", NULL, 0);
 	cv_init(&(mb_list_mbuf.ml_genlist->mgl_mstarved), "mbuf pool starved");
 	cv_init(&(mb_list_clust.ml_genlist->mgl_mstarved),
 	    "mcluster pool starved");
@@ -421,7 +421,7 @@ mbuf_init(void *dummy)
 		    (mb_list_clust.ml_cntlst[i] == NULL))
 			goto bad;
 
-		mtx_init(&mbuf_pcpu[i], "mbuf PCPU list lock", 0);
+		mtx_init(&mbuf_pcpu[i], "mbuf PCPU list lock", NULL, 0);
 		mb_list_mbuf.ml_cntlst[i]->mb_cont.mc_lock =
 		    mb_list_clust.ml_cntlst[i]->mb_cont.mc_lock = &mbuf_pcpu[i];
 

@@ -305,14 +305,14 @@ proc0_init(void *dummy __unused)
 	 */
 	LIST_INSERT_HEAD(&allproc, p, p_list);
 	LIST_INSERT_HEAD(PIDHASH(0), p, p_hash);
-	mtx_init(&pgrp0.pg_mtx, "process group", MTX_DEF|MTX_DUPOK);
+	mtx_init(&pgrp0.pg_mtx, "process group", NULL, MTX_DEF | MTX_DUPOK);
 	p->p_pgrp = &pgrp0;
 	LIST_INSERT_HEAD(PGRPHASH(0), &pgrp0, pg_hash);
 	LIST_INIT(&pgrp0.pg_members);
 	LIST_INSERT_HEAD(&pgrp0.pg_members, p, p_pglist);
 
 	pgrp0.pg_session = &session0;
-	mtx_init(&session0.s_mtx, "session", MTX_DEF);
+	mtx_init(&session0.s_mtx, "session", NULL, MTX_DEF);
 	session0.s_count = 1;
 	session0.s_leader = p;
 
@@ -359,7 +359,7 @@ proc0_init(void *dummy __unused)
 	/* Create the file descriptor table. */
 	fdp = &filedesc0;
 	p->p_fd = &fdp->fd_fd;
-	mtx_init(&fdp->fd_fd.fd_mtx, FILEDESC_LOCK_DESC, MTX_DEF);
+	mtx_init(&fdp->fd_fd.fd_mtx, FILEDESC_LOCK_DESC, NULL, MTX_DEF);
 	fdp->fd_fd.fd_refcnt = 1;
 	fdp->fd_fd.fd_cmask = cmask;
 	fdp->fd_fd.fd_ofiles = fdp->fd_dfiles;

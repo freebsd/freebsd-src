@@ -225,7 +225,7 @@ iavc_isa_attach(device_t dev)
 	sc->sc_txq.ifq_maxlen = sc->sc_capi.sc_nbch * 4;
 
         if(!mtx_initialized(&sc->sc_txq.ifq_mtx))
-		mtx_init(&sc->sc_txq.ifq_mtx, "i4b_ivac_isa", MTX_DEF);
+		mtx_init(&sc->sc_txq.ifq_mtx, "i4b_ivac_isa", NULL, MTX_DEF);
 
 	sc->sc_intr = FALSE;
 	sc->sc_state = IAVC_DOWN;

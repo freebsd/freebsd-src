@@ -43,7 +43,7 @@ vm_pageq_init(void)
 
 	for (i = 0; i < PQ_COUNT; i++) {
 		TAILQ_INIT(&vm_page_queues[i].pl);
-		mtx_init(&vm_pageq_mtx[i], "vm pageq mutex", MTX_DEF);
+		mtx_init(&vm_pageq_mtx[i], "vm pageq mutex", NULL, MTX_DEF);
 	}
 }
 

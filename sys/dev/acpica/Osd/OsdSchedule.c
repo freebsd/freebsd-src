@@ -144,7 +144,7 @@ acpi_task_thread_init(void)
 
     err = 0;
     STAILQ_INIT(&acpi_task_queue);
-    mtx_init(&acpi_task_mtx, "ACPI task", MTX_DEF);
+    mtx_init(&acpi_task_mtx, "ACPI task", NULL, MTX_DEF);
 
     for (i = 0; i < ACPI_MAX_THREADS; i++) {
 	err = kthread_create(acpi_task_thread, NULL, &acpi_kthread_proc,

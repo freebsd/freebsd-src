@@ -68,7 +68,7 @@ ntfs_nthashinit()
 {
 	lockinit(&ntfs_hashlock, PINOD, "ntfs_nthashlock", 0, 0);
 	ntfs_nthashtbl = hashinit(desiredvnodes, M_NTFSNTHASH, &ntfs_nthash);
-	mtx_init(&ntfs_nthash_mtx, "ntfs nthash", MTX_DEF);
+	mtx_init(&ntfs_nthash_mtx, "ntfs nthash", NULL, MTX_DEF);
 }
 
 /*

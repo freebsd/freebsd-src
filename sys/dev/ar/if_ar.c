@@ -336,8 +336,9 @@ ar_attach(device_t device)
 		callout_handle_init(&sc->handle);
 		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
-		mtx_init(&sc->xmitq.ifq_mtx, "ar_xmitq", MTX_DEF);
-		mtx_init(&sc->xmitq_hipri.ifq_mtx, "ar_xmitq_hipri", MTX_DEF);
+		mtx_init(&sc->xmitq.ifq_mtx, "ar_xmitq", NULL, MTX_DEF);
+		mtx_init(&sc->xmitq_hipri.ifq_mtx, "ar_xmitq_hipri", NULL,
+		    MTX_DEF);
 		sc->running = 0;
 #endif	/* NETGRAPH */
 	}

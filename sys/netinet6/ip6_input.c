@@ -180,7 +180,7 @@ ip6_init()
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
 			ip6_protox[pr->pr_protocol] = pr - inet6sw;
 	ip6intrq.ifq_maxlen = ip6qmaxlen;
-	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", MTX_DEF);
+	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
 	ip6intrq_present = 1;
 	register_netisr(NETISR_IPV6, ip6intr);
 	nd6_init();

@@ -426,7 +426,8 @@ pdq_ifattach(pdq_softc_t *sc)
 {
     struct ifnet *ifp = &sc->sc_if;
 
-    mtx_init(&sc->mtx, device_get_nameunit(sc->dev), MTX_DEF | MTX_RECURSE);
+    mtx_init(&sc->mtx, device_get_nameunit(sc->dev), MTX_NETWORK_LOCK,
+	MTX_DEF | MTX_RECURSE);
 
     ifp->if_softc = sc;
     ifp->if_init = (if_init_f_t *)pdq_ifinit;

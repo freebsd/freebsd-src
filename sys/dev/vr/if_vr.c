@@ -642,7 +642,8 @@ static int vr_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct vr_softc *));
 
-	mtx_init(&sc->vr_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->vr_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	VR_LOCK(sc);
 
 	/*

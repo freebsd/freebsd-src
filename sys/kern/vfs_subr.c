@@ -258,7 +258,7 @@ void
 v_addpollinfo(struct vnode *vp)
 {
 	vp->v_pollinfo = uma_zalloc(vnodepoll_zone, M_WAITOK);
-	mtx_init(&vp->v_pollinfo->vpi_lock, "vnode pollinfo", MTX_DEF);
+	mtx_init(&vp->v_pollinfo->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
 }
 
 /*
@@ -270,12 +270,12 @@ vntblinit(void *dummy __unused)
 
 	desiredvnodes = maxproc + cnt.v_page_count / 4;
 	minvnodes = desiredvnodes / 4;
-	mtx_init(&mountlist_mtx, "mountlist", MTX_DEF);
-	mtx_init(&mntvnode_mtx, "mntvnode", MTX_DEF);
-	mtx_init(&mntid_mtx, "mntid", MTX_DEF);
-	mtx_init(&spechash_mtx, "spechash", MTX_DEF);
+	mtx_init(&mountlist_mtx, "mountlist", NULL, MTX_DEF);
+	mtx_init(&mntvnode_mtx, "mntvnode", NULL, MTX_DEF);
+	mtx_init(&mntid_mtx, "mntid", NULL, MTX_DEF);
+	mtx_init(&spechash_mtx, "spechash", NULL, MTX_DEF);
 	TAILQ_INIT(&vnode_free_list);
-	mtx_init(&vnode_free_list_mtx, "vnode_free_list", MTX_DEF);
+	mtx_init(&vnode_free_list_mtx, "vnode_free_list", NULL, MTX_DEF);
 	vnode_zone = uma_zcreate("VNODE", sizeof (struct vnode), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	vnodepoll_zone = uma_zcreate("VNODEPOLL", sizeof (struct vpollinfo),
@@ -888,7 +888,7 @@ getnewvnode(tag, mp, vops, vpp)
 		mtx_unlock(&vnode_free_list_mtx);
 		vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK);
 		bzero((char *) vp, sizeof *vp);
-		mtx_init(&vp->v_interlock, "vnode interlock", MTX_DEF);
+		mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
 		vp->v_dd = vp;
 		cache_purge(vp);
 		LIST_INIT(&vp->v_cache_src);

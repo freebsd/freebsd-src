@@ -325,7 +325,7 @@ kmeminit(dummy)
 	int bits;
 	int i;
 
-	mtx_init(&malloc_mtx, "malloc", MTX_DEF);
+	mtx_init(&malloc_mtx, "malloc", NULL, MTX_DEF);
 
 	/*
 	 * Try to auto-tune the kernel memory size, so that it is

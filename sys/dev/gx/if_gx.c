@@ -245,7 +245,8 @@ gx_attach(device_t dev)
 	gx->gx_vflags = gx_dev->version_flags;
 	gx->gx_ipg = gx_dev->version_ipg;
 
-	mtx_init(&gx->gx_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
+	mtx_init(&gx->gx_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 
 	GX_LOCK(gx);
 

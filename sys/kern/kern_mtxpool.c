@@ -63,7 +63,7 @@ mtx_pool_setup(void *dummy __unused)
     int i;
 
     for (i = 0; i < MTX_POOL_SIZE; ++i)
-	mtx_init(&mtx_pool_ary[i], "pool mutex", MTX_DEF | MTX_NOWITNESS | MTX_QUIET);
+	mtx_init(&mtx_pool_ary[i], "pool mutex", NULL, MTX_DEF | MTX_NOWITNESS | MTX_QUIET);
     mtx_pool_valid = 1;
 }
 

@@ -32,7 +32,7 @@
 #if __FreeBSD_version < 500000
 #define GX_LOCK(gx)		
 #define GX_UNLOCK(gx)		
-#define mtx_init(a, b, c)
+#define mtx_init(a, b, c, d)
 #define mtx_destroy(a)
 struct mtx { int filler; };
 #else

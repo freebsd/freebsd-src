@@ -50,7 +50,7 @@ sema_init(struct sema *sema, int value, const char *description)
 	KASSERT((value >= 0), ("%s(): negative value\n", __func__));
 
 	bzero(sema, sizeof(*sema));
-	mtx_init(&sema->sema_mtx, "sema backing lock",
+	mtx_init(&sema->sema_mtx, description, "sema backing lock",
 	    MTX_DEF | MTX_NOWITNESS | MTX_QUIET);
 	cv_init(&sema->sema_cv, description);
 	sema->sema_value = value;

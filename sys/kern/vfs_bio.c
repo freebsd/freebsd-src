@@ -484,7 +484,7 @@ bufinit(void)
 	GIANT_REQUIRED;
 
 	LIST_INIT(&invalhash);
-	mtx_init(&buftimelock, "buftime lock", MTX_DEF);
+	mtx_init(&buftimelock, "buftime lock", NULL, MTX_DEF);
 
 	for (i = 0; i <= bufhashmask; i++)
 		LIST_INIT(&bufhashtbl[i]);
