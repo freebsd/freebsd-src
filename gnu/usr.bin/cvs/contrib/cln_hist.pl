@@ -1,6 +1,7 @@
-#!/usr/bin/perl --  # -*-Perl-*-
+#! xPERL_PATHx
+# -*-Perl-*-
 #
-# $Id: cln_hist.pl,v 1.1 1992/04/10 03:04:15 berliner Exp $
+# $Id: cln_hist.pl,v 1.2 1995/07/10 02:01:26 kfogel Exp $
 # Contributed by David G. Grubbs <dgg@ksr.com>
 #
 # Clean up the history file.  10 Record types: MAR OFT WUCG

@@ -1,4 +1,5 @@
-#!/usr/bin/perl
+#! xPERL_PATHx
+# -*-Perl-*-
 
 # Author: John Rouillard (rouilj@cs.umb.edu)
 # Supported: Yeah right. (Well what do you expect for 2 hours work?)

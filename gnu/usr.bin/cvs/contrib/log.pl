@@ -1,25 +1,31 @@
-#! /local/bin/perl
+#! xPERL_PATHx
+# -*-Perl-*-
+#
+#ident	"$CVSid$"
+#
+# XXX: FIXME: handle multiple '-f logfile' arguments
+#
+# XXX -- I HATE Perl!  This *will* be re-written in shell/awk/sed soon!
+#
 
-# Modified by woods@web.apc.org to add support for mailing	3/29/93
-#	use '-m user' for each user to receive cvs log reports
-#	and use '-f logfile' for the logfile to append to
+# Usage:  log.pl [[-m user] ...] [-s] -f logfile 'dirname file ...'
 #
-# Modified by berliner@Sun.COM to add support for CVS 1.3	2/27/92
+#	-m user		- for each user to receive cvs log reports
+#			(multiple -m's permitted)
+#	-s		- to prevent "cvs status -v" messages
+#	-f logfile	- for the logfile to append to (mandatory,
+#			but only one logfile can be specified).
+
+# here is what the output looks like:
 #
-# Date: Tue, 6 Aug 91 13:27 EDT
-# From: samborn@sunrise.com (Kevin Samborn)
+#    From: woods@kuma.domain.top
+#    Subject: CVS update: testmodule
 #
-# I revised the perl script I sent you yesterday to use the info you
-# send in on stdin.  (I am appending the newer script to the end)
+#    Date: Wednesday November 23, 1994 @ 14:15
+#    Author: woods
 #
-# now the output looks like this:
-#
-#    **************************************
-#    Date: Tuesday, August 6, 1991 @ 13:17
-#    Author: samborn
-#
-#    Update of /elmer/cvs/CVSROOT.adm
-#    In directory astro:/home/samborn/CVSROOT.adm
+#    Update of /local/src-CVS/testmodule
+#    In directory kuma:/home/kuma/woods/work.d/testmodule
 #    
 #    Modified Files:
 #    	test3 
@@ -28,21 +34,32 @@
 #    Removed Files:
 #    	test4 
 #    Log Message:
-#    wow, what a test
-#    
-#    File: test.3	Status: Up-to-date 
-#        Version:	1.4     Thu Apr 29 14:47:07 EDT 1993
-#    File: test6	Status: Up-to-date
-#        Version:	1.1     Thu Apr 29 14:47:33 EDT 1993
-#    File: test4	Status: Up-to-date
-#        Version:	1.1     Thu Apr 29 14:47:46 EDT 1993
+#    - wow, what a test
 #
+# (and for each file the "cvs status -v" output is appended unless -s is used)
+#
+#    ==================================================================
+#    File: test3           	Status: Up-to-date
+#    
+#       Working revision:	1.41	Wed Nov 23 14:15:59 1994
+#       Repository revision:	1.41	/local/src-CVS/cvs/testmodule/test3,v
+#       Sticky Options:	-ko
+#    
+#       Existing Tags:
+#    	local-v2                 	(revision: 1.7)
+#    	local-v1                 	(revision: 1.1.1.2)
+#    	CVS-1_4A2                	(revision: 1.1.1.2)
+#    	local-v0                 	(revision: 1.2)
+#    	CVS-1_4A1                	(revision: 1.1.1.1)
+#    	CVS                      	(branch: 1.1.1)
 
 $cvsroot = $ENV{'CVSROOT'};
 
 # turn off setgid
 #
 $) = $(;
+
+$dostatus = 1;
 
 # parse command line arguments
 #
@@ -54,6 +71,8 @@ while (@ARGV) {
 	} elsif ($arg eq '-f') {
 		($logfile) && die "Too many '-f' args";
 		$logfile = shift @ARGV;
+	} elsif ($arg eq '-s') {
+		$dostatus = 0;
 	} else {
 		($donefiles) && die "Too many arguments!\n";
 		$donefiles = 1;
@@ -61,10 +80,13 @@ while (@ARGV) {
 	}
 }
 
-$srepos = shift @files;
-$mailcmd = "| Mail -s 'CVS update: $srepos'";
+# the first argument is the module location relative to $CVSROOT
+#
+$modulepath = shift @files;
 
-# Some date and time arrays
+$mailcmd = "| Mail -s 'CVS update: $modulepath'";
+
+# Initialise some date and time arrays
 #
 @mos = (January,February,March,April,May,June,July,August,September,
         October,November,December);
@@ -72,13 +94,16 @@ $mailcmd = "| Mail -s 'CVS update: $srepos'";
 
 ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime;
 
-# get login name
+# get a login name for the guy doing the commit....
 #
 $login = getlogin || (getpwuid($<))[0] || "nobody";
 
 # open log file for appending
 #
 open(OUT, ">>" . $logfile) || die "Could not open(" . $logfile . "): $!\n";
+
+# send mail, if there's anyone to send to!
+#
 if ($users) {
 	$mailcmd = "$mailcmd $users";
 	open(MAIL, $mailcmd) || die "Could not Exec($mailcmd): $!\n";
@@ -87,7 +112,7 @@ if ($users) {
 # print out the log Header
 # 
 print OUT "\n";
-print OUT "**************************************\n";
+print OUT "****************************************\n";
 print OUT "Date:\t$days[$wday] $mos[$mon] $mday, 19$year @ $hour:" . sprintf("%02d", $min) . "\n";
 print OUT "Author:\t$login\n\n";
 
@@ -110,29 +135,27 @@ close(IN);
 
 print OUT "\n";
 
-# after log information, do an 'cvs -Qn status' on each file in the arguments.
+# after log information, do an 'cvs -Qq status -v' on each file in the arguments.
 #
-while (@files) {
-	$file = shift @files;
-	if ($file eq "-") {
-		print OUT "[input file was '-']\n";
-		if (MAIL) {
-			print MAIL "[input file was '-']\n";
+if ($dostatus != 0) {
+	while (@files) {
+		$file = shift @files;
+		if ($file eq "-") {
+			print OUT "[input file was '-']\n";
+			if (MAIL) {
+				print MAIL "[input file was '-']\n";
+			}
+			last;
 		}
-		last;
-	}
-
-	open(RCS, "-|") || exec 'cvs', '-Qn', 'status', $file;
-
-	while (<RCS>) {
-		if (/^[ \t]*Version/ || /^File:/) {
+		open(RCS, "-|") || exec 'cvs', '-nQq', 'status', '-v', $file;
+		while (<RCS>) {
 			print OUT;
 			if (MAIL) {
 				print MAIL;
 			}
 		}
+		close(RCS);
 	}
-	close(RCS);
 }
 
 close(OUT);
@@ -141,8 +164,6 @@ die "Write to $logfile failed" if $?;
 close(MAIL);
 die "Pipe to $mailcmd failed" if $?;
 
+## must exit cleanly
+##
 exit 0;
-
-### Local Variables:
-### eval: (fundamental-mode)
-### End:
