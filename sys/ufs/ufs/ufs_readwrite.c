@@ -495,6 +495,9 @@ WRITE(ap)
 
 		if (ioflag & IO_SYNC) {
 			(void)bwrite(bp);
+		} else if (vm_page_count_severe() || buf_dirty_count_severe()) {
+			bp->b_flags |= B_CLUSTEROK;
+			bawrite(bp);
 		} else if (xfersize + blkoffset == fs->fs_bsize) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0) {
 				bp->b_flags |= B_CLUSTEROK;
@@ -502,9 +505,6 @@ WRITE(ap)
 			} else {
 				bawrite(bp);
 			}
-		} else if (vm_page_count_severe() || buf_dirty_count_severe()) {
-			bp->b_flags |= B_CLUSTEROK;
-			bawrite(bp);
 		} else {
 			bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
