@@ -4,9 +4,9 @@
  *
  * Product specific probe and attach routines can be found in:
  * 
- * pci/adw_pci.c	ABP940UW
+ * adw_pci.c	ABP[3]940UW, ABP950UW, ABP3940U2W
  *
- * Copyright (c) 1998 Justin Gibbs.
+ * Copyright (c) 1998, 1999, 2000 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
+ *    without modification.
  * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
@@ -50,11 +50,15 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/bus.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
+#include <machine/resource.h>
+
+#include <sys/rman.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -74,10 +78,6 @@
 
 u_long adw_unit;
 
-static __inline u_int32_t	acbvtop(struct adw_softc *adw,
-					   struct acb *acb);
-static __inline struct acb *	acbptov(struct adw_softc *adw,
-					u_int32_t busaddr);
 static __inline struct acb*	adwgetacb(struct adw_softc *adw);
 static __inline void		adwfreeacb(struct adw_softc *adw,
 					   struct acb *acb);
@@ -100,20 +100,6 @@ static void		adw_handle_device_reset(struct adw_softc *adw,
 						u_int target);
 static void		adw_handle_bus_reset(struct adw_softc *adw,
 					     int initiated);
-
-static __inline u_int32_t
-acbvtop(struct adw_softc *adw, struct acb *acb)
-{
-	return (adw->acb_busbase
-	      + (u_int32_t)((caddr_t)acb - (caddr_t)adw->acbs));
-}
-
-static __inline struct acb *
-acbptov(struct adw_softc *adw, u_int32_t busaddr)
-{
-	return (adw->acbs
-	      + ((struct acb *)busaddr - (struct acb *)adw->acb_busbase));
-}
 
 static __inline struct acb*
 adwgetacb(struct adw_softc *adw)
@@ -208,7 +194,6 @@ adwallocacbs(struct adw_softc *adw)
 	int i;
 
 	next_acb = &adw->acbs[adw->num_acbs];
-
 	sg_map = adwallocsgmap(adw);
 
 	if (sg_map == NULL)
@@ -220,22 +205,17 @@ adwallocacbs(struct adw_softc *adw)
 	newcount = (PAGE_SIZE / (ADW_SG_BLOCKCNT * sizeof(*blocks)));
 	for (i = 0; adw->num_acbs < adw->max_acbs && i < newcount; i++) {
 		int error;
-		int j;
 
 		error = bus_dmamap_create(adw->buffer_dmat, /*flags*/0,
 					  &next_acb->dmamap);
 		if (error != 0)
 			break;
-		next_acb->queue.scsi_req_baddr = acbvtop(adw, next_acb);
-		next_acb->queue.sense_addr =
-		    acbvtop(adw, next_acb) + offsetof(struct acb, sense_data);
+		next_acb->queue.scsi_req_baddr = acbvtob(adw, next_acb);
+		next_acb->queue.scsi_req_bo = acbvtobo(adw, next_acb);
+		next_acb->queue.sense_baddr =
+		    acbvtob(adw, next_acb) + offsetof(struct acb, sense_data);
 		next_acb->sg_blocks = blocks;
 		next_acb->sg_busaddr = busaddr;
-		/* Setup static data in the sg blocks */
-		for (j = 0; j < ADW_SG_BLOCKCNT; j++) {
-			next_acb->sg_blocks[j].first_entry_no =
-			    j * ADW_NO_OF_SG_PER_BLOCK;
-		}
 		next_acb->state = ACB_FREE;
 		SLIST_INSERT_HEAD(&adw->free_acb_list, next_acb, links);
 		blocks += ADW_SG_BLOCKCNT;
@@ -289,19 +269,20 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			sg_index = 0;
 			/* Copy the segments into our SG list */
 			for (sg_block = acb->sg_blocks;; sg_block++) {
-				u_int sg_left;
+				u_int i;
 
-				sg_left = ADW_NO_OF_SG_PER_BLOCK;
 				sg = sg_block->sg_list;
-				while (dm_segs < end_seg && sg_left != 0) {
+				for (i = 0; i < ADW_NO_OF_SG_PER_BLOCK; i++) {
+					if (dm_segs >= end_seg)
+						break;
+				    
 					sg->sg_addr = dm_segs->ds_addr;
 					sg->sg_count = dm_segs->ds_len;
 					sg++;
 					dm_segs++;
-					sg_left--;
 				}
-				sg_index += ADW_NO_OF_SG_PER_BLOCK - sg_left;
-				sg_block->last_entry_no = sg_index - 1;
+				sg_block->sg_cnt = i;
+				sg_index += i;
 				if (dm_segs == end_seg) {
 					sg_block->sg_busaddr_next = 0;
 					break;
@@ -311,11 +292,8 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 					sg_block->sg_busaddr_next = sg_busaddr;
 				}
 			}
-
-			acb->queue.sg_entry_cnt = nseg;
 			acb->queue.sg_real_addr = acb->sg_busaddr;
 		} else {
-			acb->queue.sg_entry_cnt = 0;
 			acb->queue.sg_real_addr = 0;
 		}
 
@@ -327,13 +305,10 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		bus_dmamap_sync(adw->buffer_dmat, acb->dmamap, op);
 
 	} else {
-		acb->queue.sg_entry_cnt = 0;
 		acb->queue.data_addr = 0;
 		acb->queue.data_cnt = 0;
 		acb->queue.sg_real_addr = 0;
 	}
-	acb->queue.free_scsiq_link = 0;
-	acb->queue.ux_wk_data_cnt = 0;
 
 	s = splcam();
 
@@ -357,7 +332,7 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	    timeout(adwtimeout, (caddr_t)acb,
 		    (ccb->ccb_h.timeout * hz) / 1000);
 
-	adw_send_acb(adw, acb, acbvtop(adw, acb));
+	adw_send_acb(adw, acb, acbvtob(adw, acb));
 
 	splx(s);
 }
@@ -381,6 +356,7 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 
 		csio = &ccb->csio;
 		ccbh = &ccb->ccb_h;
+
 		/* Max supported CDB length is 12 bytes */
 		if (csio->cdb_len > 12) { 
 			ccb->ccb_h.status = CAM_REQ_INVALID;
@@ -400,31 +376,42 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 			return;
 		}
 
-		/* Link dccb and ccb so we can find one from the other */
+		/* Link acb and ccb so we can find one from the other */
 		acb->ccb = ccb;
 		ccb->ccb_h.ccb_acb_ptr = acb;
 		ccb->ccb_h.ccb_adw_ptr = adw;
 
 		acb->queue.cntl = 0;
+		acb->queue.target_cmd = 0;
 		acb->queue.target_id = ccb->ccb_h.target_id;
 		acb->queue.target_lun = ccb->ccb_h.target_lun;
 
-		acb->queue.srb_ptr = 0;
-		acb->queue.a_flag = 0;
+		acb->queue.mflag = 0;
 		acb->queue.sense_len =
 			MIN(csio->sense_len, sizeof(acb->sense_data));
 		acb->queue.cdb_len = csio->cdb_len;
+		if ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0) {
+			switch (csio->tag_action) {
+			case MSG_SIMPLE_Q_TAG:
+				acb->queue.scsi_cntl = 0;
+				break;
+			case MSG_HEAD_OF_Q_TAG:
+				acb->queue.scsi_cntl = ADW_QSC_HEAD_OF_Q_TAG;
+				break;
+			case MSG_ORDERED_Q_TAG:
+				acb->queue.scsi_cntl = ADW_QSC_ORDERED_Q_TAG;
+				break;
+			}
+		} else
+			acb->queue.scsi_cntl = ADW_QSC_NO_TAGMSG;
 
-		if ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0)
-			acb->queue.tag_code = csio->tag_action;
-		else
-			acb->queue.tag_code = 0;
+		if ((ccb->ccb_h.flags & CAM_DIS_DISCONNECT) != 0)
+			acb->queue.scsi_cntl |= ADW_QSC_NO_DISC;
 
 		acb->queue.done_status = 0;
 		acb->queue.scsi_status = 0;
 		acb->queue.host_status = 0;
-		acb->queue.ux_sg_ix = 0;
-
+		acb->queue.sg_wk_ix = 0;
 		if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
 			if ((ccb->ccb_h.flags & CAM_CDB_PHYS) == 0) {
 				bcopy(csio->cdb_io.cdb_ptr,
@@ -541,6 +528,9 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 
 		s = splcam();
 		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
+			u_int sdtrdone;
+
+			sdtrdone = adw_lram_read_16(adw, ADW_MC_SDTR_DONE);
 			if ((cts->valid & CCB_TRANS_DISC_VALID) != 0) {
 				u_int discenb;
 
@@ -592,58 +582,57 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 					adw_lram_write_16(adw,
 							  ADW_MC_WDTR_DONE,
 							  wdtrdone);
+					/* Wide negotiation forces async */
+					sdtrdone &= ~target_mask;
+					adw_lram_write_16(adw,
+							  ADW_MC_SDTR_DONE,
+							  sdtrdone);
 				}
 			}
 
 			if (((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
 			 || ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)) {
-				u_int sdtrenb_orig;
-				u_int sdtrenb;
-				u_int ultraenb_orig;
-				u_int ultraenb;
-				u_int sdtrdone;
+				u_int sdtr_orig;
+				u_int sdtr;
+				u_int sdtrable_orig;
+				u_int sdtrable;
 
-				sdtrenb_orig =
-				    adw_lram_read_16(adw, ADW_MC_SDTR_ABLE);
-				sdtrenb = sdtrenb_orig;
-
-				ultraenb_orig =
-				    adw_lram_read_16(adw, ADW_MC_ULTRA_ABLE);
-				ultraenb = ultraenb_orig;
-
-				sdtrdone = adw_lram_read_16(adw,
-							    ADW_MC_SDTR_DONE);
+				sdtr = adw_get_chip_sdtr(adw,
+							 ccb->ccb_h.target_id);
+				sdtr_orig = sdtr;
+				sdtrable = adw_lram_read_16(adw,
+							    ADW_MC_SDTR_ABLE);
+				sdtrable_orig = sdtrable;
 
 				if ((cts->valid
 				   & CCB_TRANS_SYNC_RATE_VALID) != 0) {
 
-					if (cts->sync_period == 0) {
-						sdtrenb &= ~target_mask;
-					} else if (cts->sync_period > 12) {
-						ultraenb &= ~target_mask;
-						sdtrenb |= target_mask;
-					} else {
-						ultraenb |= target_mask;
-						sdtrenb |= target_mask;
-					}
+					sdtr =
+					    adw_find_sdtr(adw,
+							  cts->sync_period);
 				}
 					
 				if ((cts->valid
 				   & CCB_TRANS_SYNC_OFFSET_VALID) != 0) {
 					if (cts->sync_offset == 0)
-						sdtrenb &= ~target_mask;
+						sdtr = ADW_MC_SDTR_ASYNC;
 				}
 
-				if (sdtrenb != sdtrenb_orig
-				 || ultraenb != ultraenb_orig) {
-					adw_lram_write_16(adw, ADW_MC_SDTR_ABLE,
-							  sdtrenb);
-					adw_lram_write_16(adw,
-							  ADW_MC_ULTRA_ABLE,
-							  ultraenb);
+				if (sdtr == ADW_MC_SDTR_ASYNC)
+					sdtrable &= ~target_mask;
+				else
+					sdtrable |= target_mask;
+				if (sdtr != sdtr_orig
+				 || sdtrable != sdtrable_orig) {
+					adw_set_chip_sdtr(adw,
+							  ccb->ccb_h.target_id,
+							  sdtr);
 					sdtrdone &= ~target_mask;
+					adw_lram_write_16(adw, ADW_MC_SDTR_ABLE,
+							  sdtrable);
 					adw_lram_write_16(adw, ADW_MC_SDTR_DONE,
 							  sdtrdone);
+					
 				}
 			} 
 		}
@@ -661,6 +650,8 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 		cts = &ccb->cts;
 		target_mask = 0x01 << ccb->ccb_h.target_id;
 		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) { 
+			u_int mc_sdtr;
+
 			cts->flags = 0;
 			if ((adw->user_discenb & target_mask) != 0)
 				cts->flags |= CCB_TRANS_DISC_ENB;
@@ -673,13 +664,12 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 			else
 				cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 
-			if ((adw->user_sdtr & target_mask) != 0) {
-				if ((adw->user_ultra & target_mask) != 0)
-					cts->sync_period = 12; /* 20MHz */
-				else
-					cts->sync_period = 25; /* 10MHz */
+			mc_sdtr = adw_get_user_sdtr(adw, ccb->ccb_h.target_id);
+			cts->sync_period = adw_find_period(adw, mc_sdtr);
+			if (cts->sync_period != 0)
 				cts->sync_offset = 15; /* XXX ??? */
-			}
+			else
+				cts->sync_offset = 0;
 
 			cts->valid = CCB_TRANS_SYNC_RATE_VALID
 				   | CCB_TRANS_SYNC_OFFSET_VALID
@@ -709,7 +699,7 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 				cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 
 			cts->sync_period =
-			    ADW_HSHK_CFG_PERIOD_FACTOR(targ_tinfo);
+			    adw_hshk_cfg_period_factor(targ_tinfo);
 
 			cts->sync_offset = targ_tinfo & ADW_HSHK_CFG_OFFSET;
 			if (cts->sync_period == 0)
@@ -760,16 +750,27 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		adw_idle_cmd_status_t status;
 
-		adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET, /*param*/0);
+		adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_START,
+				  /*param*/0);
 		status = adw_idle_cmd_wait(adw);
-		if (status == ADW_IDLE_CMD_SUCCESS) {
-			ccb->ccb_h.status = CAM_REQ_CMP;
-			if (bootverbose) {
-				xpt_print_path(adw->path);
-				printf("Bus Reset Delivered\n");
-			}
-		} else
+		if (status != ADW_IDLE_CMD_SUCCESS) {
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			xpt_done(ccb);
+			break;
+		}
+		DELAY(100);
+		adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_END, /*param*/0);
+		status = adw_idle_cmd_wait(adw);
+		if (status != ADW_IDLE_CMD_SUCCESS) {
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			xpt_done(ccb);
+			break;
+		}
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		if (bootverbose) {
+			xpt_print_path(adw->path);
+			printf("Bus Reset Delivered\n");
+		}
 		xpt_done(ccb);
 		break;
 	}
@@ -819,7 +820,7 @@ adw_async(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 }
 
 struct adw_softc *
-adw_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
+adw_alloc(device_t dev, struct resource *regs, int regs_type, int regs_id)
 {
 	struct	 adw_softc *adw;
 	int	 i;
@@ -829,19 +830,23 @@ adw_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
 	 */
 	adw = malloc(sizeof(struct adw_softc), M_DEVBUF, M_NOWAIT);
 	if (adw == NULL) {
-		printf("adw%d: cannot malloc!\n", unit);
+		printf("adw%d: cannot malloc!\n", device_get_unit(dev));
 		return NULL;
 	}
 	bzero(adw, sizeof(struct adw_softc));
 	LIST_INIT(&adw->pending_ccbs);
 	SLIST_INIT(&adw->sg_maps);
-	adw->unit = unit;
-	adw->tag = tag;
-	adw->bsh = bsh;
+	adw->device = dev;
+	adw->unit = device_get_unit(dev);
+	adw->regs_res_type = regs_type;
+	adw->regs_res_id = regs_id;
+	adw->regs = regs;
+	adw->tag = rman_get_bustag(regs);
+	adw->bsh = rman_get_bushandle(regs);
 	i = adw->unit / 10;
 	adw->name = malloc(sizeof("adw") + i + 1, M_DEVBUF, M_NOWAIT);
 	if (adw->name == NULL) {
-		printf("adw%d: cannot malloc name!\n", unit);
+		printf("adw%d: cannot malloc name!\n", adw->unit);
 		free(adw, M_DEVBUF);
 		return NULL;
 	}
@@ -853,7 +858,7 @@ void
 adw_free(struct adw_softc *adw)
 {
 	switch (adw->init_level) {
-	case 6:
+	case 9:
 	{
 		struct sg_map_node *sg_map;
 
@@ -867,14 +872,22 @@ adw_free(struct adw_softc *adw)
 		}
 		bus_dma_tag_destroy(adw->sg_dmat);
 	}
-	case 5:
+	case 8:
 		bus_dmamap_unload(adw->acb_dmat, adw->acb_dmamap);
-	case 4:
+	case 7:
 		bus_dmamem_free(adw->acb_dmat, adw->acbs,
 				adw->acb_dmamap);
 		bus_dmamap_destroy(adw->acb_dmat, adw->acb_dmamap);
-	case 3:
+	case 6:
 		bus_dma_tag_destroy(adw->acb_dmat);
+	case 5:
+		bus_dmamap_unload(adw->carrier_dmat, adw->carrier_dmamap);
+	case 4:
+		bus_dmamem_free(adw->carrier_dmat, adw->carriers,
+				adw->carrier_dmamap);
+		bus_dmamap_destroy(adw->carrier_dmat, adw->carrier_dmamap);
+	case 3:
+		bus_dma_tag_destroy(adw->carrier_dmat);
 	case 2:
 		bus_dma_tag_destroy(adw->buffer_dmat);
 	case 1:
@@ -890,16 +903,18 @@ int
 adw_init(struct adw_softc *adw)
 {
 	struct	  adw_eeprom eep_config;
+	u_int	  tid;
+	u_int	  i;
 	u_int16_t checksum;
 	u_int16_t scsicfg1;
 
-	adw_reset_chip(adw);
 	checksum = adw_eeprom_read(adw, &eep_config);
 	bcopy(eep_config.serial_number, adw->serial_number,
 	      sizeof(adw->serial_number));
 	if (checksum != eep_config.checksum) {
 		u_int16_t serial_number[3];
 
+		adw->flags |= ADW_EEPROM_FAILED;
 		printf("%s: EEPROM checksum failed.  Restoring Defaults\n",
 		       adw_name(adw));
 
@@ -909,7 +924,7 @@ adw_init(struct adw_softc *adw)
 		 * from EEPROM is correct even if the EEPROM checksum
 		 * failed.
 		 */
-		bcopy(&adw_default_eeprom, &eep_config, sizeof(eep_config));
+		bcopy(adw->default_eeprom, &eep_config, sizeof(eep_config));
 		bcopy(adw->serial_number, eep_config.serial_number,
 		      sizeof(serial_number));
 		adw_eeprom_write(adw, &eep_config);
@@ -918,8 +933,46 @@ adw_init(struct adw_softc *adw)
 	/* Pull eeprom information into our softc. */
 	adw->bios_ctrl = eep_config.bios_ctrl;
 	adw->user_wdtr = eep_config.wdtr_able;
-	adw->user_sdtr = eep_config.sdtr_able;
-	adw->user_ultra = eep_config.ultra_able;
+	for (tid = 0; tid < ADW_MAX_TID; tid++) {
+		u_int	  mc_sdtr;
+		u_int16_t tid_mask;
+
+		tid_mask = 0x1 << tid;
+		if ((adw->features & ADW_ULTRA) != 0) {
+			/*
+			 * Ultra chips store sdtr and ultraenb
+			 * bits in their seeprom, so we must
+			 * construct valid mc_sdtr entries for
+			 * indirectly.
+			 */
+			if (eep_config.sync1.sync_enable & tid_mask) {
+				if (eep_config.sync2.ultra_enable & tid_mask)
+					mc_sdtr = ADW_MC_SDTR_20;
+				else
+					mc_sdtr = ADW_MC_SDTR_10;
+			} else
+				mc_sdtr = ADW_MC_SDTR_ASYNC;
+		} else {
+			switch (ADW_TARGET_GROUP(tid)) {
+			case 3:
+				mc_sdtr = eep_config.sync4.sdtr4;
+				break;
+			case 2:
+				mc_sdtr = eep_config.sync3.sdtr3;
+				break;
+			case 1:
+				mc_sdtr = eep_config.sync2.sdtr2;
+				break;
+			default: /* Shut up compiler */
+			case 0:
+				mc_sdtr = eep_config.sync1.sdtr1;
+				break;
+			}
+			mc_sdtr >>= ADW_TARGET_GROUP_SHIFT(tid);
+			mc_sdtr &= 0xFF;
+		}
+		adw_set_user_sdtr(adw, tid, mc_sdtr);
+	}
 	adw->user_tagenb = eep_config.tagqng_able;
 	adw->user_discenb = eep_config.disc_enable;
 	adw->max_acbs = eep_config.max_host_qng;
@@ -936,15 +989,36 @@ adw_init(struct adw_softc *adw)
 			adw->max_acbs = ADW_DEF_MAX_HOST_QNG;
 		else
 			adw->max_acbs = ADW_DEF_MIN_HOST_QNG;
-
 	}
 	
 	scsicfg1 = 0;
-	switch (eep_config.termination) {
+	if ((adw->features & ADW_ULTRA2) != 0) {
+		switch (eep_config.termination_lvd) {
+		default:
+			printf("%s: Invalid EEPROM LVD Termination Settings.\n",
+			       adw_name(adw));
+			printf("%s: Reverting to Automatic LVD Termination\n",
+			       adw_name(adw));
+			/* FALLTHROUGH */
+		case ADW_EEPROM_TERM_AUTO:
+			break;
+		case ADW_EEPROM_TERM_BOTH_ON:
+			scsicfg1 |= ADW2_SCSI_CFG1_TERM_LVD_LO;
+			/* FALLTHROUGH */
+		case ADW_EEPROM_TERM_HIGH_ON:
+			scsicfg1 |= ADW2_SCSI_CFG1_TERM_LVD_HI;
+			/* FALLTHROUGH */
+		case ADW_EEPROM_TERM_OFF:
+			scsicfg1 |= ADW2_SCSI_CFG1_DIS_TERM_DRV;
+			break;
+		}
+	}
+
+	switch (eep_config.termination_se) {
 	default:
-		printf("%s: Invalid EEPROM Termination Settings.\n",
+		printf("%s: Invalid SE EEPROM Termination Settings.\n",
 		       adw_name(adw));
-		printf("%s: Reverting to Automatic Termination\n",
+		printf("%s: Reverting to Automatic SE Termination\n",
 		       adw_name(adw));
 		/* FALLTHROUGH */
 	case ADW_EEPROM_TERM_AUTO:
@@ -959,29 +1033,79 @@ adw_init(struct adw_softc *adw)
 		scsicfg1 |= ADW_SCSI_CFG1_TERM_CTL_MANUAL;
 		break;
 	}
-
 	printf("%s: SCSI ID %d, ", adw_name(adw), adw->initiator_id);
-
-	if (adw_init_chip(adw, scsicfg1) != 0)
-		return (-1);
-
-	printf("Queue Depth %d\n", adw->max_acbs);
 
 	/* DMA tag for mapping buffers into device visible space. */
 	if (bus_dma_tag_create(adw->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
+			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
 			       /*maxsize*/MAXBSIZE, /*nsegments*/ADW_SGSIZE,
 			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			       /*flags*/BUS_DMA_ALLOCNOW,
 			       &adw->buffer_dmat) != 0) {
-		return (-1);
+		return (ENOMEM);
 	}
 
 	adw->init_level++;
 
-	/* DMA tag for our ccb structures */
+	/* DMA tag for our ccb carrier structures */
+	if (bus_dma_tag_create(adw->parent_dmat, /*alignment*/0x10,
+			       /*boundary*/0,
+			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+			       /*highaddr*/BUS_SPACE_MAXADDR,
+			       /*filter*/NULL, /*filterarg*/NULL,
+			       (adw->max_acbs + ADW_NUM_CARRIER_QUEUES + 1)
+				* sizeof(struct adw_carrier),
+			       /*nsegments*/1,
+			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
+			       /*flags*/0, &adw->carrier_dmat) != 0) {
+		return (ENOMEM);
+        }
+
+	adw->init_level++;
+
+	/* Allocation for our ccb carrier structures */
+	if (bus_dmamem_alloc(adw->carrier_dmat, (void **)&adw->carriers,
+			     BUS_DMA_NOWAIT, &adw->carrier_dmamap) != 0) {
+		return (ENOMEM);
+	}
+
+	adw->init_level++;
+
+	/* And permanently map them */
+	bus_dmamap_load(adw->carrier_dmat, adw->carrier_dmamap,
+			adw->carriers,
+			(adw->max_acbs + ADW_NUM_CARRIER_QUEUES + 1)
+			 * sizeof(struct adw_carrier),
+			adwmapmem, &adw->carrier_busbase, /*flags*/0);
+
+	/* Clear them out. */
+	bzero(adw->carriers, (adw->max_acbs + ADW_NUM_CARRIER_QUEUES + 1)
+			     * sizeof(struct adw_carrier));
+
+	/* Setup our free carrier list */
+	adw->free_carriers = adw->carriers;
+	for (i = 0; i < adw->max_acbs + ADW_NUM_CARRIER_QUEUES; i++) {
+		adw->carriers[i].carr_offset =
+			carriervtobo(adw, &adw->carriers[i]);
+		adw->carriers[i].carr_ba = 
+			carriervtob(adw, &adw->carriers[i]);
+		adw->carriers[i].areq_ba = 0;
+		adw->carriers[i].next_ba = 
+			carriervtobo(adw, &adw->carriers[i+1]);
+	}
+	/* Terminal carrier.  Never leaves the freelist */
+	adw->carriers[i].carr_offset =
+		carriervtobo(adw, &adw->carriers[i]);
+	adw->carriers[i].carr_ba = 
+		carriervtob(adw, &adw->carriers[i]);
+	adw->carriers[i].areq_ba = 0;
+	adw->carriers[i].next_ba = ~0;
+
+	adw->init_level++;
+
+	/* DMA tag for our acb structures */
 	if (bus_dma_tag_create(adw->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
@@ -990,16 +1114,15 @@ adw_init(struct adw_softc *adw)
 			       /*nsegments*/1,
 			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			       /*flags*/0, &adw->acb_dmat) != 0) {
-		return (-1);
+		return (ENOMEM);
         }
 
 	adw->init_level++;
 
 	/* Allocation for our ccbs */
 	if (bus_dmamem_alloc(adw->acb_dmat, (void **)&adw->acbs,
-			     BUS_DMA_NOWAIT, &adw->acb_dmamap) != 0) {
-		return (-1);
-	}
+			     BUS_DMA_NOWAIT, &adw->acb_dmamap) != 0)
+		return (ENOMEM);
 
 	adw->init_level++;
 
@@ -1020,14 +1143,19 @@ adw_init(struct adw_softc *adw)
 			       PAGE_SIZE, /*nsegments*/1,
 			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			       /*flags*/0, &adw->sg_dmat) != 0) {
-		return (-1);
+		return (ENOMEM);
         }
 
 	adw->init_level++;
 
 	/* Allocate our first batch of ccbs */
 	if (adwallocacbs(adw) == 0)
-		return (-1);
+		return (ENOMEM);
+
+	if (adw_init_chip(adw, scsicfg1) != 0)
+		return (ENXIO);
+
+	printf("Queue Depth %d\n", adw->max_acbs);
 
 	return (0);
 }
@@ -1040,6 +1168,18 @@ adw_attach(struct adw_softc *adw)
 {
 	struct ccb_setasync csa;
 	struct cam_devq *devq;
+	int s;
+	int error;
+
+	error = 0;
+	s = splcam();
+	/* Hook up our interrupt handler */
+	if ((error = bus_setup_intr(adw->device, adw->irq, INTR_TYPE_CAM,
+				    adw_intr, adw, &adw->ih)) != 0) {
+		device_printf(adw->device, "bus_setup_intr() failed: %d\n",
+			      error);
+		goto fail;
+	}
 
 	/* Start the Risc processor now that we are fully configured. */
 	adw_outw(adw, ADW_RISC_CSR, ADW_RISC_CSR_RUN);
@@ -1049,22 +1189,25 @@ adw_attach(struct adw_softc *adw)
 	 */
 	devq = cam_simq_alloc(adw->max_acbs);
 	if (devq == NULL)
-		return (0);
+		return (ENOMEM);
 
 	/*
 	 * Construct our SIM entry.
 	 */
 	adw->sim = cam_sim_alloc(adw_action, adw_poll, "adw", adw, adw->unit,
 				 1, adw->max_acbs, devq);
-	if (adw->sim == NULL)
-		return (0);
+	if (adw->sim == NULL) {
+		error = ENOMEM;
+		goto fail;
+	}
 
 	/*
 	 * Register the bus.
 	 */
 	if (xpt_bus_register(adw->sim, 0) != CAM_SUCCESS) {
 		cam_sim_free(adw->sim, /*free devq*/TRUE);
-		return (0);
+		error = ENOMEM;
+		goto fail;
 	}
 
 	if (xpt_create_path(&adw->path, /*periph*/NULL, cam_sim_path(adw->sim),
@@ -1078,7 +1221,9 @@ adw_attach(struct adw_softc *adw)
 		xpt_action((union ccb *)&csa);
 	}
 
-	return (0);
+fail:
+	splx(s);
+	return (error);
 }
 
 void
@@ -1086,9 +1231,6 @@ adw_intr(void *arg)
 {
 	struct	adw_softc *adw;
 	u_int	int_stat;
-	u_int	next_doneq;
-	u_int	next_completeq;
-	u_int	doneq_start;
 	
 	adw = (struct adw_softc *)arg;
 	if ((adw_inw(adw, ADW_CTRL_REG) & ADW_CTRL_REG_HOST_INTR) == 0)
@@ -1098,61 +1240,80 @@ adw_intr(void *arg)
 	int_stat = adw_inb(adw, ADW_INTR_STATUS_REG);
 
 	if ((int_stat & ADW_INTR_STATUS_INTRB) != 0) {
-		/* Idle Command Complete */
-		adw->idle_command_cmp = 1;
-		switch (adw->idle_cmd) {
-		case ADW_IDLE_CMD_DEVICE_RESET:
-			adw_handle_device_reset(adw,
-						/*target*/adw->idle_cmd_param);
+		u_int intrb_code;
+
+		/* Async Microcode Event */
+		intrb_code = adw_lram_read_8(adw, ADW_MC_INTRB_CODE);
+		switch (intrb_code) {
+		case ADW_ASYNC_CARRIER_READY_FAILURE:
+			/*
+			 * The RISC missed our update of
+			 * the commandq.
+			 */
+			if (LIST_FIRST(&adw->pending_ccbs) != NULL)
+				adw_tickle_risc(adw, ADW_TICKLE_A);
 			break;
-		case ADW_IDLE_CMD_SCSI_RESET:
+    		case ADW_ASYNC_SCSI_BUS_RESET_DET:
+			/*
+			 * The firmware detected a SCSI Bus reset.
+			 */
+			printf("Someone Reset the Bus\n");
+			adw_handle_bus_reset(adw, /*initiated*/FALSE);
+			break;
+		case ADW_ASYNC_RDMA_FAILURE:
+			/*
+			 * Handle RDMA failure by resetting the
+			 * SCSI Bus and chip.
+			 */
+#if XXX
+			AdvResetChipAndSB(adv_dvc_varp);
+#endif
+			break;
+
+		case ADW_ASYNC_HOST_SCSI_BUS_RESET:
+			/*
+			 * Host generated SCSI bus reset occurred.
+			 */
 			adw_handle_bus_reset(adw, /*initiated*/TRUE);
-			break;
-		default:
+        		break;
+    		default:
+			printf("adw_intr: unknown async code 0x%x\n",
+			       intrb_code);
 			break;
 		}
-		adw->idle_cmd = ADW_IDLE_CMD_COMPLETED;
 	}
 
-	if ((int_stat & ADW_INTR_STATUS_INTRC) != 0) {
-		/* SCSI Bus Reset */
-		adw_handle_bus_reset(adw, /*initiated*/FALSE);
-        }
-
 	/*
-	 * ADW_MC_HOST_NEXT_DONE is actually the last completed RISC
-	 * Queue List request. Its forward pointer (RQL_FWD) points to the
-	 * current completed RISC Queue List request.
+	 * Run down the RequestQ.
 	 */
-	next_doneq = adw_lram_read_8(adw, ADW_MC_HOST_NEXT_DONE);
-	next_doneq = ADW_MC_RISC_Q_LIST_BASE + RQL_FWD
-		   + (next_doneq * ADW_MC_RISC_Q_LIST_SIZE);
+	while ((adw->responseq->next_ba & ADW_RQ_DONE) != 0) {
+		struct adw_carrier *free_carrier;
+		struct acb *acb;
+		union ccb *ccb;
 
-	next_completeq = adw_lram_read_8(adw, next_doneq);
-	doneq_start = ADW_MC_NULL_Q;
-	/* Loop until all completed Q's are processed. */
-	while (next_completeq != ADW_MC_NULL_Q) {
-		u_int32_t acb_busaddr;
-		struct	  acb *acb;
-		union	  ccb *ccb;
-
-		doneq_start = next_completeq;
-
-		next_doneq = ADW_MC_RISC_Q_LIST_BASE +
-			     (next_completeq * ADW_MC_RISC_Q_LIST_SIZE);
+#if 0
+		printf("0x%x, 0x%x, 0x%x, 0x%x\n",
+		       adw->responseq->carr_offset,
+		       adw->responseq->carr_ba,
+		       adw->responseq->areq_ba,
+		       adw->responseq->next_ba);
+#endif
+		/*
+		 * The firmware copies the adw_scsi_req_q.acb_baddr
+		 * field into the areq_ba field of the carrier.
+		 */
+		acb = acbbotov(adw, adw->responseq->areq_ba);
 
 		/*
-		 * Read the ADW_SCSI_REQ_Q physical address pointer from
-		 * the RISC list entry.
+		 * The least significant four bits of the next_ba
+		 * field are used as flags.  Mask them out and then
+		 * advance through the list.
 		 */
-		acb_busaddr = adw_lram_read_32(adw, next_doneq + RQL_PHYADDR);
-		acb = acbptov(adw, acb_busaddr);
-		
-		/* Change the RISC Queue List state to free. */
-		adw_lram_write_8(adw, next_doneq + RQL_STATE, ADW_MC_QS_FREE);
-
-		/* Get the RISC Queue List forward pointer. */
-		next_completeq = adw_lram_read_8(adw, next_doneq + RQL_FWD);
+		free_carrier = adw->responseq;
+		adw->responseq =
+		    carrierbotov(adw, free_carrier->next_ba & ADW_NEXT_BA_MASK);
+		free_carrier->next_ba = adw->free_carriers->carr_offset;
+		adw->free_carriers = free_carrier;
 
 		/* Process CCB */
 		ccb = acb->ccb;
@@ -1195,14 +1356,10 @@ adw_intr(void *arg)
 			}
 			adwfreeacb(adw, acb);
 			xpt_done(ccb);
-
 		} else {
 			adwprocesserror(adw, acb);
 		}
 	}
-
-	if (doneq_start != ADW_MC_NULL_Q)
-		adw_lram_write_8(adw, ADW_MC_HOST_NEXT_DONE, doneq_start);
 }
 
 static void
@@ -1239,11 +1396,26 @@ adwprocesserror(struct adw_softc *adw, struct acb *acb)
 			break;
 		case QHSTA_M_WTM_TIMEOUT:
 		case QHSTA_M_SXFR_WD_TMO:
+		{
+			adw_idle_cmd_status_t status;
+
 			/* The SCSI bus hung in a phase */
 			ccb->ccb_h.status = CAM_SEQUENCE_FAIL;
-			adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET,
+			adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_START,
 					  /*param*/0);
+			status = adw_idle_cmd_wait(adw);
+			if (status != ADW_IDLE_CMD_SUCCESS)
+				panic("%s: Bus Reset during WD timeout failed",
+				      adw_name(adw));
+			DELAY(100);
+			adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_END,
+					  /*param*/0);
+			status = adw_idle_cmd_wait(adw);
+			if (status != ADW_IDLE_CMD_SUCCESS)
+				panic("%s: Bus Reset during WD timeout failed",
+				      adw_name(adw));
 			break;
+		}
 		case QHSTA_M_SXFR_XFR_PH_ERR:
 			ccb->ccb_h.status = CAM_SEQUENCE_FAIL;
 			break;
@@ -1314,8 +1486,17 @@ adwtimeout(void *arg)
 	if (status == ADW_IDLE_CMD_SUCCESS) {
 		printf("%s: BDR Delivered.  No longer in timeout\n",
 		       adw_name(adw));
+		adw_handle_device_reset(adw, ccb->ccb_h.target_id);
 	} else {
-		adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET, /*param*/0);
+		adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_START,
+				  /*param*/0);
+		status = adw_idle_cmd_wait(adw);
+		if (status != ADW_IDLE_CMD_SUCCESS)
+			panic("%s: Bus Reset during timeout failed",
+			      adw_name(adw));
+		DELAY(100);
+		adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_END,
+				  /*param*/0);
 		status = adw_idle_cmd_wait(adw);
 		if (status != ADW_IDLE_CMD_SUCCESS)
 			panic("%s: Bus Reset during timeout failed",
