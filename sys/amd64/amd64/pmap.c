@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.20 1994/03/07 11:38:34 davidg Exp $
+ *	$Id: pmap.c,v 1.21 1994/03/14 21:54:01 davidg Exp $
  */
 
 /*
@@ -551,7 +551,7 @@ pmap_pinit(pmap)
 
 	/* install self-referential address mapping entry */
 	*(int *)(pmap->pm_pdir+PTDPTDI) =
-		((int)pmap_extract(kernel_pmap, (vm_offset_t)pmap->pm_pdir)) | PG_V | PG_KW;
+		((int)pmap_kextract((vm_offset_t)pmap->pm_pdir)) | PG_V | PG_KW;
 
 	pmap->pm_count = 1;
 	simple_lock_init(&pmap->pm_lock);
@@ -1292,6 +1292,84 @@ validate:
 		*pte = npte;
 		tlbflush();
 	}
+}
+
+/*
+ * add a wired page to the kva
+ */
+void
+pmap_kenter(va, pa)
+	vm_offset_t va;
+	register vm_offset_t pa;
+{
+	register pt_entry_t *pte;
+	register pv_entry_t pv, npv;
+	vm_offset_t opa;
+	int s;
+
+	/*
+	 * Enter on the PV list if part of our managed memory
+	 * Note that we raise IPL while manipulating pv_table
+	 * since pmap_enter can be called at interrupt time.
+	 */
+
+	pte = vtopte(va);
+
+	opa = pmap_pte_pa(pte);
+	/*
+	 * Mapping has not changed, must be protection or wiring change.
+	 */
+	if (opa == pa) {
+		/*
+		 * Wiring change, just update stats.
+		 * We don't worry about wiring PT pages as they remain
+		 * resident as long as there are valid mappings in them.
+		 * Hence, if a user page is wired, the PT page will be also.
+		 */
+		if (!pmap_pte_w(pte)) {
+			kernel_pmap->pm_stats.wired_count++;
+		}
+		goto validate;
+	}
+
+	if (opa) {
+		pmap_remove(kernel_pmap, va, va + PAGE_SIZE);
+	}
+
+	pv = pa_to_pvh(pa);
+	s = splimp();
+	/*
+	 * No entries yet, use header as the first entry
+	 */
+	if (pv->pv_pmap == NULL) {
+		pv->pv_va = va;
+		pv->pv_pmap = kernel_pmap;
+		pv->pv_next = NULL;
+	}
+	/*
+	 * There is at least one other VA mapping this page.
+	 * Place this entry after the header.
+	 */
+	else {
+		npv = get_pv_entry();
+		npv->pv_va = va;
+		npv->pv_pmap = kernel_pmap;
+		npv->pv_next = pv->pv_next;
+		pv->pv_next = npv;
+	}
+	splx(s); 
+
+	/*
+	 * Increment counters
+	 */
+	kernel_pmap->pm_stats.resident_count++;
+
+validate:
+
+	/*
+	 * Now validate mapping with desired protection/wiring.
+	 */
+	*pte = (pt_entry_t) ( (int) (pa | PG_RW | PG_V | PG_W));
 }
 
 /*
