@@ -849,7 +849,8 @@ wtfs(ufs2_daddr_t bno, int size, char *bf)
 {
 	if (Nflag)
 		return;
-	bwrite(&disk, bno, bf, size);
+	if (bwrite(&disk, bno, bf, size) < 0)
+		err(36, "wtfs: %d bytes at sector %jd", size, (intmax_t)bno);
 }
 
 /*
