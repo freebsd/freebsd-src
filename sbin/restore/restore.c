@@ -428,8 +428,12 @@ nodeupdates(name, ino, type)
 		}
 		if (ip->e_type == LEAF) {
 			/* changing from leaf to node */
-			removeleaf(ip);
-			freeentry(ip);
+			for (ip = lookupino(ino); ip != NULL; ip = ip->e_links) {
+				if (ip->e_type != LEAF)
+					badentry(ip, "NODE and LEAF links to same inode");
+				removeleaf(ip);
+				freeentry(ip);
+			}
 			ip = addentry(name, ino, type);
 			newnode(ip);
 		} else {
