@@ -692,7 +692,7 @@ bucket_cache_drain(uma_zone_t zone)
 static void
 zone_drain(uma_zone_t zone)
 {
-	struct slabhead freeslabs = {};
+	struct slabhead freeslabs = { 0 };
 	uma_keg_t keg;
 	uma_slab_t slab;
 	uma_slab_t n;
