@@ -43,36 +43,38 @@
 .Sh DESCRIPTION
 .Nm
 is part of the isdn4bsd package and is used to handle dialing and hangup
-for the telephone control interfaces /dev/i4bteld<n>.
+for the telephone control interfaces
+.Pa /dev/i4bteld Ns Aq Ar n .
 .Pp
-Options are provided to dial out or hang up using commandline parameters
+Options are provided to dial out or hang up using command line parameters
 (for use in scripts) or, if none of those options are specified, bring up
-a curses-based fullscreen interface.
+a curses-based full-screen interface.
 .Pp
 The following options are available:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl d
-enable debugging message display.
+Enable debugging message display.
 .It Fl h
-hang up a possibly open telefone connection on the selected interface.
+Hang up a possibly open telephone connection on the selected interface.
 .It Fl k
-send the specified string using the keypad facility information element.
+Send the specified string using the keypad facility information element.
 .It Fl n
-dial the specified number on the selected interface.
+Dial the specified number on the selected interface.
 .It Fl u
 Set the unit number to specify the interface used.
 .El
 .Sh FILES
-/dev/i4bteld<n>
+.Bl -tag -width indent -compact
+.It Pa /dev/i4bteld Ns Aq Ar n
+.El
 .Sh EXAMPLES
 The command:
-.Bd -literal -offset indent
-isdnphone -n 1234
-.Ed
+.Dl "isdnphone -n 1234"
 .Pp
-dials calls the number 1234 to establish a call on /dev/i4btel0
+dials calls the number 1234 to establish a call on
+.Pa /dev/i4btel0
 .Sh AUTHORS
 The
 .Nm
 utility and this manpage were written by
-.An Hellmuth Michaelis Aq hm@freebsd.org .
+.An Hellmuth Michaelis Aq hm@FreeBSD.org .
