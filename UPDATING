@@ -26,7 +26,7 @@ build and install as described in the COMMON ITEMS section.
 20020731:	p21
 	A bounds checking error in FFS filesize limits was corrected.
 
-20020731:	p20
+20020731:	p20	FreeBSD-SA-02:33.openssl
 	Upgrade to OpenSSL 0.9.6e.
 
 20020731:	p19	FreeBSD-SA-02:34.rpc
