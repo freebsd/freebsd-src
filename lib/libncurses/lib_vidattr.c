@@ -104,32 +104,25 @@ chtype	turn_on  = (newmode & ~previous_attr) & ~A_COLOR;
 
 		T(("turning %x off", _traceattr(turn_off)));
 			
-		if ((turn_off & A_ALTCHARSET) && exit_alt_charset_mode) 
+		if ((turn_off & A_ALTCHARSET) && exit_alt_charset_mode) {
 			tputs(exit_alt_charset_mode, 1, outc);
+			turn_off &= ~A_ALTCHARSET;
+		}
 
-		if ((turn_off & A_BOLD)  &&  exit_standout_mode)
+		if ((turn_off & A_UNDERLINE)  &&  exit_underline_mode) {
+			tputs(exit_underline_mode, 1, outc);
+			turn_off &= ~A_UNDERLINE;
+		}
+
+		if ((turn_off & A_STANDOUT)  &&  exit_standout_mode) {
 			tputs(exit_standout_mode, 1, outc);
+			turn_off &= ~A_STANDOUT;
+		}
 
-		if ((turn_off & A_DIM)  && exit_standout_mode)
-		    tputs(exit_standout_mode, 1, outc);
-
-		if ((turn_off & A_BLINK)  && exit_standout_mode)
-		    tputs(exit_standout_mode, 1, outc);
-
-		if ((turn_off & A_INVIS)  && exit_standout_mode)
-		    tputs(exit_standout_mode, 1, outc);
-
-		if ((turn_off & A_PROTECT)  && exit_standout_mode)
-		    tputs(exit_standout_mode, 1, outc);
-
-		if ((turn_off & A_UNDERLINE)  &&  exit_underline_mode)
-		    tputs(exit_underline_mode, 1, outc);
-
-   	 	if ((turn_off & A_REVERSE)  &&  exit_standout_mode)
-		    tputs(exit_standout_mode, 1, outc);
-
-		if ((turn_off & A_STANDOUT)  &&  exit_standout_mode)
-		    tputs(exit_standout_mode, 1, outc);
+		if (turn_off && exit_attribute_mode) {
+			tputs(exit_attribute_mode, 1, outc);
+			turn_on |= newmode & (A_UNDERLINE|A_REVERSE|A_BLINK|A_DIM|A_BOLD|A_INVIS|A_PROTECT);
+		}
 
 		T(("turning %x on", _traceattr(turn_on)));
 
