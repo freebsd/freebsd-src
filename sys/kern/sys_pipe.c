@@ -668,7 +668,8 @@ pipe_build_write_buffer(wpipe, uio)
 			vm_page_unlock_queues();
 			return (EFAULT);
 		}
-		wpipe->pipe_map.ms[i] = pmap_extract_and_hold(pmap, addr);
+		wpipe->pipe_map.ms[i] = pmap_extract_and_hold(pmap, addr,
+		    VM_PROT_READ);
 		if (wpipe->pipe_map.ms[i] == NULL)
 			goto race;
 	}
