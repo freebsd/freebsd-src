@@ -491,7 +491,6 @@ draw:
     
     delwin(list);
     delwin(dialog);
-    free(status);
     return -1;    /* ESC pressed */
 }
 /* End of dialog_radiolist() */
