@@ -59,9 +59,7 @@ fails:
 .It Bq Er EFAULT
 The data required for this operation could not be read from the kernel space.
 .It Bq Er ENOENT
-The file specified by
-.Va file
-does not exist or is not readable.
+The file specified is not loaded in the kernel.
 .Sh SEE ALSO
 .Xr kldfirstmod 2 ,
 .Xr kldload 2 ,
