@@ -26,8 +26,24 @@
 struct vm_object;
 
 /*
+ * Pipe buffer size, keep moderate in value, pipes take kva space.
+ */
+#ifndef PIPE_SIZE
+#define PIPE_SIZE (16384)
+#endif
+
+/*
+ * PIPE_MINDIRECT MUST be smaller than PIPE_SIZE and MUST be bigger
+ * than PIPE_BUF
+ */
+#ifndef PIPE_MINDIRECT
+#define PIPE_MINDIRECT (8192)
+#endif
+
+#define PIPENPAGES (PIPE_SIZE/PAGE_SIZE + 1)
+/*
  * pipe buffer information
- * Separate in, out, cnt is used to simplify calculations.
+ * Seperate in, out, cnt is used to simplify calculations.
  */
 struct pipebuf {
 	u_int	cnt;		/* number of chars currently in buffer */
@@ -36,6 +52,17 @@ struct pipebuf {
 	u_int	size;		/* size of buffer */
 	caddr_t	buffer;		/* kva of buffer */
 	struct	vm_object *object; /* VM object containing buffer */
+};
+
+/*
+ * information to support direct transfers between processes for pipes
+ */
+struct pipemapping {
+	vm_offset_t	kva;		/* kernel virtual address */
+	vm_size_t	cnt;		/* number of chars in buffer */
+	vm_size_t	pos;		/* current position of transfer */
+	int		npages;		/* number of pages */
+	vm_page_t	ms[PIPENPAGES];	/* pages in source process */
 };
 
 /*
@@ -50,6 +77,13 @@ struct pipebuf {
 #define PIPE_EOF 0x80		/* Pipe is in EOF condition */
 #define PIPE_LOCK 0x100		/* Process has exclusive access to pointers/data */
 #define PIPE_LWANT 0x200	/* Process wants exclusive access to pointers/data */
+#define	PIPE_DIRECTW	0x400	/* Pipe direct write active */
+#define PIPE_DIRECTOK	0x800	/* Direct mode ok */
+
+/*
+ * Buffered write is active when buffer.cnt
+ * field is set.
+ */
 
 /*
  * Per-pipe data structure
@@ -58,6 +92,7 @@ struct pipebuf {
  */
 struct pipe {
 	struct	pipebuf pipe_buffer;	/* data storage */
+	struct	pipemapping	pipe_map;	/* pipe mapping for dir I/O */
 	struct	selinfo pipe_sel;	/* for compat with select */
 	struct	timeval pipe_atime;	/* time of last access */
 	struct	timeval pipe_mtime;	/* time of last modify */
