@@ -80,12 +80,7 @@ smopen(struct cdev *dev, int flag, int mode, struct thread *td)
 
 	tp = dev->si_tty;
 	if (!(tp->t_state & TS_ISOPEN)) {
-		ttychars(tp);
-		tp->t_iflag = TTYDEF_IFLAG;
-		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_cflag = TTYDEF_CFLAG;
-		tp->t_lflag = TTYDEF_LFLAG;
-		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
+		ttyinitmode(tp, 0, 0);
 		smparam(tp, &tp->t_termios);
 		ttyld_modem(tp, 1);
 	} else if (tp->t_state & TS_XCLUDE && suser(td)) {

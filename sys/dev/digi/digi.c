@@ -85,9 +85,6 @@ static void	digi_free_state(struct digi_softc *);
 	fepcmd(port, cmd, (op2 << 8) | op1, ncmds)
 #define	fepcmd_w	fepcmd
 
-
-static speed_t digidefaultrate = TTYDEF_SPEED;
-
 struct con_bios {
 	struct con_bios *next;
 	u_char *bios;
@@ -589,19 +586,7 @@ digi_init(struct digi_softc *sc)
 
 		bc->edelay = 100;
 
-		/*
-		 * We don't use all the flags from <sys/ttydefaults.h> since
-		 * they are only relevant for logins.  It's important to have
-		 * echo off initially so that the line doesn't start blathering
-		 * before the echo flag can be turned off.
-		 */
-		tp->t_init_in.c_iflag = 0;
-		tp->t_init_in.c_oflag = 0;
-		tp->t_init_in.c_cflag = TTYDEF_CFLAG;
-		tp->t_init_in.c_lflag = 0;
-		termioschars(&tp->t_init_in);
-		tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = digidefaultrate;
-		tp->t_init_out = tp->t_init_in;
+		ttyinitmode(tp, 0, 0);
 		port->send_ring = 1;	/* Default action on signal RI */
 		ttycreate(tp, NULL, 0, MINOR_CALLOUT, "D%r%r", sc->res.unit, i);
 	}

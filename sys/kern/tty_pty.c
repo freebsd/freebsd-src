@@ -175,12 +175,7 @@ ptsopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	pt = dev->si_drv1;
 	tp = dev->si_tty;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
-		ttychars(tp);		/* Set up default chars */
-		tp->t_iflag = TTYDEF_IFLAG;
-		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_lflag = TTYDEF_LFLAG_ECHO;
-		tp->t_cflag = TTYDEF_CFLAG;
-		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
+		ttyinitmode(tp, 1, 0);
 	} else if (tp->t_state & TS_XCLUDE && suser(td))
 		return (EBUSY);
 	else if (pt->pt_prison != td->td_ucred->cr_prison)
