@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.18 1997/02/22 15:42:54 peter Exp $
+# $Id: Makefile,v 1.19 1997/05/06 00:49:28 jdp Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
@@ -12,7 +12,7 @@ LIB=		g++
 SHLIB_MAJOR=	4
 SHLIB_MINOR=	0
 
-CFLAGS+=	-I${GPPDIR}/include -I/usr/include/g++
+CFLAGS+=	-I${GPPDIR}/include -I${DESTDIR}/usr/include/g++
 CXXFLAGS+=	-I${GPPDIR}/include -I${GPPDIR}/libio -I${GPPDIR}/libstdc++
 
 # C source
