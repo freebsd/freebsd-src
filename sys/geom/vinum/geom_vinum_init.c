@@ -259,6 +259,8 @@ gv_sync_td(void *arg)
 	}
 	g_topology_unlock();
 
+	printf("GEOM_VINUM: plex sync %s -> %s started\n", sync->from->name,
+	    sync->to->name);
 	for (i = 0; i < p->size; i+= sync->syncsize) {
 		/* Read some bits from the good plex. */
 		buf = g_read_data(from, i, sync->syncsize, &error);
@@ -319,7 +321,8 @@ gv_sync_td(void *arg)
 	/* Successful initialization. */
 	if (!error) {
 		p->flags &= ~GV_PLEX_SYNCING;
-		printf("gvinum: plex '%s': sync finished\n", p->name);
+		printf("GEOM_VINUM: plex sync %s -> %s finished\n",
+		    sync->from->name, sync->to->name);
 	}
 
 	g_free(sync);
