@@ -476,7 +476,6 @@ MLINKS+=ieee80211_crypto.9 ieee80211_crypto_attach.9 \
 	ieee80211_crypto.9 ieee80211_crypto_detach.9 \
 	ieee80211_crypto.9 ieee80211_wep_crypt.9
 MLINKS+=ieee80211_input.9 ieee80211_decap.9 \
-	ieee80211_input.9 ieee80211_input.9 \
 	ieee80211_input.9 ieee80211_recv_mgmt.9
 MLINKS+=ieee80211_ioctl.9 ieee80211_cfgget.9 \
 	ieee80211_ioctl.9 ieee80211_cfgset.9
