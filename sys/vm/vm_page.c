@@ -589,21 +589,24 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	/*
 	 * Now link into the object's ordered list of backed pages.
 	 */
-	root = vm_page_splay(pindex, object->root);
+	root = object->root;
 	if (root == NULL) {
 		m->left = NULL;
 		m->right = NULL;
 		TAILQ_INSERT_TAIL(&object->memq, m, listq);
-	} else if (pindex < root->pindex) {
-		m->left = root->left;
-		m->right = root;
-		root->left = NULL;
-		TAILQ_INSERT_BEFORE(root, m, listq);
 	} else {
-		m->right = root->right;
-		m->left = root;
-		root->right = NULL;
-		TAILQ_INSERT_AFTER(&object->memq, root, m, listq);
+		root = vm_page_splay(pindex, root);
+		if (pindex < root->pindex) {
+			m->left = root->left;
+			m->right = root;
+			root->left = NULL;
+			TAILQ_INSERT_BEFORE(root, m, listq);
+		} else {
+			m->right = root->right;
+			m->left = root;
+			root->right = NULL;
+			TAILQ_INSERT_AFTER(&object->memq, root, m, listq);
+		}
 	}
 	object->root = m;
 	object->generation++;
