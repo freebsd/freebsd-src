@@ -32,7 +32,7 @@
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd May 3, 1995
+.Dd December 19, 2000
 .Dt NEWFS 8
 .Os BSD 4.2
 .Sh NAME
@@ -190,13 +190,15 @@ for more details on how to set this option.
 .It Fl f Ar frag-size
 The fragment size of the file system in bytes.  It must be a power of two
 ranging in value between
-.Ar blocksize/8
+.Ar blocksize Ns /8
 and
 .Ar blocksize .
 The default is 1024 bytes.
 .It Fl i Ar number of bytes per inode
 Specify the density of inodes in the file system.
-The default is to create an inode for every (4 * frag-size) bytes of data space.
+The default is to create an inode for every
+.Pq 4 * Ar frag-size
+bytes of data space.
 If fewer inodes are desired, a larger number should be used;
 to create more inodes a smaller number should be given.
 One inode is required for each distinct file, so this value effectively
@@ -208,7 +210,7 @@ The default value used is
 defined by 
 .Dv MINFREE
 from
-.Ao Pa ufs/ffs/fs.h Ac ,
+.Aq Pa ufs/ffs/fs.h ,
 currently 8%.
 See
 .Xr tunefs 8
@@ -223,13 +225,15 @@ Nowadays this value should be set to 1 (which essentially disables the
 rotational position table) because modern drives with read-ahead and
 write-behind do better without the rotational position table.
 .It Fl o Ar optimization\ preference
-.Pq ``space'' or ``time''
+.Pq Ar space No or Ar time .
 The file system can either be instructed to try to minimize the time spent
 allocating blocks, or to try to minimize the space fragmentation on the disk.
 If the value of minfree (see above) is less than 8%,
-the default is to optimize for space;
+the default is to optimize for
+.Ar space ;
 if the value of minfree is greater than or equal to 8%,
-the default is to optimize for time.
+the default is to optimize for
+.Ar time .
 See
 .Xr tunefs 8
 for more details on how to set this option.
@@ -337,9 +341,14 @@ man page for possible options and their meanings.
 .Pp
 .Dl mount_mfs -s 131072 -o nosuid,nodev /dev/da0s1b /tmp
 .Pp
-Mount a 64 MB large memory file system on /tmp, with
+Mount a 64 MB large memory file system on
+.Pa /tmp ,
+with
 .Xr mount 8
-options nosuid and nodev.
+options
+.Ar nosuid
+and
+.Ar nodev .
 .Sh BUGS
 The boot code of
 .Fx
