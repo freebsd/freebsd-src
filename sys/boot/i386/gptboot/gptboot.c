@@ -21,6 +21,7 @@
 #include <sys/reboot.h>
 #include <sys/diskslice.h>
 #include <sys/disklabel.h>
+#include <sys/diskmbr.h>
 #include <sys/dirent.h>
 #include <machine/bootinfo.h>
 #include <machine/elf.h>

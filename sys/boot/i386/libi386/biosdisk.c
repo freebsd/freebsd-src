@@ -40,6 +40,7 @@
 
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#include <sys/diskmbr.h>
 #include <sys/reboot.h>
 
 #include <stdarg.h>

@@ -31,6 +31,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/disklabel.h>
+#include <sys/diskmbr.h>
 #include <sys/stat.h>
 
 #include <err.h>
