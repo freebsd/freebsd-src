@@ -2,9 +2,9 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.5 2004/09/01 13:10:46 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.7 2004/09/10 13:09:19 den Exp $
 
-     Original revision: 1.238
+     Original revision: 1.247
 -->
 
 <!--
@@ -86,64 +86,7 @@
 
     &hwlist.aac;
 
-    <para arch="pc98">NEC PC-9801-55, 92 и совместимые с ним C-Bus SCSI
-      интерфейсы (драйвер &man.ct.4;)
-      <itemizedlist>
-	<listitem>
-	  <para>NEC PC-9801-55, 92 и совместимые с ним</para>
-	  <para>ICM IF-2660</para>
-	  <para>Midori-Denshi MDC-554NA</para>
-	  <para>Logitec LHA-N151</para>
-	  <note>
-	    <para>параметр <literal>flags 0x00000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      DMA.</para>
-	  </note>
-	</listitem>
-	<listitem>
-	  <para>I-O DATA SC-98II</para>
-	  <note>
-	    <para>параметр <literal>flags 0x10000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      DMA.</para>
-	  </note>
-	</listitem>
-	<listitem>
-	  <para>TEXA HA-55BS2 и более поздние</para>
-	  <para>Midori-Denshi MDC-926Rs</para>
-	  <note>
-	    <para>параметр <literal>flags 0x20000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      Bus-master.</para>
-	  </note>
-	</listitem>
-	<listitem>
-	  <para>ELECOM Bus-master SCSI интерфейсы</para>
-	  <note>
-	    <para>параметр <literal>flags 0x30000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      Bus-master.</para>
-	  </note>
-	</listitem>
-	<listitem>
-	  <para>Все SMIT transfer type SCSI интерфейсы</para>
-	  <note>
-	    <para>параметр <literal>flags 0x40000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      SMIT.</para>
-	  </note>
-	</listitem>
-	<listitem>
-	  <para>Logitec LHA-20x series</para>
-	  <para>ICM IF-2766, IF-2766ET, IF-2767 и IF-2769</para>
-	  <note>
-	    <para>параметр <literal>flags 0x50000</literal> должен
-	      присутствовать в файле настройки ядра для режима передачи
-	      Bus-master.</para>
-	  </note>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.ct;
 
     <para arch="pc98">NEC PC-9801-55, 92 и совместимые с ними C-Bus SCSI
       интерфейсы (драйвер bs)
@@ -278,6 +221,9 @@
  
     &hwlist.trm;
 
+    <para arch="i386">Драйвер wds(4) поддерживает контроллер WD7000
+      SCSI.</para>
+
     <para>Со всеми поддерживаемыми SCSI контроллерами, предоставлена полная
       поддержка периферии SCSI-I, SCSI-II и SCSI-III, включая жесткие диски,
       оптические диски, ленточные накопители (включая DAT, 8mm
@@ -313,28 +259,6 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Следующие устройства поддерживаются старой подсистемой
-      SCSI, но еще не поддерживаются &man.cam.4; подсистемой SCSI:
-      <itemizedlist>
-	<listitem arch="i386">
-	  <para>NCR5380/NCR53400 (<quote>ProAudio Spectrum</quote>)
-	  SCSI контроллер</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>UltraStor 14F, 24F и 34F SCSI контроллеры.
-	    <note>
-	      <para>Ведется работа по портированию
-	      UltraStor на новую инфраструктуру CAM SCSI, но сроки
-	      завершения этой работы не определены.</para>
-	    </note>
-	  </para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>WD7000 SCSI контроллер</para>
-	</listitem>
-      </itemizedlist>
-    </para>
-
     <para arch="i386">Следующие устройства не поддерживаются:
       <itemizedlist>
 	<listitem>
@@ -350,8 +274,7 @@
 
     &hwlist.sf;
 
-    <para arch="i386,pc98,amd64">Alteon Networks PCI Gigabit Ethernet сетевые карты на
-      чипсетах Tigon 1 и Tigon 2 (драйвер &man.ti.4;)</para>
+    &hwlist.ti;
 
     <para arch="i386,pc98,alpha,amd64">AMD PCnet сетевые карты (драйверы &man.lnc.4; и
       &man.pcn.4;s)
@@ -635,32 +558,19 @@
 
     &hwlist.rl;
 
-    <para arch="i386,pc98,alpha,amd64">Winbond W89C840F Fast Ethernet сетевые карты
-      (драйвер &man.wb.4;)
-    </para>
+    &hwlist.wb;
 
     &hwlist.vr;
 
-    <para arch="i386,pc98,alpha,amd64">Silicon Integrated Systems SiS 900 и SiS 7016 PCI Fast
-    Ethernet сетевые карты (драйвер &man.sis.4;)
-    </para>
+    &hwlist.sis;
 
-    <para arch="i386,pc98,alpha,amd64">National Semiconductor DP83815 Fast Ethernet сетевые карты
-      (драйвер &man.sis.4;)
-    </para>
+    &hwlist.nge;
 
-    <para arch="i386,pc98,amd64">National Semiconductor DP83820 и DP83821 Gigabit Ethernet
-      сетевые карты (драйвер &man.nge.4;)
-    </para>
-
-    <para arch="i386,pc98,alpha,amd64">Sundance Technologies ST201 PCI Fast Ethernet сетевые карты
-      (драйвер &man.ste.4;)
-    </para>
+    &hwlist.ste;
 
     &hwlist.sk;
 
-    <para arch="i386,pc98,alpha,amd64">Texas Instruments ThunderLAN PCI сетевые карты
-      (драйвер &man.tl.4;)</para>
+    &hwlist.tl;
 
     &hwlist.dc;
 
@@ -682,16 +592,13 @@
 
     &hwlist.fxp;
 
-    <para arch="i386,amd64">Intel 82595 Ethernet сетевые карты (драйвер &man.ex.4;)
-    </para>
+    &hwlist.ex;
 
-    <para arch="i386">Intel 82586 Ethernet сетевые карты (драйвер &man.ie.4;)
-    </para>
+    &hwlist.ie;
 
-    <para arch="i386,pc98,amd64">3Com 3C5x9 Etherlink III сетевые карты (драйвер &man.ep.4;)</para>
+    &hwlist.ep;
 
-    <para arch="i386">3Com 3C501 8-бит ISA Ethernet NIC 
-      (драйвер &man.el.4;)</para>
+    &hwlist.el;
 
     &hwlist.xl;
 
@@ -701,22 +608,11 @@
       (драйвер &man.cs.4;)
     </para>
 
-    <para arch="i386,amd64">Megahertz X-Jack Ethernet PC-Card CC-10BT (драйвер
-      &man.sn.4;)</para>
+    &hwlist.sn;
 
     &hwlist.xe;
 
-    <para arch="pc98">National Semiconductor DP8393X (SONIC) Ethernet
-      карты (драйвер snc)
-      <itemizedlist>
-	<listitem>
-	  <para>NEC PC-9801-83, -84, -103, и -104</para>
-	</listitem>
-	<listitem>
-	  <para>NEC PC-9801N-25 и -J02R</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snc;
 
     &hwlist.lge;
 
@@ -740,9 +636,7 @@
     <para arch="i386,amd64">Broadcom BCM4401 based Fast Ethernet адаптеры
       (драйвер &man.bfe.4;)</para>
 
-    <para arch="alpha,i386,pc98,amd64">RealTek RTL8139C+, RTL8169, RTL8169S и
-      RTL8110S based PCI Fast Ethernet и Gigabit Ethernet
-      контроллеры (драйвер &man.re.4;)</para>
+    &hwlist.re;
 
     &hwlist.ixgb;
 
@@ -803,40 +697,9 @@
 
     &hwlist.cx;
 
-    <para arch="i386,pc98">Cronyx Tau-PCI синхронные последовательные адаптеры
-      для шины PCI (драйвер &man.cp.4;)
-      <itemizedlist>
-	<listitem>
-	  <para>Cronyx Tau-PCI (двойной RS-232/V.35) и Cronyx Tau-PCI/R
-	    (двойной RS-530(RS-449)/X.21)</para>
-	</listitem>
-	<listitem>
-	  <para>Cronyx Tau-PCI/E1 (двойной fractional E1) и Cronyx
-	    Tau-PCI/G703 (двойной unframed E1)</para>
-	</listitem>
-	<listitem>
-	  <para>Cronyx Tau-PCI/2E1 (двойной fractional/unframed E1)</para>
-	</listitem>
-	<listitem>
-	  <para>Cronyx Tau-PCI/4E1 (четыре fractional/unframed E1)</para>
-	</listitem>
-	<listitem>
-	  <para>Cronyx Tau-PCI/E3 (один E3)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.cp;
 
-    <para arch="i386">Cronyx Tau последовательные синхронные адаптеры для шины ISA
-      (драйвер &man.ctau.4;)
-      <itemizedlist>
-	<listitem>
-	  <para>Cronyx Tau (RS-232/V.35) и Cronyx Tau/R (RS-530/RS-449)</para>
-	</listitem>
-	<listitem>
-	  <para>Cronyx Tau/E1 (fractional E1) и Cronyx Tau/G703 (unframed E1)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.ctau;
 
     <para arch="i386">Granch SBNI12 коммуникационные адаптеры точка-к-точке
       (драйвер &man.sbni.4;)
@@ -1315,8 +1178,7 @@
 
     &hwlist.ohci;
 
-    <para arch="i386,pc98,alpha,ia64,amd64">UHCI 1.1-compliant хост
-      контроллеры (драйвер &man.uhci.4;)</para>
+    &hwlist.uhci;
 
     <para arch="i386,ia64,pc98,amd64">USB 2.0 контроллеры, использующие EHCI
       интерфейс (драйвер &man.ehci.4;)</para>

@@ -2,9 +2,9 @@
    The FreeBSD Russian Documentation Project
 
    $FreeBSD$
-   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.7 2004/08/31 12:31:55 den Exp $
+   $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.8 2004/09/06 14:05:03 den Exp $
 
-   Original revision: 1.32
+   Original revision: 1.34
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -29,7 +29,7 @@
       <year>2002</year>
       <year>2003</year>
       <year>2004</year>
-      <holder role="mailto:doc@FreeBSD.org">Проект документирования FreeBSD</holder>
+      <holder role="mailto:doc@FreeBSD.org">Проект документирования &os;</holder>
     </copyright>
 
     <legalnotice id="trademarks" role="trademarks">
@@ -170,8 +170,8 @@
 
       <para>Список поставщиков CDROM и DVD, известных Проекту,
 	находится на странице приложения Руководства <ulink
-	url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/books/handbook/mirrors.html"><quote>Получение
-	FreeBSD</quote></ulink>.</para>
+	url="&url.books.handbook;/mirrors.html"><quote>Получение
+	&os;</quote></ulink>.</para>
     </sect2>
 
     <sect2>
@@ -185,7 +185,7 @@
 
       <para>Списки сайтов, зеркалирующих &os;, можно найти в разделе
 	Руководства <ulink
-	url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/books/handbook/mirrors-ftp.html">FTP
+	url="&url.books.handbook;/mirrors-ftp.html">FTP
 	сайты</ulink>, или на страницах <ulink
 	url="http://mirrorlist.FreeBSD.org/"></ulink>.
 	Поиск ближайшего (в терминах сети) зеркала для загрузки
@@ -196,8 +196,8 @@
 	информацией о том, как сделать официальное зеркало.  Вы также
 	можете найти полезную информацию по зеркалированию в статье
 	<ulink
-	url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/articles/hubs/">Зеркалирование
-	FreeBSD</ulink>.</para>
+	url="&url.articles.hubs;/">Зеркалирование
+	&os;</ulink>.</para>
 
       <para>Зеркала обычно содержат образы дискет, необходимые для начала
 	установки, а также дистрибутивные файлы, необходимые для самого
@@ -241,13 +241,13 @@
 	только на &a.announce;.</para>
 
       <para>На все списки рассылки может свободно подписаться любой желающий.
-	Посетите <ulink url="http://www.FreeBSD.org/mailman/listinfo">FreeBSD
+	Посетите <ulink url="&url.base;/mailman/listinfo">&os;
 	Mailman Info Page</ulink>.  Там находится дополнительная информация
 	по подписке на различные списки рассылки, доступ к архивам, и т.д.
 	Существует множество не упомянутых здесь списков рассылки,
 	предназначенных для особых целей; дополнительную информацию можно
 	найти или на страницах Mailman или в <ulink
-	url="http://www.FreeBSD.org/ru/support.html#mailing-list">разделе
+	url="&url.base;/ru/support.html#mailing-list">разделе
 	списков рассылки</ulink> на веб сайте &os;.</para>
 
       <important>
@@ -285,8 +285,8 @@
 	отправить его в &a.bugs;.</para>
 
       <para>За дальнейшей информацией обращайтесь к статье <ulink
-	url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/articles/problem-reports/"><quote>Составление
-	Сообщений о проблемах в FreeBSD</quote></ulink>, доступной на
+	url="&url.articles.problem-reports;/"><quote>Составление
+	Сообщений о проблемах в &os;</quote></ulink>, доступной на
 	веб сайте &os;.  В этой статье представлены множество советов по
 	составлению и отправке эффективных сообщений о проблемах.</para>
     </sect2>
@@ -323,7 +323,7 @@
 	      новых пользователей &os; &release.current;.  Настоятельно
 	      рекомендуется к прочтению новыми пользователями &os;
 	      &release.branch; и/или серии релизов
-	      5.<replaceable>X</replaceable>.</para>
+	      6.<replaceable>X</replaceable>.</para>
 	  </listitem>
 
 	  <listitem>
@@ -383,7 +383,7 @@
 	  уже устарел по определению, но другие копии обновляются
 	  и необходимо прочесть <quote>текущие сообщения о проблемах</quote>
 	  для данного релиза.  Эти копии находятся на
-	  <ulink url="http://www.FreeBSD.org/ru/releases/"></ulink>
+	  <ulink url="&url.base;/ru/releases/"></ulink>
 	  (а также на любом сайте, поддерживающем обновляемое зеркало
 	  этого ресурса).</para>
       </note>
@@ -414,11 +414,11 @@
 	поддерживаемые Проектом &os;, это Руководство &os; и FAQ по &os;
 	(Frequently Asked Questions, часто задаваемые вопросы).
 	Онлайн версии <ulink
-	url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/books/handbook/">Руководства</ulink>
+	url="&url.books.handbook;/">Руководства</ulink>
 	и <ulink
-	url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/books/faq/">FAQ</ulink>
+	url="&url.books.faq;/">FAQ</ulink>
 	всегда доступны со <ulink
-	url="http://www.FreeBSD.org/ru/docs.html">страницы
+	url="&url.base;/ru/docs.html">страницы
 	документации &os;</ulink> и всех зеркал.  Если вы установили
 	дистрибутивный набор <filename>doc</filename>, Руководство
 	и FAQ можно прочесть локально.</para>
@@ -433,7 +433,7 @@
 	из дистрибутивного набора <filename>doc</filename>.</para>
 
       <para>Список других книг и документов по &os; можно найти в <ulink
-	url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/books/handbook/bibliography.html">библиографии</ulink>
+	url="&url.books.handbook;/bibliography.html">библиографии</ulink>
 	Руководства &os;.  Поскольку &os; во всем наследует &unix;,
 	многие другие статьи и книги, написанные для систем &unix;,
 	также подходят и для &os;, и некоторые из них приведены в
@@ -448,8 +448,8 @@
       людей по всему миру, работавших бесчисленное количество времени
       для создания этого дистрибутива.  За полным списком разработчиков и
       участников Проекта &os; обращайтесь к <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/contributors/"><quote>Списку
-      контрибьюторов Проекта FreeBSD</quote></ulink> на веб сайте &os; или
+      url="&url.articles.contributors;/"><quote>Списку
+      контрибьюторов Проекта &os;</quote></ulink> на веб сайте &os; или
       любом из его зеркал.</para>
 
     <para>Особые благодарности выражаются многим тысячам пользователей

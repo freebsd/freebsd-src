@@ -2,9 +2,9 @@
 The FreeBSD Russian Documentation Project
 
 $FreeBSD$
-$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/install.sgml,v 1.4 2004/09/01 12:23:40 den Exp $
+$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/install.sgml,v 1.5 2004/09/06 14:05:03 den Exp $
 
-Original revision: 1.27
+Original revision: 1.28
 
 install.sgml
 
@@ -19,9 +19,9 @@ from {alpha,i386}/INSTALL.TXT.
   <para>Этот раздел описывает процесс установки новой системы &os;.
     Особое внимание уделено получению дистрибутива &os; &release.current;
     и началу процедуры установки.  Глава <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/install.html"><quote>Установка
+    url="&url.books.handbook;/install.html"><quote>Установка
     FreeBSD</quote></ulink> <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Руководства
+    url="&url.books.handbook;/">Руководства
     FreeBSD</ulink> предоставляет более подробную информацию о самой
     программе установке, включая пошаговую инструкцию по установке
     с иллюстрациями.</para>
@@ -42,10 +42,10 @@ from {alpha,i386}/INSTALL.TXT.
       Documentation программы установки.</para>
 
     <para>Он-лайн версии &os; <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink> и
+      url="&url.books.faq;/">FAQ</ulink> и
       <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink>
-      доступны также с <ulink url="http://www.FreeBSD.org/">веб сайта
+      url="&url.books.handbook;/">Handbook</ulink>
+      доступны также с <ulink url="&url.base;/ru/">веб сайта
       Проекта FreeBSD</ulink>, если у вас есть подключение к интернет.</para>
 
     <para>Этот набор документов может показаться сложным, но время,
@@ -161,7 +161,7 @@ from {alpha,i386}/INSTALL.TXT.
       <replaceable>release</replaceable><filename>/floppies/kernX.flp</filename>
       с <ulink url="&release.url;"></ulink> или с одного из зеркал,
       перечисленных в разделе <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
+      url="&url.books.handbook;/mirrors-ftp.html">FTP
       зеркала</ulink> Руководства или, или на страницах
       <ulink url="http://mirrorlist.FreeBSD.org/"></ulink>.</para>
 
