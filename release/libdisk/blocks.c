@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: blocks.c,v 1.2 1995/04/29 01:55:17 phk Exp $
  *
  */
 
@@ -31,3 +31,11 @@ read_block(int fd, daddr_t block)
 	return foo;
 }
 
+void
+write_block(int fd, daddr_t block, void *foo)
+{
+	if (-1 == lseek(fd,block * 512,SEEK_SET))
+		err(1,"lseek");
+	if (512 != write(fd,foo, 512))
+		err(1,"write");
+}

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: rules.c,v 1.2 1995/04/29 04:00:56 phk Exp $
+ * $Id: rules.c,v 1.3 1995/04/29 07:21:12 phk Exp $
  *
  */
 
@@ -21,7 +21,7 @@
 #include "libdisk.h"
 
 int
-Aligned(struct disk *d, u_long offset)
+Track_Aligned(struct disk *d, u_long offset)
 {
 	if (!d->bios_sect)
 		return 1;
@@ -31,7 +31,7 @@ Aligned(struct disk *d, u_long offset)
 }
 
 u_long
-Prev_Aligned(struct disk *d, u_long offset)
+Prev_Track_Aligned(struct disk *d, u_long offset)
 {
 	if (!d->bios_sect)
 		return offset;
@@ -39,11 +39,37 @@ Prev_Aligned(struct disk *d, u_long offset)
 }
 
 u_long
-Next_Aligned(struct disk *d, u_long offset)
+Next_Track_Aligned(struct disk *d, u_long offset)
 {
 	if (!d->bios_sect)
 		return offset;
-	return Prev_Aligned(d,offset + d->bios_sect);
+	return Prev_Track_Aligned(d,offset + d->bios_sect);
+}
+
+int
+Cyl_Aligned(struct disk *d, u_long offset)
+{
+	if (!d->bios_sect || !d->bios_hd)
+		return 1;
+	if (offset % (d->bios_sect * d->bios_hd))
+		return 0;
+	return 1;
+}
+
+u_long
+Prev_Cyl_Aligned(struct disk *d, u_long offset)
+{
+	if (!d->bios_sect || !d->bios_hd)
+		return offset;
+	return (offset / (d->bios_sect*d->bios_hd)) * d->bios_sect * d->bios_hd;
+}
+
+u_long
+Next_Cyl_Aligned(struct disk *d, u_long offset)
+{
+	if (!d->bios_sect || !d->bios_hd)
+		return offset;
+	return Prev_Cyl_Aligned(d,offset + (d->bios_sect * d->bios_hd));
 }
 
 /*
@@ -58,9 +84,13 @@ Rule_000(struct disk *d, struct chunk *c, char *msg)
 
 	if (c->type != whole)
 		return;
-	for (i=0, c1=c->part; c1; c1=c1->next)
-		if (c1->type != unused)
-			i++;
+	for (i=0, c1=c->part; c1; c1=c1->next) {
+		if (c1->type != reserved)
+			continue;
+		if (c1->type != reserved)
+			continue;
+		i++;
+	}
 	if (i <= NDOSPART)
 		return;
 	sprintf(msg+strlen(msg),
@@ -86,13 +116,13 @@ Rule_001(struct disk *d, struct chunk *c, char *msg)
 			continue;
 		if (c1->type == unused)
 			continue;
-		if (!Aligned(d,c1->offset))
+		if (!Track_Aligned(d,c1->offset))
 			sprintf(msg+strlen(msg),
 		    "chunk '%s' [%ld..%ld] does not start on a track boundary\n",
 				c1->name,c1->offset,c1->end);
-		if (c->end != c1->end && !Aligned(d,c1->end+1))
+		if (c->end != c1->end && !Cyl_Aligned(d,c1->end+1))
 			sprintf(msg+strlen(msg),
-		    "chunk '%s' [%ld..%ld] does not end on a track boundary\n",
+		    "chunk '%s' [%ld..%ld] does not end on a cylinder boundary\n",
 				c1->name,c1->offset,c1->end);
 	}
 }
@@ -143,6 +173,29 @@ Rule_003(struct disk *d, struct chunk *c, char *msg)
 	}
 }
 
+/* 
+ * Rule#4:
+ *	Max seven 'part' as children of 'freebsd'
+ */
+void
+Rule_004(struct disk *d, struct chunk *c, char *msg)
+{
+	int i;
+	struct chunk *c1;
+
+	if (c->type != freebsd)
+		return;
+	for (i=0, c1=c->part; c1; c1=c1->next) {
+		if (c1->type != part)
+			continue;
+		i++;
+	}
+	if (i > 7) {
+		sprintf(msg+strlen(msg),
+		    "Max seven 'part' allowed as child of 'freebsd'\n");
+	}
+}
+
 void
 Check_Chunk(struct disk *d, struct chunk *c, char *msg)
 {
@@ -150,6 +203,7 @@ Check_Chunk(struct disk *d, struct chunk *c, char *msg)
 	Rule_001(d,c,msg);
 	Rule_002(d,c,msg);
 	Rule_003(d,c,msg);
+	Rule_004(d,c,msg);
 	if (c->part)
 		Check_Chunk(d,c->part,msg);
 	if (c->next)

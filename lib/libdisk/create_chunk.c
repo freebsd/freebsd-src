@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.2 1995/04/29 01:55:20 phk Exp $
+ * $Id: create_chunk.c,v 1.3 1995/04/29 07:21:10 phk Exp $
  *
  */
 
@@ -24,15 +24,16 @@
 void
 Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 {
-	struct chunk *c1, *c2, *c3;
+	struct chunk *c1, *c3;
 	int j;
 	char *p=0;
 
+	if (!strcmp(c->name, "X")) return;
 	for (c1 = c->part; c1 ; c1 = c1->next) {
 		if (c1->type == unused) continue;
 		if (c1->type == reserved) continue;
 		if (strcmp(c1->name, "X")) continue;
-		for(j=0;j<=8;j++) {
+		for(j=0;j<8;j++) {
 			if (j == 2)
 				continue;
 			p = malloc(12);
@@ -56,7 +57,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 void
 Fixup_Extended_Names(struct disk *d, struct chunk *c)
 {
-	struct chunk *c1, *c2, *c3;
+	struct chunk *c1, *c3;
 	int j;
 	char *p=0;
 
@@ -127,6 +128,8 @@ int
 Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subtype, u_long flags)
 {
 	int i;
+	u_long l1,l2,end = offset + size;
+
 	i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
 	Fixup_Names(d);
 	return i;
