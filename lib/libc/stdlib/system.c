@@ -50,7 +50,7 @@ int
 __system(command)
 	const char *command;
 {
-	pid_t pid;
+	pid_t pid, savedpid;
 	int pstat;
 	struct sigaction ign, intact, quitact;
 	sigset_t newsigblock, oldsigblock;
@@ -83,8 +83,9 @@ __system(command)
 		execl(_PATH_BSHELL, "sh", "-c", command, (char *)NULL);
 		_exit(127);
 	default:			/* parent */
+		savedpid = pid;
 		do {
-			pid = _wait4(pid, &pstat, 0, (struct rusage *)0);
+			pid = _wait4(savedpid, &pstat, 0, (struct rusage *)0);
 		} while (pid == -1 && errno == EINTR);
 		break;
 	}
