@@ -63,7 +63,7 @@
 #include	"qcam.h"
 #endif	/* bsdi */
 
-#ifdef	LINUX
+#ifdef	__linux__
 #include	<linux/kernel.h>
 #include	<linux/sched.h>
 #include	<linux/string.h>
@@ -71,7 +71,7 @@
 #include	<asm/io.h>
 #include	"qcam-linux.h"
 #include	"qcam.h"
-#endif	/* LINUX */
+#endif	/* __linux__ */
 
 #ifdef	_SCO_DS
 #include	<limits.h>
