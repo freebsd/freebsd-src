@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.140 1998/08/02 06:56:40 brian Exp $
+ * $Id: main.c,v 1.141 1998/08/07 18:42:49 brian Exp $
  *
  *	TODO:
  */
@@ -28,6 +28,9 @@
 #include <netinet/ip.h>
 #include <sys/un.h>
 
+#ifndef NOALIAS
+#include <alias.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -258,6 +261,9 @@ main(int argc, char **argv)
   name = strrchr(argv[0], '/');
   log_Open(name ? name + 1 : argv[0]);
 
+#ifndef NOALIAS
+  PacketAliasInit();
+#endif
   label = ProcessArgs(argc - 1, argv + 1, &mode, &alias);
 
 #ifdef __FreeBSD__
