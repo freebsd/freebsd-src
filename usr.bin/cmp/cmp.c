@@ -99,8 +99,12 @@ endargs:
 		fd1 = 0;
 		file1 = "stdin";
 	}
-	else if ((fd1 = open(file1, O_RDONLY, 0)) < 0)
-		err(ERR_EXIT, "%s", file1);
+	else if ((fd1 = open(file1, O_RDONLY, 0)) < 0) {
+		if (!sflag)
+			err(ERR_EXIT, "%s", file1);
+		else
+			exit(1);
+	}
 	if (strcmp(file2 = argv[1], "-") == 0) {
 		if (special)
 			errx(ERR_EXIT,
@@ -109,20 +113,32 @@ endargs:
 		fd2 = 0;
 		file2 = "stdin";
 	}
-	else if ((fd2 = open(file2, O_RDONLY, 0)) < 0)
-		err(ERR_EXIT, "%s", file2);
+	else if ((fd2 = open(file2, O_RDONLY, 0)) < 0) {
+		if (!sflag)
+			err(ERR_EXIT, "%s", file2);
+		else
+			exit(1);
+	}
 
 	skip1 = argc > 2 ? strtol(argv[2], NULL, 10) : 0;
 	skip2 = argc == 4 ? strtol(argv[3], NULL, 10) : 0;
 
 	if (!special) {
-		if (fstat(fd1, &sb1))
-			err(ERR_EXIT, "%s", file1);
+		if (fstat(fd1, &sb1)) {
+			if (!sflag)
+				err(ERR_EXIT, "%s", file1);
+			else
+				exit(1);
+		}
 		if (!S_ISREG(sb1.st_mode))
 			special = 1;
 		else {
-			if (fstat(fd2, &sb2))
-				err(ERR_EXIT, "%s", file2);
+			if (fstat(fd2, &sb2)) {
+				if (!sflag)
+					err(ERR_EXIT, "%s", file2);
+				else
+					exit(1);
+			}
 			if (!S_ISREG(sb2.st_mode))
 				special = 1;
 		}
