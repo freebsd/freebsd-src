@@ -229,7 +229,9 @@ enum target_object
   /* Transfer auxilliary vector.  */
   TARGET_OBJECT_AUXV,
   /* StackGhost cookie.  See "sparc-tdep.c".  */
-  TARGET_OBJECT_WCOOKIE
+  TARGET_OBJECT_WCOOKIE,
+  /* Dirty registers. See "ia64-tdep.c".  */
+  TARGET_OBJECT_DIRTY
 
   /* Possible future objects: TARGET_OBJECT_FILE, TARGET_OBJECT_PROC, ... */
 };
