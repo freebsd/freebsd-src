@@ -37,6 +37,7 @@
 .Op Fl v
 .Op Fl z
 .Op Fl i Ar IRQ
+.Op Fl I 
 .Op Fl f Ar configfile
 .Sh DESCRIPTION
 .Nm Pccardd
@@ -135,6 +136,8 @@ After reading the configuration file, print out a summary
 of it.
 .It Fl z
 Delays running as a daemon until after the cards have been probed and attached.
+.It Fl I
+Don't get a list of free IRQs from kernel.
 .It Fl i Ar IRQ
 Configures an available IRQ.  It overrides the "irq" line in
 .Pa /etc/defaults/pccard.conf

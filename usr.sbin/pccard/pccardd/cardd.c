@@ -528,7 +528,8 @@ assign_driver(struct card *cp)
 				perror("ioctl (PIOCSRESOURCE)");
 				exit(1);
 			}
-			if (pool_irq[i] && res.resource_addr == i) {
+			if (pool_irq[i]
+			    && (res.resource_addr == i || !use_kern_irq)) {
 				conf->irq = i;
 				pool_irq[i] = 0;
 				break;
