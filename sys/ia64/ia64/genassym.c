@@ -76,7 +76,7 @@ ASSYM(GD_ASTPENDING, offsetof(struct globaldata, gd_astpending));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
-ASSYM(MTX_SAVEPSR, offsetof(struct mtx, mtx_savepsr));
+ASSYM(MTX_SAVEINTR, offsetof(struct mtx, mtx_saveintr));
 ASSYM(MTX_UNOWNED, MTX_UNOWNED);
 
 ASSYM(P_ADDR, offsetof(struct proc, p_addr));
