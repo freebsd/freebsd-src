@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.31 1997/08/13 17:55:11 ache Exp $
+ * $Id: kern_time.c,v 1.32 1997/08/14 08:15:12 ache Exp $
  */
 
 #include <sys/param.h>
@@ -61,10 +61,10 @@ struct timezone tz;
  * timers when they expire.
  */
 
-static int	settime __P((struct timeval *));
-static void	timevalfix __P((struct timeval *));
 static int	nanosleep1 __P((struct proc *p, struct timespec *rqt,
 		    struct timespec *rmt));
+static int	settime __P((struct timeval *));
+static void	timevalfix __P((struct timeval *));
 
 static int
 settime(tv)
@@ -213,8 +213,10 @@ nanosleep1(p, rqt, rmt)
 	struct timeval atv, utv, rtv;
 	int error, s, timo, i, n;
 
-	if (rqt->tv_sec < 0 || rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
+	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
 		return (EINVAL);
+	if (rqt->tv_sec < 0 || rqt->tv_sec == 0 && rqt->tv_nsec == 0)
+		return (0);
 	TIMESPEC_TO_TIMEVAL(&atv, rqt)
 
 	if (itimerfix(&atv)) {
@@ -225,9 +227,7 @@ nanosleep1(p, rqt, rmt)
 	} else
 		n = 0;
 
-	for (i = 0, error = EWOULDBLOCK;
-	     i <= n && error == EWOULDBLOCK;
-	     i++) {
+	for (i = 0, error = EWOULDBLOCK; i <= n && error == EWOULDBLOCK; i++) {
 		if (n > 0) {
 			if (i == n)
 				atv = rtv;
@@ -248,7 +248,6 @@ nanosleep1(p, rqt, rmt)
 		p->p_sleepend = &atv;
 		error = tsleep(&nanowait, PWAIT | PCATCH, "nanslp", timo);
 		p->p_sleepend = NULL;
-
 		if (error == ERESTART)
 			error = EINTR;
 		if (rmt != NULL && (i == n || error != EWOULDBLOCK)) {
@@ -306,9 +305,7 @@ nanosleep(p, uap, retval)
 	if (SCARG(uap, rmtp))
 		if (!useracc((caddr_t)SCARG(uap, rmtp), sizeof(rmt), B_WRITE))
 			return (EFAULT);
-
 	error = nanosleep1(p, &rqt, &rmt);
-
 	if (SCARG(uap, rmtp)) {
 		error2 = copyout(&rmt, SCARG(uap, rmtp), sizeof(rmt));
 		if (error2)	/* XXX shouldn't happen, did useracc() above */
@@ -347,13 +344,14 @@ signanosleep(p, uap, retval)
 	if (error)
 		return (error);
 
-	/* See kern_sig.c:sigsuspend() for explanation */
+	/* See kern_sig.c:sigsuspend() for explanation. */
 	ps->ps_oldmask = p->p_sigmask;
 	ps->ps_flags |= SAS_OLDMASK;
 	p->p_sigmask = mask &~ sigcantmask;
 
 	error = nanosleep1(p, &rqt, &rmt);
 
+	/* See kern_sig.c:sigsuspend() again. */
 	p->p_sigmask = ps->ps_oldmask;	/* in case timeout rather than sig */
 	ps->ps_flags &= ~SAS_OLDMASK;
 
@@ -363,7 +361,6 @@ signanosleep(p, uap, retval)
 			return (error2);
 	}
 	return (error);
-
 }
 
 #ifndef _SYS_SYSPROTO_H_
