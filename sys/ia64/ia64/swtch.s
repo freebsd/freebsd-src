@@ -164,8 +164,11 @@ ENTRY(cpu_switch, 0)
 	st8	[r17]=r2,8 ;;		// ar.pfs
 	st8	[r17]=r18,8 ;;		// ar.bspstore
 	st8	[r17]=r19,8 ;;		// our NaT bits
+	add	r3=PC_CURRENT_PMAP,r13
 	st8	[r17]=r16,8 ;;		// ar.rnat
-	st8	[r17]=r20 ;;		// pr
+	ld8	r3=[r3]
+	st8	[r17]=r20,8 ;;		// pr
+	st8	[r17]=r3		// current pmap
 
 	mov	ar.rsc=3		// turn RSE back on
 
@@ -196,21 +199,30 @@ ENTRY(cpu_switch, 0)
 	br.call.sptk.few rp=choosethread
 
 3:	
-	add	r14=PC_CURTHREAD,r13 ;;
-
-	st8	[r14]=ret0		// set r13->pc_curthread
-	mov	ar.k7=ret0
+	alloc	r15=ar.pfs,0,0,2,0	// create temporary output frame
 	mov	r4=ret0			// save from call
-	;; 
-	alloc	r15=ar.pfs,0,0,1,0	// create temporary output frame
 #ifdef SMP
 	;;
-	mov	out0=1			// clear fpcurthread
-	br.call.sptk.few rp=ia64_fpstate_save
-#endif
+	add	r14=PC_CURTHREAD,r13
 	;;
-	mov	out0=r4
-	br.call.sptk.few rp=pmap_activate // install RIDs etc.
+	ld8	out0=[r14]
+	mov	out1=1
+	br.call.sptk.few rp=ia64_fpstate_save // clear fpcurthread
+#endif
+	;; 
+	add	r14=PC_CURTHREAD,r13 ;;
+
+	st8	[r14]=r4		// set r13->pc_curthread
+	mov	ar.k7=r4
+	;;
+	add	r15=TD_PCB,r4
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=PCB_PMAP,r15	// &pcb_pmap
+	;;
+	ld8	out0=[r15]
+	br.call.sptk.few rp=pmap_install // install RIDs etc.
 
 	add	r15=TD_PCB,r4
 	add	r16=TD_KSTACK,r4 ;;
