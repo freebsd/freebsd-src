@@ -18,13 +18,11 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: aic7xxx_reg.h,v 1.1 1995/11/05 04:37:25 gibbs Exp $
  */
 
 /*
- * This header should be shared by the sequencer code and the kernel
- * level driver.  Unfortuanetly I haven't mangled the sequencer assembler
- * into using cpp yet. Someday...
+ * This header is shared by the sequencer code and the kernel level driver.
  *
  * All page numbers refer to the Adaptec AIC-7770 Data Book availible from
  * Adaptec's Technical Documents Department 1-800-934-2766
@@ -101,6 +99,16 @@
 #define		ACKI		0x01
 
 /*
+ * Possible phases in SCSISIGI
+ */
+#define		PHASE_MASK	0xe0
+#define		P_DATAOUT	0x00
+#define		P_DATAIN	0x40
+#define		P_COMMAND	0x80
+#define		P_MESGOUT	0xa0
+#define		P_STATUS	0xc0
+#define		P_MESGIN	0xe0
+/*
  * SCSI Contol Signal Write Register (p. 3-16).
  * Writing to this register modifies the control signals on the bus.  Only
  * those signals that are allowed in the current mode (Initiator/Target) are
@@ -124,18 +132,27 @@
  * greater than 0 enables synchronous transfers.
  */
 #define SCSIRATE		0x004
-#define WIDEXFER		0x80		/* Wide transfer control */
-#define SXFR			0x70		/* Sync transfer rate */
-#define SOFS			0x0f		/* Sync offset */
+#define		WIDEXFER	0x80		/* Wide transfer control */
+#define		SXFR		0x70		/* Sync transfer rate */
+#define		SOFS		0x0f		/* Sync offset */
 
 /*
  * SCSI ID (p. 3-18).
  * Contains the ID of the board and the current target on the
- * selected channel
+ * selected channel.
  */
 #define SCSIID			0x005
 #define		TID		0xf0		/* Target ID mask */
 #define		OID		0x0f		/* Our ID mask */
+
+/*
+ * SCSI Latched Data (p. 3-19).
+ * Read/Write latchs used to transfer data on the SCSI bus during
+ * Automatic or Manual PIO mode.  SCSIDATH can be used for the
+ * upper byte of a 16bit wide asyncronouse data phase transfer.
+ */
+#define SCSIDATL		0x006
+#define SCSIDATH		0x007
 
 /*
  * SCSI Transfer Count (pp. 3-19,20)
@@ -145,6 +162,22 @@
  * set when STCNT goes to 0
  */ 
 #define STCNT			0x008
+#define STCNT0			0x008
+#define STCNT1			0x009
+#define STCNT2			0x00a
+
+/*
+ * Clear SCSI Interrupt 0 (p. 3-20)
+ * Writing a 1 to a bit clears the associated SCSI Interrupt in SSTAT0.
+ */
+#define	CLRSINT0		0x00b
+#define		CLRSELDO	0x40
+#define		CLRSELDI	0x20
+#define		CLRSELINGO	0x10
+#define		CLRSWRAP	0x08
+/*  UNUSED			0x04 */
+#define		CLRSPIORDY	0x02
+/*  UNUSED			0x01 */
 
 /*
  * SCSI Status 0 (p. 3-21)
@@ -152,7 +185,7 @@
  * These are most likely of interest to the sequencer
  */
 #define SSTAT0			0x00b
-#define		TARGET		0x80		/* Board is a target */
+#define		TARGET		0x80		/* Board acting as target */
 #define		SELDO		0x40		/* Selection Done */
 #define		SELDI		0x20		/* Board has been selected */
 #define		SELINGO		0x10		/* Selection In Progress */
@@ -177,7 +210,6 @@
 
 /*
  * SCSI Status 1 (p. 3-24)
- * These interrupt bits are of interest to the kernel driver
  */
 #define SSTAT1			0x00c
 #define		SELTO		0x80
@@ -188,6 +220,28 @@
 #define		SCSIPERR	0x04
 #define		PHASECHG	0x02
 #define		REQINIT		0x01
+
+/*
+ * SCSI Interrupt Mode 1 (pp. 3-28,29)
+ * Setting any bit will enable the corresponding function
+ * in SIMODE1 to interrupt via the IRQ pin.
+ */
+#define	SIMODE1			0x011
+#define		ENSELTIMO	0x80
+#define		ENATNTARG	0x40
+#define		ENSCSIRST	0x20
+#define		ENPHASEMIS	0x10
+#define		ENBUSFREE	0x08
+#define		ENSCSIPERR	0x04
+#define		ENPHASECHG	0x02
+#define		ENREQINIT	0x01
+
+/*
+ * SCSI Data Bus (High) (p. 3-29)
+ * This register reads data on the SCSI Data bus directly.
+ */
+#define	SCSIBUSL		0x012
+#define	SCSIBUSH		0x013
 
 /*
  * SCSI/Host Address (p. 3-30)
@@ -217,7 +271,8 @@
  * on a wide bus.
  */
 #define SBLKCTL			0x01f
-/*  UNUSED			0xc0 */
+#define		DIAGLEDEN	0x80	/* Aic78X0 only */
+#define		DIAGLEDON	0x40	/* Aic78X0 only */
 #define		AUTOFLUSHDIS	0x20
 /*  UNUSED			0x10 */
 #define		SELBUSB		0x08
@@ -263,6 +318,33 @@
 #define ACCUM			0x064
 
 #define SINDEX			0x065
+#define DINDEX			0x066
+#define ALLZEROS		0x06a
+#define NONE			0x06a
+#define SINDIR			0x06c
+#define DINDIR			0x06d
+#define FUNCTION1		0x06e
+
+/*
+ * Host Address (p. 3-48)
+ * This register contains the address of the byte about
+ * to be transfered across the host bus.
+ */
+#define HADDR			0x088
+#define HADDR0			0x088
+#define HADDR1			0x089
+#define HADDR2			0x08a
+#define HADDR3			0x08b
+
+#define HCNT			0x08c
+#define HCNT0			0x08c
+#define HCNT1			0x08d
+#define HCNT2			0x08e
+/*
+ * SCB Pointer (p. 3-49)
+ * Gate one of the four SCBs into the SCBARRAY window.
+ */
+#define SCBPTR			0x090
 
 /*
  * Board Control (p. 3-43)
@@ -279,6 +361,7 @@
 #define BUSTIME			0x085
 #define		BOFF		0xf0
 #define		BON		0x0f
+#define		BOFF_60BCLKS	0xf0
 
 /*
  * Bus Speed (p. 3-45)
@@ -287,6 +370,7 @@
 #define		DFTHRSH		0xc0
 #define		STBOFF		0x38
 #define		STBON		0x07
+#define		DFTHRSH_100	0xc0
 
 /*
  * Host Control (p. 3-47) R/W
@@ -303,35 +387,42 @@
 #define		CHIPRST		0x01
 
 /*
- * Host Address (p. 3-48)
- * This register contains the address of the byte about
- * to be transfered across the host bus.
- */
-#define HADDR			0x088
-/*
- * SCB Pointer (p. 3-49)
- * Gate one of the four SCBs into the SCBARRAY window.
- */
-#define SCBPTR			0x090
-
-/*
  * Interrupt Status (p. 3-50)
  * Status for system interrupts
  */
 #define INTSTAT			0x091
-#define		SEQINT_MASK	0xf0		/* SEQINT Status Codes */
-#define			BAD_PHASE	0x00
-#define			SEND_REJECT	0x10
-#define			NO_IDENT	0x20
-#define			NO_MATCH	0x30
-#define			MSG_SDTR	0x40
-#define			MSG_WDTR	0x50
-#define			MSG_REJECT	0x60
-#define			BAD_STATUS	0x70
-#define			RESIDUAL	0x80
-#define			ABORT_TAG	0x90
-#define			AWAITING_MSG	0xa0
-#define			IMMEDDONE	0xb0
+#define		SEQINT_MASK	0xf1		/* SEQINT Status Codes */
+#define			BAD_PHASE	0x01	/* unknown scsi bus phase */
+#define			SEND_REJECT	0x11	/* sending a message reject */
+#define			NO_IDENT	0x21	/* no IDENTIFY after reconnect*/
+#define			NO_MATCH	0x31	/* no cmd match for reconnect */
+#define			SDTR_MSG	0x41	/* SDTR message recieved */
+#define			WDTR_MSG	0x51	/* WDTR message recieved */
+#define			REJECT_MSG	0x61	/* Reject message recieved */
+#define			BAD_STATUS	0x71	/* Bad status from target */
+#define			RESIDUAL	0x81	/* Residual byte count != 0 */
+#define			ABORT_TAG	0x91	/* Sent an ABORT_TAG message */
+#define			AWAITING_MSG	0xa1	/*
+						 * Kernel requested to specify
+                                                 * a message to this target
+                                                 * (command was null), so tell
+                                                 * it that it can fill the
+                                                 * message buffer.
+                                                 */
+#define			IMMEDDONE	0xb1	/*
+						 * An immediate command has
+						 * completed
+						 */
+#define			MSG_BUFFER_BUSY	0xc1	/*
+						 * Sequencer wants to use the
+						 * message buffer, but it
+						 * already contains a message
+						 */
+#define			MSGIN_PHASEMIS	0xd1	/*
+						 * Target changed phase on us
+						 * when we were expecting
+						 * another msgin byte.
+						 */
 #define 	BRKADRINT 0x08
 #define		SCSIINT	  0x04
 #define		CMDCMPLT  0x02
@@ -358,6 +449,23 @@
 #define		CLRSCSIINT      0x04
 #define		CLRCMDINT 	0x02
 #define		CLRSEQINT 	0x01
+
+#define	DFCNTRL			0x093
+#define		WIDEODD		0x40
+#define		SCSIEN		0x20
+#define		SDMAEN		0x10
+#define		SDMAENACK	0x10
+#define		HDMAEN		0x08
+#define		HDMAENACK	0x08
+#define		DIRECTION	0x04
+#define		FIFOFLUSH	0x02
+#define		FIFORESET	0x01
+
+#define	DFSTATUS		0x094
+#define		HDONE		0x08
+#define		FIFOEMP		0x01
+
+#define	DFDAT			0x099
 
 /*
  * SCB Auto Increment (p. 3-59)
@@ -392,7 +500,68 @@
  */
 #define QOUTCNT			0x09e
 
+/*
+ * SCB Definition (p. 5-4)
+ * The two reserved bytes at SCBARRAY+1[23] are expected to be set to
+ * zero. Bit 3 in SCBARRAY+0 is used as an internal flag to indicate
+ * whether or not to DMA an SCB from host ram. This flag prevents the
+ * "re-fetching" of transactions that are requed because the target is
+ * busy with another command. We also use bits 6 & 7 to indicate whether
+ * or not to initiate SDTR or WDTR repectively when starting this command.
+ */
 #define SCBARRAY		0x0a0
+#define	SCB_CONTROL		0x0a0
+#define		NEEDWDTR        0x80
+#define		DISCENB         0x40
+#define		TAG_ENB		0x20
+#define		NEEDSDTR	0x10
+#define		NEEDDMA		0x08
+#define		DISCONNECTED	0x04
+#define		SCB_TAG_TYPE	0x03
+#define	SCB_TCL			0x0a1
+#define	SCB_TARGET_STATUS	0x0a2
+#define	SCB_SGCOUNT		0x0a3
+#define	SCB_SGPTR		0x0a4
+#define		SCB_SGPTR0	0x0a4
+#define		SCB_SGPTR1	0x0a5
+#define		SCB_SGPTR2	0x0a6
+#define		SCB_SGPTR3	0x0a7
+#define	SCB_RESID_SGCNT		0x0a8
+#define SCB_RESID_DCNT		0x0a9
+#define		SCB_RESID_DCNT0	0x0a9
+#define		SCB_RESID_DCNT1	0x0aa
+#define		SCB_RESID_DCNT2	0x0ab
+#define SCB_DATAPTR		0x0ac
+#define		SCB_DATAPTR0	0x0ac
+#define		SCB_DATAPTR1	0x0ad
+#define		SCB_DATAPTR2	0x0ae
+#define		SCB_DATAPTR3	0x0af
+#define	SCB_DATACNT		0x0b0
+#define		SCB_DATACNT0	0x0b0
+#define		SCB_DATACNT1	0x0b1
+#define		SCB_DATACNT2	0x0b2
+/* UNUSED - QUAD PADDING	0x0b3 */
+#define SCB_CMDPTR		0x0b4
+#define		SCB_CMDPTR0	0x0b4
+#define		SCB_CMDPTR1	0x0b5
+#define		SCB_CMDPTR2	0x0b6
+#define		SCB_CMDPTR3	0x0b7
+#define	SCB_CMDLEN		0x0b8
+/* RESERVED - MUST BE ZERO	0x0b9 */
+/* RESERVED - MUST BE ZERO	0x0ba */
+#define	SCB_NEXT_WAITING	0x0bb
+#define	SCB_PHYSADDR		0x0bc
+#define		SCB_PHYSADDR0	0x0bc
+#define		SCB_PHYSADDR1	0x0bd
+#define		SCB_PHYSADDR2	0x0be
+#define		SCB_PHYSADDR3	0x0bf
+
+#ifdef LINUX
+#define	SG_SIZEOF		0x0c		/* sizeof(struct scatterlist) */
+#else
+#define	SG_SIZEOF		0x08		/* sizeof(struct ahc_dma) */
+#endif
+#define	SCB_SIZEOF		0x1a		/* sizeof SCB to DMA */
 
 /* --------------------- AIC-7870-only definitions -------------------- */
 
@@ -434,81 +603,134 @@
 
 /* ---------------------- Scratch RAM Offsets ------------------------- */
 /* These offsets are either to values that are initialized by the board's
- * BIOS or are specified by the Linux sequencer code.  If I can figure out
- * how to read the EISA configuration info at probe time, the cards could
- * be run without BIOS support installed
+ * BIOS or are specified by the sequencer code.
+ *
+ * The host adapter card (at least the BIOS) uses 20-2f for SCSI
+ * device information, 32-33 and 5a-5f as well. As it turns out, the
+ * BIOS trashes 20-2f, writing the synchronous negotiation results
+ * on top of the BIOS values, so we re-use those for our per-target
+ * scratchspace (actually a value that can be copied directly into
+ * SCSIRATE).  The kernel driver will enable synchronous negotiation
+ * for all targets that have a value other than 0 in the lower four
+ * bits of the target scratch space.  This should work regardless of
+ * whether the bios has been installed.
  */
 
 /*
  * 1 byte per target starting at this address for configuration values
  */
-#define HA_TARG_SCRATCH		0x020
+#define TARG_SCRATCH		0x020
 
 /*
  * The sequencer will stick the frist byte of any rejected message here so
  * we can see what is getting thrown away.
  */
-#define HA_REJBYTE		0x031
+#define REJBYTE			0x031
 
 /*
  * Bit vector of targets that have disconnection disabled.
  */
-#define	HA_DISC_DSB		0x032
+#define	DISC_DSB		0x032
+#define		DISC_DSB_A	0x032
+#define		DISC_DSB_B	0x033
 
 /*
  * Length of pending message
  */
-#define HA_MSG_LEN		0x034
+#define MSG_LEN			0x034
 
-/*
- * message body
- */
-#define HA_MSG_START		0x035	/* outgoing message body */
+#define MSG0			0x035
+#define		COMP_MSG0	0xcb      /* 2's complement of MSG0 */
+#define MSG1			0x036
+#define MSG2			0x037
+#define MSG3			0x038
+#define MSG4			0x039
+#define MSG5			0x03a
 
 /*
  * These are offsets into the card's scratch ram.  Some of the values are
  * specified in the AHA2742 technical reference manual and are initialized
  * by the BIOS at boot time.
  */
-#define HA_ARG_1		0x04a
-#define HA_RETURN_1		0x04a
+#define ARG_1			0x04a
+#define RETURN_1		0x04a
 #define		SEND_SENSE	0x80
 #define		SEND_WDTR	0x80
 #define		SEND_SDTR	0x80
 #define		SEND_REJ	0x40
 
-#define	SG_COUNT		0x04d
-#define	SG_NEXT			0x04e
-#define HA_SIGSTATE		0x04b
+#define SIGSTATE		0x04b
 
-#define HA_SCBCOUNT		0x052
-#define HA_FLAGS		0x053
+#define DMAPARAMS		0x04c	/* Parameters for DMA Logic */
+
+#define	SG_COUNT		0x04d
+#define	SG_NEXT			0x04e	/* working value of SG pointer */
+#define		SG_NEXT0	0x04e
+#define		SG_NEXT1	0x04f
+#define		SG_NEXT2	0x050
+#define		SG_NEXT3	0x051
+
+#define	SCBCOUNT		0x052	/*
+					 * Number of SCBs supported by
+					 * this card.
+					 */
+#define FLAGS			0x053
 #define		SINGLE_BUS	0x00
 #define		TWIN_BUS	0x01
 #define		WIDE_BUS	0x02
-#define		ACTIVE_MSG	0x20
+#define		DPHASE		0x04
+#define		MAXOFFSET	0x08
 #define		IDENTIFY_SEEN	0x40
-#define		RESELECTING	0x80
+#define		RESELECTED	0x80
 
-#define	HA_ACTIVE0		0x054
-#define	HA_ACTIVE1		0x055
-#define	SAVED_TCL		0x056
-#define WAITING_SCBH		0x057
-#define WAITING_SCBT		0x058
+#define	ACTIVE_A		0x054
+#define	ACTIVE_B		0x055
+#define	SAVED_TCL		0x056	/*
+					 * Temporary storage for the
+					 * target/channel/lun of a
+					 * reconnecting target
+					 */
+#define WAITING_SCBH		0x057	/*
+					 * head of list of SCBs awaiting
+					 * selection
+					 */
+#define WAITING_SCBT		0x058	/*
+					 * tail of list of SCBs awaiting
+					 * selection
+					 */
+#define	COMP_SCBCOUNT		0x059
+#define		SCB_LIST_NULL	0xff
 
-#define HA_SCSICONF		0x05a
-#define HA_HOSTCONF		0x05d
+#define SCSICONF		0x05a
+#define HOSTCONF		0x05d
 
 #define HA_274_BIOSCTRL		0x05f
 #define BIOSMODE		0x30
 #define BIOSDISABLED		0x30
 
+/* Message codes */
+#define MSG_EXTENDED		0x01
+#define		MSG_SDTR	0x01
+#define		MSG_WDTR	0x03
+#define MSG_SDPTRS		0x02
+#define MSG_RDPTRS		0x03
+#define MSG_DISCONNECT		0x04
+#define MSG_INITIATOR_DET_ERROR	0x05
 #define MSG_ABORT		0x06
+#define	MSG_REJECT		0x07
+#define MSG_NOP			0x08
+#define MSG_MSG_PARITY_ERROR	0x09
 #define MSG_BUS_DEVICE_RESET	0x0c
+#define MSG_SIMPLE_TAG		0x20
+#define MSG_IDENTIFY		0x80
+
+/* WDTR Message values */
 #define	BUS_8_BIT		0x00
 #define BUS_16_BIT		0x01
 #define BUS_32_BIT		0x02
 
+#define MAX_OFFSET_8BIT		0x0f
+#define MAX_OFFSET_16BIT	0x08
 
 
 
