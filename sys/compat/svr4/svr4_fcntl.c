@@ -38,7 +38,6 @@
 #include <sys/stat.h>
 #include <sys/filedesc.h>
 /*#include <sys/ioctl.h>*/
-#include <sys/kernel.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/unistd.h>

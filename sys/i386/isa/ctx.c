@@ -114,7 +114,6 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ctxreg.h>
