@@ -3,6 +3,10 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19991125:
+	The ep changed a while ago and can no longer be used with hard
+	wired addresses in the config file.
+
 19991113:
 	Gcc 2.95.2 is now the default compiler.
 
@@ -42,7 +46,7 @@ directly to him.  See end of file for further details.
 	log files in one place.
 
 19990831:
-	tn3270 has been removed from the based system and added as a port.
+	tn3270 has been removed from the base system and added as a port.
 
 19990830:
 	User-visible TCP timers are now expressed in units of 1ms, instead
