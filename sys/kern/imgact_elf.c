@@ -67,9 +67,6 @@
 
 #define OLD_EI_BRAND	8
 
-__ElfType(Brandinfo);
-__ElfType(Auxargs);
-
 static int __elfN(check_header)(const Elf_Ehdr *hdr);
 static Elf_Brandinfo *__elfN(get_brandinfo)(const Elf_Ehdr *hdr,
     const char *interp);
@@ -84,12 +81,12 @@ static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
 SYSCTL_NODE(_kern, OID_AUTO, __CONCAT(elf, __ELF_WORD_SIZE), CTLFLAG_RW, 0,
     "");
 
-static int fallback_brand = -1;
-SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO, fallback_brand,
-    CTLFLAG_RW, &fallback_brand, 0,
+int __elfN(fallback_brand) = -1;
+SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
+    fallback_brand, CTLFLAG_RW, &__elfN(fallback_brand), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) " brand of last resort");
 TUNABLE_INT("kern.elf" __XSTRING(__ELF_WORD_SIZE) ".fallback_brand",
-    &fallback_brand);
+    &__elfN(fallback_brand));
 
 static int elf_trace = 0;
 SYSCTL_INT(_debug, OID_AUTO, __elfN(trace), CTLFLAG_RW, &elf_trace, 0, "");
@@ -188,7 +185,7 @@ __elfN(get_brandinfo)(const Elf_Ehdr *hdr, const char *interp)
 	for (i = 0; i < MAX_BRANDS; i++) {
 		bi = elf_brand_list[i];
 		if (bi != NULL && hdr->e_machine == bi->machine &&
-		    fallback_brand == bi->brand)
+		    __elfN(fallback_brand) == bi->brand)
 			return (bi);
 	}
 	return (NULL);
