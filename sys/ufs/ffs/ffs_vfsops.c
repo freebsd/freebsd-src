@@ -1173,9 +1173,11 @@ ffs_vget(mp, ino, flags, vpp)
 	struct cdev *dev;
 	int error;
 
-	ump = VFSTOUFS(mp);
-	dev = ump->um_dev;
-	fs = ump->um_fs;
+	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
+	if (error)
+		return (error);
+	if (*vpp != NULL)
+		return (0);
 
 	/*
 	 * We do not lock vnode creation as it is believed to be too
@@ -1183,10 +1185,10 @@ ffs_vget(mp, ino, flags, vpp)
 	 * for same ino by different processes. We just allow them to race
 	 * and check later to decide who wins. Let the race begin!
 	 */
-	if ((error = ufs_ihashget(dev, ino, flags, vpp)) != 0)
-		return (error);
-	if (*vpp != NULL)
-		return (0);
+
+	ump = VFSTOUFS(mp);
+	dev = ump->um_dev;
+	fs = ump->um_fs;
 
 	/*
 	 * If this MALLOC() is performed after the getnewvnode()
@@ -1195,7 +1197,7 @@ ffs_vget(mp, ino, flags, vpp)
 	 * which will cause a panic because ffs_sync() blindly
 	 * dereferences vp->v_data (as well it should).
 	 */
-	ip = uma_zalloc(uma_inode, M_WAITOK);
+	ip = uma_zalloc(uma_inode, M_WAITOK | M_ZERO);
 
 	/* Allocate a new vnode/inode. */
 	if (fs->fs_magic == FS_UFS1_MAGIC)
@@ -1207,7 +1209,6 @@ ffs_vget(mp, ino, flags, vpp)
 		uma_zfree(uma_inode, ip);
 		return (error);
 	}
-	bzero((caddr_t)ip, sizeof(struct inode));
 	/*
 	 * FFS supports recursive locking.
 	 */
@@ -1234,11 +1235,11 @@ ffs_vget(mp, ino, flags, vpp)
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0, td);
 
 	/*
-	 * Atomicaly (in terms of ufs_hash operations) check the hash for
+	 * Atomicaly (in terms of vfs_hash operations) check the hash for
 	 * duplicate of vnode being created and add it to the hash. If a
 	 * duplicate vnode was found, it will be vget()ed from hash for us.
 	 */
-	if ((error = ufs_ihashins(ip, flags, vpp)) != 0) {
+	if ((error = vfs_hash_insert(vp, ino, flags, curthread, vpp)) != 0) {
 		vput(vp);
 		*vpp = NULL;
 		return (error);

@@ -57,7 +57,6 @@
  * active, and is put back when the file is no longer being used.
  */
 struct inode {
-	LIST_ENTRY(inode) i_hash;/* Hash chain. */
 	TAILQ_ENTRY(inode) i_nextsnap; /* snapshot file list. */
 	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
 	struct	ufsmount *i_ump;/* Ufsmount point associated with this inode. */
@@ -118,7 +117,6 @@ struct inode {
 #define	IN_UPDATE	0x0004		/* Modification time update request. */
 #define	IN_MODIFIED	0x0008		/* Inode has been modified. */
 #define	IN_RENAME	0x0010		/* Inode is being renamed. */
-#define	IN_HASHED	0x0020		/* Inode is on hash list */
 #define	IN_LAZYMOD	0x0040		/* Modified, but don't write yet. */
 #define	IN_SPACECOUNTED	0x0080		/* Blocks to be freed in free count. */
 
