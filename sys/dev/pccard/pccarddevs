@@ -334,3 +334,4 @@ product INTERSIL PRISM2		{ "INTERSIL", "HFA384x/IEEE", "Version&sp01.02", NULL }
 product MELCO LPC2_TX		{ "MELCO", "LPC2-TX", NULL, NULL } Melco LPC2-TX
 product SMC 2632W		{ "SMC", "SMC2632W", "Version&sp01.02", NULL } SMC 2632 EZ Connect Wireless PC Card
 product NANOSPEED PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version&sp01.02", NULL } NANOSPEED ROOT-RZ2000 WLAN Card
+product ZOOM AIR_4000		{ "Zoom", "Air-4000", NULL, NULL } Zoom Air-4000
