@@ -674,6 +674,14 @@ filt_vnattach(struct knote *kn)
 
 	vp = (struct vnode *)kn->kn_fp->f_data;
 
+	/*
+	 * XXX
+	 * this is a hack simply to cause the filter attach to fail
+	 * for non-ufs filesystems, until the support for them is done.
+	 */
+	if ((vp)->v_tag != VT_UFS)
+		return (EOPNOTSUPP);
+
         simple_lock(&vp->v_pollinfo.vpi_lock);
 	SLIST_INSERT_HEAD(&vp->v_pollinfo.vpi_selinfo.si_note, kn, kn_selnext);
         simple_unlock(&vp->v_pollinfo.vpi_lock);
