@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.40.4.9 1996/06/05 02:36:59 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.40.4.10 1996/06/25 08:40:13 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -54,6 +54,8 @@
             papers
             ..
             psd
+                05.sysman
+                ..
                 12.make
                 ..
                 18.gprof
@@ -437,6 +439,8 @@
             Africa
             ..
             America
+                Indiana
+                ..
             ..
             Asia
             ..
