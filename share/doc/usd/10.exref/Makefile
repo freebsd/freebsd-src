@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.4 1995/07/30 08:04:33 bde Exp $
+#	$Id: Makefile,v 1.5 1996/11/01 07:57:05 peter Exp $
 
 VOLUME=	usd/10.exref
 SRCS=	ex.rm
@@ -11,9 +11,9 @@ USE_TBL=	yes
 .include <bsd.doc.mk>
 
 .if !defined(NODOCCOMPRESS)
-SFILE=	summary.${PRINTER}.gz
+SFILE=	summary.${PRINTERDEVICE}.gz
 .else
-SFILE=	summary.${PRINTER}
+SFILE=	summary.${PRINTERDEVICE}
 .endif
 
 all:	${DFILE} ${SFILE}
