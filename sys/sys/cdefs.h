@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -35,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.16 1998/05/28 18:04:34 dt Exp $
+ * $Id: cdefs.h,v 1.17 1998/06/14 13:40:01 bde Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -144,6 +143,25 @@
 #endif
 
 #ifdef __GNUC__
+#ifdef __ELF__
+#ifdef __STDC__
+#define	__weak_reference(sym,alias)	\
+	__asm__(".weak " #alias);	\
+	__asm__(".set "  #alias ", " #sym)
+#define	__warn_references(sym,msg)	\
+	__asm__(".section .gnu.warning." #sym);	\
+	__asm__(".ascii \"" msg "\"");	\
+	__asm__(".previous")
+#else
+#define	__weak_reference(sym,alias)	\
+	__asm__(".weak alias");		\
+	__asm__(".set alias, sym")
+#define	__warn_references(sym,msg)	\
+	__asm__(".section .gnu.warning.sym"); \
+	__asm__(".ascii \"msg\"");	\
+	__asm__(".previous")
+#endif	/* __STDC__ */
+#else	/* !__ELF__ */
 #ifdef __STDC__
 #define __weak_reference(sym,alias)	\
 	__asm__(".stabs \"_" #alias "\",11,0,0,0");	\
@@ -158,8 +176,9 @@
 #define __warn_references(sym,msg)	\
 	__asm__(".stabs msg,30,0,0,0");			\
 	__asm__(".stabs \"_/**/sym\",1,0,0,0")
-#endif
-#endif
+#endif	/* __STDC__ */
+#endif	/* __ELF__ */
+#endif	/* __GNUC__ */
 
 #define	__IDSTRING(name,string)	static const char name[] __unused = string
 
