@@ -2177,16 +2177,16 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 			/* These should be filtered by the peripheral drivers */
 			/* FALLTHROUGH */
 		case SSD_KEY_MISCOMPARE:
-			print_sense = FALSE;
-			/* FALLTHROUGH */
-		case SSD_KEY_RECOVERED_ERROR:
-
 			/* decrement the number of retries */
 			retry = ccb->ccb_h.retry_count > 0;
-			if (retry)
+			if (retry) {
+				error = ERESTART;
 				ccb->ccb_h.retry_count--;
-
-			error = 0;
+			} else {
+				error = EIO;
+			}
+		case SSD_KEY_RECOVERED_ERROR:
+			error = 0;	/* not an error */
 			break;
 		case SSD_KEY_ILLEGAL_REQUEST:
 			if (((sense_flags & SF_QUIET_IR) != 0)
@@ -2241,6 +2241,7 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 				}
 			}
 			break;
+		case SSD_KEY_ABORTED_COMMAND:
 		default:
 			/* decrement the number of retries */
 			retry = ccb->ccb_h.retry_count > 0;
@@ -2255,6 +2256,13 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 
 				error = error_action & SS_ERRMASK;
 			}
+			/*
+			 * Make sure ABORTED COMMAND errors get
+			 * printed as they're indicative of marginal
+			 * SCSI busses that people should address.
+			 */
+			if (sense_key == SSD_KEY_ABORTED_COMMAND)
+				print_sense = TRUE;
 		}
 		break;
 	}
