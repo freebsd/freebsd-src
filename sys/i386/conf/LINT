@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.337 1997/05/11 18:05:34 tegge Exp $
+#	$Id: LINT,v 1.338 1997/05/22 08:47:38 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -868,7 +868,8 @@ device ie1 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
 device lnc0 at isa? port 0x300 net irq 10 drq 0 vector lncintr
 device sr0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector srintr
-device wl0 at isa? port 0x300 net irq ? vector wlintr
+#wl is busted
+#device wl0 at isa? port 0x300 net irq ? vector wlintr
 # Needed so that we can (bogusly) include both the dedicated PCCARD
 # drivers and the generic support
 options	LINT_PCCARD_HACK
