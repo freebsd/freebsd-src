@@ -245,6 +245,11 @@ static void xl_shutdown(device_t);
 static int xl_suspend(device_t);
 static int xl_resume(device_t);
 
+#ifdef DEVICE_POLLING
+static void xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static void xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count);
+#endif /* DEVICE_POLLING */
+
 static int xl_ifmedia_upd(struct ifnet *);
 static void xl_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
@@ -1484,6 +1489,9 @@ xl_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_HWCSUM;
 #endif
 	}
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif /* DEVICE_POLLING */
 	ifp->if_start = xl_start;
 	ifp->if_watchdog = xl_watchdog;
 	ifp->if_init = xl_init;
@@ -1957,6 +1965,13 @@ again:
 	bus_dmamap_sync(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_dmamap,
 	    BUS_DMASYNC_POSTREAD);
 	while ((rxstat = le32toh(sc->xl_cdata.xl_rx_head->xl_ptr->xl_status))) {
+#ifdef DEVICE_POLLING
+		if (ifp->if_flags & IFF_POLLING) {
+			if (sc->rxcycles <= 0)
+				break;
+			sc->rxcycles--;
+		}
+#endif /* DEVICE_POLLING */
 		cur_rx = sc->xl_cdata.xl_rx_head;
 		sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
 		total_len = rxstat & XL_RXSTAT_LENMASK;
@@ -2241,6 +2256,26 @@ xl_intr(void *arg)
 
 	XL_LOCK(sc);
 
+#ifdef DEVICE_POLLING
+	if (ifp->if_flags & IFF_POLLING) {
+		XL_UNLOCK(sc);
+		return;
+	}
+
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(xl_poll, ifp)) {
+		/* Disable interrupts. */
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|0xFF);
+		if (sc->xl_flags & XL_FLAG_FUNCREG)
+			bus_space_write_4(sc->xl_ftag, sc->xl_fhandle,
+			    4, 0x8000);
+		xl_poll_locked(ifp, 0, 1);
+		XL_UNLOCK(sc);
+		return;
+	}
+#endif /* DEVICE_POLLING */
+
 	while ((status = CSR_READ_2(sc, XL_STATUS)) & XL_INTRS &&
 	    status != 0xFFFF) {
 		CSR_WRITE_2(sc, XL_COMMAND,
@@ -2290,6 +2325,81 @@ xl_intr(void *arg)
 
 	XL_UNLOCK(sc);
 }
+
+#ifdef DEVICE_POLLING
+static void
+xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct xl_softc *sc = ifp->if_softc;
+
+	XL_LOCK(sc);
+	xl_poll_locked(ifp, cmd, count);
+	XL_UNLOCK(sc);
+}
+
+static void
+xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct xl_softc *sc = ifp->if_softc;
+
+	XL_LOCK_ASSERT(sc);
+
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
+
+	if (cmd == POLL_DEREGISTER) {
+		/* Final call; enable interrupts. */
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|0xFF);
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|XL_INTRS);
+		if (sc->xl_flags & XL_FLAG_FUNCREG)
+			bus_space_write_4(sc->xl_ftag, sc->xl_fhandle,
+			    4, 0x8000);
+		return;
+	}
+
+	sc->rxcycles = count;
+	xl_rxeof(sc);
+	if (sc->xl_type == XL_TYPE_905B)
+		xl_txeof_90xB(sc);
+	else
+		xl_txeof(sc);
+
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+		if (sc->xl_type == XL_TYPE_905B)
+			xl_start_90xB_locked(ifp);
+		else
+			xl_start_locked(ifp);
+	}
+
+	if (cmd == POLL_AND_CHECK_STATUS) {
+		u_int16_t status;
+
+		status = CSR_READ_2(sc, XL_STATUS);
+		if (status & XL_INTRS && status != 0xFFFF) {
+			CSR_WRITE_2(sc, XL_COMMAND,
+			    XL_CMD_INTR_ACK|(status & XL_INTRS));
+
+			if (status & XL_STAT_TX_COMPLETE) {
+				ifp->if_oerrors++;
+				xl_txeoc(sc);
+			}
+
+			if (status & XL_STAT_ADFAIL) {
+				xl_reset(sc);
+				xl_init_locked(sc);
+			}
+
+			if (status & XL_STAT_STATSOFLOW) {
+				sc->xl_stats_no_timeout = 1;
+				xl_stats_update_locked(sc);
+				sc->xl_stats_no_timeout = 0;
+			}
+		}
+	}
+}
+#endif /* DEVICE_POLLING */
 
 /*
  * XXX: This is an entry point for callout which needs to take the lock.
@@ -2860,6 +2970,12 @@ xl_init_locked(struct xl_softc *sc)
 	 */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|0xFF);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STAT_ENB|XL_INTRS);
+#ifdef DEVICE_POLLING
+	/* Disable interrupts if we are polling. */
+	if (ifp->if_flags & IFF_POLLING)
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
+	else
+#endif /* DEVICE_POLLING */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|XL_INTRS);
 	if (sc->xl_flags & XL_FLAG_FUNCREG)
 	    bus_space_write_4(sc->xl_ftag, sc->xl_fhandle, 4, 0x8000);
@@ -3134,6 +3250,9 @@ xl_stop(struct xl_softc *sc)
 	XL_LOCK_ASSERT(sc);
 
 	ifp->if_timer = 0;
+#ifdef DEVICE_POLLING
+	ether_poll_deregister(ifp);
+#endif /* DEVICE_POLLING */
 
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_DISABLE);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
