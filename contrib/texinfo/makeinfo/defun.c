@@ -1,5 +1,5 @@
 /* defun.c -- @defun and friends.
-   $Id: defun.c,v 1.18 2002/01/22 18:01:24 karl Exp $
+   $Id: defun.c,v 1.19 2002/03/18 16:54:54 karl Exp $
 
    Copyright (C) 1998, 99, 2000, 01, 02 Free Software Foundation, Inc.
 
@@ -66,6 +66,7 @@ scan_group_in_string (string_pointer)
 {
   char *scan_string = (*string_pointer) + 1;
   unsigned int level = 1;
+  int started_command = 0;
 
   for (;;)
     {
@@ -80,17 +81,20 @@ scan_group_in_string (string_pointer)
         {
           /* Tweak line_number to compensate for fact that
              we gobbled the whole line before coming here. */
-          line_number -= 1;
+          line_number--;
           line_error (_("Missing `}' in @def arg"));
-          line_number += 1;
+          line_number++;
           *string_pointer = scan_string - 1;
           return 0;
         }
 
-      if (c == '{')
-        level += 1;
-      if (c == '}')
-        level -= 1;
+      if (c == '{' && !started_command)
+        level++;
+      if (c == '}' && !started_command)
+        level--;
+
+      /* remember if at @.  */
+      started_command = (c == '@' && !started_command);
     }
 }
 

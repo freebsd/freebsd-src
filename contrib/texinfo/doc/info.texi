@@ -6,18 +6,18 @@
 @syncodeindex vr cp
 @syncodeindex ky cp
 @comment %**end of header
-@comment $Id: info.texi,v 1.22 2002/02/09 00:54:34 karl Exp $
+@comment $Id: info.texi,v 1.20 2002/03/18 06:45:49 eliz Exp $
 
 @dircategory Texinfo documentation system
 @direntry
-* Info: (info).                 Documentation browsing system.
+* Info: (info).         How to use the documentation browsing system.
 @end direntry
 
 @ifinfo
 This file describes how to use Info, the on-line, menu-driven GNU
 documentation system.
 
-Copyright (C) 1989, 92, 96, 97, 98, 99, 2000, 2001
+Copyright (C) 1989, 92, 96, 97, 98, 99, 2000, 2001, 2002
 Free Software Foundation, Inc.
 
 

@@ -1,5 +1,5 @@
 /* infokey.c -- compile ~/.infokey to ~/.info.
-   $Id: infokey.c,v 1.5 2002/02/26 16:17:57 karl Exp $
+   $Id: infokey.c,v 1.10 2002/03/19 14:36:49 karl Exp $
 
    Copyright (C) 1999, 2001, 02 Free Software Foundation, Inc.
 
@@ -60,7 +60,7 @@ enum sect_e
   {
     info = 0,
     ea = 1,
-    var = 2,
+    var = 2
   };
 struct sect
   {
@@ -400,7 +400,7 @@ compile (fp, filename, sections)
       got_varname,
       get_equals,
       got_equals,
-      get_value,
+      get_value
     }
   state = start_of_line;
   enum sect_e section = info;
@@ -410,7 +410,7 @@ compile (fp, filename, sections)
       slosh,
       control,
       octal,
-      special_key,
+      special_key
     }
   seqstate;			/* used if state == get_keyseq */
   char meta = 0;
@@ -888,7 +888,7 @@ suggest_help ()
 static void
 short_help ()
 {
-  printf (_ ("\
+  printf (_("\
 Usage: %s [OPTION]... [INPUT-FILE]\n\
 \n\
 Compile infokey source file to infokey file.  Reads INPUT-FILE (default\n\
@@ -898,11 +898,12 @@ Options:\n\
   --output FILE        output to FILE instead of $HOME/.info\n\
   --help               display this help and exit.\n\
   --version            display version information and exit.\n\
-\n\
+"), program_name);
+
+  puts (_("\n\
 Email bug reports to bug-texinfo@gnu.org,\n\
 general questions and discussion to help-texinfo@gnu.org.\n\
-"),
-	  program_name
-    );
+Texinfo home page: http://www.gnu.org/software/texinfo/"));
+
   xexit (0);
 }
