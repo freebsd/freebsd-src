@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.17 1998/06/18 15:32:08 bde Exp $
+ * $Id: kern_intr.c,v 1.18 1998/07/15 02:32:08 bde Exp $
  *
  */
 
@@ -42,8 +42,11 @@
 #include <sys/drvresource.h>
 #endif /* RESOURCE_CHECK */
 
+#include <machine/ipl.h>
+
 #include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
+
 #include <sys/interrupt.h>
 
 #include <stddef.h>
@@ -59,6 +62,14 @@ typedef struct intrec {
 	int		flags;
 } intrec;
 
+struct swilist {
+	swihand_t	*sl_handler;
+	struct swilist	*sl_next;
+};
+
+static intrec *intreclist_head[NHWI];
+static struct swilist swilists[NSWI];
+
 /*
  * The interrupt multiplexer calls each of the handlers in turn,
  * and applies the associated interrupt mask to "cpl", which is
@@ -66,8 +77,6 @@ typedef struct intrec {
  */
 
 #ifndef SMP
-#include <machine/ipl.h>
-
 static __inline intrmask_t
 splq(intrmask_t mask)
 {
@@ -89,9 +98,6 @@ intr_mux(void *arg)
 		p = p->next;
 	}
 }
-
-/* XXX better use NHWI from <machine/ipl.h> for array size ??? */
-static intrec *intreclist_head[ICU_LEN];
 
 static intrec*
 find_idesc(unsigned *maskptr, int irq)
@@ -435,6 +441,91 @@ unregister_intr(int intr, inthand2_t handler)
 	if (p != NULL && (p->flags & INTR_EXCL) != 0 && p->handler == handler)
 		return (intr_destroy(p));
 	return (EINVAL);
+}
+
+void
+register_swi(intr, handler)
+	int intr;
+	swihand_t *handler;
+{
+	struct swilist *slp, *slq;
+	int s;
+
+	if (intr < NHWI || intr >= NHWI + NSWI)
+		panic("register_swi: bad intr %d", intr);
+	if (handler == swi_generic || handler == swi_null)
+		panic("register_swi: bad handler %p", (void *)handler);
+	slp = &swilists[intr - NHWI];
+	s = splhigh();
+	if (ihandlers[intr] == swi_null)
+		ihandlers[intr] = handler;
+	else {
+		if (slp->sl_next == NULL) {
+			slp->sl_handler = ihandlers[intr];
+			ihandlers[intr] = swi_generic;
+		}
+		slq = malloc(sizeof(*slq), M_DEVBUF, M_NOWAIT);
+		if (slq == NULL)
+			panic("register_swi: malloc failed");
+		slq->sl_handler = handler;
+		slq->sl_next = NULL;
+		while (slp->sl_next != NULL)
+			slp = slp->sl_next;
+		slp->sl_next = slq;
+	}
+	splx(s);
+}
+
+void
+swi_dispatcher(intr)
+	int intr;
+{
+	struct swilist *slp;
+
+	slp = &swilists[intr - NHWI];
+	do {
+		(*slp->sl_handler)();
+		slp = slp->sl_next;
+	} while (slp != NULL);
+}
+
+void
+unregister_swi(intr, handler)
+	int intr;
+	swihand_t *handler;
+{
+	struct swilist *slfoundpred, *slp, *slq;
+	int s;
+
+	if (intr < NHWI || intr >= NHWI + NSWI)
+		panic("unregister_swi: bad intr %d", intr);
+	if (handler == swi_generic || handler == swi_null)
+		panic("unregister_swi: bad handler %p", (void *)handler);
+	slp = &swilists[intr - NHWI];
+	s = splhigh();
+	if (ihandlers[intr] == handler)
+		ihandlers[intr] = swi_null;
+	else if (slp->sl_next != NULL) {
+		slfoundpred = NULL;
+		for (slq = slp->sl_next; slq != NULL;
+		    slp = slq, slq = slp->sl_next)
+			if (slq->sl_handler == handler)
+				slfoundpred = slp;
+		slp = &swilists[intr - NHWI];
+		if (slfoundpred != NULL) {
+			slq = slfoundpred->sl_next;
+			slfoundpred->sl_next = slq->sl_next;
+			free(slq, M_DEVBUF);
+		} else if (slp->sl_handler == handler) {
+			slq = slp->sl_next;
+			slp->sl_next = slq->sl_next;
+			slp->sl_handler = slq->sl_handler;
+			free(slq, M_DEVBUF);
+		}
+		if (slp->sl_next == NULL)
+			ihandlers[intr] = slp->sl_handler;
+	}
+	splx(s);
 }
 
 #endif /* __i386__ */
