@@ -272,7 +272,10 @@ specified on the following line.
 .It Fl U
 (x mode only)
 Unlink files before creating them.
-(Not yet implemented.)
+Without this option,
+.Nm
+overwrites existing files, which preserves existing hardlinks.
+With this option, existing hardlinks will be broken.
 .It Fl v
 Produce verbose output.
 In create and extract modes,
