@@ -57,7 +57,7 @@ struct Buffer;
 
 void str_init(void);
 char *str_concat(const char *, const char *, int);
-char **brk_string(char *, int *, Boolean);
+char **brk_string(const char *, int *, Boolean);
 char *MAKEFLAGS_quote(const char *);
 char **MAKEFLAGS_break(const char *, int *);
 int Str_Match(const char *, const char *);
