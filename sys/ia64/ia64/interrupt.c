@@ -263,7 +263,7 @@ ithds_init(void *dummy)
 SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
 
 static void
-ia64_send_eoi(int vector)
+ia64_send_eoi(uintptr_t vector)
 {
 	int irq, i;
 

@@ -457,7 +457,7 @@ t2_eoi( int vector)
 }
 
 static void
-t2_enable_vec(int vector)
+t2_enable_vec(uintptr_t vector)
 {
 	int irq, hose;
 	u_long IC_mask, scratch;
@@ -491,7 +491,7 @@ t2_enable_vec(int vector)
 }
 
 static void
-t2_disable_vec(int vector)
+t2_disable_vec(uintptr_t vector)
 {
 	int hose, irq;
 	u_long scratch, IC_mask;

@@ -94,8 +94,8 @@ static int	hrowpic_macio_attach(device_t);
  * Local routines
  */
 static void	hrowpic_intr(void);
-static void	hrowpic_ext_enable_irq(int);
-static void	hrowpic_ext_disable_irq(int);
+static void	hrowpic_ext_enable_irq(uintptr_t);
+static void	hrowpic_ext_disable_irq(uintptr_t);
 static void	hrowpic_toggle_irq(struct hrowpic_softc *sc, int, int);
 
 /*
@@ -375,13 +375,13 @@ hrowpic_intr(void)
 }
 
 static void
-hrowpic_ext_enable_irq(int irq)
+hrowpic_ext_enable_irq(uintptr_t irq)
 {
 	hrowpic_toggle_irq(hpicsoftc, irq, 1);
 }
 
 static void
-hrowpic_ext_disable_irq(int irq)
+hrowpic_ext_disable_irq(uintptr_t irq)
 {
 	hrowpic_toggle_irq(hpicsoftc, irq, 0);
 }
