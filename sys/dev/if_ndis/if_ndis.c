@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/route.h>
 
 #include <net/bpf.h>
 
@@ -1063,11 +1064,15 @@ ndis_ticktask(xsc)
 		if (sc->ndis_80211)
 			ndis_getstate_80211(sc);
 		NDIS_LOCK(sc);
+		sc->arpcom.ac_if.if_link_state = LINK_STATE_UP;
+		rt_ifmsg(&(sc->arpcom.ac_if));
 	}
 
 	if (sc->ndis_link == 1 && linkstate == nmc_disconnected) {
 		device_printf(sc->ndis_dev, "link down\n");
 		sc->ndis_link = 0;
+		sc->arpcom.ac_if.if_link_state = LINK_STATE_DOWN;
+		rt_ifmsg(&(sc->arpcom.ac_if));
 	}
 
 	NDIS_UNLOCK(sc);
