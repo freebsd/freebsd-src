@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: pw_yp.c,v 1.12 1997/12/18 15:27:43 bde Exp $
+ *	$Id: pw_yp.c,v 1.13 1998/10/17 14:08:12 bde Exp $
  */
 
 #ifdef YP
@@ -195,10 +195,19 @@ static int my_yp_match(server, domain, map, key, keylen, result, resultlen)
 
 	bzero((char *)buf, sizeof(buf));
 
+	/*
+	 * Don't make this a fatal error. The inability to contact
+	 * a server is, for our purposes, equivalent to not finding
+	 * the record we were looking for. Letting use_yp() know
+	 * that the lookup failed is sufficient.
+	 */
 	if ((clnt = clnt_create(server, YPPROG,YPVERS,"udp")) == NULL) {
+		return(1);
+#ifdef notdef
 		warnx("failed to create UDP handle: %s",
 					clnt_spcreateerror(server));
 		pw_error(tempname, 0, 1);
+#endif
 	}
 
 	ypkey.domain = domain;
@@ -208,13 +217,19 @@ static int my_yp_match(server, domain, map, key, keylen, result, resultlen)
 
 	if ((ypval = ypproc_match_2(&ypkey, clnt)) == NULL) {
 		clnt_destroy(clnt);
+		return(1);
+#ifdef notdef
 		warnx("%s",clnt_sperror(clnt,"YPPROC_MATCH failed"));
 		pw_error(tempname, 0, 1);
+#endif
 	}
 
 	clnt_destroy(clnt);
 
 	if (ypval->stat != YP_TRUE) {
+		xdr_free(xdr_ypresp_val, (char *)ypval);
+		return(1);
+#ifdef notdef
 		int stat = ypval->stat;
 		xdr_free(xdr_ypresp_val, (char *)ypval);
 		if (stat == YP_NOMAP && strstr(map, "master.passwd"))
@@ -223,6 +238,7 @@ static int my_yp_match(server, domain, map, key, keylen, result, resultlen)
 			return(1);
 		warnx("ypmatch failed: %s", yperr_string(ypprot_err(stat)));
 		pw_error(tempname, 0, 1);
+#endif
 	}
 
 
