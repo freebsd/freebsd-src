@@ -61,6 +61,20 @@ get_dash_string(char **str)
     return *str;
 }
 
+/* Do a strlcpy and test for overflow */
+int
+s_strlcpy(char *dst, const char *src, size_t size)
+{
+	return (strlcpy(dst, src, size) >= size);
+}
+
+/* Do a strlcat and test for overflow */
+int
+s_strlcat(char *dst, const char *src, size_t size)
+{
+	return (strlcat(dst, src, size) >= size);
+}
+
 /* Rather Obvious */
 char *
 copy_string(char *str)
