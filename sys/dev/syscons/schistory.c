@@ -29,7 +29,6 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
 #include "opt_syscons.h"
 
 #ifndef SC_NO_HISTORY
