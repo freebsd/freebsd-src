@@ -44,7 +44,7 @@ struct acpi_battdesc {
 
 struct acpi_battinfo {
 	int	 cap;				/* percent */
-	int	 min;				/* remianing time */
+	int	 min;				/* remaining time */
 	int	 state;				/* battery state */
 };
 
@@ -57,8 +57,8 @@ struct acpi_bif {
 	u_int32_t dvol;				/* Design voltage (mV) */
 	u_int32_t wcap;				/* WARN capacity */
 	u_int32_t lcap;				/* Low capacity */
-	u_int32_t gra1;				/* Granulity 1(Warn to Low) */
-	u_int32_t gra2;				/* Granulity 2(Full to Warn) */
+	u_int32_t gra1;				/* Granularity 1 (Warn to Low) */
+	u_int32_t gra2;				/* Granularity 2 (Full to Warn) */
 	char model[ACPI_CMBAT_MAXSTRLEN];	/* model identifier */
 	char serial[ACPI_CMBAT_MAXSTRLEN];	/* Serial number */
 	char type[ACPI_CMBAT_MAXSTRLEN];	/* Type */
