@@ -1,7 +1,9 @@
 #!/bin/sh
-# $Id: extract_src.sh,v 1.9 1995/03/24 02:45:34 phk Exp $
+# $Id: extract_src.sh,v 1.10 1995/03/24 03:38:48 phk Exp $
 PATH=/stand:$PATH
 DDIR=/usr/src
+
+mkdir -p $DDIR
 
 for T in src*.aa ; do
 	DIST=`basename $T .aa`
