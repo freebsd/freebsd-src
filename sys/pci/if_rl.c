@@ -1916,19 +1916,23 @@ static int
 rl_suspend(dev)
 	device_t		dev;
 {
+#ifndef BURN_BRIDGES
 	register int		i;
+#endif
 	struct rl_softc		*sc;
 
 	sc = device_get_softc(dev);
 
 	rl_stop(sc);
 
+#ifndef BURN_BRIDGES
 	for (i = 0; i < 5; i++)
 		sc->saved_maps[i] = pci_read_config(dev, PCIR_MAPS + i * 4, 4);
 	sc->saved_biosaddr = pci_read_config(dev, PCIR_BIOS, 4);
 	sc->saved_intline = pci_read_config(dev, PCIR_INTLINE, 1);
 	sc->saved_cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
 	sc->saved_lattimer = pci_read_config(dev, PCIR_LATTIMER, 1);
+#endif
 
 	sc->suspended = 1;
 
@@ -1944,13 +1948,16 @@ static int
 rl_resume(dev)
 	device_t		dev;
 {
+#ifndef BURN_BRIDGES
 	register int		i;
+#endif
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
+#ifndef BURN_BRIDGES
 	/* better way to do this? */
 	for (i = 0; i < 5; i++)
 		pci_write_config(dev, PCIR_MAPS + i * 4, sc->saved_maps[i], 4);
@@ -1962,6 +1969,7 @@ rl_resume(dev)
 	/* reenable busmastering */
 	pci_enable_busmaster(dev);
 	pci_enable_io(dev, RL_RES);
+#endif
 
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)
