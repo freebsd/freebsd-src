@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.51 2001/01/21 19:00:06 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.52 2001/01/21 19:00:29 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -317,6 +317,11 @@ usb_create_event_thread(void *arg)
 	}
 }
 
+/*
+ * Add a task to be performed by the event thread.  This function can be
+ * called from any context and the task will be executed in a process
+ * context ASAP.
+ */
 void
 usb_add_task(usbd_device_handle dev, struct usb_task *task)
 {
