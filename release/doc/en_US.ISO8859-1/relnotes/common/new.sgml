@@ -1481,10 +1481,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       has been corrected (see security advisory
       FreeBSD-SA-01:12). &merged;</para>
 
-    <para>A bug in &man.sort.1; in which an attacker might be able to
-      cause it to abort processing has been fixed (see security
-      advisory FreeBSD-SA-01:13). &merged;</para>
-
     <para><application>OpenSSH</application> now has code to prevent
       (instead of just mitigating through connection limits) an attack
       that can lead to guessing the server key (not host key) by
@@ -2835,6 +2831,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<application>smbfs</application> userland utilities have been
 	imported. &merged;</para>
 
+      <para>&man.sort.1; from <application>NetBSD</application> (as of
+	22 March 2002) is now the system sorting program, replacing
+	<application>GNU sort</application>.</para>
+
       <para><application>tcpdump</application> has been updated to
 	3.6.3. &merged;</para>
 
@@ -2850,6 +2850,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	incorporates this functionality), this may be useful for
 	&man.inetd.8; replacements such as
 	<application>xinetd</application>.</para>
+
+      <para><application>texinfo</application> has been updated to
+	4.1.</para>
 
       <para><application>top</application> has been updated to version
 	3.5b12.</para>
