@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.109 1995/07/31 21:10:36 bde Exp $
+ *	$Id: sio.c,v 1.110 1995/08/13 07:49:35 bde Exp $
  */
 
 #include "sio.h"
@@ -41,6 +41,9 @@
  * Mostly rewritten to use pseudo-DMA.
  * Works for National Semiconductor NS8250-NS16550AF UARTs.
  * COM driver, based on HP dca driver.
+ *
+ * Changes for PC-Card integration:
+ *	- Added PC-Card driver table and handlers
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -92,6 +95,12 @@
 #define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
+
+#include "crd.h"
+#if NCRD > 0
+#include <pccard/card.h>
+#include <pccard/slot.h>
+#endif /* NCRD > 0 */
 
 /*
  * Input buffer watermarks.
@@ -351,6 +360,103 @@ static struct kern_devconf kdc_sio[NSIO] = { {
 	"RS-232 serial port",
 	DC_CLS_SERIAL		/* class */
 } };
+#if NCRD > 0
+/*
+ *	PC-Card (PCMCIA) specific code.
+ */
+static int card_intr(struct pccard_dev *);	/* Interrupt handler */
+void siounload(struct pccard_dev *);	/* Disable driver */
+void siosuspend(struct pccard_dev *);	/* Suspend driver */
+static int sioinit(struct pccard_dev *, int);	/* init device */
+
+static struct pccard_drv sio_info =
+	{
+	"sio",
+	card_intr,
+	siounload,
+	siosuspend,
+	sioinit,
+	0,			/* Attributes - presently unused */
+	&tty_imask		/* Interrupt mask for device */
+				/* This should also include net_imask?? */
+	};
+/*
+ * Called when a power down is wanted. Shuts down the
+ * device and configures the device as unavailable (but
+ * still loaded...). A resume is done by calling
+ * sioinit with first=0. This is called when the user suspends
+ * the system, or the APM code suspends the system.
+ */
+void
+siosuspend(struct pccard_dev *dp)
+{
+	printf("sio%d: suspending\n", dp->isahd.id_unit);
+}
+/*
+ *	Initialize the device - called from Slot manager.
+ *	if first is set, then initially check for
+ *	the device's existence before initialising it.
+ *	Once initialised, the device table may be set up.
+ */
+int
+sioinit(struct pccard_dev *dp, int first)
+{
+/*
+ *	validate unit number.
+ */
+	if (first)
+		{
+		if (dp->isahd.id_unit >= NSIO)
+			return(ENODEV);
+/*
+ *	Make sure it isn't already probed.
+ */
+		if (com_addr(dp->isahd.id_unit))
+			return(EBUSY);
+/*
+ *	Probe the device. If a value is returned, the
+ *	device was found at the location.
+ */
+		if (sioprobe(&dp->isahd)==0)
+			return(ENXIO);
+		if (sioattach(&dp->isahd)==0)
+			return(ENXIO);
+		}
+/*
+ *	XXX TODO:
+ *	If it was already inited before, the device structure
+ *	should be already initialised. Here we should
+ *	reset (and possibly restart) the hardware, but
+ *	I am not sure of the best way to do this...
+ */
+	return(0);
+}
+/*
+ *	siounload - unload the driver and clear the table.
+ *	XXX TODO:
+ *	This is called usually when the card is ejected, but
+ *	can be caused by the modunload of a controller driver.
+ *	The idea is reset the driver's view of the device
+ *	and ensure that any driver entry points such as
+ *	read and write do not hang.
+ */
+void
+siounload(struct pccard_dev *dp)
+{
+	printf("sio%d: unload\n", dp->isahd.id_unit);
+}
+
+/*
+ *	card_intr - Shared interrupt called from
+ *	front end of PC-Card handler.
+ */
+static int
+card_intr(struct pccard_dev *dp)
+{
+	siointr1(com_addr(dp->isahd.id_unit));
+	return(1);
+}
+#endif /* NCRD > 0 */
 
 static void
 sioregisterdev(id)
@@ -359,6 +465,11 @@ sioregisterdev(id)
 	int	unit;
 
 	unit = id->id_unit;
+/*
+ *	If already registered, don't try to re-register.
+ */
+	if (kdc_sio[unit].kdc_isa)
+		return;
 	if (unit != 0)
 		kdc_sio[unit] = kdc_sio[0];
 	kdc_sio[unit].kdc_unit = unit;
@@ -393,6 +504,13 @@ sioprobe(dev)
 						 / sizeof likely_com_ports[0]];
 		     ++com_ptr)
 			outb(*com_ptr + com_mcr, 0);
+#if NCRD > 0
+/*
+ *	If PC-Card probe required, then register driver with
+ *	slot manager.
+ */
+		pccard_add_driver(&sio_info);
+#endif /* NCRD > 0 */
 		already_init = TRUE;
 	}
 
