@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2002
+.Dd October 3, 2002
 .Dt WCTRANS 3
 .Os
 .Sh NAME
@@ -71,6 +71,20 @@ The
 function returns non-zero if successful, otherwise it returns zero
 and sets
 .Va errno .
+.Sh EXAMPLES
+Reimplement
+.Fn towupper
+in terms of
+.Fn towctrans
+and
+.Fn wctrans :
+.Bd -literal -offset indent
+wint_t
+mytowupper(wint_t wc)
+{
+	return (towctrans(wc, wctrans("toupper")));
+}
+.Ed
 .Sh ERRORS
 The
 .Fn towctrans
