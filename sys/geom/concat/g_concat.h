@@ -34,7 +34,13 @@
 #define	G_CONCAT_CLASS_NAME	"CONCAT"
 
 #define	G_CONCAT_MAGIC		"GEOM::CONCAT"
-#define	G_CONCAT_VERSION	2
+/*
+ * Version history:
+ * 1 - Initial version number.
+ * 2 - Added 'stop' command to gconcat(8).
+ * 3 - Added md_provider field to metadata and '-h' option to gconcat(8).
+ */
+#define	G_CONCAT_VERSION	3
 
 #ifdef _KERNEL
 #define	G_CONCAT_TYPE_MANUAL	0
@@ -86,6 +92,7 @@ struct g_concat_metadata {
 	uint32_t	md_id;		/* Unique ID. */
 	uint16_t	md_no;		/* Disk number. */
 	uint16_t	md_all;		/* Number of all disks. */
+	char		md_provider[16]; /* Hardcoded provider. */
 };
 static __inline void
 concat_metadata_encode(const struct g_concat_metadata *md, u_char *data)
@@ -97,6 +104,7 @@ concat_metadata_encode(const struct g_concat_metadata *md, u_char *data)
 	le32enc(data + 36, md->md_id);
 	le16enc(data + 40, md->md_no);
 	le16enc(data + 42, md->md_all);
+	bcopy(md->md_provider, data + 44, sizeof(md->md_provider));
 }
 static __inline void
 concat_metadata_decode(const u_char *data, struct g_concat_metadata *md)
@@ -108,5 +116,6 @@ concat_metadata_decode(const u_char *data, struct g_concat_metadata *md)
 	md->md_id = le32dec(data + 36);
 	md->md_no = le16dec(data + 40);
 	md->md_all = le16dec(data + 42);
+	bcopy(data + 44, md->md_provider, sizeof(md->md_provider));
 }
 #endif	/* _G_CONCAT_H_ */

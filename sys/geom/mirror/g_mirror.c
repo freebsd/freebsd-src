@@ -382,6 +382,8 @@ g_mirror_init_disk(struct g_mirror_softc *sc, struct g_provider *pp,
 	disk->d_delay.frac = 0;
 	binuptime(&disk->d_last_used);
 	disk->d_flags = md->md_dflags;
+	if (md->md_provider[0] != '\0')
+		disk->d_flags |= G_MIRROR_DISK_FLAG_HARDCODED;
 	disk->d_sync.ds_consumer = NULL;
 	disk->d_sync.ds_offset = md->md_sync_offset;
 	disk->d_sync.ds_offset_done = md->md_sync_offset;
@@ -621,6 +623,7 @@ g_mirror_fill_metadata(struct g_mirror_softc *sc, struct g_mirror_disk *disk,
 	md->md_mediasize = sc->sc_mediasize;
 	md->md_sectorsize = sc->sc_sectorsize;
 	md->md_mflags = (sc->sc_flags & G_MIRROR_DEVICE_FLAG_MASK);
+	bzero(md->md_provider, sizeof(md->md_provider));
 	if (disk == NULL) {
 		md->md_did = arc4random();
 		md->md_priority = 0;
@@ -636,6 +639,11 @@ g_mirror_fill_metadata(struct g_mirror_softc *sc, struct g_mirror_disk *disk,
 			md->md_sync_offset = disk->d_sync.ds_offset_done;
 		else
 			md->md_sync_offset = 0;
+		if ((disk->d_flags & G_MIRROR_DISK_FLAG_HARDCODED) != 0) {
+			strlcpy(md->md_provider,
+			    disk->d_consumer->provider->name,
+			    sizeof(md->md_provider));
+		}
 	}
 }
 
@@ -2491,6 +2499,8 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    pp->name);
 		return (NULL);
 	}
+	if (md.md_provider[0] != '\0' && strcmp(md.md_provider, pp->name) != 0)
+		return (NULL);
 	if ((md.md_dflags & G_MIRROR_DISK_FLAG_INACTIVE) != 0) {
 		G_MIRROR_DEBUG(0,
 		    "Device %s: provider %s marked as inactive, skipping.",

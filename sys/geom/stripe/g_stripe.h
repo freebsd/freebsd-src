@@ -34,7 +34,13 @@
 #define	G_STRIPE_CLASS_NAME	"STRIPE"
 
 #define	G_STRIPE_MAGIC		"GEOM::STRIPE"
-#define	G_STRIPE_VERSION	1
+/*
+ * Version history:
+ * 0 - Initial version number.
+ * 1 - Added 'stop' command for gstripe(8).
+ * 2 - Added md_provider field to metadata and '-h' option for gstripe(8).
+ */
+#define	G_STRIPE_VERSION	2
 
 #ifdef _KERNEL
 #define	G_STRIPE_TYPE_MANUAL	0
@@ -81,6 +87,7 @@ struct g_stripe_metadata {
 	uint16_t	md_no;		/* Disk number. */
 	uint16_t	md_all;		/* Number of all disks. */
 	uint32_t	md_stripesize;	/* Stripe size. */
+	char		md_provider[16]; /* Hardcoded provider. */
 };
 static __inline void
 stripe_metadata_encode(const struct g_stripe_metadata *md, u_char *data)
@@ -93,6 +100,7 @@ stripe_metadata_encode(const struct g_stripe_metadata *md, u_char *data)
 	le16enc(data + 40, md->md_no);
 	le16enc(data + 42, md->md_all);
 	le32enc(data + 44, md->md_stripesize);
+	bcopy(md->md_provider, data + 48, sizeof(md->md_provider));
 }
 static __inline void
 stripe_metadata_decode(const u_char *data, struct g_stripe_metadata *md)
@@ -105,6 +113,7 @@ stripe_metadata_decode(const u_char *data, struct g_stripe_metadata *md)
 	md->md_no = le16dec(data + 40);
 	md->md_all = le16dec(data + 42);
 	md->md_stripesize = le32dec(data + 44);
+	bcopy(data + 48, md->md_provider, sizeof(md->md_provider));
 }
 
 #ifndef BITCOUNT
