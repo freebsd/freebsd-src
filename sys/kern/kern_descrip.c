@@ -885,6 +885,9 @@ fdinit(p)
 	VREF(newfdp->fd_fd.fd_cdir);
 	newfdp->fd_fd.fd_rdir = fdp->fd_rdir;
 	VREF(newfdp->fd_fd.fd_rdir);
+	newfdp->fd_fd.fd_jdir = fdp->fd_jdir;
+	if (newfdp->fd_fd.fd_jdir)
+		VREF(newfdp->fd_fd.fd_jdir);
 
 	/* Create the file descriptor table. */
 	newfdp->fd_fd.fd_refcnt = 1;
@@ -932,6 +935,8 @@ fdcopy(p)
 	bcopy(fdp, newfdp, sizeof(struct filedesc));
 	VREF(newfdp->fd_cdir);
 	VREF(newfdp->fd_rdir);
+	if (newfdp->fd_jdir)
+		VREF(newfdp->fd_jdir);
 	newfdp->fd_refcnt = 1;
 
 	/*
@@ -995,6 +1000,8 @@ fdfree(p)
 		FREE(fdp->fd_ofiles, M_FILEDESC);
 	vrele(fdp->fd_cdir);
 	vrele(fdp->fd_rdir);
+	if(fdp->fd_jdir)
+		vrele(fdp->fd_jdir);
 	FREE(fdp, M_FILEDESC);
 }
 
