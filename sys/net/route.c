@@ -105,6 +105,7 @@ rtalloc_ign(ro, ignore)
 		/* XXX - We are probably always at splnet here already. */
 		s = splnet();
 		RTFREE(rt);
+		ro->ro_rt = NULL;
 		splx(s);
 	}
 	ro->ro_rt = rtalloc1(&ro->ro_dst, 1, ignore);
