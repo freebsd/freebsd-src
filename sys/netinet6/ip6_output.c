@@ -1669,8 +1669,6 @@ do { \
 
 				if (ip6_fw_ctl_ptr == NULL)
 			        {
-					if (m)
-						(void)m_free(m);
 					return EINVAL;
 				}
 				error = (*ip6_fw_ctl_ptr)(optname, mp);
