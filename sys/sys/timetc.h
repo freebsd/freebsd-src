@@ -62,5 +62,6 @@ extern struct timecounter *timecounter;
 u_int32_t tc_getfrequency(void);
 void	tc_init(struct timecounter *tc);
 void	tc_setclock(struct timespec *ts);
+void	tc_ticktock(void);
 
 #endif /* !_SYS_TIMETC_H_ */

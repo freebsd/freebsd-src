@@ -59,6 +59,7 @@
 #include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/timetc.h>
 
 #include <machine/cpu.h>
 #include <machine/limits.h>
@@ -208,6 +209,7 @@ hardclock(frame)
 	hardclock_process(curthread, CLKF_USERMODE(frame));
 	mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
 
+	tc_ticktock();
 	/*
 	 * If no separate statistics clock is available, run it from here.
 	 *
