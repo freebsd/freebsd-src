@@ -1348,11 +1348,13 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 	case SIOCSIFNAME:
 		error = suser(td);
-		if (error)
+		if (error != 0)
 			return (error);
 		error = copyinstr(ifr->ifr_data, new_name, IFNAMSIZ, NULL);
-		if (error)
+		if (error != 0)
 			return (error);
+		if (new_name[0] == '\0')
+			return (EINVAL);
 		if (ifunit(new_name) != NULL)
 			return (EEXIST);
 		
