@@ -22,7 +22,7 @@ LDADD+=	-ll
 DEPENDFILE=
 .endif
 
-CFLAGS+= -I${.CURDIR}/../../../dev/aic7xxx/aicasm -I/usr/include -I.
+CFLAGS+= -nostdinc -I${.CURDIR}/../../../dev/aic7xxx/aicasm -I/usr/include -I.
 .ifdef MAKESRCPATH
 CFLAGS+= -I${MAKESRCPATH}
 .endif
