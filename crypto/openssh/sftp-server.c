@@ -39,6 +39,12 @@ RCSID("$OpenBSD: sftp-server.c,v 1.35 2002/06/06 17:30:11 markus Exp $");
 #define get_string(lenp)		buffer_get_string(&iqueue, lenp);
 #define TRACE				debug
 
+#ifdef HAVE___PROGNAME
+extern char *__progname;
+#else
+char *__progname;
+#endif
+
 /* input and output queue */
 Buffer iqueue;
 Buffer oqueue;
@@ -431,7 +437,7 @@ process_read(void)
 	len = get_int();
 
 	TRACE("read id %d handle %d off %llu len %d", id, handle,
-	    (unsigned long long)off, len);
+	    (u_int64_t)off, len);
 	if (len > sizeof buf) {
 		len = sizeof buf;
 		log("read change len %d", len);
@@ -472,7 +478,7 @@ process_write(void)
 	data = get_string(&len);
 
 	TRACE("write id %d handle %d off %llu len %d", id, handle,
-	    (unsigned long long)off, len);
+	    (u_int64_t)off, len);
 	fd = handle_to_fd(handle);
 	if (fd >= 0) {
 		if (lseek(fd, off, SEEK_SET) < 0) {
@@ -614,13 +620,15 @@ process_fsetstat(void)
 	u_int32_t id;
 	int handle, fd, ret;
 	int status = SSH2_FX_OK;
+	char *name;
 
 	id = get_int();
 	handle = get_handle();
 	a = get_attrib();
 	TRACE("fsetstat id %d handle %d", id, handle);
 	fd = handle_to_fd(handle);
-	if (fd < 0) {
+	name = handle_to_name(handle);
+	if (fd < 0 || name == NULL) {
 		status = SSH2_FX_FAILURE;
 	} else {
 		if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
@@ -629,17 +637,29 @@ process_fsetstat(void)
 				status = errno_to_portable(errno);
 		}
 		if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) {
+#ifdef HAVE_FCHMOD
 			ret = fchmod(fd, a->perm & 0777);
+#else
+			ret = chmod(name, a->perm & 0777);
+#endif
 			if (ret == -1)
 				status = errno_to_portable(errno);
 		}
 		if (a->flags & SSH2_FILEXFER_ATTR_ACMODTIME) {
+#ifdef HAVE_FUTIMES
 			ret = futimes(fd, attrib_to_tv(a));
+#else
+			ret = utimes(name, attrib_to_tv(a));
+#endif
 			if (ret == -1)
 				status = errno_to_portable(errno);
 		}
 		if (a->flags & SSH2_FILEXFER_ATTR_UIDGID) {
+#ifdef HAVE_FCHOWN
 			ret = fchown(fd, a->uid, a->gid);
+#else
+			ret = chown(name, a->uid, a->gid);
+#endif
 			if (ret == -1)
 				status = errno_to_portable(errno);
 		}
@@ -714,7 +734,7 @@ ls_file(char *name, struct stat *st)
 	glen = MAX(strlen(group), 8);
 	snprintf(buf, sizeof buf, "%s %3d %-*s %-*s %8llu %s %s", mode,
 	    st->st_nlink, ulen, user, glen, group,
-	    (unsigned long long)st->st_size, tbuf, name);
+	    (u_int64_t)st->st_size, tbuf, name);
 	return xstrdup(buf);
 }
 
@@ -1039,6 +1059,7 @@ main(int ac, char **av)
 
 	/* XXX should use getopt */
 
+	__progname = get_progname(av[0]);
 	handle_init();
 
 #ifdef DEBUG_SFTP_SERVER
@@ -1047,6 +1068,11 @@ main(int ac, char **av)
 
 	in = dup(STDIN_FILENO);
 	out = dup(STDOUT_FILENO);
+
+#ifdef HAVE_CYGWIN
+	setmode(in, O_BINARY);
+	setmode(out, O_BINARY);
+#endif
 
 	max = 0;
 	if (in > max)

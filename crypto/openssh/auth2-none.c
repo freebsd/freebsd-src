@@ -96,6 +96,10 @@ userauth_none(Authctxt *authctxt)
 	none_enabled = 0;
 	packet_check_eom();
 	userauth_banner();
+#ifdef HAVE_CYGWIN
+	if (check_nt_auth(1, authctxt->pw) == 0)
+		return(0);
+#endif
 	return (authctxt->valid ? PRIVSEP(auth_password(authctxt, "")) : 0);
 }
 

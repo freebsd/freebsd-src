@@ -55,6 +55,10 @@ int mm_auth_rsa_key_allowed(struct passwd *, BIGNUM *, Key **);
 int mm_auth_rsa_verify_response(Key *, BIGNUM *, u_char *);
 BIGNUM *mm_auth_rsa_generate_challenge(Key *);
 
+#ifdef USE_PAM
+void mm_start_pam(char *);
+#endif
+
 void mm_terminate(void);
 int mm_pty_allocate(int *, int *, char *, int);
 void mm_session_pty_cleanup2(void *);
