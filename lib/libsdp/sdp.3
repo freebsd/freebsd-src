@@ -33,28 +33,20 @@
 .Nm SDP_GET16 ,
 .Nm SDP_GET32 ,
 .Nm SDP_GET64 ,
-.Nm SDP_GET128
-.Nd get SDP integer
-.Pp
+.Nm SDP_GET128 ,
 .Nm SDP_PUT8 ,
 .Nm SDP_PUT16 ,
 .Nm SDP_PUT32 ,
 .Nm SDP_PUT64 ,
-.Nm SDP_PUT128
-.Nd put SPD integer
-.Pp
+.Nm SDP_PUT128 ,
 .Nm sdp_open ,
 .Nm sdp_open_local ,
-.Nm sdp_close
-.Nm sdp_error
-.Nd control SDP session
-.Pp
-.Nm sdp_search
-.Nd perform SDP query
-.Pp
+.Nm sdp_close ,
+.Nm sdp_error ,
+.Nm sdp_search ,
 .Nm sdp_attr2desc ,
 .Nm sdp_uuid2desc
-.Nd convert numeric SDP attribute/UUID value into human readable description
+.Nd Bluetooth SDP routines
 .Sh LIBRARY
 .Lb libsdp
 .Sh SYNOPSIS
@@ -70,26 +62,34 @@
 .Fn SDP_PUT32 "l" "cp"
 .Fn SDP_PUT64 "l" "cp"
 .Fn SDP_PUT128 "l" "cp"
-.Ft void *
+.Ft "void *"
 .Fn sdp_open "bdaddr_t const *l" "bdaddr_t const *r"
-.Ft void *
+.Ft "void *"
 .Fn sdp_open_local "char const *control"
 .Ft int32_t
 .Fn sdp_close "void *xs"
 .Ft int32_t
 .Fn sdp_error "void *xs"
 .Ft int32_t
-.Fn sdp_search "void *xs" "uint32_t plen" "uint16_t const *pp" "uint32_t alen" "uint32_t const *ap" "uint32_t vlen" "sdp_attr_t *vp"
-.Ft char const * const
+.Fo sdp_search
+.Fa "void *xs" "uint32_t plen" "uint16_t const *pp" "uint32_t alen"
+.Fa "uint32_t const *ap" "uint32_t vlen" "sdp_attr_t *vp"
+.Fc
+.Ft "char const * const"
 .Fn sdp_attr2desc "uint16_t attr"
-.Ft char const * const
+.Ft "char const * const"
 .Fn sdp_uuid2desc "uint16_t uuid"
 .Ft int32_t
-.Fn sdp_register_service "void *xss" "uint16_t uuid" "bdaddr_p const bdaddr" "uint8_t const *data" "uint32_t datalen" "uint32_t *handle"
+.Fo sdp_register_service
+.Fa "void *xss" "uint16_t uuid" "bdaddr_p const bdaddr" "uint8_t const *data"
+.Fa "uint32_t datalen" "uint32_t *handle"
+.Fc
 .Ft int32_t
 .Fn sdp_unregister_service "void *xss" "uint32_t handle"
 .Ft int32_t
-.Fn sdp_change_service "void *xss" "uint32_t handle" "uint8_t const *data" "uint32_t datalen"
+.Fo sdp_change_service
+.Fa "void *xss" "uint32_t handle" "uint8_t const *data" "uint32_t datalen"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn SDP_GET8 ,
@@ -100,7 +100,7 @@ and
 .Fn SDP_GET128
 macros are used to get byte, short, long, long long and 128-bit integer
 from the buffer pointed by
-.Vt cp
+.Fa cp
 pointer.
 The pointer is automatically advanced.
 .Pp
@@ -113,16 +113,17 @@ and
 .Fn SDP_PUT128
 macros are used to put byte, short, long, long long and 128-bit integer
 into the buffer pointed by
-.Vt cp
+.Fa cp
 pointer.
 The pointer is automatically advanced.
 .Pp
+The
 .Fn sdp_open
 and
 .Fn sdp_open_local
 functions each return a pointer to an opaque object describing SDP session.
 The
-.Vt l
+.Fa l
 argument passed to
 .Fn sdp_open
 function should point to a source BD_ADDR.
@@ -132,13 +133,13 @@ then source address
 .Dv NG_HCI_BDADDR_ANY
 is used.
 The
-.Vt r
+.Fa r
 argument passed to
 .Fn sdp_open
-function should point to a non
-.Dv NULL
+function should point to a
+.Pf non- Dv NULL
 remote BD_ADDR.
-Remote BD_ADDR can not be
+Remote BD_ADDR cannot be
 .Dv NG_HCI_BDADDR_ANY .
 The
 .Fn sdp_open_local
@@ -154,7 +155,7 @@ The
 .Fn sdp_close
 function terminates active SDP session and deletes SDP session object.
 The
-.Vt xs
+.Fa xs
 parameter should point to a valid SDP session object created with
 .Fn sdp_open
 or
@@ -164,7 +165,7 @@ The
 .Fn sdp_error
 function returns last error that is stored inside SDP session object.
 The
-.Vt xs
+.Fa xs
 parameter should point to a valid SDP session object created with
 .Fn sdp_open
 or
@@ -178,22 +179,22 @@ The
 .Fn sdp_search
 function is used to perform SDP Service Search Attribute Request.
 The
-.Vt xs
+.Fa xs
 parameter should point to a valid SDP session object created with
 .Fn sdp_open
 or
 .Fn sdp_open_local .
 The
-.Vt pp
+.Fa pp
 parameter is a Service Search Pattern - an array of one or more Service
 Class IDs.
 The maximum number of Service Class IDs in the array is 12.
 The
-.Vt plen
+.Fa plen
 parameter is the length of the Service Search pattern.
 The
-.Vt ap
-parameter is a Attribute ID Range List - an array of one or more SDP Attribute
+.Fa ap
+parameter is an Attribute ID Range List - an array of one or more SDP Attribute
 ID Range.
 Each attribute ID Range is encoded as a 32-bit unsigned integer data
 element, where the high order 16 bits are interpreted as the beginning
@@ -204,13 +205,13 @@ ascending order without duplication of any attribute ID values.
 Note that all attributes may be requested by specifying a range of
 0x0000-0xFFFF.
 The
-.Vt alen
+.Fa alen
 parameter is the length of the Attribute ID Ranges List.
 The
 .Fn SDP_ATTR_RANGE "lo" "hi"
 macro can be used to prepare Attribute ID Range.
 The
-.Vt vp
+.Fa vp
 parameter should be an array of
 .Vt sdp_attr_t
 structures.
@@ -236,22 +237,22 @@ The caller of the
 function is expected to prepare the array of
 .Vt sdp_attr
 structures and for each element of the array both
-.Vt vlen
+.Va vlen
 and
-.Vt value
+.Va value
 must be set.
 The
 .Fn sdp_search
 function will fill each
 .Vt sdp_attr_t
 structure with attribute and value, i.e., it will set
-.Vt flags ,
-.Vt attr
+.Va flags ,
+.Va attr
 and
-.Vt vlen
+.Va vlen
 fields.
 The actual value of the attribute will be copied into
-.Vt value
+.Va value
 buffer.
 Note: attributes are returned in the order they appear in the Service Search
 Attribute Response.
@@ -268,47 +269,49 @@ human readable description.
 .Pp
 The
 .Fn sdp_register_service
+function
 is used to register service with the local SDP server.
 The
-.Vt xss
+.Fa xss
 parameter should point to a valid SDP session object obtained from
 .Fn sdp_open_local .
 The
-.Vt uuid
+.Fa uuid
 parameter is a SDP Service Class ID for the service to be registered.
 The
-.Vt bdaddr
+.Fa bdaddr
 parameter should point to a valid BD_ADDR.
 The service will be only advertised if request was received by the local device
 with
-.Vt bdaddr .
+.Fa bdaddr .
 If
-.Vt bdaddr
+.Fa bdaddr
 is set to
 .Dv NG_HCI_BDADDR_ANY
 then the service will be advertised to any remote devices that queries for it.
 The
-.Vt data
+.Fa data
 and
-.Vt datalen
+.Fa datalen
 parameters specify data and size of the data for the service.
 Upon successful return
 .Fn sdp_register_service
 will populate
-.Vt handle
+.Fa handle
 with the SDP record handle.
 This parameter is optional and can be set to
 .Dv NULL .
 .Pp
 The
 .Fn sdp_unregister_service
+function
 is used to unregister service with the local SDP server.
 The
-.Vt xss
+.Fa xss
 parameter should point to a valid SDP session object obtained from
 .Fn sdp_open_local .
 The
-.Vt handle
+.Fa handle
 parameter should contain a valid SDP record handle of the service to be
 unregistered.
 .Pp
@@ -317,16 +320,16 @@ The
 function is used to change data associated with the existing service on
 the local SDP server.
 The
-.Vt xss
+.Fa xss
 parameter should point to a valid SDP session object obtained from
 .Fn sdp_open_local .
 The
-.Vt handle
+.Fa handle
 parameter should contain a valid SDP record handle of the service to be changed.
 The
-.Vt data
+.Fa data
 and
-.Vt datalen
+.Fa datalen
 parameters specify data and size of the data for the service.
 .Sh CAVEAT
 When registering services with the local SDP server the application must
