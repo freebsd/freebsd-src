@@ -209,7 +209,7 @@ nospace:
 #include <sys/sysctl.h>
 static int doasyncfree = 1;
 #ifdef	OPT_DEBUG
-struct ctldebug debug14 = { "doasyncfree", &doasyncfree };
+SYSCTL_INT(_debug, 14, doasyncfree, CTLFLAG_RW, &doasyncfree, 0, "");
 #endif	/* OPT_DEBUG */
 int
 ext2_reallocblks(ap)

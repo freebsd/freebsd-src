@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.16 1995/08/25 19:40:26 bde Exp $
+ * $Id: ffs_alloc.c,v 1.17 1995/09/08 17:16:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -327,7 +327,7 @@ nospace:
 #include <sys/sysctl.h>
 int doasyncfree = 1;
 #ifdef DEBUG
-struct ctldebug debug14 = { "doasyncfree", &doasyncfree };
+SYSCTL_INT(_debug, 14, doasyncfree, CTLFLAG_RW, &doasyncfree, 0, "");
 #endif
 int
 ffs_reallocblks(ap)
