@@ -31,13 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
+#if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)kvm_getvfsbyname.c	8.1 (Berkeley) 4/3/95";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mount.h>

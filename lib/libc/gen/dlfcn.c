@@ -22,16 +22,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Linkage to services provided by the dynamic linker.  These are
  * implemented differently in ELF and a.out, because the dynamic
  * linkers have different interfaces.
  */
-
 #ifdef __ELF__
 
 #include <dlfcn.h>

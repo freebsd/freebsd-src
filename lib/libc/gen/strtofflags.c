@@ -31,14 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
+#if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)stat_flags.c	8.1 (Berkeley) 5/31/93";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-#endif /* not lint */
+#endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>

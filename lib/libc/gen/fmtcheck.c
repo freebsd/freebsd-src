@@ -1,5 +1,3 @@
-/*	$NetBSD: fmtcheck.c,v 1.2 2000/11/01 01:17:20 briggs Exp $	*/
-
 /*-
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -35,11 +33,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*	$NetBSD: fmtcheck.c,v 1.2 2000/11/01 01:17:20 briggs Exp $	*/
 #include <sys/cdefs.h>
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 
