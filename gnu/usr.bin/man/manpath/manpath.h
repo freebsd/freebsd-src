@@ -18,8 +18,14 @@ typedef struct
 {
   char mandir[MAXPATHLEN];
   char bin[MAXPATHLEN];
-  int mandatory;
+  int type;
 } DIRLIST;
+
+/* manpath types */
+#define MANPATH_NONE		0
+#define MANPATH_MANDATORY	1		/* manpath is mandatory */
+#define MANPATH_OPTIONAL	2		/* manpath is optional */
+#define MANPATH_MAP		3		/* maps path to manpath */
 
 DIRLIST list[MAXDIRS];
 
