@@ -82,9 +82,13 @@
 .Nm
 .Fl i Ar iface Fl m Ar mac_address
 .Nm
+.Fl i Ar iface Fl m Ar mac address
+.Nm
 .Fl i Ar iface
 .Op Fl v Cm 1 | 2 | 3
 .Fl n Ar SSID
+.Nm
+.Fl i Ar iface Fl o Ar 0|1
 .Nm
 .Fl i Ar iface Fl o Cm 0 | 1
 .Nm
@@ -259,7 +263,7 @@ option: selection
 sets the receive diversity and
 .Cm 1
 sets the transmit diversity.
-.It Fl i Ar iface Fl e Cm 0 | 1 | 2 | 3
+.It Fl i Ar iface Fl e Cm 0 | 1 | 2 | 3 | 4
 Set the transmit WEP key to use.
 Note that until this command is issued, the device will use the
 last key programmed.
@@ -267,8 +271,9 @@ The transmit key is stored in NVRAM.
 Currently
 set transmit key can be checked via
 .Fl C
-option.
-.It Fl i Ar iface Oo Fl v Cm 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 Oc Fl k Ar key
+option.  The 4th key sets the card in "Home Network Mode" and uses the
+home key.
+.It Fl i Ar iface Oo Fl v Cm 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 Oc Fl k Ar key
 Set a WEP key.
 For 40 bit prefix 10 hex character with 0x.
 For 128 bit prefix 26 hex character with 0x.
@@ -289,7 +294,8 @@ Note that the device will use the most recently-programmed key by default.
 Currently set keys can be checked via
 .Fl C
 option, only the sizes of the
-keys are returned.
+keys are returned.  The 8th key is for the home key.  Note that
+the value for the home key can be read back from firmware.
 .It Fl i Ar iface Fl K Cm 0 | 1 | 2
 Set authorization type.
 Use
@@ -310,6 +316,9 @@ for no WEP,
 to enable full WEP,
 .Cm 2
 for mixed cell.
+.It Fl i Ar iface Fl L Ar user_name
+Enable LEAP and query for password.  It will check to see if it 
+has authenticated for up to 60s.  To disable LEAP set WEP mode.
 .It Fl i Ar iface Fl j Ar netjoin_timeout
 Set the ad-hoc network join timeout.
 When a station is first activated
@@ -423,6 +432,22 @@ need to be retransmitted instead of the whole packet.
 The fragmentation
 threshold can be anything from 64 to 2312 bytes.
 The default is 2312.
+.It Fl i Ar iface Fl M Ar 0-15
+Set monitor mode via bit mask, meaning:
+.Bl -tag -offset indent -compact -width 0x000000
+.Em "Bit Mask	Meaning"
+.It 0 
+to not dump 802.11 packet. 
+.It 1 
+to enable 802.11 monitor.  
+.It 2 
+to monitor any SSID.  
+.It 4 
+to not skip beacons, monitor beacons produces a high system load.  
+.It 8 
+to enable full Aironet header returned via BPF.  
+Note it appears that a SSID must be set.
+.El
 .It Fl i Ar iface Fl r Ar RTS_threshold
 Set the RTS/CTS threshold for a given interface.
 This controls the
