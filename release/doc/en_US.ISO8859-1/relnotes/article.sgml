@@ -374,7 +374,7 @@
     <para>The &man.libgeom.3; library has been added to allow some
       userland access to the &man.geom.4; subsystem.</para>
 
-    <para>&man.mount.nfs.8; now supports a <option>-c</option> to
+    <para>&man.mount.nfs.8; now supports a <option>-c</option> flag to
       avoid doing a &man.connect.2; for UDP mount points.  This option
       must be used if the server does not reply to requests from the
       standard NFS port number 2049 or if it replies to requests using
@@ -493,8 +493,8 @@
 
       <para>&man.tcpdump.1; now supports a <option>-L</option> flag to
 	list the data link types available on an interface and a
-	<option>-y</option> to specify the data link type to use while
-	capturing packages.</para>
+	<option>-y</option> option to specify the data link type to use while
+	capturing packets.</para>
 
     </sect3>
 
