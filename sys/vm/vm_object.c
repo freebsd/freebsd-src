@@ -1093,8 +1093,6 @@ vm_object_shadow(
 	vm_object_t source;
 	vm_object_t result;
 
-	GIANT_REQUIRED;
-
 	source = *object;
 
 	/*
