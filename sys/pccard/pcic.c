@@ -292,6 +292,7 @@ pcic_attach(device_t dev)
 		sc->slotmask |= (1 << i);
 		slt->cdata = sp;
 		sp->slt = slt;
+		sp->sc = sc;
 	}
 
 	if (sc->flags & PCIC_IO_MAPPED) {
@@ -365,7 +366,7 @@ pcic_attach(device_t dev)
 		do_mgt_irq(sp, irq);
 
 		/* Check for changes */
-		pcic_setb(sp, PCIC_POWER, PCIC_PCPWRE| PCIC_DISRST);
+		pcic_setb(sp, PCIC_POWER, PCIC_PCPWRE | PCIC_DISRST);
 		stat = sp->getb(sp, PCIC_STATUS);
 		if (bootverbose)
 			printf("stat is %x\n", stat);
@@ -415,85 +416,97 @@ static int
 pcic_power(struct slot *slt)
 {
 	unsigned char c;
-	unsigned char reg = PCIC_DISRST|PCIC_PCPWRE;
+	unsigned char reg = PCIC_DISRST | PCIC_PCPWRE;
 	struct pcic_slot *sp = slt->cdata;
+	struct pcic_softc *sc = sp->sc;
 
-	switch(sp->controller) {
-	case PCIC_I82365SL_DF:
+	if (sc->flags & (PCIC_DF_POWER | PCIC_AB_POWER)) {
 		/* 
 		 * Look at the VS[12]# bits on the card.  If VS1 is clear
-		 * then we should apply 3.3 volts.  Maybe we should do this
-		 * with other cards too. Cirrus logic cards (PD67[12]*) do
-		 * things like this in a different way.
+		 * then we should apply 3.3 volts.
 		 */
 		c = sp->getb(sp, PCIC_CDGC);
 		if ((c & PCIC_VS1STAT) == 0)
 			slt->pwr.vcc = 33;
-		/* FALL THROUGH */
-	case PCIC_I82365:
-	case PCIC_PD672X:
-	case PCIC_PD6710:
-	case PCIC_VG365:
-	case PCIC_VG465:
-	case PCIC_VG468:
-	case PCIC_VG469:
-	case PCIC_RF5C396:
-	case PCIC_IBM_KING:
-		switch(slt->pwr.vpp) {
-		default:
-			return (EINVAL);
-		case 0:
-			break;
-		case 50:
-		case 33:
-			reg |= PCIC_VPP_5V;
-			break;
-		case 120:
-			reg |= PCIC_VPP_12V;
+	}
+
+	/*
+	 * XXX Note: The Vpp controls varies quit a bit between bridge chips
+	 * and the following might not be right in all cases.  The Linux
+	 * code and wildboar code bases are more complex.  However, most
+	 * applications want vpp == vcc and the following code does appear
+	 * to do that for all bridge sets.
+	 */
+	switch(slt->pwr.vpp) {
+	default:
+		return (EINVAL);
+	case 0:
+		break;
+	case 50:
+	case 33:
+		reg |= PCIC_VPP_5V;
+		break;
+	case 120:
+		reg |= PCIC_VPP_12V;
+		break;
+	}
+
+	switch(slt->pwr.vcc) {
+	default:
+		return (EINVAL);
+	case 0:
+		break;
+	case 33:
+		reg |= PCIC_VCC_ON;
+		/*
+		 * The wildboar code has comments that state that
+		 * the IBM KING controller doesn't support 3.3V
+		 * on the "IBM Smart PC card drive".  The code
+		 * intemates that's the only place they have seen
+		 * it used and that there's a boatload of issues
+		 * with it.  I'm not even sure this is right because
+		 * the only docs I've been able to find say this is for
+		 * 5V power.  Of course, this "doc" is just code comments
+		 * so who knows for sure.
+		 */
+		if (sc->flags & PCIC_KING_POWER) {
+			reg |= PCIC_VCC_5V_KING;
 			break;
 		}
-		switch(slt->pwr.vcc) {
-		default:
-			return (EINVAL);
-		case 0:
+		if (sc->flags & PCIC_VG_POWER) {
+			pcic_setb(sp, PCIC_CVSR, PCIC_CVSR_VS);
 			break;
-		case 33:
-			/*
-			 * The wildboar code has comments that state that
-			 * the IBM KING controller doesn't support 3.3V
-			 * on the "IBM Smart PC card drive".  The code
-			 * intemates that's the only place they have seen
-			 * it used and that there's a boatload of issues
-			 * with it.
-			 */
-			if (sp->controller == PCIC_IBM_KING) {
-				reg |= PCIC_VCC_5V_KING;
-				break;
-			}
+		}
+		if (sc->flags & PCIC_PD_POWER) {
+			pcic_setb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
+			break;
+		}
+		/*
+		 * Technically, The A, B, C stepping didn't support the 3.3V
+		 * cards.  However, many cardbus bridges are identified
+		 * as AB cards by our probe routine, so we do both.  It
+		 * won't hurt the A, B, C bridges that don't support this
+		 * bit since it is one of the reserved bits.
+		 */
+		if (sc->flags & (PCIC_AB_POWER | PCIC_DF_POWER))
 			reg |= PCIC_VCC_3V;
-			if ((sp->controller == PCIC_VG468) ||
-				(sp->controller == PCIC_VG469) ||
-				(sp->controller == PCIC_VG465) ||
-				(sp->controller == PCIC_VG365))
-				pcic_setb(sp, PCIC_CVSR, PCIC_CVSR_VS);
-			else
-				pcic_setb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
-			break;
-		case 50:
-                        if (sp->controller == PCIC_IBM_KING) {
-                                reg |= PCIC_VCC_5V_KING;
-                                break;
-                        }
-			reg |= PCIC_VCC_5V;
-			if ((sp->controller == PCIC_VG468) ||
-				(sp->controller == PCIC_VG469) ||
-				(sp->controller == PCIC_VG465) ||
-				(sp->controller == PCIC_VG365))
-				pcic_clrb(sp, PCIC_CVSR, PCIC_CVSR_VS);
-			else
-				pcic_clrb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
-			break;
-		}
+		break;
+	case 50:
+		if (sc->flags & PCIC_KING_POWER)
+			reg |= PCIC_VCC_5V_KING;
+		/*
+		 * For either of the two variant power schemes for 3.3V
+		 * go ahead and turn off the 3.3V magic.  Then set the
+		 * 5V bits in all cases.  This works because bit 4 is
+		 * set in PCIC_VCC_5V and in the altenrate PCIC_VCC_ON
+		 * is what non-82365 datasheets would lead one to believe
+		 * the bits are for.
+		 */
+		if (sc->flags & PCIC_VG_POWER)
+			pcic_clrb(sp, PCIC_CVSR, PCIC_CVSR_VS);
+		else if (sc->flags & PCIC_PD_POWER)
+			pcic_clrb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
+		reg |= PCIC_VCC_5V;
 		break;
 	}
 	sp->putb(sp, PCIC_POWER, reg);
@@ -503,6 +516,7 @@ pcic_power(struct slot *slt)
 		sp->putb(sp, PCIC_POWER, reg);
 		DELAY(100*1000);
 	}
+
 	/*
 	 * Some chips are smarter than us it seems, so if we weren't
 	 * allowed to use 5V, try 3.3 instead
