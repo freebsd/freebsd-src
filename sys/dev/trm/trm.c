@@ -64,9 +64,6 @@ __FBSDID("$FreeBSD$");
  * <doginou@ci0.org>, 2002-03-04
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 
 #include <sys/systm.h>
@@ -3722,3 +3719,4 @@ static driver_t trm_driver = {
 
 static devclass_t trm_devclass;
 DRIVER_MODULE(trm, pci, trm_driver, trm_devclass, 0, 0);
+MODULE_DEPEND(trm, cam, 1, 1, 1);
