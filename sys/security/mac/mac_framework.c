@@ -783,13 +783,12 @@ int
 mac_init_mbuf_tag(struct m_tag *tag, int flag)
 {
 	struct label *label;
-	int error, trflag;
+	int error;
 
 	label = (struct label *) (tag + 1);
 	mac_init_label(label);
 
-	trflag = (flag == M_DONTWAIT ? M_NOWAIT : M_WAITOK);
-	MAC_CHECK(init_mbuf_label, label, trflag);
+	MAC_CHECK(init_mbuf_label, label, flag);
 	if (error) {
 		MAC_PERFORM(destroy_mbuf_label, label);
 		mac_destroy_label(label);
