@@ -32,13 +32,15 @@
  * SUCH DAMAGE.
  *
  * $Id: lomac.c,v 1.5 2001/11/26 19:25:52 bfeldman Exp $
- * $FreeBSD$
  */
 
 /*
  * This file encapsulates ls's use of LOMAC's ioctl interface.  ls uses
  * this interface to determine the LOMAC attributes of files.
  */
+
+#include <sys/cdefs.h>
+ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/lomacio.h>
