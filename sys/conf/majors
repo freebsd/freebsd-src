@@ -35,7 +35,7 @@ blkdev	name		comments
 19	wcdb		ATAPI CDROM client of "wd"
 20	??		ATA disks
 21	ccd		concatenated disk
-22	was:gd		Geometry disk.
+22	md		Memory Disk
 24	was:wstb	ATAPI tape client of "wd"
 25	vinum		Volume manager
 26	sw		VM internal swap device
@@ -145,7 +145,7 @@ chrdev	name		comments
 92      bktr            Bt848 video capture driver (hasty@star-gate.com)
 93	coda		CODA filesystem.
 94	loran		Loran-C Receiver
-95	was:gd		Geometry disk
+95	md		Memory Disk
 96	altq		alternate queueing (including cbq, red, wfq)
 97	myx		Mylex RAID controller (ulf@alameda.net)
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
