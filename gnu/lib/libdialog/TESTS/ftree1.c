@@ -7,9 +7,10 @@
  *
  * file ./ftree1.test with xterm widget tree from 
  * direct editres(1) dump needed !!!
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>

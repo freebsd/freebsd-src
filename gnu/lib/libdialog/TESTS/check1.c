@@ -12,9 +12,10 @@
  * responsible for the proper functioning of the software nor does
  * the author assume any responsibility for damages incurred with
  * its use.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
