@@ -136,7 +136,7 @@ distribution:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/cron
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
-	    ${DESTDIR}/var/log/ftp.log
+	    ${DESTDIR}/var/log/xferlog
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/lpd-errs
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
