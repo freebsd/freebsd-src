@@ -27,7 +27,7 @@ main()
      * Set up the screen...                                         *
      ****************************************************************/
     initscr();
-    traceon();
+    /* traceon(); */
     noecho();
     nonl();
     cbreak();

@@ -311,7 +311,7 @@ WINDOW *win;
     char Buffer [80];
     chtype ch;
 
-    traceon();
+    /* traceon(); */
     nl ();
     wclear (win);
     mvwaddstr(win, 1, 1, "You should now have a screen in the upper left corner, and this text should have wrapped");
@@ -374,7 +374,7 @@ WINDOW *win;
     wmove(win, 8, 1);
     wdeleteln(win);
     Continue(win);
-    traceoff();
+    /* traceoff(); */
 
     wmove (win, 5, 9);
     ch = winch (win);
