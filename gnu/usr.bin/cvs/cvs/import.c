@@ -252,6 +252,7 @@ import_descend (message, vtag, targc, targv)
     struct direct *dp;
     int err = 0;
     int has_dirs = 0;
+    FILE *links = (FILE *)0;
 
     /* first, load up any per-directory ignore lists */
     ign_add_file (CVSDOTIGNORE, 1);
@@ -279,8 +280,38 @@ import_descend (message, vtag, targc, targv)
 	    {
 		if (islink (dp->d_name))
 		{
+#ifdef DO_LINKS
+		    char lnbuf[PATH_MAX];
+		    int lln;
+
+		    add_log ('L', dp->d_name);
+		    if ((lln = readlink(dp->d_name, lnbuf, PATH_MAX)) == -1) {
+			error(0, errno, "Can't read contents of symlink %s",
+			      dp->d_name);
+			return (1);
+		    }
+		    else {
+			if (!links) {
+			    char lnrep[PATH_MAX];
+
+			    sprintf(lnrep, "%s/SymLinks", repository);
+			    links = fopen(lnrep, "a+");
+			    if (!links) {
+				error (0, errno,
+				       "Can't open SymLinks file %s", lnrep);
+				return (1);
+			    }
+			}
+			lnbuf[lln] = '\0';
+			fputs(dp->d_name, links);
+			fputc('\n', links);
+			fputs(lnbuf, links);
+			fputc('\n', links);
+		    }
+#else
 		    add_log ('L', dp->d_name);
 		    err++;
+#endif
 		}
 		else
 		{
@@ -307,6 +338,8 @@ import_descend (message, vtag, targc, targv)
 	    (void) closedir (dirp);
 	}
     }
+    if (links)
+	fclose(links);
     return (err);
 }
 
