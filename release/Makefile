@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.29 1997/03/11 13:53:11 joerg Exp $
+#	$Id: Makefile,v 1.246.2.30 1997/03/11 20:04:43 joerg Exp $
 #
 # How to roll a release:
 #
@@ -485,6 +485,7 @@ cdrom.1:
 	cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
+	cp ${.CURDIR}/ABOUT.TXT ${CD_DISC1}/ABOUT.TXT
 	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD_DISC1}/README.TXT
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD_DISC1}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
