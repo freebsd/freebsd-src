@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_rman.c,v 1.3 1998/12/07 21:58:29 archie Exp $
+ *	$Id: subr_rman.c,v 1.4 1999/01/02 11:34:55 bde Exp $
  */
 
 /*
@@ -359,7 +359,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 				LIST_INIT(s->r_sharehead);
 				LIST_INSERT_HEAD(s->r_sharehead, s, 
 						 r_sharelink);
-				s->r_flags = RF_FIRSTSHARE;
+				s->r_flags |= RF_FIRSTSHARE;
 			}
 			rv->r_sharehead = s->r_sharehead;
 			LIST_INSERT_HEAD(s->r_sharehead, rv, r_sharelink);
