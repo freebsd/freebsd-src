@@ -126,6 +126,7 @@ static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 static void	ioapic_suspend(struct intsrc *isrc);
 static void	ioapic_resume(struct intsrc *isrc);
 static void	ioapic_program_destination(struct ioapic_intsrc *intpin);
+static void	ioapic_program_intpin(struct ioapic_intsrc *intpin);
 static void	ioapic_setup_mixed_mode(struct ioapic_intsrc *intpin);
 
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
@@ -135,7 +136,7 @@ struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
 			       ioapic_suspend, ioapic_resume,
 			       ioapic_config_intr };
 	
-static int current_cluster, logical_clusters, next_ioapic_base;
+static int bsp_id, current_cluster, logical_clusters, next_ioapic_base;
 static u_int mixed_mode_enabled, next_id, program_logical_dest;
 #if defined(NO_MIXED_MODE) || !defined(DEV_ATPIC)
 static int mixed_mode_active = 0;
@@ -208,13 +209,88 @@ ioapic_eoi_source(struct intsrc *isrc)
 }
 
 /*
+ * Completely program an intpin based on the data in its interrupt source
+ * structure.
+ */
+static void
+ioapic_program_intpin(struct ioapic_intsrc *intpin)
+{
+	struct ioapic *io = (struct ioapic *)intpin->io_intsrc.is_pic;
+	uint32_t low, high, value;
+
+	/*
+	 * For pins routed via mixed mode or disabled, just ensure that
+	 * they are masked.
+	 */
+	if (intpin->io_dest == DEST_EXTINT ||
+	    intpin->io_vector == VECTOR_DISABLED) {
+		low = ioapic_read(io->io_addr,
+		    IOAPIC_REDTBL_LO(intpin->io_intpin));
+		if ((low & IOART_INTMASK) == IOART_INTMCLR)
+			ioapic_write(io->io_addr,
+			    IOAPIC_REDTBL_LO(intpin->io_intpin),
+			    low | IOART_INTMSET);
+		return;
+	}
+
+	/* Set the destination. */
+	if (intpin->io_dest == DEST_NONE) {
+		low = IOART_DESTPHY;
+		high = bsp_id << APIC_ID_SHIFT;
+	} else {
+		low = IOART_DESTLOG;
+		high = (intpin->io_dest << APIC_ID_CLUSTER_SHIFT |
+		    APIC_ID_CLUSTER_ID) << APIC_ID_SHIFT;
+	}
+
+	/* Program the rest of the low word. */
+	if (intpin->io_edgetrigger)
+		low |= IOART_TRGREDG;
+	else
+		low |= IOART_TRGRLVL;
+	if (intpin->io_activehi)
+		low |= IOART_INTAHI;
+	else
+		low |= IOART_INTALO;
+	if (intpin->io_masked)
+		low |= IOART_INTMSET;
+	switch (intpin->io_vector) {
+	case VECTOR_EXTINT:
+		KASSERT(intpin->io_edgetrigger,
+		    ("EXTINT not edge triggered"));
+		low |= IOART_DELEXINT;
+		break;
+	case VECTOR_NMI:
+		KASSERT(intpin->io_edgetrigger,
+		    ("NMI not edge triggered"));
+		low |= IOART_DELNMI;
+		break;
+	case VECTOR_SMI:
+		KASSERT(intpin->io_edgetrigger,
+		    ("SMI not edge triggered"));
+		low |= IOART_DELSMI;
+		break;
+	default:
+		low |= IOART_DELLOPRI | apic_irq_to_idt(intpin->io_vector);
+	}
+
+	/* Write the values to the APIC. */
+	mtx_lock_spin(&icu_lock);
+	ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin), low);
+	value = ioapic_read(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin));
+	value &= ~IOART_DEST;
+	value |= high;
+	ioapic_write(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin), value);
+	mtx_unlock_spin(&icu_lock);
+}
+
+/*
  * Program an individual intpin's logical destination.
  */
 static void
 ioapic_program_destination(struct ioapic_intsrc *intpin)
 {
 	struct ioapic *io = (struct ioapic *)intpin->io_intsrc.is_pic;
-	uint32_t value;
 
 	KASSERT(intpin->io_dest != DEST_NONE,
 	    ("intpin not assigned to a cluster"));
@@ -229,17 +305,7 @@ ioapic_program_destination(struct ioapic_intsrc *intpin)
 			printf("IRQ %u", intpin->io_vector);
 		printf(") to cluster %u\n", intpin->io_dest);
 	}
-	mtx_lock_spin(&icu_lock);
-	value = ioapic_read(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin));
-	value &= ~IOART_DESTMOD;
-	value |= IOART_DESTLOG;
-	ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin), value);
-	value = ioapic_read(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin));
-	value &= ~IOART_DEST;
-	value |= (intpin->io_dest << APIC_ID_CLUSTER_SHIFT |
-	    APIC_ID_CLUSTER_ID) << APIC_ID_SHIFT;
-	ioapic_write(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin), value);
-	mtx_unlock_spin(&icu_lock);
+	ioapic_program_intpin(intpin);
 }
 
 static void
@@ -339,7 +405,7 @@ static void
 ioapic_resume(struct intsrc *isrc)
 {
 
-	TODO;
+	ioapic_program_intpin((struct ioapic_intsrc *)isrc);
 }
 
 /*
@@ -631,6 +697,7 @@ ioapic_register(void *cookie)
 	printf("ioapic%u <Version %u.%u> irqs %u-%u on motherboard\n",
 	    io->io_id, flags >> 4, flags & 0xf, io->io_intbase,
 	    io->io_intbase + io->io_numintr - 1);
+	bsp_id = PCPU_GET(apic_id);
 	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++) {
 		/*
 		 * Finish initializing the pins by programming the vectors
@@ -638,63 +705,18 @@ ioapic_register(void *cookie)
 		 */
 		if (pin->io_vector == VECTOR_DISABLED)
 			continue;
-		flags = IOART_DESTPHY;
-		if (pin->io_edgetrigger)
-			flags |= IOART_TRGREDG;
-		else
-			flags |= IOART_TRGRLVL;
-		if (pin->io_activehi)
-			flags |= IOART_INTAHI;
-		else
-			flags |= IOART_INTALO;
-		if (pin->io_masked)
-			flags |= IOART_INTMSET;
-		switch (pin->io_vector) {
-		case VECTOR_EXTINT:
-			KASSERT(pin->io_edgetrigger,
-			    ("EXTINT not edge triggered"));
-			flags |= IOART_DELEXINT;
-			break;
-		case VECTOR_NMI:
-			KASSERT(pin->io_edgetrigger,
-			    ("NMI not edge triggered"));
-			flags |= IOART_DELNMI;
-			break;
-		case VECTOR_SMI:
-			KASSERT(pin->io_edgetrigger,
-			    ("SMI not edge triggered"));
-			flags |= IOART_DELSMI;
-			break;
-		default:
-			flags |= IOART_DELLOPRI |
-			    apic_irq_to_idt(pin->io_vector);
-		}
-		mtx_lock_spin(&icu_lock);
-		ioapic_write(apic, IOAPIC_REDTBL_LO(i), flags);
-
+		ioapic_program_intpin(pin);
+		if (pin->io_vector >= NUM_IO_INTS)
+			continue;
 		/*
-		 * Route interrupts to the BSP by default using physical
-		 * addressing.  Vectored interrupts get readdressed using
-		 * logical IDs to CPU clusters when they are enabled.
+		 * Route IRQ0 via the 8259A using mixed mode if mixed mode
+		 * is available and turned on.
 		 */
-		flags = ioapic_read(apic, IOAPIC_REDTBL_HI(i));
-		flags &= ~IOART_DEST;
-		flags |= PCPU_GET(apic_id) << APIC_ID_SHIFT;
-		ioapic_write(apic, IOAPIC_REDTBL_HI(i), flags);
-		mtx_unlock_spin(&icu_lock);
-		if (pin->io_vector < NUM_IO_INTS) {
-
-			/*
-			 * Route IRQ0 via the 8259A using mixed mode if
-			 * mixed mode is available and turned on.
-			 */
-			if (pin->io_vector == 0 && mixed_mode_active &&
-			    mixed_mode_enabled)
-				ioapic_setup_mixed_mode(pin);
-			else
-				intr_register_source(&pin->io_intsrc);
-		}
-			
+		if (pin->io_vector == 0 && mixed_mode_active &&
+		    mixed_mode_enabled)
+			ioapic_setup_mixed_mode(pin);
+		else
+			intr_register_source(&pin->io_intsrc);
 	}
 }
 
