@@ -998,6 +998,12 @@ do_setopt_accept_filter(so, sopt)
 	struct so_accf	*af = so->so_accf;
 	int	error = 0;
 
+	/* do not set/remove accept filters on non listen sockets */
+	if ((so->so_options & SO_ACCEPTCONN) == 0) {
+		error = EINVAL;
+		goto out;
+	}
+
 	/* removing the filter */
 	if (sopt == NULL) {
 		if (af != NULL) {
@@ -1289,6 +1295,8 @@ sogetopt(so, sopt)
 	} else {
 		switch (sopt->sopt_name) {
 		case SO_ACCEPTFILTER:
+			if ((so->so_options & SO_ACCEPTCONN) == 0)
+				return (EINVAL);
 			MALLOC(afap, struct accept_filter_arg *, sizeof(*afap),
 				M_TEMP, M_WAITOK);
 			bzero(afap, sizeof(*afap));
