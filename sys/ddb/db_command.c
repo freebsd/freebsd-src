@@ -70,6 +70,7 @@ static db_cmdfcn_t	db_fncall;
 static db_cmdfcn_t	db_gdb;
 static db_cmdfcn_t	db_kill;
 static db_cmdfcn_t	db_reset;
+static db_cmdfcn_t	db_stack_trace;
 static db_cmdfcn_t	db_watchdog;
 
 /* XXX this is actually forward-static. */
@@ -410,8 +411,8 @@ static struct command db_command_table[] = {
 	{ "until",	db_trace_until_call_cmd,0,	0 },
 	{ "next",	db_trace_until_matching_cmd,0,	0 },
 	{ "match",	db_trace_until_matching_cmd,0,	0 },
-	{ "trace",	db_stack_trace_cmd,	0,	0 },
-	{ "where",	db_stack_trace_cmd,	0,	0 },
+	{ "trace",	db_stack_trace,		0,	0 },
+	{ "where",	db_stack_trace,		0,	0 },
 	{ "call",	db_fncall,		CS_OWN,	0 },
 	{ "show",	0,			0,	db_show_cmds },
 	{ "ps",		db_ps,			0,	0 },
@@ -622,4 +623,44 @@ db_gdb(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
 		db_printf("The remote GDB backend could not be selected.\n");
 	else
 		db_printf("Step to enter the remote GDB backend.\n");
+}
+
+static void
+db_stack_trace(db_expr_t tid, boolean_t hastid, db_expr_t count, char *modif)
+{
+	struct thread *td;
+	db_expr_t radix;
+	int t;
+
+	/*
+	 * We parse our own arguments. We don't like the default radix.
+	 */
+	radix = db_radix;
+	db_radix = 10;
+	hastid = db_expression(&tid);
+	t = db_read_token();
+	if (t == tCOMMA) {
+		if (!db_expression(&count)) {
+			db_printf("Count missing\n");
+			db_flush_lex();
+			return;
+		}
+	} else {
+		db_unread_token(t);
+		count = -1;
+	}
+	db_skip_to_eol();
+	db_radix = radix;
+
+	if (hastid) {
+		td = kdb_thr_lookup((lwpid_t)tid);
+		if (td == NULL)
+			td = kdb_thr_from_pid((pid_t)tid);
+		if (td == NULL) {
+			db_printf("Thread %d not found\n", (int)tid);
+			return;
+		}
+	} else
+		td = kdb_thread;
+	db_trace_thread(td, count);
 }
