@@ -29,7 +29,7 @@ struct bootcmds_t {
 	{"diskboot",	exit},
 	{"autoboot",	NULL},
 #ifdef INCLUDE_3COM
-        ("trans",       cmd_aui},
+        {"trans",       cmd_aui},
 #endif
 	{NULL,		NULL}
 };
@@ -221,6 +221,7 @@ cmd_rootopts(p)
 
         if (*p) {
                 nfsdiskless.root_args.flags = NFSMNT_RSIZE | NFSMNT_WSIZE;
+                nfsdiskless.root_args.sotype = SOCK_DGRAM;
                 if ((tmp = (char *)substr(p,"rsize=")))
                         nfsdiskless.root_args.rsize=getdec(&tmp);
                 if ((tmp = (char *)substr(p,"wsize=")))
@@ -234,7 +235,7 @@ cmd_rootopts(p)
                 if ((tmp = (char *)substr(p, "tcp")))
                          nfsdiskless.root_args.sotype = SOCK_STREAM;
         } else {
-                printf("rootfs mount options: rsize=%d,wsize=%d",
+                printf("Rootfs mount options: rsize=%d,wsize=%d",
                 nfsdiskless.root_args.rsize,
                 nfsdiskless.root_args.wsize);
                 if (nfsdiskless.root_args.flags & NFSMNT_RESVPORT)
@@ -261,6 +262,7 @@ cmd_swapopts(p)
 
 	if (*p) {
                 nfsdiskless.swap_args.flags = NFSMNT_RSIZE | NFSMNT_WSIZE;
+                nfsdiskless.swap_args.sotype = SOCK_DGRAM;
 		if ((tmp = (char *)substr(p,"rsize=")))
 			nfsdiskless.swap_args.rsize=getdec(&tmp);
 		if ((tmp = (char *)substr(p,"wsize=")))
@@ -274,11 +276,11 @@ cmd_swapopts(p)
 		if ((tmp = (char *)substr(p, "tcp")))
 			 nfsdiskless.swap_args.sotype = SOCK_STREAM;
         } else {
-		printf("swapfs mount options: rsize=%d,wsize=%d",
+		printf("Swapfs mount options: rsize=%d,wsize=%d",
 		nfsdiskless.swap_args.rsize,
 		nfsdiskless.swap_args.wsize);
 		if (nfsdiskless.swap_args.flags & NFSMNT_RESVPORT)
-			printf (",resrvport");
+			printf (",resvport");
 		if (nfsdiskless.swap_args.flags & NFSMNT_SOFT)
 			printf (",soft");
 		if (nfsdiskless.swap_args.flags & NFSMNT_INT)
