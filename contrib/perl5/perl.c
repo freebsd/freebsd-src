@@ -1,6 +1,6 @@
 /*    perl.c
  *
- *    Copyright (c) 1987-1998 Larry Wall
+ *    Copyright (c) 1987-1999 Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -64,6 +64,9 @@ static void my_exit_jump _((void)) __attribute__((noreturn));
 static void nuke_stacks _((void));
 static void open_script _((char *, bool, SV *, int *fd));
 static void usage _((char *));
+#ifdef IAMSUID
+static int  fd_on_nosuid_fs _((int));
+#endif
 static void validate_suid _((char *, char*, int));
 static I32 read_e_script _((int idx, SV *buf_sv, int maxlen));
 #endif
@@ -126,6 +129,7 @@ perl_construct(register PerlInterpreter *sv_interp)
 	    croak("panic: pthread_key_create");
 #endif
 	MUTEX_INIT(&PL_sv_mutex);
+	MUTEX_INIT(&PL_cred_mutex);
 	/*
 	 * Safe to use basic SV functions from now on (though
 	 * not things like mortals or tainting yet).
@@ -551,9 +555,14 @@ perl_destruct(register PerlInterpreter *sv_interp)
     
     DEBUG_P(debprofdump());
 #ifdef USE_THREADS
+    MUTEX_DESTROY(&PL_strtab_mutex);
     MUTEX_DESTROY(&PL_sv_mutex);
+    MUTEX_DESTROY(&PL_cred_mutex);
     MUTEX_DESTROY(&PL_eval_mutex);
     COND_DESTROY(&PL_eval_cond);
+#ifdef EMULATE_ATOMIC_REFCOUNTS
+    MUTEX_DESTROY(&PL_svref_mutex);
+#endif /* EMULATE_ATOMIC_REFCOUNTS */
 
     /* As the penultimate thing, free the non-arena SV for thrsv */
     Safefree(SvPVX(PL_thrsv));
@@ -719,6 +728,9 @@ setuid perl scripts securely.\n");
 	s = argv[0]+1;
       reswitch:
 	switch (*s) {
+#ifndef PERL_STRICT_CR
+	case '\r':
+#endif
 	case ' ':
 	case '0':
 	case 'F':
@@ -1138,6 +1150,7 @@ CV*
 perl_get_cv(char *name, I32 create)
 {
     GV* gv = gv_fetchpv(name, create, SVt_PVCV);
+    /* XXX unsafe for threads if eval_owner isn't held */
     if (create && !GvCVu(gv))
     	return newSUB(start_subparse(FALSE, 0),
 		      newSVOP(OP_CONST, 0, newSVpv(name,0)),
@@ -1440,8 +1453,10 @@ perl_eval_pv(char *p, I32 croak_on_error)
     sv = POPs;
     PUTBACK;
 
-    if (croak_on_error && SvTRUE(ERRSV))
-	croak(SvPVx(ERRSV, PL_na));
+    if (croak_on_error && SvTRUE(ERRSV)) {
+	STRLEN n_a;
+	croak(SvPVx(ERRSV, n_a));
+    }
 
     return sv;
 }
@@ -1713,7 +1728,7 @@ moreswitches(char *s)
 		LOCAL_PATCH_COUNT, (LOCAL_PATCH_COUNT!=1) ? "es" : "");
 #endif
 
-	printf("\n\nCopyright 1987-1998, Larry Wall\n");
+	printf("\n\nCopyright 1987-1999, Larry Wall\n");
 #ifdef MSDOS
 	printf("\nMS-DOS port Copyright (c) 1989, 1990, Diomidis Spinellis\n");
 #endif
@@ -1737,6 +1752,12 @@ moreswitches(char *s)
 #ifdef OEMVS
 	printf("MVS (OS390) port by Mortice Kern Systems, 1997-1998\n");
 #endif
+#ifdef __VOS__
+	printf("Stratus VOS port by Paul_Green@stratus.com, 1997-1999\n");
+#endif
+#ifdef __MINT__
+	printf("MiNT port by Guido Flohr, 1997\n");
+#endif
 #ifdef BINARY_BUILD_NOTICE
 	BINARY_BUILD_NOTICE;
 #endif
@@ -1758,7 +1779,7 @@ Internet, point your browser at http://www.perl.com/, the Perl Home Page.\n\n");
 	break;
     case '-':
     case 0:
-#ifdef WIN32
+#if defined(WIN32) || !defined(PERL_STRICT_CR)
     case '\r':
 #endif
     case '\n':
@@ -1886,6 +1907,9 @@ init_main_stash(void)
        about not iterating on it, and not adding tie magic to it.
        It is properly deallocated in perl_destruct() */
     PL_strtab = newHV();
+#ifdef USE_THREADS
+    MUTEX_INIT(&PL_strtab_mutex);
+#endif
     HvSHAREKEYS_off(PL_strtab);			/* mandatory */
     hv_ksplit(PL_strtab, 512);
     
@@ -1913,7 +1937,7 @@ init_main_stash(void)
     PL_debstash = GvHV(gv_fetchpv("DB::", GV_ADDMULTI, SVt_PVHV));
     PL_globalstash = GvHV(gv_fetchpv("CORE::GLOBAL::", GV_ADDMULTI, SVt_PVHV));
     /* We must init $/ before switches are processed. */
-    sv_setpvn(GvSV(gv_fetchpv("/", TRUE, SVt_PV)), "\n", 1);
+    sv_setpvn(perl_get_sv("/", TRUE), "\n", 1);
 }
 
 STATIC void
@@ -2056,6 +2080,71 @@ sed %s -e \"/^[^#]/b\" \
     }
 }
 
+#ifdef IAMSUID
+static int
+fd_on_nosuid_fs(int fd)
+{
+    int on_nosuid  = 0;
+    int check_okay = 0;
+/*
+ * Preferred order: fstatvfs(), fstatfs(), getmntent().
+ * fstatvfs() is UNIX98.
+ * fstatfs() is BSD.
+ * getmntent() is O(number-of-mounted-filesystems) and can hang.
+ */
+
+#   ifdef HAS_FSTATVFS
+    struct statvfs stfs;
+    check_okay = fstatvfs(fd, &stfs) == 0;
+    on_nosuid  = check_okay && (stfs.f_flag  & ST_NOSUID);
+#   else
+#       if defined(HAS_FSTATFS) && defined(HAS_STRUCT_STATFS_FLAGS)
+    struct statfs  stfs;
+    check_okay = fstatfs(fd, &stfs)  == 0;
+#           undef PERL_MOUNT_NOSUID
+#           if !defined(PERL_MOUNT_NOSUID) && defined(MNT_NOSUID)
+#              define PERL_MOUNT_NOSUID MNT_NOSUID
+#           endif
+#           if !defined(PERL_MOUNT_NOSUID) && defined(MS_NOSUID)
+#              define PERL_MOUNT_NOSUID MS_NOSUID
+#           endif
+#           if !defined(PERL_MOUNT_NOSUID) && defined(M_NOSUID)
+#              define PERL_MOUNT_NOSUID M_NOSUID
+#           endif
+#           ifdef PERL_MOUNT_NOSUID
+    on_nosuid  = check_okay && (stfs.f_flags & PERL_MOUNT_NOSUID);
+#           endif
+#       else
+#           if defined(HAS_GETMNTENT) && defined(HAS_HASMNTOPT) && defined(MNTOPT_NOSUID)
+    FILE		*mtab = fopen("/etc/mtab", "r");
+    struct mntent	*entry;
+    struct stat		stb, fsb;
+
+    if (mtab && (fstat(fd, &stb) == 0)) {
+	while (entry = getmntent(mtab)) {
+	    if (stat(entry->mnt_dir, &fsb) == 0
+		&& fsb.st_dev == stb.st_dev)
+	    {
+		/* found the filesystem */
+		check_okay = 1;
+		if (hasmntopt(entry, MNTOPT_NOSUID))
+		    on_nosuid = 1;
+		break;
+	    } /* A single fs may well fail its stat(). */
+	}
+    }
+    if (mtab)
+	fclose(mtab);
+#           endif /* mntent */
+#       endif /* statfs */
+#   endif /* statvfs */
+    if (!check_okay) 
+	croak("Can't check filesystem of script \"%s\" for nosuid",
+	      PL_origfilename);
+    return on_nosuid;
+}
+#endif /* IAMSUID */
+
 STATIC void
 validate_suid(char *validarg, char *scriptname, int fdscript)
 {
@@ -2089,6 +2178,7 @@ validate_suid(char *validarg, char *scriptname, int fdscript)
 	croak("Can't stat script \"%s\"",PL_origfilename);
     if (fdscript < 0 && PL_statbuf.st_mode & (S_ISUID|S_ISGID)) {
 	I32 len;
+	STRLEN n_a;
 
 #ifdef IAMSUID
 #ifndef HAS_SETREUID
@@ -2123,20 +2213,10 @@ validate_suid(char *validarg, char *scriptname, int fdscript)
 		croak("Can't swap uid and euid");	/* really paranoid */
 	    if (PerlLIO_stat(SvPVX(GvSV(PL_curcop->cop_filegv)),&tmpstatbuf) < 0)
 		croak("Permission denied");	/* testing full pathname here */
-#if (defined(BSD) && (BSD >= 199306))
-#ifdef IAMSUID
-	{
-	    struct statfs stfs;
-
-	    if (fstatfs(fileno(PL_rsfp),&stfs) < 0)
-		croak("Can't statfs filesystem of script \"%s\"",PL_origfilename);
-
-	    if (stfs.f_flags & MNT_NOSUID)
+#if defined(IAMSUID) && !defined(NO_NOSUID_CHECK)
+	    if (fd_on_nosuid_fs(PerlIO_fileno(PL_rsfp)))
 		croak("Permission denied");
-	}
-#endif /* IAMSUID */
-#endif /* BSD */
-
+#endif
 	    if (tmpstatbuf.st_dev != PL_statbuf.st_dev ||
 		tmpstatbuf.st_ino != PL_statbuf.st_ino) {
 		(void)PerlIO_close(PL_rsfp);
@@ -2175,12 +2255,12 @@ validate_suid(char *validarg, char *scriptname, int fdscript)
 	PL_doswitches = FALSE;		/* -s is insecure in suid */
 	PL_curcop->cop_line++;
 	if (sv_gets(PL_linestr, PL_rsfp, 0) == Nullch ||
-	  strnNE(SvPV(PL_linestr,PL_na),"#!",2) )	/* required even on Sys V */
+	  strnNE(SvPV(PL_linestr,n_a),"#!",2) )	/* required even on Sys V */
 	    croak("No #! line");
-	s = SvPV(PL_linestr,PL_na)+2;
+	s = SvPV(PL_linestr,n_a)+2;
 	if (*s == ' ') s++;
 	while (!isSPACE(*s)) s++;
-	for (s2 = s;  (s2 > SvPV(PL_linestr,PL_na)+2 &&
+	for (s2 = s;  (s2 > SvPV(PL_linestr,n_a)+2 &&
 		       (isDIGIT(s2[-1]) || strchr("._-", s2[-1])));  s2--) ;
 	if (strnNE(s2-4,"perl",4) && strnNE(s-9,"perl",4))  /* sanity check */
 	    croak("Not a perl script");
@@ -2719,7 +2799,7 @@ incpush(char *p, int addsubdirs)
 	    char *unix;
 	    STRLEN len;
 
-	    if ((unix = tounixspec_ts(SvPV(libdir,PL_na),Nullch)) != Nullch) {
+	    if ((unix = tounixspec_ts(SvPV(libdir,len),Nullch)) != Nullch) {
 		len = strlen(unix);
 		while (unix[len-1] == '/') len--;  /* Cosmetic */
 		sv_usepvn(libdir,unix,len);
@@ -2727,7 +2807,7 @@ incpush(char *p, int addsubdirs)
 	    else
 		PerlIO_printf(PerlIO_stderr(),
 		              "Failed to unixify @INC element \"%s\"\n",
-			      SvPV(libdir,PL_na));
+			      SvPV(libdir,len));
 #endif
 	    /* .../archname/version if -d .../archname/version/auto */
 	    sv_setsv(subdir, libdir);
