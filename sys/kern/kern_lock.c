@@ -524,6 +524,15 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	lkp->lk_wmesg = wmesg;
 	lkp->lk_timo = timo;
 	lkp->lk_lockholder = LK_NOPROC;
+#ifdef DEBUG_LOCKS
+	lkp->lk_filename = "none";
+	lkp->lk_lockername = "never exclusive locked";
+	lkp->lk_lineno = 0;
+	lkp->lk_slockholder = LK_NOPROC;
+	lkp->lk_sfilename = "none";
+	lkp->lk_slockername = "never share locked";
+	lkp->lk_slineno = 0;
+#endif
 }
 
 /*
