@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.18 1995/02/02 09:09:05 davidg Exp $
+ *	$Id: vm_page.c,v 1.19 1995/02/20 13:58:14 davidg Exp $
  */
 
 /*
@@ -1002,7 +1002,7 @@ vm_page_activate(m)
 		TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
 		if (m->act_count < 5)
 			m->act_count = 5;
-		else
+		else if( m->act_count < ACT_MAX)
 			m->act_count += 1;
 		cnt.v_active_count++;
 	}
@@ -1055,6 +1055,8 @@ vm_page_bits(int base, int size)
 {
 	u_short chunk;
 
+	if( (base == 0) && (size == PAGE_SIZE))
+		return VM_PAGE_BITS_ALL;
 	size = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 	base = (base % PAGE_SIZE) / DEV_BSIZE;
 	chunk = vm_page_dev_bsize_chunks[size / DEV_BSIZE];
