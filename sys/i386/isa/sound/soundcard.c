@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: soundcard.c,v 1.48 1997/02/22 09:38:16 peter Exp $
  */
 
 #include <i386/isa/sound/sound_config.h>
@@ -300,9 +300,7 @@ sndprobe (struct isa_device *dev)
   hw_config.dma = dev->id_drq;
   hw_config.dma_read = dev->id_flags;	/* misuse the flags field for read dma*/
   
-  if(unit)
-#ifdef PC98
-    if(unit == SNDCARD_PCM86) {
+  if(unit) {
       int result;
 
       result = sndtable_probe (unit, &hw_config);
@@ -311,12 +309,8 @@ sndprobe (struct isa_device *dev)
       dev->id_drq = hw_config.dma;
 
       return result;
-    }
-    else
-#endif
-    return sndtable_probe (unit, &hw_config);
-  else
-    return 0;
+  } else
+      return 0;
 }
 
 static int
