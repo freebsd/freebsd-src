@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.16 1999/08/22 21:44:46 dwhite dead $
+#	$Id: PICOBSD,v 1.1 1999/08/23 10:05:20 luigi Exp $
 #
 
 machine		i386
@@ -16,6 +16,7 @@ options		FFS			#Berkeley Fast Filesystem
 options		FFS_ROOT		#FFS usable as root device [keep this!]
 #options		NFS			#Network Filesystem
 options		MFS			#Memory Filesystem
+options		MFS_ROOT		#MFS as root
 #options		MSDOSFS			#MSDOS Filesystem
 #options		CD9660			#ISO 9660 Filesystem
 #options		PROCFS			#Process filesystem
