@@ -57,9 +57,6 @@ SUBDIR+= lib
 .if exists(${.CURDIR}/bin)
 SUBDIR+= bin
 .endif
-.if exists(${.CURDIR}/etc)
-SUBDIR+= etc
-.endif
 .if exists(${.CURDIR}/games) && !defined(NOGAMES)
 SUBDIR+= games
 .endif
@@ -94,6 +91,11 @@ SUBDIR+= usr.bin
 .endif
 .if exists(${.CURDIR}/usr.sbin)
 SUBDIR+= usr.sbin
+.endif
+
+# etc must be last for "distribute" to work
+.if exists(${.CURDIR}/etc)
+SUBDIR+= etc
 .endif
 
 # These are last, since it is nice to at least get the base system
