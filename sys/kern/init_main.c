@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.95 1998/07/15 05:21:48 bde Exp $
+ * $Id: init_main.c,v 1.96 1998/09/14 19:56:40 sos Exp $
  */
 
 #include "opt_devfs.h"
@@ -600,7 +600,7 @@ start_init(p)
 		/*
 		 * Move out the arg pointers.
 		 */
-		uap = (char **)((intptr_t)ucp & ~(NBPW-1));
+		uap = (char **)((intptr_t)ucp & ~(sizeof(intptr_t)-1));
 		(void)suword((caddr_t)--uap, (long)0);	/* terminator */
 		(void)suword((caddr_t)--uap, (long)(intptr_t)arg1);
 		(void)suword((caddr_t)--uap, (long)(intptr_t)arg0);
