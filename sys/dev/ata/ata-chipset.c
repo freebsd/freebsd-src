@@ -1973,7 +1973,7 @@ ata_serverworks_setmode(struct ata_device *atadev, int mode)
     device_t parent = device_get_parent(atadev->channel->dev);
     struct ata_pci_controller *ctlr = device_get_softc(parent);
     int devno = (atadev->channel->unit << 1) + ATA_DEV(atadev->unit);
-    int offset = devno ^ 0x01;
+    int offset = (devno ^ 0x01) << 3;
     int error;
     u_int8_t piotimings[] = { 0x5d, 0x47, 0x34, 0x22, 0x20, 0x34, 0x22, 0x20,
 			      0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
@@ -1995,30 +1995,32 @@ ata_serverworks_setmode(struct ata_device *atadev, int mode)
 			     (pci_read_config(parent, 0x56, 2) &
 			      ~(0xf << (devno << 2))) |
 			     ((mode & ATA_MODE_MASK) << (devno << 2)), 2);
-
-	    pci_write_config(parent, 0x54, pci_read_config(parent, 0x54, 1) |
-					   (0x01 << devno), 1);
+	    pci_write_config(parent, 0x54,
+			     pci_read_config(parent, 0x54, 1) |
+			     (0x01 << devno), 1);
 	    pci_write_config(parent, 0x44, 
 			     (pci_read_config(parent, 0x44, 4) &
-			      ~(0xff << (offset << 8))) |
-			     (dmatimings[2] << (offset << 8)), 4);
+			      ~(0xff << offset)) |
+			     (dmatimings[2] << offset), 4);
 	}
 	else if (mode >= ATA_WDMA0) {
-	    pci_write_config(parent, 0x54, pci_read_config(parent, 0x54, 1) &
-					   ~(0x01 << devno), 1);
+	    pci_write_config(parent, 0x54,
+			     pci_read_config(parent, 0x54, 1) &
+			      ~(0x01 << devno), 1);
 	    pci_write_config(parent, 0x44, 
 			     (pci_read_config(parent, 0x44, 4) &
-			      ~(0xff << (offset << 8))) |
-			     (dmatimings[mode & ATA_MODE_MASK]<<(offset<<8)),4);
+			      ~(0xff << offset)) |
+			     (dmatimings[mode & ATA_MODE_MASK] << offset),4);
 	}
 	else
-	    pci_write_config(parent, 0x54, pci_read_config(parent, 0x54, 1) &
-					   ~(0x01 << devno), 1);
+	    pci_write_config(parent, 0x54,
+			     pci_read_config(parent, 0x54, 1) &
+			     ~(0x01 << devno), 1);
 
 	pci_write_config(parent, 0x40, 
 			 (pci_read_config(parent, 0x40, 4) &
-			  ~(0xff << (offset << 8))) |
-			 (piotimings[ata_mode2idx(mode)] << (offset << 8)), 4);
+			  ~(0xff << offset)) |
+			 (piotimings[ata_mode2idx(mode)] << offset), 4);
 	atadev->mode = mode;
     }
 }
