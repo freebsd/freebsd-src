@@ -139,7 +139,7 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf *bp, u_char type)
 
   /*
    * Handle compressed packet. 1) Read upto MAX_VJHEADER bytes into work
-   * space. 2) Try to uncompress it. 3) Compute amount of necesary space. 4)
+   * space. 2) Try to uncompress it. 3) Compute amount of necessary space. 4)
    * Copy unread data info there.
    */
   if (len > MAX_VJHEADER)
