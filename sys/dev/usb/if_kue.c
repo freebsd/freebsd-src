@@ -343,21 +343,20 @@ static void kue_setmulti(sc)
 		 * If there are too many addresses for the
 		 * internal filter, switch over to allmulti mode.
 		 */
-		if (i == KUE_MCFILTCNT(sc)) {
-			i = 0;
+		if (i == KUE_MCFILTCNT(sc))
 			break;
-		}
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
 		    KUE_MCFILT(sc, i), ETHER_ADDR_LEN);
 		i++;
 	}
 
-	if (i) {
+	if (i == KUE_MCFILTCNT(sc))
+		sc->kue_rxfilt |= KUE_RXFILT_ALLMULTI;
+	else {
 		sc->kue_rxfilt |= KUE_RXFILT_MULTICAST;
 		kue_ctl(sc, KUE_CTL_WRITE, KUE_CMD_SET_MCAST_FILTERS,
 		    i, sc->kue_mcfilters, i * ETHER_ADDR_LEN);
-	} else
-		sc->kue_rxfilt |= KUE_RXFILT_ALLMULTI;
+	}
 
 	kue_setword(sc, KUE_CMD_SET_PKT_FILTER, sc->kue_rxfilt);
 
