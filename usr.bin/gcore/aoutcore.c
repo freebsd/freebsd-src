@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -62,6 +66,7 @@ static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #include <machine/vmparam.h>
 
 #include <a.out.h>
+#include <err.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
@@ -119,26 +124,26 @@ main(argc, argv)
 
 	kd = kvm_openfiles(0, 0, 0, O_RDONLY, errbuf);
 	if (kd == NULL)
-		err(1, "%s", errbuf);
+		errx(1, "%s", errbuf);
 
 	uid = getuid();
 	pid = atoi(argv[1]);
 
 	ki = kvm_getprocs(kd, KERN_PROC_PID, pid, &cnt);
 	if (ki == NULL || cnt != 1)
-		err(1, "%d: not found", pid);
+		errx(1, "%d: not found", pid);
 
 	p = &ki->kp_proc;
 	if (ki->kp_eproc.e_pcred.p_ruid != uid && uid != 0)
-		err(1, "%d: not owner", pid);
+		errx(1, "%d: not owner", pid);
 
 	if (p->p_stat == SZOMB)
-		err(1, "%d: zombie", pid);
+		errx(1, "%d: zombie", pid);
 
 	if (p->p_flag & P_WEXIT)
-		err(0, "process exiting");
+		errx(1, "process exiting");
 	if (p->p_flag & P_SYSTEM)	/* Swapper or pagedaemon. */
-		err(1, "%d: system process");
+		errx(1, "%d: system process");
 
 	if (corefile == NULL) {
 		(void)snprintf(fname, sizeof(fname), "core.%d", pid);
@@ -146,26 +151,26 @@ main(argc, argv)
 	}
 	fd = open(corefile, O_RDWR|O_CREAT|O_TRUNC, DEFFILEMODE);
 	if (fd < 0)
-		err(1, "%s: %s\n", corefile, strerror(errno));
+		err(1, "%s", corefile);
 
 	efd = open(argv[0], O_RDONLY, 0);
 	if (efd < 0)
-		err(1, "%s: %s\n", argv[0], strerror(errno));
+		err(1, "%s", argv[0]);
 
 	cnt = read(efd, &exec, sizeof(exec));
 	if (cnt != sizeof(exec))
-		err(1, "%s exec header: %s",
+		errx(1, "%s exec header: %s",
 		    argv[0], cnt > 0 ? strerror(EIO) : strerror(errno));
 
 	data_offset = N_DATOFF(exec);
 
 	if (sflag && kill(pid, SIGSTOP) < 0)
-		err(0, "%d: stop signal: %s", pid, strerror(errno));
+		err(1, "%d: stop signal", pid);
 
 	core(efd, fd, ki);
 
 	if (sflag && kill(pid, SIGCONT) < 0)
-		err(0, "%d: continue signal: %s", pid, strerror(errno));
+		err(1, "%d: continue signal", pid);
 	(void)close(fd);
 
 	exit(0);
@@ -194,7 +199,7 @@ core(efd, fd, ki)
 	/* Read in user struct */
 	cnt = kvm_read(kd, (u_long)p->p_addr, &uarea, sizeof(uarea));
 	if (cnt != sizeof(uarea))
-		err(1, "read user structure: %s",
+		errx(1, "read user structure: %s",
 		    cnt > 0 ? strerror(EIO) : strerror(errno));
 
 	/*
@@ -206,7 +211,7 @@ core(efd, fd, ki)
 	/* Dump user area */
 	cnt = write(fd, &uarea, sizeof(uarea));
 	if (cnt != sizeof(uarea))
-		err(1, "write user structure: %s",
+		errx(1, "write user structure: %s",
 		    cnt > 0 ? strerror(EIO) : strerror(errno));
 
 	/* Dump data segment */
@@ -240,14 +245,13 @@ datadump(efd, fd, p, addr, npage)
 			cc = read(efd, buffer, sizeof(buffer));
 			if (cc != sizeof(buffer))
 				if (cc < 0)
-					err(1, "read executable: %s",
-					    strerror(errno));
+					err(1, "read executable");
 				else	/* Assume untouched bss page. */
 					bzero(buffer, sizeof(buffer));
 		}
 		cc = write(fd, buffer, PAGE_SIZE);
 		if (cc != PAGE_SIZE)
-			err(1, "write data segment: %s",
+			errx(1, "write data segment: %s",
 			    cc > 0 ? strerror(EIO) : strerror(errno));
 		addr += PAGE_SIZE;
 	}
@@ -270,7 +274,7 @@ userdump(fd, p, addr, npage)
 			bzero(buffer, PAGE_SIZE);
 		cc = write(fd, buffer, PAGE_SIZE);
 		if (cc != PAGE_SIZE)
-			err(1, "write stack segment: %s",
+			errx(1, "write stack segment: %s",
 			    cc > 0 ? strerror(EIO) : strerror(errno));
 		addr += PAGE_SIZE;
 	}
@@ -281,34 +285,4 @@ usage()
 {
 	(void)fprintf(stderr, "usage: gcore [-s] [-c core] executable pid\n");
 	exit(1);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(int fatal, const char *fmt, ...)
-#else
-err(fatal, fmt, va_alist)
-	int fatal;
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "gcore: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
 }
