@@ -261,7 +261,7 @@ again1:
 			vm_page_insert(m, kernel_object,
 				OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
 			if ((flags & M_ZERO) && !(m->flags & PG_ZERO))
-				bzero((void *)tmp_addr, PAGE_SIZE);
+				pmap_zero_page(m);
 			m->flags = 0;
 			tmp_addr += PAGE_SIZE;
 		}
