@@ -104,15 +104,17 @@ static ng_rcvdata_t	ng_ether_rcvdata;
 static ng_disconnect_t	ng_ether_disconnect;
 static int		ng_ether_mod_event(module_t mod, int event, void *data);
 
-/* Parse type for an Ethernet address. Slightly better than an array of
-   six int8's would be the more common colon-separated hex byte format. */
-static const struct ng_parse_fixedarray_info ng_ether_enaddr_type_info = {
-        &ng_parse_int8_type,
-        ETHER_ADDR_LEN
-};
-static const struct ng_parse_type ng_ether_enaddr_type = {
-        &ng_parse_fixedarray_type,
-        &ng_ether_enaddr_type_info
+/* Parse type for an Ethernet address */
+static ng_parse_t	ng_enaddr_parse;
+static ng_unparse_t	ng_enaddr_unparse;
+const struct ng_parse_type ng_ether_enaddr_type = {
+	NULL,
+	NULL,
+	NULL,
+	ng_enaddr_parse,
+	ng_enaddr_unparse,
+	NULL,			/* no such thing as a "default" EN address */
+	0
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
@@ -140,10 +142,31 @@ static const struct ng_cmdlist ng_ether_cmdlist[] = {
 	},
 	{
 	  NGM_ETHER_COOKIE,
+	  NGM_ETHER_SET_ENADDR,
+	  "setenaddr",
+	  &ng_ether_enaddr_type,
+	  NULL
+	},
+	{
+	  NGM_ETHER_COOKIE,
+	  NGM_ETHER_GET_PROMISC,
+	  "getpromisc",
+	  NULL,
+	  &ng_parse_int32_type
+	},
+	{
+	  NGM_ETHER_COOKIE,
 	  NGM_ETHER_SET_PROMISC,
 	  "setpromisc",
 	  &ng_parse_int32_type,
 	  NULL
+	},
+	{
+	  NGM_ETHER_COOKIE,
+	  NGM_ETHER_GET_AUTOSRC,
+	  "getautosrc",
+	  NULL,
+	  &ng_parse_int32_type
 	},
 	{
 	  NGM_ETHER_COOKIE,
@@ -493,6 +516,24 @@ ng_ether_rcvmsg(node_p node, struct ng_mesg *msg,
 			bcopy((IFP2AC(priv->ifp))->ac_enaddr,
 			    resp->data, ETHER_ADDR_LEN);
 			break;
+		case NGM_ETHER_SET_ENADDR:
+		    {
+			if (msg->header.arglen != ETHER_ADDR_LEN) {
+				error = EINVAL;
+				break;
+			}
+			error = if_setlladdr(priv->ifp,
+			    (u_char *)msg->data, ETHER_ADDR_LEN);
+			break;
+		    }
+		case NGM_ETHER_GET_PROMISC:
+			NG_MKRESPONSE(resp, msg, sizeof(u_int32_t), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			*((u_int32_t *)resp->data) = priv->promisc;
+			break;
 		case NGM_ETHER_SET_PROMISC:
 		    {
 			u_char want;
@@ -509,6 +550,14 @@ ng_ether_rcvmsg(node_p node, struct ng_mesg *msg,
 			}
 			break;
 		    }
+		case NGM_ETHER_GET_AUTOSRC:
+			NG_MKRESPONSE(resp, msg, sizeof(u_int32_t), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			*((u_int32_t *)resp->data) = priv->autoSrcAddr;
+			break;
 		case NGM_ETHER_SET_AUTOSRC:
 			if (msg->header.arglen != sizeof(u_int32_t)) {
 				error = EINVAL;
@@ -642,6 +691,47 @@ ng_ether_disconnect(hook_p hook)
 		priv->lowerOrphan = 0;
 	} else
 		panic("%s: weird hook", __FUNCTION__);
+	return (0);
+}
+
+static int
+ng_enaddr_parse(const struct ng_parse_type *type,
+	const char *s, int *const off, const u_char *const start,
+	u_char *const buf, int *const buflen)
+{
+	char *eptr;
+	u_long val;
+	int i;
+
+	if (*buflen < ETHER_ADDR_LEN)
+		return (ERANGE);
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		val = strtoul(s + *off, &eptr, 16);
+		if (val > 0xff || eptr == s + *off)
+			return (EINVAL);
+		buf[i] = (u_char)val;
+		*off = (eptr - s);
+		if (i < ETHER_ADDR_LEN - 1) {
+			if (*eptr != ':')
+				return (EINVAL);
+			(*off)++;
+		}
+	}
+	*buflen = ETHER_ADDR_LEN;
+	return (0);
+}
+
+static int
+ng_enaddr_unparse(const struct ng_parse_type *type,
+	const u_char *data, int *off, char *cbuf, int cbuflen)
+{
+	int len;
+
+	len = snprintf(cbuf, cbuflen, "%02x:%02x:%02x:%02x:%02x:%02x",
+	    data[0], data[1], data[2], data[3], data[4], data[5]);
+	if (len >= cbuflen)
+		return (ERANGE);
+	*off += ETHER_ADDR_LEN;
 	return (0);
 }
 
