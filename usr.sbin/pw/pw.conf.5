@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: pw.conf.5,v 1.6 1997/02/22 16:12:26 peter Exp $
 .\"
 .Dd December 9, 1996
 .Dt PW.CONF 5
@@ -43,9 +43,9 @@ files, allowing users and groups to be added, deleted and changed.
 This file may be modified via the
 .Xr pw 8
 command using the
-.Ql \&useradd
+.Ar useradd
 command and the
-.Ql \&-D
+.Fl D
 option, or by editing it directly with a text editor.
 .Pp
 Each line in
@@ -61,7 +61,7 @@ Keywords recognised by
 are:
 .Bl -tag -width password_days -offset indent -compact
 .It defaultpasswd
-affects passwords generated for new users
+affect passwords generated for new users
 .It reuseuids
 reuse gaps in uid sequences
 .It reusegids
@@ -102,16 +102,16 @@ days after which password expires
 .Pp
 Valid values for
 .Ar defaultpasswd
-are
+are:
 .Bl -tag -width password_days -offset indent -compact
 .It no
-disables login on newly created accounts
+disable login on newly created accounts
 .It yes
-forces the password to be the account name
+force the password to be the account name
 .It none
-forces a blank password
+force a blank password
 .It random
-Generates a random password
+generate a random password
 .El
 .Pp
 The second and third options are insecure and should be avoided if
@@ -124,7 +124,7 @@ The final option causes
 .Xr pw 8
 to respond by printing a randomly generated password on stdout.
 This is the preferred and most secure option.
-.Xr pw 8
+.Xr Pw 8
 also provides a method of setting a specific password for the new
 user via a filehandle (command lines are not secure).
 .Pp
@@ -148,7 +148,7 @@ previous user or group deletions.
 Note that if the default group is not specified using the
 .Ar defaultgroup
 keyword,
-Xr pw 8
+.Xr pw 8
 will create a new group for the user and attempt to keep the new
 user's uid and gid the same.
 If the new user's uid is currently in use as a group id, then the next
@@ -168,8 +168,8 @@ new home directory is constructed.
 This is
 .Pa /usr/share/skel
 by default.
-.Xr pw 8 's
-.Ql \&-m
+.Xr Pw 8 's
+.Fl m
 option causes the user's home directory to be created and populated
 using the files contained in the
 .Ar skeleton
@@ -240,7 +240,7 @@ file.
 This is useful where all users share some resources, and is preferable
 to placing users into the same primary group.
 The effect of this keyword can be overridden using the
-.Ql \&-G
+.Fl G
 option on the
 .Xr pw 8
 command line.
@@ -264,9 +264,9 @@ minimum and maximum respectively.
 The user and group id's actually used when creating an account with
 .Xr pw 8
 may be overridden using the
-.Ql \&-u
+.Fl u
 and
-.Ql \&-g
+.Fl g
 command line options.
 .Pp
 The
@@ -299,5 +299,3 @@ as comments.
 .Xr login.conf 5 ,
 .Xr passwd 5 ,
 .Xr pw 8
-
-
