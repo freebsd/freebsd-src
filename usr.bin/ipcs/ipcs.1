@@ -38,8 +38,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl abcmopqstMQST
-.Op Fl C Ar system
-.Op Fl N Ar core
+.Op Fl C Ar core
+.Op Fl N Ar system
 .Sh DESCRIPTION
 The
 .Nm
@@ -97,16 +97,16 @@ of the last control operation on an IPC object,
 the last send or receive of a message,
 the last attach or detach of a shared memory segment,
 or the last operation on a semaphore.
-.It Fl C Ar system
-Extract the name list from the specified system instead of the
-default
-.Dq Pa /kernel .
-.It Fl M
-Display system information about shared memory.
-.It Fl N Ar core
+.It Fl C Ar core
 Extract values associated with the name list from the specified
 core instead of the default
 .Dq Pa /dev/kmem .
+.It Fl M
+Display system information about shared memory.
+.It Fl N Ar system
+Extract the name list from the specified system instead of the
+default
+.Dq Pa /kernel .
 .It Fl Q
 Display system information about messages queues.
 .It Fl S
