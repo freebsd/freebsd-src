@@ -26,19 +26,20 @@
  * $FreeBSD$
  */
 
+#include <ctype.h>
 #include <limits.h>
 
 static const char nogrouping[] = { CHAR_MAX, '\0' };
 
 /*
  * "3;3;-1" -> "\003\003\177"
- * NOTE: one digit numbers assumed!
  */
 
 const char *
 __fix_locale_grouping_str(const char *str) {
 
 	char *src, *dst;
+	char n;
 
 	if (str == 0) {
 		return nogrouping;
@@ -56,12 +57,17 @@ __fix_locale_grouping_str(const char *str) {
 			continue;
 		}
 
-		if (!isdigit(*src)) {
+		if (!isdigit((unsigned char)*src)) {
 			/* broken grouping string */
 			return nogrouping;
 		}
 
-		*dst++ = *src - '0';
+		for (n = 0; isdigit((unsigned char)*src); src++) {
+			n *= 10;
+			n += *src - '0';
+		}
+
+		*dst++ = n;
 	}
 	*dst = '\0';
 	return str;
