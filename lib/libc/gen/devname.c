@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)devname.c	8.2 (Berkeley) 4/29/95";
 #include <paths.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 
 static char *
@@ -63,10 +64,8 @@ xdevname(dev, type)
 	DBT data, key;
 
 	if (!db && !failure &&
-	    !(db = dbopen(_PATH_DEVDB, O_RDONLY, 0, DB_HASH, NULL))) {
-		warn("warning: %s", _PATH_DEVDB);
+	    !(db = dbopen(_PATH_DEVDB, O_RDONLY, 0, DB_HASH, NULL))) 
 		failure = 1;
-	}
 	if (failure)
 		return (NULL);
 
@@ -88,7 +87,7 @@ devname(dev, type)
 	dev_t dev;
 	mode_t type;
 {
-	static char buf[30];	 /* XXX: pick up from <sys/conf.h> */
+	static char buf[SPECNAMELEN + 1];
 	int i, j;
 	char *r;
 
@@ -106,15 +105,11 @@ devname(dev, type)
 	}
 
 	/* Finally just format it */
-	r = buf;
-	if (minor(dev) > 255) {
-		sprintf(buf, "#%c%d:0x%x", 
-		    (type & S_IFMT) == S_IFCHR ? 'C' : 'B',
-		    major(dev), minor(dev));
-	} else {
-		sprintf(buf, "#%c%d:%d", 
-		    (type & S_IFMT) == S_IFCHR ? 'C' : 'B',
-		    major(dev), minor(dev));
-	}
-	return (r);
+	if (minor(dev) > 255) 
+		r = "#%c:%d:0x%x";
+	else
+		r = "#%c:%d:0x%d";
+	snprintf(buf, SPECNAMELEN + 1, r,
+	    (type & S_IFMT) == S_IFCHR ? 'C' : 'B', major(dev), minor(dev));
+	return (buf);
 }
