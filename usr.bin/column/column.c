@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)column.c	8.3 (Berkeley) 4/2/94";
+static char sccsid[] = "@(#)column.c	8.4 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)column.c	8.3 (Berkeley) 4/2/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 void  c_columnate __P((void));
 void *emalloc __P((int));
@@ -84,7 +85,7 @@ main(argc, argv)
 		termwidth = win.ws_col;
 
 	tflag = xflag = 0;
-	while ((ch = getopt(argc, argv, "c:s:tx")) !=  -1)
+	while ((ch = getopt(argc, argv, "c:s:tx")) != -1)
 		switch(ch) {
 		case 'c':
 			termwidth = atoi(optarg);
