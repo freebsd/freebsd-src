@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id$
+ * $Id: libutil.h,v 1.1.4.7 1997/10/07 07:34:50 joerg Exp $
  */
 
 #ifndef _LIBUTIL_H_
@@ -44,6 +44,7 @@ int	forkpty __P((int *_amaster, char *_name,
 const char *uu_lockerr __P((int _uu_lockresult));
 int	uu_lock __P((const char *_ttyname));
 int	uu_unlock __P((const char *_ttyname));
+int	uu_lock_txfr __P((const char *_ttyname, pid_t _pid));
 int	_secure_path __P((const char *_path, uid_t _uid, gid_t _gid));
 __END_DECLS
 
@@ -55,5 +56,6 @@ __END_DECLS
 #define UU_LOCK_WRITE_ERR (-4)
 #define UU_LOCK_LINK_ERR (-5)
 #define UU_LOCK_TRY_ERR (-6)
+#define UU_LOCK_OWNER_ERR (-7)
 
 #endif /* !_LIBUTIL_H_ */
