@@ -32,12 +32,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-/*
 static char sccsid[] = "@(#)syslog.c	8.5 (Berkeley) 4/29/95";
-*/
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/types.h>
@@ -71,8 +69,8 @@ static int	LogFacility = LOG_USER;	/* default facility code */
 static int	LogMask = 0xff;		/* mask of priorities to be logged */
 extern char	*__progname;		/* Program name, from crt0. */
 
-static void	disconnectlog __P((void)); /* disconnect from syslogd */
-static void	connectlog __P((void));	/* (re)connect to syslogd */
+static void	disconnectlog(void); /* disconnect from syslogd */
+static void	connectlog(void);	/* (re)connect to syslogd */
 
 /*
  * Format of the magic cookie passed through the stdio hook
@@ -136,11 +134,11 @@ syslog(pri, fmt, va_alist)
 void
 vsyslog(pri, fmt, ap)
 	int pri;
-	register const char *fmt;
+	const char *fmt;
 	va_list ap;
 {
-	register int cnt;
-	register char ch, *p;
+	int cnt;
+	char ch, *p;
 	time_t now;
 	int fd, saved_errno;
 	char *stdp, tbuf[2048], fmt_cpy[1024], timbuf[26];
@@ -230,7 +228,7 @@ vsyslog(pri, fmt, ap)
 	/* Output to stderr if requested. */
 	if (LogStat & LOG_PERROR) {
 		struct iovec iov[2];
-		register struct iovec *v = iov;
+		struct iovec *v = iov;
 
 		v->iov_base = stdp;
 		v->iov_len = cnt - (stdp - tbuf);
@@ -264,7 +262,7 @@ vsyslog(pri, fmt, ap)
 	if (LogStat & LOG_CONS &&
 	    (fd = _open(_PATH_CONSOLE, O_WRONLY, 0)) >= 0) {
 		struct iovec iov[2];
-		register struct iovec *v = iov;
+		struct iovec *v = iov;
 
 		p = strchr(tbuf, '>') + 1;
 		v->iov_base = p;
