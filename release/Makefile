@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.349 1998/05/08 13:49:16 jkh Exp $
+#	$Id: Makefile,v 1.350 1998/05/12 08:02:48 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -526,6 +526,7 @@ cdrom.1:
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
 .if !defined(NOPORTS)
+	-rm -rf /usr/ports/distfiles/*
 	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
 	  mkdir -p ${CD_DISC1}/ports && \
 	  tar -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
