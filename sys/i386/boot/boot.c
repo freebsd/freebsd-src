@@ -29,6 +29,9 @@
 /*
  * HISTORY
  * $Log: boot.c,v $
+ * Revision 1.3  1993/07/16  13:06:08  rgrimes
+ * Changed header from 386BSD BOOT to FreeBSD BOOT.
+ *
  * Revision 1.2  1993/07/13  18:15:24  root
  * New boot blocks, from Bruce Evans, and NetBSD fixes.  Allows kernel to
  * be loaded above 1MB.  Same boot code for floppies now.  Speed improvements.
@@ -134,7 +137,7 @@ int drive;
 		ouraddr,
 		argv[7] = memsize(0),
 		argv[8] = memsize(1),
-		"$Revision: 1.2 $");
+		"$Revision: 1.3 $");
 	printf("use options hd(1,...... to boot sd0 when wd0 is also installed\n");
 	gateA20();
 loadstart:
@@ -208,10 +211,6 @@ loadprog(howto)
 			printf("kernel too big, won't fit in 640K with bss\n");
 			printf("Only hope is to link the kernel for > 1MB\n");
 			return;
-		}
-		if((addr + head.a_text + head.a_data + head.a_bss) > ouraddr)
-		{
-			printf("loader overlaps bss, kernel must bzero\n");
 		}
 	}
 	printf("text=0x%x ", head.a_text);
