@@ -230,7 +230,7 @@ linux_link_hash_table_create (abfd)
   struct linux_link_hash_table *ret;
   bfd_size_type amt = sizeof (struct linux_link_hash_table);
 
-  ret = (struct linux_link_hash_table *) bfd_alloc (abfd, amt);
+  ret = (struct linux_link_hash_table *) bfd_malloc (amt);
   if (ret == (struct linux_link_hash_table *) NULL)
     return (struct bfd_link_hash_table *) NULL;
   if (! NAME(aout,link_hash_table_init) (&ret->root, abfd,
@@ -599,10 +599,9 @@ bfd_sparclinux_size_dynamic_sections (output_bfd, info)
     {
       s->_raw_size = linux_hash_table (info)->fixup_count + 1;
       s->_raw_size *= 8;
-      s->contents = (bfd_byte *) bfd_alloc (output_bfd, s->_raw_size);
+      s->contents = (bfd_byte *) bfd_zalloc (output_bfd, s->_raw_size);
       if (s->contents == NULL)
        return false;
-      memset (s->contents, 0, (size_t) s->_raw_size);
     }
 
   return true;

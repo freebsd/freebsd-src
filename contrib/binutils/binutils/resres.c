@@ -211,7 +211,7 @@ write_res_directory (rd, type, name, language, level)
 
 	case 2:
 	  /* If we're at level 2, the key of this resource is the name
-	     we are going to use in the rc printout. */
+	     we are going to use in the rc printout.  */
 	  name = &re->id;
 	  break;
 
@@ -457,7 +457,7 @@ write_res_info (info)
 }
 
 /* read a resource identifier */
-void 
+void
 read_res_id (id)
      struct res_id *id;
 {

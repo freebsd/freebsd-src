@@ -130,9 +130,6 @@
 /* Define if you have the <sys/param.h> header file.  */
 #undef HAVE_SYS_PARAM_H
 
-/* Define if you have the <sys/stat.h> header file.  */
-#undef HAVE_SYS_STAT_H
-
 /* Define if you have the <sys/types.h> header file.  */
 #undef HAVE_SYS_TYPES_H
 
@@ -162,9 +159,6 @@
 
 /* Define as 1 if big endian. */
 #undef TARGET_BYTES_BIG_ENDIAN
-
-/* Use ELF stabs for MIPS, not ECOFF stabs */
-#undef MIPS_STABS_ELF
 
 /* Default architecture. */
 #undef DEFAULT_ARCH

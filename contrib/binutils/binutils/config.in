@@ -97,6 +97,9 @@
 /* Define if you have the strchr function.  */
 #undef HAVE_STRCHR
 
+/* Define if you have the strcoll function.  */
+#undef HAVE_STRCOLL
+
 /* Define if you have the utimes function.  */
 #undef HAVE_UTIMES
 

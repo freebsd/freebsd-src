@@ -1,3 +1,174 @@
+2002-07-10  Jason Merrill  <jason@redhat.com>
+
+	* cp-demangle.c (demangle_identifier): Support extended Unicode
+	characters.
+
+2002-07-08  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* cp-demangle.c (demangle_v3_with_details): Wrap in
+	!defined IN_GLIBCPP_V3.
+
+2002-07-01  Mark Mitchell  <mark@codesourcery.com>
+
+	* cp-demangle.c (demangle_operator_name): Add type_arg parameter.
+	Set it for the "st" operator.
+	(demangle_expression): Handle expressions with types as arguments.
+
+2002-06-30  Douglas Rupp  <rupp@gnat.com>
+
+	* configure.in (OUTPUT_OPTION,NO_MINUS_C_MINUS_O): Configure.
+	* Makefile.in (OUTPUT_OPTION): Use.
+
+2002-06-22  Peter Breitenlohner <peb@mppmu.mpg.de>
+
+	* Makefile.in (install_to_libdir): Add $(DESTDIR).
+	(install_to_tooldir): Likewise.
+
+2002-06-17  Douglas Rupp  <rupp@gnat.com>
+
+	* lbasename.c: Add 2002 to copyright.
+	(IS_DIR_SEPARATOR): Remove VMS junk.
+
+2002-06-05  Geoffrey Keating  <geoffk@redhat.com>
+
+	* hashtab.c (htab_create): New stub function for backward
+	compatibility.
+	(htab_try_create): Likewise.
+
+2002-06-03  Geoffrey Keating  <geoffk@redhat.com>
+
+	* hashtab.c (htab_create): Delete.
+	(htab_try_create): Delete.
+	(htab_create_alloc): New.
+	(htab_delete): Support user-specified memory allocation.
+	(htab_expand): Likewise.
+
+2002-05-22  Roman Lechtchinsky  <rl@cs.tu-berlin.de>
+
+	* configure.in: Fix typo in the code checking for sys_errlist.
+	* configure: Regenerated.
+
+2002-05-13  Andreas Schwab  <schwab@suse.de>
+
+	* config.table: Use mh-x86pic also for x86-64.
+
+2002-05-08  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in (ORIGINAL_LD_FOR_MULTILIBS): Preserve LD at
+	script entry, and set LD to it when configuring multilibs.
+	* configure: Rebuilt.
+
+2002-05-07  Mark Mitchell  <mark@codesourcery.com>
+
+	* configure.in (AC_TYPE_PID_T): Use it.
+	* configure: Regenerated.
+	* getruntime.c: Include <sys/types.h>.
+	* waitpid.c: Likewise.  Use pid_t, not int, as the type of "pid".
+
+2002-04-09  Richard Henderson  <rth@redhat.com>
+
+	* hashtab.c (higher_prime_number): Use 7 as minimum.
+	(find_empty_slot_for_expand): Don't compute hash2 unless needed.
+	(htab_find_slot_with_hash): Likewise.
+
+2002-04-01  Phil Edwards  <pme@gcc.gnu.org>
+
+	* cp-demangle.c (__cxa_demangle):  Also protect with IN_GLIBCPP_V3.
+	(is_gnu_v3_mangled_ctor, is_gnu_v3_mangled_ctor):  Conditionally
+	not compile if IN_GLIBCPP_V3 defined.
+	* dyn-string.c:  Also allow IN_GLIBCPP_V3 to change allocation scheme.
+
+2002-03-30  Bryce McKinlay  <bryce@waitaki.otago.ac.nz>
+
+	* cp-demangle.c (java_demangle_v3): Don't try to release "demangled" 
+	if it is NULL.
+
+2002-03-27  DJ Delorie  <dj@redhat.com>
+
+	* hex.c: Add documentation.
+	(_hex_value): Provide non-ASCII empty table.
+	(hex_init): Initialize the non-ASCII table.
+	* functions.texi: Regenerate.
+
+2002-03-27  Mark Mitchell  <mark@codesourcery.com>
+
+	* dyn-string.c: Add libgcc exception to copyright notice.
+
+2002-03-26  H.J. Lu  (hjl@gnu.org)
+
+	* config.table: Support --with-build-subdir.
+	* configure.in: Likewise.
+	* configure: Rebuild.
+
+2002-03-18  Stuart Griffith  <Stuart_Griffith@credence.com>
+
+	* strtod.c (strtod): Increment 8 chars, not 7, when `infinity'
+	seen.
+
+2002-03-12  Mark Mitchell  <mark@codesourcery.com>
+
+	* cp-demangle.c: Add libgcc exception to cp-demangle.c copyright
+	notice.
+
+2002-03-11  Douglas B Rupp  <rupp@gnat.com>
+
+	* xatexit.c [VMS]: Include stdlib.h and unixlib.h.
+
+2002-03-06  Jim Blandy  <jimb@redhat.com>
+
+	* splay-tree.c (splay_tree_xmalloc_allocate,
+	splay_tree_xmalloc_deallocate): Use K&R-style definitions, not
+	prototyped definitions.  Mark `data' arguments as unused.
+
+2002-03-06  Andrew Cagney  <ac131313@redhat.com>
+
+	* floatformat.c (floatformat_arm_ext_big): Delete definition.
+
+2002-03-04  Phil Edwards  <pme@gcc.gnu.org>
+
+	* configure.in:  Add --enable-install-libiberty option.
+	* Makefile.in (INSTALLED_HEADERS):  New variable.
+	(install_to_libdir):  Possibly also copy headers.
+	* configure:  Regenerated.
+
+2002-03-04  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* xmalloc.c (xmalloc_fail): Clarify error message further.
+
+2002-03-03  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* xmalloc.c (xmalloc_fail): Clarify error message.
+
+2002-02-22  Jim Blandy  <jimb@redhat.com>
+
+	* splay-tree.c (splay_tree_xmalloc_allocate,
+	splay_tree_xmalloc_deallocate): New functions.
+	(splay_tree_new): Call splay_tree_new_with_allocator, passing the
+	above functions and a dummy data pointer.
+	(splay_tree_new_with_allocator): New function.
+	(splay_tree_delete_helper, splay_tree_delete, splay_tree_insert,
+	splay_tree_remove): Use the splay tree's allocation and
+	deallocation functions.
+
+2002-02-19  Scott Snyder  <snyder@fnal.gov>
+
+	* testsuite/demangle-expected: Add test case for infinite loop in
+	demangler.
+	* cplus-dem.c (demangle_arm_hp_template): Stop trying to demangle
+	if do_type() doesn't make any progress --- prevents an infinite
+	loop.
+
+2002-02-18  Carlo Wood  <carlo@gnu.org>
+
+	PR c++/5390
+	* cplus-dem.c (demangle_integral_value): Accept multi-digit
+	numbers that do not start with an underscore; This is needed
+	for integer template parameters. This doesn't break anything
+	because multi-digit numbers are never followed by a digit.
+	* testsuite/demangle-expected: Corrected all mangled test
+	cases with multi-digit template parameters: g++ 2.95.x does
+	not generate underscores around these parameters.
+
 2002-02-05  Jason Merrill  <jason@redhat.com>
 
 	* cplus-dem.c (flags): Add DMGL_VERBOSE

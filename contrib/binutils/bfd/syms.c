@@ -285,6 +285,9 @@ CODE_FRAGMENT
 .     as well.  *}
 .#define BSF_DEBUGGING_RELOC 0x20000
 .
+.  {* This symbol is thread local.  Used in ELF.  *}
+.#define BSF_THREAD_LOCAL  0x40000
+.
 .  flagword flags;
 .
 .  {* A pointer to the section to which this symbol is
@@ -312,6 +315,7 @@ CODE_FRAGMENT
 #include "aout/stab_gnu.h"
 
 static char coff_section_type PARAMS ((const char *));
+static char decode_section_type PARAMS ((const struct sec *));
 static int cmpindexentry PARAMS ((const PTR, const PTR));
 
 /*
@@ -586,6 +590,41 @@ coff_section_type (s)
   return '?';
 }
 
+/* Return the single-character symbol type corresponding to section
+   SECTION, or '?' for an unknown section.  This uses section flags to
+   identify sections.
+
+   FIXME These types are unhandled: c, i, e, p.  If we handled these also,
+   we could perhaps obsolete coff_section_type.  */
+
+static char
+decode_section_type (section)
+     const struct sec *section;
+{
+  if (section->flags & SEC_CODE)
+    return 't';
+  if (section->flags & SEC_DATA)
+    {
+      if (section->flags & SEC_READONLY)
+	return 'r';
+      else if (section->flags & SEC_SMALL_DATA)
+	return 'g';
+      else
+	return 'd';
+    }
+  if ((section->flags & SEC_HAS_CONTENTS) == 0)
+    {
+      if (section->flags & SEC_SMALL_DATA)
+	return 's';
+      else
+	return 'b';
+    }
+  if (section->flags & SEC_DEBUGGING)
+    return 'N';
+
+  return '?';
+}
+
 /*
 FUNCTION
 	bfd_decode_symclass
@@ -636,7 +675,11 @@ bfd_decode_symclass (symbol)
   if (bfd_is_abs_section (symbol->section))
     c = 'a';
   else if (symbol->section)
-    c = coff_section_type (symbol->section->name);
+    {
+      c = coff_section_type (symbol->section->name);
+      if (c == '?')
+	c = decode_section_type (symbol->section);
+    }
   else
     return '?';
   if (symbol->flags & BSF_GLOBAL)
@@ -880,6 +923,7 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
   char *file_name;
   char *directory_name;
   int saw_fun;
+  boolean saw_line, saw_func;
 
   *pfound = false;
   *pfilename = bfd_get_filename (abfd);
@@ -1236,13 +1280,13 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
   directory_name = indexentry->directory_name;
   str = indexentry->str;
 
+  saw_line = false;
+  saw_func = false;
   for (; stab < (indexentry+1)->stab; stab += STABSIZE)
     {
-      boolean done, saw_line, saw_func;
+      boolean done;
       bfd_vma val;
 
-      saw_line = false;
-      saw_func = false;
       done = false;
 
       switch (stab[TYPEOFF])
@@ -1309,14 +1353,16 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 	  || strncmp (info->filename, directory_name, dirlen) != 0
 	  || strcmp (info->filename + dirlen, file_name) != 0)
 	{
+	  size_t len;
+
 	  if (info->filename != NULL)
 	    free (info->filename);
-	  info->filename = (char *) bfd_malloc ((bfd_size_type) dirlen
-						+ strlen (file_name) + 1);
+	  len = strlen (file_name) + 1;
+	  info->filename = (char *) bfd_malloc ((bfd_size_type) dirlen + len);
 	  if (info->filename == NULL)
 	    return false;
-	  strcpy (info->filename, directory_name);
-	  strcpy (info->filename + dirlen, file_name);
+	  memcpy (info->filename, directory_name, dirlen);
+	  memcpy (info->filename + dirlen, file_name, len);
 	}
 
       *pfilename = info->filename;

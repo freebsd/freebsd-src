@@ -1,6 +1,6 @@
 /* as.h - global header file
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001
+   1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -91,7 +91,7 @@ extern void *alloca ();
 #include <sys/types.h>
 #endif
 
-#include <getopt.h>
+#include "getopt.h"
 /* The first getopt value for machine-independent long options.
    150 isn't special; it's just an arbitrary non-ASCII char value.  */
 #define OPTION_STD_BASE 150
@@ -168,7 +168,7 @@ extern char **environ;
 
 /* Hack to make "gcc -Wall" not complain about obstack macros.  */
 #if !defined (memcpy) && !defined (bcopy)
-#define bcopy(src,dest,size)	memcpy(dest,src,size)
+#define bcopy(src,dest,size)	memcpy (dest, src, size)
 #endif
 
 /* Make Saber happier on obstack.h.  */

@@ -79,7 +79,7 @@ extern const char *define_macro
   PARAMS ((int idx, sb *in, sb *label, int (*get_line) PARAMS ((sb *)),
 	   const char **namep));
 extern int check_macro PARAMS ((const char *, sb *, int, const char **,
-                                macro_entry **));
+				macro_entry **));
 extern void delete_macro PARAMS ((const char *));
 extern const char *expand_irp
   PARAMS ((int, int, sb *, sb *, int (*) PARAMS ((sb *)), int));

@@ -1,4 +1,5 @@
 aix386-core.c
+aix5ppc-core.c
 aout-adobe.c
 aout-arm.c
 aout-cris.c
@@ -64,7 +65,9 @@ cpu-avr.c
 cpu-cris.c
 cpu-d10v.c
 cpu-d30v.c
+cpu-dlx.c
 cpu-fr30.c
+cpu-frv.c
 cpu-h8300.c
 cpu-h8500.c
 cpu-hppa.c
@@ -123,13 +126,16 @@ elf32-avr.c
 elf32-cris.c
 elf32-d10v.c
 elf32-d30v.c
+elf32-dlx.c
 elf32-fr30.c
+elf32-frv.c
 elf32-gen.c
 elf32-h8300.c
 elf32-hppa.c
 elf32-hppa.h
 elf32-i370.c
 elf32-i386.c
+elf32-i386qnx.c
 elf32-i860.c
 elf32-i960.c
 elf32-m32r.c
@@ -147,9 +153,12 @@ elf32-s390.c
 elf32-sh-lin.c
 elf32-sh-nbsd.c
 elf32-sh.c
+elf32-sh64-com.c
+elf32-sh64-nbsd.c
 elf32-sh64.c
 elf32-sparc.c
 elf32-v850.c
+elf32-vax.c
 elf32-xstormy16.c
 elf32.c
 elf64-alpha.c
@@ -160,6 +169,7 @@ elf64-mips.c
 elf64-mmix.c
 elf64-ppc.c
 elf64-s390.c
+elf64-sh64-nbsd.c
 elf64-sh64.c
 elf64-sparc.c
 elf64-x86-64.c
@@ -170,6 +180,7 @@ elfcode.h
 elfcore.h
 elflink.c
 elflink.h
+elfxx-mips.c
 epoc-pe-arm.c
 epoc-pei-arm.c
 format.c
@@ -266,6 +277,8 @@ syms.c
 targets.c
 tekhex.c
 trad-core.c
+vax1knetbsd.c
+vaxbsd.c
 vaxnetbsd.c
 versados.c
 version.h

@@ -65,28 +65,6 @@ static void vfinfo PARAMS ((FILE *, const char *, va_list));
  %u integer, like printf
 */
 
-char *
-demangle (string)
-     const char *string;
-{
-  char *res;
-  const char *p;
-
-  if (output_bfd != NULL
-      && bfd_get_symbol_leading_char (output_bfd) == string[0])
-    ++string;
-
-  /* This is a hack for better error reporting on XCOFF, PowerPC64-ELF
-     or the MS PE format.  These formats have a number of leading '.'s
-     on at least some symbols, so we remove all dots.  */
-  p = string;
-  while (*p == '.')
-    ++p;
-
-  res = cplus_demangle (p, DMGL_ANSI | DMGL_PARAMS);
-  return res ? res : xstrdup (string);
-}
-
 static void
 vfinfo (fp, fmt, arg)
      FILE *fp;
@@ -405,6 +383,49 @@ vfinfo (fp, fmt, arg)
 
   if (fatal == true)
     xexit (1);
+}
+
+/* Wrapper around cplus_demangle.  Strips leading underscores and
+   other such chars that would otherwise confuse the demangler.  */
+
+char *
+demangle (name)
+     const char *name;
+{
+  char *res;
+  const char *p;
+
+  if (output_bfd != NULL
+      && bfd_get_symbol_leading_char (output_bfd) == name[0])
+    ++name;
+
+  /* This is a hack for better error reporting on XCOFF, PowerPC64-ELF
+     or the MS PE format.  These formats have a number of leading '.'s
+     on at least some symbols, so we remove all dots to avoid
+     confusing the demangler.  */
+  p = name;
+  while (*p == '.')
+    ++p;
+
+  res = cplus_demangle (p, DMGL_ANSI | DMGL_PARAMS);
+  if (res)
+    {
+      size_t dots = p - name;
+
+      /* Now put back any stripped dots.  */
+      if (dots != 0)
+	{
+	  size_t len = strlen (res) + 1;
+	  char *add_dots = xmalloc (len + dots);
+
+	  memcpy (add_dots, name, dots);
+	  memcpy (add_dots + dots, res, len);
+	  free (res);
+	  res = add_dots;
+	}
+      return res;
+    }
+  return xstrdup (name);
 }
 
 /* Format info message and print on stdout.  */

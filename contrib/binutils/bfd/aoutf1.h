@@ -748,7 +748,7 @@ sunos4_core_file_matches_executable_p (core_bfd, exec_bfd)
 
   return (memcmp ((char *) &((core_hdr (core_bfd)->hdr)->c_aouthdr),
 		  (char *) exec_hdr (exec_bfd),
-		  sizeof (struct internal_exec)) == 0) ? true : false;
+		  sizeof (struct internal_exec)) == 0);
 }
 
 #define MY_set_sizes sunos4_set_sizes

@@ -271,3 +271,16 @@ print_insn_powerpc (memaddr, info, bigendian, dialect)
 
   return 4;
 }
+
+void
+print_ppc_disassembler_options (FILE * stream)
+{
+  fprintf (stream, "\n\
+The following PPC specific disassembler options are supported for use with\n\
+the -M switch:\n");
+  
+  fprintf (stream, "  booke|booke32|booke64    Disassemble the BookE instructions\n");
+  fprintf (stream, "  power4                   Disassemble the Power4 instructions\n");
+  fprintf (stream, "  32                       Do not disassemble 64-bit instructions\n");
+  fprintf (stream, "  64                       Allow disassembly of 64-bit instructions\n");
+}

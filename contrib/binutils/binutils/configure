@@ -2717,7 +2717,7 @@ EOF
 fi
 
 
-ALL_LINGUAS="fr tr ja es"
+ALL_LINGUAS="fr tr ja es sv"
 # Extract the first word of "ranlib", so it can be a program name with args.
 set dummy ranlib; ac_word=$2
 echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
@@ -4902,7 +4902,7 @@ EOF
 
 fi
 
-for ac_func in sbrk utimes setmode getc_unlocked
+for ac_func in sbrk utimes setmode getc_unlocked strcoll
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
 echo "configure:4909: checking for $ac_func" >&5
@@ -5006,12 +5006,12 @@ rm -f conftest*
 fi
 
 echo "$ac_t""$bu_cv_have_fopen64" 1>&6
-if test $bu_cv_have_fopen64 != no; then
+if test "$bu_cv_have_fopen64" != no; then
   cat >> confdefs.h <<\EOF
 #define HAVE_FOPEN64 1
 EOF
 
-  if test $bu_cv_have_fopen64 = "need -D_LARGEFILE64_SOURCE"; then
+  if test "$bu_cv_have_fopen64" = "need -D_LARGEFILE64_SOURCE"; then
     cat >> confdefs.h <<\EOF
 #define _LARGEFILE64_SOURCE 1
 EOF
@@ -5508,7 +5508,7 @@ do
   	arm*-* | xscale-* | strongarm-* | d10v-*)
 	  OBJDUMP_DEFS="-DDISASSEMBLER_NEEDS_RELOCS"
 	  ;;
-	i[3-6]86-pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32*)
+	i[3-6]86-pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32** | i[3-6]86-*-netbsdpe*)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
@@ -5572,6 +5572,26 @@ if test "x$targ_underscore" = "xyes"; then
 else
     UNDERSCORE=0
 fi
+
+
+# Emulation 
+for targ_alias in `echo $target_alias $enable_targets | sed 's/,/ /g'`
+do
+  # Canonicalize the secondary target names.
+ result=`$ac_config_sub $targ_alias 2>/dev/null`
+ if test -n "$result"; then
+   targ=$result
+ else
+   targ=$targ_alias
+ fi
+
+ . ${srcdir}/configure.tgt
+
+  EMULATION=$targ_emul
+  EMULATION_VECTOR=$targ_emul_vector	
+done
+
+
 
 
 trap '' 1 2 15
@@ -5785,6 +5805,8 @@ s%@BUILD_DLLWRAP@%$BUILD_DLLWRAP%g
 s%@BUILD_MISC@%$BUILD_MISC%g
 s%@OBJDUMP_DEFS@%$OBJDUMP_DEFS%g
 s%@UNDERSCORE@%$UNDERSCORE%g
+s%@EMULATION@%$EMULATION%g
+s%@EMULATION_VECTOR@%$EMULATION_VECTOR%g
 
 CEOF
 EOF

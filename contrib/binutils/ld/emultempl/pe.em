@@ -9,7 +9,7 @@ rm -f e${EMULATION_NAME}.c
 (echo;echo;echo;echo;echo)>e${EMULATION_NAME}.c # there, now line numbers match ;-)
 cat >>e${EMULATION_NAME}.c <<EOF
 /* This file is part of GLD, the Gnu Linker.
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -52,11 +52,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "libiberty.h"
 #include "ld.h"
 #include "ldmain.h"
-#include "ldgram.h"
 #include "ldexp.h"
 #include "ldlang.h"
 #include "ldfile.h"
 #include "ldemul.h"
+#include "ldgram.h"
 #include "ldlex.h"
 #include "ldmisc.h"
 #include "ldctor.h"
@@ -173,7 +173,7 @@ gld_${EMULATION_NAME}_before_parse()
 #ifdef DLL_SUPPORT
   config.dynamic_link = true;
   config.has_shared = 1;
-/* link_info.pei386_auto_import = true; */
+  link_info.pei386_auto_import = -1;
 
 #if (PE_DEF_SUBSYSTEM == 9) || (PE_DEF_SUBSYSTEM == 2)
 #if defined TARGET_IS_mipspe || defined TARGET_IS_armpe
@@ -221,6 +221,7 @@ gld_${EMULATION_NAME}_before_parse()
 #define OPTION_DLL_ENABLE_AUTO_IMPORT	(OPTION_NO_DEFAULT_EXCLUDES + 1)
 #define OPTION_DLL_DISABLE_AUTO_IMPORT	(OPTION_DLL_ENABLE_AUTO_IMPORT + 1)
 #define OPTION_ENABLE_EXTRA_PE_DEBUG	(OPTION_DLL_DISABLE_AUTO_IMPORT + 1)
+#define OPTION_EXCLUDE_LIBS		(OPTION_ENABLE_EXTRA_PE_DEBUG + 1)
 
 static struct option longopts[] = {
   /* PE options */
@@ -247,6 +248,7 @@ static struct option longopts[] = {
   {"output-def", required_argument, NULL, OPTION_OUT_DEF},
   {"export-all-symbols", no_argument, NULL, OPTION_EXPORT_ALL},
   {"exclude-symbols", required_argument, NULL, OPTION_EXCLUDE_SYMBOLS},
+  {"exclude-libs", required_argument, NULL, OPTION_EXCLUDE_LIBS},	
   {"kill-at", no_argument, NULL, OPTION_KILL_ATS},
   {"add-stdcall-alias", no_argument, NULL, OPTION_STDCALL_ALIASES},
   {"enable-stdcall-fixup", no_argument, NULL, OPTION_ENABLE_STDCALL_FIXUP},
@@ -333,6 +335,7 @@ gld_${EMULATION_NAME}_list_options (file)
   fprintf (file, _("  --disable-stdcall-fixup            Don't link _sym to _sym@nn\n"));
   fprintf (file, _("  --enable-stdcall-fixup             Link _sym to _sym@nn without warnings\n"));
   fprintf (file, _("  --exclude-symbols sym,sym,...      Exclude symbols from automatic export\n"));
+  fprintf (file, _("  --exclude-libs lib,lib,...         Exclude libraries from automatic export\n"));	
   fprintf (file, _("  --export-all-symbols               Automatically export all globals to DLL\n"));
   fprintf (file, _("  --kill-at                          Remove @nn from exported symbols\n"));
   fprintf (file, _("  --out-implib <file>                Generate import library\n"));
@@ -448,7 +451,7 @@ set_pe_subsystem ()
 	      entry = alc_entry;
 	    }
 
-	  lang_add_entry (entry, 1);
+	  lang_add_entry (entry, 0);
 
 	  return;
 	}
@@ -586,7 +589,10 @@ gld_${EMULATION_NAME}_parse_args(argc, argv)
       pe_dll_export_everything = 1;
       break;
     case OPTION_EXCLUDE_SYMBOLS:
-      pe_dll_add_excludes (optarg);
+      pe_dll_add_excludes (optarg, 0);
+      break;
+    case OPTION_EXCLUDE_LIBS:
+      pe_dll_add_excludes (optarg, 1);
       break;
     case OPTION_KILL_ATS:
       pe_dll_kill_ats = 1;
@@ -622,10 +628,10 @@ gld_${EMULATION_NAME}_parse_args(argc, argv)
       pe_dll_do_default_excludes = 0;
       break;
     case OPTION_DLL_ENABLE_AUTO_IMPORT:
-      link_info.pei386_auto_import = true;
+      link_info.pei386_auto_import = 1;
       break;
     case OPTION_DLL_DISABLE_AUTO_IMPORT:
-      link_info.pei386_auto_import = false;
+      link_info.pei386_auto_import = 0;
       break;
     case OPTION_ENABLE_EXTRA_PE_DEBUG:
       pe_dll_extra_pe_debug = 1;
@@ -708,7 +714,8 @@ gld_${EMULATION_NAME}_set_symbols ()
     {
       long val = init[j].value;
       lang_assignment_statement_type *rv;
-      rv = lang_add_assignment (exp_assop ('=' ,init[j].symbol, exp_intop (val)));
+      rv = lang_add_assignment (exp_assop ('=', init[j].symbol,
+					   exp_intop (val)));
       if (init[j].size == sizeof(short))
 	*(short *)init[j].ptr = val;
       else if (init[j].size == sizeof(int))
@@ -751,8 +758,8 @@ gld_${EMULATION_NAME}_after_parse ()
      opened, so registering the symbol as undefined will make a
      difference.  */
 
-  if (! link_info.relocateable && entry_symbol != NULL)
-    ldlang_add_undef (entry_symbol);
+  if (! link_info.relocateable && entry_symbol.name != NULL)
+    ldlang_add_undef (entry_symbol.name);
 }
 
 /* pe-dll.c directly accesses pe_data_import_dll,
@@ -905,8 +912,9 @@ pe_find_data_imports ()
           sym = bfd_link_hash_lookup (link_info.hash, buf, 0, 0, 1);
           if (sym && sym->type == bfd_link_hash_defined)
             {
-              einfo (_("Warning: resolving %s by linking to %s (auto-import)\n"),
-                     undef->root.string, buf);
+             if (link_info.pei386_auto_import == -1)
+               info_msg (_("Info: resolving %s by linking to %s (auto-import)\n"),
+                      undef->root.string, buf);
               {
                 bfd *b = sym->u.def.section->owner;
                 asymbol **symbols;
@@ -1410,10 +1418,10 @@ gld_${EMULATION_NAME}_finish ()
 
 	  sprintf_vma (buffer + 2, val);
 
-	  if (entry_symbol != NULL && entry_from_cmdline)
+	  if (entry_symbol.name != NULL && entry_from_cmdline)
 	    einfo (_("%P: warning: '--thumb-entry %s' is overriding '-e %s'\n"),
-		   thumb_entry_symbol, entry_symbol);
-	  entry_symbol = buffer;
+		   thumb_entry_symbol, entry_symbol.name);
+	  entry_symbol.name = buffer;
 	}
       else
 	einfo (_("%P: warning: connot find thumb start symbol %s\n"), thumb_entry_symbol);
@@ -1641,7 +1649,7 @@ gld_${EMULATION_NAME}_place_orphan (file, s)
 
       lang_leave_output_section_statement
 	((bfd_vma) 0, "*default*",
-	 (struct lang_output_section_phdr_list *) NULL, "*default*");
+	 (struct lang_output_section_phdr_list *) NULL, NULL);
 
       if (config.build_constructors && *ps == '\0')
         {
@@ -1660,7 +1668,7 @@ gld_${EMULATION_NAME}_place_orphan (file, s)
 
       stat_ptr = old;
 
-      if (place != NULL)
+      if (place != NULL && os->bfd_section != NULL)
 	{
 	  asection *snew, **pps;
 
@@ -1936,6 +1944,7 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   gld_${EMULATION_NAME}_unrecognized_file,
   gld_${EMULATION_NAME}_list_options,
   gld_${EMULATION_NAME}_recognized_file,
-  gld_${EMULATION_NAME}_find_potential_libraries
+  gld_${EMULATION_NAME}_find_potential_libraries,
+  NULL	/* new_vers_pattern */
 };
 EOF

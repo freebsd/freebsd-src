@@ -375,11 +375,14 @@ CONCAT2 (NAME,_sizeof_headers), \
 CONCAT2 (NAME,_bfd_get_relocated_section_contents), \
 CONCAT2 (NAME,_bfd_relax_section), \
 CONCAT2 (NAME,_bfd_link_hash_table_create), \
+CONCAT2 (NAME,_bfd_link_hash_table_free), \
 CONCAT2 (NAME,_bfd_link_add_symbols), \
+CONCAT2 (NAME,_bfd_link_just_syms), \
 CONCAT2 (NAME,_bfd_final_link), \
 CONCAT2 (NAME,_bfd_link_split_section), \
 CONCAT2 (NAME,_bfd_gc_sections), \
-CONCAT2 (NAME,_bfd_merge_sections)
+CONCAT2 (NAME,_bfd_merge_sections), \
+CONCAT2 (NAME,_bfd_discard_group)
   int      (*_bfd_sizeof_headers) PARAMS ((bfd *, boolean));
   bfd_byte *(*_bfd_get_relocated_section_contents)
     PARAMS ((bfd *, struct bfd_link_info *, struct bfd_link_order *,
@@ -392,8 +395,14 @@ CONCAT2 (NAME,_bfd_merge_sections)
      different information in this table.  */
   struct bfd_link_hash_table *(*_bfd_link_hash_table_create) PARAMS ((bfd *));
 
+  /* Release the memory associated with the linker hash table.  */
+  void (*_bfd_link_hash_table_free) PARAMS ((struct bfd_link_hash_table *));
+
   /* Add symbols from this object file into the hash table.  */
   boolean  (*_bfd_link_add_symbols) PARAMS ((bfd *, struct bfd_link_info *));
+
+  /* Indicate that we are only retrieving symbol values from this section.  */
+  void     (*_bfd_link_just_syms) PARAMS ((asection *, struct bfd_link_info *));
 
   /* Do a link based on the link_order structures attached to each
      section of the BFD.  */
@@ -407,6 +416,9 @@ CONCAT2 (NAME,_bfd_merge_sections)
 
   /* Attempt to merge SEC_MERGE sections.  */
   boolean  (*_bfd_merge_sections) PARAMS ((bfd *, struct bfd_link_info *));
+
+  /* Discard members of a group.  */
+  boolean  (*_bfd_discard_group) PARAMS ((bfd *, struct sec *));
 
   /* Routines to handle dynamic symbols and relocs.  */
 #define BFD_JUMP_TABLE_DYNAMIC(NAME) \

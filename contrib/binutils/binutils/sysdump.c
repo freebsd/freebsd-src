@@ -30,8 +30,8 @@
 #include "safe-ctype.h"
 
 #include <stdio.h>
-#include <libiberty.h>
-#include <getopt.h>
+#include "libiberty.h"
+#include "getopt.h"
 #include "sysroff.h"
 
 static int dump = 1;
@@ -107,10 +107,10 @@ dh (ptr, size)
     {
       for (j = 0; j < span; j++)
 	{
-	  if (j + i < size) 
+	  if (j + i < size)
 	    printf ("%02x ", ptr[i + j]);
-          else
-            printf ("   ");
+	  else
+	    printf ("   ");
 	}
 
       for (j = 0; j < span && j + i < size; j++)

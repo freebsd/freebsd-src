@@ -1,7 +1,7 @@
 %{
 /* arlex.l - Strange script language lexer */
 
-/*   Copyright 1992, 1997, 2000 Free Software Foundation, Inc.
+/*   Copyright 1992, 1997, 2000, 2002 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 */
 #define DONTDECLARE_MALLOC
-#include <ansidecl.h>
+#include "ansidecl.h"
 #include "libiberty.h"
 #include "arparse.h"
 

@@ -13,21 +13,21 @@
    based on Fred Fish's (Cygnus Support) implementation of DWARF 1
    support in dwarfread.c
 
-This file is part of BFD.
+   This file is part of BFD.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or (at
-your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or (at
+   your option) any later version.
 
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-General Public License for more details.
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -856,13 +856,18 @@ concat_filename (table, file)
   filename = table->files[file - 1].name;
   if (IS_ABSOLUTE_PATH(filename))
     return filename;
-
   else
     {
       char* dirname = (table->files[file - 1].dir
 		       ? table->dirs[table->files[file - 1].dir - 1]
 		       : table->comp_dir);
-      return (char*) concat (dirname, "/", filename, NULL);
+
+      /* Not all tools set DW_AT_comp_dir, so dirname may be unknown.  The
+	 best we can do is return the filename part.  */
+      if (dirname == NULL)
+	return filename;
+      else
+	return (char*) concat (dirname, "/", filename, NULL);
     }
 }
 
@@ -990,6 +995,13 @@ decode_line_info (unit, stash)
       line_ptr += 8;
       offset_size = 8;
     }
+  else if (lh.total_length == 0 && unit->addr_size == 8)
+    {
+      /* Handle (non-standard) 64-bit DWARF2 formats.  */
+      lh.total_length = read_4_bytes (abfd, line_ptr);
+      line_ptr += 4;
+      offset_size = 8;
+    }
   line_end = line_ptr + lh.total_length;
   lh.version = read_2_bytes (abfd, line_ptr);
   line_ptr += 2;
@@ -1072,13 +1084,19 @@ decode_line_info (unit, stash)
     {
       /* State machine registers.  */
       bfd_vma address = 0;
-      char* filename = concat_filename (table, 1);
+      char * filename = concat_filename (table, 1);
       unsigned int line = 1;
       unsigned int column = 0;
       int is_stmt = lh.default_is_stmt;
       int basic_block = 0;
-      int end_sequence = 0, need_low_pc = 1;
-      bfd_vma low_pc = 0;
+      int end_sequence = 0;
+      /* eraxxon@alumni.rice.edu: Against the DWARF2 specs, some
+         compilers generate address sequences that are wildly out of
+         order using DW_LNE_set_address (e.g. Intel C++ 6.0 compiler
+         for ia64-Linux).  Thus, to determine the low and high
+         address, we must compare on every DW_LNS_copy, etc.  */
+      bfd_vma low_pc  = 0;
+      bfd_vma high_pc = 0;
 
       /* Decode the table.  */
       while (! end_sequence)
@@ -1087,7 +1105,8 @@ decode_line_info (unit, stash)
 	  line_ptr += 1;
 
 	  if (op_code >= lh.opcode_base)
-	    {		/* Special operand.  */
+	    {
+	      /* Special operand.  */
 	      adj_opcode = op_code - lh.opcode_base;
 	      address += (adj_opcode / lh.line_range)
 		* lh.minimum_instruction_length;
@@ -1095,29 +1114,30 @@ decode_line_info (unit, stash)
 	      /* Append row to matrix using current values.  */
 	      add_line_info (table, address, filename, line, column, 0);
 	      basic_block = 1;
-	      if (need_low_pc)
-		{
-		  need_low_pc = 0;
-		  low_pc = address;
-		}
+	      if (low_pc == 0 || address < low_pc)
+		low_pc = address;
+	      if (address > high_pc)
+		high_pc = address;
 	    }
 	  else switch (op_code)
 	    {
 	    case DW_LNS_extended_op:
-	      line_ptr += 1;	/* Ignore length.  */
+	      /* Ignore length.  */
+	      line_ptr += 1;
 	      extended_op = read_1_byte (abfd, line_ptr);
 	      line_ptr += 1;
+
 	      switch (extended_op)
 		{
 		case DW_LNE_end_sequence:
 		  end_sequence = 1;
 		  add_line_info (table, address, filename, line, column,
 				 end_sequence);
-		  if (need_low_pc)
-		    {
-		      need_low_pc = 0;
-		      low_pc = address;
-		    }
+		  arange_add (unit, low_pc, high_pc);
+		  if (low_pc == 0 || address < low_pc)
+		    low_pc = address;
+		  if (address > high_pc)
+		    high_pc = address;
 		  arange_add (unit, low_pc, address);
 		  break;
 		case DW_LNE_set_address:
@@ -1157,11 +1177,10 @@ decode_line_info (unit, stash)
 	    case DW_LNS_copy:
 	      add_line_info (table, address, filename, line, column, 0);
 	      basic_block = 0;
-	      if (need_low_pc)
-		{
-		  need_low_pc = 0;
-		  low_pc = address;
-		}
+	      if (low_pc == 0 || address < low_pc)
+		low_pc = address;
+	      if (address > high_pc)
+		high_pc = address;
 	      break;
 	    case DW_LNS_advance_pc:
 	      address += lh.minimum_instruction_length
@@ -1176,8 +1195,8 @@ decode_line_info (unit, stash)
 	      {
 		unsigned int file;
 
-		/* The file and directory tables are 0 based, the references
-		   are 1 based.  */
+		/* The file and directory tables are 0
+		   based, the references are 1 based.  */
 		file = read_unsigned_leb128 (abfd, line_ptr, &bytes_read);
 		line_ptr += bytes_read;
 		filename = concat_filename (table, file);
@@ -1202,8 +1221,9 @@ decode_line_info (unit, stash)
 	      line_ptr += 2;
 	      break;
 	    default:
-	      {  /* Unknown standard opcode, ignore it.  */
+	      {
 		int i;
+		/* Unknown standard opcode, ignore it.  */
 		for (i = 0; i < lh.standard_opcode_lengths[op_code]; i++)
 		  {
 		    (void) read_unsigned_leb128 (abfd, line_ptr, &bytes_read);
@@ -1222,10 +1242,7 @@ decode_line_info (unit, stash)
    LINENUMBER_PTR, are pointers to the objects to be filled in.  */
 
 static boolean
-lookup_address_in_line_info_table (table,
-				   addr,
-				   function,
-				   filename_ptr,
+lookup_address_in_line_info_table (table, addr, function, filename_ptr,
 				   linenumber_ptr)
      struct line_info_table* table;
      bfd_vma addr;
@@ -1286,9 +1303,7 @@ lookup_address_in_line_info_table (table,
 /* If ADDR is within TABLE, set FUNCTIONNAME_PTR, and return true.  */
 
 static boolean
-lookup_address_in_function_table (table,
-				  addr,
-				  function_ptr,
+lookup_address_in_function_table (table, addr, function_ptr,
 				  functionname_ptr)
      struct funcinfo* table;
      bfd_vma addr;
@@ -1654,9 +1669,8 @@ comp_unit_contains_address (unit, addr)
    false otherwise.  */
 
 static boolean
-comp_unit_find_nearest_line (unit, addr,
-			     filename_ptr, functionname_ptr, linenumber_ptr,
-			     stash)
+comp_unit_find_nearest_line (unit, addr, filename_ptr, functionname_ptr,
+			     linenumber_ptr, stash)
      struct comp_unit* unit;
      bfd_vma addr;
      const char **filename_ptr;
@@ -1696,26 +1710,23 @@ comp_unit_find_nearest_line (unit, addr,
     }
 
   function = NULL;
-  func_p = lookup_address_in_function_table (unit->function_table,
-					     addr,
-					     &function,
-					     functionname_ptr);
-  line_p = lookup_address_in_line_info_table (unit->line_table,
-					      addr,
-					      function,
-					      filename_ptr,
+  func_p = lookup_address_in_function_table (unit->function_table, addr,
+					     &function, functionname_ptr);
+  line_p = lookup_address_in_line_info_table (unit->line_table, addr,
+					      function, filename_ptr,
 					      linenumber_ptr);
   return line_p || func_p;
 }
 
-/* Locate a section in a BFD containing debugging info.  The search starts from the
-   section after AFTER_SEC, or from the first section in the BFD if AFTER_SEC is
-   NULL.  The search works by examining the names of the sections.  There are two
-   permissiable names.  The first is .debug_info.  This is the standard DWARF2 name.
-   The second is a prefix .gnu.linkonce.wi.  This is a variation on the .debug_info
-   section which has a checksum describing the contents appended onto the name.  This
-   allows the linker to identify and discard duplicate debugging sections for
-   different compilation units.  */
+/* Locate a section in a BFD containing debugging info.  The search starts
+   from the section after AFTER_SEC, or from the first section in the BFD if
+   AFTER_SEC is NULL.  The search works by examining the names of the
+   sections.  There are two permissiable names.  The first is .debug_info.
+   This is the standard DWARF2 name.  The second is a prefix .gnu.linkonce.wi.
+   This is a variation on the .debug_info section which has a checksum
+   describing the contents appended onto the name.  This allows the linker to
+   identify and discard duplicate debugging sections for different
+   compilation units.  */
 #define DWARF2_DEBUG_INFO ".debug_info"
 #define GNU_LINKONCE_INFO ".gnu.linkonce.wi."
 
@@ -1754,8 +1765,7 @@ find_debug_info (abfd, after_sec)
 boolean
 _bfd_dwarf2_find_nearest_line (abfd, section, symbols, offset,
 			       filename_ptr, functionname_ptr,
-			       linenumber_ptr,
-			       addr_size, pinfo)
+			       linenumber_ptr, addr_size, pinfo)
      bfd *abfd;
      asection *section;
      asymbol **symbols;
@@ -1894,6 +1904,13 @@ _bfd_dwarf2_find_nearest_line (abfd, section, symbols, offset,
 	      offset_size = 8;
 	      length = read_8_bytes (abfd, stash->info_ptr + 4);
 	      stash->info_ptr += 8;
+	    }
+	  else if (length == 0)
+	    {
+	      /* Handle (non-standard) 64-bit DWARF2 formats.  */
+	      offset_size = 8;
+	      length = read_4_bytes (abfd, stash->info_ptr + 4);
+	      stash->info_ptr += 4;
 	    }
 	}
       else

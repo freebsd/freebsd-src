@@ -1,5 +1,5 @@
 /* unwind-ia64.h -- dump IA-64 unwind info.
-   Copyright 2000, 2001 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
 	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
 This file is part of GNU Binutils.
@@ -18,8 +18,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-#include <elf/ia64.h>
-#include <ansidecl.h>
+#include "elf/ia64.h"
+#include "ansidecl.h"
 
 #define UNW_VER(x)		((x) >> 48)
 #define UNW_FLAG_MASK		0x0000ffff00000000

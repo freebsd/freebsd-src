@@ -803,7 +803,7 @@ operand (expressionP)
 
       integer_constant ((NUMBERS_WITH_SUFFIX || flag_m68k_mri)
 			? 0 : 10,
-                        expressionP);
+			expressionP);
       break;
 
 #ifdef LITERAL_PREFIXDOLLAR_HEX

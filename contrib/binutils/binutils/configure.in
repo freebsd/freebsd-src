@@ -64,7 +64,7 @@ AC_PROG_CC
 AC_PROG_YACC
 AM_PROG_LEX
 
-ALL_LINGUAS="fr tr ja es"
+ALL_LINGUAS="fr tr ja es sv"
 CY_GNU_GETTEXT
 
 AM_MAINTAINER_MODE
@@ -100,7 +100,7 @@ AC_SUBST(DEMANGLER_NAME)
 AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h fcntl.h sys/file.h)
 AC_HEADER_SYS_WAIT
 AC_FUNC_ALLOCA
-AC_CHECK_FUNCS(sbrk utimes setmode getc_unlocked)
+AC_CHECK_FUNCS(sbrk utimes setmode getc_unlocked strcoll)
 
 # Check whether fopen64 is available and whether _LARGEFILE64_SOURCE
 # needs to be defined for it
@@ -115,10 +115,10 @@ bu_cv_have_fopen64="need -D_LARGEFILE64_SOURCE",
 bu_cv_have_fopen64=no)
  CPPFLAGS=$saved_CPPFLAGS])])
 AC_MSG_RESULT($bu_cv_have_fopen64)
-if test $bu_cv_have_fopen64 != no; then
+if test "$bu_cv_have_fopen64" != no; then
   AC_DEFINE([HAVE_FOPEN64], 1,
 	    [Is fopen64 available?])
-  if test $bu_cv_have_fopen64 = "need -D_LARGEFILE64_SOURCE"; then
+  if test "$bu_cv_have_fopen64" = "need -D_LARGEFILE64_SOURCE"; then
     AC_DEFINE([_LARGEFILE64_SOURCE], 1,
 	      [Enable LFS])
   fi
@@ -249,7 +249,7 @@ changequote([,])dnl
 	  OBJDUMP_DEFS="-DDISASSEMBLER_NEEDS_RELOCS"
 	  ;;
 changequote(,)dnl
-	i[3-6]86-pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32*)
+	i[3-6]86-pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32** | i[3-6]86-*-netbsdpe*)
 changequote([,])dnl
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
@@ -312,6 +312,26 @@ else
     UNDERSCORE=0
 fi
 AC_SUBST(UNDERSCORE)
+
+# Emulation 
+for targ_alias in `echo $target_alias $enable_targets | sed 's/,/ /g'`
+do
+  # Canonicalize the secondary target names.
+ result=`$ac_config_sub $targ_alias 2>/dev/null`
+ if test -n "$result"; then
+   targ=$result
+ else
+   targ=$targ_alias
+ fi
+
+ . ${srcdir}/configure.tgt
+
+  EMULATION=$targ_emul
+  EMULATION_VECTOR=$targ_emul_vector	
+done
+
+AC_SUBST(EMULATION)
+AC_SUBST(EMULATION_VECTOR)
 
 AC_OUTPUT(Makefile doc/Makefile po/Makefile.in:po/Make-in,
 [

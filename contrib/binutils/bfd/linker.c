@@ -1,5 +1,5 @@
 /* linker.c -- BFD linker routines
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Steve Chamberlain and Ian Lance Taylor, Cygnus Support
 
@@ -426,7 +426,7 @@ static void set_symbol_from_hash
   PARAMS ((asymbol *, struct bfd_link_hash_entry *));
 static boolean generic_add_output_symbol
   PARAMS ((bfd *, size_t *psymalloc, asymbol *));
-static boolean default_fill_link_order
+static boolean default_data_link_order
   PARAMS ((bfd *, struct bfd_link_info *, asection *,
 	   struct bfd_link_order *));
 static boolean default_indirect_link_order
@@ -675,7 +675,7 @@ _bfd_generic_link_hash_table_create (abfd)
   struct generic_link_hash_table *ret;
   bfd_size_type amt = sizeof (struct generic_link_hash_table);
 
-  ret = (struct generic_link_hash_table *) bfd_alloc (abfd, amt);
+  ret = (struct generic_link_hash_table *) bfd_malloc (amt);
   if (ret == NULL)
     return (struct bfd_link_hash_table *) NULL;
   if (! _bfd_link_hash_table_init (&ret->root, abfd,
@@ -685,6 +685,17 @@ _bfd_generic_link_hash_table_create (abfd)
       return (struct bfd_link_hash_table *) NULL;
     }
   return &ret->root;
+}
+
+void
+_bfd_generic_link_hash_table_free (hash)
+     struct bfd_link_hash_table *hash;
+{
+  struct generic_link_hash_table *ret
+    = (struct generic_link_hash_table *) hash;
+
+  bfd_hash_table_free (&ret->root.table);
+  free (ret);
 }
 
 /* Grab the symbols for an object file when doing a generic link.  We
@@ -744,6 +755,19 @@ _bfd_generic_link_add_symbols_collect (abfd, info)
      struct bfd_link_info *info;
 {
   return generic_link_add_symbols (abfd, info, true);
+}
+
+/* Indicate that we are only retrieving symbol values from this
+   section.  We want the symbols to act as though the values in the
+   file are absolute.  */
+
+void
+_bfd_generic_link_just_syms (sec, info)
+     asection *sec;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
+{
+  sec->output_section = bfd_abs_section_ptr;
+  sec->output_offset = sec->vma;
 }
 
 /* Add symbols from an object file to the global hash table.  */
@@ -1650,8 +1674,7 @@ _bfd_generic_link_add_one_symbol (info, abfd, name, flags, section, value,
 			  abort ();
 
 			if (! ((*info->callbacks->constructor)
-			       (info,
-				c == 'I' ? true : false,
+			       (info, c == 'I',
 				h->root.string, abfd, section, value)))
 			  return false;
 		      }
@@ -1789,37 +1812,38 @@ _bfd_generic_link_add_one_symbol (info, abfd, name, flags, section, value,
 	  /* Fall through.  */
 	case MDEF:
 	  /* Handle a multiple definition.  */
-	  {
-	    asection *msec = NULL;
-	    bfd_vma mval = 0;
+	  if (!info->allow_multiple_definition)
+	    {
+	      asection *msec = NULL;
+	      bfd_vma mval = 0;
 
-	    switch (h->type)
-	      {
-	      case bfd_link_hash_defined:
-		msec = h->u.def.section;
-		mval = h->u.def.value;
+	      switch (h->type)
+		{
+		case bfd_link_hash_defined:
+		  msec = h->u.def.section;
+		  mval = h->u.def.value;
+		  break;
+	        case bfd_link_hash_indirect:
+		  msec = bfd_ind_section_ptr;
+		  mval = 0;
+		  break;
+		default:
+		  abort ();
+		}
+
+	      /* Ignore a redefinition of an absolute symbol to the
+		 same value; it's harmless.  */
+	      if (h->type == bfd_link_hash_defined
+		  && bfd_is_abs_section (msec)
+		  && bfd_is_abs_section (section)
+		  && value == mval)
 		break;
-	      case bfd_link_hash_indirect:
-		msec = bfd_ind_section_ptr;
-		mval = 0;
-		break;
-	      default:
-		abort ();
-	      }
 
-	    /* Ignore a redefinition of an absolute symbol to the same
-               value; it's harmless.  */
-	    if (h->type == bfd_link_hash_defined
-		&& bfd_is_abs_section (msec)
-		&& bfd_is_abs_section (section)
-		&& value == mval)
-	      break;
-
-	    if (! ((*info->callbacks->multiple_definition)
-		   (info, h->root.string, msec->owner, msec, mval, abfd,
-		    section, value)))
-	      return false;
-	  }
+	      if (! ((*info->callbacks->multiple_definition)
+		     (info, h->root.string, msec->owner, msec, mval,
+		      abfd, section, value)))
+		return false;
+	    }
 	  break;
 
 	case CIND:
@@ -1950,12 +1974,12 @@ _bfd_generic_link_add_one_symbol (info, abfd, name, flags, section, value,
 	    else
 	      {
 		char *w;
+		size_t len = strlen (string) + 1;
 
-		w = bfd_hash_allocate (&info->hash->table,
-				       strlen (string) + 1);
+		w = bfd_hash_allocate (&info->hash->table, len);
 		if (w == NULL)
 		  return false;
-		strcpy (w, string);
+		memcpy (w, string, len);
 		sub->u.i.warning = w;
 	      }
 
@@ -2366,7 +2390,7 @@ _bfd_generic_link_output_symbols (output_bfd, input_bfd, info, psymalloc)
 	 Gross.  .bss and similar sections won't have the linker_mark
 	 field set.  */
       if ((sym->section->flags & SEC_HAS_CONTENTS) != 0
-	  && sym->section->linker_mark == false)
+	  && ! sym->section->linker_mark)
 	output = false;
 
       if (output)
@@ -2611,14 +2635,13 @@ bfd_new_link_order (abfd, section)
      asection *section;
 {
   bfd_size_type amt = sizeof (struct bfd_link_order);
-  struct bfd_link_order *new = (struct bfd_link_order *) bfd_alloc (abfd, amt);
+  struct bfd_link_order *new;
+
+  new = (struct bfd_link_order *) bfd_zalloc (abfd, amt);
   if (!new)
     return NULL;
 
   new->type = bfd_undefined_link_order;
-  new->offset = 0;
-  new->size = 0;
-  new->next = (struct bfd_link_order *) NULL;
 
   if (section->link_order_tail != (struct bfd_link_order *) NULL)
     section->link_order_tail->next = new;
@@ -2640,8 +2663,6 @@ _bfd_default_link_order (abfd, info, sec, link_order)
      asection *sec;
      struct bfd_link_order *link_order;
 {
-  file_ptr loc;
-
   switch (link_order->type)
     {
     case bfd_undefined_link_order:
@@ -2652,29 +2673,23 @@ _bfd_default_link_order (abfd, info, sec, link_order)
     case bfd_indirect_link_order:
       return default_indirect_link_order (abfd, info, sec, link_order,
 					  false);
-    case bfd_fill_link_order:
-      return default_fill_link_order (abfd, info, sec, link_order);
     case bfd_data_link_order:
-      loc = link_order->offset * bfd_octets_per_byte (abfd);
-      return bfd_set_section_contents (abfd, sec,
-				       (PTR) link_order->u.data.contents,
-				       loc, link_order->size);
+      return default_data_link_order (abfd, info, sec, link_order);
     }
 }
 
-/* Default routine to handle a bfd_fill_link_order.  */
+/* Default routine to handle a bfd_data_link_order.  */
 
 static boolean
-default_fill_link_order (abfd, info, sec, link_order)
+default_data_link_order (abfd, info, sec, link_order)
      bfd *abfd;
      struct bfd_link_info *info ATTRIBUTE_UNUSED;
      asection *sec;
      struct bfd_link_order *link_order;
 {
   bfd_size_type size;
-  unsigned char *space;
-  size_t i;
-  unsigned int fill;
+  size_t fill_size;
+  bfd_byte *fill;
   file_ptr loc;
   boolean result;
 
@@ -2684,24 +2699,37 @@ default_fill_link_order (abfd, info, sec, link_order)
   if (size == 0)
     return true;
 
-  space = (unsigned char *) bfd_malloc (size);
-  if (space == NULL)
-    return false;
-
-  fill = link_order->u.fill.value;
-  for (i = 0; i < size; i += 4)
-    space[i] = fill >> 24;
-  for (i = 1; i < size; i += 4)
-    space[i] = fill >> 16;
-  for (i = 2; i < size; i += 4)
-    space[i] = fill >> 8;
-  for (i = 3; i < size; i += 4)
-    space[i] = fill;
+  fill = link_order->u.data.contents;
+  fill_size = link_order->u.data.size;
+  if (fill_size != 0 && fill_size < size)
+    {
+      bfd_byte *p;
+      fill = (bfd_byte *) bfd_malloc (size);
+      if (fill == NULL)
+	return false;
+      p = fill;
+      if (fill_size == 1)
+	memset (p, (int) link_order->u.data.contents[0], (size_t) size);
+      else
+	{
+	  do
+	    {
+	      memcpy (p, link_order->u.data.contents, fill_size);
+	      p += fill_size;
+	      size -= fill_size;
+	    }
+	  while (size >= fill_size);
+	  if (size != 0)
+	    memcpy (p, link_order->u.data.contents, (size_t) size);
+	  size = link_order->size;
+	}
+    }
 
   loc = link_order->offset * bfd_octets_per_byte (abfd);
-  result = bfd_set_section_contents (abfd, sec, space, loc, size);
+  result = bfd_set_section_contents (abfd, sec, fill, loc, size);
 
-  free (space);
+  if (fill != link_order->u.data.contents)
+    free (fill);
   return result;
 }
 

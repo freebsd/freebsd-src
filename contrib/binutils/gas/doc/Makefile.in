@@ -132,7 +132,9 @@ POD2MAN = pod2man --center="GNU Development Tools" \
 
 man_MANS = as.1
 
-info_TEXINFOS = as.texinfo gasp.texi
+# The gasp.texi file is now deprecated, as GASP has been deprecated.
+# It will disappear in a future release.
+info_TEXINFOS = as.texinfo 
 
 CPU_DOCS = \
 	c-a29k.texi \
@@ -169,7 +171,7 @@ CPU_DOCS = \
 
 # This one isn't ready for prime time yet.  Not even a little bit.
 
-noinst_TEXINFOS = internals.texi
+noinst_TEXINFOS = internals.texi gasp.texi
 
 DISTCLEANFILES = asconfig.texi
 
@@ -179,9 +181,9 @@ CONFIG_HEADER = ../config.h
 CONFIG_CLEAN_FILES = 
 TEXI2DVI = `if test -f $(top_srcdir)/../texinfo/util/texi2dvi; then echo $(top_srcdir)/../texinfo/util/texi2dvi; else echo texi2dvi; fi`
 TEXINFO_TEX = $(top_srcdir)/../texinfo/texinfo.tex
-INFO_DEPS = as.info gasp.info
-DVIS = as.dvi gasp.dvi
-TEXINFOS = as.texinfo gasp.texi
+INFO_DEPS = as.info
+DVIS = as.dvi
+TEXINFOS = as.texinfo 
 man1dir = $(mandir)/man1
 MANS = $(man_MANS)
 
@@ -191,7 +193,7 @@ DIST_COMMON =  Makefile.am Makefile.in
 
 DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
-TAR = tar
+TAR = gtar
 GZIP_ENV = --best
 all: all-redirect
 .SUFFIXES:
@@ -206,10 +208,6 @@ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 
 as.info: as.texinfo
 as.dvi: as.texinfo
-
-
-gasp.info: gasp.texi
-gasp.dvi: gasp.texi
 
 
 DVIPS = dvips
@@ -304,10 +302,7 @@ dist-info: $(INFO_DEPS)
 mostlyclean-aminfo:
 	-rm -f as.aux as.cp as.cps as.dvi as.fn as.fns as.ky as.kys as.ps \
 	  as.log as.pg as.toc as.tp as.tps as.vr as.vrs as.op as.tr \
-	  as.cv as.cn gasp.aux gasp.cp gasp.cps gasp.dvi gasp.fn \
-	  gasp.fns gasp.ky gasp.kys gasp.ps gasp.log gasp.pg gasp.toc \
-	  gasp.tp gasp.tps gasp.vr gasp.vrs gasp.op gasp.tr gasp.cv \
-	  gasp.cn
+	  as.cv as.cn
 
 clean-aminfo:
 
