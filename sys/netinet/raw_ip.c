@@ -96,6 +96,7 @@ ip_dn_ctl_t *ip_dn_ctl_ptr;
 void
 rip_init()
 {
+	INP_INFO_LOCK_INIT(&ripcbinfo, "rip");
 	LIST_INIT(&ripcb);
 	ripcbinfo.listhead = &ripcb;
 	/*
