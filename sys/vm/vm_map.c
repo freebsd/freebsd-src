@@ -1576,23 +1576,6 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		}
 		entry = entry->next;
 	}
-	if (first_entry == NULL) {
-		result = vm_map_lookup_entry(map, start, &first_entry);
-		KASSERT(result, ("vm_map_unwire: lookup failed"));
-	}
-	entry = first_entry;
-	while (entry != &map->header && entry->start < end) {
-		if (user_unwire)
-			entry->eflags &= ~MAP_ENTRY_USER_WIRED;
-		entry->wired_count--;
-		if (entry->wired_count == 0) {
-			/*
-			 * Retain the map lock.
-			 */
-			vm_fault_unwire(map, entry->start, entry->end);
-		}
-		entry = entry->next;
-	}
 	rv = KERN_SUCCESS;
 done:
 	need_wakeup = FALSE;
@@ -1602,6 +1585,17 @@ done:
 	}
 	entry = first_entry;
 	while (entry != &map->header && entry->start < end) {
+		if (rv == KERN_SUCCESS) {
+			if (user_unwire)
+				entry->eflags &= ~MAP_ENTRY_USER_WIRED;
+			entry->wired_count--;
+			if (entry->wired_count == 0) {
+				/*
+				 * Retain the map lock.
+				 */
+				vm_fault_unwire(map, entry->start, entry->end);
+			}
+		}
 		KASSERT(entry->eflags & MAP_ENTRY_IN_TRANSITION,
 			("vm_map_unwire: in-transition flag missing"));
 		entry->eflags &= ~MAP_ENTRY_IN_TRANSITION;
