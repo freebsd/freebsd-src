@@ -18,12 +18,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.7.2.5 1997/08/25 00:34:35 brian Exp $
+ * $Id: pap.c,v 1.7.2.6 1997/09/23 00:01:25 brian Exp $
  *
  *	TODO:
  */
 #include <time.h>
 #include <utmp.h>
+#include <pwd.h>
 #include "fsm.h"
 #include "lcp.h"
 #include "pap.h"
@@ -37,10 +38,6 @@
 #include "util.h"
 #else
 #include "libutil.h"
-#endif
-
-#ifndef NOPASSWDAUTH
-#include "passwdauth.h"
 #endif
 
 static char *papcodes[] = {
@@ -119,8 +116,14 @@ PapValidate(u_char * name, u_char * key)
 
 #ifndef NOPASSWDAUTH
   if (Enabled(ConfPasswdAuth)) {
-    LogPrintf(LogLCP, "PasswdAuth enabled - calling\n");
-    return PasswdAuth(name, key);
+    struct passwd *pwd;
+    int result;
+
+    LogPrintf(LogLCP, "Using PasswdAuth\n");
+    result = (pwd = getpwnam(name)) &&
+             !strcmp(crypt(key, pwd->pw_passwd), pwd->pw_passwd);
+    endpwent();
+    return result;
   }
 #endif
 
