@@ -42,10 +42,10 @@ static const char copyright[] =
 static char sccsid[] = "@(#)fingerd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: fingerd.c,v 1.10 1997/11/20 07:26:04 charnier Exp $";
+	"$Id: fingerd.c,v 1.11 1998/05/15 03:23:28 jb Exp $";
 #endif /* not lint */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -70,11 +70,11 @@ main(argc, argv)
 	register FILE *fp;
 	register int ch;
 	register char *lp;
-	struct hostent *hp;
 	struct sockaddr_in sin;
 	int p[2], logging, secure, sval;
 #define	ENTRIES	50
 	char **ap, *av[ENTRIES + 1], **comp, line[1024], *prog;
+	char rhost[MAXHOSTNAMELEN + 1];
 
 	prog = _PATH_FINGER;
 	logging = secure = 0;
@@ -130,12 +130,8 @@ main(argc, argv)
 		sval = sizeof(sin);
 		if (getpeername(0, (struct sockaddr *)&sin, &sval) < 0)
 			logerr("getpeername: %s", strerror(errno));
-		if (hp = gethostbyaddr((char *)&sin.sin_addr.s_addr,
-		    sizeof(sin.sin_addr.s_addr), AF_INET))
-			lp = hp->h_name;
-		else
-			lp = inet_ntoa(sin.sin_addr);
-		syslog(LOG_NOTICE, "query from %s: `%s'", lp, t);
+		realhostname(rhost, sizeof rhost - 1, &sin.sin_addr);
+		syslog(LOG_NOTICE, "query from %s: `%s'", rhost, t);
 	}
 
 	comp = &av[1];
