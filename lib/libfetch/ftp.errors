@@ -39,6 +39,7 @@
 504 PROTO	Command not implemented for that parameter
 530 AUTH	Not logged in
 532 AUTH	Need account for storing files
+535 PROTO	Bug in MediaHawk Video Kernel FTP server
 550 UNAVAIL	File unavailable (e.g., file not found, no access)
 551 PROTO	Requested action aborted. Page type unknown
 552 FULL	Exceeded storage allocation
