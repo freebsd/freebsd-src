@@ -270,6 +270,7 @@ int
 _fetch_ssl(conn_t *conn, int verbose)
 {
 
+#ifdef WITH_SSL
 	/* Init the SSL library and context */
 	if (!SSL_library_init()){
 		fprintf(stderr, "SSL library init failed\n");
@@ -310,6 +311,12 @@ _fetch_ssl(conn_t *conn, int verbose)
 	}
 
 	return (0);
+#else
+	(void)conn;
+	(void)verbose;
+	fprintf(stderr, "SSL support disabled\n");
+	return (-1);
+#endif
 }
 
 /*
@@ -350,9 +357,11 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 				return (-1);
 			}
 		}
+#ifdef WITH_SSL
 		if (conn->ssl != NULL)
 			rlen = SSL_read(conn->ssl, buf, len);
 		else
+#endif
 			rlen = read(conn->sd, buf, len);
 		if (rlen == 0)
 			break;
@@ -453,9 +462,11 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
 			}
 		}
 		errno = 0;
+#ifdef WITH_SSL
 		if (conn->ssl != NULL)
 			wlen = SSL_write(conn->ssl, buf, len);
 		else
+#endif
 			wlen = write(conn->sd, buf, len);
 		if (wlen == 0)
 			/* we consider a short write a failure */

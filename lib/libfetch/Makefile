@@ -5,6 +5,9 @@ LIB=		fetch
 WARNS?=		4
 CFLAGS+=	-I.
 CFLAGS+=	-DINET6
+.if !defined(NOCRYPT)
+CFLAGS+=	-DWITH_SSL
+.endif
 SRCS=		fetch.c common.c ftp.c http.c file.c \
 		ftperr.h httperr.h
 INCS=		fetch.h
