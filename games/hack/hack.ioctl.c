@@ -1,10 +1,13 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.ioctl.c - version 1.0.2 */
-/* $FreeBSD$
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* This cannot be part of hack.tty.c (as it was earlier) since on some
    systems (e.g. MUNIX) the include files <termio.h> and <sgtty.h>
    define the same constants, and the C preprocessor complains. */
+
 #include <stdio.h>
 #include "config.h"
 #ifdef BSD
