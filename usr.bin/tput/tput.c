@@ -49,9 +49,10 @@ static char sccsid[] = "@(#)tput.c	8.2 (Berkeley) 3/19/94";
 #include <stdlib.h>
 #include <unistd.h>
 
+#define outc putchar
+
 static void   prlongname __P((char *));
 static void   setospeed __P((void));
-static void   outc __P((int));
 static void   usage __P((void));
 static char **process __P((char *, char *, char **));
 
@@ -209,13 +210,6 @@ setospeed()
 		ospeed = 0;
 	else
 		ospeed = cfgetospeed(&t);
-}
-
-static void
-outc(c)
-	int c;
-{
-	(void)putchar(c);
 }
 
 static void
