@@ -34,48 +34,75 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.3 1993/11/03 18:05:42 nate Exp $
+ *	$Id: swapgeneric.c,v 1.4 1994/08/13 03:49:45 wollman Exp $
  */
-
-#include <machine/pte.h>
 
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/buf.h>
-#include <sys/vm.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
+#include <sys/disklabel.h>
+#include <sys/devconf.h>
+
+#include "wd.h"
+#include "fd.h"
+#include "sd.h"
+#include "cd.h"
+#include "mcd.h"
+#include "scd.h"
+#include "pcd.h"
 
 /*
  * Generic configuration;  all in one
  */
-dev_t	rootdev = makedev(0,0);
-dev_t	dumpdev = makedev(0,1);
+dev_t	rootdev = NODEV;
+dev_t	dumpdev = NODEV;
+
 int	nswap;
 struct	swdevt swdevt[] = {
-	{ 1,	0,	0 },
-	{ 0,	1,	0 },
+	{ 1,		0,	0 },
+	{ NODEV,	0,	0 }, /* For NFS diskless */
+	{ NODEV,	0,	0 },
 };
 long	dumplo;
 int	dmmin, dmmax, dmtext;
 
-extern	struct driver wddriver;
-extern	struct driver wxdriver;
+extern struct kern_devconf *dc_list;
+void gets(char *);
 
 struct	genericconf {
-	caddr_t	gc_driver;
 	char	*gc_name;
 	dev_t	gc_root;
 } genericconf[] = {
-	{ (caddr_t)&wddriver,	"wd",	makedev(0, 0),	},
-	{ (caddr_t)&wxdriver,	"wx",	makedev(0, 0),	},
+#if NWD > 0
+	{ "wd",		makedev(0, 0),	},
+#endif
+#if NFD > 0
+	{ "fd",		makedev(2, 0),	},
+#endif
+#if NSD > 0
+	{ "sd",		makedev(4, 0),	},
+#endif
+#if NCD > 0
+	{ "cd",		makedev(6, 0),	},
+#endif
+#if NMCD > 0
+	{ "mcd",	makedev(7, 0),	},
+#endif
+#if NSCD > 0
+	{ "scd",	makedev(16,0),	},
+#endif
+#if NPCD > 0
+	{ "pcd",	makedev(17,0),	},
+#endif
 	{ 0 },
 };
 
-setconf()
+void setconf(void)
 {
-#ifdef notdef
 	register struct genericconf *gc;
+	register struct kern_devconf *kdc;
 	int unit, swaponroot = 0;
 
 	if (rootdev != NODEV)
@@ -85,7 +112,7 @@ setconf()
 retry:
 		printf("root device? ");
 		gets(name);
-		for (gc = genericconf; gc->gc_driver; gc++)
+		for (gc = genericconf; gc->gc_name; gc++)
 			if (gc->gc_name[0] == name[0] &&
 			    gc->gc_name[1] == name[1])
 				goto gotit;
@@ -105,33 +132,33 @@ bad:
 		goto retry;
 	}
 	unit = 0;
-	for (gc = genericconf; gc->gc_driver; gc++) {
-		for (ui = vbdinit; ui->ui_driver; ui++) {
-			if (ui->ui_alive == 0)
-				continue;
-			if (ui->ui_unit == 0 && ui->ui_driver ==
-			    (struct vba_driver *)gc->gc_driver) {
-				printf("root on %s0\n",
-				    ui->ui_driver->ud_dname);
+	for (gc = genericconf; gc->gc_name; gc++) {
+		kdc = dc_list;
+		while (kdc->kdc_next) {
+			if (!strcmp(kdc->kdc_name, gc->gc_name) &&
+				kdc->kdc_unit == 0) {
+				printf("root on %s0\n", kdc->kdc_name);
 				goto found;
 			}
+			kdc = kdc->kdc_next;
 		}
 	}
-	printf("no suitable root\n");
-	asm("halt");
+	printf("no suitable root -- press any key to reboot\n\n");
+	cngetc();
+	cpu_reset();
+	for(;;) ;
 found:
-	gc->gc_root = makedev(major(gc->gc_root), unit*8);
+	gc->gc_root = makedev(major(gc->gc_root), unit * MAXPARTITIONS);
 	rootdev = gc->gc_root;
 doswap:
-	swdevt[0].sw_dev = argdev = dumpdev =
+	swdevt[0].sw_dev = dumpdev =
 	    makedev(major(rootdev), minor(rootdev)+1);
 	/* swap size and dumplo set during autoconfigure */
 	if (swaponroot)
 		rootdev = dumpdev;
-#endif
 }
 
-gets(cp)
+void gets(cp)
 	char *cp;
 {
 	register char *lp;
