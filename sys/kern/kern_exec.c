@@ -76,6 +76,7 @@ static MALLOC_DEFINE(M_ATEXEC, "atexec", "atexec callback");
 
 static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
+static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS);
 static int kern_execve(struct thread *td, char *fname, char **argv,
 	char **envv, struct mac *mac_p);
 
@@ -97,6 +98,9 @@ SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
 /* XXX This should be vm_size_t. */
 SYSCTL_PROC(_kern, KERN_USRSTACK, usrstack, CTLTYPE_ULONG|CTLFLAG_RD,
     NULL, 0, sysctl_kern_usrstack, "LU", "");
+
+SYSCTL_PROC(_kern, OID_AUTO, stackprot, CTLTYPE_INT|CTLFLAG_RD,
+    NULL, 0, sysctl_kern_stackprot, "I", "");
 
 u_long ps_arg_cache_limit = PAGE_SIZE / 16;
 SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
@@ -129,6 +133,16 @@ sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS)
 	p = curproc;
 	return (SYSCTL_OUT(req, &p->p_sysent->sv_usrstack,
 	    sizeof(p->p_sysent->sv_usrstack)));
+}
+
+static int
+sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS)
+{
+	struct proc *p;
+
+	p = curproc;
+	return (SYSCTL_OUT(req, &p->p_sysent->sv_stackprot,
+	    sizeof(p->p_sysent->sv_stackprot)));
 }
 
 /*
