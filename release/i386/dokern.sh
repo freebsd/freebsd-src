@@ -75,7 +75,14 @@ sed	-e '/pty/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
+	-e '/ncr/d' \
 	-e '/atapist/d' \
+	-e '/wds/d' \
+	-e '/lpt/d' \
+	-e '/ppi/d' \
+	-e '/ugen/d' \
+	-e '/uhid/d' \
+	-e '/ulpt/d' \
 	-e '/urio/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
