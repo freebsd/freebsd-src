@@ -138,7 +138,7 @@ CRUNCH_LIBS+= -lalias -lbsdxml -lcam -lcurses -ldevstat -lipsec -lipx \
 	-lgeom -lkiconv -lmd -lreadline -lsbuf -lufs -lz 
 
 .if ${MACHINE_ARCH} == "i386"
-CRUNCH_PROGS_sbin+= cxconfig fdisk
+CRUNCH_PROGS_sbin+= sconfig fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 #CRUNCH_PROGS+= mount_nwfs mount_smbfs
 #CRUNCH_LIBS+= -lncp -lsmb
