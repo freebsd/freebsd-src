@@ -1,6 +1,0 @@
-PROG=grodvi
-MAN1=grodvi.n
-XLIBS=$(LIBDRIVER) $(LIBGROFF)
-MLIB=$(LIBM)
-OBJS=dvi.o
-CCSRCS=$(srcdir)/dvi.cc

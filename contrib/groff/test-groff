@@ -19,6 +19,7 @@ $builddir/preproc/tbl:\
 $builddir/preproc/grn:\
 $builddir/preproc/refer:\
 $builddir/preproc/soelim:\
+$builddir/preproc/html:\
 $builddir/devices/grops:\
 $builddir/devices/grodvi:\
 $builddir/devices/grotty:\
@@ -35,7 +36,7 @@ export XENVIRONMENT
 
 GROFF_COMMAND_PREFIX=
 GROFF_FONT_PATH=$builddir:$srcdir/font
-GROFF_TMAC_PATH=$srcdir/tmac:$srcdir/src/roff/troff
+GROFF_TMAC_PATH=$srcdir/tmac
 export PATH GROFF_COMMAND_PREFIX GROFF_FONT_PATH GROFF_TMAC_PATH
 
 exec $builddir/roff/groff/groff ${1+"$@"}

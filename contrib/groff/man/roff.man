@@ -1,4 +1,4 @@
-.\"                        -*- nroff -*- 
+.\" t                      -*- nroff -*- 
 .ig
 roff.7
 
@@ -24,7 +24,7 @@ FDL in the main directory of the groff source package.
 .\" --------------------------------------------------------------------
 .
 .if n \{\
-.  mso tmac.tty-char
+.  mso tty-char.tmac
 .  ftr CR R
 .  ftr CI I
 .  ftr CB B
@@ -68,6 +68,12 @@ FDL in the main directory of the groff source package.
 .  shift 2
 .  text \\*[@tmp@]\\$*
 .  rm @tmp@
+..
+.
+.de TQ
+.br
+.ns
+.TP \\$1
 ..
 .
 .\" --------------------------------------------------------------------
@@ -276,8 +282,10 @@ Macro packages are collections of macros that are suitable to format a
 special kind of documents in a convenient way.
 This greatly eases the usage of roff.
 The macro definitions of a package are kept in a file called
-.BI tmac. name
-where
+.IB name .tmac
+(or
+.BI tmac. name\c
+) where
 .I name
 is the internal roff name for this package.
 All tmac files are stored in a single or few directories at standard
@@ -294,7 +302,7 @@ or
 .argname name .
 General details on the naming of macro packages and their placement is
 found in
-.BR tmac (@MAN5EXT@).
+.BR groff_tmac (@MAN5EXT@).
 .LP
 Famous classical macro packages are
 .IR man ,
@@ -371,7 +379,7 @@ in all flavors of the Emacs editor.
 .B GROFF_TMAC_PATH
 A colon separated list of directories in which to search for
 macro files, see
-.BR tmac (@MAN5EXT@).
+.BR groff_tmac (@MAN5EXT@).
 .TP
 .SM
 .B GROFF_TYPESETTER
@@ -383,38 +391,52 @@ A colon separated list of directories in which to search for the
 .BI dev name
 directory.
 .B troff
-will search in directories given in the
+will first search in directories given with the
 .option \-F
-option before these, and in standard directories
-.RB ( .:/usr/local/share/groff/font:/usr/lib/font )
-after these.
+command line option, then in
+.BR GROFF_FONT_PATH ,
+and finally in the standard directories
+.RB ( @FONTPATH@ ).
 .\" --------------------------------------------------------------------
 .SH FILES
 .\" --------------------------------------------------------------------
 By default,
 .I groff
-installs all of its library files in a directory tree under
-.IR /usr/local/share/groff .
-This location might vary for different systems.
-In the following, this directory is referred to as
-.IR <groff_dir> .
-.LP
+installs all of its data files in subdirectories of
+.I @FONTDIR@
+and in
+.I @MACRODIR@
+(except wrapper files for system-specific macro packages which will be
+in
+.IR @SYSTEMMACRODIR@ ).
+These locations might vary for different systems.
+In the following, the former is referred to as
+.IR <groff_font_dir> ,
+the latter as
+.IR <groff_macro_dir> .
 .TP
-.IB <groff_dir> /tmac/troffrc
+.IB <groff_macro_dir> /troffrc
 Initialization file for troff.
 .TP
-.IB <groff_dir> /tmac/tmac. name
+.IB <groff_macro_dir> / name .tmac
+.TQ
+.IB <groff_macro_dir> /tmac. name
 Macro files.
 .TP
-.IB <groff_dir> /font/dev name /DESC
+.IB <groff_font_dir> /dev name /DESC
 Device description file for device
 .IR name .
 .TP
-.IB <groff_dir> /font/dev name / F
+.IB <groff_font_dir> /dev name / F
 Font file for font
 .I F
 of device
 .IR name .
+.LP
+Finally, a local macro directory
+.I @LOCALMACRODIR@
+is provided for site-specific macros and packages; by default, it will be
+searched before the main macro directory.
 .\" --------------------------------------------------------------------
 .SH BUGS
 .\" --------------------------------------------------------------------
@@ -482,9 +504,8 @@ The man pages for macro packages include
 .BR groff_me (@MAN7EXT@),
 .BR groff_mm (@MAN7EXT@),
 .BR groff_mmroff (@MAN7EXT@),
-.BR groff_ms (@MAN7EXT@),
 and
-.BR groff_msafer (@MAN7EXT@).
+.BR groff_ms (@MAN7EXT@).
 .LP
 The following utilities are available:
 .BR addftinfo (@MAN1EXT@),

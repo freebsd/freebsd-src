@@ -119,9 +119,12 @@ revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(top_srcdir)/REVISION`
 .man.n:
 	@echo Making $@ from $<
 	@-rm -f $@
-	@sed -e "s|@FONTDIR@|$(fontdir)|g" \
+	@sed -e "s|@BINDIR@|$(bindir)|g" \
+	-e "s|@FONTDIR@|$(fontdir)|g" \
 	-e "s|@FONTPATH@|$(fontpath)|g" \
 	-e "s|@MACRODIR@|$(tmacdir)|g" \
+	-e "s|@SYSTEMMACRODIR@|$(systemtmacdir)|g" \
+	-e "s|@LOCALMACRODIR@|$(localtmacdir)|g" \
 	-e "s|@MACROPATH@|$(tmacpath)|g" \
 	-e "s|@DEVICE@|$(DEVICE)|g" \
 	-e "s|@DEFAULT_INDEX@|$(indexdir)/$(indexname)|g" \
@@ -205,6 +208,7 @@ uninstall_prog:
 .PHONY: install_dev
 install_dev:
 	-test -d $(datadir) || $(mkinstalldirs) $(datadir)
+	-test -d $(dataprogramdir) || $(mkinstalldirs) $(dataprogramdir)
 	-test -d $(datasubdir) || $(mkinstalldirs) $(datasubdir)
 	-test -d $(fontdir) || $(mkinstalldirs) $(fontdir)
 	-test -d $(fontsubdir) || $(mkinstalldirs) $(fontsubdir)

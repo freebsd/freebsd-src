@@ -1,4 +1,4 @@
-# Copyright (C) 1989-2000 Free Software Foundation, Inc.
+# Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
 #      Written by James Clark (jjc@jclark.com)
 # 
 # This file is part of groff.
@@ -16,6 +16,15 @@
 # You should have received a copy of the GNU General Public License along
 # with groff; see the file COPYING.  If not, write to the Free Software
 # Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+srcdir=@srcdir@
+top_srcdir=@top_srcdir@
+VPATH=@srcdir@
+top_builddir=@top_builddir@
+
+version=`cat $(top_srcdir)/VERSION`
+# No additional number if revision is zero
+revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(top_srcdir)/REVISION`
 
 # Define `page' to be letter if your PostScript printer uses 8.5x11
 # paper (USA) and define it to be A4, if it uses A4 paper (rest of the
@@ -71,27 +80,41 @@ g=@g@
 # Used in definitions of exec_prefix, datasubdir, fontpath, manroot.
 # This must already exist when you do make install.
 prefix=@prefix@
-
 exec_prefix=@exec_prefix@
 
 # bindir says where to install executables.
-bindir=$(exec_prefix)/bin
+bindir=@bindir@
 
-# datasubdir says where to install data files
+# libdir says where to install platform-dependent data
+libdir=@libdir@
+libprogramdir=$(libdir)/groff
+
+# datasubdir says where to install platform-independent data files
 datadir=@datadir@
-datasubdir=$(datadir)/groff
+dataprogramdir=$(datadir)/groff
+datasubdir=$(dataprogramdir)/$(version)$(revision)
 
 # fontdir says where to install dev*/*.
 fontdir=$(datasubdir)/font
 
 # fontpath says where to look for dev*/*.
-fontpath=.:$(fontdir):/usr/lib/font
+fontpath=$(fontdir):/usr/lib/font
 
 # tmacdir says where to install macros.
 tmacdir=$(datasubdir)/tmac
 
+# systemtmacdir says where to install platform-dependent macros
+systemtmacdir=$(libprogramdir)/site-tmac
+
+# localtmacdir says where local files will be installed
+localtmacdir=$(dataprogramdir)/site-tmac
+
 # tmacpath says where to look for macro files.
-tmacpath=.:$(tmacdir)
+# The current directory will be prepended in unsafe mode only; the home
+# directory will be always added.
+# `troffrc' and `troffrc-end' (and `eqnrc') are searched neither in the
+# current nor in the home directory.
+tmacpath=$(systemtmacdir):$(localtmacdir):$(tmacdir)
 
 # sys_tmac_prefix is prefix (if any) for system macro packages
 sys_tmac_prefix=@sys_tmac_prefix@
@@ -225,11 +248,6 @@ PERLPATH=@PERLPATH@
 # Sed command with which to edit sh scripts.
 SH_SCRIPT_SED_CMD=@SH_SCRIPT_SED_CMD@
 
-srcdir=@srcdir@
-top_srcdir=@top_srcdir@
-VPATH=@srcdir@
-top_builddir=@top_builddir@
-
 # the program to create directory hierarchies
 mkinstalldirs=$(top_srcdir)/mkinstalldirs
 
@@ -253,13 +271,18 @@ MDEFINES= \
   "top_builddir=$(top_builddir)" \
   "prefix=$(prefix)" \
   "exec_prefix=$(exec_prefix)" \
-  "bindir=$(bindir)" \
   "g=$(g)" \
   "datadir=$(datadir)" \
+  "dataprogramdir=$(dataprogramdir)" \
   "datasubdir=$(datasubdir)" \
+  "libdir=$(libdir)" \
+  "libprogramdir=$(libprogramdir)" \
+  "bindir=$(bindir)" \
   "fontdir=$(fontdir)" \
   "fontpath=$(fontpath)" \
   "tmacdir=$(tmacdir)" \
+  "systemtmacdir=$(systemtmacdir)" \
+  "localtmacdir=$(localtmacdir)" \
   "tmacpath=$(tmacpath)" \
   "indexext=$(indexext)" \
   "indexdir=$(indexdir)" \
@@ -318,6 +341,7 @@ CCPROGDIRS=\
   src/preproc/grn \
   src/preproc/refer \
   src/preproc/soelim \
+  src/preproc/html \
   src/devices/grops \
   src/devices/grotty \
   src/devices/grodvi \
@@ -461,15 +485,10 @@ $(INCDIRS) $(OTHERDIRS): FORCE
 	  -f $$srcdir/Makefile.sub \
 	  -f $(top_srcdir)/Makefile.man $(do)
 
-version=`cat $(top_srcdir)/VERSION`
-# No additional number for the groff archive if revision is zero
-revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(top_srcdir)/REVISION`
-
 .PHONY: dist
 dist:
 	-rm -fr tmp
 	rm -f groff-$(version)$(revision).tar.gz
-	rm -f src/xditview/Imakefile;
 	mkdir tmp
 	for d in $(DISTDIRS); do \
 	  $(mkinstalldirs) tmp/$$d; \
@@ -518,7 +537,9 @@ uninstall: uninstall_sub uninstall_dirs
 uninstall_dirs:
 # Use rmdir here so that the directories are only removed if they're empty
 	-rmdir $(man1dir) $(man5dir) $(man7dir) $(manroot) \
-	  $(tmacdir) $(fontdir) $(bindir) $(datasubdir) $(datadir)
+	  $(tmacdir) $(systemtmacdir) $(localtmacdir) $(fontdir) $(bindir) \
+	  $(datasubdir) $(dataprogramdir) $(datadir) \
+	  $(libprogramdir) $(libdir)
 
 
 .PHONY: check

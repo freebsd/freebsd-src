@@ -11,8 +11,8 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
 .\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
+.\"      This product includes software developed by the University of
+.\"      California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -33,330 +33,697 @@
 .\" $FreeBSD$
 .\"
 .\"     %beginstrip%
-.\" NS Ux macro - UNIX
+.
+.
+.eo
+.
+.\" NS Ux user macro
+.\" NS   print UNIX
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-macro-name
+.\" NS
+.\" NS local variable:
+.\" NS   doc-str-Ux
+.\" NS
+.\" NS width register `Ux' defined in doc-common
+.
 .de Ux
-.nr cF \\n(.f
-.nr cZ \\n(.s
-.ds aa \&\f\\n(cF\s\\n(cZ
-.as b1 \&\\*(tNUNIX\\*(aa
-.rm aa
-.if \\n(aC==0 \{\
-.       if \\n(.$>0 .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
-.\}
-.ie \\n(aC>\\n(aP \{\
-.       nr aP \\n(aP+1
-.       ie \\n(C\\n(aP==1 \{\
-.               \\*(A\\n(aP
-.       \}
-.       el .nR
-.\}
-.el .aZ
+.  nr doc-curr-font \n[.f]
+.  nr doc-curr-size \n[.ps]
+.  ds doc-str-Ux \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]
+.
+.  if !\n[doc-arg-limit] \
+.    if \n[.$] \{\
+.      ds doc-macro-name Ux
+.      doc-parse-args \$@
+.    \}
+.
+.  \" replace current argument with result
+.  ds doc-arg\n[doc-arg-ptr] \*[doc-Tn-font-size]UNIX\*[doc-str-Ux]
+.  nr doc-type\n[doc-arg-ptr] 2
+.  ds doc-space\n[doc-arg-ptr] "\*[doc-space]
+.
+.  \" recompute space vector for remaining arguments
+.  nr doc-num-args (\n[doc-arg-limit] - \n[doc-arg-ptr])
+.  nr doc-arg-limit \n[doc-arg-ptr]
+.  if \n[doc-num-args] \
+.    doc-parse-space-vector
+.
+.  doc-print-recursive
 ..
-.\" NS Bx macro -BSD (fix smaller nroff version)
+.
+.
+.\" NS Bx user macro
+.\" NS   print BSD (fix smaller nroff version)
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-macro-name
+.\" NS
+.\" NS local variable:
+.\" NS   doc-str-Bx
+.\" NS   doc-str-Bx1
+.\" NS   doc-str-Bx-XXX
+.\" NS
+.\" NS width register `Bx' defined in doc-common
+.
+.ds doc-str-Bx-Reno  \-Reno
+.ds doc-str-Bx-reno  \-Reno
+.ds doc-str-Bx-Tahoe \-Tahoe
+.ds doc-str-Bx-tahoe \-Tahoe
+.ds doc-str-Bx-Lite  \-Lite
+.ds doc-str-Bx-lite  \-Lite
+.ds doc-str-Bx-Lite2 \-Lite2
+.ds doc-str-Bx-lite2 \-Lite2
+.
 .de Bx
-.nr cF \\n(.f
-.nr cZ \\n(.s
-.ds aa \&\f\\n(cF\s\\n(cZ
-.if \\n(aC==0 \{\
-.       ie \\n(.$==0 \&\\*(tNBSD\\*(aa
-.       el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
-.\}
-.if "\\$1"-alpha" \{\
-\&currently in alpha test.
-.	aY
-.\}
-.if "\\$1"-beta" \{\
-\&currently in beta test.
-.	aY
-.\}
-.if "\\$1"-devel" \{\
-\&currently under development.
-.	aY
-.\}
-.if \\n(aC>\\n(aP \{\
-.       nr aP \\n(aP+1
-.	ie \\n(C\\n(aP==2 \{\
-.		as b1 \&\\*(A\\n(aP\&\\*(tNBSD\\*(aa
-.		ie \\n(aC>\\n(aP \{\
-.			nr jj \\n(aP+1
-.			ie \\n(C\\n(jj==2 \{\
-.				if "\\*(A\\n(jj"Reno" \{\
-.					nr aP \\n(aP+1
-.					as b1 \&\-\\*(A\\n(jj
-.				\}
-.				if "\\*(A\\n(jj"reno" \{\
-.					nr aP \\n(aP+1
-.					as b1 \&\-Reno
-.				\}
-.				if "\\*(A\\n(jj"Tahoe" \{\
-.					nr aP \\n(aP+1
-.					as b1 \&\-\\*(A\\n(jj
-.				\}
-.				if "\\*(A\\n(jj"tahoe" \{\
-.					nr aP \\n(aP+1
-.					as b1 \&\-Tahoe
-.				\}
-.				ie \\n(aC>\\n(aP \{\
-.					nr aP \\n(aP+1
-.					nR
-.				\}
-.				el .aZ
-.			\}
-.			el \{\
-.				nr aP \\n(aP+1
-.				nR
-.			\}
-.			rr jj
-.		\}
-.		el .aZ
-.	\}
-.	el \{\
-.	       as b1 \&\\*(tNBSD\\*(aa
-.	       nR
-.	\}
-.\}
+.  nr doc-curr-font \n[.f]
+.  nr doc-curr-size \n[.ps]
+.  ds doc-str-Bx \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]
+.
+.  \" default value if no argument
+.  ds doc-str-Bx1 \*[doc-Tn-font-size]BSD\*[doc-str-Bx]
+.
+.  if !\n[doc-arg-limit] \
+.    if \n[.$] \{\
+.      ds doc-macro-name Bx
+.      doc-parse-args \$@
+.    \}
+.
+.  if (\n[doc-arg-limit] > \n[doc-arg-ptr]) \{\
+.    nr doc-arg-ptr +1
+.    ie (\n[doc-type\n[doc-arg-ptr]] == 2) \{\
+.      ie        "\*[doc-arg\n[doc-arg-ptr]]"-alpha" \
+.        as doc-str-Bx1 " (currently in alpha test)
+.      el \{ .ie "\*[doc-arg\n[doc-arg-ptr]]"-beta" \
+.        as doc-str-Bx1 " (currently in beta test)
+.      el \{ .ie "\*[doc-arg\n[doc-arg-ptr]]"-devel" \
+.        as doc-str-Bx1 " (currently under development)
+.      el \{\
+.        ds doc-str-Bx1 \&\*[doc-arg\n[doc-arg-ptr]]\^\*[doc-Tn-font-size]
+.        as doc-str-Bx1 BSD\*[doc-str-Bx]
+.
+.        if (\n[doc-arg-limit] > \n[doc-arg-ptr]) \{\
+.          nr doc-arg-ptr +1
+.          ie (\n[doc-type\n[doc-arg-ptr]] == 2) \{\
+.            ie (\n[doc-type\n[doc-arg-ptr]] == 2) \{\
+.              ie d doc-str-Bx-\*[doc-arg\n[doc-arg-ptr]] \
+.                as doc-str-Bx1 "\*[doc-str-Bx-\*[doc-arg\n[doc-arg-ptr]]]
+.              el \
+.                nr doc-arg-ptr -1
+.            \}
+.            el \
+.              nr doc-arg-ptr -1
+.          \}
+.          el \
+.            nr doc-arg-ptr -1
+.    \}\}\}\}\}
+.    el \
+.      nr doc-arg-ptr -1
+.  \}
+.
+.  \" replace current argument with result
+.  ds doc-arg\n[doc-arg-ptr] "\*[doc-str-Bx1]
+.  nr doc-type\n[doc-arg-ptr] 2
+.  ds doc-space\n[doc-arg-ptr] "\*[doc-space]
+.
+.  \" recompute space vector for remaining arguments
+.  nr doc-num-args (\n[doc-arg-limit] - \n[doc-arg-ptr])
+.  nr doc-arg-limit \n[doc-arg-ptr]
+.  if \n[doc-num-args] \
+.    doc-parse-space-vector
+.
+.  doc-print-recursive
 ..
-.\" Ns Ud macro - prints "currently under development" (HISTORY section)
+.
+.
+.\" NS Ud user macro (not parsed, not callable)
+.\" NS   print "currently under development" (HISTORY section)
+.\" NS
+.\" NS width register `Ud' defined in doc-common
+.
 .de Ud
-\&currently under development.
+.  nop \&currently under development.
 ..
-.\" Ns At macro - AT&T UNIX (this macro does not handle punctuation)
+.
+.
+.\" NS At user macro
+.\" NS   print AT&T UNIX
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-macro-name
+.\" NS
+.\" NS local variable:
+.\" NS   doc-str-At
+.\" NS   doc-str-At1
+.\" NS   doc-str-At-XXX
+.\" NS
+.\" NS width register `At' defined in doc-common
+.
+.ds doc-str-At-32v \&Version\~32V
+.as doc-str-At-32v " \*[doc-Tn-font-size]AT&T UNIX\*[doc-str-At]
+.ds doc-str-At-v1  \&Version\~1
+.as doc-str-At-v1  " \*[doc-Tn-font-size]AT&T UNIX\*[doc-str-At]
+.ds doc-str-At-v2  \&Version\~2
+.as doc-str-At-v2  " \*[doc-Tn-font-size]AT&T UNIX\*[doc-str-At]
+.ds doc-str-At-v3  \&Version\~3
+.as doc-str-At-v3  " \*[doc-Tn-font-size]AT&T UNIX\*[doc-str-At]
+.ds doc-str-At-v4  \&Version\~4
+.as doc-str-At-v4  " \*[doc-Tn-font-size]AT&T UNIX\*[doc-str-At]
+.ds doc-str-At-v5  \&Version\~5
+.as doc-str-At-v5  " \*[doc-Tn-font-size]AT&T UNIX\*[doc-str-At]
+.ds doc-str-At-v6  \&Version\~6
+.as doc-str-At-v6  " \*[doc-Tn-font-size]AT&T UNIX\*[doc-str-At]
+.ds doc-str-At-v7  \&Version\~7
+.as doc-str-At-v7  " \*[doc-Tn-font-size]AT&T UNIX\*[doc-str-At]
+.ds doc-str-At-V   \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V
+.as doc-str-At-V   " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
+.ds doc-str-At-V.1 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V.1
+.as doc-str-At-V.1 " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
+.ds doc-str-At-V.2 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V.2
+.as doc-str-At-V.2 " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
+.ds doc-str-At-V.4 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V.4
+.as doc-str-At-V.4 " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
+.
 .de At
-.nr cF \\n(.f
-.nr cZ \\n(.s
-.ds aa \&\f\\n(cF\s\\n(cZ
-.if \\n(.$==2 \{\
-.	if "\\$1"32v" \&Version 32V \\*(tNAT&T UNIX\\*(aa\\$2
-.	if "\\$1"v1"  \&Version 1 \\*(tNAT&T UNIX\\*(aa\\$2
-.	if "\\$1"v2"  \&Version 2 \\*(tNAT&T UNIX\\*(aa\\$2
-.	if "\\$1"v3"  \&Version 3 \\*(tNAT&T UNIX\\*(aa\\$2
-.	if "\\$1"v4"  \&Version 4 \\*(tNAT&T UNIX\\*(aa\\$2
-.	if "\\$1"v5"  \&Version 5 \\*(tNAT&T UNIX\\*(aa\\$2
-.	if "\\$1"v6"  \&Version 6 \\*(tNAT&T UNIX\\*(aa\\$2
-.	if "\\$1"v7"  \&Version 7 \\*(tNAT&T UNIX\\*(aa\\$2
-.	if "\\$1"V"  \&\\*(tNAT&T\\*(aa System V \\*(tNUNIX\\*(aa\\$2
-.	if "\\$1"V.1"  \&\\*(tNAT&T\\*(aa System V.1 \\*(tNUNIX\\*(aa\\$2
-.	if "\\$1"V.2"  \&\\*(tNAT&T\\*(aa System V.2 \\*(tNUNIX\\*(aa\\$2
-.	if "\\$1"V.4"  \&\\*(tNAT&T\\*(aa System V.4 \\*(tNUNIX\\*(aa\\$2
-.\}
-.if \\n(.$==1 \{\
-.	if "\\$1"32v" \&Version 32V \\*(tNAT&T UNIX\\*(aa
-.	if "\\$1"v1"  \&Version 1 \\*(tNAT&T UNIX\\*(aa
-.	if "\\$1"v2"  \&Version 2 \\*(tNAT&T UNIX\\*(aa
-.	if "\\$1"v3"  \&Version 3 \\*(tNAT&T UNIX\\*(aa
-.	if "\\$1"v4"  \&Version 4 \\*(tNAT&T UNIX\\*(aa
-.	if "\\$1"v5"  \&Version 5 \\*(tNAT&T UNIX\\*(aa
-.	if "\\$1"v6"  \&Version 6 \\*(tNAT&T UNIX\\*(aa
-.	if "\\$1"v7"  \&Version 7 \\*(tNAT&T UNIX\\*(aa
-.	if "\\$1"V"  \&\\*(tNAT&T\\*(aa System V \\*(tNUNIX\\*(aa
-.	if "\\$1"V.1"  \&\\*(tNAT&T\\*(aa System V.1 \\*(tNUNIX\\*(aa
-.	if "\\$1"V.2"  \&\\*(tNAT&T\\*(aa System V.2 \\*(tNUNIX\\*(aa
-.	if "\\$1"V.4"  \&\\*(tNAT&T\\*(aa System V.4 \\*(tNUNIX\\*(aa
-.\}
-.if \\n(.$==0 \{\
-\&\\*(tNAT&T UNIX\\*(aa
-.\}
+.  nr doc-curr-font \n[.f]
+.  nr doc-curr-size \n[.ps]
+.  ds doc-str-At \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]
+.
+.  \" default value if no argument
+.  ds doc-str-At1 \*[doc-Tn-font-size]AT&T UNIX\*[doc-str-At]
+.
+.  if !\n[doc-arg-limit] \
+.    if \n[.$] \{\
+.      ds doc-macro-name At
+.      doc-parse-args \$@
+.    \}
+.
+.  if (\n[doc-arg-limit] > \n[doc-arg-ptr]) \{\
+.    nr doc-arg-ptr +1
+.    ie (\n[doc-type\n[doc-arg-ptr]] == 2) \{\
+.      ie \A\*[doc-arg\n[doc-arg-ptr]] \{\
+.        ie d doc-str-At-\*[doc-arg\n[doc-arg-ptr]] \
+.          ds doc-str-At1 "\*[doc-str-At-\*[doc-arg\n[doc-arg-ptr]]]
+.        el \{\
+.          tmc mdoc warning: .At: Unknown AT&T UNIX version
+.          tm1 " `\*[doc-arg\n[doc-arg-ptr]]' (#\n[.c])
+.          nr doc-arg-ptr -1
+.      \}\}
+.      el \
+.        nr doc-arg-ptr -1
+.    \}
+.    el \
+.      nr doc-arg-ptr -1
+.  \}
+.
+.  \" replace current argument with result
+.  ds doc-arg\n[doc-arg-ptr] "\*[doc-str-At1]
+.  nr doc-type\n[doc-arg-ptr] 2
+.  ds doc-space\n[doc-arg-ptr] "\*[doc-space]
+.
+.  \" recompute space vector for remaining arguments
+.  nr doc-num-args (\n[doc-arg-limit] - \n[doc-arg-ptr])
+.  nr doc-arg-limit \n[doc-arg-ptr]
+.  if \n[doc-num-args] \
+.    doc-parse-space-vector
+.
+.  doc-print-recursive
 ..
-.\" NS Fx macro - FreeBSD
-.\" NS b0 string local temporary
-.ds Fx*1.0
-.ds Fx*1.1
-.ds Fx*1.1.5
-.ds Fx*1.1.5.1
-.ds Fx*2
-.ds Fx*2.0
-.ds Fx*2.0.5
-.ds Fx*2.1
-.ds Fx*2.1.5
-.ds Fx*2.1.6
-.ds Fx*2.1.7
-.ds Fx*2.2
-.ds Fx*2.2.1
-.ds Fx*2.2.2
-.ds Fx*2.2.5
-.ds Fx*2.2.6
-.ds Fx*2.2.7
-.ds Fx*2.2.8
-.ds Fx*3
-.ds Fx*3.0
-.ds Fx*3.1
-.ds Fx*3.2
-.ds Fx*3.3
-.ds Fx*3.4
-.ds Fx*3.5
-.ds Fx*4
-.ds Fx*4.0
-.ds Fx*4.1
-.ds Fx*4.1.1
-.ds Fx*4.2
-.ds Fx*4.3
-.ds Fx*5
-.ds Fx*5.0
+.
+.
+.\" NS Fx user macro
+.\" NS   print FreeBSD
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-macro-name
+.\" NS
+.\" NS local variable:
+.\" NS   doc-str-Fx
+.\" NS   doc-str-Fx1
+.\" NS
+.\" NS width register `Fx' defined in doc-common
+.
+.\" we use the doc-operating-system-FreeBSD-* strings defined in doc-common
+.
 .de Fx
-.nr cF \\n(.f
-.nr cZ \\n(.s
-.ds aa \&\f\\n(cF\s\\n(cZ
-.as b1 \&\\*(tNFreeBSD\\*(aa
-.if \\n(aC==0 \{\
-.	ie \\n(.$==0 .pB
-.	el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
-.\}
-.if \\n(aC>0 \{\
-.	ie \\n(aC==\\n(aP .aZ
-.	el \{\
-.		nr aP \\n(aP+1
-.		if \\n(C\\n(aP==2 \{\
-.			ds b0 \\*(A\\n(aP
-.			if !dFx*\\*(b0 .tm Unknown FreeBSD version ``\\*(b0'' at line \\n(c.
-.			rm b0
-.			as b1 \ 
-.		\}
-.		nR
-.	\}
-.\}
+.  nr doc-curr-font \n[.f]
+.  nr doc-curr-size \n[.ps]
+.  ds doc-str-Fx \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]
+.
+.  \" default value if no argument
+.  ds doc-str-Fx1 \*[doc-Tn-font-size]\%FreeBSD\*[doc-str-Fx]
+.
+.  if !\n[doc-arg-limit] \
+.    if \n[.$] \{\
+.      ds doc-macro-name Fx
+.      doc-parse-args \$@
+.    \}
+.
+.  if (\n[doc-arg-limit] > \n[doc-arg-ptr]) \{\
+.    nr doc-arg-ptr +1
+.    ie (\n[doc-type\n[doc-arg-ptr]] == 2) \{\
+.      ie \A\*[doc-arg\n[doc-arg-ptr]] \{\
+.        ie d doc-operating-system-FreeBSD-\*[doc-arg\n[doc-arg-ptr]] \
+.          as doc-str-Fx1 \~\*[doc-operating-system-FreeBSD-\*[doc-arg\n[doc-arg-ptr]]]
+.        el \{\
+.          tmc mdoc warning: .Fx: Unknown FreeBSD version
+.          tm1 " `\*[doc-arg\n[doc-arg-ptr]]' (#\n[.c])
+.          as doc-str-Fx1 \~\*[doc-arg\n[doc-arg-ptr]]
+.      \}\}
+.      el \
+.        as doc-str-Fx1 \~\*[doc-arg\n[doc-arg-ptr]]
+.    \}
+.    el \
+.      nr doc-arg-ptr -1
+.  \}
+.
+.  \" replace current argument with result
+.  ds doc-arg\n[doc-arg-ptr] "\*[doc-str-Fx1]
+.  nr doc-type\n[doc-arg-ptr] 2
+.  ds doc-space\n[doc-arg-ptr] "\*[doc-space]
+.
+.  \" recompute space vector for remaining arguments
+.  nr doc-num-args (\n[doc-arg-limit] - \n[doc-arg-ptr])
+.  nr doc-arg-limit \n[doc-arg-ptr]
+.  if \n[doc-num-args] \
+.    doc-parse-space-vector
+.
+.  doc-print-recursive
 ..
-.\" Ns Nx macro - NetBSD
-.\"
-.\" Please try to keep the exceptions in this macro in sync with NetBSD!
+.
+.
+.\" NS Nx user macro
+.\" NS   print NetBSD
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-macro-name
+.\" NS
+.\" NS local variable:
+.\" NS   doc-str-Nx
+.\" NS   doc-str-Nx1
+.\" NS
+.\" NS width register `Nx' defined in doc-common
+.
+.\" we use the doc-operating-system-NetBSD-* strings defined in doc-common
+.
 .de Nx
-.nr cF \\n(.f
-.nr cZ \\n(.s
-.ds aa \&\f\\n(cF\s\\n(cZ
-.ds ab \& \&
-.ds ac \\$1
-.    ie \\n(.$==0   .rm ab
-.el .ie "\\$1"0.8a" .ds ac 0.8A
-.el .ie "\\$1"0.9a" .ds ac 0.9A
-.el .ie "\\$1"1.0a" .ds ac 1.0A
-.el .ie "\\$1"1.2a" .ds ac 1.2A
-.el .ie "\\$1"1.2b" .ds ac 1.2B
-.el .ie "\\$1"."    .rm ab
-.el .if "\\$1","    .rm ab
-\&\\*(tNNetBSD\\*(ab\\*(ac\\*(aa\\$2
+.  nr doc-curr-font \n[.f]
+.  nr doc-curr-size \n[.ps]
+.  ds doc-str-Nx \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]
+.
+.  \" default value if no argument
+.  ds doc-str-Nx1 \*[doc-Tn-font-size]\%N\s[\n[doc-curr-size]u]et
+.  as doc-str-Nx1 \*[doc-Tn-font-size]BSD\*[doc-str-Nx]
+.
+.  if !\n[doc-arg-limit] \
+.    if \n[.$] \{\
+.      ds doc-macro-name Nx
+.      doc-parse-args \$@
+.    \}
+.
+.  if (\n[doc-arg-limit] > \n[doc-arg-ptr]) \{\
+.    nr doc-arg-ptr +1
+.    ie (\n[doc-type\n[doc-arg-ptr]] == 2) \{\
+.      ie \A\*[doc-arg\n[doc-arg-ptr]] \{\
+.        ie d doc-operating-system-NetBSD-\*[doc-arg\n[doc-arg-ptr]] \
+.          as doc-str-Nx1 \~\*[doc-operating-system-NetBSD-\*[doc-arg\n[doc-arg-ptr]]]
+.        el \{\
+.          tmc mdoc warning: .Nx: Unknown NetBSD version
+.          tm1 " `\*[doc-arg\n[doc-arg-ptr]]' (#\n[.c])
+.          as doc-str-Nx1 \~\*[doc-arg\n[doc-arg-ptr]]
+.      \}\}
+.      el \
+.        as doc-str-Nx1 \~\*[doc-arg\n[doc-arg-ptr]]
+.    \}
+.    el \
+.      nr doc-arg-ptr -1
+.  \}
+.
+.  \" replace current argument with result
+.  ds doc-arg\n[doc-arg-ptr] "\*[doc-str-Nx1]
+.  nr doc-type\n[doc-arg-ptr] 2
+.  ds doc-space\n[doc-arg-ptr] "\*[doc-space]
+.
+.  \" recompute space vector for remaining arguments
+.  nr doc-num-args (\n[doc-arg-limit] - \n[doc-arg-ptr])
+.  nr doc-arg-limit \n[doc-arg-ptr]
+.  if \n[doc-num-args] \
+.    doc-parse-space-vector
+.
+.  doc-print-recursive
 ..
-.\" Ns Ox macro - OpenBSD
-.\"
-.\" Please try to keep any exceptions in this macro in sync with OpenBSD!
+.
+.
+.\" NS Ox user macro
+.\" NS   print OpenBSD
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-macro-name
+.\" NS
+.\" NS local variable:
+.\" NS   doc-str-Ox
+.\" NS   doc-str-Ox1
+.\" NS
+.\" NS width register `Ox' defined in doc-common
+.
 .de Ox
-.nr cF \\n(.f
-.nr cZ \\n(.s
-.ds aa \&\f\\n(cF\s\\n(cZ
-\&\\*(tNOpenBSD\\*(aa \\$1\\$2
+.  nr doc-curr-font \n[.f]
+.  nr doc-curr-size \n[.ps]
+.  ds doc-str-Ox \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]
+.
+.  \" default value if no argument
+.  ds doc-str-Ox1 \*[doc-Tn-font-size]\%OpenBSD\*[doc-str-Ox]
+.
+.  if !\n[doc-arg-limit] \
+.    if \n[.$] \{\
+.      ds doc-macro-name Ox
+.      doc-parse-args \$@
+.    \}
+.
+.  if (\n[doc-arg-limit] > \n[doc-arg-ptr]) \{\
+.    nr doc-arg-ptr +1
+.    ie (\n[doc-type\n[doc-arg-ptr]] == 2) \
+.      as doc-str-Ox1 \~\*[doc-arg\n[doc-arg-ptr]]
+.    el \
+.      nr doc-arg-ptr -1
+.  \}
+.
+.  \" replace current argument with result
+.  ds doc-arg\n[doc-arg-ptr] "\*[doc-str-Ox1]
+.  nr doc-type\n[doc-arg-ptr] 2
+.  ds doc-space\n[doc-arg-ptr] "\*[doc-space]
+.
+.  \" recompute space vector for remaining arguments
+.  nr doc-num-args (\n[doc-arg-limit] - \n[doc-arg-ptr])
+.  nr doc-arg-limit \n[doc-arg-ptr]
+.  if \n[doc-num-args] \
+.    doc-parse-space-vector
+.
+.  doc-print-recursive
 ..
+.
+.
+.\" NS Bsx user macro
+.\" NS   print BSD/OS
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-macro-name
+.\" NS
+.\" NS local variable:
+.\" NS   doc-str-Bsx
+.\" NS   doc-str-Bsx1
+.\" NS
+.\" NS width register `Bsx' defined in doc-common
+.
+.de Bsx
+.  nr doc-curr-font \n[.f]
+.  nr doc-curr-size \n[.ps]
+.  ds doc-str-Bsx \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]
+.
+.  \" default value if no argument
+.  ds doc-str-Bsx1 \*[doc-Tn-font-size]BSD/OS\*[doc-str-Bsx]
+.
+.  if !\n[doc-arg-limit] \
+.    if \n[.$] \{\
+.      ds doc-macro-name Bsx
+.      doc-parse-args \$@
+.    \}
+.
+.  if (\n[doc-arg-limit] > \n[doc-arg-ptr]) \{\
+.    nr doc-arg-ptr +1
+.    ie (\n[doc-type\n[doc-arg-ptr]] == 2) \
+.      as doc-str-Bsx1 \~\*[doc-arg\n[doc-arg-ptr]]
+.    el \
+.      nr doc-arg-ptr -1
+.  \}
+.
+.  \" replace current argument with result
+.  ds doc-arg\n[doc-arg-ptr] "\*[doc-str-Bsx1]
+.  nr doc-type\n[doc-arg-ptr] 2
+.  ds doc-space\n[doc-arg-ptr] "\*[doc-space]
+.
+.  \" recompute space vector for remaining arguments
+.  nr doc-num-args (\n[doc-arg-limit] - \n[doc-arg-ptr])
+.  nr doc-arg-limit \n[doc-arg-ptr]
+.  if \n[doc-num-args] \
+.    doc-parse-space-vector
+.
+.  doc-print-recursive
+..
+.
+.
 .\" The Bt macro should go away now
-.\" Ns Bt macro - prints "is currently in beta test." (HISTORY section)
+.
+.\" NS Bt user macro (not parsed, not callable)
+.\" NS   print "is currently in beta test." (HISTORY section)
+.\" NS
+.\" NS width register `Bt' defined in doc-common
+.
 .de Bt
-\&is currently in beta test.
+.  nop \&is currently in beta test.
 ..
-.\" NS St macro - standards (posix, ansi - formal standard names)
-.\" ISO/IEC 9945-1:1996 (-p1003.1-96) comprises:
-.\"	IEEE 1003.1-1990
-.\"	IEEE 1003.1b-1993
-.\"	IEEE 1003.1c-1995
-.\" and	IEEE 1003.1i-1995
-.\"
-.ds Px \\*(tNPOSIX
-.ds Ai \\*(tNANSI
+.
+.
+.\" NS Px user macro
+.\" NS   print POSIX
+.
+.ds Px \*[doc-Tn-font-size]\%POSIX
+.
+.
+.\" NS Ai user macro
+.\" NS   print ANSI
+.
+.ds Ai \*[doc-Tn-font-size]\%ANSI
+.
+.
+.\" NS St user macro
+.\" NS   standards (posix, ansi - formal standard names)
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-macro-name
+.\" NS
+.\" NS local variable:
+.\" NS   doc-reg-St
+.\" NS   doc-str-St
+.\" NS   doc-str-St1
+.\" NS   doc-str-St-XXX
+.\" NS
+.\" NS width register `St' defined in doc-common
+.
+.\" ANSI/ISO C
+.ds doc-str-St--ansiC-89       \*[Ai] \*[doc-str-St]X\^3.159-1989
+.as doc-str-St--ansiC-89       " (\*[Lq]\)\*[Ai]\~C\*[doc-str-St]\*[Rq])
+.als doc-str-St--ansiC doc-str-St--ansiC-89
+.ds doc-str-St--isoC           \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899:1990
+.as doc-str-St--isoC           " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^89\*[doc-str-St]\*[Rq])
+.ds doc-str-St--isoC-99        \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899:1999
+.as doc-str-St--isoC-99        " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^99\*[doc-str-St]\*[Rq])
+.
+.\" POSIX Part 1: System API
+.ds doc-str-St--p1003.1        \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1
+.as doc-str-St--p1003.1        " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.ds doc-str-St--p1003.1-88     \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1-1988
+.as doc-str-St--p1003.1-88     " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.ds doc-str-St--p1003.1-90     \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9945-1:1990
+.as doc-str-St--p1003.1-90     " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.als doc-str-St--iso9945-1-90 doc-str-St--p1003.1-90
+.ds doc-str-St--p1003.1b-93    \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1b-1993
+.as doc-str-St--p1003.1b-93    " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.ds doc-str-St--p1003.1c-95    \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1c-1995
+.as doc-str-St--p1003.1c-95    " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.ds doc-str-St--p1003.1i-95    \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1i-1995
+.as doc-str-St--p1003.1i-95    " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.ds doc-str-St--p1003.1-96     \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9945-1:1996
+.as doc-str-St--p1003.1-96     " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.als doc-str-St--iso9945-1-96 doc-str-St--p1003.1-96
+.ds doc-str-St--p1003.1g-2000  \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1g-2000
+.as doc-str-St--p1003.1g-2000  " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
+.
+.\" POSIX Part 2: Shell and Utilities
+.ds doc-str-St--p1003.2        \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.2
+.as doc-str-St--p1003.2        " (\*[Lq]\)\*[Px]\*[doc-str-St].2\*[Rq])
+.ds doc-str-St--p1003.2-92     \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.2-1992
+.as doc-str-St--p1003.2-92     " (\*[Lq]\)\*[Px]\*[doc-str-St].2\*[Rq])
+.ds doc-str-St--p1003.2a-92    \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.2a-1992
+.as doc-str-St--p1003.2a-92    " (\*[Lq]\)\*[Px]\*[doc-str-St].2\*[Rq])
+.ds doc-str-St--iso9945-2-93   \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9945-2:1993
+.as doc-str-St--iso9945-2-93   " (\*[Lq]\)\*[Px]\*[doc-str-St].2\*[Rq])
+.
+.\" X/Open
+.ds doc-str-St--susv2          Version\~2 of the Single \*[doc-Tn-font-size]UNIX\*[doc-str-St] Specification
+.as doc-str-St--susv2          " (\*[Lq]\*[doc-Tn-font-size]SUSv2\*[doc-str-St]\*[Rq])
+.ds doc-str-St--svid4          System\~V Interface Definition, Fourth Edition
+.as doc-str-St--svid4          " (\*[Lq]\*[doc-Tn-font-size]SVID\*[doc-str-St]\^4\*[Rq])
+.ds doc-str-St--xbd5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] System Interface Definitions Issue\~5
+.as doc-str-St--xbd5           " (\*[Lq]\*[doc-Tn-font-size]XBD\*[doc-str-St]\^5\*[Rq])
+.ds doc-str-St--xcu5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] Commands and Utilities Issue\~5
+.as doc-str-St--xcu5           " (\*[Lq]\*[doc-Tn-font-size]XCU\*[doc-str-St]\^5\*[Rq])
+.ds doc-str-St--xcurses4.2     \*[doc-Tn-font-size]X/Open\*[doc-str-St] Curses Issue\~4.2
+.as doc-str-St--xcurses4.2     " (\*[Lq]\*[doc-Tn-font-size]XCURSES\*[doc-str-St]\^4.2\*[Rq])
+.ds doc-str-St--xns5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] Networking Services Issue\~5
+.as doc-str-St--xns5           " (\*[Lq]\*[doc-Tn-font-size]XNS\*[doc-str-St]\^5\*[Rq])
+.ds doc-str-St--xns5.2         \*[doc-Tn-font-size]X/Open\*[doc-str-St] Networking Services Issue\~5.2
+.as doc-str-St--xns5.2         " (\*[Lq]\*[doc-Tn-font-size]XNS\*[doc-str-St]\^5.2\*[Rq])
+.ds doc-str-St--xpg3           \*[doc-Tn-font-size]X/Open\*[doc-str-St] Portability Guide Issue\~3
+.as doc-str-St--xpg3           " (\*[Lq]\*[doc-Tn-font-size]XPG\*[doc-str-St]\^3\*[Rq])
+.ds doc-str-St--xpg4           \*[doc-Tn-font-size]X/Open\*[doc-str-St] Portability Guide Issue\~4
+.as doc-str-St--xpg4           " (\*[Lq]\*[doc-Tn-font-size]XPG\*[doc-str-St]\^4\*[Rq])
+.ds doc-str-St--xpg4.2         \*[doc-Tn-font-size]X/Open\*[doc-str-St] Portability Guide Issue\~4.2
+.as doc-str-St--xpg4.2         " (\*[Lq]\*[doc-Tn-font-size]XPG\*[doc-str-St]\^4.2\*[Rq])
+.ds doc-str-St--xsh5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] System Interfaces and Headers Issue\~5
+.as doc-str-St--xsh5           " (\*[Lq]\*[doc-Tn-font-size]XSH\*[doc-str-St]\^5\*[Rq])
+.
+.\" Miscellaneous
+.ds doc-str-St--ieee754        \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 754-1985
+.ds doc-str-St--iso8802-3      \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 8802-3:1989
+.
 .de St
-.if \\n(aC==0 \{\
-.	ie \\n(.$==0 \{\
-.tm Usage: .St [-p1003.1-90 | -p1003.2 | -ansiC-89 | -iso ] \\*(Pu ... (#\\n(.c)
-.	\}
-.	el \{\
-.		ds mN St
-.		nr aP 0
-.		ds A1 \\$1
-.		ds A2 \\$2
-.		ds A3 \\$3
-.		ds A4 \\$4
-.		ds A5 \\$5
-.		ds A6 \\$6
-.		ds A7 \\$7
-.		ds A8 \\$8
-.		ds A9 \\$9
-.		nr fV \\n(.$
-.		fV
-.	\}
-.\}
-.if \\n(aC>\\n(aP \{\
-.	nr cF \\n(.f
-.	nr cZ \\n(.s
-.	ds aa \&\f\\n(cF\s\\n(cZ
-.	nr aP \\n(aP+1
-.       if "\\*(A\\n(aP"-p1003.1b-93" \{\
-.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1b-1993\\*(sV
-.		as b1 (``\\*(tN\\*(Px.1\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-p1003.1g-2000" \{\
-.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1g-2000\\*(sV
-.		as b1 (``\\*(tN\\*(Px.1\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-p1003.1-90" \{\
-.		ds b1 \&\\*(tNISO/IEC \\*(aa9945-1:1990\\*(sV
-.		as b1 (``\\*(tN\\*(Px.1\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-p1003.1-88" \{\
-.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1-1988\\*(sV
-.		as b1 (``\\*(tN\\*(Px.1\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-p1003.1" \{\
-.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1\\*(sV
-.		as b1 (``\\*(tN\\*(Px.1\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-p1003.2-92" \{\
-.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.2-1992\\*(sV
-.		as b1 (``\\*(tN\\*(Px.2\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-p1003.2" \{\
-.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.2\\*(sV
-.		as b1 (``\\*(tN\\*(Px.2\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-p1003.1-96" \{\
-.		ds b1 \&\\*(tNISO/IEC \\*(aa9945-1:1996\\*(sV
-.		as b1 (``\\*(tN\\*(Px.1\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-ansiC" \{\
-.		ds b1 \&\\*(tNANSI \\*(aaX\^3.159-1989\\*(sV
-.		as b1 (``\\*(tNANSI\~C\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-isoC" \{\
-.		ds b1 \&\\*(tNISO/IEC \\*(aa9899:1990\\*(sV
-.		as b1 (``\\*(tNISO\~C89\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-isoC-99" \{\
-.		ds b1 \&\\*(tNISO/IEC \\*(aa9899:1999\\*(sV
-.		as b1 (``\\*(tNISO C99\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-ansiC-89" \{\
-.		ds b1 \&\\*(tNANSI \\*(aaX\^3.159-1989\\*(sV
-.		as b1 (``\\*(tNANSI\~C\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-ieee754" \{\
-.		ds b1 \&\\*(tNIEEE Std \\*(aa754-1985
-.       \}
-.       if "\\*(A\\n(aP"-iso8802-3" \{\
-.		ds b1 \&\\*(tNISO/IEC \\*(aa8802-3:1989
-.       \}
-.       if "\\*(A\\n(aP"-xpg3" \{\
-.		ds b1 \&\\*(tNX/Open Portability Guide Issue\~3\\*(aa\\*(sV
-.		as b1 (``\\*(tNXPG3\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-xpg4" \{\
-.		ds b1 \&\\*(tNX/Open Portability Guide Issue\~4\\*(aa\\*(sV
-.		as b1 (``\\*(tNXPG4\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-xpg4.2" \{\
-.		ds b1 \&\\*(tNX/Open Portability Guide Issue\~4.2\\*(aa\\*(sV
-.		as b1 (``\\*(tNXPG4.2\\*(aa'')
-.       \}
-.       if "\\*(A\\n(aP"-susv2" \{\
-.		ds b1 \&\\*(tNVersion\~2 of the Single UNIX Specification\\*(aa\\*(sV
-.		as b1 (``\\*(tNSUSv2\\*(aa'')
-.       \}
-.	ie \\n(aC>\\n(aP \{\
-.		nr aP \\n(aP+1
-.		nR
-.	\}
-.	el .aZ
-.\}
+.  if !\n[doc-arg-limit] \{\
+.    ie \n[.$] \{\
+.      ds doc-macro-name St
+.      doc-parse-args \$@
+.    \}
+.    el \
+.      doc-St-usage
+.  \}
+.
+.  if !\n[doc-arg-limit] \
+.    return
+.
+.  nr doc-arg-ptr +1
+.  ie (\n[doc-arg-limit] >= \n[doc-arg-ptr]) \{\
+.    nr doc-curr-font \n[.f]
+.    nr doc-curr-size \n[.ps]
+.    ds doc-str-St \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]
+.
+.    ds doc-str-St1
+.    ie \A\*[doc-arg\n[doc-arg-ptr]] \{\
+.      ie d doc-str-St-\*[doc-arg\n[doc-arg-ptr]] \
+.        ds doc-str-St1 "\*[doc-str-St-\*[doc-arg\n[doc-arg-ptr]]]
+.      el \{\
+.        tmc "mdoc warning: .St: Unknown standard abbreviation
+.        tm1 " `\*[doc-arg\n[doc-arg-ptr]]' (#\n[.c])
+.        tm1 "              Please refer to the groff_mdoc(7) manpage for a
+.        tm1 "              list of available standard abbreviations.
+.    \}\}
+.    el \
+.      doc-St-usage
+.
+.    \" replacing argument with result
+.    ds doc-arg\n[doc-arg-ptr] "\*[doc-str-St1]
+.
+.    doc-print-recursive
+.  \}
+.  el \{\
+.    doc-St-usage
+.    doc-reset-args
+.  \}
 ..
+.
+.
+.\" NS doc-St-usage macro
+.
+.de doc-St-usage
+.  tm1 "Usage: .St standard (#\n[.c])
+.  tm1 "       Please refer to the groff_mdoc(7) manpage for a list of
+.  tm1 "       available standard abbreviations.
+..
+.
+.
+.\" NS Lb user macro
+.\" NS   formal library names for LIBRARY sections
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-macro-name
+.\" NS
+.\" NS local variable:
+.\" NS   doc-reg-Lb
+.\" NS   doc-str-Lb
+.\" NS   doc-str-Lb-XXX
+.\" NS
+.\" NS width register `Lb' defined in doc-common
+.
+.ds doc-str-Lb-libarm32    ARM32 Architecture Library (libarm32, \-larm32)
+.ds doc-str-Lb-libc        Standard C\~Library (libc, \-lc)
+.ds doc-str-Lb-libcompat   Compatibility Library (libcompat, \-lcompat)
+.ds doc-str-Lb-libcrypt    Crypt Library (libcrypt, \-lcrypt)
+.ds doc-str-Lb-libcurses   Curses Library (libcurses, \-lcurses)
+.ds doc-str-Lb-libedit     Command Line Editor Library (libedit, \-ledit)
+.ds doc-str-Lb-libi386     i386 Architecture Library (libi386, \-li386)
+.ds doc-str-Lb-libipsec    IPsec Policy Control Library (libipsec, \-lipsec)
+.ds doc-str-Lb-libkvm      Kernel Data Access Library (libkvm, \-lkvm)
+.ds doc-str-Lb-libm        Math Library (libm, \-lm)
+.ds doc-str-Lb-libmenu     Curses Menu Library (libmenu, \-lmenu)
+.ds doc-str-Lb-libossaudio OSS Audio Emulation Library (libossaudio, \-lossaudio)
+.ds doc-str-Lb-libposix    \*[Px] Compatibility Library (libposix, \-lposix)
+.ds doc-str-Lb-libresolv   DNS Resolver Library (libresolv, \-lresolv)
+.ds doc-str-Lb-libtermcap  Termcap Access Library (libtermcap, \-ltermcap)
+.ds doc-str-Lb-libutil     System Utilities Library (libutil, \-lutil)
+.ds doc-str-Lb-libz        Compression Library (libz, \-lz)
+.
+.de Lb
+.  if !\n[doc-arg-limit] \{\
+.    ie \n[.$] \{\
+.      ds doc-macro-name Lb
+.      doc-parse-args \$@
+.    \}
+.    el \
+.      tm Usage: .Lb library_name ... (#\n[.c])
+.  \}
+.
+.  if !\n[doc-arg-limit] \
+.    return
+.
+.  nr doc-arg-ptr +1
+.  ie (\n[doc-arg-limit] >= \n[doc-arg-ptr]) \{\
+.    ie d doc-str-Lb-\*[doc-arg\n[doc-arg-ptr]] \
+.      ds doc-str-Lb "\*[doc-str-Lb-\*[doc-arg\n[doc-arg-ptr]]]
+.    el \{\
+.      tmc "mdoc warning: .Lb: no description for library
+.      tm1 " `\*[doc-arg\n[doc-arg-ptr]]' available (#\n[.c])
+.      ds doc-str-Lb library \*[Lq]\*[doc-arg\n[doc-arg-ptr]]\*[Rq]
+.    \}
+.
+.    \" replacing argument with result
+.    ds doc-arg\n[doc-arg-ptr] "\*[doc-str-Lb]
+.
+.    doc-print-recursive
+.  \}
+.  el \{\
+.    tm Usage: .Lb library_name ... (#\n[.c])
+.    doc-reset-args
+.  \}
+..
+.
+.
+.ec
+.
+.\" EOF
