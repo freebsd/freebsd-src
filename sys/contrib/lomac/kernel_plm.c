@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kernel_plm.c,v 1.9 2001/10/17 15:20:09 bfeldman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

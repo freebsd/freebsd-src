@@ -23,7 +23,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kernel_socket.c,v 1.9 2001/11/05 20:57:41 tfraser Exp $
+ * $FreeBSD$
  *
  * This file implements LOMAC controls over socket operations.  LOMAC
  * gains control of socket operations by interposing on the `struct

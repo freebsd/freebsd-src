@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: syscall_gate.h,v 1.2 2001/09/20 17:47:46 bfeldman Exp $
+ * $FreeBSD$
  */
 
 #ifndef SYSCALL_GATE_H

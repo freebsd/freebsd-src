@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lomacfs_vfsops.c,v 1.16 2001/10/17 19:36:39 bfeldman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
