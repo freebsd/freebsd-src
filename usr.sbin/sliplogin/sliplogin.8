@@ -58,45 +58,6 @@ for slip (8-bit transparent i/o) and converted to
 line
 discipline.
 .Pp
-The additional SLIP configuration file (if even present) is
-.Pa /etc/sliphome/slip.slparms
-but, if particular hosts need different configuration, the file
-.Pa /etc/sliphome/slip.slparms. Ns Ar loginname
-will be parsed instead if it exists.
-.Ss Format of /etc/sliphome/slip.slparms*
-Comments (lines starting with a `#') and blank lines (or started with
-space) are ignored.
-This file contains from one to three numeric parameters separated with spaces,
-in order:
-.Ar keepalive ,
-.Ar outfill
-and
-.Ar slunit .
-.Bl -tag -width keepalive
-.It Ar keepalive
-Set SLIP "keep alive" timeout in seconds. If FRAME_END not received in this
-timeout,
-.Nm startslip
-close line and exit.
-Active "out fill" timeout expected from other
-side.
-Default value is no timeout (zero).
-.It Ar outfill
-Set SLIP "out fill" timeout in seconds. It cause at least one FRAME_END
-will be sended during this timeout.
-Needed for "keep alive" timeout on other side.
-Default value is no timeout (zero).
-.It Ar slunit
-Set SLIP unit number directly. Use with caution, no check for two
-interfaces with same number made.
-Default is dynamic assignment.
-.El
-.Pp
-If last two or one parameters ommited, they not affect corresponding SLIP
-configuration.
-If any of first two parameters is equal to zero, it does not affect
-corresponding SLIP configuration.
-.Pp
 Then a shell script is invoked to initialize the slip
 interface with the appropriate local and remote
 .Tn IP
@@ -164,6 +125,44 @@ directly to
 .Xr ifconfig 8 .
 .Em Opt-args
 are optional arguments used to configure the line.
+.Pp
+.Sh FreeBSD Additions
+An additional SLIP configuration file (if present) is
+.Pa /etc/sliphome/slip.slparms .
+If particular hosts need different configurations, the file
+.Pa /etc/sliphome/slip.slparms. Ns Ar loginname
+will be parsed instead if it exists.
+.Ss Format of /etc/sliphome/slip.slparms*
+Comments (lines starting with a `#') and blank lines (or started with
+space) are ignored.
+This file contains from one to three numeric parameters separated with spaces,
+in order:
+.Ar keepalive ,
+.Ar outfill
+and
+.Ar slunit .
+.Bl -tag -width keepalive
+.It Ar keepalive
+Set SLIP "keep alive" timeout in seconds. If FRAME_END is not received in
+this amount of time,
+.Nm startslip
+closes the line and exits.
+Default value is no timeout (zero).
+.It Ar outfill
+Set SLIP "out fill" timeout in seconds. It forces at least one FRAME_END
+to be sent during this timeout, which is necessary for the "keep alive"
+timeout on the remote other side.
+The default value is no timeout (zero).
+.It Ar slunit
+Set the SLIP unit number directly. Use with caution, because no check is made
+for two interfaces with same number.
+By default sliplogin dynamically assigns the unit number.
+.El
+.Pp
+If latter two parameters are ommitted, they will not affect the
+corresponding SLIP configuration.
+If any of first two parameters is equal to zero, it will not affect
+the corresponding SLIP configuration.
 .Sh EXAMPLE
 The normal use of
 .Nm sliplogin
