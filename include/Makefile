@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.81 1998/09/09 01:21:19 jdp Exp $
+#	$Id: Makefile,v 1.82 1998/09/09 11:13:55 kato Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -41,11 +41,11 @@ PFILES=	mqueue.h sched.h semaphore.h \
 LFILES=	errno.h fcntl.h poll.h syslog.h termios.h
 
 LDIRS=	msdosfs net netns netatalk netinet netipx netkey nfs \
-		pccard posix4 sys vm \
+		pccard posix4 sys vm cam \
 		# netccitt netiso
 
 LNOHEADERDIRS=	isofs ufs
-LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs
+LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs cam/scsi
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
