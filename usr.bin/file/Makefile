@@ -25,13 +25,16 @@ SRCDIR=	${.CURDIR}/../../contrib/file
 PROG=	file
 MAN=	file.1 magic.5
 SRCS=	file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
-	compress.c is_tar.c  readelf.c print-hacked.c
+	compress.c is_tar.c  readelf.c print.c
 #	compress.c is_tar.c  readelf.c internat.c print.c
 
 MAGICPATH=	/usr/share/misc
 
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR} -I${SRCDIR}
+
+LDADD+=	-lz
+DPADD+=	${LIBZ}
 
 CLEANFILES+=	magic magic.mgc magic.mime.mgc magic.mime.PITA
 
@@ -55,13 +58,9 @@ magic.mime.mgc: mkmagic magic.mime
 	./mkmagic magic.mime.PITA
 	mv magic.mime.PITA.mgc magic.mime.mgc
 
-CLEANFILES+=	print-hacked.c
-print-hacked.c: print.c
-	sed -e 's|daylight|0/*daylight*/|g' ${.ALLSRC} > ${.TARGET}
-
 CLEANFILES+=	mkmagic
 build-tools: mkmagic
-mkmagic: apprentice.c print-hacked.c
+mkmagic: apprentice.c print.c
 	${CC} -DHAVE_CONFIG_H -DCOMPILE_ONLY \
 	    -I${.CURDIR} -I${SRCDIR} -o ${.TARGET} ${.ALLSRC}
 
