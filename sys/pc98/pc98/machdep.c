@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.60 1997/10/13 09:21:16 kato Exp $
+ *	$Id: machdep.c,v 1.61 1997/11/07 12:53:48 kato Exp $
  */
 
 #include "apm.h"
@@ -105,6 +105,7 @@
 #include <machine/specialreg.h>
 #include <machine/cons.h>
 #include <machine/bootinfo.h>
+#include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
 #ifdef SMP
@@ -138,14 +139,14 @@ extern void initializecpu(void);
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
+static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
+
 #ifdef PC98
 int	need_pre_dma_flush;		/* If 1, use wbinvd befor DMA transfer. */
 int	need_post_dma_flush;	/* If 1, use invd after DMA transfer. */
 #endif
 
 #ifdef BOUNCE_BUFFERS
-extern char *bouncememory;
-extern int maxbkva;
 #ifdef BOUNCEPAGES
 int	bouncepages = BOUNCEPAGES;
 #else
@@ -153,12 +154,10 @@ int	bouncepages = 0;
 #endif
 #endif	/* BOUNCE_BUFFERS */
 
-extern int freebufspace;
 int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
 u_int	atdevbase;
 
-static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
 
 int physmem = 0;
 int cold = 1;
@@ -184,12 +183,11 @@ sysctl_hw_usermem SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_usermem, "I", "");
 
-int boothowto = 0, bootverbose = 0, Maxmem = 0;
+int bootverbose = 0, Maxmem = 0;
 #ifdef PC98
 int Maxmem_under16M = 0;
 #endif
 long dumplo;
-extern int bootdev;
 
 vm_offset_t phys_avail[10];
 
@@ -1103,6 +1101,11 @@ init386(first)
 	int target_page, pa_indx;
 	int off;
 	int speculative_mprobe;
+
+	/*
+	 * Prevent lowering of the ipl if we call tsleep() early.
+	 */
+	safepri = cpl;
 
 	proc0.p_addr = proc0paddr;
 
