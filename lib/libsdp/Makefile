@@ -5,7 +5,7 @@ LIB=		sdp
 MAN=		sdp.3
 
 WARNS?=		2
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../sys
+CFLAGS+=	-I${.CURDIR}
 
 SHLIB_MAJOR=	1
 

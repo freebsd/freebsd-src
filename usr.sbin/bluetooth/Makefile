@@ -10,7 +10,8 @@ SUBDIR= \
 	l2control \
 	l2ping \
 	rfcomm_pppd \
-	sdpcontrol
+	sdpcontrol \
+	sdpd
 
 .include <bsd.subdir.mk>
 
