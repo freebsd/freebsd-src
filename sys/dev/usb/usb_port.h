@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_port.h,v 1.13 1999/10/13 08:10:58 augustss Exp $	*/
+/*	$NetBSD: usb_port.h,v 1.15 1999/11/16 12:04:28 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -277,8 +277,7 @@ __CONCAT(dname,_detach)(self, flags) \
 
 #define DECLARE_USB_DMA_T typedef void * usb_dma_t
 
-/* XXX Change this when FreeBSD has memset
- */
+/* XXX Change this when FreeBSD has memset */
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
 #define bswap32(x)		swap32(x)
@@ -289,11 +288,12 @@ __CONCAT(dname,_detach)(self, flags) \
 #define usb_timeout(f, d, t, h) ((h) = timeout((f), (d), (t)))
 #define usb_untimeout(f, d, h) untimeout((f), (d), (h))
 
-#define clalloc(p, s, x) (clist_alloc_cblocks((p), (s), (x)), 0)
+#define clalloc(p, s, x) (clist_alloc_cblocks((p), (s), (s)), 0)
 #define clfree(p) clist_free_cblocks((p))
 
 #define powerhook_establish(fn, sc) 0
 #define powerhook_disestablish(hdl)
+#define PWR_SUSPEND 1
 #define PWR_RESUME 0
 
 #define USB_DECLARE_DRIVER_INIT(dname, init) \
