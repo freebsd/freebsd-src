@@ -35,7 +35,7 @@
 .\"     @(#)chgrp.1	8.3 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd March 31, 1994
+.Dd April 25, 2003
 .Dt CHGRP 1
 .Os
 .Sh NAME
@@ -88,6 +88,11 @@ rather than the file that is pointed to.
 Cause
 .Nm
 to be verbose, showing files as the group is modified.
+If the
+.Fl v
+flag is specified more than once, 
+.Nm
+will print the filename, followed by the old and new numeric group ID.
 .El
 .Pp
 The

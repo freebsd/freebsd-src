@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 #include <libgen.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -106,7 +107,7 @@ main(int argc, char **argv)
 			hflag = 1;
 			break;
 		case 'v':
-			vflag = 1;
+			vflag++;
 			break;
 		case '?':
 		default:
@@ -191,8 +192,35 @@ main(int argc, char **argv)
 				rval = 1;
 			}
 		} else {
-			if (vflag)
-				printf("%s\n", p->fts_path);
+			if (vflag) {
+				printf("%s", p->fts_path);
+				if (vflag > 1) {
+					if (ischown) {
+						printf(": %ju:%ju -> %ju:%ju",
+						    (uintmax_t)
+						    p->fts_statp->st_uid, 
+						    (uintmax_t)
+						    p->fts_statp->st_gid,
+						    (uid == (uid_t)-1) ? 
+						    (uintmax_t)
+						    p->fts_statp->st_uid : 
+						    (uintmax_t)uid,
+						    (gid == (gid_t)-1) ? 
+						    (uintmax_t)
+						    p->fts_statp->st_gid :
+						    (uintmax_t)gid);
+					} else {
+						printf(": %ju -> %ju",
+						    (uintmax_t)
+						    p->fts_statp->st_gid,
+						    (gid == (gid_t)-1) ? 
+						    (uintmax_t)
+						    p->fts_statp->st_gid : 
+						    (uintmax_t)gid);
+					}
+				}
+				printf("\n");
+			}
 		}
 	}
 	if (errno)
