@@ -846,7 +846,7 @@ psycho_iommu_init(struct psycho_softc *sc, int tsbsize)
 		panic("couldn't malloc iommu name");
 	snprintf(name, 32, "%s dvma", device_get_name(sc->sc_dev));
 
-	iommu_init(name, is, tsbsize, iobase);
+	iommu_init(name, is, tsbsize, iobase, 0);
 }
 
 static void

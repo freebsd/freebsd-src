@@ -111,6 +111,10 @@
 
 /*
  * UltraSPARC IOMMU support; used by both the sbus and pci code.
+ * Currently, the IOTSBs are synchronized, because determining the bus the map
+ * is to be loaded for is not possible with the current busdma code.
+ * The code is structured so that the IOMMUs can be easily divorced when that
+ * is fixed.
  */
 #include "opt_iommu.h"
 
@@ -132,26 +136,36 @@
 
 #include <machine/iommuvar.h>
 
-#ifdef IOMMU_DEBUG
-#define IDB_BUSDMA	0x1
-#define IDB_IOMMU	0x2
-#define IDB_INFO	0x4
-#define	IDB_SYNC	0x8
-int iommudebug = 0xff;
-#define DPRINTF(l, s)   do { if (iommudebug & l) printf s; } while (0)
-#else
-#define DPRINTF(l, s)
-#endif
-
 MALLOC_DEFINE(M_IOMMU, "dvmamem", "IOMMU DVMA Buffers");
 
-#define iommu_strbuf_flush(i,v) do {					\
-	if ((i)->is_sb[0] != 0)						\
-		IOMMU_WRITE8((i), is_sb[0], ISR_PGFLUSH, (v));		\
-	if ((i)->is_sb[1] != 0)						\
-		IOMMU_WRITE8((i), is_sb[1], ISR_PGFLUSH, (v));		\
-} while (0)
+static	int iommu_strbuf_flush_sync(struct iommu_state *);
+#ifdef IOMMU_DIAG
+static 	void iommu_diag(struct iommu_state *, vm_offset_t va);
+#endif
 
+/*
+ * The following 4 variables need to be moved to the per-IOMMU state once
+ * the IOTSBs are divorced.
+ * LRU queue handling for lazy resource allocation.
+ */
+static STAILQ_HEAD(, bus_dmamap) iommu_maplruq =
+   STAILQ_HEAD_INITIALIZER(iommu_maplruq);
+
+/* DVMA memory rman. */
+static struct rman iommu_dvma_rman;
+
+/* Virtual and physical address of the TSB. */
+static u_int64_t *iommu_tsb;
+static vm_offset_t iommu_ptsb;
+
+/* List of all IOMMUs. */
+static STAILQ_HEAD(, iommu_state) iommu_insts =
+   STAILQ_HEAD_INITIALIZER(iommu_insts);
+
+/*
+ * Helpers. Some of these take unused iommu states as parameters, to ease the
+ * transition to divorced TSBs.
+ */
 #define	IOMMU_READ8(is, reg, off) 					\
 	bus_space_read_8((is)->is_bustag, (is)->is_bushandle, 		\
 	    (is)->reg + (off))
@@ -166,17 +180,56 @@ MALLOC_DEFINE(M_IOMMU, "dvmamem", "IOMMU DVMA Buffers");
 #define	IOMMU_SIZE_ROUNDUP(sz)						\
 	(round_io_page(sz) + IO_PAGE_SIZE)
 
-static	int iommu_strbuf_flush_done(struct iommu_state *);
-#ifdef IOMMU_DIAG
-static 	void iommu_diag(struct iommu_state *, vm_offset_t va);
-#endif
+#define	IOMMU_SET_TTE(is, va, tte)					\
+	(iommu_tsb[IOTSBSLOT(va)] = (tte))
+
+static __inline void
+iommu_tlb_flush(struct iommu_state *is, bus_addr_t va)
+{
+	struct iommu_state *it;
+
+	/*
+	 * Since the TSB is shared for now, the TLBs of all IOMMUs
+	 * need to be flushed.
+	 */
+	STAILQ_FOREACH(it, &iommu_insts, is_link)
+		IOMMU_WRITE8(it, is_iommu, IMR_FLUSH, va);
+}
+
+
+#define	IOMMU_HAS_SB(is)						\
+	((is)->is_sb[0] != 0 || (is)->is_sb[1] != 0)
+
+static __inline void
+iommu_strbuf_flushpg(struct iommu_state *is, bus_addr_t va)
+{
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		if (is->is_sb[i] != 0)
+			IOMMU_WRITE8(is, is_sb[i], ISR_PGFLUSH, va);
+	}
+}
+
+static __inline void
+iommu_strbuf_flush(struct iommu_state *is, bus_addr_t va, int sync)
+{
+	struct iommu_state *it;
+
+	/*
+	 * Need to flush the streaming buffers of all IOMMUs, we cannot
+	 * determine which one was used for the transaction.
+	 */
+	STAILQ_FOREACH(it, &iommu_insts, is_link) {
+		iommu_strbuf_flushpg(it, va);
+		if (sync)
+			iommu_strbuf_flush_sync(it);
+	}
+}
 
 /*
  * LRU queue handling for lazy resource allocation.
  */
-static STAILQ_HEAD(, bus_dmamap) iommu_maplruq =
-   STAILQ_HEAD_INITIALIZER(iommu_maplruq);
-
 static __inline void
 iommu_map_insq(bus_dmamap_t map)
 {
@@ -197,15 +250,17 @@ iommu_map_remq(bus_dmamap_t map)
 }
 
 /*
- * initialise the UltraSPARC IOMMU (SBUS or PCI):
+ * initialise the UltraSPARC IOMMU (SBus or PCI):
  *	- allocate and setup the iotsb.
  *	- enable the IOMMU
  *	- initialise the streaming buffers (if they exist)
  *	- create a private DVMA map.
  */
 void
-iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase)
+iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase,
+    int resvpg)
 {
+	struct iommu_state *first;
 	vm_size_t size;
 	vm_offset_t offs;
 	int i;
@@ -227,37 +282,52 @@ iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase)
 	if (iovabase == -1)
 		is->is_dvmabase = IOTSB_VSTART(is->is_tsbsize);
 
-	/*
-	 * Allocate memory for I/O pagetables.  They need to be physically
-	 * contiguous.
-	 */
 	size = PAGE_SIZE << is->is_tsbsize;
-	is->is_tsb = contigmalloc(size, M_DEVBUF, M_NOWAIT, 0, ~0UL, PAGE_SIZE,
-	    0);
-	if (is->is_tsb == 0)
-		panic("iommu_init: no memory");
-	is->is_ptsb = pmap_kextract((vm_offset_t)is->is_tsb);
+	printf("DVMA map: %#lx to %#lx\n",
+	    is->is_dvmabase, is->is_dvmabase +
+	    (size << (IO_PAGE_SHIFT - IOTTE_SHIFT)) - 1);
 
-	bzero(is->is_tsb, size);
-
-#ifdef IOMMU_DEBUG
-	if (iommudebug & IDB_INFO) {
-		printf("iommu regs at offsets: cr=%#lx tsb=%#lx flush=%#lx\n",
-		    (u_long)is->is_iommu + IMR_CTL,
-		    (u_long)is->is_iommu + IMR_TSB,
-		    (u_long)is->is_iommu + IMR_FLUSH);
-		printf("iommu cr=%lx tsb=%lx\n",
-		    (u_long)IOMMU_READ8(is, is_iommu, IMR_CTL),
-		    (u_long)IOMMU_READ8(is, is_iommu, IMR_TSB))
-		printf("TSB base %p phys %lx\n", (void *)is->is_tsb,
-		    (unsigned long)is->is_ptsb);
+	if (STAILQ_EMPTY(&iommu_insts)) {
+		/*
+		 * First IOMMU to be registered; set up resource mamangement
+		 * and allocate TSB memory.
+		 */
+		iommu_dvma_rman.rm_type = RMAN_ARRAY;
+		iommu_dvma_rman.rm_descr = "DVMA Memory";
+		if (rman_init(&iommu_dvma_rman) != 0 ||
+		    rman_manage_region(&iommu_dvma_rman,
+		    (is->is_dvmabase >> IO_PAGE_SHIFT) + resvpg,
+		    (is->is_dvmabase + (size <<
+		     (IO_PAGE_SHIFT - IOTTE_SHIFT))) >> IO_PAGE_SHIFT) != 0)
+			panic("iommu_init: can't initialize dvma rman");
+		/*
+		 * Allocate memory for I/O page tables.  They need to be
+		 * physically contiguous.
+		 */
+		iommu_tsb = contigmalloc(size, M_DEVBUF, M_NOWAIT, 0, ~0UL,
+		    PAGE_SIZE, 0);
+		if (iommu_tsb == 0)
+			panic("iommu_init: contigmalloc failed");
+		iommu_ptsb = pmap_kextract((vm_offset_t)iommu_tsb);
+		bzero(iommu_tsb, size);
+	} else {
+		/*
+		 * Not the first IOMMU; just check that the parameters match
+		 * those of the first one.
+		 */
+		first = STAILQ_FIRST(&iommu_insts);
+		if (is->is_tsbsize != first->is_tsbsize ||
+		    is->is_dvmabase != first->is_dvmabase) {
+			panic("iommu_init: secondary IOMMU state does not "
+			    "match primary");
+		}
 	}
-#endif
+	STAILQ_INSERT_TAIL(&iommu_insts, is, is_link);
 
 	/*
 	 * Initialize streaming buffer, if it is there.
 	 */
-	if (is->is_sb[0] != 0 || is->is_sb[1] != 0) {
+	if (IOMMU_HAS_SB(is)) {
 		/*
 		 * Find two 64-byte blocks in is_flush that are aligned on
 		 * a 64-byte boundary for flushing.
@@ -274,23 +344,6 @@ iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase)
 	 * now actually start up the IOMMU
 	 */
 	iommu_reset(is);
-
-	/*
-	 * Now all the hardware's working we need to setup dvma resource
-	 * management.
-	 */
-	printf("DVMA map: %#lx to %#lx\n",
-	    is->is_dvmabase, is->is_dvmabase +
-	    (size << (IO_PAGE_SHIFT - IOTTE_SHIFT)) - 1);
-
-	is->is_dvma_rman.rm_type = RMAN_ARRAY;
-	is->is_dvma_rman.rm_descr = "DVMA Memory";
-	if (rman_init(&is->is_dvma_rman) != 0 ||
-	    rman_manage_region(&is->is_dvma_rman,
-	    is->is_dvmabase >> IO_PAGE_SHIFT,
-	    (is->is_dvmabase +
-	    (size << (IO_PAGE_SHIFT - IOTTE_SHIFT))) >> IO_PAGE_SHIFT))
-		panic("iommu_init: can't initialize dvma rman");
 }
 
 /*
@@ -303,7 +356,7 @@ iommu_reset(struct iommu_state *is)
 {
 	int i;
 
-	IOMMU_WRITE8(is, is_iommu, IMR_TSB, is->is_ptsb);
+	IOMMU_WRITE8(is, is_iommu, IMR_TSB, iommu_ptsb);
 	/* Enable IOMMU in diagnostic mode */
 	IOMMU_WRITE8(is, is_iommu, IMR_CTL, is->is_cr | IOMMUCR_DE);
 
@@ -335,19 +388,9 @@ iommu_enter(struct iommu_state *is, vm_offset_t va, vm_offset_t pa, int flags)
 	tte = MAKEIOTTE(pa, !(flags & BUS_DMA_NOWRITE),
 	    !(flags & BUS_DMA_NOCACHE), (flags & BUS_DMA_STREAMING));
 
-	/* Is the streamcache flush really needed? */
-	if (is->is_sb[0] != 0 || is->is_sb[1] != 0) {
-		iommu_strbuf_flush(is, va);
-		iommu_strbuf_flush_done(is);
-	}
-	DPRINTF(IDB_IOMMU, ("Clearing TSB slot %d for va %p\n",
-	    (int)IOTSBSLOT(va), (void *)(u_long)va));
-	is->is_tsb[IOTSBSLOT(va)] = tte;
-	IOMMU_WRITE8(is, is_iommu, IMR_FLUSH, va);
-	DPRINTF(IDB_IOMMU, ("iommu_enter: va %lx pa %lx TSB[%lx]@%p=%lx\n",
-	    va, (long)pa, (u_long)IOTSBSLOT(va),
-	    (void *)(u_long)&is->is_tsb[IOTSBSLOT(va)],
-	    (u_long)tte));
+	iommu_strbuf_flush(is, va, 1);
+	IOMMU_SET_TTE(is, va, tte);
+	iommu_tlb_flush(is, va);
 #ifdef IOMMU_DIAG
 	iommu_diag(is, va);
 #endif
@@ -356,8 +399,6 @@ iommu_enter(struct iommu_state *is, vm_offset_t va, vm_offset_t pa, int flags)
 /*
  * iommu_remove: removes mappings created by iommu_enter
  * Only demap from IOMMU if flag is set.
- *
- * XXX: this function needs better internal error checking.
  */
 void
 iommu_remove(struct iommu_state *is, vm_offset_t va, vm_size_t len)
@@ -366,54 +407,18 @@ iommu_remove(struct iommu_state *is, vm_offset_t va, vm_size_t len)
 #ifdef IOMMU_DIAG
 	iommu_diag(is, va);
 #endif
-#ifdef DIAGNOSTIC
-	if (va < is->is_dvmabase)
-		panic("iommu_remove: va 0x%lx not in DVMA space", (u_long)va);
-	if ((long)(va + len) < (long)va) {
-		panic("iommu_remove: va 0x%lx + len 0x%lx wraps",
-		    (long)va, (long)len);
-	}
-	if (len & ~0xfffffff)
-		panic("iommu_remove: ridiculous len 0x%lx", (u_long)len);
-#endif
+
+	KASSERT(va >= is->is_dvmabase,
+	    ("iommu_remove: va 0x%lx not in DVMA space", (u_long)va));
+	KASSERT(va + len >= va,
+	    ("iommu_remove: va 0x%lx + len 0x%lx wraps", (long)va, (long)len));
 
 	va = trunc_io_page(va);
-	DPRINTF(IDB_IOMMU, ("iommu_remove: va %lx TSB[%lx]@%p\n",
-	    va, (u_long)IOTSBSLOT(va),
-	    &is->is_tsb[IOTSBSLOT(va)]));
 	while (len > 0) {
-		DPRINTF(IDB_IOMMU, ("iommu_remove: clearing TSB slot %d for va "
-		    "%p size %lx\n", (int)IOTSBSLOT(va),
-		    (void *)(u_long)va, (u_long)len));
-		if (is->is_sb[0] != 0 || is->is_sb[1] != 0) {
-			DPRINTF(IDB_IOMMU, ("iommu_remove: flushing va %p "
-			    "TSB[%lx]@%p=%lx, %lu bytes left\n",
-			    (void *)(u_long)va,
-			    (long)IOTSBSLOT(va),
-			    (void *)(u_long)&is->is_tsb[
-				    IOTSBSLOT(va)],
-			    (long)(is->is_tsb[IOTSBSLOT(va)]),
-			    (u_long)len));
-			iommu_strbuf_flush(is, va);
-			if (len <= IO_PAGE_SIZE)
-				iommu_strbuf_flush_done(is);
-			DPRINTF(IDB_IOMMU, ("iommu_remove: flushed va %p "
-			    "TSB[%lx]@%p=%lx, %lu bytes left\n",
-			    (void *)(u_long)va,
-			    (long)IOTSBSLOT(va),
-			    (void *)(u_long)&is->is_tsb[
-				    IOTSBSLOT(va)],
-			    (long)(is->is_tsb[IOTSBSLOT(va)]),
-			    (u_long)len));
-		}
-
-		if (len <= IO_PAGE_SIZE)
-			len = 0;
-		else
-			len -= IO_PAGE_SIZE;
-
-		is->is_tsb[IOTSBSLOT(va)] = 0;
-		IOMMU_WRITE8(is, is_iommu, IMR_FLUSH, va);
+		iommu_strbuf_flush(is, va, len <= IO_PAGE_SIZE);
+		len -= ulmin(len, IO_PAGE_SIZE);
+		IOMMU_SET_TTE(is, va, 0);
+		iommu_tlb_flush(is, va);
 		va += IO_PAGE_SIZE;
 	}
 }
@@ -424,8 +429,8 @@ iommu_decode_fault(struct iommu_state *is, vm_offset_t phys)
 	bus_addr_t va;
 	long idx;
 
-	idx = phys - is->is_ptsb;
-	if (phys < is->is_ptsb ||
+	idx = phys - iommu_ptsb;
+	if (phys < iommu_ptsb ||
 	    idx > (PAGE_SIZE << is->is_tsbsize))
 		return;
 	va = is->is_dvmabase +
@@ -434,12 +439,12 @@ iommu_decode_fault(struct iommu_state *is, vm_offset_t phys)
 }
 
 static int
-iommu_strbuf_flush_done(struct iommu_state *is)
+iommu_strbuf_flush_sync(struct iommu_state *is)
 {
 	struct timeval cur, end;
 	int i;
 
-	if (is->is_sb[0] == 0 && is->is_sb[1] == 0)
+	if (!IOMMU_HAS_SB(is))
 		return (0);
 
 	/*
@@ -470,10 +475,6 @@ iommu_strbuf_flush_done(struct iommu_state *is)
 	end.tv_usec = 500000;
 	timevaladd(&end, &cur);
 
-	DPRINTF(IDB_IOMMU, ("iommu_strbuf_flush_done: flush = %lx, %lx at "
-	    "va = %p pa = %lx now=%lx:%lx\n", (long)*is->is_flushva[0],
-	    (long)*is->is_flushva[1], is->is_flushva[0],
-	    (long)is->is_flushpa[0], cur.tv_sec, cur.tv_usec));
 	while ((!*is->is_flushva[0] || !*is->is_flushva[1]) &&
 	    timevalcmp(&cur, &end, <=))
 		microtime(&cur);
@@ -484,7 +485,6 @@ iommu_strbuf_flush_done(struct iommu_state *is)
 		    *is->is_flushva[0], *is->is_flushva[1], is->is_flushpa[0]);
 	}
 #endif
-	DPRINTF(IDB_IOMMU, ("iommu_strbuf_flush_done: flushed\n"));
 	return (*is->is_flushva[0] && *is->is_flushva[1]);
 }
 
@@ -507,7 +507,7 @@ iommu_dvma_valloc(bus_dma_tag_t t, struct iommu_state *is, bus_dmamap_t map,
 		panic("iommu_dvmamap_load: illegal boundary specified");
 	bound = ulmax(t->boundary >> IO_PAGE_SHIFT, 1);
 	map->dvmaresv = 0;
-	map->res = rman_reserve_resource_bound(&is->is_dvma_rman, 0L,
+	map->res = rman_reserve_resource_bound(&iommu_dvma_rman, 0L,
 	    t->lowaddr, sgsize, bound >> IO_PAGE_SHIFT,
 	    RF_ACTIVE | rman_make_alignment_flags(align), NULL);
 	if (map->res == NULL)
@@ -629,12 +629,8 @@ iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 #endif
 		bus_dmamap_unload(dt, map);
 	}
-	if (buflen > dt->maxsize) {
-		DPRINTF(IDB_BUSDMA,
-		    ("iommu_dvmamap_load(): error %d > %d -- "
-		     "map size exceeded!\n", (int)buflen, (int)map->buflen));
+	if (buflen > dt->maxsize)
 		return (EINVAL);
-	}
 
 	maxsize = IOMMU_SIZE_ROUNDUP(buflen);
 	if (maxsize > map->dvmaresv) {
@@ -693,11 +689,6 @@ iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 		if (buflen < sgsize)
 			sgsize = buflen;
 
-		DPRINTF(IDB_BUSDMA,
-		    ("iommu_dvmamap_load: map %p loading va %p "
-			    "dva %lx at pa %lx\n",
-			    map, (void *)vaddr, (long)dvmaddr,
-			    (long)(curaddr & ~(PAGE_SIZE - 1))));
 		iommu_enter(is, trunc_io_page(dvmaddr), trunc_io_page(curaddr),
 		    flags);
 
@@ -739,9 +730,6 @@ iommu_dvmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 		    map, (int)map->buflen, (unsigned long)map->start);
 	}
 
-	DPRINTF(IDB_BUSDMA,
-	    ("iommu_dvmamap_unload: map %p removing va %lx size "
-		"%lx\n", map, (long)map->start, (long)map->buflen));
 	iommu_remove(is, map->start, map->buflen);
 	map->buflen = 0;
 	iommu_map_insq(map);
@@ -758,62 +746,20 @@ iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 
 	va = (vm_offset_t)map->buf;
 	len = map->buflen;
-	if ((op & BUS_DMASYNC_PREREAD) != 0) {
-		DPRINTF(IDB_SYNC,
-		    ("iommu_dvmamap_sync: syncing va %p len %lu "
-		    "BUS_DMASYNC_PREREAD\n", (void *)(u_long)va, (u_long)len));
+	if ((op & BUS_DMASYNC_PREREAD) != 0)
 		membar(Sync);
-	}
-	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
-		DPRINTF(IDB_SYNC,
-		    ("iommu_dvmamap_sync: syncing va %p len %lu "
-		    "BUS_DMASYNC_POSTREAD\n", (void *)(u_long)va, (u_long)len));
+	if ((op & (BUS_DMASYNC_POSTREAD | BUS_DMASYNC_PREWRITE)) != 0) {
 		/* if we have a streaming buffer, flush it here first */
-		if (is->is_sb[0] != 0 || is->is_sb[1] != 0) {
-			while (len > 0) {
-				DPRINTF(IDB_BUSDMA,
-				    ("iommu_dvmamap_sync: flushing va %p, %lu "
-				    "bytes left\n", (void *)(u_long)va,
-				    (u_long)len));
-				iommu_strbuf_flush(is, va);
-				if (len <= IO_PAGE_SIZE) {
-					iommu_strbuf_flush_done(is);
-					len = 0;
-				} else
-					len -= IO_PAGE_SIZE;
-				va += IO_PAGE_SIZE;
-			}
+		while (len > 0) {
+			iommu_strbuf_flush(is, va,
+			    len <= IO_PAGE_SIZE);
+			len -= ulmin(len, IO_PAGE_SIZE);
+			va += IO_PAGE_SIZE;
 		}
 	}
-	if ((op & BUS_DMASYNC_PREWRITE) != 0) {
-		DPRINTF(IDB_SYNC,
-		    ("iommu_dvmamap_sync: syncing va %p len %lu "
-		     "BUS_DMASYNC_PREWRITE\n", (void *)(u_long)va, (u_long)len));
-		/* if we have a streaming buffer, flush it here first */
-		if (is->is_sb[0] != 0 || is->is_sb[1] != 0) {
-			while (len > 0) {
-				DPRINTF(IDB_BUSDMA,
-				    ("iommu_dvmamap_sync: flushing va %p, %lu "
-				    "bytes left\n", (void *)(u_long)va,
-				    (u_long)len));
-				iommu_strbuf_flush(is, va);
-				if (len <= IO_PAGE_SIZE) {
-					iommu_strbuf_flush_done(is);
-					len = 0;
-				} else
-					len -= IO_PAGE_SIZE;
-				va += IO_PAGE_SIZE;
-			}
-		}
+	if ((op & BUS_DMASYNC_PREWRITE) != 0)
 		membar(Sync);
-	}
-	if ((op & BUS_DMASYNC_POSTWRITE) != 0) {
-		DPRINTF(IDB_SYNC,
-		    ("iommu_dvmamap_sync: syncing va %p len %lu "
-		    "BUS_DMASYNC_POSTWRITE\n", (void *)(u_long)va,
-		    (u_long)len));
-		/* Nothing to do */
-	}
+	/* BUS_DMASYNC_POSTWRITE does not require any handling. */
 }
 
 #ifdef IOMMU_DIAG
@@ -843,8 +789,7 @@ iommu_diag(struct iommu_state *is, vm_offset_t va)
 
 	IOMMU_WRITE8(is, is_dva, 0, trunc_io_page(va));
 	membar(StoreStore | StoreLoad);
-	printf("iommu_diag: tte entry %#lx",
-	    is->is_tsb[IOTSBSLOT(va)]);
+	printf("iommu_diag: tte entry %#lx", iommu_tsb[IOTSBSLOT(va)]);
 	if (is->is_dtcmp != 0) {
 		printf(", tag compare register is %#lx\n"
 		    IOMMU_READ8(is, is_dtcmp, 0));
