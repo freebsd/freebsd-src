@@ -163,7 +163,12 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para>A buffer overflow in the resolver, which could be exploited
+      by a malicious domain name server or an attacker forging DNS
+      messages, has been fixed.  See security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
+      for more details.</para>
+
   </sect2>
 
   <sect2 id="userland">
@@ -183,6 +188,9 @@
     <para>The &man.renice.8; command implements a <option>-n</option>
       option, which specifies an increment to be applied to the
       priority of a process.</para>
+
+    <para>&man.sed.1; now takes a <option>-i</option> option to enable
+      in-place editing of files.</para>
 
     <para>&man.su.1; now has support for Kerberos V authentication.</para>
 
