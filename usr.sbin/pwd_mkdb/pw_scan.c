@@ -83,7 +83,7 @@ pw_scan(bp, pw)
 	}
 	if (id > USHRT_MAX) {
 		warnx("%s > max uid value (%d)", p, USHRT_MAX);
-		return (0);
+		/*return (0);*/ /* THIS SHOULD NOT BE FATAL! */
 	}
 	pw->pw_uid = id;
 
@@ -93,7 +93,7 @@ pw_scan(bp, pw)
 	id = atol(p);
 	if (id > USHRT_MAX) {
 		warnx("%s > max gid value (%d)", p, USHRT_MAX);
-		return (0);
+		/* return (0); This should not be fatal! */
 	}
 	pw->pw_gid = id;
 
