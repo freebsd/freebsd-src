@@ -206,6 +206,7 @@ SUBDIR+=3dfx \
 	pccard \
 	pecoff \
 	ray \
+	safe \
 	sbni \
 	scsi_low \
 	smbfs \
