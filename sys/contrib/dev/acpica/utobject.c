@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmobject - ACPI object create/delete/size/cache routines
- *              $Revision: 32 $
+ *              $Revision: 34 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -576,7 +576,7 @@ AcpiCmGetSimpleObjectSize (
 
     case ACPI_TYPE_STRING:
 
-        Length += InternalObj->String.Length;
+        Length += InternalObj->String.Length + 1;
         break;
 
 

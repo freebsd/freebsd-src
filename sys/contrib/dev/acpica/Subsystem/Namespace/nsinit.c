@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 9 $
+ *              $Revision: 10 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -300,7 +300,7 @@ AcpiNsInitOneObject (
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINT_RAW (ACPI_ERROR, ("\n"));
-            DEBUG_PRINT (ACPI_ERROR, ("%s while getting region arguments [%4.4s]\n", 
+            DEBUG_PRINT (ACPI_ERROR, ("%s while getting region arguments [%4.4s]\n",
                             AcpiCmFormatException (Status), &Node->Name));
         }
 
@@ -321,7 +321,7 @@ AcpiNsInitOneObject (
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINT_RAW (ACPI_ERROR, ("\n"));
-            DEBUG_PRINT (ACPI_ERROR, ("%s while getting field arguments [%4.4s]\n", 
+            DEBUG_PRINT (ACPI_ERROR, ("%s while getting field arguments [%4.4s]\n",
                             AcpiCmFormatException (Status), &Node->Name));
         }
         DEBUG_PRINT_RAW (ACPI_OK, ("."));

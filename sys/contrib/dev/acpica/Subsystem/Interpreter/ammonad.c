@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: ammonad - ACPI AML (p-code) execution for monadic operators
- *              $Revision: 85 $
+ *              $Revision: 88 $
  *
  *****************************************************************************/
 
@@ -10,8 +10,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -355,10 +355,9 @@ AcpiAmlExecMonadic2R (
     ACPI_OPERAND_OBJECT     *RetDesc2 = NULL;
     UINT32                  ResVal;
     ACPI_STATUS             Status;
-    UINT32                  d0;
-    UINT32                  d1;
-    UINT32                  d2;
-    UINT32                  d3;
+    UINT32                  i;
+    UINT32                  j;
+    ACPI_INTEGER            Digit;
 
 
     FUNCTION_TRACE_PTR ("AmlExecMonadic2R", WALK_OPERANDS);
@@ -461,23 +460,39 @@ AcpiAmlExecMonadic2R (
 
     case AML_FROM_BCD_OP:
 
-        /* TBD: for ACPI 2.0, expand to 64 bits */
-
-        d0 = (UINT32) (ObjDesc->Number.Value & 15);
-        d1 = (UINT32) (ObjDesc->Number.Value >> 4 & 15);
-        d2 = (UINT32) (ObjDesc->Number.Value >> 8 & 15);
-        d3 = (UINT32) (ObjDesc->Number.Value >> 12 & 15);
-
-        if (d0 > 9 || d1 > 9 || d2 > 9 || d3 > 9)
+        /*
+         * The 64-bit ACPI integer can hold 16 4-bit BCD integers
+         */
+        RetDesc->Number.Value = 0;
+        for (i = 0; i < ACPI_MAX_BCD_DIGITS; i++)
         {
-            DEBUG_PRINT (ACPI_ERROR,
-                ("Monadic2R/FromBCDOp: BCD digit too large %d %d %d %d\n",
-                d3, d2, d1, d0));
-            Status = AE_AML_NUMERIC_OVERFLOW;
-            goto Cleanup;
-        }
+            /* Get one BCD digit */
 
-        RetDesc->Number.Value = d0 + d1 * 10 + d2 * 100 + d3 * 1000;
+            Digit = (ACPI_INTEGER) ((ObjDesc->Number.Value >> (i * 4)) & 0xF);
+
+            /* Check the range of the digit */
+
+            if (Digit > 9)
+            {
+                DEBUG_PRINT (ACPI_ERROR,
+                    ("Monadic2R/FromBCDOp: BCD digit too large: \n",
+                    Digit));
+                Status = AE_AML_NUMERIC_OVERFLOW;
+                goto Cleanup;
+            }
+
+            if (Digit > 0)
+            {
+                /* Sum into the result with the appropriate power of 10 */
+
+                for (j = 0; j < i; j++)
+                {
+                    Digit *= 10;
+                }
+
+                RetDesc->Number.Value += Digit;
+            }
+        }
         break;
 
 
@@ -485,9 +500,8 @@ AcpiAmlExecMonadic2R (
 
     case AML_TO_BCD_OP:
 
-        /* TBD: for ACPI 2.0, expand to 64 bits */
 
-        if (ObjDesc->Number.Value > 9999)
+        if (ObjDesc->Number.Value > ACPI_MAX_BCD_VALUE)
         {
             DEBUG_PRINT (ACPI_ERROR, ("Monadic2R/ToBCDOp: BCD overflow: %d\n",
                 ObjDesc->Number.Value));
@@ -495,12 +509,24 @@ AcpiAmlExecMonadic2R (
             goto Cleanup;
         }
 
-        RetDesc->Number.Value
-            = ACPI_MODULO (ObjDesc->Number.Value, 10)
-            + (ACPI_MODULO (ACPI_DIVIDE (ObjDesc->Number.Value, 10), 10) << 4)
-            + (ACPI_MODULO (ACPI_DIVIDE (ObjDesc->Number.Value, 100), 10) << 8)
-            + (ACPI_MODULO (ACPI_DIVIDE (ObjDesc->Number.Value, 1000), 10) << 12);
+        RetDesc->Number.Value = 0;
+        for (i = 0; i < ACPI_MAX_BCD_DIGITS; i++)
+        {
+            /* Divide by nth factor of 10 */
 
+            Digit = ObjDesc->Number.Value;
+            for (j = 0; j < i; j++)
+            {
+                Digit /= 10;
+            }
+
+            /* Create the BCD digit */
+
+            if (Digit > 0)
+            {
+                RetDesc->Number.Value += (ACPI_MODULO (Digit, 10) << (i * 4));
+            }
+        }
         break;
 
 
@@ -544,7 +570,7 @@ AcpiAmlExecMonadic2R (
 
         /* The object exists in the namespace, return TRUE */
 
-        RetDesc->Number.Value = ACPI_INTEGER_MAX
+        RetDesc->Number.Value = ACPI_INTEGER_MAX;
         goto Cleanup;
         break;
 
