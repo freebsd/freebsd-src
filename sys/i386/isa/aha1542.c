@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *	$Id: aha1542.c,v 1.12 1993/10/16 12:27:20 rgrimes Exp $
+ *	$Id: aha1542.c,v 1.13 1993/10/28 02:38:36 rgrimes Exp $
  */
 
 /*
@@ -562,7 +562,6 @@ struct isa_dev *dev;
  	register ihandler_t *chp = &aha_handler[unit];;
 #endif /* defined(OSF) */
 
-  	/***********************************************\
 	/***********************************************\
 	* find unit and check we have that many defined	*
 	\***********************************************/
