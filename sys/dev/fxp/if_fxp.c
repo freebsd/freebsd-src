@@ -804,33 +804,8 @@ fxp_release(struct fxp_softc *sc)
 	struct fxp_tx *txp;
 	int i;
 
-	for (i = 0; i < FXP_NRFABUFS; i++) {
-		rxp = &sc->fxp_desc.rx_list[i];
-		if (rxp->rx_mbuf != NULL) {
-			bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(sc->fxp_mtag, rxp->rx_map);
-			m_freem(rxp->rx_mbuf);
-		}
-		bus_dmamap_destroy(sc->fxp_mtag, rxp->rx_map);
-	}
-	bus_dmamap_destroy(sc->fxp_mtag, sc->spare_map);
-
-	for (i = 0; i < FXP_NTXCB; i++) {
-		txp = &sc->fxp_desc.tx_list[i];
-		if (txp->tx_mbuf != NULL) {
-			bus_dmamap_sync(sc->fxp_mtag, txp->tx_map,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->fxp_mtag, txp->tx_map);
-			m_freem(txp->tx_mbuf);
-		}
-		bus_dmamap_destroy(sc->fxp_mtag, txp->tx_map);
-	}
-
-	bus_generic_detach(sc->dev);
-	if (sc->miibus)
-		device_delete_child(sc->dev, sc->miibus);
-
+	if (sc->ih)
+		bus_teardown_intr(sc->dev, sc->irq, sc->ih);
 	if (sc->fxp_desc.cbl_list) {
 		bus_dmamap_unload(sc->cbl_tag, sc->cbl_map);
 		bus_dmamem_free(sc->cbl_tag, sc->fxp_desc.cbl_list,
@@ -844,16 +819,37 @@ fxp_release(struct fxp_softc *sc)
 		bus_dmamap_unload(sc->mcs_tag, sc->mcs_map);
 		bus_dmamem_free(sc->mcs_tag, sc->mcsp, sc->mcs_map);
 	}
-	if (sc->ih)
-		bus_teardown_intr(sc->dev, sc->irq, sc->ih);
 	if (sc->irq)
 		bus_release_resource(sc->dev, SYS_RES_IRQ, 0, sc->irq);
 	if (sc->mem)
 		bus_release_resource(sc->dev, sc->rtp, sc->rgd, sc->mem);
-	if (sc->fxp_mtag)
+	if (sc->fxp_mtag) {
+		for (i = 0; i < FXP_NRFABUFS; i++) {
+			rxp = &sc->fxp_desc.rx_list[i];
+			if (rxp->rx_mbuf != NULL) {
+				bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map,
+				    BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(sc->fxp_mtag, rxp->rx_map);
+				m_freem(rxp->rx_mbuf);
+			}
+			bus_dmamap_destroy(sc->fxp_mtag, rxp->rx_map);
+		}
+		bus_dmamap_destroy(sc->fxp_mtag, sc->spare_map);
 		bus_dma_tag_destroy(sc->fxp_mtag);
-	if (sc->fxp_stag)
+	}
+	if (sc->fxp_stag) {
+		for (i = 0; i < FXP_NTXCB; i++) {
+			txp = &sc->fxp_desc.tx_list[i];
+			if (txp->tx_mbuf != NULL) {
+				bus_dmamap_sync(sc->fxp_mtag, txp->tx_map,
+				    BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_unload(sc->fxp_mtag, txp->tx_map);
+				m_freem(txp->tx_mbuf);
+			}
+			bus_dmamap_destroy(sc->fxp_mtag, txp->tx_map);
+		}
 		bus_dma_tag_destroy(sc->fxp_stag);
+	}
 	if (sc->cbl_tag)
 		bus_dma_tag_destroy(sc->cbl_tag);
 	if (sc->mcs_tag)
@@ -878,20 +874,23 @@ fxp_detach(device_t dev)
 
 	s = splimp();
 
-	/*
-	 * Stop DMA and drop transmit queue.
-	 */
-	fxp_stop(sc);
-
-	/*
-	 * Close down routes etc.
-	 */
-	ether_ifdetach(&sc->arpcom.ac_if);
-
-	/*
-	 * Free all media structures.
-	 */
-	ifmedia_removeall(&sc->sc_media);
+	if (device_is_alive(dev)) {
+		/*
+		 * Stop DMA and drop transmit queue.
+		 */
+		if (bus_child_present(dev))
+			fxp_stop(sc);
+		/*
+		 * Close down routes etc.
+		 */
+		ether_ifdetach(&sc->arpcom.ac_if);
+		device_delete_child(dev, sc->miibus);
+		bus_generic_detach(dev);
+		/*
+		 * Free all media structures.
+		 */
+		ifmedia_removeall(&sc->sc_media);
+	}
 
 	splx(s);
 
@@ -2226,7 +2225,8 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 	rxp->rx_map = tmp_map;
 	rxp->rx_mbuf = m;
 
-	bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	/*
 	 * If there are other buffers already on the list, attach this
