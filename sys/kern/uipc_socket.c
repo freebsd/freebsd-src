@@ -1845,18 +1845,20 @@ static int
 filt_soread(struct knote *kn, long hint)
 {
 	struct socket *so = kn->kn_fp->f_data;
+	int result;
 
 	kn->kn_data = so->so_rcv.sb_cc - so->so_rcv.sb_ctl;
 	if (so->so_state & SS_CANTRCVMORE) {
 		kn->kn_flags |= EV_EOF;
 		kn->kn_fflags = so->so_error;
-		return (1);
-	}
-	if (so->so_error)	/* temporary udp error */
-		return (1);
-	if (kn->kn_sfflags & NOTE_LOWAT)
-		return (kn->kn_data >= kn->kn_sdata);
-	return (so->so_rcv.sb_cc >= so->so_rcv.sb_lowat);
+		result = 1;
+	} else if (so->so_error)	/* temporary udp error */
+		result = 1;
+	else if (kn->kn_sfflags & NOTE_LOWAT)
+		result = (kn->kn_data >= kn->kn_sdata);
+	else
+		result = (so->so_rcv.sb_cc >= so->so_rcv.sb_lowat);
+	return (result);
 }
 
 static void
@@ -1876,21 +1878,23 @@ static int
 filt_sowrite(struct knote *kn, long hint)
 {
 	struct socket *so = kn->kn_fp->f_data;
+	int result;
 
 	kn->kn_data = sbspace(&so->so_snd);
 	if (so->so_state & SS_CANTSENDMORE) {
 		kn->kn_flags |= EV_EOF;
 		kn->kn_fflags = so->so_error;
-		return (1);
-	}
-	if (so->so_error)	/* temporary udp error */
-		return (1);
-	if (((so->so_state & SS_ISCONNECTED) == 0) &&
+		result = 1;
+	} else if (so->so_error)	/* temporary udp error */
+		result = 1;
+	else if (((so->so_state & SS_ISCONNECTED) == 0) &&
 	    (so->so_proto->pr_flags & PR_CONNREQUIRED))
-		return (0);
-	if (kn->kn_sfflags & NOTE_LOWAT)
-		return (kn->kn_data >= kn->kn_sdata);
-	return (kn->kn_data >= so->so_snd.sb_lowat);
+		result = 0;
+	else if (kn->kn_sfflags & NOTE_LOWAT)
+		result = (kn->kn_data >= kn->kn_sdata);
+	else
+		result = (kn->kn_data >= so->so_snd.sb_lowat);
+	return (result);
 }
 
 /*ARGSUSED*/
