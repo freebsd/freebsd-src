@@ -1,4 +1,4 @@
-/*	$NetBSD: pcmcia_cis_quirks.c,v 1.5 1999/10/11 17:50:21 thorpej Exp $	*/
+/*	$NetBSD: pcmcia_cis_quirks.c,v 1.6 2000/04/12 21:07:55 scw Exp $ */
 /* $FreeBSD$ */
 
 #define	PCCARDDEBUG
@@ -161,6 +161,27 @@ static struct pccard_config_entry pccard_sveclancard_func0_cfe0 = {
 	0,			/* maxtwins */
 };
 
+static struct pccard_function pccard_ndc_nd5100_func0 = {
+	0,			/* function number */
+	PCCARD_FUNCTION_NETWORK,
+	0x23,			/* last cfe number */
+	0x3f8,			/* ccr_base */
+	0x3,			/* ccr_mask */
+};
+
+static struct pccard_config_entry pccard_ndc_nd5100_func0_cfe0 = {
+	0x20,			/* cfe number */
+	PCCARD_CFE_MWAIT_REQUIRED | PCCARD_CFE_IO16 | PCCARD_CFE_IRQLEVEL,
+	PCCARD_IFTYPE_IO,
+	1,			/* num_iospace */
+	5,			/* iomask */
+	{ { 0x20, 0x300 } },	/* iospace */
+	0xdeb8,			/* irqmask */
+	0,			/* num_memspace */
+	{ },			/* memspace */
+	0,			/* maxtwins */
+};
+
 static struct pccard_cis_quirk pccard_cis_quirks[] = {
 	{ PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CXEM556, PCCARD_CIS_INVALID, 
 	  &pccard_3cxem556_func0, &pccard_3cxem556_func0_cfe0 },
@@ -178,6 +199,8 @@ static struct pccard_cis_quirk pccard_cis_quirks[] = {
 	  &pccard_3ccfem556bi_func1, &pccard_3ccfem556bi_func1_cfe0 },
 	{ PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, PCCARD_CIS_SVEC_LANCARD,
 	  &pccard_sveclancard_func0, &pccard_sveclancard_func0_cfe0 },
+	{ PCCARD_VENDOR_INVALID, PCCARD_PRODUCT_INVALID, PCCARD_CIS_NDC_ND5100_E,
+	  &pccard_ndc_nd5100_func0, &pccard_ndc_nd5100_func0_cfe0 },
 };
 	
 static int n_pccard_cis_quirks =
