@@ -19,6 +19,10 @@ diffburst	OBSOLETE: equivalent functionality is available via split -p.
 editing		Editor modes and the like to help editing FreeBSD code.
 epfe 		Extract printing filter examples from printing.sgml.
 find-sb		Scan a disk for possible filesystem superblocks.
+gdb_regofs	A simple tool that prints out a register offset table
+		for mapping gdb(1) register numbers to struct reg and
+		struct fpreg offsets. The tool is useful on selected
+		platforms only.
 hcomp		Compress header files by removing comments and whitespace.
 html-mv         Rename HTML generated filenames to human readable filenames.
 ifinfo		Uses the interface MIB to print out all the information
