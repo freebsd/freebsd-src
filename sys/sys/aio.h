@@ -13,12 +13,13 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: aio.h,v 1.8 1998/04/12 03:09:43 dyson Exp $
+ * $Id: aio.h,v 1.9 1999/01/17 22:33:08 dt Exp $
  */
 
 #ifndef _SYS_AIO_H_
 #define	_SYS_AIO_H_
 
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/signal.h>
 
