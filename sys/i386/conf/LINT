@@ -1642,6 +1642,7 @@ options	"EISA_SLOTS=12"
 #
 controller	pci0
 controller	ahc1
+controller	amd0
 controller	ncr0
 controller	isp0
 #
