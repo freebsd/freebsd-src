@@ -393,6 +393,11 @@ static struct scsidevs knowndevs[] =
 		T_READONLY, T_WORM, T_REMOV, "IMS", "CDD2000*", "*",
 		"worm", SC_ONE_LU
 	},
+	{
+		/* Here's another Philips drive... */
+		T_READONLY, T_WORM, T_REMOV, "PHILIPS", "CDD2*", "*",
+		"worm", SC_ONE_LU
+	},
 	/*
 	 * The Plasmon's are dual-faced: they appear as T_WORM if the
 	 * drive is empty, or a CD-R medium is in the drive, and they
