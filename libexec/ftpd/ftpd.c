@@ -2380,14 +2380,17 @@ reply(int n, const char *fmt, ...)
 {
 	va_list ap;
 
-	va_start(ap, fmt);
 	(void)printf("%d ", n);
+	va_start(ap, fmt);
 	(void)vprintf(fmt, ap);
+	va_end(ap);
 	(void)printf("\r\n");
 	(void)fflush(stdout);
 	if (ftpdebug) {
 		syslog(LOG_DEBUG, "<--- %d ", n);
+		va_start(ap, fmt);
 		vsyslog(LOG_DEBUG, fmt, ap);
+		va_end(ap);
 	}
 }
 
@@ -2396,14 +2399,17 @@ lreply(int n, const char *fmt, ...)
 {
 	va_list ap;
 
-	va_start(ap, fmt);
 	(void)printf("%d- ", n);
+	va_start(ap, fmt);
 	(void)vprintf(fmt, ap);
+	va_end(ap);
 	(void)printf("\r\n");
 	(void)fflush(stdout);
 	if (ftpdebug) {
 		syslog(LOG_DEBUG, "<--- %d- ", n);
+		va_start(ap, fmt);
 		vsyslog(LOG_DEBUG, fmt, ap);
+		va_end(ap);
 	}
 }
 
