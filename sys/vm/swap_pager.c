@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.26 1995/02/21 01:22:44 davidg Exp $
+ * $Id: swap_pager.c,v 1.27 1995/02/22 09:15:20 davidg Exp $
  */
 
 /*
@@ -1663,9 +1663,9 @@ swap_pager_iodone(bp)
 	TAILQ_INSERT_TAIL(&swap_pager_done, spc, spc_list);
 	if (bp->b_flags & B_ERROR) {
 		spc->spc_flags |= SPC_ERROR;
-		printf("swap_pager: I/O error - async %s failed; blkno %lu, size %ld, error %d",
+		printf("swap_pager: I/O error - async %s failed; blkno %lu, size %ld, error %d\n",
 		    (bp->b_flags & B_READ) ? "pagein" : "pageout",
-		    bp->b_error, (u_long) bp->b_blkno, bp->b_bcount);
+		    (u_long) bp->b_blkno, bp->b_bcount, bp->b_error);
 	}
 
 	if (bp->b_vp)
