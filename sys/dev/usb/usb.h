@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.h,v 1.17 1999/01/03 01:09:18 augustss Exp $	*/
+/*	$NetBSD: usb.h,v 1.33 1999/09/11 08:19:27 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -43,21 +43,21 @@
 #define _USB_H_
 
 #include <sys/types.h>
-#if defined(__NetBSD__)
-#include <sys/ioctl.h>
-#endif
 
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+#include <sys/ioctl.h>
+
 #if defined(_KERNEL)
 #include <dev/usb/usb_port.h>
 #endif /* _KERNEL */
 
 #elif defined(__FreeBSD__)
+#if defined(KERNEL)
 #include <sys/malloc.h>
 
-#if defined(KERNEL)
 MALLOC_DECLARE(M_USB);
 MALLOC_DECLARE(M_USBDEV);
+MALLOC_DECLARE(M_USBHC);
 
 #include <dev/usb/usb_port.h>
 #endif /* KERNEL */
@@ -125,15 +125,19 @@ typedef struct {
 #define UT_READ_CLASS_DEVICE	(UT_READ  | UT_CLASS | UT_DEVICE)
 #define UT_READ_CLASS_INTERFACE	(UT_READ  | UT_CLASS | UT_INTERFACE)
 #define UT_READ_CLASS_OTHER	(UT_READ  | UT_CLASS | UT_OTHER)
+#define UT_READ_CLASS_ENDPOINT	(UT_READ  | UT_CLASS | UT_ENDPOINT)
 #define UT_WRITE_CLASS_DEVICE	(UT_WRITE | UT_CLASS | UT_DEVICE)
 #define UT_WRITE_CLASS_INTERFACE (UT_WRITE | UT_CLASS | UT_INTERFACE)
 #define UT_WRITE_CLASS_OTHER	(UT_WRITE | UT_CLASS | UT_OTHER)
+#define UT_WRITE_CLASS_ENDPOINT	(UT_WRITE | UT_CLASS | UT_ENDPOINT)
 #define UT_READ_VENDOR_DEVICE	(UT_READ  | UT_VENDOR | UT_DEVICE)
 #define UT_READ_VENDOR_INTERFACE (UT_READ  | UT_VENDOR | UT_INTERFACE)
 #define UT_READ_VENDOR_OTHER	(UT_READ  | UT_VENDOR | UT_OTHER)
+#define UT_READ_VENDOR_ENDPOINT	(UT_READ  | UT_VENDOR | UT_ENDPOINT)
 #define UT_WRITE_VENDOR_DEVICE	(UT_WRITE | UT_VENDOR | UT_DEVICE)
 #define UT_WRITE_VENDOR_INTERFACE (UT_WRITE | UT_VENDOR | UT_INTERFACE)
 #define UT_WRITE_VENDOR_OTHER	(UT_WRITE | UT_VENDOR | UT_OTHER)
+#define UT_WRITE_VENDOR_ENDPOINT (UT_WRITE | UT_VENDOR | UT_ENDPOINT)
 
 /* Requests */
 #define UR_GET_STATUS		0x00
@@ -141,12 +145,12 @@ typedef struct {
 #define UR_SET_FEATURE		0x03
 #define UR_SET_ADDRESS		0x05
 #define UR_GET_DESCRIPTOR	0x06
-#define  UDESC_DEVICE		0x01		/* descriptor types */
+#define  UDESC_DEVICE		0x01
 #define  UDESC_CONFIG		0x02
 #define  UDESC_STRING		0x03
 #define  UDESC_INTERFACE	0x04
 #define  UDESC_ENDPOINT		0x05
-#define  UDESC_CS_DEVICE	0x21		/* class specific */
+#define  UDESC_CS_DEVICE	0x21	/* class specific */
 #define  UDESC_CS_CONFIG	0x22
 #define  UDESC_CS_STRING	0x23
 #define  UDESC_CS_INTERFACE	0x24
@@ -223,19 +227,19 @@ typedef struct {
 	uByte		bLength;
 	uByte		bDescriptorType;
 	uByte		bEndpointAddress;
-#define UE_DIR		0x80	/* mask */
-#define  UE_IN		0x80
-#define  UE_OUT		0x00
+#define UE_GET_DIR(a)	((a) & 0x80)
+#define UE_SET_DIR(a,d)	((a) | (((d)&1) << 7))
+#define UE_DIR_IN	0x80
+#define UE_DIR_OUT	0x00
 #define UE_ADDR		0x0f
 #define UE_GET_ADDR(a)	((a) & UE_ADDR)
-#define UE_GET_IN(a)	(((a) >> 7) & 1)	/* XXX should be removed */
-#define UE_GET_DIR(a)	((a) & UE_DIR)
 	uByte		bmAttributes;
 #define UE_XFERTYPE	0x03
 #define  UE_CONTROL	0x00
 #define  UE_ISOCHRONOUS	0x01
 #define  UE_BULK	0x02
 #define  UE_INTERRUPT	0x03
+#define UE_GET_XFERTYPE(a)	((a) & UE_XFERTYPE)
 #define UE_ISO_TYPE	0x0c
 #define  UE_ISO_ASYNC	0x04
 #define  UE_ISO_ADAPT	0x08
@@ -329,59 +333,55 @@ typedef struct {
 #define UPS_C_PORT_RESET		0x0010
 } usb_port_status_t;
 
-#define UCLASS_UNSPEC		0	/* Unspecified */
-#define UCLASS_AUDIO		1	/* Audio */
+#define UCLASS_UNSPEC		0
+#define UCLASS_AUDIO		1
 #define  USUBCLASS_AUDIOCONTROL	1
 #define  USUBCLASS_AUDIOSTREAM	2
-#define UCLASS_CDC		2	/* Communication */
+#define  USUBCLASS_MIDISTREAM	3
+#define UCLASS_CDC		2 /* communication */
 #define  USUBCLASS_DIRECT_LINE_CONTROL_MODEL	1
 #define  USUBCLASS_ABSTRACT_CONTROL_MODEL	2
 #define  USUBCLASS_TELEPHONE_CONTROL_MODEL	3
-#define  USUBCLASS_MULTICHANNEL_CONTROL_MODEL	/*TBD*/
-#define  USUBCLASS_CAPI_CONTROL_MODEL		/*TBD*/
-#define  USUBCLASS_ETHERNET_CONTROL_MODEL	/*TBD*/
-#define  USUBCLASS_ATM_CONTROL_MODEL		/*TBD*/
-#define   UPROTO_CDC_NONE	0	/* No class spec. protocol required */
-#define   UPROTO_CDC_AT		1	/* V25.ter (AT commands) */
-#define UCLASS_HID		3	/* Human Interface Device */
+#define  USUBCLASS_MULTICHANNEL_CONTROL_MODEL	4
+#define  USUBCLASS_CAPI_CONTROLMODEL		5
+#define  USUBCLASS_ETHERNET_NETWORKING_CONTROL_MODEL 6
+#define  USUBCLASS_ATM_NETWORKING_CONTROL_MODEL	7
+#define   UPROTO_CDC_AT		1
+#define UCLASS_HID		3
 #define  USUBCLASS_BOOT	 	1
-#define UCLASS_PRINTER		7	/* Printer/Parallel Port */
+#define UCLASS_PRINTER		7
 #define  USUBCLASS_PRINTER	1
-#define  UPROTO_PRINTER_UNI	1	/* Unidirectional */
-#define  UPROTO_PRINTER_BI	2	/* Bidirectional */
-#define UCLASS_MASS		8	/* Mass Storage */
-#define  USUBCLASS_RBC		1	/* Reduced Block comm. (e.g. Flash ) */
-#define  USUBCLASS_SFF8020I	2	/* (e.g. CD ROM) */
-#define  USUBCLASS_QIC157	3	/* (e.g. tape drives) */
-#define  USUBCLASS_UFI		4	/* (e.g. floppy drives) */
-#define  USUBCLASS_SFF8070I	5	/* (e.g. floppy drives) */
-#define  USUBCLASS_SCSI		6	/* SCSI transparent comman set */
-#define  UPROTO_MASS_CBI_I	0	/* CBI protocol with comm. compl. int */
-#define  UPROTO_MASS_CBI	1	/* CBI protocol */
-/*
- * XXX Pat LaVarre (Iomega): there are Bulk-Only devices using 0x02,
- * but recent versions of the Mass Storage spec. require it to be 0x50.
- */
-#define  UPROTO_MASS_BULK	80	/* 'P' for prototype, used by ZIP 100 */
-#define  UPROTO_MASS_BULK2	2	/* Bulk only transport */
-#define UCLASS_HUB		9	/* Hub */
+#define  UPROTO_PRINTER_UNI	1
+#define  UPROTO_PRINTER_BI	2
+#define UCLASS_MASS		8
+#define  USUBCLASS_RBC		1
+#define  USUBCLASS_SFF8020I	2
+#define  USUBCLASS_QIC157	3
+#define  USUBCLASS_UFI		4
+#define  USUBCLASS_SFF8070I	5
+#define  USUBCLASS_SCSI		6
+#define  UPROTO_MASS_CBI_I	0
+#define  UPROTO_MASS_CBI	1
+#define  UPROTO_MASS_BULK	2
+#define  UPROTO_MASS_BULK_P	80	/* 'P' for the Iomega Zip drive */
+#define UCLASS_HUB		9
 #define  USUBCLASS_HUB		0
-#define UCLASS_DATA		10	/* Data pipe for CDC */
+#define UCLASS_DATA		10
 #define  USUBCLASS_DATA		0
-#define   UPROTO_DATA_NONE	0
-#define   UPROTO_DATA_ISDNBRI		0x30	/* Physical iface ISDN BRI */
-#define   UPROTO_DATA_HDLC		0x31	/* HDLC */
-#define   UPROTO_DATA_TRANSPARENT	0x32	/* Transparent */
-#define   UPROTO_DATA_Q921M		0x50	/* Management for Q921 */
-#define   UPROTO_DATA_Q921		0x51	/* Data for Q921 */
-#define   UPROTO_DATA_Q921TM		0x52	/* TEI multiplexer for Q921 */
-#define   UPROTO_DATA_V42BIS		0x90	/* Data compression */	
-#define   UPROTO_DATA_Q931		0x91	/* Euro-ISDN */
-#define   UPROTO_DATA_V120		0x92	/* V.24 rate adaption */
-#define   UPROTO_DATA_CAPI		0x93	/* CAPI 2.0 commands */
-#define   UPROTO_DATA_HOST_BASED	0xfd	/* Host based driver */
-#define   UPROTO_DATA_PUF		0xfe	/* see Prot. Unit Func. Desc. */
-#define   UPROTO_DATA_VENDOR		0xff	/* Vendor specific */
+#define   UPROTO_DATA_ISDNBRI		0x30    /* Physical iface */
+#define   UPROTO_DATA_HDLC		0x31    /* HDLC */
+#define   UPROTO_DATA_TRANSPARENT	0x32    /* Transparent */
+#define   UPROTO_DATA_Q921M		0x50    /* Management for Q921 */
+#define   UPROTO_DATA_Q921		0x51    /* Data for Q921 */
+#define   UPROTO_DATA_Q921TM		0x52    /* TEI multiplexer for Q921 */
+#define   UPROTO_DATA_V42BIS		0x90    /* Data compression */  
+#define   UPROTO_DATA_Q931		0x91    /* Euro-ISDN */
+#define   UPROTO_DATA_V120		0x92    /* V.24 rate adaption */
+#define   UPROTO_DATA_CAPI		0x93    /* CAPI 2.0 commands */
+#define   UPROTO_DATA_HOST_BASED	0xfd    /* Host based driver */
+#define   UPROTO_DATA_PUF		0xfe    /* see Prot. Unit Func. Desc. */
+#define   UPROTO_DATA_VENDOR		0xff    /* Vendor specific */
+
 
 #define USB_HUB_MAX_DEPTH 5
 
@@ -398,20 +398,24 @@ typedef struct {
 #define USB_PORT_RESET_SETTLE	10  /* ms */
 #define USB_PORT_POWERUP_DELAY	100 /* ms */
 #define USB_SET_ADDRESS_SETTLE	2   /* ms */
+#define USB_RESUME_TIME		(20*5)  /* ms */
+#define USB_RESUME_WAIT		10  /* ms */
+#define USB_RESUME_RECOVERY	10  /* ms */
 #else
 /* Allow for marginal (i.e. non-conforming) devices. */
 #define USB_PORT_RESET_DELAY	50  /* ms */
 #define USB_PORT_RESET_RECOVERY	50  /* ms */
 #define USB_PORT_POWERUP_DELAY	200 /* ms */
 #define USB_SET_ADDRESS_SETTLE	10  /* ms */
+#define USB_RESUME_DELAY	(50*5)  /* ms */
+#define USB_RESUME_WAIT		50  /* ms */
+#define USB_RESUME_RECOVERY	50  /* ms */
 #endif
 
 #define USB_MIN_POWER		100 /* mA */
 #define USB_MAX_POWER		500 /* mA */
 
-
 #define USB_BUS_RESET_DELAY	100 /* ms XXX?*/
-#define USB_RESUME_DELAY	10  /* ms XXX?*/
 
 /*** ioctl() related stuff ***/
 
@@ -420,8 +424,7 @@ struct usb_ctl_request {
 	usb_device_request_t request;
 	void	*data;
 	int	flags;
-/* XXX must match flags in usbdi.h */
-#define USBD_SHORT_XFER_OK	0x04
+#define USBD_SHORT_XFER_OK	0x04	/* allow short reads */
 	int	actlen;		/* actual length transferred */
 };
 
@@ -475,7 +478,7 @@ struct usb_device_info {
 	u_int8_t	addr;	/* device address */
 	char		product[USB_MAX_STRING_LEN];
 	char		vendor[USB_MAX_STRING_LEN];
-	char		revision[8];
+	char		release[8];
 	u_int16_t	productNo;
 	u_int16_t	vendorNo;
 	u_int8_t	class;
@@ -526,5 +529,10 @@ struct usb_device_stats {
 #define USB_DO_REQUEST		_IOWR('U', 111, struct usb_ctl_request)
 #define USB_GET_DEVICEINFO	_IOR ('U', 112, struct usb_device_info)
 #define USB_SET_SHORT_XFER	_IOW ('U', 113, int)
+#define USB_SET_TIMEOUT		_IOW ('U', 114, int)
+
+/* Modem device */
+#define USB_GET_CM_OVER_DATA	_IOR ('U', 130, int)
+#define USB_SET_CM_OVER_DATA	_IOW ('U', 131, int)
 
 #endif /* _USB_H_ */
