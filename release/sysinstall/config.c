@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.115.2.12 1999/04/28 07:20:25 jkh Exp $
+ * $Id: config.c,v 1.115.2.13 1999/05/05 11:34:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -522,20 +522,28 @@ configXDesktop(dialogMenuItem *self)
 int
 configXSetup(dialogMenuItem *self)
 {
-    char *config, *execfile;
+    char *config, *execfile, *style;
     char *moused;
 
 tryagain:
     dialog_clear_norefresh();
+    variable_unset(VAR_DESKSTYLE);
+    variable_unset(VAR_XF86_CONFIG);
     if (!dmenuOpenSimple(&MenuXF86Config, FALSE))
 	return DITEM_FAILURE | DITEM_RESTORE;
+    config = variable_get(VAR_XF86_CONFIG);
+    style = variable_get(VAR_DESKSTYLE);
+    if (!config) {
+	if (style)
+	    goto config_desktop;
+	else
+	    return DITEM_FAILURE | DITEM_RESTORE;
+    }
+
     if (file_readable("/var/run/ld.so.hints"))
 	systemExecute("/sbin/ldconfig -m /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
     else
 	systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
-    config = variable_get(VAR_XF86_CONFIG);
-    if (!config)
-	return DITEM_FAILURE | DITEM_RESTORE;
     execfile = string_concat("/usr/X11R6/bin/", config);
     if (file_executable(execfile)) {
 	dialog_clear_norefresh();
@@ -564,6 +572,7 @@ tryagain:
 	    else
 		return DITEM_FAILURE | DITEM_RESTORE;
 	}
+config_desktop:
 	configXDesktop(self);
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
