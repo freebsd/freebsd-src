@@ -24,14 +24,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: acpi.h,v 1.9 2000/08/08 14:12:16 iwasaki Exp $
  *	$FreeBSD$
  */
 
-#ifndef	_SYS_ACPI_H_
-#define	_SYS_ACPI_H_
-
-#include <sys/ioccom.h>
+/* Generic Address structure */
+struct ACPIgas {
+	u_int8_t	address_space_id;
+#define ACPI_GAS_MEMORY		0
+#define ACPI_GAS_IO		1
+#define ACPI_GAS_PCI		2
+#define ACPI_GAS_EMBEDDED	3
+#define ACPI_GAS_SMBUS		4
+#define ACPI_GAS_FIXED		0x7f
+	u_int8_t	register_bit_width;
+	u_int8_t	register_bit_offset;
+	u_int8_t	res;
+	u_int64_t	address;
+} __attribute__((packed));
 
 /* Root System Description Pointer */
 struct ACPIrsdp {
@@ -96,7 +105,8 @@ struct FACPbody {
 	u_int8_t	day_alrm;
 	u_int8_t	mon_alrm;
 	u_int8_t	century;
-	u_char		reserved4[3];
+	u_int16_t	iapc_boot_arch;
+	u_char		reserved4[1];
 	u_int32_t	flags;
 #define ACPI_FACP_FLAG_WBINVD	1	/* WBINVD is correctly supported */
 #define ACPI_FACP_FLAG_WBINVD_FLUSH 2	/* WBINVD flushes caches */
@@ -108,6 +118,19 @@ struct FACPbody {
 #define ACPI_FACP_FLAG_RTC_S4	128	/* RTC can wakeup from S4 state */
 #define ACPI_FACP_FLAG_TMR_VAL_EXT 256	/* TMR_VAL is 32bit */
 #define ACPI_FACP_FLAG_DCK_CAP	512	/* Can support docking */
+	struct ACPIgas	reset_reg;
+	u_int8_t	reset_value;
+	u_int8_t	reserved5[3];
+	u_int64_t	x_firmware_ctrl;
+	u_int64_t	x_dsdt;
+	struct ACPIgas	x_pm1a_evt_blk;
+	struct ACPIgas	x_pm1b_evt_blk;
+	struct ACPIgas	x_pm1a_cnt_blk;
+	struct ACPIgas	x_pm1b_cnt_blk;
+	struct ACPIgas	x_pm2_cnt_blk;
+	struct ACPIgas	x_pm_tmr_blk;
+	struct ACPIgas	x_gpe0_blk;
+	struct ACPIgas	x_gpe1_blk;
 } __attribute__((packed));
 
 /* Firmware ACPI Control Structure */
@@ -171,10 +194,6 @@ struct FACS {
 #define ACPI_S_STATE_S4			4
 #define ACPI_S_STATE_S5			5
 
-#define ACPIIO_ENABLE		_IO('P', 1)
-#define ACPIIO_DISABLE		_IO('P', 2)
-#define ACPIIO_SETSLPSTATE	_IOW('P', 3, int)
-
 #ifdef _KERNEL
 /*
  * Structure for System State Package (7.5.2).
@@ -186,11 +205,6 @@ struct acpi_system_state_package {
 	} mode[6];
 };
 #define ACPI_UNSUPPORTSLPTYP	0xff	/* unsupported sleeping type */
-
-extern struct ACPIrsdp *acpi_rsdp;	/* ACPI Root System Description Table */
-
-void		 acpi_init_addr_range(void);
-void		 acpi_register_addr_range(u_int64_t, u_int64_t, u_int32_t);
 
 /*
  * ACPICA compatibility
@@ -330,4 +344,3 @@ void		 acpi_print_dsdt(struct ACPIsdt *);
 
 #endif	/* _KERNEL */
 
-#endif	/* _SYS_ACPI_H_ */
