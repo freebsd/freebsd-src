@@ -39,8 +39,8 @@
 #include <miscfs/specfs/specdev.h>
 #endif
 
-#include <ntfs/ntfs.h>
-#include <ntfs/ntfs_compr.h>
+#include <fs/ntfs/ntfs.h>
+#include <fs/ntfs/ntfs_compr.h>
 
 #define GET_UINT16(addr)	(*((u_int16_t *)(addr)))
 

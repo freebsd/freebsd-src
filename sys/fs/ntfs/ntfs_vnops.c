@@ -69,9 +69,9 @@
 #include <sys/sysctl.h>
 
 /*#define NTFS_DEBUG 1*/
-#include <ntfs/ntfs.h>
-#include <ntfs/ntfs_inode.h>
-#include <ntfs/ntfs_subr.h>
+#include <fs/ntfs/ntfs.h>
+#include <fs/ntfs/ntfs_inode.h>
+#include <fs/ntfs/ntfs_subr.h>
 #if defined(__NetBSD__)
 #include <miscfs/specfs/specdev.h>
 #include <miscfs/genfs/genfs.h>

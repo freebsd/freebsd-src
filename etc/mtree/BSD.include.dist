@@ -26,7 +26,11 @@
         ..
         msdosfs
         ..
+        ntfs
+        ..
         nullfs
+        ..
+        nwfs
         ..
         portalfs
         ..
@@ -76,10 +80,6 @@
     netsmb
     ..
     nfs
-    ..
-    ntfs
-    ..
-    nwfs
     ..
     objc
     ..

@@ -45,9 +45,9 @@
 #include <netncp/ncp_rq.h>
 #include <netncp/nwerror.h>
 
-#include <nwfs/nwfs.h>
-#include <nwfs/nwfs_node.h>
-#include <nwfs/nwfs_subr.h>
+#include <fs/nwfs/nwfs.h>
+#include <fs/nwfs/nwfs_node.h>
+#include <fs/nwfs/nwfs_subr.h>
 
 #define NCP_INFOSZ	(sizeof(struct nw_entry_info) - 257)
 

@@ -45,9 +45,9 @@
 #include <sys/mount.h>
 #include <sys/mutex.h>
 
-#include <ntfs/ntfs.h>
-#include <ntfs/ntfs_inode.h>
-#include <ntfs/ntfs_ihash.h>
+#include <fs/ntfs/ntfs.h>
+#include <fs/ntfs/ntfs_inode.h>
+#include <fs/ntfs/ntfs_ihash.h>
 
 MALLOC_DEFINE(M_NTFSNTHASH, "NTFS nthash", "NTFS ntnode hash tables");
 

@@ -41,7 +41,7 @@
 
 #include <netncp/ncp_lib.h>
 #include <netncp/ncp_file.h>
-#include <nwfs/nwfs.h>
+#include <fs/nwfs/nwfs.h>
 
 int
 ncp_read(NWCONN_HANDLE connid, ncp_fh *fh, off_t offset, size_t count, char *target) {
