@@ -29,3 +29,7 @@ maxusers	32
 
 options 	FFS
 options 	COMPAT_43
+options         MD_ROOT
+options         MD_ROOT_SIZE=1024
+
+device		md
