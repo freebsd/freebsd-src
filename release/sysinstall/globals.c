@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: globals.c,v 1.12 1996/04/13 13:31:38 jkh Exp $
+ * $Id: globals.c,v 1.13 1996/04/28 20:53:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,14 +41,15 @@
  * whatever values we feel are appropriate.
  */
 
-int		DebugFD;  /* Where diagnostic output goes */
+int		DebugFD;	/* Where diagnostic output goes */
+Boolean		Fake;		/* Only pretend to be useful */
 Boolean		RunningAsInit;	/* Are we running as init? */
-Boolean		DialogActive;
-Boolean		ColorDisplay;
-Boolean		OnVTY;
-Variable	*VarHead; /* The head of the variable chain */
+Boolean		DialogActive;	/* Is libdialog initialized? */
+Boolean		ColorDisplay;	/* Are we on a color display? */
+Boolean		OnVTY;		/* Are we on a VTY? */
+Variable	*VarHead;	/* The head of the variable chain */
 Device		*mediaDevice;	/* Where we're installing from */
-int		BootMgr;
+int		BootMgr;	/* Which boot manager we're using */
 
 /*
  * Yes, I know some of these are already automatically initialized as
@@ -59,6 +60,7 @@ globalsInit(void)
 {
     DebugFD = -1;
     ColorDisplay = FALSE;
+    Fake = FALSE;
     OnVTY = FALSE;
     DialogActive = FALSE;
     VarHead = NULL;

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.42 1995/11/12 20:48:43 jkh Exp $
+#	$Id: Makefile,v 1.193.2.43 1995/11/15 07:17:18 jkh Exp $
 #
 # How to roll a release:
 #
@@ -116,9 +116,6 @@ rerelease:
 	echo "export RELEASEDIR"		>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "make all install"			>> ${CHROOTDIR}/mk
-	echo "cd /usr/src/release/libdisk"	>> ${CHROOTDIR}/mk
-	echo "make obj"				>> ${CHROOTDIR}/mk
-	echo "make all"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make all"				>> ${CHROOTDIR}/mk
@@ -216,7 +213,6 @@ release.3:
 # Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
 release.4:
-	cd ${.CURDIR}/libdisk && make obj && make depend && make all
 	cd ${.CURDIR}/sysinstall && make obj && make depend && make all
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/crunch

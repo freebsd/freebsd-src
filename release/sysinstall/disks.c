@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.44 1996/04/28 03:26:49 jkh Exp $
+ * $Id: disks.c,v 1.48 1996/05/09 09:42:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -101,7 +101,7 @@ print_chunks(Disk *d)
 	     "Subtype", "Flags");
     for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
 	if (i == current_chunk)
-	    attrset(A_REVERSE);
+	    attrset(item_selected_attr);
 	mvprintw(row, 2, "%10ld %10lu %10lu %8s %8d %8s %8d\t%-6s",
 		 chunk_info[i]->offset, chunk_info[i]->size,
 		 chunk_info[i]->end, chunk_info[i]->name,
@@ -120,10 +120,8 @@ print_command_summary()
     mvprintw(17, 0, "D = Delete Partition   G = Set Drive Geometry S = Set Bootable");
     mvprintw(18, 0, "U = Undo All Changes   Q = Finish");
     if (!RunningAsInit)
-	mvprintw(18, 48, "W = Write Changes");
-    mvprintw(20, 0, "The currently selected partition is displayed in ");
-    attrset(A_REVERSE); addstr("reverse"); attrset(A_NORMAL); addstr(" video.");
-    mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to move.");
+	mvprintw(18, 46, "W = Write Changes");
+    mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }
 
@@ -186,7 +184,7 @@ diskPartition(Device *dev, Disk *d)
 	print_chunks(d);
 	print_command_summary();
 	if (msg) {
-	    standout(); mvprintw(23, 0, msg); standend();
+	    attrset(title_attr); mvprintw(23, 0, msg); attrset(A_NORMAL);
 	    beep();
 	    msg = NULL;
 	}
@@ -341,6 +339,8 @@ diskPartition(Device *dev, Disk *d)
 			  "are installing FreeBSD for the first time!  This is not\n"
 			  "an option for use during the standard install.\n\n"
 			  "Are you absolutely sure you want to do this now?")) {
+		WINDOW *save = savescr();
+
 		variable_set2(DISK_PARTITIONED, "yes");
 		clear();
 
@@ -356,6 +356,7 @@ diskPartition(Device *dev, Disk *d)
 		    msgConfirm("Disk partition write returned an error status!");
 		else
 		    msgConfirm("Wrote FDISK partition information out successfully.");
+		restorescr(save);
 	    }
 	    break;
 
@@ -399,7 +400,11 @@ diskPartition(Device *dev, Disk *d)
     }
     p = CheckRules(d);
     if (p) {
+	char buf[FILENAME_MAX];
+
 	dialog_clear();
+        use_helpline("Press F1 to read more about disk partitioning.");
+	use_helpfile(systemHelpFile("partition", buf));
 	dialog_mesgbox("Disk partitioning warning:", p, -1, -1);
 	free(p);
     }
@@ -416,9 +421,14 @@ partitionHook(dialogMenuItem *selected)
 	msgConfirm("Unable to find disk %s!", selected->prompt);
 	return DITEM_FAILURE;
     }
-    devs[0]->enabled = TRUE;
-    diskPartition(devs[0], (Disk *)devs[0]->private);
-    return DITEM_SUCCESS;
+    /* Toggle enabled status? */
+    if (!devs[0]->enabled) {
+	devs[0]->enabled = TRUE;
+	diskPartition(devs[0], (Disk *)devs[0]->private);
+    }
+    else
+	devs[0]->enabled = FALSE;
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 static int
@@ -492,6 +502,8 @@ diskPartitionWrite(dialogMenuItem *self)
 	msgConfirm("Unable to find any disks to write to??");
 	return DITEM_FAILURE;
     }
+    if (isDebug())
+	msgDebug("diskPartitionWrite: Examining %d devices\n", deviceCount(devs));
 
     for (i = 0; devs[i]; i++) {
 	Chunk *c1;
@@ -502,7 +514,7 @@ diskPartitionWrite(dialogMenuItem *self)
 
 	Set_Boot_Blocks(d, boot1, boot2);
 	msgNotify("Writing partition information to drive %s", d->name);
-	if (Write_Disk(d)) {
+	if (!Fake && Write_Disk(d)) {
 	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
 	    return DITEM_FAILURE;
 	}

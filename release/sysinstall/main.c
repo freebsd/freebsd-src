@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.17 1996/04/13 13:31:51 jkh Exp $
+ * $Id: main.c,v 1.18 1996/04/28 20:54:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,6 +65,15 @@ main(int argc, char **argv)
     /* Set up whatever things need setting up */
     systemInitialize(argc, argv);
 
+    /* Set default flag and variable values */
+    installVarDefaults(NULL);
+
+    if (argc > 1 && !strcmp(argv[1], "-fake")) {
+	variable_set2(VAR_DEBUG, "YES");
+	Fake = TRUE;
+	msgConfirm("I'll be just faking it from here on out, OK?");
+    }
+
     /* Try to preserve our scroll-back buffer */
     if (OnVTY)
 	for (curr = 0; curr < 25; curr++)
@@ -72,9 +81,6 @@ main(int argc, char **argv)
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
-
-    /* Set default flag and variable values */
-    installVarDefaults(NULL);
 
     /* Begin user dialog at outer menu */
     while (1) {
