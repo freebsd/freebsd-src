@@ -1,5 +1,5 @@
-/* $Id: isp.c,v 1.20 1999/05/12 18:56:55 mjacob Exp $ */
-/* release_6_2_99 */
+/* $Id: isp.c,v 1.21 1999/07/02 23:06:38 mjacob Exp $ */
+/* release_6_5_99 */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
