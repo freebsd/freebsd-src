@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.46 1995/04/23 09:13:07 julian Exp $
+ *	$Id: isa.c,v 1.47 1995/05/11 02:15:52 jkh Exp $
  */
 
 /*
@@ -174,7 +174,7 @@ haveseen(dvp, tmpdvp, checkbits)
 	 * Only check against devices that have already been found and are not
 	 * unilaterally allowed to conflict anyway.
 	 */
-	if (tmpdvp->id_alive && !tmpdev->id_conflicts) {
+	if (tmpdvp->id_alive && !tmpdvp->id_conflicts) {
 		char const *whatnot;
 
 		whatnot = checkbits & CC_ATTACH ? "attach" : "prob";
