@@ -56,12 +56,12 @@
 static void	mca_reg_print	(device_t, char *, char *, int *);
 
 struct mca_device {
+	struct resource_list rl;	/* Resources */
+
 	mca_id_t	id;
 	u_int8_t	slot;
 	u_int8_t	enabled;
 	u_int8_t	pos[8];		/* Programable Option Select Regs. */
-
-	struct resource_list rl;	/* Resources */
 };
 
 /* Not supposed to use this function! */
