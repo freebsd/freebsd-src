@@ -1261,7 +1261,6 @@ and
 commands.
 Refer to their descriptions below.
 .El
-.Pp
 .Sh RECEIVING INCOMING PPP CONNECTIONS (Method 2)
 This method differs in that we use
 .Nm
@@ -1597,7 +1596,6 @@ without any additional changes (although ensure you have
 and
 .Dq set authkey
 in your profile).
-.Pp
 .Sh NETWORK ADDRESS TRANSLATION (PACKET ALIASING)
 The
 .Fl nat
@@ -1994,7 +1992,6 @@ is established.
 192.244.177.2/0 means that I'll accept/permit any IP address but I'll
 try to insist that 192.244.177.2 be used first.
 .El
-.Pp
 .Sh CONNECTING WITH YOUR INTERNET SERVICE PROVIDER
 The following steps should be taken when connecting to your ISP:
 .Bl -enum
@@ -2415,7 +2412,6 @@ connections.
 .Dv SIGUSR1
 can still be used to re-open the socket.
 .El
-.Pp
 .Sh MULTI-LINK PPP
 If you wish to use more than one physical link to connect to a
 .Em PPP
@@ -5560,7 +5556,6 @@ peer is detected,
 .Nm
 automatically enables Packet Mode and goes back into command mode.
 .El
-.Pp
 .Sh MORE DETAILS
 .Bl -bullet
 .It
@@ -5585,7 +5580,6 @@ http://www.FreeBSD.org/handbook/userppp.html
 .El
 .Pp
 .El
-.Pp
 .Sh FILES
 .Nm
 refers to four files:
@@ -5652,7 +5646,6 @@ to HEX to determine the actual file name.
 This socket is used to pass links between different instances of
 .Nm .
 .El
-.Pp
 .Sh SEE ALSO
 .Xr at 1 ,
 .Xr ftp 1 ,

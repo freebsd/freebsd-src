@@ -49,7 +49,6 @@ MIBs control the different CPU modes:
 .It "hw.crusoe.voltage    integer no         Current voltage (mV).
 .It "hw.crusoe.percentage integer no         Processing performance (%).
 .El
-.Pp
 .Sh EXAMPLES
 Print the current status:
 .Bd -literal -offset indent
@@ -61,7 +60,6 @@ To set LongRun mode to performance oriented variable frequency mode
 .Bd -literal -offset indent
 # sysctl -w hw.crusoe.longrun=2
 .Ed
-.Pp
 .Sh AUTHORS
 .An -nosplit
 LongRun support and this manual page were written by

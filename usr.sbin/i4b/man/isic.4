@@ -170,7 +170,6 @@ Cards on the Amiga Zorro bus:
 BSC/ITH ISDN Master, ITH ISDN MasterII or VMC ISDN Blaster
 .Cd "aster* at zbus?"
 .Cd "isic* at aster? port ?"
-.Pp
 .Sh DESCRIPTION
 The
 .Nm
@@ -184,9 +183,7 @@ PEB2085 or PSB 2186) and the High-Level Serial Communications Controller
 Extended HSCX (such as the SAB82525 or PSB21525). The newer IPAC chip
 (which integrates an ISAC and a HSCX in one chip, with the added benefit
 of larger FIFO buffers) is also supported.
-.Pp
 .Sh SUPPORTED CARDS
-.Pp
 .Bl -tag -width Ds -compact
 .It Ar Teles S0/8, Dr. Neuhaus Niccy 1008, Creatix ISDN-S0/8
 .Pp
@@ -344,7 +341,6 @@ instead of IPL 6 (which is used by most AmigaOS software).
 Note that the ITH ISDN MasterII doesn't work in the DraCo Zorro bus. This
 is no NetBSD problem, but general.
 .El
-.Pp
 .Sh CAVEATS
 Note that all of the boards with I/O ports actually use several ranges
 of port addresses; Teles happen to refer to the 0xd80 range in their
@@ -353,7 +349,6 @@ to the 0x200 range in their documentation (the board also uses 0x600 etc.)
 The driver matches the manufacturers' description for the purposes of
 configuration, but of course makes use of all the ports in order to
 operate the card.
-.Pp
 .Sh BUGS
 Since there is no hardware documentation available from several manufacturers
 for their boards, it is likely that there are many, many bugs left.

@@ -44,7 +44,6 @@
 .Ft struct resource *
 .Fn bus_alloc_resource "device_t dev" "int type" "int *rid" "u_long start" "u_long end" "u_long count" "u_int flags"
 .Sh DESCRIPTION
-.Pp
 This is an easy interface to the resource-management functions.
 It hides the indirection through the parent's method table. 
 This function generally should be called in attach, but (except in some
