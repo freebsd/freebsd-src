@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.40 1994/09/22 07:45:30 swallace Exp $
+# $Id: bsd.port.mk,v 1.41 1994/09/28 14:19:30 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -229,7 +229,10 @@ build: configure pre-build
 	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} all)
 .endif
 	@if [ -f ${SCRIPTDIR}/post-build ]; then \
-		sh ${SCRIPTDIR}/post-build ${PORTSDIR} ${.CURDIR} ${WRKSRC}; \
+		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
+		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} \
+		sh ${SCRIPTDIR}/post-build; \
 	fi
 .endif
 
@@ -252,15 +255,17 @@ ${CONFIGURE_COOKIE}:
 			${PATCH} ${PATCH_ARGS} < $$i; \
 	done; \
 	fi
-# We have a small convention for our local configure scripts, which
-# is that ${PORTSDIR}, ${.CURDIR} and ${WRKSRC} get passed as
-# command-line arguments since all other methods are a little
-# problematic.
 	@if [ -f ${SCRIPTDIR}/pre-configure ]; then \
-		sh ${SCRIPTDIR}/pre-configure ${PORTSDIR} ${.CURDIR} ${WRKSRC}; \
+		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
+		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} \
+		sh ${SCRIPTDIR}/pre-configure; \
 	fi
 	@if [ -f ${SCRIPTDIR}/configure ]; then \
-		sh ${SCRIPTDIR}/configure ${PORTSDIR} ${.CURDIR} ${WRKSRC}; \
+		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
+		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} \
+		sh ${SCRIPTDIR}/configure; \
 	fi
 .if defined(HAS_CONFIGURE)
 	@(cd ${WRKSRC}; ./configure ${CONFIGURE_ARGS})
@@ -269,7 +274,10 @@ ${CONFIGURE_COOKIE}:
 	@(cd ${WRKSRC}; ${XMKMF} && ${MAKE} Makefiles)
 .endif
 	@if [ -f ${SCRIPTDIR}/post-configure ]; then \
-		sh ${SCRIPTDIR}/post-configure ${PORTSDIR} ${.CURDIR} ${WRKSRC}; \
+		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
+		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} \
+		sh ${SCRIPTDIR}/post-configure; \
 	fi
 	@touch -f ${CONFIGURE_COOKIE}
 .endif
