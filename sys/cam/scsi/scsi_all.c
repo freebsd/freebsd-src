@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi_all.c,v 1.7 1998/12/04 22:54:43 archie Exp $
+ *	$Id: scsi_all.c,v 1.8 1998/12/06 00:05:47 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -2201,8 +2201,8 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 			if (((sense_flags & SF_QUIET_IR) != 0)
 			 && ((sense_flags & SF_PRINT_ALWAYS) == 0))
 				print_sense = FALSE;
-
-			/* FALLTHROUGH */
+			error = EINVAL;
+			break;
 		case SSD_KEY_NOT_READY:
 		case SSD_KEY_DATA_PROTECT:
 		case SSD_KEY_VOLUME_OVERFLOW:
