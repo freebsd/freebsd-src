@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/mac.h>
@@ -678,6 +679,10 @@ vfs_domount(
 	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN)
 		return (ENAMETOOLONG);
 
+	/* mount(2) is not permitted inside the jail. */
+	if (jailed(td->td_ucred))
+		return (EPERM);
+
 	if (usermount == 0) {
 		error = suser(td);
 		if (error)
@@ -692,10 +697,11 @@ vfs_domount(
 			return (error);
 	}
 	/*
-	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users.
+	 * Silently enforce MNT_NOSUID, MNT_NODEV and MNT_USER
+	 * for unprivileged users.
 	 */
 	if (suser(td))
-		fsflags |= MNT_NOSUID | MNT_NODEV;
+		fsflags |= MNT_NOSUID | MNT_NODEV | MNT_USER;
 	/*
 	 * Get vnode to be covered
 	 */
@@ -725,9 +731,15 @@ vfs_domount(
 		 * Only root, or the user that did the original mount is
 		 * permitted to update it.
 		 */
-		if (mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
-			error = suser(td);
-			if (error) {
+		if ((mp->mnt_flag & MNT_USER) != 0) {
+			if (mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
+				if ((error = suser(td)) != 0) {
+					vput(vp);
+					return (error);
+				}
+			}
+		} else {
+			if ((error = suser(td)) != 0) {
 				vput(vp);
 				return (error);
 			}
@@ -1014,6 +1026,15 @@ unmount(td, uap)
 	char *pathbuf;
 	int error, id0, id1;
 
+	/* unmount(2) is not permitted inside the jail. */
+	if (jailed(td->td_ucred))
+		return (EPERM);
+
+	if (usermount == 0) {
+		if ((error = suser(td)) != 0)
+			return (error);
+	}
+
 	pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 	error = copyinstr(uap->path, pathbuf, MNAMELEN, NULL);
 	if (error) {
@@ -1055,9 +1076,13 @@ unmount(td, uap)
 	 * Only root, or the user that did the original mount is
 	 * permitted to unmount this filesystem.
 	 */
-	if (mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
-		error = suser(td);
-		if (error)
+	if ((mp->mnt_flag & MNT_USER) != 0) {
+		if (mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
+			if ((error = suser(td)) != 0)
+				return (error);
+		}
+	} else {
+		if ((error = suser(td)) != 0)
 			return (error);
 	}
 
