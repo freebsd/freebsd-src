@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ansi.h	8.2 (Berkeley) 1/4/94
- * $Id: ansi.h,v 1.7 1995/05/30 08:00:22 rgrimes Exp $
+ * $Id: ansi.h,v 1.8 1995/06/28 01:39:26 bde Exp $
  */
 
 #ifndef _MACHINE_ANSI_H_
@@ -59,7 +59,7 @@
  * use _BSD_XXX_T_ without undef'ing it.
  */
 #define	_BSD_OFF_T_	long long		/* file offset */
-#define	_BSD_PID_T_	long			/* process [group] */
+#define	_BSD_PID_T_	int			/* process [group] */
 #define	_BSD_VA_LIST_	char *			/* va_list */
 
 /*
