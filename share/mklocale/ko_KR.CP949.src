@@ -12,7 +12,7 @@
  * $FreeBSD$
  */
 
-ENCODING	"GBK" # CP949 isn't GBK, but they have same encoding method.
+ENCODING        "GBK" /* CP949 isn't GBK, but they have same encoding method. */
 
 /*
  * ASCII equivalent
