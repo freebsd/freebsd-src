@@ -39,16 +39,14 @@
 #include <sys/poll.h>
 #include <sys/selinfo.h>
 #include <sys/random.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/sysctl.h>
 #include <crypto/blowfish/blowfish.h>
 
 #include <dev/random/hash.h>
 #include <dev/random/yarrow.h>
-
-#include "opt_noblockrandom.h"
 
 static d_open_t random_open;
 static d_close_t random_close;
@@ -82,18 +80,9 @@ static struct cdevsw random_cdevsw = {
 static dev_t random_dev;
 static dev_t urandom_dev; /* XXX Temporary */
 
-SYSCTL_NODE(_kern, OID_AUTO, random, CTLFLAG_RW, 0, "Random Number Generator");
-SYSCTL_NODE(_kern_random, OID_AUTO, yarrow, CTLFLAG_RW, 0, "Yarrow Parameters");
-SYSCTL_INT(_kern_random_yarrow, OID_AUTO, gengateinterval, CTLFLAG_RW,
-	&random_state.gengateinterval, 10, "Generator Gate Interval");
-SYSCTL_INT(_kern_random_yarrow, OID_AUTO, bins, CTLFLAG_RW,
-	&random_state.bins, 10, "Execution time tuner");
-SYSCTL_INT(_kern_random_yarrow, OID_AUTO, fastthresh, CTLFLAG_RW,
-	&random_state.pool[0].thresh, 100, "Fast pool reseed threshhold");
-SYSCTL_INT(_kern_random_yarrow, OID_AUTO, slowthresh, CTLFLAG_RW,
-	&random_state.pool[1].thresh, 160, "Slow pool reseed threshhold");
-SYSCTL_INT(_kern_random_yarrow, OID_AUTO, slowoverthresh, CTLFLAG_RW,
-	&random_state.slowoverthresh, 2, "Slow pool over-threshhold reseed");
+/* To stash the sysctl's until they are removed */
+static struct sysctl_oid *random_sysctl[10]; /* magic # is sysctl count */
+static int sysctlcount = 0;
 
 static int
 random_open(dev_t dev, int flags, int fmt, struct proc *p)
@@ -119,8 +108,6 @@ random_read(dev_t dev, struct uio *uio, int flag)
 	int error = 0;
 	void *random_buf;
 
-/* XXX Temporary ifndef to allow users to have a nonblocking device */
-#ifndef NOBLOCKRANDOM
 	while (!random_state.seeded) {
 		if (flag & IO_NDELAY)
 			error =  EWOULDBLOCK;
@@ -129,7 +116,6 @@ random_read(dev_t dev, struct uio *uio, int flag)
 		if (error != 0)
 			return error;
 	}
-#endif
 	c = min(uio->uio_resid, PAGE_SIZE);
 	random_buf = (void *)malloc(c, M_TEMP, M_WAITOK);
 	while (uio->uio_resid > 0 && error == 0) {
@@ -183,13 +169,57 @@ random_poll(dev_t dev, int events, struct proc *p)
 static int
 random_modevent(module_t mod, int type, void *data)
 {
-	int error;
+	struct sysctl_oid *node_base, *node1, *node2;
+	int error, i;
 
 	switch(type) {
 	case MOD_LOAD:
 		error = random_init();
 		if (error != 0)
 			return error;
+
+		random_sysctl[sysctlcount++] = node_base =
+			SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_kern),
+				OID_AUTO, "random", CTLFLAG_RW, 0,
+				"Random Number Generator");
+		random_sysctl[sysctlcount++] = node1 =
+			SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(node_base),
+				OID_AUTO, "sys", CTLFLAG_RW, 0,
+				"Entropy Device Parameters");
+		random_sysctl[sysctlcount++] =
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node1),
+				OID_AUTO, "seeded", CTLFLAG_RW,
+				&random_state.seeded, 0, "Seeded State");
+		random_sysctl[sysctlcount++] = node2 =
+			SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(node_base),
+				OID_AUTO, "yarrow", CTLFLAG_RW, 0,
+				"Yarrow Parameters");
+		random_sysctl[sysctlcount++] =
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node2),
+				OID_AUTO, "gengateinterval", CTLFLAG_RW,
+				&random_state.gengateinterval, 0,
+				"Generator Gate Interval");
+		random_sysctl[sysctlcount++] =
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node2),
+				OID_AUTO, "bins", CTLFLAG_RW,
+				&random_state.bins, 0,
+				"Execution time tuner");
+		random_sysctl[sysctlcount++] =
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node2),
+				OID_AUTO, "fastthresh", CTLFLAG_RW,
+				&random_state.pool[0].thresh, 0,
+				"Fast pool reseed threshhold");
+		random_sysctl[sysctlcount++] =
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node2),
+				OID_AUTO, "slowthresh", CTLFLAG_RW,
+				&random_state.pool[1].thresh, 0,
+				"Slow pool reseed threshhold");
+		random_sysctl[sysctlcount++] =
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node2),
+				OID_AUTO, "slowoverthresh", CTLFLAG_RW,
+				&random_state.slowoverthresh, 0,
+				"Slow pool over-threshhold reseed");
+
 		if (bootverbose)
 			printf("random: <entropy source>\n");
 		random_dev = make_dev(&random_cdevsw, RANDOM_MINOR, UID_ROOT,
@@ -202,6 +232,9 @@ random_modevent(module_t mod, int type, void *data)
 		random_deinit();
 		destroy_dev(random_dev);
 		destroy_dev(urandom_dev); /* XXX Temporary */
+		for (i = sysctlcount - 1; i >= 0; i--)
+			if (sysctl_remove_oid(random_sysctl[i], 1, 0) == EINVAL)
+				panic("random: removing sysctl");
 		return 0;
 
 	case MOD_SHUTDOWN:

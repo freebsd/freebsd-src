@@ -70,7 +70,7 @@ struct random_state {
 		struct yarrowhash hash;	/* accumulated entropy */
 	} pool[2];		/* pool[0] is fast, pool[1] is slow */
 	int which;		/* toggle - shows the current insertion pool */
-	int seeded;		/* 0 until first reseed, then 1 */
+	int seeded;		/* 0 causes blocking 1 allows normal output */
 	struct selinfo rsel;	/* For poll(2) */
 };
 
