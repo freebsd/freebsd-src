@@ -1280,7 +1280,7 @@ rl_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct rl_softc *sc = ifp->if_softc;
 
 	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
-		CSR_WRITE_4(sc, RL_IMR, RL_INTRS);
+		CSR_WRITE_2(sc, RL_IMR, RL_INTRS);
 		return;
 	}
 
@@ -1543,7 +1543,7 @@ static void rl_init(xsc)
 
 #ifdef DEVICE_POLLING
 	/*
-	 * Only enable interrupts if we are polling, keep them off otherwise.
+	 * Disable interrupts if we are polling.
 	 */
 	if (ifp->if_ipending & IFF_POLLING)
 		CSR_WRITE_2(sc, RL_IMR, 0);
