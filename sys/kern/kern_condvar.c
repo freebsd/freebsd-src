@@ -118,10 +118,8 @@ cv_switch(struct thread *td)
 	td->td_proc->p_stat = SSLEEP;
 	td->td_proc->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();
-	CTR3(KTR_PROC, "cv_switch: resume thread %p (pid %d, %s)",
-				td,
-				td->td_proc->p_pid,
-	    			td->td_proc->p_comm);
+	CTR3(KTR_PROC, "cv_switch: resume thread %p (pid %d, %s)", td,
+	    td->td_proc->p_pid, td->td_proc->p_comm);
 }
 
 /*
@@ -130,6 +128,7 @@ cv_switch(struct thread *td)
 static __inline int
 cv_switch_catch(struct thread *td)
 {
+	struct proc *p;
 	int sig;
 
 	/*
@@ -142,10 +141,11 @@ cv_switch_catch(struct thread *td)
 	 */
 	td->td_flags |= TDF_SINTR;
 	mtx_unlock_spin(&sched_lock);
-	PROC_LOCK(td->td_proc);
-	sig = CURSIG(td->td_proc);	/* XXXKSE */
+	p = td->td_proc;
+	PROC_LOCK(p);
+	sig = CURSIG(p);	/* XXXKSE */
 	mtx_lock_spin(&sched_lock);
-	PROC_UNLOCK_NOSWITCH(td->td_proc);
+	PROC_UNLOCK_NOSWITCH(p);
 	if (sig != 0) {
 		if (td->td_wchan != NULL)
 			cv_waitq_remove(td);
@@ -179,8 +179,7 @@ cv_waitq_add(struct cv *cvp, struct thread *td)
 	td->td_ksegrp->kg_slptime = 0; /* XXXKSE */
 	td->td_ksegrp->kg_pri.pri_native = td->td_ksegrp->kg_pri.pri_level;
 	CTR3(KTR_PROC, "cv_waitq_add: thread %p (pid %d, %s)", td,
-	    td->td_proc->p_pid,
-	    td->td_proc->p_comm);
+	    td->td_proc->p_pid, td->td_proc->p_comm);
 	TAILQ_INSERT_TAIL(&cvp->cv_waitq, td, td_slpq);
 }
 
@@ -245,11 +244,13 @@ int
 cv_wait_sig(struct cv *cvp, struct mtx *mp)
 {
 	struct thread *td;
+	struct proc *p
 	int rval;
 	int sig;
 	WITNESS_SAVE_DECL(mp);
 
 	td = curthread;
+	p = td->td_proc;
 	rval = 0;
 #ifdef KTRACE
 	if (td->td_proc && KTRPOINT(td->td_proc, KTR_CSW))
@@ -281,16 +282,16 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 
-	PROC_LOCK(td->td_proc);
+	PROC_LOCK(p);
 	if (sig == 0)
-		sig = CURSIG(td->td_proc);  /* XXXKSE */
+		sig = CURSIG(p);  /* XXXKSE */
 	if (sig != 0) {
-		if (SIGISMEMBER(td->td_proc->p_sigacts->ps_sigintr, sig))
+		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
 		else
 			rval = ERESTART;
 	}
-	PROC_UNLOCK(td->td_proc);
+	PROC_UNLOCK(p);
 
 #ifdef KTRACE
 	mtx_lock(&Giant);
@@ -382,11 +383,13 @@ int
 cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 {
 	struct thread *td;
+	struct proc *p;
 	int rval;
 	int sig;
 	WITNESS_SAVE_DECL(mp);
 
 	td = curthread;
+	p = td->td_proc;
 	rval = 0;
 #ifdef KTRACE
 	if (td->td_proc && KTRPOINT(td->td_proc, KTR_CSW))
@@ -434,16 +437,16 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 
-	PROC_LOCK(td->td_proc);
+	PROC_LOCK(p);
 	if (sig == 0)
-		sig = CURSIG(td->td_proc);
+		sig = CURSIG(p);
 	if (sig != 0) {
-		if (SIGISMEMBER(td->td_proc->p_sigacts->ps_sigintr, sig))
+		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			rval = EINTR;
 		else
 			rval = ERESTART;
 	}
-	PROC_UNLOCK(td->td_proc);
+	PROC_UNLOCK(p);
 
 #ifdef KTRACE
 	mtx_lock(&Giant);
