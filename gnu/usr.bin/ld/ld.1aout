@@ -248,6 +248,7 @@ output file.
 Make a NetBSD
 .Dv ZMAGIC
 output file.
+.El
 .Sh ENVIRONMENT
 .Nm
 utilizes the following environment variables:
