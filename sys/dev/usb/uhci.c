@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.120 2000/06/01 15:51:26 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.126 2000/11/10 14:11:49 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1350,7 +1350,7 @@ uhci_idone(uhci_intr_info_t *ii)
 	if (xfer->nframes != 0) {
 		/* Isoc transfer, do things differently. */
 		uhci_soft_td_t **stds = upipe->u.iso.stds;
-		int i, n, nframes;
+		int i, n, nframes, len;
 
 		DPRINTFN(5,("uhci_idone: ii=%p isoc ready\n", ii));
 
@@ -1368,7 +1368,9 @@ uhci_idone(uhci_intr_info_t *ii)
 			if (++n >= UHCI_VFRAMELIST_COUNT)
 				n = 0;
 			status = le32toh(std->td.td_status);
-			actlen += UHCI_TD_GET_ACTLEN(status);
+			len = UHCI_TD_GET_ACTLEN(status);
+			xfer->frlengths[i] = len;
+			actlen += len;
 		}
 		upipe->u.iso.inuse -= nframes;
 		xfer->actlen = actlen;
