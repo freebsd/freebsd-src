@@ -315,7 +315,7 @@ int	Lflag;		/* show size of listen queues */
 int	mflag;		/* show memory stats */
 int	numeric_addr;	/* show addresses numerically */
 int	numeric_port;	/* show ports numerically */
-int	pflag;		/* show given protocol */
+static int pflag;	/* show given protocol */
 int	rflag;		/* show routing tables (or routing stats) */
 int	sflag;		/* show protocol statistics */
 int	tflag;		/* show i/f watchdog timers */
@@ -338,7 +338,7 @@ main(argc, argv)
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:gI:iLlM:mN:np:rsStuWw:")) != -1)
+	while ((ch = getopt(argc, argv, "Aabdf:gI:iLlM:mN:np:rSstuWw:")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -491,25 +491,6 @@ main(argc, argv)
 			mbpr(0, 0, 0, 0);
 		exit(0);
 	}
-	if (pflag) {
-		if (iflag && tp->pr_istats) {
-			kread(0, 0, 0);
-			intpr(interval, nl[N_IFNET].n_value, tp->pr_istats);
-			exit(0);
-		}
-		if (!tp->pr_stats) {
-			printf("%s: no stats routine\n", tp->pr_name);
-			exit(0);
-		}
-		if (tp->pr_usesysctl) {
-			(*tp->pr_stats)(tp->pr_usesysctl, tp->pr_name, af);
-		} else {
-			kread(0, 0, 0);
-			(*tp->pr_stats)(nl[tp->pr_sindex].n_value,
-					tp->pr_name, af);
-		}
-		exit(0);
-	}
 #if 0
 	/*
 	 * Keep file descriptors open to avoid overhead
@@ -524,10 +505,7 @@ main(argc, argv)
 	 * used for the queries, which is slower.
 	 */
 #endif
-	if (iflag) {
-		if (sflag && af != AF_UNSPEC)
-			goto protostat;
-
+	if (iflag && !sflag) {
 		kread(0, 0, 0);
 		intpr(interval, nl[N_IFNET].n_value, NULL);
 		exit(0);
@@ -562,8 +540,11 @@ main(argc, argv)
 		exit(0);
 	}
 
-  protostat:
 	kread(0, 0, 0);
+	if (tp) {
+		printproto(tp, tp->pr_name);
+		exit(0);
+	}
 	if (af == AF_INET || af == AF_UNSPEC)
 		for (tp = protox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
@@ -621,15 +602,29 @@ printproto(tp, name)
 			if (tp->pr_istats)
 				intpr(interval, nl[N_IFNET].n_value,
 				      tp->pr_istats);
+			else if (pflag)
+				printf("%s: no per-interface stats routine\n",
+				    tp->pr_name);
 			return;
 		}
 		else {
 			pr = tp->pr_stats;
+			if (!pr) {
+				if (pflag)
+					printf("%s: no stats routine\n",
+					    tp->pr_name);
+				return;
+			}
 			off = tp->pr_usesysctl ? tp->pr_usesysctl 
 				: nl[tp->pr_sindex].n_value;
 		}
 	} else {
 		pr = tp->pr_cblocks;
+		if (!pr) {
+			if (pflag)
+				printf("%s: no PCB routine\n", tp->pr_name);
+			return;
+		}
 		off = tp->pr_usesysctl ? tp->pr_usesysctl
 			: nl[tp->pr_index].n_value;
 	}
