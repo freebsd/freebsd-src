@@ -65,7 +65,7 @@ int
 _UTF8_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((_UTF8State *)ps)->count == 0);
+	return (ps == NULL || ((const _UTF8State *)ps)->count == 0);
 }
 
 size_t
