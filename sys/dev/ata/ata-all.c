@@ -1131,11 +1131,18 @@ ata_intr(void *data)
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:	/* Promise OEM ATA100 */
-    case 0x4d68105a:	/* Promise TX2 ATA100 */
-    case 0x6268105a:	/* Promise TX2v2 ATA100 */
 	if (!(inl(rman_get_start(sc->bmio) + 0x1c) & 
 	      (scp->channel ? 0x00004000 : 0x00000400)))
 	    return;
+	goto out;
+
+    case 0x4d68105a:	/* Promise TX2 ATA100 */
+    case 0x6268105a:	/* Promise TX2v2 ATA100 */
+    case 0x4d69105a:    /* Promise ATA133 */
+	outb(rman_get_start(scp->r_bmio) + 0x01, 0x0b);
+	if (!(inb(rman_get_start(scp->r_bmio) + 0x03) & 0x20))
+	    return 1;
+
     	/* FALLTHROUGH */
 out:
 #endif

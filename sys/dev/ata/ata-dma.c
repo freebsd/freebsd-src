@@ -42,6 +42,7 @@
 #include <pci/pcivar.h>
 #endif
 #include <machine/bus.h>
+#include <sys/rman.h>
 #include <dev/ata/ata-all.h>
 
 #if NPCI > 0
@@ -727,10 +728,49 @@ via_82c586:
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
+    case 0x4d68105a:    /* Promise TX2 ATA100 controllers */
+    case 0x6268105a:    /* Promise TX2v2 ATA100 controllers */
+    case 0x4d69105a:    /* Promise ATA133 controllers */
+	outb(rman_get_start(scp->r_bmio) + 0x01, 0x0b);
+	if (udmamode >= 4 && !(inb(rman_get_start(scp->r_bmio) + 0x03) & 0x04)){
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA + udmamode, ATA_C_F_SETXFER,
+				ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device, "%s setting %s on Promise chip\n",
+			   (error) ? "failed" : "success", 
+			   ata_mode2str(ATA_UDMA + udmamode));
+	    if (!error) {
+		scp->mode[ATA_DEV(device)] = ATA_UDMA + udmamode;
+		return;
+	    }
+	}
+	if (udmamode >= 2) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device, "%s setting %s on Promise chip\n",
+			   (error) ? "failed" : "success", "UDMA2");
+	    if (!error) {
+		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
+		return;
+	    }
+	}
+	if (wdmamode >= 2 && apiomode >= 4) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device, "%s setting %s on Promise chip\n",
+			   (error) ? "failed" : "success", "WDMA2");
+	    if (!error) {
+		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
+		return;
+	    }
+	}
+	break;
+
     case 0x4d30105a:	/* Promise Ultra/FastTrak 100 controllers */
     case 0x0d30105a:	/* Promise OEM ATA100 controllers */
-    case 0x4d68105a:	/* Promise TX2 ATA100 controllers */
-    case 0x6268105a:	/* Promise TX2v2 ATA100 controllers */
 	if (!ATAPI_DEVICE(scp, device) && udmamode >= 5 && 
 	    !(pci_read_config(parent, 0x50, 2)&(scp->channel ? 1<<11 : 1<<10))){
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
