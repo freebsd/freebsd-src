@@ -61,7 +61,7 @@
 
 0x18b	string	OS/2	OS/2 Boot Manager
 
-9564	lelong		0x00011954	Unix Fast File system,
+9564	lelong		0x00011954	Unix Fast File system (little-endian),
 >8404	string		x		last mounted on %s,
 >9504	ledate		x		last checkd at %s,
 >8224	ledate		x		last writen at %s,
@@ -75,6 +75,21 @@
 >8256	lelong		x		disk rotational speed %drps,
 >8320	lelong		0		TIME optimization
 >8320	lelong		1		SPACE optimization
+
+9564	belong		0x00011954	Unix Fast File system (little-endian),
+>8404	string		x		last mounted on %s,
+>9504	bedate		x		last checkd at %s,
+>8224	bedate		x		last writen at %s,
+>8228	belong		x		number of blocks %d,
+>8232	belong		x		number of data blocks %d,
+>8236	belong		x		number of cylinder groups %d,
+>8240	belong		x		number of basic blocks %d,
+>8244	belong		x		number of fragment blocks %d,
+>8248	belong		x		minimum percentage of free blocks %d,
+>8252	belong		x		rotational delay %dms,
+>8256	belong		x		disk rotational speed %drps,
+>8320	belong		0		TIME optimization
+>8320	belong		1		SPACE optimization
 
 # ext2/ext3 filesystems - Andreas Dilger <adilger@turbolabs.com>
 0x438	leshort		0xEF53		Linux

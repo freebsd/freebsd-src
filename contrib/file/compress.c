@@ -16,7 +16,7 @@
 #include <sys/wait.h>
 #endif
 #ifndef lint
-FILE_RCSID("@(#)$Id: compress.c,v 1.19 2001/03/20 04:22:02 christos Exp $")
+FILE_RCSID("@(#)$Id: compress.c,v 1.20 2001/07/22 21:04:15 christos Exp $")
 #endif
 
 
@@ -35,7 +35,7 @@ static struct {
 	{ "\037\240", 2, { "gzip", "-cdq", NULL }, 1 },		/* SCO LZH */
 	/* the standard pack utilities do not accept standard input */
 	{ "\037\036", 2, { "gzip", "-cdq", NULL }, 0 },		/* packed */
-	{ "BZh",      3, { "bzip2", "-d", NULL }, 1 },		/* bzip2-ed */
+	{ "BZh",      3, { "bzip2", "-cd", NULL }, 1 },		/* bzip2-ed */
 };
 
 static int ncompr = sizeof(compr) / sizeof(compr[0]);

@@ -6,9 +6,15 @@ bin_PROGRAMS = file
 data_DATA = magic magic.mime magic.mgc
 
 MAGIC	 = @datadir@/magic
-CPPFLAGS = -DMAGIC='"$(MAGIC)"' -DQUICK
+CPPFLAGS = -DMAGIC='"$(MAGIC)"'
 
-man_MANS = file.1 magic.4
+if FSECT5
+man_MAGIC = magic.5
+else
+man_MAGIC = magic.4
+endif
+fsect = @fsect@
+man_MANS = file.1 $(man_MAGIC)
 
 file_SOURCES = file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
 	compress.c is_tar.c readelf.c print.c \
@@ -36,18 +42,18 @@ magic.mgc: magic file
 file.1:	Makefile file.man
 	@rm -f $@
 	sed -e s@__CSECTION__@1@g \
-	    -e s@__FSECTION__@4@g \
+	    -e s@__FSECTION__@${fsect}@g \
 	    -e s@__VERSION__@${VERSION}@g \
 	    -e s@__MAGIC__@${MAGIC}@g $(srcdir)/file.man > $@
 
-magic.4: Makefile magic.man
+magic.${fsect}: Makefile magic.man
 	@rm -f $@
 	sed -e s@__CSECTION__@1@g \
-	    -e s@__FSECTION__@4@g \
+	    -e s@__FSECTION__@${fsect}@g \
 	    -e s@__VERSION__@${VERSION}@g \
 	    -e s@__MAGIC__@${MAGIC}@g $(srcdir)/magic.man > $@
 
-magic_FRAGMENTS = Magdir/adventure Magdir/allegro Magdir/alliant \
+magic_FRAGMENTS = Magdir/adi Magdir/adventure Magdir/allegro Magdir/alliant \
     Magdir/alpha Magdir/amanda Magdir/amigaos Magdir/animation \
     Magdir/apl Magdir/apple Magdir/applix Magdir/archive Magdir/asterix \
     Magdir/att3b Magdir/audio Magdir/blender Magdir/blit Magdir/bsdi \
@@ -69,7 +75,7 @@ magic_FRAGMENTS = Magdir/adventure Magdir/allegro Magdir/alliant \
     Magdir/pgp Magdir/pkgadd Magdir/plus5 Magdir/printer Magdir/project \
     Magdir/psdbms Magdir/pyramid Magdir/python Magdir/riff Magdir/rpm \
     Magdir/rtf Magdir/sc Magdir/sccs Magdir/sendmail Magdir/sequent \
-    Magdir/sgml Magdir/sniffer Magdir/softquad Magdir/spectrum \
+    Magdir/sgml Magdir/sketch Magdir/sniffer Magdir/softquad Magdir/spectrum \
     Magdir/sun Magdir/teapot Magdir/terminfo Magdir/tex Magdir/ti-8x \
     Magdir/timezone Magdir/troff Magdir/typeset Magdir/unknown \
     Magdir/uuencode Magdir/varied.out Magdir/vax Magdir/vicar Magdir/visx \
