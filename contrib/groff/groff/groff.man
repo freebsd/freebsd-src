@@ -100,6 +100,9 @@ For typewriter-like devices
 .TP
 .B latin1
 For typewriter-like devices using the ISO Latin-1 character set.
+.TP 
+.B lj4
+For an HP LaserJet4-compatible (or other PCL5-compatible) printer.
 .TP
 .B koi8-r
 For typewriter-like devices using the russian KOI8-R character set.
