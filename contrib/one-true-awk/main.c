@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-char	*version = "version 20001115";
+char	*version = "version 20020101";
 
 #define DEBUG
 #include <stdio.h>
@@ -52,8 +52,7 @@ int	safe	= 0;	/* 1 => "safe" mode */
 
 int main(int argc, char *argv[])
 {
-	char *fs = NULL, *marg;
-	int temp;
+	char *fs = NULL;
 
 	cmdname = argv[0];
 	if (argc == 1) {
@@ -102,19 +101,8 @@ int main(int argc, char *argv[])
 				setclvar(argv[1]);
 			break;
 		case 'm':	/* more memory: -mr=record, -mf=fields */
-				/* no longer needed */
-			marg = argv[1];
-			if (argv[1][3])
-				temp = atoi(&argv[1][3]);
-			else {
-				argv++; argc--;
-				temp = atoi(&argv[1][0]);
-			}
-			switch (marg[2]) {
-			case 'r':	recsize = temp; break;
-			case 'f':	nfields = temp; break;
-			default: FATAL("unknown option %s\n", marg);
-			}
+				/* no longer supported */
+			WARNING("obsolete option %s ignored", argv[1]);
 			break;
 		case 'd':
 			dbg = atoi(&argv[1][2]);
