@@ -1,8 +1,8 @@
 /* passwd.c: The opiepasswd() library function.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
-The Inner Net License Version 2 applies to this software.
+This software is Copyright 1996-2001 by Craig Metz, All Rights Reserved.
+The Inner Net License Version 3 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
@@ -46,19 +46,19 @@ int opiepasswd FUNCTION((old, flags, principal, n, seed, ks), struct opie *old A
   opie.opie_seed = seed;
 
   if (ks) {
-    char key[8];
+    struct opie_otpkey key;
     
     if (flags & OPIEPASSWD_CONSOLE) {
-      if (opiekeycrunch(MDX, key, seed, ks))
+      if (opiekeycrunch(MDX, &key, seed, ks))
 	return -1;
       for (i = n; i; i--)
-	opiehash(key, MDX);
-      if (!(opie.opie_val = opiebtoa8(opie.opie_buf, key)))
+	opiehash(&key, MDX);
+      if (!(opie.opie_val = opiebtoa8(opie.opie_buf, &key)))
 	return -1;
     } else {
-      if ((opieetob(key, ks) != 1) && !opieatob8(key, ks))
+      if ((opieetob(&key, ks) != 1) && !opieatob8(&key, ks))
 	  return 1;
-      if (!(opie.opie_val = opiebtoa8(opie.opie_buf, key)))
+      if (!(opie.opie_val = opiebtoa8(opie.opie_buf, &key)))
 	return 1;
     }
   }
