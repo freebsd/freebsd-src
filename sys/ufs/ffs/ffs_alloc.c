@@ -86,7 +86,7 @@ static ufs2_daddr_t ffs_fragextend(struct inode *, int, ufs2_daddr_t, int, int);
 static void	ffs_fserr(struct fs *, ino_t, char *);
 static ufs2_daddr_t	ffs_hashalloc
 		(struct inode *, int, ufs2_daddr_t, int, allocfcn_t *);
-static ino_t	ffs_nodealloccg(struct inode *, int, ufs2_daddr_t, int);
+static ufs2_daddr_t ffs_nodealloccg(struct inode *, int, ufs2_daddr_t, int);
 static ufs1_daddr_t ffs_mapsearch(struct fs *, struct cg *, ufs2_daddr_t, int);
 static int	ffs_reallocblks_ufs1(struct vop_reallocblks_args *);
 static int	ffs_reallocblks_ufs2(struct vop_reallocblks_args *);
@@ -1543,7 +1543,7 @@ fail:
  *   2) allocate the next available inode after the requested
  *      inode in the specified cylinder group.
  */
-static ino_t
+static ufs2_daddr_t
 ffs_nodealloccg(ip, cg, ipref, mode)
 	struct inode *ip;
 	int cg;
