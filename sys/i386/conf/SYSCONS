@@ -1,7 +1,7 @@
 #
 # SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#	$Id: SYSCONS,v 1.15 1994/01/05 14:56:50 rgrimes Exp $
+#	$Id: SYSCONS,v 1.16 1994/01/25 11:08:25 rgrimes Exp $
 #
 
 machine		"i386"
@@ -29,9 +29,10 @@ config		"386bsd"	root on wd0 swap on wd0 and sd0 dumps on wd0
 
 controller	isa0
 
-controller	fd0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
-disk		fd0	at fd0 drive 0
-disk		fd1	at fd0 drive 1
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+disk		fd0	at fdc0 drive 0
+disk		fd1	at fdc0 drive 1
+tape		ft0	at fdc0 drive 2
 
 controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
 disk		wd0	at wdc0 drive 0
