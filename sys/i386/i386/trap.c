@@ -933,7 +933,7 @@ trap_fatal(frame, eva)
         		frame->tf_eflags & PSL_VM ? "vm86" :
 			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
 #ifdef SMP
-	/* two seperate prints in case of a trap on an unmapped page */
+	/* two separate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
 	printf("lapic.id = %08x\n", lapic.id);
 #endif
@@ -1016,7 +1016,7 @@ dblfault_handler()
 	printf("esp = 0x%x\n", PCPU_GET(common_tss.tss_esp));
 	printf("ebp = 0x%x\n", PCPU_GET(common_tss.tss_ebp));
 #ifdef SMP
-	/* two seperate prints in case of a trap on an unmapped page */
+	/* two separate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
 	printf("lapic.id = %08x\n", lapic.id);
 #endif

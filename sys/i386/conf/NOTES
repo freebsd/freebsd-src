@@ -1882,7 +1882,7 @@ hint.midi.0.irq="3"
 
 device		seq
 
-# The bridge drivers for sound cards.  These can be seperately configured
+# The bridge drivers for sound cards.  These can be separately configured
 # for providing services to the likes of new-midi.
 # When used with 'device pcm' they also provide pcm sound services.
 #

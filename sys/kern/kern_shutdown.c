@@ -556,7 +556,7 @@ panic(const char *fmt, ...)
 	va_end(ap);
 	printf("panic: %s\n", buf);
 #ifdef SMP
-	/* two seperate prints in case of an unmapped page and trap */
+	/* two separate prints in case of an unmapped page and trap */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
 #ifdef APIC_IO
 	printf("lapic.id = %08x\n", lapic.id);
