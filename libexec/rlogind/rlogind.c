@@ -61,6 +61,7 @@ static char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -89,9 +90,9 @@ u_char		tick_buf[sizeof(KTEXT_ST)];
 Key_schedule	schedule;
 int		doencrypt, retval, use_kerberos, vacuous;
 
-#define		ARGSTR			"alnkvx"
+#define		ARGSTR			"Dalnkvx"
 #else
-#define		ARGSTR			"aln"
+#define		ARGSTR			"Daln"
 #endif	/* KERBEROS */
 
 char	*env[2];
@@ -101,6 +102,7 @@ static	char term[64] = "TERM=";
 #define	ENVSIZE	(sizeof("TERM=")-1)	/* skip null for concatenation */
 int	keepalive = 1;
 int	check_all = 0;
+int	no_delay;
 
 struct	passwd *pwd;
 
@@ -131,6 +133,9 @@ main(argc, argv)
 	opterr = 0;
 	while ((ch = getopt(argc, argv, ARGSTR)) != EOF)
 		switch (ch) {
+		case 'D':
+			no_delay = 1;
+			break;
 		case 'a':
 			check_all = 1;
 			break;
@@ -176,9 +181,13 @@ main(argc, argv)
 	if (keepalive &&
 	    setsockopt(0, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof (on)) < 0)
 		syslog(LOG_WARNING, "setsockopt (SO_KEEPALIVE): %m");
+	if (no_delay &&
+	    setsockopt(0, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
+		syslog(LOG_WARNING, "setsockopt (TCP_NODELAY): %m");
 	on = IPTOS_LOWDELAY;
 	if (setsockopt(0, IPPROTO_IP, IP_TOS, (char *)&on, sizeof(int)) < 0)
 		syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
+
 	doit(0, &from);
 }
 
@@ -715,9 +724,9 @@ void
 usage()
 {
 #ifdef KERBEROS
-	syslog(LOG_ERR, "usage: rlogind [-aln] [-k | -v]");
+	syslog(LOG_ERR, "usage: rlogind [-Daln] [-k | -v]");
 #else
-	syslog(LOG_ERR, "usage: rlogind [-aln]");
+	syslog(LOG_ERR, "usage: rlogind [-Daln]");
 #endif
 }
 

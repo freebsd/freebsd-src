@@ -39,7 +39,7 @@
 .Nd remote login server
 .Sh SYNOPSIS
 .Nm rlogind
-.Op Fl aln
+.Op Fl Daln
 .Sh DESCRIPTION
 .Nm Rlogind
 is the server for the 
@@ -50,6 +50,9 @@ with authentication based on privileged port numbers from trusted hosts.
 Options supported by
 .Nm rlogind :
 .Bl -tag -width Ds
+.It Fl D
+Set TCP_NODELAY socket option. This improves responsiveness at the expense of
+some additional network traffic.
 .It Fl a
 Ask hostname for verification.
 .It Fl l
