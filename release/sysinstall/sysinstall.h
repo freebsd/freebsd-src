@@ -130,6 +130,7 @@
 #define VAR_MEDIA_TYPE			"mediaType"
 #define VAR_MEDIA_TIMEOUT		"MEDIA_TIMEOUT"
 #define VAR_MOUSED			"moused_enable"
+#define VAR_MOUSED_FLAGS                "moused_flags"
 #define VAR_MOUSED_PORT			"moused_port"
 #define VAR_MOUSED_TYPE			"moused_type"
 #define VAR_NAMESERVER			"nameserver"
@@ -661,6 +662,7 @@ extern char	*sstrncpy(char *dst, const char *src, int size);
 /* mouse.c */
 extern int	mousedTest(dialogMenuItem *self);
 extern int	mousedDisable(dialogMenuItem *self);
+extern int      setMouseFlags(dialogMenuItem *self);
 
 /* msg.c */
 extern Boolean	isDebug(void);

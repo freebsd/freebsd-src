@@ -37,10 +37,12 @@ mousedTest(dialogMenuItem *self)
 {
 	char *type;
 	char *port;
+	char *flags;
 	int ret;
 
 	type = variable_get(VAR_MOUSED_TYPE);
 	port = variable_get(VAR_MOUSED_PORT);
+	flags = variable_get(VAR_MOUSED_FLAGS);
 	if ((type == NULL) || (port == NULL) 
 		|| (strlen(type) <= 0) || (strlen(port) <= 0)
 		|| (strcmp(type, "NO") == 0)) {
@@ -52,7 +54,10 @@ mousedTest(dialogMenuItem *self)
 	if (file_readable("/var/run/moused.pid"))
 	    vsystem("kill `cat /var/run/moused.pid`");
 	systemExecute("vidcontrol -m on");
-	vsystem("moused -t %s -p %s", type, port);
+	if (flags != NULL)
+	    vsystem("moused -t %s -p %s %s", type, port, flags);
+	else
+	    vsystem("moused -t %s -p %s", type, port);
 
 	ret = msgYesNo("Now move the mouse and see if it works.\n"
 	      "(Note that buttons don't have any effect for now.)\n\n"
@@ -78,6 +83,21 @@ mousedDisable(dialogMenuItem *self)
 	variable_set2(VAR_MOUSED, "NO", 1);
 	variable_set2(VAR_MOUSED_TYPE, "NO", 1);
 	variable_unset(VAR_MOUSED_PORT);
+	variable_unset(VAR_MOUSED_FLAGS);
 	msgConfirm("The mouse daemon is disabled.");
 	return DITEM_SUCCESS;
 }
+
+int 
+setMouseFlags(dialogMenuItem *self)
+{
+    int ret;
+    ret = variable_get_value(VAR_MOUSED_FLAGS,
+			     "Please Specify the mouse daemon flags.  If you would like to\n"
+			     "emulate 3 buttons, use -3 here.\n", 1)
+	? DITEM_SUCCESS : DITEM_FAILURE;
+    if (ret != DITEM_SUCCESS)
+	variable_unset(VAR_MOUSED_FLAGS);
+    return ret;
+}
+

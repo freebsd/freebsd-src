@@ -428,7 +428,9 @@ DMenu MenuMouse = {
       { "2 Enable",	"Test and run the mouse daemon", NULL, mousedTest, NULL, NULL },
       { "3 Type",	"Select mouse protocol type", NULL, dmenuSubmenu, NULL, &MenuMouseType },
       { "4 Port",	"Select mouse port", NULL, dmenuSubmenu, NULL, &MenuMousePort },
-      { "5 Disable",	"Disable the mouse daemon", NULL, mousedDisable, NULL, NULL },
+      { "5 Flags",      "Set additional flags", dmenuVarCheck, setMouseFlags,
+	NULL, VAR_MOUSED_FLAGS "=" },
+      { "6 Disable",	"Disable the mouse daemon", NULL, mousedDisable, NULL, NULL },
       { NULL } },
 };
 
