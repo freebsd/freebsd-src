@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: cam_queue.c,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -123,27 +123,6 @@ camq_resize(struct camq *queue, int new_size)
 	queue->queue_array = new_array;
 	queue->array_size = new_size;
 	return (CAM_REQ_CMP);
-}
-
-/*
- * camq_regen: Given an array of cam_pinfo* elements with the
- * Heap(0, num_elements) property, perform the second half of
- * a heap sort, and assign new generation numbers to all entries.
- * It is assumed that the starting generation number plus the
- * number of entries in the queue is smaller than the wrap point
- * of the generation number.
- */
-void
-camq_regen(struct camq *queue)
-{
-	int index;
-
-	for (index = 0; index < queue->entries; index++) {
-
-		heap_down(queue->queue_array, index, queue->entries);
-		queue->queue_array[index]->generation = queue->generation++;
-	}
-	/* A sorted array is still a heap, so we are done */
 }
 
 /*
@@ -336,23 +315,6 @@ cam_ccbq_init(struct cam_ccbq *ccbq, int openings)
 	return (0);
 }
 
-void
-cam_ccbq_regen(struct cam_ccbq *ccbq)
-{
-	struct ccb_hdr *ccbh;
-
-	/* First get all of the guys down at a device */
-	ccbh = ccbq->active_ccbs.tqh_first;
-
-	while (ccbh != NULL) {
-		ccbh->pinfo.generation = ccbq->queue.generation++;
-		ccbh = ccbh->xpt_links.tqe.tqe_next;
-	}
-
-	/* Now get everyone in our CAM queue */
-	camq_regen(&ccbq->queue);
-}
-
 /*
  * Heap routines for manipulating CAM queues.
  */
@@ -403,7 +365,7 @@ heap_up(cam_pinfo **queue_array, int new_index)
 
 	while (child != 0) {
 
-		parent = child >> 1;
+		parent = (child - 1) >> 1;
 		if (queue_cmp(queue_array, parent, child) <= 0)
 			break;
 		swap(queue_array, parent, child);
@@ -413,8 +375,8 @@ heap_up(cam_pinfo **queue_array, int new_index)
 
 /*
  * heap_down:  Given an array of cam_pinfo* elements with the
- * Heap(1, num_entries - 1) property with index 0 containing an unsorted
- * entry, output Heap(0, num_entries - 1).
+ * Heap(index + 1, num_entries - 1) property with index containing
+ * an unsorted entry, output Heap(0, num_entries - 1).
  */
 static void
 heap_down(cam_pinfo **queue_array, int index, int num_entries)
@@ -423,8 +385,8 @@ heap_down(cam_pinfo **queue_array, int index, int num_entries)
 	int parent;
 	
 	parent = index;
-	child = parent == 0 ? 1 : parent << 1;
-	for (; child < num_entries; child = parent << 1) {
+	child = (parent << 1) + 1;
+	for (; child < num_entries; child = (parent << 1) + 1) {
 
 		if (child + 1 < num_entries) {
 			/* child+1 is the right child of parent */
