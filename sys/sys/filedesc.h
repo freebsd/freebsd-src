@@ -172,6 +172,7 @@ struct filedesc_to_leader *
 	filedesc_to_leader_alloc(struct filedesc_to_leader *old,
 	    struct filedesc *fdp, struct proc *leader);
 int	getvnode(struct filedesc *fdp, int fd, struct file **fpp);
+void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 void	setugidsafety(struct thread *td);
 
 static __inline struct file *
