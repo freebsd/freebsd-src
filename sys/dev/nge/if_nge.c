@@ -483,9 +483,9 @@ nge_mii_readreg(sc, frame)
 	/* Check for ack */
 	SIO_CLR(NGE_MEAR_MII_CLK);
 	DELAY(1);
+	ack = CSR_READ_4(sc, NGE_MEAR) & NGE_MEAR_MII_DATA;
 	SIO_SET(NGE_MEAR_MII_CLK);
 	DELAY(1);
-	ack = CSR_READ_4(sc, NGE_MEAR) & NGE_MEAR_MII_DATA;
 
 	/*
 	 * Now try reading data bits. If the ack failed, we still

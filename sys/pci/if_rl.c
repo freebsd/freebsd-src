@@ -491,9 +491,9 @@ rl_mii_readreg(sc, frame)
 	/* Check for ack */
 	MII_CLR(RL_MII_CLK);
 	DELAY(1);
+	ack = CSR_READ_2(sc, RL_MII) & RL_MII_DATAIN;
 	MII_SET(RL_MII_CLK);
 	DELAY(1);
-	ack = CSR_READ_2(sc, RL_MII) & RL_MII_DATAIN;
 
 	/*
 	 * Now try reading data bits. If the ack failed, we still
