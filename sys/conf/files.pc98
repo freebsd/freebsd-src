@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.96 1999/05/17 12:07:00 kato Exp $
+#	$Id: files.pc98,v 1.97 1999/06/03 13:03:58 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -175,7 +175,7 @@ i386/isa/istallion.c		optional	stli	device-driver
 i386/isa/joy.c			optional        joy     device-driver
 pc98/pc98/pc98kbd.c		optional	pckbd	device-driver
 i386/isa/loran.c		optional	loran	device-driver
-pc98/pc98/lpt.c			optional	lpt	device-driver
+pc98/pc98/olpt.c		optional	olpt	device-driver
 i386/isa/labpc.c		optional	labpc	device-driver
 i386/isa/mcd.c			optional	mcd	device-driver
 pc98/pc98/mse.c			optional	mse	device-driver
@@ -196,7 +196,7 @@ i386/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/pnp.c			optional	pnp	device-driver
 i386/isa/prof_machdep.c		optional	profiling-routine
-i386/isa/ppc.c			optional	ppc	device-driver
+pc98/pc98/ppc.c			optional	ppc	device-driver
 i386/isa/pcf.c			optional	pcf	device-driver
 isa/psm.c			optional	psm	device-driver
 i386/isa/random_machdep.c	standard
