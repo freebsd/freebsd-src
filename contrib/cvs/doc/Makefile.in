@@ -141,6 +141,7 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 
 info_TEXINFOS = cvs.texinfo cvsclient.texi
+man_MANS = cvs.1
 
 PSS = \
 	cvs.ps \
@@ -165,7 +166,10 @@ EXTRA_DIST = \
 	ChangeLog.fsf \
 	RCSFILES \
 	mdate-sh \
-	cvs-paper.ms
+	cvs.1 \
+	cvs-paper.ms \
+	cvs.man.header \
+	cvs.man.footer
 
 
 MOSTLYCLEANFILES = \
@@ -178,19 +182,24 @@ MAINTAINERCLEANFILES = \
 	$(PSS)
 
 
+# texinfo based targets automake neglects to include
 SUFFIXES = .txt
 subdir = doc
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/config.h
-CONFIG_CLEAN_FILES =
+CONFIG_CLEAN_FILES = mkman
 DIST_SOURCES =
 am__TEXINFO_TEX_DIR = $(srcdir)
 INFO_DEPS = cvs.info cvsclient.info
 DVIS = cvs.dvi cvsclient.dvi
 TEXINFOS = cvs.texinfo cvsclient.texi
+
+NROFF = nroff
+MANS = $(man_MANS)
 DIST_COMMON = $(srcdir)/Makefile.in ChangeLog Makefile.am mdate-sh \
-	stamp-1 stamp-vti texinfo.tex version-client.texi version.texi
+	mkman.in stamp-1 stamp-vti texinfo.tex version-client.texi \
+	version.texi
 all: all-am
 
 .SUFFIXES:
@@ -200,6 +209,8 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ Makefile.am  $(top_srcdir)/configu
 	  $(AUTOMAKE) --gnu  doc/Makefile
 Makefile: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe)
+mkman: $(top_builddir)/config.status mkman.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 
 .texinfo.info:
 	@rm -f $@ $@-[0-9] $@-[0-9][0-9] $(@:.info=).i[0-9] $(@:.info=).i[0-9][0-9]
@@ -328,6 +339,53 @@ maintainer-clean-aminfo:
 	  echo " rm -f $$i $$i-[0-9] $$i-[0-9][0-9] $$i_i[0-9] $$i_i[0-9][0-9]"; \
 	  rm -f $$i $$i-[0-9] $$i-[0-9][0-9] $$i_i[0-9] $$i_i[0-9][0-9]; \
 	done
+
+man1dir = $(mandir)/man1
+install-man1: $(man1_MANS) $(man_MANS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(man1dir)
+	@list='$(man1_MANS) $(dist_man1_MANS) $(nodist_man1_MANS)'; \
+	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
+	for i in $$l2; do \
+	  case "$$i" in \
+	    *.1*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
+	  else file=$$i; fi; \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  case "$$ext" in \
+	    1*) ;; \
+	    *) ext='1' ;; \
+	  esac; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst"; \
+	  $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst; \
+	done
+uninstall-man1:
+	@$(NORMAL_UNINSTALL)
+	@list='$(man1_MANS) $(dist_man1_MANS) $(nodist_man1_MANS)'; \
+	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
+	for i in $$l2; do \
+	  case "$$i" in \
+	    *.1*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  case "$$ext" in \
+	    1*) ;; \
+	    *) ext='1' ;; \
+	  esac; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " rm -f $(DESTDIR)$(man1dir)/$$inst"; \
+	  rm -f $(DESTDIR)$(man1dir)/$$inst; \
+	done
 tags: TAGS
 TAGS:
 
@@ -371,10 +429,10 @@ distdir: $(DISTFILES)
 	  dist-info
 check-am: all-am
 check: check-am
-all-am: Makefile $(INFO_DEPS)
+all-am: Makefile $(INFO_DEPS) $(MANS)
 
 installdirs:
-	$(mkinstalldirs) $(DESTDIR)$(infodir)
+	$(mkinstalldirs) $(DESTDIR)$(infodir) $(DESTDIR)$(man1dir)
 install: install-am
 install-exec: install-exec-am
 install-data: install-data-am
@@ -417,7 +475,7 @@ info: info-am
 
 info-am: $(INFO_DEPS)
 
-install-data-am: install-info-am
+install-data-am: install-info-am install-man
 
 install-exec-am:
 
@@ -449,7 +507,7 @@ install-info-am: $(INFO_DEPS)
 	    install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/$$relfile || :;\
 	  done; \
 	else : ; fi
-install-man:
+install-man: install-man1
 
 installcheck-am:
 
@@ -472,18 +530,21 @@ ps: ps-am
 
 ps-am: $(PSS)
 
-uninstall-am: uninstall-info-am
+uninstall-am: uninstall-info-am uninstall-man
+
+uninstall-man: uninstall-man1
 
 .PHONY: all all-am check check-am clean clean-generic dist-info \
 	distclean distclean-generic distdir dvi dvi-am info info-am \
 	install install-am install-data install-data-am install-exec \
 	install-exec-am install-info install-info-am install-man \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-1 maintainer-clean-aminfo \
-	maintainer-clean-generic maintainer-clean-vti mostlyclean \
-	mostlyclean-1 mostlyclean-aminfo mostlyclean-generic \
-	mostlyclean-vti pdf pdf-am ps ps-am uninstall uninstall-am \
-	uninstall-info-am
+	install-man1 install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-1 \
+	maintainer-clean-aminfo maintainer-clean-generic \
+	maintainer-clean-vti mostlyclean mostlyclean-1 \
+	mostlyclean-aminfo mostlyclean-generic mostlyclean-vti pdf \
+	pdf-am ps ps-am uninstall uninstall-am uninstall-info-am \
+	uninstall-man uninstall-man1
 
 
 doc: info ps
@@ -512,7 +573,10 @@ cvs-paper.ps: cvs-paper.ms
 cvs-paper.pdf: cvs-paper.ps
 	ps2pdf $< $@
 
-# texinfo based targets automake neglects to include
+# Targets to build a man page from cvs.texinfo.
+cvs.1: @MAINTAINER_MODE_TRUE@ mkman cvs.man.header cvs.texinfo cvs.man.footer
+	./mkman $(srcdir)/cvs.man.header $(srcdir)/cvs.texinfo \
+		$(srcdir)/cvs.man.footer >$@
 .texinfo.txt:
 	$(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) -I $(srcdir) \
 	 --no-headers -o $@ `test -f '$<' || echo '$(srcdir)/'`$<

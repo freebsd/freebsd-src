@@ -161,6 +161,7 @@ EXTRA_DIST = \
 	TESTS \
 	build.com \
 	cvs-format.el \
+	cvsnt.dep \
 	cvsnt.dsp \
 	cvsnt.dsw \
 	cvsnt.mak \
@@ -372,7 +373,7 @@ distcleancheck_listfiles = find . -type f -print
 distdir: $(DISTFILES)
 	$(am__remove_distdir)
 	mkdir $(distdir)
-	$(mkinstalldirs) $(distdir)/. $(distdir)/contrib $(distdir)/emx $(distdir)/os2 $(distdir)/src $(distdir)/zlib
+	$(mkinstalldirs) $(distdir)/. $(distdir)/contrib $(distdir)/doc $(distdir)/emx $(distdir)/os2 $(distdir)/src $(distdir)/windows-NT $(distdir)/zlib
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
 	list='$(DISTFILES)'; for file in $$list; do \

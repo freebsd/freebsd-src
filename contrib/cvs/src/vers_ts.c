@@ -287,7 +287,7 @@ time_stamp_server (file, vers_ts, entdata)
 	else if (entdata->timestamp
 		 && entdata->timestamp[0] == '=')
 	    mark_unchanged (vers_ts);
-	else if (entdata->timestamp != NULL
+	else if (entdata->timestamp
 		 && (entdata->timestamp[0] == 'M'
 		     || entdata->timestamp[0] == 'D')
 		 && entdata->timestamp[1] == '\0')
