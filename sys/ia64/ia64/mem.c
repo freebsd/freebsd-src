@@ -77,7 +77,7 @@ ia64_pa_access(vm_offset_t pa)
 
 /* ARGSUSED */
 int
-memrw(strct cdev *dev, struct uio *uio, int flags)
+memrw(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct iovec *iov;
 	vm_offset_t addr, eaddr, o, v;
@@ -148,7 +148,7 @@ kmemphys:
  * instead of going through read/write
  */
 int
-memmmap(strct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	/*
 	 * /dev/mem is the only one that makes sense through this
