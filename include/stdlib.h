@@ -169,7 +169,6 @@ int	 getloadavg __P((double [], int));
 __const char *
 	 getprogname __P((void));
 
-char	*group_from_gid __P((unsigned long, int));
 int	 heapsort __P((void *, size_t, size_t,
 	    int (*)(const void *, const void *)));
 char	*initstate __P((unsigned long, char *, long));
@@ -205,7 +204,6 @@ unsigned long long
 __uint64_t
 	 strtouq __P((const char *, char **, int));
 void	 unsetenv __P((const char *));
-char	*user_from_uid __P((unsigned long, int));
 #endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
 __END_DECLS
 
