@@ -74,7 +74,7 @@
 #define HAVE_SETLOCALE 1
 
 /* Define if you have the stpcpy function.  */
-/* #undef HAVE_STPCPY */
+#define HAVE_STPCPY 1
 
 /* Define if you have the strcasecmp function.  */
 #define HAVE_STRCASECMP 1
@@ -122,7 +122,7 @@
 /* #define VERSION "2.12" */
 
 /* Define if you have the stpcpy function */
-/* #undef HAVE_STPCPY */
+#define HAVE_STPCPY 1
 
 /* Define if your locale.h file contains LC_MESSAGES. */
 #define HAVE_LC_MESSAGES 1
