@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.1.2.3 1998/08/13 20:31:56 msmith Exp $
+ * $Id: if_cs.c,v 1.1.2.4 1998/08/27 22:42:32 msmith Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
@@ -1078,7 +1078,7 @@ cs_setmode(struct cs_softc *sc)
 	}
 
 	/* Set up the filter */
-	cs_writereg(sc->nic_addr, PP_RxCTL, RX_DEF_ACCEPT | RX_MULTCAST_ACCEPT);
+	cs_writereg(sc->nic_addr, PP_RxCTL, RX_DEF_ACCEPT | rx_ctl);
 
 	/* Turn on receiver */
 	cs_writereg(sc->nic_addr, PP_LineCTL,
