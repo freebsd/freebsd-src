@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002, 2003 Tim J. Robbins. All rights reserved.
+.\" Copyright (c) 2002-2004 Tim J. Robbins. All rights reserved.
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -37,7 +37,7 @@
 .\" From FreeBSD: src/lib/libc/locale/multibyte.3,v 1.22 2003/11/08 03:23:11 tjr Exp
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2003
+.Dd April 7, 2004
 .Dt MBTOWC 3
 .Os
 .Sh NAME
@@ -54,7 +54,8 @@ The
 .Fn mbtowc
 function converts a multibyte character
 .Fa mbchar
-into a wide character and stores the result
+into a wide character according to the current conversion state,
+and stores the result
 in the object pointed to by
 .Fa wcharp .
 Up to
@@ -63,7 +64,7 @@ bytes are examined.
 .Pp
 A call with a null
 .Fa mbchar
-pointer returns nonzero if the current locale requires shift states,
+pointer returns nonzero if the current encoding requires shift states,
 zero otherwise;
 if shift states are required, the shift state is reset to the initial state.
 .Sh RETURN VALUES
@@ -75,35 +76,38 @@ the
 .Fn mbtowc
 function returns nonzero if shift states are supported,
 zero otherwise.
-If
+.Pp
+Otherwise, if
 .Fa mbchar
-is valid,
+is not a null pointer,
 .Fn mbtowc
 returns
 the number of bytes processed in
 .Fa mbchar ,
 or \-1 if no multibyte character
 could be recognized or converted.
+In this case,
+.Fn mbtowc Ns No 's
+internal conversion state is undefined.
 .Sh ERRORS
 The
 .Fn mbtowc
 function will fail if:
 .Bl -tag -width Er
-.\".It Bq Er EINVAL
-.\"Invalid argument.
 .It Bq Er EILSEQ
 An invalid multibyte sequence was detected.
+.It Bq Er EINVAL
+The internal conversion state is invalid.
 .El
 .Sh SEE ALSO
 .Xr btowc 3 ,
 .Xr mblen 3 ,
 .Xr mbrtowc 3 ,
 .Xr mbstowcs 3 ,
+.Xr multibyte 3 ,
 .Xr wctomb 3
 .Sh STANDARDS
 The
 .Fn mbtowc
 function conforms to
-.St -isoC .
-.Sh BUGS
-The current implementation does not support shift states.
+.St -isoC-99 .
