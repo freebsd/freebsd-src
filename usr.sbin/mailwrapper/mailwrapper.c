@@ -176,8 +176,9 @@ main(argc, argv, envp)
 	addarg(&al, NULL, 0);
 	execve(to, al.argv, envp);
 	freearg(&al, 0);
+	warn("execing %s", to);
 	free(line);
-	err(1, "execing %s", to);
+	exit(1);
 	/*NOTREACHED*/
 parse_error:
 	freearg(&al, 0);
