@@ -41,8 +41,6 @@
 .Nm extattrctl
 .Cm initattr
 .Op Fl p Ar path
-.Op Fl r Ar kroa
-.Op Fl w Ar kroa
 .Ar attrsize
 .Ar attrfile
 .Nm extattrctl
@@ -63,7 +61,7 @@ as well as initialization of attribute backing files, and enabling and
 disabling of specific extended attributes on a file system.
 .Pp
 The first argument on the command line indicates the operation to be
-performend.  Operation must be one of the following:
+performed.  Operation must be one of the following:
 .Bl -tag -width indent
 .It Cm start Ar path
 Start extended attribute support on the file system named using
@@ -77,8 +75,6 @@ Extended attribute support must previously have been started.
 .It Xo
 .Cm initattr
 .Op Fl p Ar path
-.Op Fl r Ar kroa
-.Op Fl w Ar kroa
 .Ar attrsize attrfile
 .Xc
 Create and initialize a file to use as an attribute backing file.
@@ -94,25 +90,6 @@ relying on sparse files to conserve space.
 This has the advantage of guaranteeing that space will be available
 for attributes when they are written, preventing low disk space conditions
 from denying attribute service.
-.Pp
-The
-.Fl r
-and
-.Fl w
-options can be used to set the read and write permissions on the named
-attribute, respectively.
-There are four levels possible for both read and write:
-.Dq k
-limits reading or writing to the kernel,
-.Dq r
-limits activities to root,
-.Dq o
-limits activities to root and the owner of the file having the attribute
-read or written, and
-.Dq q
-allows any user to perform the attribute operation.
-The default is to limit activities to the root user, or
-.Dq r .
 .Pp
 This file should not exist before running
 .Cm initattr.
@@ -145,9 +122,8 @@ Start extended attributes on the root file system.
 .Dl extattrctl initattr 17 /.attribute/md5
 .Pp
 Create an attribute backing file in /.attribute/md5, and set the maximum
-size of each attribute to 17 bytes.  Sparse files are used for storing the
-attributes, and the default permissions limiting access to the root user
-are implied.
+size of each attribute to 17 bytes, with a sparse file used for storing
+the attributes.
 .Pp
 .Dl extattrctl enable / md5 /.attribute/md5
 .Pp
