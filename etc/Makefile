@@ -1,7 +1,5 @@
-#	$Id:$
-
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.170 1998/08/31 20:45:41 jb Exp $
+#	$Id: Makefile,v 1.171 1998/09/13 23:05:46 brian Exp $
 
 SUBDIR=	sendmail
 
