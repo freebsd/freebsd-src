@@ -283,6 +283,9 @@ product IOMEGA ZIP100		0x0001	Zip 100
 /* Kawatsu products */
 product KAWATSU MH4000P		0x0003	MiniHub 4000P
 
+/* Kawasaki LSI products (?) */
+product KLSI DUH3E10BT		0x0008	10BT Ethernet adapter, in the DU-H3E
+
 /* Kodak products */
 product KODAK DC260		0x0110	Digital Science DC260
 product KODAK DC265		0x0111	Digital Science DC265
@@ -301,6 +304,7 @@ product KYE FLIGHT2000		0x1004	Flight 2000 joystick
 product LEXMARK S2450		0x0009	Optra S 2450
 
 /* Linksys products */
+product LINKSYS USB10T		0x2202	USB10T Ethernet
 product LINKSYS USB100TX	0x2203	USB100TX Ethernet
 
 /* Logitech products */
@@ -354,6 +358,7 @@ product OMNIVISION OV511	0x0511	OV511 Camera
 /* Peracom products */
 product PERACOM SERIAL1		0x0001	Serial Converter
 product PERACOM ENET		0x0002	Ethernet adapter
+product PERACOM ENET3		0x0003	At Home Ethernet adapter
 product PERACOM ENET2		0x0005	Ethernet adapter
 
 /* Philips products */
