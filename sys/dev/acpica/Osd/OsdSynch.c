@@ -37,7 +37,13 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 
+#define _COMPONENT	OS_DEPENDENT
+MODULE_NAME("SYNCH")
+
 static MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
+
+/* disable semaphores - AML in the field doesn't use them correctly */
+#define ACPI_NO_SEMAPHORES
 
 /*
  * Simple counting semaphore implemented using a mutex. (Subsequently used
@@ -47,36 +53,62 @@ struct acpi_semaphore {
     struct mtx	as_mtx;
     UINT32	as_units;
     UINT32	as_maxunits;
+    char	*as_name;
 };
 
 ACPI_STATUS
 AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits, ACPI_HANDLE *OutHandle)
 {
+#ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore	*as;
+
+    FUNCTION_TRACE(__FUNCTION__);
 
     if (OutHandle == NULL)
 	return(AE_BAD_PARAMETER);
     if (InitialUnits > MaxUnits)
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     if ((as = malloc(sizeof(*as), M_ACPISEM, M_NOWAIT)) == NULL)
-	return(AE_NO_MEMORY);
+	return_ACPI_STATUS(AE_NO_MEMORY);
 
     mtx_init(&as->as_mtx, "ACPI semaphore", MTX_DEF);
     as->as_units = InitialUnits;
     as->as_maxunits = MaxUnits;
+    as->as_name = malloc(strlen(name) + 1, M_ACPISEM, M_NOWAIT);
+    strcpy(as->as_name, name);
+
+    DEBUG_PRINT(TRACE_MUTEX, ("created semaphore %p max %d, initial %d\n", 
+			      as, InitialUnits, MaxUnits));
 
     *OutHandle = (ACPI_HANDLE)as;
+    return_ACPI_STATUS(AE_OK);
+#else
+    *OutHandle = (ACPI_HANDLE)OutHandle;
     return(AE_OK);
+#endif
 }
 
 ACPI_STATUS
 AcpiOsDeleteSemaphore (ACPI_HANDLE Handle)
 {
+#ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore *as = (struct acpi_semaphore *)Handle;
+
+    FUNCTION_TRACE(__FUNCTION__);
+
+#ifdef ACPI_TRACK_SEMAPHORE
+    printf("destroyed semaphore '%s' @ %p\n", as->as_name, as);
+#else
+    DEBUG_PRINT(TRACE_MUTEX, ("destroyed semaphore %p\n", as));
+#endif
     mtx_destroy(&as->as_mtx);
+    free(as->as_name, M_ACPISEM);
     free(Handle, M_ACPISEM);
+    return_ACPI_STATUS(AE_OK);
+#else
     return(AE_OK);
+#endif
 }
 
 /*
@@ -87,13 +119,29 @@ AcpiOsDeleteSemaphore (ACPI_HANDLE Handle)
 ACPI_STATUS
 AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
 {
+#ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore	*as = (struct acpi_semaphore *)Handle;
-    int				result;
+    ACPI_STATUS			result;
+    int				rv, tmo;
+
+    FUNCTION_TRACE(__FUNCTION__);
 
     if (as == NULL)
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
+
+    /* a timeout of -1 means "forever" */
+    if (Timeout == -1) {
+	tmo = 0;
+    } else {
+	/* compute timeout using microseconds per tick */
+	tmo = (Timeout * 1000) / (1000000 / hz)
+	if (tmo <= 0)
+	    tmo = 1;
+    }
 
     mtx_enter(&as->as_mtx, MTX_DEF);
+    DEBUG_PRINT(TRACE_MUTEX, ("get %d units from semaphore %p (has %d), timeout %d\n",
+			      Units, as, as->as_units, Timeout));
     for (;;) {
 	if (as->as_units >= Units) {
 	    as->as_units -= Units;
@@ -104,30 +152,46 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
 	    result = AE_TIME;
 	    break;
 	}
-	if (msleep(as, &as->as_mtx, 0, "acpisem", Timeout / (1000 * hz)) == EWOULDBLOCK) {
+	DEBUG_PRINT(TRACE_MUTEX, ("semaphore blocked, calling msleep(%p, %p, %d, \"acpisem\", %d)\n",
+				  as, as->as_mtx, 0, tmo));
+	for (;;) ;
+	
+	rv = msleep(as, &as->as_mtx, 0, "acpisem", tmo);
+	DEBUG_PRINT(TRACE_MUTEX, ("msleep returned %d\n", rv));
+	if (rv == EWOULDBLOCK) {
 	    result = AE_TIME;
 	    break;
 	}
     }
     mtx_exit(&as->as_mtx, MTX_DEF);
 
-    return(result);
+    return_ACPI_STATUS(result);
+#else
+    return(AE_OK);
+#endif
 }
 
 ACPI_STATUS
 AcpiOsSignalSemaphore(ACPI_HANDLE Handle, UINT32 Units)
 {
+#ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore	*as = (struct acpi_semaphore *)Handle;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     if (as == NULL)
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     mtx_enter(&as->as_mtx, MTX_DEF);
+    DEBUG_PRINT(TRACE_MUTEX, ("return %d units to semaphore %p (has %d)\n",
+			      Units, as, as->as_units));
     as->as_units += Units;
     if (as->as_units > as->as_maxunits)
 	as->as_units = as->as_maxunits;
     wakeup(as);
     mtx_exit(&as->as_mtx, MTX_DEF);
-
+    return_ACPI_STATUS(AE_OK);
+#else
     return(AE_OK);
+#endif
 }
