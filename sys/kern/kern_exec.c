@@ -110,6 +110,7 @@ execve(p, uap)
 	struct image_params image_params, *imgp;
 	struct vattr attr;
 	int (*img_first) __P((struct image_params *));
+	struct pargs *pa;
 
 	imgp = &image_params;
 
@@ -385,23 +386,24 @@ interpret:
 	    imgp->ps_strings);
 
 	/* Free any previous argument cache */
-	if (p->p_args && --p->p_args->ar_ref == 0)
-		FREE(p->p_args, M_PARGS);
+	pa = p->p_args;
 	p->p_args = NULL;
+	PROC_UNLOCK(p);
+	if (pa != NULL && --pa->ar_ref == 0)
+		FREE(pa, M_PARGS);
 
 	/* Cache arguments if they fit inside our allowance */
 	i = imgp->endargs - imgp->stringbase;
 	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
-		PROC_UNLOCK(p);
-		MALLOC(p->p_args, struct pargs *, sizeof(struct pargs) + i, 
+		MALLOC(pa, struct pargs *, sizeof(struct pargs) + i, 
 		    M_PARGS, M_WAITOK);
-		KASSERT(p->p_args != NULL, ("malloc of p_args failed"));
+		pa->ar_ref = 1;
+		pa->ar_length = i;
+		bcopy(imgp->stringbase, pa->ar_args, i);
 		PROC_LOCK(p);
-		p->p_args->ar_ref = 1;
-		p->p_args->ar_length = i;
-		bcopy(imgp->stringbase, p->p_args->ar_args, i);
+		p->p_args = pa;
+		PROC_UNLOCK(p);
 	}
-	PROC_UNLOCK(p);
 
 exec_fail_dealloc:
 
