@@ -35,8 +35,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_atalk.h"
 #include "opt_compat.h"

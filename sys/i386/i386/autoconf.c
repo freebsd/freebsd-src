@@ -34,8 +34,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Setup the system to run on the current machine.

@@ -6,7 +6,6 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
  *
  * The AMD Elan sc520 is a system-on-chip gadget which is used in embedded
  * kind of things, see www.soekris.com for instance, and it has a few quirks
@@ -26,6 +25,9 @@
  *   PPS-API on the /dev/elan-mmcr device.
  * #endif ELAN_PPS
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_cpu.h"
 #include <sys/param.h>
