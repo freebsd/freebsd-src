@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: poll.h,v 1.1 1997/09/14 02:20:56 peter Exp $
+ *	$Id: poll.h,v 1.2 1997/09/14 05:38:03 peter Exp $
  */
 
 #ifndef _SYS_POLL_H_
@@ -63,12 +63,24 @@ struct pollfd {
 #define	POLLWRBAND	0x0100		/* OOB/Urgent data can be written */
 
 /*
+ * FreeBSD extensions: polling on a regular file might return one
+ * of these events (currently only supported on UFS).
+ */
+#define	POLLEXTEND	0x0200		/* file may have been extended */
+#define	POLLATTRIB	0x0400		/* file attributes may have changed */
+#define	POLLNLINK	0x0800		/* (un)link/rename may have happened */
+#define	POLLWRITE	0x1000		/* file's contents may have changed */
+
+/*
  * These events are set if they occur regardless of whether they were
  * requested.
  */
 #define	POLLERR		0x0008		/* some poll error occurred */
 #define	POLLHUP		0x0010		/* file descriptor was "hung up" */
 #define	POLLNVAL	0x0020		/* requested events "invalid" */
+
+#define	POLLSTANDARD	(POLLIN|POLLPRI|POLLOUT|POLLRDNORM|POLLRDBAND|\
+			 POLLWRBAND|POLLERR|POLLHUP|POLLNVAL)
 
 /*
  * Request that poll wait forever.
