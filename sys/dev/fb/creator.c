@@ -170,22 +170,21 @@ creator_configure(int flags)
 	char buf[32];
 	int i;
 
-	chosen = OF_finddevice("/chosen");
-
-	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
+	sc = &creator_softc;
 	for (child = OF_child(OF_peer(0)); child != 0;
 	    child = OF_peer(child)) {
 		OF_getprop(child, "name", buf, sizeof(buf));
-		if (child == OF_instance_to_package(stdout) &&
-		    (strcmp(buf, "SUNW,ffb") == 0 ||
-		     strcmp(buf, "SUNW,afb") == 0))
+		if  (strcmp(buf, "SUNW,ffb") == 0 ||
+		     strcmp(buf, "SUNW,afb") == 0)
 			break;
 	}
 	if (child == 0)
 		return (0);
 
-	sc = &creator_softc;
-	sc->sc_console = 1;
+	chosen = OF_finddevice("/chosen");
+	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
+	if (child == stdout)
+		sc->sc_console = 1;
 
 	OF_getprop(child, "reg", reg, sizeof(reg));
 	for (i = 0; i < FFB_NREG; i++) {
@@ -439,7 +438,7 @@ creator_set_hw_cursor(video_adapter_t *adp, int col, int row)
 	struct creator_softc *sc;
 
 	sc = (struct creator_softc *)adp;
-	if (sc->sc_colp != NULL ** sc->sc_rowp != NULL) {
+	if (sc->sc_colp != NULL && sc->sc_rowp != NULL) {
 		*sc->sc_colp = col;
 		*sc->sc_rowp = row;
 	}
