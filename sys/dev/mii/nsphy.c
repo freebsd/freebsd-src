@@ -131,12 +131,6 @@ static int nsphy_probe(dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_NATSEMI &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_NATSEMI_DP83840) {
 		device_set_desc(dev, MII_STR_NATSEMI_DP83840);
-	} else if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_QUALSEMI &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_QUALSEMI_QS6612) {
-		device_set_desc(dev, MII_STR_QUALSEMI_QS6612);
-	} else if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxALTIMA &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxALTIMA_AC101) {
-		device_set_desc(dev, MII_STR_xxALTIMA_AC101);
 	} else 
 		return (ENXIO);
 
