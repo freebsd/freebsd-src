@@ -32,7 +32,7 @@
 .\"     @(#)column.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd July 15, 2004
 .Os
 .Dt COLUMN 1
 .Sh NAME
@@ -98,3 +98,6 @@ The
 .Nm
 command appeared in
 .Bx 4.3 Reno .
+.Sh BUGS
+Input lines are limited to LINE_MAX (2048) bytes in length.
+Multibyte characters are not handled correctly.
