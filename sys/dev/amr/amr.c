@@ -1391,7 +1391,7 @@ amr_quartz_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave)
 	/* acknowledge that we have the commands */
 	AMR_QPUT_IDB(sc, sc->amr_mailboxphys | AMR_QIDB_ACK);
 
-#if AMR_QUARTZ_GOFASTER
+#ifndef AMR_QUARTZ_GOFASTER
 	/*
 	 * This waits for the controller to notice that we've taken the
 	 * command from it.  It's very inefficient, and we shouldn't do it,
