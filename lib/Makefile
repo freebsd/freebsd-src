@@ -10,11 +10,10 @@
 # libm must be built before libstdc++.
 # libmd must be built before libatm, libopie, libradius, libskey,
 # and libtacplus.
-# libncurses must be built before libdialog.
+# libncurses must be built before libdialog, libedit and libreadline.
 # libradius must be built before libpam.
 # libskey must be built before libpam.
 # libtacplus must be built before libpam.
-# libtermcap must be built before libcurses, libedit and libreadline.
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
