@@ -238,6 +238,10 @@ or
 .Ar busmouse .
 Serial mouse protocols will not work with these mice.
 .Pp
+For the USB mouse, the protocol must be
+.Ar auto .
+No other protocol will work with the USB mouse.
+.Pp
 Valid types for this option are
 listed below.
 .Pp
@@ -292,6 +296,11 @@ For the PS/2 mouse:
 This is the only protocol type available for the PS/2 mouse
 and should be specified for any PS/2 mice, regardless of the brand.
 .El
+.Pp
+For the USB mouse,
+.Ar auto
+is the only protocol type available for the USB mouse
+and should be specified for any USB mice, regardless of the brand.
 .It Fl w Ar N
 Make the physical button
 .Ar N
@@ -336,6 +345,7 @@ Some mice come with adapters with which the connector can
 be converted to another.  If you are to use such an adapter,
 remember the connector at the very end of the mouse/adapter pair is 
 what matters.
+The USB mouse has a flat rectangular connector.
 .Pp
 The next thing to decide is a port to use for the given interface.
 For the bus, InPort and PS/2 mice, there is little choice: 
@@ -348,6 +358,11 @@ mouse can be attached.  Many people often assign the first, built-in
 serial port
 .Pa /dev/cuaa0
 to the mouse.
+You can attach multiple USB mice to your system or to your USB hub.
+They are accessible as 
+.Pa /dev/ums0, /dev/ums1, 
+and so on.
+.Pa
 You may want to create a symbolic link
 .Pa /dev/mouse
 pointing to the real port to which the mouse is connected, so that you
@@ -400,10 +415,14 @@ The
 protocol should always be specified for the PS/2 mouse
 regardless of the brand of the mouse.
 .It 3.
+You must specify the
+.Ar auto
+protocol for the USB mouse.
+.It 4.
 Most 2-button serial mice support the
 .Ar microsoft
 protocol.
-.It 4.
+.It 5.
 3-button serial mice may work with the
 .Ar mousesystems
 protocol. If it doesn't, it may work with the 
@@ -413,7 +432,7 @@ the third (middle) button won't function.
 3-button serial mice may also work with the
 .Ar mouseman
 protocol under which the third button may function as expected.
-.It 5.
+.It 6.
 3-button serial mice may have a small switch to choose between ``MS''
 and ``PC'', or ``2'' and ``3''.
 ``MS'' or ``2'' usually mean the 
@@ -422,7 +441,7 @@ protocol.
 ``PC'' or ``3'' will choose the 
 .Ar mousesystems
 protocol.
-.It 6.
+.It 7.
 If the mouse has a roller or a wheel, it may be compatible with the
 .Ar intellimouse
 protocol.
@@ -472,6 +491,8 @@ PS/2 mouse driver
 virtualized mouse driver
 .It Pa /dev/ttyv%d
 virtual consoles
+.It Pa /dev/ums%d
+USB mouse driver
 .It Pa /var/run/moused.pid
 process id of the currently running
 .Nm
@@ -558,7 +579,8 @@ option to assign the physical right button to the logical middle button:
 .Xr pcvt 4 ,
 .Xr psm 4 ,
 .Xr screen 4 ,
-.Xr sysmouse 4
+.Xr sysmouse 4 ,
+.Xr ums 4
 .Sh STANDARD
 The
 .Nm
