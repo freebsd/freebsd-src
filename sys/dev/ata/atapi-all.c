@@ -285,7 +285,7 @@ atapi_interrupt(struct atapi_request *request)
 	dma_stat = ata_dmadone(atp->controller);
 	atp->flags &= ~ATAPI_F_DMA_USED; 
 	if ((atp->controller->status & (ATA_S_ERROR | ATA_S_DWF)) ||
-	    dma_stat != ATA_BMSTAT_INTERRUPT) {
+	    dma_stat & ATA_BMSTAT_ERROR) {
 	    request->result = inb(atp->controller->ioaddr + ATA_ERROR);
 	}
 	else {

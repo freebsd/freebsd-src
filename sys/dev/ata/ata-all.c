@@ -328,7 +328,8 @@ ata_pciattach(device_t dev)
     /* is this controller busmaster DMA capable ? */
     if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
 	/* is busmastering support turned on ? */
-	if ((pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4) & 5) == 5) {
+	if ((cmd & (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) == 
+	    (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) {
 	    /* is there a valid port range to connect to ? */
 	    if ((bmaddr_1 = pci_read_config(dev, 0x20, 4) & IOMASK))
 		bmaddr_2 = bmaddr_1 + ATA_BM_OFFSET1;
@@ -355,10 +356,16 @@ ata_pciattach(device_t dev)
 	pci_write_config(dev, 0x53, 
 			 (pci_read_config(dev, 0x53, 1) & ~0x01) | 0x02, 1);
 	break;
+    case 0x4d38105a: /* Promise 66's need their clock changed */
+	outb(bmaddr_1 + 0x11, inb(bmaddr_1 + 0x11) | 0x0a);
+	/* FALLTHROUGH */
 
-    case 0x4d33105a:
-    case 0x4d38105a: /* Promise's need burst mode to be turned on */
+    case 0x4d33105a: /* Promise's need burst mode to be turned on */
 	outb(bmaddr_1 + 0x1f, inb(bmaddr_1 + 0x1f) | 0x01);
+	break;
+
+    case 0x00041103: /* HPT366 turn of fast interrupt prediction */
+	pci_write_config(dev, 0x51, (pci_read_config(dev, 0x51, 1) & ~0x80), 1);
 	break;
 
     case 0x05711106:
@@ -381,10 +388,17 @@ ata_pciattach(device_t dev)
 	pci_write_config(dev, 0x60, DEV_BSIZE, 2);
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
 	
-	/* prepare for ATA-66 on the 82C686 */
-	if (ata_find_dev(dev, 0x06861106))
+	/* set the chiptype to the hostchip ID, makes life easier */
+	if (ata_find_dev(dev, 0x05861106))
+	    type = 0x05861106;
+	if (ata_find_dev(dev, 0x05961106))
+	    type = 0x05961106;
+	if (ata_find_dev(dev, 0x06861106)) {
+	    type = 0x06861106;
+	    /* prepare for ATA-66 on the 82C686 */
 	    pci_write_config(dev, 0x50, 
 			     pci_read_config(dev, 0x50, 4) | 0x070f070f, 4);   
+	}
 	break;
     }
 	
@@ -736,15 +750,40 @@ static void
 ataintr(void *data)
 {
     struct ata_softc *scp = (struct ata_softc *)data;
+    u_int8_t dmastat;
 
-    /* check if this interrupt is for us (shared PCI interrupts) */
-    /* if DMA active look at the dmastatus */
-    if ((scp->flags & ATA_DMA_ACTIVE) &&
-	!(ata_dmastatus(scp) & ATA_BMSTAT_INTERRUPT))
+    /* 
+     * since we might share the IRQ with another device, and in some
+     * case with our twin channel, we only want to process interrupts
+     * that we know this channel generated.
+     */
+    switch (scp->chiptype) {
+#if NPCI > 0
+    case 0x00041103:    /* HighPoint HPT366 */
+	if (!((dmastat = ata_dmastatus(scp)) & ATA_BMSTAT_INTERRUPT))
 	    return;
+	outb(scp->bmaddr + ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
+	break;
 
-    /* if drive is busy it didn't interrupt */
-    if (((scp->status = inb(scp->ioaddr + ATA_STATUS))&ATA_S_BUSY)==ATA_S_BUSY)
+    case 0x4d33105a:	/* Promise 33's */
+    case 0x4d38105a:	/* Promise 66's */
+	if (!(inl((pci_read_config(scp->dev, 0x20, 4) & IOMASK) + 0x1c) & 
+	      ((scp->unit) ? 0x00004000 : 0x00000400)))
+	    return;
+	/* FALLTHROUGH */
+#endif
+    default:
+	if (scp->flags & ATA_DMA_ACTIVE) {
+	    if (!(dmastat = ata_dmastatus(scp)) & ATA_BMSTAT_INTERRUPT)
+		return;
+	    else
+		outb(scp->bmaddr+ATA_BMSTAT_PORT, dmastat|ATA_BMSTAT_INTERRUPT);
+	}
+    }
+    DELAY(1);
+
+    /* get status, if drive is busy it didn't interrupt so return */
+    if ((scp->status = inb(scp->ioaddr + ATA_STATUS)) & ATA_S_BUSY)
 	return;
 
     /* find & call the responsible driver to process this interrupt */
@@ -794,8 +833,12 @@ ataintr(void *data)
 void
 ata_start(struct ata_softc *scp)
 {
+#if NATADISK > 0
     struct ad_request *ad_request; 
+#endif
+#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
     struct atapi_request *atapi_request;
+#endif
 
     if (scp->active != ATA_IDLE)
 	return;
@@ -1099,8 +1142,14 @@ active2str(int32_t active)
     switch (active) {
     case ATA_IDLE:
 	return("ATA_IDLE");
+    case ATA_IMMEDIATE:
+	return("ATA_IMMEDIATE");
     case ATA_WAIT_INTR:
 	return("ATA_WAIT_INTR");
+    case ATA_WAIT_READY:
+	return("ATA_WAIT_READY");
+    case ATA_ACTIVE:
+	return("ATA_ACTIVE");
     case ATA_ACTIVE_ATA:
 	return("ATA_ACTIVE_ATA");
     case ATA_ACTIVE_ATAPI:
