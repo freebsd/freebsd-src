@@ -168,8 +168,10 @@ vkbd_dev_clone(void *arg, char *name, int namelen, struct cdev **dev)
 	if (clone_create(&vkbd_dev_clones, &vkbd_dev_cdevsw, &unit, dev, 0)) {
 		*dev = make_dev(&vkbd_dev_cdevsw, unit2minor(unit),
 			UID_ROOT, GID_WHEEL, 0600, DEVICE_NAME "%d", unit);
-		if (*dev != NULL)
+		if (*dev != NULL) {
+			dev_ref(*dev);
 			(*dev)->si_flags |= SI_CHEAPCLONE;
+		}
 	}
 }
 

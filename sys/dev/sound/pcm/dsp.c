@@ -1174,6 +1174,7 @@ dsp_clone(void *arg, char *name, int namelen, struct cdev **dev)
 
 		if ((pdev->si_drv1 == NULL) && (pdev->si_drv2 == NULL)) {
 			*dev = pdev;
+			dev_ref(*dev);
 			return;
 		}
 	}

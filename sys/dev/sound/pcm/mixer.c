@@ -494,8 +494,10 @@ mixer_clone(void *arg, char *name, int namelen, struct cdev **dev)
 		return;
 	if (strcmp(name, "mixer") == 0) {
 		sd = devclass_get_softc(pcm_devclass, snd_unit);
-		if (sd != NULL)
+		if (sd != NULL) {
 			*dev = sd->mixer_dev;
+			dev_ref(*dev);
+		}
 	}
 }
 

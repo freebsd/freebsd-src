@@ -120,6 +120,7 @@ static void coda_fbsd_clone(arg, name, namelen, dev)
 	return;
 
     *dev = make_dev(&codadevsw,unit2minor(u),UID_ROOT,GID_WHEEL,0600,"cfs%d",u);
+    dev_ref(*dev);
     mnt = malloc(sizeof(struct coda_mntinfo), M_CODA, M_WAITOK|M_ZERO);
     LIST_INSERT_HEAD(&coda_mnttbl, mnt, mi_list);
 }
