@@ -144,6 +144,9 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 		switch ((*cond)->c_type) {
 		/* Fast condition variable: */
 		case COND_TYPE_FAST:
+			/* Wait forever: */
+			_thread_run->wakeup_time.tv_sec = -1;
+
 			/*
 			 * Queue the running thread for the condition
 			 * variable:
@@ -151,34 +154,39 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 			_thread_queue_enq(&(*cond)->c_queue, _thread_run);
 
 			/* Unlock the mutex: */
-			pthread_mutex_unlock(mutex);
+			if ((rval = pthread_mutex_unlock(mutex)) != 0) {
+				/*
+				 * Cannot unlock the mutex, so remove the
+				 * running thread from the condition
+				 * variable queue: 
+				 */
+				_thread_queue_deq(&(*cond)->c_queue);
 
-			/* Wait forever: */
-			_thread_run->wakeup_time.tv_sec = -1;
+				/* Unlock the condition variable structure: */
+				_SPINUNLOCK(&(*cond)->lock);
+			} else {
+				/* Unlock the condition variable structure: */
+				_SPINUNLOCK(&(*cond)->lock);
 
-			/* Unlock the condition variable structure: */
-			_SPINUNLOCK(&(*cond)->lock);
+				/* Schedule the next thread: */
+				_thread_kern_sched_state(PS_COND_WAIT,
+				    __FILE__, __LINE__);
 
-			/* Schedule the next thread: */
-			_thread_kern_sched_state(PS_COND_WAIT,
-			    __FILE__, __LINE__);
-
-			/* Lock the condition variable structure: */
-			_SPINLOCK(&(*cond)->lock);
-
-			/* Lock the mutex: */
-			rval = pthread_mutex_lock(mutex);
+				/* Lock the mutex: */
+				rval = pthread_mutex_lock(mutex);
+			}
 			break;
 
 		/* Trap invalid condition variable types: */
 		default:
+			/* Unlock the condition variable structure: */
+			_SPINUNLOCK(&(*cond)->lock);
+
 			/* Return an invalid argument error: */
 			rval = EINVAL;
 			break;
 		}
 
-	/* Unlock the condition variable structure: */
-	_SPINUNLOCK(&(*cond)->lock);
 	}
 
 	/* Return the completion status: */
@@ -229,6 +237,9 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				 * variable queue: 
 				 */
 				_thread_queue_deq(&(*cond)->c_queue);
+
+				/* Unlock the condition variable structure: */
+				_SPINUNLOCK(&(*cond)->lock);
 			} else {
 				/* Unlock the condition variable structure: */
 				_SPINUNLOCK(&(*cond)->lock);
@@ -236,9 +247,6 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				/* Schedule the next thread: */
 				_thread_kern_sched_state(PS_COND_WAIT,
 				    __FILE__, __LINE__);
-
-				/* Lock the condition variable structure: */
-				_SPINLOCK(&(*cond)->lock);
 
 				/* Lock the mutex: */
 				if ((rval = pthread_mutex_lock(mutex)) != 0) {
@@ -253,13 +261,14 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 		/* Trap invalid condition variable types: */
 		default:
+			/* Unlock the condition variable structure: */
+			_SPINUNLOCK(&(*cond)->lock);
+
 			/* Return an invalid argument error: */
 			rval = EINVAL;
 			break;
 		}
 
-	/* Unlock the condition variable structure: */
-	_SPINUNLOCK(&(*cond)->lock);
 	}
 
 	/* Return the completion status: */
