@@ -98,6 +98,7 @@ static char sccsid[] = "@(#)commands.l	5.13 (Berkeley) 7/24/90";
 #include <netinet/in.h>
 #include <histedit.h>
 #include "port_after.h"
+#include <resolv.h>
 #include "res.h"
 
 extern char rootServerName[];
@@ -160,9 +161,9 @@ nslookup_yy_input(buf, result, max_size, intr)
 
 %}
 WS	[ \t]
-FLET	[A-Za-z0-9.*\\_]
-LET	[A-Za-z0-9.*_]
-NAME	[A-Za-z0-9.*=_/-]
+FLET	[:A-Za-z0-9.*\\_]
+LET	[:A-Za-z0-9.*_]
+NAME	[:A-Za-z0-9.*=_/-]
 %%
 ^{WS}*server{WS}+{LET}{NAME}*{WS}*$	{
 					    /*
