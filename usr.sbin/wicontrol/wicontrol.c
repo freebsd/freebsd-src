@@ -440,13 +440,11 @@ void
 wi_printregdoms(struct wi_req *wreq)
 {
 	int			i;
-	unsigned char		*c;
-
-	c = (unsigned char *)&wreq->wi_val[1];
+	struct wi_ltv_domains	*regdom = (struct wi_ltv_domains *)wreq;
 
 	printf("[ ");
-	for (i = 0; i < wreq->wi_val[0]; i++) {
-		switch (c[i]) {
+	for (i = 0; i < regdom->wi_num_dom; i++) {
+		switch (regdom->wi_domains[i]) {
 		case 0x10: printf("usa"); break;
 		case 0x20: printf("canada"); break;
 		case 0x30: printf("eu/au"); break;
@@ -454,9 +452,9 @@ wi_printregdoms(struct wi_req *wreq)
 		case 0x32: printf("fr"); break;
 		case 0x40: printf("jp"); break;
 		case 0x41: printf("jp new"); break;
-		default: printf("0x%x", c[i]); break;
+		default: printf("0x%x", regdom->wi_domains[i]); break;
 		}
-		if (i < wreq->wi_val[0] - 1)
+		if (i < regdom->wi_num_dom - 1)
 			printf(", ");
 	}
 	printf(" ]");
