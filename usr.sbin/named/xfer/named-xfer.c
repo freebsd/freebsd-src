@@ -70,17 +70,24 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static char rcsid[] = "$Id: named-xfer.c,v 1.2 1994/09/22 20:45:34 pst Exp $";
+static char rcsid[] = "$Id: named-xfer.c,v 1.3 1995/05/30 03:49:10 rgrimes Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 
 #include <netinet/in.h>
 #include <netiso/iso.h>
+#if defined(__osf__)
+# include <sys/mbuf.h>
+# include <net/route.h>
+#endif
+#if defined(_AIX)
+# include <sys/time.h>
+# define TIME_H_INCLUDED
+#endif
 #include <net/if.h>
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -91,6 +98,7 @@ static char rcsid[] = "$Id: named-xfer.c,v 1.2 1994/09/22 20:45:34 pst Exp $";
 #include <stdio.h>
 #include <syslog.h>
 #include <math.h>
+#include <ctype.h>
 #include <signal.h>
 
 #define MAIN_PROGRAM
@@ -110,18 +118,20 @@ static	char		ddtfilename[] = _PATH_TMPXFER,
 
 static	int		quiet = 0,
 			read_interrupted = 0,
+			curclass,
 			domain_len;		/* strlen(domain) */
 
 static	FILE		*fp = NULL,
 			*dbfp = NULL;
 
+static	char		*ProgName;
+
 static	void		usage __P((const char *));
 static	int		getzone __P((struct zoneinfo *, u_int32_t, int)),
-			soa_zinfo __P((struct zoneinfo *, u_char *, u_char *)),
 			print_output __P((u_char *, int, u_char *)),
 			netread __P((int, char *, int, int));
-static	SIG_FN		read_alarm __P((void));
-static	char		*ProgName;
+static	SIG_FN		read_alarm __P(());
+static	const char	*soa_zinfo __P((struct zoneinfo *, u_char *, u_char*));
 
 extern char *optarg;
 extern int optind, getopt();
@@ -257,7 +267,7 @@ main(argc, argv)
 		perror(tmpname);
 		if (!quiet)
 			syslog(LOG_ERR, "can't make tmpfile (%s): %m\n",
-			    tmpname);
+			       tmpname);
 		exit(XFER_FAIL);
 	}
 #if HAVE_FCHMOD
@@ -269,7 +279,7 @@ main(argc, argv)
 		perror(tmpname);
 		if (!quiet)
 			syslog(LOG_ERR, "can't [f]chmod tmpfile (%s): %m\n",
-			    tmpname);
+			       tmpname);
 		exit(XFER_FAIL);
 	}
 	if ((dbfp = fdopen(dbfd, "r+")) == NULL) {
@@ -297,7 +307,7 @@ main(argc, argv)
 			perror(ddtfile);
 			debug = 0;
 		} else {
-#if defined(SYSV)
+#ifdef HAVE_SETVBUF
 			setvbuf(ddt, NULL, _IOLBF, BUFSIZ);
 #else
 			setlinebuf(ddt);
@@ -333,7 +343,7 @@ main(argc, argv)
 
 	dprintf(1, (ddt,
 		    "domain `%s'; file `%s'; serial %lu; closed %d\n",
-		    domain, dbfile, serial_no, closed));
+		    domain, dbfile, (u_long)serial_no, closed));
 
 	buildservicelist();
 	buildprotolist();
@@ -360,7 +370,7 @@ main(argc, argv)
 		        : zp->z_origin,
 		    zp->z_source));
 
-	for (;  optind != argc;  optind++, zp->z_addrcnt++) {
+	for (;  optind != argc;  optind++) {
 		tm = argv[optind];
 		if (!inet_aton(tm, &zp->z_addr[zp->z_addrcnt])) {
 			hp = gethostbyname(tm);
@@ -368,7 +378,6 @@ main(argc, argv)
 				syslog(LOG_NOTICE,
 				       "uninterpretable server (%s) for %s\n",
 				       tm, zp->z_origin);
-				zp->z_addrcnt--;	/* hack */
 				continue;
 			}
 			bcopy(hp->h_addr,
@@ -378,12 +387,11 @@ main(argc, argv)
 		}
 		if (zp->z_addr[zp->z_addrcnt].s_addr == 0) {
 			syslog(LOG_NOTICE,
-			       "SOA query to localhost (%s) for %s",
+			       "SOA query to 0.0.0.0 (%s) for %s",
 			       tm, zp->z_origin);
-			zp->z_addrcnt--;	/* hack */
 			continue;
 		}
-		if (zp->z_addrcnt >= NSMAX) {
+		if (++zp->z_addrcnt >= NSMAX) {
 			zp->z_addrcnt = NSMAX;
 			dprintf(1, (ddt, "NSMAX reached\n"));
 			break;
@@ -401,7 +409,7 @@ main(argc, argv)
 			perror("rename");
 			if (!quiet)
 			    syslog(LOG_ERR, "rename %s to %s: %m",
-				tmpname, dbfile);
+				   tmpname, dbfile);
 			exit(XFER_FAIL);
 		}
 		exit(XFER_SUCCESS);
@@ -477,10 +485,11 @@ getzone(zp, serial_no, port)
 	HEADER *hp;
 	u_int16_t len;
 	u_int32_t serial;
-	int s, n, l, cnt, nscnt, soacnt, error = 0;
+	int s, n, l, nscnt, soacnt, error = 0;
+	u_int cnt;
  	u_char *cp, *nmp, *eom, *tmp ;
 	u_char *buf = NULL;
-	int bufsize;
+	u_int bufsize;
 	char name[MAXDNAME], name2[MAXDNAME];
 	struct sockaddr_in sin;
 	struct zoneinfo zp_start, zp_finish;
@@ -489,8 +498,9 @@ getzone(zp, serial_no, port)
 #else
 	struct sigvec sv, osv;
 #endif
-	int ancount, aucount;
-	int Class;
+	int qdcount, ancount, aucount, class, type;
+	const char *badsoa_msg = "Nil";
+
 #ifdef DEBUG
 	if (debug) {
 		(void)fprintf(ddt,"getzone() %s ", zp->z_origin);
@@ -507,15 +517,16 @@ getzone(zp, serial_no, port)
 	}
 #endif
 #ifdef POSIX_SIGNALS
-	sv.sa_handler = read_alarm;
+	bzero((char *)&sv, sizeof sv);
+	sv.sa_handler = (SIG_FN (*)()) read_alarm;
 	/* SA_ONSTACK isn't recommended for strict POSIX code */
 	/* is it absolutely necessary? */
 	/* sv.sa_flags = SA_ONSTACK; */
 	sigfillset(&sv.sa_mask);
 	(void) sigaction(SIGALRM, &sv, &osv);
 #else
+	bzero((char *)&sv, sizeof sv);
 	sv.sv_handler = read_alarm;
-	sv.sv_onstack = 0;
 	sv.sv_mask = ~0;
 	(void) sigvec(SIGALRM, &sv, &osv);
 #endif
@@ -527,14 +538,14 @@ getzone(zp, serial_no, port)
 
 	for (cnt = 0; cnt < zp->z_addrcnt; cnt++) {
 #ifdef GEN_AXFR
-		Class = zp->z_class;
+		curclass = zp->z_class;
 #else
-		Class = C_IN;
+		curclass = C_IN;
 #endif
 		error = 0;
 		if (buf == NULL) {
 			if ((buf = (u_char *)malloc(2 * PACKETSZ)) == NULL) {
-				syslog(LOG_ERR, "malloc(%u) failed",
+				syslog(LOG_INFO, "malloc(%u) failed",
 				       2 * PACKETSZ);
 				error++;
 				break;
@@ -546,7 +557,7 @@ getzone(zp, serial_no, port)
 		sin.sin_port = (u_int16_t)port;
 		sin.sin_addr = zp->z_addr[cnt];
 		if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-			syslog(LOG_ERR, "socket: %m");
+			syslog(LOG_INFO, "socket: %m");
 			error++;
 			break;
 		}
@@ -554,18 +565,22 @@ getzone(zp, serial_no, port)
 			    cnt+1, inet_ntoa(sin.sin_addr),
 			    ntohs(sin.sin_port)));
 		if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-			syslog(LOG_ERR, "connect(%s) failed: %m",
-			       inet_ntoa(sin.sin_addr));
+			if (!quiet)
+				syslog(LOG_INFO,
+				       "connect(%s) for zone %s failed: %m",
+				       inet_ntoa(sin.sin_addr), zp->z_origin);
 			error++;
 			(void) my_close(s);
 			continue;
-		}
-tryagain:
-		n = res_mkquery(QUERY, zp->z_origin, Class,
+		}	
+#ifndef GEN_AXFR
+ tryagain:
+#endif
+		n = res_mkquery(QUERY, zp->z_origin, curclass,
 				T_SOA, NULL, 0, NULL, buf, bufsize);
 		if (n < 0) {
 			if (!quiet)
-				syslog(LOG_NOTICE,
+				syslog(LOG_INFO,
 				       "zone %s: res_mkquery T_SOA failed",
 				       zp->z_origin);
 			(void) my_close(s);
@@ -580,7 +595,7 @@ tryagain:
 		 * Send length & message for SOA query
 		 */
 		if (writemsg(s, buf, n) < 0) {
-			syslog(LOG_ERR, "writemsg: %m");
+			syslog(LOG_INFO, "writemsg: %m");
 			error++;
 			(void) my_close(s);
 			continue;
@@ -599,7 +614,7 @@ tryagain:
 		}
 		if (len > bufsize) {
 			if ((buf = (u_char *)realloc(buf, len)) == NULL) {
-				syslog(LOG_ERR,
+				syslog(LOG_INFO,
 		       "malloc(%u) failed for SOA from server [%s], zone %s\n",
 				       len,
 				       inet_ntoa(sin.sin_addr),
@@ -617,29 +632,31 @@ tryagain:
 #ifdef DEBUG
 		if (debug >= 3) {
 			(void)fprintf(ddt,"len = %d\n", len);
-			fp_query(buf, ddt);
+			fp_nquery(buf, len, ddt);
 		}
 #endif
 		hp = (HEADER *) buf;
+		qdcount = ntohs(hp->qdcount);
 		ancount = ntohs(hp->ancount);
 		aucount = ntohs(hp->nscount);
 
 		/*
-		 * close socket if:
+		 * close socket if any of these apply:
 		 *  1) rcode != NOERROR
 		 *  2) not an authority response
-		 *  3) both the number of answers and authority count < 1)
+		 *  3) not an answer to our question
+		 *  4) both the number of answers and authority count < 1)
 		 */
-		if (hp->rcode != NOERROR || !(hp->aa) ||
+		if (hp->rcode != NOERROR || !hp->aa || qdcount != 1 ||
 		    (ancount < 1 && aucount < 1)) {
 #ifndef GEN_AXFR
-			if (Class == C_IN) {
+			if (curclass == C_IN) {
 				dprintf(1, (ddt, "SOA failed, trying C_HS\n"));
-				Class = C_HS;
+				curclass = C_HS;
 				goto tryagain;
 			}
 #endif
-			syslog(LOG_NOTICE,
+			syslog(LOG_INFO,
 	    "%s from [%s], zone %s: rcode %d, aa %d, ancount %d, aucount %d\n",
 			       "bad response to SOA query",
 			       inet_ntoa(sin.sin_addr), zp->z_origin,
@@ -649,37 +666,88 @@ tryagain:
 			continue;
 		}
 		zp_start = *zp;
-		if (len < HFIXEDSZ + QFIXEDSZ) {
-	badsoa:
-			syslog(LOG_NOTICE,
-			       "malformed SOA from [%s], zone %s: too short\n",
-			       inet_ntoa(sin.sin_addr), zp->z_origin);
+		if ((int)len < HFIXEDSZ + QFIXEDSZ) {
+			badsoa_msg = "too short";
+ badsoa:
+			syslog(LOG_INFO,
+			       "malformed SOA from [%s], zone %s: %s",
+			       inet_ntoa(sin.sin_addr), zp->z_origin,
+			       badsoa_msg);
 			error++;
 			(void) my_close(s);
 			continue;
 		}
+		/*
+		 * Step through response.
+		 */
 		tmp = buf + HFIXEDSZ;
 		eom = buf + len;
-		if ((n = dn_skipname(tmp, eom)) == -1)
+		/* Query Section. */
+		n = dn_expand(buf, eom, tmp, name2, sizeof name2);
+		if (n < 0) {
+			badsoa_msg = "qname error";
 			goto badsoa;
-		tmp += n + QFIXEDSZ;
-		if ((n = dn_skipname(tmp, eom)) == -1)
-			goto badsoa;
+		}
 		tmp += n;
-		if (soa_zinfo(&zp_start, tmp, eom) == -1)
+		GETSHORT(type, tmp);
+		GETSHORT(class, tmp);
+		if (class != curclass || type != T_SOA ||
+		    strcasecmp(zp->z_origin, name2) != 0) {
+			syslog(LOG_INFO,
+			"wrong query in resp from [%s], zone %s: [%s %s %s]\n",
+			       inet_ntoa(sin.sin_addr), zp->z_origin,
+			       name2, p_class(class), p_type(type));
+			error++;
+			(void) my_close(s);
+			continue;
+		}
+		/* ... Answer Section. */
+		n = dn_expand(buf, eom, tmp, name2, sizeof name2);
+		if (n < 0) {
+			badsoa_msg = "aname error";
+			goto badsoa;
+		}
+		tmp += n;
+		if (strcasecmp(zp->z_origin, name2) != 0) {
+			syslog(LOG_INFO,
+		       "wrong answer in resp from [%s], zone %s: [%s %s %s]\n",
+			       inet_ntoa(sin.sin_addr), zp->z_origin,
+			       name2, p_class(class), p_type(type));
+			error++;
+			(void) my_close(s);
+			continue;
+		}
+		badsoa_msg = soa_zinfo(&zp_start, tmp, eom);
+		if (badsoa_msg)
 			goto badsoa;
 		if (SEQ_GT(zp_start.z_serial, serial_no) || !serial_no) {
-			dprintf(1, (ddt, "need update, serial %d\n",
-				    zp_start.z_serial));
+			const char *l, *nl;
+			dprintf(1, (ddt, "need update, serial %lu\n",
+				    (u_long)zp_start.z_serial));
 			hp = (HEADER *) buf;
 			soacnt = 0;
 			nscnt = 0;
-			gettime (&tt);
-			(void) fprintf (dbfp, "; zone '%s'   last serial %lu\n",
-				    domain, serial_no);
-			(void) fprintf (dbfp, "; from %s   at %s",
-					inet_ntoa (sin.sin_addr),
-					ctime (&tt.tv_sec));
+			gettime(&tt);
+			for (l = Version; l; l = nl) {
+				size_t len;
+				if ((nl = strchr(l, '\n')) != NULL) {
+					len = nl - l;
+					nl = nl + 1;
+				} else {
+					len = strlen(l);
+					nl = NULL;
+				}
+				while (isspace((unsigned char) *l))
+					l++;
+				if (*l)
+					fprintf(dbfp, "; BIND version %.*s\n",
+						(int)len, l);
+			}
+			fprintf(dbfp, "; zone '%s'   last serial %lu\n",
+				domain, (u_long)serial_no);
+			fprintf(dbfp, "; from %s   at %s",
+				inet_ntoa(sin.sin_addr),
+				ctimel(tt.tv_sec));
 			for (;;) {
 				if ((soacnt == 0) || (zp->z_type == Z_STUB)) {
 					int type;
@@ -695,20 +763,21 @@ tryagain:
 #endif
 						type = T_AXFR;
 					n = res_mkquery(QUERY, zp->z_origin,
-							Class, type, NULL, 0,
+							curclass, type,
+							NULL, 0,
 							NULL, buf, bufsize);
 					if (n < 0) {
 						if (!quiet) {
 #ifdef STUBS
 						    if (zp->z_type == Z_STUB)
-							syslog(LOG_NOTICE,
+							syslog(LOG_INFO,
 							       (type == T_SOA)
 					? "zone %s: res_mkquery T_SOA failed"
 					: "zone %s: res_mkquery T_NS failed",
 							       zp->z_origin);
 						    else
 #endif
-							syslog(LOG_NOTICE,
+							syslog(LOG_INFO,
 					  "zone %s: res_mkquery T_AXFR failed",
 							       zp->z_origin);
 						}
@@ -726,7 +795,8 @@ tryagain:
 					 * Send length & msg for zone transfer
 					 */
 					if (writemsg(s, buf, n) < 0) {
-						syslog(LOG_ERR,"writemsg: %m");
+						syslog(LOG_INFO,
+						       "writemsg: %m");
 						error++;
 						(void) my_close(s);
 						break;
@@ -752,15 +822,15 @@ tryagain:
 #ifdef DEBUG
 				if (debug >= 3) {
 					(void)fprintf(ddt,"len = %d\n", len);
-					fp_query(buf, ddt);
+					fp_nquery(buf, len, ddt);
 				}
 				if (fp)
-					fp_query(buf, fp);
+					fp_nquery(buf, len, fp);
 #endif
 				if (len < HFIXEDSZ) {
 		badrec:
 					error++;
-					syslog(LOG_NOTICE,
+					syslog(LOG_INFO,
 				       "record too short from [%s], zone %s\n",
 					       inet_ntoa(sin.sin_addr),
 					       zp->z_origin);
@@ -799,8 +869,8 @@ tryagain:
 					cp += n;
 				}
 				if (cp != eom) {
-					syslog(LOG_ERR,
-					 "print_output: short answer (%d, %d), zone %s",
+					syslog(LOG_INFO,
+				"print_output: short answer (%d, %d), zone %s",
 					       cp - buf, n, zp->z_origin);
 					error++;
 					break;
@@ -810,8 +880,8 @@ tryagain:
 #endif /*STUBS*/
 				n = print_output(buf, bufsize, cp);
 				if (cp + n != eom) {
-					syslog(LOG_ERR,
-					 "print_output: short answer (%d, %d), zone %s",
+					syslog(LOG_INFO,
+				"print_output: short answer (%d, %d), zone %s",
 					       cp - buf, n, zp->z_origin);
 					error++;
 					break;
@@ -823,46 +893,63 @@ tryagain:
 			if (n == T_SOA) {
 				if (soacnt == 0) {
 					soacnt++;
-					if (dn_expand(buf, buf + 512, nmp,
-						      name, sizeof name) == -1)
-						goto badsoa;
-					if (eom - tmp
-					    <= 2 * INT16SZ
-					       + INT32SZ) {
+					if (dn_expand(buf, buf+PACKETSZ, nmp,
+						      name, sizeof name) < 0) {
+						badsoa_msg = "soa name error";
 						goto badsoa;
 					}
-					tmp += 2 * INT16SZ
-					       + INT32SZ;
-					if ((n = dn_skipname(tmp, eom)) == -1)
+					if (strcasecmp(name, zp->z_origin)!=0){
+						syslog(LOG_INFO,
+			"wrong zone name in AXFR (wanted \"%s\", got \"%s\")",
+						       zp->z_origin, name);
+						badsoa_msg = "wrong soa name";
 						goto badsoa;
+					}
+					if (eom - tmp
+					    <= 2 * INT16SZ + INT32SZ) {
+						badsoa_msg = "soa header";
+						goto badsoa;
+					}
+					tmp += 2 * INT16SZ + INT32SZ;
+					if ((n = dn_skipname(tmp, eom)) < 0) {
+						badsoa_msg = "soa mname";
+						goto badsoa;
+					}
 					tmp += n;
-					if ((n = dn_skipname(tmp, eom)) == -1)
+					if ((n = dn_skipname(tmp, eom)) < 0) {
+						badsoa_msg = "soa hname";
 						goto badsoa;
+					}
 					tmp += n;
-					if (eom - tmp <= INT32SZ)
+					if (eom - tmp <= INT32SZ) {
+						badsoa_msg = "soa dlen";
 						goto badsoa;
+					}
 					GETLONG(serial, tmp);
 					dprintf(3, (ddt,
-					       "first SOA for %s, serial %d\n",
-						    name, serial));
+					      "first SOA for %s, serial %lu\n",
+						    name, (u_long)serial));
 					continue;
 				}
-				if (dn_expand(buf, buf + 512, nmp,
-					      name2, sizeof name2) == -1)
+				if (dn_expand(buf, buf+PACKETSZ, nmp,
+					      name2, sizeof name2) == -1) {
+					badsoa_msg = "soa name error#2";
 					goto badsoa;
+				}
 				if (strcasecmp((char *)name,
 					       (char *)name2) != 0) {
-					dprintf(2, (ddt,
-						    "extraneous SOA for %s\n",
-						    name2));
+					syslog(LOG_INFO,
+				"got extra SOA for \"%s\" in zone \"%s\"",
+					       name2, name);
 					continue;
 				}
-				tmp -= INT16SZ;
-				if (soa_zinfo(&zp_finish, tmp, eom) == -1)
+				tmp -= INT16SZ;		/* Put TYPE back. */
+				badsoa_msg = soa_zinfo(&zp_finish, tmp, eom);
+				if (badsoa_msg)
 					goto badsoa;
 				dprintf(2, (ddt,
-					    "SOA, serial %d\n",
-					    zp_finish.z_serial));
+					    "SOA, serial %lu\n",
+					    (u_long)zp_finish.z_serial));
 				if (serial != zp_finish.z_serial) {
 					soacnt = 0;
 					got_soa = 0;
@@ -879,9 +966,9 @@ tryagain:
 					fflush(dbfp);
 					if (ftruncate(fileno(dbfp), 0) != 0) {
 						if (!quiet)
-						    syslog(LOG_ERR,
-							"ftruncate %s: %m\n",
-							tmpname);
+						    syslog(LOG_INFO,
+							  "ftruncate %s: %m\n",
+							   tmpname);
 						return (XFER_FAIL);
 					}
 					fseek(dbfp, 0L, 0);
@@ -952,7 +1039,7 @@ netread(fd, buf, len, timeout)
 	static const char setitimerStr[] = "setitimer: %m";
 	struct itimerval ival, zeroival;
 	register int n;
-#if defined(sun)
+#if defined(NETREAD_BROKEN)
 	int retries = 0;
 #endif
 
@@ -961,64 +1048,86 @@ netread(fd, buf, len, timeout)
 	ival.it_value.tv_sec = timeout;
 	while (len > 0) {
 		if (setitimer(ITIMER_REAL, &ival, NULL) < 0) {
-			syslog(LOG_ERR, setitimerStr);
+			syslog(LOG_INFO, setitimerStr);
 			return (-1);
 		}
 		errno = 0;
 		n = recv(fd, buf, len, 0);
-		if (n <= 0) {
+		if (n == 0 && errno == 0) {
+#if defined(NETREAD_BROKEN)
+			if (++retries < 42)	/* doug adams */
+				continue;
+#endif
+			syslog(LOG_INFO, "premature EOF, fetching \"%s\"",
+			       domain);
+			return (-1);
+		}
+		if (n < 0) {
 			if (errno == 0) {
-#if defined(sun)
+#if defined(NETREAD_BROKEN)
 				if (++retries < 42)	/* doug adams */
 					continue;
 #endif
-				syslog(LOG_ERR,
+				syslog(LOG_INFO,
 				       "recv(len=%d): n=%d && !errno",
 				       len, n);
 				return (-1);
 			}
-			if (errno == EINTR && !read_interrupted) {
-				/* Some other signal returned; ignore it. */
-				continue;
+			if (errno == EINTR) {
+				if (!read_interrupted) {
+					/* It wasn't a timeout; ignore it. */
+					continue;
+				}
+				errno = ETIMEDOUT;
 			}
-			syslog(LOG_ERR, "recv(len=%d): %m", len);
+			syslog(LOG_INFO, "recv(len=%d): %m", len);
 			return (-1);
 		}
 		buf += n;
 		len -= n;
 	}
 	if (setitimer(ITIMER_REAL, &zeroival, NULL) < 0) {
-		syslog(LOG_ERR, setitimerStr);
+		syslog(LOG_INFO, setitimerStr);
 		return (-1);
 	}
 	return (0);
 }
 
-static int
+static const char *
 soa_zinfo(zp, cp, eom)
 	register struct zoneinfo *zp;
 	register u_char *cp;
 	u_char *eom;
 {
 	register int n;
+	int type, class;
+	u_long ttl;
 
+	/* Are type, class, and ttl OK? */
 	if (eom - cp < 3 * INT16SZ + INT32SZ)
-		return (-1);
-	cp += 3 * INT16SZ + INT32SZ;
+		return ("zinfo too short");
+	GETSHORT(type, cp);
+	GETSHORT(class, cp);
+	GETLONG(ttl, cp);
+	cp += INT16SZ;	/* dlen */
+	if (type != T_SOA || class != curclass || ttl == 0)
+		return ("zinfo wrong typ/cla/ttl");
+	/* Skip master name and contact name, we can't validate them. */
 	if ((n = dn_skipname(cp, eom)) == -1)
-		return (-1);
+		return ("zinfo mname");
 	cp += n;
 	if ((n = dn_skipname(cp, eom)) == -1)
-		return (-1);
+		return ("zinfo hname");
 	cp += n;
+	/* Grab the data fields. */
 	if (eom - cp < 5 * INT32SZ)
-		return (-1);
+		return ("zinfo dlen");
 	GETLONG(zp->z_serial, cp);
 	GETLONG(zp->z_refresh, cp);
 	GETLONG(zp->z_retry, cp);
 	GETLONG(zp->z_expire, cp);
 	GETLONG(zp->z_minimum, cp);
-	return (0);
+	return (NULL);
 }
 
 /*
@@ -1041,9 +1150,6 @@ print_output(msg, msglen, rrp)
 	u_char *cp1, *cp2, *temp_ptr;
 	char *cdata, *origin, *proto, dname[MAXDNAME];
 	char *ignore = "";
-#ifdef NO_GLUE
-	int lend, lenn;
-#endif /*NO_GLUE*/
 
 	cp = rrp;
 	n = dn_expand(msg, msg + msglen, cp, dname, sizeof dname);
@@ -1076,6 +1182,8 @@ print_output(msg, msglen, rrp)
 	case T_TXT:
 	case T_X25:
 	case T_ISDN:
+	case T_LOC:
+	case T_NSAP:
 	case T_UID:
 	case T_GID:
 		cp1 = cp;
@@ -1154,15 +1262,42 @@ print_output(msg, msglen, rrp)
 		cp1 = (u_char *)data;
 		break;
 
+	case T_PX:
+		/* grab preference */
+		bcopy((char *)cp, data, INT16SZ);
+		cp1 = (u_char *)data + INT16SZ;
+		cp += INT16SZ;
+
+		/* get MAP822 name */
+		n = dn_expand(msg, msg + msglen, cp,
+			      (char *)cp1, sizeof data - INT16SZ);
+		if (n < 0)
+			return (-1);
+		cp += n;
+		cp1 += (n = (strlen((char *) cp1) + 1));
+		n1 = sizeof data - n;
+
+		/* get MAPX400 name */
+		n = dn_expand(msg, msg + msglen, cp, (char *)cp1, n1);
+		if (n < 0)
+			return (-1);
+
+		cp1 += strlen((char *) cp1) + 1;
+		n = cp1 - (u_char *)data;
+		cp1 = (u_char *)data;
+		break;
+
 	default:
-		dprintf(3, (ddt, "unknown type %d\n", type));
-		return ((cp - rrp) + dlen);
+		syslog(LOG_INFO, "\"%s %s %s\" - unknown type (%d)",
+		       dname, p_class(class), p_type(type), type);
+		hp->rcode = NOTIMP;
+		return (-1);
 	}
 	if (n > MAXDATA) {
 		dprintf(1, (ddt,
 			    "update type %d: %d bytes is too much data\n",
 			    type, n));
-		hp->rcode = NOCHANGE;	/* XXX - FORMERR ??? */
+		hp->rcode = FORMERR;
 		return (-1);
 	}
 	cdata = (char *) cp1;
@@ -1261,7 +1396,7 @@ print_output(msg, msglen, rrp)
 					ignore, origin);	/* ??? */
 		} else
 			(void) fprintf(dbfp, "%s%s\t", ignore, dname);
-		if (strlen(dname) < 8)
+		if (strlen(dname) < (size_t)8)
 			tab = 1;
 	} else {
 		(void) fprintf(dbfp, "%s\t", ignore);
@@ -1287,8 +1422,7 @@ print_output(msg, msglen, rrp)
 		case C_HS:
 			GETLONG(n, cp);
 			n = htonl(n);
-			(void) fprintf(dbfp, "%s",
-				       inet_ntoa(*(struct in_addr *) & n));
+			fputs(inet_ntoa(*(struct in_addr *) &n), dbfp);
 			break;
 		}
 		(void) fprintf(dbfp, "\n");
@@ -1317,37 +1451,31 @@ print_output(msg, msglen, rrp)
 	case T_HINFO:
 	case T_ISDN:
 		cp2 = cp + n;
-		n = *cp++;
-		cp1 = cp + n;
-		if (cp1 > cp2)
-			cp1 = cp2;
-		(void) putc('"', dbfp);
-		while (cp < cp1) {
-			if (*cp == '\0') {
-				cp = cp1;
-				break;
+		for (i = 0; i < 2; i++) {
+			if (i != 0)
+				(void) putc(' ', dbfp);
+			n = *cp++;
+			cp1 = cp + n;
+			if (cp1 > cp2)
+				cp1 = cp2;
+			(void) putc('"', dbfp);
+			j = 0;
+			while (cp < cp1) {
+				if (*cp == '\0') {
+					cp = cp1;
+					break;
+				}
+				if ((*cp == '\n') || (*cp == '"')) {
+					(void) putc('\\', dbfp);
+				}
+				(void) putc(*cp++, dbfp);
+				j++;
 			}
-			if ((*cp == '\n') || (*cp == '"')) {
-				(void) putc('\\', dbfp);
-			}
-			(void) putc(*cp++, dbfp);
+			if (j == 0 && (type != T_ISDN || i == 0))
+				(void) putc('?', dbfp);
+			(void) putc('"', dbfp);
 		}
-		(void) fputs("\" \"", dbfp);
-		n = *cp++;
-		cp1 = cp + n;
-		if (cp1 > cp2)
-			cp1 = cp2;
-		while (cp < cp1) {
-			if (*cp == '\0') {
-				cp = cp1;
-				break;
-			}
-			if ((*cp == '\n') || (*cp == '"')) {
-				(void) putc('\\', dbfp);
-			}
-			(void) putc(*cp++, dbfp);
-		}
-		(void) fputs("\"\n", dbfp);
+		(void) putc('\n', dbfp);
 		break;
 
 	case T_SOA:
@@ -1356,22 +1484,30 @@ print_output(msg, msglen, rrp)
 		(void) fprintf(dbfp, " %s. (\n", cp);
 		cp += strlen((char *) cp) + 1;
 		GETLONG(n, cp);
-		(void) fprintf(dbfp, "%s\t\t%lu", ignore, n);
+		(void) fprintf(dbfp, "%s\t\t%lu", ignore, (u_long)n);
 		GETLONG(n, cp);
-		(void) fprintf(dbfp, " %lu", n);
+		(void) fprintf(dbfp, " %lu", (u_long)n);
 		GETLONG(n, cp);
-		(void) fprintf(dbfp, " %lu", n);
+		(void) fprintf(dbfp, " %lu", (u_long)n);
 		GETLONG(n, cp);
-		(void) fprintf(dbfp, " %lu", n);
+		(void) fprintf(dbfp, " %lu", (u_long)n);
 		GETLONG(n, cp);
-		(void) fprintf(dbfp, " %lu )\n", n);
+		(void) fprintf(dbfp, " %lu )\n", (u_long)n);
 		break;
 
 	case T_MX:
 	case T_AFSDB:
 	case T_RT:
 		GETSHORT(n, cp);
-		(void) fprintf(dbfp, "%lu", n);
+		(void) fprintf(dbfp, "%lu", (u_long)n);
+		(void) fprintf(dbfp, " %s.\n", cp);
+		break;
+
+	case T_PX:
+		GETSHORT(n, cp);
+		(void) fprintf(dbfp, "%lu", (u_long)n);
+		(void) fprintf(dbfp, " %s.", cp);
+		cp += strlen((char *) cp) + 1;
 		(void) fprintf(dbfp, " %s.\n", cp);
 		break;
 
@@ -1404,19 +1540,25 @@ print_output(msg, msglen, rrp)
 		(void) fprintf(dbfp, "\"%s\"\n", cp);
 		break;
 
+#ifdef LOC_RR
+	case T_LOC:
+		(void) fprintf(dbfp, "%s\n", loc_ntoa(cp, NULL));
+		break;
+#endif /* LOC_RR */
+
 	case T_UID:
 	case T_GID:
 		if (n == INT32SZ) {
 			GETLONG(n, cp);
-			(void) fprintf(dbfp, "%lu\n", n);
+			(void) fprintf(dbfp, "%lu\n", (u_long)n);
 		}
 		break;
 
 	case T_WKS:
 		GETLONG(addr, cp);
 		addr = htonl(addr);
-		(void) fprintf(dbfp, "%s ",
-			       inet_ntoa(*(struct in_addr *) & addr));
+		fputs(inet_ntoa(*(struct in_addr *) &addr), dbfp);
+		fputc(' ', dbfp);
 		proto = protocolname(*cp);
 		cp += sizeof(char);
 		(void) fprintf(dbfp, "%s ", proto);
@@ -1426,7 +1568,7 @@ print_output(msg, msglen, rrp)
 			do {
 				if (j & 0200)
 					(void) fprintf(dbfp, " %s",
-					    servicename(i, proto));
+						       servicename(i, proto));
 				j <<= 1;
 			} while (++i & 07);
 		}
