@@ -850,7 +850,7 @@ axe_init(void *xsc)
 
 	/* Init TX ring. */
 	if (usb_ether_tx_list_init(sc, &sc->axe_cdata,
-	    USBDEVNAME(sc->axe_dev), sc->axe_udev) == ENOBUFS) {
+	    sc->axe_udev) == ENOBUFS) {
 		printf("axe%d: tx list init failed\n", sc->axe_unit);
 		AXE_UNLOCK(sc);
 		return;
@@ -858,7 +858,7 @@ axe_init(void *xsc)
 
 	/* Init RX ring. */
 	if (usb_ether_rx_list_init(sc, &sc->axe_cdata,
-	    USBDEVNAME(sc->axe_dev), sc->axe_udev) == ENOBUFS) {
+	    sc->axe_udev) == ENOBUFS) {
 		printf("axe%d: rx list init failed\n", sc->axe_unit);
 		AXE_UNLOCK(sc);
 		return;
@@ -1020,7 +1020,6 @@ axe_stop(struct axe_softc *sc)
 {
 	usbd_status		err;
 	struct ifnet		*ifp;
-	int			i;
 
 	AXE_LOCK(sc);
 

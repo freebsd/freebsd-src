@@ -406,7 +406,6 @@ cdce_stop(struct cdce_softc *sc)
 {
 	usbd_status	 err;
 	struct ifnet	*ifp;
-	int		 i;
 
 	CDCE_LOCK(sc);
 
@@ -511,14 +510,14 @@ cdce_init(void *xsc)
 	cdce_reset(sc);
 
 	if (usb_ether_tx_list_init(sc, &sc->cdce_cdata,
-	    USBDEVNAME(sc->cdce_dev), sc->cdce_udev) == ENOBUFS) {
+	    sc->cdce_udev) == ENOBUFS) {
 		printf("%s: tx list init failed\n", USBDEVNAME(sc->cdce_dev));
 		CDCE_UNLOCK(sc);
 		return;
 	}
 
 	if (usb_ether_rx_list_init(sc, &sc->cdce_cdata,
-	    USBDEVNAME(sc->cdce_dev), sc->cdce_udev) == ENOBUFS) {
+	    sc->cdce_udev) == ENOBUFS) {
 		printf("%s: rx list init failed\n", USBDEVNAME(sc->cdce_dev));
 		CDCE_UNLOCK(sc);
 		return;

@@ -1158,7 +1158,7 @@ aue_init(void *xsc)
 
 	/* Init TX ring. */
 	if (usb_ether_tx_list_init(sc, &sc->aue_cdata,
-	    USBDEVNAME(sc->aue_dev), sc->aue_udev) == ENOBUFS) {
+	    sc->aue_udev) == ENOBUFS) {
 		printf("aue%d: tx list init failed\n", sc->aue_unit);
 		AUE_UNLOCK(sc);
 		return;
@@ -1166,7 +1166,7 @@ aue_init(void *xsc)
 
 	/* Init RX ring. */
 	if (usb_ether_rx_list_init(sc, &sc->aue_cdata,
-	    USBDEVNAME(sc->aue_dev), sc->aue_udev) == ENOBUFS) {
+	    sc->aue_udev) == ENOBUFS) {
 		printf("aue%d: rx list init failed\n", sc->aue_unit);
 		AUE_UNLOCK(sc);
 		return;
@@ -1353,7 +1353,6 @@ aue_stop(struct aue_softc *sc)
 {
 	usbd_status		err;
 	struct ifnet		*ifp;
-	int			i;
 
 	AUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
