@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: periodic.8,v 1.8 1998/12/29 22:45:15 hoek Exp $
+.\"	$Id: periodic.8,v 1.8.2.1 1999/02/14 20:06:52 jkh Exp $
 .\"
 .Dd 13 August 1997
 .Os FreeBSD 3.0
@@ -108,9 +108,9 @@ similar to the following example:
 .Dl 0      5       1       *       *       root    periodic monthly 2>&1
 .Pp
 Additionally, the system registry will typically have a
-.Va local_cron
+.Va local_periodic
 variable reading:
-.Dl local_cron="/usr/local/etc/periodic /usr/X11R6/etc/periodic" # cron script dirs.
+.Dl local_periodic="/usr/local/etc/periodic /usr/X11R6/etc/periodic" # periodic script dirs
 .Sh SEE ALSO
 .Xr sh 1 ,
 .Xr crontab 5 ,
