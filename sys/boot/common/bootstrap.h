@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.13 1998/10/09 23:11:05 peter Exp $
+ *	$Id: bootstrap.h,v 1.14 1998/10/21 20:07:04 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -125,6 +125,14 @@ extern void			pnp_addident(struct pnpinfo *pi, char *ident);
 extern struct pnpinfo		*pnp_allocinfo(void);
 extern void			pnp_freeinfo(struct pnpinfo *pi);
 extern void			pnp_addinfo(struct pnpinfo *pi);
+extern char			*pnp_eisaformat(u_int8_t *data);
+
+/*
+ *  < 0	- No ISA in system
+ * == 0	- Maybe ISA, search for read data port
+ *  > 0	- ISA in system, value is read data port address
+ */
+extern int			isapnp_readport;
 
 /*
  * Module metadata header.
