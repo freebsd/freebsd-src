@@ -604,6 +604,8 @@ int	nfs_vinvalbuf __P((struct vnode *, int, struct ucred *, struct proc *,
 int	nfs_readrpc __P((struct vnode *, struct uio *, struct ucred *));
 int	nfs_writerpc __P((struct vnode *, struct uio *, struct ucred *, int *, 
 			  int *));
+int	nfs_commit __P((struct vnode *vp, u_quad_t offset, int cnt, 
+			struct ucred *cred, struct proc *procp));
 int	nfs_readdirrpc __P((struct vnode *, struct uio *, struct ucred *));
 int	nfs_asyncio __P((struct buf *, struct ucred *, struct proc *));
 int	nfs_doio __P((struct buf *, struct ucred *, struct proc *));

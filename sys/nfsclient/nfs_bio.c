@@ -339,6 +339,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	daddr_t lbn, rabn;
 	int bcount;
+	int seqcount;
 	int nra, error = 0, n = 0, on = 0;
 
 #ifdef DIAGNOSTIC
@@ -350,6 +351,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 	if (uio->uio_offset < 0)	/* XXX VDIR cookies can be negative */
 		return (EINVAL);
 	p = uio->uio_procp;
+
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
 	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
 		(void)nfs_fsinfo(nmp, vp, cred, p);
@@ -357,6 +359,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 	    (uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
 		return (EFBIG);
 	biosize = vp->v_mount->mnt_stat.f_iosize;
+	seqcount = (int)((off_t)(ioflag >> 16) * biosize / BKVASIZE);
 	/*
 	 * For nfs, cache consistency can only be maintained approximately.
 	 * Although RFC1094 does not specify the criteria, the following is
@@ -455,7 +458,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 		 * Start the read ahead(s), as required.
 		 */
 		if (nfs_numasync > 0 && nmp->nm_readahead > 0) {
-		    for (nra = 0; nra < nmp->nm_readahead &&
+		    for (nra = 0; nra < nmp->nm_readahead && nra < seqcount &&
 			(off_t)(lbn + 1 + nra) * biosize < np->n_size; nra++) {
 			rabn = lbn + 1 + nra;
 			if (!incore(vp, rabn)) {
@@ -521,8 +524,6 @@ nfs_bioread(vp, uio, ioflag, cred)
 		n = 0;
 		if (on < bcount)
 			n = min((unsigned)(bcount - on), uio->uio_resid);
-
-		vp->v_lastr = lbn;
 		break;
 	    case VLNK:
 		nfsstats.biocache_readlinks++;
@@ -1344,6 +1345,35 @@ nfs_doio(bp, cr, p)
 		bp->b_error = error;
 	    }
 	} else {
+	    /* 
+	     * If we only need to commit, try to commit
+	     */
+	    if (bp->b_flags & B_NEEDCOMMIT) {
+		    int retv;
+		    off_t off;
+
+		    off = ((u_quad_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
+		    bp->b_flags |= B_WRITEINPROG;
+		    retv = nfs_commit(
+				bp->b_vp, off, bp->b_dirtyend-bp->b_dirtyoff,
+				bp->b_wcred, p);
+		    bp->b_flags &= ~B_WRITEINPROG;
+		    if (retv == 0) {
+			    bp->b_dirtyoff = bp->b_dirtyend = 0;
+			    bp->b_flags &= ~B_NEEDCOMMIT;
+			    bp->b_resid = 0;
+			    biodone(bp);
+			    return (0);
+		    }
+		    if (retv == NFSERR_STALEWRITEVERF) {
+			    nfs_clearcommit(bp->b_vp->v_mount);
+		    }
+	    }
+
+	    /*
+	     * Setup for actual write
+	     */
+
 	    if ((off_t)bp->b_blkno * DEV_BSIZE + bp->b_dirtyend > np->n_size)
 		bp->b_dirtyend = np->n_size - (off_t)bp->b_blkno * DEV_BSIZE;
 
