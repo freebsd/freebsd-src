@@ -51,8 +51,8 @@ typedef struct usb_dma_block {
 	LIST_ENTRY(usb_dma_block) next;
 } usb_dma_block_t;
 
-#define DMAADDR(dma) ((dma)->block->segs[0].ds_addr + (dma)->offs)
-#define KERNADDR(dma) ((void *)((dma)->block->kaddr + (dma)->offs))
+#define DMAADDR(dma, offset) ((dma)->block->segs[0].ds_addr + (dma)->offs + (offset))
+#define KERNADDR(dma, offset) ((void *)((dma)->block->kaddr + (dma)->offs) + (offset))
 
 usbd_status	usb_allocmem __P((usbd_bus_handle,size_t,size_t, usb_dma_t *));
 void		usb_freemem  __P((usbd_bus_handle, usb_dma_t *));
@@ -80,10 +80,10 @@ void		usb_freemem  __P((usbd_bus_handle, usb_dma_t *));
 #define		usb_freemem(t,p)	(free(*(p), M_USB))
 
 #ifdef __alpha__
-#define DMAADDR(dma)	(alpha_XXX_dmamap((vm_offset_t) *(dma)))
+#define DMAADDR(dma, offset)	(alpha_XXX_dmamap((vm_offset_t) *(dma) + (offset)))
 #else
-#define DMAADDR(dma)	(vtophys(*(dma)))
+#define DMAADDR(dma, offset)	(vtophys(*(dma) + (offset)))
 #endif
-#define KERNADDR(dma)	((void *) *(dma))
+#define KERNADDR(dma, offset)	((void *) (*(dma) + (offset)))
 #endif
 

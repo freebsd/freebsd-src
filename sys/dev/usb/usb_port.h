@@ -275,7 +275,7 @@ __CONCAT(dname,_detach)(self, flags) \
 #define USBDEVPTRNAME(bdev) device_get_nameunit(bdev)
 #define USBDEVUNIT(bdev) device_get_unit(bdev)
 
-#define DECLARE_USB_DMA_T typedef void * usb_dma_t
+#define DECLARE_USB_DMA_T typedef char * usb_dma_t
 
 /* XXX Change this when FreeBSD has memset */
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
