@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ipcp.c,v 1.20 1995/08/10 06:51:04 paulus Exp $";
+static char rcsid[] = "$Id: ipcp.c,v 1.4 1995/10/31 21:21:06 peter Exp $";
 #endif
 
 /*
@@ -149,6 +149,10 @@ ipcp_init(unit)
     ao->neg_vj = 1;
     ao->maxslotindex = MAX_STATES - 1;
     ao->cflag = 1;
+
+    /* allow default route and proxyarp */
+    ao->proxy_arp = 1;
+    ao->default_route = 1;
 }
 
 
