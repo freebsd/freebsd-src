@@ -36,7 +36,7 @@ The
 .Nm
 file is read in by the boot
 .Xr loader 8
-when the system is about to start and its contents will be
+when the system is about to start, and its contents are
 passed to the kernel.
 It contains various variables to control the boot behavior of
 the kernel.
@@ -51,10 +51,10 @@ Lines starting with the
 character are comments and are ignored by the boot loader.
 .Pp
 After the file is read by the boot loader, you may examine
-the variables by the
+the variables with the
 .Ic show
-command, and may add a new variable, modify existing one,
-or delete one by the
+command, and may add a new variable, modify an existing one,
+or delete a variable with the
 .Ic set
 and
 .Ic unset
@@ -63,7 +63,7 @@ commands of the boot loader
 .Xr loader 8 ) .
 .Pp
 After the system has started, you can dump these variables
-by the
+with the
 .Xr kenv 1
 command.
 .Sh DEVICE HINTS
@@ -83,7 +83,7 @@ where
 .Ar driver
 is the name of a device driver,
 .Ar unit
-is the unit number,
+is the unit number, and
 .Ar keyword
 is the keyword of the hint.
 The keyword may be:
@@ -98,11 +98,11 @@ is the interrupt line number to be used.
 .It Li drq
 is the DMA channel number.
 .It Li maddr
-specifies the physical memory address occupied by the device.
+specifies the physical memory address used by the device.
 .It Li flags
 sets various flag bits for the device.
 .It Li disabled
-is set to
+can be set to
 .Qq 1
 to disable the device.
 .El
