@@ -1436,7 +1436,7 @@
 
     <para arch="i386,amd64">PC-compatible joysticks (&man.joy.4; driver)</para>
 
-    <para arch="pc98">Joystick port of SoundBlaster(98) (&man.joy.4
+    <para arch="pc98">Joystick port of SoundBlaster(98) (&man.joy.4;
     driver)</para>
 
     <para arch="i386,pc98">PHS Data Communication Card/PCCARD
