@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.20 1994/09/02 04:12:16 davidg Exp $
+ *	$Id: cpufunc.h,v 1.21 1994/09/15 16:27:12 paul Exp $
  */
 
 /*
@@ -45,6 +45,8 @@
 #include <sys/types.h>
 
 #include <machine/spl.h>
+
+#include <machine/pio.h>
 
 #ifdef	__GNUC__
 
