@@ -93,20 +93,20 @@
 .Fn VGLMouseSetImage "VGLBitmap *AndMask" "VGLBitmap *OrMask"
 .Ft void
 .Fn VGLMouseSetStdImage "void"
-.Ft byte
+.Ft u_long
 .Fn VGLGetXY "VGLBitmap *object" "int x" "int y"
 .Ft void
-.Fn VGLSetXY "VGLBitmap *object" "int x" "int y" "byte color"
+.Fn VGLSetXY "VGLBitmap *object" "int x" "int y" "u_long color"
 .Ft void
-.Fn VGLLine "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "byte color"
+.Fn VGLLine "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "u_long color"
 .Ft void
-.Fn VGLBox "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "byte color"
+.Fn VGLBox "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "u_long color"
 .Ft void
-.Fn VGLFilledBox "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "byte color"
+.Fn VGLFilledBox "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "u_long color"
 .Ft void
-.Fn VGLEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "byte color"
+.Fn VGLEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "u_long color"
 .Ft void
-.Fn VGLFilledEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "byte color"
+.Fn VGLFilledEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "u_long color"
 .Ft VGLBitmap *
 .Fn VGLBitmapCreate "int type" "int xsize" "int ysize" "byte *bits"
 .Ft void
@@ -120,7 +120,7 @@
 .Ft void
 .Fn VGLBitmapString "VGLBitmap *Object" "int x" "int y" "char *str" "byte fgcol" "byte bgcol" "int fill" "int dir"
 .Ft void
-.Fn VGLClear "VGLBitmap *object" "byte color"
+.Fn VGLClear "VGLBitmap *object" "u_long color"
 .Ft void
 .Fn VGLSetPalette "byte *red" "byte *green" "byte *blue"
 .Ft void
