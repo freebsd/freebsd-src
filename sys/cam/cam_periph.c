@@ -35,6 +35,8 @@
 #include <sys/malloc.h>
 #include <sys/linker_set.h>
 #include <sys/bio.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/devicestat.h>

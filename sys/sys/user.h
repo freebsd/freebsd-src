@@ -45,11 +45,12 @@
 #include <sys/resource.h>
 #include <sys/ucred.h>
 #include <sys/uio.h>
+#include <sys/lock.h>		/* XXX */
+#include <sys/mutex.h>		/* XXX */
 #include <sys/proc.h>
 #include <vm/vm.h>		/* XXX */
 #include <vm/vm_param.h>	/* XXX */
 #include <vm/pmap.h>		/* XXX */
-#include <sys/lock.h>		/* XXX */
 #include <vm/vm_map.h>		/* XXX */
 #endif /* !_KERNEL */
 #ifndef _SYS_RESOURCEVAR_H_

@@ -39,6 +39,7 @@
 
 #include <sys/resource.h>
 #include <sys/queue.h>
+#include <sys/lock.h>	/* XXX */
 #include <sys/mutex.h>	/* XXX */
 
 /*

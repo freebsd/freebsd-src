@@ -37,7 +37,8 @@
 #ifndef _SYS_UCRED_H_
 #define	_SYS_UCRED_H_
 
-#include <sys/mutex.h>
+#include <sys/lock.h>		/* XXX */
+#include <sys/mutex.h>		/* XXX */
 
 /*
  * Credentials.

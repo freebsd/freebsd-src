@@ -43,6 +43,7 @@
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
+#include <sys/systm.h>
 #include <machine/reg.h>
 #include <miscfs/procfs/procfs.h>
 #include <vm/vm.h>
