@@ -94,10 +94,10 @@ struct handle
  */
 
 static char io_header[] =
-	"  PID %-*.*s   READ  WRITE  FAULT  TOTAL PERCENT COMMAND";
+	"  PID %-*.*s   VCSW  IVCSW   READ  WRITE  FAULT  TOTAL PERCENT COMMAND";
 
 #define io_Proc_format \
-	"%5d %-*.*s %6ld %6ld %6ld %6ld %6.2f%% %.*s"
+	"%5d %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s"
 
 static char smp_header[] =
 	"  PID %-*.*s PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
@@ -209,11 +209,9 @@ long percentages();
  * Sorting orders.  One vector per display mode.
  * The first element is the default for each mode.
  */
-char *proc_ordernames[] = {
-	"cpu", "size", "res", "time", "pri", NULL
-};
-char *io_ordernames[] = {
-	"total", "read", "write", "fault", NULL
+char *ordernames[] = {
+	"cpu", "size", "res", "time", "pri", 
+	"total", "read", "write", "fault", "vcsw", "ivcsw", NULL
 };
 #endif
 
@@ -271,15 +269,7 @@ machine_init(struct statics *statics)
 	statics->memory_names = memorynames;
 	statics->swap_names = swapnames;
 #ifdef ORDER
-	switch (displaymode) {
-	case DISP_IO:
-		statics->order_names = io_ordernames;
-		break;
-	case DISP_CPU:
-	default:
-		statics->order_names = proc_ordernames;
-		break;
-	}
+	statics->order_names = ordernames;
 #endif
 
 	/* all done! */
@@ -468,7 +458,7 @@ get_old_proc(struct kinfo_proc *pp)
  * store the values individually in the pointers passed in.
  */
 long
-get_io_stats(struct kinfo_proc *pp, long *inp, long *oup, long *flp)
+get_io_stats(struct kinfo_proc *pp, long *inp, long *oup, long *flp, long *vcsw, long *ivcsw)
 {
 	const struct kinfo_proc *oldp;
 	static struct kinfo_proc dummy;
@@ -483,6 +473,8 @@ get_io_stats(struct kinfo_proc *pp, long *inp, long *oup, long *flp)
 	*inp = RU(pp)->ru_inblock - RU(oldp)->ru_inblock;
 	*oup = RU(pp)->ru_oublock - RU(oldp)->ru_oublock;
 	*flp = RU(pp)->ru_majflt - RU(oldp)->ru_majflt;
+	*vcsw = RU(pp)->ru_nvcsw - RU(oldp)->ru_nvcsw;
+	*ivcsw = RU(pp)->ru_nivcsw - RU(oldp)->ru_nivcsw;
 	ret =
 	    (RU(pp)->ru_inblock - RU(oldp)->ru_inblock) +
 	    (RU(pp)->ru_oublock - RU(oldp)->ru_oublock) +
@@ -498,7 +490,7 @@ get_io_total(struct kinfo_proc *pp)
 {
 	long dummy;
 
-	return (get_io_stats(pp, &dummy, &dummy, &dummy));
+	return (get_io_stats(pp, &dummy, &dummy, &dummy, &dummy, &dummy));
 }
 
 static struct handle handle;
@@ -510,7 +502,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	int i;
 	int total_procs;
 	long p_io;
-	long p_inblock, p_oublock, p_majflt;
+	long p_inblock, p_oublock, p_majflt, p_vcsw, p_ivcsw;
 	int active_procs;
 	struct kinfo_proc **prefp;
 	struct kinfo_proc *pp;
@@ -584,7 +576,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			/* skip system process */
 			continue;
 
-		p_io = get_io_stats(pp, &p_inblock, &p_oublock, &p_majflt);
+		p_io = get_io_stats(pp, &p_inblock, &p_oublock, &p_majflt, &p_vcsw, &p_ivcsw);
 		total_inblock += p_inblock;
 		total_oublock += p_oublock;
 		total_majflt += p_majflt;
@@ -718,6 +710,8 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 			ru.ru_inblock = RU(pp)->ru_inblock - RU(oldp)->ru_inblock;
 			ru.ru_oublock = RU(pp)->ru_oublock - RU(oldp)->ru_oublock;
 			ru.ru_majflt = RU(pp)->ru_majflt - RU(oldp)->ru_majflt;
+			ru.ru_nvcsw = RU(pp)->ru_nvcsw - RU(oldp)->ru_nvcsw;
+			ru.ru_nivcsw = RU(pp)->ru_nivcsw - RU(oldp)->ru_nivcsw;
 			rup = &ru;
 		} else {
 			rup = RU(pp);
@@ -729,6 +723,8 @@ format_next_process(caddr_t handle, char *(*get_userid)(int))
 		    pp->ki_pid,
 		    namelength, namelength,
 		    (*get_userid)(pp->ki_ruid),
+		    rup->ru_nvcsw,
+		    rup->ru_nivcsw,
 		    rup->ru_inblock,
 		    rup->ru_oublock,
 		    rup->ru_majflt,
@@ -888,13 +884,21 @@ proc_compare(void *arg1, void *arg2)
 #ifdef ORDER
 /* compare routines */
 int compare_size(), compare_res(), compare_time(), compare_prio();
+/* io compare routines */
+int compare_iototal(), compare_ioread(), compare_iowrite(), compare_iofault(), compare_vcsw(), compare_ivcsw();
 
-int (*proc_compares[])() = {
+int (*compares[])() = {
 	compare_cpu,
 	compare_size,
 	compare_res,
 	compare_time,
 	compare_prio,
+	compare_iototal,
+	compare_ioread,
+	compare_iowrite,
+	compare_iofault,
+	compare_vcsw,
+	compare_ivcsw,
 	NULL
 };
 
@@ -987,16 +991,6 @@ io_compare(void *arg1, void *arg2)
 }
 
 #ifdef ORDER
-/* io compare routines */
-int compare_ioread(), compare_iowrite(), compare_iofault();
-
-int (*io_compares[])() = {
-	compare_iototal,
-	compare_ioread,
-	compare_iowrite,
-	compare_iofault,
-	NULL
-};
 
 int
 compare_ioread(void *arg1, void *arg2)
@@ -1005,8 +999,8 @@ compare_ioread(void *arg1, void *arg2)
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
 	long dummy, inp1, inp2;
 
-	(void) get_io_stats(p1, &inp1, &dummy, &dummy);
-	(void) get_io_stats(p2, &inp2, &dummy, &dummy);
+	(void) get_io_stats(p1, &inp1, &dummy, &dummy, &dummy, &dummy);
+	(void) get_io_stats(p2, &inp2, &dummy, &dummy, &dummy, &dummy);
 
 	return (inp2 - inp1);
 }
@@ -1018,8 +1012,8 @@ compare_iowrite(void *arg1, void *arg2)
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
 	long dummy, oup1, oup2;
 
-	(void) get_io_stats(p1, &dummy, &oup1, &dummy);
-	(void) get_io_stats(p2, &dummy, &oup2, &dummy);
+	(void) get_io_stats(p1, &dummy, &oup1, &dummy, &dummy, &dummy);
+	(void) get_io_stats(p2, &dummy, &oup2, &dummy, &dummy, &dummy);
 
 	return (oup2 - oup1);
 }
@@ -1031,8 +1025,34 @@ compare_iofault(void *arg1, void *arg2)
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
 	long dummy, flp1, flp2;
 
-	(void) get_io_stats(p1, &dummy, &dummy, &flp1);
-	(void) get_io_stats(p2, &dummy, &dummy, &flp2);
+	(void) get_io_stats(p1, &dummy, &dummy, &flp1, &dummy, &dummy);
+	(void) get_io_stats(p2, &dummy, &dummy, &flp2, &dummy, &dummy);
+
+	return (flp2 - flp1);
+}
+
+int
+compare_vcsw(void *arg1, void *arg2)
+{
+	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
+	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	long dummy, flp1, flp2;
+
+	(void) get_io_stats(p1, &dummy, &dummy, &dummy, &flp1, &dummy);
+	(void) get_io_stats(p2, &dummy, &dummy, &dummy, &flp2, &dummy);
+
+	return (flp2 - flp1);
+}
+
+int
+compare_ivcsw(void *arg1, void *arg2)
+{
+	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
+	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	long dummy, flp1, flp2;
+
+	(void) get_io_stats(p1, &dummy, &dummy, &dummy, &dummy, &flp1);
+	(void) get_io_stats(p2, &dummy, &dummy, &dummy, &dummy, &flp2);
 
 	return (flp2 - flp1);
 }

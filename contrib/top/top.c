@@ -95,8 +95,7 @@ char *kill_procs();
 char *renice_procs();
 
 #ifdef ORDER
-extern int (*proc_compares[])();
-extern int (*io_compares[])();
+extern int (*compares[])();
 #else
 extern int proc_compare();
 extern int io_compare();
@@ -570,10 +569,7 @@ restart:
 	get_system_info(&system_info);
 
 #ifdef ORDER
-	if (displaymode == DISP_CPU)
-		compare = proc_compares[order_index];
-	else
-		compare = io_compares[order_index];
+	compare = compares[order_index];
 #else
 	if (displaymode == DISP_CPU)
 		compare = proc_compare;
