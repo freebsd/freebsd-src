@@ -457,8 +457,6 @@ mpu_intr(void *arg)
 	scp = (sc_p)arg;
 	devinfo = scp->devinfo;
 
-	MIDI_DROP_GIANT_NOSWITCH();
-
 	mtx_lock(&devinfo->flagqueue_mtx);
 	mtx_lock(&scp->mtx);
 
@@ -483,8 +481,6 @@ mpu_intr(void *arg)
 
 	/* Invoke the upper layer. */
 	midi_intr(devinfo);
-
-	MIDI_PICKUP_GIANT();
 }
 
 static int

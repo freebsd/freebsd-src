@@ -291,13 +291,10 @@ seq_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	}
 	scp = sd->softc;
 
-	MIDI_DROP_GIANT_NOSWITCH();
-
 	/* Mark this device busy. */
 	mtx_lock(&sd->flagqueue_mtx);
 	if ((sd->flags & SEQ_F_BUSY) != 0) {
 		mtx_unlock(&sd->flagqueue_mtx);
-		MIDI_PARTIAL_PICKUP_GIANT();
 		DEB(printf("seq_open: unit %d is busy.\n", unit));
 		return (EBUSY);
 	}
@@ -316,8 +313,6 @@ seq_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	scp->prev_wakeup_time = scp->seq_time;
 
 	mtx_unlock(&sd->flagqueue_mtx);
-
-	MIDI_PICKUP_GIANT();
 
 	DEB(printf("seq%d: opened.\n", unit));
 
@@ -348,8 +343,6 @@ seq_close(dev_t i_dev, int flags, int mode, struct proc *p)
 	}
 	scp = sd->softc;
 
-	MIDI_DROP_GIANT_NOSWITCH();
-
 	mtx_lock(&sd->flagqueue_mtx);
 
 	if (!(sd->flags & MIDI_F_NBIO))
@@ -372,8 +365,6 @@ seq_close(dev_t i_dev, int flags, int mode, struct proc *p)
 	sd->flags &= ~(SEQ_F_BUSY | SEQ_F_READING | SEQ_F_WRITING | SEQ_F_INSYNC);
 	mtx_unlock(&sd->flagqueue_mtx);
 
-	MIDI_PICKUP_GIANT();
-
 	DEB(printf("seq%d: closed.\n", unit));
 
 	return (0);
@@ -385,9 +376,6 @@ seq_read(dev_t i_dev, struct uio *buf, int flag)
 	int unit, ret, len;
 	sc_p scp;
 	seqdev_info *sd;
-#if defined(MIDI_OUTOFGIANT)
-	char *buf2; /* XXX Until uiomove(9) becomes MP-safe. */
-#endif /* MIDI_OUTOFGIANT */
 
 	unit = MIDIUNIT(i_dev);
 
@@ -409,14 +397,6 @@ seq_read(dev_t i_dev, struct uio *buf, int flag)
 		return (EIO);
 	}
 
-#if defined(MIDI_OUTOFGIANT)
-	buf2 = malloc(buf->uio_resid, M_DEVBUF, M_WAITOK);
-	if (buf2 == NULL)
-		return (ENOMEM);
-#endif /* MIDI_OUTOFGIANT */
-
-	MIDI_DROP_GIANT_NOSWITCH();
-
 	mtx_lock(&sd->flagqueue_mtx);
 
 	/* Begin recording. */
@@ -429,29 +409,14 @@ seq_read(dev_t i_dev, struct uio *buf, int flag)
 	if ((sd->flags & SEQ_F_NBIO) != 0 && sd->midi_dbuf_in.rl == 0)
 		ret = EAGAIN;
 	else {
-#if defined(MIDI_OUTOFGIANT)
-		len = buf->uio_resid;
-		if ((sd->flags & SEQ_F_NBIO) != 0 && len > sd->midi_dbuf_in.rl)
-			len = sd->midi_dbuf_in.rl;
-		ret = midibuf_seqread(&sd->midi_dbuf_in, buf2, len, &sd->flagqueue_mtx);
-#else
 		len = buf->uio_resid;
 		ret = midibuf_uioread(&sd->midi_dbuf_in, buf, len, &sd->flagqueue_mtx);
-#endif /* MIDI_OUTOFGIANT */
 		if (ret < 0)
 			ret = -ret;
 		else
 			ret = 0;
 	}
 	mtx_unlock(&sd->flagqueue_mtx);
-
-	MIDI_PICKUP_GIANT();
-
-#if defined(MIDI_OUTOFGIANT)
-	if (ret == 0)
-		uiomove((caddr_t)buf2, len, buf);
-	free(buf2, M_DEVBUF);
-#endif /* MIDI_OUTOFGIANT */
 
 	return (ret);
 }
@@ -489,18 +454,10 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 	countorg = buf->uio_resid;
 	count = countorg;
 
-	MIDI_DROP_GIANT_NOSWITCH();
-
 	/* Pick up an event. */
 	while (count >= 4) {
-#if defined(MIDI_OUTOFGIANT)
-		mtx_lock(&Giant);
-#endif /* MIDI_OUTOFGIANT */
 		if (uiomove((caddr_t)event, 4, buf))
 			printf("seq_write: user memory mangled?\n");
-#if defined(MIDI_OUTOFGIANT)
-		mtx_unlock(&Giant);
-#endif /* MIDI_OUTOFGIANT */
 		ev_code = event[0];
 
 		/* Have a look at the event code. */
@@ -511,15 +468,12 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 			mtx_lock(&sd->flagqueue_mtx);
 			ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
 			mtx_unlock(&sd->flagqueue_mtx);
-			if (ret != 0) {
-				MIDI_PARTIAL_PICKUP_GIANT();
+			if (ret != 0)
 				return (ret);
-			}
 
 			DEB(printf("seq_write: loading a patch to the unit %d.\n", midiunit));
 
 			ret = md->synth.loadpatch(md, *(short *)&event[0], buf, p + 4, count, 0);
-			MIDI_PARTIAL_PICKUP_GIANT();
 			return (ret);
 		}
 
@@ -528,7 +482,6 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 			/* Some sort of an extended event. The size is eight bytes. */
 #if notyet
 			if (scp->seq_mode == SEQ_2 && ev_code == SEQ_EXTENDED) {
-				MIDI_PARTIAL_PICKUP_GIANT();
 				printf("seq%d: invalid level two event %x.\n", unit, ev_code);
 				return (EINVAL);
 			}
@@ -542,23 +495,15 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 					sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
 				mtx_unlock(&sd->flagqueue_mtx);
 
-				MIDI_PARTIAL_PICKUP_GIANT();
 				return (0);
 			}
-#if defined(MIDI_OUTOFGIANT)
-			mtx_lock(&Giant);
-#endif /* MIDI_OUTOFGIANT */
 			if (uiomove((caddr_t)&event[4], 4, buf))
 				printf("seq_write: user memory mangled?\n");
-#if defined(MIDI_OUTOFGIANT)
-			mtx_unlock(&Giant);
-#endif /* MIDI_OUTOFGIANT */
 		} else {
 
 			/* Not an extended event. The size is four bytes. */
 #if notyet
 			if (scp->seq_mode == SEQ_2) {
-				MIDI_PARTIAL_PICKUP_GIANT();
 				printf("seq%d: four byte event in level two mode.\n", unit);
 				return (EINVAL);
 			}
@@ -571,10 +516,8 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 			mtx_lock(&sd->flagqueue_mtx);
 			ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
 			mtx_unlock(&sd->flagqueue_mtx);
-			if (ret != 0) {
-				MIDI_PARTIAL_PICKUP_GIANT();
+			if (ret != 0)
 				return (ret);
-			}
 		}
 
 		/*DEB(printf("seq_write: queueing event %d.\n", event[0]));*/
@@ -586,15 +529,12 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 			if ((sd->flags & SEQ_F_WRITING) == 0)
 				sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
 			mtx_unlock(&sd->flagqueue_mtx);
-			MIDI_PARTIAL_PICKUP_GIANT();
 			return (0);
 		case EINTR:
 			mtx_unlock(&sd->flagqueue_mtx);
-			MIDI_PARTIAL_PICKUP_GIANT();
 			return (EINTR);
 		case ERESTART:
 			mtx_unlock(&sd->flagqueue_mtx);
-			MIDI_PARTIAL_PICKUP_GIANT();
 			return (ERESTART);
 		}
 		mtx_unlock(&sd->flagqueue_mtx);
@@ -607,8 +547,6 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 	if ((sd->flags & SEQ_F_WRITING) == 0)
 		sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
 	mtx_unlock(&sd->flagqueue_mtx);
-
-	MIDI_PICKUP_GIANT();
 
 	return (0);
 }
@@ -641,8 +579,6 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		return (ENXIO);
 	}
 	scp = sd->softc;
-
-	MIDI_DROP_GIANT_NOSWITCH();
 
 	ret = 0;
 
@@ -940,8 +876,6 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		break;
 	}
 
-	MIDI_PICKUP_GIANT();
-
 	return (ret);
 }
 
@@ -966,8 +900,6 @@ seq_poll(dev_t i_dev, int events, struct proc *p)
 		return (ENXIO);
 	}
 	scp = sd->softc;
-
-	MIDI_DROP_GIANT_NOSWITCH();
 
 	mtx_lock(&sd->flagqueue_mtx);
 
@@ -1009,8 +941,6 @@ seq_poll(dev_t i_dev, int events, struct proc *p)
 
 	mtx_unlock(&sd->flagqueue_mtx);
 
-	MIDI_PICKUP_GIANT();
-
 	return (ret);
 }
 
@@ -1023,8 +953,6 @@ seq_intr(void *p, mididev_info *md)
 	sd = (seqdev_info *)p;
 	scp = sd->softc;
 
-	MIDI_DROP_GIANT_NOSWITCH();
-
 	mtx_lock(&sd->flagqueue_mtx);
 
 	/* Restart playing if we have the data to output. */
@@ -1035,8 +963,6 @@ seq_intr(void *p, mididev_info *md)
 		seq_midiinput(scp, md);
 
 	mtx_unlock(&sd->flagqueue_mtx);
-
-	MIDI_PICKUP_GIANT();
 }
 
 static int
