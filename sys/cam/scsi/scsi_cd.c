@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997 Justin T. Gibbs.
- * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999, 2000 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,7 @@
 #include <sys/disk.h>
 #include <sys/malloc.h>
 #include <sys/cdio.h>
+#include <sys/dvdio.h>
 #include <sys/devicestat.h>
 #include <sys/sysctl.h>
 
@@ -226,6 +227,12 @@ static	int		cdplaytracks(struct cam_periph *periph,
 static	int		cdpause(struct cam_periph *periph, u_int32_t go);
 static	int		cdstopunit(struct cam_periph *periph, u_int32_t eject);
 static	int		cdstartunit(struct cam_periph *periph);
+static	int		cdreportkey(struct cam_periph *periph,
+				    struct dvd_authinfo *authinfo);
+static	int		cdsendkey(struct cam_periph *periph,
+				  struct dvd_authinfo *authinfo);
+static	int		cdreaddvdstructure(struct cam_periph *periph,
+					   struct dvd_struct *dvdstruct);
 
 static struct periph_driver cddriver =
 {
@@ -2399,6 +2406,27 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		/* return (cd_reset(periph)); */
 		error = ENOTTY;
 		break;
+	case DVDIOCSENDKEY:
+	case DVDIOCREPORTKEY: {
+		struct dvd_authinfo *authinfo;
+
+		authinfo = (struct dvd_authinfo *)addr;
+
+		if (cmd == DVDIOCREPORTKEY)
+			error = cdreportkey(periph, authinfo);
+		else
+			error = cdsendkey(periph, authinfo);
+		break;
+	}
+	case DVDIOCREADSTRUCTURE: {
+		struct dvd_struct *dvdstruct;
+
+		dvdstruct = (struct dvd_struct *)addr;
+
+		error = cdreaddvdstructure(periph, dvdstruct);
+
+		break;
+	}
 	default:
 		error = cam_periph_ioctl(periph, cmd, addr, cderror);
 		break;
@@ -2940,4 +2968,561 @@ cdstopunit(struct cam_periph *periph, u_int32_t eject)
 	xpt_release_ccb(ccb);
 
 	return(error);
+}
+
+static int
+cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
+{
+	union ccb *ccb;
+	u_int8_t *databuf;
+	u_int32_t lba;
+	int error;
+	int length;
+
+	error = 0;
+	databuf = NULL;
+	lba = 0;
+
+	ccb = cdgetccb(periph, /* priority */ 1);
+
+	switch (authinfo->format) {
+	case DVD_REPORT_AGID:
+		length = sizeof(struct scsi_report_key_data_agid);
+		break;
+	case DVD_REPORT_CHALLENGE:
+		length = sizeof(struct scsi_report_key_data_challenge);
+		break;
+	case DVD_REPORT_KEY1:
+		length = sizeof(struct scsi_report_key_data_key1_key2);
+		break;
+	case DVD_REPORT_TITLE_KEY:
+		length = sizeof(struct scsi_report_key_data_title);
+		/* The lba field is only set for the title key */
+		lba = authinfo->lba;
+		break;
+	case DVD_REPORT_ASF:
+		length = sizeof(struct scsi_report_key_data_asf);
+		break;
+	case DVD_REPORT_RPC:
+		length = sizeof(struct scsi_report_key_data_rpc);
+		break;
+	case DVD_INVALIDATE_AGID:
+		length = 0;
+		break;
+	default:
+		error = EINVAL;
+		goto bailout;
+		break; /* NOTREACHED */
+	}
+
+	if (length != 0) {
+		databuf = malloc(length, M_DEVBUF, M_WAITOK);
+		bzero(databuf, length);
+	} else
+		databuf = NULL;
+
+
+	scsi_report_key(&ccb->csio,
+			/* retries */ 1,
+			/* cbfcnp */ cddone,
+			/* tag_action */ MSG_SIMPLE_Q_TAG,
+			/* lba */ lba,
+			/* agid */ authinfo->agid,
+			/* key_format */ authinfo->format,
+			/* data_ptr */ databuf,
+			/* dxfer_len */ length,
+			/* sense_len */ SSD_FULL_SIZE,
+			/* timeout */ 50000);
+
+	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
+			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+
+	if (error != 0)
+		goto bailout;
+
+	if (ccb->csio.resid != 0) {
+		xpt_print_path(periph->path);
+		printf("warning, residual for report key command is %d\n",
+		       ccb->csio.resid);
+	}
+
+	switch(authinfo->format) {
+	case DVD_REPORT_AGID: {
+		struct scsi_report_key_data_agid *agid_data;
+
+		agid_data = (struct scsi_report_key_data_agid *)databuf;
+
+		authinfo->agid = (agid_data->agid & RKD_AGID_MASK) >>
+			RKD_AGID_SHIFT;
+		break;
+	}
+	case DVD_REPORT_CHALLENGE: {
+		struct scsi_report_key_data_challenge *chal_data;
+
+		chal_data = (struct scsi_report_key_data_challenge *)databuf;
+
+		bcopy(chal_data->challenge_key, authinfo->keychal,
+		      min(sizeof(chal_data->challenge_key),
+		          sizeof(authinfo->keychal)));
+		break;
+	}
+	case DVD_REPORT_KEY1: {
+		struct scsi_report_key_data_key1_key2 *key1_data;
+
+		key1_data = (struct scsi_report_key_data_key1_key2 *)databuf;
+
+		bcopy(key1_data->key1, authinfo->keychal,
+		      min(sizeof(key1_data->key1), sizeof(authinfo->keychal)));
+		break;
+	}
+	case DVD_REPORT_TITLE_KEY: {
+		struct scsi_report_key_data_title *title_data;
+
+		title_data = (struct scsi_report_key_data_title *)databuf;
+
+		authinfo->cpm = (title_data->byte0 & RKD_TITLE_CPM) >>
+			RKD_TITLE_CPM_SHIFT;
+		authinfo->cp_sec = (title_data->byte0 & RKD_TITLE_CP_SEC) >>
+			RKD_TITLE_CP_SEC_SHIFT;
+		authinfo->cgms = (title_data->byte0 & RKD_TITLE_CMGS_MASK) >>
+			RKD_TITLE_CMGS_SHIFT;
+		bcopy(title_data->title_key, authinfo->keychal,
+		      min(sizeof(title_data->title_key),
+			  sizeof(authinfo->keychal)));
+		break;
+	}
+	case DVD_REPORT_ASF: {
+		struct scsi_report_key_data_asf *asf_data;
+
+		asf_data = (struct scsi_report_key_data_asf *)databuf;
+
+		authinfo->asf = asf_data->success & RKD_ASF_SUCCESS;
+		break;
+	}
+	case DVD_REPORT_RPC: {
+		struct scsi_report_key_data_rpc *rpc_data;
+
+		rpc_data = (struct scsi_report_key_data_rpc *)databuf;
+
+		authinfo->reg_type = (rpc_data->byte4 & RKD_RPC_TYPE_MASK) >>
+			RKD_RPC_TYPE_SHIFT;
+		authinfo->vend_rsts =
+			(rpc_data->byte4 & RKD_RPC_VENDOR_RESET_MASK) >>
+			RKD_RPC_VENDOR_RESET_SHIFT;
+		authinfo->user_rsts = rpc_data->byte4 & RKD_RPC_USER_RESET_MASK;
+		break;
+	}
+	case DVD_INVALIDATE_AGID:
+		break;
+	default:
+		/* This should be impossible, since we checked above */
+		error = EINVAL;
+		goto bailout;
+		break; /* NOTREACHED */
+	}
+bailout:
+	if (databuf != NULL)
+		free(databuf, M_DEVBUF);
+
+	xpt_release_ccb(ccb);
+
+	return(error);
+}
+
+static int
+cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
+{
+	union ccb *ccb;
+	u_int8_t *databuf;
+	int length;
+	int error;
+
+	error = 0;
+	databuf = NULL;
+
+	ccb = cdgetccb(periph, /* priority */ 1);
+
+	switch(authinfo->format) {
+	case DVD_SEND_CHALLENGE: {
+		struct scsi_report_key_data_challenge *challenge_data;
+
+		length = sizeof(*challenge_data);
+
+		challenge_data = malloc(length, M_DEVBUF, M_WAITOK);
+
+		databuf = (u_int8_t *)challenge_data;
+
+		bzero(databuf, length);
+
+		scsi_ulto2b(length - sizeof(challenge_data->data_len),
+			    challenge_data->data_len);
+
+		bcopy(authinfo->keychal, challenge_data->challenge_key,
+		      min(sizeof(authinfo->keychal),
+			  sizeof(challenge_data->challenge_key)));
+		break;
+	}
+	case DVD_SEND_KEY2: {
+		struct scsi_report_key_data_key1_key2 *key2_data;
+
+		length = sizeof(*key2_data);
+
+		key2_data = malloc(length, M_DEVBUF, M_WAITOK);
+
+		databuf = (u_int8_t *)key2_data;
+
+		bzero(databuf, length);
+
+		scsi_ulto2b(length - sizeof(key2_data->data_len),
+			    key2_data->data_len);
+
+		bcopy(authinfo->keychal, key2_data->key1,
+		      min(sizeof(authinfo->keychal), sizeof(key2_data->key1)));
+
+		break;
+	}
+	case DVD_SEND_RPC: {
+		struct scsi_send_key_data_rpc *rpc_data;
+
+		length = sizeof(*rpc_data);
+
+		rpc_data = malloc(length, M_DEVBUF, M_WAITOK);
+
+		databuf = (u_int8_t *)rpc_data;
+
+		bzero(databuf, length);
+
+		scsi_ulto2b(length - sizeof(rpc_data->data_len),
+			    rpc_data->data_len);
+
+		/*
+		 * XXX KDM is this the right field from authinfo to use?
+		 */
+		rpc_data->region_code = authinfo->region;
+		break;
+	}
+	default:
+		error = EINVAL;
+		goto bailout;
+		break; /* NOTREACHED */
+	}
+
+	scsi_send_key(&ccb->csio,
+		      /* retries */ 1,
+		      /* cbfcnp */ cddone,
+		      /* tag_action */ MSG_SIMPLE_Q_TAG,
+		      /* agid */ authinfo->agid,
+		      /* key_format */ authinfo->format,
+		      /* data_ptr */ databuf,
+		      /* dxfer_len */ length,
+		      /* sense_len */ SSD_FULL_SIZE,
+		      /* timeout */ 50000);
+
+	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
+			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+
+bailout:
+
+	if (databuf != NULL)
+		free(databuf, M_DEVBUF);
+
+	xpt_release_ccb(ccb);
+
+	return(error);
+}
+
+static int
+cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
+{
+	union ccb *ccb;
+	u_int8_t *databuf;
+	u_int32_t address;
+	int error;
+	int length;
+
+	error = 0;
+	databuf = NULL;
+	/* The address is reserved for many of the formats */
+	address = 0;
+
+	ccb = cdgetccb(periph, /* priority */ 1);
+
+	switch(dvdstruct->format) {
+	case DVD_STRUCT_PHYSICAL:
+		length = sizeof(struct scsi_read_dvd_struct_data_physical);
+		break;
+	case DVD_STRUCT_COPYRIGHT:
+		length = sizeof(struct scsi_read_dvd_struct_data_copyright);
+		break;
+	case DVD_STRUCT_DISCKEY:
+		length = sizeof(struct scsi_read_dvd_struct_data_disc_key);
+		break;
+	case DVD_STRUCT_BCA:
+		length = sizeof(struct scsi_read_dvd_struct_data_bca);
+		break;
+	case DVD_STRUCT_MANUFACT:
+		length = sizeof(struct scsi_read_dvd_struct_data_manufacturer);
+		break;
+	case DVD_STRUCT_CMI:
+		error = ENODEV;
+		goto bailout;
+#ifdef notyet
+		length = sizeof(struct scsi_read_dvd_struct_data_copy_manage);
+		address = dvdstruct->address;
+#endif
+		break; /* NOTREACHED */
+	case DVD_STRUCT_PROTDISCID:
+		length = sizeof(struct scsi_read_dvd_struct_data_prot_discid);
+		break;
+	case DVD_STRUCT_DISCKEYBLOCK:
+		length = sizeof(struct scsi_read_dvd_struct_data_disc_key_blk);
+		break;
+	case DVD_STRUCT_DDS:
+		length = sizeof(struct scsi_read_dvd_struct_data_dds);
+		break;
+	case DVD_STRUCT_MEDIUM_STAT:
+		length = sizeof(struct scsi_read_dvd_struct_data_medium_status);
+		break;
+	case DVD_STRUCT_SPARE_AREA:
+		length = sizeof(struct scsi_read_dvd_struct_data_spare_area);
+		break;
+	case DVD_STRUCT_RMD_LAST:
+		error = ENODEV;
+		goto bailout;
+#ifdef notyet
+		length = sizeof(struct scsi_read_dvd_struct_data_rmd_borderout);
+		address = dvdstruct->address;
+#endif
+		break; /* NOTREACHED */
+	case DVD_STRUCT_RMD_RMA:
+		error = ENODEV;
+		goto bailout;
+#ifdef notyet
+		length = sizeof(struct scsi_read_dvd_struct_data_rmd);
+		address = dvdstruct->address;
+#endif
+		break; /* NOTREACHED */
+	case DVD_STRUCT_PRERECORDED:
+		length = sizeof(struct scsi_read_dvd_struct_data_leadin);
+		break;
+	case DVD_STRUCT_UNIQUEID:
+		length = sizeof(struct scsi_read_dvd_struct_data_disc_id);
+		break;
+	case DVD_STRUCT_DCB:
+		error = ENODEV;
+		goto bailout;
+#ifdef notyet
+		length = sizeof(struct scsi_read_dvd_struct_data_dcb);
+		address = dvdstruct->address;
+#endif
+		break; /* NOTREACHED */
+	case DVD_STRUCT_LIST:
+		/*
+		 * This is the maximum allocation length for the READ DVD
+		 * STRUCTURE command.  There's nothing in the MMC3 spec
+		 * that indicates a limit in the amount of data that can
+		 * be returned from this call, other than the limits
+		 * imposed by the 2-byte length variables.
+		 */
+		length = 65535;
+		break;
+	default:
+		error = EINVAL;
+		goto bailout;
+		break; /* NOTREACHED */
+	}
+
+	if (length != 0) {
+		databuf = malloc(length, M_DEVBUF, M_WAITOK);
+		bzero(databuf, length);
+	} else
+		databuf = NULL;
+
+	scsi_read_dvd_structure(&ccb->csio,
+				/* retries */ 1,
+				/* cbfcnp */ cddone,
+				/* tag_action */ MSG_SIMPLE_Q_TAG,
+				/* lba */ address,
+				/* layer_number */ dvdstruct->layer_num,
+				/* key_format */ dvdstruct->format,
+				/* agid */ dvdstruct->agid,
+				/* data_ptr */ databuf,
+				/* dxfer_len */ length,
+				/* sense_len */ SSD_FULL_SIZE,
+				/* timeout */ 50000);
+
+	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
+			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+
+	if (error != 0)
+		goto bailout;
+
+	switch(dvdstruct->format) {
+	case DVD_STRUCT_PHYSICAL: {
+		struct scsi_read_dvd_struct_data_layer_desc *inlayer;
+		struct dvd_layer *outlayer;
+		struct scsi_read_dvd_struct_data_physical *phys_data;
+
+		phys_data =
+			(struct scsi_read_dvd_struct_data_physical *)databuf;
+		inlayer = &phys_data->layer_desc;
+		outlayer = (struct dvd_layer *)&dvdstruct->data;
+
+		dvdstruct->length = sizeof(*inlayer);
+
+		outlayer->book_type = (inlayer->book_type_version &
+			RDSD_BOOK_TYPE_MASK) >> RDSD_BOOK_TYPE_SHIFT;
+		outlayer->book_version = (inlayer->book_type_version &
+			RDSD_BOOK_VERSION_MASK);
+		outlayer->disc_size = (inlayer->disc_size_max_rate &
+			RDSD_DISC_SIZE_MASK) >> RDSD_DISC_SIZE_SHIFT;
+		outlayer->max_rate = (inlayer->disc_size_max_rate &
+			RDSD_MAX_RATE_MASK);
+		outlayer->nlayers = (inlayer->layer_info &
+			RDSD_NUM_LAYERS_MASK) >> RDSD_NUM_LAYERS_SHIFT;
+		outlayer->track_path = (inlayer->layer_info &
+			RDSD_TRACK_PATH_MASK) >> RDSD_TRACK_PATH_SHIFT;
+		outlayer->layer_type = (inlayer->layer_info &
+			RDSD_LAYER_TYPE_MASK);
+		outlayer->linear_density = (inlayer->density &
+			RDSD_LIN_DENSITY_MASK) >> RDSD_LIN_DENSITY_SHIFT;
+		outlayer->track_density = (inlayer->density &
+			RDSD_TRACK_DENSITY_MASK);
+		outlayer->bca = (inlayer->bca & RDSD_BCA_MASK) >>
+			RDSD_BCA_SHIFT;
+		outlayer->start_sector = scsi_3btoul(inlayer->main_data_start);
+		outlayer->end_sector = scsi_3btoul(inlayer->main_data_end);
+		outlayer->end_sector_l0 =
+			scsi_3btoul(inlayer->end_sector_layer0);
+		break;
+	}
+	case DVD_STRUCT_COPYRIGHT: {
+		struct scsi_read_dvd_struct_data_copyright *copy_data;
+
+		copy_data = (struct scsi_read_dvd_struct_data_copyright *)
+			databuf;
+
+		dvdstruct->cpst = copy_data->cps_type;
+		dvdstruct->rmi = copy_data->region_info;
+		dvdstruct->length = 0;
+
+		break;
+	}
+	default:
+		/*
+		 * Tell the user what the overall length is, no matter
+		 * what we can actually fit in the data buffer.
+		 */
+		dvdstruct->length = length - ccb->csio.resid - 
+			sizeof(struct scsi_read_dvd_struct_data_header);
+
+		/*
+		 * But only actually copy out the smaller of what we read
+		 * in or what the structure can take.
+		 */
+		bcopy(databuf + sizeof(struct scsi_read_dvd_struct_data_header),
+		      dvdstruct->data,
+		      min(sizeof(dvdstruct->data), dvdstruct->length));
+		break;
+	}
+bailout:
+
+	if (databuf != NULL)
+		free(databuf, M_DEVBUF);
+
+	xpt_release_ccb(ccb);
+
+	return(error);
+}
+
+void
+scsi_report_key(struct ccb_scsiio *csio, u_int32_t retries,
+		void (*cbfcnp)(struct cam_periph *, union ccb *),
+		u_int8_t tag_action, u_int32_t lba, u_int8_t agid,
+		u_int8_t key_format, u_int8_t *data_ptr, u_int32_t dxfer_len,
+		u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_report_key *scsi_cmd;
+
+	scsi_cmd = (struct scsi_report_key *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = REPORT_KEY;
+	scsi_ulto4b(lba, scsi_cmd->lba);
+	scsi_ulto2b(dxfer_len, scsi_cmd->alloc_len);
+	scsi_cmd->agid_keyformat = (agid << RK_KF_AGID_SHIFT) |
+		(key_format & RK_KF_KEYFORMAT_MASK);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/ (dxfer_len == 0) ? CAM_DIR_NONE : CAM_DIR_IN,
+		      tag_action,
+		      /*data_ptr*/ data_ptr,
+		      /*dxfer_len*/ dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_send_key(struct ccb_scsiio *csio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int8_t tag_action, u_int8_t agid, u_int8_t key_format,
+	      u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
+	      u_int32_t timeout)
+{
+	struct scsi_send_key *scsi_cmd;
+
+	scsi_cmd = (struct scsi_send_key *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = SEND_KEY;
+
+	scsi_ulto2b(dxfer_len, scsi_cmd->param_len);
+	scsi_cmd->agid_keyformat = (agid << RK_KF_AGID_SHIFT) |
+		(key_format & RK_KF_KEYFORMAT_MASK);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/ CAM_DIR_OUT,
+		      tag_action,
+		      /*data_ptr*/ data_ptr,
+		      /*dxfer_len*/ dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+
+void
+scsi_read_dvd_structure(struct ccb_scsiio *csio, u_int32_t retries,
+			void (*cbfcnp)(struct cam_periph *, union ccb *),
+			u_int8_t tag_action, u_int32_t address,
+			u_int8_t layer_number, u_int8_t format, u_int8_t agid,
+			u_int8_t *data_ptr, u_int32_t dxfer_len,
+			u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_read_dvd_structure *scsi_cmd;
+
+	scsi_cmd = (struct scsi_read_dvd_structure *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = READ_DVD_STRUCTURE;
+
+	scsi_ulto4b(address, scsi_cmd->address);
+	scsi_cmd->layer_number = layer_number;
+	scsi_cmd->format = format;
+	scsi_ulto2b(dxfer_len, scsi_cmd->alloc_len);
+	/* The AGID is the top two bits of this byte */
+	scsi_cmd->agid = agid << 6;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/ CAM_DIR_IN,
+		      tag_action,
+		      /*data_ptr*/ data_ptr,
+		      /*dxfer_len*/ dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
 }
