@@ -143,11 +143,12 @@ typedef void devfs_remove_t __P((dev_t dev));
  */
 #define BUF_STRATEGY(bp, dummy) (*devsw((bp)->b_dev)->d_strategy)(bp)
 /*
- * Types for d_type.
+ * Types for d_flags.
  */
-#define	D_TAPE	1
-#define	D_DISK	2
-#define	D_TTY	4
+#define	D_TAPE	0x0001
+#define	D_DISK	0x0002
+#define	D_TTY	0x0004
+#define	D_MEM	0x0008
 
 #define	D_TYPEMASK	0xffff
 
