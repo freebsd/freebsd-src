@@ -335,30 +335,6 @@ struct tunable_ulong {
 
 #define	TUNABLE_ULONG_FETCH(path, var)	getenv_ulong((path), (var))
 
-/*
- * Quad (64-bit)
- * please avoid using for new tunables!
- */
-extern void tunable_quad_init(void *);
-struct tunable_quad {
-	const char *path;
-	quad_t *var;
-};
-#define	TUNABLE_QUAD(path, var)					\
-	_TUNABLE_QUAD((path), (var), __LINE__)
-#define	_TUNABLE_QUAD(path, var, line)				\
-	__TUNABLE_QUAD((path), (var), line)
-
-#define	__TUNABLE_QUAD(path, var, line)			\
-	static struct tunable_quad __tunable_quad_ ## line = {	\
-		path,						\
-		var,						\
-	};							\
-	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
-	    tunable_quad_init, &__tunable_quad_ ## line)
-
-#define	TUNABLE_QUAD_FETCH(path, var)	getenv_quad((path), (var))
-
 extern void tunable_str_init(void *);
 struct tunable_str {
 	const char *path;
