@@ -47,6 +47,7 @@ struct sn_softc {
 	int		irq_rid;
 	struct resource	*port_res;
 	int		port_rid;
+	int		pccard_enaddr;	/* MAC address in pccard CIS tupple */
 };
 
 int	sn_probe(device_t, int);
