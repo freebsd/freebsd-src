@@ -34,7 +34,7 @@
 .Sh DESCRIPTION
 The file
 .Nm
-contains a description of how daily, weekly and montly system maintenance
+contains a description of how daily, weekly and monthly system maintenance
 jobs should run.
 It resides in the
 .Pa /etc/defaults
@@ -62,7 +62,7 @@ and is only used when an argument to
 is not an absolute directory name.
 .It Va dir Ns No _output
 .Pq Vt path No or Vt list
-What to do with the output of the scripts envoked from
+What to do with the output of the scripts executed from
 the directory
 .Ar dir .
 If this variable is set to an absolute path name, output is logged to
@@ -89,7 +89,7 @@ will rotate these files (if they exists) at the appropriate times.
 .Pq Vt bool
 These variables control whether
 .Xr periodic 8
-will mask the output of the envoked scripts based on their return code
+will mask the output of the executed scripts based on their return code
 (where
 .Ar dir
 is the base directory name in which each script resides).
@@ -530,7 +530,7 @@ for yesterday's mail rejects.
 Set to
 .Dq YES
 if you want to summarise denied zone transfers (AXFR and IXFR)
-for the previious day.
+for the previous day.
 .It Va daily_status_named_usedns
 .Pq Vt bool
 Set to
