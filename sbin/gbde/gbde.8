@@ -1,0 +1,157 @@
+.\" 
+.\" Copyright (c) 2002 Poul-Henning Kamp
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Poul-Henning Kamp
+.\" and NAI Labs, the Security Research Division of Network Associates, Inc.
+.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" 
+.Dd October 19, 2002
+.Os
+.Dt gbde 9
+.Sh NAME
+.Nm gbde
+.Nd Operation and management utility for Geom Based Disk Encryption.
+.Sh SYNOPSIS
+.Nm
+attach
+.Ar destination
+.Op Fl l Ar lockfile
+.Op Fl p Ar pass-phrase
+.Nm
+dettach
+.Ar destination
+.Nm
+init
+.Ar destination
+.Op Fl i
+.Op Fl f Ar filename
+.Op Fl L Ar lockfile
+.Op Fl P Ar pass-phrase
+.Nm
+setkey
+.Ar destination
+.Op Fl n Ar key
+.Op Fl l Ar lockfile
+.Op Fl p Ar pass-phrase
+.Op Fl L Ar new-lockfile
+.Op Fl P Ar new-pass-phrase
+.Nm
+destroy
+.Ar destination
+.Op Fl n Ar key
+.Op Fl l Ar lockfile
+.Op Fl L Ar lockfile
+.Sh DESCRIPTION
+The
+.Nm
+program is the only official operation and management interface for the
+.Xr gbde 4
+GEOM based disk encryption kernel facility.
+The interaction between the
+.Nm
+program and the kernel part is not a published interface.
+.Pp
+The operational aspect consists of two subcommands, one to open and attach 
+a device and one to close and dettach
+a device to the in-kernel cryptographic gbde module.
+.Pp
+The management part allows initialization of the master key and lock sectors
+on a device, initialization and replacement of pass-phrases and
+key invalidation and blackening functions.
+.Pp
+The
+.Fl l Ar lockfile
+argument is used to supply the lock selector data.
+If no
+.Fl l
+argument is specified, the first sector is used for this purpose.
+.Pp
+.Fl L Ar new-lockfile
+specifies the lock selector file for the key modified with the
+.Ar setkey subcommand.
+.Pp
+The
+.Fl n Ar key
+argument can be used to specify which of the four keys the operation applies to.
+A value of 1 to 4 selects the specified key, a value of 0 (the default) means "this key" (ie, the key used to gain access to the device) and a value of -1 means "all keys".
+.Pp
+The
+.Fl f Ar filename
+specifies an optional parameter file for use under initialization.
+.Pp
+Alternatively the
+.Fl i
+optional toggles an interactive mode where a template file with descriptions
+of the parameters can be interactively edited.
+.Pp
+.Fl p Ar pass-phrase
+specifies the pass-phrase used to opening the device.
+If not specified the controlling terminal will be used to prompt the user
+for the pass-phrase.
+.Pp
+.Fl P Ar new-pass-phrase
+can be used to specify the new pass-phrase to the
+.Ar setkey
+subcommand.
+If not specified, the user is prompted for the new pass-phrase on the
+controlling terminal.
+.Sh EXAMPLES
+To initialize a device, using default parameters:
+.Dl # gbde init /dev/ad0s1f -l /etc/ad0s1f.lock
+.Pp
+To attach an encrypted device:
+.Dl # gbde attach ad0s1f -l /etc/ad0s1f.lock
+.Pp
+To dettach an encrypted device:
+.Dl # gbde dettach ad0s1f
+.Pp
+To initialize the second key using a dettached lockfile and a trivial
+pass-phrase:
+.Dl # gbde setkey ad0s1f -n 2 -P foo -L key2.lockfile
+.Pp
+To destroy all copies of the masterkey:
+.Dl # gbde destroy ad0s1f -n -1
+.Sh SEE ALSO
+.Xr gbde 4 ,
+.Xr geom 4 .
+.Rs
+.%A Poul-Henning Kamp
+.%T "Making sure data is lost: Spook-strength encryption of on-disk data"
+.%R "Refereed paper, NORDU2003 conference"
+.Re
+.Sh HISTORY
+This software was developed for the FreeBSD Project by Poul-Henning Kamp
+and NAI Labs, the Security Research Division of Network Associates, Inc.
+under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+DARPA CHATS research program.
+.Sh AUTHORS
+.An "Poul-Henning Kamp" Aq phk@FreeBSD.org
