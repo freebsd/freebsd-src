@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)expand.c	8.1 (Berkeley) 6/9/93";
 #else
 static const char rcsid[] = 
-	"$Id$";
+	"$Id: expand.c,v 1.1.1.1.8.1 1997/07/02 06:21:42 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -69,7 +69,7 @@ main(argc, argv)
 	register int n;
 
 	/* handle obsolete syntax */
-	while (argc > 1 && argv[1][0] && isdigit(argv[1][1])) {
+	while (argc > 1 && argv[1][0] == '-' && isdigit(argv[1][1])) {
 		getstops(&argv[1][1]);
 		argc--; argv++;
 	}
