@@ -561,7 +561,7 @@ ufs_filestat(vp, fsp)
 	 * contain dev_t structures. We need to convert to udev to make
 	 * comparisons
 	 */
-	fsp->fsid = dev2udev(inode.i_dev) & 0xffff;
+	fsp->fsid = dev2udev(inode.i_dev);
 	fsp->fileid = (long)inode.i_number;
 	fsp->mode = (mode_t)inode.i_mode;
 	fsp->size = (u_long)inode.i_size;
@@ -859,7 +859,7 @@ getfname(filename)
 	devs = cur;
 
 	cur->ino = statbuf.st_ino;
-	cur->fsid = statbuf.st_dev & 0xffff;
+	cur->fsid = statbuf.st_dev;
 	cur->name = filename;
 	return(1);
 }
