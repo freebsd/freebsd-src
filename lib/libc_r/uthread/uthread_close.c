@@ -29,7 +29,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
  */
+#include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -45,12 +47,21 @@ close(int fd)
 	int		ret;
 	int		status;
 	struct stat	sb;
+	struct fd_table_entry	*entry;
 
-	/* Lock the file descriptor while the file is closed: */
-	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
-		/* Get file descriptor status. */
-		_thread_sys_fstat(fd, &sb);
-
+	if ((fd == _thread_kern_pipe[0]) || (fd == _thread_kern_pipe[1])) {
+		/*
+		 * Don't allow silly programs to close the kernel pipe.
+		 */
+		errno = EBADF;
+		ret = -1;
+	}
+	/*
+	 * Lock the file descriptor while the file is closed and get
+	 * the file descriptor status:
+	 */
+	else if (((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) &&
+	    ((ret = _thread_sys_fstat(fd, &sb)) == 0)) {
 		/*
 		 * Check if the file should be left as blocking.
 		 *
@@ -78,11 +89,14 @@ close(int fd)
 			_thread_sys_fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 		}
 
+		/* XXX: Assumes well behaved threads. */
+		/* XXX: Defer real close to avoid race condition */
+		entry = _thread_fd_table[fd];
+		_thread_fd_table[fd] = NULL;
+		free(entry);
+
 		/* Close the file descriptor: */
 		ret = _thread_sys_close(fd);
-
-		free(_thread_fd_table[fd]);
-		_thread_fd_table[fd] = NULL;
 	}
 	return (ret);
 }

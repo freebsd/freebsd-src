@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
  */
 #include <signal.h>
 #include <errno.h>
@@ -76,6 +77,9 @@ sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 			/* Initialise the global signal action structure: */
 			gact.sa_mask = act->sa_mask;
 			gact.sa_flags = 0;
+
+			/* Ensure the scheduling signal is masked: */
+			sigaddset(&gact.sa_mask, _SCHED_SIGNAL);
 
 			/*
 			 * Check if the signal handler is being set to

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uthread_gc.c,v 1.2 1998/09/30 19:17:51 dt Exp $
+ *	$Id: uthread_gc.c,v 1.3 1999/03/23 05:07:55 jb Exp $
  *
  * Garbage collector thread. Frees memory allocated for dead threads.
  *
@@ -74,20 +74,26 @@ _thread_gc(pthread_addr_t arg)
 			/* Dump thread info to file. */
 			_thread_dump_info();
 
-		/* Lock the thread list: */
-		_lock_thread_list();
+		/*
+		 * Defer signals to protect the scheduling queues from
+		 * access by the signal handler:
+		 */
+		_thread_kern_sig_defer();
 
 		/* Check if this is the last running thread: */
-		if (_thread_link_list == _thread_run &&
-		    _thread_link_list->nxt == NULL)
+		if (TAILQ_FIRST(&_thread_list) == _thread_run &&
+		    TAILQ_NEXT(_thread_run, tle) == NULL)
 			/*
 			 * This is the last thread, so it can exit
 			 * now.
 			 */
 			f_done = 1;
 
-		/* Unlock the thread list: */
-		_unlock_thread_list();
+		/*
+		 * Undefer and handle pending signals, yielding if
+		 * necessary:
+		 */
+		_thread_kern_sig_undefer();
 
 		/*
 		 * Lock the garbage collector mutex which ensures that
@@ -100,48 +106,24 @@ _thread_gc(pthread_addr_t arg)
 		p_stack = NULL;
 		pthread_cln = NULL;
 
-		/* Point to the first dead thread (if there are any): */
-		pthread = _thread_dead;
-
-		/* There is no previous dead thread: */
-		pthread_prv = NULL;
-
 		/*
 		 * Enter a loop to search for the first dead thread that
 		 * has memory to free.
 		 */
-		while (p_stack == NULL && pthread_cln == NULL &&
-		    pthread != NULL) {
-			/* Save a pointer to the next thread: */
-			pthread_nxt = pthread->nxt_dead;
-
+		for (pthread = TAILQ_FIRST(&_dead_list);
+		    p_stack == NULL && pthread_cln == NULL && pthread != NULL;
+		    pthread = TAILQ_NEXT(pthread, dle)) {
 			/* Check if the initial thread: */
-			if (pthread == _thread_initial)
+			if (pthread == _thread_initial) {
 				/* Don't destroy the initial thread. */
-				pthread_prv = pthread;
-
+			}
 			/*
 			 * Check if this thread has detached:
 			 */
 			else if ((pthread->attr.flags &
 			    PTHREAD_DETACHED) != 0) {
-				/*
-				 * Check if there is no previous dead
-				 * thread:
-				 */
-				if (pthread_prv == NULL)
-					/*
-					 * The dead thread is at the head
-					 * of the list: 
-					 */
-					_thread_dead = pthread_nxt;
-				else
-					/*
-					 * The dead thread is not at the
-					 * head of the list: 
-					 */
-					pthread_prv->nxt_dead =
-					    pthread->nxt_dead;
+				/* Remove this thread from the dead list: */
+				TAILQ_REMOVE(&_dead_list, pthread, dle);
 
 				/*
 				 * Check if the stack was not specified by
@@ -162,14 +144,12 @@ _thread_gc(pthread_addr_t arg)
 				 * be freed outside the locks:
 				 */
 				pthread_cln = pthread;
+
 			} else {
 				/*
 				 * This thread has not detached, so do
-				 * not destroy it: 
-				 */
-				pthread_prv = pthread;
-
-				/*
+				 * not destroy it.
+				 *
 				 * Check if the stack was not specified by
 				 * the caller to pthread_create and has not
 				 * been destroyed yet: 
@@ -189,9 +169,6 @@ _thread_gc(pthread_addr_t arg)
 					pthread->stack = NULL;
 				}
 			}
-
-			/* Point to the next thread: */
-			pthread = pthread_nxt;
 		}
 
 		/*
@@ -229,52 +206,12 @@ _thread_gc(pthread_addr_t arg)
 		 */
 		if (p_stack != NULL)
 			free(p_stack);
-		if (pthread_cln != NULL) {
-			/* Lock the thread list: */
-			_lock_thread_list();
-
-			/*
-			 * Check if the thread is at the head of the
-			 * linked list.
-			 */
-			if (_thread_link_list == pthread_cln)
-				/* There is no previous thread: */
-				_thread_link_list = pthread_cln->nxt;
-			else {
-				/* Point to the first thread in the list: */
-				pthread = _thread_link_list;
-
-				/*
-				 * Enter a loop to find the thread in the
-				 * linked list before the thread that is
-				 * about to be freed.
-				 */
-				while (pthread != NULL &&
-				    pthread->nxt != pthread_cln)
-					/* Point to the next thread: */
-					pthread = pthread->nxt;
-
-				/* Check that a previous thread was found: */
-				if (pthread != NULL) {
-					/*
-					 * Point the previous thread to
-					 * the one after the thread being
-					 * freed: 
-					 */
-					pthread->nxt = pthread_cln->nxt;
-				}
-			}
-
-			/* Unlock the thread list: */
-			_unlock_thread_list();
-
+		if (pthread_cln != NULL)
 			/*
 			 * Free the memory allocated for the thread
 			 * structure.
 			 */
 			free(pthread_cln);
-		}
-		
 	}
 	return (NULL);
 }

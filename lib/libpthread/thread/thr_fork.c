@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
  */
 #include <errno.h>
 #include <string.h>
@@ -44,10 +45,13 @@ fork(void)
 	int             i, flags;
 	pid_t           ret;
 	pthread_t	pthread;
-	pthread_t	pthread_next;
+	pthread_t	pthread_save;
 
-	/* Lock the thread list: */
-	_lock_thread_list();
+	/*
+	 * Defer signals to protect the scheduling queues from access
+	 * by the signal handler:
+	 */
+	_thread_kern_sig_defer();
 
 	/* Fork a new process: */
 	if ((ret = _thread_sys_fork()) != 0) {
@@ -88,45 +92,79 @@ fork(void)
 		else if (_thread_sys_fcntl(_thread_kern_pipe[1], F_SETFL, flags | O_NONBLOCK) == -1) {
 			/* Abort this application: */
 			abort();
-		/* Initialize the ready queue: */
-		} else if (_pq_init(&_readyq, PTHREAD_MIN_PRIORITY,
-		     PTHREAD_MAX_PRIORITY) != 0) {
+		}
+		/* Reinitialize the GC mutex: */
+		else if (_mutex_reinit(&_gc_mutex) != 0) {
 			/* Abort this application: */
-			PANIC("Cannot allocate priority ready queue.");
+			PANIC("Cannot initialize GC mutex for forked process");
+		}
+		/* Reinitialize the GC condition variable: */
+		else if (_cond_reinit(&_gc_cond) != 0) {
+			/* Abort this application: */
+			PANIC("Cannot initialize GC condvar for forked process");
+		}
+		/* Initialize the ready queue: */
+		else if (_pq_init(&_readyq) != 0) {
+			/* Abort this application: */
+			PANIC("Cannot initialize priority ready queue.");
 		} else {
-			/* Point to the first thread in the list: */
-			pthread = _thread_link_list;
-
 			/*
 			 * Enter a loop to remove all threads other than
 			 * the running thread from the thread list:
 			 */
+			pthread = TAILQ_FIRST(&_thread_list);
 			while (pthread != NULL) {
-				pthread_next = pthread->nxt;
-				if (pthread == _thread_run) {
-					_thread_link_list = pthread;
-					pthread->nxt = NULL;
-				} else {
-					if (pthread->attr.stackaddr_attr ==
-					    NULL && pthread->stack != NULL)
+				/* Save the thread to be freed: */
+				pthread_save = pthread;
+
+				/*
+				 * Advance to the next thread before
+				 * destroying the current thread:
+				 */
+				pthread = TAILQ_NEXT(pthread, dle);
+
+				/* Make sure this isn't the running thread: */
+				if (pthread_save != _thread_run) {
+					/* Remove this thread from the list: */
+					TAILQ_REMOVE(&_thread_list,
+					    pthread_save, tle);
+
+					if (pthread_save->attr.stackaddr_attr ==
+					    NULL && pthread_save->stack != NULL)
 						/*
 						 * Free the stack of the
 						 * dead thread:
 						 */
-						free(pthread->stack);
+						free(pthread_save->stack);
 
-					if (pthread->specific_data != NULL)
-						free(pthread->specific_data);
+					if (pthread_save->specific_data != NULL)
+						free(pthread_save->specific_data);
 
-					free(pthread);
+					if (pthread_save->poll_data.fds != NULL)
+						free(pthread_save->poll_data.fds);
+
+					free(pthread_save);
 				}
-
-				/* Point to the next thread: */
-				pthread = pthread_next;
 			}
 
-			/* Re-init the waiting queues. */
+			/* Re-init the dead thread list: */
+			TAILQ_INIT(&_dead_list);
+
+			/* Re-init the waiting and work queues. */
 			TAILQ_INIT(&_waitingq);
+			TAILQ_INIT(&_workq);
+
+			/* Re-init the threads mutex queue: */
+			TAILQ_INIT(&_thread_run->mutexq);
+
+			/* No spinlocks yet: */
+			_spinblock_count = 0;
+
+			/* Don't queue signals yet: */
+			_queue_signals = 0;
+
+			/* Initialize signal handling: */
+			_thread_sig_init();
 
 			/* Initialize the scheduling switch hook routine: */
 			_sched_switch_hook = NULL;
@@ -147,15 +185,17 @@ fork(void)
 					_thread_fd_table[i]->w_lockcount = 0;;
 
 					/* Initialise the read/write queues: */
-					_thread_queue_init(&_thread_fd_table[i]->r_queue);
-					_thread_queue_init(&_thread_fd_table[i]->w_queue);
+					TAILQ_INIT(&_thread_fd_table[i]->r_queue);
+					TAILQ_INIT(&_thread_fd_table[i]->w_queue);
 				}
 			}
 		}
 	}
 
-	/* Unock the thread list: */
-	_unlock_thread_list();
+	/*
+	 * Undefer and handle pending signals, yielding if necessary:
+	 */
+	_thread_kern_sig_undefer();
 
 	/* Return the process ID: */
 	return (ret);
