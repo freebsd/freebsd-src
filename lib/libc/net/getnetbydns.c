@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <netdb.h>
@@ -101,6 +102,62 @@ typedef union {
 	char	ac;
 } align;
 
+/*
+ * Reverse the order of first four dotted entries of in.
+ * Out must contain space for at least strlen(in) characters.
+ * The result does not include any leading 0s of in.
+ */
+static int
+ipreverse(char *in, char *out)
+{
+	char *pos[4];
+	int len[4];
+	char *p, *start;
+	int i = 0;
+	int leading = 1;
+
+	/* Fill-in element positions and lengths: pos[], len[]. */
+	start = p = in;
+	for (;;) {
+		if (*p == '.' || *p == '\0') {
+			/* Leading 0? */
+			if (leading && p - start == 1 && *start == '0')
+				len[i] = 0;
+			else {
+				len[i] = p - start;
+				leading = 0;
+			}
+			pos[i] = start;
+			start = p + 1;
+			i++;
+		}
+		if (i == 4)
+			break;
+		if (*p == 0) {
+			for (; i < 4; i++) {
+				pos[i] = p;
+				len[i] = 0;
+			}
+			break;
+		}
+		p++;
+	}
+
+	/* Copy the entries in reverse order */
+	p = out;
+	leading = 1;
+	for (i = 3; i >= 0; i--) {
+		memcpy(p, pos[i], len[i]);
+		if (len[i])
+			leading = 0;
+		p += len[i];
+		/* Need a . separator? */
+		if (!leading && i > 0 && len[i - 1])
+			*p++ = '.';
+	}
+	*p = '\0';
+}
+
 static struct netent *
 getnetanswer(answer, anslen, net_i)
 	querybuf *answer;
@@ -113,11 +170,11 @@ getnetanswer(answer, anslen, net_i)
 	int n;
 	u_char *eom;
 	int type, class, ancount, qdcount, haveanswer, i, nchar;
-	char aux1[MAXHOSTNAMELEN], aux2[MAXHOSTNAMELEN], ans[MAXHOSTNAMELEN];
-	char *in, *st, *pauxt, *bp, *ep, **ap;
-	char *paux1 = &aux1[0], *paux2 = &aux2[0], flag = 0;
+	char aux[MAXHOSTNAMELEN];
+	char *in, *bp, *ep, **ap;
 static	struct netent net_entry;
 static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
+static	char ans[MAXHOSTNAMELEN];
 
 	/*
 	 * find first satisfactory answer
@@ -190,25 +247,13 @@ static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
 		case BYNAME:
 			in = *net_entry.n_aliases;
 			net_entry.n_name = &ans[0];
-			aux2[0] = '\0';
-			for (i = 0; i < 4; i++) {
-				for (st = in, nchar = 0;
-				     *st != '.';
-				     st++, nchar++)
-					;
-				if (nchar != 1 || *in != '0' || flag) {
-					flag = 1;
-					(void)strncpy(paux1,
-						      (i==0) ? in : in-1,
-						      (i==0) ?nchar : nchar+1);
-					paux1[(i==0) ? nchar : nchar+1] = '\0';
-					pauxt = paux2;
-					paux2 = strcat(paux1, paux2);
-					paux1 = pauxt;
-				}
-				in = ++st;
-			}		  
-			net_entry.n_net = inet_network(paux2);
+			if (strlen(in) + 1 > sizeof(aux)) {
+				h_errno = NETDB_INTERNAL;
+				errno = ENOBUFS;
+				return (NULL);
+			}
+			ipreverse(in, aux);
+			net_entry.n_net = inet_network(aux);
 			break;
 		}
 		net_entry.n_aliases++;
