@@ -887,7 +887,7 @@ fetchXGetFTP(struct url *url, struct url_stat *us, char *flags)
     int cd;
 
     /* get the proxy URL, and check if we should use HTTP instead */
-    if (flags && !strchr(flags, 'd') && (purl = _ftp_get_proxy()) != NULL) {
+    if (!(flags && strchr(flags, 'd')) && (purl = _ftp_get_proxy()) != NULL) {
 	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
 	    return _http_request(url, "GET", us, purl, flags);
     } else {
@@ -934,7 +934,7 @@ fetchPutFTP(struct url *url, char *flags)
     int cd;
 
     /* get the proxy URL, and check if we should use HTTP instead */
-    if (flags && !strchr(flags, 'd') && (purl = _ftp_get_proxy()) != NULL) {
+    if (!(flags && strchr(flags, 'd')) && (purl = _ftp_get_proxy()) != NULL) {
 	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
 	    /* XXX HTTP PUT is not implemented, so try without the proxy */
 	    purl = NULL;
@@ -968,7 +968,7 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
     int cd;
 
     /* get the proxy URL, and check if we should use HTTP instead */
-    if (flags && !strchr(flags, 'd') && (purl = _ftp_get_proxy()) != NULL) {
+    if (!(flags && strchr(flags, 'd')) && (purl = _ftp_get_proxy()) != NULL) {
 	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0) {
 	    FILE *f;
 
