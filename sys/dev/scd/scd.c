@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.43 1999/05/06 18:54:19 peter Exp $ */
+/* $Id: scd.c,v 1.44 1999/05/07 07:03:29 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -154,7 +154,7 @@ static int waitfor_status_bits(int unit, int bits_set, int bits_clear);
 static int send_cmd(u_int unit, u_char cmd, u_int nargs, ...);
 static void init_drive(unsigned unit);
 static int spin_up(unsigned unit);
-static int read_toc(dev_t dev);
+static int read_toc(unsigned unit);
 static int get_result(u_int unit, int result_len, u_char *result);
 static void print_error(int unit, int errcode);
 
@@ -270,7 +270,7 @@ scdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (!(cd->flags & SCDTOC)) {
 		int loop_count = 3;
 
-		while (loop_count-- > 0 && (rc = read_toc(dev)) != 0) {
+		while (loop_count-- > 0 && (rc = read_toc(unit)) != 0) {
 			if (rc == ERR_NOT_SPINNING) {
 				rc = spin_up(unit);
 				if (rc) {
@@ -1191,9 +1191,8 @@ get_tl(struct sony_toc *toc, int size)
 }
 
 static int
-read_toc(dev_t dev)
+read_toc(unsigned unit)
 {
-	unsigned unit;
 	struct scd_data *cd;
 	unsigned part = 0;	/* For now ... */
 	struct sony_toc toc;
@@ -1201,7 +1200,6 @@ read_toc(dev_t dev)
 	int rc, i, j;
 	u_long first, last;
 
-	unit = scd_unit(dev);
 	cd = scd_data + unit;
 
 	rc = send_cmd(unit, CMD_GET_TOC, 1, part+1);
