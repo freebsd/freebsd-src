@@ -529,7 +529,10 @@ aac_startio(struct aac_softc *sc)
 	    break;
 
 	/* Set a timeout for this command to be completed by the controller */
-	cm->timeout_handle = timeout((timeout_t*)aac_timeout, cm, AAC_CMD_TIMEOUT * hz);
+	/* Disable this for now until the timeout queue is fixed or the driver
+	 * can watch timeouts itself
+	 * cm->timeout_handle = timeout((timeout_t*)aac_timeout, cm, AAC_CMD_TIMEOUT * hz);
+	 */
 
 	/* try to give the command to the controller */
 	if (aac_start(cm) == EBUSY) {
@@ -790,7 +793,10 @@ aac_bio_complete(struct aac_command *cm)
     AAC_FSAStatus			status;
 
     /* kill the timeout timer */
-    untimeout((timeout_t *)aac_timeout, cm, cm->timeout_handle);
+    /* Disable this for now until the timeout queue is fixed or the driver
+     * can watch timeouts itself
+     * untimeout((timeout_t *)aac_timeout, cm, cm->timeout_handle);
+     */
 
     /* fetch relevant status and then release the command */
     bp = (struct bio *)cm->cm_private;
