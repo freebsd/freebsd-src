@@ -41,6 +41,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/vnode.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -137,10 +139,15 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	struct nfsd_args nfsdarg;
 	int error;
 
-	mtx_lock(&Giant);
+#ifdef MAC
+	error = mac_check_system_nfsd(td->td_ucred);
+	if (error)
+		return (error);
+#endif
 	error = suser(td);
 	if (error)
-		goto done2;
+		return (error);
+	mtx_lock(&Giant);
 	while (nfssvc_sockhead_flag & SLP_INIT) {
 		 nfssvc_sockhead_flag |= SLP_WANTINIT;
 		(void) tsleep((caddr_t)&nfssvc_sockhead, PSOCK, "nfsd init", 0);
