@@ -2,7 +2,7 @@
  * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.27 1995/12/08 23:22:19 phk Exp $
+ *      $Id: ch.c,v 1.28 1995/12/14 09:54:21 phk Exp $
  */
 
 #include	<sys/types.h>
@@ -26,16 +26,6 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_changer.h>
 #include <scsi/scsiconf.h>
-
-
-
-static errval ch_getelem __P((u_int32 unit, short *stat, int type,
-		u_int32 from, void *data, u_int32 flags));
-static errval ch_move __P((u_int32 unit, short *stat, u_int32 chm, 
-		u_int32 from, u_int32 to, u_int32 flags));
-static errval ch_mode_sense __P((u_int32 unit, u_int32 flags));
-static errval ch_position __P((u_int32 unit, short *stat, u_int32 chm,
-		u_int32 to, u_int32 flags));
 
 #define	CHRETRIES	2
 
@@ -65,15 +55,23 @@ struct scsi_data {
 #endif
 };
 
+static errval ch_getelem __P((u_int32 unit, short *stat, int type, u_int32 from,
+			      void *data, u_int32 flags));
+static errval ch_move __P((u_int32 unit, short *stat, u_int32 chm, u_int32 from,
+			   u_int32 to, u_int32 flags));
+static errval ch_mode_sense __P((u_int32 unit, u_int32 flags));
+static errval ch_position __P((u_int32 unit, short *stat, u_int32 chm,
+			       u_int32 to, u_int32 flags));
+
 static int chunit(dev_t dev) { return CHUNIT(dev); }
 static dev_t chsetunit(dev_t dev, int unit) { return CHSETUNIT(dev, unit); }
 
 static errval ch_open(dev_t dev, int flags, int fmt, struct proc *p,
-		struct scsi_link *sc_link);
+		      struct scsi_link *sc_link);
 static errval ch_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
-		struct proc *p, struct scsi_link *sc_link);
+		       struct proc *p, struct scsi_link *sc_link);
 static errval ch_close(dev_t dev, int flag, int fmt, struct proc *p,
-        struct scsi_link *sc_link);
+		       struct scsi_link *sc_link);
 
 static	d_open_t	chopen;
 static	d_close_t	chclose;
@@ -144,7 +142,7 @@ ch_registerdev(int unit)
  * The routine called by the low level scsi routine when it discovers
  * a device suitable for this driver.
  */
-errval
+static errval
 chattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
@@ -180,7 +178,7 @@ chattach(struct scsi_link *sc_link)
  */
 static errval
 ch_open(dev_t dev, int flags, int fmt, struct proc *p,
-struct scsi_link *sc_link)
+	struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
 	u_int32 unit, mode;
@@ -241,8 +239,8 @@ ch_close(dev_t dev, int flag, int fmt, struct proc *p,
  * Knows about the internals of this device
  */
 static errval
-ch_ioctl(dev_t dev, int cmd, caddr_t arg, int mode,
-struct proc *p, struct scsi_link *sc_link)
+ch_ioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc *p,
+    	 struct scsi_link *sc_link)
 {
 	/* struct ch_cmd_buf *args; */
 	unsigned char unit;
