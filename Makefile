@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.182 1998/05/27 07:59:31 sos Exp $
+#	$Id: Makefile,v 1.183 1998/05/27 15:40:35 peter Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -208,14 +208,15 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 #	want that - all compile-time library paths should be resolved by gcc.
 #	It fails for set[ug]id executables (are any used?).
 COMPILER_ENV=	BISON_SIMPLE=${WORLDTMP}/usr/share/misc/bison.simple \
-		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
 		COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		GCC_EXEC_PREFIX=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib/ \
 		LD_LIBRARY_PATH=${WORLDTMP}${SHLIBDIR} \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib
 
-BMAKEENV=	PATH=${TMPPATH} ${COMPILER_ENV} NOEXTRADEPEND=t
+BMAKEENV=	PATH=${TMPPATH} ${COMPILER_ENV} NOEXTRADEPEND=t \
+		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec:/usr/libexec
 XMAKEENV=	PATH=${STRICTTMPPATH} ${COMPILER_ENV} \
+		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
 		CFLAGS="-nostdinc ${CFLAGS}"	# XXX -nostdlib
 
 # used to compile and install 'make' in temporary build tree
