@@ -1264,6 +1264,8 @@ DMenu MenuStartup = {
 	dmenuVarCheck, dmenuISetVariable, NULL, "named_flags" },
       { "nis client",	"This host wishes to be an NIS client.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "nis_client_enable=YES" },
+      { "nis domainname",	"Set NIS domainname (if enabled)",
+	dmenuVarCheck, dmenuISetVariable, NULL, "nisdomainname" },
       { "nis server",	"This host wishes to be an NIS server.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "nis_server_enable=YES" },
       { " ",		" -- ", NULL,	NULL, NULL, NULL, ' ', ' ', ' ' },
