@@ -836,6 +836,7 @@ done:
     }
 
     safe_free(buf);
+    return (status);
 }
 
 static Boolean
