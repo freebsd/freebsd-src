@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id$
+#	$Id: Makefile.i386,v 1.5 1993/09/26 19:44:33 rgrimes Exp $
 #
 # Makefile for FreeBSD
 #
@@ -94,7 +94,7 @@ autoconf.o: Makefile
 af.o uipc_proto.o locore.o: Makefile
 
 # depend on maxusers
-assym.s machdep.o: Makefile
+assym.s: Makefile
 
 # depends on KDB (cons.o also depends on GENERIC)
 trap.o cons.o: Makefile
