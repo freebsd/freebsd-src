@@ -25,7 +25,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: wfd.4,v 1.1 1998/01/17 05:15:01 pst Exp $
+.\"	$Id: wfd.4,v 1.2 1998/03/12 07:30:39 charnier Exp $
 .\"
 .Dd January 16, 1998
 .Dt WFD 4
@@ -106,6 +106,36 @@ slice is opened, its disklabel will be initialized with parameters
 returned by the drive and a single
 .Sq Li c
 partition encompassing the entire slice.
+.Sh EXAMPLES
+Making LS-120/ZIP disks can be a bit more complicated than usual depending
+upon whether or not you chose to use the slice code or not.
+LS-120 floppies are typically considered floppy devices and do not carry
+a slice table.  On the other hand, Zip disks, which use the same driver,
+are considered hard disks by the vendor, so for compatibility, you should
+use a slice table.
+.Pp
+The driver will handle either type of disk with or without a slice
+table,  but for compatibility, you should generally create disks
+that follow the vendor's behavior.
+.Pp
+To create a UFS LS-120 disk (no slice table),
+First, make sure there is no slice table on the disk):
+.Dl # dd if=/dev/zero of=/dev/wfd0 count=16
+
+Next, disklabel the disk:
+.Dl # disklabel -rw wfd0 fd120m
+
+Then newfs as usual:
+.Dl # newfs /dev/rfd0a
+.Fi
+
+To create a standard 1.44mb floppy in a LS-120 drive, do the same
+procedure, but use
+.Ar fd1440
+as the disk layout when using the
+.Nm disklabel
+command.
+
 .Sh KERNEL CONFIGURATION
 Only one
 .Nm
@@ -202,7 +232,7 @@ slice, partition
 .Xr disklabel 5 ,
 .Xr disklabel 8
 .Sh AUTHORS
-.An Junichi Satoh Aq junichi@jp.FreeBSD.org
+.An Junichi\ Satoh\  Aq junichi@jp.FreeBSD.org
 .Sh HISTORY
 The
 .Nm
