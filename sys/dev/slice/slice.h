@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice.h,v 1.3 1998/06/07 19:40:32 dfr Exp $
+ *	$Id: slice.h,v 1.4 1998/07/13 08:22:55 julian Exp $
  */
 
 typedef struct slice_handler *sh_p;
@@ -54,7 +54,7 @@ struct ide_geom {
  *        if it's a null string ("") then don't even try find a sub handler.
  * 		defined as NO_SUBPART
  * 	  if it's a NULL pointer (NULL) then probe all known types.
- * -typespecific: A pointer to SOMETHING that teh lower handler thinks
+ * -typespecific: A pointer to SOMETHING that the lower handler thinks
  *    may be of interest to the higher hamdlers. The "something" is dependent
  *    on the type of the lower handler so the upper handler must know of
  *    this in advance. The type of this should be specified in an
