@@ -117,6 +117,7 @@
 #include <openssl/objects.h>
 #include <openssl/evp.h>
 #include <openssl/md5.h>
+#include <openssl/fips.h>
 
 static SSL_METHOD *ssl3_get_client_method(int ver);
 static int ssl3_client_hello(SSL *s);
@@ -534,7 +535,8 @@ static int ssl3_client_hello(SSL *s)
 		p=s->s3->client_random;
 		Time=time(NULL);			/* Time */
 		l2n(Time,p);
-		RAND_pseudo_bytes(p,SSL3_RANDOM_SIZE-sizeof(Time));
+		if(RAND_pseudo_bytes(p,SSL3_RANDOM_SIZE-sizeof(Time)) <= 0)
+		    goto err;
 
 		/* Do the message type and length last */
 		d=p= &(buf[4]);
@@ -1165,7 +1167,16 @@ static int ssl3_get_key_exchange(SSL *s)
 				EVP_DigestUpdate(&md_ctx,&(s->s3->client_random[0]),SSL3_RANDOM_SIZE);
 				EVP_DigestUpdate(&md_ctx,&(s->s3->server_random[0]),SSL3_RANDOM_SIZE);
 				EVP_DigestUpdate(&md_ctx,param,param_len);
+#ifdef OPENSSL_FIPS
+				if(s->version == TLS1_VERSION && num == 2)
+					FIPS_allow_md5(1);
+#endif
+				
 				EVP_DigestFinal_ex(&md_ctx,q,(unsigned int *)&i);
+#ifdef OPENSSL_FIPS
+				if(s->version == TLS1_VERSION && num == 2)
+					FIPS_allow_md5(1);
+#endif
 				q+=i;
 				j+=i;
 				}
