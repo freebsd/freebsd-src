@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Robert N. M. Watson
+ * Copyright (c) 1999, 2000 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,12 +49,12 @@
 
 static MALLOC_DEFINE(M_ACL, "acl", "access control list");
 
-static int vacl_set_acl(struct proc *p, struct vnode *vp, acl_type_t type,
-    struct acl *aclp);
-static int vacl_get_acl(struct proc *p, struct vnode *vp, acl_type_t type,
-    struct acl *aclp);
-static int vacl_aclcheck(struct proc *p, struct vnode *vp, acl_type_t type,
-    struct acl *aclp);
+static int	vacl_set_acl(struct proc *p, struct vnode *vp, acl_type_t type,
+	    struct acl *aclp);
+static int	vacl_get_acl(struct proc *p, struct vnode *vp, acl_type_t type,
+	    struct acl *aclp);
+static int	vacl_aclcheck(struct proc *p, struct vnode *vp, acl_type_t type,
+	    struct acl *aclp);
 
 /*
  * These calls wrap the real vnode operations, and are called by the 
@@ -70,7 +70,7 @@ static int vacl_aclcheck(struct proc *p, struct vnode *vp, acl_type_t type,
  */
 static int
 vacl_set_acl(struct proc *p, struct vnode *vp, acl_type_t type,
-       struct acl *aclp)
+    struct acl *aclp)
 {
 	struct acl inkernacl;
 	int error;
@@ -143,7 +143,7 @@ vacl_aclcheck(struct proc *p, struct vnode *vp, acl_type_t type,
  * Given a file path, get an ACL for it
  */
 int
-acl_syscall_get_file(struct proc *p, struct acl_syscall_get_file_args *uap)
+__acl_get_file(struct proc *p, struct __acl_get_file_args *uap)
 {
 	struct nameidata nd;
 	int error;
@@ -162,7 +162,7 @@ acl_syscall_get_file(struct proc *p, struct acl_syscall_get_file_args *uap)
  * Given a file path, set an ACL for it
  */
 int
-acl_syscall_set_file(struct proc *p, struct acl_syscall_set_file_args *uap)
+__acl_set_file(struct proc *p, struct __acl_set_file_args *uap)
 {
 	struct nameidata nd;
 	int error;
@@ -180,7 +180,7 @@ acl_syscall_set_file(struct proc *p, struct acl_syscall_set_file_args *uap)
  * Given a file descriptor, get an ACL for it
  */
 int
-acl_syscall_get_fd(struct proc *p, struct acl_syscall_get_fd_args *uap)
+__acl_get_fd(struct proc *p, struct __acl_get_fd_args *uap)
 {
 	struct file *fp;
 	int error;
@@ -196,7 +196,7 @@ acl_syscall_get_fd(struct proc *p, struct acl_syscall_get_fd_args *uap)
  * Given a file descriptor, set an ACL for it
  */
 int
-acl_syscall_set_fd(struct proc *p, struct acl_syscall_set_fd_args *uap)
+__acl_set_fd(struct proc *p, struct __acl_set_fd_args *uap)
 {
 	struct file *fp;
 	int error;
@@ -212,8 +212,7 @@ acl_syscall_set_fd(struct proc *p, struct acl_syscall_set_fd_args *uap)
  * Given a file path, delete an ACL from it.
  */
 int
-acl_syscall_delete_file(struct proc *p,
-			struct acl_syscall_delete_file_args *uap)
+__acl_delete_file(struct proc *p, struct __acl_delete_file_args *uap)
 {
 	struct nameidata nd;
 	int error;
@@ -231,8 +230,7 @@ acl_syscall_delete_file(struct proc *p,
  * Given a file path, delete an ACL from it.
  */
 int
-acl_syscall_delete_fd(struct proc *p,
-    struct acl_syscall_delete_fd_args *uap)
+__acl_delete_fd(struct proc *p, struct __acl_delete_fd_args *uap)
 {
 	struct file *fp;
 	int error;
@@ -248,8 +246,7 @@ acl_syscall_delete_fd(struct proc *p,
  * Given a file path, check an ACL for it
  */
 int
-acl_syscall_aclcheck_file(struct proc *p,
-			  struct acl_syscall_aclcheck_file_args *uap)
+__acl_aclcheck_file(struct proc *p, struct __acl_aclcheck_file_args *uap)
 {
 	struct nameidata	nd;
 	int	error;
@@ -267,8 +264,7 @@ acl_syscall_aclcheck_file(struct proc *p,
  * Given a file descriptor, check an ACL for it
  */
 int
-acl_syscall_aclcheck_fd(struct proc *p,
-    struct acl_syscall_aclcheck_fd_args *uap)
+__acl_aclcheck_fd(struct proc *p, struct __acl_aclcheck_fd_args *uap)
 {
 	struct file *fp;
 	int error;

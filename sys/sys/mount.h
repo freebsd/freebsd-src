@@ -332,7 +332,7 @@ struct vfsops {
 	int	(*vfs_init)	__P((struct vfsconf *));
 	int	(*vfs_uninit)	__P((struct vfsconf *));
 	int	(*vfs_extattrctl) __P((struct mount *mp, int cmd,
-					char *attrname, caddr_t arg,
+					const char *attrname, caddr_t arg,
 					struct proc *p));
 };
 
@@ -444,7 +444,7 @@ int	vfs_stdcheckexp __P((struct mount *mp, struct sockaddr *nam,
 int	vfs_stdvptofh __P((struct vnode *vp, struct fid *fhp));
 int	vfs_stdinit __P((struct vfsconf *));
 int	vfs_stduninit __P((struct vfsconf *));
-int	vfs_stdextattrctl __P((struct mount *mp, int cmd, char *attrname,
+int	vfs_stdextattrctl __P((struct mount *mp, int cmd, const char *attrname,
 		caddr_t arg, struct proc *p));
 
 #else /* !_KERNEL */
