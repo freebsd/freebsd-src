@@ -148,6 +148,7 @@ SUBDIR+=aac \
 	ciss \
 	mly \
 	pst \
+	twa \
 	vesa
 
 .elif ${MACHINE} == "pc98"
