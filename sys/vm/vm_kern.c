@@ -524,11 +524,11 @@ kmem_init(start, end)
 	vm_map_t m;
 
 	m = vm_map_create(kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
+	m->system_map = 1;
 	vm_map_lock(m);
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
 	kernel_map = m;
-	kernel_map->system_map = 1;
-	(void) vm_map_insert(m, NULL, (vm_offset_t) 0,
+	(void) vm_map_insert(m, NULL, (vm_ooffset_t) 0,
 	    VM_MIN_KERNEL_ADDRESS, start, VM_PROT_ALL, VM_PROT_ALL, 0);
 	/* ... and ending with the completion of the above `insert' */
 	vm_map_unlock(m);
