@@ -252,6 +252,10 @@
       port in the &os; Ports Collection can be used for configuring
       these devices.</para>
 
+      <para>The &man.sis.4; driver now supports the SiS 900-style
+      on-board Ethernet controllers in the SiS 635 and 735 motherboard
+      chipsets.</para>
+
       <para>The &man.sis.4; driver now supports VLANs.</para>
 
       <para>&man.vlan.4; devices are now loadable, unloadable, and
