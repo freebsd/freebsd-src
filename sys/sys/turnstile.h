@@ -74,6 +74,7 @@ struct turnstile;
 #ifdef _KERNEL
 
 void	init_turnstiles(void);
+void	turnstile_adjust(struct thread *, u_char);
 struct turnstile *turnstile_alloc(void);
 void	turnstile_broadcast(struct turnstile *);
 void	turnstile_claim(struct lock_object *);
