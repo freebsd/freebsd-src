@@ -48,6 +48,7 @@
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <machine/limits.h>
 
 #define CDEV_MAJOR	4
@@ -238,15 +239,19 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 static int
 g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
-	struct g_geom *gp;
+	struct g_geom *gp, *gp2;
 	struct g_consumer *cp;
+	struct g_provider *pp2;
 	struct g_kerneldump kd;
 	int i, error;
 	u_int u;
 	struct g_ioctl *gio;
+	struct sbuf *usb, *sb;
 
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
+	pp2 = cp->provider;
+	gp2 = pp2->geom;
 
 	error = 0;
 	DROP_GIANT();
@@ -281,6 +286,17 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		error = g_io_getattr("GEOM::kerneldump", cp, &i, &kd);
 		if (!error)
 			dev->si_flags |= SI_DUMPDEV;
+		break;
+	case GEOMGETCONF:
+		/* we bogusly pass cp to avoid getting any consumers listed */
+		sb = g_conf_specific(gp2->class, gp2, pp2, cp);
+		usb = (struct sbuf *)data;
+		if (usb->s_size - 1 < sbuf_len(sb))
+			error = ENOMEM;
+		else 
+			error = copyout(sbuf_data(sb), usb->s_buf, sbuf_len(sb) + 1);
+		if (!error)
+			usb->s_len = sbuf_len(sb);
 		break;
 	default:
 		gio = g_malloc(sizeof *gio, M_WAITOK);
