@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.2 1997/08/28 14:36:55 jlemon Exp $
+ *	$Id: vm86.c,v 1.3 1997/09/01 01:12:53 bde Exp $
  */
 
 #include <sys/param.h>
@@ -39,8 +39,9 @@
 
 #include <sys/user.h>
 
-#include <machine/psl.h>
 #include <machine/md_var.h>
+#include <machine/pcb_ext.h>	/* pcb.h included via sys/user.h */
+#include <machine/psl.h>
 #include <machine/specialreg.h>
 
 extern int i386_extend_pcb	__P((struct proc *));
