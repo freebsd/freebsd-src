@@ -60,17 +60,16 @@ static const char rcsid[] =
 
 volatile sig_atomic_t sig_caught = 0;
 
+static void onsig __P((int sig));
+
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int x, y, j;
 	long cols, lines;
 	int xpos[5], ypos[5];
 	unsigned int delay = 0;
 	int ch;
-	static void onsig();
 
 	while ((ch = getopt(argc, argv, "d:h")) != -1)
 		switch (ch) {
@@ -141,7 +140,9 @@ main(argc, argv)
 }
 
 static void
-onsig()
+onsig(int sig)
 {
+
+	sig = 0;
 	sig_caught = 1;
 }
