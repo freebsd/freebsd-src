@@ -87,7 +87,6 @@ struct thread;
 struct proc;
 
 int	ipcperm __P((struct thread *, struct ipc_perm *, int));
-extern void (*semexit_hook)(struct proc *);
 extern void (*shmfork_hook)(struct proc *, struct proc *);
 extern void (*shmexit_hook)(struct proc *);
 
