@@ -1,3 +1,29 @@
+Mon Oct 14 19:19:17 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* pcl-cvs.el (cvs-parse-stderr): Ignore messages about patch hunks
+	failing; CVS will refetch the file.
+
+Thu Oct 10 10:20:20 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* Makefile.in: Allow pcl-cvs to find the site-lisp directory where
+	it is installed in modern Emacsen.  (Patch thanks to David Kågedal.)
+
+Wed Sep 25 05:38:09 1996  Jim Blandy  <jimb@floss.cyclic.com>
+
+	* pcl-cvs.el (cvs-find-program): New function.
+	(cvs-program, cvs-diff-program): Use it to find the executables.
+	(local-path, local-gnu-path): Variables deleted; nobody else was
+ 	using them, and they didn't do the job right anyway.
+
+Wed Sep 11 15:43:50 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* pcl-cvs.el (cvs-parse-stderr): Ignore messages about obtained locks.
+
+Fri Aug  9 09:44:53 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* pcl-cvs.el (cvs-parse-stderr): Remove extra paren from regexp
+	matching rcsmerge warnings.
+
 Mon Apr 15 01:34:27 1996  Karl Fogel  <kfogel@floss.red-bean.com>
 
         * Makefile: removed.  Why was this in the repository in the first

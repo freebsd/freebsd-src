@@ -18,8 +18,11 @@
 
 #include "cvs.h"
 
-static int find_dirs PROTO((char *dir, List * list, int checkadm));
+static int find_dirs PROTO((char *dir, List * list, int checkadm,
+			    List *entries));
 static int find_rcs PROTO((char *dir, List * list));
+static int add_subdir_proc PROTO((Node *, void *));
+static int register_subdir_proc PROTO((Node *, void *));
 
 static List *filelist;
 
@@ -32,7 +35,12 @@ add_entries_proc (node, closure)
      Node *node;
      void *closure;
 {
+    Entnode *entnode;
     Node *fnode;
+
+    entnode = (Entnode *) node->data;
+    if (entnode->type != ENT_FILE)
+	return (0);
 
     fnode = getnode ();
     fnode->type = FILES;
@@ -63,7 +71,6 @@ Find_Names (repository, which, aflag, optentries)
 {
     List *entries;
     List *files;
-    char dir[PATH_MAX];
 
     /* make a list for the files */
     files = filelist = getlist ();
@@ -95,8 +102,11 @@ Find_Names (repository, which, aflag, optentries)
 	/* search the attic too */
 	if (which & W_ATTIC)
 	{
+	    char *dir;
+	    dir = xmalloc (strlen (repository) + sizeof (CVSATTIC) + 10);
 	    (void) sprintf (dir, "%s/%s", repository, CVSATTIC);
 	    (void) find_rcs (dir, files);
+	    free (dir);
 	}
     }
 
@@ -106,12 +116,55 @@ Find_Names (repository, which, aflag, optentries)
 }
 
 /*
+ * Add an entry from the subdirs list to the directories list.  This
+ * is called via walklist.
+ */
+
+static int
+add_subdir_proc (p, closure)
+     Node *p;
+     void *closure;
+{
+    List *dirlist = (List *) closure;
+    Entnode *entnode;
+    Node *dnode;
+
+    entnode = (Entnode *) p->data;
+    if (entnode->type != ENT_SUBDIR)
+	return 0;
+
+    dnode = getnode ();
+    dnode->type = DIRS;
+    dnode->key = xstrdup (entnode->user);
+    if (addnode (dirlist, dnode) != 0)
+	freenode (dnode);
+    return 0;
+}
+
+/*
+ * Register a subdirectory.  This is called via walklist.
+ */
+
+/*ARGSUSED*/
+static int
+register_subdir_proc (p, closure)
+     Node *p;
+     void *closure;
+{
+    List *entries = (List *) closure;
+
+    Subdir_Register (entries, (char *) NULL, p->key);
+    return 0;
+}
+
+/*
  * create a list of directories to traverse from the current directory
  */
 List *
-Find_Directories (repository, which)
+Find_Directories (repository, which, entries)
     char *repository;
     int which;
+    List *entries;
 {
     List *dirlist;
 
@@ -121,28 +174,60 @@ Find_Directories (repository, which)
     /* find the local ones */
     if (which & W_LOCAL)
     {
-	/* look only for CVS controlled sub-directories */
-	if (find_dirs (".", dirlist, 1) != 0)
-	    error (1, errno, "cannot open current directory");
+	List *tmpentries;
+	struct stickydirtag *sdtp;
+
+	/* Look through the Entries file.  */
+
+	if (entries != NULL)
+	    tmpentries = entries;
+	else if (isfile (CVSADM_ENT))
+	    tmpentries = Entries_Open (0);
+	else
+	    tmpentries = NULL;
+
+	if (tmpentries != NULL)
+	    sdtp = (struct stickydirtag *) tmpentries->list->data;
+
+	/* If we do have an entries list, then if sdtp is NULL, or if
+           sdtp->subdirs is nonzero, all subdirectory information is
+           recorded in the entries list.  */
+	if (tmpentries != NULL && (sdtp == NULL || sdtp->subdirs))
+	    walklist (tmpentries, add_subdir_proc, (void *) dirlist);
+	else
+	{
+	    /* This is an old working directory, in which subdirectory
+               information is not recorded in the Entries file.  Find
+               the subdirectories the hard way, and, if possible, add
+               it to the Entries file for next time.  */
+	    if (find_dirs (".", dirlist, 1, tmpentries) != 0)
+		error (1, errno, "cannot open current directory");
+	    if (tmpentries != NULL)
+	    {
+		if (! list_isempty (dirlist))
+		    walklist (dirlist, register_subdir_proc,
+			      (void *) tmpentries);
+		else
+		    Subdirs_Known (tmpentries);
+	    }
+	}
+
+	if (entries == NULL && tmpentries != NULL)
+	    Entries_Close (tmpentries);
     }
 
     /* look for sub-dirs in the repository */
     if ((which & W_REPOS) && repository)
     {
 	/* search the repository */
-	if (find_dirs (repository, dirlist, 0) != 0)
+	if (find_dirs (repository, dirlist, 0, entries) != 0)
 	    error (1, errno, "cannot open directory %s", repository);
 
-#ifdef ATTIC_DIR_SUPPORT		/* XXX - FIXME */
-	/* search the attic too */
-	if (which & W_ATTIC)
-	{
-	    char dir[PATH_MAX];
-
-	    (void) sprintf (dir, "%s/%s", repository, CVSATTIC);
-	    (void) find_dirs (dir, dirlist, 0);
-	}
-#endif
+	/* We don't need to look in the attic because directories
+	   never go in the attic.  In the future, there hopefully will
+	   be a better mechanism for detecting whether a directory in
+	   the repository is alive or dead; it may or may not involve
+	   moving directories to the attic.  */
     }
 
     /* sort the list into alphabetical order and return it */
@@ -165,7 +250,7 @@ find_rcs (dir, list)
     DIR *dirp;
 
     /* set up to read the dir */
-    if ((dirp = opendir (dir)) == NULL)
+    if ((dirp = CVS_OPENDIR (dir)) == NULL)
 	return (1);
 
     /* read the dir, grabbing the ,v files */
@@ -189,23 +274,27 @@ find_rcs (dir, list)
 }
 
 /*
- * Finds all the subdirectories of the argument dir and adds them to the
- * specified list.  Sub-directories without a CVS administration directory
- * are optionally ignored  Returns 0 for success or 1 on error.
+ * Finds all the subdirectories of the argument dir and adds them to
+ * the specified list.  Sub-directories without a CVS administration
+ * directory are optionally ignored.  If ENTRIES is not NULL, all
+ * files on the list are ignored.  Returns 0 for success or 1 on
+ * error.
  */
 static int
-find_dirs (dir, list, checkadm)
+find_dirs (dir, list, checkadm, entries)
     char *dir;
     List *list;
     int checkadm;
+    List *entries;
 {
     Node *p;
-    char tmp[PATH_MAX];
+    char *tmp = NULL;
+    size_t tmp_size = 0;
     struct dirent *dp;
     DIR *dirp;
 
     /* set up to read the dir */
-    if ((dirp = opendir (dir)) == NULL)
+    if ((dirp = CVS_OPENDIR (dir)) == NULL)
 	return (1);
 
     /* read the dir, grabbing sub-dirs */
@@ -218,6 +307,12 @@ find_dirs (dir, list, checkadm)
 	    strcmp (dp->d_name, CVSREP) == 0)
 	    continue;
 
+	/* findnode() is going to be significantly faster than stat()
+	   because it involves no system calls.  That is why we bother
+	   with the entries argument, and why we check this first.  */
+	if (entries != NULL && findnode (entries, dp->d_name) != NULL)
+	    continue;
+
 #ifdef DT_DIR
 	if (dp->d_type != DT_DIR) 
 	{
@@ -228,6 +323,9 @@ find_dirs (dir, list, checkadm)
 	    if (fnmatch (RCSPAT, dp->d_name, 0) == 0)
 		continue;
 
+	    expand_string (&tmp,
+			   &tmp_size,
+			   strlen (dir) + strlen (dp->d_name) + 10);
 	    sprintf (tmp, "%s/%s", dir, dp->d_name);
 	    if (!isdir (tmp))
 		continue;
@@ -247,6 +345,8 @@ find_dirs (dir, list, checkadm)
 		if (dp->d_type == DT_LNK)
 		    continue;
 #endif
+		/* Note that we only get here if we already set tmp
+		   above.  */
 		if (islink (tmp))
 		    continue;
 #ifdef DT_DIR
@@ -254,6 +354,10 @@ find_dirs (dir, list, checkadm)
 #endif
 
 	    /* check for new style */
+	    expand_string (&tmp,
+			   &tmp_size,
+			   (strlen (dir) + strlen (dp->d_name)
+			    + sizeof (CVSADM) + 10));
 	    (void) sprintf (tmp, "%s/%s/%s", dir, dp->d_name, CVSADM);
 	    if (!isdir (tmp))
 		continue;
@@ -267,5 +371,7 @@ find_dirs (dir, list, checkadm)
 	    freenode (p);
     }
     (void) closedir (dirp);
+    if (tmp != NULL)
+	free (tmp);
     return (0);
 }

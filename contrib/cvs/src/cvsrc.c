@@ -55,13 +55,6 @@ read_cvsrc (argc, argv, cmdname)
     if (*argc == -1)
 	return;
 
-    /* setup the new options list */
-
-    new_argc = 1;
-    max_new_argv = (*argc) + GROW;
-    new_argv = (char **) xmalloc (max_new_argv * sizeof (char*));
-    new_argv[0] = xstrdup ((*argv)[0]);
-
     /* determine filename for ~/.cvsrc */
 
     homedir = get_homedir ();
@@ -105,30 +98,28 @@ read_cvsrc (argc, argv, cmdname)
 
     fclose (cvsrcfile);
 
+    /* setup the new options list */
+
+    new_argc = 1;
+    max_new_argv = (*argc) + GROW;
+    new_argv = (char **) xmalloc (max_new_argv * sizeof (char*));
+    new_argv[0] = xstrdup ((*argv)[0]);
+
     if (found)
     {
 	/* skip over command in the options line */
-	optstart = strtok (line + command_len, "\t \n");
-
-	do
+	for (optstart = strtok (line + command_len, "\t \n");
+	     optstart;
+	     optstart = strtok (NULL, "\t \n"))
 	{
-	    new_argv [new_argc] = xstrdup (optstart);
-	    new_argv [new_argc+1] = NULL;
-	    new_argc += 1;
+	    new_argv [new_argc++] = xstrdup (optstart);
 	  
 	    if (new_argc >= max_new_argv)
 	    {
-		char **tmp_argv;
 		max_new_argv += GROW;
-		tmp_argv = (char **) xmalloc (max_new_argv * sizeof (char*));
-		for (i = 0; i <= new_argc; i++)
-		    tmp_argv[i] = new_argv[i];
-		free(new_argv);
-		new_argv = tmp_argv;
+		new_argv = (char **) xrealloc (new_argv, max_new_argv * sizeof (char*));
 	    }
-	  
 	}
-	while ((optstart = strtok (NULL, "\t \n")) != NULL);
     }
 
     if (line != NULL)
@@ -136,10 +127,14 @@ read_cvsrc (argc, argv, cmdname)
 
     /* now copy the remaining arguments */
   
+    if (new_argc + *argc > max_new_argv)
+    {
+	max_new_argv = new_argc + *argc;
+	new_argv = (char **) xrealloc (new_argv, max_new_argv * sizeof (char*));
+    }
     for (i=1; i < *argc; i++)
     {
-	new_argv [new_argc] = (*argv)[i];
-	new_argc += 1;
+	new_argv [new_argc++] = (*argv)[i];
     }
 
     *argc = new_argc;
