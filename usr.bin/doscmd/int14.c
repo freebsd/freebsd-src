@@ -238,7 +238,7 @@ get_int_id(struct com_data_struct *cdsp)
 }
  
 static void
-com_async(int fd, int cond, void *arg, regcontext_t *REGS)
+com_async(int fd __unused, int cond, void *arg, regcontext_t *REGS __unused)
 {
  	struct com_data_struct *cdsp = (struct com_data_struct*) arg;
  
