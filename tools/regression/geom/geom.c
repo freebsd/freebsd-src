@@ -123,7 +123,7 @@ main(int argc __unused, char **argv __unused)
 
 
 	setbuf(stdout, NULL);
-	printf("Sizeof g_method = %d\n", sizeof(struct g_method));
+	printf("Sizeof g_class = %d\n", sizeof(struct g_class));
 	printf("Sizeof g_geom = %d\n", sizeof(struct g_geom));
 	printf("Sizeof g_consumer = %d\n", sizeof(struct g_consumer));
 	printf("Sizeof g_provider = %d\n", sizeof(struct g_provider));
