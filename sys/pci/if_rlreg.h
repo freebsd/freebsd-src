@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rlreg.h,v 1.13 1998/11/18 20:27:28 wpaul Exp $
+ *	$Id: if_rlreg.h,v 1.14 1998/12/07 00:16:44 wpaul Exp $
  */
 
 /*
@@ -331,10 +331,8 @@ struct rl_mii_frame {
 struct rl_softc {
 	struct arpcom		arpcom;		/* interface info */
 	struct ifmedia		ifmedia;	/* media info */
-	u_int32_t		iobase;		/* pointer to PIO space */
-#ifndef RL_USEIOSPACE
-	volatile caddr_t	csr;		/* pointer to register map */
-#endif
+	bus_space_handle_t	rl_bhandle;	/* bus space handle */
+	bus_space_tag_t		rl_btag;	/* bus space tag */
 	struct rl_type		*rl_pinfo;	/* phy info */
 	u_int8_t		rl_unit;	/* interface number */
 	u_int8_t		rl_type;
@@ -349,35 +347,19 @@ struct rl_softc {
 /*
  * register space access macros
  */
-#ifdef RL_USEIOSPACE
 #define CSR_WRITE_4(sc, reg, val)	\
-	outl(sc->iobase + (u_int32_t)(reg), val)
+	bus_space_write_4(sc->rl_btag, sc->rl_bhandle, reg, val)
 #define CSR_WRITE_2(sc, reg, val)	\
-	outw(sc->iobase + (u_int32_t)(reg), val)
+	bus_space_write_2(sc->rl_btag, sc->rl_bhandle, reg, val)
 #define CSR_WRITE_1(sc, reg, val)	\
-	outb(sc->iobase + (u_int32_t)(reg), val)
+	bus_space_write_1(sc->rl_btag, sc->rl_bhandle, reg, val)
 
-#define CSR_READ_4(sc, reg)	\
-	inl(sc->iobase + (u_int32_t)(reg))
-#define CSR_READ_2(sc, reg)	\
-	inw(sc->iobase + (u_int32_t)(reg))
-#define CSR_READ_1(sc, reg)	\
-	inb(sc->iobase + (u_int32_t)(reg))
-#else
-#define CSR_WRITE_4(sc, reg, val)	\
-	((*(u_int32_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int32_t)(val))
-#define CSR_WRITE_2(sc, reg, val)	\
-	((*(u_int16_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int16_t)(val))
-#define CSR_WRITE_1(sc, reg, val)	\
-	((*(u_int8_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int8_t)(val))
-
-#define CSR_READ_4(sc, reg)	\
-	(*(u_int32_t *)((sc)->csr + (u_int32_t)(reg)))
-#define CSR_READ_2(sc, reg)	\
-	(*(u_int16_t *)((sc)->csr + (u_int32_t)(reg)))
-#define CSR_READ_1(sc, reg)	\
-	(*(u_int8_t *)((sc)->csr + (u_int32_t)(reg)))
-#endif
+#define CSR_READ_4(sc, reg)		\
+	bus_space_read_4(sc->rl_btag, sc->rl_bhandle, reg)
+#define CSR_READ_2(sc, reg)		\
+	bus_space_read_2(sc->rl_btag, sc->rl_bhandle, reg)
+#define CSR_READ_1(sc, reg)		\
+	bus_space_read_1(sc->rl_btag, sc->rl_bhandle, reg)
 
 #define RL_TIMEOUT		1000
 
