@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
+# $Id: Makefile,v 1.2 1998/08/20 08:23:12 msmith Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
@@ -14,11 +14,6 @@ MAN3=		libstand.3
 
 # Mostly OK, some of the libc imports are a bit noisy
 CFLAGS+=	-Wall
-
-# i386 apps are loaded by an a.out only loader
-.if ${MACHINE_ARCH} == "i386"
-OBJFORMAT=	aout
-.endif
 
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
