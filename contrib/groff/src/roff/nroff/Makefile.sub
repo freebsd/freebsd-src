@@ -7,6 +7,7 @@ all: nroff
 nroff: nroff.sh
 	rm -f $@
 	sed -e "s|@BINDIR@|$(bindir)|g" \
+	-e "s|@SEP@|$(SEP)|g" \
 	-e $(SH_SCRIPT_SED_CMD) \
 	-e "s|@VERSION@|$(version)$(revision)|" $(srcdir)/nroff.sh >$@
 	chmod +x $@

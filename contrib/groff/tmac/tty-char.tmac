@@ -45,6 +45,7 @@
 .tty-char \[di] -:-
 .tty-char \[tdi] -:-
 .tty-char \[no] ~
+.tty-char \[tno] ~
 .tty-char \[gr] \Z'\*[tty-rn]'V
 .tty-char \[is] \z'\z,I
 .tty-char \[mo] E
@@ -66,6 +67,7 @@
 .tty-char \[*c] \z,E
 .tty-char \[*d] d
 .tty-char \[*e] e
+.tty-char \[+e] e
 .tty-char \[*f] \z|o
 .tty-char \[+f] \z|o
 .tty-char \[*g] y
@@ -111,6 +113,7 @@
 .tty-char \[ho] \[ac]
 .tty-char \[/_] \z_/
 .tty-char \[=~] =~
+.tty-char \[|=] -~
 .tty-char \[Ah] N
 .tty-char \[CR] _|
 .tty-char \[fa] \z-V
@@ -121,12 +124,17 @@
 .tty-char \[te] 3
 .if c\[md] .tty-char \[tf] .\[md].
 .tty-char \[tf] .:.
+.if c\[md] .tty-char \[3d] .\[md].
+.tty-char \[3d] .:.
 .tty-char \[wp] p
 .tty-char \[~~] ~~
 .tty-char \[Fn] \z,f
 .tty-char \[Bq] ,,
-.tty-char \[bq] ,
 .tty-char \[lz] <>
+.tty-char \[lf] |_
+.tty-char \[rf] _|
+.tty-char \[lc] |~
+.tty-char \[rc] ~|
 .\" Latin-1 characters
 .tty-char \[r!] \z,i
 .tty-char \[Po] \z-L

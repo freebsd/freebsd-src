@@ -8,10 +8,10 @@ OBJS=\
   hgraph.$(OBJEXT) \
   main.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/hdb.cc \
-  $(srcdir)/hpoint.cc \
-  $(srcdir)/hgraph.cc \
-  $(srcdir)/main.cc
+  $(srcdir)/hdb.cpp \
+  $(srcdir)/hpoint.cpp \
+  $(srcdir)/hgraph.cpp \
+  $(srcdir)/main.cpp
 HDRS=\
   $(srcdir)/gprint.h
 NAMEPREFIX=$(g)

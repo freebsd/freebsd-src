@@ -9,15 +9,15 @@ OBJS=\
   refer.$(OBJEXT) \
   token.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/command.cc \
-  $(srcdir)/ref.cc \
-  $(srcdir)/refer.cc \
-  $(srcdir)/token.cc
+  $(srcdir)/command.cpp \
+  $(srcdir)/ref.cpp \
+  $(srcdir)/refer.cpp \
+  $(srcdir)/token.cpp
 HDRS=\
   $(srcdir)/refer.h \
   $(srcdir)/token.h \
   $(srcdir)/command.h \
   $(srcdir)/ref.h
 GRAM=$(srcdir)/label.y
-YTABC=label.cc
+YTABC=label.cpp
 NAMEPREFIX=$(g)

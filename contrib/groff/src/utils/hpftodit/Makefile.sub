@@ -3,4 +3,4 @@ MAN1=hpftodit.n
 XLIBS=$(LIBGROFF)
 MLIB=$(LIBM)
 OBJS=hpftodit.$(OBJEXT)
-CCSRCS=$(srcdir)/hpftodit.cc
+CCSRCS=$(srcdir)/hpftodit.cpp

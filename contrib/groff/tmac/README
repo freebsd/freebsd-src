@@ -6,15 +6,4 @@ system written by Donald E. Knuth; the master file can be found at
 It has been renamed for consistency, i.e., to make patterns available under
 the filenames `hyphen.<language>', e.g. `hyphen.de' or `hyphen.uk'.
 
-From the file ftp://labrea.stanford.edu/tex/README; `hyphen.tex' is also in
-this directory:
-
-  The files in this directory are master files maintained personally by
-  Donald E. Knuth.  Nobody else is authorized to make any changes whatever
-  to them!  If you modify the files for any purpose, you must give your
-  files a different name, so that installations of TeX throughout the
-  world will be 100% compatible when they use the official source files.
-
-  All of the files here are available for anonymous FTP by anyone and may
-  be freely redistributed.  Some are copyrighted; see the files themselves
-  for more details.
+See the file itself for a copyright notice.

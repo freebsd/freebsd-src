@@ -1,4 +1,4 @@
-/* Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+/* Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
      Written by Eli Zaretskii (eliz@is.elta.co.il)
 
 This file is part of groff.
@@ -26,7 +26,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 # endif
 #endif
 
-#if defined(__MSDOS__) \
+#if defined(__MSDOS__) || defined(__EMX__) \
     || (defined(_WIN32) && !defined(_UWIN) && !defined(__CYGWIN__))
 
 /* Binary I/O nuisances.  Note: "setmode" is right for DJGPP and
@@ -60,9 +60,13 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 /* The system shell.  Groff assumes a Unixy shell, but non-Posix
    systems don't have standard places where it lives, and might not
    have it installed to begin with.  We want to give them some leeway.  */
-# define BSHELL        (system_shell_name())
-# define BSHELL_DASH_C (system_shell_dash_c())
-# define IS_BSHELL(s)  (is_system_shell(s))
+# ifdef __EMX__
+#  define getcwd(b,s)  _getcwd2(b,s)
+# else
+#  define BSHELL        (system_shell_name())
+#  define BSHELL_DASH_C (system_shell_dash_c())
+#  define IS_BSHELL(s)  (is_system_shell(s))
+# endif
 
 /* The separator for directories in PATH and other environment
    variables.  */
@@ -96,6 +100,9 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 /* Defaults, for Posix systems.  */
 
+#ifndef SET_BINARY
+# define SET_BINARY(f) do {} while(0)
+#endif
 #ifndef FOPEN_RB
 # define FOPEN_RB      "r"
 #endif
