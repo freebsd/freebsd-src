@@ -526,8 +526,7 @@ struct vfsops {
 #define VFS_EXTATTRCTL(MP, C, FN, NS, N, P) \
 	(*(MP)->mnt_op->vfs_extattrctl)(MP, C, FN, NS, N, P)
 #define VFS_SYSCTL(MP, OP, REQ) \
-    	((MP) == NULL ? ENOTSUP : \
-	 (*(MP)->mnt_op->vfs_sysctl)(MP, OP, REQ))
+	(*(MP)->mnt_op->vfs_sysctl)(MP, OP, REQ)
 
 #include <sys/module.h>
 
@@ -605,6 +604,7 @@ vfs_vptofh_t		vfs_stdvptofh;
 vfs_init_t		vfs_stdinit;
 vfs_uninit_t		vfs_stduninit;
 vfs_extattrctl_t	vfs_stdextattrctl;
+vfs_sysctl_t		vfs_stdsysctl;
 
 /* XXX - these should be indirect functions!!! */
 int	softdep_fsync(struct vnode *);

@@ -458,6 +458,8 @@ vfs_register(struct vfsconf *vfc)
 	if (vfsops->vfs_extattrctl == NULL)
 		/* extended attribute control */
 		vfsops->vfs_extattrctl = vfs_stdextattrctl;
+	if (vfsops->vfs_sysctl == NULL)
+		vfsops->vfs_sysctl = vfs_stdsysctl;
 	
 	/*
 	 * Call init function for this VFS...

@@ -801,4 +801,14 @@ vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname, td)
 	return(EOPNOTSUPP);
 }
 
+int
+vfs_stdsysctl(mp, op, req)
+	struct mount *mp;
+	fsctlop_t op;
+	struct sysctl_req *req;
+{
+
+	return (EOPNOTSUPP);
+}
+
 /* end of vfs default ops */
