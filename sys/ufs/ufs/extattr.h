@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,8 +73,9 @@ MALLOC_DECLARE(M_EXTATTR);
 struct vnode;
 LIST_HEAD(ufs_extattr_list_head, ufs_extattr_list_entry);
 struct ufs_extattr_list_entry {
-	LIST_ENTRY(ufs_extattr_list_entry) uele_entries;
-	struct ufs_extattr_fileheader	uele_fileheader;
+	LIST_ENTRY(ufs_extattr_list_entry)	uele_entries;
+	struct ufs_extattr_fileheader		uele_fileheader;
+	int	uele_namespace;
 	char	uele_attrname[UFS_EXTATTR_MAXEXTATTRNAME];
 	struct vnode	*uele_backing_vnode;
 };
@@ -93,8 +94,8 @@ void	ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm);
 int	ufs_extattr_start(struct mount *mp, struct proc *p);
 int	ufs_extattr_autostart(struct mount *mp, struct proc *p);
 int	ufs_extattr_stop(struct mount *mp, struct proc *p);
-int	ufs_extattrctl(struct mount *mp, int cmd, const char *attrname,
-    caddr_t arg, struct proc *p);
+int	ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename,
+	    int namespace, const char *attrname, struct proc *p);
 int	ufs_vop_getextattr(struct vop_getextattr_args *ap);
 int	ufs_vop_setextattr(struct vop_setextattr_args *ap);
 void	ufs_extattr_vnode_inactive(struct vnode *vp, struct proc *p);

@@ -339,7 +339,8 @@ struct vfsops {
 	int	(*vfs_init)	__P((struct vfsconf *));
 	int	(*vfs_uninit)	__P((struct vfsconf *));
 	int	(*vfs_extattrctl) __P((struct mount *mp, int cmd,
-					const char *attrname, caddr_t arg,
+					struct vnode *filename_vp,
+					int namespace, const char *attrname,
 					struct proc *p));
 };
 
@@ -357,8 +358,8 @@ struct vfsops {
 #define	VFS_VPTOFH(VP, FIDP)	  (*(VP)->v_mount->mnt_op->vfs_vptofh)(VP, FIDP)
 #define VFS_CHECKEXP(MP, NAM, EXFLG, CRED) \
 	(*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED)
-#define VFS_EXTATTRCTL(MP, C, N, A, P) \
-	(*(MP)->mnt_op->vfs_extattrctl)(MP, C, N, A, P)
+#define VFS_EXTATTRCTL(MP, C, FN, NS, N, P) \
+	(*(MP)->mnt_op->vfs_extattrctl)(MP, C, FN, NS, N, P)
 
 #include <sys/module.h>
 
@@ -453,8 +454,9 @@ int	vfs_stdcheckexp __P((struct mount *mp, struct sockaddr *nam,
 int	vfs_stdvptofh __P((struct vnode *vp, struct fid *fhp));
 int	vfs_stdinit __P((struct vfsconf *));
 int	vfs_stduninit __P((struct vfsconf *));
-int	vfs_stdextattrctl __P((struct mount *mp, int cmd, const char *attrname,
-		caddr_t arg, struct proc *p));
+int	vfs_stdextattrctl __P((struct mount *mp, int cmd,
+	    struct vnode *filename_vp, int namespace, const char *attrname,
+	    struct proc *p));
 
 /* XXX - these should be indirect functions!!! */
 int	softdep_process_worklist __P((struct mount *));

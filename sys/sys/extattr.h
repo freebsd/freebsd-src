@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,12 @@
 
 #ifndef _SYS_EXTATTR_H_
 #define	_SYS_EXTATTR_H_
+
+#define	EXTATTR_NAMESPACE_USER		0x00000001
+#define	EXTATTR_NAMESPACE_USER_STRING	"user"
+#define	EXTATTR_NAMESPACE_SYSTEM	0x00000002
+#define	EXTATTR_NAMESPACE_SYSTEM_STRING	"system"
+
 #ifdef _KERNEL
 
 #define	EXTATTR_MAXNAMELEN	NAME_MAX
@@ -51,12 +57,14 @@
 struct iovec;
 
 __BEGIN_DECLS
-int	extattrctl(const char *path, int cmd, const char *attrname, char *arg);
-int	extattr_delete_file(const char *path, const char *attrname);
-int	extattr_get_file(const char *path, const char *attrname,
-	    struct iovec *iovp, unsigned iovcnt);
-int	extattr_set_file(const char *path, const char *attrname,
-	    struct iovec *iovp, unsigned iovcnt);
+int	extattrctl(const char *path, int cmd, const char *filename,
+	    int namespace, const char *attrname);
+int	extattr_delete_file(const char *path, int namespace,
+	    const char *attrname);
+int	extattr_get_file(const char *path, int namespace,
+	    const char *attrname, struct iovec *iovp, unsigned iovcnt);
+int	extattr_set_file(const char *path, int namespace,
+	    const char *attrname, struct iovec *iovp, unsigned iovcnt);
 __END_DECLS
 
 #endif /* !_KERNEL */

@@ -607,12 +607,12 @@ dev_t	vn_todev __P((struct vnode *vp));
 int	vn_write_suspend_wait __P((struct vnode *vp, struct mount *mp,
 		int flags));
 int 	vn_writechk __P((struct vnode *vp));
-int	vn_extattr_get __P((struct vnode *vp, int ioflg, const char *attrname,
-		int *buflen, char *buf, struct proc *p));
-int	vn_extattr_set __P((struct vnode *vp, int ioflg, const char *attrname,
-		int buflen, char *buf, struct proc *p));
-int	vn_extattr_rm(struct vnode *vp, int ioflg, const char *attrname,
-		struct proc *p);
+int	vn_extattr_get __P((struct vnode *vp, int ioflg, int namespace,
+	    const char *attrname, int *buflen, char *buf, struct proc *p));
+int	vn_extattr_set __P((struct vnode *vp, int ioflg, int namespace,
+	    const char *attrname, int buflen, char *buf, struct proc *p));
+int	vn_extattr_rm(struct vnode *vp, int ioflg, int namespace,
+	    const char *attrname, struct proc *p);
 int	vfs_cache_lookup __P((struct vop_lookup_args *ap));
 int	vfs_object_create __P((struct vnode *vp, struct proc *p,
                 struct ucred *cred));
