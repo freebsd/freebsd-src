@@ -125,17 +125,15 @@ typedef struct {
  * The tag cd_totlen is the total data amount expected to be moved
  * over the life of the command. It may be set by the MD layer,
  * for example, from the datalen field of an FCP CMND IU unit. If
- * it shows up in the outer layers set to zero and the indicates
+ * it shows up in the outer layers set to zero and the CDB indicates
  * data should be moved, the outer layer should set it to the amount
  * expected to be moved.
  *
- * The tag cd_resid is the total residual of data not transferred.
- * That is, cd_resid is set up, possibly by the MD layer when it
- * reads the expected data transfer length from an FCP CMND IU,
- * to be the total data amount expected to be moved over the life
- * of the command. As data is successfully moved, this value is
- * decreased. At the end of a command, any residual indicates the
- * number of bytes requested but not moved.
+ * The tag cd_resid should be the total residual of data not transferred.
+ * The outer layers need to set this at the begining of command processing
+ * to equal cd_totlen. As data is successfully moved, this value is decreased.
+ * At the end of a command, any nonzero residual indicates the number of bytes
+ * requested but not moved.
  *
  * The tag cd_xfrlen is the length of the currently active data transfer.
  * This allows several interations between any outside software and the
@@ -240,6 +238,8 @@ typedef enum {
  */
 typedef enum {
 	QIN_HBA_REG=6,	/* the argument is a pointer to a hba_register_t */
+	QIN_ENABLE,	/* the argument is a pointer to a tmd_cmd_t */
+	QIN_DISABLE,	/* the argument is a pointer to a tmd_cmd_t */
 	QIN_TMD_CONT,	/* the argument is a pointer to a tmd_cmd_t */
 	QIN_TMD_FIN,	/* the argument is a pointer to a done tmd_cmd_t */
 	QIN_HBA_UNREG	/* the argument is a pointer to a hba_register_t */
@@ -269,6 +269,16 @@ typedef enum {
  *	The graph looks like:
  *
  *	QOUT_TMD_START -> [ QIN_TMD_CONT -> QOUT_TMD_DONE ] * -> QIN_TMD_FIN.
+ *
+ */
+
+/*
+ * A word about ENABLE/DISABLE: the argument is a pointer to an tmd_cmd_t
+ * with cd_hba, cd_bus, cd_tgt and cd_lun filled out. If an error occurs
+ * in either enabling or disabling the described lun, cd_lflags is set
+ * with CDFL_ERROR.
+ *
+ * Logical unit zero must be the first enabled and the last disabled.
  */
 
 /*
@@ -299,5 +309,6 @@ typedef struct {
 	char	r_name[8];
 	int	r_inst;
 	int	r_lunwidth;
+	int	r_buswidth;
 	void   (*r_action) __P((int, void *));
 } hba_register_t;
