@@ -159,7 +159,6 @@ vnode_destroy_vobject(struct vnode *vp)
 	if (obj == NULL)
 		return;
 	ASSERT_VOP_LOCKED(vp, "vnode_destroy_vobject");
-	vp->v_object = NULL;
 	VM_OBJECT_LOCK(obj);
 	if (obj->ref_count == 0) {
 		/*
@@ -181,6 +180,7 @@ vnode_destroy_vobject(struct vnode *vp)
 		vm_pager_deallocate(obj);
 		VM_OBJECT_UNLOCK(obj);
 	}
+	vp->v_object = NULL;
 }
 
 
