@@ -113,6 +113,7 @@ lprint(pn)
 	 *	home directory
 	 *	shell
 	 *	office, office phone, home phone if available
+	 *	mail status
 	 */
 	(void)printf("Login: %-15s\t\t\tName: %s\nDirectory: %-25s",
 	    pn->name, pn->realname, pn->dir);
@@ -152,7 +153,8 @@ lprint(pn)
 		putchar('\n');
 
 	/*
-	 * long format con't: * if logged in
+	 * long format con't:
+	 * if logged in
 	 *	terminal
 	 *	idle time
 	 *	if messages allowed
@@ -220,6 +222,23 @@ lprint(pn)
 			(void)printf(" from %s", w->host);
 		}
 		putchar('\n');
+	}
+	if (pn->mailrecv == -1)
+		printf("No Mail.\n");
+	else if (pn->mailrecv > pn->mailread) {
+		tp = localtime(&pn->mailrecv);
+		t = asctime(tp);
+		tzn = tp->tm_zone;
+		printf("New mail received %.16s %.4s (%s)\n", t, t + 20, tzn);
+		tp = localtime(&pn->mailread);
+		t = asctime(tp);
+		tzn = tp->tm_zone;
+		printf("     Unread since %.16s %.4s (%s)\n", t, t + 20, tzn);
+	} else {
+		tp = localtime(&pn->mailread);
+		t = asctime(tp);
+		tzn = tp->tm_zone;
+		printf("Mail last read %.16s %.4s (%s)\n", t, t + 20, tzn);
 	}
 }
 
