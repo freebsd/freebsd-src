@@ -204,6 +204,15 @@ Buf_Append(Buffer *bp, const char str[])
 }
 
 /**
+ * Append characters between str and end to Buffer object.
+ */
+void
+Buf_AppendRange(Buffer *bp, const char str[], const char *end)
+{
+	Buf_AddBytes(bp, end - str, str);
+}
+
+/**
  * Clear the contents of the buffer.
  */
 void
