@@ -71,6 +71,7 @@
 #define ATA_IOADDR_RID		0
 #define ATA_ALTADDR_RID		1
 #define ATA_BMADDR_RID		2
+#define ATA_MASTERDEV(dev)	((pci_get_progif(dev) & 0x8f) == 0x8a)
 
 /* prototypes */
 static int ata_probe(device_t);
@@ -275,6 +276,12 @@ ata_pci_match(device_t dev)
     case 0x55131039:
 	return "SiS 5591 ATA33 controller";
 
+    case 0x06491095:
+	return "CMD 649 ATA100 controller";
+
+    case 0x06481095:
+	return "CMD 648 ATA66 controller";
+
     case 0x06461095:
 	return "CMD 646 ATA controller";
 
@@ -288,6 +295,9 @@ ata_pci_match(device_t dev)
 
     case 0x74091022:
 	return "AMD 756 ATA66 controller";
+
+    case 0x02111166:
+	return "ServerWorks ROSB4 ATA33 controller";
 
     case 0x4d33105a:
 	return "Promise ATA33 controller";
@@ -349,7 +359,7 @@ ata_pci_add_child(device_t dev, int unit)
     device_t child;
 
     /* check if this is located at one of the std addresses */
-    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
+    if (ATA_MASTERDEV(dev)) {
 	if (!(child = device_add_child(dev, "ata", unit)))
 	    return ENOMEM;
     }
@@ -375,33 +385,16 @@ ata_pci_attach(device_t dev)
     subclass = pci_get_subclass(dev);
     cmd = pci_read_config(dev, PCIR_COMMAND, 4);
 
-    /* is this controller busmaster DMA capable ? */
-    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
-	/* is busmastering support turned on ? */
-	if ((cmd & (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) == 
-	    (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) {
+    /* is busmastering supported ? */
+    if ((cmd & (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) == 
+	(PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) {
 
-	    /* is there a valid port range to connect to ? */
-	    rid = 0x20;
-	    sc->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-					  0, ~0, 1, RF_ACTIVE);
-	    if (!sc->bmio)
-		device_printf(dev, "Busmastering DMA not configured\n");
-	}
-	else
-	    device_printf(dev, "Busmastering DMA not enabled\n");
-    }
-    else {
-    	if (type == 0x4d33105a || type == 0x4d38105a || 
-	    type == 0x4d30105a || type == 0x0d30105a || type == 0x00041103) {
-	    /* Promise and HighPoint controllers support busmastering DMA */
-	    rid = 0x20;
-	    sc->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-					  0, ~0, 1, RF_ACTIVE);
-	}
-	else
-	    /* we dont know this controller, no busmastering DMA */
-	    device_printf(dev, "Busmastering DMA not supported\n");
+	/* is there a valid port range to connect to ? */
+	rid = 0x20;
+	sc->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				      0, ~0, 1, RF_ACTIVE);
+	device_printf(dev, "Busmastering DMA %s\n", 
+		      sc->bmio ? "enabled" : "not supported");
     }
 
     /* do extra chipset specific setups */
@@ -488,8 +481,7 @@ ata_pci_attach(device_t dev)
 
     ata_pci_add_child(dev, 0);
 
-    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV ||
-	pci_read_config(dev, 0x18, 4) & IOMASK)
+    if (ATA_MASTERDEV(dev) || pci_read_config(dev, 0x18, 4) & IOMASK)
 	ata_pci_add_child(dev, 1);
 
     return bus_generic_attach(dev);
@@ -505,7 +497,7 @@ ata_pci_print_child(device_t dev, device_t child)
     retval += bus_print_child_header(dev, child);
     retval += printf(": at 0x%x", scp->ioaddr);
 
-    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV)
+    if (ATA_MASTERDEV(dev))
 	retval += printf(" irq %d", 14 + unit);
     
     retval += bus_print_child_footer(dev, child);
@@ -518,14 +510,13 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		       u_long start, u_long end, u_long count, u_int flags)
 {
     struct ata_pci_softc *sc = device_get_softc(dev);
-    int masterdev = pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV;
     int unit = (intptr_t)device_get_ivars(child);
     int myrid;
 
     if (type == SYS_RES_IOPORT) {
 	switch (*rid) {
 	case ATA_IOADDR_RID:
-	    if (masterdev) {
+	    if (ATA_MASTERDEV(dev)) {
 		myrid = 0;
 		start = (unit == 0 ? IO_WD1 : IO_WD2);
 		end = start + ATA_IOSIZE - 1;
@@ -536,7 +527,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    break;
 
 	case ATA_ALTADDR_RID:
-	    if (masterdev) {
+	    if (ATA_MASTERDEV(dev)) {
 		myrid = 0;
 		start = (unit == 0 ? IO_WD1 : IO_WD2) + ATA_ALTOFFSET;
 		end = start + ATA_ALTIOSIZE - 1;
@@ -566,7 +557,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    return 0;
 	}
 
-	if (masterdev)
+	if (ATA_MASTERDEV(dev))
 	    /* make the parent just pass through the allocation. */
 	    return BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 				      SYS_RES_IOPORT, &myrid,
@@ -582,7 +573,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	if (*rid != 0)
 	    return 0;
 
-	if (masterdev) {
+	if (ATA_MASTERDEV(dev)) {
 #ifdef __alpha__
 	    return alpha_platform_alloc_ide_intr(unit);
 #else
@@ -610,20 +601,19 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 {
     struct ata_pci_softc *sc = device_get_softc(dev);
     int unit = (uintptr_t) device_get_ivars(child);
-    int masterdev = pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV;
     int myrid = 0;
 
     if (type == SYS_RES_IOPORT) {
 	switch (rid) {
 	case ATA_IOADDR_RID:
-	    if (masterdev)
+	    if (ATA_MASTERDEV(dev))
 		myrid = 0;
 	    else
 		myrid = 0x10 + 8 * unit;
 	    break;
 
 	case ATA_ALTADDR_RID:
-	    if (masterdev)
+	    if (ATA_MASTERDEV(dev))
 		myrid = 0;
 	    else
 		myrid = 0x14 + 8 * unit;
@@ -636,7 +626,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	    return ENOENT;
 	}
 
-	if (masterdev)
+	if (ATA_MASTERDEV(dev))
 	    /* make the parent just pass through the allocation. */
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
 					SYS_RES_IOPORT, myrid, r);
@@ -649,7 +639,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	if (rid != 0)
 	    return ENOENT;
 
-	if (masterdev) {
+	if (ATA_MASTERDEV(dev)) {
 #ifdef __alpha__
 	    return alpha_platform_release_ide_intr(unit, r);
 #else
@@ -673,7 +663,7 @@ ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
 		   int flags, driver_intr_t *intr, void *arg,
 		   void **cookiep)
 {
-    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
+    if (ATA_MASTERDEV(dev)) {
 #ifdef __alpha__
 	return alpha_platform_setup_ide_intr(irq, intr, arg, cookiep);
 #else
@@ -690,7 +680,7 @@ static int
 ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 		      void *cookie)
 {
-    if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
+    if (ATA_MASTERDEV(dev)) {
 #ifdef __alpha__
 	return alpha_platform_teardown_ide_intr(irq, cookie);
 #else
@@ -788,7 +778,7 @@ ata_probe(device_t dev)
     altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 			       ATA_ALTIOSIZE, RF_ACTIVE);
     if (altio) {
-	if (pci_get_progif(device_get_parent(dev)) & PCIP_STORAGE_IDE_MASTERDEV)
+	if (ATA_MASTERDEV(device_get_parent(dev)))
 	    altioaddr = rman_get_start(altio);
 	else
 	    altioaddr = rman_get_start(altio) + 0x02;
@@ -1087,6 +1077,14 @@ ata_intr(void *data)
 	outb(scp->bmaddr + ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
 	break;
 
+    case 0x06461095:	/* CMD 646 */
+    case 0x06481095:	/* CMD 648 */
+    case 0x06491095:	/* CMD 649 */
+        if (!(pci_read_config(device_get_parent(scp->dev), 0x71, 1) &
+	      (scp->unit ? 0x08 : 0x04)))
+	    return;
+	goto out;
+         
     case 0x4d33105a:	/* Promise Ultra/Fasttrak 33 */
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
@@ -1095,10 +1093,11 @@ ata_intr(void *data)
 	struct ata_pci_softc *sc=device_get_softc(device_get_parent(scp->dev));
 
 	if (!(inl(rman_get_start(sc->bmio) + 0x1c) & 
-	      ((scp->unit) ? 0x00004000 : 0x00000400)))
+	      (scp->unit ? 0x00004000 : 0x00000400)))
 	    return;
     }
 	
+out:
 #endif
     default:
 	if (scp->flags & ATA_DMA_ACTIVE) {

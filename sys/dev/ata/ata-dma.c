@@ -442,13 +442,73 @@ via_82c586:
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
+    case 0x06491095:	/* CMD 649 ATA100 controller */
+	if (udmamode >= 5) {
+	    u_int8_t umode;
+
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device, "%s setting UDMA5 on CMD chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		umode = pci_read_config(parent, scp->unit ? 0x7b : 0x73, 1);
+		umode &= ~(device == ATA_MASTER ? 0x35 : 0xca);
+		umode |= (device == ATA_MASTER ? 0x05 : 0x0a);
+		pci_write_config(parent, scp->unit ? 0x7b : 0x73, umode, 1);
+		scp->mode[ATA_DEV(device)] = ATA_UDMA5;
+		return;
+	    }
+	}
+	/* FALLTHROUGH */
+
+    case 0x06481095:	/* CMD 648 ATA66 controller */
+	if (udmamode >= 4) {
+	    u_int8_t umode;
+
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device, "%s setting UDMA4 on CMD chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		umode = pci_read_config(parent, scp->unit ? 0x7b : 0x73, 1);
+		umode &= ~(device == ATA_MASTER ? 0x35 : 0xca);
+		umode |= (device == ATA_MASTER ? 0x15 : 0x4a);
+		pci_write_config(parent, scp->unit ? 0x7b : 0x73, umode, 1);
+		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
+		return;
+	    }
+	}
+	if (udmamode >= 2) {
+	    u_int8_t umode;
+
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device, "%s setting UDMA2 on CMD chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		umode = pci_read_config(parent, scp->unit ? 0x7b : 0x73, 1);
+		umode &= ~(device == ATA_MASTER ? 0x35 : 0xca);
+		umode |= (device == ATA_MASTER ? 0x11 : 0x42);
+		pci_write_config(parent, scp->unit ? 0x7b : 0x73, umode, 1);
+		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
+		return;
+	    }
+	}
+	/* make sure eventual UDMA mode from the BIOS is disabled */
+	pci_write_config(parent, scp->unit ? 0x7b : 0x73, 
+			 pci_read_config(parent, scp->unit ? 0x7b : 0x73, 1) &
+			 ~(device == ATA_MASTER ? 0x35 : 0xca), 1);
+	/* FALLTHROUGH */
+
     case 0x06461095:	/* CMD 646 ATA controller */
 	if (wdmamode >= 2 && apiomode >= 4) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
-		ata_printf(scp, device,
-			   "%s setting WDMA2 on CMD646 chip\n",
+		ata_printf(scp, device, "%s setting WDMA2 on CMD chip\n",
 			   error ? "failed" : "success");
 	    if (!error) {
 		int32_t offset = (devno < 3) ? (devno << 1) : 7;
@@ -478,13 +538,13 @@ via_82c586:
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
-    case 0x01021078:
+    case 0x01021078:	/* Cyrix 5530 ATA33 controller */
 	scp->alignment = 0xf;	/* DMA engine requires 16 byte alignment */
 	if (udmamode >= 2) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
-		ata_printf(scp, device, "%s setting UDMA2  on Cyrix chip\n",
+		ata_printf(scp, device, "%s setting UDMA2 on Cyrix chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		cyrix_timing(scp, devno, ATA_UDMA2);
@@ -514,6 +574,52 @@ via_82c586:
 	cyrix_timing(scp, devno, ata_pio2mode(apiomode));
 	scp->mode[ATA_DEV(device)] = ata_pio2mode(apiomode);
 	return;
+
+    case 0x02111166:	/* ServerWorks ROSB4 ATA33 controller */
+	if (udmamode >= 2) {
+	    u_int16_t reg56;
+
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device,
+			   "%s setting UDMA2 on ServerWorks chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		pci_write_config(parent, 0x54, 
+				 pci_read_config(parent, 0x54, 1) |
+				 (0x01 << devno), 1);
+		reg56 = pci_read_config(parent, 0x56, 2);
+		reg56 &= ~(0xf << (devno * 4));
+		reg56 |= (0x2 << (devno * 4));
+		pci_write_config(parent, 0x56, reg56, 2);
+		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
+		return;
+	    }
+	}
+	if (wdmamode >= 2 && apiomode >= 4) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device,
+			   "%s setting WDMA2 on ServerWorks chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		int offset = (scp->unit * 2) + (device == ATA_MASTER);
+		int word44 = pci_read_config(parent, 0x44, 4);
+
+		pci_write_config(parent, 0x54,
+				 pci_read_config(parent, 0x54, 1) &
+				 ~(0x01 << devno), 1);
+		word44 &= ~(0xff << (offset << 8));
+		word44 |= (0x20 << (offset << 8));
+		pci_write_config(parent, 0x44, 0x20, 4);
+		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
+		return;
+	    }
+	}
+	/* we could set PIO mode timings, but we assume the BIOS did that */
+	break;
 
     case 0x4d33105a:	/* Promise Ultra/FastTrak 33 controllers */
     case 0x4d38105a:	/* Promise Ultra/FastTrak 66 controllers */
