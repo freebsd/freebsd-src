@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.25 1994/09/16 13:33:50 davidg Exp $
+ *      $Id: ultra14f.c,v 1.26 1994/10/23 21:27:38 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -921,8 +921,8 @@ int
 uha24_init(unit)
 int	unit;
 {
-  unsigned char p0, p1, p2, p3, p5, p6, p7;
-  unsigned char id[7], rev, emu, haid;
+  unsigned char p0, p1, p2, p3, p5, p7;
+  unsigned char id[7], rev, haid;
   int slot, port, irq, i;
   int resetcount = 4000;
   struct uha_data *uha = uhadata[unit];
@@ -988,12 +988,7 @@ int	unit;
 
   /* We have the card!  Grab remaining config. */
   p5 = inb(ur->config);
-  p6 = inb(ur->config+1);
   p7 = inb(ur->config+2);
-
-  /* If the 24F is currently emulating an ISA device, leave. */
-  emu = ((p6 & 0x04) >> 1) | ((p5 & 0x08) >> 3);
-  if (emu != 3) return(ENODEV);
 
   switch (p5 & 0xf0) {
      case 0x10: irq = 15; break;
