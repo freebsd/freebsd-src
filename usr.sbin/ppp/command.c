@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.35 1997/03/17 14:47:56 ache Exp $
+ * $Id: command.c,v 1.36 1997/03/24 16:01:46 ache Exp $
  *
  */
 #include <sys/types.h>
@@ -594,6 +594,7 @@ char **argv;
       Cleanup(EX_NORMAL);
       mode &= ~MODE_INTER;
     } else {
+      LogPrintf(LOG_PHASE_BIT, "client connection closed.\n");
       VarLocalAuth = LOCAL_NO_AUTH;
       close(netfd);
       close(1);
