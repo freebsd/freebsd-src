@@ -23,8 +23,10 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 # the location of libstand
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
+.ifdef(BOOT_BIOSDISK_DEBUG)
 # Make the disk code more talkative
-#CFLAGS+= -DDISK_DEBUG
+CFLAGS+= -DDISK_DEBUG
+.endif
 
 # Include simple terminal emulation (cons25-compatible)
 CFLAGS+= -DTERM_EMU

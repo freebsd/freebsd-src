@@ -62,7 +62,7 @@ static pxenv_t	*pxenv_p = NULL;        /* PXENV+ */
 static pxe_t	*pxe_p   = NULL;	/* !PXE */
 static BOOTPLAYER	bootplayer;	/* PXE Cached information. */
 
-static int 	debug = 0;
+static int 	pxe_debug = 0;
 static int	pxe_sock = -1;
 static int	pxe_opens = 0;
 
@@ -73,7 +73,7 @@ static void	bangpxe_call(int func);
 
 static int	pxe_init(void);
 static int	pxe_strategy(void *devdata, int flag, daddr_t dblk,
-			     size_t size, void *buf, size_t *rsize);
+			     size_t size, char *buf, size_t *rsize);
 static int	pxe_open(struct open_file *f, ...);
 static int	pxe_close(struct open_file *f);
 static void	pxe_print(int verbose);
@@ -90,8 +90,6 @@ static int	pxe_netif_put(struct iodesc *desc, void *pkt, size_t len);
 static void	pxe_netif_end(struct netif *nif);
 
 extern struct netif_stats	pxe_st[];
-extern struct in_addr		rootip;
-extern char 			rootpath[FNAME_SIZE];
 extern u_int16_t		__bangpxeseg;
 extern u_int16_t		__bangpxeoff;
 extern void			__bangpxeentry(void);
@@ -245,7 +243,7 @@ pxe_init(void)
 
 static int
 pxe_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
-		void *buf, size_t *rsize)
+		char *buf, size_t *rsize)
 {
 	return (EIO);
 }
@@ -272,7 +270,7 @@ pxe_open(struct open_file *f, ...)
 		printf("pxe_open: netif_open() failed\n");
 		return (ENXIO);
 	    }
-	    if (debug)
+	    if (pxe_debug)
 		printf("pxe_open: netif_open() succeeded\n");
 	}
 	if (rootip.s_addr == 0) {
@@ -323,7 +321,7 @@ pxe_close(struct open_file *f)
 {
 
 #ifdef	PXE_DEBUG
-    if (debug)
+    if (pxe_debug)
 	printf("pxe_close: opens=%d\n", pxe_opens);
 #endif
 
@@ -343,7 +341,7 @@ pxe_close(struct open_file *f)
     if (pxe_sock >= 0) {
 
 #ifdef PXE_DEBUG
-	if (debug)
+	if (pxe_debug)
 	    printf("pxe_close: calling netif_close()\n");
 #endif
 	netif_close(pxe_sock);
@@ -372,10 +370,12 @@ pxe_print(int verbose)
 static void
 pxe_cleanup(void)
 {
+#ifdef PXE_DEBUG
 	t_PXENV_UNLOAD_STACK *unload_stack_p =
 	    (t_PXENV_UNLOAD_STACK *)scratch_buffer;
 	t_PXENV_UNDI_SHUTDOWN *undi_shutdown_p =
 	    (t_PXENV_UNDI_SHUTDOWN *)scratch_buffer;
+#endif
 
 	if (pxe_call == NULL)
 		return;
@@ -383,7 +383,7 @@ pxe_cleanup(void)
 	pxe_call(PXENV_UNDI_SHUTDOWN);
 
 #ifdef PXE_DEBUG
-	if (debug && undi_shutdown_p->Status != 0)
+	if (pxe_debug && undi_shutdown_p->Status != 0)
 		printf("pxe_cleanup: UNDI_SHUTDOWN failed %x\n",
 		       undi_shutdown_p->Status);
 #endif
@@ -391,7 +391,7 @@ pxe_cleanup(void)
 	pxe_call(PXENV_UNLOAD_STACK);
 
 #ifdef PXE_DEBUG	
-	if (debug && unload_stack_p->Status != 0)
+	if (pxe_debug && unload_stack_p->Status != 0)
 		printf("pxe_cleanup: UNLOAD_STACK failed %x\n",
 		    unload_stack_p->Status);
 #endif
@@ -435,7 +435,7 @@ void
 pxenv_call(int func)
 {
 #ifdef PXE_DEBUG
-	if (debug)
+	if (pxe_debug)
 		printf("pxenv_call %x\n", func);
 #endif
 	
@@ -458,7 +458,7 @@ void
 bangpxe_call(int func)
 {
 #ifdef PXE_DEBUG
-	if (debug)
+	if (pxe_debug)
 		printf("bangpxe_call %x\n", func);
 #endif
 	

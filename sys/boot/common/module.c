@@ -47,7 +47,7 @@ static struct module_metadata 	*metadata_next(struct module_metadata *md, int ty
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
 
-static char		*default_searchpath ="/;/boot;/modules";
+static const char	*default_searchpath ="/;/boot;/modules";
 
 struct loaded_module *loaded_modules = NULL;
 

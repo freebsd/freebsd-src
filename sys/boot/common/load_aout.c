@@ -47,8 +47,8 @@ static vm_offset_t	aout_findkldident(struct loaded_module *mp, struct exec *ehdr
 static int		aout_fixupkldmod(struct loaded_module *mp, struct exec *ehdr);
 #endif
 
-char	*aout_kerneltype = "a.out kernel";
-char	*aout_moduletype = "a.out module";
+const char	*aout_kerneltype = "a.out kernel";
+const char	*aout_moduletype = "a.out module";
 
 /*
  * Attempt to load the file (file) as an a.out module.  It will be stored at
@@ -191,21 +191,24 @@ aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct ex
 {
     u_int		pad;
     vm_offset_t		addr;
-    int			ss;
+    size_t		ss;
+    ssize_t		result;
     vm_offset_t		ssym, esym;
     
     addr = loadaddr;
-    lseek(fd, N_TXTOFF(*ehdr), SEEK_SET);
+    lseek(fd, (off_t)N_TXTOFF(*ehdr), SEEK_SET);
 
     /* text segment */
     printf("  text=0x%lx ", ehdr->a_text);
-    if (archsw.arch_readin(fd, addr, ehdr->a_text) != ehdr->a_text)
+    result = archsw.arch_readin(fd, addr, ehdr->a_text);
+    if (result < 0 || (size_t)result != ehdr->a_text)
 	return(0);
     addr += ehdr->a_text;
 
     /* data segment */
     printf("data=0x%lx ", ehdr->a_data);
-    if (archsw.arch_readin(fd, addr, ehdr->a_data) != ehdr->a_data)
+    result = archsw.arch_readin(fd, addr, ehdr->a_data);
+    if (result < 0 || (size_t)result != ehdr->a_data)
 	return(0);
     addr += ehdr->a_data;
 
@@ -228,7 +231,8 @@ aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct ex
 
     	/* symbol table */
     	printf("symbols=[0x%lx+0x%lx", (long)sizeof(ehdr->a_syms),ehdr->a_syms);
-    	if (archsw.arch_readin(fd, addr, ehdr->a_syms) != ehdr->a_syms)
+	result = archsw.arch_readin(fd, addr, ehdr->a_syms);
+	if (result < 0 || (size_t)result != ehdr->a_syms)
 		return(0);
     	addr += ehdr->a_syms;
 
@@ -238,7 +242,8 @@ aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct ex
     	addr += sizeof(ss);
     	ss -= sizeof(ss);
     	printf("+0x%lx+0x%x]", (long)sizeof(ss), ss);
-    	if (archsw.arch_readin(fd, addr, ss) != ss)
+	result = archsw.arch_readin(fd, addr, ss);
+	if (result < 0 || (size_t)result != ss)
 		return(0);
     	addr += ss;
 	esym = addr;

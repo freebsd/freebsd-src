@@ -31,7 +31,6 @@
  */
 
 #include <stand.h>
-#include <string.h>
 #include <machine/stdarg.h>
 #include <bootstrap.h>
 #include <isapnp.h>
@@ -48,7 +47,7 @@
 struct pci_progif 
 {
     int		pi_code;
-    char	*pi_name;
+    const char	*pi_name;
 };
 
 static struct pci_progif progif_null[] = {
@@ -116,7 +115,7 @@ static struct pci_progif progif_parallel[] = {
 struct pci_subclass 
 {
     int			ps_subclass;
-    char		*ps_name;
+    const char		*ps_name;
     struct pci_progif	*ps_progif;	/* if set, use for programming interface value(s) */
 };
 
@@ -171,7 +170,7 @@ static struct pci_subclass subclass_serial[] = {
 static struct pci_class
 {
     int			pc_class;
-    char		*pc_name;
+    const char		*pc_name;
     struct pci_subclass	*pc_subclass;
 } pci_classes[] = {
     {0x0,	"device",	subclass_old},
@@ -199,7 +198,7 @@ struct pnphandler biospcihandler =
 static void
 biospci_enumerate(void)
 {
-    int			index, locator, devid;
+    int			device_index, locator, devid;
     struct pci_class	*pc;
     struct pci_subclass *psc;
     struct pci_progif	*ppi;
@@ -230,14 +229,14 @@ biospci_enumerate(void)
 	    for (ppi = psc->ps_progif; ppi->pi_code >= 0; ppi++) {
 
 		/* Scan for matches */
-		for (index = 0; ; index++) {
+		for (device_index = 0; ; device_index++) {
 
 		    /* Look for a match */
 		    v86.ctl = V86_FLAGS;
 		    v86.addr = 0x1a;
 		    v86.eax = 0xb103;
 		    v86.ecx = (pc->pc_class << 16) + (psc->ps_subclass << 8) + ppi->pi_code;
-		    v86.esi = index;
+		    v86.esi = device_index;
 		    v86int();
 		    /* error/end of matches */
 		    if ((v86.efl & 1) || (v86.eax & 0xff00))

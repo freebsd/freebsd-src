@@ -49,38 +49,6 @@ extern FICL_VM *bf_vm;
 static void	prompt(void);
 
 /*
- * Perform the command
- */
-int
-perform(int argc, char *argv[])
-{
-    int				result;
-    struct bootblk_command	**cmdp;
-    bootblk_cmd_t		*cmd;
-
-    if (argc < 1)
-	return(CMD_OK);
-
-    /* set return defaults; a successful command will override these */
-    command_errmsg = command_errbuf;
-    strcpy(command_errbuf, "no error message");
-    cmd = NULL;
-    result = CMD_ERROR;
-
-    /* search the command set for the command */
-    SET_FOREACH(cmdp, Xcommand_set) {
-	if (((*cmdp)->c_name != NULL) && !strcmp(argv[0], (*cmdp)->c_name))
-	    cmd = (*cmdp)->c_fn;
-    }
-    if (cmd != NULL) {
-	result = (cmd)(argc, argv);
-    } else {
-	command_errmsg = "unknown command";
-    }
-    RETURN(result);
-}
-
-/*
  * Interactive mode
  */
 void
@@ -157,7 +125,7 @@ command_include(int argc, char *argv[])
     /* 
      * Since argv is static, we need to save it here.
      */
-    argvbuf = (char**) calloc(argc, sizeof(char*));
+    argvbuf = (char**) calloc((u_int)argc, sizeof(char*));
     for (i = 0; i < argc; i++)
 	argvbuf[i] = strdup(argv[i]);
 
@@ -183,7 +151,7 @@ struct includeline
 };
 
 int
-include(char *filename)
+include(const char *filename)
 {
     struct includeline	*script, *se, *sp;
     char		input[256];			/* big enough? */
