@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2000 Mark R. V. Murray & Jeroen C. van Gelderen
+ * Copyright (c) 2001-2004 Mark R. V. Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,7 +77,8 @@ static int
 null_write(struct cdev *dev __unused, struct uio *uio, int flags __unused)
 {
 	uio->uio_resid = 0;
-	return 0;
+
+	return (0);
 }
 
 /* ARGSUSED */
@@ -105,7 +107,8 @@ zero_read(struct cdev *dev __unused, struct uio *uio, int flags __unused)
 		c = uio->uio_resid < PAGE_SIZE ? uio->uio_resid : PAGE_SIZE;
 		error = uiomove(zbuf, c, uio);
 	}
-	return error;
+
+	return (error);
 }
 
 /* ARGSUSED */
@@ -121,20 +124,20 @@ null_modevent(module_t mod __unused, int type, void *data __unused)
 			GID_WHEEL, 0666, "zero");
 		null_dev = make_dev(&null_cdevsw, NULL_MINOR, UID_ROOT,
 			GID_WHEEL, 0666, "null");
-		return 0;
+		break;
 
 	case MOD_UNLOAD:
 		destroy_dev(null_dev);
 		destroy_dev(zero_dev);
 		free(zbuf, M_TEMP);
-		return 0;
+		break;
 
 	case MOD_SHUTDOWN:
-		return 0;
+		break;
 
-	default:
-		return EOPNOTSUPP;
 	}
+
+	return (0);
 }
 
 DEV_MODULE(null, null_modevent, NULL);
