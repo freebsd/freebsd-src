@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.134 1995/07/28 11:21:03 davidg Exp $
+ *	$Id: machdep.c,v 1.135 1995/07/29 11:38:52 bde Exp $
  */
 
 #include "npx.h"
@@ -813,19 +813,10 @@ int	waittime = -1;
 struct pcb dumppcb;
 
 __dead void
-boot(arghowto)
-	int arghowto;
+boot(howto)
+	int howto;
 {
-	register long dummy;		/* r12 is reserved */
-	register int howto;		/* r11 == how to boot */
-	register int devtype;		/* r10 == major of root dev */
-
-	if (cold) {
-		printf("hit reset please");
-		for(;;);
-	}
-	howto = arghowto;
-	if ((howto&RB_NOSYNC) == 0 && waittime < 0) {
+	if (!cold && (howto & RB_NOSYNC) == 0 && waittime < 0) {
 		register struct buf *bp;
 		int iter, nbusy;
 
@@ -837,7 +828,7 @@ boot(arghowto)
 		for (iter = 0; iter < 20; iter++) {
 			nbusy = 0;
 			for (bp = &buf[nbuf]; --bp >= buf; ) {
-				if ((bp->b_flags & (B_BUSY|B_INVAL)) == B_BUSY) {
+				if ((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) {
 					nbusy++;
 				}
 			}
@@ -864,25 +855,26 @@ boot(arghowto)
 		dev_shutdownall(FALSE);
 	}
 	splhigh();
-	devtype = major(rootdev);
-	if (howto&RB_HALT) {
+	if (howto & RB_HALT) {
 		printf("\n");
 		printf("The operating system has halted.\n");
 		printf("Please press any key to reboot.\n\n");
 		cngetc();
 	} else {
 		if (howto & RB_DUMP) {
-			savectx(&dumppcb, 0);
-			dumppcb.pcb_ptd = rcr3();
-			dumpsys();
+			if (!cold) {
+				savectx(&dumppcb, 0);
+				dumppcb.pcb_ptd = rcr3();
+				dumpsys();
+			}
 
 			if (PANIC_REBOOT_WAIT_TIME != 0) {
 				if (PANIC_REBOOT_WAIT_TIME != -1) {
 					int loop;
 					printf("Automatic reboot in %d seconds - press a key on the console to abort\n",
 						PANIC_REBOOT_WAIT_TIME);
-					for (loop = PANIC_REBOOT_WAIT_TIME; loop > 0; --loop) {
-						DELAY(1000 * 1000); /* one second */
+					for (loop = PANIC_REBOOT_WAIT_TIME * 10; loop > 0; --loop) {
+						DELAY(1000 * 100); /* 1/10th second */
 						if (cncheckc()) /* Did user type a key? */
 							break;
 					}
@@ -896,10 +888,6 @@ boot(arghowto)
 			cngetc();
 		}
 	}
-#ifdef lint
-	dummy = 0; dummy = dummy;
-	printf("howto %d, devtype %d\n", arghowto, devtype);
-#endif
 die:
 	printf("Rebooting...\n");
 	DELAY(1000000);	/* wait 1 sec for printf's to complete and be read */
