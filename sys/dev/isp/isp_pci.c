@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#include <dev/isp/isp_freebsd.h>
-#include <dev/isp/asm_pci.h>
-#include <sys/malloc.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
 
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -46,11 +46,17 @@
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
-#include <machine/md_var.h>
+#include <machine/resource.h>
+#include <machine/clock.h>
+#include <sys/rman.h>
+#include <sys/malloc.h>
+
+#include <dev/isp/isp_freebsd.h>
+#include <dev/isp/asm_pci.h>
 
 static u_int16_t isp_pci_rd_reg __P((struct ispsoftc *, int));
 static void isp_pci_wr_reg __P((struct ispsoftc *, int, u_int16_t));
-#ifndef ISP_DISABLE_1080_SUPPORT
+#if !defined(ISP_DISABLE_1080_SUPPORT) && !defined(ISP_DISABLE_12160_SUPPORT)
 static u_int16_t isp_pci_rd_reg_1080 __P((struct ispsoftc *, int));
 static void isp_pci_wr_reg_1080 __P((struct ispsoftc *, int, u_int16_t));
 #endif
@@ -71,6 +77,9 @@ static void isp_pci_dumpregs __P((struct ispsoftc *));
 #endif
 #ifndef	ISP_1080_RISC_CODE
 #define	ISP_1080_RISC_CODE	NULL
+#endif
+#ifndef	ISP_12160_RISC_CODE
+#define	ISP_12160_RISC_CODE	NULL
 #endif
 #ifndef	ISP_2100_RISC_CODE
 #define	ISP_2100_RISC_CODE	NULL
@@ -109,6 +118,25 @@ static struct ispmdvec mdvec_1080 = {
 	isp_pci_reset1,
 	isp_pci_dumpregs,
 	ISP_1080_RISC_CODE,
+	0,
+	ISP_CODE_ORG,
+	0,
+	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
+	0
+};
+#endif
+
+#ifndef ISP_DISABLE_12160_SUPPORT
+static struct ispmdvec mdvec_12160 = {
+	isp_pci_rd_reg_1080,
+	isp_pci_wr_reg_1080,
+	isp_pci_mbxdma,
+	isp_pci_dmasetup,
+	isp_pci_dmateardown,
+	NULL,
+	isp_pci_reset1,
+	isp_pci_dumpregs,
+	ISP_12160_RISC_CODE,
 	0,
 	ISP_CODE_ORG,
 	0,
@@ -200,6 +228,10 @@ static struct ispmdvec mdvec_2200 = {
 #define	PCI_PRODUCT_QLOGIC_ISP1080	0x1080
 #endif
 
+#ifndef	PCI_PRODUCT_QLOGIC_ISP12160
+#define	PCI_PRODUCT_QLOGIC_ISP12160	0x1216
+#endif
+
 #ifndef	PCI_PRODUCT_QLOGIC_ISP1240
 #define	PCI_PRODUCT_QLOGIC_ISP1240	0x1240
 #endif
@@ -221,6 +253,9 @@ static struct ispmdvec mdvec_2200 = {
 #define	PCI_QLOGIC_ISP1080	\
 	((PCI_PRODUCT_QLOGIC_ISP1080 << 16) | PCI_VENDOR_QLOGIC)
 
+#define	PCI_QLOGIC_ISP12160	\
+	((PCI_PRODUCT_QLOGIC_ISP12160 << 16) | PCI_VENDOR_QLOGIC)
+
 #define	PCI_QLOGIC_ISP1240	\
 	((PCI_PRODUCT_QLOGIC_ISP1240 << 16) | PCI_VENDOR_QLOGIC)
 
@@ -239,8 +274,8 @@ static struct ispmdvec mdvec_2200 = {
 #define	PCI_DFLT_LTNCY	0x40
 #define	PCI_DFLT_LNSZ	0x10
 
-static const char *isp_pci_probe __P((pcici_t tag, pcidi_t type));
-static void isp_pci_attach __P((pcici_t config_d, int unit));
+static int isp_pci_probe (device_t);
+static int isp_pci_attach (device_t);
 
 /* This distinguishing define is not right, but it does work */
 #ifdef __alpha__
@@ -253,9 +288,11 @@ static void isp_pci_attach __P((pcici_t config_d, int unit));
 
 struct isp_pcisoftc {
 	struct ispsoftc			pci_isp;
-        pcici_t				pci_id;
+	device_t			pci_dev;
+	struct resource *		pci_reg;
 	bus_space_tag_t			pci_st;
 	bus_space_handle_t		pci_sh;
+	void *				ih;
 	int16_t				pci_poff[_NREG_BLKS];
 	bus_dma_tag_t			parent_dmat;
 	bus_dma_tag_t			cntrol_dmat;
@@ -263,166 +300,152 @@ struct isp_pcisoftc {
 	bus_dmamap_t			*dmaps;
 };
 
-static u_long ispunit;
-
-static struct pci_device isp_pci_driver = {
-	"isp",
-	isp_pci_probe,
-	isp_pci_attach,
-	&ispunit,
-	NULL
+static device_method_t isp_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		isp_pci_probe),
+	DEVMETHOD(device_attach,	isp_pci_attach),
+	{ 0, 0 }
 };
-COMPAT_PCI_DRIVER (isp_pci, isp_pci_driver);
 
+static driver_t isp_pci_driver = {
+	"isp", isp_pci_methods, sizeof (struct isp_pcisoftc)
+};
+static devclass_t isp_devclass;
+DRIVER_MODULE(isp, pci, isp_pci_driver, isp_devclass, 0, 0);
 
-static const char *
-isp_pci_probe(pcici_t tag, pcidi_t type)
+static int
+isp_pci_probe(device_t dev)
 {
-	static int oneshot = 1;
-	char *x;
-
-        switch (type) {
+        switch ((pci_get_device(dev) << 16) | (pci_get_vendor(dev))) {
 #ifndef	ISP_DISABLE_1020_SUPPORT
 	case PCI_QLOGIC_ISP:
-		x = "Qlogic ISP 1020/1040 PCI SCSI Adapter";
+		device_set_desc(dev, "Qlogic ISP 1020/1040 PCI SCSI Adapter");
 		break;
 #endif
 #ifndef	ISP_DISABLE_1080_SUPPORT
 	case PCI_QLOGIC_ISP1080:
-		x = "Qlogic ISP 1080 PCI SCSI Adapter";
+		device_set_desc(dev, "Qlogic ISP 1080 PCI SCSI Adapter");
 		break;
 	case PCI_QLOGIC_ISP1240:
-		x = "Qlogic ISP 1240 PCI SCSI Adapter";
+		device_set_desc(dev, "Qlogic ISP 1240 PCI SCSI Adapter");
 		break;
 	case PCI_QLOGIC_ISP1280:
-		x = "Qlogic ISP 1280 PCI SCSI Adapter";
+		device_set_desc(dev, "Qlogic ISP 1280 PCI SCSI Adapter");
+		break;
+#endif
+#ifndef	ISP_DISABLE_12160_SUPPORT
+	case PCI_QLOGIC_ISP12160:
+		device_set_desc(dev, "Qlogic ISP 12160 PCI SCSI Adapter");
 		break;
 #endif
 #ifndef	ISP_DISABLE_2100_SUPPORT
 	case PCI_QLOGIC_ISP2100:
-		x = "Qlogic ISP 2100 PCI FC-AL Adapter";
+		device_set_desc(dev, "Qlogic ISP 2100 PCI FC-AL Adapter");
 		break;
 #endif
 #ifndef	ISP_DISABLE_2200_SUPPORT
 	case PCI_QLOGIC_ISP2200:
-		x = "Qlogic ISP 2200 PCI FC-AL Adapter";
+		device_set_desc(dev, "Qlogic ISP 2200 PCI FC-AL Adapter");
 		break;
 #endif
 	default:
-		return (NULL);
+		return (ENXIO);
 	}
-	if (oneshot) {
-		oneshot = 0;
+	if (device_get_unit(dev) == 0) {
 		CFGPRINTF("Qlogic ISP Driver, FreeBSD Version %d.%d, "
 		    "Core Version %d.%d\n",
 		    ISP_PLATFORM_VERSION_MAJOR, ISP_PLATFORM_VERSION_MINOR,
 		    ISP_CORE_VERSION_MAJOR, ISP_CORE_VERSION_MINOR);
 	}
-	return (x);
+	return (0);
 }
 
-static void
-isp_pci_attach(pcici_t cfid, int unit)
+static int
+isp_pci_attach(device_t dev)
 {
 #ifdef	SCSI_ISP_WWN
 	const char *name = SCSI_ISP_WWN;
 	char *vtp = NULL;
 #endif
-	int mapped, prefer_mem_map, bitmap;
-	pci_port_t io_port;
-	u_int32_t data, rev, linesz, psize, basetype;
+	struct resource *regs, *irq;
+	int unit, bitmap, rtp, rgd, iqd, m1, m2;
+	u_int32_t data, cmd, linesz, psize, basetype;
 	struct isp_pcisoftc *pcs;
 	struct ispsoftc *isp;
-	vm_offset_t vaddr, paddr;
 	struct ispmdvec *mdvp;
 	bus_size_t lim;
 	ISP_LOCKVAL_DECL;
 
-	pcs = malloc(sizeof (struct isp_pcisoftc), M_DEVBUF, M_NOWAIT);
-	if (pcs == NULL) {
-		printf("isp%d: cannot allocate softc\n", unit);
-		return;
-	}
-	bzero(pcs, sizeof (struct isp_pcisoftc));
-
 	/*
 	 * Figure out if we're supposed to skip this one.
 	 */
+	unit = device_get_unit(dev);
 	if (getenv_int("isp_disable", &bitmap)) {
 		if (bitmap & (1 << unit)) {
-			printf("isp%d: not configuring\n", unit);
-			return;
+			device_printf(dev, "not configuring\n");
+			return (ENODEV);
 		}
 	}
+
+	pcs = malloc(sizeof (struct isp_pcisoftc), M_DEVBUF, M_NOWAIT);
+	if (pcs == NULL) {
+		device_printf(dev, "cannot allocate softc\n");
+		return (ENOMEM);
+	}
+	bzero(pcs, sizeof (struct isp_pcisoftc));
 
 	/*
 	 * Figure out which we should try first - memory mapping or i/o mapping?
 	 */
 #if	SCSI_ISP_PREFER_MEM_MAP == 1
-	prefer_mem_map = 1;
+	m1 = PCIM_CMD_MEMEN;
+	m2 = PCIM_CMD_PORTEN;
 #else
-	prefer_mem_map = 0;
+	m1 = PCIM_CMD_PORTEN;
+	m2 = PCIM_CMD_MEMEN;
 #endif
 	bitmap = 0;
 	if (getenv_int("isp_mem_map", &bitmap)) {
-		if (bitmap & (1 << unit))
-			prefer_mem_map = 1;
+		if (bitmap & (1 << unit)) {
+			m1 = PCIM_CMD_MEMEN;
+			m2 = PCIM_CMD_PORTEN;
+		}
 	}
 	bitmap = 0;
 	if (getenv_int("isp_io_map", &bitmap)) {
-		if (bitmap & (1 << unit))
-			prefer_mem_map = 0;
+		if (bitmap & (1 << unit)) {
+			m1 = PCIM_CMD_PORTEN;
+			m2 = PCIM_CMD_MEMEN;
+		}
 	}
 
-	vaddr = paddr = NULL;
-	mapped = 0;
 	linesz = PCI_DFLT_LNSZ;
-	/*
-	 * Note that pci_conf_read is a 32 bit word aligned function.
-	 */
-	data = pci_conf_read(cfid, PCIR_COMMAND);
-	if (prefer_mem_map) {
-		if (data & PCI_COMMAND_MEM_ENABLE) {
-			if (pci_map_mem(cfid, MEM_MAP_REG, &vaddr, &paddr)) {
-				pcs->pci_st = MEM_SPACE_MAPPING;
-				pcs->pci_sh = vaddr;
-				mapped++;
-			}
-		}
-		if (mapped == 0 && (data & PCI_COMMAND_IO_ENABLE)) {
-			if (pci_map_port(cfid, PCI_MAP_REG_START, &io_port)) {
-				pcs->pci_st = IO_SPACE_MAPPING;
-				pcs->pci_sh = io_port;
-				mapped++;
-			}
-		}
-	} else {
-		if (data & PCI_COMMAND_IO_ENABLE) {
-			if (pci_map_port(cfid, PCI_MAP_REG_START, &io_port)) {
-				pcs->pci_st = IO_SPACE_MAPPING;
-				pcs->pci_sh = io_port;
-				mapped++;
-			}
-		}
-		if (mapped == 0 && (data & PCI_COMMAND_MEM_ENABLE)) {
-			if (pci_map_mem(cfid, MEM_MAP_REG, &vaddr, &paddr)) {
-				pcs->pci_st = MEM_SPACE_MAPPING;
-				pcs->pci_sh = vaddr;
-				mapped++;
-			}
-		}
+	irq = regs = NULL;
+	rgd = rtp = iqd = 0;
+
+	cmd = pci_read_config(dev, PCIR_COMMAND, 1);
+	if (cmd & m1) {
+		rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
+		rgd = (m1 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
+		regs = bus_alloc_resource(dev, rtp, &rgd, 0, ~0, 1, RF_ACTIVE);
 	}
-	if (mapped == 0) {
-		printf("isp%d: unable to map any ports!\n", unit);
-		free(pcs, M_DEVBUF);
-		return;
+	if (regs == NULL && (cmd & m2)) {
+		rtp = (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
+		rgd = (m2 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
+		regs = bus_alloc_resource(dev, rtp, &rgd, 0, ~0, 1, RF_ACTIVE);
+	}
+	if (regs == NULL) {
+		device_printf(dev, "unable to map any ports\n");
+		goto bad;
 	}
 	if (bootverbose)
 		printf("isp%d: using %s space register mapping\n", unit,
-		    pcs->pci_st == IO_SPACE_MAPPING? "I/O" : "Memory");
+		    (rgd == IO_MAP_REG)? "I/O" : "Memory");
+	pcs->pci_dev = dev;
+	pcs->pci_reg = regs;
+	pcs->pci_st = rman_get_bustag(regs);
+	pcs->pci_sh = rman_get_bushandle(regs);
 
-	data = pci_conf_read(cfid, PCI_ID_REG);
-	rev = pci_conf_read(cfid, PCI_CLASS_REG) & 0xff;	/* revision */
 	pcs->pci_poff[BIU_BLOCK >> _BLK_REG_SHFT] = BIU_REGS_OFF;
 	pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS_OFF;
 	pcs->pci_poff[SXP_BLOCK >> _BLK_REG_SHFT] = PCI_SXP_REGS_OFF;
@@ -436,7 +459,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 	psize = sizeof (sdparam);
 	lim = BUS_SPACE_MAXSIZE_32BIT;
 #ifndef	ISP_DISABLE_1020_SUPPORT
-	if (data == PCI_QLOGIC_ISP) {
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP) {
 		mdvp = &mdvec;
 		basetype = ISP_HA_SCSI_UNKNOWN;
 		psize = sizeof (sdparam);
@@ -444,21 +467,21 @@ isp_pci_attach(pcici_t cfid, int unit)
 	}
 #endif
 #ifndef	ISP_DISABLE_1080_SUPPORT
-	if (data == PCI_QLOGIC_ISP1080) {
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP1080) {
 		mdvp = &mdvec_1080;
 		basetype = ISP_HA_SCSI_1080;
 		psize = sizeof (sdparam);
 		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
 		    ISP1080_DMA_REGS_OFF;
 	}
-	if (data == PCI_QLOGIC_ISP1240) {
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP1240) {
 		mdvp = &mdvec_1080;
 		basetype = ISP_HA_SCSI_1240;
 		psize = 2 * sizeof (sdparam);
 		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
 		    ISP1080_DMA_REGS_OFF;
 	}
-	if (data == PCI_QLOGIC_ISP1280) {
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP1280) {
 		mdvp = &mdvec_1080;
 		basetype = ISP_HA_SCSI_1280;
 		psize = 2 * sizeof (sdparam);
@@ -466,14 +489,23 @@ isp_pci_attach(pcici_t cfid, int unit)
 		    ISP1080_DMA_REGS_OFF;
 	}
 #endif
+#ifndef	ISP_DISABLE_1080_SUPPORT
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP12160) {
+		mdvp = &mdvec_12160;
+		basetype = ISP_HA_SCSI_12160;
+		psize = 2 * sizeof (sdparam);
+		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
+		    ISP1080_DMA_REGS_OFF;
+	}
+#endif
 #ifndef	ISP_DISABLE_2100_SUPPORT
-	if (data == PCI_QLOGIC_ISP2100) {
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2100) {
 		mdvp = &mdvec_2100;
 		basetype = ISP_HA_FC_2100;
 		psize = sizeof (fcparam);
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2100_OFF;
-		if (rev < 3) {
+		if (pci_get_revid(dev) < 3) {
 			/*
 			 * XXX: Need to get the actual revision
 			 * XXX: number of the 2100 FB. At any rate,
@@ -485,7 +517,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 	}
 #endif
 #ifndef	ISP_DISABLE_2200_SUPPORT
-	if (data == PCI_QLOGIC_ISP2200) {
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2200) {
 		mdvp = &mdvec_2200;
 		basetype = ISP_HA_FC_2200;
 		psize = sizeof (fcparam);
@@ -496,72 +528,70 @@ isp_pci_attach(pcici_t cfid, int unit)
 	isp = &pcs->pci_isp;
 	isp->isp_param = malloc(psize, M_DEVBUF, M_NOWAIT);
 	if (isp->isp_param == NULL) {
-		printf("isp%d: cannot allocate parameter data\n", unit);
-		return;
+		device_printf(dev, "cannot allocate parameter data\n");
+		goto bad;
 	}
 	bzero(isp->isp_param, psize);
 	isp->isp_mdvec = mdvp;
 	isp->isp_type = basetype;
-	isp->isp_revision = rev;
+	isp->isp_revision = pci_get_revid(dev);
 	(void) snprintf(isp->isp_name, sizeof (isp->isp_name), "isp%d", unit);
 	isp->isp_osinfo.unit = unit;
 
 	ISP_LOCK(isp);
-
 	/*
 	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER
 	 * are set.
 	 */
-	data = pci_cfgread(cfid, PCIR_COMMAND, 2);
-	data |=	PCIM_CMD_SEREN		|
-		PCIM_CMD_PERRESPEN	|
-		PCIM_CMD_BUSMASTEREN	|
-		PCIM_CMD_INVEN;
-	pci_cfgwrite(cfid, PCIR_COMMAND, 2, data);
+	cmd |= PCIM_CMD_SEREN | PCIM_CMD_PERRESPEN |
+		PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
+	pci_write_config(dev, PCIR_COMMAND, cmd, 1);
 
 	/*
 	 * Make sure the Cache Line Size register is set sensibly.
 	 */
-	data = pci_cfgread(cfid, PCIR_CACHELNSZ, 1);
+	data = pci_read_config(dev, PCIR_CACHELNSZ, 1);
 	if (data != linesz) {
 		data = PCI_DFLT_LNSZ;
 		CFGPRINTF("%s: set PCI line size to %d\n", isp->isp_name, data);
-		pci_cfgwrite(cfid, PCIR_CACHELNSZ, data, 1);
+		pci_write_config(dev, PCIR_CACHELNSZ, data, 1);
 	}
 
 	/*
 	 * Make sure the Latency Timer is sane.
 	 */
-	data = pci_cfgread(cfid, PCIR_LATTIMER, 1);
+	data = pci_read_config(dev, PCIR_LATTIMER, 1);
 	if (data < PCI_DFLT_LTNCY) {
 		data = PCI_DFLT_LTNCY;
 		CFGPRINTF("%s: set PCI latency to %d\n", isp->isp_name, data);
-		pci_cfgwrite(cfid, PCIR_LATTIMER, data, 1);
+		pci_write_config(dev, PCIR_LATTIMER, data, 1);
 	}
 
 	/*
 	 * Make sure we've disabled the ROM.
 	 */
-	data = pci_cfgread(cfid, PCIR_ROMADDR, 4);
+	data = pci_read_config(dev, PCIR_ROMADDR, 4);
 	data &= ~1;
-	pci_cfgwrite(cfid, PCIR_ROMADDR, data, 4);
+	pci_write_config(dev, PCIR_ROMADDR, data, 4);
 	ISP_UNLOCK(isp);
 
 	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, lim + 1,
 	    255, lim, 0, &pcs->parent_dmat) != 0) {
 		printf("%s: could not create master dma tag\n", isp->isp_name);
+		free(isp->isp_param, M_DEVBUF);
 		free(pcs, M_DEVBUF);
-		return;
-	}
-	if (pci_map_int(cfid, (void (*)(void *))isp_intr,
-	    (void *)isp, &IMASK) == 0) {
-		printf("%s: could not map interrupt\n", isp->isp_name);
-		free(pcs, M_DEVBUF);
-		return;
+		return (ENXIO);
 	}
 
-	pcs->pci_id = cfid;
+	iqd = 0;
+	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &iqd, 0, ~0,
+	    1, RF_ACTIVE | RF_SHAREABLE);
+	if (irq == NULL) {
+		device_printf(dev, "could not allocate interrupt\n");
+		goto bad;
+	}
+
 #ifdef	SCSI_ISP_NO_FWLOAD_MASK
 	if (SCSI_ISP_NO_FWLOAD_MASK && (SCSI_ISP_NO_FWLOAD_MASK & (1 << unit)))
 		isp->isp_confopts |= ISP_CFG_NORELOAD;
@@ -605,6 +635,10 @@ isp_pci_attach(pcici_t cfid, int unit)
 		if (bitmap & (1 << unit))
 			isp->isp_confopts &= ~ISP_CFG_FULL_DUPLEX;
 	}
+	if (getenv_int("isp_nport", &bitmap)) {
+		if (bitmap & (1 << unit))
+			isp->isp_confopts |= ISP_CFG_NPORT;
+	}
 	/*
 	 * Look for overriding WWN. This is a Node WWN so it binds to
 	 * all FC instances. A Port WWN will be constructed from it
@@ -642,22 +676,25 @@ isp_pci_attach(pcici_t cfid, int unit)
 	(void) getenv_int("isp_tdebug", &isp_tdebug);
 #endif
 	ISP_LOCK(isp);
+	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM, (void (*)(void *))isp_intr,
+	    isp, &pcs->ih)) {
+		ISP_UNLOCK(isp);
+		device_printf(dev, "could not setup interrupt\n");
+		goto bad;
+	}
+
 	isp_reset(isp);
 	if (isp->isp_state != ISP_RESETSTATE) {
-		(void) pci_unmap_int(cfid);
 		ISP_UNLOCK(isp);
-		free(pcs, M_DEVBUF);
-		return;
+		goto bad;
 	}
 	isp_init(isp);
 	if (isp->isp_state != ISP_INITSTATE) {
 		/* If we're a Fibre Channel Card, we allow deferred attach */
 		if (IS_SCSI(isp)) {
 			isp_uninit(isp);
-			(void) pci_unmap_int(cfid); /* Does nothing */
 			ISP_UNLOCK(isp);
-			free(pcs, M_DEVBUF);
-			return;
+			goto bad;
 		}
 	}
 	isp_attach(isp);
@@ -665,13 +702,31 @@ isp_pci_attach(pcici_t cfid, int unit)
 		/* If we're a Fibre Channel Card, we allow deferred attach */
 		if (IS_SCSI(isp)) {
 			isp_uninit(isp);
-			(void) pci_unmap_int(cfid); /* Does nothing */
 			ISP_UNLOCK(isp);
-			free(pcs, M_DEVBUF);
-			return;
+			goto bad;
 		}
 	}
 	ISP_UNLOCK(isp);
+	return (0);
+
+bad:
+
+	if (pcs && pcs->ih) {
+		(void) bus_teardown_intr(dev, irq, pcs->ih);
+	}
+
+	if (irq) {
+		(void) bus_release_resource(dev, SYS_RES_IRQ, iqd, irq);
+	}
+	if (regs) {
+		(void) bus_release_resource(dev, rtp, rgd, regs);
+	}
+	if (pcs) {
+		if (pcs->pci_isp.isp_param)
+			free(pcs->pci_isp.isp_param, M_DEVBUF);
+		free(pcs, M_DEVBUF);
+	}
+	return (ENXIO);
 }
 
 static u_int16_t
@@ -723,7 +778,7 @@ isp_pci_wr_reg(isp, regoff, val)
 	}
 }
 
-#ifndef	ISP_DISABLE_1080_SUPPORT
+#if !defined(ISP_DISABLE_1080_SUPPORT) && !defined(ISP_DISABLE_12160_SUPPORT)
 static u_int16_t
 isp_pci_rd_reg_1080(isp, regoff)
 	struct ispsoftc *isp;
@@ -1705,6 +1760,6 @@ static void
 isp_pci_dumpregs(struct ispsoftc *isp)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
-	printf("%s: PCI Status Command/Status=%lx\n", pci->pci_isp.isp_name,
-	    pci_conf_read(pci->pci_id, PCIR_COMMAND));
+	printf("%s: PCI Status Command/Status=%x\n", pci->pci_isp.isp_name,
+	    pci_read_config(pci->pci_dev, PCIR_COMMAND, 1));
 }
