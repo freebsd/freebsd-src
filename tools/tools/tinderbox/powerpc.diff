@@ -2,11 +2,11 @@ $FreeBSD$
 
 Index: contrib/gcc/config/rs6000/freebsd.h
 ===================================================================
-RCS file: /usr/home/ncvs/src/contrib/gcc/config/rs6000/freebsd.h,v
+RCS file: /home/ncvs/src/contrib/gcc/config/rs6000/freebsd.h,v
 retrieving revision 1.1.1.2
 diff -u -r1.1.1.2 freebsd.h
 --- contrib/gcc/config/rs6000/freebsd.h	11 Jul 2003 03:40:53 -0000	1.1.1.2
-+++ contrib/gcc/config/rs6000/freebsd.h	15 Jul 2003 22:17:12 -0000
++++ contrib/gcc/config/rs6000/freebsd.h	9 Sep 2003 06:51:49 -0000
 @@ -43,6 +43,23 @@
  #undef  LINK_SHLIB_SPEC
  #define LINK_SHLIB_SPEC "%{shared:-shared} %{!shared: %{static:-static}}"
@@ -31,13 +31,23 @@ diff -u -r1.1.1.2 freebsd.h
  
  /************************[  Target stuff  ]***********************************/
  
+@@ -58,6 +75,9 @@
+ 
+ #undef  WCHAR_TYPE_SIZE
+ #define WCHAR_TYPE_SIZE 32
++
++#undef  DEFAULT_SIGNED_CHAR
++#define DEFAULT_SIGNED_CHAR 1
+ 
+ #undef  TARGET_VERSION
+ #define TARGET_VERSION fprintf (stderr, " (FreeBSD/PowerPC ELF)");
 Index: contrib/gcc/config/rs6000/sysv4.h
 ===================================================================
-RCS file: /usr/home/ncvs/src/contrib/gcc/config/rs6000/sysv4.h,v
+RCS file: /home/ncvs/src/contrib/gcc/config/rs6000/sysv4.h,v
 retrieving revision 1.1.1.6
 diff -u -r1.1.1.6 sysv4.h
 --- contrib/gcc/config/rs6000/sysv4.h	11 Jul 2003 03:40:53 -0000	1.1.1.6
-+++ contrib/gcc/config/rs6000/sysv4.h	15 Jul 2003 20:35:39 -0000
++++ contrib/gcc/config/rs6000/sysv4.h	9 Sep 2003 06:51:49 -0000
 @@ -21,8 +21,6 @@
  Boston, MA 02111-1307, USA.  */
  
