@@ -88,7 +88,9 @@
 #define STE_TX_RECLAIM_THRESH	0x5D
 #define STE_PHYCTL		0x5E
 #define STE_MAR0		0x60
-#define STE_MAR1		0x64
+#define STE_MAR1		0x62
+#define STE_MAR2		0x64
+#define STE_MAR3		0x66
 #define STE_STATS		0x68
 
 #define STE_DMACTL_RXDMA_STOPPED	0x00000001
