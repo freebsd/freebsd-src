@@ -1,4 +1,4 @@
-/* $Id: isp.c,v 1.2 1998/09/15 08:42:55 gibbs Exp $ */
+/* $FreeBSD$ */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
@@ -642,7 +642,7 @@ isp_init(isp)
 	/*
 	 * Set up DMA for the request and result mailboxes.
 	 */
-	if (ISP_MBOXDMASETUP(isp)) {
+	if (ISP_MBOXDMASETUP(isp) != 0) {
 		PRINTF("%s: can't setup dma mailboxes\n", isp->isp_name);
 		return;
 	}
@@ -708,7 +708,7 @@ isp_fibre_init(isp)
 
 	fcp = isp->isp_param;
 
-	if (ISP_MBOXDMASETUP(isp)) {
+	if (ISP_MBOXDMASETUP(isp) != 0) {
 		PRINTF("%s: can't setup DMA for mailboxes\n", isp->isp_name);
 		return;
 	}
@@ -919,7 +919,7 @@ ispscsicmd(xs)
 	reqp = (ispreq_t *) ISP_QUEUE_ENTRY(isp->isp_rquest, iptr);
 	iptr = ISP_NXT_QENTRY(iptr, RQUEST_QUEUE_LEN);
 	if (iptr == optr) {
-		PRINTF("%s: Request Queue Overflow\n", isp->isp_name);
+		IDPRINTF(2, ("%s: Request Queue Overflow\n", isp->isp_name));
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
 	}
@@ -938,14 +938,19 @@ ispscsicmd(xs)
 
 		isp->isp_sendmarker = 0;
 
+		/*
+		 * Unconditionally update the input pointer anyway.
+		 */
+		ISP_WRITE(isp, INMAILBOX4, iptr);
+		isp->isp_reqidx = iptr;
+
 		niptr = ISP_NXT_QENTRY(iptr, RQUEST_QUEUE_LEN);
 		if (niptr == optr) {
-			ISP_WRITE(isp, INMAILBOX4, iptr);
-			isp->isp_reqidx = iptr;
 			if (isp->isp_type & ISP_HA_FC) {
 				ENABLE_INTS(isp);
 			}
-			PRINTF("%s: Request Queue Overflow+\n", isp->isp_name);
+			IDPRINTF(2, ("%s: Request Queue Overflow+\n",
+			    isp->isp_name));
 			XS_SETERR(xs, HBA_BOTCH);
 			return (CMD_EAGAIN);
 		}
@@ -970,7 +975,7 @@ ispscsicmd(xs)
 	if (i == RQUEST_QUEUE_LEN) {
 		if (isp->isp_type & ISP_HA_FC)
 			ENABLE_INTS(isp);
-		PRINTF("%s: ran out of xflist pointers?????\n", isp->isp_name);
+		IDPRINTF(2, ("%s: out of xflist pointers\n", isp->isp_name));
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
 	} else {
@@ -1022,11 +1027,15 @@ ispscsicmd(xs)
 	reqp->req_time = XS_TIME(xs) / 1000;
 	if (reqp->req_time == 0 && XS_TIME(xs))
 		reqp->req_time = 1;
-	if (ISP_DMASETUP(isp, xs, reqp, &iptr, optr)) {
+	i = ISP_DMASETUP(isp, xs, reqp, &iptr, optr);
+	if (i != CMD_QUEUED) {
 		if (isp->isp_type & ISP_HA_FC)
 			ENABLE_INTS(isp);
-		/* dmasetup sets actual error */
-		return (CMD_COMPLETE);
+		/*
+		 * dmasetup sets actual error in packet, and
+		 * return what we were given to return.
+		 */
+		return (i);
 	}
 	XS_SETERR(xs, HBA_NOERROR);
 	ISP_WRITE(isp, INMAILBOX4, iptr);
@@ -2618,6 +2627,7 @@ isp_restart(isp)
 
 	for (i = 0; i < RQUEST_QUEUE_LEN; i++) {
 		tlist[i] = (ISP_SCSI_XFER_T *) isp->isp_xflist[i];
+		isp->isp_xflist[i] = NULL;
 	}
 	isp_reset(isp);
 	if (isp->isp_state == ISP_RESETSTATE) {
@@ -2632,11 +2642,13 @@ isp_restart(isp)
 
 	for (i = 0; i < RQUEST_QUEUE_LEN; i++) {
 		xs = tlist[i];
-		if (XS_NULL(xs))
+		if (XS_NULL(xs)) {
 			continue;
+		}
 		isp->isp_nactive--;
-		if (isp->isp_nactive < 0)
+		if (isp->isp_nactive < 0) {
 			isp->isp_nactive = 0;
+		}
 		XS_RESID(xs) = XS_XFRLEN(xs);
 		XS_SETERR(xs, HBA_BUSRESET);
 		XS_CMD_DONE(xs);
