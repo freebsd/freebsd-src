@@ -51,12 +51,12 @@ MLINKS+=getprotoent.3 endprotoent.3 getprotoent.3 getprotobyname.3 \
 	getprotoent.3 getprotobynumber.3 getprotoent.3 setprotoent.3
 MLINKS+=getservent.3 endservent.3 getservent.3 getservbyname.3 \
 	getservent.3 getservbyport.3 getservent.3 setservent.3
+MLINKS+=if_indextoname.3 if_nametoindex.3 if_indextoname.3 if_nameindex.3 \
+	if_indextoname.3 if_freenameindex.3
 MLINKS+=inet.3 addr.3 inet.3 inet_addr.3 inet.3 inet_aton.3 \
 	inet.3 inet_lnaof.3 inet.3 inet_makeaddr.3 inet.3 inet_netof.3 \
 	inet.3 inet_network.3 inet.3 inet_ntoa.3 inet.3 network.3 \
 	inet.3 ntoa.3
-MLINKS+=if_indextoname.3 if_nametoindex.3 if_indextoname.3 if_nameindex.3 \
-	if_indextoname.3 if_freenameindex.3
 MLINKS+=inet6_option_space.3 inet6_option_alloc.3 \
 	inet6_option_space.3 inet6_option_append.3 \
 	inet6_option_space.3 inet6_option_find.3 \
