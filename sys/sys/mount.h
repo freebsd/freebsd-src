@@ -571,8 +571,12 @@ struct mntarg *mount_argsu(struct mntarg *ma, const char *name, const void *val,
 struct vfsconf *vfs_byname(const char *);
 struct vfsconf *vfs_byname_kld(const char *, struct thread *td, int *);
 void	vfs_event_signal(fsid_t *, u_int32_t, intptr_t);
+int	vfs_flagopt(struct vfsoptlist *opts, const char *name, u_int *w, u_int val);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
+char	*vfs_getopts(struct vfsoptlist *, const char *, int *error);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
+int	vfs_filteropt(struct vfsoptlist *, const char **legal);
+int	vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...);
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
 int	vfs_lock(struct mount *);         /* lock a vfs */
@@ -589,6 +593,7 @@ struct cdev *vfs_getrootfsid(struct mount *);
 struct	mount *vfs_getvfs(fsid_t *);      /* return vfs given fsid */
 int	vfs_modevent(module_t, int, void *);
 void	vfs_mountroot(void);			/* mount our root filesystem */
+void	vfs_mountedfrom(struct mount *, const char *from);
 void	vfs_mount_destroy(struct mount *, struct thread *);
 int	vfs_suser(struct mount *, struct thread *);
 void	vfs_unbusy(struct mount *, struct thread *);
