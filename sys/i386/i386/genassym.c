@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.45 1997/04/26 11:45:06 peter Exp $
+ *	$Id: genassym.c,v 1.46 1997/05/10 08:01:13 bde Exp $
  */
 
 #include <stdio.h>
@@ -127,6 +127,8 @@ main()
 	printf("#define\tPCB_EIP %p\n", &pcb->pcb_eip);
 	printf("#define\tTSS_ESP0 %p\n", &tss->tss_esp0);
 	printf("#define\tPCB_USERLDT %p\n", &pcb->pcb_ldt);
+	printf("#define\tPCB_FS %p\n", &pcb->pcb_fs);
+	printf("#define\tPCB_GS %p\n", &pcb->pcb_gs);
 #ifdef SMP
 	printf("#define\tPCB_MPNEST %p\n", &pcb->pcb_mpnest);
 #endif

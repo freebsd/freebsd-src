@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.50 1997/05/29 05:11:11 peter Exp $
+ *	$Id: swtch.s,v 1.51 1997/05/31 09:27:29 peter Exp $
  */
 
 #include "npx.h"
@@ -336,6 +336,8 @@ ENTRY(cpu_switch)
 	movl	%ebp,PCB_EBP(%ecx)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
+	movl	%fs,PCB_FS(%ecx)
+	movl	%gs,PCB_GS(%ecx)
 
 #ifdef SMP
 	movl	_mp_lock, %eax
@@ -562,6 +564,14 @@ swtch_com:
 2:
 #endif
 
+	/* This must be done after loading the user LDT. */
+	.globl	cpu_switch_load_fs
+cpu_switch_load_fs:
+	movl	PCB_FS(%edx),%fs
+	.globl	cpu_switch_load_gs
+cpu_switch_load_gs:
+	movl	PCB_GS(%edx),%gs
+
 	sti
 	ret
 
@@ -592,6 +602,8 @@ ENTRY(savectx)
 	movl	%ebp,PCB_EBP(%ecx)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
+	movl	%fs,PCB_FS(%ecx)
+	movl	%gs,PCB_GS(%ecx)
 
 #if NNPX > 0
 	/*
