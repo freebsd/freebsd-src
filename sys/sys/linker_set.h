@@ -71,7 +71,7 @@
  */
 #define MAKE_SET(set, sym, type) \
 	static void const * const __set_##set##_sym_##sym = &sym; \
-	__asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
+	__asm(".stabs \"" #set "\", " #type ", 0, 0, " #sym)
 #define TEXT_SET(set, sym) MAKE_SET(set, sym, 23)
 #define DATA_SET(set, sym) MAKE_SET(set, sym, 25)
 
