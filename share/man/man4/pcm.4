@@ -25,13 +25,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 3, 1998
+.Dd November 14, 2003
 .Dt PCM 4
 .Os
 .Sh NAME
 .Nm pcm ,
 .Nm snd
-.Nd FreeBSD PCM audio device driver
+.Nd FreeBSD PCM audio device infrastructure
 .Sh SYNOPSIS
 For a card with bridge driver support, and a PnP card:
 .Cd "device pcm"
@@ -46,48 +46,197 @@ the following lines may be required in
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCM audio play and capture.
-This driver
-also supports various PCI and WSS/MSS compatible ISA sound cards, and
-AC97 mixer.
+driver provides support for
+.Tn PCM
+audio play and capture.
+This driver also supports various
+.Tn PCI ,
+.Tn WSS/MSS
+compatible,
+.Tn ISA
+sound cards, and AC97 mixer.
+Once the
+.Nm
+driver attaches, supported devices provide audio record and
+playback channels.
+The
+.Fx
+sound system provides dynamic mixing
+.Dq VCHAN
+and rate conversion
+.Dq soft formats .
 True full duplex operation is available on most cards.
 .Pp
-If your sound card is supported by a bridge driver,
+If the sound card is supported by a bridge driver, the
 .Nm
-driver works
-in conjunction with the bridge driver.
+driver works in conjunction with the bridge driver.
 .Pp
 Apart from the usual parameters, the flags field is used to specify
-the secondary DMA channel (generally used for capture in full duplex
-cards). Flags are set to 0 for cards not using a secondary DMA
+the secondary
+.Tn DMA
+channel (generally used for capture in full duplex cards).
+Flags are set to 0 for cards not using a secondary
+.Tn DMA
 channel, or to 0x10 + C to specify channel C.
 .Pp
-The driver works best with WSS/MSS cards, which have a very clean
+The driver works best with
+.Tn WSS/MSS
+cards, which have a very clean
 architecture and an orthogonal set of features.
 They also happen to be
 among the cheapest audio cards on the market.
 .Pp
 The driver does its best to recognize the installed hardware and drive
-it correctly, so that you don't have to give too many details in
+it correctly so the user is not required to add several lines in
 .Pa /boot/device.hints .
-For PCI and ISA PnP cards this is actually easy
+For
+.Tn PCI
+and
+.Tn ISA
+.Tn PnP
+cards this is actually easy
 since they identify themselves.
-For legacy ISA cards, the driver looks
-for MSS cards at addresses 0x530 and 0x604 (obviously, unless overridden
+For legacy
+.Tn ISA
+cards, the driver looks for
+.Tn MSS
+cards at addresses 0x530 and 0x604 (unless overridden
 in
 .Pa /boot/device.hints ) .
-.Sh IOCTL
-The driver supports most of the Voxware ioctls(), and most
-applications work unmodified (including popular mpeg players and linux
-binaries). A few
-differences exist (the most important one is the ability to use
-memory-mapped access to the audio buffers). As a consequence, some
-applications may need to be recompiled with a slightly modified
-audio module.
+.Ss Boot Variables
+In general, the module
+.Pa snd_foo
+corresponds to device foo and can be
+loaded by the boot loader via
+.Pa boot/loader.conf
+or from the command line using the
+.Xr kldload 8
+utility.
+Options which can be specified in
+.Pa /boot/loader.conf
+include:
+.Bl -tag -width snd_emu10k1_load -offset indent
+.It Va snd_driver_load
+.Pq Dq NO
+If set to
+.Dq YES ,
+this option loads all available drivers.
+.It Va snd_emu10k1_load
+.Pq Dq NO
+If set to
+.Dq YES ,
+Only the SoundBlaster 5.1 driver and dependent modules will be loaded.
+.It Va snd_foo_load
+.Pq Dq NO
+If set to
+.Dq YES ,
+load driver for card/chipset foo.
+.El
+.Ss VCHANS
+Each device can optionally support more playback channels
+that physical hardware provides by using
+.Dq virtual channels
+or
+.Tn VCHANs .
+.Tn VCHAN
+options can be configured via the
+.Xr sysctl 8
+interface but can only be manipulated while the device is inactive.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+tunables are available:
+.Bl -tag -width ".It Va hw.snd.report_soft_formats" -offset indent
+.It Va hw.snd.pcm%d.buffersize
+Configure the amount of
+.Tn DMA
+bufferspace available for a device.
+.It Va hw.snd.targetirqrate
+Set the default block size such that continuous
+playback will achieve this
+.Tn IRQ
+rate.
+This value can be tuned to improve application performance.
+Increase this value when the sound lags and decrease
+it if sound stutters or breaks up.
+.It Va hw.snd.unit
+When using
+.Xr devfs 5 ,
+the default device for
+.Pa /dev/dsp .
+Equivalent to a symlink from
+.Pa /dev/dsp
+to
+.Pa /dev/dsp${hw.snd.unit} .
+.It Va hw.snd.report_soft_formats
+Controls the internal format conversion if it is
+available transparently to the application software.
+When disabled or not available, the application will
+only be able to select formats the device natively supports.
+.It Va hw.snd.verbose
+Level of verbosity for the
+.Pa /dev/sndstat
+device.
+Higher values include more output and the highest level,
+three, should be used when reported problems.
+Other options include:
+0 - Installed devices and their allocated bus resources.
+1 - The number of playback, record, virtual channels, and
+flags per device.
+2 - Channel information per device including the channel's
+current format, speed, and pseudo device statistics such as
+buffer overruns and buffer underruns.
+3 - File names and versions of the currently sound loaded modules.
+.It Va hw.snd.maxautovchans
+Global
+.Tn VCHAN
+setting that only affects devices that have only one playback channel.
+The sound system will dynamically create up this many
+.Tn VCHANs .
+Set to
+.Dq 0
+if no
+.Tn VCHANS
+are desired.
+.It Va hw.snd.pcm%d.vchans
+The current number of
+.Tn VCHANs
+allocated per device.
+This can be set to preallocate a certain number of
+.Tn VCHANs .
+Setting this value to
+.Dq 0
+will disable
+.Tn VCHANs
+for this device.
+.El
+.Ss Recording Channels
+On devices that have more than one recording source (ie: mic and line),
+there is a corresponding
+.Pa /dev/dspr%d.%d
+device.
+.Ss Statistics
+Channel statistics are only kept while the device is open.
+So with situations involving overruns and underruns, consider the output
+while the errant application is open and running.
+.Ss IOCTL Support
+The driver supports most of the
+.Tn OSS
+.Fn ioctl
+functions, and most applications work unmodified.
+A few differences exist, while memory mapped playback is
+supported natively and in Linux emulation, memory mapped recording is
+not due to
+.Tn VM
+system design.
+As a consequence, some applications may need to be recompiled
+with a slightly modified audio module.
 See
 .In sys/soundcard.h
-for a complete list of the supported ioctls.
-.Sh SUPPORTED CARDS
+for a complete list of the supported
+.Fn ioctl
+functions.
+.Ss SUPPORTED CARDS
 Below we include a list of supported codecs/cards.
 If your sound card
 is not listed here, it may be supported by a bridge driver.
@@ -122,25 +271,21 @@ Creative Labs SoundBlaster PCI is supported as well.
 The following commonly used symbolic links to real device nodes
 should be present:
 .Pp
-.Bl -tag -width /dev/sequencer -compact
-.It Pa /dev/audio
-Sparc-compatible audio device
-.It Pa /dev/dsp
-Digitized voice device
-.It Pa /dev/dspW
+.Bl -tag -width "/dev/dspr%d.%dXXX" -compact
+.It Pa /dev/audio%d.%d
+Sparc-compatible audio device.
+.It Pa /dev/dsp%d.%d
+Digitized voice device.
+.It Pa /dev/dspW%d.%d
 Like
 .Pa /dev/dsp ,
-but 16 bits per sample
-.It Pa /dev/midi
-Raw midi access device
-.It Pa /dev/mixer
-Control port mixer device
-.It Pa /dev/music
-Level 2 sequencer interface
-.It Pa /dev/sequencer
-Sequencer device
-.It Pa /dev/pss
-Programmable device interface
+but 16 bits per sample.
+.It Pa /dev/dspr%d.%d
+Should be connected to a record codec.
+.It Pa /dev/sndstat
+Current
+.Nm
+status, including all channels and drivers.
 .El
 .Pp
 Each symbolic link refers to a device node of the same name,
@@ -150,7 +295,7 @@ device probed at boot time.
 Device probe messages can be examined with the
 .Xr dmesg 8
 utility.
-.Sh DIAGNOSTICS AND TROUBLESHOOTING
+.Sh DIAGNOSTICS
 .Bl -tag -width 2m
 .It ac97: dac not ready
 AC97 codec is not likely to be accompanied with the sound card.
@@ -164,20 +309,35 @@ be supported on all devices.
 The
 .Nm
 device driver first appeared in
-.Fx 2.2.6 ,
+.Fx 2.2.6 written by Luigi Rizzo.
+It was later
 rewritten in
-.Fx 4.0 .
+.Fx 4.0 by Cameron Grant.
+The API evolved from the VOXWARE
+standard which later became OSS standard.
 .Sh SEE ALSO
 .Xr csa 4 ,
 .Xr gusc 4 ,
 .Xr sbc 4 ,
-.Xr devfs 5
+.Xr devfs 5 ,
+.Xr loader.conf 5 ,
+.Xr dmesg 8 ,
+.Xr kldload 8 ,
+.Xr sysctl 8
+.Rs
+.%T "The OSS API"
+.%O "http://www.opensound.com/pguide/oss.pdf"
+.Re
 .Sh AUTHORS
+.An -nosplit
 .An Luigi Rizzo Aq luigi@iet.unipi.it
 initially wrote the
 .Nm
 device driver and this manual page.
 .An Cameron Grant Aq gandalf@vilnya.demon.co.uk
-totally revised the device driver.
+later revised the device driver for
+.Fx 4.0 .
 .An Seigo Tanimura Aq tanimura@r.dl.itc.u-tokyo.ac.jp
 revised this manual page.
+It was then rewritten for
+.Fx 5.2 .
