@@ -749,32 +749,28 @@ sioprobe(dev)
 	 * Some pcmcia cards have the "TXRDY bug", so we check everyone
 	 * for IIR_TXRDY implementation ( Palido 321s, DC-1S... )
 	 */
-#if 1
-	/* Reading IIR register twice */
-	for (fn = 0; fn < 2; fn ++) {
-		DELAY(10000);
-		failures[6] = inb(iobase + com_iir);
-	}
-	/* Check IIR_TXRDY clear ? */
-	result = 0;
-	if (failures[6] & IIR_TXRDY) {
-		/* Nop, Double check with clearing IER */
-		outb(iobase + com_ier, 0);
-		if (inb(iobase + com_iir) & IIR_NOPEND) {
-			/* Ok. we're familia this gang */
-			SET_FLAG(dev, COM_C_IIR_TXRDYBUG);
-		} else {
-			/* Unknown, Just omit this chip.. XXX */
-			result = ENXIO;
-		}
-	} else {
-		/* OK. this is well-known guys */
-		CLR_FLAG(dev, COM_C_IIR_TXRDYBUG);
-	}
-#else
-	result = 0;
-#endif
 	if (COM_NOPROBE(flags)) {
+		/* Reading IIR register twice */
+		for (fn = 0; fn < 2; fn ++) {
+			DELAY(10000);
+			failures[6] = inb(iobase + com_iir);
+		}
+		/* Check IIR_TXRDY clear ? */
+		result = 0;
+		if (failures[6] & IIR_TXRDY) {
+			/* Nop, Double check with clearing IER */
+			outb(iobase + com_ier, 0);
+			if (inb(iobase + com_iir) & IIR_NOPEND) {
+				/* Ok. we're familia this gang */
+				SET_FLAG(dev, COM_C_IIR_TXRDYBUG);
+			} else {
+				/* Unknown, Just omit this chip.. XXX */
+				result = ENXIO;
+			}
+		} else {
+			/* OK. this is well-known guys */
+			CLR_FLAG(dev, COM_C_IIR_TXRDYBUG);
+		}
 		outb(iobase + com_cfcr, CFCR_8BITS);
 		enable_intr();
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
