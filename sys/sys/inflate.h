@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: inflate.h,v 1.8 1997/02/22 09:45:20 peter Exp $
  *
  */
 #ifndef	_SYS_INFLATE_H_
@@ -29,10 +29,10 @@ struct inflate {
 	void           *gz_private;
 
 	/* Fetch next character to be uncompressed */
-	int             (*gz_input) (void *);
+	int             (*gz_input) __P((void *));
 
 	/* Dispose of uncompressed characters */
-	int             (*gz_output) (void *, u_char *, u_long);
+	int             (*gz_output) __P((void *, u_char *, u_long));
 
 	/* Private part */
 	u_long          gz_bb;	/* bit buffer */

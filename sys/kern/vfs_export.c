@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.102 1997/09/13 15:02:28 peter Exp $
+ * $Id: vfs_subr.c,v 1.103 1997/09/14 02:49:06 peter Exp $
  */
 
 /*
@@ -231,10 +231,10 @@ vfs_rootmountalloc(fstypename, devname, mpp)
  */
 #ifdef notdef	/* XXX JH */
 int
-lite2_vfs_mountroot(void)
+lite2_vfs_mountroot()
 {
 	struct vfsconf *vfsp;
-	extern int (*lite2_mountroot)(void);
+	extern int (*lite2_mountroot) __P((void));
 	int error;
 
 	if (lite2_mountroot != NULL)
@@ -1281,7 +1281,10 @@ loop:
  * Disassociate the underlying file system from a vnode.
  */
 static void
-vclean(struct vnode *vp, int flags, struct proc *p)
+vclean(vp, flags, p)
+	struct vnode *vp;
+	int flags;
+	struct proc *p;
 {
 	int active, irefed;
 	vm_object_t object;
@@ -1940,8 +1943,10 @@ vfs_unmountall()
  * Called by ufs_mount() to set up the lists of export addresses.
  */
 static int
-vfs_hang_addrlist(struct mount *mp, struct netexport *nep, 
-	struct export_args *argp)
+vfs_hang_addrlist(mp, nep, argp)
+	struct mount *mp;
+	struct netexport *nep;
+	struct export_args *argp;
 {
 	register struct netcred *np;
 	register struct radix_node_head *rnh;
@@ -2011,7 +2016,9 @@ out:
 
 /* ARGSUSED */
 static int
-vfs_free_netcred(struct radix_node *rn, void *w)
+vfs_free_netcred(rn, w)
+	struct radix_node *rn;
+	void *w;
 {
 	register struct radix_node_head *rnh = (struct radix_node_head *) w;
 
@@ -2024,7 +2031,8 @@ vfs_free_netcred(struct radix_node *rn, void *w)
  * Free the net address hash lists that are hanging off the mount points.
  */
 static void
-vfs_free_addrlist(struct netexport *nep)
+vfs_free_addrlist(nep)
+	struct netexport *nep;
 {
 	register int i;
 	register struct radix_node_head *rnh;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.42 1997/03/24 11:24:47 bde Exp $
+ *	$Id: route.c,v 1.43 1997/09/02 01:18:46 bde Exp $
  */
 
 #include "opt_mrouting.h"
@@ -440,8 +440,8 @@ ifa_ifwithroute(flags, dst, gateway)
 
 #define ROUNDUP(a) (a>0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 
-static int rt_fixdelete(struct radix_node *, void *);
-static int rt_fixchange(struct radix_node *, void *);
+static int rt_fixdelete __P((struct radix_node *, void *));
+static int rt_fixchange __P((struct radix_node *, void *));
 
 struct rtfc_arg {
 	struct rtentry *rt0;
@@ -699,7 +699,9 @@ bad:
  * the late parent (passed in as VP here) are themselves deleted.
  */
 static int
-rt_fixdelete(struct radix_node *rn, void *vp)
+rt_fixdelete(rn, vp)
+	struct radix_node *rn;
+	void *vp;
 {
 	struct rtentry *rt = (struct rtentry *)rn;
 	struct rtentry *rt0 = vp;
@@ -732,7 +734,9 @@ int rtfcdebug = 0;
 #endif
 
 static int
-rt_fixchange(struct radix_node *rn, void *vp)
+rt_fixchange(rn, vp)
+	struct radix_node *rn;
+	void *vp;
 {
 	struct rtentry *rt = (struct rtentry *)rn;
 	struct rtfc_arg *ap = vp;

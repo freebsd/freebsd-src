@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.39 1997/06/15 17:56:53 dyson Exp $
+ * $Id: buf.h,v 1.40 1997/09/07 16:56:34 bde Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -227,7 +227,7 @@ int	physio __P((void (*)(struct buf *), struct buf *, dev_t,
 u_int	minphys __P((struct buf *));
 void	vfs_bio_clrbuf __P((struct buf *));
 void	vfs_busy_pages __P((struct buf *, int clear_modify));
-void	vfs_unbusy_pages(struct buf *);
+void	vfs_unbusy_pages __P((struct buf *));
 void	vwakeup __P((struct buf *));
 void	vmapbuf __P((struct buf *));
 void	vunmapbuf __P((struct buf *));
