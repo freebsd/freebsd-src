@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id$
+#	$Id: Makefile,v 1.17 1995/09/13 17:23:00 markm Exp $
 
-SUBDIR=	des include lib libexec usr.bin usr.sbin
+SUBDIR=	des include lib libexec usr.bin usr.sbin man
 
 SDIR= ${.CURDIR}/..
 
