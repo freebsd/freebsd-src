@@ -5,6 +5,17 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010613:
+	Two items that have been biting people:
+
+	pccard modems may not work with current after 20010604 date.  Some
+	do, others result in panics.  *MAKE*SURE* that you update your
+	config ala the 20010604 entry, or you will have problems (this issue
+	will be fixed, it just hasn't been yet).
+
+	SOFTUPDATES seem to be broken since the middle of May or so.  Do not
+	use them in current.  Resolution unknown.
+
 20010604:
 	pccard support for pci cards has been committed.  You must change
 	your /etc/pccard.conf irq lines.  It must match the irq used by
