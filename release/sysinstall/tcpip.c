@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.8 1995/10/20 15:40:52 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.9 1995/10/20 16:49:50 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -342,8 +342,7 @@ tcpOpenDialog(Device *devp)
 
     /* Find the first object in the list */
     first = obj;
-    while (first->prev)
-	first = first->prev;
+    for (first = obj; first->prev; first = first->prev);
 
     /* Some more initialisation before we go into the main input loop */
     n = 0;

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.3.2.1 1995/10/18 00:11:45 jkh Exp $
+ * $Id: attr.c,v 1.3.2.2 1995/10/18 05:01:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -162,15 +162,14 @@ attr_parse(Attribs *attr, int fd)
 char *
 attr_match(Attribs *attr, char *name)
 {
-    int n = 0;
+    int n;
 
     if (isDebug())
 	msgDebug("Trying to match attribute `%s'\n", name);
 
-    while (attr[n].name[0] && strcasecmp(attr[n].name, name) != 0) {
+    for (n = 0; attr[n].name[0] && strcasecmp(attr[n].name, name) != 0; n++) {
 	if (isDebug())
 	    msgDebug("Skipping attribute %u\n", n);
-	n++;
     }
 
     if (isDebug())

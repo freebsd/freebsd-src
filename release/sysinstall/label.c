@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.16 1995/10/19 15:55:07 jkh Exp $
+ * $Id: label.c,v 1.32.2.17 1995/10/20 14:24:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -202,13 +202,12 @@ check_conflict(char *name)
 static int
 space_free(struct chunk *c)
 {
-    struct chunk *c1 = c->part;
+    struct chunk *c1;
     int sz = c->size;
 
-    while (c1) {
+    for (c1 = c->part; c1; c1 = c1->next) {
 	if (c1->type != unused)
 	    sz -= c1->size;
-	c1 = c1->next;
     }
     if (sz < 0)
 	msgFatal("Partitions are larger than actual chunk??");
