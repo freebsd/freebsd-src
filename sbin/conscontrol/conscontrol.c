@@ -22,32 +22,34 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
+#include <unistd.h>
 
 static void __dead2
 usage(void)
 {
-	const char *pname = getprogname();
 
-	fprintf(stderr, "usage: %s [list]\n", pname);
-	fprintf(stderr, "       %s mute on|off\n", pname);
-	fprintf(stderr, "       %s add|delete console\n", pname);
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
+	    "usage: conscontrol [list]",
+	    "       conscontrol mute on | off",
+	    "       conscontrol add | delete console");
 	exit(1);
 }
 
-#define CONSBUFSIZE	32
-
 static void
-constatus(void)
+consstatus(void)
 {
 	int mute;
 	size_t len;
@@ -55,23 +57,15 @@ constatus(void)
 
 	len = sizeof(mute);
 	if (sysctlbyname("kern.consmute", &mute, &len, NULL, 0) == -1)
-		goto fail;
-
-	len = 0;
-alloc:
-	len += CONSBUFSIZE;
-	buf = malloc(len);
-	if (buf == NULL)
-		err(1, "Could not malloc sysctl buffer");
-
-	if (sysctlbyname("kern.console", buf, &len, NULL, 0) == -1) {
-		if (errno == ENOMEM) {
-			free(buf);
-			goto alloc;
-		}
-		goto fail;
-	}
-	avail = strchr(buf, '/');
+		err(1, "kern.consmute retrieval failed");
+	if (sysctlbyname("kern.console", NULL, &len, NULL, 0) == -1)
+		err(1, "kern.console estimate failed");
+	if ((buf = malloc(len)) == NULL)
+		errx(1, "kern.console malloc failed");
+	if (sysctlbyname("kern.console", buf, &len, NULL, 0) == -1)
+		err(1, "kern.console retrieval failed");
+	if ((avail = strchr(buf, '/')) == NULL)
+		errx(1, "kern.console format not understood");
 	p = avail;
 	*avail++ = '\0';
 	if (p != buf)
@@ -83,9 +77,6 @@ alloc:
 	printf(" Available: %s\n", avail);
 	printf("    Muting: %s\n", mute ? "on" : "off");
 	free(buf);
-	return;
-fail:
-	err(1, "Could not get console information");
 }
 
 static void
@@ -102,49 +93,56 @@ consmute(const char *onoff)
 		usage();
 	len = sizeof(mute);
 	if (sysctlbyname("kern.consmute", NULL, NULL, &mute, len) == -1)
-		err(1, "Could not change console muting");
+		err(1, "could not change console muting");
 }
 
 static void
-consadd(char *devname)
+consadd(char *devnam)
 {
 	size_t len;
 
-	len = strlen(devname);
-	if (sysctlbyname("kern.console", NULL, NULL, devname, len) == -1)
-		err(1, "Could not add %s as a console", devname);
+	len = strlen(devnam);
+	if (sysctlbyname("kern.console", NULL, NULL, devnam, len) == -1)
+		err(1, "could not add %s as a console", devnam);
 }
 
-#define MAXDEVNAME	32
-
 static void
-consdel(const char *devname)
+consdel(const char *devnam)
 {
-	char buf[MAXDEVNAME];
+	char *buf;
 	size_t len;
 
-	snprintf(buf, MAXDEVNAME, "-%s", devname);
-	len = strlen(buf);
-	if (sysctlbyname("kern.console", NULL, NULL, &buf, len) == -1)
-		err(1, "Could not remove %s as a console", devname);
+	len = strlen(devnam) + sizeof("-");
+	if ((buf = malloc(len)) == NULL)
+		errx(1, "malloc failed");
+	buf[0] = '-';
+	strcpy(buf + 1, devnam);
+	if (sysctlbyname("kern.console", NULL, NULL, buf, len) == -1)
+		err(1, "could not remove %s as a console", devnam);
+	free(buf);
 }
 
 int
 main(int argc, char **argv)
 {
 
-	if (argc < 2 || strcmp(argv[1], "list") == 0)
-		goto done;
-	if (argc < 3)
+	if (getopt(argc, argv, "") != -1)
 		usage();
-	if (strcmp(argv[1], "mute") == 0)
-		consmute(argv[2]);
-	else if (strcmp(argv[1], "add") == 0)
-		consadd(argv[2]);
-	else if (strcmp(argv[1], "delete") == 0)
-		consdel(argv[2]);
-	else
-		usage();
-done:
-	constatus();
+	argc -= optind;
+	argv += optind;
+
+	if (argc > 0 && strcmp(argv[0], "list") != 0) {
+		if (argc != 2)
+			usage();
+		if (strcmp(argv[0], "mute") == 0)
+			consmute(argv[1]);
+		else if (strcmp(argv[0], "add") == 0)
+			consadd(argv[1]);
+		else if (strcmp(argv[0], "delete") == 0)
+			consdel(argv[1]);
+		else
+			usage();
+	}
+	consstatus();
+	exit(0);
 }

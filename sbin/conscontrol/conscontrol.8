@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Oct 23, 2001
+.Dd October 23, 2001
 .Dt CONSCONTROL 8
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Cm list
-.Nm 
+.Nm
 .Cm mute on | off
 .Nm
 .Cm add | delete
@@ -43,7 +43,7 @@
 The
 .Nm
 utility is used to examine and modify the physical devices which back
-the virtual console console devices.
+the virtual console devices.
 If no arguments
 (or only the
 .Cm list
@@ -53,7 +53,8 @@ the current console settings are shown.
 .Pp
 There are two types of logical consoles; a high level console which
 is represented by
-.Pa /dev/console , and a low level console.
+.Pa /dev/console ,
+and a low level console.
 The low level console is used for kernel
 .Xr printf 9
 and
@@ -65,8 +66,7 @@ Multiple device support is implemented only for the low level console;
 the high level console is set to the first device in the console list.
 .Pp
 Multiple console support may be invoked by passing the kernel the
-.\" XXX The Fl macro doesn't really apply here
--D
+.Fl D
 flag from the boot loader, or by using
 .Nm
 to change the list of console devices after the system has booted.
@@ -78,9 +78,10 @@ Add or delete a physical device from the logical console.
 The device must support low-level console operations.
 Adding a device will place it at the front of the list of console
 devices; the first device is used for the high level console.
-.It Cm mute Cm on | off
+.It Cm mute on | off
 Change the state of console muting.
-All console output is suppressed when console muting is on.
+All console output is suppressed when console muting is
+.Cm on .
 .El
 .Sh SEE ALSO
 .Xr sio 4 ,
