@@ -1037,6 +1037,7 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 	struct mbuf *t;
 	int hlen = ip->ip_hl << 2;
 	int i, next;
+	u_int8_t ecn, ecn0;
 
 	IPQ_LOCK_ASSERT();
 
@@ -1084,6 +1085,22 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 	}
 
 #define GETIP(m)	((struct ip*)((m)->m_pkthdr.header))
+
+	/*
+	 * Handle ECN by comparing this segment with the first one;
+	 * if CE is set, do not lose CE.
+	 * drop if CE and not-ECT are mixed for the same packet.
+	 */
+	ecn = ip->ip_tos & IPTOS_ECN_MASK;
+	ecn0 = GETIP(fp->ipq_frags)->ip_tos & IPTOS_ECN_MASK;
+	if (ecn == IPTOS_ECN_CE) {
+		if (ecn0 == IPTOS_ECN_NOTECT)
+			goto dropfrag;
+		if (ecn0 != IPTOS_ECN_CE)
+			GETIP(fp->ipq_frags)->ip_tos |= IPTOS_ECN_CE;
+	}
+	if (ecn == IPTOS_ECN_NOTECT && ecn0 != IPTOS_ECN_NOTECT)
+		goto dropfrag;
 
 	/*
 	 * Find a segment which begins after this one does.
