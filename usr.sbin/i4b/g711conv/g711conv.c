@@ -74,6 +74,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <machine/i4b_ioctl.h>
 
