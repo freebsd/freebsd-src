@@ -51,6 +51,7 @@ typedef struct fwohci_softc {
 	void *ih;
 #if __FreeBSD_version < 500000
 	void *ih_cam;
+	void *ih_bio;
 #endif
 	struct resource *bsr;
 	struct resource *irq_res;

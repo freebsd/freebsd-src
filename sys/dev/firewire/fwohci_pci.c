@@ -288,6 +288,9 @@ fwohci_pci_attach(device_t self)
 	/* XXX splcam() should mask this irq for sbp.c*/
 	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_CAM,
 		     (driver_intr_t *) fwohci_dummy_intr, sc, &sc->ih_cam);
+	/* XXX splbio() should mask this irq for physio()/fwmem_strategy() */
+	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_BIO,
+		     (driver_intr_t *) fwohci_dummy_intr, sc, &sc->ih_bio);
 #endif
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);
@@ -372,7 +375,8 @@ fwohci_pci_detach(device_t self)
 			device_printf(self, "Could not tear down irq, %d\n",
 				      err);
 #if __FreeBSD_version < 500000
-		err = bus_teardown_intr(self, sc->irq_res, sc->ih_cam);
+		bus_teardown_intr(self, sc->irq_res, sc->ih_cam);
+		bus_teardown_intr(self, sc->irq_res, sc->ih_bio);
 #endif
 		sc->ih = NULL;
 	}
