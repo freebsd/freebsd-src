@@ -2975,20 +2975,11 @@ static int
 nfsspec_access(struct vop_access_args *ap)
 {
 	struct vattr *vap;
-	gid_t *gp;
 	struct ucred *cred = ap->a_cred;
 	struct vnode *vp = ap->a_vp;
 	mode_t mode = ap->a_mode;
 	struct vattr vattr;
-	int i;
 	int error;
-
-	/*
-	 * Map VAPPEND to VWRITE; NFSv2 does not understand the concept
-	 * of append-only files. XXX What about VADMIN and VSTAT?
-	 */
-	if (mode & VAPPEND)
-		mode = (mode & ~VAPPEND) | VWRITE;
 
 	/*
 	 * Disallow write attempts on filesystems mounted read-only;
@@ -3005,33 +2996,12 @@ nfsspec_access(struct vop_access_args *ap)
 			break;
 		}
 	}
-	/*
-	 * If you're the super-user,
-	 * you always get access.
-	 */
-	if (cred->cr_uid == 0)
-		return (0);
 	vap = &vattr;
 	error = VOP_GETATTR(vp, vap, cred, ap->a_td);
 	if (error)
 		return (error);
-	/*
-	 * Access check is based on only one of owner, group, public.
-	 * If not owner, then check group. If not a member of the
-	 * group, then check public access.
-	 */
-	if (cred->cr_uid != vap->va_uid) {
-		mode >>= 3;
-		gp = cred->cr_groups;
-		for (i = 0; i < cred->cr_ngroups; i++, gp++)
-			if (vap->va_gid == *gp)
-				goto found;
-		mode >>= 3;
-found:
-		;
-	}
-	error = (vap->va_mode & mode) == mode ? 0 : EACCES;
-	return (error);
+	return (vaccess(vp->v_type, vap->va_mode, vap->va_uid, vap->va_gid,
+	    mode, cred, NULL));
 }
 
 /*
