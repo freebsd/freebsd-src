@@ -31,21 +31,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)npx.c	7.2 (Berkeley) 5/12/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00154
- * --------------------         -----   ----------------------
- *
- * 20 Apr 93	Bruce Evans		New npx-0.5 code
- * 23 May 93	Rodney W. Grimes	Return a special value of -1 from
- *					the probe code to keep isa_config from
- *					printing out the I/O address when we
- *					are using trap 16 handling.
- *
+ *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
+ *	$Id$
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/isa/npx.c,v 1.1.1.1 1993/06/12 14:58:00 rgrimes Exp $";
 
 #include "npx.h"
 #if NNPX > 0
@@ -318,7 +306,11 @@ npxprobe1(dvp)
 	 * that aren't really devices better.
 	 */
 	dvp->id_irq = 0;
-	return (IO_NPXSIZE);
+	/*
+	 * special return value to flag that we do not
+	 * actually use any I/O registers
+	 */
+	return (-1);
 }
 
 /*
@@ -328,14 +320,12 @@ int
 npxattach(dvp)
 	struct isa_device *dvp;
 {
-	if (npx_ex16)
-		printf("npx%d: Errors reported via Exception 16\n",dvp->id_unit);
-	else if (npx_irq13)
-		printf("npx%d: Errors reported via IRQ 13\n",dvp->id_unit);
-	else if (npx_exists)
-		printf("npx%d: Error reporting broken, using 387 emulator\n",dvp->id_unit);
-	else
-		printf("npx%d: 387 Emulator\n",dvp->id_unit);
+	if (!npx_ex16 && !npx_irq13) {
+		if (npx_exists)
+			printf("npx%d: Error reporting broken, using 387 emulator\n",dvp->id_unit);
+		else
+			printf("npx%d: 387 Emulator\n",dvp->id_unit);
+	}
 	npxinit(__INITIAL_NPXCW__);
 	return (1);		/* XXX unused */
 }
