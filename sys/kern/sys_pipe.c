@@ -1191,8 +1191,10 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 
 #ifdef MAC
 	error = mac_check_pipe_ioctl(active_cred, mpipe, cmd, data);
-	if (error)
+	if (error) {
+		PIPE_UNLOCK(mpipe);
 		return (error);
+	}
 #endif
 
 	switch (cmd) {
