@@ -20,7 +20,10 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c \
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
 CFLAGS+= -I${.CURDIR}/../../sys
-CFLAGS+= -DUC_PRIVATE -DKERN_NO_SYMBOLS -DSAVE_USERCONFIG # -DDO_SCSI
+CFLAGS+= -DUC_PRIVATE -DKERN_NO_SYMBOLS # -DSAVE_USERCONFIG -DDO_SCSI
+.if ${MACHINE_ARCH} == "i386"
+CFLAGS+= -DSAVE_USERCONFIG
+.endif
 
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk -lftpio

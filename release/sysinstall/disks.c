@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.106 1998/10/13 09:49:16 jkh Exp $
+ * $Id: disks.c,v 1.107 1999/01/02 07:23:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -673,14 +673,21 @@ diskPartitionWrite(dialogMenuItem *self)
 	Chunk *c1;
 	Disk *d = (Disk *)devs[i]->private;
 	static u_char *boot1;
+#ifndef __alpha__
 	static u_char *boot2;
+#endif
 
 	if (!devs[i]->enabled)
 	    continue;
 
+#ifdef __alpha__
+	if (!boot1) boot1 = bootalloc("boot1");
+	Set_Boot_Blocks(d, boot1, NULL);
+#else
 	if (!boot1) boot1 = bootalloc("boot1");
 	if (!boot2) boot2 = bootalloc("boot2");
 	Set_Boot_Blocks(d, boot1, boot2);
+#endif
 
 	msgNotify("Writing partition information to drive %s", d->name);
 	if (!Fake && Write_Disk(d)) {
