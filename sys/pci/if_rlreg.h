@@ -368,6 +368,13 @@ struct rl_softc {
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
 	struct callout_handle	rl_stat_ch;
+ 	int			suspended;	/* 0 = normal  1 = suspended */
+ 
+ 	u_int32_t		saved_maps[5];	/* pci data */
+ 	u_int32_t		saved_biosaddr;
+ 	u_int8_t		saved_intline;
+ 	u_int8_t		saved_cachelnsz;
+ 	u_int8_t		saved_lattimer;
 };
 
 /*
