@@ -2681,6 +2681,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case KDENABIO:
 		/* grant the process IO access; only allowed if euid == 0 */
+		/* and insecure */
 	{
 
 #if PCVT_NETBSD > 9 || PCVT_FREEBSD >= 200
@@ -2691,7 +2692,10 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		struct syscframe *fp = (struct syscframe *)p->p_regs;
 #endif
 
-		if(suser(p->p_ucred, &p->p_acflag) != 0)
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error != 0)
+			return (error);
+		if (securelevel > 0)
 			return (EPERM);
 
 #if PCVT_NETBSD || (PCVT_FREEBSD && PCVT_FREEBSD > 102)
