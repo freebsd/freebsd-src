@@ -34,7 +34,7 @@
 
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: softmagic.c,v 1.52 2003/02/08 18:33:53 christos Exp $")
+FILE_RCSID("@(#)$Id: softmagic.c,v 1.54 2003/02/25 13:04:32 christos Exp $")
 #endif	/* lint */
 
 static int match(struct magic *, uint32_t, unsigned char *, int);
@@ -105,7 +105,8 @@ match(struct magic *magic, uint32_t nmagic, unsigned char *s, int nbytes)
 	int firstline = 1; /* a flag to print X\n  X\n- X */
 
 	if (tmpoff == NULL)
-		if ((tmpoff = (int32_t *) malloc(tmplen = 20)) == NULL)
+		if ((tmpoff = (int32_t *) malloc(
+		    (tmplen = 20) * sizeof(*tmpoff))) == NULL)
 			error("out of memory\n");
 
 	for (magindex = 0; magindex < nmagic; magindex++) {
@@ -137,7 +138,7 @@ match(struct magic *magic, uint32_t nmagic, unsigned char *s, int nbytes)
 		/* and any continuations that match */
 		if (++cont_level >= tmplen)
 			if ((tmpoff = (int32_t *) realloc(tmpoff,
-						       tmplen += 20)) == NULL)
+			    (tmplen += 20) * sizeof(*tmpoff))) == NULL)
 				error("out of memory\n");
 		while (magic[magindex+1].cont_level != 0 && 
 		       ++magindex < nmagic) {
@@ -184,7 +185,8 @@ match(struct magic *magic, uint32_t nmagic, unsigned char *s, int nbytes)
 					if (++cont_level >= tmplen)
 						if ((tmpoff = 
 						    (int32_t *) realloc(tmpoff,
-						    tmplen += 20)) == NULL)
+						    (tmplen += 20) 
+						    * sizeof(*tmpoff))) == NULL)
 							error("out of memory\n");
 				}
 				if (magic[magindex].flag & OFFADD) {
