@@ -2,20 +2,20 @@
 
 PROG=	miniperl
 NOMAN=	true
-CFLAGS+=-I${PERL5SRC} -I${.OBJDIR} -DPERL_EXTERNAL_GLOB
-SRCS=	miniperlmain.c opmini.c config.h
+SRCS=	miniperlmain.c
+SRCS+=	perl.c gv.c toke.c perly.c op.c regcomp.c dump.c util.c mg.c \
+	hv.c av.c run.c pp_hot.c sv.c pp.c scope.c pp_ctl.c pp_sys.c \
+	doop.c doio.c regexec.c utf8.c taint.c universal.c \
+	xsutils.c globals.c perlio.c config.h
+CFLAGS+=-I${.OBJDIR} -I${PERL5SRC} -DPERL_EXTERNAL_GLOB -DPERL_CORE
+DPADD=	${LIBM} ${LIBCRYPT}
+LDADD=	-lm -lcrypt
 # Miniperl _must_ be static!!
 NOSHARED= yes
-.if exists(${.OBJDIR}/../libperl/)
-MYLIBPERL= ${.OBJDIR}/../libperl/libperl.a
-.else
-MYLIBPERL= ${.CURDIR}/../libperl/libperl.a
-.endif
-DPADD=	${MYLIBPERL} ${LIBM} ${LIBCRYPT}
-LDADD=	${MYLIBPERL} -lm -lcrypt
 
-build-tools:	cleandepend
-	cd ${.CURDIR} && ${MAKE} ${PROG}
+build-tools: depend ${PROG}
+
+install:
 
 NO_PERL_SCRIPT_MAKE=	true
 
@@ -23,10 +23,9 @@ NO_PERL_SCRIPT_MAKE=	true
 
 .PATH:	${PERL5SRC}
 
-opmini.c:	op.c
-	ln -sf ${.OODATE} ${.TARGET}
-
-config.h:	links
+config.h: links
 	@sh config_h.sh
 
-CLEANFILES+=	opmini.c config.h
+.SUFFIXES:
+
+.SUFFIXES: .o .po .So .s .S .c
