@@ -1,0 +1,233 @@
+.\" Copyright (c) 1998 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id$
+.\"
+.Dd July 1, 1998
+.Dt FETCH 3
+.Os
+.Sh NAME
+.Nm fetchParseURL ,
+.Nm fetchFreeURL ,
+.Nm fetchGetURL ,
+.Nm fetchPutURL ,
+.Nm fetchGetFile ,
+.Nm fetchPutFile ,
+.Nm fetchGetHTTP ,
+.Nm fetchPutHTTP ,
+.Nm fetchGetFTP ,
+.Nm fetchPutFTP
+.Nd file transfer library
+.Sh SYNOPSIS
+.Fd #include <fetch.h>
+.Ft url_t *
+.Fn fetchParseURL "char *URL" "char *flags"
+.Ft void
+.Fn fetchFreeURL "url_t *u"
+.Ft FILE *
+.Fn fetchGetFile "url_t *u" "char *flags"
+.Ft FILE *
+.Fn fetchPutFile "url_t *u" "char *flags"
+.Ft FILE *
+.Fn fetchGetHTTP "url_t *u" "char *flags"
+.Ft FILE *
+.Fn fetchPutHTTP "url_t *u" "char *flags"
+.Ft FILE *
+.Fn fetchGetFTP "url_t *u" "char *flags"
+.Ft FILE *
+.Fn fetchPutFTP "url_t *u" "char *flags"
+.Sh DESCRIPTION
+These functions implement a high-level library for retrieving and
+uploading files using Uniform Resource Locators (URLs).
+.Pp
+.Fn fetchParseURL
+takes a URL in the form of a null-terminated string and splits it into
+its components function according to the Common Internet Scheme Syntax
+detailed in RFC1738. A regular expression which produces this syntax
+is:
+.Bd -literal
+    <scheme>:(//(<user>(:<pwd>)?@)?<host>(:<port>)?)?/(<document>)?
+.Ed
+.Pp
+Note that some components of the URL are not necessarily relevant to
+all URL schemes. For instance, the file scheme only needs the <scheme>
+and <document> components.
+.Pp
+The pointer returned by
+.Fn fetchParseURL
+should be freed using
+.Fn fetchFreeURL .
+.Pp
+.Fn fetchGetURL
+and
+.Fn fetchPutURL
+constitute the recommended interface to the
+.Nm fetch
+library. They examine the URL passed to them to determine the transfer
+method, and call the appropriate lower-level functions to perform the
+actual transfer. The 
+.Fa flags
+argument is a string of characters which specify transfer options. The
+meaning of the individual flags is scheme-dependent, and is detailed
+in the appropriate section below.
+.Pp
+All of the
+.Fn fetchGetXXX
+and
+.Fn fetchPutXXX
+functions return a pointer to a stream which can be used to read or
+write data from or to the requested document, respectively. Not that
+although the implementation details of the individual access methods
+vary, it can generally be assumed that a stream returned by one of the
+.Fn fetchGetXXX
+functions is read-only, and that a stream returned by one of the
+.Fn fetchPutXXX
+functions is write-only.
+.Sh FILE SCHEME
+.Fn fetchGetFile
+and
+.Fn fetchPutFile
+provide access to documents which are files in a locally mounted file
+system. Only the <document> component of the URL is used.
+.Pp
+.Fn fetchGetFile
+does not accept any flags.
+.Pp
+.Fn fetchPutFile
+accepts the
+.Fa a
+(append to file) flag. If that flag is specified, the data written to
+the stream returned by
+.Fn fetchPutFile
+will be appended to the previous contents of the file, instead of
+replacing them.
+.Sh FTP SCHEME
+.Fn fetchGetFTP
+and
+.Fn fetchPutFTP
+implement the FTP protocol as described in RFC959.
+.Pp
+If the
+.Fa p
+(passive) flag is specified, a passive (rather than active) connection
+will be attempted.
+.Pp
+If no user name or password is given, the
+.Nm fetch
+library will attempt an anonymous login, with user name "ftp" and
+password "ftp".
+.Sh HTTP SCHEME
+The
+.Fn fetchGetHTTP
+and
+.Fn fetchPutHTTP
+functions implement the HTTP/1.1 protocol. With a little luck, there's
+even a chance that they comply with RFC2068.
+.Pp
+Since there seems to be no good way of implementing the HTTP PUT
+method in a manner consistent with the rest of the
+.Nm fetch
+library,
+.Fn fetchPutHTTP
+is currently unimplemented.
+.Sh RETURN VALUES
+.Fn fetchParseURL
+returns a pointer to a
+.Fa url_t
+structure containing the individual components of the URL. If it is
+unable to allocate memory, or the URL is syntactically incorrect,
+.Fn fetchParseURL
+returns a NULL pointer.
+.Pp
+.Fn fetchFreeURL
+does not return any value.
+.Pp
+All other functions return a stream pointer which may be used to
+access the requested document. Upon failure of any kind, they return a
+NULL pointer.
+.Sh ENVIRONMENT
+The FTP and HTTP functions use the
+.Ev HTTP_PROXY
+and
+.Ev FTP_PROXY
+environment variables, respectively, as the address of a proxy server
+to use for transferring files.
+.Sh SEE ALSO
+.Xr fetch 1 ,
+.Xr ftpio 3 ,
+.Xr lots_of_other_stuff
+.Rs
+.%A T. Berners-Lee, L. Masinter & M. McCahill
+.%D December 1994
+.%T Uniform Resource Locators (URL)
+.%O RFC1738
+.Re
+.Rs
+.%A R. Fielding, J. Gettys, J. Mogul, H. Frystyk, T. Berners-Lee
+.%D Januray 1997
+.%B Hypertext Transfer Protocol -- HTTP/1.1
+.%O RFC2068
+.Re
+.Rs
+.%A J. Postel, J. K. Reynolds
+.%D October 1985
+.%B File Transfer Protocol
+.%O RFC959
+.Re
+.Sh DIAGNOSTICS
+Add later.
+.Sh NOTES
+Some parts of the library are not yet implemented. The most notable
+examples of this are
+.Fn fetchPutHTTP
+and proxy support for the FTP access method.
+.Pp
+I hate HTTP.
+.Pp
+Why does the \.Pp macro sometimes insert two blank lines instead of
+one?
+.Sh HISTORY
+The
+.Nm fetch
+library first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+The
+.Nm fetch
+library was mostly written by
+.An Dag-Erling Coïdan Smørgrav Aq des@FreeBSD.org
+with numerous suggestions from
+.An Jordan K. Hubbard Aq jkh@FreeBSD.org
+and other FreeBSD developers.
+It incorporates the older
+.Nm ftpio
+library, which was originally written by
+.Nm Poul-Henning Kamp Aq pkh@FreeBSD.org
+and later turned inside out by
+.An Jordan K. Hubbard Aq jkh@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Dag-Erling Coïdan Smørgrav Aq des@FreeBSD.org
+.Sh BUGS
+If I knew, I'd have fixed them.
