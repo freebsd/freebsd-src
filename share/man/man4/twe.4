@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm twe
-.Nd 3ware 5000/6000/7000/8000 series ATA RAID adapter driver
+.Nd 3ware 5000/6000/7000/8000 series PATA/SATA RAID adapter driver
 .Sh SYNOPSIS
 .Cd device pci
 .Cd device twe
@@ -37,7 +37,7 @@
 The
 .Nm
 driver provides support for AMCC's 3ware 5000/6000/7000/8000 series
-ATA RAID adapters.
+PATA/SATA RAID adapters.
 These adapters were formerly know as
 .Dq 3ware Escalade .
 .Pp
@@ -46,7 +46,7 @@ and provide RAID0 (striping) and RAID1 (mirroring) functionality.
 .Sh HARDWARE
 The
 .Nm
-driver supports the following ATA RAID
+driver supports the following PATA/SATA RAID
 controllers:
 .Pp
 .Bl -bullet -compact
