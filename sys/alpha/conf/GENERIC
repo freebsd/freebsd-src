@@ -32,7 +32,6 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platforms supported
 options 	API_UP1000		# UP1000, UP1100 (Nautilus)
-options 	DEC_AXPPCI_33		# UDB, Multia, AXPpci33, NoName
 options 	DEC_EB164		# EB164, PC164, PC164LX, PC164SX
 options 	DEC_EB64PLUS		# EB64+, AlphaPC64, Aspen Alpine, etc
 options 	DEC_2100_A50		# AlphaStation 200, 250, 255, 400
@@ -41,8 +40,6 @@ options 	DEC_KN20AA		# AlphaStation 500, 600
 options 	DEC_ST550		# Personal Workstation 433, 500, 600
 options 	DEC_ST6600		# XP1000, DP264, DS20, DS10, family
 options 	DEC_1000A		# AlphaServer 1000, 1000A, 800
-# TurboLaser support is broken
-# options 	DEC_KN8AE		# AlphaServer 8200/8400 (Turbolaser)
 options 	DEC_KN300		# AlphaServer 4100 (Rawhide),
 					# AlphaServer 1200 (Tincup)
 
