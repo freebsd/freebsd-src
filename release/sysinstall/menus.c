@@ -1996,6 +1996,8 @@ DMenu MenuSysconsSaver = {
 	dmenuVarCheck, configSaver, NULL, "saver=star" },
       { "Warp",	"A \"stars warping\" effect",
 	dmenuVarCheck, configSaver, NULL, "saver=warp" },
+      { "Dragon", "Dragon screensaver (graphics)",
+	dmenuVarCheck, configSaver, NULL, "saver=dragon" },
       { "Timeout",	"Set the screen saver timeout interval",
 	NULL, configSaverTimeout, NULL, NULL, ' ', ' ', ' ' },
       { NULL } },
