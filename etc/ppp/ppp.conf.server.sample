@@ -1,0 +1,48 @@
+#
+# ppp.conf showing possible setup for ppp server
+#
+
+# default is to enable extentions to ppp to have Microsoft clients
+# negotiate nameservers and netbios nameservers
+
+default:
+ disable lqr
+ set debug phase lcp chat
+ set timeout 0
+ enable msext
+ set ns xxx.xxx.xxx.xxx xxx.xxx.xxx.xxx
+ set nbns xxx.xxx.xxx.xxx xxx.xxx.xxx.xxx
+
+# standard dial-in PPP where authentication is done via a 
+# "login: password:" arrangement - usually a script handles that on
+# the client side
+
+cuaa0: 
+ disable passwdauth
+ set ifaddr myaddress client-address-1 
+ enable proxy
+
+cuaa1:
+ disable passwdauth
+ set ifaddr myaddress xxx.xxx.xxx.2
+ enable proxy
+
+# dial-in PPP where mgetty has "auto" detected PPP packets and ran
+#   /usr/sbin/ppp -direct pap(line)
+# (see sample.ppp-pap-dialup)
+# we enable pap to authenticate the user, and enable passwdauth 
+# (another modification) to use the password file to authenticate
+# the user, and log them on to the system 
+
+papcuaa0:
+ enable pap
+ enable passwdauth
+ set ifaddr myaddress xxx.xxx.xxx.1
+ enable proxy
+
+papcuaa0:
+ enable pap
+ enable passwdauth
+ set ifaddr myaddress xxx.xxx.xxx.2
+ enable proxy 
+
