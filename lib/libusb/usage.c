@@ -1,4 +1,4 @@
-/*	$NetBSD: usage.c,v 1.5 2000/04/02 11:10:53 augustss Exp $	*/
+/*	$NetBSD: usage.c,v 1.6 2000/08/13 22:22:02 augustss Exp $	*/
 
 /*
  * Copyright (c) 1999 Lennart Augustsson <augustss@netbsd.org>
@@ -165,7 +165,7 @@ hid_usage_page(int i)
 	for (k = 0; k < npages; k++)
 		if (pages[k].usage == i)
 			return pages[k].name;
-	sprintf(b, "0x%02x", i);
+	sprintf(b, "0x%04x", i);
 	return b;
 }
 
@@ -192,6 +192,6 @@ hid_usage_in_page(unsigned int u)
 			return pages[k].page_contents[j].name;
 	}
  bad:
-	sprintf(b, "0x%02x", i);
+	sprintf(b, "0x%04x", i);
 	return b;
 }
