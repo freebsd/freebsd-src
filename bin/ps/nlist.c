@@ -59,13 +59,13 @@ donlist(void)
 	size_t oldlen;
 
 	oldlen = sizeof(ccpu);
-	if (sysctlbyname("kern.ccpu", &ccpu, &oldlen, NULL, 0) < 0)
+	if (sysctlbyname("kern.ccpu", &ccpu, &oldlen, NULL, 0) == -1)
 		return (1);
 	oldlen = sizeof(fscale);
-	if (sysctlbyname("kern.fscale", &fscale, &oldlen, NULL, 0) < 0)
+	if (sysctlbyname("kern.fscale", &fscale, &oldlen, NULL, 0) == -1)
 		return (1);
 	oldlen = sizeof(mempages);
-	if (sysctlbyname("hw.availpages", &mempages, &oldlen, NULL, 0) < 0)
+	if (sysctlbyname("hw.availpages", &mempages, &oldlen, NULL, 0) == -1)
 		return (1);
 	nlistread = 1;
 	return (0);
