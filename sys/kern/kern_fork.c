@@ -496,7 +496,7 @@ again:
 	 * Allow the scheduler to adjust the priority of the child and
 	 * parent while we hold the sched_lock.
 	 */
-	sched_fork(td->td_ksegrp, kg2);
+	sched_fork(p1, p2);
 
 	mtx_unlock_spin(&sched_lock);
 	p2->p_ucred = crhold(td->td_ucred);

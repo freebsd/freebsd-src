@@ -407,7 +407,7 @@ rtp_to_pri(struct rtprio *rtp, struct ksegrp *kg)
 	default:
 		return (EINVAL);
 	}
-	kg->kg_pri_class = rtp->type;
+	sched_class(kg, rtp->type);
 	if (curthread->td_ksegrp == kg) {
 		curthread->td_base_pri = kg->kg_user_pri;
 		curthread->td_priority = kg->kg_user_pri; /* XXX dubious */
