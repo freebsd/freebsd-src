@@ -147,4 +147,11 @@ SUBDIR+=ext2fs
 SUBDIR=${MODULES_OVERRIDE}
 .endif
 
+# Calling kldxref(8) for each module is expensive.
+.if !defined(NO_XREF)
+.MAKEFLAGS:=	${.MAKEFLAGS} -DNO_XREF
+afterinstall:
+	-kldxref ${DESTDIR}${KMODDIR}
+.endif
+
 .include <bsd.subdir.mk>
