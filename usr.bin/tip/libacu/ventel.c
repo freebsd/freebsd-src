@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)ventel.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -41,6 +45,7 @@ static char sccsid[] = "@(#)ventel.c	8.1 (Berkeley) 6/6/93";
  */
 #include "tipconf.h"
 #include "tip.h"
+#include <err.h>
 
 #define	MAXRETRY	5
 
@@ -235,7 +240,7 @@ vensync(fd)
 		write(fd, "\r", 1);
 		sleep(2);
 		if (ioctl(fd, FIONREAD, (caddr_t)&nread) < 0) {
-			perror("tip: ioctl");
+			warn("ioctl");
 			continue;
 		}
 		while (nread > 0) {

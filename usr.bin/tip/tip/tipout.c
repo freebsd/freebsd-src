@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tipout.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "tip.h"
@@ -112,6 +116,7 @@ intSYS()
 /*
  * ****TIPOUT   TIPOUT****
  */
+void
 tipout()
 {
 	char buf[BUFSIZ];

@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)value.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "tip.h"
@@ -40,11 +44,16 @@ static char sccsid[] = "@(#)value.c	8.1 (Berkeley) 6/6/93";
 #define MIDDLE	35
 
 static value_t *vlookup();
+int vstring __P((char *, char *));
+void vlex __P((char *));
+void vassign __P((value_t *, char *));
+
 static int col = 0;
 
 /*
  * Variable manipulation
  */
+void
 vinit()
 {
 	register value_t *p;
@@ -54,7 +63,7 @@ vinit()
 
 	for (p = vtable; p->v_name != NULL; p++) {
 		if (p->v_type&ENVIRON)
-			if (cp = getenv(p->v_name))
+			if ((cp = getenv(p->v_name)))
 				p->v_value = cp;
 		if (p->v_type&IREMOTE)
 			number(p->v_value) = *address(p->v_value);
@@ -71,7 +80,7 @@ vinit()
 		while (fgets(file, sizeof(file)-1, f) != NULL) {
 			if (vflag)
 				printf("set %s", file);
-			if (tp = rindex(file, '\n'))
+			if ((tp = rindex(file, '\n')))
 				*tp = '\0';
 			vlex(file);
 		}
@@ -86,6 +95,7 @@ vinit()
 static int vaccess();
 
 /*VARARGS1*/
+void
 vassign(p, v)
 	register value_t *p;
 	char *v;
@@ -132,6 +142,7 @@ vassign(p, v)
 
 static void vprint();
 
+void
 vlex(s)
 	register char *s;
 {
@@ -146,7 +157,7 @@ vlex(s)
 		register char *cp;
 
 		do {
-			if (cp = vinterp(s, ' '))
+			if ((cp = vinterp(s, ' ')))
 				cp++;
 			vtoken(s);
 			s = cp;
@@ -166,9 +177,9 @@ vtoken(s)
 	register char *cp;
 	char *expand();
 
-	if (cp = index(s, '=')) {
+	if ((cp = index(s, '='))) {
 		*cp = '\0';
-		if (p = vlookup(s)) {
+		if ((p = vlookup(s))) {
 			cp++;
 			if (p->v_type&NUMBER)
 				vassign(p, atoi(cp));
@@ -179,7 +190,7 @@ vtoken(s)
 			}
 			return;
 		}
-	} else if (cp = index(s, '?')) {
+	} else if ((cp = index(s, '?'))) {
 		*cp = '\0';
 		if ((p = vlookup(s)) && vaccess(p->v_access, READ)) {
 			vprint(p);
@@ -332,6 +343,7 @@ vinterp(s, stop)
  * assign variable s with value v (for NUMBER or STRING or CHAR types)
  */
 
+int
 vstring(s,v)
 	register char *s;
 	register char *v;
