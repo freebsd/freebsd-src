@@ -106,8 +106,12 @@ g_orphan_provider(struct g_provider *pp, int error)
 	KASSERT(error != 0,
 	    ("g_orphan_provider(%p(%s), 0) error must be non-zero\n",
 	     pp, pp->name));
+	
 	pp->error = error;
 	mtx_lock(&g_eventlock);
+	KASSERT(!(pp->flags & G_PF_ORPHAN),
+	    ("g_orphan_provider(%p(%s)), already an orphan", pp, pp->name));
+	pp->flags |= G_PF_ORPHAN;
 	TAILQ_INSERT_TAIL(&g_doorstep, pp, orphan);
 	mtx_unlock(&g_eventlock);
 	wakeup(&g_wait_event);
