@@ -63,6 +63,8 @@
     adjusts the maximum receive segment size of incoming TCP SYN
     segments as well as outgoing TCP SYN segments.</para>
 
+    <para>A &man.nmdm.4; null-modem terminal driver has been added.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
