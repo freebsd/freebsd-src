@@ -152,6 +152,9 @@ ISA_ACCESSOR(logicalid, LOGICALID, int)
 ISA_ACCESSOR(compatid, COMPATID, int)
 ISA_ACCESSOR(configattr, CONFIGATTR, int)
 
+/* Device class for ISA bridges. */
+extern devclass_t isab_devclass;
+
 extern intrmask_t isa_irq_pending(void);
 extern void	isa_probe_children(device_t dev);
 
@@ -163,6 +166,8 @@ extern int	isa_dma_acquire(int chan);
 extern void	isa_dma_release(int chan);
 extern int	isa_dmastatus(int chan);
 extern int	isa_dmastop(int chan);
+
+int	isab_attach(device_t dev);
 
 #ifdef PC98
 #include <machine/bus.h>
