@@ -34,6 +34,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "thr_private.h"
 
@@ -69,14 +70,15 @@ GIANT_LOCK(pthread_t pthread)
 #if 0
 	error = __sys_sigprocmask(SIG_SETMASK, &set, &sav);
 	if (error) {
-		_thread_printf(0, "GIANT_LOCK: sig err %d\n", errno);
+		_thread_printf(STDERR_FILENO, "GIANT_LOCK: sig err %d\n",
+		    errno);
 		abort();
 	}
 #endif
 
 	error = umtx_lock(&_giant_mutex, pthread->thr_id);
 	if (error) {
-		_thread_printf(0, "GIANT_LOCK: %d\n", errno);
+		_thread_printf(STDERR_FILENO, "GIANT_LOCK: %d\n", errno);
 		abort();
 	}
 	
@@ -99,7 +101,7 @@ GIANT_UNLOCK(pthread_t pthread)
 
 	error = umtx_unlock(&_giant_mutex, pthread->thr_id);
 	if (error) {
-		_thread_printf(0, "GIANT_UNLOCK: %d\n", errno);
+		_thread_printf(STDERR_FILENO, "GIANT_UNLOCK: %d\n", errno);
 		abort();
 	}
 
@@ -109,7 +111,8 @@ GIANT_UNLOCK(pthread_t pthread)
 	 */
 	error = __sys_sigprocmask(SIG_SETMASK, &set, NULL);
 	if (error) {
-		_thread_printf(0, "GIANT_UNLOCK: sig err %d\n", errno);
+		_thread_printf(STDERR_FILENO, "GIANT_UNLOCK: sig err %d\n",
+		    errno);
 		abort();
 	}
 #endif
