@@ -26,3 +26,19 @@
 >3      byte            2               - character array
 >3      byte            3               - memory block
 >>14    belong          0x001B0040      (screen)
+
+# The following three blocks are from pak21-spectrum@srcf.ucam.org
+# TZX tape images
+0      string          ZXTape!\x1a     Spectrum .TZX data
+>8     byte            x               version %d
+>9     byte            x               .%d
+
+# RZX input recording files
+0      string          RZX!            Spectrum .RZX data
+>4     byte            x               version %d
+>5     byte            x               .%d
+
+# And three sorts of disk image
+0      string          MV\ -\ CPCEMU\ Disk-Fil Amstrad/Spectrum .DSK data
+0      string          MV\ -\ CPC\ format\ Dis Amstrad/Spectrum DU54 .DSK data
+0      string          EXTENDED\ CPC\ DSK\ Fil Amstrad/Spectrum Extended .DSK data

@@ -101,7 +101,23 @@
 >12	belong		7		(IBM channel-to-channel adapter)
 >12	belong		8		(FDDI)
 >12	belong		9		(Unknown)
+
+# Microsoft ICM color profile
+36	string		acspMSFT	Microsoft ICM Color Profile
 # Sun KCMS
 36	string		acsp		Kodak Color Management System, ICC Profile
+
+#---------------------------------------------------------------------------
+# The following entries have been tested by Duncan Laurie <duncan@sun.com> (a
+# lead Sun/Cobalt developer) who agrees that they are good and worthy of
+# inclusion.
+
+# Boot ROM images for Sun/Cobalt Linux server appliances
+0       string  Cobalt\ Networks\ Inc.\nFirmware\ v     Paged COBALT boot rom
+>38     string x        V%.4s
+
+# New format for Sun/Cobalt boot ROMs is annoying, it stores the version code
+# at the very end where file(1) can't get it.
+0       string CRfs     COBALT boot rom data (Flat boot rom or file system)
 
 

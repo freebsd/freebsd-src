@@ -12,9 +12,14 @@
 >4	byte		0		invalid class
 >4	byte		1		32-bit
 # only for MIPS - in the future, the ABI field of e_flags should be used.
+>>18	leshort		8
+>>>36	lelong		&0x20		N32
+>>18	leshort		10
+>>>36	lelong		&0x20		N32
 >>18	beshort		8
+>>>36	belong		&0x20		N32
 >>18	beshort		10
->>>36   belong          &0x20           N32
+>>>36	belong		&0x20		N32
 >4	byte		2		64-bit
 >5	byte		0		invalid byte order
 >5	byte		1		LSB
@@ -77,12 +82,14 @@
 >>18	leshort		17		Fujitsu VPP500,
 >>18	leshort		18		SPARC32PLUS,
 >>18	leshort		20		PowerPC,
+>>18	leshort		22		IBM S/390,
 >>18	leshort		36		NEC V800,
 >>18	leshort		37		Fujitsu FR20,
 >>18	leshort		38		TRW RH-32,
 >>18	leshort		39		Motorola RCE,
 >>18	leshort		40		ARM,
 >>18	leshort		41		Alpha,
+>>18	leshort		0xa390		IBM S/390 (obsolete),
 >>18	leshort		42		Hitachi SH,
 >>18	leshort		43		SPARC V9 - invalid byte order,
 >>18	leshort		44		Siemens Tricore Embedded Processor,
@@ -162,6 +169,7 @@
 >>>36	belong&0xffff00	&0x000800	Sun UltraSPARC3 Extensions Required,
 >>18	beshort		20		PowerPC or cisco 4500,
 >>18	beshort		21		cisco 7500,
+>>18	beshort		22		IBM S/390,
 >>18	beshort		24		cisco SVIP,
 >>18	beshort		25		cisco 7200,
 >>18	beshort		36		NEC V800 or cisco 12000,
@@ -186,10 +194,14 @@
 >>18	beshort		75		Digital VAX,
 >>18	beshort		97		NatSemi 32k,
 >>18	beshort		0x9026		Alpha (unofficial),
+>>18	beshort		0xa390		IBM S/390 (obsolete),
 >>20	belong		0		invalid version
 >>20	belong		1		version 1
 >>36	belong		1		MathCoPro/FPU/MAU Required
->8	string		>\0		(%s)
+# Up to now only 0, 1 and 2 are defined; I've seen a file with 0x83, it seemed
+# like proper ELF, but extracting the string had bad results.
+>4      byte            <0x80
+>>8	string		>\0		(%s)
 >8	string		\0
 >>7	byte		0		(SYSV)
 >>7	byte		1		(HP-UX)
