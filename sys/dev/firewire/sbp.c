@@ -1816,13 +1816,14 @@ END_DEBUG
 	bzero(sbp, sizeof(struct sbp_softc));
 	sbp->fd.dev = dev;
 	sbp->fd.fc = device_get_ivars(dev);
+#define SBP_SEG_MAX 0x8000
 	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 				/*boundary*/0,
 				/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 				/*highaddr*/BUS_SPACE_MAXADDR,
 				/*filter*/NULL, /*filterarg*/NULL,
 				/*maxsize*/0x100000, /*nsegments*/SBP_IND_MAX,
-				/*maxsegsz*/0x8000,
+				/*maxsegsz*/SBP_SEG_MAX,
 				/*flags*/BUS_DMA_ALLOCNOW,
 				&sbp->dmat);
 	if (error != 0) {
@@ -2356,8 +2357,11 @@ sbp_execute_ocb(void *arg,  bus_dma_segment_t *segments, int seg, int error)
 	ocb = (struct sbp_ocb *)arg;
 	if (seg == 1) {
 		/* direct pointer */
-		ocb->orb[3] = htonl(segments[0].ds_addr);
-		ocb->orb[4] |= htonl(segments[0].ds_len);
+		s = &segments[0];
+		if (s->ds_len > SBP_SEG_MAX)
+			panic("ds_len > SBP_SEG_MAX, fix busdma code");
+		ocb->orb[3] = htonl(s->ds_addr);
+		ocb->orb[4] |= htonl(s->ds_len);
 	} else if(seg > 1) {
 		/* page table */
 SBP_DEBUG(1)
@@ -2384,6 +2388,8 @@ SBP_DEBUG(0)
 #endif
 					"(seg=%d/%d)\n", s->ds_len, i+1, seg);
 END_DEBUG
+			if (s->ds_len > SBP_SEG_MAX)
+				panic("ds_len > SBP_SEG_MAX, fix busdma code");
 			ocb->ind_ptr[i].hi = htonl(s->ds_len << 16);
 			ocb->ind_ptr[i].lo = htonl(s->ds_addr);
 		}
