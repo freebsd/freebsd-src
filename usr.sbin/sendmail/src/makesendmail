@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#       @(#)makesendmail	8.41 (Berkeley) 9/23/96
+#       @(#)makesendmail	8.42 (Berkeley) 11/10/96
 #
 
 #
@@ -109,6 +109,13 @@ in
 esac
 
 # tweak operating system type and release
+node=`uname -n | sed -e 's/\//-/g' -e 's/ //g'`
+if [ "$os" = "$node" -a "$arch" = "i386" -a "$rel" = 3.2 -a "`uname -v`" = 2 ]
+then
+	# old versions of SCO UNIX set uname -s the same as uname -n
+	os=SCO_SV
+fi
+
 case $os
 in
   DYNIX-ptx)	os=PTX;;
