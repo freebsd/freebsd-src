@@ -73,6 +73,8 @@ ia64/isa/isa_dma.c		optional	isa
 ia64/pci/pci_cfgreg.c		optional	pci
 crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	ipsec ipsec_esp
+crypto/blowfish/bf_enc.c	optional	crypto
+crypto/des/des_enc.c		optional	crypto
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/fb/fb.c			optional	fb

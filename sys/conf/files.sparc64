@@ -10,6 +10,8 @@
 
 crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	ipsec ipsec_esp
+crypto/blowfish/bf_enc.c	optional	crypto
+crypto/des/des_enc.c		optional	crypto
 dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
 dev/sio/sio.c			optional	sio
