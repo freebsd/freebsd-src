@@ -99,8 +99,8 @@ struct uidinfo {
 	struct mtx	*ui_mtxp;	/* protect all counts/limits */
 };
 
-#define	UIDINFO_LOCK(ui)	mtx_lock((ui)->ui_mtxp);
-#define	UIDINFO_UNLOCK(ui)	mtx_unlock((ui)->ui_mtxp);
+#define	UIDINFO_LOCK(ui)	mtx_lock((ui)->ui_mtxp)
+#define	UIDINFO_UNLOCK(ui)	mtx_unlock((ui)->ui_mtxp)
 
 struct thread;
 struct kse;
