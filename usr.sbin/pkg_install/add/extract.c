@@ -40,7 +40,7 @@ static const char *rcsid = "$FreeBSD$";
 		    where_count = sizeof(STARTSTRING)-1; \
 	} \
 	if (perm_count) { \
-		    if (!isdir(todir)) apply_perms(todir, perm_args); \
+		    apply_perms(todir, perm_args); \
 		    perm_args[0] = 0;\
 		    perm_count = 0; \
 	}
