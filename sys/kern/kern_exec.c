@@ -98,6 +98,8 @@ struct execve_args {
 
 /*
  * execve() system call.
+ *
+ * MPSAFE
  */
 int
 execve(p, uap)
@@ -132,6 +134,8 @@ execve(p, uap)
 	imgp->firstpage = NULL;
 	imgp->ps_strings = 0;
 	imgp->auxarg_size = 0;
+
+	mtx_lock(&Giant);
 
 	/*
 	 * Allocate temporary demand zeroed space for argument and
@@ -445,17 +449,18 @@ exec_fail_dealloc:
 	}
 
 	if (error == 0)
-		return (0);
+		goto done2;
 
 exec_fail:
 	if (imgp->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
 		exit1(p, W_EXITCODE(0, SIGABRT));
 		/* NOT REACHED */
-		return(0);
-	} else {
-		return(error);
-	}
+		error = 0;
+	} 
+done2:
+	mtx_unlock(&Giant);
+	return(error);
 }
 
 int

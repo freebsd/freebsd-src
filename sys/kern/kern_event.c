@@ -331,17 +331,22 @@ filt_timer(struct knote *kn, long hint)
 	return (kn->kn_data != 0);
 }
 
+/*
+ * MPSAFE
+ */
 int
 kqueue(struct proc *p, struct kqueue_args *uap)
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp;
 	struct kqueue *kq;
 	struct file *fp;
 	int fd, error;
 
+	mtx_lock(&Giant);
+	fdp = p->p_fd;
 	error = falloc(p, &fp, &fd);
 	if (error)
-		return (error);
+		goto done2;
 	fp->f_flag = FREAD | FWRITE;
 	fp->f_type = DTYPE_KQUEUE;
 	fp->f_ops = &kqueueops;
@@ -352,6 +357,8 @@ kqueue(struct proc *p, struct kqueue_args *uap)
 	if (fdp->fd_knlistsize < 0)
 		fdp->fd_knlistsize = 0;		/* this process has a kq */
 	kq->kq_fdp = fdp;
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -365,21 +372,27 @@ struct kevent_args {
 	const struct timespec *timeout;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 kevent(struct proc *p, struct kevent_args *uap)
 {
-	struct filedesc* fdp = p->p_fd;
+	struct filedesc *fdp;
 	struct kevent *kevp;
 	struct kqueue *kq;
 	struct file *fp = NULL;
 	struct timespec ts;
 	int i, n, nerrors, error;
 
+	mtx_lock(&Giant);
+	fdp = p->p_fd;
         if (((u_int)uap->fd) >= fdp->fd_nfiles ||
             (fp = fdp->fd_ofiles[uap->fd]) == NULL ||
-	    (fp->f_type != DTYPE_KQUEUE))
-		return (EBADF);
-
+	    (fp->f_type != DTYPE_KQUEUE)) {
+		error = EBADF;
+		goto done;
+	}
 	fhold(fp);
 
 	if (uap->timeout != NULL) {
@@ -430,6 +443,7 @@ kevent(struct proc *p, struct kevent_args *uap)
 done:
 	if (fp != NULL)
 		fdrop(fp, p);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
