@@ -57,7 +57,7 @@ from one
 server to another using
 .Tn NIS
 services. In
-.Bx Free ,
+.Fx ,
 .Nm
 is generally invoked by
 .Xr ypserv 8
@@ -145,12 +145,12 @@ it logs all its output using the
 facility.
 .Sh NOTES
 The
-.Bx Free
+.Fx
 version of
 .Nm
 has support for a special map transfer protocol which works in
 conjunction with the
-.Bx Free
+.Fx
 .Xr rpc.ypxfrd 8
 server. This protocol allows it to transfer raw map database files from
 the
@@ -171,20 +171,21 @@ transfer method, copying the map contents from
 and creating new maps instead.
 .Pp
 Note that while the
-.Bx Free
+.Fx
 ypxfrd protocol is conceptually similar
 to the SunOS ypxfrd protocol,
-.Bx Free Ns 's
+the
+.Fx
 protocol is not compatible with
 Sun's, therefore it will not work with Sun's ypxfrd server.
-.Bx Free
+.Fx
 slave systems can still transfer maps from any
-.Bx non-Free
+.No non- Ns Tn FreeBSD
 .Tn NIS
 server,
 however they will only be able to take advantage of the faster protocol
 if the master server is also running
-.Bx Free .
+.Fx .
 .Sh OPTIONS
 The following options and flags are supported by
 .Nm Ns :
