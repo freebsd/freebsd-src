@@ -59,8 +59,9 @@ reg char	*av[]; {
 
 	reg bool	restore;
 
-	/* run as the user */
-	setuid(getuid());
+	/* revoke */
+	setegid(getgid());
+	setgid(getgid());
 
 	if (strcmp(av[0], "a.out") == 0) {
 		outf = fopen("q", "w");

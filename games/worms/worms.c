@@ -201,6 +201,10 @@ main(argc, argv)
 	struct sgttyb tt;
 	extern short ospeed;
 
+	/* revoke */
+	setegid(getgid());
+	setgid(getgid());
+
 	length = 16;
 	number = 3;
 	trail = ' ';

@@ -80,11 +80,10 @@ char	**argv;
 
 {
 	register int	i;
-	uid_t uid;
 
-	/*Drop the privilege.*/
-	uid = getuid();
-	setreuid (uid,uid);
+	/* revoke privs */
+	setegid(getgid());
+	setgid(getgid());
 
 	acnt = 1;
 	signal (2,getout);

@@ -66,6 +66,10 @@ main(argc, argv)
 	int ch, random_exit, selected, unbuffer_output;
 	char *ep;
 
+	/* revoke */
+	setegid(getgid());
+	setgid(getgid());
+
 	random_exit = unbuffer_output = 0;
 	while ((ch = getopt(argc, argv, "er")) != EOF)
 		switch (ch) {

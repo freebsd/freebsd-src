@@ -378,8 +378,9 @@ child(wt) {
 	f = fork();
 	if(f == 0){		/* child */
 		settty((char *) 0);		/* also calls end_screen() */
-		(void) setuid(getuid());
-		(void) setgid(getgid());
+		/* revoke */
+		setegid(getgid());
+		setgid(getgid());
 #ifdef CHDIR
 		(void) chdir(getenv("HOME"));
 #endif CHDIR

@@ -33,6 +33,7 @@
  *	@(#)externs.h	8.1 (Berkeley) 5/31/93
  */
 
+#include <errno.h>
 #include <sys/param.h>
 #include <sys/signal.h>
 #include <stdio.h>
@@ -298,3 +299,5 @@ struct objs {
 };
 struct objs dayobjs[];
 struct objs nightobjs[];
+
+gid_t	egid;

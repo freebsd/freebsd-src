@@ -111,6 +111,10 @@ main(argc, argv)
 	extern char *optarg;
 	int c;
 
+	/* revoke */
+	setegid(getgid());
+	setgid(getgid());
+
 #ifdef DEBUG
 	while ((c = getopt(argc, argv, "a:b:hp:r:t:d")) != EOF)
 #else

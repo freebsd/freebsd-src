@@ -60,6 +60,10 @@ main(argc, argv)
 	BOOLEAN playing;
 	FILE *f;
 	int ch;
+	gid_t egid;
+
+	egid = getegid();
+	setegid(getgid());
 
 	while ((ch = getopt(argc, argv, "eqr")) != EOF)
 		switch (ch) {
@@ -120,11 +124,13 @@ main(argc, argv)
 		playing = (getuchar() == 'Y');
 	} while (playing);
 
+	setegid(egid);
 	if (f = fopen(_PATH_LOG, "a")) {
 		(void)fprintf(f, "%s: won %5.5d, lost %5.5d\n",
 		    getlogin(), cgames, pgames);
 		(void) fclose(f);
 	}
+	setegid(getgid());
 	bye();
 	if (!f) {
 		(void) fprintf(stderr, "\ncribbage: can't open %s.\n",

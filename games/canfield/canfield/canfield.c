@@ -1570,10 +1570,10 @@ initall()
 	srandom(getpid());
 	time(&acctstart);
 	initdeck(deck);
-	uid = getuid();
 	if (uid < 0)
 		uid = 0;
 	dbfd = open(_PATH_SCORE, 2);
+	setegid(getgid());
 	if (dbfd < 0)
 		return;
 	i = lseek(dbfd, uid * sizeof(struct betinfo), 0);
@@ -1691,6 +1691,11 @@ main(argc, argv)
 	raw();
 	noecho();
 	initall();
+
+	/* revoke privs */
+	setegid(getgid());
+	setgid(getgid());
+
 	instruct();
 	makeboard();
 	for (;;) {
