@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.357 1997/08/14 14:03:25 msmith Exp $
+#	$Id: LINT,v 1.358 1997/08/19 17:11:35 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -990,6 +990,7 @@ device pca0 at isa? port IO_TIMER1 tty
 # joy: joystick
 # labpc: National Instrument's Lab-PC and Lab-PC+
 # rc: RISCom/8 multiport card
+# rp: Comtrol Rocketport(ISA) - single card
 # tw: TW-523 power line interface for use with X-10 home control products
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
@@ -1014,6 +1015,36 @@ device pca0 at isa? port IO_TIMER1 tty
 #  direct access to the I/O page. 
 #  	options SPIGOT_UNSECURE
 #
+
+# Notes on the Comtrol Rocketport driver:
+#
+# The exact values used for rp0 depend on how many boards you have
+# in the system.  The manufacturer's sample configs are listed as:
+#
+#   Comtrol Rocketport ISA single card
+#               device  rp0     at isa? port 0x280 tty
+#
+#   If instead you have two ISA cards, one installed at 0x100 and the
+#   second installed at 0x180, then you should add the following to
+#   your kernel configuration file:
+#
+#               device  rp0     at isa? port 0x100 tty
+#               device  rp1     at isa? port 0x180 tty
+#
+#   For 4 ISA cards, it might be something like this:
+#
+#               device  rp0     at isa? port 0x180 tty
+#               device  rp1     at isa? port 0x100 tty
+#               device  rp2     at isa? port 0x340 tty
+#               device  rp3     at isa? port 0x240 tty
+#
+#   And for PCI cards, you only need say:
+#
+#               device rp0
+#               device rp1
+#               ...
+#   Note: Make sure that any Rocketport PCI devices are specified BEFORE the
+#   ISA Rocketport devices.
 
 # Notes on the Digiboard driver:
 #
@@ -1060,6 +1091,7 @@ device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000 vector cyintr
 device		dgb0	at isa? port 0x220 iomem 0xfc0000 iosiz ? tty
 device		labpc0	at isa? port 0x260 tty irq 5 vector labpcintr
 device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
+device          rp0     at isa? port 0x280 tty
 # the port and irq for tw0 are fictitious
 device          tw0     at isa? port 0x380 tty irq 11 vector twintr
 device		si0	at isa? iomem 0xd0000 tty irq 12 vector siintr
