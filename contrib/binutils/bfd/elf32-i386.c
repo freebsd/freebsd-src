@@ -960,14 +960,16 @@ elf_i386_size_dynamic_sections (output_bfd, info)
 		  relocs = true;
 
 		  /* If this relocation section applies to a read only
-		     section, then we probably need a DT_TEXTREL
-		     entry.  The entries in the .rel.plt section
-		     really apply to the .got section, which we
-		     created ourselves and so know is not readonly.  */
+		     section which is in memory at run time, then
+		     we probably need a DT_TEXTREL entry.  The entries
+		     in the .rel.plt section really apply to the
+		     .got section, which we created ourselves and so
+		     know is not readonly.  */
 		  outname = bfd_get_section_name (output_bfd,
 						  s->output_section);
 		  target = bfd_get_section_by_name (output_bfd, outname + 4);
 		  if (target != NULL
+		      && (target->flags & SEC_ALLOC) != 0
 		      && (target->flags & SEC_READONLY) != 0)
 		    reltext = true;
 		}
