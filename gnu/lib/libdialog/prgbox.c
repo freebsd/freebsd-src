@@ -27,10 +27,12 @@
  * Display a message box. Program will pause and display an "OK" button
  * if the parameter 'pause' is non-zero.
  */
-int dialog_msgbox(unsigned char *title, unsigned char *prompt, int height, int width, int pause)
+int dialog_prgbox(unsigned char *title, const char *line, int height, int width, int pause, int use_shell)
 {
   int i, x, y, key = 0;
   WINDOW *dialog;
+  FILE *f;
+  unsigned char *s, buf[MAX_LEN];
 
   /* center dialog box on screen */
   x = (COLS - width)/2;
@@ -54,7 +56,33 @@ int dialog_msgbox(unsigned char *title, unsigned char *prompt, int height, int w
   }
   wattrset(dialog, dialog_attr);
   wmove(dialog, 1, 2);
-  print_autowrap(dialog, prompt, height-1, width-2, width, 1, 2, TRUE, FALSE);
+
+  if (!use_shell) {
+    char cmdline[MAX_LEN];
+    char *av[51], **ap = av, *val;
+    int first = 1;
+
+    strcpy(cmdline, line);
+    while ((val = strtok(first ? cmdline : NULL, " \t")) != NULL) {
+      first = 0;
+      *ap++ = val;
+    }
+    *ap = NULL;
+    f = raw_popen(av[0], av, "r");
+  } else
+    f = raw_popen(line, NULL, "r");
+
+  while (fgets(buf, sizeof(buf), f) != NULL) {
+    i = strlen(buf);
+    if (buf[i-1] == '\n')
+      buf[i-1] = '\0';
+    s = buf;
+    while ((s = strchr(s, '\t')) != NULL)
+      *s++ = ' ';
+    print_autowrap(dialog, buf, height-(pause?3:1), width-2, width, 1, 2, FALSE, TRUE);
+    print_autowrap(dialog, "\n", height-(pause?3:1), width-2, width, 1, 2, FALSE, FALSE);
+  }
+  raw_pclose(f);
 
   if (pause) {
     wattrset(dialog, border_attr);

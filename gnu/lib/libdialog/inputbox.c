@@ -64,7 +64,8 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
     waddch(dialog, ' ');
   }
   wattrset(dialog, dialog_attr);
-  print_autowrap(dialog, prompt, width, 1, 3);
+  wmove(dialog, 1, 2);
+  print_autowrap(dialog, prompt, height-1, width-2, width, 1, 2, TRUE, FALSE);
 
   /* Draw the input field box */
   box_width = width-6;
@@ -146,6 +147,7 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
         break;
       case ' ':
       case '\n':
+      case '\r':
         delwin(dialog);
 	if (button < 1)
 	  strcpy(result, instr);

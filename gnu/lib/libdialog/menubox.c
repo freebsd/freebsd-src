@@ -71,7 +71,8 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
     waddch(dialog, ' ');
   }
   wattrset(dialog, dialog_attr);
-  print_autowrap(dialog, prompt, width, 1, 3);
+  wmove(dialog, 1, 2);
+  print_autowrap(dialog, prompt, height-1, width-2, width, 1, 2, TRUE, FALSE);
 
   menu_width = width-6;
   getyx(dialog, cur_y, cur_x);
@@ -271,6 +272,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
         wrefresh(dialog);
         break;
       case ' ':
+      case '\r':
       case '\n':
         delwin(dialog);
         if (!button)
