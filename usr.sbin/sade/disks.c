@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.95 1998/02/13 08:01:01 jkh Exp $
+ * $Id: disks.c,v 1.96 1998/03/19 15:07:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -441,8 +441,19 @@ diskPartition(Device *dev)
 		 * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
 		 * booteasy or a "standard" MBR -- both would be fatal in this case.
 		 */
-		if (!(d->chunks->part->flags & CHUNK_FORCE_ALL) && (mbrContents = getBootMgr(d->name)) != NULL)
+#if 0
+		if ((d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL
+		    && (mbrContents = getBootMgr(d->name)) != NULL)
 		    Set_Boot_Mgr(d, mbrContents);
+#else
+		/*
+		 * Don't offer to update the MBR on this disk if the first "real" chunk looks like
+		 * a FreeBSD "all disk" partition, or the disk is entirely FreeBSD.
+		 */
+		if (((d->chunks->part->type != freebsd) || (d->chunks->part->offset > 1)) &&
+		    (mbrContents = getBootMgr(d->name)) != NULL)
+		    Set_Boot_Mgr(d, mbrContents);
+#endif
 		
 		if (DITEM_STATUS(diskPartitionWrite(NULL)) != DITEM_SUCCESS)
 		    msgConfirm("Disk partition write returned an error status!");
