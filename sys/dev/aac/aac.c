@@ -236,7 +236,6 @@ aac_attach(struct aac_softc *sc)
 	/*
 	 * Initialize locks
 	 */
-	AAC_LOCK_INIT(&sc->aac_sync_lock, "AAC sync FIB lock");
 	AAC_LOCK_INIT(&sc->aac_aifq_lock, "AAC AIF lock");
 	AAC_LOCK_INIT(&sc->aac_io_lock, "AAC I/O lock");
 	AAC_LOCK_INIT(&sc->aac_container_lock, "AAC container lock");
@@ -316,7 +315,7 @@ aac_startup(void *arg)
 	/* disconnect ourselves from the intrhook chain */
 	config_intrhook_disestablish(&sc->aac_ich);
 
-	aac_alloc_sync_fib(sc, &fib, 0);
+	aac_alloc_sync_fib(sc, &fib);
 	mi = (struct aac_mntinfo *)&fib->data[0];
 
 	/* loop over possible containers */
@@ -526,7 +525,7 @@ aac_shutdown(device_t dev)
 	 */
 	device_printf(sc->aac_dev, "shutting down controller...");
 
-	aac_alloc_sync_fib(sc, &fib, AAC_SYNC_LOCK_FORCE);
+	aac_alloc_sync_fib(sc, &fib);
 	cc = (struct aac_close_command *)&fib->data[0];
 
 	bzero(cc, sizeof(struct aac_close_command));
@@ -1690,38 +1689,6 @@ aac_sync_command(struct aac_softc *sc, u_int32_t command,
 	return(0);
 }
 
-/*
- * Grab the sync fib area.
- */
-int
-aac_alloc_sync_fib(struct aac_softc *sc, struct aac_fib **fib, int flags)
-{
-
-	/*
-	 * If the force flag is set, the system is shutting down, or in
-	 * trouble.  Ignore the mutex.
-	 */
-	if (!(flags & AAC_SYNC_LOCK_FORCE))
-		AAC_LOCK_ACQUIRE(&sc->aac_sync_lock);
-
-	*fib = &sc->aac_common->ac_sync_fib;
-
-	return (1);
-}
-
-/*
- * Release the sync fib area.
- */
-void
-aac_release_sync_fib(struct aac_softc *sc)
-{
-
-	AAC_LOCK_RELEASE(&sc->aac_sync_lock);
-}
-
-/*
- * Send a synchronous FIB to the controller and wait for a result.
- */
 int
 aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate, 
 		 struct aac_fib *fib, u_int16_t datasize)
@@ -2267,7 +2234,7 @@ aac_describe_controller(struct aac_softc *sc)
 
 	debug_called(2);
 
-	aac_alloc_sync_fib(sc, &fib, 0);
+	aac_alloc_sync_fib(sc, &fib);
 
 	fib->data[0] = 0;
 	if (aac_sync_fib(sc, RequestAdapterInfo, 0, fib, 1)) {
@@ -2588,7 +2555,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 			 * doesn't tell us anything else!  Re-enumerate the
 			 * containers and sort things out.
 			 */
-			aac_alloc_sync_fib(sc, &fib, 0);
+			aac_alloc_sync_fib(sc, &fib);
 			mi = (struct aac_mntinfo *)&fib->data[0];
 			do {
 				/*
@@ -2883,7 +2850,7 @@ aac_get_bus_info(struct aac_softc *sc)
 	device_t child;
 	int i, found, error;
 
-	aac_alloc_sync_fib(sc, &fib, 0);
+	aac_alloc_sync_fib(sc, &fib);
 	c_cmd = (struct aac_ctcfg *)&fib->data[0];
 	bzero(c_cmd, sizeof(struct aac_ctcfg));
 
