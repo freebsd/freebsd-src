@@ -728,8 +728,8 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		case FWASREQEUI:
 			fwdev = fw_noderesolve(sc->fc, asyreq->req.dst.eui);
 			if (fwdev == NULL) {
-				printf("%s:cannot find node\n",
-					device_get_nameunit(sc->fc->dev));
+				device_printf(sc->fc->bdev,
+					"cannot find node\n");
 				err = EINVAL;
 				goto error;
 			}
