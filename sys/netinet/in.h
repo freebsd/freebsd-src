@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.22 1996/10/22 22:25:54 sos Exp $
+ * $Id: in.h,v 1.23 1996/11/11 04:56:09 fenner Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -161,6 +161,7 @@ struct in_addr {
 #define	IN_BADCLASS(i)		(((long)(i) & 0xf0000000) == 0xf0000000)
 
 #define	INADDR_ANY		(u_long)0x00000000
+#define	INADDR_LOOPBACK		(u_long)0x7f000001
 #define	INADDR_BROADCAST	(u_long)0xffffffff	/* must be masked */
 #ifndef KERNEL
 #define	INADDR_NONE		0xffffffff		/* -1 return */
