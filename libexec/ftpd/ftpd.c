@@ -252,6 +252,7 @@ static struct passwd *
 static char	*sgetsave(char *);
 static void	 reapchild(int);
 static void      logxfer(char *, off_t, time_t);
+static char	*doublequote(char *);
 
 static char *
 curdir(void)
@@ -2327,12 +2328,16 @@ removedir(char *name)
 void
 pwd(void)
 {
-	char path[MAXPATHLEN + 1];
+	char *s, path[MAXPATHLEN + 1];
 
 	if (getwd(path) == (char *)NULL)
 		reply(550, "%s.", path);
-	else
-		reply(257, "\"%s\" is current directory.", path);
+	else {
+		if ((s = doublequote(path)) == NULL)
+			fatalerror("Ran out of memory.");
+		reply(257, "\"%s\" is current directory.", s);
+		free(s);
+	}
 }
 
 char *
@@ -2916,4 +2921,26 @@ logxfer(char *name, off_t size, time_t start)
 			(long)(now - start + (now == start)));
 		write(statfd, buf, strlen(buf));
 	}
+}
+
+static char *
+doublequote(char *s)
+{
+	int n;
+	char *p, *s2;
+
+	for (p = s, n = 0; *p; p++)
+		if (*p == '"')
+			n++;
+
+	if ((s2 = malloc(p - s + n + 1)) == NULL)
+		return (NULL);
+
+	for (p = s2; *s; s++, p++) {
+		if ((*p = *s) == '"')
+			*(++p) = '"';
+	}
+	*p = '\0';
+
+	return (s2);
 }
