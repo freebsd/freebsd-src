@@ -49,7 +49,7 @@ extern int	error_count;
 void
 usage()
 {
-	fprintf(stderr, "usage: ldd [-v] [-f format] program ...\n");
+	fprintf(stderr, "usage: ldd [-a] [-v] [-f format] program ...\n");
 	exit(1);
 }
 
@@ -61,10 +61,15 @@ char	*argv[];
 	char		*fmt1 = NULL, *fmt2 = NULL;
 	int		rval;
 	int		c;
-	int		vflag = 0;
+	int		aflag, vflag;
 
-	while ((c = getopt(argc, argv, "vf:")) != -1) {
+	aflag = vflag = 0;
+
+	while ((c = getopt(argc, argv, "avf:")) != -1) {
 		switch (c) {
+		case 'a':
+			aflag++;
+			break;
 		case 'v':
 			vflag++;
 			break;
@@ -101,7 +106,7 @@ char	*argv[];
 #endif
 
 	/* ld.so magic */
-	setenv("LD_TRACE_LOADED_OBJECTS", "1", 1);
+	setenv("LD_TRACE_LOADED_OBJECTS", "yes", 1);
 	if (fmt1)
 		setenv("LD_TRACE_LOADED_OBJECTS_FMT1", fmt1, 1);
 	if (fmt2)
@@ -190,7 +195,8 @@ char	*argv[];
 		}
 
 		setenv("LD_TRACE_LOADED_OBJECTS_PROGNAME", *argv, 1);
-		if (fmt1 == NULL && fmt2 == NULL)
+		if (aflag) setenv("LD_TRACE_LOADED_OBJECTS_ALL", "1", 1);
+		else if (fmt1 == NULL && fmt2 == NULL)
 			/* Default formats */
 			printf("%s:\n", *argv);
 

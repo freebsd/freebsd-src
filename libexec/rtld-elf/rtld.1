@@ -107,6 +107,11 @@ When set to a nonempty string, causes
 .Nm
 to exit after loading the shared objects and printing a summary which includes
 the absolute pathnames of all objects, to standard output.
+.It Ev LD_TRACE_LOADED_OBJECTS_ALL
+When set to a nonempty string, causes
+.Nm
+to expand the summary to indicate which objects caused each object to
+be loaded.
 .It Ev LD_TRACE_LOADED_OBJECTS_FMT1
 .It Ev LD_TRACE_LOADED_OBJECTS_FMT2
 When set, these variables are interpreted as format strings a la
