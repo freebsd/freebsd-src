@@ -213,7 +213,7 @@ static int matcd_pause(int ldrive, int cdrive, int controller, int action)
 	}				/*<14>*/
 	unlockbus(controller, ldrive);	/*<16>Release bus*/
 
-	if (z & MATCD_ST_AUDIOBSY==0 &&	/*<14>If drive is idle*/
+	if ((z & MATCD_ST_AUDIOBSY) == 0 &&		/*<14>If drive is idle*/
 	    cd->status==CD_AS_PLAY_IN_PROGRESS) {	/*<14>but was playing*/
 		cd->status=CD_AS_PLAY_COMPLETED;	/*<14>then its done*/
 		return(0);
