@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.47 1998/04/16 00:25:49 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.48 1998/04/16 21:19:05 brian Exp $
  */
 
 #include <sys/types.h>
@@ -921,16 +921,17 @@ bundle_IdleTimeout(void *v)
 void
 bundle_StartIdleTimer(struct bundle *bundle)
 {
-  if (!(bundle->phys_type & (PHYS_DEDICATED|PHYS_PERM)) &&
-      bundle->cfg.idle_timeout) {
+  if (!(bundle->phys_type & (PHYS_DEDICATED|PHYS_PERM))) {
     StopTimer(&bundle->idle.timer);
-    bundle->idle.timer.func = bundle_IdleTimeout;
-    bundle->idle.timer.name = "idle";
-    bundle->idle.timer.load = bundle->cfg.idle_timeout * SECTICKS;
-    bundle->idle.timer.state = TIMER_STOPPED;
-    bundle->idle.timer.arg = bundle;
-    StartTimer(&bundle->idle.timer);
-    bundle->idle.done = time(NULL) + bundle->cfg.idle_timeout;
+    if (bundle->cfg.idle_timeout) {
+      bundle->idle.timer.func = bundle_IdleTimeout;
+      bundle->idle.timer.name = "idle";
+      bundle->idle.timer.load = bundle->cfg.idle_timeout * SECTICKS;
+      bundle->idle.timer.state = TIMER_STOPPED;
+      bundle->idle.timer.arg = bundle;
+      StartTimer(&bundle->idle.timer);
+      bundle->idle.done = time(NULL) + bundle->cfg.idle_timeout;
+    }
   }
 }
 
