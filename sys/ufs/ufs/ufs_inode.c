@@ -179,5 +179,6 @@ ufs_reclaim(ap)
 #endif
 	UFS_IFREE(ump, ip);
 	vp->v_data = 0;
+	vnode_destroy_vobject(vp);
 	return (0);
 }

@@ -270,6 +270,7 @@ nwfs_reclaim(ap)
 		nmp->n_root = NULL;
 	}
 	vp->v_data = NULL;
+	vnode_destroy_vobject(vp);
 	FREE(np, M_NWNODE);
 	if (dvp) {
 		vrele(dvp);

@@ -542,5 +542,6 @@ ext2_reclaim(ap)
 	}
 	FREE(vp->v_data, M_EXT2NODE);
 	vp->v_data = 0;
+	vnode_destroy_vobject(vp);
 	return (0);
 }

@@ -1053,6 +1053,7 @@ devfs_reclaim(ap)
 		    (vp->v_rdev->si_flags & SI_NAMED))
 			destroy_dev(vp->v_rdev);
 	}
+	vnode_destroy_vobject(vp);
 	return (0);
 }
 
