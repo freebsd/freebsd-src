@@ -687,7 +687,7 @@ an_attach(sc, unit, flags)
 
 	/* Reset the NIC. */
 	an_reset(sc);
-	if(sc->mpi350) {
+	if (sc->mpi350) {
 		error = an_init_mpi350_desc(sc);
 		if (error)
 			return(error);
@@ -1272,8 +1272,7 @@ an_cmd_struct(sc, cmd, reply)
 	for (i = 0; i != AN_TIMEOUT; i++) {
 		if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY) {
 			DELAY(10);
-		}
-		else
+		} else
 			break;
 	}
 	if( i == AN_TIMEOUT) {
@@ -1524,13 +1523,14 @@ an_write_record(sc, ltv)
 
 		if (an_cmd(sc, AN_CMD_ACCESS|AN_ACCESS_WRITE, ltv->an_type))
 			return(EIO);
-	} else { /* MPI-350 */
+	} else { 
+		/* MPI-350 */
 
 		for (i = 0; i != AN_TIMEOUT; i++) {
-			if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY) {
+			if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) 
+			    & AN_CMD_BUSY) {
 				DELAY(10);
-		}
-			else
+			} else
 				break;
 		}
 		if (i == AN_TIMEOUT) {
@@ -1555,26 +1555,26 @@ an_write_record(sc, ltv)
 					    ((u_int32_t*)&an_rid_desc)[i]);
 
 		if ((i = an_cmd_struct(sc, &cmd, &reply))) {
-		printf("an%d: failed to write RID %x %x %x %x %x, %d\n", 
-		       sc->an_unit, ltv->an_type, 
-		       reply.an_status,
-		       reply.an_resp0,
-		       reply.an_resp1,
-		       reply.an_resp2,
-		       i);
-		return(EIO);
+			printf("an%d: failed to write RID %x %x %x %x %x, %d\n", 
+			    sc->an_unit, ltv->an_type, 
+			    reply.an_status,
+			    reply.an_resp0,
+			    reply.an_resp1,
+			    reply.an_resp2,
+			    i);
+			return(EIO);
 		}
 
 		ptr = (u_int16_t *)buf;
 
 		if (reply.an_status & AN_CMD_QUAL_MASK) {
 			printf("an%d: failed to write RID %x %x %x %x %x, %d\n", 
-			       sc->an_unit, ltv->an_type, 
-			       reply.an_status,
-			       reply.an_resp0,
-			       reply.an_resp1,
-			       reply.an_resp2,
-			       i);
+			    sc->an_unit, ltv->an_type, 
+			    reply.an_status,
+			    reply.an_resp0,
+			    reply.an_resp1,
+			    reply.an_resp2,
+			    i);
 			return(EIO);
 		}
 	}
@@ -1980,11 +1980,11 @@ an_ioctl(ifp, command, data)
 
 		if (mode >= AIROGCAP && mode <= AIROGSTATSD32) {
 			error = readrids(ifp, &l_ioctl);
-		}else if (mode >= AIROPCAP && mode <= AIROPLEAPUSR) {
+		} else if (mode >= AIROPCAP && mode <= AIROPLEAPUSR) {
 			error = writerids(ifp, &l_ioctl);
-		}else if (mode >= AIROFLSHRST && mode <= AIRORESTART) {
+		} else if (mode >= AIROFLSHRST && mode <= AIRORESTART) {
 			error = flashcard(ifp, &l_ioctl);
-		}else{
+		} else {
 			error =-1;
 		}
 
