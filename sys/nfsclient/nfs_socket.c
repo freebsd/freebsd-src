@@ -1262,12 +1262,9 @@ nfs_sndlock(struct nfsreq *rep)
 	struct thread *td;
 	int slpflag = 0, slptimeo = 0;
 
-	if (rep) {
-		td = rep->r_td;
-		if (rep->r_nmp->nm_flag & NFSMNT_INT)
-			slpflag = PCATCH;
-	} else
-		td = NULL;
+	td = rep->r_td;
+	if (rep->r_nmp->nm_flag & NFSMNT_INT)
+		slpflag = PCATCH;
 	while (*statep & NFSSTA_SNDLOCK) {
 		if (nfs_sigintr(rep->r_nmp, rep, td))
 			return (EINTR);
