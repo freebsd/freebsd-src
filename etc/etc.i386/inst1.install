@@ -27,6 +27,7 @@
 # already in /etc/disktab.  You can edit it out of the file after installation.
 #
 OPSYSTEM=FreeBSD
+DEFBLOCKING=2
 
 echo    "Welcome to ${OPSYSTEM}."
 echo    ""
@@ -49,7 +50,6 @@ read resp junk
 if [ "$resp" = "" ]; then
 	resp=y
 fi
-echo $resp 
 case $resp in
 	y*|Y*)
 		echo
@@ -122,35 +122,30 @@ read name junk
 if [ "$name" = "" ]; then
 	name=mfr_model
 fi
-echo $name
 echo	""
 echo -n "Number of bytes per disk sector? [512] "
 read bytes_per_sect junk
 if [ "$bytes_per_sect" = "" ]; then
 	bytes_per_sect=512
 fi
-echo $bytes_per_sect
 echo	""
 echo -n "Total number of disk cylinders? [1024] "
 read cyls_per_disk junk
 if [ "$cyls_per_disk" = "" ]; then
 	cyls_per_disk=1024
 fi
-echo $cyls_per_disk
 echo	""
 echo -n "Number of disk heads (i.e., tracks/cylinder)? [12] "
 read tracks_per_cyl junk
 if [ "$tracks_per_cyl" = "" ]; then
 	tracks_per_cyl=12
 fi
-echo $tracks_per_cyl
 echo	""
 echo -n "Number of disk sectors (i.e., sectors/track)? [36] "
 read sects_per_track junk
 if [ "$sects_per_track" = "" ]; then
 	sects_per_track=36
 fi
-echo $sects_per_track
 echo	""
 cylindersize=`expr $sects_per_track \* $tracks_per_cyl`
 disksize=`expr $cylindersize \* $cyls_per_disk`
@@ -171,7 +166,6 @@ read partition junk
 if [ "$partition" = "" ]; then
 	partition=$cyls_per_disk
 fi
-echo $partition
 partition=`expr $partition \* $cylindersize`
 part_offset=0
 if [ $partition -lt $disksize ]; then
@@ -214,7 +208,6 @@ while [ $root -eq 0 ]; do
 	if [ "$root" = "" ]; then
 		root=$part_size
 	fi
-	echo $root
 	case $root in
 		[1-9]*)
 			root=`expr $root \* $cylindersize`
@@ -236,15 +229,19 @@ whats_left=`expr $partition - $part_used`
 cyl_left=`expr $whats_left / $cylindersize`
 mb_left=`expr $whats_left / $mb_sect`
 echo	""
-echo "We can build the root filesystem with block/fragment sizes of either"
+# DO NOT USE DIFFERENT BLOCKING FACTORS FOR EACH PARITION.. IT TRASHES THE
+# VM SYSTEM!  When that gets fixed this can go back the way it was...
+#
+echo "We can build the filesystems with block/fragment sizes of either"
 echo "	1) 4k/512, to save disk space at the expense of speed, or"
 echo "	2) 8k/1k for speed at the expense of disk space."
-echo -n "Which blocking factor should we use for the root filesystem? [2] "
+echo -n "Which blocking factor should we use for the filesystems? "
+echo -n "[$DEFBLOCKING] "
 read blocking_factor junk
 if [ "$blocking_factor" = "" ]; then
-	blocking_factor=2
+	blocking_factor=$DEFBLOCKING
 fi
-echo $blocking_factor
+DEFBLOCKING=$blocking_factor
 fragsize=`expr $bytes_per_sect \* $blocking_factor`
 blocksize=`expr $bytes_per_sect \* $blocking_factor \* 8`
 minswap=`expr 8 \* $mb_sect`
@@ -274,7 +271,6 @@ while [ $swap -eq 0 ]; do
 	if [ "$swap_cyl" = "" ]; then
 		swap_cyl=$part_size
 	fi
-	echo $swap_cyl
 	case $swap_cyl in
 		[1-9]*)
 			swap=`expr $swap_cyl \* $cylindersize`
@@ -328,7 +324,6 @@ while [ $part_used -lt $partition ]; do
 		if [ "$part_size" = "" ]; then
 			part_size=$cyl_left
 		fi
-		echo $part_size
 		case $part_size in
 			[1-9]*)
 				part_size=`expr $part_size \* $cylindersize`
@@ -347,7 +342,6 @@ while [ $part_used -lt $partition ]; do
 							part_name=usr
 						fi
 						part_name=`expr "$part_name" : '/*\(.*\)'`
-						echo $part_name
 					done
 				fi
 				;;
@@ -356,18 +350,7 @@ while [ $part_used -lt $partition ]; do
 				;;
 		esac
 	done
-	echo
-	echo "We can build this filesystem with block/fragment sizes of either:"
-	echo "	1) 4k/512, to save disk space at the expense of speed, or"
-	echo "	2) 8k/1k for speed at the expense of disk space."
-	echo -n "Which blocking factor should we use for this filesystem? [1] "
-	read blocking_factor junk
-	if [ "$blocking_factor" = "" ]; then
-		blocking_factor=1
-	fi
-	echo $blocking_factor
-	fragsize=`expr $bytes_per_sect \* $blocking_factor`
-	blocksize=`expr $bytes_per_sect \* $blocking_factor \* 8`
+	echo ""
 	if [ "$ename" = "" ]; then	
 		ename=$part_name
 		offset=`expr $part_offset + $root + $swap`
@@ -394,8 +377,6 @@ done
 
 echo    "	:pd#${disksize}:od#0:" >>/etc/disktab
 cat /etc/disktab
-#No longer provide a disktab.preinstall on the floppy!
-#cat /etc/disktab.preinstall >> /etc/disktab
 sync
 
 echo    ""
@@ -404,7 +385,6 @@ echo -n "Are you sure you want to install on the hard drive? (yes/no) "
 answer=""
 while [ "$answer" = "" ]; do
 	read answer junk
-	echo $answer
 	case $answer in
 		Yes|yes|YES)
 			verified_install=1
@@ -450,6 +430,9 @@ if [ "$sect_fwd" = "sf:" ]; then
 	echo -n "Initializing bad144 badblock table..."
 	bad144 $drivename 0
 	echo " done."
+	echo "Scanning disk for bad blocks..."
+	bad144 -s $drivename
+	echo "done."
 fi
 
 echo    "Initializing root filesystem, and mounting..."
@@ -485,25 +468,24 @@ if [ "$hname" != "" ]; then
 fi
 
 echo    ""
-#echo -n "Verbose installation? [n] "
-#read resp
-#
-#case $resp in
-#	y*)
-#		cpioverbose=v
-#		;;
-#	*)
-#		cpioverbose=
-#		;;
-#esac
+echo -n "Verbose installation? [n] "
+read resp
 
-echo Copying to disk...
+case $resp in
+	y*)
+		cpioverbose=v
+		;;
+	*)
+		cpioverbose=
+		;;
+esac
+
+echo "Copying to disk..."
 cd /
-cat filelist | cpio -pdalmuv /mnt
-#cat filelist | cpio -pdalmu${cpioverbose} /mnt
+cat filelist | cpio -pdamu${cpioverbose} /mnt
+sync
 
 cd /mnt
-
 echo "/dev/${drivename}a	/	ufs	rw 1 1" >etc/fstab
 if [ "$ename" != "" ]; then
 	echo "/dev/${drivename}e	/$ename	ufs	rw 1 2" >>etc/fstab
@@ -518,6 +500,8 @@ if [ "$hname" != "" ]; then
 	echo "/dev/${drivename}h	/$hname	ufs	rw 1 5" >>etc/fstab
 fi
 
+cat /etc/disktab >etc/disktab.install
+
 cat << EOF >.profile
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/contrib/bin:.:
 export PATH
@@ -525,6 +509,7 @@ HOME=/root
 export HOME
 TERM=pc3
 export TERM
+mount -at ufs
 echo    ""
 echo    "Insert second installation floppy in drive and"
 echo -n "enter that drive's number (e.g. 0 or 1): [0]"
