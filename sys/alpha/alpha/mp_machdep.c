@@ -208,7 +208,7 @@ smp_init_secondary(void)
 
 	/* ok, now grab sched_lock and enter the scheduler */
 	mtx_lock_spin(&sched_lock);
-	cpu_throw();	/* doesn't return */
+	cpu_throw(NULL, choosethread());	/* doesn't return */
 
 	panic("scheduler returned us to %s", __func__);
 }
