@@ -84,7 +84,7 @@ union_mount(mp, ndp, td)
 	char *cp = 0, *target;
 	int op;
 	int len;
-	u_int size;
+	size_t size;
 
 	UDEBUG(("union_mount(mp = %p)\n", (void *)mp));
 
