@@ -43,7 +43,8 @@ typedef struct icmpstate {
 typedef	struct	tcpdata	{
 	u_32_t	td_end;
 	u_32_t	td_maxend;
-	u_short	td_maxwin;
+	u_32_t	td_maxwin;
+	u_char	td_wscale;
 } tcpdata_t;
 
 typedef	struct tcpstate {
@@ -58,18 +59,23 @@ typedef struct ipstate {
 	struct	ipstate	**is_pnext;
 	struct	ipstate	*is_hnext;
 	struct	ipstate	**is_phnext;
-	u_long	is_age;
-	u_int	is_pass;
+	struct	ipstate	**is_me;
+	frentry_t	*is_rule;
 	U_QUAD_T	is_pkts;
 	U_QUAD_T	is_bytes;
-	void	*is_ifp[2];
-	frentry_t	*is_rule;
 	union	i6addr	is_src;
 	union	i6addr	is_dst;
+	void	*is_ifp[4];
+	u_long	is_age;
+	u_int	is_frage[2];	/* age from filter rule, forward & reverse */
+	u_int	is_pass;
 	u_char	is_p;			/* Protocol */
-	u_char	is_v;
-	u_int	is_hv;
-	u_32_t	is_flags;
+	u_char	is_v;			/* IP version */
+	u_char	is_fsm;			/* 1 = following FSM, 0 = not */
+	u_char	is_xxx;			/* pad */
+	u_int	is_hv;			/* hash value for this in the table */
+	u_32_t	is_rulen;		/* rule number */
+	u_32_t	is_flags;		/* flags for this structure */
 	u_32_t	is_opt;			/* packet options set */
 	u_32_t	is_optmsk;		/*    "      "    mask */
 	u_short	is_sec;			/* security options set */
@@ -81,7 +87,7 @@ typedef struct ipstate {
 		tcpstate_t	is_ts;
 		udpstate_t	is_us;
 	} is_ps;
-	char	is_ifname[2][IFNAMSIZ];
+	char	is_ifname[4][IFNAMSIZ];
 #if SOLARIS || defined(__sgi)
 	kmutex_t	is_lock;
 #endif
@@ -98,13 +104,15 @@ typedef struct ipstate {
 #define is_dend		is_tcp.ts_data[1].td_end
 #define is_maxswin	is_tcp.ts_data[0].td_maxwin
 #define is_maxdwin	is_tcp.ts_data[1].td_maxwin
+#define is_swscale	is_tcp.ts_data[0].td_wscale
+#define is_dwscale	is_tcp.ts_data[1].td_wscale
 #define is_maxsend	is_tcp.ts_data[0].td_maxend
 #define is_maxdend	is_tcp.ts_data[1].td_maxend
 #define	is_sport	is_tcp.ts_sport
 #define	is_dport	is_tcp.ts_dport
 #define	is_state	is_tcp.ts_state
 #define	is_ifpin	is_ifp[0]
-#define	is_ifpout	is_ifp[1]
+#define	is_ifpout	is_ifp[2]
 
 #define	TH_OPENING	(TH_SYN|TH_ACK)
 /*
@@ -178,15 +186,18 @@ extern	u_long	fr_tcptimeout;
 extern	u_long	fr_tcpclosed;
 extern	u_long	fr_tcphalfclosed;
 extern	u_long	fr_udptimeout;
+extern	u_long	fr_udpacktimeout;
 extern	u_long	fr_icmptimeout;
+extern	u_long	fr_icmpacktimeout;
+extern	ipstate_t	*ips_list;
 extern	int	fr_state_lock;
 extern	int	fr_stateinit __P((void));
 extern	int	fr_tcpstate __P((ipstate_t *, fr_info_t *, ip_t *, tcphdr_t *));
-extern	ipstate_t	*fr_addstate __P((ip_t *, fr_info_t *, u_int));
-extern	frentry_t	*fr_checkstate __P((ip_t *, fr_info_t *));
+extern	ipstate_t *fr_addstate __P((ip_t *, fr_info_t *, ipstate_t **, u_int));
+extern	frentry_t *fr_checkstate __P((ip_t *, fr_info_t *));
 extern	void	ip_statesync __P((void *));
 extern	void	fr_timeoutstate __P((void));
-extern	void	fr_tcp_age __P((u_long *, u_char *, fr_info_t *, int));
+extern	int	fr_tcp_age __P((u_long *, u_char *, fr_info_t *, int, int));
 extern	void	fr_stateunload __P((void));
 extern	void	ipstate_log __P((struct ipstate *, u_int));
 #if defined(__NetBSD__) || defined(__OpenBSD__)
