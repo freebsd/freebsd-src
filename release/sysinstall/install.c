@@ -938,7 +938,7 @@ installFilesystems(dialogMenuItem *self)
 
     if (rootdev && RunningAsInit) {
 	/* Next, create and/or mount the root device */
-	sprintf(dname, "/dev/r%s", rootdev->name);
+	sprintf(dname, "/dev/%s", rootdev->name);
 	if (!Fake && (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname))) {
 	    msgConfirm("Unable to make device node for %s in /dev!\n"
 		       "The creation of filesystems will be aborted.", dname);
@@ -1010,9 +1010,9 @@ installFilesystems(dialogMenuItem *self)
 			    continue;
 
 			if (tmp->newfs && (!upgrade || !msgYesNo("You are upgrading - are you SURE you want to newfs /dev/%s?", c2->name)))
-			    command_shell_add(tmp->mountpoint, "%s %s/dev/r%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
+			    command_shell_add(tmp->mountpoint, "%s %s/dev/%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
 			else
-			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/r%s", RunningAsInit ? "/mnt" : "", c2->name);
+			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
 			command_func_add(tmp->mountpoint, Mount, c2->name);
 		    }
 		    else if (c2->type == part && c2->subtype == FS_SWAP) {
