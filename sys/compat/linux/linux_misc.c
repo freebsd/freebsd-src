@@ -233,7 +233,7 @@ linux_brk(struct thread *td, struct linux_brk_args *args)
 
 #ifdef DEBUG
 	if (ldebug(brk))
-		printf(ARGS(brk, "%p"), (void *)args->dsend);
+		printf(ARGS(brk, "%p"), (void *)(uintptr_t)args->dsend);
 #endif
 	old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
 	new = (vm_offset_t)args->dsend;
@@ -609,7 +609,7 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 #ifdef DEBUG
 	if (ldebug(mremap))
 		printf(ARGS(mremap, "%p, %08lx, %08lx, %08lx"),
-		    (void *)args->addr,
+		    (void *)(uintptr_t)args->addr,
 		    (unsigned long)args->old_len,
 		    (unsigned long)args->new_len,
 		    (unsigned long)args->flags);
