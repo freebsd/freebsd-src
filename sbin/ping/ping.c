@@ -104,7 +104,6 @@ static const char rcsid[] =
 #define	MAXIPLEN	(sizeof(struct ip) + MAX_IPOPTLEN)
 #define	MAXICMPLEN	(ICMP_ADVLENMIN + MAX_IPOPTLEN)
 #define	MINICMPLEN	ICMP_MINLEN
-#define	MAXPAYLOAD	(IP_MAXPACKET - MAXIPLEN - MINICMPLEN)
 #define	MAXWAIT		10		/* max seconds to wait for response */
 #define	MAXALARM	(60 * 60)	/* max seconds for alarm timeout */
 #define	MAXTOS		255
@@ -151,6 +150,7 @@ int mx_dup_ck = MAX_DUP_CHK;
 char rcvd_tbl[MAX_DUP_CHK / 8];
 
 struct sockaddr_in whereto;	/* who to ping */
+long maxpayload;
 int datalen = DEFDATALEN;
 int s;				/* socket file descriptor */
 u_char outpackhdr[IP_MAXPACKET], *outpack;
@@ -351,18 +351,16 @@ main(argc, argv)
 			options |= F_SO_DONTROUTE;
 			break;
 		case 's':		/* size of packet to send */
-			if (uid) {
-				errno = EPERM;
-				err(EX_NOPERM, "-s flag");
-			}
 			ultmp = strtoul(optarg, &ep, 0);
-			if (ultmp > MAXPAYLOAD)
-				errx(EX_USAGE,
-				    "packet size too large: %lu > %u",
-				    ultmp, MAXPAYLOAD);
 			if (*ep || ep == optarg)
 				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
+			if (uid != 0 && ultmp > DEFDATALEN) {
+				errno = EPERM;
+				err(EX_NOPERM,
+				    "packet size too large: %lu > %u",
+				    ultmp, DEFDATALEN);
+			}
 			datalen = ultmp;
 			break;
 		case 'S':
@@ -418,6 +416,12 @@ main(argc, argv)
 		usage();
 	target = argv[optind];
 
+	maxpayload = IP_MAXPACKET - sizeof(struct ip) - MINICMPLEN;
+	if (options & F_RROUTE)
+		maxpayload -= MAX_IPOPTLEN;
+	if (datalen > maxpayload)
+		errx(EX_USAGE, "packet size too large: %lu > %u", datalen,
+		    maxpayload);
 	if (source) {
 		bzero((char *)&sin, sizeof(sin));
 		sin.sin_family = AF_INET;
@@ -1477,7 +1481,7 @@ fill(bp, patp)
 	    &pat[13], &pat[14], &pat[15]);
 
 	if (ii > 0)
-		for (kk = 0; kk <= MAXPAYLOAD - (PHDR_LEN + ii); kk += ii)
+		for (kk = 0; kk <= maxpayload - (PHDR_LEN + ii); kk += ii)
 			for (jj = 0; jj < ii; ++jj)
 				bp[jj + kk] = pat[jj];
 	if (!(options & F_QUIET)) {
