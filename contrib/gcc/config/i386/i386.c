@@ -51,14 +51,6 @@ Boston, MA 02111-1307, USA.  */
 #define CHECK_STACK_LIMIT (-1)
 #endif
 
-#warning NEED TO REVISIT "PIC_REG_USED" AND -mprofiler-epilogue SUPPORT
-#if 0
-#define PIC_REG_USED 					\
-  (flag_pic && (current_function_uses_pic_offset_table	\
-		|| current_function_uses_const_pool	\
-		|| profile_flag || profile_block_flag))
-#endif
-
 /* Processor costs (relative to an add) */
 static const 
 struct processor_costs size_cost = {	/* costs for tunning for size */
@@ -918,6 +910,27 @@ override_options ()
 
   int const pta_size = sizeof (processor_alias_table) / sizeof (struct pta);
 
+  /* Set the default values for switches whose default depends on TARGET_64BIT
+     in case they weren't overwriten by command line options.  */
+  if (TARGET_64BIT)
+    {
+      if (flag_omit_frame_pointer == 2)
+	flag_omit_frame_pointer = 1;
+      if (flag_asynchronous_unwind_tables == 2)
+	flag_asynchronous_unwind_tables = 1;
+      if (flag_pcc_struct_return == 2)
+	flag_pcc_struct_return = 0;
+    }
+  else
+    {
+      if (flag_omit_frame_pointer == 2)
+	flag_omit_frame_pointer = 0;
+      if (flag_asynchronous_unwind_tables == 2)
+	flag_asynchronous_unwind_tables = 0;
+      if (flag_pcc_struct_return == 2)
+	flag_pcc_struct_return = 1;
+    }
+
 #ifdef SUBTARGET_OVERRIDE_OPTIONS
   SUBTARGET_OVERRIDE_OPTIONS;
 #endif
@@ -1225,13 +1238,14 @@ optimization_options (level, size)
   if (level > 1)
     flag_schedule_insns = 0;
 #endif
-  if (TARGET_64BIT && optimize >= 1)
-    flag_omit_frame_pointer = 1;
-  if (TARGET_64BIT)
-    {
-      flag_pcc_struct_return = 0;
-      flag_asynchronous_unwind_tables = 1;
-    }
+  /* The default values of these switches depend on the TARGET_64BIT
+     that is not known at this moment.  Mark these values with 2 and
+     let user the to override these.  In case there is no command line option
+     specifying them, we will set the defaults in override_options.  */
+  if (optimize >= 1)
+    flag_omit_frame_pointer = 2;
+  flag_pcc_struct_return = 2;
+  flag_asynchronous_unwind_tables = 2;
 }
 
 /* Table of valid machine attributes.  */
@@ -6874,8 +6888,7 @@ ix86_expand_vector_move (mode, operands)
   /* Make operand1 a register if it isn't already.  */
   if ((reload_in_progress | reload_completed) == 0
       && !register_operand (operands[0], mode)
-      && !register_operand (operands[1], mode)
-      && operands[1] != CONST0_RTX (mode))
+      && !register_operand (operands[1], mode))
     {
       rtx temp = force_reg (GET_MODE (operands[1]), operands[1]);
       emit_move_insn (operands[0], temp);
@@ -10973,14 +10986,10 @@ static const struct builtin_description bdesc_2arg[] =
   { MASK_SSE, CODE_FOR_vmmaskcmpv4sf3, "__builtin_ia32_cmpeqss", IX86_BUILTIN_CMPEQSS, EQ, 0 },
   { MASK_SSE, CODE_FOR_vmmaskcmpv4sf3, "__builtin_ia32_cmpltss", IX86_BUILTIN_CMPLTSS, LT, 0 },
   { MASK_SSE, CODE_FOR_vmmaskcmpv4sf3, "__builtin_ia32_cmpless", IX86_BUILTIN_CMPLESS, LE, 0 },
-  { MASK_SSE, CODE_FOR_vmmaskcmpv4sf3, "__builtin_ia32_cmpgtss", IX86_BUILTIN_CMPGTSS, LT, 1 },
-  { MASK_SSE, CODE_FOR_vmmaskcmpv4sf3, "__builtin_ia32_cmpgess", IX86_BUILTIN_CMPGESS, LE, 1 },
   { MASK_SSE, CODE_FOR_vmmaskcmpv4sf3, "__builtin_ia32_cmpunordss", IX86_BUILTIN_CMPUNORDSS, UNORDERED, 0 },
   { MASK_SSE, CODE_FOR_vmmaskncmpv4sf3, "__builtin_ia32_cmpneqss", IX86_BUILTIN_CMPNEQSS, EQ, 0 },
   { MASK_SSE, CODE_FOR_vmmaskncmpv4sf3, "__builtin_ia32_cmpnltss", IX86_BUILTIN_CMPNLTSS, LT, 0 },
   { MASK_SSE, CODE_FOR_vmmaskncmpv4sf3, "__builtin_ia32_cmpnless", IX86_BUILTIN_CMPNLESS, LE, 0 },
-  { MASK_SSE, CODE_FOR_vmmaskncmpv4sf3, "__builtin_ia32_cmpngtss", IX86_BUILTIN_CMPNGTSS, LT, 1 },
-  { MASK_SSE, CODE_FOR_vmmaskncmpv4sf3, "__builtin_ia32_cmpngess", IX86_BUILTIN_CMPNGESS, LE, 1 },
   { MASK_SSE, CODE_FOR_vmmaskncmpv4sf3, "__builtin_ia32_cmpordss", IX86_BUILTIN_CMPORDSS, UNORDERED, 0 },
 
   { MASK_SSE, CODE_FOR_sminv4sf3, "__builtin_ia32_minps", IX86_BUILTIN_MINPS, 0, 0 },
