@@ -2748,6 +2748,11 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				goto bad_size;
 			goto check_action;
 
+		case O_DIVERT:
+		case O_TEE:
+#ifndef	IPDIVERT
+			return EINVAL;
+#endif
 		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
 		case O_COUNT:
@@ -2755,8 +2760,6 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_DENY:
 		case O_REJECT:
 		case O_SKIPTO:
-		case O_DIVERT:
-		case O_TEE:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 check_action:
