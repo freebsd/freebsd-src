@@ -301,7 +301,7 @@ wehaveit:	mov ax,4310h
 		call [xms_entry]
 
 		cmp ax,kb
-		jl no
+		jb no
 
 		mov dx,kb
 		mov ah,9h
