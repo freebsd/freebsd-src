@@ -70,6 +70,7 @@ typedef struct device *device_ptr_t;
 #define USBBASEDEVICE struct device
 #define USBDEV(bdev) (&(bdev))
 #define USBDEVNAME(bdev) ((bdev).dv_xname)
+#define USBDEVUNIT(bdev) ((bdev).dv_unit)
 #define USBDEVPTRNAME(bdevptr) ((bdevptr)->dv_xname)
 #define USBDEVUNIT(bdev) ((bdev).dv_unit)
 
@@ -191,6 +192,7 @@ typedef struct device device_ptr_t;
 #define USBBASEDEVICE struct device
 #define USBDEV(bdev) (&(bdev))
 #define USBDEVNAME(bdev) ((bdev).dv_xname)
+#define USBDEVUNIT(bdev) ((bdev).dv_unit)
 #define USBDEVPTRNAME(bdevptr) ((bdevptr)->dv_xname)
 #define USBDEVUNIT(bdev) ((bdev).dv_unit)
 
@@ -290,6 +292,7 @@ __CONCAT(dname,_detach)(self, flags) \
 #define USBBASEDEVICE device_t
 #define USBDEV(bdev) (bdev)
 #define USBDEVNAME(bdev) device_get_nameunit(bdev)
+#define USBDEVUNIT(bdev) device_get_unit(bdev)
 #define USBDEVPTRNAME(bdev) device_get_nameunit(bdev)
 #define USBDEVUNIT(bdev) device_get_unit(bdev)
 

@@ -627,6 +627,7 @@ struct usb_event {
 #define USB_EVENT_DRIVER_ATTACH 5
 #define USB_EVENT_DRIVER_DETACH 6
 #define USB_EVENT_IS_ATTACH(n) ((n) == USB_EVENT_CTRLR_ATTACH || (n) == USB_EVENT_DEVICE_ATTACH || (n) == USB_EVENT_DRIVER_ATTACH)
+#define USB_EVENT_IS_DETACH(n) ((n) == USB_EVENT_CTRLR_DETACH || (n) == USB_EVENT_DEVICE_DETACH || (n) == USB_EVENT_DRIVER_DETACH)
 	struct timespec		ue_time;
 	union {
 		struct {
