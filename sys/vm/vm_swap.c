@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.50 1998/01/24 02:54:56 eivind Exp $
+ * $Id: vm_swap.c,v 1.51 1998/01/25 04:13:25 eivind Exp $
  */
 
 #include "opt_devfs.h"
@@ -71,7 +71,7 @@
 static void swstrategy __P((struct buf *));
 
 #define CDEV_MAJOR 4
-#define BDEV_MAJOR 1
+#define BDEV_MAJOR 26
 extern struct cdevsw sw_cdevsw ;
 
 static struct bdevsw sw_bdevsw = 
