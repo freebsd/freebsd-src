@@ -11,7 +11,7 @@ BIN1=   aliases amd.map apmd.conf auth.conf \
 	motd modems networks newsyslog.conf \
 	pam.conf pccard.conf.sample phones printcap profile protocols \
 	rc rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.isdn \
-	rc.network rc.pccard rc.serial rc.shutdown rc.sysctl \
+	rc.network rc.network6 rc.pccard rc.serial rc.shutdown rc.sysctl \
 	remote rpc security services shells syslog.conf usbd.conf \
 	etc.${MACHINE_ARCH}/disktab \
 	etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
