@@ -110,7 +110,7 @@ main(argc, argv)
 		case 'l':		/* Line count. */
 			if (numlines != 0)
 				usage();
-			if ((numlines = strtol(optarg, &ep, 10)) <= 0 || *p)
+			if ((numlines = strtol(optarg, &ep, 10)) <= 0 || *ep)
 				errx(1, "%s: illegal line count.", optarg);
 			break;
 		default:
