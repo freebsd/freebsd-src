@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.206 1998/06/07 17:10:58 dfr Exp $
+ *	$Id: sio.c,v 1.207 1998/06/16 11:05:59 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -528,7 +528,15 @@ siounload(struct pccard_devinfo *devi)
 {
 	struct com_s	*com;
 
+	if (!devi) {
+		printf("NULL devi in siounload\n");
+		return;
+	}
 	com = com_addr(devi->isahd.id_unit);
+	if (!com) {
+		printf("NULL com in siounload\n");
+		return;
+	}
 	if (!com->iobase) {
 		printf("sio%d already unloaded!\n",devi->isahd.id_unit);
 		return;
