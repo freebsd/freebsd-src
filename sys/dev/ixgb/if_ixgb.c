@@ -160,8 +160,8 @@ static driver_t ixgb_driver = {
 static devclass_t ixgb_devclass;
 DRIVER_MODULE(if_ixgb, pci, ixgb_driver, ixgb_devclass, 0, 0);
 
-MODULE_DEPEND(fxp, pci, 1, 1, 1);
-MODULE_DEPEND(fxp, ether, 1, 1, 1);
+MODULE_DEPEND(if_ixgb, pci, 1, 1, 1);
+MODULE_DEPEND(if_ixgb, ether, 1, 1, 1);
 
 /* some defines for controlling descriptor fetches in h/w */
 #define RXDCTL_PTHRESH_DEFAULT 128	/* chip considers prefech below this */
