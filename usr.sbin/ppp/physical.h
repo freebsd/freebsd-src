@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.11 1999/05/24 16:39:14 brian Exp $
+ *  $Id: physical.h,v 1.12 1999/06/01 19:08:59 brian Exp $
  *
  */
 
@@ -44,7 +44,7 @@ struct device {
   void (*destroy)(struct physical *);
   ssize_t (*read)(struct physical *, void *, size_t);
   ssize_t (*write)(struct physical *, const void *, size_t);
-  void (*device2iov)(struct physical *, struct iovec *, int *, int, pid_t);
+  void (*device2iov)(struct device *, struct iovec *, int *, int, pid_t);
   int (*speed)(struct physical *);
   const char *(*openinfo)(struct physical *);
 };
@@ -136,3 +136,4 @@ extern int physical_SetMode(struct physical *, int);
 extern void physical_DeleteQueue(struct physical *);
 extern void physical_SetupStack(struct physical *, const char *, int);
 extern void physical_StopDeviceTimer(struct physical *);
+extern int physical_MaxDeviceSize(void);
