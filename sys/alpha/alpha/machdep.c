@@ -585,22 +585,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	}
 	snprintf(cpu_model, sizeof(cpu_model), "%s", platform.model);
 
-	/*
-	 * Initalize the real console, so the the bootstrap console is
-	 * no longer necessary.
-	 */
-#ifndef NO_SIO
-	if (platform.cons_init) {
-		platform.cons_init();
-		promcndetach();
-	}
-#else
-	if (platform.cons_init)
-		platform.cons_init();
-	promcndetach();
-	cninit();
-#endif
-
 	/* NO MORE FIRMWARE ACCESS ALLOWED */
 #ifdef _PMAP_MAY_USE_PROM_CONSOLE
 	/*
@@ -890,6 +874,24 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		thread0.td_md.md_kernnest = 1;
 #endif
 	}
+
+	/*
+	 * Initalize the real console, so the the bootstrap console is
+	 * no longer necessary.  Note this now involves mutexes as part
+	 * of some operations so needs to be after proc0/thread0/curthread
+	 * become valid.
+	 */
+#ifndef NO_SIO
+	if (platform.cons_init) {
+		platform.cons_init();
+		promcndetach();
+	}
+#else
+	if (platform.cons_init)
+		platform.cons_init();
+	promcndetach();
+	cninit();
+#endif
 
 	/*
 	 * Check to see if promcons needs to make_dev() now,
