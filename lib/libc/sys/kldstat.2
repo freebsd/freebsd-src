@@ -78,8 +78,10 @@ The load address of the kld file.
 .It size
 The size of the file.
 .Sh RETURN VALUES
+The function
 .Fn kldstat
-seems to always return 0.
+returns 0 on success. It returns -1 on failure, and sets errno to indicate
+the error.
 .Sh ERRORS
 The information for the file referred to by
 .Fa fileid
