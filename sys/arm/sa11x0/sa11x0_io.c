@@ -76,9 +76,6 @@ struct bus_space sa11x0_bs_tag = {
 	sa11x0_bs_alloc,
 	sa11x0_bs_free,
 
-	/* get kernel virtual address */
-	sa11x0_bs_vaddr,
-
 	/* barrier */
 	sa11x0_bs_barrier,
 
@@ -219,14 +216,6 @@ sa11x0_bs_subregion(t, bsh, offset, size, nbshp)
 
 	*nbshp = bsh + offset;
 	return (0);
-}
-
-void *
-sa11x0_bs_vaddr(t, bsh)
-	void *t;
-	bus_space_handle_t bsh;
-{
-	return ((void *)bsh);
 }
 
 void
