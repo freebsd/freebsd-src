@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)telnetd.8	8.3 (Berkeley) 3/1/94
-.\"	$Id: telnetd.8,v 1.10 1997/12/03 07:16:04 charnier Exp $
+.\"	$Id: telnetd.8,v 1.11 1998/01/07 07:56:15 charnier Exp $
 .\"
 .Dd March 1, 1994
 .Dt TELNETD 8
@@ -524,10 +524,34 @@ Only sent if
 is compiled with support for data encryption, and
 indicates a willingness to decrypt
 the data stream.
+.Sh NOTES
+By default
+.Nm
+will read the
+.Em \&he ,
+.Em \&hn ,
+and
+.Em \&im
+capabilities from
+.Pa /etc/gettytab
+and use that information (if present) to determine
+what to display before the login: prompt. You can
+also use a System V style
+.Pa /etc/issue
+file by using the
+.Em \&if
+capability, which will override
+.Em \&im .
+The information specified in either
+.Em \&im
+or
+.Em \&if
+will be displayed to both console and remote logins.
 .Sh ENVIRONMENT
 .Sh FILES
 .Bl -tag -width /usr/ucb/bftp -compact
 .It Pa /etc/services
+.It Pa /etc/gettytab
 .It Pa /etc/inittab
 (UNICOS systems only)
 .It Pa /etc/iptos
@@ -537,6 +561,7 @@ the data stream.
 .El
 .Sh "SEE ALSO"
 .Xr bftp 1 ,
+.Xr gettytab 5 ,
 .Xr login 1 ,
 .Xr telnet 1
 (if supported)
