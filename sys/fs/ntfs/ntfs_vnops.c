@@ -256,8 +256,6 @@ ntfs_reclaim(ap)
 		return (error);
 	
 	/* Purge old data structures associated with the inode. */
-	cache_purge(vp);
-
 	ntfs_frele(fp);
 	ntfs_ntput(ip);
 	vp->v_data = NULL;

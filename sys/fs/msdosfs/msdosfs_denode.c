@@ -666,7 +666,6 @@ msdosfs_reclaim(ap)
 	/*
 	 * Purge old data structures associated with the denode.
 	 */
-	cache_purge(vp);
 	if (dep->de_devvp) {
 		vrele(dep->de_devvp);
 		dep->de_devvp = 0;

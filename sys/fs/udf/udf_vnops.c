@@ -1018,7 +1018,6 @@ udf_reclaim(struct vop_reclaim_args *a)
 	vp = a->a_vp;
 	unode = VTON(vp);
 
-	cache_purge(vp);
 	if (unode != NULL) {
 		udf_hashrem(unode);
 		if (unode->i_devvp) {
