@@ -41,7 +41,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_drv.c, 3.20, Last Edit-Date: [Sun Apr  2 19:09:19 1995]
+ * @(#)pcvt_drv.c, 3.20, Last Edit-Date: [Mon Apr 19 17:10:09 1999]
  *
  */
 
@@ -103,10 +103,6 @@ extern int getchar __P((void));
 #if PCVT_NETBSD
 	extern u_short *Crtat;
 #endif /* PCVT_NETBSD */
-
-static unsigned	__debug = 0; /*0xffe */
-static		__color;
-static		nrow;
 
 static void vgapelinit(void);	/* read initial VGA DAC palette */
 
@@ -618,7 +614,7 @@ pcwrite(Dev_t dev, struct uio *uio, int flag)
 int
 pcioctl(Dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
-	register error;
+	register int error;
 	register struct tty *tp;
 
 	if((tp = get_pccons(dev)) == NULL)
@@ -1038,7 +1034,7 @@ pcstart(register struct tty *tp)
 
 	s = spltty();
 
-	while (len = q_to_b(rbp, buf, PCVT_PCBURST))
+	while((len = q_to_b(rbp, buf, PCVT_PCBURST)) > 0)
 	{
 		/*
 		 * We need to do this outside spl since it could be fairly
@@ -1169,17 +1165,8 @@ int
 #endif
 pccnprobe(struct consdev *cp)
 {
-	struct isa_device *dvp;
+	static int uarg = 0;
 	int i;
-
-	/*
-	 * Take control if we are the highest priority enabled display device.
-	 */
-	dvp = find_display();
-	if (dvp == NULL || dvp->id_driver != &vtdriver) {
-		cp->cn_pri = CN_DEAD;
-		return;
-	}
 
 #ifdef _DEV_KBD_KBDREG_H_
 	/*
@@ -1187,11 +1174,20 @@ pccnprobe(struct consdev *cp)
 	 * The system clock has not been calibrated...
 	 */
 	reset_keyboard = 0;
-	if (kbd == NULL) {
+	if (kbd == NULL)
+	{
 		kbd_configure(KB_CONF_PROBE_ONLY);
-		i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)dvp->id_unit);
+		i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)&uarg);
 		if (i >= 0)
+		{
+			uarg = i;
 			kbd = kbd_get_keyboard(i);
+		}
+		else
+		{
+			cp->cn_pri = CN_DEAD;
+			return;
+		}
 	}
 
 #if PCVT_SCANSET == 2
@@ -1382,88 +1378,6 @@ pcparam(struct tty *tp, struct termios *t)
         tp->t_cflag = cflag;
 
 	return(0);
-}
-
-/* special characters */
-#define bs	8
-#define lf	10
-#define cr	13
-#define cntlc	3
-#define del	0177
-#define cntld	4
-
-static int
-getchar(void)
-{
-	u_char	thechar;
-	int	x;
-
-	kbd_polling = 1;
-
-	x = splhigh();
-
-	sput(">", 1, 1, 0);
-
-	async_update(UPDATE_KERN);
-
-	thechar = *(sgetc(0));
-
-	kbd_polling = 0;
-
-	splx(x);
-
-	switch (thechar)
-	{
-		default:
-			if (thechar >= ' ')
-				sput(&thechar, 1, 1, 0);
-			return(thechar);
-
-		case cr:
-		case lf:
-			sput("\r\n", 1, 2, 0);
-			return(lf);
-
-		case bs:
-		case del:
-			 sput("\b \b", 1, 3, 0);
-			 return(thechar);
-
-		case cntlc:
-			 sput("^C\r\n", 1, 4, 0) ;
-			 cpu_reset();
-
-		case cntld:
-			 sput("^D\r\n", 1, 4, 0) ;
-			 return(0);
-	}
-}
-
-#define	DPAUSE 1
-
-void
-dprintf(unsigned flgs, const char *fmt, ...)
-{
-	va_list ap;
-
-	if((flgs&__debug) > DPAUSE)
-	{
-		__color = ffs(flgs&__debug)+1;
-		va_start(ap,fmt);
-		vprintf(fmt, ap);
-		va_end(ap);
-
-		if (flgs & DPAUSE || nrow%24 == 23)
-		{
-			int x;
-			x = splhigh();
-			if(nrow%24 == 23)
-				nrow = 0;
-			(void)sgetc(0);
-			splx(x);
-		}
-	}
-	__color = 0;
 }
 
 /*----------------------------------------------------------------------*
