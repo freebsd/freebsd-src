@@ -89,6 +89,7 @@ MAN2+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
 	kldfind.2 kldfirstmod.2 kldload.2 kldnext.2 kldstat.2 kldunload.2 \
 	ktrace.2 kqueue.2 link.2 listen.2 lseek.2 \
 	madvise.2 mincore.2 minherit.2 mkdir.2 mkfifo.2 mknod.2 mlock.2 mmap.2 \
+	modfind.2 modnext.2 modstat.2 \
 	mount.2 mprotect.2 msync.2 munmap.2 nanosleep.2 \
 	nfssvc.2 open.2 pathconf.2 pipe.2 poll.2 profil.2 ptrace.2 quotactl.2 \
 	read.2 readlink.2 reboot.2 recv.2 rename.2 revoke.2 rfork.2 rmdir.2 \
@@ -129,6 +130,7 @@ MLINKS+=intro.2 errno.2
 MLINKS+=kqueue.2 kevent.2
 MLINKS+=lseek.2 seek.2
 MLINKS+=mlock.2 munlock.2
+MLINKS+=modnext.2 modfnext.2
 MLINKS+=mount.2 unmount.2
 MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=read.2 pread.2 read.2 readv.2
