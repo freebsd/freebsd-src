@@ -45,7 +45,6 @@
  * Memory special file
  */
 
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -54,7 +53,6 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/msgbuf.h>
-#include <sys/random.h>
 #include <sys/signalvar.h>
 
 #include <machine/frame.h>
@@ -67,14 +65,16 @@
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-static caddr_t zbuf;
+static dev_t memdev, kmemdev;
+#ifdef PERFMON
+static dev_t perfdev;
+#endif /* PERFMON */
 
 static	d_open_t	mmopen;
 static	d_close_t	mmclose;
 static	d_read_t	mmrw;
 static	d_ioctl_t	mmioctl;
 static	d_mmap_t	memmmap;
-static	d_poll_t	mmpoll;
 
 #define CDEV_MAJOR 2
 static struct cdevsw mem_cdevsw = {
@@ -83,7 +83,7 @@ static struct cdevsw mem_cdevsw = {
 	/* read */	mmrw,
 	/* write */	mmrw,
 	/* ioctl */	mmioctl,
-	/* poll */	mmpoll,
+	/* poll */	(d_poll_t *)seltrue,
 	/* mmap */	memmmap,
 	/* strategy */	nostrategy,
 	/* name */	"mem",
@@ -94,26 +94,14 @@ static struct cdevsw mem_cdevsw = {
 	/* bmaj */	-1
 };
 
-/*
-	XXX  the below should be used.  However there is too much "16"
-	hardcodeing in kern_random.c right now. -- obrien
 #if NHWI > 0
 #define	ICU_LEN (NHWI)
 #else
 #define	ICU_LEN (NSWI)
 #endif
-*/
-#define	ICU_LEN 16
-
-static struct random_softc random_softc[ICU_LEN];
-static int random_ioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
 
 static int
-mmclose(dev, flags, fmt, p)
-	dev_t dev;
-	int flags;
-	int fmt;
-	struct proc *p;
+mmclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	switch (minor(dev)) {
 #ifdef PERFMON
@@ -123,21 +111,17 @@ mmclose(dev, flags, fmt, p)
 	default:
 		break;
 	}
-	return(0);
+	return (0);
 }
 
 static int
-mmopen(dev, flags, fmt, p)
-	dev_t dev;
-	int flags;
-	int fmt;
-	struct proc *p;
+mmopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 
 	switch (minor(dev)) {
 	case 0:
 	case 1:
-		if (securelevel >= 1)
+		if ((flags & FWRITE) && securelevel > 0)
 			return (EPERM);
 		break;
 	case 32:
@@ -149,24 +133,18 @@ mmopen(dev, flags, fmt, p)
 	default:
 		break;
 	}
-	return(0);
+	return (0);
 }
 
 /*ARGSUSED*/
-int
-mmrw(dev, uio, flags)
-	dev_t dev;
-	struct uio *uio;
-	int flags;
+static int
+mmrw(dev_t dev, struct uio *uio, int flags)
 {
-	register vm_offset_t o, v;
-	register int c;
-	register struct iovec *iov;
+	vm_offset_t o, v;
+	int c;
+	struct iovec *iov;
 	int error = 0, rw;
-	u_int poolsize;
-	caddr_t buf;
-
-	buf = NULL;
+	vm_offset_t addr, eaddr;
 
 	while (uio->uio_resid > 0 && !error) {
 		iov = uio->uio_iov;
@@ -198,8 +176,7 @@ kmemphys:
 			continue;
 
 /* minor device 1 is kernel memory */
-		case 1: {
-			vm_offset_t addr, eaddr;
+		case 1:
 			v = uio->uio_offset;
 
 			if (v >= ALPHA_K0SEG_BASE && v <= ALPHA_K0SEG_END) {
@@ -222,83 +199,8 @@ kmemphys:
 			    VM_PROT_READ : VM_PROT_WRITE))
 				return (EFAULT);
 			error = uiomove((caddr_t)v, c, uio);
-			continue;
 		}
 
-/* minor device 2 is EOF/rathole */
-		case 2:
-			if (uio->uio_rw == UIO_READ)
-				return (0);
-			c = iov->iov_len;
-			break;
-
-/* minor device 3 (/dev/random) is source of filth on read, rathole on write */
-		case 3:
-			if (uio->uio_rw == UIO_WRITE) {
-				c = iov->iov_len;
-				break;
-			}
-			if (buf == NULL)
-				buf = (caddr_t)
-				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-			c = min(iov->iov_len, PAGE_SIZE);
-			poolsize = read_random(buf, c);
-			if (poolsize == 0) {
-				if (buf)
-					free(buf, M_TEMP);
-				return (0);
-			}
-			c = min(c, poolsize);
-			error = uiomove(buf, c, uio);
-			continue;
-
-/* minor device 4 (/dev/urandom) is source of muck on read, rathole on write */
-		case 4:
-			if (uio->uio_rw == UIO_WRITE) {
-				c = iov->iov_len;
-				break;
-			}
-			if (CURSIG(curproc) != 0) {
-				/*
-				 * Use tsleep() to get the error code right.
-				 * It should return immediately.
-				 */
-				error = tsleep(&random_softc[0],
-				    PZERO | PCATCH, "urand", 1);
-				if (error != 0 && error != EWOULDBLOCK)
-					continue;
-			}
-			if (buf == NULL)
-				buf = (caddr_t)
-				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-			c = min(iov->iov_len, PAGE_SIZE);
-			poolsize = read_random_unlimited(buf, c);
-			c = min(c, poolsize);
-			error = uiomove(buf, c, uio);
-			continue;
-
-/* minor device 12 (/dev/zero) is source of nulls on read, rathole on write */
-		case 12:
-			if (uio->uio_rw == UIO_WRITE) {
-				c = iov->iov_len;
-				break;
-			}
-			/*
-			 * On the first call, allocate and zero a page
-			 * of memory for use with /dev/zero.
-			 */
-			if (zbuf == NULL) {
-				zbuf = (caddr_t)
-				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-				bzero(zbuf, PAGE_SIZE);
-			}
-			c = min(iov->iov_len, PAGE_SIZE);
-			error = uiomove(zbuf, c, uio);
-			continue;
-
-		default:
-			return (ENXIO);
-		}
 		if (error)
 			break;
 		iov->iov_base += c;
@@ -306,8 +208,6 @@ kmemphys:
 		uio->uio_offset += c;
 		uio->uio_resid -= c;
 	}
-	if (buf)
-		free(buf, M_TEMP);
 	return (error);
 }
 
@@ -322,9 +222,7 @@ memmmap(dev_t dev, vm_offset_t offset, int prot)
 	 * /dev/mem is the only one that makes sense through this
 	 * interface.  For /dev/kmem any physaddr we return here
 	 * could be transient and hence incorrect or invalid at
-	 * a later time.  /dev/null just doesn't make any sense
-	 * and /dev/zero is a hack that is handled via the default
-	 * pager in mmap().
+	 * a later time.
 	 */
 	if (minor(dev) != 0)
 		return (-1);
@@ -337,28 +235,10 @@ memmmap(dev_t dev, vm_offset_t offset, int prot)
 	return (alpha_btop(ALPHA_PHYS_TO_K0SEG(offset)));
 }
 
-/*
- * Allow userland to select which interrupts will be used in the muck
- * gathering business.
- */
 static int
-mmioctl(dev, cmd, cmdarg, flags, p)
-	dev_t dev;
-	u_long cmd;
-	caddr_t cmdarg;
-	int flags;
-	struct proc *p;
+mmioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct proc *p)
 {
-#if 0
-	static u_int16_t interrupt_allowed = 0;
-	u_int16_t interrupt_mask;
-#endif
-
 	switch(minor(dev)) {
-	case 3:
-	case 4:
-		return random_ioctl(dev, cmd, cmdarg, flags, p);
-
 #ifdef PERFMON
 	case 32:
 		return perfmon_ioctl(dev, cmd, cmdarg, flags, p);
@@ -367,111 +247,44 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 		return ENODEV;
 	}
 
-	if (*(u_int16_t *)cmdarg >= 16)
-		return (EINVAL);
-
-#if 0
-	/* Only root can do this */
-	error = suser(p);
-	if (error) {
-		return (error);
-	}
-	interrupt_mask = 1 << *(u_int16_t *)cmdarg;
-
-	switch (cmd) {
-
-		case MEM_SETIRQ:
-			if (!(interrupt_allowed & interrupt_mask)) {
-				disable_intr();
-				interrupt_allowed |= interrupt_mask;
-				sec_intr_handler[*(u_int16_t *)cmdarg] =
-					intr_handler[*(u_int16_t *)cmdarg];
-				intr_handler[*(u_int16_t *)cmdarg] =
-					add_interrupt_randomness;
-				sec_intr_unit[*(u_int16_t *)cmdarg] =
-					intr_unit[*(u_int16_t *)cmdarg];
-				intr_unit[*(u_int16_t *)cmdarg] =
-					*(u_int16_t *)cmdarg;
-				enable_intr();
-			}
-			else return (EPERM);
-			break;
-
-		case MEM_CLEARIRQ:
-			if (interrupt_allowed & interrupt_mask) {
-				disable_intr();
-				interrupt_allowed &= ~(interrupt_mask);
-				intr_handler[*(u_int16_t *)cmdarg] =
-					sec_intr_handler[*(u_int16_t *)cmdarg];
-				intr_unit[*(u_int16_t *)cmdarg] =
-					sec_intr_unit[*(u_int16_t *)cmdarg];
-				enable_intr();
-			}
-			else return (EPERM);
-			break;
-
-		case MEM_RETURNIRQ:
-			*(u_int16_t *)cmdarg = interrupt_allowed;
-			break;
-
-		default:
-			return (ENOTTY);
-	}
-#endif
 	return (0);
 }
 
-int
-mmpoll(dev, events, p)
-	dev_t dev;
-	int events;
-	struct proc *p;
+static int
+mem_modevent(module_t mod, int type, void *data)
 {
-	switch (minor(dev)) {
-	case 3:		/* /dev/random */
-	    /* return random_poll(dev, events, p);*/
-	case 4:		/* /dev/urandom */
-	default:
-		return seltrue(dev, events, p);
-	}
-}
+	switch(type) {
+	case MOD_LOAD:
+		if (bootverbose)
+			printf("mem: <memory & I/O>\n");
+		/* Initialise memory range handling */
+		if (mem_range_softc.mr_op != NULL)
+			mem_range_softc.mr_op->init(&mem_range_softc);
 
-int
-iszerodev(dev)
-	dev_t dev;
-{
-	return (((major(dev) == mem_cdevsw.d_maj)
-		 && minor(dev) == 12)
-/* or the osf/1 zero device */
-		||((major(dev) == 0) 
-		   && (minor(dev) == 0x02600000)));
-}
-
-static void
-mem_drvinit(void *unused)
-{
-
-	cdevsw_add(&mem_cdevsw);
-	make_dev(&mem_cdevsw, 0, UID_ROOT, GID_KMEM, 0640, "mem");
-	make_dev(&mem_cdevsw, 1, UID_ROOT, GID_KMEM, 0640, "kmem");
-	make_dev(&mem_cdevsw, 2, UID_ROOT, GID_WHEEL, 0666, "null");
-	make_dev(&mem_cdevsw, 3, UID_ROOT, GID_WHEEL, 0644, "random");
-	make_dev(&mem_cdevsw, 4, UID_ROOT, GID_WHEEL, 0644, "urandom");
-	make_dev(&mem_cdevsw, 12, UID_ROOT, GID_WHEEL, 0666, "zero");
+		memdev = make_dev(&mem_cdevsw, 0, UID_ROOT, GID_KMEM,
+			0640, "mem");
+		kmemdev = make_dev(&mem_cdevsw, 1, UID_ROOT, GID_KMEM,
+			0640, "kmem");
 #ifdef PERFMON
-	make_dev(&mem_cdevsw, 32, UID_ROOT, GID_KMEM, 0640, "perfmon");
+		perfdev = make_dev(&mem_cdevsw, 32, UID_ROOT, GID_KMEM,
+			0640, "perfmon");
 #endif /* PERFMON */
+		return 0;
+
+	case MOD_UNLOAD:
+		destroy_dev(memdev);
+		destroy_dev(kmemdev);
+#ifdef PERFMON
+		destroy_dev(perfdev);
+#endif /* PERFMON */
+		return 0;
+
+	case MOD_SHUTDOWN:
+		return 0;
+
+	default:
+		return EOPNOTSUPP;
+	}
 }
 
-static int 
-random_ioctl(dev, cmd, data, flags, p)
-	dev_t dev;
-	u_long cmd;
-	caddr_t data;
-	int flags;
-	struct proc *p;
-{
-	return (0);
-}
-
-SYSINIT(memdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mem_drvinit,NULL)
+DEV_MODULE(mem, mem_modevent, NULL);
