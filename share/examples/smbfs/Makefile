@@ -1,14 +1,10 @@
 # $FreeBSD$
 
 NOOBJ=	noobj
-BINDIR=	/usr/share/examples
+BINDIR=	/usr/share/examples/smbfs
+FILES=	dot.nsmbrc
 
-DISTFILES=	dot.nsmbrc
-
-beforeinstall:
-	cd ${.CURDIR}/../../../contrib/smbfs/examples; \
-	    ${INSTALL} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
-		${DISTFILES} ${DESTDIR}${BINDIR}/smbfs
+.PATH: ${.CURDIR}/../../../contrib/smbfs/examples
 
 SUBDIR=	print
 
