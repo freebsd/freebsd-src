@@ -36,7 +36,6 @@ static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.1.1.1 $"
 
 #include "defs.h"
 
@@ -57,6 +56,7 @@ int	stopint;
 
 int	total_routes;
 
+/* zap any old routes through this gateway */
 naddr	age_bad_gate;
 
 
@@ -704,7 +704,7 @@ again:
 	if (cc < 0) {
 		if (errno == ESRCH
 		    && (action == RTM_CHANGE || action == RTM_DELETE)) {
-			trace_act("route to %s disappeared before %s\n",
+			trace_act("route to %s disappeared before %s",
 				  addrname(dst, mask, 0),
 				  rtm_type_name(action));
 			if (action == RTM_CHANGE) {
@@ -831,14 +831,14 @@ rtm_add(struct rt_msghdr *rtm,
 	} else if (INFO_MASK(info) != 0) {
 		mask = ntohl(S_ADDR(INFO_MASK(info)));
 	} else {
-		msglog("punt %s without mask",
+		msglog("ignore %s without mask",
 		       rtm_type_name(rtm->rtm_type));
 		return;
 	}
 
 	if (INFO_GATE(info) == 0
 	    || INFO_GATE(info)->sa_family != AF_INET) {
-		msglog("punt %s without gateway",
+		msglog("ignore %s without gateway",
 		       rtm_type_name(rtm->rtm_type));
 		return;
 	}
@@ -867,7 +867,7 @@ rtm_add(struct rt_msghdr *rtm,
 			k->k_state |= KS_DELETE;
 			LIM_SEC(need_kern, 0);
 			trace_act("mark redirected %s --> %s for deletion"
-				  " since this is a router\n",
+				  " since this is a router",
 				  addrname(k->k_dst, k->k_mask, 0),
 				  naddr_ntoa(k->k_gate));
 		} else {
@@ -889,7 +889,7 @@ rtm_add(struct rt_msghdr *rtm,
 	/* Put static routes with real metrics into the daemon table so
 	 * they can be advertised.
 	 *
-	 * Find the interface concerned
+	 * Find the interface toward the gateway.
 	 */
 	ifp = iflookup(k->k_gate);
 	if (ifp == 0) {
@@ -916,7 +916,7 @@ rtm_lose(struct rt_msghdr *rtm,
 {
 	if (INFO_GATE(info) == 0
 	    || INFO_GATE(info)->sa_family != AF_INET) {
-		msglog("punt %s without gateway",
+		msglog("ignore %s without gateway",
 		       rtm_type_name(rtm->rtm_type));
 		return;
 	}
@@ -1065,12 +1065,12 @@ read_rt(void)
 			ifp = ifwithindex(m.ifm.ifm_index);
 			if (ifp == 0)
 				trace_act("note %s with flags %#x"
-					  " for index #%d\n",
+					  " for index #%d",
 					  rtm_type_name(m.r.rtm.rtm_type),
 					  m.ifm.ifm_flags,
 					  m.ifm.ifm_index);
 			else
-				trace_act("note %s with flags %#x for %s\n",
+				trace_act("note %s with flags %#x for %s",
 					  rtm_type_name(m.r.rtm.rtm_type),
 					  m.ifm.ifm_flags,
 					  ifp->int_name);
@@ -1098,12 +1098,12 @@ read_rt(void)
 			  m.r.rtm.rtm_addrs);
 
 		if (INFO_DST(&info) == 0) {
-			trace_act("ignore %s without dst\n", str);
+			trace_act("ignore %s without dst", str);
 			continue;
 		}
 
 		if (INFO_DST(&info)->sa_family != AF_INET) {
-			trace_act("ignore %s for AF %d\n", str,
+			trace_act("ignore %s for AF %d", str,
 				  INFO_DST(&info)->sa_family);
 			continue;
 		}
@@ -1118,7 +1118,7 @@ read_rt(void)
 				addrname(S_ADDR(INFO_DST(&info)), mask, 0));
 
 		if (IN_MULTICAST(ntohl(S_ADDR(INFO_DST(&info))))) {
-			trace_act("ignore multicast %s\n", str);
+			trace_act("ignore multicast %s", str);
 			continue;
 		}
 
@@ -1136,31 +1136,31 @@ read_rt(void)
 		case RTM_CHANGE:
 		case RTM_REDIRECT:
 			if (m.r.rtm.rtm_errno != 0) {
-				trace_act("ignore %s with \"%s\" error\n",
+				trace_act("ignore %s with \"%s\" error",
 					  str, strerror(m.r.rtm.rtm_errno));
 			} else {
-				trace_act("%s\n", str);
+				trace_act("%s", str);
 				rtm_add(&m.r.rtm,&info,0);
 			}
 			break;
 
 		case RTM_DELETE:
 			if (m.r.rtm.rtm_errno != 0) {
-				trace_act("ignore %s with \"%s\" error\n",
+				trace_act("ignore %s with \"%s\" error",
 					  str, strerror(m.r.rtm.rtm_errno));
 			} else {
-				trace_act("%s\n", str);
+				trace_act("%s", str);
 				del_static(S_ADDR(INFO_DST(&info)), mask, 1);
 			}
 			break;
 
 		case RTM_LOSING:
-			trace_act("%s\n", str);
+			trace_act("%s", str);
 			rtm_lose(&m.r.rtm,&info);
 			break;
 
 		default:
-			trace_act("ignore %s\n", str);
+			trace_act("ignore %s", str);
 			break;
 		}
 	}
@@ -1268,8 +1268,7 @@ walk_kern(struct radix_node *rn,
 		 * the kernel if is not a alias.
 		 */
 		if (RT->rt_ifp == 0
-		    || ((RT->rt_ifp->int_state & IS_REMOTE)
-			&& RT->rt_ifp->int_metric == 0))
+		    || (RT->rt_ifp->int_state & IS_REMOTE))
 			ags |= (AGS_GATEWAY | AGS_SUPPRESS | AGS_PROMOTE);
 	}
 
@@ -1431,7 +1430,7 @@ del_redirects(naddr bad_gate,
 			k->k_state |= KS_DELETE;
 			k->k_state &= ~KS_DYNAMIC;
 			need_kern.tv_sec = now.tv_sec;
-			trace_act("mark redirected %s --> %s for deletion\n",
+			trace_act("mark redirected %s --> %s for deletion",
 				  addrname(k->k_dst, k->k_mask, 0),
 				  naddr_ntoa(k->k_gate));
 		}
@@ -1942,29 +1941,46 @@ void
 age(naddr bad_gate)
 {
 	struct interface *ifp;
+	int need_query = 0;
 
+	/* If not listening to RIP, there is no need to age the routes in
+	 * the table.
+	 */
+	age_timer.tv_sec = (now.tv_sec
+			    + ((rip_sock < 0) ? NEVER : SUPPLY_INTERVAL));
 
-	age_timer.tv_sec = now.tv_sec + (rip_sock < 0
-					 ? NEVER
-					 : SUPPLY_INTERVAL);
-
+	/* Check for dead IS_REMOTE interfaces by timing their
+	 * transmissions.
+	 */
 	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
-		/* Check for dead IS_REMOTE interfaces by timing their
-		 * transmissions.
-		 */
-		if ((ifp->int_state & IS_REMOTE)
-		    && !(ifp->int_state & IS_PASSIVE)
-		    && (ifp->int_state & IS_ACTIVE)) {
-			LIM_SEC(age_timer, now.tv_sec+SUPPLY_INTERVAL);
+		if (!(ifp->int_state & IS_REMOTE))
+			continue;
 
-			if (now.tv_sec - ifp->int_act_time > EXPIRE_TIME
-			    && !(ifp->int_state & IS_BROKE)) {
-				msglog("remote interface %s to %s timed out"
-				       "--turned off",
-				       ifp->int_name,
-				       naddr_ntoa(ifp->int_addr));
-				if_bad(ifp);
-			}
+		/* ignore unreachable remote interfaces */
+		if (!check_remote(ifp))
+			continue;
+		/* Restore remote interface that has become reachable
+		 */
+		if (ifp->int_state & IS_BROKE)
+			if_ok(ifp, "remote ");
+
+		if (ifp->int_act_time != NEVER
+		    && now.tv_sec - ifp->int_act_time > EXPIRE_TIME) {
+			msglog("remote interface %s to %s timed out after"
+			       " %d:%d",
+			       ifp->int_name,
+			       naddr_ntoa(ifp->int_dstaddr),
+			       (now.tv_sec - ifp->int_act_time)/60,
+			       (now.tv_sec - ifp->int_act_time)%60);
+			if_sick(ifp);
+		}
+
+		/* If we have not heard from the other router
+		 * recently, ask it.
+		 */
+		if (now.tv_sec >= ifp->int_query_time) {
+			ifp->int_query_time = NEVER;
+			need_query = 1;
 		}
 	}
 
@@ -1974,4 +1990,8 @@ age(naddr bad_gate)
 
 	/* Update the kernel routing table. */
 	fix_kern();
+
+	/* poke reticent remote gateways */
+	if (need_query)
+		rip_query();
 }
