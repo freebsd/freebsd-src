@@ -212,12 +212,10 @@ ufs_lookup(ap)
 		numdirpasses = 1;
 		entryoffsetinblock = 0; /* silence compiler warning */
 		switch (ufsdirhash_lookup(dp, cnp->cn_nameptr, cnp->cn_namelen,
-		    &dp->i_offset, nameiop == DELETE ? &prevoff : NULL)) {
+		    &dp->i_offset, &bp, nameiop == DELETE ? &prevoff : NULL)) {
 		case 0:
-			error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset,
-			    (char **)&ep, &bp);
-			if (error)
-				return (error);
+			ep = (struct direct *)((char *)bp->b_data +
+			    (dp->i_offset & bmask));
 			goto foundentry;
 		case ENOENT:
 			dp->i_offset = roundup2(dp->i_size, DIRBLKSIZ);

@@ -298,14 +298,15 @@ ufsdirhash_free(struct inode *ip)
  * Returns 0 on success, ENOENT if the entry does not exist, or
  * EJUSTRETURN if the caller should revert to a linear search.
  *
- * If successful, the directory offset is stored in *offp. If
+ * If successful, the directory offset is stored in *offp, and a
+ * pointer to a struct buf containing the entry is stored in *bpp. If
  * prevoffp is non-NULL, the offset of the previous entry within
  * the DIRBLKSIZ-sized block is stored in *prevoffp (if the entry
  * is the first in a block, the start of the block is used).
  */
 int
 ufsdirhash_lookup(struct inode *ip, char *name, int namelen, doff_t *offp,
-    doff_t *prevoffp)
+    struct buf **bpp, doff_t *prevoffp)
 {
 	struct dirhash *dh, *dh_next;
 	struct direct *dp;
@@ -428,7 +429,7 @@ restart:
 				dh->dh_seqopt = 1;
 			dh->dh_seqoff = offset + DIRSIZ(0, dp);
 
-			brelse(bp);
+			*bpp = bp;
 			*offp = offset;
 			return (0);
 		}
