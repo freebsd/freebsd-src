@@ -1,4 +1,4 @@
-/* $Id: interrupt.c,v 1.4 1998/07/12 16:09:27 dfr Exp $ */
+/* $Id: interrupt.c,v 1.5 1998/08/10 07:53:58 dfr Exp $ */
 /* $NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $ */
 
 /*
@@ -277,32 +277,50 @@ badaddr_read(addr, size, rptr)
 
 #define HASHVEC(vector)	((vector) % 31)
 
+LIST_HEAD(alpha_intr_list, alpha_intr);
+
+struct alpha_intr {
+    LIST_ENTRY(alpha_intr) list; /* chain handlers in this hash bucket */
+    int			vector;	/* vector to match */
+    driver_intr_t	*intr;	/* handler function */
+    void		*arg;	/* argument to handler */
+};
+
 static struct alpha_intr_list alpha_intr_hash[31];
 
-struct alpha_intr *
-alpha_create_intr(int vector, driver_intr_t *intr, void *arg)
+int alpha_setup_intr(int vector, driver_intr_t *intr, void *arg,
+		     void **cookiep)
 {
+	int h = HASHVEC(vector);
 	struct alpha_intr *i;
+	int s;
 
 	i = malloc(sizeof(struct alpha_intr), M_DEVBUF, M_NOWAIT);
 	if (!i)
-		return NULL;
+		return ENOMEM;
 	i->vector = vector;
 	i->intr = intr;
 	i->arg = arg;
-	return i;
-}
-
-int
-alpha_connect_intr(struct alpha_intr *i)
-{
-	int h = HASHVEC(i->vector);
-	int s;
 
 	s = splhigh();
 	LIST_INSERT_HEAD(&alpha_intr_hash[h], i, list);
 	splx(s);
-	
+
+	*cookiep = i;
+	return 0;
+
+}
+
+int alpha_teardown_intr(void *cookie)
+{
+	struct alpha_intr *i = cookie;
+	int s;
+
+	s = splhigh();
+	LIST_REMOVE(i, list);
+	splx(s);
+
+	free(i, M_DEVBUF);
 	return 0;
 }
 

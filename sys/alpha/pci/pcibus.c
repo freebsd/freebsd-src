@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.4 1998/08/10 07:53:59 dfr Exp $
+ * $Id: pcibus.c,v 1.5 1998/10/06 14:18:40 dfr Exp $
  *
  */
 
@@ -33,10 +33,34 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/sysctl.h>
+#include <sys/rman.h>
 
 #include <pci/pcivar.h>
 #include <machine/chipset.h>
 #include <machine/cpuconf.h>
+#include <machine/resource.h>
+
+char chipset_type[10];
+int chipset_bwx = 0;
+long chipset_ports = 0;
+long chipset_memory = 0;
+long chipset_dense = 0;
+long chipset_hae_mask = 0;
+
+SYSCTL_NODE(_hw, OID_AUTO, chipset, CTLFLAG_RW, 0, "PCI chipset information");
+SYSCTL_STRING(_hw_chipset, OID_AUTO, type, CTLFLAG_RD, chipset_type, 0,
+	      "PCI chipset type");
+SYSCTL_INT(_hw_chipset, OID_AUTO, bwx, CTLFLAG_RD, &chipset_bwx, 0,
+	   "PCI chipset supports BWX access");
+SYSCTL_LONG(_hw_chipset, OID_AUTO, ports, CTLFLAG_RD, &chipset_ports, 0,
+	    "PCI chipset port address");
+SYSCTL_LONG(_hw_chipset, OID_AUTO, memory, CTLFLAG_RD, &chipset_memory, 0,
+	    "PCI chipset memory address");
+SYSCTL_LONG(_hw_chipset, OID_AUTO, dense, CTLFLAG_RD, &chipset_dense, 0,
+	    "PCI chipset dense memory address");
+SYSCTL_LONG(_hw_chipset, OID_AUTO, hae_mask, CTLFLAG_RD, &chipset_hae_mask, 0,
+	    "PCI chipset mask for HAE register");
 
 static int cfgmech;
 static int devmax;
@@ -116,22 +140,27 @@ struct intrec *
 intr_create(void *dev_instance, int irq, inthand2_t handler, void *arg,
 	    intrmask_t *maskptr, int flags)
 {
+	struct resource *res;
 	device_t pcib = chipset.intrdev;
-	if (pcib)
-		return BUS_CREATE_INTR(pcib, pcib, irq,
-				       (driver_intr_t*) handler, arg);
-	else
+	int zero = 0;
+	void *cookie;
+
+	res = BUS_ALLOC_RESOURCE(pcib, pcib, SYS_RES_IRQ, &zero,
+				irq, irq, 1, RF_SHAREABLE | RF_ACTIVE);
+	if (BUS_SETUP_INTR(pcib, pcib, res, (driver_intr_t *)handler, arg, &cookie))
 		return 0;
+
+	return (struct intrec *)cookie;
 }
 
 int
 intr_connect(struct intrec *idesc)
 {
-	device_t pcib = chipset.intrdev;
-	if (pcib)
-		return BUS_CONNECT_INTR(pcib, idesc);
-	else
-		return EINVAL;
+	/*
+	 * intr_create has already connected it (doesn't matter for the
+	 * only consumer of this interface (pci).
+	 */
+	return 0;
 }
 
 void
@@ -139,6 +168,86 @@ alpha_platform_assign_pciintr(pcicfgregs *cfg)
 {
 	if(platform.pci_intr_map)
 		platform.pci_intr_map((void *)cfg);
+}
+
+static struct rman irq_rman, port_rman, mem_rman;
+
+void pci_init_resources()
+{
+	irq_rman.rm_start = 0;
+	irq_rman.rm_end = 32;
+	irq_rman.rm_type = RMAN_ARRAY;
+	irq_rman.rm_descr = "PCI Interrupt request lines";
+	if (rman_init(&irq_rman)
+	    || rman_manage_region(&irq_rman, 0, 31))
+		panic("cia_probe irq_rman");
+
+	port_rman.rm_start = 0;
+	port_rman.rm_end = 0xffff;
+	port_rman.rm_type = RMAN_ARRAY;
+	port_rman.rm_descr = "I/O ports";
+	if (rman_init(&port_rman)
+	    || rman_manage_region(&port_rman, 0, 0xffff))
+		panic("cia_probe port_rman");
+
+	mem_rman.rm_start = 0;
+	mem_rman.rm_end = ~0u;
+	mem_rman.rm_type = RMAN_ARRAY;
+	mem_rman.rm_descr = "I/O memory addresses";
+	if (rman_init(&mem_rman)
+	    || rman_manage_region(&mem_rman, 0x0, (1L << 32)))
+		panic("cia_probe mem_rman");
+}
+
+/*
+ * Allocate a resource on behalf of child.  NB: child is usually going to be a
+ * child of one of our descendants, not a direct child of the pci chipset.
+ */
+struct resource *
+pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
+		   u_long start, u_long end, u_long count, u_int flags)
+{
+	struct	rman *rm;
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		rm = &irq_rman;
+		break;
+
+	case SYS_RES_IOPORT:
+		rm = &port_rman;
+		break;
+
+	case SYS_RES_MEMORY:
+		rm = &mem_rman;
+		break;
+
+	default:
+		return 0;
+	}
+
+	return rman_reserve_resource(rm, start, end, count, flags, child);
+}
+
+int
+pci_activate_resource(device_t bus, device_t child, int type, int rid,
+		      struct resource *r)
+{
+	return (rman_activate_resource(r));
+}
+
+int
+pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
+			  struct resource *r)
+{
+	return (rman_deactivate_resource(r));
+}
+
+int
+pci_release_resource(device_t bus, device_t child, int type, int rid,
+		       struct resource *r)
+{
+	return (rman_release_resource(r));
 }
 
 void

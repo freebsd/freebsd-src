@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.9 1998/09/16 08:24:30 dfr Exp $
+ *	$Id: cia.c,v 1.10 1998/10/06 14:18:40 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -96,14 +96,17 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <alpha/pci/ciareg.h>
 #include <alpha/pci/ciavar.h>
+#include <alpha/pci/pcibus.h>
 #include <machine/bwx.h>
 #include <machine/swiz.h>
 #include <machine/intr.h>
 #include <machine/cpuconf.h>
 #include <machine/rpb.h>
+#include <machine/resource.h>
 
 #define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)
 
@@ -138,6 +141,8 @@ static alpha_chipset_cfgwriteb_t cia_bwx_cfgwriteb, cia_swiz_cfgwriteb;
 static alpha_chipset_cfgwritew_t cia_bwx_cfgwritew, cia_swiz_cfgwritew;
 static alpha_chipset_cfgwritel_t cia_bwx_cfgwritel, cia_swiz_cfgwritel;
 static alpha_chipset_addrcvt_t   cia_cvt_dense,  cia_cvt_bwx;
+static alpha_chipset_read_hae_t	cia_read_hae;
+static alpha_chipset_write_hae_t cia_write_hae;
 
 static alpha_chipset_t cia_bwx_chipset = {
 	cia_bwx_inb,
@@ -161,6 +166,8 @@ static alpha_chipset_t cia_bwx_chipset = {
 	cia_bwx_cfgwritel,
 	cia_cvt_dense,
 	cia_cvt_bwx,
+	cia_read_hae,
+	cia_write_hae,
 };
 static alpha_chipset_t cia_swiz_chipset = {
 	cia_swiz_inb,
@@ -184,6 +191,8 @@ static alpha_chipset_t cia_swiz_chipset = {
 	cia_swiz_cfgwritel,
 	cia_cvt_dense,
 	NULL,
+	cia_read_hae,
+	cia_write_hae,
 };
 
 static u_int8_t
@@ -439,28 +448,30 @@ cia_swiz_outl(u_int32_t port, u_int32_t data)
 }
 
 static __inline void
-cia_swiz_set_hae_mem(u_int32_t pa)
+cia_swiz_set_hae_mem(u_int32_t *pa)
 {
-    /* Only bother with region 1 */
+	/* Only bother with region 1 */
 #define REG1 (7 << 29)
-    if ((cia_hae_mem & REG1) != (pa & REG1)) {
-	/*
-	 * Seems fairly paranoid but this is what Linux does...
-	 */
-	int s = splhigh();
-	cia_hae_mem = (cia_hae_mem & ~REG1) | (pa & REG1);
-	REGVAL(CIA_CSR_HAE_MEM) = cia_hae_mem;
-	alpha_mb();
-	cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
-	splx(s);
-    }
+	if ((cia_hae_mem & REG1) != (*pa & REG1)) {
+		/*
+		 * Seems fairly paranoid but this is what Linux does...
+		 */
+		u_int32_t msb = *pa & REG1;
+		int s = splhigh();
+		cia_hae_mem = (cia_hae_mem & ~REG1) | msb;
+		REGVAL(CIA_CSR_HAE_MEM) = cia_hae_mem;
+		alpha_mb();
+		cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
+		splx(s);
+		*pa -= msb;
+	}
 }
 
 static u_int8_t
 cia_swiz_readb(u_int32_t pa)
 {
 	alpha_mb();
-	cia_swiz_set_hae_mem(pa);
+	cia_swiz_set_hae_mem(&pa);
 	return SPARSE_READ_BYTE(KV(CIA_PCI_SMEM1), pa);
 }
 
@@ -468,7 +479,7 @@ static u_int16_t
 cia_swiz_readw(u_int32_t pa)
 {
 	alpha_mb();
-	cia_swiz_set_hae_mem(pa);
+	cia_swiz_set_hae_mem(&pa);
 	return SPARSE_READ_WORD(KV(CIA_PCI_SMEM1), pa);
 }
 
@@ -476,14 +487,14 @@ static u_int32_t
 cia_swiz_readl(u_int32_t pa)
 {
 	alpha_mb();
-	cia_swiz_set_hae_mem(pa);
+	cia_swiz_set_hae_mem(&pa);
 	return SPARSE_READ_LONG(KV(CIA_PCI_SMEM1), pa);
 }
 
 static void
 cia_swiz_writeb(u_int32_t pa, u_int8_t data)
 {
-	cia_swiz_set_hae_mem(pa);
+	cia_swiz_set_hae_mem(&pa);
 	SPARSE_WRITE_BYTE(KV(CIA_PCI_SMEM1), pa, data);
 	alpha_wmb();
 }
@@ -491,7 +502,7 @@ cia_swiz_writeb(u_int32_t pa, u_int8_t data)
 static void
 cia_swiz_writew(u_int32_t pa, u_int16_t data)
 {
-	cia_swiz_set_hae_mem(pa);
+	cia_swiz_set_hae_mem(&pa);
 	SPARSE_WRITE_WORD(KV(CIA_PCI_SMEM1), pa, data);
 	alpha_wmb();
 }
@@ -499,7 +510,7 @@ cia_swiz_writew(u_int32_t pa, u_int16_t data)
 static void
 cia_swiz_writel(u_int32_t pa, u_int32_t data)
 {
-	cia_swiz_set_hae_mem(pa);
+	cia_swiz_set_hae_mem(&pa);
 	SPARSE_WRITE_LONG(KV(CIA_PCI_SMEM1), pa, data);
 	alpha_wmb();
 }
@@ -616,12 +627,35 @@ cia_cvt_bwx(vm_offset_t addr)
 	return (addr |= CIA_EV56_BWMEM);
 }
 
+static u_int64_t
+cia_read_hae(void)
+{
+	return cia_hae_mem & REG1;
+}
 
+static void
+cia_write_hae(u_int64_t hae)
+{
+	u_int32_t pa = hae;
+	cia_swiz_set_hae_mem(&pa);
+}
 
 static int cia_probe(device_t dev);
 static int cia_attach(device_t dev);
-static void *cia_create_intr(device_t dev, device_t child, int irq, driver_intr_t *intr, void *arg);
-static int cia_connect_intr(device_t dev, void* ih);
+static struct resource *cia_alloc_resource(device_t bus, device_t child,
+					   int type, int *rid,
+					   u_long start, u_long end,
+					   u_long count, u_int flags);
+static int cia_activate_resource(device_t bus, device_t child,
+				 int type, int rid, struct resource *r);
+static int cia_deactivate_resource(device_t bus, device_t child,
+				   int type, int rid, struct resource *r);
+static int cia_release_resource(device_t bus, device_t child,
+				int type, int rid, struct resource *r);
+static int cia_setup_intr(device_t dev, device_t child, struct resource *irq,
+			  driver_intr_t *intr, void *arg, void **cookiep);
+static int cia_teardown_intr(device_t dev, device_t child,
+			     struct resource *irq, void *cookie);
 
 static device_method_t cia_methods[] = {
 	/* Device interface */
@@ -629,8 +663,12 @@ static device_method_t cia_methods[] = {
 	DEVMETHOD(device_attach,	cia_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_create_intr,	cia_create_intr),
-	DEVMETHOD(bus_connect_intr,	cia_connect_intr),
+	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,	pci_release_resource),
+	DEVMETHOD(bus_activate_resource, pci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	cia_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	cia_teardown_intr),
 
 	{ 0, 0 }
 };
@@ -695,6 +733,8 @@ cia_probe(device_t dev)
 		return ENXIO;
 	cia0 = dev;
 	device_set_desc(dev, "2117x PCI adapter"); /* XXX */
+
+	pci_init_resources();
 
 	device_add_child(dev, "isa", 0, 0);
 
@@ -761,29 +801,54 @@ cia_attach(device_t dev)
 	if (!platform.iointr)	/* XXX */
 		set_iointr(alpha_dispatch_intr);
 
+	if (cia_ispyxis) {
+		strcpy(chipset_type, "pyxis");
+		chipset_bwx = 1;
+		chipset_ports = CIA_EV56_BWIO;
+		chipset_memory = CIA_EV56_BWMEM;
+		chipset_dense = CIA_PCI_DENSE;
+	} else {
+		strcpy(chipset_type, "cia");
+		chipset_bwx = 0;
+		chipset_ports = CIA_PCI_SIO1;
+		chipset_memory = CIA_PCI_SMEM1;
+		chipset_dense = CIA_PCI_DENSE;
+		chipset_hae_mask = 7L << 29;
+	}
+
 	bus_generic_attach(dev);
 	return 0;
 }
 
-static void *
-cia_create_intr(device_t dev, device_t child,
-		int irq, driver_intr_t *intr, void *arg)
+static int
+cia_setup_intr(device_t dev, device_t child,
+	       struct resource *irq,
+	       driver_intr_t *intr, void *arg, void **cookiep)
 {
-	return alpha_create_intr(0x900 + (irq << 4), intr, arg);
+	struct alpha_intr *i;
+	int error;
+	
+	error = rman_activate_resource(irq);
+	if (error)
+		return error;
+
+	error = alpha_setup_intr(0x900 + (irq->r_start << 4),
+				 intr, arg, cookiep);
+	if (error)
+		return error;
+
+	/* Enable PCI interrupt */
+	platform.pci_intr_enable(irq->r_start);
+
+	return 0;
 }
 
 static int
-cia_connect_intr(device_t dev, void* ih)
+cia_teardown_intr(device_t dev, device_t child,
+		  struct resource *irq, void *cookie)
 {
-	struct alpha_intr *i = ih;
-	int s = splhigh();
-	int error = alpha_connect_intr(i);
-	if (!error) {
-		/* Enable PCI interrupt */
-		platform.pci_intr_enable((i->vector - 0x900) >> 4);
-	}
-	splx(s);
-	return error;
+	alpha_teardown_intr(cookie);
+	return rman_deactivate_resource(irq);
 }
 
 DRIVER_MODULE(cia, root, cia_driver, cia_devclass, 0, 0);

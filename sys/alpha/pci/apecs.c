@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apecs.c,v 1.1 1998/08/10 07:53:59 dfr Exp $
+ *	$Id: apecs.c,v 1.2 1998/10/06 14:18:40 dfr Exp $
  */
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
@@ -63,6 +63,7 @@
 
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
+#include <alpha/pci/pcibus.h>
 #include <machine/intr.h>
 #include <machine/cpuconf.h>
 #include <machine/swiz.h>
@@ -103,6 +104,8 @@ static alpha_chipset_cfgwriteb_t  apecs_swiz_cfgwriteb;
 static alpha_chipset_cfgwritew_t  apecs_swiz_cfgwritew;
 static alpha_chipset_cfgwritel_t  apecs_swiz_cfgwritel;
 static alpha_chipset_addrcvt_t    apecs_cvt_dense;
+static alpha_chipset_read_hae_t	apecs_read_hae;
+static alpha_chipset_write_hae_t apecs_write_hae;
 
 static alpha_chipset_t apecs_swiz_chipset = {
 	apecs_swiz_inb,
@@ -126,6 +129,8 @@ static alpha_chipset_t apecs_swiz_chipset = {
 	apecs_swiz_cfgwritel,
 	apecs_cvt_dense,
 	NULL,
+	apecs_read_hae,
+	apecs_write_hae,
 };
 
 static int
@@ -419,6 +424,18 @@ apecs_cvt_dense(vm_offset_t addr)
 	
 }
 
+static u_int64_t
+apecs_read_hae(void)
+{
+	return apecs_hae_mem & 0xf8000000;
+}
+
+static void
+apecs_write_hae(u_int64_t hae)
+{
+	u_int32_t pa = hae;
+	apecs_swiz_set_hae_mem(&pa);
+}
 
 static int apecs_probe(device_t dev);
 static int apecs_attach(device_t dev);
@@ -431,6 +448,10 @@ static device_method_t apecs_methods[] = {
 	DEVMETHOD(device_attach,	apecs_attach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,	pci_release_resource),
+	DEVMETHOD(bus_activate_resource, pci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 
 	{ 0, 0 }
 };
@@ -492,6 +513,13 @@ apecs_attach(device_t dev)
 	sc->cfg1_base = NULL;
 
 	set_iointr(alpha_dispatch_intr);
+
+	strcpy(chipset_type, "apecs");
+	chipset_bwx = 0;
+	chipset_ports = APECS_PCI_SIO;
+	chipset_memory = APECS_PCI_SPARSE;
+	chipset_dense = APECS_PCI_DENSE;
+	chipset_hae_mask = EPIC_HAXR1_EADDR;
 
 	bus_generic_attach(dev);
 	return 0;

@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.56 1998/10/22 05:58:40 bde Exp $
+ * $Id: psm.c,v 1.1 1998/11/08 18:43:03 dfr Exp $
  */
 
 /*
@@ -76,6 +76,7 @@
 #include <sys/poll.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
+#include <sys/rman.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -85,6 +86,7 @@
 #include <machine/clock.h>
 #include <machine/limits.h>
 #include <machine/mouse.h>
+#include <machine/resource.h>
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
@@ -981,6 +983,8 @@ psmattach(device_t dev)
     int unit = device_get_unit(dev);
     struct psm_softc *sc = device_get_softc(dev);
     void *ih;
+    struct resource *res;
+    int zero = 0;
 
     if (sc == NULL)    /* shouldn't happen */
 	return (ENXIO);
@@ -1023,14 +1027,11 @@ psmattach(device_t dev)
     if (bootverbose)
         --verbose;
 
-    ih = BUS_CREATE_INTR(device_get_parent(dev), dev,
-			 isa_get_irq(dev),
-			 psmintr, sc);
-    if (!ih)
-	return ENXIO;
+    res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
+			     RF_SHAREABLE | RF_ACTIVE);
+    BUS_SETUP_INTR(device_get_parent(dev), dev, res, psmintr, sc,
+		   &ih);
 
-    BUS_CONNECT_INTR(device_get_parent(dev), ih);
-    
     return (0);
 }
 
