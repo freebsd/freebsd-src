@@ -934,9 +934,8 @@ doMFSKERN:
 	    ${CROSSMAKE} ${KERNEL_FLAGS} -DNO_WERROR -DNO_MODULES -DNO_KERNELCLEAN \
 	    KERNCONF=BOOTMFS buildkernel reinstallkernel \
 	    DESTDIR=${RD}/kernels
-.if exists(${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints)
+	[ -r ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ] && \
 	cp ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ${RD}/kernels
-.endif
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir ${RD}/image.${FSIMAGE}
 	@cd ${RD}/kernels && \
