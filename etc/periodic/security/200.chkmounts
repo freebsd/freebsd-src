@@ -63,7 +63,7 @@ case "$daily_status_security_chkmounts_enable" in
 		echo "${host} changes in mounted filesystems:"
 		diff -b ${LOG}/mount.today ${TMP}
 		mv ${LOG}/mount.today ${LOG}/mount.yesterday || rc=3
-		mv ${TMP} ${LOG}/mount}.today || rc=3
+		mv ${TMP} ${LOG}/mount.today || rc=3
 	    fi
 	fi
 	rm -f ${TMP};;
