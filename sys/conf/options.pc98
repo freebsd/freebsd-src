@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.65 1998/09/09 14:39:20 kato Exp $
+#	$Id: options.pc98,v 1.66 1998/09/15 14:10:56 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -75,7 +75,8 @@ SC_HISTORY_SIZE		opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
 SC_BAD_FLICKER		opt_syscons.h
-LINE30			opt_syscons.h
+
+VESA			opt_vesa.h
 
 PSM_HOOKAPM		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
@@ -137,3 +138,4 @@ PC98			opt_global.h
 EPSON_BOUNCEDMA		opt_pc98.h
 EPSON_MEMWIN		opt_pc98.h
 COMPAT_ATDISK		opt_pc98.h
+LINE30			opt_syscons.h
