@@ -1078,26 +1078,29 @@ vm_object_shadow(
 	vm_object_t source;
 	vm_object_t result;
 
+	GIANT_REQUIRED;
+
 	source = *object;
 
-	vm_object_lock(source);
 	/*
 	 * Don't create the new object if the old object isn't shared.
 	 */
-	if (source != NULL &&
-	    source->ref_count == 1 &&
-	    source->handle == NULL &&
-	    (source->type == OBJT_DEFAULT ||
-	     source->type == OBJT_SWAP)) {
-		vm_object_unlock(source);
-		return;
+	if (source != NULL) {
+		VM_OBJECT_LOCK(source);
+		if (source->ref_count == 1 &&
+		    source->handle == NULL &&
+		    (source->type == OBJT_DEFAULT ||
+		     source->type == OBJT_SWAP)) {
+			VM_OBJECT_UNLOCK(source);
+			return;
+		}
+		VM_OBJECT_UNLOCK(source);
 	}
 
 	/*
-	 * Allocate a new object with the given length
+	 * Allocate a new object with the given length.
 	 */
 	result = vm_object_allocate(OBJT_DEFAULT, length);
-	KASSERT(result != NULL, ("vm_object_shadow: no object for shadowing"));
 
 	/*
 	 * The new object shadows the source object, adding a reference to it.
@@ -1110,7 +1113,8 @@ vm_object_shadow(
 	 * shadowed object.
 	 */
 	result->backing_object = source;
-	if (source) {
+	if (source != NULL) {
+		VM_OBJECT_LOCK(source);
 		TAILQ_INSERT_TAIL(&source->shadow_head, result, shadow_list);
 		source->shadow_count++;
 		source->generation++;
@@ -1121,6 +1125,7 @@ vm_object_shadow(
 			length = PQ_L2_SIZE / 3 + PQ_PRIME1;
 		result->pg_color = (source->pg_color +
 		    length * source->generation) & PQ_L2_MASK;
+		VM_OBJECT_UNLOCK(source);
 		next_index = (result->pg_color + PQ_L2_SIZE / 3 + PQ_PRIME1) &
 		    PQ_L2_MASK;
 	}
@@ -1136,8 +1141,6 @@ vm_object_shadow(
 	 */
 	*offset = 0;
 	*object = result;
-
-	vm_object_unlock(source);
 }
 
 /*
