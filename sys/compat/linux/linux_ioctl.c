@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.23 1997/12/15 06:09:11 msmith Exp $
+ *  $Id: linux_ioctl.c,v 1.24 1998/06/07 17:11:26 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -247,10 +247,9 @@ bsd_to_linux_termios(struct termios *bsd_termios,
     linux_termios->c_line = 0;
 #ifdef DEBUG
     printf("LINUX: LINUX termios structure (output):\n");
-    printf("i=%08x o=%08x c=%08x l=%08x line=%d\n",
-	   linux_termios->c_iflag, linux_termios->c_oflag,
-	   linux_termios->c_cflag, linux_termios->c_lflag,
-	   linux_termios->c_line);
+    printf("i=%08lx o=%08lx c=%08lx l=%08lx line=%d\n",
+	linux_termios->c_iflag, linux_termios->c_oflag, linux_termios->c_cflag,
+	linux_termios->c_lflag, linux_termios->c_line);
     printf("c_cc ");
     for (i=0; i<LINUX_NCCS; i++) 
 	printf("%02x ", linux_termios->c_cc[i]);
@@ -266,10 +265,9 @@ linux_to_bsd_termios(struct linux_termios *linux_termios,
     int i;
 #ifdef DEBUG
     printf("LINUX: LINUX termios structure (input):\n");
-    printf("i=%08x o=%08x c=%08x l=%08x line=%d\n",
-	   linux_termios->c_iflag, linux_termios->c_oflag,
-	   linux_termios->c_cflag, linux_termios->c_lflag,
-	   linux_termios->c_line);
+    printf("i=%08lx o=%08lx c=%08lx l=%08lx line=%d\n",
+	linux_termios->c_iflag, linux_termios->c_oflag, linux_termios->c_cflag,
+	linux_termios->c_lflag, linux_termios->c_line);
     printf("c_cc ");
     for (i=0; i<LINUX_NCCS; i++) 
 	printf("%02x ", linux_termios->c_cc[i]);
@@ -460,8 +458,8 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
     int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): ioctl(%d, %04x, *)\n", 
-	   p->p_pid, args->fd, args->cmd);
+    printf("Linux-emul(%ld): ioctl(%d, %04lx, *)\n", 
+	(long)p->p_pid, args->fd, args->cmd);
 #endif
     if ((unsigned)args->fd >= fdp->fd_nfiles 
 	|| (fp = fdp->fd_ofiles[args->fd]) == 0)
@@ -891,7 +889,7 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
       }
     }
     uprintf("LINUX: 'ioctl' fd=%d, typ=0x%x(%c), num=0x%x not implemented\n",
-	    args->fd, (args->cmd&0xffff00)>>8,
-	    (args->cmd&0xffff00)>>8, args->cmd&0xff);
+	args->fd, (u_int)((args->cmd & 0xffff00) >> 8),
+	(int)((args->cmd & 0xffff00) >> 8), (u_int)(args->cmd & 0xff));
     return EINVAL;
 }
