@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.52.4.2 1996/06/20 14:30:56 jkh Exp $
+#	$Id: Makefile,v 1.52.4.3 1996/07/10 03:51:26 jkh Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -29,9 +29,9 @@ SUBDIR=	apply ar at banner basename biff cal calendar \
 # Cmp, look and tail all use mmap, so new-VM only.
 # F77 and pascal are VAX/Tahoe only.
 .if	make(clean) || make(cleandir)
-# XXX Should have `f77', `pascal' & `vmstat.sparc' judging by the
+# XXX Should have `ld', `f77', `pascal' & `vmstat.sparc' judging by the
 #     machine dependant lines, but we don't have them
-SUBDIR+=cmp look systat tail vmstat
+SUBDIR+=cmp kzip look systat tail vmstat
 .elif	${MACHINE} == "hp300"
 SUBDIR+=cmp ld look systat tail vmstat
 .elif	${MACHINE} == "i386"
