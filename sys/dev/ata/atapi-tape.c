@@ -38,8 +38,6 @@
 #include <sys/mtio.h>
 #include <sys/disklabel.h>
 #include <sys/devicestat.h>
-#include <pci/pcivar.h>
-#include <machine/clock.h>
 #if NAPM > 0
 #include <machine/apm_bios.h>
 #endif
