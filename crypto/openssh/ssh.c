@@ -567,6 +567,22 @@ main(int ac, char **av)
 	if (options.hostname != NULL)
 		host = options.hostname;
 
+	/* Find canonic host name. */
+	if (strchr(host, '.') == 0) {
+		struct addrinfo hints;
+		struct addrinfo *ai = NULL;
+		int errgai;
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = IPv4or6;
+		hints.ai_flags = AI_CANONNAME;
+		hints.ai_socktype = SOCK_STREAM;
+		errgai = getaddrinfo(host, NULL, &hints, &ai);
+		if (errgai == 0) {
+			if (ai->ai_canonname != NULL)
+				host = xstrdup(ai->ai_canonname);
+			freeaddrinfo(ai);
+		}
+	}
 	/* Disable rhosts authentication if not running as root. */
 	if (original_effective_uid != 0 || !options.use_privileged_port) {
 		options.rhosts_authentication = 0;
@@ -598,7 +614,7 @@ main(int ac, char **av)
 	 * if rhosts_{rsa_}authentication is enabled.
 	 */
 
-	ok = ssh_connect(&host, &hostaddr, options.port,
+	ok = ssh_connect(host, &hostaddr, options.port,
 			 options.connection_attempts,
 			 !options.rhosts_authentication &&
 			 !options.rhosts_rsa_authentication,
