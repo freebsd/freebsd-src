@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login_cap.3,v 1.5 1997/02/22 15:08:19 peter Exp $
+.\" $Id: login_cap.3,v 1.6 1997/03/19 02:01:27 bde Exp $
 .\"
 .Dd December 27, 1996
 .Os FreeBSD
@@ -26,6 +26,7 @@
 .Nm login_getclassbyname ,
 .Nm login_close ,
 .Nm login_getclass ,
+.Nm login_getpwclass ,
 .Nm login_getuserclass ,
 .Nm login_getcapstr ,
 .Nm login_getcaplist ,
@@ -43,7 +44,9 @@
 .Ft login_cap_t *
 .Fn login_getclassbyname "const char *nam" "const char *dir"
 .Ft login_cap_t *
-.Fn login_getclass "const struct passwd *pwd"
+.Fn login_getclass "const char *nam"
+.Ft login_cap_t *
+.Fn login_getpwclass "const struct passwd *pwd"
 .Ft login_cap_t *
 .Fn login_getuserclass "const struct passwd *pwd"
 .Ft char *
@@ -101,6 +104,7 @@ interface provides a convenient means of retrieving login class
 records with all tc= references expanded.
 A program will typically call one of
 .Fn login_getclass ,
+.Fn login_getpwclass ,
 .Fn login_getuserclass
 or
 .Fn login_getclassbyname
@@ -129,7 +133,9 @@ retrieved.
 This may not necessarily be the same as the one requested,
 either directly via
 .Fn login_getclassbyname ,
-or indirectly via a user's login record using
+indirectly via a user's login record using
+.Fn login_getpwclass ,
+by class name using
 .Fn login_getclass
 or
 .Fn login_getuserclass .
@@ -207,23 +213,31 @@ is unable to access the login capabilities database, this function
 returns NULL.
 .Pp
 The functions
+.Fn login_getpwclass ,
 .Fn login_getclass
 and
 .Fn login_getuserclass
 retrieve the applicable login class record for the user's passwd
-entry by calling
+entry or class name by calling
 .Fn login_getclassbyname .
 On failure, NULL is returned.
-The difference between the two functions is that
+The difference between these functions is that
 .Fn login_getuserclass
 includes the user's overriding
 .Pa .login_conf
-that exists in the user's home directory, while
+that exists in the user's home directory, 
+.Fn login_getpwclass,
+and
 .Fn login_getclass
-restricts itself only to the system login class database in
+restricts loookup only to the system login class database in
 .Pa /etc/login.conf .
-In either case, if the passwd pointer is NULL, or the user has
-no class, then the system "default" entry is retrieved.
+.Fn login_getpwclass
+only differs from
+.Fn login_getclass
+in that it allows the default class for user 'root' as "root"
+if none has been specified in the password database.
+Otherwise, if the passwd pointer is NULL, or the user record
+has no login class, then the system "default" entry is retrieved.
 .Pp
 Once a program no longer wishes to use a login_cap_t object,
 .Fn login_close
