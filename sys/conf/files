@@ -625,6 +625,10 @@ pci/ahc_pci.c		optional ahc pci		\
 	dependency	"aic7xxx_reg.h $S/pci/ahc_pci.c"
 dev/bktr/bktr_core.c	optional bktr pci
 dev/bktr/bktr_i2c.c	optional bktr pci
+dev/bktr/bktr_card.c	optional bktr pci
+dev/bktr/bktr_tuner.c	optional bktr pci
+dev/bktr/bktr_audio.c	optional bktr pci
+dev/bktr/bktr_os.c	optional bktr pci
 pci/bt_pci.c		optional bt pci
 pci/cy_pci.c		optional cy pci
 pci/dpt_pci.c		optional dpt pci
