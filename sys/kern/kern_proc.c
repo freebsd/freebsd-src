@@ -168,7 +168,7 @@ proc_dtor(void *mem, int size, void *arg)
 	 *     freed, so you gotta do this here.
 	 */
 	if (((p->p_flag & P_KTHREAD) != 0) && (td->td_altkstack != 0))
-		pmap_dispose_altkstack(td);
+		vm_thread_dispose_altkstack(td);
 
 	/*
 	 * We want to make sure we know the initial linkages.
