@@ -547,11 +547,11 @@ over:
 			fprintf(stderr,
 				"fortune:%s not a fortune file or directory\n",
 				path);
-		free((char *) fp);
 		if (was_malloc)
 			free(path);
 		do_free(fp->datfile);
 		do_free(fp->posfile);
+		free((char *) fp);
 		do_free(offensive);
 		return FALSE;
 	}
