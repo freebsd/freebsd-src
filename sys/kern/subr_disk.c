@@ -91,8 +91,8 @@ disk_dumpcheck(dev_t dev, u_int *count, u_int *blkno, u_int *secsize)
 	dl = dsgetlabel(dev, dp->d_slice);
 	if (!dl)
 		return (ENXIO);
-	*count = (u_long)Maxmem * PAGE_SIZE / dl->d_secsize;
-	if (dumplo < 0 || 
+	*count = Maxmem * (PAGE_SIZE / dl->d_secsize);
+	if (dumplo <= LABELSECTOR || 
 	    (dumplo + *count > dl->d_partitions[dkpart(dev)].p_size))
 		return (EINVAL);
 	boff = dl->d_partitions[dkpart(dev)].p_offset +
