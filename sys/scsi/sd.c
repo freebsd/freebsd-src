@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.31 1994/09/28 20:16:44 se Exp $
+ *      $Id: sd.c,v 1.32 1994/10/04 06:39:27 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -860,7 +860,7 @@ sd_get_parms(unit, flags)
 		(u_char *) & scsi_sense,
 		sizeof(scsi_sense),
 		SD_RETRIES,
-		2000,
+		4000,
 		NULL,
 		flags | SCSI_DATA_IN) != 0) {
 
