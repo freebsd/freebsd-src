@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)vmstat.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: vmstat.8,v 1.9 1997/08/25 06:40:05 charnier Exp $
+.\"	$Id: vmstat.8,v 1.10 1998/09/15 08:16:43 gibbs Exp $
 .\"
 .Dd June 6, 1996
 .Dt VMSTAT 8
@@ -62,9 +62,11 @@ Repeat the display
 times.
 The first display is for the time since a reboot and each subsequent report
 is for the time period since the last display.
-If no
-.Ar wait
-interval is specified, the default is 1 second.
+If no repeat
+.Ar count
+is specified, and 
+.Fl w
+is specified, the default is infinity, otherwise the default is one.
 .\" .It Fl f
 .\" Report on the number
 .\" .Xr fork 2
@@ -171,8 +173,8 @@ Pause
 .Ar wait
 seconds between each display.
 If no repeat
-.Ar count
-is specified, the default is infinity.
+.Ar wait
+interval is specified, the default is 1 second.
 .El
 .Pp
 By default,
