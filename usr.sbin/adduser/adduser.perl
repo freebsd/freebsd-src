@@ -70,6 +70,7 @@ sub variables {
     $groupname ='';		# $groupname{groupname} = gid
     $groupmembers = '';		# $groupmembers{gid} = members of group/kommalist
     $gid = '';			# $gid{gid} = groupname;    gid form group db
+    @group_comments;		# Comments in the group file
 
     # shell
     $shell = '';		# $shell{`basename sh`} = sh
@@ -265,9 +266,13 @@ sub group_read {
     while(<G>) {
 	chop;
 	push(@group_backup, $_);
-	# ignore comments
+	# Ignore empty lines
 	next if /^\s*$/;
-	next if /^\s*#/;
+	# Save comments to restore later
+	if (/^\s*\#/) {
+	    push(@group_comments, $_);
+	    next;
+	}
 
 	($g_groupname, $pw, $g_gid, $memb) = (split(/:/, $_))[0..3];
 
@@ -566,6 +571,9 @@ sub new_users_group_update {
 	# new login group is already in name space
 	rename($group, "$group.bak");
 	#warn "$group_login $groupname{$group_login} $groupmembers{$groupname{$group_login}}\n";
+
+	# Restore comments from the top of the group file
+	@a = @group_comments;
 	foreach $e (sort {$a <=> $b} (keys %gid)) {
 	    push(@a, "$gid{$e}:*:$e:$groupmembers{$e}");
 	}
