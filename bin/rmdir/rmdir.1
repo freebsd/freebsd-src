@@ -35,7 +35,7 @@
 .\"	@(#)rmdir.1	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.Dd May 31, 1993
+.Dd March 21, 2004
 .Dt RMDIR 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd remove directories
 .Sh SYNOPSIS
 .Nm
-.Op Fl p
+.Op Fl pv
 .Ar directory ...
 .Sh DESCRIPTION
 The
@@ -72,6 +72,8 @@ starting with the last most component.
 (See
 .Xr rm 1
 for fully non-discriminant recursive removal.)
+.It Fl v
+Be verbose, listing each directory as it is removed.
 .El
 .Pp
 The
