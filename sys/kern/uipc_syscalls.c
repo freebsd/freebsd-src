@@ -947,9 +947,6 @@ recvit(td, s, mp, namelenp)
 		if (len <= 0 || fromsa == 0)
 			len = 0;
 		else {
-#ifndef MIN
-#define MIN(a,b) ((a)>(b)?(b):(a))
-#endif
 			/* save sa_len before it is destroyed by MSG_COMPAT */
 			len = MIN(len, fromsa->sa_len);
 #ifdef COMPAT_OLDSOCK

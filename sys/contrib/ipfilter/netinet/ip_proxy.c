@@ -84,10 +84,6 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 extern  KRWLOCK_T       ipf_nat, ipf_state;
 #endif
 
-#ifndef MIN
-#define MIN(a,b)        (((a)<(b))?(a):(b))
-#endif
-
 static int appr_fixseqack __P((fr_info_t *, ip_t *, ap_session_t *, int ));
 
 

@@ -52,8 +52,6 @@
 
 #include <machine/md_var.h>
 
-#define MIN(a,b)	((a)<(b)?(a):(b))
-
 static int		allocate_driver(struct slot *, struct dev_desc *);
 static void		inserted(void *);
 static void		disable_slot(struct slot *);

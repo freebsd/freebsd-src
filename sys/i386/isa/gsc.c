@@ -80,8 +80,6 @@
 #define lprintf(args)
 #endif
 
-#define MIN(a, b)	(((a) < (b)) ? (a) : (b))
-
 #define TIMEOUT (hz*15)  /* timeout while reading a buffer - default value */
 #define LONG    (hz/60)  /* timesteps while reading a buffer */
 #define GSCPRI  PRIBIO   /* priority while reading a buffer */
