@@ -2789,6 +2789,14 @@ If set, start a watchdog timer in the background which will terminate
 if
 .Xr shutdown 8
 has not completed within the specified time (in seconds).
+.It Va virecover_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+to prevent the system from trying to
+recover pre-maturely terminated
+.Xr vi 1
+sessions.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -2847,6 +2855,7 @@ has not completed within the specified time (in seconds).
 .Xr syslogd 8 ,
 .Xr timed 8 ,
 .Xr usbd 8 ,
+.Xr vi 1 ,
 .Xr vinum 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,
