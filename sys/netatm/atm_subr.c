@@ -36,6 +36,7 @@
  */
 
 #include <netatm/kern_include.h>
+#include <net/intrq.h>
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
@@ -50,7 +51,6 @@ struct atm_ncm		*atm_netconv_head = NULL;
 Atm_endpoint		*atm_endpoints[ENDPT_MAX+1] = {NULL};
 struct sp_info		*atm_pool_head = NULL;
 struct stackq_entry	*atm_stackq_head = NULL, *atm_stackq_tail;
-struct ifqueue		atm_intrq;
 #ifdef sgi
 int			atm_intr_index;
 #endif
@@ -61,6 +61,7 @@ int			atm_dev_print = 0;
 int			atm_print_data = 0;
 int			atm_version = ATM_VERSION;
 struct timeval		atm_debugtime = {0, 0};
+const int		atmintrq_present = 1;
 
 struct sp_info	atm_attributes_pool = {
 	"atm attributes pool",		/* si_name */

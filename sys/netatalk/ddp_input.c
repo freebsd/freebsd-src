@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 1990,1994 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
+ *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -12,6 +14,7 @@
 #include <sys/socketvar.h>
 #include <net/if.h>
 #include <net/route.h>
+#include <net/intrq.h>
 
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
@@ -19,12 +22,12 @@
 #include <netatalk/ddp_var.h>
 #include <netatalk/at_extern.h>
 
-struct ifqueue		atintrq1, atintrq2;
-
 static volatile int	ddp_forward = 1;
 static volatile int	ddp_firewall = 0;
 static struct ddpstat	ddpstat;
 static struct route	forwro;
+
+const int atintrq1_present = 1, atintrq2_present = 1;
 
 static void     ddp_input(struct mbuf *, struct ifnet *, struct elaphdr *, int);
 

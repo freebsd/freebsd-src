@@ -30,6 +30,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -44,6 +46,7 @@
 #include <sys/domain.h>
 
 #include <net/if.h>
+#include <net/intrq.h>
 
 #include <netinet/in.h>
 
@@ -103,7 +106,6 @@ static struct domain natmdomain =
       natmsw, &natmsw[sizeof(natmsw)/sizeof(natmsw[0])], 0,
       0, 0, 0};
 
-struct	ifqueue natmintrq;       	/* natm packet input queue */
 static int natmqmaxlen = IFQ_MAXLEN;	/* max # of packets on queue */
 #ifdef NATM_STAT
 u_int natm_sodropcnt = 0;		/* # mbufs dropped due to full sb */
@@ -112,6 +114,7 @@ u_int natm_sookcnt = 0;			/* # mbufs ok */
 u_int natm_sookbytes = 0;		/* # of bytes ok */
 #endif
 
+const int natmintrq_present = 1;
 
 
 void natm_init()
