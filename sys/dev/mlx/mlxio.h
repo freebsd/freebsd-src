@@ -31,31 +31,14 @@
 /*
  * System Disk ioctls
  */
-struct mlxd_rebuild
-{
-    int		rb_channel;
-    int		rb_target;
-};
 
-struct mlxd_rebuild_status
-{
-    int		rs_drive;
-    int		rs_size;
-    int		rs_remaining;
-};
-
-#define MLXD_STATUS		_IOR ('M', 100, int)
-#define MLXD_REBUILDASYNC	_IOW ('M', 101, struct mlxd_rebuild)
-#define MLXD_CHECKASYNC		_IOW ('M', 102, int)
-#define MLXD_REBUILDSTAT	_IOR ('M', 103, struct mlxd_rebuild_status)
-
-/*
- * System Disk status values
- */
+/* system disk status values */
 #define MLX_SYSD_ONLINE		0x03
 #define MLX_SYSD_CRITICAL	0x04
-#define MLX_SYSD_REBUILD	0xfe
 #define MLX_SYSD_OFFLINE	0xff
+
+#define MLXD_STATUS		_IOR ('M', 100, int)
+#define MLXD_CHECKASYNC		_IOR ('M', 101, int)	/* command result returned in argument */
 
 /*
  * Controller ioctls
@@ -85,9 +68,30 @@ struct mlx_usercommand
 
 };
 
+struct mlx_rebuild_request
+{
+    int		rr_channel;
+    int		rr_target;
+    int		rr_status;
+};
+
+struct mlx_rebuild_status
+{
+    u_int16_t	rs_code;
+#define MLX_REBUILDSTAT_REBUILDCHECK	0x0000
+#define MLX_REBUILDSTAT_ADDCAPACITY	0x0400
+#define MLX_REBUILDSTAT_ADDCAPACITYINIT	0x0500
+#define MLX_REBUILDSTAT_IDLE		0xffff
+    u_int16_t	rs_drive;
+    int		rs_size;
+    int		rs_remaining;
+};
+
 #define MLX_NEXT_CHILD		_IOWR('M', 0, int)
 #define MLX_RESCAN_DRIVES	_IO  ('M', 1)
 #define MLX_DETACH_DRIVE	_IOW ('M', 2, int)
 #define MLX_PAUSE_CHANNEL	_IOW ('M', 3, struct mlx_pause)
 #define MLX_COMMAND		_IOWR('M', 4, struct mlx_usercommand)
-
+#define MLX_REBUILDASYNC	_IOWR('M', 5, struct mlx_rebuild_request)
+#define MLX_REBUILDSTAT		_IOR ('M', 6, struct mlx_rebuild_status)
+#define MLX_GET_SYSDRIVE	_IOWR('M', 7, int)

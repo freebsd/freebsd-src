@@ -33,7 +33,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 
 #include <sys/buf.h>
@@ -80,9 +79,8 @@ static struct cdevsw mlxd_cdevsw = {
 		/* bmaj */	MLXD_BDEV_MAJOR
 };
 
-static devclass_t	mlxd_devclass;
+devclass_t		mlxd_devclass;
 static struct cdevsw	mlxddisk_cdevsw;
-static int		disks_registered = 0;
 
 static device_method_t mlxd_methods[] = {
     DEVMETHOD(device_probe,	mlxd_probe),
