@@ -483,15 +483,17 @@ Qlogic Controllers:
     Qlogic 12160 Ultra3 LVD Controllers
     Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI Controllers
 
-SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a, 53C860,
-53C875, 53C875e, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
-    ASUS SC-200
+LSI/SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C825, 53C825a,
+53C860, 53C875, 53C875a, 53C876, 53C885, 53C895, 53C895a, 53C896, 
+53C1010-33, 53C1010-66, 53C1000, 53C1000R PCI SCSI controllers, 
+either embedded on mainboard, or on add-on boards:
+    ASUS SC-200, SC-896
     Data Technology DTC3130 (all variants)
     DawiControl DC2976UW
     Diamond FirePort (all)
     NCR cards (all)
     Symbios cards (all)
-    Tekram DC390W, 390U and 390F
+    Tekram DC390W, 390U, 390F, 390U2B, 390U2W, 390U3D and 390U3W
     Tyan S1365
 
 NCR 53C500 based PC-Card SCSI host adapters:
