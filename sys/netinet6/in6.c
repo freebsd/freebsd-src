@@ -197,11 +197,7 @@ in6_ifloop_request(int cmd, struct ifaddr *ifa)
 	if (nrt) {
 		rt_newaddrmsg(cmd, ifa, e, nrt);
 		if (cmd == RTM_DELETE) {
-			if (nrt->rt_refcnt <= 0) {
-				/* XXX: we should free the entry ourselves. */
-				nrt->rt_refcnt++;
-				rtfree(nrt);
-			}
+			RTFREE(nrt);
 		} else {
 			/* the cmd must be RTM_ADD here */
 			nrt->rt_refcnt--;
