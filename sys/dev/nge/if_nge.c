@@ -1392,7 +1392,7 @@ nge_rxeof(sc)
 		 */
 		if (extsts & NGE_RXEXTSTS_VLANPKT) {
 			VLAN_INPUT_TAG(ifp, m,
-				extsts & NGE_RXEXTSTS_VTCI, continue);
+			    ntohs(extsts & NGE_RXEXTSTS_VTCI), continue);
 		}
 
 		(*ifp->if_input)(ifp, m);
@@ -1715,7 +1715,7 @@ nge_encap(sc, m_head, txidx)
 	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m);
 	if (mtag != NULL) {
 		sc->nge_ldata->nge_tx_list[cur].nge_extsts |=
-			(NGE_TXEXTSTS_VLANPKT|VLAN_TAG_VALUE(mtag));
+		    (NGE_TXEXTSTS_VLANPKT|htons(VLAN_TAG_VALUE(mtag)));
 	}
 
 	sc->nge_ldata->nge_tx_list[cur].nge_mbuf = m_head;
