@@ -282,8 +282,6 @@ fw_write (dev_t dev, struct uio *uio, int ioflag)
 	int sub = DEV2DMACH(dev);
 	int s, slept = 0;
 	struct fw_pkt *fp;
-	struct fw_xfer *xfer;
-	struct fw_xferq *xferq;
 	struct firewire_comm *fc;
 	struct fw_xferq *it;
 
@@ -293,82 +291,46 @@ fw_write (dev_t dev, struct uio *uio, int ioflag)
 	sc = devclass_get_softc(firewire_devclass, unit);
 	fc = sc->fc;
 	it = sc->fc->it[sub];
-
-	xferq = NULL;
-	/* Discard unsent buffered stream packet, when sending Asyrequrst */
-	if(xferq != NULL && it->stproc != NULL){
+isoloop:
+	if (it->stproc == NULL) {
+		it->stproc = STAILQ_FIRST(&it->stfree);
+		if (it->stproc != NULL) {
+			s = splfw();
+			STAILQ_REMOVE_HEAD(&it->stfree, link);
+			splx(s);
+			it->queued = 0;
+		} else if (slept == 0) {
+			slept = 1;
+			err = sc->fc->itx_enable(sc->fc, sub);
+			if (err)
+				return err;
+			err = tsleep(it, FWPRI, "fw_write", hz);
+			if (err)
+				return err;
+			goto isoloop;
+		} else {
+			err = EIO;
+			return err;
+		}
+	}
+	fp = (struct fw_pkt *)fwdma_v_addr(it->buf,
+			it->stproc->poffset + it->queued);
+	err = uiomove((caddr_t)fp, sizeof(struct fw_isohdr), uio);
+	err = uiomove((caddr_t)fp->mode.stream.payload,
+				fp->mode.stream.len, uio);
+	it->queued ++;
+	if (it->queued >= it->bnpacket) {
 		s = splfw();
-		STAILQ_INSERT_TAIL(&it->stfree, it->stproc, link);
+		STAILQ_INSERT_TAIL(&it->stvalid, it->stproc, link);
 		splx(s);
 		it->stproc = NULL;
+		err = sc->fc->itx_enable(sc->fc, sub);
 	}
-	if (xferq == NULL) {
-isoloop:
-		if (it->stproc == NULL) {
-			it->stproc = STAILQ_FIRST(&it->stfree);
-			if (it->stproc != NULL) {
-				s = splfw();
-				STAILQ_REMOVE_HEAD(&it->stfree, link);
-				splx(s);
-				it->queued = 0;
-			} else if (slept == 0) {
-				slept = 1;
-				err = sc->fc->itx_enable(sc->fc, sub);
-				if (err)
-					return err;
-				err = tsleep(it, FWPRI,
-							"fw_write", hz);
-				if (err)
-					return err;
-				goto isoloop;
-			} else {
-				err = EIO;
-				return err;
-			}
-		}
-		fp = (struct fw_pkt *)fwdma_v_addr(it->buf,
-				it->stproc->poffset + it->queued);
-		err = uiomove((caddr_t)fp, sizeof(struct fw_isohdr), uio);
-		err = uiomove((caddr_t)fp->mode.stream.payload,
-					fp->mode.stream.len, uio);
-		it->queued ++;
-		if (it->queued >= it->bnpacket) {
-			s = splfw();
-			STAILQ_INSERT_TAIL(&it->stvalid, it->stproc, link);
-			splx(s);
-			it->stproc = NULL;
-			err = sc->fc->itx_enable(sc->fc, sub);
-		}
-		if (uio->uio_resid >= sizeof(struct fw_isohdr)) {
-			slept = 0;
-			goto isoloop;
-		}
-		return err;
+	if (uio->uio_resid >= sizeof(struct fw_isohdr)) {
+		slept = 0;
+		goto isoloop;
 	}
-	if (xferq != NULL) {
-		xfer = fw_xfer_alloc_buf(M_FWXFER, uio->uio_resid, 12);
-		if(xfer == NULL){
-			err = ENOMEM;
-			return err;
-		}
-		xfer->dst = fp->mode.hdr.dst;
-		xfer->send.len = uio->uio_resid; 
-		xfer->spd = 0;/* XXX: how to setup it */
-		xfer->act.hand = fw_asy_callback;
-			
-		err = uiomove(xfer->send.buf, uio->uio_resid, uio);
-		if(err){
-			fw_xfer_free( xfer);
-			return err;
-		}
-		fw_asyreq(fc, -1, xfer);
-		err = tsleep(xfer, FWPRI, "fw_write", hz);
-		if(xfer->resp == EBUSY)
-			return EBUSY;
-		fw_xfer_free( xfer);
-		return err;
-	}
-	return EINVAL;
+	return err;
 }
 
 /*
