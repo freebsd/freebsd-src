@@ -32,6 +32,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -57,6 +58,12 @@ static struct isa_pnp_id ata_ids[] = {
 static void
 ata_isa_lock(struct ata_channel *ch, int type)
 {
+}
+
+static void
+ata_isa_setmode(struct ata_device *atadev, int mode)
+{
+    atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
 }
 
 static int
@@ -88,6 +95,8 @@ ata_isa_probe(device_t dev)
     ch->unit = 0;
     ch->flags |= ATA_USE_16BIT;
     ch->locking = ata_isa_lock;
+    ch->device[MASTER].setmode = ata_isa_setmode;
+    ch->device[SLAVE].setmode = ata_isa_setmode;
     return ata_probe(dev);
 }
 

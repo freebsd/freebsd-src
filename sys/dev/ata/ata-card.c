@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -64,6 +65,12 @@ ata_pccard_match(device_t dev)
 static void
 ata_pccard_locknoop(struct ata_channel *ch, int type)
 {
+}
+
+static void
+ata_pccard_setmode(struct ata_device *atadev, int mode)
+{
+    atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
 }
 
 static int
@@ -111,6 +118,8 @@ ata_pccard_probe(device_t dev)
     ch->unit = 0;
     ch->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
     ch->locking = ata_pccard_locknoop;
+    ch->device[MASTER].setmode = ata_pccard_setmode;
+    ch->device[SLAVE].setmode = ata_pccard_setmode;
     return ata_probe(dev);
 }
 
