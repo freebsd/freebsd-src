@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: jail.h,v 1.1 1999/04/28 11:38:03 phk Exp $
+ * $Id: jail.h,v 1.2 1999/05/16 10:51:52 phk Exp $
  *
  */
 
@@ -39,6 +39,7 @@ struct prison {
 	int		pr_ref;
 	char 		pr_host[MAXHOSTNAMELEN];
 	u_int32_t	pr_ip;
+	void		*pr_linux;
 };
 
 #endif /* !KERNEL */
