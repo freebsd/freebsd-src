@@ -38,7 +38,8 @@ static char sbuf[1024];
 static void
 usage(void)
 {
-	errx(1, "usage: [-h] [variable]");
+	(void)fprintf(stderr, "usage: kenv [-h] [variable]\n");
+	exit(1);
 }
 
 int
