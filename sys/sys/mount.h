@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.32 1996/09/03 07:09:09 davidg Exp $
+ *	$Id: mount.h,v 1.33 1996/09/12 03:16:34 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -101,7 +101,8 @@ struct statfs {
 #define MOUNT_UNION	15	/* Union (translucent) Filesystem */
 #define MOUNT_DEVFS	16	/* existing device Filesystem */
 #define	MOUNT_EXT2FS	17	/* Linux EXT2FS */
-#define	MOUNT_MAXTYPE	17
+#define MOUNT_TFS	18	/* Netcon Novell filesystem */
+#define	MOUNT_MAXTYPE	18
 
 #define INITMOUNTNAMES { \
 	"none",		/*  0 MOUNT_NONE */ \
@@ -122,7 +123,8 @@ struct statfs {
 	"union",	/* 15 MOUNT_UNION */ \
 	"devfs",	/* 16 MOUNT_DEVFS */ \
 	"ext2fs",	/* 17 MOUNT_EXT2FS */ \
-	0,		/* 17 MOUNT_SPARE */ \
+	"tfs",		/* 18 MOUNT_TFS */ \
+	0,		/* 18 MOUNT_SPARE */ \
 }
 
 /*
