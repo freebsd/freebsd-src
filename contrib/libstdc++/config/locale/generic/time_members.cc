@@ -1,4 +1,4 @@
-// std::time_get, std::time_put implementation, GNU version -*- C++ -*-
+// std::time_get, std::time_put implementation, generic version -*- C++ -*-
 
 // Copyright (C) 2001, 2002 Free Software Foundation, Inc.
 //
@@ -56,8 +56,8 @@ namespace std
     __timepunct<char>::_M_initialize_timepunct(__c_locale)
     { 
       // "C" locale
-      _M_date_format = "%m/%d/%Y";
-      _M_date_era_format = "%m/%d/%Y";
+      _M_date_format = "%m/%d/%y";
+      _M_date_era_format = "%m/%d/%y";
       _M_time_format = "%H:%M:%S";
       _M_time_era_format = "%H:%M:%S";
       _M_date_time_format = "";

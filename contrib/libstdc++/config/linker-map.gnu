@@ -1,6 +1,6 @@
 ## Linker script for GNU ld 2.11.94+ only.
 ##
-## Copyright (C) 2002 Free Software Foundation, Inc.
+## Copyright (C) 2002, 2003 Free Software Foundation, Inc.
 ##
 ## This file is part of the libstdc++ version 3 distribution.
 ##
@@ -50,7 +50,14 @@ GLIBCPP_3.2 {
       std::[A-Zd-k]*;
       std::length_error*;
       std::logic_error*;
-      std::locale::[A-Za-z]*;
+      std::locale::[A-Za-e]*;
+      std::locale::facet::[A-Za-z]*;
+      std::locale::facet::_M*;
+      std::locale::facet::_S_c_locale;
+      std::locale::facet::_S_clone_c_locale*;
+      std::locale::facet::_S_create_c_locale*;
+      std::locale::facet::_S_destroy_c_locale*;
+      std::locale::[A-Zg-z]*;
       std::locale::_[A-Ra-z]*;
       std::locale::_S_classic;
       std::locale::_S_global;
@@ -99,6 +106,9 @@ GLIBCPP_3.2 {
 
     # std::locale destructors
     _ZNSt6localeD*;
+	
+    # std::locale::facet destructors
+    _ZNSt6locale5facetD*;
 	 
     # std::codecvt<char> members.
     _ZNKSt7codecvtIcc11__mbstate_tE*;
@@ -204,8 +214,6 @@ GLIBCPP_3.2.1 {
   _ZStplIcSt11char_traitsIcESaIcEESbIT_T0_T1_ERKS6_S8_;
   _ZStplIwSt11char_traitsIwESaIwEESbIT_T0_T1_ERKS6_S8_;
 
-  _ZNSt24__default_alloc_templateILb1ELi0EE12_S_force_newE;
-
   # stub functions from libmath
   sinf;
   sinl;
@@ -242,17 +250,67 @@ GLIBCPP_3.2.1 {
 
 } GLIBCPP_3.2;
 
+GLIBCPP_3.2.2 {
+
+  _ZNSt24__default_alloc_templateILb1ELi0EE12_S_force_newE;
+
+} GLIBCPP_3.2.1;
+
+
 # Symbols in the support library (libsupc++) have their own tag.
 CXXABI_1.2 {
 
   global:
-    __cxa_*;
+    __cxa_allocate_exception;
+    __cxa_bad_cast;
+    __cxa_bad_typeid;
+    __cxa_begin_catch;
+    __cxa_call_unexpected;
+    __cxa_current_exception_type;
+    __cxa_demangle;
+    __cxa_end_catch;
+    __cxa_free_exception;
+    __cxa_get_globals;
+    __cxa_get_globals_fast;
+    __cxa_pure_virtual;
+    __cxa_rethrow;
+    __cxa_throw;
+    __cxa_vec_cctor;
+    __cxa_vec_cleanup;
+    __cxa_vec_ctor;
+    __cxa_vec_delete2;
+    __cxa_vec_delete3;
+    __cxa_vec_delete;
+    __cxa_vec_dtor;
+    __cxa_vec_new2;
+    __cxa_vec_new3;
+    __cxa_vec_new;
     __gxx_personality_v0;
     __gxx_personality_sj0;
     __dynamic_cast;
 
     # __gnu_cxx::_verbose_terminate_handler()
     _ZN9__gnu_cxx27__verbose_terminate_handlerEv;
+
+    # XXX Should not be exported.
+    __cxa_dyn_string_append_char;
+    __cxa_dyn_string_append_cstr;
+    __cxa_dyn_string_append;
+    __cxa_dyn_string_clear;
+    __cxa_dyn_string_copy_cstr;
+    __cxa_dyn_string_copy;
+    __cxa_dyn_string_delete;
+    __cxa_dyn_string_eq;
+    __cxa_dyn_string_init;
+    __cxa_dyn_string_insert_char;
+    __cxa_dyn_string_insert_cstr;
+    __cxa_dyn_string_insert;
+    __cxa_dyn_string_new;
+    __cxa_dyn_string_prepend_cstr;
+    __cxa_dyn_string_prepend;
+    __cxa_dyn_string_release;
+    __cxa_dyn_string_resize;
+    __cxa_dyn_string_substring;
 
   local:
     *;

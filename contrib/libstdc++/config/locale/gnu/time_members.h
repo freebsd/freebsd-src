@@ -1,6 +1,6 @@
-// Backward-compat support -*- C++ -*-
+// std::time_get, std::time_put implementation, GNU version -*- C++ -*-
 
-// Copyright (C) 2001 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,32 +27,41 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-/*
- * Copyright (c) 1996-1997
- * Silicon Graphics Computer Systems, Inc.
- *
- * Permission to use, copy, modify, distribute and sell this software
- * and its documentation for any purpose is hereby granted without fee,
- * provided that the above copyright notice appear in all copies and
- * that both that copyright notice and this permission notice appear
- * in supporting documentation.  Silicon Graphics makes no
- * representations about the suitability of this software for any
- * purpose.  It is provided "as is" without express or implied warranty.
- */
+//
+// ISO C++ 14882: 22.2.5.1.2 - time_get functions
+// ISO C++ 14882: 22.2.5.3.2 - time_put functions
+//
 
-#ifndef _CPP_BACKWARD_ALLOC_H
-#define _CPP_BACKWARD_ALLOC_H 1
+// Written by Benjamin Kosnik <bkoz@redhat.com>
 
-#include "backward_warning.h"
-#include <bits/c++config.h>
-#include <bits/stl_alloc.h>
+  template<typename _CharT>
+    __timepunct<_CharT>::__timepunct(size_t __refs) 
+    : locale::facet(__refs)
+    { 
+#if !(__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2))
+      _M_name_timepunct = _S_c_name;
+#endif
+      _M_initialize_timepunct(); 
+    }
 
-using std::__malloc_alloc_template; 
-using std::__simple_alloc; 
-using std::__debug_alloc; 
-using std::__alloc; 
-using std::__single_client_alloc; 
-using std::allocator;
-using std::__default_alloc_template; 
+  template<typename _CharT>
+    __timepunct<_CharT>::__timepunct(__c_locale __cloc, 
+				     const char* __s, size_t __refs) 
+    : locale::facet(__refs)
+    { 
+#if !(__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2))
+      _M_name_timepunct = new char[strlen(__s) + 1];
+      strcpy(_M_name_timepunct, __s);
+#endif
+      _M_initialize_timepunct(__cloc); 
+    }
 
-#endif 
+  template<typename _CharT>
+    __timepunct<_CharT>::~__timepunct()
+    { 
+#if !(__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2))
+      if (_S_c_name != _M_name_timepunct)
+	delete [] _M_name_timepunct;
+#endif
+      _S_destroy_c_locale(_M_c_locale_timepunct); 
+    }

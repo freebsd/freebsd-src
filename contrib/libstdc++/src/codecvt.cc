@@ -55,12 +55,13 @@ namespace std
   codecvt_base::result
   codecvt<char, char, mbstate_t>::
   do_out(state_type&, const intern_type* __from, 
-	 const intern_type* __from_end, const intern_type*& __from_next,
-	 extern_type* __to, extern_type* __to_end, 
+	 const intern_type*, const intern_type*& __from_next,
+	 extern_type* __to, extern_type*, 
 	 extern_type*& __to_next) const
   { 
-    size_t __len = min(__from_end - __from, __to_end - __to);
-    memcpy(__to, __from, __len);
+    // _GLIBCPP_RESOLVE_LIB_DEFECTS
+    // According to the resolution of DR19, "If returns noconv [...]
+    // there are no changes to the values in [to, to_limit)."
     __from_next = __from; 
     __to_next = __to;
     return noconv;  
@@ -78,12 +79,13 @@ namespace std
   codecvt_base::result
   codecvt<char, char, mbstate_t>::
   do_in(state_type&, const extern_type* __from, 
-	const extern_type* __from_end, const extern_type*& __from_next,
-	intern_type* __to, intern_type* __to_end, 
+	const extern_type*, const extern_type*& __from_next,
+	intern_type* __to, intern_type*, 
 	intern_type*& __to_next) const
   { 
-    size_t __len = min(__from_end - __from, __to_end - __to);
-    memcpy(__to, __from, __len);
+    // _GLIBCPP_RESOLVE_LIB_DEFECTS
+    // According to the resolution of DR19, "If returns noconv [...]
+    // there are no changes to the values in [to, to_limit)."
     __from_next = __from; 
     __to_next = __to;
     return noconv;  
