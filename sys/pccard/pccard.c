@@ -189,7 +189,7 @@ pccard_init_slot(device_t dev, struct slot_ctrl *ctrl)
 	callout_handle_init(&slt->insert_ch);
 	callout_handle_init(&slt->poff_ch);
 
-	return(slt);
+	return (slt);
 }
 
 /*
@@ -321,10 +321,10 @@ crdopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	struct slot *slt = PCCARD_DEV2SOFTC(dev);
 
 	if (slt == NULL)
-		return(ENXIO);
+		return (ENXIO);
 	if (slt->rwmem == 0)
 		slt->rwmem = MDF_ATTR;
-	return(0);
+	return (0);
 }
 
 /*
@@ -334,7 +334,7 @@ crdopen(dev_t dev, int oflags, int devtype, struct proc *p)
 static	int
 crdclose(dev_t dev, int fflag, int devtype, struct proc *p)
 {
-	return(0);
+	return (0);
 }
 
 /*
@@ -351,14 +351,14 @@ crdread(dev_t dev, struct uio *uio, int ioflag)
 	int error = 0, win, count;
 
 	if (slt == 0 || slt->state != filled)
-		return(ENXIO);
+		return (ENXIO);
 	if (pccard_mem == 0)
-		return(ENOMEM);
+		return (ENOMEM);
 	for (win = 0; win < slt->ctrl->maxmem; win++)
 		if ((slt->mem[win].flags & MDF_ACTIVE) == 0)
 			break;
 	if (win >= slt->ctrl->maxmem)
-		return(EBUSY);
+		return (EBUSY);
 	mp = &slt->mem[win];
 	oldmap = *mp;
 	mp->flags = slt->rwmem|MDF_ACTIVE;
@@ -379,7 +379,7 @@ crdread(dev_t dev, struct uio *uio, int ioflag)
 	*mp = oldmap;
 	slt->ctrl->mapmem(slt, win);
 
-	return(error);
+	return (error);
 }
 
 /*
@@ -397,14 +397,14 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
 	int error = 0, win, count;
 
 	if (slt == 0 || slt->state != filled)
-		return(ENXIO);
+		return (ENXIO);
 	if (pccard_mem == 0)
-		return(ENOMEM);
+		return (ENOMEM);
 	for (win = 0; win < slt->ctrl->maxmem; win++)
 		if ((slt->mem[win].flags & MDF_ACTIVE) == 0)
 			break;
 	if (win >= slt->ctrl->maxmem)
-		return(EBUSY);
+		return (EBUSY);
 	mp = &slt->mem[win];
 	oldmap = *mp;
 	mp->flags = slt->rwmem|MDF_ACTIVE;
@@ -425,7 +425,7 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
 	*mp = oldmap;
 	slt->ctrl->mapmem(slt, win);
 
-	return(error);
+	return (error);
 }
 
 static int
@@ -481,12 +481,12 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	struct slot	*slt = PCCARD_DEV2SOFTC(dev);
 
 	if (slt == 0 && cmd != PIOCRWMEM)
-		return(ENXIO);
+		return (ENXIO);
 	switch(cmd) {
 	default:
 		if (slt->ctrl->ioctl)
-			return(slt->ctrl->ioctl(slt, cmd, data));
-		return(ENOTTY);
+			return (slt->ctrl->ioctl(slt, cmd, data));
+		return (ENOTTY);
 	/*
 	 * Get slot state.
 	 */
@@ -506,7 +506,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	case PIOCGMEM:
 		s = ((struct mem_desc *)data)->window;
 		if (s < 0 || s >= slt->ctrl->maxmem)
-			return(EINVAL);
+			return (EINVAL);
 		mp = &slt->mem[s];
 		((struct mem_desc *)data)->flags = mp->flags;
 		((struct mem_desc *)data)->start = mp->start;
@@ -520,21 +520,21 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	 */
 	case PIOCSMEM:
 		if (suser(p))
-			return(EPERM);
+			return (EPERM);
 		if (slt->state != filled)
-			return(ENXIO);
+			return (ENXIO);
 		s = ((struct mem_desc *)data)->window;
 		if (s < 0 || s >= slt->ctrl->maxmem)
-			return(EINVAL);
+			return (EINVAL);
 		slt->mem[s] = *((struct mem_desc *)data);
-		return(slt->ctrl->mapmem(slt, s));
+		return (slt->ctrl->mapmem(slt, s));
 	/*
 	 * Get I/O port context.
 	 */
 	case PIOCGIO:
 		s = ((struct io_desc *)data)->window;
 		if (s < 0 || s >= slt->ctrl->maxio)
-			return(EINVAL);
+			return (EINVAL);
 		ip = &slt->io[s];
 		((struct io_desc *)data)->flags = ip->flags;
 		((struct io_desc *)data)->start = ip->start;
@@ -545,15 +545,15 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	 */
 	case PIOCSIO:
 		if (suser(p))
-			return(EPERM);
+			return (EPERM);
 		if (slt->state != filled)
-			return(ENXIO);
+			return (ENXIO);
 		s = ((struct io_desc *)data)->window;
 		if (s < 0 || s >= slt->ctrl->maxio)
-			return(EINVAL);
+			return (EINVAL);
 		slt->io[s] = *((struct io_desc *)data);
 		/* XXX Don't actually map */
-		return 0;
+		return (0);
 		break;
 	/*
 	 * Set memory window flags for read/write interface.
@@ -571,13 +571,13 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 			break;
 		}
 		if (suser(p))
-			return(EPERM);
+			return (EPERM);
 		/*
 		 * Validate the memory by checking it against the I/O
 		 * memory range. It must also start on an aligned block size.
 		 */
 		if (*(unsigned long *)data & (PCCARD_MEMSIZE-1))
-			return(EINVAL);
+			return (EINVAL);
 		pccarddev = PCCARD_DEV2SOFTC(dev)->dev;
 		pccard_mem_rid = 0;
 		addr = *(unsigned long *)data;
@@ -588,7 +588,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		    &pccard_mem_rid, addr, addr, PCCARD_MEMSIZE,
 		    RF_ACTIVE | rman_make_alignment_flags(PCCARD_MEMSIZE));
 		if (pccard_mem_res == NULL)
-			return(EINVAL);
+			return (EINVAL);
 		pccard_mem = rman_get_start(pccard_mem_res);
 		pccard_kmem = rman_get_virtual(pccard_mem_res);
 		break;
@@ -597,19 +597,19 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	 */
 	case PIOCSPOW:
 		slt->pwr = *(struct power *)data;
-		return(slt->ctrl->power(slt));
+		return (slt->ctrl->power(slt));
 	/*
 	 * Allocate a driver to this slot.
 	 */
 	case PIOCSDRV:
 		if (suser(p))
-			return(EPERM);
+			return (EPERM);
 		err = allocate_driver(slt, (struct dev_desc *)data);
 		if (!err)
 			pccard_success_beep();
 		else
 			pccard_failure_beep();
-		return err;
+		return (err);
 	/*
 	 * Virtual removal/insertion
 	 */
@@ -617,25 +617,25 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		pwval = *(int *)data;
 		if (!pwval) {
 			if (slt->state != filled)
-				return EINVAL;
+				return (EINVAL);
 			pccard_event(slt, card_removed);
 			slt->state = inactive;
 		} else {
 			if (slt->state != empty && slt->state != inactive)
-				return EINVAL;
+				return (EINVAL);
 			pccard_event(slt, card_inserted);
 		}
 		break;
 	case PIOCSBEEP:
 		if (pccard_beep_select(*(int *)data)) {
-			return EINVAL;
+			return (EINVAL);
 		}
 		break;
 	case PIOCSRESOURCE:
 		return (crdioctl_sresource(dev, data));
 		break;
 	}
-	return(0);
+	return (0);
 }
 
 /*

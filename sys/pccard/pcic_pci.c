@@ -311,7 +311,7 @@ pcic_pci_probe(device_t dev)
 		return (ENXIO);
 	
 	device_set_desc(dev, desc);
-	return 0;	/* exact match */
+	return (0);	/* exact match */
 }
 
 static void
@@ -410,13 +410,13 @@ pcic_pci_attach(device_t dev)
 			printf("%02x: %16D\n", i, p + 0x800 + i, " ");
 	}
 
-	return 0;
+	return (0);
 }
 
 static int
 pcic_pci_detach(device_t dev)
 {
-	return 0;
+	return (0);
 }
 
 static device_method_t pcic_pci_methods[] = {
