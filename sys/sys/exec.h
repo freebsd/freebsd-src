@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.10 1995/03/16 18:16:15 bde Exp $
+ * $Id: exec.h,v 1.11 1995/11/13 07:44:03 bde Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -46,14 +46,14 @@
  * The following structure is found at the top of the user stack of each
  * user process. The ps program uses it to locate argv and environment
  * strings. Programs that wish ps to display other information may modify
- * it; normally ps_argvstr points to the text for argv[0], and ps_nargvstr
+ * it; normally ps_argvstr points to the argv vector, and ps_nargvstr
  * is the same as the program's argc. The fields ps_envstr and ps_nenvstr
  * are the equivalent for the environment.
  */
 struct ps_strings {
-	char	*ps_argvstr;	/* first of 0 or more argument strings */
+	char	**ps_argvstr;	/* first of 0 or more argument strings */
 	int	ps_nargvstr;	/* the number of argument strings */
-	char	*ps_envstr;	/* first of 0 or more environment strings */
+	char	**ps_envstr;	/* first of 0 or more environment strings */
 	int	ps_nenvstr;	/* the number of environment strings */
 };
 
@@ -62,7 +62,7 @@ struct ps_strings {
  */
 #define SPARE_USRSPACE	256
 #define	PS_STRINGS ((struct ps_strings *) \
-		(USRSTACK - sizeof(struct ps_strings) - SPARE_USRSPACE))
+	(USRSTACK - sizeof(struct ps_strings)))
 
 struct image_params;
 
