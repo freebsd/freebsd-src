@@ -248,7 +248,7 @@ ef_start(struct ifnet *ifp)
  * parameter passing but simplify the code
  */
 static int __inline
-ef_inputEII(struct mbuf *m, struct ether_header *eh, struct llc* l,
+ef_inputEII(struct mbuf *m, struct ether_header *eh,
 	u_short ether_type, struct ifqueue **inq)
 {
 	switch(ether_type) {
@@ -388,7 +388,7 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 	inq = NULL;
 	switch(ft) {
 	    case ETHER_FT_EII:
-		if (ef_inputEII(m, eh, l, ether_type, &inq) != 0)
+		if (ef_inputEII(m, eh, ether_type, &inq) != 0)
 			return EPROTONOSUPPORT;
 		break;
 #ifdef IPX
