@@ -139,6 +139,10 @@ atm_output(ifp, m0, dst, rt0)
 #if defined(INET) || defined(INET6)
 		case AF_INET:
 		case AF_INET6:
+			if (dst->sa_family == AF_INET6)
+			        etype = htons(ETHERTYPE_IPV6);
+			else
+			        etype = htons(ETHERTYPE_IP);
 			if (!atmresolve(rt, m, dst, &atmdst)) {
 				m = NULL; 
 				/* XXX: atmresolve already free'd it */
@@ -146,18 +150,13 @@ atm_output(ifp, m0, dst, rt0)
 				/* XXX: put ATMARP stuff here */
 				/* XXX: watch who frees m on failure */
 			}
-			if (dst->sa_family == AF_INET6)
-			        etype = htons(ETHERTYPE_IPV6);
-			else
-			        etype = htons(ETHERTYPE_IP);
 			break;
 #endif /* INET || INET6 */
 
 		case AF_UNSPEC:
 			/*
-			 * XXX: bpfwrite or output from a pvc shadow if.
-			 * assuming dst contains 12 bytes (atm pseudo
-			 * header (4) + LLC/SNAP (8))
+			 * XXX: bpfwrite. assuming dst contains 12 bytes
+			 * (atm pseudo header (4) + LLC/SNAP (8))
 			 */
 			bcopy(dst->sa_data, &atmdst, sizeof(atmdst));
 			llc_hdr = (struct atmllc *)(dst->sa_data + sizeof(atmdst));
@@ -242,18 +241,6 @@ atm_input(ifp, ah, m, rxhand)
 	}
 	ifp->if_ibytes += m->m_pkthdr.len;
 
-#ifdef ATM_PVCEXT
-	if (ATM_PH_FLAGS(ah) & ATM_PH_PVCSIF) {
-		/*
-		 * when PVC shadow interface is used, pointer to
-		 * the shadow interface is passed as rxhand.
-		 * override the receive interface of the packet.
-		 */
-		m->m_pkthdr.rcvif = (struct ifnet *)rxhand;
-		rxhand = NULL;
-	}
-#endif /*  ATM_PVCEXT */
-
 	if (rxhand) {
 #ifdef NATM
 		struct natmpcb *npcb = rxhand;
@@ -336,6 +323,7 @@ atm_ifattach(ifp)
 	ifp->if_hdrlen = 0;
 	ifp->if_mtu = ATMMTU;
 	ifp->if_output = atm_output;
+	ifp->if_snd.ifq_maxlen = 50;	/* dummy */
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	for (ifa = ifp->if_addrlist.tqh_first; ifa != 0;
@@ -357,273 +345,3 @@ atm_ifattach(ifp)
 		}
 
 }
-
-#ifdef ATM_PVCEXT
-/*
- * ATM PVC shadow interface: a trick to assign a shadow interface
- * to a PVC.
- * with shadow interface, each PVC looks like an individual
- * Point-to-Point interface.
- * as oposed to the NBMA model, a shadow interface is inherently
- * multicast capable (no LANE/MARS required).
- */
-struct pvcsif {
-	struct ifnet sif_shadow;	/* shadow ifnet structure per pvc */
-	struct atm_pseudohdr sif_aph;	/* flags + vpi:vci */
-	struct ifnet *sif_ifp;		/* pointer to the genuine interface */
-};
-
-static int pvc_output __P((struct ifnet *, struct mbuf *,
-			   struct sockaddr *, struct rtentry *));
-static int pvc_ioctl __P((struct ifnet *, u_long, caddr_t));
-
-/*
- * create and attach per pvc shadow interface
- * (currently detach is not supported)
- */
-static int pvc_number = 0;
-
-struct ifnet *
-pvc_attach(ifp)
-	struct ifnet *ifp;
-{
-	struct pvcsif *pvcsif;
-	struct ifnet *shadow;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
-	int s;
-
-	MALLOC(pvcsif, struct pvcsif *, sizeof(struct pvcsif),
-	       M_DEVBUF, M_WAITOK);
-	bzero(pvcsif, sizeof(struct pvcsif));
-
-	pvcsif->sif_ifp = ifp;
-	shadow = &pvcsif->sif_shadow;
-
-	shadow->if_name = "pvc";
-	shadow->if_unit = pvc_number++;
-	shadow->if_flags = ifp->if_flags | (IFF_POINTOPOINT | IFF_MULTICAST);
-	shadow->if_ioctl = pvc_ioctl;
-	shadow->if_output = pvc_output;
-	shadow->if_start = NULL;
-	shadow->if_mtu = ifp->if_mtu;
-	shadow->if_type = ifp->if_type;
-	shadow->if_addrlen = ifp->if_addrlen;
-	shadow->if_hdrlen = ifp->if_hdrlen;
-	shadow->if_softc = pvcsif;
-	shadow->if_snd.ifq_maxlen = 50;	/* dummy */
-
-	s = splimp();
-	if_attach(shadow);
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	for (ifa = shadow->if_addrlist.tqh_first; ifa != 0;
-	     ifa = ifa->ifa_list.tqe_next)
-#elif defined(__FreeBSD__) && (__FreeBSD__ > 2)
-	for (ifa = shadow->if_addrhead.tqh_first; ifa; 
-	     ifa = ifa->ifa_link.tqe_next)
-#elif defined(__FreeBSD__) || defined(__bsdi__)
-	for (ifa = shadow->if_addrlist; ifa; ifa = ifa->ifa_next) 
-#endif
-		if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr) &&
-		    sdl->sdl_family == AF_LINK) {
-			sdl->sdl_type = IFT_ATM;
-			sdl->sdl_alen = shadow->if_addrlen;
-			break;
-		}
-	splx(s);
-
-	return (shadow);
-}
-
-/*
- * pvc_output relays the packet to atm_output along with vpi:vci info.
- */
-static int
-pvc_output(shadow, m, dst, rt)
-	struct ifnet *shadow;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct rtentry *rt;
-{
-	struct pvcsif *pvcsif;
-	struct sockaddr dst_addr;
-	struct atmllc *atmllc;
-	u_int16_t etype = 0;
-	int error = 0;
-
-	if ((shadow->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
-		senderr(ENETDOWN);
-
-	pvcsif = shadow->if_softc;
-	if (ATM_PH_VCI(&pvcsif->sif_aph) == 0)
-		senderr(ENETDOWN);
-	
-	/*
-	 * create a dummy sockaddr: (using bpfwrite interface)
-	 * put atm pseudo header and llc/snap into sa_data (12 bytes)
-	 * and mark it as AF_UNSPEC.
-	 */
-	if (dst) {
-		switch (dst->sa_family) {
-#if defined(INET) || defined(INET6)
-		case AF_INET:
-		case AF_INET6:
-			if (dst->sa_family == AF_INET6)
-				etype = htons(ETHERTYPE_IPV6);
-			else
-				etype = htons(ETHERTYPE_IP);
-			break;
-#endif
-
-		default:
-			printf("%s%d: can't handle af%d\n", shadow->if_name, 
-			       shadow->if_unit, dst->sa_family);
-			senderr(EAFNOSUPPORT);
-		}
-	}
-
-	dst_addr.sa_family = AF_UNSPEC;
-	bcopy(&pvcsif->sif_aph, dst_addr.sa_data,
-	      sizeof(struct atm_pseudohdr));
-	atmllc = (struct atmllc *)
-		(dst_addr.sa_data + sizeof(struct atm_pseudohdr));
-	bcopy(ATMLLC_HDR, atmllc->llchdr,  sizeof(atmllc->llchdr));
-	ATM_LLC_SETTYPE(atmllc, etype);  /* note: already in network order */
-
-	return atm_output(pvcsif->sif_ifp, m, &dst_addr, rt);
-
-bad:
-	if (m)
-		m_freem(m);
-	return (error);
-}
-
-static int
-pvc_ioctl(shadow, cmd, data)
-	struct ifnet *shadow;
-	u_long cmd;
-	caddr_t data;
-{
-	struct ifnet *ifp;
-	struct pvcsif *pvcsif;
-	struct ifreq *ifr = (struct ifreq *) data;
-	void (*ifa_rtrequest)(int, struct rtentry *, struct sockaddr *) = NULL;
-	int error = 0;
-
-	pvcsif = (struct pvcsif *)shadow->if_softc;
-	ifp = pvcsif->sif_ifp;
-	if (ifp == 0 || ifp->if_ioctl == 0)
-		return (EOPNOTSUPP);
-    
-	/*
-	 * pre process
-	 */
-	switch (cmd) {
-	case SIOCGPVCSIF:
-		snprintf(ifr->ifr_name, sizeof(ifr->ifr_name),
-		    "%s%d", ifp->if_name, ifp->if_unit);
-		return (0);
-
-	case SIOCGPVCTX:
-		do {
-			struct pvctxreq *pvcreq = (struct pvctxreq *)data;
-
-			snprintf(pvcreq->pvc_ifname,
-			    sizeof(pvcreq->pvc_ifname), "%s%d",
-				ifp->if_name, ifp->if_unit);
-			pvcreq->pvc_aph = pvcsif->sif_aph;
-		} while (0);
-		break;
-
-	case SIOCADDMULTI:
-	case SIOCDELMULTI:
-		if (ifr == 0)
-			return (EAFNOSUPPORT);	/* XXX */
-		switch (ifr->ifr_addr.sa_family) {
-#ifdef INET
-		case AF_INET:
-			return (0);
-#endif
-#ifdef INET6
-		case AF_INET6:
-			return (0);
-#endif
-		default:
-			return (EAFNOSUPPORT);
-		}
-		break;
-	case SIOCSIFADDR:
-		if (ifp->if_flags & IFF_UP) {
-			/* real if is already up */
-			shadow->if_flags = ifp->if_flags |
-				(IFF_POINTOPOINT|IFF_MULTICAST);
-			return (0);
-		}
-		/*
-		 * XXX: save the rtrequest field since the atm driver
-		 * overwrites this field.
-		 */
-		ifa_rtrequest = ((struct ifaddr *)data)->ifa_rtrequest;
-		break;
-		
-	case SIOCSIFFLAGS:
-		if ((shadow->if_flags & IFF_UP) == 0) {
-			/*
-			 * interface down. don't pass this to
-			 * the real interface.
-			 */
-			return (0);
-		}
-		if (shadow->if_flags & IFF_UP) {
-			/*
-			 * interface up. if the real if is already up,
-			 * nothing to do.
-			 */
-			if (ifp->if_flags & IFF_UP) {
-				shadow->if_flags = ifp->if_flags |
-					(IFF_POINTOPOINT|IFF_MULTICAST);
-				return (0);
-			}
-		}
-		break;
-	}
-
-	/*
-	 * pass the ioctl to the genuine interface
-	 */
-	error = (*ifp->if_ioctl)(ifp, cmd, data);
-
-	/*
-	 * post process
-	 */
-	switch (cmd) {
-	case SIOCSIFMTU:
-		shadow->if_mtu = ifp->if_mtu;
-		break;
-	case SIOCSIFADDR:
-		/* restore rtrequest */
-		((struct ifaddr *)data)->ifa_rtrequest = ifa_rtrequest;
-		/* fall into... */
-	case SIOCSIFFLAGS:
-		/* update if_flags */
-		shadow->if_flags = ifp->if_flags
-			| (IFF_POINTOPOINT|IFF_MULTICAST);
-		break;
-	}
-
-	return (error);
-}
-
-int pvc_setaph(shadow, aph)
-	struct ifnet *shadow;
-	struct atm_pseudohdr *aph;
-{
-	struct pvcsif *pvcsif;
-    
-	pvcsif = shadow->if_softc;
-	bcopy(aph, &pvcsif->sif_aph, sizeof(struct atm_pseudohdr));
-	return (0);
-}
-
-#endif /* ATM_PVCEXT */
