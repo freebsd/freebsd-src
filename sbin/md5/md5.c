@@ -19,7 +19,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: md5.c,v 1.13 1998/07/06 07:04:50 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -34,8 +34,8 @@ static const char rcsid[] =
 /*
  * Length of test block, number of test blocks.
  */
-#define TEST_BLOCK_LEN 1000
-#define TEST_BLOCK_COUNT 1000
+#define TEST_BLOCK_LEN 10000
+#define TEST_BLOCK_COUNT 100000
 
 static void MDString PROTO_LIST((char *));
 static void MDTimeTrial PROTO_LIST((void));
@@ -120,6 +120,7 @@ MDTimeTrial()
 	printf
 	    ("MD5 time trial. Digesting %d %d-byte blocks ...",
 	    TEST_BLOCK_COUNT, TEST_BLOCK_LEN);
+	fflush(stdout);
 
 	/* Initialize block */
 	for (i = 0; i < TEST_BLOCK_LEN; i++)
