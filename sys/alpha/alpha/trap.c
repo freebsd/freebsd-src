@@ -900,9 +900,9 @@ ast(framep)
 		p->p_sflag &= ~PS_OWEUPC;
 		mtx_unlock_spin(&sched_lock);
 		mtx_lock(&Giant);
-		mtx_lock_spin(&sched_lock); /* XXX */
 		addupc_task(p, p->p_stats->p_prof.pr_addr,
 			    p->p_stats->p_prof.pr_ticks);
+		mtx_lock_spin(&sched_lock);
 	}
 	if (p->p_sflag & PS_ALRMPEND) {
 		p->p_sflag &= ~PS_ALRMPEND;
