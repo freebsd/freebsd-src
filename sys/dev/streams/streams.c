@@ -33,7 +33,6 @@
  * $FreeBSD$
  */
 
-#include "streams.h"		/* generated file.. defines NSTREAMS */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>		/* SYSINIT stuff */
