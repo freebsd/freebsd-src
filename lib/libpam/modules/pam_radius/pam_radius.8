@@ -38,7 +38,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 2, 1999
+.Dd October 28, 2002
 .Dt PAM_RADIUS 8
 .Os
 .Sh NAME
@@ -79,7 +79,10 @@ causes echoing to be left on if
 prompts for a password.
 .It Cm conf Ns No = Ns Ar pathname
 specifies a non-standard location for the RADIUS client configuration file
-(normally located in /etc/radius.conf).
+(normally located in
+.Pa /etc/radius.conf ) .
+.It Cm nas_id Ns No = Ns Ar identifier
+specifies a NAS identifier to send instead of the hostname.
 .It Cm template_user Ns No = Ns Ar username
 specifies a user whose
 .Xr passwd 5
