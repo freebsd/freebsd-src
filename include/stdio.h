@@ -295,9 +295,13 @@ __END_DECLS
 __BEGIN_DECLS
 int	 asprintf __P((char **, const char *, ...)) __printflike(2, 3);
 char	*ctermid_r __P((char *));
-__const char *fmtcheck __P((const char *, const char *))
-	__attribute__((__format_arg__(2)));
 char	*fgetln __P((FILE *, size_t *));
+#if __GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ >= 3
+#define	__ATTR_FORMAT_ARG	__attribute__((__format_arg__(2)))
+#else
+#define	__ATTR_FORMAT_ARG
+#endif
+__const char *fmtcheck __P((const char *, const char *)) __ATTR_FORMAT_ARG;
 int	 fpurge __P((FILE *));
 int	 fseeko __P((FILE *, _BSD_OFF_T_, int));
 _BSD_OFF_T_ ftello __P((FILE *));
