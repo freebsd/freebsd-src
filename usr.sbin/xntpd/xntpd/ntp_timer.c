@@ -1,4 +1,4 @@
-/* ntp_timer.c,v 3.1 1993/07/06 01:11:29 jbj Exp
+/*
  * ntp_event.c - event timer support routines
  */
 #include <stdio.h>
@@ -30,18 +30,18 @@ int alarm_flag;
 /*
  * adjust and hourly counters
  */
-static	U_LONG adjust_timer;
-static	U_LONG hourly_timer;
+static	u_long adjust_timer;
+static	u_long hourly_timer;
 
 /*
  * Imported from the leap module.  The leap timer.
  */
-extern U_LONG leap_timer;
+extern u_long leap_timer;
 
 /*
  * Statistics counter for the interested.
  */
-U_LONG alarm_overflow;
+u_long alarm_overflow;
 
 #define	HOUR	(60*60)
 
@@ -50,15 +50,15 @@ U_LONG alarm_overflow;
  * increments of 2**EVENT_TIMEOUT seconds.  The timer queue is the
  * hash into which we sort timer entries.
  */
-U_LONG current_time;
+u_long current_time;
 struct event timerqueue[TIMER_NSLOTS];
 
 /*
  * Stats.  Number of overflows and number of calls to transmit().
  */
-U_LONG timer_timereset;
-U_LONG timer_overflows;
-U_LONG timer_xmtcalls;
+u_long timer_timereset;
+u_long timer_overflows;
+u_long timer_xmtcalls;
 
 static	RETSIGTYPE alarming	P((int));
 

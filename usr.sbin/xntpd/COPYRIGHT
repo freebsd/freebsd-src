@@ -29,9 +29,9 @@
  * Craig Leres <leres@ee.lbl.gov> (port to 4.4BSD operating system,
  *	ppsclock, Maganavox GPS clock driver)
  * Nick Sayer <mrapple@quack.kfu.com> (SunOS streams modules)
- * Frank Kardel <Frank.Kardel@informatik.uni-erlangen.de>
- *      (PARSE (GENERIC) driver, STREAMS module for PARSE, support scripts,
- *       reference clock configuration scripts, Makefile cleanup)
+ * Frank Kardel <Frank.Kardel@informatik.uni-erlangen.de>(PARSE (GENERIC)
+ *	driver, STREAMS module for PARSE, support scripts, reference clock
+ *	configuration scripts, Makefile cleanup)
  * Rainer Pruy <Rainer.Pruy@informatik.uni-erlangen.de> (monitoring/trap
  *      scripts, statistics file handling)
  * Glenn Hollinger <glenn@herald.usask.ca> (GOES clock driver)
@@ -41,7 +41,7 @@
  *	modifications, HPUX modifications)
  * John A. Dundas III <dundas@salt.jpl.nasa.gov> (Apple A/UX port)
  * David L. Mills <mills@udel.edu> (Spectractom WWVB, Austron GPS,
- *	and KSI/Odetics IRIG-B clock drivers; pps support)
+ *	Heath, ATOM, ACTS, KSI/Odetics IRIG-B clock drivers; pps support)
  * Jeffrey Mogul <mogul@pa.dec.com> (ntptrace utility)
  * Steve Clift (clift@ml.csiro.au) OMEGA clock driver)
  * Mike Iglesias (iglesias@uci.edu) (DEC Alpha changes)
@@ -57,4 +57,6 @@
  * Jim Jagielski <jim@jagubox.gsfc.nasa.gov> (A/UX port)
  * Ray Schnitzler <schnitz@unipress.com> (First pass at a Unixware1 port.)
  * Ajit Thyagarajan <ajit@ee.udel.edu> (IP multicast support)
+ * Jeff Steinman <jss@pebbles.jpl.nasa.gov> (Datum PTS clock driver)
+ * Tomoaki TSURUOKA <tsuruoka@nc.fukuoka-u.ac.jp> (TRAK clock driver)
  */

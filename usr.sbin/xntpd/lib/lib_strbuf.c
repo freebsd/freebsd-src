@@ -1,4 +1,4 @@
-/* lib_strbuf.c,v 3.1 1993/07/06 01:08:27 jbj Exp
+/*
  * lib_strbuf - library string storage
  */
 

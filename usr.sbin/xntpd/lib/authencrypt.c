@@ -1,4 +1,4 @@
-/* authencrypt.c,v 3.1 1993/07/06 01:07:50 jbj Exp
+/*
  * authencrypt - compute and encrypt the mac field in an NTP packet
  */
 #include "ntp_stdlib.h"
@@ -19,7 +19,7 @@
 /*
  * Imported from the key data base module
  */
-extern U_LONG cache_keyid;	/* cached key ID */
+extern u_long cache_keyid;	/* cached key ID */
 extern u_char DEScache_ekeys[];	/* cached decryption keys */
 extern u_char DESzeroekeys[];	/* zero key decryption keys */
 
@@ -32,7 +32,7 @@ extern U_LONG authnokey;
 
 int
 DESauthencrypt(keyno, pkt, length)
-	U_LONG keyno;
+	u_long keyno;
 	U_LONG *pkt;
 	int length;	/* length of encrypted portion of packet */
 {

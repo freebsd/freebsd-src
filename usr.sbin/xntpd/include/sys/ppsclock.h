@@ -1,4 +1,3 @@
-/* ppsclock.h,v 3.1 1993/07/06 01:07:14 jbj Exp */
 /*
  * This software was developed by the Computer Systems Engineering group
  * at Lawrence Berkeley Laboratory under DARPA contract BG 91-66.

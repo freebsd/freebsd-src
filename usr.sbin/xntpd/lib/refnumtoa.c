@@ -1,4 +1,4 @@
-/* refnumtoa.c,v 3.1 1993/07/06 01:08:44 jbj Exp
+/*
  * refnumtoa - return asciized refclock addresses stored in local array space
  */
 #include <stdio.h>
@@ -9,9 +9,9 @@
 
 char *
 refnumtoa(num)
-	U_LONG num;
+	u_long num;
 {
-	register U_LONG netnum;
+	register u_long netnum;
 	register char *buf;
 	register const char *rclock;
 	
@@ -19,16 +19,12 @@ refnumtoa(num)
 	
 	LIB_GETBUF(buf);
 
-	rclock = clockname((int)((netnum>>8)&0xff));
+	rclock = clockname((int)((netnum >> 8) & 0xff));
 
 	if (rclock != NULL)
-	  {
-	    (void) sprintf(buf, "%s(%d)", clockname((int)((netnum>>8)&0xff)), netnum&0xff);
-	  }
+		(void)sprintf(buf, "%s(%lu)", rclock, netnum & 0xff);
 	else
-	  {
-	    (void) sprintf(buf, "REFCLK(%d,%d)", (netnum>>8)&0xff, netnum&0xff);
-	  }
-
+		(void)sprintf(buf, "REFCLK(%lu,%lu)",
+		    (netnum >> 8) & 0xff, netnum&0xff);
 	return buf;
 }

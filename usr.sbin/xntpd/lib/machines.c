@@ -41,3 +41,21 @@ ntp_memset(a, x, c)
 		*a++ = x;
 }
 #endif /*POSIX*/
+
+#if defined(USE_CLOCK_SETTIME)
+
+#include <time.h>
+
+int
+settimeofday(tvp)
+	struct timeval *tvp;
+{
+	struct timespec ts;
+
+	/* Convert timeval to timespec */
+	ts.tv_sec = tvp->tv_sec;
+	ts.tv_nsec = 1000 *  tvp->tv_usec;
+
+	return clock_settime(CLOCK_REALTIME, &ts);
+}
+#endif /* USE_CLOCK_SETTIME */

@@ -191,6 +191,19 @@ clkinput(c, tp)
 	if (putc(c, &clk->clkbuf) == -1)
 		goto flushout;
 	
+#ifdef CLKLDISC
+	/*
+	 * STREAMS people started writing timestamps this way.
+	 * It's not my fault, I am just going along with the flow...
+	 */
+	for (i = 0; i < sizeof(struct timeval); i++)
+		if (putc(*( ((char*)&tv) + i ), &clk->clkbuf) == -1)
+			goto flushout;
+#else
+	/*
+	 * This is a machine independant way of puting longs into
+	 * the datastream.  It has fallen into disuse...
+	 */
 	s = tv.tv_sec;
 	for (i = 0; i < sizeof(long); i++) {
 		if (putc((s >> 24) & 0xff, &clk->clkbuf) == -1)
@@ -204,6 +217,7 @@ clkinput(c, tp)
 			goto flushout;
 		s <<= 8;
 	}
+#endif
 
 	/*
 	 * If the length of the rawq exceeds our sanity limit, dump

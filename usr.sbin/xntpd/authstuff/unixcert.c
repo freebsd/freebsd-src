@@ -1,4 +1,4 @@
-/* unixcert.c,v 3.1 1993/07/06 01:05:14 jbj Exp
+/*
  * This file, and the certdata file, shamelessly stolen
  * from Phil Karn's DES implementation.
  *

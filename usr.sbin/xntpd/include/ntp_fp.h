@@ -1,4 +1,4 @@
-/* ntp_fp.h,v 3.1 1993/07/06 01:06:54 jbj Exp
+/*
  * ntp_fp.h - definitions for NTP fixed point arithmetic
  */
 
@@ -10,7 +10,7 @@
 
 /*
  * NTP uses two fixed point formats.  The first (l_fp) is the "long" format
- * and is 64 bits LONG with the decimal between bits 31 and 32.  This
+ * and is 64 bits long with the decimal between bits 31 and 32.  This
  * is used for time stamps in the NTP packet header (in network byte
  * order) and for internal computations of offsets (in local host byte
  * order).  We use the same structure for both signed and unsigned values,
@@ -103,13 +103,13 @@ typedef U_LONG u_fp;
  * Conversions between the two fixed point types
  */
 #define	MFPTOFP(x_i, x_f)	(((x_i)<<16) | (((x_f)>>16)&0xffff))
-#define	LFPTOFP(v)		MFPTOFP((v)->l_ui, (v)->l_uf)
+#define	LFPTOFP(v)		MFPTOFP((v)->l_i, (v)->l_f)
 
 #define UFPTOLFP(x, v) ((v)->l_ui = (u_fp)(x)>>16, (v)->l_uf = (x)<<16)
 #define FPTOLFP(x, v)  (UFPTOLFP((x), (v)), (x) < 0 ? (v)->l_ui -= 0x10000 : 0)
 
 /*
- * Primitive operations on LONG fixed point values.  If these are
+ * Primitive operations on long fixed point values.  If these are
  * reminiscent of assembler op codes it's only because some may
  * be replaced by inline assembler for particular machines someday.
  * These are the (kind of inefficient) run-anywhere versions.
@@ -263,7 +263,7 @@ typedef U_LONG u_fp;
 	((a_i) == (b_i) && (a_f) == (b_f))
 
 /*
- * Operations on the LONG fp format
+ * Operations on the long fp format
  */
 #define	L_ADD(r, a)	M_ADD((r)->l_ui, (r)->l_uf, (a)->l_ui, (a)->l_uf)
 #define	L_SUB(r, a)	M_SUB((r)->l_ui, (r)->l_uf, (a)->l_ui, (a)->l_uf)
@@ -277,6 +277,7 @@ typedef U_LONG u_fp;
 #define	L_CLR(v)	((v)->l_ui = (v)->l_uf = 0)
 
 #define	L_ISNEG(v)	(((v)->l_ui & 0x80000000) != 0)
+#define L_ISZERO(v)	((v)->l_ui == 0 && (v)->l_uf == 0)
 #define	L_ISHIS(a, b)	((a)->l_ui > (b)->l_ui || \
 			  ((a)->l_ui == (b)->l_ui && (a)->l_uf >= (b)->l_uf))
 #define	L_ISGEQ(a, b)	((a)->l_i > (b)->l_i || \
@@ -284,7 +285,7 @@ typedef U_LONG u_fp;
 #define	L_ISEQU(a, b)	M_ISEQU((a)->l_ui, (a)->l_uf, (b)->l_ui, (b)->l_uf)
 
 extern	char *	dofptoa		P((u_fp, int, int, int));
-extern	char *	dolfptoa	P((U_LONG, U_LONG, int, int, int));
+extern	char *	dolfptoa	P((u_long, u_long, int, int, int));
 
 extern	int	atolfp		P((const char *, l_fp *));
 extern	int	buftvtots	P((const char *, l_fp *));

@@ -1,4 +1,4 @@
-/* tvtoa.c,v 3.1 1993/07/06 01:08:50 jbj Exp
+/*
  * tvtoa - return an asciized representation of a struct timeval
  */
 #include <stdio.h>
@@ -12,8 +12,8 @@ tvtoa(tv)
 	struct timeval *tv;
 {
 	register char *buf;
-	register U_LONG sec;
-	register U_LONG usec;
+	register u_long sec;
+	register u_long usec;
 	register int isneg;
 
 	if (tv->tv_sec < 0 || tv->tv_usec < 0) {

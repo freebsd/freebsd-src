@@ -1,4 +1,4 @@
-/* atoint.c,v 3.1 1993/07/06 01:07:39 jbj Exp
+/*
  * atoint - convert an ascii string to a signed long, with error checking
  */
 #include <sys/types.h>
@@ -9,9 +9,9 @@
 int
 atoint(str, ival)
 	const char *str;
-	LONG *ival;
+	long *ival;
 {
-	register U_LONG u;
+	register long u;
 	register const char *cp;
 	register int isneg;
 	register int oflow_digit;
@@ -41,8 +41,8 @@ atoint(str, ival)
 	}
 
 	if (isneg)
-		*ival = -((LONG)u);
+		*ival = -u;
 	else 
-		*ival = (LONG)u;
+		*ival = u;
 	return 1;
 }

@@ -1,4 +1,4 @@
-/* modetoa.c,v 3.1 1993/07/06 01:08:33 jbj Exp
+/*
  * modetoa - return an asciized mode
  */
 #include <stdio.h>

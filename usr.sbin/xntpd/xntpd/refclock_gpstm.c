@@ -78,13 +78,11 @@
  * Radio interface parameters
  */
 #define	MAXDISPERSE	(FP_SECOND>>1) /* max error for synchronized clock (0.5 s as an u_fp) */
-#define	PRECISION	(-20)	/* precision assumed (about 1 ms) */
+#define	PRECISION	(-10)	/* precision assumed (about 1 ms) */
 #define	REFID		"GPS\0"	/* reference id */
 #define	DESCRIPTION	"Kinemetrics GPS-TM/TMD Receiver" /* who we are */
-#define	HSREFID		0x7f7f0f0a /* 127.127.15.10 refid hi strata */
 #define GMT		0	/* hour offset from Greenwich */
 #define	NCODES		3	/* stages of median filter */
-#define BMAX		99	/* timecode buffer length */
 #define	CODEDIFF	0x20000000	/* 0.125 seconds as an l_fp fraction */
 #define	TIMEOUT		180	/* ping the clock if it's silent this long */
 
@@ -93,7 +91,6 @@
  */
 enum gpstm_event {e_Init, e_F18, e_F50, e_F51, e_TS};
 static enum {Base, Start, F18, F50, F51, F08} State[MAXUNITS];
-static time_t Last[MAXUNITS];
 static void gpstm_doevent P((int, enum gpstm_event));
 static void gpstm_initstate P((int));
 
@@ -143,7 +140,7 @@ struct gpstm_unit {
 	u_char leap;			/* leap indicators */
 	u_short msec;			/* millisecond of second */
 	u_char quality;			/* quality character */
-	U_LONG yearstart;		/* start of current year */
+	u_long yearstart;		/* start of current year */
 	/*
 	 * Status tallies
  	 */
@@ -170,18 +167,19 @@ static l_fp fudgefactor1[MAXUNITS];
 static l_fp fudgefactor2[MAXUNITS];
 static u_char stratumtouse[MAXUNITS];
 static u_char readonlyclockflag[MAXUNITS];
+static U_LONG refid[MAXUNITS];
 
 /*
  * Function prototypes
  */
 static	void	gpstm_init	P((void));
-static	int	gpstm_start	P((u_int, struct peer *));
-static	void	gpstm_shutdown	P((int));
+static	int	gpstm_start	P((int, struct peer *));
+static	void	gpstm_shutdown	P((int, struct peer *));
 static	void	gpstm_rep_event	P((struct gpstm_unit *, int));
 static	void	gpstm_receive	P((struct recvbuf *));
 static	char	gpstm_process	P((struct gpstm_unit *, l_fp *, u_fp *));
 static	void	gpstm_poll	P((int, struct peer *));
-static	void	gpstm_control	P((u_int, struct refclockstat *,
+static	void	gpstm_control	P((int, struct refclockstat *,
 				   struct refclockstat *));
 static	void	gpstm_buginfo	P((int, struct refclockbug *));
 static	void	gpstm_send	P((struct gpstm_unit *, char *));
@@ -214,6 +212,7 @@ gpstm_init()
 		fudgefactor2[i].l_uf = 0;
 		stratumtouse[i] = 0;
 		readonlyclockflag[i] = 0;
+		memcpy((char *)&refid[i], REFID, 4);
 	}
 }
 
@@ -223,7 +222,7 @@ gpstm_init()
  */
 static int
 gpstm_start(unit, peer)
-	u_int unit;
+	int unit;
 	struct peer *peer;
 {
 	register struct gpstm_unit *gpstm;
@@ -417,10 +416,7 @@ gpstm_start(unit, peer)
 	peer->rootdelay = 0;
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
-	if (stratumtouse[unit] <= 1)
-		memmove((char *)&peer->refid, REFID, 4);
-	else
-		peer->refid = htonl(HSREFID);
+	peer->refid = refid[unit];
 	unitinuse[unit] = 1;
 	gpstm_initstate(unit);
 	return 1;
@@ -437,8 +433,9 @@ screwed:
  * gpstm_shutdown - shut down a clock
  */
 static void
-gpstm_shutdown(unit)
+gpstm_shutdown(unit, peer)
 	int unit;
+	struct peer *peer;
 {
 	register struct gpstm_unit *gpstm;
 
@@ -779,7 +776,9 @@ gpstm_doevent(unit, event)
 }
 
 static void
-gpstm_initstate(unit) {
+gpstm_initstate(unit)
+	int unit;
+ {
 	State[unit] = Base;		/* just in case */
 	gpstm_doevent(unit, e_Init);
 }
@@ -897,7 +896,7 @@ gpstm_poll(unit, peer)
  */
 static void
 gpstm_control(unit, in, out)
-	u_int unit;
+	int unit;
 	struct refclockstat *in;
 	struct refclockstat *out;
 {
@@ -907,48 +906,40 @@ gpstm_control(unit, in, out)
 		syslog(LOG_ERR, "gpstm_control: unit %d invalid", unit);
 		return;
 	}
-	gpstm = gpstm_units[unit];
 
 	if (in != 0) {
 		if (in->haveflags & CLK_HAVETIME1)
 			fudgefactor1[unit] = in->fudgetime1;
 		if (in->haveflags & CLK_HAVETIME2)
 			fudgefactor2[unit] = in->fudgetime2;
-		if (in->haveflags & CLK_HAVEVAL1) {
-			stratumtouse[unit] = (u_char)(in->fudgeval1 & 0xf);
-			if (unitinuse[unit]) {
-				struct peer *peer;
-
-				/*
-				 * Should actually reselect clock, but
-				 * will wait for the next timecode
-				 */
-				peer = gpstm->peer;
-				peer->stratum = stratumtouse[unit];
-				if (stratumtouse[unit] <= 1)
-					memmove((char *)&peer->refid,
-						REFID, 4);
-				else
-					peer->refid = htonl(HSREFID);
-			}
-		}
-		if (in->haveflags & CLK_HAVEFLAG1) {
+		if (in->haveflags & CLK_HAVEVAL1)
+			stratumtouse[unit] = (u_char)(in->fudgeval1);
+		if (in->haveflags & CLK_HAVEVAL2)
+			refid[unit] = in->fudgeval2;
+		if (in->haveflags & CLK_HAVEFLAG1)
 			readonlyclockflag[unit] = in->flags & CLK_FLAG1;
+		if (unitinuse[unit]) {
+			struct peer *peer;
+
+			peer = gpstm_units[unit]->peer;
+			peer->stratum = stratumtouse[unit];
+			peer->refid = refid[unit];
 		}
 	}
 
 	if (out != 0) {
+		memset((char *)out, 0, sizeof (struct refclockstat));
 		out->type = REFCLK_GPSTM_TRUETIME;
-		out->haveflags = CLK_HAVETIME1 | CLK_HAVETIME2
-				| CLK_HAVEVAL1 | CLK_HAVEVAL2
-				| CLK_HAVEFLAG1;
+		out->haveflags = CLK_HAVETIME1 | CLK_HAVETIME2 | CLK_HAVEVAL1 |
+		    CLK_HAVEVAL2 | CLK_HAVEFLAG1;
 		out->clockdesc = DESCRIPTION;
 		out->fudgetime1 = fudgefactor1[unit];
 		out->fudgetime2 = fudgefactor2[unit];
 		out->fudgeval1 = (LONG)stratumtouse[unit];
-		out->fudgeval2 = 0;
+		out->fudgeval2 = refid[unit];
 		out->flags = readonlyclockflag[unit];
 		if (unitinuse[unit]) {
+			gpstm = gpstm_units[unit];
 			out->lencode = gpstm->lencode;
 			out->lastcode = gpstm->lastcode;
 			out->timereset = current_time - gpstm->timestarted;
@@ -958,13 +949,6 @@ gpstm_control(unit, in, out)
 			out->baddata = gpstm->baddata;
 			out->lastevent = gpstm->lastevent;
 			out->currentstatus = gpstm->status;
-		} else {
-			out->lencode = 0;
-			out->lastcode = "";
-			out->polls = out->noresponse = 0;
-			out->badformat = out->baddata = 0;
-			out->timereset = 0;
-			out->currentstatus = out->lastevent = CEVNT_NOMINAL;
 		}
 	}
 }

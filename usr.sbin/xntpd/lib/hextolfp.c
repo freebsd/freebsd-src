@@ -1,4 +1,4 @@
-/* hextolfp.c,v 3.1 1993/07/06 01:08:22 jbj Exp
+/*
  * hextolfp - convert an ascii hex string to an l_fp number
  */
 #include <stdio.h>
@@ -15,8 +15,8 @@ hextolfp(str, lfp)
 {
 	register const char *cp;
 	register const char *cpstart;
-	register U_LONG dec_i;
-	register U_LONG dec_f;
+	register u_long dec_i;
+	register u_long dec_f;
 	char *ind = NULL;
 	static char *digits = "0123456789abcdefABCDEF";
 

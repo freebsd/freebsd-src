@@ -1,4 +1,4 @@
-/* keyparity.c,v 3.1 1993/07/06 01:04:57 jbj Exp
+/*
  * keyparity - add parity bits to key and/or change an ascii key to binary
  */
 
@@ -33,9 +33,9 @@ int asciiflag = 0;
 int ntpoutflag = 0;
 int gotoopt = 0;
 
-static	int	parity	P((U_LONG *));
-static	int	decodekey P((int, char *, U_LONG *));
-static	void	output	P((U_LONG *, int));
+static	int	parity	P((u_long *));
+static	int	decodekey P((int, char *, u_long *));
+static	void	output	P((u_long *, int));
 
 /*
  * main - parse arguments and handle options
@@ -48,7 +48,7 @@ char *argv[];
 	int c;
 	int errflg = 0;
 	int keytype;
-	U_LONG key[2];
+	u_long key[2];
 	extern int ntp_optind;
 	extern char *ntp_optarg;
 
@@ -138,9 +138,9 @@ char *argv[];
  */
 static int
 parity(key)
-	U_LONG *key;
+	u_long *key;
 {
-	U_LONG mask;
+	u_long mask;
 	int parity_err;
 	int bitcount;
 	int half;
@@ -193,7 +193,7 @@ static int
 decodekey(keytype, str, key)
 	int keytype;
 	char *str;
-	U_LONG *key;
+	u_long *key;
 {
 	u_char keybytes[8];
 	char *cp;
@@ -225,7 +225,7 @@ decodekey(keytype, str, key)
 			if (xdigit == 0)
 				return 0;
 			key[i>>3] <<= 4;
-			key[i>>3] |= (U_LONG)(xdigit - hex) & 0xf;
+			key[i>>3] |= (u_long)(xdigit - hex) & 0xf;
 		}
 
 		/*
@@ -265,7 +265,7 @@ decodekey(keytype, str, key)
  */
 static void
 output(key, ntpformat)
-	U_LONG *key;
+	u_long *key;
 	int ntpformat;
 {
 	int i;

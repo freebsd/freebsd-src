@@ -38,6 +38,7 @@
 #include <sys/kernel.h>
 #include <sys/user.h>
 #include <sys/errno.h>
+#include <sys/syslog.h>
 
 #include <sys/clkdefs.h>
 

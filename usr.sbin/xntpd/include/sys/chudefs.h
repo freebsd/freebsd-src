@@ -1,4 +1,4 @@
-/* chudefs.h,v 3.1 1993/07/06 01:07:11 jbj Exp
+/*
  * Definitions for the CHU line discipline v2.0
  */
 

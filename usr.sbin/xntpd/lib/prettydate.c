@@ -1,4 +1,4 @@
-/* prettydate.c,v 3.1 1993/07/06 01:08:42 jbj Exp
+/*
  * prettydate - convert a time stamp to something readable
  */
 #include <stdio.h>
@@ -18,8 +18,8 @@ prettydate(ts)
 {
 	char *bp;
 	struct tm *tm;
-	U_LONG sec;
-	U_LONG msec;
+	time_t sec;
+	u_long msec;
 	static char *months[] = {
 		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
@@ -31,14 +31,14 @@ prettydate(ts)
 	LIB_GETBUF(bp);
 	
 	sec = ts->l_ui - JAN_1970;
-	msec = ts->l_uf / 4294967;	/* fract / (2**32/1000) */
+	msec = ts->l_uf / 4294967;	/* fract / (2 ** 32 / 1000) */
 
-	tm = localtime((LONG *)&sec);
+	tm = localtime(&sec);
 
-	(void) sprintf(bp, "%08x.%08x  %s, %s %2d %4d %2d:%02d:%02d.%03d",
-	    ts->l_ui, ts->l_uf, days[tm->tm_wday], months[tm->tm_mon],
-	    tm->tm_mday, 1900+tm->tm_year, tm->tm_hour, tm->tm_min,
-	    tm->tm_sec, msec);
+	(void) sprintf(bp, "%08lx.%08lx  %s, %s %2d %4d %2d:%02d:%02d.%03lu",
+		       (u_long)ts->l_ui, (u_long)ts->l_uf, days[tm->tm_wday],
+		       months[tm->tm_mon], tm->tm_mday, 1900 + tm->tm_year,
+		       tm->tm_hour,tm->tm_min, tm->tm_sec, msec);
 	
 	return bp;
 }

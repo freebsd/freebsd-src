@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/v3/include/sys/parsestreams.h,v 3.11 1994/01/25 19:04:30 kardel Exp
+ * /src/NTP/REPOSITORY/v3/include/sys/parsestreams.h,v 3.12 1994/06/01 08:21:08 kardel Exp
  *
- * parsestreams.h,v 3.11 1994/01/25 19:04:30 kardel Exp
+ * parsestreams.h,v 3.12 1994/06/01 08:21:08 kardel Exp
  *
  * Copyright (c) 1989,1990,1991,1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
@@ -13,7 +13,7 @@
  */
 
 #if	!(defined(lint) || defined(__GNUC__))
-  static char parse77hrcsid[]="parsestreams.h,v 3.11 1994/01/25 19:04:30 kardel Exp";
+  static char parse77hrcsid[]="parsestreams.h,v 3.12 1994/06/01 08:21:08 kardel Exp";
 #endif
 
 #undef PARSEKERNEL
@@ -42,7 +42,7 @@ typedef struct parsestream parsestream_t;
 
 /*--------------- debugging support ---------------------------------*/
 
-#ifdef DEBUG_DCF
+#ifdef DEBUG_PARSE
 
 extern int parsedebug;
 

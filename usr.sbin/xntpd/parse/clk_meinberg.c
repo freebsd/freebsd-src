@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_MEINBERG)
 /*
- * /src/NTP/REPOSITORY/v3/parse/clk_meinberg.c,v 3.14 1994/02/20 13:04:37 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/clk_meinberg.c,v 3.15 1994/05/30 10:19:59 kardel Exp
  *  
- * clk_meinberg.c,v 3.14 1994/02/20 13:04:37 kardel Exp
+ * clk_meinberg.c,v 3.15 1994/05/30 10:19:59 kardel Exp
  *
  * Meinberg clock support
  *
@@ -136,48 +136,54 @@ static struct format meinberg_fmt[] =
   }
 };
 
-static unsigned LONG cvt_meinberg();
-static unsigned LONG cvt_mgps();
+static u_long cvt_meinberg();
+static u_long cvt_mgps();
 
 clockformat_t clock_meinberg[] =
 {
   {
+    (unsigned LONG (*)())0,	/* no input handling */
     cvt_meinberg,		/* Meinberg conversion */
     syn_simple,			/* easy time stamps for RS232 (fallback) */
     pps_simple,			/* easy PPS monitoring */
-    (unsigned LONG (*)())0,	/* no time code synthesizer monitoring */
+    (u_long (*)())0,		/* no time code synthesizer monitoring */
     (void *)&meinberg_fmt[0],	/* conversion configuration */
     "Meinberg Standard",	/* Meinberg simple format - beware */
     32,				/* string buffer */
     F_START|F_END|SYNC_START|SYNC_ONE, /* paket START/END delimiter, START synchronisation, PPS ONE sampling */
+    0,				/* no private data (complete pakets) */
     { 0, 0},
     '\2',
     '\3',
     '\0'
   },
   {
+    (unsigned LONG (*)())0,	/* no input handling */
     cvt_meinberg,		/* Meinberg conversion */
     syn_simple,			/* easy time stamps for RS232 (fallback) */
     pps_simple,			/* easy PPS monitoring */
-    (unsigned LONG (*)())0,	/* no time code synthesizer monitoring */
+    (u_long (*)())0,		/* no time code synthesizer monitoring */
     (void *)&meinberg_fmt[1],	/* conversion configuration */
     "Meinberg Extended",	/* Meinberg enhanced format */
     32,				/* string buffer */
     F_START|F_END|SYNC_START|SYNC_ONE,	/* paket START/END delimiter, START synchronisation, PPS ONE sampling  */
+    0,				/* no private data (complete pakets) */
     { 0, 0},
     '\2',
     '\3',
     '\0'
   },
   {
+    (unsigned LONG (*)())0,	/* no input handling */
     cvt_mgps,			/* Meinberg GPS166 conversion */
     syn_simple,			/* easy time stamps for RS232 (fallback) */
     pps_simple,			/* easy PPS monitoring */
-    (unsigned LONG (*)())0,	/* no time code synthesizer monitoring */
+    (u_long (*)())0,		/* no time code synthesizer monitoring */
     (void *)&meinberg_fmt[2],	/* conversion configuration */
     "Meinberg GPS Extended",	/* Meinberg FAU GPS format */
     70,				/* string buffer */
     F_START|F_END|SYNC_START|SYNC_ONE,	/* paket START/END delimiter, START synchronisation, PPS ONE sampling  */
+    0,				/* no private data (complete pakets) */
     { 0, 0},
     '\2',
     '\3',
@@ -190,7 +196,7 @@ clockformat_t clock_meinberg[] =
  *
  * convert simple type format
  */
-static unsigned LONG
+static u_long
 cvt_meinberg(buffer, size, format, clock)
   register char          *buffer;
   register int            size;
@@ -305,7 +311,7 @@ cvt_meinberg(buffer, size, format, clock)
  *
  * convert Meinberg GPS format
  */
-static unsigned LONG
+static u_long
 cvt_mgps(buffer, size, format, clock)
   register char          *buffer;
   register int            size;
@@ -335,7 +341,7 @@ cvt_mgps(buffer, size, format, clock)
 	}
       else
 	{
-	  LONG h;
+	  long h;
 	  char *f = &buffer[format->field_offsets[O_FLAGS].offset];
 	  
 	  clock->flags = PARSEB_S_LEAP|PARSEB_S_POSITION;
@@ -422,6 +428,9 @@ cvt_mgps(buffer, size, format, clock)
  * History:
  *
  * clk_meinberg.c,v
+ * Revision 3.15  1994/05/30  10:19:59  kardel
+ * LONG cleanup
+ *
  * Revision 3.14  1994/02/20  13:04:37  kardel
  * parse add/delete second support
  *
