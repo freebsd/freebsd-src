@@ -245,6 +245,11 @@ ata_pci_attach(device_t dev)
     subclass = pci_get_subclass(dev);
     cmd = pci_read_config(dev, PCIR_COMMAND, 4);
 
+    if (!(cmd & PCIM_CMD_PORTEN)) {
+	device_printf(dev, "ATA channel disabled by BIOS\n");
+	return 0;
+    }
+
     /* is busmastering supported ? */
     if ((cmd & (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) == 
 	(PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) {
