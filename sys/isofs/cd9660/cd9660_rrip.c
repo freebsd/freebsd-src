@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_rrip.c,v 1.4 1994/09/15 19:46:01 bde Exp $
+ * $Id: cd9660_rrip.c,v 1.5 1994/09/26 00:32:57 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ cd9660_rrip_defattr(isodir,ana)
 {
 	/* But this is a required field! */
 	printf("RRIP without PX field?\n");
-	cd9660_defattr(isodir,ana->inop,NULL);
+	cd9660_defattr(isodir,ana->inop,NULL,ISO_FTYPE_RRIP);
 }
 
 /*
@@ -88,7 +88,7 @@ cd9660_rrip_defattr(isodir,ana)
  */
 static int
 cd9660_rrip_slink(p,ana)
-	ISO_RRIP_SLINK  *p;
+	ISO_RRIP_SLINK	*p;
 	ISO_RRIP_ANALYZE *ana;
 {
 	register ISO_RRIP_SLINK_COMPONENT *pcomp;
@@ -286,7 +286,7 @@ cd9660_rrip_defname(isodir,ana)
  */
 static int
 cd9660_rrip_pclink(p,ana)
-	ISO_RRIP_CLINK  *p;
+	ISO_RRIP_CLINK	*p;
 	ISO_RRIP_ANALYZE *ana;
 {
 	*ana->inump = isonum_733(p->dir_loc) << ana->imp->im_bshift;
@@ -299,7 +299,7 @@ cd9660_rrip_pclink(p,ana)
  */
 static int
 cd9660_rrip_reldir(p,ana)
-	ISO_RRIP_RELDIR  *p;
+	ISO_RRIP_RELDIR	 *p;
 	ISO_RRIP_ANALYZE *ana;
 {
 	/* special hack to make caller aware of RE field */
@@ -323,19 +323,22 @@ cd9660_rrip_tstamp(p,ana)
 			ptime += 7;
 		
 		if (*p->flags&ISO_SUSP_TSTAMP_MODIFY) {
-			cd9660_tstamp_conv7(ptime,&ana->inop->inode.iso_mtime);
+			cd9660_tstamp_conv7(ptime,&ana->inop->inode.iso_mtime,
+					    ISO_FTYPE_RRIP);
 			ptime += 7;
 		} else
 			bzero(&ana->inop->inode.iso_mtime,sizeof(struct timespec));
 		
 		if (*p->flags&ISO_SUSP_TSTAMP_ACCESS) {
-			cd9660_tstamp_conv7(ptime,&ana->inop->inode.iso_atime);
+			cd9660_tstamp_conv7(ptime,&ana->inop->inode.iso_atime,
+					    ISO_FTYPE_RRIP);
 			ptime += 7;
 		} else
 			ana->inop->inode.iso_atime = ana->inop->inode.iso_mtime;
 		
 		if (*p->flags&ISO_SUSP_TSTAMP_ATTR)
-			cd9660_tstamp_conv7(ptime,&ana->inop->inode.iso_ctime);
+			cd9660_tstamp_conv7(ptime,&ana->inop->inode.iso_ctime,
+					    ISO_FTYPE_RRIP);
 		else
 			ana->inop->inode.iso_ctime = ana->inop->inode.iso_mtime;
 		
@@ -370,7 +373,7 @@ cd9660_rrip_deftstamp(isodir,ana)
 	struct iso_directory_record  *isodir;
 	ISO_RRIP_ANALYZE *ana;
 {
-	cd9660_deftstamp(isodir,ana->inop,NULL);
+	cd9660_deftstamp(isodir,ana->inop,NULL,ISO_FTYPE_RRIP);
 }
 
 /*
@@ -476,7 +479,7 @@ cd9660_rrip_loop(isodir,ana,table)
 	
 	/*
 	 * Note: If name length is odd,
-	 *       it will be padding 1 byte  after the name
+	 *	 it will be padding 1 byte after the name
 	 */
 	pwhead = isodir->name + isonum_711(isodir->name_len);
 	if (!(isonum_711(isodir->name_len)&1))
