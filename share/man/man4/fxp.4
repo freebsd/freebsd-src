@@ -37,7 +37,7 @@
 The
 .Nm
 driver provides support for the EtherExpress Pro/10, Pro/100B, and Pro/100+
-PCI Fast Ethernet adapters based on the Intel i82557, i82558, i82559 
+PCI Fast Ethernet adapters based on the Intel i82557, i82558, i82559
 or i82550 ethernet chips.
 .Pp
 The
@@ -72,12 +72,13 @@ driver also supports a special link option:
 .Bl -tag -width link0
 .It Cm link0
 Some chip revisions have loadable microcode which can be used to reduce the
-interrupt load on the host cpu.  Not all boards have support microcode support.
-Setting the 
+interrupt load on the host cpu.
+Not all boards have support microcode support.
+Setting the
 .Cm link0
 flag with
 .Xr ifconfig 8
-will load download the microcode to the chip if it is available.
+will download the microcode to the chip if it is available.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -99,7 +100,7 @@ the line
 .Dq Li hint.fxp.0.prefer_iomap="0" .
 .It "fxp%d: Microcode loaded, int_delay: %d usec  bundle_max: %d"
 The chip has successfully downloaded the microcode, and changed the
-parametrized values to the giveng settings.
+parametrized values to the given settings.
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
