@@ -139,7 +139,7 @@ dev/ppbus/vpoio.c	optional vpo
 dev/ppbus/immio.c	optional vpo
 dev/ppbus/if_plip.c	optional plip
 smbus_if.o		optional smbus					\
-	dependency	"smbus_if.c"					\
+	dependency	"smbus_if.c smbus_if.h"				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 smbus_if.c		optional smbus					\ 
@@ -155,9 +155,10 @@ smbus_if.h		optional smbus					\
 dev/smbus/smbconf.c	optional smbus
 dev/smbus/smbus.c	optional smbus
 dev/smbus/smb.c		optional smb
-dev/iicbus/iicsmb.c	optional iicsmb
+dev/iicbus/iicsmb.c	optional iicsmb					\
+	dependency	"iicbus_if.h"
 iicbus_if.o		optional iicbus					\
-	dependency	"iicbus_if.c"					\
+	dependency	"iicbus_if.c iicbus_if.h"			\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 iicbus_if.c		optional iicbus					\ 
@@ -368,7 +369,8 @@ netatm/ipatm/ipatm_usrreq.c	optional atm_ip atm_core
 netatm/ipatm/ipatm_vcm.c	optional atm_ip atm_core
 netatm/sigpvc/sigpvc_if.c	optional atm_sigpvc atm_core
 netatm/sigpvc/sigpvc_subr.c	optional atm_sigpvc atm_core
-netatm/spans/spans_arp.c	optional atm_spans atm_core
+netatm/spans/spans_arp.c	optional atm_spans atm_core	\
+	dependency	"spans_xdr.h"
 netatm/spans/spans_cls.c	optional atm_spans atm_core
 netatm/spans/spans_if.c		optional atm_spans atm_core
 netatm/spans/spans_kxdr.c	optional atm_spans atm_core
