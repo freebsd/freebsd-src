@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id$";
+static const char *rcsid = "$Id: plist.c,v 1.19 1997/02/22 16:09:51 peter Exp $";
 #endif
 
 /*
@@ -23,6 +23,7 @@ static const char *rcsid = "$Id$";
  */
 
 #include "lib.h"
+#include <errno.h>
 #include <md5.h>
 
 /* Add an item to a packing list */
@@ -352,10 +353,16 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
     PackingList p;
     char *Where = ".", *last_file = "";
     Boolean fail = SUCCESS;
-    char tmp[FILENAME_MAX];
+    Boolean preserve;
+    char tmp[FILENAME_MAX], *name = NULL;
 
+    preserve = find_plist_option(pkg, "preserve") ? TRUE : FALSE;
     for (p = pkg->head; p; p = p->next) {
 	switch (p->type)  {
+	case PLIST_NAME:
+	    name = p->name;
+	    break;
+
 	case PLIST_IGNORE:
 	    p = p->next;
 	    break;
@@ -401,8 +408,22 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 		}
 		if (Verbose)
 		    printf("Delete file %s\n", tmp);
+		if (!Fake && preserve) {
+		    if (!name)
+			whinge("preserve set but no package name supplied!");
+		    else {
+			char tmp2[FILENAME_MAX];
 
-		if (!Fake && delete_hierarchy(tmp, ign_err, nukedirs)) {
+			snprintf(tmp2, FILENAME_MAX, "%s.%s", tmp, name);
+			if (fexists(tmp2)) {
+			    (void)chflags(tmp, 0);
+			    delete_hierarchy(tmp, TRUE, TRUE);
+			    if (rename(tmp2, tmp))
+				whinge("preserve:  Unable to restore %s as %s, errno = %d", tmp2, tmp, errno);
+			}
+		    }
+		}
+		else if (!Fake && delete_hierarchy(tmp, ign_err, nukedirs)) {
 		    whinge("Unable to completely remove file '%s'", tmp);
 		    fail = FAIL;
 		}
