@@ -76,7 +76,7 @@ int
 _MSKanji_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((_MSKanjiState *)ps)->count == 0);
+	return (ps == NULL || ((const _MSKanjiState *)ps)->count == 0);
 }
 
 size_t

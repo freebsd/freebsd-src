@@ -75,7 +75,7 @@ int
 _GBK_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((_GBKState *)ps)->count == 0);
+	return (ps == NULL || ((const _GBKState *)ps)->count == 0);
 }
 
 static __inline int
