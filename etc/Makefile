@@ -61,10 +61,10 @@ FILESYSTEM_FILES+=	usr/sbin/bad144
 
 CPIO_FILES=	${COPYRIGHT}
 CPIO_FILES+=	usr/bin/gunzip usr/bin/gzcat usr/bin/gzip usr/bin/zcat
-CPIO_CPIO=	bin/chmod bin/cp bin/mv bin/pwd bin/rm bin/stty
+CPIO_CPIO=	bin/chmod bin/cp bin/dd bin/mv bin/pwd bin/rm bin/stty
 CPIO_CPIO+=	etc/protocols etc/services
 CPIO_CPIO+=	sbin/ifconfig sbin/fsck sbin/mknod
-CPIO_CPIO+=	sbin/route sbin/shutdown sbin/slattach
+CPIO_CPIO+=	sbin/route sbin/slattach
 CPIO_CPIO+=	tmp
 CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/ftp
 CPIO_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
@@ -74,11 +74,12 @@ CPIO_CPIO+=	usr/sbin/update usr/sbin/chown
 CPIO_CPIO+=	var
 
 CRYPT_LIB=	lib/libcrypt
-CRYPT_FILES=	bin/ed bin/rcp
-CRYPT_FILES+=	libexec/ftpd libexec/makekey libexec/rexecd libexec/rlogind
-CRYPT_FILES+=	libexec/rshd libexec/telnetd libexec/uucpd
-CRYPT_FILES+=	usr.bin/bdes usr.bin/lock usr.bin/login usr.bin/passwd
-CRYPT_FILES+=	usr.bin/rlogin usr.bin/rsh usr.bin/su usr.bin/telnet
+CRYPT_SRCS=	bin/ed bin/rcp
+CRYPT_SRCS+=	libexec/ftpd libexec/makekey libexec/rexecd libexec/rlogind
+CRYPT_SRCS+=	libexec/rshd libexec/telnetd libexec/uucpd
+CRYPT_SRCS+=	usr.bin/bdes usr.bin/lock usr.bin/login usr.bin/passwd
+CRYPT_SRCS+=	usr.bin/rlogin usr.bin/rsh usr.bin/su usr.bin/telnet
+CRYPT_DIRS=	bin usr usr/bin usr/lib usr/libexec 
 
 all clean cleandir depend etc install lint:
 
@@ -86,14 +87,14 @@ crypt:
 	rm -f ${LIBCRYPT};
 	(cd ${.CURDIR}/../${CRYPT_LIB}; \
 		${MAKE} cleandir obj depend all install)
-	for i in ${CRYPT_FILES}; do \
+	for i in ${CRYPT_SRCS}; do \
 		cd ${.CURDIR}/../$$i; \
 		${MAKE} cleandir obj depend all; \
 	done
 	
 non-crypt:
 	rm -f ${LIBCRYPT}
-	for i in ${CRYPT_FILES}; do \
+	for i in ${CRYPT_SRCS}; do \
 		cd ${.CURDIR}/../$$i; \
 		${MAKE} cleandir obj depend all; \
 	done
@@ -201,27 +202,29 @@ kcopy-floppy:
 	install -c -o root -g wheel -m 755 etc.i386/kc.profile \
 	    ${MOUNT}/.profile
 
-kcopy-ah-floppy: kcopy-floppy
+kcopy-ah-floppy:
+	${MAKE} kcopy-floppy
 	(cd ../sys/compile/GENERICAH; \
 	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
 	fsck /dev/r${FLOPPY}a
-	dd if=/dev/r${FLOPPY}a of=${DESTDIR}/../kcopy-ah-floppy \
+	dd if=/dev/r${FLOPPY}a of=${RELEASEDIR}/floppies/kcopy-ah-floppy \
 		bs=15b count=160
-	gzip --no-name -9 -c ${DESTDIR}/../kcopy-ah-floppy \
-		>${DESTDIR}/../kcopy-ah-floppy.gz
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy-ah-floppy \
+		>${RELEASEDIR}/floppies/kcopy-ah-floppy.gz
 
-kcopy-bt-floppy: kcopy-floppy
+kcopy-bt-floppy:
+	${MAKE} kcopy-floppy
 	(cd ../sys/compile/GENERICBT; \
 	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
 	fsck /dev/r${FLOPPY}a
-	dd if=/dev/r${FLOPPY}a of=${DESTDIR}/../kcopy-bt-floppy \
+	dd if=/dev/r${FLOPPY}a of=${RELEASEDIR}/floppies/kcopy-bt-floppy \
 		bs=15b count=160
-	gzip --no-name -9 -c ${DESTDIR}/../kcopy-bt-floppy \
-		>${DESTDIR}/../kcopy-bt-floppy.gz
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy-bt-floppy \
+		>${RELEASEDIR}/floppies/kcopy-bt-floppy.gz
 
 filesystem-floppy:
 	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
@@ -250,10 +253,10 @@ filesystem-floppy:
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
 	fsck /dev/r${FLOPPY}a
-	dd if=/dev/r${FLOPPY}a of=${DESTDIR}/../filesystem-floppy \
+	dd if=/dev/r${FLOPPY}a of=${RELEASEDIR}/floppies/filesystem-floppy \
 		bs=15b count=160
-	gzip --no-name -9 -c ${DESTDIR}/../filesystem-floppy \
-		>${DESTDIR}/../filesystem-floppy.gz
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/filesystem-floppy \
+		>${RELEASEDIR}/floppies/filesystem-floppy.gz
 
 cpio-floppy:
 	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
@@ -272,15 +275,75 @@ cpio-floppy:
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
 	fsck /dev/r${FLOPPY}a
-	dd if=/dev/r${FLOPPY}a of=${DESTDIR}/../cpio-floppy \
+	dd if=/dev/r${FLOPPY}a of=${RELEASEDIR}/floppies/cpio-floppy \
 		bs=15b count=160
-	gzip --no-name -9 -c ${DESTDIR}/../cpio-floppy \
-		>${DESTDIR}/../cpio-floppy.gz
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cpio-floppy \
+		>${RELEASEDIR}/floppies/cpio-floppy.gz
+
+bin-tarball:
+	(cd ${DESTDIR}; \
+		tar cf - . | gzip --no-name -9 -c | \
+			split -b 240640 - \
+			${RELEASEDIR}/tarballs/bin.tar.gz.)
+
+des-tarball:
+	rm -rf ${RELEASEDIR}/tmpdes
+	mkdir ${RELEASEDIR}/tmpdes
+	for i in ${CRYPT_DIRS}; do \
+		cd ${RELEASEDIR}/tmpdes; \
+		mkdir $$i; \
+		chown ${BINOWN}.${GRPOWN} $$i; \
+		chmod 755 $$i; \
+	done
+	# This is ugly, it force installs a /usr/lib/libcrypt.a so
+	# that the other makes will be built with des.
+	#
+	(cd ${.CURDIR}/../${CRYPT_LIB}; \
+		unset NOCRYPT; \
+		DESTDIR=; export DESTDIR; \
+		${MAKE} cleandir obj depend all install; \
+		NOMAN=noman; export NOMAN; \
+		DESTDIR=${RELEASEDIR}/tmpdes; export DESTDIR; \
+		${MAKE} cleandir obj depend all install)
+	for i in ${CRYPT_SRCS}; do \
+		unset NOCRYPT; \
+		DESTDIR=${RELEASEDIR}/tmpdes; export DESTDIR; \
+		NOMAN=noman; export NOMAN; \
+		cd ${.CURDIR}/../$$i; \
+		${MAKE} cleandir obj depend all install; \
+	done
+	(cd ${RELEASEDIR}/tmpdes; \
+		tar cf - . | gzip --no-name -9 -c | \
+			split -b 240640 - \
+			${RELEASEDIR}/tarballs/des.tar.gz.)
+	rm -rf ${RELEASEDIR}/tmpdes
 
 distrib-dirs:
 	mtree -u -f mtree/BSD.root.dist -p ${DESTDIR}/
 	mtree -u -f mtree/BSD.var.dist -p ${DESTDIR}/var
 	mtree -u -f mtree/BSD.usr.dist -p ${DESTDIR}/usr
+.if defined(CDROMDIST)
+	mtree -u -f mtree/BSD.local.dist -p ${DESTDIR}/usr/local
+.endif
 	cd ${DESTDIR}; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
+
+floppies: kcopy-ah-floppy kcopy-bt-floppy filesystem-floppy \
+	  cpio-floppy
+
+release: release-dirs distribution kcopy-kernels floppies bin-tarball des-tarball
+	
+release-dirs:
+	rm -rf ${RELEASEDIR}/filesystem
+	mkdir ${RELEASEDIR}/filesystem
+	chown root.wheel ${RELEASEDIR}/filesystem
+	chmod 755 ${RELEASEDIR}/filesystem
+	rm -rf ${RELEASEDIR}/tarballs
+	mkdir ${RELEASEDIR}/tarballs
+	chown root.wheel ${RELEASEDIR}/tarballs
+	chmod 755 ${RELEASEDIR}/tarballs
+	rm -rf ${RELEASEDIR}/floppies
+	mkdir ${RELEASEDIR}/floppies
+	chown root.wheel ${RELEASEDIR}/floppies
+	chmod 755 ${RELEASEDIR}/floppies
 
 .include <bsd.prog.mk>
