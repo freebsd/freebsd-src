@@ -604,17 +604,17 @@ void
 do_login(Session *s, const char *command)
 {
 	FILE *f;
-	char *time_string;
 #ifndef USE_PAM
+	char *time_string;
 	char *newcommand = NULL;
 #endif
 	char buf[256];
-	char hostname[MAXHOSTNAMELEN];
 #ifndef USE_PAM
+	char hostname[MAXHOSTNAMELEN];
 	socklen_t fromlen;
 	struct sockaddr_storage from;
-#endif
 	time_t last_login_time;
+#endif
 	struct passwd * pw = s->pw;
 #ifndef USE_PAM
 	pid_t pid = getpid();
@@ -647,6 +647,7 @@ do_login(Session *s, const char *command)
 	}
 #endif
 
+#ifndef USE_PAM
 	/* Get the time and hostname when the user last logged in. */
 	if (options.print_lastlog) {
 		hostname[0] = '\0';
@@ -654,7 +655,6 @@ do_login(Session *s, const char *command)
 		    hostname, sizeof(hostname));
 	}
 
-#ifndef USE_PAM
 	/* Record that there was a login on that tty from the remote host. */
 	record_login(pid, s->tty, pw->pw_name, pw->pw_uid,
 	    get_remote_name_or_ip(utmp_len, options.verify_reverse_mapping),
@@ -736,6 +736,7 @@ do_login(Session *s, const char *command)
 	}
 #endif /* HAVE_LOGIN_CAP */
 
+#ifndef USE_PAM
 	/*
 	 * If the user has logged in before, display the time of last
 	 * login. However, don't display anything extra if a command
@@ -756,6 +757,7 @@ do_login(Session *s, const char *command)
 		else
 			printf("Last login: %s from %s\r\n", time_string, hostname);
 	}
+#endif /* !USE_PAM */
 
 #ifdef HAVE_LOGIN_CAP
 	if (command == NULL && !check_quietlogin(s, command) &&
