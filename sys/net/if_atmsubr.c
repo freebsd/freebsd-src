@@ -45,11 +45,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/errno.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -67,6 +70,8 @@
 #ifdef NATM
 #include <netnatm/natm.h>
 #endif
+
+SYSCTL_NODE(_hw, OID_AUTO, atm, CTLFLAG_RW, 0, "ATM hardware");
 
 #ifndef ETHERTYPE_IPV6
 #define ETHERTYPE_IPV6	0x86dd
@@ -283,7 +288,7 @@ atm_input(ifp, ah, m, rxhand)
 }
 
 /*
- * Perform common duties while attaching to interface list
+ * Perform common duties while attaching to interface list.
  */
 void
 atm_ifattach(ifp)
@@ -295,6 +300,7 @@ atm_ifattach(ifp)
 	ifp->if_type = IFT_ATM;
 	ifp->if_addrlen = 0;
 	ifp->if_hdrlen = 0;
+	if_attach(ifp);
 	ifp->if_mtu = ATMMTU;
 	ifp->if_output = atm_output;
 #if 0
@@ -321,3 +327,21 @@ atm_ifattach(ifp)
 		}
 
 }
+
+/*
+ * Common stuff for detaching an ATM interface
+ */
+void
+atm_ifdetach(struct ifnet *ifp)
+{
+	if_detach(ifp);
+}
+
+static moduledata_t atm_mod = {
+        "atm",
+        NULL,
+        0
+};
+                
+DECLARE_MODULE(atm, atm_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(atm, 1);
