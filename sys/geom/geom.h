@@ -311,7 +311,7 @@ extern struct sx topology_lock;
 	} while (0)
 
 #define DECLARE_GEOM_CLASS_INIT(class, name, init) 	\
-	SYSINIT(name, SI_SUB_PSEUDO, SI_ORDER_FIRST, init, NULL);
+	SYSINIT(name, SI_SUB_DRIVERS, SI_ORDER_FIRST, init, NULL);
 
 #define DECLARE_GEOM_CLASS(class, name) 	\
 	static void				\
