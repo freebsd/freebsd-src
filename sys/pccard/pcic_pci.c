@@ -383,7 +383,7 @@ pcic_pci_attach(device_t dev)
                 generic_cardbus_attach(dev);
                 break;
 	case PCI_DEVICE_ID_PCIC_CLPD6832:
-	case PCI_DEVICE_ID_PCIC_TI1031:
+	case PCI_DEVICE_ID_PCIC_TI1031:		/* 1031 is like 6832 */
 		pd6832_legacy_init(dev);
 		break;
 	}
