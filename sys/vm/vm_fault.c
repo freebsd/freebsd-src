@@ -167,12 +167,12 @@ _unlock_things(struct faultstate *fs, int dealloc)
 	}
 	unlock_map(fs);	
 	if (fs->vp != NULL) { 
+		mtx_lock(&Giant);
 		vput(fs->vp);
-		if (debug_mpsafevm)
-			mtx_unlock(&Giant);
+		mtx_unlock(&Giant);
 		fs->vp = NULL;
 	}
-	if (dealloc)
+	if (dealloc && !fs->map->system_map)
 		VM_UNLOCK_GIANT();
 }
 
@@ -291,11 +291,14 @@ RetryFault:;
 	 *
 	 * XXX vnode_pager_lock() can block without releasing the map lock.
 	 */
-	mtx_lock(&Giant);
+	if (!fs.map->system_map)
+		mtx_lock(&Giant);
 	VM_OBJECT_LOCK(fs.first_object);
 	vm_object_reference_locked(fs.first_object);
 	fs.vp = vnode_pager_lock(fs.first_object);
-	if (fs.vp == NULL && debug_mpsafevm)
+	KASSERT(fs.vp == NULL || !fs.map->system_map,
+	    ("vm_fault: vnode-backed object mapped by system map"));
+	if (debug_mpsafevm && !fs.map->system_map)
 		mtx_unlock(&Giant);
 	vm_object_pip_add(fs.first_object, 1);
 
@@ -369,7 +372,8 @@ RetryFault:;
 				if (!vm_page_sleep_if_busy(fs.m, TRUE, "vmpfw"))
 					vm_page_unlock_queues();
 				atomic_add_int(&cnt.v_intrans, 1);
-				VM_UNLOCK_GIANT();
+				if (!fs.map->system_map)
+					VM_UNLOCK_GIANT();
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
@@ -923,7 +927,7 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 	vm_page_t m, mpte;
 	vm_object_t object;
 
-	if (!curthread || (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)))
+	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace))
 		return;
 
 	object = entry->object.vm_object;
