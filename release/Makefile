@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.244 1996/10/05 13:10:01 jkh Exp $
+#	$Id: Makefile,v 1.245 1996/10/10 09:22:16 jkh Exp $
 #
 # How to roll a release:
 #
@@ -590,7 +590,6 @@ doMFSKERN:
 		dd conv=sync of=${RD}/floppies/boot${FSIMAGE}.flp
 	@echo 'USERCONFIG' > startup_foo
 	@echo 'intro' >> startup_foo
-	@echo 'visual' >> startup_foo
 	dd if=startup_foo of=${RD}/floppies/boot${FSIMAGE}.flp \
 	  seek=1 bs=512 count=1 conv=sync
 	@rm -f startup_foo
