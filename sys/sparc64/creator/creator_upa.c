@@ -169,7 +169,7 @@ creator_upa_attach(device_t dev)
 	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
 	node = nexus_get_node(dev);
 	unit = device_get_unit(dev);
-	if (node == OF_instance_to_package(stdout)) {
+	if (unit == 0 /*node == OF_instance_to_package(stdout)*/) {
 		sc = (struct creator_softc *)vid_get_adapter(0);
 		device_set_softc(dev, sc);
 	} else {
