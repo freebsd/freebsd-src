@@ -27,6 +27,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #include <sys/param.h>
@@ -425,7 +427,7 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 	bzero(slt, sizeof(*slt));
 #ifdef DEVFS
 	slt->devfs_token = devfs_add_devswf(&crd_cdevsw, 
-		0, DV_CHR, 0, 0, 0600, "card%d", slotno);
+		slotno, DV_CHR, 0, 0, 0600, "card%d", slotno);
 #endif
 	if (ctrl->extra) {
 		MALLOC(slt->cdata, void *, ctrl->extra, M_DEVBUF, M_WAITOK);
