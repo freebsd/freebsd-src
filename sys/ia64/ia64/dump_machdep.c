@@ -248,7 +248,8 @@ dumpsys(struct dumperinfo *di)
 
 	mkdumpheader(&kdh, KERNELDUMP_IA64_VERSION, dumpsize, di->blocksize);
 
-	printf("Dumping %llu MB (%d chunks)\n", dumpsize >> 20, ehdr.e_phnum);
+	printf("Dumping %llu MB (%d chunks)\n", (long long)dumpsize >> 20,
+	    ehdr.e_phnum);
 
 	/* Dump leader */
 	error = di->dumper(di->priv, &kdh, NULL, dumplo, sizeof(kdh));
