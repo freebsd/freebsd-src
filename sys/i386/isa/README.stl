@@ -1,0 +1,241 @@
+
+Stallion Multiport Serial Driver Readme
+---------------------------------------
+
+Version: 0.0.1 alpha
+Date:    21DEC95
+Author:  Greg Ungerer (gerg@stallion.oz.au)
+
+
+
+1. INTRODUCTION
+
+This is a FreeBSD driver for some of the Stallion Technologies range of
+multiport serial boards. This is the very first release of this driver, so
+it should be considered to be of very alpha quality.
+
+This driver has not been developed by Stallion Technologies. I developed it
+in my spare time in the hope that it would be useful. As such there is no
+warranty or support of any form.
+
+What this means is that this driver is not officially supported by Stallion
+Technologies, so don't ring their support if you can't get it working. They
+will probably not be able to help you. Instead email me if you have problems
+or bug reports and I will do what I can... (Sorry to sound so heavy handed,
+but I need to stress that this driver is not officially supported in any way.)
+
+This driver supports the EasyIO and EasyConnection 8/32 range of boards.
+All of these boards are not classical intelligent multiport boards, but are
+host based multiport boards that use high performance Cirrus Logic CL-CD1400
+RISC UART's (they have built in FIFO's, automatic flow control, and some
+other good stuff).
+
+The EasyIO range of cards comes in 3 forms, the EasyIO-4, EasyIO-8 and the
+EasyIO-8M. All of these are non-expandable, low cost, ISA, multiport boards
+with 4, 8 and 8 RS-232C ports respectively. The EasyIO-8M is not currently
+supported by this driver. Though it is pretty easy to support so I'll do
+that when I get a chance. Each EasyIO board requires 8 bytes of IO address
+space and 1 interrupt. On an EISA system it is possible to share 1 interrupt
+between multiple boards. The EasyIO-4 has 10 pin RJ connectors, and the
+EasyIO-8 comes with a dongle cable that can be either 10 pin RJ connectors or
+DB-25 connectors. The EasyIO-8M has 6 pin RJ connectors.
+
+The EasyConnection 8/32 family of boards is a relatively low cost modular
+range of multiport serial boards. The EasyConnection 8/32 boards can be
+configured to have from 8 to 32 serial ports by plugging in external serial
+port modules that contain from 8 to 16 ports each. There is a wide range of
+external modules available that offer: DB-25 connectors, RJ-45 connectors
+(both with RS-232 D and E compatible drivers), and also RS-422 ports. The
+EasyConnection 8/32 boards come in ISA and MCA bus versions. The board takes
+the form of a host adapter card, with an external connector cable that plugs
+into the external modules. The external modules just clip together to add
+ports (BTW they are not hot pluggable). Each EasyConnection 8/32 board
+requires 2 separate IO address ranges, one 2 bytes in size and a secondary
+region of 32 bytes. Each board also requires 1 interrupt, on EISA systems
+multiple boards can share 1 interrupt. The secondary IO range (the 32 byte
+range) can be shared between multiple boards on any bus type.
+
+So thats the hardware supported (sounds like a marketing spiel doesn't it!).
+I am working on drivers for other boards in the Stallion range, so look
+out for those some time soon...
+
+
+
+2. INSTALLATION
+
+This driver was developed on a FreeBSD 2.0.5 system. I have not tryed it
+on a 2.1 system yet, so I don't know if it will go in painlessly or not...
+
+You will need to build a new kernel to use this driver. So the first thing
+you need is to have the full kernel source. Most people will have this
+(I hope!). The following assumes that the kernel source is in /usr/src/sys.
+
+The driver can support up to 8 boards (any combination of EasyIO and
+EasyConnection 8/32 boards). So there is a theoretical maximum of 256 ports.
+(Off-course I have not tested a system with this many!)
+
+Instructions to install:
+
+1. Copy the driver source files into the kernel source tree.
+
+        cp stallion.c /usr/src/sys/i386/isa
+        cp scd1400.h /usr/src/sys/i386/ic
+
+2. Add a character device switch table entry for the driver into the cdevsw
+   table structure. This involves adding some code into the kernel conf.c
+   file:
+
+        cd /usr/src/sys/i386/i386
+        vi conf.c
+            - add the following lines (in 2.0.5 I put them at line 1019):
+
+/* Stallion Multiport Serial Driver */
+#include "stl.h"
+#if	NSTL > 0
+d_open_t        stlopen;
+d_close_t       stlclose;
+d_read_t        stlread;
+d_write_t       stlwrite;
+d_ioctl_t	stlioctl;
+d_stop_t        stlstop;
+d_ttycv_t	stldevtotty;
+#define stlreset	nxreset
+#define	stlmmap		nxmmap
+#define stlstrategy	nxstrategy
+#else
+#define	stlopen		nxopen
+#define stlclose	nxclose
+#define stlread		nxread
+#define stlwrite	nxwrite
+#define stlioctl	nxioctl
+#define stlstop		nxstop
+#define stlreset	nxreset
+#define stlmmap		nxmmap
+#define stlstrategy	nxstrategy
+#define	stldevtotty	nxdevtotty
+#endif
+
+
+            - and then inside the actual cdevsw structure definition, at the
+              last entry add (this is now line 1259 in the 2.0.5 conf.c):
+
+	{ stlopen,	stlclose,	stlread,	stlwrite,	/*67*/
+	  stlioctl,	stlstop,	stlreset,	stldevtotty,/*stallion*/
+	  ttselect,	stlmmap,	stlstrategy },
+
+            - the line above used major number 67, but this may be different
+              on your system. Take note of what major number you are using.
+              
+            - save the file and exit vi.
+
+3. Add the driver source files to the kernel files list:
+
+        cd /usr/src/sys/i386/conf
+        vi files.i386
+            - add the following definition line into the list (it is stored
+              alphabetically, so insert it appropriately):
+
+i386/isa/stallion.c		optional	stl	device-driver
+
+            - save the file and exit vi.
+
+4. Add board probe entries into the kernel configuration file:
+
+        cd /usr/src/sys/i386/conf
+        cp GENERIC MYKERNEL
+            - if you already have a kernel config that you use then you
+              could just use that (instead of MYKERNEL)
+        vi MYKERNEL
+            - enter a line for each board that you want to use, eg:
+
+device		stl0	at isa? port 0x2a0 tty irq 10 vector stlintr
+
+            - change the io address and irq in this line as required
+            - save the file and exit
+
+5. Build a new kernel using this configuration.
+
+        cd /usr/src/sys/i386/conf
+        config MYKERNEL
+        cd ../../compile/MYKERNEL
+        make depend
+        make all
+        make install
+
+
+And there you have it!  It is a little bit of effort to get it in there...
+
+So once you have a new kernel built, reboot to start it up. On startup the
+Stallion board probes will report on whether the boards were found or not.
+For each board found the driver will print out the type of board found,
+and how many panels and ports it has. 
+
+If a board is not found by the driver but is actually in the system then the
+most likely problem is that the IO address is wrong. The easiest thing to do
+is change the DIP switches on the board to the desired address and reboot.
+On EasyIO and EasyConnection 8/32 boards the IRQ is software programmable,
+so if there is a conflict you may need to change the IRQ used for a board in
+the MYKERNEL configuration file and rebuild the kernel.
+
+Note that the secondary IO address of the EasyConnection 8/32 boards is hard
+wired into the stallion.c driver code. It is currently set to IO address
+0x280. If you need to use a different address then you will need to edit this
+file and change the variable named stl_ioshared.
+
+
+
+3. USING THE DRIVER
+
+Once the driver is installed you will need to setup some device nodes to
+access the serial ports. Use the supplied "mkdevnods" script to automatically
+create all required device entries for your boards. To make device nodes for
+more than 1 board then just supply the number of boards you are using as a
+command line parameter to mkdevnods and it will create nodes for that number
+of boards. By default it will create device nodes for 1 board only.
+
+Note that if the driver is not installed at character major number 67 then
+you will need to edit the mkdevnods script and modify the STL_SERIALMAJOR
+variable to the major number you are using.
+
+Device nodes created for the normal serial port devices are named /dev/ttyEX
+where X is the port number. (The second boards ports will start from ttyE32,
+the third boards from ttyE64, etc). It will also create a set of modem call
+out devices named cueX where again X is the port number.
+
+For the most part the Stallion driver tries to emulate the standard PC system
+com ports and the standard sio serial driver. The idea is that you should
+be able to use Stallion board ports and com ports inter-changeably without
+modifying anything but the device name. Anything that doesn't work like that
+should be considered a bug in this driver!
+
+Since this driver tries to emulate the standard serial ports as much as
+possible then most system utilities should work as they do for the standard
+com ports. Most importantly "stty" works as expected and "comcontrol" can be
+used just like for the serial ports.
+
+This driver should work with anything that works on standard com serial ports.
+Having said that, I have used it on at least the following types of "things"
+under FreeBSD:
+    a) standard dumb terminals (using getty)
+    b) modems (using cu, etc)
+
+
+
+4. NOTES
+
+Be aware that this is the first release of this driver, so there is sure to
+be some bugs in it. Please email me any feedback on bugs, problems, or even
+good experiences with this driver!
+
+There is no real smart line discipline bypass code yet (like in the sio
+driver). I will add this for the next driver release.
+
+I will probably also add LKM support for the next driver release.
+
+
+
+5. ACKNOWLEDGEMENTS
+
+This driver is loosely based on the code of the FreeBSD sio serial driver.
+A big thanks to Stallion Technologies for the use of their equipment.
+
