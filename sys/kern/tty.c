@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.117 1999/05/06 18:12:47 peter Exp $
+ * $Id: tty.c,v 1.118 1999/05/08 06:39:42 phk Exp $
  */
 
 /*-
@@ -2260,15 +2260,18 @@ ttyinfo(tp)
 		    pick->p_stat == SRUN ? "running" :
 		    pick->p_wmesg ? pick->p_wmesg : "iowait");
 
-		calcru(pick, &utime, &stime, NULL);
+		if (pick->p_flag & P_INMEM) {
+			calcru(pick, &utime, &stime, NULL);
 
-		/* Print user time. */
-		ttyprintf(tp, "%ld.%02ldu ",
-		    utime.tv_sec, utime.tv_usec / 10000);
+			/* Print user time. */
+			ttyprintf(tp, "%ld.%02ldu ",
+			    utime.tv_sec, utime.tv_usec / 10000);
 
-		/* Print system time. */
-		ttyprintf(tp, "%ld.%02lds ",
-		    stime.tv_sec, stime.tv_usec / 10000);
+			/* Print system time. */
+			ttyprintf(tp, "%ld.%02lds ",
+			    stime.tv_sec, stime.tv_usec / 10000);
+		} else
+			ttyprintf(tp, "?.??u ?.??s ");
 
 		/* Print percentage cpu, resident set size. */
 		tmp = (pick->p_pctcpu * 10000 + FSCALE / 2) >> FSHIFT;
