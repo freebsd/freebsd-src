@@ -48,9 +48,8 @@
 #	psm*	PS/2 mouse
 #
 # Terminal ports:
-#       sio*    fast interrupt PC COM ports (really makes ttyd* entries for sio)
-#       ttyd*   the same (dialin ports)
-#       cua*    the same (dialout ports)
+#       ttyd*   dialin ports
+#       cua*    dialout ports
 #       tty*    hardwired terminals
 #	com*	standard PC COM ports (really makes tty* entries for com)
 #		Note that the `com' driver is not configured in the 
@@ -75,7 +74,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.26 1994/02/19 13:17:03 ache Exp $
+#	$Id: MAKEDEV,v 1.27 1994/02/19 14:32:56 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -89,7 +88,7 @@ all)
 	sh MAKEDEV wd0 wd1 fd0 fd1 ft0 wt0 sd0 sd1 st0 cd0	# bdev
 	sh MAKEDEV pty0 tty0 tty1 pc0 lpt0 lpt1 lpt2            # cdev
 	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2		# cdev
-	sh MAKEDEV speaker mse0 sio2 sio3                       # cdev
+	sh MAKEDEV speaker mse0 ttyd2 ttyd3                     # cdev
 	# NOTE: co0 and vty04 are not done by a "sh MAKEDEV all"
 	# these are for codrv and interfere with other devices! - rgrimes
 	;;
@@ -468,7 +467,7 @@ speaker)
 	chown root.wheel speaker
 	;;
 
-sio*|cua*|ttyd*)
+cua*|ttyd*)
 	unit=`expr $i : '...d*\(.\)'`
 	rm -f tty0$unit cua0$unit ttyd$unit
 	mknod ttyd$unit c 28 $unit
