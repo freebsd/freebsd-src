@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: misc_rpc.c,v 1.4.2.1 2001/01/10 03:23:39 ezk Exp $
+ * $Id: misc_rpc.c,v 1.4.2.5 2002/12/29 00:46:43 ib42 Exp $
  *
  */
 
@@ -127,6 +127,13 @@ make_rpc_packet(char *buf, int buflen, u_long proc, struct rpc_msg *mp, voidp ar
 {
   XDR msg_xdr;
   int len;
+  /*
+   * Never cast pointers between different integer types, it breaks badly
+   * on big-endian platforms if those types have different sizes.
+   *
+   * Cast to a local variable instead, and use that variable's address.
+   */
+  enum_t local_proc = (enum_t) proc;
 
   xdrmem_create(&msg_xdr, buf, buflen, XDR_ENCODE);
 
@@ -139,7 +146,7 @@ make_rpc_packet(char *buf, int buflen, u_long proc, struct rpc_msg *mp, voidp ar
   /*
    * Called procedure number
    */
-  if (!xdr_enum(&msg_xdr, (enum_t *) & proc))
+  if (!xdr_enum(&msg_xdr, &local_proc))
     return -EIO;
 
   /*

@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2001 Erez Zadok
+.\" Copyright (c) 1997-2003 Erez Zadok
 .\" Copyright (c) 1990 Jan-Simon Pendry
 .\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
 .\" Copyright (c) 1990 The Regents of the University of California.
@@ -38,9 +38,9 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.conf.5,v 1.7.2.3 2001/04/07 00:47:45 ib42 Exp $
+.\" $Id: amd.conf.5,v 1.7.2.8 2003/03/16 01:47:00 ezk Exp $
 .\"
-.TH AMD.CONF 8 "7 August 1997"
+.TH AMD.CONF 5 "7 August 1997"
 .SH NAME
 amd.conf \- amd configuration file
 .SH SYNOPSIS
@@ -151,9 +151,9 @@ used.  Possible values are
 
 .TP
 .BR mount_type " (string, default=nfs)"
-All amd mount types default to NFS.  That is, amd is an NFS server on the
+All amd mount types must be NFS.  That is, amd is an NFS server on the
 map mount points, for the local host it is running on.  If "autofs" is
-specified, amd will be an autofs server for those mount points.
+specified, amd will log an error and convert it to NFS.
 
 .TP
 .BR search_path " (string, default no search path)"
@@ -332,7 +332,7 @@ options by running amd \-H.  Possible values are:
 .fi
 
 .TP
-.BR nfs_proto " (numeric, default to trying version 3 then 2)"
+.BR nfs_vers " (numeric, default to trying version 3 then 2)"
 By default, amd tries version 3 and then version 2.  This option forces the
 overall NFS protocol used to version 3 or 2.  It overrides what is in the
 amd maps, and is useful when amd is compiled with NFSv3 support that may not
@@ -344,7 +344,7 @@ support is desired again.
 .BR nfs_retransmit_counter " (numeric, default=11)"
 Same as the
 .I retransmit
-part of the 
+part of the
 .BI \-t " timeout.retransmit"
 option to amd.
 Specifies the number of NFS retransmissions that the kernel will use to
@@ -354,7 +354,7 @@ communicate with amd.
 .BR nfs_retry_interval " (numeric, default=8)"
 Same as the
 .I timeout
-part of the 
+part of the
 .BI \-t " timeout.retransmit"
 option to amd.  Specifies the NFS timeout interval, in
 .I tenths
@@ -371,7 +371,7 @@ parameters change the overall retry interval.  Too long an interval gives
 poor interactive response; too short an interval causes excessive retries.
 
 .TP
-.BR nfs_vers " (string, default to trying version tcp then udp)"
+.BR nfs_proto " (string, default to trying version tcp then udp)"
 By default, amd tries TCP and then UDP.  This option forces the overall NFS
 protocol used to TCP or UDP.  It overrides what is in the amd maps, and is
 useful when amd is compiled with NFSv3 support that may not be stable.  With
@@ -558,20 +558,20 @@ browsable_dirs =         yes
 # DEFINE AN AMD MOUNT POINT
 [ /u ]
 map_name =               amd.u
-			 
-[ /proj ]		 
+
+[ /proj ]
 map_name =               amd.proj
-			 
-[ /src ]		 
+
+[ /src ]
 map_name =               amd.src
-			 
-[ /misc ]		 
+
+[ /misc ]
 map_name =               amd.misc
-			 
-[ /import ]		 
+
+[ /import ]
 map_name =               amd.import
-			 
-[ /tftpboot/.amd ]	 
+
+[ /tftpboot/.amd ]
 tag =                    tftpboot
 map_name =               amd.tftpboot
 .fi

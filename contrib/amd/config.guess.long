@@ -1,0 +1,47 @@
+#!/bin/sh
+# generate long version of output from config.guess
+# part of am-utils-6.x
+# Erez Zadok <ezk@cs.columbia.edu>
+#
+#set -x
+
+# find a single word that prints the version number of the release
+getver () {
+    l=`head $1`
+    set $l
+    for i in $*
+    do
+	case "$i" in
+	    # look for one digit followed by a sequence of non-spaces
+	    # so it'll catch 7.3 as well as 2.1AW
+	    *[0-9]* ) echo $i; return ;;
+        esac
+    done
+}
+
+if test "x$GCONFIG" = "x" ; then
+    # find dirname of this script
+    base=`echo $0 | sed 's/\/[^\/]*$//' 2>/dev/null`
+    PATH=$base:$PATH
+    export PATH
+    GCONFIG=`config.guess || echo unknown-config`
+fi
+case "${GCONFIG}" in
+    *linux* )
+	GCONFIG=`echo ${GCONFIG} | sed -e 's/i.86/i386/' -e 's/linux-gnu/linux/'`
+	if test -f /etc/redhat-release ; then
+	    long=`getver /etc/redhat-release`
+	    echo ${GCONFIG}-rh${long}
+	    exit 0
+	elif test -f /etc/SuSE-release ; then
+	    long=`getver /etc/SuSE-release`
+	    echo ${GCONFIG}-suse${long}
+	    exit 0
+	else
+	    echo ${GCONFIG}
+	fi
+    ;;
+    * ) echo ${GCONFIG}
+    ;;
+esac
+exit 0

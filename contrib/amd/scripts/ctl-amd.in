@@ -90,6 +90,7 @@ case "$1" in
 	then
 		# do not specify full path of amd so killproc() works
 		amd -F $CF_FILE $CF_TAG
+		test -x /var/lock/subsys && touch /var/lock/subsys/amd
 	fi
 	;;
 
@@ -98,6 +99,7 @@ case "$1" in
 	echo "killing amd..."
 	killproc " amd"
 	wait4amd2die
+	test -f /var/lock/subsys/amd && rm -f /var/lock/subsys/amd
 	;;
 
 'restart')

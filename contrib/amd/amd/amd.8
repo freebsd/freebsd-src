@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2001 Erez Zadok
+.\" Copyright (c) 1997-2003 Erez Zadok
 .\" Copyright (c) 1989 Jan-Simon Pendry
 .\" Copyright (c) 1989 Imperial College of Science, Technology & Medicine
 .\" Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.8,v 1.4.2.1 2001/01/10 03:22:59 ezk Exp $
+.\" $Id: amd.8,v 1.4.2.4 2003/03/16 01:46:59 ezk Exp $
 .\"
 .TH AMD 8 "3 November 1989"
 .SH NAME
@@ -210,7 +210,7 @@ it.
 Specify the NFS timeout
 .IR interval ,
 in tenths of a second, between NFS/RPC retries (for UDP only).  The default
-is 0.8 seconds.  The second value alters the restransmit counter, which
+is 0.8 seconds.  The second value alters the retransmit counter, which
 defaults to 11 retransmissions.  Both of these values are used by the kernel
 to communicate with amd.  Useful defaults are supplied if either or both
 values are missing.

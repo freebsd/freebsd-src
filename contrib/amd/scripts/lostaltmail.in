@@ -25,7 +25,7 @@
 #	left over from an earlier version of lostaltmail and will hopefully
 #	go away.
 # $noverify: set it from the address line. Avoid verification of $currentTO.
-#	This should be relatively safe as long as your are willing to
+#	This should be relatively safe as long as you are willing to
 #	endure bounces from mail that cannot be redelivered as opposed to
 #	just getting a warning. UNTESTED (but should work).
 #
@@ -480,7 +480,7 @@ sub Check_user {
     local (@passwdinfo);
     undef (@passwdinfo);
 
-    if ( !&vrfy_user($currentTO) ) {
+    if (!$noverify && !&vrfy_user($currentTO) ) {
     	&Log_info("Possible non user mail file: $currentTO");
 	return $ABORT_RESEND;
     }
@@ -573,6 +573,9 @@ $logopen = 0;
 # Important!! This directory should be local.  Folks will be responsible
 # for finding this out for themselves.
 #
+if (!defined($MAILDIR) || $MAILDIR eq "") {
+    die "MAILDIR must be defined\n";
+}
 chdir ( $MAILDIR ) || die "Cannot change to $MAILDIR (`x' bit not set?)";
 
 #
@@ -622,6 +625,12 @@ if ( ! $noverify ) {
 # main stuff starts here
 foreach $currentTO (@allnames) {
     next if ( &Check_user == $ABORT_RESEND);
+
+    # just delete the file if too small to be real mail
+    if ((stat($currentTO))[7] < 5) {
+	print "Too small to be real mail, unlinking $currentTO" if $debug;
+	unlink $currentTO;
+    }
 
     undef (@wanderers);	# Just reset this at each pass.
     @wanderers=grep (/$currentTO\.\d+/, @allentries);

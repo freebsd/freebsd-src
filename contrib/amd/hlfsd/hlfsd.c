@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: hlfsd.c,v 1.7.2.2 2001/01/10 03:23:35 ezk Exp $
+ * $Id: hlfsd.c,v 1.7.2.7 2002/12/27 22:45:08 ezk Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -263,12 +263,12 @@ main(int argc, char *argv[])
  * Terminate if did not ask to forcecache (-C) and hlfsd would not be able
  * to set the minimum cache intervals.
  */
-#if !defined(MNT2_NFS_OPT_ACREGMIN) && !defined(MNT2_NFS_OPT_NOAC) && !defined(HAVE_FIELD_NFS_ARGS_T_ACREGMIN)
+#if !defined(MNT2_NFS_OPT_ACREGMIN) && !defined(MNT2_NFS_OPT_NOAC) && !defined(HAVE_NFS_ARGS_T_ACREGMIN)
   if (!forcecache) {
     fprintf(stderr, "%s: will not be able to turn off attribute caches.\n", am_get_progname());
     exit(1);
   }
-#endif /* !defined(MNT2_NFS_OPT_ACREGMIN) && !defined(MNT2_NFS_OPT_NOAC) && !defined(HAVE_FIELD_NFS_ARGS_T_ACREGMIN) */
+#endif /* !defined(MNT2_NFS_OPT_ACREGMIN) && !defined(MNT2_NFS_OPT_NOAC) && !defined(HAVE_NFS_ARGS_T_ACREGMIN) */
 
 
   switch (argc - optind) {
@@ -420,7 +420,7 @@ main(int argc, char *argv[])
 
 #ifdef HAVE_SIGACTION
   sa.sa_handler = proceed;
-  sa.sa_flags = 0;
+  sa.sa_flags = SA_RESTART;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGUSR2);
   sigaction(SIGUSR2, &sa, NULL);
@@ -433,7 +433,7 @@ main(int argc, char *argv[])
 
 #ifdef HAVE_SIGACTION
   sa.sa_handler = reaper;
-  sa.sa_flags = 0;
+  sa.sa_flags = SA_RESTART;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGCHLD);
   sigaction(SIGCHLD, &sa, NULL);
@@ -685,7 +685,7 @@ hlfsd_init(void)
    */
 #ifdef HAVE_SIGACTION
   sa.sa_handler = reload;
-  sa.sa_flags = 0;
+  sa.sa_flags = SA_RESTART;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGALRM);
   sigaddset(&(sa.sa_mask), SIGHUP);
@@ -701,7 +701,7 @@ hlfsd_init(void)
    */
 #ifdef HAVE_SIGACTION
   sa.sa_handler = cleanup;
-  sa.sa_flags = 0;
+  sa.sa_flags = SA_RESTART;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGTERM);
   sigaction(SIGTERM, &sa, NULL);
@@ -714,7 +714,7 @@ hlfsd_init(void)
    */
 #ifdef HAVE_SIGACTION
   sa.sa_handler = interlock;
-  sa.sa_flags = 0;
+  sa.sa_flags = SA_RESTART;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGCHLD);
   sigaction(SIGCHLD, &sa, NULL);
@@ -731,7 +731,7 @@ hlfsd_init(void)
 # else /* not defined(DEBUG) || defined(DEBUG_PRINT) */
   sa.sa_handler = SIG_IGN;
 # endif /* not defined(DEBUG) || defined(DEBUG_PRINT) */
-  sa.sa_flags = 0;
+  sa.sa_flags = SA_RESTART;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGUSR1);
   sigaction(SIGUSR1, &sa, NULL);
@@ -850,16 +850,16 @@ cleanup(int signum)
   amuDebug(D_DAEMON)
 #endif /* DEBUG */
     if (getpid() != masterpid)
-    return;
+      return;
 
 #ifdef DEBUG
   amuDebug(D_DAEMON)
 #endif /* DEBUG */
     if (fork() != 0) {
-    masterpid = 0;
-    am_set_mypid();
-    return;
-  }
+      masterpid = 0;
+      am_set_mypid();
+      return;
+    }
   am_set_mypid();
 
   for (;;) {
@@ -934,17 +934,8 @@ fatal(char *mess)
       strcpy(lessmess, mess);
       lessmess[messlen - 4] = '\0';
 
-      if (errno < sys_nerr)
-	fprintf(stderr, "%s: %s: %s\n", am_get_progname(), lessmess,
-#ifdef HAVE_STRERROR
-		strerror(errno)
-#else /* not HAVE_STRERROR */
-		sys_errlist[errno]
-#endif /* not HAVE_STRERROR */
-		);
-      else
-	fprintf(stderr, "%s: %s: Error %d\n",
-		am_get_progname(), lessmess, errno);
+      fprintf(stderr, "%s: %s: %s\n",
+	      am_get_progname(), lessmess, strerror(errno));
     }
   }
   plog(XLOG_FATAL, "%s", mess);

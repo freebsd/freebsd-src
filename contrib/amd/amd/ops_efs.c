@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_efs.c,v 1.3.2.1 2001/01/10 03:23:09 ezk Exp $
+ * $Id: ops_efs.c,v 1.3.2.4 2002/12/27 22:44:40 ezk Exp $
  *
  */
 
@@ -127,12 +127,12 @@ mount_efs(char *dir, char *fs_name, char *opts)
 
   flags = compute_mount_flags(&mnt);
 
-#ifdef HAVE_FIELD_EFS_ARGS_T_FLAGS
+#ifdef HAVE_EFS_ARGS_T_FLAGS
   efs_args.flags = 0;		/* XXX: fix this to correct flags */
-#endif /* HAVE_FIELD_EFS_ARGS_T_FLAGS */
-#ifdef HAVE_FIELD_EFS_ARGS_T_FSPEC
+#endif /* HAVE_EFS_ARGS_T_FLAGS */
+#ifdef HAVE_EFS_ARGS_T_FSPEC
   efs_args.fspec = fs_name;
-#endif /* HAVE_FIELD_EFS_ARGS_T_FSPEC */
+#endif /* HAVE_EFS_ARGS_T_FSPEC */
 
   /*
    * Call generic mount routine
