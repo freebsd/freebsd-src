@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.8 1994/12/13 22:32:44 wollman Exp $
+ * $Id: if_ether.c,v 1.9 1994/12/22 21:56:21 wollman Exp $
  */
 
 /*
@@ -138,7 +138,7 @@ arptimer(ignored_arg)
 /*
  * Parallel to llc_rtrequest.
  */
-void
+static void
 arp_rtrequest(req, rt, sa)
 	int req;
 	register struct rtentry *rt;
