@@ -49,7 +49,8 @@ simplelock_lock(struct simplelock *lock)
 		;
 }
 
-static void simplelock_unlock(struct simplelock *lock)
+static inline void
+simplelock_unlock(struct simplelock *lock)
 {
 	atomic_store_rel_int(&lock->s_lock, 0);
 }
