@@ -3372,7 +3372,9 @@ writerids(ifp, l_ioctl)
  * Linux driver
  */
 
-#define FLASH_DELAY(x)	tsleep(ifp, PZERO, "flash", ((x) / hz) + 1);
+#define FLASH_DELAY(_sc, x)	AN_UNLOCK(_sc) ; \
+	tsleep(ifp, PZERO, "flash", ((x) / hz) + 1); \
+	AN_LOCK(_sc) ;
 #define FLASH_COMMAND	0x7e7e
 #define FLASH_SIZE	32 * 1024
 
@@ -3405,7 +3407,7 @@ WaitBusy(ifp, uSec)
 	struct an_softc *sc = ifp->if_softc;
 
 	while ((statword & AN_CMD_BUSY) && delay <= (1000 * 100)) {
-		FLASH_DELAY(10);
+		FLASH_DELAY(sc, 10);
 		delay += 10;
 		statword = CSR_READ_2(sc, AN_COMMAND(sc->mpi350));
 
@@ -3439,7 +3441,7 @@ cmdreset(ifp)
 	}
 	CSR_WRITE_2(sc, AN_COMMAND(sc->mpi350), AN_CMD_FW_RESTART);
 
-	FLASH_DELAY(1000);	/* WAS 600 12/7/00 */
+	FLASH_DELAY(sc, 1000);	/* WAS 600 12/7/00 */
 
 
 	if (!(status = WaitBusy(ifp, 100))) {
@@ -3470,7 +3472,7 @@ setflashmode(ifp)
 	 * mdelay(500); // 500ms delay
 	 */
 
-	FLASH_DELAY(500);
+	FLASH_DELAY(sc, 500);
 
 	if (!(status = WaitBusy(ifp, AN_TIMEOUT))) {
 		printf("Waitbusy hang after setflash mode\n");
@@ -3500,7 +3502,7 @@ flashgchar(ifp, matchbyte, dwelltime)
 
 		if (dwelltime && !(0x8000 & rchar)) {
 			dwelltime -= 10;
-			FLASH_DELAY(10);
+			FLASH_DELAY(sc, 10);
 			continue;
 		}
 		rbyte = 0xff & rchar;
@@ -3546,7 +3548,7 @@ flashpchar(ifp, byte, dwelltime)
 		pollbusy = CSR_READ_2(sc, AN_SW0(sc->mpi350));
 
 		if (pollbusy & 0x8000) {
-			FLASH_DELAY(50);
+			FLASH_DELAY(sc, 50);
 			waittime -= 50;
 			continue;
 		} else
@@ -3566,7 +3568,7 @@ flashpchar(ifp, byte, dwelltime)
 	 */
 	do {
 		CSR_WRITE_2(sc, AN_SW0(sc->mpi350), byte);
-		FLASH_DELAY(50);
+		FLASH_DELAY(sc, 50);
 		dwelltime -= 50;
 		echo = CSR_READ_2(sc, AN_SW1(sc->mpi350));
 	} while (dwelltime >= 0 && echo != byte);
@@ -3624,11 +3626,11 @@ flashrestart(ifp)
 	int             status = 0;
 	struct an_softc *sc = ifp->if_softc;
 
-	FLASH_DELAY(1024);		/* Added 12/7/00 */
+	FLASH_DELAY(sc, 1024);		/* Added 12/7/00 */
 
 	an_init(sc);
 
-	FLASH_DELAY(1024);		/* Added 12/7/00 */
+	FLASH_DELAY(sc, 1024);		/* Added 12/7/00 */
 	return status;
 }
 
