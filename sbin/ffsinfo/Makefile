@@ -10,7 +10,6 @@ MAINTAINER=	tomsoft@FreeBSD.ORG, chm@FreeBSD.ORG
  
 PROG=   ffsinfo
 SRCS=   ffsinfo.c debug.c
-MAN8=   ffsinfo.8
  
 GROWFS= ${.CURDIR}/../growfs
 CFLAGS+=-DFS_DEBUG -I${GROWFS}
