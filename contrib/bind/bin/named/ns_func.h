@@ -52,7 +52,7 @@
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -90,7 +90,7 @@
 
 /* ns_func.h - declarations for ns_*.c's externally visible functions
  *
- * $Id: ns_func.h,v 8.90 1999/10/11 18:22:20 vixie Exp $
+ * $Id: ns_func.h,v 8.96 2000/04/21 06:54:06 vixie Exp $
  */
 
 /* ++from ns_glue.c++ */
@@ -146,7 +146,9 @@ int movefile(const char *, const char *);
 /* ++from ns_notify.c++ */
 #ifdef BIND_NOTIFY
 void			ns_notify(const char *, ns_class, ns_type);
+void			notify_afterload(void);
 void			ns_unnotify(void);
+void			ns_stopnotify(const char *, ns_class);
 #endif
 /* --from ns_notify.c-- */
 
@@ -254,7 +256,7 @@ extern void		schedretry(struct qinfo *, time_t),
 			freeComplaints(void),
 			nsfwdadd(struct qinfo *, struct fwdinfo *);
 extern struct qinfo	*qfindid(u_int16_t),
-			*qnew(const char *, int, int);
+			*qnew(const char *, int, int, int);
 /* --from ns_forw.c-- */
 
 /* ++from ns_main.c++ */
@@ -302,7 +304,8 @@ extern void		zone_maint(struct zoneinfo *),
 			addxfer(struct zoneinfo *),
 			ns_zreload(void),
 			ns_reload(void),
-			ns_reconfig(void);
+			ns_reconfig(void),
+			ns_noexpired(void);
 #if 0
 extern int		reload_all_unsafe(void);
 #endif
@@ -318,6 +321,8 @@ extern void		ns_heartbeat(evContext ctx, void *uap,
 extern void		make_new_zones(void);
 extern void		free_zone(struct zoneinfo *);
 extern struct zoneinfo *find_auth_zone(const char *, ns_class);
+extern int		purge_nonglue(const char *dname, struct hashbuf *htp,
+				      int class);
 /* --from ns_maint.c-- */
 
 /* ++from ns_sort.c++ */
@@ -416,7 +421,7 @@ void			free_rrset_order_list(rrset_order_list);
 void			set_global_boolean_option(options, int, int);
 listen_info_list	new_listen_info_list(void);
 void			free_listen_info_list(listen_info_list);
-void			add_listen_on(options, u_int16_t, ip_match_list);
+void			add_listen_on(options, u_short, ip_match_list);
 FILE *			write_open(char *filename);
 void			update_pid_file(void);
 void			set_options(options, int);

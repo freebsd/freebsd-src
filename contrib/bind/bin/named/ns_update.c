@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_update.c,v 8.68 1999/11/05 04:40:58 vixie Exp $";
+static const char rcsid[] = "$Id: ns_update.c,v 8.78 2000/04/23 02:19:00 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -140,28 +140,43 @@ static int rdata_expand(const u_char *, const u_char *, const u_char *,
 
 static FILE *
 open_transaction_log(struct zoneinfo *zp) {
-	FILE *fp;
-	
-	fp = fopen(zp->z_updatelog, "a+");
+	FILE *fp = fopen(zp->z_updatelog, "a+");
+
 	if (fp == NULL) {
 		ns_error(ns_log_update, "can't open %s: %s", zp->z_updatelog,
 			 strerror(errno));
 		return (NULL);
 	}
+	(void) fchown(fileno(fp), user_id, group_id);
+	if (fseek(fp, 0L, SEEK_END) != 0) {
+		ns_error(ns_log_update, "can't fseek(%s, 0, SEEK_END)",
+			 zp->z_updatelog);
+		fclose(fp);
+		return (NULL);
+	}
 	if (ftell(fp) == 0L) {
 		fprintf(fp, "%s", LogSignature);
+		zp->z_serial_ixfr_start = get_serial(zp);
 	}
+	else
+		zp->z_serial_ixfr_start = 0;
 	return (fp);
 }
 
 static FILE *
 open_ixfr_log(struct zoneinfo *zp) {
-	FILE *fp;
-	
-	fp = fopen(zp->z_ixfr_base, "a+");
+	FILE *fp = fopen(zp->z_ixfr_base, "a+");
+
 	if (fp == NULL) {
 		ns_error(ns_log_update, "can't open %s: %s", zp->z_ixfr_base,
 			 strerror(errno));
+		return (NULL);
+	}
+	(void) fchown(fileno(fp), user_id, group_id);
+	if (fseek(fp, 0L, SEEK_END) != 0) {
+		ns_error(ns_log_update, "can't fseek(%s, 0, SEEK_END)",
+			 zp->z_ixfr_base);
+		fclose(fp);
 		return (NULL);
 	}
 	if (ftell(fp) == 0L) {
@@ -425,16 +440,10 @@ schedule_soa_update(struct zoneinfo *zp, int numupdated) {
 	 */
 	zp->z_updatecnt += numupdated;
 	if (zp->z_updatecnt >= zp->z_deferupdcnt) {
-		if (incr_serial(zp) < 0) {
-			ns_error(ns_log_update,
-				 "error updating serial number for %s from %d",
-				 zp->z_origin, zp->z_serial);
-		} else
-			return (0);
-		/*
-		 * Note we continue scheduling if for some reason
-		 * incr_serial fails.
-		 */
+		if (zp->z_soaincrtime > tt.tv_sec) {
+			zp->z_soaincrtime = tt.tv_sec;
+			return (1);
+		}
 	}
 
 	if (zp->z_soaincrintvl > 0) {
@@ -655,8 +664,6 @@ process_prereq(ns_updrec *ur, int *rcodep, u_int16_t zclass) {
 			*rcodep = FORMERR;
 			return (0);
 		}
-		htp = hashtab;
-		np = nlookup(dname, &htp, &fname, 0);
 		if (np == NULL || fname != dname) {
 			*rcodep = NXRRSET;
 			return (0);
@@ -877,6 +884,12 @@ prescan_update(ns_updrec *ur, int *rcodep, u_int16_t zclass) {
 			ns_debug(ns_log_update, 1,
 				 "prescan_update: invalid type (%s)",
 				 p_type(type));
+			*rcodep = FORMERR;
+			return (0);
+		}
+		if (ttl > MAXIMUM_TTL) {
+			ns_debug(ns_log_update, 1,
+				"prescan_update: invalid ttl (%u)", ttl);
 			*rcodep = FORMERR;
 			return (0);
 		}
@@ -1189,8 +1202,9 @@ req_update_private(HEADER *hp, u_char *cp, u_char *eom, u_char *msg,
 	 */
 
 	if (!ip_addr_or_key_allowed(zp->z_update_acl, from.sin_addr, in_key)) {
-		ns_notice(ns_log_security, "unapproved update from %s for %s",
+		ns_notice(ns_log_security, "denied update from %s for %s",
 			  sin_ntoa(from), *dname ? dname : ".");
+		nameserIncr(from.sin_addr, nssRcvdUUpd);
 		return (Refuse);
 	}
 
@@ -1210,10 +1224,11 @@ req_update_private(HEADER *hp, u_char *cp, u_char *eom, u_char *msg,
 	if (zp->z_type == Z_SECONDARY) {
 		/*
 		 * XXX	The code below is broken.
-		 *	Until fixed, we just refuse.
+		 *	Until fixed, we just return NOTIMPL.
 		 */
 #if 1
-		return (Refuse);
+		hp->rcode = ns_r_notimpl;
+		return (Finish);
 #else		
 		/* We are a slave for this zone, forward it to the master. */
 		for (cnt = 0; cnt < zp->z_addrcnt; cnt++)
@@ -1236,12 +1251,12 @@ req_update_private(HEADER *hp, u_char *cp, u_char *eom, u_char *msg,
 			eom -= tsig_len;
 		free_nsp(nsp);
 		switch (n) {
-        	case FW_OK:
-        	case FW_DUP:
+		case FW_OK:
+		case FW_DUP:
 			return (Return);
-        	case FW_NOSERVER:
+		case FW_NOSERVER:
 			/* should not happen */
-        	case FW_SERVFAIL:
+		case FW_SERVFAIL:
 			hp->rcode = SERVFAIL;
 			return (Finish);
 		}
@@ -1324,7 +1339,7 @@ req_update_private(HEADER *hp, u_char *cp, u_char *eom, u_char *msg,
 		rrecp->r_dp = dp;
 		/* Append the current record to the end of list of records. */
 		APPEND(curupd, rrecp, r_link);
-           	if (cp > eom) {
+		if (cp > eom) {
 			ns_info(ns_log_update,
 				"Malformed response from %s (overrun)",
 				inet_ntoa(from.sin_addr));
@@ -2635,21 +2650,21 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 				}
 			} else { /* section == S_UPDATE */
 				if (opcode == DELETE) {
-                    ttl = 0;
+					ttl = 0;
 					if (n == 0) {
 						class = C_ANY;
 						if (type == -1)
 							type = T_ANY;
-                    /* WTF?  C_NONE or C_ANY _must_ be the case if
-                     *       we really are to delete this.  If
-                     *       C_NONE is used, according to process_updates(),
-                     *       the class is gotten from the zone's class.
-                     *       This still isn't perfect, but it will at least
-                     *       work.  
-                     *       
-                     *       Question: What is so special about the class 
-                     *       of the update while we are deleting??
-                     */
+		/* WTF?  C_NONE or C_ANY _must_ be the case if
+		 *       we really are to delete this.  If
+                 *       C_NONE is used, according to process_updates(),
+                 *       the class is gotten from the zone's class.
+                 *       This still isn't perfect, but it will at least
+                 *       work.  
+                 *       
+                 *       Question: What is so special about the class 
+                 *       of the update while we are deleting??
+                 */
 					} else /* if (zp->z_xferpid != XFER_ISIXFR) */ {
 						class = C_NONE;
 					}
@@ -2794,22 +2809,22 @@ zonedump(struct zoneinfo *zp, int mode) {
 		}
 
 		if (mode == ISIXFR) {
-                	if (movefile(tmp_name, zp->z_ixfr_tmp) < 0) {
-                        	ns_error(ns_log_update, "movefile(%s,%s) failed: %s :2",
-                                 	tmp_name, zp->z_ixfr_tmp, strerror(errno));
-                        	return (-1);
-                	}
+			if (movefile(tmp_name, zp->z_ixfr_tmp) < 0) {
+				ns_error(ns_log_update, "movefile(%s,%s) failed: %s :2",
+					 tmp_name, zp->z_ixfr_tmp, strerror(errno));
+				return (-1);
+			}
 			if (chmod(zp->z_source, 0644) < 0)
 				ns_error(ns_log_update,
 					"chmod(%s,%o) failed, pressing on: %s",
 					 zp->z_source, st.st_mode,
 					 strerror(errno));
-                	if (movefile(zp->z_ixfr_tmp, zp->z_source) < 0) {
-                        	ns_error(ns_log_update, "movefile(%s,%s) failed: %s :3",
-                                 	zp->z_ixfr_tmp, zp->z_source,
-                                 	strerror(errno));
-                        	return (-1);
-                	}
+			if (movefile(zp->z_ixfr_tmp, zp->z_source) < 0) {
+				ns_error(ns_log_update, "movefile(%s,%s) failed: %s :3",
+					 zp->z_ixfr_tmp, zp->z_source,
+					 strerror(errno));
+				return (-1);
+			}
 			st.st_mode &= ~WRITEABLE_MASK;
 			if (chmod(zp->z_source, st.st_mode) < 0)
 				ns_error(ns_log_update,
@@ -2830,9 +2845,9 @@ zonedump(struct zoneinfo *zp, int mode) {
 			}
 		} else {
 			if (movefile(tmp_name, zp->z_source) < 0) {
-                                ns_error(ns_log_update, "movefile(%s,%s) failed: % s :6", tmp_name, zp->z_source, strerror(errno));
-                                return (-1);
-                        }
+				ns_error(ns_log_update, "movefile(%s,%s) failed: % s :6", tmp_name, zp->z_source, strerror(errno));
+				return (-1);
+			}
 		}
 	} else
 		ns_debug(ns_log_update, 1, "zonedump: no zone to dump");
@@ -2844,15 +2859,15 @@ zonedump(struct zoneinfo *zp, int mode) {
 
 struct databuf *
 findzonesoa(struct zoneinfo *zp) {
-        struct hashbuf *htp;
-        struct namebuf *np;
-        struct databuf *dp;
-        const char *fname;
+	struct hashbuf *htp;
+	struct namebuf *np;
+	struct databuf *dp;
+	const char *fname;
 
 	htp = hashtab;
-        np = nlookup(zp->z_origin, &htp, &fname, 0);
-        if (np == NULL || fname != zp->z_origin)
-                return (NULL);
+	np = nlookup(zp->z_origin, &htp, &fname, 0);
+	if (np == NULL || fname != zp->z_origin)
+		return (NULL);
 	foreach_rr(dp, np, T_SOA, zp->z_class, zp - zones)
 		return (dp);
 	return (NULL);
@@ -2933,7 +2948,7 @@ incr_serial(struct zoneinfo *zp) {
 	unsigned char *cp;
  
 	old_serial = get_serial(zp);
-        serial = old_serial + 1;
+	serial = old_serial + 1;
 	if (serial == 0)
 	        serial = 1;
 	set_serial(zp, serial);
@@ -2991,7 +3006,7 @@ incr_serial(struct zoneinfo *zp) {
 
 void
 dynamic_about_to_exit(void) {
-        struct zoneinfo *zp;
+	struct zoneinfo *zp;
 
 	ns_debug(ns_log_update, 1,
 		 "shutting down; dumping zones that need it");

@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 8.89 1999/10/07 08:24:08 vixie Exp $
+ *	$Id: ns_defs.h,v 8.96 2000/04/21 06:54:06 vixie Exp $
  */
 
 /*
@@ -57,7 +57,7 @@
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -165,7 +165,9 @@ typedef enum need {
 	main_need_debug,	/* use_desired_debug() needed. */
 	main_need_restart,	/* exec() needed. */
 	main_need_reap,		/* need to reap dead children */
-	main_need_num		/* number of needs, used for array bound. */
+	main_need_noexpired,	/* ns_reconfig() needed w/ noexpired set */
+	main_need_num,		/* number of needs, used for array bound. */
+	main_need_tick		/* tick every second to poll for cleanup (NT)*/
 } main_need;
 
 	/* What global options are set? */
@@ -181,13 +183,13 @@ typedef enum need {
 					 * CNAME RRs */
 #define OPTION_HOSTSTATS	0x0080	/* Maintain per-host statistics? */
 #define OPTION_DEALLOC_ON_EXIT	0x0100	/* Deallocate everything on exit? */
-#define OPTION_USE_IXFR		0x0110	/* Use by delault ixfr in zone transfer */
-#define OPTION_MAINTAIN_IXFR_BASE 0x0120 
 #define OPTION_NODIALUP		0x0200	/* Turn off dialup support */
 #define OPTION_NORFC2308_TYPE1	0x0400	/* Prevent type1 respones (RFC 2308)
 					 * to cached negative respones */
 #define	OPTION_USE_ID_POOL	0x0800	/* Use the memory hogging query ID */
 #define	OPTION_TREAT_CR_AS_SPACE 0x1000 /* Treat CR in zone files as space */
+#define OPTION_USE_IXFR		0x2000	/* Use by delault ixfr in zone transfer */
+#define OPTION_MAINTAIN_IXFR_BASE 0x4000 /* Part of IXFR file name logic. */
 
 #define	DEFAULT_OPTION_FLAGS	(OPTION_NODIALUP|OPTION_NONAUTH_NXDOMAIN|\
 				 OPTION_USE_ID_POOL|OPTION_NORFC2308_TYPE1)
@@ -306,7 +308,8 @@ typedef struct ztimer_info {
 	int type;
 } *ztimer_info;
 
-/* these fields are ordered to maintain word-alignment;
+/*
+ * These fields are ordered to maintain word-alignment;
  * be careful about changing them.
  */
 struct zoneinfo {
@@ -359,9 +362,9 @@ struct zoneinfo {
 	enum zdialup	z_dialup;	/* secondaries over a dialup link */
 	char            *z_ixfr_base;	/* where to find the history of the zone */
 	char            *z_ixfr_tmp;    /* tmp file for the ixfr */
-	int		z_maintain_ixfr_base;
-	int		z_log_size_ixfr;
-	int		z_max_log_size_ixfr;
+	int		    z_maintain_ixfr_base;
+	long		z_max_log_size_ixfr;
+	u_int32_t	z_serial_ixfr_start;	
 	evTimerID	z_timer;	/* maintenance timer */
 	ztimer_info	z_timerinfo;	/* UAP associated with timer */
 	time_t		z_nextmaint;	/* time of next maintenance */
@@ -410,6 +413,7 @@ enum zonetype { z_nil, z_master, z_slave, z_hint, z_stub, z_forward,
 #define	Z_NEED_QSERIAL  0x00020000	/* we need to re-call qserial() */
 #define	Z_PARENT_RELOAD	0x00040000	/* we need to reload this as parent */
 #define Z_FORWARD_SET	0x00080000	/* has forwarders been set */
+#define Z_EXPIRED	0x00100000	/* expire timer has gone off */
 
 	/* named_xfer exit codes */
 #define	XFER_UPTODATE	0		/* zone is up-to-date */
@@ -507,6 +511,14 @@ struct fdlist {
 };
 #endif
 
+
+typedef struct ns_delta {
+		LINK(struct ns_delta)   d_link;
+		ns_updque               d_changes;
+} ns_delta;
+
+typedef LIST(ns_delta) ns_deltalist;
+
 typedef struct _interface {
 	int			dfd,		/* Datagram file descriptor */
 				sfd;		/* Stream file descriptor. */
@@ -570,7 +582,7 @@ struct qstream {
 		u_int		zone;		/* zone being XFR'd. */
 		union {
 			struct namebuf	*axfr;	/* top np of an AXFR. */
-			struct ns_updrec *ixfr;	/* top udp of an IXFR. */
+			ns_deltalist *ixfr;	/* top udp of an IXFR. */
 		}		top;
  		int             ixfr_zone;
 	        u_int32_t	serial;	/* serial number requested in IXFR */
@@ -602,16 +614,23 @@ struct qstream {
 #define STREAM_CONNECT_EV	0x08
 #define STREAM_DONE_CLOSE	0x10
 #define STREAM_AXFR		0x20
-#define STREAM_AXFRIXFR		0x22
+#define STREAM_AXFRIXFR		0x40
 
 #define ALLOW_NETS	0x0001
 #define	ALLOW_HOSTS	0x0002
 #define	ALLOW_ALL	(ALLOW_NETS | ALLOW_HOSTS)
 
+struct fwddata {
+	struct sockaddr_in
+			fwdaddr;	/* address of NS */
+	struct databuf	*ns;		/* databuf for NS record */
+	struct databuf	*nsdata;	/* databuf for server address */
+	int		ref_count;	/* how many users of this */
+};
+
 struct fwdinfo {
 	struct fwdinfo	*next;
-	struct sockaddr_in
-			fwdaddr;
+	struct fwddata  *fwddata;
 };
 
 enum nameserStats {	nssRcvdR,	/* sent us an answer */
@@ -639,6 +658,10 @@ enum nameserStats {	nssRcvdR,	/* sent us an answer */
 			nssSentFErr,	/* sent them a FORMERR */
 			nssSentNaAns,   /* sent them a non autoritative answer */
 			nssSentNXD,	/* sent them a negative response */
+			nssRcvdUQ,	/* sent us an unapproved query */
+			nssRcvdURQ,	/* sent us an unapproved recursive query */
+			nssRcvdUXFR,	/* sent us an unapproved AXFR or IXFR */
+			nssRcvdUUpd,	/* sent us an unapproved update */
 			nssLast };
 
 struct nameser {

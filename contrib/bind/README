@@ -1,5 +1,5 @@
-This is the source portion of BIND version 8.2.2, Patchlevel 5.  Its
-companions are "doc" and "contrib" so you are probably not missing anything.
+This is the source portion of BIND version 8.2.3-T2B.  Its companions 
+are "doc" and "contrib" so you are probably not missing anything.
 
 See the CHANGES file for a detailed listing of all changes.  See the INSTALL
 file for information on building and installing BIND.
@@ -208,6 +208,6 @@ To Support the Effort
 
 	The Internet Software Consortium has also commissioned a DHCP server
 	implementation, has taken over official support/release of the INN
-	system, and supports the Kerberos Version 5 effort at MIT.  You can
-	learn more about the ISC's goals and accomplishments from the web page
-	at <URL:http://www.isc.org/>.
+	system, and has supported the Kerberos Version 5 effort at MIT.  You
+	can learn more about the ISC's goals and accomplishments from the web
+	page at <URL:http://www.isc.org/>.

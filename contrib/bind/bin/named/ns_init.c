@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_init.c	4.38 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: ns_init.c,v 8.63 1999/10/15 19:49:04 vixie Exp $";
+static const char rcsid[] = "$Id: ns_init.c,v 8.68 2000/04/21 06:54:07 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: ns_init.c,v 8.63 1999/10/15 19:49:04 vixie Exp
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -245,7 +245,7 @@ zoneinit(struct zoneinfo *zp) {
 		}
 	} else {
 		zp->z_flags |= Z_AUTH;
-		zp->z_flags &= ~Z_NEED_RELOAD;
+		zp->z_flags &= ~(Z_NEED_RELOAD|Z_EXPIRED);
 		ns_refreshtime(zp, tt.tv_sec);
 		sched_zone_maint(zp);
 	}
@@ -285,6 +285,7 @@ do_reload(const char *domain, int type, int class, int mark) {
 	/*
 	 * Clean up any leftover data.
 	 */
+	ns_stopxfrs(zp);
 	purge_zone(domain, hashtab, class);
 
 	/*
@@ -328,6 +329,20 @@ do_reload(const char *domain, int type, int class, int mark) {
 
 void
 purgeandload(struct zoneinfo *zp) {
+
+#ifdef BIND_UPDATE
+	/*
+	 * A dynamic zone might have changed, so we
+	 * need to dump it before removing it.
+	 */
+	if (zp->z_type == Z_PRIMARY &&
+	    (zp->z_flags & Z_DYNAMIC) != 0 &&
+	    ((zp->z_flags & Z_NEED_SOAUPDATE) != 0 ||
+	     (zp->z_flags & Z_NEED_DUMP) != 0))
+		(void) zonedump(zp, ISNOTIXFR);
+#endif
+	ns_stopxfrs(zp);
+
 	if (zp->z_type == Z_HINT)
 		purge_zone(zp->z_origin, fcachetab, zp->z_class);
 	else
