@@ -304,14 +304,17 @@ functions return a pointer, possibly identical to
 to the allocated memory
 if successful; otherwise a
 .Dv NULL
-pointer is returned, in which case the
-memory referenced by
-.Fa ptr
-is still available and intact.
-In the case of memory allocation failure,
+pointer is returned, and
 .Va errno
 is set to
-.Er ENOMEM .
+.Er ENOMEM
+if the error was the result of an allocation failure.
+The
+.Fn realloc
+function always leaves the original buffer intact
+when an error occurs, whereas
+.Fn reallocf
+deallocates it in this case.
 .Pp
 The
 .Fn free
