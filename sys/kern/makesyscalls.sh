@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.23 1997/06/16 00:29:31 dyson Exp $
+# $Id: makesyscalls.sh,v 1.24 1997/06/29 17:39:57 bde Exp $
 
 set -e
 
@@ -241,7 +241,8 @@ s/\$//g
 			for (i = 5; i <= NF; i++)
 				comment = comment " " $i
 	}
-	$2 == "STD" || $2 == "NODEF" || $2 == "NOARGS"  || $2 == "NOPROTO" {
+	$2 == "STD" || $2 == "NODEF" || $2 == "NOARGS"  || $2 == "NOPROTO" \
+	    || $2 == "NOIMPL" {
 		parseline()
 		if ((!nosys || funcname != "nosys") && \
 		    (funcname != "lkmnosys")) {
@@ -268,11 +269,19 @@ s/\$//g
 			nosys = 1
 		if (funcname == "lkmnosys")
 			lkmnosys = 1
-		printf("\t{ %d, (sy_call_t *)%s },\t\t", \
-		    argc+bigargc, funcname) > sysent
-		if(length(funcname) < 11)
-			printf("\t") > sysent
-		printf("/* %d = %s */\n", syscall, funcalias) > sysent
+	 	if ($2 != "NOIMPL") {
+			printf("\t{ %d, (sy_call_t *)%s },\t\t", \
+			    argc+bigargc, funcname) > sysent
+			if(length(funcname) < 11)
+				printf("\t") > sysent
+			printf("/* %d = %s */\n", syscall, funcalias) > sysent
+		} else {
+			printf("\t{ %d, (sy_call_t *)%s },\t\t", \
+			    argc+bigargc, "nosys") > sysent
+			if(length("nosys") < 11)
+				printf("\t") > sysent
+			printf("/* %d = %s */\n", syscall, funcalias) > sysent
+		}
 		printf("\t\"%s\",\t\t\t/* %d = %s */\n", \
 		    funcalias, syscall, funcalias) > sysnames
 		if ($2 != "NODEF")
