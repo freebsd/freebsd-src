@@ -246,7 +246,7 @@ USB_ATTACH(usb)
 #ifdef USB_USE_SOFTINTR
 #ifdef __HAVE_GENERIC_SOFT_INTERRUPTS
 	/* XXX we should have our own level */
-	sc->sc_bus->soft = softintr_establish(IPL_SOFTNET, 
+	sc->sc_bus->soft = softintr_establish(IPL_SOFTNET,
 	    sc->sc_bus->methods->soft_intr, sc->sc_bus);
 	if (sc->sc_bus->soft == NULL) {
 		printf("%s: can't register softintr\n", USBDEVNAME(sc->sc_dev));
@@ -383,8 +383,8 @@ usb_event_thread(void *arg)
 
 	/*
 	 * In case this controller is a companion controller to an
-	 * EHCI controller we need to wait until the
-	 * EHCI controller has grabbed the port.
+	 * EHCI controller we need to wait until the EHCI controller
+	 * has grabbed the port.
 	 * XXX It would be nicer to do this with a tsleep(), but I don't
 	 * know how to synchronize the creation of the threads so it
 	 * will work.
@@ -473,14 +473,14 @@ usbopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		usb_dev_open = 1;
 		usb_async_proc = 0;
 		return (0);
-	} else {
-		USB_GET_SC_OPEN(usb, unit, sc);
-
-		if (sc->sc_dying)
-			return (EIO);
-
-		return (0);
 	}
+
+	USB_GET_SC_OPEN(usb, unit, sc);
+
+	if (sc->sc_dying)
+		return (EIO);
+
+	return (0);
 }
 
 int
