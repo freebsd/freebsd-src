@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.18 1995/11/09 08:16:04 bde Exp $
+ *	$Id: procfs_vnops.c,v 1.19 1995/11/16 11:39:11 bde Exp $
  */
 
 /*
@@ -81,21 +81,20 @@ static struct pfsnames {
 	u_short	d_namlen;
 	char	d_name[PROCFS_NAMELEN];
 	pfstype	d_pfstype;
+	int	(*d_valid) __P((struct proc *));
 } procent[] = {
 #define N(s) sizeof(s)-1, s
-	/* namlen, nam, type */
-	{  N("."),	Pproc },
-	{  N(".."),	Proot },
-#if 0
-	{  N("file"),	Pfile },
-#endif
-	{  N("mem"),	Pmem },
-	{  N("regs"),	Pregs },
-	{  N("fpregs"),	Pfpregs },
-	{  N("ctl"),	Pctl },
-	{  N("status"),	Pstatus },
-	{  N("note"),	Pnote },
-	{  N("notepg"),	Pnotepg },
+	/* namlen, nam, type	 validp */
+	{  N("."),	Pproc,	 NULL },
+	{  N(".."),	Proot,	 NULL },
+	{  N("file"),	Pfile,	 procfs_validfile },
+	{  N("mem"),	Pmem,	 NULL },
+	{  N("regs"),	Pregs,	 procfs_validregs },
+	{  N("fpregs"),	Pfpregs, procfs_validfpregs },
+	{  N("ctl"),	Pctl,	 NULL },
+	{  N("status"),	Pstatus, NULL },
+	{  N("note"),	Pnote,	 NULL },
+	{  N("notepg"),	Pnotepg, NULL },
 #undef N
 };
 #define Nprocent (sizeof(procent)/sizeof(procent[0]))
@@ -356,6 +355,7 @@ procfs_getattr(ap)
 	 * that only root can gain access.
 	 */
 	switch (pfs->pfs_type) {
+	case Pctl:
 	case Pregs:
 	case Pfpregs:
 		if (procp->p_flag & P_SUGID)
@@ -599,7 +599,8 @@ procfs_lookup(ap)
 			struct pfsnames *dp = &procent[i];
 
 			if (cnp->cn_namelen == dp->d_namlen &&
-			    bcmp(pname, dp->d_name, dp->d_namlen) == 0) {
+			    bcmp(pname, dp->d_name, dp->d_namlen) == 0 &&
+			    (dp->d_valid == NULL || (*dp->d_valid)(procp))) {
 			    	pfs_type = dp->d_pfstype;
 				goto found;
 			}
@@ -630,6 +631,16 @@ procfs_lookup(ap)
 	default:
 		return (ENOTDIR);
 	}
+}
+
+/*
+ * Does this process have a text file?
+ */
+int
+procfs_validfile(p)
+	struct proc *p;
+{
+	return (procfs_findtextvp(p) != NULLVP);
 }
 
 /*
@@ -676,6 +687,12 @@ procfs_readdir(ap)
 	 * from the procent[] table (top of this file).
 	 */
 	case Pproc: {
+		struct proc *p;
+
+		p = PFIND(pfs->pfs_pid);
+		if (p == NULL)
+			break;
+
 		while (uio->uio_resid >= UIO_MX) {
 			struct pfsnames *dt;
 
@@ -683,6 +700,12 @@ procfs_readdir(ap)
 				break;
 
 			dt = &procent[i];
+
+			/* see if we should show this one. */
+			if (dt->d_valid && (*dt->d_valid)(p) == 0) {
+				i++;
+				continue;
+			}
 
 			dp->d_reclen = UIO_MX;
 			dp->d_fileno = PROCFS_FILENO(pfs->pfs_pid, dt->d_pfstype);

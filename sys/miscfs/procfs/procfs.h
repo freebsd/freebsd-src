@@ -36,7 +36,7 @@
  *
  *	@(#)procfs.h	8.6 (Berkeley) 2/3/94
  *
- *	$Id: procfs.h,v 1.7 1995/11/09 08:16:01 bde Exp $
+ *	$Id: procfs.h,v 1.8 1995/11/16 11:39:09 bde Exp $
  */
 
 /*
@@ -133,6 +133,11 @@ extern int procfs_dofpregs __P((struct proc *, struct proc *, struct pfsnode *pf
 extern int procfs_domem __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 extern int procfs_doctl __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 extern int procfs_dostatus __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+
+/* check to see if the process has the "items" (regs/file) */
+int procfs_validfile __P((struct proc *));
+int procfs_validfpregs __P((struct proc *));
+int procfs_validregs __P((struct proc *));
 
 #define PROCFS_LOCKED	0x01
 #define PROCFS_WANT	0x02

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_ctl.c	8.3 (Berkeley) 1/21/94
  *
- *	$Id: procfs_ctl.c,v 1.7 1995/12/03 14:54:34 bde Exp $
+ *	$Id: procfs_ctl.c,v 1.8 1995/12/07 12:47:14 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -72,8 +72,6 @@
 		procfs_fix_sstep(p); \
 	} \
 }
-#else
-#define FIX_SSTEP(p)
 #endif
 
 #define PROCFS_CTL_ATTACH	1
@@ -171,10 +169,13 @@ procfs_control(curp, p, op)
 			return (EBUSY);
 	}
 
+
+#ifdef FIX_SSTEP
 	/*
 	 * do single-step fixup if needed
 	 */
 	FIX_SSTEP(p);
+#endif
 
 	/*
 	 * Don't deliver any signal by default.
@@ -218,7 +219,9 @@ procfs_control(curp, p, op)
 	 * Step.  Let the target process execute a single instruction.
 	 */
 	case PROCFS_CTL_STEP:
+		PHOLD(p);
 		procfs_sstep(p);
+		PRELE(p);
 		break;
 
 	/*
@@ -301,7 +304,9 @@ procfs_doctl(curp, p, pfs, uio)
 		if (nm) {
 			if (TRACE_WAIT_P(curp, p)) {
 				p->p_xstat = nm->nm_val;
+#ifdef FIX_SSTEP
 				FIX_SSTEP(p);
+#endif
 				setrunnable(p);
 			} else {
 				psignal(p, nm->nm_val);
