@@ -113,7 +113,7 @@ procfs_domap(curp, p, pfs, uio)
 		int resident, privateresident;
 		char *type;
 
-		if (entry->is_a_map || entry->is_sub_map)
+		if (entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP))
 			continue;
 
 		obj = entry->object.vm_object;
@@ -163,7 +163,7 @@ case OBJT_DEVICE:
 			(entry->protection & VM_PROT_READ)?"r":"-",
 			(entry->protection & VM_PROT_WRITE)?"w":"-",
 			(entry->protection & VM_PROT_EXECUTE)?"x":"-",
-			entry->copy_on_write?"COW":"   ",
+			(entry->eflags & MAP_ENTRY_COW)?"COW":"   ",
 			type);
 
 		len = strlen(mebuffer);
