@@ -755,7 +755,8 @@ Boston, MA 02111-1307, USA.  */
  (n) + 4)
 
 #undef  DBX_REGISTER_NUMBER
-#define DBX_REGISTER_NUMBER(n)	((write_symbols == DWARF_DEBUG)		\
+#define DBX_REGISTER_NUMBER(n)	((write_symbols == DWARF2_DEBUG		\
+	    			  || write_symbols == DWARF_DEBUG)	\
 				? DWARF_DBX_REGISTER_NUMBER(n)		\
 				: STABS_DBX_REGISTER_NUMBER(n))
 
