@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: mktemp.c,v 1.8 1998/02/13 02:13:24 imp Exp $";
+		"$Id: mktemp.c,v 1.9 1998/03/03 14:38:36 bde Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -164,11 +164,13 @@ _gettemp(path, doopen, domkdir)
 		for (trv = start;;) {
 			if (!*trv)
 				return(0);
-			if (*trv == 'z')
+			if (*trv == 'Z')
 				*trv++ = 'a';
 			else {
 				if (isdigit(*trv))
 					*trv = 'a';
+				else if (*trv == 'z')	/* inc from z to A */
+					*trv = 'A';
 				else
 					++*trv;
 				break;
