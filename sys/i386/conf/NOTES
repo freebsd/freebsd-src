@@ -446,6 +446,7 @@ device		lmc	# tulip based LanMedia WAN cards
 #  The `disc' device implements a minimal network interface,
 #  which throws away all packets sent and never receives any.  It is
 #  included for testing purposes.  This shows up as the 'ds' interface.
+#  The `tap' device is a pty-like virtual Ethernet interface
 #  The `tun' device implements (user-)ppp and nos-tun
 #  The `gif' device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
@@ -470,6 +471,7 @@ device		sppp			#Generic Synchronous PPP
 device		loop	1		#Network loopback device
 device		bpf			#Berkeley packet filter
 device		disc			#Discard device (ds0, ds1, etc)
+device		tap			#Virtual Ethernet driver
 device		tun			#Tunnel driver (ppp(8), nos-tun(8))
 device		sl			#Serial Line IP
 device		ppp	2		#Point-to-point protocol
