@@ -118,17 +118,21 @@
     as well as a fix, can be found in security advisory
     FreeBSD-SA-01:52.</para>
 
-    <para>A flaw in the implementation of the &man.ipfw.8;
-    <literal>me</literal> rules on point-to-point links has been
-    corrected.  Formerly, <literal>me</literal> filter rules would
+    <para>A flaw existed in &man.ipfw.8;, in which 
+    <literal>me</literal> filter rules would
     match the remote IP address of a point-to-point interface in
     addition to the intended local IP address.  More details, as well
     as a fix, can be found in security advisory FreeBSD-SA-01:53.</para>
 
-    <para>A vulnerability in &man.procfs.5;, which could allow a
+    <para>A vulnerability in &man.procfs.5; could allow a
     process to read sensitive information from another process's
-    memory space, has been closed.  For more details, as well as
-    information on patches, see security advisory FreeBSD-SA-01:54.</para>
+    memory space.  For more details, as well as
+    information on patches, see security advisory FreeBSD-SA-01:55.</para>
+
+    <para><literal>PARANOID</literal> hostname checking in
+    <application>tcp_wrappers</application> did not work correctly.
+    For more details and information on patches, see security advisory
+    FreeBSD-SA-01:56.</para>
   </sect1>
 
   <sect1>
