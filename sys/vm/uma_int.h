@@ -173,18 +173,11 @@ struct uma_hash {
  * Structures for per cpu queues.
  */
 
-/*
- * This size was chosen so that the struct bucket size is roughly
- * 128 * sizeof(void *).  This is exactly true for x86, and for alpha
- * it will would be 32bits smaller if it didn't have alignment adjustments.
- */
-
-#define UMA_BUCKET_SIZE	125
-
 struct uma_bucket {
 	LIST_ENTRY(uma_bucket)	ub_link;	/* Link into the zone */
-	int16_t	ub_ptr;				/* Pointer to current item */
-	void	*ub_bucket[UMA_BUCKET_SIZE];	/* actual allocation storage */
+	int16_t	ub_cnt;				/* Count of free items. */
+	int16_t	ub_entries;			/* Max items. */
+	void	*ub_bucket[];			/* actual allocation storage */
 };
 
 typedef struct uma_bucket * uma_bucket_t;
