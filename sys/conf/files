@@ -352,6 +352,7 @@ dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
 dev/ray/if_ray.c        optional ray card
 dev/ray/if_ray.c        optional ray pccard
+dev/sbni/if_sbni_pci.c	optional sbni pci
 smbus_if.o		optional smbus					\
 	dependency	"smbus_if.c smbus_if.h"				\
 	compile-with	"${NORMAL_C}"					\

@@ -102,6 +102,7 @@ SUBDIR+=aac \
 	ncv \
 	nsp \
 	ray \
+	sbni \
 	scsi_low \
 	smbfs \
 	splash \

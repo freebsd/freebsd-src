@@ -1359,6 +1359,7 @@ options 	COM_MULTIPORT		#code for some cards with shared IRQs
 #     DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
 # lnc: Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 & Am79C960)
 # rdp: RealTek RTL 8002-based pocket ethernet adapters
+# sbni: Granch SBNI12-xx adapters
 # sr: RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl: Lucent Wavelan (ISA card only).
 # awi: IEEE 802.11b PRISM I cards.
@@ -1385,6 +1386,7 @@ device ie1 at isa? port 0x360 irq 7 iomem 0xd0000
 device le0 at isa? port 0x300 irq 5 iomem 0xd0000
 device lnc0 at isa? port 0x280 irq 10 drq 0
 device rdp0 at isa? port 0x378 irq 7 flags 2
+device sbni0 at isa? port 0x210 irq 5 flags 0xefdead
 device sr0 at isa? port 0x300 irq 5 iomem 0xd0000
 device sn0 at isa? port 0x300 irq 10
 device awi

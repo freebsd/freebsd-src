@@ -362,6 +362,7 @@ static DEV_INFO device_info[] = {
 {"sn",          "SMC/Megahertz Ethernet adapters",			0,CLS_NETWORK},
 {"xe",          "Xircom PC Card Ethernet adapter",		0,	CLS_NETWORK},
 {"rdp",		"RealTek RTL8002 Pocket Ethernet",	0,		CLS_NETWORK},
+{"sbni",	"Granch SBNI12-xx adapters",		0,		CLS_NETWORK},
 
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},

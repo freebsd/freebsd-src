@@ -97,6 +97,8 @@ dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/fe/if_fe_isa.c		optional	fe isa
+dev/sbni/if_sbni.c		optional	sbni
+dev/sbni/if_sbni_isa.c		optional	sbni isa
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
