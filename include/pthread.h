@@ -67,6 +67,19 @@
 #define _POSIX_THREAD_SAFE_FUNCTIONS
 
 /*
+ * Flags for threads and thread attributes.
+ */
+#define PTHREAD_DETACHED            0x1
+#define PTHREAD_SCOPE_SYSTEM        0x2
+#define PTHREAD_INHERIT_SCHED       0x4
+#define PTHREAD_NOFLOAT             0x8
+
+#define PTHREAD_CREATE_DETACHED     PTHREAD_DETACHED
+#define PTHREAD_CREATE_JOINABLE     0
+#define PTHREAD_SCOPE_PROCESS       0
+#define PTHREAD_EXPLICIT_SCHED      0
+
+/*
  * Forward structure definitions.
  *
  * These are mostly opaque to the user.
@@ -103,7 +116,7 @@ typedef struct	pthread_once		pthread_once_t;
  * use in header symbols.
  */
 typedef void	*pthread_addr_t;
-typedef void	*(*pthread_startroutine_t) (void *);
+typedef void	*(*pthread_startroutine_t) __P((void *));
 
 /*
  * Once definitions.
@@ -127,11 +140,17 @@ struct pthread_once {
 /*
  * Default attribute arguments.
  */
+#ifndef PTHREAD_KERNEL
 #define pthread_condattr_default    NULL
 #define pthread_mutexattr_default   NULL
-#ifndef PTHREAD_KERNEL
 #define pthread_attr_default        NULL
 #endif
+
+enum pthread_mutextype {
+	MUTEX_TYPE_FAST			= 1,
+	MUTEX_TYPE_COUNTING_FAST	= 2,	/* Recursive */
+	MUTEX_TYPE_MAX
+};
 
 /*
  * Thread function prototype definitions:
@@ -156,7 +175,7 @@ int		pthread_attr_setstacksize __P((pthread_attr_t *, size_t));
 int		pthread_attr_setstackaddr __P((pthread_attr_t *, void *));
 int		pthread_attr_setdetachstate __P((pthread_attr_t *, int));
 void		pthread_cleanup_pop __P((int execute));
-int		pthread_cleanup_push __P((void (*routine) (void *),
+void		pthread_cleanup_push __P((void (*routine) (void *),
 			void *routine_arg));
 int		pthread_condattr_destroy __P((pthread_condattr_t *attr));
 int		pthread_condattr_init __P((pthread_condattr_t *attr));
@@ -177,7 +196,7 @@ int		pthread_create __P((pthread_t *, const pthread_attr_t *,
 int		pthread_detach __P((pthread_t *));
 int		pthread_equal __P((pthread_t, pthread_t));
 void		pthread_exit __P((void *));
-int		pthread_getspecific __P((pthread_key_t, void **));
+void		*pthread_getspecific __P((pthread_key_t));
 int		pthread_join __P((pthread_t, void **));
 int		pthread_key_create __P((pthread_key_t *,
 			void (*routine) (void *)));

@@ -37,11 +37,13 @@
  * Non-POSIX thread function prototype definitions:
  */
 __BEGIN_DECLS
-int  pthread_attr_setcreatesuspend_np __P((pthread_attr_t *));
-int  pthread_multi_np __P((void));
-int  pthread_resume_np __P((pthread_t));
-int  pthread_single_np __P((void));
-int  pthread_suspend_np __P((pthread_t));
+int pthread_attr_setcreatesuspend_np __P((pthread_attr_t *));
+int pthread_multi_np __P((void));
+int pthread_resume_np __P((pthread_t));
+int pthread_single_np __P((void));
+int pthread_suspend_np __P((pthread_t));
+int pthread_mutexattr_getkind_np __P((pthread_mutexattr_t attr));
+int pthread_mutexattr_setkind_np __P((pthread_mutexattr_t *attr, int kind));
 __END_DECLS
 
 #endif
