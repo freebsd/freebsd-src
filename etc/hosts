@@ -1,4 +1,4 @@
-# $Id: hosts,v 1.4 1994/06/24 23:50:16 wollman Exp $
+# $Id: hosts,v 1.5 1995/04/09 09:54:39 rgrimes Exp $
 #
 # Host Database
 # This file should contain the addresses and aliases
@@ -8,6 +8,8 @@
 #
 #
 127.0.0.1		localhost localhost.my.domain
+# for the no-configured-network case.
+127.0.0.1		myname.my.domain
 #
 # Imaginary network.
 #10.0.0.2		myname.my.domain myname
