@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)compare.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: compare.c,v 1.8 1997/10/01 06:30:00 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -288,7 +288,7 @@ rlink(name)
 	static char lbuf[MAXPATHLEN];
 	register int len;
 
-	if ((len = readlink(name, lbuf, sizeof(lbuf))) == -1)
+	if ((len = readlink(name, lbuf, sizeof(lbuf) - 1)) == -1)
 		err(1, "line %d: %s", lineno, name);
 	lbuf[len] = '\0';
 	return (lbuf);
