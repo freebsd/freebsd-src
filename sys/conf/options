@@ -570,9 +570,6 @@ UPLCOM_INTR_INTERVAL	opt_uplcom.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
 UVSCOM_INTR_INTERVAL	opt_uvscom.h
 
-# Vinum options
-VINUMDEBUG		opt_vinum.h
-
 # Embedded system options
 INIT_PATH		opt_init_path.h
 
