@@ -986,6 +986,7 @@ device_set_driver(device_t dev, driver_t *driver)
 	    return ENOMEM;
 	}
 	bzero(dev->softc, driver->size);
+	driver->refs++;
     } else
 	kobj_init((kobj_t) dev, &null_class);
     return 0;
