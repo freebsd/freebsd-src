@@ -72,6 +72,14 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #include <pwd.h>
 #endif
 
+#ifdef LOGIN_CAP
+#include <login_cap.h>
+#define RESOURCE_RC	"daemon"
+#define RESOURCE_WINDOW "default"
+#define RESOURCE_GETTY	"default"
+static void setprocresources __P((const char *));
+#endif
+
 #include "pathnames.h"
 
 /*
@@ -736,6 +744,10 @@ runcom()
 
 		sigprocmask(SIG_SETMASK, &sa.sa_mask, (sigset_t *) 0);
 
+#ifdef LOGIN_CAP
+		setprocresources(RESOURCE_RC);
+#endif
+
 		execv(_PATH_BSHELL, argv);
 		stall("can't exec %s for %s: %m", _PATH_BSHELL, _PATH_RUNCOM);
 		_exit(1);	/* force single user mode */
@@ -1070,6 +1082,9 @@ start_window_system(sp)
 	if (setsid() < 0)
 		emergency("setsid failed (window) %m");
 
+#ifdef LOGIN_CAP
+	setprocresources(RESOURCE_WINDOW);
+#endif
 	if (sp->se_type) {
 		/* Don't use malloc after fork */
 		strcpy(term, "TERM=");
@@ -1132,6 +1147,9 @@ start_getty(sp)
 	sigemptyset(&mask);
 	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
 
+#ifdef LOGIN_CAP
+	setprocresources(RESOURCE_GETTY);
+#endif
 	if (sp->se_type) {
 		/* Don't use malloc after fork */
 		strcpy(term, "TERM=");
@@ -1434,3 +1452,16 @@ strk (char *p)
     }
     return q;
 }
+
+#ifdef LOGIN_CAP
+static void
+setprocresources(const char *cname)
+{
+  login_cap_t *lc = login_getclassbyname(cname, NULL);
+  if (lc != NULL) {
+    setusercontext(lc, NULL, 0, LOGIN_SETPRIORITY|LOGIN_SETRESOURCES);
+    login_close(lc);
+  }
+}
+#endif
+
