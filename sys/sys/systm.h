@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.50 1997/02/22 09:46:06 peter Exp $
+ * $Id: systm.h,v 1.51 1997/05/29 04:46:07 peter Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -164,6 +164,44 @@ typedef timeout_t *timeout_func_t; /* a pointer to this type */
 void timeout(timeout_func_t, void *, int);
 void untimeout(timeout_func_t, void *);
 void	logwakeup __P((void));
+
+/* Interrupt management */
+void		setdelayed(void);
+void		setsoftast(void);
+void		setsoftclock(void);
+void		setsoftnet(void);
+void		setsofttty(void);
+void		schedsoftnet(void);
+void		schedsofttty(void);
+void		spl0(void);
+intrmask_t	softclockpending(void);
+intrmask_t	splbio(void);
+intrmask_t	splclock(void);
+intrmask_t	splhigh(void);
+intrmask_t	splimp(void);
+intrmask_t	splnet(void);
+intrmask_t	splsoftclock(void);
+intrmask_t	splsofttty(void);
+intrmask_t	splstatclock(void);
+intrmask_t	spltty(void);
+intrmask_t	splvm(void);
+void		splx(intrmask_t ipl);
+void		splz(void);
+
+/*
+ * XXX It's not clear how "machine independent" these will be yet, but
+ * they are used all over the place especially in pci drivers.  We would
+ * have to modify lots of drivers since <machine/cpufunc.h> no longer
+ * implicitly causes these to be defined when it #included <machine/spl.h>
+ */
+extern intrmask_t bio_imask;	/* group of interrupts masked with splbio() */
+extern intrmask_t net_imask;	/* group of interrupts masked with splimp() */
+extern intrmask_t stat_imask;	/* interrupts masked with splstatclock() */
+extern intrmask_t tty_imask;	/* group of interrupts masked with spltty() */
+
+/* Read only */
+extern const intrmask_t softnet_imask; /* interrupt masked with splnet() */
+extern const intrmask_t softtty_imask; /* interrupt masked with splsofttty() */
 
 /* Various other callout lists that modules might want to know about */
 /* shutdown callout list definitions */
