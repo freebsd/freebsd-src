@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.5 1995/06/29 14:05:41 gclarkii Exp $
+<date> $Id: freebsd-faq.sgml,v 1.6 1995/07/29 18:09:19 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1148,7 +1148,7 @@ sea32550N|Seagate 32550N:\
           their bus access speed in software.  Previous versions of the
           1542 driver tried to determine the fastest usable speed and set
           the adapter to that.  We found that this breaks some users'
-          systems, so you now have to define the ``<tt/TUNE_1542/'' kernel
+          systems, so you now have to define the ``<tt/TUNE&lowbar;1542/'' kernel
           configuration option in order to have this take place.  Using it
           on those systems where it works may make your disks run faster,
           but on those systems where it doesn't, your data could be
@@ -1227,7 +1227,8 @@ sea32550N|Seagate 32550N:\
             <item> <tt/vi MYKERNEL/
             <item> <tt/config MYKERNEL/
             <item> <tt>cd ../../compile/MYKERNEL</tt>
-            <item> <tt/make depend all/
+            <item> <tt/make depend/
+            <item> <tt/make all/
             <item> <tt/make install/
             <item> <tt/reboot/
           </enum>
