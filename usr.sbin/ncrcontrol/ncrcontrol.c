@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.8 1995/05/30 03:49:12 rgrimes Exp $
+**  $Id: ncrcontrol.c,v 1.9 1995/09/14 18:14:28 se Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -182,11 +182,14 @@ void open_kvm(int flags)
 	if (kvm_isopen) return;
 
 #if (__FreeBSD__ >= 2)
-	vmunix = getbootfile();
-#endif
-	if (vmunix == NULL) {
+	if (!vmunix) {
+		vmunix = getbootfile();
+	}
+#else
+	if (!vmunix) {
 		vmunix = _PATH_UNIX;
 	}
+#endif
 #if defined(__NetBSD__) || (__FreeBSD__ >= 2)
 	kvm = kvm_openfiles(vmunix, kmemf, NULL, flags, errbuf);
 	if (kvm == NULL) {
@@ -1621,7 +1624,13 @@ void main(argc, argv)
 	"-k?                list tortures\n"
 	"-M <kernelimage>   (default: %s)\n"
 	"-N <symboltable>   (default: %s)\n"
-	, prog, _PATH_KMEM, _PATH_UNIX);
+	, prog, _PATH_KMEM, 
+#if (__FreeBSD__ >= 2)
+			 getbootfile()
+#else
+			 _PATH_UNIX
+#endif
+			 );
 		if (verbose) fprintf (stderr, ident);
 		exit (1);
 	}
