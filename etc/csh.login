@@ -8,4 +8,4 @@
 # setenv LANG it_IT.ISO_8859-1
 # For full locales list check /usr/share/locale/*
 # Read system messages
-# msgs
+# msgs -f
