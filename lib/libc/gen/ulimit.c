@@ -40,16 +40,16 @@ ulimit(int cmd, ...)
 {
 	struct rlimit limit;
 	va_list ap;
-	long arg, size;
+	long arg;
 
-	if (cmd == UL_GETSIZE) {
+	if (cmd == UL_GETFSIZE) {
 		if (getrlimit(RLIMIT_FSIZE, &limit) == -1)
 			return (-1);
 		limit.rlim_cur /= 512;
 		if (limit.rlim_cur > LONG_MAX)
 			return (LONG_MAX);
 		return ((long)limit.rlim_cur);
-	} else if (cmd == UL_SETSIZE) {
+	} else if (cmd == UL_SETFSIZE) {
 		va_start(ap, cmd);
 		arg = va_arg(ap, long);
 		va_end(ap);
