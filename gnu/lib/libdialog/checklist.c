@@ -300,9 +300,10 @@ draw:
 			scroll--;
 			print_item(list, items[scroll*3], items[scroll*3 + 1], status[scroll], 0,
 				   TRUE, DREF(ditems, scroll), list_width, item_x, check_x);
-			wnoutrefresh(list);
 			print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
-			wrefresh(dialog);
+			wmove(list, choice, check_x+1);
+			wnoutrefresh(dialog);
+			wrefresh(list);
 		    }
 		    continue;    /* wait for another key press */
 		}
@@ -329,9 +330,10 @@ draw:
 				   items[(scroll + max_choice - 1) * 3 + 1],
 				   status[scroll + max_choice - 1], max_choice - 1, TRUE,
 				   DREF(ditems, scroll + max_choice - 1), list_width, item_x, check_x);
-			wnoutrefresh(list);
 			print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
-			wrefresh(dialog);
+			wmove(list, choice, check_x+1);
+			wnoutrefresh(dialog);
+			wrefresh(list);
 		    }
 		    continue;    /* wait for another key press */
 		}
