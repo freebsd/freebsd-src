@@ -271,6 +271,7 @@ bad:
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 	vput(vp);
 	*flagp = fmode;
+	ndp->ni_vp = NULL;
 	return (error);
 }
 
