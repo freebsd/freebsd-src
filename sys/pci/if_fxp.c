@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.59 1998/12/14 05:47:27 dillon Exp $
+ *	$Id: if_fxp.c,v 1.60 1999/01/27 23:45:42 dillon Exp $
  */
 
 /*
@@ -1347,7 +1347,7 @@ fxp_init(xsc)
 #if defined(__NetBSD__)
 	bcopy(LLADDR(ifp->if_sadl), (void *)cb_ias->macaddr, 6);
 #else
-	bcopy(sc->arpcom.ac_enaddr, (void *)cb_ias->macaddr,
+	bcopy(sc->arpcom.ac_enaddr, (volatile void *)cb_ias->macaddr,
 	    sizeof(sc->arpcom.ac_enaddr));
 #endif /* __NetBSD__ */
 
@@ -1820,7 +1820,7 @@ fxp_mc_setup(sc)
 				break;
 			}
 			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-			    (void *) &sc->mcsp->mc_addr[nmcasts][0], 6);
+			    (volatile void *) &sc->mcsp->mc_addr[nmcasts][0], 6);
 			nmcasts++;
 		}
 	}

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.94 1999/01/05 18:50:03 eivind Exp $
+ * $Id: ffs_vfsops.c,v 1.95 1999/01/07 16:14:17 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -221,8 +221,8 @@ ffs_mount( mp, path, data, ndp, p)
 			 */
 			if (p->p_ucred->cr_uid != 0) {
 				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-				if (error = VOP_ACCESS(devvp, VREAD | VWRITE,
-				    p->p_ucred, p)) {
+				if ((error = VOP_ACCESS(devvp, VREAD | VWRITE,
+				    p->p_ucred, p)) != 0) {
 					VOP_UNLOCK(devvp, 0, p);
 					return (error);
 				}
@@ -305,7 +305,7 @@ ffs_mount( mp, path, data, ndp, p)
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		if (error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) {
+		if ((error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) != 0) {
 			vput(devvp);
 			return (error);
 		}
@@ -472,7 +472,7 @@ ffs_reload(mp, cred, p)
 		size = DEV_BSIZE;
 	else
 		size = dpart.disklab->d_secsize;
-	if (error = bread(devvp, (ufs_daddr_t)(SBOFF/size), SBSIZE, NOCRED,&bp))
+	if ((error = bread(devvp, (ufs_daddr_t)(SBOFF/size), SBSIZE, NOCRED,&bp)) != 0)
 		return (error);
 	newfs = (struct fs *)bp->b_data;
 	if (newfs->fs_magic != FS_MAGIC || newfs->fs_bsize > MAXBSIZE ||
@@ -634,7 +634,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 
 	bp = NULL;
 	ump = NULL;
-	if (error = bread(devvp, SBLOCK, SBSIZE, cred, &bp))
+	if ((error = bread(devvp, SBLOCK, SBSIZE, cred, &bp)) != 0)
 		goto out;
 	fs = (struct fs *)bp->b_data;
 	if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||
@@ -693,8 +693,8 @@ ffs_mountfs(devvp, mp, p, malloctype)
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
 			size = (blks - i) * fs->fs_fsize;
-		if (error = bread(devvp, fsbtodb(fs, fs->fs_csaddr + i), size,
-		    cred, &bp)) {
+		if ((error = bread(devvp, fsbtodb(fs, fs->fs_csaddr + i), size,
+		    cred, &bp)) != 0) {
 			free(base, M_UFSMNT);
 			goto out;
 		}
@@ -973,9 +973,9 @@ loop:
 		simple_lock(&vp->v_interlock);
 		nvp = vp->v_mntvnodes.le_next;
 		ip = VTOI(vp);
-		if ((vp->v_type == VNON) || ((ip->i_flag &
+		if ((vp->v_type == VNON) || (((ip->i_flag &
 		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0) &&
-		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || (waitfor == MNT_LAZY))) {
+		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || (waitfor == MNT_LAZY)))) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}
@@ -989,7 +989,7 @@ loop:
 					goto loop;
 				continue;
 			}
-			if (error = VOP_FSYNC(vp, cred, waitfor, p))
+			if ((error = VOP_FSYNC(vp, cred, waitfor, p)) != 0)
 				allerror = error;
 			VOP_UNLOCK(vp, 0, p);
 			vrele(vp);
@@ -1264,7 +1264,7 @@ ffs_sbupdate(mp, waitfor)
 		space += size;
 		if (waitfor != MNT_WAIT)
 			bawrite(bp);
-		else if (error = bwrite(bp))
+		else if ((error = bwrite(bp)) != 0)
 			allerror = error;
 	}
 	/*
@@ -1294,7 +1294,7 @@ ffs_sbupdate(mp, waitfor)
 	dfs->fs_maxfilesize = mp->um_savedmaxfilesize;		/* XXX */
 	if (waitfor != MNT_WAIT)
 		bawrite(bp);
-	else if (error = bwrite(bp))
+	else if ((error = bwrite(bp)) != 0)
 		allerror = error;
 	return (allerror);
 }

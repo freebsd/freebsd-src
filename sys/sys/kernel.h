@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.48 1998/12/20 16:54:27 bde Exp $
+ * $Id: kernel.h,v 1.49 1999/01/14 05:48:46 jdp Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -181,7 +181,7 @@ typedef enum sysinit_elem_type {
 struct sysinit {
 	unsigned int	subsystem;		/* subsystem identifier*/
 	unsigned int	order;			/* init order within subsystem*/
-	void		(*func) __P((void *));	/* init function*/
+	void		(*func) __P((const void *));	/* init function*/
 	void		*udata;			/* multiplexer/argument */
 	si_elem_t	type;			/* sysinit_elem_type*/
 };

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.43 1999/01/13 03:11:42 julian Exp $
+ * $Id: kern_proc.c,v 1.44 1999/01/26 02:38:10 julian Exp $
  */
 
 #include <sys/param.h>
@@ -376,7 +376,7 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 	register int i;
 
 	for (i = 0; i <= pgrphash; i++) {
-		if (pgrp = pgrphashtbl[i].lh_first) {
+		if ((pgrp = pgrphashtbl[i].lh_first) != NULL) {
 			printf("\tindx %d\n", i);
 			for (; pgrp != 0; pgrp = pgrp->pg_hash.le_next) {
 				printf(

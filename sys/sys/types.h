@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.27 1999/01/21 08:29:08 dillon Exp $
+ * $Id: types.h,v 1.28 1999/01/27 19:01:44 dillon Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -67,7 +67,8 @@ typedef	int64_t		quad_t;
 typedef	quad_t *	qaddr_t;
 
 typedef	char *		caddr_t;	/* core address */
-typedef	const char *	c_caddr_t;	/* core address */
+typedef	const char *	c_caddr_t;	/* core address, pointer to const */
+typedef	volatile char *	v_caddr_t;	/* core address, pointer to volatile */
 typedef	int32_t		daddr_t;	/* disk address */
 typedef	u_int32_t	u_daddr_t;	/* unsigned disk address */
 typedef	u_int32_t	dev_t;		/* device number */
