@@ -111,3 +111,10 @@ in which a TRUE response indicates superuser powers.
 .Sh SEE ALSO
 .Xr chroot 2 ,
 .Xr jail 2
+.Sh BUGS
+The
+.Fn suser
+and
+.Fn suser_cred
+functions don't, in fact, record that superuser privileges have been
+used, and haven't done so since August 2000.
