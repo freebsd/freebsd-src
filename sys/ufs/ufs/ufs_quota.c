@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
- * $Id$
+ * $Id: ufs_quota.c,v 1.11 1997/02/22 09:47:50 peter Exp $
  */
 
 #include "opt_quota.h"		/* not really necessary... */
@@ -359,7 +359,7 @@ chkdquot(ip)
 			continue;
 		if (ip->i_dquot[i] == NODQUOT) {
 			vprint("chkdquot: missing dquot", ITOV(ip));
-			panic("missing dquot");
+			panic("chkdquot: missing dquot");
 		}
 	}
 }
@@ -767,7 +767,7 @@ dqget(vp, id, ump, type, dqp)
 			return (EUSERS);
 		}
 		if (dq->dq_cnt || (dq->dq_flags & DQ_MOD))
-			panic("free dquot isn't");
+			panic("dqget: free dquot isn't");
 		TAILQ_REMOVE(&dqfreelist, dq, dq_freelist);
 		LIST_REMOVE(dq, dq_hash);
 	}

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id$
+ * $Id: ufs_lookup.c,v 1.12 1997/02/22 09:47:49 peter Exp $
  */
 
 #include <sys/param.h>
@@ -604,7 +604,7 @@ ufs_dirbad(ip, offset, how)
 	(void)printf("%s: bad dir ino %ld at offset %ld: %s\n",
 	    mp->mnt_stat.f_mntonname, ip->i_number, offset, how);
 	if ((mp->mnt_stat.f_flags & MNT_RDONLY) == 0)
-		panic("bad dir");
+		panic("ufs_dirbad: bad dir");
 }
 
 /*
@@ -673,7 +673,7 @@ ufs_direnter(ip, dvp, cnp)
 
 #ifdef DIAGNOSTIC
 	if ((cnp->cn_flags & SAVENAME) == 0)
-		panic("direnter: missing name");
+		panic("ufs_direnter: missing name");
 #endif
 	dp = VTOI(dvp);
 	newdir.d_ino = ip->i_number;
