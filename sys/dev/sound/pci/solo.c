@@ -149,6 +149,7 @@ static snd_mixer ess_mixer = {
     	"ESS mixer",
     	essmix_init,
 	NULL,
+	NULL,
     	essmix_set,
     	essmix_setrecsrc,
 };

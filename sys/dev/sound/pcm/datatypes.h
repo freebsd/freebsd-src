@@ -37,11 +37,13 @@ typedef int (mix_set_t)(snd_mixer *m, unsigned dev, unsigned left, unsigned righ
 typedef int (mix_recsrc_t)(snd_mixer *m, u_int32_t src);
 typedef int (mix_init_t)(snd_mixer *m);
 typedef int (mix_uninit_t)(snd_mixer *m);
+typedef int (mix_reinit_t)(snd_mixer *m);
 
 struct _snd_mixer {
 	char name[64];
 	mix_init_t *init;
 	mix_uninit_t *uninit;
+	mix_uninit_t *reinit;
 	mix_set_t *set;
 	mix_recsrc_t *setrecsrc;
 
@@ -117,6 +119,8 @@ typedef int (pcmchan_trigger_t)(void *data, int go);
 typedef int (pcmchan_getptr_t)(void *data);
 typedef int (pcmchan_free_t)(void *data);
 typedef pcmchan_caps *(pcmchan_getcaps_t)(void *data);
+typedef int (pcmchan_reset_t)(void *data);
+typedef int (pcmchan_resetdone_t)(void *data);
 
 struct _pcm_channel {
 	pcmchan_init_t *init;
@@ -128,8 +132,8 @@ struct _pcm_channel {
 	pcmchan_getptr_t *getptr;
 	pcmchan_getcaps_t *getcaps;
 	pcmchan_free_t *free;
-	void *nop1;
-	void *nop2;
+	pcmchan_reset_t *reset;
+	pcmchan_resetdone_t *resetdone;
 	void *nop3;
 	void *nop4;
 	void *nop5;
