@@ -146,6 +146,20 @@ int enc);
 	des_cbc_encrypt accept that ivec is updates with the correct value
 	to pass in subsequent calls to des_ncbc_encrypt().  I advise using
 	des_ncbc_encrypt() instead of des_cbc_encrypt();
+
+void des_xcbc_encrypt(
+des_cblock *input,
+des_cblock *output,
+long length,
+des_key_schedule sk,
+des_cblock *ivec,
+des_cblock *inw,
+des_cblock *outw,
+int enc);
+	This is RSA's DESX mode of DES.  It uses inw and outw to
+	'whiten' the encryption.  inw and outw are secret (unlike the iv)
+	and are as such, part of the key.  So the key is sort of 24 bytes.
+	This is much better than cbc des.
 	
 void des_3cbc_encrypt(
 des_cblock *input,

@@ -160,8 +160,9 @@ des_new_random_key(new_key)
  *                                     to a truly nasty sequence using system
  *                                     supplied volatile variables.
  */
+/* Name shortened for VMS - there is a macro for the old name */
 void
-des_init_random_number_generator(key)
+des_init_random_num_generator(key)
 	des_cblock *key;
 {
 	/* 64-bit structures */

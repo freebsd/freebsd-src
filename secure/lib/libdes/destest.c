@@ -219,6 +219,13 @@ static unsigned char cbc_ok[32]={
 	0x46,0x8e,0x91,0x15,0x78,0x88,0xba,0x68,
 	0x1d,0x26,0x93,0x97,0xf7,0xfe,0x62,0xb4};
 
+static unsigned char xcbc_ok[32]={
+	0x86,0x74,0x81,0x0D,0x61,0xA4,0xA5,0x48,
+	0xB9,0x93,0x03,0xE1,0xB8,0xBB,0xBD,0xBD,
+	0x64,0x30,0x0B,0xB9,0x06,0x65,0x81,0x76,
+	0x04,0x1D,0x77,0x62,0x17,0xCA,0x2B,0xD2,
+	};
+
 static unsigned char cbc3_ok[32]={
 	0x3F,0xE3,0x01,0xC9,0x62,0xAC,0x01,0xD0,
 	0x22,0x13,0x76,0x3C,0x1C,0xBD,0x4C,0xDC,
@@ -386,6 +393,34 @@ char *argv[];
 	if (memcmp(cbc_in,cbc_data,32) != 0)
 		{
 		printf("cbc_encrypt decrypt error\n");
+		err=1;
+		}
+
+	printf("Doing desx cbc\n");
+	if ((j=des_key_sched((C_Block *)cbc_key,ks)) != 0)
+		{
+		printf("Key error %d\n",j);
+		err=1;
+		}
+	memset(cbc_out,0,40);
+	memset(cbc_in,0,40);
+	memcpy(iv3,cbc_iv,sizeof(cbc_iv));
+	des_xcbc_encrypt((C_Block *)cbc_data,(C_Block *)cbc_out,
+		(long)strlen((char *)cbc_data)+1,ks,
+		(C_Block *)iv3,
+		(C_Block *)cbc2_key, (C_Block *)cbc3_key, DES_ENCRYPT);
+	if (memcmp(cbc_out,xcbc_ok,32) != 0)
+		{
+		printf("des_xcbc_encrypt encrypt error\n");
+		}
+	memcpy(iv3,cbc_iv,sizeof(cbc_iv));
+	des_xcbc_encrypt((C_Block *)cbc_out,(C_Block *)cbc_in,
+		(long)strlen((char *)cbc_data)+1,ks,
+		(C_Block *)iv3,
+		(C_Block *)cbc2_key, (C_Block *)cbc3_key, DES_DECRYPT);
+	if (memcmp(cbc_in,cbc_data,32) != 0)
+		{
+		printf("des_xcbc_encrypt decrypt error\n");
 		err=1;
 		}
 
