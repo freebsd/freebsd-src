@@ -40,6 +40,7 @@
 .Sh SYNOPSIS
 .Nm rsh
 .Op Fl Kdnx
+.Op Fl t Ar timeout
 .Op Fl k Ar realm
 .Op Fl l Ar username
 .Ar host
@@ -105,6 +106,11 @@ option turns on
 .Tn DES
 encryption for all data exchange.
 This may introduce a significant delay in response time.
+.It Fl t
+The
+.Fl t
+option allows a timeout to be specified (in seconds).  If no
+data is sent or received in this time, rsh will exit.
 .El
 .Pp
 If no
