@@ -76,7 +76,7 @@
 Dedicated to:	My family, my Grandfather,
 		and Max, my Golden Retriever
 
-Thanks to:	Jordon Hubbard (jkh) for getting me ramped-up to 2.x system
+Thanks to:	Jordan Hubbard (jkh) for getting me ramped-up to 2.x system
 		quickly enough to make the 2.1 release.  He put up with
 		plenty of silly questions and might get the post of
 		ambassador some day.
@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.19 1996/07/23 21:51:56 phk Exp $ */
+/* $Id: matcd.c,v 1.20 1996/09/06 23:08:29 phk Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
