@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.12 1999/03/16 21:11:28 msmith Exp $
+ *      $Id: bios.c,v 1.13 1999/07/29 01:49:17 msmith Exp $
  */
 
 /*
@@ -385,11 +385,7 @@ bios16(struct bios_args *args, char *fmt, ...)
 	args->seg.code32.limit = 0xffff;	
 
 	ptd = (u_int *)rcr3();
-#ifdef SMP
-	if (ptd == my_idlePTD)
-#else
 	if (ptd == IdlePTD)
-#endif
 	{
 		/*
 		 * no page table, so create one and install it.
