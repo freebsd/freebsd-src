@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.16 1995/09/22 17:43:37 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.17 1995/10/03 16:54:15 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -503,6 +503,8 @@ tcp_mtudisc(inp, errno)
 		offered = taop->tao_mssopt;
 		mss = rt->rt_rmx.rmx_mtu - sizeof(struct tcpiphdr);
 		mss = min(mss, offered);
+		if (tp->t_maxopd <= mss)
+			return;
 		tp->t_maxopd = mss;
 
 		if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
@@ -523,15 +525,12 @@ tcp_mtudisc(inp, errno)
 
 		tp->t_maxseg = mss;
 
-		/*
-		 * Nudge TCP output.  Unfortunately, we have no way to know
-		 * which packet that we sent is the failing one, but in the
-		 * vast majority of cases we expect that it will be at the
-		 * beginning of the window, so this should do the right
-		 * thing (I hope).
-		 */
-		tp->snd_nxt = tp->snd_una;
-		tcp_output(tp);
+		if (SEQ_GT(tp->snd_una, tp->t_lastmturesend)) {
+			tcpstat.tcps_mturesent++;
+			tp->t_rtt = 0;
+			tp->snd_nxt = tp->t_lastmturesend = tp->snd_una;
+			tcp_output(tp);
+		}
 	}
 }
 #endif /* MTUDISC */

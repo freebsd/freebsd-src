@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.17 1995/09/22 07:40:18 peter Exp $
+ * 	$Id: tcp_var.h,v 1.18 1995/10/04 20:49:03 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -141,6 +141,8 @@ struct tcpcb {
 	caddr_t	t_tuba_pcb;		/* next level down pcb for TCP over z */
 /* More RTT stuff */
 	u_long	t_rttupdated;		/* number of times rtt sampled */
+/* For MTU discovery */
+	tcp_seq	t_lastmturesend;	/* seq of resend for mtu discovery */
 };
 
 /*
@@ -287,6 +289,7 @@ struct	tcpstat {
 	u_long	tcps_usedssthresh;	/* times ssthresh initialized from rt*/
 	u_long	tcps_persistdrop;	/* timeout in persist state */
 	u_long	tcps_badsyn;		/* bogus SYN, e.g. premature ACK */
+	u_long	tcps_mturesent;		/* resends due to MTU discovery */
 };
 
 /*
