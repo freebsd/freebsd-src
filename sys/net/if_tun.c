@@ -135,15 +135,15 @@ tunclone(void *arg, char *name, int namelen, dev_t *dev)
 }
 
 static int
-tunmodevent(module_t mod, int type, void *data) 
+tunmodevent(module_t mod, int type, void *data)
 {
 	static eventhandler_tag tag;
 	struct tun_softc *tp;
 	dev_t dev;
 	int err;
 
-	switch (type) { 
-	case MOD_LOAD: 
+	switch (type) {
+	case MOD_LOAD:
 		tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
 		if (tag == NULL)
 			return (ENOMEM);
@@ -162,8 +162,8 @@ tunmodevent(module_t mod, int type, void *data)
 			EVENTHANDLER_DEREGISTER(dev_clone, tag);
 			return (err);
 		}
-		break; 
-	case MOD_UNLOAD: 
+		break;
+	case MOD_UNLOAD:
 		err = rman_fini(&tununits);
 		if (err != 0)
 			return (err);
@@ -192,15 +192,15 @@ tunmodevent(module_t mod, int type, void *data)
 			destroy_dev(udev2dev(tunbasedev, 0));
 
 		break;
-	} 
-	return 0; 
-} 
+	}
+	return 0;
+}
 
-static moduledata_t tun_mod = { 
-	"if_tun", 
-	tunmodevent, 
+static moduledata_t tun_mod = {
+	"if_tun",
+	tunmodevent,
 	0
-}; 
+};
 
 DECLARE_MODULE(if_tun, tun_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
@@ -314,7 +314,7 @@ tunclose(dev_t dev, int foo, int bar, struct thread *td)
 	}
 
 	if (ifp->if_flags & IFF_RUNNING) {
-		register struct ifaddr *ifa;
+		struct ifaddr *ifa;
 
 		s = splimp();
 		/* find internet addresses and delete routes */
@@ -340,7 +340,7 @@ static int
 tuninit(struct ifnet *ifp)
 {
 	struct tun_softc *tp = ifp->if_softc;
-	register struct ifaddr *ifa;
+	struct ifaddr *ifa;
 	int error = 0;
 
 	TUNDEBUG("%s%d: tuninit\n", ifp->if_name, ifp->if_unit);
@@ -348,7 +348,7 @@ tuninit(struct ifnet *ifp)
 	ifp->if_flags |= IFF_UP | IFF_RUNNING;
 	getmicrotime(&ifp->if_lastchange);
 
-	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa; 
+	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
 	     ifa = TAILQ_NEXT(ifa, ifa_link)) {
 		if (ifa->ifa_addr == NULL)
 			error = EFAULT;
@@ -532,26 +532,26 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	int		s;
 	int		error;
 	struct tun_softc *tp = dev->si_drv1;
- 	struct tuninfo *tunp;
+	struct tuninfo *tunp;
 
 	switch (cmd) {
- 	case TUNSIFINFO:
- 		tunp = (struct tuninfo *)data;
+	case TUNSIFINFO:
+		tunp = (struct tuninfo *)data;
 		if (tunp->mtu < IF_MINMTU)
 			return (EINVAL);
- 		if (tp->tun_if.if_mtu != tunp->mtu
+		if (tp->tun_if.if_mtu != tunp->mtu
 		&& (error = suser(td)) != 0)
 			return (error);
- 		tp->tun_if.if_mtu = tunp->mtu;
- 		tp->tun_if.if_type = tunp->type;
- 		tp->tun_if.if_baudrate = tunp->baudrate;
- 		break;
- 	case TUNGIFINFO:
- 		tunp = (struct tuninfo *)data;
- 		tunp->mtu = tp->tun_if.if_mtu;
- 		tunp->type = tp->tun_if.if_type;
- 		tunp->baudrate = tp->tun_if.if_baudrate;
- 		break;
+		tp->tun_if.if_mtu = tunp->mtu;
+		tp->tun_if.if_type = tunp->type;
+		tp->tun_if.if_baudrate = tunp->baudrate;
+		break;
+	case TUNGIFINFO:
+		tunp = (struct tuninfo *)data;
+		tunp->mtu = tp->tun_if.if_mtu;
+		tunp->type = tp->tun_if.if_type;
+		tunp->baudrate = tp->tun_if.if_baudrate;
+		break;
 	case TUNSDEBUG:
 		tundebug = *(int *)data;
 		break;
@@ -569,7 +569,7 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		if (*(int *)data) {
 			tp->tun_flags |= TUN_IFHEAD;
 			tp->tun_flags &= ~TUN_LMODE;
-		} else 
+		} else
 			tp->tun_flags &= ~TUN_IFHEAD;
 		break;
 	case TUNGIFHEAD:
@@ -606,7 +606,7 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		s = splimp();
 		if (tp->tun_if.if_snd.ifq_head) {
 			struct mbuf *mb = tp->tun_if.if_snd.ifq_head;
-			for( *(int *)data = 0; mb != 0; mb = mb->m_next) 
+			for( *(int *)data = 0; mb != 0; mb = mb->m_next)
 				*(int *)data += mb->m_len;
 		} else
 			*(int *)data = 0;

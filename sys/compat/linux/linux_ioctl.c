@@ -96,7 +96,7 @@ DATA_SET(linux_ioctl_handler_set, sound_handler);
 DATA_SET(linux_ioctl_handler_set, termio_handler);
 DATA_SET(linux_ioctl_handler_set, private_handler);
 
-struct handler_element 
+struct handler_element
 {
 	TAILQ_ENTRY(handler_element) list;
 	int	(*func)(struct thread *, struct linux_ioctl_args *);
@@ -345,7 +345,7 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 		    lios->c_iflag, lios->c_oflag, lios->c_cflag,
 		    lios->c_lflag, (int)lios->c_line);
 		printf("c_cc ");
-		for (i=0; i<LINUX_NCCS; i++) 
+		for (i=0; i<LINUX_NCCS; i++)
 			printf("%02x ", lios->c_cc[i]);
 		printf("\n");
 	}
@@ -360,7 +360,7 @@ linux_to_bsd_termios(struct linux_termios *lios, struct termios *bios)
 #ifdef DEBUG
 	if (ldebug(ioctl)) {
 		printf("LINUX: LINUX termios structure (input):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x line=%d\n", 
+		printf("i=%08x o=%08x c=%08x l=%08x line=%d\n",
 		    lios->c_iflag, lios->c_oflag, lios->c_cflag,
 		    lios->c_lflag, (int)lios->c_line);
 		printf("c_cc ");
@@ -486,7 +486,7 @@ linux_to_bsd_termios(struct linux_termios *lios, struct termios *bios)
 		    bios->c_iflag, bios->c_oflag, bios->c_cflag, bios->c_lflag,
 		    bios->c_ispeed, bios->c_ospeed);
 		printf("c_cc ");
-		for (i=0; i<NCCS; i++) 
+		for (i=0; i<NCCS; i++)
 			printf("%02x ", bios->c_cc[i]);
 		printf("\n");
 	}
@@ -912,12 +912,12 @@ union linux_cdrom_addr
 
 struct linux_cdrom_tocentry
 {
-	u_char	cdte_track;     
+	u_char	cdte_track;
 	u_char	cdte_adr:4;
 	u_char	cdte_ctrl:4;
-	u_char	cdte_format;    
+	u_char	cdte_format;
 	union linux_cdrom_addr cdte_addr;
-	u_char	cdte_datamode;  
+	u_char	cdte_datamode;
 };
 
 struct linux_cdrom_subchnl
@@ -1880,7 +1880,7 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 		error = ENOIOCTL;
 		break;
 	}
-	
+
 	fdrop(fp, td);
 	return (error);
 }
@@ -2073,7 +2073,7 @@ linux_gifhwaddr(struct ifnet *ifp, struct l_ifreq *ifr)
 		lsa.sa_family = ARPHRD_LOOPBACK;
 		return (copyout(&lsa, &ifr->ifr_hwaddr, sizeof lsa));
 	}
-	
+
 	if (ifp->if_type != IFT_ETHER)
 		return (ENOENT);
 
@@ -2087,7 +2087,7 @@ linux_gifhwaddr(struct ifnet *ifp, struct l_ifreq *ifr)
 			return (copyout(&lsa, &ifr->ifr_hwaddr, sizeof lsa));
 		}
 	}
-	
+
 	return (ENOENT);
 }
 
@@ -2105,10 +2105,10 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 
 	KASSERT(LINUX_IFNAMSIZ == IFNAMSIZ,
 	    ("%s(): LINUX_IFNAMSIZ != IFNAMSIZ", __func__));
-	
+
 	ifp = NULL;
 	error = 0;
-	
+
 	if ((error = fget(td, args->fd, &fp)) != 0)
 		return (error);
 	type = fp->f_type;
@@ -2126,7 +2126,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	}
 
 	switch (args->cmd & 0xffff) {
-		
+
 	case LINUX_FIOGETOWN:
 	case LINUX_FIOSETOWN:
 	case LINUX_SIOCADDMULTI:
@@ -2141,7 +2141,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		    args->cmd & 0xffff);
 #endif
 		break;
-		
+
 	case LINUX_SIOCGIFFLAGS:
 	case LINUX_SIOCGIFADDR:
 	case LINUX_SIOCSIFADDR:
@@ -2181,7 +2181,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		    lifname, ifname);
 #endif
 		break;
-		
+
 	default:
 		return (ENOIOCTL);
 	}
@@ -2253,21 +2253,21 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_SIOCSIFNETMASK:
 		error = ENOIOCTL;
 		break;
-		
+
 	case LINUX_SIOCGIFMTU:
 		args->cmd = SIOCGIFMTU;
 		error = ioctl(td, (struct ioctl_args *)args);
 		break;
-		
+
 	case LINUX_SIOCSIFMTU:
 		args->cmd = SIOCSIFMTU;
 		error = ioctl(td, (struct ioctl_args *)args);
 		break;
-		
+
 	case LINUX_SIOCSIFNAME:
 		error = ENOIOCTL;
 		break;
-		
+
 	case LINUX_SIOCGIFHWADDR:
 		error = linux_gifhwaddr(ifp, (struct l_ifreq *)args->arg);
 		break;
@@ -2275,7 +2275,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_SIOCSIFHWADDR:
 		error = ENOIOCTL;
 		break;
-		
+
 	case LINUX_SIOCADDMULTI:
 		args->cmd = SIOCADDMULTI;
 		error = ioctl(td, (struct ioctl_args *)args);
@@ -2294,7 +2294,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		args->cmd = SIOCGPRIVATE_0;
 		error = ioctl(td, (struct ioctl_args *)args);
 		break;
-		
+
 	case LINUX_SIOCDEVPRIVATE+1:
 		args->cmd = SIOCGPRIVATE_1;
 		error = ioctl(td, (struct ioctl_args *)args);
@@ -2423,7 +2423,7 @@ linux_ioctl_register_handler(struct linux_ioctl_handler *h)
 		he->func = h->func;
 	} else
 		TAILQ_REMOVE(&handlers, he, list);
-	
+
 	/* Initialize range information. */
 	he->low = h->low;
 	he->high = h->high;
