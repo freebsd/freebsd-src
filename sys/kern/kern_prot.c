@@ -984,9 +984,7 @@ u_cansee(struct ucred *u1, struct ucred *u2)
 	if ((error = prison_check(u1, u2)))
 		return (error);
 	if (!ps_showallprocs && u1->cr_uid != u2->cr_uid) {
-		if (suser_xxx(u1, NULL, PRISON_ROOT) == 0)
-			return (0);
-		else
+		if (suser_xxx(u1, NULL, PRISON_ROOT) != 0)
 			return (ESRCH);
 	}
 	return (0);
