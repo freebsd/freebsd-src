@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.99 1999/05/04 20:29:58 wpaul Exp $
+ *	$Id: if_xl.c,v 1.36 1999/05/05 17:05:06 wpaul Exp $
  */
 
 /*
@@ -159,7 +159,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.99 1999/05/04 20:29:58 wpaul Exp $";
+	"$Id: if_xl.c,v 1.36 1999/05/05 17:05:06 wpaul Exp $";
 #endif
 
 /*
@@ -2113,8 +2113,15 @@ static void xl_txeoc(sc)
 			 * first generation 3c90X chips.
 			 */
 			CSR_WRITE_1(sc, XL_TX_FREETHRESH, XL_PACKET_SIZE >> 8);
+			if (txstat & XL_TXSTATUS_UNDERRUN &&
+			    sc->xl_tx_thresh < XL_PACKET_SIZE) {
+				sc->xl_tx_thresh += XL_MIN_FRAMELEN;
+				printf("xl%d: tx underrun, increasing tx start"
+				    " threshold to %d bytes\n", sc->xl_unit,
+				    sc->xl_tx_thresh);
+			}
 			CSR_WRITE_2(sc, XL_COMMAND,
-			    XL_CMD_TX_SET_START|XL_MIN_FRAMELEN);
+			    XL_CMD_TX_SET_START|sc->xl_tx_thresh);
 			if (sc->xl_type == XL_TYPE_905B) {
 				CSR_WRITE_2(sc, XL_COMMAND,
 				XL_CMD_SET_TX_RECLAIM|(XL_PACKET_SIZE >> 4));
@@ -2512,7 +2519,8 @@ static void xl_init(xsc)
 	CSR_WRITE_1(sc, XL_TX_FREETHRESH, XL_PACKET_SIZE >> 8);
 
 	/* Set the TX start threshold for best performance. */
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_SET_START|XL_MIN_FRAMELEN);
+	sc->xl_tx_thresh = XL_MIN_FRAMELEN;
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_SET_START|sc->xl_tx_thresh);
 
 	/*
 	 * If this is a 3c905B, also set the tx reclaim threshold.
