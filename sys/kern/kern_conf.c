@@ -426,7 +426,7 @@ devtoname(dev_t dev)
 }
 
 int
-dev_stdclone(char *name, char **namep, char *stem, int *unit)
+dev_stdclone(char *name, char **namep, const char *stem, int *unit)
 {
 	int u, i;
 
