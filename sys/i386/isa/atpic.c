@@ -65,6 +65,16 @@ __FBSDID("$FreeBSD$");
 #define	SLAVE	1
 
 /*
+ * PC-98 machines wire the slave 8259A to pin 7 on the master PIC, and
+ * PC-AT machines wire the slave PIC to pin 2 on the master PIC.
+ */
+#ifdef PC98
+#define	ICU_SLAVEID	7
+#else
+#define	ICU_SLAVEID	2
+#endif
+
+/*
  * Determine the base master and slave modes not including auto EOI support.
  * All machines that FreeBSD supports use 8086 mode.
  */
@@ -93,7 +103,8 @@ __FBSDID("$FreeBSD$");
 #define	SLAVE_MODE		BASE_SLAVE_MODE
 #endif
 
-#define	IMEN_MASK(ai)		(1 << (ai)->at_irq)
+#define	IRQ_MASK(irq)		(1 << (irq))
+#define	IMEN_MASK(ai)		(IRQ_MASK((ai)->at_irq))
 
 #define	NUM_ISA_IRQS		16
 
@@ -215,7 +226,7 @@ atpic_eoi_master(struct intsrc *isrc)
 	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_1
 	mtx_lock_spin(&icu_lock);
-	outb(atpics[MASTER].at_ioaddr, ICU_EOI);
+	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
 	mtx_unlock_spin(&icu_lock);
 #endif
 }
@@ -232,9 +243,9 @@ atpic_eoi_slave(struct intsrc *isrc)
 	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_2
 	mtx_lock_spin(&icu_lock);
-	outb(atpics[SLAVE].at_ioaddr, ICU_EOI);
+	outb(atpics[SLAVE].at_ioaddr, OCW2_EOI);
 #ifndef AUTO_EOI_1
-	outb(atpics[MASTER].at_ioaddr, ICU_EOI);
+	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
 #endif
 	mtx_unlock_spin(&icu_lock);
 #endif
@@ -371,9 +382,9 @@ i8259_init(struct atpic *pic, int slave)
 	 * which line on the master we are connected to.
 	 */
 	if (slave)
-		outb(imr_addr, ICU_SLAVEID);	/* my slave id is 7 */
+		outb(imr_addr, ICU_SLAVEID);
 	else
-		outb(imr_addr, IRQ_SLAVE);	/* slave on line 7 */
+		outb(imr_addr, IRQ_MASK(ICU_SLAVEID));
 
 	/* Set mode. */
 	if (slave)
@@ -493,7 +504,7 @@ atpic_handle_intr(struct intrframe iframe)
 {
 	struct intsrc *isrc;
 
-	KASSERT((u_int)iframe.if_vec < ICU_LEN,
+	KASSERT((u_int)iframe.if_vec < NUM_ISA_IRQS,
 	    ("unknown int %d\n", iframe.if_vec));
 	isrc = &atintrs[iframe.if_vec].at_intsrc;
 
@@ -515,7 +526,7 @@ atpic_handle_intr(struct intrframe iframe)
 		isr = inb(port);
 		outb(port, OCW3_SEL | OCW3_RR);
 		mtx_unlock_spin(&icu_lock);
-		if ((isr & IRQ7) == 0)
+		if ((isr & IRQ_MASK(7)) == 0)
 			return;
 	}
 	intr_execute_handlers(isrc, &iframe);
