@@ -138,7 +138,7 @@ makefile(void)
 	ofp = fopen(path("Makefile.new"), "w");
 	if (ofp == 0)
 		err(1, "%s", path("Makefile.new"));
-	fprintf(ofp, "KERN_IDENT=%s\n", raisestr(ident));
+	fprintf(ofp, "KERN_IDENT=%s\n", ident);
 	SLIST_FOREACH(op, &mkopt, op_next)
 		fprintf(ofp, "%s=%s\n", op->op_name, op->op_value);
 	if (debugging)
