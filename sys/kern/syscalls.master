@@ -357,7 +357,7 @@
 224	MNOSTD	BSD	{ int msgctl(int msqid, int cmd, \
 			    struct msqid_ds *buf); }
 225	MNOSTD	BSD	{ int msgget(key_t key, int msgflg); }
-226	MNOSTD	BSD	{ int msgsnd(int msqid, void *msgp, size_t msgsz, \
+226	MNOSTD	BSD	{ int msgsnd(int msqid, const void *msgp, size_t msgsz, \
 			    int msgflg); }
 227	MNOSTD	BSD	{ int msgrcv(int msqid, void *msgp, size_t msgsz, \
 			    long msgtyp, int msgflg); }

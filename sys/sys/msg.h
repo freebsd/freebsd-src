@@ -127,8 +127,7 @@ int msgctl(int, int, struct msqid_ds *);
 int msgget(key_t, int);
 /* XXX return value should be ssize_t. */
 int msgrcv(int, void *, size_t, long, int);
-/* XXX second parameter missing const type-qualifier. */
-int msgsnd(int, void *, size_t, int);
+int msgsnd(int, const void *, size_t, int);
 #if __BSD_VISIBLE
 int msgsys(int, ...);
 #endif
