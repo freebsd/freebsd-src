@@ -83,13 +83,6 @@ add_to_objfile_sections (abfd, asect, objfile_p_char)
   section.objfile = objfile;
   section.the_bfd_section = asect;
   section.addr = bfd_section_vma (abfd, asect);
-#ifdef __FreeBSD__
-  /* XXX perhaps this should be in bfd_section_vma (), but it wouldn't
-     even compile there, since a bfd pointer isn't actually passed in
-     all invocations of bfd_section_vma ().  */
-  if (kernel_debugging)
-    section.addr += bfd_get_start_address (abfd);
-#endif
   section.endaddr = section.addr + bfd_section_size (abfd, asect);
   obstack_grow (&objfile->psymbol_obstack, (char *) &section, sizeof(section));
   objfile->sections_end = (struct obj_section *) (((unsigned long) objfile->sections_end) + 1);
