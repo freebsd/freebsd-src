@@ -138,6 +138,11 @@ typedef	_BSD_CLOCKID_T_	clockid_t;
 #undef	_BSD_CLOCKID_T_
 #endif
 
+#ifdef _BSD_FFLAGS_T_
+typedef _BSD_FFLAGS_T_	fflags_t;	/* file flags */
+#undef _BSD_FFLAGS_T_
+#endif
+
 /* XXX: Deprecated; now defined in <arpa/inet.h>. */
 #ifndef _IN_ADDR_T_DECLARED_
 typedef	__uint32_t	in_addr_t;

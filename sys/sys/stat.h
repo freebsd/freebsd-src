@@ -42,6 +42,14 @@
 #ifndef _SYS_STAT_H_
 #define	_SYS_STAT_H_
 
+#include <sys/cdefs.h>
+#include <machine/ansi.h>
+
+#ifdef _BSD_FFLAGS_T_
+typedef _BSD_FFLAGS_T_	fflags_t;	/* file flags */
+#undef _BSD_FFLAGS_T_
+#endif
+
 #if !defined(_KERNEL) && !defined(_POSIX_SOURCE)
 /*
  * XXX we need this for struct timespec.  We get miscellaneous namespace
@@ -71,7 +79,7 @@ struct ostat {
 	struct	timespec st_ctimespec;	/* time of last file status change */
 	int32_t	  st_blksize;		/* optimal blocksize for I/O */
 	int32_t	  st_blocks;		/* blocks allocated for file */
-	u_int32_t st_flags;		/* user defined flags for file */
+	fflags_t  st_flags;		/* user defined flags for file */
 	u_int32_t st_gen;		/* file generation number */
 };
 #endif /* !_POSIX_SOURCE */
@@ -99,7 +107,7 @@ struct stat {
 	off_t	  st_size;		/* file size, in bytes */
 	int64_t	  st_blocks;		/* blocks allocated for file */
 	u_int32_t st_blksize;		/* optimal blocksize for I/O */
-	u_int32_t st_flags;		/* user defined flags for file */
+	fflags_t  st_flags;		/* user defined flags for file */
 	u_int32_t st_gen;		/* file generation number */
 	int32_t	  st_lspare;
 	int64_t	  st_qspare[2];
@@ -129,7 +137,7 @@ struct nstat {
 	off_t	  st_size;		/* file size, in bytes */
 	int64_t	  st_blocks;		/* blocks allocated for file */
 	u_int32_t st_blksize;		/* optimal blocksize for I/O */
-	u_int32_t st_flags;		/* user defined flags for file */
+	fflags_t  st_flags;		/* user defined flags for file */
 	u_int32_t st_gen;		/* file generation number */
 	int64_t	  st_qspare[2];
 };
@@ -237,8 +245,6 @@ struct nstat {
 #endif /* !_POSIX_SOURCE */
 
 #ifndef _KERNEL
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
 int	chmod __P((const char *, mode_t));
 int	fstat __P((int, struct stat *));
