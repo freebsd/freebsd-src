@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)make.h	8.3 (Berkeley) 6/13/95
- *	$Id: make.h,v 1.7 1997/02/22 19:27:16 peter Exp $
+ *	$Id: make.h,v 1.8 1998/11/14 16:15:04 dg Exp $
  */
 
 /*-
@@ -311,7 +311,10 @@ extern Boolean 	queryFlag;    	/* TRUE if we aren't supposed to really make
 				 * of-date */
 
 extern Boolean	checkEnvFirst;	/* TRUE if environment should be searched for
-				 * variables before the global context */
+				 * all variables before the global context */
+extern Lst	envFirstVars;	/* List of specific variables for which the
+				 * environment should be searched before the
+				 * global context */
 
 extern GNode    *DEFAULT;    	/* .DEFAULT rule */
 
