@@ -1224,7 +1224,8 @@ abortit:
 			error = vn_rdwr(UIO_READ, fvp, (caddr_t)&dirbuf,
 				sizeof (struct dirtemplate), (off_t)0,
 				UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
-				tcnp->cn_cred, (int *)0, (struct thread *)0);
+				tcnp->cn_cred, NOCRED, (int *)0,
+				(struct thread *)0);
 			if (error == 0) {
 				/* Like ufs little-endian: */
 				namlen = dirbuf.dotdot_type;
@@ -1241,7 +1242,8 @@ abortit:
 					    (off_t)0, UIO_SYSSPACE,
 					    IO_NODELOCKED | IO_SYNC |
 					    IO_NOMACCHECK, tcnp->cn_cred,
-					    (int *)0, (struct thread *)0);
+					    NOCRED, (int *)0,
+					    (struct thread *)0);
 					cache_purge(fdvp);
 				}
 			}
@@ -1376,8 +1378,8 @@ ext2_mkdir(ap)
 	dirtemplate.dotdot_reclen = DIRBLKSIZ - 12;
 	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)&dirtemplate,
 	    sizeof (dirtemplate), (off_t)0, UIO_SYSSPACE,
-	    IO_NODELOCKED | IO_SYNC | IO_NOMACCHECK, cnp->cn_cred, (int *)0,
-	    (struct thread *)0);
+	    IO_NODELOCKED | IO_SYNC | IO_NOMACCHECK, cnp->cn_cred, NOCRED,
+	    (int *)0, (struct thread *)0);
 	if (error) {
 		dp->i_nlink--;
 		dp->i_flag |= IN_CHANGE;
@@ -1514,7 +1516,7 @@ ext2_symlink(ap)
 	} else
 		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
 		    UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
-		    ap->a_cnp->cn_cred, (int *)0, (struct thread *)0);
+		    ap->a_cnp->cn_cred, NOCRED, (int *)0, (struct thread *)0);
 	if (error)
 		vput(vp);
 	return (error);

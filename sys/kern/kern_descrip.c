@@ -96,9 +96,10 @@ static struct cdevsw fildesc_cdevsw = {
 	/* flags */	0,
 };
 
-static int do_dup(struct filedesc *fdp, int old, int new, register_t *retval, struct thread *td);
+static int do_dup(struct filedesc *fdp, int old, int new, register_t *retval,
+    struct thread *td);
 static int badfo_readwrite(struct file *fp, struct uio *uio,
-    struct ucred *cred, int flags, struct thread *td);
+    struct ucred *active_cred, int flags, struct thread *td);
 static int badfo_ioctl(struct file *fp, u_long com, void *data,
     struct thread *td);
 static int badfo_poll(struct file *fp, int events,
@@ -2145,10 +2146,10 @@ struct fileops badfileops = {
 };
 
 static int
-badfo_readwrite(fp, uio, cred, flags, td)
+badfo_readwrite(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 	int flags;
 {

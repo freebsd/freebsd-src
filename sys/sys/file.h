@@ -81,9 +81,11 @@ struct file {
 	struct	ucred *f_cred;	/* credentials associated with descriptor */
 	struct fileops {
 		int	(*fo_read)(struct file *fp, struct uio *uio,
-			    struct ucred *cred, int flags, struct thread *td);
+			    struct ucred *active_cred, int flags,
+			    struct thread *td);
 		int	(*fo_write)(struct file *fp, struct uio *uio,
-			    struct ucred *cred, int flags, struct thread *td);
+			    struct ucred *active_cred, int flags,
+			    struct thread *td);
 #define	FOF_OFFSET	1
 		int	(*fo_ioctl)(struct file *fp, u_long com, void *data,
 			    struct thread *td);
@@ -174,9 +176,9 @@ void fputsock(struct socket *sp);
 	} while (0)
 
 static __inline int fo_read(struct file *fp, struct uio *uio,
-    struct ucred *cred, int flags, struct thread *td);
+    struct ucred *active_cred, int flags, struct thread *td);
 static __inline int fo_write(struct file *fp, struct uio *uio,
-    struct ucred *cred, int flags, struct thread *td);
+    struct ucred *active_cred, int flags, struct thread *td);
 static __inline int fo_ioctl(struct file *fp, u_long com, void *data,
     struct thread *td);
 static __inline int fo_poll(struct file *fp, int events,
@@ -188,27 +190,27 @@ static __inline int fo_kqfilter(struct file *fp, struct knote *kn);
 struct proc;
 
 static __inline int
-fo_read(fp, uio, cred, flags, td)
+fo_read(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 	int flags;
 {
 
-	return ((*fp->f_ops->fo_read)(fp, uio, cred, flags, td));
+	return ((*fp->f_ops->fo_read)(fp, uio, active_cred, flags, td));
 }
 
 static __inline int
-fo_write(fp, uio, cred, flags, td)
+fo_write(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 	int flags;
 {
 
-	return ((*fp->f_ops->fo_write)(fp, uio, cred, flags, td));
+	return ((*fp->f_ops->fo_write)(fp, uio, active_cred, flags, td));
 }
 
 static __inline int

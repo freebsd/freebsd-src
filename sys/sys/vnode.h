@@ -719,10 +719,12 @@ void	vn_pollgone(struct vnode *vp);
 int	vn_pollrecord(struct vnode *vp, struct thread *p, int events);
 int	vn_rdwr(enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
-	    struct ucred *cred, int *aresid, struct thread *td);
+	    struct ucred *active_cred, struct ucred *file_cred, int *aresid,
+	    struct thread *td);
 int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
-	    struct ucred *cred, int *aresid, struct thread *td);
+	    struct ucred *active_cred, struct ucred *file_cred, int *aresid,
+	    struct thread *td);
 int	vn_stat(struct vnode *vp, struct stat *sb, struct thread *td);
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
 dev_t	vn_todev(struct vnode *vp);
