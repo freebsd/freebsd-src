@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.167 1995/04/08 21:41:52 phk Exp $
+#	$Id: LINT,v 1.168 1995/04/12 22:02:51 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -258,6 +258,8 @@ options		QUOTA			#enable disk quotas
 
 # SCSIDEBUG: When defined enables debugging macros
 # NO_SCSI_SENSE: When defined disables sense descriptions (about 4k)
+# SCSI_REPORT_GEOMETRY: Always report disk geometry at boot up instead
+#                       only when booting verbosely.
 
 # SCSI DEVICE CONFIGURATION
 
@@ -301,6 +303,10 @@ device		ch0	#SCSI media changers
 device		sd0	#SCSI disks
 device		st0	#SCSI tapes
 device		cd0	#SCSI CD-ROMs
+
+device worm0 at scbus?	# SCSI worm
+device pt0 at scbus?	# SCSI processor type
+device sctarg0 at scbus? # SCSI target
 
 
 #####################################################################
