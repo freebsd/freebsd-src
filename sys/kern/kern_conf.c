@@ -287,6 +287,7 @@ allocdev(void)
 
 	if (LIST_FIRST(&dev_free)) {
 		si = LIST_FIRST(&dev_free);
+		LIST_REMOVE(si, si_hash);
 	} else if (stashed >= DEVT_STASH) {
 		MALLOC(si, struct cdev *, sizeof(*si), M_DEVT,
 		    M_USE_RESERVE | M_ZERO | M_WAITOK);
@@ -399,7 +400,9 @@ fini_cdevsw(struct cdevsw *devsw)
 		reserved_majors[devsw->d_maj] = 0;
 		devsw->d_maj = MAJOR_AUTO;
 		devsw->d_flags &= ~D_ALLOCMAJ;
-	}
+	} else if (devsw->d_maj == 0)
+		devsw->d_maj = 256;
+	devsw->d_flags &= ~D_INIT;
 }
 
 static void
