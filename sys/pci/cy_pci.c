@@ -120,7 +120,7 @@ cy_attach(config_id, unit)
 	 * Enable the "local" interrupt input to generate a
 	 * PCI interrupt.
 	 */
-	outw(ioport + CY_PLX_ICS, inw(CY_PLX_ICS) |
+	outw(ioport + CY_PLX_ICS, inw(ioport + CY_PLX_ICS) |
 	    CY_PLX_ICS_IENABLE | CY_PLX_ICS_LOCAL_IENABLE);
 
 	return;
