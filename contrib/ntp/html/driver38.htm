@@ -1,0 +1,191 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <title>hopf clock drivers by ATLSoft</title>
+</head>
+<body text="#000000" bgcolor="#FFFFFF" link="#0000FF" vlink="#800080" alink="#FF0000">
+
+<h1>
+<font face="Arial"><i><blink><font size="5">hopf</font></blink></i><font size="+2">
+</font><font size="3">Serial Line Receivers (6021 and&nbsp; kompatible)</font></font></h1>
+<hr>
+
+<h2>
+<font size=+1>Synopsis</font></h2>
+
+<table border="0" cellpadding cellspacing width="100%">
+  <tr>
+    <td>
+
+<table border="0" cellpadding="3" bgcolor="#C0C0C0">
+<tr>
+<td height="21">
+<div align=right><tt>Address:&nbsp;&nbsp;</tt></div>
+</td>
+
+<td><b>127.127.38.<i>X</i></b></td>
+</tr>
+
+<tr>
+<td height="1">
+<div align=right><tt>Reference ID:&nbsp;&nbsp;</tt></div>
+</td>
+
+<td height="1"><a NAME="REFID"></a><b>.hopf. </b>(default)<b>, GPS, DCF</b></td>
+</tr>
+
+<tr>
+<td height="21">
+<div align=right><tt>Driver ID:&nbsp;&nbsp;</tt></div>
+</td>
+
+<td height="21"><b>HOPF_S</b></td>
+</tr>
+
+<tr>
+<td height="16">
+<div align=right><tt>Serial Port:&nbsp;&nbsp;</tt></div>
+</td>
+
+<td height="16"><b>/dev/hopfclock<i>X</i></b></td>
+</tr>
+
+<tr>
+<td height="23">
+<div align=right><tt><font size=+1>Serial I/O</font>:&nbsp;&nbsp;</tt></div>
+</td>
+
+<td height="23"><b>9600 baud, 8-bits, 1-stop, no parity</b></td>
+</tr>
+</table>
+
+    </td>
+    <td align="center"><img border="0" src="pic/fg6021.gif" width="238" height="207"></td>
+  </tr>
+</table>
+
+<hr>
+
+<h2>
+<font size=+1>Description</font></h2>
+The <b>refclock_hopf_serial</b> driver supports <a href="http://www.hopf.com">hopf
+electronic receivers</a> with serial Interface kompatibel 6021.
+<br>Additional software and information about the software drivers is available
+from: <a href="http://www.ATLSoft.de/ntp">http://www.ATLSoft.de/ntp</a>.
+<br>Latest NTP driver source, executables and documentation is maintained
+at: <a href="http://www.ATLSoft.de/ntp">http://www.ATLSoft.de/ntp</a>
+<hr>
+<h2>
+<font size=+1>Operating System Compatibility</font></h2>
+<p align="left">
+The hopf clock driver has been tested on the following software and hardware
+platforms:
+<br>&nbsp;<table bgcolor="#C0C0C0">
+<tr>
+<td VALIGN=CENTER WIDTH="23%" nowrap>
+  <p align="left"><b>Platform</b></p>
+</td>
+
+<td VALIGN=CENTER nowrap>
+  <p align="left"><b>Operating System</b></p>
+</td>
+
+</tr>
+
+<tr>
+<td VALIGN=CENTER WIDTH="23%" nowrap>
+  <p align="left">i386 (PC)&nbsp;</p>
+</td>
+
+<td VALIGN=CENTER nowrap>
+  <p align="left">Linux</p>
+</td>
+
+</tr>
+
+<tr>
+<td nowrap>
+  <p align="left">i386 (PC)&nbsp;</p>
+  </td>
+
+<td nowrap>
+  <p align="left">Windows NT</p>
+  </td>
+
+</tr>
+
+<tr>
+<td nowrap>
+  <p align="left">i386 (PC)&nbsp;</p>
+</td>
+
+<center>
+
+<td nowrap>Windows 2000</td>
+
+</tr>
+
+</table></center>
+
+<hr>
+
+<h2>
+<font size=+1>O/S Serial Port Configuration</font></h2>
+The driver attempts to open the device <b><tt><a href="#REFID">/dev/hopfclock<i>X</i></a></tt></b>
+where <i><b>X</b></i> is the NTP refclock unit number as defined by the
+LSB of the refclock address.&nbsp; Valid refclock unit numbers are 0 -
+3.
+<p>The user is expected to provide a symbolic link to an available serial
+port device.&nbsp; This is typically performed by a command such as:
+<blockquote><tt>ln -s /dev/ttyS0 /dev/hopfclock0</tt></blockquote>
+Windows NT does not support symbolic links to device files.&nbsp;<br>
+<b> COMx</b>:
+is used by the driver, based on the refclock unit number, where <b> unit 1</b>
+corresponds to <b> COM1</b>: and <b> unit 3</b> corresponds to <b>COM3</b>:
+<br>&nbsp;
+<hr>
+
+<h2>
+<font size=+1>Fudge Factors</font></h2>
+
+<dl>
+<dt>
+<b>
+<a NAME="time1"></a><tt><font size=+1><a href="#Configuration">time1 <i>time</i></a></font></tt></b></dt>
+
+<dd>
+Specifies the time offset calibration factor, in seconds and fraction,
+with default 0.0. Should be set to
+20 milliseconds to correct serial line and operating system delays incurred
+in capturing time stamps from the synchronous packets.</dd>
+
+<dt>
+<tt><font size=+1><a href="#REFID"><b>refid <i>string</i></b></a></font></tt></dt>
+
+<dd>
+Specifies the driver reference identifier, <b>GPS </b><i>or</i> <b> DCF</b>.</dd>
+
+<dt>
+<tt><font size=+1><b>flag1 0
+| 1</b></font></tt></dt>
+
+<dd>
+When set to 1, driver sync's even if only crystal driven.</dd>
+</dl>
+
+<hr>
+
+<h2>
+<a NAME="DataFormat"></a><font size=+1>Data Format</font></h2>
+<p>as specified in clock manual under pt. <u>[ <span lang="EN-GB" style="font-size:10.0pt;font-family:
+Arial;mso-fareast-font-family:&quot;Times New Roman&quot;;mso-bidi-font-family:&quot;Times New Roman&quot;;
+mso-ansi-language:EN-GB;mso-fareast-language:DE;mso-bidi-language:AR-SA"><b>Data
+String for NTP</b> ( <b><i>Network Time Protocol </i></b>) </span>]</u></p>
+<hr>
+<h3>Questions or Comments:</h3>
+<p><a href="mailto:altmeier@atlsoft.de">Bernd Altmeier</a><a href="http://www.ATLSoft.de"><br>
+Ing.-B’ro f’r Software www.ATLSoft.de</a><p>(last updated 02/28/2001)
+<br>&nbsp;
+</body>
+</html>
