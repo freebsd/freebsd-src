@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.52 1998/08/26 17:39:37 brian Exp $
+ * $Id: ip.c,v 1.53 1998/09/17 00:45:26 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -160,10 +160,14 @@ FilterCheck(struct ip *pip, struct filter *filter)
 		estab = (th->th_flags & TH_ACK);
 		syn = (th->th_flags & TH_SYN);
 		finrst = (th->th_flags & (TH_FIN|TH_RST));
-                if (log_IsKept(LogDEBUG) && !estab)
-		  snprintf(dbuff, sizeof dbuff,
-                           "flags = %02x, sport = %d, dport = %d",
-                           th->th_flags, sport, dport);
+                if (log_IsKept(LogDEBUG)) {
+                  if (!estab)
+		    snprintf(dbuff, sizeof dbuff,
+                             "flags = %02x, sport = %d, dport = %d",
+                             th->th_flags, sport, dport);
+                  else
+                    *dbuff = '\0';
+                }
 		break;
 	      default:
 		return (A_DENY);       /* We'll block unknown type of packet */
