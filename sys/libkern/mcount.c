@@ -36,13 +36,12 @@
 static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: mcount.c,v 1.7 1996/05/02 14:20:33 phk Exp $";
+	"$Id: mcount.c,v 1.8 1996/08/28 20:15:12 bde Exp $";
 #endif
 
 #include <sys/param.h>
 #include <sys/gmon.h>
 #ifdef KERNEL
-#include <sys/systm.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -71,7 +70,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	register fptrint_t frompc, selfpc;
 {
 #ifdef GUPROF
-	u_int delta;
+	int delta;
 #endif
 	register fptrdiff_t frompci;
 	register u_short *frompcindex;
@@ -115,50 +114,33 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 #endif /* KERNEL */
 
 #ifdef GUPROF
-	if (p->state != GMON_PROF_HIRES)
-		goto skip_guprof_stuff;
-	/*
-	 * Look at the clock and add the count of clock cycles since the
-	 * clock was last looked at to a counter for frompc.  This
-	 * solidifies the count for the function containing frompc and
-	 * effectively starts another clock for the current function.
-	 * The count for the new clock will be solidified when another
-	 * function call is made or the function returns.
-	 *
-	 * We use the usual sampling counters since they can be located
-	 * efficiently.  4-byte counters are usually necessary.
-	 *
-	 * There are many complications for subtracting the profiling
-	 * overheads from the counts for normal functions and adding
-	 * them to the counts for mcount(), mexitcount() and cputime().
-	 * We attempt to handle fractional cycles, but the overheads
-	 * are usually underestimated because they are calibrated for
-	 * a simpler than usual setup.
-	 */
-	delta = cputime() - p->mcount_overhead;
-	p->cputime_overhead_resid += p->cputime_overhead_frac;
-	p->mcount_overhead_resid += p->mcount_overhead_frac;
-	if ((int)delta < 0)
-		*p->mcount_count += delta + p->mcount_overhead
-				    - p->cputime_overhead;
-	else if (delta != 0) {
-		if (p->cputime_overhead_resid >= CALIB_SCALE) {
-			p->cputime_overhead_resid -= CALIB_SCALE;
-			++*p->cputime_count;
-			--delta;
-		}
-		if (delta != 0) {
-			if (p->mcount_overhead_resid >= CALIB_SCALE) {
-				p->mcount_overhead_resid -= CALIB_SCALE;
-				++*p->mcount_count;
-				--delta;
-			}
-			KCOUNT(p, frompci) += delta;
-		}
-		*p->mcount_count += p->mcount_overhead_sub;
+	if (p->state == GMON_PROF_HIRES) {
+		/*
+		 * Count the time since cputime() was previously called
+		 * against `frompc'.  Compensate for overheads.
+		 *
+		 * cputime() sets its prev_count variable to the count when
+		 * it is called.  This in effect starts a counter for
+		 * the next period of execution (normally from now until 
+		 * the next call to mcount() or mexitcount()).  We set
+		 * cputime_bias to compensate for our own overhead.
+		 *
+		 * We use the usual sampling counters since they can be
+		 * located efficiently.  4-byte counters are usually
+		 * necessary.  gprof will add up the scattered counts
+		 * just like it does for statistical profiling.  All
+		 * counts are signed so that underflow in the subtractions
+		 * doesn't matter much (negative counts are normally
+		 * compensated for by larger counts elsewhere).  Underflow
+		 * shouldn't occur, but may be caused by slightly wrong
+		 * calibrations or from not clearing cputime_bias.
+		 */
+		delta = cputime() - cputime_bias - p->mcount_pre_overhead;
+		cputime_bias = p->mcount_post_overhead;
+		KCOUNT(p, frompci) += delta;
+		*p->cputime_count += p->cputime_overhead;
+		*p->mcount_count += p->mcount_overhead;
 	}
-	*p->cputime_count += p->cputime_overhead;
-skip_guprof_stuff:
 #endif /* GUPROF */
 
 #ifdef KERNEL
@@ -290,36 +272,40 @@ mexitcount(selfpc)
 	p = &_gmonparam;
 	selfpcdiff = selfpc - (fptrint_t)p->lowpc;
 	if (selfpcdiff < p->textsize) {
-		u_int delta;
+		int delta;
 
 		/*
-		 * Solidify the count for the current function.
+		 * Count the time since cputime() was previously called
+		 * against `selfpc'.  Compensate for overheads.
 		 */
-		delta = cputime() - p->mexitcount_overhead;
-		p->cputime_overhead_resid += p->cputime_overhead_frac;
-		p->mexitcount_overhead_resid += p->mexitcount_overhead_frac;
-		if ((int)delta < 0)
-			*p->mexitcount_count += delta + p->mexitcount_overhead
-						- p->cputime_overhead;
-		else if (delta != 0) {
-			if (p->cputime_overhead_resid >= CALIB_SCALE) {
-				p->cputime_overhead_resid -= CALIB_SCALE;
-				++*p->cputime_count;
-				--delta;
-			}
-			if (delta != 0) {
-				if (p->mexitcount_overhead_resid
-				    >= CALIB_SCALE) {
-					p->mexitcount_overhead_resid
-					    -= CALIB_SCALE;
-					++*p->mexitcount_count;
-					--delta;
-				}
-				KCOUNT(p, selfpcdiff) += delta;
-			}
-			*p->mexitcount_count += p->mexitcount_overhead_sub;
-		}
+		delta = cputime() - cputime_bias - p->mexitcount_pre_overhead;
+		cputime_bias = p->mexitcount_post_overhead;
+		KCOUNT(p, selfpcdiff) += delta;
 		*p->cputime_count += p->cputime_overhead;
+		*p->mexitcount_count += p->mexitcount_overhead;
 	}
+}
+
+void
+empty_loop()
+{
+	int i;
+
+	for (i = 0; i < CALIB_SCALE; i++)
+		;
+}
+
+void
+nullfunc()
+{
+}
+
+void
+nullfunc_loop()
+{
+	int i;
+
+	for (i = 0; i < CALIB_SCALE; i++)
+		nullfunc();
 }
 #endif /* GUPROF */
