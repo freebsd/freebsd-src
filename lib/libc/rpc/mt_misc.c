@@ -80,9 +80,6 @@ pthread_mutex_t	svcraw_lock = PTHREAD_MUTEX_INITIALIZER;
 /* protects TSD key creation */
 pthread_mutex_t	tsd_lock = PTHREAD_MUTEX_INITIALIZER;
 
-/* protects netconfig list */
-pthread_mutex_t	nc_lock = PTHREAD_MUTEX_INITIALIZER;
-
 /* xprtlist (svc_generic.c) */
 pthread_mutex_t	xprtlist_lock = PTHREAD_MUTEX_INITIALIZER;
 
