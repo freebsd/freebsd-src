@@ -218,6 +218,11 @@ cxprobe (struct isa_device *id)
 /*
  * The adapter is present, initialize the driver structures.
  */
+
+#ifdef DEVFS
+static void *cx_devfs_token;
+#endif 
+
 static int
 cxattach (struct isa_device *id)
 {
@@ -302,12 +307,8 @@ cxattach (struct isa_device *id)
 	dev_attach (&kdc_cx[unit]);
 	printf ("cx%d: <Cronyx-%s>\n", unit, b->name);
 #ifdef DEVFS
-	{
-		void *x;
-		x=devfs_add_devsw(
-/*	path	name	devsw			minor	type   uid gid perm*/
-	"/",	"cx",	&cx_cdevsw,	0,	DV_CHR,	0,  0, 0600);
-	}
+	cx_devfs_token =
+		devfs_add_devswf(&cx_cdevsw, 0, DV_CHR, 0, 0, 0600, "cx");
 #endif
 	return (1);
 }

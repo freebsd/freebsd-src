@@ -115,16 +115,14 @@ static int
 joyattach (struct isa_device *dev)
 {
     int	unit = dev->id_unit;
-    char name[32];
 
     joy[unit].port = dev->id_iobase;
     joy[unit].timeout[0] = joy[unit].timeout[1] = 0;
     printf("joy%d: joystick\n", unit);
 #ifdef	DEVFS
-    sprintf(name, "joy%d", unit);
-    joy[dev->id_unit].devfs_token = devfs_add_devsw( "/", "joy",
-						&joy_cdevsw, 0,
-						DV_CHR, 0, 0, 0600);
+    joy[dev->id_unit].devfs_token = 
+		devfs_add_devswf(&joy_cdevsw, 0, DV_CHR, 0, 0, 
+				 0600, "joy%d", unit);
 #endif
     return 1;
 }

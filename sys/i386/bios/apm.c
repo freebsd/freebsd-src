@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.35 1996/03/19 16:48:38 nate Exp $
+ *	$Id: apm.c,v 1.36 1996/03/19 16:56:56 nate Exp $
  */
 
 #include "apm.h"
@@ -62,7 +62,9 @@ struct apm_softc {
 	u_int	intversion;
 	struct apmhook sc_suspend;
 	struct apmhook sc_resume;
+#ifdef DEVFS
 	void 	*sc_devfs_token;
+#endif
 };
 
 static struct kern_devconf kdc_apm = {
@@ -809,8 +811,8 @@ apmattach(struct isa_device *dvp)
 	sc->initialized = 1;
 
 #ifdef DEVFS
-	sc->sc_devfs_token = devfs_add_devsw(
-		"/",	"apm",	&apm_cdevsw,	0,	DV_CHR,	0,  0, 0600);
+	sc->sc_devfs_token = 
+		devfs_add_devswf(&apm_cdevsw, 0, DV_CHR, 0, 0, 0600, "apm");
 #endif
 	return 0;
 }

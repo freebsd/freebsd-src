@@ -558,7 +558,6 @@ bquattach(struct isa_device *idp)
 {
 	int unit = idp->id_unit;
 	struct b004_struct *bp;
-	char	name[32];
 	int	i;
 
 	kdc_bqu[unit].kdc_state = DC_IDLE;
@@ -572,22 +571,18 @@ bquattach(struct isa_device *idp)
 #ifdef NOTYET
 	/*	if (we've done all the ports found) break; */
 #endif
-		sprintf(name,"ttyba%d" ,i);
-		bp->devfs_token[i][0]=devfs_add_devsw(
-			"/", name, &bqu_cdevsw, i, DV_CHR,
-			BQU_UID, BQU_GID, BQU_PERM);
-		sprintf(name,"ttybd%d" ,i);
-		bp->devfs_token[i][0]=devfs_add_devsw(
-			"/", name, &bqu_cdevsw, i+64, DV_CHR,
-			BQU_UID, BQU_GID, BQU_PERM);
-		sprintf(name,"ttybc%d" ,i);
-		bp->devfs_token[i][0]=devfs_add_devsw(
-			"/", name, &bqu_cdevsw, i+128, DV_CHR,
-			BQU_UID, BQU_GID, BQU_PERM);
-		sprintf(name,"ttybd%d" ,i);
-		bp->devfs_token[i][0]=devfs_add_devsw(
-			"/", name, &bqu_cdevsw, i+192, DV_CHR,
-			BQU_UID, BQU_GID, BQU_PERM);
+		bp->devfs_token[i][0]=
+			devfs_add_devswf(&bqu_cdevsw, i, DV_CHR, BQU_UID, 
+				 	 BQU_GID, BQU_PERM, "ttyba%d", i);
+		bp->devfs_token[i][0]=
+			devfs_add_devswf(&bqu_cdevsw, i+64, DV_CHR, BQU_UID, 
+					 BQU_GID, BQU_PERM, "ttybb%d", i);
+		bp->devfs_token[i][0]=
+			devfs_add_devswf(&bqu_cdevsw, i+128, DV_CHR, BQU_UID, 
+					 BQU_GID, BQU_PERM, "ttybc%d", i);
+		bp->devfs_token[i][0]=
+			devfs_add_devswf(&bqu_cdevsw, i+192, DV_CHR, BQU_UID, 
+					 BQU_GID, BQU_PERM, "ttybd%d", unit);
 	}
 #endif
 	return 1;

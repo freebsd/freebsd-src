@@ -507,7 +507,6 @@ static int
 labpcattach(struct isa_device *dev)
 {
 	struct ctlr *ctlr = labpcs[dev->id_unit];
-	char	name[32];
 
 	ctlr->sample_us = (1000000.0 / (double)LABPC_DEFAULT_HERZ) + .50;
 	reset(ctlr);
@@ -520,11 +519,11 @@ labpcattach(struct isa_device *dev)
 	loutb(DCR(ctlr), ctlr->dcr_val);
 
 #ifdef DEVFS
-	sprintf(name, "labpc%d",dev->id_unit);
-	/*                                  path  name   devsw       minor */
-	ctlr->devfs_token = devfs_add_devsw( "/", name, &labpc_cdevsw, 0,
-                              /* what  UID GID PERM */
-				DV_CHR, 0, 0, 0600);
+	ctlr->devfs_token = 
+		devfs_add_devswf(&labpc_cdevsw, 0, DV_CHR, 
+                                 /* what  UID GID PERM */
+				 0, 0, 0600, 
+				 "labpc%d", dev->id_unit);
 #endif
 	return 1;
 }

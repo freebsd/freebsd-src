@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.79 1996/01/27 04:17:50 bde Exp $
+ *	$Id: fd.c,v 1.80 1996/02/25 21:01:31 bde Exp $
  *
  */
 
@@ -767,13 +767,14 @@ fdattach(struct isa_device *dev)
 		kdc_fd[fdu].kdc_state = DC_IDLE;
 #ifdef DEVFS
 		mynor = 8 * fdu;
-		fd->bdev = devfs_add_devsw("/", name + 1, &fd_bdevsw, mynor,
-					   DV_BLK, 0, 0, 0640);
-		fd->cdev = devfs_add_devsw("/", name, &fd_cdevsw, mynor,
-					   DV_CHR, 0, 0, 0640);
-		sprintf(name, "rfd%d", fdu);
-		dev_link("/", name + 1, fd->bdev);
-		dev_link("/", name, fd->cdev);
+		fd->bdev = 
+			devfs_add_devswf(&fd_bdevsw, mynor, DV_BLK, 0, 0, 
+					 0640, name + 1);
+		fd->cdev = 
+			devfs_add_devswf(&fd_cdevsw, mynor,
+					   DV_CHR, 0, 0, 0640, name);
+		dev_link(fd->bdev, "fd%d", fdu);
+		dev_link(fd->cdev, "rfd%d", fdu);
 #endif /* DEVFS */
 		if (dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);

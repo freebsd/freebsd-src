@@ -1,6 +1,6 @@
-static char     _itelid[] = "@(#)$Id: iitel.c,v 1.10 1995/12/08 23:19:42 phk Exp $";
+static char     _itelid[] = "@(#)$Id: iitel.c,v 1.11 1995/12/17 21:17:44 phk Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.10 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.11 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -67,7 +67,6 @@ int
 itelattach(int ap)
 {
 	struct itel_data *itel;
-	char	name[32];
 
 	if(next_if >= NITEL)
 		return(-1);
@@ -76,9 +75,9 @@ itelattach(int ap)
 	itel->state= 0;
 	applnr[next_if]= ap;
 #ifdef	DEVFS
-	sprintf(name,"itel%d",next_if);
-	itel->devfs_token = devfs_add_devsw("/isdn",name,&itel_cdevsw,next_if,
-				DV_CHR, 0, 0, 0600);
+	itel->devfs_token = 
+		devfs_add_devswf(&itel_cdevsw, next_if, DV_CHR, 0, 0, 
+				 0600, "isdn/itel%d", next_if);
 #endif
 	return(next_if++);
 }
