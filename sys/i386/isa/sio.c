@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.18 1993/12/11 00:36:14 ache Exp $
+ *	$Id: sio.c,v 1.19 1993/12/13 13:20:50 davidg Exp $
  */
 
 #include "sio.h"
@@ -305,7 +305,7 @@ static int
 sioprobe(dev)
 	struct isa_device	*dev;
 {
-	static bool_t   already_init=FALSE;
+	static bool_t   already_init;
 	Port_t		*com_ptr;
 	Port_t		iobase;
 	int		result;
@@ -411,7 +411,7 @@ sioattach(isdp)
 	com = &com_structs[unit];
 	com->cfcr_image = CFCR_8BITS;
 	com->mcr_image = MCR_IENABLE;
-	com->dtr_wait = 50;
+	com->dtr_wait = 200;
 	com->iptr = com->ibuf = com->ibuf1;
 	com->ibufend = com->ibuf1 + RS_IBUFSIZE;
 	com->ihighwater = com->ibuf1 + RS_IHIGHWATER;
