@@ -27,13 +27,13 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.5 1997/09/01 07:37:01 smp Exp smp $
+ *	$Id: cy.c,v 1.52 1997/09/01 07:45:25 fsmp Exp $
  */
 
 #include "cy.h"
+
 /*
  * TODO:
- * Check that cy16's work.
  * Implement BREAK.
  * Fix overflows when closing line.
  * Atomic COR change.
@@ -143,7 +143,7 @@
 
 /* We encode the cyclom unit number (cyu) in spare bits in the IVR's. */
 #define	CD1400_xIVR_CHAN_SHIFT	3
-#define	CD1400_xIVR_CHAN	0x1F	/* XXX reduce to pack Cyclom-8Ys */
+#define	CD1400_xIVR_CHAN	0x1F
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
@@ -155,8 +155,8 @@
 #define	CONTROL_LOCK_STATE	0x40
 #define	DEV_TO_UNIT(dev)	(MINOR_TO_UNIT(minor(dev)))
 #define	MINOR_MAGIC_MASK	(CALLOUT_MASK | CONTROL_MASK)
-#define	MINOR_TO_UNIT(mynor)	(((mynor) >> 16) * CY_MAX_PORTS + \
-				(((mynor) & 0xff) & ~MINOR_MAGIC_MASK))
+#define	MINOR_TO_UNIT(mynor)	(((mynor) >> 16) * CY_MAX_PORTS \
+				 | (((mynor) & 0xff) & ~MINOR_MAGIC_MASK))
 
 /*
  * Input buffer watermarks.
@@ -263,9 +263,9 @@ struct com_s {
 	struct lbq	obufq;	/* head of queue of output buffers */
 	struct lbq	obufs[2];	/* output buffers */
 
+	int	cy_align;	/* index for register alignment */
 	cy_addr	cy_iobase;	/* base address of this port's cyclom */
 	cy_addr	iobase;		/* base address of this port's cd1400 */
-	int cy_align;		/* index for register alignment */
 
 	struct tty	*tp;	/* cross reference */
 
@@ -334,7 +334,9 @@ void	siopoll		__P((void));
 #define	siommap		nommap
 #define	siostrategy	nostrategy
 
+/* PCI driver entry point. */
 int	cyattach_common		__P((cy_addr cy_iobase, int cy_align));
+
 static	int	cy_units	__P((cy_addr cy_iobase, int cy_align));
 static	int	sioattach	__P((struct isa_device *dev));
 static	void	cd1400_channel_cmd __P((cy_addr iobase, int cmd, int cy_align));
@@ -404,20 +406,13 @@ static	u_int	cy_svrr_probes;
 static	u_int	cy_timeouts;
 #endif
 
+static	int	cy_chip_offset[] = {
+	0x0000, 0x0200, 0x0400, 0x0600, 0x0100, 0x0300, 0x0500, 0x0700,
+};
 static	int	cy_nr_cd1400s[NCY];
 static	int	cy_total_devices;
 #undef	RxFifoThreshold
 static	int	volatile RxFifoThreshold = (CD1400_RX_FIFO_SIZE / 2);
-static	int	cy_chip_offset[] = {
-	0x0000,
-	0x0400,
-	0x0800,
-	0x0c00,
-	0x0200,
-	0x0600,
-	0x0a00,
-	0x0e00
-};
 
 static int
 sioprobe(dev)
@@ -440,17 +435,17 @@ sioprobe(dev)
 
 static int
 cy_units(cy_iobase, cy_align)
-	cy_addr cy_iobase;
-	int cy_align;
+	cy_addr	cy_iobase;
+	int	cy_align;
 {
-	cy_addr iobase;
-	int cyu;
+	int	cyu;
+	u_char	firmware_version;
+	int	i;
+	cy_addr	iobase;
 
 	for (cyu = 0; cyu < CY_MAX_CD1400s; ++cyu) {
-		int	i;
-		u_char	firmware_version;
-
 		iobase = cy_iobase + (cy_chip_offset[cyu] << cy_align);
+
 		/* wait for chip to become ready for new command */
 		for (i = 0; i < 10; i++) {
 			DELAY(50);
@@ -470,7 +465,8 @@ cy_units(cy_iobase, cy_align)
 			DELAY(50);
 
 			/* retrieve firmware version */
-			firmware_version = cd_inb(iobase, CD1400_GFRCR, cy_align);
+			firmware_version = cd_inb(iobase, CD1400_GFRCR,
+						  cy_align);
 			if ((firmware_version & 0xf0) == 0x40)
 				break;
 		}
@@ -488,13 +484,14 @@ cy_units(cy_iobase, cy_align)
 
 static int
 sioattach(isdp)
-	struct isa_device *isdp;
+	struct isa_device	*isdp;
 {
-	int adapter;
+	int	adapter;
 
 	adapter = cyattach_common((cy_addr) isdp->id_maddr, 0);
 	if (adapter < 0)
 		return (0);
+
 	/*
 	 * XXX
 	 * This kludge is to allow ISA/PCI device specifications in the
@@ -502,7 +499,7 @@ sioattach(isdp)
 	 */
 	if (isdp->id_unit != adapter) {
 		printf("cy%d: attached as cy%d\n", isdp->id_unit, adapter);
-		isdp->id_unit = adapter; /* XXX */
+		isdp->id_unit = adapter;	/* XXX */
 	}
 	isdp->id_ri_flags |= RI_FAST;
 	return (1);
@@ -510,17 +507,21 @@ sioattach(isdp)
 
 int
 cyattach_common(cy_iobase, cy_align)
-	cy_addr cy_iobase;
-	int cy_align;
+	cy_addr	cy_iobase;
+	int	cy_align;
 {
-	int cyu, ncyu, unit, adapter;
-	dev_t dev;
-	cy_addr iobase;
+	int	adapter;
+	int	cyu;
+	dev_t	dev;
+	cy_addr	iobase;
+	int	ncyu;
+	int	unit;
 
 	adapter = cy_total_devices;
 	if ((u_int)adapter >= NCY) {
-		printf("cy%d: can't attach adapter: insufficient cy devices configured\n",
-		    adapter);
+		printf(
+	"cy%d: can't attach adapter: insufficient cy devices configured\n",
+		       adapter);
 		return (-1);
 	}
 	ncyu = cy_units(cy_iobase, cy_align);
@@ -533,7 +534,9 @@ cyattach_common(cy_iobase, cy_align)
 	for (cyu = 0; cyu < ncyu; ++cyu) {
 		int	cdu;
 
-		iobase = (cy_addr) (cy_iobase + (cy_chip_offset[cyu] << cy_align));
+		iobase = (cy_addr) (cy_iobase
+				    + (cy_chip_offset[cyu] << cy_align));
+
 		/* Set up a receive timeout period of than 1+ ms. */
 		cd_outb(iobase, CD1400_PPR, cy_align,
 			howmany(CY_CLOCK / CD1400_PPR_PRESCALER, 1000));
@@ -542,74 +545,74 @@ cyattach_common(cy_iobase, cy_align)
 			struct com_s	*com;
 			int		s;
 
-			com = malloc(sizeof *com, M_DEVBUF, M_NOWAIT);
-			if (com == NULL)
-				break;
-			bzero(com, sizeof *com);
-			com->unit = unit;
-			com->dtr_wait = 3 * hz;
-			com->iptr = com->ibuf = com->ibuf1;
-			com->ibufend = com->ibuf1 + RS_IBUFSIZE;
-			com->ihighwater = com->ibuf1 + RS_IHIGHWATER;
-			com->obufs[0].l_head = com->obuf1;
-			com->obufs[1].l_head = com->obuf2;
+	com = malloc(sizeof *com, M_DEVBUF, M_NOWAIT);
+	if (com == NULL)
+		break;
+	bzero(com, sizeof *com);
+	com->unit = unit;
+	com->dtr_wait = 3 * hz;
+	com->iptr = com->ibuf = com->ibuf1;
+	com->ibufend = com->ibuf1 + RS_IBUFSIZE;
+	com->ihighwater = com->ibuf1 + RS_IHIGHWATER;
+	com->obufs[0].l_head = com->obuf1;
+	com->obufs[1].l_head = com->obuf2;
 
-			com->cy_iobase = cy_iobase;
-			com->iobase = iobase;
 			com->cy_align = cy_align;
+			com->cy_iobase = cy_iobase;
+	com->iobase = iobase;
 
-			/*
-			 * We don't use all the flags from <sys/ttydefaults.h> since they
-			 * are only relevant for logins.  It's important to have echo off
-			 * initially so that the line doesn't start blathering before the
-			 * echo flag can be turned off.
-			 */
-			com->it_in.c_iflag = 0;
-			com->it_in.c_oflag = 0;
-			com->it_in.c_cflag = TTYDEF_CFLAG;
-			com->it_in.c_lflag = 0;
-			if (unit == comconsole) {
-				com->it_in.c_iflag = TTYDEF_IFLAG;
-				com->it_in.c_oflag = TTYDEF_OFLAG;
-				com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
-				com->it_in.c_lflag = TTYDEF_LFLAG;
-				com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
-			}
-			termioschars(&com->it_in);
-			com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
-			com->it_out = com->it_in;
+	/*
+	 * We don't use all the flags from <sys/ttydefaults.h> since they
+	 * are only relevant for logins.  It's important to have echo off
+	 * initially so that the line doesn't start blathering before the
+	 * echo flag can be turned off.
+	 */
+	com->it_in.c_iflag = 0;
+	com->it_in.c_oflag = 0;
+	com->it_in.c_cflag = TTYDEF_CFLAG;
+	com->it_in.c_lflag = 0;
+	if (unit == comconsole) {
+		com->it_in.c_iflag = TTYDEF_IFLAG;
+		com->it_in.c_oflag = TTYDEF_OFLAG;
+		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
+		com->it_in.c_lflag = TTYDEF_LFLAG;
+		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
+	}
+	termioschars(&com->it_in);
+	com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
+	com->it_out = com->it_in;
 
-			s = spltty();
-			com_addr(unit) = com;
-			splx(s);
+	s = spltty();
+	com_addr(unit) = com;
+	splx(s);
 
-			dev = makedev(CDEV_MAJOR, 0);
-			cdevsw_add(&dev, &sio_cdevsw, NULL);
+	dev = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&dev, &sio_cdevsw, NULL);
 #ifdef DEVFS
-			com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
-				unit, DV_CHR,
-				UID_ROOT, GID_WHEEL, 0600, "ttyc%n%n", adapter,
-				unit % CY_MAX_PORTS);
-			com->devfs_token_ttyi = devfs_add_devswf(&sio_cdevsw,
-				unit | CONTROL_INIT_STATE, DV_CHR,
-				UID_ROOT, GID_WHEEL, 0600, "ttyic%n%n", adapter,
-				unit % CY_MAX_PORTS);
-			com->devfs_token_ttyl = devfs_add_devswf(&sio_cdevsw,
-				unit | CONTROL_LOCK_STATE, DV_CHR,
-				UID_ROOT, GID_WHEEL, 0600, "ttylc%n%n", adapter,
-				unit % CY_MAX_PORTS);
-			com->devfs_token_cuaa = devfs_add_devswf(&sio_cdevsw,
-				unit | CALLOUT_MASK, DV_CHR,
-				UID_UUCP, GID_DIALER, 0660, "cuac%n%n", adapter,
-				unit % CY_MAX_PORTS);
-			com->devfs_token_cuai = devfs_add_devswf(&sio_cdevsw,
-				unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR,
-				UID_UUCP, GID_DIALER, 0660, "cuaic%n%n", adapter,
-				unit % CY_MAX_PORTS);
-			com->devfs_token_cual = devfs_add_devswf(&sio_cdevsw,
-				unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
-				UID_UUCP, GID_DIALER, 0660, "cualc%n%n", adapter,
-				unit % CY_MAX_PORTS);
+	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
+		unit, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "ttyc%n%n", adapter,
+		unit % CY_MAX_PORTS);
+	com->devfs_token_ttyi = devfs_add_devswf(&sio_cdevsw,
+		unit | CONTROL_INIT_STATE, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "ttyic%n%n", adapter,
+		unit % CY_MAX_PORTS);
+	com->devfs_token_ttyl = devfs_add_devswf(&sio_cdevsw,
+		unit | CONTROL_LOCK_STATE, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "ttylc%n%n", adapter,
+		unit % CY_MAX_PORTS);
+	com->devfs_token_cuaa = devfs_add_devswf(&sio_cdevsw,
+		unit | CALLOUT_MASK, DV_CHR,
+		UID_UUCP, GID_DIALER, 0660, "cuac%n%n", adapter,
+		unit % CY_MAX_PORTS);
+	com->devfs_token_cuai = devfs_add_devswf(&sio_cdevsw,
+		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR,
+		UID_UUCP, GID_DIALER, 0660, "cuaic%n%n", adapter,
+		unit % CY_MAX_PORTS);
+	com->devfs_token_cual = devfs_add_devswf(&sio_cdevsw,
+		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
+		UID_UUCP, GID_DIALER, 0660, "cualc%n%n", adapter,
+		unit % CY_MAX_PORTS);
 #endif
 		}
 	}
@@ -705,7 +708,8 @@ open_top:
 		iobase = com->iobase;
 
 		/* reset this channel */
-		cd_outb(iobase, CD1400_CAR, com->cy_align, unit & CD1400_CAR_CHAN);
+		cd_outb(iobase, CD1400_CAR, com->cy_align,
+			unit & CD1400_CAR_CHAN);
 		cd1400_channel_cmd(iobase, CD1400_CCR_CMDRESET, com->cy_align);
 
 		/*
@@ -878,11 +882,12 @@ comhardclose(com)
 		outb(iobase + com_ier, 0);
 #else
 		disable_intr();
-		cd_outb(iobase, CD1400_SRER, com->cy_align, com->intr_enable = 0);
+		cd_outb(iobase, CD1400_SRER, com->cy_align,
+			com->intr_enable = 0);
 		enable_intr();
 #endif
 		tp = com->tp;
-		if ((tp->t_cflag & HUPCL)
+		if (tp->t_cflag & HUPCL
 		    /*
 		     * XXX we will miss any carrier drop between here and the
 		     * next open.  Perhaps we should watch DCD even when the
@@ -900,7 +905,8 @@ comhardclose(com)
 			com->channel_control = CD1400_CCR_CMDCHANCTL
 					       | CD1400_CCR_XMTEN
 					       | CD1400_CCR_RCVDIS;
-			cd1400_channel_cmd(iobase, com->channel_control, com->cy_align);
+			cd1400_channel_cmd(iobase, com->channel_control,
+					   com->cy_align);
 
 			if (com->dtr_wait != 0) {
 				timeout(siodtrwakeup, com, com->dtr_wait);
@@ -989,19 +995,23 @@ void
 siointr(unit)
 	int	unit;
 {
-	cy_addr	cy_iobase, iobase;
-	int baseu, cyu, cy_align;
-	u_char status;
+	int	baseu;
+	int	cy_align;
+	cy_addr	cy_iobase;
+	int	cyu;
+	cy_addr	iobase;
+	u_char	status;
 
 	COM_LOCK();	/* XXX could this be placed down lower in the loop? */
 
 	baseu = unit * CY_MAX_PORTS;
-	cy_iobase = com_addr(baseu)->cy_iobase;
 	cy_align = com_addr(baseu)->cy_align;
+	cy_iobase = com_addr(baseu)->cy_iobase;
 
 	/* check each CD1400 in turn */
 	for (cyu = 0; cyu < cy_nr_cd1400s[unit]; ++cyu) {
-		iobase = (cy_addr) (cy_iobase + (cy_chip_offset[cyu] << cy_align));
+		iobase = (cy_addr) (cy_iobase
+				    + (cy_chip_offset[cyu] << cy_align));
 		/* poll to see if it has any work */
 		status = cd_inb(iobase, CD1400_SVRR, cy_align);
 		if (status == 0)
@@ -1117,7 +1127,8 @@ siointr(unit)
 						microtime(&com->timestamp);
 					do {
 						recv_data = cd_inb(iobase,
-								   CD1400_RDSR, cy_align);
+								   CD1400_RDSR,
+								   cy_align);
 #ifdef SOFT_HOTCHAR
 						if (com->hotchar != 0
 						    && recv_data
@@ -1132,7 +1143,8 @@ siointr(unit)
 				com->delta_error_counts
 				    [CE_INTERRUPT_BUF_OVERFLOW] += count;
 				do {
-					recv_data = cd_inb(iobase, CD1400_RDSR, cy_align);
+					recv_data = cd_inb(iobase, CD1400_RDSR,
+							   cy_align);
 #ifdef SOFT_HOTCHAR
 					if (com->hotchar != 0
 					    && recv_data == com->hotchar)
@@ -1154,7 +1166,8 @@ siointr(unit)
 #endif
 				com_events += count;
 				do {
-					recv_data = cd_inb(iobase, CD1400_RDSR, cy_align);
+					recv_data = cd_inb(iobase, CD1400_RDSR,
+							   cy_align);
 #ifdef SOFT_HOTCHAR
 					if (com->hotchar != 0
 					    && recv_data == com->hotchar)
@@ -1236,13 +1249,16 @@ cont:
 							   | CS_ODEVREADY)
 					    && !(com->intr_enable
 						 & CD1400_SRER_TXRDY))
-						cd_outb(iobase, CD1400_SRER, cy_align,
+						cd_outb(iobase, CD1400_SRER,
+							cy_align,
 							com->intr_enable
 							|= CD1400_SRER_TXRDY);
 				} else {
 					com->state &= ~CS_ODEVREADY;
-					if (com->intr_enable & CD1400_SRER_TXRDY)
-						cd_outb(iobase, CD1400_SRER, cy_align,
+					if (com->intr_enable
+					    & CD1400_SRER_TXRDY)
+						cd_outb(iobase, CD1400_SRER,
+							cy_align,
 							com->intr_enable
 							&= ~CD1400_SRER_TXRDY);
 				}
@@ -1297,7 +1313,8 @@ cont:
 					ocount = CD1400_TX_FIFO_SIZE;
 				com->bytes_out += ocount;
 				do
-					cd_outb(iobase, CD1400_TDR, cy_align, *ioptr++);
+					cd_outb(iobase, CD1400_TDR, cy_align,
+						*ioptr++);
 				while (--ocount != 0);
 			com->obufq.l_head = ioptr;
 			if (ioptr >= com->obufq.l_tail) {
@@ -1320,7 +1337,9 @@ cont:
 				if (!(com->state & CS_ODONE)) {
 					com_events += LOTS_OF_EVENTS;
 					com->state |= CS_ODONE;
-					setsofttty();	/* handle at high level ASAP */
+
+					/* handle at high level ASAP */
+					setsofttty();
 				}
 			}
 		}
@@ -1450,7 +1469,8 @@ sioioctl(dev, cmd, data, flag, p)
 		splx(s);
 		return (error);
 	}
-	cd_outb(iobase, CD1400_CAR, com->cy_align, MINOR_TO_UNIT(mynor) & CD1400_CAR_CHAN);
+	cd_outb(iobase, CD1400_CAR, com->cy_align,
+		MINOR_TO_UNIT(mynor) & CD1400_CAR_CHAN);
 	switch (cmd) {
 #if 0
 	case TIOCSBRK:
@@ -1860,7 +1880,8 @@ comparam(tp, t)
 
 	/* notify the CD1400 if COR1-3 have changed */
 	if (cor_change)
-		cd1400_channel_cmd(iobase, CD1400_CCR_CMDCORCHG | cor_change, com->cy_align);
+		cd1400_channel_cmd(iobase, CD1400_CCR_CMDCORCHG | cor_change,
+				   com->cy_align);
 
 	/*
 	 * set channel option register 4 -
@@ -2108,7 +2129,8 @@ comstart(tp)
 				com->state |= CS_BUSY;
 				if (com->state >= (CS_BUSY | CS_TTGO
 						   | CS_ODEVREADY))
-					cd_outb(iobase, CD1400_SRER, com->cy_align,
+					cd_outb(iobase, CD1400_SRER,
+						com->cy_align,
 						com->intr_enable
 						|= CD1400_SRER_TXRDY);
 			}
@@ -2136,7 +2158,8 @@ comstart(tp)
 				com->state |= CS_BUSY;
 				if (com->state >= (CS_BUSY | CS_TTGO
 						   | CS_ODEVREADY))
-					cd_outb(iobase, CD1400_SRER, com->cy_align,
+					cd_outb(iobase, CD1400_SRER,
+						com->cy_align,
 						com->intr_enable
 						|= CD1400_SRER_TXRDY);
 			}
@@ -2411,7 +2434,8 @@ disc_optim(tp, t, com)
 	if (opt != com->cor[2]) {
 		cd_outb(iobase, CD1400_COR3, com->cy_align, com->cor[2] = opt);
 		cd1400_channel_cmd(com->iobase,
-				   CD1400_CCR_CMDCORCHG | CD1400_CCR_COR3, com->cy_align);
+				   CD1400_CCR_CMDCORCHG | CD1400_CCR_COR3,
+				   com->cy_align);
 	}
 #endif
 }
@@ -2528,7 +2552,8 @@ cystatus(unit)
 	printf("service request register:\t0x%02x\n",
 	       cd_inb(iobase, CD1400_SVRR, com->cy_align));
 	printf("modem status:\t\t\t0x%02x (0x%02x cached)\n",
-	       cd_inb(iobase, CD1400_MSVR2, com->cy_align), com->prev_modem_status);
+	       cd_inb(iobase, CD1400_MSVR2, com->cy_align),
+	       com->prev_modem_status);
 	printf("rx/tx/mdm interrupt registers:\t0x%02x 0x%02x 0x%02x\n",
 	       cd_inb(iobase, CD1400_RIR, com->cy_align),
 	       cd_inb(iobase, CD1400_TIR, com->cy_align),
@@ -2552,7 +2577,8 @@ cystatus(unit)
 	tp = com->tp;
 	if (tp != NULL) {
 		printf("tty state:\t\t\t0x%08x\n", tp->t_state);
-		printf("upper layer queue lengths:\t%d raw, %d canon, %d output\n",
+		printf(
+		"upper layer queue lengths:\t%d raw, %d canon, %d output\n",
 		       tp->t_rawq.c_cc, tp->t_canq.c_cc, tp->t_outq.c_cc);
 	} else
 		printf("tty state:\t\t\tclosed\n");
