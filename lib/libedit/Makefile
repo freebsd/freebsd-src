@@ -1,7 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#
 # $FreeBSD$
-#
 
 LIB=	edit
 SHLIB_MAJOR=	3
@@ -10,8 +8,8 @@ SHLIB_MINOR=	0
 OSRCS=	chared.c common.c el.c emacs.c fcns.c help.c hist.c key.c map.c \
 	parse.c prompt.c read.c refresh.c search.c sig.c term.c tty.c vi.c
 
-LDADD+= -ltermcap
-DPADD+= ${LIBTERMCAP}
+DPADD=	${LIBTERMCAP}
+LDADD=	-ltermcap
 
 MAN3=   editline.3
 MAN5=   editrc.5
