@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: ruserpass.c,v 1.5 1997/06/25 08:56:45 msmith Exp $ */
 /*	$NetBSD: ruserpass.c,v 1.13 1997/04/01 14:20:34 mrg Exp $	*/
 
 /*
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)ruserpass.c	8.4 (Berkeley) 4/27/95";
 #else
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: ruserpass.c,v 1.5 1997/06/25 08:56:45 msmith Exp $";
 #endif
 #endif /* not lint */
 
@@ -202,7 +202,7 @@ next:
 			tmp = macros[macnum].mac_name;
 			*tmp++ = c;
 			for (i=0; i < 8 && (c=getc(cfile)) != EOF &&
-			    !isspace(c); ++i) {
+			    (!isascii(c) || !isspace(c)); ++i) {
 				*tmp++ = c;
 			}
 			if (c == EOF) {
