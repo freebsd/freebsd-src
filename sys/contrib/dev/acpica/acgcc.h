@@ -121,7 +121,8 @@
 #ifdef __ia64__
 #define _IA64
 
-#define COMPILER_DEPENDENT_UINT64   unsigned long
+#define COMPILER_DEPENDENT_INT64   long
+#define COMPILER_DEPENDENT_UINT64  unsigned long
 
 /*
  * Calling conventions:
@@ -145,10 +146,9 @@
 /* Asm macros */
 
 #define ACPI_ASM_MACROS
-#define causeinterrupt(level)
 #define BREAKPOINT3
-#define acpi_disable_irqs() __cli()
-#define acpi_enable_irqs()  __sti()
+#define ACPI_DISABLE_IRQS() __cli()
+#define ACPI_ENABLE_IRQS()  __sti()
 
 /*! [Begin] no source code translation */
 
@@ -198,7 +198,8 @@
 
 #else /* DO IA32 */
 
-#define COMPILER_DEPENDENT_UINT64   unsigned long long
+#define COMPILER_DEPENDENT_INT64   long long
+#define COMPILER_DEPENDENT_UINT64  unsigned long long
 
 /*
  * Calling conventions:
@@ -216,11 +217,9 @@
 /* Asm macros */
 
 #define ACPI_ASM_MACROS
-#define causeinterrupt(level)
 #define BREAKPOINT3
-#define acpi_disable_irqs() __cli()
-#define acpi_enable_irqs()  __sti()
-#define halt()    __asm__ __volatile__ ("sti; hlt":::"memory")
+#define ACPI_DISABLE_IRQS() __cli()
+#define ACPI_ENABLE_IRQS()  __sti()
 
 /*! [Begin] no source code translation
  *

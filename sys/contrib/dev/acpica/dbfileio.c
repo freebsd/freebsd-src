@@ -412,27 +412,14 @@ AeLocalLoadTable (
 }
 
 
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbLoadAcpiTable
- *
- * PARAMETERS:  Filname         - File where table is located
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Load an ACPI table from a file
- *
- ******************************************************************************/
-
+#ifdef ACPI_APPLICATION
 ACPI_STATUS
-AcpiDbLoadAcpiTable (
+AcpiDbGetAcpiTable (
     NATIVE_CHAR             *Filename)
 {
-#ifdef ACPI_APPLICATION
     FILE                    *fp;
-    ACPI_STATUS             Status;
     UINT32                  TableLength;
-
+    ACPI_STATUS             Status;
 
     /* Open the file */
 
@@ -456,7 +443,37 @@ AcpiDbLoadAcpiTable (
         return (Status);
     }
 
-    /* Attempt to recognize and install the table */
+    return (AE_OK);
+ }
+#endif
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbLoadAcpiTable
+ *
+ * PARAMETERS:  Filname         - File where table is located
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Load an ACPI table from a file
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiDbLoadAcpiTable (
+    NATIVE_CHAR             *Filename)
+{
+#ifdef ACPI_APPLICATION
+    ACPI_STATUS             Status;
+
+
+    Status = AcpiDbGetAcpiTable (Filename);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+   /* Attempt to recognize and install the table */
 
     Status = AeLocalLoadTable (AcpiGbl_DbTablePtr);
     if (ACPI_FAILURE (Status))

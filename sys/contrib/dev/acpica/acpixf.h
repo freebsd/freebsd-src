@@ -187,7 +187,7 @@ AcpiFree (
 ACPI_STATUS
 AcpiFindRootPointer (
     UINT32                  Flags,
-    ACPI_PHYSICAL_ADDRESS   *RsdpPhysicalAddress);
+    ACPI_POINTER            *RsdpAddress);
 
 ACPI_STATUS
 AcpiLoadTables (

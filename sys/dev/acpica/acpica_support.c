@@ -79,15 +79,13 @@ AcpiEnterSleepStateS4Bios (
 
     AcpiHwBitRegisterWrite (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_LOCK);
 
-    acpi_disable_irqs ();
+    ACPI_DISABLE_IRQS ();
 
     AcpiHwDisableNonWakeupGpes();
 
     /* flush caches */
 
-#ifdef __i386__
-    wbinvd();
-#endif
+    ACPI_FLUSH_CPU_CACHE ();
 
     /* write the value to command port and wait until we enter sleep state */
     do
@@ -99,7 +97,7 @@ AcpiEnterSleepStateS4Bios (
 
     AcpiHwEnableNonWakeupGpes();
 
-    acpi_enable_irqs ();
+    ACPI_ENABLE_IRQS ();
 
     return_ACPI_STATUS (AE_OK);
 }
