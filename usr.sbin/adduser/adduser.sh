@@ -126,6 +126,17 @@ fullpath_from_shell() {
 	_shell=$1
 	[ -z "$_shell" ] && return 1
 
+	# /usr/sbin/nologin is a special case; it needs to be handled
+	# before the cat | while loop, since a 'return' from within
+	# a subshell will not terminate the function's execution, and
+	# the path to the nologin shell might be printed out twice.
+	#
+	if [ "$_shell" = "${NOLOGIN}" -o \
+	    "$_shell" = "${NOLOGIN_PATH}" ]; then
+		echo ${NOLOGIN_PATH}
+		return 0;
+	fi
+
 	cat ${ETCSHELLS} |
 	while read _path _junk ; do
 		case "$_path" in
@@ -140,13 +151,6 @@ fullpath_from_shell() {
 			;;
 		esac
 	done
-
-	# /usr/sbin/nologin is a special case
-	if [ "$_shell" = "${NOLOGIN}" -o \
-	    "$_shell" = "${NOLOGIN_PATH}" ]; then
-		echo ${NOLOGIN_PATH}
-		return 0;
-	fi
 
 	return 1
 }
