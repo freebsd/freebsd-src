@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include "krb_locl.h"
@@ -128,7 +130,7 @@ k_get_all_addrs (struct in_addr **l)
 		      continue;
 		  (*l)[j++] = ((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr;
 	       }
-	      ifreq = *ifr;
+	      memcpy(&ifreq, ifr, sizeof(ifreq));
 	  }
      }
      if (j != num) {
