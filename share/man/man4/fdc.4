@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: fdc.4,v 1.9 1997/10/19 13:12:35 joerg Exp $
+.\"	$Id: fdc.4,v 1.10 1998/10/22 14:49:00 bde Exp $
 .\"
 .Dd August 31, 1994
 .Dt FDC 4 i386
@@ -37,9 +37,6 @@ PC architecture floppy disk controller driver
 .Cd "controller fdc0 at isa? port" \&"IO_FD1\&" "bio flags 0x1 irq 6 drq 2"
 .Cd "disk fd0 at fdc0 drive 0
 .Cd "disk fd1 at fdc0 drive 1
-.Pp
-For QIC40 and QIC80 tapedrives controlled by the floppy controller:
-.Cd "tape ft0 at fdc0 drive 2
 .Sh DESCRIPTION
 This driver provides access to floppy disk drives and QIC40/80 tapedrives.
 In /dev for each floppy device a number of minor devices are present. The
@@ -62,16 +59,11 @@ floppy disk device nodes
 .It /dev/fd*.<size in kB>
 floppy disk device nodes where the trailing number indicates the floppy 
 capacity 
-.It /dev/ft*
-floppy tape (QIC40/80) device nodes
 .It Pa /sys/i386/conf/GENERIC
 sample generic kernel config file 
 .It Pa /sys/i386/isa/fd.c
 floppy driver source 
-.It Pa /sys/i386/isa/ft.c
-floppy tape (QIC40/80 driver source
 .El
 .Sh SEE ALSO
 .Xr fdformat 1 ,
 .Xr disktab 5 ,
-.Xr ft 8
