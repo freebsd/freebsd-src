@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc_com.h>
 #include <rpc/pmap_clnt.h> /* for pmap_unset */
 #include <rpcsvc/yp.h>
-struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
 
 #include "yppasswd.h"
