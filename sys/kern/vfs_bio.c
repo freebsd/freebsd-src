@@ -212,28 +212,6 @@ static int needsbuffer;
  */
 static struct mtx nblock;
 
-#ifdef USE_BUFHASH
-/*
- * Mask for index into the buffer hash table, which needs to be power of 2 in
- * size.  Set in kern_vfs_bio_buffer_alloc.
- */
-static int bufhashmask;
-
-/*
- * Hash table for all buffers, with a linked list hanging from each table
- * entry.  Set in kern_vfs_bio_buffer_alloc, initialized in buf_init.
- */
-static LIST_HEAD(bufhashhdr, buf) *bufhashtbl;
-
-/*
- * Somewhere to store buffers when they are not in another list, to always
- * have them in a list (and thus being able to use the same set of operations
- * on them.)
- */
-static struct bufhashhdr invalhash;
-
-#endif
-
 /*
  * Definitions for the buffer free lists.
  */
@@ -262,21 +240,6 @@ const char *buf_wmesg = BUF_WMESG;
 #define VFS_BIO_NEED_DIRTYFLUSH	0x02	/* waiting for dirty buffer flush */
 #define VFS_BIO_NEED_FREE	0x04	/* wait for free bufs, hi hysteresis */
 #define VFS_BIO_NEED_BUFSPACE	0x08	/* wait for buf space, lo hysteresis */
-
-#ifdef USE_BUFHASH
-/*
- * Buffer hash table code.  Note that the logical block scans linearly, which
- * gives us some L1 cache locality.
- */
-
-static __inline 
-struct bufhashhdr *
-bufhash(struct vnode *vnp, daddr_t bn)
-{
-	return(&bufhashtbl[(((uintptr_t)(vnp) >> 7) + (int)bn) & bufhashmask]);
-}
-
-#endif
 
 /*
  *	numdirtywakeup:
@@ -504,16 +467,6 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	buf = (void *)v;
 	v = (caddr_t)(buf + nbuf);
 
-#ifdef USE_BUFHASH
-	/*
-	 * Calculate the hash table size and reserve space
-	 */
-	for (bufhashmask = 8; bufhashmask < nbuf / 4; bufhashmask <<= 1)
-		;
-	bufhashtbl = (void *)v;
-	v = (caddr_t)(bufhashtbl + bufhashmask);
-	--bufhashmask;
-#endif
 	return(v);
 }
 
@@ -527,18 +480,10 @@ bufinit(void)
 
 	GIANT_REQUIRED;
 
-#ifdef USE_BUFHASH
-	LIST_INIT(&invalhash);
-#endif
 	mtx_init(&bqlock, "buf queue lock", NULL, MTX_DEF);
 	mtx_init(&rbreqlock, "runningbufspace lock", NULL, MTX_DEF);
 	mtx_init(&nblock, "needsbuffer lock", NULL, MTX_DEF);
 	mtx_init(&bdlock, "buffer daemon lock", NULL, MTX_DEF);
-
-#ifdef USE_BUFHASH
-	for (i = 0; i <= bufhashmask; i++)
-		LIST_INIT(&bufhashtbl[i]);
-#endif
 
 	/* next, make a null set of free lists */
 	for (i = 0; i < BUFFER_QUEUES; i++)
@@ -558,9 +503,6 @@ bufinit(void)
 		LIST_INIT(&bp->b_dep);
 		BUF_LOCKINIT(bp);
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
-#ifdef USE_BUFHASH
-		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
-#endif
 	}
 
 	/*
@@ -1438,10 +1380,6 @@ brelse(struct buf * bp)
 			bp->b_qindex = QUEUE_EMPTY;
 		}
 		TAILQ_INSERT_HEAD(&bufqueues[bp->b_qindex], bp, b_freelist);
-#ifdef USE_BUFHASH
-		LIST_REMOVE(bp, b_hash);
-		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
-#endif
 		bp->b_dev = NODEV;
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) ||
@@ -1452,10 +1390,6 @@ brelse(struct buf * bp)
 			panic("losing buffer 2");
 		bp->b_qindex = QUEUE_CLEAN;
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
-#ifdef USE_BUFHASH
-		LIST_REMOVE(bp, b_hash);
-		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
-#endif
 		bp->b_dev = NODEV;
 
 	/* buffers that are locked */
@@ -1643,32 +1577,6 @@ vfs_vmio_release(bp)
 	if (bp->b_vp)
 		brelvp(bp);
 }
-
-#ifdef USE_BUFHASH
-/*
- * XXX MOVED TO VFS_SUBR.C
- *
- * Check to see if a block is currently memory resident.
- */
-struct buf *
-gbincore(struct vnode * vp, daddr_t blkno)
-{
-	struct buf *bp;
-	struct bufhashhdr *bh;
-
-	bh = bufhash(vp, blkno);
-
-	/* Search hash chain */
-	LIST_FOREACH(bp, bh, b_hash) {
-		/* hit */
-		if (bp->b_vp == vp && bp->b_lblkno == blkno &&
-		    (bp->b_flags & B_INVAL) == 0) {
-			break;
-		}
-	}
-	return (bp);
-}
-#endif
 
 /*
  * Check to see if a block at a particular lbn is available for a clustered
@@ -1961,10 +1869,6 @@ restart:
 			buf_deallocate(bp);
 		if (bp->b_xflags & BX_BKGRDINPROG)
 			panic("losing buffer 3");
-#ifdef USE_BUFHASH
-		LIST_REMOVE(bp, b_hash);
-		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
-#endif
 
 		if (bp->b_bufsize)
 			allocbuf(bp, 0);
@@ -2465,9 +2369,6 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	struct buf *bp;
 	int s;
 	int error;
-#ifdef USE_BUFHASH
-	struct bufhashhdr *bh;
-#endif
 	ASSERT_VOP_LOCKED(vp, "getblk");
 
 	if (size > MAXBSIZE)
@@ -2663,11 +2564,6 @@ loop:
 		bp->b_offset = offset;
 
 		bgetvp(vp, bp);
-#ifdef USE_BUFHASH
-		LIST_REMOVE(bp, b_hash);
-		bh = bufhash(vp, blkno);
-		LIST_INSERT_HEAD(bh, bp, b_hash);
-#endif
 
 		/*
 		 * set B_VMIO bit.  allocbuf() the buffer bigger.  Since the

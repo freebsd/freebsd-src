@@ -1554,8 +1554,6 @@ buf_vlist_add(struct buf *bp, struct vnode *vp, b_xflags_t xflags)
 	}
 }
 
-#ifndef USE_BUFHASH
-
 /*
  * Lookup a buffer using the splay tree.  Note that we specifically avoid
  * shadow buffers used in background bitmap writes.
@@ -1579,8 +1577,6 @@ gbincore(struct vnode *vp, daddr_t lblkno)
 		return(bp);
 	return(NULL);
 }
-
-#endif
 
 /*
  * Associate a buffer with a vnode.
