@@ -551,7 +551,7 @@ isp_pci_attach(device_t dev)
 
 	sptr = 0;
         if (resource_string_value(device_get_name(dev), device_get_unit(dev),
-            "topology", &sptr) == 0 && sptr != 0) {
+            "topology", (const char **) &sptr) == 0 && sptr != 0) {
 		if (strcmp(sptr, "lport") == 0) {
 			isp->isp_confopts |= ISP_CFG_LPORT;
 		} else if (strcmp(sptr, "nport") == 0) {
@@ -573,7 +573,7 @@ isp_pci_attach(device_t dev)
 	 */
 	sptr = 0;
 	tval = resource_string_value(device_get_name(dev), device_get_unit(dev),
-            "portwwn", &sptr);
+            "portwwn", (const char **) &sptr);
 	if (tval == 0 && sptr != 0 && *sptr++ == 'w') {
 		char *eptr = 0;
 		isp->isp_osinfo.default_port_wwn = strtouq(sptr, &eptr, 16);
@@ -590,7 +590,7 @@ isp_pci_attach(device_t dev)
 
 	sptr = 0;
 	tval = resource_string_value(device_get_name(dev), device_get_unit(dev),
-            "nodewwn", &sptr);
+            "nodewwn", (const char **) &sptr);
 	if (tval == 0 && sptr != 0 && *sptr++ == 'w') {
 		char *eptr = 0;
 		isp->isp_osinfo.default_node_wwn = strtouq(sptr, &eptr, 16);
