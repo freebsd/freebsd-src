@@ -1,8 +1,7 @@
 #
-# $Id: Makefile,v 1.4 1994/11/15 04:51:20 phk Exp $
+# $Id$
 #
 
-PGMDIR= cc_int cpp cc1 cc cc1plus c++ f77 libgcc doc
-SUBDIR=	$(PGMDIR)
+SUBDIR= cc_tools cc_int cpp cc1 cc cc1obj cc1plus c++ f77 libgcc doc
 
 .include <bsd.subdir.mk>
