@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.2 1998/08/22 10:31:00 dfr Exp $
+ *	$Id: main.c,v 1.3 1998/08/31 21:10:40 msmith Exp $
  */
 
 
@@ -118,6 +118,7 @@ main(void)
     archsw.arch_autoload = alpha_autoload;
     archsw.arch_getdev = alpha_getdev;
     archsw.arch_copyin = alpha_copyin;
+    archsw.arch_copyout = alpha_copyout;
     archsw.arch_readin = alpha_readin;
 
     /*
@@ -127,15 +128,6 @@ main(void)
      * the ncr hardware in a broken state (at least it does on my EB164).
      */
     open("/", O_RDONLY);
-
-    /*
-     * XXX should these be in the MI source?
-     */
-    source("/boot/boot.config");
-    printf("\n");
-    autoboot(10, NULL);		/* try to boot automatically */
-    printf("\nType '?' for a list of commands, 'help' for more detailed help.\n");
-    /* setenv("prompt", "$currdev>", 1); */
 
     interact();			/* doesn't return */
 }

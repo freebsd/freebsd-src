@@ -23,11 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: misc.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 #include <string.h>
 #include <stand.h>
+#include <bootstrap.h>
 
 /*
  * Concatenate the (argc) elements of (argv) into a single string, and return
@@ -53,3 +54,36 @@ unargv(int argc, char *argv[])
     return(cp);
 }
 
+/*
+ * Get the length of a string in kernel space
+ */
+size_t
+strlenout(vm_offset_t src)
+{
+    char	c;
+    size_t	len;
+    
+    for (len = 0; ; len++) {
+	archsw.arch_copyout(src++, &c, 1);
+	if (c == 0)
+	    break;
+    }
+    return(len);
+}
+
+/*
+ * Make a duplicate copy of a string in kernel space
+ */
+char *
+strdupout(vm_offset_t str)
+{
+    char	*result, *cp;
+    
+    result = malloc(strlenout(str) + 1);
+    for (cp = result; ;cp++) {
+	archsw.arch_copyout(str++, cp, 1);
+	if (*cp == 0)
+	    break;
+    }
+    return(result);
+}
