@@ -255,7 +255,8 @@ init_nsm(void)
 		ret = callrpc("localhost", SM_PROG, SM_VERS, SM_UNMON_ALL,
 		    xdr_my_id, &id, xdr_sm_stat, &stat);
 		if (ret == RPC_PROGUNAVAIL) {
-			warnx("%lu %s", SM_PROG, clnt_sperrno(ret));
+			syslog(LOG_WARNING, "%lu %s", SM_PROG,
+			    clnt_sperrno(ret));
 			sleep(2);
 			continue;
 		}
@@ -263,7 +264,8 @@ init_nsm(void)
 	} while (0);
 
 	if (ret != 0) {
-		errx(1, "%lu %s", SM_PROG, clnt_sperrno(ret));
+		syslog(LOG_ERR, "%lu %s", SM_PROG, clnt_sperrno(ret));
+		exit(1);
 	}
 
 	nsm_state = stat.state;
