@@ -671,12 +671,13 @@ isp_pci_attach(device_t dev)
 		isp->isp_osinfo.default_node_wwn = 0x400000007F000009ull;
 	}
 
+	isp->isp_osinfo.default_id = -1;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
             "iid", &tval) == 0) {
 		isp->isp_osinfo.default_id = tval;
 		isp->isp_confopts |= ISP_CFG_OWNLOOPID;
 	}
-	if (isp->isp_osinfo.default_id == 0) {
+	if (isp->isp_osinfo.default_id == -1) {
 		if (IS_FC(isp)) {
 			isp->isp_osinfo.default_id = 109;
 		} else {
