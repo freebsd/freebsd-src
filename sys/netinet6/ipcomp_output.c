@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ipcomp_output.c,v 1.24 2001/07/26 06:53:18 jinmei Exp $	*/
+/*	$KAME: ipcomp_output.c,v 1.25 2002/06/09 14:44:00 itojun Exp $	*/
 
 /*
  * Copyright (C) 1999 WIDE Project.
@@ -296,7 +296,7 @@ ipcomp_output(m, nexthdrp, md, isr, af)
 		m->m_pkthdr.len += complen;
 		ipcomp = mtod(md, struct ipcomp *);
 	}
-	
+
 	bzero(ipcomp, sizeof(*ipcomp));
 	ipcomp->comp_nxt = *nexthdrp;
 	*nexthdrp = IPPROTO_IPCOMP;
