@@ -271,6 +271,7 @@ main(int argc, char *argv[])
 			}
 		} else
 			mntpt = *argv;
+
 		/*
 		 * Statfs does not take a `wait' flag, so we cannot
 		 * implement nflag here.
@@ -280,15 +281,18 @@ main(int argc, char *argv[])
 			rv = 1;
 			continue;
 		}
-		/* Check to make sure the arguments we've been
-		 * given are satisfied.  Return an error if we
-		 * have been asked to list a mount point that does
-		 * not match the other args we've been given (-l, -t, etc.)
+
+		/*
+		 * Check to make sure the arguments we've been given are
+		 * satisfied.  Return an error if we have been asked to
+		 * list a mount point that does not match the other args
+		 * we've been given (-l, -t, etc.).
 		 */
 		if (checkvfsname(statfsbuf.f_fstypename, vfslist)) {
-			rv++;
+			rv = 1;
 			continue;
 		}
+
 		if (argc == 1) {
 			bzero(&maxwidths, sizeof(maxwidths));
 			update_maxwidths(&maxwidths, &statfsbuf);
