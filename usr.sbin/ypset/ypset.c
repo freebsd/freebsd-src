@@ -118,8 +118,6 @@ char **argv;
 {
 	struct sockaddr_in sin;
 	struct hostent *hent;
-	extern char *optarg;
-	extern int optind;
 	char *domainname;
 	int c;
 
