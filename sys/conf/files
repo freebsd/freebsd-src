@@ -441,7 +441,8 @@ dev/ida/ida.c		optional ida
 dev/ida/ida_disk.c	optional ida
 dev/ida/ida_eisa.c	optional ida eisa
 dev/ida/ida_pci.c	optional ida pci
-dev/ie/if_ie.c		count ie isa nowerror
+dev/ie/if_ie.c		optional ie isa nowerror
+dev/ie/if_ie_isa.c	optional ie isa
 dev/iicbus/iicbb_if.m	optional iicbb
 dev/iicbus/iicbus_if.m	optional iicbus
 dev/iicbus/if_ic.c	optional ic
