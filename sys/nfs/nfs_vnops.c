@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.87 1998/05/16 16:03:10 bde Exp $
+ * $Id: nfs_vnops.c,v 1.88 1998/05/16 16:20:50 bde Exp $
  */
 
 
@@ -1146,10 +1146,11 @@ nfs_writerpc(vp, uiop, cred, iomode, must_commit)
 				else if (committed == NFSV3WRITE_DATASYNC &&
 					commit == NFSV3WRITE_UNSTABLE)
 					committed = commit;
-				if ((nmp->nm_flag & NFSMNT_HASWRITEVERF) == 0) {
+				if ((nmp->nm_state & NFSSTA_HASWRITEVERF) == 0)
+				{
 				    bcopy((caddr_t)tl, (caddr_t)nmp->nm_verf,
 					NFSX_V3WRITEVERF);
-				    nmp->nm_flag |= NFSMNT_HASWRITEVERF;
+				    nmp->nm_state |= NFSSTA_HASWRITEVERF;
 				} else if (bcmp((caddr_t)tl,
 				    (caddr_t)nmp->nm_verf, NFSX_V3WRITEVERF)) {
 				    *must_commit = 1;
@@ -2531,7 +2532,7 @@ nfs_commit(vp, offset, cnt, cred, procp)
 	int error = 0, wccflag = NFSV3_WCCRATTR;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
 	
-	if ((nmp->nm_flag & NFSMNT_HASWRITEVERF) == 0)
+	if ((nmp->nm_state & NFSSTA_HASWRITEVERF) == 0)
 		return (0);
 	nfsstats.rpccnt[NFSPROC_COMMIT]++;
 	nfsm_reqhead(vp, NFSPROC_COMMIT, NFSX_FH(1));

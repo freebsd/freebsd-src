@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.52 1998/03/30 09:54:12 phk Exp $
+ * $Id: nfs_subs.c,v 1.53 1998/04/06 11:41:07 phk Exp $
  */
 
 /*
@@ -1363,6 +1363,12 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	return (0);
 }
 
+#ifdef NFS_ACDEBUG
+#include <sys/sysctl.h>
+static int nfs_acdebug;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, acdebug, CTLFLAG_RW, &nfs_acdebug, 0, "");
+#endif
+
 /*
  * Check the time stamp
  * If the cache is valid, copy contents to *vap and return 0
@@ -1373,15 +1379,50 @@ nfs_getattrcache(vp, vaper)
 	register struct vnode *vp;
 	struct vattr *vaper;
 {
-	register struct nfsnode *np = VTONFS(vp);
+	register struct nfsnode *np;
 	register struct vattr *vap;
+	struct nfsmount *nmp;
+	int timeo;
 
-	if ((time_second - np->n_attrstamp) >= NFS_ATTRTIMEO(np)) {
+	np = VTONFS(vp);
+	vap = &np->n_vattr;
+	nmp = VFSTONFS(vp->v_mount);
+	/* XXX n_mtime doesn't seem to be updated on a miss-and-reload */
+	timeo = (time_second - np->n_mtime) / 10;
+
+#ifdef NFS_ACDEBUG
+	if (nfs_acdebug>1)
+		printf("nfs_getattrcache: initial timeo = %d\n", timeo);
+#endif
+
+	if (vap->va_type == VDIR) {
+		if ((np->n_flag & NMODIFIED) || timeo < nmp->nm_acdirmin)
+			timeo = nmp->nm_acdirmin;
+		else if (timeo > nmp->nm_acdirmax)
+			timeo = nmp->nm_acdirmax;
+	} else {
+		if ((np->n_flag & NMODIFIED) || timeo < nmp->nm_acregmin)
+			timeo = nmp->nm_acregmin;
+		else if (timeo > nmp->nm_acregmax)
+			timeo = nmp->nm_acregmax;
+	}
+
+#ifdef NFS_ACDEBUG
+	if (nfs_acdebug > 2)
+		printf("acregmin %d; acregmax %d; acdirmin %d; acdirmax %d\n",
+			nmp->nm_acregmin, nmp->nm_acregmax,
+			nmp->nm_acdirmin, nmp->nm_acdirmax);
+
+	if (nfs_acdebug)
+		printf("nfs_getattrcache: age = %d; final timeo = %d\n",r
+			(time_second - np->n_attrstamp), timeo);
+#endif
+
+	if ((time_second - np->n_attrstamp) >= timeo) {
 		nfsstats.attrcache_misses++;
 		return (ENOENT);
 	}
 	nfsstats.attrcache_hits++;
-	vap = &np->n_vattr;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (np->n_flag & NMODIFIED) {

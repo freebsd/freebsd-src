@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.36 1998/02/09 06:10:37 eivind Exp $
+ * $Id: nfs_syscalls.c,v 1.37 1998/03/30 09:54:17 phk Exp $
  */
 
 #include <sys/param.h>
@@ -223,10 +223,10 @@ nfssvc(p, uap)
 		vput(nd.ni_vp);
 		if (error)
 			return (error);
-		if ((nmp->nm_flag & NFSMNT_MNTD) &&
+		if ((nmp->nm_state & NFSSTA_MNTD) &&
 			(uap->flag & NFSSVC_GOTAUTH) == 0)
 			return (0);
-		nmp->nm_flag |= NFSMNT_MNTD;
+		nmp->nm_state |= NFSSTA_MNTD;
 		error = nqnfs_clientd(nmp, p->p_ucred, &ncd, uap->flag,
 			uap->argp, p);
 	} else if (uap->flag & NFSSVC_ADDSOCK) {
@@ -514,10 +514,12 @@ nfssvc_nfsd(nsd, argp, p)
 				else if (slp->ns_flag & SLP_NEEDQ) {
 					slp->ns_flag &= ~SLP_NEEDQ;
 					(void) nfs_sndlock(&slp->ns_solock,
+						&slp->ns_solock,
 						(struct nfsreq *)0);
 					nfsrv_rcv(slp->ns_so, (caddr_t)slp,
 						M_WAIT);
-					nfs_sndunlock(&slp->ns_solock);
+					nfs_sndunlock(&slp->ns_solock,
+						&slp->ns_solock);
 				}
 				error = nfsrv_dorec(slp, nfsd, &nd);
 				cur_usec = nfs_curusec();
@@ -677,7 +679,8 @@ nfssvc_nfsd(nsd, argp, p)
 				*mtod(m, u_long *) = htonl(0x80000000 | siz);
 			}
 			if (solockp)
-				(void) nfs_sndlock(solockp, (struct nfsreq *)0);
+				(void) nfs_sndlock(solockp, solockp, 
+					(struct nfsreq *)0);
 			if (slp->ns_flag & SLP_VALID)
 			    error = nfs_send(so, nd->nd_nam2, m, NULL);
 			else {
@@ -693,7 +696,7 @@ nfssvc_nfsd(nsd, argp, p)
 			if (error == EPIPE)
 				nfsrv_zapsock(slp);
 			if (solockp)
-				nfs_sndunlock(solockp);
+				nfs_sndunlock(solockp, solockp);
 			if (error == EINTR || error == ERESTART) {
 				free((caddr_t)nd, M_NFSRVDESC);
 				nfsrv_slpderef(slp);
@@ -899,17 +902,17 @@ nfs_getauth(nmp, rep, cred, auth_str, auth_len, verf_str, verf_len, key)
 {
 	int error = 0;
 
-	while ((nmp->nm_flag & NFSMNT_WAITAUTH) == 0) {
-		nmp->nm_flag |= NFSMNT_WANTAUTH;
+	while ((nmp->nm_state & NFSSTA_WAITAUTH) == 0) {
+		nmp->nm_state |= NFSSTA_WANTAUTH;
 		(void) tsleep((caddr_t)&nmp->nm_authtype, PSOCK,
 			"nfsauth1", 2 * hz);
 		error = nfs_sigintr(nmp, rep, rep->r_procp);
 		if (error) {
-			nmp->nm_flag &= ~NFSMNT_WANTAUTH;
+			nmp->nm_state &= ~NFSSTA_WANTAUTH;
 			return (error);
 		}
 	}
-	nmp->nm_flag &= ~(NFSMNT_WAITAUTH | NFSMNT_WANTAUTH);
+	nmp->nm_state &= ~(NFSSTA_WAITAUTH | NFSSTA_WANTAUTH);
 	nmp->nm_authstr = *auth_str = (char *)malloc(RPCAUTH_MAXSIZ, M_TEMP, M_WAITOK);
 	nmp->nm_authlen = RPCAUTH_MAXSIZ;
 	nmp->nm_verfstr = verf_str;
@@ -920,13 +923,13 @@ nfs_getauth(nmp, rep, cred, auth_str, auth_len, verf_str, verf_len, key)
 	/*
 	 * And wait for mount_nfs to do its stuff.
 	 */
-	while ((nmp->nm_flag & NFSMNT_HASAUTH) == 0 && error == 0) {
+	while ((nmp->nm_state & NFSSTA_HASAUTH) == 0 && error == 0) {
 		(void) tsleep((caddr_t)&nmp->nm_authlen, PSOCK,
 			"nfsauth2", 2 * hz);
 		error = nfs_sigintr(nmp, rep, rep->r_procp);
 	}
-	if (nmp->nm_flag & NFSMNT_AUTHERR) {
-		nmp->nm_flag &= ~NFSMNT_AUTHERR;
+	if (nmp->nm_state & NFSSTA_AUTHERR) {
+		nmp->nm_state &= ~NFSSTA_AUTHERR;
 		error = EAUTH;
 	}
 	if (error)
@@ -936,10 +939,10 @@ nfs_getauth(nmp, rep, cred, auth_str, auth_len, verf_str, verf_len, key)
 		*verf_len = nmp->nm_verflen;
 		bcopy((caddr_t)nmp->nm_key, (caddr_t)key, sizeof (key));
 	}
-	nmp->nm_flag &= ~NFSMNT_HASAUTH;
-	nmp->nm_flag |= NFSMNT_WAITAUTH;
-	if (nmp->nm_flag & NFSMNT_WANTAUTH) {
-		nmp->nm_flag &= ~NFSMNT_WANTAUTH;
+	nmp->nm_state &= ~NFSSTA_HASAUTH;
+	nmp->nm_state |= NFSSTA_WAITAUTH;
+	if (nmp->nm_state & NFSSTA_WANTAUTH) {
+		nmp->nm_state &= ~NFSSTA_WANTAUTH;
 		wakeup((caddr_t)&nmp->nm_authtype);
 	}
 	return (error);

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.53 1998/03/08 09:57:54 julian Exp $
+ * $Id: nfs_bio.c,v 1.54 1998/03/28 16:05:05 steve Exp $
  */
 
 
@@ -257,7 +257,8 @@ nfs_bioread(vp, uio, ioflag, cred, getpages)
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 	p = uio->uio_procp;
-	if ((nmp->nm_flag & (NFSMNT_NFSV3 | NFSMNT_GOTFSINFO)) == NFSMNT_NFSV3)
+	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
+	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
 		(void)nfs_fsinfo(nmp, vp, cred, p);
 	biosize = vp->v_mount->mnt_stat.f_iosize;
 	/*
@@ -636,7 +637,8 @@ nfs_write(ap)
 		np->n_flag &= ~NWRITEERR;
 		return (np->n_error);
 	}
-	if ((nmp->nm_flag & (NFSMNT_NFSV3 | NFSMNT_GOTFSINFO)) == NFSMNT_NFSV3)
+	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
+	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
 		(void)nfs_fsinfo(nmp, vp, cred, p);
 	if (ioflag & (IO_APPEND | IO_SYNC)) {
 		if (np->n_flag & NMODIFIED) {
