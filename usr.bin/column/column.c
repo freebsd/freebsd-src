@@ -57,7 +57,6 @@ static const char sccsid[] = "@(#)column.c	8.4 (Berkeley) 5/4/95";
 #define	TAB	8
 
 void  c_columnate __P((void));
-void *emalloc __P((int));
 void  input __P((FILE *));
 void  maketbl __P((void));
 void  print __P((void));
@@ -216,9 +215,12 @@ maketbl()
 	TBL *tbl;
 	char **cols;
 
-	t = tbl = emalloc(entries * sizeof(TBL));
-	cols = emalloc((maxcols = DEFCOLS) * sizeof(char *));
-	lens = emalloc(maxcols * sizeof(int));
+	if ((t = tbl = calloc(entries, sizeof(TBL))) == NULL)
+		err(1, (char *)NULL);
+	if ((cols = calloc((maxcols = DEFCOLS), sizeof(char *))) == NULL)
+		err(1, (char *)NULL);
+	if ((lens = calloc(maxcols, sizeof(int))) == NULL)
+		err(1, (char *)NULL);
 	for (cnt = 0, lp = list; cnt < entries; ++cnt, ++lp, ++t) {
 		for (coloff = 0, p = *lp; (cols[coloff] = strtok(p, separator));
 		    p = NULL)
@@ -232,8 +234,10 @@ maketbl()
 				    0, DEFCOLS * sizeof(int));
 				maxcols += DEFCOLS;
 			}
-		t->list = emalloc(coloff * sizeof(char *));
-		t->len = emalloc(coloff * sizeof(int));
+		if ((t->list = calloc(coloff, sizeof(char *))) == NULL)
+			err(1, (char *)NULL);
+		if ((t->len = calloc(coloff, sizeof(int))) == NULL)
+			err(1, (char *)NULL);
 		for (t->cols = coloff; --coloff >= 0;) {
 			t->list[coloff] = cols[coloff];
 			t->len[coloff] = strlen(cols[coloff]);
@@ -261,7 +265,9 @@ input(fp)
 	char *p, buf[MAXLINELEN];
 
 	if (!list)
-		list = emalloc((maxentry = DEFNUM) * sizeof(char *));
+		if ((list = calloc((maxentry = DEFNUM), sizeof(char *))) ==
+		    NULL)
+			err(1, (char *)NULL);
 	while (fgets(buf, MAXLINELEN, fp)) {
 		for (p = buf; *p && isspace(*p); ++p);
 		if (!*p)
@@ -283,18 +289,6 @@ input(fp)
 		}
 		list[entries++] = strdup(buf);
 	}
-}
-
-void *
-emalloc(size)
-	int size;
-{
-	char *p;
-
-	if (!(p = malloc(size)))
-		err(1, NULL);
-	memset(p, 0, size);
-	return (p);
 }
 
 void
