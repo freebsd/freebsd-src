@@ -185,12 +185,27 @@ set_profile(void)
 static void
 scan_profile(FILE *f)
 {
-    int i;
-    char *p;
+    int		comment, i;
+    char	*p;
     char        buf[BUFSIZ];
 
     while (1) {
-	for (p = buf; (i = getc(f)) != EOF && (*p = i) > ' '; ++p);
+	p = buf;
+	comment = 0;
+	while ((i = getc(f)) != EOF) {
+	    if (i == '*' && !comment && p > buf && p[-1] == '/') {
+		comment = p - buf;
+		*p++ = i;
+	    } else if (i == '/' && comment && p > buf && p[-1] == '*') {
+		p = buf + comment - 1;
+		comment = 0;
+	    } else if (isspace(i)) {
+		if (p > buf && !comment)
+		    break;
+	    } else {
+		*p++ = i;
+	    }
+	}
 	if (p != buf) {
 	    *p++ = 0;
 	    if (verbose)
