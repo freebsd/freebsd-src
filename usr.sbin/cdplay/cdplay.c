@@ -6,6 +6,7 @@
 #include <sys/file.h>
 #include <sys/cdio.h>
 #include <sys/ioctl.h>
+#include <stdlib.h>
 
 #define command(s) strncmp(cmd,s,strlen(s))==0
 
@@ -27,11 +28,16 @@ main (int argc, char **argv)
 {
     int rc;
 
-    if (argc != 2) {
-	fprintf(stderr, "Usage: cdplay <cd>\n<cd> is device name such as cd0 or mcd0\n");
-	exit(1);
-    }
-    cdname = argv[1];
+    switch (argc) {
+      case 2:  cdname = argv[1]; 
+          break;
+      case 1:  if(cdname = getenv("CDPLAY"))
+	  /* Break if CDPLAY is set */
+          break;
+      default: fprintf(stderr, "Usage: cdplay <cd>\n<cd> is device name such as cd0 or mcd0\n");
+	  exit(1);
+  };
+
     standalone = isatty (0);
     while (input ()) {
 	rc = 0;

@@ -6,13 +6,17 @@
 .Nd Audio CD player
 .Sh SYNOPSIS
 .Nm cdplay
-.Ar device
+.Op Ar device
 .Sh DESCRIPTION
 .Nm cdplay
 is a program to control an audio CD player. The device is a name such
 as cd0 or mcd0. 
 .Pp
- Currently supported commands are as follows:
+If the device not specified, the environment variable 
+.Ev CDPLAY
+will be used to find the cd device.
+.Pp
+Currently supported commands are as follows:
 .Bl -tag -width Cm
 .It Cm play first_track last_track
 Play from track 
