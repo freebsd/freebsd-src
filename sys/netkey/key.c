@@ -1724,20 +1724,16 @@ key_spdadd(so, m, mhp)
 
 	/*
 	 * checking there is SP already or not.
-	 * If type is SPDUPDATE and no SP found, then error.
-	 * If type is either SPDADD or SPDSETIDX and SP found, then error.
+	 * SPDUPDATE doesn't depend on whether there is a SP or not.
+	 * If the type is either SPDADD or SPDSETIDX AND a SP is found,
+	 * then error.
 	 */
 	newsp = key_getsp(&spidx);
 	if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
-		if (newsp == NULL) {
-#ifdef IPSEC_DEBUG
-			printf("key_spdadd: no SP found.\n");
-#endif
-			return key_senderror(so, m, ENOENT);
+		if (newsp) {
+			newsp->state = IPSEC_SPSTATE_DEAD;
+			key_freesp(newsp);
 		}
-
-		newsp->state = IPSEC_SPSTATE_DEAD;
-		key_freesp(newsp);
 	} else {
 		if (newsp != NULL) {
 			key_freesp(newsp);
