@@ -58,7 +58,7 @@ extern void	 power_pm_suspend(int);
 extern int	power_profile_get_state(void);
 extern void	power_profile_set_state(int);
 
-typedef void (*power_profile_change_hook)(void *);
+typedef void (*power_profile_change_hook)(void *, int);
 EVENTHANDLER_DECLARE(power_profile_change, power_profile_change_hook);
 
 #endif	/* !_SYS_POWER_H_ */
