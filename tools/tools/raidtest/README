@@ -26,4 +26,21 @@ When test is finished you will see statistics:
 
 If you compare performance of two storage devices, use the same data file!
 
+
+usage: raidtest genfile [-frw] <-s mediasize> [-S sectorsize] <-n nrequests> [file]
+       raidtest test [-Rrw] <-d device> [-n processes] [file]
+
+where:
+	-d device	path to tested device
+	-f		if raidtest.data file or specified file already exists,
+			remove it and create new one
+	-n nrequests	number of requests to generate
+	-n processes	number of processes to run
+	-r		generate/run only READ requests
+	-R		generate random data for write requests
+	-s		size of destination device
+	-S		sector size of destination device
+	-w		generate/run only WRITE requests
+	file		path to the data file instead of default 'raidtest.data'
+
 	-- Pawel Jakub Dawidek <pjd@FreeBSD.org>
