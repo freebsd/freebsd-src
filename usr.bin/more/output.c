@@ -51,8 +51,6 @@ static const char rcsid[] =
 
 #include "less.h"
 
-int errmsgs;	/* Count of messages displayed by error() */
-
 extern int bs_mode;
 extern int sigs;
 extern int sc_width, sc_height;
@@ -61,7 +59,6 @@ extern int so_width, se_width;
 extern int bo_width, be_width;
 extern int tabstop;
 extern int screen_trashed;
-extern int any_display;
 extern char *line;
 extern int horiz_off;
 extern int mode_flags;
@@ -121,7 +118,7 @@ markup(ent_ul, ent_bo)
  * UL_CHAR, UE_CHAR, BO_CHAR, BE_CHAR markups.
  */
 #define MAYPUTCHR(char) \
-	if (column >= eff_horiz_off) { \
+	if (column >= horiz_off) { \
 		column += markup(&ent_ul, &ent_bo); \
 		putchr(char); \
 	}
@@ -133,7 +130,6 @@ put_line()
 	register int column;
 	extern int auto_wrap, ignaw;
 	int ent_ul, ent_bo;  /* enter or exit ul|bo mode for next char */
-	int eff_horiz_off;
 
 	if (sigs)
 	{
@@ -143,11 +139,6 @@ put_line()
 		screen_trashed = 1;
 		return;
 	}
-
-	if (horiz_off == NO_HORIZ_OFF)
-		eff_horiz_off = 0;
-	else
-		eff_horiz_off = horiz_off;
 
 	if (line == NULL)
 		line = "";
@@ -198,11 +189,11 @@ put_line()
 		case '\b':
 			/*
 			 * column must be at least one greater than
-			 * eff_horiz_off (ie. we must be in the second or
+			 * horiz_off (ie. we must be in the second or
 			 * beyond screen column) or we'll just end-up
 			 * backspacing up to the previous line.
 			 */
-			if (column > eff_horiz_off) {
+			if (column > horiz_off) {
 				column += markup(&ent_ul, &ent_bo);
 				putbs();
 				column--;
@@ -234,11 +225,11 @@ put_line()
 				column++;
 			}
 		}
-		if (column == sc_width + eff_horiz_off && mode_flags)
+		if (column == sc_width + horiz_off && mode_flags)
 			last_pos_highlighted = 1;
 	}
 	column += markup(&ent_ul, &ent_bo);
-	if (column < sc_width + eff_horiz_off || !auto_wrap || ignaw)
+	if (column < sc_width + horiz_off || !auto_wrap || ignaw)
 		putchr('\n');
 }
 
@@ -290,65 +281,28 @@ putstr(s)
 		putchr(*s++);
 }
 
-int cmdstack;
-static char return_to_continue[] = "(press RETURN)";
-
 /*
- * Output a message in the lower left corner of the screen
- * and wait for carriage return.
+ * Output a string, expanding control characters into printable sequences.
+ * Returns the number of characters printed.
  */
-error(s)
+int
+putxstr(s)
 	char *s;
 {
-	int ch;
+	int c;
+	int retr = 0;
 
-	++errmsgs;
-	if (!any_display) {
-		/*
-		 * Nothing has been displayed yet.  Output this message on
-		 * error output (file descriptor 2) and don't wait for a
-		 * keystroke to continue.
-		 *
-		 * This has the desirable effect of producing all error
-		 * messages on error output if standard output is directed
-		 * to a file.  It also does the same if we never produce
-		 * any real output; for example, if the input file(s) cannot
-		 * be opened.  If we do eventually produce output, code in
-		 * edit() makes sure these messages can be seen before they
-		 * are overwritten or scrolled away.
-		 */
-		(void)write(2, s, strlen(s));
-		(void)write(2, "\n", 1);
-		return;
+	for (; c = *s; s++) {
+		if (CONTROL_CHAR(c)) {
+			putchr('^');
+			retr++;
+			c &= ~0200;
+			c = CARAT_CHAR(c);
+		}
+		putchr(c);
 	}
 
-	lower_left();
-	clear_eol();
-	so_enter();
-	if (s) {
-		putstr(s);
-		putstr("  ");
-	}
-	putstr(return_to_continue);
-	so_exit();
-
-	if ((ch = getchr()) != '\n') {
-		/* XXX hardcoded */
-		if (ch == 'q')
-			quit();
-		cmdstack = ch;
-	}
-	lower_left();
-
-	if ((s==NULL)?0:(strlen(s)) + sizeof(return_to_continue) +
-		so_width + se_width + 1 > sc_width)
-		/*
-		 * Printing the message has probably scrolled the screen.
-		 * {{ Unless the terminal doesn't have auto margins,
-		 *    in which case we just hammered on the right margin. }}
-		 */
-		repaint();
-	flush();
+	return(retr);
 }
 
 static char intr_to_abort[] = "... (interrupt to abort)";

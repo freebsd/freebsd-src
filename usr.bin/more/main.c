@@ -56,18 +56,21 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/types.h>
 
+#include <errno.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#define DEFINEGLOBALS
+#include "defrc.h"
 #include "less.h"
+#include "pathnames.h"
 
 int	ispipe;
 char	*current_file, *previous_file, *current_name, *next_name;
 int	any_display;
-int	scroll;
 int	ac;
 char	**av;
 int	curr_ac;
@@ -88,7 +91,6 @@ extern int	tagoption;
 edit(filename)
 	register char *filename;
 {
-	extern int errno;
 	register int f;
 	register char *m;
 	off_t initial_pos, prev_pos, position();
@@ -334,8 +336,15 @@ main(argc, argv)
 		} while (file < 0 && ++curr_ac < ac);
 	}
 
-	if (file >= 0)
+	if (file >= 0) {
+		/*
+		 * Don't call rcfiles() until now so that people who put
+		 * wierd things (like "forw_scroll") in their rc file don't
+		 * cause us to SEGV.
+		 */
+		rcfiles();
 		commands();
+	}
 	quit();
 	/*NOTREACHED*/
 }
@@ -374,4 +383,157 @@ quit()
 	flush();
 	raw_mode(0);
 	exit(0);
+}
+
+/*
+ * Read in from each of the three rc files - default, system, user.
+ * Calls handle_error() directly to report errors.
+ */
+rcfiles()
+{
+	FILE *fd;
+	char fbuf[MAXPATHLEN + 1];
+	char *c;
+	int readrc();
+	int savederrno;
+	static int str_read();
+
+	/* The default builtin rc file */
+	if ((c = getenv("HOME")) &&
+	    strlen(c) + strlen(_PATH_DEFRC) + 1 < MAXPATHLEN) {
+		sprintf(fbuf, "%s/%s", c, _PATH_DEFRC);
+		fd = fopen(fbuf, "r");
+		savederrno = errno;
+		if (!fd) {
+			if (!access(_PATH_SYSMORERC, F_OK)) {
+				SETERRSTR(E_EXTERN, "unable to read %s: %s",
+				    _PATH_SYSMORERC, strerror(savederrno));
+				handle_error();
+			}
+			/* We'd better have some type of default keys!! */
+			goto use_builtin_defrc;
+		} else {
+			readrc(fd);
+			fclose(fd);
+		}
+	} else {
+use_builtin_defrc:
+		fd = fropen(DEFRC, str_read);
+		readrc(fd);
+		fclose(fd);
+	}
+
+	/* The system rc file */
+	fd = fopen(_PATH_SYSMORERC, "r");
+	savederrno = errno;
+	if (!fd) {
+		if (!access(_PATH_SYSMORERC, F_OK)) {
+			SETERRSTR(E_EXTERN, "unable to read %s: %s",
+			    _PATH_SYSMORERC, strerror(savederrno));
+			handle_error();
+		} else
+			; /* non-existant => non-error */
+	} else {
+		readrc(fd);
+		fclose(fd);
+	}
+
+	/* The user rc file */
+	if ((c = getenv("HOME")) &&
+	    strlen(c) + strlen(_PATH_RC) + 1 < MAXPATHLEN) {
+		sprintf(fbuf, "%s/%s", c, _PATH_RC);
+		fd = fopen(fbuf, "r");
+		savederrno = errno;
+		if (!fd) {
+			if (!access(fbuf, F_OK)) {
+				SETERRSTR(E_EXTERN,
+				    "unable to read %s: %s", fbuf,
+				    strerror(savederrno));
+				handle_error();
+			} else
+				; /* non-existant => non-error */
+		} else {
+			readrc(fd);
+			fclose(fd);
+		}
+	}
+}
+
+/*
+ * Read-in an rc file from a fd.  Calls handle_error() directly to handle
+ * errors.
+ *
+ * This really belongs in ncommand.c, but that file is already 33292 bytes
+ * long.
+ */
+readrc(fd)
+	FILE *fd;
+{
+	char *bufptr, *buf;
+	size_t len;
+	int strlenbuf;
+
+	buf = NULL;
+	strlenbuf = 0;
+	while (bufptr = fgetln(fd, &len)) {
+		if (!len)
+			continue;  /* ??? */
+		if (*bufptr == '#')
+			continue;  /* skip comments */
+		if (!(buf = reallocf(buf, strlenbuf + len + 1))) {
+			SETERR(E_MALLOC);
+			handle_error();
+			if (strlenbuf + len < 1024)
+				return;  /* major memory shortage... */
+			continue;
+		}
+		memcpy (buf + strlenbuf, bufptr, len);
+		buf[len + strlenbuf] = '\0';
+		if (len > 1 && buf[strlenbuf + len - 2] == '\\') {
+			/* line continuation */
+			buf[strlenbuf + len - 2] = '\0';
+			strlenbuf = strlen(buf);
+			continue;
+		}
+		if (buf[len + strlenbuf - 1] == '\n')
+			buf[len + strlenbuf - 1] = '\0';
+		if (command(buf))
+			handle_error();
+		free(buf);
+		buf = NULL;
+		strlenbuf = 0;
+	}
+}
+
+/*
+ * Read from the NUL-terminated cookie.  Non-reentrant: keeps a static pointer
+ * to the current position in the cookie.  Used for funopen().
+ */
+static int
+str_read(cookie, buf, len)
+	void *cookie;
+	char *buf;
+	size_t len;
+{
+	static char *curpos;
+	static int cooklen;
+	static char *lastcook;
+
+	if (lastcook != cookie) {
+		/* begin working on a new cookie */
+		curpos = cookie;
+		lastcook = cookie;
+		cooklen = strlen(cookie);
+	}
+
+	if (curpos + len > lastcook + cooklen) {
+		ssize_t r;
+		memcpy(buf, curpos, r = (cooklen - (curpos - lastcook)));
+		curpos = cookie + cooklen;
+		return (int) r;
+	} else {
+		memcpy(buf, curpos, len);
+		curpos += len;
+		return (int) len;
+	}
 }
