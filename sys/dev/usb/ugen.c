@@ -99,6 +99,9 @@ SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW,
 
 struct ugen_endpoint {
 	struct ugen_softc *sc;
+#if defined(__FreeBSD__)
+	dev_t dev;
+#endif
 	usb_endpoint_descriptor_t *edesc;
 	usbd_interface_handle iface;
 	int state;
@@ -123,6 +126,9 @@ struct ugen_endpoint {
 struct ugen_softc {
 	USBBASEDEVICE sc_dev;		/* base device */
 	usbd_device_handle sc_udev;
+#if defined(__FreeBSD__)
+	dev_t dev;
+#endif
 
 	char sc_is_open[USB_MAX_ENDPOINTS];
 	struct ugen_endpoint sc_endpoints[USB_MAX_ENDPOINTS][2];
@@ -235,7 +241,7 @@ USB_ATTACH(ugen)
 
 #if defined(__FreeBSD__)
 	/* the main device, ctrl endpoint */
-	make_dev(&ugen_cdevsw, UGENMINOR(USBDEVUNIT(sc->sc_dev), 0),
+	sc->dev = make_dev(&ugen_cdevsw, UGENMINOR(USBDEVUNIT(sc->sc_dev), 0),
 		UID_ROOT, GID_OPERATOR, 0644, "%s", USBDEVNAME(sc->sc_dev));
 #endif
 
@@ -247,6 +253,7 @@ Static void
 ugen_make_devnodes(struct ugen_softc *sc)
 {
 	int endptno;
+	dev_t dev;
 
 	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++) {
 		if (sc->sc_endpoints[endptno][IN].sc != NULL ||
@@ -259,11 +266,15 @@ ugen_make_devnodes(struct ugen_softc *sc)
 			 * In the if clause above we check whether one
 			 * of the structs is populated.
 			 */
-			make_dev(&ugen_cdevsw,
+				dev = make_dev(&ugen_cdevsw,
 				UGENMINOR(USBDEVUNIT(sc->sc_dev), endptno),
 				UID_ROOT, GID_OPERATOR, 0644,
 				"%s.%d",
 				USBDEVNAME(sc->sc_dev), endptno);
+			if (sc->sc_endpoints[endptno][IN].sc != NULL)
+				sc->sc_endpoints[endptno][IN].sc->dev = dev;
+			if (sc->sc_endpoints[endptno][OUT].sc != NULL)
+				sc->sc_endpoints[endptno][OUT].sc->dev = dev;
 		}
 	}
 }
@@ -286,9 +297,10 @@ ugen_destroy_devnodes(struct ugen_softc *sc)
 			 * In the if clause above we check whether one
 			 * of the structs is populated.
 			 */
-			dev = makedev(UGEN_CDEV_MAJOR,
-				UGENMINOR(USBDEVUNIT(sc->sc_dev), endptno));
-
+			if (sc->sc_endpoints[endptno][IN].sc != NULL)
+				dev = sc->sc_endpoints[endptno][IN].sc->dev;
+			else
+				dev = sc->sc_endpoints[endptno][OUT].sc->dev;
 			destroy_dev(dev);
 		}
 	}
@@ -854,8 +866,6 @@ USB_DETACH(ugen)
 	int s;
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	int maj, mn;
-#elif defined(__FreeBSD__)
-	dev_t dev;
 #endif
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
@@ -895,8 +905,7 @@ USB_DETACH(ugen)
 	vdevgone(maj, mn, mn + USB_MAX_ENDPOINTS - 1, VCHR);
 #elif defined(__FreeBSD__)
 	/* destroy the device for the control endpoint */
-	dev = makedev(UGEN_CDEV_MAJOR, UGENMINOR(USBDEVUNIT(sc->sc_dev), 0));
-	destroy_dev(dev);
+	destroy_dev(sc->dev);
 	ugen_destroy_devnodes(sc);
 #endif
 
