@@ -49,11 +49,11 @@
 .In unistd.h
 .Vt extern char **environ ;
 .Ft int
-.Fn execl "const char *path" "const char *arg" ...
+.Fn execl "const char *path" "const char *arg" "... /*" "(char *)0*/"
 .Ft int
-.Fn execlp "const char *file" "const char *arg" ...
+.Fn execlp "const char *file" "const char *arg" "... /*" "(char *)0*/"
 .Ft int
-.Fn execle "const char *path" "const char *arg" ... NULL "char *const envp[]"
+.Fn execle "const char *path" "const char *arg" "... /*" "(char *)0" "char *const envp[]*/"
 .Ft int
 .Fn exect "const char *path" "char *const argv[]" "char *const envp[]"
 .Ft int
