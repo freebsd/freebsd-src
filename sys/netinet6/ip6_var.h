@@ -251,7 +251,9 @@ struct ip6aux {
 #define	IPV6_MINMTU		0x04	/* use minimum MTU (IPV6_USE_MIN_MTU) */
 
 extern struct	ip6stat ip6stat;	/* statistics */
+#ifndef RANDOM_IP_ID
 extern u_int32_t ip6_id;		/* fragment identifier */
+#endif
 extern int	ip6_defhlim;		/* default hop limit */
 extern int	ip6_defmcasthlim;	/* default multicast hop limit */
 extern int	ip6_forwarding;		/* act as router? */
