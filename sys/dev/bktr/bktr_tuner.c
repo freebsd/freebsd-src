@@ -186,7 +186,7 @@ static const struct TUNER tuners[] = {
 	     TSA552x_SCONTROL,
 	     0x00 },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30, 0x00 } },	/* the band-switch values */
+	   { 0xa7, 0x97, 0x37, 0x00 } },	/* the band-switch values */
 
 	/* TEMIC_PAL I */
 	{ "Temic PAL I",			/* the 'name' */
@@ -236,7 +236,7 @@ static const struct TUNER tuners[] = {
 	     TSA552x_FCONTROL,
 	     TSA552x_RADIO },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30, 0xa4 } },	/* the band-switch values */
+	   { 0xa7, 0x97, 0x37, 0xa4 } },	/* the band-switch values */
 
         /* ALPS TSCH5 NTSC */
         { "ALPS TSCH5 NTSC FM",                 /* the 'name' */
