@@ -55,6 +55,7 @@ my %userenv;
 my %cmds = (
     'clean'	=> 0,
     'update'	=> 0,
+    'patch'	=> 0,
     'world'	=> 0,
     'generic'	=> 0,
     'lint'	=> 0,
@@ -245,8 +246,8 @@ Parameters:
   -b, --branch=BRANCH           CVS branch to check out
   -d, --date=DATE               Date of sources to check out
   -j, --jobs=NUM                Maximum number of paralell jobs
-  -l, --logfile=FILE            Path to log file (e.g. pc98)
-  -m, --machine=MACHINE         Target machine
+  -l, --logfile=FILE            Path to log file
+  -m, --machine=MACHINE         Target machine (e.g. pc98)
   -p, --patch=PATCH             Patch to apply before building
   -r, --repository=DIR          Location of CVS repository
   -s, --sandbox=DIR             Location of sandbox
@@ -254,6 +255,7 @@ Parameters:
 Commands:
   clean                         Clean the sandbox
   update                        Update the source tree
+  patch                         Patch the source tree
   world                         Build the world
   generic                       Build the GENERIC kernel
   lint                          Build the LINT kernel
@@ -265,8 +267,11 @@ Report bugs to <des\@freebsd.org>.
 }
 
 MAIN:{
-    $ENV{'PATH'} = '';
-    $ENV{'TZ'} = "GMT";
+    # Clear environment and set timezone
+    %ENV = (
+	'TZ'		=> "GMT",
+	'PATH'		=> "/usr/bin:/usr/sbin:/bin:/sbin",
+    );
     tzset();
 
     # Set defaults
@@ -277,7 +282,7 @@ MAIN:{
     $branch = "CURRENT";
     $jobs = 0;
     $repository = "/home/ncvs";
-    $sandbox = "$ENV{'HOME'}/tinderbox";
+    $sandbox = "/tmp/tinderbox";
 
     # Get options
     {Getopt::Long::Configure("auto_abbrev", "bundling");}
@@ -368,8 +373,8 @@ MAIN:{
 	    or error("unable to remove old source directory");
 	remove_dir("$sandbox/obj")
 	    or error("unable to remove old object directory");
-	remove_dir("$sandbox/root")
-	    or error("unable to remove old chroot directory");
+#	remove_dir("$sandbox/root")
+#	    or error("unable to remove old chroot directory");
     }
 
     # Check out new source tree
@@ -397,7 +402,11 @@ MAIN:{
     }
 
     # Patch sources
-    if (defined($patch)) {
+    if ($cmds{'patch'} && !defined($patch)) {
+	warning("no patch specified");
+	$cmds{'patch'} = 0;
+    }
+    if ($cmds{'patch'}) {
 	$patch = "$sandbox/$patch"
 	    unless ($patch =~ m|^/|);
 	if ($patch !~ m|^(/[\w./-]+)$|) {
@@ -410,7 +419,7 @@ MAIN:{
 	    spawn('/usr/bin/patch', "-f", "-s", "-i$patch")
 		or error("failed to apply patch to source tree");
 	} else {
-	    warning("patch not found");
+	    warning("specified patch file does not exist");
 	}
     }
 
