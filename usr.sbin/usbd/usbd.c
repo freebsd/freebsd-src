@@ -942,7 +942,7 @@ main(int argc, char **argv)
 				if (fds[ndevs] > maxfd)
 					maxfd = fds[ndevs];
 				ndevs++;
-			} else if (errno != ENXIO) {
+			} else if (errno != ENXIO && errno != ENOENT) {
 				/* there was an error, on a device that does
 				 * exist (device is configured)
 				 */
