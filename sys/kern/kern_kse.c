@@ -1813,7 +1813,7 @@ thread_single(int force_exit)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT((td != NULL), ("curthread is NULL"));
 
-	if ((p->p_flag & P_THREADED) == 0)
+	if ((p->p_flag & P_THREADED) == 0 && p->p_numthreads == 1)
 		return (0);
 
 	/* Is someone already single threading? */
@@ -1872,6 +1872,7 @@ thread_single(int force_exit)
 		 * In the mean time we suspend as well.
 		 */
 		thread_suspend_one(td);
+		/* XXX If you recursed this is broken. */
 		mtx_unlock(&Giant);
 		PROC_UNLOCK(p);
 		p->p_stats->p_ru.ru_nvcsw++;
@@ -1961,15 +1962,18 @@ thread_suspend_check(int return_instead)
 		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
 			while (mtx_owned(&Giant))
 				mtx_unlock(&Giant);
-			thread_exit();
+			if (p->p_flag & P_THREADED)
+				thread_exit();
+			else
+				thr_exit1();
 		}
 
+		mtx_assert(&Giant, MA_NOTOWNED);
 		/*
 		 * When a thread suspends, it just
 		 * moves to the processes's suspend queue
 		 * and stays there.
 		 */
-		mtx_assert(&Giant, MA_NOTOWNED);
 		thread_suspend_one(td);
 		PROC_UNLOCK(p);
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
