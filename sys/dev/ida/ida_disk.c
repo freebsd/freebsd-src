@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ida_disk.c,v 1.1 1999/06/24 03:31:57 jlemon Exp $
  */
 
 /*
@@ -327,5 +327,4 @@ idattach(device_t dev)
 	return (0);
 }
 
-DEV_DRIVER_MODULE(id, ida, id_driver, id_devclass,
-			ID_CDEV_MAJOR, ID_BDEV_MAJOR, id_cdevsw, 0, 0);
+DEV_DRIVER_MODULE(id, ida, id_driver, id_devclass, id_cdevsw, 0, 0);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.18 1999/05/28 09:25:14 dfr Exp $
+ *	$Id: bus.h,v 1.19 1999/05/30 10:27:02 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -350,10 +350,10 @@ DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
 	       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 #define DEV_DRIVER_MODULE(name, busname, driver, devclass,		\
-			   cmajor, bmajor, devsw, evh, arg)		\
+			   devsw, evh, arg)				\
 									\
 static struct devsw_module_data name##_##busname##_devsw_mod = {	\
-    evh, arg, bmajor, cmajor, &devsw					\
+    evh, arg, &devsw							\
 };									\
 									\
 DRIVER_MODULE(name, busname, driver, devclass,				\

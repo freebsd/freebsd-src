@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iic.c,v 1.11 1999/05/30 16:51:28 phk Exp $
+ *	$Id: iic.c,v 1.12 1999/05/31 11:24:43 phk Exp $
  *
  */
 #include <sys/param.h>
@@ -283,5 +283,4 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return (error);
 }
 
-DEV_DRIVER_MODULE(iic, iicbus, iic_driver, iic_devclass, CDEV_MAJOR,
-			NOMAJ, iic_cdevsw, 0, 0);
+DEV_DRIVER_MODULE(iic, iicbus, iic_driver, iic_devclass, iic_cdevsw, 0, 0);
