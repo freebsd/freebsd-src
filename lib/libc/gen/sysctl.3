@@ -481,16 +481,21 @@ The currently defined protocols and names are:
 .ne 1i
 .Bl -column ProtocolXX VariableXX TypeXX ChangeableXX
 .It Pa Protocol	Variable	Type	Changeable
+.It icmp	bmcastecho	integer	yes
+.It icmp	maskrepl	integer	yes
 .It ip	forwarding	integer	yes
 .It ip	redirect	integer	yes
 .It ip	ttl	integer	yes
-.It icmp	maskrepl	integer	yes
-.It icmp	bmcastecho	integer	yes
 .It udp	checksum	integer	yes
 .El
 .Pp
 The variables are as follows:
 .Bl -tag -width "123456"
+.It Li icmp.bmcastecho
+Returns 1 if an ICMP echo request to a broadcast or multicast address is 
+to be answered.
+.It Li icmp.maskrepl
+Returns 1 if ICMP network mask requests are to be answered.
 .It Li ip.forwarding
 Returns 1 when IP forwarding is enabled for the host,
 meaning that the host is acting as a router.
@@ -502,11 +507,6 @@ and should normally be enabled on all systems.
 The maximum time-to-live (hop count) value for an IP packet sourced by
 the system.
 This value applies to normal transport protocols, not to ICMP.
-.It Li icmp.maskrepl
-Returns 1 if ICMP network mask requests are to be answered.
-.It Li icmp.bmcastecho
-Returns 1 if an ICMP echo request to a broadcast or multicast address is 
-to be answered.
 .It Li udp.checksum
 Returns 1 when UDP checksums are being computed and checked.
 Disabling UDP checksums is strongly discouraged.
