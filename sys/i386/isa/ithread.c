@@ -37,7 +37,6 @@
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
-#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
@@ -67,7 +66,7 @@ struct int_entropy {
 	int irq;
 };
 
-static u_int straycount[NHWI];
+static u_int straycount[ICU_LEN];
 
 #define	MAX_STRAY_LOG	5
 
