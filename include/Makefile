@@ -64,13 +64,14 @@ SHARED?=	copies
 all:	osreldate.h
 
 osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
-		${.CURDIR}/../sys/sys/param.h
+		${.CURDIR}/../sys/sys/param.h \
+		${.CURDIR}/Makefile
 	@${ECHO} creating osreldate.h from newvers.sh
 	setvar PARAMFILE ${.CURDIR}/../sys/sys/param.h; \
 	. ${.CURDIR}/../sys/conf/newvers.sh;			\
 	echo "$$COPYRIGHT" > osreldate.h;			\
 	echo "#ifdef _KERNEL" >> osreldate.h;			\
-	echo '#error "osreldate.h must not be used in the kernel, use sys/param.h"' >> osreldate.h; \
+	echo '#error "/usr/include/osreldate.h cannot be used in the kernel, use sys/param.h"' >> osreldate.h; \
 	echo "#else" >> osreldate.h;				\
 	echo \#'undef __FreeBSD_version' >> osreldate.h;	\
 	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h; \
