@@ -18,13 +18,13 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
+#include <termcap.h>
+#include <sgtty.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/select.h>
 #include <sys/fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/ioctl_compat.h>
 #include <sys/snoop.h>
 
 
@@ -92,6 +92,7 @@ set_tty()
 	sgn = sgo;
 	sgn.sg_flags |= CBREAK;
 	sgn.sg_flags &= ~ECHO;
+	ospeed = sgo.sg_ospeed;
 	ioctl(std_in, TIOCSETP, &sgn);
 }
 
@@ -162,8 +163,8 @@ setup_scr()
 		if (tgetent(tbuf, term) == 1)
 			if (tgetstr("cl", &cbuf))
 				clear_ok = 1;
-	clear();
 	set_tty();
+	clear();
 }
 
 
