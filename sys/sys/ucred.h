@@ -37,10 +37,6 @@
 #ifndef _SYS_UCRED_H_
 #define	_SYS_UCRED_H_
 
-#include <sys/queue.h>
-#include <sys/_lock.h>
-#include <sys/_mutex.h>
-
 /*
  * Credentials.
  *
@@ -61,16 +57,13 @@ struct ucred {
 	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
 	struct prison	*cr_prison;	/* jail(4) */
 #define	cr_endcopy cr_mtxp
-	struct mtx	*cr_mtxp;		/* protect refcount */
+	struct mtx	*cr_mtxp;      	/* protect refcount */
 };
-#define cr_gid cr_groups[0]
 #define NOCRED ((struct ucred *)0)	/* no credential available */
 #define FSCRED ((struct ucred *)-1)	/* filesystem credential */
 
 /*
- * This is the external representation of struct ucred, based upon the
- * size of a 4.2-RELEASE struct ucred.  There will probably never be
- * any need to change the size of this or layout of its used fields.
+ * This is the external representation of struct ucred.
  */
 struct xucred {
 	u_int	cr_version;		/* structure layout version */
@@ -81,7 +74,11 @@ struct xucred {
 };
 #define	XUCRED_VERSION	0
 
+/* This can be used for both ucred and xucred structures. */
+#define cr_gid cr_groups[0]
+
 #ifdef _KERNEL
+struct thread;
 
 #ifdef DIAGNOSTIC
 void		cred_free_thread(struct thread *td);
