@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 159 $
+ *       $Revision: 160 $
  *
  *****************************************************************************/
 
@@ -125,14 +125,12 @@ ACPI_STATUS (*ACPI_PKG_CALLBACK) (
     ACPI_GENERIC_STATE      *State,
     void                    *Context);
 
-
 ACPI_STATUS
 AcpiUtWalkPackageTree (
     ACPI_OPERAND_OBJECT     *SourceObject,
     void                    *TargetObject,
     ACPI_PKG_CALLBACK       WalkCallback,
     void                    *Context);
-
 
 typedef struct acpi_pkg_info
 {
@@ -548,6 +546,10 @@ AcpiUtDeleteInternalObjectList (
 #define METHOD_NAME__CRS        "_CRS"
 #define METHOD_NAME__PRS        "_PRS"
 
+
+ACPI_STATUS
+AcpiUtOsiImplementation (
+    ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiUtEvaluateObject (
