@@ -189,7 +189,7 @@ char *p;
 struct ship *ship;
 char flag;
 {
-	c;
+	int c;
 
 	prompt(p, ship);
 	blockalarm();
@@ -206,9 +206,9 @@ char flag;
 sgetstr(pr, buf, n)
 char *pr;
 char *buf;
-n;
+int n;
 {
-	c;
+	int c;
 	char *p = buf;
 
 	prompt(pr, (struct ship *)0);

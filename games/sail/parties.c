@@ -70,7 +70,7 @@ struct ship *ship, *to;
 char isdefense;
 {
 	struct BP *p = isdefense ? ship->file->DBP : ship->file->OBP;
-	n;
+	int n;
 
 	for (n = 0; n < NBP; p++, n++)
 		if (p->turnsent && (p->toship == to || isdefense || ship == to))
