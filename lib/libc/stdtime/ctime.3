@@ -360,8 +360,10 @@ in the
 threaded environment.)
 .Pp
 The
-.Fa tm_zone
-field of a returned tm structure points to a static array of characters,
+.Va tm_zone
+field of a returned
+.Vt tm
+structure points to a static array of characters,
 which will also be overwritten by any subsequent calls (as well as by
 subsequent calls to
 .Xr tzset 3
