@@ -43,21 +43,26 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)mknod.c	8.1 (Berkeley) 6/5/93";
-#else
-static const char rcsid[] =
-    "$Id: mknod.c,v 1.6 1997/03/12 19:03:40 bde Exp $";
 #endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
-#include <err.h>
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: mknod name [b | c] major minor\n");
+	exit(1);
+}
 
 int
 main(argc, argv)
@@ -70,11 +75,8 @@ main(argc, argv)
 	mode_t mode;
 	int range_error;
 
-	if (argc != 5) {
-		(void)fprintf(stderr,
-		    "usage: mknod name [b | c] major minor\n");
-		exit(1);
-	}
+	if (argc != 5)
+		usage();
 
 	mode = 0666;
 	if (argv[2][0] == 'c')
