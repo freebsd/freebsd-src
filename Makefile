@@ -102,7 +102,9 @@ BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
 .ORDER: buildkernel installkernel
 .ORDER: buildkernel reinstallkernel
 
-PATH=	/sbin:/bin:/usr/sbin:/usr/bin
+MAKEOBJDIRPREFIX?=	/usr/obj
+MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE_ARCH}
+PATH=	${MAKEPATH}:/sbin:/bin:/usr/sbin:/usr/bin
 MAKE=	PATH=${PATH} make -m ${.CURDIR}/share/mk -f Makefile.inc1
 
 #
@@ -159,21 +161,32 @@ kernel: buildkernel installkernel
 # for building the world.
 #
 upgrade_checks:
-	@(cd ${.CURDIR}/tools/regression/usr.bin/make && make 2>/dev/null) || \
-	(cd ${.CURDIR} && make make)
+	@(cd ${.CURDIR}/tools/regression/usr.bin/make && \
+	    PATH=${PATH} make 2>/dev/null) || \
+	    (cd ${.CURDIR} && make make)
 
 #
-# Upgrade the installed make to the current version using the installed
+# Upgrade make(1) to the current version using the installed
 # headers, libraries and tools.
 #
+MMAKEENV=	MAKEOBJDIRPREFIX=${MAKEPATH} \
+		DESTDIR= \
+		INSTALL="sh ${.CURDIR}/tools/install.sh"
+MMAKE=		${MMAKEENV} make \
+		-D_UPGRADING \
+		-DNOMAN -DNOSHARED \
+		-DNO_CPU_CFLAGS -DNO_WERROR
+
 make:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Upgrading the installed make"
+	@echo " Upgrading make(1)"
 	@echo "--------------------------------------------------------------"
 	@cd ${.CURDIR}/usr.bin/make; \
-		make obj && make -D_UPGRADING depend && \
-		make -D_UPGRADING all && make install
+		${MMAKE} obj && \
+		${MMAKE} depend && \
+		${MMAKE} all && \
+		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
 
 #
 # Define the upgrade targets. These are listed here in alphabetical
