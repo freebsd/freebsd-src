@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.15 1998/01/17 15:52:32 bde Exp $
+#	$Id: BSD.include.dist,v 1.16 1998/03/04 10:22:51 dufault Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -53,8 +53,6 @@
     ..
     ufs
         ffs
-        ..
-        lfs
         ..
         mfs
         ..
