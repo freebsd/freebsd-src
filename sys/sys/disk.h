@@ -23,17 +23,13 @@
 
 struct disk {
 	int			d_flags;
-	d_open_t		*d_open;
-	d_close_t		*d_close;
-	d_ioctl_t		*d_ioctl;
-	d_strategy_t		*d_strategy;
-	d_psize_t		*d_psize;
+	struct cdevsw		*d_devsw;
 	dev_t			d_dev;
 	struct diskslices	*d_slice;
 	struct disklabel	d_label;
 };
 
-dev_t disk_create __P((int unit, struct disk *disk, int flags, struct cdevsw *cdevsw));
+dev_t disk_create __P((int unit, struct disk *disk, int flags, struct cdevsw *cdevsw, struct cdevsw *diskdevsw));
 void disk_delete __P((dev_t dev));
 int disk_dumpcheck __P((dev_t dev, u_int *count, u_int *blkno, u_int *secsize));
 void disk_invalidate __P((struct disk *disk));
