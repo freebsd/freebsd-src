@@ -1,11 +1,11 @@
-#	$Id: $
+#	$Id: Makefile,v 1.3 1996/05/07 23:19:28 wosch Exp $
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = atapi_mod
 SRCS            = atapi.c wdc.h #wcd.h
 NOMAN           =
 BINDIR          = /lkm
-CFLAGS         += -nostdinc -I. -I/sys -DATAPI -DATAPI_MODULE
+CFLAGS         += -nostdinc -I. -DATAPI -DATAPI_MODULE
 CLEANFILES     += $(KMOD) machine wdc.h wcd.h *.b
 LN              = ln -f -s
 EXPORT_SYMS	= _atapi_mod _atapi_debug_ptr _atapi_intr_ptr \
