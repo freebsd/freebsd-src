@@ -5,6 +5,7 @@ PROG=	rexecd
 MAN=	rexecd.8
 
 CFLAGS+=-DOPIE
+WFORMAT=0
 
 DPADD=  ${LIBOPIE} ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
 LDADD=	-lopie -lmd -lcrypt -lutil

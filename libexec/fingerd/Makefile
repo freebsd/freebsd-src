@@ -6,4 +6,6 @@ DPADD=	${LIBUTIL}
 LDADD=	-lutil
 MAN=	fingerd.8
 
+WFORMAT=0
+
 .include <bsd.prog.mk>
