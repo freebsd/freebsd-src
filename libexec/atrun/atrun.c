@@ -71,7 +71,7 @@
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$Id: atrun.c,v 1.5 1995/08/21 12:34:17 ache Exp $";
+static char rcsid[] = "$Id: atrun.c,v 1.6 1995/08/28 21:30:23 mpp Exp $";
 static debug = 0;
 
 void perr(const char *a);
@@ -276,17 +276,20 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
         nice(tolower(queue) - 'a');
 	
-	if (chdir(pentry->pw_dir))
-		chdir("/");
-
 	if (initgroups(pentry->pw_name,pentry->pw_gid))
 	    perr("Cannot delete saved userids");
 
-	if (setgid(gid) < 0)
+	if (setgid(gid) < 0 || setegid(pentry->pw_gid) < 0)
 	    perr("Cannot change group");
 
-	if (setuid(uid) < 0)
+	if (setlogin(pentry->pw_name))
+	    perr("Cannot set login name");
+
+	if (setuid(uid) < 0 || seteuid(uid) < 0)
 	    perr("Cannot set user id");
+
+	if (chdir(pentry->pw_dir))
+		chdir("/");
 
 	if(execle("/bin/sh","sh",(char *) NULL, nenvp) != 0)
 	    perr("Exec failed for /bin/sh");
@@ -311,17 +314,20 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     {    
 	PRIV_START
 
-	if (chdir(pentry->pw_dir))
-		chdir("/");
-
 	if (initgroups(pentry->pw_name,pentry->pw_gid))
 	    perr("Cannot delete saved userids");
 
-	if (setgid(gid) < 0)
+	if (setgid(gid) < 0 || setegid(pentry->pw_gid) < 0)
 	    perr("Cannot change group");
 
-	if (setuid(uid) < 0)
+	if (setlogin(pentry->pw_name))
+	    perr("Cannot set login name");
+
+	if (setuid(uid) < 0 || seteuid(uid) < 0)
 	    perr("Cannot set user id");
+
+	if (chdir(pentry->pw_dir))
+		chdir("/");
 
 #ifdef __FreeBSD__
 	execl(_PATH_SENDMAIL, "sendmail", "-F", "Atrun Service",
