@@ -147,7 +147,7 @@ stat_eta(struct xferstat *xs)
  */
 static const char *prefixes = " kMGTP";
 static const char *
-stat_bytes(size_t bytes)
+stat_bytes(off_t bytes)
 {
 	static char str[16];
 	const char *prefix = prefixes;
@@ -176,7 +176,7 @@ stat_bps(struct xferstat *xs)
 		snprintf(str, sizeof str, "?? Bps");
 	} else {
 		bps = (xs->rcvd - xs->offset) / delta;
-		snprintf(str, sizeof str, "%sps", stat_bytes((size_t)bps));
+		snprintf(str, sizeof str, "%sps", stat_bytes((off_t)bps));
 	}
 	return (str);
 }
@@ -200,7 +200,7 @@ stat_display(struct xferstat *xs, int force)
 		return;
 	xs->last = now;
 
-	fprintf(stderr, "\r%-46s", xs->name);
+	fprintf(stderr, "\r%-46.46s", xs->name);
 	if (xs->size <= 0) {
 		fprintf(stderr, "        %s", stat_bytes(xs->rcvd));
 	} else {
@@ -269,15 +269,14 @@ query_auth(struct url *URL)
 	tcflag_t saved_flags;
 	int i, nopwd;
 
-
 	fprintf(stderr, "Authentication required for <%s://%s:%d/>!\n",
 	    URL->scheme, URL->host, URL->port);
 
 	fprintf(stderr, "Login: ");
 	if (fgets(URL->user, sizeof URL->user, stdin) == NULL)
-		return -1;
-	for (i = 0; URL->user[i]; ++i)
-		if (isspace(URL->user[i]))
+		return (-1);
+	for (i = strlen(URL->user); i >= 0; --i)
+		if (URL->user[i] == '\r' || URL->user[i] == '\n')
 			URL->user[i] = '\0';
 
 	fprintf(stderr, "Password: ");
@@ -293,12 +292,12 @@ query_auth(struct url *URL)
 		nopwd = (fgets(URL->pwd, sizeof URL->pwd, stdin) == NULL);
 	}
 	if (nopwd)
-		return -1;
-
-	for (i = 0; URL->pwd[i]; ++i)
-		if (isspace(URL->pwd[i]))
+		return (-1);
+	for (i = strlen(URL->pwd); i >= 0; --i)
+		if (URL->pwd[i] == '\r' || URL->pwd[i] == '\n')
 			URL->pwd[i] = '\0';
-	return 0;
+
+	return (0);
 }
 
 /*
@@ -687,7 +686,7 @@ fetch(char *URL, const char *path)
 		fetchFreeURL(url);
 	if (tmppath != NULL)
 		free(tmppath);
-	return r;
+	return (r);
 }
 
 static void
