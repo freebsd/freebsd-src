@@ -25,14 +25,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2004
+.Dd Jan 12, 2005
 .Dt IPS 4
 .Os
 .Sh NAME
 .Nm ips
 .Nd IBM/Adaptec ServeRAID controller driver
 .Sh SYNOPSIS
-.Cd device scbus
 .Cd device ips
 .Sh DESCRIPTION
 The
@@ -59,7 +58,7 @@ In some cases, the
 driver can have difficulties attaching during
 the system initialization period.
 To avoid these difficulties, set the
-.Va hw.ips.0.disable
+.Va hw.ips.0.disabled
 tunable to 1.
 It will prevent the driver from attaching.
 .Sh HARDWARE
