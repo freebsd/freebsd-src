@@ -34,6 +34,7 @@ struct csa_card {
 	void *amp;
 	void *amp_init;
 	int (*active)(int);
+	int inv_eapd;
 };
 
 /* Resources. */

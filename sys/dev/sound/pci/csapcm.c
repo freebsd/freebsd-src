@@ -779,6 +779,8 @@ pcmcsa_attach(device_t dev)
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
+	if (csa->card->inv_eapd)
+		ac97_setflags(codec, AC97_F_EAPD_INV);
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) {
 		ac97_destroy(codec);
 		csa_releaseres(csa, dev);
