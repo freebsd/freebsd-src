@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.16 1998/04/30 12:25:05 ache Exp $ */
+/*	$Id: msgcat.c,v 1.17 1998/04/30 13:15:31 ache Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -56,6 +56,7 @@ static char *rcsid = "$NetBSD: msgcat.c,v 1.11 1995/02/27 13:06:51 cgd Exp $";
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
 #include <stdio.h>
@@ -94,7 +95,10 @@ int type;
     char	*base, *cptr, *pathP;
     struct stat	sbuf;
 
-    if (!name || !*name) return(NLERR);
+    if (!name || !*name) {
+	errno = EINVAL;
+	return(NLERR);
+    }
 
     if (strchr(name, '/')) {
 	catpath = name;
@@ -146,7 +150,10 @@ int type;
 	}
 	free(base);
 
-	if (!catpath) return(NLERR);
+	if (!catpath) {
+		errno = ENOENT;
+		return(NLERR);
+	}
     }
 
     return(loadCat(catpath));
@@ -273,7 +280,10 @@ nl_catd catd;
     MCSetT	*set;
     int		i;
 
-    if (catd == NULL || catd == NLERR) return -1;
+    if (catd == NULL || catd == NLERR) {
+	errno = EBADF;
+	return -1;
+    }
 
     if (cat->loadType != MCLoadAll) close(cat->fd);
     for (i = 0; i < cat->numSets; ++i) {
@@ -295,7 +305,7 @@ nl_catd catd;
 
 /* Note that only malloc failures are allowed to return an error */
 #define ERRNAME	"Message Catalog System"
-#define CORRUPT() {fprintf(stderr, "%s: corrupt file.\n", ERRNAME); free(cat); return(NLERR);}
+#define CORRUPT() {fprintf(stderr, "%s: corrupt file.\n", ERRNAME); free(cat); errno = EINVAL; return(NLERR);}
 #define NOSPACE() {fprintf(stderr, "%s: no more memory.\n", ERRNAME); free(cat); return(NLERR);}
 
 static nl_catd loadCat(catpath)
@@ -326,6 +336,7 @@ __const char *catpath;
 	free(cat);
 	fprintf(stderr, "%s: %s is version %ld, we need %ld.\n", ERRNAME,
 		catpath, header.majorVer, MCMajorVer);
+	errno = EINVAL;
 	return(NLERR);
     }
 
@@ -333,6 +344,7 @@ __const char *catpath;
 	free(cat);
 	fprintf(stderr, "%s: %s has %ld sets!\n", ERRNAME, catpath,
 		header.numSets);
+	errno = EINVAL;
 	return(NLERR);
     }
 
