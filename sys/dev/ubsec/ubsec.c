@@ -82,6 +82,7 @@
 #define	SIMPLEQ_EMPTY		STAILQ_EMPTY
 #define	SIMPLEQ_FIRST		STAILQ_FIRST
 #define	SIMPLEQ_REMOVE_HEAD	STAILQ_REMOVE_HEAD_UNTIL
+#define	SIMPLEQ_FOREACH		STAILQ_FOREACH
 /* ditto for endian.h */
 #define	letoh16(x)		le16toh(x)
 #define	letoh32(x)		le32toh(x)
@@ -129,7 +130,7 @@ static	int ubsec_newsession(void *, u_int32_t *, struct cryptoini *);
 static	int ubsec_freesession(void *, u_int64_t);
 static	int ubsec_process(void *, struct cryptop *, int);
 static	void ubsec_callback(struct ubsec_softc *, struct ubsec_q *);
-static	int ubsec_feed(struct ubsec_softc *);
+static	void ubsec_feed(struct ubsec_softc *);
 static	void ubsec_mcopy(struct mbuf *, struct mbuf *, int, int);
 static	void ubsec_callback2(struct ubsec_softc *, struct ubsec_q2 *);
 static	int ubsec_feed2(struct ubsec_softc *);
@@ -180,26 +181,6 @@ SYSCTL_INT(_debug, OID_AUTO, ubsec, CTLFLAG_RW, &ubsec_debug,
 struct ubsec_stats ubsecstats;
 SYSCTL_STRUCT(_kern, OID_AUTO, ubsec_stats, CTLFLAG_RD, &ubsecstats,
 	    ubsec_stats, "Broadcom driver statistics");
-/*
- * ubsec_maxbatch controls the number of crypto ops to voluntarily 
- * collect into one submission to the hardware.  This batching happens
- * when ops are dispatched from the crypto subsystem with a hint that
- * more are to follow immediately.  These ops must also not be marked
- * with a ``no delay'' flag.
- */
-static	int ubsec_maxbatch = 1;
-SYSCTL_INT(_kern, OID_AUTO, ubsec_maxbatch, CTLFLAG_RW, &ubsec_maxbatch,
-	    0, "Broadcom driver: max ops to batch w/o interrupt");
-/*
- * ubsec_maxaggr controls the number of crypto ops to submit to the
- * hardware as a unit.  This aggregation reduces the number of interrupts
- * to the host at the expense of increased latency (for all but the last
- * operation).  For network traffic setting this to one yields the highest
- * performance but at the expense of more interrupt processing.
- */
-static	int ubsec_maxaggr = 1;
-SYSCTL_INT(_kern, OID_AUTO, ubsec_maxaggr, CTLFLAG_RW, &ubsec_maxaggr,
-	    0, "Broadcom driver: max ops to aggregate under one interrupt");
 
 static int
 ubsec_probe(device_t dev)
@@ -677,7 +658,7 @@ ubsec_intr(void *arg)
 /*
  * ubsec_feed() - aggregate and post requests to chip
  */
-static int
+static void
 ubsec_feed(struct ubsec_softc *sc)
 {
 	struct ubsec_q *q, *q2;
@@ -685,40 +666,46 @@ ubsec_feed(struct ubsec_softc *sc)
 	void *v;
 	u_int32_t stat;
 
-	npkts = sc->sc_nqueue;
-	if (npkts > ubsecstats.hst_maxqueue)
-		ubsecstats.hst_maxqueue = npkts;
 	/*
 	 * Decide how many ops to combine in a single MCR.  We cannot
 	 * aggregate more than UBS_MAX_AGGR because this is the number
-	 * of slots defined in the data structure.  Otherwise we clamp
-	 * based on the tunable parameter ubsec_maxaggr.  Note that
-	 * aggregation can happen in two ways: either by batching ops
-	 * from above or because the h/w backs up and throttles us. 
+	 * of slots defined in the data structure.  Note that
+	 * aggregation only happens if ops are marked batch'able.
 	 * Aggregating ops reduces the number of interrupts to the host
 	 * but also (potentially) increases the latency for processing
 	 * completed ops as we only get an interrupt when all aggregated
 	 * ops have completed.
 	 */
-	if (npkts > UBS_MAX_AGGR)
-		npkts = UBS_MAX_AGGR;
-	if (npkts > ubsec_maxaggr)
-		npkts = ubsec_maxaggr;
-	if (npkts > ubsecstats.hst_maxbatch)
-		ubsecstats.hst_maxbatch = npkts;
-	if (npkts < 2)
-		goto feed1;
-	ubsecstats.hst_totbatch += npkts-1;
-
+	if (sc->sc_nqueue == 0)
+		return;
+	if (sc->sc_nqueue > 1) {
+		npkts = 0;
+		SIMPLEQ_FOREACH(q, &sc->sc_queue, q_next) {
+			npkts++;
+			if ((q->q_crp->crp_flags & CRYPTO_F_BATCH) == 0)
+				break;
+		}
+	} else
+		npkts = 1;
+	/*
+	 * Check device status before going any further.
+	 */
 	if ((stat = READ_REG(sc, BS_STAT)) & (BS_STAT_MCR1_FULL | BS_STAT_DMAERR)) {
 		if (stat & BS_STAT_DMAERR) {
 			ubsec_totalreset(sc);
 			ubsecstats.hst_dmaerr++;
 		} else
 			ubsecstats.hst_mcr1full++;
-		return (0);
+		return;
 	}
+	if (sc->sc_nqueue > ubsecstats.hst_maxqueue)
+		ubsecstats.hst_maxqueue = sc->sc_nqueue;
+	if (npkts > UBS_MAX_AGGR)
+		npkts = UBS_MAX_AGGR;
+	if (npkts < 2)				/* special case 1 op */
+		goto feed1;
 
+	ubsecstats.hst_totbatch += npkts-1;
 #ifdef UBSEC_DEBUG
 	if (ubsec_debug)
 		printf("merging %d records\n", npkts);
@@ -758,45 +745,32 @@ ubsec_feed(struct ubsec_softc *sc)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	WRITE_REG(sc, BS_MCR1, q->q_dma->d_alloc.dma_paddr +
 	    offsetof(struct ubsec_dmachunk, d_mcr));
-	return (0);
+	return;
 
 feed1:
-	while (!SIMPLEQ_EMPTY(&sc->sc_queue)) {
-		if ((stat = READ_REG(sc, BS_STAT)) & (BS_STAT_MCR1_FULL | BS_STAT_DMAERR)) {
-			if (stat & BS_STAT_DMAERR) {
-				ubsec_totalreset(sc);
-				ubsecstats.hst_dmaerr++;
-			} else
-				ubsecstats.hst_mcr1full++;
-			break;
-		}
+	q = SIMPLEQ_FIRST(&sc->sc_queue);
 
-		q = SIMPLEQ_FIRST(&sc->sc_queue);
+	bus_dmamap_sync(sc->sc_dmat, q->q_src_map, BUS_DMASYNC_PREWRITE);
+	if (q->q_dst_map != NULL)
+		bus_dmamap_sync(sc->sc_dmat, q->q_dst_map, BUS_DMASYNC_PREREAD);
+	ubsec_dma_sync(&q->q_dma->d_alloc,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-		bus_dmamap_sync(sc->sc_dmat, q->q_src_map,
-		    BUS_DMASYNC_PREWRITE);
-		if (q->q_dst_map != NULL)
-			bus_dmamap_sync(sc->sc_dmat, q->q_dst_map,
-			    BUS_DMASYNC_PREREAD);
-		ubsec_dma_sync(&q->q_dma->d_alloc,
-		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-
-		WRITE_REG(sc, BS_MCR1, q->q_dma->d_alloc.dma_paddr +
-		    offsetof(struct ubsec_dmachunk, d_mcr));
+	WRITE_REG(sc, BS_MCR1, q->q_dma->d_alloc.dma_paddr +
+	    offsetof(struct ubsec_dmachunk, d_mcr));
 #ifdef UBSEC_DEBUG
-		if (ubsec_debug)
-			printf("feed: q->chip %p %08x stat %08x\n",
-			      q, (u_int32_t)vtophys(&q->q_dma->d_dma->d_mcr),
-			      stat);
+	if (ubsec_debug)
+		printf("feed1: q->chip %p %08x stat %08x\n",
+		      q, (u_int32_t)vtophys(&q->q_dma->d_dma->d_mcr),
+		      stat);
 #endif /* UBSEC_DEBUG */
-		SIMPLEQ_REMOVE_HEAD(&sc->sc_queue, q, q_next);
-		--sc->sc_nqueue;
-		SIMPLEQ_INSERT_TAIL(&sc->sc_qchip, q, q_next);
-		sc->sc_nqchip++;
-	}
+	SIMPLEQ_REMOVE_HEAD(&sc->sc_queue, q, q_next);
+	--sc->sc_nqueue;
+	SIMPLEQ_INSERT_TAIL(&sc->sc_qchip, q, q_next);
+	sc->sc_nqchip++;
 	if (sc->sc_nqchip > ubsecstats.hst_maxqchip)
 		ubsecstats.hst_maxqchip = sc->sc_nqchip;
-	return (0);
+	return;
 }
 
 /*
@@ -1485,7 +1459,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 	sc->sc_nqueue++;
 	ubsecstats.hst_ipackets++;
 	ubsecstats.hst_ibytes += dmap->d_alloc.dma_size;
-	if ((hint & CRYPTO_HINT_MORE) == 0 || sc->sc_nqueue >= ubsec_maxbatch)
+	if ((hint & CRYPTO_HINT_MORE) == 0 || sc->sc_nqueue >= UBS_MAX_AGGR)
 		ubsec_feed(sc);
 	splx(s);
 	return (0);
