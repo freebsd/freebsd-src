@@ -57,7 +57,6 @@
 #include <sys/reboot.h>		/* for bootverbose */
 #include <sys/select.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #elif defined(__FreeBSD__)
