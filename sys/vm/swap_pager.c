@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.56 1995/12/14 08:32:45 phk Exp $
+ * $Id: swap_pager.c,v 1.57 1995/12/14 09:54:52 phk Exp $
  */
 
 /*
@@ -156,9 +156,9 @@ static int dmmin;
 int dmmax;
 
 static __pure int
-		swap_pager_block_index __P((vm_offset_t offset)) __pure2;
+		swap_pager_block_index __P((vm_pindex_t pindex)) __pure2;
 static __pure int
-		swap_pager_block_offset __P((vm_offset_t offset)) __pure2;
+		swap_pager_block_offset __P((vm_pindex_t pindex)) __pure2;
 static daddr_t *swap_pager_diskaddr __P((vm_object_t object,
 					  vm_pindex_t pindex, int *valid));
 static void	swap_pager_finish __P((swp_clean_t spc));
