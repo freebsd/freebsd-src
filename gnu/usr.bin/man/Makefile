@@ -5,6 +5,6 @@
 # distribution.  
 #
 
-SUBDIR = lib man manpath apropos whatis makewhatis
+SUBDIR = lib man manpath apropos whatis makewhatis catman
 
 .include <bsd.subdir.mk>
