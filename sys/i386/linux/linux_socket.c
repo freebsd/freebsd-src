@@ -441,6 +441,11 @@ linux_accept(struct proc *p, struct linux_accept_args *args)
 	caddr_t name;
 	int *anamelen;
     } */ bsd_args;
+    struct fcntl_args /* {
+	int fd;
+	int cmd;
+	long arg;
+    } */ f_args;
     int error;
 
     if ((error=copyin((caddr_t)args, (caddr_t)&linux_args, sizeof(linux_args))))
@@ -448,7 +453,21 @@ linux_accept(struct proc *p, struct linux_accept_args *args)
     bsd_args.s = linux_args.s;
     bsd_args.name = (caddr_t)linux_args.addr;
     bsd_args.anamelen = linux_args.namelen;
-    return oaccept(p, &bsd_args);
+    error = oaccept(p, &bsd_args);
+    if (error)
+	return (error);
+
+    /*
+     * linux appears not to copy flags from the parent socket to the
+     * accepted one, so we must clear the flags in the new descriptor.
+     * Ignore any errors, because we already have an open fd.
+     */
+    f_args.fd = p->p_retval[0];
+    f_args.cmd = F_SETFL;
+    f_args.arg = 0;
+    (void)fcntl(p, &f_args);
+    p->p_retval[0] = f_args.fd;
+    return (0);
 }
 
 struct linux_getsockname_args {
