@@ -17,6 +17,7 @@ sshd
 smmsp
 mailnull
 bind
+proxy
 ftp
 uucp
 pop
