@@ -1153,6 +1153,30 @@ boot time.
 if you want
 .Pa /tmp
 to be cleaned at startup.
+.It Ar clear_daily_enable
+(bool) Set to
+.Ar YES
+if you want to clear temporary directories daily.
+.It Ar clear_daily_dirs
+(str) Set to the list of directories to clear if
+.Ar clear_daily_enable
+is set to
+.Ar YES .
+.It Ar clear_daily_days
+(int) When
+.Ar clear_daily_enable
+is set, this must also be set to the number of days old that a file's access
+and modification times must be before it's deleted.
+.It Ar clear_daily_ignore
+(str) Set to the list of files that should not be deleted when
+.Ar clear_daily_enable
+is set to
+.Ar YES .
+Wild cards are permitted.
+.It Ar clear_daily_verbose
+(bool) Set to
+.Ar YES
+if you want the removed files to be reported in your daily output.
 .It Ar ldconfig_paths
 (str) Set to the list of shared library paths to use with
 .Xr ldconfig 8 .
