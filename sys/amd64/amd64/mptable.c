@@ -1943,6 +1943,7 @@ start_all_aps(u_int boot_addr)
 	u_long  mpbioswarmvec;
 	struct globaldata *gd;
 	char *stack;
+	uintptr_t kptbase;
 
 	POSTCODE(START_ALL_APS_POST);
 
@@ -1964,8 +1965,12 @@ start_all_aps(u_int boot_addr)
 	/* record BSP in CPU map */
 	all_cpus = 1;
 
-	/* set up 0 -> 4MB P==V mapping for AP boot */
-	*(int *)PTD = PG_V | PG_RW | ((uintptr_t)(void *)KPTphys & PG_FRAME);
+	/* set up temporary P==V mapping for AP boot */
+	/* XXX this is a hack, we should boot the AP on its own stack/PTD */
+	kptbase = (uintptr_t)(void *)KPTphys;
+	for (x = 0; x < NKPT; x++)
+		PTD[x] = (pd_entry_t)(PG_V | PG_RW |
+		    ((kptbase + x * PAGE_SIZE) & PG_FRAME));
 	invltlb();
 
 	/* start each AP */
@@ -2047,7 +2052,8 @@ start_all_aps(u_int boot_addr)
 		SMPpt[1 + i] = (pt_entry_t)
 		    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
-	*(int *)PTD = 0;
+	for (x = 0; x < NKPT; x++)
+		PTD[x] = 0;
 	pmap_set_opt();
 
 	/* number of APs actually started */
