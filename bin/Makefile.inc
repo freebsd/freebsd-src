@@ -2,5 +2,8 @@
 # $FreeBSD$
 
 BINDIR?=	/bin
-NOSHARED?=	YES
 WARNS?=		6
+
+.if !defined (WITH_DYNAMICROOT)
+NOSHARED?=	YES
+.endif
