@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.24 1996/04/28 20:54:02 jkh Exp $
+ * $Id: installUpgrade.c,v 1.25 1996/05/16 11:47:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -260,12 +260,6 @@ installUpgrade(dialogMenuItem *self)
 
     chdir("/");
     systemCreateHoloshell();
-
-    if (!rootExtract()) {
-	msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
-		   "this problem and try again (the system will now reboot).");
-	systemShutdown(1);
-    }
 
     if (extractingBin) {
 	while (!saved_etc) {
