@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)ndbm.c	8.2 (Berkeley) 9/11/93";
+static char sccsid[] = "@(#)ndbm.c	8.4 (Berkeley) 7/21/94";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -45,10 +45,10 @@ static char sccsid[] = "@(#)ndbm.c	8.2 (Berkeley) 9/11/93";
 
 #include <sys/param.h>
 
-#include <ndbm.h>
 #include <stdio.h>
 #include <string.h>
 
+#include <ndbm.h>
 #include "hash.h"
 
 /*
@@ -67,7 +67,7 @@ dbm_open(file, flags, mode)
 	info.bsize = 4096;
 	info.ffactor = 40;
 	info.nelem = 1;
-	info.cachesize = NULL;
+	info.cachesize = 0;
 	info.hash = NULL;
 	info.lorder = 0;
 	(void)strcpy(path, file);

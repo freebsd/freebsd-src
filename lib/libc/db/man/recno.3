@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)recno.3	8.3 (Berkeley) 2/21/94
+.\"	@(#)recno.3	8.5 (Berkeley) 8/18/94
 .\"
-.TH RECNO 3 "February 21, 1994"
+.TH RECNO 3 "August 18, 1994"
 .UC 7
 .SH NAME
 recno \- record number database access method
@@ -97,6 +97,9 @@ The structure element
 specifies the length of the record, and the structure element
 .I bval
 is used as the pad character.
+Any records, inserted into the database, that are less than
+.I reclen
+bytes long are automatically padded.
 .TP
 R_NOKEY
 In the interface specified by
@@ -176,6 +179,11 @@ The
 .I size
 field of the key should be the size of that type.
 .PP
+Because there can be no meta-data associated with the underlying
+recno access method files, any changes made to the default values
+(e.g. fixed record length or byte separator value) must be explicitly
+specified each time the file is opened.
+.PP
 In the interface specified by
 .IR dbopen ,
 using the
@@ -183,11 +191,23 @@ using the
 interface to create a new record will cause the creation of multiple,
 empty records if the record number is more than one greater than the
 largest record currently in the database.
+.SH ERRORS
+The
+.I recno
+access method routines may fail and set
+.I errno
+for any of the errors specified for the library routine
+.IR dbopen (3)
+or the following:
+.TP
+[EINVAL]
+An attempt was made to add a record to a fixed-length database that
+was too large to fit.
 .SH "SEE ALSO"
+.IR btree (3)
 .IR dbopen (3),
 .IR hash (3),
 .IR mpool (3),
-.IR recno (3)
 .sp
 .IR "Document Processing in a Relational Database System" ,
 Michael Stonebraker, Heidi Stettner, Joseph Kalash, Antonin Guttman,
