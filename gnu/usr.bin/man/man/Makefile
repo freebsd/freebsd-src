@@ -17,13 +17,14 @@ MAN1=   ${.CURDIR}/man.1
 
 DPADD+=  ${MAN1}
 CFLAGS+= -I${.CURDIR}/../lib -DSTDC_HEADERS -DPOSIX -DHAS_TROFF 
-CFLAGS+= -DDO_UNCOMPRESS -DALT_SYSTEMS -DSETREUID -DCATMODE=0664
+CFLAGS+= -DDO_COMPRESS -DALT_SYSTEMS -DSETREUID -DCATMODE=0664
 CLEANFILES+=	${MAN1}
 
 ${MAN1}: ${.CURDIR}/man.man
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
 	    -e 's,%pager%,${pager},' -e 's,%troff%,${troff},' \
 	    -e 's,%manpath_config_file%,${manpath_config_file},' \
+	    -e 's,%compress%,${compress},' \
 	${.CURDIR}/man.man > ${MAN1}
 
 .include <bsd.prog.mk>
