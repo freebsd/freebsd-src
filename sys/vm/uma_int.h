@@ -103,9 +103,7 @@
 #define UMA_SLAB_MASK	(PAGE_SIZE - 1)	/* Mask to get back to the page */
 #define UMA_SLAB_SHIFT	PAGE_SHIFT	/* Number of bits PAGE_MASK */
 
-#define UMA_BOOT_PAGES		30	/* Number of pages allocated for startup */
-#define UMA_WORKING_TIME	20	/* Seconds worth of items to keep */
-
+#define UMA_BOOT_PAGES		30	/* Pages allocated for startup */
 
 /* Max waste before going to off page slab management */
 #define UMA_MAX_WASTE	(UMA_SLAB_SIZE / 10)
@@ -116,7 +114,6 @@
  * does expand by powers of two.  Currently it doesn't get smaller.
  */
 #define UMA_HASH_SIZE_INIT	32		
-
 
 /* 
  * I should investigate other hashing algorithms.  This should yield a low
@@ -231,8 +228,6 @@ struct uma_zone {
 	struct vm_object	*uz_obj;	/* Zone specific object */
 	vm_offset_t	uz_kva;		/* Base kva for zones with objs */
 	u_int32_t	uz_maxpages;	/* Maximum number of pages to alloc */
-	u_int64_t	uz_oallocs;	/* old allocs count */
-	u_int64_t	uz_wssize;	/* Working set size */
 	int		uz_recurse;	/* Allocation recursion count */
 	uint16_t	uz_fills;	/* Outstanding bucket fills */
 	uint16_t	uz_count;	/* Highest value ub_ptr can have */
