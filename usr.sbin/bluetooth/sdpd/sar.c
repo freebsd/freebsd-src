@@ -277,7 +277,7 @@ server_send_service_attribute_response(server_p srv, int32_t fd)
 
 	assert(rsp_end >= rsp);
 
-	bcount = htons(rsp_end - rsp);
+	bcount = rsp_end - rsp;
 
 	if (((sdp_pdu_p)(srv->req))->pid == SDP_PDU_SERVICE_ATTRIBUTE_REQUEST)
 		pdu.pid = SDP_PDU_SERVICE_ATTRIBUTE_RESPONSE;
@@ -286,6 +286,8 @@ server_send_service_attribute_response(server_p srv, int32_t fd)
 
 	pdu.tid = ((sdp_pdu_p)(srv->req))->tid;
 	pdu.len = htons(sizeof(bcount) + bcount + 1 + cs[0]);
+
+	bcount = htons(bcount);
 
 	iov[0].iov_base = &pdu;
 	iov[0].iov_len = sizeof(pdu);
