@@ -45,7 +45,7 @@ struct timecounter {
 		 * events.  Normal hardware does not need it but timecounters
 		 * which latch PPS in hardware (like sys/pci/xrpu.c) do.
 		 */
-	u_int 		tc_counter_mask;
+	u_int 			tc_counter_mask;
 		/* This mask should mask off any unimplemented bits. */
 	u_int32_t		tc_frequency;
 		/* Frequency of the counter in Hz. */
