@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- *	$Id: uipc_mbuf.c,v 1.34 1998/02/20 13:37:38 bde Exp $
+ *	$Id: uipc_mbuf.c,v 1.35 1998/06/05 21:41:48 dg Exp $
  */
 
 #include <sys/param.h>
@@ -498,7 +498,11 @@ m_copypacket(m, how)
 	n->m_len = m->m_len;
 	if (m->m_flags & M_EXT) {
 		n->m_data = m->m_data;
-		mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
+		if(!m->m_ext.ext_ref)
+			mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
+		else
+			(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
+						m->m_ext.ext_size);
 		n->m_ext = m->m_ext;
 		n->m_flags |= M_EXT;
 	} else {
@@ -517,7 +521,11 @@ m_copypacket(m, how)
 		n->m_len = m->m_len;
 		if (m->m_flags & M_EXT) {
 			n->m_data = m->m_data;
-			mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
+			if(!m->m_ext.ext_ref)
+				mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
+			else
+				(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
+							m->m_ext.ext_size);
 			n->m_ext = m->m_ext;
 			n->m_flags |= M_EXT;
 		} else {
