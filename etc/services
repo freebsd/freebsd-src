@@ -44,6 +44,7 @@ auth		113/tcp		authentication
 sftp		115/tcp
 uucp-path	117/tcp
 nntp		119/tcp		readnews untp	# USENET News Transfer Protocol
+ntp		123/udp				# Network Time Protocol
 snmp		161/udp
 snmp-trap	162/udp
 #
