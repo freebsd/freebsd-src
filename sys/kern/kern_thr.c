@@ -111,7 +111,7 @@ thr_exit1(void)
 	sched_exit_thread(TAILQ_NEXT(td, td_kglist), td);
 	thread_stash(td);
 
-#if defined(__i386__) || defined(__sparc64__)
+#if defined(__i386__) || defined(__sparc64__) || defined(__amd64__)
 	cpu_throw(td, choosethread());
 #else
 	cpu_throw();
