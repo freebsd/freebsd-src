@@ -15,7 +15,12 @@
 
 /*
  * HISTORY
- * $Log: aha1542.c,v $
+ * $Log: aha1742.c,v $
+ * Revision 1.3  1993/07/29  11:55:34  nate
+ * Syncing our sources back with Julian's, and removing PATCHKIT headers.
+ *
+ * Large Bustek changes, most everything else is minimal.
+ *
  * Revision 1.2  1993/07/15  17:52:58  davidg
  * Modified attach printf's so that the output is compatible with the "new"
  * way of doing things. There still remain several drivers that need to
@@ -552,7 +557,7 @@ struct	isa_dev	*dev;
 
 
 #ifdef  __386BSD__
-	printf("**probing for scsi devices**\n");
+	printf("ahb%d: **probing for scsi devices**\n", unit);
 #endif  __386BSD__
 
 	/***********************************************\
