@@ -188,8 +188,8 @@ intpr(interval, ifnetaddr)
 				break;
 
 			case AF_APPLETALK:
-				printf("atalk:%-7.7s ",atalk_print(sa,1) );
-				printf("%-15.15s ",atalk_print(sa,3) );
+				printf("atalk:%-7.7s ",atalk_print(sa,9) );
+				printf("%-15.15s ",atalk_print(sa,11) );
 				break;
 #ifdef NS
 			case AF_NS:

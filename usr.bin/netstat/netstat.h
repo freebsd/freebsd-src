@@ -88,7 +88,8 @@ void	upHex __P((char *));
 
 char	*routename __P((u_long));
 char	*netname __P((u_long, u_long));
-char	*atalk_print __P((struct sockaddr *,int));
+char	*atalk_print __P((struct sockaddr *, int));
+char	*atalk_print2 __P((struct sockaddr *, struct sockaddr *, int));
 char	*ipx_print __P((struct sockaddr *));
 char	*ns_print __P((struct sockaddr *));
 void	routepr __P((u_long));

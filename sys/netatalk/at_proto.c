@@ -28,14 +28,12 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#if defined( __FreeBSD__ )
 #include <sys/kernel.h>
 #include <net/if.h>
 #include <net/radix.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <net/route.h>
-#endif
 
 #include "at.h"
 #include "ddp.h"
@@ -43,12 +41,6 @@
 #include "ddp_var.h"
 #include <netatalk/at_extern.h>
 
-
-#ifdef ultrix
-extern int		ddp_ifoutput();
-extern int		ddp_ifinput();
-extern int		ddp_ifioctl();
-#endif ultrix
 
 struct protosw		atalksw[] = {
     {
@@ -67,29 +59,16 @@ struct protosw		atalksw[] = {
 	ddp_usrreq,
 	/* utility routines. */
 	ddp_init,	0,		0,		0,
-#ifdef ultrix
-	/* interface hooks */
-	ddp_ifoutput,	ddp_ifinput,	ddp_ifioctl,	0,
-#endif ultrix
     },
 };
 
-#if defined( __FreeBSD__ ) && defined ( NETATALKDEBUG )
-extern int at_inithead();
-#endif
-
 struct domain		atalkdomain = {
     AF_APPLETALK,	"appletalk",	0,	0,	0,
-    atalksw, &atalksw[sizeof(atalksw)/sizeof(atalksw[0])]
-#if defined( __FreeBSD__ )
-#ifdef NETATALKDEBUG
-	, 0, at_inithead, 32, sizeof(struct sockaddr_at)
-#else
-	, 0, rn_inithead, 32, sizeof(struct sockaddr_at)
-#endif
-#endif
+    atalksw, &atalksw[sizeof(atalksw)/sizeof(atalksw[0])],
+    0, rn_inithead,
+    ((caddr_t) &((struct sockaddr_at *) 0)->sat_addr - (caddr_t)0),
+    sizeof(struct sockaddr_at)
 };
 
-#if defined( __FreeBSD__ )
 DOMAIN_SET(atalk);
-#endif
+
