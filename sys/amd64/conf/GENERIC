@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.23 1995/01/12 15:37:14 jkh Exp $
+#	$Id: GENERIC,v 1.24 1995/01/13 02:23:03 gibbs Exp $
 #
 
 machine		"i386"
@@ -22,6 +22,7 @@ options		"COMPAT_43"		#Compatible with BSD 4.3
 options		"FAT_CURSOR"		#block cursor in syscons or pccons
 options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
+options		UCONSOLE		#Allow users to grab the console
 
 config		kernel	root on wd0 swap on wd0 and wd1 and sd0 and sd1 and vn0 dumps on wd0
 
@@ -52,6 +53,7 @@ controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	aic0    at isa? port 0x340 bio irq 11 vector aicintr
 controller	pas0	at isa? port 0x1f88 bio
 controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
+
 controller	scbus0
 
 device		sd0
@@ -63,6 +65,7 @@ device		cd0	#Only need one of these, the code dynamically grows
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 device		mcd1	at isa? port 0x340 bio irq 11 vector mcdintr
+device		scd0	at isa? port 0x330 bio irq 5 vector scdintr
 
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
