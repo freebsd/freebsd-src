@@ -37,7 +37,7 @@
 .Cd "options MUTEX_PROFILING"
 .Sh DESCRIPTION
 The
-.Nm
+.Dv MUTEX_PROFILING
 kernel option adds support for measuring and reporting mutex use and
 contention statistics.
 These statistics are collated by acquisition point, these being
@@ -65,11 +65,11 @@ In addition, the average hold time is derived from the total hold time
 and the number of acquisitions.
 .Pp
 The
-.Nm
+.Dv MUTEX_PROFILING
 kernel option also adds the following
 .Xr sysctl 8
 variables to control and monitor the profiling code:
-.Bl -tag -width "debug"
+.Bl -tag -width indent
 .It Va debug.mutex.prof.enable
 Enable or disable the mutex profiling code.
 This defaults to 0 (off).
@@ -77,7 +77,7 @@ This defaults to 0 (off).
 The total number of mutex acquisitions recorded.
 .It Va debug.mutex.prof.records
 The total number of acquisition points recorded.
-Note that only active acquisition points (i.e. points that have been
+Note that only active acquisition points (i.e., points that have been
 reached at least once) are counted.
 .It Va debug.mutex.prof.maxrecords
 The maximum number of acquisition points the profiling code is capable
@@ -96,22 +96,22 @@ The number of hash collisions in the acquisition point hash table.
 .It Va debug.mutex.prof.stats
 The actual profiling statistics in plain text.
 The columns are as follows, from left to right:
-.Bl -tag -width "cnt_hold"
-.It max
+.Bl -tag -width ".Va cnt_hold"
+.It Va max
 The longest continuous hold time.
-.It total
+.It Va total
 The total (accumulated) hold time.
-.It count
+.It Va count
 The total number of acquisitions.
-.It avg
+.It Va avg
 The average hold time, derived from the total hold time and the number
 of acquisitions.
-.It cnt_hold
+.It Va cnt_hold
 The number of times the mutex was contested while being held.
-.It cnt_lock
+.It Va cnt_lock
 The number of times the mutex was already locked when this point was
 reached.
-.It name
+.It Va name
 The name of the acquisition point, derived from the source file name
 and line number, followed by the name of the mutex in parentheses.
 .El
@@ -123,6 +123,7 @@ and line number, followed by the name of the mutex in parentheses.
 Mutex profiling support appeared in
 .Fx 5.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 code was written by
@@ -134,14 +135,14 @@ This manual page was written by
 .An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
 .Sh NOTES
 The
-.Nm
+.Dv MUTEX_PROFILING
 option increases the size of
-.Vt struct mtx ,
+.Vt "struct mtx" ,
 so a kernel built with that option will not work with modules built
 without it.
 .Pp
 The
-.Nm
+.Dv MUTEX_PROFILING
 option also prevents inlining of the mutex code, which results in a
 fairly severe performance penalty.
 It should therefore only be enabled on systems where mutex profiling
@@ -151,5 +152,5 @@ Measurements are made and stored in nanoseconds using
 .Xr nanotime 9 ,
 but are presented in microseconds.
 This should still be sufficient for the locks one would be most
-interested in profiling (those that are held long and / or acquired
+interested in profiling (those that are held long and/or acquired
 often).
