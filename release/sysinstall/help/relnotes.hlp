@@ -1,5 +1,5 @@
                                  RELEASE NOTES
-                          FreeBSD Release 2.1.7 RELEASE
+                             FreeBSD 2.1.7 RELEASE
 
 0. What is this release?
 ------------------------
@@ -537,5 +537,5 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.30 1996/11/24 09:01:52 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.31 1997/02/08 17:46:04 jkh Exp $
  LocalWords:  Adaptec
