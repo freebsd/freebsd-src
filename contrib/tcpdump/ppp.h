@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/ppp.h,v 1.12 2001/02/04 02:17:55 fenner Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/ppp.h,v 1.14 2003/05/22 15:29:22 hannes Exp $ (LBL) */
 /*
  * Point to Point Protocol (PPP) RFC1331
  *
@@ -46,6 +46,8 @@
 #define PPP_HELLO	0x0201	/* 802.1d Hello Packets */
 #define PPP_LUXCOM	0x0231	/* Luxcom */
 #define PPP_SNS		0x0233	/* Sigma Network Systems */
+#define PPP_MPLS_UCAST  0x0281  /* rfc 3032 */
+#define PPP_MPLS_MCAST  0x0283  /* rfc 3022 */
 
 #define PPP_IPCP	0x8021	/* IP Control Protocol */
 #define PPP_OSICP	0x8023	/* OSI Network Layer Control Protocol */
@@ -57,13 +59,17 @@
 #define PPP_VINESCP	0x8035	/* Banyan Vines Control Protocol */
 #define PPP_IPV6CP	0x8057	/* IPv6 Control Protocol */
 #define PPP_CCP		0x80fd	/* Compress Control Protocol */
+#define PPP_MPLSCP      0x8281  /* rfc 3022 */
 
 #define PPP_LCP		0xc021	/* Link Control Protocol */
 #define PPP_PAP		0xc023	/* Password Authentication Protocol */
 #define PPP_LQM		0xc025	/* Link Quality Monitoring */
+#define PPP_SPAP        0xc027
 #define PPP_CHAP	0xc223	/* Challenge Handshake Authentication Protocol */
 #define PPP_BACP	0xc02b	/* Bandwidth Allocation Control Protocol */
 #define PPP_BAP		0xc02d	/* BAP */
 #define PPP_MP		0xc03d	/* Multi-Link */
+#define PPP_SPAP_OLD    0xc123
+#define PPP_EAP         0xc227
 
 extern struct tok ppptype2str[];
