@@ -36,11 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.11.2.1 1997/01/30 11:08:01 asami Exp $
+ * $Id: types.h,v 1.11.2.2 1997/06/21 17:45:53 bde Exp $
  */
 
 #ifndef _SYS_TYPES_H_
 #define	_SYS_TYPES_H_
+ 
+#include <sys/cdefs.h>
 
 /* Machine type dependent parameters. */
 #include <machine/ansi.h>
@@ -62,7 +64,7 @@ typedef	quad_t *	qaddr_t;
 typedef	char *		caddr_t;	/* core address */
 typedef	int32_t		daddr_t;	/* disk address */
 typedef	u_int32_t	dev_t;		/* device number */
-typedef u_int32_t	fixpt_t;	/* fixed point number */
+typedef	u_int32_t	fixpt_t;	/* fixed point number */
 typedef	u_int32_t	gid_t;		/* group id */
 typedef	u_int32_t	ino_t;		/* inode number */
 typedef	long		key_t;		/* IPC key (for Sys V IPC) */
@@ -70,11 +72,10 @@ typedef	u_int16_t	mode_t;		/* permissions */
 typedef	u_int16_t	nlink_t;	/* link count */
 typedef	_BSD_OFF_T_	off_t;		/* file offset */
 typedef	_BSD_PID_T_	pid_t;		/* process id */
+typedef	quad_t		rlim_t;		/* resource limit */
 typedef	int32_t		segsz_t;	/* segment size */
 typedef	int32_t		swblk_t;	/* swap offset */
 typedef	u_int32_t	uid_t;		/* user id */
-
-typedef	quad_t		rlim_t; 	/* resource limits */
 
 #ifdef KERNEL
 typedef	int		boolean_t;
@@ -127,8 +128,8 @@ typedef	_BSD_TIME_T_	time_t;
 #define	FD_SETSIZE	256
 #endif
 
-typedef long	fd_mask;
-#define NFDBITS	(sizeof(fd_mask) * NBBY)	/* bits per mask */
+typedef	long	fd_mask;
+#define	NFDBITS	(sizeof(fd_mask) * NBBY)	/* bits per mask */
 
 #ifndef howmany
 #define	howmany(x, y)	(((x) + ((y) - 1)) / (y))
@@ -150,7 +151,6 @@ typedef	struct fd_set {
  * 64-bit off_t's.
  */
 #ifndef KERNEL
-#include <sys/cdefs.h>
 __BEGIN_DECLS
 #ifndef _FTRUNCATE_DECLARED
 #define	_FTRUNCATE_DECLARED
