@@ -10,3 +10,9 @@ echo "Subject: $host monthly run output"
 echo ""
 echo "Doing login accounting:"
 ac -p | sort -nr +1
+
+if [ -f /etc/monthly.local ]; then
+    echo ""
+    echo "Running monthly.local:"
+    sh /etc/monthly.local
+fi
