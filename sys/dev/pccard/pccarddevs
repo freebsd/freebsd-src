@@ -457,17 +457,23 @@ product WORKBIT ULTRA_NINJA_16	0x8006 WORKBIT Ultra Ninja-16 (16bit mode)
 /* Xircom Products */
 product XIRCOM CWE1130		0x0007 Xircom Wireless Ethernet Adapter 
 product XIRCOM CE		0x0108 Xircom CreditCard Ethernet
-product XIRCOM CE3		0x010a Xircom CreditCard 10/100 Ethernet
-product XIRCOM CE2		0x010b Xircom CreditCard Ethernet II
+product XIRCOM CE2		0x010a Xircom CreditCard Ethernet II
+product XIRCOM CE3		0x010a Xircom CreditCard Ethernet 10/100
+product XIRCOM CE2_2		0x010b Xircom CreditCard Ethernet II
 product XIRCOM XE2000		0x0153 Xircom XE2000 10/100 Ethernet
 product XIRCOM CNW_801		0x0801 Xircom CreditCard Netwave (Canada)
 product XIRCOM CNW_802		0x0802 Xircom CreditCard Netwave (US)
 product XIRCOM CT2		0x1101 Xircom CreditCard Token Ring II
 product XIRCOM CEM		0x110a Xircom CreditCard Ethernet + Modem
+product XIRCOM CEM2		0x110a Xircom CreditCard Ethernet + Modem
+product XIRCOM CEM56		0x110a Xircom CreditCard Ethernet + Modem 56
+product XIRCOM REM10		0x110a Xircom CreditCard Ethernet 10 + Modem 56
 product XIRCOM REM56		0x110a Xircom RealPort Ethernet 10/100 + Modem 56
-product XIRCOM CEM28		0x110b Xircom CreditCard Ethernet + Modem 28
-product XIRCOM CEM56		0x110b Xircom CreditCard Ethernet + Modem 56
-product XIRCOM CEM33		0x110d Xircom CreditCard Ethernet + Modem 33
+product XIRCOM XEM5600		0x110a Xircom 10/100 Network + 56K Modem PC Card
+product XIRCOM CEM28		0x110b Xircom CreditCard Ethernet + Modem 28.8
+product XIRCOM CEM56_2		0x110b Xircom CreditCard Ethernet + Modem 56
+product XIRCOM CEM33		0x110c Xircom CreditCard Ethernet + Modem 33.6
+product XIRCOM CEM33_2		0x110d Xircom CreditCard Ethernet + Modem 33.6
 
 /* ZONET */
 product ZONET ZEN		0x0100	Zonet Zen 10/10
