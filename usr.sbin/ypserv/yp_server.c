@@ -42,9 +42,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <rpc/rpc.h>
 
 #ifndef lint
-static char rcsid[] = "$Id: yp_server.c,v 1.18 1995/12/16 04:01:55 wpaul Exp $";
+static char rcsid[] = "$Id: yp_server.c,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -135,7 +136,7 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 	 */
 
 	if (do_dns && result.stat != YP_TRUE && strstr(argp->map, "hosts")) {
-		char *rval;
+		char *rval = NULL;
 
 	/* DNS lookups can take time -- do them in a subprocess */
 
@@ -268,10 +269,41 @@ ypproc_next_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 	return (&result);
 }
 
+static void ypxfr_callback(rval,addr,transid,prognum,port)
+	ypxfrstat rval;
+	struct sockaddr_in *addr;
+	unsigned int transid;
+	unsigned int prognum;
+	unsigned long port;
+{
+	CLIENT *clnt;
+	int sock = RPC_ANYSOCK;
+	struct timeval timeout;
+	yppushresp_xfr ypxfr_resp;
+
+	timeout.tv_sec = 20;
+	timeout.tv_usec = 0;
+	addr->sin_port = htons(port);
+
+	if ((clnt = clntudp_create(addr, prognum, 1, timeout, &sock)) == NULL)
+		yp_error("%s", clnt_spcreateerror("failed to establish \
+callback handle"));
+
+	ypxfr_resp.status = rval;
+	ypxfr_resp.transid = transid;
+
+	if (yppushproc_xfrresp_1(&ypxfr_resp, clnt) == NULL)
+		yp_error("%s", clnt_sperror(clnt, "ypxfr callback failed"));
+
+	clnt_destroy(clnt);
+	return;
+}
+
 ypresp_xfr *
 ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 {
 	static ypresp_xfr  result;
+	struct sockaddr_in *rqhost;
 
 	if (yp_access(argp->map_parms.map, (struct svc_req *)rqstp)) {
 		result.xfrstat = YPXFR_REFUSED;
@@ -288,39 +320,53 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 		return(&result);
 	}
 
+	rqhost = svc_getcaller(rqstp->rq_xprt);
+
 	switch(fork()) {
 	case 0:
 	{
 		char g[11], t[11], p[11];
-		struct sockaddr_in *rqhost;
 		char ypxfr_command[MAXPATHLEN + 2];
 
-		rqhost = svc_getcaller(rqstp->rq_xprt);
 		sprintf (ypxfr_command, "%sypxfr", _PATH_LIBEXEC);
 		sprintf (t, "%u", argp->transid);
 		sprintf (g, "%u", argp->prog);
 		sprintf (p, "%u", argp->port);
-		children++;
-		forked = 0;
-		execl(ypxfr_command, "ypxfr", "-d", argp->map_parms.domain,
-		      "-h", argp->map_parms.peer, "-f", "-C", t, g,
-		      inet_ntoa(rqhost->sin_addr), p, argp->map_parms.map,
-		      NULL);
+		if (debug)
+			close(0); close(1); close(2);
+		if (strcmp(yp_dir, _PATH_YP)) {
+			execl(ypxfr_command, "ypxfr", "-d", argp->map_parms.domain,
+		      	"-h", argp->map_parms.peer, "-f", "-p", yp_dir, "-C", t,
+		      	g, inet_ntoa(rqhost->sin_addr), p, argp->map_parms.map,
+		      	NULL);
+		} else {
+			execl(ypxfr_command, "ypxfr", "-d", argp->map_parms.domain,
+		      	"-h", argp->map_parms.peer, "-f", "-C", t, g,
+		      	inet_ntoa(rqhost->sin_addr), p, argp->map_parms.map,
+		      	NULL);
+		}
+		forked++;
 		yp_error("ypxfr execl(): %s", strerror(errno));
-		return(NULL);
+		ypxfr_callback(YPXFR_XFRERR,rqhost,argp->transid,
+			       argp->prog,argp->port);
+		result.xfrstat = YPXFR_XFRERR;
+		return(&result);
+		break;
 	}
 	case -1:
 		yp_error("ypxfr fork(): %s", strerror(errno));
+		ypxfr_callback(YPXFR_XFRERR,rqhost,argp->transid,
+			       argp->prog,argp->port);
 		result.xfrstat = YPXFR_XFRERR;
+		return(&result);
 		break;
 	default:
-		result.xfrstat = YPXFR_SUCC;
-		forked++;
+		children++;
+		forked = 0;
 		break;
 	}
-
-	result.transid = argp->transid;
-	return (&result);
+	/* Don't return anything -- it's up to ypxfr to do that. */
+	return (NULL);
 }
 
 void *
