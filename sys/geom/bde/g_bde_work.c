@@ -481,7 +481,7 @@ g_bde_read_done(struct bio *bp)
 	g_trace(G_T_TOPOLOGY, "g_bde_read_done(%p)", sp);
 	sc = bp->bio_caller2;
 	mtx_lock(&sc->worklist_mutex);
-	if (bp->bio_error == 0 && bp->bio_completed != sp->siz)
+	if (bp->bio_error == 0 && bp->bio_completed != sp->size)
 		bp->bio_error = EIO;
 	sp->error = bp->bio_error;
 	if (sp->error == 0)
