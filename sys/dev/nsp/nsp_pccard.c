@@ -143,7 +143,7 @@ nsp_alloc_resource(DEVPORT_PDEVICE dev)
 
 	sc->port_rid = 0;
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
-					  0, ~0, 0, RF_ACTIVE);
+					  0, ~0, NSP_IOSIZE, RF_ACTIVE);
 	if (sc->port_res == NULL) {
 		nsp_release_resource(dev);
 		return(ENOMEM);
