@@ -3,7 +3,7 @@
 PROG=	pkg_info
 SRCS=	main.c perform.c show.c
 
-CFLAGS+= ${DEBUG} -I${.CURDIR}/../lib
+CFLAGS+= -I${.CURDIR}/../lib
 
 WARNS?=	6
 WFORMAT?=	1

@@ -7,7 +7,7 @@ MLINKS=	pkg_sign.1 pkg_check.1
 SRCS=	main.c check.c common.c gzip.c pgp_check.c pgp_sign.c \
 	sha1.c sign.c stand.c x509.c
 
-CFLAGS+= ${DEBUG} -I${.CURDIR}/../lib
+CFLAGS+= -I${.CURDIR}/../lib
 
 DPADD=	${LIBINSTALL} ${LIBMD} ${LIBCRYPTO}
 LDADD=	${LIBINSTALL} -lmd -lcrypto
