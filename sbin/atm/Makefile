@@ -23,6 +23,7 @@
 #	@(#) $FreeBSD$
 
 SUBDIR=	atm \
+	atmconfig \
 	fore_dnld \
 	ilmid
 
