@@ -14,7 +14,9 @@
 .Op Fl g Ar target
 .Op Fl k Ar keyfile
 .Sh DESCRIPTION
-This program generates random keys used by either or both the
+The
+.Nm
+utility generates random keys used by either or both the
 NTPv3/NTPv4 symmetric key or the NTPv4 public key (Autokey)
 cryptographic authentication schemes.
 .Pp
@@ -105,7 +107,7 @@ the same security compartment.
 While the key identifiers for MD5
 and DES keys must be in the range 1-65534, inclusive, the
 .Nm
-program uses only the identifiers from 1 to
+utility uses only the identifiers from 1 to
 16.
 The key identifier for each association is specified as the key
 argument in the

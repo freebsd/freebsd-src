@@ -46,7 +46,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon provides monitored and unmonitored file and record locking services
+utility provides monitored and unmonitored file and record locking services
 in an NFS environment.
 To monitor the status of hosts requesting locks,
 the locking daemon typically operates in conjunction
@@ -93,7 +93,7 @@ and facility
 .Pp
 The
 .Nm
-daemon must NOT be invoked by
+utility must NOT be invoked by
 .Xr inetd 8
 because the protocol assumes that the daemon will run from system start time.
 Instead, it should be configured in

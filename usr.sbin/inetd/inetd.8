@@ -54,8 +54,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-program
-should be run at boot time by
+utility should be run at boot time by
 .Pa /etc/rc
 (see
 .Xr rc 8 ) .
@@ -353,7 +352,7 @@ use the
 .Dq nowait
 entry.
 Connection requests for these services are accepted by
-.Nm ,
+.Nm Ns ,
 and the server is given only the newly-accepted socket connected
 to a client of the service.
 Most stream-based services operate in this manner.
@@ -524,8 +523,7 @@ instead of the name of the system as reported by
 .Pp
 The
 .Nm
-program
-also provides several other
+utility also provides several other
 .Dq trivial
 services internally by use of
 routines within itself.  These services are
@@ -574,8 +572,7 @@ facility.
 .Pp
 The
 .Nm
-program
-rereads its configuration file when it receives a hangup signal,
+utility rereads its configuration file when it receives a hangup signal,
 .Dv SIGHUP .
 Services may be added, deleted or modified when the configuration file
 is reread.
@@ -862,7 +859,7 @@ field is invalid.
 .It "setsockopt(SO_PRIVSTATE): Operation not supported"
 The
 .Nm
-program attempted to renounce the privileged state associated with a
+utility attempted to renounce the privileged state associated with a
 socket but was unable to.
 .El
 .Sh SEE ALSO
@@ -890,7 +887,7 @@ socket but was unable to.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.3 .
 TCPMUX is based on code and documentation by Mark Lottor.
 Support for

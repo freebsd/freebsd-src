@@ -41,12 +41,11 @@
 .Sh SYNOPSIS
 .Nm
 .Sh DESCRIPTION
-.Nm Rmt
-is a program used by the remote dump and restore programs
+The
+.Nm
+utility is used by the remote dump and restore programs
 in manipulating a magnetic tape drive through an interprocess
-communication connection.
-.Nm Rmt
-is normally started up with an
+communication connection.  It is normally started up with an
 .Xr rexec 3
 or
 .Xr rcmd 3
@@ -54,7 +53,7 @@ call.
 .Pp
 The
 .Nm
-program accepts requests specific to the manipulation of
+utility accepts requests specific to the manipulation of
 magnetic tapes, performs the commands, then responds with
 a status indication.  All responses are in
 .Tn ASCII
@@ -138,8 +137,9 @@ call.
 .It Sy W Ar count No \en
 .Sm on
 Write data onto the open device.
-.Nm Rmt
-reads
+The
+.Nm
+utility reads
 .Ar count
 bytes from the connection, aborting if
 a premature end-of-file is encountered.
@@ -157,8 +157,9 @@ If
 .Ar count
 exceeds the size of the data buffer (10 kilobytes), it is
 truncated to the data buffer size.
-.Nm Rmt
-then performs the requested
+The
+.Nm
+utility then performs the requested
 .Xr read 2
 and responds with
 .Sm off
@@ -217,5 +218,5 @@ file access protocol.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.2 .

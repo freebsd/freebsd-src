@@ -51,17 +51,17 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon reads and logs messages to the system console, log files, other
+utility reads and logs messages to the system console, log files, other
 machines and/or users as specified by its configuration file.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl 4
-Forces
+Force
 .Nm
 to use IPv4 addresses only.
 .It Fl 6
-Forces
+Force
 .Nm
 to use IPv6 addresses only.
 .It Fl A
@@ -228,7 +228,7 @@ message.
 .Pp
 The
 .Nm
-daemon reads its configuration file when it starts up and whenever it
+utility reads its configuration file when it starts up and whenever it
 receives a hangup signal.
 For information on the format of the configuration file,
 see
@@ -236,7 +236,7 @@ see
 .Pp
 The
 .Nm
-daemon reads messages from the
+utility reads messages from the
 .Tn UNIX
 domain socket
 .Pa /var/run/log ,
@@ -248,7 +248,7 @@ and from the special device
 .Pp
 The
 .Nm
-daemon creates its process ID file,
+utility creates its process ID file,
 by default
 .Pa /var/run/syslog.pid ,
 and stores its process
@@ -292,7 +292,7 @@ kernel log device
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.3 .
 .Pp
 The

@@ -13,12 +13,15 @@
 .Op Fl t Ar timeout_count
 .Ar multicast_router
 .Sh DESCRIPTION
-.Nm Mrinfo
+The
+.Nm
+utility
 attempts to display the configuration information from the multicast router
 .Ar multicast_router .
 .Pp
-.Nm Mrinfo
-uses the ASK_NEIGHBORS IGMP message to the specified multicast router.
+The
+.Nm
+utility uses the ASK_NEIGHBORS IGMP message to the specified multicast router.
 If this
 multicast router responds, the version number and a list of their neighboring
 multicast router addresses is part of that response.
@@ -77,8 +80,9 @@ If
 the queried multicast router has a newer version number, the type (tunnel,
 srcrt) and status (disabled, down) of the connection is displayed.
 .Sh IMPORTANT NOTE
-.Nm Mrinfo
-must be run as root.
+The
+.Nm
+utility must be run as root.
 .Sh SEE ALSO
 .Xr map-mbone 8 ,
 .Xr mrouted 8 ,

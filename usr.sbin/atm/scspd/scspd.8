@@ -37,12 +37,14 @@
 .Op Fl d
 .Op Fl T Ns Aq Ar options
 .Sh DESCRIPTION
-.Nm Scspd
-is an implementation of the Server Cache Synchronization
+The
+.Nm
+utility is an implementation of the Server Cache Synchronization
 Protocol (SCSP) for the Host ATM Research Platform (HARP)
 networking software.
-.Nm Scspd
-synchronizes the cache(s) of server(s)
+The
+.Nm
+utility synchronizes the cache(s) of server(s)
 running on a host with the caches of servers on remote hosts.
 SCSP is defined for a number of different protocols, but the present
 version of
@@ -71,8 +73,9 @@ and
 must be running before any ATMARP
 cache synchronization can take place.
 .Pp
-.Nm Scspd
-implements SCSP as specified in RFC 2334,
+The
+.Nm
+utility implements SCSP as specified in RFC 2334,
 .%T "Server Cache Synchronization Protocol (SCSP)"
 and
 .Pa draft\-ietf\-ion\-scspd\-atmarpd\-00.txt ,
@@ -472,8 +475,9 @@ statement specifies how
 .Nm
 is to log
 information about its operation.
-.Nm Scspd
-can write log information to a file, to the system log,
+The
+.Nm
+utility can write log information to a file, to the system log,
 or both.
 .Bl -tag -width indent
 .It Ic File Aq Ar file\ name ;
@@ -492,8 +496,9 @@ statement specifies that
 .Nm
 is to write
 its log messages to the syslog facility.
-.Nm Scspd
-writes its messages to syslog with a facility code
+The
+.Nm
+utility writes its messages to syslog with a facility code
 of
 .Dv LOG_DAEMON .
 .El
@@ -553,7 +558,7 @@ its control blocks to a text file (see
 .Sh FILES
 .Bl -tag -width indent
 .It Pa /etc/scspd.conf
-.Nm Scspd
+.Nm
 default configuration file name.
 A different file name can be specified with the
 .Fl f
@@ -568,9 +573,10 @@ option.
 .Pa .out
 .Sm on
 .Xc
-Debugging information dump file name.
-.Nm Scspd
-writes a summary of its control blocks to this file
+debugging information dump file name.
+The
+.Nm
+utility writes a summary of its control blocks to this file
 when it receives a
 .Dv SIGINT
 signal.
@@ -586,9 +592,10 @@ number which is incremented every time a dump is taken.
 .Pa .trace
 .Sm on
 .Xc
-Trace file.
-.Nm Scspd
-writes trace information to this file if the
+trace file.
+The
+.Nm
+utility writes trace information to this file if the
 .Fl T
 option is specified on the command line.
 .El

@@ -36,8 +36,9 @@
 .Op Ar function
 .Op Ar ...
 .Sh DESCRIPTION
+The
 .Nm
-is a utility for installing and configuring
+utility is used for installing and configuring
 .Fx
 systems.
 It is the first utility invoked by the
@@ -51,7 +52,7 @@ systems for use in later configuring the system.
 .Pp
 The
 .Nm
-program is generally invoked without arguments for the default
+utility is generally invoked without arguments for the default
 behavior, where the main installation/configuration menu is presented.
 .Pp
 On those occasions where it is deemed necessary to invoke a subsystem
@@ -62,8 +63,9 @@ script, each command-line argument corresponding to a line of script,
 the reader is encouraged to read the section on scripting for more
 information on this feature.
 .Sh NOTES
+The
 .Nm
-is essentially nothing more than a monolithic C program with
+utility is essentially nothing more than a monolithic C program with
 the ability to write MBRs and disk labels (through the services
 of the
 .Xr libdisk 3
@@ -82,8 +84,9 @@ performs most file system operations by calling the relevant syscalls
 .Xr mount 2 )
 directly.
 .Pp
+The
 .Nm
-currently uses the
+utility currently uses the
 .Xr dialog 3
 library to do user interaction with simple ANSI line graphics, color
 support for which is enabled by either running on a syscons VTY or some
@@ -95,8 +98,9 @@ termcap entry).
 This product is currently at the end of its life cycle and will
 eventually be replaced.
 .Sh RUNNING SCRIPTS
+The
 .Nm
-may be either driven interactively through its various internal menus
+utility may be either driven interactively through its various internal menus
 or run in batch mode, driven by an external script.  Such a script may
 be loaded and executed in one of 3 ways:
 .Bl -tag -width Ds
