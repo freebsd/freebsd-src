@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.84.1.1 (Berkeley) 2/18/96";
+static char sccsid[] = "@(#)util.c	8.84.1.2 (Berkeley) 3/4/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -990,7 +990,7 @@ putxline(l, mci, pxflags)
 		fputs(mci->mci_mailer->m_eol, mci->mci_out);
 		if (*l == '\n')
 		{
-			if (*++l != ' ' && *l != '\t' && l[1] != '\0')
+			if (*++l != ' ' && *l != '\t' && *l != '\0')
 			{
 				(void) putc(' ', mci->mci_out);
 				if (TrafficLogFile != NULL)
