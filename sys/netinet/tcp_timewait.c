@@ -771,6 +771,7 @@ tcp_close(tp)
 		FREE(q, M_TSEGQ);
 	}
 	inp->inp_ppcb = NULL;
+	tp->t_inpcb = NULL;
 	soisdisconnected(so);
 #ifdef INET6
 	if (INP_CHECK_SOCKAF(so, AF_INET6))
@@ -1427,7 +1428,7 @@ tcp_mtudisc(inp, errno)
 
 /*
  * Look-up the routing entry to the peer of this inpcb.  If no route
- * is found and it cannot be allocated the return NULL.  This routine
+ * is found and it cannot be allocated, then return NULL.  This routine
  * is called by TCP routines that access the rmx structure and by tcp_mss
  * to get the interface MTU.
  */
