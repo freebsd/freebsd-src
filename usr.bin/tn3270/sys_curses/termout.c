@@ -37,18 +37,10 @@ static char sccsid[] = "@(#)termout.c	8.1 (Berkeley) 6/6/93";
 
 #if defined(unix)
 #include <signal.h>
-#include <sgtty.h>
+#include <termios.h>
 #endif
 #include <stdio.h>
 #include <curses.h>
-#if	defined(ultrix)
-/* Some version of this OS has a bad definition for nonl() */
-#undef	nl
-#undef	nonl
-
-#define nl()	 (_tty.sg_flags |= CRMOD,_pfast = _rawmode,stty(_tty_ch, &_tty))
-#define nonl()	 (_tty.sg_flags &= ~CRMOD, _pfast = TRUE, stty(_tty_ch, &_tty))
-#endif	/* defined(ultrix) */
 
 #include "../general/general.h"
 
@@ -628,9 +620,8 @@ void
 InitTerminal()
 {
 #if defined(unix)
-    struct sgttyb ourttyb;
-    static int speeds[] = { 0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800,
-		2400, 4800, 9600 };
+    struct termios termios_info;
+    speed_t speed;
 #endif
     extern void InitMapping();
 
@@ -657,14 +648,14 @@ InitTerminal()
 
 	TryToSend = FastScreen;
 #if defined(unix)
-	ioctl(1, TIOCGETP, (char *) &ourttyb);
-	if ((ourttyb.sg_ospeed < 0) || (ourttyb.sg_ospeed > B9600)) {
+	(void) tcgetattr(1, &termios_info);
+	speed = cfgetospeed(&termios_info);
+	if (speed > 19200) {
 	    max_changes_before_poll = 1920;
 	} else {
-	    max_changes_before_poll = speeds[ourttyb.sg_ospeed]/10;
-	    if (max_changes_before_poll < 40) {
+	    max_changes_before_poll = speed/10;
+	    if (max_changes_before_poll < 40)
 		max_changes_before_poll = 40;
-	    }
 	    TryToSend = SlowScreen;
 	    HaveInput = 1;		/* get signals going */
 	}
