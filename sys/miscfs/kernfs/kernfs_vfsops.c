@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.4 (Berkeley) 1/21/94
- * $Id: kernfs_vfsops.c,v 1.8 1995/03/16 20:23:38 wollman Exp $
+ * $Id: kernfs_vfsops.c,v 1.9 1995/05/25 01:35:15 davidg Exp $
  */
 
 /*
@@ -57,7 +57,26 @@
 
 struct vnode *rrootvp;
 
-int kernfs_statfs __P((struct mount *, struct statfs *, struct proc *));
+extern int	cdevvp __P((dev_t dev, struct vnode **vpp));
+extern int	kernfs_init __P((void));
+extern int	kernfs_mount __P((struct mount *mp, char *path, caddr_t data,
+				  struct nameidata *ndp, struct proc *p));
+extern int	kernfs_start __P((struct mount *mp, int flags, struct proc *p));
+extern int	kernfs_unmount __P((struct mount *mp, int mntflags,
+				    struct proc *p));
+extern int	kernfs_root __P((struct mount *mp, struct vnode **vpp));
+extern int	kernfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
+				     caddr_t arg, struct proc *p));
+extern int	kernfs_statfs __P((struct mount *mp, struct statfs *sbp,
+				   struct proc *p));
+extern int	kernfs_sync __P((struct mount *mp, int waitfor,
+				 struct ucred *cred, struct proc *p));
+extern int	kernfs_vget __P((struct mount *mp, ino_t ino,
+				 struct vnode **vpp));
+extern int	kernfs_fhtovp __P((struct mount *mp, struct fid *fhp,
+				   struct mbuf *nam, struct vnode **vpp,
+				   int *exflagsp, struct ucred **credanonp));
+extern int	kernfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
  * Create a vnode for a character device.
@@ -292,10 +311,13 @@ kernfs_statfs(mp, sbp, p)
 }
 
 int
-kernfs_sync(mp, waitfor)
+kernfs_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
+	struct ucred *cred;
+	struct proc *p;
 {
+
 	return (0);
 }
 
@@ -315,12 +337,15 @@ kernfs_vget(mp, ino, vpp)
 
 
 int
-kernfs_fhtovp(mp, fhp, setgen, vpp)
+kernfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fhp;
-	int setgen;
+	struct mbuf *nam;
 	struct vnode **vpp;
+	int *exflagsp;
+	struct ucred **credanonp;
 {
+
 	return (EOPNOTSUPP);
 }
 
