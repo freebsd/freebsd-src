@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: jobs.c,v 1.16 1997/08/18 02:53:19 steve Exp $
+ *	$Id: jobs.c,v 1.17 1997/12/10 22:18:53 eivind Exp $
  */
 
 #ifndef lint
@@ -85,6 +85,9 @@ MKINIT pid_t backgndpid = -1;	/* pid of last background process */
 int initialpgrp;		/* pgrp of shell on invocation */
 int curjob;			/* current job */
 #endif
+sig_t oldsigint;
+sig_t oldsigquit;
+int oldsigs_valid = 0;
 
 #if JOBS
 STATIC void restartjob __P((struct job *));
@@ -574,6 +577,11 @@ forkshell(jp, n, mode)
 	TRACE(("forkshell(%%%d, 0x%lx, %d) called\n", jp - jobtab, (long)n,
 	    mode));
 	INTOFF;
+	if (mode == FORK_FG) {
+	        oldsigquit = signal(SIGQUIT,SIG_IGN);
+                oldsigint = signal(SIGINT,SIG_IGN);
+		oldsigs_valid = 1;
+	}
 	pid = fork();
 	if (pid == -1) {
 		TRACE(("Fork failed, errno=%d\n", errno));
@@ -586,6 +594,8 @@ forkshell(jp, n, mode)
 		int i;
 
 		TRACE(("Child shell %d\n", getpid()));
+		signal(SIGQUIT,SIG_DFL);
+		signal(SIGINT,SIG_DFL);
 		wasroot = rootshell;
 		rootshell = 0;
 		for (i = njobs, p = jobtab ; --i >= 0 ; p++)
@@ -700,6 +710,12 @@ waitforjob(jp)
 	while (jp->state == 0) {
 		dowait(1, jp);
 	}
+	if (oldsigs_valid) {
+	       signal(SIGQUIT,oldsigquit);
+	       signal(SIGINT,oldsigint);
+	       oldsigs_valid = 0;
+	}
+
 #if JOBS
 	if (jp->jobctl) {
 #ifdef OLD_TTY_DRIVER
