@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- *	$Id:$
+ *	$Id: natd.c,v 1.10 1999/03/07 18:23:56 brian Exp $
  */
 
 #define SYSLOG_NAMES
@@ -659,11 +659,11 @@ static char* FormatPacket (struct ip* ip)
 
 	case IPPROTO_ICMP:
 		icmphdr = (struct icmp*) ((char*) ip + (ip->ip_hl << 2));
-		sprintf (buf, "[ICMP] %s -> %s %d(%d)",
+		sprintf (buf, "[ICMP] %s -> %s %u(%u)",
 			      src,
 			      dst,
-			      ntohs (icmphdr->icmp_type),
-			      ntohs (icmphdr->icmp_code));
+			      icmphdr->icmp_type,
+			      icmphdr->icmp_code);
 		break;
 
 	default:
