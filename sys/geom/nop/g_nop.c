@@ -213,7 +213,7 @@ fail:
 		g_destroy_consumer(cp);
 	}
 	if (newpp != NULL)
-		g_destroy_provider(pp);
+		g_destroy_provider(newpp);
 	if (gp != NULL) {
 		if (gp->softc != NULL)
 			g_free(gp->softc);
