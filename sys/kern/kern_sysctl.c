@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.32 1995/11/08 08:46:01 phk Exp $
+ * $Id: kern_sysctl.c,v 1.33 1995/11/09 20:22:09 phk Exp $
  */
 
 /*
@@ -464,6 +464,8 @@ __sysctl(p, uap, retval)
 		uap->new, uap->newlen, retval));
 }
 
+static sysctlfn kern_sysctl;
+
 /*
  * This is used from various compatibility syscalls too.  That's why name
  * must be in kernel space.
@@ -551,9 +553,6 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
 		break;
 	case CTL_FS:
 		fn = fs_sysctl;
-		break;
-	case CTL_MACHDEP:
-		fn = cpu_sysctl;
 		break;
 #ifdef DEBUG
 	case CTL_DEBUG:
