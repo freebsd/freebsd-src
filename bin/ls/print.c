@@ -558,10 +558,9 @@ parsecolors(const char *cs)
 			if (c[j] >= '0' && c[j] <= '7') {
 				colors[i].num[j] = c[j] - '0';
 				if (!legacy_warn) {
-					fprintf(stderr,
-					    "warn: LSCOLORS should use "
+					warnx("LSCOLORS should use "
 					    "characters a-h instead of 0-9 ("
-					    "see the manual page)\n");
+					    "see the manual page)");
 				}
 				legacy_warn = 1;
 			} else if (c[j] >= 'a' && c[j] <= 'h')
@@ -572,9 +571,8 @@ parsecolors(const char *cs)
 			} else if (tolower((unsigned char)c[j] == 'x'))
 				colors[i].num[j] = -1;
 			else {
-				fprintf(stderr,
-				    "error: invalid character '%c' in LSCOLORS"
-				    " env var\n", c[j]);
+				warnx("invalid character '%c' in LSCOLORS"
+				    " env var", c[j]);
 				colors[i].num[j] = -1;
 			}
 		}
