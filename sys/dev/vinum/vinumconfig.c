@@ -407,8 +407,10 @@ give_sd_to_drive(int sdno)
     sd = &SD[sdno];					    /* point to sd */
     drive = &DRIVE[sd->driveno];			    /* and drive */
 
-    if (drive->state != drive_up)
+    if (drive->state != drive_up) {
 	update_sd_state(sdno);				    /* that crashes the subdisk */
+	return;
+    }
     if ((drive->sectors_available == 0)			    /* no space left */
     ||(sd->sectors > drive->sectors_available)) {	    /* or too big, */
 	sd->driveoffset = -1;				    /* don't be confusing */
@@ -438,9 +440,7 @@ give_sd_to_drive(int sdno)
 		(drive->freelist_entries - sfe) * sizeof(struct drive_freelist));
 	drive->freelist_entries--;			    /* one less entry */
 	drive->sectors_available -= sd->sectors;	    /* and note how much less space we have */
-    }
-    /* no offset specified, find one */
-    else if (sd->driveoffset < 0) {
+    } else if (sd->driveoffset < 0) {			    /* no offset specified, find one */
 	for (fe = 0; fe < drive->freelist_entries; fe++) {
 	    if (drive->freelist[fe].sectors >= sd->sectors) { /* it'll fit here */
 		sd->driveoffset = drive->freelist[fe].offset;
@@ -1018,6 +1018,10 @@ config_drive(int update)
 		break;
 
 	    case DL_WRONG_DRIVE:			    /* valid drive, not the name we expected */
+		if (vinum_conf.flags & VF_FORCECONFIG) {    /* but we'll accept that */
+		    bcopy(token[1], drive->label.name, sizeof(drive->label.name));
+		    break;
+		}
 		close_drive(drive);
 		/*
 		 * There's a potential race condition here:
@@ -1775,6 +1779,8 @@ update_plex_config(int plexno, int diskconfig)
     struct sd *sd;
     struct volume *vol;
 
+    if (plex->state < plex_faulty)			    /* not a real plex, */
+	return;
     added_plex = 0;
     if (plex->volno >= 0) {				    /* we have a volume */
 	vol = &VOL[plex->volno];
@@ -1810,7 +1816,7 @@ update_plex_config(int plexno, int diskconfig)
 	 * the stripe size.  If not, trim off the end
 	 * of each subdisk and return it to the drive.
 	 */
-	remainder = (int) (plex->length % (u_int64_t) plex->stripesize); /* are we exact? */
+	remainder = (int) (plex->length % ((u_int64_t) plex->stripesize * plex->subdisks)); /* are we exact? */
 	if (remainder) {				    /* no */
 	    log(LOG_INFO, "vinum: removing %d blocks of partial stripe at the end of %s\n",
 		remainder,
@@ -1916,7 +1922,7 @@ updateconfig(int diskconfig)
  * XXX why do we need this and lock_config too? 
  */
 int 
-start_config(void)
+start_config(int force)
 {
     int error;
 
@@ -1933,6 +1939,8 @@ start_config(void)
      * propagate incrememntal state changes 
      */
     vinum_conf.flags |= VF_CONFIGURING | VF_CONFIG_INCOMPLETE;
+    if (force)
+	vinum_conf.flags |= VF_FORCECONFIG;		    /* overwrite differently named drives */
     current_drive = -1;					    /* reset the defaults */
     current_plex = -1;					    /* and the same for the last plex */
     current_volume = -1;				    /* and the last volme */
@@ -1947,7 +1955,8 @@ start_config(void)
 void 
 finish_config(int update)
 {
-    vinum_conf.flags &= ~(VF_CONFIG_INCOMPLETE | VF_READING_CONFIG); /* we've finished our config */
+    /* we've finished our config */
+    vinum_conf.flags &= ~(VF_CONFIG_INCOMPLETE | VF_READING_CONFIG | VF_FORCECONFIG);
     if (update)
 	updateconfig(0);				    /* so update things */
     else
