@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$FreeBSD$
+#	$Id$
 
 PRINTERDEVICE?=	ascii
 
