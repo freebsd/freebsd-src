@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.42 1994/04/07 23:21:35 ache Exp $
+ *	$Id: syscons.c,v 1.43 1994/04/12 00:05:23 ache Exp $
  *
  */
 
@@ -841,18 +841,20 @@ int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		if (scp == cur_console) {
 			if (*(int*)data) {
 			int pitch = TIMER_FREQ/(*(int*)data);
-				/* enable counter 2 */
-				outb(0x61, inb(0x61) | 3);
 				/* set command for counter 2, 2 byte write */
-				outb(TIMER_MODE, 
-				     	TIMER_SEL2|TIMER_16BIT|TIMER_SQWAVE);
+				if (acquire_timer2(TIMER_16BIT|TIMER_SQWAVE)) {
+					return EBUSY;
+				}
 				/* set pitch */
 				outb(TIMER_CNTR2, pitch);
 				outb(TIMER_CNTR2, (pitch>>8));
+				/* enable counter 2 output to speaker */
+				outb(0x61, inb(0x61) | 3);
 			}
 			else {
-				/* disable counter 2 */
+				/* disable counter 2 output to speaker */
 				outb(0x61, inb(0x61) & 0xFC);
+				release_timer2();
 			}
 		}
 		return 0;
