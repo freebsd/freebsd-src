@@ -17,9 +17,4 @@ SRCS=	tmp_version.c pathnames.h \
 	ns_sort.c ns_notify.c
 MAN8=	named.8
 
-afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${BIND_DIR}/bin/named/named-bootconf.pl \
-		${DESTDIR}${DESTSBIN}/named-bootconf
-
 .include <bsd.prog.mk>
