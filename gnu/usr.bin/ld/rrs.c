@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.20 1997/02/22 15:46:23 peter Exp $
+ *	$Id: rrs.c,v 1.21 1997/04/25 15:26:12 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -295,7 +295,8 @@ claim_rrs_reloc(entry, rp, sp, relocation)
 {
 	struct relocation_info	*r = rrs_next_reloc();
 
-	if (rp->r_address < text_start + text_size)
+	if (rp->r_address < text_start + text_size
+	    && (link_mode & WARNRRSTEXT))
 		warnx("%s: RRS text relocation at %#x for \"%s\"",
 			get_file_name(entry), rp->r_address, demangle(sp->name));
 
@@ -693,7 +694,7 @@ consider_rrs_section_lengths()
 		rrs_section_type = RRS_NONE;
 	else if (link_mode & SHAREABLE)
 		rrs_section_type = RRS_FULL;
-	else if (number_of_shobjs == 0 /*&& !(link_mode & DYNAMIC)*/) {
+	else if (number_of_shobjs == 0 && !(link_mode & FORCEDYNAMIC)) {
 		/*
 		 * First slots in both tables are reserved
 		 * hence the "> 1" condition
@@ -947,7 +948,7 @@ write_rrs_data()
 	if (rrs_section_type == RRS_NONE)
 		return;
 
-	pos = rrs_data_start + (N_DATOFF(outheader) - DATA_START(outheader));
+	pos = rrs_data_start + N_TXTOFF(outheader) - text_start;
 	if (fseek(outstream, pos, SEEK_SET) != 0)
 		err(1, "write_rrs_data: fseek");
 
@@ -997,7 +998,7 @@ write_rrs_text()
 	if (rrs_section_type == RRS_PARTIAL)
 		return;
 
-	pos = rrs_text_start + (N_TXTOFF(outheader) - TEXT_START(outheader));
+	pos = rrs_text_start + N_TXTOFF(outheader) - text_start;
 	if (fseek(outstream, pos, SEEK_SET) != 0)
 		err(1, "write_rrs_text: fseek");
 
