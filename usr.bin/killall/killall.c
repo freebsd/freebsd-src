@@ -268,14 +268,16 @@ main(int ac, char **av)
 	mib[1] = KERN_PROC;
 	mib[2] = KERN_PROC_PROC;
 	mib[3] = 0;
-	miblen = 4;
+	miblen = 3;
 
 	if (user) {
 		mib[2] = KERN_PROC_RUID;
 		mib[3] = uid;
+		miblen = 4;
 	} else if (tty) {
 		mib[2] = KERN_PROC_TTY;
 		mib[3] = tdev;
+		miblen = 4;
 	}
 
 	st = sysctl(mib, miblen, NULL, &size, NULL, 0);
