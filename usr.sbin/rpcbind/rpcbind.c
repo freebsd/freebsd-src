@@ -274,7 +274,11 @@ init_transport(struct netconfig *nconf)
 	 */
 	if (nconf->nc_semantics != NC_TPI_CLTS) {
 		if ((fd = __rpc_nconf2fd(nconf)) < 0) {
-			syslog(LOG_ERR, "cannot create socket for %s",
+			int non_fatal = 0;
+
+			if (errno == EPROTONOSUPPORT)
+				non_fatal = 1;
+			syslog(non_fatal?LOG_DEBUG:LOG_ERR, "cannot create socket for %s",
 			    nconf->nc_netid);
 			return (1);
 		}
