@@ -8,19 +8,24 @@
 Device Drivers:
 ---------------
 
-Adaptec AIC7850 support has been added.
+Support for the Adaptec AIC7850 on-board SCSI adapter.
 
-The Intel EtherExpress Pro/100B PCI ethernet card is now supported.
+Support for Specialix SI and XIO serial cards.
 
-The 3COM 3C590 and 3C595 ethernet cards are now supported.
+Support for the Stallion EasyIO, EasyConnection 8/32 and EasyConnection 8/64,
+as well as the older Onboard and Brumby serial cards.
+
+Support for the Intel EtherExpress Pro/100B PCI ethernet card.
+
+Support for the 3COM 3C590 and 3C595 ethernet cards.
 
 Real PCI Buslogic support (new driver and probing order).
 
-The ARNET (now Digiboard) Sync 570i high-speed serial card is now supported.
+Support for the ARNET (now Digiboard) Sync 570i high-speed serial card.
 
-The Matrox Meteor frame grabber card is better supported.
+Better support for the Matrox Meteor frame grabber card.
 
-The Connectix Quickcam is now supported.
+Support for the Connectix Quickcam.
 
 Worm driver - it is now possible to burn CDROMs using the Plasmon or HP 4080i
 CDR drives (see `wormcontrol(1)').
@@ -496,4 +501,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.16 1996/06/25 19:05:48 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.17 1996/06/25 19:43:33 jkh Exp $
