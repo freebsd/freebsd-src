@@ -36,7 +36,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wx.c	7.2 (Berkeley) 5/9/91
- *	$Id: wx.c,v 1.5 1993/11/19 06:30:02 davidg Exp $
+ *	$Id: wd.c,v 1.20 1994/01/04 20:20:38 nate Exp $
  */
 
 /* TODO:peel out buffer at low ipl, speed improvement */
@@ -261,7 +261,7 @@ wdattach(struct isa_device *dvp)
 		else {
 			free(du, M_TEMP);
 			wddrives[unit] = 0;
-			printf(" [%d: wd%d]", unit, lunit);
+			printf(" [%d: wd%d: not found]", unit, lunit);
 		}
 	}
 	printf("\n");
