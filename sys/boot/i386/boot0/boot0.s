@@ -28,6 +28,7 @@
 		.set TBL1SZ,0xc 		# Table 1 size
 
 		.set MAGIC,0xaa55		# Magic: bootable
+		.set B0MAGIC,0xbb66		# Identification
 
 		.set KEY_ENTER,0x1c		# Enter key scan code
 		.set KEY_F1,0x3b		# F1 key scan code
@@ -393,7 +394,10 @@ os_linux:	.ascii "Linu"; .byte 'x'|0x80
 os_freebsd:	.ascii "Free"
 os_bsd: 	.ascii "BS";   .byte 'D'|0x80
 
-		.org PRT_OFF-0xc,0x90
+		.org PRT_OFF-0xe,0x90
+
+		.word B0MAGIC			# Magic number
+
 #
 # These values are sometimes changed before writing back to the drive
 # Be especially careful that nxtdrv: must come after drive:, as it 
