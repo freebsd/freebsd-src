@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.32 1994/08/28 16:16:33 bde Exp $
+ *	$Id: trap.c,v 1.33 1994/09/08 11:48:52 bde Exp $
  */
 
 /*
@@ -337,7 +337,7 @@ trap_pfault(frame, usermode)
 	int usermode;
 {
 	vm_offset_t va;
-	struct vmspace *vm;
+	struct vmspace *vm = NULL;
 	vm_map_t map = 0;
 	int rv = 0, oldflags;
 	vm_prot_t ftype;
@@ -348,18 +348,26 @@ trap_pfault(frame, usermode)
 	eva = rcr2();
 	va = trunc_page((vm_offset_t)eva);
 
-	/*
-	 * Don't allow user-mode faults in kernel address space
-	 */
-	if (usermode && (va >= KERNBASE)) {
-        	goto nogo;
-	}
+	if (va >= KERNBASE) {
+		/*
+		 * Don't allow user-mode faults in kernel address space.
+		 */
+		if (usermode)
+			goto nogo;
 
-	if ((p == 0) || (va >= KERNBASE)) {
-		vm = 0;
 		map = kernel_map;
 	} else {
-		vm = p->p_vmspace;
+		/*
+		 * This is a fault on non-kernel virtual memory.
+		 * vm is initialized above to NULL. If curproc is NULL
+		 * or curproc->p_vmspace is NULL the fault is fatal.
+		 */
+		if (p != NULL)
+			vm = p->p_vmspace;
+
+		if (vm == NULL)
+			goto nogo;
+
 		map = &vm->vm_map;
 	}
 
@@ -433,7 +441,7 @@ trap_pfault(frame, usermode)
 		return (0);
 nogo:
 	if (!usermode) {
-		if (curpcb->pcb_onfault) {
+		if (curpcb && curpcb->pcb_onfault) {
 			frame->tf_eip = (int)curpcb->pcb_onfault;
 			return (0);
 		}
