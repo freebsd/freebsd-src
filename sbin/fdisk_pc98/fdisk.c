@@ -904,7 +904,7 @@ write_disk(off_t sector, void *buf)
 
 #ifdef PC98
 	if (fdw != -1) {
-		return ioctl(fdw, DIOCGPC98, buf);
+		return ioctl(fdw, DIOCSPC98, buf);
 	} else {
 		lseek(fd,(sector * 512), 0);
 		/* write out in the size that the read_disk found worked */
