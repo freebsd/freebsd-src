@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.42 1997/02/22 09:46:29 peter Exp $
+ * $Id: vnode.h,v 1.43 1997/04/04 17:43:32 dfr Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -70,6 +70,7 @@ LIST_HEAD(buflists, buf);
 
 typedef	int 	vop_t __P((void *));
 struct vm_object;
+struct namecache;
 
 /*
  * Reading or writing any of these items requires holding the appropriate lock.
@@ -104,12 +105,15 @@ struct vnode {
 	daddr_t	v_cstart;			/* start block of cluster */
 	daddr_t	v_lasta;			/* last allocation */
 	int	v_clen;				/* length of current cluster */
-	int	v_usage;			/* Vnode usage counter */
 	struct vm_object *v_object;		/* Place to store VM object */
 	struct	simplelock v_interlock;		/* lock on usecount and flag */
 	struct	lock *v_vnlock;			/* used for non-locking fs's */
 	enum	vtagtype v_tag;			/* type of underlying data */
 	void 	*v_data;			/* private data for fs */
+	LIST_HEAD(, namecache) v_cache_src;	/* Cache entries from us */
+	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
+	struct	vnode *v_dd;			/* .. vnode */
+	u_long	v_ddid;				/* .. capability identifier */
 };
 #define	v_mountedhere	v_un.vu_mountedhere
 #define	v_socket	v_un.vu_socket
@@ -506,6 +510,7 @@ struct vnode *
 	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
 void 	vput __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
+void	vtouch __P((struct vnode *vp));
 #endif /* KERNEL */
 
 #endif /* !_SYS_VNODE_H_ */
