@@ -184,7 +184,7 @@ dofileread(p, fp, fd, buf, nbyte, offset, flags)
 			error = 0;
 	cnt -= auio.uio_resid;
 #ifdef KTRACE
-	if (error == 0 && KTRPOINT(p, KTR_GENIO)) {
+	if (KTRPOINT(p, KTR_GENIO) && error == 0) {
 		ktruio.uio_iov = &ktriov;
 		ktruio.uio_resid = cnt;
 		ktrgenio(p->p_tracep, fd, UIO_READ, &ktruio, error);
@@ -382,7 +382,7 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 	}
 	cnt -= auio.uio_resid;
 #ifdef KTRACE
-	if (error == 0 && KTRPOINT(p, KTR_GENIO)) {
+	if (KTRPOINT(p, KTR_GENIO) && error == 0) {
 		ktruio.uio_iov = &ktriov;
 		ktruio.uio_resid = cnt;
 		ktrgenio(p->p_tracep, fd, UIO_WRITE, &ktruio, error);
