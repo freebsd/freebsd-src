@@ -57,6 +57,7 @@ struct agp_memory {
 	TAILQ_ENTRY(agp_memory) am_link;	/* wiring for the tailq */
 	int		am_id;			/* unique id for block */
 	vm_size_t	am_size;		/* number of bytes allocated */
+	int		am_type;		/* chipset specific type */
 	struct vm_object *am_obj;		/* VM object owning pages */
 	vm_offset_t	am_physical;		/* bogus hack for i810 */
 	vm_offset_t	am_offset;		/* page offset if bound */
