@@ -109,11 +109,9 @@ _http_cmd(FILE *f, char *fmt, ...)
 
     va_start(ap, fmt);
     vfprintf(f, fmt, ap);
-#ifndef NDEBUG
-    fprintf(stderr, "\033[1m>>> ");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\033[m");
-#endif
+    DEBUG(fprintf(stderr, "\033[1m>>> "));
+    DEBUG(vfprintf(stderr, fmt, ap));
+    DEBUG(fprintf(stderr, "\033[m"));
     va_end(ap);
     
     return 0; /* XXX */
@@ -224,14 +222,22 @@ fetchContentType(FILE *f)
 /*
  * Base64 encoding
  */
-int
-_http_base64(char *dst, char *src, int l)
+static char *
+_http_base64(char *src)
 {
     static const char base64[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	"abcdefghijklmnopqrstuvwxyz"
 	"0123456789+/";
-    int t, r = 0;
+    char *str, *dst;
+    size_t l;
+    int t, r;
+
+    l = strlen(src);
+    if ((str = malloc(((l + 2) / 3) * 4)) == NULL)
+	return NULL;
+    dst = str;
+    r = 0;
     
     while (l >= 3) {
 	t = (src[0] << 16) | (src[1] << 8) | src[2];
@@ -266,39 +272,62 @@ _http_base64(char *dst, char *src, int l)
     }
 
     *dst = 0;
-    return r;
+    return str;
 }
 
 /*
  * Encode username and password
  */
-char *
-_http_auth(char *usr, char *pwd)
+static int
+_http_basic_auth(FILE *f, char *hdr, char *usr, char *pwd)
 {
-    int len, lup;
-    char *uandp, *str = NULL;
+    char *upw, *auth;
+    int r;
 
-    lup = strlen(usr) + 1 + strlen(pwd);/* length of "usr:pwd" */
-    uandp = (char*)malloc(lup + 1);
-    if (uandp) {
-	len = ((lup + 2) / 3) * 4;	/* length of base64 encoded "usr:pwd" incl. padding */
-	str = (char*)malloc(len + 1);
-	if (str) {
-	    strcpy(uandp, usr);
-	    strcat(uandp, ":");
-	    strcat(uandp, pwd);
-	    _http_base64(str, uandp, lup);
-	}
-	free(uandp);
+    if (asprintf(&upw, "%s:%s", usr, pwd) == -1)
+	return -1;
+    auth = _http_base64(upw);
+    free(upw);
+    if (auth == NULL)
+	return -1;
+    r = _http_cmd(f, "%s: Basic %s" ENDL, hdr, auth);
+    free(auth);
+    return r;
+}
+
+/*
+ * Send an authorization header
+ */
+static int
+_http_authorize(FILE *f, char *hdr, char *p)
+{
+    /* basic authorization */
+    if (strncasecmp(p, "basic:", 6) == 0) {
+	char *user, *pwd, *str;
+	int r;
+
+	/* skip realm */
+	for (p += 6; *p && *p != ':'; ++p)
+	    /* nothing */ ;
+	if (!*p || strchr(++p, ':') == NULL)
+	    return -1;
+	if ((str = strdup(p)) == NULL)
+	    return -1; /* XXX */
+	user = str;
+	pwd = strchr(str, ':');
+	*pwd++ = '\0';
+	r = _http_basic_auth(f, hdr, user, pwd);
+	free(str);
+	return r;
     }
-    return str;
+    return -1;
 }
 
 /*
  * Connect to server or proxy
  */
-FILE *
-_http_connect(struct url *URL, char *flags)
+static FILE *
+_http_connect(struct url *URL, char *flags, int *proxy)
 {
     int direct, sd = -1, verbose;
 #ifdef INET6
@@ -389,7 +418,8 @@ _http_connect(struct url *URL, char *flags)
     }
 
     /* if no proxy is configured or could be contacted, try direct */
-    if (sd == -1) {
+    *proxy = (sd != -1);
+    if (!*proxy) {
 	if (strcasecmp(URL->scheme, "ftp") == 0)
 	    goto ouch;
 	if ((sd = _fetch_connect(URL->host, URL->port, af, verbose)) == -1)
@@ -412,7 +442,7 @@ ouch:
 /*
  * Check a header line
  */
-char *
+static char *
 _http_match(char *str, char *hdr)
 {
     while (*str && *hdr && tolower(*str++) == tolower(*hdr++))
@@ -427,8 +457,8 @@ _http_match(char *str, char *hdr)
 /*
  * Send a HEAD or GET request
  */
-int
-_http_request(FILE *f, char *op, struct url *URL, char *flags)
+static int
+_http_request(FILE *f, char *op, struct url *URL, char *flags, int proxy)
 {
     int e, verbose;
     char *ln, *p;
@@ -448,50 +478,25 @@ _http_request(FILE *f, char *op, struct url *URL, char *flags)
     }
 #endif
     
-    /* send request (proxies require absolute form, so use that) */
+    /* send request (proxies require absolute form) */
     if (verbose)
 	_fetch_info("requesting %s://%s:%d%s",
 		    URL->scheme, host, URL->port, URL->doc);
-    _http_cmd(f, "%s %s://%s:%d%s HTTP/1.1" ENDL,
-	      op, URL->scheme, host, URL->port, URL->doc);
+    if (proxy)
+	_http_cmd(f, "%s %s://%s:%d%s HTTP/1.1" ENDL,
+		  op, URL->scheme, host, URL->port, URL->doc);
+    else
+	_http_cmd(f, "%s %s HTTP/1.1" ENDL, op, URL->doc);
 
     /* start sending headers away */
-    if (URL->user[0] || URL->pwd[0]) {
-	char *auth_str = _http_auth(URL->user, URL->pwd);
-	if (!auth_str)
-	    return 999; /* XXX wrong */
-	_http_cmd(f, "Authorization: Basic %s" ENDL, auth_str);
-	free(auth_str);
-    }
-    if (p = getenv("HTTP_PROXY_AUTH")) {
-	char *auth;
-
-	/* skip leading "basic:*:", if present */
-	if (strncmp(p, "basic:*:", 6 + 2) == 0)
-	    p += 6 + 2;
-	auth = strchr(p, ':');
-	if (auth != NULL) {
-	    int len = auth - p;
-	    char *user;
-	    char *auth_str;
-
-	    if ((user = (char*)malloc(len + 1)) == NULL) {
-		free(auth); 
-		return 999; /* XXX wrong */
-	    }
-	    strncpy(user, p, len);
-	    user[len] = 0;
-	    auth++;
-	    auth_str = _http_auth(user, auth);
-	    free(user);
-	    if (auth_str == NULL)
-		return 999; /* XXX wrong */
-	    _http_cmd(f, "Proxy-Authorization: Basic %s" ENDL, auth_str);
-	    free(auth_str);
-	} else {
-	    return 999; /* XXX wrong */
-	}
-    }
+    if (URL->user[0] || URL->pwd[0])
+	_http_basic_auth(f, "Authorization",
+			 URL->user ? URL->user : "",
+			 URL->pwd ? URL->pwd : "");
+    else if ((p = getenv("HTTP_AUTH")) != NULL)
+	_http_authorize(f, "Authorization", p);
+    if (proxy &&  (p = getenv("HTTP_PROXY_AUTH")) != NULL)
+	_http_authorize(f, "Proxy-Authorization", p);
     _http_cmd(f, "Host: %s:%d" ENDL, host, URL->port);
     _http_cmd(f, "User-Agent: %s " _LIBFETCH_VER ENDL, __progname);
     if (URL->offset)
@@ -524,7 +529,7 @@ _http_request(FILE *f, char *op, struct url *URL, char *flags)
 FILE *
 fetchGetHTTP(struct url *URL, char *flags)
 {
-    int e, enc = ENC_NONE, i, noredirect;
+    int e, enc = ENC_NONE, i, noredirect, proxy;
     struct cookie *c;
     char *ln, *p, *q;
     FILE *f, *cf;
@@ -538,13 +543,13 @@ fetchGetHTTP(struct url *URL, char *flags)
 	return NULL;
 
     /* connect */
-    if ((f = _http_connect(URL, flags)) == NULL) {
+    if ((f = _http_connect(URL, flags, &proxy)) == NULL) {
 	free(c);
 	return NULL;
     }
     c->real_f = f;
 
-    e = _http_request(f, "GET", URL, flags);
+    e = _http_request(f, "GET", URL, flags, proxy);
     if (e != (URL->offset ? HTTP_PARTIAL : HTTP_OK)
 	&& (e != HTTP_MOVED || noredirect)) {
 	_http_seterr(e);
@@ -644,7 +649,7 @@ fetchPutHTTP(struct url *URL, char *flags)
 int
 fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
 {
-    int e, noredirect;
+    int e, noredirect, proxy;
     size_t len;
     char *ln, *p, *q;
     FILE *f;
@@ -655,10 +660,10 @@ fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
     us->atime = us->mtime = 0;
     
     /* connect */
-    if ((f = _http_connect(URL, flags)) == NULL)
+    if ((f = _http_connect(URL, flags, &proxy)) == NULL)
 	return -1;
 
-    e = _http_request(f, "HEAD", URL, flags);
+    e = _http_request(f, "HEAD", URL, flags, proxy);
     if (e != HTTP_OK && (e != HTTP_MOVED || noredirect)) {
 	_http_seterr(e);
 	fclose(f);
