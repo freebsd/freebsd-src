@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_dummy.c,v 1.5 1997/02/22 09:38:19 peter Exp $
+ *  $Id: linux_dummy.c,v 1.6 1997/07/20 16:05:53 bde Exp $
  */
 
 #include <sys/param.h>
@@ -106,13 +106,6 @@ linux_gtty(struct proc *p, struct linux_gtty_args *args, int *retval)
 }
 
 int
-linux_nice(struct proc *p, struct linux_nice_args *args, int *retval)
-{
-    printf("Linux-emul(%d): nice() not supported\n", p->p_pid);
-    return ENOSYS;
-}
-
-int
 linux_ftime(struct proc *p, struct linux_ftime_args *args, int *retval)
 {
     printf("Linux-emul(%d): ftime() not supported\n", p->p_pid);
@@ -181,13 +174,6 @@ linux_ksyslog(struct proc *p, struct linux_ksyslog_args *args, int *retval)
     printf("Linux-emul(%d): ksyslog(%x) not supported\n",
 	p->p_pid, args->what);
     return ENOSYS;	/* EPERM - Peter - it's a root-only thing */
-}
-
-int
-linux_iopl(struct proc *p, struct linux_iopl_args *args, int *retval)
-{
-    printf("Linux-emul(%d): iopl() not supported\n", p->p_pid);
-    return ENOSYS;
 }
 
 int
