@@ -170,6 +170,7 @@ static struct mtx	ng_idhash_mtx;
 #define NG_IDHASH_FN(ID) ((ID) % (NG_ID_HASH_SIZE))
 #define NG_IDHASH_FIND(ID, node)					\
 	do { 								\
+		mtx_assert(&ng_idhash_mtx, MA_OWNED);			\
 		LIST_FOREACH(node, &ng_ID_hash[NG_IDHASH_FN(ID)],	\
 						nd_idnodes) {		\
 			if (NG_NODE_IS_VALID(node)			\
@@ -3231,10 +3232,12 @@ ng_dumpnodes(void)
 {
 	node_p node;
 	int i = 1;
+	mtx_lock(&ng_nodelist_mtx);
 	SLIST_FOREACH(node, &ng_allnodes, nd_all) {
 		printf("[%d] ", i++);
 		dumpnode(node, NULL, 0);
 	}
+	mtx_unlock(&ng_nodelist_mtx);
 }
 
 static void
@@ -3242,10 +3245,12 @@ ng_dumphooks(void)
 {
 	hook_p hook;
 	int i = 1;
+	mtx_lock(&ng_nodelist_mtx);
 	SLIST_FOREACH(hook, &ng_allhooks, hk_all) {
 		printf("[%d] ", i++);
 		dumphook(hook, NULL, 0);
 	}
+	mtx_unlock(&ng_nodelist_mtx);
 }
 
 static int
