@@ -28,14 +28,10 @@
  * system configuration
  *----------------------------------------------------------------*/
 
-/* if you're using obsolete VoxWare 3.0.x on Linux 1.2.x (or FreeBSD),
- * define the following line.
+/* if you're using obsolete VoxWare 3.0.x on Linux 1.2.x (or pre-Voxware 3.5
+ * versions of FreeBSD), define the following line.
  */
 #undef AWE_OBSOLETE_VOXWARE
-
-#ifdef __FreeBSD__
-#  define AWE_OBSOLETE_VOXWARE
-#endif
 
 /* if you're using OSS-Lite on Linux 2.1.6 or later, define the
  * following line.
@@ -137,7 +133,15 @@
 #include "lowlevel.h"
 #endif
 
-#include "../sound_config.h"
+#ifdef __FreeBSD__
+#  include <i386/isa/sound/sound_config.h>
+#  if defined(CONFIGURE_SOUNDCARD) && defined(CONFIG_AWE32)
+#    define CONFIG_AWE32_SYNTH
+#  endif
+#else
+#  include "../sound_config.h"
+#endif
+
 
 #endif /* AWE_OBSOLETE_VOXWARE */
 

@@ -502,6 +502,7 @@ struct synth_info {	/* Read only */
 #define FM_TYPE_OPL3			0x01
 
 #define SAMPLE_TYPE_GUS			0x10
+#define SAMPLE_TYPE_AWE32		0x20
 
 	int	perc_mode;	/* No longer supported */
 	int	nr_voices;
