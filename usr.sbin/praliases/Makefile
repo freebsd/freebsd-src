@@ -1,9 +1,30 @@
 #	@(#)Makefile	8.2 (Berkeley) 9/21/96
+# $FreeBSD$
 
-.PATH:	${.CURDIR}/../../contrib/sendmail/praliases
+SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
+.PATH:	${SENDMAIL_DIR}/praliases
 
 PROG=	praliases
+SRCS=	praliases.c
 MAN8=	praliases.8
-CFLAGS+=-I${.CURDIR}/../../contrib/sendmail/src -DNEWDB
+CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include
+CFLAGS+=-DNEWDB -DNOT_SENDMAIL
+
+.if exists(${.OBJDIR}/../../lib/libsmdb)
+LIBSMDBDIR:=	${.OBJDIR}/../../lib/libsmdb
+.else
+LIBSMDBDIR!=	cd ${.CURDIR}/../../lib/libsmdb; make -V .OBJDIR
+.endif
+LIBSMDB:=	${LIBSMDBDIR}/libsmdb.a
+
+.if exists(${.OBJDIR}/../../lib/libsmutil)
+LIBSMUTILDIR:=	${.OBJDIR}/../../lib/libsmutil
+.else
+LIBSMUTILDIR!=	cd ${.CURDIR}/../../lib/libsmutil; make -V .OBJDIR
+.endif
+LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
+
+DPADD+=	${LIBSMDB} ${LIBSMUTIL}
+LDADD+=	${LIBSMDB} ${LIBSMUTIL}
 
 .include <bsd.prog.mk>
