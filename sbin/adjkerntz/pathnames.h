@@ -26,11 +26,4 @@
 
 #include <paths.h>
 
-/*
- * Offset file name started with '.', because "adjkerntz -i"
- * called in /etc/rc before cleaning '*' in /var/run,
- * and this file should be keeped after it.
- */
-#define _PATH_OFFSET "/var/run/.adjkerntz"
-
 #define _PATH_CLOCK "/etc/wall_cmos_clock"
