@@ -193,8 +193,8 @@ jails to set the hostname of the jail, which makes the status file less
 useful from a management perspective if the contents of the jail are
 malicious.
 To prevent a jail from changing its hostname, the
-"jail.set_hostname_allowed" sysctl may be set to 0 prior to starting
-any jails.
+"kern.security.jail.set_hostname_allowed" sysctl may be set to 0 prior to 
+starting any jails.
 .PP
 One aspect immediately observable in an environment with multiple jails
 is that uids and gids are local to each jail environment: the uid associated
