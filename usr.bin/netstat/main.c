@@ -727,11 +727,18 @@ name2protox(char *name)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-"usage: netstat [-AaLlnW] [-f address_family] [-M core] [-N system]",
-"       netstat [-abdgilnrs] [-f address_family] [-M core] [-N system]",
-"       netstat [-bdn] [-I interface] [-M core] [-N system] [-w wait]",
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+"usage: netstat [-AaLnW] [-f protocol_family | -p protocol]\n"
+"               [-M core] [-N system]",
+"       netstat -i | -I interface [-abdnt] [-M core] [-N system]",
+"       netstat -w wait [-I interface] [-d] [-M core] [-N system]",
+"       netstat -s [-s] [-f protocol_family | -p protocol] [-M core]",
+"       netstat -i | -I interface -s [-f protocol_family | -p protocol]\n"
+"               [-M core] [-N system]",
 "       netstat -m [-M core] [-N system]",
-"       netstat [-M core] [-N system] [-p protocol]");
+"       netstat -r [-AanW] [-f address_family] [-M core] [-N system]",
+"       netstat -rs [-s] [-M core] [-N system]",
+"       netstat -g [-W] [-f address_family] [-M core] [-N system]",
+"       netstat -gs [-s] [-f address_family] [-M core] [-N system]");
 	exit(1);
 }
