@@ -566,6 +566,10 @@ wait_input(timo)
     fd_set ready;
     int n;
 
+    if (ttyfd >= FD_SETSIZE) {
+	    syslog(LOG_ERR, "descriptor too big");
+	    die(1);
+    }
     FD_ZERO(&ready);
     FD_SET(ttyfd, &ready);
     n = select(ttyfd+1, &ready, NULL, &ready, timo);
@@ -588,6 +592,10 @@ wait_loop_output(timo)
     fd_set ready;
     int n;
 
+    if (loop_master >= FD_SETSIZE) {
+	    syslog(LOG_ERR, "descriptor too big");
+	    die(1);
+    }
     FD_ZERO(&ready);
     FD_SET(loop_master, &ready);
     n = select(loop_master + 1, &ready, NULL, &ready, timo);
