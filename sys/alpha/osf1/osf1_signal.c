@@ -101,92 +101,18 @@ static void osf1_to_bsd_sigaction __P((const struct osf1_sigaction *osa,
 #define	osf1_sigismember(s, n)	(*(s) & sigmask(n))
 #define	osf1_sigaddset(s, n)	(*(s) |= sigmask(n))
 
-int bsd_to_osf1_sig[OSF1_SIGTBLSZ] = {
-	OSF1_SIGHUP,	/* 1 */
-	OSF1_SIGINT,	/* 2 */
-	OSF1_SIGQUIT,	/* 3 */
-	OSF1_SIGILL,	/* 4 */
-	OSF1_SIGTRAP,	/* 5 */
-	OSF1_SIGABRT,	/* 6 */
-	OSF1_SIGEMT,	/* 7 */
-	OSF1_SIGFPE,	/* 8 */
-	OSF1_SIGKILL,	/* 9 */
-	OSF1_SIGBUS,	/* 10 */
-	OSF1_SIGSEGV,	/* 11 */
-	OSF1_SIGSYS,	/* 12 */
-	OSF1_SIGPIPE,	/* 13 */
-	OSF1_SIGALRM,	/* 14 */
-	OSF1_SIGTERM,	/* 15 */
-	OSF1_SIGURG,	/* 16 */
-	OSF1_SIGSTOP,	/* 17 */
-	OSF1_SIGTSTP,	/* 18 */
-	OSF1_SIGCONT,	/* 19 */
-	OSF1_SIGCHLD,	/* 20 */
-	OSF1_SIGTTIN,	/* 21 */
-	OSF1_SIGTTOU,	/* 22 */
-	OSF1_SIGIO,	/* 23 */
-	OSF1_SIGXCPU,	/* 24 */
-	OSF1_SIGXFSZ,	/* 25 */
-	OSF1_SIGVTALRM,	/* 26 */
-	OSF1_SIGPROF,	/* 27 */
-	OSF1_SIGWINCH,	/* 28 */
-	OSF1_SIGINFO,	/* 29 */
-	OSF1_SIGUSR1,	/* 30 */
-	OSF1_SIGUSR2,	/* 31 */
-	0		/* 32 */
-};
-
-int osf1_to_bsd_sig[OSF1_SIGTBLSZ] = {
-	SIGHUP,		/* 1 */
-	SIGINT,		/* 2 */
-	SIGQUIT,	/* 3 */
-	SIGILL,		/* 4 */
-	SIGTRAP,	/* 5 */
-	SIGABRT,	/* 6 */
-	SIGEMT,		/* 7 */
-	SIGFPE,		/* 8 */
-	SIGKILL,	/* 9 */
-	SIGBUS,		/* 10 */
-	SIGSEGV,	/* 11 */
-	SIGSYS,		/* 12 */
-	SIGPIPE,	/* 13 */
-	SIGALRM,	/* 14 */
-	SIGTERM,	/* 15 */
-	SIGURG,		/* 16 */
-	SIGSTOP,	/* 17 */
-	SIGTSTP,	/* 18 */
-	SIGCONT,	/* 19 */
-	SIGCHLD,	/* 20 */
-	SIGTTIN,	/* 21 */
-	SIGTTOU,	/* 22 */
-	SIGIO,		/* 23 */
-	SIGXCPU,	/* 24 */
-	SIGXFSZ,	/* 25 */
-	SIGVTALRM,	/* 26 */
-	SIGPROF,	/* 27 */
-	SIGWINCH,	/* 28 */
-	SIGINFO,	/* 29 */
-	SIGUSR1,	/* 30 */
-	SIGUSR2,	/* 31 */
-	0		/* 32 */
-};
-
 
 void
 osf1_to_bsd_sigset(oss, bss)
 	const osf1_sigset_t *oss;
 	sigset_t *bss;
 {
-	int i, newsig;
+	const u_int32_t *obits;
 
 	SIGEMPTYSET(*bss);
-	for (i = 1; i <= OSF1_SIGTBLSZ; i++) {
-		if (osf1_sigismember(oss, i)) {
-			newsig = osf1_to_bsd_sig[_SIG_IDX(i)];
-			if (newsig)
-				SIGADDSET(*bss, newsig);
-		}
-	}
+	obits = (const u_int32_t *)oss;
+	bss->__bits[0] = obits[0];
+	bss->__bits[1] = obits[1];
 }
 
 void
@@ -194,17 +120,12 @@ bsd_to_osf1_sigset(bss, oss)
 	const sigset_t *bss;
 	osf1_sigset_t *oss;
 {
-	int i, newsig;
+	u_int32_t *obits;
 
 	osf1_sigemptyset(oss);
-	for (i = 1; i <= OSF1_SIGTBLSZ; i++) {
-		if (SIGISMEMBER(*bss, i)) {
-			newsig = bsd_to_osf1_sig[_SIG_IDX(i)];
-			if (newsig)
-				osf1_sigaddset(oss, newsig);
-		}
-	}
-
+	obits = (u_int32_t *)oss;
+	obits[0] = bss->__bits[0];
+	obits[1] = bss->__bits[1];
 }
 
 /*
@@ -319,7 +240,7 @@ osf1_sigaction(p, uap)
 	} else
 		nbsa = NULL;
 
-	SCARG(&sa, sig) = OSF1_OSF12BSD_SIG(SCARG(uap, signum));
+	SCARG(&sa, sig) = SCARG(uap, signum);
 	SCARG(&sa, act) = nbsa;
 	SCARG(&sa, oact) = obsa;
 
@@ -394,7 +315,7 @@ osf1_signal(p, uap)
 
 	sg = stackgap_init();
 
-	signum = OSF1_OSF12BSD_SIG(OSF1_SIGNO(SCARG(uap, signum)));
+	signum = OSF1_SIGNO(SCARG(uap, signum));
 	if (signum <= 0 || signum > OSF1_NSIG) {
 		if (OSF1_SIGCALL(SCARG(uap, signum)) == OSF1_SIGNAL_MASK ||
 		    OSF1_SIGCALL(SCARG(uap, signum)) == OSF1_SIGDEFER_MASK)
@@ -635,7 +556,7 @@ osf1_kill(p, uap)
 	struct kill_args ka;
 
 	SCARG(&ka, pid) = SCARG(uap, pid);
-	SCARG(&ka, signum) = OSF1_OSF12BSD_SIG(SCARG(uap, signum));
+	SCARG(&ka, signum) = SCARG(uap, signum);
 	return kill(p, &ka);
 }
 
@@ -698,7 +619,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * Build the signal context to be used by sigreturn.
 	 */
 	ksi.si_sc.sc_onstack = oonstack;
-	SIG2OSIG(*mask, ksi.si_sc.sc_mask);
+	bsd_to_osf1_sigset(mask, &ksi.si_sc.sc_mask);
 	ksi.si_sc.sc_pc = frame->tf_regs[FRAME_PC];
 	ksi.si_sc.sc_ps = frame->tf_regs[FRAME_PS];
 
@@ -787,7 +708,7 @@ osf1_sigreturn(struct proc *p,
 	 * sigmask is stored in sc_reserved, sc_mask is only used for
 	 * backward compatibility.
 	 */
-	SIGSETOLD(p->p_sigmask, ksc.sc_mask);
+	osf1_to_bsd_sigset(&ksc.sc_mask, &p->p_sigmask);
 	SIG_CANTMASK(p->p_sigmask);
 
 	set_regs(p, (struct reg *)ksc.sc_regs);
