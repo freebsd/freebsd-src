@@ -114,18 +114,18 @@ in up to
 flag is specified) arguments to
 .Ar utility
 with the entire line of input.
-The resulting arguments after replacement is done will not be allowed to grow
-beyond 255 bytes, this is implemented by concatenating as much of the argument
+The resulting arguments, after replacement is done, will not be allowed to grow
+beyond 255 bytes; this is implemented by concatenating as much of the argument
 containing
 .Ar replstr
-as possible to the constructed arguments to
-.Ar utility
+as possible, to the constructed arguments to
+.Ar utility ,
 up to 255 bytes.
 The 255 byte limit does not apply to arguments to
 .Ar utility
 which do not contain
 .Ar replstr ,
-and furthermore no replacement will be done on
+and furthermore, no replacement will be done on
 .Ar utility
 itself.
 Implies
@@ -163,12 +163,12 @@ directory to
 .Dl /bin/ls -1d [A-Z]* | xargs -J [] cp -rp [] destdir
 .Pp
 .It Fl L Ar number
-Calls
+Call
 .Ar utility
 for every
 .Ar number
 lines read.
-If EOF is reached and fewer lines have been read than   
+If EOF is reached and fewer lines have been read than
 .Ar number
 then
 .Ar utility
@@ -201,7 +201,7 @@ causes the command to be executed, any other response causes it to be
 skipped.
 No commands are executed if the process is not attached to a terminal.
 .It Fl R Ar replacements
-This option specifies the maximum number of arguments that 
+Specify the maximum number of arguments that
 .Fl I
 will do replacement in.
 .It Fl s Ar size
