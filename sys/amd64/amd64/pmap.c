@@ -770,7 +770,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 		return 0;
 	PMAP_LOCK(pmap);
 	pdep = pmap_pde(pmap, va);
-	if (pdep) {
+	if (pdep != NULL) {
 		pde = *pdep;
 		if (pde) {
 			if ((pde & PG_PS) != 0) {
@@ -786,7 +786,6 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	}
 	PMAP_UNLOCK(pmap);
 	return 0;
-
 }
 
 /*
@@ -1480,7 +1479,6 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 static void
 pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
 {
-
 	pv_entry_t pv;
 
 	pv = get_pv_entry();
@@ -1492,7 +1490,6 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
 	TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	m->md.pv_list_count++;
-
 	vm_page_unlock_queues();
 }
 
