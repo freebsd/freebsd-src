@@ -2428,7 +2428,7 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
  * 
  */
 int
-bktr_mmap( dev_t dev, int offset, int nprot )
+bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
 {
 	int		unit;
 	bktr_ptr_t	bktr;

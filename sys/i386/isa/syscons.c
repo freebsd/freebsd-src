@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.38 1998/11/03 02:39:06 yokota Exp $
+ *  $Id: syscons.c,v 1.182.2.39 1998/11/13 14:00:15 yokota Exp $
  */
 
 #include "sc.h"
@@ -4098,7 +4098,7 @@ next_code:
 }
 
 int
-scmmap(dev_t dev, int offset, int nprot)
+scmmap(dev_t dev, vm_offset_t offset, int nprot)
 {
     if (offset > 0x20000 - PAGE_SIZE)
 	return -1;

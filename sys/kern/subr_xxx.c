@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_xxx.c,v 1.4 1995/09/10 21:35:51 bde Exp $
+ * $Id: subr_xxx.c,v 1.5 1995/11/06 00:35:51 bde Exp $
  */
 
 /*
@@ -161,7 +161,7 @@ noselect(dev, rw, p)
 int
 nommap(dev, offset, nprot)
 	dev_t dev;
-	int offset;
+	vm_offset_t offset;
 	int nprot;
 {
 
