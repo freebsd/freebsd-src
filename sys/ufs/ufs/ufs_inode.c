@@ -103,10 +103,10 @@ ufs_inactive(ap)
 		 * So, rather than creating a new entry point to do the
 		 * same thing, we just use softdep_change_linkcnt().
 		 */
-		DIP(ip, i_rdev) = 0;
+		DIP_SET(ip, i_rdev, 0);
 		mode = ip->i_mode;
 		ip->i_mode = 0;
-		DIP(ip, i_mode) = 0;
+		DIP_SET(ip, i_mode, 0);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (DOINGSOFTDEP(vp))
 			softdep_change_linkcnt(ip);

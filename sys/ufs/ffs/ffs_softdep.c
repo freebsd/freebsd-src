@@ -1968,15 +1968,15 @@ softdep_setup_freeblocks(ip, length, flags)
 	} else {
 		freeblks->fb_oldsize = ip->i_size;
 		ip->i_size = 0;
-		DIP(ip, i_size) = 0;
+		DIP_SET(ip, i_size, 0);
 		freeblks->fb_chkcnt = datablocks;
 		for (i = 0; i < NDADDR; i++) {
 			freeblks->fb_dblks[i] = DIP(ip, i_db[i]);
-			DIP(ip, i_db[i]) = 0;
+			DIP_SET(ip, i_db[i], 0);
 		}
 		for (i = 0; i < NIADDR; i++) {
 			freeblks->fb_iblks[i] = DIP(ip, i_ib[i]);
-			DIP(ip, i_ib[i]) = 0;
+			DIP_SET(ip, i_ib[i], 0);
 		}
 		/*
 		 * If the file was removed, then the space being freed was
@@ -1997,7 +1997,7 @@ softdep_setup_freeblocks(ip, length, flags)
 			ip->i_din2->di_extb[i] = 0;
 		}
 	}
-	DIP(ip, i_blocks) -= freeblks->fb_chkcnt;
+	DIP_SET(ip, i_blocks, DIP(ip, i_blocks) - freeblks->fb_chkcnt);
 	/*
 	 * Push the zero'ed inode to to its disk buffer so that we are free
 	 * to delete its dependencies below. Once the dependencies are gone
@@ -2510,7 +2510,8 @@ handle_workitem_freeblocks(freeblks, flags)
 	    VFS_VGET(freeblks->fb_mnt, freeblks->fb_previousinum,
 	    (flags & LK_NOWAIT) | LK_EXCLUSIVE, &vp) == 0) {
 		ip = VTOI(vp);
-		DIP(ip, i_blocks) += freeblks->fb_chkcnt - blocksreleased;
+		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + \
+		    freeblks->fb_chkcnt - blocksreleased);
 		ip->i_flag |= IN_CHANGE;
 		vput(vp);
 	}
@@ -3315,7 +3316,7 @@ handle_workitem_remove(dirrem, xp)
 	 */
 	if ((dirrem->dm_state & RMDIR) == 0) {
 		ip->i_nlink--;
-		DIP(ip, i_nlink) = ip->i_nlink;
+		DIP_SET(ip, i_nlink, ip->i_nlink);
 		ip->i_flag |= IN_CHANGE;
 		if (ip->i_nlink < ip->i_effnlink) {
 			FREE_LOCK(&lk);
@@ -3336,7 +3337,7 @@ handle_workitem_remove(dirrem, xp)
 	 * the parent decremented to account for the loss of "..".
 	 */
 	ip->i_nlink -= 2;
-	DIP(ip, i_nlink) = ip->i_nlink;
+	DIP_SET(ip, i_nlink, ip->i_nlink);
 	ip->i_flag |= IN_CHANGE;
 	if (ip->i_nlink < ip->i_effnlink) {
 		FREE_LOCK(&lk);

@@ -152,7 +152,7 @@ retry:
 		cg = dtog(fs, bpref);
 	bno = ffs_hashalloc(ip, cg, bpref, size, ffs_alloccg);
 	if (bno > 0) {
-		DIP(ip, i_blocks) += btodb(size);
+		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + btodb(size));
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		*bnp = bno;
 		return (0);
@@ -256,7 +256,7 @@ retry:
 	if (bno) {
 		if (bp->b_blkno != fsbtodb(fs, bno))
 			panic("ffs_realloccg: bad blockno");
-		DIP(ip, i_blocks) += btodb(nsize - osize);
+		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + btodb(nsize - osize));
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
@@ -324,7 +324,7 @@ retry:
 		if (nsize < request)
 			ffs_blkfree(fs, ip->i_devvp, bno + numfrags(fs, nsize),
 			    (long)(request - nsize), ip->i_number);
-		DIP(ip, i_blocks) += btodb(nsize - osize);
+		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + btodb(nsize - osize));
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
@@ -874,16 +874,16 @@ ffs_valloc(pvp, mode, cred, vpp)
 	if (DIP(ip, i_blocks) && (fs->fs_flags & FS_UNCLEAN) == 0) {  /* XXX */
 		printf("free inode %s/%lu had %ld blocks\n",
 		    fs->fs_fsmnt, (u_long)ino, (long)DIP(ip, i_blocks));
-		DIP(ip, i_blocks) = 0;
+		DIP_SET(ip, i_blocks, 0);
 	}
 	ip->i_flags = 0;
-	DIP(ip, i_flags) = 0;
+	DIP_SET(ip, i_flags, 0);
 	/*
 	 * Set up a new generation number for this inode.
 	 */
 	if (ip->i_gen == 0 || ++ip->i_gen == 0)
 		ip->i_gen = arc4random() / 2 + 1;
-	DIP(ip, i_gen) = ip->i_gen;
+	DIP_SET(ip, i_gen, ip->i_gen);
 	if (fs->fs_magic == FS_UFS2_MAGIC) {
 		vfs_timestamp(&ts);
 		ip->i_din2->di_birthtime = ts.tv_sec;
@@ -2268,7 +2268,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			break;
 		ip = VTOI(vp);
 		ip->i_nlink += cmd.size;
-		DIP(ip, i_nlink) = ip->i_nlink;
+		DIP_SET(ip, i_nlink, ip->i_nlink);
 		ip->i_effnlink += cmd.size;
 		ip->i_flag |= IN_CHANGE;
 		if (DOINGSOFTDEP(vp))
@@ -2287,7 +2287,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		if ((error = VFS_VGET(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
 			break;
 		ip = VTOI(vp);
-		DIP(ip, i_blocks) += cmd.size;
+		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + cmd.size);
 		ip->i_flag |= IN_CHANGE;
 		vput(vp);
 		break;
