@@ -6,7 +6,7 @@
 
 T=/tmp/_motd
 rm -f $T
-strings /386bsd | grep version: | sed 's/version: /386BSD 0.1./' > $T
+strings /386bsd | grep version: | sed 's/version: /FreeBSD 1.0./' > $T
 echo "" >> $T
 sed '1,/^$/d' < /etc/motd >> $T
 cp $T /etc/motd
