@@ -53,14 +53,14 @@ pthread_suspend_np(pthread_t thread)
 			    _thread_seterrno(pthread,EINTR);
 			}
 			/* Suspend the thread. */
-			pthread->state = PS_SUSPENDED;
+			PTHREAD_NEW_STATE(pthread,PS_SUSPENDED);
 			ret = 0;
 		}
 	}
 	/* Check if thread was not found. */
 	if (ret == -1) {
 		/* No such thread */
-		_thread_seterrno(_thread_run,ESRCH);
+		errno = ESRCH;
 	}
 	return(ret);
 }

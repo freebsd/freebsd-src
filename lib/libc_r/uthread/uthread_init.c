@@ -44,7 +44,11 @@
 #include <machine/reg.h>
 #include <pthread.h>
 #include "pthread_private.h"
+extern int _thread_autoinit_dummy_decl;
 
+/*
+ * Threaded process initialization
+ */
 void
 _thread_init(void)
 {
@@ -52,15 +56,25 @@ _thread_init(void)
 	int             i;
 	struct sigaction act;
 
+	/* Ensure that the auto-initialization routine is linked in: */
+	_thread_autoinit_dummy_decl = 1;
+
 	/* Check if this function has already been called: */
-	if (_thread_initial) {
+	if (_thread_initial)
 		/* Only initialise the threaded application once. */
-	}
+		return;
+
+	/* Get the standard I/O flags before messing with them : */
+	for (i = 0; i < 3; i++)
+		if ((_pthread_stdio_flags[i] =
+		    _thread_sys_fcntl(i,F_GETFL, NULL)) == -1)
+			PANIC("Cannot get stdio flags");
+
 	/*
 	 * Create a pipe that is written to by the signal handler to prevent
 	 * signals being missed in calls to _thread_sys_select: 
 	 */
-	else if (_thread_sys_pipe(_thread_kern_pipe) != 0) {
+	if (_thread_sys_pipe(_thread_kern_pipe) != 0) {
 		/* Cannot create pipe, so abort: */
 		PANIC("Cannot create kernel pipe");
 	}

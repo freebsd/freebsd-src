@@ -62,7 +62,7 @@ shutdown(int fd, int how)
 		}
 		break;
 	default:
-		_thread_seterrno(_thread_run, EBADF);
+		errno =  EBADF;
 		ret = -1;
 		break;
 	}

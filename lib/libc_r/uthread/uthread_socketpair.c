@@ -41,19 +41,13 @@ int
 socketpair(int af, int type, int protocol, int pair[2])
 {
 	int             ret;
-	if (!((ret = _thread_sys_socketpair(af, type, protocol, pair)) < 0)) {
-		int             tmp_flags;
-
-		tmp_flags = _thread_sys_fcntl(pair[0], F_GETFL, 0);
-		_thread_sys_fcntl(pair[0], F_SETFL, tmp_flags | O_NONBLOCK);
-		_thread_fd_table[pair[0]]->flags = tmp_flags;
-
-		tmp_flags = _thread_sys_fcntl(pair[1], F_GETFL, 0);
-		_thread_sys_fcntl(pair[1], F_SETFL, tmp_flags | O_NONBLOCK);
-		_thread_fd_table[pair[1]]->flags = tmp_flags;
-
-		return (ret);
-	}
+	if (!((ret = _thread_sys_socketpair(af, type, protocol, pair)) < 0))
+		if (_thread_fd_table_init(pair[0]) != 0 ||
+		    _thread_fd_table_init(pair[1]) != 0) {
+			_thread_sys_close(pair[0]);
+			_thread_sys_close(pair[1]);
+			ret = -1;
+		}
 	return (-1);
 }
 #endif

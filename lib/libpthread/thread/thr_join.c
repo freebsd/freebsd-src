@@ -40,14 +40,40 @@ pthread_join(pthread_t pthread, void **thread_return)
 {
 	int             rval = 0;
 	int             status;
+	pthread_t	pthread1;
 
 	/* Block signals: */
 	_thread_kern_sig_block(&status);
 
-	/* Check if this thread has been detached: */
-	if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
+	/* Point to the first thread in the list: */
+	pthread1 = _thread_link_list;
+
+	/* Search for the thread to join to: */
+	while (pthread1 != NULL && pthread1 != pthread) {
+		/* Point to the next thread: */
+		pthread1 = pthread1->nxt;
+	}
+
+	if (pthread1 == NULL) {
+		/* Point to the first thread in the dead thread list: */
+		pthread1 = _thread_dead;
+
+		/* Search for the thread to join to: */
+		while (pthread1 != NULL && pthread1 != pthread) {
+			/* Point to the next thread: */
+			pthread1 = pthread1->nxt;
+		}
+	}
+
+	if (pthread1 == NULL) {
 		/* Return an error: */
-		_thread_seterrno(_thread_run, ESRCH);
+		errno = ESRCH;
+		rval = -1;
+
+	/* Check if this thread has been detached: */
+	} else if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
+		/* Return an error: */
+		errno = ESRCH;
 		rval = -1;
 	}
 	/* Check if the thread is not dead: */
@@ -70,7 +96,7 @@ pthread_join(pthread_t pthread, void **thread_return)
 			}
 		} else {
 			/* Return an error: */
-			_thread_seterrno(_thread_run, ESRCH);
+			errno = ESRCH;
 			rval = -1;
 		}
 	} else {
