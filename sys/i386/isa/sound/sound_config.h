@@ -118,6 +118,10 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #endif
 #endif
 
+#ifndef AWE32_BASE
+#define AWE32_BASE	0x620   /* Default = 0x620-3, 0xA20-3, 0xE20-3 */
+#endif
+
 #ifndef PAS_BASE
 #define PAS_BASE	0x388
 #endif
