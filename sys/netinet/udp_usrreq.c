@@ -353,7 +353,7 @@ udp_input(m, off, proto)
 			udpstat.udps_noportbcast++;
 			goto bad;
 		}
-		if (badport_bandlim(0) < 0)
+		if (badport_bandlim(BANDLIM_UNREACH) < 0)
 			goto bad;
 		if (blackhole)
 			goto bad;
