@@ -47,6 +47,8 @@ static const char rcsid[] =
 
 #include <unistd.h>
 
+int main __P((void));
+
 int
 main()
 {
