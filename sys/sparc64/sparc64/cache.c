@@ -152,6 +152,7 @@
 
 #include <sys/param.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>
@@ -163,12 +164,12 @@
 #include <machine/fsr.h>
 #include <machine/pcb.h>
 #include <machine/pmap.h>
+#include <machine/smp.h>
 #include <machine/tte.h>
 #include <machine/ver.h>
 #include <machine/vmparam.h>
 
-static struct cacheinfo cache;
-extern vm_offset_t cache_tmp_va;
+struct cacheinfo cache;
 
 /* Read to %g0, needed for E$ access. */
 #define	CDIAG_RDG0(asi, addr)						\
@@ -214,6 +215,64 @@ cache_init(phandle_t node)
 		panic("cache_init: E$ set size not a power of 2");
 	cache.c_enabled = 1; /* enable cache flushing */
 }
+
+void
+dcache_page_inval(vm_offset_t pa)
+{
+	u_long target;
+	void *cookie;
+	u_long addr;
+	u_long tag;
+
+	KASSERT((pa & PAGE_MASK) == 0,
+	    ("dcache_page_inval: pa not page aligned"));
+
+	if (!cache.c_enabled)
+		return;
+	target = pa >> (PAGE_SHIFT - DC_TAG_SHIFT);
+	critical_enter();
+	cookie = ipi_dcache_page_inval(pa);
+	for (addr = 0; addr < cache.dc_size; addr += cache.dc_linesize) {
+		tag = ldxa(addr, ASI_DCACHE_TAG);
+		if (((tag >> DC_VALID_SHIFT) & DC_VALID_MASK) == 0)
+			continue;
+		tag &= DC_TAG_MASK << DC_TAG_SHIFT;
+		if (tag == target)
+			stxa_sync(addr, ASI_DCACHE_TAG, tag);
+	}
+	ipi_wait(cookie);
+	critical_exit();
+}
+
+void
+icache_page_inval(vm_offset_t pa)
+{
+	register u_long tag __asm("%g1");
+	u_long target;
+	void *cookie;
+	u_long addr;
+
+	KASSERT((pa & PAGE_MASK) == 0,
+	    ("icache_page_inval: pa not page aligned"));
+
+	if (!cache.c_enabled)
+		return;
+	target = pa >> (PAGE_SHIFT - IC_TAG_SHIFT);
+	critical_enter();
+	cookie = ipi_icache_page_inval(pa);
+	for (addr = 0; addr < cache.ic_size; addr += cache.ic_linesize) {
+		__asm __volatile("ldda [%1] %2, %%g0" /*, %g1 */
+		    : "=r" (tag) : "r" (addr), "n" (ASI_ICACHE_TAG));
+		if (((tag >> IC_VALID_SHIFT) & IC_VALID_MASK) == 0)
+			continue;
+		tag &= IC_TAG_MASK << IC_TAG_SHIFT;
+		if (tag == target)
+			stxa_sync(addr, ASI_ICACHE_TAG, tag);
+	}
+	ipi_wait(cookie);
+	critical_exit();
+}
+
 
 /* Flush a range of addresses from I$ using the flush instruction. */
 void
