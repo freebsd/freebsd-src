@@ -200,17 +200,10 @@ kmemphys:
 			for (; addr < eaddr; addr += PAGE_SIZE) 
 				if (pmap_extract(kernel_pmap, addr) == 0)
 					return EFAULT;
-			
-#if defined(UVM)
-			if (!uvm_kernacc((caddr_t)v, c,
-			    uio->uio_rw == UIO_READ ? B_READ : B_WRITE))
-				return (EFAULT);
-#else
 			if (!kernacc((caddr_t)v, c,
 			    uio->uio_rw == UIO_READ ? 
 			    VM_PROT_READ : VM_PROT_WRITE))
 				return (EFAULT);
-#endif
 			error = uiomove((caddr_t)v, c, uio);
 			break;
 		}
