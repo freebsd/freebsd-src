@@ -10,6 +10,11 @@ which is the same as their path relative to src/, for example the uuencode(1)
 utility resides in src/usr.bin/uuencode so its regression test resides in
 src/tools/regression/usr.bin/uuencode.
 
+Base system regression tests should prefix their test results with 'PASS' or
+'FAIL' accordingly, to make checking for failed tests easier.  For now the
+tests are very free-form, and it's up to you to do that.  Eventually, it
+should be a part of the regression test framework.
+
 Please make a subdir per other regression test, and add a brief description to
 this file.
 

@@ -13,10 +13,10 @@ for test in traditional base64; do
   echo "Running test $test"
   uudecode -p < regress.$test.in | cmp regress.out -
   if [ $? -eq 0 ]; then
-    echo "Test $test detected no regression, output matches."
+    echo "PASS: Test $test detected no regression, output matches."
   else
     STATUS=$?
-    echo "Test $test failed: regression detected.  See above."
+    echo "FAIL: Test $test failed: regression detected.  See above."
   fi
 done
 
