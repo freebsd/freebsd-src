@@ -132,7 +132,7 @@ _pam_read_policy_file(pam_handle_t *pamh,
 		/* strip comments and trailing whitespace */
 		if ((p = strchr(buf, '#')) != NULL)
 			len = p - buf ? p - buf - 1 : p - buf;
-		while (len > 0 && isspace(buf[len]))
+		while (len > 0 && isspace(buf[len - 1]))
 			--len;
 		if (len == 0)
 			continue;

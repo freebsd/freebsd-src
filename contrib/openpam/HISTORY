@@ -1,4 +1,15 @@
 ============================================================================
+OpenPAM	Caliopsis						2002-02-13
+
+Fixed a number of bugs in the previous release, including:
+  - a number of bugs in and related to pam_[gs]et_item(3)
+  - off-by-one bug in pam_start.c would trim last character off certain
+    configuration lines
+  - incorrect ordering of an array in openpam_load.c would cause service
+    module functions to get mixed up
+  - missing 'continue' in openpam_dispatch.c caused successes to be
+    counted as failures
+============================================================================
 OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
