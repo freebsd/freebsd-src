@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.1 1997/04/22 06:55:32 jdp Exp $
+ * $Id: asnames.h,v 1.2 1997/05/21 22:56:59 jdp Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -210,7 +210,6 @@
 #define _generic_copyin			generic_copyin
 #define _generic_copyout		generic_copyout
 #define _get_mplock			get_mplock
-#define _hwisrs				hwisrs
 #define _i586_ctr_bias			i586_ctr_bias
 #define _i586_ctr_freq			i586_ctr_freq
 #define _i586_ctr_multiplier		i586_ctr_multiplier
@@ -295,6 +294,7 @@
 #define _trapwrite			trapwrite
 #define _tty_imask			tty_imask
 #define _userconfig_from_boot		userconfig_from_boot
+#define _vec				vec
 #define _vec8254			vec8254
 #define _vecRTC				vecRTC
 #define _vm_page_zero_idle		vm_page_zero_idle
