@@ -109,7 +109,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.3.2.3 1999/05/11 04:46:38 mjacob Exp $
+#	$Id: MAKEDEV,v 1.3.2.4 1999/07/09 13:24:59 sheldonh Exp $
 #	from etc.i386 MAKEDEV,v 1.171 1998/09/15 10:21:35 gibbs Exp
 #
 
@@ -731,7 +731,7 @@ ppi*)
 
 pps*)
 	unit=`expr $i : 'pps\(.*\)'`
-	mknod ppi$unit c 89 $unit
+	mknod pps$unit c 89 $unit
 	;;
 
 wst*)
