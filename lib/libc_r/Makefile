@@ -31,7 +31,7 @@ SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
 SYMLINKS+=lib${LIB}.so ${SHLIBDIR}/libpthread.so
 .endif
 .if !defined(NOPROFILE)
-SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread.a
+SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
 .endif
 .endif
 
