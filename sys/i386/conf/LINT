@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.38 1998/01/08 12:36:07 jkh Exp $
+#	$Id: LINT,v 1.286.2.39 1998/01/16 22:28:39 pst Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -831,7 +831,6 @@ device		lpt1	at isa? port "IO_LPT3" tty irq 5 vector lptintr
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 # Options for psm:
-options		PSM_CHECKSYNC		#checks the header byte for sync.
 options		PSM_HOOKAPM		#hook the APM resume event, useful
 					#for some laptops
 options		PSM_RESETAFTERSUSPEND	#reset the device at the resume event
@@ -1199,9 +1198,7 @@ options		MSGSSZ=16
 options		MSGTQL=41
 options		NBUF=512
 options		NMBCLUSTERS=1024
-options		PSM_ACCEL=1
 options		PSM_DEBUG=1
-options		PSM_EMULATION
 options		"SCSI_2_DEF"
 options		SCSI_DELAY=8	# Be pessimistic about Joe SCSI device
 options		SCSI_NCR_DEBUG

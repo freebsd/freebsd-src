@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.25.2.3 1997/09/04 12:40:29 kato Exp $
+ *	$Id: console.h,v 1.25.2.4 1997/10/02 02:05:27 jkh Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -108,19 +108,21 @@ struct vt_mode {
 	short	frsig;			/* not implemented yet	SOS	*/
 };
 
-#define	RIGHT_BUTTON		0x01
-#define	MIDDLE_BUTTON		0x02
-#define	LEFT_BUTTON		0x04
-
 struct mouse_data {
 	int	x;
 	int 	y;
+	int 	z;
 	int 	buttons;
 };
 
 struct mouse_mode {
 	int	mode;
 	int	signal;
+};
+
+struct mouse_event {
+	int	id;			/* one based */
+	int	value;
 };
 
 #define MOUSE_SHOW		0x01
@@ -130,12 +132,15 @@ struct mouse_mode {
 #define MOUSE_GETINFO		0x05
 #define MOUSE_MODE		0x06
 #define MOUSE_ACTION		0x07
+#define MOUSE_MOTION_EVENT	0x08
+#define MOUSE_BUTTON_EVENT	0x09
 
 struct mouse_info {
 	int	operation;
 	union {
 		struct mouse_data data;
 		struct mouse_mode mode;
+		struct mouse_event event;
 	}u;
 };
 
