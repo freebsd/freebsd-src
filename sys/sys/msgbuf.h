@@ -38,19 +38,37 @@
 #define _SYS_MSGBUF_H_
 
 struct msgbuf {
+	char	*msg_ptr;		/* pointer to buffer */
 #define	MSG_MAGIC	0x063062
 	u_int	msg_magic;
-	int	msg_size;		/* size of buffer area */
-	int	msg_bufx;		/* write pointer */
-	int	msg_bufr;		/* read pointer */
-	char	*msg_ptr;		/* pointer to buffer */
+	u_int	msg_size;		/* size of buffer area */
+	u_int	msg_wseq;		/* write sequence number */
+	u_int	msg_rseq;		/* read sequence number */
 	u_int	msg_cksum;		/* checksum of contents */
+	u_int	msg_seqmod;		/* range for sequence numbers */
 };
+
+/* Normalise a sequence number or a difference between sequence numbers */
+#define MSGBUF_SEQNORM(mbp, seq) (((seq) + (mbp)->msg_seqmod) % \
+    (mbp)->msg_seqmod)
+#define MSGBUF_SEQ_TO_POS(mbp, seq) ((seq) % (mbp)->msg_size)
+/* Subtract sequence numbers, but note that only positive values result. */
+#define MSGBUF_SEQSUB(mbp, seq1, seq2) (MSGBUF_SEQNORM((mbp), (seq1) - (seq2)))
 
 #ifdef _KERNEL
 extern int	msgbuftrigger;
 extern struct	msgbuf *msgbufp;
 void	msgbufinit(void *ptr, int size);
+void	msgbuf_addchar(struct msgbuf *mbp, int c);
+void	msgbuf_clear(struct msgbuf *mbp);
+void	msgbuf_copy(struct msgbuf *src, struct msgbuf *dst);
+int	msgbuf_getbytes(struct msgbuf *mbp, char *buf, int buflen);
+int	msgbuf_getchar(struct msgbuf *mbp);
+int	msgbuf_getcount(struct msgbuf *mbp);
+void	msgbuf_init(struct msgbuf *mbp, void *ptr, int size);
+void	msgbuf_reinit(struct msgbuf *mbp, void *ptr, int size);
+int	msgbuf_peekbytes(struct msgbuf *mbp, char *buf, int buflen,
+	    u_int *seqp);
 
 #if !defined(MSGBUF_SIZE)
 #define	MSGBUF_SIZE	32768

@@ -126,11 +126,12 @@ logclose(dev_t dev, int flag, int mode, struct thread *td)
 static	int
 logread(dev_t dev, struct uio *uio, int flag)
 {
+	char buf[128];
 	struct msgbuf *mbp = msgbufp;
 	int error = 0, l, s;
 
 	s = splhigh();
-	while (mbp->msg_bufr == mbp->msg_bufx) {
+	while (msgbuf_getcount(mbp) == 0) {
 		if (flag & IO_NDELAY) {
 			splx(s);
 			return (EWOULDBLOCK);
@@ -145,19 +146,13 @@ logread(dev_t dev, struct uio *uio, int flag)
 	logsoftc.sc_state &= ~LOG_RDWAIT;
 
 	while (uio->uio_resid > 0) {
-		l = mbp->msg_bufx - mbp->msg_bufr;
-		if (l < 0)
-			l = mbp->msg_size - mbp->msg_bufr;
-		l = imin(l, uio->uio_resid);
+		l = imin(sizeof(buf), uio->uio_resid);
+		l = msgbuf_getbytes(mbp, buf, l);
 		if (l == 0)
 			break;
-		error = uiomove((char *)msgbufp->msg_ptr + mbp->msg_bufr,
-		    l, uio);
+		error = uiomove(buf, l, uio);
 		if (error)
 			break;
-		mbp->msg_bufr += l;
-		if (mbp->msg_bufr >= mbp->msg_size)
-			mbp->msg_bufr = 0;
 	}
 	return (error);
 }
@@ -172,7 +167,7 @@ logpoll(dev_t dev, int events, struct thread *td)
 	s = splhigh();
 
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (msgbufp->msg_bufr != msgbufp->msg_bufx)
+		if (msgbuf_getcount(msgbufp) > 0)
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(td, &logsoftc.sc_selp);
@@ -212,18 +207,12 @@ logtimeout(void *arg)
 static	int
 logioctl(dev_t dev, u_long com, caddr_t data, int flag, struct thread *td)
 {
-	int l, s;
 
 	switch (com) {
 
 	/* return number of characters immediately available */
 	case FIONREAD:
-		s = splhigh();
-		l = msgbufp->msg_bufx - msgbufp->msg_bufr;
-		splx(s);
-		if (l < 0)
-			l += msgbufp->msg_size;
-		*(int *)data = l;
+		*(int *)data = msgbuf_getcount(msgbufp);
 		break;
 
 	case FIONBIO:

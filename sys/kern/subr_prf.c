@@ -93,8 +93,6 @@ struct	tty *constty;			/* pointer to console "window" tty */
 
 static void (*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
 static void  msglogchar(int c, int pri);
-static void  msgaddchar(int c, void *dummy);
-static u_int msgbufcksum(char *cp, size_t size, u_int cksum);
 static void  putchar(int ch, void *arg);
 static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len);
 static void  snprintf_func(int ch, void *arg);
@@ -788,56 +786,21 @@ msglogchar(int c, int pri)
 		return;
 	if (pri != -1 && pri != lastpri) {
 		if (dangling) {
-			msgaddchar('\n', NULL);
+			msgbuf_addchar(msgbufp, '\n');
 			dangling = 0;
 		}
-		msgaddchar('<', NULL);
+		msgbuf_addchar(msgbufp, '<');
 		for (p = ksprintn(nbuf, (uintmax_t)pri, 10, NULL); *p;)
-			msgaddchar(*p--, NULL);
-		msgaddchar('>', NULL);
+			msgbuf_addchar(msgbufp, *p--);
+		msgbuf_addchar(msgbufp, '>');
 		lastpri = pri;
 	}
-	msgaddchar(c, NULL);
+	msgbuf_addchar(msgbufp, c);
 	if (c == '\n') {
 		dangling = 0;
 		lastpri = -1;
 	} else {
 		dangling = 1;
-	}
-}
-
-/*
- * Put char in log buffer
- */
-static void
-msgaddchar(int c, void *dummy)
-{
-	struct msgbuf *mbp;
-
-	if (!msgbufmapped)
-		return;
-	mbp = msgbufp;
-	mbp->msg_cksum += (u_char)c - (u_char)mbp->msg_ptr[mbp->msg_bufx];
-	mbp->msg_ptr[mbp->msg_bufx++] = c;
-	if (mbp->msg_bufx >= mbp->msg_size)
-		mbp->msg_bufx = 0;
-	/* If the buffer is full, keep the most recent data. */
-	if (mbp->msg_bufr == mbp->msg_bufx) {
-		if (++mbp->msg_bufr >= mbp->msg_size)
-			mbp->msg_bufr = 0;
-	}
-}
-
-static void
-msgbufcopy(struct msgbuf *oldp)
-{
-	int pos;
-
-	pos = oldp->msg_bufr;
-	while (pos != oldp->msg_bufx) {
-		msglogchar(oldp->msg_ptr[pos], -1);
-		if (++pos >= oldp->msg_size)
-			pos = 0;
 	}
 }
 
@@ -849,37 +812,12 @@ msgbufinit(void *ptr, int size)
 
 	size -= sizeof(*msgbufp);
 	cp = (char *)ptr;
-	msgbufp = (struct msgbuf *) (cp + size);
-	if (msgbufp->msg_magic != MSG_MAGIC || msgbufp->msg_size != size ||
-	    msgbufp->msg_bufx >= size || msgbufp->msg_bufx < 0 ||
-	    msgbufp->msg_bufr >= size || msgbufp->msg_bufr < 0 ||
-	    msgbufcksum(cp, size, msgbufp->msg_cksum) != msgbufp->msg_cksum) {
-		bzero(cp, size);
-		bzero(msgbufp, sizeof(*msgbufp));
-		msgbufp->msg_magic = MSG_MAGIC;
-		msgbufp->msg_size = size;
-	}
-	msgbufp->msg_ptr = cp;
+	msgbufp = (struct msgbuf *)(cp + size);
+	msgbuf_reinit(msgbufp, cp, size);
 	if (msgbufmapped && oldp != msgbufp)
-		msgbufcopy(oldp);
+		msgbuf_copy(oldp, msgbufp);
 	msgbufmapped = 1;
 	oldp = msgbufp;
-}
-
-static u_int
-msgbufcksum(char *cp, size_t size, u_int cksum)
-{
-	u_int sum;
-	int i;
-
-	sum = 0;
-	for (i = 0; i < size; i++)
-		sum += (u_char)cp[i];
-	if (sum != cksum)
-		printf("msgbuf cksum mismatch (read %x, calc %x)\n", cksum,
-		    sum);
-
-	return (sum);
 }
 
 SYSCTL_DECL(_security_bsd);
@@ -893,7 +831,9 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_read_msgbuf,
 static int
 sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 {
-	int error;
+	char buf[128];
+	u_int seq;
+	int error, len;
 
 	if (!unprivileged_read_msgbuf) {
 		error = suser(req->td);
@@ -901,25 +841,20 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 			return (error);
 	}
 
-	/*
-	 * Unwind the buffer, so that it's linear (possibly starting with
-	 * some initial nulls).
-	 */
-	error = sysctl_handle_opaque(oidp, msgbufp->msg_ptr + msgbufp->msg_bufx,
-	    msgbufp->msg_size - msgbufp->msg_bufx, req);
-	if (error)
-		return (error);
-	if (msgbufp->msg_bufx > 0) {
-		error = sysctl_handle_opaque(oidp, msgbufp->msg_ptr,
-		    msgbufp->msg_bufx, req);
+	/* Read the whole buffer, one chunk at a time. */
+	msgbuf_peekbytes(msgbufp, NULL, 0, &seq);
+	while ((len = msgbuf_peekbytes(msgbufp, buf, sizeof(buf), &seq)) > 0) {
+		error = sysctl_handle_opaque(oidp, buf, len, req);
+		if (error)
+			return (error);
 	}
-	return (error);
+	return (0);
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, msgbuf, CTLTYPE_STRING | CTLFLAG_RD,
     0, 0, sysctl_kern_msgbuf, "A", "Contents of kernel message buffer");
 
-static int msgbuf_clear;
+static int msgbuf_clearflag;
 
 static int
 sysctl_kern_msgbuf_clear(SYSCTL_HANDLER_ARGS)
@@ -927,17 +862,14 @@ sysctl_kern_msgbuf_clear(SYSCTL_HANDLER_ARGS)
 	int error;
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
 	if (!error && req->newptr) {
-		/* Clear the buffer and reset write pointer */
-		bzero(msgbufp->msg_ptr, msgbufp->msg_size);
-		msgbufp->msg_bufr = msgbufp->msg_bufx = 0;
-		msgbufp->msg_cksum = 0;
-		msgbuf_clear = 0;
+		msgbuf_clear(msgbufp);
+		msgbuf_clearflag = 0;
 	}
 	return (error);
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, msgbuf_clear,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, &msgbuf_clear, 0,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, &msgbuf_clearflag, 0,
     sysctl_kern_msgbuf_clear, "I", "Clear kernel message buffer");
 
 #ifdef DDB
@@ -951,11 +883,11 @@ DB_SHOW_COMMAND(msgbuf, db_show_msgbuf)
 		return;
 	}
 	db_printf("msgbufp = %p\n", msgbufp);
-	db_printf("magic = %x, size = %d, r= %d, w = %d, ptr = %p, cksum= %d\n",
-	    msgbufp->msg_magic, msgbufp->msg_size, msgbufp->msg_bufr,
-	    msgbufp->msg_bufx, msgbufp->msg_ptr, msgbufp->msg_cksum);
+	db_printf("magic = %x, size = %d, r= %u, w = %u, ptr = %p, cksum= %u\n",
+	    msgbufp->msg_magic, msgbufp->msg_size, msgbufp->msg_rseq,
+	    msgbufp->msg_wseq, msgbufp->msg_ptr, msgbufp->msg_cksum);
 	for (i = 0; i < msgbufp->msg_size; i++) {
-		j = (i + msgbufp->msg_bufr) % msgbufp->msg_size;
+		j = MSGBUF_SEQ_TO_POS(msgbufp, i + msgbufp->msg_rseq);
 		db_printf("%c", msgbufp->msg_ptr[j]);
 	}
 	db_printf("\n");
