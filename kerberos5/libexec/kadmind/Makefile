@@ -28,7 +28,7 @@ LDADD=	-lkrb5 -lroken ${LIBVERS} -lkadm5srv -lhdb \
 DPADD=	${LIBKRB5} ${LIBROKEN} ${LIBVERS} ${LIBKADM5SRV} ${LIBHDB} \
 	${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LDAPLIBS}
 
-NOMAN=	yes
+MAN=	kadmind.8
 
 .include <bsd.prog.mk>
 
