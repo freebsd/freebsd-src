@@ -128,18 +128,20 @@ struct lnc_softc {
 } lnc_softc[NLNC];
 
 /* Function prototypes */
-int bicc_probe(struct isa_device *);
-int depca_probe(struct isa_device *);
-int lance_probe(int);
-int ne2100_probe(struct isa_device *);
-int pcnet_probe(int);
-void lnc_init(int);
-void lnc_start(struct ifnet *);
-int  lnc_ioctl(struct ifnet *, int, caddr_t);
-void lnc_watchdog(int);
-int  lnc_probe(struct isa_device *);
-int  lnc_attach(struct isa_device *);
-void lnc_dump_state(int);
+static int bicc_probe(struct isa_device *);
+static int depca_probe(struct isa_device *);
+static int lance_probe(int);
+static int ne2100_probe(struct isa_device *);
+static int pcnet_probe(int);
+static void lnc_init(int);
+static void lnc_start(struct ifnet *);
+static int  lnc_ioctl(struct ifnet *, int, caddr_t);
+static void lnc_watchdog(int);
+static int  lnc_probe(struct isa_device *);
+static int  lnc_attach(struct isa_device *);
+#ifdef DEBUG
+static void lnc_dump_state(int);
+#endif /* DEBUG */
 
 struct isa_driver lncdriver = {lnc_probe, lnc_attach, "lnc"};
 
@@ -214,25 +216,27 @@ lnc_registerdev(struct isa_device *isa_dev)
 }
 
 
-void
+#ifdef notyet
+static void
 lnc_setladrf(struct ifnet *ifp, struct lnc_softc *sc)
 {
 
 }
+#endif /* notyet */
 
-void
+static void
 lnc_stop(int unit)
 {
 	write_csr(unit, CSR0, STOP);
 }
 
-void
+static void
 lnc_reset(int unit)
 {
 	lnc_init(unit);
 }
 
-void
+static void
 lnc_free_mbufs(struct lnc_softc *sc)
 {
 	int i;
@@ -254,7 +258,7 @@ lnc_free_mbufs(struct lnc_softc *sc)
 		m_freem(sc->mbufs);
 }
 
-inline int
+static inline int
 alloc_mbuf_cluster(struct lnc_softc *sc, struct host_ring_entry *desc)
 {
 	register struct mds *md = desc->md;
@@ -287,7 +291,7 @@ alloc_mbuf_cluster(struct lnc_softc *sc, struct host_ring_entry *desc)
 	return(0);
 }
 
-inline struct mbuf *
+static inline struct mbuf *
 chain_mbufs(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 {
 	struct mbuf *head, *m;
@@ -321,7 +325,7 @@ chain_mbufs(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 	return(head);
 }
 
-inline struct mbuf *
+static inline struct mbuf *
 mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 {
 
@@ -396,7 +400,7 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 }
 
 
-inline void
+static inline void
 lnc_rint(int unit)
 {
 	register struct lnc_softc *sc = &lnc_softc[unit];
@@ -586,7 +590,7 @@ lnc_rint(int unit)
 	outw(sc->rdp, RINT | INEA);
 }
 
-inline void
+static inline void
 lnc_tint(int unit)
 {
 	register struct lnc_softc *sc = &lnc_softc[unit];
@@ -821,7 +825,7 @@ lnc_tint(int unit)
 
 }
 
-int
+static int
 lnc_probe(struct isa_device * isa_dev)
 {
 	int nports;
@@ -849,7 +853,7 @@ lnc_probe(struct isa_device * isa_dev)
 	return (0);
 }
 
-int
+static int
 ne2100_probe(struct isa_device * isa_dev)
 {
 	struct lnc_softc *sc = &lnc_softc[isa_dev->id_unit];
@@ -876,7 +880,7 @@ ne2100_probe(struct isa_device * isa_dev)
 	}
 }
 
-int
+static int
 bicc_probe(struct isa_device * isa_dev)
 {
 struct lnc_softc *sc = &lnc_softc[isa_dev->id_unit];
@@ -919,7 +923,7 @@ int i;
  * you get the next byte in the ring. The mac address is stored after a
  * signature so keep searching for the signature first.
  */
-int
+static int
 dec_macaddr_extract(u_char ring[], struct lnc_softc * sc)
 {
 	const unsigned char signature[] = {0xff, 0x00, 0x55, 0xaa, 0xff, 0x00, 0x55, 0xaa};
@@ -945,7 +949,7 @@ dec_macaddr_extract(u_char ring[], struct lnc_softc * sc)
 	return (0);
 }
 
-int
+static int
 depca_probe(struct isa_device * isa_dev)
 {
 	int i;
@@ -970,7 +974,7 @@ depca_probe(struct isa_device * isa_dev)
 	return (0);
 }
 
-int
+static int
 lance_probe(int unit)
 {
 	write_csr(unit, CSR0, STOP);
@@ -990,7 +994,7 @@ lance_probe(int unit)
 		return (UNKNOWN);
 }
 
-int
+static int
 pcnet_probe(int unit)
 {
 	u_long chip_id;
@@ -1026,7 +1030,7 @@ pcnet_probe(int unit)
 	return (type);
 }
 
-int
+static int
 lnc_attach(struct isa_device * isa_dev)
 {
 	struct lnc_softc *sc = &lnc_softc[isa_dev->id_unit];
@@ -1113,7 +1117,7 @@ lnc_attach(struct isa_device * isa_dev)
 	return (1);
 }
 
-void
+static void
 lnc_init(int unit)
 {
 	struct lnc_softc *sc = &lnc_softc[unit];
@@ -1371,7 +1375,7 @@ lncintr(int unit)
 
 
 
-inline int
+static inline int
 mbuf_to_buffer(struct mbuf *m, char *buffer)
 {
 
@@ -1386,7 +1390,7 @@ mbuf_to_buffer(struct mbuf *m, char *buffer)
 	return(len);
 }
 
-inline struct mbuf *
+static inline struct mbuf *
 chain_to_cluster(struct mbuf *m)
 {
 	struct mbuf *new;
@@ -1411,7 +1415,7 @@ chain_to_cluster(struct mbuf *m)
  * flags should be ok at those points too.
  */
 
-void
+static void
 lnc_start(struct ifnet *ifp)
 {
 
@@ -1569,7 +1573,7 @@ lnc_start(struct ifnet *ifp)
 	LNCSTATS(trans_ring_full)
 }
 
-int
+static int
 lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 {
 
@@ -1663,7 +1667,7 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 	return error;
 }
 
-void
+static void
 lnc_watchdog(int unit)
 {
 	log(LOG_ERR, "lnc%d: Device timeout -- Resetting\n", unit);
@@ -1672,7 +1676,7 @@ lnc_watchdog(int unit)
 }
 
 #ifdef DEBUG
-void
+static void
 lnc_dump_state(int unit)
 {
 	struct lnc_softc *sc = &lnc_softc[unit];
@@ -1723,7 +1727,7 @@ lnc_dump_state(int unit)
 	outw(sc->rap, CSR0);
 }
 
-void
+static void
 mbuf_dump_chain(struct mbuf * m)
 {
 

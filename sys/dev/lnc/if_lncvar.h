@@ -100,12 +100,12 @@
 #define TRANS_MD3 \
 	"\20\6BUFF\5UFLO\4RES\3LCOL\2LCAR\1RTRY"
 
-char *nic_ident[] = {"Unknown",
+static char *nic_ident[] = {"Unknown",
                      "BICC",
                      "NE2100",
                      "DEPCA"};
 
-char *ic_ident[] =  {"Unknown",
+static char *ic_ident[] =  {"Unknown",
                      "LANCE, Am7990",
                      "C-LANCE, Am79C90",
                      "PCnet-ISA, Am79C960",
