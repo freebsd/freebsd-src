@@ -39,6 +39,9 @@
 #define	IQE_SHIFT	5
 #define	IV_SHIFT	5
 
+#define	PIL_LOW		1	/* stray interrupts */
+#define	PIL_ITHREAD	2	/* interrupts that use ithreads */
+#define	PIL_FAST	13	/* fast interrupts */
 #define	PIL_TICK	14
 
 typedef	void ih_func_t(struct trapframe *);
@@ -62,11 +65,14 @@ struct intr_queue {
 	u_long	iq_tail;
 };
 
+struct ithd;
+
 struct intr_vector {
 	iv_func_t *iv_func;		/* must be first */
 	void	*iv_arg;
+	struct	ithd *iv_ithd;
 	u_int	iv_pri;
-	u_int	iv_pad[3];
+	int	iv_stray;
 };
 
 extern struct intr_handler intr_handlers[];
@@ -81,6 +87,10 @@ intr_dispatch(int level, struct trapframe *tf)
 
 void	intr_setup(int level, ih_func_t *ihf, int pri, iv_func_t *ivf,
 		   void *iva);
+void	intr_init(void);
+int	inthand_add(const char *name, int vec, void (*handler)(void *),
+    void *arg, int flags, void **cookiep);
+int	inthand_remove(int vec, void *cookie);
 
 ih_func_t intr_dequeue;
 

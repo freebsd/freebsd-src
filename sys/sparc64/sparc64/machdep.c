@@ -53,6 +53,8 @@
 #include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
 #include <sys/ptrace.h>
 #include <sys/signalvar.h>
 #include <sys/sysent.h>
@@ -163,6 +165,7 @@ cpu_startup(void *arg)
 
 	globaldata_register(globalp);
 
+	intr_init();
 	tick_start(clock, tick_hardclock);
 }
 
