@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $Id: ufs_bmap.c,v 1.21 1998/07/04 20:45:39 julian Exp $
+ * $Id: ufs_bmap.c,v 1.22 1998/08/18 03:54:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -149,9 +149,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 		 */
 		devvp = ip->i_devvp;
 
-		if (devvp && devvp->v_type == VBLK &&
-			(devvp->v_rdev != NODEV) &&
-			(major(devvp->v_rdev) < nblkdev)) {
+		if (devvp != NULL && devvp->v_type == VBLK) {
 			if (bdevsw[major(devvp->v_rdev)]->d_maxio > MAXPHYS) {
 				maxrun = MAXPHYS;
 				vp->v_maxio = MAXPHYS;
