@@ -17,8 +17,4 @@ MLINKS+=queue.3 circleq_insert_tail.3 queue.3 circleq_remove.3
 MLINKS+=stdarg.3 varargs.3 stdarg.3 va_arg.3 stdarg.3 va_end.3
 MLINKS+=stdarg.3 va_start.3
 
-clean depend lint tags:
-
-install: maninstall
-
 .include <bsd.prog.mk>
