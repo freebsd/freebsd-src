@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.18 1997/08/25 06:40:05 charnier Exp $";
+	"$Id: vmstat.c,v 1.19 1997/10/06 18:52:16 dima Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -100,8 +100,8 @@ struct nlist namelist[] = {
 	{ "_intrcnt" },
 #define	X_EINTRCNT	11
 	{ "_eintrcnt" },
-#define	X_KMEMSTAT	12
-	{ "_kmemstats" },
+#define	X_KMEMSTATISTICS	12
+	{ "_kmemstatistics" },
 #define	X_KMEMBUCKETS	13
 	{ "_bucket" },
 #ifdef notyet
@@ -694,24 +694,33 @@ dointr()
 	(void)printf("Total        %8ld %8ld\n", inttotal, inttotal / uptime);
 }
 
-/*
- * These names are defined in <sys/malloc.h>.
- */
-char *kmemnames[] = INITKMEMNAMES;
-
 void
 domem()
 {
 	register struct kmembuckets *kp;
 	register struct kmemstats *ks;
 	register int i, j;
-	int len, size, first;
+	int len, size, first, nkms;
 	long totuse = 0, totfree = 0, totreq = 0;
 	char *name;
-	struct kmemstats kmemstats[M_LAST];
+	struct kmemstats kmemstats[200],*kmsp;
+	char *kmemnames[200];
+	char buf[1024];
 	struct kmembuckets buckets[MINBUCKET + 16];
 
 	kread(X_KMEMBUCKETS, buckets, sizeof(buckets));
+	kread(X_KMEMSTATISTICS, &kmsp, sizeof(kmsp));
+	for (nkms=0; nkms < 200 && kmsp; nkms++) {
+		if (sizeof(kmemstats[0]) != kvm_read(kd, (u_long)kmsp,
+		    &kmemstats[nkms], sizeof(kmemstats[0])))
+			err(1,"kvm_read(%08x)", (u_long)kmsp);
+		if (sizeof(buf) !=  kvm_read(kd, 
+	            (u_long)kmemstats[nkms].ks_shortdesc, buf, sizeof(buf)))
+			err(1,"kvm_read(%08x)", 
+			    (u_long)kmemstats[nkms].ks_shortdesc);
+		kmemstats[nkms].ks_shortdesc = strdup(buf);
+		kmsp = kmemstats[nkms].ks_next;
+	}
 	(void)printf("Memory statistics by bucket size\n");
 	(void)printf(
 	    "Size   In Use   Free   Requests  HighWater  Couldfree\n");
@@ -730,7 +739,6 @@ domem()
 		totfree += size * kp->kb_totalfree;
 	}
 
-	kread(X_KMEMSTAT, kmemstats, sizeof(kmemstats));
 	(void)printf("\nMemory usage type by bucket size\n");
 	(void)printf("Size  Type(s)\n");
 	kp = &buckets[MINBUCKET];
@@ -739,12 +747,12 @@ domem()
 			continue;
 		first = 1;
 		len = 8;
-		for (i = 0, ks = &kmemstats[0]; i < M_LAST; i++, ks++) {
+		for (i = 0, ks = &kmemstats[0]; i < nkms; i++, ks++) {
 			if (ks->ks_calls == 0)
 				continue;
 			if ((ks->ks_size & j) == 0)
 				continue;
-			name = kmemnames[i] ? kmemnames[i] : "undefined";
+			name = ks->ks_shortdesc;
 			len += 2 + strlen(name);
 			if (first && j < 1024)
 				printf("%4d  %s", j, name);
@@ -767,11 +775,11 @@ domem()
 	    "\nMemory statistics by type                          Type  Kern\n");
 	(void)printf(
 "        Type  InUse MemUse HighUse  Limit Requests Limit Limit Size(s)\n");
-	for (i = 0, ks = &kmemstats[0]; i < M_LAST; i++, ks++) {
+	for (i = 0, ks = &kmemstats[0]; i < nkms; i++, ks++) {
 		if (ks->ks_calls == 0)
 			continue;
 		(void)printf("%13s%6ld%6ldK%7ldK%6ldK%9ld%5u%6u",
-		    kmemnames[i] ? kmemnames[i] : "undefined",
+		    ks->ks_shortdesc,
 		    ks->ks_inuse, (ks->ks_memuse + 1023) / 1024,
 		    (ks->ks_maxused + 1023) / 1024,
 		    (ks->ks_limit + 1023) / 1024, ks->ks_calls,
