@@ -57,6 +57,7 @@ static const char rcsid[] =
 
 #include "at.h"
 #include "panic.h"
+#include "parsetime.h"
 
 
 /* Structures and unions */
@@ -74,7 +75,7 @@ enum {	/* symbols */
 /* parse translation table - table driven parsers can be your FRIEND!
  */
 struct {
-    char *name;	/* token name */
+    const char *name;	/* token name */
     int value;	/* token id */
     int plural;	/* is this plural? */
 } Specials[] = {
@@ -159,7 +160,7 @@ static int sc_tokplur;	/* scanner - is token plural? */
 static int
 parse_token(char *arg)
 {
-    int i;
+    size_t i;
 
     for (i=0; i<(sizeof Specials/sizeof Specials[0]); i++)
 	if (strcasecmp(Specials[i].name, arg) == 0) {
@@ -193,7 +194,7 @@ init_scanner(int argc, char **argv)
  * token() fetches a token from the input stream
  */
 static int
-token()
+token(void)
 {
     int idx;
 
