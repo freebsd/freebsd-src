@@ -15,6 +15,7 @@ krb5-config: krb5-config.in
 		-e "s,@LIB_dbopen\@,,g" \
 		-e "s,@LIB_des_appl\@,-lcrypto,g" \
 		-e "s,@LIBS\@,-lcom_err,g" \
+		-e "s,@INCLUDE_des@,,g" \
 		${.ALLSRC} > ${.TARGET}
 	chmod +x ${.TARGET}
 
