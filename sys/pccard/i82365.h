@@ -46,8 +46,8 @@
 #define	PCIC_VG469	8		/* Vadem 469 */
 #define	PCIC_RF5C396	9		/* Ricoh RF5C396 */
 #define	PCIC_IBM_KING	10		/* IBM KING PCMCIA Controller */
-/* These last two aren't in normal freebsd */
 #define	PCIC_PC98	11		/* NEC PC98 PCMCIA Controller */
+/* These last ones aren't in normal freebsd */
 #define	PCIC_TI1130	12		/* TI PCI1130 CardBus */
 
 /*
