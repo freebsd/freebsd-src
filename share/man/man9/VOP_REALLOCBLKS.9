@@ -37,7 +37,6 @@
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
-.Fd #include <sys/buf.h>
 .Ft int
 .Fn VOP_REALLOCBLKS "struct vnode *vp" "struct cluster_save *buflist"
 .Sh DESCRIPTION
@@ -59,4 +58,3 @@ Zero is returned on success, otherwise an error is returned.
 .Sh AUTHORS
 This man page was written by
 .An Doug Rabson .
-
