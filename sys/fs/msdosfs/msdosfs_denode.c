@@ -731,6 +731,6 @@ out:
 	       vrefcnt(vp), dep->de_Name[0]);
 #endif
 	if (dep->de_Name[0] == SLOT_DELETED)
-		vrecycle(vp, NULL, td);
+		vrecycle(vp, td);
 	return (error);
 }
