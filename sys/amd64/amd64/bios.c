@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.5 1997/09/01 01:12:50 bde Exp $
+ *      $Id: bios.c,v 1.6 1997/09/24 07:47:43 phk Exp $
  */
 
 /*
@@ -118,7 +118,7 @@ bios32_init(void *junk)
 		printf("SMIBIOS header at %p\n", sbt);
 		printf("Version %d.%d\n", sbt->major, sbt->minor);
 		printf("Table at 0x%x, %d entries, %d bytes, largest entry %d bytes\n",
-		       dmit->st_base, (int)dmit->st_entries, (int)dmit->st_size,
+		       sbt->dmi.st_base, (int)sbt->dmi.st_entries, (int)sbt->dmi.st_size,
 		       (int)sbt->st_maxsize);
 	    }
 	} else {
