@@ -120,7 +120,7 @@ but it is not yet in the glibc-2.0.7-19 RPM.
 
 A bug in libc results in an amq binary that doesn't work; amq -v dumps core
 in xdr_string.  There is no known fix (source code or vendor patch) at this
-time.  (Please let amd-dev know if you know of a fix.)
+time.  (Please let am-utils@am-utils.org know if you know of a fix.)
 
 
 (7) *-aix4.3.2.0

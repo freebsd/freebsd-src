@@ -4,10 +4,18 @@
 	ia64-unknown-linux-rh2.1AS (Red Hat Itanium Advanced Server)
 	i386-unknown-freebsd5.0 (5.0-RELEASE)
 	sparc64-unknown-linux-suse7.3
+	i386-unknown-freebsd4.9
+	i386-unknown-freebsd5.2 (5.2-RELEASE)
+
+- new amd.conf directive "nfs_allow_insecure_port". Used to work around
+  bugs in certain kernels, which cause them to try and talk to amd from
+  unprivileged ports.
 
 - bug fixes:
 	rename log() in fsinfo to avoid glibc/gcc-3.3 conflict
 	am_pref free NULL pointer
+	compiles with modern bison/flex versions
+	handles sites with various combos of db, n/dbm, and gdbm
 
 *** Notes specific to am-utils version 6.0.9:
 

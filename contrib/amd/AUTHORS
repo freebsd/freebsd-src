@@ -6,15 +6,11 @@ This file lists the ones who contributed major code changes, in no
 particular order, and I thank them all.  This is of course not to diminish
 the smaller contributes of the many others.  Thank you all.
 
-* Erez Zadok <ezk@cs.columbia.edu>
+* Erez Zadok <ezk@cs.sunysb.edu>
 
 The most significant changes were made by Erez Zadok in terms of bug fixes,
 ports, and new features added.  Erez Zadok is the current maintainer of
 am-utils, as of January 1997.
-
-There is a mailing list dedicated to developers of am-utils.  To subscribe
-to it, send mail to majordomo@majordomo.cs.columbia.edu, with the body of
-the message having the single line "subscribe amd-dev".
 
 * Randall S. Winchester <rsw@glue.umd.edu>
 
