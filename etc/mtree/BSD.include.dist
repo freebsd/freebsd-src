@@ -20,8 +20,8 @@
         ..
     ..
     fs
-	smbfs
-	..
+        smbfs
+        ..
     ..
     g++
         std
