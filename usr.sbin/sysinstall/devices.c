@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.7 1995/05/07 03:37:58 jkh Exp $
+ * $Id: devices.c,v 1.8 1995/05/07 05:58:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -136,6 +136,7 @@ print_command_summary()
     mvprintw(18, 0, "U = Undo All Changes   W = `Wizard' Mode      ESC = Proceed to next screen");
     mvprintw(20, 0, "The currently selected partition is displayed in ");
     attrset(A_REVERSE); addstr("reverse video"); attrset(A_NORMAL);
+    mvprintw(21, 0, "Use F1 or ? to get more help");
     move(0, 0);
 }
 
@@ -244,6 +245,7 @@ device_slice_disk(struct disk *d)
 
 	case 'S':
 	    /* Set Bootable */
+	    chunk_info[current_chunk]->flags |= CHUNK_ACTIVE;
 	    break;
 
 	case 'U':
