@@ -32,5 +32,5 @@
 */
 
 int register_pcic_intr(int intr, int device_id, u_int flags,
-                       inthand2_t handler, u_int *maskptr, int unit);
-int unregister_pcic_intr(int intr, inthand2_t handler);
+                       ointhand2_t handler, u_int *maskptr, int unit);
+int unregister_pcic_intr(int intr, ointhand2_t handler);

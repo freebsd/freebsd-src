@@ -100,7 +100,7 @@ static void		disable_slot(struct slot *);
 static int		invalid_io_memory(unsigned long, int);
 static struct pccard_device *find_driver(char *);
 static void		remove_device(struct pccard_devinfo *);
-static inthand2_t	slot_irq_handler;
+static ointhand2_t	slot_irq_handler;
 static void		power_off_slot(void *);
 
 static void		pccard_configure(void *);
@@ -537,7 +537,7 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
  *	allowed are passed as a mask.
  */
 int
-pccard_alloc_intr(u_int imask, inthand2_t *hand, int unit,
+pccard_alloc_intr(u_int imask, ointhand2_t *hand, int unit,
 		  u_int *maskp, u_int *pcic_imask)
 {
 	int irq;
@@ -801,7 +801,7 @@ pccard_event(struct slot *slt, enum card_event event)
  *	slot_irq_handler - Interrupt handler for shared irq devices.
  */
 static void
-slot_irq_handler(void *arg)
+slot_irq_handler(int arg)
 {
 	struct pccard_devinfo *devi;
 	struct slot *slt = (struct slot *)arg;

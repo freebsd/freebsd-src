@@ -26,6 +26,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -44,6 +46,7 @@
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
+#include <i386/isa/intr_machdep.h>
 
 #include <pccard/i82365.h>
 #ifdef	PC98
@@ -62,7 +65,7 @@
 /*
  *	Prototypes for interrupt handler.
  */
-static inthand2_t	pcicintr;
+static ointhand2_t	pcicintr;
 static int		pcic_ioctl __P((struct slot *, int, caddr_t));
 static int		pcic_power __P((struct slot *));
 static timeout_t 	pcic_reset;
@@ -170,15 +173,19 @@ putw(struct pcic_slot *sp, int reg, unsigned short word)
  */
 #ifdef APIC_IO
 int register_pcic_intr(int intr, int device_id, u_int flags,
-                       inthand2_t handler, u_int *maskptr, int unit){
+    ointhand2_t handler, u_int *maskptr, int unit)
+{
 	int apic_intr;
 	apic_intr = isa_apic_irq(intr);
-	if (apic_intr <0)  return -1;
-	else  return register_intr(apic_intr, device_id, flags, handler,
-			           maskptr, unit);
+	if (apic_intr <0)
+		return -1;
+	else  
+		return register_intr(apic_intr, device_id, flags, handler, 
+		    maskptr, unit);
 }
 
-int unregister_pcic_intr(int intr, inthand2_t handler){
+int unregister_pcic_intr(int intr, ointhand2_t handler)
+{
 	int apic_intr;
 	apic_intr = isa_apic_irq(intr);
 	return  unregister_intr(apic_intr, handler);
@@ -187,11 +194,13 @@ int unregister_pcic_intr(int intr, inthand2_t handler){
 #else /* Not APIC_IO */
 
 int register_pcic_intr(int intr, int device_id, u_int flags,
-                              inthand2_t handler, u_int *maskptr, int unit){
+    ointhand2_t handler, u_int *maskptr, int unit)
+{
 	return register_intr(intr, device_id, flags, handler, maskptr, unit);
 }
 
-int unregister_pcic_intr(int intr, inthand2_t handler){
+int unregister_pcic_intr(int intr, ointhand2_t handler)
+{
 	return unregister_intr(intr, handler);
 }
 
@@ -300,7 +309,7 @@ pcic_dump_attributes(unsigned char *scratch, int maxlen)
 #endif
 
 static void
-nullfunc(void *unused)
+nullfunc(int arg)
 {
 	/* empty */
 }
@@ -1109,7 +1118,7 @@ pcic_disable(struct slot *slt)
 static void
 pcictimeout(void *chan)
 {
-	pcicintr(NULL);
+	pcicintr(0);
 	pcictimeout_ch = timeout(pcictimeout, 0, hz/2);
 }
 
@@ -1120,7 +1129,7 @@ pcictimeout(void *chan)
  *	on this card, so send an event to the main code.
  */
 static void
-pcicintr(void *unused)
+pcicintr(int unit)
 {
 	int	slot, s;
 	unsigned char chg;
