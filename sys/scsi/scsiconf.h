@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.58 1997/12/23 19:44:40 brian Exp $
+ *	$Id: scsiconf.h,v 1.59 1998/04/17 22:37:09 des Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -129,73 +129,67 @@ typedef int yet_another_d_open_t __P((dev_t, int, int, struct proc *));
 
 struct scsi_device
 {
-/*  4*/	errval (*err_handler)(struct scsi_xfer *xs);	/* return -1 to say
-							 * err processing complete */
+/*  4*/	errval (*err_handler)(struct scsi_xfer *xs);
 /*  8*/	void	(*start)(u_int32_t unit, u_int32_t flags);
 /* 12*/	int32_t	(*async) __P((void));
-/* 16*/	int32_t	(*done) __P((struct scsi_xfer *xs));	/* returns -1 to say done processing complete */
-/* 20*/	char	*name;		/* name of device type */
+/* 16*/	int32_t	(*done) __P((struct scsi_xfer *xs));
+/* 20*/	char	*name;			/* name of device type */
 /* 24*/	u_int32_t flags;		/* device type dependent flags */
 /* 32*/	int32_t	spare[2];
-
-/* 36*/ int32_t	link_flags;	/* Flags OR'd into sc_link at attach time */
+/* 36*/ int32_t	link_flags;		/* set -> sc_link at attach time */
 /* 40*/ errval  (*attach)(struct scsi_link *sc_link);
-/* 44*/ char	*desc;		/* Description of device */
+/* 44*/ char	*desc;			/* Description of device */
 /* 48*/ yet_another_d_open_t *open;
 /* 52*/ int sizeof_scsi_data;
-/* 56*/ int type;		/* Type of device this supports */
+/* 56*/ int type;			/* Type of device this supports */
 /* 60*/ int	(*getunit)(dev_t dev);
 /* 64*/ dev_t  (*setunit)(dev_t dev, int unit);
-
 /* 68*/ int (*dev_open)(dev_t dev, int flags, int fmt, struct proc *p,
-         struct scsi_link *sc_link);
+         		struct scsi_link *sc_link);
 /* 72*/ int (*dev_ioctl)(dev_t dev, int cmd, caddr_t arg, int mode,
-         struct proc *p, struct scsi_link *sc_link);
+         		struct proc *p, struct scsi_link *sc_link);
 /* 76*/ int (*dev_close)(dev_t dev, int flag, int fmt, struct proc *p,
-         struct scsi_link *sc_link);
+         		struct scsi_link *sc_link);
 /* 80*/ void (*dev_strategy)(struct buf *bp, struct scsi_link *sc_link);
-
 	/* Not initialized after this */
-
-#define SCSI_LINK(DEV, UNIT) ( \
-	(struct scsi_link *)(extend_get((DEV)->links, (UNIT))) \
-	)
-
-#define SCSI_DATA(DEV, UNIT) ( \
-	(SCSI_LINK((DEV), (UNIT)) ? \
-	(SCSI_LINK((DEV), (UNIT))->sd) : \
-	(struct scsi_data *)0) \
-	)
-
-/* 80*/ struct extend_array *links;
-
-/* 84*/ int free_unit;
-/* 88*/ struct scsi_device *next;	/* Next in list in the registry. */
+/* 84*/ struct extend_array *links;
+/* 88*/ int free_unit;
+/* 92*/ struct scsi_device *next;	/* Next in list in the registry. */
 };
+/*
+ * Macros to access soem fields above.
+ */
+#define SCSI_LINK(DEV, UNIT) \
+	((struct scsi_link *)(extend_get((DEV)->links, (UNIT))))
 
-/* SCSI_DEVICE_ENTRIES: A macro to generate all the entry points from the
+#define SCSI_DATA(DEV, UNIT) \
+ ((SCSI_LINK((DEV), (UNIT)) ? (SCSI_LINK((DEV), (UNIT))->sd) : NULL))
+
+/*
+ * SCSI_DEVICE_ENTRIES: A macro to generate all the entry points from the
  * name.
  */
-#define SCSI_DEVICE_ENTRIES(NAME) \
-static errval NAME##attach(struct scsi_link *sc_link); \
-extern struct scsi_device NAME##_switch;	/* XXX actually static */ \
-void NAME##init(void) { \
-	scsi_device_register(&NAME##_switch); \
-} \
-static int NAME##open(dev_t dev, int flags, int fmt, struct proc *p) { \
-	return scsi_open(dev, flags, fmt, p, &NAME##_switch); \
-} \
-static int NAME##ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p) { \
-	return scsi_ioctl(dev, cmd, addr, flag, p, &NAME##_switch); \
-} \
-static int NAME##close(dev_t dev, int flag, int fmt, struct proc *p) { \
-	return scsi_close(dev, flag, fmt, p, &NAME##_switch); \
-} \
-static void NAME##minphys(struct buf *bp) { \
-	scsi_minphys(bp, &NAME##_switch); \
-}  \
-static void NAME##strategy(struct buf *bp) { \
-	scsi_strategy(bp, &NAME##_switch); \
+#define SCSI_DEVICE_ENTRIES(NAME)					    \
+static errval NAME##attach(struct scsi_link *sc_link);			    \
+extern struct scsi_device NAME##_switch;	/* XXX actually static */   \
+void NAME##init(void) {							    \
+	scsi_device_register(&NAME##_switch);				    \
+}									    \
+static int NAME##open(dev_t dev, int flags, int fmt, struct proc *p) {	    \
+	return scsi_open(dev, flags, fmt, p, &NAME##_switch);		    \
+}									    \
+static int NAME##ioctl(dev_t dev, int cmd, caddr_t addr,		    \
+			int flag, struct proc *p) {			    \
+	return scsi_ioctl(dev, cmd, addr, flag, p, &NAME##_switch);	    \
+}									    \
+static int NAME##close(dev_t dev, int flag, int fmt, struct proc *p) {	    \
+	return scsi_close(dev, flag, fmt, p, &NAME##_switch);		    \
+}									    \
+static void NAME##minphys(struct buf *bp) {				    \
+	scsi_minphys(bp, &NAME##_switch);				    \
+} 									    \
+static void NAME##strategy(struct buf *bp) {				    \
+	scsi_strategy(bp, &NAME##_switch);				    \
 }
 
 #ifdef KERNEL
@@ -289,26 +283,26 @@ typedef struct st_mode st_modes[4];
  */
 struct scsi_link
 {
-	u_int8_t	target;			/* targ of this dev */
-	u_int8_t	lun;			/* lun of this dev */
-	u_int8_t	adapter_targ;		/* what are we on the scsi bus */
-	u_int8_t	adapter_unit;		/* e.g. the 0 in aha0 */
-	u_int8_t	adapter_bus;		/* e.g. the 0 in bus0 */
-	u_int8_t	scsibus;		/* the Nth scsibus	*/
-	u_int8_t	dev_unit;		/* e.g. the 0 in sd0 */
-	u_int8_t	opennings;		/* available operations */
-	u_int8_t	active;			/* operations in progress */
-	u_int16_t	flags;			/* flags that all devices have */
-	u_int16_t	quirks;			/* device specific quirks */
-	struct	scsi_adapter *adapter;	/* adapter entry points etc. */
-	struct	scsi_device *device;	/* device entry points etc. */
-	struct	scsi_xfer *active_xs;	/* operations under way */
-	void *	fordriver;		/* for private use by the driver */
-	void *  devmodes;		/* device specific mode tables */
-	dev_t	dev;			/* Device major number (character) */
-	struct	scsi_data *sd;	/* Device data structure */
+	u_int8_t		target;		/* targ of this dev */
+	u_int8_t		lun;		/* lun of this dev */
+	u_int8_t		adapter_targ;	/* what are we on the scsi bus*/
+	u_int8_t		adapter_unit;	/* e.g. the 0 in aha0 */
+	u_int8_t		adapter_bus;	/* e.g. the 0 in bus0 */
+	u_int8_t		scsibus;	/* the Nth scsibus	*/
+	u_int8_t		dev_unit;	/* e.g. the 0 in sd0 */
+	u_int8_t		opennings;	/* available operations */
+	u_int8_t		active;		/* operations in progress */
+	u_int16_t		flags;		/* flags all devices have */
+	u_int16_t		quirks;		/* device specific quirks */
+	struct	scsi_adapter   *adapter;	/* adapter entry points etc. */
+	struct	scsi_device    *device;		/* device entry points etc. */
+	struct	scsi_xfer      *active_xs;	/* operations under way */
+	void		       *fordriver;	/* for driver's private user */
+	void		       *devmodes;	/* dev specific mode tables */
+	dev_t			dev;		/* Device major # (character) */
+	struct	scsi_data      *sd;		/* Device data structure */
 	struct	scsi_inquiry_data inqbuf;	/* Inquiry data */
-	void	*adapter_softc;		/* needed for call to foo_scsi_cmd */
+	void		       *adapter_softc;	/* to call foo_scsi_cmd */
 };
 
 /* XXX-HA: dufault@hda.com: SDEV_BOUNCE is set down in the adapter drivers
