@@ -1,6 +1,6 @@
-PROG=	ccdcontrol
-SRCS=	ccdcontrol.c
-MAN8=	ccdcontrol.8
+PROG=	ccdconfig
+SRCS=	ccdconfig.c
+MAN8=	ccdconfig.8
 
 CFLAGS+=	-I${.CURDIR}/../../sys
 LDADD+=		-lkvm
