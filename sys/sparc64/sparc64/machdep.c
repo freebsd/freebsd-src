@@ -744,7 +744,6 @@ void
 exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct trapframe *tf;
-	struct md_utrap *ut;
 	struct pcb *pcb;
 	struct proc *p;
 	u_long sp;
@@ -752,10 +751,8 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	/* XXX no cpu_exec */
 	p = td->td_proc;
 	p->p_md.md_sigtramp = NULL;
-	if ((ut = p->p_md.md_utrap) != NULL) {
-		ut->ut_refcnt--;
-		if (ut->ut_refcnt == 0)
-			free(ut, M_SUBPROC);
+	if (p->p_md.md_utrap != NULL) {
+		utrap_free(p->p_md.md_utrap);
 		p->p_md.md_utrap = NULL;
 	}
 
@@ -837,4 +834,41 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 	tf->tf_fsr = fpregs->fr_fsr;
 	tf->tf_gsr = fpregs->fr_gsr;
 	return (0);
+}
+
+struct md_utrap *
+utrap_alloc(void)
+{
+	struct md_utrap *ut;
+
+	ut = malloc(sizeof(struct md_utrap), M_SUBPROC, M_WAITOK | M_ZERO);
+	ut->ut_refcnt = 1;
+	return (ut);
+}
+
+void
+utrap_free(struct md_utrap *ut)
+{
+	int refcnt;
+
+	if (ut == NULL)
+		return;
+	mtx_pool_lock(mtxpool_sleep, ut);
+	ut->ut_refcnt--;
+	refcnt = ut->ut_refcnt;
+	mtx_pool_unlock(mtxpool_sleep, ut);
+	if (refcnt == 0)
+		free(ut, M_SUBPROC);
+}
+
+struct md_utrap *
+utrap_hold(struct md_utrap *ut)
+{
+
+	if (ut == NULL)
+		return (NULL);
+	mtx_pool_lock(mtxpool_sleep, ut);
+	ut->ut_refcnt++;
+	mtx_pool_unlock(mtxpool_sleep, ut);
+	return (ut);
 }

@@ -111,15 +111,12 @@ PMAP_STATS_VAR(uma_nsmall_free);
 void
 cpu_exit(struct thread *td)
 {
-	struct md_utrap *ut;
 	struct proc *p;
 
 	p = td->td_proc;
 	p->p_md.md_sigtramp = NULL;
-	if ((ut = p->p_md.md_utrap) != NULL) {
-		ut->ut_refcnt--;
-		if (ut->ut_refcnt == 0)
-			free(ut, M_SUBPROC);
+	if (p->p_md.md_utrap != NULL) {
+		utrap_free(p->p_md.md_utrap);
 		p->p_md.md_utrap = NULL;
 	}
 }
@@ -200,7 +197,6 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 void
 cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
-	struct md_utrap *ut;
 	struct trapframe *tf;
 	struct frame *fp;
 	struct pcb *pcb1;
@@ -216,9 +212,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		return;
 
 	p2->p_md.md_sigtramp = td1->td_proc->p_md.md_sigtramp;
-	if ((ut = td1->td_proc->p_md.md_utrap) != NULL)
-		ut->ut_refcnt++;
-	p2->p_md.md_utrap = ut;
+	p2->p_md.md_utrap = utrap_hold(td1->td_proc->p_md.md_utrap);
 
 	/* The pcb must be aligned on a 64-byte boundary. */
 	pcb1 = td1->td_pcb;

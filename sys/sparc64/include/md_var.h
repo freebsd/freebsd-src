@@ -45,10 +45,14 @@ extern	vm_offset_t kstack0;
 extern	vm_paddr_t kstack0_phys;
 
 struct	pcpu;
+struct	md_utrap;
 
 void	cpu_identify(u_long vers, u_int clock, u_int id);
 void	cpu_setregs(struct pcpu *pc);
 int	is_physical_memory(vm_paddr_t addr);
+struct md_utrap *utrap_alloc(void);
+void	utrap_free(struct md_utrap *ut);
+struct md_utrap *utrap_hold(struct md_utrap *ut);
 
 cpu_block_copy_t spitfire_block_copy;
 cpu_block_zero_t spitfire_block_zero;
