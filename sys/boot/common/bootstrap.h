@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.20 1999/02/04 17:06:45 dcs Exp $
+ *	$Id: bootstrap.h,v 1.21 1999/04/16 21:21:47 peter Exp $
  */
 
 #include <sys/types.h>
@@ -238,10 +238,7 @@ extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module
  */
 
 /* Add an entry to a set. */
-#define TEXT_SET(set, sym) __MAKE_SET(set, sym)
 #define DATA_SET(set, sym) __MAKE_SET(set, sym)
-#define BSS_SET(set, sym)  __MAKE_SET(set, sym)
-#define ABS_SET(set, sym)  __MAKE_SET(set, sym)
 
 /*
  * Iterate over all the elements of a set.
