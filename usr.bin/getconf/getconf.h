@@ -29,7 +29,13 @@
  * $FreeBSD$
  */
 
-#include <stdint.h>
+#ifdef STABLE
+typedef long long intmax_t;
+#define	strtoimax(p, ep, radix) (strtoll((p), (ep), (radix)))
+#define	PRIdMAX	"lld"
+#else
+#include <inttypes.h>
+#endif
 
 int	find_confstr(const char *name, int *key);
 int	find_limit(const char *name, intmax_t *value);
