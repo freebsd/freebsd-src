@@ -1500,8 +1500,13 @@ DMenu MenuSysconsKeymap = {
       { " Swiss German CP850", "Swiss German Code Page 850 keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=swissgerman.cp850" },
       { "U.K. CP850",	"United Kingdom Code Page 850 keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=uk.cp850" },
       { " U.K. ISO",	"United Kingdom ISO keymap", dmenuVarCheck,	dmenuSetKmapVariable, NULL, "keymap=uk.iso" },
+      { " U.S. CapsLock->Ctrl",	"United States standard with Caps Lock acting as left Control",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=us.pc-ctrl" },
       { " U.S. Dvorak",	"United States Dvorak keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=us.dvorak" },
+      { " U.S. Dvorak (left)",	"United States left handed Dvorak keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=us.dvorakl" },
+      { " U.S. Dvorak (right)",	"United States right handed Dvorak keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=us.dvorakr" },
+      { " U.S. Emacs",	"United States standard optimized for EMACS use",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=us.emacs" },
       { " U.S. ISO",	"United States ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=us.iso" },
+      { " U.S. UNIX",	"United States traditional UNIX-workstation keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=us.unix" },
       { NULL } },
 };
 
