@@ -581,15 +581,6 @@ vop_getvobject {
 };
 
 #
-#% refreshlabel	vp	L L L
-#
-vop_refreshlabel {
-	IN struct vnode *vp;
-	IN struct ucred *cred;
-	IN struct thread *td;
-};
-
-#
 #% setlabel	vp	L L L
 #
 vop_setlabel {
