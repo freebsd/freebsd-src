@@ -46,8 +46,11 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id$
+ *	$Id: scsi_disk.h,v 1.4 1993/08/21 20:01:54 rgrimes Exp $
  */
+
+#ifndef _SCSI_SCSI_DISK_H_
+#define _SCSI_SCSI_DISK_H_ 1
 
 /*
  * SCSI command format
@@ -211,3 +214,4 @@ union	disk_pages /* this is the structure copied from osf */
 	   u_char reserved3;
     	} rigid_geometry;
 } ;
+#endif /* _SCSI_SCSI_DISK_H_ */
