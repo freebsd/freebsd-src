@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.19 1996/05/02 10:43:13 phk Exp $
+ *  $Id: linux_misc.c,v 1.20 1996/06/12 05:06:28 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -613,7 +613,7 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args, int *retval)
 	bsd_args.flags |= MAP_ANON;
     bsd_args.addr = linux_args.addr;
     bsd_args.len = linux_args.len;
-    bsd_args.prot = linux_args.prot;
+    bsd_args.prot = linux_args.prot | PROT_READ;	/* always required */
     bsd_args.fd = linux_args.fd;
     bsd_args.pos = linux_args.pos;
     bsd_args.pad = 0;
