@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <utmp.h>
 #include "pathnames.h"
 
+/*XXX*/#include <inttypes.h>
+
 time_t	 expand(u_int);
 char	*flagbits(int);
 const	 char *getdev(dev_t);
@@ -156,13 +158,6 @@ main(int argc, char *argv[])
 		if (fread(&ab, sizeof(struct acct), 1, fp) != 1)
 			err(1, "%s", acctfile);
 
-		if (fseek(fp, 2 * -(long)sizeof(struct acct), SEEK_CUR) == -1)
-			err(1, "%s", acctfile);
-
-		if (size == 0)
-			break;
-		size -= sizeof(struct acct);
-
 		if (ab.ac_comm[0] == '\0') {
 			ab.ac_comm[0] = '?';
 			ab.ac_comm[1] = '\0';
@@ -215,6 +210,12 @@ main(int argc, char *argv[])
 			(void)printf(" %.16s", ctime(&t));
 		}
 		printf("\n");
+
+		if (size == 0)
+			break;
+		size -= sizeof(struct acct);
+		if (fseek(fp, 2 * -(long)sizeof(struct acct), SEEK_CUR) == -1)
+			err(1, "%s", acctfile);
  	}
  	exit(0);
 }
