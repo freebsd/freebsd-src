@@ -44,7 +44,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adv_isa.c,v 1.5 1998/10/10 00:44:12 imp Exp $
+ *      $Id: adv_isa.c,v 1.6 1998/10/12 18:53:33 imp Exp $
  */
 
 #include <sys/param.h>
@@ -122,7 +122,7 @@ advisaprobe(struct isa_device *id)
 
 	if (id->id_iobase > 0) {
 		for (;port_index <= max_port_index; port_index++)
-			if (id->id_iobase >= adv_isa_ioports[port_index])
+			if (id->id_iobase <= adv_isa_ioports[port_index])
 				break;
 		if ((port_index > max_port_index)
 		 || (id->id_iobase != adv_isa_ioports[port_index])) {
