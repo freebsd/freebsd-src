@@ -3673,14 +3673,18 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 		
 		splx(s);
 
-		if ((device->inq_flags & SID_CmdQue) != 0)
-			work_ccb->ccb_h.flags |= CAM_TAG_ACTION_VALID;
-		else
-			/*
-			 * Clear this in case of a retried CCB that failed
-			 * due to a rejected tag.
-			 */
-			work_ccb->ccb_h.flags &= ~CAM_TAG_ACTION_VALID;
+		/* In Target mode, the peripheral driver knows best... */
+		if (work_ccb->ccb_h.func_code == XPT_SCSI_IO) {
+			if ((device->inq_flags & SID_CmdQue) != 0
+			 && work_ccb->csio.tag_action != CAM_TAG_ACTION_NONE)
+				work_ccb->ccb_h.flags |= CAM_TAG_ACTION_VALID;
+			else
+				/*
+				 * Clear this in case of a retried CCB that
+				 * failed due to a rejected tag.
+				 */
+				work_ccb->ccb_h.flags &= ~CAM_TAG_ACTION_VALID;
+		}
 
 		/*
 		 * Device queues can be shared among multiple sim instances
