@@ -19,8 +19,8 @@ DPADD+=		${LIBM}
 
 HDRS=	cassert cctype cerrno cfloat ciso646 climits clocale cmath complex \
 	csetjmp csignal cstdarg cstddef cstdio cstdlib cstring ctime \
-	cwchar cwctype fstream iomanip iosfwd iostream stdexcept string \
-	strstream complex.h stl.h valarray
+	cwchar cwctype fstream iomanip iosfwd iostream sstring stdexcept \
+	string strstream complex.h stl.h valarray
 
 STDHDRS=bastring.cc bastring.h complext.cc complext.h dcomplex.h fcomplex.h \
 	gslice.h gslice_array.h indirect_array.h ldcomplex.h mask_array.h \
