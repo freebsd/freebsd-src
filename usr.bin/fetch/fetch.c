@@ -351,7 +351,7 @@ fetch(char *URL, const char *path)
 		goto success;
 	}
 
-	if (us.size == -1)
+	if (us.size == -1 && !o_stdout)
 		warnx("%s: size of remote file is not known", path);
 	if (v_level > 1) {
 		if (sb.st_size != -1)
