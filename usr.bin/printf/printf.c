@@ -41,6 +41,8 @@ static char const copyright[] =
 
 #ifndef lint
 static char const sccsid[] = "@(#)printf.c	8.1 (Berkeley) 7/20/93";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -100,7 +102,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
 	static char *skip1, *skip2;
 	int ch, end, fieldwidth, precision;
 	char convch, nextch, *format, *fmt, *start;
