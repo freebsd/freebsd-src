@@ -97,10 +97,11 @@ as an argument:
 /* MPPC/MPPE PPP negotiation bits */
 #define MPPC_BIT          0x00000001      /* mppc compression bits */
 #define MPPE_40           0x00000020      /* use 40 bit key */
+#define MPPE_56           0x00000080      /* use 56 bit key */
 #define MPPE_128          0x00000040      /* use 128 bit key */
-#define MPPE_BITS         0x00000060      /* mppe encryption bits */
+#define MPPE_BITS         0x000000e0      /* mppe encryption bits */
 #define MPPE_STATELESS    0x01000000      /* use stateless mode */
-#define MPPC_VALID_BITS   0x01000061      /* possibly valid bits */
+#define MPPC_VALID_BITS   0x010000e1      /* possibly valid bits */
 
 /* Configuration for a session */
 struct ng_mppc_config {
