@@ -273,6 +273,7 @@ int	family = PF_UNSPEC;	/* protocol family (IPv4, IPv6 or both) */
 int	family = PF_INET;	/* protocol family (IPv4 only) */
 #endif
 int	send_to_all = 0;	/* send message to all IPv4/IPv6 addresses */
+int	use_bootfile = 0;	/* log entire bootfile for every kern msg */
 
 char	bootfile[MAXLINE+1];	/* booted kernel file */
 
@@ -333,7 +334,7 @@ main(argc, argv)
 	socklen_t len;
 
 	bindhostname = NULL;
-	while ((ch = getopt(argc, argv, "46Aa:b:df:kl:m:np:P:suv")) != -1)
+	while ((ch = getopt(argc, argv, "46Aa:b:df:kl:m:nop:P:suv")) != -1)
 		switch (ch) {
 		case '4':
 			family = PF_INET;
@@ -374,6 +375,9 @@ main(argc, argv)
 			break;
 		case 'n':
 			resolve = 0;
+			break;
+		case 'o':
+			use_bootfile = 1;
 			break;
 		case 'p':		/* path */
 			funixn[0] = optarg;
@@ -807,7 +811,8 @@ logmsg(pri, msg, from, flags)
 
 	/* add kernel prefix for kernel messages */
 	if (flags & ISKERNEL) {
-		snprintf(buf, sizeof(buf), "%s: %s", bootfile, msg);
+		snprintf(buf, sizeof(buf), "%s: %s",
+		    use_bootfile ? bootfile : "kernel", msg);
 		msg = buf;
 		msglen = strlen(buf);
 	}
@@ -1337,6 +1342,7 @@ init(signo)
 	char host[MAXHOSTNAMELEN];
 	char oldLocalHostName[MAXHOSTNAMELEN];
 	char hostMsg[2*MAXHOSTNAMELEN+40];
+	char bootfileMsg[LINE_MAX];
 
 	dprintf("init\n");
 
@@ -1525,6 +1531,16 @@ init(signo)
 		    oldLocalHostName, LocalHostName);
 		logmsg(LOG_SYSLOG|LOG_INFO, hostMsg, LocalHostName, ADDDATE);
 		dprintf("%s\n", hostMsg);
+	}
+	/*
+	 * Log the kernel boot file if we aren't going to use it as
+	 * the prefix, and if this is *not* a restart.
+	 */
+	if (signo == 0 && !use_bootfile) {
+		(void)snprintf(bootfileMsg, sizeof(bootfileMsg),
+		    "syslogd: kernel boot file is %s", bootfile);
+		logmsg(LOG_KERN|LOG_INFO, bootfileMsg, LocalHostName, ADDDATE);
+		dprintf("%s\n", bootfileMsg);
 	}
 }
 
