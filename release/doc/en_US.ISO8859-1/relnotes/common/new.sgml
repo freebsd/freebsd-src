@@ -215,8 +215,17 @@
     <sect3 id="proc">
       <title>Platform-Specific Hardware Support</title>
 
-      <para></para>
-
+      <para arch="i386">Several old drivers for ISA cards have been removed,
+	including
+	the asc driver for GI1904-based hand scanners,
+	the ctx driver for CORTEX-I Frame Grabber,
+	the gp driver for National Instruments AT-GPIB and AT-GPIB/TNT boards,
+	the stl and stli drivers for Stallion Technologies multiport serial
+	controllers, and the wt driver for Archive/Wangtek cartridge tapes.
+	They are currently non-functional, and would require a considerable
+	amount of work to make them work under the new API in 5-CURRENT.
+	The userland support such as related ioctls and the sasc
+	utility have also been removed.</para>
     </sect3>
 
     <sect3 id="boot">
@@ -453,8 +462,13 @@
       multilabel flag on new filesystems without requiring the use of
       &man.tunefs.8;.</para>
 
-    <para>&man.nologin.8; now support reporting login attempts via
+    <para>&man.nologin.8; now reports login attempts via
        &man.syslogd.8;.</para>
+
+    <para>&man.nologin.8; has been moved from <filename>/sbin/nologin</filename>
+       to <filename>/usr/sbin/nologin</filename>, and
+       <filename>/sbin/nologin</filename> remains as a symbolic link
+       for backward compatibility.</para>
 
     <para>A bugfix has been applied to NSS support, which fixes
       problems when using third-party NSS modules (such as <filename
