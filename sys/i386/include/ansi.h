@@ -70,7 +70,15 @@
 #define	_BSD_CT_RUNE_T_	int			/* arg type for ctype funcs */
 #define	_BSD_OFF_T_	__int64_t		/* file offset */
 #define	_BSD_PID_T_	int			/* process [group] */
+
+#if defined __GNUC__
+#if (__GNUC__ > 2 || __GNUC__ == 2 && __GNUC_MINOR__ > 95)
+#define	_BSD_VA_LIST_	__builtin_va_list	/* internally known to gcc */
+#endif
+typedef _BSD_VA_LIST_ __gnuc_va_list;		/* compatibility w/GNU headers*/
+#else
 #define	_BSD_VA_LIST_	char *			/* va_list */
+#endif /*__GNUC__*/
 
 /*
  * The rune type above is declared to be an ``int'' instead of the more natural
