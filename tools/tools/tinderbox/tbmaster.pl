@@ -40,20 +40,21 @@ my $COPYRIGHT	= "Copyright (c) 2003 Dag-Erling Smørgrav. " .
 		  "All rights reserved.";
 
 my $config;			# Name of current config
+my $dump;			# Dump configuration and exit
 my $etcdir;			# Configuration directory
 
 my %CONFIG = (
-    'COMMENT'	=> undef,
+    'COMMENT'	=> '',
     'BRANCHES'	=> [ 'CURRENT' ],
     'PLATFORMS'	=> [ 'i386' ],
-    'DATE'	=> undef,
+    'DATE'	=> '',
     'SANDBOX'	=> '/tmp/tinderbox',
     'LOGDIR'	=> '%%SANDBOX%%/logs',
     'TARGETS'	=> [ 'update', 'world' ],
     'OPTIONS'	=> [],
     'ENV'	=> [],
-    'SENDER'	=> undef,
-    'RECIPIENT'	=> undef,
+    'SENDER'	=> '',
+    'RECIPIENT'	=> '',
     'SUBJECT'	=> 'Tinderbox failure on %%arch%%/%%machine%%',
     'TINDERBOX'	=> '%%HOME%%/tinderbox',
 );
@@ -96,6 +97,8 @@ sub readconf($) {
 	    die("$fn: syntax error on line $n\n")
 		unless ($line =~ m/^(\w+)\s*=\s*(.*)$/);
 	    my ($key, $val) = (uc($1), $2);
+	    $val = ''
+		unless defined($val);
 	    die("$fn: unknown keyword on line $n\n")
 		unless (exists($CONFIG{$key}));
 	    if (ref($CONFIG{$key})) {
@@ -303,7 +306,7 @@ MAIN:{
     $config = `uname -n`;
     chomp($config);
     $config =~ s/^(\w+)(\..*)?/$1/;
-    if ($ENV{'HOME'} =~ m|^((?:/[\w\.-]+)+)/*$|) {
+    if ($ENV{'HOME'} =~ m/^((?:\/[\w\.-]+)+)\/*$/) {
 	$CONFIG{'HOME'} = $1;
 	$etcdir = "$1/etc";
 	$ENV{'PATH'} = "$1/bin:$ENV{'PATH'}"
@@ -314,6 +317,7 @@ MAIN:{
     {Getopt::Long::Configure("auto_abbrev", "bundling");}
     GetOptions(
 	"c|config=s"	        => \$config,
+	"d|dump"		=> \$dump,
 	"e|etcdir=s"		=> \$etcdir,
 	) or usage();
     if (@ARGV) {
@@ -321,6 +325,10 @@ MAIN:{
     }
 
     if (defined($etcdir)) {
+	if ($etcdir !~ m/^([\w\/\.-]+)$/) {
+	    die("invalid etcdir\n");
+	}
+	$etcdir = $1;
 	chdir($etcdir)
 	    or die("$etcdir: $!\n");
     }
@@ -329,6 +337,21 @@ MAIN:{
 	or die("$config.rc: $!\n");
     $CONFIG{'CONFIG'} = $config;
     $CONFIG{'ETCDIR'} = $etcdir;
+
+    if ($dump) {
+	foreach my $key (sort(keys(%CONFIG))) {
+	    printf("%-12s = ", lc($key));
+	    if (!defined($CONFIG{$key})) {
+		print("(undef)");
+	    } elsif (ref($CONFIG{$key})) {
+		print(join(", ", @{$CONFIG{$key}}));
+	    } else {
+		print($CONFIG{$key});
+	    }
+	    print("\n");
+	}
+	exit(0);
+    }
 
     if (!length(expand('TINDERBOX')) || !-x expand('TINDERBOX')) {
 	die("Where is the tinderbox script?\n");
