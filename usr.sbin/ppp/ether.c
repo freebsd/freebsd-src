@@ -612,6 +612,11 @@ ether_Create(struct physical *p)
 
     dev->timeout = p->cfg.cd.delay;
     dev->connected = CARRIER_PENDING;
+
+    /* Hook things up so that we monitor dev->cs */
+    p->desc.UpdateSet = ether_UpdateSet;
+    p->desc.IsSet = ether_IsSet;
+    p->desc.Read = ether_DescriptorRead;
   } else {
     /* See if we're a netgraph socket */
     struct sockaddr_ng ngsock;
@@ -621,53 +626,11 @@ ether_Create(struct physical *p)
     sz = sizeof ngsock;
     if (getsockname(p->fd, sock, &sz) != -1 && sock->sa_family == AF_NETGRAPH) {
       /*
-       * It's a netgraph node... determine the hook name and set things up
+       * It's a netgraph node... We can't determine hook names etc, so we
+       * stay pretty impartial....
        */
+      log_Printf(LogPHASE, "%s: Link is a netgraph node\n", p->link.name);
 
-      if (NgSendMsg(dev->cs, ".", NGM_GENERIC_COOKIE, NGM_LISTHOOKS,
-                    NULL, 0) < 0) {
-        log_Printf(LogWARN, "Cannot send a netgraph message to stdin: %s\n",
-                   strerror(errno));
-        close(p->fd);
-        p->fd = -1;
-        return NULL;
-      }
-
-      /* Get our list back */
-      resp = (struct ng_mesg *)rbuf;
-      if (NgRecvMsg(dev->cs, resp, sizeof rbuf, NULL) < 0) {
-        log_Printf(LogWARN, "Cannot get netgraph response: %s\n",
-                   strerror(errno));
-        close(p->fd);
-        p->fd = -1;
-        return NULL;
-      }
-
-      hlist = (const struct hooklist *)resp->data;
-      ninfo = &hlist->nodeinfo;
-
-      /*
-       * Make sure we've got the right type of node...
-       * Can it be anything else ?
-       */
-      if (strncmp(ninfo->type, NG_SOCKET_NODE_TYPE,
-                  sizeof NG_SOCKET_NODE_TYPE - 1)) {
-        log_Printf(LogWARN, "Unexpected netgraph node type ``%s'' (wanted ``"
-                   NG_SOCKET_NODE_TYPE "'')\n", ninfo->type);
-        close(p->fd);
-        p->fd = -1;
-        return NULL;
-      }
-
-      if (ninfo->hooks != 1) {
-        log_Printf(LogWARN, "Can't handle netgraph node with %d hooks\n",
-                   ninfo->hooks);
-        close(p->fd);
-        p->fd = -1;
-        return NULL;
-      }
-
-      /* Looks good.... lets allocate a device structure */
       if ((dev = malloc(sizeof *dev)) == NULL) {
         log_Printf(LogWARN, "%s: Cannot allocate an ether device: %s\n",
                    p->link.name, strerror(errno));
@@ -677,21 +640,12 @@ ether_Create(struct physical *p)
       dev->cs = -1;
       dev->timeout = 0;
       dev->connected = CARRIER_OK;
-      strncpy(dev->hook, hlist->link->ourhook, sizeof dev->hook - 1);
-      dev->hook[sizeof dev->hook - 1] = '\0';
-
-      log_Printf(LogDEBUG, "Using netgraph hook ``.:%s'' -> [%x]:%s\n",
-                 dev->hook, hlist->link->nodeinfo.id, hlist->link->peerhook);
+      *dev->hook = '\0';
     }
   }
 
   if (dev) {
     memcpy(&dev->dev, &baseetherdevice, sizeof dev->dev);
-
-    /* Hook things up so that we monitor dev->cs */
-    p->desc.UpdateSet = ether_UpdateSet;
-    p->desc.IsSet = ether_IsSet;
-    p->desc.Read = ether_DescriptorRead;
 
     physical_SetupStack(p, dev->dev.name, PHYSICAL_FORCE_SYNCNOACF);
 
