@@ -66,24 +66,14 @@ and one other character.
 .Pp
 No more than
 .Fa maxsize
-characters will be placed into the array.  If more characters than
-.Fa maxsize
-could have been written into
-.Fa buf
-then
-.Fa bug
-will not be 
-.Sq Li \&\e0 
-terminated.
+characters will be placed into the array.
 If the total number of resulting characters, including the terminating
-.Sq Li \&\e0
-character, is not more than
+null character, is not more than
 .Fa maxsize ,
 .Fn strftime
 returns the number of characters in the array, not counting the
-terminating
-.Sq Li \&\e0 .
-Otherwise, zero is returned.
+terminating null.
+Otherwise, zero is returned and the contents of the buffer are undefined.
 .Pp
 Each conversion specification is replaced by the characters as
 follows which are then copied into the buffer.
