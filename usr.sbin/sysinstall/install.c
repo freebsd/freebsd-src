@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.46 1995/05/21 15:40:48 jkh Exp $
+ * $Id: install.c,v 1.47 1995/05/22 14:10:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,7 +53,6 @@ Boolean SystemWasInstalled;
 static void	make_filesystems(void);
 static void	copy_self(void);
 static void	cpio_extract(void);
-static void	install_configuration_files(void);
 static void	do_final_setup(void);
 
 static Disk *rootdisk;
@@ -90,7 +89,7 @@ checkLabels(void)
 	}
     }
 
-    /* Now register the swap devices */
+    /* Now check for swap devices */
     for (i = 0; devs[i]; i++) {
 	disk = (Disk *)devs[i]->private;
 	msgDebug("Scanning disk %s for swap partitions\n", disk->name);
@@ -208,7 +207,9 @@ installFinal(void)
 
     if (alreadyDone)
 	return;
-    install_configuration_files();
+    config_fstab();
+    config_sysconfig();
+    config_resolv();
     do_final_setup();
     alreadyDone = TRUE;
 }
@@ -331,7 +332,7 @@ copy_self(void)
 {
     int i;
 
-    msgNotify("Copying the boot floppy to /stand on root filesystem");
+    msgWeHaveOutput("Copying the boot floppy to /stand on root filesystem");
     i = vsystem("find -x /stand | cpio -pdmv /mnt");
     if (i)
 	msgConfirm("Copy returned error status of %d!", i);
@@ -341,14 +342,17 @@ static void
 cpio_extract(void)
 {
     int i, j, zpid, cpid, pfd[2];
+    Boolean onCDROM = FALSE;
 
 #if 0
     if (mediaDevice && mediaDevice->type == DEVICE_TYPE_CDROM) {
 	if (mediaDevice->init) {
 	    if ((*mediaDevice->init)(mediaDevice)) {
 		CpioFD = open("/cdrom/floppies/cpio.flp", O_RDONLY);
-		if (CpioFD != -1)
+		if (CpioFD != -1) {
 		    msgNotify("Loading CPIO floppy from CDROM");
+		    onCDROM = TRUE;
+		}
 	    }
 	}
     }
@@ -364,7 +368,7 @@ cpio_extract(void)
     j = fork();
     if (!j) {
 	chdir("/");
-	msgNotify("Extracting contents of CPIO floppy...");
+	msgWeHaveOutput("Extracting contents of CPIO floppy...");
 	pipe(pfd);
 	zpid = fork();
 	if (!zpid) {
@@ -399,22 +403,22 @@ cpio_extract(void)
 	close(CpioFD);
 
 	i = waitpid(zpid, &j, 0);
-	if (i < 0 || _WSTATUS(j)) {
+	if (i < 0) {	/* Don't check status - gunzip seems to return a bogus one! */
 	    dialog_clear();
-	    msgConfirm("gunzip returned error status of %d!", _WSTATUS(j));
+	    msgConfirm("wait for gunzip returned status of %d!", i);
 	    exit(1);
 	}
 	i = waitpid(cpid, &j, 0);
-	if (i < 0 || _WSTATUS(j)) {
+	if (i < 0 || WEXITSTATUS(j)) {
 	    dialog_clear();
-	    msgConfirm("cpio returned error status of %d!", _WSTATUS(j));
+	    msgConfirm("cpio returned error status of %d!", WEXITSTATUS(j));
 	    exit(2);
 	}
 	exit(0);
     }
     else
 	i = wait(&j);
-    if (i < 0 || _WSTATUS(j) || access("/OK", R_OK) == -1) {
+    if (i < 0 || WEXITSTATUS(j) || access("/OK", R_OK) == -1) {
 	dialog_clear();
 	msgConfirm("CPIO floppy did not extract properly!  Please verify\nthat your media is correct and try again.");
 	close(CpioFD);
@@ -422,11 +426,8 @@ cpio_extract(void)
 	goto tryagain;
     }
     unlink("/OK");
-}
-
-static void
-install_configuration_files(void)
-{
+    if (!onCDROM)
+	msgConfirm("Please remove the CPIO floppy from the drive");
 }
 
 static void

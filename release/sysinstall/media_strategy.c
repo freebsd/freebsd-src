@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.9 1995/05/21 19:51:50 gpalmer Exp $
+ * $Id: media_strategy.c,v 1.11 1995/05/22 14:10:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,6 +54,8 @@
 #include <sys/param.h>
 #include <sys/dkbad.h>
 #include <sys/mman.h>
+#include <netdb.h>
+#include "libftp.h"
 
 #define MSDOSFS
 #define CD9660
@@ -175,6 +177,7 @@ attr_parse(struct attribs **attr, char *file)
 	    msgFatal("Unknown state at line %d??\n", lno);
 	}
     }
+    fclose(fp);
     return 1;
 }
 
@@ -314,7 +317,7 @@ Is this a 2.0.5 CDROM?\n");
     return TRUE;
 }
 
-Boolean
+int
 mediaGetCDROM(char *dist)
 {
     char		buf[PATH_MAX];
@@ -341,8 +344,10 @@ mediaGetCDROM(char *dist)
 void
 mediaCloseCDROM(Device *dev)
 {
+    msgDebug("In mediaCloseCDROM\n");
     if (unmount("/cdrom", 0) != 0)
 	msgConfirm("Could not unmount the CDROM: %s\n", strerror(errno));
+    msgDebug("Unmount returned\n");
     cdromMounted = FALSE;
     return;
 }
@@ -356,7 +361,7 @@ mediaInitFloppy(Device *dev)
     return TRUE;
 }
 
-Boolean
+int
 mediaGetFloppy(char *dist)
 {
     char		buf[PATH_MAX];
@@ -376,7 +381,6 @@ mediaGetFloppy(char *dist)
 
     retval = genericGetDist(buf, dist_attr);
     free(dist_attr);
-
     return retval;
 }
 
@@ -398,10 +402,10 @@ mediaInitNetwork(Device *dev)
     return TRUE;
 }
 
-Boolean
+int
 mediaGetTape(char *dist)
 {
-    return TRUE;
+    return -1;
 }
 
 void
@@ -416,16 +420,66 @@ mediaCloseNetwork(Device *dev)
     return;
 }
 
+static FTP_t ftp;
+
 Boolean
 mediaInitFTP(Device *dev)
 {
+    int i;
+    char *url, *hostname, *dir, *dir_p;
+    char *my_name, email[BUFSIZ];
+
+    if ((ftp = FtpInit()) == NULL) {
+	msgConfirm("FTP initialisation failed!");
+	return FALSE;
+    }
+
+    url = getenv("ftp");
+    if (!url)
+	return FALSE;
+    if (!strcmp(url, "other")) {
+	url = msgGetInput(NULL, "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept anonymous ftp!");
+	if (!url)
+	    return FALSE;
+    }
+
+    my_name = getenv(VAR_HOSTNAME);
+    if (strncmp("ftp://", url, 6) != NULL) {
+	msgConfirm("Invalid URL (`%s') passed to FTP routines!\n(must start with `ftp://')", url);
+	return FALSE;
+    }
+
+    hostname = url + 6;
+    dir = index(hostname, '/');
+    *(dir++) = '\0';
+    if (gethostbyname(hostname) == NULL) {
+	msgConfirm("Cannot resolve hostname `%s'!\n", hostname);
+	return FALSE;
+    }
+
+    snprintf(email, BUFSIZ, "installer@%s", my_name);
+
+    if ((i = FtpOpen(ftp, hostname, "anonymous", email)) != 0) {
+	msgConfirm("Couldn't open FTP connection to %s (%u)\n", strerror(i), i);
+	return FALSE;
+    }
+
+    if (getenv("ftpPassive"))
+	FtpPassive(ftp, 1);
+    FtpBinary(ftp, 1);
+    FtpChdir(ftp, "/");
+    while ((dir_p = index(dir, '/')) != NULL) {
+	*dir_p = '\0';
+	FtpChdir(ftp, dir);
+	dir = ++dir_p;
+    }
     return TRUE;
 }
 
-Boolean
+int
 mediaGetFTP(char *dist)
 {
-    return TRUE;
+    return -1;
 }
 
 void
@@ -439,10 +493,10 @@ mediaInitUFS(Device *dev)
     return TRUE;
 }
 
-Boolean
+int
 mediaGetUFS(char *dist)
 {
-    return TRUE;
+    return -1;
 }
 
 /* UFS has no close routine since this is handled at the device level */
@@ -454,10 +508,10 @@ mediaInitDOS(Device *dev)
     return TRUE;
 }
 
-Boolean
+int
 mediaGetDOS(char *dist)
 {
-    return TRUE;
+    return -1;
 }
 
 void
