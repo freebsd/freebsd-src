@@ -43,6 +43,7 @@ SUBDIR=	IPXrouted \
 	kbdmap \
 	kernbb \
 	keyserv \
+	lastlogin \
 	manctl \
 	memcontrol \
 	mergemaster \
