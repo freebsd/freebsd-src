@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.24 1997/08/21 17:20:00 brian Exp $
+ * $Id: vars.c,v 1.25 1997/08/25 00:29:31 brian Exp $
  *
  */
 #include "fsm.h"
@@ -30,7 +30,7 @@
 #include "defs.h"
 
 char VarVersion[] = "PPP Version 1.1";
-char VarLocalVersion[] = "$Date: 1997/08/21 17:20:00 $";
+char VarLocalVersion[] = "$Date: 1997/08/25 00:29:31 $";
 
 /*
  * Order of conf option is important. See vars.h.
@@ -132,10 +132,15 @@ DenyCommand(struct cmdtab * list, int argc, char **argv)
 int
 LocalAuthCommand(struct cmdtab * list, int argc, char **argv)
 {
-  if (argc != 1)
+  char *pass;
+  if (argc == 0)
+    pass = "";
+  else if (argc > 1)
     return -1;
+  else
+    pass = *argv;
 
-  switch (LocalAuthValidate(SECRETFILE, VarShortHost, *argv)) {
+  switch (LocalAuthValidate(SECRETFILE, VarShortHost, pass)) {
   case INVALID:
     pppVars.lauth = LOCAL_NO_AUTH;
     break;

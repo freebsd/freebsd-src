@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.59 1997/08/27 20:11:16 brian Exp $
+.\" $Id: ppp.8,v 1.60 1997/08/31 20:07:03 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -128,6 +128,29 @@ Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
 with clients using the Microsoft
 .Em PPP
 stack (ie. Win95, WinNT)
+
+.Sh PERMISSIONS
+.Nm Ppp
+is installed as user
+.Dv root
+and group
+.Dv network ,
+with permissions
+.Dv 4550 .
+.Nm Ppp
+will not execute in client mode if the invoking user id is not zero.
+.Nm Ppp
+will run in
+.Fl direct
+mode as a normal user, but due to its execution permissions, this user
+must be a member of group
+.Dv network .
+When running as a normal user,
+.Nm
+switches to user id 0 in order to alter the system routing table.  All
+external commands (executed via the "shell" or "!bg" commands) are executed
+as the user id that invoked
+.Nm ppp .
 
 .Sh GETTING STARTED
 
