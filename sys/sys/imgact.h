@@ -30,8 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.2 1993/12/11 06:56:02 davidg Exp davidg $
+ *	$Id: imgact.h,v 1.1 1993/12/12 12:31:40 davidg Exp $
  */
+
+#ifndef __h_imgact
+#define __h_imgact 1
 
 #include "proc.h"
 #include "namei.h"
@@ -58,3 +61,11 @@ struct image_params {
 	char interpreted;	/* flag - this executable is interpreted */
 	char interpreter_name[64]; /* name of the interpreter */
 };
+
+struct execsw {
+	int (*ex_imgact)(struct image_params *);
+};
+
+extern const struct execsw **execsw;
+
+#endif /* __h_imgact */
