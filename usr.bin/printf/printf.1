@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)printf.1	8.1 (Berkeley) 6/6/93
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd June 6, 1993
 .Dt PRINTF 1
@@ -281,3 +281,9 @@ then back again, floating-point precision may be lost.
 .Pp
 .Tn ANSI
 hexadecimal character constants were deliberately not provided.
+.Pp
+The escape sequence \e000 is the string terminator.  When present in the
+.Ar format  ,
+the 
+.Ar format
+will be truncated at the \e000 character.
