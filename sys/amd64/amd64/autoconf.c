@@ -33,18 +33,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00117
- * --------------------         -----   ----------------------
- *
- * 09 Apr 93	???(From sun-lamp)	Fix to report sd when Julians
- *					scsi code is used, allow you to swap
- *					root floppies during a boot
+ *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
+ *	$Id$
  */
-static char rcsid[] = "$Header: /freefall/a/cvs/386BSD/src/sys/i386/i386/autoconf.c,v 1.2 1993/08/08 06:24:15 rgrimes Exp $";
 
 /*
  * Setup the system to run on the current machine.

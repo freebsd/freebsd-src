@@ -1,8 +1,12 @@
-/* [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj] */
 /*
  * linux/kernel/math/math_emulate.c
  *
  * (C) 1991 Linus Torvalds
+ *
+ * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
+ *
+ *	from: 386BSD 0.1
+ *	$Id$
  */
 
 /*
@@ -30,15 +34,6 @@
  * to 80-bit temporary reals, and do with them as they please. I wanted to
  * hide most of the 387-specific things here.
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         2       00060
- * --------------------         -----   ----------------------
- *
- * 19 Sep 92	Ishii Masahiro		Fix 0x1fd instruction
- *		kym@bingsuns.cc.binghamton.edu		Fix fscale
- * 28 Nov 92	Poul-Henning Kamp	Reduce kernel size if you have
- *					a 387 or 486 chip
  */
 
 #include "machine/cpu.h"
