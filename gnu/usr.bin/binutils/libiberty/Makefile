@@ -16,6 +16,6 @@ SRCS+=	regex.c splay-tree.c
 
 WARNS?=	1
 CFLAGS+=	-DHAVE_CONFIG_H
-INTERNALLIB=	true
+INTERNALLIB=
 
 .include <bsd.lib.mk>

@@ -6,7 +6,7 @@ TELNETDIR=	${.CURDIR}/../../contrib/telnet
 
 LIB=		telnet
 
-INTERNALLIB=	yes
+INTERNALLIB=
 
 SRCS=		genget.c getent.c misc.c
 CFLAGS+=	-I${TELNETDIR}

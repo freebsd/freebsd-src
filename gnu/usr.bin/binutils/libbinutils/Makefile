@@ -14,6 +14,6 @@ CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/binutils
 CFLAGS+= -I${SRCDIR}/bfd
-INTERNALLIB=	true
+INTERNALLIB=
 
 .include <bsd.lib.mk>

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		groff
-INTERNALLIB=	YES
+INTERNALLIB=
 SRCS=		assert.cpp change_lf.cpp cmap.cpp color.cpp cset.cpp device.cpp errarg.cpp\
 		error.cpp fatal.cpp filename.cpp font.cpp fontfile.cpp geometry.cpp\
 		htmlhint.cpp invalid.cpp lf.cpp lineno.cpp macropath.cpp\

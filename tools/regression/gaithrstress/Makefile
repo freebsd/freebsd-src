@@ -3,5 +3,5 @@
 PROG=	gaithrstress
 LDADD+=	-pthread
 
-NOMAN=	yes
+NOMAN=
 .include <bsd.prog.mk>

@@ -5,9 +5,9 @@ VOLUME=		psd/02.implement
 SRCS=		stubs implement
 EXTRA=		ref.bib
 MACROS=		-ms
-USE_PIC=	YES
-USE_REFER=	YES
-USE_SOELIM=	YES
+USE_PIC=
+USE_REFER=
+USE_SOELIM=
 CLEANFILES=	stubs
 
 stubs:

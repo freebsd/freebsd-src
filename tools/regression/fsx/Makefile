@@ -2,6 +2,6 @@
 
 PROG=	fsx
 
-NOMAN=	yes
+NOMAN=
 
 .include <bsd.prog.mk>

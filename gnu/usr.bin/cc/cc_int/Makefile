@@ -5,7 +5,7 @@
 .PATH: ../cc_tools ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}
 
 LIB=		cc_int
-INTERNALLIB=	YES
+INTERNALLIB=
 
 # Files from libiberty.
 SRCS=	choose-temp.c concat.c cp-demangle.c cp-demint.c cplus-dem.c \

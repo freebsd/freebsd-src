@@ -4,7 +4,7 @@ PROG=	MdLoad
 DPADD=	${LIBSBUF} ${LIBBSDXML}
 LDADD=	-lsbuf -lbsdxml
 
-NOMAN=	sorry
+NOMAN=
 
 
 WARNS?=	4

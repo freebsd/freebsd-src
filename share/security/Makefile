@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 FILES=	lomac-policy.contexts
-NOOBJ=	noobj
+NOOBJ=
 FILESDIR=	${BINDIR}/security
 
 .include "${.CURDIR}/../Makefile.inc"

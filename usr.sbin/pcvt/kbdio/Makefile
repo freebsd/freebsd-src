@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	kbdio
-NOMAN=	#true
+NOMAN=
 SRCS=	kbdio.y lex.l y.tab.h
 
 CFLAGS+= -I${.OBJDIR} -I${.CURDIR} #-g

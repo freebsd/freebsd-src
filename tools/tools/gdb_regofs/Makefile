@@ -1,5 +1,5 @@
 # $FreeBSD$
 PROG=gdb_regofs
 SRCS=${MACHINE_ARCH}.c
-NOMAN=yes
+NOMAN=
 .include <bsd.prog.mk>

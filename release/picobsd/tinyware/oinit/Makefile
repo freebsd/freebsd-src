@@ -15,7 +15,7 @@ CFLAGS=		-DSH_PATH=\"${SH_PATH}\" -DSH_NAME=\"${SH_NAME}\" \
 
 #LDADD=		-lutil -ledit -ltermcap
 LDADD=-lutil
-NOMAN=yes
+NOMAN=
 
 .include <bsd.prog.mk>
 

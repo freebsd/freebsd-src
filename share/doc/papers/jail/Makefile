@@ -5,7 +5,7 @@ DOC=		jail
 SRCS=		paper.ms-patched
 EXTRA=		implementation.ms mgt.ms future.ms jail01.eps
 MACROS=		-ms
-USE_SOELIM=	YES
+USE_SOELIM=
 CLEANFILES=	paper.ms-patched
 
 paper.ms-patched: paper.ms

@@ -7,7 +7,7 @@ MAINTAINER=	peter@FreeBSD.org
 .PATH:	${CVSDIR}/diff
 
 LIB=		diff
-INTERNALLIB=	YES
+INTERNALLIB=
 
 # gnu must be before lib to pick correct regex.h
 CFLAGS+= -I../lib -I${DESTDIR}/usr/include/gnu \

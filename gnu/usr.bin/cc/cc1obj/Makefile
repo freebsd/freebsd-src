@@ -7,7 +7,7 @@
 PROG=	cc1obj
 SRCS=	main.c objc-parse+DIKED.c objc-act.c objc-lang.c c-decl.c
 BINDIR=	/usr/libexec
-NOMAN=	1
+NOMAN=
 NOSHARED?=yes
 
 CFLAGS+= -I${GCCDIR}/objc -I.

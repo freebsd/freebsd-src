@@ -560,6 +560,6 @@ MLINKS+=curs_window.3 delwin.3 curs_window.3 derwin.3 curs_window.3 dupwin.3 \
 MLINKS+=default_colors.3 assume_default_colors.3 \
 	default_colors.3 use_default_colors.3
 
-NOLINT=	true
+NOLINT=
 
 .include <bsd.lib.mk>

@@ -606,7 +606,7 @@ redistribute:
 
 .if !defined(KERNCONF) && defined(KERNEL)
 KERNCONF=	${KERNEL}
-KERNWARN=	yes
+KERNWARN=
 .else
 KERNCONF?=	GENERIC
 .endif

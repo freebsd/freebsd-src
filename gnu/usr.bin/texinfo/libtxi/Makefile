@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	txi
-INTERNALLIB= true
+INTERNALLIB=
 
 SRCS=   substring.c xexit.c xmalloc.c xstrdup.c
 

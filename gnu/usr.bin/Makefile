@@ -24,7 +24,7 @@ SUBDIR= bc \
 	texinfo
  
 .if ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "powerpc"
-NO_GDB=	not yet
+NO_GDB=	# not yet
 .endif
 
 .if !defined(NO_CXX)

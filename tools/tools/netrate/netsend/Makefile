@@ -2,7 +2,6 @@
 # $FreeBSD$
 #
 
-CFLAGS+=	-Wall
 PROG=	netsend
 NOMAN=
 

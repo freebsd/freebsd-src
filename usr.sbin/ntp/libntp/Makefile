@@ -4,7 +4,7 @@
 	${.CURDIR}/../../../contrib/ntp/libisc
 
 LIB= ntp
-INTERNALLIB=	true
+INTERNALLIB=
 
 NTP_SRCS=	a_md5encrypt.c	adjtime.c	atoint.c	atolfp.c \
 	atouint.c	audio.c		authkeys.c \

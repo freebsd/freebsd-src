@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	cron
-INTERNALLIB= YES
+INTERNALLIB=
 SRCS= entry.c env.c misc.c
 
 CFLAGS+= -I${.CURDIR}/../cron

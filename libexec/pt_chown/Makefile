@@ -4,6 +4,6 @@ PROG=	pt_chown
 SRCS=	pt_chown.c
 BINOWN=	root
 BINMODE=4555
-NOMAN=	yes
+NOMAN=
 
 .include <bsd.prog.mk>

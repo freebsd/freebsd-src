@@ -3,7 +3,7 @@
 
 PROG=	locate.code
 CFLAGS+=-I${.CURDIR}/../locate 
-NOMAN=	noman
+NOMAN=
 BINDIR=	${LIBEXECDIR}
 
 .include <bsd.prog.mk>

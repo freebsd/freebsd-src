@@ -33,7 +33,7 @@ CFLAGS+= ${NOSTDINC} -I/usr/include -I.
 .ifdef MAKESRCPATH
 CFLAGS+= -I${MAKESRCPATH}
 .endif
-NOMAN=	noman
+NOMAN=
 YFLAGS= -b ${.TARGET:R} ${.TARGET:M*macro*:S/$(.TARGET)/-p mm/} -d
 LFLAGS+= ${.TARGET:M*macro*:S/$(.TARGET)/-Pmm/}
 

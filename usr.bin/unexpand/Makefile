@@ -2,6 +2,6 @@
 # $FreeBSD$
 
 PROG=	unexpand
-NOMAN=	noman
+NOMAN=
 
 .include <bsd.prog.mk>

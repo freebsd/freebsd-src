@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	aac_checkq
-NOMAN=	sorry
+NOMAN=
 BINDIR?=/usr/local/bin
 
 .include <bsd.prog.mk>

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		alpha
-INTERNALLIB=	true
+INTERNALLIB=
 
 #CFLAGS+=	-DDISK_DEBUG
 

@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 LIB=			i386
-INTERNALLIB=		true
+INTERNALLIB=
 
 SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	biospci.c biossmap.c bootinfo.c bootinfo32.c bootinfo64.c \

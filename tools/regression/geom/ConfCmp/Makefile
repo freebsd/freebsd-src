@@ -6,7 +6,7 @@ SRCS+=	subr_sbuf.c
 
 .PATH:	../../../../sys/kern
 
-NOOBJ=	youbet
+NOOBJ=
 WARNS?=	5
 CFLAGS+=	 -g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith -static
 # Uncomment for ElectricFence
@@ -15,7 +15,7 @@ CFLAGS+=	 -g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith -
 DPADD += ${LIBBSDXML}
 LDADD += -lbsdxml
 
-NOMAN=	yeah
+NOMAN=
 CLEANFILES	+= _*
 
 .include <bsd.prog.mk>

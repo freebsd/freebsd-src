@@ -4,7 +4,7 @@ LIB=		crypto
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	3
 
-NOLINT=		true
+NOLINT=
 
 .if exists(Makefile.man)
 .include "Makefile.man"

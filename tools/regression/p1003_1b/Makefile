@@ -11,7 +11,7 @@ SRCS=\
 	sched.c \
 	yield.c
 
-NOMAN=1
+NOMAN=
 
 CFLAGS+=-DNO_MEMLOCK
 .include <bsd.prog.mk>

@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	locate.bigram
-NOMAN=	noman
+NOMAN=
 BINDIR=	${LIBEXECDIR}
 CFLAGS+= -I${.CURDIR}/../locate
 

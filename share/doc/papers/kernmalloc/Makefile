@@ -6,10 +6,10 @@ DOC=		kernmalloc
 SRCS=		kernmalloc.t appendix.ms
 EXTRA=		alloc.fig usage.tbl
 MACROS=		-ms
-USE_EQN=	YES
-USE_PIC=	YES
-USE_SOELIM=	YES
-USE_TBL=	YES
+USE_EQN=
+USE_PIC=
+USE_SOELIM=
+USE_TBL=
 CLEANFILES=	appendix.ms
 
 appendix.ms: appendix.t

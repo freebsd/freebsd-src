@@ -20,7 +20,7 @@
 %VERSREQ=	500013
 
 # Temporary stuff while we're still embryonic
-NO_MODULES?=	yes
+NO_MODULES=
 
 STD8X16FONT?=	iso
 

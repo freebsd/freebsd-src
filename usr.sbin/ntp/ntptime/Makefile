@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../../contrib/ntp/util
 
 PROG=	ntptime
-NOMAN=	yes
+NOMAN=
 SRCS= 	ntptime.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../

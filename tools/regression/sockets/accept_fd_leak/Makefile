@@ -3,7 +3,7 @@
 #
 
 PROG=	accept_fd_leak
-NOMAN=	yes
+NOMAN=
 
 regress:
 	./accept_fd_leak

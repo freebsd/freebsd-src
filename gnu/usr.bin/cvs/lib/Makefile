@@ -9,7 +9,7 @@ MAINTAINER=	peter@FreeBSD.org
 .PATH: ${CVSDIR}/man
 
 LIB=		cvs
-INTERNALLIB=	YES
+INTERNALLIB=
 
 # gnu must be before lib to pick correct regex.h
 CFLAGS+= -I. -I${CVSDIR}/src -I${DESTDIR}/usr/include/gnu \

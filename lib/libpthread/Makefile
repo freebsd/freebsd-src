@@ -36,7 +36,7 @@ LDFLAGS= -Wl,--version-script=${.CURDIR}/pthread.map
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
 
-PRECIOUSLIB=	yes
+PRECIOUSLIB=
 
 .include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 .include "${.CURDIR}/support/Makefile.inc"

@@ -15,7 +15,7 @@ SRCS+=	sm_os.h
 SRCS+=	smdb.c smdb1.c smdb2.c smndbm.c
 CLEANFILES+=sm_os.h
 
-INTERNALLIB=		true
+INTERNALLIB=
 
 sm_os.h:
 	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h

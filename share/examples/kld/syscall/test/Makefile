@@ -1,6 +1,7 @@
 # Makefile for simple caller of syscall
+# $FreeBSD$
 
 PROG  = call
-NOMAN = noman
+NOMAN =
 
 .include <bsd.prog.mk>

@@ -29,7 +29,7 @@ PROG=		testmain
 .include <bsd.prog.mk>
 .else
 LIB=		ficl
-INTERNALLIB=	yes
+INTERNALLIB=
 .include <bsd.lib.mk>
 .endif
 

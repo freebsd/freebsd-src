@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	playvt
-NOMAN=	#true
+NOMAN=
 SRCS=	playvt.c
 
 DEMOS=	chardemo.vt colors.vt sgr.vt

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	mkctm
-NOMAN=	1
+NOMAN=
 SRCS=	mkctm.c
 
 DPADD=	${LIBMD}

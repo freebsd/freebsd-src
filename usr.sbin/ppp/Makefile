@@ -10,14 +10,14 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 	tcpmss.c throughput.c timer.c tty.c tun.c udp.c vjcomp.c
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
-NOATM=		true
-NODES=		true
-NOI4B=		true
-NONAT=		true
-NOKLDLOAD=	true
-NOPAM=		true
-NORADIUS=	true
-NOSUID=		true
+NOATM=
+NODES=
+NOI4B=
+NONAT=
+NOKLDLOAD=
+NOPAM=
+NORADIUS=
+NOSUID=
 .endif
 
 .if defined(NOSUID) || defined(PPP_NOSUID)

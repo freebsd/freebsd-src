@@ -6,7 +6,7 @@ DIST_DIR= ${.CURDIR}/../../../contrib/isc-dhcp
 .PATH: ${DIST_DIR}/common
 
 LIB=	dhcp
-INTERNALLIB=		true
+INTERNALLIB=
 
 SRCS=	alloc.c bpf.c comapi.c conflex.c ctrace.c discover.c dispatch.c \
 	dlpi.c dns.c ethernet.c execute.c fddi.c icmp.c inet.c lpf.c \

@@ -16,8 +16,8 @@ WARNS?=	2
 CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
 CFLAGS+=-I${.CURDIR}/${MACHINE_ARCH}
 CLEANFILES+=tags
-INSTALL_PIC_ARCHIVE=	yes
-PRECIOUSLIB=	yes
+INSTALL_PIC_ARCHIVE=
+PRECIOUSLIB=
 
 # Define (empty) variables so that make doesn't give substitution
 # errors if the included makefiles don't change these:

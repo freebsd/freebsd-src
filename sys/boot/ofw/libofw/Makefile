@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		ofw
-INTERNALLIB=	true
+INTERNALLIB=
 
 SRCS=	devicename.c elf_freebsd.c ofw_console.c ofw_copy.c ofw_disk.c \
 	ofw_memory.c ofw_module.c ofw_net.c ofw_reboot.c \

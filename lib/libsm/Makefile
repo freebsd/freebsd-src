@@ -29,7 +29,7 @@ SRCS+=	assert.c debug.c errstring.c exc.c heap.c match.c rpool.c \
 	niprop.c mpeix.c
 CLEANFILES+=sm_os.h
 
-INTERNALLIB=		true
+INTERNALLIB=
 
 sm_os.h:
 	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h

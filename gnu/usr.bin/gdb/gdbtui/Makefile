@@ -2,7 +2,7 @@
 
 PROG=	gdbtui
 SRCS=	tui-main.c
-NOMAN=	noman
+NOMAN=
 
 BULIBS= ${OBJ_BU}/libbfd/libbfd.a ${OBJ_BU}/libopcodes/libopcodes.a \
 	${OBJ_BU}/libiberty/libiberty.a

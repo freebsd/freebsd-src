@@ -6,6 +6,6 @@ SRCS=		io.c swiz.c bwx.c alpha_sethae.c
 
 CFLAGS+= 	-Wall -Wa,-mev56
 
-NOMAN=1
+NOMAN=
 
 .include <bsd.lib.mk>

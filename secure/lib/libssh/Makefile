@@ -30,7 +30,7 @@ DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
 LDADD+=	-lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
 .endif
 
-NOLINT=	true
+NOLINT=
 
 DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
 LDADD+=	-lcrypto -lcrypt

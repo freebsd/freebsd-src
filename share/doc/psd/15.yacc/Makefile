@@ -6,7 +6,7 @@ SRCS=		stubs ss.. ss0 ss1 ss2 ss3 ss4 ss5 ss6 ss7 ss8 ss9 \
 		ssA ssB ssa ssb ssc ssd
 EXTRA=		ref.bib
 MACROS=		-ms
-USE_REFER=	YES
+USE_REFER=
 CLEANFILES=	stubs
 
 stubs:

@@ -3,6 +3,6 @@
 #
 
 PROG=	simple_send
-NOMAN=	yes
+NOMAN=
 
 .include <bsd.prog.mk>

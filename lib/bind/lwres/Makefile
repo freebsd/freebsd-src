@@ -7,7 +7,7 @@ SRCDIR=		${BIND_DIR}/lib/lwres
 
 # Unlike other BIND libs, this should be installed unless the user says NO.
 .if !defined(NO_BIND_LIBS_LWRES)
-WITH_BIND_LIBS=	YES
+WITH_BIND_LIBS=
 .endif
 
 .include	"${LIB_BIND_DIR}/config.mk"

@@ -9,6 +9,6 @@ SRCS=	alias.c alias_cuseeme.c alias_db.c alias_ftp.c alias_irc.c \
 	alias_util.c alias_old.c
 INCS=	alias.h
 WARNS?=	6
-NO_WERROR=	true
+NO_WERROR=
 
 .include <bsd.lib.mk>

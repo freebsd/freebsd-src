@@ -2,7 +2,7 @@
 
 LIB=    ln
 SRCS=   libmain.c libyywrap.c
-NOPIC=	yes
+NOPIC=
 
 LINKS=  ${LIBDIR}/libln.a ${LIBDIR}/libl.a
 LINKS+=	${LIBDIR}/libln.a ${LIBDIR}/libfl.a

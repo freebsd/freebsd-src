@@ -30,6 +30,6 @@ SRCS+=		auth.c property.c
 CFLAGS+=	-D${sym}=__${sym}
 .endfor
 
-PRECIOUSLIB=	yes
+PRECIOUSLIB=
 
 .include <bsd.lib.mk>

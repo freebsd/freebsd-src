@@ -7,7 +7,7 @@ SRCS=	if.c inet.c inet6.c main.c mbuf.c mcast.c mroute.c ipx.c route.c \
 CFLAGS+=-DIPSEC
 CFLAGS+=-DINET6
 WARNS?=	2
-NO_WERROR?=
+NO_WERROR=
 
 BINGRP=	kmem
 BINMODE=2555

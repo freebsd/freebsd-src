@@ -5,6 +5,6 @@ SHLIB_MAJOR=	2
 
 SRCS=	main.c yyerror.c
 
-NOPIC=	true
+NOPIC=
 
 .include <bsd.lib.mk>

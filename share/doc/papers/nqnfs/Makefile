@@ -5,7 +5,7 @@ VOLUME=		papers
 DOC=		nqnfs
 SRCS=		nqnfs.me
 MACROS=		-me
-USE_PIC=	YES
-USE_TBL=	YES
+USE_PIC=
+USE_TBL=
 
 .include <bsd.doc.mk>
