@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.79 1996/12/28 15:40:38 wosch Exp $
+#	$Id: BSD.usr.dist,v 1.80 1997/01/02 20:41:07 mpp Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -438,6 +438,8 @@
             FreeBSD
             ..
             ISO
+            ..
+            docbook
             ..
             transpec
             ..
