@@ -29,12 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfrd_server.c,v 1.5 1996/06/02 17:34:49 wpaul Exp $
+ *	$Id: ypxfrd_server.c,v 1.6 1996/07/04 02:23:11 wpaul Exp $
  */
 
 #include "ypxfrd.h"
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfrd_server.c,v 1.5 1996/06/02 17:34:49 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfrd_server.c,v 1.6 1996/07/04 02:23:11 wpaul Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -46,6 +46,7 @@ static const char rcsid[] = "$Id: ypxfrd_server.c,v 1.5 1996/06/02 17:34:49 wpau
 #include <sys/param.h>
 #include <sys/uio.h>
 #include <sys/fcntl.h>
+#include <machine/endian.h>
 #include "ypxfrd_extern.h"
 
 int forked = 0;
@@ -106,6 +107,22 @@ ypxfrd_getmap_1_svc(ypxfr_mapname *argp, struct svc_req *rqstp)
 		result.xfr_u.xfrstat = XFR_ACCESS;
 		return(&result);
 	}
+
+	if (argp->xfr_db_type != XFR_DB_BSD_HASH &&
+	    argp->xfr_db_type != XFR_DB_ANY) {
+		result.xfr_u.xfrstat = XFR_DB_TYPE_MISMATCH;
+		return(&result);
+	}
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+	if (argp->xfr_byte_order == XFR_ENDIAN_BIG) {
+#else
+	if (argp->xfr_byte_order == XFR_ENDIAN_LITTLE) {
+#endif
+		result.xfr_u.xfrstat = XFR_DB_ENDIAN_MISMATCH;
+		return(&result);
+	}
+
 #ifndef DEBUG
 	if (children < MAX_CHILDREN && fork()) {
 		children++;
