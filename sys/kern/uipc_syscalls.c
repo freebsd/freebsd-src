@@ -1454,11 +1454,17 @@ static struct sf_buf *
 sf_buf_alloc()
 {
 	struct sf_buf *sf;
+	int error;
 
 	mtx_lock(&sf_freelist.sf_lock);
 	while ((sf = SLIST_FIRST(&sf_freelist.sf_head)) == NULL) {
 		sf_buf_alloc_want++;
-		msleep(&sf_freelist, &sf_freelist.sf_lock, PVM, "sfbufa", 0);
+		error = msleep(&sf_freelist, &sf_freelist.sf_lock, PVM|PCATCH,
+		    "sfbufa", 0);
+		if (error != 0) {
+			sf_buf_alloc_want--;
+			break;
+		}
 	}
 	SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
 	mtx_unlock(&sf_freelist.sf_lock);
@@ -1707,12 +1713,26 @@ retry_lookup:
 			}
 		}
 
+
+		/*
+		 * Get a sendfile buf. We usually wait as long as necessary,
+		 * but this wait can be interrupted.
+		 */
+		if ((sf = sf_buf_alloc()) == NULL) {
+			s = splvm();
+			vm_page_unwire(pg, 0);
+			if (pg->wire_count == 0 && pg->object == NULL)
+				vm_page_free(pg);
+			splx(s);
+			sbunlock(&so->so_snd);
+			error = EINTR;
+			goto done;
+		}
+
 		/*
 		 * Allocate a kernel virtual page and insert the physical page
 		 * into it.
 		 */
-
-		sf = sf_buf_alloc();
 		sf->m = pg;
 		pmap_qenter(sf->kva, &pg, 1);
 		/*
@@ -1722,6 +1742,7 @@ retry_lookup:
 		if (m == NULL) {
 			error = ENOBUFS;
 			sf_buf_free((void *)sf->kva, NULL);
+			sbunlock(&so->so_snd);
 			goto done;
 		}
 		/*
