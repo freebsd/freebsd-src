@@ -220,6 +220,7 @@ vinum_quit(int argc, char *argv[], char *argv0[])
 }
 
 #define FUNKEY(x) { kw_##x, &vinum_##x }		    /* create pair "kw_foo", vinum_foo */
+#define vinum_move vinum_mv				    /* synonym for 'mv' */
 
 struct funkey {
     enum keyword kw;
@@ -243,6 +244,8 @@ struct funkey {
 	FUNKEY(label),
 	FUNKEY(resetconfig),
 	FUNKEY(rm),
+	FUNKEY(mv),
+	FUNKEY(move),
 	FUNKEY(attach),
 	FUNKEY(detach),
 	FUNKEY(rename),
@@ -479,31 +482,27 @@ make_devices(void)
     if (superdev >= 0)					    /* super device open */
 	close(superdev);
 
-    system("rm -rf " VINUM_DIR " " VINUM_RDIR);		    /* remove the old directories */
+    system("rm -rf " VINUM_DIR);			    /* remove the old directories */
     system("mkdir -p " VINUM_DIR "/drive "		    /* and make them again */
 	VINUM_DIR "/plex "
-	VINUM_DIR "/rplex "
 	VINUM_DIR "/sd "
-	VINUM_DIR "/rsd "
-	VINUM_DIR "/vol "
-	VINUM_DIR "/rvol "
-	VINUM_RDIR);
+	VINUM_DIR "/vol ");
 
     if (mknod(VINUM_SUPERDEV_NAME,
-	    S_IRWXU | S_IFBLK,				    /* block device, user only */
-	    makedev(BDEV_MAJOR, VINUM_SUPERDEV)) < 0)
+	    S_IRWXU | S_IFCHR,				    /* user only */
+	    makedev(CDEV_MAJOR, VINUM_SUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_SUPERDEV_NAME, strerror(errno));
 
     if (mknod(VINUM_WRONGSUPERDEV_NAME,
-	    S_IRWXU | S_IFBLK,				    /* block device, user only */
-	    makedev(BDEV_MAJOR, VINUM_WRONGSUPERDEV)) < 0)
+	    S_IRWXU | S_IFCHR,				    /* user only */
+	    makedev(CDEV_MAJOR, VINUM_WRONGSUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_WRONGSUPERDEV_NAME, strerror(errno));
 
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open the super device */
 
     if (mknod(VINUM_DAEMON_DEV_NAME,			    /* daemon super device */
-	    S_IRWXU | S_IFBLK,				    /* block device, user only */
-	    makedev(BDEV_MAJOR, VINUM_DAEMON_DEV)) < 0)
+	    S_IRWXU | S_IFCHR,				    /* user only */
+	    makedev(CDEV_MAJOR, VINUM_DAEMON_DEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_DAEMON_DEV_NAME, strerror(errno));
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
@@ -524,7 +523,7 @@ make_devices(void)
 	char filename[PATH_MAX];			    /* for forming file names */
 
 	get_drive_info(&drive, driveno);
-	if (drive.state != drive_unallocated) {
+	if (drive.state > drive_referenced) {
 	    sprintf(filename, "ln -s %s " VINUM_DIR "/drive/%s", drive.devicename, drive.label.name);
 	    system(filename);
 	}
@@ -536,44 +535,27 @@ void
 make_vol_dev(int volno, int recurse)
 {
     dev_t voldev;
-    dev_t rvoldev;
     char filename[PATH_MAX];				    /* for forming file names */
     int plexno;
 
     get_volume_info(&vol, volno);
     if (vol.state != volume_unallocated) {		    /* we could have holes in our lists */
-	voldev = VINUMBDEV(volno, 0, 0, VINUM_VOLUME_TYPE); /* create a block device number */
-	rvoldev = VINUMCDEV(volno, 0, 0, VINUM_VOLUME_TYPE); /* and a character device */
+	voldev = VINUMDEV(volno, 0, 0, VINUM_VOLUME_TYPE);  /* create a device number */
 
 	/* Create /dev/vinum/<myvol> */
 	sprintf(filename, VINUM_DIR "/%s", vol.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFBLK, voldev) < 0)
-	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-
-	/* Create /dev/rvinum/<myvol> */
-	sprintf(filename, VINUM_RDIR "/%s", vol.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFCHR, rvoldev) < 0)
-	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-
-	/* Create /dev/vinum/r<myvol> XXX until we fix fsck and friends */
-	sprintf(filename, VINUM_DIR "/r%s", vol.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFCHR, rvoldev) < 0)
+	if (mknod(filename, S_IRWXU | S_IRGRP | S_IFCHR, voldev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 
 	/* Create /dev/vinum/vol/<myvol> */
 	sprintf(filename, VINUM_DIR "/vol/%s", vol.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFBLK, voldev) < 0)
-	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-
-	/* Create /dev/vinum/rvol/<myvol> */
-	sprintf(filename, VINUM_DIR "/rvol/%s", vol.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFCHR, rvoldev) < 0)
+	if (mknod(filename, S_IRWXU | S_IRGRP | S_IFCHR, voldev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 
 	if (vol.plexes > 0) {
 	    /* Create /dev/vinum/vol/<myvol>.plex/ */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex", vol.name);
-	    if (mkdir(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) < 0)
+	    if (mkdir(filename, S_IRWXU | S_IRGRP | S_IXOTH) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 	}
 	if (recurse)
@@ -589,38 +571,31 @@ make_vol_dev(int volno, int recurse)
 void
 make_plex_dev(int plexno, int recurse)
 {
-    dev_t plexdev;					    /* block device */
-    dev_t plexcdev;					    /* and character device device */
+    dev_t plexdev;					    /* device */
     char filename[PATH_MAX];				    /* for forming file names */
     int sdno;
 
     get_plex_info(&plex, plexno);
     if (plex.state != plex_unallocated) {
-	plexdev = VINUM_BLOCK_PLEX(plexno);
-	plexcdev = VINUM_CHAR_PLEX(plexno);
+	plexdev = VINUM_PLEX(plexno);
 
 	/* /dev/vinum/plex/<plex> */
 	sprintf(filename, VINUM_DIR "/plex/%s", plex.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFBLK, plexdev) < 0)
-	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-
-	/* /dev/vinum/rplex/<plex> */
-	sprintf(filename, VINUM_DIR "/rplex/%s", plex.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFCHR, plexcdev) < 0)
+	if (mknod(filename, S_IRWXU | S_IRGRP | S_IFCHR, plexdev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 
 	if (plex.volno >= 0) {
 	    get_volume_info(&vol, plex.volno);
-	    plexdev = VINUMBDEV(plex.volno, plexno, 0, VINUM_PLEX_TYPE);
+	    plexdev = VINUMDEV(plex.volno, plexno, 0, VINUM_PLEX_TYPE);
 
 	    /* Create device /dev/vinum/vol/<vol>.plex/<plex> */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex/%s", vol.name, plex.name);
-	    if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFBLK, plexdev) < 0)
+	    if (mknod(filename, S_IRWXU | S_IRGRP | S_IFCHR, plexdev) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 
 	    /* Create directory /dev/vinum/vol/<vol>.plex/<plex>.sd */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex/%s.sd", vol.name, plex.name);
-	    if (mkdir(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) < 0)
+	    if (mkdir(filename, S_IRWXU | S_IRGRP | S_IXOTH) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 	}
 	if (recurse) {
@@ -636,23 +611,16 @@ make_plex_dev(int plexno, int recurse)
 void
 make_sd_dev(int sdno)
 {
-    dev_t sddev;					    /* block device */
-    dev_t sdcdev;					    /* and character device */
+    dev_t sddev;					    /* device */
     char filename[PATH_MAX];				    /* for forming file names */
 
     get_sd_info(&sd, sdno);
     if (sd.state != sd_unallocated) {
-	sddev = VINUM_BLOCK_SD(sdno);
-	sdcdev = VINUM_CHAR_SD(sdno);
+	sddev = VINUM_SD(sdno);
 
 	/* /dev/vinum/sd/<sd> */
 	sprintf(filename, VINUM_DIR "/sd/%s", sd.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFBLK, sddev) < 0)
-	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-
-	/* And /dev/vinum/rsd/<sd> */
-	sprintf(filename, VINUM_DIR "/rsd/%s", sd.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFCHR, sdcdev) < 0)
+	if (mknod(filename, S_IRWXU | S_IRGRP | S_IFCHR, sddev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
     }
 }
