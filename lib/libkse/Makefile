@@ -16,8 +16,6 @@ CFLAGS+=-I${.CURDIR}/../../include
 # thread locking.
 CFLAGS+=-D_LOCK_DEBUG
 
-DEBUG_FLAGS=-g3
-
 # enable extra internal consistancy checks
 # CFLAGS+=-D_PTHREADS_INVARIANTS
 
