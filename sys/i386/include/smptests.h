@@ -90,13 +90,6 @@
  */
 #define APIC_INTR_REORDER
 
-/*
- * Redirect clock interrupts to a higher priority (fast intr) vector,
- * while still using the slow interrupt handler. Only effective when 
- * APIC_INTR_REORDER is defined.
- */
-#define APIC_INTR_HIGHPRI_CLOCK
-
 #endif /* APIC_IO */
 
 /*
