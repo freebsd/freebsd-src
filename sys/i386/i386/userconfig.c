@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.120 1999/01/07 09:49:28 abial Exp $
+ **      $Id: userconfig.c,v 1.121 1999/01/08 21:00:26 abial Exp $
  **/
 
 /**
@@ -392,6 +392,7 @@ static DEV_INFO device_info[] = {
 {"vx",          "3COM 3C590/3C595 Ethernet adapters",		0,	CLS_NETWORK},
 {"ze",          "IBM/National Semiconductor PCMCIA Ethernet adapter",0,	CLS_NETWORK},
 {"zp",          "3COM PCMCIA Etherlink III Ethernet adapter",	0,	CLS_NETWORK},
+{"ax",          "ASIC AX88140A ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
 {"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
 {"rl",          "RealTek 8129/8139 ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
@@ -2515,7 +2516,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.120 1999/01/07 09:49:28 abial Exp $
+ *      $Id: userconfig.c,v 1.121 1999/01/08 21:00:26 abial Exp $
  */
 
 #include "scbus.h"

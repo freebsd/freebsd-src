@@ -57,7 +57,7 @@ SMC EZ Card 10/100 PCI 1211-TX.
 
 Added driver support for Lite-On PNIC-based fast ethernet cards
 including the LinkSys LNE100TX, NetGear FA310TX Rev. D1 and
-Matrox FastNIC 10.100.
+Matrox FastNIC 10/100.
 
 Added driver support for fast ethernet adapters based on the 
 Macronix 98713, 98713A, 98715, 98715A and 98725 chips.
@@ -70,6 +70,9 @@ VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" chips.
 
 Added driver support for pocket ethernet adapters based on the
 RealTek RTL 8002 chip.
+
+Added driver support for fast ethernet adapters based on the
+ASIX Electronics AX88140A chip.
 
 1.2. SECURITY FIXES
 -------------------
@@ -226,6 +229,7 @@ Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
   NDC Communications SFA100A (98713A)
   CNet Pro120A (98713 or 98713A)
   CNet Pro120B (98715)
+  SVEC PN102TX (98713)
 
 Winbond W89C840F fast ethernet NICs including the following:
   Trendware TE100-PCIE
@@ -240,6 +244,9 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
   Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
   Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
+
+ASIX Electronics AX88140A PCI NICs, including the following:
+  Alfa Inc. GFC2204
 
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
@@ -269,6 +276,8 @@ Novell NE1000, NE2000, and NE2100 ethernet interface.
 
 3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B PCI and EISA
 (Fast) Etherlink III / (Fast) Etherlink XL
+
+3Com 3c980 Fast Etherlink XL server adapter
 
 Toshiba ethernet cards
 
