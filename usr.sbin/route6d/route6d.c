@@ -3335,10 +3335,13 @@ fatal(fmt, va_alist)
 	va_start(ap);
 #endif
 	vsnprintf(buf, sizeof(buf), fmt, ap);
-	perror(buf);
-	syslog(LOG_ERR, "%s: %s", buf, strerror(errno));
-	rtdexit();
 	va_end(ap);
+	perror(buf);
+	if (errno)
+		syslog(LOG_ERR, "%s: %s", buf, strerror(errno));
+	else
+		syslog(LOG_ERR, "%s", buf);
+	rtdexit();
 }
 
 void
@@ -3353,22 +3356,28 @@ tracet(level, fmt, va_alist)
 {
 	va_list ap;
 
-#ifdef __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	if (level <= dflag) {
+#ifdef __STDC__
+		va_start(ap, fmt);
+#else
+		va_start(ap);
+#endif
 		fprintf(stderr, "%s: ", hms());
 		vfprintf(stderr, fmt, ap);
+		va_end(ap);
 	}
 	if (dflag) {
+#ifdef __STDC__
+		va_start(ap, fmt);
+#else
+		va_start(ap);
+#endif
 		if (level > 0)
 			vsyslog(LOG_DEBUG, fmt, ap);
 		else
 			vsyslog(LOG_WARNING, fmt, ap);
+		va_end(ap);
 	}
-	va_end(ap);
 }
 
 void
@@ -3383,20 +3392,27 @@ trace(level, fmt, va_alist)
 {
 	va_list ap;
 
+	if (level <= dflag) {
 #ifdef __STDC__
-	va_start(ap, fmt);
+		va_start(ap, fmt);
 #else
-	va_start(ap);
+		va_start(ap);
 #endif
-	if (level <= dflag)
 		vfprintf(stderr, fmt, ap);
+		va_end(ap);
+	}
 	if (dflag) {
+#ifdef __STDC__
+		va_start(ap, fmt);
+#else
+		va_start(ap);
+#endif
 		if (level > 0)
 			vsyslog(LOG_DEBUG, fmt, ap);
 		else
 			vsyslog(LOG_WARNING, fmt, ap);
+		va_end(ap);
 	}
-	va_end(ap);
 }
 
 unsigned int
