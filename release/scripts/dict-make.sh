@@ -1,6 +1,7 @@
 #!/bin/sh
-
+#
 # $FreeBSD$
+#
 
 # Move the dict stuff out to its own dist
 if [ -d ${RD}/trees/bin/usr/share/dict ]; then
