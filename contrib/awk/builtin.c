@@ -463,7 +463,13 @@ check_pos:
 			break;
 
 		case '0':
-			zero_flag = TRUE;
+			/*
+			 * Only turn on zero_flag if we haven't seen
+			 * the field width or precision yet.  Otherwise,
+			 * screws up floating point formatting.
+			 */
+			if (cur == & fw)
+				zero_flag = TRUE;
 			if (lj)
 				goto retry;
 			/* FALL through */
@@ -2006,7 +2012,7 @@ NODE *tree;
 	free_temp(tmp);
 
 	if (do_lint) {
-		if (uval < 0)
+		if (d < 0)
 			warning("compl(%lf): negative value will give strange results", d);
 		if (double_to_int(d) != d)
 			warning("compl(%lf): fractional value will be truncated", d);
