@@ -1,7 +1,8 @@
 /* nodes.c -- how to get an Info file and node.
-   $Id: nodes.c,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: nodes.c,v 1.2 2003/05/13 16:37:54 karl Exp $
 
-   Copyright (C) 1993, 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1998, 1999, 2000, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -869,19 +870,19 @@ find_node_of_anchor (file_buffer, tag)
   int anchor_pos, node_pos;
   TAG *node_tag;
   NODE *node;
-  
+
   /* Look through the tag list for the anchor.  */
   for (anchor_pos = 0; file_buffer->tags[anchor_pos]; anchor_pos++)
     {
       TAG *t = file_buffer->tags[anchor_pos];
       if (t->nodestart == tag->nodestart)
-        break;        
+        break;
     }
-  
+
   /* Should not happen, because we should always find the anchor.  */
   if (!file_buffer->tags[anchor_pos])
     return NULL;
-  
+
   /* We've found the anchor.  Look backwards in the tag table for the
      preceding node (we're assuming the tags are given in order),
      skipping over any preceding anchors.  */
@@ -889,20 +890,20 @@ find_node_of_anchor (file_buffer, tag)
        node_pos >= 0 && file_buffer->tags[node_pos]->nodelen == 0;
        node_pos--)
     ;
-  
+
   /* An info file with an anchor before any nodes is pathological, but
      it's possible, so don't crash.  */
   if (node_pos < 0)
     return NULL;
-  
+
   /* We have the tag for the node that contained the anchor tag.  */
-  node_tag = file_buffer->tags[node_pos]; 
+  node_tag = file_buffer->tags[node_pos];
 
   /* Look up the node name in the tag table to get the actual node.
      This is a recursive call, but it can't recurse again, because we
      call it with a real node.  */
   node = info_node_of_file_buffer_tags (file_buffer, node_tag->nodename);
-  
+
   /* Start displaying the node at the anchor position.  */
   if (node)
     { /* The nodestart for real nodes is three characters before the `F'
@@ -921,11 +922,11 @@ find_node_of_anchor (file_buffer, tag)
          the screen), which looks wrong.  */
       if (node->display_pos >= node->nodelen)
         node->display_pos = node->nodelen - 1;
-      
+
       /* Don't search in the node for the xref text, it's not there.  */
       node->flags |= N_FromAnchor;
     }
-  
+
   return node;
 }
 
@@ -944,8 +945,8 @@ info_node_of_file_buffer_tags (file_buffer, nodename)
   if (!file_buffer->tags) {
     return NULL;
   }
-  
-  for (i = 0; (tag = file_buffer->tags[i]); i++)    
+
+  for (i = 0; (tag = file_buffer->tags[i]); i++)
     if (strcmp (nodename, tag->nodename) == 0)
       {
         FILE_BUFFER *subfile = info_find_file_internal (tag->filename,
@@ -1036,7 +1037,7 @@ info_node_of_file_buffer_tags (file_buffer, nodename)
               free (node);
               node = find_node_of_anchor (file_buffer, tag);
             }
-            
+
           else
             {
               /* Since we know the length of this node, we have already
@@ -1098,7 +1099,7 @@ forget_info_file (filename)
   if (!info_loaded_files)
     return;
 
-  for (i = 0; file_buffer = info_loaded_files[i]; i++)
+  for (i = 0; (file_buffer = info_loaded_files[i]); i++)
     if (FILENAME_CMP (filename, file_buffer->filename) == 0
         || FILENAME_CMP (filename, file_buffer->fullpath) == 0)
       {
@@ -1107,7 +1108,7 @@ forget_info_file (filename)
 
         if (file_buffer->contents)
           free (file_buffer->contents);
-        
+
         /* free_file_buffer_tags () also kills the subfiles list, since
            the subfiles list is only of use in conjunction with tags. */
         free_file_buffer_tags (file_buffer);
