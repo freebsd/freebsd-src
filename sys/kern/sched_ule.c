@@ -79,9 +79,11 @@ struct ke_sched {
 #define	ke_cpu		ke_sched->ske_cpu
 
 struct kg_sched {
-	int	skg_slptime;
+	int	skg_slptime;		/* Number of ticks we vol. slept */
+	int	skg_runtime;		/* Number of ticks we were running */
 };
 #define	kg_slptime	kg_sched->skg_slptime
+#define	kg_runtime	kg_sched->skg_runtime
 
 struct td_sched {
 	int	std_slptime;
@@ -107,25 +109,37 @@ struct td_sched *thread0_sched = &td_sched;
  * This priority range has 20 priorities on either end that are reachable
  * only through nice values.
  */
+#define	SCHED_PRI_RANGE	(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
 #define	SCHED_PRI_NRESV	40
-#define	SCHED_PRI_RANGE	((PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1) - \
-    SCHED_PRI_NRESV)
+#define	SCHED_PRI_BASE	(SCHED_PRI_NRESV / 2)
+#define	SCHED_PRI_DYN	(SCHED_PRI_RANGE - SCHED_PRI_NRESV)
+#define	SCHED_PRI_DYN_HALF	(SCHED_PRI_DYN / 2)
 
 /*
  * These determine how sleep time effects the priority of a process.
  *
- * SLP_MAX:	Maximum amount of accrued sleep time.
- * SLP_SCALE:	Scale the number of ticks slept across the dynamic priority
- *		range.
- * SLP_TOPRI:	Convert a number of ticks slept into a priority value.
- * SLP_DECAY:	Reduce the sleep time to 50% for every granted slice.
+ * SLP_RUN_MAX:	Maximum amount of sleep time + run time we'll accumulate
+ *		before throttling back.
+ * SLP_RUN_THORTTLE:	Divisor for reducing slp/run time.
+ * SLP_RATIO:	Compute a bounded ratio of slp time vs run time.
+ * SLP_TOPRI:	Convert a number of ticks slept and ticks ran into a priority
  */
-#define	SCHED_SLP_MAX	(hz * 2)
-#define	SCHED_SLP_SCALE(slp)	(((slp) * SCHED_PRI_RANGE) / SCHED_SLP_MAX)
-#define	SCHED_SLP_TOPRI(slp)	(SCHED_PRI_RANGE - SCHED_SLP_SCALE((slp)) + \
+#define	SCHED_SLP_RUN_MAX	((hz * 30) * 1024)
+#define	SCHED_SLP_RUN_THROTTLE	(10)
+static __inline int
+sched_slp_ratio(int b, int s)
+{
+	b /= SCHED_PRI_DYN_HALF;
+	if (b == 0)
+		return (0);
+	s /= b;
+	return (s);
+}
+#define	SCHED_SLP_TOPRI(slp, run)					\
+    ((((slp) > (run))?							\
+    sched_slp_ratio((slp), (run)):					\
+    SCHED_PRI_DYN_HALF + (SCHED_PRI_DYN_HALF - sched_slp_ratio((run), (slp))))+ \
     SCHED_PRI_NRESV / 2)
-#define	SCHED_SLP_DECAY(slp)	((slp) / 2)	/* XXX Multiple kses break */
-
 /*
  * These parameters and macros determine the size of the time slice that is
  * granted to each thread.
@@ -149,16 +163,19 @@ struct td_sched *thread0_sched = &td_sched;
 #define	SCHED_PRI_TOSLICE(pri)						\
     (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((pri), SCHED_PRI_RANGE))
 #define	SCHED_SLP_TOSLICE(slp)						\
-    (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((slp), SCHED_SLP_MAX))
+    (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((slp), SCHED_PRI_DYN))
 #define	SCHED_SLP_COMP(slice)	(((slice) / 5) * 3)	/* 60% */
 #define	SCHED_PRI_COMP(slice)	(((slice) / 5) * 2)	/* 40% */
 
 /*
  * This macro determines whether or not the kse belongs on the current or
  * next run queue.
+ * 
+ * XXX nice value should effect how interactive a kg is.
  */
-#define	SCHED_CURR(kg)	((kg)->kg_slptime > (hz / 4) || \
-    (kg)->kg_pri_class != PRI_TIMESHARE)
+#define	SCHED_CURR(kg)	(((kg)->kg_slptime > (kg)->kg_runtime &&	\
+	sched_slp_ratio((kg)->kg_slptime, (kg)->kg_runtime) > 4) ||	\
+	(kg)->kg_pri_class != PRI_TIMESHARE)
 
 /*
  * Cpu percentage computation macros and defines.
@@ -328,7 +345,7 @@ sched_priority(struct ksegrp *kg)
 	if (kg->kg_pri_class != PRI_TIMESHARE)
 		return (kg->kg_user_pri);
 
-	pri = SCHED_SLP_TOPRI(kg->kg_slptime);
+	pri = SCHED_SLP_TOPRI(kg->kg_slptime, kg->kg_runtime);
 	CTR2(KTR_RUNQ, "sched_priority: slptime: %d\tpri: %d",
 	    kg->kg_slptime, pri);
 
@@ -359,9 +376,12 @@ sched_slice(struct ksegrp *kg)
 	pri = kg->kg_user_pri;
 	pri -= PRI_MIN_TIMESHARE;
 	pslice = SCHED_PRI_TOSLICE(pri);
-	sslice = SCHED_SLP_TOSLICE(kg->kg_slptime);	
+	sslice = SCHED_PRI_TOSLICE(SCHED_SLP_TOPRI(kg->kg_slptime, kg->kg_runtime));
+/*
+SCHED_SLP_TOSLICE(SCHED_SLP_RATIO(
+	    kg->kg_slptime, kg->kg_runtime));
+*/
 	slice = SCHED_SLP_COMP(sslice) + SCHED_PRI_COMP(pslice);
-	kg->kg_slptime = SCHED_SLP_DECAY(kg->kg_slptime);
 
 	CTR4(KTR_RUNQ,
 	    "sched_slice: pri: %d\tsslice: %d\tpslice: %d\tslice: %d",
@@ -371,6 +391,16 @@ sched_slice(struct ksegrp *kg)
 		slice = SCHED_SLICE_MIN;
 	else if (slice > SCHED_SLICE_MAX)
 		slice = SCHED_SLICE_MAX;
+
+	/*
+	 * Every time we grant a new slice check to see if we need to scale
+	 * back the slp and run time in the kg.  This will cause us to forget
+	 * old interactivity while maintaining the current ratio.
+	 */
+	if ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
+		kg->kg_runtime /= SCHED_SLP_RUN_THROTTLE;
+		kg->kg_slptime /= SCHED_SLP_RUN_THROTTLE;
+	}
 
 	return (slice);
 }
@@ -539,9 +569,7 @@ sched_wakeup(struct thread *td)
 	kg = td->td_ksegrp;
 
 	if (td->td_slptime) {
-		kg->kg_slptime += ticks - td->td_slptime;
-		if (kg->kg_slptime > SCHED_SLP_MAX)
-			kg->kg_slptime = SCHED_SLP_MAX;
+		kg->kg_slptime += (ticks - td->td_slptime) * 1024;
 		td->td_priority = sched_priority(kg);
 	}
 	td->td_slptime = 0;
@@ -573,14 +601,26 @@ sched_fork(struct ksegrp *kg, struct ksegrp *child)
 	pkse = FIRST_KSE_IN_KSEGRP(kg);
 
 	/* XXX Need something better here */
+	if (kg->kg_slptime > kg->kg_runtime) {
+		child->kg_slptime = SCHED_PRI_DYN;
+		child->kg_runtime = kg->kg_slptime / SCHED_PRI_DYN;
+	} else {
+		child->kg_runtime = SCHED_PRI_DYN;
+		child->kg_slptime = kg->kg_runtime / SCHED_PRI_DYN;
+	}
+#if 0
 	child->kg_slptime = kg->kg_slptime;
+	child->kg_runtime = kg->kg_runtime;
+#endif
 	child->kg_user_pri = kg->kg_user_pri;
 
+#if 0
 	if (pkse->ke_cpu != PCPU_GET(cpuid)) {
 		printf("pkse->ke_cpu = %d\n", pkse->ke_cpu);
 		printf("cpuid = %d", PCPU_GET(cpuid));
 		Debugger("stop");
 	}
+#endif
 
 	ckse->ke_slice = pkse->ke_slice;
 	ckse->ke_cpu = pkse->ke_cpu; /* sched_pickcpu(); */
@@ -603,6 +643,7 @@ sched_exit(struct ksegrp *kg, struct ksegrp *child)
 	/* XXX Need something better here */
 	mtx_assert(&sched_lock, MA_OWNED);
 	kg->kg_slptime = child->kg_slptime;
+	kg->kg_runtime = child->kg_runtime;
 	sched_priority(kg);
 }
 
@@ -646,11 +687,11 @@ sched_clock(struct thread *td)
 		ke->ke_flags |= KEF_NEEDRESCHED;
 #endif
 	/*
-	 * We used a tick, decrease our total sleep time.  This decreases our
+	 * We used a tick charge it to the ksegrp so that we can compute our
 	 * "interactivity".
 	 */
-	if (kg->kg_slptime)
-		kg->kg_slptime--;
+	kg->kg_runtime += 1024;
+
 	/*
 	 * We used up one time slice.
 	 */
