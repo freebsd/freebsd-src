@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.27 1998/08/26 18:07:57 brian Exp $
+ * $Id: pap.c,v 1.28 1999/01/28 01:56:33 brian Exp $
  *
  *	TODO:
  */
@@ -138,6 +138,14 @@ PapValidate(struct bundle *bundle, u_char *name, u_char *key,
 }
 
 void
+pap_Failed(struct physical *p)
+{
+  auth_StopTimer(&p->dl->pap);
+  log_Printf(LogPHASE, "Pap: No response from server\n");
+  datalink_AuthNotOk(p->dl);
+}
+
+void
 pap_Input(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 {
   int len = mbuf_Length(bp);
@@ -167,7 +175,6 @@ pap_Input(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
              * told that I got the answer right.
              */
             datalink_AuthOk(physical->dl);
-
 	} else {
 	  SendPapCode(php->id, PAP_NAK, "Login incorrect", physical);
           datalink_AuthNotOk(physical->dl);
