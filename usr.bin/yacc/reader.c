@@ -1884,7 +1884,7 @@ static void
 print_grammar()
 {
     int i, j, k;
-    int spacing = 0;
+    int spacing;
     FILE *f = verbose_file;
 
     if (!vflag) return;
