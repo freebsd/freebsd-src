@@ -1345,7 +1345,7 @@ acd_select_slot(struct acd_softc *cdp)
 	  ATA_PROTO_ATAPI_12 ? 16 : 12);
     request->timeout = 30;
     request->callback = acd_unload_done;
-    request->flags |= (ATA_R_ATAPI | ATA_R_AT_HEAD);
+    request->flags |= (ATA_R_ATAPI | ATA_R_IMMEDIATE);
     ata_queue_request(request);
 }
 
