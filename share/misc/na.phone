@@ -49,7 +49,6 @@
 308:North Platte:Nebraska:NE
 309:Bloomington:Illinois:IL
 310:Los Angeles:California:LA
-847:Arlington Heights:Illinois:IL
 312:Broadview:Illinois:IL
 312:Calumet Park:Illinois:IL
 312:Chicago:Illinois:IL
@@ -66,6 +65,7 @@
 318:Alexandria:Louisiana:LA
 318:Lake Charles:Louisiana:LA
 319:Dubuque:Iowa:IA
+320:St. Cloud:Minnesota:MN
 401::Rhode Island:RI
 402:Hastings:Nebraska:NE
 402:Lincoln:Nebraska:NE
@@ -144,7 +144,6 @@
 609:Allentown:New Jersey:NJ
 609:Atlantic City:New Jersey:NJ
 612:Minneapolis:Minnesota:MN
-612:St. Cloud:Minnesota:MN
 612:St. Louis Park:Minnesota:MN
 612:St. Paul:Minnesota:MN
 613:Ottawa:Ontario:ON
@@ -214,6 +213,7 @@
 818:San Fernando:California:CA
 818:Van Nuys:California:CA
 819:Sherbrooke:Quebec:PQ
+847:Arlington Heights:Illinois:IL
 901:Memphis:Tennessee:TN
 902:Charlottetown:Prince Edward Island:PE
 902:Halifax:Nova Scotia:NS
