@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.3 1996/10/09 19:47:37 bde Exp $
+ *	$Id: locore.s,v 1.4 1996/10/09 21:45:53 asami Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -334,7 +334,6 @@ _pc98_system_parameter:
 
 /* now running relocated at KERNBASE where the system is linked to run */
 begin:
-
 	/* set up bootstrap stack */
 	movl	$_kstack+UPAGES*PAGE_SIZE,%esp	/* bootstrap stack end location */
 	xorl	%eax,%eax			/* mark end of frames */

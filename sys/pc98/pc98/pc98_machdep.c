@@ -46,8 +46,8 @@
 extern int Maxmem;
 extern int Maxmem_under16M;
 
-void init_cpu_accel_mem __P((void));
-void init_pc98_dmac __P((void));
+static void init_cpu_accel_mem __P((void));
+void pc98_init_dmac __P((void));
 
 #ifdef EPSON_MEMWIN
 static void init_epson_memwin __P((void));
@@ -107,9 +107,9 @@ static void init_epson_memwin(void)
 }
 #endif
 
-void init_cpu_accel_mem(void)
+static void init_cpu_accel_mem(void)
 {
-	int target_page;
+	u_int target_page;
 	/*
 	 * Certain 'CPU accelerator' supports over 16MB memory on
 	 * the machines whose BIOS doesn't store true size.  
@@ -119,38 +119,38 @@ void init_cpu_accel_mem(void)
 		for (target_page = ptoa(4096);		/* 16MB */
 			 target_page < ptoa(32768);		/* 128MB */
 			 target_page += 256 * PAGE_SIZE	/* 1MB step */) {
-			int tmp, page_bad = FALSE, OrigMaxmem = Maxmem;
+			u_int tmp, page_bad = FALSE, OrigMaxmem = Maxmem;
 
 			*(int *)CMAP1 = PG_V | PG_RW | PG_N | target_page;
 			invltlb();
 
-			tmp = *(int *)CADDR1;
+			tmp = *(u_int *)CADDR1;
 			/*
 			 * Test for alternating 1's and 0's
 			 */
-			*(volatile int *)CADDR1 = 0xaaaaaaaa;
-			if (*(volatile int *)CADDR1 != 0xaaaaaaaa) {
+			*(volatile u_int *)CADDR1 = 0xaaaaaaaa;
+			if (*(volatile u_int *)CADDR1 != 0xaaaaaaaa) {
 				page_bad = TRUE;
 			}
 			/*
 			 * Test for alternating 0's and 1's
 			 */
-			*(volatile int *)CADDR1 = 0x55555555;
-			if (*(volatile int *)CADDR1 != 0x55555555) {
+			*(volatile u_int *)CADDR1 = 0x55555555;
+			if (*(volatile u_int *)CADDR1 != 0x55555555) {
 				page_bad = TRUE;
 			}
 			/*
 			 * Test for all 1's
 			 */
-			*(volatile int *)CADDR1 = 0xffffffff;
-			if (*(volatile int *)CADDR1 != 0xffffffff) {
+			*(volatile u_int *)CADDR1 = 0xffffffff;
+			if (*(volatile u_int *)CADDR1 != 0xffffffff) {
 				page_bad = TRUE;
 			}
 			/*
 			 * Test for all 0's
 			 */
-			*(volatile int *)CADDR1 = 0x0;
-			if (*(volatile int *)CADDR1 != 0x0) {
+			*(volatile u_int *)CADDR1 = 0x0;
+			if (*(volatile u_int *)CADDR1 != 0x0) {
 				/*
 				 * test of page failed
 				 */
@@ -159,7 +159,7 @@ void init_cpu_accel_mem(void)
 			/*
 			 * Restore original value.
 			 */
-			*(int *)CADDR1 = tmp;
+			*(u_int *)CADDR1 = tmp;
 			if (page_bad == TRUE) {
 				Maxmem = atop(target_page) + 256;
 			} else 
@@ -170,7 +170,6 @@ void init_cpu_accel_mem(void)
 	}
 }
 
-int dma_init_flag = 1;	/* dummy */
 
 void pc98_init_dmac(void)
 {
