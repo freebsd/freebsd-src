@@ -2,10 +2,20 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id $Id: rcsintro.1,v 5.1 1991/04/21 12:00:46 eggert Exp $
+.Id $Id: rcsintro.1,v 5.3 1993/11/03 17:42:27 eggert Exp $
 .ds r \&\s-1RCS\s0
 .if n .ds - \%--
 .if t .ds - \(em
+.if !\n(.g \{\
+.	if !\w|\*(lq| \{\
+.		ds lq ``
+.		if \w'\(lq' .ds lq "\(lq
+.	\}
+.	if !\w|\*(rq| \{\
+.		ds rq ''
+.		if \w'\(rq' .ds rq "\(rq
+.	\}
+.\}
 .am SS
 .LP
 ..
@@ -276,11 +286,11 @@ details.
 .SH IDENTIFICATION
 Author: Walter F. Tichy.
 .br
-Revision Number: \*(Rv; Release Date: \*(Dt.
+Manual Page Revision: \*(Rv; Release Date: \*(Dt.
 .br
-Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+Copyright \(co 1982, 1988, 1989 Walter F. Tichy.
 .br
-Copyright \(co 1990, 1991 by Paul Eggert.
+Copyright \(co 1990, 1991, 1992, 1993 Paul Eggert.
 .SH "SEE ALSO"
 ci(1), co(1), ident(1), rcs(1), rcsdiff(1), rcsintro(1), rcsmerge(1), rlog(1)
 .br
