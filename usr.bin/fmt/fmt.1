@@ -115,8 +115,13 @@ escaped to protect them from your shell.
 .It Fl l Ar number
 Replace multiple spaces with tabs at the start of each output
 line, if possible.
+Each
 .Ar number
 spaces will be replaced with one tab.
+The default is 8.
+If
+.Ar number
+is 0, spaces are preserved.
 .It Fl t Ar number
 Assume that the input files' tabs assume
 .Ar number
