@@ -199,7 +199,7 @@
     Thus, instead of specifying how many &man.gif.4; interfaces
     are available in kernel configuration files, &man.ifconfig.8;'s
     <option>create</option> option should be used when another device
-    instance is desired.</para>
+    instance is desired. &merged;</para>
 
     <para>The kernel message buffer is now accessible by the
     (machine-independent) <varname>kern.msgbuf</varname> sysctl
