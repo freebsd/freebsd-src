@@ -1439,8 +1439,8 @@ struct sk_softc {
 #define	SK_LOCK(_sc)		mtx_lock(&(_sc)->sk_mtx)
 #define	SK_UNLOCK(_sc)		mtx_unlock(&(_sc)->sk_mtx)
 #define	SK_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sk_mtx, MA_OWNED)
-#define	SK_IF_LOCK(_sc)		mtx_lock(&(_sc)->sk_softc->sk_mtx)
-#define	SK_IF_UNLOCK(_sc)	mtx_unlock(&(_sc)->sk_softc->sk_mtx)
+#define	SK_IF_LOCK(_sc)		SK_LOCK((_sc)->sk_softc)
+#define	SK_IF_UNLOCK(_sc)	SK_UNLOCK((_sc)->sk_softc)
 
 /* Softc for each logical interface */
 struct sk_if_softc {

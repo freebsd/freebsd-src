@@ -1337,7 +1337,6 @@ sk_attach(dev)
 	error = 0;
 	sc_if = device_get_softc(dev);
 	sc = device_get_softc(device_get_parent(dev));
-	SK_LOCK(sc);
 	port = *(int *)device_get_ivars(dev);
 	free(device_get_ivars(dev), M_DEVBUF);
 	device_set_ivars(dev, NULL);
@@ -1352,6 +1351,40 @@ sk_attach(dev)
 	if (port == SK_PORT_B)
 		sc_if->sk_tx_bmu = SK_BMU_TXS_CSR1;
 
+	/* Allocate the descriptor queues. */
+	sc_if->sk_rdata = contigmalloc(sizeof(struct sk_ring_data), M_DEVBUF,
+	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+
+	if (sc_if->sk_rdata == NULL) {
+		printf("sk%d: no memory for list buffers!\n", sc_if->sk_unit);
+		error = ENOMEM;
+		goto fail;
+	}
+
+	bzero(sc_if->sk_rdata, sizeof(struct sk_ring_data));
+
+	/* Try to allocate memory for jumbo buffers. */
+	if (sk_alloc_jumbo_mem(sc_if)) {
+		printf("sk%d: jumbo buffer allocation failed\n",
+		    sc_if->sk_unit);
+		error = ENOMEM;
+		goto fail;
+	}
+
+	ifp = &sc_if->arpcom.ac_if;
+	ifp->if_softc = sc_if;
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
+	ifp->if_mtu = ETHERMTU;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_ioctl = sk_ioctl;
+	ifp->if_start = sk_start;
+	ifp->if_watchdog = sk_watchdog;
+	ifp->if_init = sk_init;
+	ifp->if_baudrate = 1000000000;
+	ifp->if_snd.ifq_maxlen = SK_TX_RING_CNT - 1;
+
+	callout_handle_init(&sc_if->sk_tick_ch);
+
 	/*
 	 * Get station address for this interface. Note that
 	 * dual port cards actually come with three station
@@ -1361,6 +1394,7 @@ sk_attach(dev)
 	 * are operating in failover mode. Currently we don't
 	 * use this extra address.
 	 */
+	SK_LOCK(sc);
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		sc_if->arpcom.ac_enaddr[i] =
 		    sk_win_read_1(sc, SK_MAC0_0 + (port * 8) + i);
@@ -1414,47 +1448,17 @@ sk_attach(dev)
 		printf("skc%d: unsupported PHY type: %d\n",
 		    sc->sk_unit, sc_if->sk_phytype);
 		error = ENODEV;
+		SK_UNLOCK(sc);
 		goto fail;
 	}
 
-	/* Allocate the descriptor queues. */
-	sc_if->sk_rdata = contigmalloc(sizeof(struct sk_ring_data), M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
-
-	if (sc_if->sk_rdata == NULL) {
-		printf("sk%d: no memory for list buffers!\n", sc_if->sk_unit);
-		error = ENOMEM;
-		goto fail;
-	}
-
-	bzero(sc_if->sk_rdata, sizeof(struct sk_ring_data));
-
-	/* Try to allocate memory for jumbo buffers. */
-	if (sk_alloc_jumbo_mem(sc_if)) {
-		printf("sk%d: jumbo buffer allocation failed\n",
-		    sc_if->sk_unit);
-		error = ENOMEM;
-		goto fail;
-	}
-
-	ifp = &sc_if->arpcom.ac_if;
-	ifp->if_softc = sc_if;
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = sk_ioctl;
-	ifp->if_start = sk_start;
-	ifp->if_watchdog = sk_watchdog;
-	ifp->if_init = sk_init;
-	ifp->if_baudrate = 1000000000;
-	ifp->if_snd.ifq_maxlen = SK_TX_RING_CNT - 1;
-
-	callout_handle_init(&sc_if->sk_tick_ch);
 
 	/*
-	 * Call MI attach routine.
+	 * Call MI attach routine.  Can't hold locks when calling into ether_*.
 	 */
+	SK_UNLOCK(sc);
 	ether_ifattach(ifp, sc_if->arpcom.ac_enaddr);
+	SK_LOCK(sc);
 
 	/*
 	 * Do miibus setup.
@@ -1468,6 +1472,7 @@ sk_attach(dev)
 		break;
 	}
 
+	SK_UNLOCK(sc);
 	if (mii_phy_probe(dev, &sc_if->sk_miibus,
 	    sk_ifmedia_upd, sk_ifmedia_sts)) {
 		printf("skc%d: no PHY found!\n", sc_if->sk_unit);
@@ -1477,7 +1482,6 @@ sk_attach(dev)
 	}
 
 fail:
-	SK_UNLOCK(sc);
 	if (error) {
 		/* Access should be ok even though lock has been dropped */
 		sc->sk_if[port] = NULL;
@@ -1629,7 +1633,7 @@ skc_attach(dev)
 	bus_generic_attach(dev);
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->sk_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->sk_irq, INTR_TYPE_NET|INTR_MPSAFE,
 	    sk_intr, sc, &sc->sk_intrhand);
 
 	if (error) {
@@ -1667,14 +1671,24 @@ sk_detach(dev)
 	/* These should only be active if attach_xmac succeeded */
 	if (device_is_attached(dev)) {
 		sk_stop(sc_if);
+		/* Can't hold locks while calling detach */
+		SK_IF_UNLOCK(sc_if);
 		ether_ifdetach(ifp);
+		SK_IF_LOCK(sc_if);
 	}
-	if (sc_if->sk_miibus)
+	/*
+	 * We're generally called from skc_detach() which is using
+	 * device_delete_child() to get to here. It's already trashed
+	 * miibus for us, so don't do it here or we'll panic.
+	 */
+	/*
+	if (sc_if->sk_miibus != NULL)
 		device_delete_child(dev, sc_if->sk_miibus);
+	*/
 	bus_generic_detach(dev);
-	if (sc_if->sk_cdata.sk_jumbo_buf)
+	if (sc_if->sk_cdata.sk_jumbo_buf != NULL)
 		contigfree(sc_if->sk_cdata.sk_jumbo_buf, SK_JMEM, M_DEVBUF);
-	if (sc_if->sk_rdata) {
+	if (sc_if->sk_rdata != NULL) {
 		contigfree(sc_if->sk_rdata, sizeof(struct sk_ring_data),
 		    M_DEVBUF);
 	}
@@ -1691,7 +1705,6 @@ skc_detach(dev)
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->sk_mtx), ("sk mutex not initialized"));
-	SK_LOCK(sc);
 
 	if (device_is_alive(dev)) {
 		if (sc->sk_devs[SK_PORT_A] != NULL)
@@ -1708,7 +1721,6 @@ skc_detach(dev)
 	if (sc->sk_res)
 		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
 
-	SK_UNLOCK(sc);
 	mtx_destroy(&sc->sk_mtx);
 
 	return(0);
