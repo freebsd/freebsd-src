@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.38.2.7 1997/03/27 00:41:00 jkh Exp $
+ * $Id: index.c,v 1.38.2.8 1997/03/28 09:30:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -235,8 +235,10 @@ index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, cha
     cp += copy_to_sep(maint, cp, '|');
     cp += copy_to_sep(cats, cp, '|');
     cp += copy_to_sep(junk, cp, '|');	/* build deps - not used */
-    (void)copy_to_sep(rdeps, cp, '|');
-    /* We're not actually interested in any of the other fields */
+    if (index(cp, '|'))
+	copy_to_sep(rdeps, cp, '|');
+    else
+	strncpy(rdeps, cp, 510);
     return 0;
 }
 
