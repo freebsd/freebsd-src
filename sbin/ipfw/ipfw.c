@@ -373,10 +373,17 @@ show_ipfw(struct ip_fw *chain)
 	}
 
 	if (chain->fw_flg & IP_FW_F_KEEP_S) {
-		if (chain->next_rule_ptr)
-		    printf(" keep-state %d", (int)chain->next_rule_ptr);
-		else
-		    printf(" keep-state");
+	    u_long x = (u_long)chain->next_rule_ptr;
+	    u_char type = (x) & 0xff ;
+
+	    switch(type) {
+	    default:
+		printf(" *** unknown type ***");
+		break ;
+	    case DYN_KEEP_STATE:
+		printf(" keep-state");
+		break;
+	    }
 	}
 	/* Direction */
 	if (chain->fw_flg & IP_FW_BRIDGED)
@@ -565,12 +572,16 @@ show_dyn_ipfw(struct ipfw_dyn_rule *d)
 	if (!d->expire && !do_expired)
 		return;
 	
-	printf("%05d %qu %qu (T %d, # %d) ty %d",
+	printf("%05d %qu %qu (T %ds, slot %d)",
 	    (int)(d->chain),
 	    d->pcnt, d->bcnt,
 	    d->expire,
-	    d->bucket,
-	    d->type);
+	    d->bucket);
+	switch (d->dyn_type) {
+	case DYN_KEEP_STATE: /* bidir, no mask */
+	    printf(" <->");
+	    break;
+	}
 
 	if (do_resolv && (pe = getprotobynumber(d->id.proto)) != NULL)
 		printf(" %s,", pe->p_name);
@@ -581,7 +592,7 @@ show_dyn_ipfw(struct ipfw_dyn_rule *d)
 	printf(" %s", inet_ntoa(a));
 	printf(" %d", d->id.src_port);
 	
-	switch (d->type) {
+	switch (d->dyn_type) {
 	default: /* bidir, no mask */
 		printf(" <->");
 		break;
