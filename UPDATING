@@ -18,11 +18,14 @@ COMMON ITEMS:
 	-----------------
 	cd /usr/src
 	# If you have not already done so, please buildworld here
+	# You will also need to update your config file to 4.0.  Usually
+	# people tend to start with GENERIC from 4.0 and hack from there.
 	make buildkernel KERNEL=<YOUR_KERNEL_HERE>
 	make installkernel  KERNEL=<YOUR_KERNEL_HERE>
 	# Verify that the new kernel works, it will be installed as
 	# /YOUR_KERNEL_HERE
 	chflags noschg /kernel
+	chflags noschg /YOUR_KERNEL_HERE
 	mv /kernel /kernel.old
 	mv /YOUR_KERNEL_HERE /kernel
 	chflags schg /kernel
@@ -61,6 +64,7 @@ COMMON ITEMS:
 	cd /usr/src
 	make -DNOINFO installworld
 	make installworld
+	mergemaster [****]
 	reboot
 	<multi-user>
 
@@ -75,6 +79,9 @@ COMMON ITEMS:
 	couple of months, be sure they have all the components listed
 	in /usr/share/examples/cvsup.  Crypto and secure are now
 	required.
+	[***] This step is optional, but is generally a good idea.  If
+	you wish to use many of the new features in 4.0, you must do
+	this anyway.
 
 What follows are older entries for those people upgrading from earlier
 versions of -stable.
