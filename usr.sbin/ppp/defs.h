@@ -30,7 +30,7 @@
 
 /* Check the following definitions for your machine environment */
 #ifdef __FreeBSD__
-# define  MODEM_LIST	"/dev/cuaa1\0/dev/cuaa0"	/* name of tty device */
+# define  MODEM_LIST	"/dev/cuad1\0/dev/cuad0"	/* name of tty device */
 #else
 # ifdef __OpenBSD__
 #  define MODEM_LIST	"/dev/cua01\0/dev/cua00"	/* name of tty device */
