@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id$
+#	$Id: bus_if.m,v 1.1 1998/06/14 13:53:08 dfr Exp $
 #
 
 INTERFACE bus
@@ -74,9 +74,15 @@ METHOD int write_ivar {
 # Register an interrupt handler for the child device.  The handler
 # will be called with the value 'arg' as its only argument.
 #
-METHOD int map_intr {
+METHOD void* create_intr {
 	device_t dev;
 	device_t child;
+	int irq;
 	driver_intr_t *intr;
 	void *arg;
+};
+
+METHOD int connect_intr {
+	device_t dev;
+	void *ih;
 };
