@@ -87,6 +87,7 @@ fore_recv_allocate(fup)
 	Fore_unit	*fup;
 {
 	caddr_t		memp;
+	vm_paddr_t	pmemp;
 
 	/*
 	 * Allocate non-cacheable memory for receive status words
@@ -98,11 +99,11 @@ fore_recv_allocate(fup)
 	}
 	fup->fu_recv_stat = (Q_status *) memp;
 
-	memp = (caddr_t)vtophys(fup->fu_recv_stat);
-	if (memp == NULL) {
+	pmemp = vtophys(fup->fu_recv_stat);
+	if (pmemp == 0) {
 		return (1);
 	}
-	fup->fu_recv_statd = (Q_status *) memp;
+	fup->fu_recv_statd = pmemp;
 
 	/*
 	 * Allocate memory for receive descriptors
@@ -114,11 +115,11 @@ fore_recv_allocate(fup)
 	}
 	fup->fu_recv_desc = (Recv_descr *) memp;
 
-	memp = (caddr_t)vtophys(fup->fu_recv_desc);
-	if (memp == NULL) {
+	pmemp = vtophys(fup->fu_recv_desc);
+	if (pmemp == 0) {
 		return (1);
 	}
-	fup->fu_recv_descd = (Recv_descr *) memp;
+	fup->fu_recv_descd = pmemp;
 
 	return (0);
 }
@@ -146,9 +147,9 @@ fore_recv_initialize(fup)
 	Recv_queue	*cqp;
 	H_recv_queue	*hrp;
 	Recv_descr	*rdp;
-	Recv_descr	*rdp_dma;
+	vm_paddr_t	rdp_dma;
 	Q_status	*qsp;
-	Q_status	*qsp_dma;
+	vm_paddr_t	qsp_dma;
 	int		i;
 
 	/*
@@ -198,9 +199,9 @@ fore_recv_initialize(fup)
 		 */
 		hrp++;
 		qsp++;
-		qsp_dma++;
+		qsp_dma += sizeof(Q_status);
 		rdp++;
-		rdp_dma++;
+		rdp_dma += sizeof(Recv_descr);
 		cqp++;
 	}
 
@@ -577,7 +578,7 @@ fore_recv_free(fup)
 	if (fup->fu_recv_stat) {
 		atm_dev_free((volatile void *)fup->fu_recv_stat);
 		fup->fu_recv_stat = NULL;
-		fup->fu_recv_statd = NULL;
+		fup->fu_recv_statd = 0;
 	}
 
 	/*
@@ -586,7 +587,7 @@ fore_recv_free(fup)
 	if (fup->fu_recv_desc) {
 		atm_dev_free(fup->fu_recv_desc);
 		fup->fu_recv_desc = NULL;
-		fup->fu_recv_descd = NULL;
+		fup->fu_recv_descd = 0;
 	}
 
 	return;

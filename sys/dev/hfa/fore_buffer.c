@@ -92,6 +92,7 @@ fore_buf_allocate(fup)
 	Fore_unit	*fup;
 {
 	caddr_t		memp;
+	vm_paddr_t	pmemp;
 
 	/*
 	 * Allocate non-cacheable memory for buffer supply status words
@@ -105,12 +106,17 @@ fore_buf_allocate(fup)
 	fup->fu_buf1s_stat = (Q_status *) memp;
 	fup->fu_buf1l_stat = ((Q_status *) memp) + BUF1_SM_QUELEN;
 
-	memp = (caddr_t)vtophys(fup->fu_buf1s_stat);
-	if (memp == NULL) {
+	pmemp = vtophys(fup->fu_buf1s_stat);
+	if (pmemp == 0) {
 		return (1);
 	}
-	fup->fu_buf1s_statd = (Q_status *) memp;
-	fup->fu_buf1l_statd = ((Q_status *) memp) + BUF1_SM_QUELEN;
+	fup->fu_buf1s_statd = pmemp;
+
+	pmemp = vtophys(fup->fu_buf1l_stat);
+	if (pmemp == 0) {
+		return (1);
+	}
+	fup->fu_buf1l_statd = pmemp;
 
 	/*
 	 * Allocate memory for buffer supply descriptors
@@ -126,13 +132,17 @@ fore_buf_allocate(fup)
 	fup->fu_buf1l_desc = ((Buf_descr *) memp) + 
 			(BUF1_SM_QUELEN * BUF1_SM_ENTSIZE);
 
-	memp = (caddr_t)vtophys(fup->fu_buf1s_desc);
-	if (memp == NULL) {
+	pmemp = vtophys(fup->fu_buf1s_desc);
+	if (pmemp == 0) {
 		return (1);
 	}
-	fup->fu_buf1s_descd = (Buf_descr *) memp;
-	fup->fu_buf1l_descd = ((Buf_descr *) memp) + 
-			(BUF1_SM_QUELEN * BUF1_SM_ENTSIZE);
+	fup->fu_buf1s_descd = pmemp;
+
+	pmemp = vtophys(fup->fu_buf1l_desc);
+	if (pmemp == 0) {
+		return (1);
+	}
+	fup->fu_buf1l_descd = pmemp;
 
 	return (0);
 }
@@ -160,9 +170,9 @@ fore_buf_initialize(fup)
 	Buf_queue	*cqp;
 	H_buf_queue	*hbp;
 	Buf_descr	*bdp;
-	Buf_descr	*bdp_dma;
+	vm_paddr_t	bdp_dma;
 	Q_status	*qsp;
-	Q_status	*qsp_dma;
+	vm_paddr_t	qsp_dma;
 	int		i;
 
 	/*
@@ -215,9 +225,9 @@ fore_buf_initialize(fup)
 		 */
 		hbp++;
 		qsp++;
-		qsp_dma++;
+		qsp_dma += sizeof(Q_status);
 		bdp += BUF1_SM_ENTSIZE;
-		bdp_dma += BUF1_SM_ENTSIZE;
+		bdp_dma += BUF1_SM_ENTSIZE * sizeof(Buf_descr);
 		cqp++;
 	}
 
@@ -277,9 +287,9 @@ fore_buf_initialize(fup)
 		 */
 		hbp++;
 		qsp++;
-		qsp_dma++;
+		qsp_dma += sizeof(Q_status);
 		bdp += BUF1_LG_ENTSIZE;
-		bdp_dma += BUF1_LG_ENTSIZE;
+		bdp_dma += BUF1_LG_ENTSIZE * sizeof(Buf_descr);
 		cqp++;
 	}
 
@@ -755,9 +765,9 @@ fore_buf_free(fup)
 	if (fup->fu_buf1s_stat) {
 		atm_dev_free((volatile void *)fup->fu_buf1s_stat);
 		fup->fu_buf1s_stat = NULL;
-		fup->fu_buf1s_statd = NULL;
+		fup->fu_buf1s_statd = 0;
 		fup->fu_buf1l_stat = NULL;
-		fup->fu_buf1l_statd = NULL;
+		fup->fu_buf1l_statd = 0;
 	}
 
 	/*
@@ -766,9 +776,9 @@ fore_buf_free(fup)
 	if (fup->fu_buf1s_desc) {
 		atm_dev_free(fup->fu_buf1s_desc);
 		fup->fu_buf1s_desc = NULL;
-		fup->fu_buf1s_descd = NULL;
+		fup->fu_buf1s_descd = 0;
 		fup->fu_buf1l_desc = NULL;
-		fup->fu_buf1l_descd = NULL;
+		fup->fu_buf1l_descd = 0;
 	}
 
 	return;

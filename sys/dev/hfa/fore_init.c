@@ -360,8 +360,8 @@ fore_get_prom(fup)
 		cqp = hcp->hcq_cpelem;
 		(*hcp->hcq_status) = QSTAT_PENDING;
 
-		fup->fu_promd = (Fore_prom *)vtophys(fup->fu_prom);
-		if (fup->fu_promd == NULL) {
+		fup->fu_promd = vtophys(fup->fu_prom);
+		if (fup->fu_promd == 0) {
 			fup->fu_stats->st_drv.drv_cm_nodma++;
 			return;
 		}
