@@ -51,7 +51,7 @@ struct g_provider;
 
 struct iodone_chain {
 	long	ic_prev_flags;
-	void	(*ic_prev_iodone) __P((struct bio *));
+	void	(*ic_prev_iodone)(struct bio *);
 	void	*ic_prev_iodone_chain;
 	struct {
 		long	ia_long;
@@ -73,7 +73,7 @@ struct bio {
 	struct buf	*_bio_buf;	/* Parent buffer. */
 	int	bio_error;		/* Errno for BIO_ERROR. */
 	long	bio_resid;		/* Remaining I/0 in bytes. */
-	void	(*bio_done) __P((struct bio *));
+	void	(*bio_done)(struct bio *);
 	void	*bio_driver1;		/* Private use by the callee. */
 	void	*bio_driver2;		/* Private use by the callee. */
 	void	*bio_caller1;		/* Private use by the caller. */
@@ -142,12 +142,12 @@ struct bio_queue_head {
 	int busy;
 };
 
-static __inline void bioq_init __P((struct bio_queue_head *head));
-static __inline void bioq_insert_tail __P((struct bio_queue_head *head,
-					   struct bio *bp));
-static __inline void bioq_remove __P((struct bio_queue_head *head,
-				      struct bio *bp));
-static __inline struct bio *bioq_first __P((struct bio_queue_head *head));
+static __inline void bioq_init(struct bio_queue_head *head);
+static __inline void bioq_insert_tail(struct bio_queue_head *head,
+					   struct bio *bp);
+static __inline void bioq_remove(struct bio_queue_head *head,
+				      struct bio *bp);
+static __inline struct bio *bioq_first(struct bio_queue_head *head);
 
 static __inline void
 bioq_init(struct bio_queue_head *head)
@@ -195,7 +195,7 @@ bioq_first(struct bio_queue_head *head)
 	(bp)->bio_resid = 0;						\
 }
 
-int	physio __P((dev_t dev, struct uio *uio, int ioflag));
+int	physio(dev_t dev, struct uio *uio, int ioflag);
 #define physread physio
 #define physwrite physio
 

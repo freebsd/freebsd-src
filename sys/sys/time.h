@@ -266,33 +266,33 @@ extern time_t	time_second;
 
 void	binuptime(struct bintime *bt);
 void	bintime(struct bintime *bt);
-void	getmicrouptime __P((struct timeval *tv));
-void	getmicrotime __P((struct timeval *tv));
-void	getnanouptime __P((struct timespec *tsp));
-void	getnanotime __P((struct timespec *tsp));
-int	itimerdecr __P((struct itimerval *itp, int usec));
-int	itimerfix __P((struct timeval *tv));
-void	microuptime __P((struct timeval *tv));
-void	microtime __P((struct timeval *tv));
-void	nanouptime __P((struct timespec *ts));
-void	nanotime __P((struct timespec *ts));
-void	timevaladd __P((struct timeval *, struct timeval *));
-void	timevalsub __P((struct timeval *, struct timeval *));
-int	tvtohz __P((struct timeval *));
+void	getmicrouptime(struct timeval *tv);
+void	getmicrotime(struct timeval *tv);
+void	getnanouptime(struct timespec *tsp);
+void	getnanotime(struct timespec *tsp);
+int	itimerdecr(struct itimerval *itp, int usec);
+int	itimerfix(struct timeval *tv);
+void	microuptime(struct timeval *tv);
+void	microtime(struct timeval *tv);
+void	nanouptime(struct timespec *ts);
+void	nanotime(struct timespec *ts);
+void	timevaladd(struct timeval *, struct timeval *);
+void	timevalsub(struct timeval *, struct timeval *);
+int	tvtohz(struct timeval *);
 #else /* !_KERNEL */
 #include <time.h>
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	adjtime __P((const struct timeval *, struct timeval *));
-int	futimes __P((int, const struct timeval *));
-int	getitimer __P((int, struct itimerval *));
-int	gettimeofday __P((struct timeval *, struct timezone *));
-int	lutimes __P((const char *, const struct timeval *));
-int	setitimer __P((int, const struct itimerval *, struct itimerval *));
-int	settimeofday __P((const struct timeval *, const struct timezone *));
-int	utimes __P((const char *, const struct timeval *));
+int	adjtime(const struct timeval *, struct timeval *);
+int	futimes(int, const struct timeval *);
+int	getitimer(int, struct itimerval *);
+int	gettimeofday(struct timeval *, struct timezone *);
+int	lutimes(const char *, const struct timeval *);
+int	setitimer(int, const struct itimerval *, struct itimerval *);
+int	settimeofday(const struct timeval *, const struct timezone *);
+int	utimes(const char *, const struct timeval *);
 __END_DECLS
 
 #endif /* !_KERNEL */

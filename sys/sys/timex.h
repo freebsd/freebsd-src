@@ -221,13 +221,13 @@ struct timex {
 
 #ifdef _KERNEL
 struct timecounter;
-void	ntp_update_second __P((struct timecounter *tc));
+void	ntp_update_second(struct timecounter *tc);
 #else /* !_KERNEL */
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	ntp_adjtime __P((struct timex *));
-int	ntp_gettime __P((struct ntptimeval *));
+int	ntp_adjtime(struct timex *);
+int	ntp_gettime(struct ntptimeval *);
 __END_DECLS
 #endif /* _KERNEL */
 

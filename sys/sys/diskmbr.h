@@ -186,7 +186,7 @@ struct disklabel {
 	} d_partitions[MAXPARTITIONS];	/* actually may be more */
 };
 
-static __inline u_int16_t dkcksum __P((struct disklabel *lp));
+static __inline u_int16_t dkcksum(struct disklabel *lp);
 static __inline u_int16_t
 dkcksum(lp)
 	struct disklabel *lp;
@@ -459,21 +459,21 @@ struct dos_partition {
 struct	bio;
 struct	bio_queue_head;
 
-int	bounds_check_with_label __P((struct bio *bp, struct disklabel *lp,
-				     int wlabel));
-void	diskerr __P((struct bio *bp, char *what, int blkdone,
-		     struct disklabel *lp));
-dev_t	dkmodpart __P((dev_t dev, int part));
-dev_t	dkmodslice __P((dev_t dev, int slice));
-u_int	dkunit __P((dev_t dev));
-char	*readdisklabel __P((dev_t dev, struct disklabel *lp));
-void	bioqdisksort __P((struct bio_queue_head *ap, struct bio *bp));
-int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
-			  u_long openmask));
-int	writedisklabel __P((dev_t dev, struct disklabel *lp));
+int	bounds_check_with_label(struct bio *bp, struct disklabel *lp,
+				     int wlabel);
+void	diskerr(struct bio *bp, char *what, int blkdone,
+		     struct disklabel *lp);
+dev_t	dkmodpart(dev_t dev, int part);
+dev_t	dkmodslice(dev_t dev, int slice);
+u_int	dkunit(dev_t dev);
+char	*readdisklabel(dev_t dev, struct disklabel *lp);
+void	bioqdisksort(struct bio_queue_head *ap, struct bio *bp);
+int	setdisklabel(struct disklabel *olp, struct disklabel *nlp,
+			  u_long openmask);
+int	writedisklabel(dev_t dev, struct disklabel *lp);
 #ifdef __alpha__
 struct	buf;			
-void	alpha_fix_srm_checksum __P((struct buf *bp));
+void	alpha_fix_srm_checksum(struct buf *bp);
 #endif
 
 #endif /* _KERNEL */
@@ -482,7 +482,7 @@ void	alpha_fix_srm_checksum __P((struct buf *bp));
 
 #ifndef _KERNEL
 __BEGIN_DECLS
-struct disklabel *getdiskbyname __P((const char *));
+struct disklabel *getdiskbyname(const char *);
 __END_DECLS
 #endif
 

@@ -149,8 +149,8 @@ struct nameidata {
 /*
  * Initialization of an nameidata structure.
  */
-static void NDINIT __P((struct nameidata *, u_long, u_long, enum uio_seg,
-	    const char *, struct thread *));
+static void NDINIT(struct nameidata *, u_long, u_long, enum uio_seg,
+	    const char *, struct thread *);
 static __inline void
 #if defined(__STDC__) || defined(__cplusplus)
 NDINIT(struct nameidata *ndp,
@@ -184,12 +184,12 @@ NDINIT(ndp, op, flags, segflg, namep, td)
 #define NDF_NO_FREE_PNBUF	0x00000020
 #define NDF_ONLY_PNBUF		(~NDF_NO_FREE_PNBUF)
 
-void NDFREE __P((struct nameidata *, const uint));
+void NDFREE(struct nameidata *, const uint);
 
-int	namei __P((struct nameidata *ndp));
-int	lookup __P((struct nameidata *ndp));
-int	relookup __P((struct vnode *dvp, struct vnode **vpp,
-	    struct componentname *cnp));
+int	namei(struct nameidata *ndp);
+int	lookup(struct nameidata *ndp);
+int	relookup(struct vnode *dvp, struct vnode **vpp,
+	    struct componentname *cnp);
 #endif
 
 /*

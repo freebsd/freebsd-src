@@ -165,7 +165,7 @@ extern struct eventhandler_list	*eventhandler_find_list(char *name);
  */
 
 /* Shutdown events */
-typedef void (*shutdown_fn) __P((void *, int));
+typedef void (*shutdown_fn)(void *, int);
 
 #define	SHUTDOWN_PRI_FIRST	0
 #define	SHUTDOWN_PRI_DEFAULT	10000
@@ -176,7 +176,7 @@ EVENTHANDLER_DECLARE(shutdown_post_sync, shutdown_fn);	/* after fs sync */
 EVENTHANDLER_DECLARE(shutdown_final, shutdown_fn);
 
 /* Idle process event */
-typedef void (*idle_eventhandler_t) __P((void *, int));
+typedef void (*idle_eventhandler_t)(void *, int);
 
 #define IDLE_PRI_FIRST		10000
 #define IDLE_PRI_LAST		20000

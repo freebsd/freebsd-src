@@ -112,10 +112,10 @@ struct pps_state {
 	unsigned	ppscount[3];
 };
 
-void pps_event __P((struct pps_state *pps, struct timecounter *tc, unsigned count, int event));
-void pps_init __P((struct pps_state *pps));
-int pps_ioctl __P((u_long cmd, caddr_t data, struct pps_state *pps));
-void hardpps __P((struct timespec *tsp, long nsec));
+void pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int event);
+void pps_init(struct pps_state *pps);
+int pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps);
+void hardpps(struct timespec *tsp, long nsec);
 
 #else /* !_KERNEL */
 

@@ -72,11 +72,11 @@ struct lockf {
 /* Maximum length of sleep chains to traverse to try and detect deadlock. */
 #define MAXDEPTH 50
 
-int	 lf_advlock __P((struct vop_advlock_args *, struct lockf **, u_quad_t));
+int	 lf_advlock(struct vop_advlock_args *, struct lockf **, u_quad_t);
 
 #ifdef LOCKF_DEBUG
-void	lf_print __P((char *, struct lockf *));
-void	lf_printlist __P((char *, struct lockf *));
+void	lf_print(char *, struct lockf *);
+void	lf_printlist(char *, struct lockf *);
 #endif
 
 #endif /* !_SYS_LOCKF_H_ */

@@ -79,22 +79,22 @@ struct file {
 	int	f_msgcount;	/* (f) references from message queue */
 	struct	ucred *f_cred;	/* credentials associated with descriptor */
 	struct fileops {
-		int	(*fo_read)	__P((struct file *fp, struct uio *uio,
+		int	(*fo_read)	(struct file *fp, struct uio *uio,
 					    struct ucred *cred, int flags,
-					    struct thread *td));
-		int	(*fo_write)	__P((struct file *fp, struct uio *uio,
+					    struct thread *td);
+		int	(*fo_write)	(struct file *fp, struct uio *uio,
 					    struct ucred *cred, int flags,
-					    struct thread *td));
+					    struct thread *td);
 #define	FOF_OFFSET	1
-		int	(*fo_ioctl)	__P((struct file *fp, u_long com,
-					    caddr_t data, struct thread *td));
-		int	(*fo_poll)	__P((struct file *fp, int events,
-					    struct ucred *cred, struct thread *td));
-		int	(*fo_kqfilter)	__P((struct file *fp,
-					    struct knote *kn));
-		int	(*fo_stat)	__P((struct file *fp, struct stat *sb,
-					    struct thread *td));
-		int	(*fo_close)	__P((struct file *fp, struct thread *td));
+		int	(*fo_ioctl)	(struct file *fp, u_long com,
+					    caddr_t data, struct thread *td);
+		int	(*fo_poll)	(struct file *fp, int events,
+					    struct ucred *cred,
+					    struct thread *td);
+		int	(*fo_kqfilter)	(struct file *fp, struct knote *kn);
+		int	(*fo_stat)	(struct file *fp, struct stat *sb,
+					    struct thread *td);
+		int	(*fo_close)	(struct file *fp, struct thread *td);
 	} *f_ops;
 	int	f_seqcount;	/*
 				 * count of sequential accesses -- cleared
@@ -122,11 +122,11 @@ extern int maxfilesperproc;	/* per process limit on number of open files */
 extern int nfiles;		/* (fl) actual number of open files */
 extern struct sx filelist_lock; /* sx to protect filelist and nfiles */
 
-int fget __P((struct thread *td, int fd, struct file **fpp));
-int fget_read __P((struct thread *td, int fd, struct file **fpp));
-int fget_write __P((struct thread *td, int fd, struct file **fpp));
-int fdrop __P((struct file *fp, struct thread *td));
-int fdrop_locked __P((struct file *fp, struct thread *td));
+int fget(struct thread *td, int fd, struct file **fpp);
+int fget_read(struct thread *td, int fd, struct file **fpp);
+int fget_write(struct thread *td, int fd, struct file **fpp);
+int fdrop(struct file *fp, struct thread *td);
+int fdrop_locked(struct file *fp, struct thread *td);
 
 /* Lock a file. */
 #define	FILE_LOCK(f)	mtx_lock((f)->f_mtxp)
@@ -134,12 +134,12 @@ int fdrop_locked __P((struct file *fp, struct thread *td));
 #define	FILE_LOCKED(f)	mtx_owned((f)->f_mtxp)
 #define	FILE_LOCK_ASSERT(f, type) mtx_assert((f)->f_mtxp, (type))
 
-int fgetvp __P((struct thread *td, int fd, struct vnode **vpp));
-int fgetvp_read __P((struct thread *td, int fd, struct vnode **vpp));
-int fgetvp_write __P((struct thread *td, int fd, struct vnode **vpp));
+int fgetvp(struct thread *td, int fd, struct vnode **vpp);
+int fgetvp_read(struct thread *td, int fd, struct vnode **vpp);
+int fgetvp_write(struct thread *td, int fd, struct vnode **vpp);
 
-int fgetsock __P((struct thread *td, int fd, struct socket **spp, u_int *fflagp));
-void fputsock __P((struct socket *sp));
+int fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp);
+void fputsock(struct socket *sp);
 
 #define	fhold_locked(fp)						\
 	do {								\
@@ -154,18 +154,18 @@ void fputsock __P((struct socket *sp));
 		FILE_UNLOCK(fp);					\
 	} while (0)
 
-static __inline int fo_read __P((struct file *fp, struct uio *uio,
-    struct ucred *cred, int flags, struct thread *td));
-static __inline int fo_write __P((struct file *fp, struct uio *uio,
-    struct ucred *cred, int flags, struct thread *td));
-static __inline int fo_ioctl __P((struct file *fp, u_long com, caddr_t data,
-    struct thread *td));
-static __inline int fo_poll __P((struct file *fp, int events,
-    struct ucred *cred, struct thread *td));
-static __inline int fo_stat __P((struct file *fp, struct stat *sb,
-    struct thread *td));
-static __inline int fo_close __P((struct file *fp, struct thread *td));
-static __inline int fo_kqfilter __P((struct file *fp, struct knote *kn));
+static __inline int fo_read(struct file *fp, struct uio *uio,
+    struct ucred *cred, int flags, struct thread *td);
+static __inline int fo_write(struct file *fp, struct uio *uio,
+    struct ucred *cred, int flags, struct thread *td);
+static __inline int fo_ioctl(struct file *fp, u_long com, caddr_t data,
+    struct thread *td);
+static __inline int fo_poll(struct file *fp, int events,
+    struct ucred *cred, struct thread *td);
+static __inline int fo_stat(struct file *fp, struct stat *sb,
+    struct thread *td);
+static __inline int fo_close(struct file *fp, struct thread *td);
+static __inline int fo_kqfilter(struct file *fp, struct knote *kn);
 struct proc;
 
 static __inline int
