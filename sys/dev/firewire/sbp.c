@@ -131,9 +131,10 @@ static char *orb_fun_name[] = {
 #define ORB_RES_ILLE 2
 #define ORB_RES_VEND 3
 
-static int debug = 0;
+static int debug = 1;
 static int auto_login = 1;
 static int max_speed = 2;
+static int sbp_cold = 1;
 
 SYSCTL_DECL(_hw_firewire);
 SYSCTL_NODE(_hw_firewire, OID_AUTO, sbp, CTLFLAG_RD, 0, "SBP-II Subsystem");
@@ -640,12 +641,14 @@ sbp_post_explore(void *arg)
 	struct fw_device *fwdev;
 	int i, alive;
 
-SBP_DEBUG(1)
-	printf("sbp_post_explore\n");
+SBP_DEBUG(0)
+	printf("sbp_post_explore (sbp_cold=%d)\n", sbp_cold);
 END_DEBUG
 #if 0
 	xpt_freeze_simq(sbp->sim, /*count*/ 1);
 #endif
+	if (sbp_cold > 0)
+		sbp_cold --;
 	/* Gabage Collection */
 	for(i = 0 ; i < SBP_NUM_TARGETS ; i ++){
 		target = &sbp->targets[i];
@@ -879,10 +882,21 @@ SBP_DEBUG(0)
 	printf("sbp_do_attach\n");
 END_DEBUG
 	fw_xfer_free(xfer);
+
 	if (sdev->path == NULL)
 		xpt_create_path(&sdev->path, xpt_periph,
 			cam_sim_path(sdev->target->sbp->sim),
 			sdev->target->target_id, sdev->lun_id);
+
+	/*
+	 * Let CAM scan the bus if we are in the boot process.
+	 * XXX xpt_scan_bus cannot detect LUN larger than 0
+	 * if LUN 0 doesn't exists.
+	 */
+	if (sbp_cold > 0) {
+		sdev->status = SBP_DEV_PROBE;
+		return;
+	}
 
 	if (sdev->status == SBP_DEV_RETRY)
 		sbp_ping_unit(sdev);
@@ -1615,9 +1629,11 @@ sbp_attach(device_t dev)
 	int i, s, error;
 
 SBP_DEBUG(0)
-	printf("sbp_attach\n");
+	printf("sbp_attach (cold=%d)\n", cold);
 END_DEBUG
 
+	if (cold)
+		sbp_cold ++;
 	sbp = ((struct sbp_softc *)device_get_softc(dev));
 	bzero(sbp, sizeof(struct sbp_softc));
 	sbp->fd.dev = dev;
@@ -1694,9 +1710,12 @@ END_DEBUG
 	fw_bindadd(sbp->fd.fc, &sbp->fwb);
 
 	sbp->fd.post_explore = sbp_post_explore;
-	s = splfw();
-	sbp_post_explore((void *)sbp);
-	splx(s);
+
+	if (sbp->fd.fc->status != -1) {
+		s = splfw();
+		sbp_post_explore((void *)sbp);
+		splx(s);
+	}
 
 	return (0);
 }
@@ -2069,7 +2088,7 @@ END_DEBUG
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = 0;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = 0;
+		cpi->hba_misc = PIM_NOBUSRESET;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = SBP_NUM_TARGETS - 1;
 		cpi->max_lun = SBP_NUM_LUNS - 1;
