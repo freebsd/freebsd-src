@@ -142,6 +142,47 @@
 #define	com_xoff1	6	/* XOFF 1 character (R/W) */
 #define	com_xoff2	7	/* XOFF 2 character (R/W) */
 
+/* 16950 register #1.  Access enabled by ACR[7].  Also requires !LCR[7]. */
+#define	com_asr		1	/* additional status register (R[0-7]/W[0-1]) */
+
+/* 16950 register #3.  R/W access enabled by ACR[7]. */
+#define	com_rfl		3	/* receiver fifo level (R) */
+
+/*
+ * 16950 register #4.  Access enabled by ACR[7].  Also requires
+ * !LCR_EFR_ENABLE.
+ */
+#define	com_tfl		4	/* transmitter fifo level (R) */
+
+/*
+ * 16950 register #5.  Accessible if !LCR_EFR_ENABLE.  Read access also
+ * requires ACR[6].
+ */
+#define	com_icr		5	/* index control register (R/W) */
+
+/*
+ * 16950 register #7.  It is the same as com_scr except it has a different
+ * abbreviation in the manufacturer's data sheet and it also serves as an
+ * index into the Indexed Control register set.
+ */
+#define	com_spr		com_scr	/* scratch pad (and index) register (R/W) */
+
+/*
+ * 16950 indexed control registers #[0-0x13].  Access is via index in SPR,
+ * data in ICR (if ICR is accessible).
+ */
+
+#define	com_acr		0	/* additional control register (R/W) */
+#define	ACR_ASE		0x80	/* ASR/RFL/TFL enable */
+#define	ACR_ICRE	0x40	/* ICR enable */
+#define	ACR_TLE		0x20	/* TTL/RTL enable */
+
+#define	com_cpr		1	/* clock prescaler register (R/W) */
+#define	com_tcr		2	/* times clock register (R/W) */
+#define	com_ttl		4	/* transmitter trigger level (R/W) */
+#define	com_rtl		5	/* receiver trigger level (R/W) */
+/* ... */
+
 #ifdef PC98
 /* Hardware extension mode register for RSB-2000/3000. */
 #define	com_emr		com_msr
