@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: msg.c,v 1.3 1993/09/04 05:06:50 jkh Exp $";
+static const char *rcsid = "$Id: msg.c,v 1.2 1993/09/03 23:01:15 jkh Exp $";
 #endif
 
 /*
@@ -80,14 +80,19 @@ y_or_n(Boolean def, const char *msg, ...)
     tty = fopen("/dev/tty", "r");
     if (!tty)
 	barf("Can't open /dev/tty!\n");
-    while (ch != 'Y'  && ch != 'N') {
+    while (ch != 'Y' && ch != 'N') {
 	vfprintf(stderr, msg, args);
 	if (def)
 	    fprintf(stderr, " [yes]? ");
 	else
 	    fprintf(stderr, " [no]? ");
 	fflush(stderr);
-	ch = toupper(fgetc(tty));
+	if (AutoAnswer) {
+	    ch = (AutoAnswer == YES) ? 'Y' : 'N';
+	    fprintf(stderr, "%c\n", ch);
+	}
+	else
+	    ch = toupper(fgetc(tty));
 	if (ch == '\n')
 	    ch = (def) ? 'Y' : 'N';
     }
