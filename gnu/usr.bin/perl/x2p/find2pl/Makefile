@@ -6,10 +6,10 @@ PROG=	find2perl
 NOMAN=	true
 
 ${PROG}: ${PROG}.PL
-	miniperl ${.OODATE}
+	miniperl ${MINIPERLOPT} ${.OODATE}
 
 ${PROG}.1: ${PROG}.PL
-	miniperl ${.OBJDIR}/../../pod/pod2man/pod2man ${.OODATE} > ${.TARGET}
+	miniperl ${MINIPERLOPT} ${.OBJDIR}/../../pod/pod2man/pod2man ${.OODATE} > ${.TARGET}
 
 CLEANFILES+=	${PROG}.1 ${PROG}.PL
 
