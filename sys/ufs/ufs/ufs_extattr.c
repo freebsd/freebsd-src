@@ -443,7 +443,7 @@ ufs_extattr_get(struct vnode *vp, char *name, struct uio *uio,
 	struct mount	*mp = vp->v_mount;
 	struct ufsmount	*ump = VFSTOUFS(mp);
 	struct inode	*ip = VTOI(vp);
-	off_t	base_offset, offset;
+	off_t	base_offset;
 	size_t	size, old_size;
 	int	error = 0;
 
