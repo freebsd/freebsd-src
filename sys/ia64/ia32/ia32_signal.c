@@ -123,7 +123,7 @@ static Elf32_Brandinfo ia32_brand_info = {
 						EM_386,
 						"FreeBSD",
 						"/compat/ia32",
-						"/usr/libexec/ld-elf.so.1",
+						"/lib/ld-elf.so.1",
 						&ia32_freebsd_sysvec
 					  };
 

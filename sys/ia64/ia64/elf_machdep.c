@@ -84,7 +84,7 @@ static Elf64_Brandinfo freebsd_brand_info = {
 						EM_IA_64,
 						"FreeBSD",
 						"",
-						"/usr/libexec/ld-elf.so.1",
+						"/libexec/ld-elf.so.1",
 						&elf64_freebsd_sysvec
 					  };
 
