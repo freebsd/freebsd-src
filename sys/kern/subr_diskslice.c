@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.63 1999/05/09 11:27:41 dfr Exp $
+ *	$Id: subr_diskslice.c,v 1.64 1999/05/11 19:54:30 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -729,8 +729,12 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
 	struct diskslices *ssp;
 	int	unit;
 
-	if (lp->d_secsize % DEV_BSIZE)
+	unit = dkunit(dev);
+	if (lp->d_secsize % DEV_BSIZE) {
+		printf("%s%d: invalid sector size %lu\n", dname, unit,
+		    (u_long)lp->d_secsize);
 		return (EINVAL);
+	}
 
 	/*
 	 * XXX reinitialize the slice table unless there is an open device
@@ -795,8 +799,6 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
 			}
 		}
 	}
-
-	unit = dkunit(dev);
 
 	/*
 	 * Initialize secondary info for all slices.  It is needed for more
