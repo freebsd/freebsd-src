@@ -278,7 +278,6 @@ extern	struct vm_zone *namei_zone;
 extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
 extern	int vfs_ioopt;
-extern  int enable_userblk_io;
 
 /*
  * Macro/function to check for client cache inconsistency w.r.t. leasing.
