@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.86 1996/10/05 11:56:48 jkh Exp $
+ * $Id: menus.c,v 1.87 1996/10/10 09:22:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -442,6 +442,8 @@ guaranteed to carry the full range of possible distributions.",
     VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/" },
   { "URL",		"Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=other" },
+  { "Argentina",	"ftp.ar.freebsd.org", NULL, dmenuSetVariable, NULL,
+    VAR_FTP_PATH "=ftp://ftp.ar.freebsd.org/pub/FreeBSD/" },
   { "Australia",	"ftp.au.freebsd.org", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp.au.freebsd.org/pub/FreeBSD/" },
   { "Australia #2",	"ftp2.au.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -490,10 +492,10 @@ guaranteed to carry the full range of possible distributions.",
     VAR_FTP_PATH "=ftp://ftp.hk.super.net/pub/FreeBSD/" },
   { "Ireland",		"ftp.ie.freebsd.org", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp.ie.freebsd.org/pub/FreeBSD/" },
-  { "Israel",		"orgchem.weizmann.ac.il", NULL, dmenuSetVariable, NULL,
-    VAR_FTP_PATH "=ftp://orgchem.weizmann.ac.il/pub/FreeBSD/" },
-  { "Israel #2",	"xray4.weizmann.ac.il", NULL, dmenuSetVariable, NULL,
-    VAR_FTP_PATH "=ftp://xray4.weizmann.ac.il/pub/FreeBSD/" },
+  { "Israel",		"ftp.il.freebsd.org", NULL, dmenuSetVariable, NULL,
+    VAR_FTP_PATH "=ftp://ftp.il.freebsd.org/pub/FreeBSD/" },
+  { "Israel #2",	"ftp2.il.freebsd.org", NULL, dmenuSetVariable, NULL,
+    VAR_FTP_PATH "=ftp://ftp2.il.freebsd.org/pub/FreeBSD/" },
   { "Japan",		"ftp.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
     VAR_FTP_PATH "=ftp://ftp.jp.freebsd.org/pub/FreeBSD/" },
   { "Japan #2",		"ftp2.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
