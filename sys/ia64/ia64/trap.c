@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* From: src/sys/alpha/alpha/trap.c,v 1.33 */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
@@ -28,6 +27,9 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
@@ -343,10 +345,11 @@ trap(int vector, struct trapframe *framep)
 	int i, user;
 	u_int sticks;
 
-	user = ((framep->tf_special.iip >> 61) < 5) ? 1 : 0;
+	user = TRAPF_USERMODE(framep) ? 1 : 0;
 
 	/* Short-circuit break instruction based system calls. */
-	if (vector == IA64_VEC_BREAK && framep->tf_special.ifa == 0x100000) {
+	if (vector == IA64_VEC_BREAK && user &&
+	    framep->tf_special.ifa == 0x100000) {
 		break_syscall(framep);
 		return;
 	}
@@ -639,14 +642,7 @@ trap(int vector, struct trapframe *framep)
 			goto out;
 
 	no_fault_in:
-		/*
-		 * Additionally check the privilege level. We don't want to
-		 * panic when we're in the gateway page, running at user
-		 * level. This happens for the signal trampolines. Note that
-		 * when that happens, user is defined as 0 above. We need to
-		 * set user to 1 to force calling userret() and do_ast().
-		 */
-		if (!TRAPF_USERMODE(framep)) {
+		if (!user) {
 			/* Check for copyin/copyout fault. */
 			if (td != NULL && td->td_pcb->pcb_onfault != 0) {
 				framep->tf_special.iip =
@@ -656,9 +652,8 @@ trap(int vector, struct trapframe *framep)
 				goto out;
 			}
 			goto dopanic;
-		} else
-			user = 1;
-		ucode = va;	
+		}
+		ucode = va;
 		i = (rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV;
 		break;
 	}
