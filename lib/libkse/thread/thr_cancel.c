@@ -13,7 +13,6 @@ __weak_reference(_pthread_testcancel, pthread_testcancel);
 
 static int	checkcancel(struct pthread *curthread);
 static void	testcancel(struct pthread *curthread);
-static void	finish_cancellation(void *arg);
 
 int
 _pthread_cancel(pthread_t pthread)
@@ -27,9 +26,11 @@ _pthread_cancel(pthread_t pthread)
 		/*
 		 * Take the scheduling lock while we change the cancel flags.
 		 */
+		THR_THREAD_LOCK(curthread, pthread);
 		THR_SCHED_LOCK(curthread, pthread);
 		if (pthread->flags & THR_FLAGS_EXITING) {
 			THR_SCHED_UNLOCK(curthread, pthread);
+			THR_THREAD_UNLOCK(curthread, pthread);
 			_thr_ref_delete(curthread, pthread);
 			return (ESRCH);
 		}
@@ -99,7 +100,8 @@ _pthread_cancel(pthread_t pthread)
 				pthread->interrupted = 1;
 				pthread->cancelflags |= THR_CANCEL_NEEDED;
 				kmbx = _thr_setrunnable_unlocked(pthread);
-				pthread->continuation = finish_cancellation;
+				pthread->continuation =
+					_thr_finish_cancellation;
 				break;
 
 			case PS_DEAD:
@@ -120,6 +122,7 @@ _pthread_cancel(pthread_t pthread)
 		 * reference:
 		 */
 		THR_SCHED_UNLOCK(curthread, pthread);
+		THR_THREAD_UNLOCK(curthread, pthread);
 		_thr_ref_delete(curthread, pthread);
 		if (kmbx != NULL)
 			kse_wakeup(kmbx);
@@ -145,7 +148,7 @@ _pthread_setcancelstate(int state, int *oldstate)
 	int need_exit = 0;
 
 	/* Take the scheduling lock while fiddling with the thread's state: */
-	THR_SCHED_LOCK(curthread, curthread);
+	THR_THREAD_LOCK(curthread, curthread);
 
 	ostate = curthread->cancelflags & PTHREAD_CANCEL_DISABLE;
 
@@ -164,7 +167,7 @@ _pthread_setcancelstate(int state, int *oldstate)
 		ret = EINVAL;
 	}
 
-	THR_SCHED_UNLOCK(curthread, curthread);
+	THR_THREAD_UNLOCK(curthread, curthread);
 	if (need_exit != 0) {
 		_thr_exit_cleanup();
 		pthread_exit(PTHREAD_CANCELED);
@@ -185,7 +188,7 @@ _pthread_setcanceltype(int type, int *oldtype)
 	int need_exit = 0;
 
 	/* Take the scheduling lock while fiddling with the state: */
-	THR_SCHED_LOCK(curthread, curthread);
+	THR_THREAD_LOCK(curthread, curthread);
 
 	otype = curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS;
 	switch (type) {
@@ -202,7 +205,7 @@ _pthread_setcanceltype(int type, int *oldtype)
 		ret = EINVAL;
 	}
 
-	THR_SCHED_UNLOCK(curthread, curthread);
+	THR_THREAD_UNLOCK(curthread, curthread);
 	if (need_exit != 0) {
 		_thr_exit_cleanup();
 		pthread_exit(PTHREAD_CANCELED);
@@ -238,7 +241,7 @@ testcancel(struct pthread *curthread)
 
 	if (checkcancel(curthread) != 0) {
 		/* Unlock before exiting: */
-		THR_SCHED_UNLOCK(curthread, curthread);
+		THR_THREAD_UNLOCK(curthread, curthread);
 
 		_thr_exit_cleanup();
 		pthread_exit(PTHREAD_CANCELED);
@@ -251,9 +254,9 @@ _pthread_testcancel(void)
 {
 	struct pthread	*curthread = _get_curthread();
 
-	THR_SCHED_LOCK(curthread, curthread);
+	THR_THREAD_LOCK(curthread, curthread);
 	testcancel(curthread);
-	THR_SCHED_UNLOCK(curthread, curthread);
+	THR_THREAD_UNLOCK(curthread, curthread);
 }
 
 void
@@ -262,10 +265,10 @@ _thr_enter_cancellation_point(struct pthread *thread)
 	if (!_kse_isthreaded())
 		return;
 	/* Look for a cancellation before we block: */
-	THR_SCHED_LOCK(thread, thread);
+	THR_THREAD_LOCK(thread, thread);
 	testcancel(thread);
 	thread->cancelflags |= THR_AT_CANCEL_POINT;
-	THR_SCHED_UNLOCK(thread, thread);
+	THR_THREAD_UNLOCK(thread, thread);
 }
 
 void
@@ -273,27 +276,27 @@ _thr_leave_cancellation_point(struct pthread *thread)
 {
 	if (!_kse_isthreaded())
 		return;
-	THR_SCHED_LOCK(thread, thread);
+	THR_THREAD_LOCK(thread, thread);
 	thread->cancelflags &= ~THR_AT_CANCEL_POINT;
 	/* Look for a cancellation after we unblock: */
 	testcancel(thread);
-	THR_SCHED_UNLOCK(thread, thread);
+	THR_THREAD_UNLOCK(thread, thread);
 }
 
-static void
-finish_cancellation(void *arg)
+void
+_thr_finish_cancellation(void *arg)
 {
 	struct pthread	*curthread = _get_curthread();
 
 	curthread->continuation = NULL;
 	curthread->interrupted = 0;
 
-	THR_SCHED_LOCK(curthread, curthread);
+	THR_THREAD_LOCK(curthread, curthread);
 	if ((curthread->cancelflags & THR_CANCEL_NEEDED) != 0) {
 		curthread->cancelflags &= ~THR_CANCEL_NEEDED;
-		THR_SCHED_UNLOCK(curthread, curthread);
+		THR_THREAD_UNLOCK(curthread, curthread);
 		_thr_exit_cleanup();
 		pthread_exit(PTHREAD_CANCELED);
 	}
-	THR_SCHED_UNLOCK(curthread, curthread);
+	THR_THREAD_UNLOCK(curthread, curthread);
 }
