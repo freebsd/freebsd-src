@@ -6,7 +6,7 @@ LIB=		efi
 INTERNALLIB=	true
 
 SRCS=	libefi.c efi_console.c time.c copy.c devicename.c module.c
-SRCS+=	delay.c efifs.c efinet.c elf_freebsd.c bootinfo.c pal.s
+SRCS+=	delay.c efifs.c efinet.c elf_freebsd.c bootinfo.c pal.S
 
 .if ${MACHINE_ARCH} == "ia64"
 SRCS+=	efifpswa.c
