@@ -103,10 +103,18 @@ main(argc, argv)
 	    ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
 	if (lflag) {
 		int hz = 100;			/* XXX */
-		long ticks;
+		u_long ticks;
 
 		ticks = hz * (ru.ru_utime.tv_sec + ru.ru_stime.tv_sec) +
 		     hz * (ru.ru_utime.tv_usec + ru.ru_stime.tv_usec) / 1000000;
+
+		/*
+		 * If our round-off on the tick calculation still puts us at 0,
+		 * then always assume at least one tick.
+		 */
+		if (ticks == 0)
+			ticks = 1;
+
 		fprintf(stderr, "%10ld  %s\n",
 			ru.ru_maxrss, "maximum resident set size");
 		fprintf(stderr, "%10ld  %s\n",
