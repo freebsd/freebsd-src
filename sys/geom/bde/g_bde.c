@@ -42,7 +42,7 @@
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 
-#include <crypto/rijndael/rijndael.h>
+#include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha2.h>
 #include <geom/geom.h>
 #include <geom/bde/g_bde.h>
