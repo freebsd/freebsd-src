@@ -192,7 +192,7 @@ typedef struct
 static int alog_probe (struct isa_device *idp);  /* Check for alog board */
 static int alog_attach (struct isa_device *idp);  /* Take alog board */
 static int sync_clock2 (int unit, long period); /* setup clock 2 period */
-static __inline int putfifo (talog_chan *pchan, u_short fifoent);
+static int putfifo (talog_chan *pchan, u_short fifoent);
 static int alog_open (dev_t dev, int oflags, int devtype, struct proc *p);
 static int alog_close (dev_t dev, int fflag, int devtype, struct proc *p);
 static int alog_ioctl (dev_t dev, int cmd, caddr_t data,
@@ -627,7 +627,7 @@ void alogintr (int unit)
    
 /* this will put an entry in fifo, returns 1 if the first item in 
  * fifo was wiped (overflow) or 0 if everything went fine */
-static int __inline putfifo (talog_chan *pchan, u_short fifoent)
+static int putfifo (talog_chan *pchan, u_short fifoent)
 {   
    pchan->fifo[pchan->fifoend] = fifoent; /* insert the entry in */
    pchan->fifoend++; /* one more in fifo */
