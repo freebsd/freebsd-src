@@ -1179,7 +1179,7 @@ acd_start(struct atapi_softc *atp)
     devstat_start_transaction(cdp->stats);
 
     atapi_queue_cmd(cdp->atp, ccb, bp->bio_data, count * cdp->block_size,
-		    (bp->bio_cmd == BIO_READ)?ATPR_F_READ : 0, 30, acd_done, bp);
+		    bp->bio_cmd == BIO_READ ? ATPR_F_READ : 0, 30, acd_done,bp);
 }
 
 static int32_t 
@@ -1358,14 +1358,10 @@ acd_select_slot(struct acd_softc *cdp)
 static int32_t
 acd_close_disk(struct acd_softc *cdp)
 {
-    int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0x01, 0x02, 0, 0, 0, 0, 0, 
+    int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0, 0x02, 0, 0, 0, 0, 0, 
 		       0, 0, 0, 0, 0, 0, 0, 0 };
-    int32_t error;
 
-    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
-    if (error)
-	return error;
-    return atapi_wait_ready(cdp->atp, 10*60);
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 5*60, NULL, NULL);
 }
 
 static int32_t
@@ -1451,14 +1447,10 @@ acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
 static int32_t
 acd_close_track(struct acd_softc *cdp)
 {
-    int8_t ccb1[16] = { ATAPI_SYNCHRONIZE_CACHE, 0x02, 0, 0, 0, 0, 0, 0,
+    int8_t ccb[16] = { ATAPI_SYNCHRONIZE_CACHE, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0 };
-    int32_t error;
 
-    error = atapi_queue_cmd(cdp->atp, ccb1, NULL, 0, 0, 10, NULL, NULL);
-    if (error)
-	return error;
-    return atapi_wait_ready(cdp->atp, 5*60);
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 60, NULL, NULL);
 }
 
 static int32_t
