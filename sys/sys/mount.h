@@ -393,6 +393,28 @@ extern	CIRCLEQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct simplelock mountlist_slock;
 extern	struct nfs_public nfs_pub;
 
+/* 
+ * Declarations for these vfs default operations are located in 
+ * kern/vfs_default.c, they should be used instead of making "dummy" 
+ * functions or casting entries in the VFS op table to "enopnotsupp()".
+ */ 
+int	vfs_stdmount __P((struct mount *mp, char *path, caddr_t data, 
+		struct nameidata *ndp, struct proc *p));
+int	vfs_stdstart __P((struct mount *mp, int flags, struct proc *p));
+int	vfs_stdunmount __P((struct mount *mp, int mntflags, struct proc *p));
+int	vfs_stdroot __P((struct mount *mp, struct vnode **vpp));
+int	vfs_stdquotactl __P((struct mount *mp, int cmds, uid_t uid,
+		caddr_t arg, struct proc *p));
+int	vfs_stdstatfs __P((struct mount *mp, struct statfs *sbp, struct proc *p));
+int	vfs_stdsync __P((struct mount *mp, int waitfor, struct ucred *cred, 
+		struct proc *p));
+int	vfs_stdvget __P((struct mount *mp, ino_t ino, struct vnode **vpp));
+int	vfs_stdfhtovp __P((struct mount *mp, struct fid *fhp, struct sockaddr *nam,
+		struct vnode **vpp, int *exflagsp, struct ucred **credanonp));
+int	vfs_stdvptofh __P((struct vnode *vp, struct fid *fhp));
+int	vfs_stdinit __P((struct vfsconf *));
+int	vfs_stduninit __P((struct vfsconf *));
+
 #else /* !KERNEL */
 
 #include <sys/cdefs.h>

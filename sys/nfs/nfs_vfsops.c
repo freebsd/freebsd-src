@@ -99,38 +99,28 @@ static int	mountnfs __P((struct nfs_args *,struct mount *,
 			struct sockaddr *,char *,char *,struct vnode **));
 static int	nfs_mount __P(( struct mount *mp, char *path, caddr_t data,
 			struct nameidata *ndp, struct proc *p));
-static int	nfs_start __P(( struct mount *mp, int flags,
-			struct proc *p));
 static int	nfs_unmount __P(( struct mount *mp, int mntflags,
 			struct proc *p));
 static int	nfs_root __P(( struct mount *mp, struct vnode **vpp));
-static int	nfs_quotactl __P(( struct mount *mp, int cmds, uid_t uid,
-			caddr_t arg, struct proc *p));
 static int	nfs_statfs __P(( struct mount *mp, struct statfs *sbp,
 			struct proc *p));
 static int	nfs_sync __P(( struct mount *mp, int waitfor,
 			struct ucred *cred, struct proc *p));
-static int	nfs_vptofh __P(( struct vnode *vp, struct fid *fhp));
-static int	nfs_fhtovp __P((struct mount *mp, struct fid *fhp,
-			struct sockaddr *nam, struct vnode **vpp,
-			int *exflagsp, struct ucred **credanonp));
-static int	nfs_vget __P((struct mount *, ino_t, struct vnode **));
-
 
 /*
  * nfs vfs operations.
  */
 static struct vfsops nfs_vfsops = {
 	nfs_mount,
-	nfs_start,
+	vfs_stdstart,
 	nfs_unmount,
 	nfs_root,
-	nfs_quotactl,
+	vfs_stdquotactl,
 	nfs_statfs,
 	nfs_sync,
-	nfs_vget,
-	nfs_fhtovp,
-	nfs_vptofh,
+	vfs_stdvget,
+	vfs_stdfhtovp,		/* shouldn't happen */
+	vfs_stdvptofh,		/* shouldn't happen */
 	nfs_init,
 	nfs_uninit,
 };
@@ -1078,77 +1068,3 @@ loop:
 	return (allerror);
 }
 
-/*
- * NFS flat namespace lookup.
- * Currently unsupported.
- */
-/* ARGSUSED */
-static int
-nfs_vget(mp, ino, vpp)
-	struct mount *mp;
-	ino_t ino;
-	struct vnode **vpp;
-{
-
-	return (EOPNOTSUPP);
-}
-
-/*
- * At this point, this should never happen
- */
-/* ARGSUSED */
-static int
-nfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
-	register struct mount *mp;
-	struct fid *fhp;
-	struct sockaddr *nam;
-	struct vnode **vpp;
-	int *exflagsp;
-	struct ucred **credanonp;
-{
-
-	return (EINVAL);
-}
-
-/*
- * Vnode pointer to File handle, should never happen either
- */
-/* ARGSUSED */
-static int
-nfs_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-
-	return (EINVAL);
-}
-
-/*
- * Vfs start routine, a no-op.
- */
-/* ARGSUSED */
-static int
-nfs_start(mp, flags, p)
-	struct mount *mp;
-	int flags;
-	struct proc *p;
-{
-
-	return (0);
-}
-
-/*
- * Do operations associated with quotas, not supported
- */
-/* ARGSUSED */
-static int
-nfs_quotactl(mp, cmd, uid, arg, p)
-	struct mount *mp;
-	int cmd;
-	uid_t uid;
-	caddr_t arg;
-	struct proc *p;
-{
-
-	return (EOPNOTSUPP);
-}

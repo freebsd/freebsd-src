@@ -57,23 +57,13 @@ static MALLOC_DEFINE(M_KERNFSMNT, "KERNFS mount", "KERNFS mount structure");
 dev_t rrootdev = NODEV;
 
 static void	kernfs_get_rrootdev __P((void));
-static int	kernfs_init __P((struct vfsconf *vfsp));
 static int	kernfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
-static int	kernfs_start __P((struct mount *mp, int flags, struct proc *p));
 static int	kernfs_unmount __P((struct mount *mp, int mntflags,
-				    struct proc *p));
+				  struct proc *p));
 static int	kernfs_root __P((struct mount *mp, struct vnode **vpp));
 static int	kernfs_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
-
-static int
-kernfs_init(vfsp)
-	struct vfsconf *vfsp;
-{
-
-	return (0);
-}
 
 static void
 kernfs_get_rrootdev()
@@ -150,15 +140,6 @@ kernfs_mount(mp, path, data, ndp, p)
 #endif
 
 	kernfs_get_rrootdev();
-	return (0);
-}
-
-static int
-kernfs_start(mp, flags, p)
-	struct mount *mp;
-	int flags;
-	struct proc *p;
-{
 	return (0);
 }
 
@@ -263,16 +244,16 @@ kernfs_statfs(mp, sbp, p)
 
 static struct vfsops kernfs_vfsops = {
 	kernfs_mount,
-	kernfs_start,
+	vfs_stdstart,
 	kernfs_unmount,
 	kernfs_root,
-	kernfs_quotactl,
+	vfs_stdquotactl,
 	kernfs_statfs,
-	kernfs_sync,
-	kernfs_vget,
-	kernfs_fhtovp,
-	kernfs_vptofh,
-	kernfs_init,
+	vfs_stdsync,
+	vfs_stdvget,
+	vfs_stdfhtovp,
+	vfs_stdvptofh,
+	vfs_stdinit,
 };
 
 VFS_SET(kernfs_vfsops, kernfs, VFCF_SYNTHETIC);

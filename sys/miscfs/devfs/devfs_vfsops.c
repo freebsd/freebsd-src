@@ -160,13 +160,6 @@ DBPRINT(("mount "));
 }
 
 
-static int
-devfs_start(struct mount *mp, int flags, struct proc *p)
-{
-DBPRINT(("start "));
-	return 0;
-}
-
 /*-
  *  Unmount the filesystem described by mp.
  */
@@ -202,14 +195,6 @@ devfs_root(struct mount *mp, struct vnode **vpp)
 DBPRINT(("root "));
 	devfs_dntovn(devfs_mp_p->plane_root->dnp,vpp);
 	return 0;
-}
-
-static int
-devfs_quotactl(struct mount *mp, int cmds, uid_t uid, caddr_t arg,
-	       struct proc *p)
-{
-DBPRINT(("quotactl "));
-	return EOPNOTSUPP;
 }
 
 static int
@@ -308,45 +293,17 @@ loop:
 	return (allerror);
 }
 
-static int
-devfs_vget(struct mount *mp, ino_t ino,struct vnode **vpp)
-{
-DBPRINT(("vget "));
-	return EOPNOTSUPP;
-}
-
-/*************************************************************
- * The concept of exporting a kernel generated devfs is stupid
- * So don't handle filehandles
- */
-
-static int
-devfs_fhtovp (struct mount *mp, struct fid *fhp, struct sockaddr *nam,
-	      struct vnode **vpp, int *exflagsp, struct ucred **credanonp)
-{
-DBPRINT(("fhtovp "));
-	return (EINVAL);
-}
-
-
-static int
-devfs_vptofh (struct vnode *vp, struct fid *fhp)
-{
-DBPRINT(("vptofh "));
-	return (EINVAL);
-}
-
 static struct vfsops devfs_vfsops = {
 	devfs_mount,
-	devfs_start,
+	vfs_stdstart,
 	devfs_unmount,
 	devfs_root,
-	devfs_quotactl,
+	vfs_stdquotactl,
 	devfs_statfs,
 	devfs_sync,
-	devfs_vget,
-	devfs_fhtovp,
-	devfs_vptofh,
+	vfs_stdvget,
+	vfs_stdfhtovp,
+	vfs_stdvptofh,
 	devfs_init
 };
 

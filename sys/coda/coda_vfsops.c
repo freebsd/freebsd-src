@@ -231,16 +231,6 @@ coda_mount(vfsp, path, data, ndp, p)
 }
 
 int
-coda_start(vfsp, flags, p)
-    struct mount *vfsp;
-    int flags;
-    struct proc *p;
-{
-    ENTRY;
-    return (0);
-}
-
-int
 coda_unmount(vfsp, mntflags, p)
     struct mount *vfsp;
     int mntflags;
@@ -378,18 +368,6 @@ coda_root(vfsp, vpp)
     return(error);
 }
 
-int
-coda_quotactl(vfsp, cmd, uid, arg, p)
-    struct mount *vfsp;
-    int cmd;
-    uid_t uid;
-    caddr_t arg;
-    struct proc *p;
-{
-    ENTRY;
-    return (EOPNOTSUPP);
-}
-     
 /*
  * Get file system statistics.
  */
@@ -444,16 +422,6 @@ coda_sync(vfsp, waitfor, cred, p)
     return(0);
 }
 
-int
-coda_vget(vfsp, ino, vpp)
-    struct mount *vfsp;
-    ino_t ino;
-    struct vnode **vpp;
-{
-    ENTRY;
-    return (EOPNOTSUPP);
-}
-
 /* 
  * fhtovp is now what vget used to be in 4.3-derived systems.  For
  * some silly reason, vget is now keyed by a 32 bit ino_t, rather than
@@ -500,22 +468,6 @@ coda_fhtovp(vfsp, fhp, nam, vpp, exflagsp, creadanonp)
 	*vpp = CTOV(cp);
     }
     return(error);
-}
-
-int
-coda_vptofh(vnp, fidp)
-    struct vnode *vnp;
-    struct fid   *fidp;
-{
-    ENTRY;
-    return (EOPNOTSUPP);
-}
-
-int
-coda_init(struct vfsconf *vfsp)
-{
-    ENTRY;
-    return 0;
 }
 
 /*
@@ -570,18 +522,16 @@ struct mount *devtomp(dev)
 
 struct vfsops coda_vfsops = {
     coda_mount,
-    coda_start,
+    vfs_stdstart,
     coda_unmount,
     coda_root,
-    coda_quotactl,
+    vfs_stdquotactl,
     coda_nb_statfs,
     coda_sync,
-    coda_vget,
-    (int (*) (struct mount *, struct fid *, struct sockaddr *, struct vnode **,
-	      int *, struct ucred **))
-	eopnotsupp,
-    (int (*) (struct vnode *, struct fid *)) eopnotsupp,
-    coda_init,
+    vfs_stdvget,
+    vfs_stdfhtovp,
+    vfs_stdvptofh,
+    vfs_stdinit
 };
 
 VFS_SET(coda_vfsops, coda, VFCF_NETWORK);

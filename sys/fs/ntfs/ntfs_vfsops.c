@@ -71,26 +71,31 @@ static int	ntfs_mount __P((struct mount *, char *, caddr_t,
 static int	ntfs_mount __P((struct mount *, const char *, void *,
 				struct nameidata *, struct proc *));
 #endif
-static int	ntfs_quotactl __P((struct mount *, int, uid_t, caddr_t,
-				   struct proc *));
 static int	ntfs_root __P((struct mount *, struct vnode **));
-static int	ntfs_start __P((struct mount *, int, struct proc *));
 static int	ntfs_statfs __P((struct mount *, struct statfs *,
 				 struct proc *));
-static int	ntfs_sync __P((struct mount *, int, struct ucred *,
-			       struct proc *));
 static int	ntfs_unmount __P((struct mount *, int, struct proc *));
 static int	ntfs_vget __P((struct mount *mp, ino_t ino,
 			       struct vnode **vpp));
 static int	ntfs_mountfs __P((register struct vnode *, struct mount *, 
 				  struct ntfs_args *, struct proc *));
+
+#if !defined(__FreeBSD__)
+static int	ntfs_quotactl __P((struct mount *, int, uid_t, caddr_t,
+				   struct proc *));
+static int	ntfs_start __P((struct mount *, int, struct proc *));
+static int	ntfs_sync __P((struct mount *, int, struct ucred *,
+			       struct proc *));
 static int	ntfs_vptofh __P((struct vnode *, struct fid *));
+#endif /* !defined(__FreeBSD__) */
 
 #if defined(__FreeBSD__)
 static int	ntfs_init __P((struct vfsconf *));
+#if 0 /* may be implemented at a later date */
 static int	ntfs_fhtovp __P((struct mount *, struct fid *,
 				 struct sockaddr *, struct vnode **,
 				 int *, struct ucred **));
+#endif
 #elif defined(__NetBSD__)
 static void	ntfs_init __P((void));
 static int	ntfs_fhtovp __P((struct mount *, struct fid *,
@@ -589,6 +594,7 @@ out:
 	return (error);
 }
 
+#if !defined(__FreeBSD__)
 static int
 ntfs_start (
 	struct mount *mp,
@@ -597,6 +603,7 @@ ntfs_start (
 {
 	return (0);
 }
+#endif /* !defined(__FreeBSD__) */
 
 static int
 ntfs_unmount( 
@@ -676,6 +683,7 @@ ntfs_root(
 	return (0);
 }
 
+#if !defined(__FreeBSD__)
 static int
 ntfs_quotactl ( 
 	struct mount *mp,
@@ -687,6 +695,7 @@ ntfs_quotactl (
 	printf("\nntfs_quotactl():\n");
 	return EOPNOTSUPP;
 }
+#endif /* !defined(__FreeBSD__) */
 
 int
 ntfs_calccfree(
@@ -762,6 +771,7 @@ ntfs_statfs(
 	return (0);
 }
 
+#if !defined(__FreeBSD__)
 static int
 ntfs_sync (
 	struct mount *mp,
@@ -772,7 +782,9 @@ ntfs_sync (
 	/*dprintf(("ntfs_sync():\n"));*/
 	return (0);
 }
+#endif /* !defined(__FreeBSD__) */
 
+#if !defined(__FreeBSD__)
 /*ARGSUSED*/
 static int
 ntfs_fhtovp(
@@ -808,6 +820,7 @@ ntfs_vptofh(
 	printf("ntfs_vptofh():\n");
 	return EOPNOTSUPP;
 }
+#endif /* !defined(__FreeBSD__) */
 
 int
 ntfs_vgetex(
@@ -931,15 +944,15 @@ ntfs_vget(
 #if defined(__FreeBSD__)
 static struct vfsops ntfs_vfsops = {
 	ntfs_mount,
-	ntfs_start,
+	vfs_stdstart,
 	ntfs_unmount,
 	ntfs_root,
-	ntfs_quotactl,
+	vfs_stdquotactl,
 	ntfs_statfs,
-	ntfs_sync,
+	vfs_stdsync,
 	ntfs_vget,
-	ntfs_fhtovp,
-	ntfs_vptofh,
+	vfs_stdfhtovp,
+	vfs_stdvptofh,
 	ntfs_init,
 	NULL
 };

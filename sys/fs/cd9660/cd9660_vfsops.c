@@ -64,14 +64,9 @@ MALLOC_DEFINE(M_ISOFSNODE, "ISOFS node", "ISOFS vnode private part");
 
 static int cd9660_mount __P((struct mount *,
 	    char *, caddr_t, struct nameidata *, struct proc *));
-static int cd9660_start __P((struct mount *, int, struct proc *));
 static int cd9660_unmount __P((struct mount *, int, struct proc *));
 static int cd9660_root __P((struct mount *, struct vnode **));
-static int cd9660_quotactl __P((struct mount *, int, uid_t, caddr_t, 
-	    struct proc *));
 static int cd9660_statfs __P((struct mount *, struct statfs *, struct proc *));
-static int cd9660_sync __P((struct mount *, int, struct ucred *, 
-	    struct proc *));
 static int cd9660_vget __P((struct mount *, ino_t, struct vnode **));
 static int cd9660_fhtovp __P((struct mount *, struct fid *, struct sockaddr *,
 	    struct vnode **, int *, struct ucred **));
@@ -79,16 +74,16 @@ static int cd9660_vptofh __P((struct vnode *, struct fid *));
 
 static struct vfsops cd9660_vfsops = {
 	cd9660_mount,
-	cd9660_start,
+	vfs_stdstart,
 	cd9660_unmount,
 	cd9660_root,
-	cd9660_quotactl,
+	vfs_stdquotactl,
 	cd9660_statfs,
-	cd9660_sync,
+	vfs_stdsync,
 	cd9660_vget,
 	cd9660_fhtovp,
 	cd9660_vptofh,
-	cd9660_init
+	cd9660_init,
 };
 VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
 
@@ -524,20 +519,6 @@ out:
 }
 
 /*
- * Make a filesystem operational.
- * Nothing to do at the moment.
- */
-/* ARGSUSED */
-static int
-cd9660_start(mp, flags, p)
-	struct mount *mp;
-	int flags;
-	struct proc *p;
-{
-	return 0;
-}
-
-/*
  * unmount system call
  */
 static int
@@ -593,22 +574,6 @@ cd9660_root(mp, vpp)
 }
 
 /*
- * Do operations associated with quotas, not supported
- */
-/* ARGSUSED */
-static int
-cd9660_quotactl(mp, cmd, uid, arg, p)
-	struct mount *mp;
-	int cmd;
-	uid_t uid;
-	caddr_t arg;
-	struct proc *p;
-{
-
-	return (EOPNOTSUPP);
-}
-
-/*
  * Get file system statistics.
  */
 int
@@ -634,17 +599,6 @@ cd9660_statfs(mp, sbp, p)
 		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
 	}
 	return 0;
-}
-
-/* ARGSUSED */
-static int
-cd9660_sync(mp, waitfor, cred, p)
-	struct mount *mp;
-	int waitfor;
-	struct ucred *cred;
-	struct proc *p;
-{
-	return (0);
 }
 
 /*
