@@ -1,24 +1,25 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id$
+#	$Id: Makefile.inc,v 1.10 1994/09/23 00:37:43 wollman Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
 
 SRCS+=	alarm.c assert.c clock.c closedir.c confstr.c crypt.c ctermid.c \
 	daemon.c devname.c disklabel.c err.c errlst.c \
-	exec.c fnmatch.c frexp.c fstab.c fts.c getbsize.c getcap.c getcwd.c \
-	getdomainname.c getgrent.c getgrouplist.c gethostname.c getloadavg.c \
-	getlogin.c getmntinfo.c getnetgrent.c getosreldate.c getpagesize.c \
-	getpass.c getpwent.c getttyent.c getusershell.c glob.c initgroups.c \
-	isatty.c msgctl.c msgget.c msgrcv.c msgsnd.c nice.c nlist.c \
-	ntp_gettime.c opendir.c pause.c popen.c psignal.c pwcache.c raise.c \
-	readdir.c rewinddir.c scandir.c seekdir.c semconfig.c semctl.c \
-	semget.c semop.c setdomainname.c sethostname.c setjmperr.c setmode.c \
-	shmat.c shmctl.c shmdt.c shmget.c siginterrupt.c siglist.c signal.c \
+	exec.c fnmatch.c frexp.c fstab.c fts.c getbootfile.c getbsize.c \
+	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
+	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
+	getosreldate.c getpagesize.c getpass.c getpwent.c getttyent.c \
+	getusershell.c getvfsent.c glob.c initgroups.c isatty.c msgctl.c \
+	msgget.c msgrcv.c msgsnd.c nice.c nlist.c ntp_gettime.c opendir.c \
+	pause.c popen.c psignal.c pwcache.c raise.c readdir.c rewinddir.c \
+	scandir.c seekdir.c semconfig.c semctl.c semget.c semop.c \
+	setdomainname.c sethostname.c setjmperr.c setmode.c shmat.c \
+	shmctl.c shmdt.c shmget.c siginterrupt.c siglist.c signal.c \
 	sigsetjmp.c sigsetops.c sleep.c sysconf.c sysctl.c syslog.c \
 	telldir.c termios.c time.c times.c timezone.c ttyname.c ttyslot.c \
 	ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c wait.c \
-	wait3.c waitpid.c getvfsent.c
+	wait3.c waitpid.c
 
 # *rand48 family, from 1.1.5
 SRCS+=	_rand48.c drand48.c erand48.c jrand48.c lcong48.c lrand48.c \
@@ -36,8 +37,8 @@ errlst.o errlst.po:
 .endif
 
 MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/crypt.3 gen/ctermid.3 \
-	gen/daemon.3 gen/devname.3 gen/directory.3 gen/err.3 \
-	gen/exec.3 gen/fnmatch.3 gen/frexp.3 gen/fts.3 gen/getbsize.3 \
+	gen/daemon.3 gen/devname.3 gen/directory.3 gen/err.3 gen/exec.3 \
+	gen/fnmatch.3 gen/frexp.3 gen/fts.3 gen/getbsize.3 gen/getbootfile.3 \
 	gen/getcap.3 gen/getcwd.3 gen/getdiskbyname.3 gen/getfsent.3 \
 	gen/getgrent.3 gen/getgrouplist.3 gen/gethostname.3 gen/getloadavg.3 \
 	gen/getmntinfo.3 gen/getnetgrent.3 gen/getpagesize.3 gen/getpass.3 \
