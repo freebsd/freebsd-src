@@ -367,7 +367,27 @@ nohost:
     if (!*p)
 	p = "/";
     
-    if ((u->doc = strdup(p)) == NULL) {
+    if (strcmp(u->scheme, "http") == 0 || strcmp(u->scheme, "https") == 0) {
+	const char hexnums[] = "0123456789abcdef";
+	char *doc;
+
+	/* Perform %hh encoding of white space. */
+	if ((doc = u->doc = malloc(strlen(p) * 3 + 1)) == NULL) {
+	    _fetch_syserr();
+	    goto ouch;
+	}
+	while (*p != '\0') {
+	    if (!isspace(*p)) {
+		*doc++ = *p++;
+            } else {
+		*doc++ = '%';
+		*doc++ = hexnums[((unsigned int)*p) >> 4];
+		*doc++ = hexnums[((unsigned int)*p) & 0xf];
+		p++;
+            }
+	}
+	*doc = '\0';
+    } else if ((u->doc = strdup(p)) == NULL) {
 	_fetch_syserr();
 	goto ouch;
     }
