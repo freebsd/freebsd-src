@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.4.2.4 1999/07/05 20:20:34 wpaul Exp $
+ *	$Id: if_ti.c,v 1.4.2.5 1999/07/23 18:49:15 wpaul Exp $
  */
 
 /*
@@ -128,7 +128,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.4.2.4 1999/07/05 20:20:34 wpaul Exp $";
+	"$Id: if_ti.c,v 1.4.2.5 1999/07/23 18:49:15 wpaul Exp $";
 #endif
 
 /*
@@ -874,7 +874,7 @@ static int ti_newbuf_jumbo(sc, i, m)
 		m_new->m_ext.ext_size = TI_JUMBO_FRAMELEN;
 	}
 
-	m_adj(m, ETHER_ALIGN);
+	m_adj(m_new, ETHER_ALIGN);
 	/* Set up the descriptor. */
 	r = &sc->ti_rdata->ti_rx_jumbo_ring[i];
 	sc->ti_cdata.ti_rx_jumbo_chain[i] = m_new;
