@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.7 1998/07/19 16:01:23 root Exp root $
+ * $Id: if_cs.c,v 1.1 1998/07/20 20:00:42 msmith Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
@@ -48,40 +48,16 @@
 
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/if_dl.h>
-#include <net/if_mib.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
 #include <net/ethernet.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 #include <machine/clock.h>
-#include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 #include <i386/isa/if_csreg.h>
 
 #include "pnp.h"
