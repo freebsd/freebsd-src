@@ -35,7 +35,7 @@
  *
  *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
  *
- *	$Id: SYS.h,v 1.4 1996/05/05 07:56:03 peter Exp $
+ *	$Id: SYS.h,v 1.5 1996/08/20 08:19:54 julian Exp $
  */
 
 #include <sys/syscall.h>
@@ -83,9 +83,9 @@
  * For the thread_safe versions, we prepend _thread_sys_ to the function
  * name so that the 'C' wrapper can go around the real name.
  */
-#define	PSYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(_thread_sys_/**/x); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
+#define	PSYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(__CONCAT(_thread_sys_,x)); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
 #define	PRSYSCALL(x)	PSYSCALL(x); ret
-#define	PPSEUDO(x,y)	ENTRY(_thread_sys_/**/x); lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
+#define	PPSEUDO(x,y)	ENTRY(__CONCAT(_thread_sys_,x)); lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
 #else
 /*
  * The non-threaded library defaults to traditional syscalls where
