@@ -92,6 +92,7 @@ static u_int32_t badcards[] = {
 	0x0007103c,
 	0x008f1028,
 	0x00dd1014,
+	0x8005110a,
 };
 #define NUM_BADCARDS (sizeof(badcards) / sizeof(u_int32_t))
 
@@ -553,8 +554,9 @@ nm_init(struct sc_info *sc)
 static int
 nm_pci_probe(device_t dev)
 {
+	struct sc_info *sc = NULL;
 	char *s = NULL;
-	u_int32_t subdev, i;
+	u_int32_t subdev, i, data;
 
 	subdev = (pci_get_subdevice(dev) << 16) | pci_get_subvendor(dev);
 	switch (pci_get_devid(dev)) {
@@ -562,10 +564,50 @@ nm_pci_probe(device_t dev)
 		i = 0;
 		while ((i < NUM_BADCARDS) && (badcards[i] != subdev))
 			i++;
+
+		/* Try to catch other non-ac97 cards */
+
+		if (i == NUM_BADCARDS) {
+			if (!(sc = malloc(sizeof(*sc), M_DEVBUF,
+					  M_NOWAIT | M_ZERO))) {
+				device_printf(dev, "cannot allocate softc\n");
+				return ENXIO;
+			}
+
+			data = pci_read_config(dev, PCIR_COMMAND, 2);
+			pci_write_config(dev, PCIR_COMMAND, data |
+					 PCIM_CMD_PORTEN | PCIM_CMD_MEMEN |
+					 PCIM_CMD_BUSMASTEREN, 2);
+
+			sc->regid = PCIR_MAPS + 4;
+			sc->reg = bus_alloc_resource(dev, SYS_RES_MEMORY,
+						     &sc->regid, 0, ~0, 1,
+						     RF_ACTIVE);
+
+			if (!sc->reg) {
+				device_printf(dev, "unable to map register space\n");
+				pci_write_config(dev, PCIR_COMMAND, data, 2);
+				free(sc, M_DEVBUF);
+				return ENXIO;
+			}
+
+			if ((nm_rd(sc, NM_MIXER_PRESENCE, 2) & 
+				NM_PRESENCE_MASK) != NM_PRESENCE_VALUE) {
+				i = 0;	/* non-ac97 card, but not listed */
+				DEB(device_printf(dev, "subdev = 0x%x - badcard?\n",
+				    subdev));
+			}
+			pci_write_config(dev, PCIR_COMMAND, data, 2);
+			bus_release_resource(dev, SYS_RES_MEMORY, sc->regid,
+					     sc->reg);
+			free(sc, M_DEVBUF);
+		}
+
 		if (i == NUM_BADCARDS)
 			s = "NeoMagic 256AV";
 		DEB(else)
 			DEB(device_printf(dev, "this is a non-ac97 NM256AV, not attaching\n"));
+
 		break;
 
 	case NM256ZX_PCI_ID:
