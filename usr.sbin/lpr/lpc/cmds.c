@@ -104,6 +104,7 @@ enum	qsel_val {			/* how a given ptr was selected */
 
 static enum qsel_val generic_qselect;	/* indicates how ptr was selected */
 static int generic_initerr;		/* result of initrtn processing */
+static char *generic_cmdname;
 static char *generic_msg;		/* if a -msg was specified */
 static char *generic_nullarg;
 static void (*generic_wrapup)(int _last_status);   /* perform rtn wrap-up */
@@ -114,7 +115,7 @@ generic(void (*specificrtn)(struct printer *_pp), int cmdopts,
 {
 	int cmdstatus, more, targc;
 	struct printer myprinter, *pp;
-	char **targv;
+	char **margv, **targv;
 
 	if (argc == 1) {
 		printf("usage: %s  {all | printer ...}", argv[0]);
@@ -123,6 +124,10 @@ generic(void (*specificrtn)(struct printer *_pp), int cmdopts,
 		printf("\n");
 		return;
 	}
+
+	/* The first argument is the command name. */
+	generic_cmdname = *argv++;
+	argc--;
 
 	/*
 	 * The initialization routine for a command might set a generic
@@ -149,8 +154,7 @@ generic(void (*specificrtn)(struct printer *_pp), int cmdopts,
 	if (cmdopts & LPC_MSGOPT) {
 		targc = argc;
 		targv = argv;
-		while (--targc) {
-			++targv;
+		for (; targc > 0; targc--, targv++) {
 			if (strcmp(*targv, "-msg") == 0) {
 				argc -= targc;
 				generic_msg = args2line(targc - 1, targv + 1);
@@ -165,22 +169,26 @@ generic(void (*specificrtn)(struct printer *_pp), int cmdopts,
 		(*initrtn)(argc, argv);
 		if (generic_initerr)
 			return;
-		/* skip any initial arguments null-ified by initrtn */
+		/*
+		 * The initrtn may have null'ed out some of the parameters.
+		 * Compact the parameter list to remove those nulls, and
+		 * correct the arg-count.
+		 */
 		targc = argc;
 		targv = argv;
-		while (--targc) {
-			if (targv[1] != generic_nullarg)
-				break;
-			++targv;
-		}
-		if (targv != argv) {
-			targv[0] = argv[0];	/* copy the command-name */
-			argv = targv;
-			argc = targc + 1;
+		margv = argv;
+		argc = 0;
+		for (; targc > 0; targc--, targv++) {
+			if (*targv != generic_nullarg) {
+				if (targv != margv)
+					*margv = *targv;
+				margv++;
+				argc++;
+			}
 		}
 	}
 
-	if (argc == 2 && strcmp(argv[1], "all") == 0) {
+	if (argc == 1 && strcmp(*argv, "all") == 0) {
 		generic_qselect = QSEL_ALL;
 		more = firstprinter(pp, &cmdstatus);
 		if (cmdstatus)
@@ -206,10 +214,7 @@ looperr:
 	}
 
 	generic_qselect = QSEL_BYNAME;		/* specifically-named ptrs */
-	while (--argc) {
-		++argv;
-		if (*argv == generic_nullarg)
-			continue;
+	for (; argc > 0; argc--, argv++) {
 		init_printer(pp);
 		cmdstatus = getprintcap(*argv, pp);
 		switch (cmdstatus) {
@@ -693,8 +698,7 @@ init_clean(int argc, char *argv[])
 	generic_wrapup = &wrapup_clean;
 
 	/* see if there are any options specified before the ptr list */
-	while (--argc) {
-		++argv;
+	for (; argc > 0; argc--, argv++) {
 		if (**argv != '-')
 			break;
 		if (strcmp(*argv, "-d") == 0) {
