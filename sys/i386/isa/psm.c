@@ -58,6 +58,10 @@
 #include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #if 0
 #include <sys/syslog.h>		/* For debugging */
 #endif
@@ -66,14 +70,6 @@
 
 #include <i386/isa/isa_device.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 21
-#endif /*JREMOD*/
 
 #define DATA	0       /* Offset for data port, read-write */
 #define CNTRL	4       /* Offset for control port, write-only */
@@ -125,12 +121,28 @@ static struct psm_softc {	/* Driver status information */
 	unsigned char status;	/* Mouse button status */
 	unsigned char button;	/* Previous mouse button status bits */
 	int x, y;		/* accumulated motion in the X,Y axis */
+#ifdef DEVFS
+	void	*devfs_token;
+	void	*n_devfs_token;
+#endif
 } psm_softc[NPSM];
 
 #define OPEN	1		/* Device is open */
 #define ASLP	2		/* Waiting for mouse data */
 
 struct isa_driver psmdriver = { psmprobe, psmattach, "psm" };
+
+static	d_open_t	psmopen;
+static	d_close_t	psmclose;
+static	d_read_t	psmread;
+static	d_ioctl_t	psmioctl;
+static	d_select_t	psmselect;
+
+#define CDEV_MAJOR 21
+static	struct	cdevsw psm_cdevsw =
+	{ psmopen,	psmclose,	psmread,	nowrite,	/*21*/
+	  psmioctl,	nostop,		nullreset,	nodevtotty,
+	  psmselect,	nommap,		NULL,	"psm",	NULL,	-1 };
 
 #define AUX_PORT 0x60		/* AUX_PORT base (S.Yuen) */
 
@@ -212,11 +224,13 @@ int psmattach(struct isa_device *dvp)
 	return(0); /* XXX eh? usually 1 indicates success */
 }
 
-int psmopen(dev_t dev, int flag, int fmt, struct proc *p)
+static int
+psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int unit = PSMUNIT(dev);
 	struct psm_softc *sc;
 	int ioport;
+	char	name[32];
 
 	/* Validate unit number */
 
@@ -254,11 +268,24 @@ int psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 	/* Enable Bus Mouse interrupts */
 
 	psm_write_dev(ioport, PSM_DEV_ENABLE);
+	
 	psm_poll_status();
 	outb(ioport+CNTRL, PSM_ENABLE);
 	psm_command(ioport, PSM_INT_ENABLE);
 
 	/* Successful open */
+#ifdef	DEVFS
+	sprintf(name,"psm%d", unit);
+                                /*        path  name   devsw    minor */
+	sc->devfs_token = devfs_add_devsw( "/",	name, &psm_cdevsw, unit << 1,
+                                              /*type   uid gid perm*/
+						DV_CHR,	0, 0, 0666);
+	sprintf(name,"npsm%d", unit);
+                                /*        path  name   devsw    minor */
+	sc->n_devfs_token = devfs_add_devsw("/", name, &psm_cdevsw, (unit<<1)+1,
+                                              /*type   uid gid perm*/
+						DV_CHR,	0, 0, 0666);
+#endif
 
 	return(0);
 }
@@ -273,7 +300,8 @@ void psm_poll_status(void)
 }
 
 
-int psmclose(dev_t dev, int flag, int fmt, struct proc *p)
+static	int
+psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int unit, ioport;
 	struct psm_softc *sc;
@@ -299,7 +327,8 @@ int psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 	return(0);
 }
 
-int psmread(dev_t dev, struct uio *uio, int flag)
+static	int
+psmread(dev_t dev, struct uio *uio, int flag)
 {
 	int s;
 	int error = 0;	/* keep compiler quiet, even though initialisation
@@ -364,7 +393,8 @@ int psmread(dev_t dev, struct uio *uio, int flag)
 	return(error);
 }
 
-int psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
+static	int
+psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct psm_softc *sc;
 	struct mouseinfo info;
@@ -443,7 +473,8 @@ void psmintr(unit)
 	selwakeup(&sc->rsel);
 }
 
-int psmselect(dev_t dev, int rw, struct proc *p)
+static	int
+psmselect(dev_t dev, int rw, struct proc *p)
 {
 	int s, ret;
 	struct psm_softc *sc = &psm_softc[PSMUNIT(dev)];
@@ -467,11 +498,6 @@ int psmselect(dev_t dev, int rw, struct proc *p)
 	return(ret);
 }
 
-#ifdef JREMOD
-struct cdevsw psm_cdevsw = 
-	{ psmopen,	psmclose,	psmread,	nowrite,	/*21*/
-	  psmioctl,	nostop,		nullreset,	nodevtotty,/* psm mice */
-	  psmselect,	nommap,		NULL };
 
 static psm_devsw_installed = 0;
 
@@ -480,24 +506,14 @@ static void 	psm_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! psm_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&psm_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&psm_cdevsw, NULL);
 		psm_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"psm",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(psmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,psm_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif
 

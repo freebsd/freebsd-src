@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.4 1995/11/29 10:48:57 julian Exp $
+ *	$Id: od.c,v 1.5 1995/11/29 14:40:57 julian Exp $
  */
 
 /*
@@ -53,6 +53,9 @@
 #include <sys/dkstat.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
@@ -60,15 +63,7 @@
 #include <sys/devconf.h>
 #include <sys/dkstat.h>
 #include <machine/md_var.h>
-#include <i386/i386/cons.h>		/* XXX */
 
-#ifdef JREMOD
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 70
-#define BDEV_MAJOR 20
-#endif /*JREMOD */
 
 u_int32 odstrats, odqueues;
 
@@ -103,6 +98,10 @@ struct scsi_data {
 	struct diskslices *dk_slices;	/* virtual drives */
 	struct buf_queue_head buf_queue;
 	int dkunit;		/* disk stats unit number */
+#ifdef	DEVFS
+	void	*b_devfs_token;	/*eventually move to common disk struct */
+	void	*c_devfs_token;	/*eventually move to common disk struct */
+#endif
 };
 
 static int odunit(dev_t dev) { return ODUNIT(dev); }
@@ -116,6 +115,28 @@ errval od_close __P((dev_t dev, int fflag, int fmt, struct proc *p,
 		     struct scsi_link *sc_link));
 void od_strategy(struct buf *bp, struct scsi_link *sc_link);
 
+static	d_open_t	odopen;
+static	d_close_t	odclose;
+static	d_ioctl_t	odioctl;
+static	d_psize_t	odsize;
+static	d_strategy_t	odstrategy;
+
+#define CDEV_MAJOR 70
+#define BDEV_MAJOR 20
+extern	struct cdevsw od_cdevsw;
+struct bdevsw od_bdevsw = 
+	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
+	  nxdump,	odsize,		0,	"od",	&od_cdevsw,	-1 };
+
+struct cdevsw od_cdevsw = 
+	{ odopen,	odclose,	rawread,	rawwrite,	/*70*/
+	  odioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		odstrategy,	"od",
+	  &od_bdevsw,	-1 };
+
+/*
+ * Actually include the interface routines
+ */
 SCSI_DEVICE_ENTRIES(od)
 
 struct scsi_device od_switch =
@@ -188,6 +209,7 @@ odattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
 	struct disk_parms *dp;
+	char	name[32];
 
 	struct scsi_data *od = sc_link->sd;
 
@@ -231,6 +253,15 @@ odattach(struct scsi_link *sc_link)
 
 	od->flags |= ODINIT;
 	od_registerdev(unit);
+#ifdef DEVFS
+/* FIX PROPERLY WHEN DISKSLICE CODE IS UNDERSTOOD */
+	sprintf(name, "rod%d", unit);
+	od->c_devfs_token = devfs_add_devsw( "/", name, &od_cdevsw, 0,
+						DV_CHR, 0,  0, 0600);
+	sprintf(name, "od%d", unit);
+	od->b_devfs_token = devfs_add_devsw( "/", name, &od_bdevsw, 0,
+						DV_BLK, 0,  0, 0600);
+#endif
 
 	return 0;
 }
@@ -806,45 +837,21 @@ od_sense_handler(struct scsi_xfer *xs)
 	return SCSIRET_DO_RETRY;
 }
 
-#ifdef JREMOD
-struct bdevsw od_bdevsw = 
-	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
-	  nxdump,	odsize,		0 };
-
-struct cdevsw od_cdevsw = 
-	{ odopen,	odclose,	rawread,	rawwrite,	/*70*/
-	  odioctl,	nostop,		nullreset,	nodevtotty,/* od */
-	  seltrue,	nommap,		odstrategy };
-
 static od_devsw_installed = 0;
 
 static void 	od_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! od_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&od_cdevsw,NULL);
-		dev_chr = dev;
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&od_bdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&od_cdevsw, NULL);
+		dev = makedev(BDEV_MAJOR, 0);
+		bdevsw_add(&dev,&od_bdevsw, NULL);
 		od_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"rod",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-			x=devfs_add_devsw(
-	"/",	"od",	major(dev),	0,	DV_BLK,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(oddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,od_drvinit,NULL)
 
-#endif /* JREMOD */
 

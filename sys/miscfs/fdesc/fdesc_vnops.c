@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.13 1995/12/03 14:54:10 bde Exp $
+ * $Id: fdesc_vnops.c,v 1.14 1995/12/05 19:12:05 bde Exp $
  */
 
 /*
@@ -58,7 +58,10 @@
 #include <sys/dirent.h>
 #include <sys/socketvar.h>
 #include <sys/tty.h>
+#include <sys/conf.h>
 #include <miscfs/fdesc/fdesc.h>
+
+extern	struct cdevsw ctty_cdevsw;
 
 #define cttyvp(p) ((p)->p_flag & P_CONTROLT ? (p)->p_session->s_ttyvp : NULL)
 
@@ -363,7 +366,7 @@ fdesc_open(ap)
 		break;
 
 	case Fctty:
-		error = cttyopen(devctty, ap->a_mode, 0, ap->a_p);
+		error = (*ctty_cdevsw.d_open)(devctty, ap->a_mode, 0, ap->a_p);
 		break;
 	}
 
@@ -710,7 +713,7 @@ fdesc_read(ap)
 
 	switch (VTOFDESC(ap->a_vp)->fd_type) {
 	case Fctty:
-		error = cttyread(devctty, ap->a_uio, ap->a_ioflag);
+		error = (*ctty_cdevsw.d_read)(devctty, ap->a_uio, ap->a_ioflag);
 		break;
 
 	default:
@@ -734,7 +737,7 @@ fdesc_write(ap)
 
 	switch (VTOFDESC(ap->a_vp)->fd_type) {
 	case Fctty:
-		error = cttywrite(devctty, ap->a_uio, ap->a_ioflag);
+		error = (*ctty_cdevsw.d_write)(devctty, ap->a_uio, ap->a_ioflag);
 		break;
 
 	default:
@@ -760,8 +763,8 @@ fdesc_ioctl(ap)
 
 	switch (VTOFDESC(ap->a_vp)->fd_type) {
 	case Fctty:
-		error = cttyioctl(devctty, ap->a_command, ap->a_data,
-					ap->a_fflag, ap->a_p);
+		error = (*ctty_cdevsw.d_ioctl)(devctty, ap->a_command,
+					ap->a_data, ap->a_fflag, ap->a_p);
 		break;
 
 	default:
@@ -786,7 +789,7 @@ fdesc_select(ap)
 
 	switch (VTOFDESC(ap->a_vp)->fd_type) {
 	case Fctty:
-		error = cttyselect(devctty, ap->a_fflags, ap->a_p);
+		error = (*ctty_cdevsw.d_select)(devctty, ap->a_fflags, ap->a_p);
 		break;
 
 	default:

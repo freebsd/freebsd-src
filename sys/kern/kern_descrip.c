@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.19 1995/12/05 21:51:28 bde Exp $
+ * $Id: kern_descrip.c,v 1.20 1995/12/07 12:46:38 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -62,13 +62,18 @@
 #include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
+
+static	 d_open_t  fdopen;
+#define NUMFDESC 64
+
 #define CDEV_MAJOR 22
-#endif /*JREMOD*/
+struct cdevsw fildesc_cdevsw = 
+	{ fdopen,	noclose,	noread,		nowrite,	/*22*/
+	  noioc,	nostop,		nullreset,	nodevtotty,/*fd(!=Fd)*/
+	  noselect,	nommap,		nostrat };
 
 int finishdup(struct filedesc *fdp, int old, int new, int *retval);
 /*
@@ -896,7 +901,7 @@ flock(p, uap, retval)
  * references to this file will be direct to the other driver.
  */
 /* ARGSUSED */
-int
+static int
 fdopen(dev, mode, type, p)
 	dev_t dev;
 	int mode, type;
@@ -1035,34 +1040,35 @@ SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc,
 
 SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, &maxfiles, 0, "");
 
-#ifdef JREMOD
-static struct cdevsw fildesc_cdevsw = 
-	{ fdopen,	noclose,	noread,		nowrite,	/*22*/
-	  noioc,	nostop,		nullreset,	nodevtotty,/*fd(!=Fd)*/
-	  noselect,	nommap,		nostrat };
-
 static fildesc_devsw_installed = 0;
+static	void *devfs_token_stdin;
+static	void *devfs_token_stdout;
+static	void *devfs_token_stderr;
+static	void *devfs_token_fildesc[NUMFDESC];
 
 static void 	fildesc_drvinit(void *unused)
 {
 	dev_t dev;
+	int	i;
+	char	name[32];
 
 	if( ! fildesc_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&fildesc_cdevsw,NULL);
 		fildesc_devsw_installed = 1;
 #ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-/*	path	name	devsw		minor	type   uid gid perm*/
-			x=devfs_add_devsw("/","stdin",major(dev),0,DV_CHR,
-					0,  0, 0600);
-			x=devfs_add_devsw("/","stdout",major(dev),1,DV_CHR,
-					0,  0, 0600);
-			x=devfs_add_devsw("/","stderr",major(dev),2,DV_CHR,
-					0,  0, 0600);
+		for ( i = 0 ; i < NUMFDESC ; i++ ) {
+			sprintf(name,"%d",i);
+			devfs_token_fildesc[i] = devfs_add_devsw("fd",name,
+							&fildesc_cdevsw,0,
+							DV_CHR, 0,  0, 0666);
 		}
+		devfs_token_stdin =
+			dev_link("/","stdin",devfs_token_fildesc[0]);
+		devfs_token_stdout =
+			dev_link("/","stdout",devfs_token_fildesc[1]);
+		devfs_token_stderr =
+			dev_link("/","stderr",devfs_token_fildesc[2]);
 #endif
     	}
 }
@@ -1070,4 +1076,4 @@ static void 	fildesc_drvinit(void *unused)
 SYSINIT(fildescdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,
 					fildesc_drvinit,NULL)
 
-#endif /* JREMOD */
+

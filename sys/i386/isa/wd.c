@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.95 1995/11/29 14:40:08 julian Exp $
+ *	$Id: wd.c,v 1.96 1995/12/07 12:46:12 davidg Exp $
  */
 
 /* TODO:
@@ -78,6 +78,9 @@
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/devconf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
 #include <machine/cons.h>
@@ -108,13 +111,6 @@ extern void wdstart(int ctrlr);
 #define WDOPT_SLEEPHACK	0x4000
 #define WDOPT_MULTIMASK	0x00ff
 
-#ifdef JREMOD
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 3
-#define BDEV_MAJOR 0
-#endif /*JREMOD */
 
 static int wd_goaway(struct kern_devconf *, int);
 static int wdc_goaway(struct kern_devconf *, int);
@@ -304,6 +300,27 @@ wd_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 struct isa_driver wdcdriver = {
 	wdprobe, wdattach, "wdc",
 };
+
+static	d_open_t	wdopen;
+static	d_close_t	wdclose;
+static	d_ioctl_t	wdioctl;
+static	d_dump_t	wddump;
+static	d_size_t	wdsize;
+static	d_strategy_t	wdstrategy;
+
+#define CDEV_MAJOR 3
+#define BDEV_MAJOR 0
+extern	struct cdevsw wd_cdevsw;
+struct bdevsw wd_bdevsw = 
+	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
+	  wddump,	wdsize,		0,	"wd",	&wd_cdevsw,	-1 };
+
+struct cdevsw wd_cdevsw = 
+	{ wdopen,	wdclose,	rawread,	rawwrite,	/*3*/
+	  wdioctl,	nostop,		nullreset,	nodevtotty,/* wd */
+	  seltrue,	nommap,		wdstrategy,	"wd",
+	  &wd_bdevsw,	-1 };
+
 
 /*
  * Probe for controller.
@@ -2127,46 +2144,22 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 	return (-1);
 }
 
-#ifdef JREMOD
-struct bdevsw wd_bdevsw = 
-	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
-	  wddump,	wdsize,		0 };
-
-struct cdevsw wd_cdevsw = 
-	{ wdopen,	wdclose,	rawread,	rawwrite,	/*3*/
-	  wdioctl,	nostop,		nullreset,	nodevtotty,/* wd */
-	  seltrue,	nommap,		wdstrategy };
-
 static wd_devsw_installed = 0;
 
 static void 	wd_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! wd_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&wd_cdevsw,NULL);
-		dev_chr = dev;
 		dev = makedev(BDEV_MAJOR,0);
 		bdevsw_add(&dev,&wd_bdevsw,NULL);
 		wd_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"rwd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-			x=devfs_add_devsw(
-	"/",	"wd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(wddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wd_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NWDC > 0 */

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.35 1995/12/01 01:38:49 julian Exp $
+ * $Id: soundcard.c,v 1.36 1995/12/06 23:51:21 bde Exp $
  */
 
 #include "sound_config.h"
@@ -36,15 +36,11 @@
 
 #include "dev_table.h"
 #include <i386/isa/isa_device.h>
-
-#ifdef JREMOD
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 30
-#endif /*JREMOD*/
 
 
 u_int	snd1_imask;
@@ -69,11 +65,26 @@ static int      soundcards_installed = 0;	/* Number of installed
 static int      soundcard_configured = 0;
 
 static struct fileinfo files[SND_NDEVS];
+static void * snd_devfs_token[SND_NDEVS];
+static void * sndstat_devfs_token;
 struct selinfo selinfo[SND_NDEVS >> 4];
 
 int             sndprobe (struct isa_device *dev);
 int             sndattach (struct isa_device *dev);
 static void	sound_mem_init(void);
+
+static d_open_t		sndopen;
+static d_close_t	sndclose;
+static d_read_t		sndread;
+static d_write_t	sndwrite;
+static d_ioctl_t	sndioctl;
+static d_select_t	sndselect;
+
+#define CDEV_MAJOR 30
+struct cdevsw snd_cdevsw = 
+	{ sndopen,	sndclose,	sndread,	sndwrite,	/*30*/
+  	  sndioctl,	nostop,		nullreset,	nodevtotty,/* sound */
+  	  sndselect,	nommap,		NULL,	"snd", NULL, -1 };
 
 struct isa_driver opldriver	= {sndprobe, sndattach, "opl"};
 struct isa_driver sbdriver	= {sndprobe, sndattach, "sb"};
@@ -126,7 +137,7 @@ int x;
 }
  
 
-int
+static int
 sndread (dev_t dev, struct uio *buf, int ioflag)
 {
   int             count = buf->uio_resid;
@@ -136,7 +147,7 @@ sndread (dev_t dev, struct uio *buf, int ioflag)
   FIX_RETURN (sound_read_sw (dev, &files[dev], buf, count));
 }
 
-int
+static int
 sndwrite (dev_t dev, struct uio *buf, int ioflag)
 {
   int             count = buf->uio_resid;
@@ -146,7 +157,7 @@ sndwrite (dev_t dev, struct uio *buf, int ioflag)
   FIX_RETURN (sound_write_sw (dev, &files[dev], buf, count));
 }
 
-int
+static int
 sndopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
   int             retval;
@@ -174,7 +185,7 @@ sndopen (dev_t dev, int flags, int fmt, struct proc *p)
   FIX_RETURN(sound_open_sw (dev, &files[dev]));
 }
 
-int
+static int
 sndclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
 
@@ -184,7 +195,7 @@ sndclose (dev_t dev, int flags, int fmt, struct proc *p)
   FIX_RETURN (0);
 }
 
-int
+static int
 sndioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
 {
   dev = minor (dev);
@@ -192,7 +203,7 @@ sndioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
   FIX_RETURN (sound_ioctl_sw (dev, &files[dev], cmd, (unsigned int) arg));
 }
 
-int
+static int
 sndselect (dev_t dev, int rw, struct proc *p)
 {
   dev = minor (dev);
@@ -302,6 +313,7 @@ sndattach (struct isa_device *dev)
   static int 	  generic_midi_initialized = 0; 
   unsigned long	  mem_start = 0xefffffffUL;
   struct address_info hw_config;
+  char name[32];
 
   unit = driver_to_voxunit(dev->id_driver);
   hw_config.io_base = dev->id_iobase;
@@ -356,6 +368,62 @@ sndattach (struct isa_device *dev)
     }
 #endif
 
+#ifdef DEVFS
+/* XXX */ /* find out where to store the tokens.. */
+/* XXX */ /* should only create devices if that card has them */
+#define SND_UID 0
+#define SND_GID 13
+
+
+    sprintf(name,"mixer%d",unit);
+    snd_devfs_token[unit]=devfs_add_devsw(
+	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_CTL,
+		DV_CHR, SND_UID,  SND_GID, 0660);
+
+#ifndef EXCLUDE_SEQUENCER
+    sprintf(name,"sequencer%d",unit);
+    snd_devfs_token[unit]=devfs_add_devsw(
+	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_SEQ,
+		DV_CHR, SND_UID,  SND_GID, 0660);
+    sprintf(name,"music%d",unit);
+    snd_devfs_token[unit]=devfs_add_devsw(
+	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_SEQ2,
+		DV_CHR, SND_UID,  SND_GID, 0660);
+#endif
+
+#ifndef EXCLUDE_MIDI
+    sprintf(name,"midi%d",unit);
+    snd_devfs_token[unit]=devfs_add_devsw(
+	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_MIDIN,
+		DV_CHR, SND_UID,  SND_GID, 0660);
+#endif
+
+#ifndef EXCLUDE_AUDIO
+    sprintf(name,"dsp%d",unit);
+    snd_devfs_token[unit]=devfs_add_devsw(
+	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_DSP,
+		DV_CHR, SND_UID,  SND_GID, 0660);
+    sprintf(name,"audio%d",unit);
+    snd_devfs_token[unit]=devfs_add_devsw(
+	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_AUDIO,
+		DV_CHR, SND_UID,  SND_GID, 0660);
+    sprintf(name,"dspW%d",unit);
+    snd_devfs_token[unit]=devfs_add_devsw(
+	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_DSP16,
+		DV_CHR, SND_UID,  SND_GID, 0660);
+#endif
+
+    sprintf(name,"pss%d",unit);
+    snd_devfs_token[unit]=devfs_add_devsw(
+	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_SNDPROC,
+		DV_CHR, SND_UID,  SND_GID, 0660);
+
+    if ( ! sndstat_devfs_token) {
+        sndstat_devfs_token = devfs_add_devsw(
+	    "/", "sndstat", &snd_cdevsw, 6,
+		DV_CHR, SND_UID,  SND_GID, 0660);
+    }
+#endif /* DEVFS */
   return TRUE;
 }
 
@@ -484,36 +552,21 @@ snd_release_irq(int vect)
 {
 }
 
-#endif
-#ifdef JREMOD
-struct cdevsw snd_cdevsw = 
-	{ sndopen,	sndclose,	sndread,	sndwrite,	/*30*/
-  	  sndioctl,	nostop,		nullreset,	nodevtotty,/* sound */
-  	  sndselect,	nommap,		NULL };
-
 static snd_devsw_installed = 0;
 
-static void 	snd_drvinit(void *unused)
+static void 
+snd_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! snd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&snd_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&snd_cdevsw, NULL);
 		snd_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"snd",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(snddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,snd_drvinit,NULL)
 
-#endif /* JREMOD */
+#endif
 

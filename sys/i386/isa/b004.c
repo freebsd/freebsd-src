@@ -53,6 +53,11 @@
 #include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/devconf.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
@@ -60,14 +65,6 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 8
-#endif /*JREMOD*/
 
 static u_char d_inb(u_int port);
 static void d_outb(u_int port, u_char data);
@@ -124,6 +121,19 @@ static int bquattach(struct isa_device *idp);
 struct isa_driver bqudriver = {
    bquprobe, bquattach, "bqu"
 };
+
+static	d_open_t	bquopen;
+static	d_close_t	bquclose;
+static	d_read_t	bquread;
+static	d_write_t	bquwrite;
+static	d_ioctl_t	bquioctl;
+static	d_select_t	bquselect;
+
+#define CDEV_MAJOR 8
+struct cdevsw bqu_cdevsw = 
+	{ bquopen,      bquclose,       bquread,        bquwrite,       /*8*/
+	  bquioctl,     nostop,         nullreset,      nodevtotty,/* tputer */
+	  bquselect,    nommap,         NULL,	"bqu",	NULL,	-1 };
 
 static int b004_sleep; /* wait address */
 
@@ -239,7 +249,7 @@ bquanalyse( const int dev_min )
  *
  *****************************************************************************/
 
-int
+static int
 bquread(dev_t dev, struct uio *uio, int flag)
 {
     unsigned int dev_min = minor(dev) & 7;
@@ -330,7 +340,7 @@ bquread(dev_t dev, struct uio *uio, int flag)
  * int bquwrite() - write to the link interface.
  */
 
-int
+static int
 bquwrite(dev_t dev, struct uio *uio, int flag)
 {
     unsigned int dev_min = minor(dev) & 7;
@@ -427,7 +437,7 @@ bquwrite(dev_t dev, struct uio *uio, int flag)
  *
  */
 
-int
+static int
 bquopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
     unsigned int dev_min = minor(dev) & 7;
@@ -456,7 +466,7 @@ bquopen(dev_t dev, int flags, int fmt, struct proc *p)
  * int b004close() -- close the link device.
  */
 
-int
+static int
 bquclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
     unsigned int dev_min = minor(dev) & 7;
@@ -471,7 +481,7 @@ bquclose(dev_t dev, int flags, int fmt, struct proc *p)
     return 0;
 }
 
-int
+static int
 bquselect(dev_t dev, int rw, struct proc *p)
 {
     /* still unimplemented */
@@ -488,7 +498,7 @@ bquselect(dev_t dev, int rw, struct proc *p)
  * - set timeout
  */
 
-int
+static int
 bquioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
     unsigned int dev_min = minor(dev) & 7;
@@ -535,17 +545,51 @@ bquioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 static inline void
 bqu_registerdev(struct isa_device *id)
 {
-	if(id->id_unit)
-		kdc_bqu[id->id_unit] = kdc_bqu[0];
-	kdc_bqu[id->id_unit].kdc_unit = id->id_unit;
-	kdc_bqu[id->id_unit].kdc_parentdata = id;
-	dev_attach(&kdc_bqu[id->id_unit]);
+	int unit = id->id_unit;
+
+	kdc_bqu[unit] = kdc_bqu[0]; /* XXX */ /* ??Eh?? */
+	kdc_bqu[unit].kdc_unit = unit;
+	kdc_bqu[unit].kdc_parentdata = id;
+	dev_attach(&kdc_bqu[unit]);
 }
 
 static int
 bquattach(struct isa_device *idp)
 {
-	kdc_bqu[idp->id_unit].kdc_state = DC_IDLE;
+	int unit = idp->id_unit;
+	struct b004_struct *bp;
+	char	name[32];
+	int	i;
+
+	kdc_bqu[unit].kdc_state = DC_IDLE;
+
+#ifdef DEVFS
+#define BQU_UID 66
+#define BQU_GID 66
+#define BQU_PERM 0600
+	bp = &b004_table[unit];
+	for ( i = 0; i < 8; i++) {
+#ifdef NOTYET
+	/*	if (we've done all the ports found) break; */
+#endif
+		sprintf(name,"ttyba%d" ,i);
+		bp->devfs_token[i][0]=devfs_add_devsw(
+			"/", name, &bqu_cdevsw, i, DV_CHR,
+			BQU_UID, BQU_GID, BQU_PERM);
+		sprintf(name,"ttybd%d" ,i);
+		bp->devfs_token[i][0]=devfs_add_devsw(
+			"/", name, &bqu_cdevsw, i+64, DV_CHR,
+			BQU_UID, BQU_GID, BQU_PERM);
+		sprintf(name,"ttybc%d" ,i);
+		bp->devfs_token[i][0]=devfs_add_devsw(
+			"/", name, &bqu_cdevsw, i+128, DV_CHR,
+			BQU_UID, BQU_GID, BQU_PERM);
+		sprintf(name,"ttybd%d" ,i);
+		bp->devfs_token[i][0]=devfs_add_devsw(
+			"/", name, &bqu_cdevsw, i+192, DV_CHR,
+			BQU_UID, BQU_GID, BQU_PERM);
+	}
+#endif
 	return 1;
 }
 
@@ -567,7 +611,10 @@ bquprobe(struct isa_device *idp)
        register
     */
 #ifdef undef
-printf("bquprobe::\nIOBASE 0x%x\nIRQ %d\nDRQ %d\nMSIZE %d\nUNIT %d\nFLAGS x0%x\nALIVE %d\n",idp->id_iobase,idp->id_irq,idp->id_drq,idp->id_msize,idp->id_unit,idp->id_flags,idp->id_alive);
+	printf(
+	  "bquprobe::\nIOBASE 0x%x\nIRQ %d\nDRQ %d\nMSIZE %d\nUNIT %d\nFLAGS"
+	  "x0%x\nALIVE %d\n",idp->id_iobase,idp->id_irq,
+	  idp->id_drq,idp->id_msize,idp->id_unit,idp->id_flags,idp->id_alive);
 #endif
     if(first_time){
 	for(i=0;i<NBQU;i++) B004_F(i) &= ~B004_EXIST;
@@ -636,36 +683,21 @@ printf("bquprobe::\nIOBASE 0x%x\nIRQ %d\nDRQ %d\nMSIZE %d\nUNIT %d\nFLAGS x0%x\n
 } /* bquprobe() */
 
 
-#ifdef JREMOD
-struct cdevsw bqu_cdevsw = 
-	{ bquopen,      bquclose,       bquread,        bquwrite,       /*8*/
-	  bquioctl,     nostop,         nullreset,      nodevtotty,/* tputer */
-	  bquselect,    nommap,         NULL };
-
 static bqu_devsw_installed = 0;
 
-static void 	bqu_drvinit(void *unused)
+static void
+bqu_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! bqu_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&bqu_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&bqu_cdevsw, NULL);
 		bqu_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"bqu",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(bqudev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bqu_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NBQU */

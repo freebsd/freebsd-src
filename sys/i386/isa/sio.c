@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.123 1995/11/29 15:00:07 bde Exp $
+ *	$Id: sio.c,v 1.124 1995/12/06 23:43:07 bde Exp $
  */
 
 #include "sio.h"
@@ -59,6 +59,9 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
@@ -95,12 +98,6 @@
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
 
-#ifdef JREMOD
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 28
-#endif /*JREMOD*/
 
 
 #include "crd.h"
@@ -251,6 +248,14 @@ struct com_s {
 	 */
 	u_char	obuf1[256];
 	u_char	obuf2[256];
+#ifdef DEVFS
+	void	*devfs_token_ttyd;
+	void	*devfs_token_ttyl;
+	void	*devfs_token_ttyi;
+	void	*devfs_token_cuaa;
+	void	*devfs_token_cual;
+	void	*devfs_token_cuai;
+#endif
 };
 
 /*
@@ -285,6 +290,8 @@ static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
 static  int 	LoadSoftModem   __P((int unit,int base_io, u_long size, u_char *ptr));
 #endif /* DSI_SOFT_MODEM */
 
+static char driver_name[] = "sio";
+
 /* table and macro for fast conversion from a unit number to its com struct */
 static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
@@ -292,8 +299,23 @@ static	struct com_s	*p_com_addr[NSIO];
 static  struct timeval	intr_timestamp;
 
 struct isa_driver	siodriver = {
-	sioprobe, sioattach, "sio"
+	sioprobe, sioattach, driver_name
 };
+
+static	d_open_t	sioopen;
+static	d_close_t	sioclose;
+static	d_read_t	sioread;
+static	d_write_t	siowrite;
+static	d_ioctl_t	sioioctl;
+static	d_stop_t	siostop;
+static	d_ttycv_t	siodevtotty;
+
+#define CDEV_MAJOR 28
+struct cdevsw sio_cdevsw = 
+	{ sioopen,	sioclose,	sioread,	siowrite,	/*28*/
+	  sioioctl,	siostop,	nxreset,	siodevtotty,/* sio */
+	  ttselect,	nommap,		NULL,	driver_name,	NULL,	-1 };
+
 
 static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
@@ -338,9 +360,10 @@ static	struct speedtab comspeedtab[] = {
 	{ -1,		-1 }
 };
 
+static	char	chardev[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 static struct kern_devconf kdc_sio[NSIO] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-	"sio", 0, { MDDT_ISA, 0, "tty" },
+	driver_name, 0, { MDDT_ISA, 0, "tty" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
@@ -359,7 +382,7 @@ static int sioinit(struct pccard_dev *, int);	/* init device */
 
 static struct pccard_drv sio_info =
 	{
-	"sio",
+	driver_name,
 	card_intr,
 	siounload,
 	siosuspend,
@@ -696,6 +719,7 @@ sioattach(isdp)
 	Port_t		iobase;
 	int		s;
 	int		unit;
+	char		name[32];
 
 	isdp->id_ri_flags |= RI_FAST;
 	iobase = isdp->id_iobase;
@@ -880,10 +904,37 @@ determined_type: ;
 	com_addr(unit) = com;
 	splx(s);
 
+#ifdef DEVFS
+/*	path	name	devsw		minor	type   uid gid perm*/
+	sprintf(name,"ttyd%c",chardev[unit]);
+	com->devfs_token_ttyd = devfs_add_devsw(
+		"/", name, &sio_cdevsw, unit,
+		DV_CHR, 0, 0, 0600);
+	sprintf(name,"ttyid%c",chardev[unit]);
+	com->devfs_token_ttyi = devfs_add_devsw(
+		"/", name, &sio_cdevsw, unit+32,
+		DV_CHR, 0, 0, 0600);
+	sprintf(name,"ttyld%c",chardev[unit]);
+	com->devfs_token_ttyl = devfs_add_devsw(
+		"/", name, &sio_cdevsw, unit+64,
+		DV_CHR, 0, 0, 0600);
+	sprintf(name,"cuaa%c",chardev[unit]);
+	com->devfs_token_cuaa = devfs_add_devsw(
+		"/", name, &sio_cdevsw, unit+128,
+		DV_CHR, 0, 0, 0600);
+	sprintf(name,"cuaia%c",chardev[unit]);
+	com->devfs_token_cuai = devfs_add_devsw(
+		"/", name, &sio_cdevsw, unit+160,
+		DV_CHR, 0, 0, 0600);
+	sprintf(name,"cuala%c",chardev[unit]);
+	com->devfs_token_cual = devfs_add_devsw(
+		"/", name, &sio_cdevsw, unit+192,
+		DV_CHR, 0, 0, 0600);
+#endif
 	return (1);
 }
 
-int
+static	int
 sioopen(dev, flag, mode, p)
 	dev_t		dev;
 	int		flag;
@@ -1055,7 +1106,7 @@ out:
 	return (error);
 }
 
-int
+static	int
 sioclose(dev, flag, mode, p)
 	dev_t		dev;
 	int		flag;
@@ -1150,7 +1201,7 @@ comhardclose(com)
 	splx(s);
 }
 
-int
+static	int
 sioread(dev, uio, flag)
 	dev_t		dev;
 	struct uio	*uio;
@@ -1170,7 +1221,7 @@ sioread(dev, uio, flag)
 	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
 }
 
-int
+static	int
 siowrite(dev, uio, flag)
 	dev_t		dev;
 	struct uio	*uio;
@@ -1429,7 +1480,7 @@ cont:
 	}
 }
 
-int
+static	int
 sioioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
 	int		cmd;
@@ -2012,7 +2063,7 @@ comstart(tp)
 	splx(s);
 }
 
-void
+static	void
 siostop(tp, rw)
 	struct tty	*tp;
 	int		rw;
@@ -2041,7 +2092,7 @@ siostop(tp, rw)
 	/* XXX should clear h/w fifos too. */
 }
 
-struct tty *
+static	struct tty *
 siodevtotty(dev)
 	dev_t	dev;
 {
@@ -2559,12 +2610,6 @@ error:
 }
 #endif /* DSI_SOFT_MODEM */
 
-#ifdef JREMOD
-struct cdevsw sio_cdevsw = 
-	{ sioopen,	sioclose,	sioread,	siowrite,	/*28*/
-	  sioioctl,	siostop,	nxreset,	siodevtotty,/* sio */
-	  ttselect,	nommap,		NULL };
-
 static sio_devsw_installed = 0;
 
 static void 	sio_drvinit(void *unused)
@@ -2572,23 +2617,12 @@ static void 	sio_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! sio_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&sio_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&sio_cdevsw, NULL);
 		sio_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"sio",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(siodev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sio_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif /* NSIO > 0 */

@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.21 1995/11/29 14:39:26 julian Exp $
+ *	$Id: mem.c,v 1.22 1995/12/07 12:45:34 davidg Exp $
  */
 
 /*
@@ -48,6 +48,10 @@
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/buf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /* DEVFS */
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
@@ -64,33 +68,53 @@
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-#ifdef JREMOD
-#include <sys/kernel.h>
+
+
+static	d_open_t	mmopen;
+static	d_close_t	mmclose;
+static	d_rdwr_t	mmrw;
+static	d_ioctl_t	mmioctl;
+static	d_mmap_t	memmmap;
+
 #define CDEV_MAJOR 2
-#endif /*JREMOD*/
+struct cdevsw mem_cdevsw = 
+	{ mmopen,	mmclose,	mmrw,		mmrw,		/*2*/
+	  mmioctl,	nullstop,	nullreset,	nodevtotty,/* memory */
+	  seltrue,	memmmap,	NULL,	"mem",	NULL, -1 };
 
 #ifdef DEVFS
-#include <sys/devfsext.h>
+static void *mem_devfs_token;
+static void *kmem_devfs_token;
+static void *null_devfs_token;
+static void *random_devfs_token;
+static void *urandom_devfs_token;
+static void *zero_devfs_token;
+static void *io_devfs_token;
 
-static void
-memdevfs_init(dev_t dev)
+static void 
+memdevfs_init()
 {
-  void * x;
-  int maj = major(dev);
-/*            path	name		major   minor	type   uid gid perm*/
-   x=devfs_add_devsw("/misc",	"mem",	maj,    0,	DV_CHR, 0,  2, 0640);
-   x=devfs_add_devsw("/misc",	"kmem",	maj,    1,	DV_CHR, 0,  2, 0640);
-   x=devfs_add_devsw("/misc",	"null",	maj,    2,	DV_CHR, 0,  0, 0666);
-   x=devfs_add_devsw("/misc",	"random", maj,  3,	DV_CHR, 0,  0, 0666);
-   x=devfs_add_devsw("/misc",	"urandom", maj, 4,	DV_CHR, 0,  0, 0666);
-   x=devfs_add_devsw("/misc",	"zero",	maj,    12,	DV_CHR, 0,  0, 0666);
-   x=devfs_add_devsw("/misc",	"io",	maj,    14,	DV_CHR, 0,  2, 0640);
+/*            path	name	cdevsw	   minor	type   uid gid perm*/
+    mem_devfs_token = devfs_add_devsw(
+		"/",	"mem",	&mem_cdevsw,    0,	DV_CHR, 0,  2, 0640);
+    kmem_devfs_token = devfs_add_devsw(
+		"/",	"kmem",	&mem_cdevsw,    1,	DV_CHR, 0,  2, 0640);
+    null_devfs_token = devfs_add_devsw(
+		"/",	"null",	&mem_cdevsw,    2,	DV_CHR, 0,  0, 0666);
+    random_devfs_token = devfs_add_devsw(
+		"/",	"random", &mem_cdevsw,  3,	DV_CHR, 0,  0, 0666);
+    urandom_devfs_token = devfs_add_devsw(
+		"/",	"urandom", &mem_cdevsw, 4,	DV_CHR, 0,  0, 0666);
+    zero_devfs_token = devfs_add_devsw(
+		"/",	"zero",	&mem_cdevsw,    12,	DV_CHR, 0,  0, 0666);
+    io_devfs_token = devfs_add_devsw(
+		"/",	"io",	&mem_cdevsw,    14,	DV_CHR, 0,  2, 0640);
 }
 #endif /* DEVFS */
 
 extern        char *ptvmmap;            /* poor name! */
 
-int
+static int
 mmclose(dev, flags, fmt, p)
 	dev_t dev;
 	int flags;
@@ -110,7 +134,7 @@ mmclose(dev, flags, fmt, p)
 	return(0);
 }
 
-int
+static int
 mmopen(dev, flags, fmt, p)
 	dev_t dev;
 	int flags;
@@ -130,7 +154,7 @@ mmopen(dev, flags, fmt, p)
 	return(0);
 }
 
-int
+static int
 mmrw(dev, uio, flags)
 	dev_t dev;
 	struct uio *uio;
@@ -317,7 +341,8 @@ mmrw(dev, uio, flags)
 * allow user processes to MMAP some memory sections	*
 * instead of going through read/write			*
 \*******************************************************/
-int memmmap(dev_t dev, int offset, int nprot)
+static int
+memmmap(dev_t dev, int offset, int nprot)
 {
 	switch (minor(dev))
 	{
@@ -339,7 +364,7 @@ int memmmap(dev_t dev, int offset, int nprot)
  * Allow userland to select which interrupts will be used in the muck
  * gathering business.
  */
-int
+static int
 mmioctl(dev, cmd, cmdarg, flags, p)
 	dev_t dev;
 	int cmd;
@@ -383,29 +408,22 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 
 
 
-#ifdef JREMOD
-struct cdevsw mem_cdevsw = 
-	{ mmopen,	mmclose,	mmrw,		mmrw,		/*2*/
-	  mmioctl,	nullstop,	nullreset,	nodevtotty,/* memory */
-	  seltrue,	memmmap,	NULL };
-
 static mem_devsw_installed = 0;
 
-static void 	mem_drvinit(void *unused)
+static void
+mem_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! mem_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&mem_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&mem_cdevsw, NULL);
 		mem_devsw_installed = 1;
 #ifdef DEVFS
-		memdevfs_init(dev);
+		memdevfs_init();
 #endif
 	}
 }
 
 SYSINIT(memdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mem_drvinit,NULL)
-
-#endif /* JREMOD */
 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.133 1995/12/06 23:50:36 bde Exp $
+ *  $Id: syscons.c,v 1.134 1995/12/07 12:46:08 davidg Exp $
  */
 
 #include "sc.h"
@@ -45,6 +45,9 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/devconf.h>
+#ifdef	DEVFS
+#include <sys/devfsext.h>
+#endif
 
 #include <machine/clock.h>
 #include <machine/cons.h>
@@ -69,6 +72,7 @@
 #define MAXCONS 16
 #endif
 
+
 /* this may break on older VGA's but is usefull on real 32 bit systems */
 #define bcopyw  bcopy
 
@@ -84,6 +88,7 @@ static default_attr kernel_default = {
 
 static  scr_stat    	main_console;
 static  scr_stat    	*console[MAXCONS];
+static	void		*sc_devfs_token[MAXCONS];
 	scr_stat    	*cur_console;
 static  scr_stat    	*new_scp, *old_scp;
 static  term_stat   	kernel_console;
@@ -159,8 +164,7 @@ static	d_mmap_t	scmmap;
 static	struct cdevsw	scdevsw = {
 	scopen,		scclose,	scread,		scwrite,
 	scioctl,	nullstop,	noreset,	scdevtotty,
-	ttselect,	scmmap,		nostrategy,
-};
+	ttselect,	scmmap,		nostrategy,	"sc",	NULL,	-1 };
 
 /*
  * Calculate hardware attributes word using logical attributes mask and
@@ -283,7 +287,9 @@ scresume(void *dummy)
 int
 scattach(struct isa_device *dev)
 {
-    scr_stat *scp;
+    scr_stat	*scp;
+    int		vc;
+    char	name[32];
 
     scinit();
     configuration = dev->id_flags;
@@ -345,6 +351,13 @@ scattach(struct isa_device *dev)
     apm_hook_establish(APM_HOOK_RESUME , &scp->r_hook);
 #endif
 
+#ifdef DEVFS
+    for ( vc = 0 ; vc < MAXCONS; vc++) {
+	sprintf(name,"ttyv%x", vc);
+        sc_devfs_token[vc] = devfs_add_devsw("/" ,name, &scdevsw, vc,
+					DV_CHR, 0, 0, 0600 );
+    }
+#endif
     register_cdev("sc", &scdevsw);
 
     return 0;

@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.8 1995/10/10 07:12:25 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.9 1995/11/29 10:48:36 julian Exp $
  */
 
 #include "param.h"
@@ -908,15 +908,18 @@ int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p
 \***********************************************************************/
 void *devfs_add_devsw(char *path,
 		char *name,
-		int major,
+		void *devsw,
 		int minor,
 		int chrblk,
 		uid_t uid,
 		gid_t gid,
 		int perms)
 {
+	int	major;
 	devnm_p	new_dev;
 	dn_p	dnp;	/* devnode for parent directory */
+	struct	cdevsw *cd;
+	struct	bdevsw *bd;
 	int	retval;
 	union	typeinfo by;
 
@@ -926,13 +929,19 @@ void *devfs_add_devsw(char *path,
 	switch(chrblk)
 	{
 	case	DV_CHR:
-		by.Cdev.cdevsw = cdevsw + major;
+		cd = devsw;
+		major = cd->d_maj;
+		if ( major == -1 ) return NULL;
+		by.Cdev.cdevsw = cd;
 		by.Cdev.dev = makedev(major, minor);
 		if( dev_add_entry(name, dnp, DEV_CDEV, &by,&new_dev))
 			return NULL;
 		break;
 	case	DV_BLK:
-		by.Bdev.bdevsw = bdevsw + major;
+		bd = devsw;
+		major = bd->d_maj;
+		if ( major == -1 ) return NULL;
+		by.Bdev.bdevsw = bd;
 		by.Bdev.dev = makedev(major, minor);
 		if( dev_add_entry(name, dnp, DEV_BDEV, &by, &new_dev))
 			return NULL;

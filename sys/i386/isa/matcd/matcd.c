@@ -323,6 +323,11 @@ Edit number code marking begins here - earlier edits were during development.
 	Also, disable the audio-related ioctls based on the BOOTMFS
 	conditional to help make the boot floppy kernel smaller.
 	18-Oct-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
+
+<27>	Incorporated changes needed to move the cdevsw and bdevsw
+	entries into the drivers (including this one). Also
+	include a quick first pass cut at DEVFS suppport.
+
 ---------------------------------------------------------------------------*/
 
 /*Match this format:		Version_dc(d)__dd-mmm-yy	*/
@@ -332,6 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
+/* $Id:$ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -356,9 +362,14 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 
 #ifdef	FREE2
 #include 	<sys/devconf.h>		/*<16>*/
+#include	<sys/conf.h>
+#include	<sys/kernel.h>
+#ifdef DEVFS
+#include	<sys/devfsext.h>
+#endif /*DEVFS*/
 #else	/*FREE2*/
-#include	"i386/isa/isa.h"	/*<16>*/
-#include	"i386/isa/isa_device.h"	/*<16>*/
+#include	<i386/isa/isa.h>	/*<16>*/
+#include	<i386/isa/isa_device.h>	/*<16>*/
 #endif	/*FREE2*/
 
 /*---------------------------------------------------------------------------
@@ -433,6 +444,12 @@ static	struct matcd_data {		/*<18>*/
 	struct	matcd_mbx mbx;
 	u_char	patch[2];		/*<12>Last known audio routing*/
 	u_char	volume[2];		/*<12>Last known volume setting*/
+#ifdef DEVFS
+	void	*ra_devfs_token;	/* handle for devfs entry */
+	void	*rc_devfs_token;
+	void	*a_devfs_token;
+	void	*c_devfs_token;
+#endif DEVFS
 } matcd_data[TOTALDRIVES];
 
 
@@ -491,15 +508,6 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 	"Matsushita CD-ROM Controller"	/*<12>This is the description*/
 } };					/*<12>*/
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 46
-#define BDEV_MAJOR 17
-#endif /*JREMOD */
 
 #endif /*FREE2*/
 
@@ -535,19 +543,48 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 
 /*---------------------------------------------------------------------------
 	Entry points and other connections to/from kernel - see also conf.h
+           --- not any more :)
 ---------------------------------------------------------------------------*/
 
-extern	int	hz;
 extern	int	matcd_probe(struct isa_device *dev);
 extern	int	matcd_attach(struct isa_device *dev);
 struct	isa_driver	matcddriver={matcd_probe, matcd_attach,	/*<16>*/
 				     "matcdc"};	/*<20>*/
+
+#ifdef FREE2
+
+static d_open_t		matcdopen;
+static d_close_t	matcdclose;
+static d_ioctl_t	matcdioctl;
+static d_dump_t		matcddump;
+static d_psize_t	matcdsize;
+static d_strategy_t	matcdstrategy;
+
+#define CDEV_MAJOR 46
+#define BDEV_MAJOR 17
+
+extern	struct cdevsw matcd_cdevsw;
+static struct bdevsw matcd_bdevsw = 
+	{ matcdopen,	matcdclose,	matcdstrategy,	matcdioctl,	/*17*/
+	  nxdump,	matcdsize,	0,		"matcd",
+	  &matcd_cdevsw,	-1 };
+
+static struct cdevsw matcd_cdevsw = 
+	{ matcdopen,	matcdclose,	rawread,	nowrite,	/*46*/
+	  matcdioctl,	nostop,		nullreset,	nodevtotty,/* SB cd */
+	  seltrue,	nommap,		matcdstrategy,	"matcd",
+	  &matcd_bdevsw,	-1};
+
+#else
+extern	int	hz;
+#endif /* FREE2 */
 
 
 /*---------------------------------------------------------------------------
 	Internal function declarations
 ---------------------------------------------------------------------------*/
 
+static	void	matcd_drvinit(void *unused);
 static	void	matcd_start(struct buf *dp);
 static	void	zero_cmd(char *);
 static	void	matcd_pread(int port, int count, unsigned char * data);
@@ -1421,6 +1458,9 @@ int matcd_attach(struct isa_device *dev)
 	unsigned char data[12];
 	struct matcd_data *cd;
 	int port = dev->id_iobase;	/*Take port ID selected in probe()*/
+#ifdef DEVFS
+	char name[32];
+#endif
 
 #ifdef DIAGPORT
 	DIAGOUT(DIAGPORT,0x70);		/*Show where we are*/
@@ -1471,6 +1511,29 @@ int matcd_attach(struct isa_device *dev)
 			for (i=0; i<MAXPARTITIONS; i++) {
 				cd->partflags[i]=0;
 			}
+#ifdef DEVFS
+#define MATCD_UID 0
+#define MATCD_GID 13
+			sprintf(name, "rmatcd%da",i);
+			cd->ra_devfs_token = devfs_add_devsw(
+				"/", name, &matcd_cdevsw, 0,
+				DV_CHR,	MATCD_UID,  MATCD_GID, 0600);
+		
+			sprintf(name, "rmatcd%dc",i);
+			cd->rc_devfs_token = devfs_add_devsw(
+				"/", name, &matcd_cdevsw, RAW_PART,
+				DV_CHR,	MATCD_UID,  MATCD_GID, 0600);
+		
+			sprintf(name, "matcd%da",i);
+			cd->a_devfs_token = devfs_add_devsw(
+				"/", name, &matcd_bdevsw, 0,
+				DV_BLK,	MATCD_UID,  MATCD_GID, 0600);
+
+			sprintf(name, "matcd%dc",i);
+			cd->c_devfs_token = devfs_add_devsw(
+				"/", name, &matcd_bdevsw, RAW_PART,
+				DV_BLK,	MATCD_UID,  MATCD_GID, 0600);
+#endif
 		}
 	}
 	nextcontroller++;		/*Bump ctlr assign to next number*/
@@ -2749,47 +2812,27 @@ static int matcd_igot(struct ioc_capability * sqp)
 						      audio are here*/
 #endif	/*FULLDRIVER*/
 
-#ifdef JREMOD
-struct bdevsw matcd_bdevsw = 
-	{ matcdopen,	matcdclose,	matcdstrategy,	matcdioctl,	/*17*/
-	  nxdump,	matcdsize,	0 };
-
-struct cdevsw matcd_cdevsw = 
-	{ matcdopen,	matcdclose,	rawread,	nowrite,	/*46*/
-	  matcdioctl,	nostop,		nullreset,	nodevtotty,/* SB cd */
-	  seltrue,	nommap,		matcdstrategy };
+#ifdef FREE2
 
 static matcd_devsw_installed = 0;
 
-static void 	matcd_drvinit(void *unused)
+static void
+matcd_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! matcd_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&matcd_cdevsw,NULL);
-		dev_chr = dev;
 		dev = makedev(BDEV_MAJOR,0);
 		bdevsw_add(&dev,&matcd_bdevsw,NULL);
 		matcd_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"rmatcd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-			x=devfs_add_devsw(
-	"/",	"matcd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(matcddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,matcd_drvinit,NULL)
 
-#endif /* JREMOD */
+#endif /* FREE2 */
 
 /*End of matcd.c*/
 

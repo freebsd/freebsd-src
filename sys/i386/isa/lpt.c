@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.44 1995/12/06 23:50:14 bde Exp $
+ *	$Id: lpt.c,v 1.45 1995/12/07 12:46:03 davidg Exp $
  */
 
 /*
@@ -113,6 +113,9 @@
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/clock.h>
 #include <machine/lpt.h>
@@ -144,14 +147,6 @@
 #endif
 #endif /* INET */
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 16
-#endif /*JREMOD*/
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */
 #define	LPTOUTTIME	4	/* wait up to 4 seconds for a ready */
@@ -232,7 +227,9 @@ struct lpt_softc {
 	u_char		*sc_ifbuf;
 	int		sc_iferrs;
 #endif /* ENDIF */
-
+#ifdef	DEVFS
+	void	*devfs_token;
+#endif
 } lpt_sc[NLPT] ;
 
 /* bits for state */
@@ -288,6 +285,18 @@ static void lpintr(int);
 struct	isa_driver lptdriver = {
 	lptprobe, lptattach, "lpt"
 };
+
+static	d_open_t	lptopen;
+static	d_close_t	lptclose;
+static	d_write_t	lptwrite;
+static	d_ioctl_t	lptioctl;
+
+#define CDEV_MAJOR 16
+struct cdevsw lpt_cdevsw = 
+	{ lptopen,	lptclose,	noread,		lptwrite,	/*16*/
+	  lptioctl,	nullstop,	nullreset,	nodevtotty,/* lpt */
+	  seltrue,	nommap,		nostrat,	"lpt",	NULL,	-1 };
+
 
 static struct kern_devconf kdc_lpt[NLPT] = { {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -443,8 +452,11 @@ int
 lptattach(struct isa_device *isdp)
 {
 	struct	lpt_softc	*sc;
+	int	unit;
+	char	name[32];
 
-	sc = lpt_sc + isdp->id_unit;
+	unit = isdp->id_unit;
+	sc = lpt_sc + unit;
 	sc->sc_port = isdp->id_iobase;
 	sc->sc_primed = 0;	/* not primed yet */
 	outb(sc->sc_port+lpt_control, LPC_NINIT);
@@ -453,18 +465,25 @@ lptattach(struct isa_device *isdp)
 	lprintf("oldirq %x\n", sc->sc_irq);
 	if (isdp->id_irq) {
 		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ | LP_ENABLE_IRQ;
-		printf("lpt%d: Interrupt-driven port\n", isdp->id_unit);
+		printf("lpt%d: Interrupt-driven port\n", unit);
 #ifdef INET
-		lpattach(sc, isdp->id_unit);
+		lpattach(sc, unit);
 #endif
 	} else {
 		sc->sc_irq = 0;
-		lprintf("lpt%d: Polled port\n", isdp->id_unit);
+		lprintf("lpt%d: Polled port\n", unit);
 	}
 	lprintf("irq %x\n", sc->sc_irq);
 
-	kdc_lpt[isdp->id_unit].kdc_state = DC_IDLE;
+	kdc_lpt[unit].kdc_state = DC_IDLE;
 
+#ifdef DEVFS
+/* XXX */ /* what to do about the flags in the minor number? */
+	sprintf(name,"lpt%d",unit);
+			/*	path name devsw minor type  uid gid perm*/
+	sc->devfs_token = devfs_add_devsw( "/", name, &lpt_cdevsw, unit,
+					DV_CHR, 0, 0, 0600);
+#endif
 	return (1);
 }
 
@@ -474,7 +493,7 @@ lptattach(struct isa_device *isdp)
  *	printer -- this is just used for passing ioctls.
  */
 
-int
+static	int
 lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct lpt_softc *sc;
@@ -608,7 +627,7 @@ lptout (struct lpt_softc * sc)
  * Check for interrupted write call added.
  */
 
-int
+static	int
 lptclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
@@ -707,7 +726,7 @@ pushbytes(struct lpt_softc * sc)
  * Flagging of interrupted write added.
  */
 
-int
+static	int
 lptwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	register unsigned n;
@@ -805,7 +824,7 @@ lptintr(int unit)
 	lprintf("sts %x ", sts);
 }
 
-int
+static	int
 lptioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
 	int	error = 0;
@@ -1355,12 +1374,6 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 
 #endif /* INET */
 
-#ifdef JREMOD
-struct cdevsw lpt_cdevsw = 
-	{ lptopen,	lptclose,	noread,		lptwrite,	/*16*/
-	  lptioctl,	nullstop,	nullreset,	nodevtotty,/* lpt */
-	  seltrue,	nommap,		nostrat};
-
 static lpt_devsw_installed = 0;
 
 static void 	lpt_drvinit(void *unused)
@@ -1368,21 +1381,11 @@ static void 	lpt_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! lpt_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&lpt_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&lpt_cdevsw, NULL);
 		lpt_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"lpt",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(lptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lpt_drvinit,NULL)
 
-#endif /* JREMOD */

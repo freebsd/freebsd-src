@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.22 1995/11/29 10:48:03 julian Exp $
+ * $Id: wt.c,v 1.23 1995/11/29 14:40:11 julian Exp $
  *
  */
 
@@ -69,6 +69,10 @@
 #include <sys/mtio.h>
 #include <sys/proc.h>
 #include <sys/devconf.h>
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #include <vm/vm_param.h>
 
 #include <machine/clock.h>
@@ -76,14 +80,6 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wtreg.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 10
-#define BDEV_MAJOR 3
-#endif /*JREMOD */
 
 /*
  * Uncomment this to enable internal device tracing.
@@ -167,6 +163,10 @@ typedef struct {
 	unsigned short DATAPORT, CMDPORT, STATPORT, CTLPORT, SDMAPORT, RDMAPORT;
 	unsigned char BUSY, NOEXCEP, RESETMASK, RESETVAL;
 	unsigned char ONLINE, RESET, REQUEST, IEN;
+#ifdef	DEVFS
+	void	*devfs_token;
+	void	*devfs_token_r;
+#endif
 } wtinfo_t;
 
 wtinfo_t wttab[NWT];                    /* tape info by unit number */
@@ -195,6 +195,28 @@ static struct kern_devconf kdc_wt[NWT] = { {
 	"Archive or Wangtek QIC-02/QIC-36 tape controller",
 	DC_CLS_TAPE		/* class */
 } };
+
+static	d_open_t	wtopen;
+static	d_close_t	wtclose;
+static	d_ioctl_t	wtioctl;
+static	d_dump_t	wtdump;
+static	d_psize_t	wtsize;
+static	d_strategy_t	wtstrategy;
+
+#define CDEV_MAJOR 10
+#define BDEV_MAJOR 3
+
+extern struct cdevsw wt_cdevsw; 
+struct bdevsw wt_bdevsw = 
+	{ wtopen,	wtclose,	wtstrategy,	wtioctl,	/*3*/
+	  wtdump,	wtsize,		B_TAPE,	"wt",	&wt_cdevsw,	-1 };
+
+struct cdevsw wt_cdevsw = 
+	{ wtopen,	wtclose,	rawread,	rawwrite,	/*10*/
+	  wtioctl,	nostop,		nullreset,	nodevtotty,/* wt */
+	  seltrue,	nommap,		wtstrategy,	"wt",
+	  &wt_bdevsw,	-1 };
+
 
 static inline void
 wt_registerdev(struct isa_device *id)
@@ -261,6 +283,7 @@ static int
 wtattach (struct isa_device *id)
 {
 	wtinfo_t *t = wttab + id->id_unit;
+	char	name[32];
 
 	if (t->type == ARCHIVE) {
 		printf ("wt%d: type <Archive>\n", t->unit);
@@ -271,6 +294,16 @@ wtattach (struct isa_device *id)
 	t->dens = -1;                           /* unknown density */
 	kdc_wt[id->id_unit].kdc_state = DC_IDLE;
 
+#ifdef DEVFS
+	sprintf(name,"rwt%d",id->id_unit);
+	t->devfs_token_r = devfs_add_devsw(
+			"/", name, &wt_cdevsw, id->id_unit,
+			DV_CHR, 0,  0, 0600);
+	sprintf(name,"wt%d",id->id_unit);
+	t->devfs_token = devfs_add_devsw(
+			"/", name, &wt_bdevsw, id->id_unit,
+			DV_BLK, 0,  0, 0600);
+#endif
 	return (1);
 }
 
@@ -975,46 +1008,22 @@ static int wtstatus (wtinfo_t *t)
 }
 
 
-#ifdef JREMOD
-struct bdevsw wt_bdevsw = 
-	{ wtopen,	wtclose,	wtstrategy,	wtioctl,	/*3*/
-	  wtdump,	wtsize,		B_TAPE };
-
-struct cdevsw wt_cdevsw = 
-	{ wtopen,	wtclose,	rawread,	rawwrite,	/*10*/
-	  wtioctl,	nostop,		nullreset,	nodevtotty,/* wt */
-	  seltrue,	nommap,		wtstrategy };
-
 static wt_devsw_installed = 0;
 
 static void 	wt_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! wt_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&wt_cdevsw,NULL);
-		dev_chr = dev;
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&wt_bdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&wt_cdevsw, NULL);
+		dev = makedev(BDEV_MAJOR, 0);
+		bdevsw_add(&dev,&wt_bdevsw, NULL);
 		wt_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"rwt",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-			x=devfs_add_devsw(
-	"/",	"wt",	major(dev),	0,	DV_BLK,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(wtdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wt_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NWT */

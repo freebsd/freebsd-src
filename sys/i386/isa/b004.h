@@ -93,6 +93,7 @@ struct b004_struct {
 	int osr;		/* address of the output status register */
 	unsigned int timeout;	/* timeout for writing/reading the link */
 	int boardtype;		/* what kind of board is installed */
+	void *devfs_token[8][4]; /* tokens for 4 types for 8 ports */
 };
 
 /*

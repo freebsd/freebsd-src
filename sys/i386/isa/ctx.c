@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.10 1995/11/29 14:39:33 julian Exp $
+ *	$Id: ctx.c,v 1.11 1995/12/06 23:42:26 bde Exp $
  */
 
 /*
@@ -120,20 +120,17 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/devconf.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ctxreg.h>
 #include <machine/ioctl_ctx.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 40
-#endif /*JREMOD*/
 
 int     waitvb(short);
 
@@ -144,6 +141,19 @@ int     waitvb(short);
 
 int     ctxprobe(), ctxattach();
 struct isa_driver ctxdriver = {ctxprobe, ctxattach, "ctx"};
+
+static	d_open_t	ctxopen;
+static	d_close_t	ctxclose;
+static	d_read_t	ctxread;
+static	d_write_t	ctxwrite;
+static	d_ioctl_t	ctxioctl;
+#define CDEV_MAJOR 40
+
+struct cdevsw ctx_cdevsw = 
+	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
+	  ctxioctl,	nostop,		nullreset,	nodevtotty,/* cortex */
+	  seltrue,	nommap,		NULL,	"ctx",	NULL,	-1 };
+
 
 #define   LUTSIZE     256	/* buffer size for Look Up Table (LUT) */
 #define   PAGESIZE    65536	/* size of one video page, 1/4 of the screen */
@@ -160,6 +170,7 @@ struct ctx_soft_registers {
 	short   iobase;
 	caddr_t maddr;
 	int     msize;
+	void	*devfs_token;
 }       ctx_sr[NCTX];
 
 
@@ -203,6 +214,7 @@ int
 ctxattach(struct isa_device * devp)
 {
 	struct ctx_soft_registers *sr;
+	char name[32];
 
 	sr = &(ctx_sr[devp->id_unit]);
 	sr->cp0 = 0;	/* zero out the shadow registers */
@@ -213,9 +225,14 @@ ctxattach(struct isa_device * devp)
 	sr->msize = devp->id_msize;
 	kdc_ctx[devp->id_unit].kdc_state = DC_IDLE;
 	return (1);
+#ifdef DEVFS
+	sprintf(name,"ctx%d",devp->id_unit);
+	sr->devfs_token = devfs_add_devsw( "/", name, &ctx_cdevsw, 0,
+						DV_CHR, 0, 0, 0600);
+#endif /* DEVFS */
 }
 
-int
+static int
 ctxopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct ctx_soft_registers *sr;
@@ -271,7 +288,7 @@ ctxopen(dev_t dev, int flags, int fmt, struct proc *p)
 	return (0);	/* successful open.  All ready to go. */
 }
 
-int
+static int
 ctxclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int     unit;
@@ -284,7 +301,7 @@ ctxclose(dev_t dev, int flags, int fmt, struct proc *p)
 	return (0);
 }
 
-int
+static int
 ctxwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	int     unit, status = 0;
@@ -329,7 +346,7 @@ ctxwrite(dev_t dev, struct uio * uio, int ioflag)
 		return (status);
 }
 
-int
+static int
 ctxread(dev_t dev, struct uio * uio, int ioflag)
 {
 	int     unit, status = 0;
@@ -372,7 +389,7 @@ ctxread(dev_t dev, struct uio * uio, int ioflag)
 		return (status);
 }
 
-int
+static int
 ctxioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
 	int     error;
@@ -451,15 +468,10 @@ waitvb(short port)
 
 
 
-#ifdef JREMOD
-struct cdevsw ctx_cdevsw = 
-	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
-	  ctxioctl,	nostop,		nullreset,	nodevtotty,/* cortex */
-	  seltrue,	nommap,		NULL };
-
 static ctx_devsw_installed = 0;
 
-static void 	ctx_drvinit(void *unused)
+static void
+ctx_drvinit(void *unused)
 {
 	dev_t dev;
 
@@ -467,20 +479,10 @@ static void 	ctx_drvinit(void *unused)
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&ctx_cdevsw,NULL);
 		ctx_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"ctx",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(ctxdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ctx_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif				/* NCTX > 0 */

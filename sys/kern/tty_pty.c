@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.27 1995/12/02 07:30:19 julian Exp $
+ * $Id: tty_pty.c,v 1.28 1995/12/02 13:08:20 julian Exp $
  */
 
 /*
@@ -59,6 +59,33 @@
 void ptyattach __P((int n));
 void ptsstart __P((struct tty *tp));
 void ptcwakeup __P((struct tty *tp, int flag));
+
+static	d_open_t	ptsopen;
+static	d_close_t	ptsclose;
+static	d_read_t	ptsread;
+static	d_write_t	ptswrite;
+static	d_ioctl_t	ptyioctl;
+static	d_stop_t	ptsstop;
+static	d_ttycv_t	ptydevtotty;
+static	d_open_t	ptcopen;
+static	d_close_t	ptcclose;
+static	d_read_t	ptcread;
+static	d_write_t	ptcwrite;
+static	d_ioctl_t	ptcioctl;
+static	d_select_t	ptcselect;
+
+#define CDEV_MAJOR_S 5
+#define CDEV_MAJOR_C 6
+struct cdevsw pts_cdevsw = 
+	{ ptsopen,	ptsclose,	ptsread,	ptswrite,	/*5*/
+	  ptyioctl,	ptsstop,	nullreset,	ptydevtotty,/* ttyp */
+	  ttselect,	nommap,		NULL,	"pts",	NULL,	-1 };
+
+struct cdevsw ptc_cdevsw = 
+	{ ptcopen,	ptcclose,	ptcread,	ptcwrite,	/*6*/
+	  ptyioctl,	nullstop,	nullreset,	ptydevtotty,/* ptyp */
+	  ptcselect,	nommap,		NULL,	"ptc",	NULL,	-1 };
+
 
 #if NPTY == 1
 #undef NPTY
@@ -114,7 +141,7 @@ ptyattach(n)
 }
 
 /*ARGSUSED*/
-int
+static	int
 ptsopen(dev, flag, devtype, p)
 	dev_t dev;
 	int flag, devtype;
@@ -152,7 +179,7 @@ ptsopen(dev, flag, devtype, p)
 	return (error);
 }
 
-int
+static	int
 ptsclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -168,7 +195,7 @@ ptsclose(dev, flag, mode, p)
 	return (err);
 }
 
-int
+static	int
 ptsread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -223,7 +250,7 @@ again:
  * Wakeups of controlling tty will happen
  * indirectly, when tty driver calls ptsstart.
  */
-int
+static	int
 ptswrite(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -273,7 +300,7 @@ ptcwakeup(tp, flag)
 	}
 }
 
-int
+static	int
 ptcopen(dev, flag, devtype, p)
 	dev_t dev;
 	int flag, devtype;
@@ -300,7 +327,7 @@ ptcopen(dev, flag, devtype, p)
 	return (0);
 }
 
-int
+static	int
 ptcclose(dev, flags, fmt, p)
 	dev_t dev;
 	int flags;
@@ -330,7 +357,7 @@ ptcclose(dev, flags, fmt, p)
 	return (0);
 }
 
-int
+static	int
 ptcread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -392,7 +419,7 @@ ptcread(dev, uio, flag)
 	return (error);
 }
 
-void
+static	void
 ptsstop(tp, flush)
 	register struct tty *tp;
 	int flush;
@@ -416,7 +443,7 @@ ptsstop(tp, flush)
 	ptcwakeup(tp, flag);
 }
 
-int
+static	int
 ptcselect(dev, rw, p)
 	dev_t dev;
 	int rw;
@@ -471,7 +498,7 @@ ptcselect(dev, rw, p)
 	return (0);
 }
 
-int
+static	int
 ptcwrite(dev, uio, flag)
 	dev_t dev;
 	register struct uio *uio;
@@ -570,7 +597,7 @@ block:
 	goto again;
 }
 
-struct tty *
+static	struct tty *
 ptydevtotty(dev)
 	dev_t		dev;
 {
@@ -581,7 +608,7 @@ ptydevtotty(dev)
 }
 
 /*ARGSUSED*/
-int
+static	int
 ptyioctl(dev, cmd, data, flag, p)
 	dev_t dev;
 	int cmd;
@@ -738,38 +765,29 @@ ptyioctl(dev, cmd, data, flag, p)
 	return (error);
 }
 
-#define CDEV_MAJOR_S 5
-#define CDEV_MAJOR_C 6
-#ifdef JREMOD
-struct cdevsw pts_cdevsw = 
-	{ ptsopen,	ptsclose,	ptsread,	ptswrite,	/*5*/
-	  ptyioctl,	ptsstop,	nullreset,	ptydevtotty,/* ttyp */
-	  ttselect,	nommap,		NULL };
-
-struct cdevsw ptc_cdevsw = 
-	{ ptcopen,	ptcclose,	ptcread,	ptcwrite,	/*6*/
-	  ptyioctl,	nullstop,	nullreset,	ptydevtotty,/* ptyp */
-	  ptcselect,	nommap,		NULL };
-
 static ptc_devsw_installed = 0;
+#ifdef DEVFS
+#define MAXUNITS (8 * 32)
+static	void	*devfs_token_pts[MAXUNITS];
+static	void	*devfs_token_ptc[MAXUNITS];
+const	char jnames[] = "pqrsPQRS";
+const	char knames[] = "0123456789abcdefghijklmnopqrstuv";
+#endif
 
-static void 	ptc_drvinit(void *unused)
+static void
+ptc_drvinit(void *unused)
 {
 #ifdef DEVFS
 	int i,j,k;
-	char jnames[] = "pqrsPQRS";
-	char knames[] = "0123456789abcdefghijklmnopqrstuv";
-	char devname[16];
-#define MAXUNITS (8 * 32)
+	char name[16];
 #endif
 	dev_t dev;
-	dev_t dev_c;
 
 	if( ! ptc_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR_S,0);
-		cdevsw_add(&dev,&pts_cdevsw,NULL);
-		dev_c = makedev(CDEV_MAJOR_C,0);
-		cdevsw_add(&dev_c,&ptc_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR_S, 0);
+		cdevsw_add(&dev, &pts_cdevsw, NULL);
+		dev = makedev(CDEV_MAJOR_C, 0);
+		cdevsw_add(&dev, &ptc_cdevsw, NULL);
 		ptc_devsw_installed = 1;
 #ifdef DEVFS
 /*XXX*/
@@ -778,14 +796,18 @@ static void 	ptc_drvinit(void *unused)
 #define NPTY MAXUNITS
 #endif
 		for ( i = 0 ; i<NPTY ; i++ ) {
-			void * x;
+			void *x;
 
 			j = i / 32;
 			k = i % 32;
-			sprintf(devname,"pty%c%c",jnames[j],knames[k]);
-			x=devfs_add_devsw("/",devname,major(dev_c),0,DV_CHR,0,0,0600);
-			sprintf(devname,"tty%c%c",jnames[j],knames[k]);
-			x=devfs_add_devsw("/",devname,major(dev),0,DV_CHR,0,0,0600);
+			sprintf(name,"pty%c%c",jnames[j],knames[k]);
+			devfs_token_pts[i] = 
+				devfs_add_devsw("/",name,&pts_cdevsw,i,
+						DV_CHR,0,0,0600);
+			sprintf(name,"tty%c%c",jnames[j],knames[k]);
+			devfs_token_ptc[i] =
+				devfs_add_devsw("/",name,&ptc_cdevsw,i,
+						DV_CHR,0,0,0600);
 		}
 #endif
     	}
@@ -793,5 +815,4 @@ static void 	ptc_drvinit(void *unused)
 
 SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR_C,ptc_drvinit,NULL)
 
-#endif /* JREMOD */
 

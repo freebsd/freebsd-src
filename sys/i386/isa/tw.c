@@ -138,23 +138,18 @@
 #include "uio.h"
 #include "syslog.h"
 #include "select.h"
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #define MIN(a,b)	((a)<(b)?(a):(b))
 
 #ifdef HIRESTIME
-#include "time.h"
+#include <sys/time.h>
 #endif /* HIRESTIME */
 
 #include "i386/isa/isa_device.h"
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 19
-#endif /*JREMOD*/
 
 
 /*
@@ -211,6 +206,17 @@ struct isa_driver twdriver = {
   twprobe, twattach, "tw"
 };
 
+static	d_open_t	twopen;
+static	d_close_t	twclose;
+static	d_read_t	twread;
+static	d_write_t	twwrite;
+static	d_select_t	twselect;
+
+#define CDEV_MAJOR 19
+struct cdevsw tw_cdevsw = 
+	{ twopen,	twclose,	twread,		twwrite,	/*19*/
+	  noioc,	nullstop,	nullreset,	nodevtotty, /* tw */
+	  twselect,	nommap,		nostrat,	"tw",	NULL,	-1 };
 /*
  * Software control structure for TW523
  */
@@ -240,6 +246,9 @@ struct tw_sc {
   int sc_xtimes[22];		/* Times for bits in current xmit packet */
   int sc_rtimes[22];		/* Times for bits in current rcv packet */
 #endif /* HIRESTIME */
+#ifdef	DEVFS
+  void	*devfs_token;		/* store the devfs handle */
+#endif
 } tw_sc[NTW];
 
 static void twdelay25();
@@ -348,10 +357,19 @@ int twattach(idp)
 	struct isa_device *idp;
 {
   struct tw_sc *sc;
+  char	name[32];
+  int	unit;
 
-  sc = &tw_sc[idp->id_unit];
+  sc = &tw_sc[unit = idp->id_unit];
   sc->sc_port = idp->id_iobase;
   sc->sc_state = 0;
+
+#ifdef DEVFS
+/*	path	name	devsw		minor	type   uid gid perm*/
+	sprintf(name,"tw%d", unit);
+	sc->devfs_token = devfs_add_devsw( "/", name, &tw_cdevsw, unit,
+						DV_CHR, 0, 0, 0600);
+#endif
 
   return (1);
 }
@@ -992,11 +1010,6 @@ static int twchecktime(int target, int tol)
 }
 #endif /* HIRESTIME */
 
-#ifdef JREMOD
-struct cdevsw tw_cdevsw = 
-	{ twopen,	twclose,	twread,		twwrite,	/*19*/
-	  noioc,	nullstop,	nullreset,	nodevtotty,/* tw */
-	  twselect,	nommap,		nostrat };
 
 static tw_devsw_installed = 0;
 
@@ -1005,23 +1018,13 @@ static void 	tw_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! tw_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&tw_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&tw_cdevsw, NULL);
 		tw_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"tw",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(twdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,tw_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif NTW
