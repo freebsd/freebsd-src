@@ -1,7 +1,8 @@
-#	$Id: Makefile,v 1.3 1993/12/16 21:51:27 nate Exp $
+#	$Id: Makefile,v 1.4 1996/10/01 02:16:12 peter Exp $
 
-PROG=	ldd
-SRCS=	ldd.c sods.c
-BINDIR= /usr/bin
+PROG=		ldd
+SRCS=		ldd.c sods.c
+CFLAGS+=	-Wall
+BINDIR= 	/usr/bin
 
 .include <bsd.prog.mk>
