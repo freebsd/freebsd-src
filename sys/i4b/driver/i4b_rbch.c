@@ -291,7 +291,8 @@ i4brbchattach()
 		rbch_softc[i].sc_devstate = ST_IDLE;
 		rbch_softc[i].sc_hdlcq.ifq_maxlen = I4BRBCHMAXQLEN;
 #if defined(__FreeBSD__) && __FreeBSD__ > 4
-		mtx_init(&rbch_softc[i].sc_hdlcq.ifq_mtx, "i4b_rbch", MTX_DEF);
+		if(!mtx_initialized(&rbch_softc[i].sc_hdlcq.ifq_mtx))
+			mtx_init(&rbch_softc[i].sc_hdlcq.ifq_mtx, "i4b_rbch", MTX_DEF);
 #endif		
 		rbch_softc[i].it_in.c_ispeed = rbch_softc[i].it_in.c_ospeed = 64000;
 		termioschars(&rbch_softc[i].it_in);

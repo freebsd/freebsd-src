@@ -360,7 +360,8 @@ ihfc_init (ihfc_sc_t *sc, u_char chan, int prot, int activate)
 			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
-			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
+			if(!mtx_initialized(&S_IFQUEUE.ifq_mtx))
+				mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
 #endif
 			if (!activate) continue;
 
@@ -385,7 +386,8 @@ ihfc_init (ihfc_sc_t *sc, u_char chan, int prot, int activate)
 			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
-			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
+			if(!mtx_initialized(&S_IFQUEUE.ifq_mtx))
+				mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
 #endif
 			S_PROT = prot;
 

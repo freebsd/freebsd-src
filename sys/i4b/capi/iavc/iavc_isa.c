@@ -225,7 +225,8 @@ iavc_isa_attach(device_t dev)
 	sc->sc_txq.ifq_maxlen = sc->sc_capi.sc_nbch * 4;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
-        mtx_init(&sc->sc_txq.ifq_mtx, "i4b_ivac_isa", MTX_DEF);
+        if(!mtx_initialized(&sc->sc_txq.ifq_mtx))
+		mtx_init(&sc->sc_txq.ifq_mtx, "i4b_ivac_isa", MTX_DEF);
 #endif
 
 	sc->sc_intr = FALSE;

@@ -1046,7 +1046,8 @@ avm_pnp_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	chan->rx_queue.ifq_maxlen = IFQ_MAXLEN;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
-	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avm_pnp_rx", MTX_DEF);
+	if(!mtx_initialized(&chan->rx_queue.ifq_mtx))
+		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avm_pnp_rx", MTX_DEF);
 #endif
 
 	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
@@ -1064,7 +1065,8 @@ avm_pnp_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
-	mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avm_pnp_tx", MTX_DEF);
+	if(!mtx_initialized(&chan->tx_queue.ifq_mtx))
+		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avm_pnp_tx", MTX_DEF);
 #endif
 	i4b_Bcleanifq(&chan->tx_queue);	/* clean tx queue */
 
