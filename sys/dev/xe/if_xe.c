@@ -99,7 +99,9 @@
  */
 
 
+#ifndef XE_DEBUG
 #define XE_DEBUG 1	/* Increase for more voluminous output! */
+#endif
 
 #include "xe.h"
 #include "card.h"
