@@ -32,14 +32,14 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)klogin.c	8.3 (Berkeley) 4/2/94";
+static const char sccsid[] = "@(#)klogin.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #ifdef KERBEROS
 #include <sys/param.h>
 #include <sys/syslog.h>
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 
 #include <err.h>
 #include <netdb.h>
