@@ -4,10 +4,7 @@ SRCDIR=	${.CURDIR}/../../../contrib/binutils/libiberty
 
 .PATH: ${SRCDIR} ${SRCDIR}/../include
 
-LIB=    iberty
-NOPIC=	true
-INTERNALLIB=	true
-NOMAN=	sorry
+#LIB=    iberty
 
 # miniumally required sources
 SRCS=	argv.c choose-temp.c concat.c cplus-dem.c fdmatch.c fnmatch.c getopt.c \
