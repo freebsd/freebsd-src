@@ -68,7 +68,7 @@ struct biltin biltins[] = {
 	{ "discard",	SOCK_STREAM,	1, -1,	discard_stream },
 	{ "discard",	SOCK_DGRAM,	0, 1,	discard_dg },
 
-	/* Return 32 bit time since 1970 */
+	/* Return 32 bit time since 1900 */
 	{ "time",	SOCK_STREAM,	0, -1,	machtime_stream },
 	{ "time",	SOCK_DGRAM,	0, 1,	machtime_dg },
 
