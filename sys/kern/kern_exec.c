@@ -128,7 +128,6 @@ execve(td, uap)
 	struct vattr attr;
 	int (*img_first) __P((struct image_params *));
 	struct pargs *pa;
-	struct execlist *ep;
 
 	imgp = &image_params;
 
@@ -257,9 +256,6 @@ interpret:
 		    UIO_SYSSPACE, imgp->interpreter_name, td);
 		goto interpret;
 	}
-
-	TAILQ_FOREACH(ep, &exec_list, next)
-		(*ep->function)(p);
 
 	/*
 	 * Copy out strings (args and env) and initialize stack base
@@ -584,6 +580,7 @@ exec_new_vmspace(imgp)
 	struct image_params *imgp;
 {
 	int error;
+	struct execlist *ep;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
 	vm_offset_t stack_addr = USRSTACK - maxssiz;
 	vm_map_t map = &vmspace->vm_map;
@@ -591,6 +588,12 @@ exec_new_vmspace(imgp)
 	GIANT_REQUIRED;
 
 	imgp->vmspace_destroyed = 1;
+
+	/*
+	 * Perform functions registered with at_exec().
+	 */
+	TAILQ_FOREACH(ep, &exec_list, next)
+		(*ep->function)(imgp->proc);
 
 	/*
 	 * Blow away entire process VM, if address space not shared,
