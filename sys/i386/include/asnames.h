@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.13 1997/12/26 20:41:59 phk Exp $
+ * $Id: asnames.h,v 1.14 1997/12/28 13:36:06 phk Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -328,6 +328,7 @@
 #define _ss_unlock			ss_unlock
 #define _started_cpus			started_cpus
 #define _stopped_cpus			stopped_cpus
+#define _swi_vm				swi_vm
 #define _checkstate_cpus		checkstate_cpus
 #define _checkstate_cpustate		checkstate_cpustate
 #define _checkstate_curproc		checkstate_curproc
