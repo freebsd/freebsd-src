@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
  *
- * $Id: doscmd.c,v 1.1 1997/08/09 01:42:41 dyson Exp $
+ * $Id: doscmd.c,v 1.2 1997/08/15 23:41:23 jlemon Exp $
  */
 
 #include <sys/types.h>
@@ -489,7 +489,7 @@ do_args(int argc, char *argv[])
     FILE	*fp;
     char 	*col;
 
-    while ((c = getopt (argc, argv, "234Oc:TkCIEMPRLAU:S:HDtzvVxXfbri:o:d:")) != -1) {
+    while ((c = getopt (argc, argv, "234Oc:TkCIEMPRLAU:S:HDtzvVxXYfbri:o:d:")) != -1) {
 	switch (c) {
 	case 'd':
 	    if (fp = fopen(optarg, "w")) {
@@ -571,6 +571,9 @@ do_args(int argc, char *argv[])
 	    break;
 	case 'X':
 	    debug_flags |= D_XMS;
+	    break;
+	case 'Y':
+	    debug_flags |= D_EMS;
 	    break;
 	case 'L':
 	    debug_flags |= D_PRINTER;

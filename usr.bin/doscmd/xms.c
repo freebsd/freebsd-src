@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: xms.c,v 1.2 1997/08/15 23:41:25 jlemon Exp $
  */
 
 /*
@@ -111,7 +111,10 @@ xms_init(void)
     add_block(&UMB_freelist, create_block(0xd0000, 64*1024));
     /*XXX check for EMS emulation, when it is done! */
     /* 0xE0000 to 0xEffff */
-    add_block(&UMB_freelist, create_block(0xe0000, 64*1024));
+
+/* This is used as window for EMS, will be configurable ! */
+/*    add_block(&UMB_freelist, create_block(0xe0000, 64*1024)); */
+
     merge_blocks();
 
     xms_vector = insert_generic_trampoline(
@@ -142,8 +145,7 @@ add_block(UMB_block **listp, UMB_block *blk)
     if (*listp == NULL) {
 	*listp = blk;
         blk->next = NULL;
-    }
-    else {
+    } else {
 	/* Insert at the start */
 	bp = obp = *listp;
 	if (blk->addr < bp->addr) {
@@ -156,8 +158,7 @@ add_block(UMB_block **listp, UMB_block *blk)
 	    if (blk->addr > bp->addr) {
 		obp = bp;
 		continue;
-	    }
-	    else {
+	    } else {
 		obp->next = blk;
 		blk->next = bp;
 		return;
@@ -228,10 +229,10 @@ merge_blocks()
 	    bp->size += mergebp->size;
 	    bp->next = mergebp->next;
 	    free(mergebp);
-	}
-	else 
+	} else {
 	    /* Goto next block */
 	    bp = bp->next; 
+        }
     } while (bp != NULL);
 }
 
@@ -485,13 +486,19 @@ static void
 xms_entry(regcontext_t *REGS)
 {
 
-    if (R_AH != 0) {
-    	if (HMA_a20 < 0) {	/* This feature is disabled */
-	    R_AX = 0x0;
-	    R_BL = XMS_HMA_NOT_MANAGED;
-	    return;
-	}
+    if (R_AH != 0)
 	vec_grabbed = 1;
+
+    /* If the HMA feature is disabled these calls are "not managed" */
+    if (HMA_a20 < 0) {
+       if (R_AH == XMS_ALLOCATE_HIGH_MEMORY || R_AH == XMS_FREE_HIGH_MEMORY ||
+	   R_AH == XMS_GLOBAL_ENABLE_A20 || R_AH == XMS_GLOBAL_DISABLE_A20 ||
+	   R_AH == XMS_LOCAL_ENABLE_A20 || R_AH == XMS_LOCAL_DISABLE_A20 ||
+	   R_AH == XMS_QUERY_A20) {
+	      R_AX = 0x0;
+	      R_BL = XMS_HMA_NOT_MANAGED;
+	      return;
+	}
     }
 
     switch (R_AH) {
@@ -513,8 +520,7 @@ xms_entry(regcontext_t *REGS)
 	if (HMA_allocated) {
 	    R_AX = 0x0;
 	    R_BL = XMS_HMA_ALREADY_USED;
-	}
-	else {
+	} else {
 	    HMA_allocated = 1;
 	    R_AX = 0x1;
 	    R_BL = XMS_SUCCESS;
@@ -527,8 +533,7 @@ xms_entry(regcontext_t *REGS)
 	    HMA_allocated = 0;
 	    R_AX = 0x1;
 	    R_BL = XMS_SUCCESS;
-	}
-	else {
+	} else {
 	    R_AX = 0x0;
 	    R_BL = XMS_HMA_NOT_ALLOCATED;
 	}
@@ -588,8 +593,19 @@ xms_entry(regcontext_t *REGS)
 	break;
 
     case XMS_QUERY_FREE_EXTENDED_MEMORY:
-	R_AX = R_DX = xms_free_mem / 1024;
-	R_BL = XMS_SUCCESS;
+	/* DOS MEM.EXE chokes, if the HMA is enabled and the reported
+	 * free space includes the HMA. So we subtract 64kB from the
+	 * space reported, if the HMA is enabled.
+	 */
+	if (HMA_a20 < 0)
+	    R_EAX = R_EDX = xms_free_mem / 1024;
+	else
+	    R_EAX = R_EDX = (xms_free_mem / 1024) - 64;
+
+	if (xms_free_mem == 0)
+	    R_BL = XMS_FULL;
+	else
+	    R_BL = XMS_SUCCESS;
 	debug(D_XMS, "XMS: Query free EMM: Returned %dkB\n", R_AX);
 	break;
 
@@ -626,10 +642,10 @@ xms_entry(regcontext_t *REGS)
  	     * but with no memory attached ? XMS specs are unclear on
 	     * that point. Linux implementation does it this way.
 	     */
-	    if (req_siz == 0)
+	    if (req_siz == 0) {
 		/* This handle is reserved, but has size 0 and no address */
 		xms_hand[hindx].addr = XMS_NULL_ALLOC;
-	    else {
+	    } else {
 		if ((mem = malloc(req_siz)) == NULL)
 		    fatal("XMS: Cannot malloc !");
 		xms_hand[hindx].addr = (u_long)mem;
@@ -663,13 +679,13 @@ xms_entry(regcontext_t *REGS)
 		R_AX = 0x0;
 		R_BL = XMS_INVALID_HANDLE;
 		debug(D_XMS, " Invalid handle\n");
-	    }
-	    else if (xms_hand[hindx].num_locks > 0) {
+
+	    } else if (xms_hand[hindx].num_locks > 0) {
 		R_AX = 0x0;
 		R_BL = XMS_BLOCK_IS_LOCKED;
 		debug(D_XMS, " Is locked\n");
-	    }
-	    else {
+
+	    } else {
 		if (xms_hand[hindx].addr != XMS_NULL_ALLOC) {
 		    free((void *)xms_hand[hindx].addr);
 		    xms_free_mem += xms_hand[hindx].size;
@@ -724,7 +740,7 @@ xms_entry(regcontext_t *REGS)
 	    srcoffs = eptr->src_offset;
 	    dstoffs = eptr->dst_offset;
 	    n = eptr->nbytes;
-	    /* Lenght must be even, see XMS spec */
+	    /* Length must be even, see XMS spec */
 	    if (n & 1) {
 		R_AX = 0x0;
 		R_BL = XMS_INVALID_LENGTH;
@@ -746,8 +762,7 @@ xms_entry(regcontext_t *REGS)
 		    break;
  		}
 		srcptr += srcoffs;
-	    }
-	    else {
+	    } else {
 		srcptr = VECPTR(srcoffs);
 	    	/* Sanity check: Don't allow srcptr pointing to 
 		 * emulator data above 1M
@@ -775,8 +790,7 @@ xms_entry(regcontext_t *REGS)
 		    break;
  		}
 		dstptr += dstoffs;
-	    }
-	    else {
+	    } else {
 		dstptr = VECPTR(dstoffs);
 	    	/* Sanity check: Don't allow dstptr pointing to 
 		 * emulator data above 1M
@@ -863,7 +877,7 @@ xms_entry(regcontext_t *REGS)
 	{
 	    int hnum,hindx;
 
-	    debug(D_XMS, "XMS: Get handle information: DX=%04x\n, R_DX");
+	    debug(D_XMS, "XMS: Get handle information: DX=%04x\n", R_DX);
 	    hnum = R_DX;
 	    if (hnum > NUM_HANDLES || hnum == 0) {
 		R_AX = 0x0;
@@ -933,8 +947,7 @@ xms_entry(regcontext_t *REGS)
 		    fatal("XMS: Cannot malloc !");
 		xms_hand[hindx].addr = (u_long)mem;
 		xms_hand[hindx].size = req_siz;
-	    }
-	    else {
+	    } else {
 		if ((mem = realloc((void *)xms_hand[hindx].addr,req_siz)) 
 			        == NULL)
 		    fatal("XMS: Cannot realloc !");
@@ -978,13 +991,13 @@ xms_entry(regcontext_t *REGS)
 		R_AX = 0x0;
 		R_BL = XMS_NO_UMBS_AVAILABLE;
 		R_DX = 0x0;
-	    }
-	    else if (bp->size < req_siz) {
+
+	    } else if (bp->size < req_siz) {
 		R_AX = 0x0;
 		R_BL = XMS_REQUESTED_UMB_TOO_BIG;
 		R_DX = bp->size / 16;
-	    }
-	    else {
+
+	    } else {
 		UMB_block *newbp;
 		/* Found a block large enough. Split it into the size
 		 * we need, rest remains on the free list. New block
@@ -1011,8 +1024,7 @@ xms_entry(regcontext_t *REGS)
 	    if ((blk = find_allocated_block(req_addr)) == NULL) {
 		R_AX = 0x0;
 		R_BL = XMS_INVALID_UMB_SEGMENT;
-	    }
-	    else {
+	    } else {
 		/* Move the block from the alloc list to the free list
 		 * and try to do garbage collection
 		 */
@@ -1037,6 +1049,27 @@ xms_entry(regcontext_t *REGS)
 	R_BL = XMS_NOT_IMPLEMENTED;
 	break;
 
+    /* Some test programs use this call */
+    case XMS_QUERY_FREE_EXTENDED_MEMORY_LARGE:
+	/* DOS MEM.EXE chokes, if the HMA is enabled and the reported
+	 * free space includes the HMA. So we subtract 64kB from the
+	 * space reported, if the HMA is enabled.
+	 */
+	if (HMA_a20 < 0)
+	    R_EAX = R_EDX = xms_free_mem / 1024;
+	else
+	    R_EAX = R_EDX = (xms_free_mem / 1024) - 64;
+	/* ECX should return the highest address of any memory block
+	 * We return 1MB + size of extended memory 
+	 */
+	R_ECX = 1024 * 1024 + xms_maxsize -1;
+	if (xms_free_mem == 0)
+	    R_BL = XMS_FULL;
+	else
+	    R_BL = XMS_SUCCESS;
+	debug(D_XMS, "XMS: Query free EMM(large): Returned %dkB\n", R_AX);
+	break;
+
     /* These are the same as the above functions, but they use 32 bit
      * registers (i.e. EDX instead of DX). This is for allocations of 
      * more than 64MB. I think this will hardly be used in the emulator
@@ -1044,10 +1077,9 @@ xms_entry(regcontext_t *REGS)
      * spec. If something breaks because they are not here, I can implement
      * them
      */
-    case XMS_QUERY_FREE_EXTENDED_MEMORY_LARGE:
     case XMS_ALLOCATE_EXTENDED_MEMORY_LARGE:
     case XMS_FREE_EXTENDED_MEMORY_LARGE:
-	debug(D_XMS, "XMS: 8x function called, not implemented\n");
+	debug(D_XMS, "XMS: %02x function called, not implemented\n", R_AH);
 	R_AX = 0x0;
 	R_BL = XMS_NOT_IMPLEMENTED;
 	break;

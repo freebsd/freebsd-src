@@ -29,7 +29,7 @@
  *
  *	BSDI trap.c,v 2.3 1996/04/08 19:33:08 bostic Exp
  *
- * $Id: trap.c,v 1.10 1996/10/02 00:31:43 miff Exp $
+ * $Id: trap.c,v 1.1 1997/08/09 01:42:58 dyson Exp $
  */
 
 #include "doscmd.h"
@@ -63,7 +63,7 @@ fake_int(regcontext_t *REGS, int intnum)
 	    int2f(&REGS->sc); 
 	    break;
 	case 0xff: 			/* doscmd special */
-	    intff(REGS); 
+	    emuint(REGS); 
 	    break;
 	default:			/* should not get here */
 	    if (vflag) dump_regs(REGS);
@@ -581,7 +581,7 @@ sigalrm(struct sigframe *sf)
     update_counter = 0;			/* remember we've updated */
     video_update(&REGS->sc);
     hardint(0x08);
-/*     debug(D_ALWAYS,"\n"); */
+/*    debug(D_ALWAYS,"\n"); */
 
     if (tmode)
 	tracetrap(REGS);
@@ -604,6 +604,9 @@ sigfpe(struct sigframe *sf)
     regcontext_t	*REGS = (regcontext_t *)(&sf->sf_sc);
 
     if (R_EFLAGS & PSL_VM) {
+	dump_regs(REGS);
+	debug(D_ALWAYS, "DOS program caused floating point fault\n");
+/*XXX Look into that !! */
 	fake_int(REGS, 0);	/* call handler XXX rather bogus, eh? */
 	return;
     }
