@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.27 1997/06/01 09:01:07 peter Exp $
+ * $Id: kern_time.c,v 1.28 1997/06/01 09:05:19 peter Exp $
  */
 
 #include <sys/param.h>
@@ -413,7 +413,6 @@ settimeofday(p, uap, retval)
 	return (0);
 }
 
-extern	int tickadj;			/* "standard" clock skew, us./tick */
 int	tickdelta;			/* current clock skew, us. per tick */
 long	timedelta;			/* unapplied time correction, us. */
 static long	bigadj = 1000000;	/* use 10x skew above bigadj us. */
