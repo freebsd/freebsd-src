@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: daemon_saver.c,v 1.9 1998/08/06 09:14:20 yokota Exp $
+ *	$Id: daemon_saver.c,v 1.10 1998/09/15 18:16:38 sos Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,7 @@
 #include <saver.h>
 
 #define CONSOLE_VECT(x, y) \
-	((u_short*)(Crtat + (y)*cur_console->xsize + (x)))
+	(window + (y)*cur_console->xsize + (x))
 
 #define DAEMON_MAX_WIDTH	32
 #define DAEMON_MAX_HEIGHT	19
@@ -52,6 +52,7 @@ MOD_MISC(daemon_saver);
 
 static char *message;
 static int messagelen;
+static u_short *window;
 
 /* Who is the author of this ASCII pic? */
 
@@ -201,10 +202,14 @@ daemon_saver(int blank)
 	int min, max;
 
 	if (blank) {
+		if (!ISTEXTSC(scp))
+			return;
 		if (scrn_blanked == 0) {
+			scp->status |= SAVER_RUNNING;
+			window = (u_short *)(*biosvidsw.adapter)(scp->adp)->va_window;
 			/* clear the screen and set the border color */
 			fillw(((FG_LIGHTGREY|BG_BLACK) << 8) | scr_map[0x20],
-			      Crtat, scp->xsize * scp->ysize);
+			      window, scp->xsize * scp->ysize);
 			set_border(scp, 0);
 			xlen = ylen = tlen = 0;
 		}
@@ -324,6 +329,7 @@ daemon_saver(int blank)
 		if (scrn_blanked > 0) {
 			set_border(scp, scp->border);
 			scrn_blanked = 0;
+			scp->status &= ~SAVER_RUNNING;
 		}
 	}
 }
@@ -332,9 +338,6 @@ static int
 daemon_saver_load(struct lkm_table *lkmtp, int cmd)
 {
 	int err;
-
-	if (cur_console->mode >= M_VESA_BASE)
-		return ENODEV;
 
 	messagelen = strlen(hostname) + 3 + strlen(ostype) + 1 + 
 	    strlen(osrelease);

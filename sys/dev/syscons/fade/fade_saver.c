@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: fade_saver.c,v 1.13 1998/09/15 18:16:39 sos Exp $
  */
 
 #include <sys/param.h>
@@ -44,26 +44,23 @@ static void
 fade_saver(int blank)
 {
 	static int count = 0;
+	u_char pal[256*3];
 	int i;
 
 	if (blank) {
 		scrn_blanked = 1;
+		cur_console->status |= SAVER_RUNNING;
 		switch (crtc_type) {
 		case KD_VGA:
 			if (count < 64) {
-				outb(PIXMASK, 0xFF);	/* no pixelmask */
-				outb(PALWADR, 0x00);
-				outb(PALDATA, 0);
-				outb(PALDATA, 0);
-				outb(PALDATA, 0);
-				for (i = 3; i < 768; i++) {
-					if (palette[i] - count > 15)
-						outb(PALDATA, palette[i]-count);
+				pal[0] = pal[1] = pal[2] = 0;
+				for (i = 3; i < 256*3; i++) {
+					if (palette[i] - count > 60)
+						pal[i] = palette[i] - count;
 					else
-						outb(PALDATA, 15);
+						pal[i] = 60;
 				}
-				inb(crtc_addr+6);	/* reset flip/flop */
-				outb(ATC, 0x20);	/* enable palette */
+				load_palette(cur_console, pal);
 				count++;
 			}
 			break;
@@ -100,6 +97,7 @@ fade_saver(int blank)
 		default:
 			break;
 		}
+		cur_console->status &= ~SAVER_RUNNING;
 		scrn_blanked = 0;
 	}
 }

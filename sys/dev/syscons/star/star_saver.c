@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: star_saver.c,v 1.15 1998/09/15 18:16:39 sos Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,8 @@ MOD_MISC(star_saver);
 
 #define NUM_STARS	50
 
+static u_short *window;
+
 /*
  * Alternate saver that got its inspiration from a well known utility
  * package for an inferior^H^H^H^H^H^Hfamous OS.
@@ -58,9 +60,13 @@ star_saver(int blank)
 	static u_short 	stars[NUM_STARS][2];
 
 	if (blank) {
+		if (!ISTEXTSC(scp))
+			return;
 		if (scrn_blanked <= 0) {
+			scp->status |= SAVER_RUNNING;
+			window = (u_short *)(*biosvidsw.adapter)(scp->adp)->va_window;
 			scrn_blanked = 1;
-			fillw((FG_LIGHTGREY|BG_BLACK)<<8|scr_map[0x20], Crtat,
+			fillw((FG_LIGHTGREY|BG_BLACK)<<8|scr_map[0x20], window,
 			      scp->xsize * scp->ysize);
 			set_border(scp, 0);
 			for(i=0; i<NUM_STARS; i++) {
@@ -70,7 +76,7 @@ star_saver(int blank)
 			}
 		}
 		cell = random() % NUM_STARS;
-		*((u_short*)(Crtat + stars[cell][0])) =
+		*((u_short*)(window + stars[cell][0])) =
 			scr_map[pattern[stars[cell][1]]] |
 				colors[random()%sizeof(colors)] << 8;
 		if ((stars[cell][1]+=(random()%4)) >= sizeof(pattern)-1) {
@@ -82,6 +88,7 @@ star_saver(int blank)
 		if (scrn_blanked > 0) {
 			set_border(scp, scp->border);
 			scrn_blanked = 0;
+			scp->status &= ~SAVER_RUNNING;
 		}
 	}
 }
@@ -89,9 +96,6 @@ star_saver(int blank)
 static int
 star_saver_load(struct lkm_table *lkmtp, int cmd)
 {
-	if (cur_console->mode >= M_VESA_BASE)
-		return ENODEV;
-
 	return add_scrn_saver(star_saver);
 }
 

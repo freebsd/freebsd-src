@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: snake_saver.c,v 1.18 1998/09/15 18:16:39 sos Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@ MOD_MISC(snake_saver);
 static char	*message;
 static u_char	**messagep;
 static int	messagelen;
+static u_short	*window;
 
 static void
 snake_saver(int blank)
@@ -60,15 +61,19 @@ snake_saver(int blank)
 #define	savs	messagep
 
 	if (blank) {
+		if (!ISTEXTSC(scp))
+			return;
 		if (scrn_blanked <= 0) {
+			scp->status |= SAVER_RUNNING;
+			window = (u_short *)(*biosvidsw.adapter)(scp->adp)->va_window;
 			fillw((FG_LIGHTGREY|BG_BLACK)<<8 | scr_map[0x20],
-			      Crtat, scp->xsize * scp->ysize);
+			      window, scp->xsize * scp->ysize);
 			set_border(scp, 0);
 			dirx = (scp->xpos ? 1 : -1);
 			diry = (scp->ypos ?
 				scp->xsize : -scp->xsize);
 			for (f=0; f< messagelen; f++)
-				savs[f] = (u_char *)Crtat + 2 *
+				savs[f] = (u_char *)window + 2 *
 					  (scp->xpos+scp->ypos*scp->xsize);
 			*(savs[0]) = scr_map[*save];
 			f = scp->ysize * scp->xsize + 5;
@@ -84,7 +89,7 @@ snake_saver(int blank)
 		*(savs[messagelen-1]) = scr_map[0x20];
 		for (f=messagelen-1; f > 0; f--)
 			savs[f] = savs[f-1];
-		f = (savs[0] - (u_char *)Crtat) / 2;
+		f = (savs[0] - (u_char *)window) / 2;
 		if ((f % scp->xsize) == 0 ||
 		    (f % scp->xsize) == scp->xsize - 1 ||
 		    (random() % 50) == 0)
@@ -101,6 +106,7 @@ snake_saver(int blank)
 		if (scrn_blanked > 0) {
 			set_border(scp, scp->border);
 			scrn_blanked = 0;
+			scp->status &= ~SAVER_RUNNING;
 		}
 	}
 }
@@ -109,9 +115,6 @@ static int
 snake_saver_load(struct lkm_table *lkmtp, int cmd)
 {
 	int err;
-
-	if (cur_console->mode >= M_VESA_BASE)
-		return ENODEV;
 
 	messagelen = strlen(ostype) + 1 + strlen(osrelease);
 	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);
