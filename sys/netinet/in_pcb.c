@@ -147,7 +147,7 @@ in_pcballoc(so, pcbinfo, p)
 {
 	register struct inpcb *inp;
 
-	inp = zalloci(pcbinfo->ipi_zone);
+	inp = zalloc(pcbinfo->ipi_zone);
 	if (inp == NULL)
 		return (ENOBUFS);
 	bzero((caddr_t)inp, sizeof(*inp));
@@ -582,7 +582,7 @@ in_pcbdetach(inp)
 	}
 	ip_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
-	zfreei(ipi->ipi_zone, inp);
+	zfree(ipi->ipi_zone, inp);
 }
 
 /*
