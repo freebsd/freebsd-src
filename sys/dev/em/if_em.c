@@ -127,7 +127,7 @@ static void em_update_stats_counters(struct adapter *);
 static void em_clean_transmit_interrupts(struct adapter *);
 static int  em_allocate_receive_structures(struct adapter *);
 static int  em_allocate_transmit_structures(struct adapter *);
-static void em_process_receive_interrupts(struct adapter *);
+static void em_process_receive_interrupts(struct adapter *, int);
 static void em_receive_checksum(struct adapter *, 
 				     struct em_rx_desc * rx_desc,
 				     struct mbuf *);
@@ -682,11 +682,54 @@ em_init(void *arg)
 
 	adapter->timer_handle = timeout(em_local_timer, adapter, 2*hz);
 	em_clear_hw_cntrs(&adapter->hw);
+#ifdef DEVICE_POLLING
+	/*
+	 * Only enable interrupts if we are not polling, make sure
+	 * they are off otherwise.
+	 */
+	if (ifp->if_ipending & IFF_POLLING)
+		em_disable_intr(adapter);
+	else
+#endif /* DEVICE_POLLING */
 	em_enable_intr(adapter);
 
 	splx(s);
 	return;
 }
+
+#ifdef DEVICE_POLLING
+static poll_handler_t em_poll;
+
+static void    
+em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct adapter *adapter = ifp->if_softc;
+
+	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
+		em_enable_intr(adapter);
+		return;
+	}
+	if (cmd == POLL_AND_CHECK_STATUS) {
+		u_int32_t reg_icr = E1000_READ_REG(&adapter->hw, ICR);
+
+		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+			untimeout(em_local_timer, adapter,
+				adapter->timer_handle);
+			adapter->hw.get_link_status = 1;
+			em_check_for_link(&adapter->hw);
+			em_print_link_status(adapter);
+			adapter->timer_handle = timeout(em_local_timer,
+				adapter, 2*hz);
+		}
+	}
+	if (ifp->if_flags & IFF_RUNNING) {
+		em_process_receive_interrupts(adapter, count);
+		em_clean_transmit_interrupts(adapter);
+	}
+	if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
+		em_start(ifp);
+}
+#endif /* DEVICE_POLLING */
 
 /*********************************************************************
  *
@@ -704,6 +747,17 @@ em_intr(void *arg)
 
 	ifp = &adapter->interface_data.ac_if;
 
+#ifdef DEVICE_POLLING
+	if (ifp->if_ipending & IFF_POLLING)
+		return;
+
+	if (ether_poll_register(em_poll, ifp)) {
+		em_disable_intr(adapter);
+		em_poll(ifp, 0, 1);
+		return;
+	}
+#endif /* DEVICE_POLLING */
+
 	em_disable_intr(adapter);
 	while (loop_cnt > 0 && 
 	       (reg_icr = E1000_READ_REG(&adapter->hw, ICR)) != 0) {
@@ -720,7 +774,7 @@ em_intr(void *arg)
 		}
 
 		if (ifp->if_flags & IFF_RUNNING) {
-			em_process_receive_interrupts(adapter);
+			em_process_receive_interrupts(adapter, -1);
 			em_clean_transmit_interrupts(adapter);
 		}
 		loop_cnt--;
@@ -1993,7 +2047,7 @@ em_free_receive_structures(struct adapter * adapter)
  *
  *********************************************************************/
 static void
-em_process_receive_interrupts(struct adapter * adapter)
+em_process_receive_interrupts(struct adapter * adapter, int count)
 {
 	struct mbuf         *mp;
 	struct ifnet        *ifp;
@@ -2018,7 +2072,7 @@ em_process_receive_interrupts(struct adapter * adapter)
 		return;
 	}
 
-	while (current_desc->status & E1000_RXD_STAT_DD) {
+	while ((current_desc->status & E1000_RXD_STAT_DD) && (count != 0)) {
 
 		/* Get a pointer to the actual receive buffer */
 		rx_buffer = STAILQ_FIRST(&adapter->rx_buffer_list);
@@ -2032,6 +2086,7 @@ em_process_receive_interrupts(struct adapter * adapter)
 		accept_frame = 1;
 
 		if (current_desc->status & E1000_RXD_STAT_EOP) {
+			count--;
 			eop = 1;
 			len = current_desc->length - ETHER_CRC_LEN;
 		} else {
