@@ -202,7 +202,7 @@ log_intr_event:
 #define	INTR(irq_num, vec_name, maybe_extra_ipending)			\
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
-/* _XintrNN: entry point used by IDT/HWIs & splz_unpend via _vec[]. */	\
+/* _XintrNN: entry point used by IDT/HWIs via _vec[]. */		\
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
