@@ -29,7 +29,7 @@ SUBDIR=	adjkerntz \
 	fsdb \
 	fsirand \
 	gbde \
-	gconcat \
+	geom \
 	ggate \
 	${_gpt} \
 	growfs \
