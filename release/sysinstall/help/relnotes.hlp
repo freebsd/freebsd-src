@@ -14,7 +14,8 @@ o The 2.2-stable branch is now in BETA test for 2.2.5. This
   suffix instead of the usual -RELENG.
 
 o For information about the layout of the release directory, see
-  the ABOUT.TXT file.
+  the ABOUT.TXT file.  If you are installing from floppies, *read this
+  section!*
 
 o For installation instructions, see the INSTALL.TXT and HARDWARE.TXT
   files.
