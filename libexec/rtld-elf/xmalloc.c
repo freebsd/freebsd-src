@@ -30,7 +30,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+void *xcalloc(size_t);
 void *xmalloc(size_t);
+char *xstrdup(const char *);
 
 void *
 xcalloc(size_t size)
