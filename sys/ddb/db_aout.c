@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.19 1997/09/28 08:34:46 phk Exp $
+ *	$Id: db_aout.c,v 1.20 1998/06/07 17:09:36 dfr Exp $
  */
 
 /*
@@ -198,7 +198,8 @@ X_db_search_symbol(symtab, off, strategy, diffp)
  * Return the name and value for a symbol.
  */
 void
-X_db_symbol_values(sym, namep, valuep)
+X_db_symbol_values(symtab, sym, namep, valuep)
+	db_symtab_t	*symtab;
 	db_sym_t	sym;
 	char		**namep;
 	db_expr_t	*valuep;
