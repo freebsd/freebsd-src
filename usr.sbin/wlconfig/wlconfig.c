@@ -69,7 +69,6 @@ static const char rcsid[] =
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-extern struct ether_addr *ether_aton(char *a);
 
 #include <err.h>
 #include <stdio.h>
