@@ -1,4 +1,4 @@
-# @(#)northamerica	7.28
+# @(#)northamerica	7.29
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -462,11 +462,19 @@ Link	Pacific/Honolulu	HST
 ################################################################################
 
 
-# From Paul Eggert <eggert@twinsun.com> (1993-11-18):
+# From Paul Eggert <eggert@twinsun.com> (1996-11-22):
 # A good source for time zone historical data outside the US is
 # Thomas G. Shanks, The International Atlas (3rd edition),
 # San Diego: ACS Publications, Inc. (1991).
-# Except where otherwise noted, it is the source for the data below.
+#
+# Gwillim Law <LAW@encmail.encompass.com> writes that a good source
+# for recent time zone data is the International Air Transport
+# Association's Standard Schedules Information Manual (IATA SSIM),
+# published semiannually.  Law sent in several helpful summaries
+# of the IATA's data after 1990.
+#
+# Except where otherwise noted, Shanks is the source for entries through 1990,
+# and IATA SSIM is the source for entries after 1990.
 #
 # Another source occasionally used is Edward W. Whitman, World Time Differences,
 # Whitman Publishing Co, 2 Niagara Av, Ealing, London (undated), which
@@ -523,7 +531,7 @@ Rule	Canada	1974	max	-	Oct	lastSun	2:00	0	S
 Rule	Canada	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 
 
-# Newfoundland
+# Newfoundland (except Labrador)
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	StJohns	1917	1918	-	Apr	Sun>=8	2:00	1:00	D
@@ -560,11 +568,23 @@ Rule	StJohns	1989	max	-	Apr	Sun>=1	2:00	1:00	D
 # St John's has an apostrophe, but Posix file names can't have apostrophes.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/St_Johns	-3:30:52 -	LMT	1884
-			-3:31	StJohns	N%sT	1935 Mar 30
+			-3:30:52 StJohns N%sT	1935 Mar 30
 			-3:30	StJohns	N%sT
 
 
-# Labrador, New Brunswick, Nova Scotia, Prince Edward I
+# east Labrador
+
+# The name `Happy Valley-Goose Bay' is too long; use `Goose Bay'.
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone America/Goose_Bay	-4:01:40 -	LMT	1884 # Happy Valley-Goose Bay
+			-3:30:52 StJohns NST	1919
+			-3:30:52 -	NST	1935 Mar 30
+			-3:30	-	NST	1936
+			-3:30	StJohns	N%sT	1966 Mar 15 2:00
+			-4:00	StJohns	A%sT
+
+
+# west Labrador, New Brunswick, Nova Scotia, Prince Edward I
 
 # From Paul Eggert (1996-06-12):
 # Shanks writes that since 1970 most of this region has been like Halifax.
@@ -825,9 +845,17 @@ Zone America/Dawson_Creek -8:00:56 -	LMT	1884
 
 # Northwest Territories, Yukon
 
-# From Paul Eggert (1996-06-12):
+# From Paul Eggert (1996-10-07):
 # Dawson switched to PST in 1973.  Inuvik switched to MST in 1979.
 # Shanks's table for Watson Lake is corrupted, so we have no data there.
+# Mathew Englander <mathew@io.org> (1996-10-07) gives the following refs:
+#	* 1967. Paragraph 28(34)(g) of the Interpretation Act, S.C. 1967-68,
+#	c. 7 defines Yukon standard time as UTC-9.  This is still valid;
+#	see Interpretation Act, R.S.C. 1985, c. I-21, s. 35(1).
+#	* C.O. 1973/214 switched Yukon to PST on 1973-10-28 00:00.
+#	* O.I.C. 1980/02 established DST.
+#	* O.I.C. 1987/056 changed DST to Apr firstSun 2:00 to Oct lastSun 2:00.
+# Shanks says Yukon's 1973-10-28 switch was at 2:00; go with Englander.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	NT_YK	1918	only	-	Apr	14	2:00	1:00	D
@@ -857,7 +885,7 @@ Zone America/Whitehorse	-9:00:12 -	LMT	1900 Aug 20
 			-9:00	NT_YK	Y%sT	1966 Jul 1 2:00
 			-8:00	NT_YK	P%sT
 Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
-			-9:00	NT_YK	Y%sT	1973 Oct lastSun 2:00
+			-9:00	NT_YK	Y%sT	1973 Oct 28 0:00
 			-8:00	NT_YK	P%sT
 
 
@@ -1070,8 +1098,10 @@ Zone	America/Cayman	-5:25:32 -	LMT	1890		# Georgetown
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	CR	1979	1980	-	Feb	lastSun	0:00	1:00	D
 Rule	CR	1979	1980	-	Jun	Sun>=1	0:00	0	S
-Rule	CR	1991	only	-	Jan	19	0:00	1:00	D
-Rule	CR	1991	only	-	Jul	1	0:00	0	S
+Rule	CR	1991	1992	-	Jan	Sat>=15	0:00	1:00	D
+# IATA SSIM (1991-09) says the following was at 1:00; go with Shanks.
+Rule	CR	1991	only	-	Jul	 1	0:00	0	S
+Rule	CR	1992	only	-	Mar	15	0:00	0	S
 # There are too many San Joses elsewhere, so we'll use `Costa Rica'.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Costa_Rica	-5:36:20 -	LMT	1890		# San Jose
@@ -1114,10 +1144,11 @@ Rule	Cuba	1978	only	-	May	7	0:00	1:00	D
 Rule	Cuba	1978	1980	-	Oct	Sun>=8	0:00	0	S
 Rule	Cuba	1979	1980	-	Mar	Sun>=15	0:00	1:00	D
 Rule	Cuba	1981	1985	-	May	Sun>=5	0:00	1:00	D
-Rule	Cuba	1981	max	-	Oct	Sun>=8	0:00	0	S
+Rule	Cuba	1981	1990	-	Oct	Sun>=8	0:00	0	S
 Rule	Cuba	1986	1989	-	Mar	Sun>=14	0:00	1:00	D
-Rule	Cuba	1990	only	-	Apr	1	0:00	1:00	D
-Rule	Cuba	1991	max	-	Mar	Sun>=14	0:00	1:00	D
+Rule	Cuba	1990	max	-	Apr	Sun>=1	0:00	1:00	D
+Rule	Cuba	1991	1995	-	Oct	Sun>=8	0:00s	0	S
+Rule	Cuba	1996	max	-	Oct	Sun>=1	0:00s	0	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Havana	-5:29:28 -	LMT	1890
@@ -1168,6 +1199,8 @@ Rule	Guat	1973	only	-	Nov	25	0:00	1:00	D
 Rule	Guat	1974	only	-	Feb	24	0:00	0	S
 Rule	Guat	1983	only	-	May	21	0:00	1:00	D
 Rule	Guat	1983	only	-	Sep	22	0:00	0	S
+Rule	Guat	1991	only	-	Mar	23	0:00	1:00	D
+Rule	Guat	1991	only	-	Sep	 7	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Guatemala	-6:02:04 -	LMT	1918 Oct 5
 			-6:00	Guat	C%sT
@@ -1177,8 +1210,9 @@ Zone America/Guatemala	-6:02:04 -	LMT	1918 Oct 5
 Rule	Haiti	1983	only	-	May	8	0:00	1:00	D
 Rule	Haiti	1984	1987	-	Apr	lastSun	0:00	1:00	D
 Rule	Haiti	1983	1987	-	Oct	lastSun	0:00	0	S
-Rule	Haiti	1988	max	-	Apr	Sun>=1	2:00	1:00	D
-Rule	Haiti	1988	max	-	Oct	lastSun	2:00	0	S
+# Shanks says AT is 2:00, but IATA SSIM (1991/1996) says 1:00s.  Go with IATA.
+Rule	Haiti	1988	max	-	Apr	Sun>=1	1:00s	1:00	D
+Rule	Haiti	1988	max	-	Oct	lastSun	1:00s	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Port-au-Prince -4:49:20 -	LMT	1890
 			-4:49	-	PPMT	1917 Jan 24 12:00 # P-a-P MT
@@ -1203,7 +1237,8 @@ Zone America/Tegucigalpa -5:48:52 -	LMT	1921 Apr
 Zone	America/Jamaica	-5:07:12 -	LMT	1890		# Kingston
 			-5:07	-	KMT	1912 Feb    # Kingston Mean Time
 			-5:00	-	EST	1974 Jan 6 2:00
-			-5:00	US	E%sT
+			-5:00	US	E%sT	1984
+			-5:00	-	EST
 
 # Martinique
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1222,12 +1257,15 @@ Zone America/Montserrat	-4:08:52 -	LMT	1911 Jul 1 0:01   # Plymouth
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Nic	1979	1980	-	Mar	Sun>=16	0:00	1:00	D
 Rule	Nic	1979	1980	-	Jun	Mon>=23	0:00	0	S
+Rule	Nic	1992	only	-	Jan	1	4:00	1:00	D
+Rule	Nic	1992	only	-	Sep	24	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Managua	-5:45:08 -	LMT	1890
 			-5:45	-	MMT	1934 Jun 23  # Managua Mean Time
 			-6:00	-	CST	1973 May
 			-5:00	-	EST	1975 Feb 16
-			-6:00	Nic	C%sT
+			-6:00	Nic	C%sT	1993 Jan 1 4:00
+			-5:00	-	EST
 
 # Panama
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1268,11 +1306,17 @@ Zone America/St_Vincent	-4:04:56 -	LMT	1890		# Kingstown
 			-4:00	-	AST
 
 # Turks and Caicos
+# From Paul Eggert (1996-11-22):
+# Shanks says they use US DST rules, but IATA SSIM (1991/1996)
+# says they switch at midnight.  Go with IATA SSIM.
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	TC	1979	1986	-	Apr	lastSun	0:00	1:00	D
+Rule	TC	1979	max	-	Oct	lastSun	0:00	0	S
+Rule	TC	1987	max	-	Apr	Sun>=1	0:00	1:00	D
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Grand_Turk	-4:44:32 -	LMT	1890
 			-5:07	-	KMT	1912 Feb    # Kingston Mean Time
-			-5:00	-	EST	1979 Apr 29 2:00
-			-5:00	US	E%sT
+			-5:00	TC	E%sT
 
 # British Virgin Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
