@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.11 1997/12/08 22:56:39 fsmp Exp $
+ * $Id: asnames.h,v 1.12 1997/12/18 02:09:29 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -234,9 +234,9 @@
 #define _get_isrlock			get_isrlock
 #define _get_mplock			get_mplock
 #define _get_syscall_lock		get_syscall_lock
-#define _i586_ctr_bias			i586_ctr_bias
-#define _i586_ctr_freq			i586_ctr_freq
-#define _i586_ctr_multiplier		i586_ctr_multiplier
+#define _tsc_bias			tsc_bias
+#define _tsc_freq			tsc_freq
+#define _tsc_multiplier		tsc_multiplier
 #define _idqs				idqs
 #define _imen				imen
 #define _imen_lock			imen_lock
