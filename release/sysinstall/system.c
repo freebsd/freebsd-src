@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.15 1995/10/26 08:56:13 jkh Exp $
+ * $Id: system.c,v 1.44.2.16 1995/11/08 07:09:36 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -197,8 +197,8 @@ vsystem(char *fmt, ...)
     pid_t pid;
     int omask;
     sig_t intsave, quitsave;
-    char *cmd,*p;
-    int i,magic=0;
+    char *cmd;
+    int i;
 
     cmd = (char *)malloc(FILENAME_MAX);
     cmd[0] = '\0';
@@ -206,19 +206,15 @@ vsystem(char *fmt, ...)
     vsnprintf(cmd, FILENAME_MAX, fmt, args);
     va_end(args);
 
-    /* Find out if this command needs the wizardry of the shell */
-    for (p="<>|'`=\"()" ; *p; p++)
-	if (strchr(cmd, *p))
-	    magic++;
     omask = sigblock(sigmask(SIGCHLD));
     if (isDebug())
-	msgDebug("Executing command `%s' (Magic=%d)\n", cmd, magic);
-    switch(pid = fork()) {
-    case -1:			/* error */
+	msgDebug("Executing command `%s'\n", cmd);
+    pid = fork();
+    if (pid == -1) {
 	(void)sigsetmask(omask);
 	i = 127;
-
-    case 0:				/* child */
+    }
+    else if (!pid) {	/* Junior */
 	(void)sigsetmask(omask);
 	if (DebugFD != -1) {
 	    if (OnVTY && isDebug())
@@ -227,47 +223,21 @@ vsystem(char *fmt, ...)
 	    dup2(DebugFD, 1);
 	    dup2(DebugFD, 2);
 	}
-#ifdef NOT_A_GOOD_IDEA_CRUNCHED_BINARY
-	if (magic) {
-	    char *argv[100];
-	    i = 0;
-	    argv[i++] = "crunch";
-	    argv[i++] = "sh";
-	    argv[i++] = "-c";
-	    argv[i++] = cmd;
-	    argv[i] = 0;
-	    exit(crunched_main(i,argv));
-	} else {
-	    char *argv[100];
-	    i = 0;
-	    argv[i++] = "crunch";
-	    while (cmd && *cmd) {
-		argv[i] = strsep(&cmd," \t");
-		if (*argv[i])
-		    i++;
-	    }
-	    argv[i] = 0;
-	    if (crunched_here(argv[1]))
-		exit(crunched_main(i,argv));
-	    else
-		execvp(argv[1],argv+1);
-	    kill(getpid(),9);
-	}
-#else /* !CRUNCHED_BINARY */
 	execl("/stand/sh", "sh", "-c", cmd, (char *)NULL);
-	kill(getpid(),9);
-#endif /* CRUNCHED_BINARY */
+	exit(1);
     }
-    intsave = signal(SIGINT, SIG_IGN);
-    quitsave = signal(SIGQUIT, SIG_IGN);
-    pid = waitpid(pid, &pstat, 0);
-    (void)sigsetmask(omask);
-    (void)signal(SIGINT, intsave);
-    (void)signal(SIGQUIT, quitsave);
-    i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
-    if (isDebug())
-	msgDebug("Command `%s' returns status of %d\n", cmd, i);
-    free(cmd);
+    else {
+	intsave = signal(SIGINT, SIG_IGN);
+	quitsave = signal(SIGQUIT, SIG_IGN);
+	pid = waitpid(pid, &pstat, 0);
+	(void)sigsetmask(omask);
+	(void)signal(SIGINT, intsave);
+	(void)signal(SIGQUIT, quitsave);
+	i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
+	if (isDebug())
+	    msgDebug("Command `%s' returns status of %d\n", cmd, i);
+        free(cmd);
+    }
     return i;
 }
 
