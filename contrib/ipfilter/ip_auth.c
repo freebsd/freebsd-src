@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.4 2000/08/05 14:48:50 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.5 2001/01/10 06:18:35 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -352,7 +352,7 @@ fr_authioctlloop:
 		READ_ENTER(&ipf_auth);
 		if ((fr_authnext != fr_authend) && fr_authpkts[fr_authnext]) {
 			error = IWCOPYPTR((char *)&fr_auth[fr_authnext], data,
-					  sizeof(fr_info_t));
+					  sizeof(frauth_t));
 			RWLOCK_EXIT(&ipf_auth);
 			if (error)
 				break;

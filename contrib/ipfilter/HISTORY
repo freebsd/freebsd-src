@@ -22,6 +22,37 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.16	15/01/2001 - Released
+
+fix race condition in flushing of state entries that are timing out
+
+Add TCP ECN patches
+
+log all NAT entries created, not just those via rules
+
+3.4.15	17/12/2000 - Released
+
+add minimum ttl filtering (to be replaced later by return-icmp-as-dest
+for all ICMP packets matching state entries).
+
+fix NAT'ing of fragments
+
+fix sanity checks for ICMPV6
+
+fix up compiling on IRIX 6.2 with IDF/IDL installed
+
+3.4.14	02/11/2000 - Released
+
+cause flushing NAT table to generate log records the same as state flush
+does.
+
+fix ftp proxy port/pasv
+
+fix problem where nat_{in,out}lookup() would release a write lock when it
+didn't need to.
+
+add check for ipf6.conf in Solaris ipfboot
+
 3.4.13	28/10/2000 - Released
 
 fix introduced bug with ICMP packets being rejected when valid

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mlfk_ipl.c,v 2.1.2.4 2000/08/23 11:02:33 darrenr Exp $
+ * $Id: mlfk_ipl.c,v 2.1.2.6 2000/11/18 03:58:29 darrenr Exp $
  */
 
 
@@ -38,6 +38,12 @@
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#if (__FreeBSD_version >= 199511)
+# include <net/route.h>
+# include <netinet/ip_var.h>
+# include <netinet/tcp.h>
+# include <netinet/tcpip.h>
+#endif
 
 
 #include <netinet/ipl.h>
@@ -47,6 +53,7 @@
 #include <netinet/ip_nat.h>
 #include <netinet/ip_auth.h>
 #include <netinet/ip_frag.h>
+#include <netinet/ip_proxy.h>
 
 static dev_t ipf_devs[IPL_LOGMAX + 1];
 
@@ -86,6 +93,11 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_authused, CTLFLAG_RD,
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_defaultauthage, CTLFLAG_RW,
 	   &fr_defaultauthage, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_chksrc, CTLFLAG_RW, &fr_chksrc, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, ippr_ftp_pasvonly, CTLFLAG_RW,
+	   &ippr_ftp_pasvonly, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &fr_minttl, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_minttllog, CTLFLAG_RW,
+	   &fr_minttllog, 0, "");
 
 #define CDEV_MAJOR 79
 static struct cdevsw ipl_cdevsw = {
