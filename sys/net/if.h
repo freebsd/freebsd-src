@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if.h,v 1.49 1998/03/21 13:36:20 peter Exp $
+ *	$Id: if.h,v 1.50 1999/02/19 13:41:35 phk Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -221,6 +221,7 @@ MALLOC_DECLARE(M_IFMADDR);
 
 /* XXX - this should go away soon */
 #ifdef KERNEL
+int	prison_if __P((struct proc *p, struct sockaddr *sa));
 #include <net/if_var.h>
 #endif
 

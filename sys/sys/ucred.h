@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ucred.h	8.4 (Berkeley) 1/9/95
- * $Id: ucred.h,v 1.10 1999/01/31 10:05:59 bde Exp $
+ * $Id: ucred.h,v 1.11 1999/04/27 11:18:38 phk Exp $
  */
 
 #ifndef _SYS_UCRED_H_
@@ -41,7 +41,7 @@
  * Credentials.
  *
  * Please do not inspect cr_uid directly to determine superuserness.
- * Only the suser_xxx() function should be used for this.
+ * Only the suser()/suser_xxx() function should be used for this.
  */
 struct ucred {
 	u_short	cr_ref;			/* reference count */
@@ -60,7 +60,6 @@ struct ucred	*crcopy __P((struct ucred *cr));
 struct ucred	*crdup __P((struct ucred *cr));
 void		crfree __P((struct ucred *cr));
 struct ucred	*crget __P((void));
-int		suser_xxx __P((struct ucred *cred, u_short *acflag));
 int		groupmember __P((gid_t gid, struct ucred *cred));
 #endif /* KERNEL */
 

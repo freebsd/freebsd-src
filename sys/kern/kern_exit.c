@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.78 1999/04/17 08:36:04 peter Exp $
+ * $Id: kern_exit.c,v 1.79 1999/04/28 01:04:26 luoqi Exp $
  */
 
 #include "opt_compat.h"
@@ -60,6 +60,7 @@
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <sys/aio.h>
+#include <sys/jail.h>
 
 #ifdef COMPAT_43
 #include <machine/reg.h>
@@ -506,6 +507,12 @@ loop:
 				FREE(p->p_cred, M_SUBPROC);
 				p->p_cred = NULL;
 			}
+
+			/*
+			 * Destroy empty prisons
+			 */
+			if (p->p_prison && !--p->p_prison->pr_ref)
+				FREE(p->p_prison, M_PRISON);
 
 			/*
 			 * Finally finished with old proc entry.

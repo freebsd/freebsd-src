@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.47 1999/01/27 22:42:13 dillon Exp $
+ * $Id: bpf.c,v 1.48 1999/04/28 01:18:13 msmith Exp $
  */
 
 #include "bpfilter.h"
@@ -345,6 +345,9 @@ bpfopen(dev, flags, fmt, p)
 	struct proc *p;
 {
 	register struct bpf_d *d;
+
+	if (p->p_prison)
+		return (EPERM);
 
 	if (minor(dev) >= NBPFILTER)
 		return (ENXIO);
@@ -1014,12 +1017,12 @@ bpfpoll(dev, events, p)
 	d = &bpf_dtab[minor(dev)];
 
 	s = splimp();
-	if (events & (POLLIN | POLLRDNORM))
+	if (events & (POLLIN | POLLRDNORM)) {
 		if (d->bd_hlen != 0 || (d->bd_immediate && d->bd_slen != 0))
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(p, &d->bd_sel);
-
+	}
 	splx(s);
 	return (revents);
 }

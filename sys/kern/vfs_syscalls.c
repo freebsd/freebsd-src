@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.121 1999/03/23 14:26:40 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.122 1999/04/27 11:16:25 phk Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -132,7 +132,7 @@ mount(p, uap)
 	/*
 	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users
 	 */
-	if (suser_xxx(p->p_ucred, (u_short *)NULL)) 
+	if (suser_xxx(p->p_ucred, 0, 0)) 
 		SCARG(uap, flags) |= MNT_NOSUID | MNT_NODEV;
 	/*
 	 * Get vnode to be covered
@@ -562,6 +562,12 @@ sync(p, uap)
 	return (0);
 }
 
+/* XXX PRISON: could be per prison flag */
+static int prison_quotas;
+#if 0
+SYSCTL_INT(_kern_prison, OID_AUTO, quotas, CTLFLAG_RW, &prison_quotas, 0, "");
+#endif
+
 /*
  * Change filesystem quotas.
  */
@@ -588,6 +594,8 @@ quotactl(p, uap)
 	int error;
 	struct nameidata nd;
 
+	if (p->p_prison && !prison_quotas)
+		return (EPERM);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -631,7 +639,7 @@ statfs(p, uap)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (suser_xxx(p->p_ucred, (u_short *)NULL)) {
+	if (suser_xxx(p->p_ucred, 0, 0)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
@@ -671,7 +679,7 @@ fstatfs(p, uap)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (suser_xxx(p->p_ucred, (u_short *)NULL)) {
+	if (suser_xxx(p->p_ucred, 0, 0)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
@@ -886,7 +894,7 @@ chroot(p, uap)
 	int error;
 	struct nameidata nd;
 
-	error = suser(p);
+	error = suser_xxx(0, p, PRISON_ROOT);
 	if (error)
 		return (error);
 	if (chroot_allow_open_directories == 0 ||
@@ -1076,7 +1084,15 @@ mknod(p, uap)
 	int whiteout = 0;
 	struct nameidata nd;
 
-	error = suser(p);
+	switch (SCARG(uap, mode) & S_IFMT) {
+	case S_IFCHR:
+	case S_IFBLK:
+		error = suser(p);
+		break;
+	default:
+		error = suser_xxx(0, p, PRISON_ROOT);
+		break;
+	}
 	if (error)
 		return (error);
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, path), p);
@@ -2977,7 +2993,7 @@ revoke(p, uap)
 	if ((error = VOP_GETATTR(vp, &vattr, p->p_ucred, p)) != 0)
 		goto out;
 	if (p->p_ucred->cr_uid != vattr.va_uid &&
-	    (error = suser(p)))
+	    (error = suser_xxx(0, p, PRISON_ROOT)))
 		goto out;
 	if (vp->v_usecount > 1 || (vp->v_flag & VALIASED))
 		VOP_REVOKE(vp, REVOKEALL);

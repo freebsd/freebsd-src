@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.17 1999/01/25 18:26:09 dillon Exp $
+ * $Id: kern_mib.c,v 1.18 1999/01/26 07:37:11 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/jail.h>
 #include <sys/unistd.h>
 
 #if defined(SMP)
@@ -72,6 +73,9 @@ SYSCTL_NODE(, CTL_USER,	  user,   CTLFLAG_RW, 0,
 
 SYSCTL_NODE(, CTL_P1003_1B,  p1003_1b,   CTLFLAG_RW, 0,
 	"p1003_1b, (see p1003_1b.h)");
+
+SYSCTL_NODE(_kern, OID_AUTO,  prison,   CTLFLAG_RW, 0,
+	"Prison rules");
 
 SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD, osrelease, 0, "");
 
@@ -124,8 +128,24 @@ SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
 
 char hostname[MAXHOSTNAMELEN];
 
-SYSCTL_STRING(_kern, KERN_HOSTNAME, hostname, CTLFLAG_RW,
-	hostname, sizeof(hostname), "");
+static int
+sysctl_hostname SYSCTL_HANDLER_ARGS
+{
+	int error;
+
+	if (req->p->p_prison) 
+		error = sysctl_handle_string(oidp, 
+		    req->p->p_prison->pr_host,
+		    sizeof req->p->p_prison->pr_host, req);
+	else
+		error = sysctl_handle_string(oidp, 
+		    hostname, sizeof hostname, req);
+	return (error);
+}
+
+SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname, 
+       CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_PRISON,
+       0, 0, sysctl_hostname, "A", "");
 
 int securelevel = -1;
 

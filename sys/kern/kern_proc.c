@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.45 1999/01/28 00:57:47 dillon Exp $
+ * $Id: kern_proc.c,v 1.46 1999/02/19 14:25:34 luoqi Exp $
  */
 
 #include <sys/param.h>
@@ -500,6 +500,8 @@ sysctl_kern_proc SYSCTL_HANDLER_ARGS
 		p = pfind((pid_t)name[0]);
 		if (!p)
 			return (0);
+		if (!PRISON_CHECK(curproc, p))
+			return (0);
 		error = sysctl_out_proc(p, req, 0);
 		return (error);
 	}
@@ -560,6 +562,9 @@ sysctl_kern_proc SYSCTL_HANDLER_ARGS
 					continue;
 				break;
 			}
+
+			if (!PRISON_CHECK(curproc, p))
+				continue;
 
 			error = sysctl_out_proc(p, req, doingzomb);
 			if (error)

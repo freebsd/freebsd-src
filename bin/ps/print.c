@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: print.c,v 1.33 1998/11/25 09:34:00 dfr Exp $";
+	"$Id: print.c,v 1.34 1999/04/06 03:17:57 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -222,6 +222,8 @@ state(k, ve)
 		*cp++ = 's';
 	if ((flag & P_CONTROLT) && KI_EPROC(k)->e_pgid == KI_EPROC(k)->e_tpgid)
 		*cp++ = '+';
+	if (flag & P_JAILED)
+		*cp++ = 'J';
 	*cp = '\0';
 	(void)printf("%-*s", v->width, buf);
 }

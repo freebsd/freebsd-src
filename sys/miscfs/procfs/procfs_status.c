@@ -37,12 +37,13 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- *	$Id: procfs_status.c,v 1.11 1998/07/11 07:45:45 bde Exp $
+ *	$Id: procfs_status.c,v 1.12 1999/01/05 03:53:06 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/jail.h>
 #include <sys/vnode.h>
 #include <sys/tty.h>
 #include <sys/resourcevar.h>
@@ -134,6 +135,11 @@ procfs_dostatus(curp, p, pfs, uio)
 
 	for (i = 0; i < cr->cr_ngroups; i++)
 		ps += sprintf(ps, ",%lu", (u_long)cr->cr_groups[i]);
+
+	if (p->p_prison)
+		ps += sprintf(ps, " %s", p->p_prison->pr_host);
+	else
+		ps += sprintf(ps, " -");
 	ps += sprintf(ps, "\n");
 
 	xlen = ps - psbuf;

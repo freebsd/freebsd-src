@@ -275,6 +275,7 @@ kern/kern_environment.c	standard
 kern/kern_exec.c	standard
 kern/kern_exit.c	standard
 kern/kern_fork.c	standard
+kern/kern_jail.c	standard
 kern/kern_ktrace.c	standard
 kern/kern_lock.c	standard
 kern/kern_lockf.c	standard

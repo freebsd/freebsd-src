@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.79 1999/04/27 11:18:32 phk Exp $
+ * $Id: proc.h,v 1.80 1999/04/28 01:04:33 luoqi Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -107,6 +107,9 @@ struct  pasleep {
  * which might be addressable only on a processor on which the process
  * is running.
  */
+
+struct jail;
+
 struct	proc {
 	TAILQ_ENTRY(proc) p_procq;	/* run/sleep queue. */
 	LIST_ENTRY(proc) p_list;	/* List of all processes. */
@@ -206,6 +209,7 @@ struct	proc {
 	struct 	sysentvec *p_sysent; /* System call dispatch information. */
 
 	struct	rtprio p_rtprio;	/* Realtime priority. */
+	struct prison *p_prison;
 /* End area that is copied on creation. */
 #define	p_endcopy	p_addr
 	struct	user *p_addr;	/* Kernel virtual addr of u-area (PROC ONLY). */
@@ -268,6 +272,8 @@ struct	proc {
 #define	P_NOCLDWAIT	0x400000 /* No zombies if child dies */
 #define P_DEADLKTREAT   0x800000 /* lock aquisition - deadlock treatment */
 
+#define P_JAILED	0x1000000 /* Process is in jail */
+
 /*
  * MOVE TO ucred.h?
  *
@@ -291,6 +297,14 @@ MALLOC_DECLARE(M_SESSION);
 MALLOC_DECLARE(M_SUBPROC);
 MALLOC_DECLARE(M_ZOMBIE);
 #endif
+
+/* flags for suser_xxx() */
+#define PRISON_ROOT	1
+
+/* Handy macro to determine of p1 can mangle p2 */
+
+#define PRISON_CHECK(p1, p2) \
+	((!(p1)->p_prison) || (p1)->p_prison == (p2)->p_prison)
 
 /*
  * We use process IDs <= PID_MAX; PID_MAX + 1 must also fit in a pid_t,
@@ -376,6 +390,7 @@ void	setrunnable __P((struct proc *));
 void	setrunqueue __P((struct proc *));
 void	sleepinit __P((void));
 int	suser __P((struct proc *));
+int	suser_xxx __P((struct ucred *cred, struct proc *proc, int flag));
 void	remrq __P((struct proc *));
 void	cpu_switch __P((struct proc *));
 void	unsleep __P((struct proc *));

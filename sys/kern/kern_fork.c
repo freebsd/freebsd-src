@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.59 1999/04/24 11:25:01 dt Exp $
+ * $Id: kern_fork.c,v 1.60 1999/04/28 01:04:27 luoqi Exp $
  */
 
 #include "opt_ktrace.h"
@@ -54,6 +54,7 @@
 #include <sys/acct.h>
 #include <sys/ktrace.h>
 #include <sys/unistd.h>	
+#include <sys/jail.h>	
 
 #include <vm/vm.h>
 #include <sys/lock.h>
@@ -307,6 +308,11 @@ again:
 	bcopy(p1->p_cred, p2->p_cred, sizeof(*p2->p_cred));
 	p2->p_cred->p_refcnt = 1;
 	crhold(p1->p_ucred);
+
+	if (p2->p_prison) {
+		p2->p_prison->pr_ref++;
+		p2->p_flag |= P_JAILED;
+	}
 
 	if (flags & RFSIGSHARE) {
 		p2->p_procsig = p1->p_procsig;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.28 1998/08/24 08:39:38 dfr Exp $
+ * $Id: kern_xxx.c,v 1.29 1999/04/27 11:16:09 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -85,7 +85,7 @@ osethostname(p, uap)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	if ((error = suser(p)))
+	if ((error = suser_xxx(0, p, PRISON_ROOT)))
 		return (error);
 	return (userland_sysctl(p, name, 2, 0, 0, 0,
 		uap->hostname, uap->len, 0));

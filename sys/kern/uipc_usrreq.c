@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.41 1999/04/11 02:17:47 eivind Exp $
+ *	$Id: uipc_usrreq.c,v 1.42 1999/04/12 14:34:52 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -490,6 +490,7 @@ unp_attach(so)
 	unp_count++;
 	LIST_INIT(&unp->unp_refs);
 	unp->unp_socket = so;
+	unp->unp_rvnode = curproc->p_fd->fd_rdir;
 	LIST_INSERT_HEAD(so->so_type == SOCK_DGRAM ? &unp_dhead
 			 : &unp_shead, unp, unp_link);
 	so->so_pcb = (caddr_t)unp;
@@ -710,6 +711,16 @@ unp_abort(unp)
 #endif
 
 static int
+prison_unpcb(struct proc *p, struct unpcb *unp)
+{
+	if (!p->p_prison)
+		return (0);
+	if (p->p_fd->fd_rdir == unp->unp_rvnode)
+		return (0);
+	return (1);
+}
+
+static int
 unp_pcblist SYSCTL_HANDLER_ARGS
 {
 	int error, i, n;
@@ -754,7 +765,7 @@ unp_pcblist SYSCTL_HANDLER_ARGS
 	
 	for (unp = head->lh_first, i = 0; unp && i < n;
 	     unp = unp->unp_link.le_next) {
-		if (unp->unp_gencnt <= gencnt)
+		if (unp->unp_gencnt <= gencnt && !prison_unpcb(req->p, unp))
 			unp_list[i++] = unp;
 	}
 	n = i;			/* in case we lost some during malloc */
