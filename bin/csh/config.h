@@ -130,7 +130,7 @@
 /* we want to use the system malloc when we install as /bin/csh */
 #define SYSMALLOC
 #define BSD_STYLE_COLORLS
-/* Use LC_MESSAGES locale category used to open the message catalog */
+/* Use LC_MESSAGES locale category to open the message catalog */
 #define MCLoadBySet NL_CAT_LOCALE
 #endif
 
