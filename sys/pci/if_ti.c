@@ -815,7 +815,7 @@ static int ti_newbuf_jumbo(sc, i, m)
 		m_new->m_data = (void *) buf;
 		m_new->m_len = m_new->m_pkthdr.len = TI_JUMBO_FRAMELEN;
 		MEXTADD(m_new, buf, TI_JUMBO_FRAMELEN, ti_jfree,
-		    (struct ti_softc *)sc);
+		    (struct ti_softc *)sc, 0, EXT_NET_DRV);
 	} else {
 		m_new = m;
 		m_new->m_data = m_new->m_ext.ext_buf;
