@@ -445,8 +445,7 @@ vop_sharedlock(ap)
 	default:
 		panic("vop_sharedlock: bad operation %d", flags & LK_TYPE_MASK);
 	}
-	if (flags & LK_INTERLOCK)
-		vnflags |= LK_INTERLOCK;
+	vnflags |= flags & (LK_INTERLOCK | LK_EXTFLG_MASK);
 #ifndef	DEBUG_LOCKS
 	return (lockmgr(vp->v_vnlock, vnflags, VI_MTX(vp), ap->a_td));
 #else
@@ -503,8 +502,7 @@ vop_nolock(ap)
 	default:
 		panic("vop_nolock: bad operation %d", flags & LK_TYPE_MASK);
 	}
-	if (flags & LK_INTERLOCK)
-		vnflags |= LK_INTERLOCK;
+	vnflags |= flags & (LK_INTERLOCK | LK_EXTFLG_MASK);
 	return(lockmgr(vp->v_vnlock, vnflags, VI_MTX(vp), ap->a_td));
 #else /* for now */
 	/*
