@@ -88,6 +88,7 @@ SRCS+= \
 	uthread_rwlockattr.c \
 	uthread_select.c \
 	uthread_self.c \
+	uthread_sem.c \
 	uthread_sendmsg.c \
 	uthread_sendto.c \
 	uthread_seterrno.c \
