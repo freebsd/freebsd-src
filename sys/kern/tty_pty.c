@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.19 1995/08/02 11:26:50 ache Exp $
+ * $Id: tty_pty.c,v 1.20 1995/09/08 11:08:38 bde Exp $
  */
 
 /*
@@ -322,7 +322,6 @@ ptcclose(dev, flags, fmt, p)
 	}
 
 	tp->t_oproc = 0;		/* mark closed */
-	tp->t_session = 0;
 	return (0);
 }
 
