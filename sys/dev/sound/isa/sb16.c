@@ -136,7 +136,7 @@ port_rd(struct resource *port, int off)
 static void
 port_wr(struct resource *port, int off, u_int8_t data)
 {
-	return bus_space_write_1(rman_get_bustag(port), rman_get_bushandle(port), off, data);
+	bus_space_write_1(rman_get_bustag(port), rman_get_bushandle(port), off, data);
 }
 
 static int
