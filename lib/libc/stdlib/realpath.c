@@ -62,6 +62,7 @@ realpath(path, resolved)
 	struct stat sb;
 	int fd, n, rootd, serrno;
 	char *p, *q, wbuf[MAXPATHLEN];
+      int symlinks = 0;
 
 	/* Save the starting point. */
 	if ((fd = open(".", O_RDONLY)) < 0) {
@@ -100,6 +101,10 @@ loop:
 	/* Deal with the last component. */
 	if (*p != '\0' && lstat(p, &sb) == 0) {
 		if (S_ISLNK(sb.st_mode)) {
+                      if (++symlinks > MAXSYMLINKS) {
+                              errno = ELOOP;
+                              goto err1;
+                      }
 			n = readlink(p, resolved, MAXPATHLEN);
 			if (n < 0)
 				goto err1;
