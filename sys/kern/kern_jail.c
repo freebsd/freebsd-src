@@ -75,13 +75,13 @@ SYSINIT(prison, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_prison, NULL);
 
 /*
  * MPSAFE
+ *
+ * struct jail_args {
+ *	struct jail *jail;
+ * };
  */
 int
-jail(td, uap)
-	struct thread *td;
-	struct jail_args /* {
-		struct jail *jail;
-	} */ *uap;
+jail(struct thread *td, struct jail_args *uap)
 {
 	struct nameidata nd;
 	struct prison *pr, *tpr;
@@ -89,16 +89,16 @@ jail(td, uap)
 	struct jail_attach_args jaa;
 	int error, tryprid;
 
-	error = copyin(uap->jail, &j, sizeof j);
+	error = copyin(uap->jail, &j, sizeof(j));
 	if (error)
 		return (error);
 	if (j.version != 0)
 		return (EINVAL);
 
-	MALLOC(pr, struct prison *, sizeof *pr , M_PRISON, M_WAITOK | M_ZERO);
+	MALLOC(pr, struct prison *, sizeof(*pr), M_PRISON, M_WAITOK | M_ZERO);
 	mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF);
 	pr->pr_ref = 1;
-	error = copyinstr(j.path, &pr->pr_path, sizeof pr->pr_path, 0);
+	error = copyinstr(j.path, &pr->pr_path, sizeof(pr->pr_path), 0);
 	if (error)
 		goto e_killmtx;
 	mtx_lock(&Giant);
@@ -112,7 +112,7 @@ jail(td, uap)
 	VOP_UNLOCK(nd.ni_vp, 0, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	mtx_unlock(&Giant);
-	error = copyinstr(j.hostname, &pr->pr_host, sizeof pr->pr_host, 0);
+	error = copyinstr(j.hostname, &pr->pr_host, sizeof(pr->pr_host), 0);
 	if (error)
 		goto e_dropvnref;
 	pr->pr_ip = j.ip_number;
@@ -166,13 +166,13 @@ e_killmtx:
 
 /*
  * MPSAFE
+ *
+ * struct jail_attach_args {
+ *	int jid;
+ * };
  */
 int
-jail_attach(td, uap)
-	struct thread *td;
-	struct jail_attach_args /* {
-		int jid;
-	} */ *uap;
+jail_attach(struct thread *td, struct jail_attach_args *uap)
 {
 	struct proc *p;
 	struct ucred *newcred, *oldcred;
@@ -345,9 +345,10 @@ prison_remote_ip(struct ucred *cred, int flag, u_int32_t *ip)
 int
 prison_if(struct ucred *cred, struct sockaddr *sa)
 {
-	struct sockaddr_in *sai = (struct sockaddr_in*) sa;
+	struct sockaddr_in *sai;
 	int ok;
 
+	sai = (struct sockaddr_in *)sa;
 	if ((sai->sin_family != AF_INET) && jail_socket_unixiproute_only)
 		ok = 1;
 	else if (sai->sin_family != AF_INET)
@@ -363,8 +364,7 @@ prison_if(struct ucred *cred, struct sockaddr *sa)
  * Return 0 if jails permit p1 to frob p2, otherwise ESRCH.
  */
 int
-prison_check(cred1, cred2)
-	struct ucred *cred1, *cred2;
+prison_check(struct ucred *cred1, struct ucred *cred2)
 {
 
 	if (jailed(cred1)) {
@@ -381,8 +381,7 @@ prison_check(cred1, cred2)
  * Return 1 if the passed credential is in a jail, otherwise 0.
  */
 int
-jailed(cred)
-	struct ucred *cred;
+jailed(struct ucred *cred)
 {
 
 	return (cred->cr_prison != NULL);
@@ -392,18 +391,14 @@ jailed(cred)
  * Return the correct hostname for the passed credential.
  */
 void
-getcredhostname(cred, buf, size)
-	struct ucred *cred;
-	char *buf;
-	size_t size;
+getcredhostname(struct ucred *cred, char *buf, size_t size)
 {
 
 	if (jailed(cred)) {
 		mtx_lock(&cred->cr_prison->pr_mtx);
 		strlcpy(buf, cred->cr_prison->pr_host, size);
 		mtx_unlock(&cred->cr_prison->pr_mtx);
-	}
-	else
+	} else
 		strlcpy(buf, hostname, size);
 }
 
