@@ -284,6 +284,7 @@ struct thread {
 	LIST_HEAD(, mtx) td_contested;	/* (j) Contested locks. */
 	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
+	int		td_pinned;	/* (k) Temporary cpu pin count. */
 	struct kse_thr_mailbox *td_mailbox; /* (*) Userland mailbox address */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	struct thread	*td_standin;	/* (*) Use this for an upcall */
