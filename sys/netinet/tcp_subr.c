@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.25 1995/12/20 17:42:28 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.26 1996/03/11 15:13:33 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -177,10 +177,14 @@ tcp_respond(tp, ti, m, ack, seq, flags)
 	register int tlen;
 	int win = 0;
 	struct route *ro = 0;
+	struct route sro;
 
 	if (tp) {
 		win = sbspace(&tp->t_inpcb->inp_socket->so_rcv);
 		ro = &tp->t_inpcb->inp_route;
+	} else {
+		ro = &sro;
+		bzero(ro, sizeof *ro);
 	}
 	if (m == 0) {
 		m = m_gethdr(M_DONTWAIT, MT_HEADER);
@@ -232,6 +236,9 @@ tcp_respond(tp, ti, m, ack, seq, flags)
 		tcp_trace(TA_OUTPUT, 0, tp, ti, 0);
 #endif
 	(void) ip_output(m, NULL, ro, 0, NULL);
+	if (ro == &sro) {
+		RTFREE(ro->ro_rt);
+	}
 }
 
 /*
