@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.30 1998/05/10 22:20:17 brian Exp $
+ *	$Id: prompt.c,v 1.2 1998/05/21 21:47:57 brian Exp $
  */
 
 #include <sys/param.h>
@@ -185,7 +185,7 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       if (n)
         command_Decode(bundle, linebuff, n, p, p->src.from);
     } else if (n <= 0) {
-      log_Printf(LogPHASE, "Client connection closed.\n");
+      log_Printf(LogPHASE, "%s: Client connection closed.\n", p->src.from);
       prompt_Destroy(p, 0);
     }
     return;
@@ -279,7 +279,6 @@ prompt_Create(struct server *s, struct bundle *bundle, int fd)
 
   if (p != NULL) {
     p->desc.type = PROMPT_DESCRIPTOR;
-    p->desc.next = NULL;
     p->desc.UpdateSet = prompt_UpdateSet;
     p->desc.IsSet = prompt_IsSet;
     p->desc.Read = prompt_Read;
@@ -306,12 +305,8 @@ prompt_Create(struct server *s, struct bundle *bundle, int fd)
     p->TermMode = NULL;
     p->nonewline = 1;
     p->needprompt = 1;
-    p->active = 1;
     p->bundle = bundle;
-    if (p->bundle)
-      bundle_RegisterDescriptor(p->bundle, &p->desc);
     log_RegisterPrompt(p);
-    log_DiscardAllLocal(&p->logmask);
   }
 
   return p;
@@ -326,12 +321,11 @@ prompt_Destroy(struct prompt *p, int verbose)
     if (p->fd_out != p->fd_in)
       close(p->fd_out);
     if (verbose)
-      log_Printf(LogPHASE, "Client connection dropped.\n");
+      log_Printf(LogPHASE, "%s: Client connection dropped.\n", p->src.from);
   } else
     prompt_TtyOldMode(p);
 
   log_UnRegisterPrompt(p);
-  bundle_UnRegisterDescriptor(p->bundle, &p->desc);
   free(p);
 }
 
@@ -502,7 +496,7 @@ prompt_Continue(struct prompt *p)
     prompt_TtyCommandMode(p);
     p->nonewline = 1;
     prompt_Required(p);
-    p->active = 1;
+    log_ActivatePrompt(p);
   } else if (!p->owner) {
     bgtimer.func = prompt_TimedContinue;
     bgtimer.name = "prompt bg";
@@ -517,6 +511,6 @@ prompt_Suspend(struct prompt *p)
 {
   if (getpgrp() == prompt_pgrp(p)) {
     prompt_TtyOldMode(p);
-    p->active = 0;
+    log_DeactivatePrompt(p);
   }
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.54 1998/05/21 01:26:08 brian Exp $
+ * $Id: ipcp.c,v 1.51 1998/05/21 21:45:46 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -738,7 +738,7 @@ IpcpLayerUp(struct fsm *fp)
 
   throughput_start(&ipcp->throughput, "IPCP throughput",
                    Enabled(fp->bundle, OPT_THROUGHPUT));
-  bundle_DisplayPrompt(fp->bundle);
+  log_DisplayPrompts();
   return 1;
 }
 
