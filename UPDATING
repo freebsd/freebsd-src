@@ -5,19 +5,30 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
-20010930:
-	ACPI may not interact well with some devices, if devices
-	are not probing or attaching you can disable ACPI by 
-	adding
+20010929:
+	When crossbuilding, please set TARGET_ARCH rather than
+	MACHINE_ARCH to indicate the target.  In the future, one will
+	set TARGET_MACHINE where you set MACHINE now.  At the moment,
+	setting MACHINE alone for same MACHINE_ARCH machines works
+	(eg, you can build pc98 on a i386 machine and vice versa).
+
+20010927:
+	Some weird problems result from using ACPI on some machines.
+	To disable ACPI you can add
 		hint.acpi.0.disable="1"
-	to your /boot/device.hints
+	to /boot/loader.conf (or by putting set X=Y at the boot
+	loader "ok" prompt).
+
+	Alternatively, you can remove it from /boot/kernel/acpi.ko
+	or use the MODULES_OVERRIDE function in your kernel config
+	file and not list acpi in that list.
 
 20010924:
 	The buildworld has been fixed.  You may need to install
 	the 4.x compatibility libraries for some old binaries
-	to work.  You can do this by adding COMPAT4X=YES to your
-	make world command
-		make world COMPAT4X=YES
+	to work.
+		cd src/lib/compat/compat4x.i386
+		make all install
 
 20010919:
 	There's a bug in the world build process.  The cross-tools
