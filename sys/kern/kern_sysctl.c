@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.79 1998/12/04 22:54:51 archie Exp $
+ * $Id: kern_sysctl.c,v 1.80 1998/12/13 07:18:54 truckman Exp $
  */
 
 #include "opt_compat.h"
@@ -497,7 +497,7 @@ SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD, sysctl_sysctl_oidfmt, "");
  */
 
 /*
- * Handle an integer, signed or unsigned.
+ * Handle an int, signed or unsigned.
  * Two cases:
  *     a variable:  point arg1 at it.
  *     a constant:  pass it in arg2.
@@ -524,7 +524,7 @@ sysctl_handle_int SYSCTL_HANDLER_ARGS
 }
 
 /*
- * Handle an integer, signed or unsigned.
+ * Handle a long, signed or unsigned.
  * Two cases:
  *     a variable:  point arg1 at it.
  *     a constant:  pass it in arg2.
@@ -535,10 +535,7 @@ sysctl_handle_long SYSCTL_HANDLER_ARGS
 {
 	int error = 0;
 
-	if (arg1)
-		error = SYSCTL_OUT(req, arg1, sizeof(long));
-	else
-		error = SYSCTL_OUT(req, &arg2, sizeof(long));
+	error = SYSCTL_OUT(req, arg1, sizeof(long));
 
 	if (error || !req->newptr)
 		return (error);
@@ -547,33 +544,6 @@ sysctl_handle_long SYSCTL_HANDLER_ARGS
 		error = EPERM;
 	else
 		error = SYSCTL_IN(req, arg1, sizeof(long));
-	return (error);
-}
-
-/*
- * Handle an integer, signed or unsigned.
- * Two cases:
- *     a variable:  point arg1 at it.
- *     a constant:  pass it in arg2.
- */
-
-int
-sysctl_handle_intptr SYSCTL_HANDLER_ARGS
-{
-	int error = 0;
-
-	if (arg1)
-		error = SYSCTL_OUT(req, arg1, sizeof(intptr_t));
-	else
-		error = SYSCTL_OUT(req, &arg2, sizeof(intptr_t));
-
-	if (error || !req->newptr)
-		return (error);
-
-	if (!arg1)
-		error = EPERM;
-	else
-		error = SYSCTL_IN(req, arg1, sizeof(intptr_t));
 	return (error);
 }
 
