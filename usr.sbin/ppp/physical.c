@@ -46,7 +46,7 @@
 
 #include "layer.h"
 #ifndef NONAT
-#include "alias_cmd.h"
+#include "nat_cmd.h"
 #endif
 #include "proto.h"
 #include "acf.h"
@@ -90,11 +90,14 @@
 #ifndef NOI4B
 #include "i4b.h"
 #endif
+#ifndef NONETGRAPH
+#include "ether.h"
+#endif
 
+
+#define PPPOTCPLINE "ppp"
 
 static int physical_DescriptorWrite(struct descriptor *, struct bundle *,
-                                    const fd_set *);
-static void physical_DescriptorRead(struct descriptor *, struct bundle *,
                                     const fd_set *);
 
 static int
@@ -105,14 +108,18 @@ physical_DeviceSize(void)
 
 struct {
   struct device *(*create)(struct physical *);
-  struct device *(*iov2device)(int, struct physical *, struct iovec *iov,
-                               int *niov, int maxiov);
+  struct device *(*iov2device)(int, struct physical *, struct iovec *,
+                               int *, int, int *, int *);
   int (*DeviceSize)(void);
 } devices[] = {
 #ifndef NOI4B
   { i4b_Create, i4b_iov2device, i4b_DeviceSize },
 #endif
   { tty_Create, tty_iov2device, tty_DeviceSize },
+#ifndef NONETGRAPH
+  /* This must come before ``udp'' & ``tcp'' */
+  { ether_Create, ether_iov2device, ether_DeviceSize },
+#endif
   { tcp_Create, tcp_iov2device, tcp_DeviceSize },
   { udp_Create, udp_iov2device, udp_DeviceSize },
   { exec_Create, exec_iov2device, exec_DeviceSize }
@@ -125,6 +132,16 @@ physical_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
                    int *n)
 {
   return physical_doUpdateSet(d, r, w, e, n, 0);
+}
+
+void
+physical_SetDescriptor(struct physical *p)
+{
+  p->desc.type = PHYSICAL_DESCRIPTOR;
+  p->desc.UpdateSet = physical_UpdateSet;
+  p->desc.IsSet = physical_IsSet;
+  p->desc.Read = physical_DescriptorRead;
+  p->desc.Write = physical_DescriptorWrite;
 }
 
 struct physical *
@@ -149,11 +166,7 @@ physical_Create(struct datalink *dl, int type)
   link_EmptyStack(&p->link);
 
   p->handler = NULL;
-  p->desc.type = PHYSICAL_DESCRIPTOR;
-  p->desc.UpdateSet = physical_UpdateSet;
-  p->desc.IsSet = physical_IsSet;
-  p->desc.Read = physical_DescriptorRead;
-  p->desc.Write = physical_DescriptorWrite;
+  physical_SetDescriptor(p);
   p->type = type;
 
   hdlc_Init(&p->hdlc, &p->link.lcp);
@@ -175,7 +188,7 @@ physical_Create(struct datalink *dl, int type)
   p->cfg.parity = CS8;
   memcpy(p->cfg.devlist, MODEM_LIST, sizeof MODEM_LIST);
   p->cfg.ndev = NMODEMS;
-  p->cfg.cd.required = 0;
+  p->cfg.cd.necessity = CD_VARIABLE;
   p->cfg.cd.delay = DEF_CDDELAY;
 
   lcp_Init(&p->link.lcp, dl->bundle, &p->link, &dl->fsmp);
@@ -310,7 +323,12 @@ physical_Close(struct physical *p)
 
   physical_StopDeviceTimer(p);
   if (p->Utmp) {
-    ID0logout(p->name.base);
+    if (p->handler && (p->handler->type == TCP_DEVICE ||
+                       p->handler->type == UDP_DEVICE))
+      /* Careful - we logged in on line ``ppp'' with IP as our host */
+      ID0logout(PPPOTCPLINE, 1);
+    else
+      ID0logout(p->name.base, 0);
     p->Utmp = 0;
   }
   newsid = tcgetpgrp(p->fd) == getpgrp();
@@ -457,19 +475,23 @@ physical_ShowStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, ", CTS/RTS %s\n", (p->cfg.rts_cts ? "on" : "off"));
 
-  prompt_Printf(arg->prompt, " CD check delay:  %d second%s",
-                p->cfg.cd.delay, p->cfg.cd.delay == 1 ? "" : "s");
-  if (p->cfg.cd.required)
-    prompt_Printf(arg->prompt, " (required!)\n\n");
-  else
-    prompt_Printf(arg->prompt, "\n\n");
+  prompt_Printf(arg->prompt, " CD check delay:  ");
+  if (p->cfg.cd.necessity == CD_NOTREQUIRED)
+    prompt_Printf(arg->prompt, "no cd");
+  else {
+    prompt_Printf(arg->prompt, "%d second%s", p->cfg.cd.delay,
+                  p->cfg.cd.delay == 1 ? "" : "s");
+    if (p->cfg.cd.necessity == CD_REQUIRED)
+      prompt_Printf(arg->prompt, " (required!)");
+  }
+  prompt_Printf(arg->prompt, "\n\n");
 
   throughput_disp(&p->link.throughput, arg->prompt);
 
   return 0;
 }
 
-static void
+void
 physical_DescriptorRead(struct descriptor *d, struct bundle *bundle,
                      const fd_set *fdset)
 {
@@ -524,7 +546,7 @@ physical_DescriptorRead(struct descriptor *d, struct bundle *bundle,
 
 struct physical *
 iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
-             int fd)
+             int fd, int *auxfd, int *nauxfd)
 {
   struct physical *p;
   int len, h, type;
@@ -574,11 +596,10 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
   type = (long)p->handler;
   p->handler = NULL;
   for (h = 0; h < NDEVICES && p->handler == NULL; h++)
-    p->handler = (*devices[h].iov2device)(type, p, iov, niov, maxiov);
-
+    p->handler = (*devices[h].iov2device)(type, p, iov, niov, maxiov,
+                                          auxfd, nauxfd);
   if (p->handler == NULL) {
-    log_Printf(LogPHASE, "%s: Device %s, unknown link type\n",
-               p->link.name, p->name.full);
+    log_Printf(LogPHASE, "%s: Unknown link type\n", p->link.name);
     free(iov[(*niov)++].iov_base);
     physical_SetupStack(p, "unknown", PHYSICAL_NOFORCE);
   } else
@@ -613,7 +634,7 @@ physical_MaxDeviceSize()
 
 int
 physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
-             pid_t newpid)
+             int *auxfd, int *nauxfd, pid_t newpid)
 {
   struct device *h;
   int sz;
@@ -663,7 +684,7 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
   sz = physical_MaxDeviceSize();
   if (p) {
     if (h)
-      (*h->device2iov)(h, iov, niov, maxiov, newpid);
+      (*h->device2iov)(h, iov, niov, maxiov, auxfd, nauxfd, newpid);
     else {
       iov[*niov].iov_base = malloc(sz);
       if (p->handler)
@@ -790,28 +811,32 @@ physical_doUpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
 int
 physical_RemoveFromSet(struct physical *p, fd_set *r, fd_set *w, fd_set *e)
 {
-  int sets;
+  if (p->handler && p->handler->removefromset)
+    return (*p->handler->removefromset)(p, r, w, e);
+  else {
+    int sets;
 
-  sets = 0;
-  if (p->fd >= 0) {
-    if (r && FD_ISSET(p->fd, r)) {
-      FD_CLR(p->fd, r);
-      log_Printf(LogTIMER, "%s: fdunset(r) %d\n", p->link.name, p->fd);
-      sets++;
+    sets = 0;
+    if (p->fd >= 0) {
+      if (r && FD_ISSET(p->fd, r)) {
+        FD_CLR(p->fd, r);
+        log_Printf(LogTIMER, "%s: fdunset(r) %d\n", p->link.name, p->fd);
+        sets++;
+      }
+      if (e && FD_ISSET(p->fd, e)) {
+        FD_CLR(p->fd, e);
+        log_Printf(LogTIMER, "%s: fdunset(e) %d\n", p->link.name, p->fd);
+        sets++;
+      }
+      if (w && FD_ISSET(p->fd, w)) {
+        FD_CLR(p->fd, w);
+        log_Printf(LogTIMER, "%s: fdunset(w) %d\n", p->link.name, p->fd);
+        sets++;
+      }
     }
-    if (e && FD_ISSET(p->fd, e)) {
-      FD_CLR(p->fd, e);
-      log_Printf(LogTIMER, "%s: fdunset(e) %d\n", p->link.name, p->fd);
-      sets++;
-    }
-    if (w && FD_ISSET(p->fd, w)) {
-      FD_CLR(p->fd, w);
-      log_Printf(LogTIMER, "%s: fdunset(w) %d\n", p->link.name, p->fd);
-      sets++;
-    }
+
+    return sets;
   }
-  
-  return sets;
 }
 
 int
@@ -827,16 +852,25 @@ physical_Login(struct physical *p, const char *name)
   if (p->type == PHYS_DIRECT && *p->name.base && !p->Utmp) {
     struct utmp ut;
     const char *connstr;
+    char *colon;
 
     memset(&ut, 0, sizeof ut);
     time(&ut.ut_time);
     strncpy(ut.ut_name, name, sizeof ut.ut_name);
-    strncpy(ut.ut_line, p->name.base, sizeof ut.ut_line);
+    if (p->handler && (p->handler->type == TCP_DEVICE ||
+                       p->handler->type == UDP_DEVICE)) {
+      strncpy(ut.ut_line, PPPOTCPLINE, sizeof ut.ut_line);
+      strncpy(ut.ut_host, p->name.base, sizeof ut.ut_host);
+      colon = memchr(ut.ut_host, ':', sizeof ut.ut_host);
+      if (colon)
+        *colon = '\0';
+    } else
+      strncpy(ut.ut_line, p->name.base, sizeof ut.ut_line);
     if ((connstr = getenv("CONNECT")))
       /* mgetty sets this to the connection speed */
       strncpy(ut.ut_host, connstr, sizeof ut.ut_host);
     ID0login(&ut);
-    p->Utmp = 1;
+    p->Utmp = ut.ut_time;
   }
 }
 
@@ -909,7 +943,7 @@ physical_Found(struct physical *p)
 int
 physical_Open(struct physical *p, struct bundle *bundle)
 {
-  int devno, h, wasopen, err;
+  int devno, h, wasfd, err;
   char *dev;
 
   if (p->fd >= 0)
@@ -919,7 +953,7 @@ physical_Open(struct physical *p, struct bundle *bundle)
     physical_SetDevice(p, "");
     p->fd = STDIN_FILENO;
     for (h = 0; h < NDEVICES && p->handler == NULL && p->fd >= 0; h++)
-        p->handler = (*devices[h].create)(p);
+      p->handler = (*devices[h].create)(p);
     if (p->fd >= 0) {
       if (p->handler == NULL) {
         physical_SetupStack(p, "unknown", PHYSICAL_NOFORCE);
@@ -941,10 +975,9 @@ physical_Open(struct physical *p, struct bundle *bundle)
             err = errno;
         }
 
-        wasopen = p->fd >= 0;
+        wasfd = p->fd;
         for (h = 0; h < NDEVICES && p->handler == NULL; h++)
-          if ((p->handler = (*devices[h].create)(p)) == NULL &&
-              wasopen && p->fd == -1)
+          if ((p->handler = (*devices[h].create)(p)) == NULL && wasfd != p->fd)
             break;
 
         if (p->fd < 0) {
@@ -954,7 +987,7 @@ physical_Open(struct physical *p, struct bundle *bundle)
                          strerror(errno));
             else
 	      log_Printf(LogWARN, "%s: Device (%s) must begin with a '/',"
-                         " a '!' or be a host:port pair\n", p->link.name,
+                         " a '!' or contain at least one ':'\n", p->link.name,
                          p->name.full);
           }
           physical_Unlock(p);
@@ -973,14 +1006,15 @@ void
 physical_SetupStack(struct physical *p, const char *who, int how)
 {
   link_EmptyStack(&p->link);
-  if (how == PHYSICAL_FORCE_SYNC ||
+  if (how == PHYSICAL_FORCE_SYNC || how == PHYSICAL_FORCE_SYNCNOACF ||
       (how == PHYSICAL_NOFORCE && physical_IsSync(p)))
     link_Stack(&p->link, &synclayer);
   else {
     link_Stack(&p->link, &asynclayer);
     link_Stack(&p->link, &hdlclayer);
   }
-  link_Stack(&p->link, &acflayer);
+  if (how != PHYSICAL_FORCE_SYNCNOACF)
+    link_Stack(&p->link, &acflayer);
   link_Stack(&p->link, &protolayer);
   link_Stack(&p->link, &lqrlayer);
   link_Stack(&p->link, &ccplayer);

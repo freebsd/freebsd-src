@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -37,6 +37,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
+#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
+#include <sys/linker.h>
+#endif
 #include <unistd.h>
 #ifdef __OpenBSD__
 #include <util.h>
@@ -211,7 +214,7 @@ ID0login(struct utmp *ut)
 }
 
 void
-ID0logout(const char *device)
+ID0logout(const char *device, int nologout)
 {
   struct utmp ut;
 
@@ -219,7 +222,7 @@ ID0logout(const char *device)
   ut.ut_line[sizeof ut.ut_line - 1] = '\0';
 
   ID0set0();
-  if (logout(ut.ut_line)) {
+  if (nologout || logout(ut.ut_line)) {
     log_Printf(LogID0, "logout(\"%s\")\n", ut.ut_line);
     logwtmp(ut.ut_line, "", ""); 
     log_Printf(LogID0, "logwtmp(\"%s\", \"\", \"\")\n", ut.ut_line);
@@ -265,3 +268,31 @@ ID0kill(pid_t pid, int sig)
   ID0setuser();
   return result;
 }
+
+void
+ID0setproctitle(const char *title)
+{
+  ID0set0();
+  if (title == NULL) {
+    setproctitle(NULL);
+    log_Printf(LogID0, "setproctitle(NULL)\n");
+  } else {
+    setproctitle("%s", title);
+    log_Printf(LogID0, "setproctitle(\"%%s\", \"%s\")\n", title);
+  }
+  ID0setuser();
+}
+
+#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
+int
+ID0kldload(const char *dev)
+{
+  int result;
+
+  ID0set0();
+  result = kldload(dev);
+  log_Printf(LogID0, "%d = kldload(\"%s\")\n", result, dev);
+  ID0setuser();
+  return result;
+}
+#endif

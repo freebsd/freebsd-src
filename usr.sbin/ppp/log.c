@@ -72,6 +72,7 @@ static u_long LogMask = MSK(LogPHASE);
 static u_long LogMaskLocal = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
 static int LogTunno = -1;
 static struct prompt *promptlist;	/* Where to log local stuff */
+struct prompt *log_PromptContext;
 int log_PromptListChanged;
 
 struct prompt *
@@ -307,20 +308,23 @@ log_Printf(int lev, const char *fmt,...)
   if (log_IsKept(lev)) {
     char nfmt[200];
 
-    if ((log_IsKept(lev) & LOG_KEPT_LOCAL) && promptlist) {
+    if (promptlist && (log_IsKept(lev) & LOG_KEPT_LOCAL)) {
       if ((log_IsKept(LogTUN) & LOG_KEPT_LOCAL) && LogTunno != -1)
         snprintf(nfmt, sizeof nfmt, "%s%d: %s: %s", TUN_NAME,
 	         LogTunno, log_Name(lev), fmt);
       else
         snprintf(nfmt, sizeof nfmt, "%s: %s", log_Name(lev), fmt);
   
-      for (prompt = promptlist; prompt; prompt = prompt->next)
+      if (log_PromptContext && lev == LogWARN)
+        /* Warnings just go to the current prompt */
+        prompt_vPrintf(log_PromptContext, nfmt, ap);
+      else for (prompt = promptlist; prompt; prompt = prompt->next)
         if (lev > LogMAXCONF || (prompt->logmask & MSK(lev)))
           prompt_vPrintf(prompt, nfmt, ap);
     }
 
     if ((log_IsKept(lev) & LOG_KEPT_SYSLOG) &&
-        (lev != LogWARN || !promptlist)) {
+        (lev != LogWARN || !log_PromptContext)) {
       if ((log_IsKept(LogTUN) & LOG_KEPT_SYSLOG) && LogTunno != -1)
         snprintf(nfmt, sizeof nfmt, "%s%d: %s: %s", TUN_NAME,
 	         LogTunno, log_Name(lev), fmt);

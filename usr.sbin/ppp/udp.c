@@ -116,7 +116,7 @@ udp_Free(struct physical *p)
 
 static void
 udp_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov, pid_t newpid)
+               int maxiov, int *auxfd, int *nauxfd, pid_t newpid)
 {
   int sz = physical_MaxDeviceSize();
 
@@ -137,6 +137,7 @@ static const struct device baseudpdevice = {
   NULL,
   NULL,
   NULL,
+  NULL,
   udp_Free,
   udp_Recvfrom,
   udp_Sendto,
@@ -147,7 +148,7 @@ static const struct device baseudpdevice = {
 
 struct device *
 udp_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
-               int maxiov)
+               int maxiov, int *auxfd, int *nauxfd)
 {
   if (type == UDP_DEVICE) {
     struct udpdevice *dev = (struct udpdevice *)iov[(*niov)++].iov_base;
@@ -231,7 +232,7 @@ udp_Create(struct physical *p)
 
   dev = NULL;
   if (p->fd < 0) {
-    if ((cp = strchr(p->name.full, ':')) != NULL) {
+    if ((cp = strchr(p->name.full, ':')) != NULL && !strchr(cp + 1, ':')) {
       *cp = '\0';
       host = p->name.full;
       port = cp + 1;
@@ -240,8 +241,10 @@ udp_Create(struct physical *p)
         *cp = ':';
         return NULL;
       }
-      if (svc)
+      if (svc) {
+        p->fd--;     /* We own the device but maybe can't use it - change fd */
         *svc = '\0';
+      }
 
       if (*host && *port)
         dev = udp_CreateDevice(p, host, port);

@@ -39,12 +39,21 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#ifdef __OpenBSD__
+#include <util.h>
+#else
+#include <libutil.h>
+#endif
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
+#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
+#include <sys/linker.h>
+#include <sys/module.h>
+#endif
 #include <termios.h>
 #include <unistd.h>
 
@@ -86,10 +95,13 @@
 #include "ip.h"
 #include "iface.h"
 
-#define SCATTER_SEGMENTS 6	/* version, datalink, name, physical,
-                                   throughput, device */
-#define SOCKET_OVERHEAD	100	/* additional buffer space for large */
-                                /* {recv,send}msg() calls            */
+#define SCATTER_SEGMENTS 6      /* version, datalink, name, physical,
+                                   throughput, device                   */
+#define SOCKET_OVERHEAD	100     /* additional buffer space for large
+                                   {recv,send}msg() calls               */
+
+#define SEND_MAXFD 2		/* Max file descriptors passed through
+                                   the local domain socket              */
 
 static int bundle_RemainingIdleTime(struct bundle *);
 
@@ -309,7 +321,7 @@ bundle_LayerFinish(void *v, struct fsm *fp)
     if (bundle_Phase(bundle) != PHASE_DEAD)
       bundle_NewPhase(bundle, PHASE_TERMINATE);
     for (dl = bundle->links; dl; dl = dl->next)
-      datalink_Close(dl, CLOSE_NORMAL);
+      datalink_Close(dl, CLOSE_STAYDOWN);
     fsm2initial(fp);
   } else if (fp->proto == PROTO_LCP) {
     int others_active;
@@ -411,7 +423,7 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     if (r && (bundle->phase == PHASE_NETWORK ||
               bundle->phys_type.all & PHYS_AUTO)) {
       /* enough surplus so that we can tell if we're getting swamped */
-      if (queued < 20) {
+      if (queued < 30) {
         /* Not enough - select() for more */
         if (bundle->choked.timer.state == TIMER_RUNNING)
           timer_Stop(&bundle->choked.timer);	/* Not needed any more */
@@ -596,11 +608,14 @@ bundle_UnlockTun(struct bundle *bundle)
 }
 
 struct bundle *
-bundle_Create(const char *prefix, int type, const char **argv)
+bundle_Create(const char *prefix, int type, int unit)
 {
   static struct bundle bundle;		/* there can be only one */
-  int enoentcount, err;
+  int enoentcount, err, minunit, maxunit;
   const char *ifname;
+#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
+  int kldtried;
+#endif
 #if defined(TUNSIFMODE) || defined(TUNSLMODE)
   int iff;
 #endif
@@ -610,15 +625,40 @@ bundle_Create(const char *prefix, int type, const char **argv)
     return NULL;
   }
 
+  if (unit == -1) {
+    minunit = 0;
+    maxunit = -1;
+  } else {
+    minunit = unit;
+    maxunit = unit + 1;
+  }
   err = ENOENT;
   enoentcount = 0;
-  for (bundle.unit = 0; ; bundle.unit++) {
+#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
+  kldtried = 0;
+#endif
+  for (bundle.unit = minunit; bundle.unit != maxunit; bundle.unit++) {
     snprintf(bundle.dev.Name, sizeof bundle.dev.Name, "%s%d",
              prefix, bundle.unit);
     bundle.dev.fd = ID0open(bundle.dev.Name, O_RDWR);
     if (bundle.dev.fd >= 0)
       break;
     else if (errno == ENXIO) {
+#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
+      if (bundle.unit == minunit && !kldtried++) {
+        /*
+	 * Attempt to load the tunnel interface KLD if it isn't loaded
+	 * already.
+         */
+        if (modfind("if_tun") == -1) {
+          if (ID0kldload("if_tun") != -1) {
+            bundle.unit--;
+            continue;
+          }
+          log_Printf(LogWARN, "kldload: if_tun: %s\n", strerror(errno));
+        }
+      }
+#endif
       err = errno;
       break;
     } else if (errno == ENOENT) {
@@ -629,15 +669,15 @@ bundle_Create(const char *prefix, int type, const char **argv)
   }
 
   if (bundle.dev.fd < 0) {
-    log_Printf(LogWARN, "No available tunnel devices found (%s).\n",
-              strerror(err));
+    if (unit == -1)
+      log_Printf(LogWARN, "No available tunnel devices found (%s)\n",
+                strerror(err));
+    else
+      log_Printf(LogWARN, "%s%d: %s\n", prefix, unit, strerror(err));
     return NULL;
   }
 
   log_SetTun(bundle.unit);
-  bundle.argv = argv;
-  bundle.argv0 = argv[0];
-  bundle.argv1 = argv[1];
 
   ifname = strrchr(bundle.dev.Name, '/');
   if (ifname == NULL)
@@ -788,6 +828,8 @@ bundle_Destroy(struct bundle *bundle)
   dl = bundle->links;
   while (dl)
     dl = datalink_Destroy(dl);
+
+  ipcp_Destroy(&bundle->ncp.ipcp);
 
   close(bundle->dev.fd);
   bundle_UnlockTun(bundle);
@@ -1057,7 +1099,6 @@ bundle_ShowStatus(struct cmdargs const *arg)
   int remaining;
 
   prompt_Printf(arg->prompt, "Phase %s\n", bundle_PhaseName(arg->bundle));
-  prompt_Printf(arg->prompt, " Title:         %s\n", arg->bundle->argv[0]);
   prompt_Printf(arg->prompt, " Device:        %s\n", arg->bundle->dev.Name);
   prompt_Printf(arg->prompt, " Interface:     %s @ %lubps",
                 arg->bundle->iface->name, arg->bundle->bandwidth);
@@ -1291,21 +1332,23 @@ bundle_GetLabel(struct bundle *bundle)
 void
 bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
 {
-  char cmsgbuf[sizeof(struct cmsghdr) + sizeof(int)];
-  struct cmsghdr *cmsg = (struct cmsghdr *)cmsgbuf;
+  char cmsgbuf[(sizeof(struct cmsghdr) + sizeof(int)) * SEND_MAXFD];
+  struct cmsghdr *cmsg;
   struct msghdr msg;
   struct iovec iov[SCATTER_SEGMENTS];
   struct datalink *dl;
-  int niov, link_fd, expect, f;
+  int niov, expect, f, fd[SEND_MAXFD], nfd, onfd;
   pid_t pid;
 
   log_Printf(LogPHASE, "Receiving datalink\n");
 
   /* Create our scatter/gather array */
   niov = 1;
+
   iov[0].iov_len = strlen(Version) + 1;
   iov[0].iov_base = (char *)malloc(iov[0].iov_len);
-  if (datalink2iov(NULL, iov, &niov, sizeof iov / sizeof *iov, 0) == -1) {
+  if (datalink2iov(NULL, iov, &niov, sizeof iov / sizeof *iov,
+                   NULL, NULL, 0) == -1) {
     close(s);
     return;
   }
@@ -1317,9 +1360,12 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
     expect += iov[f].iov_len;
 
   /* Set up our message */
-  cmsg->cmsg_len = sizeof cmsgbuf;
-  cmsg->cmsg_level = SOL_SOCKET;
-  cmsg->cmsg_type = 0;
+  for (f = 0; f < SEND_MAXFD; f++) {
+    cmsg = (struct cmsghdr *)(cmsgbuf + f * sizeof(struct cmsghdr));
+    cmsg->cmsg_len = sizeof *cmsg + sizeof(int);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = 0;
+  }
 
   memset(&msg, '\0', sizeof msg);
   msg.msg_name = (caddr_t)sun;
@@ -1346,35 +1392,63 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   write(s, "!", 1);	/* ACK */
   close(s);
 
-  if (cmsg->cmsg_type != SCM_RIGHTS) {
-    log_Printf(LogERROR, "Recvmsg: no descriptor received !\n");
+  for (nfd = 0; nfd < SEND_MAXFD; nfd++) {
+    cmsg = (struct cmsghdr *)(cmsgbuf + nfd * sizeof(struct cmsghdr));
+    if (cmsg->cmsg_len == sizeof *cmsg + sizeof(int) &&
+        cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS)
+      fd[nfd] = *(int *)CMSG_DATA(cmsg);
+    else
+      break;
+  }
+
+  if (nfd == 0) {
+    log_Printf(LogERROR, "Recvmsg: no descriptors received !\n");
     while (niov--)
       free(iov[niov].iov_base);
     return;
   }
 
-  /* We've successfully received an open file descriptor through our socket */
+  /*
+   * We've successfully received one or more open file descriptors
+   * through our socket
+   */
   log_Printf(LogDEBUG, "Receiving device descriptor\n");
-  link_fd = *(int *)CMSG_DATA(cmsg);
+
+  nfd--;	/* Don't include p->fd */
 
   if (strncmp(Version, iov[0].iov_base, iov[0].iov_len)) {
     log_Printf(LogWARN, "Cannot receive datalink, incorrect version"
                " (\"%.*s\", not \"%s\")\n", (int)iov[0].iov_len,
                (char *)iov[0].iov_base, Version);
-    close(link_fd);
+    while (nfd)
+      close(fd[nfd--]);
+    close(fd[0]);
     while (niov--)
       free(iov[niov].iov_base);
     return;
   }
 
   niov = 1;
-  dl = iov2datalink(bundle, iov, &niov, sizeof iov / sizeof *iov, link_fd);
+  onfd = nfd;
+  dl = iov2datalink(bundle, iov, &niov, sizeof iov / sizeof *iov, fd[0],
+                    fd + 1, &nfd);
   if (dl) {
-    bundle_DatalinkLinkin(bundle, dl);
-    datalink_AuthOk(dl);
-    bundle_CalculateBandwidth(dl->bundle);
-  } else
-    close(link_fd);
+    if (nfd) {
+      log_Printf(LogERROR, "bundle_ReceiveDatalink: Failed to handle %d "
+                 "auxiliary file descriptors\n", nfd);
+      datalink_Destroy(dl);
+      while (nfd--)
+        close(fd[onfd--]);
+    } else {
+      bundle_DatalinkLinkin(bundle, dl);
+      datalink_AuthOk(dl);
+      bundle_CalculateBandwidth(dl->bundle);
+    }
+  } else {
+    while (nfd--)
+      close(fd[onfd--]);
+    close(fd[0]);
+  }
 
   free(iov[0].iov_base);
 }
@@ -1382,11 +1456,11 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
 void
 bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
 {
-  char cmsgbuf[sizeof(struct cmsghdr) + sizeof(int)], ack;
-  struct cmsghdr *cmsg = (struct cmsghdr *)cmsgbuf;
+  char cmsgbuf[(sizeof(struct cmsghdr) + sizeof(int)) * SEND_MAXFD], ack;
+  struct cmsghdr *cmsg;
   struct msghdr msg;
   struct iovec iov[SCATTER_SEGMENTS];
-  int niov, link_fd, f, expect, newsid;
+  int niov, f, expect, newsid, fd[SEND_MAXFD], nfd;
   pid_t newpid;
 
   log_Printf(LogPHASE, "Transmitting datalink %s\n", dl->name);
@@ -1398,11 +1472,15 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
   iov[0].iov_len = strlen(Version) + 1;
   iov[0].iov_base = strdup(Version);
   niov = 1;
+  nfd = 0;
 
   read(s, &newpid, sizeof newpid);
-  link_fd = datalink2iov(dl, iov, &niov, sizeof iov / sizeof *iov, newpid);
+  fd[0] = datalink2iov(dl, iov, &niov, sizeof iov / sizeof *iov,
+                          fd + 1, &nfd, newpid);
 
-  if (link_fd != -1) {
+  if (fd[0] != -1) {
+    nfd++;	/* Include fd[0] */
+
     memset(&msg, '\0', sizeof msg);
 
     msg.msg_name = (caddr_t)sun;
@@ -1410,17 +1488,22 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     msg.msg_iov = iov;
     msg.msg_iovlen = niov;
 
-    cmsg->cmsg_len = sizeof cmsgbuf;
-    cmsg->cmsg_level = SOL_SOCKET;
-    cmsg->cmsg_type = SCM_RIGHTS;
-    *(int *)CMSG_DATA(cmsg) = link_fd;
+    for (f = 0; f < nfd; f++) {
+      cmsg = (struct cmsghdr *)(cmsgbuf + f * sizeof(struct cmsghdr));
+      cmsg->cmsg_len = sizeof *cmsg + sizeof(int);
+      cmsg->cmsg_level = SOL_SOCKET;
+      cmsg->cmsg_type = SCM_RIGHTS;
+      *(int *)CMSG_DATA(cmsg) = fd[f];
+    }
+
     msg.msg_control = cmsgbuf;
-    msg.msg_controllen = sizeof cmsgbuf;
+    msg.msg_controllen = (sizeof *cmsg + sizeof(int)) * nfd;
 
     for (f = expect = 0; f < niov; f++)
       expect += iov[f].iov_len;
 
-    log_Printf(LogDEBUG, "Sending %d bytes in scatter/gather array\n", expect);
+    log_Printf(LogDEBUG, "Sending %d descriptor%s and %d bytes in scatter"
+               "/gather array\n", nfd, nfd == 1 ? "" : "s", expect);
 
     f = expect + SOCKET_OVERHEAD;
     setsockopt(s, SOL_SOCKET, SO_SNDBUF, &f, sizeof f);
@@ -1430,8 +1513,9 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     read(s, &ack, 1);
 
     newsid = Enabled(dl->bundle, OPT_KEEPSESSION) ||
-             tcgetpgrp(link_fd) == getpgrp();
-    close(link_fd);
+             tcgetpgrp(fd[0]) == getpgrp();
+    while (nfd)
+      close(fd[--nfd]);
     if (newsid)
       bundle_setsid(dl->bundle, 1);
   }
@@ -1577,8 +1661,7 @@ bundle_setsid(struct bundle *bundle, int holdsession)
          */
         waitpid(pid, &status, 0);
         /* Tweak our process arguments.... */
-        bundle->argv[0] = "session owner";
-        bundle->argv[1] = NULL;
+        ID0setproctitle("session owner");
         /*
          * Hang around for a HUP.  This should happen as soon as the
          * ppp that we passed our ctty descriptor to closes it.

@@ -82,17 +82,23 @@ link_AddOutOctets(struct link *l, int n)
 void
 link_SequenceQueue(struct link *l)
 {
+  struct mqueue *queue, *highest;
+
   log_Printf(LogDEBUG, "link_SequenceQueue\n");
-  while (l->Queue[PRI_NORMAL].qlen)
-    mbuf_Enqueue(l->Queue + PRI_LINK, mbuf_Dequeue(l->Queue + PRI_NORMAL));
+
+  highest = LINK_HIGHQ(l);
+  for (queue = l->Queue; queue < highest; queue++)
+    while (queue->qlen)
+      mbuf_Enqueue(highest, mbuf_Dequeue(queue));
 }
 
 void
 link_DeleteQueue(struct link *l)
 {
-  struct mqueue *queue;
+  struct mqueue *queue, *highest;
 
-  for (queue = l->Queue; queue < l->Queue + LINK_QUEUES; queue++)
+  highest = LINK_HIGHQ(l);
+  for (queue = l->Queue; queue <= highest; queue++)
     while (queue->top)
       mbuf_Free(mbuf_Dequeue(queue));
 }
@@ -102,7 +108,7 @@ link_QueueLen(struct link *l)
 {
   int i, len;
 
-  for (i = 0, len = 0; i < LINK_QUEUES; i++)
+  for (i = 0, len = 0; i < LINK_QUEUES(l); i++)
     len += l->Queue[i].qlen;
 
   return len;
@@ -115,7 +121,7 @@ link_QueueBytes(struct link *l)
   struct mbuf *m;
 
   bytes = 0;
-  for (i = 0, len = 0; i < LINK_QUEUES; i++) {
+  for (i = 0, len = 0; i < LINK_QUEUES(l); i++) {
     len = l->Queue[i].qlen;
     m = l->Queue[i].top;
     while (len--) {
@@ -133,7 +139,7 @@ link_Dequeue(struct link *l)
   int pri;
   struct mbuf *bp;
 
-  for (bp = (struct mbuf *)0, pri = LINK_QUEUES - 1; pri >= 0; pri--)
+  for (bp = NULL, pri = LINK_QUEUES(l) - 1; pri >= 0; pri--)
     if (l->Queue[pri].qlen) {
       bp = mbuf_Dequeue(l->Queue + pri);
       log_Printf(LogDEBUG, "link_Dequeue: Dequeued from queue %d,"
@@ -208,7 +214,7 @@ link_PushPacket(struct link *l, struct mbuf *bp, struct bundle *b, int pri,
    * packet (as we do with ``pull''s).
    */
 
-  if(pri < 0 || pri >= LINK_QUEUES)
+  if(pri < 0 || pri >= LINK_QUEUES(l))
     pri = 0;
 
   for (layer = l->nlayers; layer && bp; layer--)

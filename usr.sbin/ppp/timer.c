@@ -35,7 +35,7 @@
 #include "descriptor.h"
 #include "prompt.h"
 
-static struct pppTimer *TimerList = NULL;
+static struct pppTimer *TimerList = NULL, *ExpiredList = NULL;
 
 static void StopTimerNoBlock(struct pppTimer *);
 
@@ -62,6 +62,7 @@ timer_Stop(struct pppTimer *tp)
 void
 timer_Start(struct pppTimer *tp)
 {
+  struct itimerval itimer;
   struct pppTimer *t, *pt;
   u_long ticks = 0;
   int omask;
@@ -76,6 +77,12 @@ timer_Start(struct pppTimer *tp)
     sigsetmask(omask);
     return;
   }
+
+  /* Adjust our first delta so that it reflects what's really happening */
+  if (TimerList && getitimer(ITIMER_REAL, &itimer) == 0)
+    TimerList->rest = itimer.it_value.tv_sec * SECTICKS +
+                      itimer.it_value.tv_usec / TICKUNIT;
+
   pt = NULL;
   for (t = TimerList; t; t = t->next) {
     if (ticks + t->rest >= tp->load)
@@ -99,7 +106,7 @@ timer_Start(struct pppTimer *tp)
     pt->next = tp;
   } else {
     TimerList = tp;
-    timer_InitService(0);	/* Start the Timer Service */
+    timer_InitService(t != NULL);	/* [re]Start the Timer Service */
   }
   if (t)
     t->rest -= tp->rest;
@@ -117,14 +124,14 @@ StopTimerNoBlock(struct pppTimer *tp)
    * A STOPPED timer isn't in any list, but may have a bogus [e]next field.
    * An EXPIRED timer is in the ->enext list.
    */
-  if (tp->state != TIMER_RUNNING) {
-    tp->next = NULL;
-    tp->state = TIMER_STOPPED;
+
+  if (tp->state == TIMER_STOPPED)
     return;
-  }
+
   pt = NULL;
   for (t = TimerList; t != tp && t != NULL; t = t->next)
     pt = t;
+
   if (t) {
     if (pt) {
       pt->next = t->next;
@@ -135,10 +142,22 @@ StopTimerNoBlock(struct pppTimer *tp)
     }
     if (t->next)
       t->next->rest += tp->rest;
-  } else
-    log_Printf(LogERROR, "Oops, %s timer not found!!\n", tp->name);
+  } else {
+    /* Search for any pending expired timers */
+    pt = NULL;
+    for (t = ExpiredList; t != tp && t != NULL; t = t->enext)
+      pt = t;
 
-  tp->next = NULL;
+    if (t) {
+      if (pt)
+        pt->enext = t->enext;
+      else
+        ExpiredList = t->enext;
+    } else if (tp->state == TIMER_RUNNING)
+      log_Printf(LogERROR, "Oops, %s timer not found!!\n", tp->name);
+  }
+
+  tp->next = tp->enext = NULL;
   tp->state = TIMER_STOPPED;
 }
 
@@ -178,11 +197,11 @@ TimerService(void)
   
     /* Process all expired timers */
     while (exp) {
-      next = exp->enext;
+      ExpiredList = exp->enext;
       exp->enext = NULL;
       if (exp->func)
         (*exp->func)(exp->arg);
-      exp = next;
+      exp = ExpiredList;
     }
   }
 }

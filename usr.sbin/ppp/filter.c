@@ -277,6 +277,24 @@ ParseIgmp(int argc, char const * const *argv, struct filterent *tgt)
   return 1;
 }
 
+#ifdef P_GRE
+static int
+ParseGRE(int argc, char const * const *argv, struct filterent *tgt)
+{
+  /*
+   * Filter currently is a catch-all. Requests are either permitted or
+   * dropped.
+   */
+  if (argc != 0) {
+    log_Printf(LogWARN, "ParseGRE: Too many parameters\n");
+    return 0;
+  } else
+    tgt->f_srcop = OP_NONE;
+
+  return 1;
+}
+#endif
+
 #ifdef P_OSPF
 static int
 ParseOspf(int argc, char const * const *argv, struct filterent *tgt)
@@ -458,6 +476,11 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
     val = ParseOspf(argc, argv, &filterdata);
     break;
 #endif
+#ifdef P_GRE
+  case P_GRE:
+    val = ParseGRE(argc, argv, &filterdata);
+    break;
+#endif
   }
 
   log_Printf(LogDEBUG, "Parse: Src: %s\n", inet_ntoa(filterdata.f_src.ipaddr));
@@ -596,7 +619,7 @@ filter_Show(struct cmdargs const *arg)
 }
 
 static const char *protoname[] = {
-  "none", "tcp", "udp", "icmp", "ospf", "igmp"
+  "none", "tcp", "udp", "icmp", "ospf", "igmp", "gre"
 };
 
 const char *

@@ -531,7 +531,7 @@ chat_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 void
-chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf,
+chat_Init(struct chat *c, struct physical *p, const char *data,
           const char *phone)
 {
   c->desc.type = CHAT_DESCRIPTOR;
@@ -556,7 +556,7 @@ chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf,
   c->argptr = NULL;
   c->nargptr = NULL;
 
-  if (emptybuf)
+  if (c->bufstart == NULL)
     c->bufstart = c->bufend = c->buf;
 
   c->TimeoutSec = 30;

@@ -33,18 +33,25 @@ struct cmdargs;
 #define TTY_DEVICE	2
 #define TCP_DEVICE	3
 #define UDP_DEVICE	4
-#define EXEC_DEVICE	5
+#define ETHER_DEVICE	5
+#define EXEC_DEVICE	6
 
 /* Returns from awaitcarrier() */
 #define CARRIER_PENDING	1
 #define CARRIER_OK	2
 #define CARRIER_LOST	3
 
+/* A cd ``necessity'' value */
+#define CD_VARIABLE	1
+#define CD_REQUIRED	2
+#define CD_NOTREQUIRED	3
+
 struct device {
   int type;
   const char *name;
 
   int (*awaitcarrier)(struct physical *);
+  int (*removefromset)(struct physical *, fd_set *, fd_set *, fd_set *);
   int (*raw)(struct physical *);
   void (*offline)(struct physical *);
   void (*cooked)(struct physical *);
@@ -52,7 +59,8 @@ struct device {
   void (*destroy)(struct physical *);
   ssize_t (*read)(struct physical *, void *, size_t);
   ssize_t (*write)(struct physical *, const void *, size_t);
-  void (*device2iov)(struct device *, struct iovec *, int *, int, pid_t);
+  void (*device2iov)(struct device *, struct iovec *, int *, int, int *,
+                     int *, pid_t);
   int (*speed)(struct physical *);
   const char *(*openinfo)(struct physical *);
 };
@@ -78,7 +86,7 @@ struct physical {
     char *base;
   } name;
 
-  unsigned Utmp : 1;           /* Are we in utmp ? (move to ttydevice ?) */
+  time_t Utmp;                 /* Are we in utmp ? */
   pid_t session_owner;         /* HUP this when closing the link */
 
   struct device *handler;      /* device specific handler */
@@ -91,7 +99,7 @@ struct physical {
     char devlist[LINE_LEN];    /* NUL separated list of devices */
     int ndev;                  /* number of devices in list */
     struct {
-      unsigned required : 1;   /* Is cd *REQUIRED* on this device */
+      unsigned necessity : 2;  /* A CD_ value */
       int delay;               /* Wait this many seconds after login script */
     } cd;
   } cfg;
@@ -106,9 +114,10 @@ struct physical {
 #define descriptor2physical(d) \
   ((d)->type == PHYSICAL_DESCRIPTOR ? field2phys(d, desc) : NULL)
 
-#define PHYSICAL_NOFORCE	1
-#define PHYSICAL_FORCE_ASYNC	2
-#define PHYSICAL_FORCE_SYNC	3
+#define PHYSICAL_NOFORCE		1
+#define PHYSICAL_FORCE_ASYNC		2
+#define PHYSICAL_FORCE_SYNC		3
+#define PHYSICAL_FORCE_SYNCNOACF	4
 
 extern struct physical *physical_Create(struct datalink *, int);
 extern int physical_Open(struct physical *, struct bundle *);
@@ -123,8 +132,9 @@ extern void physical_Offline(struct physical *);
 extern void physical_Close(struct physical *);
 extern void physical_Destroy(struct physical *);
 extern struct physical *iov2physical(struct datalink *, struct iovec *, int *,
-                                     int, int);
-extern int physical2iov(struct physical *, struct iovec *, int *, int, pid_t);
+                                     int, int, int *, int *);
+extern int physical2iov(struct physical *, struct iovec *, int *, int, int *,
+                        int *, pid_t);
 extern void physical_ChangedPid(struct physical *, pid_t);
 
 extern int physical_IsSync(struct physical *);
@@ -137,6 +147,8 @@ extern ssize_t physical_Write(struct physical *, const void *, size_t);
 extern int physical_doUpdateSet(struct descriptor *, fd_set *, fd_set *,
                                 fd_set *, int *, int);
 extern int physical_IsSet(struct descriptor *, const fd_set *);
+extern void physical_DescriptorRead(struct descriptor *, struct bundle *,
+                                    const fd_set *);
 extern void physical_Login(struct physical *, const char *);
 extern int physical_RemoveFromSet(struct physical *, fd_set *, fd_set *,
                                   fd_set *);
@@ -146,3 +158,4 @@ extern void physical_SetupStack(struct physical *, const char *, int);
 extern void physical_StopDeviceTimer(struct physical *);
 extern int physical_MaxDeviceSize(void);
 extern int physical_AwaitCarrier(struct physical *);
+extern void physical_SetDescriptor(struct physical *);

@@ -21,11 +21,15 @@ MAN8=	ppp.8
 CFLAGS+=-DRELEASE_CRUNCH
 .endif
 
+.if defined(NOKLDLOAD)
+CFLAGS+=-DNOKLDLOAD
+.endif
+
 .if defined(NOALIAS) || defined(NONAT)
 CFLAGS+=-DNONAT
 .else
 .if !defined(RELEASE_CRUNCH)
-SRCS+=	alias_cmd.c
+SRCS+=	nat_cmd.c
 LDADD+=	-lalias
 DPADD+= ${LIBALIAS}
 .endif
@@ -49,21 +53,28 @@ DPADD+= ${LIBRADIUS}
 .endif
 .endif
 
-# Remove this line if you've installed I4B 00.83.00 or higher
-#NOI4B=TRUE
-
 .if defined(NOI4B) || ${MACHINE_ARCH} == "alpha"
 CFLAGS+=-DNOI4B
 .else
 SRCS+=	i4b.c
 .endif
 
+NONETGRAPH=	TRUE
+
+.if defined(NONETGRAPH)
+CFLAGS+=-DNONETGRAPH
+.else
+SRCS+=	ether.c
+LDADD+=	-lnetgraph
+DPADD+= ${LIBNETGRAPH}
+.endif
+
 .if defined(RELEASE_CRUNCH)
 # We must create these objects because crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
-CFLAGS+=-DNONAT -DNORADIUS -DNOI4B
-OBJS+=	alias_cmd.o chap_ms.o radius.o
-chap_ms.o alias_cmd.o radius.o:
+CFLAGS+=-DNONAT -DNORADIUS -DNOI4B -DNONETGRAPH
+OBJS+=	chap_ms.o ether.o nat_cmd.o radius.o
+chap_ms.o ether.o nat_cmd.o radius.o:
 	>null_${.PREFIX}.c
 	cc -c -o ${.TARGET} null_${.PREFIX}.c
 .endif

@@ -46,7 +46,7 @@
 
 #include "layer.h"
 #ifndef NONAT
-#include "alias_cmd.h"
+#include "nat_cmd.h"
 #endif
 #include "vjcomp.h"
 #include "ua.h"
@@ -628,7 +628,7 @@ mp_Output(struct mp *mp, struct bundle *bundle, struct link *l,
                mp->out.seq, mbuf_Length(mo), l->name);
   mp->out.seq = inc_seq(mp->peer_is12bit, mp->out.seq);
 
-  link_PushPacket(l, mo, bundle, PRI_NORMAL, PROTO_MP);
+  link_PushPacket(l, mo, bundle, LINK_QUEUES(l) - 1, PROTO_MP);
 }
 
 int

@@ -29,6 +29,9 @@
 #define	P_OSPF	4
 #endif
 #define	P_IGMP	5
+#ifdef IPPROTO_GRE
+#define P_GRE   6
+#endif
 
 /* Operations - f_srcop, f_dstop */
 #define	OP_NONE	0
