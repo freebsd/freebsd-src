@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.24 1996/05/02 05:31:13 fenner Exp $
+ *	$Id: udp_usrreq.c,v 1.25 1996/05/02 05:54:14 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -95,6 +95,7 @@ static	int udp_output __P((struct inpcb *, struct mbuf *, struct mbuf *,
 			    struct mbuf *));
 static	void udp_notify __P((struct inpcb *, int));
 static	struct mbuf *udp_saveopt __P((caddr_t, int, int));
+static struct mbuf *udp_timestamp __P((void));
 
 void
 udp_init()
@@ -304,9 +305,14 @@ udp_input(m, iphlen)
 	 */
 	udp_in.sin_port = uh->uh_sport;
 	udp_in.sin_addr = ip->ip_src;
-	if (inp->inp_flags & INP_CONTROLOPTS) {
+	if (inp->inp_flags & INP_CONTROLOPTS
+	    || inp->inp_socket->so_options & SO_TIMESTAMP) {
 		struct mbuf **mp = &opts;
 
+		if (inp->inp_socket->so_options & SO_TIMESTAMP) {
+			if (*mp = udp_timestamp())
+				mp = &(*mp)->m_next;
+		}
 		if (inp->inp_flags & INP_RECVDSTADDR) {
 			*mp = udp_saveopt((caddr_t) &ip->ip_dst,
 			    sizeof(struct in_addr), IP_RECVDSTADDR);
@@ -369,6 +375,32 @@ udp_saveopt(p, size, type)
 	cp->cmsg_len = size;
 	cp->cmsg_level = IPPROTO_IP;
 	cp->cmsg_type = type;
+	return (m);
+}
+
+/*
+ *  Create an mbuf with the SCM_TIMESTAMP socket option data (struct timeval)
+ *  inside.  This really isn't UDP specific; but there's not really a better
+ *  place for it yet..
+ */
+static struct mbuf *
+udp_timestamp()
+{
+	register struct cmsghdr *cp;
+	struct mbuf *m;
+	struct timeval tv;
+
+	MGET(m, M_DONTWAIT, MT_CONTROL);
+	if (m == 0)
+		return (struct mbuf *) 0;
+
+	microtime(&tv);
+	cp = (struct cmsghdr *) mtod(m, struct cmsghdr *);
+	cp->cmsg_len = 
+	    m->m_len = sizeof(*cp) + sizeof(struct timeval);
+	cp->cmsg_level = SOL_SOCKET;
+	cp->cmsg_type = SCM_TIMESTAMP;
+	(void) memcpy(CMSG_DATA(cp), &tv, sizeof(struct timeval));
 	return (m);
 }
 

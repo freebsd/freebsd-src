@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.9 1996/01/30 23:01:22 mpp Exp $
+ * $Id: socket.h,v 1.10 1996/02/07 16:19:02 wollman Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -63,6 +63,7 @@
 #define	SO_LINGER	0x0080		/* linger on close if data present */
 #define	SO_OOBINLINE	0x0100		/* leave received OOB data in line */
 #define	SO_REUSEPORT	0x0200		/* allow local address & port reuse */
+#define	SO_TIMESTAMP	0x0400		/* timestamp received dgram traffic */
 
 /*
  * Additional options, not kept in so_options.
@@ -296,6 +297,7 @@ struct cmsghdr {
 
 /* "Socket"-level control message types: */
 #define	SCM_RIGHTS	0x01		/* access rights (array of int) */
+#define	SCM_TIMESTAMP	0x02		/* timestamp (struct timeval) */
 
 /*
  * 4.3 compat sockaddr, move to compat file later
