@@ -92,42 +92,16 @@ struct swdevt {
 #define SWAP_META_PAGES		(SWB_NPAGES * 2)
 #define SWAP_META_MASK		(SWAP_META_PAGES - 1)
 
-struct swblock {
-	struct swblock	*swb_hnext;
-	vm_object_t	swb_object;
-	vm_pindex_t	swb_index;
-	int		swb_count;
-	daddr_t		swb_pages[SWAP_META_PAGES];
-};
-
-extern struct pagerlst swap_pager_un_object_list;
 extern int swap_pager_full;
 extern struct blist *swapblist;
-extern struct uma_zone *swap_zone;
-extern int nswap_lowat, nswap_hiwat;
-extern int dmmax, dmmax_mask;
-extern struct vnode *swapdev_vp;
-extern struct swdevt *swdevt;
-extern int nswdev;
-/*
- * vm_swap_size is in page-sized chunks now.  It was DEV_BSIZE'd chunks
- * in the old system.
- */
-extern int vm_swap_size;	/* number of free swap blocks, in pages */
+extern int vm_swap_size;
 
 void swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
-void swap_pager_swapoff(int devidx, int *sw_used);
-
 void swap_pager_copy(vm_object_t, vm_object_t, vm_pindex_t, int);
 void swap_pager_freespace(vm_object_t, vm_pindex_t, vm_size_t);
 void swap_pager_swap_init(void);
 int swap_pager_isswapped(vm_object_t, int);
 int swap_pager_reserve(vm_object_t, vm_pindex_t, vm_size_t);
-
-/*
- * newswap functions
- */
-
 
 #endif				/* _KERNEL */
 #endif				/* _VM_SWAP_PAGER_H_ */
