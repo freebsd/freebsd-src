@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)from.c	8.1 (Berkeley) 6/6/93";
 #include <ctype.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <string.h>
 #include <paths.h>
 
 main(argc, argv)
@@ -63,7 +64,7 @@ main(argc, argv)
 #endif
 
 	file = sender = NULL;
-	while ((ch = getopt(argc, argv, "f:s:")) != EOF)
+	while ((ch = getopt(argc, argv, "f:s:?")) != EOF)
 		switch((char)ch) {
 		case 'f':
 			file = optarg;
@@ -93,7 +94,11 @@ main(argc, argv)
 		(void)sprintf(buf, "%s/%s", _PATH_MAILDIR, file);
 		file = buf;
 	}
-	if (!freopen(file, "r", stdin)) {
+
+	/* read from stdin */
+	if (strcmp(file, "-") == 0) {
+	} 
+	else if (!freopen(file, "r", stdin)) {
 		fprintf(stderr, "from: can't read %s.\n", file);
 		exit(1);
 	}
