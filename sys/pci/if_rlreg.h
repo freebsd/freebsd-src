@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rlreg.h,v 1.4.2.5 1999/06/20 18:57:14 wpaul Exp $
+ *	$Id: if_rlreg.h,v 1.4.2.6 1999/07/22 20:58:46 wpaul Exp $
  */
 
 /*
@@ -490,10 +490,10 @@ struct rl_softc {
 #define RL_PCI_RESETOPT		0x48
 #define RL_PCI_EEPROM_DATA	0x4C
 
-#define RL_PCI_CAPID		0xDC /* 8 bits */
-#define RL_PCI_NEXTPTR		0xDD /* 8 bits */
-#define RL_PCI_PWRMGMTCAP	0xDE /* 16 bits */
-#define RL_PCI_PWRMGMTCTRL	0xE0 /* 16 bits */
+#define RL_PCI_CAPID		0x50 /* 8 bits */
+#define RL_PCI_NEXTPTR		0x51 /* 8 bits */
+#define RL_PCI_PWRMGMTCAP	0x52 /* 16 bits */
+#define RL_PCI_PWRMGMTCTRL	0x54 /* 16 bits */
 
 #define RL_PSTATE_MASK		0x0003
 #define RL_PSTATE_D0		0x0000
