@@ -985,7 +985,14 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 		else
 			printf(", enabled\n");
 	}
-	
+
+	/*
+	 * This code theoretically does the right thing, but has
+	 * undesirable side effects in some cases where
+	 * peripherals respond oddly to having these bits
+	 * enabled.  Leave them alone by default.
+	 */
+#ifdef PCI_ENABLE_IO_MODES
 	/* Turn on resources that have been left off by a lazy BIOS */
 	if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f)) {
 		cmd = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_COMMAND, 2);
@@ -997,6 +1004,12 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 		cmd |= PCIM_CMD_MEMEN;
 		PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND, cmd, 2);
 	}
+#else
+        if (type == SYS_RES_IOPORT && !pci_porten(cfg))
+                return 1;
+        if (type == SYS_RES_MEMORY && !pci_memen(cfg))
+		return 1;
+#endif
 
 	resource_list_add(rl, type, reg,
 			  base, base + (1 << ln2size) - 1,
