@@ -61,7 +61,7 @@ dies Saturni
 #
 # x_fmt
 #
-%d.%m.%y
+%d.%m.%Y
 #
 # c_fmt
 #
@@ -94,10 +94,11 @@ October
 November
 December
 #
-# Ef_fmt
+# md_order
 #
-%e %b
+dm
 #
-# EF_fmt
+# ampm_fmt
 #
-%e %B
+%I:%M:%S %p
+# EOF

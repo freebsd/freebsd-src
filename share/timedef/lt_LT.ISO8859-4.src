@@ -33,14 +33,14 @@ lapkrièio
 gruod¾io
 #
 # Short weekday names
-# (padded with a space to conform with other languages)
-Sk 
-Pr 
-An 
-Tr 
-Kt 
-Pn 
-©t 
+#
+Sk
+Pr
+An
+Tr
+Kt
+Pn
+©t
 #
 # Long weekday names
 #
@@ -66,11 +66,11 @@ Penktadienis
 #
 # am
 #
-  
+
 #
 # pm
 #
-  
+
 #
 # date_fmt
 #
@@ -91,10 +91,11 @@ spalis
 lapkritis
 gruodis
 #
-# Ef_fmt
+# md_order
 #
-%b %e
+md
 #
-# EF_fmt
+# ampm_fmt
 #
-%B %e
+
+# EOF

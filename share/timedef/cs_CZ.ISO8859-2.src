@@ -38,13 +38,13 @@ prosince
 #
 # Short weekdays names
 #
-ne 
-po 
-út 
-st 
-èt 
-pá 
-so 
+ne
+po
+út
+st
+èt
+pá
+so
 #
 # Long weekdays names
 #
@@ -62,7 +62,7 @@ sobota
 #
 # x_fmt
 #
-%y/%m/%d
+%Y/%m/%d
 #
 # c_fmt
 #
@@ -95,10 +95,11 @@ záøí
 listopad
 prosinec
 #
-# Ef_fmt
+# md_order
 #
-%e %b
+dm
 #
-# EF_fmt
+# ampm_fmt
 #
-%e. %B
+%I:%M:%S %p
+# EOF

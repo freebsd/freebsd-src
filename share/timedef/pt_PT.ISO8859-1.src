@@ -35,7 +35,7 @@ Novembro
 Dezembro
 #
 # Short weekdays names
-# (padded with a space to conform with other languages)
+#
 Dom
 Seg
 Ter
@@ -60,7 +60,7 @@ Sábado
 #
 # x_fmt
 #
-%d.%m.%y
+%d.%m.%Y
 #
 # c_fmt
 #
@@ -68,11 +68,11 @@ Sábado
 #
 # am
 #
-  
+
 #
 # pm
 #
-pm
+
 #
 # date_fmt
 #
@@ -93,10 +93,11 @@ Outubro
 Novembro
 Dezembro
 #
-# Ef_fmt
+# md_order
 #
-%e %b
+dm
 #
-# EF_fmt
+# ampm_fmt
 #
-%e %B
+
+# EOF
