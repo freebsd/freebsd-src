@@ -68,6 +68,7 @@ static const char rcsid[] =
 
 void	makemsg __P((char *));
 static void usage __P((void));
+char   *ttymsg __P((struct iovec *, int, char *, int));
 
 #define	IGNOREUSER	"sleeper"
 
@@ -85,7 +86,7 @@ main(argc, argv)
 	struct iovec iov;
 	struct utmp utmp;
 	FILE *fp;
-	char *p, *ttymsg();
+	char *p;
 	char line[sizeof(utmp.ut_line) + 1];
 
 	(void)setlocale(LC_CTYPE, "");
@@ -109,7 +110,7 @@ main(argc, argv)
 	makemsg(*argv);
 
 	if (!(fp = fopen(_PATH_UTMP, "r")))
-		errx(1, "cannot read %s", _PATH_UTMP);
+		err(1, "cannot read %s", _PATH_UTMP);
 	iov.iov_base = mbuf;
 	iov.iov_len = mbufsize;
 	/* NOSTRICT */
@@ -144,17 +145,17 @@ makemsg(fname)
 	time_t now;
 	FILE *fp;
 	int fd;
-	char *p, *whom, hostname[MAXHOSTNAMELEN], lbuf[256], tmpname[64];
+	char *p, *tty, hostname[MAXHOSTNAMELEN], lbuf[256], tmpname[64];
+	const char *whom;
 
-	snprintf(tmpname, sizeof(tmpname), "%s/wall.XXXXXX", _PATH_TMP);
-
-	if (!(fd = mkstemp(tmpname)) || !(fp = fdopen(fd, "r+")))
-		errx(1, "can't open temporary file");
+	(void)snprintf(tmpname, sizeof(tmpname), "%s/wall.XXXXXX", _PATH_TMP);
+	if ((fd = mkstemp(tmpname)) == -1 || !(fp = fdopen(fd, "r+")))
+		err(1, "can't open temporary file");
 	(void)unlink(tmpname);
 
 	if (!nobanner) {
-		char *tty = ttyname(2);
-		if (!tty)
+		tty = ttyname(STDERR_FILENO);
+		if (tty == NULL)
 			tty = "no tty";
 
 		if (!(whom = getlogin()))
@@ -175,7 +176,7 @@ makemsg(fname)
 		    "Broadcast Message from %s@%s",
 		    whom, hostname);
 		(void)fprintf(fp, "%-79.79s\007\007\r\n", lbuf);
-		(void)snprintf(lbuf, sizeof(lbuf), 
+		(void)snprintf(lbuf, sizeof(lbuf),
 		    "        (%s) at %d:%02d %s...", tty,
 		    lt->tm_hour, lt->tm_min, lt->tm_zone);
 		(void)fprintf(fp, "%-79.79s\r\n", lbuf);
@@ -183,7 +184,7 @@ makemsg(fname)
 	(void)fprintf(fp, "%79s\r\n", " ");
 
 	if (fname && !(freopen(fname, "r", stdin)))
-		errx(1, "can't read %s", fname);
+		err(1, "can't read %s", fname);
 	while (fgets(lbuf, sizeof(lbuf), stdin))
 		for (cnt = 0, p = lbuf; (ch = *p) != '\0'; ++p, ++cnt) {
 			if (ch == '\r') {
@@ -232,11 +233,11 @@ makemsg(fname)
 	rewind(fp);
 
 	if (fstat(fd, &sbuf))
-		errx(1, "can't stat temporary file");
+		err(1, "can't stat temporary file");
 	mbufsize = sbuf.st_size;
 	if (!(mbuf = malloc((u_int)mbufsize)))
-		errx(1, "out of memory");
+		err(1, "out of memory");
 	if (fread(mbuf, sizeof(*mbuf), mbufsize, fp) != mbufsize)
-		errx(1, "can't read temporary file");
+		err(1, "can't read temporary file");
 	(void)close(fd);
 }
