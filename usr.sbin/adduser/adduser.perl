@@ -30,6 +30,8 @@
 # read variables
 sub variables {
     $verbose = 1;		# verbose = [0-2]
+    $usernameregexp = "^[a-z0-9_][a-z0-9_-]*\$"; # configurable
+    $defaultusernameregexp = $usernameregexp; # remains constant
     $defaultusepassword = "yes";	# use password authentication for new users
     $defaultenableaccount = "yes"; # enable the account by default
     $defaultemptypassword = "no"; # don't create an empty password
@@ -314,7 +316,7 @@ sub new_users_name {
     local($name);
 
     while(1) {
-	$name = &confirm_list("Enter username", 1, "a-z0-9_-", "");
+	$name = &confirm_list("Enter username", 1, $usernameregexp, "");
 	if (length($name) > 16) {
 	    warn "Username is longer than 16 chars\a\n";
 	    next;
@@ -327,11 +329,21 @@ sub new_users_name {
 sub new_users_name_valid {
     local($name) = @_;
 
-    if ($name !~ /^[a-z0-9_][a-z0-9_\-]*$/ || $name eq "a-z0-9_-") {
-	warn "Illegal username.\n" .
-	    "Please use only lowercase Roman, decimal, underscore, " .
-	    "or hyphen characters.\n" .
-	    "Additionally, a username should not start with a hyphen.\a\n";
+    if ($name eq $usernameregexp) { # user/admin just pressed <Return>
+	warn "Please enter a username\a\n";
+	return 0;
+    } elsif ($name =~ /[:\n]/) {
+	warn "Username cannot contain colon or newline characters.\a\n";
+	return 0;
+    } elsif ($name !~ /$usernameregexp/) {
+	if ($usernameregexp eq $defaultusernameregexp) {
+	    warn "Illegal username.\n" .
+		"Please use only lowercase Roman, decimal, underscore, " .
+		"or hyphen characters.\n" .
+		"Additionally, a username should not start with a hyphen.\a\n";
+	} else {
+	    warn "Username doesn't match the regexp /$usernameregexp/\a\n";
+	}
 	return 0;
     } elsif ($username{$name}) {
 	warn "Username ``$name'' already exists!\a\n"; return 0;
@@ -1204,6 +1216,21 @@ sub confirm_yn {
     return 0;
 }
 
+# allow configuring usernameregexp
+sub usernameregexp_default {
+    local($r) = $usernameregexp;
+
+    while ($verbose) {
+	$r = &confirm_list("Usernames must match regular expression:", 1,
+	    $r, "");
+	eval "'foo' =~ /$r/";
+	last unless $@;
+	warn "Invalid regular expression\a\n";
+    }
+    $changes++ if $r ne $usernameregexp;
+    return $r;
+}
+
 # test if $dotdir exist
 # return "no" if $dotdir not exist or dotfiles should not copied
 sub dotdir_default {
@@ -1419,6 +1446,10 @@ sub config_write {
 # verbose = [0-2]
 verbose = $verbose
 
+# regular expression usernames are checked against (see perlre(1))
+# usernameregexp = 'regexp'
+usernameregexp = '$usernameregexp'
+
 # use password-based authentication for new users
 # defaultusepassword =  "yes" | "no"
 defaultusepassword = "$defaultusepassword"
@@ -1503,6 +1534,7 @@ exit 0 if $check_only;		# only check consistence and exit
 
 # interactive
 # some questions
+$usernameregexp = &usernameregexp_default; # regexp to check usernames against
 &shells_add;			# maybe add some new shells
 $defaultshell = &shell_default;	# enter default shell
 $home = &home_partition($home);	# find HOME partition
