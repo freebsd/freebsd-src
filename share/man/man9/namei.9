@@ -117,13 +117,13 @@ If you get a lock, remember to release the lock (using
 or
 .Xr VOP_UNLOCK 9
 and
-.Xr vrele 9 .)
+.Xr vrele 9 . )
 .It Dv WANTPARENT
 Make
 .Fn namei
 also return the parent (directory) vnode, in unlocked
 state.  Remember to release it (using
-.Xr vrele 9 .)
+.Xr vrele 9 . )
 .It Dv NOCACHE
 Avoid
 .Fn namei

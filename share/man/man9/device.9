@@ -53,14 +53,14 @@ The devices in a system form a tree.
 All devices except
 .Dv root_bus
 have a parent (see
-.Xr device_get_parent 9 ).
+.Xr device_get_parent 9 ) .
 In addition, any device can have children attached to it (see
 .Xr device_add_child 9 ,
 .Xr device_add_child_ordered 9 ,
 .Xr device_find_child 9 ,
 .Xr device_get_children 9 ,
 and
-.Xr device_delete_child 9 ).
+.Xr device_delete_child 9 ) .
 .Pp
 A device which has been successfully been probed and attached to the
 system will also have a driver (see
@@ -70,17 +70,17 @@ and
 and a devclass (see
 .Xr device_get_devclass 9
 and
-.Xr devclass 9 ).
+.Xr devclass 9 ) .
 Various other attributes of the device include a unit number (see
-.Xr device_get_unit 9 ),
+.Xr device_get_unit 9 ) ,
 verbose description (normally supplied by the driver, see
 .Xr device_set_desc 9
 and
-.Xr device_get_desc 9 ),
+.Xr device_get_desc 9 ) ,
 a set of bus-specific variables (see
 .Xr device_get_ivars 9 )
 and a set of driver-specific variables (see
-.Xr device_get_softc 9 ).
+.Xr device_get_softc 9 ) .
 .Pp
 Devices can be in one of several states:
 .Bl -tag -width DS_NOTPRESENT
