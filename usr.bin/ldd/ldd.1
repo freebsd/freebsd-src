@@ -8,6 +8,7 @@
 .Nd list dynamic object dependencies
 .Sh SYNOPSIS
 .Nm
+.Op Fl a
 .Op Fl v
 .Op Fl f Ar format
 .Ar program ...
@@ -33,6 +34,13 @@ output.
 See
 .Xr rtld 1
 for a list of recognized conversion characters.
+.Pp
+The
+.Fl a
+option displays the list of all objects that are needed by each loaded
+object. This option does not work with
+.Xr a.out 5
+binaries.
 .Pp
 The
 .Fl v
