@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.125 1996/08/21 07:28:39 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.126 1996/08/23 07:00:33 tg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -227,7 +227,8 @@
 	  <item>Hidekazu Kuroki &lt;hidekazu@cs.titech.ac.jp&gt;
 	  <item>Hidetoshi Shimokawa &lt;simokawa@sat.t.u-tokyo.ac.jp&gt;
 	  <item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
-	  <item>Ishii Masahiro, R. Kym Horsell
+	  <item>Ikuo Nakagawa &lt;ikuo@isl.intec.co.jp&gt;
+	  <item>Ishii Masahiro &lt;?&gt;
 	  <item>J.T. Conklin &lt;jtc@cygnus.com&gt;
 	  <item>James Clark &lt;jjc@jclark.com&gt;
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
@@ -276,12 +277,14 @@
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
+	  <item>R. Kym Horsell &lt;?&gt;
 	  <item>Randall Hopper &lt;rhh@stealth.ct.picker.com&gt;
 	  <item>Richard Stallman &lt;rms@gnu.ai.mit.edu&gt;
 	  <item>Richard Wiwatowski &lt;rjwiwat@adelaide.on.neti&gt;
 	  <item>Rob Shady &lt;rls@id.net&gt;
 	  <item>Rob Snow &lt;rsnow@txdirect.net&gt;
 	  <item>Robert Sanders &lt;rsanders@mindspring.com&gt;
+	  <item>Robert Withrow &lt;witr@rwwa.com&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
@@ -372,6 +375,7 @@
 	<item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
 	  &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	<item>Martin Renters &lt;martin@tdc.on.ca&gt;
+	<item>Michael Clay &lt;mclay@weareb.org&gt;
 	<item>Michael Galassi &lt;nerd@percival.rain.com&gt;
 	<item>Mike Durkin &lt;mdurkin@tsoft.sf-bay.org&gt;
 	<item>Naoki Hamada &lt;nao@sbl.cl.nec.co.jp&gt;
