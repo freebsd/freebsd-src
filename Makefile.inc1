@@ -358,6 +358,7 @@ reinstall:
 # properly.
 
 KERNEL?=	GENERIC
+INSTKERNNAME?=	kernel
 
 # The only exotic MACHINE_ARCH/MACHINE combination valid at this
 # time is i386/pc98. In all other cases set MACHINE equal to
@@ -408,10 +409,10 @@ buildkernel:
 		    ${MAKE} -f ${KRNLSRCDIR}/dev/aic7xxx/Makefile
 .if !defined(NO_KERNELDEPEND)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=kernel depend
+	    ${WMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} depend
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
-		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=kernel all
+	    ${WMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} all
 .endfor
 
 #
@@ -421,7 +422,14 @@ buildkernel:
 #
 installkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-		${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=kernel install
+	    ${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} install
+
+#
+# kernel
+#
+# Short hand for `make buildkernel installkernel'
+#
+kernel: buildkernel installkernel
 
 #
 # update
