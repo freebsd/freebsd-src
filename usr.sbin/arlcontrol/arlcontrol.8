@@ -129,7 +129,7 @@ Also the driver extracts values from ACK packets.
 .El
 .Sh EXAMPLES
 .Bd -literal -offset indent
-arlconfig arl0 country 11 priority hight 
+arlconfig arl0 country 11 priority high 
 arlconfig arl0 quality 
 arlconfig arl0 stat
 arlconfig arl0
@@ -138,7 +138,7 @@ You can configure the Arlan 655 card from /etc/start_if.arl0.
 For example: 
 .Pp
 #!/bin/sh
-/sbin/arlconfig arl0 sid 0x000002 freq 2412 spread 2000 mode 640 
+/sbin/arlconfig country 9 priority highest
 .Sh SEE ALSO
 .Xr arl 4 ,
 .Xr "Arlan 655 ISA Wireless LAN Client Card User Guide" . 
