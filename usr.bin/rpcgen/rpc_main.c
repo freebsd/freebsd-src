@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)rpc_main.c 1.30 89/03/30 (C) 1987 SMI";
 #endif
 static const char rcsid[] =
-	"$Id: rpc_main.c,v 1.6 1997/08/06 06:47:40 charnier Exp $";
+	"$Id: rpc_main.c,v 1.7 1998/01/09 06:32:54 jb Exp $";
 #endif
 
 /*
@@ -125,7 +125,7 @@ static int argcount = FIXEDARGS;
 
 
 int nonfatalerrors;	/* errors */
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 int inetdflag = 0;	/* Support for inetd  is now the default */
 #else
 int inetdflag;	/* Support for inetd  is now the default */
@@ -134,7 +134,7 @@ int pmflag;		/* Support for port monitors */
 int logflag;		/* Use syslog instead of fprintf for errors */
 int tblflag;		/* Support for dispatch table file */
 int mtflag = 0;		/* Support for MT */
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #define INLINE 0
 #else
 #define	INLINE 5
@@ -154,7 +154,7 @@ int newstyle;		/* newstyle of passing arguments (by value) */
 int Cflag = 0;		/* ANSI C syntax */
 int CCflag = 0;		/* C++ files */
 static int allfiles;   /* generate all files */
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 int tirpcflag = 0;    /* generating code for tirpc, by default */
 #else
 int tirpcflag = 1;    /* generating code for tirpc, by default */
@@ -248,7 +248,7 @@ main(argc, argv)
  * add extension to filename
  */
 static char *
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 extendfile(path, ext)
 	char *path;
 #else
@@ -259,7 +259,7 @@ extendfile(file, ext)
 {
 	char *res;
 	char *p;
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 	char *file;
 
 	if ((file = rindex(path, '/')) == NULL)
@@ -689,7 +689,7 @@ s_output(argc, argv, infile, define, extend, outfile, nomain, netflag)
 		f_print(fout, "#include <sys/types.h>\n");
 
 	f_print(fout, "#include <memory.h>\n");
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 	if (tirpcflag)
 #endif
 	f_print(fout, "#include <stropts.h>\n");
@@ -944,7 +944,7 @@ $(TARGETS_SVC.c:%%.c=%%.o) ");
 	if (mtflag)
 		f_print(fout, "\nCPPFLAGS += -D_REENTRANT\nCFLAGS += -g \nLDLIBS += -lnsl -lthread\n");
 	else
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 		f_print(fout, "\nCFLAGS += -g \nLDLIBS +=\n");
 #else
 		f_print(fout, "\nCFLAGS += -g \nLDLIBS += -lnsl\n");
@@ -962,7 +962,7 @@ $(TARGETS_CLNT.c) \n\n");
 	f_print(fout, "$(OBJECTS_SVC) : $(SOURCES_SVC.c) $(SOURCES_SVC.h) \
 $(TARGETS_SVC.c) \n\n");
 	f_print(fout, "$(CLIENT) : $(OBJECTS_CLNT) \n");
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 	f_print(fout, "\t$(CC) -o $(CLIENT) $(OBJECTS_CLNT) \
 $(LDLIBS) \n\n");
 #else
@@ -970,7 +970,7 @@ $(LDLIBS) \n\n");
 $(LDLIBS) \n\n");
 #endif
 	f_print(fout, "$(SERVER) : $(OBJECTS_SVC) \n");
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 	f_print(fout, "\t$(CC) -o $(SERVER) $(OBJECTS_SVC) $(LDLIBS)\n\n ");
 	f_print(fout, "clean:\n\t $(RM) -f core $(TARGETS) $(OBJECTS_CLNT) \
 $(OBJECTS_SVC) $(CLIENT) $(SERVER)\n\n");
@@ -1171,7 +1171,7 @@ parseargs(argc, argv, cmd)
 					 *  generating backward compatible
 					 *  code
 					 */
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 					tirpcflag = 1;
 #else
 					tirpcflag = 0;
@@ -1271,7 +1271,7 @@ parseargs(argc, argv, cmd)
 		}
 	} else {		/* 4.1 mode */
 		pmflag = 0;	/* set pmflag only in tirpcmode */
-#ifndef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 		inetdflag = 1;	/* inetdflag is TRUE by default */
 #endif
 		if (cmd->nflag) { /* netid needs TIRPC */
