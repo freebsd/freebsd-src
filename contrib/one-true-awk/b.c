@@ -75,7 +75,7 @@ int	patlen;
 fa	*fatab[NFA];
 int	nfatab	= 0;	/* entries in fatab */
 
-fa *makedfa(char *s, int anchor)	/* returns dfa for reg expr s */
+fa *makedfa(const char *s, int anchor)	/* returns dfa for reg expr s */
 {
 	int i, use, nuse;
 	fa *pfa;
@@ -117,7 +117,7 @@ fa *makedfa(char *s, int anchor)	/* returns dfa for reg expr s */
 	return pfa;
 }
 
-fa *mkdfa(char *s, int anchor)	/* does the real work of making a dfa */
+fa *mkdfa(const char *s, int anchor)	/* does the real work of making a dfa */
 				/* anchor = 1 for anchored matches, else 0 */
 {
 	Node *p, *p1;
@@ -282,9 +282,24 @@ int quoted(char **pp)	/* pick up next thing after a \\ */
 	return c;
 }
 
-char *cclenter(char *argp)	/* add a character class */
+static int collate_range_cmp(int a, int b)
+{
+	int r;
+	static char s[2][2];
+
+	if ((uschar)a == (uschar)b)
+		return 0;
+	s[0][0] = a;
+	s[1][0] = b;
+	if ((r = strcoll(s[0], s[1])) == 0)
+		r = (uschar)a - (uschar)b;
+	return r;
+}
+
+char *cclenter(const char *argp)	/* add a character class */
 {
 	int i, c, c2;
+	int j;
 	uschar *p = (uschar *) argp;
 	uschar *op, *bp;
 	static uschar *buf = 0;
@@ -303,15 +318,18 @@ char *cclenter(char *argp)	/* add a character class */
 				c2 = *p++;
 				if (c2 == '\\')
 					c2 = quoted((char **) &p);
-				if (c > c2) {	/* empty; ignore */
+				if (collate_range_cmp(c, c2) > 0) {	/* empty; ignore */
 					bp--;
 					i--;
 					continue;
 				}
-				while (c < c2) {
+				for (j = 0; j < NCHARS; j++) {
+					if ((collate_range_cmp(c, j) > 0) ||
+					    collate_range_cmp(j, c2) > 0)
+						continue;
 					if (!adjbuf((char **) &buf, &bufsz, bp-buf+2, 100, (char **) &bp, 0))
 						FATAL("out of space for character class [%.10s...] 2", p);
-					*bp++ = ++c;
+					*bp++ = j;
 					i++;
 				}
 				continue;
@@ -328,7 +346,7 @@ char *cclenter(char *argp)	/* add a character class */
 	return (char *) tostring((char *) buf);
 }
 
-void overflo(char *s)
+void overflo(const char *s)
 {
 	FATAL("regular expression too big: %.30s...", s);
 }
@@ -446,7 +464,7 @@ void follow(Node *v)	/* collects leaves that can follow v into setvec */
 	}
 }
 
-int member(int c, char *sarg)	/* is c in s? */
+int member(int c, const char *sarg)	/* is c in s? */
 {
 	uschar *s = (uschar *) sarg;
 
@@ -456,7 +474,7 @@ int member(int c, char *sarg)	/* is c in s? */
 	return(0);
 }
 
-int match(fa *f, char *p0)	/* shortest match ? */
+int match(fa *f, const char *p0)	/* shortest match ? */
 {
 	int s, ns;
 	uschar *p = (uschar *) p0;
@@ -475,7 +493,7 @@ int match(fa *f, char *p0)	/* shortest match ? */
 	return(0);
 }
 
-int pmatch(fa *f, char *p0)	/* longest match, for sub */
+int pmatch(fa *f, const char *p0)	/* longest match, for sub */
 {
 	int s, ns;
 	uschar *p = (uschar *) p0;
@@ -528,7 +546,7 @@ int pmatch(fa *f, char *p0)	/* longest match, for sub */
 	return (0);
 }
 
-int nematch(fa *f, char *p0)	/* non-empty match, for sub */
+int nematch(fa *f, const char *p0)	/* non-empty match, for sub */
 {
 	int s, ns;
 	uschar *p = (uschar *) p0;
@@ -580,15 +598,17 @@ int nematch(fa *f, char *p0)	/* non-empty match, for sub */
 	return (0);
 }
 
-Node *reparse(char *p)	/* parses regular expression pointed to by p */
+Node *reparse(const char *p)	/* parses regular expression pointed to by p */
 {			/* uses relex() to scan regular expression */
 	Node *np;
 
 	dprintf( ("reparse <%s>\n", p) );
 	lastre = prestr = (uschar *) p;	/* prestr points to string to be parsed */
 	rtok = relex();
+	/* GNU compatibility: an empty regexp matches anything */
 	if (rtok == '\0')
-		FATAL("empty regular expression");
+		/* FATAL("empty regular expression"); previous */
+		return(op2(ALL, NIL, NIL));
 	np = regexp();
 	if (rtok != '\0')
 		FATAL("syntax error in regular expression %s at %s", lastre, prestr);
@@ -693,23 +713,24 @@ Node *unary(Node *np)
  * relex(), the expanded character class (prior to range expansion)
  * must be less than twice the size of their full name.
  */
+
 struct charclass {
 	const char *cc_name;
 	int cc_namelen;
-	const char *cc_expand;
+	int (*cc_func)(int);
 } charclasses[] = {
-	{ "alnum",	5,	"0-9A-Za-z" },
-	{ "alpha",	5,	"A-Za-z" },
-	{ "blank",	5,	" \t" },
-	{ "cntrl",	5,	"\000-\037\177" },
-	{ "digit",	5,	"0-9" },
-	{ "graph",	5,	"\041-\176" },
-	{ "lower",	5,	"a-z" },
-	{ "print",	5,	" \041-\176" },
-	{ "punct",	5,	"\041-\057\072-\100\133-\140\173-\176" },
-	{ "space",	5,	" \f\n\r\t\v" },
-	{ "upper",	5,	"A-Z" },
-	{ "xdigit",	6,	"0-9A-Fa-f" },
+	{ "alnum",	5,	isalnum },
+	{ "alpha",	5,	isalpha },
+	{ "blank",	5,	isblank },
+	{ "cntrl",	5,	iscntrl },
+	{ "digit",	5,	isdigit },
+	{ "graph",	5,	isgraph },
+	{ "lower",	5,	islower },
+	{ "print",	5,	isprint },
+	{ "punct",	5,	ispunct },
+	{ "space",	5,	isspace },
+	{ "upper",	5,	isupper },
+	{ "xdigit",	6,	isxdigit },
 	{ NULL,		0,	NULL },
 };
 
@@ -722,7 +743,7 @@ int relex(void)		/* lexical analyzer for reparse */
 	static int bufsz = 100;
 	uschar *bp;
 	struct charclass *cc;
-	const uschar *p;
+	int i;
 
 	switch (c = *prestr++) {
 	case '|': return OR;
@@ -771,8 +792,14 @@ int relex(void)		/* lexical analyzer for reparse */
 				if (cc->cc_name != NULL && prestr[1 + cc->cc_namelen] == ':' &&
 				    prestr[2 + cc->cc_namelen] == ']') {
 					prestr += cc->cc_namelen + 3;
-					for (p = (const uschar *) cc->cc_expand; *p; p++)
-						*bp++ = *p;
+					for (i = 0; i < NCHARS; i++) {
+						if (!adjbuf((char **) &buf, &bufsz, bp-buf+1, 100, (char **) &bp, 0))
+						    FATAL("out of space for reg expr %.10s...", lastre);
+						if (cc->cc_func(i)) {
+							*bp++ = i;
+							n++;
+						}
+					}
 				} else
 					*bp++ = c;
 			} else if (c == '\0') {
