@@ -61,20 +61,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 MALLOC_DEFINE(M_UFSMNT, "UFS mount", "UFS mount structure");
-/*
- * Make a filesystem operational.
- * Nothing to do at the moment.
- */
-/* ARGSUSED */
-int
-ufs_start(mp, flags, td)
-	struct mount *mp;
-	int flags;
-	struct thread *td;
-{
-
-	return (0);
-}
 
 /*
  * Return the root of a filesystem.
