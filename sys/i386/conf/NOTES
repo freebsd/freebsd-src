@@ -301,7 +301,7 @@ device		mca
 #
 # PCI bus & PCI options:
 #
-device		pci	1		# unit count is for ahc/ahd
+device		pci
 
 #
 # AGP GART support
