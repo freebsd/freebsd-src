@@ -548,6 +548,7 @@ int	fhopen(const struct fhandle *, int);
 int	fhstat(const struct fhandle *, struct stat *);
 int	fhstatfs(const struct fhandle *, struct statfs *);
 int	fstatfs(int, struct statfs *);
+int	lgetfh(const char *, fhandle_t *);
 int	getfh(const char *, fhandle_t *);
 int	getfsstat(struct statfs *, long, int);
 int	getmntinfo(struct statfs **, int);
