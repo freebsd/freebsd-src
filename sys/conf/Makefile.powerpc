@@ -24,10 +24,12 @@ KERNEL?=	kernel
 KERNFORMAT?=	elf
 STD8X16FONT?=	iso
 
+.if !defined(S)
 .if exists(./@/.)
 S=	./@
 .else
 S=	../..
+.endif
 .endif
 I386=	${S}/i386
 
