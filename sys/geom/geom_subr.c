@@ -272,7 +272,8 @@ g_wither_geom(struct g_geom *gp, int error)
 	if (!(gp->flags & G_GEOM_WITHER)) {
 		gp->flags |= G_GEOM_WITHER;
 		LIST_FOREACH(pp, &gp->provider, provider)
-			g_orphan_provider(pp, error);
+			if (!(pp->flags & G_PF_ORPHAN))
+				g_orphan_provider(pp, error);
 	}
 	for (pp = LIST_FIRST(&gp->provider); pp != NULL; pp = pp2) {
 		pp2 = LIST_NEXT(pp, provider);
