@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.63 1995/05/28 09:31:32 jkh Exp $
+ * $Id: install.c,v 1.64 1995/05/28 20:28:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,6 +108,10 @@ checkLabels(void)
 	msgConfirm("No root device found - you must label a partition as /\n in the label editor.");
 	return FALSE;
     }
+    else if (rootdev->name[strlen(rootdev->name) - 1] != 'a') {
+	msgConfirm("Invalid placement of root partition.  For now, we only support\nmounting root partitions on \"a\" partitions due to limitations\nin the FreeBSD boot block code.  Please correct this and\ntry again.");
+	return FALSE;
+    }
     if (!swapdev) {
 	msgConfirm("No swap devices found - you must create at least one\nswap partition.");
 	return FALSE;
@@ -206,8 +210,6 @@ installInitial(void)
 	execlp("sh", "-sh", 0);
 	exit(1);
     }
-    /* Copy the /etc files into their rightful place */
-    vsystem("(cd /stand; find etc | cpio -o) | (cd /; cpio -idmv)");
     root_extract();
     alreadyDone = TRUE;
     return TRUE;
@@ -370,8 +372,9 @@ copy_self(void)
     i = vsystem("find -x /stand | cpio -pdmV /mnt");
     if (i)
 	msgConfirm("Copy returned error status of %d!", i);
-    /* copy up the etc files */
-    (void)vsystem("(cd /mnt/stand; find etc) | cpio -pdmv /mnt");
+
+    /* Copy the /etc files into their rightful place */
+    (void)vsystem("(cd /stand; find etc) | cpio -pdmv /mnt");
 }
 
 static void loop_on_root_floppy();
