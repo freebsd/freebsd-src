@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TARGET_TUPLE?=	x86_64-obrien-freebsd
-
 NATIVE_EMULATION=	elf_x86_64_fbsd
 HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
@@ -9,26 +7,30 @@ CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 _amd64_path=	\"${TOOLS_PREFIX}/lib\":\"${TOOLS_PREFIX}/usr/lib\"
 EMS+=		${NATIVE_EMULATION}
 LDSCRIPTS+=	${NATIVE_EMULATION}.x ${NATIVE_EMULATION}.xbn ${NATIVE_EMULATION}.xn ${NATIVE_EMULATION}.xr \
-		${NATIVE_EMULATION}.xs ${NATIVE_EMULATION}.xu ${NATIVE_EMULATION}.xc ${NATIVE_EMULATION}.xsc
+		${NATIVE_EMULATION}.xs ${NATIVE_EMULATION}.xu ${NATIVE_EMULATION}.xc ${NATIVE_EMULATION}.xsc \
+		${NATIVE_EMULATION}.xd ${NATIVE_EMULATION}.xdc
 SRCS+=	e${NATIVE_EMULATION}.c
 CLEANFILES+=	e${NATIVE_EMULATION}.c
 
 e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em scripttempl/elf.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_amd64_path} \
+	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    "${NATIVE_EMULATION}" "" ${NATIVE_EMULATION} "${TARGET_TUPLE}"
+	    "${NATIVE_EMULATION}" "" no ${NATIVE_EMULATION} "${TARGET_TUPLE}"
 
 X86_EMULATION=	elf_i386_fbsd
 _i386_path=	\"${TOOLS_PREFIX}/usr/lib/i386\"
 EMS+=		${X86_EMULATION}
 LDSCRIPTS+=	${X86_EMULATION}.x ${X86_EMULATION}.xbn ${X86_EMULATION}.xn ${X86_EMULATION}.xr \
-		${X86_EMULATION}.xs ${X86_EMULATION}.xu ${X86_EMULATION}.xc ${X86_EMULATION}.xsc
+		${X86_EMULATION}.xs ${X86_EMULATION}.xu ${X86_EMULATION}.xc ${X86_EMULATION}.xsc \
+		${X86_EMULATION}.xd ${X86_EMULATION}.xdc
 SRCS+=		e${X86_EMULATION}.c
 CLEANFILES+=	e${X86_EMULATION}.c
 
 e${X86_EMULATION}.c: emulparams/${X86_EMULATION}.sh emultempl/elf32.em scripttempl/elf.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_i386_path} \
+	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    "${X86_EMULATION}" "" ${X86_EMULATION} "${TARGET_TUPLE}"
+	    "${X86_EMULATION}" "" no ${X86_EMULATION} "${TARGET_TUPLE}"

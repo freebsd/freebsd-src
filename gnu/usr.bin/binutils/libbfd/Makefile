@@ -9,17 +9,16 @@ SRCS+=	archive.c archive64.c archures.c bfd.c binary.c cache.c \
 	coffgen.c corefile.c elf.c elf-eh-frame.c elf-strtab.c format.c \
 	hash.c ihex.c init.c libbfd.c linker.c merge.c opncls.c reloc.c \
 	section.c srec.c stab-syms.c stabs.c syms.c targets.c tekhex.c \
-	targmatch.h dwarf1.c dwarf2.c config.h
+	targmatch.h dwarf1.c dwarf2.c config.h bfdver.h bfdio.c simple.c
 WARNS?=	0
 .if (${TARGET_ARCH} == "alpha" || ${TARGET_ARCH} == "ia64" || \
     ${TARGET_ARCH} == "sparc64")
 WARNS?=	2
 .endif
+CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/bfd
-CFLAGS+= -DBFD_VERSION=\"${VERSION_DATE}\" -DBFD_VERSION_DATE=${VERSION_DATE}
-CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 INTERNALLIB=	true
-CLEANFILES+=	config.h targmatch.h
+CLEANFILES+=	bfdver.h config.h targmatch.h
 
 SELARCH=
 .if ${TARGET_ARCH} == "amd64"
@@ -47,6 +46,12 @@ SELVEC+= ,&${_v}
 .endif
 .endfor
 CFLAGS+= -DSELECT_VECS="${SELVEC}"
+
+# XXX:DEO should grab BFD_VERSION_DATE from ${VERSION}...
+bfdver.h: Makefile
+	echo '#define BFD_VERSION	214920000'	> ${.TARGET}
+	echo '#define BFD_VERSION_DATE	20040510'	>> ${.TARGET}
+	echo '#define BFD_VERSION_STRING ${VERSION}'	>> ${.TARGET}
 
 targmatch.h: targmatch.sed config.bfd
 	sed -f ${.ALLSRC:M*.sed} ${.ALLSRC:M*.bfd} > ${.TARGET}
