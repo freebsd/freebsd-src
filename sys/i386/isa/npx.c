@@ -368,6 +368,7 @@ npx_probe(dev)
 #endif
 			npx_traps_while_probing = npx_intrs_while_probing = 0;
 			fp_divide_by_0();
+			DELAY(1000);	/* wait for any IRQ13 */
 			if (npx_traps_while_probing != 0) {
 				/*
 				 * Good, exception 16 works.
@@ -405,18 +406,6 @@ npx_probe(dev)
 no_irq13:
 	idt[IDT_MF] = save_idt_npxtrap;
 	bus_teardown_intr(dev, irq_res, irq_cookie);
-
-	/*
-	 * XXX hack around brokenness of bus_teardown_intr().  If we left the
-	 * irq active then we would get it instead of exception 16.
-	 */
-	{
-		struct intsrc *isrc;
-
-		isrc = intr_lookup_source(irq_num);
-		isrc->is_pic->pic_disable_source(isrc);
-	}
-
 	bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
 	bus_release_resource(dev, SYS_RES_IOPORT, ioport_rid, ioport_res);
 	return (0);
