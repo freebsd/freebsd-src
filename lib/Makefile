@@ -17,7 +17,7 @@ SUBDIR+=libalias libc libcalendar libcompat libcom_err libcurses \
 	libscsi libskey libss libtermcap libutil libvgl libxpg4 liby libz
 	
 
-.if defined(WANT_LIBC_R)
+.if !defined(NO_LIBC_R)
 SUBDIR+= libc_r
 .endif
 
