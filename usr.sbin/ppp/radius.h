@@ -51,6 +51,10 @@ struct radius {
   char *msrepstr;		/* MS-CHAP2-Response */
   char *repstr;			/* Reply-Message */
   char *errstr;			/* Error-Message */
+#ifndef NOINET6
+  uint8_t *ipv6prefix;		/* FRAMED IPv6 Prefix */
+  struct sticky_route *ipv6routes;  /* FRAMED IPv6 Routes */
+#endif
   struct {
     int policy;			/* MPPE_POLICY_* */
     int types;			/* MPPE_TYPE_*BIT bitmask */
