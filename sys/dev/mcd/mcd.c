@@ -1,3 +1,5 @@
+#include "opt_geom.h"
+#ifndef GEOM
 /*
  * Copyright 1993 by Holger Veit (data part)
  * Copyright 1993 by Brian Moore (audio part)
@@ -1823,3 +1825,4 @@ mcd_resume(int unit)
 		return EINVAL;
 	return mcd_play(unit, &cd->lastpb);
 }
+#endif /* GEOM */
