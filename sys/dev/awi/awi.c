@@ -1308,7 +1308,7 @@ awi_fix_rxhdr(sc, m0)
 		m_adj(m0, sizeof(wh));
 	}
 	if (ALIGN(mtod(m0, caddr_t) + sizeof(struct ether_header)) !=
-	    (u_int)(mtod(m0, caddr_t) + sizeof(struct ether_header))) {
+	    (uintptr_t)(mtod(m0, caddr_t) + sizeof(struct ether_header))) {
 		/* XXX: we loose to estimate the type of encapsulation */
 		struct mbuf *n, *n0, **np;
 		caddr_t newdata;
