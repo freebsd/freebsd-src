@@ -412,13 +412,13 @@ getNewfsCmd(PartInfo *p)
 	sstrncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
 }
 
-#define MAX_MOUNT_NAME	10
+#define MAX_MOUNT_NAME	9
 
 #define PART_PART_COL	0
 #define PART_MOUNT_COL	10
 #define PART_SIZE_COL	(PART_MOUNT_COL + MAX_MOUNT_NAME + 3)
 #define PART_NEWFS_COL	(PART_SIZE_COL + 8)
-#define PART_OFF	39
+#define PART_OFF	38
 
 #define TOTAL_AVAIL_LINES       (10)
 #define PSLICE_SHOWABLE          (4)
@@ -578,9 +578,12 @@ print_label_chunks(void)
 	        strcpy(newfs, "DOS");
 	    else if (label_chunk_info[i].c->private_data && label_chunk_info[i].type == PART_FILESYSTEM) {
 		strcpy(newfs, "UFS");
-		if (((PartInfo *)label_chunk_info[i].c->private_data)->soft)
-		    strcat(newfs, "+S");
-		strcat(newfs, ((PartInfo *)label_chunk_info[i].c->private_data)->newfs ? " Y" : " N");
+		strcat(newfs,
+		    ((PartInfo *)label_chunk_info[i].c->private_data)->soft ?
+		      "+S" : "  ");
+		strcat(newfs,
+		    ((PartInfo *)label_chunk_info[i].c->private_data)->newfs ?
+		      " Y" : " N");
 	    }
 	    else if (label_chunk_info[i].type == PART_SWAP)
 		strcpy(newfs, "SWAP");
@@ -947,20 +950,10 @@ diskLabel(Device *dev)
 		else
 		    p = NULL;
 
-		if ((flags & CHUNK_IS_ROOT)) {
-		    if (!(label_chunk_info[here].c->flags & CHUNK_BSD_COMPAT)) {
-			msgConfirm("This region cannot be used for your root partition as the\n"
-				   "FreeBSD boot code cannot deal with a root partition created\n"
-				   "in that location.  Please choose another location or smaller\n"
-				   "size for your root partition and try again!");
-			clear_wins();
-			break;
-		    }
-		    if (size < (ROOT_MIN_SIZE * ONE_MEG)) {
-			msgConfirm("Warning: This is smaller than the recommended size for a\n"
-				   "root partition.  For a variety of reasons, root\n"
-				   "partitions should usually be at least %dMB in size", ROOT_MIN_SIZE);
-		    }
+		if ((flags & CHUNK_IS_ROOT) && (size < (ROOT_MIN_SIZE * ONE_MEG))) {
+		    msgConfirm("Warning: This is smaller than the recommended size for a\n"
+			       "root partition.  For a variety of reasons, root\n"
+			       "partitions should usually be at least %dMB in size", ROOT_MIN_SIZE);
 		}
 		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 					label_chunk_info[here].c,
