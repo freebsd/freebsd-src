@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.h#13 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.h#14 $
  *
  * $FreeBSD$
  */
@@ -251,8 +251,9 @@ ahc_timer_reset(ahc_timer_t *timer, u_int usec, ahc_callback_t *func, void *arg)
 static __inline void
 ahc_scb_timer_reset(struct scb *scb, u_int usec)
 {
-	callout_reset(scb->io_ctx->ccb_h.timeout_ch.callout,
-		      (usec * hz)/1000000, ahc_timeout, scb);
+	untimeout(ahc_timeout, (caddr_t)scb, scb->io_ctx->ccb_h.timeout_ch);
+	scb->io_ctx->ccb_h.timeout_ch =
+	    timeout(ahc_timeout, scb, (usec * hz)/1000000);
 }
 
 /*************************** Device Access ************************************/
