@@ -51,7 +51,7 @@
  *	pcvt_ioctl.h	ioctl's for the VT220 video driver 'pcvt'
  *	---------------------------------------------------------
  *
- *	Last Edit-Date: [Mon Mar 27 16:04:14 2000]
+ *	Last Edit-Date: [Fri Mar 31 10:22:29 2000]
  *
  * $FreeBSD$
  * 
@@ -418,6 +418,7 @@ struct pcvtinfo {			/* compile time option values */
 #define CONF_META_ESC		0x00001000
 #define CONF_SLOW_INTERRUPT	0x00002000
 #define CONF_NO_LED_UPDATE	0x00004000
+#define CONF_GREENSAVER		0x00008000
 };
 
 #define VGASETCOLMS	_IOW('V', 115, int) /* set number of columns (80/132)*/
