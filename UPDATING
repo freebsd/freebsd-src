@@ -18,6 +18,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20030303:	p25	FreeBSD-SA-03:04.sendmail
+	sendmail header parsing buffer overflow, ident parsing bug.
+
 20030107:	p24	FreeBSD-SA-02:44.filedesc
 	Correct a reference counting bug in fpathconf(2).
 
