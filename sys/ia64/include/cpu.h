@@ -52,6 +52,8 @@
 
 #include <machine/frame.h>
 
+#define	cpu_getstack(p)		((p)->p_md.md_tf->tf_r[FRAME_SP])
+
 /*
  * Arguments to hardclock and gatherstats encapsulate the previous
  * machine state in an opaque clockframe.  One the Alpha, we use

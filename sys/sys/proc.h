@@ -395,6 +395,20 @@ MALLOC_DECLARE(M_ZOMBIE);
 MALLOC_DECLARE(M_PARGS);
 #endif
 
+static __inline int
+sigonstack(size_t sp)
+{
+	register struct proc *p = curproc;
+
+	return ((p->p_flag & P_ALTSTACK) ?
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	    ((p->p_sigstk.ss_size == 0) ? (p->p_sigstk.ss_flags & SS_ONSTACK) :
+		((sp - (size_t)p->p_sigstk.ss_sp) < p->p_sigstk.ss_size))
+#else
+	    ((sp - (size_t)p->p_sigstk.ss_sp) < p->p_sigstk.ss_size)
+#endif
+	    : 0);
+}
 
 /* Handy macro to determine of p1 can mangle p2 */
 
