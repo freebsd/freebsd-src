@@ -288,7 +288,7 @@ list_archive(const char *name)
   archive_read_support_compression_all(a);
   archive_read_support_format_all(a);
   archive_read_open(a, mydata, myopen, myread, myclose);
-  while (archive_read_next_header(a, &entry) == ARCHIVE_READ_OK) {
+  while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
     printf("%s\\n",archive_entry_pathname(entry));
     archive_read_data_skip(a);
   }
@@ -327,16 +327,16 @@ myclose(struct archive *a, void *client_data)
 .Sh RETURN VALUES
 Most functions return zero on success, non-zero on error.
 The possible return codes include:
-.Cm ARCHIVE_READ_OK
+.Cm ARCHIVE_OK
 (the operation succeeded)
-.Cm ARCHIVE_READ_WARN
+.Cm ARCHIVE_WARN
 (the operation succeeded but a non-critical error was encountered)
-.Cm ARCHIVE_READ_EOF
+.Cm ARCHIVE_EOF
 (end-of-archive was encountered),
-.Cm ARCHIVE_READ_RETRY
+.Cm ARCHIVE_RETRY
 (the operation failed but can be retried),
 and
-.Cm ARCHIVE_READ_FATAL
+.Cm ARCHIVE_FATAL
 (there was a fatal error; the archive should be closed immediately).
 Detailed error codes and textual descriptions are available from the
 .Fn archive_errno
