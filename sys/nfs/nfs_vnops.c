@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.89 1998/05/19 07:11:26 peter Exp $
+ * $Id: nfs_vnops.c,v 1.90 1998/05/30 16:33:57 peter Exp $
  */
 
 
@@ -1670,7 +1670,7 @@ nfs_link(ap)
 	int v3 = NFS_ISV3(vp);
 
 	if (vp->v_mount != tdvp->v_mount) {
-		VOP_ABORTOP(vp, cnp);
+		VOP_ABORTOP(tdvp, cnp);
 		return (EXDEV);
 	}
 
