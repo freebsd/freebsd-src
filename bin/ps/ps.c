@@ -192,7 +192,7 @@ main(int argc, char *argv[])
 		case 'g':
 			break;			/* no-op */
 		case 'H':
-			showthreads = 1;
+			showthreads = KERN_PROC_INC_THREAD;
 			break;
 		case 'h':
 			prtheader = ws.ws_row > 5 ? ws.ws_row : 22;
@@ -349,21 +349,19 @@ main(int argc, char *argv[])
 	 * get proc list
 	 */
 	if (nuids == 1) {
-		what = KERN_PROC_UID;
+		what = KERN_PROC_UID | showthreads;
 		flag = *uids;
 	} else if (ttydev != NODEV) {
-		what = KERN_PROC_TTY;
+		what = KERN_PROC_TTY | showthreads;
 		flag = ttydev;
 	} else if (pid != -1) {
-		what = KERN_PROC_PID;
+		what = KERN_PROC_PID | showthreads;
 		flag = pid;
-	} else if (showthreads == 1) {
-		what = KERN_PROC_ALL;
-		flag = 0;
 	} else {
-		what = KERN_PROC_PROC;
+		what = showthreads != 0 ? KERN_PROC_ALL : KERN_PROC_PROC;
 		flag = 0;
 	}
+
 	/*
 	 * select procs
 	 */
