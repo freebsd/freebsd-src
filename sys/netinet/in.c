@@ -739,6 +739,12 @@ in_ifinit(ifp, ia, sin, scrub)
 			return (0);
 		flags |= RTF_HOST;
 	}
+	/*
+	 * XXX: A route to network should never point to a carp(4)
+	 * interface. Use only host route for CARP address.
+	 */
+	if (ifp->if_type == IFT_CARP)
+		flags |= RTF_HOST;
 	if ((error = in_addprefix(ia, flags)) != 0)
 		return (error);
 
