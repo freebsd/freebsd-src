@@ -203,6 +203,15 @@ static driver_t wi_pci_driver = {
 	sizeof(struct wi_softc)
 };
 
+struct {
+	unsigned int vendor,device;
+	char *desc;
+} pci_ids[] = {
+	{0x1638, 0x1100,	"PRISM2STA PCI WaveLAN/IEEE 802.11"},
+	{0x1385, 0x4100,	"Netgear MA301 PCI IEEE 802.11b"},
+	{0,	 0,	NULL}
+};
+
 static devclass_t wi_pccard_devclass;
 static devclass_t wi_pci_devclass;
 
@@ -257,14 +266,16 @@ wi_pci_probe(dev)
 	device_t	dev;
 {
 	struct wi_softc		*sc;
+	int i;
 
 	sc = device_get_softc(dev);
-	if ((pci_get_vendor(dev) == WI_PCI_VENDOR_EUMITCOM) &&
-		(pci_get_device(dev) == WI_PCI_DEVICE_PRISM2STA)) {
+	for(i=0; pci_ids[i].vendor != 0; i++) {
+		if ((pci_get_vendor(dev) == pci_ids[i].vendor) &&
+			(pci_get_device(dev) == pci_ids[i].device)) {
 			sc->wi_prism2 = 1;
-			device_set_desc(dev,
-			    "PRISM2STA PCI WaveLAN/IEEE 802.11");
+			device_set_desc(dev, pci_ids[i].desc);
 			return (0);
+		}
 	}
 	return(ENXIO);
 }
