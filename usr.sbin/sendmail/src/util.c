@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.84.1.2 (Berkeley) 3/4/96";
+static char sccsid[] = "@(#)util.c	8.84.1.4 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -374,6 +374,7 @@ makelower(p)
 **		p -- name to build.
 **		login -- the login name of this user (for &).
 **		buf -- place to put the result.
+**		buflen -- length of buf.
 **
 **	Returns:
 **		none.
@@ -383,10 +384,11 @@ makelower(p)
 */
 
 void
-buildfname(gecos, login, buf)
+buildfname(gecos, login, buf, buflen)
 	register char *gecos;
 	char *login;
 	char *buf;
+	int buflen;
 {
 	register char *p;
 	register char *bp = buf;
@@ -404,16 +406,21 @@ buildfname(gecos, login, buf)
 		else
 			l++;
 	}
+	if (l > buflen - 1)
+	{
+		/* not a good sign */
+		snprintf(buf, buflen, "%s", gecos);
+		return;
+	}
 
 	/* now fill in buf */
 	for (p = gecos; *p != '\0' && *p != ',' && *p != ';' && *p != '%'; p++)
 	{
 		if (*p == '&')
 		{
-			(void) strcpy(bp, login);
+			snprintf(bp, SPACELEFT(buf, bp), "%s", login);
 			*bp = toupper(*bp);
-			while (*bp != '\0')
-				bp++;
+			bp += strlen(bp);
 		}
 		else
 			*bp++ = *p;
@@ -1530,14 +1537,15 @@ dumpfd(fd, printclosed, logit)
 	extern char *hostnamebyanyaddr();
 
 	p = buf;
-	sprintf(p, "%3d: ", fd);
+	snprintf(p, SPACELEFT(buf, p), "%3d: ", fd);
 	p += strlen(p);
 
 	if (fstat(fd, &st) < 0)
 	{
 		if (printclosed || errno != EBADF)
 		{
-			sprintf(p, "CANNOT STAT (%s)", errstring(errno));
+			snprintf(p, SPACELEFT(buf, p), "CANNOT STAT (%s)",
+				errstring(errno));
 			goto printit;
 		}
 		return;
@@ -1546,73 +1554,75 @@ dumpfd(fd, printclosed, logit)
 	slen = fcntl(fd, F_GETFL, NULL);
 	if (slen != -1)
 	{
-		sprintf(p, "fl=0x%x, ", slen);
+		snprintf(p, SPACELEFT(buf, p), "fl=0x%x, ", slen);
 		p += strlen(p);
 	}
 
-	sprintf(p, "mode=%o: ", st.st_mode);
+	snprintf(p, SPACELEFT(buf, p), "mode=%o: ", st.st_mode);
 	p += strlen(p);
 	switch (st.st_mode & S_IFMT)
 	{
 #ifdef S_IFSOCK
 	  case S_IFSOCK:
-		sprintf(p, "SOCK ");
+		snprintf(p, SPACELEFT(buf, p), "SOCK ");
 		p += strlen(p);
 		slen = sizeof sa;
 		if (getsockname(fd, &sa.sa, &slen) < 0)
-			sprintf(p, "(%s)", errstring(errno));
+			snprintf(p, SPACELEFT(buf, p), "(%s)", errstring(errno));
 		else
 		{
 			hp = hostnamebyanyaddr(&sa);
 			if (sa.sa.sa_family == AF_INET)
-				sprintf(p, "%s/%d", hp, ntohs(sa.sin.sin_port));
+				snprintf(p, SPACELEFT(buf, p), "%s/%d",
+					hp, ntohs(sa.sin.sin_port));
 			else
-				sprintf(p, "%s", hp);
+				snprintf(p, SPACELEFT(buf, p), "%s", hp);
 		}
 		p += strlen(p);
-		sprintf(p, "->");
+		snprintf(p, SPACELEFT(buf, p), "->");
 		p += strlen(p);
 		slen = sizeof sa;
 		if (getpeername(fd, &sa.sa, &slen) < 0)
-			sprintf(p, "(%s)", errstring(errno));
+			snprintf(p, SPACELEFT(buf, p), "(%s)", errstring(errno));
 		else
 		{
 			hp = hostnamebyanyaddr(&sa);
 			if (sa.sa.sa_family == AF_INET)
-				sprintf(p, "%s/%d", hp, ntohs(sa.sin.sin_port));
+				snprintf(p, SPACELEFT(buf, p), "%s/%d",
+					hp, ntohs(sa.sin.sin_port));
 			else
-				sprintf(p, "%s", hp);
+				snprintf(p, SPACELEFT(buf, p), "%s", hp);
 		}
 		break;
 #endif
 
 	  case S_IFCHR:
-		sprintf(p, "CHR: ");
+		snprintf(p, SPACELEFT(buf, p), "CHR: ");
 		p += strlen(p);
 		goto defprint;
 
 	  case S_IFBLK:
-		sprintf(p, "BLK: ");
+		snprintf(p, SPACELEFT(buf, p), "BLK: ");
 		p += strlen(p);
 		goto defprint;
 
 #if defined(S_IFIFO) && (!defined(S_IFSOCK) || S_IFIFO != S_IFSOCK)
 	  case S_IFIFO:
-		sprintf(p, "FIFO: ");
+		snprintf(p, SPACELEFT(buf, p), "FIFO: ");
 		p += strlen(p);
 		goto defprint;
 #endif
 
 #ifdef S_IFDIR
 	  case S_IFDIR:
-		sprintf(p, "DIR: ");
+		snprintf(p, SPACELEFT(buf, p), "DIR: ");
 		p += strlen(p);
 		goto defprint;
 #endif
 
 #ifdef S_IFLNK
 	  case S_IFLNK:
-		sprintf(p, "LNK: ");
+		snprintf(p, SPACELEFT(buf, p), "LNK: ");
 		p += strlen(p);
 		goto defprint;
 #endif
@@ -1623,7 +1633,7 @@ defprint:
 			fmtstr = "dev=%d/%d, ino=%d, nlink=%d, u/gid=%d/%d, size=%qd";
 		else
 			fmtstr = "dev=%d/%d, ino=%d, nlink=%d, u/gid=%d/%d, size=%ld";
-		sprintf(p, fmtstr,
+		snprintf(p, SPACELEFT(buf, p), fmtstr,
 			major(st.st_dev), minor(st.st_dev), st.st_ino,
 			st.st_nlink, st.st_uid, st.st_gid, st.st_size);
 		break;
@@ -1856,6 +1866,7 @@ prog_open(argv, pfd, e)
 **		delim -- the delimiter between columns.  If null,
 **			use white space.
 **		buf -- the output buffer.
+**		buflen -- the length of buf.
 **
 **	Returns:
 **		buf if successful.
@@ -1863,11 +1874,12 @@ prog_open(argv, pfd, e)
 */
 
 char *
-get_column(line, col, delim, buf)
+get_column(line, col, delim, buf, buflen)
 	char line[];
 	int col;
 	char delim;
 	char buf[];
+	int buflen;
 {
 	char *p;
 	char *begin, *end;
@@ -1910,14 +1922,13 @@ get_column(line, col, delim, buf)
 	
 	end = strpbrk(begin, delimbuf);
 	if (end == NULL)
-	{
-		strcpy(buf, begin);
-	}
+		i = strlen(buf);
 	else
-	{
-		strncpy(buf, begin, end - begin);
-		buf[end - begin] = '\0';
-	}
+		i = end - begin;
+	if (i >= buflen)
+		i = buflen - 1;
+	strncpy(buf, begin, i);
+	buf[i] = '\0';
 	return buf;
 }
 /*

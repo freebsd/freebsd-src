@@ -35,7 +35,7 @@
 # include "sendmail.h"
 
 #ifndef lint
-static char sccsid[] = "@(#)alias.c	8.52 (Berkeley) 10/28/95";
+static char sccsid[] = "@(#)alias.c	8.52.1.3 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 
@@ -77,7 +77,7 @@ alias(a, sendq, aliaslevel, e)
 	int naliases;
 	char *owner;
 	auto int stat = EX_OK;
-	char obuf[MAXNAME + 6];
+	char obuf[MAXNAME + 7];
 	extern char *aliaslookup();
 
 	if (tTd(27, 1))
@@ -147,7 +147,8 @@ alias(a, sendq, aliaslevel, e)
 	*/
 
 	(void) strcpy(obuf, "owner-");
-	if (strncmp(a->q_user, "owner-", 6) == 0)
+	if (strncmp(a->q_user, "owner-", 6) == 0 ||
+	    strlen(a->q_user) > (SIZE_T) sizeof obuf - 7)
 		(void) strcat(obuf, "owner");
 	else
 		(void) strcat(obuf, a->q_user);
@@ -258,7 +259,7 @@ setalias(spec)
 				return;
 			}
 		}
-		(void) sprintf(buf, "Alias%d", NAliasFileMaps);
+		(void) snprintf(buf, sizeof buf, "Alias%d", NAliasFileMaps);
 		s = stab(buf, ST_MAP, ST_ENTER);
 		map = &s->s_map;
 		bzero(map, sizeof *map);
@@ -397,9 +398,8 @@ aliaswait(map, ext, isopen)
 		return isopen;
 	}
 	mtime = stb.st_mtime;
-	(void) strcpy(buf, map->map_file);
-	if (ext != NULL)
-		(void) strcat(buf, ext);
+	snprintf(buf, sizeof buf, "%s%s",
+		map->map_file, ext == NULL ? "" : ext);
 	if (stat(buf, &stb) < 0 || stb.st_mtime < mtime || attimeout)
 	{
 		/* database is out of date */
@@ -507,8 +507,6 @@ rebuildaliases(map, automatic)
 		return;
 	}
 
-	/* avoid denial-of-service attacks */
-	resetlimits();
 	oldsigint = setsignal(SIGINT, SIG_IGN);
 	oldsigquit = setsignal(SIGQUIT, SIG_IGN);
 #ifdef SIGTSTP

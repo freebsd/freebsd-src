@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)map.c	8.108 (Berkeley) 11/29/95";
+static char sccsid[] = "@(#)map.c	8.108.1.2 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -99,7 +99,7 @@ static char sccsid[] = "@(#)map.c	8.108 (Berkeley) 11/29/95";
 #define EX_NOTFOUND	EX_NOHOST
 
 extern bool	aliaswait __P((MAP *, char *, int));
-extern bool	extract_canonname __P((char *, char *, char[]));
+extern bool	extract_canonname __P((char *, char *, char[], int));
 
 #if defined(O_EXLOCK) && HASFLOCK
 # define LOCK_ON_OPEN	1	/* we can open/create a locked file */
@@ -647,6 +647,7 @@ getcanonname(host, hbsize, trymx)
 **		name -- the name against which to match.
 **		line -- the /etc/hosts line.
 **		cbuf -- the location to store the result.
+**		cbuflen -- the size of cbuf.
 **
 **	Returns:
 **		TRUE -- if the line matched the desired name.
@@ -654,17 +655,20 @@ getcanonname(host, hbsize, trymx)
 */
 
 bool
-extract_canonname(name, line, cbuf)
+extract_canonname(name, line, cbuf, cbuflen)
 	char *name;
 	char *line;
 	char cbuf[];
+	int cbuflen;
 {
 	int i;
 	char *p;
 	bool found = FALSE;
-	extern char *get_column();
+	int l;
+	extern char *get_column __P((char *, int, char, char *, int));
 
 	cbuf[0] = '\0';
+	l = cbuflen;
 	if (line[0] == '#')
 		return FALSE;
 
@@ -672,12 +676,14 @@ extract_canonname(name, line, cbuf)
 	{
 		char nbuf[MAXNAME + 1];
 
-		p = get_column(line, i, '\0', nbuf);
+		p = get_column(line, i, '\0', nbuf, sizeof nbuf);
 		if (p == NULL)
 			break;
 		if (cbuf[0] == '\0' ||
 		    (strchr(cbuf, '.') == NULL && strchr(p, '.') != NULL))
-			strcpy(cbuf, p);
+		{
+			snprintf(cbuf, cbuflen, "%s", p);
+		}
 		if (strcasecmp(name, p) == 0)
 			found = TRUE;
 	}
@@ -687,7 +693,7 @@ extract_canonname(name, line, cbuf)
 		char *domain = macvalue('m', CurEnv);
 
 		if (domain != NULL &&
-		    strlen(domain) + strlen(cbuf) + 1 < MAXNAME)
+		    strlen(domain) + strlen(cbuf) + 1 < cbuflen)
 		{
 			p = &cbuf[strlen(cbuf)];
 			*p++ = '.';
@@ -746,8 +752,8 @@ ndbm_map_open(map, mode)
 		char dirfile[MAXNAME + 1];
 		char pagfile[MAXNAME + 1];
 
-		sprintf(dirfile, "%s.dir", map->map_file);
-		sprintf(pagfile, "%s.pag", map->map_file);
+		snprintf(dirfile, sizeof dirfile, "%s.dir", map->map_file);
+		snprintf(pagfile, sizeof pagfile, "%s.pag", map->map_file);
 		dirfd = open(dirfile, mode|O_CREAT, DBMMODE);
 		pagfd = open(pagfile, mode|O_CREAT, DBMMODE);
 
@@ -924,7 +930,8 @@ ndbm_map_store(map, lhs, rhs)
 					bufsiz = data.dsize + old.dsize + 2;
 					buf = xalloc(bufsiz);
 				}
-				sprintf(buf, "%s,%s", data.dptr, old.dptr);
+				snprintf(buf, bufsiz, "%s,%s",
+					data.dptr, old.dptr);
 				data.dsize = data.dsize + old.dsize + 1;
 				data.dptr = buf;
 				if (tTd(38, 9))
@@ -961,7 +968,7 @@ ndbm_map_close(map)
 
 		if (strstr(map->map_file, "/yp/") != NULL)
 		{
-			(void) sprintf(buf, "%010ld", curtime());
+			(void) snprintf(buf, sizeof buf, "%010ld", curtime());
 			ndbm_map_store(map, "YP_LAST_MODIFIED", buf);
 
 			(void) gethostname(buf, sizeof buf);
@@ -1033,7 +1040,7 @@ db_map_open(map, mode, dbtype)
 	struct stat st;
 	char buf[MAXNAME + 1];
 
-	(void) strcpy(buf, map->map_file);
+	snprintf(buf, sizeof buf - 3, "%s", map->map_file);
 	i = strlen(buf);
 	if (i < 3 || strcmp(&buf[i - 3], ".db") != 0)
 		(void) strcat(buf, ".db");
@@ -1249,7 +1256,8 @@ db_map_store(map, lhs, rhs)
 					bufsiz = data.size + old.size + 2;
 					buf = xalloc(bufsiz);
 				}
-				sprintf(buf, "%s,%s", data.data, old.data);
+				snprintf(buf, bufsiz, "%s,%s",
+					data.data, old.data);
 				data.size = data.size + old.size + 1;
 				data.data = buf;
 				if (tTd(38, 9))
@@ -1508,7 +1516,7 @@ nis_getcanonname(name, hbsize, statp)
 	host_record[vsize] = '\0';
 	if (tTd(38, 44))
 		printf("got record `%s'\n", host_record);
-	if (!extract_canonname(nbuf, host_record, cbuf))
+	if (!extract_canonname(nbuf, host_record, cbuf, sizeof cbuf))
 	{
 		/* this should not happen, but.... */
 		*statp = EX_NOHOST;
@@ -1586,7 +1594,8 @@ nisplus_map_open(map, mode)
 
 	/* check to see if this map actually exists */
 	if (PARTIAL_NAME(map->map_file))
-		sprintf(qbuf, "%s.%s", map->map_file, map->map_domain);
+		snprintf(qbuf, sizeof qbuf, "%s.%s",
+			map->map_file, map->map_domain);
 	else
 		strcpy(qbuf, map->map_file);
 	
@@ -1724,11 +1733,12 @@ nisplus_map_lookup(map, name, av, statp)
 
 	/* construct the query */
 	if (PARTIAL_NAME(map->map_file))
-		sprintf(qbuf, "[%s=%s],%s.%s", map->map_keycolnm,
-			search_key, map->map_file, map->map_domain);
+		snprintf(qbuf, sizeof qbuf, "[%s=%s],%s.%s",
+			map->map_keycolnm, search_key, map->map_file,
+			map->map_domain);
 	else
-		sprintf(qbuf, "[%s=%s],%s", map->map_keycolnm,
-			search_key, map->map_file);
+		snprintf(qbuf, sizeof qbuf, "[%s=%s],%s",
+			map->map_keycolnm, search_key, map->map_file);
 
 	if (tTd(38, 20))
 		printf("qbuf=%s\n", qbuf);
@@ -1816,13 +1826,14 @@ nisplus_getcanonname(name, hbsize, statp)
 	if (p == NULL)
 	{
 		/* single token */
-		sprintf(qbuf, "[name=%s],hosts.org_dir", nbuf);
+		snprintf(qbuf, sizeof qbuf, "[name=%s],hosts.org_dir", nbuf);
 	}
 	else if (p[1] != '\0')
 	{
 		/* multi token -- take only first token in nbuf */
 		*p = '\0';
-		sprintf(qbuf, "[name=%s],hosts.org_dir.%s", nbuf, &p[1]);
+		snprintf(qbuf, sizeof qbuf, "[name=%s],hosts.org_dir.%s",
+			nbuf, &p[1]);
 	}
 	else
 	{
@@ -1882,7 +1893,7 @@ nisplus_getcanonname(name, hbsize, statp)
 			if (domain[0] == '\0')
 				strcpy(name, vp);
 			else
-				sprintf(name, "%s.%s", vp, domain);
+				snprintf(name, hbsize, "%s.%s", vp, domain);
 			*statp = EX_OK;
 		}
 		else
@@ -1917,7 +1928,7 @@ nisplus_default_domain()
 		return(default_domain);
 	
 	p = nis_local_directory();
-	strcpy(default_domain, p);
+	snprintf(default_domain, sizeof default_domain, "%s", p);
 	return default_domain;
 }
 
@@ -2450,8 +2461,7 @@ text_map_lookup(map, name, av, statp)
 	char delim;
 	int key_idx;
 	bool found_it;
-	extern char *get_column();
-
+	extern char *get_column __P((char *, int, char, char *, int));
 
 	found_it = FALSE;
 	if (tTd(38, 20))
@@ -2483,7 +2493,7 @@ text_map_lookup(map, name, av, statp)
 		p = strchr(linebuf, '\n');
 		if (p != NULL)
 			*p = '\0';
-		p = get_column(linebuf, key_idx, delim, buf);
+		p = get_column(linebuf, key_idx, delim, buf, sizeof buf);
 		if (p != NULL && strcasecmp(search_key, p) == 0)
 		{
 			found_it = TRUE;
@@ -2496,7 +2506,7 @@ text_map_lookup(map, name, av, statp)
 		*statp = EX_NOTFOUND;
 		return NULL;
 	}
-	vp = get_column(linebuf, map->map_valcolno, delim, buf);
+	vp = get_column(linebuf, map->map_valcolno, delim, buf, sizeof buf);
 	vsize = strlen(vp);
 	*statp = EX_OK;
 	if (bitset(MF_MATCHONLY, map->map_mflags))
@@ -2523,7 +2533,7 @@ text_getcanonname(name, hbsize, statp)
 	char cbuf[MAXNAME + 1];
 	char fbuf[MAXNAME + 1];
 	char nbuf[MAXNAME + 1];
-	extern char *get_column();
+	extern char *get_column __P((char *, int, char, char *, int));
 
 	if (tTd(38, 20))
 		printf("text_getcanonname(%s)\n", name);
@@ -2550,7 +2560,7 @@ text_getcanonname(name, hbsize, statp)
 		if (p != NULL)
 			*p = '\0';
 		if (linebuf[0] != '\0')
-			found = extract_canonname(nbuf, linebuf, cbuf);
+			found = extract_canonname(nbuf, linebuf, cbuf, sizeof cbuf);
 	}
 	fclose(f);
 	if (!found)
@@ -2883,12 +2893,12 @@ user_map_lookup(map, key, av, statp)
 			break;
 
 		  case 3:
-			sprintf(buf, "%d", pw->pw_uid);
+			snprintf(buf, sizeof buf, "%d", pw->pw_uid);
 			rwval = buf;
 			break;
 
 		  case 4:
-			sprintf(buf, "%d", pw->pw_gid);
+			snprintf(buf, sizeof buf, "%d", pw->pw_gid);
 			rwval = buf;
 			break;
 
@@ -2939,7 +2949,7 @@ prog_map_lookup(map, name, av, statp)
 	argv[i++] = map->map_file;
 	if (map->map_rebuild != NULL)
 	{
-		strcpy(buf, map->map_rebuild);
+		snprintf(buf, sizeof buf, "%s", map->map_rebuild);
 		for (p = strtok(buf, " \t"); p != NULL; p = strtok(NULL, " \t"))
 		{
 			if (i >= MAXPV - 1)
@@ -3138,7 +3148,8 @@ switch_map_open(map, mode)
 
 		if (maptype[mapno] == NULL)
 			continue;
-		(void) sprintf(nbuf, "%s.%s", map->map_mname, maptype[mapno]);
+		(void) snprintf(nbuf, sizeof nbuf, "%s.%s",
+			map->map_mname, maptype[mapno]);
 		s = stab(nbuf, ST_MAP, ST_FIND);
 		if (s == NULL)
 		{

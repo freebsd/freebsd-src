@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)envelope.c	8.76 (Berkeley) 11/11/95";
+static char sccsid[] = "@(#)envelope.c	8.76.1.2 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -179,7 +179,7 @@ dropenvelope(e)
 		/* nothing to do */ ;
 	else if (curtime() > e->e_ctime + TimeOuts.to_q_return[e->e_timeoutclass])
 	{
-		(void) sprintf(buf, "Cannot send message for %s",
+		(void) snprintf(buf, sizeof buf, "Cannot send message for %s",
 			pintvl(TimeOuts.to_q_return[e->e_timeoutclass], FALSE));
 		if (e->e_message != NULL)
 			free(e->e_message);
@@ -223,7 +223,7 @@ dropenvelope(e)
 		    (strlen(e->e_from.q_paddr) <= (SIZE_T) 8 ||
 		     strcasecmp(&e->e_from.q_paddr[strlen(e->e_from.q_paddr) - 8], "-request") != 0))
 		{
-			(void) sprintf(buf,
+			(void) snprintf(buf, sizeof buf,
 				"Warning: could not send message for past %s",
 				pintvl(TimeOuts.to_q_warning[e->e_timeoutclass], FALSE));
 			if (e->e_message != NULL)
@@ -452,11 +452,11 @@ initsys(e)
 	*/
 
 	/* process id */
-	(void) sprintf(pbuf, "%d", getpid());
+	(void) snprintf(pbuf, sizeof pbuf, "%d", getpid());
 	define('p', newstr(pbuf), e);
 
 	/* hop count */
-	(void) sprintf(cbuf, "%d", e->e_hopcount);
+	(void) snprintf(cbuf, sizeof cbuf, "%d", e->e_hopcount);
 	define('c', newstr(cbuf), e);
 
 	/* time as integer, unix time, arpa time */
@@ -471,7 +471,7 @@ initsys(e)
 		{
 			if (strrchr(p, '/') != NULL)
 				p = strrchr(p, '/') + 1;
-			(void) strcpy(ybuf, p);
+			snprintf(ybuf, sizeof ybuf, "%s", p);
 			define('y', ybuf, e);
 		}
 	}
@@ -504,7 +504,7 @@ settime(e)
 
 	now = curtime();
 	tm = gmtime(&now);
-	(void) sprintf(tbuf, "%04d%02d%02d%02d%02d", tm->tm_year + 1900,
+	(void) snprintf(tbuf, sizeof tbuf, "%04d%02d%02d%02d%02d", tm->tm_year + 1900,
 			tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min);
 	define('t', newstr(tbuf), e);
 	(void) strcpy(dbuf, ctime(&now));
@@ -686,7 +686,7 @@ setsender(from, e, delimptr, internal)
 
 				if (host == NULL)
 					host = MyHostName;
-				(void) sprintf(ebuf, "%.*s@%.*s",
+				(void) snprintf(ebuf, sizeof ebuf, "%.*s@%.*s",
 					MAXNAME, realname,
 					MAXNAME, host);
 				p = ebuf;
@@ -777,7 +777,7 @@ setsender(from, e, delimptr, internal)
 			    strcmp(pw->pw_name, e->e_from.q_user) == 0 &&
 			    !internal)
 			{
-				buildfname(pw->pw_gecos, e->e_from.q_user, buf);
+				buildfname(pw->pw_gecos, e->e_from.q_user, buf, sizeof buf);
 				if (buf[0] != '\0')
 					FullName = newstr(buf);
 			}

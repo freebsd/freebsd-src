@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)recipient.c	8.108 (Berkeley) 10/30/95";
+static char sccsid[] = "@(#)recipient.c	8.108.1.1 (Berkeley) 9/12/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -499,7 +499,7 @@ recipient(a, sendq, aliaslevel, e)
 
 		/* warning -- finduser may trash buf */
 		pw = finduser(buf, &fuzzy);
-		if (pw == NULL)
+		if (pw == NULL || strlen(pw->pw_name) > MAXNAME)
 		{
 			a->q_flags |= QBADADDR;
 			a->q_status = "5.1.1";
@@ -535,7 +535,7 @@ recipient(a, sendq, aliaslevel, e)
 			a->q_gid = pw->pw_gid;
 			a->q_ruser = newstr(pw->pw_name);
 			a->q_flags |= QGOODUID;
-			buildfname(pw->pw_gecos, pw->pw_name, nbuf);
+			buildfname(pw->pw_gecos, pw->pw_name, nbuf, sizeof nbuf);
 			if (nbuf[0] != '\0')
 				a->q_fullname = newstr(nbuf);
 			if (!usershellok(pw->pw_name, pw->pw_shell))
@@ -743,7 +743,7 @@ finduser(name, fuzzyp)
 		}
 # endif
 
-		buildfname(pw->pw_gecos, pw->pw_name, buf);
+		buildfname(pw->pw_gecos, pw->pw_name, buf, sizeof buf);
 		if (strchr(buf, ' ') != NULL && !strcasecmp(buf, name))
 		{
 			if (tTd(29, 4))
