@@ -870,12 +870,15 @@ debug_vn_lock(vp, flags, td, filename, line)
 		if ((flags & LK_INTERLOCK) == 0)
 			VI_LOCK(vp);
 		if ((vp->v_iflag & VI_XLOCK) && vp->v_vxproc != curthread) {
+			if ((flags & LK_NOWAIT) != 0) {
+				VI_UNLOCK(vp);
+				return (ENOENT);
+			}
 			vp->v_iflag |= VI_XWANT;
 			msleep(vp, VI_MTX(vp), PINOD, "vn_lock", 0);
-			error = ENOENT;
 			if ((flags & LK_RETRY) == 0) {
 				VI_UNLOCK(vp);
-				return (error);
+				return (ENOENT);
 			}
 		} 
 #ifdef	DEBUG_LOCKS
