@@ -118,9 +118,16 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_mbuf, CTLFLAG_RD,
 static int	init_count_mount;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_mount, CTLFLAG_RD,
     &init_count_mount, 0, "mount init calls");
+static int	init_count_mount_fslabel;
+SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_mount_fslabel, CTLFLAG_RD,
+    &init_count_mount_fslabel, 0, "mount_fslabel init calls");
 static int	init_count_socket;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_socket, CTLFLAG_RD,
     &init_count_socket, 0, "socket init calls");
+static int	init_count_socket_peerlabel;
+SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_socket_peerlabel,
+    CTLFLAG_RD, &init_count_socket_peerlabel, 0,
+    "socket_peerlabel init calls");
 static int	init_count_pipe;
 SYSCTL_INT(_security_mac_test, OID_AUTO, init_count_pipe, CTLFLAG_RD,
     &init_count_pipe, 0, "pipe init calls");
@@ -152,9 +159,17 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_mbuf, CTLFLAG_RD,
 static int      destroy_count_mount;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_mount, CTLFLAG_RD,
     &destroy_count_mount, 0, "mount destroy calls");
+static int      destroy_count_mount_fslabel;
+SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_mount_fslabel,
+    CTLFLAG_RD, &destroy_count_mount_fslabel, 0,
+    "mount_fslabel destroy calls");
 static int      destroy_count_socket;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_socket, CTLFLAG_RD,
     &destroy_count_socket, 0, "socket destroy calls");
+static int      destroy_count_socket_peerlabel;
+SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_socket_peerlabel,
+    CTLFLAG_RD, &destroy_count_socket_peerlabel, 0,
+    "socket_peerlabel destroy calls");
 static int      destroy_count_pipe;
 SYSCTL_INT(_security_mac_test, OID_AUTO, destroy_count_pipe, CTLFLAG_RD,
     &destroy_count_pipe, 0, "pipe destroy calls");
@@ -198,7 +213,7 @@ mac_test_syscall(struct thread *td, int call, void *arg)
  * Label operations.
  */
 static void
-mac_test_init_bpfdesc(struct bpf_d *bpf_d, struct label *label)
+mac_test_init_bpfdesc_label(struct label *label)
 {
 
 	SLOT(label) = BPFMAGIC;
@@ -206,7 +221,7 @@ mac_test_init_bpfdesc(struct bpf_d *bpf_d, struct label *label)
 }
 
 static void
-mac_test_init_cred(struct ucred *ucred, struct label *label)
+mac_test_init_cred_label(struct label *label)
 {
 
 	SLOT(label) = CREDMAGIC;
@@ -214,8 +229,7 @@ mac_test_init_cred(struct ucred *ucred, struct label *label)
 }
 
 static void
-mac_test_init_devfsdirent(struct devfs_dirent *devfs_dirent,
-    struct label *label)
+mac_test_init_devfsdirent_label(struct label *label)
 {
 
 	SLOT(label) = DEVFSMAGIC;
@@ -223,7 +237,7 @@ mac_test_init_devfsdirent(struct devfs_dirent *devfs_dirent,
 }
 
 static void
-mac_test_init_ifnet(struct ifnet *ifnet, struct label *label)
+mac_test_init_ifnet_label(struct label *label)
 {
 
 	SLOT(label) = IFNETMAGIC;
@@ -231,7 +245,7 @@ mac_test_init_ifnet(struct ifnet *ifnet, struct label *label)
 }
 
 static void
-mac_test_init_ipq(struct ipq *ipq, struct label *label)
+mac_test_init_ipq_label(struct label *label)
 {
 
 	SLOT(label) = IPQMAGIC;
@@ -239,7 +253,7 @@ mac_test_init_ipq(struct ipq *ipq, struct label *label)
 }
 
 static int
-mac_test_init_mbuf(struct mbuf *mbuf, int how, struct label *label)
+mac_test_init_mbuf_label(struct label *label, int flag)
 {
 
 	SLOT(label) = MBUFMAGIC;
@@ -248,27 +262,39 @@ mac_test_init_mbuf(struct mbuf *mbuf, int how, struct label *label)
 }
 
 static void
-mac_test_init_mount(struct mount *mount, struct label *mntlabel,
-    struct label *fslabel)
+mac_test_init_mount_label(struct label *label)
 {
 
-	SLOT(mntlabel) = MOUNTMAGIC;
-	SLOT(fslabel) = MOUNTMAGIC;
+	SLOT(label) = MOUNTMAGIC;
 	atomic_add_int(&init_count_mount, 1);
 }
 
 static void
-mac_test_init_socket(struct socket *socket, struct label *label,
-    struct label *peerlabel)
+mac_test_init_mount_fs_label(struct label *label)
+{
+
+	SLOT(label) = MOUNTMAGIC;
+	atomic_add_int(&init_count_mount_fslabel, 1);
+}
+
+static void
+mac_test_init_socket_label(struct label *label)
 {
 
 	SLOT(label) = SOCKETMAGIC;
-	SLOT(peerlabel) = SOCKETMAGIC;
 	atomic_add_int(&init_count_socket, 1);
 }
 
 static void
-mac_test_init_pipe(struct pipe *pipe, struct label *label)
+mac_test_init_socket_peer_label(struct label *label)
+{
+
+	SLOT(label) = SOCKETMAGIC;
+	atomic_add_int(&init_count_socket_peerlabel, 1);
+}
+
+static void
+mac_test_init_pipe_label(struct label *label)
 {
 
 	SLOT(label) = PIPEMAGIC;
@@ -276,7 +302,7 @@ mac_test_init_pipe(struct pipe *pipe, struct label *label)
 }
 
 static void
-mac_test_init_temp(struct label *label)
+mac_test_init_temp_label(struct label *label)
 {
 
 	SLOT(label) = TEMPMAGIC;
@@ -284,7 +310,7 @@ mac_test_init_temp(struct label *label)
 }
 
 static void
-mac_test_init_vnode(struct vnode *vp, struct label *label)
+mac_test_init_vnode_label(struct label *label)
 {
 
 	SLOT(label) = VNODEMAGIC;
@@ -292,7 +318,7 @@ mac_test_init_vnode(struct vnode *vp, struct label *label)
 }
 
 static void
-mac_test_destroy_bpfdesc(struct bpf_d *bpf_d, struct label *label)
+mac_test_destroy_bpfdesc_label(struct label *label)
 {
 
 	if (SLOT(label) == BPFMAGIC || SLOT(label) == 0) {
@@ -306,7 +332,7 @@ mac_test_destroy_bpfdesc(struct bpf_d *bpf_d, struct label *label)
 }
 
 static void
-mac_test_destroy_cred(struct ucred *ucred, struct label *label)
+mac_test_destroy_cred_label(struct label *label)
 {
 
 	if (SLOT(label) == CREDMAGIC || SLOT(label) == 0) {
@@ -320,8 +346,7 @@ mac_test_destroy_cred(struct ucred *ucred, struct label *label)
 }
 
 static void
-mac_test_destroy_devfsdirent(struct devfs_dirent *devfs_dirent,
-    struct label *label)
+mac_test_destroy_devfsdirent_label(struct label *label)
 {
 
 	if (SLOT(label) == DEVFSMAGIC || SLOT(label) == 0) {
@@ -335,7 +360,7 @@ mac_test_destroy_devfsdirent(struct devfs_dirent *devfs_dirent,
 }
 
 static void
-mac_test_destroy_ifnet(struct ifnet *ifnet, struct label *label)
+mac_test_destroy_ifnet_label(struct label *label)
 {
 
 	if (SLOT(label) == IFNETMAGIC || SLOT(label) == 0) {
@@ -349,7 +374,7 @@ mac_test_destroy_ifnet(struct ifnet *ifnet, struct label *label)
 }
 
 static void
-mac_test_destroy_ipq(struct ipq *ipq, struct label *label)
+mac_test_destroy_ipq_label(struct label *label)
 {
 
 	if (SLOT(label) == IPQMAGIC || SLOT(label) == 0) {
@@ -363,7 +388,7 @@ mac_test_destroy_ipq(struct ipq *ipq, struct label *label)
 }
 
 static void
-mac_test_destroy_mbuf(struct mbuf *mbuf, struct label *label)
+mac_test_destroy_mbuf_label(struct label *label)
 {
 
 	if (SLOT(label) == MBUFMAGIC || SLOT(label) == 0) {
@@ -377,16 +402,13 @@ mac_test_destroy_mbuf(struct mbuf *mbuf, struct label *label)
 }
 
 static void
-mac_test_destroy_mount(struct mount *mount, struct label *mntlabel,
-    struct label *fslabel)
+mac_test_destroy_mount_label(struct label *label)
 {
 
-	if ((SLOT(mntlabel) == MOUNTMAGIC || SLOT(mntlabel) == 0) &&
-	    (SLOT(fslabel) == MOUNTMAGIC || SLOT(fslabel) == 0)) {
+	if ((SLOT(label) == MOUNTMAGIC || SLOT(label) == 0)) {
 		atomic_add_int(&destroy_count_mount, 1);
-		SLOT(mntlabel) = EXMAGIC;
-		SLOT(fslabel) = EXMAGIC;
-	} else if (SLOT(mntlabel) == EXMAGIC || SLOT(fslabel) == EXMAGIC) {
+		SLOT(label) = EXMAGIC;
+	} else if (SLOT(label) == EXMAGIC) {
 		Debugger("mac_test_destroy_mount: dup destroy");
 	} else {
 		Debugger("mac_test_destroy_mount: corrupted label");
@@ -394,23 +416,49 @@ mac_test_destroy_mount(struct mount *mount, struct label *mntlabel,
 }
 
 static void
-mac_test_destroy_socket(struct socket *socket, struct label *label,
-    struct label *peerlabel)
+mac_test_destroy_mount_fs_label(struct label *label)
 {
 
-	if ((SLOT(label) == SOCKETMAGIC || SLOT(label) == 0) &&
-	    (SLOT(peerlabel) == SOCKETMAGIC || SLOT(peerlabel) == 0)) {
+	if ((SLOT(label) == MOUNTMAGIC || SLOT(label) == 0)) {
+		atomic_add_int(&destroy_count_mount_fslabel, 1);
+		SLOT(label) = EXMAGIC;
+	} else if (SLOT(label) == EXMAGIC) {
+		Debugger("mac_test_destroy_mount_fslabel: dup destroy");
+	} else {
+		Debugger("mac_test_destroy_mount_fslabel: corrupted label");
+	}
+}
+
+static void
+mac_test_destroy_socket_label(struct label *label)
+{
+
+	if ((SLOT(label) == SOCKETMAGIC || SLOT(label) == 0)) {
 		atomic_add_int(&destroy_count_socket, 1);
 		SLOT(label) = EXMAGIC;
-		SLOT(peerlabel) = EXMAGIC;
-	} else if (SLOT(label) == EXMAGIC || SLOT(peerlabel) == EXMAGIC) {
+	} else if (SLOT(label) == EXMAGIC) {
 		Debugger("mac_test_destroy_socket: dup destroy");
 	} else {
 		Debugger("mac_test_destroy_socket: corrupted label");
 	}
 }
+
 static void
-mac_test_destroy_pipe(struct pipe *pipe, struct label *label)
+mac_test_destroy_socket_peer_label(struct label *label)
+{
+
+	if ((SLOT(label) == SOCKETMAGIC || SLOT(label) == 0)) {
+		atomic_add_int(&destroy_count_socket_peerlabel, 1);
+		SLOT(label) = EXMAGIC;
+	} else if (SLOT(label) == EXMAGIC) {
+		Debugger("mac_test_destroy_socket_peerlabel: dup destroy");
+	} else {
+		Debugger("mac_test_destroy_socket_peerlabel: corrupted label");
+	}
+}
+
+static void
+mac_test_destroy_pipe_label(struct label *label)
 {
 
 	if ((SLOT(label) == PIPEMAGIC || SLOT(label) == 0)) {
@@ -424,7 +472,7 @@ mac_test_destroy_pipe(struct pipe *pipe, struct label *label)
 }
 
 static void
-mac_test_destroy_temp(struct label *label)
+mac_test_destroy_temp_label(struct label *label)
 {
 
 	if (SLOT(label) == TEMPMAGIC || SLOT(label) == 0) {
@@ -438,7 +486,7 @@ mac_test_destroy_temp(struct label *label)
 }
 
 static void
-mac_test_destroy_vnode(struct vnode *vp, struct label *label)
+mac_test_destroy_vnode_label(struct label *label)
 {
 
 	if (SLOT(label) == VNODEMAGIC || SLOT(label) == 0) {
@@ -1151,50 +1199,58 @@ static struct mac_policy_op_entry mac_test_ops[] =
 	    (macop_t)mac_test_init },
 	{ MAC_SYSCALL,
 	    (macop_t)mac_test_syscall },
-	{ MAC_INIT_BPFDESC,
-	    (macop_t)mac_test_init_bpfdesc },
-	{ MAC_INIT_CRED,
-	    (macop_t)mac_test_init_cred },
-	{ MAC_INIT_DEVFSDIRENT,
-	    (macop_t)mac_test_init_devfsdirent },
-	{ MAC_INIT_IFNET,
-	    (macop_t)mac_test_init_ifnet },
-	{ MAC_INIT_IPQ,
-	    (macop_t)mac_test_init_ipq },
-	{ MAC_INIT_MBUF,
-	    (macop_t)mac_test_init_mbuf },
-	{ MAC_INIT_MOUNT,
-	    (macop_t)mac_test_init_mount },
-	{ MAC_INIT_PIPE,
-	    (macop_t)mac_test_init_pipe },
-	{ MAC_INIT_SOCKET,
-	    (macop_t)mac_test_init_socket },
-	{ MAC_INIT_TEMP,
-	    (macop_t)mac_test_init_temp },
-	{ MAC_INIT_VNODE,
-	    (macop_t)mac_test_init_vnode },
-	{ MAC_DESTROY_BPFDESC,
-	    (macop_t)mac_test_destroy_bpfdesc },
-	{ MAC_DESTROY_CRED,
-	    (macop_t)mac_test_destroy_cred },
-	{ MAC_DESTROY_DEVFSDIRENT,
-	    (macop_t)mac_test_destroy_devfsdirent },
-	{ MAC_DESTROY_IFNET,
-	    (macop_t)mac_test_destroy_ifnet },
-	{ MAC_DESTROY_IPQ,
-	    (macop_t)mac_test_destroy_ipq },
-	{ MAC_DESTROY_MBUF,
-	    (macop_t)mac_test_destroy_mbuf },
-	{ MAC_DESTROY_MOUNT,
-	    (macop_t)mac_test_destroy_mount },
-	{ MAC_DESTROY_PIPE,
-	    (macop_t)mac_test_destroy_pipe },
-	{ MAC_DESTROY_SOCKET,
-	    (macop_t)mac_test_destroy_socket },
-	{ MAC_DESTROY_TEMP,
-	    (macop_t)mac_test_destroy_temp },
-	{ MAC_DESTROY_VNODE,
-	    (macop_t)mac_test_destroy_vnode },
+	{ MAC_INIT_BPFDESC_LABEL,
+	    (macop_t)mac_test_init_bpfdesc_label },
+	{ MAC_INIT_CRED_LABEL,
+	    (macop_t)mac_test_init_cred_label },
+	{ MAC_INIT_DEVFSDIRENT_LABEL,
+	    (macop_t)mac_test_init_devfsdirent_label },
+	{ MAC_INIT_IFNET_LABEL,
+	    (macop_t)mac_test_init_ifnet_label },
+	{ MAC_INIT_IPQ_LABEL,
+	    (macop_t)mac_test_init_ipq_label },
+	{ MAC_INIT_MBUF_LABEL,
+	    (macop_t)mac_test_init_mbuf_label },
+	{ MAC_INIT_MOUNT_LABEL,
+	    (macop_t)mac_test_init_mount_label },
+	{ MAC_INIT_MOUNT_FS_LABEL,
+	    (macop_t)mac_test_init_mount_fs_label },
+	{ MAC_INIT_PIPE_LABEL,
+	    (macop_t)mac_test_init_pipe_label },
+	{ MAC_INIT_SOCKET_LABEL,
+	    (macop_t)mac_test_init_socket_label },
+	{ MAC_INIT_SOCKET_PEER_LABEL,
+	    (macop_t)mac_test_init_socket_peer_label },
+	{ MAC_INIT_TEMP_LABEL,
+	    (macop_t)mac_test_init_temp_label },
+	{ MAC_INIT_VNODE_LABEL,
+	    (macop_t)mac_test_init_vnode_label },
+	{ MAC_DESTROY_BPFDESC_LABEL,
+	    (macop_t)mac_test_destroy_bpfdesc_label },
+	{ MAC_DESTROY_CRED_LABEL,
+	    (macop_t)mac_test_destroy_cred_label },
+	{ MAC_DESTROY_DEVFSDIRENT_LABEL,
+	    (macop_t)mac_test_destroy_devfsdirent_label },
+	{ MAC_DESTROY_IFNET_LABEL,
+	    (macop_t)mac_test_destroy_ifnet_label },
+	{ MAC_DESTROY_IPQ_LABEL,
+	    (macop_t)mac_test_destroy_ipq_label },
+	{ MAC_DESTROY_MBUF_LABEL,
+	    (macop_t)mac_test_destroy_mbuf_label },
+	{ MAC_DESTROY_MOUNT_LABEL,
+	    (macop_t)mac_test_destroy_mount_label },
+	{ MAC_DESTROY_MOUNT_FS_LABEL,
+	    (macop_t)mac_test_destroy_mount_fs_label },
+	{ MAC_DESTROY_PIPE_LABEL,
+	    (macop_t)mac_test_destroy_pipe_label },
+	{ MAC_DESTROY_SOCKET_LABEL,
+	    (macop_t)mac_test_destroy_socket_label },
+	{ MAC_DESTROY_SOCKET_PEER_LABEL,
+	    (macop_t)mac_test_destroy_socket_peer_label },
+	{ MAC_DESTROY_TEMP_LABEL,
+	    (macop_t)mac_test_destroy_temp_label },
+	{ MAC_DESTROY_VNODE_LABEL,
+	    (macop_t)mac_test_destroy_vnode_label },
 	{ MAC_EXTERNALIZE,
 	    (macop_t)mac_test_externalize },
 	{ MAC_INTERNALIZE,
