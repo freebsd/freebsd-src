@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.38 1998/05/21 23:38:08 brian Exp $
+#	$Id: Makefile,v 1.39 1998/06/07 00:16:57 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
@@ -9,7 +9,7 @@ SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
 CFLAGS+=-Wall
 LDADD+= -lutil -lz
 DPADD+=	${LIBUTIL} ${LIBZ}
-BINMODE=4551
+BINMODE=4554
 BINOWN=	root
 BINGRP=	network
 
