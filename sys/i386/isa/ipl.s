@@ -67,7 +67,9 @@ doreti_next:
 	je	doreti_exit		/* no, defer */
 
 doreti_ast:
+	pushl	%esp			/* pass a pointer to the trapframe */
 	call	_ast
+	add	$4, %esp
 
 	/*
 	 * doreti_exit:	release MP lock, pop registers, iret.

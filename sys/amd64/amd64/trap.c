@@ -106,7 +106,7 @@ int (*pmath_emulate) __P((struct trapframe *));
 extern void trap __P((struct trapframe frame));
 extern int trapwrite __P((unsigned addr));
 extern void syscall __P((struct trapframe frame));
-extern void ast __P((struct trapframe frame));
+extern void ast __P((struct trapframe *framep));
 
 static int trap_pfault __P((struct trapframe *, int, vm_offset_t));
 static void trap_fatal __P((struct trapframe *, vm_offset_t));
@@ -1270,13 +1270,13 @@ bad:
 }
 
 void
-ast(frame)
-	struct trapframe frame;
+ast(framep)
+	struct trapframe *framep;
 {
 	struct proc *p = CURPROC;
 	u_quad_t sticks;
 
-	KASSERT(TRAPF_USERMODE(&frame), ("ast in kernel mode"));
+	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
 
 	/*
 	 * We check for a pending AST here rather than in the assembly as
@@ -1291,8 +1291,8 @@ ast(frame)
 	sticks = p->p_sticks;
 
 	astoff(p);
+	cnt.v_soft++;
 	mtx_intr_enable(&sched_lock);
-	atomic_add_int(&cnt.v_soft, 1);
 	if (p->p_sflag & PS_OWEUPC) {
 		p->p_sflag &= ~PS_OWEUPC;
 		mtx_unlock_spin(&sched_lock);
@@ -1317,8 +1317,8 @@ ast(frame)
 		psignal(p, SIGPROF);
 	} else
 		mtx_unlock_spin(&sched_lock);
-	
-	userret(p, &frame, sticks);
+
+	userret(p, framep, sticks);
 
 	if (mtx_owned(&Giant))
 		mtx_unlock(&Giant);
