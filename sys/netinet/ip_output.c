@@ -80,6 +80,12 @@ static int	ip_pcbopts __P((struct mbuf **, struct mbuf *));
 static int	ip_setmoptions
 	__P((int, struct ip_moptions **, struct mbuf *));
 
+#if defined(IPFILTER_LKM) || defined(IPFILTER)
+extern int fr_check __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
+extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
+#endif
+
+
 extern	struct protosw inetsw[];
 
 /*
@@ -331,6 +337,20 @@ ip_output(m0, opt, ro, flags, imo)
 		m->m_flags &= ~M_BCAST;
 	}
 
+#if defined(IPFILTER) || defined(IPFILTER_LKM)
+    {
+	struct	mbuf	*m0 = m;
+	/*
+	 * looks like most checking has been done now...do a filter check
+	 */
+	if (fr_checkp && (*fr_checkp)(ip, hlen, ifp, 1, &m0))
+	{
+		error = EHOSTUNREACH;
+		goto done;
+	}
+	ip = mtod(m = m0, struct ip *);
+    }
+#endif
 sendit:
         /*
 	 * IpHack's section.
