@@ -320,7 +320,6 @@ frentry_t *fr, **frptr;
 {
 	mb_t *m;
 #if defined(_KERNEL) && !SOLARIS
-	struct ifqueue *ifq;
 	int s;
 #endif
 	frauth_t auth, *au = &auth, *fra;
