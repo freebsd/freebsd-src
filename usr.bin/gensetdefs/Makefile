@@ -1,5 +1,6 @@
-#	$Id: Makefile,v 1.2 1998/10/14 10:21:10 bde Exp $
+#	$Id: Makefile,v 1.3 1999/05/04 20:31:26 ghelmer Exp $
 
 PROG=	gensetdefs
+MAN8=	gensetdefs.8
 
 .include <bsd.prog.mk>
