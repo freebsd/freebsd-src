@@ -1011,6 +1011,8 @@ datalink_Down(struct datalink *dl, int how)
     case DATALINK_AUTH:
     case DATALINK_LCP:
       fsm2initial(&dl->physical->link.lcp.fsm);
+      if (dl->state == DATALINK_OPENING)
+        return;			/* we're doing a callback... */
       /* fall through */
 
     default:
