@@ -280,7 +280,6 @@ ufs_getacl(ap)
 			ufs_sync_acl_from_inode(ip, ap->a_aclp);
 			break;
 
-		default:
 		}
 		break;
 
@@ -323,7 +322,6 @@ ufs_getacl(ap)
 			}
 			break;
 
-		default:
 		}
 		break;
 
