@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.51 1999/01/06 23:05:38 julian Exp $
+ *  $Id: linux_misc.c,v 1.52 1999/01/26 02:38:10 julian Exp $
  */
 
 #include <sys/param.h>
@@ -554,7 +554,7 @@ linux_fork(struct proc *p, struct linux_fork_args *args)
 #ifdef DEBUG
     printf("Linux-emul(%d): fork()\n", p->p_pid);
 #endif
-    if (error = fork(p, (struct fork_args *)args))
+    if ((error = fork(p, (struct fork_args *)args)) != 0)
 	return error;
     if (p->p_retval[1] == 1)
 	p->p_retval[0] = 0;
@@ -589,6 +589,7 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 
     if (!args->stack)
         return (EINVAL);
+
     exit_signal = args->flags & 0x000000ff;
     if (exit_signal >= LINUX_NSIG)
 	return EINVAL;
@@ -608,7 +609,7 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
     start = 0;
 
     rf_args.flags = ff;
-    if (error = rfork(p, &rf_args))
+    if ((error = rfork(p, &rf_args)) != 0)
 	return error;
 
     p2 = pfind(p->p_retval[0]);
@@ -936,6 +937,8 @@ linux_utime(struct proc *p, struct linux_utime_args *args)
     return utimes(p, &bsdutimes);
 }
 
+#define __WCLONE 0x80000000
+
 int
 linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
 {
@@ -953,20 +956,17 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
 #endif
     tmp.pid = args->pid;
     tmp.status = args->status;
-    /* This filters out the linux option _WCLONE.  I don't
-     * think we need it, but I could be wrong.  If we need
-     * it, we need to fix wait4, since it will give us an
-     * error return of EINVAL if we pass in _WCLONE, and
-     * of course, it won't do anything with it.
-     */
     tmp.options = (args->options & (WNOHANG | WUNTRACED));
+    /* WLINUXCLONE should be equal to __WCLONE, but we make sure */
+    if (args->options & __WCLONE)
+	tmp.options |= WLINUXCLONE;
     tmp.rusage = NULL;
 
-    if (error = wait4(p, &tmp))
+    if ((error = wait4(p, &tmp)) != 0)
 	return error;
 
     if (args->status) {
-	if (error = copyin(args->status, &tmpstat, sizeof(int)))
+	if ((error = copyin(args->status, &tmpstat, sizeof(int))) != 0)
 	    return error;
 	if (WIFSIGNALED(tmpstat))
 	    tmpstat = (tmpstat & 0xffffff80) |
@@ -997,22 +997,19 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args)
 #endif
     tmp.pid = args->pid;
     tmp.status = args->status;
-    /* This filters out the linux option _WCLONE.  I don't
-     * think we need it, but I could be wrong.  If we need
-     * it, we need to fix wait4, since it will give us an
-     * error return of EINVAL if we pass in _WCLONE, and
-     * of course, it won't do anything with it.
-     */
     tmp.options = (args->options & (WNOHANG | WUNTRACED));
+    /* WLINUXCLONE should be equal to __WCLONE, but we make sure */
+    if (args->options & __WCLONE)
+	tmp.options |= WLINUXCLONE;
     tmp.rusage = args->rusage;
 
-    if (error = wait4(p, &tmp))
+    if ((error = wait4(p, &tmp)) != 0)
 	return error;
 
     p->p_siglist &= ~sigmask(SIGCHLD);
 
     if (args->status) {
-	if (error = copyin(args->status, &tmpstat, sizeof(int)))
+	if ((error = copyin(args->status, &tmpstat, sizeof(int))) != 0)
 	    return error;
 	if (WIFSIGNALED(tmpstat))
 	    tmpstat = (tmpstat & 0xffffff80) |

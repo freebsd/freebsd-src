@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)wait.h	8.2 (Berkeley) 7/10/94
- * $Id$
+ * $Id: wait.h,v 1.8 1997/02/22 09:46:31 peter Exp $
  */
 
 #ifndef _SYS_WAIT_H_
@@ -79,6 +79,7 @@
  */
 #define WNOHANG		1	/* don't hang in wait */
 #define WUNTRACED	2	/* tell about stopped, untraced children */
+#define WLINUXCLONE     0x80000000       /* wait for kthread spawned from linux_clone */
 
 #ifndef _POSIX_SOURCE
 /* POSIX extensions and 4.2/4.3 compatibility: */
