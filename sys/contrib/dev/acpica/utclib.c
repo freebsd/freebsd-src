@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmclib - Local implementation of C library functions
- * $Revision: 47 $
+ * $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -146,7 +146,7 @@
 
 ACPI_SIZE
 AcpiUtStrlen (
-    const NATIVE_CHAR       *String)
+    const char              *String)
 {
     UINT32                  Length = 0;
 
@@ -176,12 +176,12 @@ AcpiUtStrlen (
  *
  ******************************************************************************/
 
-NATIVE_CHAR *
+char *
 AcpiUtStrcpy (
-    NATIVE_CHAR             *DstString,
-    const NATIVE_CHAR       *SrcString)
+    char                    *DstString,
+    const char              *SrcString)
 {
-    NATIVE_CHAR             *String = DstString;
+    char                    *String = DstString;
 
 
     /* Move bytes brute force */
@@ -215,13 +215,13 @@ AcpiUtStrcpy (
  *
  ******************************************************************************/
 
-NATIVE_CHAR *
+char *
 AcpiUtStrncpy (
-    NATIVE_CHAR             *DstString,
-    const NATIVE_CHAR       *SrcString,
+    char                    *DstString,
+    const char              *SrcString,
     ACPI_SIZE               Count)
 {
-    NATIVE_CHAR             *String = DstString;
+    char                    *String = DstString;
 
 
     /* Copy the string */
@@ -259,8 +259,8 @@ AcpiUtStrncpy (
 
 int
 AcpiUtStrcmp (
-    const NATIVE_CHAR       *String1,
-    const NATIVE_CHAR       *String2)
+    const char              *String1,
+    const char              *String2)
 {
 
 
@@ -292,8 +292,8 @@ AcpiUtStrcmp (
 
 int
 AcpiUtStrncmp (
-    const NATIVE_CHAR       *String1,
-    const NATIVE_CHAR       *String2,
+    const char              *String1,
+    const char              *String2,
     ACPI_SIZE               Count)
 {
 
@@ -324,12 +324,12 @@ AcpiUtStrncmp (
  *
  ******************************************************************************/
 
-NATIVE_CHAR *
+char *
 AcpiUtStrcat (
-    NATIVE_CHAR             *DstString,
-    const NATIVE_CHAR       *SrcString)
+    char                    *DstString,
+    const char              *SrcString)
 {
-    NATIVE_CHAR             *String;
+    char                    *String;
 
 
     /* Find end of the destination string */
@@ -361,13 +361,13 @@ AcpiUtStrcat (
  *
  ******************************************************************************/
 
-NATIVE_CHAR *
+char *
 AcpiUtStrncat (
-    NATIVE_CHAR             *DstString,
-    const NATIVE_CHAR       *SrcString,
+    char                    *DstString,
+    const char              *SrcString,
     ACPI_SIZE               Count)
 {
-    NATIVE_CHAR             *String;
+    char                    *String;
 
 
     if (Count)
@@ -414,8 +414,8 @@ AcpiUtMemcpy (
     const void              *Src,
     ACPI_SIZE               Count)
 {
-    NATIVE_CHAR             *New = (NATIVE_CHAR *) Dest;
-    NATIVE_CHAR             *Old = (NATIVE_CHAR *) Src;
+    char                    *New = (char *) Dest;
+    char                    *Old = (char *) Src;
 
 
     while (Count)
@@ -447,10 +447,10 @@ AcpiUtMemcpy (
 void *
 AcpiUtMemset (
     void                    *Dest,
-    NATIVE_UINT             Value,
+    ACPI_NATIVE_UINT        Value,
     ACPI_SIZE               Count)
 {
-    NATIVE_CHAR             *New = (NATIVE_CHAR *) Dest;
+    char                    *New = (char *) Dest;
 
 
     while (Count)
@@ -671,12 +671,12 @@ AcpiUtToLower (
  *
  ******************************************************************************/
 
-NATIVE_CHAR *
+char *
 AcpiUtStrstr (
-    NATIVE_CHAR             *String1,
-    NATIVE_CHAR             *String2)
+    char                    *String1,
+    char                    *String2)
 {
-    NATIVE_CHAR             *String;
+    char                    *String;
 
 
     if (AcpiUtStrlen (String2) > AcpiUtStrlen (String1))
@@ -717,14 +717,14 @@ AcpiUtStrstr (
 
 UINT32
 AcpiUtStrtoul (
-    const NATIVE_CHAR       *String,
-    NATIVE_CHAR             **Terminator,
+    const char              *String,
+    char                    **Terminator,
     UINT32                  Base)
 {
     UINT32                  converted = 0;
     UINT32                  index;
     UINT32                  sign;
-    const NATIVE_CHAR       *StringStart;
+    const char              *StringStart;
     UINT32                  ReturnValue = 0;
     ACPI_STATUS             Status = AE_OK;
 
@@ -843,7 +843,7 @@ AcpiUtStrtoul (
                             (UINT32) Base))
         {
             Status = AE_ERROR;
-            ReturnValue = 0L;           /* reset */
+            ReturnValue = 0;           /* reset */
         }
         else
         {
@@ -862,13 +862,13 @@ done:
      */
     if (Terminator)
     {
-        if (converted == 0 && ReturnValue == 0L && String != NULL)
+        if (converted == 0 && ReturnValue == 0 && String != NULL)
         {
-            *Terminator = (NATIVE_CHAR *) StringStart;
+            *Terminator = (char *) StringStart;
         }
         else
         {
-            *Terminator = (NATIVE_CHAR *) String;
+            *Terminator = (char *) String;
         }
     }
 

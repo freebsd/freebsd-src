@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmutex - ASL Mutex Acquire/Release functions
- *              $Revision: 16 $
+ *              $Revision: 18 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -348,7 +348,7 @@ AcpiExReleaseMutex (
         ACPI_REPORT_ERROR ((
             "Thread %X cannot release Mutex [%4.4s] acquired by thread %X\n",
             WalkState->Thread->ThreadId,
-            ObjDesc->Mutex.Node->Name.Ascii, 
+            ObjDesc->Mutex.Node->Name.Ascii,
             ObjDesc->Mutex.OwnerThread->ThreadId));
         return_ACPI_STATUS (AE_AML_NOT_OWNER);
     }

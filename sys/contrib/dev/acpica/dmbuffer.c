@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmbuffer - AML disassembler, buffer and string support
- *              $Revision: 8 $
+ *              $Revision: 10 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -264,7 +264,7 @@ AcpiDmIsUnicodeBuffer (
     UINT32                  WordCount;
     ACPI_PARSE_OBJECT       *SizeOp;
     ACPI_PARSE_OBJECT       *NextOp;
-    NATIVE_UINT             i;
+    ACPI_NATIVE_UINT        i;
 
 
     /* Buffer size is the buffer argument */
@@ -440,7 +440,7 @@ AcpiIsEisaId (
     UINT32                  Name;
     UINT32                  BigEndianId;
     ACPI_PARSE_OBJECT       *NextOp;
-    NATIVE_UINT             i;
+    ACPI_NATIVE_UINT        i;
     UINT32                  Prefix[3];
 
 

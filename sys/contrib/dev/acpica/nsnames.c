@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsnames - Name manipulation and search
- *              $Revision: 79 $
+ *              $Revision: 82 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -144,7 +144,7 @@ void
 AcpiNsBuildExternalPath (
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_SIZE               Size,
-    NATIVE_CHAR             *NameBuffer)
+    char                    *NameBuffer)
 {
     ACPI_SIZE               Index;
     ACPI_NAMESPACE_NODE     *ParentNode;
@@ -180,7 +180,7 @@ AcpiNsBuildExternalPath (
         /* Prefix name with the path separator */
 
         Index--;
-        NameBuffer[Index] = PATH_SEPARATOR;
+        NameBuffer[Index] = ACPI_PATH_SEPARATOR;
     }
 
     /* Overwrite final separator with the root prefix character */
@@ -213,11 +213,11 @@ AcpiNsBuildExternalPath (
  *
  ******************************************************************************/
 
-NATIVE_CHAR *
+char *
 AcpiNsGetExternalPathname (
     ACPI_NAMESPACE_NODE     *Node)
 {
-    NATIVE_CHAR             *NameBuffer;
+    char                    *NameBuffer;
     ACPI_SIZE               Size;
 
 
@@ -277,7 +277,7 @@ AcpiNsGetPathnameLength (
 
     while (NextNode && (NextNode != AcpiGbl_RootNode))
     {
-        Size += PATH_SEGMENT_LENGTH;
+        Size += ACPI_PATH_SEGMENT_LENGTH;
         NextNode = AcpiNsGetParentNode (NextNode);
     }
 

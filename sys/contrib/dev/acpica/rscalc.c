@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscalc - Calculate stream and list lengths
- *              $Revision: 44 $
+ *              $Revision: 47 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -915,10 +915,10 @@ AcpiRsGetPciRoutingTableLength (
             if (ACPI_GET_OBJECT_TYPE (*SubObjectList) == ACPI_TYPE_STRING)
             {
                 /*
-                 * The length String.Length field includes the
-                 * terminating NULL
+                 * The length String.Length field does not include the
+                 * terminating NULL, add 1
                  */
-                TempSizeNeeded += (*SubObjectList)->String.Length;
+                TempSizeNeeded += ((ACPI_SIZE) (*SubObjectList)->String.Length + 1);
             }
             else
             {

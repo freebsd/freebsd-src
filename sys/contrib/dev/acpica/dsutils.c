@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsutils - Dispatcher utilities
- *              $Revision: 97 $
+ *              $Revision: 99 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -445,7 +445,7 @@ AcpiDsCreateOperand (
     UINT32                  ArgIndex)
 {
     ACPI_STATUS             Status = AE_OK;
-    NATIVE_CHAR             *NameString;
+    char                    *NameString;
     UINT32                  NameLength;
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_PARSE_OBJECT       *ParentOp;

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 146 $
+ *              $Revision: 151 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -186,16 +186,13 @@ AcpiNsPrintPathname (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+void
 AcpiNsDumpPathname (
     ACPI_HANDLE             Handle,
-    NATIVE_CHAR             *Msg,
+    char                    *Msg,
     UINT32                  Level,
     UINT32                  Component)
 {
-    ACPI_BUFFER             Buffer;
-    ACPI_STATUS             Status;
-
 
     ACPI_FUNCTION_TRACE ("NsDumpPathname");
 
@@ -204,21 +201,14 @@ AcpiNsDumpPathname (
 
     if (!(AcpiDbgLevel & Level) || !(AcpiDbgLayer & Component))
     {
-        return_ACPI_STATUS (AE_OK);
+        return_VOID;
     }
 
     /* Convert handle to a full pathname and print it (with supplied message) */
 
-    Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-
-    Status = AcpiNsHandleToPathname (Handle, &Buffer);
-    if (ACPI_SUCCESS (Status))
-    {
-        AcpiOsPrintf ("%s %s (Node %p)\n", Msg, (char *) Buffer.Pointer, Handle);
-        ACPI_MEM_FREE (Buffer.Pointer);
-    }
-
-    return_ACPI_STATUS (Status);
+    AcpiNsPrintNodePathname (Handle, Msg);
+    AcpiOsPrintf ("\n");
+    return_VOID;
 }
 
 

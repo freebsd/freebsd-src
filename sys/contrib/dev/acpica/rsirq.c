@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsirq - IRQ resource descriptors
- *              $Revision: 30 $
+ *              $Revision: 32 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -495,7 +495,7 @@ AcpiRsExtendedIrqResource (
          * Point the String pointer to the end of this structure.
          */
         OutputStruct->Data.ExtendedIrq.ResourceSource.StringPtr =
-                (NATIVE_CHAR *)(OutputStruct + StructSize);
+                (char *)(OutputStruct + StructSize);
 
         TempPtr = (UINT8 *) OutputStruct->Data.ExtendedIrq.ResourceSource.StringPtr;
 
@@ -571,7 +571,7 @@ AcpiRsExtendedIrqStream (
     UINT16                  *LengthField;
     UINT8                   Temp8 = 0;
     UINT8                   Index;
-    NATIVE_CHAR             *TempPointer = NULL;
+    char                    *TempPointer = NULL;
 
 
     ACPI_FUNCTION_TRACE ("RsExtendedIrqStream");
@@ -641,7 +641,7 @@ AcpiRsExtendedIrqStream (
         *Buffer = (UINT8) LinkedList->Data.ExtendedIrq.ResourceSource.Index;
         Buffer += 1;
 
-        TempPointer = (NATIVE_CHAR *) Buffer;
+        TempPointer = (char *) Buffer;
 
         /*
          * Copy the string

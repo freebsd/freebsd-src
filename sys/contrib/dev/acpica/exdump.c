@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exdump - Interpreter debug output routines
- *              $Revision: 163 $
+ *              $Revision: 166 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -496,13 +496,13 @@ void
 AcpiExDumpOperands (
     ACPI_OPERAND_OBJECT     **Operands,
     ACPI_INTERPRETER_MODE   InterpreterMode,
-    NATIVE_CHAR             *Ident,
+    char                    *Ident,
     UINT32                  NumLevels,
-    NATIVE_CHAR             *Note,
-    NATIVE_CHAR             *ModuleName,
+    char                    *Note,
+    char                    *ModuleName,
     UINT32                  LineNumber)
 {
-    NATIVE_UINT             i;
+    ACPI_NATIVE_UINT        i;
     ACPI_OPERAND_OBJECT     **ObjDesc;
 
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 77 $
+ *              $Revision: 79 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -226,14 +226,14 @@ AcpiNsDeleteNode (
 #ifdef ACPI_ALPHABETIC_NAMESPACE
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsCompareNames 
+ * FUNCTION:    AcpiNsCompareNames
  *
  * PARAMETERS:  Name1           - First name to compare
  *              Name2           - Second name to compare
  *
  * RETURN:      value from strncmp
  *
- * DESCRIPTION: Compare two ACPI names.  Names that are prefixed with an 
+ * DESCRIPTION: Compare two ACPI names.  Names that are prefixed with an
  *              underscore are forced to be alphabetically first.
  *
  ******************************************************************************/
@@ -372,7 +372,7 @@ AcpiNsInstallNode (
 
         if (!(Node->Flags & ANOBJ_END_OF_PEER_LIST))
         {
-            /* 
+            /*
              * Loop above terminated without reaching the end-of-list.
              * Insert the new node at the current location
              */
@@ -413,7 +413,7 @@ AcpiNsInstallNode (
     Node->Type = (UINT8) Type;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%4.4s (%s) added to %4.4s (%s) %p at %p\n",
-        Node->Name.Ascii, AcpiUtGetTypeName (Node->Type), 
+        Node->Name.Ascii, AcpiUtGetTypeName (Node->Type),
         ParentNode->Name.Ascii, AcpiUtGetTypeName (ParentNode->Type), ParentNode, Node));
 
     /*

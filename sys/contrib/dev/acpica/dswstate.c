@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 70 $
+ *              $Revision: 75 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -159,7 +159,7 @@ AcpiDsResultInsert (
         return (AE_NOT_EXIST);
     }
 
-    if (Index >= OBJ_NUM_OPERANDS)
+    if (Index >= ACPI_OBJ_NUM_OPERANDS)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Index out of range: %X Obj=%p State=%p Num=%X\n",
@@ -221,7 +221,7 @@ AcpiDsResultRemove (
         return (AE_NOT_EXIST);
     }
 
-    if (Index >= OBJ_MAX_OPERAND)
+    if (Index >= ACPI_OBJ_MAX_OPERAND)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Index out of range: %X State=%p Num=%X\n",
@@ -273,7 +273,7 @@ AcpiDsResultPop (
     ACPI_OPERAND_OBJECT     **Object,
     ACPI_WALK_STATE         *WalkState)
 {
-    NATIVE_UINT             Index;
+    ACPI_NATIVE_UINT        Index;
     ACPI_GENERIC_STATE      *State;
 
 
@@ -297,7 +297,7 @@ AcpiDsResultPop (
 
     State->Results.NumResults--;
 
-    for (Index = OBJ_NUM_OPERANDS; Index; Index--)
+    for (Index = ACPI_OBJ_NUM_OPERANDS; Index; Index--)
     {
         /* Check for a valid result object */
 
@@ -337,7 +337,7 @@ AcpiDsResultPopFromBottom (
     ACPI_OPERAND_OBJECT     **Object,
     ACPI_WALK_STATE         *WalkState)
 {
-    NATIVE_UINT             Index;
+    ACPI_NATIVE_UINT        Index;
     ACPI_GENERIC_STATE      *State;
 
 
@@ -420,7 +420,7 @@ AcpiDsResultPush (
         return (AE_AML_INTERNAL);
     }
 
-    if (State->Results.NumResults == OBJ_NUM_OPERANDS)
+    if (State->Results.NumResults == ACPI_OBJ_NUM_OPERANDS)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Result stack overflow: Obj=%p State=%p Num=%X\n",
@@ -552,7 +552,7 @@ AcpiDsObjStackDeleteAll (
 
     /* The stack size is configurable, but fixed */
 
-    for (i = 0; i < OBJ_NUM_OPERANDS; i++)
+    for (i = 0; i < ACPI_OBJ_NUM_OPERANDS; i++)
     {
         if (WalkState->Operands[i])
         {
@@ -588,7 +588,7 @@ AcpiDsObjStackPush (
 
     /* Check for stack overflow */
 
-    if (WalkState->NumOperands >= OBJ_NUM_OPERANDS)
+    if (WalkState->NumOperands >= ACPI_OBJ_NUM_OPERANDS)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "overflow! Obj=%p State=%p #Ops=%X\n",
@@ -813,7 +813,7 @@ AcpiDsObjStackGetValue (
         return_PTR (NULL);
     }
 
-    return_PTR (WalkState->Operands[(NATIVE_UINT)(WalkState->NumOperands - 1) -
+    return_PTR (WalkState->Operands[(ACPI_NATIVE_UINT)(WalkState->NumOperands - 1) -
                     Index]);
 }
 
@@ -844,7 +844,7 @@ AcpiDsGetCurrentWalkState (
         return (NULL);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "DsGetCurrentWalkState, =%p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Current WalkState %p\n",
         Thread->WalkStateList));
 
     return (Thread->WalkStateList);
@@ -1054,7 +1054,7 @@ AcpiDsInitAmlWalk (
 
         /* Init the method arguments */
 
-        Status = AcpiDsMethodDataInitArgs (Params, MTH_NUM_ARGS, WalkState);
+        Status = AcpiDsMethodDataInitArgs (Params, ACPI_METHOD_NUM_ARGS, WalkState);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -1062,7 +1062,7 @@ AcpiDsInitAmlWalk (
     }
     else
     {
-        /* 
+        /*
          * Setup the current scope.
          * Find a Named Op that has a namespace node associated with it.
          * search upwards from this Op.  Current scope is the first
@@ -1081,7 +1081,7 @@ AcpiDsInitAmlWalk (
         {
             ParserState->StartNode = ExtraOp->Common.Node;
         }
-        
+
         if (ParserState->StartNode)
         {
             /* Push start scope on scope stack and make it current  */

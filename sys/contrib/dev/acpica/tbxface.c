@@ -2,7 +2,7 @@
  *
  * Module Name: tbxface - Public interfaces to the ACPI subsystem
  *                         ACPI table oriented interfaces
- *              $Revision: 59 $
+ *              $Revision: 61 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -192,7 +192,7 @@ AcpiLoadTables (void)
         goto ErrorExit;
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_OK, "ACPI Tables successfully acquired\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "ACPI Tables successfully acquired\n"));
 
 
     /* Load the namespace from the tables */

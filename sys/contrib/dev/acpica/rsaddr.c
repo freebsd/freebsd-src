@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsaddr - Address resource descriptors (16/32/64)
- *              $Revision: 26 $
+ *              $Revision: 29 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -227,6 +227,8 @@ AcpiRsAddress16Resource (
         {
             OutputStruct->Data.Address16.Attribute.Io.RangeAttribute =
                 (UINT16) (Temp8 & 0x03);
+            OutputStruct->Data.Address16.Attribute.Io.TranslationAttribute =
+                (UINT16) ((Temp8 >> 4) & 0x03);
         }
         else
         {
@@ -296,7 +298,7 @@ AcpiRsAddress16Resource (
         /* Point the String pointer to the end of this structure */
 
         OutputStruct->Data.Address16.ResourceSource.StringPtr =
-                (NATIVE_CHAR *)((UINT8 * )OutputStruct + StructSize);
+                (char *)((UINT8 * )OutputStruct + StructSize);
 
         TempPtr = (UINT8 *) OutputStruct->Data.Address16.ResourceSource.StringPtr;
 
@@ -373,7 +375,7 @@ AcpiRsAddress16Stream (
     UINT8                   *Buffer = *OutputBuffer;
     UINT8                   *LengthField;
     UINT8                   Temp8;
-    NATIVE_CHAR             *TempPointer = NULL;
+    char                    *TempPointer = NULL;
     ACPI_SIZE               ActualBytes;
 
 
@@ -431,6 +433,9 @@ AcpiRsAddress16Stream (
         Temp8 = (UINT8)
             (LinkedList->Data.Address16.Attribute.Io.RangeAttribute &
              0x03);
+        Temp8 |=
+            (LinkedList->Data.Address16.Attribute.Io.TranslationAttribute &
+             0x03) << 4;
     }
 
     *Buffer = Temp8;
@@ -481,7 +486,7 @@ AcpiRsAddress16Stream (
         *Buffer = Temp8;
         Buffer += 1;
 
-        TempPointer = (NATIVE_CHAR *) Buffer;
+        TempPointer = (char *) Buffer;
 
         /*
          * Copy the string
@@ -624,6 +629,8 @@ AcpiRsAddress32Resource (
         {
             OutputStruct->Data.Address32.Attribute.Io.RangeAttribute =
                 (UINT16) (Temp8 & 0x03);
+            OutputStruct->Data.Address32.Attribute.Io.TranslationAttribute =
+                (UINT16) ((Temp8 >> 4) & 0x03);
         }
         else
         {
@@ -692,7 +699,7 @@ AcpiRsAddress32Resource (
         /* Point the String pointer to the end of this structure */
 
         OutputStruct->Data.Address32.ResourceSource.StringPtr =
-                (NATIVE_CHAR *)((UINT8 *)OutputStruct + StructSize);
+                (char *)((UINT8 *)OutputStruct + StructSize);
 
         TempPtr = (UINT8 *) OutputStruct->Data.Address32.ResourceSource.StringPtr;
 
@@ -767,7 +774,7 @@ AcpiRsAddress32Stream (
     UINT8                   *Buffer;
     UINT16                  *LengthField;
     UINT8                   Temp8;
-    NATIVE_CHAR             *TempPointer;
+    char                    *TempPointer;
 
 
     ACPI_FUNCTION_TRACE ("RsAddress32Stream");
@@ -826,6 +833,9 @@ AcpiRsAddress32Stream (
         Temp8 = (UINT8)
             (LinkedList->Data.Address32.Attribute.Io.RangeAttribute &
              0x03);
+        Temp8 |=
+            (LinkedList->Data.Address32.Attribute.Io.TranslationAttribute &
+             0x03) << 4;
     }
 
     *Buffer = Temp8;
@@ -876,7 +886,7 @@ AcpiRsAddress32Stream (
         *Buffer = Temp8;
         Buffer += 1;
 
-        TempPointer = (NATIVE_CHAR *) Buffer;
+        TempPointer = (char *) Buffer;
 
         /*
          * Copy the string
@@ -1018,6 +1028,8 @@ AcpiRsAddress64Resource (
         {
             OutputStruct->Data.Address64.Attribute.Io.RangeAttribute =
                 (UINT16) (Temp8 & 0x03);
+            OutputStruct->Data.Address64.Attribute.Io.TranslationAttribute =
+                (UINT16) ((Temp8 >> 4) & 0x03);
         }
         else
         {
@@ -1088,7 +1100,7 @@ AcpiRsAddress64Resource (
         /* Point the String pointer to the end of this structure */
 
         OutputStruct->Data.Address64.ResourceSource.StringPtr =
-                (NATIVE_CHAR *)((UINT8 *)OutputStruct + StructSize);
+                (char *)((UINT8 *)OutputStruct + StructSize);
 
         TempPtr = (UINT8 *) OutputStruct->Data.Address64.ResourceSource.StringPtr;
 
@@ -1164,7 +1176,7 @@ AcpiRsAddress64Stream (
     UINT8                   *Buffer;
     UINT16                  *LengthField;
     UINT8                   Temp8;
-    NATIVE_CHAR             *TempPointer;
+    char                    *TempPointer;
 
 
     ACPI_FUNCTION_TRACE ("RsAddress64Stream");
@@ -1224,6 +1236,9 @@ AcpiRsAddress64Stream (
         Temp8 = (UINT8)
             (LinkedList->Data.Address64.Attribute.Io.RangeAttribute &
              0x03);
+        Temp8 |=
+            (LinkedList->Data.Address64.Attribute.Io.RangeAttribute &
+             0x03) << 4;
     }
 
     *Buffer = Temp8;
@@ -1274,7 +1289,7 @@ AcpiRsAddress64Stream (
         *Buffer = Temp8;
         Buffer += 1;
 
-        TempPointer = (NATIVE_CHAR *) Buffer;
+        TempPointer = (char *) Buffer;
 
         /*
          * Copy the string

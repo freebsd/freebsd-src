@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 50 $
+ *              $Revision: 55 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -152,7 +152,7 @@ AcpiNsInitializeObjects (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
         "**** Starting initialization of namespace objects ****\n"));
-    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK, "Completing Region/Field/Buffer/Package initialization:"));
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "Completing Region/Field/Buffer/Package initialization:"));
 
     /* Set all init info to zero */
 
@@ -169,12 +169,13 @@ AcpiNsInitializeObjects (
             AcpiFormatException (Status)));
     }
 
-    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
         "\nInitialized %hd/%hd Regions %hd/%hd Fields %hd/%hd Buffers %hd/%hd Packages (%hd nodes)\n",
         Info.OpRegionInit,  Info.OpRegionCount,
         Info.FieldInit,     Info.FieldCount,
         Info.BufferInit,    Info.BufferCount,
         Info.PackageInit,   Info.PackageCount, Info.ObjectCount));
+
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
         "%hd Control Methods found\n", Info.MethodCount));
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
@@ -217,7 +218,7 @@ AcpiNsInitializeDevices (
     Info.Num_STA = 0;
     Info.Num_INI = 0;
 
-    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK, "Executing all Device _STA and_INI methods:"));
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "Executing all Device _STA and_INI methods:"));
 
     /* Walk namespace for all objects of type Device */
 
@@ -230,7 +231,7 @@ AcpiNsInitializeDevices (
             AcpiFormatException (Status)));
     }
 
-    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
         "\n%hd Devices found containing: %hd _STA, %hd _INI methods\n",
         Info.DeviceCount, Info.Num_STA, Info.Num_INI));
 
@@ -375,9 +376,11 @@ AcpiNsInitOneObject (
                 Node->Name.Ascii, AcpiUtGetTypeName (Type), AcpiFormatException (Status)));
     }
 
-    if (!(AcpiDbgLevel & ACPI_LV_INIT))
+    /* Print a dot for each object unless we are going to print the entire pathname */
+
+    if (!(AcpiDbgLevel & ACPI_LV_INIT_NAMES))
     {
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK, "."));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "."));
     }
 
     /*
@@ -421,7 +424,7 @@ AcpiNsInitOneDevice (
 
     if ((AcpiDbgLevel <= ACPI_LV_ALL_EXCEPTIONS) && (!(AcpiDbgLevel & ACPI_LV_INFO)))
     {
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK, "."));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "."));
     }
 
     Info->DeviceCount++;
@@ -448,7 +451,7 @@ AcpiNsInitOneDevice (
     /*
      * Run _STA to determine if we can run _INI on the device.
      */
-    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (Node, "_STA  [Method]"));
+    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (ACPI_TYPE_METHOD, Node, "_STA"));
     Status = AcpiUtExecute_STA (Node, &Flags);
     if (ACPI_FAILURE (Status))
     {
@@ -469,7 +472,7 @@ AcpiNsInitOneDevice (
     /*
      * The device is present. Run _INI.
      */
-    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (ObjHandle, "_INI  [Method]"));
+    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (ACPI_TYPE_METHOD, ObjHandle, "_INI"));
     Status = AcpiNsEvaluateRelative (ObjHandle, "_INI", NULL, NULL);
     if (ACPI_FAILURE (Status))
     {
@@ -480,7 +483,7 @@ AcpiNsInitOneDevice (
             /* Ignore error and move on to next device */
 
     #ifdef ACPI_DEBUG_OUTPUT
-            NATIVE_CHAR *ScopeName = AcpiNsGetExternalPathname (ObjHandle);
+            char        *ScopeName = AcpiNsGetExternalPathname (ObjHandle);
 
             ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "%s._INI failed: %s\n",
                     ScopeName, AcpiFormatException (Status)));
