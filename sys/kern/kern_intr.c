@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.2 1997/05/28 22:11:00 se Exp $
+ * $Id: kern_intr.c,v 1.3 1997/05/31 09:30:39 peter Exp $
  *
  */
 
@@ -45,6 +45,19 @@
 #include <stddef.h>
 
 #include "vector.h"
+
+typedef struct intrec {
+	intrmask_t	mask;
+	inthand2_t	*handler;
+	void		*argument;
+	struct intrec	*next;
+	void		*devdata;
+	int		intr;
+	intrmask_t	*maskptr;
+	int		flags;
+#define	INTR_FAST		0x00000001 /* fast interrupt handler */
+#define INTR_EXCL		0x00010000 /* excl. intr, default is shared */
+} intrec;
 
 /*
  * The interrupt multiplexer calls each of the handlers in turn,
