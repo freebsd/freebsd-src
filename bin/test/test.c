@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: test.c,v 1.10 1995/03/19 13:29:28 joerg Exp $
+ *	$Id: test.c,v 1.12 1995/10/28 11:54:42 ache Exp $
  */
 
 #ifndef lint
@@ -388,7 +388,7 @@ permission:		if (fs->stat.st_uid == geteuid())
 		goto filetype;
 	case ISSYMLINK:
 		i = S_IFLNK;
-		(void)lstat(sp->u.string, &fs->stat);
+		fs->rcode = lstat(sp->u.string, &fs->stat);
 		goto filetype;
 	case ISFIFO:
 		i = S_IFIFO;
