@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.42 1999/07/10 15:27:59 bde Exp $
+ *	$Id: apic_vector.s,v 1.43 1999/07/20 06:52:35 msmith Exp $
  */
 
 
@@ -18,9 +18,7 @@
 	addl	$4,%esp
 
 #define REL_FAST_INTR_LOCK						\
-	pushl	$_fast_intr_lock ;		/* address of lock */	\
-	call	_s_unlock ;			/* MP-safe */		\
-	addl	$4,%esp
+	movl	$0, _fast_intr_lock
 
 #else /* FAST_SIMPLELOCK */
 
