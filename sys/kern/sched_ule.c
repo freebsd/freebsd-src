@@ -536,7 +536,7 @@ runq_steal(struct runq *rq)
 		if (rqb->rqb_bits[word] == 0)
 			continue;
 		for (bit = 0; bit < RQB_BPW; bit++) {
-			if ((rqb->rqb_bits[word] & (1 << bit)) == 0)
+			if ((rqb->rqb_bits[word] & (1ul << bit)) == 0)
 				continue;
 			rqh = &rq->rq_queues[bit + (word << RQB_L2BPW)];
 			TAILQ_FOREACH(ke, rqh, ke_procq) {
