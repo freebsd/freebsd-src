@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.13 1994/09/19 02:00:21 ache Exp $
+ *	$Id: crt0.c,v 1.14 1994/09/24 16:01:30 ache Exp $
  */
 
 
@@ -47,6 +47,7 @@ extern void _startup_setlocale __P((int, const char *));
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <a.out.h>
+#include <string.h>
 #ifndef N_GETMAGIC
 #define N_GETMAGIC(x)	((x).a_magic)
 #endif
@@ -117,7 +118,7 @@ char			*__progname = empty;
 #endif
 
 #define _FATAL(str) \
-	write(2, str, sizeof(str)), \
+	write(2, str, sizeof(str) - 1), \
 	_exit(1);
 
 
@@ -303,16 +304,16 @@ char	*name;
 	return (ld_entry->dlsym)(fd, name);
 }
 
-int
-dlctl(fd, cmd, arg)
-void	*fd, *arg;
-int	cmd;
+
+char *
+dlerror()
 {
 	if (ld_entry == NULL)
-		return -1;
+		return "Service unavailable";
 
-	return (ld_entry->dlctl)(fd, cmd, arg);
+	return (ld_entry->dlerror)();
 }
+
 
 /*
  * Support routines
