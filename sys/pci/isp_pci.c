@@ -369,7 +369,7 @@ isp_pci_attach(device_t dev)
 		goto bad;
 	}
 	if (bootverbose)
-		printf("isp%d: using %s space register mapping\n", unit,
+		device_printf(dev, "using %s space register mapping\n",
 		    (rgd == IO_MAP_REG)? "I/O" : "Memory");
 	pcs->pci_dev = dev;
 	pcs->pci_reg = regs;
@@ -507,7 +507,7 @@ isp_pci_attach(device_t dev)
 	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, lim + 1,
 	    255, lim, 0, &pcs->parent_dmat) != 0) {
-		printf("%s: could not create master dma tag\n", isp->isp_name);
+		device_printf(dev, "could not create master dma tag\n");
 		free(isp->isp_param, M_DEVBUF);
 		free(pcs, M_DEVBUF);
 		return (ENXIO);
@@ -593,7 +593,7 @@ isp_pci_attach(device_t dev)
 		isp->isp_dblev = ISP_LOGWARN|ISP_LOGERR;
 	}
 	if (bootverbose)
-		isp->isp_dblev |= ISP_LOGCONFIG;
+		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
 
 #ifdef	ISP_SMPLOCK
 	/* Make sure the lock is set up. */
@@ -880,16 +880,16 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	if (bus_dma_tag_create(pci->parent_dmat, PAGE_SIZE, lim,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, len, 1,
 	    BUS_SPACE_MAXSIZE_32BIT, 0, &pci->cntrol_dmat) != 0) {
-		printf("%s: cannot create a dma tag for control spaces\n",
-		    isp->isp_name);
+		isp_prt(isp, ISP_LOGERR,
+		    "cannot create a dma tag for control spaces");
 		free(isp->isp_xflist, M_DEVBUF);
 		free(pci->dmaps, M_DEVBUF);
 		return (1);
 	}
 	if (bus_dmamem_alloc(pci->cntrol_dmat, (void **)&base,
 	    BUS_DMA_NOWAIT, &pci->cntrol_dmap) != 0) {
-		printf("%s: cannot allocate %d bytes of CCB memory\n",
-		    isp->isp_name, len);
+		isp_prt(isp, ISP_LOGERR,
+		    "cannot allocate %d bytes of CCB memory");
 		free(isp->isp_xflist, M_DEVBUF);
 		free(pci->dmaps, M_DEVBUF);
 		return (1);
@@ -901,8 +901,8 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	bus_dmamap_load(pci->cntrol_dmat, pci->cntrol_dmap, isp->isp_rquest,
 	    ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), isp_map_rquest, &im, 0);
 	if (im.error) {
-		printf("%s: error %d loading dma map for DMA request queue\n",
-		    isp->isp_name, im.error);
+		isp_prt(isp, ISP_LOGERR,
+		    "error %d loading dma map for DMA request queue", im.error);
 		free(isp->isp_xflist, M_DEVBUF);
 		free(pci->dmaps, M_DEVBUF);
 		isp->isp_rquest = NULL;
@@ -913,8 +913,8 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	bus_dmamap_load(pci->cntrol_dmat, pci->cntrol_dmap, isp->isp_result,
 	    ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp)), isp_map_result, &im, 0);
 	if (im.error) {
-		printf("%s: error %d loading dma map for DMA result queue\n",
-		    isp->isp_name, im.error);
+		isp_prt(isp, ISP_LOGERR,
+		    "error %d loading dma map for DMA result queue", im.error);
 		free(isp->isp_xflist, M_DEVBUF);
 		free(pci->dmaps, M_DEVBUF);
 		isp->isp_rquest = NULL;
@@ -924,8 +924,8 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	for (i = 0; i < isp->isp_maxcmds; i++) {
 		error = bus_dmamap_create(pci->parent_dmat, 0, &pci->dmaps[i]);
 		if (error) {
-			printf("%s: error %d creating per-cmd DMA maps\n",
-			    isp->isp_name, error);
+			isp_prt(isp, ISP_LOGERR,
+			    "error %d creating per-cmd DMA maps", error);
 			free(isp->isp_xflist, M_DEVBUF);
 			free(pci->dmaps, M_DEVBUF);
 			isp->isp_rquest = NULL;
@@ -942,8 +942,8 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		bus_dmamap_load(pci->cntrol_dmat, pci->cntrol_dmap,
 		    fcp->isp_scratch, ISP2100_SCRLEN, isp_map_fcscrt, &im, 0);
 		if (im.error) {
-			printf("%s: error %d loading FC scratch area\n",
-			    isp->isp_name, im.error);
+			isp_prt(isp, ISP_LOGERR,
+			    "error %d loading FC scratch area", im.error);
 			free(isp->isp_xflist, M_DEVBUF);
 			free(pci->dmaps, M_DEVBUF);
 			isp->isp_rquest = NULL;
@@ -1097,8 +1097,8 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 * extra CTIO with final status.
 			 */
 			if (send_status == 0) {
-				printf("%s: tdma_mk ran out of segments\n",
-				       mp->isp->isp_name);
+				isp_prt(mp->isp, ISP_LOGWARN,
+				    "tdma_mk ran out of segments");
 				mp->error = EINVAL;
 				return;
 			}
@@ -1167,8 +1167,8 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			*mp->iptrp = 
 			    ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN(isp));
 			if (*mp->iptrp == mp->optr) {
-				printf("%s: Queue Overflow in tdma_mk\n",
-				    mp->isp->isp_name);
+				isp_prt(mp->isp, ISP_LOGWARN,
+				    "Queue Overflow in tdma_mk");
 				mp->error = MUSHERR_NOQENTRIES;
 				return;
 			}
@@ -1225,8 +1225,9 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	if (nseg == 0) {
 		if ((cto->ct_flags & CT2_FLAG_MMASK) != CT2_FLAG_MODE1) {
-			printf("%s: dma2_tgt_fc, a status CTIO2 without MODE1 "
-			    "set (0x%x)\n", mp->isp->isp_name, cto->ct_flags);
+			isp_prt(mp->isp, ISP_LOGWARN,
+			    "dma2_tgt_fc, a status CTIO2 without MODE1 "
+			    "set (0x%x)", cto->ct_flags);
 			mp->error = EINVAL;
 			return;
 		}
@@ -1256,8 +1257,9 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 
 	if ((cto->ct_flags & CT2_FLAG_MMASK) != CT2_FLAG_MODE0) {
-		printf("%s: dma2_tgt_fc, a data CTIO2 without MODE0 set "
-		    "(0x%x)\n\n", mp->isp->isp_name, cto->ct_flags);
+		isp_prt(mp->isp, ISP_LOGWARN,
+		    "dma2_tgt_fc, a data CTIO2 without MODE0 set "
+		    "(0x%x)", cto->ct_flags);
 		mp->error = EINVAL;
 		return;
 	}
@@ -1349,8 +1351,9 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 * synthesized MODE1 final status with sense data.
 			 */
 			if (send_sense == 0) {
-				printf("%s: dma2_tgt_fc ran out of segments, "
-				    "no SENSE DATA\n", mp->isp->isp_name);
+				isp_prt(mp->isp, ISP_LOGWARN,
+				    "dma2_tgt_fc ran out of segments, "
+				    "no SENSE DATA");
 				mp->error = EINVAL;
 				return;
 			}
@@ -1441,8 +1444,8 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			*mp->iptrp =
 			    ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN(isp));
 			if (*mp->iptrp == mp->optr) {
-				printf("%s: Queue Overflow in dma2_tgt_fc\n",
-				    mp->isp->isp_name);
+				isp_prt(mp->isp, ISP_LOGWARN,
+				    "Queue Overflow in dma2_tgt_fc");
 				mp->error = MUSHERR_NOQENTRIES;
 				return;
 			}
@@ -1496,7 +1499,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 
 	if (nseg < 1) {
-		printf("%s: bad segment count (%d)\n", mp->isp->isp_name, nseg);
+		isp_prt(mp->isp, ISP_LOGERR, "bad segment count (%d)", nseg);
 		mp->error = EFAULT;
 		return;
 	}
@@ -1682,8 +1685,8 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 			if (error == EINPROGRESS) {
 				bus_dmamap_unload(pci->parent_dmat, *dp);
 				mp->error = EINVAL;
-				printf("%s: deferred dma allocation not "
-				    "supported\n", isp->isp_name);
+				isp_prt(isp, ISP_LOGERR,
+				    "deferred dma allocation not supported");
 			} else if (error && mp->error == 0) {
 #ifdef	DIAGNOSTIC
 				printf("%s: error %d in dma mapping code\n",
@@ -1703,12 +1706,12 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 		struct bus_dma_segment *segs;
 
 		if ((csio->ccb_h.flags & CAM_DATA_PHYS) != 0) {
-			printf("%s: Physical segment pointers unsupported",
-				isp->isp_name);
+			isp_prt(isp, ISP_LOGERR,
+			    "Physical segment pointers unsupported");
 			mp->error = EINVAL;
 		} else if ((csio->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
-			printf("%s: Virtual segment addresses unsupported",
-				isp->isp_name);
+			isp_prt(isp, ISP_LOGERR,
+			    "Virtual segment addresses unsupported");
 			mp->error = EINVAL;
 		} else {
 			/* Just use the segments provided */
