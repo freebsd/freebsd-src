@@ -306,6 +306,7 @@ static void	logerror(const char *);
 static void	logmsg(int, const char *, const char *, int);
 static void	log_deadchild(pid_t, int, const char *);
 static void	markit(void);
+static int	skip_message(const char *, const char *);
 static void	printline(const char *, char *);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
@@ -757,6 +758,26 @@ printsys(char *p)
 static time_t	now;
 
 /*
+ * Match a program or host name against a specification.
+ * Return a non-0 value if the message must be ignored
+ * based on the specification.
+ */
+static int
+skip_message(const char *name, const char *spec) {
+	if (spec == NULL)
+		return 0;
+
+	switch (spec[0]) {
+	case '+':
+		return (strcmp(name, spec + 1) != 0);
+	case '-':
+		return (strcmp(name, spec + 1) == 0);
+	default:
+		return (strcmp(name, spec) != 0);
+	}
+}
+
+/*
  * Log a message to the appropriate log files, users, etc. based on
  * the priority.
  */
@@ -840,36 +861,16 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		     )
 		    || f->f_pmask[fac] == INTERNAL_NOPRI)
 			continue;
+
 		/* skip messages with the incorrect hostname */
-		if (f->f_host)
-			switch (f->f_host[0]) {
-			case '+':
-				if (strcmp(from, f->f_host + 1) != 0)
-					continue;
-				break;
-			case '-':
-				if (strcmp(from, f->f_host + 1) == 0)
-					continue;
-				break;
-			}
+		if (skip_message(from, f->f_host))
+			continue;
 
 		/* skip messages with the incorrect program name */
-		if (f->f_program)
-			switch (f->f_program[0]) {
-			case '+':
-				if (strcmp(prog, f->f_program + 1) != 0)
-					continue;
-				break;
-			case '-':
-				if (strcmp(prog, f->f_program + 1) == 0)
-					continue;
-				break;
-			default:
-				if (strcmp(prog, f->f_program) != 0)
-					continue;
-				break;
-			}
+		if (skip_message(prog, f->f_program))
+			continue;
 
+		/* skip message to console if it has already been printed */
 		if (f->f_type == F_CONSOLE && (flags & IGN_CONS))
 			continue;
 
