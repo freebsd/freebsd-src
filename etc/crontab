@@ -1,6 +1,6 @@
 # /etc/crontab - root's crontab for FreeBSD
 #
-# $Id$
+# $Id: crontab,v 1.16 1997/02/23 09:20:40 peter Exp $
 #
 SHELL=/bin/sh
 PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin
@@ -11,14 +11,14 @@ HOME=/var/log
 */5     *       *       *       *       root	/usr/libexec/atrun
 #
 # rotate log files every hour, if necessary
-0	*	*	*	*	root	/usr/sbin/newsyslog
+0	*	*	*	*	root	newsyslog
 #
 # do daily/weekly/monthly maintenance
-0       2       *       *       *       root    /etc/daily 2>&1 | sendmail root
-30      3       *       *       6       root    /etc/weekly 2>&1 | sendmail root
-30      5       1       *       *       root    /etc/monthly 2>&1 | sendmail root
+0       2       *       *       *       root    periodic daily 2>&1 | sendmail root
+30      3       *       *       6       root    periodic weekly 2>&1 | sendmail root
+30      5       1       *       *       root    periodic monthly 2>&1 | sendmail root
 #
 # time zone change adjustment for wall cmos clock,
 # does nothing, if you have UTC cmos clock.
 # See adjkerntz(8) for details.
-1,31	0-4	*	*	*	root	/sbin/adjkerntz	-a
+1,31	0-4	*	*	*	root	adjkerntz -a
