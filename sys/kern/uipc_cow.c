@@ -87,19 +87,15 @@ socow_iodone(void *addr, void *args)
 {	
 	int s;
 	struct sf_buf *sf;
-
-	vm_offset_t paddr; 
 	vm_page_t pp;
 
 	sf = dtosf(addr);
-	paddr = vtophys((vm_offset_t)addr);
-	pp = PHYS_TO_VM_PAGE(paddr);
+	pp = sf->m;
 	s = splvm();
 	/* remove COW mapping  */
 	vm_page_lock_queues();
 	vm_page_cowclear(pp);
 	vm_page_unlock_queues();
-	vm_object_deallocate(pp->object);
 	splx(s);
 	/* note that sf_buf_free() unwires the page for us*/
 	sf_buf_free(addr, NULL);
@@ -151,11 +147,6 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	 */
 	vm_page_wire(pp);
 	vm_page_unlock_queues();
-
-	/*
-	 * prevent the process from exiting on us.
-	 */
-	vm_object_reference(pp->object);
 
 	/* 
 	 * attach to mbuf
