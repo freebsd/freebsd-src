@@ -105,19 +105,19 @@ The command
 .Bd -literal
 lam file1 file2 file3 file4
 .Ed
-
+.Pp
 joins 4 files together along each line.
 To merge the lines from four different files use
 .Bd -literal
 lam file1 \-S "\\
 " file2 file3 file4
 .Ed
-
+.Pp
 Every 2 lines of a file may be joined on one line with
 .Bd -literal
 lam \- \- < file
 .Ed
-
+.Pp
 and a form letter with substitutions keyed by `@' can be done with
 .Bd -literal
 lam \-t @ letter changes

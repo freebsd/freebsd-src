@@ -80,7 +80,7 @@ for example, ``reset_command=ATZ\\r''.  A numeric capability is specified by
 .Em capability Ns Ar # Ns Em value ;
 for example, ``intercharacter_delay#50''.  A boolean capability is specified 
 by simply listing the capability.
-.Bl -tag -width intercharacter_delay indent
+.Bl -tag -width intercharacter_delay
 .It Cm \&dial_command
 (str)
 AT command used to dial remote system (typically, "ATDT")
@@ -123,6 +123,7 @@ AT command to reset the modem.
 (num)
 The time, expressed in milliseconds, required by the modem to complete
 a reset and return to a ready condition.
+.El
 .Sh FILES
 .Bl -tag -width /etc/modems -compact
 .It Pa /etc/modems

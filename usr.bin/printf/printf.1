@@ -86,7 +86,8 @@ Standard
 .Tn X3J11 .
 The characters and their meanings
 are as follows:
-.Bl -tag -width Ds -offset indent
+.Pp
+.Bl -tag -width Ds -offset indent -compact
 .It Cm \ea
 Write a <bell> character.
 .It Cm \eb
@@ -218,7 +219,9 @@ The
 .Ar argument
 is printed in the style
 .Cm e
-.`[-]d.ddd Ns \(+-dd\' 
+.Sm off
+.Sq Op - Ar d.ddd No \(+- Ar dd
+.Sm on
 where there
 is one digit before the decimal point and the number after is equal to
 the precision specification for the argument; when the precision is

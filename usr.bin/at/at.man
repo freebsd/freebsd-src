@@ -36,7 +36,7 @@
 .Op Fl mv
 .Op Ar time
 .Sh DESCRIPTION
-.Nm At
+.Nm \&At
 and
 .Nm batch
 read commands from standard input or a specified file which are to
@@ -56,7 +56,7 @@ drops below _LOADAVG_MX, or the value specified in the invocation of
 .Nm atrun .
 .El
 .Pp
-.Nm At
+.Nm \&At
 allows some moderately complex
 .Ar time
 specifications.  It accepts times of the form
@@ -225,6 +225,7 @@ shows completed but not yet deleted jobs in the queue; otherwise
 shows the time the job will be executed.
 .It Fl c
 Cat the jobs listed on the command line to standard output.
+.El
 .Sh FILES
 .Bl -tag -width _ATJOB_DIR/_LOCKFILE -compact
 .It Pa _ATJOB_DIR
@@ -258,7 +259,7 @@ in the environment variable
 .Ev LOGNAME .
 If that is undefined or empty, the current userid is assumed.
 .Pp
-.Nm At
+.Nm \&At
 and
 .Nm batch
 as presently implemented are not suitable when users are competing for
