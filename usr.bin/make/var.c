@@ -137,7 +137,6 @@ static void VarAdd(char *, char *, GNode *);
 static void VarDelete(void *);
 static char *VarGetPattern(GNode *, int, char **, int, int *, int *, 
 			   VarPattern *);
-static char *VarQuote(const char *);
 static char *VarModify(char *,
 		       Boolean (*)(const char *, Boolean, Buffer, void *),
 		       void *);
@@ -773,7 +772,7 @@ VarGetPattern(GNode *ctxt, int err, char **tstr, int delim, int *flags,
 
 /*-
  *-----------------------------------------------------------------------
- * VarQuote --
+ * Var_Quote --
  *	Quote shell meta-characters in the string
  *
  * Results:
@@ -784,8 +783,8 @@ VarGetPattern(GNode *ctxt, int err, char **tstr, int delim, int *flags,
  *
  *-----------------------------------------------------------------------
  */
-static char *
-VarQuote(const char *str)
+char *
+Var_Quote(const char *str)
 {
 
     Buffer  	  buf;
@@ -830,45 +829,6 @@ VarREError(int err, regex_t *pat, const char *str)
     Error("%s: %s", str, errbuf);
     free(errbuf);
 }
-
-
-#ifdef POSIX
-
-
-/* In POSIX mode, variable assignments passed on the command line are
- * propagated to sub makes through MAKEFLAGS.
- */
-void
-Var_AddCmdLine(char *name)
-{
-    const Var *v;
-    LstNode ln;
-    Buffer buf;
-    static const char quotable[] = " \t\n\\'\"";
-    char *s;
-    int first = 1;
-
-    buf = Buf_Init (MAKE_BSIZE);
-
-    for (ln = Lst_First(VAR_CMD->context); ln != NULL;
-	ln = Lst_Succ(ln)) {
-	    if (!first)
-	    	Buf_AddByte(buf, ' ');
-	    first = 0;
-	    /* We assume variable names don't need quoting */
-	    v = (Var *)Lst_Datum(ln);
-	    Buf_AddBytes(buf, strlen(v->name), v->name);
-	    Buf_AddByte(buf, '=');
-	    for (s = Buf_GetAll(v->val, (int *)NULL); *s != '\0'; s++) {
-		if (strchr(quotable, *s))
-		    Buf_AddByte(buf, '\\');
-		Buf_AddByte(buf, *s);
-	    }
-    }
-    Var_Append(name, Buf_GetAll(buf, (int *)NULL), VAR_GLOBAL);
-    Buf_Destroy(buf, 1);
-}
-#endif
 
 /*-
  *-----------------------------------------------------------------------
@@ -1526,7 +1486,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 		    /* FALLTHROUGH */
 		case 'Q':
 		    if (tstr[1] == endc || tstr[1] == ':') {
-			newStr = VarQuote (str);
+			newStr = Var_Quote (str);
 			cp = tstr + 1;
 			termc = *cp;
 			break;
