@@ -178,6 +178,15 @@ int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 #define	IFM_IEEE80211_DS5	7	/* Direct Sequence 5.5Mbps */
 #define	IFM_IEEE80211_DS11	8	/* Direct Sequence 11Mbps */
 #define	IFM_IEEE80211_DS22	9	/* Direct Sequence 22Mbps */
+#define IFM_IEEE80211_ODFM6	10	/* ODFM 6Mbps */
+#define IFM_IEEE80211_ODFM9	11	/* ODFM 9Mbps */
+#define IFM_IEEE80211_ODFM12	12	/* ODFM 12Mbps */
+#define IFM_IEEE80211_ODFM18	13	/* ODFM 18Mbps */
+#define IFM_IEEE80211_ODFM24	14	/* ODFM 24Mbps */
+#define IFM_IEEE80211_ODFM36	15	/* ODFM 36Mbps */
+#define IFM_IEEE80211_ODFM48	16	/* ODFM 48Mbps */
+#define IFM_IEEE80211_ODFM54	17	/* ODFM 54Mbps */
+#define IFM_IEEE80211_ODFM72	18	/* ODFM 72Mbps */
 #define	IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
 #define	IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
 #define	IFM_IEEE80211_IBSS	0x00000400	/* Operate in IBSS mode */
@@ -355,6 +364,15 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_DS5, "DS/5.5Mbps" },				\
 	{ IFM_IEEE80211_DS11, "DS/11Mbps" },				\
 	{ IFM_IEEE80211_DS22, "DS/22Mbps" },				\
+	{ IFM_IEEE80211_ODFM6, "ODFM/6Mbps" },				\
+	{ IFM_IEEE80211_ODFM9, "ODFM/9Mbps" },				\
+	{ IFM_IEEE80211_ODFM12, "ODFM/12Mbps" },			\
+	{ IFM_IEEE80211_ODFM18, "ODFM/18Mbps" },			\
+	{ IFM_IEEE80211_ODFM24, "ODFM/24Mbps" },			\
+	{ IFM_IEEE80211_ODFM36, "ODFM/36Mbps" },			\
+	{ IFM_IEEE80211_ODFM48, "ODFM/48Mbps" },			\
+	{ IFM_IEEE80211_ODFM54, "ODFM/54Mbps" },			\
+	{ IFM_IEEE80211_ODFM72, "ODFM/72Mbps" },			\
 	{ 0, NULL },							\
 }
 
@@ -373,6 +391,15 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_DS5, "DirectSequence/5.5Mbps" },		\
 	{ IFM_IEEE80211_DS11, "DirectSequence/11Mbps" },		\
 	{ IFM_IEEE80211_DS22, "DirectSequence/22Mbps" },		\
+	{ IFM_IEEE80211_ODFM6, "ODFM6" },				\
+	{ IFM_IEEE80211_ODFM9, "ODFM9" },				\
+	{ IFM_IEEE80211_ODFM12, "ODFM12" },				\
+	{ IFM_IEEE80211_ODFM18, "ODFM18" },				\
+	{ IFM_IEEE80211_ODFM24, "ODFM24" },				\
+	{ IFM_IEEE80211_ODFM36, "ODFM36" },				\
+	{ IFM_IEEE80211_ODFM48, "ODFM48" },				\
+	{ IFM_IEEE80211_ODFM54, "ODFM54" },				\
+	{ IFM_IEEE80211_ODFM72, "ODFM72" },				\
 	{ 0, NULL },							\
 }
 
