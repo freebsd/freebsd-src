@@ -53,11 +53,11 @@ size_t
 fread(buf, size, count, fp)
 	void *buf;
 	size_t size, count;
-	register FILE *fp;
+	FILE *fp;
 {
-	register size_t resid;
-	register char *p;
-	register int r;
+	size_t resid;
+	char *p;
+	int r;
 	size_t total;
 
 	/*

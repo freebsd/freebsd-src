@@ -37,6 +37,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)radixsort.c	8.2 (Berkeley) 4/28/95";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Radixsort routines.
@@ -140,8 +142,8 @@ r_sort_a(a, n, i, tr, endch)
 	u_int endch;
 {
 	static int count[256], nc, bmin;
-	register int c;
-	register const u_char **ak, *r;
+	int c;
+	const u_char **ak, *r;
 	stack s[SIZE], *sp, *sp0, *sp1, temp;
 	int *cp, bigc;
 	const u_char **an, *t, **aj, **top[256];
@@ -231,8 +233,8 @@ r_sort_b(a, ta, n, i, tr, endch)
 	u_int endch;
 {
 	static int count[256], nc, bmin;
-	register int c;
-	register const u_char **ak, **ai;
+	int c;
+	const u_char **ak, **ai;
 	stack s[512], *sp, *sp0, *sp1, temp;
 	const u_char **top[256];
 	int *cp, bigc;
@@ -297,12 +299,12 @@ r_sort_b(a, ta, n, i, tr, endch)
 
 static inline void
 simplesort(a, n, b, tr, endch)	/* insertion sort */
-	register const u_char **a;
+	const u_char **a;
 	int n, b;
-	register const u_char *tr;
+	const u_char *tr;
 	u_int endch;
 {
-	register u_char ch;
+	u_char ch;
 	const u_char  **ak, **ai, *s, *t;
 
 	for (ak = a+1; --n >= 1; ak++)

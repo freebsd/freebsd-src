@@ -53,7 +53,7 @@ static const char rcsid[] =
  */
 int
 __swsetup(fp)
-	register FILE *fp;
+	FILE *fp;
 {
 	/* make sure stdio is set up */
 	if (!__sdidinit)

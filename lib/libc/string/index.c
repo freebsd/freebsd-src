@@ -46,7 +46,7 @@ strchr(p, ch)
 #else
 index(p, ch)
 #endif
-	register const char *p, ch;
+	const char *p, ch;
 {
 	for (;; ++p) {
 		if (*p == ch)

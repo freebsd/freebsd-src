@@ -60,7 +60,7 @@ __sread(cookie, buf, n)
 	char *buf;
 	int n;
 {
-	register FILE *fp = cookie;
+	FILE *fp = cookie;
 
 	return(_read(fp->_file, buf, (size_t)n));
 }
@@ -71,7 +71,7 @@ __swrite(cookie, buf, n)
 	char const *buf;
 	int n;
 {
-	register FILE *fp = cookie;
+	FILE *fp = cookie;
 
 	return (_write(fp->_file, buf, (size_t)n));
 }
@@ -82,7 +82,7 @@ __sseek(cookie, offset, whence)
 	fpos_t offset;
 	int whence;
 {
-	register FILE *fp = cookie;
+	FILE *fp = cookie;
 
 	return (lseek(fp->_file, (off_t)offset, whence));
 }

@@ -40,15 +40,15 @@
 static const char rcsid[] = "$FreeBSD$";
 #endif
 
-static int common_crypt	__P(( char *, char *, register unsigned, unsigned, struct desparams * ));
+static int common_crypt	__P(( char *, char *, unsigned, unsigned, struct desparams * ));
 int (*__des_crypt_LOCAL)() = 0;
 extern int _des_crypt_call __P((char *, int, struct desparams *));
 /*
  * Copy 8 bytes
  */
 #define COPY8(src, dst) { \
-	register char *a = (char *) dst; \
-	register char *b = (char *) src; \
+	char *a = (char *) dst; \
+	char *b = (char *) src; \
 	*a++ = *b++; *a++ = *b++; *a++ = *b++; *a++ = *b++; \
 	*a++ = *b++; *a++ = *b++; *a++ = *b++; *a++ = *b++; \
 }
@@ -57,9 +57,9 @@ extern int _des_crypt_call __P((char *, int, struct desparams *));
  * Copy multiple of 8 bytes
  */
 #define DESCOPY(src, dst, len) { \
-	register char *a = (char *) dst; \
-	register char *b = (char *) src; \
-	register int i; \
+	char *a = (char *) dst; \
+	char *b = (char *) src; \
+	int i; \
 	for (i = (int) len; i > 0; i -= 8) { \
 		*a++ = *b++; *a++ = *b++; *a++ = *b++; *a++ = *b++; \
 		*a++ = *b++; *a++ = *b++; *a++ = *b++; *a++ = *b++; \
@@ -123,11 +123,11 @@ static int
 common_crypt(key, buf, len, mode, desp)	
 	char *key;	
 	char *buf;
-	register unsigned len;
+	unsigned len;
 	unsigned mode;
-	register struct desparams *desp;
+	struct desparams *desp;
 {
-	register int desdev;
+	int desdev;
 
 	if ((len % 8) != 0 || len > DES_MAXDATA) {
 		return(DESERR_BADPARAM);

@@ -46,7 +46,7 @@ static const char rcsid[] =
 
 void
 setbuffer(fp, buf, size)
-	register FILE *fp;
+	FILE *fp;
 	char *buf;
 	int size;
 {

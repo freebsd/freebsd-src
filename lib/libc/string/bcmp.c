@@ -45,9 +45,9 @@ __FBSDID("$FreeBSD$");
 int
 bcmp(b1, b2, length)
 	const void *b1, *b2;
-	register size_t length;
+	size_t length;
 {
-	register char *p1, *p2;
+	char *p1, *p2;
 
 	if (length == 0)
 		return(0);

@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD$");
 
 void
 strmode(mode, p)
-	register mode_t mode;
-	register char *p;
+	mode_t mode;
+	char *p;
 {
 	 /* print type */
 	switch (mode & S_IFMT) {

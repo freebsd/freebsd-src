@@ -46,10 +46,10 @@ strrchr(p, ch)
 #else
 rindex(p, ch)
 #endif
-	register const char *p;
-	register int ch;
+	const char *p;
+	int ch;
 {
-	register char *save;
+	char *save;
 
 	for (save = NULL;; ++p) {
 		if (*p == ch)

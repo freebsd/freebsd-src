@@ -49,12 +49,12 @@ static char sccsid[] = "@(#)inet_network.c	8.1 (Berkeley) 6/4/93";
  */
 in_addr_t
 inet_network(cp)
-	register const char *cp;
+	const char *cp;
 {
-	register in_addr_t val, base, n;
-	register char c;
+	in_addr_t val, base, n;
+	char c;
 	in_addr_t parts[4], *pp = parts;
-	register int i;
+	int i;
 
 again:
 	val = 0; base = 10;

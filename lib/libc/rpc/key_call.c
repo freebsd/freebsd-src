@@ -284,7 +284,7 @@ static struct key_call_private *key_call_private_main = NULL;
 static void
 key_call_destroy(void *vp)
 {
-	register struct key_call_private *kcp = (struct key_call_private *)vp;
+	struct key_call_private *kcp = (struct key_call_private *)vp;
 
 	if (kcp) {
 		if (kcp->client)

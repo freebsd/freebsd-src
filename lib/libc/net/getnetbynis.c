@@ -56,7 +56,7 @@ static char *host_aliases[MAXALIASES];
 static struct netent *
 _getnetbynis(const char *name, char *map, int af)
 {
-	register char *cp, **q;
+	char *cp, **q;
 	static char *result;
 	int resultlen;
 	static struct netent h;

@@ -67,10 +67,10 @@
  * sticky field is ignored anyway.
  */
 int
-__fpu_shr(register struct fpn *fp, register int rsh)
+__fpu_shr(struct fpn *fp, int rsh)
 {
-	register u_int m0, m1, m2, m3, s;
-	register int lsh;
+	u_int m0, m1, m2, m3, s;
+	int lsh;
 
 #ifdef DIAGNOSTIC
 	if (rsh <= 0 || (fp->fp_class != FPC_NUM && !ISNAN(fp)))
@@ -141,10 +141,10 @@ __fpu_shr(register struct fpn *fp, register int rsh)
  * a supernormal and it will fix it (provided fp->fp_mant[3] == 0).
  */
 void
-__fpu_norm(register struct fpn *fp)
+__fpu_norm(struct fpn *fp)
 {
-	register u_int m0, m1, m2, m3, top, sup, nrm;
-	register int lsh, rsh, exp;
+	u_int m0, m1, m2, m3, top, sup, nrm;
+	int lsh, rsh, exp;
 
 	exp = fp->fp_exp;
 	m0 = fp->fp_mant[0];
@@ -209,9 +209,9 @@ __fpu_norm(register struct fpn *fp)
  * As a side effect, we set NV (invalid) for the current exceptions.
  */
 struct fpn *
-__fpu_newnan(register struct fpemu *fe)
+__fpu_newnan(struct fpemu *fe)
 {
-	register struct fpn *fp;
+	struct fpn *fp;
 
 	fe->fe_cx = FSR_NV;
 	fp = &fe->fe_f3;

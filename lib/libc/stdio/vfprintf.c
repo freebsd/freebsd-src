@@ -189,8 +189,8 @@ static char *
 __ultoa(u_long val, char *endp, int base, int octzero, char *xdigs,
 	int needgrp, char thousep, const char *grp)
 {
-	register char *cp = endp;
-	register long sval;
+	char *cp = endp;
+	long sval;
 	int ndig;
 
 	/*

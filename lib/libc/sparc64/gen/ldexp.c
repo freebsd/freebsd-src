@@ -53,7 +53,7 @@ ldexp(val, exp)
 	double val;
 	int exp;
 {
-	register int oldexp, newexp;
+	int oldexp, newexp;
 	union {
 		double v;
 		struct ieee_double s;

@@ -1084,7 +1084,7 @@ ifree(void *ptr)
 void *
 malloc(size_t size)
 {
-    register void *r;
+    void *r;
 
     THREAD_LOCK();
     malloc_func = " in malloc():";

@@ -32,13 +32,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)hash_buf.c	8.5 (Berkeley) 7/15/94";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * PACKAGE: hash
@@ -109,9 +109,9 @@ __get_buf(hashp, addr, prev_bp, newpage)
 	BUFHEAD *prev_bp;
 	int newpage;	/* If prev_bp set, indicates a new overflow page. */
 {
-	register BUFHEAD *bp;
-	register u_int32_t is_disk_mask;
-	register int is_disk, segment_ndx;
+	BUFHEAD *bp;
+	u_int32_t is_disk_mask;
+	int is_disk, segment_ndx;
 	SEGMENT segp;
 
 	is_disk = 0;
@@ -163,9 +163,9 @@ newbuf(hashp, addr, prev_bp)
 	u_int32_t addr;
 	BUFHEAD *prev_bp;
 {
-	register BUFHEAD *bp;		/* The buffer we're going to use */
-	register BUFHEAD *xbp;		/* Temp pointer */
-	register BUFHEAD *next_xbp;
+	BUFHEAD *bp;		/* The buffer we're going to use */
+	BUFHEAD *xbp;		/* Temp pointer */
+	BUFHEAD *next_xbp;
 	SEGMENT segp;
 	int segment_ndx;
 	u_int16_t oaddr, *shortp;

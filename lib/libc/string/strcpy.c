@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 
 char *
 strcpy(to, from)
-	register char *to;
-	register const char *from;
+	char *to;
+	const char *from;
 {
 	char *save = to;
 

@@ -344,8 +344,8 @@ void
 compare(db1, db2)
 	DBT *db1, *db2;
 {
-	register size_t len;
-	register u_char *p1, *p2;
+	size_t len;
+	u_char *p1, *p2;
 
 	if (db1->size != db2->size)
 		printf("compare failed: key->data len %lu != data len %lu\n",

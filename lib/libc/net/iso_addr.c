@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)iso_addr.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <netiso/iso.h>
@@ -50,12 +52,12 @@ static char sccsid[] = "@(#)iso_addr.c	8.1 (Berkeley) 6/4/93";
 
 struct iso_addr *
 iso_addr(addr)
-	register const char *addr;
+	const char *addr;
 {
 	static struct iso_addr out_addr;
-	register char *cp = out_addr.isoa_genaddr;
+	char *cp = out_addr.isoa_genaddr;
 	char *cplim = cp + sizeof(out_addr.isoa_genaddr);
-	register int byte = 0, state = VIRGIN, new;
+	int byte = 0, state = VIRGIN, new;
 
 	bzero((char *)&out_addr, sizeof(out_addr));
 	do {

@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getservbyname.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <netdb.h>
 #include <string.h>
@@ -44,8 +46,8 @@ struct servent *
 getservbyname(name, proto)
 	const char *name, *proto;
 {
-	register struct servent *p;
-	register char **cp;
+	struct servent *p;
+	char **cp;
 
 #ifdef YP
 	extern char *___getservbyname_yp;
