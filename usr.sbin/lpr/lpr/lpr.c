@@ -698,9 +698,9 @@ static int
 test(const char *file)
 {
 	struct exec execb;
-	char	*path;
-	register int fd;
-	register char *cp;
+	size_t dlen;
+	int fd;
+	char *cp, *dirpath;
 
 	if (access(file, 4) < 0) {
 		printf("%s: cannot access %s\n", progname, file);
@@ -732,6 +732,11 @@ test(const char *file)
 	}
 	(void) close(fd);
 	if (rflag) {
+		/*
+		 * aside: note that 'cp' is technically a 'const char *'
+		 * (because it points into 'file'), even though strrchr
+		 * returns a value of type 'char *'.
+		 */
 		if ((cp = strrchr(file, '/')) == NULL) {
 			if (checkwriteperm(file,".") == 0)
 				return(1);
@@ -739,11 +744,12 @@ test(const char *file)
 			if (cp == file) {
 				fd = checkwriteperm(file,"/");
 			} else {
-				path = alloca(strlen(file) + 1);
-				strcpy(path,file);
-				*cp = '\0';
-				fd = checkwriteperm(path,file);
-				*cp = '/';
+				/* strlcpy will change the '/' to '\0' */
+				dlen = cp - file + 1;
+				dirpath = malloc(dlen);
+				strlcpy(dirpath, file, dlen);
+				fd = checkwriteperm(file, dirpath);
+				free(dirpath);
 			}
 			if (fd == 0)
 				return(1);
