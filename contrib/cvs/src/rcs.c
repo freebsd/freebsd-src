@@ -4300,11 +4300,11 @@ RCS_setlocalid (arg)
 {
     char *copy, *next, *key;
 
-    copy = strdup(arg);
+    copy = xstrdup(arg);
     next = copy;
     key = strtok(next, "=");
 
-    keywords[KEYWORD_LOCALID].string = strdup(key);
+    keywords[KEYWORD_LOCALID].string = xstrdup(key);
     keywords[KEYWORD_LOCALID].len = strlen(key);
 
     /* options? */
@@ -4330,7 +4330,7 @@ RCS_setincexc (arg)
     int include = 0;
     struct rcs_keyword *keyword;
 
-    copy = strdup(arg);
+    copy = xstrdup(arg);
     next = copy;
     switch (*next++) {
 	case 'e':
