@@ -1,0 +1,234 @@
+#!./perl
+
+#
+# This was perl 5.00502's installperl, very thoroughly hacked to only
+# install the perl libraries.
+#
+# $Id$
+#
+
+BEGIN {
+    require 5.004;
+    @INC = 'lib';
+    $ENV{PERL5LIB} = 'lib';
+}
+
+use strict;
+use vars qw($nonono $versiononly $depth $destdir $pod2man @modpods $manpage $mod);
+
+use File::Find;
+use File::Compare;
+use File::Copy ();
+use File::Path ();
+use Config;
+use subs qw(chmod);
+
+while (@ARGV) {
+    $nonono = 1 if $ARGV[0] eq '-n';
+    $versiononly = 1 if $ARGV[0] eq '-v';
+    $destdir = $ARGV[1] if $ARGV[0] eq '-d';
+    shift;
+}
+
+umask 022;
+
+# Specify here any .pm files that are actually architecture-dependent.
+# (Those included with XS extensions under ext/ are automatically
+# added later.)
+my %archpms = (
+    Config => 1, 
+);
+
+find(sub {
+	if ("$File::Find::dir/$_" =~ m{^ext/[^/]+/(.*)\.pm$}) {
+	    (my $pm = $1) =~ s{^lib/}{};
+	    $archpms{$pm} = 1;
+	}
+    }, 'ext');
+
+my $ver = $];
+my $patchlevel = substr($ver,3,2);
+die "Patchlevel of perl ($patchlevel)",
+    "and patchlevel of config.sh ($Config{'PATCHLEVEL'}) don't match\n"
+	if $patchlevel != $Config{'PATCHLEVEL'};
+
+# Fetch some frequently-used items from %Config
+my $installprivlib = $destdir . $Config{installprivlib};
+my $installarchlib = $destdir . $Config{installarchlib};
+my $man1dir = $Config{man1dir};
+my $man1ext = $Config{man1ext};
+my $man3dir = $Config{man3dir};
+my $man3ext = $Config{man3ext};
+my $libperl = $Config{libperl};
+# Shared library and dynamic loading suffixes.
+my $dlext = $Config{dlext};
+
+# Install library files.
+
+my ($do_installarchlib, $do_installprivlib) = (0, 0);
+    
+if (chdir "lib") {
+    $do_installarchlib = ! samepath($installarchlib, '.');
+    $do_installprivlib = ! samepath($installprivlib, '.');
+    $do_installprivlib = 0 if $versiononly && !($installprivlib =~ m/\Q$]/);
+
+    if ($do_installarchlib || $do_installprivlib) {
+	find(\&installlib, '.');
+    }
+    chdir ".." || die "Can't cd back to source directory: $!\n";
+}
+else {
+    warn "Can't cd to lib to install lib files: $!\n";
+}
+
+# Install header files and libraries.
+my @corefiles;
+@corefiles = <*.h libperl*.*>;
+foreach my $file (@corefiles) {
+    copy($file,"$installarchlib/CORE/$file")
+	and chmod($file =~ /\.(so|\Q$dlext\E)$/ ? 0555 : 0444,
+		   "$installarchlib/CORE/$file");
+}
+
+runpod2man('lib', $man3dir, $man3ext);
+
+print STDERR "  Installation complete\n";
+
+exit 0;
+
+###############################################################################
+
+sub chmod {
+    my($mode,$name) = @_;
+
+    return if ($^O eq 'dos');
+    printf STDERR "  chmod %o %s\n", $mode, $name;
+    CORE::chmod($mode,$name)
+	|| warn sprintf("Couldn't chmod %o %s: $!\n", $mode, $name)
+      unless $nonono;
+}
+
+sub copy {
+    my($from,$to) = @_;
+
+    print STDERR "  cp $from $to\n";
+    File::Copy::copy($from, $to)
+	|| warn "Couldn't copy $from to $to: $!\n"
+      unless $nonono;
+}
+
+sub samepath {
+    my($p1, $p2) = @_;
+
+    if ($p1 ne $p2) {
+	my($dev1, $ino1, $dev2, $ino2);
+	($dev1, $ino1) = stat($p1);
+	($dev2, $ino2) = stat($p2);
+	($dev1 == $dev2 && $ino1 == $ino2);
+    }
+    else {
+	1;
+    }
+}
+
+sub installlib {
+    my $dir = $File::Find::dir;
+    $dir =~ s#^\.(?![^/])/?##;
+    local($depth) = $dir ? "lib/$dir" : "lib";
+
+    my $name = $_;
+
+    if ($name eq 'CVS' && -d $name) {
+	$File::Find::prune = 1;
+	return;
+    }
+    
+    # ignore patch backups and the .exists files.
+    return if $name =~ m{\.orig$|~$|^\.exists};
+
+    $name = "$dir/$name" if $dir ne '';
+
+    my $installlib = $installprivlib;
+    if ($dir =~ /^auto/ ||
+	  ($name =~ /^(.*)\.(?:pm|pod)$/ && $archpms{$1}) ||
+	  ($name =~ /^(.*)\.(?:h|lib)$/i)
+       ) {
+        $installlib = $installarchlib;
+	return unless $do_installarchlib;
+    } else {
+	return unless $do_installprivlib;
+    }
+
+    if (-f $_) {
+	if (/\.(?:al|ix)$/ && !($dir =~ m[^auto/(.*)$] && $archpms{$1})) {
+	    $installlib = $installprivlib;
+	}
+	copy($_, "$installlib/$name")
+	    and chmod($name =~ /\.(so|$dlext)$/o ? 0555 : 0444,
+		"$installlib/$name");
+    }
+}
+
+sub runpod2man {
+    my($poddir, $mandir, $manext) = @_;
+
+    my($builddir) = Cwd::getcwd();
+    my($zipman) = "gzip -f";
+
+    if ($mandir eq ' ' or $mandir eq '') {
+	print STDERR "Skipping installation of $poddir man pages.\n";
+	return;
+    }
+
+    print STDERR "chdir $poddir\n";
+    chdir $poddir || die "Unable to cd to $poddir directory!\n$!\n";
+
+    -r  "../../pod/pod2man" || die "Executable pod/pod2man not found.\n";
+    $pod2man = "miniperl -I lib ../../pod/pod2man/pod2man --section=$manext --official";
+
+    @modpods = ();
+    find(\&lsmodpods, '.');
+    foreach $mod (@modpods) {
+	$manpage = $mod;
+	my $tmp;
+	# Skip .pm files that have corresponding .pod files, and Functions.pm.
+	next if (($tmp = $mod) =~ s/\.pm$/.pod/ && -f $tmp);
+	next if ($mod eq 'Pod/Functions.pm');	#### Used only by pod itself
+	# Convert name from  File/Basename.pm to File::Basename.3 format,
+	# if necessary.
+	$manpage =~ s#\.p(m|od)$##;
+	$manpage =~ s#/#::#g;
+	$tmp = $destdir ."${mandir}/${manpage}.tmp";
+	$manpage = $destdir . "${mandir}/${manpage}.${manext}";
+	if (&cmd("$pod2man $mod > $tmp") == 0 && -s $tmp) {
+	    if (!$nonono) {
+		print STDERR "Compressing $manpage\n";
+		rename($tmp, $manpage) && system($zipman, $manpage) && next;
+	    }
+	    else {
+		unlink($tmp);
+	    }
+	}
+    }
+    chdir "$builddir" || die "Unable to cd back to $builddir directory!\n$!\n";
+    print STDERR "chdir $builddir\n";
+}
+
+sub lsmodpods {
+    my $dir  = $File::Find::dir;
+    my $name = $File::Find::name;
+    if (-f $_) {
+        $name =~ s#^\./##;
+	push(@modpods, $name) if ($name =~ /\.p(m|od)$/);
+    }
+}
+
+sub cmd {
+    my($cmd) = @_;
+    print STDERR "  $cmd\n";
+    unless ($nonono) {
+	system $cmd;
+	warn "Command failed!!\n" if $?;
+    }
+    return $? != 0;
+}
