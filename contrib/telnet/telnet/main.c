@@ -32,20 +32,28 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)main.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <stdlib.h>
 
 #include "ring.h"
 #include "externs.h"
 #include "defines.h"
+
+#if	defined(AUTHENTICATION)
+#include <libtelnet/auth.h>
+#endif
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
+#endif
 
 /* These values need to be the same as defined in libtelnet/kerberos5.c */
 /* Either define them in both places, or put in some common header file. */
@@ -55,6 +63,12 @@ static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 5/30/95";
 #if 0
 #define FORWARD
 #endif
+
+void init_terminal(void);
+void init_network(void);
+void init_telnet(void);
+void init_sys(void);
+void init_3270(void);
 
 /*
  * Initialize variables.
@@ -109,7 +123,7 @@ usage()
  * main.  Parse arguments, invoke the protocol or command parser.
  */
 
-
+	int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -129,7 +143,7 @@ main(argc, argv)
 
 	TerminalSaveState();
 
-	if (prompt = strrchr(argv[0], '/'))
+	if ((prompt = strrchr(argv[0], '/')))
 		++prompt;
 	else
 		prompt = argv[0];
@@ -319,4 +333,5 @@ main(argc, argv)
 #endif
 			command(1, 0, 0);
 	}
+	return 0;
 }
