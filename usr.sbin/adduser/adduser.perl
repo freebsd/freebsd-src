@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.39 1998/01/10 17:27:21 wosch Exp $
+# $Id: adduser.perl,v 1.40 1998/06/07 18:38:32 wosch Exp $
 
 
 # read variables
@@ -466,29 +466,6 @@ sub new_users_grplogin {
     return ($group_login, $group_login);
 }
 
-# return login group
-sub new_users_grplogin_batch {
-    local($name, $defaultgroup) = @_;
-    local($group_login, $group);
-
-    $group_login = $name;
-    $group_login = $defaultgroup if $defaultgroup ne $group_uniq;
-
-    if (defined $gid{$group_login}) {
-	# convert numeric groupname (gid) to groupname
-	$group_login = $gid{$group_login};
-    }
-
-    # if (defined($groupname{$group_login})) {
-    #	&add_group($groupname{$group_login}, $name);
-    # }
-
-    return $group_login
-	if defined($groupname{$group_login}) || $group_login eq $name;
-    warn "Group ``$group_login'' does not exist\a\n";
-    return 0;
-}
-
 # return other groups (string)
 sub new_users_groups {
     local($name, $other_groups) = @_;
@@ -748,39 +725,6 @@ sub new_users {
     }
 }
 
-sub batch {
-    local($name, $groups, $class, $fullname, $password) = @_;
-    local($sh);
-
-    $defaultshell = &shell_default_valid($defaultshell);
-    return 0 unless $home = &home_partition_valid($home);
-    return 0 if $dotdir ne &dotdir_default_valid($dotdir);
-    $send_message = &message_default;
-
-    return 0 if $name ne &new_users_name_valid($name);
-    $sh = $shell{$defaultshell};
-    ($u_id, $g_id) = &next_id($name);
-    $group_login = &new_users_grplogin_batch($name, $defaultgroup);
-    return 0 unless $group_login;
-    $g_id = $groupname{$group_login} if (defined($groupname{$group_login}));
-    ($flag, $new_groups) = &new_users_groups_valid($groups);
-    return 0 if $flag;
-
-    $class = $defaultclass if $class eq "";
-    $cryptpwd = "";
-    $cryptpwd = crypt($password, &salt) if $password ne "";
-    # obscure perl bug
-    $new_entry = "$name\:" . "$cryptpwd" .
-	"\:$u_id\:$g_id\:$class\:0:0:$fullname:$home/$name:$sh";
-    &append_file($etc_passwd, "$new_entry");
-    &new_users_pwdmkdb("$new_entry");
-    &new_users_group_update;
-    &new_users_passwd_update;  print "Added user ``$name''\n";
-    &sendmessage($name, @message_buffer) if $send_message ne "no";
-    &adduser_log("$name:*:$u_id:$g_id($group_login):$fullname");
-    &home_create("$home/$name", $name, $group_login);
-}
-
 # ask for password usage
 sub password_default {
     local($p) = $defaultpasswd;
@@ -801,7 +745,6 @@ sub check_root {
 sub usage {
     warn <<USAGE;
 usage: adduser
-    [-batch username [group[,group]...] [class] [fullname] [password]]
     [-check_only]
     [-class login_class]
     [-config_create]
@@ -838,7 +781,7 @@ sub uniq {
 sub salt {
     local($salt);		# initialization
     local($i, $rand);
-    local(@itoa64) = ( 0 .. 9, a .. z, A .. Z ); # 0 .. 63
+    local(@itoa64) = ( '0' .. '9', 'a' .. 'z', 'A' .. 'Z' ); # 0 .. 63
 
     warn "calculate salt\n" if $verbose > 1;
     # to64
@@ -890,8 +833,9 @@ sub parse_arguments {
 	elsif (/^--?(message)$/) { $send_message = $argv[0]; shift @argv;
 				   $sendmessage = 1; }
 	elsif (/^--?(batch)$/)	 {
-	    @batch = splice(@argv, 0, 5); $verbose = 0;
-	    die "batch: too few arguments\n" if $#batch < 0;
+	    warn "The -batch option is not supported anymore.\n",
+	    "Please use the pw(8) command line tool!\n";
+	    exit(0);
 	}
 	# see &config_read
 	elsif (/^--?(config_create)$/)	{ &create_conf; }
@@ -1419,7 +1363,7 @@ $check_only = 0;
 &config_read(@ARGV);	# read variables form config-file
 &parse_arguments(@ARGV);    # parse arguments
 
-if (!$check_only &&  $#batch < 0) {
+if (!$check_only) {
     &copyright; &hints;
 }
 
@@ -1432,7 +1376,6 @@ $changes = 0;
 &group_check;			# check for incon*
 exit 0 if $check_only;		# only check consistence and exit
 
-exit(!&batch(@batch)) if $#batch >= 0; # batch mode
 
 # interactive
 # some questions
