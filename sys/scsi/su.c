@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id:$
+ *      $Id: su.c,v 1.3 1995/01/08 15:56:10 dufault Exp $
  *
  * Tabstops 4
  */
@@ -58,39 +58,49 @@
 #include <sys/buf.h>
 #include <sys/systm.h>
 
-/* bnxio, cnxio: non existent device entries (with ugly casts to quiet gcc).
+/* XXX: These are taken from, and perhaps belong in, conf.c
+ */
+#define nxopen		(d_open_t *)enxio
+#define	nxclose		(d_close_t *)enxio
+#define	nxread		(d_rdwr_t *)enxio
+#define	nxwrite		nxread
+#define	nxstrategy	(d_strategy_t *)enxio
+#define	nxioctl		(d_ioctl_t *)enxio
+#define	nxdump		(d_dump_t *)enxio
+#define nxstop		(d_stop_t *)enxio
+#define nxreset		(d_reset_t *)enxio
+#define nxselect	(d_select_t *)enxio
+#define nxmmap		(d_mmap_t *)enxio
+#define	nxdevtotty	(d_ttycv_t *)nullop
+#define zerosize	(d_psize_t *)0
+
+/* bnxio, cnxio: non existent device entries
  */
 static struct bdevsw bnxio = {
-	(int	(*)	__P((dev_t dev, int oflags, int devtype,
-				     struct proc *p)))					enxio,
-	(int	(*)	__P((dev_t dev, int fflag, int devtype,
-				     struct proc *p)))					enxio,
-	(d_strategy_t *)									enxio,
-	(int	(*)	__P((dev_t dev, int cmd, caddr_t data,
-				     int fflag, struct proc *p)))		enxio,
-	(int	(*)	())										enxio,
-	(int	(*)	__P((dev_t dev)))						0,
-	(int	)											0
+	nxopen,
+	nxclose,
+	nxstrategy,
+	nxioctl,
+	nxdump,
+	zerosize,
+	0
 };
 
 static struct cdevsw cnxio = {
-	(int	(*)	__P((dev_t dev, int oflags, int devtype,
-				     struct proc *p)))							enxio,
-	(int	(*)	__P((dev_t dev, int fflag, int devtype,
-				     struct proc *)))							enxio,
-	(int	(*)	__P((dev_t dev, struct uio *uio, int ioflag)))	enxio,
-	(int	(*)	__P((dev_t dev, struct uio *uio, int ioflag)))	enxio,
-	(int	(*)	__P((dev_t dev, int cmd, caddr_t data,
-				     int fflag, struct proc *p)))				enxio,
-	(int	(*)	__P((struct tty *tp, int rw)))					nullop,
-	(int	(*)	__P((int uban)))								enxio,
-	(struct	tty *)												0,
-	(int	(*)	__P((dev_t dev, int which, struct proc *p)))	enxio,
-	(int	(*)	__P(()))										enxio,
-	(d_strategy_t *)											enxio
+	nxopen,
+	nxclose,
+	nxread,
+	nxwrite,
+	nxioctl,
+	nxstop,
+	nxreset,
+	nxdevtotty,
+	nxselect,
+	nxmmap,
+	nxstrategy
 };
 
-/* getsws: Look up the base dev switch for a given new style
+/* getsws: Look up the base dev switch for a given "by minor number" style
  * device.
  */
 static int

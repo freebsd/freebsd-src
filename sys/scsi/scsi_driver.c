@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.1 1995/03/01 22:24:41 dufault Exp $
+ * $Id: scsi_driver.c,v 1.2 1995/03/03 21:38:43 dufault Exp $
  *
  */
 #include <sys/types.h>
@@ -68,13 +68,16 @@ int scsi_device_attach(struct scsi_link *sc_link)
 	SC_DEBUG(sc_link, SDEV_DB2,
 	("%s%dattach: ", device->name, sc_link->dev_unit));
 
+	sc_print_addr(sc_link);
+	printf("%s ", device->desc);
+
 	dev = scsi_dev_lookup(device->open);
 
 	sc_link->dev = (device->setunit ?
 	(*device->setunit)(dev, sc_link->dev_unit) :
 	makedev(major(dev), sc_link->dev_unit) );
 
-	errcode = (*(device->attach))(sc_link);
+	errcode = (device->attach) ? (*(device->attach))(sc_link) : 0;
 
 	if (errcode == 0)
 		sc_link->flags |= device->link_flags;
@@ -82,8 +85,9 @@ int scsi_device_attach(struct scsi_link *sc_link)
 	return errcode;
 }
 
-errval 
-scsi_open(dev_t dev, int flags, struct scsi_device *device)
+int 
+scsi_open(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_device *device)
 {
 	errval  errcode;
 	u_int32 unit;
@@ -102,7 +106,7 @@ scsi_open(dev_t dev, int flags, struct scsi_device *device)
 		return ENXIO;
 
 	errcode = (device->dev_open) ? 
-		(*device->dev_open)(dev, flags, sc_link) : 0;
+		(*device->dev_open)(dev, flags, fmt, p, sc_link) : 0;
 
 	if (sc_link->flags & SDEV_ONCE_ONLY) {
 		/*
@@ -125,8 +129,9 @@ scsi_open(dev_t dev, int flags, struct scsi_device *device)
  * close the device.. only called if we are the LAST
  * occurence of an open device
  */
-errval 
-scsi_close(dev_t dev, struct scsi_device *device)
+int 
+scsi_close(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_device *device)
 {
 	errval errcode;
 	struct scsi_link *scsi_link = SCSI_LINK(device, GETUNIT(device, dev));
@@ -134,7 +139,7 @@ scsi_close(dev_t dev, struct scsi_device *device)
 	SC_DEBUG(scsi_link, SDEV_DB1, ("%sclose:  Closing device\n", device->name));
 
 	errcode = (device->dev_close) ?
-		(*device->dev_close)(dev, scsi_link) : 0;
+		(*device->dev_close)(dev, flags, fmt, p, scsi_link) : 0;
 
 	if (scsi_link->flags & SDEV_ONCE_ONLY)
 		scsi_link->flags &= ~SDEV_OPEN;
@@ -142,16 +147,16 @@ scsi_close(dev_t dev, struct scsi_device *device)
 	return errcode;
 }
 
-errval 
-scsi_ioctl(dev_t dev, u_int32 cmd, caddr_t arg, int mode,
+int 
+scsi_ioctl(dev_t dev, u_int32 cmd, caddr_t arg, int mode, struct proc *p,
 struct scsi_device *device)
 {
 	errval errcode;
 	struct scsi_link *scsi_link = SCSI_LINK(device, GETUNIT(device, dev));
 
 	errcode = (device->dev_ioctl) ?
-		(*device->dev_ioctl)(dev, cmd, arg, mode, scsi_link)
-		: scsi_do_ioctl(dev, cmd, arg, mode, scsi_link);
+		(*device->dev_ioctl)(dev, cmd, arg, mode, p, scsi_link)
+		: scsi_do_ioctl(dev, cmd, arg, mode, p, scsi_link);
 
 	return errcode;
 }
@@ -172,7 +177,12 @@ scsi_strategy(struct buf *bp, struct scsi_device *device)
 	SC_DEBUG(sc_link, SDEV_DB1, ("%s%ld: %d bytes @ blk%d\n",
 		device->name, unit, bp->b_bcount, bp->b_blkno));
 
-	if (device->dev_strategy)
+	if (bp->b_bcount == 0)
+	{
+		bp->b_resid = 0;
+		biodone(bp);
+	}
+	else if (device->dev_strategy)
 	{
 		(*sc_link->adapter->scsi_minphys)(bp);
 		(*device->dev_strategy)(bp, sc_link);

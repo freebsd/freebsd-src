@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.10 1995/01/19 12:41:36 dufault Exp $
+ * $Id: scsi_ioctl.c,v 1.11 1995/03/01 22:24:42 dufault Exp $
  *
  *
  */
@@ -243,7 +243,7 @@ void scsiminphys(struct buf *bp)
  * in the context of the calling process
  */
 errval	scsi_do_ioctl(dev_t dev, int cmd, caddr_t addr, int f,
-struct scsi_link *sc_link)
+struct proc *p, struct scsi_link *sc_link)
 {
 	errval ret = 0;
 

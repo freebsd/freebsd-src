@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.33 1995/01/08 13:38:28 dufault Exp $
+ *      $Id: cd.c,v 1.34 1995/03/01 22:24:39 dufault Exp $
  */
 
 #define SPLCD splbio
@@ -89,10 +89,12 @@ struct scsi_data {
 static int cdunit(dev_t dev) { return CDUNIT(dev); }
 static dev_t cdsetunit(dev_t dev, int unit) { return CDSETUNIT(dev, unit); }
 
-errval cd_open(dev_t dev, int flags, struct scsi_link *sc_link);
+errval cd_open(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_link *sc_link);
 errval cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
-		struct scsi_link *sc_link);
-errval cd_close(dev_t dev, struct scsi_link *sc_link);
+		struct proc *p, struct scsi_link *sc_link);
+errval cd_close(dev_t dev, int flag, int fmt, struct proc *p,
+        struct scsi_link *sc_link);
 void cd_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 SCSI_DEVICE_ENTRIES(cd)
@@ -108,6 +110,7 @@ struct scsi_device cd_switch =
 	{0, 0},
 	0,				/* Link flags */
 	cdattach,
+	"CD-ROM",
 	cdopen,
     sizeof(struct scsi_data),
 	T_READONLY,
@@ -138,7 +141,6 @@ static struct kern_devconf kdc_cd_template = {
 	&kdc_scbus0,		/* parent - XXX should be host adapter*/
 	0,			/* parentdata */
 	DC_UNKNOWN,		/* not supported */
-	"SCSI CD-ROM drive"
 };
 
 static inline void
@@ -150,6 +152,7 @@ cd_registerdev(int unit)
 	if(!kdc) return;
 	*kdc = kdc_cd_template;
 	kdc->kdc_unit = unit;
+	kdc->kdc_description = cd_switch.desc;
 	/* XXX should set parentdata */
 	dev_attach(kdc);
 	if(dk_ndrive < DK_NDRIVE) {
@@ -209,7 +212,8 @@ cdattach(struct scsi_link *sc_link)
  * open the device. Make sure the partition info is a up-to-date as can be.
  */
 errval 
-cd_open(dev_t dev, int flags, struct scsi_link *sc_link)
+cd_open(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
 	u_int32 unit, part;
@@ -226,7 +230,7 @@ cd_open(dev_t dev, int flags, struct scsi_link *sc_link)
 		return (ENXIO);
 
 	SC_DEBUG(sc_link, SDEV_DB1,
-	    ("cdopen: dev=0x%x (unit %d,partition %d)\n",
+	    ("cd_open: dev=0x%x (unit %d,partition %d)\n",
 		dev, unit, part));
 	/*
 	 * If it's been invalidated, and not everybody has closed it then
@@ -240,7 +244,7 @@ cd_open(dev_t dev, int flags, struct scsi_link *sc_link)
 	 * Check that it is still responding and ok.
 	 * if the media has been changed this will result in a
 	 * "unit attention" error which the error code will
-	 * disregard because the SDEV_MEDIA_LOADED flag is not yet set
+	 * disregard because the SDEV_OPEN flag is not yet set
 	 */
 	scsi_test_unit_ready(sc_link, SCSI_SILENT);
 
@@ -316,7 +320,8 @@ cd_open(dev_t dev, int flags, struct scsi_link *sc_link)
  * occurence of an open device
  */
 errval 
-cd_close(dev_t dev, struct scsi_link *sc_link)
+cd_close(dev_t dev, int flag, int fmt, struct proc *p,
+        struct scsi_link *sc_link)
 {
 	u_int8  unit, part;
 	struct scsi_data *cd;
@@ -368,12 +373,6 @@ cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	if ((bp->b_flags & B_READ) == 0) {
 		bp->b_error = EROFS;
 		goto bad;
-	}
-	/*
-	 * If it's a null transfer, return immediatly
-	 */
-	if (bp->b_bcount == 0) {
-		goto done;
 	}
 	/*
 	 * Decide which unit and partition we are talking about
@@ -539,7 +538,8 @@ cdstart(unit)
  * Knows about the internals of this device
  */
 errval 
-cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct scsi_link *sc_link)
+cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
+struct scsi_link *sc_link)
 {
 	errval  error = 0;
 	u_int8  unit, part;
@@ -869,7 +869,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct scsi_link *sc_link)
 		break;
 	default:
 		if(part == RAW_PART || SCSI_SUPER(dev))
-			error = scsi_do_ioctl(dev, cmd, addr, flag, sc_link);
+			error = scsi_do_ioctl(dev, cmd, addr, flag, p, sc_link);
 		else
 			error = ENOTTY;
 		break;
