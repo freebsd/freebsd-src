@@ -62,7 +62,7 @@ struct mdthread {
 #define	MDP_UAC_MASK	(MDP_UAC_NOPRINT | MDP_UAC_NOFIX | MDP_UAC_SIGBUS)
 
 struct mdproc {
-	u_int	md_uac;			/* Unaligned Access Check flags. */
+	u_int	md_uac;			/* (c) Unaligned Access Check flags. */
 };
 
 #endif /* !_MACHINE_PROC_H_ */
