@@ -60,7 +60,7 @@ static LIST_HEAD(, cdev) dev_hash[DEVT_HASH];
 
 static struct mtx devmtx;
 static void freedev(struct cdev *dev);
-static struct cdev *newdev(int x, int y);
+static struct cdev *newdev(int x, int y, struct cdev *);
 
 void
 dev_lock(void)
@@ -286,21 +286,23 @@ allocdev(void)
 }
 
 static struct cdev *
-newdev(int x, int y)
+newdev(int x, int y, struct cdev *si)
 {
-	struct cdev *si;
+	struct cdev *si2;
 	dev_t	udev;
 	int hash;
 
+	mtx_assert(&devmtx, MA_OWNED);
 	if (x == umajor(NODEV) && y == uminor(NODEV))
 		panic("newdev of NODEV");
 	udev = (x << 8) | y;
 	hash = udev % DEVT_HASH;
-	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
-		if (si->si_udev == udev)
-			return (si);
+	LIST_FOREACH(si2, &dev_hash[hash], si_hash) {
+		if (si2->si_udev == udev) {
+			freedev(si);
+			return (si2);
+		}
 	}
-	si = allocdev();
 	si->si_udev = udev;
 	LIST_INSERT_HEAD(&dev_hash[hash], si, si_hash);
 	return (si);
@@ -327,14 +329,17 @@ findcdev(dev_t udev)
 	struct cdev *si;
 	int hash;
 
+	mtx_assert(&devmtx, MA_NOTOWNED);
 	if (udev == NODEV)
 		return (NULL);
+	dev_lock();
 	hash = udev % DEVT_HASH;
 	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
 		if (si->si_udev == udev)
-			return (si);
+			break;
 	}
-	return (NULL);
+	dev_unlock();
+	return (si);
 }
 
 int
@@ -449,7 +454,9 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 
 	if (!(devsw->d_flags & D_INIT))
 		prep_cdevsw(devsw);
-	dev = newdev(devsw->d_maj, minornr);
+	dev = allocdev();
+	dev_lock();
+	dev = newdev(devsw->d_maj, minornr, dev);
 	if (dev->si_flags & SI_CHEAPCLONE &&
 	    dev->si_flags & SI_NAMED &&
 	    dev->si_devsw == devsw) {
@@ -458,9 +465,9 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 		 * simplifies cloning devices.
 		 * XXX: still ??
 		 */
+		dev_unlock();
 		return (dev);
 	}
-	dev_lock();
 	KASSERT(!(dev->si_flags & SI_NAMED),
 	    ("make_dev() by driver %s on pre-existing device (maj=%d, min=%d, name=%s)",
 	    devsw->d_name, major(dev), minor(dev), devtoname(dev)));
@@ -693,7 +700,7 @@ int
 clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **dp, u_int extra)
 {
 	struct clonedevs *cd;
-	struct cdev *dev, *dl, *de;
+	struct cdev *dev, *ndev, *dl, *de;
 	int unit, low, u;
 
 	KASSERT(*cdp != NULL,
@@ -715,13 +722,19 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 	 *       the end of the list.
 	 */
 	unit = *up;
+	ndev = allocdev();
+	dev_lock();
 	low = extra;
 	de = dl = NULL;
 	cd = *cdp;
 	LIST_FOREACH(dev, &cd->head, si_clone) {
+		KASSERT(dev->si_flags & SI_CLONELIST,
+		    ("Dev %p(%s) should be on clonelist", dev, dev->si_name));
 		u = dev2unit(dev);
 		if (u == (unit | extra)) {
 			*dp = dev;
+			freedev(ndev);
+			dev_unlock();
 			return (0);
 		}
 		if (unit == -1 && u == low) {
@@ -733,13 +746,20 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 			dl = dev;
 			break;
 		}
-		de = dev;
 	}
 	if (unit == -1)
 		unit = low & CLONE_UNITMASK;
-	dev = newdev(csw->d_maj, unit2minor(unit | extra));
+	dev = newdev(csw->d_maj, unit2minor(unit | extra), ndev);
+	if (dev->si_flags & SI_CLONELIST) {
+		printf("dev %p (%s) is on clonelist\n", dev, dev->si_name);
+		printf("unit=%d\n", unit);
+		LIST_FOREACH(dev, &cd->head, si_clone) {
+			printf("\t%p %s\n", dev, dev->si_name);
+		}
+		panic("foo");
+	}
 	KASSERT(!(dev->si_flags & SI_CLONELIST),
-	    ("Dev %p should not be on clonelist", dev));
+	    ("Dev %p(%s) should not be on clonelist", dev, dev->si_name));
 	if (dl != NULL)
 		LIST_INSERT_BEFORE(dl, dev, si_clone);
 	else if (de != NULL)
@@ -748,6 +768,7 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 		LIST_INSERT_HEAD(&cd->head, dev, si_clone);
 	dev->si_flags |= SI_CLONELIST;
 	*up = unit;
+	dev_unlock();
 	return (1);
 }
 
@@ -764,11 +785,15 @@ clone_cleanup(struct clonedevs **cdp)
 	cd = *cdp;
 	if (cd == NULL)
 		return;
+	dev_lock();
 	LIST_FOREACH_SAFE(dev, &cd->head, si_clone, tdev) {
+		KASSERT(dev->si_flags & SI_CLONELIST,
+		    ("Dev %p(%s) should be on clonelist", dev, dev->si_name));
 		KASSERT(dev->si_flags & SI_NAMED,
 		    ("Driver has goofed in cloning underways udev %x", dev->si_udev));
-		destroy_dev(dev);
+		idestroy_dev(dev);
 	}
+	dev_unlock();
 	free(cd, M_DEVBUF);
 	*cdp = NULL;
 }
