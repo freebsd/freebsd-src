@@ -1145,6 +1145,10 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 	ifr = (struct ifreq *)data;
 	switch (cmd) {
+	case SIOCGIFINDEX:
+		ifr->ifr_index = ifp->if_index;
+		break;
+
 	case SIOCGIFFLAGS:
 		ifr->ifr_flags = ifp->if_flags;
 		break;
