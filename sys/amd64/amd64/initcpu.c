@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.9 1997/10/28 15:58:09 bde Exp $
+ *		$Id: initcpu.c,v 1.10 1997/11/21 22:33:52 jlemon Exp $
  */
 
 #include "opt_cpu.h"
@@ -153,8 +153,8 @@ init_cy486dx(void)
 	invd();
 
 	ccr2 = read_cyrix_reg(CCR2);
-#ifdef SUSP_HLT
-	ccr2 |= CCR2_SUSP_HTL;
+#ifdef CPU_SUSP_HLT
+	ccr2 |= CCR2_SUSP_HLT;
 #endif
 	write_cyrix_reg(CCR2, ccr2);
 	write_eflags(eflags);
