@@ -276,7 +276,8 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	 * the assumption the superuser should know what it is doing.
 	 */
 	modes = ntv.modes;
-	error = suser(p->p_cred->pc_ucred, &p->p_acflag);
+	if (modes)
+		error = suser(p->p_cred->pc_ucred, &p->p_acflag);
 	if (error)
 		return (error);
 	s = splclock();
