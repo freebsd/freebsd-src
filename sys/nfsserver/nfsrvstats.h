@@ -274,6 +274,7 @@ struct nfsstats {
 #define	NFSSVC_GOTAUTH	0x040
 #define	NFSSVC_AUTHINFAIL 0x080
 #define	NFSSVC_MNTD	0x100
+#define	NFSSVC_LOCKDANS 0x200
 
 /*
  * fs.nfs sysctl(3) identifiers

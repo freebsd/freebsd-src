@@ -1101,6 +1101,7 @@ nfs/bootp_subr.c	optional bootp
 nfs/krpc_subr.c		optional bootp
 nfs/nfs_bio.c		optional nfs
 nfs/nfs_node.c		optional nfs
+nfs/nfs_lock.c		optional nfs
 nfs/nfs_nqlease.c	optional nfs
 nfs/nfs_serv.c		optional nfs
 nfs/nfs_socket.c	optional nfs

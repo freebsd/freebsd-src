@@ -76,6 +76,7 @@
 #include <nfs/xdr_subs.h>
 #include <nfs/nfsm_subs.h>
 #include <nfs/nqnfs.h>
+#include <nfs/nfs_lock.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -3057,14 +3058,8 @@ nfs_advlock(ap)
 		int  a_flags;
 	} */ *ap;
 {
-	register struct nfsnode *np = VTONFS(ap->a_vp);
 
-	/*
-	 * The following kludge is to allow diskless support to work
-	 * until a real NFS lockd is implemented. Basically, just pretend
-	 * that this is a local lock.
-	 */
-	return (lf_advlock(ap, &(np->n_lockf), np->n_size));
+	return (nfs_dolock(ap));
 }
 
 /*

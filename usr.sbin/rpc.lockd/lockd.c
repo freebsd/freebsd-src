@@ -70,7 +70,11 @@ int		debug_level = 0;	/* 0 = no debugging syslog() calls */
 int		_rpcsvcdirty = 0;
 
 int grace_expired;
+int nsm_state;
+pid_t client_pid;
+struct mon mon_host;
 
+void	init_nsm(void);
 int	main __P((int, char **));
 void	nlm_prog_0 __P((struct svc_req *, SVCXPRT *));
 void	nlm_prog_1 __P((struct svc_req *, SVCXPRT *));
@@ -208,6 +212,10 @@ main(argc, argv)
 		exit(1);
 	}
 
+	init_nsm();
+
+	client_pid = client_request();
+
 	svc_run();		/* Should never return */
 	exit(1);
 }
@@ -223,4 +231,51 @@ void
 usage()
 {
 	errx(1, "usage: rpc.lockd [-d <debuglevel>] [-g <grace period>]");
+}
+
+/*
+ * init_nsm --
+ *	Reset the NSM state-of-the-world and acquire its state.
+ */
+void
+init_nsm(void)
+{
+	enum clnt_stat ret;
+	my_id id;
+	sm_stat stat;
+
+	/*
+	 * !!!
+	 * The my_id structure isn't used by the SM_UNMON_ALL call, as far
+	 * as I know.  Leave it empty for now.
+	 */
+	memset(&id, 0, sizeof(id));
+	id.my_name = "NFS NLM";
+
+	/*
+	 * !!!
+	 * The statd program must already be registered when lockd runs.
+	 */
+	do {
+		ret = callrpc("localhost", SM_PROG, SM_VERS, SM_UNMON_ALL,
+		    xdr_my_id, &id, xdr_sm_stat, &stat);
+		if (ret == RPC_PROGUNAVAIL) {
+			warnx("%lu %s", SM_PROG, clnt_sperrno(ret));
+			sleep(2);
+			continue;
+		}
+		break;
+	} while (0);
+
+	if (ret != 0) {
+		errx(1, "%lu %s", SM_PROG, clnt_sperrno(ret));
+	}
+
+	nsm_state = stat.state;
+
+	/* setup constant data for SM_MON calls */
+	mon_host.mon_id.my_id.my_name = "localhost";
+	mon_host.mon_id.my_id.my_prog = NLM_PROG;
+	mon_host.mon_id.my_id.my_vers = NLM_SM;
+	mon_host.mon_id.my_id.my_proc = NLM_SM_NOTIFY;  /* bsdi addition */
 }
