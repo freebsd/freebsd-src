@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.133 1998/02/06 12:13:15 eivind Exp $
+ *	$Id: if_ed.c,v 1.134 1998/02/27 05:38:28 msmith Exp $
  */
 
 /*
@@ -173,31 +173,31 @@ void *ed_attach_NE2000_pci	__P((int, int));
 static int ed_probe_pccard	__P((struct isa_device *, u_char *));
 #endif
 
-static void    ds_getmcaf __P((struct ed_softc *, u_long *));
+static void	ds_getmcaf	__P((struct ed_softc *, u_long *));
 
-static void ed_get_packet(struct ed_softc *, char *, /* u_short */ int, int);
+static void	ed_get_packet	__P((struct ed_softc *, char *, /* u_short */ int, int));
 
-static void	ed_rint __P((struct ed_softc *));
-static void	ed_xmit __P((struct ed_softc *));
-static char *	ed_ring_copy __P((struct ed_softc *, char *, char *,
+static void	ed_rint		__P((struct ed_softc *));
+static void	ed_xmit		__P((struct ed_softc *));
+static char *	ed_ring_copy	__P((struct ed_softc *, char *, char *,
 				  /* u_short */ int));
 static void	ed_hpp_set_physical_link __P((struct ed_softc *));
-static void	ed_hpp_readmem __P((struct ed_softc *, int, unsigned char *,
+static void	ed_hpp_readmem	__P((struct ed_softc *, int, unsigned char *,
 				    /* u_short */ int));
 static u_short	ed_hpp_write_mbufs __P((struct ed_softc *, struct mbuf *,
 					int));
 
-static void	ed_pio_readmem __P((struct ed_softc *, int, unsigned char *,
+static void	ed_pio_readmem	__P((struct ed_softc *, int, unsigned char *,
 				    /* u_short */ int));
-static void	ed_pio_writemem __P((struct ed_softc *, char *,
+static void	ed_pio_writemem	__P((struct ed_softc *, char *,
 				     /* u_short */ int, /* u_short */ int));
 static u_short	ed_pio_write_mbufs __P((struct ed_softc *, struct mbuf *,
 					int));
 void edintr_sc			__P((struct ed_softc *));
 
-static void    ed_setrcr(struct ed_softc *);
+static void	ed_setrcr	__P((struct ed_softc *));
 
-static u_long ds_crc(u_char *ep);
+static u_long	ds_crc		__P((u_char *ep));
 
 #if (NCARD > 0) || (NPNP > 0)
 #include <sys/kernel.h>
@@ -210,9 +210,9 @@ static u_long ds_crc(u_char *ep);
 /*
  *	PC-Card (PCMCIA) specific code.
  */
-static int edinit(struct pccard_devinfo *);		/* init device */
-static void edunload(struct pccard_devinfo *);		/* Disable driver */
-static int card_intr(struct pccard_devinfo *);		/* Interrupt handler */
+static int	edinit		__P((struct pccard_devinfo *));
+static void	edunload	__P((struct pccard_devinfo *));
+static int	card_intr	__P((struct pccard_devinfo *));
 
 static struct pccard_device ed_info = {
 	"ed",
