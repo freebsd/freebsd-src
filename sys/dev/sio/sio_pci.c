@@ -34,14 +34,12 @@
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/tty.h>
-#include <machine/clock.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <sys/timepps.h>
 
 #include <dev/sio/siovar.h>
 
-#include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
 static	int	sio_pci_attach __P((device_t dev));
@@ -59,7 +57,7 @@ static device_method_t sio_pci_methods[] = {
 static driver_t sio_pci_driver = {
 	sio_driver_name,
 	sio_pci_methods,
-	sizeof(struct com_s),
+	0,
 };
 
 struct pci_ids {
