@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-BIN=	120.clean-kvmdb \
+FILES=	120.clean-kvmdb \
 	310.locate \
 	320.whatis \
 	330.catman \
