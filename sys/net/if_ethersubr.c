@@ -39,11 +39,13 @@
 #include "opt_inet6.h"
 #include "opt_ipx.h"
 #include "opt_bdg.h"
+#include "opt_mac.h"
 #include "opt_netgraph.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/random.h>
@@ -153,6 +155,12 @@ ether_output(ifp, m, dst, rt0)
 	int loop_copy = 0;
 	int hlen;	/* link layer header lenght */
 	struct arpcom *ac = IFP2AC(ifp);
+
+#ifdef MAC
+	error = mac_check_ifnet_transmit(ifp, m);
+	if (error)
+		senderr(error);
+#endif
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
@@ -550,6 +558,10 @@ ether_input(ifp, eh, m)
 	struct mbuf *m;
 {
 	struct ether_header save_eh;
+
+#ifdef MAC
+	mac_create_mbuf_from_ifnet(ifp, m);
+#endif
 
 	/* Check for a BPF tap */
 	if (ifp->if_bpf != NULL) {
