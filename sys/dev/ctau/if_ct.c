@@ -359,7 +359,7 @@ static void ct_identify (driver_t *driver, device_t dev)
 		 * devices, but we don't have a choise
 		 */
 		for (i = 0; (iobase = porttab [i]) != 0; i++) {
-			if (!ct_is_free_res (dev, 1, SYS_RES_IOPORT,
+			if (!ct_is_free_res (dev, 0, SYS_RES_IOPORT,
 			    iobase, iobase + NPORT, NPORT))
 				continue;
 			if (ct_probe_board (iobase, -1, -1) == 0)
@@ -396,7 +396,7 @@ static void ct_identify (driver_t *driver, device_t dev)
 				if (porttab [i] != iobase)
 					continue;
 					
-				if (!ct_is_free_res (devices[k], 1, SYS_RES_IOPORT,
+				if (!ct_is_free_res (devices[k], 0, SYS_RES_IOPORT,
 				    iobase, iobase + NPORT, NPORT))
 					continue;
 
@@ -423,7 +423,7 @@ static void ct_identify (driver_t *driver, device_t dev)
 			for (i = 0; (iobase = porttab [i]) != 0; i++) {
 				if (porttab [i] == -1)
 					continue;
-				if (!ct_is_free_res (devices[k], 1, SYS_RES_IOPORT,
+				if (!ct_is_free_res (devices[k], 0, SYS_RES_IOPORT,
 				    iobase, iobase + NPORT, NPORT))
 					continue;
 				if (ct_probe_board (iobase, -1, -1) == 0)
@@ -462,7 +462,7 @@ static int ct_probe (device_t dev)
 		return ENXIO;
 	}
 
-	if (!ct_is_free_res (dev, 1, SYS_RES_IOPORT,
+	if (!ct_is_free_res (dev, 0, SYS_RES_IOPORT,
 	    iobase, iobase + NPORT, NPORT)) {
 		printf ("ct%d: Resource IOPORT isn't free\n", unit);
 		return ENXIO;
@@ -610,7 +610,7 @@ static int ct_attach (device_t dev)
 	
 	if (bus_get_resource (dev, SYS_RES_DRQ, 0, &drq, &rescount) != 0) {
 		for (i = 0; (drq = dmatab [i]) != 0; i++) {
-			if (!ct_is_free_res (dev, 1, SYS_RES_DRQ,
+			if (!ct_is_free_res (dev, 0, SYS_RES_DRQ,
 			    drq, drq + 1, 1))
 				continue;
 			bus_set_resource (dev, SYS_RES_DRQ, 0, drq, 1);
@@ -637,7 +637,7 @@ static int ct_attach (device_t dev)
 	
 	if (bus_get_resource (dev, SYS_RES_IRQ, 0, &irq, &rescount) != 0) {
 		for (i = 0; (irq = irqtab [i]) != 0; i++) {
-			if (!ct_is_free_res (dev, 1, SYS_RES_IRQ,
+			if (!ct_is_free_res (dev, 0, SYS_RES_IRQ,
 			    irq, irq + 1, 1))
 				continue;
 			bus_set_resource (dev, SYS_RES_IRQ, 0, irq, 1);
@@ -944,7 +944,8 @@ static void ct_tlf (struct sppp *sp)
 	CT_DEBUG (d, ("ct_tlf\n"));
 /*	ct_set_dtr (d->chan, 0);*/
 /*	ct_set_rts (d->chan, 0);*/
-	sp->pp_down (sp);
+	if (!(d->pp.pp_flags & PP_FR) && !(d->pp.pp_if.if_flags & PP_CISCO))
+		sp->pp_down (sp);
 }
 
 static void ct_tls (struct sppp *sp)
@@ -952,7 +953,8 @@ static void ct_tls (struct sppp *sp)
 	drv_t *d = sp->pp_if.if_softc;
 
 	CT_DEBUG (d, ("ct_tls\n"));
-	sp->pp_up (sp);
+	if (!(d->pp.pp_flags & PP_FR) && !(d->pp.pp_if.if_flags & PP_CISCO))
+		sp->pp_up (sp);
 }
 
 /*
