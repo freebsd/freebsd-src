@@ -73,6 +73,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/ioccom.h>
 #include <sys/sockio.h>
@@ -127,21 +128,33 @@ static struct lnc_softc {
 	LNCSTATS_STRUCT
 } lnc_softc[NLNC];
 
-/* Function prototypes */
-static int bicc_probe(struct isa_device *);
-static int depca_probe(struct isa_device *);
-static int lance_probe(int);
-static int ne2100_probe(struct isa_device *);
-static int pcnet_probe(int);
-static void lnc_init(int);
-static void lnc_start(struct ifnet *);
-static int  lnc_ioctl(struct ifnet *, int, caddr_t);
-static void lnc_watchdog(struct ifnet *);
-static int  lnc_probe(struct isa_device *);
-static int  lnc_attach(struct isa_device *);
+static void lnc_setladrf __P((struct ifnet *ifp, struct lnc_softc *sc));
+static void lnc_stop __P((int unit));
+static void lnc_reset __P((int unit));
+static void lnc_free_mbufs __P((struct lnc_softc *sc));
+static int alloc_mbuf_cluster __P((struct lnc_softc *sc, struct host_ring_entry *desc));
+static struct mbuf *chain_mbufs __P((struct lnc_softc *sc, int start_of_packet, int pkt_len));
+static struct mbuf *mbuf_packet __P((struct lnc_softc *sc, int start_of_packet, int pkt_len));
+static void lnc_rint __P((int unit));
+static void lnc_tint __P((int unit));
+static int lnc_probe __P((struct isa_device *isa_dev));
+static int ne2100_probe __P((struct isa_device *isa_dev));
+static int bicc_probe __P((struct isa_device *isa_dev));
+static int dec_macaddr_extract __P((u_char ring[], struct lnc_softc *sc));
+static int depca_probe __P((struct isa_device *isa_dev));
+static int lance_probe __P((int unit));
+static int pcnet_probe __P((int unit));
+static int lnc_attach __P((struct isa_device *isa_dev));
+static void lnc_init __P((int unit));
+static int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
+static struct mbuf *chain_to_cluster __P((struct mbuf *m));
+static void lnc_start __P((struct ifnet *ifp));
+static int lnc_ioctl __P((struct ifnet *ifp, int command, caddr_t data));
+static void lnc_watchdog __P((struct ifnet *ifp));
 #ifdef DEBUG
-static void lnc_dump_state(int);
-#endif /* DEBUG */
+static void lnc_dump_state __P((int unit));
+static void mbuf_dump_chain __P((struct mbuf *m));
+#endif
 
 struct isa_driver lncdriver = {lnc_probe, lnc_attach, "lnc"};
 

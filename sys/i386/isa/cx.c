@@ -61,8 +61,14 @@
 #include <machine/cronyx.h>
 #include <i386/isa/cxreg.h>
 
-extern void cxswitch (cx_chan_t *c, cx_soft_opt_t new);
-extern timeout_t cxtimeout;
+/* XXX imported from if_cx.c. */
+void cxswitch (cx_chan_t *c, cx_soft_opt_t new);
+
+/* XXX exported. */
+void cxmint (cx_chan_t *c);
+int cxrinta (cx_chan_t *c);
+void cxtinta (cx_chan_t *c);
+timeout_t cxtimeout;
 
 #ifdef DEBUG
 #   define print(s)     printf s

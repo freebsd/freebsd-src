@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.2 1995/12/05 02:00:33 davidg Exp $
+ * $Id: if_ar.c,v 1.3 1995/12/10 13:38:34 phk Exp $
  */
 
 /*
@@ -202,6 +202,10 @@ static struct kern_devconf kdc_arc_template = {
 static void arstart(struct ifnet *ifp);
 static int arioctl(struct ifnet *ifp, int cmd, caddr_t data);
 static void arwatchdog(struct ifnet *ifp);
+static int ar_packet_avail(struct ar_softc *sc, int *len, u_char *rxstat);
+static void ar_copy_rxbuf(struct mbuf *m, struct ar_softc *sc, int len);
+static void ar_eat_packet(struct ar_softc *sc);
+static void ar_get_packets(struct ar_softc *sc);
 
 static void ar_up(struct ar_softc *sc);
 static void ar_down(struct ar_softc *sc);
