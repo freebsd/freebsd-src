@@ -32,7 +32,7 @@
 .\"	@(#)mail.1	8.8 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 28, 1995
+.Dd February 29, 2004
 .Dt MAIL 1
 .Os
 .Sh NAME
@@ -79,7 +79,8 @@ The details of
 delivery are displayed on the user's terminal.
 .It Fl e
 Test for the presence of mail in the (by default, system)
-mailbox. An exit status of 0 is returned if
+mailbox.
+An exit status of 0 is returned if
 it has mail; otherwise, an exit status
 of 1 is returned.
 .It Fl H
@@ -142,12 +143,13 @@ for processing; when you
 .Nm
 writes undeleted messages back to this file.
 .It Fl F
-Record the message in a file named after the first 
-recipient. The name is the login-name portion of the
-address found first on the 
+Record the message in a file named after the first
+recipient.
+The name is the login-name portion of the
+address found first on the
 .Dq Li To:
 line in the mail header.
-Overrides the 
+Overrides the
 .Va record
 variable, if set.
 .It Fl u
