@@ -240,7 +240,7 @@ shm_delete_mapping(struct vmspace *vm, struct shmmap_state *shmmap_s)
 
 #ifndef _SYS_SYSPROTO_H_
 struct shmdt_args {
-	void *shmaddr;
+	const void *shmaddr;
 };
 #endif
 
@@ -284,7 +284,7 @@ done2:
 #ifndef _SYS_SYSPROTO_H_
 struct shmat_args {
 	int shmid;
-	void *shmaddr;
+	const void *shmaddr;
 	int shmflg;
 };
 #endif
