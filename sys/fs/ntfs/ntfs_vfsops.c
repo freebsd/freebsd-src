@@ -105,7 +105,7 @@ ntfs_mount (
 {
 	size_t		size;
 	int		err = 0;
-	struct vnode	*devvp;
+	struct vnode	*devvp, *rootvp;
 	struct ntfs_args args;
 
 	/*
@@ -289,7 +289,7 @@ ntfs_mountfs(devvp, mp, argsp, td)
 	ncount = vcount(devvp);
 	if (devvp->v_object)
 		ncount -= 1;
-	if (ncount > 1 && devvp != rootvp)
+	if (ncount > 1)
 		return (EBUSY);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);

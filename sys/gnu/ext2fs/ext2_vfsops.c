@@ -117,6 +117,7 @@ ext2_mountroot()
 {
 	struct ext2_sb_info *fs;
 	struct mount *mp;
+	struct vnode *rootvp;
 	struct thread *td = curthread;
 	struct ext2mount *ump;
 	u_int size;
@@ -642,7 +643,7 @@ ext2_mountfs(devvp, mp, td)
 	 */
 	if ((error = vfs_mountedon(devvp)) != 0)
 		return (error);
-	if (vcount(devvp) > 1 && devvp != rootvp)
+	if (vcount(devvp) > 1)
 		return (EBUSY);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
