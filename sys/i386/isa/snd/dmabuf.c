@@ -46,30 +46,28 @@ static void dsp_rd_dmadone(snddev_info *d);
 
 We use a circular buffer to store samples directed to the DAC.
 The buffer is split into two variable-size regions, each identified
-by an offset in the buffer (rp,fp) and a lenght (rl,fl). dl contains
-the length of the current DMA transfer, dl=0 means that the dma is
-idle.
+by an offset in the buffer (rp,fp) and a length (rl,fl):
 
       0          rp,rl        fp,fl    bufsize
       |__________>____________>________|
 	  FREE   d   READY    w FREE    
 
-  READY region: contains data written from the process and ready
-      to be sent to the DAC;
+  READY: data written from the process and ready to be sent to the DAC;
+  FREE: free part of the buffer.
 
-  FREE region: is the empty region of the buffer, where a process
-      can write new data.
-
-Both the "READY" and "FREE" regions can wrap around the end of the
-buffer.  At initialization, READY is empty, FREE takes all the
-available space, and dma is idle.
+Both regions can wrap around the end of the buffer.  At initialization,
+READY is empty, FREE takes all the available space, and dma is
+idle.  dl contains the length of the current DMA transfer, dl=0
+means that the dma is idle.
 
 The two boundaries (rp,fp) in the buffers are advanced by DMA [d]
-and write() [w] operations.  The first block of the READY region
+and write() [w] operations. The first portion of the READY region
 is used for DMA transfers. The transfer is started at rp and with
-chunks of length dl. During DMA operations, rp advances and rl,fl
-are updated by dsp_wr_dmaupdate().  When a new block is written,
-fp advances and rl,fl are updated accordingly.
+chunks of length dl. During DMA operations, dsp_wr_dmaupdate()
+updates rp, rl and fl tracking the ISA DMA engine as the transfer
+makes progress.
+When a new block is written, fp advances and rl,fl are updated
+accordingly.
 
 The code works as follows: the user write routine dsp_write_body()
 fills up the READY region with new data (reclaiming space from the
@@ -82,8 +80,8 @@ In some cases, the code tries to track the current status of DMA
 operations by calling dsp_wr_dmaupdate() which changes rp, rl and fl.
 
 The sistem tries to make all DMA transfers use the same size,
-play_blocksize or rec_blocksize. The size is either selected
-by the user, or computed by the system to correspond to about .25s of
+play_blocksize or rec_blocksize. The size is either selected by
+the user, or computed by the system to correspond to about .25s of
 audio. The blocksize must be within a range which is currently:
 
 	min(5ms, 40 bytes) ... 1/2 buffer size.
@@ -91,8 +89,8 @@ audio. The blocksize must be within a range which is currently:
 When there aren't enough data (write) or space (read), a transfer
 is started with a reduced size.
 
-To reduce problems in case of overruns, the routine which fills up the
-buffer should initialize (e.g. by repeating the last value) a
+To reduce problems in case of overruns, the routine which fills up
+the buffer should initialize (e.g. by repeating the last value) a
 reasonably long area after the last block so that no noise is
 produced on overruns.
 
@@ -142,6 +140,7 @@ dsp_wr_dmaupdate(snd_dbuf *b)
     b->rp = tmp;
     b->rl -= delta ;
     b->fl += delta ;
+    b->total += delta ;
 }
 
 /*
@@ -164,7 +163,7 @@ dsp_wrintr(snddev_info *d)
     /*
      * start another dma operation only if have ready data in the buffer,
      * there is no pending abort, have a full-duplex device
-     * (dbuf_out.chan != dbuf_in.chan) or have half duplex device
+     * or have half duplex device
      * and there is no * pending op on the other side.
      *
      * Force transfers to be aligned to a boundary of 4, which is
@@ -173,8 +172,7 @@ dsp_wrintr(snddev_info *d)
      */
     if (  b->rl >= DMA_ALIGN_THRESHOLD  &&
 	  ! (d->flags & SND_F_ABORTING) &&
-	  ( (d->dbuf_out.chan != d->dbuf_in.chan) ||
-	    ! (d->flags & SND_F_READING)  ) ) {
+	  ( FULL_DUPLEX(d) || ! (d->flags & SND_F_READING)  ) ) {
 	int l = min(b->rl, d->play_blocksize );	/* avoid too large transfer */
 	l &= DMA_ALIGN_MASK ; /* realign things */
 
@@ -201,7 +199,7 @@ dsp_wrintr(snddev_info *d)
 	/*
 	 * if switching to read, should start the read dma...
 	 */
-	if ( d->dbuf_out.chan == d->dbuf_in.chan && (d->flags & SND_F_READING) )
+	if ( !FULL_DUPLEX(d) && (d->flags & SND_F_READING) )
 	    dsp_rdintr(d);
     }
 }
@@ -422,6 +420,7 @@ dsp_rd_dmaupdate(snd_dbuf *b)
     b->fp = tmp;
     b->fl -= delta ;
     b->rl += delta ;
+    b->total += delta ;
 }
 
 /*
@@ -444,8 +443,7 @@ dsp_rdintr(snddev_info *d)
      */
     if ( b->fl > 0x200 &&
          (d->flags & (SND_F_ABORTING|SND_F_CLOSING)) == 0 &&
-	 ( d->dbuf_out.chan != d->dbuf_in.chan ||
-	   (d->flags & SND_F_WRITING) == 0 ) ) {
+	 ( FULL_DUPLEX(d) || (d->flags & SND_F_WRITING) == 0 ) ) {
 	int l = min(b->fl - 0x100, d->rec_blocksize);
 	l &= DMA_ALIGN_MASK ; /* realign sizes */
 	if (l != b->dl) {
@@ -462,7 +460,7 @@ dsp_rdintr(snddev_info *d)
 	/*
 	 * if switching to write, start write dma engine
 	 */
-	if ( d->dbuf_out.chan == d->dbuf_in.chan && (d->flags & SND_F_WRITING) )
+	if ( ! FULL_DUPLEX(d) && (d->flags & SND_F_WRITING) )
 	    dsp_wrintr(d) ;
 	DEB(printf("cannot start rd-dma rl %d fl %d\n",
 		b->rl, b->fl));

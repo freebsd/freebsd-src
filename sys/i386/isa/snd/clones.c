@@ -237,7 +237,7 @@ initialize_ProSonic16(snddev_info *d)
 
 	if (sb_cmd(sb_probed.io_base, 0xFB) &&	/* set DMA and irq */
 	    sb_cmd(sb_probed.io_base,
-		(dma_translat[JAZZ_DMA16]<<4)|dma_translat[sb_probed.dma1]) &&
+		(dma_translat[JAZZ_DMA16]<<4)|dma_translat[sb_probed.dbuf_out.chan]) &&
 	    sb_cmd(sb_probed.io_base,
 		(int_translat[mpu_irq]<<4)|int_translat[sb_probed.irq])) {
 	    d->bf_flags |= BD_F_JAZZ16 ;
