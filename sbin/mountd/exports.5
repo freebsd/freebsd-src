@@ -163,8 +163,10 @@ in an effort to be backward compatible with older export file formats.
 exports strictly according to the spec (RFC 2054 and RFC 2055) can
 be done with the
 .Fl public
-flag. However, this flag in itself allows r/w access to all files in
-the filesystem, not requiring reserved ports and not remapping uids. It
+flag.
+However, this flag in itself allows r/w access to all files in
+the filesystem, not requiring reserved ports and not remapping uids.
+It
 is only provided to conform to the spec, and should normally not be used.
 For a
 .Tn WebNFS
@@ -186,7 +188,8 @@ A
 option can be used to specify a file whose handle will be returned if
 a directory is looked up using the public filehandle (
 .Tn WebNFS Ns ).
-This is to mimic the behavior of URLs. If no
+This is to mimic the behavior of URLs.
+If no
 .Fl index
 option is specified, a directory filehandle will be returned as usual.
 The
