@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.72 1998/06/07 20:36:54 phk Exp $
+ * $Id: kern_clock.c,v 1.73 1998/06/09 13:10:52 phk Exp $
  */
 
 #include <sys/param.h>
@@ -696,7 +696,7 @@ init_timecounter(struct timecounter *tc)
 
 	/* XXX: For now always start using the counter. */
 	tc->tc_offset_count = tc->tc_get_timecount(tc);
-	nanotime(&ts1);
+	nanouptime(&ts1);
 	tc->tc_offset_nano = (u_int64_t)ts1.tv_nsec << 32;
 	tc->tc_offset_micro = ts1.tv_nsec / 1000;
 	tc->tc_offset_sec = ts1.tv_sec;
@@ -734,7 +734,7 @@ switch_timecounter(struct timecounter *newtc)
 		splx(s);
 		return;
 	}
-	nanotime(&ts);
+	nanouptime(&ts);
 	newtc->tc_offset_sec = ts.tv_sec;
 	newtc->tc_offset_nano = (u_int64_t)ts.tv_nsec << 32;
 	newtc->tc_offset_micro = ts.tv_nsec / 1000;
@@ -834,7 +834,7 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, adjustment, CTLTYPE_INT | CTLFLAG_RW,
  */
 
 static unsigned 
-dummy_get_timecount(void *tc)
+dummy_get_timecount(struct timecounter *tc)
 {
 	static unsigned now;
 	return (++now);
