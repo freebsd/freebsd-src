@@ -1,4 +1,4 @@
-/* BT848 1.38 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.39 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -267,6 +267,13 @@
 1.38                       Further improvements on Hauppauge's rely on
                            eeprom[9] to determine the tuner type 8)
 
+                           AVerMedia card type added <sos@freebsd.org>
+
+1.39            08/05/98   Roger Hardiman <roger@cs.strath.ac.uk>
+                           Updated Hauppauge detection code for Tuner ID 0x0a 
+                           for newer NTSC WinCastTV 404 with Bt878 chipset.
+                           Tidied up PAL default in video_open()
+			   
 */
 
 #define DDB(x) x
@@ -1621,18 +1628,18 @@ video_open( bktr_ptr_t bktr )
 	    BT848_IFORM_X_XT0  |
 	    BT848_IFORM_F_NTSCM;
 	  bktr->format_params = BT848_IFORM_F_NTSCM;
-	  frame_rate = 30;
 
 	} else {
 	  bt848->iform = BT848_IFORM_M_MUX1 |
 	    BT848_IFORM_X_XT1  |
 	    BT848_IFORM_F_PALBDGHI;
-	  bt848->adelay = format_params[BT848_IFORM_F_PALBDGHI].adelay;
-	  bt848->bdelay = format_params[BT848_IFORM_F_PALBDGHI].bdelay;
 	  bktr->format_params = BT848_IFORM_F_PALBDGHI;
-	  frame_rate = 25;
 
 	}
+
+	bt848->adelay = format_params[bktr->format_params].adelay;
+	bt848->bdelay = format_params[bktr->format_params].bdelay;
+	frame_rate    = format_params[bktr->format_params].frame_rate;
 
 	bktr->flags = (bktr->flags & ~METEOR_DEV_MASK) | METEOR_DEV0;
 
@@ -4413,6 +4420,7 @@ checkTuner:
 		 bktr->card.tuner = &tuners[ PHILIPS_NTSC  ];
 		 goto checkDBX;
 
+               case 0x0a:
                case 0x12:
 	       case 0x17:
 		 bktr->card.tuner = &tuners[ PHILIPS_FR1236_NTSC  ];
