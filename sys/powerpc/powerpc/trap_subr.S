@@ -690,9 +690,9 @@ CNAME(trapexit):
 
 	mfsprg	3, 0			/* get per-CPU pointer */
 	lwz	4, PC_CURTHREAD(3)	/* deref to get curthread */
-	lwz	4, TD_FLAGS(3)		/* get thread flags value */
+	lwz	4, TD_FLAGS(4)		/* get thread flags value */
 	lis	5, (TDF_ASTPENDING|TDF_NEEDRESCHED)@h
-	oris	5,5, (TDF_ASTPENDING|TDF_NEEDRESCHED)@l	
+	ori	5,5, (TDF_ASTPENDING|TDF_NEEDRESCHED)@l	
 	and.	4,4,5
 	beq	1f
 	mfmsr	3			/* re-enable interrupts */
