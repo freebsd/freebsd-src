@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.31 1995/12/28 23:14:40 davidg Exp $
+ *	$Id: support.s,v 1.32 1996/03/31 04:05:03 bde Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -169,6 +169,7 @@ do0:
 	ret
 #endif
 
+#if 0	/* Actually lowers performance in real-world cases */
 #if defined(I586_CPU) || defined(I686_CPU)
 ALTENTRY(i586_bzero)
 ENTRY(i686_bzero)
@@ -226,6 +227,7 @@ ENTRY(i686_bzero)
 
 	popl	%edi
 	ret
+#endif
 #endif
 
 /* fillw(pat, base, cnt) */
