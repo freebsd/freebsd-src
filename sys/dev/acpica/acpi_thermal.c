@@ -50,8 +50,8 @@ ACPI_MODULE_NAME("THERMAL")
 #define TZ_KELVTOC(x)	(((x) - TZ_ZEROC) / 10), (((x) - TZ_ZEROC) % 10)
 
 #define TZ_NOTIFY_TEMPERATURE	0x80
-#define TZ_NOTIFY_DEVICES	0x81
-#define TZ_NOTIFY_LEVELS	0x82
+#define TZ_NOTIFY_LEVELS	0x81
+#define TZ_NOTIFY_DEVICES	0x82
 
 /* Check for temperature changes every 30 seconds by default */
 #define TZ_POLLRATE	30
