@@ -34,8 +34,6 @@ MAN=	accept_filter.9 \
 	BUS_SETUP_INTR.9 \
 	byteorder.9 \
 	cd.9 \
-	cdevsw_add.9 \
-	cdevsw_remove.9 \
 	condvar.9 \
 	contigmalloc.9 \
 	copy.9 \
