@@ -69,7 +69,8 @@ extern char STR_SIEN[];
 
 #define	_V(x)	__STRING(x)
 
-#ifndef I386_CPU
+#if 0
+/* #ifndef I386_CPU */
 
 /*
  * For 486 and newer processors.
