@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.2 1997/06/24 12:43:18 yokota Exp $
+#	$Id: Makefile,v 1.3 1997/07/15 14:49:13 yokota Exp $
 
 KMOD=	daemon_saver_mod
 SRCS= 	daemon_saver.c
 
 NOMAN=
-CFLAGS+= -I${.CURDIR}/.. -I${.CURDIR}/../../../sys
+CFLAGS+= -I${.CURDIR}/..
 
 .include <bsd.kmod.mk>
