@@ -56,7 +56,7 @@ int
 logout(line)
 	const char *line;
 {
-	register int fd;
+	int fd;
 	UTMP ut;
 	int rval;
 
