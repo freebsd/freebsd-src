@@ -329,13 +329,13 @@ adjustrunqueue( struct thread *td, int newpri)
 static void
 maybe_preempt_in_ksegrp(struct thread *td)
 {
+	struct thread *running_thread;
 #if  defined(SMP)
 	int worst_pri;
 	struct ksegrp *kg;
 	cpumask_t cpumask,dontuse;
 	struct pcpu *pc;
 	struct pcpu *best_pcpu;
-	struct thread *running_thread;
 	struct thread *cputhread;
 
 #ifndef FULL_PREEMPTION
@@ -404,6 +404,7 @@ maybe_preempt_in_ksegrp(struct thread *td)
 #endif
 
 #else
+	running_thread = curthread;
 	KASSERT(running_thread->td_ksegrp == td->td_ksegrp,
 	    ("maybe_preempt_in_ksegrp: No chance to run thread"));
 #endif
