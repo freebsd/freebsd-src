@@ -75,18 +75,17 @@
  * i.e., WSTATE_TRANSITION can ignore WSTATE_ASSUME if it likes.
  */
 
-#define	WSTATE_32BIT		1	/* if set, probably 32-bit mode */
-#define	WSTATE_ASSUME		2	/* if set, assume 32 or 64 */
-#define	WSTATE_TRANSITION	4	/* if set, force user window */
-
-#define	WSTATE_TEST64		0	/* test, but anticipate 64-bit mode */
-#define	WSTATE_TEST32		1	/* test, but anticipate 32-bit mode */
-#define	WSTATE_ASSUME64		2	/* assume 64-bit mode */
-#define	WSTATE_ASSUME32		3	/* assume 32-bit mode */
-
-#define	WSTATE_NORMAL_MASK	3	/* wstate normal minus transition */
+#define	WSTATE_NORMAL_MASK	1	/* wstate normal minus transition */
 #define	WSTATE_OTHER_SHIFT	3	/* for wstate other / user */
+#define	WSTATE_OTHER_MASK		/* wstate other minus nested */ \
+	(WSTATE_NORMAL_MASK << WSTATE_OTHER_SHIFT)
 
 #define	WSTATE_KERNEL		0	/* normal kernel wstate */
+#define	WSTATE_USER_64		0	/* normal 64bit user wstate */
+#define	WSTATE_USER_32		1	/* normal 32bit user wstate */
+
+#define	WSTATE_TRANSITION	2	/* if set, force user window */
+#define	WSTATE_NESTED			/* if set, spill must not fault */ \
+	(WSTATE_TRANSITION << WSTATE_OTHER_SHIFT)
 
 #endif /* !_MACHINE_WSTATE_H_ */
