@@ -195,7 +195,7 @@ setpeer(argc, argv)
 	if (argc < 2) {
 		strcpy(line, "Connect ");
 		printf("(to) ");
-		gets(&line[strlen(line)]);
+		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
 		makeargv();
 		argc = margc;
 		argv = margv;
@@ -323,7 +323,7 @@ put(argc, argv)
 	if (argc < 2) {
 		strcpy(line, "send ");
 		printf("(file) ");
-		gets(&line[strlen(line)]);
+		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
 		makeargv();
 		argc = margc;
 		argv = margv;
@@ -417,7 +417,7 @@ get(argc, argv)
 	if (argc < 2) {
 		strcpy(line, "get ");
 		printf("(files) ");
-		gets(&line[strlen(line)]);
+		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
 		makeargv();
 		argc = margc;
 		argv = margv;
@@ -501,7 +501,7 @@ setrexmt(argc, argv)
 	if (argc < 2) {
 		strcpy(line, "Rexmt-timeout ");
 		printf("(value) ");
-		gets(&line[strlen(line)]);
+		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
 		makeargv();
 		argc = margc;
 		argv = margv;
@@ -529,7 +529,7 @@ settimeout(argc, argv)
 	if (argc < 2) {
 		strcpy(line, "Maximum-timeout ");
 		printf("(value) ");
-		gets(&line[strlen(line)]);
+		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
 		makeargv();
 		argc = margc;
 		argv = margv;
@@ -593,16 +593,19 @@ static __dead void
 command()
 {
 	register struct cmd *c;
+	char *cp;
 
 	for (;;) {
 		printf("%s> ", prompt);
-		if (gets(line) == 0) {
+		if (fgets(line, sizeof line , stdin) == 0) {
 			if (feof(stdin)) {
 				exit(0);
 			} else {
 				continue;
 			}
 		}
+		if ((cp = strchr(line, '\n')))
+			*cp = '\0';
 		if (line[0] == 0)
 			continue;
 		makeargv();
@@ -660,6 +663,8 @@ makeargv()
 	register char **argp = margv;
 
 	margc = 0;
+	if ((cp = strchr(line, '\n')))
+		*cp = '\0';
 	for (cp = line; *cp;) {
 		while (isspace(*cp))
 			cp++;
