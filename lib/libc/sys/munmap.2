@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)munmap.2	8.2 (Berkeley) 4/15/94
+.\"	@(#)munmap.2	8.3 (Berkeley) 5/27/94
 .\"
-.Dd April 15, 1994
+.Dd May 27, 1994
 .Dt MUNMAP 2
 .Os
 .Sh NAME
@@ -66,8 +66,8 @@ The
 parameter was not page aligned, the
 .Fa len
 parameter was negative, or
-some part of the region being unmapped is not part of the currently
-valid address space.
+some part of the region being unmapped is outside the
+valid address range for a process.
 .Sh "SEE ALSO"
 .Xr madvise 2 ,
 .Xr mincore 2 ,
