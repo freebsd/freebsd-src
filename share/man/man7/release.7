@@ -59,8 +59,8 @@ be installed into a clean
 .Xr chroot 8
 environment.
 The release procedure also requires that the
-.Xr md 4
-(memory disk) device driver be present in the kernel
+.Xr vn 4
+(vnode disk) device driver be present in the kernel
 (either by being compiled in or loaded as a module).
 .Pp
 This document does not cover source code management, quality
@@ -279,7 +279,7 @@ make release CHROOTDIR=/local3/release BUILDNAME=5.0-SNAPSHOT \\
 .Xr make 1 ,
 .Xr patch 1 ,
 .Xr uname 1 ,
-.Xr md 4 ,
+.Xr vn 4 ,
 .Xr make.conf 5 ,
 .Xr build 7 ,
 .Xr ports 7 ,
