@@ -101,7 +101,7 @@ struct bootp_packet {
 	unsigned char chaddr[16];
 	char sname[64];
 	char file[128];
-	unsigned char vend[256];
+	unsigned char vend[1222];
 };
 
 struct bootpc_ifcontext {
