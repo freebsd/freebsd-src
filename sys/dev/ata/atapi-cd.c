@@ -1146,14 +1146,7 @@ acd_start(struct atapi_softc *atp)
 
     bzero(ccb, sizeof(ccb));
     count = (bp->bio_bcount + (cdp->block_size - 1)) / cdp->block_size;
-    {
-    /* XXX Hack until b_offset is always initialized */
-    struct buf *bup = (struct buf *)bp;
-    if (bup->b_flags & B_PHYS)
-	lba = bup->b_offset / cdp->block_size;
-    else
-	lba = bp->bio_blkno / (cdp->block_size / DEV_BSIZE);
-    }
+    lba = bp->bio_offset / cdp->block_size;
 
     if (bp->bio_cmd == BIO_READ) {
 	/* if transfer goes beyond EOM adjust it to be within limits */
