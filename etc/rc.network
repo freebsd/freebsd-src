@@ -110,6 +110,7 @@ network_pass1() {
 					    -f "${ipfilter_rules}" \
 					    ${ipfilter_flags}
 				fi
+				${ipfilter_program:-/sbin/ipf} -6 -Fa
 				if [ -r "${ipv6_ipfilter_rules}" ]; then
 					${ipfilter_program:-/sbin/ipf} -6 \
 					    -f "${ipv6_ipfilter_rules}" \

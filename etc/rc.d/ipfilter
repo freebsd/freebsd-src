@@ -84,6 +84,7 @@ ipfilter_start()
 			${ipfilter_program:-/sbin/ipf} \
 			    -f "${ipfilter_rules}" ${ipfilter_flags}
 		fi
+		${ipfilter_program:-/sbin/ipf} -6 -Fa
 		if [ -r "${ipv6_ipfilter_rules}" ]; then
 			${ipfilter_program:-/sbin/ipf} -6 \
 			    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
@@ -127,6 +128,7 @@ ipfilter_reload()
 			${ipfilter_program:-/sbin/ipf} -I \
 			    -f "${ipfilter_rules}" ${ipfilter_flags}
 		fi
+		${ipfilter_program:-/sbin/ipf} -I -6 -Fa
 		if [ -r "${ipv6_ipfilter_rules}" ]; then
 			${ipfilter_program:-/sbin/ipf} -I -6 \
 			    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
