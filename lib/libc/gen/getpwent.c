@@ -100,12 +100,13 @@ tryagain:
 	rv = __hashpw(&key);
 	if(!rv) return (struct passwd *)NULL;
 #ifdef YP
-	if(_pw_passwd.pw_name[0] == '+' && _pw_passwd.pw_name[1]) {
-		_getyppass(&_pw_passwd, &_pw_passwd.pw_name[1], 
-			   "passwd.byname");
-	} else if(_pw_passwd.pw_name[0] == '+') {
-		_pw_copy = _pw_passwd;
-		return (_nextyppass(&_pw_passwd) ? &_pw_passwd : 0);
+	if (_yp_enabled) {
+		if(_pw_passwd.pw_name[0] == '+' || _pw_passwd.pw_name[0] == '-')
+			goto tryagain;
+		else {
+			_pw_copy = _pw_passwd;
+			return (_nextyppass(&_pw_passwd) ? &_pw_passwd : 0);
+		}
 	}
 #else
 	/* Ignore YP password file entries when YP is disabled. */
@@ -135,19 +136,8 @@ getpwnam(name)
 	rval = __hashpw(&key);
 
 #ifdef YP
-	if (!rval && _yp_enabled) {
-		bf[1] = '+';
-		bcopy(name, bf + 2, MIN(len, UT_NAMESIZE - 1));
-		key.data = (u_char *)bf;
-		key.size = len + 2;
-		rval = __hashpw(&key);
-		if (!rval && _yp_enabled < 0) {
-			key.size = 2;
-			rval = __hashpw(&key);
-		}
-		if(rval)
-			rval = _getyppass(&_pw_passwd, name, "passwd.byname");
-	}
+	if (!rval && _yp_enabled)
+		rval = _getyppass(&_pw_passwd, name, "passwd.byname");
 #endif
 	/*
 	 * Prevent login attempts when YP is not enabled but YP entries
@@ -249,13 +239,7 @@ __initdb()
 		if ((_pw_db->get)(_pw_db, &key, &data, 0)) {
 			_yp_enabled = 0;
 		} else {
-			/* Distinguish between old and new versions of
-			   pwd_mkdb. */
-			if(data.size != 1) {
-				_yp_enabled = -1;
-			} else {
-				_yp_enabled = (int)*((char *)data.data) - 2;
-			}
+			_yp_enabled = (int)*((char *)data.data) - 2;
 			_createcaches();
 		}
 #endif
@@ -275,25 +259,11 @@ __hashpw(key)
 	static char *line;
 	DBT data;
 
-	/*
-	 * XXX The pw_fields member of _pw_passwd needs to be cleared
-	 * at some point since __hashpw() can be called several times in
-	 * a single program. If we leave here after the second invokation
-	 * with garbage data in pw_fields, it can totally screw up NIS
-	 * lookups (the pw_breakout_yp function only populates the pw_passwd
-	 * structure if the pw_fields bits are clear).
-	 */
-	if ((_pw_db->get)(_pw_db, key, &data, 0)) {
-		if (_pw_passwd.pw_fields)
-			_pw_passwd.pw_fields = 0;
+	if ((_pw_db->get)(_pw_db, key, &data, 0))
 		return(0);
-	}
 	p = (char *)data.data;
-	if (data.size > max && !(line = realloc(line, max += 1024))) {
-		if (_pw_passwd.pw_fields)
-			_pw_passwd.pw_fields = 0;
+	if (data.size > max && !(line = realloc(line, max += 1024)))
 		return(0);
-	}
 
 	t = line;
 #define	EXPAND(e)	e = t; while (*t++ = *p++);
@@ -318,12 +288,17 @@ __hashpw(key)
 
 #ifdef YP
 /*
- * Build special +@netgroup and -@netgroup caches. We do the
- * actual netgroup lookups here so that we don't have to do a
- * bunch of innetgr() calls when doing a getpwent(). This lets us
- * query the netgroup database only once for each special entry.
- * The alternative is to do use innetgr() inside _getyppass() and
- * _netyppass(), which would make getpwent() unbearably slow.
+ * Build special +@netgroup and -@netgroup caches. We handle ordinary
+ * +user/-user translations too, since there's no other way to have it
+ * work right in all situations. The +user/-user stuff is somewhat
+ * non-standard -- I don't think any other OSes use it -- but handling
+ * it here is simple, so why not. This also lets us have just one
+ * yp_enabled flag with a simple on or off value instead of the somewhat
+ * bogus setup we had before.
+ * We cache everything here in one shot so that we only have to scan
+ * each netgroup once. The alternative is to use innetgr() inside the
+ * NIS lookup functions, which would make retrieving the whole password
+ * database though getpwent() very slow.
  */
 static void
 _createcaches()
@@ -345,7 +320,7 @@ _createcaches()
 		return;
 	/*
 	 * For the plus lists, we have to store both the linked list of
-	 * names and the +@entries from the password database so we can
+	 * names and the +entries from the password database so we can
 	 * do the substitution later if we find a match.
 	 */
 	bf[0] = _PW_KEYPLUSCNT;
@@ -378,7 +353,12 @@ _createcaches()
 				p->pw_entry.pw_dir = strdup(_pw_passwd.pw_dir);
 				p->pw_entry.pw_shell = strdup(_pw_passwd.pw_shell);
 				p->pw_entry.pw_fields = _pw_passwd.pw_fields;
-				p->namelist = namehead;
+				if (_pw_passwd.pw_name[1] != '@') {
+					p->namelist = (struct _namelist *)malloc(sizeof (struct _namelist));
+					p->namelist->name = strdup(_pw_passwd.pw_name+1);
+					p->namelist->next = NULL;
+				} else
+					p->namelist = namehead;
 				p->next = _plushead;
 				_plushead = p;
 			}
@@ -387,7 +367,7 @@ _createcaches()
 
 	/*
 	 * All we need for the minuslist are the usernames.
-	 * The actual -@entries can be ignored since no substitution
+	 * The actual -entries can be ignored since no substitution
 	 * will be done: anybody on the minus list is treated like a
 	 * non-person.
 	 */
@@ -410,7 +390,12 @@ _createcaches()
 					n->next = namehead;
 					namehead = n;
 				}
-				m->namelist = namehead;
+				if (_pw_passwd.pw_name[1] != '@') {
+					m->namelist = (struct _namelist *)malloc(sizeof (struct _namelist));
+					m->namelist->name = strdup(_pw_passwd.pw_name+1);
+					m->namelist->next = NULL;
+				} else
+					m->namelist = namehead;
 				m->next = _minushead;
 				_minushead = m;
 			}
@@ -573,6 +558,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	if(resultlen >= sizeof resultbuf) return 0;
 	strcpy(resultbuf, result);
 	s = strsep(&result,":");
+	_pw_passwd.pw_fields = 0;
 	if (_minuscnt && _minushead) {
 		m = _minushead;
 		while (m) {
@@ -661,6 +647,7 @@ unpack:
 
 		strcpy(resultbuf, result);
 		s = strsep(&result,":");
+		_pw_passwd.pw_fields = 0;
 		if (_minuscnt && _minushead) {
 			m = _minushead;
 			while (m) {
