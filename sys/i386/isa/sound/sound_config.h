@@ -211,6 +211,18 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define TRIX_DMA	1
 #endif
 
+#ifndef U6850_BASE
+#define U6850_BASE	0x330
+#endif
+  
+#ifndef U6850_IRQ
+#define U6850_IRQ	5
+#endif
+  
+#ifndef U6850_DMA
+#define U6850_DMA	1
+#endif
+
 #ifndef MAX_REALTIME_FACTOR
 #define MAX_REALTIME_FACTOR	4
 #endif

@@ -93,7 +93,7 @@ uart6850_input_loop (void)
 }
 
 void
-m6850intr (INTR_HANDLER_PARMS (irq, dummy))
+m6850intr (int unit)
 {
   if (input_avail ())
     uart6850_input_loop ();
