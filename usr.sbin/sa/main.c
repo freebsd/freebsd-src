@@ -28,13 +28,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef LINT
-static char copright[] =
+#ifndef lint
+static const char copyright[] =
 "@(#) Copyright (c) 1994 Christopher G. Demetriou\n\
  All rights reserved.\n";
-
-static char rcsid[] = "$Id$";
 #endif
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * sa:	system accounting
@@ -63,6 +66,7 @@ static int	cmp_avgdkio	__P((const DBT *, const DBT *));
 static int	cmp_cpumem	__P((const DBT *, const DBT *));
 static int	cmp_avgcpumem	__P((const DBT *, const DBT *));
 static int	cmp_calls	__P((const DBT *, const DBT *));
+static void	usage		__P((void));
 
 int aflag, bflag, cflag, dflag, Dflag, fflag, iflag, jflag, kflag;
 int Kflag, lflag, mflag, qflag, rflag, sflag, tflag, uflag, vflag;
@@ -168,9 +172,7 @@ main(argc, argv)
 				break;
 			case '?':
 	                default:
-				(void)fprintf(stderr,
-				    "usage: sa [-abcdDfijkKlmnqrstu] [-v cutoff] [file ...]\n");
-				exit(1);
+				usage();
 		}
 
 	argc -= optind;
@@ -224,7 +226,7 @@ main(argc, argv)
 			}
 			if (unmask &&
 			    (sigprocmask(SIG_BLOCK, &nmask, &omask) == -1)) {
-				warn("couldn't set signal mask ");
+				warn("couldn't set signal mask");
 				unmask = 0;
 				error = 1;
 			}
@@ -286,6 +288,14 @@ main(argc, argv)
 	}
 
 	exit(error);
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr,
+		"usage: sa [-abcdDfijkKlmnqrstu] [-v cutoff] [file ...]\n");
+	exit(1);
 }
 
 static int

@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: sa.8,v 1.7 1997/02/22 16:13:12 peter Exp $
 .\"
 .Dd February 25, 1994
 .Dt SA 8
@@ -42,7 +42,7 @@
 .Op Ar
 .Sh DESCRIPTION
 The
-.Nm sa
+.Nm
 utility reports on, cleans up,
 and generally maintains system
 accounting files.
@@ -96,13 +96,13 @@ User time, in minutes
 .El
 .Pp
 The options to
-.Nm sa
+.Nm
 are:
 .Bl -tag -width Ds
 .It Fl a
 List all command names, including those containing unprintable
 characters and those used only once.  By default,
-.Nm sa
+.Nm
 places all names containing unprintable characters and
 those used only once under the name ``***other''.
 .It Fl b
@@ -195,7 +195,7 @@ and
 flags are honored.
 .Pp
 The
-.Nm sa
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh FILES
 .Bl -tag -width /var/account/usracct -compact
@@ -220,7 +220,7 @@ The field labels should be more consistent.
 The VM system does not record the CPU storage integral.
 .Sh CAVEATS
 While the behavior of the options in this version of
-.Nm sa
+.Nm
 was modeled after the original version, there are some intentional
 differences and undoubtedly some unintentional ones as well.  In
 particular, the
@@ -230,11 +230,9 @@ option has been added, and the
 option now understands more options than it used to.
 .Pp
 The formats of the summary files created by this version of
-.Nm sa
+.Nm
 are very different than the those used by the original version.
 This is not considered a problem, however, because the accounting record
 format has changed as well (since user ids are now 32 bits).
 .Sh AUTHOR
-.Bl -tag
-Chris G. Demetriou, cgd@postgres.berkeley.edu
-.El
+.An Chris G. Demetriou Aq cgd@postgres.berkeley.edu
