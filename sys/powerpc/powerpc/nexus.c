@@ -58,6 +58,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
