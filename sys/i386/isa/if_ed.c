@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.147 1998/12/13 23:00:48 eivind Exp $
+ *	$Id: if_ed.c,v 1.148 1999/01/19 00:21:38 peter Exp $
  */
 
 /*
@@ -67,6 +67,10 @@
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
+#endif
+#include "opt_bdg.h"
+#ifdef BRIDGE
+#include <net/bridge.h>
 #endif
 
 #include <machine/clock.h>
@@ -2253,6 +2257,13 @@ ed_rint(sc)
 				len += ((packet_hdr.next_packet - sc->rec_page_start) +
 					(sc->rec_page_stop - sc->next_packet)) * ED_PAGE_SIZE;
 			}
+			/*
+			 * because buffers are aligned on 256-byte boundary,
+			 * the length computed above is off by 256 in almost
+			 * all cases. Fix it...
+			 */
+			if (len & 0xff)
+				len -= 256 ;
 			if (len > (ETHER_MAX_LEN - ETHER_CRC_LEN 
 				   + sizeof(struct ed_ring)))
 				sc->mibdata.dot3StatsFrameTooLongs++;
@@ -2731,6 +2742,42 @@ ed_get_packet(sc, buf, len, multicast)
 	m->m_data += 2;
 	eh = mtod(m, struct ether_header *);
 
+#ifdef BRIDGE
+	/*
+	 * Get link layer header, invoke brige_in, then
+	 * depending on the outcome of the test fetch the rest of the
+	 * packet and either pass up or call bdg_forward.
+	 */
+	if (do_bridge) {
+		struct ifnet *ifp ;
+		int need_more = 1 ; /* in case not bpf */
+
+#if NBPFILTER > 0
+		if (sc->arpcom.ac_if.if_bpf) {
+			need_more = 0 ;
+			ed_ring_copy(sc, buf, (char *)eh, len);
+			bpf_mtap(&sc->arpcom.ac_if, m);
+		} else
+#endif
+			ed_ring_copy(sc, buf, (char *)eh, 14);
+		ifp = bridge_in(m);
+		if (ifp == BDG_DROP) {
+			m_freem(m);
+			return ;
+		}
+		/* else fetch rest of pkt and continue */
+		if (need_more && len > 14)
+			ed_ring_copy(sc, buf+14, (char *)(eh+1), len - 14);
+		if (ifp != BDG_LOCAL )
+			bdg_forward(&m, ifp); /* not local, need forwarding */
+		if (ifp == BDG_LOCAL || ifp == BDG_BCAST || ifp == BDG_MCAST)
+			goto getit ;
+		/* not local and not multicast, just drop it */
+		if (m)
+			m_freem(m);
+		return ;
+	}
+#endif
 	/*
 	 * Get packet, including link layer address, from interface.
 	 */
@@ -2742,23 +2789,21 @@ ed_get_packet(sc, buf, len, multicast)
 	 * Check if there's a BPF listener on this interface. If so, hand off
 	 * the raw packet to bpf.
 	 */
-	if (sc->arpcom.ac_if.if_bpf) {
+	if (sc->arpcom.ac_if.if_bpf)
 		bpf_mtap(&sc->arpcom.ac_if, m);
-
-		/*
-		 * Note that the interface cannot be in promiscuous mode if
-		 * there are no BPF listeners.  And if we are in promiscuous
-		 * mode, we have to check if this packet is really ours.
-		 */
-		if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
-		    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		      sizeof(eh->ether_dhost)) != 0 && multicast == 0) {
-			m_freem(m);
-			return;
-		}
-	}
 #endif
+	/*
+	 * If we are in promiscuous mode, we have to check whether
+	 * this packet is really for us.
+	 */
+	if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
+		bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
+		      sizeof(eh->ether_dhost)) != 0 && multicast == 0) {
+		m_freem(m);
+		return;
+	}
 
+getit:
 	/*
 	 * Remove link layer address.
 	 */

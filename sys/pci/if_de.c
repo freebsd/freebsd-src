@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.93 1998/12/30 00:37:43 hoek Exp $ */
+/*	$Id: if_de.c,v 1.93.2.1 1999/03/01 17:03:24 luigi Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -122,6 +122,10 @@
 #include <pci/pcivar.h>
 #include <pci/dc21040reg.h>
 #define	DEVAR_INCLUDE	"pci/if_devar.h"
+#endif
+#include "opt_bdg.h"
+#ifdef BRIDGE
+#include <net/bridge.h>
 #endif
 #endif /* __FreeBSD__ */
 
@@ -3543,6 +3547,23 @@ tulip_rx_intr(
 	    }
 #endif
 	    sc->tulip_flags |= TULIP_RXACT;
+
+#ifdef BRIDGE /* see code in if_ed.c */
+            ms->m_pkthdr.rcvif = ifp; /* XXX */
+            ms->m_pkthdr.len = total_len; /* XXX */
+            if (do_bridge) {
+                struct ifnet *bdg_ifp ;
+                bdg_ifp = bridge_in(ms);
+                if (bdg_ifp == BDG_DROP)
+                    goto next ; /* and drop */
+                if (bdg_ifp != BDG_LOCAL)
+                    bdg_forward(&ms, bdg_ifp);
+                if (bdg_ifp != BDG_LOCAL && bdg_ifp != BDG_BCAST &&
+                        bdg_ifp != BDG_MCAST)
+                    goto next ; /* and drop */
+                /* all others accepted locally */
+            } else
+#endif
 	    if ((sc->tulip_flags & (TULIP_PROMISC|TULIP_HASHONLY))
 		    && (eh.ether_dhost[0] & 1) == 0
 		    && !TULIP_ADDREQUAL(eh.ether_dhost, sc->tulip_enaddr))

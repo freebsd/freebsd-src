@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.59 1998/12/14 05:47:27 dillon Exp $
+ *	$Id: if_fxp.c,v 1.59.2.1 1999/02/15 08:47:10 julian Exp $
  */
 
 /*
@@ -102,6 +102,12 @@
 #include <pci/if_fxpvar.h>
 
 #endif /* __NetBSD__ */
+
+#include "opt_bdg.h"
+#ifdef BRIDGE
+#include <net/if_types.h>
+#include <net/bridge.h>
+#endif
 
 /*
  * NOTE!  On the Alpha, we have an alignment constraint.  The
@@ -1010,31 +1016,50 @@ rcvloop:
 					}
 					m->m_pkthdr.rcvif = ifp;
 					m->m_pkthdr.len = m->m_len =
-					    total_len -
-					    sizeof(struct ether_header);
+					    total_len ;
 					eh = mtod(m, struct ether_header *);
 #if NBPFILTER > 0
-					if (ifp->if_bpf) {
+					if (ifp->if_bpf)
 						bpf_tap(FXP_BPFTAP_ARG(ifp),
 						    mtod(m, caddr_t),
 						    total_len); 
-						/*
-						 * Only pass this packet up
-						 * if it is for us.
-						 */
-						if ((ifp->if_flags &
-						    IFF_PROMISC) &&
-						    (rfa->rfa_status &
-						    FXP_RFA_STATUS_IAMATCH) &&
-						    (eh->ether_dhost[0] & 1)
-						    == 0) {
-							m_freem(m);
-							goto rcvloop;
-						}
-					}
 #endif /* NBPFILTER > 0 */
+#ifdef BRIDGE
+                                        if (do_bridge) {
+                                            struct ifnet *bdg_ifp ;
+                                            bdg_ifp = bridge_in(m);
+                                            if (bdg_ifp == BDG_DROP)
+                                                goto dropit ;
+                                            if (bdg_ifp != BDG_LOCAL)
+                                                bdg_forward(&m, bdg_ifp);
+                                            if (bdg_ifp != BDG_LOCAL &&
+                                                    bdg_ifp != BDG_BCAST &&
+                                                    bdg_ifp != BDG_MCAST)
+                                                goto dropit ;
+                                            goto getit ;
+                                        }
+#endif
+					/*
+					 * Only pass this packet up
+					 * if it is for us.
+					 */
+					if ((ifp->if_flags &
+					    IFF_PROMISC) &&
+					    (rfa->rfa_status &
+					    FXP_RFA_STATUS_IAMATCH) &&
+					    (eh->ether_dhost[0] & 1)
+					    == 0) {
+dropit:
+					    if (m)
+						m_freem(m);
+					    goto rcvloop;
+					}
+getit:
 					m->m_data +=
 					    sizeof(struct ether_header);
+					m->m_len -=
+					    sizeof(struct ether_header);
+					m->m_pkthdr.len = m->m_len ;
 					ether_input(ifp, eh, m);
 				}
 				goto rcvloop;
