@@ -307,7 +307,7 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 	_IF_ENQUEUE(ifq, m);
 	IF_UNLOCK(ifq);
 	if (ifp != NULL && !active)
-			(*ifp->if_start)(ifp);
+		(*ifp->if_start)(ifp);
 	return (1);
 }
 
