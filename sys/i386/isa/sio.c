@@ -1078,11 +1078,22 @@ open_top:
 				outb(iobase + com_fifo,
 				     FIFO_RCV_RST | FIFO_XMT_RST
 				     | com->fifo_image);
-				DELAY(100);
+				/*
+				 * XXX the delays are for superstitious
+				 * historical reasons.  It must be less than
+				 * the character time at the maximum
+				 * supported speed (87 usec at 115200 bps
+				 * 8N1).  Otherwise we might loop endlessly
+				 * if data is streaming in.  We used to use
+				 * delays of 100.  That usually worked
+				 * because DELAY(100) used to usually delay
+				 * for about 85 usec instead of 100.
+				 */
+				DELAY(50);
 				if (!(inb(com->line_status_port) & LSR_RXRDY))
 					break;
 				outb(iobase + com_fifo, 0);
-				DELAY(100);
+				DELAY(50);
 				(void) inb(com->data_port);
 			}
 		}
@@ -1188,7 +1199,8 @@ comhardclose(com)
 	s = spltty();
 	com->poll = FALSE;
 	com->poll_output = FALSE;
-	com->do_timestamp = 0;
+	com->do_timestamp = FALSE;
+	com->do_dcd_timestamp = FALSE;
 	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 	{
 		outb(iobase + com_ier, 0);
