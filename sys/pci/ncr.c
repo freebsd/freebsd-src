@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.41 1995/08/15 20:19:14 se Exp $
+**  $Id: ncr.c,v 1.42 1995/08/23 23:03:25 gibbs Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -287,18 +287,18 @@ extern PRINT_ADDR();
 **==========================================================
 */
 
-#define HS_IDLE	 (0)
-#define HS_BUSY	 (1)
-#define HS_NEGOTIATE    (2)	/* sync/wide data transfer*/
-#define HS_DISCONNECT   (3)	/* Disconnected by target */
+#define HS_IDLE		(0)
+#define HS_BUSY		(1)
+#define HS_NEGOTIATE	(2)	/* sync/wide data transfer*/
+#define HS_DISCONNECT	(3)	/* Disconnected by target */
 
-#define HS_COMPLETE     (4)
-#define HS_SEL_TIMEOUT  (5)	/* Selection timeout      */
+#define HS_COMPLETE	(4)
+#define HS_SEL_TIMEOUT	(5)	/* Selection timeout      */
 #define HS_RESET	(6)	/* SCSI reset	     */
-#define HS_ABORTED      (7)	/* Transfer aborted       */
-#define HS_TIMEOUT      (8)	/* Software timeout       */
-#define HS_FAIL	 (9)	/* SCSI or PCI bus errors */
-#define HS_UNEXPECTED  (10)	/* Unexpected disconnect  */
+#define HS_ABORTED	(7)	/* Transfer aborted       */
+#define HS_TIMEOUT	(8)	/* Software timeout       */
+#define HS_FAIL		(9)	/* SCSI or PCI bus errors */
+#define HS_UNEXPECTED	(10)	/* Unexpected disconnect  */
 
 #define HS_DONEMASK	(0xfc)
 
@@ -591,7 +591,7 @@ struct lcb {
 	**	with SFBR set to the "Identify" message.
 	**	if it's not this lun, jump to the next.
 	**
-	**	JUMP  IF (SFBR == #lun#)
+	**	JUMP  IF (SFBR != #lun#)
 	**	@(next lcb of this target)
 	*/
 
@@ -709,7 +709,7 @@ struct head {
 **
 **	The last four bytes are used inside the script by "COPY" commands.
 **	Because source and destination must have the same alignment
-**	in a longword, the fields HAVE to be on the selected offsets.
+**	in a longword, the fields HAVE to be at the choosen offsets.
 **		xerr_st	(4)	0	(0x34)	scratcha
 **		sync_st	(5)	1	(0x05)	sxfer
 **		wide_st	(7)	3	(0x03)	scntl3
@@ -1188,7 +1188,7 @@ static	void	ncr_negotiate	(struct ncb* np, struct tcb* tp);
 static	void	ncr_opennings	(ncb_p np, lcb_p lp, struct scsi_xfer * xp);
 static	void	ncb_profile	(ncb_p np, ccb_p cp);
 static	void	ncr_script_copy_and_bind
-				(struct script * script, ncb_p np);
+				(ncb_p np);
 static  void    ncr_script_fill (struct script * scr);
 static	int	ncr_scatter	(struct dsb* phys,u_long vaddr,u_long datalen);
 static	void	ncr_setmaxtags	(tcb_p tp, u_long usrtags);
@@ -1223,7 +1223,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.41 1995/08/15 20:19:14 se Exp $\n";
+	"\n$Id: ncr.c,v 1.42 1995/08/23 23:03:25 gibbs Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -1240,7 +1240,7 @@ ncb_p		ncrp [MAX_UNITS];
 
 static int ncr_debug = SCSI_DEBUG_FLAGS;
 
-int ncr_cache; /* to be alligned _NOT_ static */
+int ncr_cache; /* to be aligned _NOT_ static */
 
 /*==========================================================
 **
@@ -1434,7 +1434,7 @@ static	struct script script0 = {
 	**	head starts with launch,
 	**	so actually the processor jumps to
 	**	the lauch part.
-	**	If the entry is scheduled to be executed,
+	**	If the entry is scheduled for execution,
 	**	then launch contains a jump to SELECT.
 	**	If it's not scheduled, it contains a jump to IDLE.
 	*/
@@ -1486,7 +1486,7 @@ static	struct script script0 = {
 	**
 	**	Set Initiator mode.
 	**
-	**	(Target mode is left as an exercise for the student)
+	**	(Target mode is left as an exercise for the reader)
 	*/
 
 	SCR_CLR (SCR_TRG),
@@ -2303,7 +2303,7 @@ static	struct script script0 = {
 /*>>>*/	/*
 	**	Check if temp==savep or temp==goalp:
 	**	if not, log a missing save pointer message.
-	**	In fact, it's a comparation mod 256.
+	**	In fact, it's a comparison mod 256.
 	**
 	**	Hmmm, I hadn't thought that I would be urged to
 	**	write this kind of ugly self modifying code.
@@ -2315,6 +2315,8 @@ static	struct script script0 = {
 		0,
 	/*
 	**	You are not expected to understand this ..
+	**
+	**	CAUTION: only little endian architectures supported! XXX
 	*/
 	SCR_COPY (1),
 		NADDR (header.savep),
@@ -2935,25 +2937,57 @@ void ncr_script_fill (struct script * scr)
 **==========================================================
 */
 
-static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
+static ncrcmd *src = (ncrcmd *)&script0;
+
+static void ncr_script_copy_and_bind (ncb_p np)
 {
 	ncrcmd  opcode, new, old;
-	ncrcmd	*src, *dst, *start, *end;
-	int relocs;
+	ncrcmd	*dst, *start, *end;
+	int	relocs;
+	u_long	p_script;
 
-	np->script = (struct script *)
-		malloc (sizeof (struct script), M_DEVBUF, M_WAITOK);
-	np->p_script = vtophys(np->script);
+	/* 
+	 * Test whether last byte of script is at the right 
+	 * PHYSICAL address, since the NCR uses phys. addresses only.
+	 * Assumes that the script fits into two 4KB pages ...
+	 */
+	assert (sizeof(struct script) <= 8192);
 
-	src = script->start;
-	dst = np->script->start;
+	while ((p_script = vtophys (src)) + sizeof (struct script) !=
+			vtophys ((char *)src + sizeof (struct script))) {
+
+		struct script *newsrc = (struct script *)
+			malloc (sizeof (struct script), M_DEVBUF, M_WAITOK);
+		memcpy (newsrc, src, sizeof(struct script));
+		src = (ncrcmd *) newsrc;
+
+		printf ("%s: NCR script not physically contigous, retrying\n", 
+			ncr_name(np));
+	}
+
+	np->script = (struct script*) src;
+	np->p_script = p_script;
+
+	dst = (ncrcmd *) malloc (sizeof (struct script), M_DEVBUF, M_WAITOK);
+
+	/*
+	 * Copy the script to keep an unmodified version 
+	 * to bind for another NCR chip, if present.
+	 */
+	memcpy (dst, src, sizeof(struct script));
+
+	/* 
+	 * Patch the "src" of the memcpy to become the script to execute.
+	 * The copy in the malloc()ed memory at "dst" will be the src of 
+	 * the script for the next NCR, if there are multiple chips.
+	 */
 
 	start = src;
 	end = src + (sizeof(struct script) / 4);
 
 	while (src < end) {
 
-		*dst++ = opcode = *src++;
+		opcode = *src++;
 
 		/*
 		**	If we forget to change the length
@@ -3021,7 +3055,7 @@ static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 
 		if (relocs) {
 			while (relocs--) {
-				old = *src++;
+				old = *src;
 
 				switch (old & RELOC_MASK) {
 				case RELOC_REGISTER:
@@ -3045,12 +3079,17 @@ static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 					break;
 				}
 
-				*dst++ = new;
+				*src++ = new;
 			}
 		} else
-			*dst++ = *src++;
+			src++;
 
 	};
+
+	/*
+	 * next time use the (unmodified) copy of the script as "src"
+	 */
+	src = dst;
 }
 
 /*==========================================================
@@ -3137,7 +3176,7 @@ static	char* ncr_probe (pcici_t tag, pcidi_t type)
 	case NCR_825_ID:
 		return ("ncr 53c825 wide scsi");
 	}
-	return (0);
+	return (NULL);
 }
 
 #endif /* !__NetBSD__ */
@@ -3266,7 +3305,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	*/
 
 	ncr_script_fill (&script0);
-	ncr_script_copy_and_bind (&script0, np);
+	ncr_script_copy_and_bind (np);
 
 	/*
 	**	init data structure
@@ -3486,6 +3525,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 
 	if (flags & SCSI_RESET) {
 		OUTB (nc_scntl1, CRST);
+		DELAY (1000);
 		return(COMPLETE);
 	};
 
@@ -3670,19 +3710,6 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 		};
 	} else {
 		cp->tag=0;
-#if 0
-		/*
-		** @GENSCSI@	Bug in "/sys/scsi/cd.c"
-		**
-		**	/sys/scsi/cd.c initializes opennings with 2.
-		**	Our info value of 1 is not respected.
-		*/
-		if (xp->sc_link && xp->sc_link->opennings) {
-			PRINT_ADDR(xp);
-			printf ("opennings set to 0.\n");
-			xp->sc_link->opennings = 0;
-		};
-#endif
 	};
 
 	/*----------------------------------------------------
@@ -4851,7 +4878,6 @@ void ncr_exception (ncb_p np)
 	u_char	istat, dstat;
 	u_short	sist;
 	u_long	dsp, dsa;
-	ccb_p	cp;
 	int	i, script_ofs;
 
 	/*
@@ -5023,16 +5049,10 @@ void ncr_exception (ncb_p np)
 
 		for (vpci = vpc; vpci >= 4; vpci -= 4);
 		while (vpci <= vpc) {
-			printf ("\tvirt.addr: 0x%08x instr: 0x%08x\n", 
+			printf ("\tvirt.addr: 0x%08lx instr: 0x%08lx\n", 
 				vpci, *(ncrcmd *)(vpci));
 			vpci += 4;
 		}
-	}
-
-	cp = &np->ccb;
-	printf ("\tgather/scatter table:\n");
-	for (i = 0; i < MAX_SCATTER; i++) {
-		printf ("\t%02d\t0x%08x\n", i, cp->phys.data[i]);
 	}
 
 	/*----------------------------------------
@@ -5112,8 +5132,8 @@ void ncr_exception (ncb_p np)
 **	@RECOVER@ HTH, SGE, ABRT.
 **
 **	We should try to recover from these interrupts.
-**	They may occur if there are problems with synch transfers,
-**	or if targets are powerswitched while the driver is running.
+**	They may occur if there are problems with synch transfers, or 
+**	if targets are switched on or off while the driver is running.
 */
 
 	if (sist & SGE) {
@@ -5288,13 +5308,13 @@ static void ncr_int_ma (ncb_p np)
 		cp = cp->link_ccb;
 
 	if (!cp) {
-	    printf ("%s: SCSI phase error fixup: CCB already dequeued (0x%08x)\n", 
-		    ncr_name (np), np->header.cp);
+	    printf ("%s: SCSI phase error fixup: CCB already dequeued (0x%08lx)\n", 
+		    ncr_name (np), (u_long) np->header.cp);
 	    return;
 	}
 	if (cp != np->header.cp) {
-	    printf ("%s: SCSI phase error fixup: CCB address mismatch (0x%08x != 0x%08x)\n", 
-		    ncr_name (np), cp, np->header.cp);
+	    printf ("%s: SCSI phase error fixup: CCB address mismatch (0x%08lx != 0x%08lx)\n", 
+		    ncr_name (np), (u_long) cp, (u_long) np->header.cp);
 	    return;
 	}
 
@@ -5356,7 +5376,13 @@ static void ncr_int_ma (ncb_p np)
 	**	if old phase not dataphase, leave here.
 	*/
 
-	assert (cmd == (vdsp[0] >> 24));
+	if (cmd != (vdsp[0] >> 24)) {
+		PRINT_ADDR(cp->xfer);
+		printf ("internal error: cmd=%02x != %02x=(vdsp[0] >> 24)\n",
+			cmd, vdsp[0] >> 24);
+		
+		return;
+	}
 	if (cmd & 0x06) {
 		PRINT_ADDR(cp->xfer);
 		printf ("phase change %d-%d %d@%x resid=%d.\n",
@@ -6011,21 +6037,22 @@ static	ccb_p ncr_get_ccb
 	(ncb_p np, u_long flags, u_long target, u_long lun)
 {
 	lcb_p lp;
-	ccb_p cp = (ccb_p ) 0;
+	ccb_p cp = (ccb_p) 0;
 
 	/*
 	**	Lun structure available ?
 	*/
 
 	lp = np->target[target].lp[lun];
-	if (lp)
+	if (lp) {
 		cp = lp->next_ccb;
 
-	/*
-	**	Look for free CCB
-	*/
+		/*
+		**	Look for free CCB
+		*/
 
-	while (cp && cp->magic) cp = cp->next_ccb;
+		while (cp && cp->magic) cp = cp->next_ccb;
+	}
 
 	/*
 	**	if nothing available, take the default.
@@ -6065,7 +6092,7 @@ void ncr_free_ccb (ncb_p np, ccb_p cp, int flags)
 	**    sanity
 	*/
 
-	if (!cp) return;
+	assert (cp != NULL);
 
 	cp -> host_status = HS_IDLE;
 	cp -> magic = 0;
@@ -6091,8 +6118,8 @@ static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
 	u_long	target;
 	u_long	lun;
 
-	if (!np) return;
-	if (!xp) return;
+	assert (np != NULL);
+	assert (xp != NULL);
 
 	target = xp->sc_link->target;
 	lun    = xp->sc_link->lun;
@@ -6307,11 +6334,11 @@ static	int	ncr_scatter
 
 	/*
 	**	insert extra break points at a distance of chunk.
-	**	We try to reduce the number of interrupts due to
-	**	unexpected phase changes due to disconnects.
+	**	We try to reduce the number of interrupts caused
+	**	by unexpected phase changes due to disconnects.
 	**	A typical harddisk may disconnect before ANY block.
-	**	If we want to avoid unexpected phase changes at all
-	**	we have to use a break point every 512 bytes.
+	**	If we wanted to avoid unexpected phase changes at all
+	**	we had to use a break point every 512 bytes.
 	**	Of course the number of scatter/gather blocks is
 	**	limited.
 	*/
