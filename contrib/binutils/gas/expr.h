@@ -1,5 +1,5 @@
 /* expr.h -> header file for expr.c
-   Copyright (C) 1987, 92-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 92-99, 2000 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -39,8 +39,7 @@
 
    NOTE: This enumeration must match the op_rank array in expr.c.  */
 
-typedef enum
-{
+typedef enum {
   /* An illegal expression.  */
   O_illegal,
   /* A nonexistent expression.  */
@@ -111,8 +110,7 @@ typedef enum
   O_max
 } operatorT;
 
-typedef struct expressionS
-{
+typedef struct expressionS {
   /* The main symbol.  */
   symbolS *X_add_symbol;
   /* The second symbol, if needed.  */
@@ -142,16 +140,16 @@ typedef struct expressionS
   unsigned short X_md;
 } expressionS;
 
-/* "result" should be type (expressionS *). */
+/* "result" should be type (expressionS *).  */
 #define expression(result) expr (0, result)
 
 /* If an expression is O_big, look here for its value. These common
-   data may be clobbered whenever expr() is called. */
-/* Flonums returned here.  Big enough to hold most precise flonum. */
+   data may be clobbered whenever expr() is called.  */
+/* Flonums returned here.  Big enough to hold most precise flonum.  */
 extern FLONUM_TYPE generic_floating_point_number;
-/* Bignums returned here. */
+/* Bignums returned here.  */
 extern LITTLENUM_TYPE generic_bignum[];
-/* Number of littlenums in above. */
+/* Number of littlenums in above.  */
 #define SIZE_OF_LARGE_NUMBER (20)
 
 typedef char operator_rankT;
@@ -169,5 +167,3 @@ extern symbolS *expr_build_uconstant PARAMS ((offsetT));
 extern symbolS *expr_build_unary PARAMS ((operatorT, symbolS *));
 extern symbolS *expr_build_binary PARAMS ((operatorT, symbolS *, symbolS *));
 extern symbolS *expr_build_dot PARAMS ((void));
-
-/* end of expr.h */

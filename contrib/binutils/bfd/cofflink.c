@@ -40,6 +40,15 @@ static int process_embedded_commands
   PARAMS ((bfd *, struct bfd_link_info *, bfd *));
 static void mark_relocs PARAMS ((struct coff_final_link_info *, bfd *));
 
+/* Return true if SYM is a weak, external symbol.  */
+#define IS_WEAK_EXTERNAL(abfd, sym)			\
+  ((sym).n_sclass == C_WEAKEXT				\
+   || (obj_pe (abfd) && (sym).n_sclass == C_NT_WEAK))
+
+/* Return true if SYM is an external symbol.  */
+#define IS_EXTERNAL(abfd, sym)				\
+  ((sym).n_sclass == C_EXT || IS_WEAK_EXTERNAL (abfd, sym))
+
 /* Define macros so that the ISFCN, et. al., macros work correctly.
    These macros are defined in include/coff/internal.h in terms of
    N_TMASK, etc.  These definitions require a user to define local
@@ -395,8 +404,7 @@ coff_link_add_symbols (abfd, info)
 	      break;
 	    }
 
-	  if (sym.n_sclass == C_WEAKEXT
-	      || (obj_pe (abfd) && sym.n_sclass == C_NT_WEAK))
+	  if (IS_WEAK_EXTERNAL (abfd, sym))
 	    flags = BSF_WEAK;
 
 	  addit = true;
@@ -894,8 +902,7 @@ _bfd_coff_final_link (abfd, info)
       for (p = o->link_order_head; p != NULL; p = p->next)
 	{
 	  if (p->type == bfd_indirect_link_order
-	      && (bfd_get_flavour (p->u.indirect.section->owner)
-		  == bfd_target_coff_flavour))
+	      && bfd_family_coff (p->u.indirect.section->owner))
 	    {
 	      sub = p->u.indirect.section->owner;
 	      if (! bfd_coff_link_output_has_begun (sub, & finfo))
@@ -921,7 +928,7 @@ _bfd_coff_final_link (abfd, info)
 
   if (! bfd_coff_final_link_postscript (abfd, & finfo))
     goto error_return;
-  
+
   /* Free up the buffers used by _bfd_coff_link_input_bfd.  */
 
   coff_debug_merge_hash_table_free (&finfo.debug_merge);
@@ -982,7 +989,7 @@ _bfd_coff_final_link (abfd, info)
 
   /* If doing task linking (ld --task-link) then make a pass through the
      global symbols, writing out any that are defined, and making them
-     static. */
+     static.  */
   if (info->task_link)
     {
       finfo.failed = false;
@@ -1095,6 +1102,8 @@ _bfd_coff_final_link (abfd, info)
 
       if (! _bfd_stringtab_emit (abfd, finfo.strtab))
 	return false;
+
+      obj_coff_strings_written (abfd) = true;
     }
 
   _bfd_stringtab_free (finfo.strtab);
@@ -1152,7 +1161,7 @@ dores_com (ptr, output_bfd, heap)
      bfd *output_bfd;
      int heap;
 {
-  if (coff_data(output_bfd)->pe) 
+  if (coff_data(output_bfd)->pe)
     {
       int val = strtoul (ptr, &ptr, 0);
       if (heap)
@@ -1160,7 +1169,7 @@ dores_com (ptr, output_bfd, heap)
       else
 	pe_data(output_bfd)->pe_opthdr.SizeOfStackReserve =val;
 
-      if (ptr[0] == ',') 
+      if (ptr[0] == ',')
 	{
 	  int val = strtoul (ptr+1, &ptr, 0);
 	  if (heap)
@@ -1186,7 +1195,7 @@ char **dst;
 }
 
 /* Process any magic embedded commands in a section called .drectve */
-			
+
 static int
 process_embedded_commands (output_bfd, info,  abfd)
      bfd *output_bfd;
@@ -1197,19 +1206,19 @@ process_embedded_commands (output_bfd, info,  abfd)
   char *s;
   char *e;
   char *copy;
-  if (!sec) 
+  if (!sec)
     return 1;
-  
+
   copy = bfd_malloc ((size_t) sec->_raw_size);
-  if (!copy) 
+  if (!copy)
     return 0;
-  if (! bfd_get_section_contents(abfd, sec, copy, 0, sec->_raw_size)) 
+  if (! bfd_get_section_contents(abfd, sec, copy, 0, sec->_raw_size))
     {
       free (copy);
       return 0;
     }
   e = copy + sec->_raw_size;
-  for (s = copy;  s < e ; ) 
+  for (s = copy;  s < e ; )
     {
       if (s[0]!= '-') {
 	s++;
@@ -1230,7 +1239,7 @@ process_embedded_commands (output_bfd, info,  abfd)
 	  s = get_name(s, &name);
 	  s = get_name(s, &attribs);
 	  while (loop) {
-	    switch (*attribs++) 
+	    switch (*attribs++)
 	      {
 	      case 'W':
 		had_write = 1;
@@ -1264,7 +1273,7 @@ process_embedded_commands (output_bfd, info,  abfd)
 	{
 	  s = dores_com (s+6, output_bfd, 0);
 	}
-      else 
+      else
 	s++;
     }
   free (copy);
@@ -1274,7 +1283,7 @@ process_embedded_commands (output_bfd, info,  abfd)
 /* Place a marker against all symbols which are used by relocations.
    This marker can be picked up by the 'do we skip this symbol ?'
    loop in _bfd_coff_link_input_bfd() and used to prevent skipping
-   that symbol. 
+   that symbol.
    */
 
 static void
@@ -1286,14 +1295,13 @@ mark_relocs (finfo, input_bfd)
 
   if ((bfd_get_file_flags (input_bfd) & HAS_SYMS) == 0)
     return;
-  
+
   for (a = input_bfd->sections; a != (asection *) NULL; a = a->next)
     {
       struct internal_reloc *	internal_relocs;
       struct internal_reloc *	irel;
       struct internal_reloc *	irelend;
 
-      
       if ((a->flags & SEC_RELOC) == 0 || a->reloc_count  < 1)
 	continue;
 
@@ -1306,7 +1314,7 @@ mark_relocs (finfo, input_bfd)
 	  ? (finfo->section_info[ a->output_section->target_index ].relocs + a->output_section->reloc_count)
 	  : finfo->internal_relocs)
 	);
-      
+
       if (internal_relocs == NULL)
 	continue;
 
@@ -1317,7 +1325,7 @@ mark_relocs (finfo, input_bfd)
 	 been initialised to 0) for all of the symbols that are used
 	 in the relocation table.  This will then be picked up in the
 	 skip/don't pass */
-      
+
       for (; irel < irelend; irel++)
 	{
 	  finfo->sym_indices[ irel->r_symndx ] = -1;
@@ -1400,8 +1408,8 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
       && finfo->info->relocateable)
     {
       /* mark the symbol array as 'not-used' */
-      memset (indexp, 0, obj_raw_syment_count (input_bfd) * sizeof * indexp); 
-       
+      memset (indexp, 0, obj_raw_syment_count (input_bfd) * sizeof * indexp);
+
       mark_relocs (finfo, input_bfd);
     }
 
@@ -1448,7 +1456,7 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
 	dont_skip_symbol = *indexp;
       else
 	dont_skip_symbol = false;
-      
+
       *indexp = -1;
 
       skip = false;
@@ -1834,12 +1842,8 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
 	    }
 
 	  /* If doing task linking, convert normal global function symbols to
-	     static functions. */
-
-	  if (finfo->info->task_link
-	      && (isym.n_sclass == C_EXT
-		  || isym.n_sclass == C_WEAKEXT
-		  || (obj_pe (input_bfd) && isym.n_sclass == C_NT_WEAK)))
+	     static functions.  */
+	  if (finfo->info->task_link && IS_EXTERNAL (input_bfd, isym))
 	    isym.n_sclass = C_STAT;
 
 	  /* Output the symbol.  */
@@ -2202,7 +2206,7 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
 						 is.n_numaux, auxptr);
 			}
 
-			skipping = false;
+		      skipping = false;
 		    }
 
 		  iline.l_addr.l_symndx = indx;
@@ -2400,8 +2404,8 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
 			  /* This reloc is against a symbol we are
                              stripping.  This should have been handled
 			     by the 'dont_skip_symbol' code in the while
-			     loop at the top of this function. */
-			  
+			     loop at the top of this function.  */
+
 			  is = finfo->internal_syms + irel->r_symndx;
 
 			  name = (_bfd_coff_internal_syment_name
@@ -2425,9 +2429,9 @@ _bfd_coff_link_input_bfd (finfo, input_bfd)
       if (secdata == NULL || secdata->stab_info == NULL)
 	{
 	  if (! bfd_set_section_contents (output_bfd, o->output_section,
-					  contents, 
-                                          (file_ptr) 
-                                          (o->output_offset * 
+					  contents,
+                                          (file_ptr)
+                                          (o->output_offset *
                                            bfd_octets_per_byte (output_bfd)),
 					  (o->_cooked_size != 0
 					   ? o->_cooked_size
@@ -2549,20 +2553,25 @@ _bfd_coff_write_global_sym (h, data)
   /* If doing task linking and this is the pass where we convert
      defined globals to statics, then do that conversion now.  If the
      symbol is not being converted, just ignore it and it will be
-     output during a later pass. */
+     output during a later pass.  */
   if (finfo->global_to_static)
     {
-      if (isym.n_sclass != C_EXT
-	  && isym.n_sclass != C_WEAKEXT
-	  && (! obj_pe (output_bfd) || isym.n_sclass != C_NT_WEAK))
-	{
-	  return true;
-	}
+      if (! IS_EXTERNAL (output_bfd, isym))
+	return true;
+
       isym.n_sclass = C_STAT;
     }
 
+  /* When a weak symbol is not overriden by a strong one,
+     turn it into an external symbol when not building a
+     shared or relocateable object.  */
+  if (! finfo->info->shared
+      && ! finfo->info->relocateable
+      && IS_WEAK_EXTERNAL (finfo->output_bfd, isym))
+    isym.n_sclass = C_EXT;
+
   isym.n_numaux = h->numaux;
-  
+
   bfd_coff_swap_sym_out (output_bfd, (PTR) &isym, (PTR) finfo->outsyms);
 
   symesz = bfd_coff_symesz (output_bfd);
@@ -2654,7 +2663,7 @@ _bfd_coff_write_global_sym (h, data)
 
 /* Write out task global symbols, converting them to statics.  Called
    via coff_link_hash_traverse.  Calls bfd_coff_write_global_sym to do
-   the dirty work, if the symbol we are processing needs conversion. */
+   the dirty work, if the symbol we are processing needs conversion.  */
 
 boolean
 _bfd_coff_write_task_globals (h, data)
@@ -2740,7 +2749,7 @@ _bfd_coff_reloc_link_order (output_bfd, finfo, output_section, link_order)
 	  break;
 	}
       ok = bfd_set_section_contents (output_bfd, output_section, (PTR) buf,
-				     (file_ptr) 
+				     (file_ptr)
                                      (link_order->offset *
                                       bfd_octets_per_byte (output_bfd)), size);
       free (buf);
@@ -2862,7 +2871,7 @@ _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
 	  return false;
 	}
       else
-	{    
+	{
 	  h = obj_coff_sym_hashes (input_bfd)[symndx];
 	  sym = syms + symndx;
 	}
@@ -2876,7 +2885,6 @@ _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
 	addend = - sym->n_value;
       else
 	addend = 0;
-
 
       howto = bfd_coff_rtype_to_howto (input_bfd, input_section, rel, h,
 				       sym, &addend);
@@ -2929,6 +2937,9 @@ _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
 		     + sec->output_offset);
 	      }
 
+	  else if (h->root.type == bfd_link_hash_undefweak)
+	    val = 0;
+
 	  else if (! info->relocateable)
 	    {
 	      if (! ((*info->callbacks->undefined_symbol)
@@ -2940,7 +2951,7 @@ _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
 
       if (info->base_file)
 	{
-	  /* Emit a reloc if the backend thinks it needs it. */
+	  /* Emit a reloc if the backend thinks it needs it.  */
 	  if (sym && pe_data (output_bfd)->in_reloc_p (output_bfd, howto))
 	    {
 	      /* Relocation to a symbol in a section which isn't
@@ -2949,9 +2960,9 @@ _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
 		 reloc section.  Note that the base file is not
 		 portable between systems.  We write out a long here,
 		 and dlltool reads in a long.  */
-	      long addr = (rel->r_vaddr 
-			   - input_section->vma 
-			   + input_section->output_offset 
+	      long addr = (rel->r_vaddr
+			   - input_section->vma
+			   + input_section->output_offset
 			   + input_section->output_section->vma);
 	      if (coff_data (output_bfd)->pe)
 		addr -= pe_data(output_bfd)->pe_opthdr.ImageBase;
@@ -2963,7 +2974,7 @@ _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
 		}
 	    }
 	}
-  
+
       rstat = _bfd_final_link_relocate (howto, input_bfd, input_section,
 					contents,
 					rel->r_vaddr - input_section->vma,
@@ -3007,4 +3018,3 @@ _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
     }
   return true;
 }
-

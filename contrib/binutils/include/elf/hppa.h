@@ -1,5 +1,5 @@
 /* HPPA ELF support for BFD.
-   Copyright (C) 1993, 1994, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1993, 94, 95, 99, 2000 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -102,173 +102,385 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "elf/reloc-macros.h"
 
 START_RELOC_NUMBERS (elf_hppa_reloc_type)
-     RELOC_NUMBER (R_PARISC_NONE,      0)	/* No reloc */
+RELOC_NUMBER (R_PARISC_NONE,	         0) /* No reloc */
 
-     /* These relocation types do simple base + offset relocations.  */
+/*		Data / Inst. Format	   Relocation Expression	  */
 
-     RELOC_NUMBER (R_PARISC_DIR32,  1)
-     RELOC_NUMBER (R_PARISC_DIR21L, 2)
-     RELOC_NUMBER (R_PARISC_DIR17R, 3)
-     RELOC_NUMBER (R_PARISC_DIR17F, 4)
-     RELOC_NUMBER (R_PARISC_DIR14R, 6)
+RELOC_NUMBER (R_PARISC_DIR32,	   	 1)
+/*		32-bit word            	   symbol + addend    		  */
 
-    /* PC-relative relocation types
-       Typically used for calls.
-       Note PCREL17C and PCREL17F differ only in overflow handling.
-       PCREL17C never reports a relocation error.
+RELOC_NUMBER (R_PARISC_DIR21L,	   	 2)
+/*		long immediate (7)	   LR(symbol, addend) 		  */
 
-       When supporting argument relocations, function calls must be
-       accompanied by parameter relocation information.  This information is
-       carried in the ten high-order bits of the addend field.  The remaining
-       22 bits of of the addend field are sign-extended to form the Addend.
+RELOC_NUMBER (R_PARISC_DIR17R,	   	 3)
+/*		branch external (19)	   RR(symbol, addend) 		  */
 
-       Note the code to build argument relocations depends on the
-       addend being zero.  A consequence of this limitation is GAS
-       can not perform relocation reductions for function symbols.  */
+RELOC_NUMBER (R_PARISC_DIR17F,	   	 4)
+/*		branch external (19)	   symbol + addend    		  */
 
-    RELOC_NUMBER (R_PARISC_PCREL32, 9)
-    RELOC_NUMBER (R_PARISC_PCREL21L, 10)
-    RELOC_NUMBER (R_PARISC_PCREL17R, 11)
-    RELOC_NUMBER (R_PARISC_PCREL17F, 12)
-    RELOC_NUMBER (R_PARISC_PCREL17C, 13)
-    RELOC_NUMBER (R_PARISC_PCREL14R, 14)
-    RELOC_NUMBER (R_PARISC_PCREL14F, 15)
+RELOC_NUMBER (R_PARISC_DIR14R,	   	 6)
+/*		load/store (1)		   RR(symbol, addend) 		  */
 
-    /* DP-relative relocation types.  */
-    RELOC_NUMBER (R_PARISC_DPREL21L, 18)
-    RELOC_NUMBER (R_PARISC_DPREL14WR, 19)
-    RELOC_NUMBER (R_PARISC_DPREL14DR, 20)
-    RELOC_NUMBER (R_PARISC_DPREL14R, 22)
-    RELOC_NUMBER (R_PARISC_DPREL14F, 23)
+RELOC_NUMBER (R_PARISC_DIR14F,	   	 7)
+/*		load/store (1)		   symbol, addend 		  */
 
-    /* Data linkage table (DLT) relocation types
+/* PC-relative relocation types
+   Typically used for calls.
+   Note PCREL17C and PCREL17F differ only in overflow handling.
+   PCREL17C never reports a relocation error.
 
-       SOM DLT_REL fixup requests are used to for static data references
-       from position-independent code within shared libraries.  They are
-       similar to the GOT relocation types in some SVR4 implementations.  */
+   When supporting argument relocations, function calls must be
+   accompanied by parameter relocation information.  This information is
+   carried in the ten high-order bits of the addend field.  The remaining
+   22 bits of of the addend field are sign-extended to form the Addend.
 
-    RELOC_NUMBER (R_PARISC_DLTREL21L, 26)
-    RELOC_NUMBER (R_PARISC_DLTREL14R, 30)
-    RELOC_NUMBER (R_PARISC_DLTREL14F, 31)
+   Note the code to build argument relocations depends on the
+   addend being zero.  A consequence of this limitation is GAS
+   can not perform relocation reductions for function symbols.  */
 
-    /* DLT indirect relocation types  */
-    RELOC_NUMBER (R_PARISC_DLTIND21L, 34)
-    RELOC_NUMBER (R_PARISC_DLTIND14R, 38)
-    RELOC_NUMBER (R_PARISC_DLTIND14F, 39)
+RELOC_NUMBER (R_PARISC_PCREL12F,  	 8)
+/*		op & branch (17)	   symbol - PC - 8 + addend    	  */
 
-    /* Base relative relocation types.  Ugh.  These imply lots of state */
-    RELOC_NUMBER (R_PARISC_SETBASE, 40)
-    RELOC_NUMBER (R_PARISC_SECREL32, 41)
-    RELOC_NUMBER (R_PARISC_BASEREL21L, 42)
-    RELOC_NUMBER (R_PARISC_BASEREL17R, 43)
-    RELOC_NUMBER (R_PARISC_BASEREL17F, 44)
-    RELOC_NUMBER (R_PARISC_BASEREL14R, 46)
-    RELOC_NUMBER (R_PARISC_BASEREL14F, 47)
+RELOC_NUMBER (R_PARISC_PCREL32,   	 9)
+/*		32-bit word		   symbol - PC - 8 + addend    	  */
 
-    /* Segment relative relocation types.  */
-    RELOC_NUMBER (R_PARISC_SEGBASE, 48)
-    RELOC_NUMBER (R_PARISC_SEGREL32, 49)
+RELOC_NUMBER (R_PARISC_PCREL21L,  	10)
+/*		long immediate (7)	   L(symbol - PC - 8 + addend) 	  */
 
-    /* Offsets from the PLT.  */
-    RELOC_NUMBER (R_PARISC_PLTOFF21L, 50)
-    RELOC_NUMBER (R_PARISC_PLTOFF14R, 54)
-    RELOC_NUMBER (R_PARISC_PLTOFF14F, 55)
+RELOC_NUMBER (R_PARISC_PCREL17R,  	11)
+/*		branch external (19)	   R(symbol - PC - 8 + addend) 	  */
 
-    RELOC_NUMBER (R_PARISC_LTOFF_FPTR32, 57)
-    RELOC_NUMBER (R_PARISC_LTOFF_FPTR21L, 58)
-    RELOC_NUMBER (R_PARISC_LTOFF_FPTR14R, 62)
+RELOC_NUMBER (R_PARISC_PCREL17F,  	12)
+/*		branch (20)		   symbol - PC - 8 + addend    	  */
 
-    RELOC_NUMBER (R_PARISC_FPTR64, 64)
+RELOC_NUMBER (R_PARISC_PCREL17C,  	13)
+/*		branch (20)		   symbol - PC - 8 + addend    	  */
 
-    /* Plabel relocation types.  */
-    RELOC_NUMBER (R_PARISC_PLABEL32, 65)
-    RELOC_NUMBER (R_PARISC_PLABEL21L, 66)
-    RELOC_NUMBER (R_PARISC_PLABEL14R, 70)
+RELOC_NUMBER (R_PARISC_PCREL14R,  	14)
+/*		load/store (1)		   R(symbol - PC - 8 + addend) 	  */
 
-    /* PCREL relocations.  */
-    RELOC_NUMBER (R_PARISC_PCREL64, 72)
-    RELOC_NUMBER (R_PARISC_PCREL22C, 73)
-    RELOC_NUMBER (R_PARISC_PCREL22F, 74)
-    RELOC_NUMBER (R_PARISC_PCREL14WR, 75)
-    RELOC_NUMBER (R_PARISC_PCREL14DR, 76)
-    RELOC_NUMBER (R_PARISC_PCREL16F, 77)
-    RELOC_NUMBER (R_PARISC_PCREL16WF, 78)
-    RELOC_NUMBER (R_PARISC_PCREL16DF, 79)
+RELOC_NUMBER (R_PARISC_PCREL14F,  	15)
+/*		load/store (1)             symbol - PC - 8 + addend    	  */
 
 
-    RELOC_NUMBER (R_PARISC_DIR64, 80)
-    RELOC_NUMBER (R_PARISC_DIR64WR, 81)
-    RELOC_NUMBER (R_PARISC_DIR64DR, 82)
-    RELOC_NUMBER (R_PARISC_DIR14WR, 83)
-    RELOC_NUMBER (R_PARISC_DIR14DR, 84)
-    RELOC_NUMBER (R_PARISC_DIR16F, 85)
-    RELOC_NUMBER (R_PARISC_DIR16WF, 86)
-    RELOC_NUMBER (R_PARISC_DIR16DF, 87)
+/* DP-relative relocation types.  */
+RELOC_NUMBER (R_PARISC_DPREL21L,  	18)
+/*		long immediate (7)         LR(symbol - GP, addend)  	  */
 
-    RELOC_NUMBER (R_PARISC_GPREL64, 88)
+RELOC_NUMBER (R_PARISC_DPREL14WR, 	19)
+/*		load/store mod. comp. (2)  RR(symbol - GP, addend)  	  */
 
-    RELOC_NUMBER (R_PARISC_DLTREL14WR, 91)
-    RELOC_NUMBER (R_PARISC_DLTREL14DR, 92)
-    RELOC_NUMBER (R_PARISC_GPREL16F, 93)
-    RELOC_NUMBER (R_PARISC_GPREL16WF, 94)
-    RELOC_NUMBER (R_PARISC_GPREL16DF, 95)
+RELOC_NUMBER (R_PARISC_DPREL14DR, 	20)
+/*		load/store doubleword (3)  RR(symbol - GP, addend)  	  */
 
+RELOC_NUMBER (R_PARISC_DPREL14R,  	22)
+/*		load/store (1)             RR(symbol - GP, addend)  	  */
 
-    RELOC_NUMBER (R_PARISC_LTOFF64, 96)
-    RELOC_NUMBER (R_PARISC_DLTIND14WR, 99)
-    RELOC_NUMBER (R_PARISC_DLTIND14DR, 100)
-    RELOC_NUMBER (R_PARISC_LTOFF16F, 101)
-    RELOC_NUMBER (R_PARISC_LTOFF16WF, 102)
-    RELOC_NUMBER (R_PARISC_LTOFF16DF, 103)
-
-    RELOC_NUMBER (R_PARISC_SECREL64, 104)
-
-    RELOC_NUMBER (R_PARISC_BASEREL14WR, 107)
-    RELOC_NUMBER (R_PARISC_BASEREL14DR, 108)
-
-    RELOC_NUMBER (R_PARISC_SEGREL64, 112)
-
-    RELOC_NUMBER (R_PARISC_PLTOFF14WR, 115)
-    RELOC_NUMBER (R_PARISC_PLTOFF14DR, 116)
-    RELOC_NUMBER (R_PARISC_PLTOFF16F, 117)
-    RELOC_NUMBER (R_PARISC_PLTOFF16WF, 118)
-    RELOC_NUMBER (R_PARISC_PLTOFF16DF, 119)
-
-    RELOC_NUMBER (R_PARISC_LTOFF_FPTR64, 120)
-    RELOC_NUMBER (R_PARISC_LTOFF_FPTR14WR, 123)
-    RELOC_NUMBER (R_PARISC_LTOFF_FPTR14DR, 124)
-    RELOC_NUMBER (R_PARISC_LTOFF_FPTR16F, 125)
-    RELOC_NUMBER (R_PARISC_LTOFF_FPTR16WF, 126)
-    RELOC_NUMBER (R_PARISC_LTOFF_FPTR16DF, 127)
+RELOC_NUMBER (R_PARISC_DPREL14F,  	23)
+/*		load/store (1)             symbol - GP + addend     	  */
 
 
-    RELOC_NUMBER (R_PARISC_COPY, 128)
-    RELOC_NUMBER (R_PARISC_IPLT, 129)
-    RELOC_NUMBER (R_PARISC_EPLT, 130)
+/* Data linkage table (DLT) relocation types
 
-    RELOC_NUMBER (R_PARISC_TPREL32, 153)
-    RELOC_NUMBER (R_PARISC_TPREL21L, 154)
-    RELOC_NUMBER (R_PARISC_TPREL14R, 158)
+   SOM DLT_REL fixup requests are used to for static data references
+   from position-independent code within shared libraries.  They are
+   similar to the GOT relocation types in some SVR4 implementations.  */
 
-    RELOC_NUMBER (R_PARISC_LTOFF_TP21L, 162)
-    RELOC_NUMBER (R_PARISC_LTOFF_TP14R, 166)
-    RELOC_NUMBER (R_PARISC_LTOFF_TP14F, 167)
+RELOC_NUMBER (R_PARISC_DLTREL21L,     	26)
+/*		long immediate (7)         LR(symbol - GP, addend) 	  */
 
-    RELOC_NUMBER (R_PARISC_TPREL64, 216)
-    RELOC_NUMBER (R_PARISC_TPREL14WR, 219)
-    RELOC_NUMBER (R_PARISC_TPREL14DR, 220)
-    RELOC_NUMBER (R_PARISC_TPREL16F, 221)
-    RELOC_NUMBER (R_PARISC_TPREL16WF, 222)
-    RELOC_NUMBER (R_PARISC_TPREL16DF, 223)
+RELOC_NUMBER (R_PARISC_DLTREL14R,     	30)
+/*		load/store (1)             RR(symbol - GP, addend) 	  */
 
-    RELOC_NUMBER (R_PARISC_LTOFF_TP64, 224)
-    RELOC_NUMBER (R_PARISC_LTOFF_TP14WR, 227)
-    RELOC_NUMBER (R_PARISC_LTOFF_TP14DR, 228)
-    RELOC_NUMBER (R_PARISC_LTOFF_TP16F, 229)
-    RELOC_NUMBER (R_PARISC_LTOFF_TP16WF, 230)
-    RELOC_NUMBER (R_PARISC_LTOFF_TP16DF, 231)
-    EMPTY_RELOC (R_PARISC_UNIMPLEMENTED)
-END_RELOC_NUMBERS
+RELOC_NUMBER (R_PARISC_DLTREL14F,     	31)
+/*		load/store (1)             symbol - GP + addend    	  */
+
+
+/* DLT indirect relocation types  */
+RELOC_NUMBER (R_PARISC_DLTIND21L,     	34)
+/*		long immediate (7)         L(ltoff(symbol + addend)) 	  */
+
+RELOC_NUMBER (R_PARISC_DLTIND14R,     	38)
+/*		load/store (1)             R(ltoff(symbol + addend)) 	  */
+
+RELOC_NUMBER (R_PARISC_DLTIND14F,     	39)
+/*		load/store (1)             ltoff(symbol + addend)    	  */
+
+
+/* Base relative relocation types.  Ugh.  These imply lots of state */
+RELOC_NUMBER (R_PARISC_SETBASE,       	40)
+/*		none                       no reloc; base := sym     	  */
+
+RELOC_NUMBER (R_PARISC_SECREL32,      	41)
+/*		32-bit word                symbol - SECT + addend    	  */
+
+RELOC_NUMBER (R_PARISC_BASEREL21L,    	42)
+/*		long immediate (7)         LR(symbol - base, addend) 	  */
+
+RELOC_NUMBER (R_PARISC_BASEREL17R,    	43)
+/*		branch external (19)       RR(symbol - base, addend) 	  */
+
+RELOC_NUMBER (R_PARISC_BASEREL17F,    	44)
+/*		branch external (19)       symbol - base + addend    	  */
+
+RELOC_NUMBER (R_PARISC_BASEREL14R,    	46)
+/*		load/store (1)             RR(symbol - base, addend) 	  */
+
+RELOC_NUMBER (R_PARISC_BASEREL14F,    	47)
+/*		load/store (1)             symbol - base, addend     	  */
+
+
+/* Segment relative relocation types.  */
+RELOC_NUMBER (R_PARISC_SEGBASE,       	48)
+/*		none                       no relocation; SB := sym  	  */
+
+RELOC_NUMBER (R_PARISC_SEGREL32,      	49)
+/*		32-bit word                symbol - SB + addend 	  */
+  
+
+/* Offsets from the PLT.  */  
+RELOC_NUMBER (R_PARISC_PLTOFF21L,     	50)
+/*		long immediate (7)         LR(pltoff(symbol), addend) 	  */
+
+RELOC_NUMBER (R_PARISC_PLTOFF14R,     	54)
+/*		load/store (1)             RR(pltoff(symbol), addend) 	  */
+
+RELOC_NUMBER (R_PARISC_PLTOFF14F,     	55)
+/*		load/store (1)             pltoff(symbol) + addend    	  */
+
+
+RELOC_NUMBER (R_PARISC_LTOFF_FPTR32,  	57)
+/*		32-bit word                ltoff(fptr(symbol+addend))     */
+
+RELOC_NUMBER (R_PARISC_LTOFF_FPTR21L, 	58)
+/*		long immediate (7)         L(ltoff(fptr(symbol+addend)))  */
+
+RELOC_NUMBER (R_PARISC_LTOFF_FPTR14R, 	62)
+/*		load/store (1)             R(ltoff(fptr(symbol+addend)))  */
+
+
+RELOC_NUMBER (R_PARISC_FPTR64,        	64)
+/*		64-bit doubleword          fptr(symbol+addend) 		  */
+
+
+/* Plabel relocation types.  */	 
+RELOC_NUMBER (R_PARISC_PLABEL32,      	65)
+/*		32-bit word	  	   fptr(symbol) 		  */
+
+RELOC_NUMBER (R_PARISC_PLABEL21L,     	66)
+/*		long immediate (7)         L(fptr(symbol))		  */
+
+RELOC_NUMBER (R_PARISC_PLABEL14R,     	70)
+/*		load/store (1)             R(fptr(symbol))		  */
+
+  
+/* PCREL relocations.  */  
+RELOC_NUMBER (R_PARISC_PCREL64,       	72)
+/*		64-bit doubleword          symbol - PC - 8 + addend       */
+
+RELOC_NUMBER (R_PARISC_PCREL22C,      	73)
+/*		branch & link (21)         symbol - PC - 8 + addend       */
+
+RELOC_NUMBER (R_PARISC_PCREL22F,      	74)
+/*		branch & link (21)         symbol - PC - 8 + addend       */
+
+RELOC_NUMBER (R_PARISC_PCREL14WR,     	75)
+/*		load/store mod. comp. (2)  R(symbol - PC - 8 + addend)    */
+
+RELOC_NUMBER (R_PARISC_PCREL14DR,     	76)
+/*		load/store doubleword (3)  R(symbol - PC - 8 + addend)    */
+
+RELOC_NUMBER (R_PARISC_PCREL16F,      	77)
+/*		load/store (1)             symbol - PC - 8 + addend       */
+
+RELOC_NUMBER (R_PARISC_PCREL16WF,     	78)
+/*		load/store mod. comp. (2)  symbol - PC - 8 + addend       */
+
+RELOC_NUMBER (R_PARISC_PCREL16DF,     	79)
+/*		load/store doubleword (3)  symbol - PC - 8 + addend       */
+
+
+RELOC_NUMBER (R_PARISC_DIR64,         	80)
+/*		64-bit doubleword          symbol + addend    		  */
+
+RELOC_NUMBER (R_PARISC_DIR64WR,       	81)
+/*		64-bit doubleword          RR(symbol, addend) 		  */
+
+RELOC_NUMBER (R_PARISC_DIR64DR,       	82)
+/*		64-bit doubleword          RR(symbol, addend) 		  */
+
+RELOC_NUMBER (R_PARISC_DIR14WR,       	83)
+/*		load/store mod. comp. (2)  RR(symbol, addend) 		  */
+
+RELOC_NUMBER (R_PARISC_DIR14DR,       	84)
+/*		load/store doubleword (3)  RR(symbol, addend) 		  */
+
+RELOC_NUMBER (R_PARISC_DIR16F,        	85)
+/*		load/store (1)             symbol + addend    		  */
+
+RELOC_NUMBER (R_PARISC_DIR16WF,       	86)
+/*		load/store mod. comp. (2)  symbol + addend    		  */
+
+RELOC_NUMBER (R_PARISC_DIR16DF,       	87)
+/*		load/store doubleword (3)  symbol + addend    		  */
+  
+RELOC_NUMBER (R_PARISC_GPREL64,       	88)
+/*		64-bit doubleword          symbol - GP + addend 	  */
+  
+RELOC_NUMBER (R_PARISC_DLTREL14WR,    	91)
+/*		load/store mod. comp. (2)  RR(symbol - GP, addend) 	  */
+
+RELOC_NUMBER (R_PARISC_DLTREL14DR,    	92)
+/*		load/store doubleword (3)  RR(symbol - GP, addend) 	  */
+
+RELOC_NUMBER (R_PARISC_GPREL16F,      	93)
+/*		load/store (1)             symbol - GP + addend    	  */
+
+RELOC_NUMBER (R_PARISC_GPREL16WF,     	94)
+/*		load/store mod. comp. (2)  symbol - GP + addend    	  */
+
+RELOC_NUMBER (R_PARISC_GPREL16DF,     	95)
+/*		load/store doubleword (3)  symbol - GP + addend    	  */
+
+
+RELOC_NUMBER (R_PARISC_LTOFF64,      	96)
+/*		64-bit doubleword          ltoff(symbol + addend)    	  */
+
+RELOC_NUMBER (R_PARISC_DLTIND14WR,   	99)
+/*		load/store mod. comp. (2)  R(ltoff(symbol + addend)) 	  */
+
+RELOC_NUMBER (R_PARISC_DLTIND14DR,     100)
+/*		load/store doubleword (3)  R(ltoff(symbol + addend)) 	  */
+
+RELOC_NUMBER (R_PARISC_LTOFF16F,       101)
+/*		load/store (1)             ltoff(symbol + addend)    	  */
+
+RELOC_NUMBER (R_PARISC_LTOFF16WF,      102)
+/*		load/store mod. comp. (2)  ltoff(symbol + addend)    	  */
+
+RELOC_NUMBER (R_PARISC_LTOFF16DF,      103)
+/*		load/store doubleword (3)  ltoff(symbol + addend)    	  */
+
+
+RELOC_NUMBER (R_PARISC_SECREL64,       104)
+/*		64-bit doubleword          symbol - SECT + addend 	  */
+
+RELOC_NUMBER (R_PARISC_BASEREL14WR,    107)
+/*		load/store mod. comp. (2)  RR(symbol - base, addend) 	  */
+
+RELOC_NUMBER (R_PARISC_BASEREL14DR,    108)
+/*		load/store doubleword (3)  RR(symbol - base, addend) 	  */
+
+
+RELOC_NUMBER (R_PARISC_SEGREL64,       112)
+/*		64-bit doubleword          symbol - SB + addend 	  */
+  
+RELOC_NUMBER (R_PARISC_PLTOFF14WR,     115)
+/*		load/store mod. comp. (2)  RR(pltoff(symbol), addend) 	  */
+
+RELOC_NUMBER (R_PARISC_PLTOFF14DR,     116)    
+/*		load/store doubleword (3)  RR(pltoff(symbol), addend) 	  */
+
+RELOC_NUMBER (R_PARISC_PLTOFF16F,      117)    
+/*		load/store (1)             pltoff(symbol) + addend    	  */
+
+RELOC_NUMBER (R_PARISC_PLTOFF16WF,     118)    
+/*		load/store mod. comp. (2)  pltoff(symbol) + addend    	  */
+
+RELOC_NUMBER (R_PARISC_PLTOFF16DF,     119)    
+/*		load/store doubleword (3)  pltoff(symbol) + addend    	  */
+
+
+RELOC_NUMBER (R_PARISC_LTOFF_FPTR64,   120)
+/*		64-bit doubleword          ltoff(fptr(symbol+addend))     */
+
+RELOC_NUMBER (R_PARISC_LTOFF_FPTR14WR, 123)
+/*		load/store mod. comp. (2)  R(ltoff(fptr(symbol+addend)))  */
+
+RELOC_NUMBER (R_PARISC_LTOFF_FPTR14DR, 124)
+/*		load/store doubleword (3)  R(ltoff(fptr(symbol+addend)))  */
+
+RELOC_NUMBER (R_PARISC_LTOFF_FPTR16F,  125)
+/*		load/store (1)             ltoff(fptr(symbol+addend))     */
+
+RELOC_NUMBER (R_PARISC_LTOFF_FPTR16WF, 126)
+/*		load/store mod. comp. (2)  ltoff(fptr(symbol+addend))     */
+
+RELOC_NUMBER (R_PARISC_LTOFF_FPTR16DF, 127)
+/*		load/store doubleword (3)  ltoff(fptr(symbol+addend))     */
+
+
+RELOC_NUMBER (R_PARISC_COPY, 	       128)
+/*		data                       Dynamic relocations only 	  */
+
+RELOC_NUMBER (R_PARISC_IPLT, 	       129)
+/*		plt                                                 	  */
+
+RELOC_NUMBER (R_PARISC_EPLT, 	       130)
+/*		plt                                                 	  */
+
+
+RELOC_NUMBER (R_PARISC_TPREL32,        153)
+/*		32-bit word                symbol - TP + addend    	  */
+
+RELOC_NUMBER (R_PARISC_TPREL21L,       154)
+/*		long immediate (7)         LR(symbol - TP, addend) 	  */
+
+RELOC_NUMBER (R_PARISC_TPREL14R,       158)
+/*		load/store (1)             RR(symbol - TP, addend) 	  */
+
+
+RELOC_NUMBER (R_PARISC_LTOFF_TP21L,    162)
+/*		long immediate (7)         L(ltoff(symbol - TP + addend)) */
+
+RELOC_NUMBER (R_PARISC_LTOFF_TP14R,    166)
+/*		load/store (1)             R(ltoff(symbol - TP + addend)) */
+
+RELOC_NUMBER (R_PARISC_LTOFF_TP14F,    167)
+/*		load/store (1)             ltoff(symbol - TP + addend)    */
+
+
+RELOC_NUMBER (R_PARISC_TPREL64,        216)
+/*		64-bit word                symbol - TP + addend        	  */
+
+RELOC_NUMBER (R_PARISC_TPREL14WR,      219)    	  
+/*		load/store mod. comp. (2)  RR(symbol - TP, addend)     	  */
+
+RELOC_NUMBER (R_PARISC_TPREL14DR,      220)    	  
+/*		load/store doubleword (3)  RR(symbol - TP, addend)     	  */
+
+RELOC_NUMBER (R_PARISC_TPREL16F,       221)    	  
+/*		load/store (1)             symbol - TP + addend        	  */
+
+RELOC_NUMBER (R_PARISC_TPREL16WF,      222)    	  
+/*		load/store mod. comp. (2)  symbol - TP + addend        	  */
+
+RELOC_NUMBER (R_PARISC_TPREL16DF,      223)    	  
+/*		load/store doubleword (3)  symbol - TP + addend        	  */
+
+
+RELOC_NUMBER (R_PARISC_LTOFF_TP64,     224)
+/*		64-bit doubleword          ltoff(symbol - TP + addend)    */
+
+RELOC_NUMBER (R_PARISC_LTOFF_TP14WR,   227)
+/*		load/store mod. comp. (2)  R(ltoff(symbol - TP + addend)) */
+
+RELOC_NUMBER (R_PARISC_LTOFF_TP14DR,   228)
+/*		load/store doubleword (3)  R(ltoff(symbol - TP + addend)) */
+
+RELOC_NUMBER (R_PARISC_LTOFF_TP16F,    229)
+/*		load/store (1)             ltoff(symbol - TP + addend)    */
+
+RELOC_NUMBER (R_PARISC_LTOFF_TP16WF,   230)
+/*		load/store mod. comp. (2)  ltoff(symbol - TP + addend)    */
+
+RELOC_NUMBER (R_PARISC_LTOFF_TP16DF,   231)
+/*		load/store doubleword (3)  ltoff(symbol - TP + addend)    */
+
+RELOC_NUMBER (R_PARISC_GNU_VTENTRY,    232)
+RELOC_NUMBER (R_PARISC_GNU_VTINHERIT,  233)
+
+END_RELOC_NUMBERS (R_PARISC_UNIMPLEMENTED)
 
 #ifndef RELOC_MACROS_GEN_FUNC
 typedef enum elf_hppa_reloc_type elf_hppa_reloc_type;
@@ -288,19 +500,22 @@ typedef enum elf_hppa_reloc_type elf_hppa_reloc_type;
 
 /* Processor specific dynamic array tags.  */
 
-#define DT_HP_LOAD_MAP		(DT_LOOS + 0x0)
-#define DT_HP_DLD_FLAGS		(DT_LOOS + 0x1)
-#define DT_HP_DLD_HOOK		(DT_LOOS + 0x2)
-#define DT_HP_UX10_INIT		(DT_LOOS + 0x3)
-#define DT_HP_UX10_INITSZ	(DT_LOOS + 0x4)
-#define DT_HP_PREINIT		(DT_LOOS + 0x5)
-#define DT_HP_PREINITSZ		(DT_LOOS + 0x6)
-#define DT_HP_NEEDED		(DT_LOOS + 0x7)
-#define DT_HP_TIME_STAMP	(DT_LOOS + 0x8)
-#define DT_HP_CHECKSUM		(DT_LOOS + 0x9)
-#define DT_HP_GST_SIZE		(DT_LOOS + 0xa)
-#define DT_HP_GST_VERSION	(DT_LOOS + 0xb)
-#define DT_HP_GST_HASHVAL	(DT_LOOS + 0xc)
+/* Arggh.  HP's tools define these symbols based on the
+   old value of DT_LOOS.  So we must do the same to be
+   compatible.  */
+#define DT_HP_LOAD_MAP		(OLD_DT_LOOS + 0x0)
+#define DT_HP_DLD_FLAGS		(OLD_DT_LOOS + 0x1)
+#define DT_HP_DLD_HOOK		(OLD_DT_LOOS + 0x2)
+#define DT_HP_UX10_INIT		(OLD_DT_LOOS + 0x3)
+#define DT_HP_UX10_INITSZ	(OLD_DT_LOOS + 0x4)
+#define DT_HP_PREINIT		(OLD_DT_LOOS + 0x5)
+#define DT_HP_PREINITSZ		(OLD_DT_LOOS + 0x6)
+#define DT_HP_NEEDED		(OLD_DT_LOOS + 0x7)
+#define DT_HP_TIME_STAMP	(OLD_DT_LOOS + 0x8)
+#define DT_HP_CHECKSUM		(OLD_DT_LOOS + 0x9)
+#define DT_HP_GST_SIZE		(OLD_DT_LOOS + 0xa)
+#define DT_HP_GST_VERSION	(OLD_DT_LOOS + 0xb)
+#define DT_HP_GST_HASHVAL	(OLD_DT_LOOS + 0xc)
 
 /* Values for DT_HP_DLD_FLAGS.  */
 #define DT_HP_DEBUG_PRIVATE		0x0001 /* Map text private */

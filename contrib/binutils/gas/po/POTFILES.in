@@ -13,6 +13,8 @@ bit_fix.h
 cgen.h
 cond.c
 cond.c
+config/e-crisaout.c
+config/e-criself.c
 config/e-i386aout.c
 config/e-i386coff.c
 config/e-i386elf.c
@@ -46,6 +48,10 @@ config/tc-arc.c
 config/tc-arc.h
 config/tc-arm.c
 config/tc-arm.h
+config/tc-avr.c
+config/tc-avr.h
+config/tc-cris.c
+config/tc-cris.h
 config/tc-d10v.c
 config/tc-d10v.h
 config/tc-d30v.c
@@ -66,8 +72,12 @@ config/tc-i860.c
 config/tc-i860.h
 config/tc-i960.c
 config/tc-i960.h
+config/tc-ia64.c
+config/tc-ia64.h
 config/tc-m32r.c
 config/tc-m32r.h
+config/tc-m68hc11.c
+config/tc-m68hc11.h
 config/tc-m68k.c
 config/tc-m68k.h
 config/tc-m88k.c
@@ -94,6 +104,8 @@ config/tc-tahoe.c
 config/tc-tahoe.h
 config/tc-tic30.c
 config/tc-tic30.h
+config/tc-tic54x.c
+config/tc-tic54x.h
 config/tc-tic80.c
 config/tc-tic80.h
 config/tc-v850.c

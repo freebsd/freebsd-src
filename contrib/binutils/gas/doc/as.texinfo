@@ -1,5 +1,5 @@
 \input texinfo @c                               -*-Texinfo-*-
-@c  Copyright (c) 1991, 92, 93, 94, 95, 96, 97, 98, 2000
+@c  Copyright (c) 1991, 92, 93, 94, 95, 96, 97, 98, 2000, 2001
 @c  Free Software Foundation, Inc.
 @c UPDATE!!  On future updates--
 @c   (1)   check for new machine-dep cmdline options in
@@ -87,11 +87,14 @@ END-INFO-DIR-ENTRY
 @ifinfo
 This file documents the GNU Assembler "@value{AS}".
 
-Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001 Free Software Foundation, Inc.
 
-Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+      Permission is granted to copy, distribute and/or modify this document
+      under the terms of the GNU Free Documentation License, Version 1.1
+      or any later version published by the Free Software Foundation;
+      with no Invariant Sections, with no Front-Cover Texts, and with no
+      Back-Cover Texts.  A copy of the license is included in the
+      section entitled "GNU Free Documentation License".
 
 @ignore
 Permission is granted to process this file through Tex and print the
@@ -100,13 +103,6 @@ notice identical to this one except for the removal of this paragraph
 (this paragraph not being relevant to the printed manual).
 
 @end ignore
-Permission is granted to copy and distribute modified versions of this manual
-under the conditions for verbatim copying, provided that the entire resulting
-derived work is distributed under the terms of a permission notice identical to
-this one.
-
-Permission is granted to copy and distribute translations of this manual
-into another language, under the above conditions for modified versions.
 @end ifinfo
 
 @titlepage
@@ -142,19 +138,15 @@ done.
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001 Free Software Foundation, Inc.
 
-Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+      Permission is granted to copy, distribute and/or modify this document
+      under the terms of the GNU Free Documentation License, Version 1.1
+      or any later version published by the Free Software Foundation;
+      with no Invariant Sections, with no Front-Cover Texts, and with no
+      Back-Cover Texts.  A copy of the license is included in the
+      section entitled "GNU Free Documentation License".
 
-Permission is granted to copy and distribute modified versions of this manual
-under the conditions for verbatim copying, provided that the entire resulting
-derived work is distributed under the terms of a permission notice identical to
-this one.
-
-Permission is granted to copy and distribute translations of this manual
-into another language, under the above conditions for modified versions.
 @end titlepage
 
 @ifinfo
@@ -167,6 +159,11 @@ This file is a user guide to the @sc{gnu} assembler @code{@value{AS}} version
 This version of the file describes @code{@value{AS}} configured to generate
 code for @value{TARGET} architectures.
 @end ifclear
+
+This document is distributed under the terms of the GNU Free
+Documentation License.  A copy of the license is included in the
+section entitled "GNU Free Documentation License".
+
 @menu
 * Overview::                    Overview
 * Invoking::                    Command-Line Options
@@ -178,6 +175,7 @@ code for @value{TARGET} architectures.
 * Machine Dependencies::        Machine Dependent Features
 * Reporting Bugs::              Reporting Bugs
 * Acknowledgements::            Who Did What
+* GNU Free Documentation License::  GNU Free Documentation License
 * Index::                       Index
 @end menu
 @end ifinfo
@@ -205,12 +203,13 @@ Here is a brief summary of how to invoke @code{@value{AS}}.  For details,
  [ -f ] [ --gstabs ] [ --gdwarf2 ] [ --help ] [ -I @var{dir} ] [ -J ] [ -K ] [ -L ]
  [ --keep-locals ] [ -o @var{objfile} ] [ -R ] [ --statistics ] [ -v ]
  [ -version ] [ --version ] [ -W ] [ --warn ] [ --fatal-warnings ] 
- [ -w ] [ -x ] [ -Z ]
+ [ -w ] [ -x ] [ -Z ] [ --target-help ]
 @ifset A29K
 @c am29k has no machine-dependent assembler options
 @end ifset
 @ifset ARC
- [ -mbig-endian | -mlittle-endian ]
+ [ -marc[5|6|7|8] ]
+ [ -EB | -EL ]
 @end ifset
 @ifset ARM
  [ -m[arm]1 | -m[arm]2 | -m[arm]250 | -m[arm]3 | -m[arm]6 | -m[arm]60 |
@@ -219,7 +218,7 @@ Here is a brief summary of how to invoke @code{@value{AS}}.  For details,
    -m[arm]810 | -m[arm]9 | -m[arm]920 | -m[arm]920t | -m[arm]9tdmi |
    -mstrongarm | -mstrongarm110 | -mstrongarm1100 ]
  [ -m[arm]v2 | -m[arm]v2a | -m[arm]v3 | -m[arm]v3m | -m[arm]v4 | -m[arm]v4t |
-   -m[arm]v5 | -[arm]v5t ]
+   -m[arm]v5 | -[arm]v5t | -[arm]v5te ]
  [ -mthumb | -mall ]
  [ -mfpa10 | -mfpa11 | -mfpe-old | -mno-fpu ]
  [ -EB | -EL ]
@@ -249,6 +248,10 @@ Here is a brief summary of how to invoke @code{@value{AS}}.  For details,
    -Av8plus | -Av8plusa | -Av9 | -Av9a ]
  [ -xarch=v8plus | -xarch=v8plusa ] [ -bump ] [ -32 | -64 ]
 @end ifset
+@ifset TIC54X
+ [ -mcpu=54[123589] | -mcpu=54[56]lp ] [ -mfar-mode | -mf ] 
+ [ -merrors-to-file <filename> | -me <filename> ]
+@end ifset
 @ifset Z8000
 @c Z8000 has no machine-dependent assembler options
 @end ifset
@@ -257,15 +260,26 @@ Here is a brief summary of how to invoke @code{@value{AS}}.  For details,
  [ -ACA | -ACA_A | -ACB | -ACC | -AKA | -AKB | -AKC | -AMC ]
  [ -b ] [ -no-relax ]
 @end ifset
+@ifset M32R
+ [ --m32rx | --[no-]warn-explicit-parallel-conflicts | --W[n]p ]
+@end ifset
 @ifset M680X0
  [ -l ] [ -m68000 | -m68010 | -m68020 | ... ]
 @end ifset
 @ifset MCORE
  [ -jsri2bsr ] [ -sifilter ] [ -relax ]
+ [ -mcpu=[210|340] ]
+@end ifset
+@ifset M68HC11
+ [ -m68hc11 | -m68hc12 ]
+ [ --force-long-branchs ] [ --short-branchs ] [ --strict-direct-mode ]
+ [ --print-insn-syntax ] [ --print-opcodes ] [ --generate-example ]
 @end ifset
 @ifset MIPS
  [ -nocpp ] [ -EL ] [ -EB ] [ -G @var{num} ] [ -mcpu=@var{CPU} ]
- [ -mips1 ] [ -mips2 ] [ -mips3 ] [ -m4650 ] [ -no-m4650 ]
+ [ -mips1 ] [ -mips2 ] [ -mips3 ] [ -mips4 ] [ -mips5 ]
+ [ -mips32 ] [ -mips64 ]
+ [ -m4650 ] [ -no-m4650 ]
  [ --trap ] [ --break ]
  [ --emulation=@var{name} ]
 @end ifset
@@ -325,10 +339,14 @@ may help debugging assembler code, if the debugger can handle it.
 
 @item --gdwarf2
 Generate DWARF2 debugging information for each assembler line.  This
-may help debugging assembler code, if the debugger can handle it.
+may help debugging assembler code, if the debugger can handle it.  Note - this
+option is only supported by some targets, not all of them.
 
 @item --help
 Print a summary of the command line options and exit.
+
+@item --target-help
+Print a summary of all target specific options and exit.
 
 @item -I @var{dir}
 Add directory @var{dir} to the search list for @code{.include} directives.
@@ -399,17 +417,10 @@ The following options are available when @value{AS} is configured for
 an ARC processor.
 
 @table @code
-
-@cindex ARC endianness
-@cindex endianness, ARC
-@cindex big endian output, ARC
-@item -mbig-endian
-Generate ``big endian'' format output.
-
-@cindex little endian output, ARC
-@item -mlittle-endian
-Generate ``little endian'' format output.
-
+@item -marc[5|6|7|8]
+This option selects the core processor variant.
+@item -EB | -EL
+Select either big-endian (-EB) or little-endian (-EL) output.
 @end table
 @end ifset
 
@@ -425,7 +436,7 @@ Specify which ARM architecture variant is used by the target.
 @item -mthumb | -mall
 Enable or disable Thumb only instruction decoding.
 @item -mfpa10 | -mfpa11 | -mfpe-old | -mno-fpu
-Select which Floating Point architcture is the target.
+Select which Floating Point architecture is the target.
 @item -mapcs-32 | -mapcs-26 | -mapcs-float | -mapcs-reentrant | -moabi
 Select which procedure calling convention is in use.
 @item -EB | -EL
@@ -486,6 +497,26 @@ error if necessary.
 @end table
 @end ifset
 
+@ifset M32R
+The following options are available when @value{AS} is configured for the
+Mitsubishi M32R series.
+
+@table @code
+
+@item --m32rx
+Specify which processor in the M32R family is the target.  The default
+is normally the M32R, but this option changes it to the M32RX.
+
+@item --warn-explicit-parallel-conflicts or --Wp
+Produce warning messages when questionable parallel constructs are
+encountered. 
+
+@item --no-warn-explicit-parallel-conflicts or --Wnp
+Do not produce warning messages when questionable parallel constructs are 
+encountered. 
+
+@end table
+@end ifset
 
 @ifset M680X0
 The following options are available when @value{AS} is configured for the
@@ -534,6 +565,41 @@ Generate ``little endian'' format output.
 @end table
 @end ifset
 
+@ifset M68HC11
+The following options are available when @value{AS} is configured for the
+Motorola 68HC11 or 68HC12 series.
+
+@table @code
+
+@item -m68hc11 | -m68hc12
+Specify what processor is the target.  The default is
+defined by the configuration option when building the assembler.
+
+@item --force-long-branchs
+Relative branches are turned into absolute ones. This concerns
+conditional branches, unconditional branches and branches to a
+sub routine.
+
+@item -S | --short-branchs
+Do not turn relative branchs into absolute ones
+when the offset is out of range.
+
+@item --strict-direct-mode
+Do not turn the direct addressing mode into extended addressing mode
+when the instruction does not support direct addressing mode.
+
+@item --print-insn-syntax
+Print the syntax of instruction in case of error.
+
+@item --print-opcodes
+print the list of instructions with syntax and then exit.
+
+@item --generate-example
+print an example of instruction for each possible instruction and then exit.
+This option is only useful for testing @code{@value{AS}}.
+
+@end table
+@end ifset
 
 @ifset SPARC
 The following options are available when @code{@value{AS}} is configured
@@ -556,6 +622,22 @@ equivalent to -Av8plus and -Av8plusa, respectively.
 
 @item -bump
 Warn when the assembler switches to another architecture.
+@end table
+@end ifset
+
+@ifset TIC54X
+The following options are available when @value{AS} is configured for the 'c54x
+architecture. 
+
+@table @code
+@item -mfar-mode
+Enable extended addressing mode.  All addresses and relocations will assume
+extended addressing (usually 23 bits).
+@item -mcpu=@var{CPU_VERSION}
+Sets the CPU version being compiled for.
+@item -merrors-to-file @var{FILENAME}
+Redirect error output to a file, for broken systems which don't support such
+behaviour in the shell.
 @end table
 @end ifset
 
@@ -583,10 +665,15 @@ Generate ``little endian'' format output.
 @item -mips1
 @itemx -mips2
 @itemx -mips3
+@itemx -mips4
+@itemx -mips32
 Generate code for a particular MIPS Instruction Set Architecture level.
 @samp{-mips1} corresponds to the @sc{r2000} and @sc{r3000} processors,
 @samp{-mips2} to the @sc{r6000} processor, and @samp{-mips3} to the @sc{r4000}
 processor.
+@samp{-mips5}, @samp{-mips32}, and @samp{-mips64} correspond
+to generic @sc{MIPS V}, @sc{MIPS32}, and @sc{MIPS64} ISA
+processors, respectively.
 
 @item -m4650
 @itemx -no-m4650
@@ -596,8 +683,9 @@ instructions around accesses to the @samp{HI} and @samp{LO} registers.
 @samp{-no-m4650} turns off this option.
 
 @item -mcpu=@var{CPU}
-Generate code for a particular MIPS cpu.  This has little effect on the
-assembler, but it is passed by @code{@value{GCC}}.
+Generate code for a particular MIPS cpu.  It is exactly equivalent to
+@samp{-m@var{cpu}}, except that there are more value of @var{cpu}
+understood.
 
 @cindex emulation
 @item --emulation=@var{name}
@@ -654,11 +742,20 @@ The command line option @samp{-nojsri2bsr} can be used to disable it.
 @item -sifilter
 @itemx -nosifilter
 Enable or disable the silicon filter behaviour.  By default this is disabled.
-The default can be overidden by the @samp{-sifilter} command line option.
+The default can be overridden by the @samp{-sifilter} command line option.
 
 @item -relax
 Alter jump instructions for long displacements.
 
+@item -mcpu=[210|340]
+Select the cpu type on the target hardware.  This controls which instructions
+can be assembled.
+
+@item -EB
+Assemble for a big endian target.
+
+@item -EL
+Assemble for a little endian target.
 
 @end table
 @end ifset
@@ -933,7 +1030,7 @@ information for the debugger.
 @node Errors
 @section Error and Warning Messages
 
-@cindex error messsages
+@cindex error messages
 @cindex warning messages
 @cindex messages from assembler
 @code{@value{AS}} may write warnings and error messages to the standard error
@@ -1564,6 +1661,9 @@ is considered a comment and is ignored.  The line comment character is
 @ifset HPPA
 @samp{;} for the HPPA;
 @end ifset
+@ifset I80386
+@samp{#} on the i386 and x86-64;
+@end ifset
 @ifset I960
 @samp{#} on the i960;
 @end ifset
@@ -1582,6 +1682,9 @@ is considered a comment and is ignored.  The line comment character is
 @ifset M680X0
 @samp{|} on the 680x0;
 @end ifset
+@ifset M68HC11
+@samp{#} on the 68HC11 and 68HC12;
+@end ifset
 @ifset VAX
 @samp{#} on the Vax;
 @end ifset
@@ -1592,7 +1695,7 @@ is considered a comment and is ignored.  The line comment character is
 @samp{#} on the V850;
 @end ifset
 see @ref{Machine Dependencies}.  @refill
-@c FIXME What about i386, m88k, i860?
+@c FIXME What about m88k, i860?
 
 @ifset GENERIC
 On some machines there are two different line comment characters.  One
@@ -2297,7 +2400,7 @@ in the data section.
 @cindex bss section
 @item bss section
 This section contains zeroed bytes when your program begins running.  It
-is used to hold unitialized variables or common storage.  The length of
+is used to hold uninitialized variables or common storage.  The length of
 each partial program's bss section is important, but because it starts
 out containing zeroed bytes there is no need to store explicit zero
 bytes in the object file.  The bss section was invented to eliminate
@@ -3128,11 +3231,19 @@ Some machine configurations provide additional directives.
 * Float::                       @code{.float @var{flonums}}
 * Func::                        @code{.func}  
 * Global::                      @code{.global @var{symbol}}, @code{.globl @var{symbol}}
+@ifset ELF
+* Hidden::                      @code{.hidden @var{names}}
+@end ifset
+
 * hword::                       @code{.hword @var{expressions}}
 * Ident::                       @code{.ident}
 * If::                          @code{.if @var{absolute expression}}
 * Include::                     @code{.include "@var{file}"}
 * Int::                         @code{.int @var{expressions}}
+@ifset ELF
+* Internal::                    @code{.internal @var{names}}
+@end ifset
+
 * Irp::				@code{.irp @var{symbol},@var{values}}@dots{}
 * Irpc::			@code{.irpc @var{symbol},@var{values}}@dots{}
 * Lcomm::                       @code{.lcomm @var{symbol} , @var{length}}
@@ -3151,14 +3262,26 @@ Some machine configurations provide additional directives.
 
 * Macro::			@code{.macro @var{name} @var{args}}@dots{}
 * MRI::				@code{.mri @var{val}}
-
 * Nolist::                      @code{.nolist}
 * Octa::                        @code{.octa @var{bignums}}
 * Org::                         @code{.org @var{new-lc} , @var{fill}}
 * P2align::                     @code{.p2align @var{abs-expr} , @var{abs-expr}}
+@ifset ELF
+* PopSection::                  @code{.popsection}
+* Previous::                    @code{.previous}
+@end ifset
+
 * Print::			@code{.print @var{string}}
+@ifset ELF
+* Protected::                   @code{.protected @var{names}}
+@end ifset
+
 * Psize::                       @code{.psize @var{lines}, @var{columns}}
 * Purgem::			@code{.purgem @var{name}}
+@ifset ELF
+* PushSection::                 @code{.pushsection @var{name}}
+@end ifset
+
 * Quad::                        @code{.quad @var{bignums}}
 * Rept::			@code{.rept @var{count}}
 * Sbttl::                       @code{.sbttl "@var{subheading}"}
@@ -3170,10 +3293,7 @@ Some machine configurations provide additional directives.
 * Set::                         @code{.set @var{symbol}, @var{expression}}
 * Short::                       @code{.short @var{expressions}}
 * Single::                      @code{.single @var{flonums}}
-@ifset COFF
-* Size::                        @code{.size}
-@end ifset
-
+* Size::                        @code{.size [@var{name} , @var{expression}]}
 * Skip::                        @code{.skip @var{size} , @var{fill}}
 * Sleb128::			@code{.sleb128 @var{expressions}}
 * Space::                       @code{.space @var{size} , @var{fill}}
@@ -3184,23 +3304,29 @@ Some machine configurations provide additional directives.
 * String::                      @code{.string "@var{str}"}
 * Struct::			@code{.struct @var{expression}}
 @ifset ELF
+* SubSection::                  @code{.subsection}
 * Symver::                      @code{.symver @var{name},@var{name2@@nodename}}
 @end ifset
+
 @ifset COFF
 * Tag::                         @code{.tag @var{structname}}
 @end ifset
 
 * Text::                        @code{.text @var{subsection}}
 * Title::                       @code{.title "@var{heading}"}
+* Type::                        @code{.type <@var{int} | @var{name} , @var{type description}>}
+* Uleb128::                     @code{.uleb128 @var{expressions}}
 @ifset COFF
-* Type::                        @code{.type @var{int}}
 * Val::                         @code{.val @var{addr}}
 @end ifset
+
 @ifset ELF
-* Visibility::                  @code{.internal @var{name}, .hidden @var{name}, .protected @var{name}}
+* Version::                     @code{.version "@var{string}"}
+* VTableEntry::                 @code{.vtable_entry @var{table}, @var{offset}}
+* VTableInherit::               @code{.vtable_inherit @var{child}, @var{parent}}
+* Weak::                        @code{.weak @var{names}}
 @end ifset
 
-* Uleb128::                     @code{.uleb128 @var{expressions}}
 * Word::                        @code{.word @var{expressions}}
 * Deprecated::                  Deprecated Directives
 @end menu
@@ -3658,6 +3784,22 @@ partial programs.  You may need the HPPA-only @code{.EXPORT} directive as well.
 @xref{HPPA Directives,, HPPA Assembler Directives}.
 @end ifset
 
+@ifset ELF
+@node Hidden
+@section @code{.hidden @var{names}}
+
+@cindex @code{.hidden} directive
+@cindex Visibility
+This one of the ELF visibility directives.  The other two are
+@code{.internal} (@pxref{Internal,,@code{.internal}}) and 
+@code{.protected} (@pxref{Protected,,@code{.protected}}).
+
+This directive overrides the named symbols default visibility (which is set by
+their binding: local, global or weak).  The directive sets the visibility to
+@code{hidden} which means that the symbols are not visible to other components.
+Such symbols are always considered to be @code{protected} as well. 
+@end ifset
+
 @node hword
 @section @code{.hword @var{expressions}}
 
@@ -3799,6 +3941,23 @@ integers.  On the H8/300H and the Hitachi SH, however, @code{.int} emits
 32-bit integers.
 @end ifset
 @end ifclear
+
+@ifset ELF
+@node Internal
+@section @code{.internal @var{names}}
+
+@cindex @code{.internal} directive
+@cindex Visibility
+This one of the ELF visibility directives.  The other two are
+@code{.hidden} (@pxref{Hidden,,@code{.hidden}}) and 
+@code{.protected} (@pxref{Protected,,@code{.protected}}).
+
+This directive overrides the named symbols default visibility (which is set by
+their binding: local, global or weak).  The directive sets the visibility to
+@code{internal} which means that the symbols are considered to be @code{hidden}
+(ie not visible to other components), and that some extra, processor specific
+processing must also be performed upon the  symbols as well.
+@end ifset
 
 @node Irp
 @section @code{.irp @var{symbol},@var{values}}@dots{}
@@ -4227,12 +4386,65 @@ filled in with the value 0x368d (the exact placement of the bytes depends upon
 the endianness of the processor).  If it skips 1 or 3 bytes, the fill value is
 undefined.
 
+@ifset ELF
+@node Previous
+@section @code{.previous}
+
+@cindex @code{.previous} directive
+@cindex Section Stack
+This is one of the ELF section stack manipulation directives.  The others are
+@code{.section} (@pxref{Section}), @code{.subsection} (@pxref{SubSection}),
+@code{.pushsection} (@pxref{PushSection}), and @code{.popsection}
+(@pxref{PopSection}).
+
+This directive swaps the current section (and subsection) with most recently
+referenced section (and subsection) prior to this one.  Multiple
+@code{.previous} directives in a row will flip between two sections (and their
+subsections).
+
+In terms of the section stack, this directive swaps the current section with
+the top section on the section stack.
+@end ifset
+
+@ifset ELF
+@node PopSection
+@section @code{.popsection}
+
+@cindex @code{.popsection} directive
+@cindex Section Stack
+This is one of the ELF section stack manipulation directives.  The others are
+@code{.section} (@pxref{Section}), @code{.subsection} (@pxref{SubSection}), 
+@code{.pushsection} (@pxref{PushSection}), and @code{.previous} 
+(@pxref{Previous}).
+
+This directive replaces the current section (and subsection) with the top
+section (and subsection) on the section stack.  This section is popped off the
+stack. 
+@end ifset
+
 @node Print
 @section @code{.print @var{string}}
 
 @cindex @code{print} directive
 @code{@value{AS}} will print @var{string} on the standard output during
 assembly.  You must put @var{string} in double quotes.
+
+@ifset ELF
+@node Protected
+@section @code{.protected @var{names}}
+
+@cindex @code{.protected} directive
+@cindex Visibility
+This one of the ELF visibility directives.  The other two are
+@code{.hidden} (@pxref{Hidden}) and @code{.internal} (@pxref{Internal}).
+
+This directive overrides the named symbols default visibility (which is set by
+their binding: local, global or weak).  The directive sets the visibility to
+@code{protected} which means that any references to the symbols from within the
+components that defines them must be resolved to the definition in that
+component, even if a definition in another component would normally preempt
+this. 
+@end ifset
 
 @node Psize
 @section @code{.psize @var{lines} , @var{columns}}
@@ -4260,6 +4472,22 @@ those explicitly specified with @code{.eject}.
 @cindex @code{purgem} directive
 Undefine the macro @var{name}, so that later uses of the string will not be
 expanded.  @xref{Macro}.
+
+@ifset ELF
+@node PushSection
+@section @code{.pushsection @var{name} , @var{subsection}}
+
+@cindex @code{.pushsection} directive
+@cindex Section Stack
+This is one of the ELF section stack manipulation directives.  The others are
+@code{.section} (@pxref{Section}), @code{.subsection} (@pxref{SubSection}), 
+@code{.popsection} (@pxref{PopSection}), and @code{.previous} 
+(@pxref{Previous}).
+
+This directive is a synonym for @code{.section}.  It pushes the current section
+(and subsection) onto the top of the section stack, and then replaces the
+current section and subsection with @code{name} and @code{subsection}.
+@end ifset
 
 @node Quad
 @section @code{.quad @var{bignums}}
@@ -4338,7 +4566,7 @@ accepts this directive but ignores it.
 @end ifset
 
 @node Section
-@section @code{.section @var{name}}
+@section @code{.section @var{name}} (COFF version)
 
 @cindex @code{section} directive
 @cindex named section
@@ -4349,9 +4577,9 @@ This directive is only supported for targets that actually support arbitrarily
 named sections; on @code{a.out} targets, for example, it is not accepted, even
 with a standard @code{a.out} section name.
 
-@ifset COFF
 For COFF targets, the @code{.section} directive is used in one of the following
 ways:
+
 @smallexample
 .section @var{name}[, "@var{flags}"]
 .section @var{name}[, @var{subsegment}]
@@ -4382,15 +4610,28 @@ loaded and writable.
 
 If the optional argument to the @code{.section} directive is not quoted, it is
 taken as a subsegment number (@pxref{Sub-Sections}).
+
+
+@section @code{.section @var{name}} (ELF version)
+
+@cindex @code{section} directive
+@cindex named section
+@ifset ELF
+@cindex Section Stack
+This is one of the ELF section stack manipulation directives.  The others are
+@code{.subsection} (@pxref{SubSection}), @code{.pushsection} 
+(@pxref{PushSection}), @code{.popsection} (@pxref{PopSection}), and
+@code{.previous} (@pxref{Previous}).
 @end ifset
 
-@ifset ELF
 For ELF targets, the @code{.section} directive is used like this:
+
 @smallexample
-.section @var{name}[, "@var{flags}"[, @@@var{type}]]
+.section @var{name} [, "@var{flags}"[, @@@var{type}]]
 @end smallexample
+
 The optional @var{flags} argument is a quoted string which may contain any
-combintion of the following characters:
+combination of the following characters:
 @table @code
 @item a
 section is allocatable
@@ -4415,9 +4656,11 @@ executable.  The section will contain data.
 
 For ELF targets, the assembler supports another type of @code{.section}
 directive for compatibility with the Solaris assembler:
+
 @smallexample
 .section "@var{name}"[, @var{flags}...]
 @end smallexample
+
 Note that the section name is quoted.  There may be a sequence of comma
 separated flags:
 @table @code
@@ -4428,7 +4671,11 @@ section is writable
 @item #execinstr
 section is executable
 @end table
-@end ifset
+
+This directive replaces the current section and subsection.  The replaced
+section and subsection are pushed onto the section stack.  See the contents of
+the gas testsuite directory @code{gas/testsuite/gas/elf} for some examples of
+how this directive and the other section stack directives work.
 
 @node Set
 @section @code{.set @var{symbol}, @var{expression}}
@@ -4489,21 +4736,27 @@ numbers in @sc{ieee} format.
 @end ifset
 @end ifclear
 
-@ifset COFF
 @node Size
-@section @code{.size}
+@section @code{.size} (COFF version)
 
 @cindex @code{size} directive
 This directive is generated by compilers to include auxiliary debugging
 information in the symbol table.  It is only permitted inside
 @code{.def}/@code{.endef} pairs.
-@ifset BOUT
 
+@ifset BOUT
 @samp{.size} is only meaningful when generating COFF format output; when
 @code{@value{AS}} is generating @code{b.out}, it accepts this directive but
 ignores it.
 @end ifset
-@end ifset
+
+@section @code{.size @var{name} , @var{expression}} (ELF version)
+@cindex @code{size} directive
+
+This directive is used to set the size associated with a symbol @var{name}.
+The size in bytes is computed from @var{expression} which can make use of label
+arithmetic.  This directive is typically used to set the size of function
+symbols.
 
 @node Sleb128
 @section @code{.sleb128 @var{expressions}}
@@ -4658,6 +4911,22 @@ use a @code{.section} directive of some sort to change to some other section
 before further assembly.
 
 @ifset ELF
+@node SubSection
+@section @code{.subsection @var{name}}
+
+@cindex @code{.subsection} directive
+@cindex Section Stack
+This is one of the ELF section stack manipulation directives.  The others are
+@code{.section} (@pxref{Section}), @code{.pushsection} (@pxref{PushSection}), 
+@code{.popsection} (@pxref{PopSection}), and @code{.previous} 
+(@pxref{Previous}).
+
+This directive replaces the current subsection with @code{name}.  The current
+section is not changed.  The replaced subsection is put onto the section stack
+in place of the then current top of stack subsection.
+@end ifset
+
+@ifset ELF
 @node Symver
 @section @code{.symver}
 @cindex @code{symver} directive
@@ -4670,12 +4939,12 @@ There are cases where it may make sense to use this in objects to be bound
 into an application itself so as to override a versioned symbol from a
 shared library.
 
-For ELF targets, the @code{.symver} directive is used like this:
+For ELF targets, the @code{.symver} directive can be used like this:
 @smallexample
 .symver @var{name}, @var{name2@@nodename}
 @end smallexample
-In this case, the symbol @var{name} must exist and be defined within the file
-being assembled.  The @code{.versym} directive effectively creates a symbol
+If the symbol @var{name} is defined within the file
+being assembled, the @code{.symver} directive effectively creates a symbol
 alias with the name @var{name2@@nodename}, and in fact the main reason that we
 just don't try and create a regular alias is that the @var{@@} character isn't
 permitted in symbol names.  The @var{name2} part of the name is the actual name
@@ -4688,6 +4957,29 @@ the name of a node specified in the version script supplied to the linker when
 building a shared library.  If you are attempting to override a versioned
 symbol from a shared library, then @var{nodename} should correspond to the
 nodename of the symbol you are trying to override.
+
+If the symbol @var{name} is not defined within the file being assembled, all
+references to @var{name} will be changed to @var{name2@@nodename}.  If no
+reference to @var{name} is made, @var{name2@@nodename} will be removed from the
+symbol table.
+
+Another usage of the @code{.symver} directive is:
+@smallexample
+.symver @var{name}, @var{name2@@@@nodename}
+@end smallexample
+In this case, the symbol @var{name} must exist and be defined within
+the file being assembled. It is similar to @var{name2@@nodename}. The
+difference is @var{name2@@@@nodename} will also be used to resolve
+references to @var{name2} by the linker.
+
+The third usage of the @code{.symver} directive is:
+@smallexample
+.symver @var{name}, @var{name2@@@@@@nodename}
+@end smallexample
+When @var{name} is not defined within the
+file being assembled, it is treated as @var{name2@@nodename}. When
+@var{name} is defined within the file being assembled, the symbol
+name, @var{name}, will be changed to @var{name2@@@@nodename}.
 @end ifset
 
 @ifset COFF
@@ -4729,22 +5021,55 @@ source file name and pagenumber) when generating assembly listings.
 This directive affects subsequent pages, as well as the current page if
 it appears within ten lines of the top of a page.
 
-@ifset COFF
 @node Type
-@section @code{.type @var{int}}
+@section @code{.type @var{int}} (COFF version)
 
 @cindex COFF symbol type
 @cindex symbol type, COFF
 @cindex @code{type} directive
 This directive, permitted only within @code{.def}/@code{.endef} pairs,
 records the integer @var{int} as the type attribute of a symbol table entry.
-@ifset BOUT
 
+@ifset BOUT
 @samp{.type} is associated only with COFF format output; when
 @code{@value{AS}} is configured for @code{b.out} output, it accepts this
 directive but ignores it.
 @end ifset
-@end ifset
+
+@section @code{.type @var{name} , @var{type description}} (ELF version)
+
+@cindex ELF symbol type
+@cindex symbol type, ELF
+@cindex @code{type} directive
+This directive is used to set the type of symbol @var{name} to be either a
+function symbol or an object symbol.  There are five different syntaxes
+supported for the @var{type description} field, in order to provide
+compatibility with various other assemblers.  The syntaxes supported are:
+
+@smallexample
+  .type <name>,#function
+  .type <name>,#object
+
+  .type <name>,@@function
+  .type <name>,@@object
+
+  .type <name>,%function
+  .type <name>,%object
+  
+  .type <name>,"function"
+  .type <name>,"object"
+  
+  .type <name> STT_FUNCTION
+  .type <name> STT_OBJECT
+@end smallexample
+
+@node Uleb128
+@section @code{.uleb128 @var{expressions}}
+
+@cindex @code{uleb128} directive
+@var{uleb128} stands for ``unsigned little endian base 128.''  This is a 
+compact, variable length representation of numbers used by the DWARF
+symbolic debugging format.  @xref{Sleb128,@code{.sleb128}}.
 
 @ifset COFF
 @node Val
@@ -4763,46 +5088,40 @@ configured for @code{b.out}, it accepts this directive but ignores it.
 @end ifset
 @end ifset
 
-@node Uleb128
-@section @code{.uleb128 @var{expressions}}
+@ifset ELF
+@node Version
+@section @code{.version "@var{string}"}
 
-@cindex @code{uleb128} directive
-@var{uleb128} stands for ``unsigned little endian base 128.''  This is a 
-compact, variable length representation of numbers used by the DWARF
-symbolic debugging format.  @xref{Sleb128,@code{.sleb128}}.
+@cindex @code{.version}
+This directive creates a @code{.note} section and places into it an ELF
+formatted note of type NT_VERSION.  The note's name is set to @code{string}.
+@end ifset
 
 @ifset ELF
-@node Visibility
-@section @code{.internal}, @code{.hidden}, @code{.protected}
-@cindex @code{internal} directive
-@cindex @code{hidden} directive
-@cindex @code{protected} directive
-@cindex symbol visibility
+@node VTableEntry
+@section @code{.vtable_entry @var{table}, @var{offset}}
 
-These directives can be used to set the visibility of a specified symbol.  By
-default a symbol's visibility is set by its binding (local, global or weak),
-but these directives can be used to override that.
+@cindex @code{.vtable_entry}
+This directive finds or creates a symbol @code{table} and creates a
+@code{VTABLE_ENTRY} relocation for it with an addend of @code{offset}.
 
-A visibility of @code{protected} means that any references to the symbol from
-within the component that defines the symbol must be resolved to the definition
-in that component, even if a definition in another component would normally
-preempt this.
+@node VTableInherit
+@section @code{.vtable_inherit @var{child}, @var{parent}}
 
-A visibility of @code{hidden} means that the symbol is not visible to other 
-components.  Such a symbol is always considered to be protected as well.
+@cindex @code{.vtable_inherit}
+This directive finds the symbol @code{child} and finds or creates the symbol
+@code{parent} and then creates a @code{VTABLE_INHERIT} relocation for the
+parent whose addend is the value of the child symbol.  As a special case the
+parent name of @code{0} is treated as refering the @code{*ABS*} section.
+@end ifset
 
-A visibility of @code{internal} is the same as a visibility of @code{hidden},
-except that some extra, processor specific processing must also be performed
-upon the symbol. 
+@ifset ELF
+@node Weak
+@section @code{.weak @var{names}}
 
-For ELF targets, the directives are used like this:
-
-@smallexample
-.internal @var{name}
-.hidden @var{name}
-.protected @var{name}
-@end smallexample
-
+@cindex @code{.weak}
+This directive sets the weak attribute on the comma separated list of symbol
+@code{names}.  If the symbols do not already exist, they will be created.
 @end ifset
 
 @node Word
@@ -4842,7 +5161,7 @@ interest to you does 32-bit addressing (or doesn't require it;
 
 @end ifset
 In order to assemble compiler output into something that works,
-@code{@value{AS}} occasionlly does strange things to @samp{.word} directives.
+@code{@value{AS}} occasionally does strange things to @samp{.word} directives.
 Directives of the form @samp{.word sym1-sym2} are often emitted by
 compilers as part of jump tables.  Therefore, when @code{@value{AS}} assembles a
 directive of the form @samp{.word sym1-sym2}, and the difference between
@@ -4929,13 +5248,22 @@ subject, see the hardware manufacturer's manual.
 * ESA/390-Dependent::           IBM ESA/390 Dependent Features
 @end ifset
 @ifset I80386
-* i386-Dependent::              Intel 80386 Dependent Features
+* i386-Dependent::              Intel 80386 and AMD x86-64 Dependent Features
+@end ifset
+@ifset I860
+* i860-Dependent::              Intel 80860 Dependent Features
 @end ifset
 @ifset I960
 * i960-Dependent::              Intel 80960 Dependent Features
 @end ifset
+@ifset M32R
+* M32R-Dependent::              M32R Dependent Features
+@end ifset
 @ifset M680X0
 * M68K-Dependent::              M680x0 Dependent Features
+@end ifset
+@ifset M68HC11
+* M68HC11-Dependent::           M68HC11 and 68HC12 Dependent Features
 @end ifset
 @ifset MIPS
 * MIPS-Dependent::              MIPS Dependent Features
@@ -4948,6 +5276,9 @@ subject, see the hardware manufacturer's manual.
 @end ifset
 @ifset SPARC
 * Sparc-Dependent::             SPARC Dependent Features
+@end ifset
+@ifset TIC54X
+* TIC54X-Dependent::            TI TMS320C54x Dependent Features
 @end ifset
 @ifset V850
 * V850-Dependent::              V850 Dependent Features
@@ -4972,80 +5303,7 @@ subject, see the hardware manufacturer's manual.
 @c in both conditional blocks.
 
 @ifset ARC
-@ifset GENERIC
-@page
-@node ARC-Dependent
-@chapter ARC Dependent Features
-@end ifset
-@ifclear GENERIC
-@node Machine Dependencies
-@chapter ARC Dependent Features
-@end ifclear
-
-@cindex ARC support
-@menu
-* ARC-Opts::                    Options
-* ARC-Float::                   Floating Point
-* ARC-Directives::              Sparc Machine Directives
-@end menu
-
-@node ARC-Opts
-@section Options
-
-@cindex options for ARC
-@cindex ARC options
-@cindex architectures, ARC
-@cindex ARC architectures
-The ARC chip family includes several successive levels (or other
-variants) of chip, using the same core instruction set, but including
-a few additional instructions at each level.
-
-By default, @code{@value{AS}} assumes the core instruction set (ARC
-base).  The @code{.cpu} pseudo-op is intended to be used to select
-the variant.
-
-@table @code
-@cindex @code{-mbig-endian} option (ARC)
-@cindex @code{-mlittle-endian} option (ARC)
-@cindex ARC big-endian output
-@cindex ARC little-endian output
-@cindex big-endian output, ARC
-@cindex little-endian output, ARC
-@item -mbig-endian
-@itemx -mlittle-endian
-Any @sc{arc} configuration of @code{@value{AS}} can select big-endian or
-little-endian output at run time (unlike most other @sc{gnu} development
-tools, which must be configured for one or the other).  Use
-@samp{-mbig-endian} to select big-endian output, and @samp{-mlittle-endian}
-for little-endian.
-@end table
-
-@node ARC-Float
-@section Floating Point
-
-@cindex floating point, ARC (@sc{ieee})
-@cindex ARC floating point (@sc{ieee})
-The ARC cpu family currently does not have hardware floating point
-support.  Software floating point support is provided by @code{GCC}
-and uses @sc{ieee} floating-point numbers.
-
-@node ARC-Directives
-@section ARC Machine Directives
-
-@cindex ARC machine directives
-@cindex machine directives, ARC
-The ARC version of @code{@value{AS}} supports the following additional
-machine directives:
-
-@table @code
-@item .cpu
-@cindex @code{cpu} directive, SPARC
-This must be followed by the desired cpu.
-The ARC is intended to be customizable, @code{.cpu} is used to
-select the desired variant [though currently there are none].
-
-@end table
-
+@include c-arc.texi
 @end ifset
 
 @ifset A29K
@@ -5103,13 +5361,24 @@ family.
 @include c-i386.texi
 @end ifset
 
+@ifset I860
+@include c-i860.texi
+@end ifset
+
 @ifset I960
 @include c-i960.texi
 @end ifset
 
+@ifset M32R
+@include c-m32r.texi
+@end ifset
 
 @ifset M680X0
 @include c-m68k.texi
+@end ifset
+
+@ifset M68HC11
+@include c-m68hc11.texi
 @end ifset
 
 @ifset MIPS
@@ -5130,6 +5399,10 @@ family.
 
 @ifset SPARC
 @include c-sparc.texi
+@end ifset
+
+@ifset TIC54X
+@include c-tic54x.texi
 @end ifset
 
 @ifset Z8000
@@ -5212,7 +5485,7 @@ individuals in the file @file{etc/SERVICE} in the @sc{gnu} Emacs
 distribution.
 
 In any event, we also recommend that you send bug reports for @code{@value{AS}}
-to @samp{bug-gnu-utils@@gnu.org}.
+to @samp{bug-binutils@@gnu.org}.
 
 The fundamental principle of reporting bugs usefully is this:
 @strong{report all the facts}.  If you are not sure whether to state a
@@ -5435,6 +5708,9 @@ Linas Vepstas added GAS support for the ESA/390 "IBM 370" architecture.
 Richard Henderson rewrote the Alpha assembler. Klaus Kaempf wrote GAS and BFD
 support for openVMS/Alpha.
 
+Timothy Wall, Michael Hayes, and Greg Smart contributed to the various tic*
+flavors.
+
 Several engineers at Cygnus Support have also provided many small bug fixes and
 configuration enhancements.
 
@@ -5442,6 +5718,369 @@ Many others have contributed large or small bugfixes and enhancements.  If
 you have contributed significant work and are not mentioned on this list, and
 want to be, let us know.  Some of the history has been lost; we are not
 intentionally leaving anyone out.
+
+@node GNU Free Documentation License
+@chapter GNU Free Documentation License
+
+                GNU Free Documentation License
+                
+                   Version 1.1, March 2000
+
+ Copyright (C) 2000  Free Software Foundation, Inc.
+  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+     
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+
+0. PREAMBLE
+
+The purpose of this License is to make a manual, textbook, or other
+written document "free" in the sense of freedom: to assure everyone
+the effective freedom to copy and redistribute it, with or without
+modifying it, either commercially or noncommercially.  Secondarily,
+this License preserves for the author and publisher a way to get
+credit for their work, while not being considered responsible for
+modifications made by others.
+
+This License is a kind of "copyleft", which means that derivative
+works of the document must themselves be free in the same sense.  It
+complements the GNU General Public License, which is a copyleft
+license designed for free software.
+
+We have designed this License in order to use it for manuals for free
+software, because free software needs free documentation: a free
+program should come with manuals providing the same freedoms that the
+software does.  But this License is not limited to software manuals;
+it can be used for any textual work, regardless of subject matter or
+whether it is published as a printed book.  We recommend this License
+principally for works whose purpose is instruction or reference.
+
+
+1. APPLICABILITY AND DEFINITIONS
+
+This License applies to any manual or other work that contains a
+notice placed by the copyright holder saying it can be distributed
+under the terms of this License.  The "Document", below, refers to any
+such manual or work.  Any member of the public is a licensee, and is
+addressed as "you".
+
+A "Modified Version" of the Document means any work containing the
+Document or a portion of it, either copied verbatim, or with
+modifications and/or translated into another language.
+
+A "Secondary Section" is a named appendix or a front-matter section of
+the Document that deals exclusively with the relationship of the
+publishers or authors of the Document to the Document's overall subject
+(or to related matters) and contains nothing that could fall directly
+within that overall subject.  (For example, if the Document is in part a
+textbook of mathematics, a Secondary Section may not explain any
+mathematics.)  The relationship could be a matter of historical
+connection with the subject or with related matters, or of legal,
+commercial, philosophical, ethical or political position regarding
+them.
+
+The "Invariant Sections" are certain Secondary Sections whose titles
+are designated, as being those of Invariant Sections, in the notice
+that says that the Document is released under this License.
+
+The "Cover Texts" are certain short passages of text that are listed,
+as Front-Cover Texts or Back-Cover Texts, in the notice that says that
+the Document is released under this License.
+
+A "Transparent" copy of the Document means a machine-readable copy,
+represented in a format whose specification is available to the
+general public, whose contents can be viewed and edited directly and
+straightforwardly with generic text editors or (for images composed of
+pixels) generic paint programs or (for drawings) some widely available
+drawing editor, and that is suitable for input to text formatters or
+for automatic translation to a variety of formats suitable for input
+to text formatters.  A copy made in an otherwise Transparent file
+format whose markup has been designed to thwart or discourage
+subsequent modification by readers is not Transparent.  A copy that is
+not "Transparent" is called "Opaque".
+
+Examples of suitable formats for Transparent copies include plain
+ASCII without markup, Texinfo input format, LaTeX input format, SGML
+or XML using a publicly available DTD, and standard-conforming simple
+HTML designed for human modification.  Opaque formats include
+PostScript, PDF, proprietary formats that can be read and edited only
+by proprietary word processors, SGML or XML for which the DTD and/or
+processing tools are not generally available, and the
+machine-generated HTML produced by some word processors for output
+purposes only.
+
+The "Title Page" means, for a printed book, the title page itself,
+plus such following pages as are needed to hold, legibly, the material
+this License requires to appear in the title page.  For works in
+formats which do not have any title page as such, "Title Page" means
+the text near the most prominent appearance of the work's title,
+preceding the beginning of the body of the text.
+
+
+2. VERBATIM COPYING
+
+You may copy and distribute the Document in any medium, either
+commercially or noncommercially, provided that this License, the
+copyright notices, and the license notice saying this License applies
+to the Document are reproduced in all copies, and that you add no other
+conditions whatsoever to those of this License.  You may not use
+technical measures to obstruct or control the reading or further
+copying of the copies you make or distribute.  However, you may accept
+compensation in exchange for copies.  If you distribute a large enough
+number of copies you must also follow the conditions in section 3.
+
+You may also lend copies, under the same conditions stated above, and
+you may publicly display copies.
+
+
+3. COPYING IN QUANTITY
+
+If you publish printed copies of the Document numbering more than 100,
+and the Document's license notice requires Cover Texts, you must enclose
+the copies in covers that carry, clearly and legibly, all these Cover
+Texts: Front-Cover Texts on the front cover, and Back-Cover Texts on
+the back cover.  Both covers must also clearly and legibly identify
+you as the publisher of these copies.  The front cover must present
+the full title with all words of the title equally prominent and
+visible.  You may add other material on the covers in addition.
+Copying with changes limited to the covers, as long as they preserve
+the title of the Document and satisfy these conditions, can be treated
+as verbatim copying in other respects.
+
+If the required texts for either cover are too voluminous to fit
+legibly, you should put the first ones listed (as many as fit
+reasonably) on the actual cover, and continue the rest onto adjacent
+pages.
+
+If you publish or distribute Opaque copies of the Document numbering
+more than 100, you must either include a machine-readable Transparent
+copy along with each Opaque copy, or state in or with each Opaque copy
+a publicly-accessible computer-network location containing a complete
+Transparent copy of the Document, free of added material, which the
+general network-using public has access to download anonymously at no
+charge using public-standard network protocols.  If you use the latter
+option, you must take reasonably prudent steps, when you begin
+distribution of Opaque copies in quantity, to ensure that this
+Transparent copy will remain thus accessible at the stated location
+until at least one year after the last time you distribute an Opaque
+copy (directly or through your agents or retailers) of that edition to
+the public.
+
+It is requested, but not required, that you contact the authors of the
+Document well before redistributing any large number of copies, to give
+them a chance to provide you with an updated version of the Document.
+
+
+4. MODIFICATIONS
+
+You may copy and distribute a Modified Version of the Document under
+the conditions of sections 2 and 3 above, provided that you release
+the Modified Version under precisely this License, with the Modified
+Version filling the role of the Document, thus licensing distribution
+and modification of the Modified Version to whoever possesses a copy
+of it.  In addition, you must do these things in the Modified Version:
+
+A. Use in the Title Page (and on the covers, if any) a title distinct
+   from that of the Document, and from those of previous versions
+   (which should, if there were any, be listed in the History section
+   of the Document).  You may use the same title as a previous version
+   if the original publisher of that version gives permission.
+B. List on the Title Page, as authors, one or more persons or entities
+   responsible for authorship of the modifications in the Modified
+   Version, together with at least five of the principal authors of the
+   Document (all of its principal authors, if it has less than five).
+C. State on the Title page the name of the publisher of the
+   Modified Version, as the publisher.
+D. Preserve all the copyright notices of the Document.
+E. Add an appropriate copyright notice for your modifications
+   adjacent to the other copyright notices.
+F. Include, immediately after the copyright notices, a license notice
+   giving the public permission to use the Modified Version under the
+   terms of this License, in the form shown in the Addendum below.
+G. Preserve in that license notice the full lists of Invariant Sections
+   and required Cover Texts given in the Document's license notice.
+H. Include an unaltered copy of this License.
+I. Preserve the section entitled "History", and its title, and add to
+   it an item stating at least the title, year, new authors, and
+   publisher of the Modified Version as given on the Title Page.  If
+   there is no section entitled "History" in the Document, create one
+   stating the title, year, authors, and publisher of the Document as
+   given on its Title Page, then add an item describing the Modified
+   Version as stated in the previous sentence.
+J. Preserve the network location, if any, given in the Document for
+   public access to a Transparent copy of the Document, and likewise
+   the network locations given in the Document for previous versions
+   it was based on.  These may be placed in the "History" section.
+   You may omit a network location for a work that was published at
+   least four years before the Document itself, or if the original
+   publisher of the version it refers to gives permission.
+K. In any section entitled "Acknowledgements" or "Dedications",
+   preserve the section's title, and preserve in the section all the
+   substance and tone of each of the contributor acknowledgements
+   and/or dedications given therein.
+L. Preserve all the Invariant Sections of the Document,
+   unaltered in their text and in their titles.  Section numbers
+   or the equivalent are not considered part of the section titles.
+M. Delete any section entitled "Endorsements".  Such a section
+   may not be included in the Modified Version.
+N. Do not retitle any existing section as "Endorsements"
+   or to conflict in title with any Invariant Section.
+
+If the Modified Version includes new front-matter sections or
+appendices that qualify as Secondary Sections and contain no material
+copied from the Document, you may at your option designate some or all
+of these sections as invariant.  To do this, add their titles to the
+list of Invariant Sections in the Modified Version's license notice.
+These titles must be distinct from any other section titles.
+
+You may add a section entitled "Endorsements", provided it contains
+nothing but endorsements of your Modified Version by various
+parties--for example, statements of peer review or that the text has
+been approved by an organization as the authoritative definition of a
+standard.
+
+You may add a passage of up to five words as a Front-Cover Text, and a
+passage of up to 25 words as a Back-Cover Text, to the end of the list
+of Cover Texts in the Modified Version.  Only one passage of
+Front-Cover Text and one of Back-Cover Text may be added by (or
+through arrangements made by) any one entity.  If the Document already
+includes a cover text for the same cover, previously added by you or
+by arrangement made by the same entity you are acting on behalf of,
+you may not add another; but you may replace the old one, on explicit
+permission from the previous publisher that added the old one.
+
+The author(s) and publisher(s) of the Document do not by this License
+give permission to use their names for publicity for or to assert or
+imply endorsement of any Modified Version.
+
+
+5. COMBINING DOCUMENTS
+
+You may combine the Document with other documents released under this
+License, under the terms defined in section 4 above for modified
+versions, provided that you include in the combination all of the
+Invariant Sections of all of the original documents, unmodified, and
+list them all as Invariant Sections of your combined work in its
+license notice.
+
+The combined work need only contain one copy of this License, and
+multiple identical Invariant Sections may be replaced with a single
+copy.  If there are multiple Invariant Sections with the same name but
+different contents, make the title of each such section unique by
+adding at the end of it, in parentheses, the name of the original
+author or publisher of that section if known, or else a unique number.
+Make the same adjustment to the section titles in the list of
+Invariant Sections in the license notice of the combined work.
+
+In the combination, you must combine any sections entitled "History"
+in the various original documents, forming one section entitled
+"History"; likewise combine any sections entitled "Acknowledgements",
+and any sections entitled "Dedications".  You must delete all sections
+entitled "Endorsements."
+
+
+6. COLLECTIONS OF DOCUMENTS
+
+You may make a collection consisting of the Document and other documents
+released under this License, and replace the individual copies of this
+License in the various documents with a single copy that is included in
+the collection, provided that you follow the rules of this License for
+verbatim copying of each of the documents in all other respects.
+
+You may extract a single document from such a collection, and distribute
+it individually under this License, provided you insert a copy of this
+License into the extracted document, and follow this License in all
+other respects regarding verbatim copying of that document.
+
+
+7. AGGREGATION WITH INDEPENDENT WORKS
+
+A compilation of the Document or its derivatives with other separate
+and independent documents or works, in or on a volume of a storage or
+distribution medium, does not as a whole count as a Modified Version
+of the Document, provided no compilation copyright is claimed for the
+compilation.  Such a compilation is called an "aggregate", and this
+License does not apply to the other self-contained works thus compiled
+with the Document, on account of their being thus compiled, if they
+are not themselves derivative works of the Document.
+
+If the Cover Text requirement of section 3 is applicable to these
+copies of the Document, then if the Document is less than one quarter
+of the entire aggregate, the Document's Cover Texts may be placed on
+covers that surround only the Document within the aggregate.
+Otherwise they must appear on covers around the whole aggregate.
+
+
+8. TRANSLATION
+
+Translation is considered a kind of modification, so you may
+distribute translations of the Document under the terms of section 4.
+Replacing Invariant Sections with translations requires special
+permission from their copyright holders, but you may include
+translations of some or all Invariant Sections in addition to the
+original versions of these Invariant Sections.  You may include a
+translation of this License provided that you also include the
+original English version of this License.  In case of a disagreement
+between the translation and the original English version of this
+License, the original English version will prevail.
+
+
+9. TERMINATION
+
+You may not copy, modify, sublicense, or distribute the Document except
+as expressly provided for under this License.  Any other attempt to
+copy, modify, sublicense or distribute the Document is void, and will
+automatically terminate your rights under this License.  However,
+parties who have received copies, or rights, from you under this
+License will not have their licenses terminated so long as such
+parties remain in full compliance.
+
+
+10. FUTURE REVISIONS OF THIS LICENSE
+
+The Free Software Foundation may publish new, revised versions
+of the GNU Free Documentation License from time to time.  Such new
+versions will be similar in spirit to the present version, but may
+differ in detail to address new problems or concerns.  See
+http://www.gnu.org/copyleft/.
+
+Each version of the License is given a distinguishing version number.
+If the Document specifies that a particular numbered version of this
+License "or any later version" applies to it, you have the option of
+following the terms and conditions either of that specified version or
+of any later version that has been published (not as a draft) by the
+Free Software Foundation.  If the Document does not specify a version
+number of this License, you may choose any version ever published (not
+as a draft) by the Free Software Foundation.
+
+
+ADDENDUM: How to use this License for your documents
+
+To use this License in a document you have written, include a copy of
+the License in the document and put the following copyright and
+license notices just after the title page:
+
+@smallexample
+    Copyright (c)  YEAR  YOUR NAME.
+    Permission is granted to copy, distribute and/or modify this document
+    under the terms of the GNU Free Documentation License, Version 1.1
+    or any later version published by the Free Software Foundation;
+    with the Invariant Sections being LIST THEIR TITLES, with the
+    Front-Cover Texts being LIST, and with the Back-Cover Texts being LIST.
+    A copy of the license is included in the section entitled "GNU
+    Free Documentation License".
+@end smallexample
+
+If you have no Invariant Sections, write "with no Invariant Sections"
+instead of saying which ones are invariant.  If you have no
+Front-Cover Texts, write "no Front-Cover Texts" instead of
+"Front-Cover Texts being LIST"; likewise for Back-Cover Texts.
+
+If your document contains nontrivial examples of program code, we
+recommend releasing these examples in parallel under your choice of
+free software license, such as the GNU General Public License,
+to permit their use in free software.
 
 @node Index
 @unnumbered Index

@@ -1,5 +1,5 @@
 /* objcopy.c -- copy object file from input to output, optionally massaging it.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -215,6 +215,8 @@ static boolean weaken = false;
 #define OPTION_STRIP_UNNEEDED (OPTION_SET_START + 1)
 #define OPTION_WEAKEN (OPTION_STRIP_UNNEEDED + 1)
 #define OPTION_REDEFINE_SYM (OPTION_WEAKEN + 1)
+#define OPTION_SREC_LEN (OPTION_REDEFINE_SYM + 1)
+#define OPTION_SREC_FORCES3 (OPTION_SREC_LEN + 1)
 
 /* Options to handle if running as "strip".  */
 
@@ -290,6 +292,8 @@ static struct option copy_options[] =
   {"weaken", no_argument, 0, OPTION_WEAKEN},
   {"weaken-symbol", required_argument, 0, 'W'},
   {"redefine-sym", required_argument, 0, OPTION_REDEFINE_SYM},
+  {"srec-len", required_argument, 0, OPTION_SREC_LEN},
+  {"srec-forceS3", no_argument, 0, OPTION_SREC_FORCES3},
   {0, no_argument, 0, 0}
 };
 
@@ -301,6 +305,14 @@ extern char *program_name;
    -1 means if we should use argv[0] to decide. */
 extern int is_strip;
 
+/* The maximum length of an S record.  This variable is declared in srec.c
+   and can be modified by the --srec-len parameter.  */
+extern unsigned int Chunk;
+
+/* Restrict the generation of Srecords to type S3 only.
+   This variable is declare in bfd/srec.c and can be toggled
+   on by the --srec-forceS3 command line switch.  */
+extern boolean S3Forced;
 
 static void
 copy_usage (stream, exit_status)
@@ -350,6 +362,8 @@ copy_usage (stream, exit_status)
      --change-leading-char         Force output format's leading character style\n\
      --remove-leading-char         Remove leading character from global symbols\n\
      --redefine-sym <old>=<new>    Redefine symbol name <old> to <new>\n\
+     --srec-len <number>           Restrict the length of generated Srecords\n\
+     --srec-forceS3                Restrict the type of generated Srecords to S3\n\
   -v --verbose                     List all object files modified\n\
   -V --version                     Display this program's version number\n\
   -h --help                        Display this output\n\
@@ -557,6 +571,8 @@ filter_symbols (abfd, obfd, osyms, isyms, symcount)
 {
   register asymbol **from = isyms, **to = osyms;
   long src_count = 0, dst_count = 0;
+  int relocatable = (abfd->flags & (HAS_RELOC | EXEC_P | DYNAMIC))
+		    == HAS_RELOC;
 
   for (; src_count < symcount; src_count++)
     {
@@ -610,6 +626,9 @@ filter_symbols (abfd, obfd, osyms, isyms, symcount)
 	       || ((flags & BSF_SECTION_SYM) != 0
 		   && ((*bfd_get_section (sym)->symbol_ptr_ptr)->flags
 		       & BSF_KEEP) != 0))
+	keep = 1;
+      else if (relocatable			/* Relocatable file. */
+	       && (flags & (BSF_GLOBAL | BSF_WEAK)) != 0)
 	keep = 1;
       else if ((flags & BSF_GLOBAL) != 0	/* Global symbol.  */
 	       || (flags & BSF_WEAK) != 0
@@ -746,6 +765,13 @@ copy_object (ibfd, obfd)
   long symsize;
   PTR dhandle;
 
+  if (ibfd->xvec->byteorder != obfd->xvec->byteorder
+      && ibfd->xvec->byteorder != BFD_ENDIAN_UNKNOWN
+      && obfd->xvec->byteorder != BFD_ENDIAN_UNKNOWN)
+    {
+      fatal (_("Unable to change endianness of input file(s)"));
+      return;
+    }
 
   if (!bfd_set_format (obfd, bfd_get_format (ibfd)))
     RETURN_NONFATAL (bfd_get_filename (obfd));
@@ -1246,7 +1272,7 @@ setup_section (ibfd, isection, obfdarg)
   bfd_vma vma;
   bfd_vma lma;
   flagword flags;
-  char *err;
+  const char *err;
 
   if ((bfd_get_section_flags (ibfd, isection) & SEC_DEBUGGING) != 0
       && (strip_symbols == STRIP_DEBUG
@@ -1269,7 +1295,7 @@ setup_section (ibfd, isection, obfdarg)
 
   if (osection == NULL)
     {
-      err = "making";
+      err = _("making");
       goto loser;
     }
 
@@ -1278,7 +1304,7 @@ setup_section (ibfd, isection, obfdarg)
     size = (size + interleave - 1) / interleave;
   if (! bfd_set_section_size (obfd, osection, size))
     {
-      err = "size";
+      err = _("size");
       goto loser;
     }
 
@@ -1292,7 +1318,7 @@ setup_section (ibfd, isection, obfdarg)
 
   if (! bfd_set_section_vma (obfd, osection, vma))
     {
-      err = "vma";
+      err = _("vma");
       goto loser;
     }
 
@@ -1318,7 +1344,7 @@ setup_section (ibfd, isection, obfdarg)
 				 bfd_section_alignment (ibfd, isection))
       == false)
     {
-      err = "alignment";
+      err = _("alignment");
       goto loser;
     }
 
@@ -1327,7 +1353,7 @@ setup_section (ibfd, isection, obfdarg)
     flags = p->flags | (flags & SEC_HAS_CONTENTS);
   if (!bfd_set_section_flags (obfd, osection, flags))
     {
-      err = "flags";
+      err = _("flags");
       goto loser;
     }
 
@@ -1341,7 +1367,7 @@ setup_section (ibfd, isection, obfdarg)
      from the input section to the output section.  */
   if (!bfd_copy_private_section_data (ibfd, isection, obfd, osection))
     {
-      err = "private data";
+      err = _("private data");
       goto loser;
     }
 
@@ -1687,7 +1713,7 @@ strip_main (argc, argv)
 	  break;
 	case 'S':
 	case 'g':
-	case 'd':	/* NetBSD, historic BSD strip */
+	case 'd':	/* Historic BSD alias for -g.  Used by early NetBSD.  */
 	  strip_symbols = STRIP_DEBUG;
 	  break;
 	case OPTION_STRIP_UNNEEDED:
@@ -2123,6 +2149,14 @@ copy_main (argc, argv)
 	  set_start = parse_vma (optarg, "--set-start");
 	  set_start_set = true;
 	  break;
+
+        case OPTION_SREC_LEN:
+          Chunk = parse_vma (optarg, "--srec-len");
+          break;
+
+        case OPTION_SREC_FORCES3:
+	  S3Forced = true;
+          break;
 
 	case 0:
 	  break;		/* we've been given a long option */

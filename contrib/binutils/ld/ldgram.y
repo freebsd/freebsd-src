@@ -33,8 +33,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "ldexp.h"
 #include "ldver.h"
 #include "ldlang.h"
-#include "ldemul.h"
 #include "ldfile.h"
+#include "ldemul.h"
 #include "ldmisc.h"
 #include "ldmain.h"
 #include "mri.h"
@@ -619,7 +619,9 @@ memory_spec: 		NAME
 		attributes_opt ':'
 		origin_spec opt_comma length_spec
 
-	; origin_spec:
+	;
+
+origin_spec:
 	ORIGIN '=' mustbe_exp
 		{ region->current =
 		 region->origin =
@@ -1113,6 +1115,7 @@ vers_defns:
 			}
 		vers_defns '}'
 			{
+			  $$ = $5;
 			  ldgram_vers_current_lang = $<name>4;
 			}
 	;

@@ -108,7 +108,7 @@ struct stab_section_info
      as the input offsets, because no stabs have been deleted from
      this section.  Otherwise the i'th entry is the number of
      bytes of stabs that have been deleted prior to the i'th
-     stab. */
+     stab.  */
   bfd_size_type *cumulative_skips;
 
   /* This is an array of string indices.  For each stab symbol, we
@@ -464,7 +464,7 @@ _bfd_link_section_stabs (abfd, psinfo, stabsec, stabstrsec, psecinfo)
   sinfo->stabstr->_cooked_size = _bfd_stringtab_size (sinfo->strings);
 
   /* Calculate the `cumulative_skips' array now that stabs have been
-     deleted for this section. */
+     deleted for this section.  */
 
   if (skip != 0)
     {

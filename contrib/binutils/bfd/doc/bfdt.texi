@@ -10,10 +10,10 @@ to the rest of the data.
 
 @example
 
-struct _bfd 
+struct _bfd
 @{
     /* The filename the application opened the BFD with.  */
-    CONST char *filename;                
+    CONST char *filename;
 
     /* A pointer to the target jump table.             */
     const struct bfd_target *xvec;
@@ -46,7 +46,7 @@ struct _bfd
     /* When a file is closed by the caching routines, BFD retains
        state information on the file here: */
 
-    file_ptr where;              
+    file_ptr where;
 
     /* and here: (``once'' means at least once) */
 
@@ -59,7 +59,7 @@ struct _bfd
 
     /* File modified time, if mtime_set is true: */
 
-    long mtime;          
+    long mtime;
 
     /* Reserved for an unimplemented file locking extension.*/
 
@@ -78,13 +78,13 @@ struct _bfd
 
     /* Format_specific flags*/
 
-    flagword flags;              
+    flagword flags;
 
     /* Currently my_archive is tested before adding origin to
        anything. I believe that this can become always an add of
        origin, with origin set to 0 for non archive files.   */
 
-    file_ptr origin;             
+    file_ptr origin;
 
     /* Remember when output has begun, to stop strange things
        from happening. */
@@ -96,7 +96,7 @@ struct _bfd
     /* The number of sections */
     unsigned int section_count;
 
-    /* Stuff only useful for object files: 
+    /* Stuff only useful for object files:
        The start address. */
     bfd_vma start_address;
 
@@ -104,17 +104,17 @@ struct _bfd
     unsigned int symcount;
 
     /* Symbol table for output BFD (with symcount entries) */
-    struct symbol_cache_entry  **outsymbols;             
+    struct symbol_cache_entry  **outsymbols;
 
     /* Pointer to structure which contains architecture information*/
     const struct bfd_arch_info *arch_info;
 
     /* Stuff only useful for archives:*/
-    PTR arelt_data;              
+    PTR arelt_data;
     struct _bfd *my_archive;     /* The containing archive BFD.  */
     struct _bfd *next;           /* The next BFD in the archive.  */
     struct _bfd *archive_head;   /* The first BFD in the archive.  */
-    boolean has_armap;           
+    boolean has_armap;
 
     /* A chain of BFD structures involved in a link.  */
     struct _bfd *link_next;
@@ -125,7 +125,7 @@ struct _bfd
 
     /* Used by the back end to hold private data. */
 
-    union 
+    union
       @{
       struct aout_data_struct *aout_data;
       struct artdata *aout_ar_data;
@@ -157,7 +157,7 @@ struct _bfd
       struct netbsd_core_struct *netbsd_core_data;
       PTR any;
       @} tdata;
-  
+
     /* Used by the application to hold private data*/
     PTR usrdata;
 
@@ -366,6 +366,39 @@ type of file.  E.g., an attempt was made to set the @code{D_PAGED} bit
 on a BFD format which does not support demand paging.
 @end itemize
 
+@findex bfd_get_arch_size
+@subsubsection @code{bfd_get_arch_size}
+@strong{Synopsis}
+@example
+int bfd_get_arch_size (bfd *abfd);
+@end example
+@strong{Description}@*
+Returns the architecture address size, in bits, as determined
+by the object file's format.  For ELF, this information is
+included in the header.
+
+@strong{Returns}@*
+Returns the arch size in bits if known, @code{-1} otherwise.
+
+@findex bfd_get_sign_extend_vma
+@subsubsection @code{bfd_get_sign_extend_vma}
+@strong{Synopsis}
+@example
+int bfd_get_sign_extend_vma (bfd *abfd);
+@end example
+@strong{Description}@*
+Indicates if the target architecture "naturally" sign extends
+an address.  Some architectures implicitly sign extend address
+values when they are converted to types larger than the size
+of an address.  For instance, bfd_get_start_address() will
+return an address sign extended to fill a bfd_vma when this is
+the case.
+
+@strong{Returns}@*
+Returns @code{1} if the target architecture is known to sign
+extend addresses, @code{0} if the target architecture is known to
+not sign extend addresses, and @code{-1} otherwise.
+
 @findex bfd_set_start_address
 @subsubsection @code{bfd_set_start_address}
 @strong{Synopsis}
@@ -407,7 +440,7 @@ it so that such results were guaranteed.
 Instead, we want to ask questions like "is this NNN byte sized
 object I'm about to try read from file offset YYY reasonable?"
 As as example of where we might do this, some object formats
-use string tables for which the first @code{sizeof(long)} bytes of the
+use string tables for which the first @code{sizeof (long)} bytes of the
 table contain the size of the table itself, including the size bytes.
 If an application tries to read what it thinks is one of these
 string tables, without some way to validate the size, and for
@@ -466,7 +499,7 @@ Overflow is not detected.
 boolean bfd_copy_private_bfd_data(bfd *ibfd, bfd *obfd);
 @end example
 @strong{Description}@*
-Copy private BFD information from the BFD @var{ibfd} to the 
+Copy private BFD information from the BFD @var{ibfd} to the
 the BFD @var{obfd}.  Return @code{true} on success, @code{false} on error.
 Possible error returns are:
 
@@ -489,7 +522,7 @@ Not enough memory exists to create private data for @var{obfd}.
 boolean bfd_merge_private_bfd_data(bfd *ibfd, bfd *obfd);
 @end example
 @strong{Description}@*
-Merge private BFD information from the BFD @var{ibfd} to the 
+Merge private BFD information from the BFD @var{ibfd} to the
 the output file BFD @var{obfd} when linking.  Return @code{true}
 on success, @code{false} on error.  Possible error returns are:
 
@@ -539,7 +572,7 @@ Stuff which should be documented:
 #define bfd_find_nearest_line(abfd, sec, syms, off, file, func, line) \
      BFD_SEND (abfd, _bfd_find_nearest_line,  (abfd, sec, syms, off, file, func, line))
 
-        /* Do these three do anything useful at all, for any back end?  */
+       /* Do these three do anything useful at all, for any back end?  */
 #define bfd_debug_info_start(abfd) \
         BFD_SEND (abfd, _bfd_debug_info_start, (abfd))
 

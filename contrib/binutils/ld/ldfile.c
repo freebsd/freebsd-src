@@ -19,12 +19,7 @@ along with GLD; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-/*
- ldfile.c
-
- look after all the file stuff
-
- */
+/* ldfile.c:  look after all the file stuff.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -59,7 +54,7 @@ char *slash = "/";
 #endif
 #endif
 #else /* MPW */
-/* The MPW path char is a colon. */
+/* The MPW path char is a colon.  */
 char *slash = ":";
 #endif /* MPW */
 
@@ -67,15 +62,14 @@ char *slash = ":";
 
 static search_dirs_type **search_tail_ptr = &search_head;
 
-typedef struct search_arch 
-{
-  char *name; 
+typedef struct search_arch {
+  char *name;
   struct search_arch *next;
 } search_arch_type;
 
 static search_arch_type *search_arch_head;
 static search_arch_type **search_arch_tail_ptr = &search_arch_head;
- 
+
 static FILE *try_open PARAMS ((const char *name, const char *exten));
 
 void
@@ -137,7 +131,7 @@ ldfile_try_open_bfd (attempt, entry)
 	    return true;
 	  if (bfd_arch_get_compatible (check, output_bfd) == NULL)
 	    {
-	      einfo (_("%P: skipping incompatible %s when searching for %s"),
+	      einfo (_("%P: skipping incompatible %s when searching for %s\n"),
 		     attempt, entry->local_sym_name);
 	      bfd_close (entry->the_bfd);
 	      entry->the_bfd = NULL;
@@ -170,8 +164,8 @@ ldfile_open_file_search (arch, entry, lib, suffix)
     }
 
   for (search = search_head;
-       search != (search_dirs_type *)NULL;
-       search = search->next) 
+       search != (search_dirs_type *) NULL;
+       search = search->next)
     {
       char *string;
 
@@ -194,8 +188,8 @@ ldfile_open_file_search (arch, entry, lib, suffix)
 		 lib, entry->filename, arch, suffix);
       else if (entry->filename[0] == '/' || entry->filename[0] == '.'
 #if defined (__MSDOS__) || defined (_WIN32)
-	       || entry->filename[0] == '\\' 
-	       || (isalpha (entry->filename[0]) 
+	       || entry->filename[0] == '\\'
+	       || (isalpha (entry->filename[0])
 	           && entry->filename[1] == ':')
 #endif
 	  )
@@ -232,7 +226,7 @@ ldfile_open_file (entry)
 	einfo (_("%F%P: cannot open %s for %s: %E\n"),
 	       entry->filename, entry->local_sym_name);
       else
-	einfo(_("%F%P: cannot open %s: %E\n"), entry->local_sym_name);
+	einfo (_("%F%P: cannot open %s: %E\n"), entry->local_sym_name);
     }
   else
     {
@@ -252,6 +246,7 @@ ldfile_open_file (entry)
 	  if (ldemul_find_potential_libraries (arch->name, entry))
 	    return;
 	}
+
       einfo (_("%F%P: cannot find %s\n"), entry->local_sym_name);
     }
 }
@@ -267,6 +262,7 @@ try_open (name, exten)
   char buff[1000];
 
   result = fopen (name, "r");
+
   if (trace_file_tries)
     {
       if (result == NULL)
@@ -282,6 +278,7 @@ try_open (name, exten)
     {
       sprintf (buff, "%s%s", name, exten);
       result = fopen (buff, "r");
+
       if (trace_file_tries)
 	{
 	  if (result == NULL)
@@ -306,18 +303,23 @@ ldfile_find_command_file (name, extend)
   FILE *result;
   char buffer[1000];
 
-  /* First try raw name */
-  result = try_open(name,"");
-  if (result == (FILE *)NULL) {
-    /* Try now prefixes */
-    for (search = search_head;
-	 search != (search_dirs_type *)NULL;
-	 search = search->next) {
-      sprintf(buffer,"%s%s%s", search->name, slash, name);
-      result = try_open(buffer, extend);
-      if (result)break;
+  /* First try raw name.  */
+  result = try_open (name, "");
+  if (result == (FILE *) NULL)
+    {
+      /* Try now prefixes.  */
+      for (search = search_head;
+	   search != (search_dirs_type *) NULL;
+	   search = search->next)
+	{
+	  sprintf (buffer, "%s%s%s", search->name, slash, name);
+
+	  result = try_open (buffer, extend);
+	  if (result)
+	    break;
+	}
     }
-  }
+
   return result;
 }
 
@@ -326,31 +328,29 @@ ldfile_open_command_file (name)
      const char *name;
 {
   FILE *ldlex_input_stack;
-  ldlex_input_stack = ldfile_find_command_file(name, "");
+  ldlex_input_stack = ldfile_find_command_file (name, "");
 
-  if (ldlex_input_stack == (FILE *)NULL) {
-    bfd_set_error (bfd_error_system_call);
-    einfo(_("%P%F: cannot open linker script file %s: %E\n"),name);
-  }
-  lex_push_file(ldlex_input_stack, name);
-  
+  if (ldlex_input_stack == (FILE *) NULL)
+    {
+      bfd_set_error (bfd_error_system_call);
+      einfo (_("%P%F: cannot open linker script file %s: %E\n"), name);
+    }
+
+  lex_push_file (ldlex_input_stack, name);
+
   ldfile_input_filename = name;
   lineno = 1;
   had_script = true;
 }
 
-
-
-
-
 #ifdef GNU960
-static
-char *
-gnu960_map_archname( name )
-char *name;
+static char *
+gnu960_map_archname (name)
+     char *name;
 {
   struct tabentry { char *cmd_switch; char *arch; };
-  static struct tabentry arch_tab[] = {
+  static struct tabentry arch_tab[] =
+  {
 	"",   "",
 	"KA", "ka",
 	"KB", "kb",
@@ -362,60 +362,57 @@ char *name;
 	NULL, ""
   };
   struct tabentry *tp;
-  
 
-  for ( tp = arch_tab; tp->cmd_switch != NULL; tp++ ){
-    if ( !strcmp(name,tp->cmd_switch) ){
-      break;
+  for (tp = arch_tab; tp->cmd_switch != NULL; tp++)
+    {
+      if (! strcmp (name,tp->cmd_switch))
+	break;
     }
-  }
 
-  if ( tp->cmd_switch == NULL ){
-    einfo(_("%P%F: unknown architecture: %s\n"),name);
-  }
+  if (tp->cmd_switch == NULL)
+    einfo (_("%P%F: unknown architecture: %s\n"), name);
+
   return tp->arch;
 }
 
-
-
 void
-ldfile_add_arch(name)
-char *name;
+ldfile_add_arch (name)
+     char *name;
 {
   search_arch_type *new =
-    (search_arch_type *)xmalloc((bfd_size_type)(sizeof(search_arch_type)));
+    (search_arch_type *) xmalloc ((bfd_size_type) (sizeof (search_arch_type)));
 
+  if (*name != '\0')
+    {
+      if (ldfile_output_machine_name[0] != '\0')
+	{
+	  einfo (_("%P%F: target architecture respecified\n"));
+	  return;
+	}
 
-  if (*name != '\0') {
-    if (ldfile_output_machine_name[0] != '\0') {
-      einfo(_("%P%F: target architecture respecified\n"));
-      return;
+      ldfile_output_machine_name = name;
     }
-    ldfile_output_machine_name = name;
-  }
 
-  new->next = (search_arch_type*)NULL;
-  new->name = gnu960_map_archname( name );
+  new->next = (search_arch_type *) NULL;
+  new->name = gnu960_map_archname (name);
   *search_arch_tail_ptr = new;
   search_arch_tail_ptr = &new->next;
-
 }
 
-#else	/* not GNU960 */
-
+#else /* not GNU960 */
 
 void
 ldfile_add_arch (in_name)
-     CONST char * in_name;
+     CONST char *in_name;
 {
-  char *name = buystring(in_name);
+  char *name = buystring (in_name);
   search_arch_type *new =
     (search_arch_type *) xmalloc (sizeof (search_arch_type));
 
   ldfile_output_machine_name = in_name;
 
   new->name = name;
-  new->next = (search_arch_type*)NULL;
+  new->next = (search_arch_type *) NULL;
   while (*name)
     {
       if (isupper ((unsigned char) *name))
@@ -428,19 +425,22 @@ ldfile_add_arch (in_name)
 }
 #endif
 
-/* Set the output architecture */
+/* Set the output architecture.  */
+
 void
 ldfile_set_output_arch (string)
      CONST char *string;
 {
-  const bfd_arch_info_type *arch = bfd_scan_arch(string);
+  const bfd_arch_info_type *arch = bfd_scan_arch (string);
 
-  if (arch) {
-    ldfile_output_architecture = arch->arch;
-    ldfile_output_machine = arch->mach;
-    ldfile_output_machine_name = arch->printable_name;
-  }
-  else {
-    einfo(_("%P%F: cannot represent machine `%s'\n"), string);
-  }
+  if (arch)
+    {
+      ldfile_output_architecture = arch->arch;
+      ldfile_output_machine = arch->mach;
+      ldfile_output_machine_name = arch->printable_name;
+    }
+  else
+    {
+      einfo (_("%P%F: cannot represent machine `%s'\n"), string);
+    }
 }

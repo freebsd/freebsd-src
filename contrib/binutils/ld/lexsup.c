@@ -1,5 +1,5 @@
 /* Parse options for the GNU linker.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -37,6 +37,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ldfile.h"
 #include "ldver.h"
 #include "ldemul.h"
+#include "demangle.h"
 
 #ifndef PATH_SEPARATOR
 #if defined (__MSDOS__) || (defined (_WIN32) && ! defined (__CYGWIN32__))
@@ -46,7 +47,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #endif
 #endif
 
-/* Somewhere above, sys/stat.h got included . . . . */
+/* Somewhere above, sys/stat.h got included . . . .  */
 #if !defined(S_ISDIR) && defined(S_IFDIR)
 #define	S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
@@ -123,6 +124,10 @@ int parsing_defsym = 0;
 #define OPTION_NO_UNDEFINED		(OPTION_MPC860C0 + 1)
 #define OPTION_INIT                     (OPTION_NO_UNDEFINED + 1)
 #define OPTION_FINI                     (OPTION_INIT + 1)
+#define OPTION_SECTION_START		(OPTION_FINI + 1)
+#define OPTION_UNIQUE			(OPTION_SECTION_START + 1)
+#define OPTION_TARGET_HELP              (OPTION_UNIQUE + 1)
+#define OPTION_ALLOW_SHLIB_UNDEFINED	(OPTION_TARGET_HELP + 1)
 
 /* The long options.  This structure is used for both the option
    parsing and the help text.  */
@@ -138,15 +143,24 @@ struct ld_option
   /* The documentation string.  If this is NULL, this is a synonym for
      the previous option.  */
   const char *doc;
-  enum
-    {
-      /* Use one dash before long option name.  */
-      ONE_DASH,
-      /* Use two dashes before long option name.  */
-      TWO_DASHES,
-      /* Don't mention this option in --help output.  */
-      NO_HELP
-    } control;
+  enum {
+    /* Use one dash before long option name.  */
+    ONE_DASH,
+    /* Use two dashes before long option name.  */
+    TWO_DASHES,
+    /* Only accept two dashes before the long option name.
+       This is an overloading of the use of this enum, since originally it
+       was only intended to tell the --help display function how to display
+       the long option name.  This feature was added in order to resolve
+       the confusion about the -omagic command line switch.  Is it setting
+       the output file name to "magic" or is it setting the NMAGIC flag on
+       the output ?  It has been decided that it is setting the output file
+       name, and that if you want to set the NMAGIC flag you should use -N
+       or --omagic.  */
+    EXACTLY_TWO_DASHES,
+    /* Don't mention this option in --help output.  */
+    NO_HELP
+  } control;
 };
 
 static const struct ld_option ld_options[] =
@@ -196,13 +210,15 @@ static const struct ld_option ld_options[] =
       'n', NULL, N_("Do not page align data"), TWO_DASHES },
   { {"omagic", no_argument, NULL, 'N'},
       'N', NULL, N_("Do not page align data, do not make text readonly"),
-      TWO_DASHES },
+      EXACTLY_TWO_DASHES },
   { {"output", required_argument, NULL, 'o'},
-      'o', N_("FILE"), N_("Set output file name"), TWO_DASHES },
+      'o', N_("FILE"), N_("Set output file name"), EXACTLY_TWO_DASHES },
   { {NULL, required_argument, NULL, '\0'},
       'O', NULL, N_("Optimize output file"), ONE_DASH },
   { {"Qy", no_argument, NULL, OPTION_IGNORE},
       '\0', NULL, N_("Ignored for SVR4 compatibility"), ONE_DASH },
+  { {"emit-relocs", no_argument, NULL, 'q'},
+      'q', NULL, "Generate relocations in final output", TWO_DASHES },
   { {"relocateable", no_argument, NULL, 'r'},
       'r', NULL, N_("Generate relocateable output"), TWO_DASHES },
   { {NULL, no_argument, NULL, '\0'},
@@ -220,6 +236,8 @@ static const struct ld_option ld_options[] =
       'T', N_("FILE"), N_("Read linker script"), TWO_DASHES },
   { {"undefined", required_argument, NULL, 'u'},
       'u', N_("SYMBOL"), N_("Start with undefined reference to SYMBOL"), TWO_DASHES },
+  { {"unique", optional_argument, NULL, OPTION_UNIQUE},
+      '\0', N_("[=SECTION]"), N_("Don't merge input [SECTION | orphan] sections"), TWO_DASHES },
   { {"Ur", no_argument, NULL, OPTION_UR},
       '\0', NULL, N_("Build global constructor/destructor tables"), ONE_DASH },
   { {"version", no_argument, NULL, OPTION_VERSION},
@@ -234,8 +252,6 @@ static const struct ld_option ld_options[] =
       'y', N_("SYMBOL"), N_("Trace mentions of SYMBOL"), TWO_DASHES },
   { {NULL, required_argument, NULL, '\0'},
       'Y', N_("PATH"), N_("Default search path for Solaris compatibility"), ONE_DASH },
-  { {NULL, required_argument, NULL, '\0'},
-      'z', N_("KEYWORD"), N_("Ignored for Solaris compatibility"), ONE_DASH },
   { {"start-group", no_argument, NULL, '('},
       '(', NULL, N_("Start a group"), TWO_DASHES },
   { {"end-group", no_argument, NULL, ')'},
@@ -267,8 +283,8 @@ static const struct ld_option ld_options[] =
       '\0', NULL, N_("Output cross reference table"), TWO_DASHES },
   { {"defsym", required_argument, NULL, OPTION_DEFSYM},
       '\0', N_("SYMBOL=EXPRESSION"), N_("Define a symbol"), TWO_DASHES },
-  { {"demangle", no_argument, NULL, OPTION_DEMANGLE},
-      '\0', NULL, N_("Demangle symbol names"), TWO_DASHES },
+  { {"demangle", optional_argument, NULL, OPTION_DEMANGLE},
+      '\0', N_("[=STYLE]"), N_("Demangle symbol names [using STYLE]"), TWO_DASHES },
   { {"dynamic-linker", required_argument, NULL, OPTION_DYNAMIC_LINKER},
       '\0', N_("PROGRAM"), N_("Set the dynamic linker to use"), TWO_DASHES },
   { {"embedded-relocs", no_argument, NULL, OPTION_EMBEDDED_RELOCS},
@@ -295,6 +311,8 @@ static const struct ld_option ld_options[] =
       '\0', NULL, N_("Use less memory and more disk I/O"), TWO_DASHES },
   { {"no-undefined", no_argument, NULL, OPTION_NO_UNDEFINED},
      '\0', NULL, N_("Allow no undefined symbols"), TWO_DASHES },
+  { {"allow-shlib-undefined", no_argument, NULL, OPTION_ALLOW_SHLIB_UNDEFINED},
+     '\0', NULL, N_("Allow undefined symbols in shared objects"), TWO_DASHES },
   { {"no-warn-mismatch", no_argument, NULL, OPTION_NO_WARN_MISMATCH},
       '\0', NULL, N_("Don't warn about mismatched input files"), TWO_DASHES},
   { {"no-whole-archive", no_argument, NULL, OPTION_NO_WHOLE_ARCHIVE},
@@ -304,7 +322,7 @@ static const struct ld_option ld_options[] =
   { {"noinhibit_exec", no_argument, NULL, OPTION_NOINHIBIT_EXEC},
       '\0', NULL, NULL, NO_HELP },
   { {"oformat", required_argument, NULL, OPTION_OFORMAT},
-      '\0', N_("TARGET"), N_("Specify target of output file"), TWO_DASHES },
+      '\0', N_("TARGET"), N_("Specify target of output file"), EXACTLY_TWO_DASHES },
   { {"qmagic", no_argument, NULL, OPTION_IGNORE},
       '\0', NULL, N_("Ignored for Linux compatibility"), ONE_DASH },
   { {"relax", no_argument, NULL, OPTION_RELAX},
@@ -324,16 +342,20 @@ static const struct ld_option ld_options[] =
       '\0', NULL, N_("Sort common symbols by size"), TWO_DASHES },
   { {"sort_common", no_argument, NULL, OPTION_SORT_COMMON},
       '\0', NULL, NULL, NO_HELP },
-  { {"split-by-file", no_argument, NULL, OPTION_SPLIT_BY_FILE},
-      '\0', NULL, N_("Split output sections for each file"), TWO_DASHES },
-  { {"split-by-reloc", required_argument, NULL, OPTION_SPLIT_BY_RELOC},
-      '\0', N_("COUNT"), N_("Split output sections every COUNT relocs"), TWO_DASHES },
+  { {"split-by-file", optional_argument, NULL, OPTION_SPLIT_BY_FILE},
+      '\0', N_("[=SIZE]"), N_("Split output sections every SIZE octets"), TWO_DASHES },
+  { {"split-by-reloc", optional_argument, NULL, OPTION_SPLIT_BY_RELOC},
+      '\0', N_("[=COUNT]"), N_("Split output sections every COUNT relocs"), TWO_DASHES },
   { {"stats", no_argument, NULL, OPTION_STATS},
       '\0', NULL, N_("Print memory usage statistics"), TWO_DASHES },
+  { {"target-help", no_argument, NULL, OPTION_TARGET_HELP},
+      '\0', NULL, N_("Display target specific options"), TWO_DASHES },
   { {"task-link", required_argument, NULL, OPTION_TASK_LINK},
       '\0', N_("SYMBOL"), N_("Do task level linking"), TWO_DASHES },
   { {"traditional-format", no_argument, NULL, OPTION_TRADITIONAL_FORMAT},
       '\0', NULL, N_("Use same format as native linker"), TWO_DASHES },
+  { {"section-start", required_argument, NULL, OPTION_SECTION_START},
+      '\0', N_("SECTION=ADDRESS"), N_("Set address of named section"), TWO_DASHES },
   { {"Tbss", required_argument, NULL, OPTION_TBSS},
       '\0', N_("ADDRESS"), N_("Set address of .bss section"), ONE_DASH },
   { {"Tdata", required_argument, NULL, OPTION_TDATA},
@@ -370,7 +392,7 @@ static const struct ld_option ld_options[] =
       '\0', N_("[=WORDS]"), N_("Modify problematic branches in last WORDS (1-10,\n\t\t\t\tdefault 5) words of a page"), TWO_DASHES }
 };
 
-#define OPTION_COUNT ((int) (sizeof ld_options / sizeof ld_options[0]))
+#define OPTION_COUNT ARRAY_SIZE (ld_options)
 
 /* Test STRING for containing a string of digits that form a number
    between MIN and MAX.  The return value is the number or ERR.  */
@@ -401,14 +423,16 @@ is_num (string, min, max, err)
 
 void
 parse_args (argc, argv)
-     int argc;
+     unsigned argc;
      char **argv;
 {
-  int i, is, il;
+  unsigned i;
+  int is, il, irl;
   int ingroup = 0;
   char *default_dirlist = NULL;
   char shortopts[OPTION_COUNT * 3 + 2];
   struct option longopts[OPTION_COUNT + 1];
+  struct option really_longopts[OPTION_COUNT + 1];
   int last_optind;
 
   /* Starting the short option string with '-' is for programs that
@@ -418,6 +442,7 @@ parse_args (argc, argv)
   shortopts[0] = '-';
   is = 1;
   il = 0;
+  irl = 0;
   for (i = 0; i < OPTION_COUNT; i++)
     {
       if (ld_options[i].shortopt != '\0')
@@ -438,12 +463,21 @@ parse_args (argc, argv)
 	}
       if (ld_options[i].opt.name != NULL)
 	{
-	  longopts[il] = ld_options[i].opt;
-	  ++il;
+	  if (ld_options[i].control == EXACTLY_TWO_DASHES)
+	    {
+	      really_longopts[irl] = ld_options[i].opt;
+	      ++irl;
+	    }
+	  else
+	    {
+	      longopts[il] = ld_options[i].opt;
+	      ++il;
+	    }
 	}
     }
   shortopts[is] = '\0';
   longopts[il].name = NULL;
+  really_longopts[irl].name = NULL;
 
   /* The -G option is ambiguous on different platforms.  Sometimes it
      specifies the largest data size to put into the small data
@@ -509,12 +543,22 @@ parse_args (argc, argv)
 
       /* getopt_long_only is like getopt_long, but '-' as well as '--'
 	 can indicate a long option.  */
+      opterr = 0;
       optc = getopt_long_only (argc, argv, shortopts, longopts, &longind);
+      if (optc == '?')
+	{
+	  --optind;
+	  optc = getopt_long (argc, argv, shortopts, really_longopts, &longind);
+	}
 
       if (optc == -1)
 	break;
+
       switch (optc)
 	{
+	case '?':
+	  fprintf (stderr, _("%s: unrecognized option '%s'\n"),
+		   program_name, argv[optind - 1]);
 	default:
 	  fprintf (stderr,
 		   _("%s: use the --help option for usage information\n"),
@@ -587,6 +631,17 @@ parse_args (argc, argv)
 	  break;
 	case OPTION_DEMANGLE:
 	  demangling = true;
+	  if (optarg != NULL)
+	    {
+	      enum demangling_styles style;
+
+	      style = cplus_demangle_name_to_style (optarg);
+	      if (style == unknown_demangling)
+		einfo (_("%F%P: unknown demangling style `%s'"),
+		       optarg);
+
+	      cplus_demangle_set_style (style);
+	    }
 	  break;
 	case OPTION_DYNAMIC_LINKER:
 	  command_line.interpreter = optarg;
@@ -691,6 +746,9 @@ parse_args (argc, argv)
 	case OPTION_NO_UNDEFINED:
 	  link_info.no_undefined = true;
 	  break;
+	case OPTION_ALLOW_SHLIB_UNDEFINED:
+	  link_info.allow_shlib_undefined = true;
+	  break;
 	case OPTION_NO_WARN_MISMATCH:
 	  command_line.warn_mismatch = false;
 	  break;
@@ -711,10 +769,13 @@ parse_args (argc, argv)
 	  link_info.optimize = strtoul (optarg, NULL, 0) ? true : false;
 	  break;
 	case 'o':
-	  lang_add_output (optarg, 0); 
+	  lang_add_output (optarg, 0);
 	  break;
 	case OPTION_OFORMAT:
 	  lang_add_output_format (optarg, (char *) NULL, (char *) NULL, 0);
+	  break;
+	case 'q':
+	  link_info.emitrelocations = true;
 	  break;
 	case 'i':
 	case 'r':
@@ -836,6 +897,48 @@ parse_args (argc, argv)
 	  parser_input = input_script;
 	  yyparse ();
 	  break;
+	case OPTION_SECTION_START:
+	  {
+	    char *optarg2;
+	    char *sec_name;
+	    int len;
+
+	    /* Check for <something>=<somthing>...  */
+	    optarg2 = strchr (optarg, '=');
+	    if (optarg2 == NULL)
+	      {
+		fprintf (stderr,
+			 _("%s: Invalid argument to option \"--section-start\"\n"),
+			 program_name);
+		xexit (1);
+	      }
+
+	    optarg2++;
+
+	    /* So far so good.  Are all the args present?  */
+	    if ((*optarg == '\0') || (*optarg2 == '\0'))
+	      {
+		fprintf (stderr,
+			 _("%s: Missing argument(s) to option \"--section-start\"\n"),
+			 program_name);
+		xexit (1);
+	      }
+
+	    /* We must copy the section name as set_section_start
+	       doesn't do it for us.  */
+	    len = optarg2 - optarg;
+	    sec_name = xmalloc (len);
+	    memcpy (sec_name, optarg, len - 1);
+	    sec_name[len - 1] = 0;
+
+	    /* Then set it...  */
+	    set_section_start (sec_name, optarg2);
+	  }
+	  break;
+	case OPTION_TARGET_HELP:
+	  /* Mention any target specific options.  */
+          ldemul_list_emulation_options (stdout);
+          exit (0);
 	case OPTION_TBSS:
 	  set_section_start (".bss", optarg);
 	  break;
@@ -861,6 +964,12 @@ parse_args (argc, argv)
 	case 'u':
 	  ldlang_add_undef (optarg);
 	  break;
+	case OPTION_UNIQUE:
+	  if (optarg != NULL)
+	    lang_add_unique (optarg);
+	  else
+	    config.unique_orphan_sections = true;
+	  break;
 	case OPTION_VERBOSE:
 	  ldversion (1);
 	  version_printed = true;
@@ -877,15 +986,15 @@ parse_args (argc, argv)
 	case OPTION_VERSION:
 	  /* This output is intended to follow the GNU standards document.  */
 	  printf ("GNU ld %s\n", ld_program_version);
-	  printf (_("Copyright 2000 Free Software Foundation, Inc.\n"));
+	  printf (_("Copyright 2001 Free Software Foundation, Inc.\n"));
 	  printf (_("\
 This program is free software; you may redistribute it under the terms of\n\
 the GNU General Public License.  This program has absolutely no warranty.\n"));
 	  {
 	    ld_emulation_xfer_type **ptr = ld_emulations;
-    
+
 	    printf (_("  Supported emulations:\n"));
-	    while (*ptr) 
+	    while (*ptr)
 	      {
 		printf ("   %s\n", (*ptr)->emulation_name);
 		ptr++;
@@ -948,17 +1057,18 @@ the GNU General Public License.  This program has absolutely no warranty.\n"));
 	case 'y':
 	  add_ysym (optarg);
 	  break;
-	case 'z':
-	  /* We accept and ignore this option for Solaris
-             compatibility.  Actually, on Solaris, optarg is not
-             ignored.  Someday we should handle it correctly.  FIXME.  */
-	  break;
 	case OPTION_SPLIT_BY_RELOC:
-	  config.split_by_reloc = strtoul (optarg, NULL, 0);
-	  break; 
+	  if (optarg != NULL)
+	    config.split_by_reloc = strtoul (optarg, NULL, 0);
+	  else
+	    config.split_by_reloc = 32768;
+	  break;
 	case OPTION_SPLIT_BY_FILE:
-	  config.split_by_file = true;
-	  break; 
+	  if (optarg != NULL)
+	    config.split_by_file = bfd_scan_vma (optarg, NULL, 0);
+	  else
+	    config.split_by_file = 1;
+	  break;
 	case OPTION_CHECK_SECTIONS:
 	  command_line.check_section_addresses = true;
 	  break;
@@ -987,29 +1097,29 @@ the GNU General Public License.  This program has absolutely no warranty.\n"));
 	  lang_leave_group ();
 	  ingroup = 0;
 	  break;
-      case OPTION_MPC860C0:
-          link_info.mpc860c0 = 20;      /* default value (in bytes) */
-          if (optarg)
-            {
-              unsigned words;
+	case OPTION_MPC860C0:
+	  link_info.mpc860c0 = 20;      /* default value (in bytes) */
+	  if (optarg)
+	    {
+	      unsigned words;
 
-              words = is_num (optarg, 1, 10, 0);
-              if (words == 0)
-                {
-                  fprintf (stderr,
+	      words = is_num (optarg, 1, 10, 0);
+	      if (words == 0)
+		{
+		  fprintf (stderr,
 			   _("%s: Invalid argument to option \"mpc860c0\"\n"),
 			   program_name);
-                  xexit (1);
-                }
-              link_info.mpc860c0 = words * 4;   /* convert words to bytes */
-            }
-          command_line.relax = true;
-          break;
+		  xexit (1);
+		}
+	      link_info.mpc860c0 = words * 4;	/* convert words to bytes */
+	    }
+	  command_line.relax = true;
+	  break;
 
 	case OPTION_INIT:
 	  link_info.init_function = optarg;
 	  break;
-	  
+
 	case OPTION_FINI:
 	  link_info.fini_function = optarg;
 	  break;
@@ -1062,7 +1172,7 @@ set_section_start (sect, valstr)
 static void
 help ()
 {
-  int i;
+  unsigned i;
   const char **targets, **pp;
 
   printf (_("Usage: %s [options] file...\n"), program_name);
@@ -1074,7 +1184,7 @@ help ()
 	{
 	  boolean comma;
 	  int len;
-	  int j;
+	  unsigned j;
 
 	  printf ("  ");
 
@@ -1111,13 +1221,17 @@ help ()
 	      if (ld_options[j].opt.name != NULL
 		  && ld_options[j].control != NO_HELP)
 		{
+		  int two_dashes =
+		    (ld_options[j].control == TWO_DASHES
+		     || ld_options[j].control == EXACTLY_TWO_DASHES);
+		  
 		  printf ("%s-%s%s",
 			  comma ? ", " : "",
-			  ld_options[j].control == TWO_DASHES ? "-" : "",
+			  two_dashes ? "-" : "",
 			  ld_options[j].opt.name);
 		  len += ((comma ? 2 : 0)
 			  + 1
-			  + (ld_options[j].control == TWO_DASHES ? 1 : 0)
+			  + (two_dashes ? 1 : 0)
 			  + strlen (ld_options[j].opt.name));
 		  if (ld_options[j].arg != NULL)
 		    {

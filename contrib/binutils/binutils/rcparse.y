@@ -136,11 +136,11 @@ static unsigned long class;
 %type <vervar> vertrans
 %type <res_info> suboptions memflags_move_discard memflags_move
 %type <memflags> memflag
-%type <id> id
+%type <id> id resref
 %type <il> exstyle parennumber
 %type <il> numexpr posnumexpr cnumexpr optcnumexpr cposnumexpr
 %type <is> acc_options acc_option menuitem_flags menuitem_flag
-%type <s> optstringc file_name
+%type <s> optstringc file_name resname
 %type <i> sizednumexpr sizedposnumexpr
 
 %left '|'
@@ -636,39 +636,29 @@ control:
 	      rcparse_warning (_("IEDIT requires DIALOGEX"));
 	    res_string_to_id (&$$->class, "HEDIT");
 	  }
-	| ICON optstringc numexpr cnumexpr cnumexpr opt_control_data
-	  {
-	    $$ = define_control ($2, $3, $4, $5, 0, 0, CTL_STATIC,
-				 SS_ICON | WS_CHILD | WS_VISIBLE, 0);
-	    if ($6 != NULL)
-	      {
-		if (dialog.ex == NULL)
-		  rcparse_warning (_("control data requires DIALOGEX"));
-		$$->data = $6;
-	      }
-	  }
-	| ICON optstringc numexpr cnumexpr cnumexpr cnumexpr cnumexpr
+	| ICON resref numexpr cnumexpr cnumexpr opt_control_data
+          {
+	    $$ = define_icon_control ($2, $3, $4, $5, 0, 0, 0, $6,
+				      dialog.ex);
+          }
+	| ICON resref numexpr cnumexpr cnumexpr cnumexpr cnumexpr
+	    opt_control_data
+          {
+	    $$ = define_icon_control ($2, $3, $4, $5, 0, 0, 0, $8,
+				      dialog.ex);
+          }
+	| ICON resref numexpr cnumexpr cnumexpr cnumexpr cnumexpr
 	    icon_styleexpr optcnumexpr opt_control_data
-	  {
-    	    $$ = define_control ($2, $3, $4, $5, $6, $7, CTL_STATIC,
-				 style, $9);
-	    if ($10 != NULL)
-	      {
-		if (dialog.ex == NULL)
-		  rcparse_warning (_("control data requires DIALOGEX"));
-		$$->data = $10;
-	      }
-	  }
-	| ICON optstringc numexpr cnumexpr cnumexpr cnumexpr cnumexpr
+          {
+	    $$ = define_icon_control ($2, $3, $4, $5, style, $9, 0, $10,
+				      dialog.ex);
+          }
+	| ICON resref numexpr cnumexpr cnumexpr cnumexpr cnumexpr
 	    icon_styleexpr cnumexpr cnumexpr opt_control_data
-	  {
-    	    $$ = define_control ($2, $3, $4, $5, $6, $7, CTL_STATIC,
-				 style, $9);
-	    if (dialog.ex == NULL)
-	      rcparse_warning (_("help ID requires DIALOGEX"));
-	    $$->help = $10;
-	    $$->data = $11;
-	  }
+          {
+	    $$ = define_icon_control ($2, $3, $4, $5, style, $9, $10, $11,
+				      dialog.ex);
+          }
 	| IEDIT
 	    {
 	      default_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
@@ -818,6 +808,10 @@ optstringc:
 	  /* empty */
 	  {
 	    $$ = NULL;
+	  }
+	| QUOTEDSTRING
+	  {
+	    $$ = $1;
 	  }
 	| QUOTEDSTRING ','
 	  {
@@ -1267,6 +1261,44 @@ id:
 	    for (s = copy; *s != '\0'; s++)
 	      if (islower ((unsigned char) *s))
 		*s = toupper ((unsigned char) *s);
+	    res_string_to_id (&$$, copy);
+	    free (copy);
+	  }
+	;
+
+/* A resource reference.  */
+
+resname:
+	  QUOTEDSTRING
+	  {
+	    $$ = $1;
+	  }
+	| QUOTEDSTRING ','
+	  {
+	    $$ = $1;
+	  }
+	| STRING ','
+	  {
+	    $$ = $1;
+	  }
+	;
+
+
+resref:
+	  posnumexpr ','
+	  {
+	    $$.named = 0;
+	    $$.u.id = $1;
+	  }
+	| resname
+	  {
+	    char *copy, *s;
+
+	    /* It seems that resource ID's are forced to upper case.  */
+	    copy = xstrdup ($1);
+	    for (s = copy; *s != '\0'; s++)
+	      if (islower ((unsigned char) *s))
+	        *s = toupper ((unsigned char) *s);
 	    res_string_to_id (&$$, copy);
 	    free (copy);
 	  }

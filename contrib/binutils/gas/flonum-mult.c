@@ -1,5 +1,6 @@
 /* flonum_mult.c - multiply two flonums
-   Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1990, 1991, 1992, 2000
+   Free Software Foundation, Inc.
 
    This file is part of Gas, the GNU Assembler.
 
@@ -22,25 +23,22 @@
 #include "flonum.h"
 
 /*	plan for a . b => p(roduct)
-	
-	
+
 	+-------+-------+-/   /-+-------+-------+
 	| a	| a	|  ...	| a	| a	|
 	|  A	|  A-1	|	|  1	|  0	|
 	+-------+-------+-/   /-+-------+-------+
-	
-	
+
 	+-------+-------+-/   /-+-------+-------+
 	| b	| b	|  ...	| b	| b	|
 	|  B	|  B-1	|	|  1	|  0	|
 	+-------+-------+-/   /-+-------+-------+
-	
-	
+
 	+-------+-------+-/   /-+-------+-/   /-+-------+-------+
 	| p	| p	|  ...	| p	|  ...	| p	| p	|
 	|  A+B+1|  A+B	|	|  N	|	|  1	|  0	|
 	+-------+-------+-/   /-+-------+-/   /-+-------+-------+
-	
+
 	/^\
 	(carry) a .b	   ...	    |	   ...	 a .b	 a .b
 	A  B 		    |		  0  1	  0  0
@@ -56,49 +54,48 @@
 	|		  \
 	+-----  P  =   >  a .b
 	N	  /__  i  j
-	
+
 	N = 0 ... A+B
-	
+
 	for all i,j where i+j=N
 	[i,j integers > 0]
-	
+
 	a[], b[], p[] may not intersect.
 	Zero length factors signify 0 significant bits: treat as 0.0.
 	0.0 factors do the right thing.
 	Zero length product OK.
-	
+
 	I chose the ForTran accent "foo[bar]" instead of the C accent "*garply"
 	because I felt the ForTran way was more intuitive. The C way would
 	probably yield better code on most C compilers. Dean Elsner.
-	(C style also gives deeper insight [to me] ... oh well ...)
-	*/
+	(C style also gives deeper insight [to me] ... oh well ...)  */
 
-void 
+void
 flonum_multip (a, b, product)
      const FLONUM_TYPE *a;
      const FLONUM_TYPE *b;
      FLONUM_TYPE *product;
 {
-  int size_of_a;		/* 0 origin */
-  int size_of_b;		/* 0 origin */
-  int size_of_product;		/* 0 origin */
-  int size_of_sum;		/* 0 origin */
-  int extra_product_positions;	/* 1 origin */
+  int size_of_a;		/* 0 origin  */
+  int size_of_b;		/* 0 origin  */
+  int size_of_product;		/* 0 origin  */
+  int size_of_sum;		/* 0 origin  */
+  int extra_product_positions;	/* 1 origin  */
   unsigned long work;
   unsigned long carry;
   long exponent;
   LITTLENUM_TYPE *q;
   long significant;		/* TRUE when we emit a non-0 littlenum  */
-  /* ForTran accent follows. */
-  int P;			/* Scan product low-order -> high. */
+  /* ForTran accent follows.  */
+  int P;			/* Scan product low-order -> high.  */
   int N;			/* As in sum above.  */
-  int A;			/* Which [] of a? */
-  int B;			/* Which [] of b? */
+  int A;			/* Which [] of a?  */
+  int B;			/* Which [] of b?  */
 
-  if ((a->sign != '-' && a->sign != '+') || (b->sign != '-' && b->sign != '+'))
+  if ((a->sign != '-' && a->sign != '+')
+      || (b->sign != '-' && b->sign != '+'))
     {
-      /* ...
-		   Got to fail somehow.  Any suggestions? */
+      /* Got to fail somehow.  Any suggestions?  */
       product->sign = 0;
       return;
     }
@@ -111,8 +108,8 @@ flonum_multip (a, b, product)
   extra_product_positions = size_of_product - size_of_sum;
   if (extra_product_positions < 0)
     {
-      P = extra_product_positions;	/* P < 0 */
-      exponent -= extra_product_positions;	/* Increases exponent. */
+      P = extra_product_positions;	/* P < 0  */
+      exponent -= extra_product_positions;	/* Increases exponent.  */
     }
   else
     {
@@ -130,7 +127,8 @@ flonum_multip (a, b, product)
 	  if (A <= size_of_a && B <= size_of_b && B >= 0)
 	    {
 #ifdef TRACE
-	      printf ("a:low[%d.]=%04x b:low[%d.]=%04x work_before=%08x\n", A, a->low[A], B, b->low[B], work);
+	      printf ("a:low[%d.]=%04x b:low[%d.]=%04x work_before=%08x\n",
+		      A, a->low[A], B, b->low[B], work);
 #endif
 	      /* Watch out for sign extension!  Without the casts, on
 		 the DEC Alpha, the multiplication result is *signed*
@@ -162,23 +160,19 @@ flonum_multip (a, b, product)
 	  exponent++;
 	}
     }
-  /*
-   * [P]-> position # size_of_sum + 1.
-   * This is where 'carry' should go.
-   */
+  /* [P]-> position # size_of_sum + 1.
+     This is where 'carry' should go.  */
 #ifdef TRACE
   printf ("final carry =%04x\n", carry);
 #endif
   if (carry)
     {
       if (extra_product_positions > 0)
-	{
-	  product->low[P] = carry;
-	}
+	product->low[P] = carry;
       else
 	{
-	  /* No room at high order for carry littlenum. */
-	  /* Shift right 1 to make room for most significant littlenum. */
+	  /* No room at high order for carry littlenum.  */
+	  /* Shift right 1 to make room for most significant littlenum.  */
 	  exponent++;
 	  P--;
 	  for (q = product->low + P; q >= product->low; q--)
@@ -190,11 +184,7 @@ flonum_multip (a, b, product)
 	}
     }
   else
-    {
-      P--;
-    }
+    P--;
   product->leader = product->low + P;
   product->exponent = exponent;
 }
-
-/* end of flonum_mult.c */

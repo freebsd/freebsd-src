@@ -1,5 +1,5 @@
 /* Definitions for opcode table for the sparc.
-   Copyright (C) 1989, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1989, 91, 92, 93, 94, 95, 96, 97, 2000
    Free Software Foundation, Inc.
 
 This file is part of GAS, the GNU Assembler, GDB, the GNU debugger, and
@@ -46,6 +46,7 @@ enum sparc_opcode_arch_val {
   /* v9 variants must appear last */
   SPARC_OPCODE_ARCH_V9,
   SPARC_OPCODE_ARCH_V9A, /* v9 with ultrasparc additions */
+  SPARC_OPCODE_ARCH_V9B, /* v9 with ultrasparc and cheetah additions */
   SPARC_OPCODE_ARCH_BAD /* error return from sparc_opcode_lookup_arch */
 };
 
@@ -141,6 +142,7 @@ Kinds of operands:
 	h	22 high bits.
 	X	5 bit unsigned immediate
 	Y	6 bit unsigned immediate
+	3	SIAM mode (3 bits). (v9b)
 	K	MEMBAR mask (7 bits). (v9)
 	j	10 bit Immediate. (v9)
 	I	11 bit Immediate. (v9)
@@ -187,7 +189,7 @@ Kinds of operands:
 	/	Ancillary state register in rs1 (v9a)
 
 The following chars are unused: (note: ,[] are used as punctuation)
-[345]
+[45]
 
 */
 

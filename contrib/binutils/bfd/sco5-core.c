@@ -84,7 +84,7 @@ sco5_core_make_empty_symbol (abfd)
     new->the_bfd = abfd;
   return new;
 }
- 
+
 static struct user *
 read_uarea(abfd, filepos)
      bfd *abfd;
@@ -109,7 +109,7 @@ read_uarea(abfd, filepos)
     }
 
   /* Sanity check perhaps??? */
-  if (rawptr->u.u_dsize > 0x1000000)    /* Remember, it's in pages... */
+  if (rawptr->u.u_dsize > 0x1000000)    /* Remember, it's in pages...  */
     {
       bfd_set_error (bfd_error_wrong_format);
       return NULL;
@@ -154,7 +154,7 @@ sco5_core_file_p (abfd)
       || (bfd_read ((void *)&coffset_siz, 1, sizeof coffset_siz, abfd)
 	  != sizeof coffset_siz) )
     {
-      bfd_set_error (bfd_error_wrong_format); 
+      bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
@@ -165,50 +165,49 @@ sco5_core_file_p (abfd)
 	  != sizeof coffsets)
       || ((coffsets.u_info != 1) && (coffsets.u_info != C_VERSION)))
     {
-      bfd_set_error (bfd_error_wrong_format); 
+      bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
-
-  if (coffsets.u_info == 1) 
-    { 
+  if (coffsets.u_info == 1)
+    {
       /* Old version, no section heads, read info from user struct */
 
       u = read_uarea(abfd, coffsets.u_user);
       if (! u)
           return NULL;
 
-      if (!make_bfd_asection (abfd, ".reg", SEC_HAS_CONTENTS, 
+      if (!make_bfd_asection (abfd, ".reg", SEC_HAS_CONTENTS,
                               (bfd_size_type) coffsets.u_usize,
                               0 - (bfd_vma) u->u_ar0,
                               (file_ptr) coffsets.u_user))
         return NULL;
-    
-      if (!make_bfd_asection (abfd, ".data", 
+
+      if (!make_bfd_asection (abfd, ".data",
 			      SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS,
                               ((bfd_size_type) u->u_exdata.ux_dsize
 			       + u->u_exdata.ux_bsize),
                               (bfd_vma) u->u_exdata.ux_datorg,
                               (file_ptr) coffsets.u_data))
         return NULL;
-    
-      if (!make_bfd_asection (abfd, ".stack", 
-			      SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS, 
+
+      if (!make_bfd_asection (abfd, ".stack",
+			      SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS,
                               (bfd_size_type) u->u_ssize * NBPC,
                               (bfd_vma) u->u_sub,
                               (file_ptr) coffsets.u_stack))
         return NULL;
 
       return abfd->xvec;		/* Done for version 1 */
-    }      
+    }
 
   /* Immediately before coreoffsets region is a long with offset in core
      to first coresecthead (CORES_OFFSETS), the long before this is the
      number of section heads in the list. Read both longs and read the
      coresecthead and check its validity */
-    
-  if ((bfd_seek (abfd, 
-		 coresize - coffset_siz - 2 * sizeof coffset_siz, 
+
+  if ((bfd_seek (abfd,
+		 coresize - coffset_siz - 2 * sizeof coffset_siz,
 		 SEEK_SET) != 0)
       || (bfd_read ((void *)&nsecs, 1, sizeof nsecs, abfd) != sizeof nsecs)
       || (bfd_read ((void *)&cheadoffs, 1, sizeof cheadoffs, abfd)
@@ -226,16 +225,16 @@ sco5_core_file_p (abfd)
 
   /* Now loop over all regions and map them */
   nsecs--;				/* We've seen CORES_OFFSETS already */
-  for (; nsecs; nsecs--) 
+  for (; nsecs; nsecs--)
     {
       if ((bfd_seek (abfd, chead.cs_hseek, SEEK_SET) != 0)
 	  || bfd_read ((void *)&chead, 1, sizeof chead, abfd) != sizeof chead)
         {
-          bfd_set_error (bfd_error_wrong_format); 
+          bfd_set_error (bfd_error_wrong_format);
           return NULL;
         }
 
-      switch (chead.cs_stype) 
+      switch (chead.cs_stype)
 	{
 	case CORES_MAGIC:			/* Core header, check magic */
 	  if (chead.cs_x.csx_magic != COREMAGIC_NUMBER)
@@ -259,7 +258,7 @@ sco5_core_file_p (abfd)
 	     *u_ar0.  The other is that u_ar0 is sometimes an absolute
 	     address in kernel memory, and on other systems it is an
 	     offset from the beginning of the `struct user'.
-	
+
 	     As a practical matter, we don't know where the registers
 	     actually are, so we have to pass the whole area to GDB.
 	     We encode the value of u_ar0 by setting the .regs section
@@ -267,10 +266,9 @@ sco5_core_file_p (abfd)
 	     pointed to by u_ar0 (by setting the vma of the start of
 	     the section to -u_ar0).  GDB uses this info to locate the
 	     regs, using minor trickery to get around the
-	     offset-or-absolute-addr problem. */
+	     offset-or-absolute-addr problem.  */
 
 	  chead.cs_vaddr = 0 - (bfd_vma) u->u_ar0;
-
 
           secname = ".reg";
           flags = SEC_HAS_CONTENTS;
@@ -345,8 +343,8 @@ int
 sco5_core_file_failing_signal (ignore_abfd)
      bfd *ignore_abfd;
 {
-  return ((ignore_abfd->tdata.sco5_core_data->u.u_sysabort != 0) 
-	  ? ignore_abfd->tdata.sco5_core_data->u.u_sysabort 
+  return ((ignore_abfd->tdata.sco5_core_data->u.u_sysabort != 0)
+	  ? ignore_abfd->tdata.sco5_core_data->u.u_sysabort
 	  : -1);
 }
 
@@ -371,9 +369,9 @@ sco5_core_file_matches_executable_p  (core_bfd, exec_bfd)
 
 /* If somebody calls any byte-swapping routines, shoot them.  */
 static void
-swap_abort()
+swap_abort ()
 {
-  abort(); /* This way doesn't require any declaration for ANSI to fuck up */
+  abort (); /* This way doesn't require any declaration for ANSI to fuck up */
 }
 #define NO_GET  ((bfd_vma (*) PARAMS ((   const bfd_byte *))) swap_abort )
 #define NO_PUT  ((void    (*) PARAMS ((bfd_vma, bfd_byte *))) swap_abort )
@@ -426,6 +424,6 @@ const bfd_target sco5_core_vec =
        BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
     NULL,
-    
+
     (PTR) 0                     /* backend_data */
 };
