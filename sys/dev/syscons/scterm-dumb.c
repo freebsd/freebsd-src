@@ -26,10 +26,7 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
 #include "opt_syscons.h"
-
-#if NSC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -152,5 +149,3 @@ dumb_nop(void)
 }
 
 #endif /* SC_DUMB_TERMINAL */
-
-#endif /* NSC > 1 */

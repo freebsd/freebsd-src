@@ -27,10 +27,7 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
 #include "opt_syscons.h"
-
-#if NSC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -725,5 +722,3 @@ mask2attr(term_stat *tcp)
 }
 
 #endif /* SC_DUMB_TERMINAL */
-
-#endif /* NSC > 0 */

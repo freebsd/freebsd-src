@@ -26,10 +26,7 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
 #include "opt_syscons.h"
-
-#if NSC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -340,5 +337,3 @@ sysmouse_event(mouse_info_t *info)
 }
 
 #endif /* !SC_NO_SYSMOUSE */
-
-#endif /* NSC */

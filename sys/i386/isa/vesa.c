@@ -26,16 +26,9 @@
  * $FreeBSD$
  */
 
-#include "vga.h"
 #include "opt_vga.h"
-#include "opt_vesa.h"
-#include "opt_fb.h"
 
-#ifdef VGA_NO_MODE_CHANGE
-#undef VESA
-#endif
-
-#if (NVGA > 0 && defined(VESA)) || defined(KLD_MODULE)
+#ifndef VGA_NO_MODE_CHANGE
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1642,4 +1635,4 @@ static moduledata_t vesa_mod = {
 
 DECLARE_MODULE(vesa, vesa_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
-#endif /* (NVGA > 0 && VESA) || KLD_MODULE */
+#endif	/* VGA_NO_MODE_CHANGE */

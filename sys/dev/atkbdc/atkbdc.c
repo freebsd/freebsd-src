@@ -48,7 +48,7 @@
 
 /* constants */
 
-#define MAXKBDC		MAX(NATKBDC, 1)
+#define MAXKBDC		MAX(NATKBDC, 1)		/* XXX */
 
 /* macros */
 
@@ -90,8 +90,6 @@ static int wait_for_kbd_ack(atkbdc_softc_t *kbdc);
 static int wait_for_aux_data(atkbdc_softc_t *kbdc);
 static int wait_for_aux_ack(atkbdc_softc_t *kbdc);
 
-#if NATKBDC > 0
-
 atkbdc_softc_t
 *atkbdc_get_softc(int unit)
 {
@@ -124,8 +122,6 @@ atkbdc_attach_unit(int unit, atkbdc_softc_t *sc, int port)
 {
 	return atkbdc_setup(sc, port);
 }
-
-#endif /* NATKBDC > 0 */
 
 /* the backdoor to the keyboard controller! XXX */
 int

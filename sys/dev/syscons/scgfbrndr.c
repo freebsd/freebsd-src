@@ -26,12 +26,8 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
-#include "vga.h"
 #include "opt_syscons.h"
 #include "opt_vga.h"
-
-#if NSC > 0 && NVGA > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -826,5 +822,3 @@ vga_grborder(scr_stat *scp, int color)
 }
 
 #endif
-
-#endif /* NSC > 0 && NVGA > 0 */
