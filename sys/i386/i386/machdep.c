@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.147 1995/11/02 09:52:40 peter Exp $
+ *	$Id: machdep.c,v 1.148 1995/11/04 16:00:22 markm Exp $
  */
 
 #include "npx.h"
@@ -1032,46 +1032,37 @@ setregs(p, entry, stack)
 #endif	/* NNPX > 0 */
 }
 
-/*
- * machine dependent system variables.
- */
-int
-cpu_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-	struct proc *p;
+static int
+sysctl_machdep_adjkerntz SYSCTL_HANDLER_ARGS
+{
+	int error;
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,
+		oldp, oldlenp, newp, newlen);
+	if (!error && newp)
+		resettodr();
+	return (error);
+}
+
+SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz,
+	CTLTYPE_INT|CTLFLAG_RW, &adjkerntz, 0, sysctl_machdep_adjkerntz, "");
+
+static int
+sysctl_machdep_consdev SYSCTL_HANDLER_ARGS
 {
 	dev_t consdev;
-	int error;
-
-	/* all sysctl names at this level are terminal */
-	if (namelen != 1)
-		return (ENOTDIR);               /* overloaded */
-
-	switch (name[0]) {
-	case CPU_CONSDEV:
-		consdev = (cn_tty == NULL ? NODEV : cn_tty->t_dev);
-		return (sysctl_rdstruct(oldp, oldlenp, newp, &consdev,
-					sizeof consdev));
-	case CPU_ADJKERNTZ:
-		error = sysctl_int(oldp, oldlenp, newp, newlen, &adjkerntz);
-		if (!error && newp)
-			resettodr();
-		return error;
-	case CPU_DISRTCSET:
-		return (sysctl_int(oldp, oldlenp, newp,	newlen,	&disable_rtc_set));
-	case CPU_BOOTINFO:
-		return (sysctl_rdstruct(oldp, oldlenp, newp, &bootinfo,
-					sizeof bootinfo));
-	default:
-		return (EOPNOTSUPP);
-	}
-	/* NOTREACHED */
+	consdev = (cn_tty == NULL ? NODEV : cn_tty->t_dev);
+	return (sysctl_handle_opaque(oidp, &consdev, sizeof consdev,
+		oldp, oldlenp, newp, newlen));
 }
+
+SYSCTL_PROC(_machdep, CPU_CONSDEV, consdev,
+	CTLTYPE_OPAQUE|CTLFLAG_RD, 0, 0, sysctl_machdep_consdev, "");
+
+SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
+	CTLFLAG_RW, &disable_rtc_set, 0, "");
+
+SYSCTL_STRUCT(_machdep, CPU_BOOTINFO, bootinfo, 
+	CTLFLAG_RD, &bootinfo, bootinfo, "");
 
 /*
  * Initialize 386 and configure to run kernel
