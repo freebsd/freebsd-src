@@ -1257,9 +1257,7 @@ void 	pcvt_scrnsv_reset ( void );
 void 	pcvt_set_scrnsv_tmo ( int );
 #endif /* PCVT_SCREENSAVER && defined(XSERVER) */
 
-#ifdef XSERVER
 void	vga_move_charset ( unsigned n, unsigned char *b, int save_it);
-#endif /* XSERVER */
 
 void	async_update ( int arg );
 void	clr_parms ( struct video_state *svsp );
