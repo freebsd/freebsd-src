@@ -1133,13 +1133,8 @@ pccard_intr(void *arg)
 	struct pccard_function *pf = (struct pccard_function*) arg;
 	int reg;
 
-	/*
-	 * If we go to resetting a card, we may need a null interrupt hanlder
-	 * to work (since the system may call it before the device can
-	 * establish an ISR) due to interrupt sharing at a higher level.
-	 */
 	if (pf->intr_handler == NULL)
-		panic("Null interrupt handler?\n");
+		return;
 
 	/*
 	 * XXX The CCR_STATUS register bits used here are 
