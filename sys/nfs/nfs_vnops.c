@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.116 1999/01/12 12:39:14 eivind Exp $
+ * $Id: nfs_vnops.c,v 1.116.2.1 1999/01/28 06:13:27 msmith Exp $
  */
 
 
@@ -1565,6 +1565,19 @@ nfs_rename(ap)
 		error = EXDEV;
 		goto out;
 	}
+
+	/*
+         * We have to flush B_DELWRI data prior to renaming
+         * the file.  If we don't, the delayed-write buffers
+         * can be flushed out later after the file has gone stale
+         * under NFSV3.  NFSV2 does not have this problem because
+         * ( as far as I can tell ) it flushes dirty buffers more
+         * often.
+	 */
+     
+	VOP_FSYNC(fvp, fcnp->cn_cred, MNT_WAIT, fcnp->cn_proc);
+	if (tvp)
+		VOP_FSYNC(tvp, tcnp->cn_cred, MNT_WAIT, tcnp->cn_proc);
 
 	/*
 	 * If the tvp exists and is in use, sillyrename it before doing the
