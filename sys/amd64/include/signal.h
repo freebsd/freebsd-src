@@ -117,13 +117,16 @@ struct sigcontext {
 	int	sc_efl;
 	int	sc_esp;
 	int	sc_ss;
+	int	sc_len;			/* sizeof(struct mcontext_t) */
 	/*
-	 * XXX FPU state is 27 * 4 bytes h/w, 1 * 4 bytes s/w (probably not
-	 * needed here), or that + 16 * 4 bytes for emulators (probably all
-	 * needed here).  The "spare" bytes are mostly not spare.
+	 * XXX - See <machine/ucontext.h> and <machine/npx.h> for
+	 *       the following fields.
 	 */
-	int	sc_fpregs[28];		/* machine state (FPU): */
-	int	sc_spare[17];
+	int	sc_fpformat;
+	int	sc_ownedfp;
+	int	sc_spare1[1];
+	int	sc_fpregs[128];
+	int	sc_spare2[8];
 };
 
 #define	sc_sp		sc_esp
