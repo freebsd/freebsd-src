@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newfs_msdos.c,v 1.2 1998/07/15 06:30:38 charnier Exp $";
+	"$Id: newfs_msdos.c,v 1.3 1998/07/16 12:24:51 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -530,8 +530,7 @@ main(int argc, char *argv[])
 	bpb.mid = !bpb.hid ? 0xf0 : 0xf8;
     if (fat == 32)
 	bpb.rdcl = RESFTE;
-    if (bpb.bsec <= MAXU16 && bpb.hid <= MAXU16 &&
-	bpb.hid + bpb.bsec <= MAXU16) {
+    if (bpb.hid + bpb.bsec <= MAXU16) {
 	bpb.sec = bpb.bsec;
 	bpb.bsec = 0;
     }
@@ -623,7 +622,7 @@ main(int argc, char *argv[])
 		mk4(img, 0x41615252);
 		mk4(img + bpb.bps - 28, 0x61417272);
 		mk4(img + bpb.bps - 24, 0xffffffff);
-		mk4(img + bpb.bps - 20, 2);
+		mk4(img + bpb.bps - 20, bpb.rdcl);
 		mk2(img + bpb.bps - 2, DOSMAGIC);
 	    } else if (lsn >= bpb.res && lsn < dir &&
 		       !((lsn - bpb.res) %
@@ -632,7 +631,7 @@ main(int argc, char *argv[])
 		for (x = 1; x < fat * (fat == 32 ? 3 : 2) / 8; x++)
 		    mk1(img[x], fat == 32 && x % 4 == 3 ? 0x0f : 0xff);
 	    } else if (lsn == dir && opt_L) {
-		de = (struct de *) img;
+		de = (struct de *)img;
 		mklabel(de->namext, opt_L);
 		mk1(de->attr, 050);
 		x = (u_int)tm->tm_hour << 11 |
@@ -720,7 +719,7 @@ getdiskinfo(int fd, const char *fname, const char *dtype, int oflag,
 	while (isdigit(*++s2));
     s1 = s2;
     if (s2 && *s2 == 's') {
-	slice = (int)strtol(s2 + 1, &s, 10);
+	slice = strtol(s2 + 1, &s, 10);
 	if (slice < 1 || slice > MAX_SLICES - BASE_SLICE)
 	    s2 = NULL;
 	else {
@@ -743,9 +742,9 @@ getdiskinfo(int fd, const char *fname, const char *dtype, int oflag,
 	if (slice >= ds.dss_nslices || !ds.dss_slices[slice].ds_size)
 	    errx(1, "%s: slice is unavailable", fname);
 	if (!oflag)
-	    bpb->hid = (u_int32_t)ds.dss_slices[slice].ds_offset;
+	    bpb->hid = ds.dss_slices[slice].ds_offset;
 	if (!bpb->bsec && part == -1)
-	    bpb->bsec = (u_int32_t)ds.dss_slices[slice].ds_size;
+	    bpb->bsec = ds.dss_slices[slice].ds_size;
     }
     if (((slice == -1 || part != -1) &&
 	 ((!oflag && part != -1) || !bpb->bsec)) ||
