@@ -253,7 +253,7 @@ static void collate();
 
 static int get_sg_cnt __P((struct sioc_sg_req6 *));
 static int get_mif6_cnt __P((struct sioc_mif_req6 *));
-static int ip6_mrouter_init __P((struct socket *, struct mbuf *, int));
+static int ip6_mrouter_init __P((struct socket *, int, int));
 static int add_m6if __P((struct mif6ctl *));
 static int del_m6if __P((mifi_t *));
 static int add_m6fc __P((struct mf6cctl *));
@@ -269,48 +269,65 @@ ip6_mrouter_set(so, sopt)
 	struct socket *so;
 	struct sockopt *sopt;
 {
-	int	error = 0;
-	struct mbuf *m;
+	int error = 0;
+	int optval;
+	struct mif6ctl mifc;
+	struct mf6cctl mfcc;
+	mifi_t mifi;
 
 	if (so != ip6_mrouter && sopt->sopt_name != MRT6_INIT)
 		return (EACCES);
-
-	if ((error = soopt_getm(sopt, &m)) != 0) /* XXX */
-		return (error);
-	if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
-		return (error);
 
 	switch (sopt->sopt_name) {
 	case MRT6_INIT:
 #ifdef MRT6_OINIT
 	case MRT6_OINIT:
 #endif
-		error = ip6_mrouter_init(so, m, sopt->sopt_name);
+		error = sooptcopyin(sopt, &optval, sizeof(optval),
+		    sizeof(optval));
+		if (error)
+			break;
+		error = ip6_mrouter_init(so, optval, sopt->sopt_name);
 		break;
 	case MRT6_DONE:
 		error = ip6_mrouter_done();
 		break;
 	case MRT6_ADD_MIF:
-		error = add_m6if(mtod(m, struct mif6ctl *));
-		break;
-	case MRT6_DEL_MIF:
-		error = del_m6if(mtod(m, mifi_t *));
+		error = sooptcopyin(sopt, &mifc, sizeof(mifc), sizeof(mifc));
+		if (error)
+			break;
+		error = add_m6if(&mifc);
 		break;
 	case MRT6_ADD_MFC:
-		error = add_m6fc(mtod(m, struct mf6cctl *));
+		error = sooptcopyin(sopt, &mfcc, sizeof(mfcc), sizeof(mfcc));
+		if (error)
+			break;
+		error = add_m6fc(&mfcc);
 		break;
 	case MRT6_DEL_MFC:
-		error = del_m6fc(mtod(m, struct mf6cctl *));
+		error = sooptcopyin(sopt, &mfcc, sizeof(mfcc), sizeof(mfcc));
+		if (error)
+			break;
+		error = del_m6fc(&mfcc);
+		break;
+	case MRT6_DEL_MIF:
+		error = sooptcopyin(sopt, &mifi, sizeof(mifi), sizeof(mifi));
+		if (error)
+			break;
+		error = del_m6if(&mifi);
 		break;
 	case MRT6_PIM:
-		error = set_pim6(mtod(m, int *));
+		error = sooptcopyin(sopt, &optval, sizeof(optval),
+		    sizeof(optval));
+		if (error)
+			break;
+		error = set_pim6(&optval);
 		break;
 	default:
 		error = EOPNOTSUPP;
 		break;
 	}
 
-	(void)m_freem(m);
 	return (error);
 }
 
@@ -415,13 +432,11 @@ set_pim6(i)
  * Enable multicast routing
  */
 static int
-ip6_mrouter_init(so, m, cmd)
+ip6_mrouter_init(so, v, cmd)
 	struct socket *so;
-	struct mbuf *m;
+	int v;
 	int cmd;
 {
-	int *v;
-
 #ifdef MRT6DEBUG
 	if (mrt6debug)
 		log(LOG_DEBUG,
@@ -433,11 +448,7 @@ ip6_mrouter_init(so, m, cmd)
 	    so->so_proto->pr_protocol != IPPROTO_ICMPV6)
 		return (EOPNOTSUPP);
 
-	if (!m || (m->m_len != sizeof(int *)))
-		return (ENOPROTOOPT);
-
-	v = mtod(m, int *);
-	if (*v != 1)
+	if (v != 1)
 		return (ENOPROTOOPT);
 
 	if (ip6_mrouter != NULL)
@@ -668,7 +679,7 @@ del_m6if(mifip)
 	bzero((caddr_t)qtable[*mifip], sizeof(qtable[*mifip]));
 	bzero((caddr_t)mifp->m6_tbf, sizeof(*(mifp->m6_tbf)));
 #endif
-	bzero((caddr_t)mifp, sizeof (*mifp));
+	bzero((caddr_t)mifp, sizeof(*mifp));
 
 	/* Adjust nummifs down */
 	for (mifi = nummifs; mifi > 0; mifi--)
