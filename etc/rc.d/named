@@ -14,7 +14,6 @@
 name="named"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
-pidfile="/var/run/${name}.pid"
 start_precmd="named_precmd"
 required_dirs="$named_chrootdir"	# if it is set, it must exist
 extra_commands="reload"
@@ -72,7 +71,7 @@ chroot_autoupdate()
 #
 make_symlinks()
 {
-	ln -fs "${named_chrootdir}/var/run/named.pid" /var/run/named.pid
+	ln -fs "${named_chrootdir}${named_pidfile}" ${named_pidfile}
 	ln -fs "${named_chrootdir}/var/run/ndc" /var/run/ndc
 
 }
@@ -120,5 +119,6 @@ load_rc_config $name
 # The following variable requires that rc.conf be loaded first
 #
 required_dirs="$named_chrootdir"	# if it is set, it must exist
+pidfile="${named_pidfile:-/var/run/${name}/pid}"
 
 run_rc_command "$1"
