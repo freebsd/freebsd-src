@@ -142,7 +142,10 @@ dsp_close(snddev_info *d, int chan, int devtype)
 	pcm_channel *rdch, *wrch;
 
 	d->ref[chan]--;
+#if 0
+	/* enable this if/when every close() is propagated here */
 	if (d->ref[chan]) return 0;
+#endif
 	d->flags &= ~SD_F_TRANSIENT;
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
@@ -584,12 +587,13 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	case SNDCTL_DSP_GETODELAY:
 		if (wrch) {
 			snd_dbuf *b = &wrch->buffer;
+	        	snd_dbuf *bs = &wrch->buffer2nd;
 			if (b->dl) {
 				chn_checkunderflow(wrch);
 				if (!(wrch->flags & CHN_F_MAPPED))
 					while (chn_wrfeed(wrch) > 0);
 			}
-			*arg = b->total;
+			*arg_i = b->rl + bs->rl;
 		} else
 			ret = EINVAL;
 		break;
