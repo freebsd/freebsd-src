@@ -222,23 +222,23 @@ ed_release_resources(device_t dev)
 
 	if (sc->port_res) {
 		bus_deactivate_resource(dev, SYS_RES_IOPORT,
-				     sc->port_rid, sc->port_res);
+		    sc->port_rid, sc->port_res);
 		bus_release_resource(dev, SYS_RES_IOPORT,
-				     sc->port_rid, sc->port_res);
+		    sc->port_rid, sc->port_res);
 		sc->port_res = 0;
 	}
 	if (sc->mem_res) {
 		bus_deactivate_resource(dev, SYS_RES_MEMORY,
-				     sc->mem_rid, sc->mem_res);
+		    sc->mem_rid, sc->mem_res);
 		bus_release_resource(dev, SYS_RES_MEMORY,
-				     sc->mem_rid, sc->mem_res);
+		    sc->mem_rid, sc->mem_res);
 		sc->mem_res = 0;
 	}
 	if (sc->irq_res) {
 		bus_deactivate_resource(dev, SYS_RES_IRQ,
-				     sc->irq_rid, sc->irq_res);
+		    sc->irq_rid, sc->irq_res);
 		bus_release_resource(dev, SYS_RES_IRQ,
-				     sc->irq_rid, sc->irq_res);
+		    sc->irq_rid, sc->irq_res);
 		sc->irq_res = 0;
 	}
 }
@@ -475,20 +475,17 @@ ed_init(void *xsc)
 	 */
 	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
-	if (sc->isa16bit) {
-
+	if (sc->isa16bit)
 		/*
 		 * Set FIFO threshold to 8, No auto-init Remote DMA, byte
 		 * order=80x86, word-wide DMA xfers,
 		 */
 		ed_nic_outb(sc, ED_P0_DCR, ED_DCR_FT1 | ED_DCR_WTS | ED_DCR_LS);
-	} else {
-
+	else
 		/*
 		 * Same as above, but byte-wide DMA xfers
 		 */
 		ed_nic_outb(sc, ED_P0_DCR, ED_DCR_FT1 | ED_DCR_LS);
-	}
 
 	/*
 	 * Clear Remote Byte Count Registers
@@ -569,11 +566,10 @@ ed_init(void *xsc)
 	 * (there is no settable hardware default).
 	 */
 	if (sc->vendor == ED_VENDOR_3COM) {
-		if (ifp->if_flags & IFF_ALTPHYS) {
+		if (ifp->if_flags & IFF_ALTPHYS)
 			ed_asic_outb(sc, ED_3COM_CR, 0);
-		} else {
+		else
 			ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
-		}
 	}
 #endif
 #ifndef ED_NO_MIIBUS
@@ -846,7 +842,7 @@ ed_rint(struct ed_softc *sc)
 		/* get pointer to this buffer's header structure */
 		packet_ptr = sc->mem_ring +
 		    (sc->next_packet - sc->rec_page_start) * ED_PAGE_SIZE;
-
+	
 		/*
 		 * The byte count includes a 4 byte header that was added by
 		 * the NIC.
@@ -870,23 +866,25 @@ ed_rint(struct ed_softc *sc)
 			 * NOTE: sc->next_packet is pointing at the current packet.
 			 */
 			len &= ED_PAGE_SIZE - 1;	/* preserve offset into page */
-			if (packet_hdr.next_packet >= sc->next_packet) {
-				len += (packet_hdr.next_packet - sc->next_packet) * ED_PAGE_SIZE;
-			} else {
-				len += ((packet_hdr.next_packet - sc->rec_page_start) +
-					(sc->rec_page_stop - sc->next_packet)) * ED_PAGE_SIZE;
-			}
+			if (packet_hdr.next_packet >= sc->next_packet)
+				len += (packet_hdr.next_packet -
+				    sc->next_packet) * ED_PAGE_SIZE;
+			else
+				len += 
+				    ((packet_hdr.next_packet - sc->rec_page_start) +
+				    (sc->rec_page_stop - sc->next_packet)) * ED_PAGE_SIZE;
 			/*
 			 * because buffers are aligned on 256-byte boundary,
 			 * the length computed above is off by 256 in almost
 			 * all cases. Fix it...
 			 */
 			if (len & 0xff)
-				len -= 256 ;
+				len -= 256;
 			if (len > (ETHER_MAX_LEN - ETHER_CRC_LEN 
-				   + sizeof(struct ed_ring)))
+			    + sizeof(struct ed_ring)))
 				sc->mibdata.dot3StatsFrameTooLongs++;
 		}
+
 		/*
 		 * Be fairly liberal about what we allow as a "reasonable" length
 		 * so that a [crufty] packet will make it to BPF (and can thus
@@ -936,7 +934,6 @@ ed_rint(struct ed_softc *sc)
 		 * Set NIC to page 0 registers to update boundry register
 		 */
 		ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STA);
-
 		ed_nic_outb(sc, ED_P0_BNRY, boundry);
 
 		/*
@@ -1244,11 +1241,10 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 */
 #ifdef ED_3C503
 		if (sc->vendor == ED_VENDOR_3COM) {
-			if (ifp->if_flags & IFF_ALTPHYS) {
+			if (ifp->if_flags & IFF_ALTPHYS)
 				ed_asic_outb(sc, ED_3COM_CR, 0);
-			} else {
+			else
 				ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
-			}
 		}
 #endif
 #ifdef ED_HPP
@@ -1267,13 +1263,13 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = 0;
 		break;
 
-#ifndef ED_NO_MIIBUS
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
 		if (sc->miibus == NULL) {
 			error = EINVAL;
 			break;
 		}
+#ifndef ED_NO_MIIBUS
 		mii = device_get_softc(sc->miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
@@ -1413,11 +1409,10 @@ ed_pio_readmem(struct ed_softc *sc, long src, uint8_t *dst, uint16_t amount)
 
 	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD0 | ED_CR_STA);
 
-	if (sc->isa16bit) {
+	if (sc->isa16bit)
 		ed_asic_insw(sc, ED_NOVELL_DATA, dst, amount / 2);
-	} else {
+	else
 		ed_asic_insb(sc, ED_NOVELL_DATA, dst, amount);
-	}
 }
 
 /*
@@ -1447,11 +1442,10 @@ ed_pio_writemem(struct ed_softc *sc, uint8_t *src, uint16_t dst, uint16_t len)
 	/* set remote DMA write */
 	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD1 | ED_CR_STA);
 
-	if (sc->isa16bit) {
+	if (sc->isa16bit)
 		ed_asic_outsw(sc, ED_NOVELL_DATA, src, len / 2);
-	} else {
+	else
 		ed_asic_outsb(sc, ED_NOVELL_DATA, src, len);
-	}
 
 	/*
 	 * Wait for remote DMA complete. This is necessary because on the
@@ -1518,10 +1512,9 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, long dst)
 	if (!sc->isa16bit) {
 		/* NE1000s are easy */
 		while (m) {
-			if (m->m_len) {
-				ed_asic_outsb(sc, ED_NOVELL_DATA,
-					      m->m_data, m->m_len);
-			}
+			if (m->m_len)
+				ed_asic_outsb(sc, ED_NOVELL_DATA, 
+				    m->m_data, m->m_len);
 			m = m->m_next;
 		}
 	} else {
@@ -1561,9 +1554,8 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, long dst)
 			m = m->m_next;
 		}
 		/* spit last byte */
-		if (wantbyte) {
+		if (wantbyte)
 			ed_asic_outw(sc, ED_NOVELL_DATA, *(u_short *)savebyte);
-		}
 	}
 
 	/*
