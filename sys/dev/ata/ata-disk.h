@@ -163,6 +163,7 @@ struct ad_request {
 #define		AR_F_READ		0x0001
 #define		AR_F_ERROR		0x0002
 #define		AR_F_DMA_USED		0x0004
+#define		AR_F_FORCE_PIO		0x0008
 
     int8_t			*data;		/* pointer to data buf */
     struct buf			*bp;		/* associated buf ptr */

@@ -90,7 +90,7 @@ static struct intr_config_hook *ad_attach_hook;
 MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 
 /* defines */
-#define	AD_MAX_RETRIES	5
+#define	AD_MAX_RETRIES	3
 
 static __inline int
 apiomode(struct ata_params *ap)
@@ -435,7 +435,7 @@ ad_transfer(struct ad_request *request)
 	    request->timeout_handle.callout = NULL;
 	else
 	    request->timeout_handle = 
-		timeout((timeout_t*)ad_timeout, request, 3*hz);
+		timeout((timeout_t*)ad_timeout, request, 5*hz);
 
 	/* setup transfer parameters */
 	count = howmany(request->bytecount, DEV_BSIZE);
@@ -464,7 +464,8 @@ ad_transfer(struct ad_request *request)
 	/* does this drive & transfer work with DMA ? */
 	request->flags &= ~AR_F_DMA_USED;
 	if ((adp->flags & AD_F_DMA_ENABLED) &&
-	    !ata_dmasetup(adp->controller, adp->unit,
+	    !(request->flags & AR_F_FORCE_PIO) &&
+	    !ata_dmasetup(adp->controller, adp->unit, 
 			  (void *)request->data, request->bytecount,
 			  (request->flags & AR_F_READ))) {
 	    request->flags |= AR_F_DMA_USED;
@@ -477,8 +478,8 @@ ad_transfer(struct ad_request *request)
 	else
 	    cmd = request->flags & AR_F_READ ? ATA_C_READ : ATA_C_WRITE;
 
-	ata_command(adp->controller, adp->unit, cmd, cylinder, head, 
-		    sector, count, 0, ATA_IMMEDIATE);
+	ata_command(adp->controller, adp->unit, cmd, 
+		    cylinder, head, sector, count, 0, ATA_IMMEDIATE);
     }
    
     /* if this is a DMA transaction start it, return and wait for interrupt */
@@ -503,9 +504,8 @@ ad_transfer(struct ad_request *request)
 
     /* ready to write PIO data ? */
     if (ata_wait(adp->controller, adp->unit, 
-		 ATA_S_READY | ATA_S_DSC | ATA_S_DRQ) < 0) {
+		 (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0)
 	printf("ad_transfer: timeout waiting for DRQ");
-    }				    
     
     /* output the data */
 #ifdef ATA_16BIT_ONLY
@@ -536,32 +536,51 @@ ad_interrupt(struct ad_request *request)
     /* get drive status */
     if (ata_wait(adp->controller, adp->unit, 0) < 0)
 	 printf("ad_interrupt: timeout waiting for status");
-    if (adp->controller->status & (ATA_S_ERROR | ATA_S_CORR) ||
+
+    if (adp->controller->status & ATA_S_CORR)
+	    printf("ad%d: soft error ECC corrected\n", adp->lun); 
+
+    if ((adp->controller->status & ATA_S_ERROR) ||
 	(request->flags & AR_F_DMA_USED && dma_stat != ATA_BMSTAT_INTERRUPT)) {
 oops:
-	if (adp->controller->status & ATA_S_ERROR) {
-	    printf("ad%d: %s %s error blk# %d", adp->lun,
-		   (adp->controller->error & ATA_E_ICRC) ? "UDMA CRC" : "HARD",
-		   (request->flags & AR_F_READ) ? "READ" : "WRITE",
-		   request->blockaddr + (request->donecount / DEV_BSIZE)); 
-	    /* if this is a UDMA CRC error, reinject request */
-	    if (adp->controller->error & ATA_E_ICRC &&
-		request->retries++ < AD_MAX_RETRIES) {
-    		/* disarm timeout for this transfer */
-    		untimeout((timeout_t *)ad_timeout, request, 
-			  request->timeout_handle);
-		TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
+	printf("ad%d: %s %s ERROR blk# %d", adp->lun,
+	       (adp->controller->error & ATA_E_ICRC) ? "UDMA CRC" : "HARD",
+	       (request->flags & AR_F_READ) ? "READ" : "WRITE",
+	       request->blockaddr + (request->donecount / DEV_BSIZE)); 
+
+	/* if this is a UDMA CRC error, reinject request */
+	if (adp->controller->error & ATA_E_ICRC) {
+	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
+
+	    if (request->retries++ < AD_MAX_RETRIES)
 		printf(" retrying\n");
-		return ATA_OP_FINISHED;
-	    }
 	    else {
-		printf(" status=%02x error=%02x\n", 
-			adp->controller->status, adp->controller->error);
-		request->flags |= AR_F_ERROR;
+		adp->flags &= ~AD_F_DMA_ENABLED;
+		printf(" falling back to PIO mode\n");
 	    }
+	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
+	    return ATA_OP_FINISHED;
 	}
-	else if (adp->controller->status & ATA_S_CORR)
-	    printf("ad%d: soft error ECC corrected\n", adp->lun); 
+
+	/* if using DMA, try once again in PIO mode */
+	if (request->flags & AR_F_DMA_USED) {
+	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
+
+	    request->flags |= AR_F_FORCE_PIO;
+	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
+	    return ATA_OP_FINISHED;
+	}
+
+	request->flags |= AR_F_ERROR;
+	printf(" status=%02x error=%02x\n", 
+	       adp->controller->status, adp->controller->error);
+    }
+
+    /* if we arrived here with forced PIO mode, DMA doesn't work right */
+    if (request->flags & AR_F_FORCE_PIO) {
+	adp->flags &= ~AD_F_DMA_ENABLED;
+	printf("ad%d: DMA problem encountered, fallback to PIO mode\n",
+	       adp->lun);
     }
 
     /* if this was a PIO read operation, get the data */
@@ -573,8 +592,8 @@ oops:
 	    != (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
 	    printf("ad_interrupt: read interrupt arrived early");
 
-	if (ata_wait(adp->controller, adp->unit,
-		     ATA_S_READY | ATA_S_DSC | ATA_S_DRQ) != 0){
+	if (ata_wait(adp->controller, adp->unit, 
+		     (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) != 0) {
 	    printf("ad_interrupt: read error detected late");
 	    goto oops;	 
 	}
@@ -653,8 +672,16 @@ ad_timeout(struct ad_request *request)
 	   adp->controller->lun, 
 	   (adp->unit == ATA_MASTER) ? "master" : "slave");
 
-    if (request->flags & AR_F_DMA_USED)
+    if (request->flags & AR_F_DMA_USED) {
 	ata_dmadone(adp->controller);
+        if (request->retries == AD_MAX_RETRIES) {
+	    adp->flags &= ~AD_F_DMA_ENABLED;
+	    printf("ata%d-%s: ad_timeout: trying fallback to PIO mode\n",
+		   adp->controller->lun,
+           	   (adp->unit == ATA_MASTER) ? "master" : "slave");
+	    request->retries = 0;
+	}
+    }
 
     /* if retries still permit, reinject this request */
     if (request->retries++ < AD_MAX_RETRIES)
