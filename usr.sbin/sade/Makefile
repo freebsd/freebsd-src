@@ -22,8 +22,8 @@ CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
 CFLAGS+= -DPC98
 .endif
 
-DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
-LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk -lftpio
+DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
+LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
 
 makedevs.c:	Makefile rtermcap keymap.h
 	rm -f makedevs.tmp
