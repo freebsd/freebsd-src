@@ -16,6 +16,8 @@
 #	-DNO_FORTRAN do not build g77 and related libraries.
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
+#	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
+#	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 
 #
@@ -426,8 +428,11 @@ update:
 .if defined(SUPFILE2)
 	@${SUP} ${SUPFLAGS} ${SUPFILE2}
 .endif
-.if defined(PORTSSUPFILE)
+.if defined(PORTSSUPFILE) && !defined(NO_PORTSUPDATE)
 	@${SUP} ${SUPFLAGS} ${PORTSSUPFILE}
+.endif
+.if defined(DOCSUPFILE) && !defined(NO_DOCUPDATE)
+	@${SUP} ${SUPFLAGS} ${DOCSUPFILE}
 .endif
 .endif
 .if defined(CVS_UPDATE)
