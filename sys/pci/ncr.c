@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.23 1995/02/14 23:33:36 se Exp $
+**  $Id: ncr.c,v 1.24 1995/02/15 20:06:38 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,7 +44,7 @@
 ***************************************************************************
 */
 
-#define	NCR_PATCHLEVEL	"pl14 95/02/15"
+#define	NCR_PATCHLEVEL	"pl15 95/02/15"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
@@ -141,6 +141,12 @@
 */
 
 #define MAX_SIZE  ((MAX_SCATTER-1) * NBPG)
+
+/*
+**	other
+*/
+
+#define NCR_SNOOP_TIMEOUT (1000000)
 
 /*==========================================================
 **
@@ -1175,7 +1181,8 @@ struct script {
 	ncrcmd  data_out	[MAX_SCATTER * 4 + 7];
 	ncrcmd	aborttag	[  4];
 	ncrcmd	abort		[ 22];
-	ncrcmd	snooptest	[ 11];
+	ncrcmd	snooptest	[  9];
+	ncrcmd	snoopend	[  2];
 };
 
 /*==========================================================
@@ -1244,7 +1251,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.23 1995/02/14 23:33:36 se Exp $\n";
+	"\n$Id: ncr.c,v 1.24 1995/02/15 20:06:38 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -2878,6 +2885,7 @@ static	struct script script0 = {
 	SCR_COPY (4),
 		(ncrcmd) &ncr_cache,
 		RADDR (temp),
+}/*-------------------------< SNOOPEND >-------------------*/,{
 	/*
 	**	And stop.
 	*/
@@ -6454,6 +6462,7 @@ static int ncr_regtest (struct ncb* np)
 static int ncr_snooptest (struct ncb* np)
 {
 	u_long	ncr_rd, ncr_wr, ncr_bk, host_rd, host_wr, pc, err=0;
+	int	i;
 #ifndef NCR_IOMAPPED
 	err |= ncr_regtest (np);
 	if (err) return (err);
@@ -6474,9 +6483,15 @@ static int ncr_snooptest (struct ncb* np)
 	*/
 	OUTL (nc_dsp, pc);
 	/*
-	**	Wait 'til done
+	**	Wait 'til done (with timeout)
 	*/
-	while (!(INB(nc_istat) & (INTF|SIP|DIP)));
+	for (i=0; i<NCR_SNOOP_TIMEOUT; i++)
+		if (INB(nc_istat) & (INTF|SIP|DIP))
+			break;
+	/*
+	**	Save termination position.
+	*/
+	pc = INL (nc_dsp);
 	/*
 	**	Read memory and register.
 	*/
@@ -6488,6 +6503,20 @@ static int ncr_snooptest (struct ncb* np)
 	*/
 	OUTB (nc_istat,  SRST);
 	OUTB (nc_istat,  0   );
+	/*
+	**	check for timeout
+	*/
+	if (i>=NCR_SNOOP_TIMEOUT) {
+		printf ("CACHE TEST FAILED: timeout.\n");
+		return (0x20);
+	};
+	/*
+	**	Check termination position.
+	*/
+	if (pc != vtophys (&np->script->snoopend)+8) {
+		printf ("CACHE TEST FAILED: script execution failed.\n");
+		return (0x40);
+	};
 	/*
 	**	Show results.
 	*/
