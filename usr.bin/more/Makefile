@@ -4,7 +4,7 @@
 
 PROG=	more
 CFLAGS+=-I${.CURDIR} -I${.OBJDIR} -DTERMIOS
-SRCS=	ch.c command.c help.c input.c line.c linenum.c macro.c main.c \
+SRCS=	ch.c command.c defrc.h help.c input.c line.c linenum.c macro.c main.c \
 	ncommand.c option.c os.c output.c position.c prim.c screen.c signal.c \
 	tags.c ttyin.c
 DPADD=	${LIBTERMCAP}
@@ -14,8 +14,6 @@ CLEANFILES+=	defrc.h
 
 EXAMPDIR=	/usr/share/examples/more
 EXAMPLES=	default.morerc less.morerc most.morerc
-
-main.c: defrc.h
 
 defrc.h: default.morerc
 	@echo '/* ${.TARGET:T} auto-generated from ${.ALLSRC:T} */' \
