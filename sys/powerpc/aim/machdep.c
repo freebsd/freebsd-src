@@ -162,8 +162,9 @@ static void
 powerpc_ofw_shutdown(void *junk, int howto)
 {
 	if (howto & RB_HALT) {
-		OF_exit();
+		OF_halt();
 	}
+	OF_reboot();
 }
 
 static void

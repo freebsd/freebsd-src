@@ -174,6 +174,24 @@ ppc_boot(str)
 }
 
 void
+OF_halt()
+{
+	int retval;	/* dummy, this may not be needed */
+
+	OF_interpret("shut-down", 1, &retval);
+	for (;;);	/* just in case */
+}
+
+void
+OF_reboot()
+{
+	int retval;	/* dummy, this may not be needed */
+
+	OF_interpret("reset-all", 1, &retval);
+	for (;;);	/* just in case */
+}
+
+void
 OF_getetheraddr(device_t dev, u_char *addr)
 {
 	phandle_t	node;
