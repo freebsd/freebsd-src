@@ -30,8 +30,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)extern.h	8.1 (Berkeley) 4/2/94
+ *	From: @(#)extern.h	8.1 (Berkeley) 4/2/94
+ *	$Id$
  */
 
-int	krb_passwd __P((void));
+int	krb_passwd __P((char *, char *, char *, char *));
 int	local_passwd __P((char *));
