@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.213 1995/11/09 22:47:05 gibbs Exp $
+#	$Id: LINT,v 1.214 1995/11/21 02:50:08 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -710,7 +710,12 @@ device pca0 at isa? port IO_TIMER1 tty
 #  The irq values may only be 10, 11, or 15
 #  I/O memory is an 8kb region.  Possible values are:
 #    0a0000, 0a2000, ..., 0fffff, f00000, f02000, ..., ffffff
-#  Note that the start address must be on an even boundary.
+#    The start address must be on an even boundary.
+#  Add the following option if you want to allow non-root users to be able
+#  to access the spigot.  This option is not secure because it allows users
+#  direct access to the I/O page. 
+#  	options SPIGOT_UNSECURE
+#
 
 # Notes on the Digiboard driver:
 #

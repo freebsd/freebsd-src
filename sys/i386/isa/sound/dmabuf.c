@@ -527,7 +527,7 @@ space_in_queue (int dev)
   int             len, max, tmp;
   struct dma_buffparms *dmap = audio_devs[dev]->dmap;
 
-  if (dmap->qlen == dmap->nbufs)	/* No space at all */
+  if (dmap->qlen >= dmap->nbufs)	/* No space at all */
     return 0;
 
   /*
@@ -587,7 +587,7 @@ DMAbuf_getwrbuffer (int dev, char **buf, int *size, int dontblock)
     }
 
 
-  if (dontblock)
+  if (dontblock && !space_in_queue (dev))	/* XXX */
 #if defined(__FreeBSD__)
     return RET_ERROR (EWOULDBLOCK);
 #else
@@ -961,9 +961,9 @@ DMAbuf_select (int dev, struct fileinfo *file, int sel_type, select_table * wait
       if (dmap->dma_mode != DMODE_INPUT)
 	return 0;
 
+      DISABLE_INTR (flags);
       if (!dmap->qlen)
 	{
-	  DISABLE_INTR (flags);
 #if defined(__FreeBSD__)
 	  selrecord(wait, &selinfo[dev]);
 #else
@@ -973,6 +973,7 @@ DMAbuf_select (int dev, struct fileinfo *file, int sel_type, select_table * wait
 	  RESTORE_INTR (flags);
 	  return 0;
 	}
+      RESTORE_INTR (flags);
       return 1;
       break;
 
@@ -983,9 +984,9 @@ DMAbuf_select (int dev, struct fileinfo *file, int sel_type, select_table * wait
       if (dmap->dma_mode == DMODE_NONE)
 	return 1;
 
+      DISABLE_INTR (flags);
       if (!space_in_queue (dev))
 	{
-	  DISABLE_INTR (flags);
 #if defined(__FreeBSD__)
 	  selrecord(wait, &selinfo[dev]);
 #else
@@ -995,6 +996,7 @@ DMAbuf_select (int dev, struct fileinfo *file, int sel_type, select_table * wait
 	  RESTORE_INTR (flags);
 	  return 0;
 	}
+      RESTORE_INTR (flags);
       return 1;
       break;
 
