@@ -1266,7 +1266,7 @@
     </para>
 
     <para>The supported release of <application>KDE</application>
-      has been updated from 3.1.4 to 3.2.1.</para>
+      has been updated from 3.1.4 to 3.2.3.</para>
 
     <para>The <filename role="package">security/portaudit</filename> utility
       now exists in the ports collection.  This utility will read a database
