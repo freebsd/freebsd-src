@@ -46,7 +46,7 @@ do
 		-s ${RD}/trees/bin/usr/mdec/bootfd \
 		/dev/r${VNDEVICE} minimum
 
-	newfs -u 0 -c 8 -t 0 -i ${FSINODE} -m 0 -T minimum /dev/r${VNDEVICE}a
+	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T minimum /dev/r${VNDEVICE}a
 
 	mount /dev/${VNDEVICE}a ${MNT}
 
