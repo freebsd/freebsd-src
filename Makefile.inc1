@@ -253,6 +253,14 @@ INCDIRS=	arpa dev fs g++/backward g++/bits g++/ext isc isofs libmilter \
 # success, regardless of how old your existing system is.
 #
 _worldtmp:
+.if ${.CURDIR:C/[^,]//g} != ""
+#	The m4 build of sendmail files doesn't like it if ',' is used
+#	anywhere in the path of it's files.
+	@echo
+	@echo "*** Error: path to source tree contains a comma ','"
+	@echo
+	@false
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding the temporary build tree"
