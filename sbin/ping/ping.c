@@ -135,6 +135,7 @@ int options;
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif /*IPSEC*/
 #define	F_TTL		0x8000
+#define	F_MISSED	0x10000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -150,6 +151,7 @@ int datalen = DEFDATALEN;
 int s;				/* socket file descriptor */
 u_char outpack[MAXPACKET];
 char BSPACE = '\b';		/* characters written for flood */
+char BBELL = '\a';		/* characters written for MISSED and AUDIBLE */
 char DOT = '.';
 char *hostname;
 char *shostname;
@@ -161,6 +163,7 @@ long npackets;			/* max packets to transmit */
 long nreceived;			/* # of packets we got back */
 long nrepeats;			/* number of duplicates */
 long ntransmitted;		/* sequence # for outbound packets = #sent */
+long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
 int interval = 1000;		/* interval between packets, ms */
 
 /* timing */
@@ -236,7 +239,7 @@ main(argc, argv)
 
 	datap = &outpack[8 + PHDR_LEN];
 	while ((ch = getopt(argc, argv,
-		"I:LQRS:T:c:adfi:l:m:np:qrs:t:v"
+		"AI:LQRS:T:c:adfi:l:m:np:qrs:t:v"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -245,6 +248,9 @@ main(argc, argv)
 		)) != -1)
 	{
 		switch(ch) {
+		case 'A':
+			options |= F_MISSED;
+			break;
 		case 'a':
 			options |= F_AUDIBLE;
 			break;
@@ -700,6 +706,12 @@ main(argc, argv)
 					intvl.tv_sec = MAXWAIT;
 			}
 			(void)gettimeofday(&last, NULL);
+
+			if (ntransmitted - nreceived - 1 > nmissedmax) {
+				nmissedmax = ntransmitted - nreceived - 1;
+				if (options & F_MISSED)
+					(void)write(STDOUT_FILENO, &BBELL, 1);
+			}
 		}
 	}
 	finish();
@@ -860,7 +872,7 @@ pr_pack(buf, cc, from, tv)
 			if (dupflag)
 				(void)printf(" (DUP!)");
 			if (options & F_AUDIBLE)
-				(void)printf("\a");
+				(void)write(STDOUT_FILENO, &BBELL, 1);
 			/* check the data */
 			cp = (u_char*)&icp->icmp_data[PHDR_LEN];
 			dp = &outpack[8 + PHDR_LEN];

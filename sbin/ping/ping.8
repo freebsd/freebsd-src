@@ -32,9 +32,9 @@
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd March 1, 1997
+.Dd September 25, 2001
 .Dt PING 8
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm ping
 .Nd send
@@ -42,7 +42,7 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm
-.Op Fl QRadfnqrv
+.Op Fl AQRadfnqrv
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl l Ar preload
@@ -79,16 +79,27 @@ and then an arbitrary number of
 .Dq pad
 bytes used to fill out the packet.  The options are as follows:
 .Bl -tag -width indent
+.It Fl A
+Audible.
+Output a bell
+.Tn ( ASCII
+0x07)
+character when no packet is received before the next packet
+is transmitted.
+To cater for round-trip times that are longer than the interval
+between transmissions, further missing packets cause a bell only
+if the maximum number of unreceived packets has increased.
 .It Fl a
 Audible.
 Include a bell
-.Pq ASCII 0x07
+.Tn ( ASCII
+0x07)
 character in the output when any packet is received.
 This option is ignored
 if other format options are present.
 .It Fl c Ar count
 Stop after sending
-.Pq and receiving
+(and receiving)
 .Ar count
 .Tn ECHO_RESPONSE
 packets.
@@ -208,10 +219,8 @@ network.
 If the host is not on a directly-attached network, an error is returned.
 This option can be used to ping a local host through an interface
 that has no route through it
-.Po
-e.g., after the interface was dropped by
-.Xr routed 8
-.Pc .
+(e.g., after the interface was dropped by
+.Xr routed 8 ) .
 .It Fl s Ar packetsize
 Specify the number of data bytes to be sent.
 The default is 56, which translates into 64
@@ -253,7 +262,7 @@ If duplicate packets are received, they are not included in the packet
 loss calculation, although the round trip time of these packets is used
 in calculating the round-trip time statistics.
 When the specified number of packets have been sent
-.Pq and received
+(and received)
 or if the program is terminated with a
 .Dv SIGINT ,
 a brief summary is displayed, showing the number of packets sent and
@@ -276,12 +285,14 @@ header followed by an arbitrary amount of data.
 When a
 .Ar packetsize
 is given, this indicated the size of this extra piece of data
-.Pq the default is 56 .
+(the default is 56).
 Thus the amount of data received inside of an IP packet of type
 .Tn ICMP
 .Tn ECHO_REPLY
 will always be 8 bytes more than the requested data space
-.Pq the Tn ICMP header .
+(the
+.Tn ICMP
+header).
 .Pp
 If the data space is at least eight bytes large,
 .Nm
@@ -296,7 +307,7 @@ Duplicate packets should never occur when pinging a unicast address,
 and seem to be caused by
 inappropriate link-level retransmissions.
 Duplicates may occur in many situations and are rarely
-.Pq if ever
+(if ever)
 a good sign, although the presence of low levels of duplicates may not
 always be cause for alarm.
 Duplicates are expected when pinging a broadcast or multicast address,
@@ -353,12 +364,10 @@ specification states that the
 field for
 .Tn TCP
 packets should be set to 60, but many systems use smaller values
-.Po
-.Bx 4.3
+.No ( Bx 4.3
 uses 30,
 .Bx 4.2
-used 15
-.Pc .
+used 15).
 .Pp
 The maximum possible value of this field is 255, and most
 .Ux
@@ -424,7 +433,8 @@ heard from the specified
 .Ar host ;
 a status of two if the transmission was successful but no responses
 were received; or another value
-.Pq from Aq Pa sysexits.h
+(from
+.Aq Pa sysexits.h )
 if an error occurred.
 .Sh SEE ALSO
 .Xr netstat 1 ,
