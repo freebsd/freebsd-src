@@ -156,7 +156,7 @@ char *body[] =
     "    *yyssp = yystate = 0;",
     "",
     "yyloop:",
-    "    if (yyn = yydefred[yystate]) goto yyreduce;",
+    "    if ((yyn = yydefred[yystate])) goto yyreduce;",
     "    if (yychar < 0)",
     "    {",
     "        if ((yychar = yylex()) < 0) yychar = 0;",
