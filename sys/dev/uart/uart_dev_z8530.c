@@ -42,8 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFAULT_RCLK	307200
 
-#define	IS_CHANNEL_A(bas)	(((bas)->bsh & 7) != 0)
-#define	IS_CHANNEL_B(bas)	(((bas)->bsh & 7) == 0)
+#define	IS_CHANNEL_A(bas)	((uart_cpu_busaddr(bas) & 7) != 0)
+#define	IS_CHANNEL_B(bas)	((uart_cpu_busaddr(bas) & 7) == 0)
 
 /* Multiplexed I/O. */
 static __inline void
