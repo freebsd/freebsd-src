@@ -318,13 +318,17 @@ USB_ATTACH(umodem)
 	if (usbd_get_quirks(sc->sc_udev)->uq_flags & UQ_ASSUME_CM_OVER_DATA) {
 		sc->sc_cm_over_data = 1;
 	} else {
-	if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
-		err = umodem_set_comm_feature(sc, UCDC_ABSTRACT_STATE,
-					    UCDC_DATA_MULTIPLEXED);
-		if (err)
-			goto bad;
-		sc->sc_cm_over_data = 1;
-	}
+		if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
+			if (sc->sc_acm_cap & USB_CDC_ACM_HAS_FEATURE)
+				err = umodem_set_comm_feature(sc,
+				    UCDC_ABSTRACT_STATE, UCDC_DATA_MULTIPLEXED);
+			else
+				err = 0;
+			if (err) {
+				goto bad;
+			}
+			sc->sc_cm_over_data = 1;
+		}
 	}
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
