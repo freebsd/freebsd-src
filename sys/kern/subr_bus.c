@@ -1594,6 +1594,12 @@ bus_generic_rl_alloc_resource (device_t dev, device_t child, int type,
 	    start, end, count, flags));
 }
 
+int
+bus_generic_child_present(device_t bus, device_t child)
+{
+	return (BUS_CHILD_PRESENT(device_get_parent(bus), bus));
+}
+
 /*
  * Some convenience functions to make it easier for drivers to use the
  * resource-management functions.  All these really do is hide the
@@ -1701,6 +1707,12 @@ bus_delete_resource(device_t dev, int type, int rid)
 	BUS_DELETE_RESOURCE(device_get_parent(dev), dev, type, rid);
 }
 
+int
+bus_child_present(device_t dev)
+{
+	return (BUS_CHILD_PRESENT(device_get_parent(dev), dev));
+}
+
 static int
 root_print_child(device_t dev, device_t child)
 {
@@ -1722,6 +1734,19 @@ root_setup_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg,
 	panic("root_setup_intr");
 }
 
+/*
+ * If we get here, assume that the device is permanant and really is
+ * present in the system.  Removable bus drivers are expected to intercept
+ * this call long before it gets here.  We return -1 so that drivers that
+ * really care can check vs -1 or some ERRNO returned higher in the food
+ * chain.
+ */
+static int
+root_child_present(device_t dev, device_t child)
+{
+	return (-1);
+}
+
 static kobj_method_t root_methods[] = {
 	/* Device interface */
 	KOBJMETHOD(device_shutdown,	bus_generic_shutdown),
@@ -1733,6 +1758,7 @@ static kobj_method_t root_methods[] = {
 	KOBJMETHOD(bus_read_ivar,	bus_generic_read_ivar),
 	KOBJMETHOD(bus_write_ivar,	bus_generic_write_ivar),
 	KOBJMETHOD(bus_setup_intr,	root_setup_intr),
+	KOBJMETHOD(bus_child_present,	root_child_present),
 
 	{ 0, 0 }
 };

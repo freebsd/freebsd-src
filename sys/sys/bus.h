@@ -209,6 +209,7 @@ struct resource *
 				   int *rid, u_long start, u_long end,
 				   u_long count, u_int flags);
 int	bus_generic_attach(device_t dev);
+int	bus_generic_child_present(device_t dev, device_t child);
 int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
 int	bus_generic_detach(device_t dev);
@@ -269,6 +270,7 @@ int	bus_get_resource(device_t dev, int type, int rid,
 u_long	bus_get_resource_start(device_t dev, int type, int rid);
 u_long	bus_get_resource_count(device_t dev, int type, int rid);
 void	bus_delete_resource(device_t dev, int type, int rid);
+int	bus_child_present(device_t dev);
 
 /*
  * Access functions for device.
