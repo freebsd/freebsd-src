@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Luigi Rizzo
+ * Copyright (c) 2001-2002 Luigi Rizzo
  *
  * Supported by: the Xorp Project (www.xorp.org)
  *
@@ -103,43 +103,43 @@ SYSCTL_NODE(_kern, OID_AUTO, polling, CTLFLAG_RW, 0,
 	"Device polling parameters");
 
 static u_int32_t poll_burst = 5;
-SYSCTL_ULONG(_kern_polling, OID_AUTO, burst, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, burst, CTLFLAG_RW,
 	&poll_burst, 0, "Current polling burst size");
 
 static u_int32_t poll_each_burst = 5;
-SYSCTL_ULONG(_kern_polling, OID_AUTO, each_burst, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, each_burst, CTLFLAG_RW,
 	&poll_each_burst, 0, "Max size of each burst");
 
 static u_int32_t poll_burst_max = 150;	/* good for 100Mbit net and HZ=1000 */
-SYSCTL_ULONG(_kern_polling, OID_AUTO, burst_max, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, burst_max, CTLFLAG_RW,
 	&poll_burst_max, 0, "Max Polling burst size");
 
 static u_int32_t poll_in_idle_loop=1;		/* do we poll in idle loop ? */
-SYSCTL_ULONG(_kern_polling, OID_AUTO, idle_poll, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, idle_poll, CTLFLAG_RW,
 	&poll_in_idle_loop, 0, "Enable device polling in idle loop");
 
 u_int32_t poll_in_trap;			/* used in trap.c */
-SYSCTL_ULONG(_kern_polling, OID_AUTO, poll_in_trap, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, poll_in_trap, CTLFLAG_RW,
 	&poll_in_trap, 0, "Poll burst size during a trap");
 
 static u_int32_t user_frac = 50;
-SYSCTL_ULONG(_kern_polling, OID_AUTO, user_frac, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, user_frac, CTLFLAG_RW,
 	&user_frac, 0, "Desired user fraction of cpu time");
 
 static u_int32_t reg_frac = 20 ;
-SYSCTL_ULONG(_kern_polling, OID_AUTO, reg_frac, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, reg_frac, CTLFLAG_RW,
 	&reg_frac, 0, "Every this many cycles poll register");
 
 static u_int32_t short_ticks;
-SYSCTL_ULONG(_kern_polling, OID_AUTO, short_ticks, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, short_ticks, CTLFLAG_RW,
 	&short_ticks, 0, "Hardclock ticks shorter than they should be");
 
 static u_int32_t lost_polls;
-SYSCTL_ULONG(_kern_polling, OID_AUTO, lost_polls, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, lost_polls, CTLFLAG_RW,
 	&lost_polls, 0, "How many times we would have lost a poll tick");
 
 static u_int32_t pending_polls;
-SYSCTL_ULONG(_kern_polling, OID_AUTO, pending_polls, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, pending_polls, CTLFLAG_RW,
 	&pending_polls, 0, "Do we need to poll again");
 
 static int residual_burst = 0;
@@ -147,23 +147,23 @@ SYSCTL_INT(_kern_polling, OID_AUTO, residual_burst, CTLFLAG_RW,
 	&residual_burst, 0, "# of residual cycles in burst");
 
 static u_int32_t poll_handlers; /* next free entry in pr[]. */
-SYSCTL_ULONG(_kern_polling, OID_AUTO, handlers, CTLFLAG_RD,
+SYSCTL_UINT(_kern_polling, OID_AUTO, handlers, CTLFLAG_RD,
 	&poll_handlers, 0, "Number of registered poll handlers");
 
 static int polling = 0;		/* global polling enable */
-SYSCTL_ULONG(_kern_polling, OID_AUTO, enable, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, enable, CTLFLAG_RW,
 	&polling, 0, "Polling enabled");
 
 static volatile u_int32_t phase;
-SYSCTL_ULONG(_kern_polling, OID_AUTO, phase, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, phase, CTLFLAG_RW,
 	&phase, 0, "Polling phase");
 
 static u_int32_t suspect;
-SYSCTL_ULONG(_kern_polling, OID_AUTO, suspect, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, suspect, CTLFLAG_RW,
 	&suspect, 0, "suspect event");
 
 static volatile u_int32_t stalled;
-SYSCTL_ULONG(_kern_polling, OID_AUTO, stalled, CTLFLAG_RW,
+SYSCTL_UINT(_kern_polling, OID_AUTO, stalled, CTLFLAG_RW,
 	&stalled, 0, "potential stalls");
 
 
@@ -274,7 +274,7 @@ idle_poll(void)
  * because the burst could take a long time to be completely processed, or
  * could saturate the intermediate queue (ipintrq or similar) leading to
  * losses or unfairness. To reduce the problem, and also to account better for
- * time spent in network-related processnig, we split the burst in smaller
+ * time spent in network-related processing, we split the burst in smaller
  * chunks of fixed size, giving control to the other netisr's between chunks.
  * This helps in improving the fairness, reducing livelock (because we
  * emulate more closely the "process to completion" that we have with
@@ -331,7 +331,7 @@ netisr_pollmore()
 }
 
 /*
- * netisr_poll scheduled by schednetisr when appropriate, typically once
+ * netisr_poll is scheduled by schednetisr when appropriate, typically once
  * per tick. It is called at splnet() so first thing to do is to upgrade to
  * splimp(), and call all registered handlers.
  */
