@@ -82,8 +82,8 @@ enum cmd {
  ***********************/
 /* This structure is returned by the NGM_PPPOE_GET_STATUS command */
 struct ngpppoestat {
-	u_int   packets_in;	/* packets in from downstream */
-	u_int   packets_out;	/* packets out towards downstream */
+	u_int   packets_in;	/* packets in from ethernet */
+	u_int   packets_out;	/* packets out towards ethernet */
 };
 
 /*
