@@ -795,6 +795,9 @@ PC164SX is reported to boot fine with Symbios825, Symbios875 and Symbios876
 based cards. In addition, Adaptec 2940U and 2940UW are reported to work for
 booting (verified on SRM V5.7-1). Adaptec 2930U2 and 2940U2[W] do not work.
 
+LX and SX with SRM firmware version 5.8 or later can boot from Adaptec
+2940-series adapters.
+
 In summary: this family of machines is 'blessed' with a challenging 
 compatibility as far as SCSI adapters go.
 
@@ -1095,6 +1098,10 @@ When 2 pairs of identical-sized DIMMs are installed DS10 will use memory
 interleaving for higher performance. DS10L, which has only 2 DIMM slots cannot 
 do interleaving.
 
+SCSI:
+Starting with SRM firmware version 5.9 you can boot from Adaptec 2940-series
+adapters in addition to the usual set of Qlogic and Symbios/NCR adapters. 
+
 EIDE:
 The base model comes with a FUJITSU 9.5GB ATA disk as its boot device.
 FreeBSD/alpha works just fine using EIDE disks on Webbrick. DS10 has 2 IDE 
@@ -1230,6 +1237,9 @@ devices. DS20E is a sleeker case, without the StorageWorks shelf.
 Embedded SCSI:
 The embedded Adaptec SCSI chip on DS20 is disabled and is therefore 
 not usable under FreeBSD.
+
+Starting with SRM firmware version 5.9 you can boot from Adaptec 2940-series
+adapters in addition to the usual set of Qlogic and Symbios/NCR adapters.
 
 CPU:
 DS20 can have 2 CPUs installed. FreeBSD/alpha is not currently SMP-capable 
