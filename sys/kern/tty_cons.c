@@ -35,15 +35,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)cons.c	7.2 (Berkeley) 5/9/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00083
- * --------------------         -----   ----------------------
- *
- * 16 Aug 92	Pace Willisson		/dev/console redirect (xterm -C, etc.)
- * 14 Mar 93	Chris G. Demetriou	Moved pg() here from isa/pccons.c
+ *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
+ *	$Id$
  */
 
 

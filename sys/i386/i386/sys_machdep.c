@@ -1,4 +1,3 @@
-
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -34,7 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
+ *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
+ *	$Id$
  */
 
 #include "param.h"
