@@ -844,10 +844,10 @@ doSTDKERNEL:
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make depend && \
 			make ${KERNEL_FLAGS} KERNEL=${KERNEL} && \
-			make KERNEL=${KERNEL} DESTDIR=${RD}/kernels install && \
+			make KERNEL=${KERNEL} DESTDIR=${RD}/kernels \
+				install kernel-reinstall.debug && \
 			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
 			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
-			make KERNEL=${KERNEL} DESTDIR=${RD}/kernels kernel-reinstall.debug
 
 #
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
