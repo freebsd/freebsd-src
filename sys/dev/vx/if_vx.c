@@ -691,15 +691,12 @@ again:
     {
 	struct mbuf		*m0;
 
-	m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
-	    m->m_pkthdr.len + ETHER_ALIGN, 0, ifp, NULL);
-
+	m0 = m_devget(mtod(m, char *), m->m_pkthdr.len, ETHER_ALIGN, ifp, NULL);
 	if (m0 == NULL) {
 		ifp->if_ierrors++;
 		goto abort;
 	}
 
-	m_adj(m0, ETHER_ALIGN);
 	m_freem(m);
 	m = m0;
     }

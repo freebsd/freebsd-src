@@ -2502,15 +2502,14 @@ static void dc_rxeof(sc)
 		/* No errors; receive the packet. */	
 		total_len -= ETHER_CRC_LEN;
 
-		m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
-		    total_len + ETHER_ALIGN, 0, ifp, NULL);
+		m0 = m_devget(mtod(m, char *), total_len, ETHER_ALIGN, ifp,
+		    NULL);
 		dc_newbuf(sc, i, m);
 		DC_INC(i, DC_RX_LIST_CNT);
 		if (m0 == NULL) {
 			ifp->if_ierrors++;
 			continue;
 		}
-		m_adj(m0, ETHER_ALIGN);
 		m = m0;
 
 		ifp->if_ipackets++;
