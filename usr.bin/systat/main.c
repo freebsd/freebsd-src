@@ -66,6 +66,7 @@ int     col;
 int	naptime = 5;
 int     verbose = 1;                    /* to report kvm read errs */
 int     hz, stathz;
+double	hertz;
 char    c;
 char    *namp;
 char    hostname[MAXHOSTNAMELEN];
@@ -143,6 +144,7 @@ main(argc, argv)
 	gethostname(hostname, sizeof (hostname));
 	NREAD(X_HZ, &hz, LONG);
 	NREAD(X_STATHZ, &stathz, LONG);
+	hertz = stathz ? stathz : hz;
 	(*curcmd->c_init)();
 	curcmd->c_flags |= CF_INIT;
 	labels();

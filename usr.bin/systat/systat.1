@@ -158,7 +158,8 @@ Display, in the lower window, statistics about processor use
 and disk throughput.  Statistics on processor use appear as
 bar graphs of the amount of time executing in user mode (``user''),
 in user mode running low priority processes (``nice''), in
-system mode (``system''), and idle (``idle'').  Statistics
+system mode (``system''), in interrupt mode (``interrupt''),
+and idle (``idle'').  Statistics
 on disk throughput show, for each drive, kilobytes of data transferred,
 number of disk transactions performed, and average seek time
 (in milliseconds).  This information may be displayed as
@@ -237,7 +238,7 @@ in disk wait other than paging (`d'),
 sleeping (`s'), and swapped out but desiring to run (`w').
 Below the queue length listing is a numerical listing and
 a bar graph showing the amount of
-system (shown as `='), user (shown as `>'),
+system (shown as `='), interrupt (shown as `+'), user (shown as `>'),
 nice (shown as `-'), and idle time (shown as ` ').
 .Pp
 At the bottom left are statistics on name translations.
