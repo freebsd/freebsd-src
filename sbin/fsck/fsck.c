@@ -204,7 +204,7 @@ main(int argc, char *argv[])
 			type = fs->fs_vfstype;
 			mntpt = fs->fs_file;
 			if (BADTYPE(fs->fs_type))
-				errx(1, "%s has unknown file system type.",
+				errx(1, "%s has unknown filesystem type.",
 				    spec);
 		}
 		if ((flags & CHECK_BACKGRD) &&

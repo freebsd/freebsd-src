@@ -54,7 +54,7 @@ The technique used by this program is also less general than
 bad block forwarding, as
 .Nm
 can't make amends for
-bad blocks in the i-list of file systems or in swap areas.
+bad blocks in the i-list of filesystems or in swap areas.
 .Pp
 On some disks,
 adding a sector which is suddenly bad to the bad sector table
@@ -68,8 +68,8 @@ do not support the bad-blocking standard
 may be used to good effect.
 .Pp
 .Nm Badsect
-is used on a quiet file system in the following way:
-First mount the file system, and change to its root directory.
+is used on a quiet filesystem in the following way:
+First mount the filesystem, and change to its root directory.
 Make a directory
 .Li BAD
 there.
@@ -80,12 +80,12 @@ giving as argument the
 directory followed by
 all the bad sectors you wish to add.
 (The sector numbers must be relative to the beginning of
-the file system, but this is not hard as the system reports
+the filesystem, but this is not hard as the system reports
 relative sector numbers in its console error messages.)
-Then change back to the root directory, unmount the file system
+Then change back to the root directory, unmount the filesystem
 and run
 .Xr fsck 8
-on the file system.  The bad sectors should show up in two files
+on the filesystem.  The bad sectors should show up in two files
 or in the bad sector files and the free list.  Have
 .Xr fsck
 remove files containing the offending bad sectors, but
@@ -115,14 +115,14 @@ to convert the inode to a regular file containing the bad block.
 .Sh DIAGNOSTICS
 .Nm Badsect
 refuses to attach a block that
-resides in a critical area or is out of range of the file system.
+resides in a critical area or is out of range of the filesystem.
 A warning is issued if the block is already in use.
 .Sh BUGS
-If more than one sector which comprise a file system fragment are bad,
+If more than one sector which comprise a filesystem fragment are bad,
 you should specify only one of them to
 .Nm ,
 as the blocks in the bad sector files actually cover all the sectors in a
-file system fragment.
+filesystem fragment.
 .Sh HISTORY
 The
 .Nm

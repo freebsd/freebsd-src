@@ -97,7 +97,7 @@ struct bufarea {
 
 #define	MINBUFS		5	/* minimum number of buffers required */
 struct bufarea bufhead;		/* head of list of other blks in filesys */
-struct bufarea sblk;		/* file system superblock */
+struct bufarea sblk;		/* filesystem superblock */
 struct bufarea cgblk;		/* cylinder group blocks */
 struct bufarea *pdirbp;		/* current directory contents */
 struct bufarea *pbp;		/* current inode block */
@@ -196,7 +196,7 @@ char	nflag;			/* assume a no response */
 char	yflag;			/* assume a yes response */
 int	bflag;			/* location of alternate super block */
 int	debug;			/* output debugging info */
-int	cvtlevel;		/* convert to newer file system format */
+int	cvtlevel;		/* convert to newer filesystem format */
 int	doinglevel1;		/* converting to new cylinder group format */
 int	doinglevel2;		/* converting to new inode format */
 int	newinofmt;		/* filesystem has new inode format */
@@ -205,16 +205,16 @@ char	preen;			/* just fix normal inconsistencies */
 char	rerun;			/* rerun fsck. Only used in non-preen mode */
 int	returntosingle;		/* 1 => return to single user mode on exit */
 char	resolved;		/* cleared if unresolved changes => not clean */
-int	markclean;		/* mark file system clean when done */
+int	markclean;		/* mark filesystem clean when done */
 char	havesb;			/* superblock has been read */
-char	skipclean;		/* skip clean file systems if preening */
-int	fsmodified;		/* 1 => write done to file system */
-int	fsreadfd;		/* file descriptor for reading file system */
-int	fswritefd;		/* file descriptor for writing file system */
+char	skipclean;		/* skip clean filesystems if preening */
+int	fsmodified;		/* 1 => write done to filesystem */
+int	fsreadfd;		/* file descriptor for reading filesystem */
+int	fswritefd;		/* file descriptor for writing filesystem */
 
-ufs_daddr_t maxfsblock;		/* number of blocks in the file system */
+ufs_daddr_t maxfsblock;		/* number of blocks in the filesystem */
 char	*blockmap;		/* ptr to primary blk allocation map */
-ino_t	maxino;			/* number of inodes in file system */
+ino_t	maxino;			/* number of inodes in filesystem */
 
 ino_t	lfdir;			/* lost & found directory inode number */
 char	*lfname;		/* lost & found directory name */

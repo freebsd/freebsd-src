@@ -61,7 +61,7 @@ static const char rcsid[] =
 #include "newfs.h"
 
 /*
- * make file system for cylinder-group style file systems
+ * make filesystem for cylinder-group style filesystems
  */
 
 /*
@@ -134,7 +134,7 @@ mkfs(struct partition *pp, char *fsys)
 	if (Uflag)
 		sblock.fs_flags |= FS_DOSOFTDEP;
 	/*
-	 * Validate the given file system size.
+	 * Validate the given filesystem size.
 	 * Verify that its last block can actually be accessed.
 	 */
 	if (fssize <= 0)
@@ -384,8 +384,8 @@ mkfs(struct partition *pp, char *fsys)
 	}
 	sblock.fs_cgsize = fragroundup(&sblock, CGSIZE(&sblock));
 	/*
-	 * Now have size for file system and nsect and ntrak.
-	 * Determine number of cylinders and blocks in the file system.
+	 * Now have size for filesystem and nsect and ntrak.
+	 * Determine number of cylinders and blocks in the filesystem.
 	 */
 	sblock.fs_size = fssize = dbtofsb(&sblock, fssize);
 	sblock.fs_ncyl = fssize * NSPF(&sblock) / sblock.fs_spc;
@@ -394,7 +394,7 @@ mkfs(struct partition *pp, char *fsys)
 		lwarn = 1;
 	}
 	if (sblock.fs_ncyl < 1) {
-		printf("file systems must have at least one cylinder\n");
+		printf("filesystems must have at least one cylinder\n");
 		exit(28);
 	}
 	/*
@@ -404,7 +404,7 @@ mkfs(struct partition *pp, char *fsys)
 	 * size of the superblock, SBSIZE. The amount of space available
 	 * for tables is calculated as (SBSIZE - sizeof (struct fs)).
 	 * The size of these tables is inversely proportional to the block
-	 * size of the file system. The size increases if sectors per track
+	 * size of the filesystem. The size increases if sectors per track
 	 * are not powers of two, because more cylinders must be described
 	 * by the tables before the rotational pattern repeats (fs_cpc).
 	 */
@@ -496,7 +496,7 @@ mkfs(struct partition *pp, char *fsys)
 	sblock.fs_id[1] = random();
 
 	/*
-	 * Dump out summary information about file system.
+	 * Dump out summary information about filesystem.
 	 */
 	printf("%s:\t%d sectors in %d %s of %d tracks, %d sectors\n",
 	    fsys, sblock.fs_size * NSPF(&sblock), sblock.fs_ncyl,
@@ -535,7 +535,7 @@ mkfs(struct partition *pp, char *fsys)
 	if (Nflag)
 		exit(0);
 	/*
-	 * Now construct the initial file system,
+	 * Now construct the initial filesystem,
 	 * then write out the super-block.
 	 */
 	fsinit(utime);
@@ -720,7 +720,7 @@ initcg(int cylno, time_t utime)
 }
 
 /*
- * initialize the file system
+ * initialize the filesystem
  */
 struct dinode node;
 
@@ -907,7 +907,7 @@ iput(struct dinode *ip, ino_t ino)
 }
 
 /*
- * read a block from the file system
+ * read a block from the filesystem
  */
 void
 rdfs(daddr_t bno, int size, char *bf)
@@ -953,7 +953,7 @@ wtfsflush()
 }
 
 /*
- * write a block to the file system
+ * write a block to the filesystem
  */
 static void
 wtfs(daddr_t bno, int size, char *bf)

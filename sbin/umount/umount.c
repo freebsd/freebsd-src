@@ -224,14 +224,14 @@ umountall(char **typelist)
 		    strcmp(fs->fs_type, FSTAB_RO) &&
 		    strcmp(fs->fs_type, FSTAB_RQ))
 			continue;
-		/* Ignore unknown file system types. */
+		/* Ignore unknown filesystem types. */
 		if (getvfsbyname(fs->fs_vfstype, &vfc) == -1)
 			continue;
 		if (checkvfsname(fs->fs_vfstype, typelist))
 			continue;
 
 		/*
-		 * We want to unmount the file systems in the reverse order
+		 * We want to unmount the filesystems in the reverse order
 		 * that they were mounted.  So, we save off the file name
 		 * in some allocated memory, and then call recursively.
 		 */
@@ -507,7 +507,7 @@ getmntname(const char *fromname, const char *onname,
 			err(1, "calloc");
 	}
 	/*
-	 * We want to get the file systems in the reverse order
+	 * We want to get the filesystems in the reverse order
 	 * that they were mounted. Mounted and unmounted filesystems
 	 * are marked or unmarked in a table called 'mntcheck'.
 	 * Unmount(const char *dir, int flags) does only take the

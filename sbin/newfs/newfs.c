@@ -99,7 +99,7 @@ static const char rcsid[] =
 #define MAXBLKPG(bsize)	((bsize) / sizeof(daddr_t))
 
 /*
- * Each file system has a number of inodes statically allocated.
+ * Each filesystem has a number of inodes statically allocated.
  * We allocate one inode slot per NFPI fragments, expecting this
  * to be far more than we will ever need.
  */
@@ -114,10 +114,10 @@ static const char rcsid[] =
  */
 #define NSECTORS	4096	/* number of sectors */
 
-int	Nflag;			/* run without writing file system */
+int	Nflag;			/* run without writing filesystem */
 int	Rflag;			/* regression test */
-int	Uflag;			/* enable soft updates for file system */
-u_int	fssize;			/* file system size */
+int	Uflag;			/* enable soft updates for filesystem */
+u_int	fssize;			/* filesystem size */
 u_int	secpercyl = NSECTORS;	/* sectors per cylinder */
 u_int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
@@ -224,7 +224,7 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			if ((fssize = atoi(optarg)) <= 0)
-				errx(1, "%s: bad file system size", optarg);
+				errx(1, "%s: bad filesystem size", optarg);
 			break;
 		case 'u':
 			t_or_u_flag++;
@@ -275,7 +275,7 @@ main(int argc, char *argv[])
 		cp = strchr(special, '\0');
 		cp--;
 		if ((*cp < 'a' || *cp > 'h') && !isdigit(*cp))
-			errx(1, "%s: can't figure out file system partition",
+			errx(1, "%s: can't figure out filesystem partition",
 			    special);
 		if (isdigit(*cp))
 			pp = &lp->d_partitions[RAW_PART];
@@ -292,7 +292,7 @@ main(int argc, char *argv[])
 			fssize = pp->p_size;
 		if (fssize > pp->p_size)
 			errx(1, 
-		    "%s: maximum file system size %d", special, pp->p_size);
+		    "%s: maximum filesystem size %d", special, pp->p_size);
 		if (secpercyl == 0)
 			secpercyl = lp->d_nsectors;
 		if (sectorsize == 0)
@@ -398,7 +398,7 @@ usage()
 	    " [device-type]");
 	fprintf(stderr, "where fsoptions are:\n");
 	fprintf(stderr,
-	    "\t-N do not create file system, just print out parameters\n");
+	    "\t-N do not create filesystem, just print out parameters\n");
 	fprintf(stderr, "\t-R regression test, supress random factors\n");
 	fprintf(stderr, "\t-S sector size\n");
 	fprintf(stderr, "\t-T disktype\n");
@@ -413,7 +413,7 @@ usage()
 	fprintf(stderr, "\t-i number of bytes per inode\n");
 	fprintf(stderr, "\t-m minimum free space %%\n");
 	fprintf(stderr, "\t-o optimization preference (`space' or `time')\n");
-	fprintf(stderr, "\t-s file system size (sectors)\n");
+	fprintf(stderr, "\t-s filesystem size (sectors)\n");
 	fprintf(stderr, "\t-u sectors/cylinder\n");
 	fprintf(stderr,
         "\t-v do not attempt to determine partition name from device name\n");

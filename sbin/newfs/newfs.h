@@ -37,10 +37,10 @@
 /*
  * variables set up by front end.
  */
-extern int	Nflag;		/* run mkfs without writing file system */
+extern int	Nflag;		/* run mkfs without writing filesystem */
 extern int	Rflag;		/* regression test */
-extern int	Uflag;		/* enable soft updates for file system */
-extern u_int	fssize;		/* file system size */
+extern int	Uflag;		/* enable soft updates for filesystem */
+extern u_int	fssize;		/* filesystem size */
 extern u_int	secpercyl;	/* sectors per cylinder */
 extern u_int	sectorsize;	/* bytes/sector */
 extern int	realsectorsize;	/* bytes/sector in hardware*/
