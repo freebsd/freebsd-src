@@ -2993,6 +2993,8 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 	cnt = fxdr_unsigned(int, *tl);
 	siz = ((cnt + DIRBLKSIZ - 1) & ~(DIRBLKSIZ - 1));
 	xfer = NFS_SRVMAXDATA(nfsd);
+	if (cnt > xfer)
+		cnt = xfer;
 	if (siz > xfer)
 		siz = xfer;
 	fullsiz = siz;
@@ -3282,6 +3284,8 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 	off = toff;
 	siz = ((siz + DIRBLKSIZ - 1) & ~(DIRBLKSIZ - 1));
 	xfer = NFS_SRVMAXDATA(nfsd);
+	if (cnt > xfer)
+		cnt = xfer;
 	if (siz > xfer)
 		siz = xfer;
 	fullsiz = siz;
