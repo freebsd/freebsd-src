@@ -37,6 +37,9 @@
  * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)kvm_proc.c	8.3 (Berkeley) 9/23/93";
 #endif /* LIBC_SCCS and not lint */
