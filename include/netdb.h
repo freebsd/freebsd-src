@@ -265,8 +265,8 @@ struct netent *  _getnetbynisname __P((const char *));
 struct netent *  _getnetbyhtaddr  __P((unsigned long, int));
 struct netent *  _getnetbydnsaddr __P((unsigned long, int));
 struct netent *  _getnetbynisaddr __P((unsigned long, int));
-void _map_v4v6_address __P((const char *src, char *dst));
-void _map_v4v6_hostent __P((struct hostent *hp, char **bp, int *len));
+void _map_v4v6_address __P((const char *, char *));
+void _map_v4v6_hostent __P((struct hostent *, char **, int *));
 __END_DECLS
 
 #endif /* !_NETDB_H_ */
