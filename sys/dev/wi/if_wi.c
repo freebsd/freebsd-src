@@ -649,7 +649,7 @@ wi_get_id(sc, dev)
 
 	/* getting chip identity */
 	memset(&ver, 0, sizeof(ver));
-	ver.wi_type = WI_RID_CARDID;
+	ver.wi_type = WI_RID_CARD_ID;
 	ver.wi_len = 5;
 	wi_read_record(sc, (struct wi_ltv_gen *)&ver);
 	device_printf(dev, "using ");
