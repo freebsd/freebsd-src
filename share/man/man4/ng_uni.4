@@ -58,7 +58,7 @@ node has three hooks with fixed names:
 .It Dv lower
 This hook is the interface of the UNI protocol to the transport layer of
 the ATM control plane.
-The node expectes the interface exported by
+The node expects the interface exported by
 .Xr ng_sscfu 4
 at this hook.
 .It Dv upper
@@ -91,9 +91,9 @@ four kinds of signals: requests, responses, indications and confirmations.
 These signals are usually triggered either by external events (receiving a
 message) or internal events (a timer or another signal).
 This scheme works
-fine for user APIs that are entirely asynchronuous and in cases, where
+fine for user APIs that are entirely asynchronous and in cases, where
 error handling is not taken into account.
-With synchronuous APIs and error
+With synchronous APIs and error
 handling, however there is a problem.
 If, for example, the application
 issues a request to setup a connection.
@@ -105,7 +105,7 @@ receive a message from the switch (a RELEASE, CONNECT, CALL PROCEEDING or
 ALERTING) or a timer in the UNI stack will time out.
 In any of these cases
 the UNI stack is supposed to report an event back to the application and
-the application will unblock (in the case of a synchronuous API) and handle
+the application will unblock (in the case of a synchronous API) and handle
 the event.
 The problem occurs, when an error happens.
 Suppose there is no
@@ -118,7 +118,7 @@ for each signal sent from the application to the stack, the stack will
 respond with an error code.
 If this code is zero, the stack has accepted
 the signal and the application may block, if the code is non-zero, the signal
-is effectivly ignored and the code describes, what was wrong.
+is effectively ignored and the code describes, what was wrong.
 This system
 makes it very easy to make a blocking interface out of the message based
 netgraph interface.
@@ -405,7 +405,7 @@ More testing needed.
 .It
 PNNI not yet implemented.
 .It
-Need to implement connection modification and the Q.2931 amandements.
+Need to implement connection modification and the Q.2931 amendments.
 .Sh AUTHORS
 The
 .Nm
