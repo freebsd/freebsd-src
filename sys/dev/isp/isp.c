@@ -70,7 +70,7 @@ static const char portshift[] =
     "Target %d Loop ID 0x%x (Port 0x%x) => Loop 0x%x (Port 0x%x)";
 static const char portdup[] =
     "Target %d duplicates Target %d- killing off both";
-static const char retained[] = 
+static const char retained[] =
     "Retaining Loop ID 0x%x for Target %d (Port 0x%x)";
 static const char lretained[] =
     "Retained login of Target %d (Loop ID 0x%x) Port 0x%x";
@@ -334,11 +334,11 @@ isp_reset(struct ispsoftc *isp)
 			isp->isp_type = ISP_HA_SCSI_1040B;
 			isp->isp_clock = 60;
 			break;
-		case 6: 
+		case 6:
 			revname = "1040C";
 			isp->isp_type = ISP_HA_SCSI_1040C;
 			isp->isp_clock = 60;
-                        break; 
+                        break;
 		}
 		/*
 		 * Now, while we're at it, gather info about ultra
@@ -1096,7 +1096,7 @@ isp_fibre_init(struct ispsoftc *isp)
 	 */
 	fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
 
-	
+
 	/*
 	 * Make sure that target role reflects into fwoptions.
 	 */
@@ -1569,7 +1569,7 @@ isp_pdb_sync(struct ispsoftc *isp)
 	 * Make sure we're okay for doing this right now.
 	 */
 	if (fcp->isp_loopstate != LOOP_PDB_RCVD &&
-	    fcp->isp_loopstate != LOOP_FSCAN_DONE && 
+	    fcp->isp_loopstate != LOOP_FSCAN_DONE &&
 	    fcp->isp_loopstate != LOOP_LSCAN_DONE) {
 		return (-1);
 	}
@@ -1662,7 +1662,7 @@ isp_pdb_sync(struct ispsoftc *isp)
 		    isp_getpdb(isp, lp->loopid, &pdb) == 0) {
 			int nrole;
 			u_int64_t nwwnn, nwwpn;
-			nwwnn = 
+			nwwnn =
 			    (((u_int64_t)pdb.pdb_nodename[0]) << 56) |
 			    (((u_int64_t)pdb.pdb_nodename[1]) << 48) |
 			    (((u_int64_t)pdb.pdb_nodename[2]) << 40) |
@@ -1671,7 +1671,7 @@ isp_pdb_sync(struct ispsoftc *isp)
 			    (((u_int64_t)pdb.pdb_nodename[5]) << 16) |
 			    (((u_int64_t)pdb.pdb_nodename[6]) <<  8) |
 			    (((u_int64_t)pdb.pdb_nodename[7]));
-			nwwpn = 
+			nwwpn =
 			    (((u_int64_t)pdb.pdb_portname[0]) << 56) |
 			    (((u_int64_t)pdb.pdb_portname[1]) << 48) |
 			    (((u_int64_t)pdb.pdb_portname[2]) << 40) |
@@ -2130,7 +2130,7 @@ isp_scan_loop(struct ispsoftc *isp)
 		/*
 		 * Tell the outside world we've gone
 		 * away and erase our pdb entry.
-		 * 
+		 *
 		 */
 		loopid = lp - fcp->portdb;
 		(void) isp_async(isp, ISPASYNC_PROMENADE, &loopid);
@@ -2561,6 +2561,7 @@ isp_start(XS_T *xs)
 		}
 	} else {
 		sdparam *sdp = (sdparam *)isp->isp_param;
+		sdp += XS_CHANNEL(xs);
 		if ((sdp->isp_devparam[target].cur_dflags & DPARM_TQING) &&
 		    XS_TAG_P(xs)) {
 			reqp->req_flags = XS_TAG_TYPE(xs);
@@ -2909,22 +2910,24 @@ isp_intr(void *arg)
 	if (isp->isp_state != ISP_RUNSTATE) {
 		isp_prt(isp, ISP_LOGWARN,
 		    "interrupt (isr=%x, sema=%x) when not ready", isr, sema);
-		ISP_WRITE(isp, INMAILBOX5, ISP_READ(isp, OUTMAILBOX5));
+		WRITE_RESPONSE_QUEUE_IN_POINTER(isp,
+		    READ_RESPONSE_QUEUE_OUT_POINTER(isp));
 		ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
 		ISP_WRITE(isp, BIU_SEMA, 0);
 		return (1);
 	}
 
 	/*
-	 * You *must* read OUTMAILBOX5 prior to clearing the RISC interrupt.
+	 * You *must* read the Response Queue Out Pointer
+	 * prior to clearing the RISC interrupt.
 	 */
 	optr = isp->isp_residx;
 
 	if (IS_2100(isp)) {
 		i = 0;
 		do {
-			iptr = ISP_READ(isp, OUTMAILBOX5);
-			junk = ISP_READ(isp, OUTMAILBOX5);
+			iptr = READ_RESPONSE_QUEUE_OUT_POINTER(isp);
+			junk = READ_RESPONSE_QUEUE_OUT_POINTER(isp);
 		} while (junk != iptr && ++i < 1000);
 
 		if (iptr != junk) {
@@ -2934,7 +2937,7 @@ isp_intr(void *arg)
 			return (1);
 		}
 	} else {
-		iptr = ISP_READ(isp, OUTMAILBOX5);
+		iptr = READ_RESPONSE_QUEUE_OUT_POINTER(isp);
 	}
 
 	if (sema) {
@@ -3003,7 +3006,7 @@ isp_intr(void *arg)
 			if (sp->req_header.rqs_flags & RQSFLAG_CONTINUATION) {
 				isp_prt(isp, ISP_LOGWARN,
 				    "continuation segment");
-				ISP_WRITE(isp, INMAILBOX5, optr);
+				WRITE_RESPONSE_QUEUE_IN_POINTER(isp, optr);
 				continue;
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_FULL) {
@@ -3035,7 +3038,7 @@ isp_intr(void *arg)
 			    "bad request handle %d (type 0x%x, flags 0x%x)",
 			    sp->req_handle, sp->req_header.rqs_entry_type,
 			    sp->req_header.rqs_flags);
-			ISP_WRITE(isp, INMAILBOX5, optr);
+			WRITE_RESPONSE_QUEUE_IN_POINTER(isp, optr);
 			continue;
 		}
 		xs = isp_find_xs(isp, sp->req_handle);
@@ -3044,7 +3047,7 @@ isp_intr(void *arg)
 			isp_prt(isp, ISP_LOGERR,
 			    "cannot find handle 0x%x in xflist",
 			    sp->req_handle);
-			ISP_WRITE(isp, INMAILBOX5, optr);
+			WRITE_RESPONSE_QUEUE_IN_POINTER(isp, optr);
 			continue;
 		}
 		isp_destroy_handle(isp, sp->req_handle);
@@ -3179,8 +3182,8 @@ isp_intr(void *arg)
 	 * ISP's notion of what we've seen so far.
 	 */
 	if (nlooked) {
-		ISP_WRITE(isp, INMAILBOX5, optr);
-		isp->isp_reqodx = ISP_READ(isp, OUTMAILBOX4);
+		WRITE_RESPONSE_QUEUE_IN_POINTER(isp, optr);
+		isp->isp_reqodx = READ_REQUEST_QUEUE_OUT_POINTER(isp);
 	}
 
 	isp->isp_residx = optr;
@@ -3218,14 +3221,7 @@ isp_parse_async(struct ispsoftc *isp, int mbox)
 		isp_async(isp, ISPASYNC_BUS_RESET, &bus);
 		break;
 	case ASYNC_SYSTEM_ERROR:
-		mbox = ISP_READ(isp, OUTMAILBOX1);
-		isp_prt(isp, ISP_LOGERR,
-		    "Internal Firmware Error @ RISC Addr 0x%x", mbox);
-		ISP_DUMPREGS(isp, "Firmware Error");
-		isp_reinit(isp);
-#ifdef	ISP_TARGET_MODE
-		isp_target_async(isp, bus, ASYNC_SYSTEM_ERROR);
-#endif
+		isp_async(isp, ISPASYNC_FW_CRASH, NULL);
 		/* no point continuing after this */
 		return (-1);
 
@@ -3243,7 +3239,7 @@ isp_parse_async(struct ispsoftc *isp, int mbox)
 		 * We don't need to be chatty about this- just unlatch things
 		 * and move on.
 		 */
-		mbox = ISP_READ(isp, OUTMAILBOX4);
+		mbox = READ_REQUEST_QUEUE_OUT_POINTER(isp);
 		break;
 
 	case ASYNC_TIMEOUT_RESET:
@@ -3365,8 +3361,10 @@ isp_parse_async(struct ispsoftc *isp, int mbox)
 					XS_SETERR(xs, HBA_BUSRESET);
 				}
 			}
-			isp_prt(isp, ISP_LOGERR,
-			   "LIP destroyed %d active commands", j);
+			if (j) {
+				isp_prt(isp, ISP_LOGERR,
+				    "LIP destroyed %d active commands", j);
+			}
 		}
 		break;
 
@@ -3735,8 +3733,8 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 		break;
 
 	case RQCS_XACT_ERR3:
-		isp_prt(isp, ISP_LOGERR, xact3, XS_TGT(xs),
-		    XS_LUN(xs), XS_CHANNEL(xs));
+		isp_prt(isp, ISP_LOGERR, xact3,
+		    XS_CHANNEL(xs), XS_TGT(xs), XS_LUN(xs));
 		break;
 
 	case RQCS_BAD_ENTRY:
@@ -4561,7 +4559,7 @@ isp_update_bus(struct ispsoftc *isp, int bus)
 			sdp->isp_devparam[tgt].dev_flags &= ~DPARM_QFRZ;
 
 			mbs.param[2] = sdp->isp_devparam[tgt].dev_flags;
-			
+
 			/*
 			 * Insist that PARITY must be enabled
 			 * if SYNC or WIDE is enabled.
@@ -5172,7 +5170,7 @@ isp_parse_nvram_1080(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 	sdparam *sdp = (sdparam *) isp->isp_param;
 	sdp += bus;
 
-	sdp->isp_fifo_threshold = 
+	sdp->isp_fifo_threshold =
 	    ISP1080_NVRAM_FIFO_THRESHOLD(nvram_data);
 
 	sdp->isp_initiator_id =
@@ -5249,7 +5247,7 @@ isp_parse_nvram_12160(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 	sdp->isp_fifo_threshold =
 	    ISP12160_NVRAM_FIFO_THRESHOLD(nvram_data);
 
-	sdp->isp_initiator_id = 
+	sdp->isp_initiator_id =
 	    ISP12160_NVRAM_INITIATOR_ID(nvram_data, bus);
 
 	sdp->isp_bus_reset_delay =
@@ -5334,7 +5332,7 @@ isp_parse_nvram_2100(struct ispsoftc *isp, u_int8_t *nvram_data)
 		isp_prt(isp, ISP_LOGCONFIG, "NVRAM Port WWN 0x%08x%08x",
 		    (u_int32_t) (wwn >> 32), (u_int32_t) (wwn & 0xffffffff));
 		if ((wwn >> 60) == 0) {
-			wwn |= (((u_int64_t) 2)<< 60); 
+			wwn |= (((u_int64_t) 2)<< 60);
 		}
 	}
 	fcp->isp_portwwn = wwn;
@@ -5343,7 +5341,7 @@ isp_parse_nvram_2100(struct ispsoftc *isp, u_int8_t *nvram_data)
 		isp_prt(isp, ISP_LOGCONFIG, "NVRAM Node WWN 0x%08x%08x",
 		    (u_int32_t) (wwn >> 32), (u_int32_t) (wwn & 0xffffffff));
 		if ((wwn >> 60) == 0) {
-			wwn |= (((u_int64_t) 2)<< 60); 
+			wwn |= (((u_int64_t) 2)<< 60);
 		}
 	}
 	fcp->isp_nodewwn = wwn;
