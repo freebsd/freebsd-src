@@ -11,7 +11,7 @@ SRCS+=	exec_aout.c
 .endif
 
 .if ${TARGET_ARCH} == alpha || ${TARGET_ARCH} == ia64 || \
-    ${TARGET_ARCH} == sparc64
+    ${TARGET_ARCH} == sparc64 || ${TARGET_ARCH} == amd64
 CFLAGS+=-DNLIST_ELF64
 SRCS+=	exec_elf64.c
 exec_elf64.o: exec_elf32.c
