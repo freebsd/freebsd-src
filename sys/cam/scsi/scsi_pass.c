@@ -41,7 +41,6 @@
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>
@@ -125,22 +124,11 @@ static struct cdevsw pass_cdevsw = {
 	/* flags */	0,
 };
 
-static struct extend_array *passperiphs;
-
 static void
 passinit(void)
 {
 	cam_status status;
 	struct cam_path *path;
-
-	/*
-	 * Create our extend array for storing the devices we attach to.
-	 */
-	passperiphs = cam_extend_new();
-	if (passperiphs == NULL) {
-		printf("passm: Failed to alloc extend array!\n");
-		return;
-	}
 
 	/*
 	 * Install a global async callback.  This callback will
@@ -213,8 +201,6 @@ passcleanup(struct cam_periph *periph)
 	devstat_remove_entry(&softc->device_stats);
 
 	destroy_dev(softc->dev);
-
-	cam_extend_release(passperiphs, periph->unit_number);
 
 	if (bootverbose) {
 		xpt_print_path(periph->path);
@@ -303,7 +289,6 @@ passregister(struct cam_periph *periph, void *arg)
 	softc->pd_type = SID_TYPE(&cgd->inq_data);
 
 	periph->softc = softc;
-	cam_extend_set(passperiphs, periph->unit_number, periph);
 
 	/*
 	 * We pass in 0 for a blocksize, since we don't 
@@ -323,6 +308,7 @@ passregister(struct cam_periph *periph, void *arg)
 	softc->dev = make_dev(&pass_cdevsw, periph->unit_number, UID_ROOT,
 			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
 			      periph->unit_number);
+	softc->dev->si_drv1 = periph;
 
 	/*
 	 * Add an async callback so that we get
@@ -346,17 +332,12 @@ passopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct pass_softc *softc;
-	int unit, error;
+	int error;
 	int s;
 
 	error = 0; /* default to no error */
 
-	/* unit = dkunit(dev); */
-	/* XXX KDM fix this */
-	unit = minor(dev) & 0xff;
-
-	periph = cam_extend_get(passperiphs, unit);
-
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 
@@ -418,13 +399,9 @@ passclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct 	cam_periph *periph;
 	struct	pass_softc *softc;
-	int	unit, error;
+	int	error;
 
-	/* unit = dkunit(dev); */
-	/* XXX KDM fix this */
-	unit = minor(dev) & 0xff;
-
-	periph = cam_extend_get(passperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
@@ -482,18 +459,11 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 static int
 passioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
-	struct 	cam_periph *periph;
+	struct	cam_periph *periph;
 	struct	pass_softc *softc;
-	u_int8_t unit;
-	int      error;
+	int	error;
 
-
-	/* unit = dkunit(dev); */
-	/* XXX KDM fix this */
-	unit = minor(dev) & 0xff;
-
-	periph = cam_extend_get(passperiphs, unit);
-
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return(ENXIO);
 

@@ -62,7 +62,6 @@
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_queue.h>
@@ -267,7 +266,6 @@ static struct cdevsw cd_cdevsw = {
 };
 static struct cdevsw cddisk_cdevsw;
 
-static struct extend_array *cdperiphs;
 static int num_changers;
 
 #ifndef CHANGER_MIN_BUSY_SECONDS
@@ -308,15 +306,6 @@ cdinit(void)
 {
 	cam_status status;
 	struct cam_path *path;
-
-	/*
-	 * Create our extend array for storing the devices we attach to.
-	 */
-	cdperiphs = cam_extend_new();
-	if (cdperiphs == NULL) {
-		printf("cd: Failed to alloc extend array!\n");
-		return;
-	}
 
 	/*
 	 * Install a global async callback.  This callback will
@@ -481,7 +470,6 @@ cdcleanup(struct cam_periph *periph)
 		num_changers--;
 	}
 	devstat_remove_entry(&softc->device_stats);
-	cam_extend_release(cdperiphs, periph->unit_number);
 	if (softc->disk.d_dev) {
 		disk_destroy(softc->disk.d_dev);
 	}
@@ -560,6 +548,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
 	caddr_t match;
+	dev_t disk_dev;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (periph == NULL) {
@@ -591,8 +580,6 @@ cdregister(struct cam_periph *periph, void *arg)
 	periph->softc = softc;
 	softc->periph = periph;
 
-	cam_extend_set(cdperiphs, periph->unit_number, periph);
-
 	/*
 	 * See if this device has any quirks.
 	 */
@@ -623,9 +610,10 @@ cdregister(struct cam_periph *periph, void *arg)
 	  		  DEVSTAT_BS_UNAVAILABLE,
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_CD);
-	disk_create(periph->unit_number, &softc->disk,
+	disk_dev = disk_create(periph->unit_number, &softc->disk,
 		    DSO_ONESLICE | DSO_COMPATLABEL,
 		    &cd_cdevsw, &cddisk_cdevsw);
+	disk_dev->si_drv1 = periph;
 
 	/*
 	 * Add an async callback so that we get
@@ -875,12 +863,10 @@ cdopen(dev_t dev, int flags, int fmt, struct thread *td)
 	struct cd_softc *softc;
 	struct ccb_getdev cgd;
 	u_int32_t size;
-	int unit, error;
+	int error;
 	int s;
 
-	unit = dkunit(dev);
-	periph = cam_extend_get(cdperiphs, unit);
-
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 
@@ -984,10 +970,9 @@ cdclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct 	cam_periph *periph;
 	struct	cd_softc *softc;
-	int	unit, error;
+	int	error;
 
-	unit = dkunit(dev);
-	periph = cam_extend_get(cdperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
@@ -1359,12 +1344,9 @@ cdstrategy(struct bio *bp)
 {
 	struct cam_periph *periph;
 	struct cd_softc *softc;
-	u_int  unit, part;
 	int    s;
 
-	unit = dkunit(bp->bio_dev);
-	part = dkpart(bp->bio_dev);
-	periph = cam_extend_get(cdperiphs, unit);
+	periph = (struct cam_periph *)bp->bio_dev->si_drv1;
 	if (periph == NULL) {
 		biofinish(bp, NULL, ENXIO);
 		return;
@@ -1804,11 +1786,9 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 
 	struct 	cam_periph *periph;
 	struct	cd_softc *softc;
-	int	error, unit;
+	int	error;
 
-	unit = dkunit(dev);
-
-	periph = cam_extend_get(cdperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return(ENXIO);	
 
@@ -2510,8 +2490,7 @@ cdsize(dev_t dev, u_int32_t *size)
 	struct scsi_read_capacity_data *rcap_buf;
 	int error;
 
-	periph = cam_extend_get(cdperiphs, dkunit(dev));
-
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
         
