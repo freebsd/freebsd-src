@@ -247,6 +247,7 @@ MAKEREADMES=	make readmes PORTSDIR=${CHROOTDIR}/usr/ports
 MAKEREADMES=	true
 .endif
 
+TMAKE!=		cd ${.CURDIR}/..; ${MAKE} -f Makefile.inc1 -V TMAKE
 WMAKEENV!=	cd ${.CURDIR}/..; ${MAKE} -f Makefile.inc1 -V WMAKEENV
 WMAKE=		${WMAKEENV} ${MAKE}
 
@@ -484,17 +485,19 @@ release.3:
 release.4:
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
-	for j in ${CRUNCH_TARGETS} ; do \
-		rm -rf $${j}_crunch && \
-		mkdir $${j}_crunch && \
-		( cd $${j}_crunch && \
-		  ( ( [ -f ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ] && \
-		    crunchgen ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ) || \
-		    ( crunchgen ${.CURDIR}/$${j}_crunch.conf ) ) && \
-		  ${WMAKE} -f $${j}_crunch.mk subclean all ) && \
-		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
-		true || { rm -rf $${j}_crunch ; false ; } ; \
-	done
+.for j in ${CRUNCH_TARGETS}
+	rm -rf ${j}_crunch
+	mkdir ${j}_crunch
+.if exists(${.CURDIR}/${MACHINE}/${j}_crunch.conf)
+	cd ${j}_crunch; crunchgen ${.CURDIR}/${MACHINE}/${j}_crunch.conf
+.else
+	cd ${j}_crunch; crunchgen ${.CURDIR}/${j}_crunch.conf
+.endif
+	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk subclean
+	cd ${.CURDIR}/..; ${TMAKE} build-tools
+	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk all
+	mv ${j}_crunch/${j}_crunch ${RD}/crunch/${j}
+.endfor
 	touch release.4
 
 #
