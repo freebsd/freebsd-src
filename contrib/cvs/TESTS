@@ -1,0 +1,136 @@
+To run the tests:
+
+	$ make check
+
+Note that if your /bin/sh doesn't support shell functions, you'll
+have to try something like this, where "/bin/sh5" is replaced by the
+pathname of a shell which handles normal shell functions:
+
+	$ make SHELL=/bin/sh5 check
+
+WARNING:  This test can take quite a while to run, esp. if your
+disks are slow or over-loaded.
+
+The tests work in /tmp/cvs-sanity (which the tests create) by default.
+If for some reason you want them to work in a different directory, you
+can set the TESTDIR environment variable to the desired location
+before running them.  In particular, using SGI's Irix 6, the tests
+will fail if TESTDIR is an XFS filesystem (which /tmp often is);
+you'll want to set TESTDIR to a non-XFS filesystem.
+
+You will probably need GNU expr, which is part of the GNU sh-utils
+package (this is just for running the tests; CVS itself doesn't use
+expr).
+
+If there is some unexpected output, that is a failure which can be
+somewhat hard to track down.  Finding out which test is producing the
+output is not always easy.  The newer tests (that is, ones using
+dotest*) will not have this problem, but there are many old tests
+which have not been converted.
+
+If running the tests produces the output "FAIL:" followed by the name
+of the test that failed, then the details on the failure are in the
+file check.log.  If it says "exit status is " followed by a number,
+then the exit status of the command under test was not what the test
+expected.  If it says "** expected:" followed by a regular expression
+followed by "** got:" followed by some text, then the regular
+expression is the output which the test expected, and the text is the
+output which the command under test actually produced.  In some cases
+you'll have to look closely to see how they differ.
+
+If output from "make remotecheck" is out of order compared to what is
+expected (for example,
+
+   a
+   b
+   cvs foo: this is a demo
+
+is expected and
+
+   a
+   cvs foo: this is a demo
+   b
+
+is output), this is probably a well-known bug in the CVS server
+(search for "out-of-order" in src/server.c for a comment explaining
+the cause).  It is a real pain in running the testsuite, but if you
+are lucky and/or your machine is fast and/or lightly loaded, you won't
+run into it.  Running the tests again might succeed if the first run
+failed in this manner.
+
+For more information on what goes in check.log, and how the tests are
+run in general, you'll have to read sanity.sh.  Depending on just what
+you are looking for, and how familiar you are with the Bourne shell
+and regular expressions, it will range from relatively straightforward
+to obscure.
+
+If you choose to submit a bug report based on tests failing, be
+aware that, as with all bug reports, you may or may not get a
+response, and your odds might be better if you include enough
+information to reproduce the bug, an analysis of what is going
+wrong (if you have the time to provide one), etc.  The check.log
+file is the first place to look.
+
+ABOUT STDOUT AND STDERR
+***********************
+
+The sanity.sh test framework combines stdout and stderr and for tests
+to pass requires that output appear in the given order.  Some people
+suggest that ordering between stdout and stderr should not be
+required, or to put it another way, that the out-of-order bug referred
+to above, and similar behaviors, should be considered features, or at
+least tolerable.  The reasoning behind the current behavior is that
+having the output appear in a certain order is the correct behavior
+for users using CVS interactively--that users get confused if the
+order is unpredictable.
+
+ABOUT TEST FRAMEWORKS
+*********************
+
+People periodically suggest using dejagnu or some other test
+framework.  A quick look at sanity.sh should make it clear that there
+are indeed reasons to be dissatisfied with the status quo.  Ideally a
+replacement framework would achieve the following:
+
+1.  Widely portable, including to a wide variety of unices, NT, Win95,
+OS/2, VMS, probably DOS and Win3, etc.
+
+2.  Nicely match extended regular expressions of unlimited length.
+
+3.  Be freely redistributable, and if possible already the kind of
+thing people might have already installed.  The harder it is to get
+and install the framework, the less people will run the tests.
+
+The various contenders are:
+
+* Bourne shell and GNU expr (the status quo).  Falls short on #1
+(we've only tried unix and NT, although MKS might help with other DOS
+mutants).  #3 is pretty good (the main dependency is GNU expr which is
+fairly widely available).
+
+* Bourne shell with a new regexp matcher we would distribute with
+CVS.  This means maintaining a regexp matcher and the makefiles which
+go with it.  Not clearly a win over Bourne shell and GNU expr.
+
+* Bourne shell, and use sed to remove variable portions of output, and
+thus produce a form that can be compared with cmp or diff (this
+sidesteps the need for a full regular expression matcher as mentioned
+in #2 above).  The C News tests are said to work this way.  This would
+appear to rely on variable portions of output having a certain syntax
+and might spuriously recognize them out of context (this issue needs
+more investigation; it isn't clear how big a problem it is in
+practice).  Same portability issues as the other choices based on the
+Bourne shell.
+
+* Dejagnu.  This is overkill; most of dejagnu is either unnecessary
+(e.g. libraries for communicating with target boards) or undesirable
+(e.g. the code which stats every file in sight to find the tests).  On
+the plus side, dejagnu is probably closer than any of the other
+choices to having everything which is needed already there.
+
+* Write our own small framework directly in tcl and distribute with
+CVS.  The tests would look much like dejagnu tests, but we'd avoid the
+unnecessary baggage.  The only dependency would be on tcl (that is,
+wish).
+
+* perl or python or <any other serious contenders here?>

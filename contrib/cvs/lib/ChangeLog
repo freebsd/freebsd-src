@@ -1,3 +1,134 @@
+Thu Mar  6 17:14:49 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* regex.c: Partial merge with version from emacs 19.34.  I brought
+	over most trivial changes (whitespace and so on).  Most of the
+	changes to portability cruft I did not bring over, on the theory
+	of sticking to the devil that we know.  I did bring over the
+	change to undef MAX and MIN (this is a better solution to a
+	problem we had been handling a different way).  There were a
+	variety of changes I probably could/should have brought over, but
+	elected not to try to understand them and whether they would cause
+	trouble (printchar -> putchar, changes to output format in
+	print_partial_compiled_pattern, internationalization,
+	FREE_STACK_RETURN and friends which would appear to be fixing
+	memory leaks in error cases, RE_TRANSLATE_TYPE, and others).  I
+	did merge the changes (union fail_stack_elt, PUSH_FAILURE_POINTER,
+	etc.) to use a union for the failure stack rather than playing
+	games with pointers and integers (that was my reason for
+	bothering; the code had been broken on the Alpha).
+
+Mon Feb 10 18:52:18 1997  Ullrich von Bassewitz <uz@musoftware.com>
+
+	* md5.c: Make the parameter to getu32 const since the function will
+        only read the values and this will avoid compiler warnings in other
+        places.
+
+Mon Feb 10 18:29:04 1997  Ullrich von Bassewitz <uz@musoftware.com>
+
+	* vasprintf.c: Added a #define for systems where a va_list is
+	defined as an array, not as a pointer.
+
+Mon Feb 10 09:31:38 1997  Ken Raeburn  <raeburn@cygnus.com>
+
+	* md5.c (MD5STEP): Truncate to 32 bits before shifting right.
+
+Thu Jan 30 11:35:26 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* regex.h: Don't prototype re_comp and re_exec.
+
+Tue Jan 28 17:45:46 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* md5.c, md5.h: Changes so these work without having an integer
+	type which is exactly 32 bits.  Modeled after changes by Tatu Ylonen
+	<ylo@cs.hut.fi> as part of SSH but rewritten.
+
+Wed Jan  8 14:50:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in, getopt.h, sighandle.c, system.h: Remove CVSid; we
+	decided to get rid of these some time ago.
+
+Thu Jan  2 13:30:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in, argmatch.c, fnmatch.c, fnmatch.h, getline.c,
+	getopt.c, getopt.h, getopt1.c, getwd.c, hostname.c, mkdir.c,
+	regex.c, regex.h, rename.c, sighandle.c, strdup.c, strerror.c,
+	stripslash.c, system.h, vasprintf.c, wait.h, xgetwd.c, yesno.c:
+	Remove "675" paragraph;	see ../ChangeLog for rationale.
+
+Sun Nov 24 13:34:25 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.y (Convert): Change last acceptable year from 1999 to
+	2038.
+	* getdate.c: Regenerated using byacc 1.9.
+
+Tue Nov 19 17:11:17 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (OBJECTS): Remove strippath.o; we don't use
+	strip_path anymore.
+	(SOURCES): Remove strippath.c.
+	* strippath.c: Removed.
+	* build_lib.com: Remove strippath.c.
+
+Wed Oct  2 10:43:35 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* getdate.y: removed CVSid variable
+
+	* getdate.c: regenerated (using byacc 1.9)
+
+Wed Sep 25 10:25:00 1996  Larry Jones  <larry.jones@sdrc.com>
+
+	* vasprintf.c: Fix type clashes in calls to strtoul.
+
+Wed Sep 11 15:55:31 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* build_lib.com: Add valloc.c.
+
+Tue Sep 10 23:04:34 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (DISTFILES): Add build_lib.com.
+
+Fri Aug 16 16:01:57 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* Makefile.in (installdirs): new (empty) target
+
+Mon Aug 12 11:03:43 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: Don't use #elif.  It is said to cause problems with
+	one of the HP compilers on HPUX 9.01.
+
+Sun Jul  7 23:25:46 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* memmove.c: Removed.  The memove function was used by a very old
+	version of the CVS server for nefarious purposes and it has been
+	long gone.
+	* Makefile.in (SOURCES): Remove memmove.c.
+
+Thu Jun  6 15:12:59 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* vasprintf.c: If STDC_HEADERS, include stdlib.h rather than
+	declaring its functions ourself.
+
+Wed Jun 05 10:14:29 1996  Mike Ladwig  <mike@twinpeaks.prc.com>
+			  and Jim Kingdon  <kingdon@cyclic.com>
+
+	* system.h: If ERRNO_H_MISSING is defined, don't include errno.h.
+
+Wed Jun 05 10:14:29 1996  Mike Ladwig  <mike@twinpeaks.prc.com>
+
+	* regex.c: Don't define MAX and MIN if already defined.
+
+Sun May 12 09:40:08 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.y: Replace alloca.h include with a comment explaining
+	why we avoid alloca and the consequences of that.
+	* getdate.c: Regenerated.
+
+Wed May  8 09:31:03 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getdate.c: Regenerate with the version of byacc in Red Hat 3.0.3
+	(which I believe is byacc 1.9).  byacc, unlike bison, does not
+	require alloca in the generated parser.
+
 Thu Apr 25 18:26:34 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* getdate.y (get_date): Set Start from nowtime, not now->time,

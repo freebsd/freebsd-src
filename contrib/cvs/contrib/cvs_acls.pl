@@ -1,8 +1,6 @@
 #! xPERL_PATHx
 # -*-Perl-*-
 #
-# $Id: cvs_acls.pl,v 1.2 1995/07/10 02:01:33 kfogel Exp $
-#
 # Access control lists for CVS.  dgg@ksr.com (David G. Grubbs)
 #
 # CVS "commitinfo" for matching repository names, running the program it finds

@@ -1,6 +1,5 @@
 #! /bin/sh
 #
-# $Id: rcs-to-cvs.sh,v 1.2 1995/07/15 03:40:34 jimb Exp $
 # Based on the CVS 1.0 checkin csh script.
 # Contributed by Per Cederqvist <ceder@signum.se>.
 # Rewritten in sh by David MacKenzie <djm@cygnus.com>.
@@ -33,7 +32,7 @@
 usage="Usage: rcs-to-cvs [-v] [-m message] [-f message_file] repository"
 vbose=0
 message=""
-message_file=/usr/tmp/checkin.$$
+if [ -d /var/tmp ]; then message_file=/var/tmp/checkin.$$; else message_file=/usr/tmp/checkin.$$; fi
 got_one=0
 
 if [ $# -lt 1 ]; then
@@ -79,7 +78,7 @@ fi
 if [ $got_one -eq 0 ]; then
     echo "Please Edit this file to contain the RCS log information" >$message_file
     echo "to be associated with this directory (please remove these lines)">>$message_file
-    ${EDITOR-/usr/ucb/vi} $message_file
+    ${EDITOR-vi} $message_file
     got_one=1
 fi
 

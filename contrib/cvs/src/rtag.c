@@ -13,15 +13,22 @@
 
 #include "cvs.h"
 
-static int check_fileproc PROTO((struct file_info *finfo));
-static int check_filesdoneproc PROTO((int err, char *repos, char *update_dir));
+static int check_fileproc PROTO ((void *callerdat, struct file_info *finfo));
+static int check_filesdoneproc PROTO ((void *callerdat, int err,
+				       char *repos, char *update_dir,
+				       List *entries));
 static int pretag_proc PROTO((char *repository, char *filter));
 static void masterlist_delproc PROTO((Node *p));
 static void tag_delproc PROTO((Node *p));
 static int pretag_list_proc PROTO((Node *p, void *closure));
 
-static Dtype rtag_dirproc PROTO((char *dir, char *repos, char *update_dir));
-static int rtag_fileproc PROTO((struct file_info *finfo));
+static Dtype rtag_dirproc PROTO ((void *callerdat, char *dir,
+				  char *repos, char *update_dir,
+				  List *entries));
+static int rtag_fileproc PROTO ((void *callerdat, struct file_info *finfo));
+static int rtag_filesdoneproc PROTO ((void *callerdat, int err,
+				      char *repos, char *update_dir,
+				      List *entries));
 static int rtag_proc PROTO((int *pargc, char **argv, char *xwhere,
 		      char *mwhere, char *mfile, int shorten,
 		      int local_specified, char *mname, char *msg));
@@ -85,7 +92,7 @@ rtag (argc, argv)
 	usage (rtag_usage);
 
     optind = 1;
-    while ((c = getopt (argc, argv, "FanfQqlRdbr:D:")) != -1)
+    while ((c = getopt (argc, argv, "+FanfQqlRdbr:D:")) != -1)
     {
 	switch (c)
 	{
@@ -157,9 +164,11 @@ rtag (argc, argv)
     {
 	/* We're the client side.  Fire up the remote server.  */
 	start_server ();
-	
+
 	ign_setup ();
 
+	if (!force_tag_match)
+	    send_arg ("-f");
 	if (local)
 	    send_arg("-l");
 	if (delete_flag)
@@ -168,7 +177,7 @@ rtag (argc, argv)
 	    send_arg("-b");
 	if (force_tag_move)
 	    send_arg("-F");
-	if (run_module_prog)
+	if (!run_module_prog)
 	    send_arg("-n");
 	if (attic_too)
 	    send_arg("-a");
@@ -222,19 +231,25 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     char *mname;
     char *msg;
 {
+    /* Begin section which is identical to patch_proc--should this
+       be abstracted out somehow?  */
     int err = 0;
     int which;
-    char repository[PATH_MAX];
-    char where[PATH_MAX];
+    char *repository;
+    char *where;
 
-    (void) sprintf (repository, "%s/%s", CVSroot, argv[0]);
+    repository = xmalloc (strlen (CVSroot_directory) + strlen (argv[0])
+			  + (mfile == NULL ? 0 : strlen (mfile)) + 30);
+    (void) sprintf (repository, "%s/%s", CVSroot_directory, argv[0]);
+    where = xmalloc (strlen (argv[0]) + (mfile == NULL ? 0 : strlen (mfile))
+		     + 10);
     (void) strcpy (where, argv[0]);
 
     /* if mfile isn't null, we need to set up to do only part of the module */
     if (mfile != NULL)
     {
 	char *cp;
-	char path[PATH_MAX];
+	char *path;
 
 	/* if the portion of the module is a path, put the dir part on repos */
 	if ((cp = strrchr (mfile, '/')) != NULL)
@@ -248,6 +263,7 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 	}
 
 	/* take care of the rest */
+	path = xmalloc (strlen (repository) + strlen (mfile) + 5);
 	(void) sprintf (path, "%s/%s", repository, mfile);
 	if (isdir (path))
 	{
@@ -266,14 +282,18 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 	    argv[1] = xstrdup (mfile);
 	    (*pargc) = 2;
 	}
+	free (path);
     }
 
-    /* chdir to the starting directory */
-    if (chdir (repository) < 0)
+    /* cd to the starting repository */
+    if ( CVS_CHDIR (repository) < 0)
     {
 	error (0, errno, "cannot chdir to %s", repository);
+	free (repository);
 	return (1);
     }
+    free (repository);
+    /* End section which is identical to patch_proc.  */
 
     if (delete_flag || attic_too || (force_tag_match && numtag))
 	which = W_REPOS | W_ATTIC;
@@ -291,9 +311,9 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 
     mtlist = getlist();
     err = start_recursion (check_fileproc, check_filesdoneproc,
-                           (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL,
+                           (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
                            *pargc - 1, argv + 1, local, which, 0, 1,
-                           where, 1, 1);
+                           where, 1);
     
     if (err)
     {
@@ -301,10 +321,11 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     }
      
     /* start the recursion processor */
-    err = start_recursion (rtag_fileproc, (FILESDONEPROC) NULL, rtag_dirproc,
-			   (DIRLEAVEPROC) NULL, *pargc - 1, argv + 1, local,
-			   which, 0, 1, where, 1, 1);
-
+    err = start_recursion (rtag_fileproc, rtag_filesdoneproc, rtag_dirproc,
+			   (DIRLEAVEPROC) NULL, NULL,
+			   *pargc - 1, argv + 1, local,
+			   which, 0, 0, where, 1);
+    free (where);
     dellist(&mtlist);
 
     return (err);
@@ -314,7 +335,8 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 /* All we do here is add it to our list */
 
 static int
-check_fileproc (finfo)
+check_fileproc (callerdat, finfo)
+    void *callerdat;
     struct file_info *finfo;
 {
     char *xdir;
@@ -349,15 +371,16 @@ check_fileproc (finfo)
     p->key = xstrdup (finfo->file);
     p->type = UPDATE;
     p->delproc = tag_delproc;
-    vers = Version_TS (finfo->repository, (char *) NULL, (char *) NULL,
-        (char *) NULL, finfo->file, 0, 0, finfo->entries, finfo->rcs);
-    p->data = RCS_getversion(vers->srcfile, numtag, date, force_tag_match, 0);
+    vers = Version_TS (finfo, NULL, NULL, NULL, 0, 0);
+    p->data = RCS_getversion(vers->srcfile, numtag, date, force_tag_match,
+			     (int *) NULL);
     if (p->data != NULL)
     {
         int addit = 1;
         char *oversion;
         
-        oversion = RCS_getversion (vers->srcfile, symtag, (char *) NULL, 1, 0);
+        oversion = RCS_getversion (vers->srcfile, symtag, (char *) NULL, 1,
+				   (int *) NULL);
         if (oversion == NULL) 
         {
             if (delete_flag)
@@ -389,10 +412,12 @@ check_fileproc (finfo)
 }
                          
 static int
-check_filesdoneproc(err, repos, update_dir)
+check_filesdoneproc (callerdat, err, repos, update_dir, entries)
+    void *callerdat;
     int err;
     char *repos;
     char *update_dir;
+    List *entries;
 {
     int n;
     Node *p;
@@ -496,12 +521,25 @@ pretag_list_proc(p, closure)
  */
 /* ARGSUSED */
 static int
-rtag_fileproc (finfo)
+rtag_fileproc (callerdat, finfo)
+    void *callerdat;
     struct file_info *finfo;
 {
     RCSNode *rcsfile;
     char *version, *rev;
     int retcode = 0;
+
+    /* Lock the directory if it is not already locked.  We might be
+       able to rely on rtag_dirproc for this.  */
+
+    /* It would be nice to provide consistency with respect to
+       commits; however CVS lacks the infrastructure to do that (see
+       Concurrency in cvs.texinfo and comment in do_recursion).  We
+       can and will prevent simultaneous tag operations from
+       interfering with each other, by write locking each directory as
+       we enter it, and unlocking it as we leave it.  */
+
+    lock_dir_for_write (finfo->repository);
 
     /* find the parsed RCS data */
     if ((rcsfile = finfo->rcs) == NULL)
@@ -527,7 +565,8 @@ rtag_fileproc (finfo)
 	    return (rtag_delete (rcsfile));
     }
 
-    version = RCS_getversion (rcsfile, numtag, date, force_tag_match, 0);
+    version = RCS_getversion (rcsfile, numtag, date, force_tag_match,
+			      (int *) NULL);
     if (version == NULL)
     {
 	/* If -a specified, clean up any old tags */
@@ -554,7 +593,7 @@ rtag_fileproc (finfo)
 	 * the branch.  Use a symbolic tag for that.
 	 */
 	rev = branch_mode ? RCS_magicrev (rcsfile, version) : numtag;
-	retcode = RCS_settag(rcsfile->path, symtag, numtag);
+	retcode = RCS_settag(rcsfile, symtag, numtag);
     }
     else
     {
@@ -570,7 +609,8 @@ rtag_fileproc (finfo)
 	 * typical tagging operation.
 	 */
 	rev = branch_mode ? RCS_magicrev (rcsfile, version) : version;
-	oversion = RCS_getversion (rcsfile, symtag, (char *) NULL, 1, 0);
+	oversion = RCS_getversion (rcsfile, symtag, (char *) NULL, 1,
+				   (int *) NULL);
 	if (oversion != NULL)
 	{
 	    int isbranch = RCS_isbranch (finfo->rcs, symtag);
@@ -602,7 +642,7 @@ rtag_fileproc (finfo)
 	    }
 	    free (oversion);
 	}
-	retcode = RCS_settag(rcsfile->path, symtag, rev);
+	retcode = RCS_settag(rcsfile, symtag, rev);
     }
 
     if (retcode != 0)
@@ -641,18 +681,20 @@ rtag_delete (rcsfile)
 
     if (numtag)
     {
-	version = RCS_getversion (rcsfile, numtag, (char *) NULL, 1, 0);
+	version = RCS_getversion (rcsfile, numtag, (char *) NULL, 1,
+				  (int *) NULL);
 	if (version == NULL)
 	    return (0);
 	free (version);
     }
 
-    version = RCS_getversion (rcsfile, symtag, (char *) NULL, 1, 0);
+    version = RCS_getversion (rcsfile, symtag, (char *) NULL, 1,
+			      (int *) NULL);
     if (version == NULL)
 	return (0);
     free (version);
 
-    if ((retcode = RCS_deltag(rcsfile->path, symtag, 1)) != 0)
+    if ((retcode = RCS_deltag(rcsfile, symtag, 1)) != 0)
     {
 	if (!quiet)
 	    error (0, retcode == -1 ? errno : 0,
@@ -663,15 +705,32 @@ rtag_delete (rcsfile)
     return (0);
 }
 
+/* Clear any lock we may hold on the current directory.  */
+
+static int
+rtag_filesdoneproc (callerdat, err, repos, update_dir, entries)
+    void *callerdat;
+    int err;
+    char *repos;
+    char *update_dir;
+    List *entries;
+{
+    Lock_Cleanup ();
+
+    return (err);
+}
+
 /*
  * Print a warm fuzzy message
  */
 /* ARGSUSED */
 static Dtype
-rtag_dirproc (dir, repos, update_dir)
+rtag_dirproc (callerdat, dir, repos, update_dir, entries)
+    void *callerdat;
     char *dir;
     char *repos;
     char *update_dir;
+    List *entries;
 {
     if (!quiet)
 	error (0, 0, "%s %s", delete_flag ? "Untagging" : "Tagging", update_dir);

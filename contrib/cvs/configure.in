@@ -1,7 +1,17 @@
 dnl configure.in for cvs
-dnl "$CVSid$"
 AC_INIT(src/cvs.h)
+dnl
 AC_PREREQ(2.4)dnl Required Autoconf version.
+dnl Do not use autoconf 2.12; it produces a configure script which produces
+dnl a "internal 2K buffer" error on HPUX when run with /bin/sh.
+dnl autoconf 2.10 seems like a good choice.
+dnl
+dnl It is possible that we should just change the above required version
+dnl to 2.10; it seems like everyone is using 2.10 anyway, and there is
+dnl at least some sentiment that we should be using a version which has
+dnl --bindir (and correspondingly, using @bindir@ and friends in our
+dnl Makefile.in files.  I'm not sure exactly what version of autoconf
+dnl introduced --bindir but I know 2.10 has it.
 AC_CONFIG_HEADER(config.h src/options.h)
 
 AC_PROG_CC
@@ -11,15 +21,17 @@ AC_MINIX
 AC_ISC_POSIX
 if test "$ISC" = yes; then
 CFLAGS="$CFLAGS -D_SYSV3"
+LIBS="-lcrypt $LIBS"
 fi
 
 AC_PREFIX_PROGRAM(cvs)
 
+dnl FIXME: AC_C_CROSS is considered obsolete by autoconf 2.12, and is
+dnl pretty ugly to start with.  But it isn't obvious to me how we should
+dnl be handling the uses of cross_compiling below.
 AC_C_CROSS
 
 AC_C_CONST
-AC_C_CHAR_UNSIGNED
-AC_C_INLINE
 
 AC_PROG_INSTALL
 AC_PROG_RANLIB
@@ -49,8 +61,29 @@ AC_TYPE_UID_T
 AC_TYPE_MODE_T
 AC_TYPE_SIZE_T
 AC_TYPE_PID_T
-AC_REPLACE_FUNCS(getwd mkdir rename strdup strstr dup2 strerror valloc waitpid memmove vasprintf strtoul)
-AC_CHECK_FUNCS(fchmod fsync ftime mkfifo putenv setvbuf vfork vprintf ftruncate timezone getpagesize initgroups fchdir sigaction sigprocmask sigvec sigsetmask sigblock)
+AC_REPLACE_FUNCS(getwd mkdir rename strdup strstr dup2 strerror valloc waitpid vasprintf strtoul)
+AC_CHECK_FUNCS(fchmod fsync ftime mkfifo mktemp putenv vfork vprintf ftruncate timezone getpagesize initgroups fchdir sigaction sigprocmask sigvec sigsetmask sigblock tempnam tzset readlink wait3)
+
+dnl
+dnl Look for shadow password files before we go ahead and set getspnam.
+dnl On some systems (Linux), the C library has getspnam but shadow
+dnl passwords might not be in use.
+dnl
+dnl We used to check for the existence of the /etc/security directory
+dnl here, but that's incorrect, since it's possible to have PAM installed
+dnl without using shadow passwords.
+dnl
+AC_MSG_CHECKING([for evidence of shadow passwords])
+if test -f /etc/shadow \
+   || test -f /etc/security/passwd.adjunct ; then
+  found="yes"
+  AC_CHECK_LIB(sec, getspnam)
+  AC_CHECK_FUNCS(getspnam)
+else
+  found="no"
+fi
+AC_MSG_RESULT([$found])
+
 AC_CHECK_FUNC(re_exec, :, LIBOBJS="$LIBOBJS regex.o")
 AC_FUNC_UTIME_NULL
 AC_SYS_LONG_FILE_NAMES
@@ -74,6 +107,35 @@ if test $ccvs_cv_sys_working_fnmatch = no; then
 fi
 AC_MSG_RESULT($ccvs_cv_sys_working_fnmatch)
 
+# If we can't find connect, try looking in -lsocket, -lnsl, and -linet.
+# The Irix 5 libc.so has connect and gethostbyname, but Irix 5 also has
+# libsocket.so which has a bad implementation of gethostbyname (it
+# only looks in /etc/hosts), so we only look for -lsocket if we need
+# it.
+AC_CHECK_FUNC(connect, :, 
+[case "$LIBS" in
+*-lnsl*) ;;
+*) AC_CHECK_LIB(nsl_s, printf) ;;
+esac
+case "$LIBS" in
+*-lnsl*) ;;
+*) AC_CHECK_LIB(nsl, printf) ;;
+esac
+case "$LIBS" in
+*-lsocket*) ;;
+*) AC_CHECK_LIB(socket, connect) ;;
+esac
+case "$LIBS" in
+*-linet*) ;;
+*) AC_CHECK_LIB(inet, connect) ;;
+esac
+dnl We can't just call AC_CHECK_FUNCS(connect) here, because the value
+dnl has been cached.
+if test "$ac_cv_lib_socket_connect" = "yes" || test "$ac_cv_lib_inet_connect" = "yes"; then
+  ac_cv_func_connect=yes
+  AC_DEFINE(HAVE_CONNECT)
+fi])
+
 dnl
 dnl set $(KRB4) from --with-krb4=value -- WITH_KRB4
 dnl
@@ -86,9 +148,6 @@ AC_ARG_WITH([krb4],
 echo "default place for krb4 is $KRB4"
 AC_SUBST(KRB4)])dnl
 WITH_KRB4
-
-AC_CHECK_SIZEOF(long)
-AC_CHECK_SIZEOF(int)
 
 krb_h=
 AC_MSG_CHECKING([for krb.h])
@@ -124,7 +183,13 @@ if test -n "$krb_h"; then
     AC_DEFINE(HAVE_KERBEROS)
     test -n "${krb_libdir}" && LIBS="${LIBS} -L${krb_libdir}"
     LIBS="${LIBS} -lkrb"
+    # Put -L${krb_libdir} in LDFLAGS temporarily so that it appears before
+    # -ldes in the command line.  Don't do it permanently so that we honor
+    # the user's setting for LDFLAGS
+    hold_ldflags=$LDFLAGS
+    test -n "${krb_libdir}" && LDFLAGS="$LDFLAGS -L${krb_libdir}"
     AC_CHECK_LIB(des,printf,[LIBS="${LIBS} -ldes"])
+    LDFLAGS=$hold_ldflags
     if test -n "$krb_incdir"; then
       includeopt="${includeopt} -I$krb_incdir"
       AC_SUBST(includeopt)
@@ -132,51 +197,63 @@ if test -n "$krb_h"; then
   fi
 fi
 AC_CHECK_FUNCS(krb_get_err_text)
-# If we can't find connect, try looking in -lsocket, -lnsl, and -linet.
-# The Irix 5 libc.so has connect and gethostbyname, but Irix 5 also has
-# libsocket.so which has a bad implementation of gethostbyname (it
-# only looks in /etc/hosts), so we only look for -lsocket if we need
-# it.
-unset ac_cv_func_connect
-AC_CHECK_FUNC(connect, :, 
-[case "$LIBS" in
-*-lnsl*) ;;
-*) AC_CHECK_LIB(nsl_s, printf) ;;
-esac
-case "$LIBS" in
-*-lnsl*) ;;
-*) AC_CHECK_LIB(nsl, printf) ;;
-esac
-case "$LIBS" in
-*-lsocket*) ;;
-*) AC_CHECK_LIB(socket, connect) ;;
-esac
-case "$LIBS" in
-*-linet*) ;;
-*) AC_CHECK_LIB(inet, connect) ;;
-esac
-unset ac_cv_func_connect
-AC_CHECK_FUNCS(connect)])
+
+dnl
+dnl Use --with-encryption to turn on encryption support
+dnl
+AC_ARG_ENABLE(encryption,
+  [  --enable-encryption     enable encryption support],
+  [case "${enableval}" in
+    yes) encryption=true ;;
+    no) encryption=false ;;
+    *) AC_MSG_ERROR(bad value ${enableval} for encryption option) ;;
+   esac],
+  [encryption=false])
+if test "$encryption" = "true"; then
+  AC_DEFINE(ENCRYPTION)
+fi
 
 AC_CHECK_FUNC(gethostname, :, LIBOBJS="$LIBOBJS hostname.o")
 
-# If we have connect(), we want the full client & server arrangement.
-if test "$ac_cv_func_connect" = yes; then
-AC_DEFINE(CLIENT_SUPPORT)
-AC_DEFINE(SERVER_SUPPORT)
-# Define AUTH_SERVER_SUPPORT only if we could locate the crypt() function
-unset ac_cv_func_crypt
-AC_CHECK_FUNC(crypt, :,
-[case "$LIBS" in
-*-lcrypt*) ;;
-*) AC_CHECK_LIB(crypt, crypt) ;;
-esac
-unset ac_cv_func_crypt
-AC_CHECK_FUNCS(crypt)])
-  if test "$ac_cv_func_crypt" = yes; then
+# Check for options requesting client and server feature. If none are
+# given and we have connect(), we want the full client & server arrangement.
+AC_ARG_ENABLE(client,
+[  --enable-client         include code for running as a remote client (default)
+  --disable-client        don't include remote client code],
+[if test "$enable_client" = yes; then
+  AC_DEFINE(CLIENT_SUPPORT)
+fi],
+[if test "$ac_cv_func_connect" = yes; then
+  AC_DEFINE(CLIENT_SUPPORT)
+fi])
+AC_ARG_ENABLE(server,
+[  --enable-server         include code for running as a server (default)
+  --disable-server        don't include server code],
+[if test "$enable_server" = yes; then
+  AC_DEFINE(SERVER_SUPPORT)
+fi],
+[if test "$ac_cv_func_connect" = yes; then
+  AC_DEFINE(SERVER_SUPPORT)
+  enable_server=yes
+fi])
+
+### The auth server needs to be able to check passwords against passwd
+### file entries, so we only #define AUTH_SERVER_SUPPORT if we can
+### find the crypt function. 
+###
+### We used to test for crypt in libc first, and only add -lcrypt if
+### we couldn't find it, but that interacts badly with the cache
+### variables, the 'unset' command isn't portable, and I'm not sure
+### there's any harm in just testing for -lcrypt first.
+
+if test "$enable_server" = yes; then
+AC_CHECK_LIB(crypt, crypt)
+AC_CHECK_FUNCS(crypt)
+
+if test "$ac_cv_func_crypt" = yes; then
   AC_DEFINE(AUTH_SERVER_SUPPORT)
-  fi
 fi
+fi # enable_server
 
 test -f src/options.h && (
   AC_MSG_WARN(saving ./src/options.h in ./src/options.h-SAVED)
@@ -185,7 +262,9 @@ test -f src/options.h && (
   cp ./src/options.h ./src/options.h-SAVED
 )
 
-AC_OUTPUT(Makefile lib/Makefile src/Makefile doc/Makefile \
+AC_OUTPUT(Makefile lib/Makefile src/Makefile zlib/Makefile doc/Makefile \
 	  man/Makefile tools/Makefile tools/pcl-cvs/Makefile \
 	  contrib/Makefile contrib/elib/Makefile \
-	  windows-NT/Makefile os2/Makefile macintosh/Makefile stamp-h)
+	  windows-NT/Makefile windows-NT/SCC/Makefile \
+	  os2/Makefile macintosh/Makefile vms/Makefile \
+	  stamp-h)

@@ -12,11 +12,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-# $CVSid: @(#)Makefile.in 1.21 94/09/24 $
 srcdir     = @srcdir@
 top_srcdir = @top_srcdir@
 cvs_srcdir = @top_srcdir@/src
@@ -34,13 +29,12 @@ SOURCES = \
 	ftruncate.c \
 	getdate.c \
 	getdate.y \
-    	getline.c \
+	getline.c \
 	getopt.c \
 	getopt1.c \
 	getwd.c \
 	hostname.c \
 	md5.c \
-	memmove.c \
 	mkdir.c \
 	regex.c \
 	rename.c \
@@ -49,7 +43,6 @@ SOURCES = \
 	strdup.c \
 	strstr.c \
 	strerror.c \
-	strippath.c \
 	stripslash.c \
 	strtoul.c \
 	valloc.c \
@@ -69,7 +62,6 @@ OBJECTS = \
     md5.o \
     savecwd.o \
     sighandle.o \
-    strippath.o \
     stripslash.o \
     xgetwd.o \
     yesno.o \
@@ -77,7 +69,7 @@ OBJECTS = \
 
 DISTFILES = \
 	.cvsignore ChangeLog ChangeLog.fsf Makefile.in \
-	${SOURCES} ${HEADERS}
+	${SOURCES} ${HEADERS} build_lib.com
 
 DEFS = @DEFS@
 RANLIB = @RANLIB@
@@ -97,6 +89,9 @@ all: libcvs.a
 
 install: all
 .PHONY: install
+
+installdirs:
+.PHONY: installdirs
 
 tags: $(DISTFILES)
 	ctags `for i in $(DISTFILES); do echo $(srcdir)/$$i; done`
