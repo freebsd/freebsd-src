@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.7 1994/12/17 20:50:44 gpalmer Exp $
+#	$Id: bsd.port.subdir.mk,v 1.8 1995/01/03 11:52:01 jkh Exp $
 
 .MAIN: all
 
@@ -89,6 +89,6 @@ realinstall: beforeinstall _SUBDIRUSE
 tags: _SUBDIRUSE
 .endif
 
-.if !target(check-md5)
-check-md5: _SUBDIRUSE
+.if !target(checksum)
+checksum: _SUBDIRUSE
 .endif
