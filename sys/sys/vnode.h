@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.62 1997/12/29 16:53:53 dyson Exp $
+ * $Id: vnode.h,v 1.63 1998/01/06 05:23:04 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -153,6 +153,7 @@ struct vnode {
 #define	VOWANT		0x20000	/* a process is waiting for VOLOCK */
 #define	VDOOMED		0x40000	/* This vnode is being recycled */
 #define	VFREE		0x80000	/* This vnode is on the freelist */
+#define	VTBFREE		0x100000	/* This vnode is no the to be freelist */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
@@ -275,12 +276,13 @@ extern void	(*lease_updatetime) __P((int deltat));
 
 #define VSHOULDFREE(vp)	\
 	(!((vp)->v_flag & (VFREE|VDOOMED)) && \
-	 !(vp)->v_holdcnt && !(vp)->v_usecount)
+	 !(vp)->v_holdcnt && !(vp)->v_usecount && \
+	 (!(vp)->v_object || \
+	  !((vp)->v_object->ref_count || (vp)->v_object->resident_page_count)))
 
 #define VSHOULDBUSY(vp)	\
 	(((vp)->v_flag & VFREE) && \
 	 ((vp)->v_holdcnt || (vp)->v_usecount))
-
 
 #endif /* KERNEL */
 
@@ -525,6 +527,10 @@ void 	vrele __P((struct vnode *vp));
 void	vref __P((struct vnode *vp));
 
 extern	vop_t	**default_vnodeop_p;
+
+extern TAILQ_HEAD(tobefreelist, vnode)
+	vnode_tobefree_list;	/* vnode free list */
+
 #endif /* KERNEL */
 
 #endif /* !_SYS_VNODE_H_ */

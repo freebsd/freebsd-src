@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.120 1998/01/06 05:16:18 dyson Exp $
+ * $Id: vfs_subr.c,v 1.121 1998/01/07 09:26:29 dyson Exp $
  */
 
 /*
@@ -101,13 +101,16 @@ int vttoif_tab[9] = {
 	LIST_REMOVE(bp, b_vnbufs);					\
 	(bp)->b_vnbufs.le_next = NOLIST;				\
 }
+
 TAILQ_HEAD(freelst, vnode) vnode_free_list;	/* vnode free list */
+struct tobefreelist vnode_tobefree_list;	/* vnode free list */
+
 static u_long wantfreevnodes = 25;
 SYSCTL_INT(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
 static u_long freevnodes = 0;
 SYSCTL_INT(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
-int vfs_ioopt = 0;
+int vfs_ioopt = 2;
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
 
 struct mntlist mountlist;	/* mounted filesystem list */
@@ -138,6 +141,7 @@ vntblinit()
 	simple_lock_init(&mntid_slock);
 	simple_lock_init(&spechash_slock);
 	TAILQ_INIT(&vnode_free_list);
+	TAILQ_INIT(&vnode_tobefree_list);
 	simple_lock_init(&vnode_free_list_slock);
 	CIRCLEQ_INIT(&mountlist);
 }
@@ -350,8 +354,9 @@ getnewvnode(tag, mp, vops, vpp)
 	vop_t **vops;
 	struct vnode **vpp;
 {
+	int s;
 	struct proc *p = curproc;	/* XXX */
-	struct vnode *vp, *tvp;
+	struct vnode *vp, *tvp, *nvp;
 	vm_object_t object;
 	TAILQ_HEAD(freelst, vnode) vnode_tmp_list;
 
@@ -362,8 +367,15 @@ getnewvnode(tag, mp, vops, vpp)
 	 * Otherwise we allocate a new vnode
 	 */
 
+	s = splbio();
 	simple_lock(&vnode_free_list_slock);
 	TAILQ_INIT(&vnode_tmp_list);
+
+	for (vp = TAILQ_FIRST(&vnode_tobefree_list); vp; vp = nvp) {
+		nvp = TAILQ_NEXT(vp, v_freelist);
+		vp->v_flag &= ~VTBFREE;
+		TAILQ_INSERT_TAIL(&vnode_tmp_list, vp, v_freelist);
+	}
 
 	if (wantfreevnodes && freevnodes < wantfreevnodes) {
 		vp = NULL;
@@ -373,7 +385,10 @@ getnewvnode(tag, mp, vops, vpp)
 		 */
 		vp = NULL;
 	} else {
-		TAILQ_FOREACH(vp, &vnode_free_list, v_freelist) {
+		for (vp = TAILQ_FIRST(&vnode_free_list); vp; vp = nvp) {
+
+			nvp = TAILQ_NEXT(vp, v_freelist);
+
 			if (!simple_lock_try(&vp->v_interlock)) 
 				continue;
 			if (vp->v_usecount)
@@ -395,7 +410,8 @@ getnewvnode(tag, mp, vops, vpp)
 		}
 	}
 
-	TAILQ_FOREACH(tvp, &vnode_tmp_list, v_freelist) {
+	for (tvp = TAILQ_FIRST(&vnode_tmp_list); tvp; tvp = nvp) {
+		nvp = TAILQ_NEXT(tvp, v_freelist);
 		TAILQ_REMOVE(&vnode_tmp_list, tvp, v_freelist);
 		TAILQ_INSERT_TAIL(&vnode_free_list, tvp, v_freelist);
 		simple_unlock(&tvp->v_interlock);
@@ -454,6 +470,7 @@ getnewvnode(tag, mp, vops, vpp)
 	*vpp = vp;
 	vp->v_usecount = 1;
 	vp->v_data = 0;
+	splx(s);
 	return (0);
 }
 
@@ -1341,6 +1358,7 @@ vgonel(vp, p)
 	struct vnode *vp;
 	struct proc *p;
 {
+	int s;
 	struct vnode *vq;
 	struct vnode *vx;
 
@@ -1415,10 +1433,18 @@ vgonel(vp, p)
 	 * close the previous instance of the underlying object.
 	 */
 	if (vp->v_usecount == 0 && !(vp->v_flag & VDOOMED)) {
+		s = splbio();
 		simple_lock(&vnode_free_list_slock);
-		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+		if (vp->v_flag & VFREE) {
+			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+		} else if (vp->v_flag & VTBFREE) {
+			TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
+			vp->v_flag &= ~VTBFREE;
+		}
+		vp->v_flag |= VFREE;
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		simple_unlock(&vnode_free_list_slock);
+		splx(s);
 	}
 
 	vp->v_type = VBAD;
@@ -2138,7 +2164,14 @@ static void
 vfree(vp)
 	struct vnode *vp;
 {
+	int s;
+
+	s = splbio();
 	simple_lock(&vnode_free_list_slock);
+	if (vp->v_flag & VTBFREE) {
+		TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
+		vp->v_flag &= ~VTBFREE;
+	}
 	if (vp->v_flag & VAGE) {
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 	} else {
@@ -2148,17 +2181,27 @@ vfree(vp)
 	simple_unlock(&vnode_free_list_slock);
 	vp->v_flag &= ~VAGE;
 	vp->v_flag |= VFREE;
+	splx(s);
 }
 
 static void
 vbusy(vp)
 	struct vnode *vp;
 {
+	int s;
+
+	s = splbio();
 	simple_lock(&vnode_free_list_slock);
-	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-	freevnodes--;
+	if (vp->v_flag & VTBFREE) {
+		TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
+		vp->v_flag &= ~VTBFREE;
+	} else {
+		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+		freevnodes--;
+	}
 	simple_unlock(&vnode_free_list_slock);
 	vp->v_flag &= ~VFREE;
+	splx(s);
 }
 
 /*

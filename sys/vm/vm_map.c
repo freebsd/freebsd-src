@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.103 1997/12/29 01:03:34 dyson Exp $
+ * $Id: vm_map.c,v 1.104 1998/01/06 05:25:58 dyson Exp $
  */
 
 /*
@@ -2405,7 +2405,7 @@ RetryLookup:;
 		vm_map_lock_downgrade(share_map);
 	}
 
-	if (entry->object.vm_object != NULL)
+	if (entry->object.vm_object->type == OBJT_DEFAULT)
 		default_pager_convert_to_swapq(entry->object.vm_object);
 	/*
 	 * Return the object/offset from this entry.  If the entry was
@@ -2479,16 +2479,20 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
 	vm_offset_t uaddr, start, end;
 	vm_pindex_t first_pindex, osize, oindex;
 	off_t ooffset;
+	int skipinit, allremoved;
 
 	if (npages)
 		*npages = 0;
 
+	allremoved = 0;
+
 	while (cnt > 0) {
 		map = mapa;
 		uaddr = uaddra;
+		skipinit = 0;
 
 		if ((vm_map_lookup(&map, uaddr,
-			VM_PROT_READ|VM_PROT_WRITE, &first_entry, &first_object,
+			VM_PROT_READ, &first_entry, &first_object,
 			&first_pindex, &prot, &wired, &su)) != KERN_SUCCESS) {
 			return EFAULT;
 		}
@@ -2506,17 +2510,16 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
 
 		osize = atop(tcnt);
 
+		oindex = OFF_TO_IDX(cp);
 		if (npages) {
-			vm_pindex_t src_index, idx;
-			src_index = OFF_TO_IDX(cp);
+			vm_pindex_t idx;
 			for (idx = 0; idx < osize; idx++) {
 				vm_page_t m;
-				if ((m = vm_page_lookup(srcobject, src_index + idx)) == NULL) {
+				if ((m = vm_page_lookup(srcobject, oindex + idx)) == NULL) {
 					vm_map_lookup_done(map, first_entry);
 					return 0;
 				}
-				if ((m->flags & PG_BUSY) || m->busy ||
-					m->hold_count || m->wire_count ||
+				if ((m->flags & PG_BUSY) ||
 					((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
 					vm_map_lookup_done(map, first_entry);
 					return 0;
@@ -2524,46 +2527,113 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
 			}
 		}
 
-		oindex = OFF_TO_IDX(first_entry->offset);
-
 /*
  * If we are changing an existing map entry, just redirect
  * the object, and change mappings.
  */
-		if ((first_object->ref_count == 1) &&
-			(first_object->backing_object == srcobject) &&
+		if (first_object->type == OBJT_VNODE) {
+
+			if (first_object != srcobject) {
+
+				vm_object_deallocate(first_object);
+				srcobject->flags |= OBJ_OPT;
+				vm_object_reference(srcobject);
+
+				first_entry->object.vm_object = srcobject;
+				first_entry->offset = cp;
+
+			} else if (first_entry->offset != cp) {
+
+				first_entry->offset = cp;
+
+			} else {
+
+				skipinit = 1;
+
+			}
+
+			if (skipinit == 0) {
+				/*
+   				* Remove old window into the file
+   				*/
+				if (!allremoved) {
+					pmap_remove (map->pmap, uaddra, uaddra + cnt);
+					allremoved = 1;
+				}
+
+				/*
+   				* Force copy on write for mmaped regions
+   				*/
+				vm_object_pmap_copy_1 (srcobject,
+					oindex, oindex + osize);
+			}
+			
+		} else if ((first_object->ref_count == 1) &&
 			(first_object->size == osize) &&
 			(first_object->resident_page_count == 0)) {
+			vm_object_t oldobject;
 
-			/*
-			 * Remove old window into the file
-			 */
-			pmap_remove (map->pmap, start, end);
+			oldobject = first_object->backing_object;
 
-			/*
-			 * Force copy on write for mmaped regions
-			 */
-			vm_object_pmap_copy_1 (first_object,
-				oindex, oindex + osize);
+			if ((first_object->backing_object_offset != cp) ||
+				(oldobject != srcobject)) {
+				/*
+   				* Remove old window into the file
+   				*/
+				if (!allremoved) {
+					pmap_remove (map->pmap, uaddra, uaddra + cnt);
+					allremoved = 1;
+				}
 
-			/*
-			 * Point the object appropriately
-			 */
-			first_object->backing_object_offset = cp;
+				/*
+   				* Force copy on write for mmaped regions
+   				*/
+				vm_object_pmap_copy_1 (srcobject,
+					oindex, oindex + osize);
+
+				/*
+   				* Point the object appropriately
+   				*/
+				if (oldobject != srcobject) {
+				/*
+   				* Set the object optimization hint flag
+   				*/
+					srcobject->flags |= OBJ_OPT;
+					vm_object_reference(srcobject);
+
+					if (oldobject) {
+						TAILQ_REMOVE(&oldobject->shadow_head,
+							first_object, shadow_list);
+						oldobject->shadow_count--;
+						if (oldobject->shadow_count == 0)
+							oldobject->flags &= ~OBJ_OPT;
+						vm_object_deallocate(oldobject);
+					}
+
+					TAILQ_INSERT_TAIL(&srcobject->shadow_head,
+						first_object, shadow_list);
+					srcobject->shadow_count++;
+
+					first_object->backing_object = srcobject;
+				}
+
+				first_object->backing_object_offset = cp;
+			} else {
+				skipinit = 1;
+			}
 /*
  * Otherwise, we have to do a logical mmap.
  */
 		} else {
 
-			object = srcobject;
-			object->flags |= OBJ_OPT;
-			vm_object_reference(object);
-			ooffset = cp;
+			srcobject->flags |= OBJ_OPT;
+			vm_object_reference(srcobject);
 
-			vm_object_shadow(&object, &ooffset, osize);
-
-			pmap_remove (map->pmap, start, end);
-			vm_object_pmap_copy_1 (first_object,
+			if (!allremoved) {
+				pmap_remove (map->pmap, uaddra, uaddra + cnt);
+				allremoved = 1;
+			}
+			vm_object_pmap_copy_1 (srcobject,
 				oindex, oindex + osize);
 			vm_map_lookup_done(map, first_entry);
 
@@ -2578,8 +2648,8 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
 			SAVE_HINT(map, first_entry->prev);
 			vm_map_entry_delete(map, first_entry);
 
-			rv = vm_map_insert(map, object, 0, start, end,
-				VM_PROT_ALL, VM_PROT_ALL, MAP_COPY_ON_WRITE);
+			rv = vm_map_insert(map, srcobject, cp, start, end,
+				VM_PROT_ALL, VM_PROT_ALL, MAP_COPY_ON_WRITE | MAP_COPY_NEEDED);
 
 			if (rv != KERN_SUCCESS)
 				panic("vm_uiomove: could not insert new entry: %d", rv);
@@ -2588,8 +2658,9 @@ vm_uiomove(mapa, srcobject, cp, cnt, uaddra, npages)
 /*
  * Map the window directly, if it is already in memory
  */
-		pmap_object_init_pt(map->pmap, start,
-			srcobject, (vm_pindex_t) OFF_TO_IDX(cp), end - start, 1);
+		if (!skipinit)
+			pmap_object_init_pt(map->pmap, start,
+				srcobject, (vm_pindex_t) OFF_TO_IDX(cp), end - start, 0);
 
 		vm_map_unlock(map);
 
@@ -2663,10 +2734,14 @@ vm_freeze_copyopts(object, froma, toa)
 			continue;
 
 		vm_object_reference(robject);
+
+		s = splvm();
 		while (robject->paging_in_progress) {
 			robject->flags |= OBJ_PIPWNT;
 			tsleep(robject, PVM, "objfrz", 0);
 		}
+		splx(s);
+
 		if (robject->ref_count == 1) {
 			vm_object_deallocate(robject);
 			continue;
@@ -2690,7 +2765,7 @@ vm_freeze_copyopts(object, froma, toa)
 				continue;
 
 			if( m_in->flags & PG_BUSY) {
-				s = splhigh();
+				s = splvm();
 				while (m_in && (m_in->flags & PG_BUSY)) {
 					m_in->flags |= PG_WANTED;
 					tsleep(m_in, PVM, "pwtfrz", 0);
@@ -2705,7 +2780,7 @@ vm_freeze_copyopts(object, froma, toa)
 retryout:
 			m_out = vm_page_lookup(robject, dstpindex);
 			if( m_out && (m_out->flags & PG_BUSY)) {
-				s = splhigh();
+				s = splvm();
 				while (m_out && (m_out->flags & PG_BUSY)) {
 					m_out->flags |= PG_WANTED;
 					tsleep(m_out, PVM, "pwtfrz", 0);
@@ -2733,6 +2808,7 @@ retryout:
 		vm_object_pip_wakeup(robject);
 
 		if (((from - bo_pindex) == 0) && ((to - bo_pindex) == robject->size)) {
+
 			object->shadow_count--;
 
 			TAILQ_REMOVE(&object->shadow_head, robject, shadow_list);

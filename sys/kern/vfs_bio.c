@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.140 1997/12/22 11:54:00 dyson Exp $
+ * $Id: vfs_bio.c,v 1.141 1998/01/06 05:15:55 dyson Exp $
  */
 
 /*
@@ -789,8 +789,15 @@ vfs_vmio_release(bp)
 					else
 						vm_page_deactivate(m);
 				} else if (m->hold_count == 0) {
+					struct vnode *vp;
+					vp = bp->b_vp;
 					vm_page_protect(m, VM_PROT_NONE);
 					vm_page_free(m);
+					if (vp && VSHOULDFREE(vp) &&
+						(vp->v_flag & (VFREE|VTBFREE)) == 0) {
+						TAILQ_INSERT_TAIL(&vnode_tobefree_list, vp, v_freelist);
+						vp->v_flag |= VTBFREE;
+					}
 				}
 			} else {
 				/*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.83 1997/11/06 08:35:50 dyson Exp $
+ *	$Id: vm_page.c,v 1.84 1997/12/29 00:24:58 dyson Exp $
  */
 
 /*
@@ -753,6 +753,7 @@ vm_page_alloc(object, pindex, page_req)
 {
 	register vm_page_t m;
 	struct vpgqueues *pq;
+	vm_object_t oldobject;
 	int queue, qtype;
 	int s;
 
@@ -861,9 +862,11 @@ vm_page_alloc(object, pindex, page_req)
 	TAILQ_REMOVE(pq->pl, m, pageq);
 	--(*pq->cnt);
 	--(*pq->lcnt);
+	oldobject = NULL;
 	if (qtype == PQ_ZERO) {
 		m->flags = PG_ZERO|PG_BUSY;
 	} else if (qtype == PQ_CACHE) {
+		oldobject = m->object;
 		vm_page_remove(m);
 		m->flags = PG_BUSY;
 	} else {
@@ -890,6 +893,19 @@ vm_page_alloc(object, pindex, page_req)
 		(cnt.v_free_reserved + cnt.v_cache_min)) ||
 			(cnt.v_free_count < cnt.v_pageout_free_min))
 		pagedaemon_wakeup();
+
+	if (((page_req == VM_ALLOC_NORMAL) || (page_req == VM_ALLOC_ZERO)) &&
+		oldobject &&
+		((oldobject->type == OBJT_VNODE) &&
+		 (oldobject->ref_count == 0) &&
+		 (oldobject->resident_page_count == 0))) {
+		struct vnode *vp;
+		vp = (struct vnode *) oldobject->handle;
+		if (VSHOULDFREE(vp)) {
+			vm_object_reference(oldobject);
+			vm_object_vndeallocate(oldobject);
+		}
+	}
 
 	return (m);
 }
@@ -954,6 +970,7 @@ static int
 vm_page_freechk_and_unqueue(m)
 	vm_page_t m;
 {
+#if !defined(MAX_PERF)
 	if (m->busy ||
 		(m->flags & PG_BUSY) ||
 		((m->queue - m->pc) == PQ_FREE) ||
@@ -966,6 +983,7 @@ vm_page_freechk_and_unqueue(m)
 		else
 			panic("vm_page_free: freeing busy page");
 	}
+#endif
 
 	vm_page_remove(m);
 	vm_page_unqueue_nowakeup(m);
