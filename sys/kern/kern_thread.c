@@ -1060,7 +1060,6 @@ thread_link_mboxes(struct ksegrp *kg, struct kse_upcall *ku)
 			PROC_UNLOCK(p);
 			return (EFAULT);
 		}
-		/* XXXKSE could use atomic CMPXCH here */
 		PROC_LOCK(p);
 		if (mbx == (uintptr_t)kg->kg_completed) {
 			kg->kg_completed = NULL;
