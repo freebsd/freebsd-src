@@ -1,0 +1,138 @@
+.\"
+.\" Copyright (c) 2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 17, 2001
+.Dt ATACONTROL 8
+.Os
+.Sh NAME
+.Nm atacontrol
+.Nd ATA device driver control program
+.Sh SYNOPSIS
+.Nm
+.Aq Ar command
+.Ar channel Op Ar args
+.Pp
+.Nm
+.Ic attach
+.Ar channel
+.Nm
+.Ic detach
+.Ar channel
+.Nm
+.Ic reinit
+.Ar channel
+.Nm
+.Ic rebuild
+.Ar raid
+.Nm
+.Ic mode
+.Ar channel
+.Op Ar mastermode slavemode
+.Nm
+.Ic info
+.Ar channel
+.Nm
+.Ic list
+.Sh DESCRIPTION
+.Nm
+is a control program that provides the user access and control to the
+.Fx
+.Xr ata 4
+subsystem.
+.Pp
+.Nm
+can cause severe system crashes and loss of data if used improperly, please
+exercise caution when using this command!
+.Pp
+The
+.Ar channel
+argument is the number of the ATA channel on which to operate.
+The following commands are supported:
+.Bl -tag -width "rebuild"
+.It Ic attach
+Attach an ATA
+.Ar channel ,
+devices on the channel are probed and attached as
+is done on boot.
+.It Ic detach
+Detach an ATA
+.Ar channel ,
+devices on the channel are removed from the kernel,
+and all outstanding transfers etc. are returned back to the system marked
+as failed.
+.It Ic reinit
+Reinitialize an ATA
+.Ar channel .
+Both devices on the channel are reset and
+initialized to the parameters the ATA driver has stored internally.
+Devices that has gone bad and no longer responds to the probe, or devices
+that has physically been removed are removed from the kernel.
+Likewise are devices that show up during a reset, probed and attached.
+.It Ic rebuild
+Rebuild a RAID1 array on a RAID capable ATA controller.
+.It Ic mode
+Without the two mode arguments the current transfer modes of both
+devices are printed.
+If the mode arguments are given, the ATA driver
+is asked to change the transfer modes to those given.
+The ATA driver
+will reject modes that is not supported by the hardware.
+Modes are given like
+.Dq Li PIO3 ,
+.Dq Li udma2 ,
+.Dq Li udma100 ,
+case does not matter.
+If one of the devices mode should not be changed, use a nonexisting mode
+as argument (i.e.\&
+.Dq Li XXX ) ,
+and the mode will remain unchanged.
+.It Ic info
+Show info about the attached devices on the
+.Ar channel ,
+currently only the device
+name and manufacture/version strings are shown.
+.It Ic list
+Show info about all attached devices on all active controllers.
+.El
+.Sh SEE ALSO
+.Xr ata 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 4.6 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.An S\(/oren Schmidt
+.Aq sos@FreeBSD.org .
+.Pp
+This manual page was written by
+.An S\(/oren Schmidt
+.Aq sos@FreeBSD.org .
