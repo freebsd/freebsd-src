@@ -488,6 +488,7 @@ END_DEBUG
 	target->sbp = sbp;
 	target->fwdev = fwdev;
 	target->target_id = i;
+	/* XXX we may want to reload mgm port after each bus reset */
 	if((target->mgm_lo = getcsrdata(fwdev, 0x54)) == 0 ){
 		/* bad target */
 		printf("NULL management address\n");
@@ -497,6 +498,9 @@ END_DEBUG
 	target->mgm_hi = 0xffff;
 	target->mgm_lo = 0xf0000000 | target->mgm_lo << 2;
 	target->mgm_ocb_cur = NULL;
+SBP_DEBUG(1)
+	printf("target:%d mgm_port: %x\n", i, target->mgm_lo);
+END_DEBUG
 	STAILQ_INIT(&target->mgm_ocb_queue);
 	CALLOUT_INIT(&target->mgm_ocb_timeout);
 	CALLOUT_INIT(&target->scan_callout);
@@ -1491,7 +1495,7 @@ sbp_recv1(struct fw_xfer *xfer){
 	struct sbp_login_res *login_res = NULL;
 	struct sbp_status *sbp_status;
 	struct sbp_target *target;
-	int	orb_fun, status_valid0, status_valid, t, l;
+	int	orb_fun, status_valid0, status_valid, t, l, reset_agent = 0;
 	u_int32_t addr;
 /*
 	u_int32_t *ld;
@@ -1619,13 +1623,11 @@ END_DEBUG
 			xpt_freeze_devq(sdev->path, 1);
 			sdev->freeze ++;
 		}
-		sbp_agent_reset(sdev);
+		reset_agent = 1;
 	}
 
-	if (ocb == NULL) {
-		fw_xfer_free(xfer);
-		return;
-	}
+	if (ocb == NULL)
+		goto done;
 
 	sdev->flags &= ~SBP_DEV_TIMEOUT;
 
@@ -1743,6 +1745,9 @@ printf("len %d\n", sbp_status->len);
 
 	if (!(ocb->flags & OCB_RESERVED))
 		sbp_free_ocb(sbp, ocb);
+done:
+	if (reset_agent)
+		sbp_agent_reset(sdev);
 
 /* The received packet is usually small enough to be stored within
  * the buffer. In that case, the controller return ack_complete and
@@ -2003,6 +2008,7 @@ sbp_timeout(void *arg)
 		printf("management ORB\n");
 		/* XXX just ignore for now */
 		sdev->target->mgm_ocb_cur = NULL;
+		sbp_free_ocb(sdev->target->sbp, ocb);
 		sbp_mgm_orb(sdev, ORB_FUN_RUNQUEUE, NULL);
 		return;
 	}
