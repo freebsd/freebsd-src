@@ -6,45 +6,64 @@
 #define	EFT_KLD		1
 #define	EFT_KERNEL	2
 
-typedef struct elf_file {
-	char*		ef_name;
-	Elf_Phdr *	ef_ph;
-	int		ef_fd;
-	int		ef_type;
-	Elf_Ehdr	ef_hdr;
-	void*		ef_fpage;		/* First block of the file */
-	int		ef_fplen;		/* length of first block */
-	Elf_Dyn*	ef_dyn;			/* Symbol table etc. */
-	Elf_Hashelt	ef_nbuckets;
-	Elf_Hashelt	ef_nchains;
-	Elf_Hashelt*	ef_buckets;
-	Elf_Hashelt*	ef_chains;
-	Elf_Hashelt*	ef_hashtab;
-	Elf_Off		ef_stroff;
-	caddr_t		ef_strtab;
-	int		ef_strsz;
-	Elf_Off		ef_symoff;
-	Elf_Sym*	ef_symtab;
-	int		ef_nsegs;
-	Elf_Phdr *	ef_segs[2];
-	int		ef_verbose;
-	Elf_Rel *	ef_rel;			/* relocation table */
-	int		ef_relsz;		/* number of entries */
-	Elf_Rela *	ef_rela;		/* relocation table */
-	int		ef_relasz;		/* number of entries */
-} *elf_file_t;
+#define EF_RELOC_REL	1
+#define EF_RELOC_RELA	2
+
+#define EF_GET_TYPE(ef) \
+    (ef)->ef_ops->get_type((ef)->ef_ef)
+#define EF_CLOSE(ef) \
+    (ef)->ef_ops->close((ef)->ef_ef)
+#define EF_READ(ef, offset, len, dest) \
+    (ef)->ef_ops->read((ef)->ef_ef, offset, len, dest)
+#define EF_READ_ENTRY(ef, offset, len, ptr) \
+    (ef)->ef_ops->read_entry((ef)->ef_ef, offset, len, ptr)
+#define EF_SEG_READ(ef, offset, len, dest) \
+    (ef)->ef_ops->seg_read((ef)->ef_ef, offset, len, dest)
+#define EF_SEG_READ_REL(ef, offset, len, dest) \
+    (ef)->ef_ops->seg_read_rel((ef)->ef_ef, offset, len, dest)
+#define EF_SEG_READ_ENTRY(ef, offset, len, ptr) \
+    (ef)->ef_ops->seg_read_entry((ef)->kf_ef, offset, len, ptr)
+#define EF_SEG_READ_ENTRY_REL(ef, offset, len, ptr) \
+    (ef)->ef_ops->seg_read_entry_rel((ef)->ef_ef, offset, len, ptr)
+#define EF_SYMADDR(ef, symidx) \
+    (ef)->ef_ops->symaddr((ef)->ef_ef, symidx)
+#define EF_LOOKUP_SET(ef, name, startp, stopp, countp) \
+    (ef)->ef_ops->lookup_set((ef)->ef_ef, name, startp, stopp, countp)
+#define EF_LOOKUP_SYMBOL(ef, name, sym) \
+    (ef)->ef_ops->lookup_symbol((ef)->ef_ef, name, sym)
+
+/* XXX, should have a different name. */
+typedef struct ef_file *elf_file_t;
+
+struct elf_file_ops {
+	int (*get_type)(elf_file_t ef);
+	int (*close)(elf_file_t ef);
+	int (*read)(elf_file_t ef, Elf_Off offset, size_t len, void* dest);
+	int (*read_entry)(elf_file_t ef, Elf_Off offset, size_t len,
+	    void **ptr);
+	int (*seg_read)(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
+	int (*seg_read_rel)(elf_file_t ef, Elf_Off offset, size_t len,
+	    void *dest);
+	int (*seg_read_entry)(elf_file_t ef, Elf_Off offset, size_t len,
+	    void**ptr);
+	int (*seg_read_entry_rel)(elf_file_t ef, Elf_Off offset, size_t len,
+	    void**ptr);
+	Elf_Addr (*symaddr)(elf_file_t ef, Elf_Word symidx);
+	int (*lookup_set)(elf_file_t ef, const char *name, long *startp,
+	    long *stopp, long *countp);
+	int (*lookup_symbol)(elf_file_t ef, const char* name, Elf_Sym** sym);
+};
+
+struct elf_file {
+	elf_file_t ef_ef;
+	struct elf_file_ops *ef_ops;
+};
 
 __BEGIN_DECLS
-int ef_open(const char *, elf_file_t, int);
-int ef_close(elf_file_t ef);
-int ef_read(elf_file_t ef, Elf_Off offset, size_t len, void* dest);
-int ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void **ptr);
-int ef_reloc(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
-int ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
-int ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
-int ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr);
-int ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len, void**ptr);
-int ef_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym);
+int ef_open(const char *filename, struct elf_file *ef, int verbose);
+int ef_obj_open(const char *filename, struct elf_file *ef, int verbose);
+int ef_reloc(struct elf_file *ef, const void *data, int type, Elf_Off offset,
+    size_t len, void *dest);
 __END_DECLS
 
 #endif /* _EF_H_*/
