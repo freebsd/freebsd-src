@@ -33,7 +33,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	savecore securelevel sendmail \
 	serial sppp sshd swap1 \
 	syscons sysctl syslogd \
-	timed ttys \
+	timed \
 	usbd \
 	vinum virecover \
 	watchdogd \
