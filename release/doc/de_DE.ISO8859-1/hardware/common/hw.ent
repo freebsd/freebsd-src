@@ -1,9 +1,8 @@
 <!-- -*- sgml -*- -->
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/hw.ent,v 1.3 2002/03/10 18:41:34 ue Exp $
-  $Id: hw.ent,v 1.5 2002/03/10 15:37:15 ue Exp $
-  basiert auf: 1.3
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/hw.ent,v 1.4 2002/07/08 18:42:56 ue Exp $
+  basiert auf: 1.4
 -->
 
 <!-- Text constants which probably don't need to be changed.-->
@@ -15,6 +14,7 @@
 <!ENTITY sect.proc.alpha SYSTEM "../alpha/proc-alpha.sgml">
 <!ENTITY sect.proc.i386 SYSTEM "../i386/proc-i386.sgml">
 <!ENTITY sect.proc.ia64 SYSTEM "../ia64/proc-ia64.sgml">
+<!ENTITY sect.proc.pc98 SYSTEM "../pc98/proc-pc98.sgml">
 <!ENTITY sect.proc.sparc64 SYSTEM "../sparc64/proc-sparc64.sgml">
 <!ENTITY sect.dev SYSTEM "../common/dev.sgml">
 

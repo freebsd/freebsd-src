@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.13 2002/05/26 13:40:01 ue Exp $
-  basiert auf: 1.41
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.17 2002/10/12 09:36:50 mheinen Exp $
+  basiert auf: 1.44
 -->
 
 <sect1>
@@ -667,7 +667,7 @@ cpu     EV4</programlisting>
       <para>Die Multia hat nur einen 32 Bit PCI Steckplatz, der nur f&uuml;r
       eine kleine PCI-Karte genutzt werden kann.  Wenn Sie darauf
       verzichten, k&ouml;nnen Sie eine 3.5&quot; Festplatte einbauen.
-      Das Montagematerial k&ouml;nnte Ihrer Multia beliegen.
+      Das Montagematerial k&ouml;nnte Ihrer Multia beiliegen.
       Allerdings sollten Sie auf den Einbau der Festplatte
       <emphasis>verzichten</emphasis>, da das Netzteil und die
       K&uuml;hlung unterdimensioniert sind.</para>
@@ -729,7 +729,7 @@ cpu     EV4</programlisting>
         (<quote>Pizzaschachtel</quote>).  Es ist eine sehr gute Idee,
         den L&uuml;fter durch ein leistungsst&auml;rkeres Modell zu
         ersetzen.  Weiterhin k&ouml;nnen Sie eines der Kabel zum
-        Temperatursensor durchscheiden.  Danach wird der L&uuml;fter
+        Temperatursensor durchschneiden.  Danach wird der L&uuml;fter
         mit voller Drehzahl (und Lautst&auml;rke) betrieben.
         H&uuml;ten Sie sich vor PCI-Karten, die sehr viel Strom
         brauchen.  Falls Ihr System trotzdem sterben sollten,
@@ -1054,6 +1054,11 @@ device  sbc</programlisting>
         f&uuml;r Ihr Einsatzgebiet extrem schnelle 64 Bit PCI Karten
         ben&ouml;tigen.</para>
 
+      <para>Obwohl es m&ouml;glich ist, bis zu 1.5 GByte Speicher
+        einzubauen, kann &os; nur 1 GByte nutzen, da die DMA-Routinen
+        den Speicher oberhalb 1 GByte nicht korrekt
+        ansprechen.</para>
+
       <para>Der Wechsel zu einer schnelleren CPU ist einfach, wechseln
         Sie die CPU, und stellen an dem DIP-Schalter f&uuml;r den
         Takt-Multiplikator die Geschwindigkeit der neuen CPU
@@ -1084,427 +1089,6 @@ device  sbc</programlisting>
 
       <programlisting>options   DEC_ST550
 cpu     EV5</programlisting>
-    </sect3>
-
-    <sect3>
-      <title>DEC3000 Familie (die <quote>Bird</quote> Maschinen)</title>
-
-      <para>Die DEC3000 Familie geh&ouml;rt zur ersten Generation der
-        Alpha Maschinen.  Sie basieren auf einem TurboChannel (TC)
-        genannten I/O System und sind gebaut wie ein Panzerschrank
-        (heben Sie sich keinen Bruch).</para>
-
-      <para>Die DEC3000 Familie kann in zwei Gruppen unterteilt
-        werden:  Die DEC3000/500 Systeme und die DEC3000/300 Systeme.
-        Die DEC3000/500 Systeme sind die &auml;lteren leistungsstarken
-        Server und Workstations der Alpha Familie.  Server verwenden
-        serielle Konsolen, Workstations haben Bildschirme.  Die
-        DEC3000/300 Systeme sind die preiswerten Workstations.</para>
-
-      <para>Die DEC3000/500 Systeme sind wegen dem guten Design des
-        Hauptspeichers extrem schnell (wenn man beachtet, wie alt
-        diese Maschine sind).  Die DEC3000/300 verhalten sich diesbez&uuml;glich deutlich
-        schlechter. Die Bandbreite ihres Speichers ist wesentlich
-        kleiner.</para>
-
-      <para>Der Name der Familie <quote>Birds</quote> entstand, weil
-        die DEC-internen Bezeichnungen der Maschinen aus der
-        Vogelwelt stammen:</para>
-
-
-      <informaltable>
-        <tgroup cols=3 align=left>
-          <colspec colwidth="*">
-
-          <colspec colwidth="*">
-
-          <colspec colwidth="2*">
-
-          <tbody>
-            <row>
-              <entry>DEC3000/400</entry>
-
-              <entry>Sandpiper</entry>
-
-              <entry>133 MHz CPU, Desktop</entry>
-            </row>
-
-            <row>
-              <entry>DEC3000/500</entry>
-
-              <entry>Flamingo</entry>
-
-              <entry>150 MHz CPU, Tower</entry>
-            </row>
-
-            <row>
-              <entry>DEC3000/500X</entry>
-
-              <entry>Hot Pink</entry>
-
-              <entry>200 MHz CPU, Tower</entry>
-            </row>
-
-            <row>
-              <entry>DEC3000/600</entry>
-
-              <entry>Sandpiper+</entry>
-
-              <entry>175 MHz CPU, Desktop</entry>
-            </row>
-
-            <row>
-              <entry>DEC3000/700</entry>
-
-              <entry>Sandpiper45</entry>
-
-              <entry>225 MHz CPU, Tower</entry>
-            </row>
-
-            <row>
-              <entry>DEC3000/800</entry>
-
-              <entry>Flamingo Ultra</entry>
-
-              <entry>200 MHz CPU, Tower</entry>
-            </row>
-
-            <row>
-              <entry>DEC3000/900</entry>
-
-              <entry>Flamingo45</entry>
-
-              <entry>275 MHz CPU, Tower</entry>
-            </row>
-
-            <row>
-              <entry>DEC3000/300</entry>
-
-              <entry>Pelican</entry>
-
-              <entry>150 MHz CPU, Desktop, 2 TC Steckpl&auml;tze</entry>
-            </row>
-
-            <row>
-              <entry>DEC3000/300X</entry>
-
-              <entry>Pelican+</entry>
-
-              <entry>175 MHz CPU, Desktop, 2 TC Steckpl&auml;tze</entry>
-            </row>
-
-            <row>
-              <entry>DEC3000/300LX</entry>
-
-              <entry>Pelican+</entry>
-
-              <entry>125 MHz CPU, Desktop, 2 TC Steckpl&auml;tze</entry>
-            </row>
-
-            <row>
-              <entry>DEC3000/300L</entry>
-
-              <entry></entry>
-
-              <entry>100 MHz CPU, Desktop, kein TC Steckplatz</entry>
-            </row>
-          </tbody>
-        </tgroup>
-      </informaltable>
-
-      <para>Eigenschaften:</para>
-
-      <itemizedlist>
-        <listitem>
-          <para>21064 CPU (100 bis 200 MHz) oder 21064A CPU (225 bis
-            275 MHz)</para>
-        </listitem>
-
-        <listitem>
-          <para>Speicher der DEC3000/500 Systeme:</para>
-
-          <itemizedlist>
-            <listitem>
-              <para>Busbreite: 256 Bit, ECC</para>
-            </listitem>
-
-            <listitem>
-              <para>spezielle 100polige SIMMs</para>
-            </listitem>
-
-            <listitem>
-              <para>Installiert in Gruppe zu 8 Modulen</para>
-            </listitem>
-          </itemizedlist>
-        </listitem>
-
-        <listitem>
-          <para>Speicher der DEC3000/300 Systeme:</para>
-
-          <itemizedlist>
-            <listitem>
-              <para>Busbreite: 64 Bit, ECC</para>
-            </listitem>
-
-            <listitem>
-              <para>PS/2 FPM SIMMS, 72polig, 36 Bit, 70ns oder
-                schneller</para>
-            </listitem>
-
-            <listitem>
-              <para>paarweise Installation</para>
-            </listitem>
-          </itemizedlist>
-        </listitem>
-
-        <listitem>
-          <para>Bcache / L2 Cache: von 512 KByte bis zu 2 MByte</para>
-        </listitem>
-
-        <listitem>
-          <para>10MBit Ethernet auf Basis eines Lance 7990 Chip, AUI
-            und UTP</para>
-        </listitem>
-
-        <listitem>
-          <para>einen oder zwei SCSI Kan&auml;le auf Basis eines
-            NCR53C94 oder NCR53CF94-2</para>
-        </listitem>
-
-        <listitem>
-          <para>2 serielle Anschl&uuml;sse auf Basis eines Zilog 8530
-            (einer kann f&uuml;r eine serielle Konsole genutzt
-            werden)</para>
-        </listitem>
-
-        <listitem>
-          <para>eingebauter ISDN Anschlu&szlig;</para>
-        </listitem>
-
-        <listitem>
-          <para>eingebauter 8 Bit Sound</para>
-        </listitem>
-
-        <listitem>
-          <para>8 Bit Grafik, entweder auf einer TC oder eingebaut (je
-            nach Modell)</para>
-        </listitem>
-      </itemizedlist>
-
-      <para>Zur Zeit k&ouml;nnen DEC3000 Systeme unter &os; nur ohne
-        Festplatten genutzt werden.  Der Grund ist, das die
-        SCSI-Treiber f&uuml;r die TC SCSI Controller nicht im CAM
-        enthalten sind, welches von den neuesten &os; Versionen
-        genutzt wird.  Es gibt zwar TC Karten mit einem (PMAZ-A) oder
-        zwei (PMAZC-AA) Fast SCSI Kan&auml;len, jedoch werden diese
-        Karten auch nicht von &os;  unterst&uuml;tzt.</para>
-
-      <para>Die DEC3000/300 benutzt einen eingebauten SCSI Kanal mit
-        einer Geschwindigkeit von bis zu 5 MByte/sec. Dieser wird sowohl
-        f&uuml;r interne als auch f&uuml;r externe Ger&auml;te genutzt.
-         Die DEC3000/500 besitzt zwei Kan&auml;le, von
-        denen einer f&uuml;r interne und einer f&uuml;r 
-        externe Ger&auml;te reserviert ist.</para>
-
-      <para>Die Diskettenlaufwerke in den DEC3000 sind &uuml;ber eine
-        Adapterkarte am SCSI Bus angeschlossen.  Dadurch ist es
-        m&ouml;glich, von ihnen wie von einer Festplatte zu booten und dabei die
-        gleichen Ger&auml;tenamen zu verwenden:</para>
-
-      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>BOOT DKA300</userinput></screen>
-
-      <para>Der TurboChannel der 3000/300 Systeme ist nur halb so
-        schnell wie der TurboChannel der anderen 3000 Maschinen.
-        Einige TC Erweiterungskarten haben mit dem langsameren
-        TurboChannel Probleme.  Caveat emptor.</para>
-
-      <para>Der eingebaute ISDN-Anschlu&szlig; wird von &os; nicht
-        unterst&uuml;tzt.</para>
-
-      <para>Die DEC3000/300 Systeme benutzen normale 72 polige, 36 Bit Fast Page
-        Mode SIMMs.  EDO SIMMs und SIMMS mit nur 32 Bit oder 33 Bit funktionieren
-        in den Pelicans nicht. Damit ein SIMM mit 32 MByte in einem DEC3000/300 System
-        funktioniert, mu&szlig; die Belegung der Presence Detect
-        Bits/Anschl&uuml;sse des SIMMs mit dem &uuml;bereinstimmen,
-        was die Maschine erwartet.  Wenn das nicht der Fall ist, wird
-        das SIMM als 8 MByte SIMM <quote>erkannt</quote>.  Sie
-        k&ouml;nnen SIMMs mit 8 MByte und 32 MByte mischen, allerdings
-        m&uuml;ssen die SIMMs eines Paares identisch sein.</para>
-
-      <para>Falls Sie auf Idee kommen sollten, Ihre 32 MByte SIMMs mit
-        falschen/fehlenden Presence Bits korrigieren zu wollen,
-        sollten Ihnen die folgenden Informationen
-        weiterhelfen:</para>
-
-      <para>Ein PS/2 SIMM hat vier Presence Detection Bits.  Zwei
-        davon definieren die Zugriffszeit, die anderen beiden die
-        Gr&ouml;&szlig;e des Speichermoduls.</para>
-
-      <para>An einer Seite des SIMM befinden sich zwei Reihen mit je
-        vier L&ouml;tfl&auml;chen.  Eine der Reihe ist mit Vss (Masse)
-        verbunden, die andere mit den Anschl&uuml;ssen 67 (PRD1), 68
-        (PRD2), 69 (PRD3), 70 (PRD4).</para>
-
-      <para>Wenn Sie zwei Fl&auml;chen mit einem kleinen Widerstand
-        oder etwas L&ouml;tzinn verbinden, legen Sie den
-        dazugeh&ouml;rigen Anschlu&szlig; auf Masse.</para>
-
-      <informaltable>
-        <tgroup cols=3 align=left>
-          <colspec colwidth="*">
-
-          <colspec colwidth="*">
-
-          <colspec colwidth="2*">
-
-          <thead>
-            <row>
-              <entry>PRD1</entry>
-
-              <entry>PRD2</entry>
-
-              <entry>Speichergr&ouml;&szlig;e</entry>
-            </row>
-          </thead>
-
-          <tbody>
-            <row>
-              <entry>GND</entry>
-
-              <entry>GND</entry>
-
-              <entry>4 oder 64 MByte</entry>
-            </row>
-
-            <row>
-              <entry>Open</entry>
-
-              <entry>GND</entry>
-
-              <entry>2 oder 32 MByte</entry>
-            </row>
-
-            <row>
-              <entry>GND</entry>
-
-              <entry>Open</entry>
-
-              <entry>1 oder 16 MByte</entry>
-            </row>
-
-            <row>
-              <entry>Open</entry>
-
-              <entry>Open</entry>
-
-              <entry>8 MByte</entry>
-            </row>
-          </tbody>
-        </tgroup>
-      </informaltable>
-
-
-      <informaltable>
-        <tgroup cols=3 align=left>
-          <colspec colwidth="*">
-
-          <colspec colwidth="*">
-
-          <colspec colwidth="2*">
-
-          <thead>
-            <row>
-              <entry>PRD3</entry>
-
-              <entry>PRD4</entry>
-
-              <entry>Zugriffsgeschwindigkeit</entry>
-            </row>
-          </thead>
-
-          <tbody>
-            <row>
-              <entry>GND</entry>
-
-              <entry>GND</entry>
-
-              <entry>50 oder 100 nsec</entry>
-            </row>
-
-            <row>
-              <entry>Open</entry>
-
-              <entry>GND</entry>
-
-              <entry>80 nsec</entry>
-            </row>
-
-            <row>
-              <entry>GND</entry>
-
-              <entry>Open</entry>
-
-              <entry>70 nsec</entry>
-            </row>
-
-            <row>
-              <entry>Open</entry>
-
-              <entry>Open</entry>
-
-              <entry>60 nsec</entry>
-            </row>
-          </tbody>
-        </tgroup>
-      </informaltable>
-
-      <para>In DEC3000/500 Systemen k&ouml;nnen 100polige SIMMs mit 2,
-        4, 8, 16 oder 32 MByte benutzt werden.  Die maximale
-        Gr&ouml;&szlig;e des Speichers ist von Modell zu Modell
-        verschieden, um z.B. bei Desktop-Systemen ein kleineres
-        Geh&auml;use zu erm&ouml;glichen, wurden Steckpl&auml;tze
-        f&uuml;r den Speicher eingespart.  Wenn Sie &uuml;ber
-        gen&uuml;gend viele Steckpl&auml;tze und SIMMs verf&uuml;gen,
-        k&ouml;nnen Sie das Maximum von 512 MByte erreichen.  Hier
-        liegt einer der Hauptunterschiede zwischen den Tower- und
-        Desktop-Varianten, letztere haben deutlich weniger
-        Steckpl&auml;tze f&uuml;r SIMMs.</para>
-
-      <para>Die Audio-Hardware der Birds wird nicht
-        unterst&uuml;tzt.</para>
-
-      <para>Die TC Maschinen werden von X-Windows nicht
-        unterst&uuml;tzt.  Die DEC3000/300 Maschinen brauchen eine
-        serielle Konsole.  Die DEC3000/500 Maschinen k&ouml;nnten mit
-        einer graphischen Konsole funktionieren.  Der Autor
-        (&a.wilko;) betrieb seine Maschine mit einer seriellen Konsole
-        und kann daher keine Aussage dazu machen.</para>
-
-      <para>Birds kann man bei Ausverk&auml;ufen erwerben.  Da sie
-        keine PCI Steckpl&auml;tzen besitzen, werden Sie nicht mehr
-        aktiv unterst&uuml;tzt.  Mittlerweile sind TC
-        Erweiterungskarten nur sehr schwer zu finden und die
-        Unterst&uuml;tzung f&uuml;r diese Karten ist eher schlecht,
-        wenn Sie den Treiber nicht selbst schreiben und testen.
-        Unterlagen f&uuml;r Entwickler &uuml;ber TC Karten sind ebenfalls
-        rar.  Wir raten, eine Bird nur dann zu verwenden, wenn Sie
-        sie sehr g&uuml;nstig erwerben k&ouml;nnen und Sie bereit
-        sind, sehr viel Zeit in die Entwicklung der notwendigen
-        Software zu investieren.</para>
-
-      <para>In der Konfigurationsdatei des Kernels eines
-        DEC3000/[4-9]00 Systems m&uuml;ssen die folgenden Zeilen
-        stehen:</para>
-
-      <programlisting>options   DEC_3000_500
-cpu     EV4</programlisting>
-
-      <para>In der Konfigurationsdatei f&uuml;r den Kernel eines
-        DEC3000/300 (<quote>Pelican</quote>) Systems m&uuml;ssen die
-        folgenden Zeilen stehen:</para>
-
-      <programlisting>options   DEC_3000_300
-cpu     EV4</programlisting>
     </sect3>
 
     <sect3>
@@ -1739,14 +1323,16 @@ cpu     EV4</programlisting>
       </itemizedlist>
 
       <para>Die Benutzung von 8 SIMMs, um einen 256 Bit breiten
-        Speicher zu erhalten, resultiert in interessanten
-        Geschwindigkeitsvorteilen gegen&uuml;ber einem 4 SIMM/128 Bit
-        breiten Speicher.  Nat&uuml;rlich m&uuml;ssen alle 8 SIMMs vom
-        gleichen Typ sein, damit dies funktioniert; au&szlig;erdem
-        mu&szlig; das System explizit auf die Nutzung des 8 SIMM Modus
-        konfiguriert werden.  Sie m&uuml;ssen 8 SIMMs benutzen,
-        4 SIMMs auf 2 B&auml;nke verteilt funktioniert
-        nicht.</para>
+	Speicher zu erhalten, resultiert in interessanten
+	Geschwindigkeitsvorteilen gegen&uuml;ber einem 4 SIMM/128 Bit
+	breiten Speicher.  Nat&uuml;rlich m&uuml;ssen alle 8 SIMMs vom
+	gleichen Typ sein, damit dies funktioniert;  au&szlig;erdem
+	mu&szlig; das System explizit auf die Nutzung des 8 SIMM Modus
+	konfiguriert werden.  Sie m&uuml;ssen 8 SIMMs benutzen, 4
+	SIMMs auf 2 B&auml;nke verteilt funktioniert nicht.  Bei der
+	PC164 kann mit 8 128 MByte SIMMs ein maximaler Speicherausbau
+	von 1 GByte erreicht werden.  Das Handbuch behauptet, der
+	maximale Speicherausbau betrage 512 MByte.</para>
 
       <para>Der SRM kann von Qlogic 10xx Karten oder dem Symbios
         53C810[A] booten.  Neuere Versionen des Symbios 810 wie der
@@ -1890,7 +1476,7 @@ cpu             EV5</programlisting>
             </listitem>
 
             <listitem>
-              <para>in zwei Viergruppen (Modell 250)</para>
+              <para>in zwei Vierergruppen (Modell 250)</para>
             </listitem>
 
             <listitem>
@@ -2209,14 +1795,14 @@ cd0: 250.000MB/s transfers (250.000 MHz, offset 12)</programlisting>
         internen Ger&auml;te, der andere ist f&uuml;r die externen
         SCSI Ger&auml;te zust&auml;ndig.</para>
 
-      <para>Die DIMMs werden bei der AS500 in Viergruppen installiert,
+      <para>Die DIMMs werden bei der AS500 in Vierergruppen installiert,
         allerdings sind die B&auml;nke ineinander verzahnt
         (<quote>physically interleaved layout</quote>). Eine Gruppe
         von 4 DIMMs besteht also <emphasis>nicht</emphasis> aus vier
         nebeneinanderliegenden DIMMs.</para>
 
       <para>Bei der AS600 sind die SIMMs auf zwei speziellen
-        Speicherkarten untergebraucht.  Die SIMM m&uuml;ssen in
+        Speicherkarten untergebracht.  Die SIMM m&uuml;ssen in
         Achtergruppen installiert werden und beide Speicherkarten
         m&uuml;ssen identisch best&uuml;ckt werden.</para>
 
@@ -4033,10 +3619,9 @@ cpu     EV5</programlisting>
       dagegen eine VGA-Emulation und k&ouml;nnen als &os;-Konsole
       genutzt werden.</para>
 
-    <para>Die in den meisten Alphas vorhandenen seriellen Schnittstellen
-      nach dem <quote>PC Standard</quote>, werden unterst&uuml;tzt.
-      Auf TurboChannel Systemen werden die seriellen Schnittstellen
-      ebenfalls unterst&uuml;tzt.</para>
+    <para>Die in den meisten Alphas vorhandenen seriellen
+      Schnittstellen nach dem <quote>PC Standard</quote>, werden
+      unterst&uuml;tzt.</para>
 
     <para>ISDN (i4b) wird von &os;/alpha nicht unterst&uuml;tzt.</para>
   </sect2>

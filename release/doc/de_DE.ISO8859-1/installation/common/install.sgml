@@ -1,7 +1,7 @@
 <!--
 
 $FreeBSD$
-$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.6 2002/05/12 11:47:57 mheinen Exp $
+$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.10 2002/10/12 12:49:31 mheinen Exp $
 basiert auf: 1.14
 
 install.sgml
@@ -241,7 +241,7 @@ from {alpha,i386}/INSTALL.TXT.
       auch direkt &uuml;ber das Internet installieren, wenn Sie PPP,
       SLIP oder eine feste Verbindung haben.  In diesem Fall
       m&uuml;ssen Sie ebenfalls die beiden &os; Bootdisketten aus den
-      Dateien <filename>floppies/kern.flp</filename> and
+      Dateien <filename>floppies/kern.flp</filename> und
       <filename>floppies/mfsroot.flp</filename> erzeugen, wie in
       <xref linkend="floppies"> beschrieben.  Booten Sie Ihren
       Rechner von der Diskette mit <filename>kern.flp</filename>; und
@@ -464,7 +464,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <para>Wenn Sie die Disketten auf einem anderen &os; System
         erzeugen, kann eine Formatierung nicht schaden, obwohl die
         Disketten kein DOS-Dateisystem enthalten m&uuml;ssen.  Sie
-        k&ouml;nnen die Programme &man.disklabel.8; and &man.newfs.8;
+        k&ouml;nnen die Programme &man.disklabel.8; und &man.newfs.8;
         benutzen, um auf den Disketten ein UFS Dateisystem anzulegen.
         Dazu sind die folgenden Befehle notwendig:</para>
 
@@ -749,7 +749,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
               bei dem der Server eine Verbindung zum Client aufbaut.
               Diese Variante funktioniert meistens nicht, wenn ein
               Firewall im Spiel ist; allerdings unterst&uuml;tzen
-              &auml;tere Server meistens nur diese Methode.  Wenn Ihre
+              &auml;ltere Server meistens nur diese Methode.  Wenn Ihre
               Verbindungen im passiven Modus steckenbleiben, sollten
               Sie diese Variante versuchen.</para>
           </listitem>
@@ -927,7 +927,7 @@ scratch.
 	<answer>
           <para>Ja.  Die logischen DOS-Laufwerke werden in &os; hinter
             allen anderen <quote>slices</quote> eingeblendet.
-            Beispielweise k&ouml;nnte Ihr Laufwerk
+            Beispielsweise k&ouml;nnte Ihr Laufwerk
             <devicename>D:</devicename> zu
             <filename>/dev/da0s5</filename> werden, das Laufwerk
             <devicename>E:</devicename> zu

@@ -1,7 +1,6 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/alpha/article.sgml,v 1.3 2002/03/15 13:08:35 ue Exp $
-  $Id: article.sgml,v 1.3 2002/03/10 15:37:19 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/alpha/article.sgml,v 1.4 2002/10/12 18:02:24 ue Exp $
   basiert auf: 1.3
 -->
 
@@ -12,7 +11,7 @@
 %authors;
 <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
 %mlists;
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//DE">
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 <!ENTITY % sections SYSTEM "../common/relnotes.ent"> %sections;
 

@@ -1,6 +1,6 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/sparc64/install.sgml,v 1.7 2002/05/26 19:29:55 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/sparc64/install.sgml,v 1.8 2002/10/12 11:08:15 mheinen Exp $
   basiert auf: 1.12
   This file contains sparc64-specific installation instructions.
 -->
@@ -303,7 +303,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
       <para>Die Option <literal>filename</literal> entspricht dem
 	zusammengesetzten Wert von <literal>hd</literal> und
 	<literal>bf</literal> in <filename>/etc/bootptab</filename>.
-	Die Ethernet-Adresse wird in Hexadezimaler Notation mit
+	Die Ethernet-Adresse wird in hexadezimaler Notation mit
 	Doppelpunkten angaben, genau wie bei &man.rarpd.8;.
 	<literal>options root-path</literal> entspricht der
 	<literal>rp</literal> in <filename>/etc/bootptab</filename>.
