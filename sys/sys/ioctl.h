@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioctl.h	8.6 (Berkeley) 3/28/94
- * $Id: ioctl.h,v 1.2 1994/08/02 07:53:04 davidg Exp $
+ * $Id: ioctl.h,v 1.3 1996/01/30 23:00:43 mpp Exp $
  */
 
 #ifndef	_SYS_IOCTL_H_
@@ -63,14 +63,6 @@ struct ttysize {
 #include <sys/filio.h>
 #include <sys/sockio.h>
 
-#ifndef KERNEL
-
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-int	ioctl __P((int, unsigned long, ...));
-__END_DECLS
-#endif /* !KERNEL */
 #endif /* !_SYS_IOCTL_H_ */
 
 /*
