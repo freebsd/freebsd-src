@@ -28,6 +28,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /* 
@@ -1311,6 +1313,8 @@ rpopen(dev, flag, mode, p)
 	port  = (minor(dev) & 0x1f);                /* SG */
 	mynor = (port + umynor);                    /* SG */
 	unit = minor_to_unit[mynor];
+	if (rp_addr(unit) == NULL)
+		return (ENXIO);
 	if(IS_CONTROL(dev))
 		return(0);
 	rp = rp_addr(unit) + port;
@@ -1666,7 +1670,7 @@ rpioctl(dev, cmd, data, flag, p)
 		dt->c_lflag = (tp->t_lflag & lt->c_lflag)
 				| (dt->c_lflag & ~lt->c_lflag);
 		for(cc = 0; cc < NCCS; ++cc)
-			if(lt->c_cc[cc] = tp->t_cc[cc])
+			if(lt->c_cc[cc] != 0)
 				dt->c_cc[cc] = tp->t_cc[cc];
 		if(lt->c_ispeed != 0)
 			dt->c_ispeed = tp->t_ispeed;
@@ -1783,14 +1787,14 @@ rpioctl(dev, cmd, data, flag, p)
 }
 
 static struct speedtab baud_table[] = {
-	B0,	0,		B50,	BRD50,		B75,	BRD75,
-	B110,	BRD110, 	B134,	BRD134, 	B150,	BRD150,
-	B200,	BRD200, 	B300,	BRD300, 	B600,	BRD600,
-	B1200,	BRD1200,	B1800,	BRD1800,	B2400,	BRD2400,
-	B4800,	BRD4800,	B9600,	BRD9600,	B19200, BRD19200,
-	B38400, BRD38400,	B7200,	BRD7200,	B14400, BRD14400,
-				B57600, BRD57600,	B76800, BRD76800,
-	B115200, BRD115200,	B230400, BRD230400,
+	{B0,	0},		{B50,	BRD50},		{B75,	BRD75},
+	{B110,	BRD110}, 	{B134,	BRD134}, 	{B150,	BRD150},
+	{B200,	BRD200}, 	{B300,	BRD300}, 	{B600,	BRD600},
+	{B1200,	BRD1200},	{B1800,	BRD1800},	{B2400,	BRD2400},
+	{B4800,	BRD4800},	{B9600,	BRD9600},	{B19200, BRD19200},
+	{B38400, BRD38400},	{B7200,	BRD7200},	{B14400, BRD14400},
+				{B57600, BRD57600},	{B76800, BRD76800},
+	{B115200, BRD115200},	{B230400, BRD230400},
 	-1,	-1
 };
 

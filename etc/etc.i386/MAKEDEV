@@ -1057,8 +1057,8 @@ ttyR?)
 	   echo -n "Creating $ndevices devices for $i: "
 	   for dev in `jot $ndevices 0`;do
 		   mknod /dev/ttyR$Rnum c $major $MINOR 
-		   mknod /dev/ttylR$Rnum c $major `expr $MINOR + 32`
-		   mknod /dev/ttyiR$Rnum c $major `expr $MINOR + 64` 
+		   mknod /dev/ttyiR$Rnum c $major `expr $MINOR + 32`
+		   mknod /dev/ttylR$Rnum c $major `expr $MINOR + 64` 
 		   Rnum=`expr $Rnum + 1`
 		   MINOR=`expr $MINOR + 1`
 	   done
@@ -1080,8 +1080,8 @@ cuaR?)
 	   echo -n "Creating $ndevices devices for $i: "
 	   for dev in `jot $ndevices 0`;do
 		   mknod /dev/cuaR$Rnum c  $major `expr $MINOR + 128`
-		   mknod /dev/cualR$Rnum c $major `expr $MINOR + 128 + 32`
-		   mknod /dev/cuaiR$Rnum c $major `expr $MINOR + 128 + 64` 
+		   mknod /dev/cuaiR$Rnum c $major `expr $MINOR + 128 + 32`
+		   mknod /dev/cualR$Rnum c $major `expr $MINOR + 128 + 64` 
 		   Rnum=`expr $Rnum + 1`
 		   MINOR=`expr $MINOR + 1`
 	   done
