@@ -92,7 +92,7 @@ main(argc, argv)
 	DBT data, key;
 	FILE *fp, *oldfp;
 	sigset_t set;
-	int ch, cnt, len, makeold, tfd;
+	int ch, cnt, len, makeold, tfd, yp_enabled = 0;
 	char *p, *t;
 	char buf[MAX(MAXPATHLEN, LINE_MAX * 2)], tbuf[1024];
 	char buf2[MAXPATHLEN];
@@ -178,6 +178,7 @@ main(argc, argv)
 	data.data = (u_char *)buf;
 	key.data = (u_char *)tbuf;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
+		if(pwd.pw_name[0] == '+') yp_enabled = 1;
 #define	COMPACT(e)	t = e; while (*p++ = *t++);
 		/* Create insecure data. */
 		p = buf;
@@ -195,6 +196,8 @@ main(argc, argv)
 		COMPACT(pwd.pw_shell);
 		memmove(p, &pwd.pw_expire, sizeof(time_t));
 		p += sizeof(time_t);
+		memmove(p, &pwd.pw_fields, sizeof pwd.pw_fields);
+		p += sizeof pwd.pw_fields;
 		data.size = p - buf;
 
 		/* Store insecure by name. */
@@ -225,6 +228,14 @@ main(argc, argv)
 			    pwd.pw_name, pwd.pw_uid, pwd.pw_gid, pwd.pw_gecos,
 			    pwd.pw_dir, pwd.pw_shell);
 	}
+	/* If YP enabled, set flag. */
+	if(yp_enabled) {
+		tbuf[0] = _PW_KEYYPENABLED;
+		key.size = 1;
+		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
+			error("put");
+	}
+
 	(void)(dp->close)(dp);
 	if (makeold) {
 		(void)fflush(oldfp);
@@ -258,6 +269,8 @@ main(argc, argv)
 		COMPACT(pwd.pw_shell);
 		memmove(p, &pwd.pw_expire, sizeof(time_t));
 		p += sizeof(time_t);
+		memmove(p, &pwd.pw_fields, sizeof pwd.pw_fields);
+		p += sizeof pwd.pw_fields;
 		data.size = p - buf;
 
 		/* Store secure by name. */
@@ -279,6 +292,14 @@ main(argc, argv)
 		tbuf[0] = _PW_KEYBYUID;
 		memmove(tbuf + 1, &pwd.pw_uid, sizeof(pwd.pw_uid));
 		key.size = sizeof(pwd.pw_uid) + 1;
+		if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
+			error("put");
+	}
+
+	/* If YP enabled, set flag. */
+	if(yp_enabled) {
+		tbuf[0] = _PW_KEYYPENABLED;
+		key.size = 1;
 		if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
 			error("put");
 	}
