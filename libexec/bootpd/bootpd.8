@@ -1,6 +1,6 @@
 .\" Copyright (c) 1988, 1989, 1991 Carnegie Mellon University
 .\"
-.\"	$Header: /home/ncvs/src/libexec/bootpd/bootpd.8,v 1.2 1995/04/12 00:24:48 gpalmer Exp $
+.\"	$Header: /home/ncvs/src/libexec/bootpd/bootpd.8,v 1.3 1996/09/11 01:37:24 pst Exp $
 .\"
 .TH BOOTPD 8 "November 06, 1993" "Carnegie Mellon University"
 .SH NAME
@@ -58,7 +58,7 @@ from
 by including one of the following lines in the file
 .IR /etc/inetd.conf :
 .IP
-bootps dgram udp wait root /usr/libexec/bootpd bootpd bootptab
+bootps dgram udp wait root /usr/libexec/bootpd bootpd /etc/bootptab
 .br
 bootps dgram udp wait root /usr/libexec/bootpgw bootpgw server
 .PP
