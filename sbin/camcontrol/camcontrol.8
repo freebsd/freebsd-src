@@ -640,9 +640,9 @@ waits a few minutes and then returns it.
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,
+.Xr cam 4 ,
 .Xr pass 4 ,
-.Xr cam 9 ,
-.Xr xpt 9
+.Xr xpt 4
 .Sh HISTORY
 The
 .Nm camcontrol
@@ -663,9 +663,6 @@ in
 .Sh AUTHORS
 .An Kenneth Merry Aq ken@FreeBSD.org
 .Sh BUGS
-Most of the man page cross references don't exist yet.  This will be fixed
-soon.
-.Pp
 The code that parses the generic command line arguments doesn't know that
 some of the subcommands take multiple arguments.  So if, for instance, you
 tried something like this:
