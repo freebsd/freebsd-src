@@ -369,7 +369,6 @@ extern int		aac_shutdown(device_t dev);
 extern int		aac_suspend(device_t dev); 
 extern int		aac_resume(device_t dev);
 extern void		aac_intr(void *arg);
-extern devclass_t	aac_devclass;
 extern void		aac_submit_bio(struct bio *bp);
 extern void		aac_biodone(struct bio *bp);
 extern int		aac_dump_enqueue(struct aac_disk *ad, u_int32_t lba,

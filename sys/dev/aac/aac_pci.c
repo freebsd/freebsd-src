@@ -79,6 +79,8 @@ static driver_t aac_pci_driver = {
 	sizeof(struct aac_softc)
 };
 
+static devclass_t	aac_devclass;
+
 DRIVER_MODULE(aac, pci, aac_pci_driver, aac_devclass, 0, 0);
 
 struct aac_ident
