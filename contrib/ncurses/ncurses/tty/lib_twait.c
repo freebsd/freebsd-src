@@ -59,7 +59,7 @@
 # endif
 #endif
 
-MODULE_ID("$Id: lib_twait.c,v 1.39 2000/08/26 19:34:15 tom Exp $")
+MODULE_ID("$Id: lib_twait.c,v 1.41 2000/12/10 03:04:30 tom Exp $")
 
 static long
 _nc_gettime(bool first)
@@ -102,8 +102,9 @@ _nc_gettime(bool first)
  * If the milliseconds given are -1, the wait blocks until activity on the
  * descriptors.
  */
-int
-_nc_timed_wait(int mode, int milliseconds, int *timeleft)
+NCURSES_EXPORT(int)
+_nc_timed_wait
+(int mode, int milliseconds, int *timeleft)
 {
     int fd;
     int count;

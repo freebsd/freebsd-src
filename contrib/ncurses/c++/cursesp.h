@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,10 +31,10 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
  ****************************************************************************/
 
-#ifndef _CURSESP_H
-#define _CURSESP_H
+#ifndef NCURSES_CURSESP_H_incl
+#define NCURSES_CURSESP_H_incl 1
 
-// $Id: cursesp.h,v 1.12 1999/10/31 00:00:02 tom Exp $
+// $Id: cursesp.h,v 1.14 2001/03/24 21:41:35 tom Exp $
 
 #include <cursesw.h>
 
@@ -42,7 +42,7 @@ extern "C" {
 #  include <panel.h>
 }
 
-class NCursesPanel : public NCursesWindow {
+class NCURSES_IMPEXP NCursesPanel : public NCursesWindow {
 protected:
   PANEL *p;
   static NCursesPanel *dummy;
@@ -215,4 +215,4 @@ public:
   // Associate the user panel with the user data pointed to by p_UserData.
 };
 
-#endif // _CURSESP_H
+#endif // NCURSES_CURSESP_H_incl

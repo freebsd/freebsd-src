@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
 **	lib_leaveok.c
 **
@@ -41,16 +40,16 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_leaveok.c,v 1.3 1998/03/21 22:54:20 jtc Exp $")
+MODULE_ID("$Id: lib_leaveok.c,v 1.5 2000/12/10 02:43:27 tom Exp $")
 
-int leaveok(WINDOW *win, bool flag)
+NCURSES_EXPORT(int)
+leaveok(WINDOW *win, bool flag)
 {
-	T((T_CALLED("leaveok(%p,%d)"), win, flag));
+    T((T_CALLED("leaveok(%p,%d)"), win, flag));
 
-	if (win) {
-	  win->_leaveok = flag;
-	  returnCode(OK);
-	}
-	else
-	  returnCode(ERR);
+    if (win) {
+	win->_leaveok = flag;
+	returnCode(OK);
+    } else
+	returnCode(ERR);
 }

@@ -1,9 +1,9 @@
 #! /bin/sh
-# Configuration validation subroutine script, version 1.1.
-#   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
+# Configuration validation subroutine script.
+#   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
 #   Free Software Foundation, Inc.
 
-version='2000-07-06'
+timestamp='2001-03-09'
 
 # This file is (in principle) common to ALL GNU software.
 # The presence of a machine in this file suggests that SOME GNU software
@@ -60,16 +60,30 @@ Usage: $0 [OPTION] CPU-MFR-OPSYS
 Canonicalize a configuration name.
 
 Operation modes:
-  -h, --help               print this help, then exit
-  -V, --version            print version number, then exit"
+  -h, --help         print this help, then exit
+  -t, --time-stamp   print date of last modification, then exit
+  -v, --version      print version number, then exit
+
+Report bugs and patches to <config-patches@gnu.org>."
+
+version="\
+GNU config.sub ($timestamp)
+
+Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+Free Software Foundation, Inc.
+
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
 
 help="
 Try \`$me --help' for more information."
 
 # Parse command line
 while test $# -gt 0 ; do
-  case "$1" in
-    --version | --vers* | -V )
+  case $1 in
+    --time-stamp | --time* | -t )
+       echo "$timestamp" ; exit 0 ;;
+    --version | -v )
        echo "$version" ; exit 0 ;;
     --help | --h* | -h )
        echo "$usage"; exit 0 ;;
@@ -78,9 +92,7 @@ while test $# -gt 0 ; do
     - )	# Use stdin as input.
        break ;;
     -* )
-       exec >&2
-       echo "$me: invalid option $1"
-       echo "$help"
+       echo "$me: invalid option $1$help"
        exit 1 ;;
 
     *local*)
@@ -105,7 +117,7 @@ esac
 # Here we must recognize all the valid KERNEL-OS combinations.
 maybe_os=`echo $1 | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\2/'`
 case $maybe_os in
-  nto-qnx* | linux-gnu*)
+  nto-qnx* | linux-gnu* | storm-chaos* | os2-emx*)
     os=-$maybe_os
     basic_machine=`echo $1 | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\1/'`
     ;;
@@ -122,9 +134,6 @@ esac
 ### recognize some manufacturers as not being operating systems, so we
 ### can provide default operating systems below.
 case $os in
-	-os2)
-		basic_machine=`echo $1 | sed -e 's/86-.*/86/'`
-		;;
 	-sun*os*)
 		# Prevent following clause from handling this invalid input.
 		;;
@@ -206,22 +215,24 @@ esac
 case $basic_machine in
 	# Recognize the basic CPU types without company name.
 	# Some are omitted here because they have special meanings below.
-	tahoe | i860 | ia64 | m32r | m68k | m68000 | m88k | ns32k | arc | arm \
-		| arme[lb] | pyramid | mn10200 | mn10300 | tron | a29k \
+	tahoe | i860 | ia64 | m32r | m68k | m68000 | m88k | ns32k | arc \
+	        | arm | arme[lb] | arm[bl]e | armv[2345] | armv[345][lb] | strongarm | xscale \
+		| pyramid | mn10200 | mn10300 | tron | a29k \
 		| 580 | i960 | h8300 \
-		| x86 | ppcbe | mipsbe | mipsle | shbe | shle | armbe | armle \
+		| x86 | ppcbe | mipsbe | mipsle | shbe | shle \
 		| hppa | hppa1.0 | hppa1.1 | hppa2.0 | hppa2.0w | hppa2.0n \
 		| hppa64 \
 		| alpha | alphaev[4-8] | alphaev56 | alphapca5[67] \
 		| alphaev6[78] \
 		| we32k | ns16k | clipper | i370 | sh | sh[34] \
 		| powerpc | powerpcle \
-		| 1750a | dsp16xx | pdp11 | mips16 | mips64 | mipsel | mips64el \
+		| 1750a | dsp16xx | pdp10 | pdp11 \
+		| mips16 | mips64 | mipsel | mips64el \
 		| mips64orion | mips64orionel | mipstx39 | mipstx39el \
 		| mips64vr4300 | mips64vr4300el | mips64vr4100 | mips64vr4100el \
-		| mips64vr5000 | miprs64vr5000el | mcore \
+		| mips64vr5000 | miprs64vr5000el | mcore | s390 | s390x \
 		| sparc | sparclet | sparclite | sparc64 | sparcv9 | v850 | c4x \
-		| thumb | d10v | d30v | fr30 | avr)
+		| thumb | d10v | d30v | fr30 | avr | openrisc)
 		basic_machine=$basic_machine-unknown
 		;;
 	m6811 | m68hc11 | m6812 | m68hc12)
@@ -235,7 +246,7 @@ case $basic_machine in
 	# We use `pc' rather than `unknown'
 	# because (1) that's what they normally are, and
 	# (2) the word "unknown" tends to confuse beginning users.
-	i[234567]86)
+	i[234567]86 | x86_64)
 	  basic_machine=$basic_machine-pc
 	  ;;
 	# Object if more than one company name word.
@@ -246,26 +257,28 @@ case $basic_machine in
 	# Recognize the basic CPU types with company name.
 	# FIXME: clean up the formatting here.
 	vax-* | tahoe-* | i[234567]86-* | i860-* | ia64-* | m32r-* | m68k-* | m68000-* \
-	      | m88k-* | sparc-* | ns32k-* | fx80-* | arc-* | arm-* | c[123]* \
+	      | m88k-* | sparc-* | ns32k-* | fx80-* | arc-* | c[123]* \
+	      | arm-*  | armbe-* | armle-* | armv*-* | strongarm-* | xscale-* \
 	      | mips-* | pyramid-* | tron-* | a29k-* | romp-* | rs6000-* \
 	      | power-* | none-* | 580-* | cray2-* | h8300-* | h8500-* | i960-* \
 	      | xmp-* | ymp-* \
-	      | x86-* | ppcbe-* | mipsbe-* | mipsle-* | shbe-* | shle-* | armbe-* | armle-* \
+	      | x86-* | ppcbe-* | mipsbe-* | mipsle-* | shbe-* | shle-* \
 	      | hppa-* | hppa1.0-* | hppa1.1-* | hppa2.0-* | hppa2.0w-* \
 	      | hppa2.0n-* | hppa64-* \
 	      | alpha-* | alphaev[4-8]-* | alphaev56-* | alphapca5[67]-* \
 	      | alphaev6[78]-* \
 	      | we32k-* | cydra-* | ns16k-* | pn-* | np1-* | xps100-* \
 	      | clipper-* | orion-* \
-	      | sparclite-* | pdp11-* | sh-* | powerpc-* | powerpcle-* \
+	      | sparclite-* | pdp10-* | pdp11-* | sh-* | powerpc-* | powerpcle-* \
 	      | sparc64-* | sparcv9-* | sparc86x-* | mips16-* | mips64-* | mipsel-* \
 	      | mips64el-* | mips64orion-* | mips64orionel-* \
 	      | mips64vr4100-* | mips64vr4100el-* | mips64vr4300-* | mips64vr4300el-* \
 	      | mipstx39-* | mipstx39el-* | mcore-* \
-	      | f301-* | armv*-* | s390-* | sv1-* | t3e-* \
+	      | f30[01]-* | f700-* | s390-* | s390x-* | sv1-* | t3e-* \
+	      | [cjt]90-* \
 	      | m88110-* | m680[01234]0-* | m683?2-* | m68360-* | z8k-* | d10v-* \
 	      | thumb-* | v850-* | d30v-* | tic30-* | c30-* | fr30-* \
-	      | bs2000-* | tic54x-* | c54x-*)
+	      | bs2000-* | tic54x-* | c54x-* | x86_64-*)
 		;;
 	# Recognize the various machine names and aliases which stand
 	# for a CPU type and a company and sometimes even an OS.
@@ -302,14 +315,14 @@ case $basic_machine in
 		os=-sysv
 		;;
 	amiga | amiga-*)
-		basic_machine=m68k-cbm
+		basic_machine=m68k-unknown
 		;;
 	amigaos | amigados)
-		basic_machine=m68k-cbm
+		basic_machine=m68k-unknown
 		os=-amigaos
 		;;
 	amigaunix | amix)
-		basic_machine=m68k-cbm
+		basic_machine=m68k-unknown
 		os=-sysv4
 		;;
 	apollo68)
@@ -356,8 +369,8 @@ case $basic_machine in
 		basic_machine=cray2-cray
 		os=-unicos
 		;;
-	[ctj]90-cray)
-		basic_machine=c90-cray
+	[cjt]90)
+		basic_machine=${basic_machine}-cray
 		os=-unicos
 		;;
 	crds | unos)
@@ -412,6 +425,10 @@ case $basic_machine in
 	gmicro)
 		basic_machine=tron-gmicro
 		os=-sysv
+		;;
+	go32)
+		basic_machine=i386-pc
+		os=-go32
 		;;
 	h3050r* | hiux*)
 		basic_machine=hppa1.1-hitachi
@@ -512,14 +529,6 @@ case $basic_machine in
 		basic_machine=i386-unknown
 		os=-vsta
 		;;
-	i386-go32 | go32)
-		basic_machine=i386-unknown
-		os=-go32
-		;;
-	i386-mingw32 | mingw32)
-		basic_machine=i386-unknown
-		os=-mingw32
-		;;
 	iris | iris4d)
 		basic_machine=mips-sgi
 		case $os in
@@ -544,6 +553,10 @@ case $basic_machine in
 	merlin)
 		basic_machine=ns32k-utek
 		os=-sysv
+		;;
+	mingw32)
+		basic_machine=i386-pc
+		os=-mingw32
 		;;
 	miniframe)
 		basic_machine=m68000-convergent
@@ -575,7 +588,7 @@ case $basic_machine in
 		os=-coff
 		;;
 	msdos)
-		basic_machine=i386-unknown
+		basic_machine=i386-pc
 		os=-msdos
 		;;
 	mvs)
@@ -639,6 +652,10 @@ case $basic_machine in
 		basic_machine=i960-intel
 		os=-mon960
 		;;
+	nonstopux)
+		basic_machine=mips-compaq
+		os=-nonstopux
+		;;
 	np1)
 		basic_machine=np1-gould
 		;;
@@ -674,28 +691,28 @@ case $basic_machine in
         pc532 | pc532-*)
 		basic_machine=ns32k-pc532
 		;;
-	pentium | p5 | k5 | k6 | nexen)
+	pentium | p5 | k5 | k6 | nexgen)
 		basic_machine=i586-pc
 		;;
 	pentiumpro | p6 | 6x86 | athlon)
 		basic_machine=i686-pc
 		;;
 	pentiumii | pentium2)
-		basic_machine=i786-pc
+		basic_machine=i686-pc
 		;;
-	pentium-* | p5-* | k5-* | k6-* | nexen-*)
+	pentium-* | p5-* | k5-* | k6-* | nexgen-*)
 		basic_machine=i586-`echo $basic_machine | sed 's/^[^-]*-//'`
 		;;
 	pentiumpro-* | p6-* | 6x86-* | athlon-*)
 		basic_machine=i686-`echo $basic_machine | sed 's/^[^-]*-//'`
 		;;
 	pentiumii-* | pentium2-*)
-		basic_machine=i786-`echo $basic_machine | sed 's/^[^-]*-//'`
+		basic_machine=i686-`echo $basic_machine | sed 's/^[^-]*-//'`
 		;;
 	pn)
 		basic_machine=pn-gould
 		;;
-	power)	basic_machine=rs6000-ibm
+	power)	basic_machine=power-ibm
 		;;
 	ppc)	basic_machine=powerpc-unknown
 	        ;;
@@ -709,6 +726,10 @@ case $basic_machine in
 		;;
 	ps2)
 		basic_machine=i386-ibm
+		;;
+	pw32)
+		basic_machine=i586-unknown
+		os=-pw32
 		;;
 	rom68k)
 		basic_machine=m68k-rom68k
@@ -900,6 +921,10 @@ case $basic_machine in
 	vax)
 		basic_machine=vax-dec
 		;;
+	pdp10)
+		# there are many clones, so DEC is not a safe bet
+		basic_machine=pdp10-unknown
+		;;
 	pdp11)
 		basic_machine=pdp11-dec
 		;;
@@ -907,7 +932,7 @@ case $basic_machine in
 		basic_machine=we32k-att
 		;;
 	sh3 | sh4)
-		base_machine=sh-unknown
+		basic_machine=sh-unknown
 		;;
 	sparc | sparcv9)
 		basic_machine=sparc-sun
@@ -990,7 +1015,8 @@ case $os in
 	      | -cygwin* | -pe* | -psos* | -moss* | -proelf* | -rtems* \
 	      | -mingw32* | -linux-gnu* | -uxpv* | -beos* | -mpeix* | -udk* \
 	      | -interix* | -uwin* | -rhapsody* | -darwin* | -opened* \
-	      | -openstep* | -oskit*)
+	      | -openstep* | -oskit* | -conix* | -pw32* | -nonstopux* \
+	      | -storm-chaos* | -tops10* | -tenex* | -tops20* | -its* | -os2*)
 	# Remember, each alternative MUST END IN *, to match a version number.
 		;;
 	-qnx*)
@@ -1006,7 +1032,6 @@ case $os in
 		os=-nto-qnx
 		;;
 	-sim | -es1800* | -hms* | -xray | -os68k* | -none* | -v88r* \
-	      | -os2 \
 	      | -windows* | -osx | -abug | -netware* | -os9* | -beos* \
 	      | -macos* | -mpw* | -magic* | -mmixware* | -mon960* | -lnews*)
 		;;
@@ -1052,7 +1077,7 @@ case $os in
 	-ns2 )
 	        os=-nextstep2
 		;;
-	-nsk)
+	-nsk*)
 		os=-nsk
 		;;
 	# Preserve the version number of sinix5.
@@ -1089,7 +1114,7 @@ case $os in
 	-xenix)
 		os=-xenix
 		;;
-        -*mint | -*MiNT)
+        -*mint | -mint[0-9]* | -*MiNT | -MiNT[0-9]*)
 	        os=-mint
 		;;
 	-none)
@@ -1122,6 +1147,9 @@ case $basic_machine in
 		;;
 	arm*-semi)
 		os=-aout
+		;;
+	pdp10-*)
+		os=-tops20
 		;;
         pdp11-*)
 		os=-none
@@ -1231,7 +1259,7 @@ case $basic_machine in
 	*-masscomp)
 		os=-rtu
 		;;
-	f301-fujitsu)
+	f30[01]-fujitsu | f700-fujitsu)
 		os=-uxpv
 		;;
 	*-rom68k)
@@ -1309,7 +1337,7 @@ case $basic_machine in
 			-mpw* | -macos*)
 				vendor=apple
 				;;
-			-*mint | -*MiNT)
+			-*mint | -mint[0-9]* | -*MiNT | -MiNT[0-9]*)
 				vendor=atari
 				;;
 		esac
@@ -1322,7 +1350,7 @@ exit 0
 
 # Local variables:
 # eval: (add-hook 'write-file-hooks 'time-stamp)
-# time-stamp-start: "version='"
+# time-stamp-start: "timestamp='"
 # time-stamp-format: "%:y-%02m-%02d"
 # time-stamp-end: "'"
 # End:

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
 **	lib_overlay.c
 **
@@ -41,29 +40,30 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_overlay.c,v 1.12 1998/02/11 12:13:59 tom Exp $")
+MODULE_ID("$Id: lib_overlay.c,v 1.14 2000/12/10 02:43:27 tom Exp $")
 
-static int overlap(const WINDOW *const s, WINDOW *const d, int const flag)
+static int
+overlap(const WINDOW *const s, WINDOW *const d, int const flag)
 {
-int sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol;
+    int sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol;
 
-	T(("overlap : sby %d, sbx %d, smy %d, smx %d, dby %d, dbx %d, dmy %d, dmx %d",
-		s->_begy, s->_begx, s->_maxy, s->_maxx,
-		d->_begy, d->_begx, d->_maxy, d->_maxx));
-	
-	if (!s || !d)
-		returnCode(ERR);
+    T(("overlap : sby %d, sbx %d, smy %d, smx %d, dby %d, dbx %d, dmy %d, dmx %d",
+       s->_begy, s->_begx, s->_maxy, s->_maxx,
+       d->_begy, d->_begx, d->_maxy, d->_maxx));
 
-	sminrow = max(s->_begy, d->_begy) - s->_begy;
-	smincol = max(s->_begx, d->_begx) - s->_begx;
-	dminrow = max(s->_begy, d->_begy) - d->_begy;
-	dmincol = max(s->_begx, d->_begx) - d->_begx;
-	dmaxrow = min(s->_maxy+s->_begy, d->_maxy+d->_begy) - d->_begy;
-	dmaxcol = min(s->_maxx+s->_begx, d->_maxx+d->_begx) - d->_begx;
+    if (!s || !d)
+	returnCode(ERR);
 
-	return(copywin(s, d,
-		       sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol,
-		       flag));
+    sminrow = max(s->_begy, d->_begy) - s->_begy;
+    smincol = max(s->_begx, d->_begx) - s->_begx;
+    dminrow = max(s->_begy, d->_begy) - d->_begy;
+    dmincol = max(s->_begx, d->_begx) - d->_begx;
+    dmaxrow = min(s->_maxy + s->_begy, d->_maxy + d->_begy) - d->_begy;
+    dmaxcol = min(s->_maxx + s->_begx, d->_maxx + d->_begx) - d->_begx;
+
+    return (copywin(s, d,
+		    sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol,
+		    flag));
 }
 
 /*
@@ -76,10 +76,11 @@ int sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol;
 **
 **/
 
-int overlay(const WINDOW *win1, WINDOW *win2)
+NCURSES_EXPORT(int)
+overlay(const WINDOW *win1, WINDOW *win2)
 {
-	T((T_CALLED("overlay(%p,%p)"), win1, win2));
-	returnCode(overlap(win1, win2, TRUE));
+    T((T_CALLED("overlay(%p,%p)"), win1, win2));
+    returnCode(overlap(win1, win2, TRUE));
 }
 
 /*
@@ -92,70 +93,67 @@ int overlay(const WINDOW *win1, WINDOW *win2)
 **
 **/
 
-int overwrite(const WINDOW *win1, WINDOW *win2)
+NCURSES_EXPORT(int)
+overwrite(const WINDOW *win1, WINDOW *win2)
 {
-	T((T_CALLED("overwrite(%p,%p)"), win1, win2));
-	returnCode(overlap(win1, win2, FALSE));
+    T((T_CALLED("overwrite(%p,%p)"), win1, win2));
+    returnCode(overlap(win1, win2, FALSE));
 }
 
-int copywin(const WINDOW *src, WINDOW *dst,
-	int sminrow, int smincol,
-	int dminrow, int dmincol, int dmaxrow, int dmaxcol,
-	int over)
+NCURSES_EXPORT(int)
+copywin
+(const WINDOW *src, WINDOW *dst,
+ int sminrow, int smincol,
+ int dminrow, int dmincol, int dmaxrow, int dmaxcol,
+ int over)
 {
-int sx, sy, dx, dy;
-bool touched;
-chtype bk = AttrOf(dst->_bkgd);
-chtype mask = ~(chtype)((bk&A_COLOR) ? A_COLOR : 0);
+    int sx, sy, dx, dy;
+    bool touched;
+    chtype bk = AttrOf(dst->_bkgd);
+    chtype mask = ~(chtype) ((bk & A_COLOR) ? A_COLOR : 0);
 
-	T((T_CALLED("copywin(%p, %p, %d, %d, %d, %d, %d, %d, %d)"),
-		src, dst, sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol, over));
+    T((T_CALLED("copywin(%p, %p, %d, %d, %d, %d, %d, %d, %d)"),
+       src, dst, sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol, over));
 
-	if (!src || !dst)
-	  returnCode(ERR);
+    if (!src || !dst)
+	returnCode(ERR);
 
-	/* make sure rectangle exists in source */
-	if ((sminrow + dmaxrow - dminrow) > (src->_maxy + 1) ||
-	    (smincol + dmaxcol - dmincol) > (src->_maxx + 1)) {
-		returnCode(ERR);
+    /* make sure rectangle exists in source */
+    if ((sminrow + dmaxrow - dminrow) > (src->_maxy + 1) ||
+	(smincol + dmaxcol - dmincol) > (src->_maxx + 1)) {
+	returnCode(ERR);
+    }
+
+    T(("rectangle exists in source"));
+
+    /* make sure rectangle fits in destination */
+    if (dmaxrow > dst->_maxy || dmaxcol > dst->_maxx) {
+	returnCode(ERR);
+    }
+
+    T(("rectangle fits in destination"));
+
+    for (dy = dminrow, sy = sminrow; dy <= dmaxrow; sy++, dy++) {
+	touched = FALSE;
+	for (dx = dmincol, sx = smincol; dx <= dmaxcol; sx++, dx++) {
+	    if (over) {
+		if ((TextOf(src->_line[sy].text[sx]) != ' ') &&
+		    (dst->_line[dy].text[dx] != src->_line[sy].text[sx])) {
+		    dst->_line[dy].text[dx] =
+			(src->_line[sy].text[sx] & mask) | bk;
+		    touched = TRUE;
+		}
+	    } else {
+		if (dst->_line[dy].text[dx] != src->_line[sy].text[sx]) {
+		    dst->_line[dy].text[dx] = src->_line[sy].text[sx];
+		    touched = TRUE;
+		}
+	    }
 	}
-
-	T(("rectangle exists in source"));
-
-	/* make sure rectangle fits in destination */
-	if (dmaxrow > dst->_maxy || dmaxcol > dst->_maxx) {
-		returnCode(ERR);
+	if (touched) {
+	    touchline(dst, 0, getmaxy(dst));
 	}
-
-	T(("rectangle fits in destination"));
-
-	for (dy = dminrow, sy = sminrow; dy <= dmaxrow; sy++, dy++) {
-	   touched = FALSE;
-	   for(dx=dmincol, sx=smincol; dx <= dmaxcol; sx++, dx++)
-	   {
-		if (over)
-		{
-		   if ((TextOf(src->_line[sy].text[sx]) != ' ') &&
-                       (dst->_line[dy].text[dx]!=src->_line[sy].text[sx]))
-		   {
-			dst->_line[dy].text[dx] =
-					(src->_line[sy].text[sx] & mask) | bk;
-			touched = TRUE;
-		   }
-	        }
-		else {
-		   if (dst->_line[dy].text[dx] != src->_line[sy].text[sx])
-		   {
-			dst->_line[dy].text[dx] = src->_line[sy].text[sx];
-			touched = TRUE;
-                   }
-                }
-           }
-	   if (touched)
-	   {
-	      touchline(dst,0,getmaxy(dst));
-	   }
-	}
-	T(("finished copywin"));
-	returnCode(OK);
+    }
+    T(("finished copywin"));
+    returnCode(OK);
 }

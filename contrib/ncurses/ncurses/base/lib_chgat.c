@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,23 +40,24 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_chgat.c,v 1.2 1998/02/11 12:14:00 tom Exp $")
+MODULE_ID("$Id: lib_chgat.c,v 1.4 2000/12/10 02:43:26 tom Exp $")
 
-int wchgat(WINDOW *win, int n, attr_t attr, short color, const void *opts GCC_UNUSED)
+NCURSES_EXPORT(int)
+wchgat
+(WINDOW *win, int n, attr_t attr, short color, const void *opts GCC_UNUSED)
 {
-    int	i;
+    int i;
 
     T((T_CALLED("wchgat(%p,%d,%s,%d)"), win, n, _traceattr(attr), color));
 
     if (win) {
-      toggle_attr_on(attr,COLOR_PAIR(color));
+	toggle_attr_on(attr, COLOR_PAIR(color));
 
-      for (i = win->_curx; i <= win->_maxx && (n == -1 || (n-- > 0)); i++)
-	win->_line[win->_cury].text[i]
-	  = TextOf(win->_line[win->_cury].text[i]) | attr;
+	for (i = win->_curx; i <= win->_maxx && (n == -1 || (n-- > 0)); i++)
+	    win->_line[win->_cury].text[i]
+		= TextOf(win->_line[win->_cury].text[i]) | attr;
 
-      returnCode(OK);
-    }
-    else
-      returnCode(ERR);
+	returnCode(OK);
+    } else
+	returnCode(ERR);
 }

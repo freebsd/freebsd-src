@@ -33,7 +33,7 @@
 
 
 /*
- * $Id: curses.priv.h,v 1.168 2000/10/08 01:24:59 tom Exp $
+ * $Id: curses.priv.h,v 1.171 2000/12/10 00:13:52 tom Exp $
  *
  *	curses.priv.h
  *
@@ -44,6 +44,8 @@
 
 #ifndef CURSES_PRIV_H
 #define CURSES_PRIV_H 1
+
+#include <ncurses_dll.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -152,7 +154,7 @@ extern int errno;
 #define use_terminfo_vars() 1
 #else
 #define use_terminfo_vars() _nc_env_access()
-extern int _nc_env_access(void);
+extern NCURSES_EXPORT(int) _nc_env_access (void);
 #endif
 
 /*
@@ -163,7 +165,7 @@ extern int _nc_env_access(void);
 #define memmove(d,s,n) bcopy(s,d,n)
 #elif USE_MY_MEMMOVE
 #define memmove(d,s,n) _nc_memmove(d,s,n)
-extern void * _nc_memmove(void *, const void *, size_t);
+extern NCURSES_EXPORT(void *) _nc_memmove (void *, const void *, size_t);
 #endif
 
 /*
@@ -414,7 +416,7 @@ struct screen {
 	int             (*_outch)(int);	/* output handler if not putc */
 };
 
-extern SCREEN *_nc_screen_chain;
+extern NCURSES_EXPORT_VAR(SCREEN *) _nc_screen_chain;
 
 #if NCURSES_NOMACROS
 #include <nomacros.h>
@@ -484,6 +486,7 @@ typedef	struct {
 #define O_BINARY 0
 #endif
 
+#define CharOf(c)    ((unsigned char)(c))
 #define TextOf(c)    ((c) & (chtype)A_CHARTEXT)
 #define AttrOf(c)    ((c) & (chtype)A_ATTRIBUTES)
 
@@ -544,14 +547,14 @@ typedef	struct {
 #define returnPtr(code)  TRACE_RETURN(code,ptr)
 #define returnVoid       T((T_RETURN(""))); return
 #define returnWin(code)  TRACE_RETURN(code,win)
-extern WINDOW * _nc_retrace_win(WINDOW *);
-extern attr_t _nc_retrace_attr_t(attr_t);
-extern attr_t _nc_retrace_chtype(chtype);
-extern char *_nc_retrace_ptr(char *);
-extern const char *_nc_tputs_trace;
-extern int _nc_retrace_int(int);
-extern long _nc_outchars;
-extern void _nc_fifo_dump(void);
+extern NCURSES_EXPORT(WINDOW *) _nc_retrace_win (WINDOW *);
+extern NCURSES_EXPORT(attr_t) _nc_retrace_attr_t (attr_t);
+extern NCURSES_EXPORT(attr_t) _nc_retrace_chtype (chtype);
+extern NCURSES_EXPORT(char *) _nc_retrace_ptr (char *);
+extern NCURSES_EXPORT_VAR(const char *) _nc_tputs_trace;
+extern NCURSES_EXPORT(int) _nc_retrace_int (int);
+extern NCURSES_EXPORT_VAR(long) _nc_outchars;
+extern NCURSES_EXPORT(void) _nc_fifo_dump (void);
 #else
 #define T(a)
 #define TR(n, a)
@@ -564,8 +567,8 @@ extern void _nc_fifo_dump(void);
 #define returnWin(code)  return code
 #endif
 
-extern unsigned _nc_tracing;
-extern const char *_nc_visbuf2(int, const char *);
+extern NCURSES_EXPORT_VAR(unsigned) _nc_tracing;
+extern NCURSES_EXPORT(const char *) _nc_visbuf2 (int, const char *);
 
 #define _trace_key(ch) ((ch > KEY_MIN) ? keyname(ch) : _tracechar((unsigned char)ch))
 
@@ -636,27 +639,27 @@ extern const char *_nc_visbuf2(int, const char *);
 
 #undef  toggle_attr_on
 #define toggle_attr_on(S,at) _nc_toggle_attr_on(&(S), at)
-extern void _nc_toggle_attr_on(attr_t *, attr_t);
+extern NCURSES_EXPORT(void) _nc_toggle_attr_on (attr_t *, attr_t);
 
 #undef  toggle_attr_off
 #define toggle_attr_off(S,at) _nc_toggle_attr_off(&(S), at)
-extern void _nc_toggle_attr_off(attr_t *, attr_t);
+extern NCURSES_EXPORT(void) _nc_toggle_attr_off (attr_t *, attr_t);
 
 #undef  DelCharCost
 #define DelCharCost(count) _nc_DelCharCost(count)
-extern int _nc_DelCharCost(int);
+extern NCURSES_EXPORT(int) _nc_DelCharCost (int);
 
 #undef  InsCharCost
 #define InsCharCost(count) _nc_InsCharCost(count)
-extern int _nc_InsCharCost(int);
+extern NCURSES_EXPORT(int) _nc_InsCharCost (int);
 
 #undef  UpdateAttrs
 #define UpdateAttrs(c) _nc_UpdateAttrs(c)
-extern void _nc_UpdateAttrs(chtype);
+extern NCURSES_EXPORT(void) _nc_UpdateAttrs (chtype);
 
 #else
 
-extern void _nc_expanded(void);
+extern NCURSES_EXPORT(void) _nc_expanded (void);
 
 #endif
 
@@ -666,33 +669,33 @@ extern void _nc_expanded(void);
 
 /* doupdate.c */
 #if USE_XMC_SUPPORT
-extern void _nc_do_xmc_glitch(attr_t);
+extern NCURSES_EXPORT(void) _nc_do_xmc_glitch (attr_t);
 #endif
 
 /* hardscroll.c */
 #if defined(TRACE) || defined(SCROLLDEBUG) || defined(HASHDEBUG)
-extern void _nc_linedump(void);
+extern NCURSES_EXPORT(void) _nc_linedump (void);
 #endif
 
 /* lib_acs.c */
-extern void _nc_init_acs(void);	/* corresponds to traditional 'init_acs()' */
-extern int _nc_msec_cost(const char *const, int);  /* used by 'tack' program */
+extern NCURSES_EXPORT(void) _nc_init_acs (void);	/* corresponds to traditional 'init_acs()' */
+extern NCURSES_EXPORT(int) _nc_msec_cost (const char *const, int);  /* used by 'tack' program */
 
 /* lib_mvcur.c */
 #define INFINITY	1000000	/* cost: too high to use */
 
-extern void _nc_mvcur_init(void);
-extern void _nc_mvcur_resume(void);
-extern void _nc_mvcur_wrap(void);
+extern NCURSES_EXPORT(void) _nc_mvcur_init (void);
+extern NCURSES_EXPORT(void) _nc_mvcur_resume (void);
+extern NCURSES_EXPORT(void) _nc_mvcur_wrap (void);
 
-extern int _nc_scrolln(int, int, int, int);
+extern NCURSES_EXPORT(int) _nc_scrolln (int, int, int, int);
 
-extern void _nc_screen_init(void);
-extern void _nc_screen_resume(void);
-extern void _nc_screen_wrap(void);
+extern NCURSES_EXPORT(void) _nc_screen_init (void);
+extern NCURSES_EXPORT(void) _nc_screen_resume (void);
+extern NCURSES_EXPORT(void) _nc_screen_wrap (void);
 
 /* lib_mouse.c */
-extern int _nc_has_mouse(void);
+extern NCURSES_EXPORT(int) _nc_has_mouse (void);
 
 /* lib_mvcur.c */
 #define INFINITY	1000000	/* cost: too high to use */
@@ -704,78 +707,78 @@ typedef struct {
 } string_desc;
 
 /* strings.c */
-extern string_desc *_nc_str_init(string_desc * dst, char *src, size_t len);
-extern string_desc *_nc_str_null(string_desc * dst, size_t len);
-extern string_desc *_nc_str_copy(string_desc * dst, string_desc * src);
-extern bool _nc_safe_strcat(string_desc * dst, const char *src);
-extern bool _nc_safe_strcpy(string_desc * dst, const char *src);
+extern NCURSES_EXPORT(string_desc *) _nc_str_init (string_desc * dst, char *src, size_t len);
+extern NCURSES_EXPORT(string_desc *) _nc_str_null (string_desc * dst, size_t len);
+extern NCURSES_EXPORT(string_desc *) _nc_str_copy (string_desc * dst, string_desc * src);
+extern NCURSES_EXPORT(bool) _nc_safe_strcat (string_desc * dst, const char *src);
+extern NCURSES_EXPORT(bool) _nc_safe_strcpy (string_desc * dst, const char *src);
 
-extern void _nc_mvcur_init(void);
-extern void _nc_mvcur_resume(void);
-extern void _nc_mvcur_wrap(void);
+extern NCURSES_EXPORT(void) _nc_mvcur_init (void);
+extern NCURSES_EXPORT(void) _nc_mvcur_resume (void);
+extern NCURSES_EXPORT(void) _nc_mvcur_wrap (void);
 
-extern int _nc_scrolln(int, int, int, int);
+extern NCURSES_EXPORT(int) _nc_scrolln (int, int, int, int);
 
-extern void _nc_screen_init(void);
-extern void _nc_screen_resume(void);
-extern void _nc_screen_wrap(void);
+extern NCURSES_EXPORT(void) _nc_screen_init (void);
+extern NCURSES_EXPORT(void) _nc_screen_resume (void);
+extern NCURSES_EXPORT(void) _nc_screen_wrap (void);
 
 #if !HAVE_STRSTR
 #define strstr _nc_strstr
-extern char *_nc_strstr(const char *, const char *);
+extern NCURSES_EXPORT(char *) _nc_strstr (const char *, const char *);
 #endif
 
 /* safe_sprintf.c */
-extern char * _nc_printf_string(const char *fmt, va_list ap);
+extern NCURSES_EXPORT(char *) _nc_printf_string (const char *fmt, va_list ap);
 
 /* tries.c */
-extern void _nc_add_to_try(struct tries **tree, const char *str, unsigned short code);
-extern char *_nc_expand_try(struct tries *tree, unsigned short code, int *count, size_t len);
-extern int _nc_remove_key(struct tries **tree, unsigned short code);
-extern int _nc_remove_string(struct tries **tree, char *string);
+extern NCURSES_EXPORT(void) _nc_add_to_try (struct tries **tree, const char *str, unsigned short code);
+extern NCURSES_EXPORT(char *) _nc_expand_try (struct tries *tree, unsigned short code, int *count, size_t len);
+extern NCURSES_EXPORT(int) _nc_remove_key (struct tries **tree, unsigned short code);
+extern NCURSES_EXPORT(int) _nc_remove_string (struct tries **tree, char *string);
 
 /* elsewhere ... */
-extern WINDOW *_nc_makenew(int, int, int, int, int);
-extern char *_nc_home_terminfo(void);
-extern char *_nc_trace_buf(int, size_t);
-extern chtype _nc_background(WINDOW *);
-extern chtype _nc_render(WINDOW *, chtype);
-extern int _nc_access(const char *, int);
-extern int _nc_baudrate(int);
-extern int _nc_getenv_num(const char *);
-extern int _nc_keypad(bool);
-extern int _nc_ospeed(int);
-extern int _nc_outch(int);
-extern int _nc_setupscreen(short, short const, FILE *);
-extern int _nc_timed_wait(int, int, int *);
-extern int _nc_waddch_nosync(WINDOW *, const chtype);
-extern void _nc_do_color(int, int, bool, int (*)(int));
-extern void _nc_freeall(void);
-extern void _nc_freewin(WINDOW *win);
-extern void _nc_hash_map(void);
-extern void _nc_init_keytry(void);
-extern void _nc_keep_tic_dir(const char *);
-extern void _nc_make_oldhash(int i);
-extern void _nc_flush(void);
-extern void _nc_outstr(const char *str);
-extern void _nc_scroll_oldhash(int n, int top, int bot);
-extern void _nc_scroll_optimize(void);
-extern void _nc_scroll_window(WINDOW *, int const, short const, short const, chtype);
-extern void _nc_set_buffer(FILE *, bool);
-extern void _nc_signal_handler(bool);
-extern void _nc_synchook(WINDOW *win);
-extern void _nc_trace_tries(struct tries *tree);
+extern NCURSES_EXPORT(WINDOW *) _nc_makenew (int, int, int, int, int);
+extern NCURSES_EXPORT(char *) _nc_home_terminfo (void);
+extern NCURSES_EXPORT(char *) _nc_trace_buf (int, size_t);
+extern NCURSES_EXPORT(chtype) _nc_background (WINDOW *);
+extern NCURSES_EXPORT(chtype) _nc_render (WINDOW *, chtype);
+extern NCURSES_EXPORT(int)  _nc_access (const char *, int);
+extern NCURSES_EXPORT(int) _nc_baudrate (int);
+extern NCURSES_EXPORT(int) _nc_freewin (WINDOW *win);
+extern NCURSES_EXPORT(int) _nc_getenv_num (const char *);
+extern NCURSES_EXPORT(int) _nc_keypad (bool);
+extern NCURSES_EXPORT(int) _nc_ospeed (int);
+extern NCURSES_EXPORT(int) _nc_outch (int);
+extern NCURSES_EXPORT(int) _nc_setupscreen (short, short const, FILE *);
+extern NCURSES_EXPORT(int) _nc_timed_wait (int, int, int *);
+extern NCURSES_EXPORT(int) _nc_waddch_nosync (WINDOW *, const chtype);
+extern NCURSES_EXPORT(void) _nc_do_color (int, int, bool, int (*)(int));
+extern NCURSES_EXPORT(void) _nc_flush (void);
+extern NCURSES_EXPORT(void) _nc_freeall (void);
+extern NCURSES_EXPORT(void) _nc_hash_map (void);
+extern NCURSES_EXPORT(void) _nc_init_keytry (void);
+extern NCURSES_EXPORT(void) _nc_keep_tic_dir (const char *);
+extern NCURSES_EXPORT(void) _nc_make_oldhash (int i);
+extern NCURSES_EXPORT(void) _nc_outstr (const char *str);
+extern NCURSES_EXPORT(void) _nc_scroll_oldhash (int n, int top, int bot);
+extern NCURSES_EXPORT(void) _nc_scroll_optimize (void);
+extern NCURSES_EXPORT(void) _nc_scroll_window (WINDOW *, int const, short const, short const, chtype);
+extern NCURSES_EXPORT(void) _nc_set_buffer (FILE *, bool);
+extern NCURSES_EXPORT(void) _nc_signal_handler (bool);
+extern NCURSES_EXPORT(void) _nc_synchook (WINDOW *win);
+extern NCURSES_EXPORT(void) _nc_trace_tries (struct tries *tree);
 
 #if USE_SIZECHANGE
-extern void _nc_update_screensize(void);
+extern NCURSES_EXPORT(void) _nc_update_screensize (void);
 #endif
 
 #if USE_WIDEC_SUPPORT
-extern int _nc_utf8_outch(int);
+extern NCURSES_EXPORT(int) _nc_utf8_outch (int);
 #endif
 
 /* scroll indices */
-extern int *_nc_oldnums;
+extern NCURSES_EXPORT_VAR(int *) _nc_oldnums;
 
 #define USE_SETBUF_0 0
 
@@ -791,12 +794,12 @@ extern int *_nc_oldnums;
  */
 #if BROKEN_LINKER
 #define SP _nc_screen()
-extern SCREEN *_nc_screen(void);
-extern int _nc_alloc_screen(void);
-extern void _nc_set_screen(SCREEN *);
+extern NCURSES_EXPORT(SCREEN *) _nc_screen (void);
+extern NCURSES_EXPORT(int) _nc_alloc_screen (void);
+extern NCURSES_EXPORT(void) _nc_set_screen (SCREEN *);
 #else
 /* current screen is private data; avoid possible linking conflicts too */
-extern SCREEN *SP;
+extern NCURSES_EXPORT_VAR(SCREEN *) SP;
 #define _nc_alloc_screen() ((SP = typeCalloc(SCREEN, 1)) != 0)
 #define _nc_set_screen(sp) SP = sp
 #endif
@@ -810,8 +813,8 @@ extern SCREEN *SP;
 #define screen_lines	SP->_lines
 #define screen_columns	SP->_columns
 
-extern int _nc_slk_format;  /* != 0 if slk_init() called */
-extern int _nc_slk_initialize(WINDOW *, int);
+extern NCURSES_EXPORT_VAR(int) _nc_slk_format;  /* != 0 if slk_init() called */
+extern NCURSES_EXPORT(int) _nc_slk_initialize (WINDOW *, int);
 
 /*
  * Some constants related to SLK's
@@ -829,7 +832,7 @@ extern int _nc_slk_initialize(WINDOW *, int);
 #define MAX_SKEY(fmt)     (SLK_STDFMT(fmt)? MAX_SKEY_OLD : MAX_SKEY_PC)
 #define MAX_SKEY_LEN(fmt) (SLK_STDFMT(fmt)? MAX_SKEY_LEN_OLD : MAX_SKEY_LEN_PC)
 
-extern int _nc_ripoffline(int line, int (*init)(WINDOW *,int));
+extern NCURSES_EXPORT(int) _nc_ripoffline (int line, int (*init)(WINDOW *,int));
 
 #ifdef __cplusplus
 }

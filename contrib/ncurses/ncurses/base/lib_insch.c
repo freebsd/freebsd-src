@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,8 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
-
 /*
 **	lib_insch.c
 **
@@ -42,26 +40,27 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_insch.c,v 1.10 1998/06/28 00:26:52 tom Exp $")
+MODULE_ID("$Id: lib_insch.c,v 1.12 2000/12/10 02:43:27 tom Exp $")
 
-int  winsch(WINDOW *win, chtype c)
+NCURSES_EXPORT(int)
+winsch(WINDOW *win, chtype c)
 {
-int code = ERR;
+    int code = ERR;
 
-	T((T_CALLED("winsch(%p, %s)"), win, _tracechtype(c)));
+    T((T_CALLED("winsch(%p, %s)"), win, _tracechtype(c)));
 
-	if (win) {
-		struct ldat *line = &(win->_line[win->_cury]);
-		chtype *end = &(line->text[win->_curx]);
-		chtype *temp1 = &(line->text[win->_maxx]);
-		chtype *temp2 = temp1 - 1;
+    if (win) {
+	struct ldat *line = &(win->_line[win->_cury]);
+	chtype *end = &(line->text[win->_curx]);
+	chtype *temp1 = &(line->text[win->_maxx]);
+	chtype *temp2 = temp1 - 1;
 
-		CHANGED_TO_EOL(line, win->_curx, win->_maxx);
-		while (temp1 > end)
-			*temp1-- = *temp2--;
+	CHANGED_TO_EOL(line, win->_curx, win->_maxx);
+	while (temp1 > end)
+	    *temp1-- = *temp2--;
 
-		*temp1 = _nc_render(win, c);
-		code = OK;
-	}
-	returnCode(code);
+	*temp1 = _nc_render(win, c);
+	code = OK;
+    }
+    returnCode(code);
 }

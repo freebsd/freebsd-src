@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_deleteln.3x,v 1.6 2000/07/01 19:56:12 tom Exp $
+.\" $Id: curs_deleteln.3x,v 1.7 2000/11/11 20:43:20 Bernhard.Rosenkraenzer Exp $
 .TH curs_deleteln 3X ""
 .SH NAME
 \fBdeleteln\fR,
@@ -61,7 +61,7 @@ bottom lines are lost.  For negative \fIn\fR, delete \fIn\fR lines (starting
 with the one under the cursor), and move the remaining lines up.  The bottom
 \fIn\fR lines are cleared.  The current cursor position remains the same.
 
-The \fBinsertln\fR and \fBinsertln\fR routines, insert a blank line above the
+The \fBinsertln\fR and \fBwinsertln\fR routines, insert a blank line above the
 current line and the bottom line is lost.
 .SH RETURN VALUE
 All routines return the integer \fBERR\fR upon failure and an \fBOK\fR (SVr4

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
 **	lib_has_cap.c
 **
@@ -43,21 +42,23 @@
 
 #include <term.h>
 
-MODULE_ID("$Id: lib_has_cap.c,v 1.1 1998/10/23 15:32:21 tom Exp $")
+MODULE_ID("$Id: lib_has_cap.c,v 1.3 2000/12/10 02:55:07 tom Exp $")
 
-bool has_ic(void)
+NCURSES_EXPORT(bool)
+has_ic(void)
 {
-	T((T_CALLED("has_ic()")));
-	returnCode(cur_term &&
-	  (insert_character || parm_ich
-	   ||  (enter_insert_mode && exit_insert_mode))
-	  &&  (delete_character || parm_dch));
+    T((T_CALLED("has_ic()")));
+    returnCode(cur_term &&
+	       (insert_character || parm_ich
+		|| (enter_insert_mode && exit_insert_mode))
+	       && (delete_character || parm_dch));
 }
 
-bool has_il(void)
+NCURSES_EXPORT(bool)
+has_il(void)
 {
-	T((T_CALLED("has_il()")));
-	returnCode(cur_term
-		&& (insert_line || parm_insert_line)
-		&& (delete_line || parm_delete_line));
+    T((T_CALLED("has_il()")));
+    returnCode(cur_term
+	       && (insert_line || parm_insert_line)
+	       && (delete_line || parm_delete_line));
 }

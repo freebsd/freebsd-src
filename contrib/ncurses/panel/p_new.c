@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_new.c,v 1.5 1999/11/22 18:02:41 juergen Exp $")
+MODULE_ID("$Id: p_new.c,v 1.6 2000/12/10 02:20:44 tom Exp $")
 
 #ifdef TRACE
 static char* stdscr_id;
@@ -74,8 +74,8 @@ root_panel(void)
   return _nc_stdscr_pseudo_panel;
 }
 
-PANEL *
-new_panel(WINDOW *win)
+NCURSES_EXPORT(PANEL *)
+new_panel (WINDOW *win)
 {
   PANEL *pan = (PANEL*)0;
 

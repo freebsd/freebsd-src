@@ -36,9 +36,9 @@
 #include <term_entry.h>
 #include <tic.h>
 
-MODULE_ID("$Id: lib_ti.c,v 1.20 2000/02/13 01:01:26 tom Exp $")
+MODULE_ID("$Id: lib_ti.c,v 1.22 2000/12/10 02:55:08 tom Exp $")
 
-int
+NCURSES_EXPORT(int)
 tigetflag(NCURSES_CONST char *str)
 {
     int i;
@@ -59,7 +59,7 @@ tigetflag(NCURSES_CONST char *str)
     returnCode(ABSENT_BOOLEAN);
 }
 
-int
+NCURSES_EXPORT(int)
 tigetnum(NCURSES_CONST char *str)
 {
     int i;
@@ -81,7 +81,7 @@ tigetnum(NCURSES_CONST char *str)
     returnCode(CANCELLED_NUMERIC);	/* Solaris returns a -1 instead */
 }
 
-char *
+NCURSES_EXPORT(char *)
 tigetstr(NCURSES_CONST char *str)
 {
     int i;

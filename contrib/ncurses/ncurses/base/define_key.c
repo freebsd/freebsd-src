@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,28 +32,29 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: define_key.c,v 1.4 1999/02/21 13:03:55 tom Exp $")
+MODULE_ID("$Id: define_key.c,v 1.6 2000/12/10 02:43:26 tom Exp $")
 
-int
-define_key(char *str, int keycode)
+NCURSES_EXPORT(int)
+define_key
+(char *str, int keycode)
 {
-	int code = ERR;
+    int code = ERR;
 
-	T((T_CALLED("define_key(%s,%d)"), _nc_visbuf(str), keycode));
-	if (keycode > 0) {
-		if (str != 0) {
-			define_key(str, 0);
-		} else if (has_key(keycode)) {
-			while (_nc_remove_key(&(SP->_keytry), keycode))
-				code = OK;
-		}
-		if (str != 0) {
-			(void) _nc_add_to_try(&(SP->_keytry), str, keycode);
-			code = OK;
-		}
-	} else {
-		while (_nc_remove_string(&(SP->_keytry), str))
-			code = OK;
+    T((T_CALLED("define_key(%s,%d)"), _nc_visbuf(str), keycode));
+    if (keycode > 0) {
+	if (str != 0) {
+	    define_key(str, 0);
+	} else if (has_key(keycode)) {
+	    while (_nc_remove_key(&(SP->_keytry), keycode))
+		code = OK;
 	}
-	returnCode(code);
+	if (str != 0) {
+	    (void) _nc_add_to_try(&(SP->_keytry), str, keycode);
+	    code = OK;
+	}
+    } else {
+	while (_nc_remove_string(&(SP->_keytry), str))
+	    code = OK;
+    }
+    returnCode(code);
 }

@@ -47,7 +47,7 @@
 #define _POSIX_SOURCE
 #endif
 
-MODULE_ID("$Id: lib_tstp.c,v 1.22 2000/09/02 18:33:17 tom Exp $")
+MODULE_ID("$Id: lib_tstp.c,v 1.24 2000/12/10 03:04:30 tom Exp $")
 
 #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
 #define USE_SIGTSTP 1
@@ -304,7 +304,7 @@ CatchIfDefault(int sig, RETSIGTYPE(*handler) (int))
  * The XSI document implies that we shouldn't keep the SIGTSTP handler if
  * the caller later changes its mind, but that doesn't seem correct.
  */
-void
+NCURSES_EXPORT(void)
 _nc_signal_handler(bool enable)
 {
 #if USE_SIGTSTP			/* Xenix 2.x doesn't have SIGTSTP, for example */

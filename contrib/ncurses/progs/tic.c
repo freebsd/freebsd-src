@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +44,7 @@
 #include <term_entry.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tic.c,v 1.82 2000/10/01 02:11:39 tom Exp $")
+MODULE_ID("$Id: tic.c,v 1.90 2001/04/15 00:21:31 tom Exp $")
 
 const char *_nc_progname = "tic";
 
@@ -52,6 +52,7 @@ static FILE *log_fp;
 static FILE *tmp_fp;
 static bool showsummary = FALSE;
 static const char *to_remove;
+static int tparm_errs;
 
 static void (*save_check_termtype) (TERMTYPE *);
 static void check_termtype(TERMTYPE * tt);
@@ -292,12 +293,12 @@ put_translate(int c)
 static char *
 stripped(char *src)
 {
-    while (isspace(*src))
+    while (isspace(CharOf(*src)))
 	src++;
     if (*src != '\0') {
 	char *dst = strcpy(malloc(strlen(src) + 1), src);
 	size_t len = strlen(dst);
-	while (--len != 0 && isspace(dst[len]))
+	while (--len != 0 && isspace(CharOf(dst[len])))
 	    dst[len] = '\0';
 	return dst;
     }
@@ -705,7 +706,7 @@ main(int argc, char *argv[])
 			printf("# length=%d\n", len);
 		}
 	    }
-	    if (!namelst) {
+	    if (!namelst && _nc_tail) {
 		int c, oldc = '\0';
 		bool in_comment = FALSE;
 		bool trailing_comment = FALSE;
@@ -761,27 +762,29 @@ TERMINAL *cur_term;		/* tweak to avoid linking lib_cur_term.c */
  * Returns the expected number of parameters for the given capability.
  */
 static int
-expected_params(char *name)
+expected_params(const char *name)
 {
     /* *INDENT-OFF* */
     static const struct {
 	const char *name;
 	int count;
     } table[] = {
+	{ "S0",			1 },	/* 'screen' extension */
 	{ "birep",		2 },
 	{ "chr",		1 },
 	{ "colornm",		1 },
 	{ "cpi",		1 },
+	{ "csnm",		1 },
 	{ "csr",		2 },
 	{ "cub",		1 },
 	{ "cud",		1 },
 	{ "cuf",		1 },
 	{ "cup",		2 },
-	{ "cvr",		1 },
 	{ "cuu",		1 },
+	{ "cvr",		1 },
 	{ "cwin",		5 },
 	{ "dch",		1 },
-	{ "dclk",		2 },
+	{ "defc",		3 },
 	{ "dial",		1 },
 	{ "dispc",		1 },
 	{ "dl",			1 },
@@ -803,11 +806,13 @@ expected_params(char *name)
 	{ "pfxl",		3 },
 	{ "pln",		2 },
 	{ "qdial",		1 },
+	{ "rcsd",		1 },
 	{ "rep",		2 },
 	{ "rin",		1 },
 	{ "sclk",		3 },
 	{ "scp",		1 },
 	{ "scs",		1 },
+	{ "scsd",		2 },
 	{ "setab",		1 },
 	{ "setaf",		1 },
 	{ "setb",		1 },
@@ -822,7 +827,7 @@ expected_params(char *name)
 	{ "smglr",		2 },
 	{ "smgrp",		1 },
 	{ "smgtb",		2 },
-	{ "smgtp",		2 },
+	{ "smgtp",		1 },
 	{ "tsl",		1 },
 	{ "u6",			-1 },
 	{ "vpa",		1 },
@@ -850,7 +855,7 @@ expected_params(char *name)
  * markers.
  */
 static void
-check_params(TERMTYPE * tp, char *name, char *value)
+check_params(TERMTYPE * tp, const char *name, char *value)
 {
     int expected = expected_params(name);
     int actual = 0;
@@ -907,8 +912,15 @@ similar_sgr(char *a, char *b)
 {
     while (*b != 0) {
 	while (*a != *b) {
-	    if (*a == 0)
+	    if (*a == 0) {
+		if (b[0] == '$'
+		    && b[1] == '<') {
+		    _nc_warning("Did not find delay %s", _nc_visbuf(b));
+		} else {
+		    _nc_warning("Unmatched portion %s", _nc_visbuf(b));
+		}
 		return FALSE;
+	    }
 	    a++;
 	}
 	a++;
@@ -930,6 +942,7 @@ check_sgr(TERMTYPE * tp, char *zero, int num, char *cap, const char *name)
 		       num == 7,
 		       num == 8,
 		       num == 9);
+    tparm_errs += _nc_tparm_err;
     if (test != 0) {
 	if (PRESENT(cap)) {
 	    if (!similar_sgr(test, cap)) {
@@ -1030,6 +1043,7 @@ check_termtype(TERMTYPE * tp)
     ANDMISSING(change_scroll_region, save_cursor);
     ANDMISSING(change_scroll_region, restore_cursor);
 
+    tparm_errs = 0;
     if (PRESENT(set_attributes)) {
 	char *zero = tparm(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
@@ -1044,6 +1058,8 @@ check_termtype(TERMTYPE * tp)
 	CHECK_SGR(8, enter_protected_mode);
 	CHECK_SGR(9, enter_alt_charset_mode);
 	free(zero);
+	if (tparm_errs)
+	    _nc_warning("stack error in sgr string");
     }
 
     /*

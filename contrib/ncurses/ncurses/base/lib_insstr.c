@@ -41,9 +41,9 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_insstr.c,v 1.14 2000/04/29 21:16:41 tom Exp $")
+MODULE_ID("$Id: lib_insstr.c,v 1.17 2000/12/10 02:43:27 tom Exp $")
 
-int
+NCURSES_EXPORT(int)
 winsnstr(WINDOW *win, const char *s, int n)
 {
     int code = ERR;
@@ -62,7 +62,7 @@ winsnstr(WINDOW *win, const char *s, int n)
 		_nc_waddch_nosync(win, (chtype) (*cp));
 	    else if (is7bits(*cp) && iscntrl(*cp)) {
 		winsch(win, ' ' + (chtype) (*cp));
-		winsch(win, '^');
+		winsch(win, (chtype) '^');
 		win->_curx += 2;
 	    } else {
 		winsch(win, (chtype) (*cp));
