@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.50 1995/03/22 03:29:52 ache Exp $
+#	$Id: rc,v 1.51 1995/03/23 01:25:16 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -82,8 +82,8 @@ if [ -f /etc/rc.serial ]; then
 fi
 
 # start up the network
-if [ -f /etc/rc.netstart ]; then
-	sh /etc/rc.netstart
+if [ -f /etc/netstart ]; then
+	sh /etc/netstart
 fi
 
 # Do system maintainance functions.
