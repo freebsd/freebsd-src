@@ -32,7 +32,7 @@
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd October 17, 2000
+.Dd October 16, 2002
 .Os
 .Dt FMTCHECK 3
 .Sh NAME
@@ -106,3 +106,9 @@ because
 the first requires an integer and the second requires a long.
 .Sh SEE ALSO
 .Xr printf 3
+.Sh BUGS
+The
+.Fn fmtcheck
+function does not understand all of the conversions that
+.Xr printf 3
+does.
