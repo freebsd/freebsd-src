@@ -55,7 +55,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_send.c,v 8.13 1997/06/01 20:34:37 vixie Exp $";
+static char rcsid[] = "$Id: res_send.c,v 8.14 1998/04/07 04:59:46 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 	/* change this to "0"
@@ -214,6 +214,8 @@ res_isourserver(inp)
 /* int
  * res_nameinquery(name, type, class, buf, eom)
  *	look for (name,type,class) in the query section of packet (buf,eom)
+ * requires:
+ *	buf + HFIXESDZ <= eom
  * returns:
  *	-1 : format error
  *	0  : not found
@@ -238,6 +240,8 @@ res_nameinquery(name, type, class, buf, eom)
 		if (n < 0)
 			return (-1);
 		cp += n;
+		if (cp + 2 * INT16SZ > eom)
+			return (-1);
 		ttype = _getshort(cp); cp += INT16SZ;
 		tclass = _getshort(cp); cp += INT16SZ;
 		if (ttype == type &&
@@ -267,6 +271,9 @@ res_queriesmatch(buf1, eom1, buf2, eom2)
 	register const u_char *cp = buf1 + HFIXEDSZ;
 	int qdcount = ntohs(((HEADER*)buf1)->qdcount);
 
+	if (buf1 + HFIXEDSZ > eom1 || buf2 + HFIXEDSZ > eom2)
+		return (-1);
+
 	if (qdcount != ntohs(((HEADER*)buf2)->qdcount))
 		return (0);
 	while (qdcount-- > 0) {
@@ -277,6 +284,8 @@ res_queriesmatch(buf1, eom1, buf2, eom2)
 		if (n < 0)
 			return (-1);
 		cp += n;
+		if (cp + 2 * INT16SZ > eom1)
+			return (-1);
 		ttype = _getshort(cp);	cp += INT16SZ;
 		tclass = _getshort(cp); cp += INT16SZ;
 		if (!res_nameinquery(tname, ttype, tclass, buf2, eom2))
@@ -300,6 +309,10 @@ res_send(buf, buflen, ans, anssiz)
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		/* errno should have been set by res_init() in this case. */
+		return (-1);
+	}
+	if (anssiz < HFIXEDSZ) {
+		errno = EINVAL;
 		return (-1);
 	}
 	DprintQ((_res.options & RES_DEBUG) || (_res.pfcode & RES_PRF_QUERY),
@@ -446,6 +459,17 @@ read_len:
 				len = anssiz;
 			} else
 				len = resplen;
+			if (len < HFIXEDSZ) {
+				/*
+				 * Undersized message.
+				 */
+				Dprint(_res.options & RES_DEBUG,
+				       (stdout, ";; undersized: %d\n", len));
+				terrno = EMSGSIZE;
+				badns |= (1 << ns);
+				res_close();
+				goto next_ns;
+			}
 			cp = ans;
 			while (len != 0 &&
 			       (n = read(s, (char *)cp, (int)len)) > 0) {
@@ -601,12 +625,12 @@ read_len:
 			if ((long) timeout.tv_sec <= 0)
 				timeout.tv_sec = 1;
 			timeout.tv_usec = 0;
-			if (s+1 > FD_SETSIZE) {
-				Perror(stderr, "s+1 > FD_SETSIZE", EMFILE);
+    wait:
+			if (s < 0 || s >= FD_SETSIZE) {
+				Perror(stderr, "s out-of-bounds", EMFILE);
 				res_close();
 				goto next_ns;
 			}
-    wait:
 			FD_ZERO(&dsmask);
 			FD_SET(s, &dsmask);
 			n = select(s+1, &dsmask, (fd_set *)NULL,
@@ -638,6 +662,18 @@ read_len:
 				goto next_ns;
 			}
 			gotsomewhere = 1;
+			if (resplen < HFIXEDSZ) {
+				/*
+				 * Undersized message.
+				 */
+				Dprint(_res.options & RES_DEBUG,
+				       (stdout, ";; undersized: %d\n",
+					resplen));
+				terrno = EMSGSIZE;
+				badns |= (1 << ns);
+				res_close();
+				goto next_ns;
+			}
 			if (hp->id != anhp->id) {
 				/*
 				 * response from old query, ignore it.
