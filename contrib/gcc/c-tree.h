@@ -1,39 +1,57 @@
 /* Definitions for C parsing and type checking.
-   Copyright (C) 1987, 93, 94, 95, 97, 98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1993, 1994, 1995, 1997, 1998,
+   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 /* $FreeBSD$ */
 
-#ifndef _C_TREE_H
-#define _C_TREE_H
+#ifndef GCC_C_TREE_H
+#define GCC_C_TREE_H
+
+#include "c-common.h"
 
 /* Language-dependent contents of an identifier.  */
 
 /* The limbo_value is used for block level extern declarations, which need
    to be type checked against subsequent extern declarations.  They can't
-   be referenced after they fall out of scope, so they can't be global.  */
+   be referenced after they fall out of scope, so they can't be global.
+
+   The rid_code field is used for keywords.  It is in all
+   lang_identifier nodes, because some keywords are only special in a
+   particular context.  */
 
 struct lang_identifier
 {
-  struct tree_identifier ignore;
+  struct c_common_identifier ignore;
   tree global_value, local_value, label_value, implicit_decl;
   tree error_locus, limbo_value;
+};
+
+/* Language-specific declaration information.  */
+
+struct lang_decl
+{
+  struct c_lang_decl base;
+  /* The return types and parameter types may have variable size.
+     This is a list of any SAVE_EXPRs that need to be evaluated to
+     compute those sizes.  */
+  tree pending_sizes;
 };
 
 /* Macros for access to language-specific slots in an identifier.  */
@@ -69,34 +87,26 @@ struct lang_identifier
    TREE_USED          to record that such a decl was used.
    TREE_ADDRESSABLE   to record that the address of such a decl was used.  */
 
-/* Nonzero means reject anything that ANSI standard C forbids.  */
-extern int pedantic;
-
 /* In a RECORD_TYPE or UNION_TYPE, nonzero if any component is read-only.  */
-#define C_TYPE_FIELDS_READONLY(type) TREE_LANG_FLAG_1 (type)
+#define C_TYPE_FIELDS_READONLY(TYPE) TREE_LANG_FLAG_1 (TYPE)
 
 /* In a RECORD_TYPE or UNION_TYPE, nonzero if any component is volatile.  */
-#define C_TYPE_FIELDS_VOLATILE(type) TREE_LANG_FLAG_2 (type)
+#define C_TYPE_FIELDS_VOLATILE(TYPE) TREE_LANG_FLAG_2 (TYPE)
 
 /* In a RECORD_TYPE or UNION_TYPE or ENUMERAL_TYPE
    nonzero if the definition of the type has already started.  */
-#define C_TYPE_BEING_DEFINED(type) TYPE_LANG_FLAG_0 (type)
+#define C_TYPE_BEING_DEFINED(TYPE) TYPE_LANG_FLAG_0 (TYPE)
 
-/* C types are partitioned into three subsets: object, function, and
-   incomplete types.  */
-#define C_TYPE_OBJECT_P(type) \
-  (TREE_CODE (type) != FUNCTION_TYPE && TYPE_SIZE (type))
+/* In an IDENTIFIER_NODE, nonzero if this identifier is actually a
+   keyword.  C_RID_CODE (node) is then the RID_* value of the keyword,
+   and C_RID_YYCODE is the token number wanted by Yacc.  */
+#define C_IS_RESERVED_WORD(ID) TREE_LANG_FLAG_0 (ID)
 
-#define C_TYPE_FUNCTION_P(type) \
-  (TREE_CODE (type) == FUNCTION_TYPE)
-
-#define C_TYPE_INCOMPLETE_P(type) \
-  (TREE_CODE (type) != FUNCTION_TYPE && TYPE_SIZE (type) == 0)
-
-/* For convenience we define a single macro to identify the class of
-   object or incomplete types.  */
-#define C_TYPE_OBJECT_OR_INCOMPLETE_P(type) \
-  (!C_TYPE_FUNCTION_P (type))
+/* This function was declared inline.  This flag controls the linkage
+   semantics of 'inline'; whether or not the function is inlined is
+   controlled by DECL_INLINE.  */
+#define DECL_DECLARED_INLINE_P(NODE) \
+  (DECL_LANG_SPECIFIC (NODE)->base.declared_inline)
 
 /* In a RECORD_TYPE, a sorted array of the fields of the type.  */
 struct lang_type
@@ -105,311 +115,159 @@ struct lang_type
   tree elts[1];
 };
 
-/* Mark which labels are explicitly declared.
-   These may be shadowed, and may be referenced from nested functions.  */
-#define C_DECLARED_LABEL_FLAG(label) TREE_LANG_FLAG_1 (label)
-
 /* Record whether a type or decl was written with nonconstant size.
    Note that TYPE_SIZE may have simplified to a constant.  */
-#define C_TYPE_VARIABLE_SIZE(type) TYPE_LANG_FLAG_1 (type)
-#define C_DECL_VARIABLE_SIZE(type) DECL_LANG_FLAG_0 (type)
-
-/* Record in each node resulting from a binary operator
-   what operator was specified for it.  */
-#define C_EXP_ORIGINAL_CODE(exp) ((enum tree_code) TREE_COMPLEXITY (exp))
+#define C_TYPE_VARIABLE_SIZE(TYPE) TYPE_LANG_FLAG_1 (TYPE)
+#define C_DECL_VARIABLE_SIZE(TYPE) DECL_LANG_FLAG_0 (TYPE)
 
 #if 0 /* Not used.  */
 /* Record whether a decl for a function or function pointer has
    already been mentioned (in a warning) because it was called
    but didn't have a prototype.  */
-#define C_MISSING_PROTOTYPE_WARNED(decl) DECL_LANG_FLAG_2(decl)
+#define C_MISSING_PROTOTYPE_WARNED(DECL) DECL_LANG_FLAG_2 (DECL)
 #endif
 
 /* Store a value in that field.  */
-#define C_SET_EXP_ORIGINAL_CODE(exp, code) \
-  (TREE_COMPLEXITY (exp) = (int) (code))
+#define C_SET_EXP_ORIGINAL_CODE(EXP, CODE) \
+  (TREE_COMPLEXITY (EXP) = (int) (CODE))
 
 /* Record whether a typedef for type `int' was actually `signed int'.  */
-#define C_TYPEDEF_EXPLICITLY_SIGNED(exp) DECL_LANG_FLAG_1 ((exp))
+#define C_TYPEDEF_EXPLICITLY_SIGNED(EXP) DECL_LANG_FLAG_1 (EXP)
 
 /* Nonzero for a declaration of a built in function if there has been no
    occasion that would declare the function in ordinary C.
    Using the function draws a pedantic warning in this case.  */
-#define C_DECL_ANTICIPATED(exp) DECL_LANG_FLAG_3 ((exp))
+#define C_DECL_ANTICIPATED(EXP) DECL_LANG_FLAG_3 (EXP)
 
 /* For FUNCTION_TYPE, a hidden list of types of arguments.  The same as
    TYPE_ARG_TYPES for functions with prototypes, but created for functions
    without prototypes.  */
-#define TYPE_ACTUAL_ARG_TYPES(NODE) TYPE_NONCOPIED_PARTS (NODE)
+#define TYPE_ACTUAL_ARG_TYPES(NODE) TYPE_BINFO (NODE)
 
-/* In a FIELD_DECL, nonzero if the decl was originally a bitfield.  */
-#define DECL_C_BIT_FIELD(NODE) DECL_LANG_FLAG_4 (NODE)
-
-/* Nonzero if the type T promotes to itself.
-   ANSI C states explicitly the list of types that promote;
-   in particular, short promotes to int even if they have the same width.  */
-#define C_PROMOTING_INTEGER_TYPE_P(t)				\
-  (TREE_CODE ((t)) == INTEGER_TYPE				\
-   && (TYPE_MAIN_VARIANT (t) == char_type_node			\
-       || TYPE_MAIN_VARIANT (t) == signed_char_type_node	\
-       || TYPE_MAIN_VARIANT (t) == unsigned_char_type_node	\
-       || TYPE_MAIN_VARIANT (t) == short_integer_type_node	\
-       || TYPE_MAIN_VARIANT (t) == short_unsigned_type_node))
-
-/* In a VAR_DECL, means the variable is really an iterator.  */
-#define ITERATOR_P(D) (DECL_LANG_FLAG_4(D))
-
-/* In a VAR_DECL for an iterator, means we are within
-   an explicit loop over that iterator.  */
-#define ITERATOR_BOUND_P(NODE) ((NODE)->common.readonly_flag)
 
 /* in c-lang.c and objc-act.c */
-extern tree lookup_interface			PROTO((tree));
-extern tree is_class_name			PROTO((tree));
-extern void maybe_objc_check_decl		PROTO((tree));
-extern void finish_file				PROTO((void));
-extern int maybe_objc_comptypes                 PROTO((tree, tree, int));
-extern tree maybe_building_objc_message_expr    PROTO((void));
-extern tree maybe_objc_method_name		PROTO((tree));
-extern int recognize_objc_keyword		PROTO((void));
-extern tree build_objc_string			PROTO((int, const char *));
+extern tree lookup_interface			PARAMS ((tree));
+extern tree is_class_name			PARAMS ((tree));
+extern void maybe_objc_check_decl		PARAMS ((tree));
+extern void finish_file				PARAMS ((void));
+extern int maybe_objc_comptypes                 PARAMS ((tree, tree, int));
+extern tree maybe_building_objc_message_expr    PARAMS ((void));
+extern int recognize_objc_keyword		PARAMS ((void));
+extern tree lookup_objc_ivar			PARAMS ((tree));
+
 
+/* in c-parse.in */
+extern void c_parse_init			PARAMS ((void));
+extern void c_set_yydebug			PARAMS ((int));
+extern int yyparse_1				PARAMS ((void));
+
 /* in c-aux-info.c */
-extern void gen_aux_info_record                 PROTO((tree, int, int, int));
-
-/* in c-common.c */
-extern void declare_function_name               PROTO((void));
-extern void decl_attributes                     PROTO((tree, tree, tree));
-extern void init_function_format_info		PROTO((void));
-extern void check_function_format		PROTO((tree, tree, tree));
-extern int c_get_alias_set                      PROTO((tree));
-extern void c_apply_type_quals_to_decl          PROTO((int, tree));
-/* Print an error message for invalid operands to arith operation CODE.
-   NOP_EXPR is used as a special case (see truthvalue_conversion).  */
-extern void binary_op_error                     PROTO((enum tree_code));
-extern void c_expand_expr_stmt                  PROTO((tree));
-extern void c_expand_start_cond                 PROTO((tree, int, int));
-extern void c_expand_start_else                 PROTO((void));
-extern void c_expand_end_cond                   PROTO((void));
-/* Validate the expression after `case' and apply default promotions.  */
-extern tree check_case_value                    PROTO((tree));
-/* Concatenate a list of STRING_CST nodes into one STRING_CST.  */
-extern tree combine_strings                     PROTO((tree));
-extern void constant_expression_warning         PROTO((tree));
-extern tree convert_and_check			PROTO((tree, tree));
-extern void overflow_warning			PROTO((tree));
-extern void unsigned_conversion_warning		PROTO((tree, tree));
-/* Read the rest of the current #-directive line.  */
-#if USE_CPPLIB
-extern char *get_directive_line                 PROTO((void));
-#define GET_DIRECTIVE_LINE() get_directive_line ()
-#else
-extern char *get_directive_line                 PROTO((FILE *));
-#define GET_DIRECTIVE_LINE() get_directive_line (finput)
-#endif
-
-/* Subroutine of build_binary_op, used for comparison operations.
-   See if the operands have both been converted from subword integer types
-   and, if so, perhaps change them both back to their original type.  */
-extern tree shorten_compare                     PROTO((tree *, tree *, tree *, enum tree_code *));
-/* Prepare expr to be an argument of a TRUTH_NOT_EXPR,
-   or validate its data type for an `if' or `while' statement or ?..: exp. */
-extern tree truthvalue_conversion               PROTO((tree));
-extern tree type_for_mode                       PROTO((enum machine_mode, int));
-extern tree type_for_size                       PROTO((unsigned, int));
-
-/* in c-convert.c */
-extern tree convert                             PROTO((tree, tree));
+extern void gen_aux_info_record                 PARAMS ((tree, int, int, int));
 
 /* in c-decl.c */
-/* Standard named or nameless data types of the C compiler.  */
-extern tree char_array_type_node;
-extern tree char_type_node;
-extern tree const_ptr_type_node;
-extern tree const_string_type_node;
-extern tree default_function_type;
-extern tree double_ftype_double;
-extern tree double_ftype_double_double;
-extern tree double_type_node;
-extern tree float_type_node;
-#if HOST_BITS_PER_WIDE_INT >= 64
-extern tree intTI_type_node;
-#endif
-extern tree intDI_type_node;
-extern tree intHI_type_node;
-extern tree intQI_type_node;
-extern tree intSI_type_node;
-extern tree int_array_type_node;
-extern tree int_ftype_cptr_cptr_sizet;
-extern tree int_ftype_int;
-extern tree int_ftype_ptr_ptr_int;
-extern tree int_ftype_string_string;
-extern tree integer_type_node;
-extern tree long_double_type_node;
-extern tree long_ftype_long;
-extern tree long_integer_type_node;
-extern tree long_long_integer_type_node;
-extern tree long_long_unsigned_type_node;
-extern tree long_unsigned_type_node;
-extern tree complex_integer_type_node;
-extern tree complex_float_type_node;
-extern tree complex_double_type_node;
-extern tree complex_long_double_type_node;
-extern tree ptr_type_node;
-extern tree ptrdiff_type_node;
-extern tree short_integer_type_node;
-extern tree short_unsigned_type_node;
-extern tree signed_char_type_node;
-extern tree signed_wchar_type_node;
-extern tree string_ftype_ptr_ptr;
-extern tree string_type_node;
-extern tree unsigned_char_type_node;
-#if HOST_BITS_PER_WIDE_INT >= 64
-extern tree unsigned_intTI_type_node;
-#endif
-extern tree unsigned_intDI_type_node;
-extern tree unsigned_intHI_type_node;
-extern tree unsigned_intQI_type_node;
-extern tree unsigned_intSI_type_node;
-extern tree unsigned_type_node;
-extern tree unsigned_wchar_type_node;
-extern tree void_ftype_ptr_int_int;
-extern tree void_ftype_ptr_ptr_int;
-extern tree void_type_node;
-extern tree wchar_array_type_node;
-extern tree wchar_type_node;
-extern tree boolean_type_node;
-extern tree boolean_true_node;
-extern tree boolean_false_node;
+extern void c_init_decl_processing		PARAMS ((void));
+extern void c_print_identifier			PARAMS ((FILE *, tree, int));
+extern tree build_array_declarator              PARAMS ((tree, tree, int, int));
+extern tree build_enumerator                    PARAMS ((tree, tree));
+extern int  c_decode_option                     PARAMS ((int, char **));
+extern void c_mark_varargs                      PARAMS ((void));
+extern void check_for_loop_decls                PARAMS ((void));
+extern void clear_parm_order                    PARAMS ((void));
+extern int  complete_array_type                 PARAMS ((tree, tree, int));
+extern void declare_parm_level                  PARAMS ((int));
+extern tree define_label                        PARAMS ((const char *, int,
+							 tree));
+extern void finish_decl                         PARAMS ((tree, tree, tree));
+extern tree finish_enum                         PARAMS ((tree, tree, tree));
+extern void finish_function                     PARAMS ((int));
+extern tree finish_struct                       PARAMS ((tree, tree, tree));
+extern tree get_parm_info                       PARAMS ((int));
+extern tree grokfield                           PARAMS ((const char *, int, tree, tree, tree));
+extern tree groktypename                        PARAMS ((tree));
+extern tree groktypename_in_parm_context        PARAMS ((tree));
+extern tree implicitly_declare                  PARAMS ((tree));
+extern void implicit_decl_warning               PARAMS ((tree));
+extern int  in_parm_level_p                     PARAMS ((void));
+extern void keep_next_level                     PARAMS ((void));
+extern int  kept_level_p                        PARAMS ((void));
+extern tree lookup_name                         PARAMS ((tree));
+extern tree lookup_name_current_level		PARAMS ((tree));
+extern void parmlist_tags_warning               PARAMS ((void));
+extern void pending_xref_error                  PARAMS ((void));
+extern void mark_c_function_context             PARAMS ((struct function *));
+extern void push_c_function_context             PARAMS ((struct function *));
+extern void pop_c_function_context              PARAMS ((struct function *));
+extern void pop_label_level                     PARAMS ((void));
+extern void push_label_level                    PARAMS ((void));
+extern void push_parm_decl                      PARAMS ((tree));
+extern tree pushdecl_top_level                  PARAMS ((tree));
+extern void pushtag                             PARAMS ((tree, tree));
+extern tree set_array_declarator_type           PARAMS ((tree, tree, int));
+extern tree shadow_label                        PARAMS ((tree));
+extern void shadow_tag                          PARAMS ((tree));
+extern void shadow_tag_warned                   PARAMS ((tree, int));
+extern tree start_enum                          PARAMS ((tree));
+extern int  start_function                      PARAMS ((tree, tree, tree));
+extern tree start_decl                          PARAMS ((tree, tree, int,
+							 tree));
+extern tree start_struct                        PARAMS ((enum tree_code, tree));
+extern void store_parm_decls                    PARAMS ((void));
+extern tree xref_tag                            PARAMS ((enum tree_code, tree));
+extern tree c_begin_compound_stmt               PARAMS ((void));
+extern void c_expand_deferred_function          PARAMS ((tree));
+extern void c_expand_decl_stmt                  PARAMS ((tree));
 
-extern tree build_enumerator                    PROTO((tree, tree));
-/* Declare a predefined function.  Return the declaration.  */
-extern tree builtin_function                    PROTO((const char *, tree, enum built_in_function function_, const char *));
-/* Add qualifiers to a type, in the fashion for C.  */
-extern tree c_build_qualified_type              PROTO((tree, int));
+
+/* in c-objc-common.c */
+extern int c_disregard_inline_limits		PARAMS ((tree));
+extern int c_cannot_inline_tree_fn		PARAMS ((tree *));
+extern const char *c_objc_common_init		PARAMS ((const char *));
+extern int c_missing_noreturn_ok_p		PARAMS ((tree));
+extern void c_objc_common_finish_file		PARAMS ((void));
+extern int defer_fn				PARAMS ((tree));
+
 #define c_build_type_variant(TYPE, CONST_P, VOLATILE_P)		  \
-  c_build_qualified_type (TYPE, 				  \
+  c_build_qualified_type ((TYPE),				  \
 			  ((CONST_P) ? TYPE_QUAL_CONST : 0) |	  \
 			  ((VOLATILE_P) ? TYPE_QUAL_VOLATILE : 0))
-extern int  c_decode_option                     PROTO((int, char **));
-extern void c_mark_varargs                      PROTO((void));
-extern tree check_identifier                    PROTO((tree, tree));
-extern void clear_parm_order                    PROTO((void));
-extern tree combine_parm_decls                  PROTO((tree, tree, int));
-extern int  complete_array_type                 PROTO((tree, tree, int));
-extern void declare_parm_level                  PROTO((int));
-extern tree define_label                        PROTO((char *, int, tree));
-extern void delete_block                        PROTO((tree));
-extern void finish_decl                         PROTO((tree, tree, tree));
-extern void finish_decl_top_level               PROTO((tree, tree, tree));
-extern tree finish_enum                         PROTO((tree, tree, tree));
-extern void finish_function                     PROTO((int));
-extern tree finish_struct                       PROTO((tree, tree, tree));
-extern tree get_parm_info                       PROTO((int));
-extern tree getdecls                            PROTO((void));
-extern tree gettags                             PROTO((void));
-extern int  global_bindings_p                   PROTO((void));
-extern tree grokfield                           PROTO((const char *, int, tree, tree, tree));
-extern tree groktypename                        PROTO((tree));
-extern tree groktypename_in_parm_context        PROTO((tree));
-extern tree implicitly_declare                  PROTO((tree));
-extern int  in_parm_level_p                     PROTO((void));
-extern void init_decl_processing                PROTO((void));
-extern void insert_block                        PROTO((tree));
-extern void keep_next_level                     PROTO((void));
-extern int  kept_level_p                        PROTO((void));
-extern tree lookup_label                        PROTO((tree));
-extern tree lookup_name                         PROTO((tree));
-extern tree lookup_name_current_level		PROTO((tree));
-extern tree lookup_name_current_level_global	PROTO((tree));
-extern tree maybe_build_cleanup                 PROTO((tree));
-extern void parmlist_tags_warning               PROTO((void));
-extern void pending_xref_error                  PROTO((void));
-extern void pop_c_function_context              PROTO((void));
-extern void pop_label_level                     PROTO((void));
-extern tree poplevel                            PROTO((int, int, int));
-extern void print_lang_decl                     PROTO((FILE *, tree, int));
-extern void print_lang_identifier               PROTO((FILE *, tree, int));
-extern void print_lang_type                     PROTO((FILE *, tree, int));
-extern void push_c_function_context             PROTO((void));
-extern void push_label_level                    PROTO((void));
-extern void push_parm_decl                      PROTO((tree));
-extern tree pushdecl                            PROTO((tree));
-extern tree pushdecl_top_level                  PROTO((tree));
-extern void pushlevel                           PROTO((int));
-extern void pushtag                             PROTO((tree, tree));
-extern void set_block                           PROTO((tree));
-extern tree shadow_label                        PROTO((tree));
-extern void shadow_record_fields                PROTO((tree));
-extern void shadow_tag                          PROTO((tree));
-extern void shadow_tag_warned                   PROTO((tree, int));
-extern tree start_enum                          PROTO((tree));
-extern int  start_function                      PROTO((tree, tree, tree,
-						       tree, int));
-extern tree start_decl                          PROTO((tree, tree, int,
-						       tree, tree));
-extern tree start_struct                        PROTO((enum tree_code, tree));
-extern void store_parm_decls                    PROTO((void));
-extern tree xref_tag                            PROTO((enum tree_code, tree));
 
 /* in c-typeck.c */
-extern tree require_complete_type		PROTO((tree));
-extern void incomplete_type_error		PROTO((tree, tree));
-/* Given two integer or real types, return the type for their sum.
-   Given two compatible ANSI C types, returns the merged type.  */
-extern tree common_type                         PROTO((tree, tree));
-extern int comptypes				PROTO((tree, tree));
-extern int self_promoting_args_p		PROTO((tree));
-extern tree c_sizeof                            PROTO((tree));
-extern tree c_sizeof_nowarn                     PROTO((tree));
-extern tree c_size_in_bytes                     PROTO((tree));
-extern tree c_alignof				PROTO((tree));
-extern tree c_alignof_expr			PROTO((tree));
-extern tree default_conversion                  PROTO((tree));
-extern tree build_component_ref                 PROTO((tree, tree));
-extern tree build_indirect_ref                  PROTO((tree, const char *));
-extern tree build_array_ref                     PROTO((tree, tree));
-extern tree build_function_call                 PROTO((tree, tree));
-extern tree parser_build_binary_op              PROTO((enum tree_code,
-						       tree, tree));
-extern tree build_binary_op                     PROTO((enum tree_code,
-						       tree, tree, int));
-extern tree build_unary_op                      PROTO((enum tree_code,
-						       tree, int));
-extern int lvalue_p				PROTO((tree));
-extern int lvalue_or_else			PROTO((tree, const char *));
-extern void readonly_warning			PROTO((tree, const char *));
-extern int mark_addressable			PROTO((tree));
-extern tree build_conditional_expr              PROTO((tree, tree, tree));
-extern tree build_compound_expr                 PROTO((tree));
-extern tree build_c_cast                        PROTO((tree, tree));
-extern tree build_modify_expr                   PROTO((tree, enum tree_code,
-						       tree));
-extern tree initializer_constant_valid_p	PROTO((tree, tree));
-extern void store_init_value                    PROTO((tree, tree));
-extern void error_init				PROTO((const char *));
-extern void pedwarn_init			PROTO((const char *));
-extern void start_init				PROTO((tree, tree, int));
-extern void finish_init				PROTO((void));
-extern void really_start_incremental_init	PROTO((tree));
-extern void push_init_level			PROTO((int));
-extern tree pop_init_level			PROTO((int));
-extern void set_init_index			PROTO((tree, tree));
-extern void set_init_label			PROTO((tree));
-extern void process_init_element		PROTO((tree));
-extern void c_expand_asm_operands		PROTO((tree, tree, tree, tree,
-						       int, char *, int));
-extern void c_expand_return			PROTO((tree));
-extern tree c_expand_start_case                 PROTO((tree));
-
-/* in c-iterate.c */
-extern void init_iterators			PROTO((void));
-extern void iterator_expand			PROTO((tree));
-extern void iterator_for_loop_start		PROTO((tree));
-extern void iterator_for_loop_end		PROTO((tree));
-extern void iterator_for_loop_record		PROTO((tree));
-extern void push_iterator_stack			PROTO((void));
-extern void pop_iterator_stack			PROTO((void));
+extern tree require_complete_type		PARAMS ((tree));
+extern int comptypes				PARAMS ((tree, tree));
+extern tree c_sizeof_nowarn			PARAMS ((tree));
+extern tree c_size_in_bytes                     PARAMS ((tree));
+extern tree build_component_ref                 PARAMS ((tree, tree));
+extern tree build_indirect_ref                  PARAMS ((tree, const char *));
+extern tree build_array_ref                     PARAMS ((tree, tree));
+extern tree build_external_ref			PARAMS ((tree, int));
+extern tree parser_build_binary_op              PARAMS ((enum tree_code,
+							 tree, tree));
+extern void readonly_warning			PARAMS ((tree, const char *));
+extern tree build_conditional_expr              PARAMS ((tree, tree, tree));
+extern tree build_compound_expr                 PARAMS ((tree));
+extern tree c_cast_expr				PARAMS ((tree, tree));
+extern tree build_c_cast	                PARAMS ((tree, tree));
+extern tree build_modify_expr                   PARAMS ((tree, enum tree_code,
+							 tree));
+extern void store_init_value                    PARAMS ((tree, tree));
+extern void error_init				PARAMS ((const char *));
+extern void pedwarn_init			PARAMS ((const char *));
+extern void start_init				PARAMS ((tree, tree, int));
+extern void finish_init				PARAMS ((void));
+extern void really_start_incremental_init	PARAMS ((tree));
+extern void push_init_level			PARAMS ((int));
+extern tree pop_init_level			PARAMS ((int));
+extern void set_init_index			PARAMS ((tree, tree));
+extern void set_init_label			PARAMS ((tree));
+extern void process_init_element		PARAMS ((tree));
+extern tree build_compound_literal		PARAMS ((tree, tree));
+extern void pedwarn_c99				PARAMS ((const char *, ...))
+							ATTRIBUTE_PRINTF_1;
+extern tree c_start_case                        PARAMS ((tree));
+extern void c_finish_case                       PARAMS ((void));
+extern tree simple_asm_stmt			PARAMS ((tree));
+extern tree build_asm_stmt			PARAMS ((tree, tree, tree,
+							 tree, tree));
 
 /* Set to 0 at beginning of a function definition, set to 1 if
    a return statement that specifies a return value is seen.  */
@@ -431,7 +289,7 @@ extern int skip_evaluation;
 extern int dollars_in_ident;
 
 /* Nonzero means allow type mismatches in conditional expressions;
-   just make their values `void'.   */
+   just make their values `void'.  */
 
 extern int flag_cond_mismatch;
 
@@ -439,24 +297,9 @@ extern int flag_cond_mismatch;
 
 extern int flag_no_asm;
 
-/* Nonzero means environment is hosted (i.e., not freestanding) */
-
-extern int flag_hosted;
-
 /* Nonzero means warn about implicit declarations.  */
 
 extern int warn_implicit;
-
-/* Nonzero means give string constants the type `const char *'
-   to get extra warnings from them.  These warnings will be too numerous
-   to be useful, except in thoroughly ANSIfied programs.  */
-
-extern int flag_const_strings;
-
-/* Nonzero means warn about sizeof (function) or addition/subtraction
-   of function pointers.  */
-
-extern int warn_pointer_arith;
 
 /* Nonzero means warn for all old-style non-prototype function decls.  */
 
@@ -486,45 +329,21 @@ extern int warn_cast_qual;
 
 extern int warn_bad_function_cast;
 
-/* Warn about functions which might be candidates for attribute noreturn. */
-
-extern int warn_missing_noreturn;
-
 /* Warn about traditional constructs whose meanings changed in ANSI C.  */
 
 extern int warn_traditional;
-
-/* Warn about *printf or *scanf format/argument anomalies. */
-
-extern int warn_format;
 
 /* Warn about a subscript that has type char.  */
 
 extern int warn_char_subscripts;
 
-/* Warn if a type conversion is done that might have confusing results.  */
-
-extern int warn_conversion;
-
-/* Warn if main is suspicious. */
+/* Warn if main is suspicious.  */
 
 extern int warn_main;
 
-/* Nonzero means do some things the same way PCC does.  */
-
-extern int flag_traditional;
-
-/* Nonzero means use the ISO C9x dialect of C.  */
-
-extern int flag_isoc9x;
-
 /* Nonzero means to allow single precision math even if we're generally
-   being traditional. */
+   being traditional.  */
 extern int flag_allow_single_precision;
-
-/* Nonzero means warn about suggesting putting in ()'s.  */
-
-extern int warn_parentheses;
 
 /* Warn if initializer is not completely bracketed.  */
 
@@ -534,23 +353,25 @@ extern int warn_missing_braces;
 
 extern int warn_sign_compare;
 
+/* Warn about testing equality of floating point numbers.  */
+
+extern int warn_float_equal;
+
 /* Warn about multicharacter constants.  */
 
 extern int warn_multichar;
-
-/* Warn about long long.  */
-
-extern int warn_long_long;
 
 /* Nonzero means we are reading code that came from a system header file.  */
 
 extern int system_header_p;
 
-/* Nonzero enables objc features.  */
-
-extern int doing_objc_thang;
+/* Warn about implicit declarations.  1 = warning, 2 = error.  */
+extern int mesg_implicit_function_declaration;
 
 /* In c-decl.c */
-extern void finish_incomplete_decl PROTO((tree));
+extern void finish_incomplete_decl PARAMS ((tree));
 
-#endif /* not _C_TREE_H */
+extern tree static_ctors;
+extern tree static_dtors;
+
+#endif /* ! GCC_C_TREE_H */
