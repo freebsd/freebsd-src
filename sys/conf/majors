@@ -164,5 +164,6 @@ chrdev	name		comments
 145	dri		DRI Graphics for OpenGL <dfr>
 146	twe		3ware Escalade ATA RAID (controller)
 147	twed		3ware Escalade ATA RAID (drives)
+148	agp		AGP <dfr>
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
