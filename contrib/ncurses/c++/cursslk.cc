@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,8 +34,9 @@
 #include "cursslk.h"
 #include "cursesapp.h"
 #include "internal.h"
+#include <string.h>
 
-MODULE_ID("$Id: cursslk.cc,v 1.5 1999/05/16 17:31:01 juergen Exp $")
+MODULE_ID("$Id: cursslk.cc,v 1.6 2000/07/15 21:07:50 tom Exp $")
 
 void Soft_Label_Key_Set::Soft_Label_Key::operator=(char *text)  {
   delete[] label;
@@ -54,7 +55,7 @@ void Soft_Label_Key_Set::init() {
   for(int i=0; i < num_labels; i++) {
     slk_array[i].num = i+1;
   }
-  b_attrInit = FALSE;  
+  b_attrInit = FALSE;
 }
 
 Soft_Label_Key_Set::Soft_Label_Key_Set() {

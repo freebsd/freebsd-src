@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,8 +33,9 @@
 
 #include "cursesp.h"
 #include "internal.h"
+#include <string.h>
 
-MODULE_ID("$Id: cursesp.cc,v 1.15 1999/10/30 23:59:37 tom Exp $")
+MODULE_ID("$Id: cursesp.cc,v 1.16 2000/07/15 21:08:13 tom Exp $")
 
 NCursesPanel* NCursesPanel::dummy = (NCursesPanel*)0;
 
@@ -42,13 +43,13 @@ void NCursesPanel::init() {
   p = ::new_panel(w);
   if (!p)
     OnError(ERR);
-  
+
   UserHook* hook = new UserHook;
   hook->m_user  = NULL;
   hook->m_back  = this;
   hook->m_owner = p;
   ::set_panel_userptr(p, (void *)hook);
-}  
+}
 
 NCursesPanel::~NCursesPanel() {
   UserHook* hook = (UserHook*)::panel_userptr(p);
@@ -61,7 +62,7 @@ NCursesPanel::~NCursesPanel() {
 void
 NCursesPanel::redraw() {
   PANEL *pan;
-  
+
   pan = ::panel_above(NULL);
   while (pan) {
     ::touchwin(panel_window(pan));
@@ -95,20 +96,20 @@ NCursesPanel::frame(const char *title,const char *btitle) {
   int err = OK;
   if (!title && !btitle) {
     err = box();
-  } 
+  }
   else {
     err = box();
     if (err==OK)
-      label(title,btitle); 
+      label(title,btitle);
   }
   OnError(err);
 }
 
 void
 NCursesPanel::label(const char *tLabel, const char *bLabel) {
-  if (tLabel) 
+  if (tLabel)
     centertext(0,tLabel);
-  if (bLabel) 
+  if (bLabel)
     centertext(maxy(),bLabel);
 }
 

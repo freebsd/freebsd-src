@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_addstr.c,v 1.17 2000/04/29 21:15:55 tom Exp $")
+MODULE_ID("$Id: lib_addstr.c,v 1.18 2000/07/29 16:42:41 tom Exp $")
 
 int
 waddnstr(WINDOW *win, const char *const astr, int n)
@@ -51,7 +51,7 @@ waddnstr(WINDOW *win, const char *const astr, int n)
     T((T_CALLED("waddnstr(%p,%s,%d)"), win, _nc_visbuf(astr), n));
 
     if (win && (str != 0)) {
-	T(("... current %s", _traceattr(win->_attrs)));
+	TR(TRACE_VIRTPUT | TRACE_ATTRS, ("... current %s", _traceattr(win->_attrs)));
 	TR(TRACE_VIRTPUT, ("str is not null"));
 	code = OK;
 	if (n < 0)

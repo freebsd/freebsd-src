@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,12 +31,12 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
  ****************************************************************************/
 
-// $Id: internal.h,v 1.5 1999/05/16 17:29:25 juergen Exp $
+// $Id: internal.h,v 1.6 2000/09/02 18:22:23 tom Exp $
 
 #ifndef _CPLUS_INTERNAL_H
 #define _CPLUS_INTERNAL_H 1
 
-#ifdef USE_RCS_IDS
+#if USE_RCS_IDS
 #define MODULE_ID(id) static const char Ident[] = id;
 #else
 #define MODULE_ID(id) /*nothing*/

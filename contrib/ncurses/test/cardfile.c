@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey <dickey@clark.net> 1999
  *
- * $Id: cardfile.c,v 1.4 2000/03/19 01:34:00 tom Exp $
+ * $Id: cardfile.c,v 1.5 2000/09/09 19:08:32 tom Exp $
  *
  * File format: text beginning in column 1 is a title; other text forms the content.
  */
@@ -72,8 +72,8 @@ strdup(char *s)
 }
 #endif /* not HAVE_STRDUP */
 
-static char *
-skip(char *buffer)
+static const char *
+skip(const char *buffer)
 {
     while (isspace(*buffer))
 	buffer++;
@@ -119,7 +119,7 @@ add_title(const char *title)
 }
 
 static void
-add_content(CARD * card, char *content)
+add_content(CARD * card, const char *content)
 {
     unsigned total, offset;
 
@@ -359,7 +359,7 @@ cardfile(char *fname)
 	doupdate();
 
 	switch (form_driver(top_card->form, ch =
-		form_virtualize(panel_window(top_card->panel)))) {
+			    form_virtualize(panel_window(top_card->panel)))) {
 	case E_OK:
 	    break;
 	case E_UNKNOWN_COMMAND:

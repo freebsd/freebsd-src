@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: edit_cfg.sh,v 1.9 1998/02/11 12:13:46 tom Exp $
+# $Id: edit_cfg.sh,v 1.10 2000/09/09 20:29:58 tom Exp $
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,7 +28,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
+# Author: Thomas E. Dickey <dickey@clark.net> 1996,1997,2000
 #
 # Edit the default value of the term.h file based on the autoconf-generated
 # values:
@@ -43,7 +43,6 @@ for name in \
 	HAVE_TCGETATTR \
 	HAVE_TERMIOS_H \
 	HAVE_TERMIO_H \
-	NCURSES_CONST \
 	BROKEN_LINKER
 do
 	mv $2 $BAK

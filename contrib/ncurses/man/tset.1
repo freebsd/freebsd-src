@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,14 +26,14 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: tset.1,v 1.8 1998/12/26 01:44:41 tom Exp $
+.\" $Id: tset.1,v 1.12 2000/09/09 20:33:07 tom Exp $
 .TH tset 1 ""
 .SH NAME
-\fBtset\fR - terminal initialization
+\fBtset\fR, \fBreset\fR - terminal initialization
 .SH SYNOPSIS
-tset [-IQqrs] [-] [-e \fIch\fR] [-i \fIch\fR] [-k \fIch\fR] [-m \fImapping\fR] [\fIterminal\fR]
+tset [-IQVqrs] [-] [-e \fIch\fR] [-i \fIch\fR] [-k \fIch\fR] [-m \fImapping\fR] [\fIterminal\fR]
 .br
-reset [-IQqrs] [-] [-e \fIch\fR] [-i \fIch\fR] [-k \fIch\fR] [-m \fImapping\fR] [\fIterminal\fR]
+reset [-IQVqrs] [-] [-e \fIch\fR] [-i \fIch\fR] [-k \fIch\fR] [-m \fImapping\fR] [\fIterminal\fR]
 .SH DESCRIPTION
 \&\fBTset\fR initializes terminals.
 \fBTset\fR first determines the type of terminal that you are using.
@@ -92,6 +92,12 @@ Set the erase character to \fIch\fR.
 -I
 Do not send the terminal or tab initialization strings to the terminal.
 .TP 5
+-Q
+Don't display any values for the erase, interrupt and line kill characters.
+.TP
+\fB-V\fR
+reports the version of ncurses which was used in this program, and exits.
+.TP 5
 -i
 Set the interrupt character to \fIch\fR.
 .TP 5
@@ -101,9 +107,6 @@ Set the line kill character to \fIch\fR.
 -m
 Specify a mapping from a port type to a terminal.
 See below for more information.
-.TP 5
--Q
-Don't display any values for the erase, interrupt and line kill characters.
 .TP 5
 -r
 Print the terminal type to the standard error output.
@@ -228,7 +231,7 @@ environment variables.
 /etc/ttys
 system port name to terminal type mapping database (BSD versions only).
 .TP 5
-@DATADIR@/terminfo
+@TERMINFO@
 terminal capability database
 .SH SEE ALSO
 csh(1),

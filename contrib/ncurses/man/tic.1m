@@ -26,10 +26,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: tic.1m,v 1.26 2000/03/19 02:18:18 tom Exp $
+.\" $Id: tic.1m,v 1.29 2000/08/19 18:51:05 tom Exp $
 .TH tic 1M ""
 .ds n 5
-.ds d @DATADIR@/terminfo
+.ds d @TERMINFO@
 .SH NAME
 \fBtic\fR - the \fIterminfo\fR entry-description compiler
 .SH SYNOPSIS
@@ -41,6 +41,7 @@ I\
 N\
 R\
 T\
+V\
 a\
 c\
 f\
@@ -146,6 +147,9 @@ are "SVr1", "Ultrix", "HP", "BSD" and "AIX"; see \fBterminfo\fR(\*n) for details
 eliminates size-restrictions on the generated text.
 This is mainly useful for testing and analysis, since the compiled
 descriptions are limited (e.g., 1023 for termcap, 4096 for terminfo).
+.TP
+\fB-V\fR
+reports the version of ncurses which was used in this program, and exits.
 .TP
 \fB-r\fR
 Force entry resolution (so there are no remaining tc capabilities) even
@@ -267,6 +271,7 @@ The
 \fB-N\fR,
 \fB-R\fR,
 \fB-T\fR,
+\fB-V\fR,
 \fB-a\fR,
 \fB-e\fR,
 \fB-f\fR,
@@ -286,8 +291,8 @@ System V does not compile entries to or read entries from your
 \fB\*d/?/*\fR
 Compiled terminal description database.
 .SH SEE ALSO
-\fBinfocmp\fR(1M), \fBcaptoinfo\fR(1M), \fBinfotocap\fR(1M), \fBtoe\fR(1M),
-\fBcurses\fR(3X), \fBterminfo\fR(\*n).
+\fB@INFOCMP@\fR(1M), \fB@CAPTOINFO@\fR(1M), \fB@INFOTOCAP@\fR(1M),
+\fB@TOE@\fR(1M), \fBcurses\fR(3X), \fBterminfo\fR(\*n).
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

@@ -39,7 +39,7 @@ DESCRIPTION
 AUTHOR
    Author: Eric S. Raymond <esr@snark.thyrsus.com> 1993
 
-$Id: ncurses.c,v 1.129 2000/06/17 20:02:22 tom Exp $
+$Id: ncurses.c,v 1.138 2000/09/17 01:24:00 tom Exp $
 
 ***************************************************************************/
 
@@ -92,7 +92,7 @@ static int save_trace = TRACE_ORDINARY | TRACE_CALLS;
 extern int _nc_tracing;
 #endif
 
-#if !HAVE_NAPMS
+#if !defined(HAVE_NAPMS)
 #define HAVE_NAPMS 1
 #endif
 
@@ -198,7 +198,7 @@ mouse_decode(MEVENT const *ep)
     static char buf[80];
 
     (void) sprintf(buf, "id %2d  at (%2d, %2d, %2d) state %4lx = {",
-	ep->id, ep->x, ep->y, ep->z, ep->bstate);
+		   ep->id, ep->x, ep->y, ep->z, ep->bstate);
 
 #define SHOW(m, s) if ((ep->bstate & m)==m) {strcat(buf,s); strcat(buf, ", ");}
     SHOW(BUTTON1_RELEASED, "release-1");
@@ -347,21 +347,43 @@ getch_test(void)
 }
 
 static int
-show_attr(int row, int skip, chtype attr, const char *name, bool once)
+show_attr(int row, int skip, chtype attr, const char *name)
 {
+    static const char *string = "abcde fghij klmno pqrst uvwxy z";
     int ncv = tigetnum("ncv");
 
     mvprintw(row, 8, "%s mode:", name);
     mvprintw(row, 24, "|");
     if (skip)
 	printw("%*s", skip, " ");
-    if (once)
-	attron(attr);
-    else
-	attrset(attr);
-    addstr("abcde fghij klmno pqrst uvwxy z");
-    if (once)
-	attroff(attr);
+    attrset(attr);
+    /*
+     * If we're to write a string in the alternate character set, it is not
+     * sufficient to just set A_ALTCHARSET.  We have to perform the mapping
+     * that corresponds.  This is not needed for vt100-compatible devices
+     * because the acs_map[] is 1:1, but for PC-style devices such as Linux
+     * console, the acs_map[] is scattered about the range.
+     *
+     * The addch/addstr functions do not themselves do this mapping, since it
+     * is possible to turn off the A_ALTCHARSET flag for the characters which
+     * are added, and it would be an unexpected result to have the mapped
+     * characters visible on the screen.
+     *
+     * This example works because the indices into acs_map[] are mostly from
+     * the lowercase characters.
+     */
+    if (attr & A_ALTCHARSET) {
+	const char *s = string;
+	while (*s) {
+	    int ch = *s++;
+	    if ((ch = acs_map[ch]) == 0)
+		ch = ' ';
+	    addch(ch);
+	}
+    } else {
+	addstr(string);
+    }
+    attroff(attr);
     if (skip)
 	printw("%*s", skip, " ");
     printw("|");
@@ -398,7 +420,7 @@ show_attr(int row, int skip, chtype attr, const char *name, bool once)
 }
 
 static bool
-attr_getc(int *skip, int *fg, int *bg)
+attr_getc(int *skip, int *fg, int *bg, int *ac)
 {
     int ch = Getchar();
 
@@ -411,6 +433,12 @@ attr_getc(int *skip, int *fg, int *bg)
 	return TRUE;
     } else if (has_colors()) {
 	switch (ch) {
+	case 'a':
+	    *ac = 0;
+	    break;
+	case 'A':
+	    *ac = A_ALTCHARSET;
+	    break;
 	case 'f':
 	    *fg = (*fg + 1);
 	    break;
@@ -435,6 +463,18 @@ attr_getc(int *skip, int *fg, int *bg)
 	if (*bg < 0)
 	    *bg = COLORS - 1;
 	return TRUE;
+    } else {
+	switch (ch) {
+	case 'a':
+	    *ac = 0;
+	    break;
+	case 'A':
+	    *ac = A_ALTCHARSET;
+	    break;
+	default:
+	    return FALSE;
+	}
+	return TRUE;
     }
     return FALSE;
 }
@@ -447,6 +487,7 @@ attr_test(void)
     int skip = tigetnum("xmc");
     int fg = COLOR_BLACK;	/* color pair 0 is special */
     int bg = COLOR_BLACK;
+    int ac = 0;
     bool *pairs = (bool *) calloc(COLOR_PAIRS, sizeof(bool));
     pairs[0] = TRUE;
 
@@ -472,28 +513,31 @@ attr_test(void)
 
 	mvaddstr(0, 20, "Character attribute test display");
 
-	row = show_attr(row, n, A_STANDOUT, "STANDOUT", TRUE);
-	row = show_attr(row, n, A_REVERSE, "REVERSE", TRUE);
-	row = show_attr(row, n, A_BOLD, "BOLD", TRUE);
-	row = show_attr(row, n, A_UNDERLINE, "UNDERLINE", TRUE);
-	row = show_attr(row, n, A_DIM, "DIM", TRUE);
-	row = show_attr(row, n, A_BLINK, "BLINK", TRUE);
-	row = show_attr(row, n, A_PROTECT, "PROTECT", TRUE);
-	row = show_attr(row, n, A_INVIS, "INVISIBLE", TRUE);
-	row = show_attr(row, n, A_NORMAL, "NORMAL", FALSE);
+	row = show_attr(row, n, ac | A_STANDOUT, "STANDOUT");
+	row = show_attr(row, n, ac | A_REVERSE, "REVERSE");
+	row = show_attr(row, n, ac | A_BOLD, "BOLD");
+	row = show_attr(row, n, ac | A_UNDERLINE, "UNDERLINE");
+	row = show_attr(row, n, ac | A_DIM, "DIM");
+	row = show_attr(row, n, ac | A_BLINK, "BLINK");
+	row = show_attr(row, n, ac | A_PROTECT, "PROTECT");
+	row = show_attr(row, n, ac | A_INVIS, "INVISIBLE");
+	row = show_attr(row, n, ac | A_NORMAL, "NORMAL");
 
 	mvprintw(row, 8,
-	    "This terminal does %shave the magic-cookie glitch",
-	    tigetnum("xmc") > -1 ? "" : "not ");
+		 "This terminal does %shave the magic-cookie glitch",
+		 tigetnum("xmc") > -1 ? "" : "not ");
 	mvprintw(row + 1, 8,
-	    "Enter a digit to set gaps on each side of displayed attributes");
+		 "Enter a digit to set gaps on each side of displayed attributes");
 	mvprintw(row + 2, 8,
-	    "^L = repaint");
+		 "^L = repaint");
 	if (has_colors())
-	    printw(".  f/F/b/F toggle colors (now %d/%d)", fg, bg);
+	    printw(".  f/F/b/F toggle colors (now %d/%d), a/A altcharset (%d)",
+		   fg, bg, ac != 0);
+	else
+	    printw(".  a/A altcharset (%d)", ac != 0);
 
 	refresh();
-    } while (attr_getc(&n, &fg, &bg));
+    } while (attr_getc(&n, &fg, &bg, &ac));
 
     free((char *) pairs);
     bkgdset(A_NORMAL | BLANK);
@@ -554,9 +598,9 @@ color_test(void)
 	top = (COLORS > 8) ? 0 : base * (COLORS + 3);
 	clrtobot();
 	(void) mvprintw(top + 1, 0,
-	    "%dx%d matrix of foreground/background colors, bright *%s*\n",
-	    COLORS, COLORS,
-	    base ? "on" : "off");
+			"%dx%d matrix of foreground/background colors, bright *%s*\n",
+			COLORS, COLORS,
+			base ? "on" : "off");
 	for (i = 0; i < COLORS; i++)
 	    show_color_name(top + 2, (i + 1) * width, i);
 	for (i = 0; i < COLORS; i++)
@@ -627,9 +671,9 @@ color_edit(void)
 
 	for (i = 0; i < max_colors; i++) {
 	    mvprintw(2 + i, 0, "%c %-8s:",
-		(i == current ? '>' : ' '),
-		(i < (int) SIZEOF(color_names)
-		    ? color_names[i] : ""));
+		     (i == current ? '>' : ' '),
+		     (i < (int) SIZEOF(color_names)
+		      ? color_names[i] : ""));
 	    attrset(COLOR_PAIR(i));
 	    addstr("        ");
 	    attrset(A_NORMAL);
@@ -666,9 +710,9 @@ color_edit(void)
 	}
 
 	mvaddstr(max_colors + 3, 0,
-	    "Use up/down to select a color, left/right to change fields.");
+		 "Use up/down to select a color, left/right to change fields.");
 	mvaddstr(max_colors + 4, 0,
-	    "Modify field by typing nnn=, nnn-, or nnn+.  ? for help.");
+		 "Modify field by typing nnn=, nnn-, or nnn+.  ? for help.");
 
 	move(2 + current, 0);
 
@@ -882,7 +926,7 @@ show_upper_chars(int first)
     erase();
     attron(A_BOLD);
     mvprintw(0, 20, "Display of %s Character Codes %d to %d",
-	C1 ? "C1" : "GR", first, last);
+	     C1 ? "C1" : "GR", first, last);
     attroff(A_BOLD);
     refresh();
 
@@ -983,9 +1027,9 @@ acs_display(void)
 	    break;
 	}
 	mvprintw(LINES - 3, 0,
-	    "Note: ANSI terminals may not display C1 characters.");
+		 "Note: ANSI terminals may not display C1 characters.");
 	mvprintw(LINES - 2, 0,
-	    "Select: a=ACS, 0=C1, 1,2,3=GR characters, q=quit");
+		 "Select: a=ACS, 0=C1, 1,2,3=GR characters, q=quit");
 	refresh();
     } while ((c = Getchar()) != 'x' && c != 'q');
 
@@ -1064,7 +1108,7 @@ test_sgr_attributes(void)
 
 	bkgdset(normal);
 	mvprintw(LINES - 2, 1, "%s background. ", pass == 0 ? "Dark" :
-	    "Light");
+		 "Light");
 	clrtoeol();
 	Pause();
     }
@@ -1146,7 +1190,7 @@ newwin_legend(FRAME * curp)
 	{
 	    "^R = restore window", 0
 	},
-#ifdef HAVE_WRESIZE
+#if HAVE_WRESIZE
 	{
 	    "^X = resize", 0
 	},
@@ -1196,8 +1240,8 @@ transient(FRAME * curp, NCURSES_CONST char *msg)
 
     move(LINES - 1, 0);
     printw("%s characters are echoed, window should %sscroll.",
-	HaveKeypad(curp) ? "Non-arrow" : "All other",
-	HaveScroll(curp) ? "" : "not ");
+	   HaveKeypad(curp) ? "Non-arrow" : "All other",
+	   HaveScroll(curp) ? "" : "not ");
     clrtoeol();
 }
 
@@ -1477,7 +1521,7 @@ acs_and_scroll(void)
 	    }
 	    break;
 
-#ifdef HAVE_WRESIZE
+#if HAVE_WRESIZE
 	case CTRL('X'):	/* resize window */
 	    if (current) {
 		pair *tmp, ul, lr;
@@ -1585,8 +1629,8 @@ acs_and_scroll(void)
 	wrefresh(usescr);
     } while
 	((c = wGetchar(usescr)) != QUIT
-	&& !((c == ESCAPE) && (usescr->_use_keypad))
-	&& (c != ERR));
+	 && !((c == ESCAPE) && (usescr->_use_keypad))
+	 && (c != ERR));
 
   breakout:
     while (current != 0)
@@ -1739,38 +1783,38 @@ demo_panels(void)
 	PANEL *p5;
 
 	p1 = mkpanel(COLOR_RED,
-	    LINES / 2 - 2,
-	    COLS / 8 + 1,
-	    0,
-	    0);
+		     LINES / 2 - 2,
+		     COLS / 8 + 1,
+		     0,
+		     0);
 	set_panel_userptr(p1, "p1");
 
 	p2 = mkpanel(COLOR_GREEN,
-	    LINES / 2 + 1,
-	    COLS / 7,
-	    LINES / 4,
-	    COLS / 10);
+		     LINES / 2 + 1,
+		     COLS / 7,
+		     LINES / 4,
+		     COLS / 10);
 	set_panel_userptr(p2, "p2");
 
 	p3 = mkpanel(COLOR_YELLOW,
-	    LINES / 4,
-	    COLS / 10,
-	    LINES / 2,
-	    COLS / 9);
+		     LINES / 4,
+		     COLS / 10,
+		     LINES / 2,
+		     COLS / 9);
 	set_panel_userptr(p3, "p3");
 
 	p4 = mkpanel(COLOR_BLUE,
-	    LINES / 2 - 2,
-	    COLS / 8,
-	    LINES / 2 - 2,
-	    COLS / 3);
+		     LINES / 2 - 2,
+		     COLS / 8,
+		     LINES / 2 - 2,
+		     COLS / 3);
 	set_panel_userptr(p4, "p4");
 
 	p5 = mkpanel(COLOR_MAGENTA,
-	    LINES / 2 - 2,
-	    COLS / 8,
-	    LINES / 2,
-	    COLS / 2 - 2);
+		     LINES / 2 - 2,
+		     COLS / 8,
+		     LINES / 2,
+		     COLS / 2 - 2);
 	set_panel_userptr(p5, "p5");
 
 	fill_panel(p1);
@@ -1943,6 +1987,7 @@ demo_panels(void)
 
 #define GRIDSIZE	3
 
+static bool pending_pan = FALSE;
 static bool show_panner_legend = TRUE;
 
 static int
@@ -1950,10 +1995,10 @@ panner_legend(int line)
 {
     static const char *const legend[] =
     {
-	"Use arrow keys (or U,D,L,R) to pan, q to quit (?,t,s flags)",
-	"Use ! to shell-out.  Toggle legend:?, timer:t, scroll mark:s.",
+	"Use arrow keys (or U,D,L,R) to pan, q to quit, ! to shell-out.",
 	"Use +,- (or j,k) to grow/shrink the panner vertically.",
-	"Use <,> (or h,l) to grow/shrink the panner horizontally."
+	"Use <,> (or h,l) to grow/shrink the panner horizontally.",
+	"Number repeats.  Toggle legend:?, timer:t, scroll mark:s."
     };
     int n = (SIZEOF(legend) - (LINES - line));
     if (line < LINES && (n >= 0)) {
@@ -1982,8 +2027,8 @@ panner_v_cleanup(int from_y, int from_x, int to_y)
 
 static void
 panner(WINDOW *pad,
-    int top_x, int top_y, int porty, int portx,
-    int (*pgetc) (WINDOW *))
+       int top_x, int top_y, int porty, int portx,
+       int (*pgetc) (WINDOW *))
 {
 #if HAVE_GETTIMEOFDAY
     struct timeval before, after;
@@ -2205,29 +2250,31 @@ panner(WINDOW *pad,
 	mvaddch(porty - 1, top_x - 1, ACS_LLCORNER);
 	mvaddch(porty - 1, portx - 1, ACS_LRCORNER);
 
+	if (!pending_pan) {
 #if HAVE_GETTIMEOFDAY
-	gettimeofday(&before, 0);
+	    gettimeofday(&before, 0);
 #endif
-	wnoutrefresh(stdscr);
+	    wnoutrefresh(stdscr);
 
-	pnoutrefresh(pad,
-	    basey, basex,
-	    top_y, top_x,
-	    porty - (pxmax > portx) - 1,
-	    portx - (pymax > porty) - 1);
+	    pnoutrefresh(pad,
+			 basey, basex,
+			 top_y, top_x,
+			 porty - (pxmax > portx) - 1,
+			 portx - (pymax > porty) - 1);
 
-	doupdate();
+	    doupdate();
 #if HAVE_GETTIMEOFDAY
-	if (timing) {
-	    double elapsed;
-	    gettimeofday(&after, 0);
-	    elapsed = (after.tv_sec + after.tv_usec / 1.0e6)
-		- (before.tv_sec + before.tv_usec / 1.0e6);
-	    move(LINES - 1, COLS - 20);
-	    printw("Secs: %2.03f", elapsed);
-	    refresh();
+	    if (timing) {
+		double elapsed;
+		gettimeofday(&after, 0);
+		elapsed = (after.tv_sec + after.tv_usec / 1.0e6)
+		    - (before.tv_sec + before.tv_usec / 1.0e6);
+		move(LINES - 1, COLS - 20);
+		printw("Secs: %2.03f", elapsed);
+		refresh();
+	    }
+#endif
 	}
-#endif
 
     } while
 	((c = pgetc(pad)) != KEY_EXIT);
@@ -2235,44 +2282,73 @@ panner(WINDOW *pad,
     scrollok(stdscr, TRUE);	/* reset to driver's default */
 }
 
-static
-int
+static int
 padgetch(WINDOW *win)
 {
+    static int count;
+    static int last;
     int c;
 
-    switch (c = wGetchar(win)) {
-    case '!':
-	ShellOut(FALSE);
-	return KEY_REFRESH;
-    case CTRL('r'):
-	endwin();
-	refresh();
-	return KEY_REFRESH;
-    case CTRL('l'):
-	return KEY_REFRESH;
-    case 'U':
-	return (KEY_UP);
-    case 'D':
-	return (KEY_DOWN);
-    case 'R':
-	return (KEY_RIGHT);
-    case 'L':
-	return (KEY_LEFT);
-    case '+':
-	return (KEY_IL);
-    case '-':
-	return (KEY_DL);
-    case '>':
-	return (KEY_IC);
-    case '<':
-	return (KEY_DC);
-    case ERR:			/* FALLTHRU */
-    case 'q':
-	return (KEY_EXIT);
-    default:
-	return (c);
+    if ((pending_pan = (count > 0)) != FALSE) {
+	count--;
+	pending_pan = (count != 0);
+    } else {
+	for (;;) {
+	    switch (c = wGetchar(win)) {
+	    case '!':
+		ShellOut(FALSE);
+		c = KEY_REFRESH;
+	    case CTRL('r'):
+		endwin();
+		refresh();
+		c = KEY_REFRESH;
+		break;
+	    case CTRL('l'):
+		c = KEY_REFRESH;
+		break;
+	    case 'U':
+		c = KEY_UP;
+		break;
+	    case 'D':
+		c = KEY_DOWN;
+		break;
+	    case 'R':
+		c = KEY_RIGHT;
+		break;
+	    case 'L':
+		c = KEY_LEFT;
+		break;
+	    case '+':
+		c = KEY_IL;
+		break;
+	    case '-':
+		c = KEY_DL;
+		break;
+	    case '>':
+		c = KEY_IC;
+		break;
+	    case '<':
+		c = KEY_DC;
+		break;
+	    case ERR:		/* FALLTHRU */
+	    case 'q':
+		count = 0;
+		c = KEY_EXIT;
+		break;
+	    default:
+		if (c >= '0' && c <= '9') {
+		    count = count * 10 + (c - '0');
+		    continue;
+		}
+		break;
+	    }
+	    last = c;
+	    break;
+	}
+	if (count > 0)
+	    count--;
     }
+    return (last);
 }
 
 #define PAD_HIGH 200
@@ -2379,7 +2455,7 @@ flushinp_test(WINDOW *win)
 
     mvwaddstr(win, 2, 1, "Type random keys for 5 seconds.");
     mvwaddstr(win, 3, 1,
-	"These should be discarded (not echoed) after the subwindow goes away.");
+	      "These should be discarded (not echoed) after the subwindow goes away.");
     wrefresh(win);
 
     for (i = 0; i < 5; i++) {
@@ -2396,11 +2472,11 @@ flushinp_test(WINDOW *win)
     napms(1000);
 
     mvwaddstr(win, 2, 1,
-	"If you were still typing when the window timer expired,");
+	      "If you were still typing when the window timer expired,");
     mvwaddstr(win, 3, 1,
-	"or else you typed nothing at all while it was running,");
+	      "or else you typed nothing at all while it was running,");
     mvwaddstr(win, 4, 1,
-	"test was invalid.  You'll see garbage or nothing at all. ");
+	      "test was invalid.  You'll see garbage or nothing at all. ");
     mvwaddstr(win, 6, 1, "Press a key");
     wmove(win, 9, 10);
     wrefresh(win);
@@ -2408,7 +2484,7 @@ flushinp_test(WINDOW *win)
     wGetchar(win);
     flushinp();
     mvwaddstr(win, 12, 0,
-	"If you see any key other than what you typed, flushinp() is broken.");
+	      "If you see any key other than what you typed, flushinp() is broken.");
     Continue(win);
 
     wmove(win, 9, 10);
@@ -2417,7 +2493,7 @@ flushinp_test(WINDOW *win)
     wmove(win, 12, 0);
     clrtoeol();
     waddstr(win,
-	"What you typed should now have been deleted; if not, wdelch() failed.");
+	    "What you typed should now have been deleted; if not, wdelch() failed.");
     Continue(win);
 
     cbreak();
@@ -2483,7 +2559,7 @@ menu_test(void)
     mvaddstr(2, 0, "  Use up and down arrow to move the select bar.");
     mvaddstr(3, 0, "  'n' and 'p' act like arrows.");
     mvaddstr(4, 0,
-	"  'b' and 'f' scroll up/down (page), 'u' and 'd' (line).");
+	     "  'b' and 'f' scroll up/down (page), 'u' and 'd' (line).");
     mvaddstr(5, 0, "  Press return to exit.");
     refresh();
 
@@ -2512,7 +2588,7 @@ menu_test(void)
     }
 
     (void) mvprintw(LINES - 2, 0,
-	"You chose: %s\n", item_name(current_item(m)));
+		    "You chose: %s\n", item_name(current_item(m)));
     (void) addstr("Press any key to continue...");
     wGetchar(stdscr);
 
@@ -2548,6 +2624,7 @@ static struct {
 	T_TBL(TRACE_ICALLS),
 	T_TBL(TRACE_CCALLS),
 	T_TBL(TRACE_DATABASE),
+	T_TBL(TRACE_ATTRS),
 	T_TBL(TRACE_MAXIMUM),
     {
 	(char *) 0, 0
@@ -2677,7 +2754,7 @@ trace_set(void)
     _tracef("trace level interactively set to %s", tracetrace(_nc_tracing));
 
     (void) mvprintw(LINES - 2, 0,
-	"Trace level is %s\n", tracetrace(_nc_tracing));
+		    "Trace level is %s\n", tracetrace(_nc_tracing));
     (void) addstr("Press any key to continue...");
     wGetchar(stdscr);
 
@@ -3277,6 +3354,7 @@ usage(void)
 	,""
 	,"Options:"
 #ifdef NCURSES_VERSION
+	,"  -a f,b   set default-colors (assumed white-on-black)"
 	,"  -d       use default-colors if terminal supports them"
 #endif
 	,"  -e fmt   specify format for soft-keys test (e)"
@@ -3344,6 +3422,9 @@ main(int argc, char *argv[])
     int command, c;
     int my_e_param = 1;
 #ifdef NCURSES_VERSION
+    int default_fg = COLOR_WHITE;
+    int default_bg = COLOR_BLACK;
+    bool assumed_colors = FALSE;
     bool default_colors = FALSE;
 #endif
 
@@ -3351,9 +3432,13 @@ main(int argc, char *argv[])
     setlocale(LC_CTYPE, "");
 #endif
 
-    while ((c = getopt(argc, argv, "de:fhs:t:")) != EOF) {
+    while ((c = getopt(argc, argv, "a:de:fhs:t:")) != EOF) {
 	switch (c) {
 #ifdef NCURSES_VERSION
+	case 'a':
+	    assumed_colors = TRUE;
+	    sscanf(optarg, "%d,%d", &default_fg, &default_bg);
+	    break;
 	case 'd':
 	    default_colors = TRUE;
 	    break;
@@ -3422,6 +3507,8 @@ main(int argc, char *argv[])
 #ifdef NCURSES_VERSION
 	if (default_colors)
 	    use_default_colors();
+	else if (assumed_colors)
+	    assume_default_colors(default_fg, default_bg);
 #endif
     }
     set_terminal_modes();
@@ -3437,9 +3524,9 @@ main(int argc, char *argv[])
     (void) printf("Welcome to %s.  Press ? for help.\n", curses_version());
 #elif defined(NCURSES_VERSION_MAJOR) && defined(NCURSES_VERSION_MINOR) && defined(NCURSES_VERSION_PATCH)
     (void) printf("Welcome to ncurses %d.%d.%d.  Press ? for help.\n",
-	NCURSES_VERSION_MAJOR,
-	NCURSES_VERSION_MINOR,
-	NCURSES_VERSION_PATCH);
+		  NCURSES_VERSION_MAJOR,
+		  NCURSES_VERSION_MINOR,
+		  NCURSES_VERSION_PATCH);
 #else
     (void) puts("Welcome to ncurses.  Press ? for help.");
 #endif

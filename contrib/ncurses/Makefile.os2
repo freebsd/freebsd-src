@@ -1,7 +1,7 @@
 ################################################################################
 # Wrapper Makefile for ncurses library under OS/2.
 ################################################################################
-# $Id: Makefile.os2,v 1.8 1998/12/13 02:23:13 tom Exp $
+# $Id: Makefile.os2,v 1.10 2000/10/09 23:53:57 Ilya.Zakharevich Exp $
 #
 # Author:  Juan Jose Garcia Ripoll <worm@arrakis.es>.
 # Webpage: http://www.arrakis.es/~worm/
@@ -13,8 +13,7 @@
 #
 #   touch Makefile
 #   make -f Makefile.os2 config
-#   make -f Makefile.os2 CC=gcc HOSTCC=gcc
-#   make -f Makefile.os2 CC=gcc HOSTCC=gcc
+#   make -f Makefile.os2 CC=gcc HOSTCC=gcc CXX=gcc
 #
 # Ignoring the following errors:
 #   Invalid configuration `os2'...
@@ -138,7 +137,7 @@ make.dlls : $(DEFS) $(LIBS) $(DLLS) $(LIBS_AOUT)
 
 $(DEFS) : make.defs
 
-LIBDIR	= $(INSTALL_PREFIX)$(libdir)
+LIBDIR	= $(DESTDIR)$(libdir)
 $(LIBDIR) :
 	mkdir -p $@
 
@@ -188,8 +187,8 @@ realclean ::
 # This is a simplified version of misc/Makefile
 #
 
-TICDIR = $(INSTALL_PREFIX)$(datadir)/terminfo
-TABSETDIR = $(INSTALL_PREFIX)$(datadir)/tabset
+TICDIR = $(DESTDIR)$(datadir)/terminfo
+TABSETDIR = $(DESTDIR)$(datadir)/tabset
 
 $(TICDIR) :
 	mkdir -p $@

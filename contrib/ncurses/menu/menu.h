@@ -33,6 +33,10 @@
 #ifndef ETI_MENU
 #define ETI_MENU
 
+#ifdef AMIGA
+#define TEXT TEXT_ncurses
+#endif
+
 #include <curses.h>
 #include <eti.h>
 

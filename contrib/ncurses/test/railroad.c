@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey <dickey@clark.net> 2000
  *
- * $Id: railroad.c,v 1.1 2000/01/15 02:41:27 tom Exp $
+ * $Id: railroad.c,v 1.3 2000/09/24 00:20:33 tom Exp $
  *
  * A simple demo of the termcap interface.
  */
@@ -38,6 +38,11 @@
 #include <termcap.h>
 #include <ctype.h>
 #include <signal.h>
+
+static char *wipeit;
+static char *moveit;
+static int length;
+static int height;
 
 static char *finisC;
 static char *finisS;
@@ -68,7 +73,7 @@ PutChar(int ch)
 {
     putchar(ch);
     fflush(stdout);
-    napms(50);			/* not really termcap... */
+    napms(moveit ? 10 : 50);	/* not really termcap... */
 }
 
 static void
@@ -104,33 +109,54 @@ Underline(int flag)
 static void
 ShowSign(char *string)
 {
+    char *base = string;
     int ch, first, last;
+
+    if (moveit != 0) {
+	tputs(tgoto(moveit, 0, height - 1), 1, outc);
+	tputs(wipeit, 1, outc);
+    }
 
     while (*string != 0) {
 	ch = *string;
-	last = ch;
-	if (isalpha(ch)) {
-	    first = isupper(ch) ? 'A' : 'a';
-	} else if (isdigit(ch)) {
-	    first = '0';
-	} else {
-	    first = ch;
-	}
-	if (first < last) {
-	    Underline(1);
-	    while (first < last) {
-		PutChar(first);
-		Backup();
-		first++;
+	if (moveit != 0) {
+	    for (first = length - 1; first > (string - base); first--) {
+		if (first < length - 1) {
+		    tputs(tgoto(moveit, first + 1, height - 1), 1, outc);
+		    PutChar(' ');
+		}
+		tputs(tgoto(moveit, first, height - 1), 1, outc);
+		PutChar(ch);
 	    }
-	    Underline(0);
+	} else {
+	    last = ch;
+	    if (isalpha(ch)) {
+		first = isupper(ch) ? 'A' : 'a';
+	    } else if (isdigit(ch)) {
+		first = '0';
+	    } else {
+		first = ch;
+	    }
+	    if (first < last) {
+		Underline(1);
+		while (first < last) {
+		    PutChar(first);
+		    Backup();
+		    first++;
+		}
+		Underline(0);
+	    }
 	}
+	if (moveit != 0)
+	    Backup();
 	StandOut(1);
 	PutChar(ch);
 	StandOut(0);
 	fflush(stdout);
 	string++;
     }
+    if (moveit != 0)
+	tputs(wipeit, 1, outc);
     putchar('\n');
 }
 
@@ -153,7 +179,7 @@ onsig(int n GCC_UNUSED)
 static void
 railroad(char **args)
 {
-    char *name = getenv("TERM");
+    NCURSES_CONST char *name = getenv("TERM");
     char buffer[1024];
     char area[1024], *ap = area;
     int j;
@@ -161,6 +187,22 @@ railroad(char **args)
     if (name == 0)
 	name = "dumb";
     if (tgetent(buffer, name)) {
+
+	wipeit = tgetstr("ce", &ap);
+	height = tgetnum("li");
+	length = tgetnum("co");
+	moveit = tgetstr("cm", &ap);
+
+	if (wipeit == 0
+	    || moveit == 0
+	    || height <= 0
+	    || length <= 0) {
+	    wipeit = 0;
+	    moveit = 0;
+	    height = 0;
+	    length = 0;
+	}
+
 	startS = tgetstr("so", &ap);
 	finisS = tgetstr("se", &ap);
 
@@ -186,9 +228,7 @@ railroad(char **args)
 }
 
 int
-main(
-    int argc,
-    char *argv[])
+main(int argc, char *argv[])
 {
     if (argc > 1) {
 	railroad(argv + 1);
