@@ -38,7 +38,7 @@
 /* -------------------------------------------------------------------- */
 
 #define	DS1_CHANS 4
-#define DS1_RECPRIMARY 0
+#define DS1_RECPRIMARY 1
 #define DS1_IRQHZ ((48000 << 8) / 256)
 #define DS1_BUFFSIZE 4096
 
