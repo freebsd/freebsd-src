@@ -50,6 +50,11 @@ static const char rcsid[] =
 #define _VESA_800x600_DFL_ROWS 25
 #define _VESA_800x600_DFL_FNSZ 16
 
+#define DUMP_RAW	0
+#define DUMP_TXT	1
+
+#define DUMP_FMT_REV	1
+
 char 	legal_colors[16][16] = {
 	"black", "blue", "green", "cyan",
 	"red", "magenta", "brown", "white",
@@ -70,8 +75,8 @@ usage()
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
 "usage: vidcontrol [-r fg bg] [-b color] [-c appearance] [-d] [-l scrmap]",
 "                  [-i adapter | mode] [-L] [-M char] [-m on|off]",
-"                  [-f size file] [-s number] [-t N|off] [-x] [-g geometry]", 
-"                  [mode] [fgcol [bgcol]] [show]");
+"                  [-f size file] [-s number] [-t N|off] [-x] [-g geometry]",
+"                  [-p] [-P] [mode] [fgcol [bgcol]] [show]");
 	exit(1);
 }
 
@@ -638,6 +643,77 @@ test_frame()
 		info.mv_rev.fore, info.mv_rev.back);
 }
 
+/*
+ * Snapshot the video memory of that terminal, using the CONS_SCRSHOT
+ * ioctl, and writes the results to stdout either in the special
+ * binary format (see manual page for details), or in the plain
+ * text format.
+ */
+void
+dump_screen(int mode)
+{
+	scrshot_t shot;
+	vid_info_t info;
+
+	info.size = sizeof(info);
+	if (ioctl(0, CONS_GETINFO, &info) == -1) {
+		warn("failed to obtain current video mode parameters");
+		return;
+	}
+
+	shot.buf = alloca(info.mv_csz * info.mv_rsz * sizeof(u_int16_t));
+	if (shot.buf == NULL) {
+		warn("failed to allocate memory for dump");
+		return;
+	}
+
+	shot.xsize = info.mv_csz;
+	shot.ysize = info.mv_rsz;
+	if (ioctl(0, CONS_SCRSHOT, &shot) == -1) {
+		warn("failed to get dump of the screen");
+		return;
+	}
+
+	if (mode == DUMP_RAW) {
+		printf("SCRSHOT_%c%c%c%c", DUMP_FMT_REV, 2,
+		       shot.xsize, shot.ysize);
+		fflush(stdout);
+
+		(void)write(STDOUT_FILENO, shot.buf,
+			    shot.xsize * shot.ysize * sizeof(u_int16_t));
+	} else {
+		char *line;
+		int x, y;
+		u_int16_t ch;
+
+		line = alloca(shot.xsize + 1);
+		if (line == NULL) {
+			warn("failed to allocate memory for line buffer");
+			return;
+		}
+
+		for (y = 0; y < shot.ysize; y++) {
+			for (x = 0; x < shot.xsize; x++) {
+				ch = shot.buf[x + (y * shot.xsize)];
+				ch &= 0xff;
+				if (isprint(ch) == 0)
+					ch = ' ';
+				line[x] = (char)ch;
+			}
+
+			/* Trim trailing spaces */
+			do {
+				line[x--] = '\0';
+			} while (line[x] == ' ' && x != 0);
+
+			puts(line);
+		}
+		fflush(stdout);
+	}
+
+	return;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -648,7 +724,7 @@ main(int argc, char **argv)
 	info.size = sizeof(info);
 	if (ioctl(0, CONS_GETINFO, &info) < 0)
 		err(1, "must be on a virtual console");
-	while((opt = getopt(argc, argv, "b:c:df:g:i:l:LM:m:r:s:t:x")) != -1)
+	while((opt = getopt(argc, argv, "b:c:df:g:i:l:LM:m:pPr:s:t:x")) != -1)
 		switch(opt) {
 			case 'b':
 				set_border_color(optarg);
@@ -689,6 +765,12 @@ main(int argc, char **argv)
 				break;
 			case 'm':
 				set_mouse(optarg);
+				break;
+			case 'p':
+				dump_screen(DUMP_RAW);
+				break;
+			case 'P':
+				dump_screen(DUMP_TXT);
 				break;
 			case 'r':
 				set_reverse_colors(argc, argv, &optind);
