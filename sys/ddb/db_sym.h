@@ -22,26 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_sym.h,v $
- * Revision 1.1  1992/03/25  21:45:29  pace
- * Initial revision
  *
- * Revision 2.3  91/02/05  17:07:12  mrt
- * 	Changed to new Mach copyright
- * 	[91/01/31  16:19:27  mrt]
- * 
- * Revision 2.2  90/08/27  21:52:39  dbg
- * 	Changed type of db_sym_t to char * - it's a better type for an
- * 	opaque pointer.
- * 	[90/08/22            dbg]
- * 
- * 	Created.
- * 	[90/08/19            af]
- * 
+ *	$Id$
  */
+
 /*
  * 	Author: Alessandro Forin, Carnegie Mellon University
  *	Date:	8/90

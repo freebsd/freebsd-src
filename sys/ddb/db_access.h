@@ -22,22 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_access.h,v $
- * Revision 1.1  1992/03/25  21:44:53  pace
- * Initial revision
  *
- * Revision 2.3  91/02/05  17:05:49  mrt
- * 	Changed to new Mach copyright
- * 	[91/01/31  16:16:37  mrt]
- * 
- * Revision 2.2  90/08/27  21:48:27  dbg
- * 	Created.
- * 	[90/08/07            dbg]
- * 
+ *	$Id$
  */
+
 /*
  *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90

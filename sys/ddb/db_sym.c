@@ -22,52 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_sym.c,v $
- * Revision 1.1  1992/03/25  21:45:27  pace
- * Initial revision
  *
- * Revision 2.5  91/02/05  17:07:07  mrt
- * 	Changed to new Mach copyright
- * 	[91/01/31  16:19:17  mrt]
- * 
- * Revision 2.4  90/10/25  14:44:05  rwd
- * 	Changed db_printsym to print unsigned.
- * 	[90/10/19            rpd]
- * 
- * Revision 2.3  90/09/09  23:19:56  rpd
- * 	Avoid totally incorrect guesses of symbol names for small values.
- * 	[90/08/30  17:39:48  af]
- * 
- * Revision 2.2  90/08/27  21:52:18  dbg
- * 	Removed nlist.h.  Fixed some type declarations.
- * 	Qualifier character is ':'.
- * 	[90/08/20            dbg]
- * 	Modularized symtab info into a new db_symtab_t type.
- * 	Modified db_add_symbol_table  and others accordingly.
- * 	Defined db_sym_t, a new (opaque) type used to represent
- * 	symbols.  This should support all sort of future symtable
- * 	formats. Functions like db_qualify take a db_sym_t now.
- * 	New db_symbol_values() function to explode the content
- * 	of a db_sym_t.
- * 	db_search_symbol() replaces db_find_sym_and_offset(), which is
- * 	now a macro defined in our (new) header file.  This new
- * 	function accepts more restrictive searches, which are
- * 	entirely delegated to the symtab-specific code.
- * 	Accordingly, db_printsym() accepts a strategy parameter.
- * 	New db_line_at_pc() function.
- * 	Renamed misleading db_eqsym into db_eqname.
- * 	[90/08/20  10:47:06  af]
- * 
- * 	Created.
- * 	[90/07/25            dbg]
- * 
- * Revision 2.1  90/07/26  16:43:52  dbg
- * Created.
- * 
+ *	$Id$
  */
+
 /*
  * 	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
