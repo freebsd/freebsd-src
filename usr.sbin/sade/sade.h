@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.12 1995/05/08 06:06:28 jkh Exp $
+ * $Id: sysinstall.h,v 1.13 1995/05/08 10:20:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -153,7 +153,7 @@ typedef struct _variable {
 } Variable;
 
 typedef enum {
-    DEVICE_TYPE_ANY,
+    DEVICE_TYPE_NONE,
     DEVICE_TYPE_DISK,
     DEVICE_TYPE_FLOPPY,
     DEVICE_TYPE_NETWORK,
@@ -161,6 +161,7 @@ typedef enum {
     DEVICE_TYPE_TAPE,
     DEVICE_TYPE_SERIAL,
     DEVICE_TYPE_PARALLEL,
+    DEVICE_TYPE_ANY,
 } DeviceType;
 
 /* A "device" from sysinstall's point of view */
@@ -284,6 +285,7 @@ extern char	*string_prune(char *str);
 extern char	*string_skipwhite(char *str);
 extern void	safe_free(void *ptr);
 extern void	*safe_malloc(size_t size);
+extern void	*safe_realloc(void *orig, size_t size);
 extern char	**item_add(char **list, char *item, int *curr, int *max);
 extern char	**item_add_pair(char **list, char *item1, char *item2,
 				int *curr, int *max);
