@@ -101,6 +101,18 @@ tlb_context_demap(struct pmap *pm)
 	void *cookie;
 	u_long s;
 
+	/*
+	 * It is important that we are not interrupted or preempted while
+	 * doing the IPIs. The interrupted CPU may hold locks, and since
+	 * it will wait for the CPU that sent the IPI, this can lead
+	 * to a deadlock when an interrupt comes in on that CPU and it's
+	 * handler tries to grab one of that locks. This will only happen for
+	 * spin locks, but these IPI types are delivered even if normal
+	 * interrupts are disabled, so the lock critical section will not
+	 * protect the target processor from entering the IPI handler with
+	 * the lock held.
+	 */
+	critical_enter();
 	cookie = ipi_tlb_context_demap(pm);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
 		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
@@ -112,6 +124,7 @@ tlb_context_demap(struct pmap *pm)
 		intr_restore(s);
 	}
 	ipi_wait(cookie);
+	critical_exit();
 }
 
 static __inline void
@@ -121,6 +134,7 @@ tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
 	void *cookie;
 	u_long s;
 
+	critical_enter();
 	cookie = ipi_tlb_page_demap(tlb, pm, va);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
 		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
@@ -142,6 +156,7 @@ tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
 		intr_restore(s);
 	}
 	ipi_wait(cookie);
+	critical_exit();
 }
 
 static __inline void
@@ -152,6 +167,7 @@ tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	u_long flags;
 	u_long s;
 
+	critical_enter();
 	cookie = ipi_tlb_range_demap(pm, start, end);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
 		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
@@ -170,6 +186,7 @@ tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 		intr_restore(s);
 	}
 	ipi_wait(cookie);
+	critical_exit();
 }
 
 #define	tlb_tte_demap(tte, pm) \
