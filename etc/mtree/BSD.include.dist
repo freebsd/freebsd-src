@@ -18,8 +18,8 @@
         ..
         usb
         ..
-	wi
-	..
+        wi
+        ..
     ..
     fs
         smbfs
