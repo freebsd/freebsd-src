@@ -17,7 +17,10 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.16 1995/03/26 19:28:22 rgrimes Exp $
+ *  $Id: ft.c,v 1.17 1995/03/28 07:55:26 bde Exp $
+ *
+ *  01/19/95 ++sg
+ *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
  *
  *  06/07/94 v0.9 ++sg
  *  Tape stuck on segment problem should be gone.  Re-wrote buffering
@@ -433,8 +436,9 @@ ft_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
  *  Probe/attach floppy tapes.
  */
 int
-ftattach(isadev, fdup)
+ftattach(isadev, fdup, unithasfd)
 	struct isa_device *isadev, *fdup;
+	int unithasfd;
 {
   fdcu_t fdcu = isadev->id_unit;		/* fdc active unit */
   fdc_p fdc = fdc_data + fdcu;	/* pointer to controller structure */
@@ -491,7 +495,12 @@ ftattach(isadev, fdup)
 
   /*
    *  FT_INSIGHT - insight style
+   *
+   *  Since insight requires turning the drive motor on, we will not
+   *  perform this probe if a floppy drive was already found with the
+   *  the given unit and controller.
    */
+  if (unithasfd) goto out;
   tape_start(ftu, 1);
   if (tape_status(ftu) >= 0) {
 	ft->type = FT_INSIGHT;
@@ -1470,15 +1479,16 @@ ftintr_wait(ftu_t ftu, int cmd, int ticks)
 	    case FTCMD_RECAL:
 	    case FTCMD_SEEK:
 		for (retries = 0; retries < 10000; retries++) {
+			DELAY(100);
 			out_fdc(fdcu, NE7CMD_SENSEI);
 			st0 = in_fdc(fdcu);
+			if ((st0 & 0xc0) == 0x80) continue;
 			pcn = in_fdc(fdcu);
 			if (st0 & 0x20) {
 				ft->sts_wait = FTSTS_INTERRUPT;
 				ft->pcn = pcn;
 				goto intrdone;
 			}
-			DELAY(100);
 		}
 		break;
 	}
@@ -1665,6 +1675,7 @@ tape_start(ftu_t ftu, int motor)
   ft_p	ft = &ft_data[ftu];
   fdc_p	fdc = ft->fdc;
   int s, mbits;
+  static int mbmotor[] = { FDO_MOEN0, FDO_MOEN1, FDO_MOEN2, FDO_MOEN3 };
 
   s = splbio();
   DPRT(("tape_start start\n"));
@@ -1674,10 +1685,9 @@ tape_start(ftu_t ftu, int motor)
   (void)ftintr_wait(ftu, FTCMD_RESET, hz/10);
 
   /* raise reset, enable DMA, motor on if needed */
-  if (motor)
-	mbits = (!ftu) ? FDO_MOEN0 : FDO_MOEN1;
-  else
-	mbits = 0;
+  mbits = ftu & 3;
+  if (motor && ftu < 4)
+	mbits |= mbmotor[ftu];
 
   outb(fdc->baseport+FDOUT, FDO_FRST | FDO_FDMAEN | mbits);
   (void)ftintr_wait(ftu, FTCMD_RESET, hz/10);
