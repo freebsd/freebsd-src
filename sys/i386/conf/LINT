@@ -75,8 +75,8 @@ options 	BLKDEV_IOSIZE=8192
 #options 	PQ_NOOPT		# No coloring
 options 	PQ_LARGECACHE		# color for 512k/16k cache
 #options 	PQ_HUGECACHE		# color for 1024k/16k cache
-#options	PQ_MEDIUMCACHE		# color for 64k/16k cache
-#options	PQ_NORMALCACHE		# color for 256k/16k cache
+#options 	PQ_MEDIUMCACHE		# color for 64k/16k cache
+#options 	PQ_NORMALCACHE		# color for 256k/16k cache
 
 # This allows you to actually store this configuration file into
 # the kernel binary itself, where it may be later read by saying:
@@ -589,7 +589,7 @@ options 	MFS			#Memory File System
 options 	NFS			#Network File System
 
 # The rest are optional:
-# options	NFS_NOSERVER		#Disable the NFS-server code.
+#options 	NFS_NOSERVER		#Disable the NFS-server code.
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESC			#File descriptor filesystem
 options 	KERNFS			#Kernel filesystem
@@ -625,7 +625,7 @@ options 	MD_ROOT_SIZE=10
 
 # Make the md device a potential root device, either with preloaded
 # images of type mfs_root or md_root.
-options		MD_ROOT
+options 	MD_ROOT
 
 # Allow this many swap-devices.
 options 	NSWAPDEV=20
@@ -1091,9 +1091,9 @@ device		atapist0	# ATAPI tape drives
 # ATA_16BIT_ONLY:	for older HW that doesn't support 32bit transfers on
 #			the ATA channels (mostly old ISA boards).
 
-options		ATA_STATIC_ID
-options		ATA_ENABLE_ATAPI_DMA
-#options	ATA_16BIT_ONLY
+options 	ATA_STATIC_ID
+options 	ATA_ENABLE_ATAPI_DMA
+#options 	ATA_16BIT_ONLY
 
 #
 # For older non-PCI systems, this is the lines to use:
@@ -1827,14 +1827,14 @@ options 	SCSI_ISP_NO_NVRAM_MASK=0x1	# disable NVRAM for isp0
 options 	SCSI_ISP_PREFER_MEM_MAP=0	# prefer I/O mapping
 options 	SCSI_ISP_FCDUPLEX=0x4		# isp2 is a Fibre Channel card
 						# we want in full duplex mode.
-options		SCSI_ISP_WWN="0x5000000099990000"
+options 	SCSI_ISP_WWN="0x5000000099990000"
 #options 	ISP_DISABLE_1020_SUPPORT
 #options 	ISP_DISABLE_1080_SUPPORT
 #options 	ISP_DISABLE_2100_SUPPORT
-#options	ISP_COMPILE_1020_FW=1
-#options	ISP_COMPILE_1080_FW=1
-#options	ISP_COMPILE_2100_FW=1
-#options	ISP_COMPILE_2200_FW=1
+#options 	ISP_COMPILE_1020_FW=1
+#options 	ISP_COMPILE_1080_FW=1
+#options 	ISP_COMPILE_2100_FW=1
+#options 	ISP_COMPILE_2200_FW=1
 
 device		al0
 device		ax0
