@@ -31,22 +31,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- *	$Id: protosw.h,v 1.21 1997/09/14 02:25:40 peter Exp $
+ *	$Id: protosw.h,v 1.22 1997/12/21 16:35:10 bde Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
 #define _SYS_PROTOSW_H_
 
 /* Forward declare these structures referenced from prototypes below. */
-struct ifnet;
 struct mbuf;
 struct proc;
 struct sockaddr;
 struct socket;
-struct sockproto;
-struct stat;
-struct uio;
-struct proc;
 
 /*#ifdef KERNEL*/
 /*
@@ -171,6 +166,11 @@ char *prurequests[] = {
 #endif
 
 #ifdef	KERNEL			/* users shouldn't see this decl */
+
+struct ifnet;
+struct stat;
+struct ucred;
+struct uio;
 
 /*
  * If the ordering here looks odd, that's because it's alphabetical.

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.25 1997/12/14 02:10:30 dyson Exp $
+ * $Id: pmap.h,v 1.26 1998/01/22 17:30:30 dyson Exp $
  */
 
 /*
@@ -87,6 +87,9 @@ typedef struct pmap_statistics *pmap_statistics_t;
 #include <machine/pmap.h>
 
 #ifdef KERNEL
+
+struct proc;
+
 void		 pmap_change_wiring __P((pmap_t, vm_offset_t, boolean_t));
 void		 pmap_clear_modify __P((vm_offset_t pa));
 void		 pmap_clear_reference __P((vm_offset_t pa));
