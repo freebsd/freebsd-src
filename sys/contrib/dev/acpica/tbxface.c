@@ -2,7 +2,7 @@
  *
  * Module Name: tbxface - Public interfaces to the ACPI subsystem
  *                         ACPI table oriented interfaces
- *              $Revision: 38 $
+ *              $Revision: 39 $
  *
  *****************************************************************************/
 
@@ -227,8 +227,6 @@ ErrorExit:
  *              a valid header.  The header fields will be verified, and if it
  *              is determined that the table is invalid, the call will fail.
  *
- *              If the call fails an appropriate status will be returned.
- *
  ******************************************************************************/
 
 ACPI_STATUS
@@ -339,7 +337,6 @@ AcpiUnloadTable (
          * "Scope" operator.  Thus, we need to track ownership by an ID, not
          * simply a position within the hierarchy
          */
-
         AcpiNsDeleteNamespaceByOwner (ListHead->TableId);
 
         /* Delete (or unmap) the actual table */
@@ -370,9 +367,6 @@ AcpiUnloadTable (
  *              the size of the buffer needed to contain the entire table.  This
  *              function is not valid for the RSD PTR table since it does not
  *              have a standard header and is fixed length.
- *
- *              If the operation fails for any reason an appropriate status will
- *              be returned and the contents of OutTableHeader are undefined.
  *
  ******************************************************************************/
 
@@ -461,9 +455,6 @@ AcpiGetTableHeader (
  *              copied into the OutBuffer->BufPtr buffer.  This table will be
  *              a complete table including the header.
  *
- *              If the operation fails an appropriate status will be returned
- *              and the contents of OutBuffer are undefined.
- *
  ******************************************************************************/
 
 ACPI_STATUS
@@ -518,7 +509,7 @@ AcpiGetTable (
 
     /*
      * AcpiTbGetTablePtr will return a NULL pointer if the
-     *  table is not loaded.
+     * table is not loaded.
      */
     if (TblPtr == NULL)
     {
@@ -555,4 +546,5 @@ AcpiGetTable (
 
     return_ACPI_STATUS (AE_OK);
 }
+
 
