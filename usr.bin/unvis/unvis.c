@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: unvis.c,v 1.3 1997/08/21 06:52:43 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -53,7 +53,7 @@ static const char rcsid[] =
 void process __P((FILE *, char *));
 static void usage __P((void));
 
-void
+int
 main(argc, argv)
 	char *argv[];
 {
