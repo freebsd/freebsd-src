@@ -408,14 +408,8 @@ doit(fromp)
 		if (errorstr ||
 		    (pwd->pw_expire && time(NULL) >= pwd->pw_expire) ||
 		    (pwd->pw_passwd != 0 && *pwd->pw_passwd != '\0' &&
-		    iruserok_af(
-#ifdef INET6
-				(af == AF_INET6)
-				? (void *)&fromp->su_sin6.sin6_addr :
-#endif
-				(void *)&fromp->su_sin.sin_addr,
-				pwd->pw_uid == 0,
-		    remuser, locuser, af) < 0)) {
+		     iruserok_sa(fromp, fromp->su_len, pwd->pw_uid == 0,
+				 remuser, locuser) < 0)) {
 			if (__rcmd_errstr)
 				syslog(LOG_INFO|LOG_AUTH,
 			    "%s@%s as %s: permission denied (%s). cmd='%.80s'",
