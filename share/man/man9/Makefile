@@ -322,5 +322,6 @@ MLINKS+=zone.9 zfree.9
 MLINKS+=zone.9 zinit.9
 MLINKS+=zone.9 zinitna.9
 MLINKS+=zone.9 zbootinit.9
+MLINKS+=zone.9 zdestroy.9
 
 .include <bsd.prog.mk>
