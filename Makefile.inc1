@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.62 1999/01/27 15:08:05 jkh Exp $
+#	$Id: Makefile.inc1,v 1.63 1999/02/14 13:56:14 des Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -129,9 +129,9 @@ SUPFLAGS?=	-g -L 2 -P -
 # XXX actually, we do need to waste time building shared libraries.
 #
 .if defined(NOCLEAN)
-MK_FLAGS=	-DNOINFO -DNOMAN         -DNOPROFILE
+MK_FLAGS=	-DWORLD -DNOINFO -DNOMAN         -DNOPROFILE
 .else
-MK_FLAGS=	-DNOINFO -DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
+MK_FLAGS=	-DWORLD -DNOINFO -DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
 .endif
 
 #
