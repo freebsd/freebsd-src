@@ -769,6 +769,7 @@ sched_fork(struct proc *p, struct proc *p1)
 void
 sched_fork_kse(struct kse *ke, struct kse *child)
 {
+
 	child->ke_slice = ke->ke_slice;
 	child->ke_cpu = ke->ke_cpu; /* sched_pickcpu(); */
 	child->ke_runq = NULL;
@@ -785,6 +786,8 @@ sched_fork_kse(struct kse *ke, struct kse *child)
 void
 sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 {
+
+	PROC_LOCK_ASSERT(child->kg_proc, MA_OWNED);
 	/* XXX Need something better here */
 	if (kg->kg_slptime > kg->kg_runtime) {
 		child->kg_slptime = SCHED_DYN_RANGE;
@@ -809,6 +812,7 @@ sched_class(struct ksegrp *kg, int class)
 	struct kseq *kseq;
 	struct kse *ke;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	if (kg->kg_pri_class == class)
 		return;
 
