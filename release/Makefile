@@ -174,6 +174,14 @@ BIGBOOTLABEL=		minimum2
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
+# Things that need to be compiled without crypto support in releases
+.if !defined(FIXCRYPTO)
+FIXCRYPTO=	bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump 
+.if !defined(NO_SENDMAIL)
+FIXCRYPTO+=	usr.sbin/sendmail
+.endif
+.endif
+
 
 # Things which may get you into trouble if you change them
 MTREEFILES=		${.CURDIR}/../etc/mtree
@@ -466,7 +474,7 @@ release.4:
 #
 release.5:
 	# Handle some grief caused by the munition braindeadness.
-	for i in bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/sendmail usr.sbin/tcpdump/tcpdump ; do \
+	for i in ${FIXCRYPTO}; do \
 		( cd ${.CURDIR}/../$$i; \
 		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
 	done
