@@ -186,8 +186,6 @@ MODULE_DEPEND(rl, miibus, 1, 1, 1);
 
 #include <pci/if_rlreg.h>
 
-__FBSDID("$FreeBSD$");
-
 #define RL_CSUM_FEATURES    (CSUM_IP | CSUM_TCP | CSUM_UDP)
 
 /*
