@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.34 1998/06/12 20:03:26 julian Exp $
+ * $Id: if_loop.c,v 1.35 1998/06/14 20:58:15 julian Exp $
  */
 
 /*
@@ -151,6 +151,7 @@ looutput(ifp, m, dst, rt)
 	case AF_NS:
 	case AF_ISO:
 	case AF_APPLETALK:
+		break;
 	default:
 		printf("looutput: af=%d unexpected", dst->sa_family);
 		m_freem(m);
