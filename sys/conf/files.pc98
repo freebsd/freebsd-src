@@ -338,6 +338,7 @@ kern/subr_diskmbr.c		count		compat_atdisk
 libkern/divdi3.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
+libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 pc98/i386/machdep.c		standard
