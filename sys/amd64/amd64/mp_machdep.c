@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.4 1997/06/25 20:44:00 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.22 1997/06/25 21:01:52 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -381,10 +381,32 @@ configure_local_apic(void)
 		byte |= 0x01;	/* mask external INTR */
 		outb(0x23, byte);	/* disconnect 8259s/NMI */
 	}
-	/* mask the LVT1 */
+
+	/* mask lint0 (the 8259 'virtual wire' connection) */
 	temp = lapic.lvt_lint0;
 	temp |= APIC_LVT_M;
 	lapic.lvt_lint0 = temp;
+
+        /* setup lint1 to handle NMI */
+#if 1
+        /** XXX FIXME:
+         *	should we arrange for ALL CPUs to catch NMI???
+         *	it would probably crash, so for now only the BSP
+         *	will catch it
+         */
+        if (cpuid != 0)
+        	return;
+#endif /* 0/1 */
+
+        temp = lapic.lvt_lint1;
+
+        /* clear fields of interest, preserve undefined fields */
+        temp &= ~(0x1f000 | APIC_LVT_DM | APIC_LVT_VECTOR);
+
+        /* setup for NMI, edge trigger, active hi */
+        temp |= (APIC_LVT_DM_NMI | APIC_LVT_IIPP_INTAHI);
+
+        lapic.lvt_lint1 = temp;
 }
 #endif	/* APIC_IO */
 
