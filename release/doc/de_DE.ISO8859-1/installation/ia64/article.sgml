@@ -1,8 +1,9 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/ia64/article.sgml,v 1.5 2002/11/09 18:08:33 ue Exp $
-  basiert auf: 1.2
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/ia64/article.sgml,v 1.1 2002/11/09 20:07:25 ue Exp $
+  basiert auf: 1.1
 -->
+
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
 <!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
@@ -13,7 +14,7 @@
 %mlists;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
+<!ENTITY % sections SYSTEM "../common/install.ent"> %sections;
 
 <!-- Architecture-specific customization -->
 
@@ -23,16 +24,10 @@
 ]>
 
 <article lang="de">
-  &artheader;
-
-  <abstract>
-    <para>Dieses Dokument befindet sich noch in einem sehr fr&uuml;hen
-      Stadium.  Die Angaben sind unvollst&auml;ndig und entsprechen
-      mit gr&ouml;&szlig;ter Wahrscheinlichkeit in einigen Punkten
-      nicht ganz der Realit&auml;t.</para>
-  </abstract>
-
-  &sect.intro;
-  &sect.proc.ia64;
-  &sect.dev;
+&artheader;
+&abstract;
+&sect.install;
+&sect.layout;
+&sect.upgrade;
+&sect.trouble;
 </article>
