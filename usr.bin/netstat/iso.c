@@ -115,7 +115,9 @@ extern void inetprint __P((struct in_addr *, int, char *));
  *	Dump esis stats
  */
 void
-esis_stats(u_long off, char *name, int af __unused)
+esis_stats(off, name)
+	u_long	off;
+	char	*name;
 {
 	struct esis_stat esis_stat;
 
@@ -142,7 +144,9 @@ esis_stats(u_long off, char *name, int af __unused)
  * Dump clnp statistics structure.
  */
 void
-clnp_stats(u_long off, char *name, int af __unused)
+clnp_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct clnp_stat clnp_stat;
 
@@ -175,7 +179,9 @@ clnp_stats(u_long off, char *name, int af __unused)
  * Dump CLTP statistics structure.
  */
 void
-cltp_stats(u_long off, char *name, int af __unused)
+cltp_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct cltpstat cltpstat;
 
@@ -209,7 +215,9 @@ static	int first = 1;
  * -a (all) flag is specified.
  */
 void
-iso_protopr(u_long off, char *name, int af __unused)
+iso_protopr(off, name)
+	u_long off;
+	char *name;
 {
 	struct isopcb cb;
 	register struct isopcb *prev, *next;
@@ -244,7 +252,9 @@ iso_protopr(u_long off, char *name, int af __unused)
 }
 
 void
-iso_protopr1(u_long kern_addr, int istp)
+iso_protopr1(kern_addr, istp)
+	u_long kern_addr;
+	int istp;
 {
 	if (first) {
 		printf("Active ISO net connections");
@@ -293,7 +303,9 @@ iso_protopr1(u_long kern_addr, int istp)
 }
 
 void
-tp_protopr(u_long off, char *name, int af __unused)
+tp_protopr(off, name)
+	u_long off;
+	char *name;
 {
 	extern char *tp_sstring[];
 	struct tp_ref *tpr, *tpr_base;
@@ -337,7 +349,8 @@ tp_protopr(u_long off, char *name, int af __unused)
 }
 
 void
-tp_inproto(u_long pcb)
+tp_inproto(pcb)
+	u_long pcb;
 {
 	struct inpcb inpcb;
 	kget(tpcb.tp_npcb, inpcb);
@@ -359,7 +372,8 @@ tp_inproto(u_long pcb)
 
 #ifdef notdef
 char *
-isonetname(struct iso_addr *iso)
+isonetname(iso)
+	register struct iso_addr *iso;
 {
 	struct sockaddr_iso sa;
 	struct iso_hostent *ihe = 0;
@@ -390,7 +404,11 @@ isonetname(struct iso_addr *iso)
 }
 
 static void
-isonetprint(struct iso_addr *iso, char *sufx, u_short sufxlen, int islocal)
+isonetprint(iso, sufx, sufxlen, islocal)
+	register struct iso_addr *iso;
+	char *sufx;
+	u_short	sufxlen;
+	int islocal;
 {
 	struct iso_hostent *iso_getserventrybytsel(), *ihe;
 	struct iso_hostent Ihe;
@@ -444,7 +462,9 @@ isonetprint(struct iso_addr *iso, char *sufx, u_short sufxlen, int islocal)
 
 #ifdef notdef
 static void
-x25_protopr(u_long off, char *name, int af __unused)
+x25_protopr(off, name)
+	u_long off;
+	char *name;
 {
 	static char *xpcb_states[] = {
 		"CLOSED",
@@ -513,7 +533,8 @@ x25_protopr(u_long off, char *name, int af __unused)
 struct	tp_stat tp_stat;
 
 void
-tp_stats(caddr_t off, caddr_t name)
+tp_stats(off, name)
+	caddr_t off, name;
 {
 	if (off == 0) {
 		printf("TP not configured\n\n");
@@ -527,7 +548,9 @@ tp_stats(caddr_t off, caddr_t name)
 #define OUT stdout
 
 static void
-tprintstat(struct tp_stat *s, int indent)
+tprintstat(s, indent)
+	register struct tp_stat *s;
+	int indent;
 {
 	fprintf(OUT,
 		"%*sReceiving:\n",indent," ");
@@ -777,7 +800,9 @@ tprintstat(struct tp_stat *s, int indent)
 #endif
 
 static void
-isonetprint(struct sockaddr_iso *siso, int islocal)
+isonetprint(siso, islocal)
+	register struct sockaddr_iso *siso;
+	int islocal;
 {
 	hexprint(siso->siso_nlen, siso->siso_addr.isoa_genaddr, "{}");
 	if (siso->siso_tlen || siso->siso_slen || siso->siso_plen)
@@ -792,7 +817,9 @@ isonetprint(struct sockaddr_iso *siso, int islocal)
 static char hexlist[] = "0123456789abcdef", obuf[128];
 
 static void
-hexprint(int n, char *buf, char *delim)
+hexprint(n, buf, delim)
+	int n;
+	char *buf, *delim;
 {
 	register u_char *in = (u_char *)buf, *top = in + n;
 	register char *out = obuf;
