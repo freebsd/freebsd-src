@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.22 1996/01/04 05:25:42 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.23 1996/01/08 11:53:46 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -353,22 +353,14 @@ for this domain.
 <itemize>
 
 <item>
-<htmlurl url="ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD"
-	name="ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:wizards@doc.ic.ac.uk"
-	name="wizards@doc.ic.ac.uk">.
-
+<htmlurl url="ftp://ftp.uk.freebsd.org/packages/unix/FreeBSD"
+	name="ftp://ftp.uk.freebsd.org/packages/unix/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD"
-	name="ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:archive-admin@unix.hensa.ac.uk"
-	name="archive-admin@unix.hensa.ac.uk">.
-
+<htmlurl url="ftp://ftp2.uk.freebsd.org/pub/walnut.creek/FreeBSD"
+	name="ftp://ftp2.uk.freebsd.org/pub/walnut.creek/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp.demon.co.uk/pub/BSD/FreeBSD"
-	name="ftp://ftp.demon.co.uk/pub/BSD/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:uploads@demon.net"
-	name="uploads@demon.net">.
+<htmlurl url="ftp://ftp3.uk.freebsd.org/pub/BSD/FreeBSD"
+	name="ftp://ftp3.uk.freebsd.org/pub/BSD/FreeBSD"><newline>
 
 </itemize>
 </descrip>
