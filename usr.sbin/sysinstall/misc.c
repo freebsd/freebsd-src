@@ -189,7 +189,7 @@ safe_malloc(size_t size)
     void *ptr;
 
     if (size <= 0)
-	msgFatal("Invalid malloc size of %d!", size);
+	msgFatal("Invalid malloc size of %ld!", (long)size);
     ptr = malloc(size);
     if (!ptr)
 	msgFatal("Out of memory!");
@@ -204,7 +204,7 @@ safe_realloc(void *orig, size_t size)
     void *ptr;
 
     if (size <= 0)
-	msgFatal("Invalid realloc size of %d!", size);
+	msgFatal("Invalid realloc size of %ld!", (long)size);
     ptr = realloc(orig, size);
     if (!ptr)
 	msgFatal("Out of memory!");
@@ -236,7 +236,7 @@ item_add(dialogMenuItem *list, char *prompt, char *title,
 	 int (*checked)(dialogMenuItem *self),
 	 int (*fire)(dialogMenuItem *self),
 	 void (*selected)(dialogMenuItem *self, int is_selected),
-	 void *data, int aux, int *curr, int *max)
+	 void *data, int *aux, int *curr, int *max)
 {
     dialogMenuItem *d;
 
@@ -252,7 +252,7 @@ item_add(dialogMenuItem *list, char *prompt, char *title,
     d->fire = fire;
     d->selected = selected;
     d->data = data;
-    d->aux = aux;
+    d->aux = (long)aux;
     return list;
 }
 

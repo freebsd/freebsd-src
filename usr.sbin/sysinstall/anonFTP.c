@@ -118,7 +118,7 @@ static Layout layout[] = {
     { NULL },
 };
 
-int
+static int
 createFtpUser(void)
 {
     struct passwd *tpw;
@@ -235,7 +235,7 @@ anonftpOpenDialog(void)
 }
 
 int
-configAnonFTP(dialogMenuItem *self)
+configAnonFTP(dialogMenuItem *self __unused)
 {
     int i;
 
