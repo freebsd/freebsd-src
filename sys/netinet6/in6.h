@@ -409,6 +409,7 @@ struct route_in6 {
 #define IPV6_FW_FLUSH		32 /* flush firewall rule chain */
 #define IPV6_FW_ZERO		33 /* clear single/all firewall counter(s) */
 #define IPV6_FW_GET		34 /* get entire firewall rule chain */
+/* to define items, should talk with KAME guys first, for *BSD compatibility */
 
 #define IPV6_RTHDR_LOOSE     0 /* this hop need not be a neighbor. XXX old spec */
 #define IPV6_RTHDR_STRICT    1 /* this hop must be a neighbor. XXX old spec */
@@ -535,6 +536,7 @@ struct in6_pktinfo {
 #define IPV6CTL_RTMINEXPIRE	26	/* min value for expiration time */
 #define IPV6CTL_RTMAXCACHE	27	/* trigger level for dynamic expire */
 /* New entries should be added here from current IPV6CTL_MAXID value. */
+/* to define items, should talk with KAME guys first, for *BSD compatibility */
 #define IPV6CTL_MAXID		28
 #endif /* !_XOPEN_SOURCE */
 
