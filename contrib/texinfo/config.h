@@ -281,6 +281,9 @@
 /* Define to 1 if you have the `__argz_stringify' function. */
 /* #undef HAVE___ARGZ_STRINGIFY */
 
+/* Define to 1 if you have the `__fsetlocking' function. */
+/* #undef HAVE___FSETLOCKING */
+
 /* Define to 1 if you have the `__secure_getenv' function. */
 /* #undef HAVE___SECURE_GETENV */
 
@@ -300,13 +303,13 @@
 #define PACKAGE_NAME "GNU Texinfo"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "GNU Texinfo 4.5"
+#define PACKAGE_STRING "GNU Texinfo 4.6"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "texinfo"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.5"
+#define PACKAGE_VERSION "4.6"
 
 /* Define if <inttypes.h> exists and defines unusable PRI* macros. */
 /* #undef PRI_MACROS_BROKEN */
@@ -332,7 +335,7 @@
 /* #undef TM_IN_SYS_TIME */
 
 /* Version number of package */
-#define VERSION "4.5"
+#define VERSION "4.6"
 
 /* Define to 1 if on MINIX. */
 /* #undef _MINIX */
