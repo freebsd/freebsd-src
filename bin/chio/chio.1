@@ -1,4 +1,4 @@
-.\"	$NetBSD: $
+.\"	$NetBSD: chio.1,v 1.4 1997/10/02 00:41:25 hubertf Exp $
 .\"
 .\" Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
 .\" All rights reserved.
@@ -30,18 +30,19 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: chio.1,v 1.5 1998/05/06 06:49:52 charnier Exp $
+.\"	$Id: chio.1,v 1.6 1998/06/04 21:05:19 steve Exp $
 .\"
-.Dd April 2, 1996
+.Dd May 14, 1998
 .Dt CHIO 1
 .Os
 .Sh NAME
 .Nm chio
 .Nd medium changer control utility
 .Sh SYNOPSIS
-.Nm chio
+.Nm
 .Op Fl f Ar changer
 .Ar command
+.Op Fl <flags>
 .Ar arg1
 .Ar arg2
 .Oo
@@ -49,7 +50,7 @@
 .Oc
 .Oc
 .Sh DESCRIPTION
-.Nm Chio
+.Nm
 is used to control the operation of medium changers, such as those found
 in tape and optical disk jukeboxes.
 .Pp
@@ -92,7 +93,7 @@ would be
 .Pp
 .Sh SUPPORTED COMMANDS
 .Bl -tag -width indent
-.It Xo Nm chio move
+.It Xo Nm move
 .Ar <from ET> <from EU> <to ET> <to EU>
 .Op Ar inv
 .Xc
@@ -103,7 +104,7 @@ to
 If the optional modifier
 .Pa inv
 is specified, the media unit will be inverted before insertion.
-.It Xo Nm chio exchange
+.It Xo Nm exchange
 .Ar <src ET> <src EU> <dst1 ET> <dst1 EU>
 .Op Ar <dst2 ET> <dst2 ET>
 .Op Ar inv1
@@ -133,10 +134,10 @@ and
 respectively.
 .Pp
 Note that not all medium changers support the
-.Nm exchange
+.Ic exchange
 operation; The changer must have multiple free pickers or emulate
 multiple free pickers with transient storage.
-.It Xo Nm chio position
+.It Xo Nm position
 .Ar <to ET> <to EU>
 .Op Ar inv
 .Xc
@@ -147,23 +148,82 @@ If the optional modifier
 is specified, the media unit will be inverted before insertion.
 .Pp
 Note that not all changers behave as expected when issued this command.
-.It Nm chio params
+.It Nm params
 Report the number of slots, drives, pickers, and portals in the changer,
 and which picker unit the changer is currently configured to use.
-.It Nm chio getpicker
+.It Nm getpicker
 Report which picker unit the changer is currently configured to use.
-.It Xo Nm chio setpicker
+.It Xo Nm setpicker
 .Ar <unit>
 .Xc
 Configure the changer to use picker
 .Pa <unit> .
-.It Xo Nm chio status
+.Pp
+.It Xo Nm ielem
+.Op Pa <timeout>
+.Xc
+Perform an \fBINITIALIZE ELEMENT STATUS\fR
+operation on the changer.  The optional
+.Pa <timeout>
+parameter may be given to specify a timeout in seconds for the
+operations.  This may be used if the operation takes unusually long
+because of buggy firmware or the like.
+.It Xo Nm voltag
+.Op Fl fca
+.Ar <ET>
+.Ar <EU>
+.Op Ar <label>
+.Op Ar <serial>
+.Xc
+Change volume tag for an element in the media changer.  This command
+is only supported by few media changers.  If it is not supported by a
+device, using this command will usually result in a "Invalid Field in
+CDB" error message on the console.
+.Pp
+If the 
+.Fl c
+flag is specified, the volume tag of the specified element is
+cleared.  If the
+.Fl f
+flag is specified, the volume tag is superceded with the specified
+volume tag even if a volume tag is already defined for the element.
+It is an error to not specify the
+.Fl f
+flag when trying to set a label for an element which already has
+volume tag information defined.
+.Pp
+The command works with the primary volume tag or, if the
+.Fl a
+flag is given, with the alternate volume tag.
+.It Xo Nm status
+.Op Fl vVsSbIa
 .Op Ar <type>
 .Xc
 Report the status of all elements in the changer.  If
 .Pa <type>
 is specified, report the status of all elements of type
 .Pa <type> .
+.It Fl v
+Print the primary volume tag for each loaded medium, if any.  The volume
+tag is printed as \fB<LABEL:SERIAL>\fR.
+.It Fl V
+Print the alternate volume tag for each loaded medium, if any.
+.It Fl s
+Print the additional sense code and additional sense code qualifier for
+each element.
+.It Fl S
+Print the element source address for each element.
+.It Fl b
+Print SCSI bus information for each element.  Note that this information
+is valid only for drives.
+.It Fl I
+Print the internal element addresses for each element.  The internal
+element address is not normally used with this driver.  It is reported
+for diagnostic purposes only.
+.It Fl a
+Print all additional information (as in
+.Fl vVsSba
+).
 .El
 .Pp
 The status bits are defined as follows:
@@ -181,6 +241,7 @@ Element supports passing media (exporting) to an outside human operator.
 .It INENAB
 Element supports receiving media (importing) from an outside human operator.
 .El
+.Pp
 .Sh EXAMPLES
 .Bl -tag -width indent
 .It Nm chio move slot 3 drive 0
@@ -195,11 +256,13 @@ default changer device
 .El
 .Sh SEE ALSO
 .Xr mt 1 ,
-.Xr ch 4 ,
-.Xr mount 8
+.Xr mount 8 .
 .Sh AUTHORS
 The
 .Nm
 program and SCSI changer driver were written by
 .An Jason R. Thorpe Aq thorpej@and.com
-for And Communications, http://www.and.com/
+for And Communications, http://www.and.com/.
+.br
+Additional work by
+.An Hans Huebner Aq hans@artcom.de
