@@ -657,20 +657,24 @@ sigquit(signo)
 static void
 inithosts()
 {
+	size_t len;
 	FILE *fp;
-	char *cp;
+	char *cp, *mp, *line;
+	char *hostname;
 	struct ftphost *hrp, *lhrp;
-	char line[1024];
 	struct addrinfo hints, *res, *ai;
 
 	/*
 	 * Fill in the default host information
 	 */
-	if (gethostname(line, sizeof(line)) < 0)
-		line[0] = '\0';
-	if ((hrp = malloc(sizeof(struct ftphost))) == NULL ||
-	    (hrp->hostname = strdup(line)) == NULL)
+	if ((hostname = malloc(MAXHOSTNAMELEN)) == NULL)
 		fatalerror("Ran out of memory.");
+	if (gethostname(hostname, MAXHOSTNAMELEN) < 0)
+		hostname[0] = '\0';
+	hostname[MAXHOSTNAMELEN - 1] = '\0';
+	if ((hrp = malloc(sizeof(struct ftphost))) == NULL)
+		fatalerror("Ran out of memory.");
+	hrp->hostname = hostname;
 	hrp->hostinfo = NULL;
 
 	memset(&hints, 0, sizeof(hints));
@@ -690,28 +694,33 @@ inithosts()
 		void *addr;
 		struct hostent *hp;
 
-		while (fgets(line, sizeof(line), fp) != NULL) {
+		while ((line = fgetln(fp, &len)) != NULL) {
 			int	i, hp_error;
 
-			if ((cp = strchr(line, '\n')) == NULL) {
-				/* ignore long lines */
-				while (fgets(line, sizeof(line), fp) != NULL &&
-					strchr(line, '\n') == NULL)
-					;
+			/* skip comments */
+			if (line[0] == '#')
 				continue;
+			if (line[len - 1] == '\n') {
+				line[len - 1] = '\0';
+				mp = NULL;
+			} else {
+				if ((mp = malloc(len + 1)) == NULL)
+					fatalerror("Ran out of memory.");
+				memcpy(mp, line, len);
+				mp[len] = '\0';
+				line = mp;
 			}
-			*cp = '\0';
 			cp = strtok(line, " \t");
-			/* skip comments and empty lines */
-			if (cp == NULL || line[0] == '#')
-				continue;
+			/* skip empty lines */
+			if (cp == NULL)
+				goto nextline;
 
 			hints.ai_flags = 0;
 			hints.ai_family = AF_UNSPEC;
 			hints.ai_flags = AI_PASSIVE;
 			error = getaddrinfo(cp, NULL, &hints, &res);
 			if (error != NULL)
-				continue;
+				goto nextline;
 			for (ai = res; ai != NULL && ai->ai_addr != NULL;
 			     ai = ai->ai_next) {
 
@@ -733,7 +742,7 @@ inithosts()
 			}
 			if (hrp == NULL) {
 				if ((hrp = malloc(sizeof(struct ftphost))) == NULL)
-					continue;
+					goto nextline;
 				/* defaults */
 				hrp->statfile = _PATH_FTPDSTATFILE;
 				hrp->welcome  = _PATH_FTPWELCOME;
@@ -765,7 +774,7 @@ inithosts()
 				if (hrp->hostinfo != NULL)
 					freeaddrinfo(hrp->hostinfo);
 				free(hrp);
-				continue;
+				goto nextline;
 				/* NOTREACHED */
 			}
 			if ((hp = getipnodebyaddr(addr, addrsize,
@@ -810,6 +819,9 @@ inithosts()
 			/* XXX: re-initialization for getaddrinfo() loop */
 			cp = strtok(line, " \t");
 		      }
+nextline:
+			if (mp)
+				free(mp);
 		}
 		(void) fclose(fp);
 	}
@@ -1017,42 +1029,60 @@ checkuser(fname, name, pwset)
 {
 	FILE *fd;
 	int found = 0;
-	char *p, line[BUFSIZ];
+	size_t len;
+	char *line, *mp, *p;
 
 	if ((fd = fopen(fname, "r")) != NULL) {
-		while (!found && fgets(line, sizeof(line), fd) != NULL)
-			if ((p = strchr(line, '\n')) != NULL) {
-				*p = '\0';
-				if (line[0] == '#')
-					continue;
-				/*
-				 * if first chr is '@', check group membership
-				 */
-				if (line[0] == '@') {
-					int i = 0;
-					struct group *grp;
-
-					if ((grp = getgrnam(line+1)) == NULL)
-						continue;
-					/*
-					 * Check user's default group
-					 */
-					if (pwset && grp->gr_gid == pw->pw_gid)
-						found = 1;
-					/*
-					 * Check supplementary groups
-					 */
-					while (!found && grp->gr_mem[i])
-						found = strcmp(name,
-							grp->gr_mem[i++])
-							== 0;
-				}
-				/*
-				 * Otherwise, just check for username match
-				 */
-				else
-					found = strcmp(line, name) == 0;
+		while (!found && (line = fgetln(fd, &len)) != NULL) {
+			/* skip comments */
+			if (line[0] == '#')
+				continue;
+			if (line[len - 1] == '\n') {
+				line[len - 1] = '\0';
+				mp = NULL;
+			} else {
+				if ((mp = malloc(len + 1)) == NULL)
+					fatalerror("Ran out of memory.");
+				memcpy(mp, line, len);
+				mp[len] = '\0';
+				line = mp;
 			}
+			/* avoid possible leading and trailing whitespace */
+			p = strtok(line, " \t");
+			/* skip empty lines */
+			if (p == NULL)
+				goto nextline;
+			/*
+			 * if first chr is '@', check group membership
+			 */
+			if (p[0] == '@') {
+				int i = 0;
+				struct group *grp;
+
+				if ((grp = getgrnam(p+1)) == NULL)
+					goto nextline;
+				/*
+				 * Check user's default group
+				 */
+				if (pwset && grp->gr_gid == pw->pw_gid)
+					found = 1;
+				/*
+				 * Check supplementary groups
+				 */
+				while (!found && grp->gr_mem[i])
+					found = strcmp(name,
+						grp->gr_mem[i++])
+						== 0;
+			}
+			/*
+			 * Otherwise, just check for username match
+			 */
+			else
+				found = strcmp(p, name) == 0;
+nextline:
+			if (mp)
+				free(mp);
+		}
 		(void) fclose(fd);
 	}
 	return (found);
