@@ -1,7 +1,7 @@
 /*
  * procfs ioctl definitions.
  *
- * $Id: pioctl.h,v 1.4 1997/12/13 03:13:36 sef Exp $
+ * $Id: pioctl.h,v 1.5 1997/12/15 00:29:41 sef Exp $
  */
 
 #ifndef _SYS_PIOCTL_H
@@ -41,5 +41,5 @@ struct procfs_status {
  */
 
 # define PF_LINGER	0x01	/* Keep stops around after last close */
-
+# define PF_ISUGID	0x02	/* Ignore UID/GID changes */
 #endif 
