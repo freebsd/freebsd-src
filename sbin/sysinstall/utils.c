@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.15 1994/11/01 10:10:43 phk Exp $
+ * $Id: utils.c,v 1.16 1994/11/02 06:19:53 jkh Exp $
  *
  */
 
@@ -29,6 +29,42 @@
 #include <sys/disklabel.h>
 
 #include "sysinstall.h"
+
+void
+strip_trailing_newlines(char *p)
+{
+	int len = strlen(p);
+	while (len > 0 && p[len-1] == '\n')
+		p[--len] = '\0';
+}
+
+int strwidth(char *p)
+{
+	int i = 0, len;
+	char *start, *s;
+
+	for (start = s = p; (s = strchr(s, '\n')) != NULL; start = ++s) {
+		*s = '\0';
+		len = strlen(start);
+		*s = '\n';
+		if (len > i)
+			i = len;
+	}
+	len = strlen(start);
+	if (len > i)
+		i = len;
+	return i;
+}
+
+int strheight(char *p)
+{
+	int i = 1;
+	char *s;
+
+	for (s = p; (s = strchr(s, '\n')) != NULL; s++)
+		i++;
+	return i;
+}
 
 void
 Debug(char *fmt, ...)
@@ -54,10 +90,11 @@ TellEm(char *fmt, ...)
 	va_start(ap,fmt);
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
+	strip_trailing_newlines(p);
 	write(debug_fd,"Progress <",10);
 	write(debug_fd,p,strlen(p));
 	write(debug_fd,">\n\r",3);
-	dialog_msgbox("Progress", p, 3, 75, 0);
+	dialog_msgbox("Progress", p, strheight(p)+2, strwidth(p)+4, 0);
 	free(p);
 }
 
@@ -70,10 +107,11 @@ Fatal(char *fmt, ...)
 	va_start(ap,fmt);
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
+	strip_trailing_newlines(p);
 	if (dialog_active)
-		dialog_msgbox("Fatal", p, 12, 75, 1);
+		dialog_msgbox("Fatal", p, strheight(p)+4, strwidth(p)+4, 1);
 	else
-		fprintf(stderr, "Fatal -- %s", p);
+		fprintf(stderr, "Fatal -- %s\n", p);
 	free(p);
 	ExitSysinstall();
 }
