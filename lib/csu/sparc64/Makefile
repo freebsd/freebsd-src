@@ -3,9 +3,10 @@
 .PATH: ${.CURDIR}/../common
 
 SRCS=		crt1.c crtbegin.c crtend.c
-OBJS=		crt1.o crtbegin.o crtend.o
+OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
 SOBJS=		crtbegin.So crtend.So
+CFLAGS+=	-I${.CURDIR}/../common
 NOMAN=		true
 NOPIC=		true
 NOPROFILE=	true
