@@ -30,6 +30,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
 
@@ -93,6 +95,7 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 	l_gid16_t linux_gidset[NGROUPS];
 	gid_t *bsd_gidset;
 	int ngrp, error;
+	struct proc *p;
 
 #ifdef DEBUG
 	if (ldebug(setgroups16))
@@ -100,7 +103,16 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 #endif
 
 	ngrp = args->gidsetsize;
-	oldcred = td->td_proc->p_ucred;
+	if (ngrp >= NGROUPS)
+		return (EINVAL);
+	error = copyin((caddr_t)args->gidset, linux_gidset,
+	    ngrp * sizeof(l_gid16_t));
+	if (error)
+		return (error);
+	newcred = crget();
+	p = td->td_proc;
+	PROC_LOCK(p);
+	oldcred = p->p_ucred;
 
 	/*
 	 * cr_groups[0] holds egid. Setting the whole set from
@@ -108,19 +120,14 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 	 * Keep cr_groups[0] unchanged to prevent that.
 	 */
 
-	if ((error = suser_cred(oldcred, PRISON_ROOT)) != 0)
+	if ((error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
 		return (error);
+	}
 
-	if (ngrp >= NGROUPS)
-		return (EINVAL);
-
-	newcred = crdup(oldcred);
+	crcopy(newcred, oldcred);
 	if (ngrp > 0) {
-		error = copyin((caddr_t)args->gidset, linux_gidset,
-		    ngrp * sizeof(l_gid16_t));
-		if (error)
-			return (error);
-
 		newcred->cr_ngroups = ngrp + 1;
 
 		bsd_gidset = newcred->cr_groups;
@@ -134,7 +141,8 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 		newcred->cr_ngroups = 1;
 
 	setsugid(td->td_proc);
-	td->td_proc->p_ucred = newcred;
+	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
 }

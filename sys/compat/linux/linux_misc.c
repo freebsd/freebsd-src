@@ -970,9 +970,19 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	l_gid_t linux_gidset[NGROUPS];
 	gid_t *bsd_gidset;
 	int ngrp, error;
+	struct proc *p;
 
 	ngrp = args->gidsetsize;
-	oldcred = td->td_proc->p_ucred;
+	if (ngrp >= NGROUPS)
+		return (EINVAL);
+	error = copyin((caddr_t)args->grouplist, linux_gidset,
+	    ngrp * sizeof(l_gid_t));
+	if (error)
+		return (error);
+	newcred = crget();
+	p = td->td_proc;
+	PROC_LOCK(p);
+	oldcred = p->p_ucred;
 
 	/*
 	 * cr_groups[0] holds egid. Setting the whole set from
@@ -980,19 +990,14 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	 * Keep cr_groups[0] unchanged to prevent that.
 	 */
 
-	if ((error = suser_cred(oldcred, PRISON_ROOT)) != 0)
+	if ((error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
 		return (error);
+	}
 
-	if (ngrp >= NGROUPS)
-		return (EINVAL);
-
-	newcred = crdup(oldcred);
+	crcopy(newcred, oldcred);
 	if (ngrp > 0) {
-		error = copyin((caddr_t)args->grouplist, linux_gidset,
-			       ngrp * sizeof(l_gid_t));
-		if (error)
-			return (error);
-
 		newcred->cr_ngroups = ngrp + 1;
 
 		bsd_gidset = newcred->cr_groups;
@@ -1005,8 +1010,9 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	else
 		newcred->cr_ngroups = 1;
 
-	setsugid(td->td_proc);
-	td->td_proc->p_ucred = newcred;
+	setsugid(p);
+	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
 }
