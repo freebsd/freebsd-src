@@ -1,8 +1,8 @@
 This is the README file for the beta release of the uuconf library.
 
 It was written by Ian Lance Taylor.  I can be reached at ian@airs.com,
-or, equivalently, uunet!airs!ian, or c/o Infinity Development Systems,
-P.O.  Box 520, Waltham MA, 02254.
+or, equivalently, uunet!cygint!airs!ian, or c/o Cygnus Support, 4th
+Floor, Building 200, 1 Kendall Square, Cambridge MA, 02139, USA.
 
 This package is covered by the Gnu Library General Public License.
 See the file COPYING.LIB for details.  If you would like to do

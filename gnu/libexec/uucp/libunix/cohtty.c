@@ -37,6 +37,19 @@
  * reset the serial device to see if the device needs to be re-enabled.
  */
 
+/* May 10, 1993: This function will always return true for the following
+ * reasons:
+ *  1) lock files have already been dealt with
+ *  2) if someone else already has the port open, uucico should fail anyways
+ *  3) Coherent's disable command return can return '0' or '1', but will
+ *     succeed in any event.
+ *  4) It doesn't matter if there is a ttys entry for the port in question.
+ *     /etc/ttys generally only lists devices that MAY be enabled for logins.
+ *     If a device will never be used for logins, then there may not be a
+ *     ttys entry, in which case, disable won't be called anyways.
+ *	---bob@mwc.com
+ */
+
 boolean
 fscoherent_disable_tty (zdevice, pzenable)
      const char *zdevice;
@@ -130,14 +143,14 @@ char enable_device[16];			/* this will hold our device name
 						     + strlen (enable_device));
 				sprintf(*pzenable,"/dev/%s", enable_device);
 /*				ulog(LOG_NORMAL,"Enable string is {%s}",*pzenable); */
-				return(x==0? TRUE : FALSE); /* disable either failed
-							   or succeded */
+				return TRUE;
 			}else{
-				return FALSE;	/* device in tty entry not enabled */
+				/* device not enabled */
+				return TRUE;	
 			}
 		}
 	}
-	return FALSE;	/* no ttys entry found */
+	return TRUE;	/* no ttys entry found */
 }
 
 /* The following is COHERENT 4.0 specific. It is used to test for any

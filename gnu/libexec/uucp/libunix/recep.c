@@ -1,7 +1,7 @@
 /* recep.c
    See whether a file has already been received.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
@@ -103,7 +103,7 @@ fsysdep_remember_reception (qsys, zto, ztemp)
     {
       if (errno == ENOENT)
 	{
-	  if (fsysdep_make_dirs (zfile, TRUE))
+	  if (fsysdep_make_dirs (zfile, FALSE))
 	    {
 	      ubuffree (zfile);
 	      return FALSE;
@@ -133,6 +133,10 @@ fsysdep_remember_reception (qsys, zto, ztemp)
   return TRUE;
 }
 
+/* The number of seconds in one week.  We must cast to long for this
+   to be calculated correctly on a machine with 16 bit ints.  */
+#define SECS_PER_WEEK ((long) 7 * (long) 24 * (long) 60 * (long) 60)
+
 /* See if we have already received a file.  Note that don't delete the
    marker file here, because we need to know that the sending system
    has received our denial first.  This function returns TRUE if the
@@ -161,7 +165,7 @@ fsysdep_already_received (qsys, zto, ztemp)
     }
 
   /* Ignore the file (return FALSE) if it is over one week old.  */
-  fret = s.st_mtime + 7 * 24 * 60 * 60 >= time ((time_t *) NULL);
+  fret = s.st_mtime + SECS_PER_WEEK >= time ((time_t *) NULL);
 
   if (fret)
     DEBUG_MESSAGE1 (DEBUG_SPOOLDIR, "fsysdep_already_received: Found %s",

@@ -22,6 +22,7 @@ strncs.c
 strrch.c
 strstr.c
 strtol.c
+strtou.c
 xfree.c
 xmall.c
 xreall.c

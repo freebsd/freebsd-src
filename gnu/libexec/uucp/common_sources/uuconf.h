@@ -1,7 +1,7 @@
 /* uuconf.h
    Header file for UUCP configuration routines.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -26,7 +26,7 @@
    informative, and does not modify the License in any way).
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #ifndef UUCONF_H
@@ -348,7 +348,9 @@ enum uuconf_porttype
   /* A TCP port.  Not supported on all systems.  */
   UUCONF_PORTTYPE_TCP,
   /* A TLI port.  Not supported on all systems.  */
-  UUCONF_PORTTYPE_TLI
+  UUCONF_PORTTYPE_TLI,
+  /* A pipe port.  Not supported on all systems.  */
+  UUCONF_PORTTYPE_PIPE
 };
 
 /* Additional information for a stdin port (there is none).  */
@@ -377,6 +379,8 @@ struct uuconf_modem_port
   long uuconf_ihighbaud;
   /* Non-zero if the port supports carrier detect.  */
   int uuconf_fcarrier;
+  /* Non-zero if the port supports hardware flow control.  */
+  int uuconf_fhardflow;
   /* A NULL terminated sequence of dialer/token pairs (element 0 is a
      dialer name, element 1 is a token, etc.)  May be NULL, in which
      case qdialer should not be NULL.  */
@@ -394,6 +398,10 @@ struct uuconf_direct_port
   char *uuconf_zdevice;
   /* The baud rate (speed).  */
   long uuconf_ibaud;
+  /* Non-zero if the port uses carrier detect.  */
+  int uuconf_fcarrier;
+  /* Non-zero if the port supports hardware flow control.  */
+  int uuconf_fhardflow;
 };
 
 /* Additional information for a TCP port.  */
@@ -403,6 +411,9 @@ struct uuconf_tcp_port
   /* The TCP port number to use.  May be a name or a number.  May be
      NULL, in which case "uucp" is looked up using getservbyname.  */
   char *uuconf_zport;
+  /* A NULL terminated sequence of dialer/token pairs (element 0 is a
+     dialer name, element 1 is a token, etc.)  May be NULL.  */
+  char **uuconf_pzdialer;
 };
 
 /* Additional information for a TLI port.  */
@@ -429,6 +440,14 @@ struct uuconf_tli_port
   /* Address to use when operating as a server.  This may contain
      escape sequences.  */
   char *uuconf_zservaddr;
+};
+
+/* Additional information for a pipe port.  */
+
+struct uuconf_pipe_port
+{
+  /* The command and its arguments.  */
+  char **uuconf_pzcmd;
 };
 
 /* Information kept for a port.  */
@@ -460,6 +479,7 @@ struct uuconf_port
       struct uuconf_direct_port uuconf_sdirect;
       struct uuconf_tcp_port uuconf_stcp;
       struct uuconf_tli_port uuconf_stli;
+      struct uuconf_pipe_port uuconf_spipe;
     } uuconf_u;
 };
 
@@ -544,6 +564,13 @@ struct uuconf_dialer
    be done after the second grade.  On an ASCII system, this can just
    be b1 - b2.  */
 #define UUCONF_GRADE_CMP(b1, b2) (uuconf_grade_cmp ((b1), (b2)))
+
+/* uuconf_runuuxqt returns either a positive number (the number of
+   execution files to receive between uuxqt invocations) or one of
+   these constant values.  */
+#define UUCONF_RUNUUXQT_NEVER (0)
+#define UUCONF_RUNUUXQT_ONCE (-1)
+#define UUCONF_RUNUUXQT_PERCALL (-2)
 
 /* Most of the uuconf functions returns an error code.  A value of
    zero (UUCONF_SUCCESS) indicates success.  */
@@ -849,15 +876,29 @@ extern int uuconf_debuglevel (void *uuconf_pglobal,
 extern int uuconf_maxuuxqts (void *uuconf_pglobal,
 			     int *uuconf_pcmaxuuxqt);
 
+/* Get the frequency with which to spawn a uuxqt process.  This
+   returns an integer.  A positive number is the number of execution
+   files that should be received between spawns.  Other values are one
+   of the UUCONF_RUNUUXQT constants listed above.  */
+extern int uuconf_runuuxqt (void *uuconf_pglobal,
+			    int *uuconf_pirunuuxqt);
+
 /* Check a login name and password.  This checks the Taylor UUCP
    password file (not /etc/passwd).  It will work even if
-   uuconf_taylor_init was not called.  If the login name exists and
-   the password is correct, this returns UUCONF_SUCCESS.  If the login
-   does not exist, or the password is wrong, this returns
-   UUCONF_NOT_FOUND.  Other errors are also possible.  */
+   uuconf_taylor_init was not called.  All comparisons are done via a
+   callback function.  The first argument to the function will be zero
+   when comparing login names, non-zero when comparing passwords.  The
+   second argument to the function will be the pinfo argument passed
+   to uuconf_callin.  The third argument will be the login name or
+   password from the UUCP password file.  The comparison function
+   should return non-zero for a match, or zero for a non-match.  If
+   the login name is found and the password compares correctly,
+   uuconf_callin will return UUCONF_SUCCESS.  If the login is not
+   found, or the password does not compare correctly, uuconf_callin
+   will return UUCONF_NOT_FOUND.  Other errors are also possible.  */
 extern int uuconf_callin (void *uuconf_pglobal,
-			  const char *uuconf_zlogin,
-			  const char *uuconf_zpassword);
+			  int (*uuconf_cmp) (int, void *, const char *),
+			  void *uuconf_pinfo);
 
 /* Get the callout login name and password for a system.  This will
    set both *pzlog and *pzpass to a string allocated by malloc, or to
@@ -922,6 +963,7 @@ extern int uuconf_statsfile ();
 extern int uuconf_debugfile ();
 extern int uuconf_debuglevel ();
 extern int uuconf_maxuuxqts ();
+extern int uuconf_runuuxqt ();
 extern int uuconf_callin ();
 extern int uuconf_callout ();
 extern int uuconf_remote_unknown ();

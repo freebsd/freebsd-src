@@ -1,7 +1,7 @@
 /* uucp.h
    Header file for the UUCP package.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,11 +20,11 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 /* Get the system configuration parameters.  */
-#include "conf.h"
+#include "config.h"
 #include "policy.h"
 
 /* Get a definition for ANSI_C if we weren't given one.  */
@@ -41,11 +41,11 @@
 
 /* We always include some standard header files.  We need <signal.h>
    to define sig_atomic_t.  */
+#include <stdio.h>
+#include <signal.h>
 #if HAVE_STDDEF_H
 #include <stddef.h>
 #endif
-#include <stdio.h>
-#include <signal.h>
 
 /* On some systems we need <sys/types.h> to get sig_atomic_t or
    size_t or time_t.  */
@@ -103,21 +103,24 @@ typedef long time_t;
    constpointer -- for a generic pointer to constant data.
    BUCHAR -- to convert a character to unsigned.  */
 #if ANSI_C
-#if ! HAVE_VOID || ! HAVE_UNSIGNED_CHAR
- #error ANSI C compiler without void or unsigned char
+#if ! HAVE_VOID || ! HAVE_UNSIGNED_CHAR || ! HAVE_PROTOTYPES
+ #error ANSI C compiler without void or unsigned char or prototypes
 #endif
 #define P(x) x
 typedef void *pointer;
 typedef const void *constpointer;
 #define BUCHAR(b) ((unsigned char) (b))
 #else /* ! ANSI_C */
-/* Handle uses of const, volatile and void in Classic C.  */
-#define const
+/* Handle uses of volatile and void in Classic C.  */
 #define volatile
 #if ! HAVE_VOID
 #define void int
 #endif
+#if HAVE_PROTOTYPES
+#define P(x) x
+#else
 #define P(x) ()
+#endif
 typedef char *pointer;
 typedef const char *constpointer;
 #if HAVE_UNSIGNED_CHAR
@@ -169,6 +172,7 @@ extern pointer memcpy (), memchr ();
 #else /* ! HAVE_STDLIB_H */
 extern pointer malloc (), realloc (), bsearch ();
 extern long strtol ();
+extern unsigned long strtoul ();
 extern char *getenv ();
 #endif /* ! HAVE_STDLIB_H */
 
@@ -225,6 +229,11 @@ typedef FILE *openfile_t;
 #define ffileseek(e, i) (fseek ((e), (long) (i), 0) == 0)
 #define ffilerewind(e) (fseek ((e), (long) 0, 0) == 0)
 #endif
+#ifdef SEEK_END
+#define ffileseekend(e) (fseek ((e), (long) 0, SEEK_END) == 0)
+#else
+#define ffileseekend(e) (fseek ((e), (long) 0, 2) == 0)
+#endif
 #define ffileclose(e) (fclose (e) == 0)
 
 #else /* ! USE_STDIO */
@@ -246,6 +255,11 @@ typedef int openfile_t;
 #else
 #define ffileseek(e, i) (lseek ((e), (long) i, 0) >= 0)
 #define ffilerewind(e) (lseek ((e), (long) 0, 0) >= 0)
+#endif
+#ifdef SEEK_END
+#define ffileseekend(e) (lseek ((e), (long) 0, SEEK_END) >= 0)
+#else
+#define ffileseekend(e) (lseek ((e), (long) 0, 2) >= 0)
 #endif
 #define ffileclose(e) (close (e) >= 0)
 
@@ -357,6 +371,11 @@ extern char *strrchr P((const char *z, int b));
 /* Turn a string into a long integer.  */
 #if ! HAVE_STRTOL
 extern long strtol P((const char *, char **, int));
+#endif
+
+/* Turn a string into a long unsigned integer.  */
+#if ! HAVE_STRTOUL
+extern unsigned long strtoul P((const char *, char **, int));
 #endif
 
 /* Lookup a key in a sorted array.  */

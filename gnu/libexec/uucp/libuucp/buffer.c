@@ -1,7 +1,7 @@
 /* buffer.c
    Manipulate buffers used to hold strings.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of Taylor UUCP.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
@@ -97,13 +97,31 @@ void
 ubuffree (z)
      char *z;
 {
-  size_t ioff;
   struct sbuf *q;
+  /* The type of ioff should be size_t, but making it int avoids a bug
+     in some versions of the HP/UX compiler, and will always work.  */
+  int ioff;
 
   if (z == NULL)
     return;
   ioff = offsetof (struct sbuf, u);
   q = (struct sbuf *) (pointer) (z - ioff);
+
+#ifdef DEBUG_BUFFER
+  {
+    struct sbuf *qlook;
+
+    for (qlook = qBlist; qlook != NULL; qlook = qlook->qnext)
+      {
+	if (qlook == q)
+	  {
+	    ulog (LOG_ERROR, "ubuffree: Attempt to free buffer twice");
+	    abort ();
+	  }
+      }
+  }
+#endif
+
   q->qnext = qBlist;
   qBlist = q;
 }

@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
@@ -100,11 +100,15 @@ usysdep_detach ()
       while (getppid () != 1)
 	sleep (1);
 
-      ulog_id (getpid ());
+      ipid = getpid ();
+      ulog_id (ipid);
 
       /* Restore SIGHUP catcher if it wasn't being ignored.  */
       if (! fignored)
 	usset_signal (SIGHUP, ussignal, TRUE, (boolean *) NULL);
+
+      DEBUG_MESSAGE2 (DEBUG_PORT, "Forked; old PID %ld, new pid %ld",
+		      (long) igrp, (long) ipid);
     }
 
 #if ! HAVE_SETSID && HAVE_TIOCNOTTY
@@ -146,7 +150,7 @@ usysdep_detach ()
      setpgrp (0, 0) will set our process group to 0 so that we can
      acquire a new controlling terminal (TIOCNOTTY may or may not have
      already done that anyhow).  */
-#if HAVE_BSD_SETPGRP
+#if HAVE_BSD_PGRP
   if (setpgrp (0, 0) < 0)
 #else
   if (setpgrp () < 0)

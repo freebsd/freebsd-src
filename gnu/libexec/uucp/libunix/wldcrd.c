@@ -1,7 +1,7 @@
 /* wldcrd.c
    Expand wildcards.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
@@ -113,9 +113,10 @@ fsysdep_wildcard_start (zfile)
   azargs[2] = zcmd;
   azargs[3] = NULL;
 
+  e = espopen (azargs, TRUE, &ipid);
+
   ubuffree (zcmd);
 
-  e = espopen (azargs, TRUE, &ipid);
   if (e == NULL)
     {
       ulog (LOG_ERROR, "espopen: %s", strerror (errno));

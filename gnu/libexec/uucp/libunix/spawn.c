@@ -1,7 +1,7 @@
 /* spawn.c
    Spawn a program securely.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
@@ -102,6 +102,9 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
   char *azenv[9];
   char **pazenv;
   boolean ferr;
+#if HAVE_FULLDUPLEX_PIPES
+  boolean ffullduplex;
+#endif
   int ierr = 0;
   int onull;
   int aichild_descs[3];
@@ -196,6 +199,11 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
   cpar_close = 0;
   cchild_close = 0;
 
+#if HAVE_FULLDUPLEX_PIPES
+  ffullduplex = (aidescs[0] == SPAWN_WRITE_PIPE
+		 && aidescs[1] == SPAWN_READ_PIPE);
+#endif
+
   for (i = 0; i < 3; i++)
     {
       if (aidescs[i] == SPAWN_NULL)
@@ -224,6 +232,16 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
 	{
 	  int aipipe[2];
 
+#if HAVE_FULLDUPLEX_PIPES
+	  if (ffullduplex && i == 1)
+	    {
+	      /* Just use the fullduplex pipe.  */
+	      aidescs[i] = aidescs[0];
+	      aichild_descs[i] = aichild_descs[0];
+	      continue;
+	    }
+#endif
+
 	  if (pipe (aipipe) < 0)
 	    {
 	      ierr = errno;
@@ -249,8 +267,10 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
 	  ++cpar_close;
 	  ++cchild_close;
 
-	  if (fcntl (aidescs[i], F_SETFD,
-		     fcntl (aidescs[i], F_GETFD, 0) | FD_CLOEXEC) < 0)
+	  if (fcntl (aipipe[0], F_SETFD,
+		     fcntl (aipipe[0], F_GETFD, 0) | FD_CLOEXEC) < 0
+	      || fcntl (aipipe[1], F_SETFD,
+			fcntl (aipipe[1], F_GETFD, 0) | FD_CLOEXEC) < 0)
 	    {
 	      ierr = errno;
 	      ferr = TRUE;
@@ -332,8 +352,20 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
 
   if (! fkeepuid)
     {
+      /* Return to the uid of the invoking user.  */
       (void) setuid (getuid ());
       (void) setgid (getgid ());
+    }
+  else
+    {
+      /* Try to force the UUCP uid to be both real and effective user
+	 ID, in order to present a consistent environment regardless
+	 of the invoking user.  This won't work on System V based
+	 systems, but it will do no harm.  It would be possible to use
+	 a setuid root program to force the UID setting, but I don't
+	 think the efficiency loss is worth it.  */
+      (void) setuid (geteuid ());
+      (void) setgid (getegid ());
     }
 
   if (zchdir != NULL)
@@ -352,11 +384,24 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
 #endif
     }
 
+#ifdef isc386
+#ifdef _POSIX_SOURCE
+  /* ISC has a remarkably stupid notion of environments.  If a program
+     is compiled in the POSIX environment, it sets a process state.
+     If you then exec a program which expects the USG environment, the
+     process state is not reset, so the execed program fails.  The
+     __setostype call is required to change back to the USG
+     environment.  This ought to be a switch in policy.h, but it seems
+     too trivial, so I will leave this code here and wait for it to
+     break in some fashion in the next version of ISC.  */
+  __setostype (0);
+#endif
+#endif
+
   (void) execve ((char *) zcmd, (char **) pazargs, pazenv);
 
   /* The exec failed.  If permitted, try using /bin/sh to execute a
      shell script.  */
-
   if (errno == ENOEXEC && fshell)
     {
       char *zto;

@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_locnm_rcsid[] = "$Id: locnm.c,v 1.1 1993/08/04 19:34:47 jtc Exp $";
+const char _uuconf_locnm_rcsid[] = "$Id: locnm.c,v 1.4 1994/01/30 21:14:29 ian Rel $";
 #endif
 
 /* Get the local node name.  */

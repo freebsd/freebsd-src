@@ -38,7 +38,7 @@ mkdir (zdir, imode)
   aidescs[1] = SPAWN_NULL;
   aidescs[2] = SPAWN_NULL;
 
-  ipid = ixsspawn (azargs, aidescs, FALSE, FALSE, (const char *) NULL,
+  ipid = ixsspawn (azargs, aidescs, TRUE, FALSE, (const char *) NULL,
 		   TRUE, FALSE, (const char *) NULL,
 		   (const char *) NULL, (const char *) NULL);
 

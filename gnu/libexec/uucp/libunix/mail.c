@@ -1,7 +1,7 @@
 /* mail.c
    Send mail to a user.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
@@ -48,17 +48,47 @@ fsysdep_mail (zto, zsubject, cstrs, paz)
      int cstrs;
      const char **paz;
 {
-  const char *az[3];
+  char **pazargs;
+  char *zcopy, *ztok;
+  size_t cargs, iarg;
   FILE *e;
   pid_t ipid;
   time_t itime;
   int i;
 
-  az[0] = MAIL_PROGRAM;
-  az[1] = zto;
-  az[2] = NULL;
+  /* Parse MAIL_PROGRAM into an array of arguments.  */
+  zcopy = zbufcpy (MAIL_PROGRAM);
 
-  e = espopen (az, FALSE, &ipid);
+  cargs = 0;
+  for (ztok = strtok (zcopy, " \t");
+       ztok != NULL;
+       ztok = strtok ((char *) NULL, " \t"))
+    ++cargs;
+
+  pazargs = (char **) xmalloc ((cargs + 4) * sizeof (char *));
+
+  memcpy (zcopy, MAIL_PROGRAM, sizeof MAIL_PROGRAM);
+  for (ztok = strtok (zcopy, " \t"), iarg = 0;
+       ztok != NULL;
+       ztok = strtok ((char *) NULL, " \t"), ++iarg)
+    pazargs[iarg] = ztok;
+
+#if ! MAIL_PROGRAM_SUBJECT_BODY
+  pazargs[iarg++] = (char *) "-s";
+  pazargs[iarg++] = (char *) zsubject;
+#endif
+
+#if ! MAIL_PROGRAM_TO_BODY
+  pazargs[iarg++] = (char *) zto;
+#endif
+
+  pazargs[iarg] = NULL;
+
+  e = espopen ((const char **) pazargs, FALSE, &ipid);
+
+  ubuffree (zcopy);
+  xfree ((pointer) pazargs);
+
   if (e == NULL)
     {
       ulog (LOG_ERROR, "espopen (%s): %s", MAIL_PROGRAM,
@@ -66,10 +96,16 @@ fsysdep_mail (zto, zsubject, cstrs, paz)
       return FALSE;
     }
 
-  fprintf (e, "Subject: %s\n", zsubject);
+#if MAIL_PROGRAM_TO_BODY
   fprintf (e, "To: %s\n", zto);
+#endif
+#if MAIL_PROGRAM_SUBJECT_BODY
+  fprintf (e, "Subject: %s\n", zsubject);
+#endif
 
+#if MAIL_PROGRAM_TO_BODY || MAIL_PROGRAM_SUBJECT_BODY
   fprintf (e, "\n");
+#endif
 
   (void) time (&itime);
   /* Remember that ctime includes a \n, so this skips a line.  */
