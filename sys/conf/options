@@ -1,4 +1,4 @@
-#	$Id: options,v 1.18.2.13 1998/06/25 00:46:17 jkh Exp $
+#	$Id: options,v 1.18.2.14 1999/07/02 23:52:51 mjacob Exp $
 
 # Format:
 # Option name	filename
@@ -95,6 +95,7 @@ SCSI_ISP_FCDUPLEX	opt_isp.h
 ISP_DISABLE_1020_SUPPORT	opt_isp.h
 ISP_DISABLE_1080_SUPPORT	opt_isp.h
 ISP_DISABLE_2100_SUPPORT	opt_isp.h
+ISP_DISABLE_2200_SUPPORT	opt_isp.h
 
 
 # Resource limits.
