@@ -1264,7 +1264,6 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 
 	if ((prot & VM_PROT_READ) == 0 || object == NULL)
 		return;
-	mtx_lock(&Giant);
 	VM_OBJECT_LOCK(object);
 	if (object->type == OBJT_DEVICE) {
 		pmap_object_init_pt(map->pmap, addr, object, pindex, size);
@@ -1329,7 +1328,6 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	}
 unlock_return:
 	VM_OBJECT_UNLOCK(object);
-	mtx_unlock(&Giant);
 }
 
 /*
