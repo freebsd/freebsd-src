@@ -18,8 +18,8 @@ SRCS=	bc-emit.c bc-optab.c \
 	${OUT_FILE}
 
 LIB=		cc_int
-NOPROFILE=	no thanks
-NOPIC=		no thanks
+NOPROFILE=	YES
+NOPIC=		YES
 
 install:
 	@true
