@@ -145,6 +145,11 @@ static char	machine_arch[] = MACHINE_ARCH;
 SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
     machine_arch, 0, "System architecture");
 
+static int	jailcansethostname=1;
+SYSCTL_INT(_kern, KERN_JAILCANSETHOSTNAME, jailcansethostname,
+	CTLFLAG_RW, &jailcansethostname, 0,
+	"Jail can set its hostname");
+
 char hostname[MAXHOSTNAMELEN];
 
 static int
@@ -152,11 +157,13 @@ sysctl_hostname SYSCTL_HANDLER_ARGS
 {
 	int error;
 
-	if (req->p->p_prison) 
+	if (req->p->p_prison) {
+		if (!jailcansethostname)
+			return(EPERM);
 		error = sysctl_handle_string(oidp, 
 		    req->p->p_prison->pr_host,
 		    sizeof req->p->p_prison->pr_host, req);
-	else
+	} else
 		error = sysctl_handle_string(oidp, 
 		    hostname, sizeof hostname, req);
 	return (error);
