@@ -1333,7 +1333,7 @@ static device_method_t pcic_pci_methods[] = {
 	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	pcic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_teardown_intr,	pcic_teardown_intr),
 
 	/* Card interface */
 	DEVMETHOD(card_set_res_flags,	pcic_set_res_flags),
