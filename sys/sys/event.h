@@ -35,8 +35,9 @@
 #define EVFILT_VNODE		(-4)	/* attached to vnodes */
 #define EVFILT_PROC		(-5)	/* attached to struct proc */
 #define EVFILT_SIGNAL		(-6)	/* attached to struct proc */
+#define EVFILT_TIMER		(-7)	/* timers */
 
-#define EVFILT_SYSCOUNT		6
+#define EVFILT_SYSCOUNT		7
 
 #define EV_SET(kevp, a, b, c, d, e, f) do {	\
 	(kevp)->ident = (a);			\
