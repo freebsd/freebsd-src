@@ -1,4 +1,5 @@
 /*	$NetBSD: natm.c,v 1.5 1996/11/09 03:26:26 chuck Exp $	*/
+/* $FreeBSD$ */
 
 /*
  *
@@ -763,7 +764,13 @@ m->m_pkthdr.rcvif = NULL;	/* null it out to be safe */
 }
 
 #if defined(__FreeBSD__)
-NETISR_SET(NETISR_NATM, natmintr);
+static void
+netisr_natm_setup(void *dummy __unused)
+{
+
+	register_netisr(NETISR_NATM, natmintr);
+}
+SYSINIT(natm_setup, SI_SUB_CPU, SI_ORDER_ANY, netisr_natm_setup, NULL);
 #endif
 
 

@@ -81,18 +81,6 @@
 #include <netdnet/dn.h>
 #endif
 
-#ifdef ISO
-#include <netiso/argo_debug.h>
-#include <netiso/iso.h>
-#include <netiso/iso_var.h>
-#include <netiso/iso_snpac.h>
-#endif
-
-#ifdef LLC
-#include <netccitt/dll.h>
-#include <netccitt/llc_var.h>
-#endif
-
 #ifdef NETATALK
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
@@ -104,10 +92,6 @@
 extern u_char	at_org_code[ 3 ];
 extern u_char	aarp_org_code[ 3 ];
 #endif /* NETATALK */
-
-#if defined(LLC) && defined(CCITT)
-extern struct ifqueue pkintrq;
-#endif
 
 #define senderr(e) { error = (e); goto bad;}
 
@@ -247,66 +231,6 @@ fddi_output(ifp, m, dst, rt0)
 		    (caddr_t)edst, sizeof (edst));
 		break;
 #endif
-#ifdef	ISO
-	case AF_ISO: {
-		int	snpalen;
-		struct	llc *l;
-		register struct sockaddr_dl *sdl;
-
-		if (rt && (sdl = (struct sockaddr_dl *)rt->rt_gateway) &&
-		    sdl->sdl_family == AF_LINK && sdl->sdl_alen > 0) {
-			bcopy(LLADDR(sdl), (caddr_t)edst, sizeof(edst));
-		} else if (error =
-			    iso_snparesolve(ifp, (struct sockaddr_iso *)dst,
-					    (char *)edst, &snpalen))
-			goto bad; /* Not Resolved */
-		/* If broadcasting on a simplex interface, loopback a copy */
-		if (*edst & 1)
-			m->m_flags |= (M_BCAST|M_MCAST);
-		M_PREPEND(m, 3, M_DONTWAIT);
-		if (m == NULL)
-			return (0);
-		type = 0;
-		l = mtod(m, struct llc *);
-		l->llc_dsap = l->llc_ssap = LLC_ISO_LSAP;
-		l->llc_control = LLC_UI;
-		IFDEBUG(D_ETHER)
-			int i;
-			printf("unoutput: sending pkt to: ");
-			for (i=0; i<6; i++)
-				printf("%x ", edst[i] & 0xff);
-			printf("\n");
-		ENDDEBUG
-		} break;
-#endif /* ISO */
-#ifdef	LLC
-/*	case AF_NSAP: */
-	case AF_CCITT: {
-		register struct sockaddr_dl *sdl = 
-			(struct sockaddr_dl *) rt -> rt_gateway;
-
-		if (sdl && sdl->sdl_family != AF_LINK && sdl->sdl_alen <= 0)
-			goto bad; /* Not a link interface ? Funny ... */
-		bcopy(LLADDR(sdl), (char *)edst, sizeof(edst));
-		if (*edst & 1)
-			loop_copy = 1;
-		type = 0;
-#ifdef LLC_DEBUG
-		{
-			int i;
-			register struct llc *l = mtod(m, struct llc *);
-
-			printf("fddi_output: sending LLC2 pkt to: ");
-			for (i=0; i<6; i++)
-				printf("%x ", edst[i] & 0xff);
-			printf(" len 0x%x dsap 0x%x ssap 0x%x control 0x%x\n", 
-			       type & 0xff, l->llc_dsap & 0xff, l->llc_ssap &0xff,
-			       l->llc_control & 0xff);
-
-		}
-#endif /* LLC_DEBUG */
-		} break;
-#endif /* LLC */	
 
 	case pseudo_AF_HDRCMPLT:
 	{
@@ -583,89 +507,6 @@ fddi_input(ifp, fh, m)
 		break;
 	}
 #endif /* INET || NS */
-#ifdef	ISO
-	case LLC_ISO_LSAP: 
-		switch (l->llc_control) {
-		case LLC_UI:
-			/* LLC_UI_P forbidden in class 1 service */
-			if ((l->llc_dsap == LLC_ISO_LSAP) &&
-			    (l->llc_ssap == LLC_ISO_LSAP)) {
-				/* LSAP for ISO */
-				m->m_data += 3;		/* XXX */
-				m->m_len -= 3;		/* XXX */
-				m->m_pkthdr.len -= 3;	/* XXX */
-				M_PREPEND(m, sizeof *fh, M_DONTWAIT);
-				if (m == 0)
-					return;
-				*mtod(m, struct fddi_header *) = *fh;
-				IFDEBUG(D_ETHER)
-					printf("clnp packet");
-				ENDDEBUG
-				schednetisr(NETISR_ISO);
-				inq = &clnlintrq;
-				break;
-			}
-			goto dropanyway;
-			
-		case LLC_XID:
-		case LLC_XID_P:
-			if(m->m_len < 6)
-				goto dropanyway;
-			l->llc_window = 0;
-			l->llc_fid = 9;
-			l->llc_class = 1;
-			l->llc_dsap = l->llc_ssap = 0;
-			/* Fall through to */
-		case LLC_TEST:
-		case LLC_TEST_P:
-		{
-			struct sockaddr sa;
-			register struct ether_header *eh;
-			struct arpcom *ac = (struct arpcom *) ifp;
-			int i;
-			u_char c = l->llc_dsap;
-
-			l->llc_dsap = l->llc_ssap;
-			l->llc_ssap = c;
-			if (m->m_flags & (M_BCAST | M_MCAST))
-				bcopy((caddr_t)ac->ac_enaddr,
-				      (caddr_t)eh->ether_dhost, 6);
-			sa.sa_family = AF_UNSPEC;
-			sa.sa_len = sizeof(sa);
-			eh = (struct ether_header *)sa.sa_data;
-			for (i = 0; i < 6; i++) {
-				eh->ether_shost[i] = fh->fddi_dhost[i];
-				eh->ether_dhost[i] = fh->fddi_shost[i];
-			}
-			eh->ether_type = 0;
-			ifp->if_output(ifp, m, &sa, NULL);
-			return;
-		}
-		default:
-			m_freem(m);
-			return;
-		}
-		break;
-#endif /* ISO */
-#ifdef LLC
-	case LLC_X25_LSAP:
-	{
-		M_PREPEND(m, sizeof(struct sdl_hdr) , M_DONTWAIT);
-		if (m == 0)
-			return;
-		if ( !sdl_sethdrif(ifp, fh->fddi_shost, LLC_X25_LSAP,
-				    fh->fddi_dhost, LLC_X25_LSAP, 6, 
-				    mtod(m, struct sdl_hdr *)))
-			panic("ETHER cons addr failure");
-		mtod(m, struct sdl_hdr *)->sdlhdr_len = m->m_pkthdr.len - sizeof(struct sdl_hdr);
-#ifdef LLC_DEBUG
-		printf("llc packet\n");
-#endif /* LLC_DEBUG */
-		schednetisr(NETISR_CCITT);
-		inq = &llcintrq;
-		break;
-	}
-#endif /* LLC */
 		
 	default:
 		/* printf("fddi_input: unknown dsap 0x%x\n", l->llc_dsap); */

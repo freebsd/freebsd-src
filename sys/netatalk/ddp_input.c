@@ -98,7 +98,13 @@ atintr( void )
     return;
 }
 
-NETISR_SET(NETISR_ATALK, atintr);
+static void
+netisr_atalk_setup(void *dummy __unused)
+{
+	
+	register_netisr(NETISR_ATALK, atintr);
+}
+SYSINIT(atalk_setup, SI_SUB_CPU, SI_ORDER_ANY, netisr_atalk_setup, NULL);
 
 static void
 ddp_input( m, ifp, elh, phase )

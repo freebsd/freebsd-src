@@ -96,6 +96,7 @@ ns_init()
 	ns_hostmask.sns_len = 12;
 	ns_hostmask.sns_addr.x_net = ns_broadnet;
 	ns_hostmask.sns_addr.x_host = ns_broadhost;
+	register_netisr(NETISR_NS, nsintr);
 }
 
 /*
@@ -238,8 +239,6 @@ bad:
 	m_freem(m);
 	goto next;
 }
-
-NETISR_SET(NETISR_NS, nsintr);
 
 u_char nsctlerrmap[PRC_NCMDS] = {
 	ECONNABORTED,	ECONNABORTED,	0,		0,

@@ -51,9 +51,6 @@
 #include <sys/socketvar.h>	/* for dup_sockaddr */
 
 #include <netinet/in.h>
-#ifdef ISO
-#include <netiso/iso.h>
-#endif
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfs/nfs.h>

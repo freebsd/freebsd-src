@@ -74,9 +74,6 @@
 #include <nfs/nfsrtt.h>
 
 #include <netinet/in.h>
-#ifdef ISO
-#include <netiso/iso.h>
-#endif
 
 /*
  * Data items converted to xdr at startup, since they are constant
@@ -2027,21 +2024,6 @@ netaddr_match(family, haddr, nam)
 		    inetaddr->sin_addr.s_addr == haddr->had_inetaddr)
 			return (1);
 		break;
-#ifdef ISO
-	case AF_ISO:
-	    {
-		register struct sockaddr_iso *isoaddr1, *isoaddr2;
-
-		isoaddr1 = (struct sockaddr_iso *)nam;
-		isoaddr2 = (struct sockaddr_iso *)haddr->had_nam;
-		if (isoaddr1->siso_family == AF_ISO &&
-		    isoaddr1->siso_nlen > 0 &&
-		    isoaddr1->siso_nlen == isoaddr2->siso_nlen &&
-		    SAME_ISOADDR(isoaddr1, isoaddr2))
-			return (1);
-		break;
-	    }
-#endif	/* ISO */
 	default:
 		break;
 	};

@@ -161,6 +161,7 @@ arp_rtrequest(req, rt, sa)
 		arpinit_done = 1;
 		LIST_INIT(&llinfo_arp);
 		timeout(arptimer, (caddr_t)0, hz);
+		register_netisr(NETISR_ARP, arpintr);
 	}
 	if (rt->rt_flags & RTF_GATEWAY)
 		return;
@@ -457,9 +458,6 @@ arpintr()
 		m_freem(m);
 	}
 }
-
-NETISR_SET(NETISR_ARP, arpintr);
-
 
 #ifdef INET
 /*
