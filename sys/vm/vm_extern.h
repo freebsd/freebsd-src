@@ -90,6 +90,7 @@ struct vmspace *vmspace_fork __P((struct vmspace *));
 void vmspace_exec __P((struct proc *));
 void vmspace_unshare __P((struct proc *));
 void vmspace_free __P((struct vmspace *));
+void vmspace_exitfree __P((struct proc *));
 void vnode_pager_setsize __P((struct vnode *, vm_ooffset_t));
 void vslock __P((caddr_t, u_int));
 void vsunlock __P((caddr_t, u_int));
