@@ -1679,7 +1679,6 @@ ngintr(void)
  *
  * From: static char sccsid[] = "@(#)strtoul.c	8.1 (Berkeley) 6/4/93";
  *
- * $FreeBSD$
  */
 
 

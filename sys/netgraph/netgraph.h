@@ -298,7 +298,6 @@ unsigned long strtoul(nptr, endptr, base);
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 #ifndef _SYS_CTYPE_H_
