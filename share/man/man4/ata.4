@@ -71,6 +71,10 @@ To enable DMA on an ATAPI device:
 .Pp
 To enable Tagged Queuing support (only IBM DPTA and DTLA drives support that)
 .Cd options ATA_ENABLE_TAGS
+.Pp
+To enable write caching (WARNING might cause data loss on power failures)
+.Cd options ATA_ENABLE_WC
+.Pp
 .Sh DESCRIPTION
 This driver provides access to disk drives, ATAPI CD-ROM and DVD drives,
 ZIP drives and tape streamers connected to controllers
@@ -122,8 +126,10 @@ Ultra DMA 33 (UDMA2), 33 MB/sec
 Ultra DMA 33 (UDMA2), 33 MB/sec
 .It VIA 82C586
 Ultra DMA 33 (UDMA2), 33 MB/sec
-.It VIA 82C686
+.It VIA 82C686a
 Ultra DMA 66 (UDMA4), 66 MB/sec
+.It VIA 82C686b
+Ultra DMA 100 (UDMA5), 100 MB/sec
 .El
 .Pp
 All unknown chipsets can be supported at the maximum speed of 16 MB/sec.
@@ -196,7 +202,7 @@ The
 .Nm
 driver does not support MFM/RLL/ESDI (ST-506) style disks.
 .Pp
-Remember that in order to use UDMA4 mode you
+Remember that in order to use UDMA4 (and above) mode you
 .Em have
 to use a special 80 conductor cable,
 and the driver tries to determine if you have such a cable
