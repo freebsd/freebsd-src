@@ -171,6 +171,12 @@
                 warnings
                 ..
             ..
+            BSDPAN
+                BSDPAN
+                ..
+                ExtUtils
+                ..
+            ..
         ..
         stallion
         ..
