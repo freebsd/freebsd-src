@@ -407,8 +407,10 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (IN6_IS_ADDR_V4MAPPED(&sin6p->sin6_addr)) {
 		struct sockaddr_in sin;
 
-		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)
-			return(EINVAL);
+		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0) {
+			error = EINVAL;
+			goto out;
+		}
 
 		in6_sin6_2_sin(&sin, sin6p);
 		inp->inp_vflag |= INP_IPV4;
