@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: mknetid.c,v 1.5 1996/06/24 22:48:15 wpaul Exp $
+ *	$Id: mknetid.c,v 1.1.1.1 1996/06/25 20:26:38 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -51,7 +51,7 @@
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: mknetid.c,v 1.5 1996/06/24 22:48:15 wpaul Exp $";
+static const char rcsid[] = "$Id: mknetid.c,v 1.1.1.1 1996/06/25 20:26:38 wpaul Exp $";
 #endif
 
 #define LINSIZ 1024
@@ -206,7 +206,7 @@ domain not set");
 		} else {
 			mstore(dtable, writebuf, 0, 1);
 		}
-		printf("%s.%s@%s\t\t%s:%s", OPSYS, pidptr, domain, pidptr, gidptr);
+		printf("%s.%s@%s %s:%s", OPSYS, pidptr, domain, pidptr, gidptr);
 		if ((glist = lookup(mtable, (char *)&readbuf)) != NULL) {
 			while(glist) {
 				if (glist->groupid != i)
@@ -248,7 +248,7 @@ domain not set");
 		} else {
 			mstore(dtable, (char *)&writebuf, 0, 1);
 		}
-		printf ("%s.%s@%s\t\t0:%s\n", OPSYS, ptr, domain, ptr);
+		printf ("%s.%s@%s 0:%s\n", OPSYS, ptr, domain, ptr);
 	}
 
 	fclose(hfp);
