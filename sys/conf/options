@@ -490,7 +490,6 @@ DEBUG_VFS_LOCKS		opt_global.h
 DIAGNOSTIC		opt_global.h
 INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
-LOOKUP_SHARED		opt_global.h
 MCLSHIFT		opt_global.h
 MUTEX_DEBUG		opt_global.h
 MUTEX_NOINLINE		opt_global.h
@@ -697,3 +696,6 @@ NI4BTEL			opt_i4b.h
 NI4BIPR			opt_i4b.h
 NI4BING			opt_i4b.h
 NI4BISPPP		opt_i4b.h
+
+# VFS options
+LOOKUP_SHARED		opt_vfs.h
