@@ -240,9 +240,7 @@ static void
 g_aes_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
-	struct g_provider *pp;
 	struct g_aes_softc *sc;
-	int error;
 
 	g_trace(G_T_TOPOLOGY, "g_aes_orphan(%p/%s)", cp, cp->provider->name);
 	g_topology_assert();
