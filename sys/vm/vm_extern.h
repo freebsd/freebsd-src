@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.40 1999/01/26 02:49:52 julian Exp $
+ * $Id: vm_extern.h,v 1.41 1999/04/13 19:17:15 peter Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -64,6 +64,7 @@ int grow __P((struct proc *, size_t));
 int grow_stack __P((struct proc *, size_t));
 int kernacc __P((caddr_t, int, int));
 vm_offset_t kmem_alloc __P((vm_map_t, vm_size_t));
+vm_offset_t kmem_alloc_nofault __P((vm_map_t, vm_size_t));
 vm_offset_t kmem_alloc_pageable __P((vm_map_t, vm_size_t));
 vm_offset_t kmem_alloc_wait __P((vm_map_t, vm_size_t));
 void kmem_free __P((vm_map_t, vm_offset_t, vm_size_t));
