@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.42 1998/01/24 02:01:09 dyson Exp $
+ *	$Id: param.h,v 1.43 1998/06/14 15:21:27 bde Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -118,7 +118,7 @@
  */
 #define btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
 	(sizeof (bytes) > sizeof(long) \
-	 ? (daddr_t)((uoff_t)(bytes) >> DEV_BSHIFT) \
+	 ? (daddr_t)((unsigned long long)(bytes) >> DEV_BSHIFT) \
 	 : (daddr_t)((unsigned long)(bytes) >> DEV_BSHIFT))
 
 #define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
