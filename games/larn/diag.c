@@ -186,7 +186,7 @@ savegame(fname)
 	lwclose();	lastmonst[0] = 0;
 #ifndef VT100
 	setscroll();
-#endif VT100
+#endif /* VT100 */
 	lcreat((char*)0);  nosignal=0;
 	return(0);
 	}
