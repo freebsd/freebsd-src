@@ -901,7 +901,7 @@ ndis_convert_res(arg)
 	block = sc->ndis_block;
 	dev = sc->ndis_dev;
 
-	SLIST_INIT(&brl_rev);
+	STAILQ_INIT(&brl_rev);
 
 	rl = malloc(sizeof(ndis_resource_list) +
 	    (sizeof(cm_partial_resource_desc) * (sc->ndis_rescnt - 1)),
@@ -932,7 +932,7 @@ ndis_convert_res(arg)
 		 * in order to fix this, we have to create our own
 		 * temporary list with the entries in reverse order.
 		 */
-		SLIST_FOREACH(brle, brl, link) {
+		STAILQ_FOREACH(brle, brl, link) {
 			n = malloc(sizeof(struct resource_list_entry),
 			    M_TEMP, M_NOWAIT);
 			if (n == NULL) {
@@ -941,10 +941,10 @@ ndis_convert_res(arg)
 			}
 			bcopy((char *)brle, (char *)n,
 			    sizeof(struct resource_list_entry));
-			SLIST_INSERT_HEAD(&brl_rev, n, link);
+			STAILQ_INSERT_HEAD(&brl_rev, n, link);
 		}
 
-		SLIST_FOREACH(brle, &brl_rev, link) {
+		STAILQ_FOREACH(brle, &brl_rev, link) {
 			switch (brle->type) {
 			case SYS_RES_IOPORT:
 				prd->cprd_type = CmResourceTypePort;
@@ -985,9 +985,9 @@ ndis_convert_res(arg)
 
 bad:
 
-	while (!SLIST_EMPTY(&brl_rev)) {
-		n = SLIST_FIRST(&brl_rev);
-		SLIST_REMOVE_HEAD(&brl_rev, link);
+	while (!STAILQ_EMPTY(&brl_rev)) {
+		n = STAILQ_FIRST(&brl_rev);
+		STAILQ_REMOVE_HEAD(&brl_rev, link);
 		free (n, M_TEMP);
 	}
 
