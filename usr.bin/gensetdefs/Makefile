@@ -1,10 +1,6 @@
-#
-# $Id$
-#
+#	$Id$
 
 PROG=	gensetdefs
-SRCS=	gensetdefs.c
-NOMAN=1
+NOMAN=	noman
 
 .include <bsd.prog.mk>
-
