@@ -364,6 +364,11 @@ char   *get_remote_hostname(int socket);
 const char *get_canonical_hostname(void);
 
 /*
+ * Returns the local IP address as an ascii string.
+ */
+const char *get_ipaddr(int socket);
+
+/*
  * Returns the remote IP address as an ascii string.  The value need not be
  * freed by the caller.
  */

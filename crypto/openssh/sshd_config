@@ -9,7 +9,7 @@ Port 22
 HostKey /etc/ssh/ssh_host_key
 HostDsaKey /etc/ssh/ssh_host_dsa_key
 ServerKeyBits 768
-LoginGraceTime 60
+LoginGraceTime 120
 KeyRegenerationInterval 3600
 PermitRootLogin no
 # Rate-limit sshd connections to 5 connections per 10 seconds
@@ -19,7 +19,7 @@ IgnoreRhosts yes
 # Uncomment if you don't trust ~/.ssh/known_hosts for RhostsRSAAuthentication
 #IgnoreUserKnownHosts yes
 StrictModes yes
-X11Forwarding no
+X11Forwarding yes
 X11DisplayOffset 10
 PrintMotd yes
 KeepAlive yes

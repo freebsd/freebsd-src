@@ -11,6 +11,7 @@
  *
  * Functions for returning the canonical host name of the remote site.
  *
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -201,12 +202,41 @@ get_remote_ipaddr()
 	/* Get the IP address in ascii. */
 	if (getnameinfo((struct sockaddr *)&from, fromlen, ntop, sizeof(ntop),
 	     NULL, 0, NI_NUMERICHOST) != 0)
-		fatal("get_remote_hostname: getnameinfo NI_NUMERICHOST failed");
+		fatal("get_remote_ipaddr: getnameinfo NI_NUMERICHOST failed");
 
 	canonical_host_ip = xstrdup(ntop);
 
 	/* Return ip address string. */
 	return canonical_host_ip;
+}
+
+/*
+ * Returns the IP-address of the local host as a string.  The returned
+ * string must be freed.
+ */
+
+const char *
+get_ipaddr(int socket)
+{
+	static char *canonical_host_ip = NULL;
+	struct sockaddr_storage from;
+	socklen_t fromlen;
+	char ntop[NI_MAXHOST];
+
+	/* Get IP address of server. */
+	fromlen = sizeof(from);
+	memset(&from, 0, sizeof(from));
+	if (getsockname(socket, (struct sockaddr *)&from, &fromlen) < 0) {
+		debug("getsockname failed: %.100s", strerror(errno));
+		fatal_cleanup();
+	}
+	/* Get the IP address in ascii. */
+	if (getnameinfo((struct sockaddr *)&from, fromlen, ntop, sizeof(ntop),
+	     NULL, 0, NI_NUMERICHOST) != 0)
+		fatal("get_local_ipaddr: getnameinfo NI_NUMERICHOST failed");
+
+	/* Return ip address string. */
+	return xstrdup(ntop);
 }
 
 /* Returns the local/remote port for the socket. */

@@ -143,17 +143,17 @@ unsigned char *session_id2 = NULL;
 int session_id2_len = 0;
 
 /* These are used to implement connections_per_period. */
-struct magic_connection {
-		struct timeval connections_begin;
-		unsigned int connections_this_period;
-} *magic_connections;
-/* Magic number, too!  TODO: this doesn't have to be static. */
-const size_t MAGIC_CONNECTIONS_SIZE = 1;
+struct ratelim_connection {
+	struct timeval connections_begin;
+	unsigned int connections_this_period;
+} *ratelim_connections;
 
-static __inline int
-magic_hash(struct sockaddr *sa) {
-
-	return 0;
+static void
+ratelim_init(void) {
+	ratelim_connections = calloc(num_listen_socks,
+	    sizeof(struct ratelim_connection));
+	if (ratelim_connections == NULL)
+		fatal("calloc: %s", strerror(errno));
 }
 
 static __inline struct timeval
@@ -162,7 +162,7 @@ timevaldiff(struct timeval *tv1, struct timeval *tv2) {
 	int carry;
 
 	carry = tv1->tv_usec > tv2->tv_usec;
-	diff.tv_sec = tv2->tv_sec - tv1->tv_sec - (carry ? 0 : 1);
+	diff.tv_sec = tv2->tv_sec - tv1->tv_sec - (carry ? 1 : 0);
 	diff.tv_usec = tv2->tv_usec - tv1->tv_usec + (carry ? 1000000 : 0);
 
 	return diff;
@@ -206,6 +206,7 @@ sighup_restart()
 	log("Received SIGHUP; restarting.");
 	close_listen_socks();
 	execv(saved_argv[0], saved_argv);
+	execv("/proc/curproc/file", saved_argv);
 	log("RESTART FAILED: av0='%s', error: %s.", av0, strerror(errno));
 	exit(1);
 }
@@ -440,6 +441,7 @@ main(int ac, char **av)
 	int opt, sock_in = 0, sock_out = 0, newsock, i, fdsetsz, on = 1;
 	pid_t pid;
 	socklen_t fromlen;
+ 	int ratelim_exceeded = 0;
 	int silent = 0;
 	fd_set *fdset;
 	struct sockaddr_storage from;
@@ -450,7 +452,6 @@ main(int ac, char **av)
 	struct addrinfo *ai;
 	char ntop[NI_MAXHOST], strport[NI_MAXSERV];
 	int listen_sock, maxfd;
- 	int connections_per_period_exceeded = 0;
 
 	/* Save argv[0]. */
 	saved_argv = av;
@@ -786,11 +787,7 @@ main(int ac, char **av)
 		fdsetsz = howmany(maxfd, NFDBITS) * sizeof(fd_mask);
 		fdset = (fd_set *)xmalloc(fdsetsz);
 
-		/* Initialize the magic_connections table.  It's magical! */
-		magic_connections = calloc(MAGIC_CONNECTIONS_SIZE,
-		    sizeof(struct magic_connection));
-		if (magic_connections == NULL)
-			fatal("calloc: %s", strerror(errno));
+		ratelim_init();
 
 		/*
 		 * Stay listening for connections until the system crashes or
@@ -825,22 +822,23 @@ main(int ac, char **av)
 			}
 			if (options.connections_per_period != 0) {
 				struct timeval diff, connections_end;
-				struct magic_connection *mc;
+				struct ratelim_connection *rc;
 
 				(void)gettimeofday(&connections_end, NULL);
-				mc = &magic_connections[magic_hash((struct sockaddr *)0)];
-				diff = timevaldiff(&mc->connections_begin, &connections_end);
+				rc = &ratelim_connections[i];
+				diff = timevaldiff(&rc->connections_begin,
+				    &connections_end);
 				if (diff.tv_sec >= options.connections_period) {
 					/*
-					 * Slide the window forward only after completely
-					 * leaving it.
+					 * Slide the window forward only after
+					 * completely leaving it.
 					 */
-					mc->connections_begin = connections_end;
-					mc->connections_this_period = 1;
+					rc->connections_begin = connections_end;
+					rc->connections_this_period = 1;
 				} else {
-					if (++mc->connections_this_period >
+					if (++rc->connections_this_period >
 					    options.connections_per_period)
-						connections_per_period_exceeded = 1;
+						ratelim_exceeded = 1;
 				}
 			}
 					
@@ -861,12 +859,19 @@ main(int ac, char **av)
 				sock_out = newsock;
 				pid = getpid();
 				break;
-			} else if (connections_per_period_exceeded) {
-				log("Connection rate limit of %u/%us has been exceeded; "
-				    "dropping connection from %s.",
-				    options.connections_per_period, options.connections_period,
-				    ntop);
-				connections_per_period_exceeded = 0;
+			} else if (ratelim_exceeded) {
+				const char *myaddr;
+
+				myaddr = get_ipaddr(newsock);
+				log("rate limit (%u/%u) on %s port %d "
+				    "exceeded by %s",
+				    options.connections_per_period,
+				    options.connections_period, myaddr,
+				    get_sock_port(newsock, 1), ntop);
+				free((void *)myaddr);
+				close(newsock);
+				ratelim_exceeded = 0;
+				continue;
 			} else {
 				/*
 				 * Normal production daemon.  Fork, and have
