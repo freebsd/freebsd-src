@@ -951,6 +951,16 @@ cdrom.2:
 	@mkdir -p ${CD_DISC2}
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
 	@echo "CD_VOLUME = 2" >> ${CD_DISC2}/cdrom.inf
+.if !defined(NODOC)
+	@mkdir -p ${CD_DISC2}/usr/share/doc
+	@for i in `ls ${CD_LIVEFS}/usr/share/doc`; do \
+		if [ -L ${CD_LIVEFS}/usr/share/doc/$$i -o \
+		    -d /usr/doc/$$i ]; then \
+			mv ${CD_LIVEFS}/usr/share/doc/$$i \
+			    ${CD_DISC2}/usr/share/doc; \
+		fi \
+	done
+.endif
 	touch ${.TARGET}
 
 #
@@ -1004,6 +1014,7 @@ iso.1:
 	    FreeBSD_LiveFS \
 	    ${CD}/${BUILDNAME}-${TARGET}-livefs.iso ${CD_LIVEFS}
 .endif
+	@echo "Generating MD5 sums..."
 	@(cd ${CD} && md5 *.iso > ${BUILDNAME}-${TARGET}-iso.CHECKSUM.MD5)
 	touch ${.TARGET}
 .else
