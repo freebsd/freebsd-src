@@ -490,11 +490,11 @@ lputs(s)
 		if (isprint((unsigned char)*s) && *s != '\\') {
 			(void)putchar(*s);
 			count++;
-		} else {
-			escapes = "\\\a\b\f\n\r\t\v";
+		} else if (*s != '\n') {
+			escapes = "\\\a\b\f\r\t\v";
 			(void)putchar('\\');
 			if ((p = strchr(escapes, *s))) {
-				(void)putchar("\\abfnrtv"[p - escapes]);
+				(void)putchar("\\abfrtv"[p - escapes]);
 				count += 2;
 			} else {
 				(void)printf("%03o", *(u_char *)s);
