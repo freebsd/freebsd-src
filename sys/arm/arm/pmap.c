@@ -2811,7 +2811,6 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 	if (flags & KENTER_CACHE)
 		*pte |= pte_l2_s_cache_mode;
 	PTE_SYNC(pte);
-	cpu_dcache_wbinv_all(); /* XXX: shouldn't be needed */
 }
 
 void
@@ -2895,6 +2894,7 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 		    KENTER_CACHE);
 		va += PAGE_SIZE;
 	}
+	cpu_dcache_wbinv_all(); /* XXX: shouldn't be needed */
 }
 
 
@@ -3392,7 +3392,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 		pmap_vac_me_harder(m, pmap, va);
 	}
-	pmap_dcache_wbinv_all(pmap) /* XXX: Shouldn't be needed. */;
 	vm_page_unlock_queues();
 }
 
@@ -3411,6 +3410,7 @@ vm_page_t
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 {
 	pmap_enter(pmap, va, m, VM_PROT_READ|VM_PROT_EXECUTE, FALSE);
+	pmap_dcache_wbinv_all(pmap); /* XXX: shouldn't be needed */
 	return (NULL);
 }
 
