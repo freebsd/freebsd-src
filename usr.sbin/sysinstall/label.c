@@ -60,9 +60,9 @@
  * Minimum partition sizes
  */
 #if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__)
-#define ROOT_MIN_SIZE			40
+#define ROOT_MIN_SIZE			128
 #else
-#define ROOT_MIN_SIZE			30
+#define ROOT_MIN_SIZE			118
 #endif
 #define SWAP_MIN_SIZE			32
 #define USR_MIN_SIZE			80
@@ -80,7 +80,7 @@
  * for this configuration we scale things relative to the NOM vs DEFAULT
  * sizes.  If the disk is larger then /home will get any remaining space.
  */
-#define ROOT_DEFAULT_SIZE		128
+#define ROOT_DEFAULT_SIZE		256
 #define USR_DEFAULT_SIZE		3072
 #define VAR_DEFAULT_SIZE		256
 #define TMP_DEFAULT_SIZE		256
@@ -91,7 +91,7 @@
  * when we have insufficient disk space.  If this isn't sufficient we scale
  * down using the MIN sizes instead.
  */
-#define ROOT_NOMINAL_SIZE		128
+#define ROOT_NOMINAL_SIZE		192
 #define USR_NOMINAL_SIZE		512
 #define VAR_NOMINAL_SIZE		64
 #define TMP_NOMINAL_SIZE		64
