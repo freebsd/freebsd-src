@@ -388,6 +388,8 @@ wihap_sta_delete(struct wihap_sta_info *sta)
 
 	LIST_REMOVE(sta, list);
 	LIST_REMOVE(sta, hash);
+	if (sta->challenge)
+		FREE(sta->challenge, M_TEMP);
 	FREE(sta, M_HAP_STA);
 	whi->n_stations--;
 }
@@ -500,7 +502,7 @@ wihap_auth_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 	u_int16_t		algo;
 	u_int16_t		seq;
 	u_int16_t		status;
-	int			challenge_len;
+	int			i, challenge_len;
 	u_int8_t		challenge[128];
 
 	struct wi_80211_hdr	*resp_hdr;
@@ -518,27 +520,10 @@ wihap_auth_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 		return;
 
 	if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
-		printf("wihap_auth_req: from station: %6D\n",
-		    rxfrm->wi_addr2, ":");
+		printf("wihap_auth_req: station %6D algo=0x%x seq=0x%x\n",
+		       rxfrm->wi_addr2, ":", algo, seq);
 
-	switch (algo) {
-	case IEEE80211_AUTH_ALG_OPEN:
-		if (seq != 1) {
-			status = IEEE80211_STATUS_SEQUENCE;
-			goto fail;
-		}
-		challenge_len = 0;
-		break;
-	case IEEE80211_AUTH_ALG_SHARED:
-		/* NOT YET */
-	default:
-		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
-			printf("wihap_auth_req: algorithm unsupported: %d\n",
-			    algo);
-		status = IEEE80211_STATUS_ALG;
-		goto fail;
-	}
-
+	/* Find or create station info. */
 	sta = wihap_sta_find(whi, rxfrm->wi_addr2);
 	if (sta == NULL) {
 
@@ -567,9 +552,86 @@ wihap_auth_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 			goto fail;
 		}
 	}
-
-	sta->flags |= WI_SIFLAGS_AUTHEN;
 	sta->inactivity_timer = whi->inactivity_time;
+
+	/* Note: it's okay to leave the station info structure around
+	 * if the authen fails.  It'll be timed out eventually.
+	 */
+	switch (algo) {
+	case IEEE80211_AUTH_ALG_OPEN:
+		if (sc->wi_authmode != IEEE80211_AUTH_OPEN) {
+			seq = 2;
+			status = IEEE80211_STATUS_ALG;
+			goto fail;
+		}
+		if (seq != 1) {
+			seq = 2;
+			status = IEEE80211_STATUS_SEQUENCE;
+			goto fail;
+		}
+		challenge_len = 0;
+		seq = 2;
+		sta->flags |= WI_SIFLAGS_AUTHEN;
+		break;
+	case IEEE80211_AUTH_ALG_SHARED:
+		if (sc->wi_authmode != IEEE80211_AUTH_SHARED) {
+			seq = 2;
+			status = IEEE80211_STATUS_ALG;
+			goto fail;
+		}
+		switch (seq) {
+		case 1:
+			/* Create a challenge frame. */
+			if (!sta->challenge) {
+				MALLOC(sta->challenge, u_int32_t *, 128,
+				       M_TEMP, M_NOWAIT);
+				if (!sta->challenge)
+					return;
+			}
+			for (i = 0; i < 32; i++)
+				challenge[i] = sta->challenge[i] =
+					arc4random();
+			challenge_len = 128;
+			seq = 2;
+			break;
+		case 3:
+			if (challenge_len != 128 || !sta->challenge ||
+			    !(le16toh(rxfrm->wi_frame_ctl) & WI_FCTL_WEP)) {
+				status = IEEE80211_STATUS_CHALLENGE;
+				goto fail;
+			}
+			challenge_len = 0;
+			seq = 4;
+
+			/* Check the challenge text.  (Was decrypted by
+			 * the adapter.)
+			 */
+			for (i=0; i<32; i++)
+				if (sta->challenge[i] != challenge[i]) {
+					status = IEEE80211_STATUS_CHALLENGE;
+					FREE(sta->challenge, M_TEMP);
+					sta->challenge = NULL;
+					goto fail;
+				}
+
+			sta->flags |= WI_SIFLAGS_AUTHEN;
+			FREE(sta->challenge, M_TEMP);
+			sta->challenge = NULL;
+			break;
+		default:
+			seq = 2;
+			status = IEEE80211_STATUS_SEQUENCE;
+			goto fail;
+		} /* switch (seq) */
+		break;
+	default:
+		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
+			printf("wihap_auth_req: algorithm unsupported: 0x%x\n",
+			       algo);
+		status = IEEE80211_STATUS_ALG;
+		goto fail;
+	} /* switch (algo) */
+
 	status = IEEE80211_STATUS_SUCCESS;
 
 fail:
@@ -586,7 +648,7 @@ fail:
 
 	pkt = &sc->wi_txbuf[sizeof(struct wi_80211_hdr)];
 	put_hword(&pkt, algo);
-	put_hword(&pkt, 2);
+	put_hword(&pkt, seq);
 	put_hword(&pkt, status);
 	if (challenge_len>0)
 		put_tlv(&pkt, IEEE80211_ELEMID_CHALLENGE,
