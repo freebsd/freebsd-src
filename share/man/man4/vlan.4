@@ -115,6 +115,10 @@ The hack works only for the 21041, 21140, and 21140A chips.
 supports long frames for the
 .Nm
 natively.
+.It Xr sis 4
+supports long frames for the
+.Nm
+natively.
 .It Xr tl 4
 does support long frames.
 .It Xr tx 4
@@ -128,7 +132,8 @@ supports long frames only if the card is built on a newer chip
 .Pp
 Note:
 Except for
-.Xr fxp 4
+.Xr fxp 4 ,
+.Xr sis 4
 and
 .Xr tx 4 ,
 none of the above drivers inform the
