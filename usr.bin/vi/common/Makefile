@@ -1,13 +1,24 @@
-#	@(#)Makefile	8.47 (Berkeley) 8/14/94
+#	@(#)Makefile	8.51 (Berkeley) 8/17/94
 
+VI=	nvi
+EX=	nex
+VIEW=	nview
 PROG=	nvi
+LINKS=	${BINDIR}/${VI} ${BINDIR}/${EX} ${BINDIR}/${VI} ${BINDIR}/${VIEW}
+
 #CFLAGS=-g -DDEBUG
 #CFLAGS+=-pg
 CFLAGS+=-I. -I${.CURDIR}
-#STRIP=
+#LDADD+=-pg
+DPADD+= ${LIBCURSES} ${LIBTERM} ${LIBUTIL}
+LDADD+=	-lcurses -ltermlib -lutil
+
 .PATH:	${.CURDIR}/../common ${.CURDIR}/../ex ${.CURDIR}/../sex \
 	${.CURDIR}/../vi ${.CURDIR}/../svi ${.CURDIR}/../xaw
-CLEANFILES+=nex
+
+SPECHDR=compat.h excmd.h options.h
+
+CLEANFILES+=${SPECHDR} ${EX} vi.1
 
 # General sources.
 SRCS=	cut.c delete.c exf.c line.c log.c main.c mark.c msg.c options.c \
@@ -43,22 +54,24 @@ SRCS+=	svi_confirm.c svi_curses.c svi_ex.c svi_get.c svi_line.c \
 # Athena widget set screen source.
 SRCS+=	xaw_screen.c
 
-#LDADD+=-pg
-DPADD+= ${LIBCURSES} ${LIBTERM} ${LIBUTIL}
-LDADD+=	-lcurses -ltermlib -lutil
-SPECHDR=compat.h excmd.h options.h
-CLEANFILES+=${SPECHDR}
-LINKS=	${BINDIR}/nvi ${BINDIR}/nex ${BINDIR}/vi ${BINDIR}/ex ${BINDIR}/view
+all: ${VI} ${EX} vi.1
 
 all: nvi nex vi.1
 nex: nvi
 	rm -f nex
 	ln nvi nex
 
-nvi: compat.h options.h excmd.h
+${EX}: ${VI}
+	rm -f ${EX}
+	ln ${VI} ${EX}
 
 compat.h:
 	:> compat.h
+
+excmd.h: excmd.h.stub excmd.c excmd.awk
+	rm -f excmd.h
+	cat ${.CURDIR}/../ex/excmd.h.stub > excmd.h
+	awk -f ${.CURDIR}/../ex/excmd.awk ${.CURDIR}/../ex/excmd.c >> excmd.h
 
 options.h: options.h.stub options.c options.awk
 	rm -f options.h
@@ -89,9 +102,6 @@ warn:: ${SRCS}
 	    	-e "/warning: .*inline call to/d" \
 	    	-e "/warning: comparison is always 1 due /d") > \
 		${.CURDIR}/WARN.OUT
-
-MAN=	${.CURDIR}/../USD.doc/vi.man
-REF=	${.CURDIR}/../USD.doc/vi.ref
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
