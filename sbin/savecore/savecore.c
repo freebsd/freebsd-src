@@ -35,26 +35,32 @@
  * $FreeBSD$
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <err.h>
-#include <fcntl.h>
-#include <fstab.h>
-#include <errno.h>
-#include <time.h>
-#include <md5.h>
-#include <unistd.h>
+#include <sys/types.h>
 #include <sys/disk.h>
 #include <sys/kerneldump.h>
+#include <sys/stat.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <fstab.h>
+#include <md5.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+
+int clear, force, keep, verbose;	/* flags */
+int nfound, nsaved;			/* statistics */
 
 static void
-printheader(FILE *f, const struct kerneldumpheader *h, const char *devname,
+printheader(FILE *f, const struct kerneldumpheader *h, const char *device,
     const char *md5)
 {
 	uint64_t dumplen;
 	time_t t;
 
-	fprintf(f, "Good dump found on device %s\n", devname);
+	fprintf(f, "Good dump found on device %s\n", device);
 	fprintf(f, "  Architecture: %s\n", h->architecture);
 	fprintf(f, "  Architecture version: %d\n",
 	    dtoh32(h->architectureversion));
@@ -72,111 +78,171 @@ printheader(FILE *f, const struct kerneldumpheader *h, const char *devname,
 
 
 static void
-DoFile(const char *devname)
+DoFile(const char *device)
 {
-	int fd, fdcore, fdinfo, error, wl;
-	off_t mediasize, dumpsize, firsthd, lasthd;
-	u_int sectorsize;
 	struct kerneldumpheader kdhf, kdhl;
+	char buf[BUFSIZ];
+	struct stat sb;
+	off_t mediasize, dumpsize, firsthd, lasthd;
 	char *md5;
 	FILE *info;
-	char buf[BUFSIZ];
+	int fd, fdcore, fdinfo, error, wl;
+	u_int sectorsize;
+
+	if (verbose)
+		printf("Checking for kernel dump on device %s\n", device);
 
 	mediasize = 0;
-	fd = open(devname, O_RDONLY);
+	fd = open(device, O_RDWR);
 	if (fd < 0) {
-		warn("%s", devname);
+		warn("%s", device);
 		return;
 	}
 	error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
 	if (!error)
 		error = ioctl(fd, DIOCGSECTORSIZE, &sectorsize);
 	if (error) {
-		warn("Couldn't find media and/or sector size of %s)", devname);
-		return;
+		warn("Couldn't find media and/or sector size of %s)", device);
+		goto closefd;
 	}
-	printf("Mediasize = %lld\n", (long long)mediasize);
-	printf("Sectorsize = %u\n", sectorsize);
+
+	if (verbose) {
+		printf("Mediasize = %lld\n", (long long)mediasize);
+		printf("Sectorsize = %u\n", sectorsize);
+	}
+
 	lasthd = mediasize - sectorsize;
 	lseek(fd, lasthd, SEEK_SET);
 	error = read(fd, &kdhl, sizeof kdhl);
 	if (error != sizeof kdhl) {
-		warn("Error Reading last dump header at offset %lld in %s",
-		    (long long)lasthd, devname);
-		return;
-	}
-	if (kerneldump_parity(&kdhl)) {
-		warnx("Parity error on last dump header on %s\n", devname);
-		return;
+		warn("Error reading last dump header at offset %lld in %s",
+		    (long long)lasthd, device);
+		goto closefd;
 	}
 	if (memcmp(kdhl.magic, KERNELDUMPMAGIC, sizeof kdhl.magic)) {
-		warnx("Magic mismatch on last dump header on %s\n", devname);
-		return;
+		if (verbose)
+			warnx("Magic mismatch on last dump header on %s",
+			    device);
+		goto closefd;
 	}
 	if (dtoh32(kdhl.version) != KERNELDUMPVERSION) {
-		warnx("Unknown version (%d) in last dump header on %s\n",
-		    dtoh32(kdhl.version), devname);
-		return;
+		warnx("Unknown version (%d) in last dump header on %s",
+		    dtoh32(kdhl.version), device);
+		goto closefd;
+	}
+
+	nfound++;
+	if (clear)
+		goto nuke;
+
+	if (kerneldump_parity(&kdhl)) {
+		warnx("Parity error on last dump header on %s", device);
+		goto closefd;
 	}
 	dumpsize = dtoh64(kdhl.dumplength);
 	firsthd = lasthd - dumpsize - sizeof kdhf;
 	lseek(fd, firsthd, SEEK_SET);
 	error = read(fd, &kdhf, sizeof kdhf);
 	if (error != sizeof kdhf) {
-		warn("Error Reading first dump header at offset %lld in %s",
-		    (long long)firsthd, devname);
-		return;
+		warn("Error reading first dump header at offset %lld in %s",
+		    (long long)firsthd, device);
+		goto closefd;
 	}
 	if (memcmp(&kdhl, &kdhf, sizeof kdhl)) {
-		warn("First and last dump headers disagree on %s\n", devname);
-		return;
+		warn("First and last dump headers disagree on %s", device);
+		goto closefd;
 	}
 	md5 = MD5Data((unsigned char *)&kdhl, sizeof kdhl, NULL);
 	sprintf(buf, "%s.info", md5);
-	fdinfo = open(buf, O_WRONLY | O_CREAT | O_EXCL, 0600);
-	if (fdinfo < 0 && errno == EEXIST) {
-		printf("Dump on device %s already saved\n", devname);
-		return;
+
+	/*
+	 * See if the dump has been saved already. Don't save the dump
+	 * again, unless 'force' is in effect.
+	 */
+	if (stat(buf, &sb) == 0) {
+		if (!force) {
+			if (verbose)
+				printf("Dump on device %s already saved\n",
+				    device);
+			goto closefd;
+		}
+	} else if (errno != ENOENT) {
+		warn("Error while checking for pre-saved core file");
+		goto closefd;
 	}
+
+	/*
+	 * Create or overwrite any existing files.
+	 */
+	fdinfo = open(buf, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (fdinfo < 0) {
 		warn("%s", buf);
-		return;
+		goto closefd;
 	}
 	sprintf(buf, "%s.core", md5);
-	fdcore = open(buf, O_WRONLY | O_CREAT | O_EXCL, 0600);
+	fdcore = open(buf, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (fdcore < 0) {
 		warn("%s", buf);
-		return;
+		close(fdinfo);
+		goto closefd;
 	}
 	info = fdopen(fdinfo, "w");
-	printheader(stdout, &kdhl, devname, md5);
-	printheader(info, &kdhl, devname, md5);
-	printf("Saving dump to file...\n");
+
+	if (verbose)
+		printheader(stdout, &kdhl, device, md5);
+
+	printf("Saving dump to file %s\n", buf);
+	nsaved++;
+
+	printheader(info, &kdhl, device, md5);
+
 	while (dumpsize > 0) {
 		wl = sizeof(buf);
 		if (wl > dumpsize)
 			wl = dumpsize;
 		error = read(fd, buf, wl);
 		if (error != wl) {
-			warn("read error on %s\n", devname);	
-			return;
+			warn("Read error on %s", device);
+			goto closeall;
 		}
 		error = write(fdcore, buf, wl);
 		if (error != wl) {
-			warn("write error on %s.core file\n", md5);	
-			return;
+			warn("Write error on %s.core file", md5);
+			goto closeall;
 		}
 		dumpsize -= wl;
 	}
-	close (fdinfo);
-	close (fdcore);
-	printf("Dump saved\n");
+	close(fdinfo);
+	close(fdcore);
+
+	if (verbose)
+		printf("Dump saved\n");
+
+ nuke:
+	if (clear || !keep) {
+		if (verbose)
+			printf("Clearing dump header\n");
+		memset(&kdhl, 0, sizeof kdhl);
+		lseek(fd, lasthd, SEEK_SET);
+		error = write(fd, &kdhl, sizeof kdhl);
+		if (error != sizeof kdhl)
+			warn("Error while clearing the dump header");
+	}
+	close(fd);
+	return;
+
+ closeall:
+	close(fdinfo);
+	close(fdcore);
+
+ closefd:
+	close(fd);
 }
 
 static void
 usage(void)
 {
-	errx(1, "usage: ...");
+	errx(1, "usage: savecore [-cfkv] [directory [device...]]");
 	exit (1);
 }
 
@@ -189,10 +255,18 @@ main(int argc, char **argv)
 	while ((ch = getopt(argc, argv, "cdfkN:vz")) != -1)
 		switch(ch) {
 		case 'c':
-		case 'd':
-		case 'v':
-		case 'f':
+			clear = 1;
+			break;
 		case 'k':
+			keep = 1;
+			break;
+		case 'v':
+			verbose = 1;
+			break;
+		case 'f':
+			force = 1;
+			break;
+		case 'd':	/* Obsolete */
 		case 'N':
 		case 'z':
 		case '?':
@@ -222,5 +296,12 @@ main(int argc, char **argv)
 		for (i = 0; i < argc; i++)
 			DoFile(argv[i]);
 	}
+
+	/* Emit minimal output. */
+	if (nfound == 0)
+		printf("No dumps found\n");
+	else if (nsaved == 0)
+		printf("No unsaved dumps found\n");
+
 	return (0);
 }
