@@ -31,22 +31,24 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 #include <rpcsvc/rnusers.h>
+
 #include <arpa/inet.h>
+
 #include <err.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <unistd.h>
 
 #define MAX_INT		0x7fffffff
@@ -61,7 +63,7 @@ struct host_list {
 	struct	in_addr addr;
 } *hosts;
 
-int
+static int
 search_host(struct in_addr addr)
 {
 	struct host_list *hp;
@@ -76,7 +78,7 @@ search_host(struct in_addr addr)
 	return (0);
 }
 
-void
+static void
 remember_host(struct in_addr addr)
 {
 	struct host_list *hp;
@@ -88,10 +90,11 @@ remember_host(struct in_addr addr)
 	hosts = hp;
 }
 
-int
+static int
 rusers_reply(caddr_t replyp, struct sockaddr_in *raddrp)
 {
-	int x, idle;
+	u_int x;
+	int idle;
 	char date[32], idle_time[64], remote[64];
 	struct hostent *hp;
 	utmpidlearr *up = (utmpidlearr *)replyp;
@@ -165,7 +168,7 @@ rusers_reply(caddr_t replyp, struct sockaddr_in *raddrp)
 	return (0);
 }
 
-void
+static void
 onehost(char *host)
 {
 	utmpidlearr up;
@@ -193,8 +196,8 @@ onehost(char *host)
 	clnt_destroy(rusers_clnt);
 }
 
-void
-allhosts()
+static void
+allhosts(void)
 {
 	utmpidlearr up;
 	enum clnt_stat clnt_stat;
@@ -208,7 +211,7 @@ allhosts()
 }
 
 static void
-usage()
+usage(void)
 {
 
 	fprintf(stderr, "usage: rusers [-la] [hosts ...]\n");
