@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.82.2.8 1997/07/18 19:35:40 se Exp $
+**  $Id: ncr.c,v 1.82.2.9 1997/09/08 22:02:36 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -164,7 +164,7 @@
 **    The calculation below is actually quite silly ...
 */
 
-#define MAX_START   (MAX_TARGET + 7 * SCSI_NCR_DFLT_TAGS)
+#define MAX_START   (32) /* (MAX_TARGET + 7 * SCSI_NCR_DFLT_TAGS) */
 
 /*
 **    The maximum number of segments a transfer is split into.
@@ -1342,7 +1342,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.82.2.8 1997/07/18 19:35:40 se Exp $\n";
+	"\n$Id: ncr.c,v 1.82.2.9 1997/09/08 22:02:36 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
