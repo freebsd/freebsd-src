@@ -98,7 +98,7 @@ struct rusage {
 
 #define	RLIM_NLIMITS	11		/* number of resource limits */
 
-#define	RLIM_INFINITY	((rlim_t)(((u_quad_t)1 << 63) - 1))
+#define	RLIM_INFINITY	((rlim_t)INT64_MAX)
 /* XXX Missing: RLIM_SAVED_MAX, RLIM_SAVED_CUR */
 
 
