@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .In time.h
 .Ft char *
-.Fn strptime "const char *buf" "const char *format" "struct tm *timeptr"
+.Fn strptime "const char *restrict buf" "const char *restrict format" "struct tm *restrict timeptr"
 .Sh DESCRIPTION
 The
 .Fn strptime
