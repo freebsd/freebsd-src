@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.92 1997/08/21 20:33:39 bde Exp $
+ * $Id: vfs_subr.c,v 1.93 1997/08/22 03:56:29 dyson Exp $
  */
 
 /*
@@ -62,8 +62,6 @@
 #include <sys/domain.h>
 #include <sys/mbuf.h>
 #include <sys/dirent.h>
-
-#include <machine/limits.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -1089,11 +1087,11 @@ vputrele(vp, put)
 		panic("vputrele: null vp");
 #endif
 	simple_lock(&vp->v_interlock);
+	vp->v_usecount--;
 
-	if ((vp->v_usecount == 2) &&
+	if ((vp->v_usecount == 1) &&
 		vp->v_object &&
 		(vp->v_object->flags & OBJ_VFS_REF)) {
-		vp->v_usecount--;
 		vp->v_object->flags &= ~OBJ_VFS_REF;
 		if (put) {
 			VOP_UNLOCK(vp, LK_INTERLOCK, p);
@@ -1104,8 +1102,7 @@ vputrele(vp, put)
 		return;
 	}
 
-	if (vp->v_usecount > 1) {
-		vp->v_usecount--;
+	if (vp->v_usecount > 0) {
 		if (put) {
 			VOP_UNLOCK(vp, LK_INTERLOCK, p);
 		} else {
@@ -1114,12 +1111,23 @@ vputrele(vp, put)
 		return;
 	}
 
-	if (vp->v_usecount < 1) {
+	if (vp->v_usecount < 0) {
 #ifdef DIAGNOSTIC
 		vprint("vputrele: negative ref count", vp);
 #endif
 		panic("vputrele: negative ref cnt");
 	}
+	simple_lock(&vnode_free_list_slock);
+	if (vp->v_flag & VAGE) {
+		vp->v_flag &= ~VAGE;
+		if(vp->v_tag != VT_TFS)
+			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
+	} else {
+		if(vp->v_tag != VT_TFS)
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+	}
+	freevnodes++;
+	simple_unlock(&vnode_free_list_slock);
 
 	/*
 	 * If we are doing a vput, the node is already locked, and we must
@@ -1132,19 +1140,6 @@ vputrele(vp, put)
 	} else if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, p) == 0) {
 		VOP_INACTIVE(vp, p);
 	}
-
-	vp->v_usecount--;
-	simple_lock(&vnode_free_list_slock);
-	if (vp->v_flag & VAGE) {
-		vp->v_flag &= ~VAGE;
-		if(vp->v_tag != VT_TFS)
-			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
-	} else {
-		if(vp->v_tag != VT_TFS)
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-	}
-	freevnodes++;
-	simple_unlock(&vnode_free_list_slock);
 }
 
 /*
