@@ -1,11 +1,11 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.10 1996/10/06 20:28:13 jfieber Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.11 1996/10/06 20:33:37 jfieber Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date>$Date: 1996/10/06 20:28:13 $
+<date>$Date: 1996/10/06 20:33:37 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -2644,6 +2644,49 @@ disk        fd1   at fdc0 drive 1
                 ...
               </verb>
          </enum>
+
+      <sect1>
+	<heading>What's inappropriate about my ccd?</heading>
+	<p>
+	  The symptom of this is:
+	  <verb>
+	    host# ccdconfig -C
+	    ccdconfig: ioctl (CCDIOCSET): /dev/ccd0c: Inappropriate file type or format
+	    host#
+	  </verb>
+
+	<p>
+	  This usually happens when you are trying to concatenate the
+	  `c' partitions, which default to type `unused'.  The ccd
+	  driver requires the underlying partition type to be
+	  FS_BSDFFS.  Edit the disklabel of the disks you are trying
+	  to concatenate and change the types of partitions to
+	  `4.2BSD'.
+
+      <sect1>
+        <heading>Why can't I edit the disklabel on my ccd?</heading>
+	<p>
+	  The symptom of this is:
+	  <verb>
+	    host# disklabel ccd0
+	    (it prints something sensible here, so let's try to edit it)
+	    host# disklabel -e ccd0
+	    (edit, save, quit)
+	    disklabel: ioctl DIOCWDINFO: No disk label on disk;
+	    use "disklabel -r" to install initial label
+	    host#
+	  </verb>
+
+        <p>
+	  This is because the disklabel returned by ccd is actually a
+	  `fake' one that is not really on the disk.  You can solve
+	  this problem by writing it back explicitly, as in:
+	  <verb>
+	    host# disklabel ccd0 > /tmp/disklabel.tmp
+	    host# disklabel -Rr ccd0 /tmp/disklabel.tmp
+	    host# disklabel -e ccd0
+	    (this will work now)
+	  </verb>
 
     <sect>
       <heading>Networking</heading>
