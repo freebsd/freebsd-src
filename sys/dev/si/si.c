@@ -138,6 +138,7 @@ static int si_Nmodules;
 static int si_debug = 0;	/* data, not bss, so it's patchable */
 
 SYSCTL_INT(_machdep, OID_AUTO, si_debug, CTLFLAG_RW, &si_debug, 0, "");
+TUNABLE_INT("machdep.si_debug", &si_debug);
 
 static int si_numunits;
 
