@@ -53,6 +53,9 @@ struct acpi_softc {
     int			acpi_power_button_sx;
     int			acpi_sleep_button_sx;
     int			acpi_lid_switch_sx;
+
+    struct sysctl_ctx_list	 acpi_battery_sysctl_ctx;
+    struct sysctl_oid		*acpi_battery_sysctl_tree;
 };
 
 struct acpi_device {
@@ -229,4 +232,13 @@ acpi_device_get_parent_softc(device_t child)
 extern char	*acpi_name(ACPI_HANDLE handle);
 extern int	acpi_avoid(ACPI_HANDLE handle);
 extern int	acpi_disabled(char *subsys);
+
+/*
+ * Battery Abstruction and Generalized Power Management interface.
+ */
+struct acpi_battinfo;
+
+extern int	acpi_battery_register(int, int);
+extern int	acpi_acad_get_acline(void);
+extern int	acpi_cmbat_get_battinfo(int, struct acpi_battinfo *);
 

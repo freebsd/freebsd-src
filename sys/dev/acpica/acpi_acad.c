@@ -57,6 +57,7 @@ static void acpi_acad_notify_handler(ACPI_HANDLE , UINT32 ,void *);
 static int acpi_acad_probe(device_t);
 static int acpi_acad_attach(device_t);
 static int acpi_acad_ioctl(u_long, caddr_t, void *);
+static int acpi_acad_sysctl(SYSCTL_HANDLER_ARGS);
 
 struct  acpi_acad_softc {
 	int status;
@@ -69,9 +70,14 @@ acpi_acad_get_status(void *context)
 	struct acpi_acad_softc *sc = device_get_softc(dev);
 	ACPI_HANDLE h = acpi_get_handle(dev);
 
-	if (acpi_EvaluateInteger(h, "_PSR", &sc->status) != AE_OK)
+	if (acpi_EvaluateInteger(h, "_PSR", &sc->status) != AE_OK) {
+		sc->status = -1;
 		return;
-	device_printf(dev,"%s\n",(sc->status) ? "On Line" : "Off Line");
+	}
+
+	if (bootverbose) {
+		device_printf(dev,"%s\n",(sc->status) ? "On Line" : "Off Line");
+	}
 }
 
 static void
@@ -79,7 +85,10 @@ acpi_acad_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
 	device_t dev = context;
 
-	device_printf(dev, "Notify %d\n", notify);
+	if (bootverbose) {
+		device_printf(dev, "Notify %d\n", notify);
+	}
+
 	switch (notify) {
 	case ACPI_DEVICE_CHECK_PNP:
 	case ACPI_DEVICE_CHECK_EXISTENCE:
@@ -113,6 +122,8 @@ static int
 acpi_acad_attach(device_t dev)
 {
 	int	 error;
+	struct acpi_acad_softc	*sc;
+	struct acpi_softc	*acpi_sc;
 
 	ACPI_HANDLE handle = acpi_get_handle(dev);
 	AcpiInstallNotifyHandler(handle, 
@@ -123,12 +134,21 @@ acpi_acad_attach(device_t dev)
 				 ACPI_SYSTEM_NOTIFY,
 				 acpi_acad_notify_handler, dev);
 
-	acpi_acad_get_status((void *)dev);
-
-	error = acpi_register_ioctl(ACPIIO_ACAD_GET_STATUS, acpi_acad_ioctl,
-	    device_get_softc(dev));
-	if (error)
+	if ((sc = device_get_softc(dev)) == NULL) {
+		return (ENXIO);
+	}
+	if ((error = acpi_register_ioctl(ACPIIO_ACAD_GET_STATUS,
+			acpi_acad_ioctl, dev)) != 0) {
 		return (error);
+	}
+
+	if (device_get_unit(dev) == 0) {
+		acpi_sc = acpi_device_get_parent_softc(dev);
+		SYSCTL_ADD_PROC(&acpi_sc->acpi_sysctl_ctx,
+			SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
+			OID_AUTO, "acline", CTLTYPE_INT | CTLFLAG_RD,
+			&sc->status, 0, acpi_acad_sysctl, "I", "");
+	}
 
 	return(0);
 }
@@ -153,18 +173,41 @@ DRIVER_MODULE(acpi_acad,acpi,acpi_acad_driver,acpi_acad_devclass,0,0);
 static int
 acpi_acad_ioctl(u_long cmd, caddr_t addr, void *arg)
 {
-	struct	 acpi_acad_softc *sc;
+	device_t		 dev;
+	struct acpi_acad_softc	*sc;
 
-	sc = (struct acpi_acad_softc *)arg;
-	if (sc == NULL) {
+	dev = (device_t)arg;
+	if ((sc = device_get_softc(dev)) == NULL) {
 		return(ENXIO);
 	}
 
 	switch (cmd) {
 	case ACPIIO_ACAD_GET_STATUS:
+		acpi_acad_get_status(dev);
 		*(int *)addr = sc->status;
 		break;
 	}
 
 	return(0);
 }
+
+static int
+acpi_acad_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int     val;
+	int     error;
+	device_t	dev;
+	struct acpi_acad_softc	*sc;
+
+	if ((dev = devclass_get_device(acpi_acad_devclass, 0)) == NULL) {
+		return (ENXIO);
+	}
+	if ((sc = device_get_softc(dev)) == NULL) {
+		return (ENXIO);
+	}
+	acpi_acad_get_status(dev);
+	val = *(u_int *)oidp->oid_arg1;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	return (error);
+}
+
