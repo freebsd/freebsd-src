@@ -70,6 +70,10 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
+#if (LINUX_IFNAMSIZ != IFNAMSIZ)
+#error "LINUX_IFNAMSIZ != IFNAMSIZ"
+#endif
+
 static linux_ioctl_function_t linux_ioctl_cdrom;
 static linux_ioctl_function_t linux_ioctl_vfat;
 static linux_ioctl_function_t linux_ioctl_console;
@@ -2234,9 +2238,6 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	struct ifnet *ifp;
 	struct file *fp;
 	int error, type;
-
-	KASSERT(LINUX_IFNAMSIZ == IFNAMSIZ,
-	    ("%s(): LINUX_IFNAMSIZ != IFNAMSIZ", __func__));
 
 	ifp = NULL;
 	error = 0;
