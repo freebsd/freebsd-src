@@ -119,7 +119,7 @@ static u_int key_int_random = 60;	/*interval to initialize randseed,1(m)*/
 static u_int key_larval_lifetime = 30;	/* interval to expire acquiring, 30(s)*/
 static int key_blockacq_count = 10;	/* counter for blocking SADB_ACQUIRE.*/
 static int key_blockacq_lifetime = 20;	/* lifetime for blocking SADB_ACQUIRE.*/
-static int key_prefered_oldsa = 1;	/* prefered old sa rather than new sa.*/
+static int key_preferred_oldsa = 1;	/* preferred old sa rather than new sa.*/
 
 static u_int32_t acq_seq = 0;
 
@@ -286,8 +286,8 @@ SYSCTL_INT(_net_key, KEYCTL_AH_KEYMIN,	ah_keymin, CTLFLAG_RW, \
 	&ipsec_ah_keymin,	0,	"");
 
 /* perfered old SA rather than new SA */
-SYSCTL_INT(_net_key, KEYCTL_PREFERED_OLDSA,	prefered_oldsa, CTLFLAG_RW,\
-	&key_prefered_oldsa,	0,	"");
+SYSCTL_INT(_net_key, KEYCTL_PREFERED_OLDSA,	preferred_oldsa, CTLFLAG_RW,\
+	&key_preferred_oldsa,	0,	"");
 
 #define __LIST_CHAINED(elm) \
 	(!((elm)->chain.le_next == NULL && (elm)->chain.le_prev == NULL))
@@ -893,7 +893,7 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
 		IPSEC_ASSERT(sav->lft_c != NULL, ("null sav lifetime"));
 
 		/* What the best method is to compare ? */
-		if (key_prefered_oldsa) {
+		if (key_preferred_oldsa) {
 			if (candidate->lft_c->sadb_lifetime_addtime >
 					sav->lft_c->sadb_lifetime_addtime) {
 				candidate = sav;
@@ -902,7 +902,7 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
 			/*NOTREACHED*/
 		}
 
-		/* prefered new sa rather than old sa */
+		/* preferred new sa rather than old sa */
 		if (candidate->lft_c->sadb_lifetime_addtime <
 				sav->lft_c->sadb_lifetime_addtime) {
 			d = candidate;
