@@ -622,7 +622,7 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		return (fsetown(*(int *)data, &tp->tun_sigio));
 
 	case FIOGETOWN:
-		*(int *)data = fgetown(tp->tun_sigio);
+		*(int *)data = fgetown(&tp->tun_sigio);
 		return (0);
 
 	/* This is deprecated, FIOSETOWN should be used instead. */
@@ -631,7 +631,7 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
 	/* This is deprecated, FIOGETOWN should be used instead. */
 	case TIOCGPGRP:
-		*(int *)data = -fgetown(tp->tun_sigio);
+		*(int *)data = -fgetown(&tp->tun_sigio);
 		return (0);
 
 	default:

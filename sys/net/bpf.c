@@ -866,7 +866,7 @@ bpfioctl(dev, cmd, addr, flags, td)
 		break;
 
 	case FIOGETOWN:
-		*(int *)addr = fgetown(d->bd_sigio);
+		*(int *)addr = fgetown(&d->bd_sigio);
 		break;
 
 	/* This is deprecated, FIOSETOWN should be used instead. */
@@ -876,7 +876,7 @@ bpfioctl(dev, cmd, addr, flags, td)
 
 	/* This is deprecated, FIOGETOWN should be used instead. */
 	case TIOCGPGRP:
-		*(int *)addr = -fgetown(d->bd_sigio);
+		*(int *)addr = -fgetown(&d->bd_sigio);
 		break;
 
 	case BIOCSRSIG:		/* Set receive signal */
