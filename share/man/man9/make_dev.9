@@ -24,13 +24,15 @@
 .\" 
 .\" $FreeBSD$
 .\" 
-.Dd September 25, 1999
+.Dd May 27, 2001
 .Os
 .Dt MAKE_DEV 9
 .Sh NAME
 .Nm make_dev ,
-.Nm destroy_dev
-.Nd "create or destroy dev_t and devfs registration for a new device"
+.Nm make_dev_alias ,
+.Nm destroy_dev ,
+.Nm depends_dev
+.Nd manage dev_t's and DEVFS registration for devices
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/conf.h>
@@ -40,6 +42,8 @@
 .Fn make_dev_alias "dev_t pdev" "char *fmt" ...
 .Ft void
 .Fn destroy_dev "dev_t dev"
+.Ft void
+.Fn dev_depends "dev_t pdev" "dev_t cdev"
 .Sh DESCRIPTION
 The
 .Fn make_dev
@@ -104,6 +108,17 @@ Do not call
 .Fn destroy_dev
 on devices that were created with
 .Fn make_dev_alias .
+.Pp
+The
+.Fn depends_dev
+function establishes a parent-child relationship between two devices.
+The net effect is that a
+.Fn destroy_dev
+of the parent device will also result in the destruction of the
+child device(s),
+if any exist.
+A device may simultaneously be a parent and a child,
+so it is possible to build a complete hierachy.
 .Sh HISTORY
 The
 .Fn make_dev
@@ -115,3 +130,7 @@ The function
 .Fn make_dev_alias
 first appeared in
 .Fx 4.1 .
+The function
+.Fn depends_dev
+first appeared in
+.Fx 5.0 .
