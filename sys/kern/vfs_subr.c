@@ -3579,32 +3579,18 @@ vn_isdisk(vp, errp)
 	struct vnode *vp;
 	int *errp;
 {
-	struct cdevsw *cdevsw;
+	int error;
 
-	if (vp->v_type != VCHR) {
-		if (errp != NULL)
-			*errp = ENOTBLK;
-		return (0);
-	}
-	if (vp->v_rdev == NULL) {
-		if (errp != NULL)
-			*errp = ENXIO;
-		return (0);
-	}
-	cdevsw = devsw(vp->v_rdev);
-	if (cdevsw == NULL) {
-		if (errp != NULL)
-			*errp = ENXIO;
-		return (0);
-	}
-	if (!(cdevsw->d_flags & D_DISK)) {
-		if (errp != NULL)
-			*errp = ENOTBLK;
-		return (0);
-	}
+	error = 0;
+	if (vp->v_type != VCHR)
+		error = ENOTBLK;
+	else if (vp->v_rdev == NULL)
+		error = ENXIO;
+	else if (!(devsw(vp->v_rdev)->d_flags & D_DISK))
+		error = ENOTBLK;
 	if (errp != NULL)
-		*errp = 0;
-	return (1);
+		*errp = error;
+	return (error == 0);
 }
 
 /*
