@@ -3534,7 +3534,7 @@ ipfw_init(void)
 	    sizeof(ipfw_dyn_rule), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	IPFW_DYN_LOCK_INIT();
-	callout_init(&ipfw_timeout, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
+	callout_init(&ipfw_timeout, NET_CALLOUT_MPSAFE);
 
 	bzero(&default_rule, sizeof default_rule);
 
