@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.112.2.1 1999/01/24 06:36:04 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.112.2.2 1999/02/27 07:10:39 julian Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -2211,7 +2211,7 @@ lutimes(p, uap)
 	} else if (error = copyin((caddr_t)SCARG(uap, tptr), (caddr_t)tv,
 	    sizeof (tv)))
   		return (error);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if (error = namei(&nd))
 		return (error);
 
