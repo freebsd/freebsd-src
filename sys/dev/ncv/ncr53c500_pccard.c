@@ -261,6 +261,7 @@ static driver_t ncv_pccard_driver = {
 
 static devclass_t ncv_devclass;
 
+MODULE_DEPEND(ncv, scsi_low, 1, 1, 1);
 DRIVER_MODULE(ncv, pccard, ncv_pccard_driver, ncv_devclass, 0, 0);
 
 static void
