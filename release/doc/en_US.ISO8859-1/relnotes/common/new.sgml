@@ -362,7 +362,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       cache (<quote>syncache</quote>), which could allow a remote
       attacker to deny access to a service when accept filters
       (see &man.accept.filter.9;) were in use.  This bug has been 
-      fixed.</para>
+      fixed; for more information, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.</para>
+
+    <para>Due to a bug in &man.rc.8;'s use of shell globbing, users
+      may be able to remove the contents of arbitrary files if
+      <filename>/tmp/.X11-unix</filename> does not exist and the
+      system can be made to reboot.  This bug has been corrected (see
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).</para>
   </sect2>
 
   <sect2 id="userland">
