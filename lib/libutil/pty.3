@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id: pty.3,v 1.2 1996/12/30 21:08:44 mpp Exp $
+.\" $Id: pty.3,v 1.3 1997/01/01 03:29:33 alex Exp $
 .\" "
 .Dd December 29, 1996
 .Os
@@ -62,7 +62,7 @@ invalidate any current use of the line by calling
 .Xr revoke 2 .
 .Pp
 If the argument
-.Ar name
+.Fa name
 is not
 .Dv NULL ,
 .Fn openpty
@@ -70,9 +70,9 @@ copies the pathname of the slave pty to this area.  The caller is
 responsible for allocating the required space in this array.
 .Pp
 If the arguments
-.Ar termp
+.Fa termp
 or
-.Ar winp
+.Fa winp
 are not
 .Dv NULL ,
 .Fn openpty
@@ -81,9 +81,9 @@ these arguments point to, respectively.
 .Pp
 Upon return, the open file descriptors for the master and slave side
 of the pty are returned in the locations pointed to by
-.Ar amaster
+.Fa amaster
 and
-.Ar aslave ,
+.Fa aslave ,
 respectively.
 .Pp
 .Fn Forkpty
@@ -95,11 +95,11 @@ for the master side of the pty, and calls
 .Xr login_tty 3
 for the slave pty.  In the parent process, it closes the descriptor for the
 slave side of the pty.  The arguments
-.Ar amaster ,
-.Ar name ,
-.Ar termp ,
+.Fa amaster ,
+.Fa name ,
+.Fa termp ,
 and
-.Ar winp
+.Fa winp
 have the same meaning as described for
 .Fn openpty .
 .Sh RETURN VALUES
