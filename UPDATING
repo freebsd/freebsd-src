@@ -5,6 +5,10 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20011202:
+	A security hole in OpenSSH involving `UseLogin yes' has been
+	patched.
+
 20011126:
 	You need to remove /usr/obj/.../usr.bin/tip before rebuilding
 	after this date.
