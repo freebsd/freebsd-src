@@ -110,11 +110,6 @@ start:
 	mov	$0xa000, %eax
 	mov	%ax, %es
 
-	addr32
-	movb	0x501, %al
-	testb	$0x08, %al
-	jnz	hireso
-normal:
 	/* set up graphic screen */
 	movb	$0x42, %ah
 	movb	$0xc0, %ch
@@ -124,15 +119,7 @@ normal:
 
 	data32
 	mov	$0x0a00, %eax		/* 80 x 25 mode  */
-	jmp	1f
-hireso:
-	movb	$0x08, %al		/* set up RAM window */
-	outb	%al, $0x91
-	movb	$0x0a, %al
-	outb	%al, $0x93
-	data32
-	mov	$0x0a10, %ax		/* 80 x 31 mode */
-1:
+
 	int	$0x18
 	movb	$0x0c, %ah		/* text on */
 	int	$0x18
@@ -144,19 +131,6 @@ hireso:
 	movb	$0x11, %ah
 	int	$0x18
 
-	/* highreso no supported */
-	addr32
-	movb	0x501, %al
-	testb	$0x08, %al
-	jz	nothireso
-
-	data32
-	mov	$ehireso, %esi
-	data32
-	call	message
-	hlt
-
-nothireso:
 	/* keyboad reset */
 	movb	$0x03, %ah
 	int	$0x18
@@ -527,9 +501,19 @@ ewrite:	String		"Write error\r\n\0"
 eread:	String		"Read error\r\n\0"
 enoboot: String		"No bootable partition\r\n\0"
 endofcode:
-ehireso: String		"Highreso not supported\r\n\0"
+
+	. = EXT(boot1) + 0x1be
+
+/* Partition table */
+
+	.fill 0x30,0x1,0x0
+	.byte 0x80, 0x00, 0x01, 0x00
+	.byte 0xa5, 0xff, 0xff, 0xff
+	.byte 0x00, 0x00, 0x00, 0x00
+	.byte 0x50, 0xc3, 0x00, 0x00
+
 /* the last 2 bytes in the sector 0 contain the signature */
-	. = EXT(boot1) + 0x1fe
 	.value	SIGNATURE
+
 ENTRY(disklabel)
 	. = EXT(boot1) + 0x400	
