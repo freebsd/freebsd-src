@@ -596,7 +596,7 @@
 ; XXX implement
 429	UNIMPL	sigwait
 430	MNOPROTO { int thr_create(ucontext_t *ctx, long *id, int flag s); }
-431	MNOPROTO { void thr_exit(void); }
+431	MNOPROTO { void thr_exit(long *state); }
 432	MNOPROTO { int thr_self(long *id); }
 433	MNOPROTO { int thr_kill(long id, int sig); }
 434	MNOPROTO { int _umtx_lock(struct umtx *umtx); }
