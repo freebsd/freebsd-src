@@ -148,6 +148,11 @@ If the optional
 .Ar args
 are provided on the command line, they are passed to the login shell of
 the target login.
+Note that all command line arguments before the target login name are
+processed by
+.Nm
+itself, everything after the target login name get passed to the login
+shell.
 .Pp
 By default (unless the prompt is reset by a startup file) the super-user
 prompt is set to
