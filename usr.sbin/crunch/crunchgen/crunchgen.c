@@ -487,7 +487,7 @@ void fillin_program(prog_t *p)
     if(!p->objdir && p->srcdir) {
 	FILE *f;
 
-	sprintf(path, "cd %s && echo -n /usr/obj/`pwd`", p->srcdir);
+	sprintf(path, "cd %s && echo -n /usr/obj`/bin/pwd`", p->srcdir);
         p->objdir = p->srcdir;
 	f = popen(path,"r");
 	if (f) {
@@ -497,8 +497,6 @@ void fillin_program(prog_t *p)
 		    p->objdir = strdup(path);
 	    }
 	}
-
-
     }
 
     if(p->srcdir) sprintf(path, "%s/Makefile", p->srcdir);
