@@ -13,16 +13,29 @@
 # A PARTICULAR PURPOSE.
 # $FreeBSD$
 
-PROG=	traceroute6
+PROG=	rrenumd
+SRCS=	rrenumd.c  parser.y lexer.l
+YFLAGS+=	-d
 
-BINOWN=	root
-BINGRP=	bin
-BINMODE=4555
+CC=	gcc
 
-CFLAGS+=-DINET6 -DIPSEC
-DPADD=	${LIBIPSEC}
-LDADD=	-lipsec
+CFLAGS+= -DINET6 -DIPSEC -I${.OBJDIR}
+LDADD+=	-lipsec -lcompat
+DPADD+=	${LIBIPSEC} ${LIBCOMPAT}
+LDADD+= -ll -ly
+DPADD+=	${LIBL} ${LIBY}
 
-MAN8=	traceroute6.8
+MAN5=	rrenumd.conf.5
+MAN8=	rrenumd.8
+
+SRCS+=y.tab.h
+y.tab.h: parser.y
+
+.if defined(YACCDEBUG)
+CFLAGS+= -DYYDEBUG
+YFLAGS+= -t -v
+.endif
 
 .include <bsd.prog.mk>
+
+CLEANFILES+=	y.tab.h
