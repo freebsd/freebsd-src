@@ -493,6 +493,11 @@ retry:
 				didswap++;
 				goto retry;
 			}
+
+			/*
+			 * cleanup our reference
+			 */
+			vmspace_free(vm);
 		}
 	}
 	/*
