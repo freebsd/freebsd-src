@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.146 1995/04/22 00:05:46 jkh Exp $
+# $Id: bsd.port.mk,v 1.147 1995/04/22 00:08:06 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -1060,6 +1060,9 @@ fake-pkg:
 		${PKG_CMD} ${PKG_ARGS} -O ${PKGFILE} > ${PKG_DBDIR}/${PKGNAME}/+CONTENTS; \
 		cp ${PKGDIR}/DESCR ${PKG_DBDIR}/${PKGNAME}/+DESC; \
 		cp ${PKGDIR}/COMMENT ${PKG_DBDIR}/${PKGNAME}/+COMMENT; \
+		if [ -f ${PKGDIR}/INSTALL ]; then cp ${PKGDIR}/INSTALL ${PKG_DBDIR}/${PKGNAME}/+INSTALL; fi; \
+		if [ -f ${PKGDIR}/DEINSTALL ]; then cp ${PKGDIR}/DEINSTALL ${PKG_DBDIR}/${PKGNAME}/+DEINSTALL; fi; \
+		if [ -f ${PKGDIR}/REQ ]; then cp ${PKGDIR}/REQ ${PKG_DBDIR}/${PKGNAME}/+REQ; fi; \
 	else \
 		${ECHO_MSG} "===> ${PKGNAME} is already installed - perhaps an older version?"; \
 		${ECHO_MSG} "     If so, you may wish to \`\`pkg_delete ${PKGNAME}'' and install"; \
