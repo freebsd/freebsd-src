@@ -93,10 +93,11 @@
 #	tun	Tunneling IP device
 #	spigot	Video Spigot video aquisition card
 #	meteor*	Matrox Meteor video aquisition card (pci)
+#	qcam*	Connectix QuickCam parallel port camera
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.95.4.9 1996/03/21 19:52:18 nate Exp $
+#	$Id: MAKEDEV,v 1.95.4.10 1996/05/03 06:02:41 asami Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -1047,6 +1048,13 @@ spigot)
 	rm -f spigot
 	mknod spigot c 11 0
 	chmod 444 spigot
+	;;
+
+qcam?)
+	unit=`expr $i : 'qcam\(.*\)'`
+	rm -f qcam$unit
+	mknod qcam$unit c 73 $unit
+	chmod 444 qcam$unit
 	;;
 
 meteor?)
