@@ -13,7 +13,6 @@ SUBDIR=	atrun \
 	${_mail.local} \
 	makekey \
 	mknetid \
-	${_named-xfer} \
 	pppoed \
 	pt_chown \
 	rbootd \
@@ -34,10 +33,6 @@ SUBDIR=	atrun \
 	telnetd \
 	tftpd \
 	ypxfr
-
-.if !defined(NO_BIND)
-_named-xfer=	named-xfer
-.endif
 
 .if !defined(NO_PF)
 _ftp-proxy=	ftp-proxy

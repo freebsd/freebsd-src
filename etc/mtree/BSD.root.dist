@@ -32,12 +32,6 @@
         ..
         mtree
         ..
-        namedb
-# leave commented out until buildworld/installworld can
-# handle new user ids
-#             s               uname=bind gname=bind mode=0750
-#             ..
-        ..
         ntp             mode=0700
         ..
         pam.d

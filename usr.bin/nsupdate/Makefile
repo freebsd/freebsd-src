@@ -2,20 +2,20 @@
 
 BIND_DIR=	${.CURDIR}/../../contrib/bind9
 LIB_BIND_DIR=	${.CURDIR}/../../lib/bind
-SRCDIR=		${BIND_DIR}/bin/dig
+SRCDIR=		${BIND_DIR}/bin/nsupdate
 
 .include	"${LIB_BIND_DIR}/config.mk"
 
-PROG=		dig
+PROG=		nsupdate
 
 .PATH: ${SRCDIR}
-SRCS+=		dig.c dighost.c
+SRCS+=		nsupdate.c
 
 CFLAGS+=	-I${SRCDIR}/include
 
 DPADD+=		${BIND_DPADD}
 LDADD+=		${BIND_LDADD}
 
-MAN=		dig.1
+MAN=		nsupdate.8
 
 .include <bsd.prog.mk>

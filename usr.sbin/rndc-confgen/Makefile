@@ -2,20 +2,23 @@
 
 BIND_DIR=	${.CURDIR}/../../contrib/bind9
 LIB_BIND_DIR=	${.CURDIR}/../../lib/bind
-SRCDIR=		${BIND_DIR}/bin/dig
+SRCDIR=		${BIND_DIR}/bin/rndc
 
 .include	"${LIB_BIND_DIR}/config.mk"
 
-PROG=		dig
+PROG=		rndc-confgen
+
+.PATH: ${SRCDIR}/unix
+SRCS+=		os.c
 
 .PATH: ${SRCDIR}
-SRCS+=		dig.c dighost.c
+SRCS+=		rndc-confgen.c util.c
 
-CFLAGS+=	-I${SRCDIR}/include
+CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
 
 DPADD+=		${BIND_DPADD}
 LDADD+=		${BIND_LDADD}
 
-MAN=		dig.1
+MAN=		rndc-confgen.8
 
 .include <bsd.prog.mk>
