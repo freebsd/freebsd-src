@@ -339,7 +339,7 @@ mountmsdosfs(devvp, mp, td, argp)
 	bsp = (union bootsector *)bp->b_data;
 	b33 = (struct byte_bpb33 *)bsp->bs33.bsBPB;
 	b50 = (struct byte_bpb50 *)bsp->bs50.bsBPB;
-	b710 = (struct byte_bpb710 *)bsp->bs710.bsPBP;
+	b710 = (struct byte_bpb710 *)bsp->bs710.bsBPB;
 
 #ifndef MSDOSFS_NOCHECKSIG
 	if (bsp->bs50.bsBootSectSig0 != BOOTSIG0
