@@ -22,9 +22,7 @@ static const char rcsid[] =
 
 #ifndef lint
 #ifndef NOID
-/*
-static char	elsieid[] = "@(#)strftime.c	7.47";
-*/
+static const char	elsieid[] = "@(#)strftime.c	7.38";
 /*
 ** Based on the UCB version with the ID appearing below.
 ** This is ANSIish only when "multibyte character == plain character".
@@ -45,6 +43,8 @@ static const char	sccsid[] = "@(#)strftime.c	5.4 (Berkeley) 3/14/89";
 #include <locale.h>
 #include <rune.h>		/* for _PATH_LOCALE */
 #include <sys/stat.h>
+
+#define LOCALE_HOME _PATH_LOCALE
 
 struct lc_time_T {
 	const char *	mon[12];
@@ -92,12 +92,12 @@ static const struct lc_time_T	C_time_locale = {
 	"%m/%d/%y",
 
 	/*
-	** c_fmt
+	** c_fmt (ctime-compatible)
 	** Note that
 	**	"%a %b %d %H:%M:%S %Y"
 	** is used by Solaris 2.3.
 	*/
-	"%D %X",	/* %m/%d/%y %H:%M:%S */
+	"%a %b %e %X %Y",
 
 	/* am */
 	"AM",
@@ -106,12 +106,13 @@ static const struct lc_time_T	C_time_locale = {
 	"PM",
 
 	/* date_fmt */
-	"%a %b %e %H:%M:%S %Z %Y"
+	"%a %b %e %X %Z %Y"
 };
 
 static char *	_add P((const char *, char *, const char *));
 static char *	_conv P((int, const char *, char *, const char *));
 static char *	_fmt P((const char *, const struct tm *, char *, const char *));
+static char *   _secs P((const struct tm *, char *, const char *));
 
 size_t strftime P((char *, size_t, const char *, const struct tm *));
 
@@ -119,12 +120,12 @@ extern char *	tzname[];
 
 size_t
 strftime(s, maxsize, format, t)
-char * const		s;
-const size_t		maxsize;
-const char * const	format;
-const struct tm * const	t;
+	char *const s;
+	const size_t maxsize;
+	const char *const format;
+	const struct tm *const t;
 {
-	char *	p;
+	char *p;
 
 	tzset();
 	p = _fmt(((format == NULL) ? "%c" : format), t, s, s + maxsize);
@@ -136,10 +137,10 @@ const struct tm * const	t;
 
 static char *
 _fmt(format, t, pt, ptlim)
-const char *		format;
-const struct tm * const	t;
-char *			pt;
-const char * const	ptlim;
+	const char *format;
+	const struct tm *const t;
+	char *pt;
+	const char *const ptlim;
 {
 	for ( ; *format; ++format) {
 		if (*format == '%') {
@@ -277,21 +278,7 @@ label:
 				pt = _conv(t->tm_sec, "%02d", pt, ptlim);
 				continue;
 			case 's':
-				{
-					struct tm	tm;
-					char		buf[INT_STRLEN_MAXIMUM(
-								time_t) + 1];
-					time_t		mkt;
-
-					tm = *t;
-					mkt = mktime(&tm);
-					if (TYPE_SIGNED(time_t))
-						(void) sprintf(buf, "%ld",
-							(long) mkt);
-					else	(void) sprintf(buf, "%lu",
-							(unsigned long) mkt);
-					pt = _add(buf, pt, ptlim);
-				}
+				pt = _secs(t, pt, ptlim);
 				continue;
 			case 'T':
 				pt = _fmt("%H:%M:%S", t, pt, ptlim);
@@ -313,86 +300,67 @@ label:
 				pt = _conv((t->tm_wday == 0) ? 7 : t->tm_wday,
 					"%d", pt, ptlim);
 				continue;
-			case 'V':	/* ISO 8601 week number */
-			case 'G':	/* ISO 8601 year (four digits) */
-			case 'g':	/* ISO 8601 year (two digits) */
-/*
-** From Arnold Robbins' strftime version 3.0:  "the week number of the
-** year (the first Monday as the first day of week 1) as a decimal number
-** (01-53)."
-** (ado, 1993-05-24)
-**
-** From "http://www.ft.uni-erlangen.de/~mskuhn/iso-time.html" by Markus Kuhn:
-** "Week 01 of a year is per definition the first week which has the
-** Thursday in this year, which is equivalent to the week which contains
-** the fourth day of January. In other words, the first week of a new year
-** is the week which has the majority of its days in the new year. Week 01
-** might also contain days from the previous year and the week before week
-** 01 of a year is the last week (52 or 53) of the previous year even if
-** it contains days from the new year. A week starts with Monday (day 1)
-** and ends with Sunday (day 7).  For example, the first week of the year
-** 1997 lasts from 1996-12-30 to 1997-01-05..."
-** (ado, 1996-01-02)
-*/
+			case 'V':
+				/*
+				** From Arnold Robbins' strftime version 3.0:
+				** "the week number of the year (the first
+				** Monday as the first day of week 1) as a
+				** decimal number (01-53).  The method for
+				** determining the week number is as specified
+				** by ISO 8601 (to wit: if the week containing
+				** January 1 has four or more days in the new
+				** year, then it is week 1, otherwise it is
+				** week 53 of the previous year and the next
+				** week is week 1)."
+				** (ado, 5/24/93)
+				*/
+				/*
+				** XXX--If January 1 falls on a Friday,
+				** January 1-3 are part of week 53 of the
+				** previous year.  By analogy, if January
+				** 1 falls on a Thursday, are December 29-31
+				** of the PREVIOUS year part of week 1???
+				** (ado 5/24/93)
+				*/
+				/*
+				** You are understood not to expect this.
+				*/
 				{
-					int	year;
-					int	yday;
-					int	wday;
-					int	w;
+					int	i;
 
-					year = t->tm_year + TM_YEAR_BASE;
-					yday = t->tm_yday;
-					wday = t->tm_wday;
-					for ( ; ; ) {
-						int	len;
-						int	bot;
-						int	top;
-
-						len = isleap(year) ?
-							DAYSPERLYEAR :
-							DAYSPERNYEAR;
+					i = (t->tm_yday + 10 - (t->tm_wday ?
+						(t->tm_wday - 1) : 6)) / 7;
+					if (i == 0) {
 						/*
-						** What yday (-3 ... 3) does
-						** the ISO year begin on?
+						** What day of the week does
+						** January 1 fall on?
 						*/
-						bot = ((yday + 11 - wday) %
-							DAYSPERWEEK) - 3;
+						i = t->tm_wday -
+							(t->tm_yday - 1);
 						/*
-						** What yday does the NEXT
-						** ISO year begin on?
+						** Fri Jan 1: 53
+						** Sun Jan 1: 52
+						** Sat Jan 1: 53 if previous
+						**		 year a leap
+						**		 year, else 52
 						*/
-						top = bot -
-							(len % DAYSPERWEEK);
-						if (top < -3)
-							top += DAYSPERWEEK;
-						top += len;
-						if (yday >= top) {
-							++year;
-							w = 1;
-							break;
-						}
-						if (yday >= bot) {
-							w = 1 + ((yday - bot) /
-								DAYSPERWEEK);
-							break;
-						}
-						--year;
-						yday += isleap(year) ?
-							DAYSPERLYEAR :
-							DAYSPERNYEAR;
-					}
+						if (i == TM_FRIDAY)
+							i = 53;
+						else if (i == TM_SUNDAY)
+							i = 52;
+						else	i = isleap(t->tm_year +
+								TM_YEAR_BASE) ?
+								53 : 52;
 #ifdef XPG4_1994_04_09
-					if (w == 52 && t->tm_mon == TM_JANUARY)
-						w = 53;
+						/*
+						** As of 4/9/94, though,
+						** XPG4 calls for 53
+						** unconditionally.
+						*/
+						i = 53;
 #endif /* defined XPG4_1994_04_09 */
-					if (*format == 'V')
-						pt = _conv(w, "%02d",
-							pt, ptlim);
-					else if (*format == 'G')
-						pt = _conv(year, "%02d",
-							pt, ptlim);
-					else	pt = _conv(year, "%04d",
-							pt, ptlim);
+					}
+					pt = _conv(i, "%02d", pt, ptlim);
 				}
 				continue;
 			case 'v':
@@ -457,10 +425,10 @@ label:
 
 static char *
 _conv(n, format, pt, ptlim)
-const int		n;
-const char * const	format;
-char * const		pt;
-const char * const	ptlim;
+	const int n;
+	const char *const format;
+	char *const pt;
+	const char *const ptlim;
 {
 	char	buf[INT_STRLEN_MAXIMUM(int) + 1];
 
@@ -487,9 +455,9 @@ _secs(t, pt, ptlim)
   
 static char *
 _add(str, pt, ptlim)
-const char *		str;
-char *			pt;
-const char * const	ptlim;
+	const char *str;
+	char *pt;
+	const char *const ptlim;
 {
 	while (pt < ptlim && (*pt = *str++) != '\0')
 		++pt;
