@@ -28,6 +28,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/linker_set.h>
+#include <sys/proc.h>
+#include <sys/user.h>
 
 #include <machine/cpu.h>
 
@@ -240,15 +243,51 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	int *argp;
 	db_addr_t callpc;
 	boolean_t first;
+	struct pcb *pcb;
+	struct proc *p;
+	pid_t pid;
 
 	if (count == -1)
-		count = 65535;
+		count = 1024;
 
 	if (!have_addr) {
 		frame = (struct i386_frame *)ddb_regs.tf_ebp;
 		if (frame == NULL)
 			frame = (struct i386_frame *)(ddb_regs.tf_esp - 4);
 		callpc = (db_addr_t)ddb_regs.tf_eip;
+	} else if (!INKERNEL(addr)) {
+		pid = (addr % 16) + ((addr >> 4) % 16) * 10 +
+		    ((addr >> 8) % 16) * 100 + ((addr >> 12) % 16) * 1000 +
+		    ((addr >> 16) % 16) * 10000;
+		/*
+		 * The pcb for curproc is not valid at this point,
+		 * so fall back to the default case.
+		 */
+		if (pid == curproc->p_pid) {
+			frame = (struct i386_frame *)ddb_regs.tf_ebp;
+			if (frame == NULL)
+				frame = (struct i386_frame *)
+				    (ddb_regs.tf_esp - 4);
+			callpc = (db_addr_t)ddb_regs.tf_eip;
+		} else {
+
+			/* sx_slock(&allproc_lock); */
+			LIST_FOREACH(p, &allproc, p_list) {
+				if (p->p_pid == pid)
+					break;
+			}
+			/* sx_sunlock(&allproc_lock); */
+			if (p == NULL) {
+				db_printf("pid %d not found\n", pid);
+				return;
+			}
+			pcb = &p->p_addr->u_pcb;
+			frame = (struct i386_frame *)pcb->pcb_ebp;
+			if (frame == NULL)
+				frame = (struct i386_frame *)
+				    (pcb->pcb_esp - 4);
+			callpc = (db_addr_t)pcb->pcb_eip;
+		}
 	} else {
 		frame = (struct i386_frame *)addr;
 		callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
@@ -279,33 +318,42 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 		 * db_nextframe() works because the `next' pc is special).
 		 */
 		actframe = frame;
-		if (first && !have_addr) {
-			int instr;
+		if (first) {
+			if (!have_addr) {
+				int instr;
 
-			instr = db_get_value(callpc, 4, FALSE);
-			if ((instr & 0x00ffffff) == 0x00e58955) {
-				/* pushl %ebp; movl %esp, %ebp */
-				actframe = (struct i386_frame *)
-					   (ddb_regs.tf_esp - 4);
-			} else if ((instr & 0x0000ffff) == 0x0000e589) {
-				/* movl %esp, %ebp */
-				actframe = (struct i386_frame *)
-					   ddb_regs.tf_esp;
-				if (ddb_regs.tf_ebp == 0) {
-					/* Fake the caller's frame better. */
-					frame = actframe;
+				instr = db_get_value(callpc, 4, FALSE);
+				if ((instr & 0x00ffffff) == 0x00e58955) {
+					/* pushl %ebp; movl %esp, %ebp */
+					actframe = (struct i386_frame *)
+					    (ddb_regs.tf_esp - 4);
+				} else if ((instr & 0x0000ffff) == 0x0000e589) {
+					/* movl %esp, %ebp */
+					actframe = (struct i386_frame *)
+					    ddb_regs.tf_esp;
+					if (ddb_regs.tf_ebp == 0) {
+						/* Fake caller's frame better. */
+						frame = actframe;
+					}
+				} else if ((instr & 0x000000ff) == 0x000000c3) {
+					/* ret */
+					actframe = (struct i386_frame *)
+					    (ddb_regs.tf_esp - 4);
+				} else if (offset == 0) {
+					/* Probably a symbol in assembler code. */
+					actframe = (struct i386_frame *)
+					    (ddb_regs.tf_esp - 4);
 				}
-			} else if ((instr & 0x000000ff) == 0x000000c3) {
-				/* ret */
-				actframe = (struct i386_frame *)
-					   (ddb_regs.tf_esp - 4);
-			} else if (offset == 0) {
-				/* Probably a symbol in assembler code. */
-				actframe = (struct i386_frame *)
-					   (ddb_regs.tf_esp - 4);
+			} else if (!strcmp(name, "fork_trampoline")) {
+				/*
+				 * Don't try to walk back on a stack for a
+				 * process that hasn't actually been run yet.
+				 */
+				db_print_stack_entry(name, 0, 0, 0, callpc);
+				break;
 			}
+			first = FALSE;
 		}
-		first = FALSE;
 
 		argp = &actframe->f_arg0;
 		narg = MAXNARG;
