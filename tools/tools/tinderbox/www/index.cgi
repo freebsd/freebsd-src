@@ -95,21 +95,27 @@ MAIN:{
 
     <table border=\"1\" cellpadding=\"3\">
       <tr>
-	<th>Platform</th>
+        <th />
 ";
-    foreach my $branch (sort(keys(%BRANCHES))) {
-	print("        <th>$branch</th>\n");
+    foreach my $arch (sort(keys(%ARCHES))) {
+	foreach my $machine (sort(keys(%{$ARCHES{$arch}}))) {
+	    if ($arch eq $machine) {
+		print "        <th>$arch</th>\n";
+	    } else {
+		print "        <th>$arch<br />$machine</th>\n";
+	    }
+	}
     }
     print "      </tr>\n";
 
     my $now = time();
 
-    foreach my $arch (sort(keys(%ARCHES))) {
-	foreach my $machine (sort(keys(%{$ARCHES{$arch}}))) {
-	    my $html =  "      <tr>
-	<td>$arch / $machine</td>
+    foreach my $branch (sort(keys(%BRANCHES))) {
+	my $html =  "      <tr>
+	<th>$branch</th>
 ";
-	    foreach my $branch (sort(keys(%BRANCHES))) {
+	foreach my $arch (sort(keys(%ARCHES))) {
+	    foreach my $machine (sort(keys(%{$ARCHES{$arch}}))) {
 		my $log = "tinderbox-$branch-$arch-$machine";
 		my $links = "";
 		if (-f "$DIR/$log.brief") {
@@ -138,20 +144,20 @@ MAIN:{
 		    $html .= "        <td>$links</td>\n";
 		}
 	    }
-	    $html .= "      </tr>\n";
-	    print $html;
 	}
+	$html .= "      </tr>\n";
+	print $html;
     }
     my $date = strftime("%Y-%m-%d %H:%M UTC", gmtime());
     print "    </table>
     <p class=\"update\">Last updated: $date</p>
     <p>
       <a href=\"http://validator.w3.org/check/referer\"><img
-	  src=\"valid-xhtml10.png\"
-	  alt=\"Valid XHTML 1.0!\" height=\"31\" width=\"88\" /></a>
+          src=\"valid-xhtml10.png\"
+          alt=\"Valid XHTML 1.0!\" height=\"31\" width=\"88\" /></a>
       <a href=\"http://jigsaw.w3.org/css-validator/check/referer\"><img
-	  src=\"valid-css.png\"
-	  alt=\"Valid CSS!\" height=\"31\" width=\"88\" /></a>
+          src=\"valid-css.png\"
+          alt=\"Valid CSS!\" height=\"31\" width=\"88\" /></a>
     </p>
   </body>
 </html>
