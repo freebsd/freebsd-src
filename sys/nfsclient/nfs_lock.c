@@ -190,6 +190,14 @@ nfs_dolock(struct vop_advlock_args *ap)
 		 * then even a reasonably loaded system should take (at least
 		 * on a local network).  XXX Probably should use a back-off
 		 * scheme.
+		 *
+		 * XXX: No PCATCH here since we currently have no useful
+		 * way to signal to the userland rpc.lockd that the request
+		 * has been aborted.  Once the rpc.lockd implementation
+		 * can handle aborts, and we report them properly,
+		 * PCATCH can be put back.  In the mean time, if we did
+		 * permit aborting, the lock attempt would "get lost"
+		 * and the lock would get stuck in the locked state.
 		 */
 		error = tsleep(p->p_nlminfo, PUSER, "lockd", 20*hz);
 		if (error != 0) {
