@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)passwd.5	8.1 (Berkeley) 6/5/93
-.\"	$Id: passwd.5,v 1.6.2.3 1997/02/28 03:27:25 mpp Exp $
+.\"	$Id: passwd.5,v 1.17 1997/03/21 20:16:33 mpp Exp $
 .\"
 .Dd September 29, 1994
 .Dt PASSWD 5
@@ -57,7 +57,7 @@ User's id.
 .It gid
 User's login group id.
 .It class
-User's login class (unused).
+User's login class.
 .It change
 Password change time.
 .It expire
@@ -69,6 +69,10 @@ User's home directory.
 .It shell
 User's login shell.
 .El
+.Pp
+Lines whose first non-whitespace character is a pound-sign (#)
+are comments, and are ignored.  Blank lines which consist
+only of spaces, tabs or newlines are also ignored.
 .Pp
 The
 .Ar name
@@ -111,8 +115,10 @@ Secondary group memberships are selected in
 .Pp
 The
 .Ar class
-field is currently unused.  In the near future it will be a key to
-a
+field is a key for a user's login class.
+Login classes are defined in
+.Xr login.conf 5 ,
+which is a
 .Xr termcap 5
 style database of user attributes, accounting, resource and
 environment settings.
@@ -179,7 +185,9 @@ Check the specific shell documentation to determine how this is
 done with other shells.
 .Sh YP/NIS INTERACTION
 .Ss Enabling access to NIS passwd data
-The system administrator can configure FreeBSD to use NIS/YP for
+The system administrator can configure
+.Tn FreeBSD
+to use NIS/YP for
 its password information by adding special records to the
 .Pa /etc/master.passwd
 file. These entries should be added with
@@ -203,11 +211,13 @@ with only a plus sign (`+') in the name field, such as this:
 .Ed
 The `+' will tell the
 .Xr getpwent 3
-routines in FreeBSD's standard C library to begin using the NIS passwd maps
+routines in
+.Tn FreeBSD Ns 's
+standard C library to begin using the NIS passwd maps
 for lookups.
 .Pp
 Note that the entry shown above is known as a
-.Pa wildcard
+.Em wildcard
 entry, because it matches all users (the `+' without any other information
 matches everybody) and allows all NIS password data to be retrieved
 unaltered. However, by
@@ -318,7 +328,8 @@ the NIS master server; once a host's access list has been set in
 it need not be modified again unless new netgroups are created.
 .Sh NOTES
 .Ss Shadow passwords through NIS
-FreeBSD uses a shadow password scheme: users' encrypted passwords
+.Tn FreeBSD
+uses a shadow password scheme: users' encrypted passwords
 are stored only in
 .Pa /etc/master.passwd
 and
@@ -328,12 +339,17 @@ to prevent users from running the encrypted passwords through
 password-guessing programs and gaining unauthorized access to
 other users' accounts. NIS does not support a standard means of
 password shadowing, which implies that placing your password data
-into the NIS passwd maps totally defeats the security of FreeBSD's
+into the NIS passwd maps totally defeats the security of
+.Tn FreeBSD Ns 's
 password shadowing system.
 .Pp
-FreeBSD provides a few special features to help get around this
+.Tn FreeBSD
+provides a few special features to help get around this
 problem. It is possible to implement password shadowing between
-FreeBSD NIS clients and FreeBSD NIS servers. The
+.Tn FreeBSD
+NIS clients and
+.Tn FreeBSD
+NIS servers. The
 .Xr getpwent 3
 routines will search for a
 .Pa master.passwd.byname
@@ -341,12 +357,15 @@ and
 .Pa master.passwd.byuid
 maps which should contain the same data found in the
 .Pa /etc/master.passwd
-file. If the maps exist, FreeBSD will attempt to use them for user
+file. If the maps exist,
+.Tn FreeBSD
+will attempt to use them for user
 authentication instead of the standard
 .Pa passwd.byname
 and
 .Pa passwd.byuid
-maps. FreeBSD's
+maps.
+.Tn FreeBSD Ns 's
 .Xr ypserv 8
 will also check client requests to make sure they originate on a
 privileged port. Since only the superuser is allowed to bind to
@@ -362,13 +381,17 @@ be allowed access to the standard
 maps which contain no password information.
 .Pp
 Note that this feature cannot be used in an environment with
-non-FreeBSD systems. Note also that a truly determined user with
+.No non- Ns Tn FreeBSD
+systems. Note also that a truly determined user with
 unrestricted access to your network could still compromise the
 .Pa master.passwd
 maps.
 .Ss UID and GID remapping with NIS overrides
-Unlike SunOS and other operating systems that use Sun's NIS code,
-FreeBSD allows the user to override
+Unlike
+.Tn SunOS
+and other operating systems that use Sun's NIS code,
+.Tn FreeBSD
+allows the user to override
 .Pa all
 of the fields in a user's NIS
 .Pa passwd
@@ -394,7 +417,9 @@ using an NIS wildcard entry that looks like this:
 +:*:0:0:::
 
 .Ed
-This often leads to new FreeBSD administrators choosing NIS entries for their
+This often leads to new
+.Tn FreeBSD
+administrators choosing NIS entries for their
 .Pa master.passwd
 files that look like this:
 .Bd -literal -offset indent
@@ -406,10 +431,12 @@ Or worse, this
 +::0:0::::::
 
 .Ed
-.Pa DO _NOT_ PUT ENTRIES LIKE THIS IN YOUR
-.Nm master.passwd
-.Pa FILE!!
-The first tells FreeBSD to remap all passwords to `*' (which
+.Sy DO _NOT_ PUT ENTRIES LIKE THIS IN YOUR
+.Sy Pa master.passwd
+.Sy FILE!!
+The first tells
+.Tn FreeBSD
+to remap all passwords to `*' (which
 will prevent anybody from logging in) and to remap all UIDs and GIDs
 to 0 (which will make everybody appear to be the superuser). The
 second case just maps all UIDs and GIDs to 0, which means that
@@ -418,9 +445,15 @@ second case just maps all UIDs and GIDs to 0, which means that
 .Ss Compatibility of NIS override evaluation
 When Sun originally added NIS support to their
 .Xr getpwent 3
-routines, they took into account the fact that the SunOS password
+routines, they took into account the fact that the
+.Tn SunOS
+password
 .Pa /etc/passwd
-file is in plain ASCII format. The SunOS documentation claims that
+file is in plain
+.Tn ASCII
+format. The
+.Tn SunOS
+documentation claims that
 adding a '+' entry to the password file causes the contents of
 the NIS password database to be 'inserted' at the position in
 the file where the '+' entry appears. If, for example, the
@@ -435,22 +468,33 @@ then the NIS password map would appear twice: once in the middle
 of the file and once at the end. (By using override entries
 instead of simple wildcards, other combinations could be achieved.)
 .Pp
-By contrast, FreeBSD does not have a single ASCII password file: it
+By contrast,
+.Tn FreeBSD
+does not have a single
+.Tn ASCII
+password file: it
 has a hashed password database. This database does not have an
 easily-defined beginning, middle or end, which makes it very hard
-to design a scheme that is 100% compatible with SunOS. For example,
+to design a scheme that is 100% compatible with
+.Tn SunOS .
+For example,
 the
 .Fn getpwnam
 and
 .Fn getpwuid
-functions in FreeBSD are designed to do direct queries to the
+functions in
+.Tn FreeBSD
+are designed to do direct queries to the
 hash database rather than a linear search. This approach is faster
 on systems where the password database is large. However, when
 using direct database queries, the system does not know or care
 about the order of the original password file, and therefore
-it cannot easily apply the same override logic used by SunOS.
+it cannot easily apply the same override logic used by
+.Tn SunOS .
 .Pp
-Instead, FreeBSD groups all the NIS override entries together
+Instead,
+.Tn FreeBSD
+groups all the NIS override entries together
 and constructs a filter out of them. Each NIS password entry
 is compared against the override filter exactly once and 
 treated accordingly: if the filter allows the entry through
@@ -466,10 +510,16 @@ in the
 .Pa /etc/master.passwd
 file since doing otherwise would lead to unpredicable behavior.
 .Pp
-The end result is that FreeBSD's provides a very close approximation
-of SunOS's behavior while maintaining the database paradigm, though the
+The end result is that
+.Tn FreeBSD Ns 's
+provides a very close approximation
+of
+.Tn SunOS Ns 's
+behavior while maintaining the database paradigm, though the
 .Xr getpwent 3
-functions do behave somewhat differently that their SunOS counterparts.
+functions do behave somewhat differently that their
+.Tn SunOS
+counterparts.
 The primary differences are:
 .Bl -bullet -offset indent
 .It
@@ -481,12 +531,17 @@ affect where NIS password records will be mapped into
 the password space.
 .El
 .Pp
-In %99 of all FreeBSD configurations, NIS client behavior will be
-indistinguishable from that of SunOS or other similar systems. Even
+In %99 of all
+.Tn FreeBSD
+configurations, NIS client behavior will be
+indistinguishable from that of
+.Tn SunOS
+or other similar systems. Even
 so, users should be aware of these architectural differences.
 .Pp
 .Ss Using groups instead of netgroups for NIS overrides
-FreeBSD offers the capability to do override matching based on
+.Tn FreeBSD
+offers the capability to do override matching based on
 user groups rather than netgroups. If, for example, an NIS entry
 is specified as:
 .Bd -literal -offset indent
@@ -497,8 +552,10 @@ the system will first try to match users against a netgroup called
 `operator.' If an `operator' netgroup doesn't exist, the system
 will try to match users against the normal `operator' group
 instead. 
-.Ss Changes in behavior from older versions of FreeBSD
-There have been several bug fixes and improvements in FreeBSD's
+.Ss Changes in behavior from older versions of
+.Tn FreeBSD
+There have been several bug fixes and improvements in
+.Tn FreeBSD Ns 's
 NIS/YP handling, some of which have caused changes in behavior.
 While the behavior changes are generally positive, it is important
 that users and system administrators be aware of them:
@@ -518,31 +575,42 @@ now apply to all
 .Xr getpwent 3
 functions.
 .It
-Prior to FreeBSD 2.0.5, netgroup overrides did not work at
-all, largely because FreeBSD did not have support for reading
+Prior to
+.Fx 2.0.5 ,
+netgroup overrides did not work at
+all, largely because
+.Tn FreeBSD
+did not have support for reading
 netgroups through NIS. Again, this has been fixed, and
-netgroups can be specified just as in SunOS and similar NIS-capable
+netgroups can be specified just as in
+.Tn SunOS
+and similar NIS-capable
 systems.
 .It
-FreeBSD now has NIS server capabilities and supports the use
+.Tn FreeBSD
+now has NIS server capabilities and supports the use
 of
 .Pa master.passwd
 NIS maps in addition to the standard Sixth Edition format
 .Pa passwd
 maps.
 This means that you can specify change, expiration and class
-information through NIS, provided you use a FreeBSD system as
+information through NIS, provided you use a
+.Tn FreeBSD
+system as
 the NIS server.
 .El
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
 .It Pa /etc/passwd
-ASCII password file, with passwords removed
+.Tn ASCII
+password file, with passwords removed
 .It Pa /etc/pwd.db
 .Xr db 3 -format
 password database, with passwords removed
 .It Pa /etc/master.passwd
-ASCII password file, with passwords intact
+.Tn ASCII
+password file, with passwords intact
 .It Pa /etc/spwd.db
 .Xr db 3 -format
 password database, with passwords intact
@@ -552,7 +620,10 @@ password database, with passwords intact
 .Xr login 1 ,
 .Xr passwd 1 ,
 .Xr getpwent 3 ,
+.Xr login.conf 5 ,
+.Xr login_getclass 3 ,
 .Xr yp 4 ,
+.Xr login.conf 5 ,
 .Xr adduser 8 ,
 .Xr pwd_mkdb 8 ,
 .Xr vipw 8
@@ -563,11 +634,13 @@ The YP/NIS password database makes encrypted passwords visible to
 ordinary users, thus making password cracking easier unless you use
 shadow passwords with the
 .Pa master.passwd
-maps and FreeBSD's
+maps and
+.Tn FreeBSD Ns 's
 .Xr ypserv 8
 server.
 .Pp
-Unless you're using FreeBSD's
+Unless you're using
+.Tn FreeBSD Ns 's
 .Xr ypserv 8 ,
 which supports the use of
 .Pa master.passwd
@@ -575,7 +648,9 @@ type maps,
 the YP/NIS password database will be in old-style (Sixth Edition) format,
 which means that site-wide values for user login class, password
 expiration date, and other fields present in the current format
-will not be available when a FreeBSD system is used as a client with
+will not be available when a
+.Tn FreeBSD
+system is used as a client with
 a standard NIS server.
 .Sh COMPATIBILITY
 The password file format has changed since
@@ -603,9 +678,11 @@ file format appeared in
 The YP/NIS functionality is modeled after
 .Tn SunOS
 and first appeared in
-.Tn FreeBSD
-1.1.  The override capability is new in
+.Fx 1.1
+The override capability is new in
 .Fx 2.0 .
 The override capability was updated to properly support netgroups
 in
 .Fx 2.0.5 .
+Support for comments first appeared in
+.Fx 3.0 .
