@@ -130,7 +130,11 @@ acpi_button_attach(device_t dev)
     event = (sc->button_type == ACPI_SLEEP_BUTTON) ?
 	    ACPI_EVENT_SLEEP_BUTTON : ACPI_EVENT_POWER_BUTTON;
 
-    /* Install the appropriate new handler. */
+    /* 
+     * Install the new handler.  We could remove any fixed handlers added
+     * from the FADT once we have a duplicate from the AML but some systems
+     * only return events on one or the other so we have to keep both.
+     */
     if (sc->fixed) {
 	AcpiClearEvent(event);
 	status = AcpiInstallFixedEventHandler(event,
@@ -145,16 +149,6 @@ acpi_button_attach(device_t dev)
 	return_VALUE (ENXIO);
     }
     acpi_device_enable_wake_capability(sc->button_handle, 1);
-
-    /*
-     * If we have fixed buttons defined in the FADT, remove them now that
-     * we have found one in the AML.  Some systems define buttons both ways
-     * but only deliver events to the AML object.
-     */
-    if (event == ACPI_EVENT_POWER_BUTTON && AcpiGbl_FADT->PwrButton == 0)
-	AcpiRemoveFixedEventHandler(event, acpi_event_power_button_sleep);
-    if (event == ACPI_EVENT_SLEEP_BUTTON && AcpiGbl_FADT->SleepButton == 0)
-	AcpiRemoveFixedEventHandler(event, acpi_event_sleep_button_sleep);
 
     return_VALUE (0);
 }
