@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.70 1999/04/03 23:46:18 obrien Exp $
+#	$Id: Makefile.inc1,v 1.71 1999/04/04 21:35:27 obrien Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -600,17 +600,8 @@ lib-tools:
 		usr.bin/tsort		\
 		${_aout_as}		\
 		gnu/usr.bin/bison	\
-		gnu/usr.bin/cc
-	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all; \
-		${MAKE} ${MK_FLAGS} -B install; \
-		${MAKE} ${MK_FLAGS:S/-DNOPIC//} -B ${CLEANDIR} ${OBJDIR}
-.endfor
-	cd ${.CURDIR}/gnu/lib/libgcc; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${MK_FLAGS} all; \
-		${MAKE} ${MK_FLAGS} -B install; \
-		${MAKE} ${MK_FLAGS:S/-DNOPIC//} -B ${CLEANDIR} ${OBJDIR}
-.for d in				\
+		gnu/usr.bin/cc		\
+		gnu/lib/libgcc		\
 		${_aout_ar}		\
 		usr.bin/env		\
 		usr.bin/lex/lib		\
