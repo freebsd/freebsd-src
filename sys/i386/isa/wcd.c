@@ -48,7 +48,7 @@ static	d_strategy_t	wcdstrategy;
 extern	struct cdevsw wcd_cdevsw;
 static struct bdevsw wcd_bdevsw = 
 	{ wcdbopen,	wcdbclose,	wcdstrategy,	wcdioctl,	/*19*/
-	  nxdump,	zerosize,	0,	"wcd",	&wcd_cdevsw,	-1 };
+	  nodump,	nopsize,	0,	"wcd",	&wcd_cdevsw,	-1 };
 
 static struct cdevsw wcd_cdevsw = 
 	{ wcdropen,	wcdrclose,	rawread,	nowrite,	/*69*/

@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.75 1995/12/09 09:10:12 julian Exp $
+ *	$Id: fd.c,v 1.76 1995/12/10 13:38:29 phk Exp $
  *
  */
 
@@ -352,7 +352,7 @@ static	d_strategy_t	fdstrategy;
 extern	struct cdevsw fd_cdevsw;
 static struct bdevsw fd_bdevsw = 
 	{ Fdopen,	fdclose,	fdstrategy,	fdioctl,	/*2*/
-	  nxdump,	zerosize,	0,	"fd",	&fd_cdevsw,	-1 };
+	  nodump,	nopsize,	0,	"fd",	&fd_cdevsw,	-1 };
 
 static struct cdevsw fd_cdevsw = 
 	{ Fdopen,	fdclose,	rawread,	rawwrite,	/*9*/
