@@ -418,6 +418,12 @@ struct dos_partition {
 
 #define DIOCWLABEL	_IOW('d', 109, int)	/* write en/disable label */
 
+#define DIOCGSECTORSIZE	_IOR('d', 128, u_int)	/* Get sector size in bytes */
+#define DIOCGMEDIASIZE	_IOR('d', 129, off_t)	/* Get media size in bytes */
+#define DIOCGFWSECTORS	_IOR('d', 130, u_int)	/* Get firmware sectorcount */
+#define DIOCGFWHEADS	_IOR('d', 131, u_int)	/* Get firmware headcount */
+#define DIOCGFWCYLINDERS _IOR('d', 132, u_int)	/* Get firmware cyl'scount */
+
 #ifdef _KERNEL
 
 /*

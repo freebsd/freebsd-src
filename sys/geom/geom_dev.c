@@ -248,17 +248,37 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	error = 0;
 	DROP_GIANT();
 
-	gio = g_malloc(sizeof *gio, M_WAITOK);
-	gio->cmd = cmd;
-	gio->data = data;
-	gio->fflag = fflag;
-	gio->td = td;
-	i = sizeof *gio;
-	if (cmd & IOC_IN)
-		error = g_io_setattr("GEOM::ioctl", cp, i, gio, td);
-	else
-		error = g_io_getattr("GEOM::ioctl", cp, &i, gio, td);
-	g_free(gio);
+	i = IOCPARM_LEN(cmd);
+	switch (cmd) {
+	case DIOCGSECTORSIZE:
+		error = g_io_getattr("GEOM::sectorsize", cp, &i, data, td);
+		break;
+	case DIOCGMEDIASIZE:
+		error = g_io_getattr("GEOM::mediasize", cp, &i, data, td);
+		break;
+	case DIOCGFWSECTORS:
+		error = g_io_getattr("GEOM::fwsectors", cp, &i, data, td);
+		break;
+	case DIOCGFWHEADS:
+		error = g_io_getattr("GEOM::fwheads", cp, &i, data, td);
+		break;
+	case DIOCGFWCYLINDERS:
+		error = g_io_getattr("GEOM::fwcylinders", cp, &i, data, td);
+		break;
+	default:
+		gio = g_malloc(sizeof *gio, M_WAITOK);
+		gio->cmd = cmd;
+		gio->data = data;
+		gio->fflag = fflag;
+		gio->td = td;
+		i = sizeof *gio;
+		if (cmd & IOC_IN)
+			error = g_io_setattr("GEOM::ioctl", cp, i, gio, td);
+		else
+			error = g_io_getattr("GEOM::ioctl", cp, &i, gio, td);
+		g_free(gio);
+		break;
+	}
 
 	if (error != 0 && cmd == DIOCGDVIRGIN) {
 		g_topology_lock();
