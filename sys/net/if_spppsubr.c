@@ -357,16 +357,17 @@ int sppp_output (struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct
 	 * Put low delay, telnet, rlogin and ftp control packets
 	 * in front of the queue.
 	 */
-	{
-	struct ip *ip = mtod (m, struct ip*);
-	struct tcphdr *tcp = (struct tcphdr*) ((long*)ip + ip->ip_hl);
+	if (dst->sa_family == AF_INET) {
+		struct ip *ip = mtod (m, struct ip*);
+		struct tcphdr *tcp = (struct tcphdr*) ((long*)ip + ip->ip_hl);
 
-	if (! IF_QFULL (&sp->pp_fastq) && ((ip->ip_tos & IPTOS_LOWDELAY) ||
-	    ip->ip_p == IPPROTO_TCP &&
-	    m->m_len >= sizeof (struct ip) + sizeof (struct tcphdr) &&
-	    (INTERACTIVE (ntohs (tcp->th_sport)) ||
-	    INTERACTIVE (ntohs (tcp->th_dport)))))
-		ifq = &sp->pp_fastq;
+		if (! IF_QFULL (&sp->pp_fastq) &&
+		    ((ip->ip_tos & IPTOS_LOWDELAY) ||
+	    	    ip->ip_p == IPPROTO_TCP &&
+	    	    m->m_len >= sizeof (struct ip) + sizeof (struct tcphdr) &&
+	    	    (INTERACTIVE (ntohs (tcp->th_sport)) ||
+	    	    INTERACTIVE (ntohs (tcp->th_dport)))))
+			ifq = &sp->pp_fastq;
 	}
 #endif
 
@@ -674,19 +675,19 @@ badreq:
 				sp->ipcp.state = IPCP_STATE_CLOSED;
 			}
 			break;
-				}
-				/* Send Configure-Ack packet. */
-				sp->pp_loopcnt = 0;
-				sppp_cp_send (sp, PPP_LCP, LCP_CONF_ACK,
-					h->ident, len-4, h+1);
-				/* Change the state. */
+		}
+		/* Send Configure-Ack packet. */
+		sp->pp_loopcnt = 0;
+		sppp_cp_send (sp, PPP_LCP, LCP_CONF_ACK,
+				h->ident, len-4, h+1);
+		/* Change the state. */
 		switch (sp->lcp.state) {
 		case LCP_STATE_CLOSED:
 			sp->lcp.state = LCP_STATE_ACK_SENT;
 			break;
 		case LCP_STATE_ACK_RCVD:
-					sp->lcp.state = LCP_STATE_OPENED;
-					sppp_ipcp_open (sp);
+			sp->lcp.state = LCP_STATE_OPENED;
+			sppp_ipcp_open (sp);
 			break;
 		case LCP_STATE_OPENED:
 			/* Remote magic changed -- close session. */
@@ -694,6 +695,8 @@ badreq:
 			sp->ipcp.state = IPCP_STATE_CLOSED;
 			/* Initiate renegotiation. */
 			sppp_lcp_open (sp);
+			/* An ACK has already been sent. */
+			sp->lcp.state = LCP_STATE_ACK_SENT;
 			break;
 		}
 		break;
@@ -762,8 +765,8 @@ badreq:
 		/* Go to closed state. */
 		sp->lcp.state = LCP_STATE_CLOSED;
 		sp->ipcp.state = IPCP_STATE_CLOSED;
-			/* Initiate renegotiation. */
-			sppp_lcp_open (sp);
+		/* Initiate renegotiation. */
+		sppp_lcp_open (sp);
 		break;
 	case LCP_TERM_ACK:
 	case LCP_CODE_REJ:
@@ -774,6 +777,8 @@ badreq:
 		/* Discard the packet. */
 		break;
 	case LCP_ECHO_REQ:
+		if (sp->lcp.state != LCP_STATE_OPENED)
+			break;
 		if (len < 8) {
 			if (ifp->if_flags & IFF_DEBUG)
 				printf ("%s%d: invalid lcp echo request packet length: %d bytes\n",
@@ -1006,8 +1011,6 @@ int sppp_ioctl (struct ifnet *ifp, int cmd, void *data)
 		/* fall through... */
 
 	case SIOCSIFFLAGS:
-		if (sp->pp_flags & PP_CISCO)
-			break;
 		s = splimp ();
 		going_up   = (ifp->if_flags & IFF_UP) &&
 			     ! (ifp->if_flags & IFF_RUNNING);
@@ -1023,7 +1026,8 @@ int sppp_ioctl (struct ifnet *ifp, int cmd, void *data)
 		if (going_up) {
 			/* Interface is starting -- initiate negotiation. */
 			ifp->if_flags |= IFF_RUNNING;
-			sppp_lcp_open (sp);
+			if (!(sp->pp_flags & PP_CISCO))
+				sppp_lcp_open (sp);
 		}
 		splx (s);
 		break;
@@ -1109,7 +1113,7 @@ int sppp_lcp_conf_parse_options (struct sppp *sp, struct lcp_header *h,
 			bcopy (p, r, p[1]);
 			r += p[1];
 		rlen += p[1];
-		}
+	}
 	if (rlen)
 	sppp_cp_send (sp, PPP_LCP, LCP_CONF_REJ, h->ident, rlen, buf);
 	free (buf, M_TEMP);
