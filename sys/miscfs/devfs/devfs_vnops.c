@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.63 1998/12/07 21:58:30 archie Exp $
+ *	$Id: devfs_vnops.c,v 1.64 1998/12/15 23:46:59 eivind Exp $
  */
 
 
@@ -1284,16 +1284,6 @@ devfs_print(struct vop_print_args *ap)
 /**************************************************************************\
 * pseudo ops *
 \**************************************************************************/
-
-/*
- * /devfs vnode unsupported operation
- */
-static int
-devfs_enotsupp(void *junk)
-{
-
-	return (EOPNOTSUPP);
-}
 
 /*proto*/
 void
