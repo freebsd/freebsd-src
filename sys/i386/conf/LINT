@@ -1105,7 +1105,7 @@ device		aha0	at isa?
 device		aic0	at isa?
 device		ncv
 device		nsp
-device		stg	at isa? port 0x140 irq 11
+device		stg0	at isa? port 0x140 irq 11
 
 #
 # Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only
