@@ -35,6 +35,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
