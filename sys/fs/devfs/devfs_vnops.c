@@ -919,10 +919,8 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 	if (error)
 		return (error);
 	resid = uio->uio_resid;
-	ioflag = 0;
-	if (fp->f_flag & O_NONBLOCK)
-		ioflag |= IO_NDELAY;
-	if (fp->f_flag & O_DIRECT)
+	ioflag = fp->f_flag & (O_NONBLOCK | O_DIRECT);
+	if (ioflag & O_DIRECT)
 		ioflag |= IO_DIRECT;
 
 	if ((flags & FOF_OFFSET) == 0)
@@ -1351,14 +1349,9 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 		return (error);
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p", uio->uio_td, td));
 	vp = fp->f_vnode;
-	ioflag = 0;
-	if (fp->f_flag & O_NONBLOCK)
-		ioflag |= IO_NDELAY;
-	if (fp->f_flag & O_DIRECT)
+	ioflag = fp->f_flag & (O_NONBLOCK | O_DIRECT | O_FSYNC);
+	if (ioflag & O_DIRECT)
 		ioflag |= IO_DIRECT;
-	if ((fp->f_flag & O_FSYNC) ||
-	    (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SYNCHRONOUS)))
-		ioflag |= IO_SYNC;
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 
