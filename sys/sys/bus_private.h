@@ -80,34 +80,15 @@ struct config_device {
 };
 
 /*
- * Compiled device methods.
- */
-struct device_ops {
-    int maxoffset;
-    devop_t methods[1];
-};
-
-/*
- * Helpers for device method wrappers.
- */
-#define DEVOPDESC(OP)	(&OP##_##desc)
-
-#define DEVOPS(DEV)	   (DEV->ops)
-#define DEVOPMETH(DEV, OP)					\
-	((DEVOPDESC(OP)->offset >= DEVOPS(DEV)->maxoffset)	\
-	 ? DEVOPDESC(OP)->deflt					\
-	 : DEVOPS(DEV)->methods[DEVOPDESC(OP)->offset])
-
-#define DRVOPS(DRV)	   ((struct device_ops *)DRV->ops)
-#define DRVOPMETH(DRV, OP)					\
-	((DEVOPDESC(OP)->offset >= DRVOPS(DRV)->maxoffset)	\
-	 ? DEVOPDESC(OP)->deflt					\
-	 : DRVOPS(DRV)->methods[DEVOPDESC(OP)->offset])
-
-/*
  * Implementation of device.
  */
 struct device {
+    /*
+     * A device is a kernel object. The first field must be the
+     * current ops table for the object.
+     */
+    KOBJ_FIELDS;
+
     /*
      * Device hierarchy.
      */
@@ -118,7 +99,6 @@ struct device {
     /*
      * Details of this device.
      */
-    device_ops_t	ops;
     driver_t		*driver;
     devclass_t		devclass; /* device class which we are in */
     int			unit;

@@ -289,7 +289,7 @@ isa_wrap_old_drivers(void)
 		bzero(driver, sizeof(driver_t));
 		driver->name = op->driver->name;
 		driver->methods = isa_compat_methods;
-		driver->softc = sizeof(struct isa_device);
+		driver->size = sizeof(struct isa_device);
 		driver->priv = op;
 		if (op->driver->sensitive_hw)
 			resource_set_int(op->driver->name, -1, "sensitive", 1);

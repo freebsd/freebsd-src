@@ -940,7 +940,7 @@ compat_pci_handler(module_t mod, int type, void *data)
 		bzero(driver, sizeof(driver_t));
 		driver->name = dvp->pd_name;
 		driver->methods = pci_compat_methods;
-		driver->softc = sizeof(struct pci_devinfo *);
+		driver->size = sizeof(struct pci_devinfo *);
 		driver->priv = dvp;
 		devclass_add_driver(pci_devclass, driver);
 		break;

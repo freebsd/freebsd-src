@@ -31,6 +31,8 @@
 # USB interface description
 #
 
+#include <sys/bus.h>
+
 INTERFACE usb;
 
 # The device should start probing for new drivers again
