@@ -2089,8 +2089,8 @@ check_options(dp)
 	    return (1);
 	}
 	if ((opt_flags & OP_MASK) && (opt_flags & OP_NET) == 0) {
-	    syslog(LOG_ERR, "-mask requires -net");
-	    return (1);
+		syslog(LOG_ERR, "-mask requires -network");
+		return (1);
 	}
 	if ((opt_flags & OP_ALLDIRS) && dp->dp_left) {
 	    syslog(LOG_ERR, "-alldirs has multiple directories");
