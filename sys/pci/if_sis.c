@@ -1132,7 +1132,7 @@ static void sis_rxeof(sc)
 			continue;
 		}
 
-		/* No errors; receive the packet. */	
+		/* No errors; receive the packet. */
 		m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
 		    total_len + ETHER_ALIGN, 0, ifp, NULL);
 		sis_newbuf(sc, cur_rx, m);
@@ -1286,20 +1286,19 @@ static void sis_intr(arg)
 		if ((status & SIS_INTRS) == 0)
 			break;
 
-		if ((status & SIS_ISR_TX_DESC_OK) ||
-		    (status & SIS_ISR_TX_ERR) ||
-		    (status & SIS_ISR_TX_OK) ||
-		    (status & SIS_ISR_TX_IDLE))
+		if (status &
+		    (SIS_ISR_TX_DESC_OK|SIS_ISR_TX_ERR| \
+		     SIS_ISR_TX_OK|SIS_ISR_TX_IDLE) )
 			sis_txeof(sc);
 
-		if ((status & SIS_ISR_RX_DESC_OK) ||
-		    (status & SIS_ISR_RX_OK))
+		if (status & (SIS_ISR_RX_DESC_OK|SIS_ISR_RX_OK|SIS_ISR_RX_IDLE))
 			sis_rxeof(sc);
 
-		if ((status & SIS_ISR_RX_ERR) ||
-		    (status & SIS_ISR_RX_OFLOW)) {
+		if (status & (SIS_ISR_RX_ERR|SIS_ISR_RX_OFLOW))
 			sis_rxeoc(sc);
-		}
+
+		if (status & (SIS_ISR_RX_IDLE))
+			SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
 
 		if (status & SIS_ISR_SYSERR) {
 			sis_reset(sc);
