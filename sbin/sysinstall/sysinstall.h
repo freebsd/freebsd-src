@@ -17,6 +17,9 @@
 #define BOOT1 "/stand/sdboot"
 #define BOOT2 "/stand/bootsd"
 
+#define BOOT1 "/stand/sdboot"
+#define BOOT2 "/stand/bootsd"
+
 #define MAXFS	25
 
 #define MAX_NO_DISKS 10
@@ -42,6 +45,7 @@ EXTERN char *devicename[MAXFS+1];
 EXTERN char *mountpoint[MAXFS+1];
 EXTERN int dialog_active;
 
+extern unsigned char **avail_disknames;
 extern int no_disks;
 extern int inst_disk;
 extern unsigned char *scratch;
