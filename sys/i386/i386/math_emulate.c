@@ -765,18 +765,20 @@ get_longlong_int(temp_real * tmp, struct trapframe * info, unsigned short code)
 	int_to_real(&ti,tmp);
 }
 
-#define MUL10(low,high) \
-__asm__("addl %0,%0 ; adcl %1,%1\n\t" \
-"movl %0,%%ecx ; movl %1,%%ebx\n\t" \
-"addl %0,%0 ; adcl %1,%1\n\t" \
-"addl %0,%0 ; adcl %1,%1\n\t" \
-"addl %%ecx,%0 ; adcl %%ebx,%1" \
-:"=a" (low),"=d" (high) \
-:"0" (low),"1" (high):"cx","bx")
+#define MUL10(low, high)						\
+	__asm__("addl %0,%0 ; adcl %1,%1\n\t"				\
+		"movl %0,%%ecx ; movl %1,%%ebx\n\t"			\
+		"addl %0,%0 ; adcl %1,%1\n\t"				\
+		"addl %0,%0 ; adcl %1,%1\n\t"				\
+		"addl %%ecx,%0 ; adcl %%ebx,%1"				\
+		: "=a" (low), "=d" (high)				\
+		: "0" (low), "1" (high)					\
+		: "cx", "bx")
 
-#define ADD64(val,low,high) \
-__asm__("addl %4,%0 ; adcl $0,%1":"=r" (low),"=r" (high) \
-:"0" (low),"1" (high),"r" ((u_int32_t) (val)))
+#define ADD64(val, low, high)						\
+	__asm__("addl %4,%0 ; adcl $0,%1"				\
+		:"=r" (low),"=r" (high)					\
+		:"0" (low),"1" (high),"r" ((u_int32_t) (val)))
 
 static void
 get_BCD(temp_real * tmp, struct trapframe * info, unsigned short code)
@@ -889,10 +891,10 @@ put_longlong_int(const temp_real * tmp,
 	put_fs_long(ti.b,1 + (u_int32_t *) addr);
 }
 
-#define DIV10(low,high,rem) \
-__asm__("divl %6 ; xchgl %1,%2 ; divl %6" \
-	:"=d" (rem),"=a" (low),"=r" (high) \
-	:"0" (0),"1" (high),"2" (low),"c" (10))
+#define DIV10(low,high,rem)						\
+	__asm__("divl %6 ; xchgl %1,%2 ; divl %6"			\
+		:"=d" (rem),"=a" (low),"=r" (high)			\
+		:"0" (0),"1" (high),"2" (low),"c" (10))
 
 static void
 put_BCD(const temp_real * tmp,struct trapframe * info, unsigned short code)
@@ -1126,10 +1128,10 @@ fdiv(const temp_real * src1, const temp_real * src2, temp_real * result)
  * 61-bit accuracy never shows at all.
  */
 
-#define NEGINT(a) \
-__asm__("notl %0 ; notl %1 ; addl $1,%0 ; adcl $0,%1" \
-	:"=r" (a->a),"=r" (a->b) \
-	:"0" (a->a),"1" (a->b))
+#define NEGINT(a)							\
+	__asm__("notl %0 ; notl %1 ; addl $1,%0 ; adcl $0,%1"		\
+		: "=r" (a->a), "=r" (a->b)				\
+		: "0" (a->a), "1" (a->b))
 
 static void signify(temp_real * a)
 {
