@@ -111,3 +111,10 @@ dlinfo(void * __restrict handle, int request, void * __restrict p)
 	_rtld_error(sorry);
 	return NULL;
 }
+
+#pragma weak _rtld_thread_init
+void
+_rtld_thread_init(void * li)
+{
+	_rtld_error(sorry);
+}
