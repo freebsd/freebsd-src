@@ -80,7 +80,7 @@ struct icmp6_hdr {
 		u_int16_t	icmp6_un_data16[2]; /* type-specific field */
 		u_int8_t	icmp6_un_data8[4];  /* type-specific field */
 	} icmp6_dataun;
-} __attribute__((__packed__));
+} __packed;
 
 #define icmp6_data32	icmp6_dataun.icmp6_un_data32
 #define icmp6_data16	icmp6_dataun.icmp6_un_data16
@@ -178,7 +178,7 @@ struct icmp6_hdr {
 struct mld_hdr {
 	struct icmp6_hdr	mld_icmp6_hdr;
 	struct in6_addr		mld_addr; /* multicast address */
-} __attribute__((__packed__));
+} __packed;
 
 /* definitions to provide backward compatibility to old KAME applications */
 #ifndef _KERNEL
@@ -205,7 +205,7 @@ struct mld_hdr {
 struct nd_router_solicit {	/* router solicitation */
 	struct icmp6_hdr 	nd_rs_hdr;
 	/* could be followed by options */
-} __attribute__((__packed__));
+} __packed;
 
 #define nd_rs_type	nd_rs_hdr.icmp6_type
 #define nd_rs_code	nd_rs_hdr.icmp6_code
@@ -217,7 +217,7 @@ struct nd_router_advert {	/* router advertisement */
 	u_int32_t		nd_ra_reachable;	/* reachable time */
 	u_int32_t		nd_ra_retransmit;	/* retransmit timer */
 	/* could be followed by options */
-} __attribute__((__packed__));
+} __packed;
 
 #define nd_ra_type		nd_ra_hdr.icmp6_type
 #define nd_ra_code		nd_ra_hdr.icmp6_code
@@ -245,7 +245,7 @@ struct nd_neighbor_solicit {	/* neighbor solicitation */
 	struct icmp6_hdr	nd_ns_hdr;
 	struct in6_addr		nd_ns_target;	/*target address */
 	/* could be followed by options */
-} __attribute__((__packed__));
+} __packed;
 
 #define nd_ns_type		nd_ns_hdr.icmp6_type
 #define nd_ns_code		nd_ns_hdr.icmp6_code
@@ -256,7 +256,7 @@ struct nd_neighbor_advert {	/* neighbor advertisement */
 	struct icmp6_hdr	nd_na_hdr;
 	struct in6_addr		nd_na_target;	/* target address */
 	/* could be followed by options */
-} __attribute__((__packed__));
+} __packed;
 
 #define nd_na_type		nd_na_hdr.icmp6_type
 #define nd_na_code		nd_na_hdr.icmp6_code
@@ -279,7 +279,7 @@ struct nd_redirect {		/* redirect */
 	struct in6_addr		nd_rd_target;	/* target address */
 	struct in6_addr		nd_rd_dst;	/* destination address */
 	/* could be followed by options */
-} __attribute__((__packed__));
+} __packed;
 
 #define nd_rd_type		nd_rd_hdr.icmp6_type
 #define nd_rd_code		nd_rd_hdr.icmp6_code
@@ -290,7 +290,7 @@ struct nd_opt_hdr {		/* Neighbor discovery option header */
 	u_int8_t	nd_opt_type;
 	u_int8_t	nd_opt_len;
 	/* followed by option specific data*/
-} __attribute__((__packed__));
+} __packed;
 
 #define ND_OPT_SOURCE_LINKADDR		1
 #define ND_OPT_TARGET_LINKADDR		2
@@ -309,7 +309,7 @@ struct nd_opt_prefix_info {	/* prefix information */
 	u_int32_t	nd_opt_pi_preferred_time;
 	u_int32_t	nd_opt_pi_reserved2;
 	struct in6_addr	nd_opt_pi_prefix;
-} __attribute__((__packed__));
+} __packed;
 
 #define ND_OPT_PI_FLAG_ONLINK		0x80
 #define ND_OPT_PI_FLAG_AUTO		0x40
@@ -320,14 +320,14 @@ struct nd_opt_rd_hdr {		/* redirected header */
 	u_int16_t	nd_opt_rh_reserved1;
 	u_int32_t	nd_opt_rh_reserved2;
 	/* followed by IP header and data */
-} __attribute__((__packed__));
+} __packed;
 
 struct nd_opt_mtu {		/* MTU option */
 	u_int8_t	nd_opt_mtu_type;
 	u_int8_t	nd_opt_mtu_len;
 	u_int16_t	nd_opt_mtu_reserved;
 	u_int32_t	nd_opt_mtu_mtu;
-} __attribute__((__packed__));
+} __packed;
 
 struct nd_opt_route_info {	/* route info */
 	u_int8_t	nd_opt_rti_type;
@@ -336,7 +336,7 @@ struct nd_opt_route_info {	/* route info */
 	u_int8_t	nd_opt_rti_flags;
 	u_int32_t	nd_opt_rti_lifetime;
 	/* prefix follows */
-} __attribute__((__packed__));
+} __packed;
 
 /*
  * icmp6 namelookup
@@ -351,7 +351,7 @@ struct icmp6_namelookup {
 	u_int8_t	icmp6_nl_name[3];
 #endif
 	/* could be followed by options */
-} __attribute__((__packed__));
+} __packed;
 
 /*
  * icmp6 node information
@@ -360,7 +360,7 @@ struct icmp6_nodeinfo {
 	struct icmp6_hdr icmp6_ni_hdr;
 	u_int8_t icmp6_ni_nonce[8];
 	/* could be followed by reply data */
-} __attribute__((__packed__));
+} __packed;
 
 #define ni_type		icmp6_ni_hdr.icmp6_type
 #define ni_code		icmp6_ni_hdr.icmp6_code
@@ -423,7 +423,7 @@ struct ni_reply_fqdn {
 	u_int32_t ni_fqdn_ttl;	/* TTL */
 	u_int8_t ni_fqdn_namelen; /* length in octets of the FQDN */
 	u_int8_t ni_fqdn_name[3]; /* XXX: alignment */
-} __attribute__((__packed__));
+} __packed;
 
 /*
  * Router Renumbering. as router-renum-08.txt
@@ -434,7 +434,7 @@ struct icmp6_router_renum {	/* router renumbering header */
 	u_int8_t	rr_flags;
 	u_int16_t	rr_maxdelay;
 	u_int32_t	rr_reserved;
-} __attribute__((__packed__));
+} __packed;
 
 #define ICMP6_RR_FLAGS_TEST		0x80
 #define ICMP6_RR_FLAGS_REQRESULT	0x40
@@ -456,7 +456,7 @@ struct rr_pco_match {		/* match prefix part */
 	u_int8_t	rpm_maxlen;
 	u_int16_t	rpm_reserved;
 	struct	in6_addr	rpm_prefix;
-} __attribute__((__packed__));
+} __packed;
 
 #define RPM_PCO_ADD		1
 #define RPM_PCO_CHANGE		2
@@ -472,7 +472,7 @@ struct rr_pco_use {		/* use prefix part */
 	u_int32_t	rpu_pltime;
 	u_int32_t	rpu_flags;
 	struct	in6_addr rpu_prefix;
-} __attribute__((__packed__));
+} __packed;
 #define ICMP6_RR_PCOUSE_RAFLAGS_ONLINK	0x80
 #define ICMP6_RR_PCOUSE_RAFLAGS_AUTO	0x40
 
@@ -490,7 +490,7 @@ struct rr_result {		/* router renumbering result message */
 	u_int8_t	rrr_matchedlen;
 	u_int32_t	rrr_ifid;
 	struct	in6_addr rrr_prefix;
-} __attribute__((__packed__));
+} __packed;
 #if BYTE_ORDER == BIG_ENDIAN
 #define ICMP6_RR_RESULT_FLAGS_OOB		0x0002
 #define ICMP6_RR_RESULT_FLAGS_FORBIDDEN		0x0001
