@@ -150,7 +150,7 @@ ether_output(ifp, m, dst, rt0)
  	u_char esrc[6], edst[6];
 	register struct rtentry *rt;
 	register struct ether_header *eh;
-	int off, loop_copy = 0;
+	int loop_copy = 0;
 	int hlen;	/* link layer header lenght */
 	struct arpcom *ac = IFP2AC(ifp);
 
@@ -187,7 +187,6 @@ ether_output(ifp, m, dst, rt0)
 	case AF_INET:
 		if (!arpresolve(ifp, rt, m, dst, edst, rt0))
 			return (0);	/* if not yet resolved */
-		off = m->m_pkthdr.len - m->m_len;
 		type = htons(ETHERTYPE_IP);
 		break;
 #endif
@@ -197,7 +196,6 @@ ether_output(ifp, m, dst, rt0)
 			/* Something bad happened */
 			return(0);
 		}
-		off = m->m_pkthdr.len - m->m_len;
 		type = htons(ETHERTYPE_IPV6);
 		break;
 #endif
