@@ -9,4 +9,6 @@ MAN5=	ipnat.5
 SRCS=	ipnat.c kmem.c natparse.c
 CFLAGS+=-DIPL_NAME=\"/dev/ipl\" -I- -I${.CURDIR}/../../sys/netinet -I${.CURDIR}/../../sys -I${.CURDIR}/../../contrib/ipfilter
 
+MAINTAINER=	guido@freebsd.org
+
 .include <bsd.prog.mk>
