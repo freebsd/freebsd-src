@@ -1,6 +1,7 @@
-/* Native-dependent definitions for Sparc running NetBSD, for GDB.
-   Copyright 1986, 1987, 1989, 1992, 1994, 1996, 1999, 2000
-   Free Software Foundation, Inc.
+/* Native-dependent definitions for NetBSD/sparc.
+
+   Copyright 1986, 1987, 1989, 1992, 1994, 1996, 1999, 2000, 2002,
+   2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -22,40 +23,20 @@
 #ifndef NM_NBSD_H
 #define NM_NBSD_H
 
-#include "regcache.h"
-
-/* Get generic NetBSD native definitions. */
-
+/* Get generic NetBSD native definitions.  */
 #include "config/nm-nbsd.h"
+
 
-/* Before storing, we need to read all the registers.  */
+/* Support for StackGhost cookies.  */
 
-#define CHILD_PREPARE_TO_STORE() read_register_bytes (0, NULL, REGISTER_BYTES)
+#include "target.h"
+struct target_ops;	/* Fool ARI.  */
 
-/* Make things match up with what is expected in sparc-nat.c.  */
+#define NATIVE_XFER_WCOOKIE sparc_xfer_wcookie
+extern LONGEST sparc_xfer_wcookie (struct target_ops *ops,
+				   enum target_object object,
+				   const char *annex,
+				   void *readbuf, const void *writebuf,
+				   ULONGEST offset, LONGEST len);
 
-#define regs		trapframe
-#define fp_status	fpstate
-
-#define r_g1		tf_global[1]
-#define r_ps		tf_psr
-#define r_pc		tf_pc
-#define r_npc		tf_npc
-#define r_y		tf_y
-
-#define fpu		fpstate
-#define fpu_regs	fs_regs
-#define fpu_fsr		fs_fsr
-#define fpu_fr		fs_regs
-#define Fpu_fsr		fs_fsr
-#define FPU_FSR_TYPE	int
-
-#define PTRACE_GETREGS	 PT_GETREGS
-#define PTRACE_GETFPREGS PT_GETFPREGS
-#define PTRACE_SETREGS	 PT_SETREGS
-#define PTRACE_SETFPREGS PT_SETFPREGS
-
-#define GDB_GREGSET_T	struct reg
-#define GDB_FPREGSET_T	struct fpreg
-
-#endif /* NM_NBSD_H */
+#endif /* nm-nbsd.h */

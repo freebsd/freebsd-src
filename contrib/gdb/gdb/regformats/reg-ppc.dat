@@ -73,4 +73,4 @@ expedite:r1,pc
 32:lr
 32:ctr
 32:xer
-0:
+32:fpscr

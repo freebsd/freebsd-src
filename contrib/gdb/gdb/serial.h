@@ -22,6 +22,8 @@
 #ifndef SERIAL_H
 #define SERIAL_H
 
+struct ui_file;
+
 /* For most routines, if a failure is indicated, then errno should be
    examined.  */
 

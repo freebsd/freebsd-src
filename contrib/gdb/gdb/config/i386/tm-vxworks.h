@@ -22,7 +22,7 @@
 #ifndef TM_VXWORKS_H
 #define TM_VXWORKS_H
 
-#include "i386/tm-i386v.h"
-#include "tm-vxworks.h"
+#include "i386/tm-i386.h"
+#include "config/tm-vxworks.h"
 
 #endif /* ifndef TM_VXWORKS_H */

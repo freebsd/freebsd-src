@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # User Interface Events.
-# Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
+# Copyright 1999, 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 #
 # Contributed by Cygnus Solutions.
 #
@@ -65,6 +65,9 @@ f:void:tracepoint_create:int number:number
 f:void:tracepoint_delete:int number:number
 f:void:tracepoint_modify:int number:number
 f:void:architecture_changed:void
+f:void:target_changed:void
+f:void:selected_frame_level_changed:int level:level
+f:void:selected_thread_changed:int thread_num:thread_num
 #*:void:annotate_starting_hook:void
 #*:void:annotate_stopped_hook:void
 #*:void:annotate_signalled_hook:void
@@ -87,9 +90,6 @@ f:void:architecture_changed:void
 #*:void:readline_begin_hook:char *format, ...:format
 #*:char *:readline_hook:char *prompt:prompt
 #*:void:readline_end_hook:void
-#*:void:register_changed_hook:int regno:regno
-#*:void:memory_changed_hook:CORE_ADDR addr, int len:addr, len
-#*:void:context_hook:int num:num
 #*:int:target_wait_hook:int pid, struct target_waitstatus *status:pid, status
 #*:void:call_command_hook:struct cmd_list_element *c, char *cmd, int from_tty:c, cmd, from_tty
 #*:NORETURN void:error_hook:void:: ATTR_NORETURN
@@ -113,7 +113,8 @@ copyright ()
 {
   cat <<EOF
 /* User Interface Events.
-   Copyright 1999, 2001 Free Software Foundation, Inc.
+
+   Copyright 1999, 2001, 2002 Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions.
 
@@ -238,7 +239,7 @@ done
 echo ""
 echo ""
 cat <<EOF
-/* When GDB_EVENTS are not being used, completly disable them. */
+/* When GDB_EVENTS are not being used, completely disable them. */
 EOF
 echo ""
 echo "#if !WITH_GDB_EVENTS"
@@ -265,6 +266,9 @@ extern struct gdb_events *set_gdb_event_hooks (struct gdb_events *vector);
 
 /* Deliver any pending events. */
 extern void gdb_events_deliver (struct gdb_events *vector);
+
+/* Clear event handlers */
+extern void clear_gdb_event_hooks (void);
 
 #if !WITH_GDB_EVENTS
 #define set_gdb_events(x) 0
@@ -302,9 +306,6 @@ cat <<EOF
 #include "defs.h"
 #include "gdb-events.h"
 #include "gdbcmd.h"
-
-#undef XMALLOC
-#define XMALLOC(TYPE) ((TYPE*) xmalloc (sizeof (TYPE)))
 
 #if WITH_GDB_EVENTS
 static struct gdb_events null_event_hooks;
@@ -391,6 +392,18 @@ do
   esac
 done
 cat <<EOF
+}
+#endif
+EOF
+
+# Clear hooks function
+echo ""
+cat <<EOF
+#if WITH_GDB_EVENTS
+void
+clear_gdb_event_hooks (void)
+{
+  set_gdb_event_hooks (&null_event_hooks);
 }
 #endif
 EOF

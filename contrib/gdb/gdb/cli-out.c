@@ -1,5 +1,7 @@
 /* Output generating routines for GDB CLI.
-   Copyright 1999, 2000 Free Software Foundation, Inc.
+
+   Copyright 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
+
    Contributed by Cygnus Solutions.
    Written by Fernando Nasser for Cygnus.
 
@@ -26,17 +28,13 @@
 #include "gdb_string.h"
 #include "gdb_assert.h"
 
-/* Convenience macro for allocting typesafe memory. */
-
-#ifndef XMALLOC
-#define XMALLOC(TYPE) (TYPE*) xmalloc (sizeof (TYPE))
-#endif
-
 struct ui_out_data
   {
     struct ui_file *stream;
+    struct ui_file *original_stream;
     int suppress_output;
   };
+typedef struct ui_out_data cli_out_data;
 
 /* These are the CLI output functions */
 
@@ -67,6 +65,7 @@ static void cli_message (struct ui_out *uiout, int verbosity,
 			 const char *format, va_list args);
 static void cli_wrap_hint (struct ui_out *uiout, char *identstring);
 static void cli_flush (struct ui_out *uiout);
+static int cli_redirect (struct ui_out *uiout, struct ui_file *outstream);
 
 /* This is the CLI ui-out implementation functions vector */
 
@@ -90,6 +89,7 @@ static struct ui_out_impl cli_ui_out_impl =
   cli_message,
   cli_wrap_hint,
   cli_flush,
+  cli_redirect,
   0, /* Does not need MI hacks (i.e. needs CLI hacks).  */
 };
 
@@ -114,11 +114,11 @@ cli_table_begin (struct ui_out *uiout, int nbrofcols,
 		 int nr_rows,
 		 const char *tblid)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (nr_rows == 0)
     data->suppress_output = 1;
   else
-    /* Only the table suppresses the output and, fortunatly, a table
+    /* Only the table suppresses the output and, fortunately, a table
        is not a recursive data structure. */
     gdb_assert (data->suppress_output == 0);
 }
@@ -128,7 +128,7 @@ cli_table_begin (struct ui_out *uiout, int nbrofcols,
 void
 cli_table_body (struct ui_out *uiout)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
   /* first, close the table header line */
@@ -140,7 +140,7 @@ cli_table_body (struct ui_out *uiout)
 void
 cli_table_end (struct ui_out *uiout)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   data->suppress_output = 0;
 }
 
@@ -151,7 +151,7 @@ cli_table_header (struct ui_out *uiout, int width, enum ui_align alignment,
 		  const char *col_name,
 		  const char *colhdr)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
   cli_field_string (uiout, 0, width, alignment, 0, colhdr);
@@ -165,7 +165,7 @@ cli_begin (struct ui_out *uiout,
 	   int level,
 	   const char *id)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
 }
@@ -177,7 +177,7 @@ cli_end (struct ui_out *uiout,
 	 enum ui_out_type type,
 	 int level)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
 }
@@ -191,7 +191,7 @@ cli_field_int (struct ui_out *uiout, int fldno, int width,
 {
   char buffer[20];		/* FIXME: how many chars long a %d can become? */
 
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
   sprintf (buffer, "%d", value);
@@ -205,7 +205,7 @@ cli_field_skip (struct ui_out *uiout, int fldno, int width,
 		enum ui_align alignment,
 		const char *fldname)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
   cli_field_string (uiout, fldno, width, alignment, fldname, "");
@@ -225,7 +225,7 @@ cli_field_string (struct ui_out *uiout,
   int before = 0;
   int after = 0;
 
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
 
@@ -272,7 +272,7 @@ cli_field_fmt (struct ui_out *uiout, int fldno,
 	       const char *format,
 	       va_list args)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
 
@@ -285,7 +285,7 @@ cli_field_fmt (struct ui_out *uiout, int fldno,
 void
 cli_spaces (struct ui_out *uiout, int numspaces)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
   print_spaces_filtered (numspaces, data->stream);
@@ -294,7 +294,7 @@ cli_spaces (struct ui_out *uiout, int numspaces)
 void
 cli_text (struct ui_out *uiout, const char *string)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
   fputs_filtered (string, data->stream);
@@ -304,7 +304,7 @@ void
 cli_message (struct ui_out *uiout, int verbosity,
 	     const char *format, va_list args)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
   if (ui_out_get_verblvl (uiout) >= verbosity)
@@ -314,7 +314,7 @@ cli_message (struct ui_out *uiout, int verbosity,
 void
 cli_wrap_hint (struct ui_out *uiout, char *identstring)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   if (data->suppress_output)
     return;
   wrap_here (identstring);
@@ -323,8 +323,26 @@ cli_wrap_hint (struct ui_out *uiout, char *identstring)
 void
 cli_flush (struct ui_out *uiout)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   gdb_flush (data->stream);
+}
+
+int
+cli_redirect (struct ui_out *uiout, struct ui_file *outstream)
+{
+  struct ui_out_data *data = ui_out_data (uiout);
+  if (outstream != NULL)
+    {
+      data->original_stream = data->stream;
+      data->stream = outstream;
+    }
+  else if (data->original_stream != NULL)
+    {
+      data->stream = data->original_stream;
+      data->original_stream = NULL;
+    }
+
+  return 0;
 }
 
 /* local functions */
@@ -338,7 +356,7 @@ out_field_fmt (struct ui_out *uiout, int fldno,
 	       const char *fldname,
 	       const char *format,...)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   va_list args;
 
   va_start (args, format);
@@ -352,7 +370,7 @@ out_field_fmt (struct ui_out *uiout, int fldno,
 static void
 field_separator (void)
 {
-  struct ui_out_data *data = ui_out_data (uiout);
+  cli_out_data *data = ui_out_data (uiout);
   fputc_filtered (' ', data->stream);
 }
 
@@ -363,10 +381,20 @@ cli_out_new (struct ui_file *stream)
 {
   int flags = ui_source_list;
 
-  struct ui_out_data *data = XMALLOC (struct ui_out_data);
+  cli_out_data *data = XMALLOC (cli_out_data);
   data->stream = stream;
+  data->original_stream = NULL;
   data->suppress_output = 0;
   return ui_out_new (&cli_ui_out_impl, data, flags);
+}
+
+struct ui_file *
+cli_out_set_stream (struct ui_out *uiout, struct ui_file *stream)
+{
+  cli_out_data *data = ui_out_data (uiout);
+  struct ui_file *old = data->stream;
+  data->stream = stream;
+  return old;
 }
 
 /* standard gdb initialization hook */

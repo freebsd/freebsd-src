@@ -24,17 +24,8 @@
 
 #include "i386/xm-i386v.h"
 
-/* Apparently there is inconsistency among various System V's about what
-   the name of this field is.  */
-#define U_FPSTATE(u) u.u_fps.u_fpstate
-
 /* SCO 3.2v2 and later have job control.  */
 /* SCO 3.2v4 I know has termios; I'm not sure about earlier versions.
    GDB does not currently support the termio/job control combination.  */
 #undef HAVE_TERMIO
 #define HAVE_TERMIOS
-
-/* SCO's assembler doesn't grok dollar signs in identifiers.
-   So we use dots instead.  This item must be coordinated with G++. */
-#undef CPLUS_MARKER
-#define CPLUS_MARKER '.'

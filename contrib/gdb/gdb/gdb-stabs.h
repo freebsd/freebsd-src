@@ -29,8 +29,6 @@
 #if !defined (GDBSTABS_H)
 #define GDBSTABS_H
 
-#define	SECT_OFF_MAX	64	/* Count of possible values */
-
 /* The stab_section_info chain remembers info from the ELF symbol table,
    while psymtabs are being built for the other symbol tables in the 
    objfile.  It is destroyed at the complation of psymtab-reading.
@@ -39,9 +37,10 @@
 struct stab_section_info
   {
     char *filename;
-    CORE_ADDR sections[SECT_OFF_MAX];
     struct stab_section_info *next;
     int found;			/* Count of times it's found in searching */
+    size_t num_sections;
+    CORE_ADDR sections[1];
   };
 
 /* Information is passed among various dbxread routines for accessing
@@ -70,6 +69,9 @@ struct dbx_symfile_info
     asection *text_section;
     asection *data_section;
     asection *bss_section;
+
+    /* Pointer to the separate ".stab" section, if there is one.  */
+    asection *stab_section;
   };
 
 #define DBX_SYMFILE_INFO(o)	((o)->sym_stab_info)
@@ -83,5 +85,6 @@ struct dbx_symfile_info
 #define DBX_TEXT_SECTION(o)	(DBX_SYMFILE_INFO(o)->text_section)
 #define DBX_DATA_SECTION(o)	(DBX_SYMFILE_INFO(o)->data_section)
 #define DBX_BSS_SECTION(o)	(DBX_SYMFILE_INFO(o)->bss_section)
+#define DBX_STAB_SECTION(o)	(DBX_SYMFILE_INFO(o)->stab_section)
 
 #endif /* GDBSTABS_H */

@@ -1,5 +1,7 @@
 /* Machine independent support for SVR4 /proc (process file system) for GDB.
-   Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
+
+   Copyright 1999, 2000, 2001, 2003 Free Software Foundation, Inc.
+
    Written by Michael Snyder at Cygnus Solutions.
    Based on work by Fred Fish, Stu Grossman, Geoff Noer, and others.
 
@@ -36,12 +38,14 @@ Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/procfs.h>
+#ifdef HAVE_SYS_PROC_H
 #include <sys/proc.h>	/* for struct proc */
+#endif
 #ifdef HAVE_SYS_USER_H
 #include <sys/user.h>	/* for struct user */
 #endif
 #include <fcntl.h>	/* for O_RDWR etc. */
-#include <sys/wait.h>
+#include "gdb_wait.h"
 
 #include "proc-utils.h"
 
@@ -395,9 +399,13 @@ static struct trans rw_table[] = {
 #ifdef PCCSIG			/* solaris */
   { PCCSIG,   "PCCSIG",   "clear current signal" },
 #endif
+#ifdef PCDSTOP			/* solaris */
   { PCDSTOP,  "PCDSTOP",  "post stop request" },
+#endif
   { PCKILL,   "PCKILL",   "post a signal" },
+#ifdef PCNICE			/* solaris */
   { PCNICE,   "PCNICE",   "set nice priority" },
+#endif
 #ifdef PCREAD			/* solaris */
   { PCREAD,   "PCREAD",   "read from the address space" },
   { PCWRITE,  "PCWRITE",  "write to the address space" },
@@ -417,7 +425,9 @@ static struct trans rw_table[] = {
   { PCSEXIT,  "PCSEXIT",  "set traced syscall exit  set" },
   { PCSFAULT, "PCSFAULT", "set traced fault set" },
   { PCSFPREG, "PCSFPREG", "set floating point registers" },
+#ifdef PCSHOLD			/* solaris */
   { PCSHOLD,  "PCSHOLD",  "set signal mask" },
+#endif
   { PCSREG,   "PCSREG",   "set general registers" },
   { PCSSIG,   "PCSSIG",   "set current signal" },
   { PCSTOP,   "PCSTOP",   "post stop request and wait" },
@@ -431,7 +441,9 @@ static struct trans rw_table[] = {
 #ifdef PCTWSTOP			/* solaris */
   { PCTWSTOP, "PCTWSTOP", "wait for stop, with timeout arg" },
 #endif
+#ifdef PCUNKILL			/* solaris */
   { PCUNKILL, "PCUNKILL", "delete a pending signal" },
+#endif
 #ifdef PCUNSET			/* solaris */
   { PCUNSET,  "PCUNSET",  "unset modes" },
 #endif
@@ -447,7 +459,7 @@ static off_t lseek_offset;
 int
 write_with_trace (int fd, void *varg, size_t len, char *file, int line)
 {
-  int  i;
+  int i = ARRAY_SIZE (rw_table) - 1;
   int ret;
   procfs_ctl_t *arg = (procfs_ctl_t *) varg;
 
@@ -516,12 +528,14 @@ write_with_trace (int fd, void *varg, size_t len, char *file, int line)
 	proc_prettyfprint_syscalls (procfs_file ? procfs_file : stdout,
 				    (sysset_t *) &arg[1], 0);
 	break;
+#ifdef PCSHOLD
       case PCSHOLD:
 	fprintf (procfs_file ? procfs_file : stdout, 
 		 "write (PCSHOLD) ");
 	proc_prettyfprint_signalset (procfs_file ? procfs_file : stdout,
 				     (sigset_t *) &arg[1], 0);
 	break;
+#endif
       case PCSSIG:
 	fprintf (procfs_file ? procfs_file : stdout, 
 		 "write (PCSSIG) ");
@@ -540,10 +554,14 @@ write_with_trace (int fd, void *varg, size_t len, char *file, int line)
 	  fprintf (procfs_file ? procfs_file : stdout, "clearFlt ");
 	if (arg[1] & PRSTEP)
 	  fprintf (procfs_file ? procfs_file : stdout, "step ");
+#ifdef PRSABORT
 	if (arg[1] & PRSABORT)
 	  fprintf (procfs_file ? procfs_file : stdout, "syscallAbort ");
+#endif
+#ifdef PRSTOP
 	if (arg[1] & PRSTOP)
 	  fprintf (procfs_file ? procfs_file : stdout, "stopReq ");
+#endif
 	  
 	fprintf (procfs_file ? procfs_file : stdout, "\n");
 	break;
@@ -556,16 +574,6 @@ write_with_trace (int fd, void *varg, size_t len, char *file, int line)
 	break;
       default:
 	{
-#ifdef BREAKPOINT
-	  static unsigned char break_insn[] = BREAKPOINT;
-
-	  if (len == sizeof (break_insn) &&
-	      memcmp (arg, &break_insn, len) == 0)
-	    fprintf (procfs_file ? procfs_file : stdout, 
-		     "write (<breakpoint at 0x%08lx>) \n", 
-		     (unsigned long) lseek_offset);
-	  else 
-#endif
 	  if (rw_table[i].name)
 	    fprintf (procfs_file ? procfs_file : stdout, 
 		     "write (%s) %s\n", 
@@ -739,7 +747,7 @@ procfs_note (char *msg, char *file, int line)
       if (info_verbose)
 	fprintf (procfs_file ? procfs_file : stdout, 
 		 "%s:%d -- ", file, line);
-      fprintf (procfs_file ? procfs_file : stdout, msg);
+      fprintf (procfs_file ? procfs_file : stdout, "%s", msg);
       if (procfs_file)
 	fflush (procfs_file);
     }
@@ -778,7 +786,7 @@ _initialize_proc_api (void)
 
   add_show_from_set (c, &showlist);
   set_cmd_sfunc (c, set_procfs_trace_cmd);
-  c->completer = filename_completer;
+  set_cmd_completer (c, filename_completer);
 
   c = add_set_cmd ("procfs-file", no_class, var_filename,
 		   (char *) &procfs_filename, 

@@ -1,5 +1,6 @@
 @c GDB MANUAL configuration file.  
-@c Copyright 1993, 1995, 1999 Free Software Foundation, Inc.
+@c
+@c Copyright 1993, 1995, 1999, 2002 Free Software Foundation, Inc.
 @c
 @c NOTE: While the GDB manual is configurable (by changing these
 @c switches), its configuration is ***NOT*** automatically tied in to
@@ -31,15 +32,14 @@
 @set GDBP gdb
 @c 
 @c Name of GDB product.  Used in running text.
-@set GDBN GDB
+@set GDBN @sc{gdb}
 @c
 @c Name of host.  Should not be used in generic configs, but generic
 @c value may catch some flubs.
 @set HOST machine specific
 @c
 @c Name of GCC product
-@set NGCC GCC
+@set NGCC @sc{gcc}
 @c 
 @c Name of GCC program
 @set GCC gcc
-

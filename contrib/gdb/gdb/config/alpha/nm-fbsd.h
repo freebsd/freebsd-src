@@ -32,12 +32,10 @@
 #define ATTACH_DETACH
 
 /* The Alpha does not step over a breakpoint.  */
-#define CANNOT_STEP_BREAKPOINT
+#define CANNOT_STEP_BREAKPOINT 1
 
 
 /* Shared library support.  */
-
-#define SVR4_SHARED_LIBS
 
 #include "solib.h"		/* Support for shared libraries. */
 #include "elf/common.h"		/* Additional ELF shared library info. */

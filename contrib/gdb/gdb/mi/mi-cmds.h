@@ -1,5 +1,7 @@
-/* MI Command Set.
-   Copyright 2000 Free Software Foundation, Inc.
+/* MI Command Set for GDB, the GNU debugger.
+
+   Copyright 2000, 2003, 2004 Free Software Foundation, Inc.
+
    Contributed by Cygnus Solutions (a Red Hat company).
 
    This file is part of GDB.
@@ -46,6 +48,12 @@ enum mi_cmd_result
     MI_CMD_QUIET
   };
 
+enum print_values {
+   PRINT_NO_VALUES,
+   PRINT_ALL_VALUES,
+   PRINT_SIMPLE_VALUES
+};
+
 typedef enum mi_cmd_result (mi_cmd_argv_ftype) (char *command, char **argv, int argc);
 
 /* Older MI commands have this interface. Retained until all old
@@ -64,6 +72,10 @@ extern mi_cmd_argv_ftype mi_cmd_data_list_changed_registers;
 extern mi_cmd_argv_ftype mi_cmd_data_read_memory;
 extern mi_cmd_argv_ftype mi_cmd_data_write_memory;
 extern mi_cmd_argv_ftype mi_cmd_data_write_register_values;
+extern mi_cmd_argv_ftype mi_cmd_env_cd;
+extern mi_cmd_argv_ftype mi_cmd_env_dir;
+extern mi_cmd_argv_ftype mi_cmd_env_path;
+extern mi_cmd_argv_ftype mi_cmd_env_pwd;
 extern mi_cmd_args_ftype mi_cmd_exec_continue;
 extern mi_cmd_args_ftype mi_cmd_exec_finish;
 extern mi_cmd_args_ftype mi_cmd_exec_next;
@@ -74,12 +86,15 @@ extern mi_cmd_args_ftype mi_cmd_exec_step;
 extern mi_cmd_args_ftype mi_cmd_exec_step_instruction;
 extern mi_cmd_args_ftype mi_cmd_exec_until;
 extern mi_cmd_args_ftype mi_cmd_exec_interrupt;
+extern mi_cmd_argv_ftype mi_cmd_file_list_exec_source_file;
 extern mi_cmd_argv_ftype mi_cmd_gdb_exit;
+extern mi_cmd_argv_ftype mi_cmd_interpreter_exec;
 extern mi_cmd_argv_ftype mi_cmd_stack_info_depth;
 extern mi_cmd_argv_ftype mi_cmd_stack_list_args;
 extern mi_cmd_argv_ftype mi_cmd_stack_list_frames;
 extern mi_cmd_argv_ftype mi_cmd_stack_list_locals;
 extern mi_cmd_argv_ftype mi_cmd_stack_select_frame;
+extern mi_cmd_argv_ftype mi_cmd_symbol_list_lines;
 extern mi_cmd_args_ftype mi_cmd_target_download;
 extern mi_cmd_args_ftype mi_cmd_target_select;
 extern mi_cmd_argv_ftype mi_cmd_thread_list_ids;
@@ -99,18 +114,26 @@ extern mi_cmd_argv_ftype mi_cmd_var_update;
 
 /* Description of a single command. */
 
+struct mi_cli
+{
+  /* Corresponding CLI command.  If ARGS_P is non-zero, the MI
+     command's argument list is appended to the CLI command.  */
+  const char *cmd;
+  int args_p;
+};
+
 struct mi_cmd
-  {
-    /* official name of the command */
-    const char *name;
-    /* If non-null, the corresponding CLI command that can be used to
-       implement this MI command */
-    const char *cli;
-    /* If non-null, the function implementing the MI command */
-    mi_cmd_args_ftype *args_func;
-    /* If non-null, the function implementing the MI command */
-    mi_cmd_argv_ftype *argv_func;
-  };
+{
+  /* official name of the command.  */
+  const char *name;
+  /* The corresponding CLI command that can be used to implement this
+     MI command (if cli.lhs is non NULL).  */
+  struct mi_cli cli;
+  /* If non-null, the function implementing the MI command.  */
+  mi_cmd_args_ftype *args_func;
+  /* If non-null, the function implementing the MI command.  */
+  mi_cmd_argv_ftype *argv_func;
+};
 
 /* Lookup a command in the mi comand table */
 
@@ -121,5 +144,9 @@ extern int mi_debug_p;
 
 /* Raw console output - FIXME: should this be a parameter? */
 extern struct ui_file *raw_stdout;
+
+extern char *mi_error_message;
+extern void mi_error_last_message (void);
+extern void mi_execute_command (char *cmd, int from_tty);
 
 #endif

@@ -1,5 +1,5 @@
 /* Event loop machinery for GDB, the GNU debugger.
-   Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
    Written by Elena Zannoni <ezannoni@cygnus.com> of Cygnus Solutions.
 
    This file is part of GDB.
@@ -210,7 +210,6 @@ static void create_file_handler (int fd, int mask, handler_func * proc, gdb_clie
 static void invoke_async_signal_handler (void);
 static void handle_file_event (int event_file_desc);
 static int gdb_wait_for_event (void);
-static int gdb_do_one_event (void *data);
 static int check_async_ready (void);
 static void async_queue_event (gdb_event * event_ptr, queue_position position);
 static gdb_event *create_file_event (int fd);
@@ -346,7 +345,7 @@ process_event (void)
    can happen if there are no event sources to wait for).  If an error
    occurs catch_errors() which calls this function returns zero. */
 
-static int
+int
 gdb_do_one_event (void *data)
 {
   /* Any events already waiting in the queue? */
@@ -393,10 +392,17 @@ start_event_loop (void)
      longer any event sources registered. */
   while (1)
     {
-      int result = catch_errors (gdb_do_one_event, 0, "", RETURN_MASK_ALL);
-      if (result < 0)
+      int gdb_result;
+
+      gdb_result = catch_errors (gdb_do_one_event, 0, "", RETURN_MASK_ALL);
+      if (gdb_result < 0)
 	break;
-      if (result == 0)
+
+      /* If we long-jumped out of do_one_event, we probably
+         didn't get around to resetting the prompt, which leaves
+         readline in a messed-up state.  Reset it here. */
+
+      if (gdb_result == 0)
 	{
 	  /* FIXME: this should really be a call to a hook that is
 	     interface specific, because interfaces can display the
@@ -494,51 +500,52 @@ create_file_handler (int fd, int mask, handler_func * proc, gdb_client_data clie
       file_ptr->ready_mask = 0;
       file_ptr->next_file = gdb_notifier.first_file_handler;
       gdb_notifier.first_file_handler = file_ptr;
+
+      if (use_poll)
+	{
+#ifdef HAVE_POLL
+	  gdb_notifier.num_fds++;
+	  if (gdb_notifier.poll_fds)
+	    gdb_notifier.poll_fds =
+	      (struct pollfd *) xrealloc (gdb_notifier.poll_fds,
+					  (gdb_notifier.num_fds
+					   * sizeof (struct pollfd)));
+	  else
+	    gdb_notifier.poll_fds =
+	      (struct pollfd *) xmalloc (sizeof (struct pollfd));
+	  (gdb_notifier.poll_fds + gdb_notifier.num_fds - 1)->fd = fd;
+	  (gdb_notifier.poll_fds + gdb_notifier.num_fds - 1)->events = mask;
+	  (gdb_notifier.poll_fds + gdb_notifier.num_fds - 1)->revents = 0;
+#else
+	  internal_error (__FILE__, __LINE__,
+			  "use_poll without HAVE_POLL");
+#endif /* HAVE_POLL */
+	}
+      else
+	{
+	  if (mask & GDB_READABLE)
+	    FD_SET (fd, &gdb_notifier.check_masks[0]);
+	  else
+	    FD_CLR (fd, &gdb_notifier.check_masks[0]);
+
+	  if (mask & GDB_WRITABLE)
+	    FD_SET (fd, &gdb_notifier.check_masks[1]);
+	  else
+	    FD_CLR (fd, &gdb_notifier.check_masks[1]);
+
+	  if (mask & GDB_EXCEPTION)
+	    FD_SET (fd, &gdb_notifier.check_masks[2]);
+	  else
+	    FD_CLR (fd, &gdb_notifier.check_masks[2]);
+
+	  if (gdb_notifier.num_fds <= fd)
+	    gdb_notifier.num_fds = fd + 1;
+	}
     }
+
   file_ptr->proc = proc;
   file_ptr->client_data = client_data;
   file_ptr->mask = mask;
-
-  if (use_poll)
-    {
-#ifdef HAVE_POLL
-      gdb_notifier.num_fds++;
-      if (gdb_notifier.poll_fds)
-	gdb_notifier.poll_fds =
-	  (struct pollfd *) xrealloc (gdb_notifier.poll_fds,
-				      (gdb_notifier.num_fds
-				       * sizeof (struct pollfd)));
-      else
-	gdb_notifier.poll_fds =
-	  (struct pollfd *) xmalloc (sizeof (struct pollfd));
-      (gdb_notifier.poll_fds + gdb_notifier.num_fds - 1)->fd = fd;
-      (gdb_notifier.poll_fds + gdb_notifier.num_fds - 1)->events = mask;
-      (gdb_notifier.poll_fds + gdb_notifier.num_fds - 1)->revents = 0;
-#else
-      internal_error (__FILE__, __LINE__,
-		      "use_poll without HAVE_POLL");
-#endif /* HAVE_POLL */
-    }
-  else
-    {
-      if (mask & GDB_READABLE)
-	FD_SET (fd, &gdb_notifier.check_masks[0]);
-      else
-	FD_CLR (fd, &gdb_notifier.check_masks[0]);
-
-      if (mask & GDB_WRITABLE)
-	FD_SET (fd, &gdb_notifier.check_masks[1]);
-      else
-	FD_CLR (fd, &gdb_notifier.check_masks[1]);
-
-      if (mask & GDB_EXCEPTION)
-	FD_SET (fd, &gdb_notifier.check_masks[2]);
-      else
-	FD_CLR (fd, &gdb_notifier.check_masks[2]);
-
-      if (gdb_notifier.num_fds <= fd)
-	gdb_notifier.num_fds = fd + 1;
-    }
 }
 
 /* Remove the file descriptor FD from the list of monitored fd's: 

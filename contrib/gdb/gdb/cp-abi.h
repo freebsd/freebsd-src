@@ -25,6 +25,8 @@
 #ifndef CP_ABI_H_
 #define CP_ABI_H_ 1
 
+struct fn_field;
+struct type;
 struct value;
 
 /* The functions here that attempt to determine what sort of thing a
@@ -163,11 +165,8 @@ struct cp_abi_ops
 };
 
 
-extern struct cp_abi_ops *cp_abis;
-extern int num_cp_abis;
-extern struct cp_abi_ops current_cp_abi;
-extern int register_cp_abi (struct cp_abi_ops abi);
-extern int switch_to_cp_abi (const char *short_name);
+extern int register_cp_abi (struct cp_abi_ops *abi);
+extern void set_cp_abi_as_auto_default (const char *short_name);
 
 #endif
 

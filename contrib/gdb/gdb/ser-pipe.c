@@ -98,7 +98,7 @@ pipe_open (struct serial *scb, const char *name)
       for (old = pidlist; old; old = old->next)
 	close (fileno (old->fp));	/* don't allow a flush */
 #endif
-      execl ("/bin/sh", "sh", "-c", name, NULL);
+      execl ("/bin/sh", "sh", "-c", name, (char *) 0);
       _exit (127);
     }
 
@@ -138,7 +138,7 @@ void
 _initialize_ser_pipe (void)
 {
   struct serial_ops *ops = XMALLOC (struct serial_ops);
-  memset (ops, sizeof (struct serial_ops), 0);
+  memset (ops, 0, sizeof (struct serial_ops));
   ops->name = "pipe";
   ops->next = 0;
   ops->open = pipe_open;

@@ -54,4 +54,11 @@ extern void remote_cisco_objfile_relocate (bfd_signed_vma text_off,
 
 extern void async_remote_interrupt_twice (void *arg);
 
+extern int remote_write_bytes (CORE_ADDR memaddr, char *myaddr, int len);
+
+extern int remote_read_bytes (CORE_ADDR memaddr, char *myaddr, int len);
+
+extern void (*target_resume_hook) (void);
+extern void (*target_wait_loop_hook) (void);
+
 #endif

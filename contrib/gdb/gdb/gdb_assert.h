@@ -40,16 +40,19 @@
 #else
 #if defined __STDC_VERSION__ && __STDC_VERSION__ >= 199901L
 #define ASSERT_FUNCTION		__func__
-#else
-#define ASSERT_FUNCTION		((const char *) 0)
 #endif
 #endif
 
 /* This prints an "Assertion failed" message, aksing the user if they
    want to continue, dump core, or just exit.  */
+#if defined (ASSERT_FUNCTION)
 #define gdb_assert_fail(assertion, file, line, function)                      \
-  internal_error (file, line, "%s%sAssertion `%s' failed.",                   \
-		  function ? function : "", function ? ": " : "",             \
+  internal_error (file, line, "%s: Assertion `%s' failed.",                   \
+		  function, assertion)
+#else
+#define gdb_assert_fail(assertion, file, line, function)                      \
+  internal_error (file, line, "Assertion `%s' failed.",                       \
 		  assertion)
+#endif
 
 #endif /* gdb_assert.h */

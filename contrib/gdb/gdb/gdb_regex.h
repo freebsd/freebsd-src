@@ -1,5 +1,5 @@
-/* Portable <regex.h>
-   Copyright 2000, 2001 Free Software Foundation, Inc.
+/* Portable <regex.h>.
+   Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -19,12 +19,14 @@
    Boston, MA 02111-1307, USA.  */
 
 #ifndef GDB_REGEX_H
-#define GDB_REGEX_H
+#define GDB_REGEX_H 1
 
 #ifdef USE_INCLUDED_REGEX
-#include "xregex.h"
+# include "xregex.h"
 #else
-#include <regex.h>
+/* Request 4.2 BSD regex functions.  */
+# define _REGEX_RE_COMP
+# include <regex.h>
 #endif
 
-#endif /* gdb_regex.h */
+#endif /* not GDB_REGEX_H */
