@@ -208,9 +208,18 @@ options 	MUTEX_PROFILING
 #
 # Implement system calls compatible with 4.3BSD and older versions of
 # FreeBSD.  You probably do NOT want to remove this as much current code
-# still relies on the 4.3 emulation.
+# still relies on the 4.3 emulation.  Note that some architectures that
+# are supported by FreeBSD do not include support for certain important
+# aspects of this compatibility option, namely those related to the
+# signal delivery mechanism.
 #
 options 	COMPAT_43
+
+#
+# Be compatible with SunOS.  The COMPAT_43 option above pulls in most
+# (all?) of the changes that this option turns on.
+#
+options 	COMPAT_SUNOS
 
 # Enable FreeBSD4 compatibility syscalls
 options 	COMPAT_FREEBSD4
