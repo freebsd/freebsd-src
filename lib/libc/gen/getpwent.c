@@ -213,9 +213,14 @@ __pwproto_set()
 	} 
 
 	/* uid, gid */
-	__pwproto->pw_uid = pw->pw_uid;
-	__pwproto->pw_gid = pw->pw_gid;
-	__pwproto_flags |= _PWF_UID | _PWF_GID;
+	if (pw->pw_fields & _PWF_UID) {
+		__pwproto->pw_uid = pw->pw_uid;
+		__pwproto_flags |= _PWF_UID;
+	}
+	if (pw->pw_fields & _PWF_GID) {
+		__pwproto->pw_gid = pw->pw_gid;
+		__pwproto_flags |= _PWF_GID;
+	}
 
 	/* gecos */
 	if(pw->pw_gecos && (pw->pw_gecos)[0]) {
