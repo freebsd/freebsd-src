@@ -291,9 +291,8 @@ acpi_asus_attach(device_t dev)
 		sc->s_wled = led_create((led_t *)acpi_asus_wled, dev, "wled");
 
 	/* Attach brightness for GPLV/SPLV models */
-	if (sc->model->brn_get &&
-	    ACPI_SUCCESS(acpi_GetInteger(sc->handle,
-		sc->model->brn_get, &sc->s_brn)))
+	if (sc->model->brn_get && ACPI_SUCCESS(acpi_GetInteger(sc->handle,
+	    sc->model->brn_get, &sc->s_brn)))
 		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 		    "lcd_brightness", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -301,29 +300,27 @@ acpi_asus_attach(device_t dev)
 
 	/* Attach brightness for other models */
 	if (sc->model->brn_up &&
-	    ACPI_SUCCESS(AcpiEvaluateObject(sc->handle,
-		sc->model->brn_up, NULL, NULL)) &&
-	    ACPI_SUCCESS(AcpiEvaluateObject(sc->handle,
-		sc->model->brn_dn, NULL, NULL)))
+	    ACPI_SUCCESS(AcpiEvaluateObject(sc->handle, sc->model->brn_up,
+	    NULL, NULL)) &&
+	    ACPI_SUCCESS(AcpiEvaluateObject(sc->handle, sc->model->brn_dn,
+	    NULL, NULL)))
 		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 		    "lcd_brightness", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		    acpi_asus_sysctl_brn, "I", "brightness of the lcd panel");
 
 	/* Attach display switching */
-	if (sc->model->disp_get &&
-	    ACPI_SUCCESS(acpi_GetInteger(sc->handle,
-		sc->model->disp_get, &sc->s_disp)))
+	if (sc->model->disp_get && ACPI_SUCCESS(acpi_GetInteger(sc->handle,
+	    sc->model->disp_get, &sc->s_disp)))
 		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 		    "video_output", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		    acpi_asus_sysctl_disp, "I", "display output state");
 
 	/* Attach LCD state, easy for most models... */
-	if (sc->model->lcd_get &&
-	    strncmp(sc->model->name, "L3H", 3) != 0 &&
-	    ACPI_SUCCESS(acpi_GetInteger(sc->handle,
-		sc->model->lcd_get, &sc->s_lcd)))
+	if (sc->model->lcd_get && strncmp(sc->model->name, "L3H", 3) != 0 &&
+	    ACPI_SUCCESS(acpi_GetInteger(sc->handle, sc->model->lcd_get,
+	    &sc->s_lcd)))
 		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 		    "lcd_backlight", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -347,7 +344,7 @@ acpi_asus_attach(device_t dev)
 		Buf.Pointer = &Obj;
 
 		if (ACPI_SUCCESS(AcpiEvaluateObject(sc->handle,
-			sc->model->lcd_get, &Args, &Buf)) &&
+		    sc->model->lcd_get, &Args, &Buf)) &&
 		    Obj.Type == ACPI_TYPE_INTEGER) {
 			sc->s_lcd = Obj.Integer.Value >> 8;
 
@@ -363,8 +360,8 @@ acpi_asus_attach(device_t dev)
 	AcpiEvaluateObject(sc->handle, "BSTS", NULL, NULL);
 
 	/* Handle notifies */
-	AcpiInstallNotifyHandler(sc->handle,
-	    ACPI_SYSTEM_NOTIFY, acpi_asus_notify, dev);
+	AcpiInstallNotifyHandler(sc->handle, ACPI_SYSTEM_NOTIFY,
+	    acpi_asus_notify, dev);
 	
 	return (0);
 }
@@ -389,8 +386,8 @@ acpi_asus_detach(device_t dev)
 		led_destroy(sc->s_wled);
 
 	/* Remove notify handler */
-	AcpiRemoveNotifyHandler(sc->handle,
-	    ACPI_SYSTEM_NOTIFY, acpi_asus_notify);
+	AcpiRemoveNotifyHandler(sc->handle, ACPI_SYSTEM_NOTIFY,
+	    acpi_asus_notify);
 
 	/* Free sysctl tree */
 	sysctl_ctx_free(&sc->sysctl_ctx);
@@ -474,10 +471,10 @@ acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS)
 	brn = sc->s_brn;
 	err = sysctl_handle_int(oidp, &brn, 0, req);
 
-	if ((err != 0) || (req->newptr == NULL))
+	if (err != 0 || req->newptr == NULL)
 		return (err);
 
-	if ((brn < 0) || (brn > 15))
+	if (brn < 0 || brn > 15)
 		return (EINVAL);
 
 	/* Keep track and update */
@@ -490,13 +487,12 @@ acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS)
 	Args.Pointer = &Arg;
 
 	if (sc->model->brn_set)
-		AcpiEvaluateObject(sc->handle,
-		    sc->model->brn_set, &Args, NULL);
+		AcpiEvaluateObject(sc->handle, sc->model->brn_set, &Args, NULL);
 	else {
 		brn -= sc->s_brn;
 
 		while (brn != 0) {
-			AcpiEvaluateObject(sc->handle,(brn > 0) ?
+			AcpiEvaluateObject(sc->handle, (brn > 0) ?
 			    sc->model->brn_up : sc->model->brn_dn,
 			    NULL, NULL);
 
@@ -521,10 +517,10 @@ acpi_asus_sysctl_lcd(SYSCTL_HANDLER_ARGS)
 	lcd = sc->s_lcd;
 	err = sysctl_handle_int(oidp, &lcd, 0, req);
 
-	if ((err != 0) || (req->newptr == NULL))
+	if (err != 0 || req->newptr == NULL)
 		return (err);
 
-	if ((lcd < 0) || (lcd > 1))
+	if (lcd < 0 || lcd > 1)
 		return (EINVAL);
 
 	/* Keep track and update */
@@ -532,8 +528,7 @@ acpi_asus_sysctl_lcd(SYSCTL_HANDLER_ARGS)
 
 	/* Most models just need a lcd_set evaluated, the L3H is trickier */
 	if (strncmp(sc->model->name, "L3H", 3) != 0)
-		AcpiEvaluateObject(sc->handle,
-		    sc->model->lcd_set, NULL, NULL);
+		AcpiEvaluateObject(sc->handle, sc->model->lcd_set, NULL, NULL);
 	else {
 		ACPI_OBJECT		Arg;
 		ACPI_OBJECT_LIST	Args;
@@ -544,8 +539,7 @@ acpi_asus_sysctl_lcd(SYSCTL_HANDLER_ARGS)
 		Args.Count = 1;
 		Args.Pointer = &Arg;
 
-		AcpiEvaluateObject(sc->handle,
-		    sc->model->lcd_set, &Args, NULL);
+		AcpiEvaluateObject(sc->handle, sc->model->lcd_set, &Args, NULL);
 	}
 
 	return (0);
@@ -567,10 +561,10 @@ acpi_asus_sysctl_disp(SYSCTL_HANDLER_ARGS)
 	disp = sc->s_disp;
 	err = sysctl_handle_int(oidp, &disp, 0, req);
 
-	if ((err != 0) || (req->newptr == NULL))
+	if (err != 0 || req->newptr == NULL)
 		return (err);
 
-	if ((disp < 0) || (disp > 7))
+	if (disp < 0 || disp > 7)
 		return (EINVAL);
 
 	/* Keep track and update */
@@ -582,8 +576,7 @@ acpi_asus_sysctl_disp(SYSCTL_HANDLER_ARGS)
 	Args.Count = 1;
 	Args.Pointer = &Arg;
 
-	AcpiEvaluateObject(sc->handle,
-	    sc->model->disp_set, &Args, NULL);
+	AcpiEvaluateObject(sc->handle, sc->model->disp_set, &Args, NULL);
 
 	return (0);
 }
@@ -600,10 +593,10 @@ acpi_asus_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	acpi_sc = acpi_device_get_parent_softc(sc->dev);
 
 	if ((notify & ~0x10) <= 15) {
-		sc->s_brn = (notify & ~0x10);
+		sc->s_brn = notify & ~0x10;
 		ACPI_VPRINT(sc->dev, acpi_sc, "Brightness increased\n");
 	} else if ((notify & ~0x20) <= 15) {
-		sc->s_brn = (notify & ~0x20);
+		sc->s_brn = notify & ~0x20;
 		ACPI_VPRINT(sc->dev, acpi_sc, "Brightness decreased\n");
 	} else if (notify == 0x33) {
 		sc->s_lcd = 1;
