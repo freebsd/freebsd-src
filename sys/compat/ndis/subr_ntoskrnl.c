@@ -178,6 +178,7 @@ __stdcall static ndis_status ObReferenceObjectByHandle(ndis_handle,
 __fastcall static void ObfDereferenceObject(REGARGS1(void *object));
 __stdcall static uint32_t ZwClose(ndis_handle);
 static void *ntoskrnl_memset(void *, int, size_t);
+static funcptr ntoskrnl_findwrap(funcptr);
 static uint32_t DbgPrint(char *, ...);
 __stdcall static void DbgBreakPoint(void);
 __stdcall static void dummy(void);
@@ -1502,6 +1503,33 @@ ntoskrnl_popsl(head)
 	return(first);
 }
 
+/*
+ * We need this to make lookaside lists work for amd64.
+ * We pass a pointer to ExAllocatePoolWithTag() the lookaside
+ * list structure. For amd64 to work right, this has to be a
+ * pointer to the wrapped version of the routine, not the
+ * original. Letting the Windows driver invoke the original
+ * function directly will result in a convention calling
+ * mismatch and a pretty crash. On x86, this effectively
+ * becomes a no-op since ipt_func and ipt_wrap are the same.
+ */
+
+static funcptr
+ntoskrnl_findwrap(func)
+	funcptr			func;
+{
+	image_patch_table	*patch;
+
+	patch = ntoskrnl_functbl;
+	while (patch->ipt_func != NULL) {
+		if ((funcptr)patch->ipt_func == func)
+			return((funcptr)patch->ipt_wrap);
+		patch++;
+	}
+
+	return(NULL);
+}
+
 __stdcall static void
 ExInitializePagedLookasideList(lookaside, allocfunc, freefunc,
     flags, size, tag, depth)
@@ -1521,12 +1549,14 @@ ExInitializePagedLookasideList(lookaside, allocfunc, freefunc,
 		lookaside->nll_l.gl_size = size;
 	lookaside->nll_l.gl_tag = tag;
 	if (allocfunc == NULL)
-		lookaside->nll_l.gl_allocfunc = ExAllocatePoolWithTag;
+		lookaside->nll_l.gl_allocfunc =
+		    ntoskrnl_findwrap((funcptr)ExAllocatePoolWithTag);
 	else
 		lookaside->nll_l.gl_allocfunc = allocfunc;
 
 	if (freefunc == NULL)
-		lookaside->nll_l.gl_freefunc = ExFreePool;
+		lookaside->nll_l.gl_freefunc =
+		    ntoskrnl_findwrap((funcptr)ExFreePool);
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
@@ -1534,7 +1564,8 @@ ExInitializePagedLookasideList(lookaside, allocfunc, freefunc,
 	KeInitializeSpinLock(&lookaside->nll_obsoletelock);
 #endif
 
-	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
+	lookaside->nll_l.gl_type = NonPagedPool;
+	lookaside->nll_l.gl_depth = depth;
 	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
 
 	return;
@@ -1573,12 +1604,14 @@ ExInitializeNPagedLookasideList(lookaside, allocfunc, freefunc,
 		lookaside->nll_l.gl_size = size;
 	lookaside->nll_l.gl_tag = tag;
 	if (allocfunc == NULL)
-		lookaside->nll_l.gl_allocfunc = ExAllocatePoolWithTag;
+		lookaside->nll_l.gl_allocfunc =
+		    ntoskrnl_findwrap((funcptr)ExAllocatePoolWithTag);
 	else
 		lookaside->nll_l.gl_allocfunc = allocfunc;
 
 	if (freefunc == NULL)
-		lookaside->nll_l.gl_freefunc = ExFreePool;
+		lookaside->nll_l.gl_freefunc =
+		    ntoskrnl_findwrap((funcptr)ExFreePool);
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
@@ -1586,7 +1619,8 @@ ExInitializeNPagedLookasideList(lookaside, allocfunc, freefunc,
 	KeInitializeSpinLock(&lookaside->nll_obsoletelock);
 #endif
 
-	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
+	lookaside->nll_l.gl_type = NonPagedPool;
+	lookaside->nll_l.gl_depth = depth;
 	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
 
 	return;
