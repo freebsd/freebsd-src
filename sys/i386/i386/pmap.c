@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.102 1996/06/08 06:48:27 dyson Exp $
+ *	$Id: pmap.c,v 1.103 1996/06/12 05:02:52 gpalmer Exp $
  */
 
 /*
@@ -418,8 +418,8 @@ pmap_unwire_pte_hold(vm_page_t m) {
 			--cnt.v_wire_count;
 			m->dirty = 0;
 			vm_page_deactivate(m);
+			return 1;
 		}
-		return 1;
 	}
 	return 0;
 }
@@ -1431,8 +1431,9 @@ retry:
 		s = splvm();
 		vm_page_unqueue(m);
 		splx(s);
+		if (m->wire_count == 0)
+			++cnt.v_wire_count;
 		++m->wire_count;
-		++cnt.v_wire_count;
 	}
 
 	/*
@@ -1510,8 +1511,9 @@ pmap_allocpte(pmap, va)
 			int s = splvm();
 			vm_page_unqueue(m);
 			splx(s);
+			if (m->wire_count == 0)
+				++cnt.v_wire_count;
 			++m->wire_count;
-			++cnt.v_wire_count;
 		}
 		++m->hold_count;
 		return m;
