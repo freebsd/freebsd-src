@@ -741,7 +741,7 @@ procfs_validfile(td)
 	struct thread *td;
 {
 
-	return (procfs_findtextvp(td->td_proc) != NULLVP);
+	return (td->td_proc->p_textvp != NULLVP);
 }
 
 /*
@@ -816,8 +816,10 @@ procfs_readdir(ap)
 			bcopy(pt->pt_name, dp->d_name, pt->pt_namlen + 1);
 			dp->d_type = pt->pt_type;
 
+			PROC_UNLOCK(p);
 			if ((error = uiomove((caddr_t)dp, delen, uio)) != 0)
 				break;
+			PROC_LOCK(p);
 		}
 		PROC_UNLOCK(p);
 
