@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.34 1997/09/14 03:10:40 peter Exp $
+ *	$Id: tcp_usrreq.c,v 1.35 1997/09/16 18:36:06 joerg Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -340,7 +340,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		m_freem(control); /* XXX shouldn't caller do this??? */
 		if (m)
 			m_freem(m);
-		return EINVAL;
+		error = EINVAL;
+		goto out;
 	}
 
 	if(!(flags & PRUS_OOB)) {
