@@ -1,0 +1,141 @@
+############
+# Setup system for firewall service.
+# $Id: rc.firewall,v 1.1 1996/04/03 17:13:58 phk Exp $
+
+############
+#
+# >>Warning<<
+# This file is not very old yet, and have been put together without much
+# test of the contents.
+
+############
+#
+# If you don't know enough about packet filtering, we suggest that you
+# take time to read this book:
+#
+#	Building Internet Firewalls
+#	Brent Chapman and Elizabeth Zwicky
+#
+#	O'Reilly & Associates, Inc
+#	ISBN 1-56592-124-0
+#
+# For a more advanced treatment of Internet Security read:
+#
+#	Firewalls & Internet Security
+#	Repelling the wily hacker
+#	William R. Cheswick, Steven M. Bellowin
+#
+#	Addison-Wesley
+#	ISBN 0-201-6337-4
+#
+
+############
+# If you just configured ipfw in the kernel as a tool to solve network
+# problems or you just want to disallow some particular kinds of traffic
+# they you will want to change the default policy to open.
+
+# /sbin/ipfw add 65000 pass all from any to any
+
+############
+# Only in rare cases do you want to change this rule
+/sbin/ipfw add 1000 pass all from 127.0.0.1 to 127.0.0.1
+
+############
+# This is a prototype setup that will protect your system somewhat against
+# people from outside your own network.
+#
+# To enable simply change "false" to "true" in the if line and set the
+# variables to your network parameters
+
+if false ; then
+    # set these to your network and netmask and ip
+    net="192.168.4.0"
+    mask="255.255.255.0"
+    ip="192.168.4.17"
+
+    # Allow any traffic to or from my own net.
+    /sbin/ipfw add pass all from ${ip} to ${net}:${mask}
+    /sbin/ipfw add pass all from ${net}:${mask} to ${ip}
+
+    # Allow TCP through if setup succeeded
+    /sbin/ipfw add pass tcp from any to any established
+
+    # Allow setup of incoming email 
+    /sbin/ipfw add pass tcp from any to ${ip} 25 setup
+
+    # Allow setup of outgoing TCP connections only
+    /sbin/ipfw add pass tcp from ${ip} to any setup
+
+    # Disallow setup of all other TCP connections
+    /sbin/ipfw add deny tcp from any to any setup
+
+    # Allow DNS queries out in the world
+    /sbin/ipfw add pass udp from any 53 to ${ip}
+    /sbin/ipfw add pass udp from ${ip} to any 53
+
+    # Allow NTP queries out in the world
+    /sbin/ipfw add pass udp from any 123 to ${ip}
+    /sbin/ipfw add pass udp from ${ip} to any 123
+
+    # Everyting else is denied as default.
+fi
+
+############
+# This is a prototype setup for a simple firewall.  Configure this machine 
+# as a named server and ntp server, and point all the machines on the inside
+# at this machine for those services.
+#
+# To enable simply change "false" to "true" in the if line and set the
+# variables to your network parameters
+
+if false ; then
+    # set these to your outside interface network and netmask and ip
+    oif="ed0"
+    onet="192.168.4.0"
+    omask="255.255.255.0"
+    oip="192.168.4.17"
+
+    # set these to your inside interface network and netmask and ip
+    iif="ed1"
+    inet="192.168.3.0"
+    imask="255.255.255.0"
+    iip="192.168.3.17"
+
+    # Stop spoofing
+    /sbin/ipfw add deny all from ${inet}:${imask} to any in via ${oif}
+    /sbin/ipfw add deny all from ${onet}:${omask} to any in via ${iif}
+
+    # Stop RFC1918 nets on the outside interface
+    /sbin/ipfw add deny all from 192.168.0.0:255.255.0.0 to any via ${oif}
+    /sbin/ipfw add deny all from 172.16.0.0:255.240.0.0 to any via ${oif}
+    /sbin/ipfw add deny all from 10.0.0.0:255.0.0.0 to any via ${oif}
+
+    # Allow TCP through if setup succeeded
+    /sbin/ipfw add pass tcp from any to any established
+
+    # Allow setup of incoming email 
+    /sbin/ipfw add pass tcp from any to ${oip} 25 setup
+
+    # Allow access to our DNS
+    /sbin/ipfw add pass tcp from any to ${oip} 53 setup
+
+    # Allow access to our WWW
+    /sbin/ipfw add pass tcp from any to ${oip} 80 setup
+
+    # Reject&Log all setup of incoming connections from the outside
+    /sbin/ipfw add deny log tcp from any to any in via ${oif} setup
+
+    # Allow setup of any other TCP connection
+    /sbin/ipfw add pass tcp from any to any setup
+
+    # Allow DNS queries out in the world
+    /sbin/ipfw add pass udp from any 53 to ${oip}
+    /sbin/ipfw add pass udp from ${oip} to any 53
+
+    # Allow NTP queries out in the world
+    /sbin/ipfw add pass udp from any 123 to ${oip}
+    /sbin/ipfw add pass udp from ${oip} to any 123
+
+    # Everyting else is denied as default.
+fi
+
