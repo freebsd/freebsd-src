@@ -30,6 +30,8 @@
 #	wt*	QIC-interfaced (e.g. not SCSI) 3M cartridge tape
 #	st*	"NEW type scsi tapes" (old driver uses the
 #		block devices of the disks to get access)
+#	ft*	QIC-40/QIC-80 3M cartridge tape (interfaced
+#		via the floppy disk controller)
 #
 # Disks:
 #	wd*	"winchester" disk drives (ST506,IDE,ESDI,RLL,...)
@@ -71,7 +73,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.23 1994/01/24 20:57:16 davidg Exp $
+#	$Id: MAKEDEV,v 1.22 1994/01/10 18:11:30 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -82,7 +84,7 @@ case $i in
 
 all)
 	sh MAKEDEV std						# standard
-	sh MAKEDEV wd0 wd1 fd0 fd1 wt0 sd0 sd1 st0 cd0		# bdev
+	sh MAKEDEV wd0 wd1 fd0 fd1 ft0 wt0 sd0 sd1 st0 cd0	# bdev
 	sh MAKEDEV pty0 tty0 tty1 tty2 tty3 pc0 lpt0 lpt1 lpt2	# cdev
 	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2		# cdev
 	sh MAKEDEV speaker mse0 sio0 sio1 sio2 sio3		# cdev
@@ -220,6 +222,28 @@ fd*)
 	esac
 	umask 77
 	;;
+
+
+ft*)
+	umask 2 ; unit=`expr $i : '..\(.*\)'`
+	name=ft; blk=2; chr=9;
+	rm -f $name$unit* r$name$unit*
+	case $unit in
+	0|1|2|3)
+		mknod ${name}${unit}   b $blk `expr $unit '*' 64 + 32`
+		mknod r${name}${unit}  c $chr `expr $unit '*' 64 + 32`
+		ln ${name}${unit} ${name}${unit}a
+		ln r${name}${unit} r${name}${unit}a
+		chgrp operator ${name}${unit}* r${name}${unit}*
+		chmod 640 ${name}${unit}* r${name}${unit}*
+		;;
+	*)
+		echo bad unit for tape in: $i
+		;;
+	esac
+	umask 77
+	;;
+
 
 sd*|wd*)
 	umask 2 ; unit=`expr $i : '..\(.*\)'`
