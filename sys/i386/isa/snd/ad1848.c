@@ -2036,7 +2036,7 @@ ad1816_intr(int unit)
     /* check for playback interupt */
     if (d->dbuf_out.dl && (c & AD1816_INTRPI)) {
 	outb(ad1816_int(d), c & ~AD1816_INTRPI);	/* ack it */
-	if (inb(ad1816_int(d)) & AD1816_INTRPI != 0)
+	if ((inb(ad1816_int(d)) & AD1816_INTRPI) != 0)
 	    printf("ad1816: Failed to clear pb int !!!\n");
 	dsp_wrintr(d);
 	served |= AD1816_INTRPI;		/* pb served */
