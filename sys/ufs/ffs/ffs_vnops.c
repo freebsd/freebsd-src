@@ -347,8 +347,6 @@ ffs_read(ap)
 	}
 #endif
 
-	GIANT_REQUIRED;
-
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 	ip = VTOI(vp);
 
@@ -548,8 +546,6 @@ ffs_write(ap)
 		panic("ffs_write+IO_EXT");
 #endif
 
-	GIANT_REQUIRED;
-
 	extended = 0;
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 	ip = VTOI(vp);
@@ -729,8 +725,6 @@ ffs_getpages(ap)
 	vm_page_t mreq;
 	int pcount;
 
-	GIANT_REQUIRED;
-
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
 	mreq = ap->a_m[ap->a_reqpage];
 
@@ -776,8 +770,6 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
 	int error, orig_resid;
-
-	GIANT_REQUIRED;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
@@ -934,8 +926,6 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	ufs_lbn_t lbn;
 	off_t osize;
 	int blkoffset, error, flags, resid, size, xfersize;
-
-	GIANT_REQUIRED;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
