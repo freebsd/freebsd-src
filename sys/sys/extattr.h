@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
+ * Copyright (c) 1999-2001 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by Robert Watson for the TrustedBSD Project.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,17 +28,8 @@
  * $FreeBSD$
  */
 /*
- * Userland/kernel interface for Extended File System Attributes
- *
- * This code from the FreeBSD POSIX.1e implementation.  While the syscalls
- * are fully implemented, invoking the VFS vnops and VFS calls as necessary,
- * no file systems shipped with this version of FreeBSD implement these
- * calls.  Extensions to UFS/FFS to support extended attributes are
- * available from the POSIX.1e implementation page, or possibly in a more
- * recent version of FreeBSD.
- *
- * The POSIX.1e implementation page may be reached at:
- *   http://www.watson.org/fbsd-hardening/posix1e/
+ * Developed by the TrustedBSD Project.
+ * Support for extended file system attributes.
  */
 
 #ifndef _SYS_EXTATTR_H_
