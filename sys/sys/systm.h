@@ -217,6 +217,7 @@ void	cpu_stopprofclock(void);
 
 /* flags for suser() and suser_cred() */
 #define PRISON_ROOT	1
+#define SUSER_RUID	2
 
 int	suser(struct thread *td);
 int	suser_cred(struct ucred *cred, int flag);
