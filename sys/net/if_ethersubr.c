@@ -463,7 +463,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	int i;
 	struct ip_fw_args args;
 
-	if (*rule != NULL && fw_one_pass)
+	if (*rule != NULL /*&& fw_one_pass*/)	/* HACK! need to obey fw_one_pass */
 		return 1; /* dummynet packet, already partially processed */
 
 	/*
