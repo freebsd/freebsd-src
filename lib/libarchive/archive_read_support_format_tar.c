@@ -209,12 +209,12 @@ archive_read_format_tar_bid(struct archive *a)
 
 	header = h;
 
-	/* This distinguishes POSIX formats from GNU tar formats. */
+	/* Recognize POSIX formats. */
 	if ((memcmp(header->magic, "ustar\0", 6) == 0)
 	    &&(memcmp(header->version, "00", 2)==0))
 		bid += 56;
 
-	/* Recognize GNU tar format as well. */
+	/* Recognize GNU tar format. */
 	if ((memcmp(header->magic, "ustar ", 6) == 0)
 	    &&(memcmp(header->version, " \0", 2)==0))
 		bid += 56;
@@ -593,6 +593,22 @@ header_common(struct archive *a, struct tar *tar, struct archive_entry *entry,
 		 */
 		if (st->st_size > 0)
 			st->st_mode |= S_IFREG;
+		/*
+		 * A tricky point: Traditionally, tar programs have
+		 * ignored the size field when reading hardlink
+		 * entries.  As a result, some programs write non-zero
+		 * sizes, even though the body is empty and expect the
+		 * reader to ignore that.  POSIX.1-2001 broke this by
+		 * permitting hardlink entries to store valid bodies
+		 * in pax interchange format.  Since there is no hard
+		 * and fast way to distinguish pax interchange from
+		 * earlier archives (the 'x' and 'g' entries are
+		 * optional, after all), we need a heuristic.  Here, I
+		 * use the bid function to test whether or not there's
+		 * a valid header following.
+		 */
+		if (st->st_size > 0  &&  archive_read_format_tar_bid(a) > 50)
+			st->st_size = 0;
 		break;
 	case '2': /* Symlink */
 		st->st_mode |= S_IFLNK;
