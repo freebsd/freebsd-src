@@ -36,6 +36,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -340,6 +341,12 @@ gif_output(ifp, m, dst, rt)
 	int error = 0;
 	static int called = 0;	/* XXX: MUTEX */
 
+#ifdef MAC
+	error = mac_check_ifnet_transmit(ifp, m);
+	if (error)
+		senderr(error);
+#endif
+
 	/*
 	 * gif may cause infinite recursion calls when misconfigured.
 	 * We'll prevent this by introducing upper limit.
@@ -429,7 +436,11 @@ gif_input(m, af, gifp)
 	}
 
 	m->m_pkthdr.rcvif = gifp;
-	
+
+#ifdef MAC
+	mac_create_mbuf_from_ifnet(gifp, m);
+#endif
+
 	if (gifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
