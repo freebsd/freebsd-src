@@ -363,7 +363,7 @@ main(argc, argv, envp)
 	}
 
 	if (pipe(signalpipe) != 0) {
-		syslog(LOG_ERR, "pipe: %%m");
+		syslog(LOG_ERR, "pipe: %m");
 		exit(EX_OSERR);
 	}
 	FD_SET(signalpipe[0], &allsock);
@@ -847,7 +847,7 @@ void config()
 		} else {
 			rpc = getrpcbyname(sep->se_service);
 			if (rpc == 0) {
-				syslog(LOG_ERR, "%s/%s unknown RPC service.",
+				syslog(LOG_ERR, "%s/%s unknown RPC service",
 					sep->se_service, sep->se_proto);
 				if (sep->se_fd != -1)
 					(void) close(sep->se_fd);
@@ -1236,7 +1236,7 @@ more:
                                 break;
                         default:
                                 syslog(LOG_ERR,
-					"bad RPC version specifier; %s\n",
+					"bad RPC version specifier; %s",
 					sep->se_service);
                                 freeconfig(sep);
                                 goto more;
