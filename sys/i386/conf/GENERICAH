@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx family disks
 #
-#	$Id: GENERICAH,v 1.14 1993/10/14 14:05:44 rgrimes Exp $
+#	$Id: GENERICAH,v 1.15 1993/10/16 12:28:32 rgrimes Exp $
 #
 
 machine		"i386"
@@ -72,6 +72,7 @@ device		lpa1	at isa? port "IO_LPT2" tty
 
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
 device ed1 at isa? port 0x300 net irq 5 iomem 0xd8000 vector edintr
+device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
 device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
 
 pseudo-device	loop
