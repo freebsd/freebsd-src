@@ -701,6 +701,10 @@ mi_switch()
 	u_int sched_nest;
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
+#ifdef INVARIANTS
+	if (p->p_stat != SMTX && p->p_stat != SRUN)
+		mtx_assert(&Giant, MA_NOTOWNED);
+#endif
 
 	/*
 	 * Compute the amount of time during which the current
