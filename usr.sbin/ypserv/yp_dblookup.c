@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dblookup.c,v 1.13 1995/12/16 04:46:10 wpaul Exp $
+ *	$Id: yp_dblookup.c,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -45,7 +45,7 @@
 #include "yp.h"
 #include "yp_extern.h"
 
-extern int debug_flag;
+int ypdb_debug = 0;
 int yp_errno = YP_TRUE;
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
@@ -118,7 +118,7 @@ int yp_get_record(domain,map,key,data,allow)
 {
 	DB *dbp;
 
-	if (debug)
+	if (ypdb_debug)
 		yp_error("Looking up key [%.*s] in map [%s]",
 			  key->size, key->data, map);
 
@@ -141,7 +141,7 @@ int yp_get_record(domain,map,key,data,allow)
 
 	(void)(dbp->close)(dbp);
 
-	if (debug)
+	if (ypdb_debug)
 		yp_error("Result of lookup: key: [%.*s] data: [%.*s]",
 			 key->size, key->data, data->size, data->data);
 
@@ -154,7 +154,7 @@ int yp_first_record(dbp,key,data)
 	DBT *data;
 {
 
-	if (debug)
+	if (ypdb_debug)
 		yp_error("Retrieving first key in map.");
 
 	if ((dbp->seq)(dbp,key,data,R_FIRST))
@@ -166,7 +166,7 @@ int yp_first_record(dbp,key,data)
 			return(YP_BADDB);
 	}
 
-	if (debug)
+	if (ypdb_debug)
 		yp_error("Result of lookup: key: [%.*s] data: [%.*s]",
 			 key->size, key->data, data->size, data->data);
 
@@ -184,7 +184,7 @@ int yp_next_record(dbp,key,data,all)
 	if (key == NULL || key->data == NULL)
 		return(yp_first_record(dbp,key,data));
 
-	if (debug)
+	if (ypdb_debug)
 		yp_error("Retreiving next key, previous was: [%.*s]",
 			  key->size, key->data);
 
@@ -209,7 +209,7 @@ int yp_next_record(dbp,key,data,all)
 	*key = lkey;
 	*data = ldata;
 
-	if (debug)
+	if (ypdb_debug)
 		yp_error("Result of lookup: key: [%.*s] data: [%.*s]",
 			 key->size, key->data, data->size, data->data);
 

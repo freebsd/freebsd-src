@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_extern.h,v 1.9 1995/12/16 04:01:55 wpaul Exp $
+ *	$Id: yp_extern.h,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -57,6 +57,7 @@
  */
 
 extern int	debug;
+extern int	ypdb_debug;
 extern int	do_dns;
 extern int	children;
 extern char 	*progname;
