@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.44 1999/01/17 20:36:14 peter Exp $
+ *  $Id: linux_sysvec.c,v 1.45 1999/02/04 21:20:13 newton Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -217,11 +217,7 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	 *	and the stack can not be grown. useracc will return FALSE
 	 *	if access is denied.
 	 */
-#ifdef VM_STACK
 	if ((grow_stack (p, (int)fp) == FALSE) ||
-#else
-	if ((grow(p, (int)fp) == FALSE) ||
-#endif 
 	    (useracc((caddr_t)fp, sizeof (struct linux_sigframe), B_WRITE) == FALSE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
