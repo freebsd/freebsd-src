@@ -77,7 +77,6 @@ device		mpt		# LSI-Logic MPT-Fusion
 device		sym		# NCR/Symbios Logic
 
 # RAID controllers interfaced to the SCSI subsystem
-device		asr		# DPT SmartRAID V, VI and Adaptec RAID
 device		ciss		# Compaq Smart RAID 5*
 device		dpt		# DPT Smartcache III, IV
 device		iir		# Intel Integrated RAID
@@ -92,6 +91,8 @@ device		sa		# Sequential Access (ie tape)
 device		ses		# Environmental Services (and SAF-TE)
 
 # RAID controllers
+device		aac		# Adaptec FSA RAID
+device		aacp		# SCSI passthrough for aac (requires CAM)
 device		amr		# AMI MegaRAID
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960 family
