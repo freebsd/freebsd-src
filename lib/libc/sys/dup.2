@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dup.2	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: dup.2,v 1.7 1997/02/22 15:03:49 peter Exp $
 .\"
 .Dd June 4, 1993
 .Dt DUP 2
@@ -92,10 +92,27 @@ In
 .Fn dup2 ,
 the value of the new descriptor
 .Fa newd
-is specified.  If this descriptor is already
-in use, the descriptor is first deallocated as if a
+is specified.  If this descriptor is already in use and
+.Fa oldd
+!=
+.Fa newd ,
+the descriptor is first deallocated as if a
 .Xr close 2
-call had been done first.
+call had been used.
+If
+.Fa oldd
+is not a valid descriptor, then
+.Fa newd
+is not closed.
+If
+.Fa oldd
+==
+.Fa newd
+and
+.Fa oldd
+is a valid descriptor, then
+.Fn dup2
+is successful, and does nothing.
 .Sh IMPLEMENTATION NOTES
 .Pp
 In the non-threaded library
