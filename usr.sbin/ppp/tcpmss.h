@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 2000 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,14 +26,4 @@
  * $FreeBSD$
  */
 
-struct tun_data {
-  union {
-    u_int32_t family;
-    u_int32_t timeout;
-  } header;
-  u_char data[MAX_MRU];
-};
-
-struct bundle;
-
-extern void tun_configure(struct bundle *);
+extern struct layer tcpmsslayer;

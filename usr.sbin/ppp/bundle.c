@@ -797,6 +797,7 @@ bundle_Create(const char *prefix, int type, int unit)
   log_Printf(LogPHASE, "Using interface: %s\n", ifname);
 
   bundle.bandwidth = 0;
+  bundle.mtu = 1500;
   bundle.routing_seq = 0;
   bundle.phase = PHASE_DEAD;
   bundle.CleaningUp = 0;
@@ -812,7 +813,7 @@ bundle_Create(const char *prefix, int type, int unit)
   bundle.cfg.idle.min_timeout = 0;
   *bundle.cfg.auth.name = '\0';
   *bundle.cfg.auth.key = '\0';
-  bundle.cfg.opt = OPT_SROUTES | OPT_IDCHECK | OPT_LOOPBACK |
+  bundle.cfg.opt = OPT_SROUTES | OPT_IDCHECK | OPT_LOOPBACK | OPT_TCPMSSFIXUP |
                    OPT_THROUGHPUT | OPT_UTMP;
   *bundle.cfg.label = '\0';
   bundle.cfg.mtu = DEF_MTU;
@@ -1232,9 +1233,11 @@ bundle_ShowStatus(struct cmdargs const *arg)
                 optval(arg->bundle, OPT_PROXY));
   prompt_Printf(arg->prompt, " Proxyall:      %s\n",
                 optval(arg->bundle, OPT_PROXYALL));
-  prompt_Printf(arg->prompt, " Throughput:    %-20.20s",
+  prompt_Printf(arg->prompt, " TCPMSS Fixup:  %-20.20s",
+                optval(arg->bundle, OPT_TCPMSSFIXUP));
+  prompt_Printf(arg->prompt, " Throughput:    %s\n",
                 optval(arg->bundle, OPT_THROUGHPUT));
-  prompt_Printf(arg->prompt, " Utmp Logging:  %s\n",
+  prompt_Printf(arg->prompt, " Utmp Logging:  %-20.20s",
                 optval(arg->bundle, OPT_UTMP));
   prompt_Printf(arg->prompt, " Iface-Alias:   %s\n",
                 optval(arg->bundle, OPT_IFACEALIAS));
@@ -1924,10 +1927,10 @@ void
 bundle_CalculateBandwidth(struct bundle *bundle)
 {
   struct datalink *dl;
-  int mtu, sp;
+  int sp;
 
   bundle->bandwidth = 0;
-  mtu = 0;
+  bundle->mtu = 0;
   for (dl = bundle->links; dl; dl = dl->next)
     if (dl->state == DATALINK_OPEN) {
       if ((sp = dl->mp.bandwidth) == 0 &&
@@ -1937,7 +1940,7 @@ bundle_CalculateBandwidth(struct bundle *bundle)
       else
         bundle->bandwidth += sp;
       if (!bundle->ncp.mp.active) {
-        mtu = dl->physical->link.lcp.his_mru;
+        bundle->mtu = dl->physical->link.lcp.his_mru;
         break;
       }
     }
@@ -1946,19 +1949,20 @@ bundle_CalculateBandwidth(struct bundle *bundle)
     bundle->bandwidth = 115200;		/* Shrug */
 
   if (bundle->ncp.mp.active)
-    mtu = bundle->ncp.mp.peer_mrru;
-  else if (!mtu)
-    mtu = 1500;
+    bundle->mtu = bundle->ncp.mp.peer_mrru;
+  else if (!bundle->mtu)
+    bundle->mtu = 1500;
 
 #ifndef NORADIUS
-  if (bundle->radius.valid && bundle->radius.mtu && bundle->radius.mtu < mtu) {
+  if (bundle->radius.valid && bundle->radius.mtu &&
+      bundle->radius.mtu < bundle->mtu) {
     log_Printf(LogLCP, "Reducing MTU to radius value %lu\n",
                bundle->radius.mtu);
-    mtu = bundle->radius.mtu;
+    bundle->mtu = bundle->radius.mtu;
   }
 #endif
 
-  tun_configure(bundle, mtu);
+  tun_configure(bundle);
 }
 
 void
