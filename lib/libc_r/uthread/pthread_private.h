@@ -58,6 +58,7 @@
 #include <sys/cdefs.h>
 #include <sched.h>
 #include <spinlock.h>
+#include <ucontext.h>
 #include <pthread_np.h>
 
 /*
