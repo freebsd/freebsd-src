@@ -19,7 +19,7 @@
 #to Software Foundation, 59 Temple Place - Suite 330, Boston, MA  02111-1307,
 #USA.
 
-AC_PREREQ(2.12.1)
+AC_PREREQ(2.13)
 AC_INIT(access_.c)
 AC_CONFIG_HEADER(config.h:config.hin)
 
@@ -47,6 +47,8 @@ if test $may_use_xopen_source = yes; then
   # The following is needed by Solaris2.5.1 so that struct timeval is declared.
   AC_DEFINE(__EXTENSIONS__, 1, [Solaris extensions])
   AC_DEFINE(_FILE_OFFSET_BITS, 64, [Get 64-bit file size support])
+  # The following is needed by glibc2 so that gethostname is declared.
+  AC_DEFINE(_GNU_SOURCE, 1, [Get GNU extensions])
 fi
 
 dnl Checks for programs.
