@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.45 1998/05/15 20:11:35 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.46 1998/08/24 07:47:39 dfr Exp $
  */
 
 #include "opt_compat.h"
@@ -81,7 +81,7 @@ static int	tcp_do_rfc1323 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323,
 	CTLFLAG_RW, &tcp_do_rfc1323 , 0, "");
 
-static int	tcp_do_rfc1644 = 1;
+static int	tcp_do_rfc1644 = 0;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1644, rfc1644,
 	CTLFLAG_RW, &tcp_do_rfc1644 , 0, "");
 
