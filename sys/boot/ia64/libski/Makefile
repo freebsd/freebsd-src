@@ -1,7 +1,10 @@
 # $FreeBSD$
 
 LIB=		ski
+NOPIC=		true
+NOPROFILE=	true
 INTERNALLIB=	true
+INTERNALSTATICLIB=	true
 
 SRCS=	skiconsole.c time.c copy.c devicename.c module.c exit.c
 SRCS+=	delay.c skifs.c elf_freebsd.c bootinfo.c ssc.c
