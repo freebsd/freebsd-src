@@ -28,12 +28,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_output.c,v 1.3 1995/12/05 04:59:56 julian Exp $
+ *	$Id: sap_output.c,v 1.4 1996/04/13 15:13:24 jhay Exp $
  */
 
 /*
  * Routing Table Management Daemon
  */
+#include <unistd.h>
 #include "defs.h"
 
 /*
@@ -117,6 +118,7 @@ sap_supply(dst, flags, ifp, ServType)
 	struct sockaddr_ipx *sipx =  (struct sockaddr_ipx *) dst;
 	af_output_t *output = afswitch[dst->sa_family].af_output;
 	int size, metric;
+	int delay = 0;
 
 	if (sipx->sipx_port == 0)
 		sipx->sipx_port = htons(IPXPORT_SAP);
@@ -131,6 +133,11 @@ sap_supply(dst, flags, ifp, ServType)
 			(*output)(sapsock, flags, dst, size);
 			TRACE_SAP_OUTPUT(ifp, dst, size);
 			n = sap_msg->sap;
+			delay++;
+			if(delay == 2) {
+				usleep(20000);
+				delay = 0;
+			}
 		}
 
 		/*
