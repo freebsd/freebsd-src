@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.16 1996/08/28 17:54:14 adam Exp $
+# $Id: adduser.perl,v 1.17 1996/09/11 08:36:54 jkh Exp $
 
 
 # read variables
@@ -538,19 +538,9 @@ sub new_users_pwdmkdb {
 
     system("$pwd_mkdb $etc_passwd");
     if ($?) {
-	local($crash) = "$etc_passwd.crash$$";
 	warn "$last\n";
-	warn "``$pwd_mkdb'' failed, try to restore ...\n";
-
-	open(R, "> $crash") || die "Sorry, give up\n";
-	$j = join("\n", @passwd_backup);
-	$j =~ s/\n//;
-	print R $j . "\n";
-	close R;
-
-	system("$pwd_mkdb $crash");
-	die "Sorry, give up\n" if $?;
-	die "Successfully restore $etc_passwd. Exit.\n";
+	warn "``$pwd_mkdb'' failed\n";
+	exit($? >> 8);
     }
 }
 
