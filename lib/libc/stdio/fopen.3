@@ -46,11 +46,11 @@
 .Sh SYNOPSIS
 .Fd #include <stdio.h>
 .Ft FILE *
-.Fn fopen "char *path" "char *mode"
+.Fn fopen "const char *path" "const char *mode"
 .Ft FILE *
-.Fn fdopen "int fildes" "char *mode"
+.Fn fdopen "int fildes" "const char *mode"
 .Ft FILE *
-.Fn freopen "char *path" "char *mode" "FILE *stream"
+.Fn freopen "const char *path" "const char *mode" "FILE *stream"
 .Sh DESCRIPTION
 The
 .Fn fopen
