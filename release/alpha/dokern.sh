@@ -58,6 +58,7 @@ sed	\
 	-e '/urio/d' \
 	-e '/uscanner/d' \
 	-e '/aue/d' \
+	-e '/axe/d' \
 	-e '/cue/d' \
 	-e '/kue/d' \
 	-e '/maxusers/d' \
