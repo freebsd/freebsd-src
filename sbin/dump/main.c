@@ -48,15 +48,18 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/mount.h>
 #include <sys/disklabel.h>
 
 #include <ufs/ufs/dinode.h>
+#include <ufs/ufs/ufsmount.h>
 #include <ufs/ffs/fs.h>
 
 #include <protocols/dumprestore.h>
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
 #include <inttypes.h>
@@ -72,6 +75,7 @@ static const char rcsid[] =
 #include "pathnames.h"
 
 int	notify = 0;	/* notify operator flag */
+int	snapdump = 0;	/* dumping live filesystem, so use snapshot */
 int	blockswritten = 0;	/* number of blocks written on current tape */
 int	tapeno = 0;	/* current tape number */
 int	density = 0;	/* density in bytes/0.1" " <- this is for hilit19 */
@@ -87,6 +91,7 @@ char	*host = NULL;	/* remote host (if any) */
  */
 static int sblock_try[] = SBLOCKSEARCH;
 
+static char *getmntpt(char *, int *);
 static long numarg(const char *, long, long);
 static void obsolete(int *, char **[]);
 static void usage(void) __dead2;
@@ -98,9 +103,9 @@ main(int argc, char *argv[])
 	ino_t ino;
 	int dirty;
 	union dinode *dp;
-	struct	fstab *dt;
-	char *map;
-	int ch, mode;
+	struct fstab *dt;
+	char *map, *mntpt;
+	int ch, mode, mntflags;
 	int i, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
 	int just_estimate = 0;
 	ino_t maxino;
@@ -122,9 +127,9 @@ main(int argc, char *argv[])
 
 	obsolete(&argc, &argv);
 #ifdef KERBEROS
-#define optstring "0123456789aB:b:cd:f:h:kns:ST:uWwD:"
+#define optstring "0123456789aB:b:cd:f:h:kLns:ST:uWwD:"
 #else
-#define optstring "0123456789aB:b:cd:f:h:ns:ST:uWwD:"
+#define optstring "0123456789aB:b:cd:f:h:Lns:ST:uWwD:"
 #endif
 	while ((ch = getopt(argc, argv, optstring)) != -1)
 #undef optstring
@@ -176,6 +181,10 @@ main(int argc, char *argv[])
 			dokerberos = 1;
 			break;
 #endif
+
+		case 'L':
+			snapdump = 1;
+			break;
 
 		case 'n':		/* notify operators */
 			notify = 1;
@@ -309,12 +318,53 @@ main(int argc, char *argv[])
 	}
 	spcl.c_dev[NAMELEN-1]='\0';
 	spcl.c_filesys[NAMELEN-1]='\0';
+
+	if ((mntpt = getmntpt(disk, &mntflags)) != 0) {
+		if (snapdump == 0) {
+			msg("WARNING: %s\n",
+			    "should use -L when dumping live filesystems!");
+		} else {
+			struct ufs_args args;
+			char snapname[BUFSIZ];
+
+			snprintf(snapname, sizeof snapname, "%s/.dump_snapshot",
+			    mntpt);
+			args.fspec = snapname;
+			while (mount("ffs", mntpt,
+			    mntflags | MNT_UPDATE | MNT_SNAPSHOT,
+			    &args) < 0) {
+				if (errno == EEXIST && unlink(snapname) == 0)
+					continue;
+				errx(X_STARTUP, "Cannot create %s: %s\n",
+				    snapname, strerror(errno));
+			}
+			if ((diskfd = open(snapname, O_RDONLY)) < 0) {
+				unlink(snapname);
+				errx(X_STARTUP, "Cannot open %s: %s\n",
+				    snapname, strerror(errno));
+			}
+			unlink(snapname);
+			if (fstat(diskfd, &sb) != 0)
+				err(X_STARTUP, "%s: stat", snapname);
+			spcl.c_date = _time_to_time64(sb.st_mtime);
+		}
+	} else if (snapdump != 0) {
+		msg("WARNING: Cannot use -L on an unmounted filesystem.\n");
+		snapdump = 0;
+	}
+	if (snapdump == 0) {
+		if ((diskfd = open(disk, O_RDONLY)) < 0)
+			err(X_STARTUP, "Cannot open %s", disk);
+		if (fstat(diskfd, &sb) != 0)
+			err(X_STARTUP, "%s: stat", disk);
+		if (S_ISDIR(sb.st_mode))
+			errx(X_STARTUP, "%s: unknown file system", disk);
+	}
+
 	(void)strcpy(spcl.c_label, "none");
 	(void)gethostname(spcl.c_host, NAMELEN);
 	spcl.c_level = level - '0';
 	spcl.c_type = TS_TAPE;
-	if (!Tflag)
-	        getdumptime();		/* /etc/dumpdates snarfed */
 
 	if (spcl.c_date == 0) {
 		tmsg = "the epoch\n";
@@ -323,6 +373,9 @@ main(int argc, char *argv[])
 		tmsg = ctime(&t);
 	}
 	msg("Date of this level %c dump: %s", level, tmsg);
+
+	if (!Tflag)
+	        getdumptime();		/* /etc/dumpdates snarfed */
 	if (spcl.c_ddate == 0) {
 		tmsg = "the epoch\n";
 	} else {
@@ -330,7 +383,8 @@ main(int argc, char *argv[])
 		tmsg = ctime(&t);
 	}
  	msg("Date of last level %c dump: %s", lastlevel, tmsg);
-	msg("Dumping %s ", disk);
+
+	msg("Dumping %s%s ", snapdump ? "snapshot of ": "", disk);
 	if (dt != NULL)
 		msgtail("(%s) ", dt->fs_file);
 	if (host)
@@ -338,12 +392,6 @@ main(int argc, char *argv[])
 	else
 		msgtail("to %s\n", tape);
 
-	if ((diskfd = open(disk, O_RDONLY)) < 0)
-		err(X_STARTUP, "Cannot open %s", disk);
-	if (fstat(diskfd, &sb) != 0)
-		err(X_STARTUP, "%s: stat", disk);
-	if (S_ISDIR(sb.st_mode))
-		errx(X_STARTUP, "%s: unknown file system", disk);
 	sync();
 	sblock = (struct fs *)sblock_buf;
 	for (i = 0; sblock_try[i] != -1; i++) {
@@ -528,6 +576,25 @@ usage(void)
 		"[-T date] filesystem\n"
 		"       dump -W | -w\n");
 	exit(X_STARTUP);
+}
+
+/*
+ * Check to see if a disk is currently mounted.
+ */
+static char *
+getmntpt(char *name, int *mntflagsp)
+{
+	long mntsize, i;
+	struct statfs *mntbuf;
+
+	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
+	for (i = 0; i < mntsize; i++) {
+		if (!strcmp(mntbuf[i].f_mntfromname, name)) {
+			*mntflagsp = mntbuf[i].f_flags;
+			return (mntbuf[i].f_mntonname);
+		}
+	}
+	return (0);
 }
 
 /*
