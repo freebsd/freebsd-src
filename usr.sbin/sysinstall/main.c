@@ -136,9 +136,9 @@ main(int argc, char **argv)
     status = setjmp(BailOut);
     if (status) {
 	msgConfirm("A signal %d was caught - I'm saving what I can and shutting\n"
-		   "If you can reproduce the problem, please turn Debug on in\n"
-		   "the Options menu for the extra information it provides in\n"
-		   "debugging problems like this.", status);
+		   "down.  If you can reproduce the problem, please turn Debug on\n"
+		   "in the Options menu for the extra information it provides\n"
+		   "in debugging problems like this.", status);
 	systemShutdown(status);
     }
 
