@@ -1,8 +1,8 @@
 This fortune brought to you by:
 $FreeBSD$
 %
-Having trouble using FTP through a firewall?  Try setting the environment
-variable FTP_PASSIVE_MODE to yes, and see ftp(1) for more details.
+Having trouble using fetch through a firewall? Try setting the environment
+variable FTP_PASSIVE_MODE to yes, and see fetch(3) for more details.
 %
 By pressing "Scroll Lock" you can use the arrow keys to scroll backward
 through the console output.  Press "Scroll Lock" again to turn it off.
