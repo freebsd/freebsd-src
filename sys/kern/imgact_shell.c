@@ -75,18 +75,19 @@ exec_shell_imgact(imgp)
 	offset = 0;
 	while (ihp < &image_header[MAXSHELLCMDLEN]) {
 		/* Skip any whitespace */
-		while ((*ihp == ' ') || (*ihp == '\t')) {
+		if ((*ihp == ' ') || (*ihp == '\t')) {
 			ihp++;
 			continue;
 		}
 
 		/* End of line? */
-		if ((*ihp == '\n') || (*ihp == '#'))
+		if ((*ihp == '\n') || (*ihp == '#') || (*ihp == '\0'))
 			break;
 
 		/* Found a token */
 		while ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n') &&
-		    (*ihp != '#')) {
+		    (*ihp != '#') && (*ihp != '\0') &&
+		    (ihp < &image_header[MAXSHELLCMDLEN])) {
 			offset++;
 			ihp++;
 		}
@@ -140,18 +141,19 @@ exec_shell_imgact(imgp)
 	offset = 0;
 	while (ihp < &image_header[MAXSHELLCMDLEN]) {
 		/* Skip whitespace */
-		while ((*ihp == ' ' || *ihp == '\t')) {
+		if ((*ihp == ' ') || (*ihp == '\t')) {
 			ihp++;
 			continue;
 		}
 
 		/* End of line? */
-		if ((*ihp == '\n') || (*ihp == '#'))
+		if ((*ihp == '\n') || (*ihp == '#') || (*ihp == '\0'))
 			break;
 
 		/* Found a token, copy it */
-		while ((*ihp != ' ') && (*ihp != '\t') &&
-		    (*ihp != '\n') && (*ihp != '#')) {
+		while ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n') &&
+		    (*ihp != '#') && (*ihp != '\0') &&
+		    (ihp < &image_header[MAXSHELLCMDLEN])) {
 			imgp->args->begin_argv[offset++] = *ihp++;
 		}
 		imgp->args->begin_argv[offset++] = '\0';
