@@ -54,6 +54,8 @@
 #include <sys/signalvar.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
+#include <sys/malloc.h>
+#include <sys/ksiginfo.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 
@@ -80,7 +82,7 @@ userret(td, frame, oticks)
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
-	if (SIGPENDING(p) && ((p->p_sflag & PS_NEEDSIGCHK) == 0 ||
+	if (signal_pending(p) && ((p->p_sflag & PS_NEEDSIGCHK) == 0 ||
 	    (td->td_kse->ke_flags & KEF_ASTPENDING) == 0))
 		printf("failed to set signal flags properly for ast()\n");
 	mtx_unlock_spin(&sched_lock);

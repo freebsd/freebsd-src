@@ -67,6 +67,7 @@
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#include <sys/ksiginfo.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -244,7 +245,7 @@ exit1(td, rv)
 	 */
 	PROC_LOCK(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
-	SIGEMPTYSET(p->p_siglist);
+	signal_delete(p, NULL, 0);
 	PROC_UNLOCK(p);
 	if (timevalisset(&p->p_realtimer.it_value))
 		callout_stop(&p->p_itcallout);
@@ -473,6 +474,12 @@ exit1(td, rv)
 	 */
 	if (p->p_flag & P_KTHREAD)
 		wakeup(p);
+
+	/*
+	 * And now, kill off its signals...
+	 */
+	signal_delete(p, NULL, 0);
+
 	PROC_UNLOCK(p);
 	
 	/*

@@ -37,6 +37,7 @@
 #include <sys/sx.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
+#include <sys/ksiginfo.h>
 
 #include <machine/stdarg.h>
 
@@ -144,16 +145,16 @@ kthread_suspend(struct proc *p, int timo)
 {
 	/*
 	 * Make sure this is indeed a system process and we can safely
-	 * use the p_siglist field.
+	 * use the signal queue.
 	 */
 	PROC_LOCK(p);
 	if ((p->p_flag & P_KTHREAD) == 0) {
 		PROC_UNLOCK(p);
 		return (EINVAL);
 	}
-	SIGADDSET(p->p_siglist, SIGSTOP);
+	signal_add(p, NULL, SIGSTOP);
 	wakeup(p);
-	return msleep(&p->p_siglist, &p->p_mtx, PPAUSE | PDROP, "suspkt", timo);
+	return msleep(&p->p_sigq, &p->p_mtx, PPAUSE | PDROP, "suspkt", timo);
 }
 
 int
@@ -168,9 +169,9 @@ kthread_resume(struct proc *p)
 		PROC_UNLOCK(p);
 		return (EINVAL);
 	}
-	SIGDELSET(p->p_siglist, SIGSTOP);
+	signal_delete(p, NULL, SIGSTOP);
 	PROC_UNLOCK(p);
-	wakeup(&p->p_siglist);
+	wakeup(&p->p_sigq);
 	return (0);
 }
 
@@ -178,9 +179,9 @@ void
 kthread_suspend_check(struct proc *p)
 {
 	PROC_LOCK(p);
-	while (SIGISMEMBER(p->p_siglist, SIGSTOP)) {
-		wakeup(&p->p_siglist);
-		msleep(&p->p_siglist, &p->p_mtx, PPAUSE, "ktsusp", 0);
+	while (signal_queued(p, SIGSTOP)) {
+		wakeup(&p->p_sigq);
+		msleep(&p->p_sigq, &p->p_mtx, PPAUSE, "ktsusp", 0);
 	}
 	PROC_UNLOCK(p);
 }
