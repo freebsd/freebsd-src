@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.9 1995/03/16 18:22:26 wollman Exp $
+ * $Id: in.h,v 1.10 1995/06/13 17:51:08 wollman Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -232,7 +232,8 @@ struct ip_mreq {
 #define IPCTL_RTMINEXPIRE	6	/* min value for expiration time */
 #define IPCTL_RTMAXCACHE	7	/* trigger level for dynamic expire */
 #define	IPCTL_SOURCEROUTE	8	/* may perform source routes */
-#define	IPCTL_MAXID		9
+#define	IPCTL_DIRECTEDBROADCAST	9	/* may re-broadcast received packets */
+#define	IPCTL_MAXID		10
 
 #define	IPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -244,6 +245,7 @@ struct ip_mreq {
 	{ "rtminexpire", CTLTYPE_INT }, \
 	{ "rtmaxcache", CTLTYPE_INT }, \
 	{ "sourceroute", CTLTYPE_INT }, \
+ 	{ "directed-broadcast", CTLTYPE_INT }, \
 }
 
 
