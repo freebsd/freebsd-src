@@ -124,10 +124,25 @@ struct lock_list_entry {
 };
 
 /*
+ * If any of WITNESS, INVARIANTS, or KTR_LOCK KTR tracing has been enabled,
+ * then turn on LOCK_DEBUG.  When this option is on, extra debugging
+ * facilities such as tracking the file and line number of lock operations
+ * are enabled.  Also, mutex locking operations are not inlined to avoid
+ * bloat from all the extra debugging code.  We also have to turn on all the
+ * calling conventions for this debugging code in modules so that modules can
+ * work with both debug and non-debug kernels.
+ */
+#if defined(KLD_MODULE) || defined(WITNESS) || defined(INVARIANTS) || defined(INVARIANT_SUPPORT) || defined(KTR)
+#define	LOCK_DEBUG	1
+#else
+#define	LOCK_DEBUG	0
+#endif
+
+/*
  * In the LOCK_DEBUG case, use the filename and line numbers for debugging
  * operations.  Otherwise, use default values to avoid the unneeded bloat.
  */
-#ifdef LOCK_DEBUG
+#if LOCK_DEBUG > 0
 #define	LOCK_FILE	__FILE__
 #define	LOCK_LINE	__LINE__
 #else
