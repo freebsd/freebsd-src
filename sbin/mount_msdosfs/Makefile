@@ -13,7 +13,7 @@ CFLAGS+= -I${MOUNT}
 .PATH:	${MOUNT}
 
 TABDIR= ${DESTDIR}/usr/libdata/msdosfs
-TABLES= koi2dos
+TABLES= iso22dos koi2dos
 
 afterinstall:
 	cd ${.CURDIR} && \
