@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.23 1995/05/18 02:59:24 davidg Exp $
+ * $Id: vm_mmap.c,v 1.24 1995/05/30 08:16:09 rgrimes Exp $
  */
 
 /*
@@ -609,21 +609,13 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	struct vnode *vp = NULL;
 	int type;
 	int rv = KERN_SUCCESS;
+	vm_size_t objsize;
+	struct proc *p = curproc;
 
 	if (size == 0)
 		return (0);
 
-	size = round_page(size);
-
-	if ((flags & MAP_FIXED) == 0) {
-		fitit = TRUE;
-		*addr = round_page(*addr);
-	} else {
-		if (*addr != trunc_page(*addr))
-			return (EINVAL);
-		fitit = FALSE;
-		(void) vm_map_remove(map, *addr, *addr + size);
-	}
+	objsize = size = round_page(size);
 
 	/*
 	 * We currently can only deal with page aligned file offsets.
@@ -635,6 +627,16 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	 */
 	if (foff & PAGE_MASK)
 		return (EINVAL);
+
+	if ((flags & MAP_FIXED) == 0) {
+		fitit = TRUE;
+		*addr = round_page(*addr);
+	} else {
+		if (*addr != trunc_page(*addr))
+			return (EINVAL);
+		fitit = FALSE;
+		(void) vm_map_remove(map, *addr, *addr + size);
+	}
 
 	/*
 	 * Lookup/allocate pager.  All except an unnamed anonymous lookup gain
@@ -653,10 +655,18 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		if (vp->v_type == VCHR) {
 			type = PG_DEVICE;
 			handle = (caddr_t) vp->v_rdev;
-		} else
+		} else {
+			struct vattr vat;
+			int error;
+
+			error = VOP_GETATTR(vp, &vat, p->p_ucred, p);
+			if (error)
+				return (error);
+			objsize = vat.va_size;
 			type = PG_VNODE;
+		}
 	}
-	pager = vm_pager_allocate(type, handle, size, prot, foff);
+	pager = vm_pager_allocate(type, handle, objsize, prot, foff);
 	if (pager == NULL)
 		return (type == PG_DEVICE ? EINVAL : ENOMEM);
 	/*
