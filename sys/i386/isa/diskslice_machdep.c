@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.3 1995/01/23 02:31:53 phk Exp $
+ *	$Id: diskslice_machdep.c,v 1.4 1995/02/16 15:19:19 bde Exp $
  */
 
 #include <stddef.h>
@@ -70,8 +70,8 @@ dsinit(dname, dev, strat, lp, sspp)
 	/*
 	 * Allocate a dummy slices "struct" and initialize it to contain
 	 * only an empty compatibility slice (pointing to itself) and a
-	 * whole disk slice (which may be a dummy if the label is a dummy).
-	 * If there is an error, then these slices become the only slices.
+	 * whole disk slice (covering the disk as described by the label).
+	 * If there is an error, then the dummy struct becomes final.
 	 */
 	ssp = malloc(offsetof(struct diskslices, dss_slices)
 		     + BASE_SLICE * sizeof *sp, M_DEVBUF, M_WAITOK);
@@ -170,15 +170,6 @@ dsinit(dname, dev, strat, lp, sspp)
 		goto done;
 
 	/*
-	 * We're not handling extended partitions yet, so there are always
-	 * BASE_SLICE + NDOSPART slices.
-	 */
-	if (dkslice(dev) >= BASE_SLICE + NDOSPART) {
-		error = ENXIO;
-		goto done;
-	}
-
-	/*
 	 * Accept the DOS partition table.
 	 * First adjust the label (we have been careful not to change it
 	 * before we can guarantee success).
@@ -204,7 +195,6 @@ dsinit(dname, dev, strat, lp, sspp)
 		     M_DEVBUF, M_WAITOK);
 	*sspp = ssp;
 	ssp->dss_first_bsd_slice = COMPATIBILITY_SLICE;
-	ssp->dss_nslices = BASE_SLICE + NDOSPART;
 	sp = &ssp->dss_slices[0];
 	bzero(sp, (BASE_SLICE + NDOSPART) * sizeof *sp);
 	sp[WHOLE_DISK_SLICE].ds_size = lp->d_secperunit;
@@ -227,10 +217,16 @@ dsinit(dname, dev, strat, lp, sspp)
 #endif
 	}
 
+	/*
+	 * We're not handling extended partitions yet, so there are always
+	 * BASE_SLICE + NDOSPART slices altogether.
+	 */
+	ssp->dss_nslices = BASE_SLICE + NDOSPART;
+
 done:
 	bp->b_flags = B_INVAL | B_AGE;
 	brelse(bp);
 	if (error == EINVAL)
-		error = (dkslice(dev) == WHOLE_DISK_SLICE ? 0 : ENXIO);
+		error = 0;
 	return (error);
 }
