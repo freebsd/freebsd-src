@@ -1710,6 +1710,20 @@ linux_ioctl_socket(struct proc *p, struct linux_ioctl_args *args)
 		args->cmd = SIOCDELMULTI;
 		error = ioctl(p, (struct ioctl_args *)args);
 		break;
+
+	/*
+	 * XXX This is slightly bogus, but these ioctls are currently
+	 * XXX only used by the aironet (if_an) network driver.
+	 */
+	case LINUX_SIOCDEVPRIVATE:
+		args->cmd = SIOCGPRIVATE_0;
+		error = ioctl(p, (struct ioctl_args *)args);
+		break;
+		
+	case LINUX_SIOCDEVPRIVATE+1:
+		args->cmd = SIOCGPRIVATE_1;
+		error = ioctl(p, (struct ioctl_args *)args);
+		break;
 	}
 
 	if (ifp != NULL)

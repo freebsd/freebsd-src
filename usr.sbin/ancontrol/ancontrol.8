@@ -50,31 +50,34 @@
 .Nm
 .Fl i Ar iface Fl C
 .Nm
-.Fl i Ar iface Fl t Cm 0 | 1 | 2 | 3 | 4
+.Fl i Ar iface Fl t Cm 0 Ns - Ns Cm 4
 .Nm
-.Fl i Ar iface Fl s Cm 0 | 1 | 2 | 3
+.Fl i Ar iface Fl s Cm 0 Ns - Ns Cm 3
 .Nm
 .Fl i Ar iface
-.Op Fl v Cm 1 | 2 | 3 | 4
+.Op Fl v Cm 1 Ns - Ns Cm 4
 .Fl a Ar AP
 .Nm
 .Fl i Ar iface Fl b Ar beacon_period
 .Nm
 .Fl i Ar iface
 .Op Fl v Cm 0 | 1
-.Fl d Cm 0 | 1 | 2 | 3
+.Fl d Cm 0 Ns - Ns Cm 3
 .Nm
-.Fl i Ar iface Fl e Cm 0 | 1 | 2 | 3
+.Fl i Ar iface Fl e Cm 0 Ns - Ns Cm 4
 .Nm
 .Fl i Ar iface
-.Op Fl v Cm 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
+.Op Fl v Cm 0 Ns - Ns Cm 8
 .Fl k Ar key
 .Nm
 .Fl i Ar iface
-.Fl K Cm 0 | 1 | 2
+.Fl K Cm 0 Ns - Ns Cm 2
 .Nm
 .Fl i Ar iface
-.Fl W Cm 0 | 1 | 2
+.Fl W Cm 0 Ns - Ns Cm 2
+.Nm
+.Fl i Ar iface
+.Fl L Ar user_name
 .Nm
 .Fl i Ar iface Fl j Ar netjoin_timeout
 .Nm
@@ -83,7 +86,7 @@
 .Fl i Ar iface Fl m Ar mac_address
 .Nm
 .Fl i Ar iface
-.Op Fl v Cm 1 | 2 | 3
+.Op Fl v Cm 1 Ns - Ns Cm 3
 .Fl n Ar SSID
 .Nm
 .Fl i Ar iface Fl o Cm 0 | 1
@@ -187,7 +190,7 @@ Display current NIC configuration.
 This shows the current operation mode,
 receive mode, MAC address, power save settings, various timing settings,
 channel selection, diversity, transmit power and transmit speed.
-.It Fl i Ar iface Fl t Cm 0 | 1 | 2 | 3 | 4
+.It Fl i Ar iface Fl t Cm 0 Ns - Ns Cm 4
 Select transmit speed.
 The available settings are as follows:
 .Bl -column ".Em TX rate" -offset indent
@@ -201,7 +204,7 @@ The available settings are as follows:
 .Pp
 Note that the 5.5 and 11Mbps settings are only supported on the 4800
 series adapters: the 4500 series adapters have a maximum speed of 2Mbps.
-.It Fl i Ar iface Fl s Cm 0 | 1 | 2 | 3
+.It Fl i Ar iface Fl s Cm 0 Ns - Ns Cm 3
 Set power save mode.
 Valid selections are as follows:
 .Bl -column ".Em Selection" -offset indent
@@ -214,7 +217,7 @@ Valid selections are as follows:
 .Pp
 Note that for IBSS (ad-hoc) mode, only PSP mode is supported, and only
 if the ATIM window is non-zero.
-.It Fl i Ar iface Oo Fl v Cm 1 | 2 | 3 | 4 Oc Fl a Ar AP
+.It Fl i Ar iface Oo Fl v Cm 1 Ns - Ns Cm 4 Oc Fl a Ar AP
 Set preferred access point.
 The
 .Ar AP
@@ -236,7 +239,7 @@ The
 .Ar beacon_period
 is specified in milliseconds.
 The default is 100ms.
-.It Fl i Ar iface Oo Fl v Cm 0 | 1 Oc Fl d Cm 0 | 1 | 2 | 3
+.It Fl i Ar iface Oo Fl v Cm 0 | 1 Oc Fl d Cm 0 Ns - Ns Cm 3
 Select the antenna diversity.
 Aironet devices can be configured with up
 to two antennas, and transmit and receive diversity can be configured
@@ -259,7 +262,7 @@ option: selection
 sets the receive diversity and
 .Cm 1
 sets the transmit diversity.
-.It Fl i Ar iface Fl e Cm 0 | 1 | 2 | 3
+.It Fl i Ar iface Fl e Cm 0 Ns - Ns Cm 4
 Set the transmit WEP key to use.
 Note that until this command is issued, the device will use the
 last key programmed.
@@ -268,7 +271,12 @@ Currently
 set transmit key can be checked via
 .Fl C
 option.
-.It Fl i Ar iface Oo Fl v Cm 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 Oc Fl k Ar key
+Selection
+.Cm 4
+sets the card in
+.Dq "Home Network Mode"
+and uses the home key.
+.It Fl i Ar iface Oo Fl v Cm 0 Ns - Ns Cm 8 Oc Fl k Ar key
 Set a WEP key.
 For 40 bit prefix 10 hex character with 0x.
 For 128 bit prefix 26 hex character with 0x.
@@ -290,7 +298,11 @@ Currently set keys can be checked via
 .Fl C
 option, only the sizes of the
 keys are returned.
-.It Fl i Ar iface Fl K Cm 0 | 1 | 2
+The value of
+.Cm 8
+is for the home key.
+Note that the value for the home key can be read back from firmware.
+.It Fl i Ar iface Fl K Cm 0 Ns - Ns Cm 2
 Set authorization type.
 Use
 .Cm 0
@@ -301,7 +313,7 @@ for
 .Cm 2
 for
 .Dq "Shared Key" .
-.It Fl i Ar iface Fl W Cm 0 | 1 | 2
+.It Fl i Ar iface Fl W Cm 0 Ns - Ns Cm 2
 Enable WEP.
 Use
 .Cm 0
@@ -310,6 +322,10 @@ for no WEP,
 to enable full WEP,
 .Cm 2
 for mixed cell.
+.It Fl i Ar iface Fl L Ar user_name
+Enable LEAP and query for password.
+It will check to see if it has authenticated for up to 60s.
+To disable LEAP, set WEP mode.
 .It Fl i Ar iface Fl j Ar netjoin_timeout
 Set the ad-hoc network join timeout.
 When a station is first activated
@@ -343,7 +359,7 @@ e.g.:
 .Li 00:60:1d:12:34:56 .
 This programs the new address into the card
 and updates the interface as well.
-.It Fl i Ar iface Oo Fl v Cm 1 | 2 | 3 Oc Fl n Ar SSID
+.It Fl i Ar iface Oo Fl v Cm 1 Ns - Ns Cm 3 Oc Fl n Ar SSID
 Set the desired SSID (network name).
 There are three SSIDs which allows
 the NIC to work with access points at several locations without needing
