@@ -51,11 +51,6 @@
 #include <machine/smp.h>
 #endif
 
-#ifdef __i386__
-#include <i386/isa/intr_machdep.h>
-#endif
-
-
 #ifdef PCI_COMPAT
 
 /* ------------------------------------------------------------------------- */
