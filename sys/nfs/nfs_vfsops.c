@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.42 1997/05/12 19:02:56 tegge Exp $
+ * $Id: nfs_vfsops.c,v 1.43 1997/06/03 17:22:47 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -269,8 +269,11 @@ nfs_statfs(mp, sbp, p)
 	nfsm_request(vp, NFSPROC_FSSTAT, p, cred);
 	if (v3)
 		nfsm_postop_attr(vp, retattr);
-	if (!error)
+	if (!error) {
 		nfsm_dissect(sfp, struct nfs_statfs *, NFSX_STATFS(v3));
+	} else
+		goto nfsmout;
+
 #ifdef __NetBSD__
 #ifdef COMPAT_09
 	sbp->f_type = 2;
