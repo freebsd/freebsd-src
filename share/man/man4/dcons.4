@@ -63,7 +63,7 @@ If you want to run
 on
 .Nm ,
 insert the following line into
-.Xr /etc/ttys 5
+.Xr ttys 5
 and send a
 .Dv HUP
 signal to
@@ -75,7 +75,7 @@ dcons	"/usr/libexec/getty std.9600"	vt100	on  secure
 .Ed
 .Pp
 Once the
-.Xr fwochi 4
+.Xr fwohci 4
 device is initialized to allow physical access,
 the buffer can be accessed from another host via a
 .Xr firewire 4
