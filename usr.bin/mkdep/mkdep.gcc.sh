@@ -72,10 +72,15 @@ TMP=/tmp/mkdep$$
 
 trap 'rm -f $TMP ; exit 1' 1 2 3 13 15
 
+# For C sources, mkdep must use exactly the same cpp and predefined flags
+# as the compiler would.  This is easily arranged by letting the compiler
+# pick the cpp.  mkdep must be told the cpp to use for exceptional cases.
+MKDEP_CPP=${MKDEP_CPP-"cc -E"}
+
 if [ x$pflag = x ]; then
-	cpp -M $* | sed -e 's; \./; ;g' > $TMP
+	$MKDEP_CPP -M $* | sed -e 's; \./; ;g' > $TMP
 else
-	cpp -M $* | sed -e 's;\.o :; :;' -e 's; \./; ;g' > $TMP
+	$MKDEP_CPP -M $* | sed -e 's;\.o :; :;' -e 's; \./; ;g' > $TMP
 fi
 
 if [ $? != 0 ]; then
