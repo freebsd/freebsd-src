@@ -29,7 +29,7 @@
 .\" Copyright (c) 1988 The Regents of the University of California.
 .\" All rights reserved.
 .\"
-.\"	$Id: mtrace.8,v 3.6 1995/06/25 19:14:07 fenner Exp $
+.\"	$Id: mtrace.8,v 3.8 1995/11/29 22:37:21 fenner Rel $
 .\"
 .TH MTRACE 8 "May 8, 1995"
 .UC 6
@@ -63,8 +63,13 @@ mtrace \- print multicast path from a source to a receiver
 ] [
 .B \-s
 ] [
+.B \-S
+.I stat_int
+] [
 .B \-t
 .I ttl
+] [
+.B \-v
 ] [
 .B \-w
 .I waittime
@@ -105,6 +110,9 @@ detailed below.  The two parameters can be distinguished because the
 is a unicast address and the
 .I group
 is a multicast address.
+.PP
+NOTE: For Solaris 2.4/2.5, if the multicast interface is not the default
+interface, the -i option must be used to set the local address.
 .SH OPTIONS
 .TP 8 8
 .BI \-g\  gwy
@@ -118,7 +126,7 @@ to the
 .RS 8
 .TP 12 12
 .I CAUTION!!
-Version 3.3 of
+Versions 3.3 and 3.5 of
 .B mrouted
 will crash if a trace query is received via a
 unicast packet and
@@ -129,7 +137,7 @@ address.  Therefore, do not use the
 .B \-g
 option unless the target
 .B mrouted
-has been verified to be newer than 3.3.
+has been verified to be 3.4 or newer than 3.5.
 .RE
 .TP 8 8
 .BI \-i\  addr
@@ -142,7 +150,9 @@ and the response destination.
 .TP 8 8
 .B \-l
 Loop indefinitely printing packet rate and loss statistics for the
-multicast path every 10 seconds.
+multicast path every 10 seconds (see 
+.B \-S
+.IR stat_int ).
 .TP 8 8
 .B \-M
 Always send the response using multicast rather than attempting
@@ -169,7 +179,7 @@ The default is 3.
 .TP 8 8
 .B \-p
 Listen passively for multicast responses from traces initiated by
-others (not implemented yet).
+others.  This works best when run on a multicast router.
 .TP 8 8
 .BI \-r\  host
 Send the trace response to
@@ -183,12 +193,20 @@ for this purpose (224.0.1.32).
 Print a short form output including only the multicast path and not
 the packet rate and loss statistics.
 .TP 8 8
+.BI \-S\  n
+Change the interval between statistics gathering traces to
+.I n
+seconds (default 10 seconds).
+.TP 8 8
 .BI \-t\  ttl
 Set the
 .I ttl
 (time-to-live, or number of hops) for multicast trace queries and
 responses.  The default is 64, except for local queries to the "all
 routers" multicast group which use ttl 1.
+.TP 8 8
+.B \-v
+Verbose mode; show hop times on the initial trace and statistics display.
 .TP 8 8
 .BI \-w\  n
 Set the time to wait for a trace response to

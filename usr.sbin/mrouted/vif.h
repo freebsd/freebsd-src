@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.h,v 3.6 1995/06/25 19:53:22 fenner Exp $
+ * $Id: vif.h,v 3.8 1995/11/29 22:36:57 fenner Rel $
  */
 
 /*
@@ -41,6 +41,7 @@ struct uvif {
 #define VIFF_QUERIER		0x0400	       /* I am the subnet's querier */
 #define VIFF_ONEWAY		0x0800         /* Maybe one way interface   */
 #define VIFF_LEAF		0x1000         /* all neighbors are leaves  */
+#define VIFF_IGMPV1		0x2000         /* Act as an IGMPv1 Router   */
 
 struct phaddr {
     struct phaddr   *pa_next;
@@ -65,8 +66,7 @@ struct listaddr {
     u_char	     al_mv;		/* router mrouted version	    */
     u_long           al_timerid;        /* returned by set timer            */
     u_long	     al_query;		/* second query in case of leave    */
-    u_short          al_old;            /* if old memberships are present   */
-    u_short          al_last;		/* # of query's since last old rep  */
+    u_short          al_old;            /* time since heard old report      */
     u_char	     al_flags;		/* flags related to this neighbor   */
 };
 
