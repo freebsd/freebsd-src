@@ -1967,12 +1967,12 @@ bundle_AutoAdjust(struct bundle *bundle, int percent, int what)
       log_Printf(LogPHASE, "%d%% saturation -> Opening link ``%s''\n",
                  percent, choice->name);
       datalink_Up(choice, 1, 1);
-      mp_StopAutoloadTimer(&bundle->ncp.mp);
+      mp_CheckAutoloadTimer(&bundle->ncp.mp);
     } else if (otherlinkup) {	/* Only bring the second-last link down */
       log_Printf(LogPHASE, "%d%% saturation -> Closing link ``%s''\n",
                  percent, choice->name);
       datalink_Close(choice, CLOSE_STAYDOWN);
-      mp_StopAutoloadTimer(&bundle->ncp.mp);
+      mp_CheckAutoloadTimer(&bundle->ncp.mp);
     }
   }
 }
