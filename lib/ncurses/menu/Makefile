@@ -25,7 +25,7 @@ ncurses_def.h:	MKncurses_def.sh ncurses_defs
 	AWK=${AWK} sh ${NCURSES}/include/MKncurses_def.sh \
 	    ${NCURSES}/include/ncurses_defs > ncurses_def.h
 
-MANx=	menu.3x menu_attribs.3x menu_attributes.3x menu_cursor.3x \
+MANx=	menu.3x menu_attributes.3x menu_cursor.3x \
 	menu_driver.3x menu_format.3x menu_hook.3x menu_items.3x \
 	menu_mark.3x menu_new.3x menu_opts.3x menu_pattern.3x \
 	menu_post.3x menu_requestname.3x menu_spacing.3x \
