@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.60 1999/05/06 09:44:49 bde Exp $
+ *	$Id: exception.s,v 1.61 1999/06/01 18:19:36 jlemon Exp $
  */
 
 #include "npx.h"
@@ -270,13 +270,17 @@ IDTVEC(syscall)
 	FAKE_MCOUNT(13*4(%esp))
 	MPLOCKED incl _cnt+V_SYSCALL
 	SYSCALL_LOCK
-	ECPL_LOCK
+#if 0
+	ECPL_LOCK			/* restore the locking if ... */
+#endif
 #ifdef CPL_AND_CML
 	movl	$SWI_AST_MASK,_cml
 #else
-	movl	$SWI_AST_MASK,_cpl
+	movl	$SWI_AST_MASK,_cpl	/* this critical sections expands */
 #endif
+#if 0
 	ECPL_UNLOCK
+#endif
 	call	_syscall
 
 	/*
@@ -307,13 +311,17 @@ IDTVEC(int0x80_syscall)
 	FAKE_MCOUNT(13*4(%esp))
 	MPLOCKED incl _cnt+V_SYSCALL
 	ALTSYSCALL_LOCK
-	ECPL_LOCK
+#if 0
+	ECPL_LOCK			/* restore the locking if ... */
+#endif
 #ifdef CPL_AND_CML
 	movl	$SWI_AST_MASK,_cml
 #else
-	movl	$SWI_AST_MASK,_cpl
+	movl	$SWI_AST_MASK,_cpl	/* this critical sections expands */
 #endif
+#if 0
 	ECPL_UNLOCK
+#endif
 	call	_syscall
 
 	/*
