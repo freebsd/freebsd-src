@@ -105,10 +105,13 @@ command:
 umount -a -t nfs,mfs
 .Ed
 .Pp
-umounts all filesystems of the type
+unmounts all filesystems of the type
 .Tn NFS
 and
-.Tn MFS .
+.Tn MFS
+that are listed in the
+.Xr fstab 5
+file.
 .It Fl v
 Verbose, additional information is printed out as each filesystem
 is unmounted.
