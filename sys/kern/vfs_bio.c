@@ -2135,6 +2135,7 @@ flushbufqueues(int flushdeps)
 {
 	struct thread *td = curthread;
 	struct vnode *vp;
+	struct mount *mp;
 	struct buf *bp;
 	int hasdeps;
 
@@ -2176,12 +2177,16 @@ flushbufqueues(int flushdeps)
 		 * of vnode followed by buf lock.  This is ok because
 		 * the NOWAIT will prevent deadlock.
 		 */
-		if ((vp = bp->b_vp) == NULL ||
-		    vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) == 0) {
+		vp = bp->b_vp;
+		if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
+			BUF_UNLOCK(bp);
+			continue;
+		}
+		if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) == 0) {
 			mtx_unlock(&bqlock);
 			vfs_bio_awrite(bp);
-			if (vp != NULL)
-				VOP_UNLOCK(vp, 0, td);
+			vn_finished_write(mp);
+			VOP_UNLOCK(vp, 0, td);
 			flushwithdeps += hasdeps;
 			return (1);
 		}
