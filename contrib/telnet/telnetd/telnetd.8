@@ -144,12 +144,14 @@ All user verification will happen through the
 program.
 .El
 .It Fl B
-Specify bftp server mode.  In this mode,
+Specify bftp server mode.
+In this mode,
 .Nm
 causes login to start a
 .Xr bftp 1
 session rather than the user's
-normal shell.  In bftp daemon mode normal
+normal shell.
+In bftp daemon mode normal
 logins are not supported, and it must be used
 on a port other than the normal
 .Tn TELNET
@@ -202,7 +204,8 @@ login has been completed.
 This option is only useful if
 .Nm
 has been compiled with both linemode and kludge linemode
-support.  If the
+support.
+If the
 .Fl k
 option is specified, then if the remote client does not
 support the
@@ -227,8 +230,8 @@ in response to a
 .Dv DO TIMING-MARK )
 for kludge linemode support.
 .It Fl l
-Specify line mode. Try to force clients to use line-
-at-a-time mode.
+Specify line mode.
+Try to force clients to use line-at-a-time mode.
 If the
 .Dv LINEMODE
 option is not supported, it will go
@@ -236,7 +239,8 @@ into kludge linemode.
 .It Fl n
 Disable
 .Dv TCP
-keep-alives.  Normally
+keep-alives.
+Normally
 .Nm
 enables the
 .Tn TCP
@@ -248,7 +252,8 @@ be reached may be cleaned up.
 .It Fl p Ar loginprog
 Specify an alternate
 .Xr login 1
-command to run to complete the login.  The alternate command must
+command to run to complete the login.
+The alternate command must
 understand the same command arguments as the standard login.
 .It Fl S Ar tos
 Sets the IP type-of-service (TOS) option for the telnet
@@ -498,7 +503,8 @@ and
 capabilities from
 .Pa /etc/gettytab
 and use that information (if present) to determine
-what to display before the login: prompt. You can
+what to display before the login: prompt.
+You can
 also use a System V style
 .Pa /etc/issue
 file by using the
@@ -523,9 +529,9 @@ will be displayed to both console and remote logins.
 .Sh "SEE ALSO"
 .Xr bftp 1 ,
 .Xr login 1 ,
-.Xr gettytab 5 ,
 .Xr telnet 1
-(if supported)
+(if supported),
+.Xr gettytab 5
 .Sh STANDARDS
 .Bl -tag -compact -width RFC-1572
 .It Cm RFC-854
@@ -572,6 +578,8 @@ Telnet Environment Option Interoperability Issues
 .It Cm RFC-1572
 Telnet Environment Option
 .El
+.Sh HISTORY
+IPv6 support was added by WIDE/KAME project.
 .Sh BUGS
 Some
 .Tn TELNET
@@ -598,5 +606,3 @@ never sends
 .Tn TELNET
 .Dv IAC GA
 (go ahead) commands.
-.Sh HISTORY
-IPv6 support was added by WIDE/KAME project.
