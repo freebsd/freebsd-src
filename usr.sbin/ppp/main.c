@@ -463,6 +463,7 @@ main(int argc, char **argv)
           bundle->notify.fd = bgpipe[1];
         }
 
+        bundle_ChangedPID(bundle);
         bundle_LockTun(bundle);	/* we have a new pid */
       }
 
