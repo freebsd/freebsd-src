@@ -1,4 +1,6 @@
 /*
+ * See i386-fbsd.c for copyright and license terms.
+ *
  * System call arguments come in several flavours:
  * Hex -- values that should be printed in hex (addresses)
  * Octal -- Same as above, but octal
@@ -16,7 +18,7 @@
  * IN (meaning that the data is passed *into* the system call).
  */
 /*
- * $Id: syscall.h,v 1.1 1997/12/06 05:23:07 sef Exp $
+ * $Id: syscall.h,v 1.2 1997/12/06 06:51:13 sef Exp $
  */
 
 enum Argtype { None = 1, Hex, Octal, Int, String, Ptr, Stat, Ioctl, Quad };
