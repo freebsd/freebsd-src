@@ -40,6 +40,7 @@ struct sn_softc {
 	struct arpcom   arpcom;	/* Ethernet common part */
 	bus_space_tag_t	bst;
 	bus_space_handle_t bsh;
+	struct mtx sc_mtx;
 	int             pages_wanted;	/* Size of outstanding MMU ALLOC */
 	int             intr_mask;	/* Most recently set interrupt mask */
 	device_t	dev;
