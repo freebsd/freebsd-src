@@ -301,6 +301,8 @@ pccard_function_init(struct pccard_function *pf)
 	struct resource_list *rl = &devi->resources;
 	struct resource *r = 0;
 	device_t bus;
+	int start;
+	int end;
 
 	if (pf->pf_flags & PFF_ENABLED)
 		panic("pccard_function_init: function is enabled");
@@ -313,22 +315,21 @@ pccard_function_init(struct pccard_function *pf)
 			cfe->iores[i] = NULL;
 		cfe->irqres = NULL;
 		for (i = 0; i < cfe->num_iospace; i++) {
-			/* XXX kludge, need to not ignore start */
-			/* XXX start is a hint here, so this would break */
-			/* XXX modems */
-			/* XXX ALSO: should just ask for the range 0 to */
-			/* XXX 1 << decode bits - 1, so we have a layering */
-			/* XXX violation now */
+			start = cfe->iospace[i].start;
+			if (start)
+				end = start + cfe->iospace[i].length - 1;
+			else
+				end = ~0;
 			cfe->iorid[i] = i;
 			r = cfe->iores[i] = bus_alloc_resource(bus,
-			    SYS_RES_IOPORT, &cfe->iorid[i], 0x100, 0x3ff,
-			    cfe->iospace[i].length, 0);
+			    SYS_RES_IOPORT, &cfe->iorid[i], start, end,
+			    cfe->iospace[i].length, 
+			    rman_make_alignment_flags(cfe->iospace[i].length));
 			if (cfe->iores[i] == 0)
 				goto not_this_one;
 			resource_list_add(rl, SYS_RES_IOPORT, cfe->iorid[i],
 			    rman_get_start(r), rman_get_end(r),
 			    cfe->iospace[i].length);
-			
 		}
 		if (cfe->num_memspace > 0) {
 			goto not_this_one;
@@ -336,7 +337,7 @@ pccard_function_init(struct pccard_function *pf)
 		if (cfe->irqmask) {
 			cfe->irqrid = 0;
 			r = cfe->irqres = bus_alloc_resource(bus, SYS_RES_IRQ,
-			    &cfe->irqrid, 10, 12, 1, 0);
+			    &cfe->irqrid, 0, ~0, 1, 0);
 			if (cfe->irqres == 0)
 				goto not_this_one;
 			resource_list_add(rl, SYS_RES_IRQ, cfe->irqrid,
@@ -347,6 +348,8 @@ pccard_function_init(struct pccard_function *pf)
 		pf->cfe = cfe;
 		break;
 	    not_this_one:;
+		DEVPRVERBOSE((bus, "Allocation failed for cfe %d\n",
+		    cfe->number));
 		/*
 		 * Release resources that we partially allocated
 		 * from this config entry.
