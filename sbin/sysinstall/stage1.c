@@ -205,13 +205,11 @@ select_disk()
 		dialog_clear_norefresh();
 		if (dialog_menu("FreeBSD Installation", scratch, -1, -1, min(5,no_disks+1), no_disks+1,
 		                     options, selection)) {
-			dialog_clear_norefresh();
-			sprintf(scratch,"\n\n\nYou selected cancel\n\n");
+			sprintf(scratch,"You selected cancel.");
 			AskAbort(scratch);
 			valid = 0;
+			continue;
 		}
-
-		dialog_clear();
 
 		choice = atoi(selection);
 		if (choice == no_disks+1)
@@ -222,6 +220,7 @@ select_disk()
 			else
 				disk_list[choice-1].selected = 1;
 	} while (!valid);
+	dialog_clear();
 	return(0);
 }
 
@@ -256,31 +255,33 @@ configure_disks()
 		dialog_clear_norefresh();
 		if (dialog_menu("FreeBSD Installation", scratch, -1, -1, min(5,items), items,
 							 options, selection)) {
-				dialog_clear_norefresh();
-				sprintf(scratch,"\n\n\nYou selected cancel\n\n");
+				sprintf(scratch,"You selected cancel.");
 				AskAbort(scratch);
 				valid = 0;
+				continue;
 		}
-		dialog_clear();
 		choice = atoi(selection);
 		if (choice == items)
 			valid = 1;
 		else {
 			if (edit_mbr(disks[choice-1]) == -1) {
-				sprintf(scratch, "The following error occured while\nediting the master boot record.\n\n%s", errmsg);
+				sprintf(scratch, "The following error occured while\nediting the master boot record.\n%s", errmsg);
 				AskAbort(scratch);
 				valid = 0;
+				continue;
 			};
 			disk_list[disks[choice-1]].inst_part = select_partition(disks[choice-1]);
 			if (edit_disklabel(disks[choice-1]) == -1) {
-				sprintf(scratch, "The following error occured while\nediting the disklabel.\n\n%s", errmsg);
+				sprintf(scratch, "The following error occured while\nediting the disklabel.\n%s", errmsg);
 				AskAbort(scratch);
 				valid = 0;
+				continue;
 			}
 		}
 	} while (!valid);
-
+	dialog_clear();
 }
+
 int
 select_partition(int disk)
 {
@@ -302,7 +303,6 @@ select_partition(int disk)
    if (dialog_menu(TITLE,
 	 scratch, -1, -1, 4, 4, options, selection)) {
        sprintf(scratch,"You did not select a valid partition");
-       dialog_clear_norefresh();
        AskAbort(scratch);
        valid = 0;
    }
