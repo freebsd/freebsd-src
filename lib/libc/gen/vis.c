@@ -51,6 +51,7 @@ vis(dst, c, flag, nextc)
 	int c, nextc;
 	register int flag;
 {
+	c = (unsigned char)c;
 	if (isgraph(c) ||
 	   ((flag & VIS_SP) == 0 && c == ' ') ||
 	   ((flag & VIS_TAB) == 0 && c == '\t') ||
