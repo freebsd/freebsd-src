@@ -626,7 +626,7 @@ For example,
 .Bd -literal -offset indent
 scrub in on $ext_if all fragment reassemble
 .Ed
-.Sh QUEUEING
+.Sh QUEUEING/ALTQ
 Packets can be assigned to queues for the purpose of bandwidth
 control.
 At least two declarations are required to configure queues, and later
@@ -1473,7 +1473,7 @@ of
 .Em lowdelay
 and TCP ACKs with no data payload will be assigned to the second one.
 See
-.Sx QUEUEING
+.Sx QUEUEING/ALTQ
 for setup details.
 .Pp
 For example:
