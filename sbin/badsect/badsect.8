@@ -10,7 +10,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"	This product includes software developed by the University of
 .\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)badsect.8	8.1 (Berkeley) 6/5/93
-.\"	$Id: badsect.8,v 1.5 1997/06/04 06:40:30 charnier Exp $
+.\"	$Id: badsect.8,v 1.6 1997/10/15 17:33:47 max Exp $
 .\"
 .Dd June 5, 1993
 .Dt BADSECT 8
@@ -39,7 +39,7 @@
 .Nm badsect
 .Nd create files to contain bad sectors
 .Sh SYNOPSIS
-.Nm /sbin/badsect
+.Nm badsect
 .Ar bbdir sector ...
 .Sh DESCRIPTION
 .Nm Badsect
@@ -54,7 +54,7 @@ makes the pack appear perfect, and such packs can then be copied with
 .Xr dd 1 .
 The technique used by this program is also less general than
 bad block forwarding, as
-.Nm badsect
+.Nm
 can't make amends for
 bad blocks in the i-list of file systems or in swap areas.
 .Pp
@@ -66,7 +66,7 @@ formatter.
 Thus to deal with a newly bad block
 or on disks where the drivers
 do not support the bad-blocking standard 
-.Nm badsect
+.Nm
 may be used to good effect.
 .Pp
 .Nm Badsect
@@ -74,8 +74,8 @@ is used on a quiet file system in the following way:
 First mount the file system, and change to its root directory.
 Make a directory
 .Li BAD
-there.  Run
-.Nm badsect
+there. Run
+.Nm
 giving as argument the
 .Ar BAD
 directory followed by
@@ -105,11 +105,11 @@ system call,
 creating an illegal file whose first block address is the block containing
 bad sector and whose name is the bad sector number.
 When it is discovered by 
-.Xr fsck
+.Xr fsck 8
 it will ask
 .Dq Li "HOLD BAD BLOCK ?"
 A positive response will cause 
-.Xr fsck
+.Xr fsck 8
 to convert the inode to a regular file containing the bad block.
 .Sh SEE ALSO
 .Xr bad144 8 ,
@@ -122,7 +122,7 @@ A warning is issued if the block is already in use.
 .Sh BUGS
 If more than one sector which comprise a file system fragment are bad,
 you should specify only one of them to
-.Nm badsect ,
+.Nm Ns ,
 as the blocks in the bad sector files actually cover all the sectors in a
 file system fragment.
 .Sh HISTORY
