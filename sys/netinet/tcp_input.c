@@ -2806,6 +2806,8 @@ tcp_xmit_timer(tp, rtt)
 {
 	register int delta;
 
+	INP_LOCK_ASSERT(tp->t_inpcb);
+
 	tcpstat.tcps_rttupdated++;
 	tp->t_rttupdated++;
 	if (tp->t_srtt != 0) {
