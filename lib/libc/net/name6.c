@@ -1565,7 +1565,8 @@ _res_search_multi(name, rtl, errp)
 					continue;
 				hp = _hpcopy(&hpbuf, errp);
 				hp0 = _hpmerge(hp0, hp, errp);
-			}
+			} else
+				*errp = h_errno;
 		}
 		if (hp0 != NULL) {
 			free(buf);
@@ -1604,7 +1605,8 @@ _res_search_multi(name, rtl, errp)
 						continue;
 					hp = _hpcopy(&hpbuf, errp);
 					hp0 = _hpmerge(hp0, hp, errp);
-				}
+				} else
+					*errp = h_errno;
 			}
 			if (hp0 != NULL) {
 				free(buf);
@@ -1677,7 +1679,8 @@ _res_search_multi(name, rtl, errp)
 					continue;
 				hp = _hpcopy(&hpbuf, errp);
 				hp0 = _hpmerge(hp0, hp, errp);
-			}
+			} else
+				*errp = h_errno;
 		}
 		if (hp0 != NULL) {
 			free(buf);
@@ -1739,7 +1742,12 @@ _dns_ghbyname(void *rval, void *cb_data, va_list ap)
 	rtl = &rtl4;
 #endif
 	*(struct hostent **)rval = _res_search_multi(name, rtl, errp);
-	return (*(struct hostent **)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
+	if (*(struct hostent **)rval != NULL)
+		return NS_SUCCESS;
+	else if (*errp == TRY_AGAIN)
+		return NS_TRYAGAIN;
+	else
+		return NS_NOTFOUND;
 }
 
 static int
