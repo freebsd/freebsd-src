@@ -178,9 +178,24 @@ kse_reassign(struct kse *ke)
 {
 	struct ksegrp *kg;
 	struct thread *td;
+	struct thread *owner;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	kg = ke->ke_ksegrp;
+	owner = ke->ke_bound;
+	KASSERT(!(owner && ((owner->td_kse != ke) || 
+		    (owner->td_flags & TDF_UNBOUND))), 
+		("kse_reassign: bad thread bound state"));
+	if (owner && (owner->td_inhibitors == TDI_LOAN)) {
+		TD_CLR_LOAN(owner);
+		ke->ke_bound = NULL;
+		ke->ke_thread = owner;
+		owner->td_kse = ke;
+		setrunqueue(owner);
+		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p (give back)",
+			 ke, owner);
+		return;
+	}
 
 	/*
 	 * Find the first unassigned thread
@@ -201,13 +216,24 @@ kse_reassign(struct kse *ke)
 		td->td_kse = ke;
 		ke->ke_thread = td;
 		runq_add(&runq, ke);
+		if (owner) 
+			TD_SET_LOAN(owner);
 		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p", ke, td);
-	} else {
+	} else if (!owner) {
 		ke->ke_state = KES_IDLE;
 		ke->ke_thread = NULL;
 		TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
 		kg->kg_idle_kses++;
 		CTR1(KTR_RUNQ, "kse_reassign: ke%p idled", ke);
+	} else {
+		TD_CLR_LOAN(owner);
+		ke->ke_state = KES_THREAD;
+		ke->ke_thread = owner;
+		owner->td_kse = ke;
+		ke->ke_flags |= KEF_ONLOANQ;
+		TAILQ_INSERT_HEAD(&kg->kg_lq, ke, ke_kgrlist);
+		kg->kg_loan_kses++;
+		CTR1(KTR_RUNQ, "kse_reassign: ke%p is on loan queue", ke);
 	}
 }
 
@@ -226,7 +252,7 @@ kserunnable(void)
 void
 remrunqueue(struct thread *td)
 {
-	struct thread *td2, *td3;
+	struct thread *td2, *td3, *owner;
 	struct ksegrp *kg;
 	struct kse *ke;
 
@@ -282,10 +308,33 @@ remrunqueue(struct thread *td)
 			runq_remove(&runq, ke);
 			KASSERT((ke->ke_state != KES_IDLE),
 			    ("kse already idle"));
-			ke->ke_state = KES_IDLE;
-			ke->ke_thread = NULL;
-			TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
-			kg->kg_idle_kses++;
+			if (ke->ke_bound) {
+				owner = ke->ke_bound;
+				if (owner->td_inhibitors == TDI_LOAN) {
+					TD_CLR_LOAN(owner);
+					ke->ke_bound = NULL;
+					ke->ke_thread = owner;
+					owner->td_kse = ke;
+					setrunqueue(owner);
+					CTR2(KTR_RUNQ, 
+					"remrunqueue: ke%p -> td%p (give back)",
+			 			ke, owner);
+				} else {
+					TD_CLR_LOAN(owner);
+					ke->ke_state = KES_THREAD;
+					ke->ke_thread = owner;
+					owner->td_kse = ke;
+					ke->ke_flags |= KEF_ONLOANQ;
+					TAILQ_INSERT_HEAD(&kg->kg_lq, ke, 
+						ke_kgrlist);
+					kg->kg_loan_kses++;
+				}
+			} else {
+				ke->ke_state = KES_IDLE;
+				ke->ke_thread = NULL;
+				TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
+				kg->kg_idle_kses++;
+			}
 		}
 	}
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
@@ -309,6 +358,12 @@ setrunqueue(struct thread *td)
 	if ((td->td_flags & TDF_UNBOUND) == 0) {
 		KASSERT((td->td_kse != NULL),
 		    ("queueing BAD thread to run queue"));
+		ke = td->td_kse;
+		if (ke->ke_flags & KEF_ONLOANQ) {
+			ke->ke_flags &= ~KEF_ONLOANQ;
+			TAILQ_REMOVE(&kg->kg_lq, ke, ke_kgrlist);
+			kg->kg_loan_kses--;
+		}
 		/*
 		 * Common path optimisation: Only one of everything
 		 * and the KSE is always already attached.
@@ -337,6 +392,13 @@ setrunqueue(struct thread *td)
 			TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
 			ke->ke_state = KES_THREAD;
 			kg->kg_idle_kses--;
+		} else if (kg->kg_loan_kses) {
+			ke = TAILQ_FIRST(&kg->kg_lq);
+			TAILQ_REMOVE(&kg->kg_lq, ke, ke_kgrlist);
+			ke->ke_flags &= ~KEF_ONLOANQ;
+			ke->ke_state = KES_THREAD;
+			TD_SET_LOAN(ke->ke_bound);
+			kg->kg_loan_kses--;
 		} else if (tda && (tda->td_priority > td->td_priority)) {
 			/*
 			 * None free, but there is one we can commandeer.
