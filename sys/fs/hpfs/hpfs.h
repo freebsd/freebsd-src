@@ -339,7 +339,7 @@ struct hpfsnode {
 	struct hpfsmount *h_hpmp;
 	struct fnode 	h_fn;
 	struct vnode *	h_vp;
-	struct vnode *	h_devvp;
+	struct vnode *	h_devvp;	/* XXX: remove, hpfsmount has it */
 	struct cdev *h_dev;
 	lsn_t		h_no;
 	uid_t          	h_uid;
