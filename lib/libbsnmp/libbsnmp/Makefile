@@ -7,7 +7,6 @@ CONTRIB= ${.CURDIR}/../../../contrib/bsnmp/lib
 
 LIB	= bsnmp
 
-WARNS=	6
 CFLAGS+= -I${CONTRIB}
 
 SRCS=	asn1.c snmp.c snmpagent.c snmpclient.c

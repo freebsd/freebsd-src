@@ -13,8 +13,5 @@ MAN=	snmp_mibII.3
 
 DEFS=	${MOD}_tree.def
 INCS=	snmp_${MOD}.h
-MIBS=
-
-CFLAGS+= -I${CONTRIB}/lib -I${CONTRIB}/snmpd -I${.CURDIR}
 
 .include <bsd.lib.mk>
