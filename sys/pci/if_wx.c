@@ -1304,24 +1304,6 @@ wx_handle_rxint(sc)
 		if (sc->wx_debug) {
 			printf("%s: RDESC[%d] len %d off %d lastframe %d\n",
 			    sc->wx_name, idx, mb->m_len, offset, lastframe);
-#ifdef	WX_EXTREME_DEBUGGING
-			{
-				int i, l = mb->m_len;
-				u_int8_t *p = mtod(mb, u_int8_t *);
-				printf("0000");
-				for (i = 0, l = mb->m_len; l != 0; l--, i++) {
-					printf(" %02x", (*(p++)) & 0xff);
-					if (((i + 1) & 0x7) == 0 &&
-					    ((i+1) & 0xf)) {
-						printf(" ");
-					}
-					if (((i + 1) & 0xf) == 0) {
-						printf("\n%04x", i+1);
-					}
-				}
-				printf("\n");
-			}
-#endif
 		}
 		if (m0 != mb)
 			m_cat(m0, mb);
@@ -1370,33 +1352,7 @@ wx_handle_rxint(sc)
 #ifdef	__FreeBSD__
 		eh = mtod(mb, struct ether_header *);
 		m_adj(mb, sizeof (struct ether_header));
-#ifdef	WX_EXTREME_DEBUGGING
-		{
-			struct mbuf *mx = mb;
-			printf("pktlen %d\n", mb->m_pkthdr.len);
-			while (mx) {
-				int i, l = mx->m_len;
-				u_int8_t *p = mtod(mx, u_int8_t *);
-				printf("m_len %d\n", mx->m_len);
-				printf("0000");
-				for (i = 0, l = mx->m_len; l != 0; l--, i++) {
-					printf(" %02x", (*(p++)) & 0xff);
-					if (((i + 1) & 0x7) == 0 &&
-					    ((i+1) & 0xf)) {
-						printf(" ");
-					}
-					if (((i + 1) & 0xf) == 0) {
-						printf("\n%04x", i+1);
-					}
-				}
-				printf("\n");
-				mx = mx->m_next;
-				if (mx)
-					printf("\n");
-			}
-		}
-#endif
-                ether_input(ifp, eh, mb);
+		ether_input(ifp, eh, mb);
 #else
                 (*ifp->if_input)(ifp, mb);
 #endif
@@ -1679,8 +1635,9 @@ wx_stop(sc)
 			rxp->dptr = NULL;
 		}
 	}
+
 	if (sc->rpending) {
-		m_freem(rxp->dptr);
+		m_freem(sc->rpending);
 		sc->rpending = NULL;
 	}
 
