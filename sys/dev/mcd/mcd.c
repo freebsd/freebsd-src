@@ -39,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.16 1994/04/30 17:03:33 gclarkii Exp $
+ *	$Id: mcd.c,v 1.23 1994/09/03 16:48:12 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -388,7 +388,7 @@ static void mcd_start(int unit)
 	if ((bp = qp->b_actf) != 0) {
 		/* block found to process, dequeue */
 		/*MCD_TRACE("mcd_start: found block bp=0x%x\n",bp,0,0,0);*/
-		qp->b_actf = bp->av_forw;
+	    qp->b_actf = bp->b_actf; /* changed from: bp->av_forw <se> */
 		splx(s);
 	} else {
 		/* nothing to do */
