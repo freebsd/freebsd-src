@@ -499,6 +499,9 @@ Special mention to:
         Larry Altneu and Wilko Bulte for providing us with Wangtek
         and Archive QIC-02 tape drives for testing and driver hacking.
 
+	CalWeb Internet Services for the loan of a P6/200 machine for
+	speedy package building.
+
         Everyone at Montana State University for their initial support.
 
         And to the many thousands of FreeBSD users and testers all over the
@@ -508,4 +511,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.7 1996/05/16 20:06:14 jkh Exp $
+$Id: relnotes.hlp,v 1.8 1996/06/11 15:39:53 jkh Exp $
