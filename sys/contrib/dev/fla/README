@@ -1,0 +1,74 @@
+README and FAQ for the fla driver.
+
+$Id: README,v 1.1 1999/08/06 15:59:07 phk Exp $
+
+[0]	COPYRIGHT & LICENSE
+
+	Please read the COPYRIGHT file carefully.  If you cannot
+	agree to be bound by the terms of this license, please
+	contact M-systems and make arrangements with them.
+
+[1]	Which devices are supported ?
+
+	The driver has been tested with the following devices:
+
+	DiskOnChip2000 (8, 12, 24, 32, 40, 72, 144 MB)
+	DiskOnChipMillenium (8 MB)
+
+[2]	Which firmware version ?
+
+	The driver has only been tested with version 1.21, but should
+	also work with earlier versions.
+
+[3]	How many devices ?
+
+	The driver supports up to 8 devices but have been tested only
+	with 5 due to hardware limitations in my test setup.
+
+[4]	Which FreeBSD versions ?
+
+	The driver is tested for 4.0-CURRENT and 3.2-STABLE.  Porting
+	to earlier versions of FreeBSD should be a simple matter of
+	modifying the fla.c file.  [patches are welcome]
+
+	For 3.2-STABLE sources earlier than 1999-08-01 you
+	will need to apply the patch in file patch.00
+
+[5]	Can I install FreeBSD with sysinstall ?
+
+	Yes, from medio july FreeBSD-4.X snapshots have recognized the
+	fla devices in sysinstall.  You need to build a custom kernel
+	with the driver though.  See below about booting from a fla
+	device.
+
+[6]	How to boot from a fla device ?
+
+	The FreeBSD kernel recognizes the root device using various
+	hacks.  These hacks doesn't recognize the fla device so some
+	"real" hacks are needed to boot from your fla device.
+
+	In 4.0 current the easiest way is to configure your kernel with
+	the 
+		options ROOTDEVNAME=\"fla0\"
+
+	In older versions, specifying the boot device in the kernel
+	config file this way is the easiest way to do it:
+
+		config          kernel  root on major 28 minor 65538
+
+[7]	How to disklabel a fla device ?
+
+	Look at the script in prep.fla.sh, it will do the job for you.
+
+[8]	Who to contact ?
+
+	doc2k@phk.freebsd.dk will offer limited best-effort help
+	to the extent time permits.
+
+[9]	Will more documentation be forthcoming ?
+
+	YES.
+
+Good Luck,
+
+Poul-Henning
