@@ -694,7 +694,7 @@ ohci_process_done(sc, done)
 	}
 
 #ifdef OHCI_DEBUG
-	if (ohcidebug > 10) {
+	if (ohcidebug > 11) {
 		printf("ohci_process_done: TD done:\n");
 		ohci_dump_tds(sdone);
 	}
@@ -1072,7 +1072,7 @@ ohci_device_request(reqh)
 
 	reqh->hcpriv = stat;
 
-#if OHCI_DEBUG
+#ifdef OHCI_DEBUG
 	if (ohcidebug > 5) {
 		printf("ohci_device_request:\n");
 		ohci_dump_ed(sed);
@@ -1095,14 +1095,16 @@ ohci_device_request(reqh)
 	}
 	splx(s);
 
-#if OHCI_DEBUG
-	if (ohcidebug > 5) {
+#if 0
+#ifdef OHCI_DEBUG
+	if (ohcidebug > 15) {
 		delay(5000);
 		printf("ohci_device_request: status=%x\n",
 		       OREAD4(sc, OHCI_COMMAND_STATUS));
 		ohci_dump_ed(sed);
 		ohci_dump_tds(setup);
 	}
+#endif
 #endif
 
 	return (USBD_NORMAL_COMPLETION);
@@ -1201,11 +1203,12 @@ void
 ohci_timeout(addr)
 	void *addr;
 {
-#if 0
 	usbd_request_handle *reqh = addr;
-	int s;
 
 	DPRINTF(("ohci_timeout: reqh=%p\n", reqh));
+#if 0
+	int s;
+
 	s = splusb();
 	/* XXX need to inactivate TD before calling interrupt routine */
 	ohci_XXX_done(reqh);
@@ -2078,7 +2081,7 @@ ohci_device_intr_start(reqh)
 
 	reqh->hcpriv = xfer;
 
-#if OHCI_DEBUG
+#ifdef OHCI_DEBUG
 	if (ohcidebug > 5) {
 		printf("ohci_device_intr_transfer:\n");
 		ohci_dump_ed(sed);
@@ -2099,14 +2102,16 @@ ohci_device_intr_start(reqh)
 #endif
 	sed->ed->ed_flags &= LE(~OHCI_ED_SKIP);
 
+#if 0
 #ifdef OHCI_DEBUG
-	if (ohcidebug > 5) {
+	if (ohcidebug > 15) {
 		delay(5000);
 		printf("ohci_device_intr_transfer: status=%x\n",
 		       OREAD4(sc, OHCI_COMMAND_STATUS));
 		ohci_dump_ed(sed);
 		ohci_dump_tds(xfer);
 	}
+#endif
 #endif
 	splx(s);
 
