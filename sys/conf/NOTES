@@ -703,7 +703,7 @@ options 	NTFS			#NT File System
 options 	NULLFS			#NULL filesystem
 #options 	NWFS			#NetWare filesystem
 options 	PORTALFS		#Portal filesystem
-options 	PROCFS			#Process filesystem
+options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	UMAPFS			#UID map filesystem
 options 	UNIONFS			#Union filesystem
