@@ -90,21 +90,6 @@ enable_intr(void)
 	__asm __volatile("sti");
 }
 
-static __inline u_int
-save_intr(void)
-{
-	u_int	ef;
-
-	__asm __volatile("pushfl; popl %0" : "=r" (ef));
-	return (ef);
-}
-
-static __inline void
-restore_intr(u_int ef)
-{
-	__asm __volatile("pushl %0; popfl" : : "r" (ef) : "memory" );
-}
-
 #define	HAVE_INLINE_FFS
 
 static __inline int
@@ -495,6 +480,22 @@ rdr7(void)
 	return (data);
 }
 
+static __inline critical_t
+critical_enter(void)
+{
+	critical_t eflags;
+
+	eflags = read_eflags();
+	disable_intr();
+	return (eflags);
+}
+
+static __inline void
+critical_exit(critical_t eflags)
+{
+	write_eflags(eflags);
+}
+
 #else /* !__GNUC__ */
 
 int	breakpoint	__P((void));
@@ -529,6 +530,8 @@ u_int	rfs		__P((void));
 u_int	rgs		__P((void));
 void	load_fs		__P((u_int sel));
 void	load_gs		__P((u_int sel));
+critical_t critical_enter __P((void));
+void	critical_exit	__P((critical_t eflags));
 
 #endif	/* __GNUC__ */
 
