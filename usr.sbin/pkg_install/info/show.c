@@ -152,7 +152,7 @@ show_plist(char *title, Package *plist, plist_t type)
 	    break;
 
 	case PLIST_PKGDEP:
-	    printf(Quiet ? "@pkgdep %s\n" : "\tPackage depends on: %s\n", p->name);
+	    printf(Quiet ? "@pkgdep %s\n" : "\t%s\n", p->name);
 	    break;
 
 	case PLIST_MTREE:
