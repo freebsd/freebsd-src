@@ -69,8 +69,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kstack_pages.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -137,7 +135,7 @@ cpu_fork(td1, p2, td2, flags)
 
 	p1 = td1->td_proc;
 	td2->td_pcb = (struct pcb *)
-	    (td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	    (td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
 	td2->td_md.md_flags = td1->td_md.md_flags & MDTD_FPUSED;
 	PROC_LOCK(p2);
 	p2->p_md.md_uac = p1->p_md.md_uac;
@@ -276,7 +274,7 @@ cpu_thread_setup(struct thread *td)
 {
 
 	td->td_pcb =
-	    (struct pcb *)(td->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	    (struct pcb *)(td->td_kstack + td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_md.md_pcbpaddr = (void*)vtophys((vm_offset_t)td->td_pcb);
 	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb) - 1;
 }
