@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.6 1995/10/14 08:16:04 bde Exp $
+#	$Id: bsd.man.mk,v 1.7 1995/10/21 18:18:46 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -15,7 +15,7 @@ MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 MCOMPRESS=	gzip -c
 ZEXTENSION=	.gz
 
-SECTIONS=	1 2 3 3f 4 5 6 7 8
+SECTIONS=	1 2 3 3f 4 5 6 7 8 9
 
 .for sect in ${SECTIONS}
 .if defined(MAN${sect}) && !empty(MAN${sect})
