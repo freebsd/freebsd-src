@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.308 1997/06/24 23:08:18 jkh Exp $
+#	$Id: Makefile,v 1.309 1997/06/28 08:21:10 pst Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -648,7 +648,7 @@ doMFSKERN:
 	@cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
 .if defined(BOOT_CONFIG)
 	@echo "${BOOT_CONFIG}" >${RD}/boot.${FSIMAGE}/boot.config
-endif
+.endif
 	@vnconfig /dev/vn0 fs-image.${FSIMAGE}
 	@mkdir -p /tmp/mnt_xx
 	@mount /dev/vn0 /tmp/mnt_xx
