@@ -330,18 +330,22 @@ ktrsyscall(code, narg, args)
 	struct ktr_request *req;
 	struct ktr_syscall *ktp;
 	size_t buflen;
+	char *buf = NULL;
 
+	buflen = sizeof(register_t) * narg;
+	if (buflen > 0) {
+		buf = malloc(buflen, M_KTRACE, M_WAITOK);
+		bcopy(args, buf, buflen);
+	}
 	req = ktr_getrequest(KTR_SYSCALL);
 	if (req == NULL)
 		return;
 	ktp = &req->ktr_data.ktr_syscall;
 	ktp->ktr_code = code;
 	ktp->ktr_narg = narg;
-	buflen = sizeof(register_t) * narg;
 	if (buflen > 0) {
-		req->ktr_header.ktr_buffer = malloc(buflen, M_KTRACE, M_WAITOK);
-		bcopy(args, req->ktr_header.ktr_buffer, buflen);
 		req->ktr_header.ktr_len = buflen;
+		req->ktr_header.ktr_buffer = buf;
 	}
 	ktr_submitrequest(req);
 }
@@ -373,16 +377,19 @@ ktrnamei(path)
 {
 	struct ktr_request *req;
 	int namelen;
+	char *buf = NULL;
 
+	namelen = strlen(path);
+	if (namelen > 0) {
+		buf = malloc(namelen, M_KTRACE, M_WAITOK);
+		bcopy(path, buf, namelen);
+	}
 	req = ktr_getrequest(KTR_NAMEI);
 	if (req == NULL)
 		return;
-	namelen = strlen(path);
 	if (namelen > 0) {
 		req->ktr_header.ktr_len = namelen;
-		req->ktr_header.ktr_buffer = malloc(namelen, M_KTRACE,
-		    M_WAITOK);
-		bcopy(path, req->ktr_header.ktr_buffer, namelen);
+		req->ktr_header.ktr_buffer = buf;
 	}
 	ktr_submitrequest(req);
 }
