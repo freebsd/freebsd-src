@@ -68,6 +68,45 @@ SYSCTL_INT(_hw_firewire_fwmem, OID_AUTO, speed, CTLFLAG_RW, &fwmem_speed, 0,
 SYSCTL_INT(_debug, OID_AUTO, fwmem_debug, CTLFLAG_RW, &fwmem_debug, 0,
 	"Fwmem driver debug flag");
 
+static struct fw_xfer *fwmem_xfer_req(struct fw_device *, caddr_t,
+							int, int, void *);
+
+static struct fw_xfer *
+fwmem_xfer_req(
+	struct fw_device *fwdev,
+	caddr_t sc,
+	int spd,
+	int len,
+	void *hand)
+{
+	struct fw_xfer *xfer;
+
+	xfer = fw_xfer_alloc();
+	if (xfer == NULL)
+		return NULL;
+
+	xfer->fc = fwdev->fc;
+	xfer->dst = FWLOCALBUS | fwdev->dst;
+	if (spd < 0)
+		xfer->spd = fwdev->speed;
+	else
+		xfer->spd = min(spd, fwdev->speed);
+	xfer->send.len = len;
+	xfer->send.buf = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
+
+	if (xfer->send.buf == NULL) {
+		fw_xfer_free(xfer);
+		return NULL;
+	}
+
+	xfer->send.off = 0; 
+	xfer->act.hand = hand;
+	xfer->retry_req = fw_asybusy;
+	xfer->sc = sc;
+
+	return xfer;
+}
+
 struct fw_xfer *
 fwmem_read_quad(
 	struct fw_device *fwdev,
@@ -80,23 +119,9 @@ fwmem_read_quad(
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fw_xfer_alloc();
+	xfer = fwmem_xfer_req(fwdev, sc, spd, 12, hand);
 	if (xfer == NULL)
 		return NULL;
-
-	xfer->fc = fwdev->fc;
-	xfer->dst = FWLOCALBUS | fwdev->dst;
-	xfer->spd = spd;
-	xfer->send.len = 12;
-	xfer->send.buf = malloc(xfer->send.len, M_DEVBUF, M_NOWAIT | M_ZERO);
-
-	if (xfer->send.buf == NULL)
-		goto error;
-
-	xfer->send.off = 0; 
-	xfer->act.hand = hand;
-	xfer->retry_req = fw_asybusy;
-	xfer->sc = NULL;
 
 	fp = (struct fw_pkt *)xfer->send.buf;
 	fp->mode.rreqq.tcode = FWTCODE_RREQQ;
@@ -105,12 +130,12 @@ fwmem_read_quad(
 	fp->mode.rreqq.dest_lo = htonl(dst_lo);
 
 	if (fwmem_debug)
-		printf("fwmem: %d %04x:%08x\n", fwdev->dst, dst_hi, dst_lo);
+		printf("fwmem_read_quad: %d %04x:%08x\n", fwdev->dst,
+				dst_hi, dst_lo);
 
 	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
 		return xfer;
 
-error:
 	fw_xfer_free(xfer);
 	return NULL;
 }
@@ -128,23 +153,9 @@ fwmem_write_quad(
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fw_xfer_alloc();
+	xfer = fwmem_xfer_req(fwdev, sc, spd, 16, hand);
 	if (xfer == NULL)
 		return NULL;
-
-	xfer->fc = fwdev->fc;
-	xfer->dst = FWLOCALBUS | fwdev->dst;
-	xfer->spd = spd;
-	xfer->send.len = 16;
-	xfer->send.buf = malloc(xfer->send.len, M_DEVBUF, M_NOWAIT | M_ZERO);
-
-	if (xfer->send.buf == NULL)
-		goto error;
-
-	xfer->send.off = 0; 
-	xfer->act.hand = hand;
-	xfer->retry_req = fw_asybusy;
-	xfer->sc = sc;
 
 	fp = (struct fw_pkt *)xfer->send.buf;
 	fp->mode.wreqq.tcode = FWTCODE_RREQQ;
@@ -155,12 +166,12 @@ fwmem_write_quad(
 	fp->mode.wreqq.data = htonl(data);
 
 	if (fwmem_debug)
-		printf("fwmem: %d %04x:%08x\n", fwdev->dst, dst_hi, dst_lo);
+		printf("fwmem_write_quad: %d %04x:%08x %08x\n", fwdev->dst,
+			dst_hi, dst_lo, data);
 
 	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
 		return xfer;
 
-error:
 	fw_xfer_free(xfer);
 	return NULL;
 }
@@ -178,23 +189,9 @@ fwmem_read_block(
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fw_xfer_alloc();
+	xfer = fwmem_xfer_req(fwdev, sc, spd, 16, hand);
 	if (xfer == NULL)
 		return NULL;
-
-	xfer->fc = fwdev->fc;
-	xfer->dst = FWLOCALBUS | fwdev->dst;
-	xfer->spd = spd;
-	xfer->send.len = 16;
-	xfer->send.buf = malloc(xfer->send.len, M_DEVBUF, M_NOWAIT | M_ZERO);
-
-	if (xfer->send.buf == NULL)
-		goto error;
-
-	xfer->send.off = 0; 
-	xfer->act.hand = fw_asy_callback;
-	xfer->retry_req = fw_asybusy;
-	xfer->sc = NULL;
 
 	fp = (struct fw_pkt *)xfer->send.buf;
 	fp->mode.rreqb.tcode = FWTCODE_RREQB;
@@ -204,12 +201,11 @@ fwmem_read_block(
 	fp->mode.rreqb.len = htons(len);
 
 	if (fwmem_debug)
-		printf("fwmem: %d %04x:%08x %d\n", fwdev->dst,
+		printf("fwmem_read_block: %d %04x:%08x %d\n", fwdev->dst,
 				dst_hi, dst_lo, len);
 	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
 		return xfer;
 
-error:
 	fw_xfer_free(xfer);
 	return NULL;
 }
