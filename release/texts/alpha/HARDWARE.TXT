@@ -278,6 +278,7 @@ Features:
 	  4 SIMM sockets
 	  uses ECC 
 - 2x 16550A serial ports, 1x parallel port, floppy interface
+- Intel 82378ZB PCI to ISA bridge
 - 1x embedded 21040 based 10Mbit Ethernet, AUI or 10base2 connector
 - expansion: 1 32 bit PCI slot, 2 PCMCIA slots
 - onboard Crystal CS4231 or AD1848 sound chip
@@ -341,6 +342,18 @@ Replacing the fan with something which pushes around more air is
 recommended. Beware of PCI cards with high power consumption.
 If your system has died you might want to check on the Multia-Heat-Death
 pages at the NetBSD website http://www.netbsd.org
+
+IDE:
+The Intel 82378ZB PCI to ISA bridge enables the use of an IDE disk. This
+requires a line in the kernel configuration file as follows:
+
+	device ata0 at isa? port IO_WD1 irq 14
+
+The IDE connector pin spacing is thought for 2.5" laptop disks. A 3.5"
+IDE disk would not fit in the case anyway. At least not without sacrificing
+your only PCI slot. 
+
+The SRM console does not know how to boot from IDE disks unfortunately.
 
 SCSI:
 In case you want to change the internal hard drive: the internal flat cable
