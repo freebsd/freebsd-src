@@ -1,0 +1,12 @@
+# $Id$
+
+.include "${.CURDIR}/../Makefile.inc"
+
+.PATH:	${BIND_DIR}/tools
+.PATH:	${BIND_DIR}/man
+
+PROG=	dnsquery
+
+BINDIR=	${DESTBIN}
+
+.include <bsd.prog.mk>
