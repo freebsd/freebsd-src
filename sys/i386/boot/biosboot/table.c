@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id: table.c,v 1.7 1995/05/30 07:58:36 rgrimes Exp $
+ *	$Id: table.c,v 1.8 1995/06/25 14:02:57 joerg Exp $
  */
 
 /*
@@ -86,9 +86,9 @@ struct seg_desc	Gdt[] = {
 	{0xFFFF, RUN, RUN, 0x9E, 0x40, 0x0},	/* 0x18 : boot code */
 	{0xFFFF, RUN, RUN, 0x92, 0x40, 0x0},	/* 0x20 : boot data */
 	{0xFFFF, RUN, RUN, 0x9E, 0x0, 0x0},	/* 0x28 : boot code, 16 bits */
+	{0xFFFF, 0x0, 0x0, 0x92, 0x0, 0x0},	/* 0x30 : boot data, 16 bits */
 #ifdef BDE_DEBUGGER
 	/* More for bdb. */
-	{},					/* BIOS_CS_INDEX = 6 : null */
 	{},					/* BIOS_TMP_INDEX = 7 : null */
 	{},					/* TSS_INDEX = 8 : null */
 	{0xFFFF, 0x0, 0x0, 0xB2, 0x40, 0x0},	/* DS_286_INDEX = 9 */
