@@ -28,7 +28,7 @@ SRCS=	alias.c arpadate.c bf_torek.c clock.c collect.c conf.c control.c \
 	stab.c stats.c sysexits.c timers.c trace.c udb.c usersmtp.c util.c \
 	version.c
 DPADD=	${LIBUTIL} ${LIBWRAP}
-LDADD+=	-lutil -lwrap
+LDADD=	-lutil -lwrap
 MAN1=	mailq.1 newaliases.1
 MAN5=	aliases.5
 MAN8=	sendmail.8 
@@ -43,6 +43,12 @@ LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
 
 DPADD+=	${LIBSMUTIL}
 LDADD+=	${LIBSMUTIL}
+
+# User customizations to the sendmail build environment
+CFLAGS+=${SENDMAIL_CFLAGS}
+LDFLAGS+=${SENDMAIL_LDFLAGS}
+LDADD+=${SENDMAIL_LDADD}
+DPADD+=${SENDMAIL_DPADD}
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
