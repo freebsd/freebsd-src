@@ -890,6 +890,7 @@ geom/geom_pc98.c	optional geom_pc98
 geom/geom_slice.c	standard
 geom/geom_subr.c	standard
 geom/geom_sunlabel.c	optional geom_sunlabel
+geom/geom_vol_ffs.c	optional geom_vol
 crypto/rijndael/rijndael-alg-fst.c	optional geom
 crypto/rijndael/rijndael-api-fst.c	optional geom
 gnu/ext2fs/ext2_alloc.c		optional ext2fs \
