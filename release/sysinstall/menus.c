@@ -153,7 +153,7 @@ checkDistXUser(dialogMenuItem *self)
 static int
 checkDistMinimum(dialogMenuItem *self)
 {
-    return Dists == DIST_BIN;
+    return Dists == (DIST_BIN | DIST_CRYPTO);
 }
 
 static int
