@@ -695,6 +695,18 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 				 subvendor);
 
 	/*
+	 * XXX Some IBM motherboards with embedded controllers, having
+	 *	non-standard SubSystem IDs, hit the following test.
+	 *	On these systems, we fail to attach the second channel.
+	 *	The only HBA that doesn't have the second channel hooked
+	 *	up is the 29160C, a compact PCI card that has been shipped
+	 *	to very few customers.  Even in that case, probing the
+	 *	second channel is not fatal, just cosmetically undesirable.
+	 *      Disable this code until a more selective test is developed
+	 *      and tested.
+	 */
+#if 0
+	/*
 	 * If the second function is not hooked up, ignore it.
 	 * Unfortunately, not all MB vendors implement the
 	 * subdevice ID as per the Adaptec spec, so do our best
@@ -707,6 +719,7 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 	 && SUBID_9005_TYPE_KNOWN(subdevice) != 0
 	 && SUBID_9005_MFUNCENB(subdevice) == 0)
 		return (NULL);
+#endif
 
 	for (i = 0; i < ahc_num_pci_devs; i++) {
 		entry = &ahc_pci_ident_table[i];
