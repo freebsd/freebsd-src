@@ -7,7 +7,7 @@ MAN=	newfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+=-DFSIRAND -I${MOUNT}
-WARNS=	2
+WARNS?=	2
 
 .PATH:	${MOUNT}
 
