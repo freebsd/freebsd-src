@@ -185,7 +185,7 @@ cmdscanner(void)
 			if ((bp = el_gets(el, &num)) == NULL || num == 0)
 				quit(0, NULL);
 
-			len = (num > MAX_CMDLINE) ? MAX_CMDLINE : num;
+			len = (num > MAX_CMDLINE - 1) ? MAX_CMDLINE - 1 : num;
 			memcpy(cmdline, bp, len);
 			cmdline[len] = 0; 
 			history(hist, H_ENTER, bp);
@@ -273,7 +273,7 @@ makeargv(void)
 
 	margc = 0;
 	for (cp = cmdline; *cp && (size_t)(cp - cmdline) < sizeof(cmdline) &&
-	    n < MAX_MARGV; n++) {
+	    n < MAX_MARGV - 1; n++) {
 		while (isspace(*cp))
 			cp++;
 		if (*cp == '\0')
