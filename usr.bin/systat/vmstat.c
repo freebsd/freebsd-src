@@ -405,7 +405,7 @@ showkre()
 	}
 	putint(inttotal, INTSROW + 1, INTSCOL, 8);
 	Z(ncs_goodhits); Z(ncs_badhits); Z(ncs_miss);
-	Z(ncs_long); Z(ncs_pass2); Z(ncs_2passes);
+	Z(ncs_long); Z(ncs_pass2); Z(ncs_2passes); Z(ncs_neghits);
 	s.nchcount = nchtotal.ncs_goodhits + nchtotal.ncs_badhits +
 	    nchtotal.ncs_miss + nchtotal.ncs_long + nchtotal.ncs_neghits;
 	if (state == TIME)
