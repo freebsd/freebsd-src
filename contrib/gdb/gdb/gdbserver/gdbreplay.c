@@ -19,8 +19,6 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
-
 #include "config.h"
 #include <stdio.h>
 #include <sys/file.h>
@@ -32,15 +30,6 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <errno.h>
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_STRING_H
-#include <string.h>
-#endif
 
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
