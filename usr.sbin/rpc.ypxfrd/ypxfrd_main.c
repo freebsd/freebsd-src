@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ypxfrd_main.c,v 1.1.1.1.2.3 1997/11/07 03:16:22 wpaul Exp $";
+	"$Id: ypxfrd_main.c,v 1.1.1.1.2.4 1998/03/09 13:52:31 jkh Exp $";
 #endif /* not lint */
 
 #include "ypxfrd.h"
@@ -159,10 +159,14 @@ ypxfrd_svc_run()
 static void reaper(sig)
 	int sig;
 {
-	int status;
+	int			status;
+	int			saved_errno;
+
+	saved_errno = errno;
 
 	if (sig == SIGHUP) {
 		load_securenets();
+		errno = saved_errno;
 		return;
 	}
 
@@ -173,6 +177,8 @@ static void reaper(sig)
 		(void) pmap_unset(YPXFRD_FREEBSD_PROG, YPXFRD_FREEBSD_VERS);
 		exit(0);
 	}
+	errno = saved_errno;
+	return;
 }
 
 void usage()
