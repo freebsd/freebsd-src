@@ -27,6 +27,7 @@ sed	\
 	-e '/SMP/d' \
 	-e '/	atapifd	/d' \
 	-e '/	atapist	/d' \
+	-e '/	mpt	/d' \
 	-e '/	ch	/d' \
 	-e '/	pass	/d' \
 	-e '/	sa	/d' \
@@ -36,15 +37,10 @@ sed	\
 	-e '/	ppbus	/d' \
 	-e '/	lpt	/d' \
 	-e '/	ppi	/d' \
-	-e '/	sf	/d' \
-	-e '/	sis	/d' \
-	-e '/	ste	/d' \
-	-e '/	wb	/d' \
 	-e '/	random	/d' \
 	-e '/	sl	/d' \
 	-e '/	ppp	/d' \
 	-e '/	pty	/d' \
-	-e '/	gif	/d' \
 	-e '/	faith	/d' \
 	-e '/	uhci	/d' \
 	-e '/	ohci	/d' \
