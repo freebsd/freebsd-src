@@ -46,7 +46,8 @@
 The
 .Nm
 utility is designed to print out a dependency ordering of a set of
-interdependent files. Typically it is used to find an execution
+interdependent files.
+Typically it is used to find an execution
 sequence for a set of shell scripts in which certain files must be
 executed before others.
 .Pp
@@ -61,43 +62,45 @@ and which indicate, for each file, which
 may be expected to be filled by that file.
 .Pp
 Within each file, a block containing a series of
-.Dq REQUIRE ,
-.Dq PROVIDE ,
-.Dq BEFORE
+.Dq Li REQUIRE ,
+.Dq Li PROVIDE ,
+.Dq Li BEFORE
 and
-.Dq KEYWORD
+.Dq Li KEYWORD
 lines must appear.
-The format of the lines is rigid. Each line must begin with a single
-.Dq # ,
+The format of the lines is rigid.
+Each line must begin with a single
+.Ql # ,
 followed by a single space, followed by
-.Dq PROVIDE: ,
-.Dq REQUIRE: ,
-.Dq BEFORE: ,
+.Dq Li PROVIDE: ,
+.Dq Li REQUIRE: ,
+.Dq Li BEFORE: ,
 or
-.Dq KEYWORD: .
+.Dq Li KEYWORD: .
 No deviation is permitted.
 Each dependency line is then followed by a series of conditions,
-separated by whitespace. Multiple
-.Dq PROVIDE ,
-.Dq REQUIRE ,
-.Dq BEFORE
+separated by whitespace.
+Multiple
+.Dq Li PROVIDE ,
+.Dq Li REQUIRE ,
+.Dq Li BEFORE
 and
-.Dq KEYWORD
+.Dq Li KEYWORD
 lines may appear, but all such lines must appear in a sequence without
 any intervening lines, as once a line that does not follow the format
 is reached, parsing stops.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl k
 Add the specified keyword to the
-.Dq keep list .
+.Dq "keep list" .
 If any
 .Fl k
 option is given, only those files containing the matching keyword are listed.
 .It Fl s
 Add the specified keyword to the
-.Dq skip list .
+.Dq "skip list" .
 If any
 .Fl s
 option is given, files containing the matching keyword are not listed.
@@ -111,20 +114,20 @@ option is given, files containing the matching keyword are not listed.
 .Ed
 .Pp
 This block states that the file in which it appears depends upon the
-.Dq networking ,
-.Dq syslog ,
+.Dq Li networking ,
+.Dq Li syslog ,
 and
-.Dq usr
+.Dq Li usr
 conditions, and provides the
-.Dq dns
+.Dq Li dns
 and
-.Dq nscd
+.Dq Li nscd
 conditions.
 .Pp
 A file may contain zero
-.Dq PROVIDE
+.Dq Li PROVIDE
 lines, in which case it provides no conditions, and may contain zero
-.Dq REQUIRE
+.Dq Li REQUIRE
 lines, in which case it has no dependencies.
 There must be at least one file with no dependencies in the set of
 arguments passed to
@@ -138,9 +141,9 @@ status if it encounters an error while processing the file list.
 .Bl -diag
 .It "Requirement %s has no providers, aborting."
 No file has a
-.Dq PROVIDE
+.Dq Li PROVIDE
 line corresponding to a condition present in a
-.Dq REQUIRE
+.Dq Li REQUIRE
 line in another file.
 .It "Circular dependency on provision %s, aborting."
 A set of files has a circular dependency which was detected while
@@ -157,5 +160,8 @@ The
 utility first appeared in
 .Nx 1.5 .
 .Sh AUTHORS
-Written by Perry E. Metzger (perry@piermont.com) and Matthew R.
-Green (mrg@eterna.com.au).
+.An -nosplit
+Written by
+.An Perry E. Metzger Aq perry@piermont.com
+and
+.An Matthew R. Green Aq mrg@eterna.com.au .
