@@ -1,9 +1,8 @@
 \input texinfo    @c -*-texinfo-*-
 @comment %**start of header (This is for running Texinfo on a region.)
-@setfilename readline.info
+@setfilename rluserman.info
 @settitle GNU Readline Library
 @comment %**end of header (This is for running Texinfo on a region.)
-@synindex vr fn
 @setchapternewpage odd
 
 @include manvers.texinfo
@@ -14,9 +13,9 @@
 * Readline: (readline).       The GNU readline library API
 @end direntry
 
-This document describes the GNU Readline Library, a utility which aids
-in the consistency of user interface across discrete programs that need
-to provide a command line interface.
+This document describes the end user interface of the GNU Readline Library,
+a utility which aids in the consistency of user interface across discrete
+programs that need to provide a command line interface.
 
 Copyright (C) 1988-1999 Free Software Foundation, Inc.
 
@@ -43,16 +42,16 @@ by the Free Software Foundation.
 @end ifinfo
 
 @titlepage  
-@title GNU Readline Library
+@title GNU Readline Library User Interface
 @subtitle Edition @value{EDITION}, for @code{Readline Library} Version @value{VERSION}.
 @subtitle @value{UPDATE-MONTH}
 @author Brian Fox, Free Software Foundation
 @author Chet Ramey, Case Western Reserve University
 
 @page
-This document describes the GNU Readline Library, a utility which aids
-in the consistency of user interface across discrete programs that need
-to provide a command line interface.
+This document describes the end user interface of the GNU Readline Library,
+a utility which aids in the consistency of user interface across discrete
+programs that need to provide a command line interface.
 
 Published by the Free Software Foundation @*
 59 Temple Place, Suite 330, @*
@@ -80,29 +79,16 @@ Copyright @copyright{} 1988-1999 Free Software Foundation, Inc.
 @node Top
 @top GNU Readline Library
 
-This document describes the GNU Readline Library, a utility which aids
-in the consistency of user interface across discrete programs that need
-to provide a command line interface.
+This document describes the end user interface of the GNU Readline Library,
+a utility which aids in the consistency of user interface across discrete
+programs that need to provide a command line interface.
 
 @menu
 * Command Line Editing::	   GNU Readline User's Manual.
-* Programming with GNU Readline::  GNU Readline Programmer's Manual.
-* Concept Index::		   Index of concepts described in this manual.
-* Function and Variable Index::	   Index of externally visible functions
-				   and variables.
 @end menu
 @end ifinfo
 
 @include rluser.texinfo
-@include rltech.texinfo
-
-@node Concept Index
-@unnumbered Concept Index
-@printindex cp
-
-@node Function and Variable Index
-@unnumbered Function and Variable Index
-@printindex fn
 
 @contents
 @bye

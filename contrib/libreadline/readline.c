@@ -8,7 +8,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -19,7 +19,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -47,7 +47,6 @@
 #  include <locale.h>
 #endif
 
-#include <signal.h>
 #include <stdio.h>
 #include "posixjmp.h"
 
@@ -63,117 +62,27 @@
 #include "readline.h"
 #include "history.h"
 
+#include "rlprivate.h"
+#include "rlshell.h"
+#include "xmalloc.h"
+
 #ifndef RL_LIBRARY_VERSION
-#  define RL_LIBRARY_VERSION "4.0"
+#  define RL_LIBRARY_VERSION "4.1"
 #endif
 
 /* Evaluates its arguments multiple times. */
 #define SWAP(s, e)  do { int t; t = s; s = e; e = t; } while (0)
 
-/* NOTE: Functions and variables prefixed with `_rl_' are
-   pseudo-global: they are global so they can be shared
-   between files in the readline library, but are not intended
-   to be visible to readline callers. */
-
-/* Variables and functions imported from terminal.c */
-extern int _rl_init_terminal_io ();
-extern void _rl_enable_meta_key ();
-#ifdef _MINIX
-extern void _rl_output_character_function ();
-#else
-extern int _rl_output_character_function ();
-#endif
-
-extern int _rl_enable_meta;
-extern int _rl_term_autowrap;
-extern int screenwidth, screenheight, screenchars;
-
-/* Variables and functions imported from rltty.c. */
-extern void rl_prep_terminal (), rl_deprep_terminal ();
-extern void rltty_set_default_bindings ();
-
-/* Functions imported from util.c. */
-extern void _rl_abort_internal ();
-extern void rl_extend_line_buffer ();
-extern int alphabetic ();
-
-/* Functions imported from bind.c. */
-extern void _rl_bind_if_unbound ();
-
-/* Functions imported from input.c. */
-extern int _rl_any_typein ();
-extern void _rl_insert_typein ();
-extern int rl_read_key ();
-
-/* Functions imported from nls.c */
-extern int _rl_init_eightbit ();
-
-/* Functions imported from shell.c */
-extern char *get_env_value ();
-
-/* External redisplay functions and variables from display.c */
-extern void _rl_move_vert ();
-extern void _rl_update_final ();
-extern void _rl_clear_to_eol ();
-extern void _rl_clear_screen ();
-extern void _rl_erase_entire_line ();
-
-extern void _rl_erase_at_end_of_line ();
-extern void _rl_move_cursor_relative ();
-
-extern int _rl_vis_botlin;
-extern int _rl_last_c_pos;
-extern int _rl_horizontal_scroll_mode;
-extern int rl_display_fixed;
-extern int _rl_suppress_redisplay;
-extern char *rl_display_prompt;
-
-/* Variables imported from complete.c. */
-extern char *rl_completer_word_break_characters;
-extern char *rl_basic_word_break_characters;
-extern int rl_completion_query_items;
-extern int rl_complete_with_tilde_expansion;
-
-/* Variables and functions from macro.c. */
-extern void _rl_add_macro_char ();
-extern void _rl_with_macro_input ();
-extern int _rl_next_macro_key ();
-extern int _rl_defining_kbd_macro;
-
-#if defined (VI_MODE)
-/* Functions imported from vi_mode.c. */
-extern void _rl_vi_set_last ();
-extern void _rl_vi_reset_last ();
-extern void _rl_vi_done_inserting ();
-extern int _rl_vi_textmod_command ();
-extern void _rl_vi_initialize_line ();
-#endif /* VI_MODE */
-
-extern UNDO_LIST *rl_undo_list;
-extern int _rl_doing_an_undo;
-
 /* Forward declarations used in this file. */
-void _rl_free_history_entry ();
+void _rl_free_history_entry __P((HIST_ENTRY *));
 
-int _rl_dispatch ();
-int _rl_init_argument ();
+static char *readline_internal __P((void));
+static void readline_initialize_everything __P((void));
+static void start_using_history __P((void));
+static void bind_arrow_keys __P((void));
+static int rl_change_case __P((int, int));
 
-static char *readline_internal ();
-static void readline_initialize_everything ();
-static void start_using_history ();
-static void bind_arrow_keys ();
-
-#if !defined (__GO32__)
-static void readline_default_bindings ();
-#endif /* !__GO32__ */
-
-#if defined (__GO32__)
-#  include <go32.h>
-#  include <pc.h>
-#  undef HANDLE_SIGNALS
-#endif /* __GO32__ */
-
-extern char *xmalloc (), *xrealloc ();
+static void readline_default_bindings __P((void));
 
 /* **************************************************************** */
 /*								    */
@@ -182,6 +91,8 @@ extern char *xmalloc (), *xrealloc ();
 /* **************************************************************** */
 
 char *rl_library_version = RL_LIBRARY_VERSION;
+
+int rl_gnu_readline_p = 1;
 
 /* A pointer to the keymap that is currently in use.
    By default, it is the standard emacs keymap. */
@@ -245,6 +156,10 @@ int readline_echoing_p = 1;
 char *rl_prompt;
 int rl_visible_prompt_length = 0;
 
+/* Set to non-zero by calling application if it has already printed rl_prompt
+   and does not want readline to do it the first time. */
+int rl_already_prompted = 0;
+
 /* The number of characters read in order to type this complete command. */
 int rl_key_sequence_length = 0;
 
@@ -289,6 +204,10 @@ Keymap rl_executing_keymap;
 
 /* Non-zero means to erase entire line, including prompt, on empty input lines. */
 int rl_erase_empty_line = 0;
+
+/* Non-zero means to read only this many characters rather than up to a
+   character bound to accept-line. */
+int rl_num_chars_to_read;
 
 /* Line buffer and maintenence. */
 char *rl_line_buffer = (char *)NULL;
@@ -369,6 +288,8 @@ readline (prompt)
 STATIC_CALLBACK void
 readline_internal_setup ()
 {
+  char *nprompt;
+
   _rl_in_stream = rl_instream;
   _rl_out_stream = rl_outstream;
 
@@ -377,15 +298,20 @@ readline_internal_setup ()
 
   if (readline_echoing_p == 0)
     {
-      if (rl_prompt)
+      if (rl_prompt && rl_already_prompted == 0)
 	{
-	  fprintf (_rl_out_stream, "%s", rl_prompt);
+	  nprompt = _rl_strip_prompt (rl_prompt);
+	  fprintf (_rl_out_stream, "%s", nprompt);
 	  fflush (_rl_out_stream);
+	  free (nprompt);
 	}
     }
   else
     {
-      rl_on_new_line ();
+      if (rl_prompt && rl_already_prompted)
+	rl_on_new_line_with_prompt ();
+      else
+	rl_on_new_line ();
       (*rl_redisplay_function) ();
 #if defined (VI_MODE)
       if (rl_editing_mode == vi_mode)
@@ -477,7 +403,7 @@ readline_internal_charloop ()
 	}
 
       lastc = c;
-      _rl_dispatch (c, _rl_keymap);
+      _rl_dispatch ((unsigned char)c, _rl_keymap);
 
       /* If there was no change in _rl_last_command_was_kill, then no kill
 	 has taken place.  Note that if input is pending we are reading
@@ -491,6 +417,12 @@ readline_internal_charloop ()
       if (rl_editing_mode == vi_mode && _rl_keymap == vi_movement_keymap)
 	rl_vi_check ();
 #endif /* VI_MODE */
+
+      if (rl_num_chars_to_read && rl_end >= rl_num_chars_to_read)
+        {
+          (*rl_redisplay_function) ();
+          rl_newline (1, '\n');
+        }
 
       if (rl_done == 0)
 	(*rl_redisplay_function) ();
@@ -689,6 +621,7 @@ rl_initialize ()
   return 0;
 }
 
+#if 0
 #if defined (__EMX__)
 static void
 _emx_build_environ ()
@@ -712,14 +645,17 @@ _emx_build_environ ()
   *tp = 0;
 }
 #endif /* __EMX__ */
+#endif
 
 /* Initialize the entire state of the world. */
 static void
 readline_initialize_everything ()
 {
+#if 0
 #if defined (__EMX__)
   if (environ == 0)
     _emx_build_environ ();
+#endif
 #endif
 
   /* Find out if we are running in Emacs. */
@@ -745,10 +681,8 @@ readline_initialize_everything ()
   /* Initialize the terminal interface. */
   _rl_init_terminal_io ((char *)NULL);
 
-#if !defined (__GO32__)
   /* Bind tty characters to readline functions. */
   readline_default_bindings ();
-#endif /* !__GO32__ */
 
   /* Initialize the function names. */
   rl_initialize_funmap ();
@@ -797,6 +731,17 @@ bind_arrow_keys_internal ()
 {
   Function *f;
 
+#if defined (__MSDOS__)
+  f = rl_function_of_keyseq ("\033[0A", _rl_keymap, (int *)NULL);
+  if (!f || f == rl_do_lowercase_version)
+    {
+       _rl_bind_if_unbound ("\033[0A", rl_get_previous_history);
+       _rl_bind_if_unbound ("\033[0B", rl_backward);
+       _rl_bind_if_unbound ("\033[0C", rl_forward);
+       _rl_bind_if_unbound ("\033[0D", rl_get_next_history);
+    }
+#endif
+	
   f = rl_function_of_keyseq ("\033[A", _rl_keymap, (int *)NULL);
   if (!f || f == rl_do_lowercase_version)
     {
@@ -1121,6 +1066,10 @@ rl_forward (count, key)
       else
 	rl_point = end;
     }
+
+  if (rl_end < 0)
+    rl_end = 0;
+
   return 0;
 }
 
@@ -1255,35 +1204,14 @@ int
 rl_refresh_line (ignore1, ignore2)
      int ignore1, ignore2;
 {
-  int curr_line, nleft;
+  int curr_line;
 
-  /* Find out whether or not there might be invisible characters in the
-     editing buffer. */
-  if (rl_display_prompt == rl_prompt)
-    nleft = _rl_last_c_pos - screenwidth - rl_visible_prompt_length;
-  else
-    nleft = _rl_last_c_pos - screenwidth;
-
-  if (nleft > 0)
-    curr_line = 1 + nleft / screenwidth;
-  else
-    curr_line = 0;
+  curr_line = _rl_current_display_line ();
 
   _rl_move_vert (curr_line);
   _rl_move_cursor_relative (0, the_line);   /* XXX is this right */
 
-#if defined (__GO32__)
-  {
-    int row, col, width, row_start;
-
-    ScreenGetCursor (&row, &col);
-    width = ScreenCols ();
-    row_start = ScreenPrimary + (row * width);
-    memset (row_start + col, 0, (width - col) * 2);
-  }
-#else /* !__GO32__ */
   _rl_clear_to_eol (0);		/* arg of 0 means to not use spaces */
-#endif /* !__GO32__ */
 
   rl_forced_update_display ();
   rl_display_fixed = 1;
@@ -1421,7 +1349,14 @@ rl_quoted_insert (count, key)
 {
   int c;
 
+#if defined (HANDLE_SIGNALS)
+  _rl_disable_tty_signals ();
+#endif
   c = rl_read_key ();
+#if defined (HANDLE_SIGNALS)
+  _rl_restore_tty_signals ();
+#endif
+
   return (rl_insert (count, c));  
 }
 
@@ -1614,8 +1549,6 @@ rl_insert_comment (count, key)
 #define UpCase 1
 #define DownCase 2
 #define CapCase 3
-
-static int rl_change_case ();
 
 /* Uppercase the word at point. */
 int

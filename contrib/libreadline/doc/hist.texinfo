@@ -55,8 +55,8 @@ provides a consistent user interface for recalling lines of previously
 typed input.
 
 Published by the Free Software Foundation @*
-675 Massachusetts Avenue, @*
-Cambridge, MA 02139 USA
+59 Temple Place, Suite 330, @*
+Boston, MA 02111 USA
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice

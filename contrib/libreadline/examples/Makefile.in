@@ -1,5 +1,22 @@
-# This is the Makefile for the examples subdirectory of readline. -*- text -*-
 #
+# This is the Makefile for the readline examples subdirectory.
+#
+# Copyright (C) 1994 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA.
+
 SHELL = @MAKE_SHELL@
 RM = rm -f
 
@@ -11,13 +28,16 @@ BUILD_DIR = .
 DEFS = @DEFS@
 CC = @CC@
 CFLAGS = @CFLAGS@
-LOCAL_CFLAGS = @LOCAL_CFLAGS@
+LOCAL_CFLAGS = @LOCAL_CFLAGS@ -DREADLINE_LIBRARY
 CPPFLAGS = @CPPFLAGS@
 
 INCLUDES = -I$(srcdir) -I$(top_srcdir) -I..
 
 CCFLAGS  = $(DEFS) $(LOCAL_CFLAGS) $(CPPFLAGS) $(INCLUDES) $(CFLAGS)
 LDFLAGS = -g -L..
+
+READLINE_LIB = ../libreadline.a
+HISTORY_LIB = ../libhistory.a
 
 TERMCAP_LIB = @TERMCAP_LIB@
 
@@ -39,12 +59,12 @@ fileman: fileman.o
 rltest: rltest.o
 	$(CC) $(LDFLAGS) -o $@ rltest.o -lreadline $(TERMCAP_LIB)
 
-rlversion: rlversion.o
+rlversion: rlversion.o $(READLINE_LIB)
 	$(CC) $(LDFLAGS) -o $@ rlversion.o -lreadline $(TERMCAP_LIB)
 
 clean mostlyclean:
 	$(RM) $(OBJECTS)
-	$(RM) $(EXECUTABLES)
+	$(RM) $(EXECUTABLES) *.exe
 
 distclean maintainer-clean: clean
 	$(RM) Makefile
@@ -53,3 +73,13 @@ fileman.o: fileman.c
 rltest.o: rltest.c
 rl.o: rl.c
 rlversion.o: rlversion.c
+
+# Stuff for Per Bothner's `rlfe' program
+ 
+rlfe: rlfe.o $(READLINE_LIB) $(HISTORY_LIB)
+	$(CC) $(LDFLAGS) -o $@ rlfe.o -lreadline -lhistory ${TERMCAP_LIB}
+
+rlfe.o: rlfe.c
+
+rlfe.o: $(top_srcdir)/readline.h
+rlfe.o: $(top_srcdir)/history.h
