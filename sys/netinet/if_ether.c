@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.33 1996/06/21 21:45:58 peter Exp $
+ * $Id: if_ether.c,v 1.34 1996/10/12 19:49:32 bde Exp $
  */
 
 /*
@@ -477,8 +477,8 @@ in_arpinput(m)
 	}
 	if (isaddr.s_addr == myaddr.s_addr) {
 		log(LOG_ERR,
-		   "duplicate IP address %s! sent from ethernet address: %6D\n",
-		   inet_ntoa(isaddr), ea->arp_sha, ":");
+		   "arp: %6D is using my IP address %s!\n",
+		   ea->arp_sha, ":", inet_ntoa(isaddr));
 		itaddr = myaddr;
 		goto reply;
 	}
@@ -486,8 +486,9 @@ in_arpinput(m)
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
 		if (sdl->sdl_alen &&
 		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen))
-			log(LOG_INFO, "arp info overwritten for %s by %6D\n",
-			    inet_ntoa(isaddr), ea->arp_sha, ":");
+			log(LOG_INFO, "arp: %s moved from %6D to %6D\n",
+			    inet_ntoa(isaddr), (u_char *)LLADDR(sdl), ":",
+			    ea->arp_sha, ":");
 		(void)memcpy(LLADDR(sdl), ea->arp_sha, sizeof(ea->arp_sha));
 		sdl->sdl_alen = sizeof(ea->arp_sha);
 		if (rt->rt_expire)
