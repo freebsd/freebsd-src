@@ -955,7 +955,6 @@ syscall(frame)
 	}
 #endif
 	KASSERT((td->td_kse != NULL), ("syscall: kse/thread UNLINKED"));
-	KASSERT((td->td_kse->ke_thread == td), ("syscall:kse/thread mismatch"));
 
 	sticks = td->td_sticks;
 	td->td_frame = &frame;
