@@ -154,14 +154,15 @@ char hostname[MAXHOSTNAMELEN];
 static int
 sysctl_hostname(SYSCTL_HANDLER_ARGS)
 {
+	struct prison *pr;
 	int error;
 
-	if (jailed(req->td->td_proc->p_ucred)) {
+	pr = req->td->td_proc->p_ucred->cr_prison;
+	if (pr != NULL) {
 		if (!jail_set_hostname_allowed && req->newptr)
 			return (EPERM);
-		error = sysctl_handle_string(oidp,
-		    req->td->td_proc->p_ucred->cr_prison->pr_host,
-		    sizeof req->td->td_proc->p_ucred->cr_prison->pr_host, req);
+		error = sysctl_handle_string(oidp, pr->pr_host,
+		    sizeof pr->pr_host, req);
 	} else
 		error = sysctl_handle_string(oidp,
 		    hostname, sizeof hostname, req);
@@ -172,9 +173,9 @@ SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname,
        CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_PRISON,
        0, 0, sysctl_hostname, "A", "Hostname");
 
-#ifdef REGRESSION
 static int	regression_securelevel_nonmonotonic = 0;
 
+#ifdef REGRESSION
 SYSCTL_INT(_regression, OID_AUTO, securelevel_nonmonotonic, CTLFLAG_RW,
     &regression_securelevel_nonmonotonic, 0, "securelevel may be lowered");
 #endif
@@ -205,17 +206,13 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 	 * global level, and local level if any.
 	 */
 	if (pr != NULL) {
-#ifdef REGRESSION
-		if (!regression_securelevel_nonmonotonic)
-#endif
-		if (level < imax(securelevel, pr->pr_securelevel))
+		if (!regression_securelevel_nonmonotonic &&
+		    (level < imax(securelevel, pr->pr_securelevel)))
 			return (EPERM);
 		pr->pr_securelevel = level;
 	} else {
-#ifdef REGRESSION
-		if (!regression_securelevel_nonmonotonic)
-#endif
-		if (level < securelevel)
+		if (!regression_securelevel_nonmonotonic &&
+		    (level < securelevel))
 			return (EPERM);
 		securelevel = level;
 	}
