@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.14 1995/03/28 07:57:38 bde Exp $
+ * $Id: tty.h,v 1.15 1995/03/29 19:03:02 ache Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -146,6 +146,10 @@ struct tty {
  * begin snoopped.
  */
 #define TS_SNOOP	0x10000		/* There is snoop on device */
+/*
+ * States for serial devices
+ */
+#define TS_CAN_BYPASS_L_RINT 0x20000    /* device in "raw" mode */
 
 
 /* Character type information. */
