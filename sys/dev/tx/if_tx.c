@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.26 1999/05/09 17:07:02 peter Exp $ */
+/*	$Id: if_tx.c,v 1.27 1999/05/10 00:20:46 peter Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -68,10 +68,8 @@
 	}
 
 #include "bpfilter.h"
-#include "pci.h"
 #include "opt_bdg.h"
 
-#if NPCI > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -2040,4 +2038,3 @@ epic_dump_state __P((
 		);
 	}
 }
-#endif /* NPCI > 0 */

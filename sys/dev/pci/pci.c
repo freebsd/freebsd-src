@@ -23,14 +23,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.108 1999/05/31 22:13:34 roger Exp $
+ * $Id: pci.c,v 1.109 1999/07/01 22:58:03 peter Exp $
  *
  */
 
 #include "opt_bus.h"
-
-#include "pci.h"
-#if NPCI > 0
 
 #include "opt_devfs.h"
 #include "opt_simos.h"
@@ -1469,5 +1466,3 @@ static driver_t pci_driver = {
 };
 
 DRIVER_MODULE(pci, pcib, pci_driver, pci_devclass, pci_modevent, 0);
-
-#endif /* NPCI > 0 */

@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.85 1999/06/12 14:54:54 roger Exp $ */
+/* $Id: brooktree848.c,v 1.86 1999/06/13 16:05:00 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt848A, Bt849A, Bt878, Bt879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -438,7 +438,6 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 #include "bktr.h"
 #include "opt_bktr.h"
 #include "opt_devfs.h"
-#include "pci.h"
 #include "smbus.h"
 #endif /* __FreeBSD__ */
 
@@ -447,7 +446,7 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 #define NSMBUS 0
 #endif 
 
-#if !defined(__FreeBSD__) || ((NBKTR > 0) && (NPCI > 0))
+#if !defined(__FreeBSD__) || (NBKTR > 0)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -7040,7 +7039,7 @@ static void msp_autodetect( bktr_ptr_t bktr ) {
     /* msp_write(bktr, 0x12, 0x0014, 0x7f40); */
 }
 
-#endif /* !defined(__FreeBSD__) || (NBKTR > 0 && NPCI > 0) */
+#endif /* !defined(__FreeBSD__) || (NBKTR > 0) */
 
 /* Local Variables: */
 /* mode: C */

@@ -27,11 +27,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr_p.c,v 1.8 1999/04/24 20:14:01 peter Exp $
+ * $Id: if_sr_p.c,v 1.9 1999/05/09 17:06:59 peter Exp $
  */
-
-#include "pci.h"
-#if NPCI > 0
 
 #include "sr.h"
 
@@ -130,5 +127,3 @@ sr_pci_attach(pcici_t config_id, int unit)
 		return;
 	}
 }
-
-#endif /* NPCI > 0 */

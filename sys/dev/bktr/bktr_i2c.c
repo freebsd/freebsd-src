@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt848_i2c.c,v 1.3 1999/05/08 21:59:38 dfr Exp $
+ *	$Id: bt848_i2c.c,v 1.4 1999/05/10 10:08:05 roger Exp $
  *
  */
 
@@ -33,11 +33,10 @@
  * From brooktree848.c <fsmp@freefall.org>
  */
 
-#include "pci.h"
 #include "bktr.h"
 #include "smbus.h"
 
-#if (NBKTR > 0 && NPCI > 0 && NSMBUS > 0)
+#if (NBKTR > 0 && NSMBUS > 0)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
