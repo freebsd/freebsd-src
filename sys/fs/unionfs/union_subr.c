@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.32 1998/11/03 08:01:48 peter Exp $
+ * $Id: union_subr.c,v 1.33 1998/11/15 15:33:51 bde Exp $
  */
 
 #include <sys/param.h>
@@ -774,7 +774,7 @@ union_relookup(um, dvp, vpp, cnp, cn, path, pathlen)
 		vrele(dvp);
 	else {
 		zfree(namei_zone, cn->cn_pnbuf);
-		cn->cn_pnbuf = '\0';
+		cn->cn_pnbuf = NULL;
 	}
 
 	return (error);
