@@ -1,6 +1,6 @@
 # ex:ts=8
 
-ISC DHCP client 2.0b1pl6
+ISC DHCP client 2.0b1pl11
 	originals can be found at: ftp://ftp.isc.org/isc/dhcp/
 
 
@@ -29,8 +29,8 @@ For the import of ISC-dhclient the following files were removed:
 
 Imported by:
 
-	cvs import -ko -m 'Virgin import of ISC-DHCP v2.0b1pl6' \
-		src/contrib/isc-dhcp ISC isc_dhcp_2_0_b_1_pl_6
+	cvs import -ko -m 'Virgin import of ISC-DHCP v2.0b1pl11' \
+		src/contrib/isc-dhcp ISC isc_dhcp_2_0_b_1_pl_11
 
 
 To make local changes to isc-dhcp, simply patch and commit to the main
