@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aha_isa.c,v 1.3 1998/10/10 00:44:12 imp Exp $
+ *	$Id: aha_isa.c,v 1.4 1998/10/12 18:53:33 imp Exp $
  */
 
 #include <sys/param.h>
@@ -68,7 +68,7 @@ aha_isa_probe(dev)
 	 */
 	struct	aha_softc *aha;
 	int	port_index;
-        int	max_port_index;
+	int	max_port_index;
 
 	/*
 	 * We ignore the unit number assigned by config to allow
@@ -79,30 +79,15 @@ aha_isa_probe(dev)
 	dev->id_unit = aha_unit;
 
 	aha = NULL;
-	port_index = 0;
-	max_port_index = AHA_NUM_ISAPORTS - 1;
+
 	/*
 	 * Bound our board search if the user has
 	 * specified an exact port.
 	 */
-	if (dev->id_iobase > 0) {
-		for (;port_index <= max_port_index; port_index++)
-			if (dev->id_iobase >= aha_isa_ports[port_index].addr)
-				break;
-		if ((port_index > max_port_index)
-		 || (dev->id_iobase != aha_isa_ports[port_index].addr)) {
-			printf("
-aha_isa_probe: Invalid baseport of 0x%x specified.
-aha_isa_probe: Nearest valid baseport is 0x%x.
-aha_isa_probe: Failing probe.\n",
-			       dev->id_iobase,
-			       (port_index <= max_port_index)
-				    ? aha_isa_ports[port_index].addr
-				    : aha_isa_ports[max_port_index].addr);
-			return 0;
-		}
-		max_port_index = port_index;
-	}
+	aha_find_probe_range(dev->id_iobase, &port_index, &max_port_index);
+
+	if (port_index < 0)
+		return 0;
 
 	/* Attempt to find an adapter */
 	for (;port_index <= max_port_index; port_index++) {
@@ -110,7 +95,7 @@ aha_isa_probe: Failing probe.\n",
 		u_int ioport;
 		int error;
 
-		ioport = aha_isa_ports[port_index].addr;
+		ioport = aha_iop_from_bio(port_index);
 
 		/*
 		 * Ensure this port has not already been claimed already
@@ -118,7 +103,7 @@ aha_isa_probe: Failing probe.\n",
 		 */
 		if (aha_check_probed_iop(ioport) != 0)
 			continue;
-		dev->id_iobase = aha_isa_ports[port_index].addr;
+		dev->id_iobase = ioport;
 		if (haveseen_isadev(dev, CC_IOADDR | CC_QUIET))
 			continue;
 
@@ -141,7 +126,7 @@ aha_isa_probe: Failing probe.\n",
 		 * Determine our IRQ, and DMA settings and
 		 * export them to the configuration system.
 		 */
-		error = aha_cmd(aha, BOP_INQUIRE_CONFIG, NULL, /*parmlen*/0,
+		error = aha_cmd(aha, AOP_INQUIRE_CONFIG, NULL, /*parmlen*/0,
 			       (u_int8_t*)&config_data, sizeof(config_data),
 			       DEFAULT_CMD_TIMEOUT);
 		if (error != 0) {
@@ -166,6 +151,7 @@ aha_isa_probe: Failing probe.\n",
 			printf("aha_isa_probe: Invalid DMA setting "
 				"detected for adapter at 0x%x.  "
 				"Failing probe\n", ioport);
+			return (0);
 		}
 		dev->id_irq = (config_data.irq << 9);
 		dev->id_intr = aha_isa_intr;
