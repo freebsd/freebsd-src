@@ -284,8 +284,6 @@ static int
 acpi_ec_attach(device_t dev)
 {
     struct acpi_ec_softc	*sc;
-    ACPI_BUFFER			*bufp;
-    UINT32			*param;
     ACPI_STATUS			Status;
 
     FUNCTION_TRACE(__FUNCTION__);
@@ -355,10 +353,6 @@ acpi_ec_attach(device_t dev)
      * Install address space handler
      */
     DEBUG_PRINT(TRACE_RESOURCES, ("attaching address space handler\n"));
-#if 0
-    AcpiDbgLayer = ALL_COMPONENTS;
-    AcpiDbgLevel = ACPI_ALL | TRACE_ALL | VERBOSE_ALL;
-#endif
     if ((Status = AcpiInstallAddressSpaceHandler(sc->ec_handle, ADDRESS_SPACE_EC, 
 						 EcSpaceHandler, EcSpaceSetup, sc)) != AE_OK) {
 	device_printf(dev, "can't install address space handler - %s\n", acpi_strerror(Status));
@@ -413,7 +407,11 @@ EcGpeQueryHandler(void *Context)
 	 */
 	sprintf(qxx, "_Q%02x", Data);
 	strupr(qxx);
-	if ((Status = AcpiEvaluateObject(sc->ec_handle, qxx, NULL, NULL)) != AE_OK) {
+	Status = AcpiEvaluateObject(sc->ec_handle, qxx, NULL, NULL);
+	/*
+	 * Ignore spurious query requests.
+	 */
+	if (Status != AE_OK && (Data != 0 || Status != AE_NOT_FOUND)) {
 	    device_printf(sc->ec_dev, "evaluation of GPE query method %s failed - %s\n", 
 			  qxx, acpi_strerror(Status));
 	}
@@ -474,10 +472,11 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
     ACPI_STATUS			Status = AE_OK;
     EC_REQUEST			EcRequest;
+    int				i;
 
     FUNCTION_TRACE_U32(__FUNCTION__, (UINT32)Address);
 
-    if ((Address > 0xFF) || (width != 8) || (Value == NULL) || (Context == NULL))
+    if ((Address > 0xFF) || (width % 8 != 0) || (Value == NULL) || (Context == NULL))
         return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     switch (Function) {
@@ -501,8 +500,18 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
     /*
      * Perform the transaction.
      */
-    if ((Status = EcTransaction(sc, &EcRequest)) == AE_OK)
-        (*Value) = (UINT32)EcRequest.Data;
+    (*Value) = 0;
+    for (i = 0; i < width; i += 8) {
+	if (Function == ADDRESS_SPACE_READ)
+	    EcRequest.Data = 0;
+	else
+	    EcRequest.Data = (UINT8)((*Value) >> i);
+	if ((Status = EcTransaction(sc, &EcRequest)) != AE_OK)
+	    break;
+        (*Value) |= (UINT32)EcRequest.Data << i;
+	if (++EcRequest.Address == 0)
+            return_ACPI_STATUS(AE_BAD_PARAMETER);
+    }
 
     return_ACPI_STATUS(Status);
 }
