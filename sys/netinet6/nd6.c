@@ -708,12 +708,12 @@ regen_tmpaddr(ia6)
 		if ((e = in6_tmpifadd(public_ifa6, 0)) != 0) {
 			log(LOG_NOTICE, "regen_tmpaddr: failed to create a new"
 			    " tmp addr,errno=%d\n", e);
-			return(-1);
+			return (-1);
 		}
-		return(0);
+		return (0);
 	}
 
-	return(-1);
+	return (-1);
 }
 
 /*
@@ -838,7 +838,7 @@ nd6_lookup(addr6, create, ifp)
 			struct ifaddr *ifa =
 				ifaof_ifpforaddr((struct sockaddr *)&sin6, ifp);
 			if (ifa == NULL)
-				return(NULL);
+				return (NULL);
 
 			/*
 			 * Create a new route.  RTF_LLINFO is necessary
@@ -858,14 +858,14 @@ nd6_lookup(addr6, create, ifp)
 				    "neighbor(%s), errno=%d\n",
 				    ip6_sprintf(addr6), e);
 			if (rt == NULL)
-				return(NULL);
+				return (NULL);
 			if (rt->rt_llinfo) {
 				struct llinfo_nd6 *ln =
 					(struct llinfo_nd6 *)rt->rt_llinfo;
 				ln->ln_state = ND6_LLINFO_NOSTATE;
 			}
 		} else
-			return(NULL);
+			return (NULL);
 	}
 	rt->rt_refcnt--;
 	/*
@@ -888,9 +888,9 @@ nd6_lookup(addr6, create, ifp)
 			    ip6_sprintf(addr6), ifp ? if_name(ifp) : "unspec");
 			/* xxx more logs... kazu */
 		}
-		return(NULL);
+		return (NULL);
 	}
-	return(rt);
+	return (rt);
 }
 
 /*
@@ -915,7 +915,7 @@ nd6_is_addr_neighbor(addr, ifp)
 	 */
 	if (IN6_IS_ADDR_LINKLOCAL(&addr->sin6_addr) &&
 	    ntohs(*(u_int16_t *)&addr->sin6_addr.s6_addr[2]) == ifp->if_index)
-		return(1);
+		return (1);
 
 	/*
 	 * If the address matches one of our addresses,
@@ -934,7 +934,7 @@ nd6_is_addr_neighbor(addr, ifp)
 			    IFMASK6(ifa).s6_addr32[i])
 				goto next;
 		}
-		return(1);
+		return (1);
 	}
 
 	/*
@@ -942,9 +942,9 @@ nd6_is_addr_neighbor(addr, ifp)
 	 * in the neighbor cache.
 	 */
 	if (nd6_lookup(&addr->sin6_addr, 0, ifp) != NULL)
-		return(1);
+		return (1);
 
-	return(0);
+	return (0);
 #undef IFADDR6
 #undef IFMASK6
 }
@@ -1037,7 +1037,7 @@ nd6_free(rt)
 	rtrequest(RTM_DELETE, rt_key(rt), (struct sockaddr *)0,
 		  rt_mask(rt), 0, (struct rtentry **)0);
 
-	return(next);
+	return (next);
 }
 
 /*
@@ -1596,10 +1596,10 @@ nd6_ioctl(cmd, data, ifp)
 		ndif->ifindex = nd6_defifindex;
 		break;
 	case SIOCSDEFIFACE_IN6:	/* XXX: should be implemented as a sysctl? */
-		return(nd6_setdefaultiface(ndif->ifindex));
+		return (nd6_setdefaultiface(ndif->ifindex));
 		break;
 	}
-	return(error);
+	return (error);
 }
 
 /*
@@ -2025,7 +2025,7 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 			nd6_ns_output(ifp, NULL, &dst->sin6_addr, ln, 0);
 		}
 	}
-	return(0);
+	return (0);
 	
   sendpkt:
 
@@ -2033,10 +2033,10 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 	mac_create_mbuf_linklayer(ifp, m);
 #endif
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
-		return((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
+		return ((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
 					 rt));
 	}
-	return((*ifp->if_output)(ifp, m, (struct sockaddr *)dst, rt));
+	return ((*ifp->if_output)(ifp, m, (struct sockaddr *)dst, rt));
 
   bad:
 	if (m)
@@ -2068,9 +2068,9 @@ nd6_need_cache(ifp)
 	case IFT_IEEE80211:
 #endif
 	case IFT_GIF:		/* XXX need more cases? */
-		return(1);
+		return (1);
 	default:
-		return(0);
+		return (0);
 	}
 }
 
@@ -2098,7 +2098,7 @@ nd6_storelladdr(ifp, rt, m, dst, desten)
 		case IFT_ISO88025:
 			ETHER_MAP_IPV6_MULTICAST(&SIN6(dst)->sin6_addr,
 						 desten);
-			return(1);
+			return (1);
 		case IFT_IEEE1394:
 			/*
 			 * netbsd can use if_broadcastaddr, but we don't do so
@@ -2106,36 +2106,36 @@ nd6_storelladdr(ifp, rt, m, dst, desten)
 			 */
 			for (i = 0; i < ifp->if_addrlen; i++)
 				desten[i] = ~0;
-			return(1);
+			return (1);
 		case IFT_ARCNET:
 			*desten = 0;
-			return(1);
+			return (1);
 		default:
 			m_freem(m);
-			return(0);
+			return (0);
 		}
 	}
 
 	if (rt == NULL) {
 		/* this could happen, if we could not allocate memory */
 		m_freem(m);
-		return(0);
+		return (0);
 	}
 	if (rt->rt_gateway->sa_family != AF_LINK) {
 		printf("nd6_storelladdr: something odd happens\n");
 		m_freem(m);
-		return(0);
+		return (0);
 	}
 	sdl = SDL(rt->rt_gateway);
 	if (sdl->sdl_alen == 0) {
 		/* this should be impossible, but we bark here for debugging */
 		printf("nd6_storelladdr: sdl_alen == 0\n");
 		m_freem(m);
-		return(0);
+		return (0);
 	}
 
 	bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
-	return(1);
+	return (1);
 }
 
 static int nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS);

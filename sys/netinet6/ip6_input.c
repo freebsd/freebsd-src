@@ -904,11 +904,11 @@ ip6_hopopts_input(plenp, rtalertp, mp, offp)
 
 	if (ip6_process_hopopts(m, (u_int8_t *)hbh + sizeof(struct ip6_hbh),
 				hbhlen, rtalertp, plenp) < 0)
-		return(-1);
+		return (-1);
 
 	*offp = off;
 	*mp = m;
-	return(0);
+	return (0);
 }
 
 /*
@@ -959,7 +959,7 @@ ip6_process_hopopts(m, opthead, hbhlen, rtalertp, plenp)
 				icmp6_error(m, ICMP6_PARAM_PROB,
 					    ICMP6_PARAMPROB_HEADER,
 					    erroff + opt + 1 - opthead);
-				return(-1);
+				return (-1);
 			}
 			optlen = IP6OPT_RTALERT_LEN;
 			bcopy((caddr_t)(opt + 2), (caddr_t)&rtalert_val, 2);
@@ -976,7 +976,7 @@ ip6_process_hopopts(m, opthead, hbhlen, rtalertp, plenp)
 				icmp6_error(m, ICMP6_PARAM_PROB,
 					    ICMP6_PARAMPROB_HEADER,
 					    erroff + opt + 1 - opthead);
-				return(-1);
+				return (-1);
 			}
 			optlen = IP6OPT_JUMBO_LEN;
 
@@ -990,7 +990,7 @@ ip6_process_hopopts(m, opthead, hbhlen, rtalertp, plenp)
 				icmp6_error(m, ICMP6_PARAM_PROB,
 					    ICMP6_PARAMPROB_HEADER,
 					    erroff + opt - opthead);
-				return(-1);
+				return (-1);
 			}
 
 			/*
@@ -1014,7 +1014,7 @@ ip6_process_hopopts(m, opthead, hbhlen, rtalertp, plenp)
 				icmp6_error(m, ICMP6_PARAM_PROB,
 					    ICMP6_PARAMPROB_HEADER,
 					    erroff + opt + 2 - opthead);
-				return(-1);
+				return (-1);
 			}
 #endif
 
@@ -1026,7 +1026,7 @@ ip6_process_hopopts(m, opthead, hbhlen, rtalertp, plenp)
 				icmp6_error(m, ICMP6_PARAM_PROB,
 					    ICMP6_PARAMPROB_HEADER,
 					    erroff + opt + 2 - opthead);
-				return(-1);
+				return (-1);
 			}
 			*plenp = jumboplen;
 
@@ -1039,17 +1039,17 @@ ip6_process_hopopts(m, opthead, hbhlen, rtalertp, plenp)
 			optlen = ip6_unknown_opt(opt, m,
 			    erroff + opt - opthead);
 			if (optlen == -1)
-				return(-1);
+				return (-1);
 			optlen += 2;
 			break;
 		}
 	}
 
-	return(0);
+	return (0);
 
   bad:
 	m_freem(m);
-	return(-1);
+	return (-1);
 }
 
 /*
@@ -1068,14 +1068,14 @@ ip6_unknown_opt(optp, m, off)
 
 	switch (IP6OPT_TYPE(*optp)) {
 	case IP6OPT_TYPE_SKIP: /* ignore the option */
-		return((int)*(optp + 1));
+		return ((int)*(optp + 1));
 	case IP6OPT_TYPE_DISCARD:	/* silently discard */
 		m_freem(m);
-		return(-1);
+		return (-1);
 	case IP6OPT_TYPE_FORCEICMP: /* send ICMP even if multicasted */
 		ip6stat.ip6s_badoptions++;
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_OPTION, off);
-		return(-1);
+		return (-1);
 	case IP6OPT_TYPE_ICMP: /* send ICMP if not multicasted */
 		ip6stat.ip6s_badoptions++;
 		ip6 = mtod(m, struct ip6_hdr *);
@@ -1085,11 +1085,11 @@ ip6_unknown_opt(optp, m, off)
 		else
 			icmp6_error(m, ICMP6_PARAM_PROB,
 				    ICMP6_PARAMPROB_OPTION, off);
-		return(-1);
+		return (-1);
 	}
 
 	m_freem(m);		/* XXX: NOTREACHED */
-	return(-1);
+	return (-1);
 }
 
 /*
@@ -1445,7 +1445,7 @@ ip6_get_prevhdr(m, off)
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 
 	if (off == sizeof(struct ip6_hdr))
-		return(&ip6->ip6_nxt);
+		return (&ip6->ip6_nxt);
 	else {
 		int len, nxt;
 		struct ip6_ext *ip6e = NULL;
@@ -1469,7 +1469,7 @@ ip6_get_prevhdr(m, off)
 			nxt = ip6e->ip6e_nxt;
 		}
 		if (ip6e)
-			return(&ip6e->ip6e_nxt);
+			return (&ip6e->ip6e_nxt);
 		else
 			return NULL;
 	}

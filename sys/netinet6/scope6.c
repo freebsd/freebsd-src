@@ -116,7 +116,7 @@ scope6_set(ifp, idlist)
 	int error = 0;
 
 	if (scope6_ids == NULL)	/* paranoid? */
-		return(EINVAL);
+		return (EINVAL);
 
 	/*
 	 * XXX: We need more consistency checks of the relationship among
@@ -142,7 +142,7 @@ scope6_set(ifp, idlist)
 				 * safety in later use.
 				 */
 				splx(s);
-				return(EINVAL);
+				return (EINVAL);
 			}
 
 			/*
@@ -155,7 +155,7 @@ scope6_set(ifp, idlist)
 	}
 	splx(s);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -164,12 +164,12 @@ scope6_get(ifp, idlist)
 	u_int32_t *idlist;
 {
 	if (scope6_ids == NULL)	/* paranoid? */
-		return(EINVAL);
+		return (EINVAL);
 
 	bcopy(scope6_ids[ifp->if_index].s6id_list, idlist,
 	      sizeof(scope6_ids[ifp->if_index].s6id_list));
 
-	return(0);
+	return (0);
 }
 
 
@@ -240,26 +240,26 @@ in6_addr2scopeid(ifp, addr)
 	int scope = in6_addrscope(addr);
 
 	if (scope6_ids == NULL)	/* paranoid? */
-		return(0);	/* XXX */
+		return (0);	/* XXX */
 	if (ifp->if_index >= if_indexlim)
-		return(0);	/* XXX */
+		return (0);	/* XXX */
 
 #define SID scope6_ids[ifp->if_index]
 	switch(scope) {
 	case IPV6_ADDR_SCOPE_NODELOCAL:
-		return(-1);	/* XXX: is this an appropriate value? */
+		return (-1);	/* XXX: is this an appropriate value? */
 
 	case IPV6_ADDR_SCOPE_LINKLOCAL:
-		return(SID.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL]);
+		return (SID.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL]);
 
 	case IPV6_ADDR_SCOPE_SITELOCAL:
-		return(SID.s6id_list[IPV6_ADDR_SCOPE_SITELOCAL]);
+		return (SID.s6id_list[IPV6_ADDR_SCOPE_SITELOCAL]);
 
 	case IPV6_ADDR_SCOPE_ORGLOCAL:
-		return(SID.s6id_list[IPV6_ADDR_SCOPE_ORGLOCAL]);
+		return (SID.s6id_list[IPV6_ADDR_SCOPE_ORGLOCAL]);
 
 	default:
-		return(0);	/* XXX: treat as global. */
+		return (0);	/* XXX: treat as global. */
 	}
 #undef SID
 }
@@ -287,17 +287,17 @@ scope6_get_default(idlist)
 	u_int32_t *idlist;
 {
 	if (scope6_ids == NULL)	/* paranoid? */
-		return(EINVAL);
+		return (EINVAL);
 
 	bcopy(scope6_ids[0].s6id_list, idlist,
 	      sizeof(scope6_ids[0].s6id_list));
 
-	return(0);
+	return (0);
 }
 
 u_int32_t
 scope6_addr2default(addr)
 	struct in6_addr *addr;
 {
-	return(scope6_ids[0].s6id_list[in6_addrscope(addr)]);
+	return (scope6_ids[0].s6id_list[in6_addrscope(addr)]);
 }

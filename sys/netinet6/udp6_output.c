@@ -308,5 +308,5 @@ releaseopt:
 		in6p->in6p_outputopts = stickyopt;
 		m_freem(control);
 	}
-	return(error);
+	return (error);
 }

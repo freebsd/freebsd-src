@@ -347,7 +347,7 @@ ah_hdrlen(sav)
 		ahlen = plen + sizeof(struct newah);
 	}
 
-	return(ahlen);
+	return (ahlen);
 }
 
 #ifdef INET6
@@ -495,7 +495,7 @@ ah6_output(m, nexthdrp, md, isr)
 	}
 	ipsec6stat.out_ahhist[sav->alg_auth]++;
 
-	return(error);
+	return (error);
 }
 #endif
 

@@ -271,7 +271,7 @@ ip6_mrouter_set(so, sopt)
 	}
 
 	(void)m_freem(m);
-	return(error);
+	return (error);
 }
 
 /*
@@ -284,7 +284,8 @@ ip6_mrouter_get(so, sopt)
 {
 	int error = 0;
 
-	if (so != ip6_mrouter) return EACCES;
+	if (so != ip6_mrouter)
+		return (EACCES);
 
 	switch (sopt->sopt_name) {
 		case MRT6_PIM:
@@ -302,20 +303,14 @@ mrt6_ioctl(cmd, data)
 	int cmd;
 	caddr_t data;
 {
-	int error = 0;
-
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
-		return(get_sg_cnt((struct sioc_sg_req6 *)data));
-		break;		/* for safety */
+		return (get_sg_cnt((struct sioc_sg_req6 *)data));
 	case SIOCGETMIFCNT_IN6:
-		return(get_mif6_cnt((struct sioc_mif_req6 *)data));
-		break;		/* for safety */
+		return (get_mif6_cnt((struct sioc_mif_req6 *)data));
 	default:
 		return (EINVAL);
-		break;
 	}
-	return error;
 }
 
 /*
@@ -336,12 +331,12 @@ get_sg_cnt(req)
 		req->bytecnt = rt->mf6c_byte_cnt;
 		req->wrong_if = rt->mf6c_wrong_if;
 	} else
-		return(ESRCH);
+		return (ESRCH);
 #if 0
 		req->pktcnt = req->bytecnt = req->wrong_if = 0xffffffff;
 #endif
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -354,14 +349,14 @@ get_mif6_cnt(req)
 	mifi_t mifi = req->mifi;
 
 	if (mifi >= nummifs)
-		return EINVAL;
+		return (EINVAL);
 
 	req->icount = mif6table[mifi].m6_pkt_in;
 	req->ocount = mif6table[mifi].m6_pkt_out;
 	req->ibytes = mif6table[mifi].m6_bytes_in;
 	req->obytes = mif6table[mifi].m6_bytes_out;
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -369,11 +364,11 @@ set_pim6(i)
 	int *i;
 {
 	if ((*i != 1) && (*i != 0))
-		return EINVAL;
+		return (EINVAL);
 
 	pim6 = *i;
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -396,16 +391,16 @@ ip6_mrouter_init(so, m, cmd)
 
 	if (so->so_type != SOCK_RAW ||
 	    so->so_proto->pr_protocol != IPPROTO_ICMPV6)
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
 
 	if (!m || (m->m_len != sizeof(int *)))
-		return ENOPROTOOPT;
+		return (ENOPROTOOPT);
 
 	v = mtod(m, int *);
 	if (*v != 1)
-		return ENOPROTOOPT;
+		return (ENOPROTOOPT);
 
-	if (ip6_mrouter != NULL) return EADDRINUSE;
+	if (ip6_mrouter != NULL) return (EADDRINUSE);
 
 	ip6_mrouter = so;
 	ip6_mrouter_ver = cmd;
@@ -423,7 +418,7 @@ ip6_mrouter_init(so, m, cmd)
 		log(LOG_DEBUG, "ip6_mrouter_init\n");
 #endif
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -518,7 +513,7 @@ ip6_mrouter_done()
 		log(LOG_DEBUG, "ip6_mrouter_done\n");
 #endif
 
-	return 0;
+	return (0);
 }
 
 static struct sockaddr_in6 sin6 = { sizeof(sin6), AF_INET6 };
@@ -538,12 +533,12 @@ add_m6if(mifcp)
 #endif
 
 	if (mifcp->mif6c_mifi >= MAXMIFS)
-		return EINVAL;
+		return (EINVAL);
 	mifp = mif6table + mifcp->mif6c_mifi;
 	if (mifp->m6_ifp)
-		return EADDRINUSE; /* XXX: is it appropriate? */
+		return (EADDRINUSE); /* XXX: is it appropriate? */
 	if (mifcp->mif6c_pifi == 0 || mifcp->mif6c_pifi > if_index)
-		return ENXIO;
+		return (ENXIO);
 	ifp = ifnet_byindex(mifcp->mif6c_pifi);
 
 	if (mifcp->mif6c_flags & MIFF_REGISTER) {
@@ -560,13 +555,13 @@ add_m6if(mifcp)
 	else {
 		/* Make sure the interface supports multicast */
 		if ((ifp->if_flags & IFF_MULTICAST) == 0)
-			return EOPNOTSUPP;
+			return (EOPNOTSUPP);
 
 		s = splnet();
 		error = if_allmulti(ifp, 1);
 		splx(s);
 		if (error)
-			return error;
+			return (error);
 	}
 
 	s = splnet();
@@ -595,7 +590,7 @@ add_m6if(mifcp)
 		    ifp->if_name, ifp->if_unit);
 #endif
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -611,9 +606,9 @@ del_m6if(mifip)
 	int s;
 
 	if (*mifip >= nummifs)
-		return EINVAL;
+		return (EINVAL);
 	if (mifp->m6_ifp == NULL)
-		return EINVAL;
+		return (EINVAL);
 
 	s = splnet();
 
@@ -646,7 +641,7 @@ del_m6if(mifip)
 		log(LOG_DEBUG, "del_m6if %d, nummifs %d\n", *mifip, nummifs);
 #endif
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -680,7 +675,7 @@ add_m6fc(mfccp)
 		rt->mf6c_parent = mfccp->mf6cc_parent;
 		rt->mf6c_ifset = mfccp->mf6cc_ifset;
 		splx(s);
-		return 0;
+		return (0);
 	}
 
 	/*
@@ -780,7 +775,7 @@ add_m6fc(mfccp)
 						  M_NOWAIT);
 			if (rt == NULL) {
 				splx(s);
-				return ENOBUFS;
+				return (ENOBUFS);
 			}
 	
 			/* insert new entry at head of hash chain */
@@ -801,7 +796,7 @@ add_m6fc(mfccp)
 		}
 	}
 	splx(s);
-	return 0;
+	return (0);
 }
 
 #ifdef UPCALL_TIMING
@@ -871,7 +866,7 @@ del_m6fc(mfccp)
 	}
 	if (rt == NULL) {
 		splx(s);
-		return EADDRNOTAVAIL;
+		return (EADDRNOTAVAIL);
 	}
 
 	*nptr = rt->mf6c_next;
@@ -879,7 +874,7 @@ del_m6fc(mfccp)
 
 	splx(s);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -893,11 +888,11 @@ socket_send(s, mm, src)
 				 (struct sockaddr *)src,
 				 mm, (struct mbuf *)0) != 0) {
 			sorwakeup(s);
-			return 0;
+			return (0);
 		}
 	}
 	m_freem(mm);
-	return -1;
+	return (-1);
 }
 
 /*
@@ -936,7 +931,7 @@ ip6_mforward(ip6, ifp, m)
 	 */
 	if (ip6->ip6_hlim <= 1 || IN6_IS_ADDR_MC_NODELOCAL(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_MC_LINKLOCAL(&ip6->ip6_dst))
-		return 0;
+		return (0);
 	ip6->ip6_hlim--;
 
 	/*
@@ -958,7 +953,7 @@ ip6_mforward(ip6, ifp, m)
 			    ip6->ip6_nxt,
 			    if_name(m->m_pkthdr.rcvif));
 		}
-		return 0;
+		return (0);
 	}
 
 	/*
@@ -1004,7 +999,7 @@ ip6_mforward(ip6, ifp, m)
 					      M_NOWAIT);
 		if (rte == NULL) {
 			splx(s);
-			return ENOBUFS;
+			return (ENOBUFS);
 		}
 		mb0 = m_copy(m, 0, M_COPYALL);
 		/*
@@ -1017,7 +1012,7 @@ ip6_mforward(ip6, ifp, m)
 		if (mb0 == NULL) {
 			free(rte, M_MRTABLE);
 			splx(s);
-			return ENOBUFS;
+			return (ENOBUFS);
 		}
 	
 		/* is there an upcall waiting for this packet? */
@@ -1044,7 +1039,7 @@ ip6_mforward(ip6, ifp, m)
 				free(rte, M_MRTABLE);
 				m_freem(mb0);
 				splx(s);
-				return ENOBUFS;
+				return (ENOBUFS);
 			}
 			/*
 			 * Make a copy of the header to send to the user
@@ -1057,7 +1052,7 @@ ip6_mforward(ip6, ifp, m)
 				m_freem(mb0);
 				free(rt, M_MRTABLE);
 				splx(s);
-				return ENOBUFS;
+				return (ENOBUFS);
 			}
 
 			/*
@@ -1087,7 +1082,7 @@ ip6_mforward(ip6, ifp, m)
 				m_freem(mb0);
 				free(rt, M_MRTABLE);
 				splx(s);
-				return EINVAL;
+				return (EINVAL);
 			}
 
 #ifdef MRT6DEBUG
@@ -1120,7 +1115,7 @@ ip6_mforward(ip6, ifp, m)
 				m_freem(mb0);
 				free(rt, M_MRTABLE);
 				splx(s);
-				return ENOBUFS;
+				return (ENOBUFS);
 			}
 
 			mrt6stat.mrt6s_upcalls++;
@@ -1153,7 +1148,7 @@ ip6_mforward(ip6, ifp, m)
 					free(rte, M_MRTABLE);
 					m_freem(mb0);
 					splx(s);
-					return 0;
+					return (0);
 				}
 
 			/* Add this entry to the end of the queue */
@@ -1169,7 +1164,7 @@ ip6_mforward(ip6, ifp, m)
 
 		splx(s);
 
-		return 0;
+		return (0);
 	}
 }
 
@@ -1303,7 +1298,7 @@ ip6_mdq(m, ifp, rt)
 				     mm->m_len < sizeof(struct ip6_hdr)))
 					mm = m_pullup(mm, sizeof(struct ip6_hdr));
 				if (mm == NULL)
-					return ENOBUFS;
+					return (ENOBUFS);
 	
 #ifdef MRT6_OINIT
 				oim = NULL;
@@ -1324,7 +1319,7 @@ ip6_mdq(m, ifp, rt)
 					break;
 				default:
 					m_freem(mm);
-					return EINVAL;
+					return (EINVAL);
 				}
 
 				for (mifp = mif6table, iif = 0;
@@ -1354,10 +1349,10 @@ ip6_mdq(m, ifp, rt)
 						log(LOG_WARNING, "mdq, ip6_mrouter socket queue full\n");
 #endif
 					++mrt6stat.mrt6s_upq_sockfull;
-					return ENOBUFS;
+					return (ENOBUFS);
 				}	/* if socket Q full */
 			}		/* if PIM */
-		return 0;
+		return (0);
 	}			/* if wrong iif */
 
 	/* If I sourced this packet, it counts as output, else it was input. */
@@ -1401,7 +1396,7 @@ ip6_mdq(m, ifp, rt)
 			mifp->m6_bytes_out += plen;
 			MC6_SEND(ip6, mifp, m);
 		}
-	return 0;
+	return (0);
 }
 
 static void
@@ -1533,21 +1528,21 @@ register_send(ip6, mif, m)
 	/* Make a copy of the packet to send to the user level process */
 	MGETHDR(mm, M_DONTWAIT, MT_HEADER);
 	if (mm == NULL)
-		return ENOBUFS;
+		return (ENOBUFS);
 	mm->m_pkthdr.rcvif = NULL;
 	mm->m_data += max_linkhdr;
 	mm->m_len = sizeof(struct ip6_hdr);
 
 	if ((mm->m_next = m_copy(m, 0, M_COPYALL)) == NULL) {
 		m_freem(mm);
-		return ENOBUFS;
+		return (ENOBUFS);
 	}
 	i = MHLEN - M_LEADINGSPACE(mm);
 	if (i > len)
 		i = len;
 	mm = m_pullup(mm, i);
 	if (mm == NULL)
-		return ENOBUFS;
+		return (ENOBUFS);
 /* TODO: check it! */
 	mm->m_pkthdr.len = len + sizeof(struct ip6_hdr);
 
@@ -1572,9 +1567,9 @@ register_send(ip6, mif, m)
 			    "register_send: ip6_mrouter socket queue full\n");
 #endif
 		++mrt6stat.mrt6s_upq_sockfull;
-		return ENOBUFS;
+		return (ENOBUFS);
 	}
-	return 0;
+	return (0);
 }
 
 /*
@@ -1611,7 +1606,7 @@ pim6_input(mp, offp, proto)
 			log(LOG_DEBUG,"pim6_input: PIM packet too short\n");
 #endif
 		m_freem(m);
-		return(IPPROTO_DONE);
+		return (IPPROTO_DONE);
 	}
 
 	/*
@@ -1639,7 +1634,7 @@ pim6_input(mp, offp, proto)
 	IP6_EXTHDR_GET(pim, struct pim *, m, off, minlen);
 	if (pim == NULL) {
 		pim6stat.pim6s_rcv_tooshort++;
-		return IPPROTO_DONE;
+		return (IPPROTO_DONE);
 	}
 #endif
 
@@ -1665,7 +1660,7 @@ pim6_input(mp, offp, proto)
 				    "pim6_input: invalid checksum\n");
 #endif
 			m_freem(m);
-			return(IPPROTO_DONE);
+			return (IPPROTO_DONE);
 		}
 	}
 #endif /* PIM_CHECKSUM */
@@ -1679,7 +1674,7 @@ pim6_input(mp, offp, proto)
 		    pim->pim_ver, PIM_VERSION);
 #endif
 		m_freem(m);
-		return(IPPROTO_DONE);
+		return (IPPROTO_DONE);
 	}
 
 	if (pim->pim_type == PIM_REGISTER) {
@@ -1705,7 +1700,7 @@ pim6_input(mp, offp, proto)
 				    reg_mif_num);
 #endif
 			m_freem(m);
-			return(IPPROTO_DONE);
+			return (IPPROTO_DONE);
 		}
 	
 		reghdr = (u_int32_t *)(pim + 1);
@@ -1726,7 +1721,7 @@ pim6_input(mp, offp, proto)
 			    pimlen, ip6_sprintf(&ip6->ip6_src));
 #endif
 			m_freem(m);
-			return(IPPROTO_DONE);
+			return (IPPROTO_DONE);
 		}
 	
 		eip6 = (struct ip6_hdr *) (reghdr + 1);
@@ -1749,7 +1744,7 @@ pim6_input(mp, offp, proto)
 			    (eip6->ip6_vfc & IPV6_VERSION));
 #endif
 			m_freem(m);
-			return(IPPROTO_NONE);
+			return (IPPROTO_NONE);
 		}
 	
 		/* verify the inner packet is destined to a mcast group */
@@ -1763,7 +1758,7 @@ pim6_input(mp, offp, proto)
 				    ip6_sprintf(&eip6->ip6_dst));
 #endif
 			m_freem(m);
-			return(IPPROTO_DONE);
+			return (IPPROTO_DONE);
 		}
 	
 		/*
@@ -1777,7 +1772,7 @@ pim6_input(mp, offp, proto)
 			    "could not copy register head\n");
 #endif
 			m_freem(m);
-			return(IPPROTO_DONE);
+			return (IPPROTO_DONE);
 		}
 	
 		/*
@@ -1810,5 +1805,5 @@ pim6_input(mp, offp, proto)
 	 */
   pim6_input_to_daemon:
 	rip6_input(&m, offp, proto);
-	return(IPPROTO_DONE);
+	return (IPPROTO_DONE);
 }
