@@ -1303,7 +1303,7 @@ g_raid3_register_request(struct bio *pbp)
 	struct g_consumer *cp;
 	struct bio *cbp;
 	off_t offset, length;
-	u_int n, ndisks;
+	u_int n, ndisks = 0;
 
 	sc = pbp->bio_to->geom->softc;
 	if ((pbp->bio_cflags & G_RAID3_BIO_CFLAG_REGSYNC) != 0 &&
