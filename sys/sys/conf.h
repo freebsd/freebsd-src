@@ -82,6 +82,7 @@ struct cdev {
 	uid_t		si_uid;
 	gid_t		si_gid;
 	mode_t		si_mode;
+	u_long		si_usecount;
 	union {
 		struct {
 			struct tty *__sit_tty;
