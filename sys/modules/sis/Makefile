@@ -2,12 +2,13 @@
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
-KMOD	= sis
+KMOD	= if_sis
 SRCS	= if_sis.c sis.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
 SRCS	+= miibus_if.h
 CLEANFILES	+= sis.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
 CLEANFILES	+= miibus_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
+KMODDEPS = miibus
 
 sis.h:
 	echo "#define NSIS 1" > sis.h
