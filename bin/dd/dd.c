@@ -46,11 +46,12 @@ static char const copyright[] =
 static char sccsid[] = "@(#)dd.c	8.5 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: dd.c,v 1.16 1999/04/25 21:13:33 imp Exp $";
+	"$Id: dd.c,v 1.18 1999/06/20 14:58:51 green Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/diskslice.h>
 #include <sys/mtio.h>
 
 #include <ctype.h>
@@ -224,10 +225,14 @@ getfdtype(io)
 	IO *io;
 {
 	struct mtget mt;
+	struct diskslices ds;
 	struct stat sb;
 
 	if (fstat(io->fd, &sb))
 		err(1, "%s", io->name);
+	if ((S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode)) &&
+	    ioctl(io->fd, DIOCGSLICEINFO, &ds) != -1)
+		io->flags |= ISDISK;
 	if (S_ISCHR(sb.st_mode))
 		io->flags |= ioctl(io->fd, MTIOCGET, &mt) ? ISCHR : ISTAPE;
 	else if (lseek(io->fd, (off_t)0, SEEK_CUR) == -1 && errno == ESPIPE)
