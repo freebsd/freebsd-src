@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Jul 24 14:25:33 2000]
+ *      last edit-date: [Thu Oct 26 08:50:30 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -542,24 +542,25 @@ void
 printl1(unsigned long val)
 {
 	printf("\nLayer 1: %s  =  0x%lX\n", bin_str(val, 32), val);
-	printf("                             |||| |||| |||| ||||\n"),
-	printf("                             |||| |||| |||| |||+- general error messages\n");
-	printf("                             |||| |||| |||| ||+-- PH primitives exchanged\n");
-	printf("                             |||| |||| |||| |+--- B channel actions\n");
-	printf("                             |||| |||| |||| +---- HSCX error messages\n");
-	printf("                             |||| |||| |||+------ HSCX IRQ messages\n");
-	printf("                             |||| |||| ||+------- ISAC error messages\n");
-	printf("                             |||| |||| |+-------- ISAC messages\n");
-	printf("                             |||| |||| +--------- ISAC setup messages\n");
-	printf("                             |||| |||+----------- FSM general messages\n");
-	printf("                             |||| ||+------------ FSM error messages\n");
-	printf("                             |||| |+------------- timer general messages\n");
-	printf("                             |||| +-------------- timer error messages\n");
-	printf("                             |||+---------------- HSCX data xfer errors msgs\n");
-	printf("                             ||+----------------- ISAC CICO messages\n");
-	printf("                             |+------------------ silent messages (soft-HDLC)\n");
-	printf("                             +------------------- error messages (soft-HDLC)\n");
-	printf("         ++++-++++-++++-++++--------------------- unassigned\n");
+	printf("                           | |||| |||| |||| ||||\n"),
+	printf("                           | |||| |||| |||| |||+- general error messages\n");
+	printf("                           | |||| |||| |||| ||+-- PH primitives exchanged\n");
+	printf("                           | |||| |||| |||| |+--- B channel actions\n");
+	printf("                           | |||| |||| |||| +---- HSCX error messages\n");
+	printf("                           | |||| |||| |||+------ HSCX IRQ messages\n");
+	printf("                           | |||| |||| ||+------- ISAC error messages\n");
+	printf("                           | |||| |||| |+-------- ISAC messages\n");
+	printf("                           | |||| |||| +--------- ISAC setup messages\n");
+	printf("                           | |||| |||+----------- FSM general messages\n");
+	printf("                           | |||| ||+------------ FSM error messages\n");
+	printf("                           | |||| |+------------- timer general messages\n");
+	printf("                           | |||| +-------------- timer error messages\n");
+	printf("                           | |||+---------------- HSCX data xfer errors msgs\n");
+	printf("                           | ||+----------------- ISAC CICO messages\n");
+	printf("                           | |+------------------ silent messages (soft-HDLC)\n");
+	printf("                           | +------------------- error messages (soft-HDLC)\n");
+	printf("                           +--------------------- HFC-S PCI debug messages\n");
+	printf("         ++++-++++-++++-+++---------------------- unassigned\n");
 }
 
 /*---------------------------------------------------------------------------*
