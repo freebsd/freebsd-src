@@ -101,6 +101,7 @@
 #define	TT_GET_CTX(tag)	(((tag) >> TT_CTX_SHIFT) & TT_CTX_MASK)
 #define	TD_GET_SIZE(d)	(((d) >> TD_SIZE_SHIFT) & 3)
 #define	TD_GET_PA(d)	((d) & TD_PA_MASK)
+#define	TD_GET_TLB(d)	(((d) & TD_EXEC) ? (TLB_DTLB | TLB_ITLB) : TLB_DTLB)
 
 struct tte {
 	u_long	tte_tag;
