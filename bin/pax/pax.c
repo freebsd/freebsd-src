@@ -221,7 +221,7 @@ sigset_t s_mask;		/* signal mask for cleanup critical sect */
  * Return: 0 if ok, 1 otherwise
  */
 
-#if __STDC__
+#ifdef __STDC__
 int
 main(int argc, char **argv)
 #else
@@ -246,7 +246,7 @@ main(argc, argv)
 		tdlen--;
 	tempfile = malloc(tdlen + 1 + sizeof(_TFILE_BASE));
 	if (tempfile == NULL) {
-		pax_warn(1, "Cannot allocate memory for temp file name.");
+		paxwarn(1, "Cannot allocate memory for temp file name.");
 		return(exit_val);
 	}
 	if (tdlen)
@@ -294,7 +294,7 @@ main(argc, argv)
  *	never....
  */
 
-#if __STDC__
+#ifdef __STDC__
 void
 sig_cleanup(int which_sig)
 #else
@@ -310,9 +310,9 @@ sig_cleanup(which_sig)
 	 */
 	vflag = vfpart = 1;
 	if (which_sig == SIGXCPU)
-		pax_warn(0, "Cpu time limit reached, cleaning up.");
+		paxwarn(0, "Cpu time limit reached, cleaning up.");
 	else
-		pax_warn(0, "Signal caught, cleaning up.");
+		paxwarn(0, "Signal caught, cleaning up.");
 
 	ar_close();
 	proc_dir();
@@ -327,7 +327,7 @@ sig_cleanup(which_sig)
  *	when dealing with a medium to large sized archives.
  */
 
-#if __STDC__
+#ifdef __STDC__
 static int
 gen_init(void)
 #else
@@ -383,7 +383,7 @@ gen_init()
 	    (sigaddset(&s_mask,SIGINT) < 0)||(sigaddset(&s_mask,SIGHUP) < 0) ||
 	    (sigaddset(&s_mask,SIGPIPE) < 0)||(sigaddset(&s_mask,SIGQUIT)<0) ||
 	    (sigaddset(&s_mask,SIGXCPU) < 0)||(sigaddset(&s_mask,SIGXFSZ)<0)) {
-		pax_warn(1, "Unable to set up signal mask");
+		paxwarn(1, "Unable to set up signal mask");
 		return(-1);
 	}
 	n_hand.sa_mask = s_mask;
@@ -422,6 +422,6 @@ gen_init()
 	return(0);
 
     out:
-	sys_warn(1, errno, "Unable to set up signal handler");
+	syswarn(1, errno, "Unable to set up signal handler");
 	return(-1);
 }
