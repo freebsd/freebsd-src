@@ -85,6 +85,10 @@
 #endif
 #endif    /* HAVE_NCURSES */
 
+/* Travel key conventions */
+#define KEY_IS_UP(key)		((key) == KEY_UP || (key) == '-' || key == '\020' /* ^P */)
+#define KEY_IS_DOWN(key)	((key) == KEY_DOWN || (key) == '+' || key == '\016' /* ^N */)
+
 /*
  * Global variables
  */
