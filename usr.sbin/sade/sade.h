@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.67 1996/06/29 03:43:25 jkh Exp $
+ * $Id: sysinstall.h,v 1.68 1996/07/02 01:03:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,11 +83,9 @@
 #define VAR_BOOTMGR			"bootManager"
 #define VAR_BROWSER_BINARY		"browserBinary"
 #define VAR_BROWSER_PACKAGE		"browserPackage"
-#define VAR_CONFIG_FILE			"configFile"
 #define VAR_CPIO_VERBOSITY		"cpioVerbose"
 #define VAR_DEBUG			"debug"
 #define VAR_DISK			"disk"
-#define VAR_DISKSPACE			"diskSpace"
 #define VAR_DOMAINNAME			"domainname"
 #define VAR_EDITOR			"editor"
 #define VAR_EXTRAS			"ifconfig_"
