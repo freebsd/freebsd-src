@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresnte - AML Interpreter object resolution
- *              $Revision: 49 $
+ *              $Revision: 50 $
  *
  *****************************************************************************/
 
@@ -136,7 +136,7 @@
  * FUNCTION:    AcpiExResolveNodeToValue
  *
  * PARAMETERS:  ObjectPtr       - Pointer to a location that contains
- *                                a pointer to a NS node, and will recieve a
+ *                                a pointer to a NS node, and will receive a
  *                                pointer to the resolved object.
  *              WalkState       - Current state.  Valid only if executing AML
  *                                code.  NULL if simply resolving an object
