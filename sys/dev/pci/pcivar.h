@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.21 1998/09/15 08:21:09 gibbs Exp $
+ * $Id: pcivar.h,v 1.22 1998/10/06 14:18:40 dfr Exp $
  *
  */
 
@@ -199,7 +199,7 @@ extern int pci_mechanism;
 
 struct pci_device {
     char*    pd_name;
-    char*  (*pd_probe ) (pcici_t tag, pcidi_t type);
+    const char*  (*pd_probe ) (pcici_t tag, pcidi_t type);
     void   (*pd_attach) (pcici_t tag, int     unit);
     u_long  *pd_count;
     int    (*pd_shutdown) (int, int);

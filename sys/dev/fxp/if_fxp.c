@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.57 1998/10/11 06:28:54 dg Exp $
+ *	$Id: if_fxp.c,v 1.58 1998/10/22 02:00:49 dg Exp $
  */
 
 /*
@@ -485,7 +485,7 @@ fxp_ether_ioctl(ifp, cmd, data)
 #else /* __FreeBSD__ */
 
 static u_long fxp_count;
-static char *fxp_probe		__P((pcici_t, pcidi_t));
+static const char *fxp_probe		__P((pcici_t, pcidi_t));
 static void fxp_attach		__P((pcici_t, int));
 
 static void fxp_shutdown	__P((int, void *));
@@ -502,7 +502,7 @@ DATA_SET(pcidevice_set, fxp_device);
 /*
  * Return identification string if this is device is ours.
  */
-static char *
+static const char *
 fxp_probe(config_id, device_id)
 	pcici_t config_id;
 	pcidi_t device_id;

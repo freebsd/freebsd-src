@@ -47,7 +47,7 @@
 #include <dev/vx/if_vxreg.h>
 
 static void vx_pci_shutdown(int, void *);
-static char *vx_pci_probe(pcici_t, pcidi_t);
+static const char *vx_pci_probe(pcici_t, pcidi_t);
 static void vx_pci_attach(pcici_t, int unit);
 
 static void
@@ -59,7 +59,7 @@ vx_pci_shutdown(
    vxfree(sc);
 }
 
-static char*
+static const char*
 vx_pci_probe(
 	pcici_t config_id,
 	pcidi_t device_id)
