@@ -247,6 +247,7 @@ struct tcptw {
 	tcp_seq		snd_nxt;
 	tcp_seq		rcv_nxt;
 	tcp_seq		iss;
+	tcp_seq		irs;
 	tcp_cc		cc_recv;
 	tcp_cc		cc_send;
 	u_short		last_win;	/* cached window value */
