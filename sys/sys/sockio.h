@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sockio.h	8.1 (Berkeley) 3/28/94
- * $Id$
+ * $Id: sockio.h,v 1.2 1994/08/02 07:53:37 davidg Exp $
  */
 
 #ifndef	_SYS_SOCKIO_H_
@@ -74,5 +74,7 @@
 
 #define	SIOCADDMULTI	 _IOW('i', 49, struct ifreq)	/* add m'cast addr */
 #define	SIOCDELMULTI	 _IOW('i', 50, struct ifreq)	/* del m'cast addr */
+#define SIOCGIFMTU	_IOWR('i', 51, struct ifreq)	/* get IF mtu */
+#define SIOCSIFMTU	 _IOW('i', 52, struct ifreq)	/* set IF mtu */
 
 #endif /* !_SYS_SOCKIO_H_ */
