@@ -115,6 +115,7 @@ struct spic_softc {
 	struct selinfo sc_rsel;
 	u_char sc_buf[SCBUFLEN];
 	int sc_count;
+	int sc_model;
 };
 
 static void
@@ -145,12 +146,33 @@ read_port2(struct spic_softc *sc)
 	return inb(sc->sc_port_addr + 4);
 }
 
+static u_char
+read_port_cst(struct spic_softc *sc)
+{
+	DELAY(10);
+	return inb(SPIC_CST_IOPORT);
+}
+
 static void
 busy_wait(struct spic_softc *sc)
 {
 	int i=0;
 
 	while(read_port2(sc) & 2) {
+		DELAY(10);
+		if (i++>10000) {
+			printf("spic busy wait abort\n");
+			return;
+		}
+	}
+}
+
+static void
+busy_wait_cst(struct spic_softc *sc, int mask)
+{
+	int i=0;
+
+	while(read_port_cst(sc) & mask) {
 		DELAY(10);
 		if (i++>10000) {
 			printf("spic busy wait abort\n");
@@ -177,13 +199,34 @@ spic_call2(struct spic_softc *sc, u_char dev, u_char fn)
 	return read_port1(sc);
 }
 
+static void
+spic_ecrset(struct spic_softc *sc, u_int16_t addr, u_int16_t value)
+{
+	busy_wait_cst(sc, 3);
+	outb(SPIC_CST_IOPORT, 0x81);
+	busy_wait_cst(sc, 2);
+	outb(SPIC_DATA_IOPORT, addr);
+	busy_wait_cst(sc, 2);
+	outb(SPIC_DATA_IOPORT, value);
+	busy_wait_cst(sc, 2);
+}
+
+static void
+spic_type2_srs(struct spic_softc *sc)
+{
+	spic_ecrset(sc, SPIC_SHIB, (sc->sc_port_addr & 0xFF00) >> 8);
+	spic_ecrset(sc, SPIC_SLOB,  sc->sc_port_addr & 0x00FF);
+	spic_ecrset(sc, SPIC_SIRQ,  0x00); /* using polling mode (IRQ=0)*/
+	DELAY(10);
+}
+
 static int
 spic_probe(device_t dev)
 {
-        struct spic_softc *sc;
+	struct spic_softc *sc;
 	u_char t, spic_irq;
 
-        sc = device_get_softc(dev);
+	sc = device_get_softc(dev);
 
 	/*
 	 * We can only have 1 of these. Attempting to probe for a unit 1
@@ -238,9 +281,13 @@ spic_probe(device_t dev)
 #endif
 
 	/* PIIX4 chipset at least? */
-	if (pci_cfgregread(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, 0, 4) !=
-		PIIX4_DEVID)
-		return ENXIO;
+	if (pci_cfgregread(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, 0, 4) ==
+		PIIX4_DEVID) {
+		sc->sc_model = SPIC_DEVICE_MODEL_TYPE1;
+	} else {
+		/* For newer VAIOs (R505, SRX7, ...) */
+		sc->sc_model = SPIC_DEVICE_MODEL_TYPE2;
+	}
 
 	/*
 	 * This is an ugly hack. It is necessary until ACPI works correctly.
@@ -254,17 +301,28 @@ spic_probe(device_t dev)
 	 *
 	 */
 
-	pci_cfgregwrite(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, G10A,
-		sc->sc_port_addr, 2);
-	t = pci_cfgregread(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, G10L, 1);
-	t &= 0xf0;
-	t |= 4;
-	pci_cfgregwrite(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, G10L, t, 1);
-	outw(SPIC_IRQ_PORT, (inw(SPIC_IRQ_PORT) & ~(0x3 << SPIC_IRQ_SHIFT)) | (spic_irq << SPIC_IRQ_SHIFT));
-	t = pci_cfgregread(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, G10L, 1);
-	t &= 0x1f;
-	t |= 0xc0;
-	pci_cfgregwrite(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, G10L, t, 1);
+	/* Enable ACPI mode to get Fn key events */
+	/* XXX This may slow down your VAIO if ACPI is not supported in the kernel.
+	outb(0xb2, 0xf0);
+	*/
+
+	device_printf(dev,"device model type = %d\n", sc->sc_model);
+	
+	if(sc->sc_model == SPIC_DEVICE_MODEL_TYPE1) {
+		pci_cfgregwrite(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, G10A,
+				sc->sc_port_addr, 2);
+		t = pci_cfgregread(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, G10L, 1);
+		t &= 0xf0;
+		t |= 4;
+		pci_cfgregwrite(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, G10L, t, 1);
+		outw(SPIC_IRQ_PORT, (inw(SPIC_IRQ_PORT) & ~(0x3 << SPIC_IRQ_SHIFT)) | (spic_irq << SPIC_IRQ_SHIFT));
+		t = pci_cfgregread(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, G10L, 1);
+		t &= 0x1f;
+		t |= 0xc0;
+		pci_cfgregwrite(PIIX4_BUS, PIIX4_SLOT, PIIX4_FUNC, G10L, t, 1);
+	} else {
+		spic_type2_srs(sc);
+	}
 
 	/*
 	 * XXX: Should try and see if there's anything actually there.
@@ -278,9 +336,9 @@ spic_probe(device_t dev)
 static int
 spic_attach(device_t dev)
 {
-        struct spic_softc *sc;
+	struct spic_softc *sc;
 
-        sc = device_get_softc(dev);
+	sc = device_get_softc(dev);
 
 	sc->sc_dev = dev;
 	
@@ -290,8 +348,8 @@ spic_attach(device_t dev)
 	spic_call2(sc, 0x81, 0xff);
 	spic_call1(sc, 0x92);
 
-        /* There can be only one */
-        make_dev(&spic_cdevsw, 0, 0, 0, 0600, "jogdial");
+	/* There can be only one */
+	make_dev(&spic_cdevsw, 0, 0, 0, 0600, "jogdial");
 
 	return 0;
 }
@@ -299,38 +357,63 @@ spic_attach(device_t dev)
 static void
 spictimeout(void *arg)
 {
-        struct spic_softc *sc = arg;
+	struct spic_softc *sc = arg;
 	u_char b, event, param;
 	int j;
 
-        if (!sc->sc_opened) {
-                device_printf(sc->sc_dev, "timeout called while closed!\n");
-                return;
-        }
+	if (!sc->sc_opened) {
+		device_printf(sc->sc_dev, "timeout called while closed!\n");
+		return;
+	}
 
 	event = read_port2(sc);
 	param = read_port1(sc);
 
 	if ((event != 4) && (!(event & 0x1)))
 		switch(event) {
-			case 0x10: /* jog wheel event */
-				b = !!(param & 0x40);
-				if (b != sc->sc_buttonlast) {
-					sc->sc_buttonlast = b;
-					sc->sc_buf[sc->sc_count++] =
-						b?'d':'u';
+			case 0x10: /* jog wheel event (type1) */
+				if (sc->sc_model == SPIC_DEVICE_MODEL_TYPE1) {
+					b = !!(param & 0x40);
+					if (b != sc->sc_buttonlast) {
+						sc->sc_buttonlast = b;
+						sc->sc_buf[sc->sc_count++] =
+							b?'d':'u';
+					}
+					j = (param & 0xf) | ((param & 0x10)? ~0xf:0);
+					if (j<0)
+						while(j++!=0) {
+							sc->sc_buf[sc->sc_count++] =
+								'l';
+						}
+					else if (j>0)
+						while(j--!=0) {
+							sc->sc_buf[sc->sc_count++] =
+								'r';
+						}
 				}
-				j = (param & 0xf) | ((param & 0x10)? ~0xf:0);
-				if (j<0)
-					while(j++!=0) {
+				break;
+			case 0x08: /* jog wheel event (type2) */
+			case 0x00: 
+				/* SPIC_DEVICE_MODEL_TYPE2 returns jog wheel event=0x00 */
+				if (sc->sc_model == SPIC_DEVICE_MODEL_TYPE2) {
+					b = !!(param & 0x40);
+					if (b != sc->sc_buttonlast) {
+						sc->sc_buttonlast = b;
 						sc->sc_buf[sc->sc_count++] =
-							'l';
+							b?'d':'u';
 					}
-				else if (j>0)
-					while(j--!=0) {
-						sc->sc_buf[sc->sc_count++] =
-							'r';
-					}
+					j = (param & 0xf) | ((param & 0x10)? ~0xf:0);
+					if (j<0)
+						while(j++!=0) {
+							sc->sc_buf[sc->sc_count++] =
+								'l';
+						}
+					else if (j>0)
+						while(j--!=0) {
+							sc->sc_buf[sc->sc_count++] =
+								'r';
+						}
+				}
 				break;
 			case 0x60: /* Capture button */
 				printf("Capture button event: %x\n",param);
@@ -338,13 +421,16 @@ spictimeout(void *arg)
 			case 0x30: /* Lid switch */
 				printf("Lid switch event: %x\n",param);
 				break;
+			case 0x0c: /* We must ignore these type of event for C1VP... */
+			case 0x70: /* Closing/Opening the lid on C1VP */
+				break;
 			default:
-				printf("Unknown event: %x %x\n", event, param);
+				printf("Unknown event: event %02x param %02x\n", event, param);
 				break;
 		}
 	else {
 		/* No event. Wait some more */
-        	sc->sc_timeout_ch = timeout(spictimeout, sc, spic_pollrate);
+		sc->sc_timeout_ch = timeout(spictimeout, sc, spic_pollrate);
 		return;
 	}
 
@@ -355,51 +441,50 @@ spictimeout(void *arg)
 		}
 		selwakeup(&sc->sc_rsel);
 	}
-
 	spic_call2(sc, 0x81, 0xff); /* Clear event */
 
-        sc->sc_timeout_ch = timeout(spictimeout, sc, spic_pollrate);
+	sc->sc_timeout_ch = timeout(spictimeout, sc, spic_pollrate);
 }
 
 static int
 spicopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
-        struct spic_softc *sc;
+	struct spic_softc *sc;
 
-        sc = devclass_get_softc(spic_devclass, 0);
+	sc = devclass_get_softc(spic_devclass, 0);
 
-        if (sc->sc_opened)
-                return EBUSY;
+	if (sc->sc_opened)
+		return EBUSY;
 
 	sc->sc_opened++;
 	sc->sc_count=0;
 
-        /* Start the polling */
-        timeout(spictimeout, sc, spic_pollrate);
-        return 0;
+	/* Start the polling */
+	timeout(spictimeout, sc, spic_pollrate);
+	return 0;
 }
 
 static int
 spicclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
-        struct spic_softc *sc;
+	struct spic_softc *sc;
 
-        sc = devclass_get_softc(spic_devclass, 0);
+	sc = devclass_get_softc(spic_devclass, 0);
 
-        /* Stop polling */
-        untimeout(spictimeout, sc, sc->sc_timeout_ch);
-        sc->sc_opened = 0;
-        return 0;
+	/* Stop polling */
+	untimeout(spictimeout, sc, sc->sc_timeout_ch);
+	sc->sc_opened = 0;
+	return 0;
 }
 
 static int
 spicread(dev_t dev, struct uio *uio, int flag)
 {
-        struct spic_softc *sc;
+	struct spic_softc *sc;
 	int l, s, error;
 	u_char buf[SCBUFLEN];
 
-        sc = devclass_get_softc(spic_devclass, 0);
+	sc = devclass_get_softc(spic_devclass, 0);
 
 	if (uio->uio_resid <= 0) /* What kind of a read is this?! */
 		return 0;
@@ -429,9 +514,9 @@ spicread(dev_t dev, struct uio *uio, int flag)
 static int
 spicioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
-        struct spic_softc *sc;
+	struct spic_softc *sc;
 
-        sc = devclass_get_softc(spic_devclass, 0);
+	sc = devclass_get_softc(spic_devclass, 0);
 
 	return EIO;
 }
@@ -439,20 +524,20 @@ spicioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 static int
 spicpoll(dev_t dev, int events, struct thread *td)
 {
-        struct spic_softc *sc;
-        int revents = 0, s;
+	struct spic_softc *sc;
+	int revents = 0, s;
 
-        sc = devclass_get_softc(spic_devclass, 0);
-        s = spltty();
-        if (events & (POLLIN | POLLRDNORM)) {
-                if (sc->sc_count)
-                        revents |= events & (POLLIN | POLLRDNORM);
-                else
-                        selrecord(td, &sc->sc_rsel); /* Who shall we wake? */
-        }
-        splx(s);
+	sc = devclass_get_softc(spic_devclass, 0);
+	s = spltty();
+	if (events & (POLLIN | POLLRDNORM)) {
+		if (sc->sc_count)
+			revents |= events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(td, &sc->sc_rsel); /* Who shall we wake? */
+	}
+	splx(s);
 
-        return revents;
+	return revents;
 }
 
 

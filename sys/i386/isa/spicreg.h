@@ -42,3 +42,16 @@
 
 #define SPIC_IRQ_PORT	0x8034
 #define SPIC_IRQ_SHIFT	22
+
+/* Define SPIC model type */
+#define SPIC_DEVICE_MODEL_TYPE1       1
+#define SPIC_DEVICE_MODEL_TYPE2       2
+
+/* type2 series specifics */
+#define SPIC_SIRQ                     0x9b
+#define SPIC_SLOB                     0x9c
+#define SPIC_SHIB                     0x9d
+
+/* ioports used for brightness and type2 events */
+#define SPIC_DATA_IOPORT      0x62
+#define SPIC_CST_IOPORT       0x66
