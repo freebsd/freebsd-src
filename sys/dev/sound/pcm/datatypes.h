@@ -63,11 +63,12 @@ struct _snd_dbuf {
         volatile int dl; /* transfer size */
         volatile int rp, fp; /* pointers to the ready and free area */
 	volatile int rl, fl; /* lenght of ready and free areas. */
+	volatile int hp;
 	volatile u_int32_t int_count, prev_int_count;
 	volatile u_int32_t total, prev_total;
 	int chan, dir;       /* dma channel */
 	int fmt, blksz, blkcnt;
-	int underflow;
+	int underflow, overrun;
 	bus_dmamap_t dmamap;
 	struct selinfo sel;
 };
