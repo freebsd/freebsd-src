@@ -516,6 +516,7 @@ assign_io(struct slot *sp)
 			sp->config->driver->mem = sp->mem.addr;
 		}
 		sp->mem.cardaddr = 0x4000;
+		sp->flags |= MEM_ASSIGNED;
 		if (debug_level > 0) {
 			logmsg("Using mem addr 0x%x, size %d, card addr 0x%x\n",
 			    sp->mem.addr, sp->mem.size, sp->mem.cardaddr);
