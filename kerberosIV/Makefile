@@ -27,11 +27,7 @@ kprog:
 	cd ${SDIR}/sbin/dump; ${CODAI}
 	cd ${SDIR}/sbin/restore; ${CODAI}
 
-bootstrap:
-	cd ${.CURDIR} ; \
-	${MAKE} ${MFLAGS} cleandir ; \
-	${MAKE} ${MFLAGS} obj ; \
-	${MAKE} ${MFLAGS} depend all install kprog
+bootstrap: cleandir obj depend all install kprog
 
 help-distribute:	distribute
 	cd ${SDIR}/bin/rcp; ${CODAD}
