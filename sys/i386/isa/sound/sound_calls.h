@@ -1,7 +1,7 @@
 /*
  *	DMA buffer calls
  *
- * $Id: sound_calls.h,v 1.10 1995/03/12 23:34:06 swallace Exp $
+ * $Id: sound_calls.h,v 1.11 1995/03/28 07:56:13 bde Exp $
  */
 
 #ifndef _MACHINE_ISA_SOUND_H_
@@ -14,6 +14,7 @@ int DMAbuf_release(int dev, int mode);
 int DMAbuf_getwrbuffer(int dev, char **buf, int *size);
 int DMAbuf_getrdbuffer(int dev, char **buf, int *len);
 int DMAbuf_rmchars(int dev, int buff_no, int c);
+int DMAbuf_start_input(int dev);
 int DMAbuf_start_output(int dev, int buff_no, int l);
 int DMAbuf_ioctl(int dev, unsigned int cmd, unsigned int arg, int local);
 long DMAbuf_init(long mem_start);
