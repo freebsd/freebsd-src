@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.10.4.6 1995/10/15 14:08:40 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.17 1995/10/25 15:38:32 jkh Exp $";
 #endif
 
 /*
@@ -335,7 +335,7 @@ fileFindByPath(char *base, char *fname)
 	char *cp2 = strsep(&cp, ":");
 
 	snprintf(tmp, FILENAME_MAX, "%s/%s.tgz", cp2 ? cp2 : cp, fname);
-	if (fexists(tmp) && isfile(fname))
+	if (fexists(tmp) && isfile(tmp))
 	    return tmp;
     }
     return NULL;
