@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.34 1997/02/22 09:36:38 peter Exp $
+ *	$Id: if_zp.c,v 1.35 1997/03/24 11:32:57 bde Exp $
  */
 /*-
  * TODO:
@@ -1123,7 +1123,7 @@ read_eeprom_data(id_port, offset)
 {
 
 	outb(id_port + 10, 0x80 + offset);
-	DELAY(1000);
+	DELAY(100000);
 	return inw(id_port + 12);
 }
 
