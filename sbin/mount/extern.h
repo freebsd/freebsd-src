@@ -23,14 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *     $Id$
+ *     $Id: extern.h,v 1.1 1997/08/24 21:28:38 steve Exp $
  */
-
-/* getmntopts.c */
-struct mntopt;
-
-void getmntopts __P((const char *, const struct mntopt *, int *, int *));
-extern int getmnt_silent;
 
 /* vfslist.c */
 int checkvfsname __P((const char *, const char **));

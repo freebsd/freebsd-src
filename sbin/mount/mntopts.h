@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mntopts.h	8.7 (Berkeley) 3/29/95
- *	$Id$
+ *	$Id: mntopts.h,v 1.9 1997/08/24 21:02:48 steve Exp $
  */
 
 struct mntopt {
@@ -78,3 +78,6 @@ struct mntopt {
 	MOPT_NOSUID,							\
 	MOPT_RDONLY,							\
 	MOPT_UNION
+
+void getmntopts __P((const char *, const struct mntopt *, int *, int *));
+extern int getmnt_silent;
