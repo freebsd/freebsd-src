@@ -92,7 +92,7 @@ main(argc, argv)
 	mypw = NULL;
 	usemine = 0;
        no_timeout = 0;
-       while ((ch = getopt(argc, argv, "npt:")) != EOF)
+       while ((ch = getopt(argc, argv, "npt:")) != -1)
 		switch((char)ch) {
 		case 't':
 			if ((sectimeout = atoi(optarg)) <= 0) {

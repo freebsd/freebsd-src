@@ -98,7 +98,7 @@ main(argc, argv)
 
 	sflag = 0;
 	corefile = NULL;
-        while ((ch = getopt(argc, argv, "c:s")) != EOF) {
+        while ((ch = getopt(argc, argv, "c:s")) != -1) {
                 switch (ch) {
                 case 'c':
 			corefile = optarg;

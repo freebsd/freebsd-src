@@ -77,7 +77,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc,argv,"f:dlm:nRTt:")) != EOF)
+	while ((ch = getopt(argc,argv,"f:dlm:nRTt:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			tracefile = optarg;

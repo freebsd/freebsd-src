@@ -57,7 +57,7 @@ main(argc, argv)
 	int ch;
 
 	Program = argv[0];
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch((char)ch) {
 		case '?':
 		default:

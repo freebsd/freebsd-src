@@ -92,7 +92,7 @@ enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: at.c,v 1.10 1997/02/22 19:54:04 peter Exp $";
+static char rcsid[] = "$Id: at.c,v 1.12 1997/03/03 07:58:00 ache Exp $";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"
@@ -639,7 +639,7 @@ main(int argc, char **argv)
     /* process whatever options we can process
      */
     opterr=1;
-    while ((c=getopt(argc, argv, options)) != EOF)
+    while ((c=getopt(argc, argv, options)) != -1)
 	switch (c) {
 	case 'v':   /* verify time settings */
 	    atverify = 1;

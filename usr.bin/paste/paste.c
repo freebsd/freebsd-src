@@ -62,7 +62,7 @@ main(argc, argv)
 	int ch, seq;
 
 	seq = 0;
-	while ((ch = getopt(argc, argv, "d:s")) != EOF)
+	while ((ch = getopt(argc, argv, "d:s")) != -1)
 		switch(ch) {
 		case 'd':
 			delimcnt = tr(delim = optarg);

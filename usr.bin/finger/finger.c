@@ -103,7 +103,7 @@ option(argc, argv)
 
 	optind = 1;		/* reset getopt */
 
-	while ((ch = getopt(argc, argv, "lmpshoT")) != EOF)
+	while ((ch = getopt(argc, argv, "lmpshoT")) != -1)
 		switch(ch) {
 		case 'l':
 			lflag = 1;		/* long format */

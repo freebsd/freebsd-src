@@ -73,7 +73,7 @@ main(argc, argv)
 	pri = LOG_NOTICE;
 	logflags = 0;
 	unsetenv("TZ");
-	while ((ch = getopt(argc, argv, "f:ip:st:")) != EOF)
+	while ((ch = getopt(argc, argv, "f:ip:st:")) != -1)
 		switch((char)ch) {
 		case 'f':		/* file to log */
 			if (freopen(optarg, "r", stdin) == NULL) {

@@ -81,7 +81,7 @@ main(argc, argv)
 	char *buff, *inf;
 
 	guesslen = 1;
-	while ((ch = getopt(argc, argv, "cs:vx")) != EOF)
+	while ((ch = getopt(argc, argv, "cs:vx")) != -1)
 		switch((char)ch) {
 		case 'c':
 			op = COPYVERIFY;

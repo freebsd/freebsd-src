@@ -51,7 +51,7 @@ main(argc, argv)
 	char *t, *ttyname();
 
 	sflag = 0;
-	while ((ch = getopt(argc, argv, "s")) != EOF)
+	while ((ch = getopt(argc, argv, "s")) != -1)
 		switch((char)ch) {
 		case 's':
 			sflag = 1;

@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ipcs.c,v 1.8 1997/02/22 19:55:18 peter Exp $
  */
 
 #include <stdio.h>
@@ -135,7 +135,7 @@ main(argc, argv)
 	char   *core = NULL, *namelist = NULL;
 	int     i;
 
-	while ((i = getopt(argc, argv, "MmQqSsabC:cN:optT")) != EOF)
+	while ((i = getopt(argc, argv, "MmQqSsabC:cN:optT")) != -1)
 		switch (i) {
 		case 'M':
 			display = SHMTOTAL;

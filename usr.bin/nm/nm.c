@@ -96,7 +96,7 @@ main(argc, argv)
 	extern int optind;
 	int ch, errors;
 
-	while ((ch = getopt(argc, argv, "agnoprtuwW")) != EOF) {
+	while ((ch = getopt(argc, argv, "agnoprtuwW")) != -1) {
 		switch (ch) {
 		case 'a':
 			print_all_symbols = 1;

@@ -123,7 +123,7 @@ char **argv;
      catalog = catalog_create(do_catalog_error);
      swinit(&sw);
 
-     while ((opt = getopt(argc, argv, options)) != EOF) {
+     while ((opt = getopt(argc, argv, options)) != -1) {
 	  switch (opt) {
 	  case 'm':
 	       catalog_load_file(catalog, optarg);

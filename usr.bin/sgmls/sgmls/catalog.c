@@ -828,7 +828,7 @@ int main(argc, argv)
 
   program_name = argv[0];
 
-  while ((opt = getopt(argc, argv, "edl")) != EOF)
+  while ((opt = getopt(argc, argv, "edl")) != -1)
     switch (opt) {
     case 'e':
       entity_flag = 1;

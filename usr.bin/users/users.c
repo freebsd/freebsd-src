@@ -57,7 +57,7 @@ main(argc, argv)
 	char names[MAXUSERS][UT_NAMESIZE];
 	int ch, scmp();
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:

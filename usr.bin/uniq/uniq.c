@@ -74,7 +74,7 @@ main (argc, argv)
 	char *prevline, *thisline, *p;
 
 	obsolete(argv);
-	while ((ch = getopt(argc, argv, "-cdf:s:u")) != EOF)
+	while ((ch = getopt(argc, argv, "-cdf:s:u")) != -1)
 		switch (ch) {
 		case '-':
 			--optind;

@@ -103,7 +103,7 @@ main(argc, argv)
 	(void) setlocale(LC_CTYPE, "");
 
 	cflag = dflag = sflag = 0;
-	while ((ch = getopt(argc, argv, "cds")) != EOF)
+	while ((ch = getopt(argc, argv, "cds")) != -1)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;

@@ -62,7 +62,7 @@ main(argc, argv)
 	size_t len;
 	int ch, rval;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:

@@ -68,7 +68,7 @@ main(argc, argv)
 #endif
 
 	host = NICHOST;
-	while ((ch = getopt(argc, argv, "h:")) != EOF)
+	while ((ch = getopt(argc, argv, "h:")) != -1)
 		switch((char)ch) {
 		case 'h':
 			host = optarg;

@@ -108,7 +108,7 @@ main(argc, argv)
 	char *host;
 	int estat;
 
-	while ((ch = getopt(argc, argv, "ade3")) != EOF)
+	while ((ch = getopt(argc, argv, "ade3")) != -1)
 		switch((char)ch) {
 		case 'a':
 			if (type == 0) {

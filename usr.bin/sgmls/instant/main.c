@@ -66,7 +66,7 @@
 
 #ifndef lint
 static char *RCSid =
-  "$Header: /usr/src/docbook-to-man/Instant/RCS/main.c,v 1.8 1996/06/12 03:32:48 fld Exp $";
+  "$Header: /home/ncvs/src/usr.bin/sgmls/instant/main.c,v 1.1.1.1 1996/09/08 01:55:10 jfieber Exp $";
 #endif
 
 #include <stdio.h>
@@ -266,7 +266,7 @@ HandleArgs(
     extern char	*optarg;
     extern int	optind;
 
-    while ((c=getopt(ac, av, "df:t:v:o:huSxIl:bHVWi:D:Z")) != EOF) {
+    while ((c=getopt(ac, av, "df:t:v:o:huSxIl:bHVWi:D:Z")) != -1) {
 	switch (c) {
 	    case 't': tranfile		= optarg;	break;
 	    case 'v': do_validate	= 1;		break;
