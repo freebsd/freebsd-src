@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.10 1997/05/10 03:42:34 brian Exp $
+ * $Id: main.c,v 1.22.2.11 1997/05/11 10:25:08 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -460,7 +460,7 @@ char **argv;
           close(BGFiledes[0]);
     }
 
-    snprintf(pid_filename, sizeof (pid_filename), "%s/tun%d.pid",
+    snprintf(pid_filename, sizeof (pid_filename), "%stun%d.pid",
              _PATH_VARRUN, tunno);
     (void)unlink(pid_filename);
 
@@ -768,13 +768,17 @@ DoLoop()
      * due to the "set reconnect" value, we'd better bring the line
      * back up now.
      */
-    if (LcpFsm.state <= ST_CLOSED && dial_up != TRUE
-        && lostCarrier && lostCarrier <= VarReconnectTries) {
+    if (LcpFsm.state <= ST_CLOSED && dial_up != TRUE && lostCarrier)
+      if (lostCarrier <= VarReconnectTries) {
         LogPrintf(LOG_PHASE_BIT, "Connection lost, re-establish (%d/%d)\n",
                   lostCarrier, VarReconnectTries);
 	StartRedialTimer(VarReconnectTimer);
         dial_up = TRUE;
-    }
+      } else {
+        LogPrintf(LOG_PHASE_BIT, "Connection lost, maximum (%d) times\n",
+                  VarReconnectTries);
+        lostCarrier = 0;
+      }
 
    /*
     * If Ip packet for output is enqueued and require dial up, 
