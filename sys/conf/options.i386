@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.88 1998/09/24 13:20:40 yokota Exp $
+#	$Id: options.i386,v 1.89 1998/09/25 17:34:48 peter Exp $
 
 DISABLE_PSE
 USER_LDT
@@ -58,6 +58,7 @@ CPU_LOOP_EN			opt_cpu.h
 CPU_RSTK_EN			opt_cpu.h
 CPU_SUSP_HLT			opt_cpu.h
 CPU_UPGRADE_HW_CACHE		opt_cpu.h
+CPU_WT_ALLOC			opt_cpu.h
 CYRIX_CACHE_WORKS		opt_cpu.h
 CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.50 1998/07/11 05:59:34 bde Exp $
+ *	$Id: identcpu.c,v 1.51 1998/07/11 07:45:28 bde Exp $
  */
 
 #include "opt_cpu.h"
@@ -65,6 +65,10 @@ void	i486_bzero __P((void *buf, size_t len));
 void printcpuinfo(void);	/* XXX should be in different header file */
 void finishidentcpu(void);
 void earlysetcpuclass(void);
+#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
+void	enable_K5_wt_alloc(void);
+void	enable_K6_wt_alloc(void);
+#endif
 void panicifcpuunsupported(void);
 static void identifycyrix(void);
 static void print_AMD_info(void);
@@ -273,10 +277,26 @@ printcpuinfo(void)
 		case 0x560:
 			strcat(cpu_model, "K6");
 			break;
+		case 0x570:
+			strcat(cpu_model, "K6 266 (model 1)");
+			break;
+		case 0x580:
+			strcat(cpu_model, "K6-2");
+			break;
 		default:
 			strcat(cpu_model, "Unknown");
 			break;
 		}
+#ifdef CPU_WT_ALLOC
+		if ((cpu_id & 0xf00) == 0x500) {
+			if (((cpu_id & 0x0f0) > 0)
+			    && ((cpu_id & 0x0f0) < 0x60)
+			    && ((cpu_id & 0x00f) > 3)) {
+				enable_K5_wt_alloc();
+			} else if ((cpu_id & 0x0f0) > 0x50)
+				enable_K6_wt_alloc();
+		}
+#endif
 		do_cpuid(0x80000000, regs);
 		nreg = regs[0];
 		if (nreg >= 0x80000004) {
@@ -488,7 +508,7 @@ printcpuinfo(void)
 			 * to check that all CPUs >= Pentium have a TSC and
 			 * MSRs.
 			 */
-			printf("\n  Features=0x%b", cpu_feature, 
+			printf("\n  Features=0x%b", cpu_feature,
 			"\020"
 			"\001FPU"
 			"\002VME"
@@ -636,7 +656,7 @@ identblue(void)
 
 	trap_by_rdmsr = 0;
 
-	/* 
+	/*
 	 * Cyrix 486-class CPU does not support rdmsr instruction.
 	 * The rdmsr instruction generates invalid opcode fault, and exception
 	 * will be trapped by bluetrap6() on Cyrix 486-class CPU.  The
@@ -792,7 +812,7 @@ finishidentcpu(void)
 }
 
 /*
- * This routine is called specifically to set up cpu_class before 
+ * This routine is called specifically to set up cpu_class before
  * startrtclock() uses it.  Probably this should be rearranged so that
  * startrtclock() doesn't need to run until after identifycpu() has been
  * called.  Another alternative formulation would be for this routine
@@ -816,7 +836,7 @@ print_AMD_assoc(int i)
 }
 
 static void
-print_AMD_info(void) 
+print_AMD_info(void)
 {
 	u_int regs[4];
 
