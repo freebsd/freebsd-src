@@ -213,6 +213,18 @@ if there was a missing option argument,
 .Ql \&?
 if the user specified an unknown or ambiguous option, and
 \-1 when the argument list has been exhausted.
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev POSIXLY_CORRECT"
+.It Ev POSIXLY_CORRECT
+If set, option processing stops when the first non-option is found and
+a leading
+.Ql -
+or
+.Ql +
+in the
+.Fa optstring
+is ignored.
+.El
 .Sh EXAMPLES
 .Bd -literal -compact
 int bflag, ch, fd;
@@ -449,18 +461,6 @@ the caller (ordering after \-1 is returned, value of
 relative
 to current positions) are the same, though.
 (We do fewer variable swaps.)
-.El
-.Sh ENVIRONMENT
-.Bl -tag -width ".Ev POSIXLY_CORRECT"
-.It Ev POSIXLY_CORRECT
-If set, option processing stops when the first non-option is found and
-a leading
-.Ql -
-or
-.Ql +
-in the
-.Fa optstring
-is ignored.
 .El
 .Sh SEE ALSO
 .Xr getopt 3

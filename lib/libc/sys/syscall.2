@@ -70,12 +70,12 @@ In general, a 0 return value indicates success.
 A -1 return value indicates an error,
 and an error code is stored in
 .Va errno .
-.Sh BUGS
-There is no way to simulate system calls that have multiple return values
-such as
-.Xr pipe 2 .
 .Sh HISTORY
 The
 .Fn syscall
 function appeared in
 .Bx 4.0 .
+.Sh BUGS
+There is no way to simulate system calls that have multiple return values
+such as
+.Xr pipe 2 .

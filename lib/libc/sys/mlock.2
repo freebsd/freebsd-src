@@ -148,6 +148,13 @@ Some portion of the indicated address range is not allocated.
 .Xr munmap 2 ,
 .Xr setrlimit 2 ,
 .Xr getpagesize 3
+.Sh HISTORY
+The
+.Fn mlock
+and
+.Fn munlock
+system calls first appeared in
+.Bx 4.4 .
 .Sh BUGS
 Allocating too much wired memory can lead to a memory-allocation deadlock
 which requires a reboot to recover from.
@@ -160,10 +167,3 @@ counts as 2 pages against the per-process limit and as only a single page
 in the system limit.
 .Pp
 The per-process resource limit is not currently supported.
-.Sh HISTORY
-The
-.Fn mlock
-and
-.Fn munlock
-system calls first appeared in
-.Bx 4.4 .

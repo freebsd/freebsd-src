@@ -783,6 +783,27 @@ pageout daemon will enter "memory conserving mode" to avoid deadlock.
 .El
 .Sh RETURN VALUES
 .Rv -std
+.Sh FILES
+.Bl -tag -width <netinet/icmpXvar.h> -compact
+.It In sys/sysctl.h
+definitions for top level identifiers, second level kernel and hardware
+identifiers, and user level identifiers
+.It In sys/socket.h
+definitions for second level network identifiers
+.It In sys/gmon.h
+definitions for third level profiling identifiers
+.It In vm/vm_param.h
+definitions for second level virtual memory identifiers
+.It In netinet/in.h
+definitions for third level IPv4/IPv6 identifiers and
+fourth level IPv4/v6 identifiers
+.It In netinet/icmp_var.h
+definitions for fourth level ICMP identifiers
+.It In netinet/icmp6.h
+definitions for fourth level ICMPv6 identifiers
+.It In netinet/udp_var.h
+definitions for fourth level UDP identifiers
+.El
 .Sh ERRORS
 The following errors may be reported:
 .Bl -tag -width Er
@@ -835,27 +856,6 @@ array specifies a value that is unknown.
 An attempt is made to set a read-only value.
 .It Bq Er EPERM
 A process without appropriate privilege attempts to set a value.
-.El
-.Sh FILES
-.Bl -tag -width <netinet/icmpXvar.h> -compact
-.It In sys/sysctl.h
-definitions for top level identifiers, second level kernel and hardware
-identifiers, and user level identifiers
-.It In sys/socket.h
-definitions for second level network identifiers
-.It In sys/gmon.h
-definitions for third level profiling identifiers
-.It In vm/vm_param.h
-definitions for second level virtual memory identifiers
-.It In netinet/in.h
-definitions for third level IPv4/IPv6 identifiers and
-fourth level IPv4/v6 identifiers
-.It In netinet/icmp_var.h
-definitions for fourth level ICMP identifiers
-.It In netinet/icmp6.h
-definitions for fourth level ICMPv6 identifiers
-.It In netinet/udp_var.h
-definitions for fourth level UDP identifiers
 .El
 .Sh SEE ALSO
 .Xr sysconf 3 ,

@@ -62,10 +62,6 @@ The
 .Xr syslog 3
 function is used to log any failure of this function, including the
 reason, at LOG_ERR priority.
-.Sh BUGS
-The checks carried out are rudimentary and no attempt is made
-to eliminate race conditions between use of this function and
-access to the file referenced.
 .Sh SEE ALSO
 .Xr lstat 2 ,
 .Xr syslog 3
@@ -73,3 +69,7 @@ access to the file referenced.
 Code from which this function was derived was contributed to the
 .Fx
 project by Berkeley Software Design, Inc.
+.Sh BUGS
+The checks carried out are rudimentary and no attempt is made
+to eliminate race conditions between use of this function and
+access to the file referenced.

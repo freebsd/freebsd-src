@@ -86,34 +86,6 @@ system call returns the process group of the specified process;
 otherwise, it returns a value of \-1 and sets
 .Va errno
 to indicate the error.
-.Sh ERRORS
-The
-.Fn getpgid
-system call
-will succeed unless:
-.Bl -tag -width Er
-.It Bq Er ESRCH
-there is no process whose process ID equals
-.Fa pid
-.El
-.Sh SEE ALSO
-.Xr getsid 2 ,
-.Xr setpgid 2 ,
-.Xr termios 4
-.Sh HISTORY
-The
-.Fn getpgrp
-system call appeared in
-.Bx 4.0 .
-The
-.Fn getpgid
-system call is derived from its usage in
-.At V.4 .
-.Sh STANDARDS
-The
-.Fn getpgrp
-system call is expected to conform to
-.St -p1003.1-90 .
 .Sh COMPATIBILITY
 This version of
 .Fn getpgrp
@@ -144,3 +116,31 @@ has been omitted from POSIX.1.
 The old functionality is available from the
 .Fn getpgid
 system call.
+.Sh ERRORS
+The
+.Fn getpgid
+system call
+will succeed unless:
+.Bl -tag -width Er
+.It Bq Er ESRCH
+there is no process whose process ID equals
+.Fa pid
+.El
+.Sh SEE ALSO
+.Xr getsid 2 ,
+.Xr setpgid 2 ,
+.Xr termios 4
+.Sh STANDARDS
+The
+.Fn getpgrp
+system call is expected to conform to
+.St -p1003.1-90 .
+.Sh HISTORY
+The
+.Fn getpgrp
+system call appeared in
+.Bx 4.0 .
+The
+.Fn getpgid
+system call is derived from its usage in
+.At V.4 .

@@ -208,11 +208,33 @@ have no return value.
 .It Pa /etc/group
 group database file
 .El
+.Sh COMPATIBILITY
+The historic function
+.Fn setgrfile ,
+which allowed the specification of alternate password databases, has
+been deprecated and is no longer available.
 .Sh SEE ALSO
 .Xr getpwent 3 ,
 .Xr group 5 ,
 .Xr nsswitch.conf 5 ,
 .Xr yp 8
+.Sh STANDARDS
+The
+.Fn getgrent ,
+.Fn getgrnam ,
+.Fn getgrnam_r ,
+.Fn getgrgid ,
+.Fn getgrgid_r
+and
+.Fn endgrent
+functions conform to
+.St -p1003.1-96 .
+The
+.Fn setgrent
+function differs from that standard in that its return type is
+.Vt int
+rather than
+.Vt void .
 .Sh HISTORY
 The functions
 .Fn endgrent ,
@@ -236,28 +258,6 @@ and
 .Fn getgrgid_r
 appeared in
 .Fx 5.1 .
-.Sh STANDARDS
-The
-.Fn getgrent ,
-.Fn getgrnam ,
-.Fn getgrnam_r ,
-.Fn getgrgid ,
-.Fn getgrgid_r
-and
-.Fn endgrent
-functions conform to
-.St -p1003.1-96 .
-The
-.Fn setgrent
-function differs from that standard in that its return type is
-.Vt int
-rather than
-.Vt void .
-.Sh COMPATIBILITY
-The historic function
-.Fn setgrfile ,
-which allowed the specification of alternate password databases, has
-been deprecated and is no longer available.
 .Sh BUGS
 The functions
 .Fn getgrent ,

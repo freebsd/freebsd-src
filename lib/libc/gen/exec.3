@@ -220,38 +220,6 @@ will be set to indicate the error.
 .It Pa /bin/sh
 The shell.
 .El
-.Sh ERRORS
-The
-.Fn execl ,
-.Fn execle ,
-.Fn execlp ,
-.Fn execvp
-and
-.Fn execvP
-functions
-may fail and set
-.Va errno
-for any of the errors specified for the library functions
-.Xr execve 2
-and
-.Xr malloc 3 .
-.Pp
-The
-.Fn exect
-and
-.Fn execv
-functions
-may fail and set
-.Va errno
-for any of the errors specified for the library function
-.Xr execve 2 .
-.Sh SEE ALSO
-.Xr sh 1 ,
-.Xr execve 2 ,
-.Xr fork 2 ,
-.Xr ktrace 2 ,
-.Xr ptrace 2 ,
-.Xr environ 7
 .Sh COMPATIBILITY
 Historically, the default path for the
 .Fn execlp
@@ -308,6 +276,38 @@ and the unusual error
 .Er EIO .
 The behaviour was changed to match the behaviour of
 .Xr sh 1 .
+.Sh ERRORS
+The
+.Fn execl ,
+.Fn execle ,
+.Fn execlp ,
+.Fn execvp
+and
+.Fn execvP
+functions
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr execve 2
+and
+.Xr malloc 3 .
+.Pp
+The
+.Fn exect
+and
+.Fn execv
+functions
+may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr execve 2 .
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr execve 2 ,
+.Xr fork 2 ,
+.Xr ktrace 2 ,
+.Xr ptrace 2 ,
+.Xr environ 7
 .Sh STANDARDS
 The
 .Fn execl ,

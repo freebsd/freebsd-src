@@ -63,6 +63,11 @@ Label element names may optionally begin with a
 symbol to indicate that a failure to retrieve the label element for
 an object should be silently ignored, and improves usability if the
 set of MAC policies may change over time.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/mac.conf" -compact
+.It Pa /etc/mac.conf
+MAC library configuration file.
+.El
 .Sh EXAMPLES
 The following example configures user applications to operate with
 four MAC policies:
@@ -93,11 +98,6 @@ MLS, and SEBSD labels for all object classes; for processes, they will
 additionally attempt to retrieve a Partition identifier.
 In all cases except the Partition identifier, failure to retrieve a
 label due to the respective policy not being present will be ignored.
-.Sh FILES
-.Bl -tag -width ".Pa /etc/mac.conf" -compact
-.It Pa /etc/mac.conf
-MAC library configuration file.
-.El
 .Sh SEE ALSO
 .Xr mac 3 ,
 .Xr mac_get 3 ,

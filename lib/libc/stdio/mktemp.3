@@ -190,6 +190,33 @@ so that it will store string constants in a writable segment of memory.
 See
 .Xr gcc 1
 for more information.
+.Sh SEE ALSO
+.Xr chmod 2 ,
+.Xr getpid 2 ,
+.Xr mkdir 2 ,
+.Xr open 2 ,
+.Xr stat 2
+.Sh HISTORY
+A
+.Fn mktemp
+function appeared in
+.At v7 .
+The
+.Fn mkstemp
+function appeared in
+.Bx 4.4 .
+The
+.Fn mkdtemp
+function first appeared in
+.Ox 2.2 ,
+and later in
+.Fx 3.2 .
+The
+.Fn mkstemps
+function first appeared in
+.Ox 2.4 ,
+and later in
+.Fx 3.4 .
 .Sh BUGS
 This family of functions produces filenames which can be guessed,
 though the risk is minimized when large numbers of
@@ -226,30 +253,3 @@ which is not reentrant.
 You must provide your own locking around this and other consumers of the
 .Xr arc4random 3
 API.
-.Sh SEE ALSO
-.Xr chmod 2 ,
-.Xr getpid 2 ,
-.Xr mkdir 2 ,
-.Xr open 2 ,
-.Xr stat 2
-.Sh HISTORY
-A
-.Fn mktemp
-function appeared in
-.At v7 .
-The
-.Fn mkstemp
-function appeared in
-.Bx 4.4 .
-The
-.Fn mkdtemp
-function first appeared in
-.Ox 2.2 ,
-and later in
-.Fx 3.2 .
-The
-.Fn mkstemps
-function first appeared in
-.Ox 2.4 ,
-and later in
-.Fx 3.4 .
