@@ -39,6 +39,8 @@ TUNABLE_INT("hw.snd.unit", &snd_unit);
 #endif
 int snd_autovchans = 0;
 TUNABLE_INT("hw.snd.autovchans", &snd_autovchans);
+int snd_maxvchans = 0;
+TUNABLE_INT("hw.snd.maxvchans", &snd_maxvchans);
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
 
@@ -120,8 +122,11 @@ pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid)
 {
 	struct pcm_channel *c;
     	struct snddev_channel *sce;
+	int err;
 
 	snd_mtxassert(d->lock);
+
+	/* scan for a free channel */
 	SLIST_FOREACH(sce, &d->channels, link) {
 		c = sce->channel;
 		CHN_LOCK(c);
@@ -132,6 +137,24 @@ pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid)
 		}
 		CHN_UNLOCK(c);
 	}
+
+	/* no channel available */
+	if (direction == PCMDIR_PLAY) {
+		if ((d->vchancount > 0) && (d->vchancount < snd_maxvchans)) {
+			/* try to create a vchan */
+			SLIST_FOREACH(sce, &d->channels, link) {
+				c = sce->channel;
+				if (!SLIST_EMPTY(&c->children)) {
+					err = vchan_create(c);
+					if (!err)
+						return pcm_chnalloc(d, direction, pid);
+					else
+						device_printf(d->dev, "vchan_create(%s) == %d\n", c->name, err);
+				}
+			}
+		}
+	}
+
 	return NULL;
 }
 
@@ -196,6 +219,23 @@ sysctl_hw_snd_autovchans(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, autovchans, CTLTYPE_INT | CTLFLAG_RW,
             0, sizeof(int), sysctl_hw_snd_autovchans, "I", "");
+
+static int
+sysctl_hw_snd_maxvchans(SYSCTL_HANDLER_ARGS)
+{
+	int v, error;
+
+	v = snd_maxvchans;
+	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
+	if (error == 0 && req->newptr != NULL) {
+		if (v < 0 || v >= SND_MAXVCHANS)
+			return EINVAL;
+		snd_maxvchans = v;
+	}
+	return (error);
+}
+SYSCTL_PROC(_hw_snd, OID_AUTO, maxvchans, CTLTYPE_INT | CTLFLAG_RW,
+            0, sizeof(int), sysctl_hw_snd_maxvchans, "I", "");
 
 struct pcm_channel *
 pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, void *devinfo)
@@ -263,7 +303,7 @@ pcm_chn_destroy(struct pcm_channel *ch)
 }
 
 int
-pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
+pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev)
 {
     	struct snddev_channel *sce;
     	int unit = device_get_unit(d->dev);
@@ -279,8 +319,11 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 	sce->channel = ch;
 	SLIST_INSERT_HEAD(&d->channels, sce, link);
 
-	dsp_register(unit, d->chancount);
+	if (mkdev)
+		dsp_register(unit, d->devcount++);
     	d->chancount++;
+	if (ch->flags & CHN_F_VIRTUAL)
+		d->vchancount++;
 
 	snd_mtxunlock(d->lock);
 
@@ -288,7 +331,7 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 }
 
 int
-pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch)
+pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch, int rmdev)
 {
     	struct snddev_channel *sce;
     	int unit = device_get_unit(d->dev);
@@ -301,11 +344,14 @@ pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch)
 	snd_mtxunlock(d->lock);
 	return EINVAL;
 gotit:
+	if (ch->flags & CHN_F_VIRTUAL)
+		d->vchancount--;
 	d->chancount--;
 	SLIST_REMOVE(&d->channels, sce, snddev_channel, link);
 	free(sce, M_DEVBUF);
 
-	dsp_unregister(unit, d->chancount);
+	if (rmdev)
+		dsp_unregister(unit, --d->devcount);
 	snd_mtxunlock(d->lock);
 
 	return 0;
@@ -325,14 +371,14 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 		return ENODEV;
 	}
 
-	err = pcm_chn_add(d, ch);
+	err = pcm_chn_add(d, ch, 1);
 	if (err) {
 		device_printf(d->dev, "pcm_chn_add(%s) failed, err=%d\n", ch->name, err);
 		pcm_chn_destroy(ch);
 		return err;
 	}
 
-	if ((dir == PCMDIR_PLAY) && (d->flags & SD_F_AUTOVCHAN)) {
+	if ((dir == PCMDIR_PLAY) && (d->flags & SD_F_AUTOVCHAN) && (snd_autovchans > 0)) {
 		ch->flags |= CHN_F_BUSY;
 		for (i = 0; err == 0 && i < snd_autovchans; i++)
 			err = vchan_create(ch);
@@ -344,7 +390,6 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 			}
 			return err;
 		}
-
 	}
 
 	return err;
@@ -360,7 +405,7 @@ pcm_killchan(device_t dev)
 	sce = SLIST_FIRST(&d->channels);
 	snd_mtxunlock(d->lock);
 
-	return pcm_chn_remove(d, sce->channel);
+	return pcm_chn_remove(d, sce->channel, 1);
 }
 
 int
@@ -410,7 +455,9 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->flags = 0;
 	d->dev = dev;
 	d->devinfo = devinfo;
+	d->devcount = 0;
 	d->chancount = 0;
+	d->vchancount = 0;
 	d->inprog = 0;
 
 	if (((numplay == 0) || (numrec == 0)) && (numplay != numrec))
