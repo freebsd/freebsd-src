@@ -1480,8 +1480,7 @@ also builtins
   2local path
   end-locals
 
-  path dup -1 = if ( there isn't a "kernel" environment variable )
-    2drop
+  path nip -1 = if ( there isn't a "kernel" environment variable )
     flags args load_a_kernel
   else
     flags path args 1+ clip_args load_directory_or_file
