@@ -31,8 +31,6 @@ static const char rcsid[] =
 
 /*
  * MD primitives supporting placement of module data 
- *
- * XXX should check load address/size against memory top.
  */
 #include <stand.h>
 
@@ -43,19 +41,29 @@ static const char rcsid[] =
 int
 efi_copyin(void *src, vm_offset_t dest, size_t len)
 {
-	bcopy(src, (void*) dest, len);
+	EFI_PHYSICAL_ADDRESS p = IA64_RR_MASK(dest);
+#if 0
+	BS->AllocatePages(AllocateAddress, EfiRuntimeServicesData,
+			  len >> 12, &p);
+#endif
+	bcopy(src, (void*) p, len);
 	return (len);
 }
 
 int
 efi_copyout(vm_offset_t src, void *dest, size_t len)
 {
-	bcopy((void*) src, dest, len);
+	bcopy((void*) IA64_RR_MASK(src), dest, len);
 	return (len);
 }
 
 int
 efi_readin(int fd, vm_offset_t dest, size_t len)
 {
-	return (read(fd, (void*) dest, len));
+	EFI_PHYSICAL_ADDRESS p = IA64_RR_MASK(dest);
+#if 0
+	BS->AllocatePages(AllocateAddress, EfiRuntimeServicesData,
+			  len >> 12, &p);
+#endif
+	return (read(fd, (void*) p, len));
 }
