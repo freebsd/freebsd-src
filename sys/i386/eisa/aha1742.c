@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.39 1995/11/04 17:07:03 bde Exp $
+ *      $Id: aha1742.c,v 1.40 1995/11/09 22:43:24 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -278,7 +278,7 @@ static 	int		ahb_debug = 0;
 #define PAGESIZ 4096
 
 #ifdef	KERNEL
-struct eisa_driver ahb_eisa_driver =
+static struct eisa_driver ahb_eisa_driver =
 {
 	"ahb",
 	ahbprobe,

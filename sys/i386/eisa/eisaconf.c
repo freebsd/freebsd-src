@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.7 1995/11/10 01:32:12 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.8 1995/11/20 12:41:11 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -61,7 +61,7 @@ static struct eisa_device_node *eisa_dev_list;
 static struct eisa_device_node **eisa_dev_list_tail = &eisa_dev_list;
 static u_long eisa_unit;
 
-static struct eisa_driver mainboard_drv = {
+static static struct eisa_driver mainboard_drv = {
 				     "eisa",
 				     NULL,
 				     NULL,
