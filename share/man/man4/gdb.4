@@ -525,12 +525,19 @@ Print the system message buffer.
 This corresponds to the
 .Xr dmesg 8
 utility.
+This macro used to be called
+.Ic msgbuf .
 It can take a very long time over a serial line,
 and it is even slower via firewire
 or local memory due to inefficiencies in
 .Nm .
-This macro used to be called
-.Ic msgbuf .
+When debugging a crash dump or over firewire, it is not necessary to start
+.Nm
+to access the message buffer: instead, use an appropriate variation of
+.Bd -literal -offset indent
+dmesg -M /var/crash/vmcore.0 -N kernel.debug
+dmesg -M /dev/fwmem0.0 -N kernel.debug
+.Ed
 .It Ic kldstat
 Equivalent of the
 .Xr kldstat 8
@@ -541,7 +548,16 @@ Print the command name of the current process.
 Show process status.
 This corresponds in concept, but not in appearance, to the
 .Xr ps 1
-utility.
+utility. 
+When debugging a crash dump or over firewire, it is not necessary to start
+.Nm
+to display the
+.Xr ps 1
+output: instead, use an appropriate variation of
+.Bd -literal -offset indent
+ps -M /var/crash/vmcore.0 -N kernel.debug
+ps -M /dev/fwmem0.0 -N kernel.debug
+.Ed
 .It Ic y
 Kludge for writing macros.
 When writing macros, it is convenient to paste them
@@ -564,13 +580,15 @@ message to remind you to remove it again.
 This man page was written by
 .An "Greg Lehey" Aq grog@FreeBSD.org .
 .Sh SEE ALSO
-.Xr gdb 1 ,
-.Xr ddb 4 ,
-.Xr firewire 4 ,
-.Xr vinumdebug 4 ,
 .Xr dconschat 8 ,
+.Xr ddb 4 ,
+.Xr dmesg 8 ,
+.Xr firewire 4 ,
 .Xr fwcontrol 8 ,
-.Xr kldload 8
+.Xr gdb 1 ,
+.Xr kldload 8 ,
+.Xr ps 1 ,
+.Xr vinumdebug 4 .
 .Sh BUGS
 The
 .Xr gdb 1
