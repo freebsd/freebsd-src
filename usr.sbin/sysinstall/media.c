@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.49 1996/07/08 12:00:40 jkh Exp $
+ * $Id: media.c,v 1.50 1996/08/01 12:02:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -309,12 +309,14 @@ mediaSetFTP(dialogMenuItem *self)
 	msgDebug("dir = `%s'\n", dir ? dir : "/");
 	msgDebug("port # = `%d'\n", FtpPort);
     }
-    msgNotify("Looking up host %s..", hostname);
-    if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
-	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
-		   "name server, gateway and network interface are correctly configured?", hostname);
-	mediaDevice->shutdown(mediaDevice);
-	return DITEM_FAILURE | DITEM_RECREATE;
+    if (variable_get(VAR_NAMESERVER)) {
+	msgNotify("Looking up host %s..", hostname);
+	if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
+	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
+		       "name server, gateway and network interface are correctly configured?", hostname);
+	    mediaDevice->shutdown(mediaDevice);
+	    return DITEM_FAILURE | DITEM_RECREATE;
+	}
     }
     variable_set2(VAR_FTP_HOST, hostname);
     variable_set2(VAR_FTP_DIR, dir ? dir : "/");
@@ -390,11 +392,13 @@ mediaSetNFS(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
     *idx = '\0';
-    msgNotify("Looking up host %s..", cp);
-    if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
-	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
-		   "name server, gateway and network interface are correctly configured?", cp);
-	return DITEM_FAILURE;
+    if (variable_get(VAR_NAMESERVER)) {
+	msgNotify("Looking up host %s..", cp);
+	if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
+	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
+		       "name server, gateway and network interface are correctly configured?", cp);
+	    return DITEM_FAILURE;
+	}
     }
     variable_set2(VAR_NFS_HOST, cp);
     nfsDevice.type = DEVICE_TYPE_NFS;
