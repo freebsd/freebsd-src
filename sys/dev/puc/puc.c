@@ -309,7 +309,6 @@ puc_intr(void *arg)
 	int i;
 	struct puc_softc *sc;
 
-printf("puc_intr\n");
 	sc = (struct puc_softc *)arg;
 	for (i = 0; i < PUC_MAX_PORTS; i++)
 		if (sc->sc_ports[i].ihand != NULL)
@@ -337,7 +336,9 @@ puc_find_description(uint32_t vend, uint32_t prod, uint32_t svend,
 
 	return (NULL);
 }
-static int puc_find_free_unit(char *name)
+
+static int
+puc_find_free_unit(char *name)
 {
 	devclass_t dc;
 	int start;
