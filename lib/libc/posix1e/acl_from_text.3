@@ -45,7 +45,7 @@ function converts the text form of an ACL referred to by
 .Va buf_p
 into the internal working structure for ACLs, appropriate for applying to
 files or manipulating.
-
+.Pp
 This function may cause memory to be allocated.  The caller should free any
 releasable memory, when the new ACL is no longer required, by calling
 .Xr acl_free 3

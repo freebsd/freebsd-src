@@ -192,13 +192,13 @@ Arguments may be passed to and from the filter via the
 and
 .Va data
 fields in the kevent structure.
-.Bl -tag
+.Bl -tag -width EVFILT_SIGNAL
 .It EVFILT_READ
 Takes a descriptor as the identifier, and returns whenever
 there is data available to read.
 The behavior of the filter is slightly different depending
 on the descriptor type.
-.Bl -tag
+.Bl -tag -width 2n
 .It Sockets
 Sockets which have previously been passed to
 .Fn listen
@@ -216,16 +216,12 @@ also sets EV_EOF in
 .Va flags .
 It is possible for EOF to be returned (indicating the connection is gone)
 while there is still data pending in the socket buffer.
-.El
-.Bl -tag
 .It Vnodes
 Returns when the file pointer is not at the end of file.
 .Va data
 contains the offset from current position to end of file,
 and may be negative.
-.El
-.Bl -tag
-.It Fifos, Pipes
+.It "Fifos, Pipes"
 Returns when the there is data to read;
 .Va data
 contains the number of bytes available.
@@ -236,8 +232,6 @@ This may be cleared by passing in EV_CLEAR, at which point the
 filter will resume waiting for data to become available before
 returning.
 .El
-.El
-.Bl -tag
 .It EVFILT_WRITE
 Takes a descriptor as the identifier, and returns whenever
 it is possible to write to the descriptor.  For sockets, pipes
@@ -247,8 +241,6 @@ will contain the amount of space remaining in the write buffer.
 The filter will set EV_EOF when the reader disconnects, and for
 the fifo case, this may be cleared by use of EV_CLEAR.
 Note that this filter is not supported for vnodes.
-.El
-.Bl -tag
 .It EVFILT_AIO
 A kevent structure is initialized, with
 .Va ident
@@ -264,8 +256,6 @@ returned by the aio_* function.
 The filter returns under the same conditions as aio_error.
 .Pp
 NOTE: this interface is unstable and subject to change.
-.El
-.Bl -tag
 .It EVFILT_VNODE
 Takes a file descriptor as the identifier and the events to watch for in 
 .Va fflags ,
@@ -290,8 +280,6 @@ The file referenced by the descriptor was renamed.
 On return,
 .Va fflags
 contains the events which triggered the filter.
-.El
-.Bl -tag
 .It EVFILT_PROC
 Takes the process ID to monitor as the identifier and the events to watch for 
 in

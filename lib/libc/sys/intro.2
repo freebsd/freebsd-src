@@ -375,9 +375,9 @@ A socket operation failed because the destination host was down.
 A socket operation was attempted to an unreachable host.
 .It Er 66 ENOTEMPTY Em "Directory not empty" .
 A directory with entries other than
-.Ql \&.
+.Ql .\&
 and
-.Ql \&..
+.Ql ..\&
 was supplied to a remove directory or rename call.
 .It Er 67 EPROCLIM Em "Too many processes" .
 .It Er 68 EUSERS Em "Too many users" .
@@ -451,6 +451,7 @@ The scheduled operation was canceled.
 While decoding a multibyte character the function came along an 
 invalid or an incomplete sequence of bytes or the given wide 
 character is invalid.
+.El
 .Sh DEFINITIONS
 .Bl -tag -width Ds
 .It  Process ID .
@@ -632,7 +633,7 @@ A directory is a special type of file that contains entries
 that are references to other files.
 Directory entries are called links.  By convention, a directory
 contains at least two links,
-.Ql \&.
+.Ql .\&
 and
 .Ql \&.. ,
 referred to as
@@ -692,7 +693,6 @@ but the permissions for ``other users'' allow access.
 .Pp
 Otherwise, permission is denied.
 .It  Sockets and Address Families
-.Pp
 A socket is an endpoint for communication between processes.
 Each socket has queues for sending and receiving data.
 .Pp
@@ -712,6 +712,7 @@ communications protocols.  Each protocol set supports addresses
 of a certain format.  An Address Family is the set of addresses
 for a specific group of protocols.  Each socket has an address
 chosen from the address family in which the socket was created.
+.El
 .Sh SEE ALSO
 .Xr intro 3 ,
 .Xr perror 3
