@@ -1421,8 +1421,6 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_map_entry_t entry;
 	vm_map_entry_t temp_entry;
 
-	GIANT_REQUIRED;
-
 	switch (new_inheritance) {
 	case VM_INHERIT_NONE:
 	case VM_INHERIT_COPY:
@@ -1431,27 +1429,19 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	default:
 		return (KERN_INVALID_ARGUMENT);
 	}
-
 	vm_map_lock(map);
-
 	VM_MAP_RANGE_CHECK(map, start, end);
-
 	if (vm_map_lookup_entry(map, start, &temp_entry)) {
 		entry = temp_entry;
 		vm_map_clip_start(map, entry, start);
 	} else
 		entry = temp_entry->next;
-
 	while ((entry != &map->header) && (entry->start < end)) {
 		vm_map_clip_end(map, entry, end);
-
 		entry->inheritance = new_inheritance;
-
 		vm_map_simplify_entry(map, entry);
-
 		entry = entry->next;
 	}
-
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
