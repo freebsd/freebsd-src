@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.95 1997/05/07 20:08:53 peter Exp $
+ *	$Id: trap.c,v 1.96 1997/05/29 05:04:30 peter Exp $
  */
 
 /*
@@ -71,6 +71,7 @@
 #include <sys/user.h>
 
 #include <machine/cpu.h>
+#include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
 #include <machine/reg.h>

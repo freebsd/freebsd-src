@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.84 1997/05/25 16:55:25 fsmp Exp $
+ *	$Id: clock.c,v 1.85 1997/05/29 05:00:35 peter Exp $
  */
 
 /*
@@ -63,6 +63,7 @@
 #endif
 #include <machine/cpu.h>
 #include <machine/frame.h>
+#include <machine/ipl.h>
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>

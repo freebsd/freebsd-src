@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.49 1997/04/28 08:39:48 fsmp Exp $
+ *	$Id: swtch.s,v 1.50 1997/05/29 05:11:11 peter Exp $
  */
 
 #include "npx.h"
@@ -43,7 +43,7 @@
 #include <sys/rtprio.h>
 
 #include <machine/asmacros.h>
-#include <machine/spl.h>
+#include <machine/ipl.h>
 #include <machine/smpasm.h>
 #include <machine/smptests.h>		/** TEST_LOPRIO */
 
