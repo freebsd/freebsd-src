@@ -365,7 +365,6 @@ struct sockaddr *
 	in_sockaddr(in_port_t port, struct in_addr *addr);
 void	in_pcbsosetlabel(struct socket *so);
 void	in_pcbremlists(struct inpcb *inp);
-int	prison_xinpcb(struct thread *td, struct inpcb *inp);
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IN_PCB_H_ */

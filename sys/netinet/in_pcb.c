@@ -1180,13 +1180,3 @@ in_pcbsosetlabel(so)
 	INP_UNLOCK(inp);
 #endif
 }
-
-int
-prison_xinpcb(struct thread *td, struct inpcb *inp)
-{
-	if (!jailed(td->td_ucred))
-		return (0);
-	if (ntohl(inp->inp_laddr.s_addr) == prison_getip(td->td_ucred))
-		return (0);
-	return (1);
-}
