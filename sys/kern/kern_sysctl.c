@@ -110,15 +110,19 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 	}
 	/*
 	 * If this oid has a number OID_AUTO, give it a number which
-	 * is greater than any current oid.  Make sure it is at least
-	 * 100 to leave space for pre-assigned oid numbers.
+	 * is greater than any current oid.
+	 * NOTE: DO NOT change the starting value here, change it in
+	 * <sys/sysctl.h>, and make sure it is at least 256 to
+	 * accomodate e.g. net.inet.raw as a static sysctl node.
 	 */
 	if (oidp->oid_number == OID_AUTO) {
-		static int newoid = 100;
+		static int newoid = CTL_AUTO_START;
 
 		oidp->oid_number = newoid++;
 		if (newoid == 0x7fffffff)
 			panic("out of oids");
+	} else if (oidp->oid_number >= CTL_AUTO_START) {
+		panic("static sysctl oid too high: %d", oidp->oid_number);
 	}
 
 	/*
