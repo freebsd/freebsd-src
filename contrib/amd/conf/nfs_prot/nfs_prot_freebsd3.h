@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_freebsd3.h,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+ * $Id: nfs_prot_freebsd3.h,v 1.2 1998/08/27 07:33:23 obrien Exp $
  *
  */
 
@@ -50,7 +50,15 @@
 # include <rpcsvc/nfs_prot.h>
 #endif /* HAVE_RPCSVC_NFS_PROT_H */
 #endif	/* COMMENT_OUT */
+/* nfs_prot.h defines struct `nfs_fh3', but it is a ``dmr "unwarranted
+ * chumminess with the C implementation".  We need the more complete
+ * structure, which is defined below.  So get the stock `nfs_fh3'
+ * out of the way.
+ */
+struct nfs_fh3;
+#define nfs_fh3 nfs_fh3_fbsd_
 # include "nfs_prot.h"
+#undef nfs_fh3
 
 #ifdef HAVE_NFS_RPCV2_H
 # include <nfs/rpcv2.h>
@@ -160,10 +168,10 @@ typedef writeargs nfswriteargs;
 
 #ifdef COMMENT_OUT
 #define FHSIZE3 64		/* size in bytes of a file handle (v3) */
-#endif	/* COMMENT_OUT */
 #define	NFS3_FHSIZE 64
 #define	MOUNTVERS3 ((unsigned long)(3))
 #define	NFS_V3 ((unsigned long)(3))
+#endif	/* COMMENT_OUT */
 
 #ifdef COMMENT_OUT
 typedef struct {
