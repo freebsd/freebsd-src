@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.6 1998/02/16 19:10:44 brian Exp $
+ * $Id: vars.h,v 1.42.2.7 1998/02/16 19:11:10 brian Exp $
  *
  *	TODO:
  */
@@ -58,9 +58,6 @@ struct pppvars {
   u_short var_mru;		/* Initial MRU value */
   u_short pref_mtu;		/* Preferred MTU value */
   int var_accmap;		/* Initial ACCMAP value */
-  int modem_speed;		/* Current modem speed */
-  int modem_parity;		/* Parity setting */
-  int modem_ctsrts;		/* Use CTS/RTS on modem port? (boolean) */
   int idle_timeout;		/* Idle timeout value */
   int lqr_timeout;		/* LQR timeout value */
   int retry_timeout;		/* Retry timeout value */
@@ -98,11 +95,6 @@ struct pppvars {
 #define	VarDevice		pppVars.modem_dev
 #define	VarDeviceList		pppVars.modem_devlist
 #define	VarBaseDevice		pppVars.base_modem_dev
-#if 0
-#	define	VarSpeed		pppVars.modem_speed
-#	define	VarParity		pppVars.modem_parity
-#	define	VarCtsRts		pppVars.modem_ctsrts
-#endif
 #define	VarOpenMode		pppVars.open_mode
 #define	VarLocalAuth		pppVars.lauth
 #define VarIdleTimeout  	pppVars.idle_timeout
@@ -134,8 +126,6 @@ struct pppvars {
 #define VarPacketAliasSetAddress   (*pppVars.handler.PacketAliasSetAddress)
 #define VarPacketAliasSetMode	   (*pppVars.handler.PacketAliasSetMode)
 #define VarPacketAliasFragmentIn   (*pppVars.handler.PacketAliasFragmentIn)
-
-#define	DEV_IS_SYNC (VarSpeed == 0)
 
 extern struct pppvars pppVars;
 extern char VarVersion[];

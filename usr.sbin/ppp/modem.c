@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.16 1998/02/16 00:00:45 brian Exp $
+ * $Id: modem.c,v 1.77.2.17 1998/02/16 19:09:58 brian Exp $
  *
  *  TODO:
  */
@@ -100,7 +100,7 @@ modem_Create(const char *name)
   p->link.Close = modem_Hangup;
   p->link.Destroy = modem_Destroy;
   p->fd = -1;
-  p->rts_cts = 1;
+  p->rts_cts = MODEM_CTSRTS;
   p->speed = MODEM_SPEED;
   p->parity = CS8;
   p->desc.type = PHYSICAL_DESCRIPTOR;
