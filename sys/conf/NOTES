@@ -1658,7 +1658,8 @@ device		miibus
 # nge:	Support for PCI gigabit ethernet adapters based on the National
 #	Semiconductor DP83820 and DP83821 chipset. This includes the
 #	SMC EZ Card 1000 (SMC9462TX), D-Link DGE-500T, Asante FriendlyNet
-#	GigaNIX 1000TA and 1000TPC, and the Addtron AEG320T.
+#	GigaNIX 1000TA and 1000TPC, the Addtron AEG320T, the LinkSys
+#	EG1032 and EG1064, and the Surecom EP-320G-TX.
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133
 #       (no hints needed).
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
