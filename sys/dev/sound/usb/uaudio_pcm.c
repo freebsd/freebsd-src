@@ -236,6 +236,9 @@ ua_mixer_init(struct snd_mixer *m)
 	mask = uaudio_query_mix_info(pa_dev);
 	mix_setdevs(m,	mask);
 
+	mask = uaudio_query_recsrc_info(pa_dev);
+	mix_setrecdevs(m, mask);
+
 	return 0;
 }
 
@@ -254,7 +257,11 @@ ua_mixer_set(struct snd_mixer *m, unsigned type, unsigned left, unsigned right)
 static int
 ua_mixer_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
-	return src;
+	device_t pa_dev;
+	struct ua_info *ua = mix_getdevinfo(m);
+
+	pa_dev = device_get_parent(ua->sc_dev);
+	return uaudio_mixer_setrecsrc(pa_dev, src);
 }
 
 static kobj_method_t ua_mixer_methods[] = {
