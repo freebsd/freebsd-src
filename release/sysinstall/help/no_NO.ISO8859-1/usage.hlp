@@ -42,14 +42,14 @@ Konsolldriveren har en innebygget rulle-tilbake buffer some en kan bruke
 til å inspisere ting som har rullet ut av skjermen. For å bruke 
 rulle-tilbake funksjonen, trykk på "Scroll Lock" tasten  på tastaturet. 
 Piltastene og Side Opp/Ned tastene kan nå brukes til å gå 
-igjennom den lagrete teksten. For å forlate rulle-tilbake modusen, 
+igjennom den lagrede teksten. For å forlate rulle-tilbake modusen, 
 trykk på "Scroll Lock" tasten igjen. Dette momentet er best egnet for å 
 håndtere underordnede-skjell og andre "vidundermoduser" som ikke bruker
 menyer.
 
 Når systemet er ferdig installert og kjører i fler-bruker modus, vil
 du også finne at du har mange "virtuelle konsoller" til rådighet og
-kan bruke dem til å ha flere aktive sessjoner på en gang. Bruk ALT-F<n>
+kan bruke dem til å ha flere aktive sesjoner på en gang. Bruk ALT-F<n>
 til å velge mellom dem, hvor 'F<n>' er funksjons-tasten som korresponderer
 med den skjermen du ønsker å se. Systemet, som det blir installert, har
 normalt 3 virtuelle konsoller. Du kan lage flere med å redigere /etc/ttys
