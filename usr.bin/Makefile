@@ -19,6 +19,7 @@ SUBDIR=	apply \
 	c89 \
 	calendar \
 	cap_mkdb \
+	catman \
 	chat \
 	checknr \
 	chflags \
@@ -95,6 +96,7 @@ SUBDIR=	apply \
 	m4 \
 	mail \
 	make \
+	makewhatis \
 	mesg \
 	minigzip \
 	mkdep \
