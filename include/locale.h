@@ -75,6 +75,7 @@ struct lconv {
 __BEGIN_DECLS
 struct lconv	*localeconv __P((void));
 char		*setlocale __P((int, const char *));
+int		collate_range_cmp __P((int, int));
 __END_DECLS
 
 #endif /* _LOCALE_H_ */
