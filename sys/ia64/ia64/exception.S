@@ -47,9 +47,9 @@
  * resume it.
  */
 #define TRAP(_n_)				\
-	mov	r16=b0;				\
 1:	mov	r17=ip;;			\
-	add	r17=2f-1b,r17;;			\
+	add	r17=2f-1b,r17;			\
+	mov	r16=b0;;			\
 	mov	b0=r17;				\
 	br.sptk.few exception_save;		\
 2: (p3)	ssm	psr.i;				\
@@ -58,12 +58,23 @@
 	mov	out1=r14;			\
 	mov	out2=sp;;			\
 	add	sp=-16,sp;;			\
-	.prologue;				\
-	.save	rp,r0;				\
-	.body;					\
 	br.call.sptk.few rp=trap;		\
 3:	br.sptk.many exception_restore
-	
+
+#define	IVT_ENTRY(name, offset)			\
+	.org	ia64_vector_table + offset;	\
+	.global	ivt_##name;			\
+	.proc	ivt_##name;			\
+	.prologue;				\
+	.unwabi	@svr4, 'I';			\
+	.save	rp, r0;				\
+	.body;					\
+ivt_##name:
+
+#define	IVT_END(name)				\
+	.endp	ivt_##name;			\
+	.align	0x100
+
 /*
  * The IA64 Interrupt Vector Table (IVT) contains 20 slots with 64
  * bundles per vector and 48 slots with 16 bundles per vector.
@@ -73,14 +84,14 @@
 
 	.align	32768
 	.global ia64_vector_table
+	.size	ia64_vector_table, 32768
 ia64_vector_table:
 
-	.org	ia64_vector_table + 0x0000	// VHPT Translation vector
-interruption_VHPT_Translation:
+IVT_ENTRY(VHPT_Translation, 0x0000)
 	TRAP(0)
+IVT_END(VHPT_Translation)
 
-	.org	ia64_vector_table + 0x0400	// Instruction TLB vector
-interruption_Instruction_TLB:
+IVT_ENTRY(Instruction_TLB, 0x0400)
 	mov	r16=cr.ifa
 	mov	r17=pr
 	;;
@@ -155,9 +166,9 @@ interruption_Instruction_TLB:
 	srlz.d
 	;; 
 	TRAP(20)			// Page Not Present trap
+IVT_END(Instruction_TLB)
 
-	.org	ia64_vector_table + 0x0800	// Data TLB vector
-interruption_Data_TLB:
+IVT_ENTRY(Data_TLB, 0x0800)
 	mov	r16=cr.ifa
 	mov	r17=pr
 	;;
@@ -232,9 +243,9 @@ interruption_Data_TLB:
 	srlz.d
 	;; 
 	TRAP(20)			// Page Not Present trap
+IVT_END(Data_TLB)
 
-	.org	ia64_vector_table + 0x0c00	// Alternate ITLB vector
-interruption_Alternate_Instruction_TLB:
+IVT_ENTRY(Alternate_Instruction_TLB, 0x0c00)
 	mov	r16=cr.ifa		// where did it happen
 	mov	r18=pr			// save predicates
 	;;
@@ -257,9 +268,9 @@ interruption_Alternate_Instruction_TLB:
 	rfi
 9:	mov	pr=r18,0x1ffff		// restore predicates
 	TRAP(3)
+IVT_END(Alternate_Instruction_TLB)
 
-	.org	ia64_vector_table + 0x1000	// Alternate DTLB vector
-interruption_Alternate_Data_TLB:
+IVT_ENTRY(Alternate_Data_TLB, 0x1000)
 	mov	r16=cr.ifa		// where did it happen
 	mov	r18=pr			// save predicates
 	;;
@@ -282,21 +293,21 @@ interruption_Alternate_Data_TLB:
 	rfi
 9:	mov	pr=r18,0x1ffff		// restore predicates
 	TRAP(4)
+IVT_END(Alternate_Data_TLB)
 
-	.org	ia64_vector_table + 0x1400	// Data Nested TLB vector
-interruption_Data_Nested_TLB:
+IVT_ENTRY(Data_Nested_TLB, 0x1400)
 	TRAP(5)
+IVT_END(Data_Nested_TLB)
 
-	.org	ia64_vector_table + 0x1800	// Instr. Key Miss vector
-interruption_Instruction_Key_Miss:
+IVT_ENTRY(Instruction_Key_Miss, 0x1800)
 	TRAP(6)
-	
-	.org	ia64_vector_table + 0x1c00	// Data Key Miss vector
-interruption_Data_Key_Miss:
-	TRAP(7)
+IVT_END(Instruction_Key_Miss)
 
-	.org	ia64_vector_table + 0x2000	// Dirty-Bit vector
-interruption_Dirty_Bit:
+IVT_ENTRY(Data_Key_Miss, 0x1c00)
+	TRAP(7)
+IVT_END(Data_Key_Miss)
+
+IVT_ENTRY(Dirty_Bit, 0x2000)
 	mov	r16=cr.ifa
 	mov	r17=pr
 	mov	r20=PAGE_SHIFT<<2	// XXX get page size from VHPT
@@ -363,9 +374,9 @@ interruption_Dirty_Bit:
 
 9:	mov	pr=r17,0x1ffff		// restore predicates
 	TRAP(8)				// die horribly
+IVT_END(Dirty_Bit)
 
-	.org	ia64_vector_table + 0x2400	// Instr. Access-Bit vector
-interruption_Instruction_Access_Bit:
+IVT_ENTRY(Instruction_Access_Bit, 0x2400)
 	mov	r16=cr.ifa
 	mov	r17=pr
 	mov	r20=PAGE_SHIFT<<2	// XXX get page size from VHPT
@@ -432,9 +443,9 @@ interruption_Instruction_Access_Bit:
 
 9:	mov	pr=r17,0x1ffff		// restore predicates
 	TRAP(9)
+IVT_END(Instruction_Access_Bit)
 
-	.org	ia64_vector_table + 0x2800	// Data Access-Bit vector
-interruption_Data_Access_Bit:
+IVT_ENTRY(Data_Access_Bit, 0x2800)
 	mov	r16=cr.ifa
 	mov	r17=pr
 	mov	r20=PAGE_SHIFT<<2	// XXX get page size from VHPT
@@ -501,9 +512,9 @@ interruption_Data_Access_Bit:
 
 9:	mov	pr=r17,0x1ffff		// restore predicates
 	TRAP(10)
+IVT_END(Data_Access_Bit)
 
-	.org	ia64_vector_table + 0x2c00	// Break Instruction vector
-interruption_Break:
+IVT_ENTRY(Break_Instruction, 0x2c00)
 	mov	r16=pr			// save pr for a moment
 	mov	r17=cr.iim;;		// read break value
 	mov	r18=0x100000;;		// syscall number
@@ -523,9 +534,9 @@ interruption_Break:
 	;;
 9:	mov	pr=r16,0x1ffff		// restore pr
 	TRAP(11)
+IVT_END(Break_Instruction)
 
-	.org	ia64_vector_table + 0x3000	// External Interrupt vector
-interruption_External_Interrupt:
+IVT_ENTRY(External_Interrupt, 0x3000)
 	mov	r16=b0			// save user's b0
 1:	mov	r17=ip;;		// construct return address
 	add	r17=2f-1b,r17;;		// for exception_save
@@ -556,237 +567,235 @@ interruption_External_Interrupt:
 	;;
 	srlz.d
 	br.sptk.few 3b			// loop for more
+IVT_END(External_Interrupt)
 
-	.org	ia64_vector_table + 0x3400	// Reserved
-interruption_3400:
+IVT_ENTRY(Reserved_3400, 0x3400)
 	TRAP(13)
+IVT_END(Reserved_3400)
 
-	.org	ia64_vector_table + 0x3800	// Reserved
-interruption_3800:
+IVT_ENTRY(Reserved_3800, 0x3800)
 	TRAP(14)
+IVT_END(Reserved_3800)
 
-	.org	ia64_vector_table + 0x3c00	// Reserved
-interruption_3c00:
+IVT_ENTRY(Reserved_3c00, 0x3c00)
 	TRAP(15)
+IVT_END(Reserved_3c00)
 
-	.org	ia64_vector_table + 0x4000	// Reserved
-interruption_4000:
+IVT_ENTRY(Reserved_4000, 0x4000)
 	TRAP(16)
+IVT_END(Reserved_4000)
 
-	.org	ia64_vector_table + 0x4400	// Reserved
-interruption_4400:
+IVT_ENTRY(Reserved_4400, 0x4400)
 	TRAP(17)
+IVT_END(Reserved_4400)
 
-	.org	ia64_vector_table + 0x4800	// Reserved
-interruption_4800:
+IVT_ENTRY(Reserved_4800, 0x4800)
 	TRAP(18)
+IVT_END(Reserved_4800)
 
-	.org	ia64_vector_table + 0x4c00	// Reserved
-interruption_4c00:
+IVT_ENTRY(Reserved_4c00, 0x4c00)
 	TRAP(19)
+IVT_END(Reserved_4c00)
 
-	.org	ia64_vector_table + 0x5000	// Page Not Present vector
-interruption_Page_Not_Present:
+IVT_ENTRY(Page_Not_Present, 0x5000)
 	TRAP(20)
+IVT_END(Page_Not_Present)
 
-	.org	ia64_vector_table + 0x5100	// Key Permission vector
-interruption_Key_Permission:
+IVT_ENTRY(Key_Permission, 0x5100)
 	TRAP(21)
+IVT_END(Key_Permission)
 
-	.org	ia64_vector_table + 0x5200	// Instr. Access Rights vector
-interruption_Instruction_Access_Rights:
+IVT_ENTRY(Instruction_Access_Rights, 0x5200)
 	TRAP(22)
+IVT_END(Instruction_Access_Rights)
 
-	.org	ia64_vector_table + 0x5300	// Data Access Rights vector
-interruption_Data_Access_Rights:
+IVT_ENTRY(Data_Access_Rights, 0x5300)
 	TRAP(23)
+IVT_END(Data_Access_Rights)
 
-	.org	ia64_vector_table + 0x5400	// General Exception vector
-interruption_General_Exception:
+IVT_ENTRY(General_Exception, 0x5400)
 	TRAP(24)
+IVT_END(General_Exception)
 
-	.org	ia64_vector_table + 0x5500	// Disabled FP-Register vector
-interruption_Disabled_FP_Register:
+IVT_ENTRY(Disabled_FP_Register, 0x5500)
 	TRAP(25)
+IVT_END(Disabled_FP_Register)
 
-	.org	ia64_vector_table + 0x5600	// NaT Consumption vector
-interruption_NaT_Consumption:
+IVT_ENTRY(NaT_Consumption, 0x5600)
 	TRAP(26)
+IVT_END(NaT_Consumption)
 
-	.org	ia64_vector_table + 0x5700	// Speculation vector
-interruption_Speculation:
+IVT_ENTRY(Speculation, 0x5700)
 	TRAP(27)
+IVT_END(Speculation)
 
-	.org	ia64_vector_table + 0x5800	// Reserved
-interruption_5800:
+IVT_ENTRY(Reserved_5800, 0x5800)
 	TRAP(28)
+IVT_END(Reserved_5800)
 
-	.org	ia64_vector_table + 0x5900	// Debug vector
-interruption_Debug:
+IVT_ENTRY(Debug, 0x5900)
 	TRAP(29)
+IVT_END(Debug)
 
-	.org	ia64_vector_table + 0x5a00	// Unaligned Reference vector
-interruption_Unaligned_Reference:
+IVT_ENTRY(Unaligned_Reference, 0x5a00)
 	TRAP(30)
+IVT_END(Unaligned_Reference)
 
-	.org	ia64_vector_table + 0x5b00	// Unsupported Data Ref. vec.
-interruption_Unsupported_Data_Reference:
+IVT_ENTRY(Unsupported_Data_Reference, 0x5b00)
 	TRAP(31)
+IVT_END(Unsupported_Data_Reference)
 
-	.org	ia64_vector_table + 0x5c00	// Floating-point Fault vector
-interruption_Floating_Point_Fault:
+IVT_ENTRY(Floating_Point_Fault, 0x5c00)
 	TRAP(32)
+IVT_END(Floating_Point_Fault)
 
-	.org	ia64_vector_table + 0x5d00	// Floating-point Trap vector
-interruption_Floating_Point_Trap:
+IVT_ENTRY(Floating_Point_Trap, 0x5d00)
 	TRAP(33)
+IVT_END(Floating_Point_Trap)
 
-	.org	ia64_vector_table + 0x5e00	// Lower-Priv. Transfer Trap
-interruption_Lower_Privilege_Transfer_Trap:
+IVT_ENTRY(Lower_Privilege_Transfer_Trap, 0x5e00)
 	TRAP(34)
+IVT_END(Lower_Privilege_Transfer_Trap)
 
-	.org	ia64_vector_table + 0x5f00	// Taken Branch Trap vector
-interruption_Taken_Branch_Trap:
+IVT_ENTRY(Taken_Branch_Trap, 0x5f00)
 	TRAP(35)
+IVT_END(Taken_Branch_Trap)
 
-	.org	ia64_vector_table + 0x6000	// Single Step Trap vector
-interruption_Single_Step_Trap:
+IVT_ENTRY(Single_Step_Trap, 0x6000)
 	TRAP(36)
+IVT_END(Single_Step_Trap)
 
-	.org	ia64_vector_table + 0x6100	// Reserved
-interruption_6100:
+IVT_ENTRY(Reserved_6100, 0x6100)
 	TRAP(37)
+IVT_END(Reserved_6100)
 
-	.org	ia64_vector_table + 0x6200	// Reserved
-interruption_6200:
+IVT_ENTRY(Reserved_6200, 0x6200)
 	TRAP(38)
+IVT_END(Reserved_6200)
 
-	.org	ia64_vector_table + 0x6300	// Reserved
-interruption_6300:
+IVT_ENTRY(Reserved_6300, 0x6300)
 	TRAP(39)
+IVT_END(Reserved_6300)
 
-	.org	ia64_vector_table + 0x6400	// Reserved
-interruption_6400:
+IVT_ENTRY(Reserved_6400, 0x6400)
 	TRAP(40)
+IVT_END(Reserved_6400)
 
-	.org	ia64_vector_table + 0x6500	// Reserved
-interruption_6500:
+IVT_ENTRY(Reserved_6500, 0x6500)
 	TRAP(41)
+IVT_END(Reserved_6500)
 
-	.org	ia64_vector_table + 0x6600	// Reserved
-interruption_6600:
+IVT_ENTRY(Reserved_6600, 0x6600)
 	TRAP(42)
+IVT_END(Reserved_6600)
 
-	.org	ia64_vector_table + 0x6700	// Reserved
-interruption_6700:
+IVT_ENTRY(Reserved_6700, 0x6700)
 	TRAP(43)
+IVT_END(Reserved_6700)
 
-	.org	ia64_vector_table + 0x6800	// Reserved
-interruption_6800:
+IVT_ENTRY(Reserved_6800, 0x6800)
 	TRAP(44)
+IVT_END(Reserved_6800)
 
-	.org	ia64_vector_table + 0x6900	// IA-32 Exception vector
-interruption_IA_32_Exception:
+IVT_ENTRY(IA_32_Exception, 0x6900)
 	TRAP(45)
+IVT_END(IA_32_Exception)
 
-	.org	ia64_vector_table + 0x6a00	// IA-32 Intercept vector
-interruption_IA_32_Intercept:
+IVT_ENTRY(IA_32_Intercept, 0x6a00)
 	TRAP(46)
+IVT_END(IA_32_Intercept)
 
-	.org	ia64_vector_table + 0x6b00	// IA-32 Interrupt vector
-interruption_IA_32_Interrupt:
+IVT_ENTRY(IA_32_Interrupt, 0x6b00)
 	TRAP(47)
+IVT_END(IA_32_Interrupt)
 
-	.org	ia64_vector_table + 0x6c00	// Reserved
-interruption_6c00:
+IVT_ENTRY(Reserved_6c00, 0x6c00)
 	TRAP(48)
+IVT_END(Reserved_6c00)
 
-	.org	ia64_vector_table + 0x6d00	// Reserved
-interruption_6d00:
+IVT_ENTRY(Reserved_6d00, 0x6d00)
 	TRAP(49)
+IVT_END(Reserved_6d00)
 
-	.org	ia64_vector_table + 0x6e00	// Reserved
-interruption_6e00:
+IVT_ENTRY(Reserved_6e00, 0x6e00)
 	TRAP(50)
+IVT_END(Reserved_6e00)
 
-	.org	ia64_vector_table + 0x6f00	// Reserved
-interruption_6f00:
+IVT_ENTRY(Reserved_6f00, 0x6f00)
 	TRAP(51)
+IVT_END(Reserved_6f00)
 
-	.org	ia64_vector_table + 0x7000	// Reserved
-interruption_7000:
+IVT_ENTRY(Reserved_7000, 0x7000)
 	TRAP(52)
+IVT_END(Reserved_7000)
 
-	.org	ia64_vector_table + 0x7100	// Reserved
-interruption_7100:
+IVT_ENTRY(Reserved_7100, 0x7100)
 	TRAP(53)
+IVT_END(Reserved_7100)
 
-	.org	ia64_vector_table + 0x7200	// Reserved
-interruption_7200:
+IVT_ENTRY(Reserved_7200, 0x7200)
 	TRAP(54)
+IVT_END(Reserved_7200)
 
-	.org	ia64_vector_table + 0x7300	// Reserved
-interruption_7300:
+IVT_ENTRY(Reserved_7300, 0x7300)
 	TRAP(55)
+IVT_END(Reserved_7300)
 
-	.org	ia64_vector_table + 0x7400	// Reserved
-interruption_7400:
+IVT_ENTRY(Reserved_7400, 0x7400)
 	TRAP(56)
+IVT_END(Reserved_7400)
 
-	.org	ia64_vector_table + 0x7500	// Reserved
-interruption_7500:
+IVT_ENTRY(Reserved_7500, 0x7500)
 	TRAP(57)
+IVT_END(Reserved_7500)
 
-	.org	ia64_vector_table + 0x7600	// Reserved
-interruption_7600:
+IVT_ENTRY(Reserved_7600, 0x7600)
 	TRAP(58)
+IVT_END(Reserved_7600)
 
-	.org	ia64_vector_table + 0x7700	// Reserved
-interruption_7700:
+IVT_ENTRY(Reserved_7700, 0x7700)
 	TRAP(59)
+IVT_END(Reserved_7700)
 
-	.org	ia64_vector_table + 0x7800	// Reserved
-interruption_7800:
+IVT_ENTRY(Reserved_7800, 0x7800)
 	TRAP(60)
+IVT_END(Reserved_7800)
 
-	.org	ia64_vector_table + 0x7900	// Reserved
-interruption_7900:
+IVT_ENTRY(Reserved_7900, 0x7900)
 	TRAP(61)
+IVT_END(Reserved_7900)
 
-	.org	ia64_vector_table + 0x7a00	// Reserved
-interruption_7a00:
+IVT_ENTRY(Reserved_7a00, 0x7a00)
 	TRAP(62)
+IVT_END(Reserved_7a00)
 
-	.org	ia64_vector_table + 0x7b00	// Reserved
-interruption_7b00:
+IVT_ENTRY(Reserved_7b00, 0x7b00)
 	TRAP(63)
+IVT_END(Reserved_7b00)
 
-	.org	ia64_vector_table + 0x7c00	// Reserved
-interruption_7c00:
+IVT_ENTRY(Reserved_7c00, 0x7c00)
 	TRAP(64)
+IVT_END(Reserved_7c00)
 
-	.org	ia64_vector_table + 0x7d00	// Reserved
-interruption_7d00:
+IVT_ENTRY(Reserved_7d00, 0x7d00)
 	TRAP(65)
+IVT_END(Reserved_7d00)
 
-	.org	ia64_vector_table + 0x7e00	// Reserved
-interruption_7e00:
+IVT_ENTRY(Reserved_7e00, 0x7e00)
 	TRAP(66)
+IVT_END(Reserved_7e00)
 
-	.org	ia64_vector_table + 0x7f00	// Reserved
-interruption_7f00:
+IVT_ENTRY(Reserved_7f00, 0x7f00)
 	TRAP(67)
-
-	// Make the IVT 32KB in size
-	.org	ia64_vector_table + 0x8000
+IVT_END(Reserved_7f00)
 
 	.section .data.vhpt,"aw"
 
+	.align	32768
 	.global ia64_vhpt
-
-	.align	32768
-ia64_vhpt:	.quad 0
-	.align	32768
+	.size	ia64_vhpt, 32768
+ia64_vhpt:
+	.skip	32768
 
 	.text
 
@@ -1520,6 +1529,7 @@ END(exception_save)
  */
 ENTRY(do_syscall, 0)
 	.prologue
+	.unwabi	@svr4, 'I'
 	.save	rp,r0
 	.body
 	// Save minimal state for syscall.
