@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.5 1994/11/02 09:30:27 jkh Exp $
+ *      $Id: userconfig.c,v 1.6 1994/11/03 04:14:23 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,11 @@
 #define PARM_DEVSPEC	0x1
 #define PARM_INT	0x2
 #define PARM_ADDR	0x3
+
+#ifndef TRUE
+#define TRUE	(1)
+#define FALSE	(0)
+#endif
 
 typedef struct _cmdparm {
     int type;
