@@ -79,6 +79,7 @@ LINT		?=	lint
 LINTFLAGS	?=	-cghapbx
 LINTKERNFLAGS	?=	${LINTFLAGS}
 LINTOBJFLAGS	?=	-cghapbxu -i
+LINTOBJKERNFLAGS?=	${LINTOBJFLAGS}
 LINTLIBFLAGS	?=	-cghapbxu -C ${LIB}
 
 MAKE		?=	make
