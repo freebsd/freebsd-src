@@ -956,6 +956,10 @@
         <listitem>
 	  <para>Addtron AEG320T</para>
         </listitem>
+	<listitem>
+	  <para>Ark PC SOHO-GA2500T (32-bit PCI) and SOHO-GA2000T
+	  (64-bit PCI)</para>
+	</listitem>
         <listitem>
 	  <para>Asante FriendlyNet GigaNIC 1000TA and 1000TPC</para>
         </listitem>
@@ -974,6 +978,10 @@
         <listitem>
 	  <para>Surecom Technology EP-320G-TX</para>
         </listitem>
+	<listitem>
+	  <para>Trendware TEG-PCITX (32-bit PCI) and TEG-PCITX2
+	  (64-bit PCI)</para>
+	</listitem>
       </itemizedlist>
     </para>
 
