@@ -25,42 +25,52 @@
 .\" $FreeBSD$
 .\"
 .Dd February 28, 2004
-.Dt watchdog 9
+.Dt WATCHDOG 9
 .Os
 .Sh NAME
 .Nm watchdog
-.Nd "Software and hardware watchdog facility"
+.Nd "software and hardware watchdog facility"
 .Sh SYNOPSIS
 .In sys/watchdog.h
-.Ft "void"
+.Ft void
 .Fn watchdog_fn "void *private" "u_int cmd" "int *error"
-.Bl -literal
-EVENTHANDLER_REGISTER(watchdog_list, watchdog_fn, private, 0);
-.El
+.Fn EVENTHANDLER_REGISTER watchdog_list watchdog_fn private 0
 .Sh DESCRIPTION
 To implement a watchdog in software or hardware, only a single
 function needs to be written and registered on the global
-watchdog_list.
+.Va watchdog_list .
 .Pp
-The function must examine the cmd argument and act on it as
+The function must examine the
+.Fa cmd
+argument and act on it as
 follows:
 .Pp
-If cmd is zero, the watchdog must be disabled and the error
+If
+.Fa cmd
+is zero, the watchdog must be disabled and the
+.Fa error
 argument left untouched.
 .Pp
 Else the watchdog should be reset and configured to a timeout of
-(1<<(cmd & WD_INTERVAL))
-nanoseconds or larger and the error argument be set to zero.
+.Pq 1 << Pq Fa cmd No & Dv WD_INTERVAL
+nanoseconds or larger and the
+.Fa error
+argument be set to zero.
 .Pp
-If the watchdog can not be configured to the proposed timeout, it
-must be disabled and the error argument left untouched.
+If the watchdog cannot be configured to the proposed timeout, it
+must be disabled and the
+.Fa error
+argument left untouched.
 .Pp
 There is no specification of what the watchdog should do when it
-times out, but a hardware reset or similar "drastic but certain"
+times out, but a hardware reset or similar
+.Dq "drastic but certain"
 behaviour is recommended.
 .Sh SEE ALSO
 .Xr watchdog 4
 .Sh AUTHORS
 .An -nosplit
-The watchdog facility and this manual page was written
+The
+.Nm
+facility and this manual page was written
 .An Poul-Henning Kamp Aq phk@FreeBSD.org .
