@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.9.2.2 1999/01/25 23:25:59 peter Exp $
+#	$Id: Makefile.upgrade,v 1.9.2.3 1999/01/27 02:24:45 jkh Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -51,10 +51,10 @@ aout-to-elf aout-to-elf-install :	/var/db/update.cfg	\
 
 # front-load all the information we're going to need.
 /var/db/update.cfg:
-	@if [ -f ${.CURDIR}/release/scripts/doupgrade.sh ]; then \
-	    env MACHINE=${MACHINE} sh ${.CURDIR}/release/scripts/doupgrade.sh 1 /var/db/update.cfg; \
+	@if [ -f ${.CURDIR}/tools/tools/upgrade/doupgrade.sh ]; then \
+	    env MACHINE=${MACHINE} sh ${.CURDIR}/tools/tools/upgrade/doupgrade.sh 1 /var/db/update.cfg; \
 	else \
-	    echo "Your source tree must not be fully populated; unable to find upgrade script"; echo "in ${.CURDIR}/release/scripts/doupgrade.sh."; exit 1; \
+	    echo "Your source tree must not be fully populated; unable to find upgrade script"; echo "in ${.CURDIR}/tools/tools/upgrade/doupgrade.sh."; exit 1; \
 	fi
 
 #
