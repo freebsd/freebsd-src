@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: pcm86.c,v 1.3 1997/02/22 09:38:14 peter Exp $
  */
 
 /*
@@ -1070,10 +1070,14 @@ fifo_send_mono_16be(pcm_data *buf, int count, int uflag)
 	    }
 	    d = ((d0 * (pcm_s.chipspeed - pcm_s.acc)) + (d1 * pcm_s.acc))
 		/ pcm_s.chipspeed;
+/*	    outb(pcm_s.iobase + 12, d & 0xff);
+	    outb(pcm_s.iobase + 12, (d >> 8) & 0xff);
 	    outb(pcm_s.iobase + 12, d & 0xff);
+	    outb(pcm_s.iobase + 12, (d >> 8) & 0xff); */
 	    outb(pcm_s.iobase + 12, (d >> 8) & 0xff);
 	    outb(pcm_s.iobase + 12, d & 0xff);
 	    outb(pcm_s.iobase + 12, (d >> 8) & 0xff);
+	    outb(pcm_s.iobase + 12, d & 0xff);
 	    pcm_s.acc += pcm_s.speed;
 	}
 
