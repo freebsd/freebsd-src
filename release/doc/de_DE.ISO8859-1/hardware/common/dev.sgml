@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.47 2002/12/01 15:56:12 ue Exp $
-	basiert auf: 1.117
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.49 2002/12/07 21:07:59 ue Exp $
+	basiert auf: 1.119
 -->
 
 <sect1>
@@ -54,11 +54,11 @@
   <sect2>
     <title>Festplatten-Controller</title>
 
-    <para arch="i386,alpha,sparc64,ia64">IDE/ATA Controller
+    <para arch="i386,alpha,sparc64,ia64,pc98">IDE/ATA Controller
       (&man.ata.4; Treiber)
       <itemizedlist>
         <listitem>
-          <para>Acerlabs Aladdin</para>
+          <para>Acard ATP850 UDMA2, ATP860 UDMA4, ATP865 UDMA6</para>
         </listitem>
 
         <listitem>
@@ -2529,7 +2529,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">Gigabit Ethernet Karten mit Broadcom BCM570x
+    <para arch="i386,pc98,ia64">Gigabit Ethernet Karten mit Broadcom BCM570x
       (&man.bge.4; Treiber)
       <itemizedlist>
         <listitem>
@@ -3920,7 +3920,7 @@
   <sect2 id="bluetooth">
     <title>Bluetooth Ger&auml;te</title>
 
-    <para arch="i386">PCCARD Host Kontroller (&man.ng.bt3c.4;
+    <para arch="i386,pc98">PCCARD Host Kontroller (&man.ng.bt3c.4;
       Treiber)
       <itemizedlist>
 	<listitem>
@@ -3929,7 +3929,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">USB Host Kontroller (&man.ng.ubt.4; Treiber)
+    <para arch="i386,pc98">USB Host Kontroller (&man.ng.ubt.4; Treiber)
       <itemizedlist>
 	<listitem>
 	  <para>3Com 3CREB96</para>

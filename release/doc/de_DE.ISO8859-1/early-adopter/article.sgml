@@ -2,8 +2,8 @@
   The FreeBSD Documentation Project
   The FreeBSD German Documentation Project
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.9 2002/12/01 11:58:09 ue Exp $
-  basiert auf: 1.7
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.11 2002/12/07 20:59:31 ue Exp $
+  basiert auf: 1.8
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -305,9 +305,9 @@
 
       <listitem>
 	<para>Die Dokumentation (wie z.B. das &os; <ulink
-	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/index.
+	  url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/index.
 	  html">Handbuch</ulink> und der <ulink
-	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/index.html"
+	  url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/faq/index.html"
 	  >FAQ</ulink>) sind teilweise noch nicht auf dem Stand von
 	  &os; 5.0.</para>
       </listitem>
