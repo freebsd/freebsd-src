@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.10 (Berkeley) 5/14/95
- * $Id: ufs_extern.h,v 1.19 1997/10/15 13:24:02 phk Exp $
+ * $Id: ufs_extern.h,v 1.20 1997/10/16 10:50:11 phk Exp $
  */
 
 #ifndef _UFS_UFS_EXTERN_H_
@@ -56,9 +56,6 @@ int	ufs_vnoperate __P((struct vop_generic_args *));
 int	ufs_vnoperatefifo __P((struct vop_generic_args *));
 int	ufs_vnoperatespec __P((struct vop_generic_args *));
 
-int	 ufs_abortop __P((struct vop_abortop_args *));
-int	 ufs_access __P((struct vop_access_args *));
-int	 ufs_advlock __P((struct vop_advlock_args *));
 int	 ufs_bmap __P((struct vop_bmap_args *));
 int	 ufs_bmaparray __P((struct vnode *, daddr_t, daddr_t *, struct indir *,
 		int *, int *, int *));
@@ -66,8 +63,6 @@ int	 ufs_check_export __P((struct mount *, struct ufid *,
 			       struct sockaddr *, struct vnode **, 
 			       int *exflagsp, struct ucred **));
 int	 ufs_checkpath __P((struct inode *, struct inode *, struct ucred *));
-int	 ufs_close __P((struct vop_close_args *));
-int	 ufs_create __P((struct vop_create_args *));
 void	 ufs_dirbad __P((struct inode *, doff_t, char *));
 int	 ufs_dirbadentry __P((struct vnode *, struct direct *, int));
 int	 ufs_dirempty __P((struct inode *, ino_t, struct ucred *));
@@ -77,7 +72,6 @@ int	 ufs_direnter2 __P((struct vnode *, struct direct *, struct ucred *,
 int	 ufs_dirremove __P((struct vnode *, struct componentname*));
 int	 ufs_dirrewrite
 	    __P((struct inode *, struct inode *, struct componentname *));
-int	 ufs_getattr __P((struct vop_getattr_args *));
 int	 ufs_getlbns __P((struct vnode *, ufs_daddr_t, struct indir *, int *));
 struct vnode *
 	 ufs_ihashget __P((dev_t, ino_t));
@@ -88,39 +82,10 @@ struct vnode *
 void	 ufs_ihashrem __P((struct inode *));
 int	 ufs_inactive __P((struct vop_inactive_args *));
 int	 ufs_init __P((struct vfsconf *));
-int	 ufs_ioctl __P((struct vop_ioctl_args *));
-int	 ufs_islocked __P((struct vop_islocked_args *));
-int	 ufs_link __P((struct vop_link_args *));
-int	 ufs_lock __P((struct vop_lock_args *));
 int	 ufs_lookup __P((struct vop_cachedlookup_args *));
-int	 ufs_makeinode __P((int mode, struct vnode *, struct vnode **, struct componentname *));
-int	 ufs_mkdir __P((struct vop_mkdir_args *));
-int	 ufs_mknod __P((struct vop_mknod_args *));
-int	 ufs_mmap __P((struct vop_mmap_args *));
-int	 ufs_open __P((struct vop_open_args *));
-int	 ufs_pathconf __P((struct vop_pathconf_args *));
-int	 ufs_print __P((struct vop_print_args *));
-int	 ufs_readdir __P((struct vop_readdir_args *));
-int	 ufs_readlink __P((struct vop_readlink_args *));
 int	 ufs_reclaim __P((struct vop_reclaim_args *));
-int	 ufs_remove __P((struct vop_remove_args *));
-int	 ufs_rename __P((struct vop_rename_args *));
-int	 ufs_rmdir __P((struct vop_rmdir_args *));
 int	 ufs_root __P((struct mount *, struct vnode **));
-int	 ufs_seek __P((struct vop_seek_args *));
-int	 ufs_setattr __P((struct vop_setattr_args *));
 int	 ufs_start __P((struct mount *, int, struct proc *));
-int	 ufs_strategy __P((struct vop_strategy_args *));
-int	 ufs_symlink __P((struct vop_symlink_args *));
-int	 ufs_unlock __P((struct vop_unlock_args *));
 int	 ufs_vinit __P((struct mount *, vop_t **, vop_t **, struct vnode **));
-int	 ufs_whiteout __P((struct vop_whiteout_args *));
-int	 ufsspec_close __P((struct vop_close_args *));
-int	 ufsspec_read __P((struct vop_read_args *));
-int	 ufsspec_write __P((struct vop_write_args *));
-
-int	ufsfifo_read __P((struct vop_read_args *));
-int	ufsfifo_write __P((struct vop_write_args *));
-int	ufsfifo_close __P((struct vop_close_args *));
 
 #endif /* !_UFS_UFS_EXTERN_H_ */
