@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.33 1998/07/06 03:20:15 julian Exp $
+ *	$Id: ip_fw.h,v 1.34 1998/08/23 03:07:14 wollman Exp $
  */
 
 #ifndef _IP_FW_H
@@ -55,7 +55,7 @@ struct ip_fw {
     struct in_addr fw_src, fw_dst;	/* Source and destination IP addr */
     struct in_addr fw_smsk, fw_dmsk;	/* Mask for src and dest IP addr */
     u_short fw_number;			/* Rule number */
-    u_short fw_flg;			/* Flags word */
+    u_int fw_flg;			/* Flags word */
 #define IP_FW_MAX_PORTS	10		/* A reasonable maximum */
 	union {
 	u_short fw_pts[IP_FW_MAX_PORTS];	/* Array of port numbers to match */
@@ -104,42 +104,42 @@ struct ip_fw_chain {
 /*
  * Values for "flags" field .
  */
-#define IP_FW_F_IN	0x0001	/* Check inbound packets		*/
-#define IP_FW_F_OUT	0x0002	/* Check outbound packets		*/
-#define IP_FW_F_IIFACE	0x0004	/* Apply inbound interface test		*/
-#define IP_FW_F_OIFACE	0x0008	/* Apply outbound interface test	*/
+#define IP_FW_F_COMMAND 0x000000ff	/* Mask for type of chain entry:	*/
+#define IP_FW_F_DENY	0x00000000	/* This is a deny rule			*/
+#define IP_FW_F_REJECT	0x00000001	/* Deny and send a response packet	*/
+#define IP_FW_F_ACCEPT	0x00000002	/* This is an accept rule		*/
+#define IP_FW_F_COUNT	0x00000003	/* This is a count rule			*/
+#define IP_FW_F_DIVERT	0x00000004	/* This is a divert rule		*/
+#define IP_FW_F_TEE	0x00000005	/* This is a tee rule			*/
+#define IP_FW_F_SKIPTO	0x00000006	/* This is a skipto rule		*/
+#define IP_FW_F_FWD	0x00000007	/* This is a "change forwarding address" rule */
 
-#define IP_FW_F_COMMAND 0x0070	/* Mask for type of chain entry:	*/
-#define IP_FW_F_DENY	0x0000	/* This is a deny rule			*/
-#define IP_FW_F_REJECT	0x0010	/* Deny and send a response packet	*/
-#define IP_FW_F_ACCEPT	0x0020	/* This is an accept rule		*/
-#define IP_FW_F_COUNT	0x0030	/* This is a count rule			*/
-#define IP_FW_F_DIVERT	0x0040	/* This is a divert rule		*/
-#define IP_FW_F_TEE	0x0050	/* This is a tee rule			*/
-#define IP_FW_F_SKIPTO	0x0060	/* This is a skipto rule		*/
-#define IP_FW_F_FWD	0x0070	/* This is a "change forwarding address" rule */
+#define IP_FW_F_IN	0x00000100	/* Check inbound packets		*/
+#define IP_FW_F_OUT	0x00000200	/* Check outbound packets		*/
+#define IP_FW_F_IIFACE	0x00000400	/* Apply inbound interface test		*/
+#define IP_FW_F_OIFACE	0x00000800	/* Apply outbound interface test	*/
 
-#define IP_FW_F_PRN	0x0080	/* Print if this rule matches		*/
+#define IP_FW_F_PRN	0x00001000	/* Print if this rule matches		*/
 
-#define IP_FW_F_SRNG	0x0100	/* The first two src ports are a min	*
-				 * and max range (stored in host byte	*
-				 * order).				*/
+#define IP_FW_F_SRNG	0x00002000	/* The first two src ports are a min	*
+					 * and max range (stored in host byte	*
+					 * order).				*/
 
-#define IP_FW_F_DRNG	0x0200	/* The first two dst ports are a min	*
-				 * and max range (stored in host byte	*
-				 * order).				*/
+#define IP_FW_F_DRNG	0x00004000	/* The first two dst ports are a min	*
+					 * and max range (stored in host byte	*
+					 * order).				*/
 
-#define IP_FW_F_IIFNAME	0x0400	/* In interface by name/unit (not IP)	*/
-#define IP_FW_F_OIFNAME	0x0800	/* Out interface by name/unit (not IP)	*/
+#define IP_FW_F_FRAG	0x00008000	/* Fragment				*/
 
-#define IP_FW_F_INVSRC	0x1000	/* Invert sense of src check		*/
-#define IP_FW_F_INVDST	0x2000	/* Invert sense of dst check		*/
+#define IP_FW_F_IIFNAME	0x00010000	/* In interface by name/unit (not IP)	*/
+#define IP_FW_F_OIFNAME	0x00020000	/* Out interface by name/unit (not IP)	*/
 
-#define IP_FW_F_FRAG	0x4000	/* Fragment				*/
+#define IP_FW_F_INVSRC	0x00040000	/* Invert sense of src check		*/
+#define IP_FW_F_INVDST	0x00080000	/* Invert sense of dst check		*/
 
-#define IP_FW_F_ICMPBIT 0x8000	/* ICMP type bitmap is valid		*/
+#define IP_FW_F_ICMPBIT 0x00100000	/* ICMP type bitmap is valid		*/
 
-#define IP_FW_F_MASK	0xFFFF	/* All possible flag bits mask		*/
+#define IP_FW_F_MASK	0x001FFFFF	/* All possible flag bits mask		*/
 
 /*
  * For backwards compatibility with rules specifying "via iface" but
