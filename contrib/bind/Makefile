@@ -1,7 +1,7 @@
 # Makefile for BIND>=4.9 top level
 # vixie@decwrl December, 1992 [original]
 #
-# $Id: Makefile,v 8.49 1997/06/01 20:34:25 vixie Exp vixie $
+# $Id: Makefile,v 8.52 1998/04/07 04:59:42 vixie Exp $
 
 ## Copyright (c) 1989
 ##    The Regents of the University of California.  All rights reserved.
@@ -52,7 +52,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-VER = 4.9.6-REL
+VER = 4.9.7-T1B
 SHELL = /bin/sh
 MAKE = make
 DESTDIR =

@@ -1,18 +1,24 @@
-The official version of BIND is now 8.1.1.  This is 4.9.6, the last of 4.*
-which we are releasing since it has some important security bugs fixed.
+Internet Software Consortium
+BIND Release 4.9.7 README
+$Date: 1998/04/07 04:24:01 $
+
+The official version of ISC BIND is now 8.1.1.  This is ISC BIND 4.9.7,
+hoped to be the last of 4.*, which we are releasing since it has an important
+security bug (plus some memory leaks) fixed.
 
 The official place to get BIND is <URL:ftp://ftp.isc.org/isc/bind/src>.
 
-The official mailing lists are:		bind-users@vix.com	- users/admins
-  (use *-request@* for admin mail)	bind-workers@vix.com	- developers
+The official mailing lists are:		<bind-users@vix.com>	- users/admins
+  (use *-request@* for admin mail)	<bind-workers@vix.com>	- developers
 
-The official Usenet newsgroups are:	comp.protocols.tcp-ip.domains
-					comp.protocols.dns.bind
-					comp.protocols.dns.ops
-					comp.protocols.dns.std
+The official Usenet newsgroups are:	<URL:news:comp.protocols.dns.bind>
+					<URL:news:comp.protocols.dns.ops>
+					<URL:news:comp.protocols.dns.std>
 					
-BIND is currently maintained by:	The Internet Software Consortium
-					(see <URL:http://www.isc.org/isc>.)
+BIND is maintained by:			The Internet Software Consortium
+					(see <URL:http://www.isc.org/>)
+
+Bug reports should be sent to:		<bind-bugs@vix.com>
 
 Read the top of CHANGES for interesting stuff.
 

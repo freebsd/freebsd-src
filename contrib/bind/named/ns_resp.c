@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_resp.c,v 8.38 1997/06/01 20:34:34 vixie Exp vixie $";
+static char rcsid[] = "$Id: ns_resp.c,v 8.41 1998/04/07 04:59:45 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -132,7 +132,8 @@ struct flush_set {
 static void		rrsetadd __P((struct flush_set *, char *,
 				      struct databuf *)),
 			rrsetupdate __P((struct flush_set *, int flags)),
-			flushrrset __P((struct flush_set *));
+			flushrrset __P((struct flush_set *)),
+			free_flushset __P((struct flush_set *));
 static int		rrsetcmp __P((char *, struct db_list *)),
 			check_root __P((void)),
 			check_ns __P((void)),
@@ -239,7 +240,7 @@ ns_resp(msg, msglen)
 	register struct databuf *ns, *ns2;
 	register u_char *cp;
 	u_char *eom = msg + msglen;
-	struct flush_set *flushset;
+	struct flush_set *flushset = NULL;
 	struct sockaddr_in *nsa;
 	struct databuf *nsp[NSMAX];
 	int i, c, n, qdcount, ancount, aucount, nscount, arcount, arfirst;
@@ -263,8 +264,6 @@ ns_resp(msg, msglen)
 	struct netinfo *lp;
 	struct fwdinfo *fwd;
 	char *tname = NULL;
-
-	free_related_additional();
 
 	nameserIncr(from_addr.sin_addr, nssRcvdR);
 	nsp[0] = NULL;
@@ -302,6 +301,10 @@ ns_resp(msg, msglen)
 			goto formerr;
 		}
 		cp += n;
+		if (cp + 2 * INT16SZ > eom) {
+			formerrmsg = outofDataQuery;
+			goto formerr;
+		}
 		GETSHORT(qtype, cp);
 		GETSHORT(qclass, cp);
 		if (!ns_nameok(qname, qclass, response_trans,
@@ -581,16 +584,12 @@ ns_resp(msg, msglen)
 			goto formerr;
 		}
 		tp += n;
+		if (tp + 2 * INT16SZ > eom) {
+			formerrmsg = outofDataAuth;
+			goto formerr;
+		}
 		GETSHORT(type, tp);
-		if (tp >= eom) {
-			formerrmsg = outofDataAuth;
-			goto formerr;
-		}
 		GETSHORT(class, tp);
-		if (tp >= eom) {
-			formerrmsg = outofDataAuth;
-			goto formerr;
-		}
 		if (!ns_nameok(name, class, response_trans,
 			       ns_ownercontext(type, response_trans),
 			       name, from_addr.sin_addr)) {
@@ -645,6 +644,7 @@ ns_resp(msg, msglen)
 			u_int16_t type, class, dlen;
 			u_int32_t serial;
 			u_char *tp = cp;
+			u_char *rdatap;
 
 			n = dn_expand(msg, eom, tp, name, sizeof name);
 			if (n < 0) {
@@ -652,14 +652,15 @@ ns_resp(msg, msglen)
 				goto formerr;
 			}
 			tp += n;  		/* name */
+			if (tp + 3 * INT16SZ + INT32SZ > eom) {
+				formerrmsg = outofDataAnswer;
+				goto formerr;
+			}
 			GETSHORT(type, tp);	/* type */
 			GETSHORT(class, tp);	/* class */
 			tp += INT32SZ;		/* ttl */
 			GETSHORT(dlen, tp); 	/* dlen */
-			if (tp >= eom) {
-				formerrmsg = outofDataAnswer;
-				goto formerr;
-			}
+			rdatap = tp;		/* start of rdata */
 			if (!ns_nameok(name, class, response_trans,
 				       ns_ownercontext(type, response_trans),
 				       name, from_addr.sin_addr)) {
@@ -675,10 +676,6 @@ ns_resp(msg, msglen)
 				formerrmsg = msgbuf;
 				goto formerr;
 			}
-			if ((u_int)dlen < (5 * INT32SZ)) {
-				formerrmsg = dlenUnderrunAnswer;
-				goto formerr;
-			}
 
 			if (0 >= (n = dn_skipname(tp, eom))) {
 				formerrmsg = skipnameFailedAnswer;
@@ -690,7 +687,16 @@ ns_resp(msg, msglen)
 				goto formerr;
 			}
 			tp += n;  		/* rname */
+			if (tp + 5 * INT32SZ > eom) {
+				formerrmsg = dlenUnderrunAnswer;
+				goto formerr;
+			}
 			GETLONG(serial, tp);
+			tp += 4 * INT32SZ;	/* Skip rest of SOA. */
+			if ((u_int)(tp - rdatap) != dlen) {
+				formerrmsg = dlenOverrunAnswer;
+				goto formerr;
+			}
 
 			qserial_answer(qp, serial);
 			qremove(qp);
@@ -786,12 +792,18 @@ ns_resp(msg, msglen)
 
 		maybe_free(&tname);
 		if (cp >= eom) {
+			free_related_additional();
+			if (flushset != NULL)
+				free_flushset(flushset);
 			formerrmsg = outofDataFinal;
 			goto formerr;
 		}
 		n = rrextract(msg, msglen, cp, &dp, name, sizeof name, &tname);
 		if (n < 0) {
+			free_related_additional();
 			maybe_free(&tname);
+			if (flushset != NULL)
+				free_flushset(flushset);
 			formerrmsg = outofDataFinal;
 			goto formerr;
 		}
@@ -921,13 +933,11 @@ ns_resp(msg, msglen)
 		}
 		rrsetadd(flushset, name, dp);
 	}
+	free_related_additional();
 	maybe_free(&tname);
 	if (flushset) {
 		rrsetupdate(flushset, dbflags);
-		for (i = 0; i < count; i++)
-			if (flushset[i].fs_name)
-				free(flushset[i].fs_name);
-		free((char*)flushset);
+		free_flushset(flushset);
 	}
 	if (lastwascname && !externalcname)
 		syslog(LOG_DEBUG, "%s (%s)", danglingCname, aname);
@@ -1365,6 +1375,14 @@ ns_resp(msg, msglen)
 	return;
 }
 
+#define BOUNDS_CHECK(ptr, count) \
+	do { \
+		if ((ptr) + (count) > eom) { \
+			hp->rcode = FORMERR; \
+			return (-1); \
+		} \
+	} while (0)
+
 static int
 rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 	u_char *msg;
@@ -1375,7 +1393,7 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 	int namelen;
 	char **tnamep;
 {
-	register u_char *cp;
+	register u_char *cp, *eom, *rdatap;
 	register int n;
 	int class, type, dlen, n1;
 	u_int32_t ttl;
@@ -1389,15 +1407,19 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 
 	*dpp = NULL;
 	cp = rrp;
-	if ((n = dn_expand(msg, msg + msglen, cp, dname, namelen)) < 0) {
+	eom = msg + msglen;
+	if ((n = dn_expand(msg, eom, cp, dname, namelen)) < 0) {
 		hp->rcode = FORMERR;
 		return (-1);
 	}
 	cp += n;
+	BOUNDS_CHECK(cp, 2*INT16SZ + INT32SZ + INT16SZ);
 	GETSHORT(type, cp);
 	GETSHORT(class, cp);
 	GETLONG(ttl, cp);
 	GETSHORT(dlen, cp);
+	BOUNDS_CHECK(cp, dlen);
+	rdatap = cp;
 	if (!ns_nameok(dname, class, response_trans,
 		       ns_ownercontext(type, response_trans),
 		       dname, from_addr.sin_addr)) {
@@ -1456,8 +1478,7 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 	case T_MR:
 	case T_NS:
 	case T_PTR:
-		n = dn_expand(msg, msg + msglen, cp,
-			      (char *)data, sizeof data);
+		n = dn_expand(msg, eom, cp, (char *)data, sizeof data);
 		if (n < 0) {
 			hp->rcode = FORMERR;
 			return (-1);
@@ -1483,8 +1504,7 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 		context = mailname_ctx;
 		/* FALLTHROUGH */
 	soa_rp_minfo:
-		n = dn_expand(msg, msg + msglen, cp,
-			      (char *)data, sizeof data);
+		n = dn_expand(msg, eom, cp, (char *)data, sizeof data);
 		if (n < 0) {
 			hp->rcode = FORMERR;
 			return (-1);
@@ -1495,11 +1515,15 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 			return (-1);
 		}
 		cp += n;
+		/*
+		 * The next use of 'cp' is dn_expand(), so we don't have
+		 * to BOUNDS_CHECK() here.
+		 */
 		cp1 = data + (n = strlen((char *)data) + 1);
 		n1 = sizeof(data) - n;
 		if (type == T_SOA)
 			n1 -= 5 * INT32SZ;
-		n = dn_expand(msg, msg + msglen, cp, (char *)cp1, n1);
+		n = dn_expand(msg, eom, cp, (char *)cp1, n1);
 		if (n < 0) {
 			hp->rcode = FORMERR;
 			return (-1);
@@ -1516,7 +1540,9 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 		cp += n;
 		cp1 += strlen((char *)cp1) + 1;
 		if (type == T_SOA) {
-			bcopy(cp, cp1, n = 5 * INT32SZ);
+			n = 5 * INT32SZ;
+			BOUNDS_CHECK(cp, n);
+			bcopy(cp, cp1, n);
 			cp += n;
 			cp1 += n;
 		}
@@ -1526,30 +1552,37 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 
 	case T_NAPTR:
 		/* Grab weight and port. */
+		BOUNDS_CHECK(cp, INT16SZ*2);
 		bcopy(cp, data, INT16SZ*2);
 		cp1 = data + INT16SZ*2;
 		cp += INT16SZ*2;
 
 		/* Flags */
+		BOUNDS_CHECK(cp, 1);
 		n = *cp++;
+		BOUNDS_CHECK(cp, n);
 		*cp1++ = n;
 		bcopy(cp, cp1, n);
 		cp += n; cp1 += n;
 
 		/* Service */
+		BOUNDS_CHECK(cp, 1);
 		n = *cp++;
+		BOUNDS_CHECK(cp, n);
 		*cp1++ = n;
 		bcopy(cp, cp1, n);
 		cp += n; cp1 += n;
 
 		/* Regexp */
+		BOUNDS_CHECK(cp, 1);
 		n = *cp++;
+		BOUNDS_CHECK(cp, n);
 		*cp1++ = n;
 		bcopy(cp, cp1, n);
 		cp += n; cp1 += n;
 
 		/* Replacement */
-		n = dn_expand(msg, msg + msglen, cp, (char *)cp1,
+		n = dn_expand(msg, eom, cp, (char *)cp1,
 			      sizeof data - (cp1 - data));
 		if (n < 0) {
 			hp->rcode = FORMERR;
@@ -1574,19 +1607,21 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 	case T_RT:
 	case T_SRV:
 		/* grab preference */
+		BOUNDS_CHECK(cp, INT16SZ);
 		bcopy(cp, data, INT16SZ);
 		cp1 = data + INT16SZ;
 		cp += INT16SZ;
 
 		if (type == T_SRV) {
 			/* Grab weight and port. */
+			BOUNDS_CHECK(cp, INT16SZ*2);
 			bcopy(cp, cp1, INT16SZ*2);
 			cp1 += INT16SZ*2;
 			cp += INT16SZ*2;
 		}
 
 		/* get name */
-		n = dn_expand(msg, msg + msglen, cp, (char *)cp1,
+		n = dn_expand(msg, eom, cp, (char *)cp1,
 			      sizeof data - (cp1 - data));
 		if (n < 0) {
 			hp->rcode = FORMERR;
@@ -1611,13 +1646,14 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 
 	case T_PX:
 		/* grab preference */
+		BOUNDS_CHECK(cp, INT16SZ);
 		bcopy(cp, data, INT16SZ);
 		cp1 = data + INT16SZ;
 		cp += INT16SZ;
 
 		/* get MAP822 name */
-		n = dn_expand(msg, msg + msglen, cp, (char *)cp1,
-				sizeof data - INT16SZ);
+		n = dn_expand(msg, eom, cp, (char *)cp1,
+			      sizeof data - INT16SZ);
 		if (n < 0) {
 			hp->rcode = FORMERR;
 			return (-1);
@@ -1628,9 +1664,13 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 			return (-1);
 		}
 		cp += n;
+		/*
+		 * The next use of 'cp' is dn_expand(), so we don't have
+		 * to BOUNDS_CHECK() here.
+		 */
 		cp1 += (n = strlen((char *)cp1) + 1);
 		n1 = sizeof(data) - n;
-		n = dn_expand(msg, msg + msglen, cp, (char *)cp1, n1);
+		n = dn_expand(msg, eom, cp, (char *)cp1, n1);
 		if (n < 0) {
 			hp->rcode = FORMERR;
 			return (-1);
@@ -1653,6 +1693,7 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 		/* This code is similar to that in db_load.c.  */
 
 		/* Skip coveredType, alg, labels */
+		BOUNDS_CHECK(cp, INT16SZ + 1 + 1 + 3*INT32SZ);
 		cp1 = cp + INT16SZ + 1 + 1;
 		GETLONG(origTTL, cp1);
 		GETLONG(exptime, cp1);
@@ -1697,23 +1738,31 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 
 		/* first just copy over the type_covered, algorithm, */
 		/* labels, orig ttl, two timestamps, and the footprint */
+		BOUNDS_CHECK(cp, 18);
 		bcopy(cp, cp1, 18);
 		cp  += 18;
 		cp1 += 18;
 
 		/* then the signer's name */
-		n = dn_expand(msg, msg + msglen, cp,
-			      (char *)cp1, (sizeof data) - 18);
-		if (n < 0)
+		n = dn_expand(msg, eom, cp, (char *)cp1, (sizeof data) - 18);
+		if (n < 0) {
+			hp->rcode = FORMERR;
 			return (-1);
+		}
 		cp += n;
 		cp1 += strlen((char*)cp1)+1;
 
 		/* finally, we copy over the variable-length signature.
 		   Its size is the total data length, minus what we copied. */
+		if (18 + (u_int)n > dlen) {
+			hp->rcode = FORMERR;
+			return (-1);
+		}
 		n = dlen - (18 + n);
-		if (n > (sizeof data) - (cp1 - (u_char *)data))
+		if (n > ((int)(sizeof data) - (int)(cp1 - (u_char *)data))) {
+			hp->rcode = FORMERR;
 			return (-1);  /* out of room! */
+		}
 		bcopy(cp, cp1, n);
 		cp += n;
 		cp1 += n;
@@ -1727,6 +1776,18 @@ rrextract(msg, msglen, rrp, dpp, dname, namelen, tnamep)
 	default:
 		dprintf(3, (ddt, "unknown type %d\n", type));
 		return ((cp - rrp) + dlen);
+	}
+
+	if (cp > eom) {
+		hp->rcode = FORMERR;
+		return (-1);
+	}
+	if ((u_int)(cp - rdatap) != dlen) {
+		dprintf(3, (ddt,
+		      "encoded rdata length is %u, but actual length was %u",
+			    dlen, (u_int)(cp - rdatap)));
+		hp->rcode = FORMERR;
+		return (-1);
 	}
 	if (n > MAXDATA) {
 		dprintf(1, (ddt,
@@ -3063,6 +3124,17 @@ flushrrset(fs)
 	db_free(dp);
 }
 
+static void
+free_flushset(flushset)
+	struct flush_set *flushset;
+{
+	struct flush_set *fs;
+
+	for (fs = flushset; fs->fs_name != NULL; fs++)
+		free(fs->fs_name);
+	free((char *)flushset);
+}
+
 /*
  *  This is best thought of as a "cache invalidate" function.
  *  It is called whenever a piece of data is determined to have
@@ -3125,8 +3197,10 @@ add_related_additional(name)
 	if (num_related >= MAX_RELATED - 1)
 		return;
 	for (i = 0; i < num_related; i++)
-		if (strcasecmp(name, related[i]) == 0)
+		if (strcasecmp(name, related[i]) == 0) {
+			free(name);
 			return;
+		}
 	related[num_related++] = name;
 }
 
