@@ -103,17 +103,13 @@ ar_probe(struct ad_softc *adp)
     case 0x4d38105a:
     case 0x4d30105a:
     case 0x0d30105a:
-	if (ar_promise_conf(adp, &ar_table)) {
-	    printf("ata-raid: failed to read array configuration\n");
+	if (ar_promise_conf(adp, &ar_table))
 	    break;
-	}
 	return 0;
 
     case 0x00041103:
-	if (ar_highpoint_conf(adp, &ar_table)) {
-	    printf("ata-raid: failed to read array configuration\n");
+	if (ar_highpoint_conf(adp, &ar_table))
 	    break;
-	}
 	return 0;
     }
     return 1;
@@ -202,12 +198,6 @@ arstrategy(struct bio *bp)
 	    buf1->bp.bio_pblkno = plba;
 	    chunk = min(rdp->subdisk[buf1->drive]->total_secs - 
 		        rdp->reserved - plba, count);
-/* SOS */
-	    if (plba + chunk > 
-		rdp->subdisk[buf1->drive]->total_secs - rdp->reserved)
-		    printf("Oops! SPAN trying lba=%d > %d\n", plba + chunk,
-			   rdp->subdisk[buf1->drive]->total_secs-rdp->reserved);
-/* SOS */
 	}
 	else if (rdp->flags & AR_F_RAID_0) {
 	    plba = lba / rdp->interleave;
@@ -216,23 +206,11 @@ arstrategy(struct bio *bp)
 	    buf1->bp.bio_pblkno = 
 		((plba / rdp->num_subdisks) * rdp->interleave) + chunk;
 	    chunk = min(rdp->interleave - chunk, count);
-/* SOS */
-	    if (plba + chunk >
-		rdp->subdisk[buf1->drive]->total_secs - rdp->reserved)
-		    printf("Oops! RAID0 trying lba=%d > %d\n", plba + chunk,
-			   rdp->subdisk[buf1->drive]->total_secs-rdp->reserved);
-/* SOS */
 	}
 	else {
 	    buf1->bp.bio_pblkno = lba;
 	    buf1->drive = 0;
 	    chunk = count;
-/* SOS */
-	    if (lba + chunk >
-		rdp->subdisk[buf1->drive]->total_secs - rdp->reserved)
-		printf("Oops! RAID1 trying lba=%d > %d\n", lba + chunk,
-		       rdp->subdisk[buf1->drive]->total_secs - rdp->reserved);
-/* SOS */
 	}
 
 	buf1->bp.bio_pblkno += rdp->offset;
@@ -288,7 +266,7 @@ ar_done(struct bio *bp)
 	    buf->org->bio_flags |= BIO_ERROR;
 	    buf->org->bio_error = bp->bio_error;
 	}
-	printf("ar%d: error\n", rdp->lun);
+	printf("ar%d: subdisk error\n", rdp->lun);
     }
 
     if (rdp->flags & AR_F_RAID_1) {
@@ -324,13 +302,15 @@ ar_highpoint_conf(struct ad_softc *adp, struct ar_config *raidp)
     int array_done = 0, r;
 
     if (ar_read(adp, 0x09, DEV_BSIZE, (char *)&info)) {
-	printf("HighPoint read conf failed\n");
+	if (bootverbose)
+	    printf("HighPoint read conf failed\n");
 	return 1;
     }
 
     /* check if this is a HighPoint RAID struct */
     if (info.magic != HPT_MAGIC_OK) {
-	printf("HighPoint check1 failed\n");
+	if (bootverbose)
+	    printf("HighPoint check1 failed\n");
 	return 1;
     }   
 
@@ -445,13 +425,15 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
     lba = adp->total_secs - adp->sectors;
 
     if (ar_read(adp, lba, 4 * DEV_BSIZE, (char *)&info)) {
-	printf("Promise read conf failed\n");
+	if (bootverbose)
+	    printf("Promise read conf failed\n");
 	return 1;
     }
 
     /* check if this is a Promise RAID struct */
     if (strncmp(info.promise_id, PR_MAGIC, sizeof(PR_MAGIC))) {
-	printf("Promise check1 failed\n");
+	if (bootverbose)
+	    printf("Promise check1 failed\n");
 	return 1;
     }   
 
@@ -459,7 +441,8 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
     for (cksum = 0, ckptr = (int32_t *)&info, count = 0; count < 511; count++)
 	cksum += *ckptr++;
     if (cksum != *ckptr) {  
-	printf("Promise check2 failed\n");       
+	if (bootverbose)
+	    printf("Promise check2 failed\n");       
 	return 1;
     }
 
@@ -512,7 +495,6 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
 	for (j = 0; j < info.raid[i].raid0_disks; j++) {
 	    if (info.channel == info.raid[i].disk[j].channel &&
 		info.device == info.raid[i].disk[j].device) {
-		/*printf("ar%d: RAID subdisk %d->ad%d\n", r, j, adp->lun);*/
 		raidp->raid[r]->subdisk[raidp->raid[r]->num_subdisks] = adp;
 		raidp->raid[r]->num_subdisks++;
 		if (raidp->raid[r]->num_subdisks > 1 &&
@@ -527,7 +509,6 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
 	for (; j < info.raid[i].total_disks; j++) {
 	    if (info.channel == info.raid[i].disk[j].channel &&
 		info.device == info.raid[i].disk[j].device) {
-		/*printf("ar%d: RAID mirrordisk %d->ad%d\n", r, j, adp->lun);*/
 		raidp->raid[r]->
 		    mirrordisk[raidp->raid[r]->num_mirrordisks] = adp;
 		raidp->raid[r]->num_mirrordisks++;
@@ -557,7 +538,7 @@ ar_read(struct ad_softc *adp, u_int32_t lba, int count, char *data)
     if (ata_command(adp->controller, adp->unit | ATA_D_LBA, 
 	(count > DEV_BSIZE) ? ATA_C_READ_MUL : ATA_C_READ,
 	(lba >> 8) & 0xffff, (lba >> 24) & 0xff, lba & 0xff,
-	4, 0, ATA_WAIT_INTR)) {
+	count / DEV_BSIZE, 0, ATA_WAIT_INTR)) {
 	ata_printf(adp->controller, adp->unit, "RAID read config failed\n");
 	return 1;
     }
