@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <fcntl.h>
 #else
 #include <stand.h>
 #endif
@@ -4018,10 +4019,92 @@ static void forget(FICL_VM *pVM)
     return;
 }
 
+/************************* freebsd added I/O words **************************/
+
+/*              fload - load a file and interpret it
+ *
+ * grabbed out of testmain.c example and frobbed to fit.
+ *
+ * Usage:
+ *    fload test.ficl
+ */
+#define nLINEBUF 256
+static void fload(FICL_VM *pVM)
+{
+    char    cp[nLINEBUF];
+    char    filename[nLINEBUF];
+    FICL_STRING *pFilename = (FICL_STRING *)filename;
+    int     i, fd, nLine = 0;
+    char    ch;
+    CELL    id;
+
+    vmGetString(pVM, pFilename, '\n');
+
+    if (pFilename->count <= 0)
+    {
+        vmTextOut(pVM, "fload: no filename specified", 1);
+        return;
+    }
+
+    /*
+    ** get the file's size and make sure it exists 
+    */
+    fd = open(pFilename->text, O_RDONLY);
+
+    if (fd == -1)
+    {
+        vmTextOut(pVM, "fload: Unable to open file: ", 0);
+        vmTextOut(pVM, pFilename->text, 1);
+        vmThrow(pVM, VM_QUIT);
+    }
+
+    id = pVM->sourceID;
+    pVM->sourceID.i = fd;
+
+    /* feed each line to ficlExec */
+    while (1) {
+	int status, i;
+
+	i = 0;
+	while ((status = read(fd, &ch, 1)) > 0 && ch != '\n')
+	    cp[i++] = ch;
+        nLine++;
+	if (!i) {
+	    if (status < 1)
+		break;
+	    continue;
+	}
+	cp[i] = '\0';
+        if (ficlExec(pVM, cp) >= VM_ERREXIT)
+        {
+            pVM->sourceID = id;
+            close(fd);
+            vmThrowErr(pVM, "fload: Error in file %s, line %d", pFilename->text, nLine);
+            break; 
+        }
+    }
+    /*
+    ** Pass an empty line with SOURCE-ID == 0 to flush
+    ** any pending REFILLs (as required by FILE wordset)
+    */
+    pVM->sourceID.i = -1;
+    ficlExec(pVM, "");
+
+    pVM->sourceID = id;
+    close(fd);
+    return;
+}
+
+/* Get a character from stdin */
+static void key(FICL_VM *pVM)
+{
+    stackPushINT32(pVM->pStack, getchar());
+    return;
+}
 
 #if 0
 /**************************************************************************
-                        
+
 ** 
 **************************************************************************/
 static void funcname(FICL_VM *pVM)
@@ -4193,6 +4276,9 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "value",     constant,       FW_DEFAULT);
     dictAppendWord(dp, "\\",        commentLine,    FW_IMMEDIATE);
 
+    /* FreeBSD extention words */
+    dictAppendWord(dp, "fload",	    fload,	    FW_DEFAULT);
+    dictAppendWord(dp, "key",	    key,	    FW_DEFAULT);
 
     /*
     ** Set CORE environment query values
