@@ -11,15 +11,31 @@
  * TFS supplies this software to be publicly redistributed
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
+ */
+
+/*
+ * HISTORY
+ * $Log: aha1542.c,v $
+ * Revision 1.2  1993/07/15  17:52:58  davidg
+ * Modified attach printf's so that the output is compatible with the "new"
+ * way of doing things. There still remain several drivers that need to
+ * be updated.  Also added a compile-time option to pccons to switch the
+ * control and caps-lock keys (REVERSE_CAPS_CTRL) - added for my personal
+ * sanity.
  *
+ * Revision 1.1.1.1  1993/06/12  14:57:59  rgrimes
+ * Initial import, 0.1 + pk 0.2.4-B1
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
+ * julian - removed un-necessary splx() calls and debugging code
  *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
- * commenced: Sun Sep 27 18:14:01 PDT 1992
+ * Revision 1.3  93/05/22  16:51:18  julian
+ * set up  dev->dev_pic before it's needed for OSF
+ * 
+ * Revision 1.2  93/05/07  11:40:27  julian
+ * fixed SLEEPTIME calculation
+ * 
+ * Revision 1.1  93/05/07  11:14:03  julian
+ * Initial revision
  */
 
 #include <sys/types.h>
@@ -499,6 +515,7 @@ struct isa_dev *dev;
 	* If it's there, put in it's interrupt vectors	*
 	\***********************************************/
 #ifdef	MACH
+	dev->dev_pic = ahb_data[unit].vect;
 #if defined(OSF)				/* OSF */
 	chp->ih_level = dev->dev_pic;
 	chp->ih_handler = dev->dev_intr[0];
@@ -512,7 +529,6 @@ struct isa_dev *dev;
 	else
 		panic("Unable to add ahb interrupt handler");
 #else 						/* CMU */
-	dev->dev_pic = ahb_data[unit].vect;
 	take_dev_irq(dev);
 #endif /* !defined(OSF) */
 	printf("port=%x spl=%d\n", dev->dev_addr, dev->dev_spl);
@@ -1179,12 +1195,9 @@ cheat = ecb;
 				ahb_free_ecb(unit,ecb,flags);
 			}
 			xs->error = XS_DRIVER_STUFFUP;
-			splx(s);
 			return(HAD_ERROR);
 		}
 	} while (!(xs->flags & ITSDONE));/* something (?) else finished */
-	splx(s);
-scsi_debug = 0;ahb_debug = 0;
 	if(xs->error)
 	{
 		return(HAD_ERROR);
@@ -1287,7 +1300,7 @@ struct	ecb	*ecb;
 
 extern int 	hz;
 #define ONETICK 500 /* milliseconds */
-#define SLEEPTIME ((hz * 1000) / ONETICK)
+#define SLEEPTIME ((hz * ONETICK) / 1000)
 ahb_timeout(arg)
 int	arg;
 {
