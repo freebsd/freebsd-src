@@ -48,5 +48,10 @@
 *default compress
 
 ## The international secure collections.
-src-crypto
-src-secure
+cvs-crypto
+#
+# These are the individual collections that make up "cvs-crypto".  If
+# you use these, be sure to comment out "cvs-crypto" above.
+#src-crypto
+#src-secure
+#src-sys-crypto
