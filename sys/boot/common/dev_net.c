@@ -83,6 +83,7 @@ static int	net_init(void);
 static int	net_open(struct open_file *, ...);
 static int	net_close(struct open_file *);
 static int	net_strategy();
+static void	net_print(int);
 
 static int net_getparams(int sock);
 
@@ -93,7 +94,8 @@ struct devsw netdev = {
     net_strategy, 
     net_open, 
     net_close, 
-    noioctl
+    noioctl,
+    net_print
 };
 
 int
@@ -283,4 +285,10 @@ net_getparams(sock)
     }
     printf("net_open: server path: %s\n", rootpath);	    
     return (0);
+}
+
+static void
+net_print(int verbose)
+{
+    return;
 }
