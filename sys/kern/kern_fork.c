@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/unistd.h>	
-#include <sys/jail.h>
 #include <sys/sx.h>
 
 #include <vm/vm.h>
