@@ -14,190 +14,295 @@
 .\" Jordan K. Hubbard
 .\"
 .\"
-.\"     @(#)pkg_add.1
+.\"     @(#)pkg_add.8
 .\"
-.TH pkg_add 1 "July 18, 1993" "" "FreeBSD"
-
-.SH NAME
-pkg_add - a utility for installing software package distributions.
-.SH SYNOPSIS
-.na
-.B pkg_add
-.RB [options]
-.RB "pkg-name\ [.. pkg-name]"
-
-.SH DESCRIPTION
+.Dd November 25, 1994
+.Dt pkg_add 8
+.Os NetBSD 1.0
+.Sh NAME
+.Nm pkg_add
+.Nd a utility for installing software package distributions.
+.Sh SYNOPSIS
+.Nm
+.Op Fl vInfRMS
+.Op Fl t Ar template
+.Op Fl p Ar prefix
+.Ar pkg-name ...
+.Sh DESCRIPTION
 The
-.B pkg_add
+.Nm
 command is used to extract packages that have been previously created
 with the
-.B pkg_create
+.Xr pkg_create 8
 command.
 
-.SH OPTIONS
-.TP
-The following command line options are supported.
-.TP
-.B \-v
+.Sh WARNING
+.Bf -emphasis
+Since the
+.Nm
+command may execute scripts or programs contained within a package file,
+your system may be susceptible to ``trojan horses'' or other subtle
+attacks from miscreants who create dangerous package files.
+.Pp
+You are advised to verify the competence and identity of those who
+provide installable package files.  For extra protection, use the
+.Fl M
+flag to extract the package file, and inspect its contents and scripts
+to insure it poses no danger to your system's integrity.  Pay particular
+attention to any +INSTALL, +DEINSTALL, +REQUIRE or +MTREE_DIRS files,
+and inspect the +CONTENTS file for
+.Cm @cwd ,
+.Cm @mode 
+(check for setuid),
+.Cm @dirrm ,
+.Cm @exec ,
+and
+.Cm @unexec
+directives, and/or use the
+.Xr pkg_info 1
+command to examine the package file.
+.Ef
+
+.Sh OPTIONS
+The following command line arguments are supported.
+.Bl -tag -width indent
+.It Ar pkg-name ...
+Packages in the named files are installed.
+.It Fl v
 Turns on verbose output.
-.B "Optional."
-.TP
-.B \-I
+.Em "Optional."
+.It Fl I
 If an installation script exists for a given package, do not execute it.
-.B "Optional."
-.TP
-.B \-n
+.Em "Optional."
+.It Fl n
 Don't actually install a package, just report the steps that
 would be taken if it was.
-.B "Optional."
-.TP
-.B \-R
+.Em "Optional."
+.It Fl R
 Do not record the installation of a package.  This means
 that you cannot deinstall it later, so only use this option if
 you know what you are doing!
-.B "Optional."
-.TP
-.BI "\-p\ " prefix
+.Em "Optional."
+.It Fl f
+Forces installation to proceed even if prerequisite packages are not
+installed or the requirements script fails.
+.Em "Optional."
+.It Fl p Ar prefix
 Sets
-.I prefix
+.Ar prefix
 as the directory in which to extract files from a package.
 If a package has set its default directory, it will be overridden
 by this flag.  Note that only the first directory default will
 be replaced, since
-.B pkg_add
+.Nm
 has no way of knowing which directory settings are relative and
 which are absolute.  It is rare, in any case, that more than one
 directory transition is made, but when such is the case then you
 may wish to look into the use of
-.B MASTER
+.Cm MASTER
 and
-.B SLAVE
-mode (see
-.B \-M
+.Cm SLAVE
+mode (see the
+.Fl M
 and
-.B \-S
+.Fl S
 options).
-.B "Optional."
-.TP
-.BI "\-t\ " template
+.Em "Optional."
+.It Fl t Ar template
 Use
-.I template
-as the input to mktemp(3).  By default, this is the string
-.B /tmp/instmp.XXXXXX
-, but it may be necessary to override it in the situation where
+.Ar template
+as the input to 
+.Xr mktemp 3 
+when creating a ``staging area.''
+By default, this is the string
+.Pa /tmp/instmp.XXXXXX ,
+but it may be necessary to override it in the situation where
 space in your
-.B /tmp
+.Pa /tmp
 directory is limited.  Be sure to leave some number of `X' characters
-for mktemp(3) to fill in with a unique ID.
-.B "Optional."
-.TP
-.B \-M
+for
+.Xr mktemp 3
+to fill in with a unique ID.
+.Pp
+You can get a performance boost by setting the staging area
+.Ar template
+to reside on the same disk partition as target directories for package
+file installation; often this is
+.Pa /usr .
+.Em "Optional."
+.It Fl M
 Run in
-.B MASTER
+.Cm MASTER
 mode.  This is a very specialized mode for running
-.B pkg_add
+.Nm
 and is meant to be run in conjunction with
-.B SLAVE
+.Cm SLAVE
 mode.  When run in this mode,
-.B pkg_add
+.Nm
 does no work beyond extracting the package into a temporary staging
-area (see
-.B \-t
+area (see the
+.Fl t
 option), reading in the packing list, and then dumping it (prefaced by
 the current staging area) to stdout where it may be filtered by a
 program such as
-.B sed(1).
+.Xr sed 1 .
 When used in conjunction with
-.B SLAVE
+.Cm SLAVE
 mode, it allows you to make radical changes to the package structure
 before acting on its contents.
-.TP
-.B \-S
+.It Fl S
 Run in
-.B SLAVE
+.Cm SLAVE
 mode.  This is a very specialized mode for running
-.B pkg_add
+.Nm
 and is meant to be run in conjunction with
-.B MASTER
+.Cm MASTER
 mode.  When run in this mode,
-.B pkg_add
+.Nm
 expects the release contents to be already extracted and waiting
 in the staging area, the location of which is read as a string
 from stdin.  The complete packing list is also read from stdin,
 and the contents then acted on as normal.
-.PP
-.SH "TECHNICAL DETAILS"
-.B
-pkg_add
+.El
+.Sh TECHNICAL DETAILS
+.Nm
 is fairly simple.  It simply extracts the requested packages into
-a "staging area" directory and then performs the following steps:
-.PP
+a ``staging area'' directory and then performs the following steps:
+.Bl -enum -indent indent
+.It
+It checks whether the package is already recorded as installed; if so,
+the installation terminates.
+.It
+It checks whether all the package dependencies (from
+.Cm @pkgdep
+directives, see
+.Xr pkg_create 8 )
+are met; if not, the missing dependencies are printed and the
+installation terminates.
+.It
 If the package contains a
-.B require
+.Ar require
 file (see 
-.B pkg_create
-), then this is executed first with the flags
-.PP
-.B <script>
-.I pkg-name INSTALL
-.PP
-to see whether or not installation should
-continue (a non-zero exit status means no).  
-.PP
-If an
-.B install
-script exists for the package, it is then executed as follows:
-.PP
-First, before installing files in the data set, the
-.B install
-script is called with the flags
-.PP
-.B <script>
-.I pkg-name PRE-INSTALL
-.PP
-Where
-.I pkg-name
+.Xr pkg_create 8 ),
+then this is executed first as 
+.Bd -filled -offset indent -compact
+.Cm require
+.Ar <pkg-name>
+.Ar INSTALL
+.Ed
+where
+.Ar <pkg-name>
 is the name of the package in question and
-.I PRE-INSTALL
-is a keyword denoting that this is the "pre installation" pass.
-Using the packing list as a guide, files are then moved (or copied,
-as necessary) from the staging area into their new homes and the
-.B install
-script is then executed a second time with the flags
-.PP
-.B <script>
-.I pkg-name POST-INSTALL
-.PP
-This all allows you to write an
-.B install
-script that does "before and after" actions.
-.PP
+.Ar INSTALL
+is a keyword denoting that this is an installation requirements check.
+.It
+If an
+.Ar install
+script exists for the package, it is then executed as
+.Bd -filled -offset indent -compact
+.Cm install
+.Ar <pkg-name>
+.Ar PRE-INSTALL 
+.Ed
+where
+.Ar <pkg-name>
+is the name of the package in question and
+.Ar PRE-INSTALL
+is a keyword denoting that this is the preinstallation phase.
+.It
+Using the packing list (the
+.Pa +CONTENTS
+file) as a guide, files are then moved (or copied, as necessary) from
+the staging area into their final locations.
+.It
+If the package contains an
+.Ar mtreefile
+file (see the
+.Fl m
+option to
+.Xr pkg_create 8 ),
+then mtree is invoked as
+.Bd -filled -offset indent -compact
+.Cm mtree
+.Fl u 
+.Fl f 
+.Ar mtreefile
+.Fl d
+.Fl e 
+.Fl p 
+.Pa prefix 
+.Ed
+where
+.Pa prefix
+is either the prefix specified with the
+.Fl p
+flag or, if no 
+.Fl p
+flag was specified, the name of the first directory named by a
+.Cm @cwd
+directive within this package.
+.It
+If an
+.Ar install
+script exists for the package, it is then executed as 
+.Bd -filled -offset indent -compact
+.Cm <script>
+.Ar <pkg-name>
+.Ar POST-INSTALL 
+.Ed
+This all allows you to write a single
+.Ar install
+script that does both ``before and after'' actions.
+.It
+After installation is complete, a copy of the packing list,
+.Ar deinstall
+script, description, and display files are copied into
+.Pa /var/db/pkg/<pkg-name>
+for subsequent possible use by
+.Xr pkg_delete 8 .
+Any package dependencies are recorded in the other packages' 
+.Pa /var/db/pkg/<other-pkg>/+REQUIRED_BY
+file.
+.It
+Finally, the staging area is deleted and the program terminates.
+.El
+.Pp
 All the scripts are called with the environment variable
-.B PKG_PREFIX
+.Ev PKG_PREFIX
 set to the installation prefix (see the
-.B -p
+.Fl p
 option above).  This allows a package author to write a script
 that reliably performs some action on the directory where the package
-is installed, even if the user might change it by
-.B -p
-when
-.B pkg_add
-is run.
-.PP
-After installation is complete, a copy of the packing list, in addition
-to any
-.B deinstall
-script the package might have, is copied into /var/db/pkg/<pkg-name>
-for subsequent possible use by
-.B pkg-delete.
-Finally, the staging area is deleted and the program terminates.
-.PP
-.SH BUGS
-Sure to be some.
-.SH "SEE ALSO"
-.BR pkg_create "(" 1 "),"
-.BR pkg_info "(" 1 "),"
-.BR pkg_delete "(" 1 "),"
-.SH AUTHORS
-Jordan Hubbard
-
+is installed, even if the user might change it with the
+.Fl p
+flag to
+.Cm pkg_add .
+.Sh SEE ALSO
+.Xr pkg_info 1 ,
+.Xr mktemp 3 ,
+.Xr sysconf 3 ,
+.Xr mtree 8 ,
+.Xr pkg_create 8 ,
+.Xr pkg_delete 8 .
+.Sh AUTHORS
+.Bl -tag -width indent -compact
+.It "Jordan Hubbard"
+most of the work
+.It "John Kohl"
+refined it for NetBSD
+.El
+.Sh BUGS
+Hard links between files in a distribution are only preserved if either
+(1) the staging area is on the same file system as the target directory of
+all the links to the file, or (2) all the links to the file are bracketed by
+.Cm @cwd
+directives in the contents file, 
+.Em and
+and the link names are extracted with a single
+.Cm tar
+command (not split between
+invocations due to exec argument-space limitations--this depends on the
+value returned by
+.Xr sysconf _SC_ARG_MAX ).
+.Pp
+Sure to be others.
