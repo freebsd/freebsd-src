@@ -19,7 +19,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: mail.local.c,v 8.143.4.57 2001/02/11 20:08:20 gshapiro Exp $";
+static char id[] = "@(#)$Id: mail.local.c,v 8.143.4.58 2001/06/01 05:33:31 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */

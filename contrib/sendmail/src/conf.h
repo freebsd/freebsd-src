@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 8.496.4.43 2001/05/20 22:29:59 gshapiro Exp $
+ *	$Id: conf.h,v 8.496.4.54 2001/07/31 22:30:24 gshapiro Exp $
  */
 
 /* $FreeBSD$ */
@@ -490,6 +490,7 @@ typedef int		pid_t;
 #  endif /* ! __svr4__ */
 #  define GIDSET_T	gid_t
 #  define USE_SA_SIGACTION	1	/* use sa_sigaction field */
+#  define HASSTRERROR	1	/* has strerror(3) */
 #  if _FFR_MILTER
 #   define BROKEN_PTHREAD_SLEEP	1	/* sleep after pthread_create() fails */
 #  endif /* _FFR_MILTER */
@@ -869,9 +870,11 @@ typedef int		pid_t;
 #ifdef __bsdi__
 # include <paths.h>
 # define HASUNSETENV	1	/* has the unsetenv(3) call */
+# define HASSETREUID	0	/* BSD-OS has broken setreuid(2) emulation */
 # define HASSETSID	1	/* has the setsid(2) POSIX syscall */
 # define USESETEUID	1	/* has usable seteuid(2) call */
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
+# define HASFCHOWN	1	/* has fchown(2) syscall */
 # define HASSETLOGIN	1	/* has setlogin(2) */
 # define HASSNPRINTF	1	/* has snprintf(3) and vsnprintf(3) */
 # define HASUNAME	1	/* has uname(2) syscall */
@@ -898,6 +901,9 @@ typedef int		pid_t;
 # if defined(_BSDI_VERSION) && _BSDI_VERSION >= 199701	/* on 3.x */
 #  define HASSETUSERCONTEXT 1	/* has setusercontext */
 # endif /* defined(_BSDI_VERSION) && _BSDI_VERSION >= 199701 */
+# if defined(_BSDI_VERSION) && _BSDI_VERSION >= 199910	/* on 4.x */
+#  define HASURANDOMDEV	1	/* has /dev/urandom(4) */
+# endif /* defined(_BSDI_VERSION) && _BSDI_VERSION >= 199910 */
 #endif /* __bsdi__ */
 
 
@@ -1720,6 +1726,7 @@ typedef int		pid_t;
 # include <sys/mkdev.h>
 # define __svr4__
 # define SYS5SIGNALS		1
+# define HASFCHOWN		1	/* has fchown(2) call */
 # define HASSETSID		1
 # define HASSNPRINTF		1
 # define HASSETREUID		1
@@ -2518,6 +2525,10 @@ typedef struct msgb		mblk_t;
 #ifndef S_IWOTH
 # define S_IWOTH		0002
 #endif /* ! S_IWOTH */
+
+#ifndef O_ACCMODE
+# define O_ACCMODE	(O_RDONLY|O_WRONLY|O_RDWR)
+#endif /* ! O_ACCMODE */
 
 /* close-on-exec flag */
 #ifndef FD_CLOEXEC
