@@ -65,15 +65,15 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	off_t pagemask, off1, off2;
 	size_t pagesize;
 
-	if (sflag && len1 != len2)
-		exit(1);
-
 	if (skip1 > len1)
 		eofmsg(file1);
 	len1 -= skip1;
 	if (skip2 > len2)
 		eofmsg(file2);
 	len2 -= skip2;
+
+	if (sflag && len1 != len2)
+		exit(DIFF_EXIT);
 
 	pagesize = getpagesize();
 	pagemask = (off_t)pagesize - 1;
@@ -101,7 +101,7 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 		if ((ch = *p1) != *p2) {
 			if (xflag) {
 				dfound = 1;
-				(void)printf("%08x %02x %02x\n", byte - 1, ch, *p2);
+				(void)printf("%08qx %02x %02x\n", byte - 1, ch, *p2);
 			} else if (lflag) {
 				dfound = 1;
 				(void)printf("%6qd %3o %3o\n", byte, ch, *p2);
