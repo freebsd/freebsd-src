@@ -1,0 +1,4 @@
+$ $Id: set18,v 1.1 1998/09/03 22:04:09 christos Exp $
+$ sh.set.c
+$set 18 
+1 警告: 不自然に長い PATH は切り捨てられます\n

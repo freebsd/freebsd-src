@@ -1,0 +1,115 @@
+.\" $FreeBSD$
+.Dd July 9, 1996
+.Dt NEXTBOOT 8
+.Os
+.Sh NAME
+.Nm nextboot
+.Nd install a default bootstring block on the boot disk
+.Sh SYNOPSIS
+.Nm
+.Op Fl b
+.Ar filename bootstring
+.Ar
+.Nm
+.Op Fl ed
+.Ar filename
+.Sh DESCRIPTION
+The
+.Fx
+program
+.Nm
+controls the actions of the boot blocks at the time of the next boot.
+If compiled with the correct option,
+the boot blocks will check the nameblock for a magic number and a
+default name to use for booting.
+If compiled to do so they will also
+delete the name from the block, ensuring that if the boot should fail,
+then it will not be tried again.
+It is the job of
+.Pa /etc/rc
+to use
+.Nm
+to re-install the string if that boot is found to have succeeded.
+This allows a one-time only boot string to be used for such applications
+as remote debugging, and installation of new, untrusted kernels.
+The nameblock is defined at compile time to be the second physical block
+on the disk.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl b
+Is used for bootstrapping (initially configuring) the nameblock.
+Without
+this,
+.Nm
+will refuse to write to a block that does not already contain the magic
+number.
+.It Fl d
+Disable (temporarily) an existing name block by changing a bit
+in the magic number.
+.It Fl e
+Restore the good magic number on a block disabled by
+.Fl d .
+.El
+.Pp
+The
+.Fl e
+and
+.Fl d
+flags are mutually exclusive.
+.Sh DESCRIPTION
+.Nm Nextboot
+first checks that the disk has an fdisk table and checks that none of the
+partitions defined in that table include the nameblock.
+If the name block is
+shown to be unused, it will install the bootstrings given as arguments,
+one after the other, each preceded by a small magic number, and NULL
+terminated.
+The end of the list of strings is delimited by a sequence of
+0xff bytes.
+If the boot blocks are compiled to write back the nameblock
+after each boot, it will zero out the supplied names as it uses them,
+one per boot,
+until it reaches the 0xff, at which time it will revert to the compiled in
+boot string.
+At this time the nameblock will contain only zeroed out names.
+.Pp
+An example of usage might be:
+.Bd -literal
+   nextboot -b  /dev/rad0 1:da(0,a)/kernel.experimental ad(0,a)/kernel.old
+.Ed
+.Pp
+Which would instruct the boot blocks at the next boot,
+to try boot the experimental kernel off the SCSI disk.
+If for any reason this failed, the next boot attempt would
+boot the kernel
+.Pa /kernel.old
+off the IDE drive.  (Assuming the write-back option were enabled) If this
+in turn failed.
+The compiled in default would be used.
+.Pp
+If the write-back feature is disabled, the nextboot program is a convenient way
+to change the default boot string.
+Note, that should the file specified in
+the nameblock be non-existent, then the name compiled into the boot blocks
+will be used for the boot rather than the next name in the nameblock.
+The
+nameblock is only consulted
+.Em once
+per boot.
+.Sh SEE ALSO
+.Xr boot 8 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8
+.Sh BUGS
+This program works only in conjunction with the legacy boot code.
+.Pp
+The entire program should be made more user-friendly.
+The option of whether to write back or not should be stored on the
+disk and not a compile time option.
+I want to rethink this at some
+later stage to make it co-exist with disks that do not have
+a fdisk partitioning table (i.e. purely disklabel'd systems).
+.Pp
+Whether to write back or not should be specified at run-time in the nameblock
+so that the boot blocks need not be altered to get this feature.

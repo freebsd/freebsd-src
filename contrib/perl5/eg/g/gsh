@@ -1,0 +1,117 @@
+#! /usr/bin/perl
+
+# $RCSfile: gsh,v $$Revision: 4.1 $$Date: 92/08/07 17:20:20 $
+
+# Do rsh globally--see man page
+
+$SIG{'QUIT'} = 'quit';			# install signal handler for SIGQUIT
+
+sub getswitches {
+    while ($ARGV[0] =~ /^-/) {		# parse switches
+	$ARGV[0] =~ /^-h/ && ($showhost++,$silent++,shift(@ARGV),next);
+	$ARGV[0] =~ /^-s/ && ($silent++,shift(@ARGV),next);
+	$ARGV[0] =~ /^-d/ && ($dodist++,shift(@ARGV),next);
+	$ARGV[0] =~ /^-n/ && ($n=' -n',shift(@ARGV),next);
+	$ARGV[0] =~ /^-l/ && ($l=' -l ' . $ARGV[1],shift(@ARGV),shift(@ARGV),
+				next);
+	last;
+    }
+}
+
+do getswitches();			# get any switches before class
+$systype = shift;			# get name representing set of hosts
+do getswitches();			# same switches allowed after class
+
+if ($dodist) {				# distribute input over all rshes?
+    `cat >/tmp/gsh$$`;			#  get input into a handy place
+    $dist = " </tmp/gsh$$";		#  each rsh takes input from there
+}
+
+$cmd = join(' ',@ARGV);			# remaining args constitute the command
+$cmd =~ s/'/'"'"'/g;			# quote any embedded single quotes
+
+$one_of_these = ":$systype:";		# prepare to expand "macros"
+$one_of_these =~ s/\+/:/g;		# we hope to end up with list of
+$one_of_these =~ s/-/:-/g;		#  colon separated attributes
+
+@ARGV = ();
+push(@ARGV,'.grem') if -f '.grem';
+push(@ARGV,'.ghosts') if -f '.ghosts';
+push(@ARGV,'/etc/ghosts');
+
+$remainder = '';
+
+line: while (<>) {		# for each line of ghosts
+
+    s/[ \t]*\n//;			# trim trailing whitespace
+    if (!$_ || /^#/) {			# skip blank line or comment
+	next line;
+    }
+
+    if (/^(\w+)=(.+)/) {		# a macro line?
+	$name = $1; $repl = $2;
+	$repl =~ s/\+/:/g;
+	$repl =~ s/-/:-/g;
+	$one_of_these =~ s/:$name:/:$repl:/;	# do expansion in "wanted" list
+	$repl =~ s/:/:-/g;
+	$one_of_these =~ s/:-$name:/:-$repl:/;
+	next line;
+    }
+
+    # we have a normal line
+
+    @attr = split(' ');			# a list of attributes to match against
+					#   which we put into an array
+    $host = $attr[0];			# the first attribute is the host name
+    if ($showhost) {
+	$showhost = "$host:\t";
+    }
+
+    $wanted = 0;
+    foreach $attr (@attr) {		# iterate over attribute array
+	$wanted++ if index($one_of_these,":$attr:") >= 0;
+	$wanted = -9999 if index($one_of_these,":-$attr:") >= 0;
+    }
+    if ($wanted > 0) {
+	print "rsh $host$l$n '$cmd'\n" unless $silent;
+	$SIG{'INT'} = 'DEFAULT';
+	if (open(PIPE,"rsh $host$l$n '$cmd'$dist 2>&1|")) {	# start an rsh
+	    $SIG{'INT'} = 'cont';
+	    for ($iter=0; <PIPE>; $iter++) {
+		unless ($iter) {
+		    $remainder .= "$host+"
+			if /Connection timed out|Permission denied/;
+		}
+		print $showhost,$_;
+	    }
+	    close(PIPE);
+	} else {
+	    print "(Can't execute rsh: $!)\n";
+	    $SIG{'INT'} = 'cont';
+	}
+    }
+}
+
+unlink "/tmp/gsh$$" if $dodist;
+
+if ($remainder) {
+    chop($remainder);
+    open(grem,">.grem") || (printf stderr "Can't make a .grem file: $!\n");
+    print grem 'rem=', $remainder, "\n";
+    close(grem);
+    print 'rem=', $remainder, "\n";
+}
+
+# here are a couple of subroutines that serve as signal handlers
+
+sub cont {
+    print "\rContinuing...\n";
+    $remainder .= "$host+";
+}
+
+sub quit {
+    $| = 1;
+    print "\r";
+    $SIG{'INT'} = '';
+    kill 2, $$;
+}

@@ -1,0 +1,7 @@
+[1mvidcontrol[m	a utility for manipulating the syscons video driver
+
+	Usage:
+
+	vidcontrol [-r fg bg] [-b color] [-c appearance] [-d] [-l scrmap]
+		[-L] [-m on|off] [-f size file] [-s number] [-t N|off]
+		[-x] [mode] [fgcol [bgcol]] [show]

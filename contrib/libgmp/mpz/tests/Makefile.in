@@ -1,0 +1,126 @@
+# Makefile for mpz/tests for GNU MP
+
+srcdir = .
+
+CC = gcc
+
+TEST_LIBS = ../../libgmp.a
+INCLUDES = -I../../mpn -I$(srcdir)/../..
+CFLAGS = -g -O
+
+.c.o:
+	$(CC) -c $(INCLUDES) $(CFLAGS) $(XCFLAGS) $<
+
+TEST_SRCS = t-mul.c t-tdiv.c t-tdiv_ui.c t-fdiv.c t-fdiv_ui.c t-gcd.c \
+ t-gcd2.c dive.c t-sqrtrem.c convert.c io.c logic.c t-powm.c t-powm_ui.c \
+  reuse.c
+TEST_OBJS = t-mul.o t-tdiv.o t-tdiv_ui.o t-fdiv.o t-fdiv_ui.o t-gcd.o \
+ t-gcd2.o dive.o t-sqrtrem.o convert.o io.o logic.o t-powm.o t-powm_ui.o \
+ reuse.o
+TESTS = t-mul t-tdiv t-tdiv_ui t-fdiv t-fdiv_ui t-gcd t-gcd2 \
+ dive t-sqrtrem convert io logic t-powm t-powm_ui reuse
+
+check: Makefile st-mul st-tdiv st-tdiv_ui st-fdiv st-fdiv_ui st-gcd st-gcd2 st-dive \
+  st-sqrtrem st-convert st-io st-logic st-powm st-powm_ui st-reuse
+	@echo "The tests passed."
+
+st-mul: t-mul
+	./t-mul
+	touch $@
+st-tdiv: t-tdiv
+	./t-tdiv
+	touch $@
+st-tdiv_ui: t-tdiv_ui
+	./t-tdiv_ui
+	touch $@
+st-fdiv: t-fdiv
+	./t-fdiv
+	touch $@
+st-fdiv_ui: t-fdiv_ui
+	./t-fdiv_ui
+	touch $@
+st-gcd: t-gcd
+	./t-gcd
+	touch $@
+st-gcd2: t-gcd2
+	./t-gcd2
+	touch $@
+st-dive: dive
+	./dive
+	touch $@
+st-sqrtrem: t-sqrtrem
+	./t-sqrtrem
+	touch $@
+st-convert: convert
+	./convert
+	touch $@
+st-io: io
+	./io
+	touch $@
+st-logic: logic
+	./logic
+	touch $@
+st-powm: t-powm
+	./t-powm
+	touch $@
+st-powm_ui: t-powm_ui
+	./t-powm_ui
+	touch $@
+st-reuse: reuse
+	./reuse
+	touch $@
+
+t-mul: t-mul.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-tdiv: t-tdiv.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-tdiv_ui: t-tdiv_ui.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-fdiv: t-fdiv.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-fdiv_ui: t-fdiv_ui.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-gcd: t-gcd.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-gcd2: t-gcd2.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+dive: dive.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-sqrtrem: t-sqrtrem.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+convert: convert.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+io: io.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+logic: logic.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-powm: t-powm.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-powm_ui: t-powm_ui.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+reuse: reuse.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+
+t-mul.o: $(srcdir)/t-mul.c
+t-tdiv.o: $(srcdir)/t-tdiv.c
+t-tdiv_ui.o: $(srcdir)/t-tdiv_ui.c
+t-fdiv.o: $(srcdir)/t-fdiv.c
+t-fdiv_ui.o: $(srcdir)/t-fdiv_ui.c
+t-gcd.o: $(srcdir)/t-gcd.c
+t-gcd2.o: $(srcdir)/t-gcd2.c
+dive.o: $(srcdir)/dive.c
+t-sqrtrem.o: $(srcdir)/t-sqrtrem.c
+convert.o: $(srcdir)/convert.c
+io.o: $(srcdir)/io.c
+logic.o: $(srcdir)/logic.c
+t-powm.o: $(srcdir)/t-powm.c
+t-powm_ui.o: $(srcdir)/t-powm_ui.c
+reuse.o: $(srcdir)/reuse.c
+
+clean mostlyclean:
+	rm -f *.o st-* $(TESTS)
+distclean maintainer-clean: clean
+	rm -f Makefile config.status
+
+Makefile: $(srcdir)/Makefile.in
+	$(SHELL) ./config.status

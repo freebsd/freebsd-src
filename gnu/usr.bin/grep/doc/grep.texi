@@ -1,0 +1,985 @@
+\input texinfo  @c -*-texinfo-*-
+@c %**start of header
+@setfilename grep.info
+@settitle grep, print lines matching a pattern
+@c %**end of header
+
+@c This file has the new style title page commands.
+@c Run `makeinfo' rather than `texinfo-format-buffer'.
+
+@c smallbook
+
+@c tex
+@c \overfullrule=0pt
+@c end tex
+
+@include version.texi
+
+@c Combine indices.
+@syncodeindex ky cp
+@syncodeindex pg cp
+@syncodeindex tp cp
+
+@defcodeindex op
+@syncodeindex op fn
+@syncodeindex vr fn
+
+@ifinfo
+@direntry
+* grep: (grep).                   print lines matching a pattern.
+@end direntry
+This file documents @command{grep}, a pattern matching engine.
+
+
+Published by the Free Software Foundation,
+59 Temple Place - Suite 330
+Boston, MA 02111-1307, USA
+
+Copyright 1999 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+
+@end ignore
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Foundation.
+@end ifinfo
+
+@setchapternewpage off
+
+@titlepage
+@title grep, searching for a pattern
+@subtitle version @value{VERSION}, @value{UPDATED}
+@author Alain Magloire et al.
+
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1999 Free Software Foundation, Inc.
+
+@sp 2
+Published by the Free Software Foundation, @*
+59 Temple Place - Suite 330, @*
+Boston, MA 02111-1307, USA
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Foundation.
+
+@end titlepage
+@page
+
+
+@ifnottex
+@node Top
+@top Grep
+
+@command{grep} searches for lines matching a pattern.
+
+This document was produced for version @value{VERSION} of @sc{gnu}
+@command{grep}.
+@end ifnottex
+
+@menu
+* Introduction::                Introduction.
+* Invoking::                    Invoking @command{grep}; description of options.
+* Diagnostics::                 Exit status returned by @command{grep}.
+* Grep Programs::               @command{grep} programs.
+* Regular Expressions::         Regular Expressions.
+* Usage::                       Examples.
+* Reporting Bugs::              Reporting Bugs.
+* Concept Index::               A menu with all the topics in this manual.
+* Index::                       A menu with all @command{grep} commands
+                                 and command-line options.
+@end menu
+
+
+@node Introduction
+@chapter Introduction
+
+@cindex Searching for a pattern.
+
+@command{grep} searches the input files
+for lines containing a match to a given
+pattern list.  When it finds a match in a line, it copies the line to standard
+output (by default), or does whatever other sort of output you have requested
+with options.
+
+Though @command{grep} expects to do the matching on text,
+it has no limits on input line length other than available memory,
+and it can match arbitrary characters within a line.
+If the final byte of an input file is not a newline,
+@command{grep} silently supplies one.
+Since newline is also a separator for the list of patterns, there
+is no way to match newline characters in a text.
+
+@node Invoking
+@chapter Invoking @command{grep}
+
+@command{grep} comes with a rich set of options from @sc{posix.2} and @sc{gnu}
+extensions.
+
+@table @samp
+
+@item -c
+@itemx --count
+@opindex -c
+@opindex -count
+@cindex counting lines
+Suppress normal output; instead print a count of matching
+lines for each input file.  With the @samp{-v}, @samp{--invert-match} option,
+count non-matching lines.
+
+@item -e @var{pattern}
+@itemx --regexp=@var{pattern}
+@opindex -e
+@opindex --regexp=@var{pattern}
+@cindex pattern list
+Use @var{pattern} as the pattern; useful to protect patterns
+beginning with a @samp{-}.
+
+@item -f @var{file}
+@itemx --file=@var{file}
+@opindex -f
+@opindex --file
+@cindex pattern from file
+Obtain patterns from @var{file}, one per line.  The empty
+file contains zero patterns, and therefore matches nothing.
+
+@item -i
+@itemx --ignore-case
+@opindex -i
+@opindex --ignore-case
+@cindex case insensitive search
+Ignore case distinctions in both the pattern and the input files.
+
+@item -l
+@itemx --files-with-matches
+@opindex -l
+@opindex --files-with-matches
+@cindex names of matching files
+Suppress normal output; instead print the name of each input
+file from which output would normally have been printed.
+The scanning of every file will stop on the first match.
+
+@item -n
+@itemx --line-number
+@opindex -n
+@opindex --line-number
+@cindex line numbering
+Prefix each line of output with the line number within its input file.
+
+@item -q
+@itemx --quiet
+@itemx --silent
+@opindex -q
+@opindex --quiet
+@opindex --silent
+@cindex quiet, silent
+Quiet; suppress normal output.  The scanning of every file will stop on
+the first match.  Also see the @samp{-s} or @samp{--no-messages} option.
+
+@item -s
+@itemx --no-messages
+@opindex -s
+@opindex --no-messages
+@cindex suppress error messages
+Suppress error messages about nonexistent or unreadable files.
+Portability note: unlike @sc{gnu} @command{grep}, traditional
+@command{grep} did not conform to @sc{posix.2}, because traditional
+@command{grep} lacked a @samp{-q} option and its @samp{-s} option behaved
+like @sc{gnu} @command{grep}'s @samp{-q} option.  Shell scripts intended
+to be portable to traditional @command{grep} should avoid both
+@samp{-q} and @samp{-s} and should redirect
+output to @file{/dev/null} instead.
+
+@item -v
+@itemx --invert-match
+@opindex -v
+@opindex --invert-match
+@cindex invert matching
+@cindex print non-matching lines
+Invert the sense of matching, to select non-matching lines.
+
+@item -x
+@itemx --line-regexp
+@opindex -x
+@opindex --line-regexp
+@cindex match the whole line
+Select only those matches that exactly match the whole line.
+
+@end table
+
+@section @sc{gnu} Extensions
+
+@table @samp
+
+@item -A @var{num}
+@itemx --after-context=@var{num}
+@opindex -A
+@opindex --after-context
+@cindex after context
+@cindex context lines, after match
+Print @var{num} lines of trailing context after matching lines.
+
+@item -B @var{num}
+@itemx --before-context=@var{num}
+@opindex -B
+@opindex --before-context
+@cindex before context
+@cindex context lines, before match
+Print @var{num} lines of leading context before matching lines.
+
+@item -C @var{num}
+@itemx --context=[@var{num}]
+@opindex -C
+@opindex --context
+@cindex context
+Print @var{num} lines (default 2) of output context.
+
+
+@item -@var{num}
+@opindex -NUM
+Same as @samp{--context=@var{num}} lines of leading and trailing
+context.  However, grep will never print any given line more than once.
+
+
+@item -V
+@itemx --version
+@opindex -V
+@opindex --version
+@cindex Version, printing
+Print the version number of @command{grep} to the standard output stream.
+This version number should be included in all bug reports.
+
+@item --help
+@opindex --help
+@cindex Usage summary, printing
+Print a usage message briefly summarizing these command-line options
+and the bug-reporting address, then exit.
+
+@itemx --binary-files=@var{type}
+@opindex --binary-files
+@cindex binary files
+If the first few bytes of a file indicate that the file contains binary
+data, assume that the file is of type @var{type}.  By default,
+@var{type} is @samp{binary}, and @command{grep} normally outputs either
+a one-line message saying that a binary file matches, or no message if
+there is no match.  If @var{type} is @samp{without-match},
+@command{grep} assumes that a binary file does not match;
+this is equivalent to the @samp{-I} option.  If @var{type}
+is @samp{text}, @command{grep} processes a binary file as if it were
+text; this is equivalent to the @samp{-a} option.
+@emph{Warning:} @samp{--binary-files=text} might output binary garbage,
+which can have nasty side effects if the output is a terminal and if the
+terminal driver interprets some of it as commands.
+
+@item -b
+@itemx --byte-offset
+@opindex -b
+@opindex --byte-offset
+@cindex byte offset
+Print the byte offset within the input file before each line of output.
+When @command{grep} runs on @sc{ms-dos} or MS-Windows, the printed
+byte offsets
+depend on whether the @samp{-u} (@samp{--unix-byte-offsets}) option is
+used; see below.
+
+@item -d @var{action}
+@itemx --directories=@var{action}
+@opindex -d
+@opindex --directories
+@cindex directory search
+If an input file is a directory, use @var{action} to process it.
+By default, @var{action} is @samp{read}, which means that directories are
+read just as if they were ordinary files (some operating systems
+and filesystems disallow this, and will cause @command{grep} to print error
+messages for every directory).  If @var{action} is @samp{skip},
+directories are silently skipped.  If @var{action} is @samp{recurse},
+@command{grep} reads all files under each directory, recursively; this is
+equivalent to the @samp{-r} option.
+
+@item -H
+@itemx --with-filename
+@opindex -H
+@opindex --With-filename
+@cindex with filename prefix
+Print the filename for each match.
+
+@item -h
+@itemx --no-filename
+@opindex -h
+@opindex --no-filename
+@cindex no filename prefix
+Suppress the prefixing of filenames on output when multiple files are searched.
+
+@item -L
+@itemx --files-without-match
+@opindex -L
+@opindex --files-without-match
+@cindex files which don't match
+Suppress normal output; instead print the name of each input
+file from which no output would normally have been printed.
+The scanning of every file will stop on the first match.
+
+@item -a
+@itemx --text
+@opindex -a
+@opindex --text
+@cindex suppress binary data
+@cindex binary files
+Process a binary file as if it were text; this is equivalent to the
+@samp{--binary-files=text} option.
+
+@item -I
+Process a binary file as if it did not contain matching data; this is
+equivalent to the @samp{--binary-files=without-match} option.
+
+@item -w
+@itemx --word-regexp
+@opindex -w
+@opindex --word-regexp
+@cindex matching whole words
+Select only those lines containing matches that form
+whole words.  The test is that the matching substring
+must either be at the beginning of the line, or preceded
+by a non-word constituent character.  Similarly,
+it must be either at the end of the line or followed by
+a non-word constituent character.  Word-constituent
+characters are letters, digits, and the underscore.
+
+@item -r
+@itemx --recursive
+@opindex -r
+@opindex --recursive
+@cindex recursive search
+@cindex searching directory trees
+For each directory mentioned in the command line, read and process all
+files in that directory, recursively.  This is the same as the @samp{-d
+recurse} option.
+
+@item -y
+@opindex -y
+@cindex case insensitive search, obsolete option
+Obsolete synonym for @samp{-i}.
+
+@item -U
+@itemx --binary
+@opindex -U
+@opindex --binary
+@cindex DOS/Windows binary files
+@cindex binary files, DOS/Windows
+Treat the file(s) as binary.  By default, under @sc{ms-dos}
+and MS-Windows, @command{grep} guesses the file type by looking
+at the contents of the first 32kB read from the file.
+If @command{grep} decides the file is a text file, it strips the
+@code{CR} characters from the original file contents (to make
+regular expressions with @code{^} and @code{$} work correctly).
+Specifying @samp{-U} overrules this guesswork, causing all
+files to be read and passed to the matching mechanism
+verbatim; if the file is a text file with @code{CR/LF} pairs
+at the end of each line, this will cause some regular
+expressions to fail.  This option has no effect on platforms other than
+@sc{ms-dos} and MS-Windows.
+
+@item -u
+@itemx --unix-byte-offsets
+@opindex -u
+@opindex --unix-byte-offsets
+@cindex DOS byte offsets
+@cindex byte offsets, on DOS/Windows
+Report Unix-style byte offsets.  This switch causes
+@command{grep} to report byte offsets as if the file were Unix style
+text file, i.e., the byte offsets ignore the @code{CR} characters which were
+stripped.  This will produce results identical to running @command{grep} on
+a Unix machine.  This option has no effect unless @samp{-b}
+option is also used; it has no effect on platforms other than @sc{ms-dos} and
+MS-Windows.
+
+@item --mmap
+@opindex --mmap
+@cindex memory mapped input
+If possible, use the @code{mmap} system call to read input, instead of
+the default @code{read} system call.  In some situations, @samp{--mmap}
+yields better performance.  However, @samp{--mmap} can cause undefined
+behavior (including core dumps) if an input file shrinks while
+@command{grep} is operating, or if an I/O error occurs.
+
+@item -Z
+@itemx --null
+@opindex -Z
+@opindex --null
+@cindex zero-terminated file names
+Output a zero byte (the @sc{ascii} @code{NUL} character) instead of the
+character that normally follows a file name.  For example, @samp{grep
+-lZ} outputs a zero byte after each file name instead of the usual
+newline.  This option makes the output unambiguous, even in the presence
+of file names containing unusual characters like newlines.  This option
+can be used with commands like @samp{find -print0}, @samp{perl -0},
+@samp{sort -z}, and @samp{xargs -0} to process arbitrary file names,
+even those that contain newline characters.
+
+@item -z
+@itemx --null-data
+@opindex -z
+@opindex --null-data
+@cindex zero-terminated lines
+Treat the input as a set of lines, each terminated by a zero byte (the
+@sc{ascii} @code{NUL} character) instead of a newline.  Like the @samp{-Z}
+or @samp{--null} option, this option can be used with commands like
+@samp{sort -z} to process arbitrary file names.
+
+@end table
+
+Several additional options control which variant of the @command{grep}
+matching engine is used.  @xref{Grep Programs}.
+
+@section Environment Variables
+
+Grep's behavior is affected by the following environment variables.
+@cindex environment variables
+
+@table @code
+
+@item GREP_OPTIONS
+@vindex GREP_OPTIONS
+@cindex default options environment variable
+This variable specifies default options to be placed in front of any
+explicit options.  For example, if @code{GREP_OPTIONS} is
+@samp{--binary-files=without-match --directories=skip}, @command{grep}
+behaves as if the two options @samp{--binary-files=without-match} and
+@samp{--directories=skip} had been specified before
+any explicit options.  Option specifications are separated by
+whitespace.  A backslash escapes the next character, so it can be used to
+specify an option containing whitespace or a backslash.
+
+@item LC_ALL
+@itemx LC_MESSAGES
+@itemx LANG
+@vindex LC_ALL
+@vindex LC_MESSAGES
+@vindex LANG
+@cindex language of messages
+@cindex message language
+@cindex national language support
+@cindex NLS
+@cindex translation of message language
+These variables specify the @code{LC_MESSAGES} locale, which determines
+the language that @command{grep} uses for messages.  The locale is determined
+by the first of these variables that is set.  American English is used
+if none of these environment variables are set, or if the message
+catalog is not installed, or if @command{grep} was not compiled with national
+language support (@sc{nls}).
+
+@item LC_ALL
+@itemx LC_CTYPE
+@itemx LANG
+@vindex LC_ALL
+@vindex LC_CTYPE
+@vindex LANG
+@cindex character type
+@cindex national language support
+@cindex NLS
+These variables specify the @code{LC_CTYPE} locale, which determines the
+type of characters, e.g., which characters are whitespace.  The locale is
+determined by the first of these variables that is set.  The @sc{posix}
+locale is used if none of these environment variables are set, or if the
+locale catalog is not installed, or if @command{grep} was not compiled with
+national language support (@sc{nls}).
+
+@item POSIXLY_CORRECT
+@vindex POSIXLY_CORRECT
+If set, @command{grep} behaves as @sc{posix.2} requires; otherwise,
+@command{grep} behaves more like other @sc{gnu} programs.  @sc{posix.2}
+requires that options that
+follow file names must be treated as file names; by default, such
+options are permuted to the front of the operand list and are treated as
+options.  Also, @sc{posix.2} requires that unrecognized options be
+diagnosed as
+``illegal'', but since they are not really against the law the default
+is to diagnose them as ``invalid''.  @code{POSIXLY_CORRECT} also
+disables @code{_@var{N}_GNU_nonoption_argv_flags_}, described below.
+
+@item _@var{N}_GNU_nonoption_argv_flags_
+@vindex _@var{N}_GNU_nonoption_argv_flags_
+(Here @code{@var{N}} is @command{grep}'s numeric process ID.)  If the
+@var{i}th character of this environment variable's value is @samp{1}, do
+not consider the @var{i}th operand of @command{grep} to be an option, even if
+it appears to be one.  A shell can put this variable in the environment
+for each command it runs, specifying which operands are the results of
+file name wildcard expansion and therefore should not be treated as
+options.  This behavior is available only with the @sc{gnu} C library, and
+only when @code{POSIXLY_CORRECT} is not set.
+
+@end table
+
+@node Diagnostics
+@chapter Diagnostics
+
+Normally, exit status is 0 if matches were found, and 1 if no matches
+were found (the @samp{-v} option inverts the sense of the exit status).
+Exit status is 2 if there were syntax errors in the pattern,
+inaccessible input files, or other system errors.
+
+@node Grep Programs
+@chapter @command{grep} programs
+
+@command{grep} searches the named input files (or standard input if no
+files are named, or the file name @file{-} is given) for lines containing
+a match to the given pattern.  By default, @command{grep} prints the
+matching lines.  There are three major variants of @command{grep},
+controlled by the following options.
+
+@table @samp
+
+@item -G
+@itemx --basic-regexp
+@opindex -G
+@opindex --basic-regexp
+@cindex matching basic regular expressions
+Interpret pattern as a basic regular expression.  This is the default.
+
+@item -E
+@itemx --extended-regexp
+@opindex -E
+@opindex --extended-regexp
+@cindex matching extended regular expressions
+Interpret pattern as an extended regular expression.
+
+
+@item -F
+@itemx --fixed-strings
+@opindex -F
+@opindex --fixed-strings
+@cindex matching fixed strings
+Interpret pattern as a list of fixed strings, separated
+by newlines, any of which is to be matched.
+
+@end table
+
+In addition, two variant programs @sc{egrep} and @sc{fgrep} are available.
+@sc{egrep} is the same as @samp{grep -E}.  @sc{fgrep} is the
+same as @samp{grep -F}.
+
+@node Regular Expressions
+@chapter Regular Expressions
+@cindex regular expressions
+
+A @dfn{regular expression} is a pattern that describes a set of strings.
+Regular expressions are constructed analogously to arithmetic expressions,
+by using various operators to combine smaller expressions.
+@command{grep} understands two different versions of regular expression
+syntax: ``basic'' and ``extended''.  In @sc{gnu} @command{grep}, there is no
+difference in available functionality using either syntax.
+In other implementations, basic regular expressions are less powerful.
+The following description applies to extended regular expressions;
+differences for basic regular expressions are summarized afterwards.
+
+The fundamental building blocks are the regular expressions that match
+a single character.  Most characters, including all letters and digits,
+are regular expressions that match themselves.  Any metacharacter
+with special meaning may be quoted by preceding it with a backslash.
+A list of characters enclosed by @samp{[} and @samp{]} matches any
+single character in that list; if the first character of the list is the
+caret @samp{^}, then it
+matches any character @strong{not} in the list.  For example, the regular
+expression @samp{[0123456789]} matches any single digit.
+A range of characters may be specified by giving the first
+and last characters, separated by a hyphen.
+
+Finally, certain named classes of characters are predefined, as follows.
+Their interpretation depends on the @code{LC_CTYPE} locale; the
+interpretation below is that of the @sc{posix} locale, which is the default
+if no @code{LC_CTYPE} locale is specified.
+
+@cindex classes of characters
+@cindex character classes
+@table @samp
+
+@item [:alnum:]
+@opindex alnum
+@cindex alphanumeric characters
+Alphanumeric characters:
+@samp{[:alpha:]} and @samp{[:digit:]}.
+
+@item [:alpha:]
+@opindex alpha
+@cindex alphabetic characters
+Alphabetic characters:
+@samp{[:lower:]} and @samp{[:upper:]}.
+
+@item [:blank:]
+@opindex blank
+@cindex blank characters
+Blank characters:
+space and tab.
+
+@item [:cntrl:]
+@opindex cntrl
+@cindex control characters
+Control characters.  In @sc{ascii}, these characters have octal codes 000
+through 037, and 177 (@code{DEL}).  In other character sets, these are
+the equivalent characters, if any.
+
+@item [:digit:]
+@opindex digit
+@cindex digit characters
+@cindex numeric characters
+Digits: @code{0 1 2 3 4 5 6 7 8 9}.
+
+@item [:graph:]
+@opindex graph
+@cindex graphic characters
+Graphical characters:
+@samp{[:alnum:]} and @samp{[:punct:]}.
+
+@item [:lower:]
+@opindex lower
+@cindex lower-case letters
+Lower-case letters:
+@code{a b c d e f g h i j k l m n o p q r s t u v w x y z}.
+
+@item [:print:]
+@opindex print
+@cindex printable characters
+Printable characters:
+@samp{[:alnum:]}, @samp{[:punct:]}, and space.
+
+@item [:punct:]
+@opindex punct
+@cindex punctuation characters
+Punctuation characters:
+@code{!@: " # $ % & ' ( ) * + , - .@: / : ; < = > ?@: @@ [ \ ] ^ _ ` @{ | @} ~}.
+
+@item [:space:]
+@opindex space
+@cindex space characters
+@cindex whitespace characters
+Space characters:
+tab, newline, vertical tab, form feed, carriage return, and space.
+
+@item [:upper:]
+@opindex upper
+@cindex upper-case letters
+Upper-case letters:
+@code{A B C D E F G H I J K L M N O P Q R S T U V W X Y Z}.
+
+@item [:xdigit:]
+@opindex xdigit
+@cindex xdigit class
+@cindex hexadecimal digits
+Hexadecimal digits:
+@code{0 1 2 3 4 5 6 7 8 9 A B C D E F a b c d e f}.
+
+@end table
+For example, @samp{[[:alnum:]]} means @samp{[0-9A-Za-z]}, except the latter
+depends upon the @sc{posix} locale and the @sc{ascii} character
+encoding, whereas the former is independent of locale and character set.
+(Note that the brackets in these class names are
+part of the symbolic names, and must be included in addition to
+the brackets delimiting the bracket list.)  Most metacharacters lose
+their special meaning inside lists.  To include a literal @samp{]}, place it
+first in the list.  Similarly, to include a literal @samp{^}, place it anywhere
+but first.  Finally, to include a literal @samp{-}, place it last.
+
+The period @samp{.} matches any single character.  The symbol @samp{\w}
+is a synonym for @samp{[[:alnum:]]} and @samp{\W} is a synonym for
+@samp{[^[:alnum]]}.
+
+The caret @samp{^} and the dollar sign @samp{$} are metacharacters that
+respectively match the empty string at the beginning and end
+of a line.  The symbols @samp{\<} and @samp{\>} respectively match the
+empty string at the beginning and end of a word.  The symbol
+@samp{\b} matches the empty string at the edge of a word, and @samp{\B}
+matches the empty string provided it's not at the edge of a word.
+
+A regular expression may be followed by one of several
+repetition operators:
+
+
+@table @samp
+
+@item ?
+@opindex ?
+@cindex question mark
+@cindex match sub-expression at most once
+The preceding item is optional and will be matched at most once.
+
+@item *
+@opindex *
+@cindex asterisk
+@cindex match sub-expression zero or more times
+The preceding item will be matched zero or more times.
+
+@item +
+@opindex +
+@cindex plus sign
+The preceding item will be matched one or more times.
+
+@item @{@var{n}@}
+@opindex @{n@}
+@cindex braces, one argument
+@cindex match sub-expression n times
+The preceding item is matched exactly @var{n} times.
+
+@item @{@var{n},@}
+@opindex @{n,@}
+@cindex braces, second argument omitted
+@cindex match sub-expression n or more times
+The preceding item is matched n or more times.
+
+@item @{@var{n},@var{m}@}
+@opindex @{n,m@}
+@cindex braces, two arguments
+The preceding item is matched at least @var{n} times, but not more than
+@var{m} times.
+
+@end table
+
+Two regular expressions may be concatenated; the resulting regular
+expression matches any string formed by concatenating two substrings
+that respectively match the concatenated subexpressions.
+
+Two regular expressions may be joined by the infix operator @samp{|}; the
+resulting regular expression matches any string matching either
+subexpression.
+
+Repetition takes precedence over concatenation, which in turn
+takes precedence over alternation.  A whole subexpression may be
+enclosed in parentheses to override these precedence rules.
+
+The backreference @samp{\@var{n}}, where @var{n} is a single digit, matches the
+substring previously matched by the @var{n}th parenthesized subexpression
+of the regular expression.
+
+@cindex basic regular expressions
+In basic regular expressions the metacharacters @samp{?}, @samp{+},
+@samp{@{}, @samp{|}, @samp{(}, and @samp{)} lose their special meaning;
+instead use the backslashed versions @samp{\?}, @samp{\+}, @samp{\@{},
+@samp{\|}, @samp{\(}, and @samp{\)}.
+
+@cindex interval specifications
+Traditional @command{egrep} did not support the @samp{@{} metacharacter,
+and some @command{egrep} implementations support @samp{\@{} instead, so
+portable scripts should avoid @samp{@{} in @samp{egrep} patterns and
+should use @samp{[@{]} to match a literal @samp{@{}.
+
+@sc{gnu} @command{egrep} attempts to support traditional usage by
+assuming that @samp{@{} is not special if it would be the start of an
+invalid interval specification.  For example, the shell command
+@samp{egrep '@{1'} searches for the two-character string @samp{@{1}
+instead of reporting a syntax error in the regular expression.
+@sc{posix.2} allows this behavior as an extension, but portable scripts
+should avoid it.
+
+@node Usage
+@chapter Usage
+
+@cindex Usage, examples
+Here is an example shell command that invokes @sc{gnu} @command{grep}:
+
+@example
+grep -i 'hello.*world' menu.h main.c
+@end example
+
+@noindent
+This lists all lines in the files @file{menu.h} and @file{main.c} that
+contain the string @samp{hello} followed by the string @samp{world};
+this is because @samp{.*} matches zero or more characters within a line.
+@xref{Regular Expressions}.  The @samp{-i} option causes @command{grep}
+to ignore case, causing it to match the line @samp{Hello, world!}, which
+it would not otherwise match.  @xref{Invoking}, for more details about
+how to invoke @command{grep}.
+
+@cindex Using @command{grep}, Q&A
+@cindex FAQ about @command{grep} usage
+Here are some common questions and answers about @command{grep} usage.
+
+@enumerate
+
+@item
+How can I list just the names of matching files?
+
+@example
+grep -l 'main' *.c
+@end example 
+
+@noindent
+lists the names of all C files in the current directory whose contents
+mention @samp{main}.
+
+@item
+How do I search directories recursively?
+
+@example
+grep -r 'hello' /home/gigi
+@end example
+
+@noindent
+searches for @samp{hello} in all files under the directory
+@file{/home/gigi}.  For more control of which files are searched, use
+@command{find}, @command{grep} and @command{xargs}.  For example,
+the following command searches only C files:
+
+@smallexample
+find /home/gigi -name '*.c' -print | xargs grep 'hello' /dev/null
+@end smallexample
+
+@item
+What if a pattern has a leading @samp{-}?
+
+@example
+grep -e '--cut here--' *
+@end example 
+
+@noindent
+searches for all lines matching @samp{--cut here--}.  Without @samp{-e},
+@command{grep} would attempt to parse @samp{--cut here--} as a list of
+options.
+
+@item
+Suppose I want to search for a whole word, not a part of a word?
+
+@example
+grep -w 'hello' *
+@end example
+
+@noindent
+searches only for instances of @samp{hello} that are entire words; it
+does not match @samp{Othello}.  For more control, use @samp{\<} and
+@samp{\>} to match the start and end of words.  For example:
+
+@example
+grep 'hello\>' *
+@end example
+
+@noindent
+searches only for words ending in @samp{hello}, so it matches the word
+@samp{Othello}.
+
+@item
+How do I output context around the matching lines?
+
+@example
+grep -C 2 'hello' *
+@end example
+
+@noindent
+prints two lines of context around each matching line.
+
+@item
+How do I force grep to print the name of the file?
+
+Append @file{/dev/null}:
+
+@example
+grep 'eli' /etc/passwd /dev/null
+@end example
+
+@item
+Why do people use strange regular expressions on @command{ps} output?
+
+@example
+ps -ef | grep '[c]ron'
+@end example
+
+If the pattern had been written without the square brackets, it would
+have matched not only the @command{ps} output line for @command{cron},
+but also the @command{ps} output line for @command{grep}.
+
+@item
+Why does @command{grep} report ``Binary file matches''?
+
+If @command{grep} listed all matching ``lines'' from a binary file, it
+would probably generate output that is not useful, and it might even
+muck up your display.  So @sc{gnu} @command{grep} suppresses output from
+files that appear to be binary files.  To force @sc{gnu} @command{grep}
+to output lines even from files that appear to be binary, use the
+@samp{-a} or @samp{--binary-files=text} option.  To eliminate the
+``Binary file matches'' messages, use the @samp{-I} or
+@samp{--binary-files=without-match} option.
+
+@item
+Why doesn't @samp{grep -lv} print nonmatching file names?
+
+@samp{grep -lv} lists the names of all files containing one or more
+lines that do not match.  To list the names of all files that contain no
+matching lines, use the @samp{-L} or @samp{--files-without-match}
+option.
+
+@item
+I can do @sc{or} with @samp{|}, but what about @sc{and}?
+
+@example
+grep 'paul' /etc/motd | grep 'franc,ois'
+@end example
+
+@noindent
+finds all lines that contain both @samp{paul} and @samp{franc,ois}.
+
+@item
+How can I search in both standard input and in files?
+
+Use the special file name @samp{-}:
+
+@example
+cat /etc/passwd | grep 'alain' - /etc/motd
+@end example
+@end enumerate
+
+@node Reporting Bugs
+@chapter Reporting bugs
+
+@cindex Bugs, reporting
+Email bug reports to @email{bug-gnu-utils@@gnu.org}.
+Be sure to include the word ``grep'' somewhere in the ``Subject:'' field.
+
+Large repetition counts in the @samp{@{m,n@}} construct may cause
+@command{grep} to use lots of memory.  In addition, certain other
+obscure regular expressions require exponential time and
+space, and may cause grep to run out of memory.
+Backreferences are very slow, and may require exponential time.
+
+@page
+@node Concept Index
+@unnumbered Concept Index
+
+This is a general index of all issues discussed in this manual, with the
+exception of the @command{grep} commands and command-line options.
+
+@printindex cp
+
+@page
+@node Index
+@unnumbered Index
+
+This is an alphabetical list of all @command{grep} commands, command-line
+options, and environment variables.
+
+@printindex fn
+
+@contents
+@bye

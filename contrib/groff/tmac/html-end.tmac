@@ -1,0 +1,25 @@
+.\" html-end.tmac
+.\"
+.nr _C \n(.C
+.cp 0
+.
+.\" turn off all headers and footers for ms, me, and mm macro sets
+.if d EF .EF ''''
+.if d EH .EH ''''
+.if d OF .OF ''''
+.if d OH .OH ''''
+.if d ef .ef ''''
+.if d of .of ''''
+.if d oh .oh ''''
+.if d eh .eh ''''
+.tl ''''
+.
+.\" tell grohtml some default parameter values
+.pl 99999i
+.po 0
+.ll \n[.l]u
+.ta \n[.tabs]
+.
+.cp \n(_C
+.
+.\" end of file, make sure this is the last line

@@ -1,0 +1,297 @@
+#!/usr/local/bin/perl
+
+# isbgraph
+# an example in not so hot perl programming....
+# based around GraphMaker from Fabrizio Pivari
+# A graph maker perl script
+
+use GD;
+use Getopt::Long;
+$hr=0;
+
+sub main{
+
+$opt_conf="./graphmaker.cnf";
+
+@elem=("NUMBERYCELLGRIDSIZE","MAXYVALUE","MINYVALUE","XCELLGRIDSIZE","XMAX",
+       "Data","Graph","Bar","Average","Graphnum","Title","Transparent","Rbgcolour",
+       "Gbgcolour","Bbgcolour","Rfgcolour","Gfgcolour","Bfgcolour","Rcolour",
+       "Gcolour","Bcolour","Racolour","Gacolour","Bacolour");
+
+%option=(
+      NUMBERYCELLGRIDSIZE => '8',
+      MAXYVALUE => '7748',
+      MINYVALUE => '6500',
+      XCELLGRIDSIZE => '18',
+      XMAX => '1000',
+      Data => './graphmaker.dat',
+      Graph => './graphmaker.gif',
+      Bar => '1',
+      Average => '1',
+      Graphnum => '1',
+      Title => 'GraphMaker 2.1',
+      Transparent => 'yes',
+      Rbgcolour => '255',
+      Gbgcolour => '255',
+      Bbgcolour => '255',
+      Rfgcolour => '0',
+      Gfgcolour => '0',
+      Bfgcolour => '0',
+      Rcolour => '0',
+      Gcolour => '0',
+      Bcolour => '255',
+      Racolour => '255',
+      Gacolour => '255',
+      Bacolour => '0');
+
+&GetOptions("conf=s","help") || &printusage ;
+
+
+if ($opt_help) {&printusage};
+
+open (CNF, $opt_conf) || die;
+while (<CNF>) {
+s/\t/ /g;  #replace tabs by space
+next if /^\s*\#/; #ignore comment lines
+next if /^\s*$/;  #ignore empty lines
+foreach $elem (@elem)
+   {
+   if (/\s*$elem\s*:\s*(.*)/) { $option{$elem}=$1; }
+   }
+}
+close(CNF);
+#########################################
+#
+#
+#
+#       number datapoints/24 hours is 1440 (minutes)
+#
+#       Split into N graphs where each graph has max of 240 datapoints (4 hours)
+# 
+
+$barset=0;
+$m=0;
+$YGRIDSIZE = 400;
+$YCELLGRIDSIZE = $YGRIDSIZE/$option{'NUMBERYCELLGRIDSIZE'};
+$XINIT = 30;
+$XEND = 8;
+$YINIT =20;
+$YEND = 20;
+#$XGRIDSIZE = ($option{'XMAX'}*$option{'XCELLGRIDSIZE'});
+#$XGRIDSIZE = (240*$option{'XCELLGRIDSIZE'});
+$XGRIDSIZE = 620;
+$XGIF = $XGRIDSIZE + $XINIT + $XEND;
+$XGRAPH = $XGRIDSIZE + $XINIT;
+$YGIF = $YGRIDSIZE + $YEND + $YINIT;
+$YGRAPH = $YGRIDSIZE + $YINIT;
+$RANGE=$option{'MAXYVALUE'}-$option{'MINYVALUE'};
+$SCALE=$YGRIDSIZE/$RANGE;
+
+# NEW IMAGE
+   $im=new GD::Image($XGIF,$YGIF);
+
+$white=$im->colorAllocate(255,255,255);
+$black=$im->colorAllocate(0,0,0);
+$pink=$im->colorAllocate(255,153,153);
+$red=$im->colorAllocate(255,0,0);
+$blue=$im->colorAllocate(0,0,255);
+$green=$im->colorAllocate(0,192,51);
+$orange=$im->colorAllocate(255,102,0);
+$pink=$im->colorAllocate(255,153,153);
+$teal=$im->colorAllocate(51,153,153);
+# gif background is $bg
+   $bg=$white;
+   $fg=$blue;
+# LINE COLOUR HELP BY VAR $colour
+   $colour=$red;
+   $acolour=$yellow;
+   # GRID
+   if ($option{'Transparent'} eq "yes") {$im->transparent($bg)};
+   $im->filledRectangle(0,0,$XGIF,$YGIF,$bg);
+
+# Dot style
+# vertical markers on Y axis grid
+   $im->setStyle($fg,$bg,$bg,$bg);
+   for $i (0..$option{'XMAX'})
+      {
+      $xspace= $XINIT+$option{'XCELLGRIDSIZE'}*$i +$i;
+     # $im->line($xspace,$YINIT,$xspace,$YGRAPH,gdStyled);
+      $num = $i+1;
+      
+      use integer;
+     {
+      $posis=$num - ($num/60)*60;
+    }
+      if ($posis eq 0)
+         {
+	   $outhr=0;
+           $hr=($hr + 1) ;
+	   $outhr=$hr+$option{'Graphnum'}*4;
+#          shift minutes coords to correct stat hour!
+           $im->string(gdMediumBoldFont,$xspace-3,$YGRAPH,"$outhr",$fg);
+         }
+
+      } # end of scan over X values (minutes)
+
+   $YCELLVALUE=($option{'MAXYVALUE'}-$option{'MINYVALUE'})/$option{'NUMBERYCELLGRIDSIZE'};
+   for $i (0..$option{'NUMBERYCELLGRIDSIZE'})
+      {
+      $num=$option{'MINYVALUE'}+$YCELLVALUE*($option{'NUMBERYCELLGRIDSIZE'}-$i);
+      $im->string(gdMediumBoldFont,0,$YINIT+$YCELLGRIDSIZE*$i -6,"$num",$fg);
+      }
+   $im->string(gdSmallFont,$XGRIDSIZE/2-80,0,$option{'Title'},$fg);
+
+   $odd_even = $option{'XCELLGRIDSIZE'}%2;
+   #odd
+   if ($odd_even eq 1) {$middle = $option{'XCELLGRIDSIZE'}/2 +0.5;}
+   else {$middle = $option{'XCELLGRIDSIZE'}/2 +0.5;}
+
+# start reading data
+#   open (DATA,$option{'Data'}) || die "cant open $option{'Data'}";
+# nextdata becomes Y on reading of second data set....
+$nextdata="N";
+@datafiles=("./in.dat" , "./out.dat" );
+   foreach  ( @datafiles )
+{
+   $m=0;
+   $count=0;
+   $i=0;
+   $fname=$_;
+    
+  print "fname $fname\n";
+#  change entry for red in colour table to green for packets LEAVING target host
+
+   open (DATA,$_) || die "cant open $_";
+   print "$nextdata nextdata\n";
+   while (<DATA>)
+      {
+      /(.*):(.*)/;
+      if ($option{'Average'} eq 1) {$m+=$2;$i++;}
+      if ($count eq 0){$XOLD=$1;$YOLD=$2;$count=1;next}
+      $X=$1; $Y=$2;
+# +($X-1) are the pixel of the line
+      $xspace= $XINIT+$option{'XCELLGRIDSIZE'}*($X-1) +($X-1);
+      $xspaceold= $XINIT+$option{'XCELLGRIDSIZE'}*($XOLD-1) +($XOLD-1);
+      $yspace= $YGRAPH-($Y-$option{'MINYVALUE'})*$SCALE;
+      $yspaceold= $YGRAPH-($YOLD-$option{'MINYVALUE'})*$SCALE;
+      $barset=$option{'Bar'};
+      if ($barset eq  0)
+   {
+
+     if($nextdata eq "Y")
+     {
+	
+         #$im->line($XINIT,$YGRAPH,$X,$Y,$orange);
+         $im->line($xspaceold,$yspaceold,$xspace,$yspace,$green);
+     }
+     else
+     {
+         $im->line($xspaceold,$yspaceold,$xspace,$yspace,$red);
+     } 
+    }
+      else
+         {
+         if ($1 eq 2)
+            {
+            $im->filledRectangle($xspaceold,$yspaceold,
+                                 $xspaceold+$middle,$YGRAPH,$colour);
+            $im->rectangle($xspaceold,$yspaceold,
+                           $xspaceold+$middle,$YGRAPH,$fg);
+            }
+         else
+            {
+            $im->filledRectangle($xspaceold-$middle,$yspaceold,
+                                 $xspaceold+$middle,$YGRAPH,$colour);
+            $im->rectangle($xspaceold-$middle,$yspaceold,
+                           $xspaceold+$middle,$YGRAPH,$fg);
+            }
+         }
+      $XOLD=$X; $YOLD=$Y;
+
+      }  # end of while DATA loop
+
+     $im->line(500,40,530,40,$red);
+     $im->line(500,60,530,60,$green);
+     $im->string(gdSmallFont,535,35,"Packets IN",$fg);
+     $im->string(gdSmallFont,535,55,"Packets OUT",$fg);
+     
+   if ($option{'Bar'} ne 0)
+      {
+      if ($X eq $option{'XMAX'})
+         {
+         $im->filledRectangle($xspace-$middle,$yspace,
+                              $xspace,$YGRAPH,$colour);
+         $im->rectangle($xspace-$middle,$yspace,
+                        $xspace,$YGRAPH,$fg);
+         }
+      else
+         {
+         $im->filledRectangle($xspace-$middle,$yspace,
+                              $xspace+$middle,$YGRAPH,$colour);
+         $im->rectangle($xspace-$middle,$yspace,
+                        $xspace+$middle,$YGRAPH,$fg);
+         }
+      }
+   close (DATA);
+
+
+     $nextdata="Y";
+# TOP LEFT is 0,0 on GIF (image)
+# origin of plot is xinit,yinit 
+ # print "little line\n";
+     $im->line($xspace,$yspace,$xspace,$YGRAPH,$blue);
+     $im->line($xspace,$YGRAPH,$XINIT,$YGRAPH,$blue);
+#    (0,0) in cartesian space time=0 minutes, rate 0 packets/s
+     $im->line($XINIT,$YGRAPH,$XINIT,$YGRAPH,$blue);
+     $im->line($XINIT,$YGRAPH,$XINIT,$YGRAPH,$green);
+
+} # close foreach loop on data file names
+
+
+
+
+   if ($option{'Average'} eq 1)
+      {
+      # Line style
+      $im->setStyle($acolour,$acolour,$acolour,$acolour,$bg,$bg,$bg,$bg);
+      $m=$m/$i;
+      $ym=$YGRAPH-($m-$option{'MINYVALUE'})*$SCALE;
+      $im->line($XINIT,$ym,$XGRAPH,$ym,gdStyled)
+      }
+   $im->line($XINIT,$YINIT,$XINIT,$YGRAPH,$fg);
+   $im->line($XINIT,$YINIT,$XGRAPH,$YINIT,$fg);
+   $im->line($XGRAPH,$YINIT,$XGRAPH,$YGRAPH,$fg);
+   $im->line($XINIT,$YGRAPH,$XGRAPH,$YGRAPH,$fg);
+
+   $im->string(gdSmallFont,$XGIF-335,$YGIF - 12,"Time of Day (hours)",$fg);
+   open (GRAPH,">$option{'Graph'}") || die "Error: Grafico.gif - $!\n";
+   print GRAPH $im -> gif;
+   close (GRAPH);
+
+
+
+
+} # end of subroutine main
+
+main;
+exit(0);
+
+sub printusage {
+    print <<USAGEDESC;
+
+usage:
+        graphmaker [-options ...]
+
+where options include:
+    -help                        print out this message
+    -conf  file                  the configuration file (default graphmaker.cnf)
+
+If you want to know more about this tool, you might want
+to read the docs. They came together with graphmaker!
+
+Home: http://www.geocities.com/CapeCanaveral/Lab/3469/graphmaker.html
+
+USAGEDESC
+    exit(1);
+}
+

@@ -1,0 +1,129 @@
+
+	SSCF UNI Design
+	===============
+
+SAP_SSCF_UNI Interface
+----------------------
+This is the stack SAP interface between the UNI signalling layer (eg. Q.2931)
+and the SSCF module.  The stack commands defined for this interface are modeled
+after the SSCF protocol specification primitives AAL-xxx.  See the protocol
+specification documents referenced below for full descriptions of the SSCF UNI
+interface presented to the signalling user.
+
+
+o The following stack commands are sent from the signalling module to SSCF:
+
+Stack Command:	SSCF_UNI_INIT
+Description:	Initialize a SAP instance.  This should be the first stack
+		command issued across the SAP instance after the service stack
+		has been successfully instantiated.
+Argument 1:	Specifies the UNI version to be used for this stack instance.
+		(enum uni_vers)
+Argument 2:	Not used.
+
+
+Stack Command:	SSCF_UNI_TERM
+Description:	Terminate a SAP instance.  This must be the last stack command
+		issued across the SAP instance.  The stack instance will be
+		deleted upon completion of this command.
+Argument 1:	Not used.
+Argument 2:	Not used.
+
+
+Stack Command:	SSCF_UNI_ESTABLISH_REQ
+Description:	Request the establishment of an assured SAAL connection to the
+		SAAL peer entity.
+Argument 1:	Not used.
+Argument 2:	Not used.
+
+
+Stack Command:	SSCF_UNI_RELEASE_REQ
+Description:	Request the termination of an assured SAAL connection to the
+		SAAL peer entity.
+Argument 1:	Specifies whether future session establishment indications from
+		the SAAL peer should be processed.  Valid values are 
+		SSCF_UNI_ESTIND_YES or SSCF_UNI_ESTIND_NO. (int)
+		Note that this is a local implementation parameter only.
+Argument 2:	Not used.
+
+
+Stack Command:	SSCF_UNI_DATA_REQ
+Description:	Request that an assured SDU be sent to the SAAL peer.
+Argument 1:	Pointer to an mbuf chain containing the user SDU.
+		(struct mbuf *)
+Argument 2:	Not used.
+
+
+Stack Command:	SSCF_UNI_UNITDATA_REQ
+Description:	Request that an unacknowledged SDU be sent to the SAAL peer.
+Argument 1:	Pointer to an mbuf chain containing the user SDU.
+		(struct mbuf *)
+Argument 2:	Not used.
+
+
+o The following stack commands are sent from SSCF to the signalling module:
+
+Stack Command:	SSCF_UNI_ESTABLISH_IND
+Description:	Indication that an assured SAAL connection has been established
+		by the SAAL peer entity.
+Argument 1:	Not used.
+Argument 2:	Not used.
+
+
+Stack Command:	SSCF_UNI_ESTABLISH_CNF
+Description:	Confirmation of an assured SAAL connection establishment,
+		previously requested via an SSCF_UNI_ESTABLISH_REQ command.
+Argument 1:	Not used.
+Argument 2:	Not used.
+
+
+Stack Command:	SSCF_UNI_RELEASE_IND
+Description:	Indication that an assured SAAL connection has been terminated
+		by the SAAL peer entity.
+Argument 1:	Not used.
+Argument 2:	Not used.
+
+
+Stack Command:	SSCF_UNI_RELEASE_CNF
+Description:	Confirmation of an assured SAAL connection termination,
+		previously requested via an SSCF_UNI_RELEASE_REQ command.
+Argument 1:	Not used.
+Argument 2:	Not used.
+
+
+Stack Command:	SSCF_UNI_DATA_IND
+Description:	Indication that an assured SDU has been received from the 
+		SAAL peer.
+Argument 1:	Pointer to an mbuf chain containing the peer's SDU.
+		(struct mbuf *)
+Argument 2:	Not used.
+
+
+Stack Command:	SSCF_UNI_UNITDATA_IND
+Description:	Indication that an unacknowledged SDU has been received from 
+		the SAAL peer.
+Argument 1:	Pointer to an mbuf chain containing the peer's SDU.
+		(struct mbuf *)
+Argument 2:	Not used.
+
+
+
+Protocol Specifications
+-----------------------
+For UNI_VERS_3_0, see Q.SAAL2.
+For UNI_VERS_3_1, see Q.2130.
+
+
+
+Implementation Limitations
+--------------------------
+o The Parameter Data parameter is not supported for the following primitives:
+	AAL-ESTABLISH request
+	AAL-ESTABLISH indication
+	AAL-ESTABLISH confirm
+	AAL-RELEASE request
+	AAL-RELEASE indication
+
+
+	@(#) $FreeBSD$
+

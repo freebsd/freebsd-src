@@ -1,0 +1,42 @@
+#! @PATH_PERL@ -w
+
+die "perl5 needed\n" unless ($] > 5);
+
+use Getopt::Std;
+
+$opt_f = 0;			# 'Hard' failure if 'state' is unknown
+$opt_n = 1000;			# How many tries before we give up? (10 min+)
+$opt_s = 6;			# Seconds to sleep between tries (6s = 10/min)
+$opt_v = 0;			# Be verbose?
+
+getopts('fn:s:v');
+
+$cmd = 'ntpq -c "rv 0 state"';
+
+$| = 1;				# Autoflush output.
+
+print "Waiting for ntpd to synchronize...  " if ($opt_v);
+for ($i = 0; $i < $opt_n; ++$i) {
+    open(Q, $cmd." 2>&1 |") || die "Can't start ntpq: $!";
+    while(<Q>) {
+      if (/^state=4/) {
+	print "\bOK!\n" if ($opt_v);
+	exit 0;
+      }
+
+      if (/request variable was unknown/) {
+	print "\bCan't tell!\nPerhaps you are running an old version of ntpd.\n" if ($opt_v);
+	exit $opt_f;
+      }
+
+      if (/Connection refused/) {
+	print "\bntpd is not running!\n" if ($opt_v);
+	exit 1;
+      }
+    }
+    close(Q);
+    print "\b".substr("*+:.", $i % 4, 1) if ($opt_v);
+    sleep($opt_s);
+}
+print "\bNo!\nntpd did not synchronize.\n" if ($opt_v);
+exit 1;

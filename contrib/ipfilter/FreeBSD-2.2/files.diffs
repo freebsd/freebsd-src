@@ -1,0 +1,20 @@
+*** files.orig	Tue Sep  9 16:58:40 1997
+--- files	Sat Apr  4 10:52:58 1998
+***************
+*** 222,227 ****
+--- 222,236 ----
+  netinet/tcp_timer.c	optional inet
+  netinet/tcp_usrreq.c	optional inet
+  netinet/udp_usrreq.c	optional inet
++ netinet/ip_fil.c	optional ipfilter inet
++ netinet/fil.c		optional ipfilter inet
++ netinet/ip_nat.c	optional ipfilter inet
++ netinet/ip_frag.c	optional ipfilter inet
++ netinet/ip_state.c	optional ipfilter inet
++ netinet/ip_proxy.c	optional ipfilter inet
++ netinet/mlf_ipl.c	optional ipfilter inet
++ netinet/ip_auth.c	optional ipfilter inet
++ netinet/ip_log.c	optional ipfilter inet
+  netipx/ipx.c		optional ipx
+  netipx/ipx_cksum.c	optional ipx
+  netipx/ipx_input.c	optional ipx

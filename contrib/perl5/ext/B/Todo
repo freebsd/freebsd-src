@@ -1,0 +1,37 @@
+* Fixes
+
+CC backend: goto, sort with non-default comparison. last for non-loop blocks.
+Version checking
+improve XSUB handling (both static and dynamic)
+sv_magic can do SvREFCNT_inc(obj) which messes up precalculated refcounts
+allocation of XPV[INAHC]V structures needs fixing: Perl tries to free
+them whereas the compiler expects them to be linked to a xpv[inahc]v_root
+list the same as X[IPR]V structures.
+ref counts
+perl_parse replacement
+fix cstring for long strings
+compile-time initialisation of AvARRAYs
+signed/unsigned problems with NV (and IV?) initialisation and elsewhere?
+CvOUTSIDE for ordinary subs
+DATA filehandle for standalone Bytecode program (easy)
+DATA filehandle for multiple bytecode-compiled modules (harder)
+DATA filehandle for C-compiled program (yet harder)
+
+* Features
+
+type checking
+compile time v. runtime initialisation
+save PMOPs in compiled form
+selection of what to dump
+options for cutting out line info etc.
+comment output
+shared constants
+module dependencies
+
+* Optimisations
+collapse LISTOPs to UNOPs or BASEOPs
+compile-time qw(), constant subs
+global analysis of variables, type hints etc.
+demand-loaded bytecode (leader of each basic block replaced by an op
+which loads in bytecode for its block)
+fast sub calls for CC backend

@@ -1,0 +1,77 @@
+Thu Mar 25 21:23:43 1993  Jim Blandy  (jimb@totoro.cs.oberlin.edu)
+
+	* debugmalloc.c: #include <string.h>, and remove declaration of
+	memcpy.
+
+Sun Dec 13 20:59:32 1992  Jim Blandy  (jimb@totoro.cs.oberlin.edu)
+
+        * tregress.c (test_regress): Add regression test for matching
+        "[a-a]" against "a" with the upcase translation map.
+
+        * iregex.c (print_regs): Don't print a newline after the register
+        contents.
+        (main): Instead, write out newlines here after printing match and
+        search results; this way, we get a newline whether or not the
+        pattern matched.
+
+Fri Dec 11 03:30:50 1992  Jim Blandy  (jimb@totoro.cs.oberlin.edu)
+
+	* tregress.c (test_regress): Add new test to catch bug fixed by
+	change to regex.c today.
+
+	* Makefile.in (dregex.o): Depend on `../regex.[ch]', not `regex.[ch]'.
+
+Sun Nov 15 07:51:40 1992  Karl Berry  (karl@cs.umb.edu)
+
+	* debugmalloc.c (memcpy): Declare; also, include <assert.h>.
+
+	* psx-interf.c (fill_pmatch): Declare offsets as `regoff_t'
+	instead of `off_t'.
+
+Thu Nov 12 11:29:58 1992  Karl Berry  (karl@cs.umb.edu)
+
+	* iregex.c (main): Remove unused variable `c'; initialize
+	the char array in C code; only call print_regs if the match and
+	search succeeded.
+        (strlen): Declare.
+
+	* tregress.c (test_regress): Bug from enami.
+
+Tue Nov 10 10:36:53 1992  Karl Berry  (karl@cs.umb.edu)
+
+	* tregress.c (test_regress): Remove Emacs 19 diff bug from rms, as
+	it was never the right thing to test anyway, and the test itself
+	had bugs in it.
+
+Mon Nov  9 10:09:40 1992  Karl Berry  (karl@cs.umb.edu)
+
+	* tregress.c (test_regress): Bug from meyering.
+
+Thu Sep 24 10:48:34 1992  Karl Berry  (karl@cs.umb.edu)
+
+        * Makefile.in: avoid $< (except in implicit rule).
+
+Sat Sep 19 15:38:29 1992  Karl Berry  (karl@hayley)
+
+        * Makefile.in (TAGS): include regex.c and regex.h.
+
+Wed Sep 16 09:29:27 1992  Karl Berry  (karl@hayley)
+
+        * xmalloc.c (xmalloc): use char *, not void *, as some compilers
+          bomb out on the latter.
+
+        * Makefile.in (LOADLIBES): use LIBS instead, as that what's
+          Autoconf wants to define.
+
+        * other.c: remove tests for ^/$ around newlines.
+
+Tue Sep 15 11:01:15 1992  Karl Berry  (karl@hayley)
+
+        * fileregex.c (main): call re_search_2 instead of re_search.
+
+        * Makefile.in (regex.o): make target dregex.o, so VPATH doesn't
+          find ../regex.o.
+
+Sun Sep 13 06:50:03 1992  Karl Berry  (karl@hayley)
+
+        * Created.

@@ -1,0 +1,32 @@
+At entry to each basic block, the following can be assumed (and hence
+must be forced where necessary at the end of each basic block):
+
+The shadow stack @stack is empty.
+For each lexical object in @pad, VALID_IV holds for each T_INT,
+VALID_DOUBLE holds for each T_DOUBLE and VALID_SV holds otherwise.
+The C shadow variable sp holds the stack pointer (not necessarily stack_sp).
+
+write_back_stack
+    Writes the contents of the shadow stack @stack back to the real stack.
+    A write-back of each object in the stack is forced so that its
+    backing SV contains the right value and that SV is then pushed onto the
+    real stack. On return, @stack is empty.
+
+write_back_lexicals
+    Forces a write-back (i.e. achieves VALID_SV), where necessary, for each
+    lexical object in @pad. Objects with the TEMPORARY flag are skipped. If
+    write_back_lexicals is called with an (optional) argument, then it is
+    taken to be a bitmask of more flags: any lexical object with one of those
+    flags set is also skipped and not written back to its SV.
+
+invalidate_lexicals($avoid)
+    The VALID_INT and VALID_DOUBLE flags are turned off for each lexical
+    object in @pad whose flags field doesn't overlap with $avoid.
+
+reload_lexicals
+    For each necessary lexical object in @pad, makes sure that VALID_IV
+    holds for objects of type T_INT, VALID_DOUBLE holds for objects for
+    type T_DOUBLE, and VALID_SV holds for other objects. An object is
+    considered for reloading if its flags field does not overlap with the
+    (optional) argument passed to reload_lexicals.
+

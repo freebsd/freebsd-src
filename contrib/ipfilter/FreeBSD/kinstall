@@ -1,0 +1,72 @@
+#!/bin/csh -f
+#
+set dir=`pwd`
+set karch=`uname -m`
+if ( -d /sys/arch/$karch ) set archdir="/sys/arch/$karch"
+if ( -d /sys/$karch ) set archdir="/sys/$karch"
+set confdir="$archdir/conf"
+
+if ( $dir =~ */FreeBSD ) cd ..
+echo -n "Installing "
+foreach i (ip_fil.[ch] ip_nat.[ch] ip_frag.[ch] ip_state.[ch] fil.c \
+	   ip_proxy.[ch] ip_auth.[ch] ip_*_pxy.c ip_compat.h ip_log.c)
+	echo -n "$i ";
+	cp $i /sys/netinet
+	chmod 644 /sys/netinet/$i
+	switch ( $i )
+	case *.h:
+		/bin/cp $i /usr/include/netinet/$i
+		chmod 644 /usr/include/netinet/$i
+		breaksw
+	endsw
+end
+echo ""
+grep iplopen $archdir/$karch/conf.c >& /dev/null
+if ( $status != 0 ) then
+	echo "Patching $archdir/$karch/conf.c"
+	cat FreeBSD/conf.c.diffs | (cd $archdir/$karch; patch)
+endif
+grep fr_checkp /sys/netinet/ip_input.c >& /dev/null
+if ( $status != 0 ) then
+	echo "Patching ip_input.c, ip_output.c and in_proto.c"
+	cat FreeBSD/ip_{in,out}put.c.diffs FreeBSD/in_proto.c.diffs | \
+	(cd /sys/netinet; patch)
+endif
+if ( -f /sys/conf/files.newconf ) then
+	echo "Patching /sys/conf/files.newconf"
+	cat FreeBSD/files.newconf.diffs | (cd /sys/conf; patch)
+	echo "Patching /sys/conf/files"
+	cat FreeBSD/files.diffs | (cd /sys/conf; patch)
+endif
+if ( -f /sys/conf/files.oldconf ) then
+	echo "Patching /sys/conf/files.oldconf"
+	cat FreeBSD/files.oldconf.diffs | (cd /sys/conf; patch)
+	echo "Patching /sys/conf/files"
+	cat FreeBSD/filez.diffs | (cd /sys/conf; patch)
+endif
+
+set config=`(cd $confdir; /bin/ls -1t [0-9A-Z_]*) | head -1`
+echo -n "Kernel configuration to update [$config] "
+set newconfig=$<
+if ( "$newconfig" != "" ) then
+	set config="$confdir/$newconfig"
+else
+	set newconfig=$config
+endif
+echo "Re-config'ing $newconfig..."
+if ( -f $confdir/$newconfig ) then
+	mv $confdir/$newconfig $confdir/$newconfig.bak
+endif
+if ( -d $archdir/../compile/$newconfig ) then
+	set bak=".bak"
+	set dot=0
+	while ( -d $archdir/../compile/${newconfig}.${bak} )
+		set bak=".bak.$dot"
+		set dot=`expr 1 + $dot`
+	end
+	mv $archdir/../compile/$newconfig $archdir/../compile/${newconfig}.${bak}
+endif
+awk '{print $0;if($2=="INET"){print"options IPFILTER"}}' \
+	$confdir/$newconfig.bak > $confdir/$newconfig
+echo 'You will now need to run "config" and build a new kernel.'
+exit 0

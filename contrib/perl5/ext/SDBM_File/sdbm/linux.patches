@@ -1,0 +1,67 @@
+*** sdbm.dist/./dbu.c	Mon Feb 17 21:18:52 1992
+--- sdbm/./dbu.c	Mon Feb 17 21:11:20 1992
+***************
+*** 12,18 ****
+  #endif
+  
+  extern int	getopt();
+! extern char	*strchr();
+  extern void	oops();
+  
+  char *progname;
+--- 12,18 ----
+  #endif
+  
+  extern int	getopt();
+! /* extern char	*strchr(); */
+  extern void	oops();
+  
+  char *progname;
+*** sdbm.dist/./makefile	Mon Feb 17 21:18:56 1992
+--- sdbm/./makefile	Mon Feb 17 21:10:46 1992
+***************
+*** 2,8 ****
+  # makefile for public domain ndbm-clone: sdbm
+  # DUFF: use duff's device (loop unroll) in parts of the code
+  #
+! CFLAGS = -O -DSDBM -DDUFF -DBSD42
+  #LDFLAGS = -p
+  
+  OBJS = sdbm.o pair.o hash.o
+--- 2,8 ----
+  # makefile for public domain ndbm-clone: sdbm
+  # DUFF: use duff's device (loop unroll) in parts of the code
+  #
+! CFLAGS = -O -DSDBM -DDUFF
+  #LDFLAGS = -p
+  
+  OBJS = sdbm.o pair.o hash.o
+*** sdbm.dist/./sdbm.c	Mon Feb 17 21:19:17 1992
+--- sdbm/./sdbm.c	Mon Feb 17 21:12:59 1992
+***************
+*** 25,30 ****
+--- 25,31 ----
+  #endif
+  #include <errno.h>
+  #include <string.h>
++ #include <unistd.h>
+  
+  #ifdef __STDC__
+  #include <stddef.h>
+***************
+*** 43,49 ****
+  
+  extern char *malloc proto((unsigned int));
+  extern void free proto((void *));
+! extern long lseek();
+  
+  /*
+   * forward
+--- 44,50 ----
+  
+  extern char *malloc proto((unsigned int));
+  extern void free proto((void *));
+! /* extern long lseek(); */
+  
+  /*
+   * forward

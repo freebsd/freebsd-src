@@ -1,0 +1,97 @@
+KAFS(3)                   NetBSD Programmer's Manual                   KAFS(3)
+
+NNAAMMEE
+     kk__hhaassaaffss, kk__ppiiooccttll, kk__uunnlloogg, kk__sseettppaagg, kk__aaffss__cceellll__ooff__ffiillee, kkrrbb__aaffsslloogg,
+     kkrrbb__aaffsslloogg__uuiidd - AFS library
+
+LLIIBBRRAARRYY
+     AFS cache manager access library (libkafs, -lkafs)
+
+SSYYNNOOPPSSIISS
+     ##iinncclluuddee <<kkaaffss..hh>>
+
+     _i_n_t
+     kk__aaffss__cceellll__ooff__ffiillee(_c_o_n_s_t _c_h_a_r _*_p_a_t_h, _c_h_a_r _*_c_e_l_l, _i_n_t _l_e_n);
+
+     _i_n_t
+     kk__hhaassaaffss();
+
+     _i_n_t
+     kk__ppiiooccttll(_c_h_a_r _*_a___p_a_t_h, _i_n_t _o___o_p_c_o_d_e, _s_t_r_u_c_t _V_i_c_e_I_o_c_t_l _*_a___p_a_r_a_m_s_P,
+             _i_n_t _a___f_o_l_l_o_w_S_y_m_l_i_n_k_s);
+
+     _i_n_t
+     kk__sseettppaagg();
+
+     _i_n_t
+     kk__uunnlloogg();
+
+     _i_n_t
+     kkrrbb__aaffsslloogg(_c_h_a_r _*_c_e_l_l, _c_h_a_r _*_r_e_a_l_m);
+
+     _i_n_t
+     kkrrbb__aaffsslloogg__uuiidd(_c_h_a_r _*_c_e_l_l, _c_h_a_r _*_r_e_a_l_m, _u_i_d___t _u_i_d);
+
+DDEESSCCRRIIPPTTIIOONN
+     kk__hhaassaaffss() initializes some library internal structures, and tests for
+     the presence of AFS in the kernel, none of the other functions should be
+     called before kk__hhaassaaffss() is called, or if it fails.
+
+     kkrrbb__aaffsslloogg(), and kkrrbb__aaffsslloogg__uuiidd() obtains new tokens (and possibly tick-
+     ets) for the specified _c_e_l_l and _r_e_a_l_m.  If _c_e_l_l is NULL, the local cell
+     is used. If _r_e_a_l_m is NULL, the function tries to guess what realm to use.
+     Unless you  have some good knowledge of what cell or realm to use, you
+     should pass NULL.  kkrrbb__aaffsslloogg() will use the real user-id for the ViceId
+     field in the token, kkrrbb__aaffsslloogg__uuiidd() will use _u_i_d.
+
+     kk__aaffss__cceellll__ooff__ffiillee() will in _c_e_l_l return the cell of a specified file, no
+     more than _l_e_n characters is put in _c_e_l_l.
+
+     kk__ppiiooccttll() does a ppiiooccttll() syscall with the specified arguments. This
+     function is equivalent to llppiiooccttll().
+
+     kk__sseettppaagg() initializes a new PAG.
+
+     kk__uunnlloogg() removes destroys all tokens in the current PAG.
+
+RREETTUURRNN VVAALLUUEESS
+     kk__hhaassaaffss() returns 1 if AFS is present in the kernel, 0 otherwise.
+     kkrrbb__aaffsslloogg() and kkrrbb__aaffsslloogg__uuiidd() returns 0 on success, or a kerberos er-
+     ror number on failure.  kk__aaffss__cceellll__ooff__ffiillee(), kk__ppiiooccttll(), kk__sseettppaagg(), and
+     kk__uunnlloogg() all return the value of the underlaying system call, 0 on suc-
+     cess.
+
+EENNVVIIRROONNMMEENNTT
+     The following environment variable affect the mode of operation of kkaaffss:
+
+     AFS_SYSCALL  Normally, kkaaffss will try to figure out the correct system
+                  call(s) that are used by AFS by itself.  If it does not man-
+                  age to do that, or does it incorrectly, you can set this
+                  variable to the system call number or list of system call
+                  numbers that should be used.
+
+EEXXAAMMPPLLEESS
+     The following code from llooggiinn will obtain a new PAG and tokens for the
+     local cell and the cell of the users home directory.
+
+     if (k_hasafs()) {
+             char cell[64];
+             k_setpag();
+             if(k_afs_cell_of_file(pwd->pw_dir, cell, sizeof(cell)) == 0)
+                     krb_afslog(cell, NULL);
+             krb_afslog(NULL, NULL);
+     }
+
+EERRRROORRSS
+     If any of these functions (apart from kk__hhaassaaffss()) is called without AFS
+     beeing present in the kernel, the process will usually (depending on the
+     operating system) receive a SIGSYS signal.
+
+SSEEEE AALLSSOO
+     Transarc Corporation, "File Server/Cache Manager Interface", _A_F_S_-_3
+     _P_r_o_g_r_a_m_m_e_r_'_s _R_e_f_e_r_e_n_c_e, 1991.
+
+BBUUGGSS
+     AFS_SYSCALL has no effect under AIX.
+
+ KTH-KRB                          May 7, 1997                                2

@@ -1,0 +1,777 @@
+This is a list of things to do for the Taylor UUCP package.  Please
+feel free to work on any of them.  You may want to check with me first
+to make sure that nobody else is working on them as well.
+
+Some of these are my thoughts, but most are suggestions from other
+people; I have tried to give credit.  They are in the order I received
+them; the missing numbers have already been implemented.
+
+Just because something is on the list doesn't mean that I necessarily
+think it is a good idea.  It does mean that I think it's worth
+thinking about.
+
+2.
+
+John Cowan <cowan@snark.thyrsus.com> says:
+
+>I think you should accept a broader range of time specifications.
+>Consider using getdate() (from your handy Usenet news source code)
+>with its high-powered yacc parser.
+
+Of course, getdate() accepts a single date, but we want a range.  A
+better syntax would be certainly be nice.
+
+9.
+
+Gordon Burditt <gordon@sneaky.lonestar.org> warns about modifications
+to the TZ environment variable, to fool uucico into dialing out at an
+inappropriate time.
+
+10.
+
+Gordon Burditt <gordon@sneaky.lonestar.org> says:
+
+>(4) Less important, because few people will have this problem, is a 
+>port-specific dialcodes file.  Why?  Well, one system I had was connected
+>to 2 inside lines "dial 9 for outside line", and one outside line (which
+>doesn't want the 9).  A number of the systems called were "inside", so
+>you didn't add the 9 on those lines dialing from inside, but you did add 
+>"390" to the 4-digit number if you dialed it via "outside".  Also not 
+>unheard of are systems with 2 outside lines that are local to different 
+>area codes, or one local outside line and one WATS line (which MUST
+>have an area code).
+>Example:
+>	inside-line Dialcodes		outside-line Dialcodes
+>	pbx	""			pbx	"390"
+>	local	"9"			local	""
+>	nyc	"9-1212"		nyc	"1212"
+
+12.
+
+Ralf E. Stranzenbach <ralf@reswi.ruhr.de> says:
+
+>It would be nice to also have the option of running a shell script each time  
+>uucico connects/disconnects a systen. I do not mean shell scripts for dial/in.  
+>I would like to do some accounting and batching when the connection  
+>establishes.
+
+13.
+
+les@chinet.chi.il.us (Leslie Mikesell) writes:
+
+>>local-send /usr/spool/uucppublic !/usr/spool/uucpublic/private
+>>
+>>The directories are searched from left to right, and the last one to
+>>match determines whether the file may be sent or not.  This is
+>>slightly more general than NOWRITE, since it permits a public
+>>directory within a private directory within a public directory,
+>>although probably nobody will ever want that.
+>
+>Interesting... The obvious enhancement is to generalize to shell-like
+>wild cards for the READ/WRITE/COMMANDS entries.
+
+14.
+
+Should there be a way for chat scripts to specify the parity to
+generate?  I don't think there's much point to specifying what parity
+to accept.
+
+17.
+
+The -b and -s switches to uux are not implemented by uuxqt.
+
+18.
+
+If we are supposed to call a system back, we should do it immediately
+rather than merely queuing up an empty command file.
+
+22.
+
+Add an ftp port type which uses anonymous ftp rather than any of the
+UUCP protocols to do file transfers.  This would allow ftp work to be
+done late at night, and allow neighbors of cooperative Internet sites
+to use UUCP forwarding for anonymous FTP.
+
+32.
+
+It would be nice if uucico could sleep until a line was available.
+This is complicated by the possibility of wanting to wait for any of
+several different lines, and one would really want some sort of
+semaphore function to do it right.  If the available lines could be
+sorted, then each could be assigned to a byte in a line lock file.
+Looking for a line could be done by sleeping on a read lock on all
+possible lines.  Once it came through, write locks would be attempted.
+If they all failed, somebody else snuck in, so you would sleep on a
+read lock again.  This isn't great because a process could be starved,
+but it might be better than nothing.
+
+This could be tied in to uucp and uux, such that they wouldn't
+actually fire up uucico unless a line was known to be available; an
+additional switch would be used to fire up uucico anyhow (or one could
+switch the default behaviour and the switch).
+
+So how do you sort the lines?  You could just use the index in the
+port (or Devices) file, but what if multiple ports used the same
+physical device?  Hmmm.
+
+43.
+
+David Nugent: it would be nice to be able to set debugging, log, and
+statistics files on a site by site basis.
+Brian Murrell: heck, set those files on a port by port basis as well.
+
+74.
+
+Yanek Martinson: allow each system to independently choose whether to
+permit shell execution.
+
+81.
+
+Marty Shannon: log reason for dial failure (chat-fail string) in
+.Status file.
+
+83.
+
+Switch between 'M' and 'S' correctly in the BNU log file output.
+
+86.
+
+Les Mikesell: allow a separate program to be specified to handle the
+communications with a particular system.
+
+105.
+
+T. William Wells: close and open the Debug file after each file
+transfer.  Alternatively, cycle through a series of Debug file names
+every 1000 lines or so.
+
+106.
+
+Marty Shannon: add a time command for ports, to specify when they may
+be used.
+
+115.
+
+T. William Wells: new options for uustat:
+	-i display job ids only
+Also, there should perhaps be a configuration option to request uustat
+to only display jobs submitted by the user running uustat, except for
+root and uucp.
+
+117.
+
+Marc Unangst: provide some way to change the debugging level of a
+running uucico.  T. William Wells suggests having it read a file to
+change arbitrary configuration information, although obviously one has
+to be careful of what gets changed while a connection is active.
+
+120.
+
+Jarmo Raiha: new chat-fail commands: one to not update the status file
+and require a retry wait, and one to permit the string to occur a few
+times before reporting an error.
+
+124.
+
+Peter da Silva: perhaps there should be a ``chat-end-program'' command
+to let a program be run after the initial handshake has been completed
+and the protocol has been selected and turned on.  This would let
+people run stty to change their terminal parameters.
+
+128.
+
+Richard Stallman: have an interactive program to set up a chat script.
+It would let you type directly to the port, recording what you type as
+send strings and recording what comes back from the other side as
+expect strings.
+
+129.
+
+Use POSIX fcntl locks when possible instead of creating a lock file.
+
+138.
+
+T. William Wells: BNU apparently uses a file named A.whatever to hold
+the line number reached in current C. file processing.  This is a
+hack, and won't work right with size control anyhow, but
+fsysdep_did_work could, for example, clobber the first byte in the
+line to a # or something to mark that it had been finished.  Still a
+hack, but a better one.
+
+139.
+
+Patrick Smith: incorporate patches to generate full debugging traces
+with less debugging file overhead.  The debugging file repeats too
+much information at great length right now--not good.
+
+141.
+
+Franc,ois Pinard: batch up pauses and delays in chat scripts and do
+them all at once in a single system call.  This is particularly useful
+for pauses on systems which don't support subsecond sleeps.  For
+everything else it's a fairly minor optimization.
+
+142.
+
+Franc,ois Pinard: give uustat an option to requeue jobs to another
+system.  This only makes a lot of sense for rmail executions, but it's
+fairly easy to do for any type of command.  I think uucico does all
+the file checking needed to ensure that this doesn't break security,
+but that should be double-checked.
+
+144.
+
+T. William Wells: add a -g option to uucico to permit specifying the
+maximum grade to be transferred at that time.  This could restrict the
+timegrade command further, but should not be permitted to override it.
+
+145.
+
+T. William Wells: if uucico or uuxqt get started with bad arguments,
+put an indication in the log file since stderr may be /dev/null.
+
+146.
+
+Richard Todd: it would be nice to sometimes be able to request the
+other side to turn on debugging.
+
+147.
+
+Bart Schaefer: some more possible options for uucico:
+    -R reverse roles (hangup immediately).  Not too exciting.
+    some method to restrict calling to particular systems.
+
+148.
+
+Jarmo Raiha: some method to control the work queue at the remote end.
+This could get awfully general, though.
+
+149.
+
+The interaction of the time command and defaults can be confusing,
+since any time command in the actual system entry, even a fairly
+specific one, will wipe out the default entry.  Not sure what can be
+done about this.
+
+150.
+
+Jarmo Raiha: should there be some way to specify modem initialization
+strings when uucico is hanging on a port with -l or -e?  This would
+presumably require a new type of chat script associated with a dialer.
+
+151.
+
+Petri Helenius: log complete CONNECT string reported by modem, so that
+the baud rate is recorded in the log file.
+
+152.
+
+Marc Evans: let the protocol selection be based on the CONNECT string,
+so that different protocols could be selected based on what type of
+connection was made.
+
+153.
+
+Chris Lewis: provide a signal to get a core dump even on systems which
+won't do core dumps if the uid is not the euid.  One could catch a
+signal, call setuid (getuid ()), and then raise the signal again.
+Unfortunately the core dump has to wind up in a directory which is
+world writable, so that the process is able to create the core file,
+but is not world readable, since that would permit anybody to read the
+core dump file and extract private information from it.
+
+154.
+
+Les Mikesell: write a new version of dial.o, with provisions for
+running a chat script.
+
+155.
+
+Scott Blachowicz: perhaps there should be some way to telling uucico
+to not log certain errors.  This could get fairly complex, though.
+
+156.
+
+Franc,ois Pinard: have uustat -m report the time of the last
+successful conversation when reporting a failure.
+
+158.
+
+Thomas Fischer: should there be a way to completely disable an entry
+in the sys, port or dial file?  Such as a ``disable'' command?
+
+159.
+
+Petri Helenius: when uuxqt -s is invoked, lock uuxqt for the system so
+that only one uuxqt is invoked per system.  If the -c option is used,
+don't lock on a per system basis, and ignore any per system locks
+(regardless of -s).  If neither option is used, respect existing
+system and command locks, and do any other type of file.
+
+161.
+
+Scott Blachowicz: provide some sort of include mechanism for the
+configuration files.
+
+164.
+
+Ed Carp: preserve files if uuxqt execution fails.
+
+165.
+
+Marc Sheldon: use exit codes from <sysexits.h> in uux and uucp.
+
+166.
+
+Chip Salzenberg: allow chat failure strings to specify a retry time.
+
+168.
+
+Jose A. Manas: allow a maximum connect time, after which we try to
+hang up the connection.  This requires a protocol extension, since
+there's no way to force the other side to hang up.  The best we can do
+without an extension is refuse to send any new jobs ourselves.  Of
+course, we could just drop the connection.
+
+169.
+
+Franc,ois Pinard: when given uustat -k00FC, check each possible job ID
+and use it if there is an unambiguous one.
+
+170.
+
+T. William Wells: if ! HAVE_SETREUID && ! HAVE_SAVED_SETUID, fork a
+subprocesses to revoke setuid and read the file over a pipe.
+
+171.
+
+Provide some option to have the internal uuconf functions not start
+with an underscore.
+
+172.
+
+T. William Wells: have some way to configure the parity for cu.
+
+173.
+
+Gert Doering: uuchk should display unknown system information.
+
+175.
+
+T. William Wells:
+Cu will not let itself be interrupted before the connection is
+established. If the chat script doesn't write something, cu does
+something odd, I've forgotten exactly what. Cu takes an
+inordinate amount of time after the line drops to exit. Somebody,
+cu, I think, but maybe uucico, drops dtr twice sometimes. Again,
+somebody will attempt to write after a hangup signal has been
+received. Once a hangup has been received, I/O should not be
+attempted. Among other things this will save the bacon of those
+who have brain damaged serial drivers (FAS, sigh, is among them)
+that don't handle output properly on a dropped line.
+
+Me:
+Note that sometimes you do want to write to a line after receiving a
+hangup signal.  For example, you might want to use ATZ to reset a
+modem.
+
+176.
+
+Hans-Dieter Doll: provide some way (another escape sequence) to pass
+the protocol to a chat-program.  Or, allow the protocol as an argument
+to the chat script command, which is more general, but maybe a bit too
+fancy.
+
+177.
+
+Nickolay Saukh: use a default port for cu, you can just do ``cu
+number''.
+
+180.
+
+Nickolay Saukh: if we have received a partial file, request the remote
+system to start sending from that point.  We currently accept SVR4
+style remote file positioning requests, but we do not generate them.
+
+181.
+
+Mark Powell: provide some way to restrict file transfer by size as
+well as grade?  One way would be to let uux select the grade based on
+the file size.
+
+182.
+
+Mark Powell: permit using multiple timetables in a single time
+statement.
+
+183.
+
+Optionally check for interrupts in fcopy_file, since it can take a
+long time to copy a file named in a uucp request.
+
+185.
+
+A syntax error in a command received from the remote system should not
+hold up the queue.  Unfortunately, I don't know what can be done
+except deny the command and report it.  Reporting a garbled command
+error should report the command correctly, rather than just the first
+character.
+
+186.
+
+Franc,ois Pinard: have an option to control nostop vs. stop on the cu
+command line.
+
+187.
+
+Fix the notion of %nostop to be SVID compatible.
+
+188.
+
+Frank Conrad: provide a means to set the strip mode for a port, to
+make it easy to use it from cu.
+
+189.
+
+Marc Unangst: there should be a way to specify that a system should
+only be called if there are jobs of a certain grade, but if the system
+is called then jobs of any grade should be transferred.  This
+basically means splitting the ``timegrade'' command into two commands:
+``place-call-timegrade'' and ``transfer-timegrade''.  Or maybe another
+optional argument to ``timegrade'':
+    timegrade grade time-string [retry] [transfer-any]
+not to mention
+    time time-string [retry] [transfer-any]
+Or maybe a separate command for a system or port like
+    transfer-any BOOL
+
+190.
+
+Chip Salzenberg: it would be really nice if uucico could automatically
+figure out when it could use an E command, so that uux didn't have to
+generate it and so that uucico could use with other versions of uux.
+Unfortunately, it would require uucico to read the execution file to
+see if it were suitable; this would be complex, but it would probably
+be worth it since normally the execution file would wind up not being
+sent.  Of course, the current method works too; it's just harder to
+combine with other versions of UUCP.
+
+191.
+
+Brian J. Murrell: should there be a way to cu a specific alternate?
+
+192.
+
+Andrew A. Chernov: Perhaps cu -pport system should be able to try
+different alternates for the system, because there might be different
+phone numbers to try.
+
+193.
+
+Brian J. Murrell: it would be nice to be able to ^C a cu chat script
+if you know it's going to fail.  Right now you have to use ^\.
+
+194.
+
+Steven S. Dick: have some way to force uucico off the phone at a
+certain time.  If that is done, it might be cool to have some way to
+predict how long a file transfer will take, and not do it if it will
+take too long.  But, if doing file restart, you can just quit and then
+pick it up later.
+
+195.
+
+Franc,ois Pinard: if the disk fills up, or some other error occurs,
+while receiving a file, perhaps it would make sense to turn the
+connection around immediately and see if the other side had anything
+to do, and then try again later.  This would require a protocol
+extension.  I don't know if it's worth it.  The code should be checked
+to see how well it handles a disk full situation.
+
+197.
+
+Try alternate IP addresses if there are any.
+
+198.
+
+Lele Gaifax: mention the device in Stats, and provide some way to
+associate the entry in Log with the entry in Stats.
+
+199.
+
+Michael Richardson: provide some way to turn on parity for the login
+chat, since some systems apparently require it.  Provide some way for
+cu to control parity after connecting.
+
+200.
+
+Chip Salzenberg: add max-remote-debug to config.
+
+201.
+
+Gert Doering: change the timeout message in chat scripts to reflect
+which chat script timed out (dialer or login).
+
+202.
+
+Bill Foote: have uuchk check whether a system is defined more than
+once.
+
+203.
+
+Eric Ziegast: allow specification of the minimum grade to receive, as
+well as the maximum grade.  Probably sending a second character after
+the -pM argument would work fine.
+
+204.
+
+Tom Rushworth: perhaps there should be some program which can be used
+to retrieve the current spool directory.  Perhaps on option on uustat.
+
+207.
+
+James B. O'Connor: use additional messages in the status file when
+placing a call, such as Dialing, Chatting, and the like.  Slightly
+less efficient.
+
+208.
+
+When checking whether a file may be received into a directory, perhaps
+uucico should check using the real user ID rather than insisting that
+the directory be world writable.  This should be a policy.h parameter.
+This would enable sites which use different uids for each incoming
+UUCP login to have better control over security.
+
+209.
+
+Jon Vos: add an alias command for ports.
+
+210.
+
+Joe Wells: I'd like to have a way so that if the dial chat fails due
+to "NO CARRIER", in addition to this log message:
+
+  ERROR: Chat script failed: Got "NO\sCARRIER"
+
+I would get another log message right next to it that would look like
+this:
+
+  ERROR: Chat script failed: 5 "RRING" strings seen
+
+Ian: I doubt this is worth implementing in uucico, but it might make
+sense for an external, or otherwise more independent and controllable,
+chat program.
+
+211.
+
+Joe Wells: In some cases it would be nice to be able to change the set
+of chat-fail strings in the middle of the chat script.  Personally, I
+think this is too complex for the simple chat scripts currently
+implemented.
+
+212.
+
+Joe Wells: There should be an option to all programs directing them to
+send all debugging output to the log file.  This would just involve
+calling ulog_to_file at some point just after reporting any usage
+messages.
+
+213.
+
+Joe Wells: There should be a way to specify the execution directory
+used by uuxqt.  This would avoid certain sorts of permissions
+problems.  Some mechanism would still be needed for using multiple
+directories.
+
+214.
+
+Joe Wells: uuto should be documented.
+
+215.
+
+Joe Wells: Perhaps it should be possible to use multiple spool
+directories.  It would be a lot of work, though.
+
+216.
+
+Joe Wells: It should be possible to specify only one of complete or
+abort.
+
+217.
+
+Dan Everhart: It would be nice if the chat-fail string could affect
+the error message reported by uustat, so that uustat could say
+something ``Line was busy''.
+
+218.
+
+Andrew A. Chernov: Add a chat-char-delay xx configuration parameter,
+which has the effect of adding \p after each character, with delay xx.
+This is to accommodate modems which can't accept command characters at
+a given baud rate.
+
+219.
+
+Gert Doering: Provide some mechanism for specifying the maximum length
+of a call.  Convenient for anonymous UUCP sites.
+
+220.
+
+Joe Wells: There should be some way for "cu" to obey user commands
+during the dial chat.  Right now, the only thing the user can do is
+send signals (e.g. type Control-C).  This leads to user complaints
+that "cu" is not obeying its documentation.
+
+221.
+
+Joe Wells: Right now, if there is any failure in the dial or login
+chat scripts, the remote system alternate is skipped even though the
+cause of the failure may have been the local serial port or modem.
+"uucico" will not try another modem with the same remote system
+alternate.  If the remote system only has one alternate, then it is
+skipped entirely.
+
+Thus, there should be a way to specify that when certain expect
+strings are not seen or certain chat-fail strings are seen that the
+port is skipped instead of the remote system alternate.
+
+222.
+
+Richard H. Gumpertz: Support pipelines in uuxqt.  Right now they are
+only supported if uux puts in an 'e' line (which it does) and shell
+executions are permitted (which they normally are not).  It would be
+possible to permit restricted pipelines by handling the pipe character
+specially and making sure all commands in the pipeline were permitted.
+
+223.
+
+Bill Sommerfeld: When dialing out, set the status to DIALING rather
+than CONNECTION CLOSED.  Setting the status takes a bit of time; it's
+hard to tell where the right break-even point is.
+
+224.
+
+Joe Wells: Keep track of the last successful incoming call separately
+from the last successful outgoing call.  Currently the two times are
+both put together in the status file.
+
+225.
+
+Joe Wells: It would be nice if uustat would provide a way to avoid
+bouncing mail that it sent itself, to avoid sending notification
+e-mail for notification e-mail.  I can't think of a mechanism, though
+(using a special grade for uustat does not work because most mail
+programs do not provide a mechanism for passing a grade through to
+uux).
+
+226.
+
+Joe Wells: It would be nice if uustat could know whether it had sent
+mail for a particular job, to avoid generating multiple messages for
+the job.
+
+227.
+
+Joe Wells: It would be nice if dialcode suffixes were supported, as
+well as prefixes.
+
+228.
+
+Joe Wells: It would be nice to support another spool directory scheme
+which split stuff up more to avoid very large directories.  This would
+be most useful for the files which are named in C. and X. files,
+rather than for the C. and X. files themselves (since C. and X. files
+are rarely looked up by name).  Basically, some sort of partition of
+the D. directory is called for.
+
+229.
+
+Joe Wells: ``It would be nice if the exit sequence of "cu", where it
+runs the complete chat script and then disconnects could be aborted
+without disconnecting.  (Yes, I know, this is a strange desire.)  It
+would be nice to be able to reinvoke the dial chat by user command in
+"cu".  It would be nice to be able to invoke an arbitrary named chat
+script in "cu".''
+
+230.
+
+Kevin Johnson: Provide some mechanism such that all requests to a
+particular system were automatically forwarded through some other
+system.  This would be useful to hide details of a non-strongly-
+connected network, particularly if the details were subject to change.
+
+231.
+
+Gert Doering: Perhaps it should be possible to -r the default for uucp
+and uux.  This would require adding a new option to force the
+invocation of uucico.
+
+232.
+
+Mark Davies: spaces are not handled correctly in the -a argument of
+uux.  If an E command is generated, the requestor address is not
+quoted correctly, nor is it parsed correctly.  If an execution file is
+generated, the R line is not parsed correctly.
+
+233.
+
+Emmanuel Mogenet: provide some mechanism for a maximum number of
+garbage bytes during a chat script before giving up.
+
+234.
+
+Scott Ballantyne: The address for a TCP port should be separate from
+the phone number, so that a TCP dialer can use \D.
+
+235.
+
+Peter Wemm: The 'i' protocol default parameters do not work at 2400
+baud, because the time it takes to transfer half the packets is less
+than the timeout time.  Of course people can always change the
+parameters, but it would be nice if this were dealt with somehow.
+
+236.
+
+Andrew A. Chernov: Perhaps uuxqt should log when it terminates.
+
+237.
+
+dialer-sequence doesn't really do the right thing.  There is no way to
+specify both the TCP address and a phone number.
+
+238.
+
+cu -t doesn't work at all.  It does nothing.
+
+239.
+
+Paul Pryor: Perhaps a service command should be added to the sys and
+port files.  This command would be used as ``service cu'' to indicate
+that the system or port was only available to cu, not to UUCP.
+
+240.
+
+Tim Iverson: The 'g' and 'i' protocol code tends to parse data packet
+headers twice.  It processes them once to find out how large the
+packet is, waits for that data to arrive, and then processes the
+header again the second time around.  It would be possible to avoid
+this by changing the code to be a simple state machine which
+remembered where it was in the process of parsing the packet.
+
+241.
+
+Klaus Dahlenburg: Log a more precise reason for failure in the .Status
+file: e.g., all ports in use, no matching ports, etc.
+
+242.
+
+Steven S. Dick: It would be helpful if there was a way to get uuchk to
+dump the data from ports/dialers/etc that was NOT picked up from the
+sys file.  In other words, add some option to scan the port file and
+the dial file, presumably using uuconf_find_port for the former and
+uuconf_dialer_names for the latter.
+
+243.
+
+Kai Michael Kretschmann: Add a configure option to drop the connection
+if jobs are coming in too slowly, indicating a bad connection.

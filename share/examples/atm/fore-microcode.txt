@@ -1,0 +1,92 @@
+
+HARP and FORE Systems Microcode
+===============================
+
+ATM adapters from FORE Systems use Intel i960 embedded processors and 
+require that application software (herein called "microcode") be downloaded
+and executed on the adapter. The interface between the microcode and the host
+device driver is specified in the FORE ATM Adaptation Layer Interface (AALI) 
+(available from ftp.fore.com:/pub/docs/port). HARP uses microcode supplied 
+by FORE Systems. The HARP device driver for the FORE adapter (hfa) conforms 
+to the AALI specification.
+
+As part of the HARP ATM initialization procedure, the HARP 'fore_dnld' utility
+must be invoked in order to load the microcode file into each FORE adapter.
+However, the microcode file is NOT included in the FreeBSD distribution. It is 
+the user's responsibilty to obtain and install the FORE microcode file. Below 
+are notes to assist users in finding and installing microcode known to work
+with HARP. 
+
+FORE microcode files can be obtained from either FORE's web site
+(http://www.fore.com) or the CD distributed with new FORE adapters.
+When using FORE's web site, you must have a valid login to access the
+TACtics Online section of the site. The software download section is
+available via the 'Services & Support'->'TACtics Online'->Software links.
+
+If you are currently using HARP and already have a working microcode file, 
+that microcode will continue to work with this release of HARP.
+
+
+PCA200E
+-------
+
+From the FORE web pages, the following PCA200E adapter distributions
+are known to have microcode which will work with HARP:
+
+	pc_adapter->OS/2->archive->os2_4.0.2_1.20.200.zip
+		unzip the file and execute the command:
+
+		cp -p <unzip_directory>/Drivers/PCA200E.BIN /etc/pca200e.bin
+
+	pc_adapter->'Windows NT'->archive->pca2e_12.zip
+		unzip the file and execute the command:
+
+		cp -p <unzip_directory>/NT/I386/PCA200E.BIN /etc/pca200e.bin
+
+
+The following distributions from the FORE web pages are known to have 
+microcode which will NOT work with HARP:
+
+	pc_adapter:
+		OS/2:
+			release:
+				os2_4.1.0_1.74.zip
+		Windows95:
+			archive:
+				pc-w95_5.0.0.16432.zip
+				win95_4.0.3_1.04.200.zip
+				win95_4.1.6_1.16.zip
+			release:
+				pc-w95_4.1.6_27.zip
+		Windows NT:
+			archive:
+				pc-nt_5.0.0_16342.zip
+				winnt_4.0.3_1.05.200.zip
+				winnt_4.1.2_1.27.zip
+				winnt_4.1.6_1.16.zip
+			release:
+				pc-nt_4.1.6_27.zip
+				pc-nt_i386_5.0.0_25096.zip
+
+
+From the "ForeRunner 200E for PC/Mac" distribution CD-ROM, the following 
+PCA200E adapter distributions are known to have microcode which will work 
+with HARP (assuming the CD-ROM is mounted on /cdrom):
+
+	/cdrom/rel4.0/os2/
+		execute the command:
+		
+		cp -p /cdrom/rel4.0/os2/drivers/pca200e.bin /etc/pca200e.bin
+
+
+Note: Windows-based files are supplied in a compressed form. If the
+'fore_dnld' command complains about an unrecognized header format, you should
+try to uncompress the microcode file. To do so, move the file in binary mode
+to a DOS/Windows machine and use the DOS command 'expand' to uncompress the
+file. The command syntax is:
+
+	expand <in-file> <out-file>
+
+Move the resulting <out-file> in binary mode back to the HARP machine as
+/etc/pca200e.bin and try to initialize the ATM system again.
+

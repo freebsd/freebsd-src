@@ -1,0 +1,142 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)robots.6	8.1 (Berkeley) 5/31/93
+.\" $FreeBSD$
+.\"
+.TH ROBOTS 6 "May 31, 1993"
+.UC 6
+.SH NAME
+robots \- fight off villainous robots
+.SH SYNOPSIS
+.B robots
+[
+.B \-sjta
+] [
+.B scorefile
+]
+.SH DESCRIPTION
+.I Robots
+pits you against evil robots, who are trying to kill you (which is why
+they are evil).
+Fortunately for you, even though they are evil, they are not very bright
+and have a habit of bumping into each other, thus destroying themselves.
+In order to survive, you must get them to kill each other off, since you
+have no offensive weaponry.
+.PP
+Since you are stuck without offensive weaponry, you are endowed with one
+piece of defensive weaponry: a teleportation device.
+When two robots run into each other or a junk pile, they die.
+If a robot runs into you, you die.
+When a robot dies, you get 10 points, and when all the robots die,
+you start on the next field.
+This keeps up until they finally get you.
+.PP
+Robots are represented on the screen by a
+.RB ` + ',
+the junk heaps from their collisions by a
+.RB ` \(** ',
+and you
+(the good guy)
+by a
+.RB ` @ '.
+.PP
+The commands are:
+.sp
+.nf
+.ta
+.ta \w'\fBHJKLBNYU\fP\ \ 'u
+\fBh\fP	move one square left
+\fBl\fP	move one square right
+\fBk\fP	move one square up
+\fBj\fP	move one square down
+\fBy\fP	move one square up and left
+\fBu\fP	move one square up and right
+\fBb\fP	move one square down and left
+\fBn\fP	move one square down and right
+\fB\&.\fP	(also space) do nothing for one turn
+\fBHJKLBNYU\fP	run as far as possible in the given direction
+\fB>\fP	do nothing for as long as possible
+\fBt\fP	teleport to a random location
+\fBw\fP	wait until you die or they all do
+\fBq\fP	quit
+\fB^L\fP	redraw the screen
+.sp
+.fi
+All commands can be preceded by a count.
+.PP
+If you use the
+.RB ` w '
+command and survive to the next level, you will get a bonus of 10%
+for each robot which died after you decided to wait.
+If you die, however, you get nothing.
+For all other commands, the program will save you from typos
+by stopping short of being eaten.
+However, with
+.RB ` w '
+you take the risk of dying by miscalculation.
+.PP
+Only five scores are allowed per user on the score file.
+If you make it into the score file, you will be shown the list at the end
+of the game.
+If an alternate score file is specified, that will be used instead of the
+standard file for scores.
+.PP
+The options are
+.TP
+.B \-s
+Don't play, just show the score file.
+.TP
+.B \-j
+Jump,
+.IR i.e. ,
+when you run, don't show any intermediate positions; only show things at
+the end.
+This is useful on slow terminals.
+.TP
+.B \-t
+Teleport automatically when you have no other option.
+This is a little disconcerting until you get used to it, and then it is
+very nice.
+.TP
+.B \-a
+Advance into the higher levels directly, skipping the lower, easier levels.
+.SH AUTHOR
+Ken Arnold
+.SH FILES
+.ta
+.ta \w'/var/games/robots_roll\ \ \ \ 'u
+/var/games/robots_roll	the score file
+.SH BUGS
+Bugs?
+You
+.IR crazy ,
+man?!?

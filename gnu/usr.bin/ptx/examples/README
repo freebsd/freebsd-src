@@ -1,0 +1,21 @@
+Various examples of GNU ptx usages.
+Francois Pinard <pinard@iro.umontreal.ca>, 1993.
+
+This directory contains a few examples contributed by GNU ptx users.
+Feel free to look at them for tricks or ideas.  When an example
+requires many files, a subdirectory is used to hold them together.
+I have not necessarily tested these examples recently, if at all.
+
+If you have examples you would like to share, please submit them to
+me.  You may also submit corrections to the examples given in this
+directory, however, please write to the authors first, since they most
+probably will like to have their say about their own contribution.
+
+* include.pl: A Perl script studying system include files.
+
+* luke/: A shell script permuting indices for man pages.  It contains
+two examples of an .xx definition for *roff, one simple, one complex.
+
+* latex/: A simple example of \xx definition for latex.
+
+* ajay/: A more complex application of latex with ptx.

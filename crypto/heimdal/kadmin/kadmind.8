@@ -1,0 +1,155 @@
+.\" $Id: kadmind.8,v 1.10.2.1 2002/10/21 14:53:39 joda Exp $
+.\"
+.Dd March 5, 2002
+.Dt KADMIND 8
+.Os HEIMDAL
+.Sh NAME
+.Nm kadmind
+.Nd "server for administrative access to kerberos database"
+.Sh SYNOPSIS
+.Nm
+.Oo Fl c Ar file \*(Ba Xo
+.Fl -config-file= Ns Ar file
+.Xc
+.Oc
+.Oo Fl k Ar file \*(Ba Xo
+.Fl -key-file= Ns Ar file
+.Xc
+.Oc
+.Op Fl -keytab= Ns Ar keytab
+.Oo Fl r Ar realm \*(Ba Xo
+.Fl -realm= Ns Ar realm
+.Xc
+.Oc
+.Op Fl d | Fl -debug
+.Oo Fl p Ar port \*(Ba Xo
+.Fl -ports= Ns Ar port
+.Xc
+.Oc
+.Op Fl -no-kerberos4
+.Sh DESCRIPTION
+.Nm
+listens for requests for changes to the Kerberos database and performs
+these, subject to permissions.  When starting, if stdin is a socket it
+assumes that it has been started by
+.Xr inetd 8 ,
+otherwise it behaves as a daemon, forking processes for each new
+connection. The
+.Fl -debug
+option causes
+.Nm
+to accept exactly one connection, which is useful for debugging.
+.Pp
+If built with krb4 support, it implements both the Heimdal Kerberos 5
+administrative protocol and the Kerberos 4 protocol. Password changes
+via the Kerberos 4 protocol are also performed by
+.Nm kadmind ,
+but the
+.Xr kpasswdd 8
+daemon is responsible for the Kerberos 5 password changing protocol
+(used by
+.Xr kpasswd 1 )
+.
+.Pp
+This daemon should only be run on ther master server, and not on any
+slaves.
+.Pp
+Principals are always allowed to change their own password and list
+their own principal.  Apart from that, doing any operation requires
+permission explicitly added in the ACL file
+.Pa /var/heimdal/kadmind.acl .
+The format of this file is:
+.Bd -ragged
+.Va principal
+.Va rights
+.Op Va principal-pattern
+.Ed
+.Pp
+Where rights is any (comma separated) combination of:
+.Bl -bullet -compact
+.It
+change-password or cpw
+.It
+list
+.It
+delete
+.It
+modify
+.It
+add
+.It
+get
+.It
+all
+.El
+.Pp
+And the optional
+.Ar principal-pattern
+restricts the rights to operations on principals that match the
+glob-style pattern.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Xo
+.Fl c Ar file ,
+.Fl -config-file= Ns Ar file
+.Xc
+location of config file
+.It Xo
+.Fl k Ar file ,
+.Fl -key-file= Ns Ar file
+.Xc
+location of master key file
+.It Xo
+.Fl -keytab= Ns Ar keytab
+.Xc
+what keytab to use
+.It Xo
+.Fl r Ar realm ,
+.Fl -realm= Ns Ar realm
+.Xc
+realm to use
+.It Xo
+.Fl d ,
+.Fl -debug
+.Xc
+enable debugging
+.It Xo
+.Fl p Ar port ,
+.Fl -ports= Ns Ar port
+.Xc
+ports to listen to. By default, if run as a daemon, it listen to ports
+749, and 751 (if Kerberos 4 support is built and enabled), but you can
+add any number of ports with this option. The port string is a
+whitespace separated list of port specifications, with the special
+string
+.Dq +
+representing the default set of ports.
+.It Fl -no-kerberos4
+make 
+.Nm 
+ignore Kerberos 4 kadmin requests.
+.El
+.\".Sh ENVIRONMENT
+.Sh FILES
+.Pa /var/heimdal/kadmind.acl
+.Sh EXAMPLES
+This will cause
+.Nm
+to listen to port 4711 in addition to any
+compiled in defaults:
+.Pp
+.D1 Nm Fl -ports Ns Li "=\*[q]+ 4711\*[q] &"
+.Pp
+This acl file will grant Joe all rights, and allow Mallory to view and
+add host principals.
+.Bd -literal -offset indent
+joe/admin@EXAMPLE.COM      all
+mallory/admin@EXAMPLE.COM  add,get  host/*@EXAMPLE.COM
+.Ed
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr kpasswd 1 ,
+.Xr kadmin 8 ,
+.Xr kdc 8 ,
+.Xr kpasswdd 8

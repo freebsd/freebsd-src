@@ -1,0 +1,205 @@
+<!--
+    FreeBSD Japanese Documentation Project
+
+    $FreeBSD$
+
+    Original revision: 1.1.2.117
+-->
+
+<!-- 
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % ja-authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//JA">
+%ja-authors;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % ja-mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//JA">
+%ja-mlists;
+<!ENTITY % ja-trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//JA">
+%ja-trademarks;
+<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
+%trademarks;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
+<article>
+  <articleinfo>
+
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+
+    <corpauthor>&os; プロジェクト</corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+
+    <para>この文書は &os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+      の公開後に判明した重要な情報やリリース文書に間に合わなかった
+      情報が書かれている errata リスト (正誤表) です。
+      これにはセキュリティ勧告および、
+      システムの運用・利用に影響を与えるような関連ソフトウェア、
+      関連文書の更新情報も含まれています。
+      このバージョンの &os; をインストールする前には必ず、
+      最新の errata を参照するようにしてください。</para>
+
+    <para>この errata 文書は &os; 
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current; 
+]]>
+      用です。
+      &os; &release.next; のリリースまでの期間、保守されます。</para>
+  </abstract>
+
+  <sect1>
+    <title>はじめに</title>
+
+    <para>この errata 文書には &os;
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      に関する
+      <quote>最新の障害情報</quote> が書かれています。
+      この文書を読み、
+      このバージョンのインストール前にリリース公開後に既に発見・修正された問題点について
+      知っておいてください。</para>
+
+    <para>リリースの公開 (たとえば CDROM による配布) には
+      errata 文書が同梱されていることがあります。
+      しかし、それは当然ながらその時点のものであり、
+      最新のものと同じであるとは限りません。
+      インターネット上に置かれている
+      このリリースに対応した <quote>errata 文書の最新版</quote>
+      を参照するようにしてください。
+      errata 文書は <ulink url="http://www.FreeBSD.org/releases/"></ulink>
+      をはじめ、最新の状態を維持している各ミラーサイトに置かれています。</para>
+
+    <para>&os; &release.branch; のソーススナップショット、
+      バイナリスナップショットにも、
+      (スナップショット作成時の) 最新版の
+      errata 文書が含まれています。</para>
+
+    <para>&os; CERT セキュリティ勧告の全リストは、
+      <ulink url="http://www.FreeBSD.org/security/"></ulink>
+      もしくは
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>
+      を参照してください。</para>
+  </sect1>
+
+  <sect1>
+    <title>セキュリティ勧告</title>
+
+<![ %release.type.release [
+    <para>セキュリティ勧告は発行されていません。</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>セキュリティ勧告は発行されていません。</para>
+]]>
+
+  </sect1>
+
+  <sect1>
+    <title>最新情報</title>
+
+<![ %release.type.release [
+    <para>最新情報はありません。</para>
+]]>
+
+<![ %release.type.snapshot [
+
+    <para>(2003 年 10 月 28 日) リリース工程の終盤で、
+      &intel; プロセッサの
+      HyperThreading (HTT) 対応機能を
+      SMP カーネルではデフォルトで有効とする変更が行われました。
+      その結果、不要となったカーネルオプション
+      <literal>HTT</literal> は削除されました。
+      HTT 機能で有効化された論理 CPU は
+      割り込みを処理できるように常に起動されますが、
+      デフォルトではユーザプロセスを実行できないようになっています。
+      論理 CPU がユーザプロセスを実行できるようにするには、
+      &man.sysctl.8; 変数 <varname>machdep.hlt_logical_cpus</varname> を
+      <literal>1</literal> から <literal>0</literal> に変更してください。
+      loader で、この変数を同じ名前で設定することもできます。
+      この動作は &os; 5.<replaceable>X</replaceable> と同一です。</para>
+
+    <para>(2003 年 10 月 29 日)
+      一つ目の CD-ROM に収録されている packages のいくつかが、
+      それぞれ異なる (共存できない) バージョンの
+      <application>OpenLDAP</application> に依存していました。
+      この問題により、packages を利用して
+      <filename role="package">x11/gnome2</filename> と
+      <filename role="package">x11/kde3</filename> の両方を
+      インストールすることはできないということが判明しています。</para>
+
+    <para>(2003 年 10 月 30 日)
+      &os; のベースシステム全体を正しく機能させるために
+      <filename>crypto</filename> 配布物は必須のようです。
+      少なくとも、&man.pkg.add.1; の実行には
+      <filename>crypto</filename> 配布物にあるライブラリが必要です。</para>
+
+    <para>(2003 年 10 月 30 日)
+      ごく最近の i386 マシンでは El Torito CDROM
+      のエミュレーションモードによる起動に対応していないことがわかっています。
+      この結果、&os; &release.current; は
+      CDROM からの起動に失敗してしまいます。
+      回避方法として、フロッピディスクイメージをダウンロードして
+      &man.sysinstall.8; を起動してから、CDROM でインストールを行ってください。
+      この文章を書いている時点では、この問題はそれほど発生していないようです。
+
+      <note>
+	<para>&os; 5.<replaceable>X</replaceable> は、デフォルトでは
+	  El Torito CDROM エミュレーションモードによる起動方法を
+	  使用していません。そのため、エミュレーションモードにしか
+	  対応していない古い i386 マシンでは起動することができません。</para>
+      </note></para>
+
+]]>
+  </sect1>
+</article>

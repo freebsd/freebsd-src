@@ -1,0 +1,19 @@
+!default 755 root bin
+i pkginfo
+i preinstall
+i postinstall
+i preremove
+f none /etc/init.d/xntp=xntp 0755 root other
+l none /etc/rc2.d/S79xntp=/etc/init.d/xntp
+l none /etc/rc1.d/K79xntp=/etc/init.d/xntp
+l none /etc/rc0.d/K79xntp=/etc/init.d/xntp
+f none /usr/sbin/xntpd=xntpd/xntpd 0555 root other
+f none /usr/sbin/xntpdc=xntpdc/xntpdc 0555 root other
+f none /usr/sbin/ntpq=ntpq/ntpq 0555 root other
+f none /usr/sbin/ntptrace=ntptrace/ntptrace 0555 root other
+f none /usr/sbin/ntpdate=ntpdate/ntpdate 0555 root other
+f none /usr/share/man/man1m/xntpd.1m=doc/xntpd.8 0444 root other
+f none /usr/share/man/man1m/xntpdc.1m=doc/xntpdc.8 0444 root other
+f none /usr/share/man/man1m/ntpdate.1m=doc/ntpdate.8 0444 root other
+f none /usr/share/man/man1m/ntpq.1m=doc/ntpq.8 0444 root other
+f none /usr/share/man/man1m/ntptrace.1m=doc/ntptrace.8 0444 root other

@@ -1,0 +1,149 @@
+Character Generator description			        (before it gets lost ..)
+--------------------------------------------------------------------------------
+
+The lower character generator is the default IBM character set II.
+
+The description of the higher character generator follows below. The
+character names are taken from the "Postscript Language Reference
+Manual", 2nd Edition, Fourth printing July 1991, pp 596.
+
+NOTE: The hex values here are NOT the values the character is identified
+      by in the emulator. The "physical" (vt220 character) to "logical"
+      (this table, character generator) conversion is done in the character
+      output routine by using the tables from file pcvt_tbl.h.
+
+The order of the characters is not regular and was largely influenced by
+the status of my brain while pixel-placing characters ....
+
+HEX	What
+---	-------------------------------------------------
+00	Control code display for
+.	control characters in the
+1f	range 0x00 - 0x1f
+
+20	Control code display for
+.	control characters in the
+3f	range 0x80 - 0x9f
+
+HEX	What
+---	-------------------------------------------------
+40	rho
+41	psi
+42	partialdiff
+43	lambda
+44	iota
+45	eta
+46	epsilon
+47	chi
+48	logicaland
+49	logicalor
+4a	union
+4b	propersuperset
+4c	propersubset
+4d	gamma
+4e	Xi
+4f	Psi
+
+HEX	What
+---	-------------------------------------------------
+50	Pi
+51	arrowdblright
+52	arrowdblboth
+53	Lambda
+54	Theta
+55	congruent
+56	gradient
+57	Delta
+58	proportional
+59	therefore
+5a	integral
+5b	fraction
+5c			(inverted fraction ????)
+5d	angle
+5e			(inverted angle ????)
+5f	braceleftmid
+
+HEX	What
+---	-------------------------------------------------
+60	bracerightmid
+61	bracelefttp
+62	braceleftbt
+63	bracerighttp
+64	bracerightbt
+65	radical
+66	omega
+67			(Yen ??)
+68	xi
+69	yacute
+6a	thorn
+6b	eth
+6c	Thorn
+6d	Yacute
+6e	multiply
+6f	Eth
+
+HEX	What
+---	-------------------------------------------------
+70	threequarters
+71	Cedillasmall
+72	Acutesmall
+73	emdash
+74	registered
+75	endash
+76	logicalnot
+77	dieresis
+78	notequal
+79	scan 9
+7a	scan 7
+7b	scan 5
+7c	scan 3
+7d	scan 1
+7e	upsilon
+7f	emptyset
+
+HEX	What
+---	-------------------------------------------------
+80	oe
+81	Otilde
+82	atilde
+83	Ydieresis
+84	Ucircumflex
+85	Uacute
+86	Ugrave
+87	Oslash
+88	OE
+89	Otilde
+8a	Ocircumflex
+8b	Oacute
+8c	Ograve
+8d	Idieresis
+8e	Icircumflex
+8f	Iacute
+
+HEX	What
+---	-------------------------------------------------
+90	Igrave
+91	Edieresis
+92	Ecircumflex
+93	Egrave
+94	Atilde
+95	Acircumflex
+96	Aacute
+97	Agrave
+98	onesuperior
+99			(small black rectangle)
+9a	zeta
+9b	threesuperior
+9c	copyright
+9d	currency
+9e	kappa
+9f			(inverted question mark)
+
+HEX	What
+---	-------------------------------------------------
+a0	the remaining positions 
+.	are used for the vt220
+ff	downloadable characterset
+
+-------------------------------------------------------------------------------
+                                                                    (phoooo ..)

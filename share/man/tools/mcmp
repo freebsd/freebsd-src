@@ -1,0 +1,76 @@
+set x $*
+. ./.param
+
+if test -z "$ID"
+then
+	DIR2=/usr/nman
+else
+	DIR2=$ID
+fi
+
+if test ! -d $DIR2 
+then
+	echo "mcmp: $DIR2 - not a directory"
+	exit
+fi
+
+for dir in $DIRLST
+do
+	date > $TMPDIR/tmp3.$$
+	echo >> $TMPDIR/tmp3.$$
+	cd $MANDIR/man$dir
+	echo "Comparison of $MANDIR/man$dir and $DIR2/man$dir:">>$TMPDIR/tmp3.$$
+	echo >> $TMPDIR/tmp3.$$
+	ls $FILLST > $TMPDIR/tmp1.$$
+	cd $DIR2/man$dir
+	ls $FILLST > $TMPDIR/tmp2.$$
+	cd $MANDIR/man$dir
+	echo "Files found in $MANDIR/man$dir only:" >> $TMPDIR/tmp3.$$
+	comm -23 $TMPDIR/tmp1.$$ $TMPDIR/tmp2.$$ | sed "s/^/	/" >> $TMPDIR/tmp3.$$
+	echo >> $TMPDIR/tmp3.$$
+	echo "Files found in $DIR2/man$dir only:" >> $TMPDIR/tmp3.$$
+	comm -13 $TMPDIR/tmp1.$$ $TMPDIR/tmp2.$$ | sed "s/^/	/" >> $TMPDIR/tmp3.$$
+	echo >> $TMPDIR/tmp3.$$
+	comm -12 $TMPDIR/tmp1.$$ $TMPDIR/tmp2.$$ > $TMPDIR/tmp.$$
+	rm -f $TMPDIR/tmp1.$$ $TMPDIR/tmp2.$$
+	if [ ! -s $TMPDIR/tmp.$$ ]
+	then
+		echo "No common files for comparison" >> $TMPDIR/tmp3.$$
+		if [ -n "$LFLAG" ]
+		then
+			mv $TMPDIR/tmp3.$$ $TMPDIR/diff$dir
+		else
+			mv $TMPDIR/tmp3.$$ $TMPDIR/cmp$dir
+		fi
+		continue
+	fi
+	if [ -n "$LFLAG" ]
+	then
+		mv $TMPDIR/tmp3.$$ $TMPDIR/diff$dir
+		echo "Diffs of common files ($MANDIR=< $DIR2=>):" >> $TMPDIR/diff$dir
+	else
+		mv $TMPDIR/tmp3.$$ $TMPDIR/cmp$dir
+		echo "Files that differ:" >> $TMPDIR/cmp$dir
+	fi
+	while read file
+	do
+		if [ -z "$LFLAG" ]
+		then
+			cmp -s $file $DIR2/man$dir/$file
+			if [ $? -ne 0 ]
+			then
+				echo "\\t$file" >> $TMPDIR/cmp$dir
+			fi
+		else
+			diff $file $DIR2/man$dir/$file > $TMPDIR/tmp1.$$
+			if [ $? -eq 1 ]
+			then
+				echo "\\n\\t****$file****" >> $TMPDIR/diff$dir
+				cat $TMPDIR/tmp1.$$ >> $TMPDIR/diff$dir
+			fi
+		fi
+	done < $TMPDIR/tmp.$$
+	rm -f $TMPDIR/tmp1.$$
+done
+
+rm -f $TMPDIR/tmp.$$

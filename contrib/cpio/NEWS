@@ -1,0 +1,64 @@
+
+Major changes in version 2.4:
+
+* new texinfo documentation
+* --sparse option to write sparse files
+* --only-verify-crc option to verify a CRC format archive
+* --no-absolute-paths option to ignore absolute paths
+* --quiet option to supress printing number of blocks copied
+* handle disk input errors more gracefully
+
+Major changes in version 2.3:
+
+* in newc and crc format archives, only store 1 copy of multiply linked files
+* handle multiply linked devices properly
+* handle multiply linked files with cpio -pl even when the source and 
+  destination are on different file systems
+* support HPUX Context Dependent Files
+* read and write HPUX cpio archives
+* read System V.4 POSIX tar archives and HPUX POSIX tar archives
+* use rmdir, instead of unlink, to delete existing directories
+
+Major changes in version 2.2:
+
+* handle link counts correctly when reading binary cpio archives
+* configure checks for some libraries that SVR4 needs
+
+Major changes in version 2.1:
+
+* cpio can access remote non-device files as well as remote devices
+* fix bugs in the MS-DOS port
+* add --swap equivalent to -b option
+
+Version 2.0 adds the following features:
+
+Support for the SVR4 cpio formats, which can store inodes >65535, and
+for traditional and POSIX tar archives.  Also adds these options:
+
+-A --append		append to instead of replacing the archive
+-V --dot		print a dot for each file processed
+-H --format		select archive format
+-C --io-size		select I/O block size in bytes
+-M --message		print a message at end of media volumes
+--no-preserve-owner	don't change files' owners when extracting
+-R --owner		set files' owners when extracting
+-E --pattern-file	list of shell filename patterns to process
+-s --swap-bytes		handle byte-order differences when extracting files
+-S --swap-halfwords	ditto
+-b			like -sS
+-I			input archive filename
+-k			recognize corrupted archives (we alawys do it, though)
+-O			output archive filename
+
+Some options of previous versions have been renamed in 2.0:
+
+--binary was replaced by --format=bin
+--portability was replaced by --format=odc
+
+Some options have changed meaning in 2.0, for SVR4 compatibility:
+
+-O used to select the binary archive format, now selects the output file
+-V used to print the version number, now prints a dot for each file
+
+Version 2.0 also fixes several bugs in the handling of files with
+multiple links and of multi-volume archives on floppy disks.

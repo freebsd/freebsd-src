@@ -1,0 +1,57 @@
+.\"
+.\" Copyright (c) 1994 James A. Jegers
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 10, 1995
+.Dt EL 4 i386
+.Os
+.Sh NAME
+.Nm el
+.Nd Ethernet driver for 3Com Etherlink 3C501 device driver
+.Sh SYNOPSIS
+.Cd "device el0 at isa? port 0x300 irq 9"
+.Sh DESCRIPTION
+The
+.Nm
+interface provides support for the 3Com 3c501 8bit ISA ethernet card.
+The 3c501 card is known to be quite slow, and a different ethernet card
+should be used if possible.
+However, they allow inexpensive access to 10 Mb/s Ethernet networks.
+.Pp
+The valid I/O ports are in the range 0x280-0x3f0.
+.Sh BUGS
+The driver assumes the card is configured for the same IRQ as the kernel.
+No probing or checking is done to determine if this is the case.
+.Pp
+Does not currently support DMA.
+.Pp
+Does not currently support multicasts.
+.Sh SEE ALSO
+.Xr ed 4 ,
+.Xr ep 4 ,
+.Xr ie 4 ,
+.Xr intro 4 ,
+.Xr le 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8

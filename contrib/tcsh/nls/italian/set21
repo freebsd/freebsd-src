@@ -1,0 +1,5 @@
+$ $Id: set21,v 1.2 1998/09/09 10:30:21 christos Exp $
+$ tc.disc.c
+$set 21 
+1 Non si possono ottenere i caratteri locali\n
+2 Non si possono definire i caratteri locali\n

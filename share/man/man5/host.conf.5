@@ -1,0 +1,118 @@
+.\" Copyright (c) 2001 Giorgos Keramidas <keramida@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Note: The date here should be updated whenever a non-trivial
+.\" change is made to the manual page.
+.Dd December 6, 2001
+.Dt HOST.CONF 5
+.Os
+.Sh NAME
+.Nm host.conf
+.Nd resolver services configuration file
+.Sh SYNOPSIS
+.Pa /etc/host.conf
+.Sh DESCRIPTION
+The
+.Nm
+file holds part of the configuration for the resolver of
+.Fx .
+It describes what services (e.g., DNS or
+.Xr yp 8 )
+the C library resolving routines
+(like
+.Xr gethostbyname 3 )
+will use, and their order of use, when resolving host names or addresses.
+.Pp
+The format of this file is human readable, and easy to modify with the
+text editor of your choice.
+Lines with
+.Ql #
+in the first column are comments and are ignored.
+The rest of the lines may contain any number of service names,
+separated by any number of colons
+.Pq Ql \&: ,
+semicolons
+.Pq Ql \&; ,
+commas
+.Pq Ql \&, ,
+or whitespace (tab, space and newline characters).
+.Ss Valid Service Names
+Service names that are recognized as valid in
+.Nm
+are:
+.Bl -tag -width ".Li yellowpages"
+.It Li /etc/hosts
+An alias for
+.Ql hosts .
+.It Li bind
+This service makes the resolver use Internet Domain System (DNS) for
+resolving hostnames and addresses.
+The DNS resolver configuration is
+described in
+.Xr resolver 5 .
+.It Li dns
+An alias for
+.Ql bind .
+.It Li domain
+An alias for
+.Ql bind .
+.It Li hosts
+When this service name is used in
+.Nm ,
+name and address lookups are done by using the local hosts database.
+The local hosts database is described in
+.Xr hosts 5 .
+.It Li hosttable
+An alias for
+.Ql hosts .
+.It Li htable
+An alias for
+.Ql hosts .
+.It Li nis
+When service name is used in
+.Nm ,
+the resolver uses YP/NIS for making lookups of hostnames and
+addresses.
+The YP/NIS system is described in
+.Xr yp 8 .
+.It Li yellowpages
+An alias for
+.Ql nis .
+.It Li yp
+An alias for
+.Ql nis .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa host.conf"
+.It Pa host.conf
+The services configuration file resides in
+.Pa /etc .
+.El
+.Sh SEE ALSO
+.Xr gethostbyname 3 ,
+.Xr hosts 5 ,
+.Xr resolver 5 ,
+.Xr yp 8

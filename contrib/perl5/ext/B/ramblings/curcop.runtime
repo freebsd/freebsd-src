@@ -1,0 +1,39 @@
+PP code uses of curcop
+----------------------
+
+pp_rv2gv
+	when a new glob is created for an OPpLVAL_INTRO,
+	curcop->cop_line is stored as GvLINE() in the new GP.
+pp_bless
+	curcop->cop_stash is used as the stash in the one-arg form of bless
+
+pp_repeat
+	tests (curcop != &compiling) to warn "Can't x= to readonly value"
+
+pp_pos
+pp_substr
+pp_index
+pp_rindex
+pp_aslice
+pp_lslice
+pp_splice
+	curcop->cop_arybase
+
+pp_sort
+	curcop->cop_stash used to determine whether to gv_fetchpv $a and $b
+
+pp_caller
+	tests (curcop->cop_stash == debstash) to determine whether
+	to set DB::args
+
+pp_reset
+	resets vars in curcop->cop_stash
+
+pp_dbstate
+	sets curcop = (COP*)op
+
+doeval
+	compiles into curcop->cop_stash
+
+pp_nextstate
+	sets curcop = (COP*)op

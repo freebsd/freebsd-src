@@ -1,0 +1,311 @@
+
+#------------------------------------------------------------------------------
+# msdos:  file(1) magic for MS-DOS files
+#
+
+# .BAT files (Daniel Quinlan, quinlan@yggdrasil.com)
+0	string	@echo\ off	MS-DOS batch file text
+
+# XXX - according to Microsoft's spec, at an offset of 0x3c in a
+# PE-format executable is the offset in the file of the PE header;
+# unfortunately, that's a little-endian offset, and there's no way
+# to specify an indirect offset with a specified byte order.
+# So, for now, we assume the standard MS-DOS stub, which puts the
+# PE header at 0x80 = 128.
+#
+# Required OS version and subsystem version were 4.0 on some NT 3.51
+# executables built with Visual C++ 4.0, so it's not clear that
+# they're interesting.  The user version was 0.0, but there's
+# probably some linker directive to set it.  The linker version was
+# 3.0, except for one ".exe" which had it as 4.20 (same damn linker!).
+#
+128	string		PE\0\0	MS Windows PE
+>150	leshort&0x0100	>0	32-bit
+>132	leshort		0x0	unknown processor
+>132	leshort		0x14c	Intel 80386
+>132	leshort		0x166	MIPS R4000
+>132	leshort		0x184	Alpha
+>132	leshort		0x268	Motorola 68000
+>132	leshort		0x1f0	PowerPC
+>132	leshort		0x290	PA-RISC
+>148	leshort		>27
+>>220	leshort		0	unknown subsystem
+>>220	leshort		1	native
+>>220	leshort		2	GUI
+>>220	leshort		3	console
+>>220	leshort		7	POSIX
+>150	leshort&0x2000	=0	executable
+#>>136	ledate		x	stamp %s,
+>>150	leshort&0x0001	>0	not relocatable
+#>>150	leshort&0x0004	=0	with line numbers,
+#>>150	leshort&0x0008	=0	with local symbols,
+#>>150	leshort&0x0200	=0	with debug symbols,
+>>150	leshort&0x1000	>0	system file
+#>>148	leshort		>0
+#>>>154	byte		x	linker %d
+#>>>155	byte		x	\b.%d,
+#>>148	leshort		>27
+#>>>192	leshort		x	requires OS %d
+#>>>194	leshort		x	\b.%d,
+#>>>196	leshort		x	user version %d
+#>>>198	leshort		x	\b.%d,
+#>>>200	leshort		x	subsystem version %d
+#>>>202	leshort		x	\b.%d,
+>150	leshort&0x2000	>0	DLL
+#>>136	ledate		x	stamp %s,
+>>150	leshort&0x0001	>0	not relocatable
+#>>150	leshort&0x0004	=0	with line numbers,
+#>>150	leshort&0x0008	=0	with local symbols,
+#>>150	leshort&0x0200	=0	with debug symbols,
+>>150	leshort&0x1000	>0	system file
+#>>148	leshort		>0
+#>>>154	byte		x	linker %d
+#>>>155	byte		x	\b.%d,
+#>>148	leshort		>27
+#>>>192	leshort		x	requires OS %d
+#>>>194	leshort		x	\b.%d,
+#>>>196	leshort		x	user version %d
+#>>>198	leshort		x	\b.%d,
+#>>>200	leshort		x	subsystem version %d
+#>>>202	leshort		x	\b.%d,
+0	leshort		0x14c	MS Windows COFF Intel 80386 object file
+#>4	ledate		x	stamp %s
+0	leshort		0x166	MS Windows COFF MIPS R4000 object file
+#>4	ledate		x	stamp %s
+0	leshort		0x184	MS Windows COFF Alpha object file
+#>4	ledate		x	stamp %s
+0	leshort		0x268	MS Windows COFF Motorola 68000 object file
+#>4	ledate		x	stamp %s
+0	leshort		0x1f0	MS Windows COFF PowerPC object file
+#>4	ledate		x	stamp %s
+0	leshort		0x290	MS Windows COFF PA-RISC object file
+#>4	ledate		x	stamp %s
+
+# .EXE formats (Greg Roelofs, newt@uchicago.edu)
+#
+0	string	MZ		MS-DOS executable (EXE)
+>24	string	@		\b, OS/2 or MS Windows
+>>0xe7	string	LH/2\ Self-Extract	\b, %s
+>>0xe9	string	PKSFX2		\b, %s
+>>122	string	Windows\ self-extracting\ ZIP	\b, %s
+>0x1c	string	RJSX\xff\xff	\b, ARJ SFX
+>0x1c	string	diet\xf9\x9c	\b, diet compressed
+>0x1c	string	LZ09		\b, LZEXE v0.90 compressed
+>0x1c	string	LZ91		\b, LZEXE v0.91 compressed
+>0x1e	string	Copyright\ 1989-1990\ PKWARE\ Inc.	\b, PKSFX
+# JM: 0x1e "PKLITE Copr. 1990-92 PKWARE Inc. All Rights Reserved\7\0\0\0"
+>0x1e	string	PKLITE\ Copr.	\b, %.6s compressed
+>0x24	string	LHa's\ SFX	\b, %.15s
+>0x24	string	LHA's\ SFX	\b, %.15s
+>1638	string	-lh5-		\b, LHa SFX archive v2.13S
+>7195	string	Rar!		\b, RAR self-extracting archive
+#
+# [GRR 950118:  file 3.15 has a buffer-size limitation; offsets bigger than
+#   8161 bytes are ignored.  To make the following entries work, increase
+#   HOWMANY in file.h to 32K at least, and maybe to 70K or more for OS/2,
+#   NT/Win32 and VMS.]
+# [GRR:  some company sells a self-extractor/displayer for image data(!)]
+#
+>11696	string	PK\003\004	\b, PKZIP SFX archive v1.1
+>13297	string	PK\003\004	\b, PKZIP SFX archive v1.93a
+>15588	string	PK\003\004	\b, PKZIP2 SFX archive v1.09
+>15770	string	PK\003\004	\b, PKZIP SFX archive v2.04g
+>28374	string	PK\003\004	\b, PKZIP2 SFX archive v1.02
+#
+# Info-ZIP self-extractors
+#    these are the DOS versions:
+>25115	string	PK\003\004	\b, Info-ZIP SFX archive v5.12
+>26331	string	PK\003\004	\b, Info-ZIP SFX archive v5.12 w/decryption
+#    these are the OS/2 versions (OS/2 is flagged above):
+>47031	string	PK\003\004	\b, Info-ZIP SFX archive v5.12
+>49845	string	PK\003\004	\b, Info-ZIP SFX archive v5.12 w/decryption
+#    this is the NT/Win32 version:
+>69120	string	PK\003\004	\b, Info-ZIP NT SFX archive v5.12 w/decryption
+#
+# TELVOX Teleinformatica CODEC self-extractor for OS/2:
+>49801	string	\x79\xff\x80\xff\x76\xff	\b, CODEC archive v3.21
+>>49824	leshort		=1			\b, 1 file
+>>49824	leshort		>1			\b, %u files
+
+# .COM formats (Daniel Quinlan, quinlan@yggdrasil.com)
+# Uncommenting only the first two lines will cover about 2/3 of COM files,
+# but it isn't feasible to match all COM files since there must be at least
+# two dozen different one-byte "magics".
+#0	byte		0xe9		MS-DOS executable (COM)
+#>6	string	SFX\ of\ LHarc	(%s)
+#0	byte		0x8c		MS-DOS executable (COM)
+# 0xeb conflicts with "sequent" magic
+#0	byte		0xeb		MS-DOS executable (COM)
+#0	byte		0xb8		MS-DOS executable (COM)
+
+# miscellaneous formats
+0	string		LZ		MS-DOS executable (built-in)
+#0	byte		0xf0		MS-DOS program library data
+#
+
+#
+# Windows NT Registry files.
+#
+0	string		regf		Windows NT Registry file
+
+# Popular applications
+2080	string	Microsoft\ Word\ 6.0\ Document	%s
+2080	string	Documento\ Microsoft\ Word\ 6 Spanish Microsoft Word 6 document data
+# Pawel Wiecek <coven@i17linuxb.ists.pwr.wroc.pl> (for polish Word)
+2112	string	MSWordDoc			Microsoft Word document data
+#
+0	belong	0x31be0000			Microsoft Word Document
+#
+0       string  PO^Q`				Microsoft Word 6.0 Document
+#
+0	string	\376\067\0\043			Microsoft Office Document
+0	string	\320\317\021\340\241\261	Microsoft Office Document
+0	string	\333\245-\0\0\0			Microsoft Office Document
+#
+2080	string	Microsoft\ Excel\ 5.0\ Worksheet	%s
+#
+# Pawel Wiecek <coven@i17linuxb.ists.pwr.wroc.pl> (for polish Excel)
+2114	string	Biff5		Microsoft Excel 5.0 Worksheet
+#
+0	belong	0x00001a00	Lotus 1-2-3
+>4	belong	0x00100400	wk3 document data
+>4	belong	0x02100400	wk4 document data
+>4	belong	0x07800100	fm3 or fmb document data
+>4	belong	0x07800000	fm3 or fmb document data
+#
+0	belong	0x00000200 	Lotus 1-2-3
+>4	belong	0x06040600	wk1 document data
+>4	belong	0x06800200	fmt document data
+
+# Help files
+0	string	?_\3\0		MS Windows Help Data
+
+# Microsoft CAB distribution format  Dale Worley <root@dworley.ny.mediaone.net>
+0	string		MSCF\000\000\000\000	Microsoft CAB file
+
+#  DeIsL1.isu what this is I don't know
+0	string	\161\250\000\000\001\002	DeIsL1.isu whatever that is
+
+# Winamp .avs
+#0	string	Nullsoft\ AVS\ Preset\ \060\056\061\032	A plug in for Winamp ms-windows Freeware media player
+0	string	Nullsoft\ AVS\ Preset\ 	Winamp plug in
+
+# Hyper terminal:
+0	string	HyperTerminal\ 	hyperterm
+>15	string	1.0\ --\ HyperTerminal\ data\ file	MS-windows Hyperterminal
+
+# Windows Metafont .WMF
+0	string	\327\315\306\232\000\000\000\000\000\000	ms-windows metafont .wmf
+
+#tz3 files whatever that is (MS Works files)
+0	string	\003\001\001\004\070\001\000\000	tz3 ms-works file
+0	string	\003\002\001\004\070\001\000\000	tz3 ms-works file
+0	string	\003\003\001\004\070\001\000\000	tz3 ms-works file
+
+# PGP sig files .sig
+#0 string \211\000\077\003\005\000\063\237\127 065 to  \027\266\151\064\005\045\101\233\021\002 PGP sig
+0 string \211\000\077\003\005\000\063\237\127\065\027\266\151\064\005\045\101\233\021\002 PGP sig
+0 string \211\000\077\003\005\000\063\237\127\066\027\266\151\064\005\045\101\233\021\002 PGP sig
+0 string \211\000\077\003\005\000\063\237\127\067\027\266\151\064\005\045\101\233\021\002 PGP sig
+0 string \211\000\077\003\005\000\063\237\127\070\027\266\151\064\005\045\101\233\021\002 PGP sig
+0 string \211\000\077\003\005\000\063\237\127\071\027\266\151\064\005\045\101\233\021\002 PGP sig
+0 string \211\000\225\003\005\000\062\122\207\304\100\345\042 PGP sig
+
+# windows zips files .dmf
+0	string	MDIF\032\000\010\000\000\000\372\046\100\175\001\000\001\036\001\000 Ms-windows special zipped file
+
+
+# Windows help file FTG FTS
+0	string	\164\146\115\122\012\000\000\000\001\000\000\000	ms-windows help cache
+
+# grp old windows 3.1 group files
+0 string  \120\115\103\103	Ms-windows 3.1 group files
+
+
+# lnk files windows symlinks
+0	string	\114\000\000\000\001\024\002\000\000\000\000\000\300\000\000\000\000\000\000\106	ms-Windows shortcut
+
+#ico files
+0	string	\102\101\050\000\000\000\056\000\000\000\000\000\000\000	Icon for ms-windows
+
+# Windows icons (Ian Springer <ips@fpk.hp.com>)
+0	string	\000\000\001\000	ms-windows icon resource
+>4	byte	1			- 1 icon
+>4	byte	>1			- %d icons
+>>6	byte	>0			\b, %dx
+>>>7	byte	>0			\b%d
+>>8	byte	0			\b, 256-colors
+>>8	byte	>0			\b, %d-colors
+
+
+# True Type fonts currently misidentified as raw G3 data
+
+0	string	\000\001\000\000\000 MS-Windows true type font .ttf
+
+
+# .chr files
+0	string	PK\010\010BGI	Borland font 
+>4	string	>\0	%s
+# then there is a copyright notice
+
+
+# .bgi files
+0	string	pk\010\010BGI	Borland device 
+>4	string	>\0	%s
+# then there is a copyright notice
+
+
+# recycled/info the windows trash bin index
+9	string	\000\000\000\030\001\000\000\000 ms-windows recycled bin info
+
+
+##### put in Either Magic/font or Magic/news
+# Acroread or something  files wrongly identified as G3  .pfm
+# these have the form \000 \001 any? \002 \000 \000
+# or \000 \001 any? \022 \000 \000
+0	string  \000\001 pfm?
+>3	string  \022\000\000Copyright\  yes
+>3	string  \002\000\000Copyright\  yes
+#>3	string  >\0     oops, not a font file. Cancel that.
+#it clashes with ttf files so put it lower down.
+
+# From Doug Lee via a FreeBSD pr
+9	string		GERBILDOC	First Choice document
+9	string		GERBILDB	First Choice database
+9	string		GERBILCLIP	First Choice database
+0	string		GERBIL		First Choice device file
+9	string		RABBITGRAPH	RabbitGraph file
+0	string		DCU1		Borland Delphi .DCU file
+0	string		!<spell>	MKS Spell hash list (old format)
+0	string		!<spell2>	MKS Spell hash list
+0	string		AH		Halo(TM) bitmapped font file
+0	lelong		0x08086b70	TurboC BGI file
+0	lelong		0x08084b50	TurboC Font file
+
+# WARNING: below line conflicts with Infocom game data Z-machine 3
+0	byte		0x03		DBase 3 data file
+>0x04	lelong		0		(no records)
+>0x04	lelong		>0		(%ld records)
+0	byte		0x83		DBase 3 data file with memo(s)
+>0x04	lelong		0		(no records)
+>0x04	lelong		>0		(%ld records)
+0	leshort		0x0006		DBase 3 index file
+0	string		PMCC		Windows 3.x .GRP file
+1	string		RDC-meg		MegaDots 
+>8	byte		>0x2F		version %c
+>9	byte		>0x2F		\b.%c file
+0	lelong		0x4C
+>4	lelong		0x00021401	Windows shortcut file
+
+# DOS EPS Binary File Header
+# From: Ed Sznyter <ews@Black.Market.NET>
+0	belong		0xC5D0D3C6	DOS EPS Binary File
+>4	long		>0		Postscript starts at byte %d
+>>8	long		>0		length %d
+>>>12	long		>0		Metafile starts at byte %d
+>>>>16	long		>0		length %d
+>>>20	long		>0		TIFF starts at byte %d
+>>>>24	long		>0		length %d
+
+# TNEF magic From "Joomy" <joomy@se-ed.net> 
+0	leshort		0x223e9f78	TNEF

@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# This script was hacked together by Marc Evans (marc@Synergytics.Com)
+# I claim no copyright to it and don't really care what people do
+# with it, hence, it is public domain. I take no responsibility for
+# for happens if you use this script, providing no warentee. This
+# section of the comments may be removed if you so desire.
+#
+# Usage:
+#       uutry [-x#] systemname
+# where '-x#' has the value [0-9], higher values providing more detail
+
+#
+# The following variables should be gropped from the configuration
+# files rather then being hard coded here.
+#
+Spool=/usr/spool/uucp
+Lib=/usr/local/lib/uucp
+Status=$Spool/.Status
+Debug=$Spool/Debug
+Uucico=$Lib/uucico
+#
+# Default option values
+#
+x="-x5"
+s=""
+
+for i in $* ; do
+    case $i in
+        -x*) x="$i" ;;
+        *) s="$i" ;;
+    esac
+done
+
+if [ x$s != x ]; then
+    rm -f $Status/$s
+    $Uucico -r1 $x -s$s &
+    >$Debug
+    tail -f $Debug
+else
+    echo "Usage: uutry systemname"
+    exit 1
+fi

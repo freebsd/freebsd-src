@@ -1,0 +1,15 @@
+This directory contains all code for the mpn layer of GMP.
+
+Most subdirectories contain machine-dependent code, written in assembly or
+C.  The `generic' subdirectory contains default code, used when there is no
+machine-dependent replacement for a particular machine.
+
+There is one subdirectory for each architecture.  Note that e.g., 32-bit
+sparc and 64-bit sparc cannot share any code, and are therefore considered
+completely different architecture.
+
+A particular machine will only use code from one such subdirectory, and the
+`generic' subdirectory.  The architecture-specific subdirectory contains a
+hierachy of directories for various architecture variants and
+implementations; the top-most level contains code that runs correctly on all
+variants.

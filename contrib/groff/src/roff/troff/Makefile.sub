@@ -1,0 +1,57 @@
+PROG=troff$(EXEEXT)
+MAN1=troff.n
+XLIBS=$(LIBGROFF)
+MLIB=$(LIBM)
+OBJS=\
+  dictionary.$(OBJEXT) \
+  div.$(OBJEXT) \
+  env.$(OBJEXT) \
+  glyphuni.$(OBJEXT) \
+  input.$(OBJEXT) \
+  majorminor.$(OBJEXT) \
+  node.$(OBJEXT) \
+  number.$(OBJEXT) \
+  reg.$(OBJEXT) \
+  symbol.$(OBJEXT) \
+  unicode.$(OBJEXT) \
+  uniglyph.$(OBJEXT) \
+  uniuni.$(OBJEXT)
+CCSRCS=\
+  $(srcdir)/dictionary.cpp \
+  $(srcdir)/div.cpp \
+  $(srcdir)/env.cpp \
+  $(srcdir)/glyphuni.cpp \
+  $(srcdir)/input.cpp \
+  majorminor.cpp \
+  $(srcdir)/node.cpp \
+  $(srcdir)/number.cpp \
+  $(srcdir)/reg.cpp \
+  $(srcdir)/symbol.cpp \
+  $(srcdir)/unicode.cpp \
+  $(srcdir)/uniglyph.cpp \
+  $(srcdir)/uniuni.cpp
+HDRS=\
+  $(srcdir)/charinfo.h \
+  $(srcdir)/dictionary.h \
+  $(srcdir)/div.h \
+  $(srcdir)/env.h \
+  $(srcdir)/hvunits.h \
+  $(srcdir)/input.h \
+  $(srcdir)/node.h \
+  $(srcdir)/reg.h \
+  $(srcdir)/request.h \
+  $(srcdir)/symbol.h \
+  $(srcdir)/token.h \
+  $(srcdir)/troff.h \
+  $(srcdir)/unicode.h
+GENSRCS=majorminor.cpp
+NAMEPREFIX=$(g)
+
+majorminor.cpp: $(top_srcdir)/VERSION $(top_srcdir)/REVISION
+	@echo Making $@
+	@-rm -f $@
+	@echo const char \*major_version = \
+	\"`sed -e 's/^\([^.]*\)\..*$$/\1/' $(top_srcdir)/VERSION`\"\; >$@
+	@echo const char \*minor_version = \
+	\"`sed -e 's/^[^.]*\.\([0-9]*\).*$$/\1/' $(top_srcdir)/VERSION`\"\; >>$@
+	@echo const char \*revision = \"`cat $(top_srcdir)/REVISION`\"\; >>$@

@@ -1,0 +1,38 @@
+Thu Sep 15 14:19:50 1994  david d `zoo' zuhn  <zoo@monad.armadillo.com>
+
+	* Makefile.in: define TEXI2DVI
+
+Sat Dec 18 01:23:39 1993  david d zuhn  (zoo@monad.armadillo.com)
+
+	* cvs.texinfo: document -k SUBST options to 'cvs import';
+	  regularize use @sc{cvs}
+
+	* Makefile.in (VPATH): don't use $(srcdir), but @srcdir@ instead
+	  (install-info): grab all info files, not just *.info
+
+Mon Oct 11 16:23:54 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* cvsclient.texi: New node TODO; various other changes.
+
+Wed Feb 26 18:04:40 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in, configure.in: removed traces of namesubdir,
+	  -subdirs, $(subdir), $(unsubdir), some rcs triggers.  Forced
+	  copyrights to '92, changed some from Cygnus to FSF.
+
+Tue Dec 10 04:07:10 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: infodir belongs in datadir.
+
+Thu Dec  5 22:46:01 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: idestdir and ddestdir go away.  Added copyrights
+	  and shift gpl to v2.  Added ChangeLog if it didn't exist. docdir
+	  and mandir now keyed off datadir by default.
+
+Wed Nov 27 02:45:18 1991  K. Richard Pixley  (rich at sendai)
+
+	* brought Makefile.in's up to standards.text.
+
+	* fresh changelog.
+

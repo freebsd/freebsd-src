@@ -1,0 +1,24 @@
+''' $FreeBSD$
+.TH uusched 8 "Taylor UUCP 1.06"
+.SH NAME
+uusched \- UUCP file transfer daemon
+.SH SYNOPSIS
+.B uusched 
+[uucico options]
+.SH DESCRIPTION
+The 
+.B uusched
+program is actually just a shell script which invokes
+the 
+.B uucico(8)
+daemon.  It is provided for backward compatibility.  It
+causes 
+uucico(8) to call all systems for which there is work.  Any
+option which may be given to uucico(8) may also be given to 
+.B uusched
+.SH SEE ALSO
+uucico(8), uucp(1)
+.SH AUTHOR
+Ian Lance Taylor (ian@airs.com).
+This Manpage based on the Taylor UUCP 1.06 Texinfo documentation.
+

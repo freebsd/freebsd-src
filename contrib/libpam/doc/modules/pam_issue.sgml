@@ -1,0 +1,120 @@
+<!--
+
+Ben Collins <bcollins@debian.org>
+
+-->
+
+<sect1>Add issue file to user prompt
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+<tt/pam_issue/
+
+<tag><bf>Author:</bf></tag>
+Ben Collins &lt;bcollins@debian.org&gt;
+
+<tag><bf>Maintainer:</bf></tag>
+Author
+
+<tag><bf>Management groups provided:</bf></tag>
+Authentication (pam_sm_authenticate)
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+
+<tag><bf>System dependencies:</bf></tag>
+
+<tag><bf>Network aware:</bf></tag>
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+This module prepends the issue file (<em>/etc/issue</em> by default) when
+prompting for a username.
+
+<sect2>Authentication component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+<tt/issue=issue-file-name/; <tt/noesc/;
+
+<tag><bf>Description:</bf></tag>
+This module allows you to prepend an issue file to the username prompt. It
+also by default parses escape codes in the issue file similar to some
+common getty's (using &bsol;x format).
+<p>
+Recognized escapes:
+<itemize>
+
+<item><tt/d/
+- current date
+
+<item><tt/s/
+- operating system name
+
+<item><tt/l/
+- name of this tty
+
+<item><tt/m/
+- architecture of this system (i686, sparc, powerpc, ...)
+
+<item><tt/n/
+- hostname of this system
+
+<item><tt/o/
+- domainname of this system
+
+<item><tt/r/
+- release number of the operation system (eg. 2.2.12)
+
+<item><tt/t/
+- current time
+
+<item><tt/u/
+- number of users currently logged in
+
+<item><tt/U/
+- same as <tt/u/, except it is suffixed with "user" or "users" (eg. "1
+user" or "10 users"
+
+<item><tt/v/
+- version/build-date of the operating system (eg. "&num;3 Mon Aug 23 14:38:16
+EDT 1999" on Linux).
+
+</itemize>
+
+<p>
+The behavior of this module can be modified with one of the following
+flags:
+
+<p>
+<itemize>
+
+<item><tt/issue/
+- the file to output if not using the default
+
+<item><tt/noesc/
+- turns off escape code parsing
+
+</itemize>
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+login  auth  pam_issue.so  issue=/etc/issue
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->

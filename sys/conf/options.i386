@@ -1,0 +1,224 @@
+# $FreeBSD$
+
+DISABLE_PSE
+IDE_DELAY
+USER_LDT
+MATH_EMULATE		opt_math_emulate.h
+GPL_MATH_EMULATE	opt_math_emulate.h
+PMAP_SHPGPERPROC	opt_pmap.h
+PPC_PROBE_CHIPSET	opt_ppc.h
+PPC_DEBUG		opt_ppc.h
+SHOW_BUSYBUFS
+PANIC_REBOOT_WAIT_TIME	opt_panic.h
+MAXMEM
+PERFMON			opt_perfmon.h
+POWERFAIL_NMI		opt_trap.h
+AUTO_EOI_1		opt_auto_eoi.h
+AUTO_EOI_2		opt_auto_eoi.h
+CONSPEED		opt_comconsole.h
+I586_PMC_GUPROF		opt_i586_guprof.h
+WLCACHE			opt_wavelan.h
+WLDEBUG			opt_wavelan.h
+BROKEN_KEYBOARD_RESET	opt_reset.h
+
+# Options for emulators.  These should only be used at config time, so
+# they are handled like options for static file systems
+# (see src/sys/conf/options), except for broken debugging options.
+IBCS2			opt_dontuse.h
+COMPAT_LINUX		opt_dontuse.h
+DEBUG_LINUX		opt_linux.h
+COMPAT_SVR4		opt_dontuse.h
+DEBUG_SVR4		opt_svr4.h
+
+# i386 SMP options
+APIC_IO			opt_global.h
+
+# Change KVM size.  Changes things all over the kernel.
+KVA_PAGES		opt_global.h
+PAE			opt_global.h
+
+CLK_CALIBRATION_LOOP		opt_clock.h
+CLK_USE_I8254_CALIBRATION	opt_clock.h
+CLK_USE_TSC_CALIBRATION		opt_clock.h
+TIMER_FREQ			opt_clock.h
+KERN_TIMESTAMP			opt_global.h
+
+NO_F00F_HACK			opt_cpu.h
+CPU_BLUELIGHTNING_FPU_OP_CACHE	opt_cpu.h
+CPU_BLUELIGHTNING_3X		opt_cpu.h
+CPU_BTB_EN			opt_cpu.h
+CPU_CYRIX_NO_LOCK		opt_cpu.h
+CPU_DIRECT_MAPPED_CACHE		opt_cpu.h
+CPU_DISABLE_5X86_LSSER		opt_cpu.h
+CPU_ELAN			opt_cpu.h
+CPU_ENABLE_TCC			opt_cpu.h
+CPU_FASTER_5X86_FPU		opt_cpu.h
+CPU_I486_ON_386			opt_cpu.h
+CPU_IORT			opt_cpu.h
+CPU_L2_LATENCY			opt_cpu.h
+CPU_LOOP_EN			opt_cpu.h
+CPU_PPRO2CELERON		opt_cpu.h
+CPU_RSTK_EN			opt_cpu.h
+CPU_SUSP_HLT			opt_cpu.h
+CPU_UPGRADE_HW_CACHE		opt_cpu.h
+CPU_WT_ALLOC			opt_cpu.h
+CYRIX_CACHE_WORKS		opt_cpu.h
+CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
+NO_MEMORY_HOLE			opt_cpu.h
+CPU_ENABLE_SSE			opt_cpu.h
+CPU_ATHLON_SSE_HACK		opt_cpu.h
+NO_PSE_HACK			opt_cpu.h
+
+# The CPU type affects the endian conversion functions all over the kernel.
+I386_CPU		opt_global.h
+I486_CPU		opt_global.h
+I586_CPU		opt_global.h
+I686_CPU		opt_global.h
+
+MAXCONS			opt_syscons.h
+SC_ALT_MOUSE_IMAGE	opt_syscons.h
+SC_DEBUG_LEVEL		opt_syscons.h
+SC_DFLT_FONT		opt_syscons.h
+SC_DISABLE_DDBKEY	opt_syscons.h
+SC_DISABLE_REBOOT	opt_syscons.h
+SC_HISTORY_SIZE		opt_syscons.h
+SC_KERNEL_CONS_ATTR	opt_syscons.h
+SC_KERNEL_CONS_REV_ATTR	opt_syscons.h
+SC_MOUSE_CHAR		opt_syscons.h
+SC_NO_CUTPASTE		opt_syscons.h
+SC_NO_FONT_LOADING	opt_syscons.h
+SC_NO_HISTORY		opt_syscons.h
+SC_NO_SYSMOUSE		opt_syscons.h
+SC_NORM_ATTR		opt_syscons.h
+SC_NORM_REV_ATTR	opt_syscons.h
+SC_PIXEL_MODE		opt_syscons.h
+SC_RENDER_DEBUG		opt_syscons.h
+SC_TWOBUTTON_MOUSE	opt_syscons.h
+
+VGA_ALT_SEQACCESS	opt_vga.h
+VGA_DEBUG		opt_vga.h
+VGA_NO_FONT_LOADING	opt_vga.h
+VGA_NO_MODE_CHANGE	opt_vga.h
+VGA_SLOW_IOACCESS	opt_vga.h
+VGA_WIDTH90		opt_vga.h
+
+VESA			opt_vesa.h
+VESA_DEBUG		opt_vesa.h
+
+PSM_HOOKRESUME		opt_psm.h
+PSM_RESETAFTERSUSPEND	opt_psm.h
+PSM_DEBUG		opt_psm.h
+
+PCIC_RESUME_RESET	opt_pcic.h
+
+PUC_FASTINTR		opt_puc.h
+
+ATKBD_DFLT_KEYMAP	opt_atkbd.h
+
+KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
+KBD_INSTALL_CDEV	opt_kbd.h
+KBD_MAXRETRY		opt_kbd.h
+KBD_MAXWAIT		opt_kbd.h
+KBD_RESETDELAY		opt_kbd.h
+KBDIO_DEBUG		opt_kbd.h
+
+USERCONFIG		opt_userconfig.h
+VISUAL_USERCONFIG	opt_userconfig.h
+INTRO_USERCONFIG	opt_userconfig.h
+
+EISA_SLOTS		opt_eisa.h
+
+FE_8BIT_SUPPORT		opt_fe.h
+
+# pcvt(4) has a bunch of options
+FAT_CURSOR		opt_pcvt.h
+XSERVER			opt_pcvt.h
+PCVT_24LINESDEF		opt_pcvt.h
+PCVT_CTRL_ALT_DEL	opt_pcvt.h
+PCVT_EMU_MOUSE		opt_pcvt.h
+PCVT_FREEBSD		opt_pcvt.h
+PCVT_META_ESC		opt_pcvt.h
+PCVT_NSCREENS		opt_pcvt.h
+PCVT_PRETTYSCRNS	opt_pcvt.h
+PCVT_SCANSET		opt_pcvt.h
+PCVT_SCREENSAVER	opt_pcvt.h
+PCVT_USEKBDSEC		opt_pcvt.h
+PCVT_VT220KEYB		opt_pcvt.h
+
+# voxware options
+GUS_DMA2		opt_sound.h
+GUS_DMA			opt_sound.h
+GUS_IRQ			opt_sound.h
+
+# Video spigot
+SPIGOT_UNSECURE		opt_spigot.h
+
+# Enables NETGRAPH support for Cronyx adapters
+NETGRAPH_CRONYX		opt_ng_cronyx.h
+
+# -------------------------------
+# isdn4bsd: passive ISA cards
+# -------------------------------
+TEL_S0_8		opt_i4b.h
+TEL_S0_16		opt_i4b.h
+TEL_S0_16_3		opt_i4b.h
+AVM_A1			opt_i4b.h
+USR_STI			opt_i4b.h
+ITKIX1			opt_i4b.h
+ELSA_PCC16		opt_i4b.h
+# -------------------------------
+# isdn4bsd: passive ISA PnP cards
+# -------------------------------
+CRTX_S0_P		opt_i4b.h
+DRN_NGO                 opt_i4b.h
+TEL_S0_16_3_P		opt_i4b.h
+SEDLBAUER		opt_i4b.h
+DYNALINK		opt_i4b.h
+ASUSCOM_IPAC		opt_i4b.h
+ELSA_QS1ISA		opt_i4b.h
+SIEMENS_ISURF2		opt_i4b.h
+EICON_DIVA		opt_i4b.h
+COMPAQ_M610		opt_i4b.h
+# -------------------------------
+# isdn4bsd: passive PCI cards
+# -------------------------------
+ELSA_QS1PCI		opt_i4b.h
+AVM_A1_PCI		opt_i4b.h
+# -------------------------------
+# isdn4bsd: passive PCMCIA cards
+# -------------------------------
+#AVM_A1_PCMCIA		opt_i4b.h
+# -------------------------------
+# isdn4bsd: misc options
+# -------------------------------
+# temporary workaround for SMP machines
+I4B_SMP_WORKAROUND      opt_i4b.h
+# enable VJ compression code for ipr i/f
+IPR_VJ			opt_i4b.h
+IPR_LOG			opt_i4b.h
+
+# -------------------------------
+# oltr: build options
+# -------------------------------
+# Exclude microcode options
+OLTR_NO_TMS_MAC		opt_oltr.h
+OLTR_NO_HAWKEYE_MAC	opt_oltr.h
+OLTR_NO_BULLSEYE_MAC	opt_oltr.h
+
+# Total number of ports controlled by the dgb(4) driver.
+# Defaults to NDGB*16.
+NDGBPORTS		opt_dgb.h
+
+# Temporary options for moving to pnpbios
+PNPBIOS			opt_pnp.h
+
+# SMB/CIFS requester
+NETSMB			opt_netsmb.h
+NETSMBCRYPTO		opt_netsmb.h
+
+# SMB/CIFS filesystem
+SMBFS
+
+# -------------------------------
+# EOF
+# -------------------------------

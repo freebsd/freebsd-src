@@ -1,0 +1,115 @@
+.\"
+.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: isdntest.8,v 1.10 1999/12/13 22:11:55 hm Exp $
+.\"
+.\" $FreeBSD$
+.\"
+.\"	last edit-date: [Mon Dec 13 23:07:23 1999]
+.\"
+.Dd December 10, 1999
+.Dt ISDNTEST 8
+.Os
+.Sh NAME
+.Nm isdntest
+.Nd isdn4bsd debugging and verification tool
+.Sh SYNOPSIS
+.Nm
+.Op Fl c Ar unit
+.Op Fl d Ar level
+.Op Fl i Ar number
+.Op Fl h
+.Op Fl o Ar number
+.Op Fl t Ar num
+.Op Fl w
+.Sh DESCRIPTION
+The
+.Nm
+utility is part of the isdn4bsd package and may be used as a stimulation tool
+for debugging the isdn4bsd kernel functionality.
+.Pp
+NOTE:
+The
+.Nm
+utility must be run
+.Em instead
+of the
+.Xr isdnd 8
+daemon and cannot be used while the daemon runs.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl c
+Use controller unit number for test.
+.It Fl d
+Set the debugging level
+.It Fl h
+Use HDLC as the B channel layer 1 protocol instead of no protocol.
+.It Fl i
+Use number to verify the incoming number.
+.It Fl o
+Use number as the outgoing number to dial.
+.It Fl t
+Set number of times the test pattern on the B-channel is exchanged
+.It Fl w
+Wait for keyboard input for terminating the call.
+.El
+.Pp
+The
+.Nm
+utility is currently of not much use for end users, it is primarily a debugging
+tool for development and is part of the release in the hope, that someone
+enhances it as a real self test and setup-verification tool!
+.Pp
+The
+.Nm
+utility does almost no error checking and error recovery, so unexpected
+hangs or crashes may occur.
+.Sh EXAMPLES
+For the following example, it is assumed that a machine with isdn4bsd
+installed is connected to an S0 bus and that one of the valid MSN's (MSN = Multiple Subscriber Number
+= telephone number) on this bus is
+.Em 42 .
+The
+.Xr isdnd 8
+.Em must
+not currently running on that machine! Executing:
+.Bd -literal -offset indent
+isdntest -i 42 -o 42
+.Ed
+.Pp
+will setup an outgoing call from that machine to itself, connect to itself
+and disconnect after 5 seconds.
+The
+.Nm
+utility has to be finished by the user by entering Control-C.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /dev/i4b
+.El
+.Sh AUTHORS
+The
+.Nm
+utility and this manpage were written by
+.An Hellmuth Michaelis Aq hm@kts.org .

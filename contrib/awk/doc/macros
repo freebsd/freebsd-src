@@ -1,0 +1,211 @@
+.\" SSC Reference card macros
+.\"
+.\" Copyright (C) 1996, Specialized System Consultants Inc. (SSC)
+.\" 
+.\" These macros are free software; you can redistribute them and/or modify
+.\" them under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\" 
+.\" These macros are distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\" 
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+.\"
+.\"	Generic SSC "card" macros
+.\"     based on lots of other macros
+.\"     Last update: 4-25-91 ph
+.\"     attempting to get margins in the boxes Aug  3 09:43:48 PDT 1994
+.ll 3i		\" length of text line
+.lt 3.2i	\" length of title line 
+.de BT	\" bottom of page trap
+.sp |8.2i		\" go to where we put footer
+.ie \\n(CL=1 \{\
+.	nr CL 2
+.tl ''\\*(CD\\n+(PN''	\" footer is just page number
+.	po 4i		\" go to second column
+.TP			\" print header if any
+\}
+.el \{\
+.	nr CL 1
+.tl ''\\*(CD\\n+(PN''	\" footer is just page number
+.	po .5i		\" go to first column
+.	bp		\" force a new page (which will force header)
+.	TP
+\}
+..
+.de TP	\" top of page
+.\" .sp |.2i
+.sp |0
+.\" put page header stuff here 
+.\" for example: .tl ''WOW!''
+.\".sp
+..
+.\" .wh 8.1i BT 		\" set bottom of column trap
+.nf			\" don't fill lines
+.nh			\" no hyphenation
+.nr CL 1		\" start with column = 1
+.po .5i			\" offset for first column
+.vs 9			\" line spacing
+.ps 8			\" point size
+.de ST	\" set tabs to normal places
+.ta .2i .78i 1.2i 1.7i	\" set tabs 
+..
+.ig
+    From: bryang@chinet.chi.il.us (Bryan Glennon)
+    Box macro.  Do a .mk z where the box is to start, and a .eb
+    where it is to end.  Optional argument is a title to be centered
+    within the top box line.
+   
+    Usage:
+   
+     .mk z
+     Text, etc to be boxed...
+     .eb "Optional title goes here"
+    
+     ~or~
+   
+     .mk z
+     Text, etc to be boxed...
+     .eb 
+   
+   
+    Some explanation:
+     The macro name is eb <.de eb>.  First thing we do is to go up on line
+     <.sp -1> and turn off fill mode <.nf>.  Now it gets interesting: the
+    .ie is the if/else construct.  We check the number of arguments provided
+    to the macro <\\n(.$> and if it is greater than 0 (meaning we have a title),
+    we do the rest of the .ie line, as follows:
+   
+                         \h'-.5n'     - move left one-half of an n
+                         \L'|\\nzu-1' - draw a vertical line <\L> to the 
+                                        absolute position (|) given by \\nzu-1,
+                                        which is the position set with the .mk 
+                                        command into register z <\\nz> in base 
+                                        units <u> minus 1.
+    \l'(\\n(.lu+1n-\w'\\$1'u/2u)\(ul' - Draw a horizontal line <\l> with length
+                                        equal to the current line length 
+                                        <\\n(.l> in base units <u> plus the 
+                                        space required for an 'n' <1n>, minus 
+                                        the width <\w> of the title string 
+                                        <\\$1> in base units <u> divided by 2 
+                                        <in base units <u>>.  Draw the line 
+                                        using the underline character, <\(ul>.
+             \v'.3m'\|\\$1\|\v'-.3m' -  Move down the page 3/10 of an m,
+                                        <\v'.3m'>, output a 1/6 of an m space
+                                        <\|>, output the title <\\$1>, another
+                                        1/6 of an m space <\|>, and then move
+                                        up the page 3/10 of an m <\v'-.3m'>.
+                         \l'...\(ul' -  Draw the second part of the line, just
+                                        like the corresponding left half done
+                                        before.
+                       \L'-|\\nzu+1' -  Draw a verticle line <\L> going down
+                                        the absolute distance <-|> from where 
+                                        the macro was given to where the start 
+                                        point was marked <\\nz> in base units
+                                        <u> plus one line <+1>
+                     \l'|0u-.5n\(ul' -  Draw a horizontal line to the absolute
+                                        position (|0) when the macro was 
+                                        invoked, minus half an n <-.5n> using
+                                        the underline character <\(ul>.
+   
+       The .el beings the else part, which is identical to the above, except
+       the string dosen't get printed.  This makes the printing of the top
+       line much easier: just draw a line <\l> with width equal to the
+       current line plus the witdh of an n <\\n(.l+1n> using the underline
+       character <.\(ul>.
+..
+.de ES	\" start "text in a box"
+.mk z
+.in +.5n
+.ll -.5n
+.sp 1.3
+..
+.de EB	\" end "text in a box" -- optional box title as argument
+.sp -.6
+.nf
+.in -.5n
+.ll +.5n
+.ie \\n(.$\
+\L'|\\nzu'\
+\l'(\\n(.lu-\w'\\$1'u)/2u-.33m\(ul'\
+\v'.3m'\|\\$1\|\v'-.3m'\
+\l'(\\n(.lu-\w'\\$1'u)/2u\(ul'\
+\L'-|\\nzu'\
+\l'|0u\(ul'
+.el \h'-.5n'\L'|\\nzu-1'\l'\\n(.lu+1n\(ul'\L'-|\\nzu+1'\l'|0u-.5n\(ul'
+.in 0
+..
+.de SL	\" draw single line (works in non-fill mode only)
+.sp -.8
+.ti 0
+\l'\\n(.lu\(ul'
+..
+.de Hl \" draw horizontal line
+.br
+.ti 0
+\l'\\n(.lu-\\n(.iu'
+.br
+..
+.de DL	\" draw double line (works in non-fill mode only)
+.sp -.8
+.ti 0
+\l'\\n(.lu\(ul'
+.sp -.8
+.ti 0
+\l'\\n(.lu\(ul'
+..
+.ST
+.nr PN 0 1	\" sets starting page number and auto-increment
+.\" must define page header (if any) before here
+.TP
+.ds 3) \|\v'3p'\s+5\z\(sq\s0\v'-3p'\h'1.25p'\v'-.5p'3\v'.5p'\h'2p'
+.\" old one .ds 2) \h'-1.5p'\v'1p'\s+4\z\(ci\s0\v'-1p'\h'3.25p'2
+.ds 2) \|\v'-2.4p'\D'c.095id'\h'-5.15p'\v'2.4p'2\h'1.9p'
+.ds dC \v'1p'\s+5\(bu\s0\v'-1p'\" for development commands
+.ds tC \s+2\(dm\s0\" (for DWB) should be a triangle
+.ds tP \s+2\(dm\s0\" (for other text processing) should be a triangle
+.\" various trademark symbols
+.ds Tm \v'-0.5m'\s8TM\s0\v'0.5m'
+.ds Ts \v'-0.5m'\s4TM\s0\v'0.5m'
+.ig ++
+.\" mount Serifa fonts
+.fp 5 SR
+.fp 6 SB
+.fp 4 Si
+.++
+.\" other assorted junk
+.lg 0
+.\" Fl requires extended version of troff
+.de Fl \" draw fat horizontal line
+.br
+.ti 0
+.ruw 1.5p
+\l'\\n(.lu-\\n(.iu'
+.br
+.ruw
+..
+.de Bx \" box for keys in text
+\\$3\&\|\&\c
+\s-3\(br\|\fH\v'.18n'\\$1\v'-.18n\fP\|\(br\l'|0\(rn'\l'|0\(ul'\&\s0\|\\$2
+..
+.de Fn	\" function name - left justified, gray background
+.\" bold with gray for function name
+.ns
+.br
+\ 
+.ns
+.br
+\!! gsave ( ) stringwidth neg 0 rmoveto
+\!! /Serifa-Bold findfont 8 scalefont setfont
+\!! (\\$1) dup stringwidth pop 6 gsave dup 0 exch rlineto neg exch 0 rlineto
+\!! 0 exch rlineto closepath .9 setgray fill grestore show
+\!! grestore
+.nf
+.rs
+..
+.rs

@@ -1,0 +1,73 @@
+# $FreeBSD$
+
+EV5			opt_global.h
+EV4			opt_global.h
+DEC_KN300		opt_cpu.h
+DEC_KN8AE		opt_cpu.h
+DEC_EB164		opt_cpu.h
+DEC_EB64PLUS		opt_cpu.h
+DEC_KN20AA		opt_cpu.h
+DEC_2100_A50		opt_cpu.h
+DEC_2100_A500		opt_cpu.h
+DEC_ST550		opt_cpu.h
+DEC_ST6600		opt_cpu.h
+DEC_AXPPCI_33		opt_cpu.h
+DEC_3000_300		opt_cpu.h
+DEC_3000_500		opt_cpu.h
+DEC_1000A		opt_cpu.h
+API_UP1000		opt_cpu.h
+
+ATAPI			opt_atapi.h
+ATAPI_STATIC		opt_atapi.h
+
+CMD640			opt_wd.h
+
+MAXMEM
+
+PPC_PROBE_CHIPSET       opt_ppc.h
+PPC_DEBUG               opt_ppc.h
+
+SHOW_BUSYBUFS
+PANIC_REBOOT_WAIT_TIME	opt_panic.h
+
+MAXCONS			opt_syscons.h
+SC_ALT_MOUSE_IMAGE	opt_syscons.h
+SC_DEBUG_LEVEL		opt_syscons.h
+SC_DFLT_FONT		opt_syscons.h
+SC_DISABLE_DDB		opt_syscons.h
+SC_DISABLE_REBOOT	opt_syscons.h
+SC_HISTORY_SIZE		opt_syscons.h
+SC_KERNEL_CONS_ATTR	opt_syscons.h
+SC_KERNEL_CONS_REV_ATTR	opt_syscons.h
+SC_MOUSE_CHAR		opt_syscons.h
+SC_NO_CUTPASTE		opt_syscons.h
+SC_NO_FONT_LOADING	opt_syscons.h
+SC_NO_HISTORY		opt_syscons.h
+SC_NO_SYSMOUSE		opt_syscons.h
+SC_NORM_ATTR		opt_syscons.h
+SC_NORM_REV_ATTR	opt_syscons.h
+SC_PIXEL_MODE		opt_syscons.h
+SC_RENDER_DEBUG		opt_syscons.h
+SC_TWOBUTTON_MOUSE	opt_syscons.h
+
+VGA_ALT_SEQACCESS	opt_vga.h
+VGA_DEBUG		opt_vga.h
+VGA_NO_FONT_LOADING	opt_vga.h
+VGA_NO_MODE_CHANGE	opt_vga.h
+VGA_SLOW_IOACCESS	opt_vga.h
+VGA_WIDTH90		opt_vga.h
+
+PSM_HOOKRESUME		opt_psm.h
+PSM_RESETAFTERSUSPEND	opt_psm.h
+PSM_DEBUG		opt_psm.h
+
+# Atkbd options
+ATKBD_DFLT_KEYMAP	opt_atkbd.h
+
+# Kbd options
+KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
+KBD_INSTALL_CDEV	opt_kbd.h
+KBD_MAXRETRY		opt_kbd.h
+KBD_MAXWAIT		opt_kbd.h
+KBD_RESETDELAY		opt_kbd.h
+KBDIO_DEBUG		opt_kbd.h

@@ -1,0 +1,24 @@
+$FreeBSD$
+
+Import of GNU awk 3.0.6
+
+Obtained from: ftp://prep.ai.mit.edu/pub/gnu/gawk/gawk-3.0.6.tar.gz
+
+The following files and directories were removed for this import:
+
+README_d/README.VMS
+README_d/README.atari
+README_d/README.beos
+README_d/README.linux
+README_d/README.pc
+README_d/README.sco
+README_d/README.sgi
+README_d/README.solaris
+README_d/README.sony
+README_d/README.sunos4
+README_d/README.ultrix
+README_d/README.yacc
+atari/
+missing/
+pc/
+vms/

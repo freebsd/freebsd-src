@@ -1,0 +1,846 @@
+=head1 NAME
+
+perlfaq7 - Perl Language Issues ($Revision: 1.24 $, $Date: 1999/01/08 05:32:11 $)
+
+=head1 DESCRIPTION
+
+This section deals with general Perl language issues that don't
+clearly fit into any of the other sections.
+
+=head2 Can I get a BNF/yacc/RE for the Perl language?
+
+There is no BNF, but you can paw your way through the yacc grammar in
+perly.y in the source distribution if you're particularly brave.  The
+grammar relies on very smart tokenizing code, so be prepared to
+venture into toke.c as well.
+
+In the words of Chaim Frenkel: "Perl's grammar can not be reduced to BNF.
+The work of parsing perl is distributed between yacc, the lexer, smoke
+and mirrors."
+
+=head2 What are all these $@%* punctuation signs, and how do I know when to use them?
+
+They are type specifiers, as detailed in L<perldata>:
+
+    $ for scalar values (number, string or reference)
+    @ for arrays
+    % for hashes (associative arrays)
+    * for all types of that symbol name.  In version 4 you used them like
+      pointers, but in modern perls you can just use references.
+
+While there are a few places where you don't actually need these type
+specifiers, you should always use them.
+
+A couple of others that you're likely to encounter that aren't
+really type specifiers are:
+
+    <> are used for inputting a record from a filehandle.
+    \  takes a reference to something.
+
+Note that E<lt>FILEE<gt> is I<neither> the type specifier for files
+nor the name of the handle.  It is the C<E<lt>E<gt>> operator applied
+to the handle FILE.  It reads one line (well, record - see
+L<perlvar/$/>) from the handle FILE in scalar context, or I<all> lines
+in list context.  When performing open, close, or any other operation
+besides C<E<lt>E<gt>> on files, or even talking about the handle, do
+I<not> use the brackets.  These are correct: C<eof(FH)>, C<seek(FH, 0,
+2)> and "copying from STDIN to FILE".
+
+=head2 Do I always/never have to quote my strings or use semicolons and commas?
+
+Normally, a bareword doesn't need to be quoted, but in most cases
+probably should be (and must be under C<use strict>).  But a hash key
+consisting of a simple word (that isn't the name of a defined
+subroutine) and the left-hand operand to the C<=E<gt>> operator both
+count as though they were quoted:
+
+    This                    is like this
+    ------------            ---------------
+    $foo{line}              $foo{"line"}
+    bar => stuff            "bar" => stuff
+
+The final semicolon in a block is optional, as is the final comma in a
+list.  Good style (see L<perlstyle>) says to put them in except for
+one-liners:
+
+    if ($whoops) { exit 1 }
+    @nums = (1, 2, 3);
+
+    if ($whoops) {
+        exit 1;
+    }
+    @lines = (
+	"There Beren came from mountains cold",
+	"And lost he wandered under leaves",
+    );
+
+=head2 How do I skip some return values?
+
+One way is to treat the return values as a list and index into it:
+
+        $dir = (getpwnam($user))[7];
+
+Another way is to use undef as an element on the left-hand-side:
+
+    ($dev, $ino, undef, undef, $uid, $gid) = stat($file);
+
+=head2 How do I temporarily block warnings?
+
+The C<$^W> variable (documented in L<perlvar>) controls
+runtime warnings for a block:
+
+    {
+	local $^W = 0;        # temporarily turn off warnings
+	$a = $b + $c;         # I know these might be undef
+    }
+
+Note that like all the punctuation variables, you cannot currently
+use my() on C<$^W>, only local().
+
+A new C<use warnings> pragma is in the works to provide finer control
+over all this.  The curious should check the perl5-porters mailing list
+archives for details.
+
+=head2 What's an extension?
+
+A way of calling compiled C code from Perl.  Reading L<perlxstut>
+is a good place to learn more about extensions.
+
+=head2 Why do Perl operators have different precedence than C operators?
+
+Actually, they don't.  All C operators that Perl copies have the same
+precedence in Perl as they do in C.  The problem is with operators that C
+doesn't have, especially functions that give a list context to everything
+on their right, eg print, chmod, exec, and so on.  Such functions are
+called "list operators" and appear as such in the precedence table in
+L<perlop>.
+
+A common mistake is to write:
+
+    unlink $file || die "snafu";
+
+This gets interpreted as:
+
+    unlink ($file || die "snafu");
+
+To avoid this problem, either put in extra parentheses or use the
+super low precedence C<or> operator:
+
+    (unlink $file) || die "snafu";
+    unlink $file or die "snafu";
+
+The "English" operators (C<and>, C<or>, C<xor>, and C<not>)
+deliberately have precedence lower than that of list operators for
+just such situations as the one above.
+
+Another operator with surprising precedence is exponentiation.  It
+binds more tightly even than unary minus, making C<-2**2> product a
+negative not a positive four.  It is also right-associating, meaning
+that C<2**3**2> is two raised to the ninth power, not eight squared.
+
+Although it has the same precedence as in C, Perl's C<?:> operator
+produces an lvalue.  This assigns $x to either $a or $b, depending
+on the trueness of $maybe:
+
+    ($maybe ? $a : $b) = $x;
+
+=head2 How do I declare/create a structure?
+
+In general, you don't "declare" a structure.  Just use a (probably
+anonymous) hash reference.  See L<perlref> and L<perldsc> for details.
+Here's an example:
+
+    $person = {};                   # new anonymous hash
+    $person->{AGE}  = 24;           # set field AGE to 24
+    $person->{NAME} = "Nat";        # set field NAME to "Nat"
+
+If you're looking for something a bit more rigorous, try L<perltoot>.
+
+=head2 How do I create a module?
+
+A module is a package that lives in a file of the same name.  For
+example, the Hello::There module would live in Hello/There.pm.  For
+details, read L<perlmod>.  You'll also find L<Exporter> helpful.  If
+you're writing a C or mixed-language module with both C and Perl, then
+you should study L<perlxstut>.
+
+Here's a convenient template you might wish you use when starting your
+own module.  Make sure to change the names appropriately.
+
+    package Some::Module;  # assumes Some/Module.pm
+
+    use strict;
+
+    BEGIN {
+	use Exporter   ();
+	use vars       qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
+
+	## set the version for version checking; uncomment to use
+	## $VERSION     = 1.00;
+
+	# if using RCS/CVS, this next line may be preferred,
+	# but beware two-digit versions.
+	$VERSION = do{my@r=q$Revision: 1.24 $=~/\d+/g;sprintf '%d.'.'%02d'x$#r,@r};
+
+	@ISA         = qw(Exporter);
+	@EXPORT      = qw(&func1 &func2 &func3);
+	%EXPORT_TAGS = ( );  	# eg: TAG => [ qw!name1 name2! ],
+
+	# your exported package globals go here,
+	# as well as any optionally exported functions
+	@EXPORT_OK   = qw($Var1 %Hashit);
+    }
+    use vars      @EXPORT_OK;
+
+    # non-exported package globals go here
+    use vars      qw( @more $stuff );
+
+    # initialize package globals, first exported ones
+    $Var1   = '';
+    %Hashit = ();
+
+    # then the others (which are still accessible as $Some::Module::stuff)
+    $stuff  = '';
+    @more   = ();
+
+    # all file-scoped lexicals must be created before
+    # the functions below that use them.
+
+    # file-private lexicals go here
+    my $priv_var    = '';
+    my %secret_hash = ();
+
+    # here's a file-private function as a closure,
+    # callable as &$priv_func;  it cannot be prototyped.
+    my $priv_func = sub {
+        # stuff goes here.
+    };
+
+    # make all your functions, whether exported or not;
+    # remember to put something interesting in the {} stubs
+    sub func1      {}	 # no prototype
+    sub func2()    {}	 # proto'd void
+    sub func3($$)  {}	 # proto'd to 2 scalars
+
+    # this one isn't exported, but could be called!
+    sub func4(\%)  {}    # proto'd to 1 hash ref
+
+    END { }       # module clean-up code here (global destructor)
+
+    1;            # modules must return true
+
+The h2xs program will create stubs for all the important stuff for you:
+
+  % h2xs -XA -n My::Module
+
+=head2 How do I create a class?
+
+See L<perltoot> for an introduction to classes and objects, as well as
+L<perlobj> and L<perlbot>.
+
+=head2 How can I tell if a variable is tainted?
+
+See L<perlsec/"Laundering and Detecting Tainted Data">.  Here's an
+example (which doesn't use any system calls, because the kill()
+is given no processes to signal):
+
+    sub is_tainted {
+	return ! eval { join('',@_), kill 0; 1; };
+    }
+
+This is not C<-w> clean, however.  There is no C<-w> clean way to
+detect taintedness - take this as a hint that you should untaint
+all possibly-tainted data.
+
+=head2 What's a closure?
+
+Closures are documented in L<perlref>.
+
+I<Closure> is a computer science term with a precise but
+hard-to-explain meaning. Closures are implemented in Perl as anonymous
+subroutines with lasting references to lexical variables outside their
+own scopes.  These lexicals magically refer to the variables that were
+around when the subroutine was defined (deep binding).
+
+Closures make sense in any programming language where you can have the
+return value of a function be itself a function, as you can in Perl.
+Note that some languages provide anonymous functions but are not
+capable of providing proper closures; the Python language, for
+example.  For more information on closures, check out any textbook on
+functional programming.  Scheme is a language that not only supports
+but encourages closures.
+
+Here's a classic function-generating function:
+
+    sub add_function_generator {
+      return sub { shift + shift };
+    }
+
+    $add_sub = add_function_generator();
+    $sum = $add_sub->(4,5);                # $sum is 9 now.
+
+The closure works as a I<function template> with some customization
+slots left out to be filled later.  The anonymous subroutine returned
+by add_function_generator() isn't technically a closure because it
+refers to no lexicals outside its own scope.
+
+Contrast this with the following make_adder() function, in which the
+returned anonymous function contains a reference to a lexical variable
+outside the scope of that function itself.  Such a reference requires
+that Perl return a proper closure, thus locking in for all time the
+value that the lexical had when the function was created.
+
+    sub make_adder {
+        my $addpiece = shift;
+        return sub { shift + $addpiece };
+    }
+
+    $f1 = make_adder(20);
+    $f2 = make_adder(555);
+
+Now C<&$f1($n)> is always 20 plus whatever $n you pass in, whereas
+C<&$f2($n)> is always 555 plus whatever $n you pass in.  The $addpiece
+in the closure sticks around.
+
+Closures are often used for less esoteric purposes.  For example, when
+you want to pass in a bit of code into a function:
+
+    my $line;
+    timeout( 30, sub { $line = <STDIN> } );
+
+If the code to execute had been passed in as a string, C<'$line =
+E<lt>STDINE<gt>'>, there would have been no way for the hypothetical
+timeout() function to access the lexical variable $line back in its
+caller's scope.
+
+=head2 What is variable suicide and how can I prevent it?
+
+Variable suicide is when you (temporarily or permanently) lose the
+value of a variable.  It is caused by scoping through my() and local()
+interacting with either closures or aliased foreach() iterator
+variables and subroutine arguments.  It used to be easy to
+inadvertently lose a variable's value this way, but now it's much
+harder.  Take this code:
+
+    my $f = "foo";
+    sub T {
+      while ($i++ < 3) { my $f = $f; $f .= "bar"; print $f, "\n" }
+    }
+    T;
+    print "Finally $f\n";
+
+The $f that has "bar" added to it three times should be a new C<$f>
+(C<my $f> should create a new local variable each time through the
+loop).  It isn't, however.  This is a bug, and will be fixed.
+
+=head2 How can I pass/return a {Function, FileHandle, Array, Hash, Method, Regexp}?
+
+With the exception of regexps, you need to pass references to these
+objects.  See L<perlsub/"Pass by Reference"> for this particular
+question, and L<perlref> for information on references.
+
+=over 4
+
+=item Passing Variables and Functions
+
+Regular variables and functions are quite easy: just pass in a
+reference to an existing or anonymous variable or function:
+
+    func( \$some_scalar );
+
+    func( \@some_array  );
+    func( [ 1 .. 10 ]   );
+
+    func( \%some_hash   );
+    func( { this => 10, that => 20 }   );
+
+    func( \&some_func   );
+    func( sub { $_[0] ** $_[1] }   );
+
+=item Passing Filehandles
+
+To pass filehandles to subroutines, use the C<*FH> or C<\*FH> notations.
+These are "typeglobs" - see L<perldata/"Typeglobs and Filehandles">
+and especially L<perlsub/"Pass by Reference"> for more information.
+
+Here's an excerpt:
+
+If you're passing around filehandles, you could usually just use the bare
+typeglob, like *STDOUT, but typeglobs references would be better because
+they'll still work properly under C<use strict 'refs'>.  For example:
+
+    splutter(\*STDOUT);
+    sub splutter {
+        my $fh = shift;
+        print $fh "her um well a hmmm\n";
+    }
+
+    $rec = get_rec(\*STDIN);
+    sub get_rec {
+        my $fh = shift;
+        return scalar <$fh>;
+    }
+
+If you're planning on generating new filehandles, you could do this:
+
+    sub openit {
+        my $name = shift;
+        local *FH;
+        return open (FH, $path) ? *FH : undef;
+    }
+    $fh = openit('< /etc/motd');
+    print <$fh>;
+
+=item Passing Regexps
+
+To pass regexps around, you'll need to either use one of the highly
+experimental regular expression modules from CPAN (Nick Ing-Simmons's
+Regexp or Ilya Zakharevich's Devel::Regexp), pass around strings
+and use an exception-trapping eval, or else be very, very clever.
+Here's an example of how to pass in a string to be regexp compared:
+
+    sub compare($$) {
+        my ($val1, $regexp) = @_;
+        my $retval = eval { $val =~ /$regexp/ };
+	die if $@;
+	return $retval;
+    }
+
+    $match = compare("old McDonald", q/d.*D/);
+
+Make sure you never say something like this:
+
+    return eval "\$val =~ /$regexp/";   # WRONG
+
+or someone can sneak shell escapes into the regexp due to the double
+interpolation of the eval and the double-quoted string.  For example:
+
+    $pattern_of_evil = 'danger ${ system("rm -rf * &") } danger';
+
+    eval "\$string =~ /$pattern_of_evil/";
+
+Those preferring to be very, very clever might see the O'Reilly book,
+I<Mastering Regular Expressions>, by Jeffrey Friedl.  Page 273's
+Build_MatchMany_Function() is particularly interesting.  A complete
+citation of this book is given in L<perlfaq2>.
+
+=item Passing Methods
+
+To pass an object method into a subroutine, you can do this:
+
+    call_a_lot(10, $some_obj, "methname")
+    sub call_a_lot {
+        my ($count, $widget, $trick) = @_;
+        for (my $i = 0; $i < $count; $i++) {
+            $widget->$trick();
+        }
+    }
+
+Or you can use a closure to bundle up the object and its method call
+and arguments:
+
+    my $whatnot =  sub { $some_obj->obfuscate(@args) };
+    func($whatnot);
+    sub func {
+        my $code = shift;
+        &$code();
+    }
+
+You could also investigate the can() method in the UNIVERSAL class
+(part of the standard perl distribution).
+
+=back
+
+=head2 How do I create a static variable?
+
+As with most things in Perl, TMTOWTDI.  What is a "static variable" in
+other languages could be either a function-private variable (visible
+only within a single function, retaining its value between calls to
+that function), or a file-private variable (visible only to functions
+within the file it was declared in) in Perl.
+
+Here's code to implement a function-private variable:
+
+    BEGIN {
+        my $counter = 42;
+        sub prev_counter { return --$counter }
+        sub next_counter { return $counter++ }
+    }
+
+Now prev_counter() and next_counter() share a private variable $counter
+that was initialized at compile time.
+
+To declare a file-private variable, you'll still use a my(), putting
+it at the outer scope level at the top of the file.  Assume this is in
+file Pax.pm:
+
+    package Pax;
+    my $started = scalar(localtime(time()));
+
+    sub begun { return $started }
+
+When C<use Pax> or C<require Pax> loads this module, the variable will
+be initialized.  It won't get garbage-collected the way most variables
+going out of scope do, because the begun() function cares about it,
+but no one else can get it.  It is not called $Pax::started because
+its scope is unrelated to the package.  It's scoped to the file.  You
+could conceivably have several packages in that same file all
+accessing the same private variable, but another file with the same
+package couldn't get to it.
+
+See L<perlsub/"Persistent Private Variables"> for details.
+
+=head2 What's the difference between dynamic and lexical (static) scoping?  Between local() and my()?
+
+C<local($x)> saves away the old value of the global variable C<$x>,
+and assigns a new value for the duration of the subroutine, I<which is
+visible in other functions called from that subroutine>.  This is done
+at run-time, so is called dynamic scoping.  local() always affects global
+variables, also called package variables or dynamic variables.
+
+C<my($x)> creates a new variable that is only visible in the current
+subroutine.  This is done at compile-time, so is called lexical or
+static scoping.  my() always affects private variables, also called
+lexical variables or (improperly) static(ly scoped) variables.
+
+For instance:
+
+    sub visible {
+	print "var has value $var\n";
+    }
+
+    sub dynamic {
+	local $var = 'local';	# new temporary value for the still-global
+	visible();              #   variable called $var
+    }
+
+    sub lexical {
+	my $var = 'private';    # new private variable, $var
+	visible();              # (invisible outside of sub scope)
+    }
+
+    $var = 'global';
+
+    visible();      		# prints global
+    dynamic();      		# prints local
+    lexical();      		# prints global
+
+Notice how at no point does the value "private" get printed.  That's
+because $var only has that value within the block of the lexical()
+function, and it is hidden from called subroutine.
+
+In summary, local() doesn't make what you think of as private, local
+variables.  It gives a global variable a temporary value.  my() is
+what you're looking for if you want private variables.
+
+See L<perlsub/"Private Variables via my()"> and L<perlsub/"Temporary
+Values via local()"> for excruciating details.
+
+=head2 How can I access a dynamic variable while a similarly named lexical is in scope?
+
+You can do this via symbolic references, provided you haven't set
+C<use strict "refs">.  So instead of $var, use C<${'var'}>.
+
+    local $var = "global";
+    my    $var = "lexical";
+
+    print "lexical is $var\n";
+
+    no strict 'refs';
+    print "global  is ${'var'}\n";
+
+If you know your package, you can just mention it explicitly, as in
+$Some_Pack::var.  Note that the notation $::var is I<not> the dynamic
+$var in the current package, but rather the one in the C<main>
+package, as though you had written $main::var.  Specifying the package
+directly makes you hard-code its name, but it executes faster and
+avoids running afoul of C<use strict "refs">.
+
+=head2 What's the difference between deep and shallow binding?
+
+In deep binding, lexical variables mentioned in anonymous subroutines
+are the same ones that were in scope when the subroutine was created.
+In shallow binding, they are whichever variables with the same names
+happen to be in scope when the subroutine is called.  Perl always uses
+deep binding of lexical variables (i.e., those created with my()).
+However, dynamic variables (aka global, local, or package variables)
+are effectively shallowly bound.  Consider this just one more reason
+not to use them.  See the answer to L<"What's a closure?">.
+
+=head2 Why doesn't "my($foo) = E<lt>FILEE<gt>;" work right?
+
+C<my()> and C<local()> give list context to the right hand side
+of C<=>.  The E<lt>FHE<gt> read operation, like so many of Perl's
+functions and operators, can tell which context it was called in and
+behaves appropriately.  In general, the scalar() function can help.
+This function does nothing to the data itself (contrary to popular myth)
+but rather tells its argument to behave in whatever its scalar fashion is.
+If that function doesn't have a defined scalar behavior, this of course
+doesn't help you (such as with sort()).
+
+To enforce scalar context in this particular case, however, you need
+merely omit the parentheses:
+
+    local($foo) = <FILE>;	    # WRONG
+    local($foo) = scalar(<FILE>);   # ok
+    local $foo  = <FILE>;	    # right
+
+You should probably be using lexical variables anyway, although the
+issue is the same here:
+
+    my($foo) = <FILE>;	# WRONG
+    my $foo  = <FILE>;	# right
+
+=head2 How do I redefine a builtin function, operator, or method?
+
+Why do you want to do that? :-)
+
+If you want to override a predefined function, such as open(),
+then you'll have to import the new definition from a different
+module.  See L<perlsub/"Overriding Builtin Functions">.  There's
+also an example in L<perltoot/"Class::Template">.
+
+If you want to overload a Perl operator, such as C<+> or C<**>,
+then you'll want to use the C<use overload> pragma, documented
+in L<overload>.
+
+If you're talking about obscuring method calls in parent classes,
+see L<perltoot/"Overridden Methods">.
+
+=head2 What's the difference between calling a function as &foo and foo()?
+
+When you call a function as C<&foo>, you allow that function access to
+your current @_ values, and you by-pass prototypes.  That means that
+the function doesn't get an empty @_, it gets yours!  While not
+strictly speaking a bug (it's documented that way in L<perlsub>), it
+would be hard to consider this a feature in most cases.
+
+When you call your function as C<&foo()>, then you I<do> get a new @_,
+but prototyping is still circumvented.
+
+Normally, you want to call a function using C<foo()>.  You may only
+omit the parentheses if the function is already known to the compiler
+because it already saw the definition (C<use> but not C<require>),
+or via a forward reference or C<use subs> declaration.  Even in this
+case, you get a clean @_ without any of the old values leaking through
+where they don't belong.
+
+=head2 How do I create a switch or case statement?
+
+This is explained in more depth in the L<perlsyn>.  Briefly, there's
+no official case statement, because of the variety of tests possible
+in Perl (numeric comparison, string comparison, glob comparison,
+regexp matching, overloaded comparisons, ...).  Larry couldn't decide
+how best to do this, so he left it out, even though it's been on the
+wish list since perl1.
+
+The general answer is to write a construct like this:
+
+    for ($variable_to_test) {
+	if    (/pat1/)  { }     # do something
+	elsif (/pat2/)  { }     # do something else
+	elsif (/pat3/)  { }     # do something else
+	else            { }     # default
+    } 
+
+Here's a simple example of a switch based on pattern matching, this
+time lined up in a way to make it look more like a switch statement.
+We'll do a multi-way conditional based on the type of reference stored
+in $whatchamacallit:
+
+    SWITCH: for (ref $whatchamacallit) {
+
+	/^$/		&& die "not a reference";
+
+	/SCALAR/	&& do {
+				print_scalar($$ref);
+				last SWITCH;
+			};
+
+	/ARRAY/		&& do {
+				print_array(@$ref);
+				last SWITCH;
+			};
+
+	/HASH/		&& do {
+				print_hash(%$ref);
+				last SWITCH;
+			};
+
+	/CODE/		&& do {
+				warn "can't print function ref";
+				last SWITCH;
+			};
+
+	# DEFAULT
+
+	warn "User defined type skipped";
+
+    }
+
+See C<perlsyn/"Basic BLOCKs and Switch Statements"> for many other 
+examples in this style.
+
+Sometimes you should change the positions of the constant and the variable.
+For example, let's say you wanted to test which of many answers you were
+given, but in a case-insensitive way that also allows abbreviations.
+You can use the following technique if the strings all start with
+different characters, or if you want to arrange the matches so that
+one takes precedence over another, as C<"SEND"> has precedence over
+C<"STOP"> here:
+
+    chomp($answer = <>);
+    if    ("SEND"  =~ /^\Q$answer/i) { print "Action is send\n"  }
+    elsif ("STOP"  =~ /^\Q$answer/i) { print "Action is stop\n"  }
+    elsif ("ABORT" =~ /^\Q$answer/i) { print "Action is abort\n" }
+    elsif ("LIST"  =~ /^\Q$answer/i) { print "Action is list\n"  }
+    elsif ("EDIT"  =~ /^\Q$answer/i) { print "Action is edit\n"  }
+
+A totally different approach is to create a hash of function references.  
+
+    my %commands = (
+        "happy" => \&joy,
+        "sad",  => \&sullen,
+        "done"  => sub { die "See ya!" },
+        "mad"   => \&angry,
+    );
+
+    print "How are you? ";
+    chomp($string = <STDIN>);
+    if ($commands{$string}) {
+        $commands{$string}->();
+    } else {
+        print "No such command: $string\n";
+    } 
+
+=head2 How can I catch accesses to undefined variables/functions/methods?
+
+The AUTOLOAD method, discussed in L<perlsub/"Autoloading"> and
+L<perltoot/"AUTOLOAD: Proxy Methods">, lets you capture calls to
+undefined functions and methods.
+
+When it comes to undefined variables that would trigger a warning
+under C<-w>, you can use a handler to trap the pseudo-signal
+C<__WARN__> like this:
+
+    $SIG{__WARN__} = sub {
+
+	for ( $_[0] ) {		# voici un switch statement 
+
+	    /Use of uninitialized value/  && do {
+		# promote warning to a fatal
+		die $_;
+	    };
+
+	    # other warning cases to catch could go here;
+
+	    warn $_;
+	}
+
+    };
+
+=head2 Why can't a method included in this same file be found?
+
+Some possible reasons: your inheritance is getting confused, you've
+misspelled the method name, or the object is of the wrong type.  Check
+out L<perltoot> for details on these.  You may also use C<print
+ref($object)> to find out the class C<$object> was blessed into.
+
+Another possible reason for problems is because you've used the
+indirect object syntax (eg, C<find Guru "Samy">) on a class name
+before Perl has seen that such a package exists.  It's wisest to make
+sure your packages are all defined before you start using them, which
+will be taken care of if you use the C<use> statement instead of
+C<require>.  If not, make sure to use arrow notation (eg,
+C<Guru-E<gt>find("Samy")>) instead.  Object notation is explained in
+L<perlobj>.
+
+Make sure to read about creating modules in L<perlmod> and
+the perils of indirect objects in L<perlobj/"WARNING">.
+
+=head2 How can I find out my current package?
+
+If you're just a random program, you can do this to find
+out what the currently compiled package is:
+
+    my $packname = __PACKAGE__;
+
+But if you're a method and you want to print an error message
+that includes the kind of object you were called on (which is
+not necessarily the same as the one in which you were compiled):
+
+    sub amethod {
+	my $self  = shift;
+	my $class = ref($self) || $self;
+	warn "called me from a $class object";
+    }
+
+=head2 How can I comment out a large block of perl code?
+
+Use embedded POD to discard it:
+
+    # program is here
+
+    =for nobody
+    This paragraph is commented out
+
+    # program continues
+
+    =begin comment text
+
+    all of this stuff
+
+    here will be ignored
+    by everyone
+
+    =end comment text
+
+    =cut
+
+This can't go just anywhere.  You have to put a pod directive where
+the parser is expecting a new statement, not just in the middle
+of an expression or some other arbitrary yacc grammar production.
+
+=head2 How do I clear a package?
+
+Use this code, provided by Mark-Jason Dominus:
+
+    sub scrub_package {
+	no strict 'refs';
+	my $pack = shift;
+	die "Shouldn't delete main package" 
+	    if $pack eq "" || $pack eq "main";
+	my $stash = *{$pack . '::'}{HASH};
+	my $name;
+	foreach $name (keys %$stash) {
+	    my $fullname = $pack . '::' . $name;
+	    # Get rid of everything with that name.
+	    undef $$fullname;
+	    undef @$fullname;
+	    undef %$fullname;
+	    undef &$fullname;
+	    undef *$fullname;
+	}
+    }
+
+Or, if you're using a recent release of Perl, you can 
+just use the Symbol::delete_package() function instead.
+
+=head1 AUTHOR AND COPYRIGHT
+
+Copyright (c) 1997-1999 Tom Christiansen and Nathan Torkington.
+All rights reserved.
+
+When included as part of the Standard Version of Perl, or as part of
+its complete documentation whether printed or otherwise, this work
+may be distributed only under the terms of Perl's Artistic Licence.
+Any distribution of this file or derivatives thereof I<outside>
+of that package require that special arrangements be made with
+copyright holder.
+
+Irrespective of its distribution, all code examples in this file
+are hereby placed into the public domain.  You are permitted and
+encouraged to use this code in your own programs for fun
+or for profit as you see fit.  A simple comment in the code giving
+credit would be courteous but is not required.
+

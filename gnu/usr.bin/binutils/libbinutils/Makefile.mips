@@ -1,0 +1,5 @@
+#
+# $FreeBSD$
+#
+
+TARGET=		${MACHINE_ARCH}-unknown-freebsdelf

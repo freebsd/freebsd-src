@@ -1,0 +1,114 @@
+MANDIR=/usr/man
+TMPDIR=/usr/man/tmp
+TOOLS=$MANDIR/tools
+
+trap "rm $TMPDIR/tmp.$$ ; exit" 2 3 15
+
+P=108
+p=""
+if test "$1" = "-p"
+then
+	P=65
+	p=-p
+	shift
+fi
+
+if test $# -eq 0
+then
+	echo "tocrc: no argument"
+	exit
+fi
+
+if test $# -eq 2
+then
+	: create toc input file for one section only
+
+	> $TMPDIR/tocx$1
+	for file in $MANDIR/man$1/*.$1*
+	do
+		if test ! -s $file
+		then
+			continue
+		fi
+		so=`line < $file | sed "s/ .*//"`
+		if test "$so" = ".so"
+		then
+			continue
+		fi
+		ed - $file > $TMPDIR/tmp.$$ <<!
+			H
+			/^\.TH/p
+			q
+!
+		loc=`cat $TMPDIR/tmp.$$ | sed "s/.*local.*/local/"`
+		if test "$loc" = "local"
+		then
+			continue
+		fi
+		name=`basename $file`
+		name=`echo $name | sed "s/\.\(.\{1,2\}\)\$/(\1)/"`
+		ed - $file > $TMPDIR/tmp.$$ <<!
+			/^.SH NAME/+p
+			q
+!
+		desc=`line < $TMPDIR/tmp.$$`
+		desc=`echo $desc | sed -e "s/.s-1//g" -e "s/.s0//g"  -e "s/.s+1//g"   -e "s/ .- /: /"  -e "s/^/$name /"  -e "s/$/./"`
+		if test -n "$desc"
+		then
+			echo $desc >> $TMPDIR/tocx$1
+		fi
+		rm -f $TMPDIR/tmp.$$
+	done
+else case $1 in
+	all )
+		:   tocx files for all sections and everything else
+
+		for x in 1 2 3 4 5 6 7 8
+		do
+			$0 $p $x $x
+		done
+		$0 $p t
+		;;
+	t )
+		:   permuted index and toc files
+
+		if test ! -f $TMPDIR/tocx1
+		then
+			echo "tocrc: some tocx? files missing"
+			exit
+		fi
+		cat $TMPDIR/tocx? > $TMPDIR/cattoc
+		ed - $TMPDIR/cattoc <<!
+			H
+			g/(1c)/s//(1C)/
+			g/(1m)/s//(1M)/
+			g/(1g)/s//(1G)/
+			g/(3c)/s//(3C)/
+			g/(3m)/s//(3M)/
+			g/(3s)/s//(3S)/
+			g/(3x)/s//(3X)/
+			g/"\."/d
+			w
+			q
+!
+		ptx -r -t -b $TOOLS/break -f -w $P -i $TOOLS/ignore $TMPDIR/cattoc $MANDIR/man0/ptxx
+		for x in 1 2 3 4 5 6 7 8
+		do
+			ed - $TMPDIR/tocx$x << !
+			H
+				/^intro/m0
+				1,\$s/ .*://
+				1,\$s/.$//
+				1,\$s/([1-8][a-z]\{0,1\}) /" "/
+				1,\$s/.*/.xx "&"/
+				g/""/d
+				w $MANDIR/man0/toc$x
+				q
+!
+		done
+		;;
+	* )
+		$0 $p $1 $1
+		;;
+	esac
+fi

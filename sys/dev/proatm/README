@@ -1,0 +1,219 @@
+$FreeBSD$
+
+PROSUM
+PROATM ATM Adapters on FreeBSD
+
+
+1. Introduction
+===============
+
+The PROATM adapters are based on the IDT77252 SAR and are not supported by the
+idt driver Richard Hodges for IDT77211 SAR.
+
+Prosum provides the proatm driver that is derived from the Richard Hodges driver
+and the Prosum nicstar2 driver for the IDT77252 SAR. Proatm can be used with
+kernel versions 3.5, 3.51, 4.1 and newer. It supports the ATM 25.6 Mbps and 155
+Mbps Prosum card models and the UBR, CBR and VBR QoS. It is compatible with the
+Host ATM Research Platform (HARP) software.
+
+We recommend you to download the latest version of this driver from our web
+site. You can contact us at the address indicated in section 5 regarding any
+problem of for knowing the state of the pending version.
+
+
+2. Installing proatm
+====================
+
+NOTE: If you are not familiar with building and installing a new kernel, please
+refer to the FreeBSD Handbook.
+
+Proatm is delivered in the form of a patch but you need not use the patch
+utility to install it. Follow the procedure below.
+
+* Copy proatm.c, proatm.h and proatm_rtbl.c into /usr/src/sys/pci.
+* Copy atm_if.h into /usr/src/sys/netatm.
+
+* in /usr/src/sys/i386/conf/YOUR_NAME add these entries:
+
+        options     ATM_CORE	#core ATM protocol family
+        options     ATM_IP      #IP over ATM support
+
+* at least one (and usually one) of the following:
+
+        options     ATM_SIGPVC  #SIGPVC signalling manager
+        options     ATM_SPANS   #SPANS signalling manager
+        options     ATM_UNI     #UNI signalling manager
+
+* and the device driver:
+
+        device      proatm0     #PROATM device driver (this file)
+
+* on 3.5 and 3.51 kernel versions,add the following line to
+/usr/src/sys/conf/files:
+
+        pci/proatm.c    optional proatm device-driver
+
+* on 4.1 and newer kernel versions,add the following line to
+/usr/src/sys/conf/files:
+
+        pci/proatm.c    optional proatm pci
+
+* Then rebuild and install your kernel and reboot.
+
+To rebuild and install your kernel, do the following in /usr/src/sys/i386/conf:
+
+# config YOUR_NAME
+
+# cd ../../compile/YOUR_NAME
+# make depend
+# make
+# make install
+# reboot
+(old kernel is /kernel.old if you need it!)
+
+
+3. Configuring the HARP software
+================================
+* Referring to rc.atm provided, edit /etc/rc.atm and add 3 lines to atm_pass1()
+to detect the Proatm cards. You may also simply copy rc.atm into /etc.
+
+* Edit /etc/rc.conf.Below is an example for two PVCs connections automatically
+open at start time:
+
+    atm_enable="YES"
+    atm_netif_proatm0="atm 1"      # Network interfaces for physical interface.
+    atm_sigmgr_proatm0="SIGPVC"    # Signalling manager for physical interface.
+    atm_prefix_proatm0=""          # NSAP prefix
+    atm_macaddr_proatm0="NO"       # Override physical MAC address (or NO).
+    #atm_arpserver_proatm0="0x47.0005.80.007300.0000.0300.0100.0020481C095F00"
+    atm_scsparp_atm0="NO"          # Run SCSP/ATMARP (or NO)
+    atm_pvcs="0 1"
+    atm_pvc_0="proatm0 0 32 AAL5 SNAP IP atm0 192.168.2.8"
+    atm_pvc_1="proatm0 0 100 AAL5 SNAP IP atm0 192.168.2.9"
+    #atm_arps=""
+    network_interfaces="pcn0 atm0 lo0"
+    ifconfig_pcn0="inet 192.168.1.5 netmask 255.255.255.0"      #Ethernet
+    ifconfig_atm0="inet 192.168.2.5 netmask 255.255.255.0"      #ATM
+
+* Reboot the system.
+
+
+4. Checking the installation
+============================
+Here are samples showing the output of some commands allowing to verify that
+everything went well:
+
+    > netstat -ni
+    Name  Mtu   Network       Address            Ipkts Ierrs  Opkts Oerrs Coll
+    atm0  9180  <Link#7>    00:c0:fd:00:7a:ad        0     0      0     0    0
+    atm0  9180  192.168.2     192.168.2.5        47308     -  47308     -    -
+
+    > atm show config proatm0
+    Intf      Vendor    Model     Media           Bus   Serial No
+    proatm0   -         -         OC-3c           PCI   0
+        MAC address = 00:c0:fd:00:7a:ad
+        Hardware version = PROATM-155
+        Firmware version = PROATM 1.000
+
+    > atm show interface
+    Interface  Sigmgr   State
+    proatm0    SIGPVC   ACTIVE
+        ATM address = -
+        Network interfaces: atm0
+
+* With another machine connected on the atm network and setup for a CLIP
+connection over the PVC #0.32:
+
+    > ping 192.168.2.8
+    PING 192.168.2.8 (192.168.2.8): 56 data bytes
+    64 bytes from 192.168.2.8: icmp_seq=0 ttl=64 time=0.318 ms
+    64 bytes from 192.168.2.8: icmp_seq=1 ttl=64 time=0.323 ms
+    64 bytes from 192.168.2.8: icmp_seq=2 ttl=64 time=0.300 ms
+    64 bytes from 192.168.2.8: icmp_seq=3 ttl=64 time=0.317 ms
+    64 bytes from 192.168.2.8: icmp_seq=4 ttl=64 time=0.306 ms
+    64 bytes from 192.168.2.8: icmp_seq=5 ttl=64 time=0.315 ms
+    64 bytes from 192.168.2.8: icmp_seq=6 ttl=64 time=0.305 ms
+
+    --- 192.168.2.8 ping statistics ---
+    7 packets transmitted, 7 packets received, 0% packet loss
+    round-trip min/avg/max/stddev = 0.300/0.312/0.323/0.008 ms
+
+
+
+5. Configuring the driver
+=========================
+Look for the "You may change these" section in proatm.h. It contains compilation
+parameters that can be changed to set up some driver features. Don't touch
+anything unless you know exactly what you are doing.
+
+PROATM_LBUFS and PROATM_SBUFS
+-----------------------------
+Defines the default number of large (2k) and small (96-bytes) buffers that are
+reserved for receipt.
+Default value is 200. Authorized values range from 70 to 510.
+
+PROATM_VPIBITS
+--------------
+Defines the number of bits used to code the VP number.
+Default value is 2. Authorized values are 0, 1, 2, or 8. Refer to the table
+below:
+
+	PROATM_VPIBITS      VPI             VCI (128KB SRAM)    VCI (512KB SRAM)
+	0                   0               0 to 1023           0 to 4095
+	1                   0, 1            0 to 511            0 to 2047
+	2                   0, 1, 2, 3      0 to 255            0 to 1023
+	8                   0 to 255        0 to 3              0 to 15
+
+Note: Cards equipped with 128KB memory can support 1024 VCs. Cards equipped
+with 512KB memory can support 4096 VCs
+
+PROATM_MAX_QUEUE
+----------------
+Defines the maximum number of transmition queues. Each VC needs one queue
+(except UBR VCs with maximum or with unspecified Peak Cell rate that all use
+the same special queue). Each transmission queue needs 1 KB of host memory.
+
+Default value: 250 (250 KB memory)
+Maximum authorized values:  269 for 128KB-memory cards, 4095 for 512KB-memory
+cards.
+
+RCQ_SUPPORT
+-----------
+Enables receipt of erroneous cells, or receipt of cells from non open VCs. So
+far we do nothing with these cells but an empty function is provided where you
+can write your own processing.
+
+VPI_BASE and VCI_BASE
+---------------------
+You can normaly transmit and receive on VCs with VPI/VCI values depending on
+PROATM_VPIBITS and the card memory size. (Refer to the table above)
+However in certain special cases you may need to use normally-unreachable
+VPI/VCI couples such as 8/35 for example. To do that set VCI_BASE and VPI_BASE
+according to your needs. For example setting VPI_BASE to 8 and VCI_BASE to 0
+would allow you to play with the 8.35 VC.
+
+WARNING: Please be aware that VPIs below VPI_BASE and VCIs below VCI_BASE are
+not reachable anymore when you set them to non zero values.
+
+VPI_BASE is smaller than 256. It is a multiple (0 included) of the number
+of VPIs the card has been set up for.
+For example, if PROATM_VPIBITS = 2, the number of possible VPIs is 4 and
+VPI_BASE may be set to 0, 4, 8, 12 ... 254.
+
+VCI_BASE plays for the VCs the same role as VPI_BASE for the VPs. It is smaller
+than 64536 and must be a multiple of the number of VC's that the card is able to
+manage.
+For example let's suppose if the card has 128 KB memory and PROATM_VPIBITS = 2,
+the number of VCI bits is 8 (10-2) and thus the number of VCIs is 256, then
+VPI_BASE may be set to any value from among 0, 256, 512 ... 64280 (simple isn't
+it?)
+
+
+
+6. Technical and sales support
+==============================
+
+Technical support: Send E-mail to support@prosum.net
+
+Sales and information: (33) 1 45 90 62 70 or E-mail contact@prosum.net
+

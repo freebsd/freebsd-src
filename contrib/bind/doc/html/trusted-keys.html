@@ -1,0 +1,58 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND trusted-keys Statement</TITLE>
+</HEAD>
+
+<BODY>
+<H2>BIND Configuration File Guide--<CODE>trusted-keys</CODE> Statement</H2>
+
+<HR>
+
+<A NAME="Syntax"><H3>Syntax</H3></A>
+
+<PRE>
+trusted-keys { 
+  [ <VAR><A HREF="docdef.html">domain_name</A></VAR> <VAR><A HREF="docdef.html">number</A></VAR> <VAR><A HREF="docdef.html">number</A></VAR> <VAR><A HREF="docdef.html">number</A></VAR> <VAR>string</VAR>; ]
+};
+
+</PRE>
+
+<HR>
+
+<A NAME="Usage"><H3>Definition and Usage</H3></A>
+
+The <CODE>trusted-keys</CODE>
+statement is for use with DNSSEC-style security, originally specified
+in RFC 2065.  DNSSEC is meant to 
+provide three distinct services: key distribution, data origin
+authentication, and transaction and request authentication.  A
+complete description of DNSSEC and its use is beyond the scope of this
+document, and readers interested in more information should start with
+<A HREF="http://info.internet.isi.edu/in-notes/rfc/files/rfc2065.txt">
+RFC 2065</A> and then continue with the
+<A HREF="http://www.ietf.org/ids.by.wg/dnssec.html">
+Internet Drafts</A>.</P>
+
+<P>Each trusted key is associated with a domain name.  Its attributes are
+the non-negative integral <VAR>flags</VAR>, <VAR>protocol</VAR>, and
+<VAR>algorithm</VAR>, as well as a base-64 encoded string representing
+the key.</P>
+
+A trusted key is added when a public key for a non-authoritative zone is
+known, but cannot be securely obtained through DNS.  This occurs when
+a signed zone is a child of an unsigned zone.  Adding the trusted
+key here allows data signed by that zone to be considered secure.</P>
+
+<HR>
+
+<CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
+| <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+| <A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: trusted-keys.html,v 1.4 1999/09/15 20:28:02 cyarnell Exp $
+</ADDRESS>
+</BODY>
+</HTML>

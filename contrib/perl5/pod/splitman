@@ -1,0 +1,46 @@
+#!/usr/bin/perl
+
+while (<>) {
+    if ($seqno = 1 .. /^\.TH/) {
+	unless ($seqno =~ /e/i) {
+	    $header .= $_;
+	} 
+	next;
+    } 
+
+    if ( /^\.Ip\s*"(.*)"\s*\d+$/) {
+	$desking = 0;
+	$desc = $1;
+	if (name($desc) ne $myname) {
+	    $myname = name($desc);
+	    print $myname, "\n";
+	    open(MAN, "> $myname.3pl");
+	    print MAN <<EOALL;
+$header
+.TH $myname 3PL "\\*(RP"
+.SH NAME 
+$myname
+.SH SYNOPSIS 
+.B $desc
+EOALL
+	} else {
+	    print MAN <<EOMORE;
+.br
+.ti +3n
+or
+.br
+.B $desc
+EOMORE
+	} 
+	next;
+    } 
+    unless ($desking) {
+	print MAN ".SH DESCRIPTION\n";
+	$desking = 1;
+    } 
+    print MAN;
+} 
+
+sub name {
+    ($_[0] =~ /(\w+)/)[0];
+} 

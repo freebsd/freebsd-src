@@ -1,0 +1,144 @@
+.\" Copyright (c) 1996-1998 Greg Ungerer (gerg@stallion.oz.au).
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Greg Ungerer.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 8, 1998
+.Os 
+.Dt STLSTATS 8 i386
+.Sh NAME
+.Nm stlstats
+.Nd "Stallion Technologies multiport serial statistics display"
+.Sh SYNOPSIS
+.Nm
+.Op Fl hVi
+.Op Fl c Ar control-device
+.Op Fl b Ar board-number
+.Op Fl p Ar port-number
+.Op Fl d Ar port-device
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is used to display statistical information about the ports on Stallion
+Technologies multiport serial boards.
+.Pp
+The
+.Nm
+utility normally runs as a full screen menu driven application.
+A help line is displayed at the bottom of each screen with the valid
+input keys for this screen.
+.Pp
+Generally the digit keys ('0' through '9') specify the number of the
+device to display statistics for.
+Where digits alone are not enough to access all possible devices
+(for example on 16 port panels) then the first letters of the alphabet
+are used to access the remaining devices.
+The letters 'a' through 'f' are used to access devices 10 through 15.
+.Pp
+The 'q' key is always used to move back to the previous level screen.
+The escape key can also be used to move back to the previous screen.
+.Pp
+The first screen is a display of all ports on panel 0 of board 0.
+Values displayed on this screen are a summary of the information for
+each port.  The statistics displayed are: driver and TTY state flags,
+termios flags (cflags, iflags, oflags, lflags), RS-232 signal values
+(as per TIOCM signal defines), total transmit and receive character
+counts.
+.Pp
+From this screen you can look at summary information
+about each panel and board installed in the system.
+Each board is accessed by the digit keys ('0' through '7'),
+while panels of each board can be cycled through using the 'n' key.
+.Pp
+The per port screen displays some detailed information about a
+particular port.
+This is accessed from the board screen using the 'p' key.
+The first port displayed will be port 0.
+To display other ports use the digit and alphabetic keys
+('0' through '9' and 'a' through 'f').
+This screen displays: driver and TTY state flags, hardware ID,
+termios flags (cflags, iflags, oflags, lflags),
+total transmitted and received character counts,
+current transmit and receive characters buffered,
+receiver error counts (overruns, parity, framing, lost),
+software flow control characters transmitted and received,
+hardware flow control actions taken,
+count of transmitted and received breaks,
+modem signal transitions and
+current RS-232 signal states.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl h
+Output usage information.
+.It Fl V
+Output version information.
+.It Fl i
+Output only the board type information.
+This output is useful for scripts or other programs that need to know
+a little bit about the board (for example an automated download script).
+The
+.Nm
+utility will not enter full screen interactive mode.
+.It Fl c Ar control-device
+Specify the board control device through which to gather port statistics.
+The default is
+.Pa /dev/staliomem0 .
+.It Fl b Ar board-number
+Specify the board number to display first.
+The default is to display board 0.
+.It Fl p Ar port-number
+Specify the port number to display first.
+The
+.Nm
+utility
+will go straight into the port display screen (bypassing board display)
+when this option is used.
+.It Fl d Ar port-device
+Specify the port special device file (the
+.Pa /dev/ttyXXX
+file) to
+display first.
+The board screen is bypassed and the port statistics screen is shown
+immediately on start up.
+.El
+.Sh FILES
+.Bl -tag -width /dev/staliomem0
+.It Pa /dev/staliomem0
+driver control device used for statistics collection
+.El
+.Sh SEE ALSO
+.Xr stl 4 ,
+.Xr stli 4 ,
+.Xr stlload 8
+.Sh HISTORY
+This program was originally developed by
+.An Greg Ungerer Aq gerg@stallion.com .

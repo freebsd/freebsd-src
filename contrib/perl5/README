@@ -1,0 +1,102 @@
+
+			   Perl Kit, Version 5.0
+
+		       Copyright 1989-1999, Larry Wall
+			    All rights reserved.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of either:
+
+	a) the GNU General Public License as published by the Free
+	Software Foundation; either version 1, or (at your option) any
+	later version, or
+
+	b) the "Artistic License" which comes with this Kit.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See either
+    the GNU General Public License or the Artistic License for more details.
+
+    You should have received a copy of the Artistic License with this
+    Kit, in the file named "Artistic".  If not, I'll be glad to provide one.
+
+    You should also have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software Foundation,
+    Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+
+    For those of you that choose to use the GNU General Public License,
+    my interpretation of the GNU General Public License is that no Perl
+    script falls under the terms of the GPL unless you explicitly put
+    said script under the terms of the GPL yourself.  Furthermore, any
+    object code linked with perl does not automatically fall under the
+    terms of the GPL, provided such object code only adds definitions
+    of subroutines and variables, and does not otherwise impair the
+    resulting interpreter from executing any standard Perl script.  I
+    consider linking in C subroutines in this manner to be the moral
+    equivalent of defining subroutines in the Perl language itself.  You
+    may sell such an object file as proprietary provided that you provide
+    or offer to provide the Perl source, as specified by the GNU General
+    Public License.  (This is merely an alternate way of specifying input
+    to the program.)  You may also sell a binary produced by the dumping of
+    a running Perl script that belongs to you, provided that you provide or
+    offer to provide the Perl source as specified by the GPL.  (The
+    fact that a Perl interpreter and your code are in the same binary file
+    is, in this case, a form of mere aggregation.)  This is my interpretation
+    of the GPL.  If you still have concerns or difficulties understanding
+    my intent, feel free to contact me.  Of course, the Artistic License
+    spells all this out for your protection, so you may prefer to use that.
+
+--------------------------------------------------------------------------
+
+Perl is a language that combines some of the features of C, sed, awk
+and shell.  See the manual page for more hype.  There are also two Nutshell
+Handbooks published by O'Reilly & Assoc.  See pod/perlbook.pod
+for more information.
+
+Please read all the directions below before you proceed any further, and
+then follow them carefully.
+
+After you have unpacked your kit, you should have all the files listed
+in MANIFEST.
+
+Installation
+
+1) Detailed instructions are in the file INSTALL which you should read.
+In brief, the following should work on most systems:
+	rm -f config.sh
+	sh Configure
+	make
+	make test
+	make install
+For most systems, it should be safe to accept all the Configure defaults.
+(It is recommended that you accept the defaults the first time you build
+or if you have any problems building.)
+
+2) Read the manual entries before running perl.
+
+3) IMPORTANT!  Help save the world!  Communicate any problems and suggested
+patches to perlbug@perl.com so we can keep the world in sync.
+If you have a problem, there's someone else out there who either has had
+or will have the same problem.  It's usually helpful if you send the
+output of the "myconfig" script in the main perl directory.
+
+If you've succeeded in compiling perl, the perlbug script in the utils/
+subdirectory can be used to help mail in a bug report.
+
+If possible, send in patches such that the patch program will apply them.
+Context diffs are the best, then normal diffs.  Don't send ed scripts--
+I've probably changed my copy since the version you have.
+
+Watch for perl patches in comp.lang.perl.announce.  Patches will generally
+be in a form usable by the patch program.  If you are just now bringing
+up perl and aren't sure how many patches there are, write to me and I'll
+send any you don't have.  Your current patch level is shown in
+patchlevel.h.
+
+
+Just a personal note:  I want you to know that I create nice things like this
+because it pleases the Author of my story.  If this bothers you, then your
+notion of Authorship needs some revision.  But you can use perl anyway. :-)
+
+							The author.

@@ -1,0 +1,1299 @@
+-------------
+Version 5.001
+-------------
+
+Nearly all the changes for 5.001 were bug fixes of one variety or another,
+so here's the bug list, along with the "resolution" for each of them.  If
+you wish to correspond about any of them, please include the bug number.
+
+There were a few that can be construed as enhancements:
+    NETaa13059: now warns of use of \1 where $1 is necessary.
+    NETaa13512: added $SIG{__WARN__} and $SIG{__DIE__} hooks
+    NETaa13520: added closures
+    NETaa13530: scalar keys now resets hash iterator
+    NETaa13641: added Tim's fancy new import whizbangers
+    NETaa13710: cryptswitch needed to be more "useable"
+    NETaa13716: Carp now allows multiple packages to be skipped out of
+    NETaa13716: now counts imported routines as "defined" for redef warnings
+    (and, of course, much of the stuff from the perl5-porters)
+
+NETaa12974: README incorrectly said it was a pre-release.
+Files patched: README
+
+NETaa13033: goto pushed a bogus scope on the context stack.
+From: Steve Vinoski
+Files patched: pp_ctl.c
+ The goto operator pushed an extra bogus scope onto the context stack.  (This
+ often didn't matter, since many things pop extra unrecognized scopes off.)
+
+NETaa13034: tried to get valid pointer from undef.
+From: Castor Fu
+Also:  Achille Hui, the Day Dreamer 
+Also: Eric Arnold
+Files patched: pp_sys.c
+ Now treats undef specially, and calls SvPV_force on any non-numeric scalar
+ value to get a real pointer to somewhere.
+
+NETaa13035: included package info with filehandles.
+From: Jack Shirazi - BIU
+Files patched: pp_hot.c pp_sys.c
+ Now passes a glob to filehandle methods to keep the package info intact.
+
+NETaa13048: didn't give strict vars message on every occurrence.
+From: Doug Campbell
+Files patched: gv.c
+ It now complains about every occurrence.  (The bug resulted from an
+ ill-conceived attempt to suppress a duplicate error message in a
+ suboptimal fashion.)
+
+NETaa13052: test for numeric sort sub return value fooled by taint magic.
+From: Peter Jaspers-Fayer
+Files patched: pp_ctl.c sv.h
+ The test to see if the sort sub return value was numeric looked at the
+ public flags rather than the private flags of the SV, so taint magic
+ hid that info from the sort.
+
+NETaa13053: forced a2p to use byacc
+From: Andy Dougherty
+Files patched: MANIFEST x2p/Makefile.SH x2p/a2p.c
+ a2p.c is now pre-byacced and shipped with the kit.
+
+NETaa13055: misnamed constant in previous patch.
+From: Conrad Augustin
+Files patched: op.c op.h toke.c
+ The tokener translates $[ to a constant, but with a special marking in case
+ the constant gets assigned to or localized.  Unfortunately, the marking
+ was done with a combination of OPf_SPECIAL and OPf_MOD that was easily
+ spoofed.  There is now a private OPpCONST_ARYLEN flag for this purpose.
+
+NETaa13055: use of OPf_SPECIAL for $[ lvaluehood was too fragile.
+Files patched: op.c op.h toke.c
+ (same)
+
+NETaa13056: convert needs to throw away any number info on its list.
+From: Jack Shirazi - BIU
+Files patched: op.c
+ The listiness of the argument list leaked out to the subroutine call because
+ of how prepend_elem and append_elem reuse an existing list.  The convert()
+ routine just needs to discard any listiness it finds on its argument.
+
+NETaa13058: AUTOLOAD shouldn't assume size of @_ is meaningful.
+From: Florent Guillaume
+Files patched: ext/DB_File/DB_File.pm ext/Fcntl/Fcntl.pm ext/GDBM_File/GDBM_File.pm ext/Socket/Socket.pm h2xs.SH
+ I just deleted the optimization, which is silly anyway since the eventual
+ subroutine definition is cached.
+
+NETaa13059: now warns of use of \1 where $1 is necessary.
+From: Gustaf Neumann
+Files patched: toke.c
+ Now says
+ 
+     Can't use \1 to mean $1 in expression at foo line 2
+ 
+ along with an explanation in perldiag.
+
+NETaa13060: no longer warns on attempt to read <> operator's transition state.
+From: Chaim Frenkel
+Files patched: pp_hot.c
+ No longer warns on <> operator's transitional state.
+
+NETaa13140: warning said $ when @ would be more appropriate.
+From: David J. MacKenzie
+Files patched: op.c pod/perldiag.pod
+ Now says
+ 
+     (Did you mean $ or @ instead of %?)
+ 
+ and added more explanation to perldiag.
+
+NETaa13149: was reading freed memory to make incorrect error message.
+Files patched: pp_ctl.c
+ It was reading freed memory to make an error message that would be
+ incorrect in any event because it had the inner filename rather than
+ the outer.
+
+NETaa13149: confess was sometimes less informative than croak
+From: Jack Shirazi
+Files patched: lib/Carp.pm
+ (same)
+
+NETaa13150: stderr needs to be STDERR in package
+From: Jack Shirazi
+Files patched: lib/File/CheckTree.pm
+ Also fixed pl2pm to translate the filehandles to uppercase.
+
+NETaa13150: uppercases stdin, stdout and stderr
+Files patched: pl2pm
+ (same)
+
+NETaa13154: array assignment didn't notice package magic.
+From: Brian Reichert
+Files patched: pp_hot.c
+ The list assignment operator looked for only set magic, but set magic is
+ only on the elements of a magical hash, not on the hash as a whole.  I made
+ the operator look for any magic at all on the target array or hash.
+
+NETaa13155: &DB::DB left trash on the stack.
+From: Thomas Koenig
+Files patched: lib/perl5db.pl pp_ctl.c
+ The call by pp_dbstate() to &DB::DB left trash on the stack.  It now
+ calls DB in list context, and DB returns ().
+
+NETaa13156: lexical variables didn't show up in debugger evals.
+From: Joergen Haegg
+Files patched: op.c
+ The code that searched back up the context stack for the lexical scope
+ outside the eval only partially took into consideration that there
+ might be extra debugger subroutine frames that shouldn't be used, and
+ ended up comparing the wrong statement sequence number to the range of
+ valid sequence numbers for the scope of the lexical variable.  (There
+ was also a bug fixed in passing that caused the scope of lexical to go
+ clear to the end of the subroutine even if it was within an inner block.)
+
+NETaa13157: any request for autoloaded DESTROY should create a null one.
+From: Tom Christiansen
+Files patched: lib/AutoLoader.pm
+ If DESTROY.al is not located, it now creates sub DESTROY {} automatically.
+
+NETaa13158: now preserves $@ around destructors while leaving eval.
+From: Tim Bunce
+Files patched: pp_ctl.c
+ Applied supplied patch, except the whole second hunk can be replaced with
+ 
+     sv_insert(errsv, 0, 0, message, strlen(message));
+
+NETaa13160: clarified behavior of split without arguments
+From: Harry Edmon
+Files patched: pod/perlfunc.pod
+ Clarified the behavior of split without arguments.
+
+NETaa13162: eval {} lost list/scalar context
+From: Dov Grobgeld
+Files patched: op.c
+ LEAVETRY didn't propagate number to ENTERTRY.
+
+NETaa13163: clarified documentation of foreach using my variable
+From: Tom Christiansen
+Files patched: pod/perlsyn.pod
+ Explained that foreach using a lexical is still localized.
+
+NETaa13164: the dot detector for the end of formats was over-rambunctious.
+From: John Stoffel
+Files patched: toke.c
+ The dot detector for the end of formats was over-rambunctious.  It would
+ pick up any dot that didn't have a space in front of it.
+
+NETaa13165: do {} while 1 never linked outer block into next chain.
+From: Gisle Aas
+Files patched: op.c
+ When the conditional of do {} while 1; was optimized away, it confused the
+ postfix order construction so that the block that ordinarily sits around the
+ whole loop was never executed.  So when the loop tried to unstack between
+ iterations, it got the wrong context, and blew away the lexical variables
+ of the outer scope.  Fixed it by introducing a NULL opcode that will be
+ optimized away later.
+
+NETaa13167: coercion was looking at public bits rather than private bits.
+From: Randal L. Schwartz
+Also: Thomas Riechmann
+Also: Shane Castle
+Files patched: sv.c
+ There were some bad ifdefs around the various varieties of set*id().  In
+ addition, tainting was interacting badly with assignment to $> because
+ sv_2iv() was examining SvPOK rather than SvPOKp, and so couldn't coerce
+ a string uid to an integer one.
+
+NETaa13167: had some ifdefs wrong on set*id.
+Files patched: mg.c pp_hot.c
+ (same)
+
+NETaa13168: relaxed test for comparison of new and old fds
+From: Casper H.S. Dik
+Files patched: t/lib/posix.t
+ I relaxed the comparison to just check that the new fd is greater.
+
+NETaa13169: autoincrement can corrupt scalar value state.
+From: Gisle Aas
+Also: Tom Christiansen
+Files patched: sv.c
+ It assumed a PV didn't need to be upgraded to become an NV.
+
+NETaa13169: previous patch could leak a string pointer.
+Files patched: sv.c
+ (same)
+
+NETaa13170: symbols missing from global.sym
+From: Tim Bunce
+Files patched: global.sym
+ Applied suggested patch.
+
+NETaa13171: \\ in <<'END' shouldn't reduce to \.
+From: Randal L. Schwartz
+Files patched: toke.c
+ <<'END' needed to bypass ordinary single-quote processing.
+
+NETaa13172: 'use integer' turned off magical autoincrement.
+From: Erich Rickheit KSC
+Files patched: pp.c pp_hot.c
+ The integer versions of the increment and decrement operators were trying too
+ hard to be efficient.
+
+NETaa13172: deleted duplicate increment and decrement code
+Files patched: opcode.h opcode.pl pp.c
+ (same)
+
+NETaa13173: install should make shared libraries executable.
+From: Brian Grossman
+Also: Dave Nadler
+Also: Eero Pajarre
+Files patched: installperl
+ Now gives permission 555 to any file ending with extension specified by $dlext.
+
+NETaa13176: ck_rvconst didn't free the const it used up.
+From: Nick Duffek
+Files patched: op.c
+ I checked in many random memory leaks under this bug number, since it
+ was an eval that brought many of them out.
+
+NETaa13176: didn't delete XRV for temp ref of destructor.
+Files patched: sv.c
+ (same)
+
+NETaa13176: didn't delete op_pmshort in matching operators.
+Files patched: op.c
+ (same)
+
+NETaa13176: eval leaked the name of the eval.
+Files patched: scope.c
+ (same)
+
+NETaa13176: gp_free didn't free the format.
+Files patched: gv.c
+ (same)
+
+NETaa13176: minor leaks in loop exits and constant subscript optimization.
+Files patched: op.c
+ (same)
+
+NETaa13176: plugged some duplicate struct allocation memory leaks.
+Files patched: perl.c
+ (same)
+
+NETaa13176: sv_clear of an FM didn't clear anything.
+Files patched: sv.c
+ (same)
+
+NETaa13176: tr/// didn't mortalize its return value.
+Files patched: pp.c
+ (same)
+
+NETaa13177: SCOPE optimization hid line number info
+From: David J. MacKenzie
+Also: Hallvard B Furuseth
+Files patched: op.c
+ Every pass on the syntax tree has to keep track of the current statement.
+ Unfortunately, the single-statement block was optimized into a single
+ statement between the time the variable was parsed and the time the
+ void code scan was done, so that pass didn't see the OP_NEXTSTATE
+ operator, because it has been optimized to an OP_NULL.
+ 
+ Fortunately, null operands remember what they were, so it was pretty easy
+ to make it set the correct line number anyway.
+
+NETaa13178: some linux doesn't handle nm well
+From: Alan Modra
+Files patched: hints/linux.sh
+ Applied supplied patch.
+
+NETaa13180: localized slice now pre-extends array
+From: Larry Schuler
+Files patched: pp.c
+ A localized slice now pre-extends its array to avoid reallocation during
+ the scope of the local.
+
+NETaa13181: m//g didn't keep track of whether previous match matched null.
+From: "philippe.verdret"
+Files patched: mg.h pp_hot.c
+ A pattern isn't allowed to match a null string in the same place twice in
+ a row.  m//g wasn't keeping track of whether the previous match matched
+ the null string.
+
+NETaa13182: now includes whitespace as a regexp metacharacter.
+From: Larry Wall
+Files patched: toke.c
+ scan_const() now counts " \t\n\r\f\v" as metacharacters when scanning a pattern.
+
+NETaa13183: sv_setsv shouldn't try to clone an object.
+From: Peter Gordon
+Files patched: sv.c
+ The sv_mortalcopy() done by the return in STORE called sv_setsv(),
+ which cloned the object.  sv_setsv() shouldn't be in the business of
+ cloning objects.
+
+NETaa13184: bogus warning on quoted signal handler name removed.
+From: Dan Carson
+Files patched: toke.c
+ Now doesn't complain unless the first non-whitespace character after the =
+ is an alphabetic character.
+
+NETaa13186: now croaks on chop($')
+From: Casper H.S. Dik
+Files patched: doop.c
+ Now croaks on chop($') and such.
+
+NETaa13187: "${foo::bar}" now counts as mere delimitation, not as a bareword.
+From: Jay Rogers
+Files patched: toke.c
+ "${foo::bar}" now counts as mere delimitation, not as a bareword inside a
+ reference block.
+
+NETaa13188: for backward compatibility, looks for "perl -" before "perl".
+From: Russell Mosemann
+Files patched: toke.c
+ Now allows non-whitespace characters on the #! line between the "perl"
+ and the "-".
+
+NETaa13188: now allows non-whitespace after #!...perl before switches.
+Files patched: toke.c
+ (same)
+
+NETaa13189: derivative files need to be removed before recreation
+From: Simon Leinen
+Also: Dick Middleton
+Also: David J. MacKenzie
+Files patched: embed_h.sh x2p/Makefile.SH
+ Fixed various little nits as suggested in several messages.
+
+NETaa13190: certain assignments can spoof pod directive recognizer
+From: Ilya Zakharevich
+Files patched: toke.c
+ The lexer now only recognizes pod directives where a statement is expected.
+
+NETaa13194: now returns undef when there is no curpm.
+From: lusol@Dillon.CC.Lehigh.EDU
+Files patched: mg.c
+ Since there was no regexp prior to the "use", it was returning whatever the
+ last successful match was within the "use", because there was no current
+ regexp, so it treated it as a normal variable.  It now returns undef.
+
+NETaa13195: semop had one S too many.
+From: Joachim Huober
+Files patched: opcode.pl
+ The entry in opcode.pl had one too many S's.
+
+NETaa13196: always assumes it's a Perl script if -c is used.
+From: Dan Carson
+Files patched: toke.c
+ It now will assume it's a Perl script if the -c switch is used.
+
+NETaa13197: changed implicit -> message to be more understandable.
+From: Bruce Barnett
+Files patched: op.c pod/perldiag.pod
+ I changed the error message to be more understandable.  It now says
+ 
+     Can't use subscript on sort...
+ 
+
+NETaa13201: added OPpCONST_ENTERED flag to properly enter filehandle symbols.
+From: E. Jay Berkenbilt
+Also: Tom Christiansen
+Files patched: op.c op.h toke.c
+ The grammatical reduction of a print statement didn't properly count
+ the filehandle as a symbol reference because it couldn't distinguish
+ between a symbol entered earlier in the program and a symbol entered
+ for the first time down in the lexer.
+
+NETaa13203: README shouldn't mention uperl.o any more.
+From: Anno Siegel
+Files patched: README
+
+NETaa13204: .= shouldn't warn on uninitialized target.
+From: Pete Peterson
+Files patched: pp_hot.c
+ No longer warns on uninitialized target of .= operator.
+
+NETaa13206: handy macros in XSUB.h
+From: Tim Bunce
+Files patched: XSUB.h
+ Added suggested macros.
+
+NETaa13228: commonality checker didn't treat lexicals as variables.
+From: mcook@cognex.com
+Files patched: op.c opcode.pl
+ The list assignment operator tries to avoid unnecessary copies by doing the
+ assignment directly if there are no common variables on either side of the
+ equals.  Unfortunately, the code that decided that only recognized references
+ to dynamic variables, not lexical variables.
+
+NETaa13229: fixed sign stuff for complement, integer coercion.
+From: Larry Wall
+Files patched: perl.h pp.c sv.c
+ Fixed ~0 and integer coercions.
+
+NETaa13230: no longer tries to reuse scratchpad temps if tainting in effect.
+From: Luca Fini
+Files patched: op.c
+ I haven't reproduced it, but I believe the problem is the reuse of scratchpad
+ temporaries between statements.  I've made it not try to reuse them if
+ tainting is in effect.
+
+NETaa13231: *foo = *bar now prevents typo warnings on "foo"
+From: Robin Barker
+Files patched: sv.c
+ Aliasing of the form *foo = *bar is now protected from the typo warnings.
+ Previously only the *foo = \$bar form was.
+
+NETaa13235: require BAREWORD now introduces package name immediately.
+From: Larry Wall
+Files patched: toke.c
+ require BAREWORD now introduces package name immediately.  This lets the
+ method intuit code work right even though the require hasn't actually run
+ yet.
+
+NETaa13289: didn't calculate correctly using arybase.
+From: Jared Rhine
+Files patched: pp.c pp_hot.c
+ The runtime code didn't use curcop->cop_arybase correctly.
+
+NETaa13301: store now throws exception on error
+From: Barry Friedman
+Files patched: ext/GDBM_File/GDBM_File.xs ext/NDBM_File/NDBM_File.xs ext/ODBM_File/ODBM_File.xs ext/SDBM_File/SDBM_File.xs
+ Changed warn to croak in ext/*DBM_File/*.xs.
+
+NETaa13302: ctime now takes Time_t rather than Time_t*.
+From: Rodger Anderson
+Files patched: ext/POSIX/POSIX.xs
+ Now declares a Time_t and takes the address of that in CODE.
+
+NETaa13302: shorter way to do this patch
+Files patched: ext/POSIX/POSIX.xs
+ (same)
+
+NETaa13304: could feed too large $@ back into croak, whereupon it croaked.
+From: Larry Wall
+Files patched: perl.c
+ callist() could feed $@ back into croak with more than a bare %s.  (croak()
+ handles long strings with a bare %s okay.)
+
+NETaa13305: compiler misoptimized RHS to outside of s/a/print/e
+From: Brian S. Cashman <bsc@umich.edu>
+Files patched: op.c
+ The syntax tree was being misconstructed because the compiler felt that
+ the RHS was invariant, so it did it outside the s///.
+
+NETaa13314: assigning mortal to lexical leaks
+From: Larry Wall
+Files patched: sv.c
+ In stealing strings, sv_setsv was checking SvPOK to see if it should free
+ the destination string.  It should have been checking SvPVX.
+
+NETaa13316: wait4pid now recalled when errno == EINTR
+From: Robert J. Pankratz
+Files patched: pp_sys.c util.c
+ system() and the close() of a piped open now recall wait4pid if it returned
+ prematurely with errno == EINTR.
+
+NETaa13329: needed to localize taint magic
+From: Brian Katzung
+Files patched: sv.c doio.c mg.c pp_hot.c pp_sys.c scope.c taint.c
+ Taint magic is now localized better, though I had to resort to a kludge
+ to allow a value to be both tainted and untainted simultaneously during
+ the assignment of
+ 
+     local $foo = $_[0];
+ 
+ when $_[0] is a reference to the variable $foo already.
+
+NETaa13341: clarified interaction of AnyDBM_File::ISA and "use"
+From: Ian Phillipps
+Files patched: pod/modpods/AnyDBMFile.pod
+ The doc was misleading.
+
+NETaa13342: grep and map with block would enter block but never leave it.
+From: Ian Phillipps
+Files patched: op.c
+ The compiler use some sort-checking code to handle the arguments of
+ grep and map.  Unfortunately, this wiped out the block exit opcode while
+ leaving the block entry opcode.  This doesn't matter to sort, but did
+ matter to grep and map.  It now leave the block entry intact.
+ 
+ The reason it worked without the my is because the block entry and exit
+ were optimized away to an OP_SCOPE, which it doesn't matter if it's there
+ or not.
+
+NETaa13343: goto needed to longjmp when in a signal handler.
+From: Robert Partington
+Files patched: pp_ctl.c
+ goto needed to longjmp() when in a signal handler to get back into the
+ right run() context.
+ 
+
+NETaa13344: strict vars shouldn't apply to globs or filehandles.
+From: Andrew Wilcox
+Files patched: gv.c
+ Filehandles and globs will be excepted from "strict vars", so that you can
+ do the standard Perl 4 trick of
+ 
+     use strict;
+     sub foo {
+         local(*IN);
+         open(IN,"file");
+     }
+ 
+
+NETaa13345: assert.pl didn't use package DB
+From: Hans Mulder
+Files patched: lib/assert.pl
+ Now it does.
+
+NETaa13348: av_undef didn't free scalar representing $#foo.
+From: David Filo
+Files patched: av.c
+ av_undef didn't free scalar representing $#foo.
+
+NETaa13349: sort sub accumulated save stack entries
+From: David Filo
+Files patched: pp_ctl.c
+ COMMON only gets set if assigning to @_, which is reasonable.  Most of the
+ problem was a memory leak.
+
+NETaa13351: didn't treat indirect filehandles as references.
+From: Andy Dougherty
+Files patched: op.c
+ Now produces
+ 
+ Can't use an undefined value as a symbol reference at ./foo line 3.
+ 
+
+NETaa13352: OP_SCOPE allocated as UNOP rather than LISTOP.
+From: Andy Dougherty
+Files patched: op.c
+
+NETaa13353: scope() didn't release filegv on OP_SCOPE optimization.
+From: Larry Wall
+Files patched: op.c
+ When scope() nulled out a NEXTSTATE, it didn't release its filegv reference.
+
+NETaa13355: hv_delete now avoids useless mortalcopy
+From: Larry Wall
+Files patched: hv.c op.c pp.c pp_ctl.c proto.h scope.c util.c
+ hv_delete now avoids useless mortalcopy.
+ 
+
+NETaa13359: comma operator section missing its heading
+From: Larry Wall
+Files patched: pod/perlop.pod
+
+NETaa13359: random typo
+Files patched: pod/perldiag.pod
+
+NETaa13360: code to handle partial vec values was bogus.
+From: Conrad Augustin
+Files patched: pp.c
+ The code that Mark J. added a long time ago to handle values that were partially
+ off the end of the string was incorrect.
+
+NETaa13361: made it not interpolate inside regexp comments
+From: Martin Jost
+Files patched: toke.c
+ To avoid surprising people, it no longer interpolates inside regexp
+ comments.
+
+NETaa13362: ${q[1]} should be interpreted like it used to
+From: Hans Mulder
+Files patched: toke.c
+ Now resolves ${keyword[1]} to $keyword[1] and warns if -w.  Likewise for {}.
+
+NETaa13363: meaning of repeated search chars undocumented in tr///
+From: Stephen P. Potter
+Files patched: pod/perlop.pod
+ Documented that repeated characters use the first translation given.
+
+NETaa13365: if closedir fails, don't try it again.
+From: Frank Crawford
+Files patched: pp_sys.c
+ Now does not attempt to closedir a second time.
+
+NETaa13366: can't do block scope optimization on $1 et al when tainting.
+From: Andrew Vignaux
+Files patched: toke.c
+ The tainting mechanism assumes that every statement starts out
+ untainted.  Unfortunately, the scope removal optimization for very
+ short blocks removed the statementhood of statements that were
+ attempting to read $1 as an untainted value, with the effect that $1
+ appeared to be tainted anyway.  The optimization is now disabled when
+ tainting and the block contains $1 (or equivalent).
+
+NETaa13366: fixed this a better way in toke.c.
+Files patched: op.c
+ (same)
+
+NETaa13366: need to disable scope optimization when tainting.
+Files patched: op.c
+ (same)
+
+NETaa13367: Did a SvCUR_set without nulling out final char.
+From: "Rob Henderson" <robh@cs.indiana.edu>
+Files patched: doop.c pp.c pp_sys.c
+ When do_vop set the length on its result string it neglected to null-terminate
+ it.
+
+NETaa13368: bigrat::norm sometimes chucked sign
+From: Greg Kuperberg
+Files patched: lib/bigrat.pl
+ The normalization routine was assuming that the gcd of two numbers was
+ never negative, and based on that assumption managed to move the sign
+ to the denominator, where it was deleted on the assumption that the
+ denominator is always positive.
+
+NETaa13368: botched previous patch
+Files patched: lib/bigrat.pl
+ (same)
+
+NETaa13369: # is now a comment character, and \# should be left for regcomp.
+From: Simon Parsons
+Files patched: toke.c
+ It was not skipping the comment when it skipped the white space, and constructed
+ an opcode that tried to match a null string.  Unfortunately, the previous
+ star tried to use the first character of the null string to optimize where
+ to recurse, so it never matched.
+
+NETaa13369: comment after regexp quantifier induced non-match.
+Files patched: regcomp.c
+ (same)
+
+NETaa13370: some code assumed SvCUR was of type int.
+From: Spider Boardman
+Files patched: pp_sys.c
+ Did something similar to the proposed patch.  I also fixed the problem that
+ it assumed the type of SvCUR was int.  And fixed get{peer,sock}name the
+ same way.
+
+NETaa13375: sometimes dontbother wasn't added back into strend.
+From: Jamshid Afshar
+Files patched: regexec.c
+ When the /g modifier was used, the regular expression code would calculate
+ the end of $' too short by the minimum number of characters the pattern could
+ match.
+
+NETaa13375: sv_setpvn now disallows negative length.
+Files patched: sv.c
+ (same)
+
+NETaa13376: suspected indirect objecthood prevented recognition of lexical.
+From: Gisle.Aas@nr.no
+Files patched: toke.c
+ When $data[0] is used in a spot that might be an indirect object, the lexer
+ was getting confused over the rule that says the $data in $$data[0] isn't
+ an array element.  (The lexer uses XREF state for both indirect objects
+ and for variables used as names.)
+
+NETaa13377: -I processesing ate remainder of #! line.
+From: Darrell Schiebel
+Files patched: perl.c
+ I made the -I processing in moreswitches look for the end of the string,
+ delimited by whitespace.
+
+NETaa13379: ${foo} now treated the same outside quotes as inside
+From: Hans Mulder
+Files patched: toke.c
+ ${bareword} is now treated the same outside quotes as inside.
+
+NETaa13379: previous fix for this bug was botched
+Files patched: toke.c
+ (same)
+
+NETaa13381: TEST should check for perl link
+From: Andy Dougherty
+Files patched: t/TEST
+ die "You need to run \"make test\" first to set things up.\n" unless -e 'perl';
+ 
+
+NETaa13384: fixed version 0.000 botch.
+From: Larry Wall
+Files patched: installperl
+
+NETaa13385: return 0 from required file loses message
+From: Malcolm Beattie
+Files patched: pp_ctl.c
+ Works right now.
+
+NETaa13387: added pod2latex
+From: Taro KAWAGISHI
+Files patched: MANIFEST pod/pod2latex
+ Added most recent copy to pod directory.
+
+NETaa13388: constant folding now prefers integer results over double
+From: Ilya Zakharevich
+Files patched: op.c
+ Constant folding now prefers integer results over double.
+
+NETaa13389: now treats . and exec as shell metathingies
+From: Hans Mulder
+Files patched: doio.c
+ Now treats . and exec as shell metathingies.
+
+NETaa13395: eval didn't check taintedness.
+From: Larry Wall
+Files patched: pp_ctl.c
+
+NETaa13396: $^ coredumps at end of string
+From: Paul Rogers
+Files patched: toke.c
+ The scan_ident() didn't check for a null following $^.
+
+NETaa13397: improved error messages when operator expected
+From: Larry Wall
+Files patched: toke.c
+ Added message (Do you need to predeclare BAR?).  Also fixed the missing
+ semicolon message.
+
+NETaa13399: cleanup by Andy
+From: Larry Wall
+Files patched: Changes Configure Makefile.SH README cflags.SH config.H config_h.SH deb.c doop.c dump.c ext/DB_File/DB_File.pm ext/DB_File/DB_File.xs ext/DynaLoader/DynaLoader.pm ext/Fcntl/Fcntl.pm ext/GDBM_File/GDBM_File.pm ext/POSIX/POSIX.pm ext/SDBM_File/sdbm/sdbm.h ext/Socket/Socket.pm ext/util/make_ext h2xs.SH hints/aix.sh hints/bsd386.sh hints/dec_osf.sh hints/esix4.sh hints/freebsd.sh hints/irix_5.sh hints/next_3_2.sh hints/sunos_4_1.sh hints/svr4.sh hints/ultrix_4.sh installperl lib/AutoSplit.pm lib/Cwd.pm lib/ExtUtils/MakeMaker.pm lib/ExtUtils/xsubpp lib/Term/Cap.pm mg.c miniperlmain.c perl.c perl.h perl_exp.SH pod/Makefile pod/perldiag.pod pod/pod2html pp.c pp_ctl.c pp_hot.c pp_sys.c proto.h sv.h t/re_tests util.c x2p/Makefile.SH x2p/a2p.h x2p/a2py.c x2p/handy.h x2p/hash.c x2p/hash.h x2p/str.c x2p/str.h x2p/util.c x2p/util.h x2p/walk.c
+
+NETaa13399: cleanup from Andy
+Files patched: MANIFEST
+
+NETaa13399: configuration cleanup
+Files patched: Configure Configure MANIFEST MANIFEST Makefile.SH Makefile.SH README config.H config.H config_h.SH config_h.SH configpm ext/DynaLoader/DynaLoader.pm ext/DynaLoader/dl_hpux.xs ext/NDBM_File/Makefile.PL ext/ODBM_File/Makefile.PL ext/util/make_ext handy.h hints/aix.sh hints/hpux_9.sh hints/hpux_9.sh hints/irix_4.sh hints/linux.sh hints/mpeix.sh hints/next_3_2.sh hints/solaris_2.sh hints/svr4.sh installperl installperl lib/AutoSplit.pm lib/ExtUtils/MakeMaker.pm lib/ExtUtils/MakeMaker.pm lib/ExtUtils/xsubpp lib/Getopt/Long.pm lib/Text/Tabs.pm makedepend.SH makedepend.SH mg.c op.c perl.h perl_exp.SH pod/perl.pod pod/perldiag.pod pod/perlsyn.pod pod/pod2man pp_sys.c proto.h proto.h unixish.h util.c util.c vms/config.vms writemain.SH x2p/a2p.h x2p/a2p.h x2p/a2py.c x2p/a2py.c x2p/handy.h x2p/util.c x2p/walk.c x2p/walk.c
+
+NETaa13399: new files from Andy
+Files patched: ext/DB_File/Makefile.PL ext/DynaLoader/Makefile.PL ext/Fcntl/Makefile.PL ext/GDBM_File/Makefile.PL ext/NDBM_File/Makefile.PL ext/ODBM_File/Makefile.PL ext/POSIX/Makefile.PL ext/SDBM_File/Makefile.PL ext/SDBM_File/sdbm/Makefile.PL ext/Socket/Makefile.PL globals.c hints/convexos.sh hints/irix_6.sh
+
+NETaa13399: patch0l from Andy
+Files patched: Configure MANIFEST Makefile.SH config.H config_h.SH ext/DB_File/Makefile.PL ext/GDBM_File/Makefile.PL ext/NDBM_File/Makefile.PL ext/POSIX/POSIX.xs ext/SDBM_File/sdbm/Makefile.PL ext/util/make_ext h2xs.SH hints/next_3_2.sh hints/solaris_2.sh hints/unicos.sh installperl lib/Cwd.pm lib/ExtUtils/MakeMaker.pm makeaperl.SH vms/config.vms x2p/util.c x2p/util.h
+
+NETaa13399: stuff from Andy
+Files patched: Configure MANIFEST Makefile.SH configpm hints/dec_osf.sh hints/linux.sh hints/machten.sh lib/ExtUtils/MakeMaker.pm util.c
+
+NETaa13399: Patch 0k from Andy
+Files patched: Configure MANIFEST Makefile.SH config.H config_h.SH hints/dec_osf.sh hints/mpeix.sh hints/next_3_0.sh hints/ultrix_4.sh installperl lib/ExtUtils/MakeMaker.pm lib/File/Path.pm makeaperl.SH minimod.PL perl.c proto.h vms/config.vms vms/ext/MM_VMS.pm x2p/a2p.h
+
+NETaa13399: Patch 0m from Andy
+Files patched: Configure MANIFEST Makefile.SH README config.H config_h.SH ext/DynaLoader/README ext/POSIX/POSIX.xs ext/SDBM_File/sdbm/sdbm.h ext/util/extliblist hints/cxux.sh hints/linux.sh hints/powerunix.sh lib/ExtUtils/MakeMaker.pm malloc.c perl.h pp_sys.c util.c
+
+NETaa13400: pod2html update from Bill Middleton
+From: Larry Wall
+Files patched: pod/pod2html
+
+NETaa13401: Boyer-Moore code attempts to compile string longer than 255.
+From: Kyriakos Georgiou
+Files patched: util.c
+ The Boyer-Moore table uses unsigned char offsets, but the BM compiler wasn't
+ rejecting strings longer than 255 chars, and was miscompiling them.
+
+NETaa13403: missing a $ on variable name
+From: Wayne Scott
+Files patched: installperl
+ Yup, it was missing.
+
+NETaa13406: didn't wipe out dead match when proceeding to next BRANCH
+From: Michael P. Clemens
+Files patched: regexec.c
+ The code to check alternatives didn't invalidate backreferences matched by the
+ failed branch.
+
+NETaa13407: overload upgrade
+From: owner-perl5-porters@nicoh.com
+Also: Ilya Zakharevich
+Files patched: MANIFEST gv.c lib/Math/BigInt.pm perl.h pod/perlovl.pod pp.c pp.h pp_hot.c sv.c t/lib/bigintpm.t t/op/overload.t
+ Applied supplied patch, and fixed bug induced by use of sv_setsv to do
+ a deep copy, since sv_setsv no longer copies objecthood.
+
+NETaa13409: sv_gets tries to grow string at EOF
+From: Harold O Morris
+Files patched: sv.c
+ Applied suggested patch, only two statements earlier, since the end code
+ also does SvCUR_set.
+
+NETaa13410: delaymagic did =~ instead of &= ~
+From: Andreas Schwab
+Files patched: pp_hot.c
+ Applied supplied patch.
+
+NETaa13411: POSIX didn't compile under -DLEAKTEST
+From: Frederic Chauveau
+Files patched: ext/POSIX/POSIX.xs
+ Used NEWSV instead of newSV.
+
+NETaa13412: new version from Tony Sanders
+From: Tony Sanders
+Files patched: lib/Term/Cap.pm
+ Installed as Term::Cap.pm
+
+NETaa13413: regmust extractor needed to restart loop on BRANCH for (?:) to work
+From: DESARMENIEN
+Files patched: regcomp.c
+ The BRANCH skipper should have restarted the loop from the top.
+
+NETaa13414: the check for accidental list context was done after pm_short check
+From: Michael H. Coen
+Files patched: pp_hot.c
+ Moved check for accidental list context to before the pm_short optimization.
+
+NETaa13418: perlre.pod babbled nonsense about | in character classes
+From: Philip Hazel
+Files patched: pod/perlre.pod
+ Removed bogus brackets.  Now reads:
+     Note however that "|" is interpreted as a literal with square brackets,
+     so if you write C<[fee|fie|foe]> you're really only matching C<[feio|]>.
+
+NETaa13419: need to document introduction of lexical variables
+From: "Heading, Anthony"
+Files patched: pod/perlfunc.pod
+ Now mentions that lexicals aren't introduced till after the current statement.
+
+NETaa13420: formats that overflowed a page caused endless top of forms
+From: Hildo@CONSUL.NL
+Files patched: pp_sys.c
+ If a record is too large to fit on a page, it now prints whatever will
+ fit and then calls top of form again on the remainder.
+
+NETaa13423: the code to do negative list subscript in scalar context was missing
+From: Steve McDougall
+Files patched: pp.c
+ The negative subscript code worked right in list context but not in scalar
+ context.  In fact, there wasn't code to do it in the scalar context.
+
+NETaa13424: existing but undefined CV blocked inheritance
+From: Spider Boardman
+Files patched: gv.c
+ Applied supplied patch.
+
+NETaa13425: removed extra argument to croak
+From: "R. Bernstein"
+Files patched: regcomp.c
+ Removed extra argument.
+
+NETaa13427: added return types
+From: "R. Bernstein"
+Files patched: x2p/a2py.c
+ Applied suggested patch.
+
+NETaa13427: added static declarations
+Files patched: x2p/walk.c
+ (same)
+
+NETaa13428: split was assuming that all backreferences were defined
+From: Dave Schweisguth
+Files patched: pp.c
+ split was assuming that all backreferences were defined.
+
+NETaa13430: hoistmust wasn't hoisting anchored shortcircuit's length
+From: Tom Christiansen
+Also: Rob Hooft
+Files patched: toke.c
+
+NETaa13432: couldn't call code ref under debugger
+From: Mike Fletcher
+Files patched: op.c pp_hot.c sv.h
+ The debugging code assumed it could remember a name to represent a subroutine,
+ but anonymous subroutines don't have a name.  It now remembers a CV reference
+ in that case.
+
+NETaa13435: 1' dumped core
+From: Larry Wall
+Files patched: toke.c
+ Didn't check a pointer for nullness.
+
+NETaa13436: print foo(123) didn't treat foo as subroutine
+From: mcook@cognex.com
+Files patched: toke.c
+ Now treats it as a subroutine rather than a filehandle.
+
+NETaa13437: &$::foo didn't think $::foo was a variable name
+From: mcook@cognex.com
+Files patched: toke.c
+ Now treats $::foo as a global variable.
+
+NETaa13439: referred to old package name
+From: Tom Christiansen
+Files patched: lib/Sys/Syslog.pm
+ Wasn't a strict refs problem after all.  It was simply referring to package
+ syslog, which had been renamed to Sys::Syslog.
+
+NETaa13440: stat operations didn't know what to do with glob or ref to glob
+From: mcook@cognex.com
+Files patched: doio.c pp_sys.c
+ Now knows about the kinds of filehandles returned by FileHandle constructors
+ and such.
+
+NETaa13442: couldn't find name of copy of deleted symbol table entry
+From: Spider Boardman
+Files patched: gv.c gv.h
+ I did a much simpler fix.  When gp_free notices that it's freeing the
+ master GV, it nulls out gp_egv.  The GvENAME and GvESTASH macros know
+ to revert to gv if egv is null.
+ 
+ This has the advantage of not creating a reference loop.
+
+NETaa13443: couldn't override an XSUB
+From: William Setzer
+Files patched: op.c
+ When the newSUB and newXS routines checked for whether the old sub was
+ defined, they only looked at CvROOT(cv), not CvXSUB(cv).
+
+NETaa13443: needed to do same thing in newXS
+Files patched: op.c
+ (same)
+
+NETaa13444: -foo now doesn't warn unless sub foo is defined
+From: Larry Wall
+Files patched: toke.c
+ Made it not warn on -foo, unless there is a sub foo defined.
+
+NETaa13451: in scalar context, pp_entersub now guarantees one item from XSUB
+From: Nick Gianniotis
+Files patched: pp_hot.c
+ The pp_entersub routine now guarantees that an XSUB in scalar context
+ returns one and only one value.  If there are fewer, it pushes undef,
+ and if there are more, it returns the last one.
+
+NETaa13457: now explicitly disallows printf format with 'n' or '*'.
+From: lees@cps.msu.edu
+Files patched: doop.c
+ Now says
+ 
+     Use of n in printf format not supported at ./foo line 3.
+ 
+
+NETaa13458: needed to call SvPOK_only() in pp_substr
+From: Wayne Scott
+Files patched: pp.c
+ Needed to call SvPOK_only() in pp_substr.
+
+NETaa13459: umask and chmod now warn about missing initial 0 even with paren
+From: Andreas Koenig
+Files patched: toke.c
+ Now skips parens as well as whitespace looking for argument.
+
+NETaa13460: backtracking didn't work on .*? because reginput got clobbered
+From: Andreas Koenig
+Files patched: regexec.c
+ When .*? did a probe of the rest of the string, it clobbered reginput,
+ so the next call to match a . tried to match the newline and failed.
+
+NETaa13475: \(@ary) now treats array as list of scalars
+From: Tim Bunce
+Files patched: op.c
+ The mod() routine now refrains from marking @ary as an lvalue if it's in parens
+ and is the subject of an OP_REFGEN.
+
+NETaa13481: accept buffer wasn't aligned good enough
+From: Holger Bechtold
+Also: Christian Murphy
+Files patched: pp_sys.c
+ Applied suggested patch.
+
+NETaa13486: while (<>) now means while (defined($_ = <>))
+From: Jim Balter
+Files patched: op.c pod/perlop.pod
+ while (<HANDLE>) now means while (defined($_ = <HANDLE>)).
+
+NETaa13500: needed DESTROY in FileHandle
+From: Tim Bunce
+Files patched: ext/POSIX/POSIX.pm
+ Added DESTROY method.  Also fixed ungensym to use POSIX:: instead of _POSIX.
+ Removed ungensym from close method, since DESTROY should do that now.
+
+NETaa13502: now complains if you use local on a lexical variable
+From: Larry Wall
+Files patched: op.c
+ Now says something like
+ 
+     Can't localize lexical variable $var at ./try line 6.
+
+NETaa13512: added $SIG{__WARN__} and $SIG{__DIE__} hooks
+From: Larry Wall
+Files patched: embed.h gv.c interp.sym mg.c perl.h pod/perlvar.pod pp_ctl.c util.c Todo pod/perldiag.pod
+
+NETaa13514: statements before intro of lex var could see lex var
+From: William Setzer
+Files patched: op.c
+ When a lexical variable is declared, introduction is delayed until
+ the start of the next statement, so that any initialization code runs
+ outside the scope of the new variable.  Thus,
+ 
+     my $y = 3;
+     my $y = $y;
+     print $y;
+ 
+ should print 3.  Unfortunately, the declaration was marked with the
+ beginning location at the time that "my $y" was processed instead of 
+ when the variable was introduced, so any embedded statements within
+ an anonymous subroutine picked up the wrong "my".  The declaration
+ is now labelled correctly when the variable is actually introduced.
+
+NETaa13520: added closures
+From: Larry Wall
+Files patched: Todo cv.h embed.h global.sym gv.c interp.sym op.c perl.c perl.h pod/perlform.pod pp.c pp_ctl.c pp_hot.c sv.c sv.h toke.c
+
+NETaa13520: test to see if lexical works in a format now
+Files patched: t/op/write.t
+
+NETaa13522: substitution couldn't be used on a substr()
+From: Hans Mulder
+Files patched: pp_ctl.c pp_hot.c
+ Changed pp_subst not to use sv_replace() anymore, which didn't handle lvalues
+ and was overkill anyway.  Should be slightly faster this way too.
+
+NETaa13525: G_EVAL mode in perl_call_sv didn't return values right.
+Files patched: perl.c
+
+NETaa13525: consolidated error message
+From: Larry Wall
+Files patched: perl.h toke.c
+
+NETaa13525: derived it
+Files patched: perly.h
+
+NETaa13525: missing some values from embed.h
+Files patched: embed.h
+
+NETaa13525: random cleanup
+Files patched: MANIFEST Todo cop.h lib/TieHash.pm lib/perl5db.pl opcode.h patchlevel.h pod/perldata.pod pod/perlsub.pod t/op/ref.t toke.c
+
+NETaa13525: random cleanup                  
+Files patched: pp_ctl.c util.c
+
+NETaa13527: File::Find needed to export $name and $dir
+From: Chaim Frenkel
+Files patched: lib/File/Find.pm
+ They are now exported.
+
+NETaa13528: cv_undef left unaccounted-for GV pointer in CV
+From: Tye McQueen
+Also: Spider Boardman
+Files patched: op.c
+
+NETaa13530: scalar keys now resets hash iterator
+From: Tim Bunce
+Files patched: doop.c
+ scalar keys() now resets the hash iterator.
+
+NETaa13531: h2ph doesn't check defined right
+From: Casper H.S. Dik
+Files patched: h2ph.SH
+
+NETaa13540: VMS update
+From: Larry Wall
+Files patched: MANIFEST README.vms doio.c embed.h ext/DynaLoader/dl_vms.xs interp.sym lib/Cwd.pm lib/ExtUtils/xsubpp lib/File/Basename.pm lib/File/Find.pm lib/File/Path.pm mg.c miniperlmain.c perl.c perl.h perly.c perly.c.diff pod/perldiag.pod pp_ctl.c pp_hot.c pp_sys.c proto.h util.c vms/Makefile vms/config.vms vms/descrip.mms vms/ext/Filespec.pm vms/ext/MM_VMS.pm vms/ext/VMS/stdio/Makefile.PL vms/ext/VMS/stdio/stdio.pm vms/ext/VMS/stdio/stdio.xs vms/genconfig.pl vms/perlvms.pod vms/sockadapt.c vms/sockadapt.h vms/vms.c vms/vmsish.h vms/writemain.pl
+
+NETaa13540: got some duplicate code
+Files patched: lib/File/Path.pm
+
+NETaa13540: stuff from Charles
+Files patched: MANIFEST README.vms lib/ExtUtils/MakeMaker.pm lib/ExtUtils/MakeMaker.pm lib/ExtUtils/xsubpp lib/File/Basename.pm lib/File/Path.pm perl.c perl.h pod/perldiag.pod pod/perldiag.pod vms/Makefile vms/Makefile vms/config.vms vms/config.vms vms/descrip.mms vms/descrip.mms vms/ext/Filespec.pm vms/ext/Filespec.pm vms/ext/MM_VMS.pm vms/ext/MM_VMS.pm vms/ext/VMS/stdio/stdio.pm vms/ext/VMS/stdio/stdio.xs vms/gen_shrfls.pl vms/gen_shrfls.pl vms/genconfig.pl vms/genconfig.pl vms/mms2make.pl vms/perlvms.pod vms/sockadapt.h vms/test.com vms/vms.c vms/vms.c vms/vmsish.h vms/vmsish.h vms/writemain.pl
+
+NETaa13540: tweak from Charles
+Files patched: lib/File/Path.pm
+
+NETaa13552: scalar unpack("P4",...) ignored the 4
+From: Eric Arnold
+Files patched: pp.c
+ The optimization that tried to do only one item in a scalar context didn't
+ realize that the argument to P was not a repeat count.
+
+NETaa13553: now warns about 8 or 9 in octal escapes
+From: Mike Rogers
+Files patched: util.c
+ Now warns if it finds 8 or 9 before the end of the octal escape sequence.
+ So \039 produces a warning, but \0339 does not.
+
+NETaa13554: now allows foreach ${"name"}
+From: Johan Holtman
+Files patched: op.c
+ Instead of trying to remove OP_RV2SV, the compiler now just transmutes it into an
+ OP_RV2GV, which is a no-op for ordinary variables and does the right
+ thing for ${"name"}.
+
+NETaa13559: substitution now always checks for readonly
+From: Rodger Anderson
+Files patched: pp_hot.c
+ Substitution now always checks for readonly.
+
+NETaa13561: added explanations of closures and curly-quotes
+From: Larry Wall
+Files patched: pod/perlref.pod
+
+NETaa13562: null components in path cause indigestion
+From: Ambrose Kofi Laing
+Files patched: lib/Cwd.pm lib/pwd.pl
+
+NETaa13575: documented semantics of negative substr length
+From: Jeff Bouis
+Files patched: pod/perlfunc.pod
+ Documented the fact that negative length now leaves characters off the end,
+ and while I was at it, made it work right even if offset wasn't 0.
+
+NETaa13575: negative length to substr didn't work when offset non-zero
+Files patched: pp.c
+ (same)
+
+NETaa13575: random cleanup
+Files patched: pod/perlfunc.pod
+ (same)
+
+NETaa13580: couldn't localize $ACCUMULATOR
+From: Larry Wall
+Files patched: gv.c lib/English.pm mg.c perl.c sv.c
+ Needed to make $^A a real magical variable.  Also lib/English.pm wasn't
+ exporting good.
+
+NETaa13583: doc mods from Tom
+From: Larry Wall
+Files patched: pod/modpods/AnyDBMFile.pod pod/modpods/Basename.pod pod/modpods/Benchmark.pod pod/modpods/Cwd.pod pod/modpods/Dynaloader.pod pod/modpods/Exporter.pod pod/modpods/Find.pod pod/modpods/Finddepth.pod pod/modpods/Getopt.pod pod/modpods/MakeMaker.pod pod/modpods/Open2.pod pod/modpods/POSIX.pod pod/modpods/Ping.pod pod/modpods/less.pod pod/modpods/strict.pod pod/perlapi.pod pod/perlbook.pod pod/perldata.pod pod/perlform.pod pod/perlfunc.pod pod/perlipc.pod pod/perlmod.pod pod/perlobj.pod pod/perlref.pod pod/perlrun.pod pod/perlsec.pod pod/perlsub.pod pod/perltrap.pod pod/perlvar.pod
+
+NETaa13589: return was enforcing list context on its arguments
+From: Tim Freeman
+Files patched: opcode.pl
+ A return was being treated like a normal list operator, in that it was
+ setting list context on its arguments.  This was bogus.
+
+NETaa13591: POSIX::creat used wrong argument
+From: Paul Marquess
+Files patched: ext/POSIX/POSIX.pm
+ Applied suggested patch.
+
+NETaa13605: use strict refs error message now displays bad ref
+From: Peter Gordon
+Files patched: perl.h pod/perldiag.pod pp.c pp_hot.c
+ Now says
+ 
+     Can't use string ("2") as a HASH ref while "strict refs" in use at ./foo line 12.
+
+NETaa13630: eof docs were unclear
+From: Hallvard B Furuseth
+Files patched: pod/perlfunc.pod
+ Applied suggested patch.
+
+NETaa13636: $< and $> weren't refetched on undump restart
+From: Steve Pearlmutter
+Files patched: perl.c
+ The code in main() bypassed perl_construct on an undump restart, which bypassed
+ the code that set $< and $>.
+
+NETaa13641: added Tim's fancy new import whizbangers
+From: Tim Bunce
+Files patched: lib/Exporter.pm
+ Applied suggested patch.
+
+NETaa13649: couldn't AUTOLOAD a symbol reference
+From: Larry Wall
+Files patched: pp_hot.c
+ pp_entersub needed to guarantee a CV so it would get to the AUTOLOAD code.
+
+NETaa13651: renamed file had wrong package name
+From: Andreas Koenig
+Files patched: lib/File/Path.pm
+ Applied suggested patch.
+
+NETaa13660: now that we're testing distribution we can diagnose RANDBITS errors
+From: Karl Glazebrook
+Files patched: t/op/rand.t
+ Changed to suggested algorithm.  Also duplicated it to test rand(100) too.
+
+NETaa13660: rand.t didn't test for proper distribution within range
+Files patched: t/op/rand.t
+ (same)
+
+NETaa13671: array slice misbehaved in a scalar context
+From: Tye McQueen
+Files patched: pp.c
+ A spurious else prevented the scalar-context-handling code from running.
+
+NETaa13672: filehandle constructors in POSIX don't return failure successfully
+From: Ian Phillipps
+Files patched: ext/POSIX/POSIX.pm
+ Applied suggested patch.
+ 
+
+NETaa13678: forced $1 to always be untainted
+From: Ka-Ping Yee
+Files patched: mg.c
+ I believe the bug that triggered this was fixed elsewhere, but just in case,
+ I put in explicit code to force $1 et al not to be tainted regardless.
+
+NETaa13682: formline doc need to discuss ~ and ~~ policy
+From: Peter Gordon
+Files patched: pod/perlfunc.pod
+
+NETaa13686: POSIX::open and POSIX::mkfifo didn't check tainting
+From: Larry Wall
+Files patched: ext/POSIX/POSIX.xs
+ open() and mkfifo() now check tainting.
+
+NETaa13687: new Exporter.pm
+From: Tim Bunce
+Files patched: lib/Exporter.pm
+ Added suggested changes, except for @EXPORTABLE, because it looks too much
+ like @EXPORTTABLE.  Decided to stick with @EXPORT_OK because it looks more
+ like an adjunct.  Also added an export_tags routine.  The keys in the
+ %EXPORT_TAGS hash no longer use colons, to make the initializers prettier.
+
+NETaa13687: new Exporter.pm      
+Files patched: ext/POSIX/POSIX.pm
+ (same)
+
+NETaa13694: add sockaddr_in to Socket.pm
+From: Tim Bunce
+Files patched: ext/Socket/Socket.pm
+ Applied suggested patch.
+
+NETaa13695: library routines should use qw() as good example
+From: Dean Roehrich
+Files patched: ext/DB_File/DB_File.pm ext/DynaLoader/DynaLoader.pm ext/Fcntl/Fcntl.pm ext/GDBM_File/GDBM_File.pm ext/POSIX/POSIX.pm ext/Socket/Socket.pm
+ Applied suggested patch.
+
+NETaa13696: myconfig should be a routine in Config.pm
+From: Kenneth Albanowski
+Files patched: configpm
+ Applied suggested patch.
+
+NETaa13704: fdopen closed fd on failure
+From: Hallvard B Furuseth
+Files patched: doio.c
+ Applied suggested patch.
+
+NETaa13706: Term::Cap doesn't work
+From: Dean Roehrich
+Files patched: lib/Term/Cap.pm
+ Applied suggested patch.
+
+NETaa13710: cryptswitch needed to be more "useable"
+From: Tim Bunce
+Files patched: embed.h global.sym perl.h toke.c
+ The cryptswitch_fp function now can operate in two modes.  It can
+ modify the global rsfp to redirect input as before, or it can modify
+ linestr and return true, indicating that it is not necessary for yylex
+ to read another line since cryptswitch_fp has just done it.
+
+NETaa13712: new_tmpfile() can't be called as constructor
+From: Hans Mulder
+Files patched: ext/POSIX/POSIX.xs
+ Now allows new_tmpfile() to be called as a constructor.
+
+NETaa13714: variable method call not documented
+From: "Randal L. Schwartz"
+Files patched: pod/perlobj.pod
+ Now indicates that OBJECT->$method() works.
+
+NETaa13715: PACK->$method produces spurious warning
+From: Larry Wall
+Files patched: toke.c
+ The -> operator was telling the lexer to expect an operator when the
+ next thing was a variable.
+
+NETaa13716: Carp now allows multiple packages to be skipped out of
+From: Larry Wall
+Files patched: lib/Carp.pm
+ The subroutine redefinition warnings now warn on import collisions.
+
+NETaa13716: Exporter catches warnings and gives a better line number
+Files patched: lib/Exporter.pm
+ (same)
+
+NETaa13716: now counts imported routines as "defined" for redef warnings
+Files patched: op.c sv.c
+ (same)

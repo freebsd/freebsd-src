@@ -1,0 +1,77 @@
+# $Id: Makefile.in,v 1.30 1999/03/10 19:01:17 joda Exp $
+
+SHELL = /bin/sh
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+CC = @CC@
+LINK = @LINK@
+AR = ar
+RANLIB = @RANLIB@
+DEFS = @DEFS@
+CFLAGS = @CFLAGS@ $(WFLAGS)
+WFLAGS = @WFLAGS@
+LD_FLAGS = @LD_FLAGS@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+MKINSTALLDIRS = @top_srcdir@/mkinstalldirs
+
+LIBS = @LIBS@
+LIB_DBM = @LIB_DBM@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+libdir = @libdir@
+libexecdir = @libexecdir@
+transform=@program_transform_name@
+EXECSUFFIX=@EXECSUFFIX@
+
+PROGS = kerberos$(EXECSUFFIX)
+
+SOURCES = kerberos.c
+
+OBJECTS = kerberos.o
+
+all: $(PROGS)
+
+Wall:
+	make CFLAGS="-g -Wall -Wno-comment -Wmissing-prototypes -Wmissing-declarations -D__USE_FIXED_PROTOTYPES__"
+
+.c.o:
+	$(CC) -c $(DEFS) -I../include -I$(srcdir) $(CPPFLAGS) $(CFLAGS) $<
+
+install: all
+	$(MKINSTALLDIRS) $(DESTDIR)$(libexecdir)
+	for x in $(PROGS); do \
+	  $(INSTALL_PROGRAM) $$x $(DESTDIR)$(libexecdir)/`echo $$x | sed '$(transform)'`; \
+	done
+
+uninstall:
+	for x in $(PROGS); do \
+	  rm -f $(DESTDIR)$(libexecdir)/`echo $$x | sed '$(transform)'`; \
+	done
+
+TAGS: $(SOURCES)
+	etags $(SOURCES)
+
+check:
+
+clean:
+	rm -f *.a *.o $(PROGS)
+
+mostlyclean: clean
+
+distclean: clean
+	rm -f Makefile *.tab.c *~
+
+realclean: distclean
+	rm -f TAGS
+
+kerberos$(EXECSUFFIX): kerberos.o
+	$(LINK) $(LD_FLAGS) $(LDFLAGS) -o $@ kerberos.o -L../lib/kdb -lkdb -L../lib/krb -lkrb -L../lib/des -ldes -L../lib/roken -lroken $(LIB_DBM) $(LIBS) -lroken
+
+$(OBJECTS): ../include/config.h
+
+.PHONY: all Wall install uninstall check clean mostlyclean distclean realclean

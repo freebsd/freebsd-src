@@ -1,0 +1,81 @@
+KTUTIL(8)               NetBSD System Manager's Manual               KTUTIL(8)
+
+NNAAMMEE
+     kkttuuttiill - manage Kerberos keytabs
+
+SSYYNNOOPPSSIISS
+     kkttuuttiill [--kk _k_e_y_t_a_b | ----kkeeyyttaabb==_k_e_y_t_a_b] [--vv | ----vveerrbboossee] [----vveerrssiioonn] [--hh |
+     ----hheellpp] _c_o_m_m_a_n_d [_a_r_g_s]
+
+DDEESSCCRRIIPPTTIIOONN
+     kkttuuttiill is a program for managing keytabs.  _c_o_m_m_a_n_d can be one of the fol-
+     lowing:
+
+     add [--pp _p_r_i_n_c_i_p_a_l] [----pprriinncciippaall==_p_r_i_n_c_i_p_a_l] [--VV _k_v_n_o] [----kkvvnnoo==_k_v_n_o] [--ee
+                 _e_n_c_y_p_e] [----eennccttyyppee==_e_n_c_t_y_p_e] [--ww _p_a_s_s_w_o_r_d]
+                 [----ppaasssswwoorrdd==_p_a_s_s_w_o_r_d] [--rr] [----rraannddoomm] [--ss] [----nnoo--ssaalltt]
+                 Adds a key to the keytab. Options that are not specified will
+                 be prompted for. This requires that you know the password of
+                 the principal to add; if what you really want is to add a new
+                 principal to the keytab, you should consider the _g_e_t command,
+                 which talks to the kadmin server.
+
+     change [--rr _r_e_a_l_m] [----rreeaallmm==_r_e_a_l_m] [----aa _h_o_s_t] [----aaddmmiinn--sseerrvveerr==_h_o_s_t] [----ss
+                 _p_o_r_t] [----sseerrvveerr--ppoorrtt==_p_o_r_t]
+                 Update one or several keys to new versions.  By default, use
+                 the admin server for the realm of an keytab entry.  Otherwise
+                 it will use the values specified by the options.
+
+                 If no principals are given, all the ones in the keytab are
+                 updated.
+
+     copy _k_e_y_t_a_b_-_s_r_c _k_e_y_t_a_b_-_d_e_s_t
+                 Copies all the entries from _k_e_y_t_a_b_-_s_r_c to _k_e_y_t_a_b_-_d_e_s_t.
+
+     get [--pp _a_d_m_i_n _p_r_i_n_c_i_p_a_l] [----pprriinncciippaall==_a_d_m_i_n _p_r_i_n_c_i_p_a_l] [--ee _e_n_c_t_y_p_e]
+                 [----eennccttyyppeess==_e_n_c_t_y_p_e] [--rr _r_e_a_l_m] [----rreeaallmm==_r_e_a_l_m] [--aa _a_d_m_i_n
+                 _s_e_r_v_e_r] [----aaddmmiinn--sseerrvveerr==_a_d_m_i_n _s_e_r_v_e_r] [--ss _s_e_r_v_e_r _p_o_r_t]
+                 [----sseerrvveerr--ppoorrtt==_s_e_r_v_e_r _p_o_r_t] _p_r_i_n_c_i_p_a_l _._._.
+                 For each _p_r_i_n_c_i_p_a_l, generate a new key for it (creating it if
+                 it doesn't already exist), and put that key in the keytab.
+
+                 If no _r_e_a_l_m is specified, the realm to operate on is taken
+                 from the first principal.
+
+     list [----kkeeyyss] [----ttiimmeessttaammpp]
+                 List the keys stored in the keytab.
+
+     remove [--pp _p_r_i_n_c_i_p_a_l] [----pprriinncciippaall==_p_r_i_n_c_i_p_a_l] [--VV --kkvvnnoo] [----kkvvnnoo==_k_v_n_o]
+                 [--ee --eennccttyyppee] [----eennccttyyppee==_e_n_c_t_y_p_e]
+                 Removes the specified key or keys. Not specifying a _k_v_n_o re-
+                 moves keys with any version number. Not specifying a _e_n_c_t_y_p_e
+                 removes keys of any type.
+
+     rename _f_r_o_m_-_p_r_i_n_c_i_p_a_l _t_o_-_p_r_i_n_c_i_p_a_l
+                 Renames all entries in the keytab that match the _f_r_o_m_-
+                 _p_r_i_n_c_i_p_a_l to _t_o_-_p_r_i_n_c_i_p_a_l.
+
+     purge [----aaggee==_a_g_e]
+                 Removes all old entries (for which there is a newer version)
+                 that are older than _a_g_e (default one week).
+
+     srvconvert
+
+     srv2keytab [--ss _s_r_v_t_a_b] [----ssrrvvttaabb==_s_r_v_t_a_b]
+                 Converts the version 4 srvtab in _s_r_v_t_a_b to a version 5 keytab
+                 and stores it in _k_e_y_t_a_b.  Identical to:
+
+                       ktutil copy krb4:_s_r_v_t_a_b _k_e_y_t_a_b
+
+     srvcreate
+
+     key2srvtab [--ss _s_r_v_t_a_b] [----ssrrvvttaabb==_s_r_v_t_a_b]
+                 Converts the version 5 keytab in _k_e_y_t_a_b to a version 4 srvtab
+                 and stores it in _s_r_v_t_a_b.  Identical to:
+
+                       ktutil copy _k_e_y_t_a_b krb4:_s_r_v_t_a_b
+
+SSEEEE AALLSSOO
+     kadmin(8)
+
+ HEIMDAL                       December 16, 2000                             2

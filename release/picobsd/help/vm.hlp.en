@@ -1,0 +1,12 @@
+[1mvm[m	Show memory usage.
+
+	This program repeatedly displays current memory usage, showing the
+	following numbers:
+
+	* procs: number of processes; r - running, w - waiting for I/O,
+		l - sleeping, s - swapping
+	* virt mem: virtual memory amounts (total and active), in kB
+	* real mem: real memory amounts (total and active), in kB
+	* shared vm: amount of shared virtual memory (total and active), in kB
+	* shared real: amount of shared real memory (total and active), in kB
+	* free: amount of free memory, in kB

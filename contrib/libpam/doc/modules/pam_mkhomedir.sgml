@@ -1,0 +1,83 @@
+<!--
+
+Ben Collins <bcollins@debian.org>
+
+-->
+
+<sect1>Create home directories on initial login
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+<tt/pam_mkhomedir/
+
+<tag><bf>Author:</bf></tag>
+Jason Gunthorpe &lt;jgg@ualberta.ca&gt;
+
+<tag><bf>Maintainer:</bf></tag>
+Ben Collins &lt;bcollins@debian.org&gt;
+
+<tag><bf>Management groups provided:</bf></tag>
+Session
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+
+<tag><bf>System dependencies:</bf></tag>
+
+<tag><bf>Network aware:</bf></tag>
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+Creates home directories on the fly for authenticated users.
+
+<sect2>Session component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+<tt/debug/; <tt/skel=skeleton-dir/; <tt/umask=octal-umask/;
+
+<tag><bf>Description:</bf></tag>
+This module is useful for distributed systems where the user account is
+managed in a central database (such as NIS, NIS+, or LDAP) and accessed
+through miltiple systems. It frees the administrator from having to create
+a default home directory on each of the systems by creating it upon the
+first succesfully authenticated login of that user. The skeleton directory
+(usually /etc/skel/) is used to copy default files and also set's a umask
+for the creation.
+
+<p>
+The behavior of this module can be modified with one of the following
+flags:
+
+<p>
+<itemize>
+
+<item><tt/skel/
+- The skeleton directory for default files to copy to the new home directory.
+
+<item><tt/umask/
+- An octal for of the same format as you would pass to the shells umask command.
+
+</itemize>
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+session    required   pam_mkhomedir.so skel=/etc/skel/ umask=0022
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->

@@ -1,0 +1,242 @@
+.\" Copyright (c) 1983, 1987 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted provided
+.\" that: (1) source distributions retain this entire copyright notice and
+.\" comment, and (2) distributions including binaries display the following
+.\" acknowledgement:  ``This product includes software developed by the
+.\" University of California, Berkeley and its contributors'' in the
+.\" documentation or other materials provided with the distribution and in
+.\" all advertising materials mentioning features or use of this software.
+.\" Neither the name of the University nor the names of its contributors may
+.\" be used to endorse or promote products derived from this software without
+.\" specific prior written permission.
+.\" THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+.\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.\"	@(#)gethostbyname.3	6.12 (Berkeley) 6/23/90
+.\"
+.Dd June 23, 1990
+.Dt GETHOSTBYNAME @LIB_NETWORK_EXT_U@ 
+.Os BSD 4
+.Sh NAME
+.Nm gethostbyname ,
+.Nm gethostbyaddr ,
+.Nm gethostent ,
+.Nm sethostent ,
+.Nm endhostent ,
+.Nm herror 
+.Nd get network host entry
+.Sh SYNOPSIS
+.Fd #include <netdb.h>
+.Ft extern int 
+.Fa h_errno ;
+.Pp
+.Ft struct hostent *
+.Fn gethostbyname "char *name"
+.Ft struct hostent *
+.Fn gethostbyname2 "char *name" "int af"
+.Ft struct hostent *
+.Fn gethostbyaddr "char *addr" "int len, type"
+.Ft struct hostent *
+.Fn gethostent
+.Fn sethostent "int stayopen"
+.Fn endhostent
+.Fn herror "char *string"
+.Sh DESCRIPTION
+.Fn Gethostbyname ,
+.Fn gethostbyname2 ,
+and
+.Fn gethostbyaddr
+each return a pointer to a
+.Ft hostent
+structure (see below) describing an internet host
+referenced by name or by address, as the function names indicate.
+This structure contains either the information obtained from the name server,
+.Xr @INDOT@named @SYS_OPS_EXT@ ,
+or broken-out fields from a line in 
+.Pa /etc/hosts .
+If the local name server is not running, these routines do a lookup in
+.Pa /etc/hosts .
+.Bd -literal -offset indent
+struct	hostent {
+	char	*h_name;	/* official name of host */
+	char	**h_aliases;	/* alias list */
+	int	h_addrtype;	/* host address type */
+	int	h_length;	/* length of address */
+	char	**h_addr_list;	/* list of addresses from name server */
+};
+
+#define	h_addr  h_addr_list[0]	/* address, for backward compatibility */
+.Ed
+.Pp
+The members of this structure are:
+.Bl -tag -width "h_addr_list" 
+.It h_name
+Official name of the host.
+.It h_aliases
+A zero-terminated array of alternate names for the host.
+.It h_addrtype
+The type of address being returned; usually 
+.Dv AF_INET .
+.It h_length
+The length, in bytes, of the address.
+.It h_addr_list
+A zero-terminated array of network addresses for the host.
+Host addresses are returned in network byte order.
+.It h_addr
+The first address in 
+.Li h_addr_list ; 
+this is for backward compatibility.
+.El
+.Pp
+When using the nameserver,
+.Fn gethostbyname
+will search for the named host in each parent domain given in the 
+.Dq Li search
+directive of
+.Xr resolv.conf @FORMAT_EXT@
+unless the name contains a dot
+.Pq Dq \&. .
+If the name contains no dot, and if the environment variable 
+.Ev HOSTALIASES
+contains the name of an alias file, the alias file will first be searched
+for an alias matching the input name.
+See
+.Xr hostname @DESC_EXT@
+for the domain search procedure and the alias file format.
+.Pp
+.Fn Gethostbyname2
+is an evolution of
+.Fn gethostbyname
+intended to allow lookups in address families other than 
+.Dv AF_INET , 
+for example, 
+.Dv AF_INET6 .  
+Currently, the
+.Fa af
+argument must be specified as
+.Dv AF_INET
+else the function will return 
+.Dv NULL 
+after having set
+.Ft h_errno
+to 
+.Dv NETDB_INTERNAL .
+.Pp
+.Fn Sethostent
+may be used to request the use of a connected TCP socket for queries.
+If the
+.Fa stayopen
+flag is non-zero,
+this sets the option to send all queries to the name server using TCP
+and to retain the connection after each call to 
+.Fn gethostbyname
+or
+.Fn gethostbyaddr .
+Otherwise, queries are performed using UDP datagrams.
+.Pp
+.Fn Endhostent
+closes the TCP connection.
+.Sh ENVIRONMENT
+.Bl -tag -width "HOSTALIASES  " -compact
+.It Ev HOSTALIASES
+Name of file containing 
+.Pq Ar host alias , full hostname
+pairs.
+.El
+.Sh FILES
+.Bl -tag -width "HOSTALIASES  " -compact
+.It Pa /etc/hosts
+See
+.Xr hosts @FORMAT_EXT@ .
+.El
+.Sh DIAGNOSTICS
+.Pp
+Error return status from 
+.Fn gethostbyname
+and
+.Fn gethostbyaddr
+is indicated by return of a null pointer.
+The external integer
+.Ft h_errno
+may then be checked to see whether this is a temporary failure
+or an invalid or unknown host.
+The routine
+.Fn herror
+can be used to print an error message describing the failure.
+If its argument
+.Fa string
+is non-NULL, it is printed, followed by a colon and a space.
+The error message is printed with a trailing newline.
+.Pp
+.Ft h_errno
+can have the following values:
+.Bl -tag -width "HOST_NOT_FOUND  " -offset indent 
+.It Dv NETDB_INTERNAL 
+This indicates an internal error in the library, unrelated to the network
+or name service.
+.Ft errno
+will be valid in this case; see
+.Xr perror @SYSCALL_EXT@ .
+.It Dv HOST_NOT_FOUND
+No such host is known.
+.It Dv TRY_AGAIN 
+This is usually a temporary error
+and means that the local server did not receive
+a response from an authoritative server.
+A retry at some later time may succeed.
+.It Dv NO_RECOVERY 
+Some unexpected server failure was encountered.
+This is a non-recoverable error, as one might expect.
+.It Dv NO_DATA
+The requested name is valid but does not have an IP address; 
+this is not a temporary error.  
+This means that the name is known to the name server but there is no address
+associated with this name.
+Another type of request to the name server using this domain name
+will result in an answer;
+for example, a mail-forwarder may be registered for this domain.
+.El
+.Sh SEE ALSO
+.Xr hosts @FORMAT_EXT@ , 
+.Xr hostname @DESC_EXT@ , 
+.Xr @INDOT@named @SYS_OPS_EXT@ ,
+.Xr resolver @LIB_NETWORK_EXT@ , 
+.Xr resolver @FORMAT_EXT@ . 
+.Sh CAVEAT
+.Pp
+.Fn Gethostent
+is defined, and
+.Fn sethostent
+and
+.Fn endhostent
+are redefined,
+when
+.Pa libc
+is built to use only the routines to lookup in
+.Pa /etc/hosts 
+and not the name server:
+.Bd -ragged -offset indent
+.Pp
+.Fn Gethostent
+reads the next line of
+.Pa /etc/hosts ,
+opening the file if necessary.
+.Pp
+.Fn Sethostent 
+is redefined to open and rewind the file.  If the
+.Fa stayopen
+argument is non-zero,
+the hosts data base will not be closed after each call to
+.Fn gethostbyname
+or
+.Fn gethostbyaddr .
+.Pp
+.Fn Endhostent
+is redefined to close the file.
+.Ed
+.Sh BUGS
+All information is contained in a static area so it must be copied if it is
+to be saved.  Only the Internet address format is currently understood.

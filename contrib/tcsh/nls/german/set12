@@ -1,0 +1,4 @@
+$ $Id: set12,v 1.3 1996/04/26 20:54:21 christos Exp $
+$ sh.dir.c
+$set 12
+1 %s: Versuche von "%s" zu starten.\n

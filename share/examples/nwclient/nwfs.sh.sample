@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+# Location: /usr/local/etc/rc.d/nwfs.sh
+#
+# Simple script to mount NetWare volumes at startup.
+# It assumes that all mount points described in fstab file and password
+# entries listed in /root/.nwfsrc file. See mount_nwfs(8) for details.
+#
+
+mount=/sbin/mount
+umount=/sbin/umount
+HOME=/root; export HOME
+vols="/nw/sys /nw/vol1"
+
+if [ "x$1" = "x" -o "x$1" = "xstart" ]; then
+	echo -n "Mounting NetWare volumes: "
+	for vol in ${vols}; do
+		$mount $vol
+		echo -n "$vol "
+	done
+	echo "Done"
+elif [ "x$1" = "xstop" ]; then
+	echo -n "Unmounting NetWare mount points: "
+	for vol in ${vols}; do
+		$umount $vol
+		echo -n "$vol "
+	done
+	echo "Done"
+else
+	echo "Unknown command $1"
+fi
+
