@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: aha.c,v 1.1 1998/09/15 07:39:52 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -513,7 +513,8 @@ aha_init(struct aha_softc* aha)
 	ahaallocccbs(aha);
 
 	if (aha->num_ccbs == 0) {
-		printf("%s: aha_init - Unable to allocate initial ccbs\n");
+		printf("%s: aha_init - Unable to allocate initial ccbs\n",
+		       aha_name(aha));
 		goto error_exit;
 	}
 
@@ -1011,7 +1012,7 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	if (error != 0) {
 		if (error != EFBIG)
 			printf("%s: Unexepected error 0x%x returned from "
-			       "bus_dmamap_load\n", aha_name(aha));
+			       "bus_dmamap_load\n", aha_name(aha), error);
 		if (ccb->ccb_h.status == CAM_REQ_INPROG) {
 			xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 			ccb->ccb_h.status = CAM_REQ_TOO_BIG|CAM_DEV_QFRZN;
@@ -1139,7 +1140,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *bccb, aha_mbi_comp_code_t comp_co
 
 	if ((bccb->flags & BCCB_ACTIVE) == 0) {
 		printf("%s: ahadone - Attempt to free non-active BCCB 0x%x\n",
-		       aha_name(aha), bccb);
+		       aha_name(aha), (intptr_t)bccb);
 		return;
 	}
 
@@ -1362,7 +1363,8 @@ ahareset(struct aha_softc* aha, int hard_reset)
 		       aha_name(aha));
 
 		if ((status & DATAIN_REG_READY) != 0)
-			printf("%s: ahareset - Host Adapter Error code = 0x%x\n",
+			printf("%s: ahareset - Host Adapter Error "
+			       "code = 0x%x\n", aha_name(aha),
 			       aha_inb(aha, DATAIN_REG));
 		return (ENXIO);
 	}
@@ -1677,13 +1679,14 @@ ahatimeout(void *arg)
 	ccb = bccb->ccb;
 	aha = (struct aha_softc *)ccb->ccb_h.ccb_aha_ptr;
 	xpt_print_path(ccb->ccb_h.path);
-	printf("CCB 0x%x - timed out\n", bccb);
+	printf("CCB 0x%x - timed out\n", (intptr_t)bccb);
 
 	s = splcam();
 
 	if ((bccb->flags & BCCB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
-		printf("CCB 0x%x - timed out CCB already completed\n", bccb);
+		printf("CCB 0x%x - timed out CCB already completed\n",
+		       (intptr_t)bccb);
 		splx(s);
 		return;
 	}

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: bt.c,v 1.1 1998/09/15 07:32:48 gibbs Exp $
  */
 
  /*
@@ -738,7 +738,8 @@ bt_init(struct bt_softc* bt)
 	btallocccbs(bt);
 
 	if (bt->num_ccbs == 0) {
-		printf("%s: bt_init - Unable to allocate initial ccbs\n");
+		printf("%s: bt_init - Unable to allocate initial ccbs\n",
+		       bt_name(bt));
 		goto error_exit;
 	}
 
@@ -1268,7 +1269,7 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	if (error != 0) {
 		if (error != EFBIG)
 			printf("%s: Unexepected error 0x%x returned from "
-			       "bus_dmamap_load\n", bt_name(bt));
+			       "bus_dmamap_load\n", bt_name(bt), error);
 		if (ccb->ccb_h.status == CAM_REQ_INPROG) {
 			xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 			ccb->ccb_h.status = CAM_REQ_TOO_BIG|CAM_DEV_QFRZN;
@@ -1392,7 +1393,7 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 
 	if ((bccb->flags & BCCB_ACTIVE) == 0) {
 		printf("%s: btdone - Attempt to free non-active BCCB 0x%x\n",
-		       bt_name(bt), bccb);
+		       bt_name(bt), (intptr_t)bccb);
 		return;
 	}
 
@@ -1660,7 +1661,7 @@ btreset(struct bt_softc* bt, int hard_reset)
 
 		if ((status & DATAIN_REG_READY) != 0)
 			printf("%s: btreset - Host Adapter Error code = 0x%x\n",
-			       bt_inb(bt, DATAIN_REG));
+			       bt_name(bt), bt_inb(bt, DATAIN_REG));
 		return (ENXIO);
 	}
 
@@ -2059,13 +2060,14 @@ bttimeout(void *arg)
 	ccb = bccb->ccb;
 	bt = (struct bt_softc *)ccb->ccb_h.ccb_bt_ptr;
 	xpt_print_path(ccb->ccb_h.path);
-	printf("CCB 0x%x - timed out\n", bccb);
+	printf("CCB 0x%x - timed out\n", (intptr_t)bccb);
 
 	s = splcam();
 
 	if ((bccb->flags & BCCB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
-		printf("CCB 0x%x - timed out CCB already completed\n", bccb);
+		printf("CCB 0x%x - timed out CCB already completed\n",
+		       (intptr_t)bccb);
 		splx(s);
 		return;
 	}
