@@ -35,32 +35,36 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <errno.h>
+#include <err.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <limits.h>
 #include "pathnames.h"
 
 int tflag, rval;
 int zflag;
 
-void err __P((const char *, ...));
 void run __P((char **));
-void usage __P((void));
+static void usage __P((void));
 
+int
 main(argc, argv, env)
 	int argc;
 	char **argv, **env;
@@ -95,7 +99,7 @@ main(argc, argv, env)
 		case 'n':
 			nflag = 1;
 			if ((nargs = atoi(optarg)) <= 0)
-				err("illegal argument count");
+				errx(1, "illegal argument count");
 			break;
 		case 's':
 			nline = atoi(optarg);
@@ -126,7 +130,7 @@ main(argc, argv, env)
 	 */
 	if (!(av = bxp =
 	    malloc((u_int)(1 + argc + nargs + 1) * sizeof(char **))))
-		err("%s", strerror(errno));
+		errx(1, "malloc");
 
 	/*
 	 * Use the user's name for the utility as argv[0], just like the
@@ -159,10 +163,10 @@ main(argc, argv, env)
 	 */
 	nline -= cnt;
 	if (nline <= 0)
-		err("insufficient space for command");
+		errx(1, "insufficient space for command");
 
 	if (!(bbp = malloc((u_int)nline + 1)))
-		err("%s", strerror(errno));
+		errx(1, "malloc");
 	ebp = (argp = p = bbp) + nline - 1;
 
 	for (insingle = indouble = 0;;)
@@ -199,7 +203,7 @@ main(argc, argv, env)
 
 			/* Quotes do not escape newlines. */
 arg1:			if (insingle || indouble)
-				 err("unterminated quote");
+				 errx(1, "unterminated quote");
 
 arg2:			*p = '\0';
 			*xp++ = argp;
@@ -211,7 +215,7 @@ arg2:			*p = '\0';
 			 */
 			if (xp == exp || p == ebp || ch == EOF) {
 				if (xflag && xp != exp && p == ebp)
-					err("insufficient space for arguments");
+					errx(1, "insufficient space for arguments");
 				*xp = NULL;
 				run(av);
 				if (ch == EOF)
@@ -237,7 +241,7 @@ arg2:			*p = '\0';
 				goto addch;
 			/* Backslash escapes anything, is escaped by quotes. */
 			if (!insingle && !indouble && (ch = getchar()) == EOF)
-				err("backslash at EOF");
+				errx(1, "backslash at EOF");
 			/* FALLTHROUGH */
 		default:
 addch:			if (p < ebp) {
@@ -247,10 +251,10 @@ addch:			if (p < ebp) {
 
 			/* If only one argument, not enough buffer space. */
 			if (bxp == xp)
-				err("insufficient space for argument");
+				errx(1, "insufficient space for argument");
 			/* Didn't hit argument limit, so if xflag object. */
 			if (xflag)
-				err("insufficient space for arguments");
+				errx(1, "insufficient space for arguments");
 
 			*xp = NULL;
 			run(av);
@@ -283,17 +287,16 @@ run(argv)
 	noinvoke = 0;
 	switch(pid = vfork()) {
 	case -1:
-		err("vfork: %s", strerror(errno));
+		err(1, "vfork");
 	case 0:
 		execvp(argv[0], argv);
-		(void)fprintf(stderr,
-		    "xargs: %s: %s\n", argv[0], strerror(errno));
+		warn("%s", argv[0]);
 		noinvoke = 1;
 		_exit(1);
 	}
 	pid = waitpid(pid, &status, 0);
 	if (pid == -1)
-		err("waitpid: %s", strerror(errno));
+		err(1, "waitpid");
 	/* If we couldn't invoke the utility, exit 127. */
 	if (noinvoke)
 		exit(127);
@@ -304,39 +307,10 @@ run(argv)
 		rval = 1;
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr,
 "usage: xargs [-0] [-t] [-n number [-x]] [-s size] [utility [argument ...]]\n");
 	exit(1);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "xargs: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
 }
