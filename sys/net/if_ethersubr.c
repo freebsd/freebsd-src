@@ -1183,7 +1183,6 @@ ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
 				m->m_len += sizeof(*eh);
 				m->m_data -= sizeof(*eh);
 				m->m_pkthdr.len += sizeof(*eh);
-				bcopy ((caddr_t)eh, (caddr_t)eh2, sizeof(*eh));
 			} else {
 				/*
 				 * Doing anything more is likely to get more 
@@ -1194,10 +1193,12 @@ ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
 				 * hopefully everything after that will not
 				 * need one. So let's just use m_prepend.
 				 */
-				m = m_prepend(m, MHLEN, M_DONTWAIT);
+				m = m_prepend(m, sizeof(*eh), M_DONTWAIT);
 				if (m == NULL)
 					return;
 			}
+			bcopy ((caddr_t)eh, mtod(m, struct ether_header *),
+			    sizeof(*eh));
 		}
 		ng_queue_data(LIST_FIRST(&(node->hooks)), m, NULL);
 	} else {
