@@ -307,7 +307,7 @@ ginode(inumber)
  * Special purpose version of ginode used to optimize first pass
  * over all the inodes in numerical order.
  */
-ino_t nextino, lastinum;
+ino_t nextino, lastinum, lastvalidinum;
 long readcnt, readpercg, fullcnt, inobufsize, partialcnt, partialsize;
 struct dinode *inodebuf;
 
@@ -319,7 +319,7 @@ getnextinode(inumber)
 	ufs_daddr_t dblk;
 	static struct dinode *dp;
 
-	if (inumber != nextino++ || inumber > maxino)
+	if (inumber != nextino++ || inumber > lastvalidinum)
 		errx(EEXIT, "bad inode number %d to nextinode", inumber);
 	if (inumber >= lastinum) {
 		readcnt++;
@@ -348,6 +348,7 @@ setinodebuf(inum)
 
 	if (inum % sblock.fs_ipg != 0)
 		errx(EEXIT, "bad inode number %d to setinodebuf", inum);
+	lastvalidinum = inum + sblock.fs_ipg - 1;
 	startinum = 0;
 	nextino = inum;
 	lastinum = inum;
