@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.42 1999/05/08 11:06:35 brian Exp $
+ * $Id: fsm.c,v 1.43 1999/05/09 20:02:18 brian Exp $
  *
  *  TODO:
  */
@@ -900,23 +900,9 @@ FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 static void
 FsmRecvEchoRep(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
-  struct lcp *lcp = fsm2lcp(fp);
-  u_int32_t magic;
-
-  if (lcp && mbuf_Length(bp) >= 4) {
-    mbuf_Read(bp, &magic, 4);
-    magic = ntohl(magic);
-    /* Tolerate echo replies with either magic number */
-    if (magic != 0 && magic != lcp->his_magic && magic != lcp->want_magic) {
-      log_Printf(LogWARN, "%s: RecvEchoRep: Bad magic: expected 0x%08x,"
-                 " got 0x%08x\n", fp->link->name, lcp->his_magic, magic);
-      /*
-       * XXX: We should send terminate request. But poor implementations may
-       * die as a result.
-       */
-    }
+  if (fsm2lcp(fp))
     bp = lqr_RecvEcho(fp, bp);
-  }
+
   mbuf_Free(bp);
 }
 
