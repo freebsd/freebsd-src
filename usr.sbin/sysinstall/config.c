@@ -389,11 +389,10 @@ configSysconfig(char *config)
     }
 
     /* Now write it all back out again */
-    msgNotify("Writing configuration changes to %s file..", config);
-    if (Fake) {
-	msgDebug("Writing %s out to debugging screen..\n", config);
+    if (isDebug())
+	msgDebug("Writing configuration changes to %s file..", config);
+    if (Fake)
 	fp = fdopen(DebugFD, "w");
-    }
     else {
 	(void)vsystem("cp %s %s.previous", config, config);
     	fp = fopen(config, "w");
