@@ -1563,12 +1563,21 @@ ip_forward(m, srcrt)
 	}
 
 	/*
-	 * Save at most 64 bytes of the packet in case
-	 * we need to generate an ICMP message to the src.
+	 * Save the IP header and at most 8 bytes of the payload,
+	 * in case we need to generate an ICMP message to the src.
+	 *
+	 * We don't use m_copy() because it might return a reference
+	 * to a shared cluster. Both this function and ip_output()
+	 * assume exclusive access to the IP header in `m', so any
+	 * data in a cluster may change before we reach icmp_error().
 	 */
-	mcopy = m_copy(m, 0, imin((int)ip->ip_len, 64));
-	if (mcopy && (mcopy->m_flags & M_EXT))
-		m_copydata(mcopy, 0, sizeof(struct ip), mtod(mcopy, caddr_t));
+	MGET(mcopy, M_DONTWAIT, m->m_type);
+	if (mcopy != NULL) {
+		M_COPY_PKTHDR(mcopy, m);
+		mcopy->m_len = imin((IP_VHL_HL(ip->ip_vhl) << 2) + 8,
+		    (int)ip->ip_len);
+		m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
+	}
 
 #ifdef IPSTEALTH
 	if (!ipstealth) {
@@ -1715,8 +1724,6 @@ ip_forward(m, srcrt)
 		m_freem(mcopy);
 		return;
 	}
-	if (mcopy->m_flags & M_EXT)
-		m_copyback(mcopy, 0, sizeof(struct ip), mtod(mcopy, caddr_t));
 	icmp_error(mcopy, type, code, dest, destifp);
 }
 
