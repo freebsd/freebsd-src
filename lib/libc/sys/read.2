@@ -163,9 +163,13 @@ was negative.
 .It Bq Er EAGAIN
 The file was marked for non-blocking I/O,
 and no data were ready to be read.
-.It Bq Er EPERM
-The file descriptor is associated with a non regular file
-(e.g. a directory) mounted over NFS.
+.It Bq Er EISDIR
+The file descriptor is associated with a directory residing
+on a filesystem that does not allow regular read operations on
+directories (e.g. NFS).
+.It Bq Er EOPNOTSUPP
+The file descriptor is associated with a filesystem and file type that
+do not allow regular read operations on it.
 .El
 .Pp
 In addition,
@@ -207,11 +211,14 @@ The file descriptor is associated with a pipe, socket, or FIFO.
 .Sh SEE ALSO
 .Xr dup 2 ,
 .Xr fcntl 2 ,
+.Xr getdirentries 2 ,
 .Xr open 2 ,
 .Xr pipe 2 ,
 .Xr select 2 ,
 .Xr socket 2 ,
-.Xr socketpair 2
+.Xr socketpair 2 ,
+.Xr fread 3 ,
+.Xr readdir 3
 .Sh STANDARDS
 The
 .Fn read
