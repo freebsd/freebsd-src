@@ -592,7 +592,7 @@ lomacfs_write(
 	    &lobj))
 		error = VOP_WRITE(lvp, ap->a_uio, ap->a_ioflag, ap->a_cred);
 	else
-		error = EPERM;
+		error = EIO;
 	return (error);
 }
 
