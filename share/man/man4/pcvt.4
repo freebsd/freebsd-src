@@ -70,10 +70,8 @@ to be also configured in the kernel.
 Almost full DEC
 .Tn VT220
 functionality
-.Po
-moving towards
-.Tn VT320
-.Pc
+(moving towards
+.Tn VT320 )
 .It
 Completely independent virtual terminals for MDA/HGC/CGA/EGA and VGA
 .It
@@ -97,11 +95,9 @@ Support for MDA, CGA, EGA and VGA display adaptors
 Support for 132 column operation on some VGA chipsets
 .It
 X Window Support for XFree86
-.Po
-requires
+(requires
 .Em XSERVER
-to be defined
-.Pc
+to be defined)
 .El
 .Pp
 What it cannot:
@@ -121,7 +117,7 @@ No VT52 support at all
 No 8-bit controls
 .It
 Only limited AT-keyboard
-.Pq 84 keys
+(84 keys)
 support
 .El
 .Ss Scrollback
@@ -156,7 +152,7 @@ in the kernel source tree for detailed documentation.
 .Pp
 Note: the following conventions apply to all the Boolean options.
 If an option is given with no value, a value of 1
-.Pq activated
+(activated)
 is substituted.
 If an option value is given as 0, this options is
 deactivated.
@@ -188,7 +184,7 @@ Default: on
 If enabled, a blinking-star screensaver is used.
 If disabled, the screen
 is simply blanked
-.Pq which might be useful for energy-saving monitors .
+(which might be useful for energy-saving monitors).
 .Pp
 Default: on
 .It Em PCVT_CTRL_ALT_DEL
@@ -205,9 +201,7 @@ Do NOT override a security lock for the keyboard.
 Default: on
 .It Em PCVT_24LINESDEF
 If enabled, the 25-line modi
-.Po
-VT emulation with 25 lines, and HP emulation with 28 lines
-.Pc
+(VT emulation with 25 lines, and HP emulation with 28 lines)
 default to 24 lines only to provide a better compatibility to the
 original DEV VT220 (TM). Thus it should be possible to use the
 terminal information for those terminals without further changes.
@@ -413,7 +407,7 @@ Since the
 .Sq native character set
 of any IBM-compatible PC video board does not allow the full interpretation
 of DEC multinational character set or ISO Latin-1
-.Pq ISO 8859-1 ,
+(ISO 8859-1),
 this might be very useful for a U**X environment.
 .Pp
 .Bl -tag -width 20n -offset indent -compact
@@ -466,7 +460,7 @@ CH_SET4, CH_SET5, CH_SET6, or CH_SET7, too.
 .Pp
 Note that there's a dependence between the font size
 and a possible screen height
-.Pq in character rows ,
+(in character rows),
 depending on the video adaptor used:
 .Bd -literal
 Screen size (rows) on:          EGA             VGA
@@ -561,7 +555,8 @@ Note that setting the number of columns to 132 is only supported on
 some VGA adaptors.
 Any unsupported numbers cause the ioctl to fail with
 .Va errno
-.Pq see Xr intro 2
+(see
+.Xr intro 2 )
 being set to
 .Er EINVAL .
 .Pp
@@ -689,7 +684,7 @@ Device nodes to access the
 .Nm
 driver
 .It Pa i386/isa/pcvt/pcvt_conf.h
-.Pq relative to the kernel source tree
+(relative to the kernel source tree)
 Documents the various compile-time options to tailor
 .Nm .
 .El

@@ -84,7 +84,8 @@ If the standard VGA video mode is used,
 the size of the bitmap must be 320x200 or less.
 If you enable the VESA mode support in the kernel,
 either by statically linking the VESA module or by loading the VESA module
-.Pq see Xr vga 4 ,
+(see
+.Xr vga 4 ) ,
 you can load bitmaps up to a resolution of 1024x768, depending on the VESA
 BIOS and the amount of video memory on the video card.
 .Ss Screen saver
@@ -145,7 +146,9 @@ on the AT 84 keyboard.
 You can change the
 .Ar saver
 key by modifying the keymap
-.Pq see Xr kbdcontrol 1 , Xr keymap 5 ,
+(see
+.Xr kbdcontrol 1 ,
+.Xr keymap 5 ) ,
 and assign the
 .Ar saver
 function to a key of your preference.
@@ -179,7 +182,8 @@ have the following line in the kernel configuration file.
 .Pp
 Next, edit
 .Pa /boot/loader.conf
-.Pq see Xr loader.conf 5
+(see
+.Xr loader.conf 5 )
 and include the following lines:
 .Bd -literal -offset indent
 splash_bmp_load="YES"

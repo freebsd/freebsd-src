@@ -179,7 +179,8 @@ interactive prompt.
 .El
 .Pp
 One or more configuration entries or systems
-.Pq as specified in Pa /etc/ppp/ppp.conf
+(as specified in
+.Pa /etc/ppp/ppp.conf )
 may also be specified on the command line.
 .Nm
 will read the
@@ -506,7 +507,8 @@ Although not strictly relevant to
 .Nm Ns No 's
 operation, you should configure your resolver so that it works correctly.
 This can be done by configuring a local DNS
-.Pq using Xr named 8
+(using
+.Xr named 8 )
 or by adding the correct
 .Sq nameserver
 lines to the file
@@ -584,7 +586,8 @@ is) use much more reliable checking mechanisms.
 Parity has a relatively
 huge overhead (a 12.5% increase in traffic) and as a result, it is always
 disabled
-.Pq set to Dq none
+(set to
+.Dq none )
 when
 .Dv PPP
 is opened.
@@ -963,7 +966,8 @@ configuration by using the
 .Dq set server
 command in
 .Pa /etc/ppp/ppp.conf ,
-.Pq for example, Dq set server +3000 mypasswd
+(for example,
+.Dq Li "set server +3000 mypasswd" )
 and connecting to the diagnostic port as follows:
 .Bd -literal -offset indent
 # pppctl 3000	(assuming tun0)
@@ -1289,7 +1293,7 @@ Add either
 .Dq enable chap
 or
 .Dq enable pap
-.Pq or both
+(or both)
 to
 .Pa /etc/ppp/ppp.conf
 under the
@@ -1365,7 +1369,7 @@ authentication fails.
 .Pp
 If authentication is successful,
 .Ar hisaddr
-.Pq if specified
+(if specified)
 is used when negotiating IP numbers.
 See the
 .Dq set ifaddr
@@ -1551,7 +1555,8 @@ data does not have to be rearranged into packets.
 Care should be taken when adding a default route through a tunneled
 setup like this.
 It is quite common for the default route
-.Pq added in Pa /etc/ppp/ppp.linkup
+(added in
+.Pa /etc/ppp/ppp.linkup )
 to end up routing the link's TCP connection through the tunnel,
 effectively garrotting the connection.
 To avoid this, make sure you add a static route for the benefit of
@@ -1820,7 +1825,7 @@ ppp ON awfulhak> set timeout 600
 .Pp
 The timeout period is measured in seconds, the default value for which
 is 180 seconds
-.Pq or 3 min .
+(or 3 min).
 To disable the idle timer function, use the command
 .Bd -literal -offset indent
 ppp ON awfulhak> set timeout 0
@@ -1847,7 +1852,7 @@ By default,
 .Nm
 will attempt to use (or be willing to accept) both compression protocols
 when the peer agrees
-.Pq or requests them .
+(or requests them).
 The deflate protocol is preferred by
 .Nm .
 Refer to the
@@ -1861,7 +1866,7 @@ by using only one of
 .Dq disable deflate
 and
 .Dq deny deflate
-.Pq assuming that the peer supports both algorithms .
+(assuming that the peer supports both algorithms).
 .Pp
 By default, when negotiating DEFLATE,
 .Nm
@@ -2206,7 +2211,7 @@ to
 This tells
 .Nm
 to add a default route to whatever the peer address is
-.Pq 10.0.0.2 in this example .
+(10.0.0.2 in this example).
 This route is
 .Sq sticky ,
 meaning that should the value of
@@ -2436,7 +2441,8 @@ and
 commands.
 The
 .Sq authname
-.Pq and Sq authkey
+(and
+.Sq authkey )
 must be agreed in advance with the peer.
 .Pp
 Multi-link capabilities are enabled using the
@@ -2449,7 +2455,8 @@ will attempt to negotiate a multi-link connection with the peer.
 By default, only one
 .Sq link
 is available
-.Pq called Sq deflink .
+(called
+.Sq deflink ) .
 To create more links, the
 .Dq clone
 command is used.
@@ -2885,7 +2892,7 @@ Default: Enabled and Accepted.
 This option determines if
 .Nm
 will request and accept requests for short
-.Pq 12 bit
+(12 bit)
 sequence numbers when negotiating multi-link mode.
 This is only applicable if our MRRU is set (thus enabling multi-link).
 .It vjcomp
@@ -3113,7 +3120,8 @@ The option can only be enabled if network address translation is enabled
 With this option enabled,
 .Nm
 will pass traffic for old interface addresses through the NAT engine
-.Pq see Xr libalias 3 ,
+(see
+.Xr libalias 3 ) ,
 resulting in the ability (in
 .Fl auto
 mode) to properly connect the process that caused the PPP link to
@@ -3169,7 +3177,8 @@ is replaced with the interface destination (peer) address.
 If the
 .Ar add!\&
 command is used
-.Pq note the trailing Dq !\& ,
+(note the trailing
+.Dq !\& ) ,
 then if the route already exists, it will be updated as with the
 .Sq route change
 command (see
@@ -3360,7 +3369,7 @@ is specified, only data coming from that IP number is redirected.
 .Ar remotePort
 must either be
 .Dq 0
-.Pq indicating any source port
+(indicating any source port)
 or a range of ports the same size as the other ranges.
 .Pp
 This option is useful if you wish to run things like Internet phone on
@@ -3373,7 +3382,8 @@ This command tells
 .Nm
 to redirect packets of protocol type
 .Ar proto
-.Pq see Xr protocols 5
+(see
+.Xr protocols 5 )
 to the internall address
 .Ar localIP .
 .Pp
@@ -3555,7 +3565,7 @@ is specified, the LCP layer is brought down, but
 will not bring the link offline.
 It is subsequently possible to use
 .Dq term
-.Pq see below
+(see below)
 to talk to the peer machine if, for example, something like
 .Dq slirp
 is being used.
@@ -3598,7 +3608,8 @@ the default route is deleted.
 If the
 .Ar delete!\&
 command is used
-.Pq note the trailing Dq !\& ,
+(note the trailing
+.Dq !\& ) ,
 .Nm
 will not complain if the route does not already exist.
 .It dial|call Op Ar label Ns Xo
@@ -3669,7 +3680,8 @@ Instead of specifying
 .Ar mask ,
 .Ar /bits
 can be used
-.Pq with no space between \&it and Ar addr .
+(with no space between it and
+.Ar addr ) .
 If the given address already exists, the command fails unless the
 .Dq !\&
 is used - in which case the previous interface address entry is overwritten
@@ -4006,7 +4018,8 @@ values.
 If the
 .Dq !\&
 is doubled up
-.Pq to Dq !! ,
+(to
+.Dq !! ) ,
 it is treated as a single literal
 .Dq !\& ,
 otherwise, ignoring the
@@ -4064,7 +4077,8 @@ These settings apply only in multi-link mode and default to zero, zero and
 five respectively.
 When more than one
 .Ar demand-dial
-.Pq also known as Fl auto
+(also known as
+.Fl auto )
 mode link is available, only the first link is made active when
 .Nm
 first reads data from the tun device.
@@ -4825,7 +4839,8 @@ Note that the
 argument may be overridden by the third field in the
 .Pa ppp.secret
 file once the client has authenticated itself
-.Pq if PAP or CHAP are Dq enabled .
+(if PAP or CHAP are
+.Dq enabled ) .
 Refer to the
 .Sx AUTHENTICATING INCOMING CONNECTIONS
 section for details.
@@ -5531,7 +5546,8 @@ Show the current HDLC statistics.
 Give a summary of available show commands.
 .It show iface
 Show the current interface information
-.Pq the same \&as Dq iface show .
+(the same as
+.Dq iface show ) .
 .It show ipcp
 Show the current IPCP statistics.
 .It show layers

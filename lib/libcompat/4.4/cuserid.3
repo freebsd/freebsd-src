@@ -73,11 +73,9 @@ returns the address of an array in which the name has been stored.
 .Pp
 If the name associated with the effective UID of the current process
 could not be found, either a null pointer will be returned, or
-.Po
-if
+(if
 .Fa s
-is non-NULL
-.Pc
+is non-NULL)
 the buffer
 .Fa s
 will be filled with a null string.

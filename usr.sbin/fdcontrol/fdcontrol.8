@@ -50,10 +50,8 @@ should be a character device.
 .Nm Fdcontrol
 currently supports the specification of device parameters for the
 floppy disk drive
-.Po
-.Fl s ,
-also default mode
-.Pc ,
+.Fl ( s ,
+also default mode),
 or it allows the modification of the driver debug level, in case the
 floppy driver has been compiled into the kernel with the
 .Em DEBUG
@@ -83,7 +81,7 @@ silly and likely to change in future, options should be provided to
 allow anything being modified from the command line.
 .Pp
 The driver does actually support only two debug levels
-.Pq 0 and 1 ,
+(0 and 1),
 where debug level 1 will generate huge amounts of output.
 It is likely
 to overflow the syslog if not used with extreme care.

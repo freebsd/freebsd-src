@@ -168,11 +168,9 @@ if you are not running NIS.
 .It Va dhcp_program
 .Pq Vt str
 Path to the DHCP client program
-.Po
-.Pa /sbin/dhclient ,
+.Pa ( /sbin/dhclient ,
 the ISC DHCP client,
-is the default
-.Pc .
+is the default).
 .It Va dhcp_flags
 .Pq Vt str
 Additional flags to pass to the DHCP client program.
@@ -1681,10 +1679,8 @@ at system boot time.
 .It Va sshd_program
 .Pq Vt str
 Path to the SSH server program
-.Po
-.Pa /usr/sbin/sshd
-is the default
-.Pc .
+.Pa ( /usr/sbin/sshd
+is the default).
 .It Va sshd_enable
 .Pq Vt bool
 Set to

@@ -80,14 +80,14 @@ will use the default values.
 .It Cm \&maxinterval
 (num) The maximum time allowed between sending unsolicited
 multicast router advertisements
-.Pq unit: seconds .
+(unit: seconds).
 The default value is 600.
 Its value must be no less than 4 seconds
 and no greater than 1800 seconds.
 .It Cm \&mininterval
 (num) The minimum time allowed between sending unsolicited multicast
 router advertisements
-.Pq unit: seconds .
+(unit: seconds).
 The default value is the one third of value of
 .Cm maxinterval .
 Its value must be no less than 3 seconds and no greater than .75 *
@@ -107,29 +107,21 @@ The default value is 64.
 .It Cm \&raflags
 (num) Flags field in router advertisement message header.
 Bit 7
-.Po
-.Li 0x80
-.Pc
+.Pq Li 0x80
 means Managed address configuration flag bit,
 and Bit 6
-.Po
-.Li 0x40
-.Pc
+.Pq Li 0x40
 means Other stateful configuration flag bit.
 Bit 4
-.Po
-.Li 0x10
-.Pc
+.Pq Li 0x10
 and Bit 3
-.Po
-.Li 0x08
-.Pc
+.Pq Li 0x08
 are used to encode router preference.
 0x01 means high, 0x00 means medium, and 0x11 means low.
 The default value is 0.
 .It Cm \&rltime
 (num) Router lifetime field
-.Pq unit: seconds .
+(unit: seconds).
 Its value must be no greater than 3600000.
 When
 .Nm rtadvd
@@ -139,11 +131,11 @@ advertising interfaces as described in
 The default value is 1800.
 .It Cm \&rtime
 (num) Reachable time field
-.Pq unit: milliseconds .
+(unit: milliseconds).
 The default value is 0, which means unspecified by this router.
 .It Cm \&retrans
 (num) Retrans Timer field
-.Pq unit: milliseconds .
+(unit: milliseconds).
 The default value is 0, which means unspecified by this router.
 .El
 .Pp
@@ -157,7 +149,7 @@ and advertise the prefixes with the default parameters.
 .It Cm \&clockskew
 (num) Time skew to adjust link propagation delays and clock skews
 betwen routers on the link
-.Pq unit: seconds .
+(unit: seconds).
 This value is used in consistency check for locally-configured and
 advertised prefix lifetimes, and has its meaning when the local router
 configures a prefix on the link with a lifetime that decrements in
@@ -187,14 +179,10 @@ The default value is 64.
 .It Cm \&pinfoflags
 (num) Flags field in prefix information option.
 Bit 7
-.Po
-.Li 0x80
-.Pc
+.Pq Li 0x80
 means On-link flag bit,
 and Bit 6
-.Po
-.Li 0x40
-.Pc
+.Pq Li 0x40
 means Autonomous address-configuration flag bit.
 The default value is 0xc0, i.e., both bits are set.
 .It Cm \&addr
@@ -211,14 +199,14 @@ omitted if the value of
 is more than 0.
 .It Cm \&vltime
 (num) Valid lifetime field
-.Pq unit: seconds .
+(unit: seconds).
 The default value is 2592000 (30 days).
 .It Cm \&vltimedecr
 (bool) This item means the advertised valid lifetime will decrements
 in real time, which is disabled by default.
 .It Cm \&pltime
 (num) Preferred lifetime field
-.Pq unit: seconds .
+(unit: seconds).
 The default value is 604800 (7 days).
 .It Cm \&pltimedecr
 (bool) This item means the advertised preferred lifetime will decrements
@@ -249,11 +237,9 @@ will use the default value.
 .Bl -tag -width indent
 .It Cm \&nolladdr
 (bool) By default
-.Po
-if
+(if
 .Cm \&nolladdr
-is not specified
-.Pc ,
+is not specified),
 .Xr rtadvd 8
 will try to get link-layer address for the interface from the kernel,
 and attach that in source link-layer address option.
@@ -305,14 +291,10 @@ The default value is 64.
 .It Cm \&rtrflags
 (num) Flags field in route information option.
 Bit 4
-.Po
-.Li 0x10
-.Pc
+.Pq Li 0x10
 and
 and Bit 3
-.Po
-.Li 0x08
-.Pc
+.Pq Li 0x08
 are used to encode router preference for the route.
 The default value is 0x00, i.e. medium router preference.
 .It Cm \&rtrprefix
@@ -329,7 +311,7 @@ omitted if the value of
 is more than 0.
 .It Cm \&rtrltime
 (num) route lifetime field in route information option.
-.Pq unit: seconds .
+(unit: seconds).
 The default value is 2592000 (30 days). (not specified in draft-draves-router-selection-01.txt now)
 .El
 You can also refer one line from another by using
