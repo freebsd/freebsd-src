@@ -1215,7 +1215,8 @@ loop:
 			fc->ongoeui.hi = 0xffffffff; fc->ongoeui.lo = 0xffffffff;
 			goto loop;
 		}
-		fwdev = malloc(sizeof(struct fw_device), M_FW, M_NOWAIT);
+		fwdev = malloc(sizeof(struct fw_device), M_FW,
+							M_NOWAIT | M_ZERO);
 		if(fwdev == NULL)
 			return;
 		fwdev->fc = fc;
