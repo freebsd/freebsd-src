@@ -2259,7 +2259,7 @@ ng_snd_item(item_p item, int queue)
 
 	/*
 	 * If the node goes away when we remove the reference, 
-	 * whatever we just did caused it.. hwatever we do, DO NOT
+	 * whatever we just did caused it.. whatever we do, DO NOT
 	 * access the node again!
 	 */
 	if (NG_NODE_UNREF(node) == 0) {
@@ -2311,7 +2311,7 @@ ng_snd_item(item_p item, int queue)
 
 		/*
 		 * If the node goes away when we remove the reference, 
-		 * whatever we just did caused it.. hwatever we do, DO NOT
+		 * whatever we just did caused it.. whatever we do, DO NOT
 		 * access the node again!
 		 */
 		if (NG_NODE_UNREF(node) == 0) {
