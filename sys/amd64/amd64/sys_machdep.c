@@ -77,7 +77,7 @@ sysarch(td, uap)
 	case AMD64_SET_GSBASE:
 		error = copyin(uap->parms, &pcb->pcb_gsbase, sizeof(pcb->pcb_gsbase));
 		if (!error)
-			wrmsr(MSR_KGSBASE, pcb->pcb_fsbase);
+			wrmsr(MSR_KGSBASE, pcb->pcb_gsbase);
 		break;
 
 	default:
