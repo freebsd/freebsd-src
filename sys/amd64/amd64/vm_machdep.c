@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.34 1995/03/16 18:11:33 bde Exp $
+ *	$Id: vm_machdep.c,v 1.35 1995/03/19 14:28:41 davidg Exp $
  */
 
 #include "npx.h"
@@ -50,11 +50,14 @@
 #include <sys/vnode.h>
 #include <sys/user.h>
 
+#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
+
+#include <i386/isa/isa.h>
 
 #ifdef BOUNCE_BUFFERS
 vm_map_t	io_map;
@@ -803,6 +806,16 @@ vunmapbuf(bp)
  */
 void
 cpu_reset() {
+
+	/*
+	 * Attempt to do a CPU reset via the keyboard controller,
+	 * do not turn of the GateA20, as any machine that fails
+	 * to do the reset here would then end up in no man's land.
+	 */
+	outb(IO_KBD + 4, 0xFE);
+	DELAY(500000);	/* wait 0.5 sec to see if that did it */
+	printf("Keyboard reset did not work, attempting CPU shutdown\n");
+	DELAY(1000000);	/* wait 1 sec for printf to complete */
 
 	/* force a shutdown by unmapping entire address space ! */
 	bzero((caddr_t) PTD, NBPG);
