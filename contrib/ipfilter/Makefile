@@ -5,7 +5,7 @@
 # provided that this notice is preserved and due credit is given
 # to the original author and the contributors.
 #
-# $Id: Makefile,v 2.11.2.4 2000/10/19 15:42:56 darrenr Exp $
+# $Id: Makefile,v 2.11.2.6 2000/12/17 12:43:15 darrenr Exp $
 #
 BINDEST=/usr/local/bin
 SBINDEST=/sbin
@@ -107,7 +107,7 @@ include:
 	fi
 
 sunos solaris: include
-	./buildsunos $(MFLAGS)
+	CC="$(CC)" ./buildsunos
 
 freebsd22: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
@@ -169,8 +169,8 @@ bsdi bsdos: include
 
 irix IRIX: include
 	make setup "TARGOS=IRIX" "CPUDIR=$(CPUDIR)"
-	-(SMAKE=`which smake >/dev/null 2>&1; if [ $$? -ne 0 ] ; then echo make -f Makefile.std; else echo smake; fi`; cd IRIX/$(CPUDIR); $${SMAKE} build TOP=../.. $(DEST) $(MFLAGS); cd ..)
-	-(SMAKE=`which smake >/dev/null 2>&1; if [ $$? -ne 0 ] ; then echo make -f Makefile.ipsend.std; else echo smake -f Makefile.ipsend; fi`; cd IRIX/$(CPUDIR); $${SMAKE} TOP=../.. $(DEST) $(MFLAGS); cd ..)
+	-(cd IRIX/$(CPUDIR); if [ $(MAKE) = make ] ; then make -f Makefile.std build TOP=../.. $(DEST) $(MFLAGS); else smake build TOP=../.. $(DEST) $(MFLAGS); fi;)
+	-(cd IRIX/$(CPUDIR); if [ $(MAKE) = make ] ; then make -f Makefile.ipsend.std TOP=../.. $(DEST) $(MFLAGS); else smake -f Makefile.ipsend TOP=../.. $(DEST) $(MFLAGS); fi)
 
 linux: include
 	make setup "TARGOS=Linux" "CPUDIR=$(CPUDIR)"
