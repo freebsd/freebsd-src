@@ -246,7 +246,7 @@ ed_pccard_attach(device_t dev)
 		return (error);
 	}	      
 
-	if (sc->vendor != ED_VENDOR_LINKSYS) {
+	if (sc->chip_type == ED_CHIP_TYPE_DP8390) {
 		pccard_get_ether(dev, ether_addr);
 		for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
 			sum |= ether_addr[i];
@@ -256,7 +256,7 @@ ed_pccard_attach(device_t dev)
 
 	error = ed_attach(dev);
 #ifndef ED_NO_MIIBUS
-	if (error == 0 && sc->vendor == ED_VENDOR_LINKSYS) {
+	if (error == 0 && sc->chip_type == ED_CHIP_TYPE_DL100XX) {
 		/* Probe for an MII bus, but ignore errors. */
 		ed_pccard_dlink_mii_reset(sc);
 		sc->mii_readbits = ed_pccard_dlink_mii_readbits;
@@ -368,8 +368,9 @@ ed_pccard_Linksys(device_t dev)
 	ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
 	id = ed_asic_inb(sc, 0xf);
 	sc->isa16bit = 1;
-	sc->vendor = ED_VENDOR_LINKSYS;
+	sc->vendor = ED_VENDOR_NOVELL;
 	sc->type = ED_TYPE_NE2000;
+	sc->chip_type = ED_CHIP_TYPE_DL100XX;
 	sc->type_str = ((id & 0x90) == 0x90) ? "DL10022" : "DL10019";
 	return (0);
 }
@@ -405,7 +406,7 @@ ed_pccard_ax88190(device_t dev)
 	ed_release_resources(dev);
 	error = ed_probe_Novell(dev, 0, flags);
 	if (error == 0) {
-		sc->vendor = ED_VENDOR_PCCARD;
+		sc->vendor = ED_VENDOR_NOVELL;
 		sc->type = ED_TYPE_NE2000;
 		sc->type_str = "AX88190";
 	}
