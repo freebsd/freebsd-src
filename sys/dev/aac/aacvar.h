@@ -355,6 +355,8 @@ struct aac_softc
 #define AAC_SYNC_LOCK_FORCE	(1 << 0)
 	aac_lock_t		aac_sync_lock;
 
+	aac_lock_t		aac_io_lock;
+
 	/* delayed activity infrastructure */
 #if __FreeBSD_version >= 500005
 	struct task		aac_task_complete;	/* deferred-completion
@@ -376,7 +378,9 @@ struct aac_softc
 #define	AAC_AIFFLAGS_EXIT	(1 << 2)
 #define AAC_AIFFLAGS_EXITED	(1 << 3)
 #define AAC_AIFFLAGS_PRINTF	(1 << 4)
-#define AAC_AIFFLAGS_PENDING	(AAC_AIFFLAGS_AIF | AAC_AIFFLAGS_PRINTF)
+#define	AAC_AIFFLAGS_ALLOCFIBS	(1 << 5)
+#define AAC_AIFFLAGS_PENDING	(AAC_AIFFLAGS_AIF | AAC_AIFFLAGS_PRINTF | \
+				 AAC_AIFFLAGS_ALLOCFIBS)
 	u_int32_t		quirks;
 #define AAC_QUIRK_PERC2QC	(1 << 0)
 #define	AAC_QUIRK_NOCAM		(1 << 1)	/* No SCSI passthrough */
