@@ -223,7 +223,7 @@ main(int argc, char *argv[])
 	}
 
 #ifdef EACCESS_AVAILABLE
-	error = eaccess("test2", R_OK);
+	error = eaccess("test1", R_OK);
 	if (!error) {
 		fprintf(stderr, "saved uid used instead of effective uid\n");
 		errorseen++;
@@ -270,7 +270,7 @@ main(int argc, char *argv[])
 #ifdef EACCESS_AVAILABLE
 	/* Check that the effective uid is used, not the real uid */
 	error = eaccess("test2", R_OK);
-	if (error) {
+	if (!error) {
 		fprintf(stderr, "Real uid was used instead of effective uid in eaccess().\n");
 		errorseen++;
 	}
