@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.82 1996/10/14 10:09:52 se Exp $
+**  $Id: ncr.c,v 1.82.2.1 1996/11/09 21:15:54 phk Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,16 +44,19 @@
 ***************************************************************************
 */
 
-#define NCR_DATE "pl23 95/09/07"
+#define NCR_DATE "pl24 96/12/14"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
 
 #define NCR_GETCC_WITHMSG
 
+#if defined (__FreeBSD__) && defined(KERNEL)
+#include "opt_ncr.h"
+#endif /* defined (__FreeBSD__) && defined(KERNEL) */
+
 #ifdef	FAILSAFE
 #define	SCSI_NCR_DFLT_TAGS (0)
-#define	MAX_LUN		(1)
 #define	CDROM_ASYNC
 #endif	/* FAILSAFE */
 
@@ -238,12 +241,12 @@
 **    Can be changed at runtime too.
 */
 
-#ifdef SCSI_DEBUG_FLAGS
+#ifdef SCSI_NCR_DEBUG
 	#define DEBUG_FLAGS ncr_debug
-#else /* SCSI_DEBUG_FLAGS */
-	#define SCSI_DEBUG_FLAGS	0
+#else /* SCSI_NCR_DEBUG */
+	#define SCSI_NCR_DEBUG	0
 	#define DEBUG_FLAGS	0
-#endif /* SCSI_DEBUG_FLAGS */
+#endif /* SCSI_NCR_DEBUG */
 
 
 
@@ -290,9 +293,9 @@
 #define INW(r) (np->reg->r)
 #define INL(r) (np->reg->r)
 
-#define OUTB(r, val) np->reg->r = val
-#define OUTW(r, val) np->reg->r = val
-#define OUTL(r, val) np->reg->r = val
+#define OUTB(r, val) np->reg->r = (val)
+#define OUTW(r, val) np->reg->r = (val)
+#define OUTL(r, val) np->reg->r = (val)
 
 #endif
 
@@ -1250,7 +1253,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.82 1996/10/14 10:09:52 se Exp $\n";
+	"\n$Id: ncr.c,v 1.82.2.1 1996/11/09 21:15:54 phk Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1262,7 +1265,7 @@ static const u_long	ncr_version = NCR_VERSION	* 11
 static const int nncr=MAX_UNITS;	/* XXX to be replaced by SYSCTL */
 ncb_p         ncrp [MAX_UNITS];		/* XXX to be replaced by SYSCTL */
 
-static int ncr_debug = SCSI_DEBUG_FLAGS;
+static int ncr_debug = SCSI_NCR_DEBUG;
 SYSCTL_INT(_debug, OID_AUTO, ncr_debug, CTLFLAG_RW, &ncr_debug, 0, "");
 
 static int ncr_cache; /* to be aligned _NOT_ static */
@@ -1277,7 +1280,6 @@ static int ncr_cache; /* to be aligned _NOT_ static */
 */
 
 #define	NCR_810_ID	(0x00011000ul)
-#define	NCR_810AP_ID	(0x00051000ul)
 #define	NCR_815_ID	(0x00041000ul)
 #define	NCR_825_ID	(0x00031000ul)
 #define	NCR_860_ID	(0x00061000ul)
@@ -3158,7 +3160,6 @@ ncr_probe(parent, match, aux)
 		return 0;
 #endif
 	if (pa->pa_id != NCR_810_ID &&
-	    pa->pa_id != NCR_810AP_ID &&
 	    pa->pa_id != NCR_815_ID &&
 	    pa->pa_id != NCR_825_ID &&
 	    pa->pa_id != NCR_860_ID &&
@@ -3173,19 +3174,21 @@ ncr_probe(parent, match, aux)
 
 static	char* ncr_probe (pcici_t tag, pcidi_t type)
 {
+	u_char rev = pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 	switch (type) {
 
 	case NCR_810_ID:
-		return ("ncr 53c810 scsi");
-
-	case NCR_810AP_ID:
-		return ("ncr 53c810ap scsi");
+		return (rev & 0xf0) == 0x00
+			? ("ncr 53c810 scsi") 
+			: ("ncr 53c810a scsi");
 
 	case NCR_815_ID:
 		return ("ncr 53c815 scsi");
 
 	case NCR_825_ID:
-		return ("ncr 53c825 wide scsi");
+		return (rev & 0xf0) == 0x00
+			? ("ncr 53c825 wide scsi")
+			: ("ncr 53c825a wide scsi");
 
 	case NCR_860_ID:
 		return ("ncr 53c860 scsi");
@@ -3358,14 +3361,6 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	np->myaddr = INB(nc_scid) & 0x07;
 	if (!np->myaddr) np->myaddr = SCSI_NCR_MYADDR;
 
-	/*
-	**	Reset chip.
-	*/
-
-	OUTB (nc_istat,  SRST);
-	DELAY (1000);
-	OUTB (nc_istat,  0   );
-
 #ifdef NCR_DUMP_REG
 	/*
 	**	Log the initial register contents
@@ -3381,16 +3376,16 @@ static	void ncr_attach (pcici_t config_id, int unit)
 			if (reg%16==12) printf ("\n");
 		}
 	}
+#endif /* NCR_DUMP_REG */
 
 	/*
-	**	Reset chip, once again.
+	**	Reset chip.
 	*/
 
 	OUTB (nc_istat,  SRST);
 	DELAY (1000);
 	OUTB (nc_istat,  0   );
 
-#endif /* NCR_DUMP_REG */
 
 	/*
 	**	Now check the cache handling of the pci chipset.
@@ -4415,16 +4410,10 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	**	Init chip.
 	*/
 
-#ifndef __NetBSD__
-	if (pci_max_burst_len < 4) {
-		static u_char tbl[4]={0,0,0x40,0x80};
-		burstlen = tbl[pci_max_burst_len];
-	} else burstlen = 0xc0;
-#else /* !__NetBSD__ */
-	burstlen = 0xc0;
-#endif /* __NetBSD__ */
+	burstlen = 0xc0;		/* XXX 53c875 needs code change to   */
+					/*     be able to use larger bursts  */
 
-	OUTB (nc_istat,  0      );      /*  Remove Reset, abort ...	     */
+	OUTB (nc_istat,  0x00   );      /*  Remove Reset, abort ...	     */
 	OUTB (nc_scntl0, 0xca   );      /*  full arb., ena parity, par->ATN  */
 	OUTB (nc_scntl1, 0x00	);	/*  odd parity, and remove CRST!!    */
 	OUTB (nc_scntl3, np->rv_scntl3);/*  timing prescaler		     */
@@ -4842,30 +4831,11 @@ static void ncr_timeout (ncb_p np)
 			**      If there are no requests, the script
 			**      processor will sleep on SEL_WAIT_RESEL.
 			**      But we have to check whether it died.
-			**      Let's wake it up.
+			**      Let's try to wake it up.
 			*/
 			OUTB (nc_istat, SIGP);
 		};
 
-#ifdef undef
-		if (np->latetime>4) {
-			/*
-			**	Although we tried to wake it up,
-			**	the script processor didn't respond.
-			**
-			**	May be a target is hanging,
-			**	or another initator lets a tape device
-			**	rewind with disconnect disabled :-(
-			**
-			**	We won't accept that.
-			*/
-			if (INB (nc_sbcl) & CBSY)
-				OUTB (nc_scntl1, CRST);
-			DELAY (1000);
-			ncr_init (np, "ncr dead ?", HS_TIMEOUT);
-			np->heartbeat = thistime;
-		};
-#endif
 		/*----------------------------------------------------
 		**
 		**	handle ccb timeouts
@@ -4969,8 +4939,8 @@ void ncr_exception (ncb_p np)
 	**	Never test for an error condition you don't know how to handle.
 	*/
 
-	dstat = (istat & DIP) ? INB (nc_dstat) : 0;
 	sist  = (istat & SIP) ? INW (nc_sist)  : 0;
+	dstat = (istat & DIP) ? INB (nc_dstat) : 0;
 	np->profile.num_int++;
 
 	if (DEBUG_FLAGS & DEBUG_TINY)
@@ -6606,6 +6576,9 @@ static int ncr_snooptest (struct ncb* np)
 	*/
 	if (pc != NCB_SCRIPT_PHYS (np, snoopend)+8) {
 		printf ("CACHE TEST FAILED: script execution failed.\n");
+		printf ("\tstart=%08x, pc=%08x, end=%08x\n", 
+			NCB_SCRIPT_PHYS (np, snooptest), pc,
+			NCB_SCRIPT_PHYS (np, snoopend) +8);
 		return (0x40);
 	};
 	/*
