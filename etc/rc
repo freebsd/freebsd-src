@@ -115,7 +115,7 @@ fi
 mount -a -t nfs >/dev/null 2>&1
 
 # Whack the pty perms back into shape.
-chmod 666 /dev/tty[pqrs]*
+chmod 666 /dev/tty[pqrsPQRS]*
 
 # clean up left-over files
 rm -f /etc/nologin
