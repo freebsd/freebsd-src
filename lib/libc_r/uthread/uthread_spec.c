@@ -35,15 +35,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
 /* Static variables: */
 static	struct pthread_key key_table[PTHREAD_KEYS_MAX];
 
+__weak_reference(_pthread_key_create, pthread_key_create);
+__weak_reference(_pthread_key_delete, pthread_key_delete);
+__weak_reference(_pthread_getspecific, pthread_getspecific);
+__weak_reference(_pthread_setspecific, pthread_setspecific);
+
+
 int
-pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
+_pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
 {
 	for ((*key) = 0; (*key) < PTHREAD_KEYS_MAX; (*key)++) {
 		/* Lock the key table entry: */
@@ -65,7 +70,7 @@ pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
 }
 
 int
-pthread_key_delete(pthread_key_t key)
+_pthread_key_delete(pthread_key_t key)
 {
 	int ret = 0;
 
@@ -141,7 +146,7 @@ pthread_key_allocate_data(void)
 }
 
 int 
-pthread_setspecific(pthread_key_t key, const void *value)
+_pthread_setspecific(pthread_key_t key, const void *value)
 {
 	struct pthread	*pthread;
 	int             ret = 0;
@@ -172,7 +177,7 @@ pthread_setspecific(pthread_key_t key, const void *value)
 }
 
 void *
-pthread_getspecific(pthread_key_t key)
+_pthread_getspecific(pthread_key_t key)
 {
 	struct pthread	*pthread;
 	void		*data;
@@ -198,4 +203,3 @@ pthread_getspecific(pthread_key_t key)
 		data = NULL;
 	return (data);
 }
-#endif

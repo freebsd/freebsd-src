@@ -35,7 +35,6 @@
 #include <setjmp.h>
 #include <sys/param.h>
 #include <sys/user.h>
-#ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
 #include "pthread_private.h"
@@ -114,4 +113,3 @@ check_stack(pthread_t thread, void *stackp)
 	else
 		return (0);
 }
-#endif

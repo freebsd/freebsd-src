@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -43,4 +42,3 @@ _fpathconf(int fd, int name)
 }
 
 __strong_reference(_fpathconf, fpathconf);
-#endif

@@ -8,7 +8,6 @@
 
 #include <sys/types.h>
 #include <sys/mman.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -39,4 +38,3 @@ msync(void *addr, size_t len, int flags)
 
 	return ret;
 }
-#endif

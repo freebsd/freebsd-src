@@ -33,7 +33,6 @@
  */
 #include <signal.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -49,6 +48,9 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		errno = EINVAL;
 		ret = -1;
 	} else {
+		if (_thread_initial == NULL)
+			_thread_init();
+
 		/*
 		 * Check if the existing signal action structure contents are
 		 * to be returned: 
@@ -80,7 +82,7 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 			 * handler arguments.
 			 */
 			sigfillset(&gact.sa_mask);
-			gact.sa_flags = SA_SIGINFO | SA_ONSTACK;
+			gact.sa_flags = SA_SIGINFO | SA_RESTART;
 
 			/*
 			 * Check if the signal handler is being set to
@@ -108,4 +110,3 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 }
 
 __strong_reference(_sigaction, sigaction);
-#endif

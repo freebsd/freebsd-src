@@ -33,7 +33,6 @@
  */
 #include <sys/types.h>
 #include <sys/socket.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -51,4 +50,3 @@ _setsockopt(int fd, int level, int optname, const void *optval, socklen_t
 }
 
 __strong_reference(_setsockopt, setsockopt);
-#endif

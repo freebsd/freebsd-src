@@ -34,7 +34,6 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -191,4 +190,3 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 	}
 	return (ret);
 }
-#endif

@@ -39,7 +39,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -213,4 +212,3 @@ writev(int fd, const struct iovec *iov, int iovcnt)
 
 	return ret;
 }
-#endif

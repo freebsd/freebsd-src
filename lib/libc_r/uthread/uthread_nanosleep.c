@@ -33,7 +33,6 @@
  */
 #include <stdio.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -140,4 +139,3 @@ nanosleep(const struct timespec * time_to_sleep, struct timespec *
 
 	return ret;
 }
-#endif

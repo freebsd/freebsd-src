@@ -49,7 +49,6 @@
 #include <sys/param.h>
 #include <sys/user.h>
 #include <sys/mman.h>
-#ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
 #include "pthread_private.h"
@@ -61,22 +60,22 @@
  * libraries, then the actual functions will not be loaded.
  */
 static void *thread_references[] = {
-	&pthread_once,
-	&pthread_key_create,
-	&pthread_key_delete,
-	&pthread_getspecific,
-	&pthread_setspecific,
-	&pthread_mutex_init,
-	&pthread_mutex_destroy,
-	&pthread_mutex_lock,
-	&pthread_mutex_trylock,
-	&pthread_mutex_unlock,
-	&pthread_cond_init,
-	&pthread_cond_destroy,
-	&pthread_cond_wait,
-	&pthread_cond_timedwait,
-	&pthread_cond_signal,
-	&pthread_cond_broadcast
+	&_pthread_once,
+	&_pthread_key_create,
+	&_pthread_key_delete,
+	&_pthread_getspecific,
+	&_pthread_setspecific,
+	&_pthread_mutex_init,
+	&_pthread_mutex_destroy,
+	&_pthread_mutex_lock,
+	&_pthread_mutex_trylock,
+	&_pthread_mutex_unlock,
+	&_pthread_cond_init,
+	&_pthread_cond_destroy,
+	&_pthread_cond_wait,
+	&_pthread_cond_timedwait,
+	&_pthread_cond_signal,
+	&_pthread_cond_broadcast
 };
 
 #ifdef GCC_2_8_MADE_THREAD_AWARE
@@ -147,20 +146,21 @@ _thread_init(void)
 			PANIC("Can't open console");
 		if (setlogin("root") == -1)
 			PANIC("Can't set login to root");
-		if (__sys_ioctl(fd,TIOCSCTTY, (char *) NULL) == -1)
+		if (__sys_ioctl(fd, TIOCSCTTY, (char *) NULL) == -1)
 			PANIC("Can't set controlling terminal");
-		if (__sys_dup2(fd,0) == -1 ||
-		    __sys_dup2(fd,1) == -1 ||
-		    __sys_dup2(fd,2) == -1)
+		if (__sys_dup2(fd, 0) == -1 ||
+		    __sys_dup2(fd, 1) == -1 ||
+		    __sys_dup2(fd, 2) == -1)
 			PANIC("Can't dup2");
 	}
 
 	/* Get the standard I/O flags before messing with them : */
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < 3; i++) {
 		if (((_pthread_stdio_flags[i] =
-		    __sys_fcntl(i,F_GETFL, NULL)) == -1) &&
+		    __sys_fcntl(i, F_GETFL, NULL)) == -1) &&
 		    (errno != EBADF))
 			PANIC("Cannot get stdio flags");
+	}
 
 	/*
 	 * Create a pipe that is written to by the signal handler to prevent
@@ -170,8 +170,21 @@ _thread_init(void)
 		/* Cannot create pipe, so abort: */
 		PANIC("Cannot create kernel pipe");
 	}
+
+	/*
+	 * Make sure the pipe does not get in the way of stdio:
+	 */
+	for (i = 0; i < 2; i++) {
+		if (_thread_kern_pipe[i] < 3) {
+			fd = __sys_fcntl(_thread_kern_pipe[i], F_DUPFD, 3);
+			if (fd == -1)
+			    PANIC("Cannot create kernel pipe");
+			__sys_close(_thread_kern_pipe[i]);
+			_thread_kern_pipe[i] = fd;
+		}
+	}
 	/* Get the flags for the read pipe: */
-	else if ((flags = __sys_fcntl(_thread_kern_pipe[0], F_GETFL, NULL)) == -1) {
+	if ((flags = __sys_fcntl(_thread_kern_pipe[0], F_GETFL, NULL)) == -1) {
 		/* Abort this application: */
 		PANIC("Cannot get kernel read pipe flags");
 	}
@@ -231,7 +244,7 @@ _thread_init(void)
 		mib[1] = KERN_USRSTACK;
 		len = sizeof (int);
 		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
-			_usrstack = USRSTACK;
+			_usrstack = (void *)USRSTACK;
 		/*
 		 * Create a red zone below the main stack.  All other stacks are
 		 * constrained to a maximum size by the paramters passed to
@@ -275,6 +288,9 @@ _thread_init(void)
 		/* Initialise the state of the initial thread: */
 		_thread_initial->state = PS_RUNNING;
 
+		/* Set the name of the thread: */
+		_thread_initial->name = strdup("_thread_initial");
+
 		/* Initialize joiner to NULL (no joiner): */
 		_thread_initial->joiner = NULL;
 
@@ -291,7 +307,6 @@ _thread_init(void)
 
 		/* Initialize the initial context: */
 		_thread_initial->curframe = NULL;
-		_thread_initial->ctxtype = CTX_JB_NOSIG;
 
 		/* Initialise the rest of the fields: */
 		_thread_initial->poll_data.nfds = 0;
@@ -309,24 +324,13 @@ _thread_init(void)
 		/* Initialise the global signal action structure: */
 		sigfillset(&act.sa_mask);
 		act.sa_handler = (void (*) ()) _thread_sig_handler;
-		act.sa_flags = SA_SIGINFO | SA_ONSTACK;
+		act.sa_flags = SA_SIGINFO | SA_RESTART;
 
 		/* Clear pending signals for the process: */
 		sigemptyset(&_process_sigpending);
 
 		/* Clear the signal queue: */
 		memset(_thread_sigq, 0, sizeof(_thread_sigq));
-
-		/*
-		 * Create and install an alternate signal stack of
-		 * the recommended size:
-		 */
-		_thread_sigstack.ss_sp = malloc(SIGSTKSZ);
-		_thread_sigstack.ss_size = SIGSTKSZ;
-		_thread_sigstack.ss_flags = 0;
-		if ((_thread_sigstack.ss_sp == NULL) ||
-		    (__sys_sigaltstack(&_thread_sigstack, NULL) != 0))
-			PANIC("Unable to install alternate signal stack");
 
 		/* Enter a loop to get the existing signal status: */
 		for (i = 1; i < NSIG; i++) {
@@ -449,14 +453,5 @@ _thread_main(int argc, char *argv[], char *env)
 {
 	_thread_init();
 	return (main(argc, argv, env));
-}
-#endif
-#else
-/*
- * A stub for non-threaded programs.
- */
-void
-_thread_init(void)
-{
 }
 #endif

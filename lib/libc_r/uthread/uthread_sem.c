@@ -31,7 +31,6 @@
 
 #include <stdlib.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <semaphore.h>
 #include <pthread.h>
 #include "pthread_private.h"
@@ -43,8 +42,18 @@
 		goto RETURN;			\
 	}
 
+__weak_reference(_sem_init, sem_init);
+__weak_reference(_sem_destroy, sem_destroy);
+__weak_reference(_sem_open, sem_open);
+__weak_reference(_sem_close, sem_close);
+__weak_reference(_sem_unlink, sem_unlink);
+__weak_reference(_sem_wait, sem_wait);
+__weak_reference(_sem_trywait, sem_trywait);
+__weak_reference(_sem_post, sem_post);
+__weak_reference(_sem_getvalue, sem_getvalue);
+
 int
-sem_init(sem_t *sem, int pshared, unsigned int value)
+_sem_init(sem_t *sem, int pshared, unsigned int value)
 {
 	int	retval;
 
@@ -103,7 +112,7 @@ sem_init(sem_t *sem, int pshared, unsigned int value)
 }
 
 int
-sem_destroy(sem_t *sem)
+_sem_destroy(sem_t *sem)
 {
 	int	retval;
 	
@@ -131,28 +140,28 @@ sem_destroy(sem_t *sem)
 }
 
 sem_t *
-sem_open(const char *name, int oflag, ...)
+_sem_open(const char *name, int oflag, ...)
 {
 	errno = ENOSYS;
 	return SEM_FAILED;
 }
 
 int
-sem_close(sem_t *sem)
+_sem_close(sem_t *sem)
 {
 	errno = ENOSYS;
 	return -1;
 }
 
 int
-sem_unlink(const char *name)
+_sem_unlink(const char *name)
 {
 	errno = ENOSYS;
 	return -1;
 }
 
 int
-sem_wait(sem_t *sem)
+_sem_wait(sem_t *sem)
 {
 	int	retval;
 
@@ -178,7 +187,7 @@ sem_wait(sem_t *sem)
 }
 
 int
-sem_trywait(sem_t *sem)
+_sem_trywait(sem_t *sem)
 {
 	int	retval;
 
@@ -201,7 +210,7 @@ sem_trywait(sem_t *sem)
 }
 
 int
-sem_post(sem_t *sem)
+_sem_post(sem_t *sem)
 {
 	int	retval;
 
@@ -228,7 +237,7 @@ sem_post(sem_t *sem)
 }
 
 int
-sem_getvalue(sem_t *sem, int *sval)
+_sem_getvalue(sem_t *sem, int *sval)
 {
 	int	retval;
 
@@ -242,4 +251,3 @@ sem_getvalue(sem_t *sem, int *sval)
   RETURN:
 	return retval;
 }
-#endif

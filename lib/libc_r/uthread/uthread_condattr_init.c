@@ -34,12 +34,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+__weak_reference(_pthread_condattr_init, pthread_condattr_init);
+
 int
-pthread_condattr_init(pthread_condattr_t *attr)
+_pthread_condattr_init(pthread_condattr_t *attr)
 {
 	int ret;
 	pthread_condattr_t pattr;
@@ -55,4 +56,3 @@ pthread_condattr_init(pthread_condattr_t *attr)
 	}
 	return(ret);
 }
-#endif

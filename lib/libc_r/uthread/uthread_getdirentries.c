@@ -33,7 +33,6 @@
  */
 #include <sys/types.h>
 #include <dirent.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -50,4 +49,3 @@ _getdirentries(int fd, char *buf, int nbytes, long *basep)
 }
 
 __strong_reference(_getdirentries, getdirentries);
-#endif

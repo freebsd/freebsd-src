@@ -37,7 +37,6 @@
 #include <sys/uio.h>
 #include <errno.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -108,4 +107,3 @@ read(int fd, void *buf, size_t nbytes)
 
 	return ret;
 }
-#endif

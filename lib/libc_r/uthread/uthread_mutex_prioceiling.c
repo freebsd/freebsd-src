@@ -34,12 +34,16 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+__weak_reference(_pthread_mutexattr_getprioceiling, pthread_mutexattr_getprioceiling);
+__weak_reference(_pthread_mutexattr_setprioceiling, pthread_mutexattr_setprioceiling);
+__weak_reference(_pthread_mutex_getprioceiling, pthread_mutex_getprioceiling);
+__weak_reference(_pthread_mutex_setprioceiling, pthread_mutex_setprioceiling);
+
 int
-pthread_mutexattr_getprioceiling(pthread_mutexattr_t *mattr, int *prioceiling)
+_pthread_mutexattr_getprioceiling(pthread_mutexattr_t *mattr, int *prioceiling)
 {
 	int ret = 0;
 
@@ -54,7 +58,7 @@ pthread_mutexattr_getprioceiling(pthread_mutexattr_t *mattr, int *prioceiling)
 }
 
 int
-pthread_mutexattr_setprioceiling(pthread_mutexattr_t *mattr, int prioceiling)
+_pthread_mutexattr_setprioceiling(pthread_mutexattr_t *mattr, int prioceiling)
 {
 	int ret = 0;
 
@@ -69,8 +73,8 @@ pthread_mutexattr_setprioceiling(pthread_mutexattr_t *mattr, int prioceiling)
 }
 
 int
-pthread_mutex_getprioceiling(pthread_mutex_t *mutex,
-			     int *prioceiling)
+_pthread_mutex_getprioceiling(pthread_mutex_t *mutex,
+			      int *prioceiling)
 {
 	int ret;
 
@@ -85,8 +89,8 @@ pthread_mutex_getprioceiling(pthread_mutex_t *mutex,
 }
 
 int
-pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
-			     int prioceiling, int *old_ceiling)
+_pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
+			      int prioceiling, int *old_ceiling)
 {
 	int ret = 0;
 
@@ -107,4 +111,3 @@ pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 	}
 	return(ret);
 }
-#endif

@@ -37,7 +37,6 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -93,4 +92,3 @@ open(const char *path, int flags,...)
 
 	return ret;
 }
-#endif

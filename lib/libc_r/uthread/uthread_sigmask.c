@@ -36,12 +36,13 @@
 #include <sys/signalvar.h>
 #include <errno.h>
 #include <signal.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+__weak_reference(_pthread_sigmask, pthread_sigmask);
+
 int
-pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
+_pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
 	struct pthread	*curthread = _get_curthread();
 	sigset_t	sigset;
@@ -103,4 +104,3 @@ pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 	/* Return the completion status: */
 	return (ret);
 }
-#endif

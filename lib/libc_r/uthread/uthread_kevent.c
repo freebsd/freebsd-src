@@ -31,7 +31,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/event.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -74,4 +73,3 @@ kevent(int kq, const struct kevent *changelist, int nchanges,
 	}
 	return (rc);
 }
-#endif

@@ -35,7 +35,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -74,4 +73,3 @@ _sendto(int fd, const void *msg, size_t len, int flags, const struct
 }
 
 __strong_reference(_sendto, sendto);
-#endif

@@ -30,7 +30,6 @@
  */
 
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -45,4 +44,3 @@ pause(void)
 	
 	return ret;
 }
-#endif

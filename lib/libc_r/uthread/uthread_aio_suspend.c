@@ -30,7 +30,6 @@
  */
 
 #include <aio.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -48,4 +47,3 @@ _aio_suspend(const struct aiocb * const iocbs[], int niocb, const struct
 }
 
 __strong_reference(_aio_suspend, aio_suspend);
-#endif

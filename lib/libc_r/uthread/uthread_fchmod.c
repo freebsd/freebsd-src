@@ -33,7 +33,6 @@
  */
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -50,4 +49,3 @@ _fchmod(int fd, mode_t mode)
 }
 
 __strong_reference(_fchmod, fchmod);
-#endif

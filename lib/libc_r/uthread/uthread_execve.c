@@ -34,7 +34,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -110,4 +109,3 @@ _execve(const char *name, char *const * argv, char *const * envp)
 }
 
 __strong_reference(_execve, execve);
-#endif

@@ -34,7 +34,6 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -71,4 +70,3 @@ _shutdown(int fd, int how)
 }
 
 __strong_reference(_shutdown, shutdown);
-#endif

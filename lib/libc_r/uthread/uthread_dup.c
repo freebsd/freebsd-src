@@ -32,7 +32,6 @@
  * $FreeBSD$
  */
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -69,4 +68,3 @@ _dup(int fd)
 }
 
 __strong_reference(_dup, dup);
-#endif

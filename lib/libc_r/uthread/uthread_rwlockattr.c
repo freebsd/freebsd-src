@@ -26,15 +26,19 @@
  * $FreeBSD$
  */
 
-#ifdef _THREAD_SAFE
 #include <errno.h>
 #include <stdlib.h>
 
 #include <pthread.h>
 #include "pthread_private.h"
 
+__weak_reference(_pthread_rwlockattr_destroy, pthread_rwlockattr_destroy);
+__weak_reference(_pthread_rwlockattr_getpshared, pthread_rwlockattr_getpshared);
+__weak_reference(_pthread_rwlockattr_init, pthread_rwlockattr_init);
+__weak_reference(_pthread_rwlockattr_setpshared, pthread_rwlockattr_setpshared);
+
 int
-pthread_rwlockattr_destroy(pthread_rwlockattr_t *rwlockattr)
+_pthread_rwlockattr_destroy(pthread_rwlockattr_t *rwlockattr)
 {
 	pthread_rwlockattr_t prwlockattr;
 
@@ -52,7 +56,7 @@ pthread_rwlockattr_destroy(pthread_rwlockattr_t *rwlockattr)
 }
 
 int
-pthread_rwlockattr_getpshared(const pthread_rwlockattr_t *rwlockattr,
+_pthread_rwlockattr_getpshared(const pthread_rwlockattr_t *rwlockattr,
 	int *pshared)
 {
 	*pshared = (*rwlockattr)->pshared;
@@ -61,7 +65,7 @@ pthread_rwlockattr_getpshared(const pthread_rwlockattr_t *rwlockattr,
 }
 
 int
-pthread_rwlockattr_init(pthread_rwlockattr_t *rwlockattr)
+_pthread_rwlockattr_init(pthread_rwlockattr_t *rwlockattr)
 {
 	pthread_rwlockattr_t prwlockattr;
 
@@ -81,7 +85,7 @@ pthread_rwlockattr_init(pthread_rwlockattr_t *rwlockattr)
 }
 
 int
-pthread_rwlockattr_setpshared(pthread_rwlockattr_t *rwlockattr, int pshared)
+_pthread_rwlockattr_setpshared(pthread_rwlockattr_t *rwlockattr, int pshared)
 {
 	/* Only PTHREAD_PROCESS_PRIVATE is supported. */
 	if (pshared != PTHREAD_PROCESS_PRIVATE)
@@ -92,4 +96,3 @@ pthread_rwlockattr_setpshared(pthread_rwlockattr_t *rwlockattr, int pshared)
 	return(0);
 }
 
-#endif /* _THREAD_SAFE */

@@ -35,7 +35,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -73,4 +72,3 @@ _sendmsg(int fd, const struct msghdr *msg, int flags)
 }
 
 __strong_reference(_sendmsg, sendmsg);
-#endif

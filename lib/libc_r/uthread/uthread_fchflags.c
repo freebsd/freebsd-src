@@ -7,7 +7,6 @@
 
 #include <sys/stat.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -24,4 +23,3 @@ _fchflags(int fd, u_long flags)
 }
 
 __strong_reference(_fchflags, fchflags);
-#endif

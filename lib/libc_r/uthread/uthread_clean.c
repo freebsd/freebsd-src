@@ -34,12 +34,14 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdlib.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+__weak_reference(_pthread_cleanup_push, pthread_cleanup_push);
+__weak_reference(_pthread_cleanup_pop, pthread_cleanup_pop);
+
 void
-pthread_cleanup_push(void (*routine) (void *), void *routine_arg)
+_pthread_cleanup_push(void (*routine) (void *), void *routine_arg)
 {
 	struct pthread	*curthread = _get_curthread();
 	struct pthread_cleanup *new;
@@ -54,7 +56,7 @@ pthread_cleanup_push(void (*routine) (void *), void *routine_arg)
 }
 
 void
-pthread_cleanup_pop(int execute)
+_pthread_cleanup_pop(int execute)
 {
 	struct pthread	*curthread = _get_curthread();
 	struct pthread_cleanup *old;
@@ -68,4 +70,3 @@ pthread_cleanup_pop(int execute)
 	}
 }
 
-#endif

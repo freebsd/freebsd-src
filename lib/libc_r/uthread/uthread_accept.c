@@ -36,7 +36,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -110,4 +109,3 @@ _accept(int fd, struct sockaddr * name, socklen_t *namelen)
 }
 
 __strong_reference(_accept, accept);
-#endif

@@ -36,7 +36,6 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -78,6 +77,9 @@ _thread_fd_table_init(int fd)
 	int	ret = 0;
 	struct fd_table_entry *entry;
 	int	saved_errno;
+
+	if (_thread_initial == NULL)
+		_thread_init();
 
 	/* Check if the file descriptor is out of range: */
 	if (fd < 0 || fd >= _thread_dtablesize) {
@@ -1052,5 +1054,4 @@ _fd_lock_backout(pthread_t pthread)
 {
 }
 
-#endif
 #endif

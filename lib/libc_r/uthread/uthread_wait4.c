@@ -35,7 +35,6 @@
 
 #include <errno.h>
 #include <sys/wait.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -79,4 +78,3 @@ wait4(pid_t pid, int *istat, int options, struct rusage *rusage)
 
 	return ret;
 }
-#endif

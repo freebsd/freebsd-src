@@ -31,14 +31,16 @@
  *
  * $FreeBSD$
  */
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/signalvar.h>
 #include <signal.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
 int
-_sigpending(sigset_t * set)
+_sigpending(sigset_t *set)
 {
 	struct pthread	*curthread = _get_curthread();
 	int ret = 0;
@@ -50,10 +52,10 @@ _sigpending(sigset_t * set)
 	}
 	else {
 		*set = curthread->sigpend;
+		SIGSETOR(*set, _process_sigpending);
 	}
 	/* Return the completion status: */
 	return (ret);
 }
 
 __strong_reference(_sigpending, sigpending);
-#endif

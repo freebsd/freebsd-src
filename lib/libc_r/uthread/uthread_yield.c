@@ -31,12 +31,14 @@
  *
  * $FreeBSD$
  */
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+__weak_reference(_sched_yield, sched_yield);
+__weak_reference(_pthread_yield, pthread_yield);
+
 int
-sched_yield(void)
+_sched_yield(void)
 {
 	struct pthread	*curthread = _get_curthread();
 
@@ -52,7 +54,7 @@ sched_yield(void)
 
 /* Draft 4 yield */
 void
-pthread_yield(void)
+_pthread_yield(void)
 {
 	struct pthread	*curthread = _get_curthread();
 
@@ -62,4 +64,3 @@ pthread_yield(void)
 	/* Schedule the next thread: */
 	_thread_kern_sched(NULL);
 }
-#endif

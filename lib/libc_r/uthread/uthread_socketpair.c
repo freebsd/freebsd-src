@@ -36,7 +36,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -55,4 +54,3 @@ _socketpair(int af, int type, int protocol, int pair[2])
 }
 
 __strong_reference(_socketpair, socketpair);
-#endif
