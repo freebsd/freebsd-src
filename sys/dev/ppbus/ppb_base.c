@@ -23,25 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_base.c,v 1.1 1997/08/16 14:05:34 msmith Exp $
+ *	$Id: ppb_base.c,v 1.2 1997/08/28 10:15:12 msmith Exp $
  *
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
-#include <sys/conf.h>
-#include <sys/proc.h>
-#include <sys/buf.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/uio.h>
-#include <sys/syslog.h>
-
-#include <machine/clock.h>
-
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 
 #include <dev/ppbus/ppbconf.h>
 
