@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.24 1994/04/21 22:14:43 wollman Exp $
+ *      $Id: aha1542.c,v 1.25 1994/05/03 05:44:53 rgrimes Exp $
  */
 
 /*
@@ -917,7 +917,7 @@ aha_init(unit)
 #ifdef	AHADEBUG
 		printf("aha%d: extended bios flags %x\n", unit, extbios.flags);
 #endif	/* AHADEBUG */
-		printf("aha%d: 1542C/CF detected, unlocking mailbox\n");
+		printf("aha%d: 1542C/CF detected, unlocking mailbox\n", unit);
 		aha_cmd(unit, 2, 0, 0, 0, AHA_MBX_ENABLE,
 			0, extbios.mailboxlock);
 	}
