@@ -21,8 +21,6 @@
 #undef getvfsbyname
 #define vfsconf		ovfsconf
 
-#define _PATH_MODLOAD	"/sbin/modload"	/* XXX should be in header file */
-
 static struct vfsconf *_vfslist = 0;
 static struct vfsconf _vfsconf;
 static size_t _vfslistlen = 0;
@@ -162,100 +160,18 @@ endvfsent(void)
 	_vfs_index = 0;
 }
 
-static const char *vfs_lkmdirs[] = {
-	"/lkm",
-	"/usr/lkm",
-	0,
-	0
-};
-#define NLKMDIRS ((sizeof vfs_lkmdirs) / (sizeof vfs_lkmdirs[0]))
-
-static const char *
-vfspath(const char *name)
-{
-	static char pnbuf[MAXPATHLEN];
-	char *userdir = getenv("LKMDIR");
-	int i;
-
-	if(userdir && getuid() == geteuid() && getuid() == 0) {
-		vfs_lkmdirs[NLKMDIRS - 2] = userdir;
-	}
-
-	for(i = 0; vfs_lkmdirs[i]; i++) {
-		snprintf(pnbuf, sizeof pnbuf, "%s/%s_mod.o", vfs_lkmdirs[i], name);
-		if( ! access(pnbuf, R_OK) )
-			return pnbuf;
-	}
-
-	return 0;
-}
-
 int
 vfsisloadable(const char *name)
 {
-#if 0
-	int fd;
-
-	fd = open("/dev/lkm", O_RDWR, 0);
-	if(fd < 0) {
-		return 0;
-	}
-	close(fd);
-
-	return !!vfspath(name);
-#else
 	return 1;
-#endif
 }
 
 int
 vfsload(const char *name)
 {
-	const char *path;
-	char name_mod[sizeof("_mod") + strlen(name)];
-	pid_t pid;
 	int status;
 
 	status = kldload(name);
-	if (status != -1)
-		return 0;
-
-	path = vfspath(name);
-	if(!path) {
-		errno = ENOENT;
-		return -1;
-	}
-
-	pid = fork();
-	if(pid < 0)
-		return -1;
-
-	if(pid > 0) {
-		waitpid(pid, &status, 0);
-		if(WIFEXITED(status)) {
-			errno = WEXITSTATUS(status);
-			return errno ? -1 : 0;
-		}
-		errno = EINVAL;	/* not enough errno values, >sigh< */
-		return -1;
-	}
-
-	status = -1;
-	unsetenv("TMPDIR");
-	if(status) {
-		status = chdir(_PATH_VARTMP);
-	}
-	if(status) {
-		status = chdir(_PATH_TMP);
-	}
-	if(status) {
-		exit(errno);
-	}
-
-	snprintf(name_mod, sizeof name_mod, "%s%s", name, "_mod");
-	status = execl(_PATH_MODLOAD, "modload", "-e", name_mod, "-o",
-		       name_mod, "-u", "-q", path, (const char *)0);
-
-	exit(status ? errno : 0);
+	return status == -1 ? status : 0;
 }
 
