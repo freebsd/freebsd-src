@@ -123,6 +123,7 @@ typedef struct usb_hid_descriptor {
 #define HUG_VBRY		0x0044
 #define HUG_VBRZ		0x0045
 #define HUG_VNO			0x0046
+#define HUG_TWHEEL		0x0048 // M$ Wireless Intellimouse Wheel
 #define HUG_SYSTEM_CONTROL	0x0080
 #define HUG_SYSTEM_POWER_DOWN	0x0081
 #define HUG_SYSTEM_SLEEP	0x0082
