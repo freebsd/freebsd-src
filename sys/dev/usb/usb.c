@@ -521,10 +521,12 @@ usbpoll(dev, events, p)
 		mask = POLLIN | POLLRDNORM;
 
 		s = splusb();
-		if (events & mask && usb_nevents > 0)
+		if ((events & mask) && usb_nevents > 0)
 			revents |= events & mask;
-		if (revents == 0 && events & mask)
+		if (revents == 0 && (events & mask)) {
+			DPRINTF(("usb: sleeping on %p\n", &usb_selevent));
 			selrecord(p, &usb_selevent);
+		}
 		splx(s);
 
 		return (revents);
@@ -539,9 +541,9 @@ usbpoll(dev, events, p)
 		mask = POLLOUT | POLLRDNORM;
 
 		s = splusb();
-		if (events & mask && sc->sc_bus->needs_explore)
+		if ((events & mask) && sc->sc_bus->needs_explore)
 			revents |= events & mask;
-		if (revents == 0 && events & mask)
+		if (revents == 0 && (events & mask))
 			selrecord(p, &sc->sc_consel);
 		splx(s);
 
@@ -629,7 +631,7 @@ usbd_add_event(type, dev)
 	s = splusb();
 	if (++usb_nevents >= USB_MAX_EVENTS) {
 		/* Too many queued events, drop an old one. */
-		DPRINTFN(-1,("usb: event dropped\n"));
+		DPRINTF(("usb: event dropped\n"));
 		(void)usb_get_next_event(&ue);
 	}
 	/* Don't want to wait here inside splusb() */
