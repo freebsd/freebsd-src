@@ -42,32 +42,32 @@
 .Sh SYNOPSIS
 .Nm
 .Fl i
-.Op Fl cdhkmNuvy
+.Op Fl cdhmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm
 .Fl R
-.Op Fl cdkNuvy
+.Op Fl cdNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm
 .Fl r
-.Op Fl cdkNuvy
+.Op Fl cdNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm
 .Fl t
-.Op Fl cdhkNuvy
+.Op Fl cdhNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Op Ar
 .Nm
 .Fl x
-.Op Fl cdhkmNuvy
+.Op Fl cdhmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
@@ -308,7 +308,6 @@ or
 .Nm
 reads from the named file on the remote host using
 .Xr rmt 8 .
-.Pp
 .It Fl h
 Extract the actual directory,
 rather than the files that it references.
