@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.124 2002/05/26 03:10:02 minoura Exp $	*/
+/*	$NetBSD: ohci.c,v 1.125 2002/05/28 12:42:38 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
