@@ -28,9 +28,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: yppasswdd_server.c,v 1.3 1997/07/29 00:21:00 wpaul Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <stdio.h>
 #include <string.h>
@@ -58,10 +61,6 @@ struct dom_binding {};
 #include "yppasswdd_extern.h"
 #include "yppasswd.h"
 #include "yppasswd_private.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.3 1997/07/29 00:21:00 wpaul Exp $";
-#endif /* not lint */
 
 char *tempname;
 
@@ -765,8 +764,8 @@ procedure!\n", inet_ntoa(rqhost->sin_addr), rqhost->sin_port);
 				yp_error("notice: adding user %s to \
 master.passwd database for domain %s", argp->newpw.pw_name, argp->domain);
 			else
-				yp_error("restart %s with the -a flag to \
-allow additions to be made to the password database", progname);
+				yp_error("restart rpc.yppasswdd with the -a flag to \
+allow additions to be made to the password database");
 		} else {
 			yp_error("database access error: %s",
 				 yperr_string(rval));
