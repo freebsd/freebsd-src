@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.105 1995/11/06 00:35:44 bde Exp $
+ *	$Id: conf.c,v 1.106 1995/11/11 05:10:48 bde Exp $
  */
 
 #include <sys/param.h>
@@ -54,6 +54,17 @@
 #include <sys/tty.h>
 #include <sys/conf.h>
 
+#ifdef JREMOD
+
+#define NUMCDEV 96
+#define NUMBDEV 32
+
+struct bdevsw	bdevsw[NUMBDEV];
+int	nblkdev = NUMBDEV
+struct cdevsw	cdevsw[NUMCDEV];
+int	nchrdev = NUMCDEV
+
+#else /*JREMOD*/
 /* Bogus defines for compatibility. */
 #define	noioc		noioctl
 #define	nostrat		nostrategy
@@ -874,6 +885,11 @@ struct cdevsw	cdevsw[] =
 
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
+#endif /*JREMOD*/
+/*
+ * The routines below are total "BULLSHIT" and will be trashed
+ * When I have 'proved' the JREMOD changes above..
+ */
 
 /*
  * Swapdev is a fake device implemented
@@ -1021,7 +1037,11 @@ register_cdev(name, cdp)
 	dst_cdp = getcdevbyname(name);
 	if (dst_cdp == NULL)
 		return (ENXIO);
+#ifdef JREMOD
+	if ((dst_cdp->d_open != nxopen) && (dst_cdp->d_open != NULL))
+#else /*JREMOD*/
 	if (dst_cdp->d_open != nxopen)
+#endif /*JREMOD*/
 		return (EBUSY);
 	*dst_cdp = *cdp;
 	return (0);
