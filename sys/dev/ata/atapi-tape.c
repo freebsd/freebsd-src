@@ -477,7 +477,7 @@ ast_start(struct ata_device *atadev)
     ccb[3] = blkcount>>8;
     ccb[4] = blkcount;
 
-    devstat_start_transaction(stp->stats);
+    devstat_start_transaction_bio(stp->stats, bp);
 
     atapi_queue_cmd(stp->device, ccb, bp->bio_data, blkcount * stp->blksize, 
 		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0,
