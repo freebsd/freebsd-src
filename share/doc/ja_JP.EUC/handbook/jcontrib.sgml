@@ -1,4 +1,4 @@
-<!-- $Id: jcontrib.sgml,v 1.5 1997/02/22 13:01:16 peter Exp $ -->
+<!-- $Id: jcontrib.sgml,v 1.6 1997/03/03 04:56:30 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 
 <chapt><heading>FreeBSD Handbook 日本語化について<label id="jcontrib"></heading>
@@ -29,6 +29,7 @@
         <item>&a.candy
 	<item>&a.kimura
 	<item>&a.masaki
+	<item>&a.motoyuki
 	<item>&a.saeki
 	<item>&a.simokawa
 	<item>&a.yasu

@@ -1,5 +1,192 @@
-<!-- $Id: sections.sgml,v 1.9 1997/05/09 22:34:36 max Exp $ -->
+<!-- $Id$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 0 -->
+<!-- Original revision: 1.4 -->
 
-<sect><heading>Russian Language (KOI8-R encoding)<label id="russian"></heading>
+<sect><heading>ロシア語 (KOI8-R encoding)<label id="russian"></heading>
+<p><em>Contributed by &a.ache;<newline>
+1 May 1997</em>.
+<p><em>訳: &a.motoyuki;.<newline>12 May 1997.</em>
+<p>KOI8-R encoding についてのさらに詳しいことは, 
+<htmlurl url="http://www.nagual.pp.ru/~ache/koi8.html"
+name="KOI8-R References (Russian Net Character Set)"> をご覧ください.
+
+<sect1><heading>コンソールのセットアップ<label id="russian:console"></heading>
+<p>
+<enum>
+<item><tt>/etc/rc.conf</tt> でのロシア語コンソールのエントリーは以下のようになります.
+<verb>
+keymap=ru.koi8-r
+keychange="61 ^[[K"
+scrnmap=koi8-r2cp866
+font8x16=cp866b-8x16
+font8x14=cp866-8x14
+font8x8=cp866-8x8
+</verb>
+<p>
+<it>注意:</it> ^[ は
+<tt>/etc/rc.conf</tt>,
+に ^[ の文字列ではなく本当の ESC キャラクターを入れることを意味します.
+<p>
+これは, KOI8-R キーボードで, KOI8-R encoding の代替スクリーンフォントを
+疑似グラフィックに割り当て, <it>灰色のデリート</it> キーを <tt>termcap</tt> の
+FreeBSD コンソールのロシア語エントリーに一致するように再配置する, ということです.
+<p>
+RUS/LAT スイッチは <bf>CapsLock</bf> に割り当てられます. 元の CapsLock の機能は
+<bf>Shift+CapsLock</bf> で使えます.  CapsLock の LED は CapsLock のモードではなく RUS モードを示します.
+
+<item><tt>/etc/ttys</tt> の中の <tt>ttyv?</tt> の各エントリの
+ターミナルのタイプを <tt>cons25</tt> から <tt>cons25r</tt>
+に変更します, つまり各エントリは以下のようになります
+<verb>
+ttyv0	"/usr/libexec/getty Pc"		cons25r	on  secure
+</verb>
+</enum>
+
+<sect1><heading>Locale のセットアップ<label id="russian:locale"></heading>
+<p><label id="russian:env">
+Locale のセットアップには二つの環境変数を使います:
+<itemize>
+<item><tt>LANG</tt>
+は POSIX <tt>setlocale(3)</tt> ファミリの関数に;
+<item><tt>MM_CHARSET</tt>
+はアプリケーションの MIME キャラクタセットに使われます.
+</itemize>
+<p>
+一番良い方法は <tt>passwd(5)</tt> エントリの login class の場所で
+<tt>/etc/login.conf</tt> の <tt>russian</tt> ユーザの login class
+を使うことです.
+詳しくは <tt>login.conf(5)</tt> を参照してください.
+
+<sect2><heading>Login Class の設定方法<label id="russian:class"></heading>
+<p>
+まず最初に <tt>/etc/login.conf</tt> に <tt>russian</tt> login class がある
+ことを確認してください, このエントリは以下のようになります:
+<verb>
+russian:Russian Users Accounts:\
+	:charset=KOI8-R:\
+	:lang=ru_RU.KOI8-R:\
+	:tc=default:
+</verb>
+
+<sect3><heading>vipw(8) ではどうするのか</heading>
+<p>
+新しいユーザを追加するのに <tt>vipw(8)</tt> を使うのであれば,
+<tt>/etc/master.passwd</tt>
+のエントリは以下のようになります:
+<verb>
+user:password:1111:11:russian:0:0:User Name:/home/user:/bin/csh
+</verb>
+
+<sect3><heading>adduser(8) ではどうするのか</heading>
+<p>
+<tt>adduser(8)</tt> を使って新しいユーザを追加するには:
+<itemize>
+<item>
+<verb>
+defaultclass = russian
+</verb>
+を <tt>/etc/adduser.conf</tt> にセットする.
+(この場合, 全ての非ロシア語ユーザに <tt>default</tt> class を入力しなけ
+ればなりません);
+<newline><newline>
+
+<item>もう一つの方法は <tt>adduser(8)</tt> の
+<verb>
+Enter login class: default []:
+</verb>
+という表示に <tt>russian</tt> と答えるものです;
+
+<item>また, ロシア語ユーザを追加する際に:
+<verb>
+# adduser -class russian
+</verb>
+とする方法もあります.
+</itemize>
+
+<sect3><heading>pw(8) ではどうするのか</heading>
+<p>
+<tt>pw(8)</tt> を使って新しいユーザを追加するには, 次のようにします:
+<verb>
+# pw useradd user_name -L russian
+</verb>
+
+<sect2><heading>シェルのスタートアップファイルでの設定方法</heading>
+<p>
+何らかの理由で
+<ref id="russian:class" name="login class の設定方法">
+を使いたくない場合は, この
+<ref id="russian:env" name="二つの環境変数">
+をシェルのスタートアップファイルに設定します:
+<itemize>
+<item><tt>/etc/profile</tt>:
+<verb>
+LANG=ru_RU.KOI8-R; export LANG
+MM_CHARSET=KOI8-R; export MM_CHARSET
+</verb>
+
+<item><tt>/etc/csh.login</tt>:
+<verb>
+setenv LANG ru_RU.KOI8-R
+setenv MM_CHARSET KOI8-R
+</verb>
+</itemize>
+<p>
+もう一つの方法は, これらを以下のファイルに設定することです.
+<itemize>
+<item><tt>/usr/share/skel/dot.profile</tt>:
+<p>
+(上の <tt>/etc/profile</tt> と同様にします);
+
+<item><tt>/usr/share/skel/dot.login</tt>:
+<p>
+(上の <tt>/etc/csh.login</tt> と同様にします).
+</itemize>
+
+<sect1><heading>X Window System のセットアップ<label id="russian:xwindow"></heading>
+<p>
+以下の順序で設定します:
+<enum>
+<item>まず最初に
+<ref id="russian:locale" name="locale のセットアップ"> の通りに行います.
+<p>
+<it>注意:</it><label id="russian:note">
+ロシア語の KOI8-R locale は XFree86 の古いバージョン
+(3.2.1 + locale/keyboard patches より以前のもの) では動かないかもしれません.
+<tt>/usr/ports/x11/XFree86</tt> の XFree86 の port は既に全ての必要な
+パッチを含んでいます. したがってこの port から XFree86 をインストール
+したのならきちんと動くでしょう.
+基本的に, 最新の FreeBSD ディストリビューションに付属する XFree86
+のバージョンは誰かが port のパッチをあてるのを忘れない限り動くはずです.
+
+<item><tt>/usr/ports/russian/X.language</tt> ディレクトリに行き, ここで
+<verb>
+# make all install
+</verb>
+とします. このポートは最新バージョンの KOI8-R フォントをインストールします.
+<p>
+<tt>/etc/XF86Config</tt> の <tt>"Files"</tt> セクションに以下の行が
+他のどんな <tt>FontPath</tt> エントリよりも前にあることを確認します:
+<verb>
+    FontPath   "/usr/X11R6/lib/X11/fonts/cyrillic/misc"
+    FontPath   "/usr/X11R6/lib/X11/fonts/cyrillic/75dpi"
+    FontPath   "/usr/X11R6/lib/X11/fonts/cyrillic/100dpi"
+</verb>
+<p>
+高解像度のビデオモードを使っている場合は, 75 dpi と
+100 dpi の行を入れ替えます.
+
+<item>ロシア語キーボードを有効にするには
+<verb>
+    XkbKeymap   "xfree86(ru)"
+</verb>
+を <tt>/etc/XF86Config</tt> の <tt>"Keyboard"</tt> セクションに追加します,
+また <tt>XkbDisable</tt> が無効に (コメントアウト) されていることをここで
+確認します.
+<p>
+RUS/LAT スイッチは <bf>CapsLock</bf>に割り当てられます. 元の CapsLock の機能は
+<bf>Shift+CapsLock</bf> で使えます (LAT モード内でのみ).
+<p>
+<it>注意:</it>
+ロシア語 XKB キーボードは XFree86 の古いバージョンでは動かないかもしれません,
+詳しくは <ref id="russian:note" name="locale note"> を参照してください.
+</enum>
