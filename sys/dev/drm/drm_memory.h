@@ -31,28 +31,16 @@
  * $FreeBSD$
  */
 
-#define __NO_VERSION__
-#ifdef __linux__
-#include <linux/config.h>
-#endif /* __linux__ */
 #include "dev/drm/drmP.h"
-#ifdef __linux__
-#include <linux/wrapper.h>
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#if __REALLY_HAVE_AGP
-#include <sys/agpio.h>
-#endif
 
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #define malloctype DRM(M_DRM)
-/* The macros confliced in the MALLOC_DEFINE */
+/* The macros conflicted in the MALLOC_DEFINE */
 
 MALLOC_DEFINE(malloctype, "drm", "DRM Data Structures");
 
 #undef malloctype
-#endif /* __FreeBSD__ */
+#endif
 
 typedef struct drm_mem_stats {
 	const char	  *name;
@@ -63,12 +51,7 @@ typedef struct drm_mem_stats {
 	unsigned long	  bytes_freed;
 } drm_mem_stats_t;
 
-#ifdef __linux__
-static spinlock_t	  DRM(mem_lock)	     = SPIN_LOCK_UNLOCKED;
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-static DRM_OS_SPINTYPE	  DRM(mem_lock);
-#endif /* __FreeBSD__ */
+static DRM_SPINTYPE	  DRM(mem_lock);
 static unsigned long	  DRM(ram_available) = 0; /* In pages */
 static unsigned long	  DRM(ram_used)      = 0;
 static drm_mem_stats_t	  DRM(mem_stats)[]   = {
@@ -99,13 +82,12 @@ static drm_mem_stats_t	  DRM(mem_stats)[]   = {
 void DRM(mem_init)(void)
 {
 	drm_mem_stats_t *mem;
-#ifdef __linux__
-	struct sysinfo	si;
-#endif /* __linux__ */
 
-#ifdef __FreeBSD__
-	DRM_OS_SPININIT(DRM(mem_lock), "drm memory");
-#endif /* __FreeBSD__ */
+#ifdef __NetBSD__
+	malloc_type_attach(DRM(M_DRM));
+#endif
+
+	DRM_SPININIT(DRM(mem_lock), "drm memory");
 
 	for (mem = DRM(mem_stats); mem->name; ++mem) {
 		mem->succeed_count   = 0;
@@ -115,18 +97,18 @@ void DRM(mem_init)(void)
 		mem->bytes_freed     = 0;
 	}
 
-#ifdef __linux__
-	si_meminfo(&si);
-	DRM(ram_available) = si.totalram;
-#endif /* __linux__ */
-#ifdef __FreeBSD__
 	DRM(ram_available) = 0; /* si.totalram */
-#endif /* __FreeBSD__ */
 	DRM(ram_used)	   = 0;
 }
 
+void DRM(mem_uninit)(void)
+{
+	DRM_SPINUNINIT(DRM(mem_lock));
+}
+
 #ifdef __FreeBSD__
-static int 
+/* drm_mem_info is called whenever a process reads /dev/drm/mem. */
+static int
 DRM(_mem_info)(drm_mem_stats_t *stats, struct sysctl_oid *oidp, void *arg1, 
     int arg2, struct sysctl_req *req)
 {
@@ -169,9 +151,9 @@ int DRM(mem_info) DRM_SYSCTL_HANDLER_ARGS
 	if (stats == NULL)
 		return ENOMEM;
 	
-	DRM_OS_SPINLOCK(&DRM(mem_lock));
+	DRM_SPINLOCK(&DRM(mem_lock));
 	bcopy(DRM(mem_stats), stats, sizeof(DRM(mem_stats)));
-	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+	DRM_SPINUNLOCK(&DRM(mem_lock));
 	
 	ret = DRM(_mem_info)(stats, oidp, arg1, arg2, req);
 	
@@ -189,21 +171,16 @@ void *DRM(alloc)(size_t size, int area)
 		return NULL;
 	}
 
-#ifdef __linux__
-	if (!(pt = kmalloc(size, GFP_KERNEL))) {
-#endif /* __linux__ */
-#ifdef __FreeBSD__
 	if (!(pt = malloc(size, DRM(M_DRM), M_NOWAIT))) {
-#endif /* __FreeBSD__ */
-		DRM_OS_SPINLOCK(&DRM(mem_lock));
+		DRM_SPINLOCK(&DRM(mem_lock));
 		++DRM(mem_stats)[area].fail_count;
-		DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+		DRM_SPINUNLOCK(&DRM(mem_lock));
 		return NULL;
 	}
-	DRM_OS_SPINLOCK(&DRM(mem_lock));
+	DRM_SPINLOCK(&DRM(mem_lock));
 	++DRM(mem_stats)[area].succeed_count;
 	DRM(mem_stats)[area].bytes_allocated += size;
-	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+	DRM_SPINUNLOCK(&DRM(mem_lock));
 	return pt;
 }
 
@@ -244,119 +221,58 @@ void DRM(free)(void *pt, size_t size, int area)
 	int alloc_count;
 	int free_count;
 
-	if (!pt) DRM_MEM_ERROR(area, "Attempt to free NULL pointer\n");
-#ifdef __linux__
-	else	 kfree(pt);
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-	else     free(pt, DRM(M_DRM));
-#endif /* __FreeBSD__ */
-	DRM_OS_SPINLOCK(&DRM(mem_lock));
+	if (!pt)
+		DRM_MEM_ERROR(area, "Attempt to free NULL pointer\n");
+	else
+		free(pt, DRM(M_DRM));
+	DRM_SPINLOCK(&DRM(mem_lock));
 	DRM(mem_stats)[area].bytes_freed += size;
 	free_count  = ++DRM(mem_stats)[area].free_count;
 	alloc_count =	DRM(mem_stats)[area].succeed_count;
-	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+	DRM_SPINUNLOCK(&DRM(mem_lock));
 	if (free_count > alloc_count) {
 		DRM_MEM_ERROR(area, "Excess frees: %d frees, %d allocs\n",
 			      free_count, alloc_count);
 	}
 }
 
-unsigned long DRM(alloc_pages)(int order, int area)
+void *DRM(ioremap)( drm_device_t *dev, drm_local_map_t *map )
 {
-#ifdef __linux__
-	unsigned long address;
-	unsigned long addr;
-	unsigned int  sz;
-#endif /* __linux__ */
+	void *pt;
+
+	if (!map->size) {
+		DRM_MEM_ERROR(DRM_MEM_MAPPINGS,
+			      "Mapping 0 bytes at 0x%08lx\n", map->offset);
+		return NULL;
+	}
+#ifdef __NetBSD__
+	map->iot = dev->pa.pa_memt;
+#endif
+
 #ifdef __FreeBSD__
-	vm_offset_t address;
-#endif /* __FreeBSD__ */
-	unsigned long bytes	  = PAGE_SIZE << order;
-
-#ifdef __linux__
-	DRM_OS_SPINLOCK(&DRM(mem_lock));
-	if ((DRM(ram_used) >> PAGE_SHIFT)
-	    > (DRM_RAM_PERCENT * DRM(ram_available)) / 100) {
-		DRM_OS_SPINUNLOCK(&DRM(mem_lock));
-		return 0;
+	if (!(pt = pmap_mapdev(map->offset, map->size))) {
+#elif defined(__NetBSD__)
+	if (bus_space_map(map->iot, map->offset, map->size, 
+		BUS_SPACE_MAP_LINEAR, &map->ioh)) {
+#endif
+		DRM_SPINLOCK(&DRM(mem_lock));
+		++DRM(mem_stats)[DRM_MEM_MAPPINGS].fail_count;
+		DRM_SPINUNLOCK(&DRM(mem_lock));
+		return NULL;
 	}
-	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
-#endif /* __linux__ */
-
-#ifdef __linux__
-	address = __get_free_pages(GFP_KERNEL, order);
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-	address = (vm_offset_t) contigmalloc(bytes, DRM(M_DRM), M_WAITOK, 0, ~0, 1, 0);
-#endif /* __FreeBSD__ */
-	if (!address) {
-		DRM_OS_SPINLOCK(&DRM(mem_lock));
-		++DRM(mem_stats)[area].fail_count;
-		DRM_OS_SPINUNLOCK(&DRM(mem_lock));
-		return 0;
-	}
-	DRM_OS_SPINLOCK(&DRM(mem_lock));
-	++DRM(mem_stats)[area].succeed_count;
-	DRM(mem_stats)[area].bytes_allocated += bytes;
-	DRM(ram_used)		             += bytes;
-	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
-
-
-				/* Zero outside the lock */
-	memset((void *)address, 0, bytes);
-
-#ifdef __linux__
-				/* Reserve */
-	for (addr = address, sz = bytes;
-	     sz > 0;
-	     addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-		mem_map_reserve(virt_to_page(addr));
-	}
-#endif /* __linux__ */
-
-	return address;
+#ifdef __NetBSD__
+	pt = bus_space_vaddr(map->iot, map->ioh);
+#endif
+	DRM_SPINLOCK(&DRM(mem_lock));
+	++DRM(mem_stats)[DRM_MEM_MAPPINGS].succeed_count;
+	DRM(mem_stats)[DRM_MEM_MAPPINGS].bytes_allocated += map->size;
+	DRM_SPINUNLOCK(&DRM(mem_lock));
+	return pt;
 }
 
-void DRM(free_pages)(unsigned long address, int order, int area)
-{
-	unsigned long bytes = PAGE_SIZE << order;
-	int		  alloc_count;
-	int		  free_count;
-
-	if (!address) {
-		DRM_MEM_ERROR(area, "Attempt to free address 0\n");
-	} else {
-#ifdef __linux__
-		unsigned long addr;
-		unsigned int  sz;
-				/* Unreserve */
-		for (addr = address, sz = bytes;
-		     sz > 0;
-		     addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-			mem_map_unreserve(virt_to_page(addr));
-		}
-		free_pages(address, order);
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-		contigfree((void *) address, bytes, DRM(M_DRM));
-#endif /* __FreeBSD__ */
-	}
-
-	DRM_OS_SPINLOCK(&DRM(mem_lock));
-	free_count  = ++DRM(mem_stats)[area].free_count;
-	alloc_count =	DRM(mem_stats)[area].succeed_count;
-	DRM(mem_stats)[area].bytes_freed += bytes;
-	DRM(ram_used)			 -= bytes;
-	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
-	if (free_count > alloc_count) {
-		DRM_MEM_ERROR(area,
-			      "Excess frees: %d frees, %d allocs\n",
-			      free_count, alloc_count);
-	}
-}
-
-void *DRM(ioremap)(unsigned long offset, unsigned long size)
+/* unused so far */
+#if 0
+void *DRM(ioremap_nocache)(unsigned long offset, unsigned long size)
 {
 	void *pt;
 
@@ -366,45 +282,41 @@ void *DRM(ioremap)(unsigned long offset, unsigned long size)
 		return NULL;
 	}
 
-#ifdef __linux__
-	if (!(pt = ioremap(offset, size))) {
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-	if (!(pt = pmap_mapdev(offset, size))) {
-#endif /* __FreeBSD__ */
-		DRM_OS_SPINLOCK(&DRM(mem_lock));
+	/* FIXME FOR BSD */
+	if (!(pt = ioremap_nocache(offset, size))) {
+		DRM_SPINLOCK(&DRM(mem_lock));
 		++DRM(mem_stats)[DRM_MEM_MAPPINGS].fail_count;
-		DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+		DRM_SPINUNLOCK(&DRM(mem_lock));
 		return NULL;
 	}
-	DRM_OS_SPINLOCK(&DRM(mem_lock));
+	DRM_SPINLOCK(&DRM(mem_lock));
 	++DRM(mem_stats)[DRM_MEM_MAPPINGS].succeed_count;
 	DRM(mem_stats)[DRM_MEM_MAPPINGS].bytes_allocated += size;
-	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+	DRM_SPINUNLOCK(&DRM(mem_lock));
 	return pt;
 }
+#endif
 
-void DRM(ioremapfree)(void *pt, unsigned long size)
+void DRM(ioremapfree)(drm_local_map_t *map)
 {
 	int alloc_count;
 	int free_count;
 
-	if (!pt)
+	if (map->handle == NULL)
 		DRM_MEM_ERROR(DRM_MEM_MAPPINGS,
 			      "Attempt to free NULL pointer\n");
 	else
-#ifdef __linux__
-		iounmap(pt);
-#endif /* __linux__ */
 #ifdef __FreeBSD__
-		pmap_unmapdev((vm_offset_t) pt, size);
-#endif /* __FreeBSD__ */
+		pmap_unmapdev((vm_offset_t) map->handle, map->size);
+#elif defined(__NetBSD__)
+		bus_space_unmap(map->iot, map->ioh, map->size);
+#endif
 
-	DRM_OS_SPINLOCK(&DRM(mem_lock));
-	DRM(mem_stats)[DRM_MEM_MAPPINGS].bytes_freed += size;
+	DRM_SPINLOCK(&DRM(mem_lock));
+	DRM(mem_stats)[DRM_MEM_MAPPINGS].bytes_freed += map->size;
 	free_count  = ++DRM(mem_stats)[DRM_MEM_MAPPINGS].free_count;
 	alloc_count =	DRM(mem_stats)[DRM_MEM_MAPPINGS].succeed_count;
-	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+	DRM_SPINUNLOCK(&DRM(mem_lock));
 	if (free_count > alloc_count) {
 		DRM_MEM_ERROR(DRM_MEM_MAPPINGS,
 			      "Excess frees: %d frees, %d allocs\n",
@@ -423,16 +335,16 @@ agp_memory *DRM(alloc_agp)(int pages, u32 type)
 	}
 
 	if ((handle = DRM(agp_allocate_memory)(pages, type))) {
-		DRM_OS_SPINLOCK(&DRM(mem_lock));
+		DRM_SPINLOCK(&DRM(mem_lock));
 		++DRM(mem_stats)[DRM_MEM_TOTALAGP].succeed_count;
 		DRM(mem_stats)[DRM_MEM_TOTALAGP].bytes_allocated
 			+= pages << PAGE_SHIFT;
-		DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+		DRM_SPINUNLOCK(&DRM(mem_lock));
 		return handle;
 	}
-	DRM_OS_SPINLOCK(&DRM(mem_lock));
+	DRM_SPINLOCK(&DRM(mem_lock));
 	++DRM(mem_stats)[DRM_MEM_TOTALAGP].fail_count;
-	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+	DRM_SPINUNLOCK(&DRM(mem_lock));
 	return NULL;
 }
 
@@ -444,16 +356,16 @@ int DRM(free_agp)(agp_memory *handle, int pages)
 	if (!handle) {
 		DRM_MEM_ERROR(DRM_MEM_TOTALAGP,
 			      "Attempt to free NULL AGP handle\n");
-		return DRM_OS_ERR(EINVAL);
+		return DRM_ERR(EINVAL);
 	}
 
 	if (DRM(agp_free_memory)(handle)) {
-		DRM_OS_SPINLOCK(&DRM(mem_lock));
+		DRM_SPINLOCK(&DRM(mem_lock));
 		free_count  = ++DRM(mem_stats)[DRM_MEM_TOTALAGP].free_count;
 		alloc_count =   DRM(mem_stats)[DRM_MEM_TOTALAGP].succeed_count;
 		DRM(mem_stats)[DRM_MEM_TOTALAGP].bytes_freed
 			+= pages << PAGE_SHIFT;
-		DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+		DRM_SPINUNLOCK(&DRM(mem_lock));
 		if (free_count > alloc_count) {
 			DRM_MEM_ERROR(DRM_MEM_TOTALAGP,
 				      "Excess frees: %d frees, %d allocs\n",
@@ -461,90 +373,72 @@ int DRM(free_agp)(agp_memory *handle, int pages)
 		}
 		return 0;
 	}
-	return DRM_OS_ERR(EINVAL);
+	return DRM_ERR(EINVAL);
 }
 
 int DRM(bind_agp)(agp_memory *handle, unsigned int start)
 {
 	int retcode;
-#ifdef __FreeBSD__
-	device_t dev = agp_find_device();
+	device_t dev = DRM_AGP_FIND_DEVICE();
 	struct agp_memory_info info;
 
 	if (!dev)
-		return DRM_OS_ERR(EINVAL);
-#endif /* __FreeBSD__ */
+		return EINVAL;
 
 	if (!handle) {
 		DRM_MEM_ERROR(DRM_MEM_BOUNDAGP,
 			      "Attempt to bind NULL AGP handle\n");
-		return DRM_OS_ERR(EINVAL);
+		return DRM_ERR(EINVAL);
 	}
 
 	if (!(retcode = DRM(agp_bind_memory)(handle, start))) {
-		DRM_OS_SPINLOCK(&DRM(mem_lock));
+		DRM_SPINLOCK(&DRM(mem_lock));
 		++DRM(mem_stats)[DRM_MEM_BOUNDAGP].succeed_count;
-#ifdef __linux__
-		DRM(mem_stats)[DRM_MEM_BOUNDAGP].bytes_allocated
-			+= handle->page_count << PAGE_SHIFT;
-#endif /* __linux__ */
-#ifdef __FreeBSD__
 		agp_memory_info(dev, handle, &info);
 		DRM(mem_stats)[DRM_MEM_BOUNDAGP].bytes_allocated
 			+= info.ami_size;
-#endif /* __FreeBSD__ */
-		DRM_OS_SPINUNLOCK(&DRM(mem_lock));
-		return 0;
+		DRM_SPINUNLOCK(&DRM(mem_lock));
+		return DRM_ERR(0);
 	}
-	DRM_OS_SPINLOCK(&DRM(mem_lock));
+	DRM_SPINLOCK(&DRM(mem_lock));
 	++DRM(mem_stats)[DRM_MEM_BOUNDAGP].fail_count;
-	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
-	return retcode;
+	DRM_SPINUNLOCK(&DRM(mem_lock));
+	return DRM_ERR(retcode);
 }
 
 int DRM(unbind_agp)(agp_memory *handle)
 {
 	int alloc_count;
 	int free_count;
-	int retcode = DRM_OS_ERR(EINVAL);
-#ifdef __FreeBSD__
-	device_t dev = agp_find_device();
+	int retcode = EINVAL;
+	device_t dev = DRM_AGP_FIND_DEVICE();
 	struct agp_memory_info info;
 
 	if (!dev)
-		return DRM_OS_ERR(EINVAL);
-#endif /* __FreeBSD__ */
+		return EINVAL;
 
 	if (!handle) {
 		DRM_MEM_ERROR(DRM_MEM_BOUNDAGP,
 			      "Attempt to unbind NULL AGP handle\n");
-		return retcode;
+		return DRM_ERR(retcode);
 	}
 
-#ifdef __FreeBSD__
 	agp_memory_info(dev, handle, &info);
-#endif /* __FreeBSD__ */
 
 	if ((retcode = DRM(agp_unbind_memory)(handle))) 
-		return retcode;
+		return DRM_ERR(retcode);
 
-	DRM_OS_SPINLOCK(&DRM(mem_lock));
+	DRM_SPINLOCK(&DRM(mem_lock));
 	free_count  = ++DRM(mem_stats)[DRM_MEM_BOUNDAGP].free_count;
 	alloc_count = DRM(mem_stats)[DRM_MEM_BOUNDAGP].succeed_count;
-#ifdef __linux__
-	DRM(mem_stats)[DRM_MEM_BOUNDAGP].bytes_freed
-		+= handle->page_count << PAGE_SHIFT;
-#endif /* __linux__ */
-#ifdef __FreeBSD__
 	DRM(mem_stats)[DRM_MEM_BOUNDAGP].bytes_freed
 		+= info.ami_size;
-#endif /* __FreeBSD__ */
-	DRM_OS_SPINUNLOCK(&DRM(mem_lock));
+	DRM_SPINUNLOCK(&DRM(mem_lock));
 	if (free_count > alloc_count) {
 		DRM_MEM_ERROR(DRM_MEM_BOUNDAGP,
 			      "Excess frees: %d frees, %d allocs\n",
 			      free_count, alloc_count);
 	}
-	return retcode;
+	return DRM_ERR(retcode);
 }
 #endif

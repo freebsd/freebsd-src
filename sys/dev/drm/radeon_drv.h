@@ -33,6 +33,9 @@
 #ifndef __RADEON_DRV_H__
 #define __RADEON_DRV_H__
 
+#define GET_RING_HEAD(ring)		DRM_READ32(  (ring)->ring_rptr, 0 ) /* (ring)->head */
+#define SET_RING_HEAD(ring,val)		DRM_WRITE32( (ring)->ring_rptr, 0, (val) ) /* (ring)->head */
+
 typedef struct drm_radeon_freelist {
    	unsigned int age;
    	drm_buf_t *buf;
@@ -52,6 +55,7 @@ typedef struct drm_radeon_ring_buffer {
 	int space;
 
 	int high_mark;
+	drm_local_map_t *ring_rptr;
 } drm_radeon_ring_buffer_t;
 
 typedef struct drm_radeon_depth_clear_t {
@@ -59,6 +63,15 @@ typedef struct drm_radeon_depth_clear_t {
 	u32 rb3d_zstencilcntl;
 	u32 se_cntl;
 } drm_radeon_depth_clear_t;
+
+
+struct mem_block {
+	struct mem_block *next;
+	struct mem_block *prev;
+	int start;
+	int size;
+	int pid;		/* 0: free, -1: heap, other: real pids */
+};
 
 typedef struct drm_radeon_private {
 	drm_radeon_ring_buffer_t ring;
@@ -73,29 +86,32 @@ typedef struct drm_radeon_private {
 
    	drm_radeon_freelist_t *head;
    	drm_radeon_freelist_t *tail;
-/* FIXME: ROTATE_BUFS is a hask to cycle through bufs until freelist
-   code is used.  Note this hides a problem with the scratch register
-   (used to keep track of last buffer completed) being written to before
-   the last buffer has actually completed rendering. */
-#define ROTATE_BUFS 1
-#if ROTATE_BUFS
 	int last_buf;
-#endif
 	volatile u32 *scratch;
+	int writeback_works;
 
 	int usec_timeout;
+
+	int is_r200;
+
 	int is_pci;
 	unsigned long phys_pci_gart;
-#if __REALLY_HAVE_SG
 	dma_addr_t bus_pci_gart;
-#endif
 
-	atomic_t idle_count;
+	struct {
+		u32 boxes;
+		int freelist_timeouts;
+		int freelist_loops;
+		int requested_bufs;
+		int last_frame_reads;
+		int last_clear_reads;
+		int clears;
+		int texture_uploads;
+	} stats;
 
+	int do_boxes;
 	int page_flipping;
 	int current_page;
-	u32 crtc_offset;
-	u32 crtc_offset_cntl;
 
 	u32 color_fmt;
 	unsigned int front_offset;
@@ -113,58 +129,84 @@ typedef struct drm_radeon_private {
 
 	drm_radeon_depth_clear_t depth_clear;
 
-	drm_map_t *sarea;
-	drm_map_t *fb;
-	drm_map_t *mmio;
-	drm_map_t *cp_ring;
-	drm_map_t *ring_rptr;
-	drm_map_t *buffers;
-	drm_map_t *agp_textures;
+	drm_local_map_t *sarea;
+	drm_local_map_t *fb;
+	drm_local_map_t *mmio;
+	drm_local_map_t *cp_ring;
+	drm_local_map_t *ring_rptr;
+	drm_local_map_t *buffers;
+	drm_local_map_t *agp_textures;
+
+	struct mem_block *agp_heap;
+	struct mem_block *fb_heap;
+
+	/* SW interrupt */
+   	wait_queue_head_t swi_queue;
+   	atomic_t swi_emitted;
+
 } drm_radeon_private_t;
 
 typedef struct drm_radeon_buf_priv {
 	u32 age;
-	int prim;
-	int discard;
-	int dispatched;
-   	drm_radeon_freelist_t *list_entry;
 } drm_radeon_buf_priv_t;
 
 				/* radeon_cp.c */
-extern int radeon_cp_init( DRM_OS_IOCTL );
-extern int radeon_cp_start( DRM_OS_IOCTL );
-extern int radeon_cp_stop( DRM_OS_IOCTL );
-extern int radeon_cp_reset( DRM_OS_IOCTL );
-extern int radeon_cp_idle( DRM_OS_IOCTL );
-extern int radeon_engine_reset( DRM_OS_IOCTL );
-extern int radeon_fullscreen( DRM_OS_IOCTL );
-extern int radeon_cp_buffers( DRM_OS_IOCTL );
+extern int radeon_cp_init( DRM_IOCTL_ARGS );
+extern int radeon_cp_start( DRM_IOCTL_ARGS );
+extern int radeon_cp_stop( DRM_IOCTL_ARGS );
+extern int radeon_cp_reset( DRM_IOCTL_ARGS );
+extern int radeon_cp_idle( DRM_IOCTL_ARGS );
+extern int radeon_engine_reset( DRM_IOCTL_ARGS );
+extern int radeon_fullscreen( DRM_IOCTL_ARGS );
+extern int radeon_cp_buffers( DRM_IOCTL_ARGS );
 
 extern void radeon_freelist_reset( drm_device_t *dev );
 extern drm_buf_t *radeon_freelist_get( drm_device_t *dev );
 
 extern int radeon_wait_ring( drm_radeon_private_t *dev_priv, int n );
 
-static __inline__ void
-radeon_update_ring_snapshot( drm_radeon_ring_buffer_t *ring )
-{
-	ring->space = (*(volatile int *)ring->head - ring->tail) * sizeof(u32);
-	if ( ring->space <= 0 )
-		ring->space += ring->size;
-}
-
 extern int radeon_do_cp_idle( drm_radeon_private_t *dev_priv );
 extern int radeon_do_cleanup_cp( drm_device_t *dev );
 extern int radeon_do_cleanup_pageflip( drm_device_t *dev );
 
 				/* radeon_state.c */
-extern int radeon_cp_clear( DRM_OS_IOCTL );
-extern int radeon_cp_swap( DRM_OS_IOCTL );
-extern int radeon_cp_vertex( DRM_OS_IOCTL );
-extern int radeon_cp_indices( DRM_OS_IOCTL );
-extern int radeon_cp_texture( DRM_OS_IOCTL );
-extern int radeon_cp_stipple( DRM_OS_IOCTL );
-extern int radeon_cp_indirect( DRM_OS_IOCTL );
+extern int radeon_cp_clear( DRM_IOCTL_ARGS );
+extern int radeon_cp_swap( DRM_IOCTL_ARGS );
+extern int radeon_cp_vertex( DRM_IOCTL_ARGS );
+extern int radeon_cp_indices( DRM_IOCTL_ARGS );
+extern int radeon_cp_texture( DRM_IOCTL_ARGS );
+extern int radeon_cp_stipple( DRM_IOCTL_ARGS );
+extern int radeon_cp_indirect( DRM_IOCTL_ARGS );
+extern int radeon_cp_vertex2( DRM_IOCTL_ARGS );
+extern int radeon_cp_cmdbuf( DRM_IOCTL_ARGS );
+extern int radeon_cp_getparam( DRM_IOCTL_ARGS );
+extern int radeon_cp_flip( DRM_IOCTL_ARGS );
+
+extern int radeon_mem_alloc( DRM_IOCTL_ARGS );
+extern int radeon_mem_free( DRM_IOCTL_ARGS );
+extern int radeon_mem_init_heap( DRM_IOCTL_ARGS );
+extern void radeon_mem_takedown( struct mem_block **heap );
+extern void radeon_mem_release( struct mem_block *heap );
+
+				/* radeon_irq.c */
+extern int radeon_irq_emit( DRM_IOCTL_ARGS );
+extern int radeon_irq_wait( DRM_IOCTL_ARGS );
+
+extern int radeon_emit_and_wait_irq(drm_device_t *dev);
+extern int radeon_wait_irq(drm_device_t *dev, int swi_nr);
+extern int radeon_emit_irq(drm_device_t *dev);
+
+extern void radeon_do_release(drm_device_t *dev);
+
+/* Flags for stats.boxes
+ */
+#define RADEON_BOX_DMA_IDLE      0x1
+#define RADEON_BOX_RING_FULL     0x2
+#define RADEON_BOX_FLIP          0x4
+#define RADEON_BOX_WAIT_IDLE     0x8
+#define RADEON_BOX_TEXTURE_LOAD  0x10
+
+
 
 /* Register definitions, register access macros and drmAddMap constants
  * for Radeon kernel driver.
@@ -190,10 +232,10 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 #define RADEON_CRTC_OFFSET_CNTL		0x0228
 #	define RADEON_CRTC_TILE_EN		(1 << 15)
 #	define RADEON_CRTC_OFFSET_FLIP_CNTL	(1 << 16)
+#define RADEON_CRTC2_OFFSET		0x0324
+#define RADEON_CRTC2_OFFSET_CNTL	0x0328
 
 #define RADEON_RB3D_COLORPITCH		0x1c48
-#define RADEON_RB3D_DEPTHCLEARVALUE	0x1c30
-#define RADEON_RB3D_DEPTHXY_OFFSET	0x1c60
 
 #define RADEON_DP_GUI_MASTER_CNTL	0x146c
 #	define RADEON_GMC_SRC_PITCH_OFFSET_CNTL	(1 << 0)
@@ -228,6 +270,26 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 #define RADEON_SCRATCH_UMSK		0x0770
 #define RADEON_SCRATCH_ADDR		0x0774
 
+#define RADEON_SCRATCHOFF( x )		(RADEON_SCRATCH_REG_OFFSET + 4*(x))
+
+#define GET_SCRATCH( x )	(dev_priv->writeback_works			\
+				? DRM_READ32( dev_priv->ring_rptr, RADEON_SCRATCHOFF(x) ) \
+				: RADEON_READ( RADEON_SCRATCH_REG0 + 4*(x) ) )
+
+
+#define RADEON_GEN_INT_CNTL		0x0040
+#	define RADEON_CRTC_VBLANK_MASK		(1 << 0)
+#	define RADEON_GUI_IDLE_INT_ENABLE	(1 << 19)
+#	define RADEON_SW_INT_ENABLE		(1 << 25)
+
+#define RADEON_GEN_INT_STATUS		0x0044
+#	define RADEON_CRTC_VBLANK_STAT		(1 << 0)
+#	define RADEON_CRTC_VBLANK_STAT_ACK   	(1 << 0)
+#	define RADEON_GUI_IDLE_INT_TEST_ACK     (1 << 19)
+#	define RADEON_SW_INT_TEST		(1 << 25)
+#	define RADEON_SW_INT_TEST_ACK   	(1 << 25)
+#	define RADEON_SW_INT_FIRE		(1 << 26)
+
 #define RADEON_HOST_PATH_CNTL		0x0130
 #	define RADEON_HDP_SOFT_RESET		(1 << 26)
 #	define RADEON_HDP_WC_TIMEOUT_MASK	(7 << 28)
@@ -240,6 +302,12 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 #	define RADEON_ISYNC_TRIG3D_IDLE2D	(1 << 3)
 #	define RADEON_ISYNC_WAIT_IDLEGUI	(1 << 4)
 #	define RADEON_ISYNC_CPSCRATCH_IDLEGUI	(1 << 5)
+
+#define RADEON_RBBM_GUICNTL		0x172c
+#	define RADEON_HOST_DATA_SWAP_NONE	(0 << 0)
+#	define RADEON_HOST_DATA_SWAP_16BIT	(1 << 0)
+#	define RADEON_HOST_DATA_SWAP_32BIT	(2 << 0)
+#	define RADEON_HOST_DATA_SWAP_HDW	(3 << 0)
 
 #define RADEON_MC_AGP_LOCATION		0x014c
 #define RADEON_MC_FB_LOCATION		0x0148
@@ -278,10 +346,8 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 #	define RADEON_ROP_ENABLE		(1 << 6)
 #	define RADEON_STENCIL_ENABLE		(1 << 7)
 #	define RADEON_Z_ENABLE			(1 << 8)
-#	define RADEON_DEPTH_XZ_OFFEST_ENABLE	(1 << 9)
-#	define RADEON_ZBLOCK8			(0 << 15)
-#	define RADEON_ZBLOCK16			(1 << 15)
 #define RADEON_RB3D_DEPTHOFFSET		0x1c24
+#define RADEON_RB3D_DEPTHPITCH		0x1c28
 #define RADEON_RB3D_PLANEMASK		0x1d84
 #define RADEON_RB3D_STENCILREFMASK	0x1d7c
 #define RADEON_RB3D_ZCACHE_MODE		0x3250
@@ -294,9 +360,9 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 #	define RADEON_Z_TEST_MASK		(7 << 4)
 #	define RADEON_Z_TEST_ALWAYS		(7 << 4)
 #	define RADEON_STENCIL_TEST_ALWAYS	(7 << 12)
-#	define RADEON_STENCIL_S_FAIL_KEEP	(0 << 16)
-#	define RADEON_STENCIL_ZPASS_KEEP	(0 << 20)
-#	define RADEON_STENCIL_ZFAIL_KEEP	(0 << 20)
+#	define RADEON_STENCIL_S_FAIL_REPLACE	(2 << 16)
+#	define RADEON_STENCIL_ZPASS_REPLACE	(2 << 20)
+#	define RADEON_STENCIL_ZFAIL_REPLACE	(2 << 24)
 #	define RADEON_Z_WRITE_ENABLE		(1 << 30)
 #define RADEON_RBBM_SOFT_RESET		0x00f0
 #	define RADEON_SOFT_RESET_CP		(1 <<  0)
@@ -345,6 +411,16 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 #define RADEON_SE_CNTL_STATUS		0x2140
 #define RADEON_SE_LINE_WIDTH		0x1db8
 #define RADEON_SE_VPORT_XSCALE		0x1d98
+#define RADEON_SE_ZBIAS_FACTOR		0x1db0
+#define RADEON_SE_TCL_MATERIAL_EMMISSIVE_RED 0x2210
+#define RADEON_SE_TCL_OUTPUT_VTX_FMT         0x2254
+#define RADEON_SE_TCL_VECTOR_INDX_REG        0x2200
+#       define RADEON_VEC_INDX_OCTWORD_STRIDE_SHIFT  16
+#       define RADEON_VEC_INDX_DWORD_COUNT_SHIFT     28
+#define RADEON_SE_TCL_VECTOR_DATA_REG       0x2204
+#define RADEON_SE_TCL_SCALAR_INDX_REG       0x2208
+#       define RADEON_SCAL_INDX_DWORD_STRIDE_SHIFT  16
+#define RADEON_SE_TCL_SCALAR_DATA_REG       0x220C
 #define RADEON_SURFACE_ACCESS_FLAGS	0x0bf8
 #define RADEON_SURFACE_ACCESS_CLR	0x0bfc
 #define RADEON_SURFACE_CNTL		0x0b00
@@ -409,6 +485,7 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 
 #define RADEON_CP_RB_BASE		0x0700
 #define RADEON_CP_RB_CNTL		0x0704
+#	define RADEON_BUF_SWAP_32BIT		(2 << 16)
 #define RADEON_CP_RB_RPTR_ADDR		0x070c
 #define RADEON_CP_RB_RPTR		0x0710
 #define RADEON_CP_RB_WPTR		0x0714
@@ -445,11 +522,14 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 #define RADEON_CP_PACKET3		0xC0000000
 #	define RADEON_3D_RNDR_GEN_INDX_PRIM	0x00002300
 #	define RADEON_WAIT_FOR_IDLE		0x00002600
+#	define RADEON_3D_DRAW_VBUF		0x00002800
 #	define RADEON_3D_DRAW_IMMD		0x00002900
-#	define RADEON_3D_CLEAR_ZMASK		0x00003200
+#	define RADEON_3D_DRAW_INDX		0x00002A00
+#	define RADEON_3D_LOAD_VBPNTR		0x00002F00
 #	define RADEON_CNTL_HOSTDATA_BLT		0x00009400
 #	define RADEON_CNTL_PAINT_MULTI		0x00009A00
 #	define RADEON_CNTL_BITBLT_MULTI		0x00009B00
+#	define RADEON_CNTL_SET_SCISSORS		0xC0001E00
 
 #define RADEON_CP_PACKET_MASK		0xC0000000
 #define RADEON_CP_PACKET_COUNT_MASK	0x3fff0000
@@ -458,6 +538,7 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 #define RADEON_CP_PACKET1_REG1_MASK	0x003ff800
 
 #define RADEON_VTX_Z_PRESENT			(1 << 31)
+#define RADEON_VTX_PKCOLOR_PRESENT		(1 << 3)
 
 #define RADEON_PRIM_TYPE_NONE			(0 << 0)
 #define RADEON_PRIM_TYPE_POINT			(1 << 0)
@@ -470,6 +551,7 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 #define RADEON_PRIM_TYPE_RECT_LIST		(8 << 0)
 #define RADEON_PRIM_TYPE_3VRT_POINT_LIST	(9 << 0)
 #define RADEON_PRIM_TYPE_3VRT_LINE_LIST		(10 << 0)
+#define RADEON_PRIM_TYPE_MASK                   0xf
 #define RADEON_PRIM_WALK_IND			(1 << 4)
 #define RADEON_PRIM_WALK_LIST			(2 << 4)
 #define RADEON_PRIM_WALK_RING			(3 << 4)
@@ -496,6 +578,105 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 #define RADEON_TXFORMAT_ARGB4444	5
 #define RADEON_TXFORMAT_ARGB8888	6
 #define RADEON_TXFORMAT_RGBA8888	7
+#define RADEON_TXFORMAT_VYUY422         10
+#define RADEON_TXFORMAT_YVYU422         11
+#define RADEON_TXFORMAT_DXT1            12
+#define RADEON_TXFORMAT_DXT23           14
+#define RADEON_TXFORMAT_DXT45           15
+
+#define R200_PP_TXCBLEND_0                0x2f00
+#define R200_PP_TXCBLEND_1                0x2f10
+#define R200_PP_TXCBLEND_2                0x2f20
+#define R200_PP_TXCBLEND_3                0x2f30
+#define R200_PP_TXCBLEND_4                0x2f40
+#define R200_PP_TXCBLEND_5                0x2f50
+#define R200_PP_TXCBLEND_6                0x2f60
+#define R200_PP_TXCBLEND_7                0x2f70
+#define R200_SE_TCL_LIGHT_MODEL_CTL_0     0x2268 
+#define R200_PP_TFACTOR_0                 0x2ee0
+#define R200_SE_VTX_FMT_0                 0x2088
+#define R200_SE_VAP_CNTL                  0x2080
+#define R200_SE_TCL_MATRIX_SEL_0          0x2230
+#define R200_SE_TCL_TEX_PROC_CTL_2        0x22a8 
+#define R200_SE_TCL_UCP_VERT_BLEND_CTL    0x22c0 
+#define R200_PP_TXFILTER_5                0x2ca0 
+#define R200_PP_TXFILTER_4                0x2c80 
+#define R200_PP_TXFILTER_3                0x2c60 
+#define R200_PP_TXFILTER_2                0x2c40 
+#define R200_PP_TXFILTER_1                0x2c20 
+#define R200_PP_TXFILTER_0                0x2c00 
+#define R200_PP_TXOFFSET_5                0x2d78
+#define R200_PP_TXOFFSET_4                0x2d60
+#define R200_PP_TXOFFSET_3                0x2d48
+#define R200_PP_TXOFFSET_2                0x2d30
+#define R200_PP_TXOFFSET_1                0x2d18
+#define R200_PP_TXOFFSET_0                0x2d00
+
+#define R200_PP_CUBIC_FACES_0             0x2c18
+#define R200_PP_CUBIC_FACES_1             0x2c38
+#define R200_PP_CUBIC_FACES_2             0x2c58
+#define R200_PP_CUBIC_FACES_3             0x2c78
+#define R200_PP_CUBIC_FACES_4             0x2c98
+#define R200_PP_CUBIC_FACES_5             0x2cb8
+#define R200_PP_CUBIC_OFFSET_F1_0         0x2d04
+#define R200_PP_CUBIC_OFFSET_F2_0         0x2d08
+#define R200_PP_CUBIC_OFFSET_F3_0         0x2d0c
+#define R200_PP_CUBIC_OFFSET_F4_0         0x2d10
+#define R200_PP_CUBIC_OFFSET_F5_0         0x2d14
+#define R200_PP_CUBIC_OFFSET_F1_1         0x2d1c
+#define R200_PP_CUBIC_OFFSET_F2_1         0x2d20
+#define R200_PP_CUBIC_OFFSET_F3_1         0x2d24
+#define R200_PP_CUBIC_OFFSET_F4_1         0x2d28
+#define R200_PP_CUBIC_OFFSET_F5_1         0x2d2c
+#define R200_PP_CUBIC_OFFSET_F1_2         0x2d34
+#define R200_PP_CUBIC_OFFSET_F2_2         0x2d38
+#define R200_PP_CUBIC_OFFSET_F3_2         0x2d3c
+#define R200_PP_CUBIC_OFFSET_F4_2         0x2d40
+#define R200_PP_CUBIC_OFFSET_F5_2         0x2d44
+#define R200_PP_CUBIC_OFFSET_F1_3         0x2d4c
+#define R200_PP_CUBIC_OFFSET_F2_3         0x2d50
+#define R200_PP_CUBIC_OFFSET_F3_3         0x2d54
+#define R200_PP_CUBIC_OFFSET_F4_3         0x2d58
+#define R200_PP_CUBIC_OFFSET_F5_3         0x2d5c
+#define R200_PP_CUBIC_OFFSET_F1_4         0x2d64
+#define R200_PP_CUBIC_OFFSET_F2_4         0x2d68
+#define R200_PP_CUBIC_OFFSET_F3_4         0x2d6c
+#define R200_PP_CUBIC_OFFSET_F4_4         0x2d70
+#define R200_PP_CUBIC_OFFSET_F5_4         0x2d74
+#define R200_PP_CUBIC_OFFSET_F1_5         0x2d7c
+#define R200_PP_CUBIC_OFFSET_F2_5         0x2d80
+#define R200_PP_CUBIC_OFFSET_F3_5         0x2d84
+#define R200_PP_CUBIC_OFFSET_F4_5         0x2d88
+#define R200_PP_CUBIC_OFFSET_F5_5         0x2d8c
+
+#define R200_RE_AUX_SCISSOR_CNTL          0x26f0
+#define R200_SE_VTE_CNTL                  0x20b0
+#define R200_SE_TCL_OUTPUT_VTX_COMP_SEL   0x2250
+#define R200_PP_TAM_DEBUG3                0x2d9c
+#define R200_PP_CNTL_X                    0x2cc4
+#define R200_SE_VAP_CNTL_STATUS           0x2140
+#define R200_RE_SCISSOR_TL_0              0x1cd8
+#define R200_RE_SCISSOR_TL_1              0x1ce0
+#define R200_RE_SCISSOR_TL_2              0x1ce8
+#define R200_RB3D_DEPTHXY_OFFSET          0x1d60 
+#define R200_RE_AUX_SCISSOR_CNTL          0x26f0
+#define R200_SE_VTX_STATE_CNTL            0x2180
+#define R200_RE_POINTSIZE                 0x2648
+#define R200_SE_TCL_INPUT_VTX_VECTOR_ADDR_0 0x2254
+
+
+#define SE_VAP_CNTL__TCL_ENA_MASK                          0x00000001
+#define SE_VAP_CNTL__FORCE_W_TO_ONE_MASK                   0x00010000
+#define SE_VAP_CNTL__VF_MAX_VTX_NUM__SHIFT                 0x00000012
+#define SE_VTE_CNTL__VTX_XY_FMT_MASK                       0x00000100
+#define SE_VTE_CNTL__VTX_Z_FMT_MASK                        0x00000200
+#define SE_VTX_FMT_0__VTX_Z0_PRESENT_MASK                  0x00000001
+#define SE_VTX_FMT_0__VTX_W0_PRESENT_MASK                  0x00000002
+#define SE_VTX_FMT_0__VTX_COLOR_0_FMT__SHIFT               0x0000000b
+#define R200_3D_DRAW_IMMD_2      0xC0003500
+#define R200_SE_VTX_FMT_1                 0x208c
+#define R200_RE_CNTL                      0x1c50 
+
 
 /* Constants */
 #define RADEON_MAX_USEC_TIMEOUT		100000	/* 100 ms */
@@ -503,6 +684,7 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 #define RADEON_LAST_FRAME_REG		RADEON_SCRATCH_REG0
 #define RADEON_LAST_DISPATCH_REG	RADEON_SCRATCH_REG1
 #define RADEON_LAST_CLEAR_REG		RADEON_SCRATCH_REG2
+#define RADEON_LAST_SWI_REG		RADEON_SCRATCH_REG3
 #define RADEON_LAST_DISPATCH		1
 
 #define RADEON_MAX_VB_AGE		0x7fffffff
@@ -510,45 +692,10 @@ extern int radeon_cp_indirect( DRM_OS_IOCTL );
 
 #define RADEON_RING_HIGH_MARK		128
 
-
-#define RADEON_BASE(reg)	((unsigned long)(dev_priv->mmio->handle))
-#define RADEON_ADDR(reg)	(RADEON_BASE( reg ) + reg)
-
-#define RADEON_DEREF(reg)	*(volatile u32 *)RADEON_ADDR( reg )
-#ifdef __alpha__
-#define RADEON_READ(reg)	(_RADEON_READ((u32 *)RADEON_ADDR( reg )))
-static inline u32 _RADEON_READ(u32 *addr)
-{
-	DRM_OS_READMEMORYBARRIER;
-	return *(volatile u32 *)addr;
-}
-#define RADEON_WRITE(reg,val)						\
-do {									\
-	DRM_OS_WRITEMEMORYBARRIER;					\
-	RADEON_DEREF(reg) = val;					\
-} while (0)
-#else
-#define RADEON_READ(reg)	RADEON_DEREF( reg )
-#define RADEON_WRITE(reg, val)	do { RADEON_DEREF( reg ) = val; } while (0)
-#endif
-
-#define RADEON_DEREF8(reg)	*(volatile u8 *)RADEON_ADDR( reg )
-#ifdef __alpha__
-#define RADEON_READ8(reg)	_RADEON_READ8((u8 *)RADEON_ADDR( reg ))
-static inline u8 _RADEON_READ8(u8 *addr)
-{
-	DRM_OS_READMEMORYBARRIER;
-	return *(volatile u8 *)addr;
-}
-#define RADEON_WRITE8(reg,val)						\
-do {									\
-	DRM_OS_WRITEMEMORYBARRIER;					\
-	RADEON_DEREF8( reg ) = val;					\
-} while (0)
-#else
-#define RADEON_READ8(reg)	RADEON_DEREF8( reg )
-#define RADEON_WRITE8(reg, val)	do { RADEON_DEREF8( reg ) = val; } while (0)
-#endif
+#define RADEON_READ(reg)	DRM_READ32(  dev_priv->mmio, (reg) )
+#define RADEON_WRITE(reg,val)	DRM_WRITE32( dev_priv->mmio, (reg), (val) )
+#define RADEON_READ8(reg)	DRM_READ8(  dev_priv->mmio, (reg) )
+#define RADEON_WRITE8(reg,val)	DRM_WRITE8( dev_priv->mmio, (reg), (val) )
 
 #define RADEON_WRITE_PLL( addr, val )					\
 do {									\
@@ -628,42 +775,24 @@ extern int RADEON_READ_PLL( drm_device_t *dev, int addr );
 #define LOCK_TEST_WITH_RETURN( dev )					\
 do {									\
 	if ( !_DRM_LOCK_IS_HELD( dev->lock.hw_lock->lock ) ||		\
-	     dev->lock.pid != DRM_OS_CURRENTPID ) {			\
-		DRM_ERROR( "%s called without lock held\n", __func__ );	\
-		return DRM_OS_ERR(EINVAL);				\
+	     dev->lock.pid != DRM_CURRENTPID ) {			\
+		DRM_ERROR( "%s called without lock held\n", __FUNCTION__ );	\
+		return DRM_ERR(EINVAL);				\
 	}								\
 } while (0)
 
+
+/* Perfbox functionality only.  
+ */
 #define RING_SPACE_TEST_WITH_RETURN( dev_priv )				\
 do {									\
-	drm_radeon_ring_buffer_t *ring = &dev_priv->ring; int i;	\
-	if ( ring->space < ring->high_mark ) {				\
-		for ( i = 0 ; i < dev_priv->usec_timeout ; i++ ) {	\
-			radeon_update_ring_snapshot( ring );		\
-			if ( ring->space >= ring->high_mark )		\
-				goto __ring_space_done;			\
-			DRM_OS_DELAY( 1 );				\
-		}							\
-		DRM_ERROR( "ring space check failed!\n" );		\
-		return DRM_OS_ERR(EBUSY);				\
+	if (!(dev_priv->stats.boxes & RADEON_BOX_DMA_IDLE)) {		\
+		u32 head = GET_RING_HEAD(&dev_priv->ring);		\
+		if (head == dev_priv->ring.tail)			\
+			dev_priv->stats.boxes |= RADEON_BOX_DMA_IDLE;	\
 	}								\
- __ring_space_done:							\
-	;								\
 } while (0)
 
-#ifdef __linux__
-#define VB_AGE_TEST_WITH_RETURN( dev_priv )				\
-do {									\
-	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;		\
-	if ( sarea_priv->last_dispatch >= RADEON_MAX_VB_AGE ) {		\
-		int __ret = radeon_do_cp_idle( dev_priv );		\
-		if ( __ret < 0 ) return __ret;				\
-		sarea_priv->last_dispatch = 0;				\
-		radeon_freelist_reset( dev );				\
-	}								\
-} while (0)
-#endif /* __linux__ */
-#ifdef __FreeBSD__
 #define VB_AGE_TEST_WITH_RETURN( dev_priv )				\
 do {									\
 	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;		\
@@ -674,7 +803,6 @@ do {									\
 		radeon_freelist_reset( dev );				\
 	}								\
 } while (0)
-#endif /* __FreeBSD__ */
 
 #define RADEON_DISPATCH_AGE( age ) do {					\
 	OUT_RING( CP_PACKET0( RADEON_LAST_DISPATCH_REG, 0 ) );		\
@@ -696,22 +824,20 @@ do {									\
  * Ring control
  */
 
-#define radeon_flush_write_combine()	DRM_OS_READMEMORYBARRIER
-
-
 #define RADEON_VERBOSE	0
 
-#define RING_LOCALS	int write; unsigned int mask; volatile u32 *ring;
+#define RING_LOCALS	int write, _nr; unsigned int mask; u32 *ring;
 
 #define BEGIN_RING( n ) do {						\
 	if ( RADEON_VERBOSE ) {						\
 		DRM_INFO( "BEGIN_RING( %d ) in %s\n",			\
-			   n, __func__ );				\
+			   n, __FUNCTION__ );				\
 	}								\
 	if ( dev_priv->ring.space <= (n) * sizeof(u32) ) {		\
+                COMMIT_RING();						\
 		radeon_wait_ring( dev_priv, (n) * sizeof(u32) );	\
 	}								\
-	dev_priv->ring.space -= (n) * sizeof(u32);			\
+	_nr = n; dev_priv->ring.space -= (n) * sizeof(u32);		\
 	ring = dev_priv->ring.start;					\
 	write = dev_priv->ring.tail;					\
 	mask = dev_priv->ring.tail_mask;				\
@@ -722,9 +848,22 @@ do {									\
 		DRM_INFO( "ADVANCE_RING() wr=0x%06x tail=0x%06x\n",	\
 			  write, dev_priv->ring.tail );			\
 	}								\
-	radeon_flush_write_combine();					\
-	dev_priv->ring.tail = write;					\
-	RADEON_WRITE( RADEON_CP_RB_WPTR, write );			\
+	if (((dev_priv->ring.tail + _nr) & mask) != write) {		\
+		DRM_ERROR( 						\
+			"ADVANCE_RING(): mismatch: nr: %x write: %x line: %d\n",	\
+			((dev_priv->ring.tail + _nr) & mask),		\
+			write, __LINE__);						\
+	} else								\
+		dev_priv->ring.tail = write;				\
+} while (0)
+
+#define COMMIT_RING() do {						\
+	/* Flush writes to ring */					\
+	DRM_READMEMORYBARRIER(dev_priv->mmio);					\
+	GET_RING_HEAD( &dev_priv->ring );				\
+	RADEON_WRITE( RADEON_CP_RB_WPTR, dev_priv->ring.tail );		\
+	/* read from PCI bus to ensure correct posting */		\
+	RADEON_READ( RADEON_CP_RB_RPTR );				\
 } while (0)
 
 #define OUT_RING( x ) do {						\
@@ -736,6 +875,33 @@ do {									\
 	write &= mask;							\
 } while (0)
 
-#define RADEON_PERFORMANCE_BOXES	0
+#define OUT_RING_REG( reg, val ) do {					\
+	OUT_RING( CP_PACKET0( reg, 0 ) );				\
+	OUT_RING( val );						\
+} while (0)
+
+
+#define OUT_RING_USER_TABLE( tab, sz ) do {			\
+	int _size = (sz);					\
+	int *_tab = (tab);					\
+								\
+	if (write + _size > mask) {				\
+		int i = (mask+1) - write;			\
+		if (DRM_COPY_FROM_USER_UNCHECKED( (int *)(ring+write),	\
+				      _tab, i*4 ))		\
+			return DRM_ERR(EFAULT);		\
+		write = 0;					\
+		_size -= i;					\
+		_tab += i;					\
+	}							\
+								\
+	if (_size && DRM_COPY_FROM_USER_UNCHECKED( (int *)(ring+write),	\
+			               _tab, _size*4 ))		\
+		return DRM_ERR(EFAULT);			\
+								\
+	write += _size;						\
+	write &= mask;						\
+} while (0)
+
 
 #endif /* __RADEON_DRV_H__ */
