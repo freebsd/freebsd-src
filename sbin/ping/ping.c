@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.24 1997/07/13 06:16:44 sef Exp $";
+	"$Id: ping.c,v 1.25 1997/07/18 17:52:05 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -93,13 +93,13 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 
 #define	DEFDATALEN	(64 - 8)	/* default data length */
+#define	FLOOD_BACKOFF	20000		/* usecs to back off if F_FLOOD mode */
+					/* runs out of buffer space */
 #define	MAXIPLEN	60
 #define	MAXICMPLEN	76
 #define	MAXPACKET	(65536 - 60 - 8)/* max packet size */
 #define	MAXWAIT		10		/* max seconds to wait for response */
 #define	NROUTES		9		/* number of record route slots */
-#define	FLOOD_BACKOFF	20000		/* usecs to back off if flooding */
-					/* reports we are out of buffer space */
 
 #define	A(bit)		rcvd_tbl[(bit)>>3]	/* identify byte in array */
 #define	B(bit)		(1 << ((bit) & 0x07))	/* identify bit in byte */
@@ -149,7 +149,6 @@ long nreceived;			/* # of packets we got back */
 long nrepeats;			/* number of duplicates */
 long ntransmitted;		/* sequence # for outbound packets = #sent */
 int interval = 1;		/* interval between packets */
-int finish_up = 0;		/* We've been told to finish up */
 
 /* timing */
 int timing;			/* flag to do timing */
@@ -158,15 +157,15 @@ double tmax = 0.0;		/* maximum round trip time */
 double tsum = 0.0;		/* sum of all times, for doing average */
 double tsumsq = 0.0;		/* sum of all times squared, for std. dev. */
 
+volatile sig_atomic_t finish_up;  /* nonzero if we've been told to finish up */
 int reset_kerninfo;
-sig_atomic_t siginfo_p;
+volatile sig_atomic_t siginfo_p;
 
 static void fill(char *, char *);
 static u_short in_cksum(u_short *, int);
 static void catcher(int sig);
 static void check_status(void);
-static void stopit(int);
-static void finish(int) __dead2;
+static void finish(void) __dead2;
 static void pinger(void);
 static char *pr_addr(struct in_addr);
 static void pr_icmph(struct icmp *);
@@ -174,6 +173,7 @@ static void pr_iph(struct ip *);
 static void pr_pack(char *, int, struct sockaddr_in *);
 static void pr_retip(struct ip *);
 static void status(int);
+static void stopit(int);
 static void tvsub(struct timeval *, struct timeval *);
 static void usage(const char *) __dead2;
 
@@ -460,7 +460,7 @@ main(argc, argv)
 	if ((options & F_FLOOD) == 0)
 		catcher(0);		/* start things going */
 
-	while (finish_up == 0) {
+	while (!finish_up) {
 		struct sockaddr_in from;
 		register int cc;
 		int fromlen;
@@ -487,23 +487,23 @@ main(argc, argv)
 		if (npackets && nreceived >= npackets)
 			break;
 	}
-	finish(0);
+	finish();
 	/* NOTREACHED */
 	exit(0);	/* Make the compiler happy */
 }
 
 /*
- * Stopit --
- * 
- * set the global bit that cause everything to quit..
- * do rNOT quit and exit from the signal handler!
+ * stopit --
+ *	Set the global bit that causes the main loop to quit.
+ * Do NOT call finish() from here, since finish() does far too much
+ * to be called from a signal handler.
  */
 void
-stopit(int ignored)
+stopit(sig)
+	int sig;
 {
 	finish_up = 1;
 }
-
 
 /*
  * catcher --
@@ -551,6 +551,9 @@ catcher(int sig)
  * and the sequence number is an ascending integer.  The first 8 bytes
  * of the data portion are used to hold a UNIX "timeval" struct in host
  * byte-order, to compute the round-trip time.
+ *
+ * bug --
+ *	this does far too much to be called from a signal handler.
  */
 static void
 pinger(void)
@@ -582,7 +585,7 @@ pinger(void)
 
 	if (i < 0 || i != cc)  {
 		if (i < 0) {
-			if ((options & F_FLOOD) && (errno == ENOBUFS)) {
+			if (options & F_FLOOD && errno == ENOBUFS) {
 				usleep(FLOOD_BACKOFF);
 				return;
 			}
@@ -591,9 +594,8 @@ pinger(void)
 			warn("%s: partial write: %d of %d bytes",
 			     hostname, cc, i);
 		}
-	} else {
-		ntransmitted++; /* only count those that made it out */
-	}
+	} else
+		ntransmitted++;	/* only count those that made it out */
 	if (!(options & F_QUIET) && options & F_FLOOD)
 		(void)write(STDOUT_FILENO, &DOT, 1);
 }
@@ -619,7 +621,7 @@ pr_pack(buf, cc, from)
 	static char old_rr[MAX_IPOPTLEN];
 	struct ip *ip;
 	struct timeval tv, *tp;
-	double triptime = 0.0;
+	double triptime;
 	int hlen, dupflag;
 
 	(void)gettimeofday(&tv, (struct timezone *)NULL);
@@ -641,6 +643,7 @@ pr_pack(buf, cc, from)
 		if (icp->icmp_id != ident)
 			return;			/* 'Twas not our ECHO */
 		++nreceived;
+		triptime = 0.0;
 		if (timing) {
 #ifndef icmp_data
 			tp = (struct timeval *)&icp->icmp_ip;
@@ -904,7 +907,7 @@ check_status()
  *	Print out statistics, and give up.
  */
 static void
-finish(int sig)
+finish()
 {
 	struct termios ts;
 
