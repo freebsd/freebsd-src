@@ -96,6 +96,7 @@ GEOM_MBR	opt_geom.h
 GEOM_MIRROR	opt_geom.h
 GEOM_PC98	opt_geom.h
 GEOM_SUNLABEL	opt_geom.h
+GEOM_VOL	opt_geom.h
 HW_WDOG
 KSTACK_PAGES
 KSTACK_MAX_PAGES
