@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <limits.h>
 #include <nlist.h>
 #include <paths.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -272,9 +273,37 @@ getprof(kvp)
 		if (sysctl(mib, 3, &kvp->gpm, &size, NULL, 0) < 0)
 			size = 0;
 	}
-	if (size != sizeof kvp->gpm)
+
+	/*
+	 * Accept certain undersized "structs" from old kernels.  We need
+	 * everything up to hashfraction, and want profrate and
+	 * histcounter_type.  Assume that the kernel doesn't put garbage
+	 * in any padding that is returned instead of profrate and
+	 * histcounter_type.  This is a bad assumption for dead kernels,
+	 * since kvm_read() will normally return garbage for bytes beyond
+	 * the end of the actual kernel struct, if any.
+	 */
+	if (size < offsetof(struct gmonparam, hashfraction) +
+	    sizeof(kvp->gpm.hashfraction) || size > sizeof(kvp->gpm))
 		errx(4, "cannot get gmonparam: %s",
 		    kflag ? kvm_geterr(kvp->kd) : strerror(errno));
+	bzero((char *)&kvp->gpm + size, sizeof(kvp->gpm) - size);
+	if (kvp->gpm.profrate == 0)
+		kvp->gpm.profrate = getprofhz(kvp);
+#ifdef __i386__
+	if (kvp->gpm.histcounter_type == 0) {
+		/*
+		 * This fixup only works for not-so-old i386 kernels.  The
+		 * magic 16 is the kernel FUNCTION_ALIGNMENT.  64-bit
+		 * counters are signed; smaller counters are unsigned.
+		 */
+		kvp->gpm.histcounter_type = 16 /
+		    (kvp->gpm.textsize / kvp->gpm.kcountsize) * CHAR_BIT;
+		if (kvp->gpm.histcounter_type == 64)
+			kvp->gpm.histcounter_type = -64;
+	}
+#endif
+
 	return (kvp->gpm.state);
 }
 
@@ -344,8 +373,7 @@ dumpstate(kvp)
 	h.ncnt = kvp->gpm.kcountsize + sizeof(h);
 	h.version = GMONVERSION;
 	h.profrate = kvp->gpm.profrate;
-	if (h.profrate == 0)
-		h.profrate = getprofhz(kvp);	/* ancient kernel */
+	h.histcounter_type = kvp->gpm.histcounter_type;
 	fwrite((char *)&h, sizeof(h), 1, fp);
 
 	/*
