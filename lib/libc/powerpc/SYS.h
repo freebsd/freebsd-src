@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  * Copyright (c) 2002 Benno Rice.  All rights reserved.
+ * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,10 +31,7 @@
  */
 
 #include <sys/syscall.h>
-
 #include <machine/asm.h>
-
-#define	__CONCAT(x,y)	x ## y
 
 #define _SYSCALL(x)						\
 	.text;							\
