@@ -35,7 +35,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	device.9 device_add_child.9 device_delete_child.9 \
 	device_enable.9 device_find_child.9 device_get_children.9 \
 	device_get_devclass.9 device_get_driver.9 device_get_ivars.9 \
-	device_get_name.9 \
+	device_get_name.9 device_get_parent.9 \
 	device_get_softc.9 device_get_state.9 device_get_unit.9 \
 	device_ids.9 \
 	device_probe_and_attach.9 device_quiet.9 device_set_desc.9 \
