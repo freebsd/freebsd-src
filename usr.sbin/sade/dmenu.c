@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.1.1.1 1995/04/27 12:50:34 jkh Exp $
+ * $Id: dmenu.c,v 1.2 1995/04/27 18:03:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,11 +42,10 @@
  */
 
 #include "sysinstall.h"
-#include <sys/wait.h>
 
-#define MAX_MENU	15
+#define MAX_MENU		15
 
-static DMenuItem shellAction = { NULL, NULL, MENU_SHELL_ESCAPE, NULL, 0 };
+static DMenuItem shellAction = { NULL, NULL, DMENU_SHELL_ESCAPE, NULL, 0 };
 
 /* Traverse over an internal menu */
 void
@@ -55,36 +54,64 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
     char result[FILENAME_MAX];
     char **nitems = NULL;
     DMenuItem *tmp;
-    int rval, n = 0;
-    char *sh = NULL;
+    int rval = 0, n = 0;
 
     /* First, construct the menu */
     for (tmp = menu->items; tmp->title; tmp++) {
 	if (!tmp->disabled) {
-	    nitems = item_add(nitems, tmp->title, curr, max);
-	    nitems = item_add(nitems, tmp->prompt, curr, max);
+	    char *addme = NULL;
+	    char *title = tmp->title;
+	    char *prompt = tmp->prompt;
+
+	    if (menu->options & DMENU_RADIO_TYPE) {
+		if (*title == '*') {
+		    addme = "ON";
+		    ++title;
+		}
+		else
+		    addme = "OFF";
+	    }
+	    nitems = item_add_pair(nitems, title, prompt, curr, max);
+	    if (addme)
+		nitems = item_add(nitems, addme, curr, max);
 	    ++n;
 	}
     }
     nitems = item_add(nitems, NULL, curr, max); /* Terminate it */
 
-    /* Any helpful hints, put 'em up! */
-    if (menu->helpline)
-	use_helpline(menu->helpline);
-    if (menu->helpfile)
-	use_helpfile(menu->helpfile);
-
     while (1) {
+	/* Any helpful hints, put 'em up! */
+	if (menu->helpline)
+	    use_helpline(menu->helpline);
+	if (menu->helpfile)
+	    use_helpfile(menu->helpfile);
+
 	/* Pop up that dialog! */
-	rval = dialog_menu((unsigned char *)menu->title,
-			   (unsigned char *)menu->prompt,
-			   -1, -1, n > MAX_MENU ? MAX_MENU : n, n,
-			   (unsigned char **)nitems, (unsigned char *)result,
-			   choice, scroll);
+	if (menu->options & DMENU_NORMAL_TYPE) {
+	    rval = dialog_menu((unsigned char *)menu->title,
+			       (unsigned char *)menu->prompt,
+			       -1, -1,
+			       n > MAX_MENU ? MAX_MENU : n,
+			       n,
+			       (unsigned char **)nitems,
+			       (unsigned char *)result,
+			       choice, scroll);
+	}
+	else if (menu->options & DMENU_RADIO_TYPE) {
+	    rval = dialog_radiolist((unsigned char *)menu->title,
+				    (unsigned char *)menu->prompt,
+				    -1, -1,
+				    n > MAX_MENU ? MAX_MENU : n,
+				    n,
+				    (unsigned char **)nitems,
+				    (unsigned char *)result);
+	}
 	dialog_clear();
 	if (!rval) {
 	    for (tmp = menu->items; tmp->title; tmp++)
-		if (!strcmp(result, tmp->title))
+		if (!strcmp(result,
+			    (*tmp->title == '*') ? tmp->title + 1 :
+			     tmp->title))
 		    break;
 	    if (!tmp->title)
 		msgFatal("Menu item `%s' not found??", result);
@@ -96,66 +123,18 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    return;
 	}
 	switch (tmp->type) {
-
 	    /* User whapped ESC twice and wants a sub-shell */
-	case MENU_SHELL_ESCAPE:
-	    if (file_executable("/bin/sh"))
-		sh = "/bin/sh";
-	    else if (file_executable("/stand/sh"))
-		sh = "/stand/sh";
-	    else {
-		msgWarn("No shell available, sorry!");
-		break;
-	    }
-	    setenv("PS1", "freebsd% ", 1);
-	    dialog_clear();
-	    dialog_update();
-	    move(0, 0);
-	    standout();
-	    addstr("Type `exit' to leave this shell and continue install.");
-	    standend();
-	    refresh();
-	    end_dialog();
-	    DialogActive = FALSE;
-	    if (fork() == 0)
-		execlp(sh, "-sh", 0);
-	    else
-		wait(NULL);
-	    dialog_clear();
-	    DialogActive = TRUE;
+	case DMENU_SHELL_ESCAPE:
+	    systemShellEscape();
 	    break;
 
 	    /* We want to simply display a file */
-	case MENU_DISPLAY_FILE: {
-	    char buf[FILENAME_MAX], *cp, *fname = NULL;
-
-	    if (file_readable((char *)tmp->ptr))
-		fname = (char *)tmp->ptr;
-	    else if ((cp = getenv("LANG")) != NULL) {
-		snprintf(buf, FILENAME_MAX, "%s/%s", cp, tmp->ptr);
-		if (file_readable(buf))
-		    fname = buf;
-	    }
-	    else {
-		snprintf(buf, FILENAME_MAX, "english/%s", tmp->ptr);
-		if (file_readable(buf))
-		    fname = buf;
-	    }
-	    if (!fname) {
-		snprintf(buf, FILENAME_MAX, "The %s file is not provided on the 1.2MB floppy image.", (char *)tmp->ptr);
-		dialog_msgbox("Sorry!", buf, -1, -1, 1);
-		dialog_clear_norefresh();
-	    }
-	    else {
-		dialog_clear_norefresh();
-		dialog_textbox(tmp->title, fname, LINES, COLS);
-		dialog_clear_norefresh();
-	    }
-	}
+	case DMENU_DISPLAY_FILE:
+	    systemDisplayFile((char *)tmp->ptr);
 	    break;
 
 	    /* It's a sub-menu; recurse on it */
-	case MENU_SUBMENU: {
+	case DMENU_SUBMENU: {
 	    int choice, scroll, curr, max;
 
 	    choice = scroll = curr = max = 0;
@@ -164,27 +143,27 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	}
 
 	    /* Execute it as a system command */
-	case MENU_SYSTEM_COMMAND:
+	case DMENU_SYSTEM_COMMAND:
 	    (void)systemExecute((char *)tmp->ptr);
 	    break;
 
 	    /* Same as above, but execute it in a prgbox */
-	case MENU_SYSTEM_COMMAND_BOX:
+	case DMENU_SYSTEM_COMMAND_BOX:
 	    dialog_prgbox(tmp->title, (char *)tmp->ptr, 22, 76, 1, 1);
 	    break;
 
-	case MENU_CALL:
+	case DMENU_CALL:
 	    if (((int (*)())tmp->ptr)()) {
 		items_free(nitems, curr, max);
 		return;
 	    }
 	    break;
 
-	case MENU_CANCEL:
+	case DMENU_CANCEL:
 	    items_free(nitems, curr, max);
 	    return;
 
-	case MENU_SET_VARIABLE: {
+	case DMENU_SET_VARIABLE: {
 	    Variable *newvar;
 
 	    if (!index((char *)tmp->ptr, '='))
@@ -196,12 +175,18 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    strncpy(newvar->value, tmp->ptr, 1024);
 	    newvar->next = VarHead;
 	    VarHead = newvar;
-	    msgInfo("Set variable %s", newvar->value);
+	    msgInfo("Setting option %s", newvar->value);
 	}
 	    break;
 	    
 	default:
 	    msgFatal("Don't know how to deal with menu type %d", tmp->type);
+	}
+
+	/* Did the user want to make this a single-selection menu? */
+	if (menu->options & DMENU_SELECTION_RETURNS) {
+	    items_free(nitems, curr, max);
+	    return;
 	}
     }
 }

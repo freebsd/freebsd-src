@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.1.1.1 1995/04/27 12:50:34 jkh Exp $
+ * $Id: sysinstall.h,v 1.2 1995/04/27 18:03:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,34 +50,41 @@
 #include <unistd.h>
 #include <dialog.h>
 
+/* Bitfields for menu options */
+#define DMENU_NORMAL_TYPE	0x1	/* Normal dialog menu		*/
+#define DMENU_RADIO_TYPE	0x2	/* Radio dialog menu		*/
+#define DMENU_MULTIPLE_TYPE	0x4	/* Multiple choice menu		*/
+#define DMENU_SELECTION_RETURNS	0x8	/* Select item then exit	*/
+
 /* Types */
 typedef unsigned int Boolean;
 
 typedef enum {
-    MENU_SHELL_ESCAPE,			/* Fork a shell */
-    MENU_DISPLAY_FILE,			/* Display a file's contents */
-    MENU_SUBMENU,			/* Recurse into another menu */
-    MENU_SYSTEM_COMMAND,		/* Run shell commmand */
-    MENU_SYSTEM_COMMAND_BOX,		/* Same as above, but in prgbox */
-    MENU_SET_VARIABLE,			/* Set an environment/system var */
-    MENU_CALL,				/* Call back a C function */
-    MENU_CANCEL,			/* Cancel out of this menu */
+    DMENU_SHELL_ESCAPE,			/* Fork a shell			*/
+    DMENU_DISPLAY_FILE,			/* Display a file's contents	*/
+    DMENU_SUBMENU,			/* Recurse into another menu	*/
+    DMENU_SYSTEM_COMMAND,		/* Run shell commmand		*/
+    DMENU_SYSTEM_COMMAND_BOX,		/* Same as above, but in prgbox	*/
+    DMENU_SET_VARIABLE,			/* Set an environment/system var */
+    DMENU_CALL,				/* Call back a C function	*/
+    DMENU_CANCEL,			/* Cancel out of this menu	*/
 } DMenuItemType;
 
 typedef struct _dmenuItem {
-    char *title;			/* Our title */
-    char *prompt;			/* Our prompt */
-    DMenuItemType type;			/* What type of item we are */
-    void *ptr;				/* Generic data ptr */
-    int disabled;			/* Are we temporarily disabled? */
+    char *title;			/* Our title			*/
+    char *prompt;			/* Our prompt			*/
+    DMenuItemType type;			/* What type of item we are	*/
+    void *ptr;				/* Generic data ptr		*/
+    int disabled;			/* Are we temporarily disabled?	*/
 } DMenuItem;
 
 typedef struct _dmenu {
-    char *title;			/* Our title */
-    char *prompt;			/* Our prompt */
-    char *helpline;			/* Line of help at bottom */
-    char *helpfile;			/* Help file for "F1" */
-    DMenuItem *items;			/* Array of menu items */
+    unsigned int options;		/* What sort of menu we are	*/
+    char *title;			/* Our title			*/
+    char *prompt;			/* Our prompt			*/
+    char *helpline;			/* Line of help at bottom	*/
+    char *helpfile;			/* Help file for "F1"		*/
+    DMenuItem items[0];			/* Array of menu items		*/
 } DMenu;
 
 /* A sysconfig variable */
@@ -89,11 +96,11 @@ typedef struct _variable {
 
 /* Externs */
 extern int		CpioFD;	  /* The file descriptor for our CPIO floppy */
-extern int		DebugFD;  /* Where diagnostic output goes */
-extern Boolean		OnCDROM;  /* Are we running off of a CDROM? */
-extern Boolean		OnSerial; /* Are we on a serial console? */
-extern Boolean		DialogActive; /* Is the dialog() stuff up? */
-extern Variable		*VarHead; /* The head of the variable chain */
+extern int		DebugFD;  /* Where diagnostic output goes	*/
+extern Boolean		OnCDROM;  /* Are we running off of a CDROM?	*/
+extern Boolean		OnSerial; /* Are we on a serial console?	*/
+extern Boolean		DialogActive; /* Is the dialog() stuff up?	*/
+extern Variable		*VarHead; /* The head of the variable chain	*/
 
 /* All the menus to which forward references exist */
 extern DMenu		MenuDocumenation, MenuInitial, MenuLanguage;
@@ -107,12 +114,15 @@ extern void	globalsInit(void);
 /* install.c */
 extern int	installCustom(void);
 extern int	installExpress(void);
+extern int	installMaint(void);
 
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(void);
 extern void	systemWelcome(void);
 extern int	systemExecute(char *cmd);
+extern int	systemShellEscape(void);
+extern int	systemDisplayFile(char *file);
 
 /* dmenu.c */
 extern void	dmenuOpen(DMenu *menu, int *choice, int *scroll,
@@ -126,6 +136,8 @@ extern char	*string_prune(char *str);
 extern char	*string_skipwhite(char *str);
 extern void	safe_free(void *ptr);
 extern char	**item_add(char **list, char *item, int *curr, int *max);
+extern char	**item_add_pair(char **list, char *item1, char *item2,
+				int *curr, int *max);
 extern void	items_free(char **list, int *curr, int *max);
 
 /* termcap.c */
@@ -139,6 +151,11 @@ extern void	msgFatal(char *fmt, ...);
 
 /* media.c */
 extern int	mediaSetCDROM(void);
+extern int	mediaSetFloppy(void);
+extern int	mediaSetDOS(void);
+extern int	mediaSetTape(void);
+extern int	mediaSetFTP(void);
+extern int	mediaSetFS(void);
 
 #endif
 /* _SYSINSTALL_H_INCLUDE */

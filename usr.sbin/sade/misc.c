@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id$
+ * $Id: misc.c,v 1.1.1.1 1995/04/27 12:50:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,9 +99,10 @@ safe_free(void *ptr)
 }
 
 /*
- * These next two are kind of specialized just for building string lists
+ * These next routines are kind of specialized just for building string lists
  * for dialog_menu().
  */
+
 /* Add a string to an item list */
 char **
 item_add(char **list, char *item, int *curr, int *max)
@@ -112,6 +113,15 @@ item_add(char **list, char *item, int *curr, int *max)
 	list = (char **)realloc(list, sizeof(char *) * *max);
     }
     list[(*curr)++] = item;
+    return list;
+}
+
+/* Add a pair of items to an item list (more the usual case) */
+char **
+item_add_pair(char **list, char *item1, char *item2, int *curr, int *max)
+{
+    list = item_add(list, item1, curr, max);
+    list = item_add(list, item2, curr, max);
     return list;
 }
 
