@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.8 1995/02/02 04:08:13 jkh Exp $
+# $Id: instdist.sh,v 1.9 1995/02/02 04:13:20 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -318,7 +318,7 @@ installation.  Please select the distributions you wish to load, any\n\
 distributions already marked being MANDATORY - please do not\n\
 unselect them!  Please also note that DES (encryption) code is NOT\n\
 FOR EXPORT from the U.S.  Please don't endanger U.S. ftp sites by\n\
-getting it illegally, thanks!  When finished, select <Cancel>." \
+getting it illegally, thanks!  When finished, select <OK>." \
 -1 -1 10 \
   "bin" "Binary base files (mandatory - ${BINSIZE})" ON \
   "games" "Games and other frivolities (${GAMESIZE})" OFF \
