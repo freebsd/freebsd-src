@@ -388,7 +388,7 @@ _UTF8_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
 			*dst = *s;
 		} else if (len > (size_t)MB_CUR_MAX) {
 			/* Enough space to translate in-place. */
-			if ((nb = (int)_UTF8_wcrtomb(dst, *s, ps)) < 0) {
+			if ((nb = _UTF8_wcrtomb(dst, *s, ps)) == (size_t)-1) {
 				*src = s;
 				return ((size_t)-1);
 			}
@@ -396,7 +396,7 @@ _UTF8_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
 			/*
 			 * May not be enough space; use temp. buffer.
 			 */
-			if ((nb = (int)_UTF8_wcrtomb(buf, *s, ps)) < 0) {
+			if ((nb = _UTF8_wcrtomb(buf, *s, ps)) == (size_t)-1) {
 				*src = s;
 				return ((size_t)-1);
 			}
