@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/7/93";
 #include <sys/file.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <locale.h>
 #include "less.h"
 
