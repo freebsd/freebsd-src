@@ -269,9 +269,6 @@ nd6_ra_input(m, off, icmp6len)
 	dr0.rtlifetime = ntohs(nd_ra->nd_ra_router_lifetime);
 	dr0.expire = time_second + dr0.rtlifetime;
 	dr0.ifp = ifp;
-	dr0.advint = 0;		/* Mobile IPv6 */
-	dr0.advint_expire = 0;	/* Mobile IPv6 */
-	dr0.advints_lost = 0;	/* Mobile IPv6 */
 	/* unspecified or not? (RFC 2461 6.3.4) */
 	if (advreachable) {
 		advreachable = ntohl(advreachable);

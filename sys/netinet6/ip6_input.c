@@ -916,7 +916,7 @@ ip6_process_hopopts(m, opthead, hbhlen, rtalertp, plenp)
 			}
 			optlen = *(opt + 1) + 2;
 			break;
-		case IP6OPT_RTALERT:
+		case IP6OPT_ROUTER_ALERT:
 			/* XXX may need check for alignment */
 			if (hbhlen < IP6OPT_RTALERT_LEN) {
 				ip6stat.ip6s_toosmall++;
@@ -1077,14 +1077,9 @@ ip6_savecontrol(in6p, mp, ip6, m)
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 {
-#if __FreeBSD_version >= 500000
+#define IS2292(x, y)	((in6p->in6p_flags & IN6P_RFC2292) ? (x) : (y))
 	struct thread *td = curthread;	/* XXX */
-#else
-	struct proc *td = curproc;	/* XXX */
-#endif
 	int privileged = 0;
-	int rthdr_exist = 0;
-
 
 	if (td && !suser(td))
 		privileged++;
@@ -1096,9 +1091,8 @@ ip6_savecontrol(in6p, mp, ip6, m)
 		microtime(&tv);
 		*mp = sbcreatecontrol((caddr_t) &tv, sizeof(tv),
 		    SCM_TIMESTAMP, SOL_SOCKET);
-		if (*mp) {
+		if (*mp)
 			mp = &(*mp)->m_next;
-		}
 	}
 #endif
 
@@ -1113,20 +1107,32 @@ ip6_savecontrol(in6p, mp, ip6, m)
 
 		*mp = sbcreatecontrol((caddr_t) &pi6,
 		    sizeof(struct in6_pktinfo),
-		    IPV6_PKTINFO, IPPROTO_IPV6);
-		if (*mp) {
+		    IS2292(IPV6_2292PKTINFO, IPV6_PKTINFO), IPPROTO_IPV6);
+		if (*mp)
 			mp = &(*mp)->m_next;
-		}
 	}
 
 	if ((in6p->in6p_flags & IN6P_HOPLIMIT) != 0) {
 		int hlim = ip6->ip6_hlim & 0xff;
 
 		*mp = sbcreatecontrol((caddr_t) &hlim, sizeof(int),
-		    IPV6_HOPLIMIT, IPPROTO_IPV6);
-		if (*mp) {
+		    IS2292(IPV6_2292HOPLIMIT, IPV6_HOPLIMIT), IPPROTO_IPV6);
+		if (*mp)
 			mp = &(*mp)->m_next;
-		}
+	}
+
+	if ((in6p->in6p_flags & IN6P_TCLASS) != 0) {
+		u_int32_t flowinfo;
+		int tclass;
+
+		flowinfo = (u_int32_t)ntohl(ip6->ip6_flow & IPV6_FLOWINFO_MASK);
+		flowinfo >>= 20;
+
+		tclass = flowinfo & 0xff;
+		*mp = sbcreatecontrol((caddr_t) &tclass, sizeof(tclass),
+		    IPV6_TCLASS, IPPROTO_IPV6);
+		if (*mp)
+			mp = &(*mp)->m_next;
 	}
 
 	/*
@@ -1135,7 +1141,11 @@ ip6_savecontrol(in6p, mp, ip6, m)
 	 * be some hop-by-hop options which can be returned to normal user.
 	 * See RFC 2292 section 6.
 	 */
-	if ((in6p->in6p_flags & IN6P_HOPOPTS) != 0 && privileged) {
+	if ((in6p->in6p_flags & IN6P_HOPOPTS) != 0) {
+#ifdef DIAGNOSTIC
+		if (!privileged)
+			panic("IN6P_HOPOPTS is set for unprivileged socket");
+#endif
 		/*
 		 * Check if a hop-by-hop options header is contatined in the
 		 * received packet, and if so, store the options as ancillary
@@ -1143,7 +1153,6 @@ ip6_savecontrol(in6p, mp, ip6, m)
 		 * just after the IPv6 header, which is assured through the
 		 * IPv6 input processing.
 		 */
-		struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 		if (ip6->ip6_nxt == IPPROTO_HOPOPTS) {
 			struct ip6_hbh *hbh;
 			int hbhlen = 0;
@@ -1178,50 +1187,17 @@ ip6_savecontrol(in6p, mp, ip6, m)
 			 * Note: this constraint is removed in 2292bis.
 			 */
 			*mp = sbcreatecontrol((caddr_t)hbh, hbhlen,
-			    IPV6_HOPOPTS, IPPROTO_IPV6);
-			if (*mp) {
+			    IS2292(IPV6_2292HOPOPTS, IPV6_HOPOPTS),
+			    IPPROTO_IPV6);
+			if (*mp)
 				mp = &(*mp)->m_next;
-			}
 #ifdef PULLDOWN_TEST
 			m_freem(ext);
 #endif
 		}
 	}
 
-	/* IPV6_DSTOPTS and IPV6_RTHDR socket options */
-	if ((in6p->in6p_flags & (IN6P_DSTOPTS | IN6P_RTHDRDSTOPTS)) != 0) {
-		int proto, off, nxt;
-
-		/*
-		 * go through the header chain to see if a routing header is
-		 * contained in the packet. We need this information to store
-		 * destination options headers (if any) properly.
-		 * XXX: performance issue. We should record this info when
-		 * processing extension headers in incoming routine.
-		 * (todo) use m_aux? 
-		 */
-		proto = IPPROTO_IPV6;
-		off = 0;
-		nxt = -1;
-		while (1) {
-			int newoff;
-
-			newoff = ip6_nexthdr(m, off, proto, &nxt);
-			if (newoff < 0)
-				break;
-			if (newoff < off) /* invalid, check for safety */
-				break;
-			if ((proto = nxt) == IPPROTO_ROUTING) {
-				rthdr_exist = 1;
-				break;
-			}
-			off = newoff;
-		}
-	}
-
-	if ((in6p->in6p_flags &
-	     (IN6P_RTHDR | IN6P_DSTOPTS | IN6P_RTHDRDSTOPTS)) != 0) {
-		struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
+	if ((in6p->in6p_flags & (IN6P_RTHDR | IN6P_DSTOPTS)) != 0) {
 		int nxt = ip6->ip6_nxt, off = sizeof(struct ip6_hdr);
 
 		/*
@@ -1293,7 +1269,7 @@ ip6_savecontrol(in6p, mp, ip6, m)
 					break;
 
 				*mp = sbcreatecontrol((caddr_t)ip6e, elen,
-				    IPV6_DSTOPTS,
+				    IS2292(IPV6_2292DSTOPTS, IPV6_DSTOPTS),
 				    IPPROTO_IPV6);
 				if (*mp)
 					mp = &(*mp)->m_next;
@@ -1303,7 +1279,7 @@ ip6_savecontrol(in6p, mp, ip6, m)
 					break;
 
 				*mp = sbcreatecontrol((caddr_t)ip6e, elen,
-				    IPV6_RTHDR,
+				    IS2292(IPV6_2292RTHDR, IPV6_RTHDR),
 				    IPPROTO_IPV6);
 				if (*mp)
 					mp = &(*mp)->m_next;
@@ -1339,6 +1315,7 @@ ip6_savecontrol(in6p, mp, ip6, m)
 		;
 	}
 
+#undef IS2292
 }
 
 #ifdef PULLDOWN_TEST

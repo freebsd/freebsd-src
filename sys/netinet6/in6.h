@@ -407,15 +407,6 @@ struct route_in6 {
  * Options for use with [gs]etsockopt at the IPV6 level.
  * First word of comment is data type; bool is stored in int.
  */
-#define IPV6_JOIN_GROUP		12 /* ip6_mreq; join a group membership */
-#define IPV6_LEAVE_GROUP	13 /* ip6_mreq; leave a group membership */
-#define IPV6_MULTICAST_HOPS	10 /* int; set/get IP6 multicast hops */
-#define IPV6_MULTICAST_IF	9  /* u_int; set/get IP6 multicast i/f  */
-#define IPV6_MULTICAST_LOOP	11 /* u_int; set/get IP6 multicast loopback */
-#define IPV6_UNICAST_HOPS	4  /* int; IP6 hops */
-#define IPV6_V6ONLY		27 /* bool; only bind INET6 at wildcard bind */
-
-#if __BSD_VISIBLE
 /* no hdrincl */
 #if 0 /* the followings are relic in IPv4 and hence are disabled */
 #define IPV6_OPTIONS		1  /* buf/ip6_opts; set/get IP6 options */
@@ -425,18 +416,27 @@ struct route_in6 {
 #define IPV6_RETOPTS		8  /* ip6_opts; set/get IP6 options */
 #endif
 #define IPV6_SOCKOPT_RESERVED1	3  /* reserved for future use */
+#define IPV6_UNICAST_HOPS	4  /* int; IP6 hops */
+#define IPV6_MULTICAST_IF	9  /* u_int; set/get IP6 multicast i/f  */
+#define IPV6_MULTICAST_HOPS	10 /* int; set/get IP6 multicast hops */
+#define IPV6_MULTICAST_LOOP	11 /* u_int; set/get IP6 multicast loopback */
+#define IPV6_JOIN_GROUP		12 /* ip6_mreq; join a group membership */
+#define IPV6_LEAVE_GROUP	13 /* ip6_mreq; leave a group membership */
 #define IPV6_PORTRANGE		14 /* int; range to choose for unspec port */
 #define ICMP6_FILTER		18 /* icmp6_filter; icmp6 filter */
 /* RFC2292 options */
-#define IPV6_PKTINFO		19 /* bool; send/recv if, src/dst addr */
-#define IPV6_HOPLIMIT		20 /* bool; hop limit */
-#define IPV6_NEXTHOP		21 /* bool; next hop addr */
-#define IPV6_HOPOPTS		22 /* bool; hop-by-hop option */
-#define IPV6_DSTOPTS		23 /* bool; destination option */
-#define IPV6_RTHDR		24 /* bool; routing header */
-#define IPV6_PKTOPTIONS		25 /* buf/cmsghdr; set/get IPv6 options */
+#ifdef _KERNEL
+#define IPV6_2292PKTINFO	19 /* bool; send/recv if, src/dst addr */
+#define IPV6_2292HOPLIMIT	20 /* bool; hop limit */
+#define IPV6_2292NEXTHOP	21 /* bool; next hop addr */
+#define IPV6_2292HOPOPTS	22 /* bool; hop-by-hop option */
+#define IPV6_2292DSTOPTS	23 /* bool; destinaion option */
+#define IPV6_2292RTHDR		24 /* bool; routing header */
+#define IPV6_2292PKTOPTIONS	25 /* buf/cmsghdr; set/get IPv6 options */
+#endif
 
 #define IPV6_CHECKSUM		26 /* int; checksum offset for raw socket */
+#define IPV6_V6ONLY		27 /* bool; make AF_INET6 sockets v6 only */
 #ifndef _KERNEL
 #define IPV6_BINDV6ONLY		IPV6_V6ONLY
 #endif
@@ -453,6 +453,51 @@ struct route_in6 {
 #define IPV6_FW_ZERO		33 /* clear single/all firewall counter(s) */
 #define IPV6_FW_GET		34 /* get entire firewall rule chain */
 #endif
+
+/* new socket options introduced in RFC2292bis */
+#define IPV6_RTHDRDSTOPTS	35 /* ip6_dest; send dst option before rthdr */
+
+#define IPV6_RECVPKTINFO	36 /* bool; recv if, dst addr */
+#define IPV6_RECVHOPLIMIT	37 /* bool; recv hop limit */
+#define IPV6_RECVRTHDR		38 /* bool; recv routing header */
+#define IPV6_RECVHOPOPTS	39 /* bool; recv hop-by-hop option */
+#define IPV6_RECVDSTOPTS	40 /* bool; recv dst option after rthdr */
+#ifdef _KERNEL
+#define IPV6_RECVRTHDRDSTOPTS	41 /* bool; recv dst option before rthdr */
+#endif
+
+#define IPV6_USE_MIN_MTU	42 /* bool; send packets at the minimum MTU */
+#define IPV6_RECVPATHMTU	43 /* bool; notify an according MTU */
+
+#define IPV6_PATHMTU		44 /* mtuinfo; get the current path MTU (sopt),
+				      4 bytes int; MTU notification (cmsg) */
+#if 0 /*obsoleted during 2292bis -> 3542*/
+#define IPV6_REACHCONF		45 /* no data; ND reachability confirm
+				      (cmsg only/not in of RFC3542) */
+#endif
+
+/* more new socket options introduced in RFC2292bis */
+#define IPV6_PKTINFO		46 /* in6_pktinfo; send if, src addr */
+#define IPV6_HOPLIMIT		47 /* int; send hop limit */
+#define IPV6_NEXTHOP		48 /* sockaddr; next hop addr */
+#define IPV6_HOPOPTS		49 /* ip6_hbh; send hop-by-hop option */
+#define IPV6_DSTOPTS		50 /* ip6_dest; send dst option befor rthdr */
+#define IPV6_RTHDR		51 /* ip6_rthdr; send routing header */
+#if 0
+#define IPV6_PKTOPTIONS		52 /* buf/cmsghdr; set/get IPv6 options */
+				   /* obsoleted by 2292bis */
+#endif
+
+#define IPV6_RECVTCLASS		57 /* bool; recv traffic class values */
+
+#define IPV6_AUTOFLOWLABEL	59 /* bool; attach flowlabel automagically */
+
+#define IPV6_TCLASS		61 /* int; send traffic class value */
+#define IPV6_DONTFRAG		62 /* bool; disable IPv6 fragmentation */
+
+#define IPV6_PREFER_TEMPADDR	63 /* int; prefer temporary addresses as
+				    * the source address.
+				    */
 
 /* to define items, should talk with KAME guys first, for *BSD compatibility */
 
@@ -483,6 +528,14 @@ struct in6_pktinfo {
 };
 
 /*
+ * Control structure for IPV6_RECVPATHMTU socket option.
+ */
+struct ip6_mtuinfo {
+	struct sockaddr_in6 ip6m_addr;	/* or sockaddr_storage? */
+	u_int32_t ip6m_mtu;
+};
+
+/*
  * Argument for IPV6_PORTRANGE:
  * - which range to search when port is unspecified at bind() or connect()
  */
@@ -490,6 +543,7 @@ struct in6_pktinfo {
 #define	IPV6_PORTRANGE_HIGH	1	/* "high" - request firewall bypass */
 #define	IPV6_PORTRANGE_LOW	2	/* "low" - vouchsafe security */
 
+#if __BSD_VISIBLE
 /*
  * Definitions for inet6 sysctl operations.
  *
@@ -544,6 +598,7 @@ struct in6_pktinfo {
 /* New entries should be added here from current IPV6CTL_MAXID value. */
 /* to define items, should talk with KAME guys first, for *BSD compatibility */
 #define IPV6CTL_MAXID		42
+#endif /* __BSD_VISIBLE */
 
 /*
  * Redefinition of mbuf flags
@@ -584,6 +639,8 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
+#if __BSD_VISIBLE
+
 __BEGIN_DECLS
 struct cmsghdr;
 
@@ -591,14 +648,14 @@ extern int inet6_option_space __P((int));
 extern int inet6_option_init __P((void *, struct cmsghdr **, int));
 extern int inet6_option_append __P((struct cmsghdr *, const uint8_t *,
 	int, int));
-extern uint8_t *inet6_option_alloc __P((struct cmsghdr *, int, int, int));
-extern int inet6_option_next __P((const struct cmsghdr *, uint8_t **));
-extern int inet6_option_find __P((const struct cmsghdr *, uint8_t **, int));
+extern u_int8_t *inet6_option_alloc __P((struct cmsghdr *, int, int, int));
+extern int inet6_option_next __P((const struct cmsghdr *, u_int8_t **));
+extern int inet6_option_find __P((const struct cmsghdr *, u_int8_t **, int));
 
 extern size_t inet6_rthdr_space __P((int, int));
 extern struct cmsghdr *inet6_rthdr_init __P((void *, int));
 extern int inet6_rthdr_add __P((struct cmsghdr *, const struct in6_addr *,
-		unsigned int));
+	unsigned int));
 extern int inet6_rthdr_lasthop __P((struct cmsghdr *, unsigned int));
 #if 0 /* not implemented yet */
 extern int inet6_rthdr_reverse __P((const struct cmsghdr *, struct cmsghdr *));
@@ -607,19 +664,19 @@ extern int inet6_rthdr_segments __P((const struct cmsghdr *));
 extern struct in6_addr *inet6_rthdr_getaddr __P((struct cmsghdr *, int));
 extern int inet6_rthdr_getflags __P((const struct cmsghdr *, int));
 
-extern int inet6_opt_init __P((void *, size_t));
-extern int inet6_opt_append __P((void *, size_t, int, uint8_t,
-				 size_t, uint8_t, void **));
-extern int inet6_opt_finish __P((void *, size_t, int));
-extern int inet6_opt_set_val __P((void *, size_t, void *, int));
+extern int inet6_opt_init __P((void *, socklen_t));
+extern int inet6_opt_append __P((void *, socklen_t, int, u_int8_t, socklen_t,
+	u_int8_t, void **));
+extern int inet6_opt_finish __P((void *, socklen_t, int));
+extern int inet6_opt_set_val __P((void *, int, void *, socklen_t));
 
-extern int inet6_opt_next __P((void *, size_t, int, uint8_t *,
-			       size_t *, void **));
-extern int inet6_opt_find __P((void *, size_t, int, uint8_t,
-			  size_t *, void **));
-extern int inet6_opt_get_val __P((void *, size_t, void *, int));
-extern size_t inet6_rth_space __P((int, int));
-extern void *inet6_rth_init __P((void *, int, int, int));
+extern int inet6_opt_next __P((void *, socklen_t, int, u_int8_t *, socklen_t *,
+	void **));
+extern int inet6_opt_find __P((void *, socklen_t, int, u_int8_t, socklen_t *,
+	void **));
+extern int inet6_opt_get_val __P((void *, int, void *, socklen_t));
+extern socklen_t inet6_rth_space __P((int, int));
+extern void *inet6_rth_init __P((void *, socklen_t, int, int));
 extern int inet6_rth_add __P((void *, const struct in6_addr *));
 extern int inet6_rth_reverse __P((const void *, void *));
 extern int inet6_rth_segments __P((const void *));

@@ -245,9 +245,15 @@ icmp6_error(m, type, code, param)
 	oip6 = mtod(m, struct ip6_hdr *);
 
 	/*
-	 * Multicast destination check. For unrecognized option errors,
-	 * this check has already done in ip6_unknown_opt(), so we can
-	 * check only for other errors.
+	 * If the destination address of the erroneous packet is a multicast
+	 * address, or the packet was sent using link-layer multicast,
+	 * we should basically suppress sending an error (RFC 2463, Section
+	 * 2.4).
+	 * We have two exceptions (the item e.2 in that section):
+	 * - the Pakcet Too Big message can be sent for path MTU discovery.
+	 * - the Parameter Problem Message that can be allowed an icmp6 error
+	 *   in the option type field.  This check has been done in
+	 *   ip6_unknown_opt(), so we can just check the type and code.
 	 */
 	if ((m->m_flags & (M_BCAST|M_MCAST) ||
 	     IN6_IS_ADDR_MULTICAST(&oip6->ip6_dst)) &&
@@ -256,7 +262,10 @@ icmp6_error(m, type, code, param)
 	      code != ICMP6_PARAMPROB_OPTION)))
 		goto freeit;
 
-	/* Source address check. XXX: the case of anycast source? */
+	/*
+	 * RFC 2463, 2.4 (e.5): source address check.
+	 * XXX: the case of anycast source?
+	 */
 	if (IN6_IS_ADDR_UNSPECIFIED(&oip6->ip6_src) ||
 	    IN6_IS_ADDR_MULTICAST(&oip6->ip6_src))
 		goto freeit;
@@ -1099,6 +1108,26 @@ icmp6_mtudisc_update(ip6cp, validated)
 	u_int mtu = ntohl(icmp6->icmp6_mtu);
 	struct rtentry *rt = NULL;
 	struct sockaddr_in6 sin6;
+
+#if 0
+	/*
+	 * RFC2460 section 5, last paragraph.
+	 * even though minimum link MTU for IPv6 is IPV6_MMTU,
+	 * we may see ICMPv6 too big with mtu < IPV6_MMTU
+	 * due to packet translator in the middle.
+	 * see ip6_output() and ip6_getpmtu() "alwaysfrag" case for
+	 * special handling.
+	 */
+	if (mtu < IPV6_MMTU)
+		return;
+#endif
+
+	/*
+	 * we reject ICMPv6 too big with abnormally small value.
+	 * XXX what is the good definition of "abnormally small"?
+	 */
+	if (mtu < sizeof(struct ip6_hdr) + sizeof(struct ip6_frag) + 8)
+		return;
 
 	if (!validated)
 		return;
@@ -2122,7 +2151,9 @@ icmp6_reflect(m, off)
 	ip6->ip6_vfc &= ~IPV6_VERSION_MASK;
 	ip6->ip6_vfc |= IPV6_VERSION;
 	ip6->ip6_nxt = IPPROTO_ICMPV6;
-	if (m->m_pkthdr.rcvif) {
+	if (outif)
+		ip6->ip6_hlim = ND_IFINFO(outif)->chlim;
+	else if (m->m_pkthdr.rcvif) {
 		/* XXX: This may not be the outgoing interface */
 		ip6->ip6_hlim = ND_IFINFO(m->m_pkthdr.rcvif)->chlim;
 	} else

@@ -444,8 +444,7 @@ in6_pcbdetach(inp)
 		so->so_pcb = NULL;
 		sotryfree(so);
 	}
-	if (inp->in6p_options)
-		m_freem(inp->in6p_options);
+
  	ip6_freepcbopts(inp->in6p_outputopts);
  	ip6_freemoptions(inp->in6p_moptions);
 	if (inp->in6p_route.ro_rt)

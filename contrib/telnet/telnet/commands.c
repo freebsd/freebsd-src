@@ -2846,7 +2846,7 @@ sourceroute(struct addrinfo *ai, char *arg, char **cpp, int *lenp, int *protop, 
 	struct sockaddr_in *_sin;
 #ifdef INET6
 	struct sockaddr_in6 *sin6;
-	struct cmsghdr *cmsg;
+	struct ip6_rthdr *rth;
 #endif
 	struct addrinfo hints, *res;
 	int error;
@@ -2889,11 +2889,13 @@ sourceroute(struct addrinfo *ai, char *arg, char **cpp, int *lenp, int *protop, 
 
 #ifdef INET6
 	if (ai->ai_family == AF_INET6) {
-		cmsg = inet6_rthdr_init(*cpp, IPV6_RTHDR_TYPE_0);
+		if ((rth = inet6_rth_init((void *)*cpp, sizeof(buf),
+					  IPV6_RTHDR_TYPE_0, 0)) == NULL)
+			return -1;
 		if (*cp != '@')
 			return -1;
 		*protop = IPPROTO_IPV6;
-		*optp = IPV6_PKTOPTIONS;
+		*optp = IPV6_RTHDR;
 	} else
 #endif
       {
@@ -2965,8 +2967,8 @@ sourceroute(struct addrinfo *ai, char *arg, char **cpp, int *lenp, int *protop, 
 #ifdef INET6
 		if (res->ai_family == AF_INET6) {
 			sin6 = (struct sockaddr_in6 *)res->ai_addr;
-			inet6_rthdr_add(cmsg, &sin6->sin6_addr,
-					IPV6_RTHDR_LOOSE);
+			if (inet6_rth_add((void *)rth, &sin6->sin6_addr) == -1)
+				return(0);
 		} else
 #endif
 	      {
@@ -2981,23 +2983,14 @@ sourceroute(struct addrinfo *ai, char *arg, char **cpp, int *lenp, int *protop, 
 		/*
 		 * Check to make sure there is space for next address
 		 */
-#ifdef INET6
-		if (res->ai_family == AF_INET6) {
-			if (((char *)CMSG_DATA(cmsg) +
-			     sizeof(struct ip6_rthdr) +
-			     ((inet6_rthdr_segments(cmsg) + 1) *
-			      sizeof(struct in6_addr))) > ep)
-			return -1;
-		} else
-#endif
 		if (lsrp + 4 > ep)
 			return -1;
 		freeaddrinfo(res);
 	}
 #ifdef INET6
 	if (res->ai_family == AF_INET6) {
-		inet6_rthdr_lasthop(cmsg, IPV6_RTHDR_LOOSE);
-		*lenp = cmsg->cmsg_len;
+		rth->ip6r_len = rth->ip6r_segleft * 2;
+		*lenp = (rth->ip6r_len + 1) << 3;
 	} else
 #endif
       {
