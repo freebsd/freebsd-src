@@ -75,11 +75,6 @@
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_tty.h>
 
-#ifdef __i386__			/* fiddle with the spl locking */
-#include <sys/bus.h>
-#include <machine/ipl.h>
-#endif
-
 /* Misc defs */
 #define MAX_MBUFQ		3	/* Max number of queued mbufs */
 #define NGT_HIWATER		400	/* High water mark on output */
