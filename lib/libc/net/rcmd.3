@@ -39,7 +39,10 @@
 .Nm rcmd ,
 .Nm rresvport ,
 .Nm iruserok ,
-.Nm ruserok
+.Nm ruserok ,
+.Nm rresvport_af ,
+.Nm iruserok_af ,
+.Nm ruserok_af
 .Nd routines for returning a stream to a remote command
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
@@ -51,6 +54,12 @@
 .Fn iruserok "u_long raddr" "int superuser" "const char *ruser" "const char *luser"
 .Ft int
 .Fn ruserok "const char *rhost" "int superuser" "const char *ruser" "const char *luser"
+.Ft int
+.Fn rresvport_af "int *port" "int family"
+.Ft int
+.Fn iruserok_af "void *raddr" "int superuser" "const char *ruser" "const char *luser" "int af"
+.Ft int
+.Fn ruserok_af "const char *rhost" "int superuser" "const char *ruser" "const char *luser" "int af"
 .Sh DESCRIPTION
 The
 .Fn rcmd
@@ -173,6 +182,19 @@ function is strongly preferred for security reasons.
 It requires trusting the local DNS at most, while the
 .Fn ruserok
 function requires trusting the entire DNS, which can be spoofed.
+.Pp
+Functions with ``_af'' suffix, i.e.
+.Fn rresvport_af ,
+.Fn iruserok_af and
+.Fn ruserok_af ,
+works just as same as functions without ``_af'', and is capable of
+handling both IPv6 port and IPv4 port.
+To switch address family,
+.Fa af
+argument must be filled with
+.Dv AF_INET
+or
+.Dv AF_INET6 .
 .Sh DIAGNOSTICS
 The
 .Fn rcmd
@@ -198,7 +220,18 @@ is overloaded to mean ``All network ports in use.''
 .Xr rexecd 8 ,
 .Xr rlogind 8 ,
 .Xr rshd 8
+.Pp
+W. Stevens and M. Thomas, ``Advanced Socket API for IPv6,''
+RFC2292.
 .Sh HISTORY
 These
 functions appeared in 
 .Bx 4.2 .
+.Fn rresvport_af
+appeared in RFC2292, and implemented by WIDE project
+for Hydrangea IPv6 protocol stack kit.
+.Fn iruserok_af
+and
+.Fn rusreok_af
+are proposed and implemented by WIDE project
+for Hydrangea IPv6 protocol stack kit.
