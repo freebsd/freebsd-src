@@ -46,11 +46,5 @@ __FBSDID("$FreeBSD$");
         .set CNAME(ntohl),CNAME(__ntohl)
 ENTRY(__ntohl)
 	movl	4(%esp),%eax
-#ifdef I386_CPU
-	xchgb	%al,%ah
-	roll	$16,%eax
-	xchgb	%al,%ah
-#else
 	bswap	%eax
-#endif
 	ret
