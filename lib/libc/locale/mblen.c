@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <stdlib.h>
 #include <wchar.h>
+#include "mblocal.h"
 
 int
 mblen(const char *s, size_t n)
@@ -44,7 +45,7 @@ mblen(const char *s, size_t n)
 		mbs = initial;
 		return (0);
 	}
-	rval = mbrtowc(NULL, s, n, &mbs);
+	rval = __mbrtowc(NULL, s, n, &mbs);
 	if (rval == (size_t)-1 || rval == (size_t)-2)
 		return (-1);
 	if (rval > INT_MAX) {

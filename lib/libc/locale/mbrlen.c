@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <wchar.h>
+#include "mblocal.h"
 
 size_t
 mbrlen(const char * __restrict s, size_t n, mbstate_t * __restrict ps)
@@ -36,5 +37,5 @@ mbrlen(const char * __restrict s, size_t n, mbstate_t * __restrict ps)
 
 	if (ps == NULL)
 		ps = &mbs;
-	return (mbrtowc(NULL, s, n, ps));
+	return (__mbrtowc(NULL, s, n, ps));
 }

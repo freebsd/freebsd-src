@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <stdlib.h>
 #include <wchar.h>
+#include "mblocal.h"
 
 size_t
 mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
@@ -49,7 +50,7 @@ mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
 		ps = &mbs;
 	if (dst == NULL) {
 		for (;;) {
-			if ((nb = (int)mbrtowc(&wc, s, MB_CUR_MAX, ps)) < 0)
+			if ((nb = (int)__mbrtowc(&wc, s, MB_CUR_MAX, ps)) < 0)
 				/* Invalid sequence - mbrtowc() sets errno. */
 				return ((size_t)-1);
 			else if (nb == 0)
@@ -61,7 +62,7 @@ mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
 	}
 
 	while (len-- > 0) {
-		if ((nb = (int)mbrtowc(dst, s, MB_CUR_MAX, ps)) < 0) {
+		if ((nb = (int)__mbrtowc(dst, s, MB_CUR_MAX, ps)) < 0) {
 			*src = s;
 			return ((size_t)-1);
 		} else if (nb == 0) {
