@@ -737,11 +737,11 @@ static io_int  *io_apic_ints;
 
 static int nintrs;
 
-static int processor_entry	__P((proc_entry_ptr entry, int cpu));
-static int bus_entry		__P((bus_entry_ptr entry, int bus));
-static int io_apic_entry	__P((io_apic_entry_ptr entry, int apic));
-static int int_entry		__P((int_entry_ptr entry, int intr));
-static int lookup_bus_type	__P((char *name));
+static int processor_entry	(proc_entry_ptr entry, int cpu);
+static int bus_entry		(bus_entry_ptr entry, int bus);
+static int io_apic_entry	(io_apic_entry_ptr entry, int apic);
+static int int_entry		(int_entry_ptr entry, int intr);
+static int lookup_bus_type	(char *name);
 
 
 /*

@@ -146,17 +146,17 @@ struct scsi_low_softc;
 
 struct scsi_low_osdep_funcs {
 	int (*scsi_low_osdep_attach) \
-			__P((struct scsi_low_softc *));
+			(struct scsi_low_softc *);
 	int (*scsi_low_osdep_world_start) \
-			__P((struct scsi_low_softc *));
+			(struct scsi_low_softc *);
 	int (*scsi_low_osdep_dettach) \
-			__P((struct scsi_low_softc *));
+			(struct scsi_low_softc *);
 	int (*scsi_low_osdep_ccb_setup) \
-			__P((struct scsi_low_softc *, struct slccb *));
+			(struct scsi_low_softc *, struct slccb *);
 	int (*scsi_low_osdep_done) \
-			__P((struct scsi_low_softc *, struct slccb *));
+			(struct scsi_low_softc *, struct slccb *);
 	void (*scsi_low_osdep_timeout) \
-			__P((struct scsi_low_softc *, int, int));
+			(struct scsi_low_softc *, int, int);
 };
 
 /*================================================
@@ -513,32 +513,32 @@ typedef struct scsi_low_softc *sc_low_t;
 #define	SCSI_LOW_POWDOWN	1
 #define	SCSI_LOW_ENGAGE		2
 
-#define	SC_LOW_INIT_T (int (*) __P((sc_low_t, int)))
-#define	SC_LOW_BUSRST_T (void (*) __P((sc_low_t)))
-#define	SC_LOW_TARG_INIT_T (int (*) __P((sc_low_t, struct targ_info *, int)))
-#define	SC_LOW_LUN_INIT_T (int (*) __P((sc_low_t, struct targ_info *, struct lun_info *, int)))
-#define	SC_LOW_SELECT_T (int (*) __P((sc_low_t, struct slccb *)))
-#define	SC_LOW_ATTEN_T (void (*) __P((sc_low_t)))
-#define	SC_LOW_NEXUS_T (int (*) __P((sc_low_t)))
-#define	SC_LOW_MSG_T (int (*) __P((sc_low_t, struct targ_info *, u_int)))
-#define	SC_LOW_POLL_T (int (*) __P((void *)))
-#define	SC_LOW_POWER_T (int (*) __P((sc_low_t, u_int)))
-#define	SC_LOW_TIMEOUT_T (int (*) __P((sc_low_t)))
+#define	SC_LOW_INIT_T (int (*)(sc_low_t, int))
+#define	SC_LOW_BUSRST_T (void (*)(sc_low_t))
+#define	SC_LOW_TARG_INIT_T (int (*)(sc_low_t, struct targ_info *, int))
+#define	SC_LOW_LUN_INIT_T (int (*)(sc_low_t, struct targ_info *, struct lun_info *, int))
+#define	SC_LOW_SELECT_T (int (*)(sc_low_t, struct slccb *))
+#define	SC_LOW_ATTEN_T (void (*)(sc_low_t))
+#define	SC_LOW_NEXUS_T (int (*)(sc_low_t))
+#define	SC_LOW_MSG_T (int (*)(sc_low_t, struct targ_info *, u_int))
+#define	SC_LOW_POLL_T (int (*)(void *))
+#define	SC_LOW_POWER_T (int (*)(sc_low_t, u_int))
+#define	SC_LOW_TIMEOUT_T (int (*)(sc_low_t))
 
 struct scsi_low_funcs {
-	int (*scsi_low_init) __P((sc_low_t, int));
-	void (*scsi_low_bus_reset) __P((sc_low_t));
-	int (*scsi_low_targ_init) __P((sc_low_t, struct targ_info *, int));
-	int (*scsi_low_lun_init) __P((sc_low_t, struct targ_info *, struct lun_info *, int));
-	int (*scsi_low_start_bus) __P((sc_low_t, struct slccb *));
-	int (*scsi_low_establish_lun_nexus) __P((sc_low_t));
-	int (*scsi_low_establish_ccb_nexus) __P((sc_low_t));
-	void (*scsi_low_attention) __P((sc_low_t));
-	int (*scsi_low_msg) __P((sc_low_t, struct targ_info *, u_int));
-	int (*scsi_low_timeout) __P((sc_low_t));
-	int (*scsi_low_poll) __P((void *));
-	int (*scsi_low_power) __P((sc_low_t, u_int));
-	int (*scsi_low_ioctl) __P((sc_low_t, u_long, caddr_t, int, struct proc *));
+	int (*scsi_low_init)(sc_low_t, int);
+	void (*scsi_low_bus_reset)(sc_low_t);
+	int (*scsi_low_targ_init)(sc_low_t, struct targ_info *, int);
+	int (*scsi_low_lun_init)(sc_low_t, struct targ_info *, struct lun_info *, int);
+	int (*scsi_low_start_bus)(sc_low_t, struct slccb *);
+	int (*scsi_low_establish_lun_nexus)(sc_low_t);
+	int (*scsi_low_establish_ccb_nexus)(sc_low_t);
+	void (*scsi_low_attention)(sc_low_t);
+	int (*scsi_low_msg)(sc_low_t, struct targ_info *, u_int);
+	int (*scsi_low_timeout)(sc_low_t);
+	int (*scsi_low_poll)(void *);
+	int (*scsi_low_power)(sc_low_t, u_int);
+	int (*scsi_low_ioctl)(sc_low_t, u_long, caddr_t, int, struct proc *);
 };
 
 struct scsi_low_softc {
@@ -663,51 +663,51 @@ struct scsi_low_softc {
 /* 
  * Scsi low attachment function.
  */
-int scsi_low_attach __P((struct scsi_low_softc *, int, int, int, int, int));
-int scsi_low_dettach __P((struct scsi_low_softc *));
+int scsi_low_attach(struct scsi_low_softc *, int, int, int, int, int);
+int scsi_low_dettach(struct scsi_low_softc *);
 
 /* 
  * Scsi low interface activate or deactivate functions
  */
-int scsi_low_is_busy __P((struct scsi_low_softc *));
-int scsi_low_activate __P((struct scsi_low_softc *));
-int scsi_low_deactivate __P((struct scsi_low_softc *));
+int scsi_low_is_busy(struct scsi_low_softc *);
+int scsi_low_activate(struct scsi_low_softc *);
+int scsi_low_deactivate(struct scsi_low_softc *);
 
 /* 
  * Scsi phase "bus service" functions.
  * These functions are corresponding to each scsi bus phaeses.
  */
 /* bus idle phase (other initiators or targets release bus) */
-void scsi_low_bus_idle __P((struct scsi_low_softc *));
+void scsi_low_bus_idle(struct scsi_low_softc *);
 
 /* arbitration and selection phase */
-void scsi_low_arbit_fail __P((struct scsi_low_softc *, struct slccb *));
-static __inline void scsi_low_arbit_win __P((struct scsi_low_softc *));
+void scsi_low_arbit_fail(struct scsi_low_softc *, struct slccb *);
+static __inline void scsi_low_arbit_win(struct scsi_low_softc *);
 
 /* msgout phase */
 #define	SCSI_LOW_MSGOUT_INIT		0x00000001
 #define	SCSI_LOW_MSGOUT_UNIFY		0x00000002
-int scsi_low_msgout __P((struct scsi_low_softc *, struct targ_info *, u_int));
+int scsi_low_msgout(struct scsi_low_softc *, struct targ_info *, u_int);
 
 /* msgin phase */
 #define SCSI_LOW_DATA_PE	0x80000000
-int scsi_low_msgin __P((struct scsi_low_softc *, struct targ_info *, u_int));
+int scsi_low_msgin(struct scsi_low_softc *, struct targ_info *, u_int);
 
 /* statusin phase */
-static __inline int scsi_low_statusin __P((struct scsi_low_softc *, struct targ_info *, u_int));
+static __inline int scsi_low_statusin(struct scsi_low_softc *, struct targ_info *, u_int);
 
 /* data phase */
-int scsi_low_data __P((struct scsi_low_softc *, struct targ_info *, struct buf **, int));
-static __inline void scsi_low_data_finish __P((struct scsi_low_softc *));
+int scsi_low_data(struct scsi_low_softc *, struct targ_info *, struct buf **, int);
+static __inline void scsi_low_data_finish(struct scsi_low_softc *);
 
 /* cmd phase */
-int scsi_low_cmd __P((struct scsi_low_softc *, struct targ_info *));
+int scsi_low_cmd(struct scsi_low_softc *, struct targ_info *);
 
 /* reselection phase */
-struct targ_info *scsi_low_reselected __P((struct scsi_low_softc *, u_int));
+struct targ_info *scsi_low_reselected(struct scsi_low_softc *, u_int);
 
 /* disconnection phase */
-int scsi_low_disconnected __P((struct scsi_low_softc *, struct targ_info *));
+int scsi_low_disconnected(struct scsi_low_softc *, struct targ_info *);
 
 /* 
  * Scsi bus restart function.
@@ -715,16 +715,16 @@ int scsi_low_disconnected __P((struct scsi_low_softc *, struct targ_info *));
  */
 #define	SCSI_LOW_RESTART_HARD	1
 #define	SCSI_LOW_RESTART_SOFT	0
-int scsi_low_restart __P((struct scsi_low_softc *, int, u_char *));
+int scsi_low_restart(struct scsi_low_softc *, int, u_char *);
 
 /* 
  * Scsi utility fucntions
  */
 /* print current status */
-void scsi_low_print __P((struct scsi_low_softc *, struct targ_info *));
+void scsi_low_print(struct scsi_low_softc *, struct targ_info *);
 
 /* bus reset utility */
-void scsi_low_bus_reset __P((struct scsi_low_softc *));
+void scsi_low_bus_reset(struct scsi_low_softc *);
 
 /*************************************************
  * Message macro defs
@@ -753,10 +753,10 @@ void scsi_low_bus_reset __P((struct scsi_low_softc *));
 /*************************************************
  * Inline functions
  *************************************************/
-static __inline void scsi_low_attention __P((struct scsi_low_softc *));
-static __inline int scsi_low_is_msgout_continue __P((struct targ_info *, u_int));
-static __inline int scsi_low_assert_msg __P((struct scsi_low_softc *, struct targ_info *, u_int, int));
-static __inline int scsi_low_is_disconnect_ok __P((struct slccb *));
+static __inline void scsi_low_attention(struct scsi_low_softc *);
+static __inline int scsi_low_is_msgout_continue(struct targ_info *, u_int);
+static __inline int scsi_low_assert_msg(struct scsi_low_softc *, struct targ_info *, u_int, int);
+static __inline int scsi_low_is_disconnect_ok(struct slccb *);
 
 static __inline int
 scsi_low_is_msgout_continue(ti, mask)
