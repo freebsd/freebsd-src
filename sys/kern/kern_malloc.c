@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.55 1999/05/06 18:12:42 peter Exp $
+ * $Id: kern_malloc.c,v 1.56 1999/05/12 11:11:27 bde Exp $
  */
 
 #include "opt_vm.h"
@@ -419,22 +419,21 @@ kmeminit(dummy)
 	 * Note that the kmem_map is also used by the zone allocator,
 	 * so make sure that there is enough space.
 	 */
-	vm_kmem_size = VM_KMEM_SIZE;
+	xvm_kmem_size = VM_KMEM_SIZE;
 	mem_size = cnt.v_page_count * PAGE_SIZE;
 
 #if defined(VM_KMEM_SIZE_SCALE)
-	if ((mem_size / VM_KMEM_SIZE_SCALE) > vm_kmem_size)
-		vm_kmem_size = mem_size / VM_KMEM_SIZE_SCALE;
+	if ((mem_size / VM_KMEM_SIZE_SCALE) > xvm_kmem_size)
+		xvm_kmem_size = mem_size / VM_KMEM_SIZE_SCALE;
 #endif
 
 #if defined(VM_KMEM_SIZE_MAX)
-	if (vm_kmem_size >= VM_KMEM_SIZE_MAX)
-		vm_kmem_size = VM_KMEM_SIZE_MAX;
+	if (xvm_kmem_size >= VM_KMEM_SIZE_MAX)
+		xvm_kmem_size = VM_KMEM_SIZE_MAX;
 #endif
 
 	/* Allow final override from the kernel environment */
-	if (getenv_int("kern.vm.kmem.size", &xvm_kmem_size))
-	    vm_kmem_size = xvm_kmem_size;
+	TUNABLE_INT_FETCH("kern.vm.kmem.size", xvm_kmem_size, vm_kmem_size);
 
 	if (vm_kmem_size > 2 * (cnt.v_page_count * PAGE_SIZE))
 		vm_kmem_size = 2 * (cnt.v_page_count * PAGE_SIZE);
