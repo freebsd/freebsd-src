@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.14 1994/12/23 22:50:45 nate Exp $
+#	$Id: bsd.lib.mk,v 1.15 1994/12/24 10:07:51 ache Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -160,7 +160,7 @@ OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 lib${LIB}.a:: ${OBJS}
 	@${ECHO} building standard ${LIB} library
 	@rm -f lib${LIB}.a
-	@${AR} cTq lib${LIB}.a `lorder ${OBJS} | tsort` ${ARADD}
+	@${AR} cq lib${LIB}.a `lorder ${OBJS} | tsort` ${ARADD}
 	${RANLIB} lib${LIB}.a
 
 .if !defined(NOPROFILE)
@@ -168,7 +168,7 @@ POBJS+=	${OBJS:.o=.po}
 lib${LIB}_p.a:: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f lib${LIB}_p.a
-	@${AR} cTq lib${LIB}_p.a `lorder ${POBJS} | tsort` ${ARADD}
+	@${AR} cq lib${LIB}_p.a `lorder ${POBJS} | tsort` ${ARADD}
 	${RANLIB} lib${LIB}_p.a
 .endif
 
@@ -192,7 +192,7 @@ lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 lib${LIB}_pic.a:: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f lib${LIB}_pic.a
-	@${AR} cTq lib${LIB}_pic.a ${SOBJS} ${ARADD}
+	@${AR} cq lib${LIB}_pic.a ${SOBJS} ${ARADD}
 	${RANLIB} lib${LIB}_pic.a
 .endif
 
