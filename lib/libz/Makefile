@@ -1,10 +1,11 @@
 #
-# $Id: Makefile,v 1.5 1997/02/22 11:38:21 peter Exp $
+# $Id: Makefile,v 1.6 1998/02/28 06:27:59 steve Exp $
 #
 
 MAINTAINER=peter@FreeBSD.org
 
 LIB=		z
+MAN3=           zlib.3
 
 #CFLAGS+=	-DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS+=	-g -DDEBUG
