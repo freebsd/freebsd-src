@@ -187,6 +187,7 @@ Keywords may be appended with an equals
 sign and a string.
 This causes the printed header to use the specified string instead of
 the standard header.
+If all keywords have empty header texts, no header line is written.
 .It Fl p
 Display information about processes which match the specified process IDs.
 .It Fl r
@@ -312,6 +313,9 @@ The name of the lock that the process is currently blocked on.
 If the name is invalid or unknown, then
 .Dq ???\&
 is displayed.
+.It Cm logname
+The login name associated with the session the process is in (see
+.Xr getlogin 2 ) .
 .It Cm mwchan
 The event name if the process is blocked normally, or the lock name if
 the process is blocked on a lock.
@@ -416,18 +420,26 @@ is listed as
 and a process which is blocked while trying
 to exit is listed as
 .Dq Li <exiting> .
-If the command vector cannot be located (usually because it has not
-been set, as is the case of system processes and/or kernel threads)
-the command name is printed within square brackets.
+If the arguments cannot be located (usually because it has not been set, as is
+the case of system processes and/or kernel threads) the command name is printed
+within square brackets.
 The
 .Nm
-utility
+utility first tries to obtain the arguments cached by the kernel (if they were
+shorter than the value of the
+.Va kern.ps_arg_cache_limit
+sysctl).
+The process can change the arguments shown with
+.Xr setproctitle 3 .
+Otherwise,
+.Nm
 makes an educated guess as to the file name and arguments given when the
 process was created by examining memory or the swap area.
 The method is inherently somewhat unreliable and in any event a process
-is entitled to destroy this information, so the names cannot be depended
-on too much.
+is entitled to destroy this information.
 The ucomm (accounting) keyword can, however, be depended on.
+If the arguments are unavailable or do not agree with the ucomm keyword,
+the value for the ucomm keyword is appended to the arguments in parentheses.
 .Sh KEYWORDS
 The following is a complete list of the available keywords and their
 meanings.
@@ -467,8 +479,10 @@ tracing flags
 MAC label
 .It Cm lim
 memoryuse limit
+.It Cm lockname
+lock currently blocked on (as a symbolic name)
 .It Cm logname
-login name of user who started the process
+login name of user who started the session
 .It Cm lstart
 time started
 .It Cm majflt
@@ -479,8 +493,6 @@ total page reclaims
 total messages received (reads from pipes/sockets)
 .It Cm msgsnd
 total messages sent (writes on pipes/sockets)
-.It Cm lockname
-lock currently blocked on (as a symbolic name)
 .It Cm mwchan
 wait channel or lock currently blocked on
 .It Cm nice
@@ -622,7 +634,7 @@ the mount point of
 .Xr sysctl 8 ,
 .Xr mutex 9
 .Sh STANDARDS
-For historical reasons,
+For historical reasons, the
 .Nm
 utility under
 .Fx
