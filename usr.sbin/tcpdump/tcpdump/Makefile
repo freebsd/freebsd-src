@@ -1,22 +1,31 @@
 #	$Id: Makefile,v 1.10 1995/08/29 19:48:10 wollman Exp $
 
 PROG=	tcpdump
-CFLAGS+=-DCSLIP -DPPP -DFDDI -DETHER_SERVICE
+CFLAGS+=-DHAVE_FCNTL_H=1 -DHAVE_NET_SLIP_H=1 -DTIME_WITH_SYS_TIME=1 \
+	-DHAVE_ETHER_NTOA=1 -DHAVE_SETLINEBUF=1 -DSTDC_HEADERS=1 \
+	-DRETSIGTYPE=void -DRETSIGVAL= -DHAVE_SOCKADDR_SA_LEN=1 \
+	-DHAVE_TM_GMTOFF=1 -DLBL_ALIGN=1 -DPPP -DHAVE_FDDI
 MAN1=	tcpdump.1
-SRCS=	version.c addrtoname.c bpf_dump.c parsenfsfh.c \
-	print-arp.c print-atalk.c print-bootp.c print-decnet.c print-domain.c \
-	print-egp.c print-ether.c print-fddi.c print-icmp.c print-ip.c \
-	print-ipx.c print-isoclns.c print-llc.c print-krb.c \
-	print-nfs.c print-ntp.c print-null.c print-ospf.c print-ppp.c \
-	print-rip.c print-sl.c print-snmp.c print-sunrpc.c print-tcp.c \
-	print-tftp.c print-udp.c print-wb.c tcpdump.c \
-	util.c
+SRCS=	version.c tcpdump.c addrtoname.c \
+        print-ether.c print-ip.c print-arp.c print-tcp.c \
+	print-udp.c print-atalk.c print-domain.c print-tftp.c \
+	print-bootp.c print-nfs.c print-icmp.c print-igrp.c \
+	print-sl.c print-ppp.c print-rip.c print-snmp.c \
+	print-ntp.c print-null.c print-egp.c print-ospf.c \
+	print-fddi.c print-llc.c print-sunrpc.c print-wb.c \
+	print-decnet.c print-isoclns.c print-ipx.c \
+	print-atm.c print-dvmrp.c print-pim.c print-krb.c \
+	util.c machdep.c bpf_dump.c parsenfsfh.c
 CLEANFILES+=	version.c
 DPADD+=	${LIBL} ${LIBPCAP}
 LDADD+=	-ll -lpcap
 
-version.c: VERSION
+DISTDIR?= ${.CURDIR}/../../contrib/tcpdump
+CFLAGS+= -I${DISTDIR}/lbl
+.PATH:	${DISTDIR}
+
+version.c: ${DISTDIR}/VERSION
 	rm -f version.c ; \
-	sed 's/.*/char version[] = "&";/' $(.CURDIR)/VERSION > version.c
+	sed 's/.*/char version[] = "&";/' ${DISTDIR}/VERSION > version.c
 
 .include <bsd.prog.mk>
