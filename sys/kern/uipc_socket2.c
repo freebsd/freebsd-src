@@ -231,6 +231,8 @@ sonewconn3(head, connstatus, p)
 	so = soalloc(0);
 	if (so == NULL)
 		return ((struct socket *)0);
+	if ((head->so_options & SO_ACCEPTFILTER) != 0)
+		connstatus = 0;
 	so->so_head = head;
 	so->so_type = head->so_type;
 	so->so_options = head->so_options &~ SO_ACCEPTCONN;
