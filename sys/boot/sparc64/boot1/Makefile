@@ -9,7 +9,7 @@ BINMODE=	444
 
 BOOTBLOCKBASE=	0x4000
 
-CFLAGS=	-ffreestanding -mcmodel=medlow -Os -I../.. -I../../common
+CFLAGS=	-ffreestanding -mcmodel=medlow -Os -I../.. -I../../common -I${.CURDIR}/../../common
 
 boot1.elf: _start.o boot1.o
 	${LD} -N -Ttext ${BOOTBLOCKBASE} -o ${.TARGET} ${.ALLSRC}
