@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.41 2000/06/21 21:37:27 dmlb Exp $
+ * $Id: if_ray.c,v 1.42 2000/07/07 19:13:11 dmlb Exp $
  *
  */
 
@@ -207,8 +207,6 @@
 #define XXX		0
 #define XXX_ACTING_AP	0
 #define XXX_INFRA	0
-#define XXX_8BIT	1
-#define XXX_OFFSET	1
 #define RAY_DEBUG	(				\
  			/* RAY_DBG_SUBR		| */ 	\
 			   RAY_DBG_BOOTPARAM	|    	\
@@ -2644,8 +2642,7 @@ ray_repparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 	RAY_COM_RUNQ(sc, com, ncom, "rayrparm", error);
 
 	/* XXX no real error processing from anything yet! */
-	error = com[0]->c_retval; /*XXX wrong */
-	if (!error && pr->r_failcause)
+	if (!com[0]->c_retval && pr->r_failcause)
 		error = EINVAL;
 
 	RAY_COM_FREE(com, ncom);
@@ -2804,8 +2801,7 @@ ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 	RAY_COM_RUNQ(sc, com, ncom, "rayuparam", error);
 
 	/* XXX no real error processing from anything yet! */
-	error = com[0]->c_retval; /* XXX wrong */
-	if (!error && pr->r_failcause)
+	if (!com[0]->c_retval && pr->r_failcause)
 		error = EINVAL;
 
 	RAY_COM_FREE(com, ncom);
@@ -3332,42 +3328,87 @@ ray_ccs_tx(struct ray_softc *sc, size_t *ccsp, size_t *bufpp)
 
 /*
  * Allocate the attribute memory on the card
+ *
+ * A lot of this is hacking around pccardd brokeness
  */
 static int
 ray_res_alloc_am(struct ray_softc *sc)
 {
+	u_long start, count, flags;
+	u_int32_t offset;
 	int error;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CM, "");
 
 	sc->am_rid = 1;		/* pccard uses 0 */
-	sc->am_res = bus_alloc_resource(sc->dev, SYS_RES_MEMORY, &sc->am_rid,
-	    0, ~0, 0x1000, RF_ACTIVE);
+	start = bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->am_rid);
+	count = bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->am_rid);
+	error = CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+	    SYS_RES_MEMORY, sc->am_rid, &flags);
+	if (error) {
+		RAY_PRINTF(sc, "CARD_GET_RES_FLAGS returned 0x%0x", error);
+		return (error);
+	}
+	error = CARD_GET_MEMORY_OFFSET(device_get_parent(sc->dev), sc->dev,
+	    sc->am_rid, &offset);
+	if (error) {
+		RAY_PRINTF(sc, "CARD_GET_MEMORY_OFFSET returned 0x%0x", error);
+		return (error);
+	}
+
+	RAY_DPRINTF(sc, RAY_DBG_CM | RAY_DBG_BOOTPARAM,
+	    "attribute start 0x%0lx count 0x%0lx flags 0x%0lx offset 0x%0x",
+	    start, count, flags, offset);
+
+	if (start == 0x0) {
+		RAY_PRINTF(sc, "fixing up AM map");
+	}
+	if (count != 0x1000) {
+		RAY_PRINTF(sc, "fixing up AM size from 0x%lx to 0x1000",
+		    count);
+		count = 0x1000;
+	}
+	sc->am_res = bus_alloc_resource(sc->dev, SYS_RES_MEMORY,
+	    &sc->am_rid, start, ~0, count, RF_ACTIVE);
 	if (!sc->am_res) {
 		RAY_PRINTF(sc, "Cannot allocate attribute memory");
 		return (ENOMEM);
 	}
-	/* Ensure attribute memory settings */
-	/* XXX DO LIKE CM BELOW */
-	error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-	    SYS_RES_MEMORY, sc->am_rid, PCCARD_A_MEM_ATTR); /* XXX card_set_res_flags */
-	if (error) {
-		RAY_PRINTF(sc, "CARD_SET_RES_FLAGS returned 0x%0x", error);
-		return (error);
-	}
 	sc->am_bsh = rman_get_bushandle(sc->am_res);
 	sc->am_bst = rman_get_bustag(sc->am_res);
-#if RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM)
-	{
-		u_long flags = 0xffff;
-		CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-		    SYS_RES_MEMORY, sc->am_rid, &flags); /* XXX card_get_res_flags */
-		RAY_PRINTF(sc, "allocated attribute memory:\n"
-		    ".  start 0x%0lx count 0x%0lx flags 0x%0lx",
-		    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->am_rid),
-		    bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->am_rid),
-		    flags);
+	if (offset != 0) {
+		RAY_PRINTF(sc, "fixing up AM card address from 0x%x to 0x0",
+		    offset);
+		error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->dev),
+		    sc->dev, sc->am_rid, 0);
+		if (error) {
+			RAY_PRINTF(sc, "CARD_SET_MEMORY_OFFSET returned 0x%0x",
+			    error);
+			return (error);
+		}
 	}
+	if (!(flags & 0x10) /* XXX MDF_ATTR */) {
+		RAY_PRINTF(sc, "fixing up AM flags from 0x%lx to 0x10",
+		    flags);
+		error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+		    SYS_RES_MEMORY, sc->am_rid, PCCARD_A_MEM_ATTR);
+		if (error) {
+			RAY_PRINTF(sc, "CARD_SET_RES_FLAGS returned 0x%0x",
+			    error);
+			return (error);
+		}
+	}
+
+#if RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM)
+	CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+	    SYS_RES_MEMORY, sc->am_rid, &flags);
+	CARD_GET_MEMORY_OFFSET(device_get_parent(sc->dev), sc->dev,
+	    sc->cm_rid, &offset);
+	RAY_PRINTF(sc, "allocated attribute memory:\n"
+	    ".  start 0x%0lx count 0x%0lx flags 0x%0lx offset 0x%0x",
+	    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->am_rid),
+	    bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->am_rid),
+	    flags, offset);
 #endif /* RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM) */
 
 	return (0);
@@ -3381,19 +3422,27 @@ ray_res_alloc_am(struct ray_softc *sc)
 static int
 ray_res_alloc_cm(struct ray_softc *sc)
 {
-	int error;
 	u_long start, count, flags;
 	u_int32_t offset;
+	int error;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CM, "");
 
 	sc->cm_rid = 0;		/* pccard uses 0 */
 	start = bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->cm_rid);
 	count = bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->cm_rid);
-	CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-	    SYS_RES_MEMORY, 0, &flags); /* XXX card_get_res_flags */
-	CARD_GET_MEMORY_OFFSET(device_get_parent(sc->dev), sc->dev,
-	    0, &offset); /* XXX card_get_memory_offset */
+	error = CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+	    SYS_RES_MEMORY, sc->cm_rid, &flags);
+	if (error) {
+		RAY_PRINTF(sc, "CARD_GET_RES_FLAGS returned 0x%0x", error);
+		return (error);
+	}
+	error = CARD_GET_MEMORY_OFFSET(device_get_parent(sc->dev), sc->dev,
+	    sc->cm_rid, &offset);
+	if (error) {
+		RAY_PRINTF(sc, "CARD_GET_MEMORY_OFFSET returned 0x%0x", error);
+		return (error);
+	}
 
 	RAY_DPRINTF(sc, RAY_DBG_CM | RAY_DBG_BOOTPARAM,
 	    "memory start 0x%0lx count 0x%0lx flags 0x%0lx offset 0x%0x",
@@ -3419,7 +3468,7 @@ ray_res_alloc_cm(struct ray_softc *sc)
 		RAY_PRINTF(sc, "fixing up CM card address from 0x%x to 0x0",
 		    offset);
 		error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->dev),
-		    sc->dev, sc->cm_rid, 0); /* XXX card_set_memory_offset */
+		    sc->dev, sc->cm_rid, 0);
 		if (error) {
 			RAY_PRINTF(sc, "CARD_SET_MEMORY_OFFSET returned 0x%0x",
 			    error);
@@ -3430,7 +3479,7 @@ ray_res_alloc_cm(struct ray_softc *sc)
 		RAY_PRINTF(sc, "fixing up CM flags from 0x%lx to 0x40",
 		    flags);
 		error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-		    SYS_RES_MEMORY, sc->cm_rid, 2); /* XXX card_set_res_flags */
+		    SYS_RES_MEMORY, sc->cm_rid, 2);
 		if (error) {
 			RAY_PRINTF(sc, "CARD_SET_RES_FLAGS returned 0x%0x",
 			    error);
@@ -3440,9 +3489,9 @@ ray_res_alloc_cm(struct ray_softc *sc)
 
 #if RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM)
 	CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-	    SYS_RES_MEMORY, sc->cm_rid, &flags); /* XXX card_get_res_flags */
+	    SYS_RES_MEMORY, sc->cm_rid, &flags);
 	CARD_GET_MEMORY_OFFSET(device_get_parent(sc->dev), sc->dev,
-	    sc->cm_rid, &offset); /* XXX card_get_memory_offset */
+	    sc->cm_rid, &offset);
 	RAY_PRINTF(sc, "allocated common memory:\n"
 	    ".  start 0x%0lx count 0x%0lx flags 0x%0lx offset 0x%0x",
 	    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->cm_rid),
@@ -3533,7 +3582,7 @@ ray_attr_mapam(struct ray_softc *sc)
 	{
 		u_long flags = 0xffff;
 		CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-		    sys_res_memory, SC->AM_RID, &FLAGS); /* XXX card_get_res_flags */
+		    sys_res_memory, SC->AM_RID, &FLAGS);
 		RAY_PRINTF(sc, "attribute memory\n"
 		    ".  start 0x%0lx count 0x%0lx flags 0x%0lx",
 		    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->am_rid),
@@ -3551,7 +3600,7 @@ ray_attr_mapcm(struct ray_softc *sc)
 	{
 		u_long flags = 0xffff;
 		CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-		    SYS_RES_MEMORY, sc->cm_rid, &flags); /* XXX card_get_res_flags */
+		    SYS_RES_MEMORY, sc->cm_rid, &flags);
 		RAY_PRINTF(sc, "common memory\n"
 		    ".  start 0x%0lx count 0x%0lx flags 0x%0lx",
 		    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->cm_rid),
