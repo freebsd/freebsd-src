@@ -758,7 +758,7 @@
     <para>The historic BSD boot scripts in <filename>/etc</filename>
       have been removed, in favor of the <filename>rc.d</filename>
       system imported from <application>NetBSD</application>
-      (sometimes referred to as <quote>RCng</quote>).  All
+      (sometimes referred to as <quote>rcNG</quote>).  All
       functionality of the historic system has been preserved.  In
       particular, files such as <filename>/etc/rc.conf</filename>
       continue to be the recommended means of configuring the system
@@ -774,11 +774,14 @@
       <filename>rc.diskless1</filename>,
       <filename>rc.diskless2</filename>,
       <filename>rc.i386</filename>,
+      <filename>rc.alpha</filename>,
+      <filename>rc.amd64</filename>,
+      <filename>rc.ia64</filename>,
+      <filename>rc.sparc64</filename>,
       <filename>rc.isdn</filename>,
       <filename>rc.network</filename>,
       <filename>rc.network6</filename>,
       <filename>rc.pccard</filename>,
-      <filename>rc.sendmail</filename>,
       <filename>rc.serial</filename>,
       <filename>rc.syscons</filename>,
       <filename>rc.sysctl</filename>.
