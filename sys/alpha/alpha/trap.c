@@ -297,7 +297,8 @@ trap(a0, a1, a2, entry, framep)
 	if (user)  {
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = framep;
-#ifdef DIAGNOSTIC 			/* see the comment in ast() */
+#ifdef DIAGNOSTIC
+		/* see the comment in ast() */
 		if (td->td_ucred != NULL)
 			panic("trap(): thread got a ucred while in userspace");
 		td->td_ucred = td->td_ucred_cache;
