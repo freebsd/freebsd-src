@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+.if exists(${.CURDIR}/../opencrypto) && !defined(NOCRYPT)
+_crypto=	crypto
+_cryptodev=	cryptodev
+.endif
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT)
 _random=	random
 .endif
@@ -19,7 +23,8 @@ SUBDIR=	3dfx \
 	ccd \
 	cd9660 \
 	coda \
-	cryptodev \
+	${_crypto} \
+	${_cryptodev} \
 	cue \
 	dc \
 	de \

@@ -108,6 +108,7 @@ static driver_t hifn_driver = {
 static devclass_t hifn_devclass;
 
 DRIVER_MODULE(hifn, pci, hifn_driver, hifn_devclass, 0, 0);
+MODULE_DEPEND(hifn, crypto, 1, 1, 1);
 
 static	void hifn_reset_board(struct hifn_softc *, int);
 static	void hifn_reset_puc(struct hifn_softc *);
