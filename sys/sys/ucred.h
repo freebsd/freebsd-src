@@ -83,19 +83,19 @@ struct xucred {
 #ifdef _KERNEL
 
 
-void		change_egid __P((struct ucred *newcred, gid_t egid));
-void		change_euid __P((struct ucred *newcred, uid_t euid));
-void		change_rgid __P((struct ucred *newcred, gid_t rgid));
-void		change_ruid __P((struct ucred *newcred, uid_t ruid));
-void		change_svgid __P((struct ucred *newcred, gid_t svgid));
-void		change_svuid __P((struct ucred *newcred, uid_t svuid));
-void		crcopy __P((struct ucred *dest, struct ucred *src));
-struct ucred	*crdup __P((struct ucred *cr));
-void		crfree __P((struct ucred *cr));
-struct ucred	*crget __P((void));
-struct ucred	*crhold __P((struct ucred *cr));
-int		crshared __P((struct ucred *cr));
-int		groupmember __P((gid_t gid, struct ucred *cred));
+void		change_egid (struct ucred *newcred, gid_t egid);
+void		change_euid (struct ucred *newcred, uid_t euid);
+void		change_rgid (struct ucred *newcred, gid_t rgid);
+void		change_ruid (struct ucred *newcred, uid_t ruid);
+void		change_svgid (struct ucred *newcred, gid_t svgid);
+void		change_svuid (struct ucred *newcred, uid_t svuid);
+void		crcopy (struct ucred *dest, struct ucred *src);
+struct ucred	*crdup (struct ucred *cr);
+void		crfree (struct ucred *cr);
+struct ucred	*crget (void);
+struct ucred	*crhold (struct ucred *cr);
+int		crshared (struct ucred *cr);
+int		groupmember (gid_t gid, struct ucred *cred);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_UCRED_H_ */
