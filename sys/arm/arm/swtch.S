@@ -479,17 +479,3 @@ ENTRY(fork_trampoline)
 	movs	pc, lr			/* Exit */
 
 AST_LOCALS
-#ifndef __XSCALE__
-	.type .Lcpu_switch_ffs_table, _ASM_TYPE_OBJECT;
-.Lcpu_switch_ffs_table:
-/* same as ffs table but all nums are -1 from that */
-/*               0   1   2   3   4   5   6   7           */
-	.byte	 0,  0,  1, 12,  2,  6,  0, 13  /*  0- 7 */
-	.byte	 3,  0,  7,  0,  0,  0,  0, 14  /*  8-15 */
-	.byte	10,  4,  0,  0,  8,  0,  0, 25  /* 16-23 */
-	.byte	 0,  0,  0,  0,  0, 21, 27, 15  /* 24-31 */
-	.byte	31, 11,  5,  0,  0,  0,  0,  0	/* 32-39 */
-	.byte	 9,  0,  0, 24,  0,  0, 20, 26  /* 40-47 */
-	.byte	30,  0,  0,  0,  0, 23,  0, 19  /* 48-55 */
-	.byte   29,  0, 22, 18, 28, 17, 16,  0  /* 56-63 */
-#endif	/* !__XSCALE_ */
