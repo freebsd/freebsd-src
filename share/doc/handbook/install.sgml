@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.34 1996/08/28 00:43:57 asami Exp $ -->
+<!-- $Id: install.sgml,v 1.35 1996/09/09 03:57:46 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -269,6 +269,7 @@ Boot:
 		<item>Mylex		LNP101
 		<item>SMC		EtherPower 10/100 (Model 9332)
 		<item>SMC		EtherPower (Model 8432)
+		<item>SMC		EtherPower (2)
 		<item>Zynx		ZX342
 		</itemize>
 	    <item>DEC FDDI (DEFPA/DEFEA) NICs
