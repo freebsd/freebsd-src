@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.365 1998/08/12 11:43:24 jkh Exp $
+#	$Id: Makefile,v 1.366 1998/08/12 11:49:22 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -75,7 +75,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 BOOTMFSSIZE=		1440
 MFSINODE=		8000
 FIXITINODE=		2000
-BOOTINODE=		160000
+BOOTINODE=		1000000
 
 VNDEVICE?=		vn0
 
@@ -675,6 +675,8 @@ doMFSKERN:
 	@cd ${.CURDIR}/../sys/i386/conf && \
 	  sed	-e '/pty/d' \
 		-e '/PROCFS/d' \
+		-e '/MSDOSFS/d' \
+		-e '/SYSVSHM/d' \
 		-e '/KTRACE/d' \
 		-e '/MATH_EMULATE/d' \
 		-e 's/GENERIC/BOOTMFS/g' \
