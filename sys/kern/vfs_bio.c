@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.160 1998/03/27 06:48:24 dyson Exp $
+ * $Id: vfs_bio.c,v 1.161 1998/04/15 17:46:30 bde Exp $
  */
 
 /*
@@ -1663,7 +1663,7 @@ allocbuf(struct buf * bp, int size)
 			origbufsize = 0;
 #if !defined(NO_B_MALLOC)
 			/*
-			 * If the buffer is growing on it's other-than-first allocation,
+			 * If the buffer is growing on its other-than-first allocation,
 			 * then we revert to the page-allocation scheme.
 			 */
 			if (bp->b_flags & B_MALLOC) {

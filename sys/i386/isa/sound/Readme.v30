@@ -124,7 +124,7 @@ distribute binaries compiled with soundcard.h of v3.X.
 - The basic API useage is similar to the current one. There are some new
 macros but the older ones should work as earlier. The most important
 incompatibility is that the /dev/sequencer2 driver allocates voices itself.
-The other one is that the application must send SEQ_START_TIMER() as it's
+The other one is that the application must send SEQ_START_TIMER() as its
 first event. Otherwise the timer is not started and the application waits
 infinitely.
 

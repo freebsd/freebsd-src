@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.85 1998/01/24 02:54:53 eivind Exp $
+ * $Id: st.c,v 1.86 1998/04/16 10:35:50 peter Exp $
  */
 
 /*
@@ -1221,7 +1221,7 @@ st_read(unit, buf, size, flags)
 #endif
 
 /*
- * Ask the drive what it's min and max blk sizes are.
+ * Ask the drive what its min and max blk sizes are.
  */
 static	errval
 st_rd_blk_lim(unit, flags)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.71 1998/03/20 00:43:29 fenner Exp $
+ *	$Id: tcp_input.c,v 1.72 1998/04/06 06:52:41 phk Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -976,7 +976,7 @@ trimthenstep6:
 	/*
 	 * T/TCP mechanism
 	 *   If T/TCP was negotiated and the segment doesn't have CC,
-	 *   or if it's CC is wrong then drop the segment.
+	 *   or if its CC is wrong then drop the segment.
 	 *   RST segments do not have to comply with this.
 	 */
 	if ((tp->t_flags & (TF_REQ_CC|TF_RCVD_CC)) == (TF_REQ_CC|TF_RCVD_CC) &&

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.49 1998/01/02 07:31:06 julian Exp $
+ *	$Id: devfs_tree.c,v 1.50 1998/03/26 20:52:05 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -314,7 +314,7 @@ dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp,
 	if(dnp->type == DEV_DIR) {
 		dnp->by.Dir.myname = devnmp;
 		/*
-		 * If we are unlinking from an old dir, decrement it's links
+		 * If we are unlinking from an old dir, decrement its links
 		 * as we point our '..' elsewhere
 		 * Note: it's up to the calling code to remove the 
 		 * us from the original directory's list
@@ -472,7 +472,7 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto,
 		 * Symlinks should only ever be created by the user,
 		 * so they are not on the back plane and should not be 
 		 * propogated forward.. a bit like directories in that way..
-		 * A symlink only exists on one plane and has it's own
+		 * A symlink only exists on one plane and has its own
 		 * node.. therefore we might be on any random plane.
 		 */
 		dnp->by.Slnk.name = malloc(by->Slnk.namelen+1,
@@ -813,7 +813,7 @@ dev_free_name(devnm_p devnmp)
 	}
 
 	/***************************************************************\
-	* If the front node has it's own devnode structure,		*
+	* If the front node has its own devnode structure,		*
 	* then free it.							*
 	\***************************************************************/
 	free(devnmp,M_DEVFSNAME);

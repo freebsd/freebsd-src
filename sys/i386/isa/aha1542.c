@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.74 1998/02/06 12:13:14 eivind Exp $
+ *      $Id: aha1542.c,v 1.75 1998/02/21 10:11:43 eivind Exp $
  */
 
 /*
@@ -1778,7 +1778,7 @@ aha_bus_speed_check(aha, speed)
 
 	/*
 	 * put the test data into the buffer and calculate
-	 * it's address. Read it onto the board
+	 * its address. Read it onto the board
 	 */
 	scsi_uto3b(KVTOPHYS(aha_scratch_buf), ad);
 	for(loopcount = 2000;loopcount;loopcount--)

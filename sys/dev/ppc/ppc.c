@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.1 1997/08/14 14:01:35 msmith Exp $
+ *	$Id: ppc.c,v 1.2 1997/09/01 02:08:41 bde Exp $
  *
  */
 #include "ppc.h"
@@ -704,7 +704,7 @@ ppcprobe(struct isa_device *dvp)
 	nppc ++;
 
 	/*
-	 * Try to detect the chipset and it's mode.
+	 * Try to detect the chipset and its mode.
 	 */
 	if (ppc_detect(ppc, dvp->id_flags & 0x7))
 		goto error;

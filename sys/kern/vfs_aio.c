@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.26 1998/03/28 11:50:04 dufault Exp $
+ * $Id: vfs_aio.c,v 1.27 1998/03/30 09:51:00 phk Exp $
  */
 
 /*
@@ -685,7 +685,7 @@ aio_daemon(void *uproc)
 	mycp->p_ucred->cr_groups[0] = 1;
 
 	/*
-	 * The daemon resides in it's own pgrp.
+	 * The daemon resides in its own pgrp.
 	 */
 	enterpgrp(mycp, mycp->p_pid, 1);
 
@@ -763,7 +763,7 @@ aio_daemon(void *uproc)
 				/*
 				 * Disassociate from previous clients file descriptors, and
 				 * associate to the new clients descriptors.  Note that
-				 * the daemon doesn't need to worry about it's orginal
+				 * the daemon doesn't need to worry about its orginal
 				 * descriptors, because they were originally freed.
 				 */
 				if (mycp->p_fd)
@@ -916,7 +916,7 @@ aio_daemon(void *uproc)
 
 /*
  * Create a new AIO daemon.  This is mostly a kernel-thread fork routine.
- * The AIO daemon modifies it's environment itself.
+ * The AIO daemon modifies its environment itself.
  */
 static int
 aio_newproc()
