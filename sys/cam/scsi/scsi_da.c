@@ -416,6 +416,7 @@ static void		dashutdown(void *arg, int howto);
 
 static int da_retry_count = DA_DEFAULT_RETRY;
 static int da_default_timeout = DA_DEFAULT_TIMEOUT;
+static int da_no_6_byte = 0;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, da, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
@@ -423,6 +424,8 @@ SYSCTL_INT(_kern_cam_da, OID_AUTO, retry_count, CTLFLAG_RW,
            &da_retry_count, 0, "Normal I/O retry count");
 SYSCTL_INT(_kern_cam_da, OID_AUTO, default_timeout, CTLFLAG_RW,
            &da_default_timeout, 0, "Normal I/O timeout (in seconds)");
+SYSCTL_INT(_kern_cam_da, OID_AUTO, no_6_byte, CTLFLAG_RW,
+           &da_no_6_byte, 0, "No 6 bytes commands");
 
 /*
  * DA_ORDEREDTAG_INTERVAL determines how often, relative
@@ -1249,6 +1252,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 			} else {
 				tag_code = MSG_SIMPLE_Q_TAG;
 			}
+			if (da_no_6_byte && softc->minimum_cmd_size == 6)
+				softc->minimum_cmd_size = 10;
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/da_retry_count,
 					dadone,
@@ -1321,6 +1326,48 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 	}
 }
 
+static int
+cmd6workaround(union ccb *ccb)
+{
+	struct scsi_rw_6 cmd6;
+	struct scsi_rw_10 *cmd10;
+	struct da_softc *softc;
+	struct ccb_scsiio *csio;
+	u_int8_t opcode;
+
+	csio = &ccb->csio;
+ 	opcode = ((struct scsi_rw_6 *)csio->cdb_io.cdb_bytes)->opcode; 
+
+	if (opcode != READ_6 && opcode != WRITE_6)
+		return 0;
+
+	xpt_print_path(ccb->ccb_h.path);
+ 	printf("READ(6)/WRITE(6) failed, "
+		"minimum_cmd_size is increased to 10.\n");
+ 	softc = (struct da_softc *)xpt_path_periph(ccb->ccb_h.path)->softc;
+	softc->minimum_cmd_size = 10;
+
+	bcopy(&csio->cdb_io.cdb_bytes, &cmd6, sizeof(struct scsi_rw_6));
+	cmd10 = (struct scsi_rw_10 *) &csio->cdb_io.cdb_bytes;
+	cmd10->opcode = (cmd6.opcode == READ_6) ? READ_10 : WRITE_10;
+	cmd10->byte2 = 0;
+	scsi_ulto4b(scsi_3btoul(cmd6.addr), cmd10->addr);
+	cmd10->reserved = 0;
+	scsi_ulto2b(cmd6.length, cmd10->length);
+	cmd10->control = cmd6.control;
+	csio->cdb_len = sizeof(*cmd10);
+
+	/* requeue */
+ 	ccb->ccb_h.status = CAM_REQUEUE_REQ;
+	xpt_action(ccb);
+	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+		cam_release_devq(ccb->ccb_h.path,
+				 /*relsim_flags*/0,
+				 /*reduction*/0,
+				 /*timeout*/0,
+				 /*getcount_only*/0);
+	return (ERESTART);
+}
 
 static void
 dadone(struct cam_periph *periph, union ccb *done_ccb)
@@ -1393,6 +1440,11 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				bp->bio_error = 0;
 				if (bp->bio_resid != 0) {
 					/* Short transfer ??? */
+#if 0
+					if (cmd6workaround(done_ccb) 
+								== ERESTART)
+						return;
+#endif
 					bp->bio_flags |= BIO_ERROR;
 				}
 			}
@@ -1406,8 +1458,14 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 				panic("REQ_CMP with QFRZN");
 			bp->bio_resid = csio->resid;
-			if (csio->resid > 0)
+			if (csio->resid > 0) {
+				/* Short transfer ??? */
+#if 0 /* XXX most of the broken umass devices need this ad-hoc work around */
+				if (cmd6workaround(done_ccb) == ERESTART)
+					return;
+#endif
 				bp->bio_flags |= BIO_ERROR;
+			}
 		}
 
 		/*
@@ -1574,9 +1632,25 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
 	struct da_softc	  *softc;
 	struct cam_periph *periph;
+	int error, sense_key, error_code, asc, ascq;
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct da_softc *)periph->softc;
+
+ 	/*
+	 * Automatically detect devices that do not support
+ 	 * READ(6)/WRITE(6) and upgrade to using 10 byte cdbs.
+ 	 */
+	error = 0;
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR
+			&& ccb->csio.scsi_status == SCSI_STATUS_CHECK_COND) {
+ 		scsi_extract_sense(&ccb->csio.sense_data,
+				&error_code, &sense_key, &asc, &ascq);
+		if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
+ 			error = cmd6workaround(ccb);
+	}
+	if (error == ERESTART)
+		return ERESTART;
 
 	/*
 	 * XXX
