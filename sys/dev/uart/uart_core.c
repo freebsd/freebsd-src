@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #ifndef KLD_MODULE
 #include "opt_comconsole.h"
-#include "opt_ddb.h"
 #endif
 
 #include <sys/param.h>
@@ -39,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <machine/resource.h>
 #include <machine/stdarg.h>
-
-#include <ddb/ddb.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
@@ -85,9 +83,9 @@ static void
 uart_intr_break(struct uart_softc *sc)
 {
 
-#if defined(DDB) && defined(BREAK_TO_DEBUGGER)
+#if defined(KDB) && defined(BREAK_TO_DEBUGGER)
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
-		breakpoint();
+		kdb_enter("Line break on console");
 		return;
 	}
 #endif
@@ -133,11 +131,11 @@ uart_intr_rxready(struct uart_softc *sc)
 
 	rxp = sc->sc_rxput;
 	UART_RECEIVE(sc);
-#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
+#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
 		while (rxp != sc->sc_rxput) {
-			if (db_alt_break(sc->sc_rxbuf[rxp++], &sc->sc_altbrk))
-				breakpoint();
+			if (kdb_alt_break(sc->sc_rxbuf[rxp++], &sc->sc_altbrk))
+				kdb_enter("Break sequence on console");
 			if (rxp == sc->sc_rxbufsz)
 				rxp = 0;
 		}
