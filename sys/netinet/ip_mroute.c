@@ -104,7 +104,10 @@ SYSCTL_OPAQUE(_net_inet_ip, OID_AUTO, mfctable, CTLFLAG_RD,
 static struct mtx mfc_mtx;
 #define	MFC_LOCK()	mtx_lock(&mfc_mtx)
 #define	MFC_UNLOCK()	mtx_unlock(&mfc_mtx)
-#define	MFC_LOCK_ASSERT()	mtx_assert(&mfc_mtx, MA_OWNED)
+#define	MFC_LOCK_ASSERT()	do {					\
+	mtx_assert(&mfc_mtx, MA_OWNED);					\
+	NET_ASSERT_GIANT();						\
+} while (0)
 #define	MFC_LOCK_INIT()	mtx_init(&mfc_mtx, "mroute mfc table", NULL, MTX_DEF)
 #define	MFC_LOCK_DESTROY()	mtx_destroy(&mfc_mtx)
 
