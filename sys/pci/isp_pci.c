@@ -3,11 +3,7 @@
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
  *
- *---------------------------------------
- * Copyright (c) 1997, 1998, 1999 by Matthew Jacob
- * NASA/Ames Research Center
- * All rights reserved.
- *---------------------------------------
+ * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,10 +11,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice immediately at the beginning of the file, without modification,
  *    this list of conditions, and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -56,13 +49,13 @@ static u_int16_t isp_pci_rd_reg_1080 __P((struct ispsoftc *, int));
 static void isp_pci_wr_reg_1080 __P((struct ispsoftc *, int, u_int16_t));
 #endif
 static int isp_pci_mbxdma __P((struct ispsoftc *));
-static int isp_pci_dmasetup __P((struct ispsoftc *, ISP_SCSI_XFER_T *,
+static int isp_pci_dmasetup __P((struct ispsoftc *, XS_T *,
 	ispreq_t *, u_int16_t *, u_int16_t));
 static void
-isp_pci_dmateardown __P((struct ispsoftc *, ISP_SCSI_XFER_T *, u_int32_t));
+isp_pci_dmateardown __P((struct ispsoftc *, XS_T *, u_int32_t));
 
 static void isp_pci_reset1 __P((struct ispsoftc *));
-static void isp_pci_dumpregs __P((struct ispsoftc *));
+static void isp_pci_dumpregs __P((struct ispsoftc *, const char *));
 
 #ifndef	ISP_CODE_ORG
 #define	ISP_CODE_ORG		0x1000
@@ -94,11 +87,7 @@ static struct ispmdvec mdvec = {
 	isp_pci_reset1,
 	isp_pci_dumpregs,
 	ISP_1040_RISC_CODE,
-	0,
-	ISP_CODE_ORG,
-	0,
-	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
-	0
+	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64
 };
 #endif
 
@@ -113,11 +102,7 @@ static struct ispmdvec mdvec_1080 = {
 	isp_pci_reset1,
 	isp_pci_dumpregs,
 	ISP_1080_RISC_CODE,
-	0,
-	ISP_CODE_ORG,
-	0,
-	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
-	0
+	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64
 };
 #endif
 
@@ -132,11 +117,7 @@ static struct ispmdvec mdvec_12160 = {
 	isp_pci_reset1,
 	isp_pci_dumpregs,
 	ISP_12160_RISC_CODE,
-	0,
-	ISP_CODE_ORG,
-	0,
-	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
-	0
+	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64
 };
 #endif
 
@@ -150,12 +131,7 @@ static struct ispmdvec mdvec_2100 = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP_2100_RISC_CODE,
-	0,
-	ISP_CODE_ORG,
-	0,
-	0,
-	0
+	ISP_2100_RISC_CODE
 };
 #endif
 
@@ -169,12 +145,7 @@ static struct ispmdvec mdvec_2200 = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP_2200_RISC_CODE,
-	0,
-	ISP_CODE_ORG,
-	0,
-	0,
-	0
+	ISP_2200_RISC_CODE
 };
 #endif
 
@@ -212,7 +183,7 @@ static struct ispmdvec mdvec_2200 = {
 #endif
 
 #ifndef	PCI_VENDOR_QLOGIC
-#define	PCI_VENDOR_QLOGIC	0x1077
+#define	PCI_VENDOR_QLOGIC		0x1077
 #endif
 
 #ifndef	PCI_PRODUCT_QLOGIC_ISP1020
@@ -243,7 +214,8 @@ static struct ispmdvec mdvec_2200 = {
 #define	PCI_PRODUCT_QLOGIC_ISP2200	0x2200
 #endif
 
-#define	PCI_QLOGIC_ISP	((PCI_PRODUCT_QLOGIC_ISP1020 << 16) | PCI_VENDOR_QLOGIC)
+#define	PCI_QLOGIC_ISP1020	\
+	((PCI_PRODUCT_QLOGIC_ISP1020 << 16) | PCI_VENDOR_QLOGIC)
 
 #define	PCI_QLOGIC_ISP1080	\
 	((PCI_PRODUCT_QLOGIC_ISP1080 << 16) | PCI_VENDOR_QLOGIC)
@@ -262,6 +234,11 @@ static struct ispmdvec mdvec_2200 = {
 
 #define	PCI_QLOGIC_ISP2200	\
 	((PCI_PRODUCT_QLOGIC_ISP2200 << 16) | PCI_VENDOR_QLOGIC)
+
+/*
+ * Odd case for some AMI raid cards... We need to *not* attach to this.
+ */
+#define	AMI_RAID_SUBVENDOR_ID	0x101e
 
 #define	IO_MAP_REG	0x10
 #define	MEM_MAP_REG	0x14
@@ -313,7 +290,7 @@ isp_pci_probe(pcici_t tag, pcidi_t type)
 
         switch (type) {
 #ifndef	ISP_DISABLE_1020_SUPPORT
-	case PCI_QLOGIC_ISP:
+	case PCI_QLOGIC_ISP1020:
 		x = "Qlogic ISP 1020/1040 PCI SCSI Adapter";
 		break;
 #endif
@@ -346,9 +323,9 @@ isp_pci_probe(pcici_t tag, pcidi_t type)
 	default:
 		return (NULL);
 	}
-	if (oneshot) {
+	if (oneshot && bootverbose) {
 		oneshot = 0;
-		CFGPRINTF("Qlogic ISP Driver, FreeBSD Version %d.%d, "
+		printf("Qlogic ISP Driver, FreeBSD Version %d.%d, "
 		    "Core Version %d.%d\n",
 		    ISP_PLATFORM_VERSION_MAJOR, ISP_PLATFORM_VERSION_MINOR,
 		    ISP_CORE_VERSION_MAJOR, ISP_CORE_VERSION_MINOR);
@@ -363,7 +340,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 	const char *name = SCSI_ISP_WWN;
 	char *vtp = NULL;
 #endif
-	int mapped, prefer_mem_map, bitmap, s;
+	int mapped, prefer_mem_map, bitmap;
 	pci_port_t io_port;
 	u_int32_t data, rev, linesz, psize, basetype;
 	struct isp_pcisoftc *pcs;
@@ -371,13 +348,6 @@ isp_pci_attach(pcici_t cfid, int unit)
 	vm_offset_t vaddr, paddr;
 	struct ispmdvec *mdvp;
 	bus_size_t lim;
-
-	pcs = malloc(sizeof (struct isp_pcisoftc), M_DEVBUF, M_NOWAIT);
-	if (pcs == NULL) {
-		printf("isp%d: cannot allocate softc\n", unit);
-		return;
-	}
-	bzero(pcs, sizeof (struct isp_pcisoftc));
 
 	/*
 	 * Figure out if we're supposed to skip this one.
@@ -388,6 +358,13 @@ isp_pci_attach(pcici_t cfid, int unit)
 			return;
 		}
 	}
+
+	pcs = malloc(sizeof (struct isp_pcisoftc), M_DEVBUF, M_NOWAIT);
+	if (pcs == NULL) {
+		printf("isp%d: cannot allocate softc\n", unit);
+		return;
+	}
+	bzero(pcs, sizeof (struct isp_pcisoftc));
 
 	/*
 	 * Figure out which we should try first - memory mapping or i/o mapping?
@@ -470,7 +447,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 	psize = sizeof (sdparam);
 	lim = BUS_SPACE_MAXSIZE_32BIT;
 #ifndef	ISP_DISABLE_1020_SUPPORT
-	if (data == PCI_QLOGIC_ISP) {
+	if (data == PCI_QLOGIC_ISP1020) {
 		mdvp = &mdvec;
 		basetype = ISP_HA_SCSI_UNKNOWN;
 		psize = sizeof (sdparam);
@@ -540,6 +517,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 	isp->isp_param = malloc(psize, M_DEVBUF, M_NOWAIT);
 	if (isp->isp_param == NULL) {
 		printf("isp%d: cannot allocate parameter data\n", unit);
+		free(pcs, M_DEVBUF);
 		return;
 	}
 	bzero(isp->isp_param, psize);
@@ -549,7 +527,19 @@ isp_pci_attach(pcici_t cfid, int unit)
 	(void) snprintf(isp->isp_name, sizeof (isp->isp_name), "isp%d", unit);
 	isp->isp_osinfo.unit = unit;
 
-	s = splbio();
+	/*
+	 * Set up logging levels.
+	 */
+	bitmap = 0;
+	(void) getenv_int("isp_debug", &bitmap);
+	if (bitmap) {
+		isp->isp_dblev = bitmap;
+	} else {
+		isp->isp_dblev = ISP_LOGWARN|ISP_LOGERR;
+	}
+	if (bootverbose)
+		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
+
 	/*
 	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER
 	 * are set.
@@ -567,7 +557,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 	data = pci_cfgread(cfid, PCIR_CACHELNSZ, 1);
 	if (data != linesz) {
 		data = PCI_DFLT_LNSZ;
-		CFGPRINTF("%s: set PCI line size to %d\n", isp->isp_name, data);
+		isp_prt(isp, ISP_LOGCONFIG, "set PCI line size to %d", data);
 		pci_cfgwrite(cfid, PCIR_CACHELNSZ, data, 1);
 	}
 
@@ -577,7 +567,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 	data = pci_cfgread(cfid, PCIR_LATTIMER, 1);
 	if (data < PCI_DFLT_LTNCY) {
 		data = PCI_DFLT_LTNCY;
-		CFGPRINTF("%s: set PCI latency to %d\n", isp->isp_name, data);
+		isp_prt(isp, ISP_LOGCONFIG,"set PCI latency to %d", data);
 		pci_cfgwrite(cfid, PCIR_LATTIMER, data, 1);
 	}
 
@@ -592,14 +582,12 @@ isp_pci_attach(pcici_t cfid, int unit)
 	    BUS_SPACE_MAXADDR, NULL, NULL, lim + 1,
 	    255, lim, 0, &pcs->parent_dmat) != 0) {
 		DISABLE_INTS(isp);
-		splx(s);
 		printf("%s: could not create master dma tag\n", isp->isp_name);
 		free(pcs, M_DEVBUF);
 		return;
 	}
 	if (!pci_map_int(cfid, (void (*)(void *))isp_intr, isp, &cam_imask)) {
 		DISABLE_INTS(isp);
-		splx(s);
 		printf("%s: could not map interrupt\n", isp->isp_name);
 		free(pcs, M_DEVBUF);
 		return;
@@ -649,6 +637,10 @@ isp_pci_attach(pcici_t cfid, int unit)
 		if (bitmap & (1 << unit))
 			isp->isp_confopts &= ~ISP_CFG_FULL_DUPLEX;
 	}
+	if (getenv_int("isp_nport", &bitmap)) {
+		if (bitmap & (1 << unit))
+			isp->isp_confopts |= ISP_CFG_NPORT;
+	}
 	/*
 	 * Look for overriding WWN. This is a Node WWN so it binds to
 	 * all FC instances. A Port WWN will be constructed from it
@@ -675,45 +667,39 @@ isp_pci_attach(pcici_t cfid, int unit)
 			seed += version[i];
 		}
 		/*
-		 * Make sure the top nibble has something vaguely sensible.
+		 * Make sure the top nibble has something vaguely sensible
+		 * (NAA == Locally Administered)
 		 */
-		isp->isp_osinfo.default_wwn |= (4LL << 60) | seed;
+		isp->isp_osinfo.default_wwn |= (3LL << 60) | seed;
 	} else {
 		isp->isp_confopts |= ISP_CFG_OWNWWN;
 	}
-	(void) getenv_int("isp_debug", &isp_debug);
-#ifdef	ISP_TARGET_MODE
-	(void) getenv_int("isp_tdebug", &isp_tdebug);
-#endif
+
+	/*
+	 * Make sure we're in reset state.
+	 */
+	ISP_LOCK(isp);
 	isp_reset(isp);
 	if (isp->isp_state != ISP_RESETSTATE) {
-		isp_uninit(isp);
-		(void) pci_unmap_int(cfid); /* Does nothing */
-		free(pcs, M_DEVBUF);
-		splx(s);
-		return;
+		ISP_UNLOCK(isp);
+		goto bad;
 	}
 	isp_init(isp);
 	if (isp->isp_state != ISP_INITSTATE) {
 		/* If we're a Fibre Channel Card, we allow deferred attach */
 		if (IS_SCSI(isp)) {
 			isp_uninit(isp);
-			(void) pci_unmap_int(cfid); /* Does nothing */
-			free(pcs, M_DEVBUF);
-			splx(s);
-			return;
+			ISP_UNLOCK(isp);
+			goto bad;
 		}
 	}
 	isp_attach(isp);
-	splx(s);
 	if (isp->isp_state != ISP_RUNSTATE) {
 		/* If we're a Fibre Channel Card, we allow deferred attach */
 		if (IS_SCSI(isp)) {
 			isp_uninit(isp);
-			(void) pci_unmap_int(cfid); /* Does nothing */
-			free(pcs, M_DEVBUF);
-			splx(s);
-			return;
+			ISP_UNLOCK(isp);
+			goto bad;
 		}
 	}
 #ifdef __alpha__
@@ -722,7 +708,16 @@ isp_pci_attach(pcici_t cfid, int unit)
 	 */
 	alpha_register_pci_scsi(cfid->bus, cfid->slot, isp->isp_sim);
 #endif	
-	splx(s);
+	ISP_UNLOCK(isp);
+	return;
+
+bad:
+	if (pcs) {
+		if (pcs->pci_isp.isp_param)
+			free(pcs->pci_isp.isp_param, M_DEVBUF);
+		free(pcs, M_DEVBUF);
+	}
+	return;
 }
 
 static u_int16_t
@@ -906,17 +901,17 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		return (0);
 	}
 
-	len = sizeof (ISP_SCSI_XFER_T **) * isp->isp_maxcmds;
-	isp->isp_xflist = (ISP_SCSI_XFER_T **) malloc(len, M_DEVBUF, M_WAITOK);
+	len = sizeof (XS_T **) * isp->isp_maxcmds;
+	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK);
 	if (isp->isp_xflist == NULL) {
-		printf("%s: can't alloc xflist array\n", isp->isp_name);
+		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
 		return (1);
 	}
 	bzero(isp->isp_xflist, len);
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
 	pci->dmaps = (bus_dmamap_t *) malloc(len, M_DEVBUF,  M_WAITOK);
 	if (pci->dmaps == NULL) {
-		printf("%s: can't alloc dma maps\n", isp->isp_name);
+		isp_prt(isp, ISP_LOGERR, "can't alloc dma maps");
 		free(isp->isp_xflist, M_DEVBUF);
 		return (1);
 	}
@@ -929,24 +924,24 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	/*
 	 * Allocate and map the request, result queues, plus FC scratch area.
 	 */
-	len = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN);
-	len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN);
+	len = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
+	len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 	if (IS_FC(isp)) {
 		len += ISP2100_SCRLEN;
 	}
 	if (bus_dma_tag_create(pci->parent_dmat, PAGE_SIZE, lim,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, len, 1,
 	    BUS_SPACE_MAXSIZE_32BIT, 0, &pci->cntrol_dmat) != 0) {
-		printf("%s: cannot create a dma tag for control spaces\n",
-		    isp->isp_name);
+		isp_prt(isp, ISP_LOGERR,
+		    "cannot create a dma tag for control spaces");
 		free(isp->isp_xflist, M_DEVBUF);
 		free(pci->dmaps, M_DEVBUF);
 		return (1);
 	}
 	if (bus_dmamem_alloc(pci->cntrol_dmat, (void **)&base,
 	    BUS_DMA_NOWAIT, &pci->cntrol_dmap) != 0) {
-		printf("%s: cannot allocate %d bytes of CCB memory\n",
-		    isp->isp_name, len);
+		isp_prt(isp, ISP_LOGERR,
+		    "cannot allocate %d bytes of CCB memory");
 		free(isp->isp_xflist, M_DEVBUF);
 		free(pci->dmaps, M_DEVBUF);
 		return (1);
@@ -956,22 +951,22 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	im.isp = isp;
 	im.error = 0;
 	bus_dmamap_load(pci->cntrol_dmat, pci->cntrol_dmap, isp->isp_rquest,
-	    ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN), isp_map_rquest, &im, 0);
+	    ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), isp_map_rquest, &im, 0);
 	if (im.error) {
-		printf("%s: error %d loading dma map for DMA request queue\n",
-		    isp->isp_name, im.error);
+		isp_prt(isp, ISP_LOGERR,
+		    "error %d loading dma map for DMA request queue", im.error);
 		free(isp->isp_xflist, M_DEVBUF);
 		free(pci->dmaps, M_DEVBUF);
 		isp->isp_rquest = NULL;
 		return (1);
 	}
-	isp->isp_result = base + ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN);
+	isp->isp_result = base + ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
 	im.error = 0;
 	bus_dmamap_load(pci->cntrol_dmat, pci->cntrol_dmap, isp->isp_result,
-	    ISP_QUEUE_SIZE(RESULT_QUEUE_LEN), isp_map_result, &im, 0);
+	    ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp)), isp_map_result, &im, 0);
 	if (im.error) {
-		printf("%s: error %d loading dma map for DMA result queue\n",
-		    isp->isp_name, im.error);
+		isp_prt(isp, ISP_LOGERR,
+		    "error %d loading dma map for DMA result queue", im.error);
 		free(isp->isp_xflist, M_DEVBUF);
 		free(pci->dmaps, M_DEVBUF);
 		isp->isp_rquest = NULL;
@@ -981,8 +976,8 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	for (i = 0; i < isp->isp_maxcmds; i++) {
 		error = bus_dmamap_create(pci->parent_dmat, 0, &pci->dmaps[i]);
 		if (error) {
-			printf("%s: error %d creating per-cmd DMA maps\n",
-			    isp->isp_name, error);
+			isp_prt(isp, ISP_LOGERR,
+			    "error %d creating per-cmd DMA maps", error);
 			free(isp->isp_xflist, M_DEVBUF);
 			free(pci->dmaps, M_DEVBUF);
 			isp->isp_rquest = NULL;
@@ -993,14 +988,14 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	if (IS_FC(isp)) {
 		fcparam *fcp = (fcparam *) isp->isp_param;
 		fcp->isp_scratch = base +
-			ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN) +
-			ISP_QUEUE_SIZE(RESULT_QUEUE_LEN);
+			ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)) +
+			ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 		im.error = 0;
 		bus_dmamap_load(pci->cntrol_dmat, pci->cntrol_dmap,
 		    fcp->isp_scratch, ISP2100_SCRLEN, isp_map_fcscrt, &im, 0);
 		if (im.error) {
-			printf("%s: error %d loading FC scratch area\n",
-			    isp->isp_name, im.error);
+			isp_prt(isp, ISP_LOGERR,
+			    "error %d loading FC scratch area", im.error);
 			free(isp->isp_xflist, M_DEVBUF);
 			free(pci->dmaps, M_DEVBUF);
 			isp->isp_rquest = NULL;
@@ -1070,12 +1065,10 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	if (nseg == 0) {
 		cto->ct_header.rqs_seqno = 1;
 		ISP_TDQE(mp->isp, "tdma_mk[no data]", *mp->iptrp, cto);
-		if (isp_tdebug) {
-			printf("%s:CTIO lun %d->iid%d flgs 0x%x sts 0x%x ssts "
-			    "0x%x res %d\n", mp->isp->isp_name,
-			    csio->ccb_h.target_lun, cto->ct_iid, cto->ct_flags,
-			    cto->ct_status, cto->ct_scsi_status, cto->ct_resid);
-		}
+		isp_prt(mp->isp, ISP_LOGTDEBUG1,
+		    "CTIO lun %d->iid%d flgs 0x%x sts 0x%x ssts 0x%x res %d",
+		    csio->ccb_h.target_lun, cto->ct_iid, cto->ct_flags,
+		    cto->ct_status, cto->ct_scsi_status, cto->ct_resid);
 		ISP_SWIZ_CTIO(mp->isp, cto, cto);
 		return;
 	}
@@ -1156,8 +1149,8 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 * extra CTIO with final status.
 			 */
 			if (send_status == 0) {
-				printf("%s: tdma_mk ran out of segments\n",
-				       mp->isp->isp_name);
+				isp_prt(mp->isp, ISP_LOGWARN,
+				    "tdma_mk ran out of segments");
 				mp->error = EINVAL;
 				return;
 			}
@@ -1189,15 +1182,17 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 				cto->ct_flags |= sflags | CT_NO_DATA;;
 				cto->ct_resid = resid;
 			}
-			if (isp_tdebug && send_status) {
-				printf("%s:CTIO lun%d for ID%d ct_flags 0x%x "
-				    "scsi_status 0x%x res %d\n",
-				    mp->isp->isp_name, csio->ccb_h.target_lun,
+			if (send_status) {
+				isp_prt(mp->isp, ISP_LOGTDEBUG1,
+				    "CTIO lun%d for ID %d ct_flags 0x%x scsi "
+				    "status %x resid %d",
+				    csio->ccb_h.target_lun,
 				    cto->ct_iid, cto->ct_flags,
 				    cto->ct_scsi_status, cto->ct_resid);
-			} else if (isp_tdebug) {
-				printf("%s:CTIO lun%d for ID%d ct_flags 0x%x\n",
-				    mp->isp->isp_name, csio->ccb_h.target_lun,
+			} else {
+				isp_prt(mp->isp, ISP_LOGTDEBUG1,
+				    "CTIO lun%d for ID%d ct_flags 0x%x",
+				    csio->ccb_h.target_lun,
 				    cto->ct_iid, cto->ct_flags);
 			}
 			ISP_TDQE(mp->isp, "last tdma_mk", *mp->iptrp, cto);
@@ -1211,11 +1206,9 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			cto->ct_reserved = 0;
 			cto->ct_header.rqs_seqno = 0;
 
-			if (isp_tdebug) {
-				printf("%s:CTIO lun%d for ID%d ct_flags 0x%x\n",
-				    mp->isp->isp_name, csio->ccb_h.target_lun,
-				    cto->ct_iid, cto->ct_flags);
-			}
+			isp_prt(mp->isp, ISP_LOGTDEBUG1,
+			    "CTIO lun%d for ID%d ct_flags 0x%x",
+			    csio->ccb_h.target_lun, cto->ct_iid, cto->ct_flags);
 			ISP_TDQE(mp->isp, "tdma_mk", *mp->iptrp, cto);
 
 			/*
@@ -1224,10 +1217,10 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			cto = (ct_entry_t *)
 			    ISP_QUEUE_ENTRY(mp->isp->isp_rquest, *mp->iptrp);
 			*mp->iptrp = 
-			    ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN);
+			    ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN(isp));
 			if (*mp->iptrp == mp->optr) {
-				printf("%s: Queue Overflow in tdma_mk\n",
-				    mp->isp->isp_name);
+				isp_prt(mp->isp, ISP_LOGWARN,
+				    "Queue Overflow in tdma_mk");
 				mp->error = MUSHERR_NOQENTRIES;
 				return;
 			}
@@ -1284,8 +1277,9 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	if (nseg == 0) {
 		if ((cto->ct_flags & CT2_FLAG_MMASK) != CT2_FLAG_MODE1) {
-			printf("%s: dma2_tgt_fc, a status CTIO2 without MODE1 "
-			    "set (0x%x)\n", mp->isp->isp_name, cto->ct_flags);
+			isp_prt(mp->isp, ISP_LOGWARN,
+			    "dma2_tgt_fc, a status CTIO2 without MODE1 "
+			    "set (0x%x)", cto->ct_flags);
 			mp->error = EINVAL;
 			return;
 		}
@@ -1305,21 +1299,19 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		cto->ct_seg_count = 0;
 		cto->ct_reloff = 0;
 		ISP_TDQE(mp->isp, "dma2_tgt_fc[no data]", *mp->iptrp, cto);
-		if (isp_tdebug) {
-			scsi_status = cto->rsp.m1.ct_scsi_status;
-			printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs 0x%x "
-			    "sts 0x%x ssts 0x%x res %d\n", mp->isp->isp_name,
-			    cto->ct_rxid, csio->ccb_h.target_lun, cto->ct_iid,
-			    cto->ct_flags, cto->ct_status,
-			    cto->rsp.m1.ct_scsi_status, cto->ct_resid);
-		}
+		isp_prt(mp->isp, ISP_LOGTDEBUG1,
+		    "CTIO2 RX_ID 0x%x lun %d->iid%d flgs 0x%x sts 0x%x ssts "
+		    "0x%x res %d", cto->ct_rxid, csio->ccb_h.target_lun,
+		    cto->ct_iid, cto->ct_flags, cto->ct_status,
+		    cto->rsp.m1.ct_scsi_status, cto->ct_resid);
 		ISP_SWIZ_CTIO2(isp, cto, cto);
 		return;
 	}
 
 	if ((cto->ct_flags & CT2_FLAG_MMASK) != CT2_FLAG_MODE0) {
-		printf("%s: dma2_tgt_fc, a data CTIO2 without MODE0 set "
-		    "(0x%x)\n\n", mp->isp->isp_name, cto->ct_flags);
+		isp_prt(mp->isp, ISP_LOGWARN,
+		    "dma2_tgt_fc, a data CTIO2 without MODE0 set "
+		    "(0x%x)", cto->ct_flags);
 		mp->error = EINVAL;
 		return;
 	}
@@ -1411,8 +1403,9 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 * synthesized MODE1 final status with sense data.
 			 */
 			if (send_sense == 0) {
-				printf("%s: dma2_tgt_fc ran out of segments, "
-				    "no SENSE DATA\n", mp->isp->isp_name);
+				isp_prt(mp->isp, ISP_LOGWARN,
+				    "dma2_tgt_fc ran out of segments, "
+				    "no SENSE DATA");
 				mp->error = EINVAL;
 				return;
 			}
@@ -1474,14 +1467,12 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 					cto->ct_flags |= CT2_DATA_OVER;
 			}
 			ISP_TDQE(mp->isp, "last dma2_tgt_fc", *mp->iptrp, cto);
-			if (isp_tdebug) {
-				printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs"
-				    "0x%x sts 0x%x ssts 0x%x res %d\n",
-				    mp->isp->isp_name, cto->ct_rxid,
-				    csio->ccb_h.target_lun, (int) cto->ct_iid,
-				    cto->ct_flags, cto->ct_status,
-				    cto->rsp.m1.ct_scsi_status, cto->ct_resid);
-			}
+			isp_prt(mp->isp, ISP_LOGTDEBUG1,
+			    "CTIO2 RX_ID 0x%x lun %d->iid%d flgs 0x%x sts 0x%x"
+			    " ssts 0x%x res %d", cto->ct_rxid,
+			    csio->ccb_h.target_lun, (int) cto->ct_iid,
+			    cto->ct_flags, cto->ct_status,
+			    cto->rsp.m1.ct_scsi_status, cto->ct_resid);
 			ISP_SWIZ_CTIO2(isp, cto, cto);
 		} else {
 			ct2_entry_t *octo = cto;
@@ -1493,22 +1484,20 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			cto->ct_header.rqs_seqno = 0;
 
 			ISP_TDQE(mp->isp, "dma2_tgt_fc", *mp->iptrp, cto);
-			if (isp_tdebug) {
-				printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs"
-				    "0x%x\n", mp->isp->isp_name, cto->ct_rxid,
-				    csio->ccb_h.target_lun, (int) cto->ct_iid,
-				    cto->ct_flags);
-			}
+			isp_prt(mp->isp, ISP_LOGTDEBUG1,
+			    "CTIO2 RX_ID 0x%x lun %d->iid%d flgs 0x%x",
+			    cto->ct_rxid, csio->ccb_h.target_lun,
+			    (int) cto->ct_iid, cto->ct_flags);
 			/*
 			 * Get a new CTIO2
 			 */
 			cto = (ct2_entry_t *)
 			    ISP_QUEUE_ENTRY(mp->isp->isp_rquest, *mp->iptrp);
 			*mp->iptrp =
-			    ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN);
+			    ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN(isp));
 			if (*mp->iptrp == mp->optr) {
-				printf("%s: Queue Overflow in dma2_tgt_fc\n",
-				    mp->isp->isp_name);
+				isp_prt(mp->isp, ISP_LOGWARN,
+				    "Queue Overflow in dma2_tgt_fc");
 				mp->error = MUSHERR_NOQENTRIES;
 				return;
 			}
@@ -1562,7 +1551,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 
 	if (nseg < 1) {
-		printf("%s: bad segment count (%d)\n", mp->isp->isp_name, nseg);
+		isp_prt(mp->isp, ISP_LOGERR, "bad segment count (%d)", nseg);
 		mp->error = EFAULT;
 		return;
 	}
@@ -1647,7 +1636,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	while (datalen > 0 && dm_segs != eseg) {
 		crq = (ispcontreq_t *)
 		    ISP_QUEUE_ENTRY(mp->isp->isp_rquest, *mp->iptrp);
-		*mp->iptrp = ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN);
+		*mp->iptrp = ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN(isp));
 		if (*mp->iptrp == mp->optr) {
 #if	0
 			printf("%s: Request Queue Overflow++\n",
@@ -1748,8 +1737,8 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 			if (error == EINPROGRESS) {
 				bus_dmamap_unload(pci->parent_dmat, *dp);
 				mp->error = EINVAL;
-				printf("%s: deferred dma allocation not "
-				    "supported\n", isp->isp_name);
+				isp_prt(isp, ISP_LOGERR,
+				    "deferred dma allocation not supported");
 			} else if (error && mp->error == 0) {
 #ifdef	DIAGNOSTIC
 				printf("%s: error %d in dma mapping code\n",
@@ -1769,12 +1758,12 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 		struct bus_dma_segment *segs;
 
 		if ((csio->ccb_h.flags & CAM_DATA_PHYS) != 0) {
-			printf("%s: Physical segment pointers unsupported",
-				isp->isp_name);
+			isp_prt(isp, ISP_LOGERR,
+			    "Physical segment pointers unsupported");
 			mp->error = EINVAL;
 		} else if ((csio->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
-			printf("%s: Virtual segment addresses unsupported",
-				isp->isp_name);
+			isp_prt(isp, ISP_LOGERR,
+			    "Virtual segment addresses unsupported");
 			mp->error = EINVAL;
 		} else {
 			/* Just use the segments provided */
@@ -1813,7 +1802,7 @@ exit:
 }
 
 static void
-isp_pci_dmateardown(struct ispsoftc *isp, ISP_SCSI_XFER_T *xs, u_int32_t handle)
+isp_pci_dmateardown(struct ispsoftc *isp, XS_T *xs, u_int32_t handle)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	bus_dmamap_t *dp = &pci->dmaps[isp_handle_index(handle)];
@@ -1836,9 +1825,38 @@ isp_pci_reset1(struct ispsoftc *isp)
 }
 
 static void
-isp_pci_dumpregs(struct ispsoftc *isp)
+isp_pci_dumpregs(struct ispsoftc *isp, const char *msg)
 {
-	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *)isp;
-	printf("%s: PCI Status Command/Status=%lx\n", pcs->pci_isp.isp_name,
-	    pci_conf_read(pcs->pci_id, PCIR_COMMAND));
+	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
+	if (msg)
+		printf("%s: %s\n", isp->isp_name, msg);
+	if (IS_SCSI(isp))
+		printf("    biu_conf1=%x", ISP_READ(isp, BIU_CONF1));
+	else
+		printf("    biu_csr=%x", ISP_READ(isp, BIU2100_CSR));
+	printf(" biu_icr=%x biu_isr=%x biu_sema=%x ", ISP_READ(isp, BIU_ICR),
+	    ISP_READ(isp, BIU_ISR), ISP_READ(isp, BIU_SEMA));
+	printf("risc_hccr=%x\n", ISP_READ(isp, HCCR));
+
+
+	if (IS_SCSI(isp)) {
+		ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
+		printf("    cdma_conf=%x cdma_sts=%x cdma_fifostat=%x\n",
+			ISP_READ(isp, CDMA_CONF), ISP_READ(isp, CDMA_STATUS),
+			ISP_READ(isp, CDMA_FIFO_STS));
+		printf("    ddma_conf=%x ddma_sts=%x ddma_fifostat=%x\n",
+			ISP_READ(isp, DDMA_CONF), ISP_READ(isp, DDMA_STATUS),
+			ISP_READ(isp, DDMA_FIFO_STS));
+		printf("    sxp_int=%x sxp_gross=%x sxp(scsi_ctrl)=%x\n",
+			ISP_READ(isp, SXP_INTERRUPT),
+			ISP_READ(isp, SXP_GROSS_ERR),
+			ISP_READ(isp, SXP_PINS_CTRL));
+		ISP_WRITE(isp, HCCR, HCCR_CMD_RELEASE);
+	}
+	printf("    mbox regs: %x %x %x %x %x\n",
+	    ISP_READ(isp, OUTMAILBOX0), ISP_READ(isp, OUTMAILBOX1),
+	    ISP_READ(isp, OUTMAILBOX2), ISP_READ(isp, OUTMAILBOX3),
+	    ISP_READ(isp, OUTMAILBOX4));
+	printf("    PCI Status Command/Status=%lx\n",
+	     pci_conf_read(pci->pci_id, PCIR_COMMAND));
 }

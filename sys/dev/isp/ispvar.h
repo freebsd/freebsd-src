@@ -1,10 +1,8 @@
 /* $FreeBSD$ */
-
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
- * Copyright (c) 1997, 1998, 1999 by Matthew Jacob
- * NASA/Ames Research Center
+ * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -13,10 +11,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice immediately at the beginning of the file, without modification,
  *    this list of conditions, and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -58,8 +53,8 @@
 #endif
 #endif
 
-#define	ISP_CORE_VERSION_MAJOR	1
-#define	ISP_CORE_VERSION_MINOR	16
+#define	ISP_CORE_VERSION_MAJOR	2
+#define	ISP_CORE_VERSION_MINOR	0
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -70,23 +65,20 @@ struct ispmdvec {
 	void		(*dv_wr_reg) __P((struct ispsoftc *, int, u_int16_t));
 	int		(*dv_mbxdma) __P((struct ispsoftc *));
 	int		(*dv_dmaset) __P((struct ispsoftc *,
-		ISP_SCSI_XFER_T *, ispreq_t *, u_int16_t *, u_int16_t));
+		XS_T *, ispreq_t *, u_int16_t *, u_int16_t));
 	void		(*dv_dmaclr)
-		__P((struct ispsoftc *, ISP_SCSI_XFER_T *, u_int32_t));
+		__P((struct ispsoftc *, XS_T *, u_int32_t));
 	void		(*dv_reset0) __P((struct ispsoftc *));
 	void		(*dv_reset1) __P((struct ispsoftc *));
-	void		(*dv_dregs) __P((struct ispsoftc *));
+	void		(*dv_dregs) __P((struct ispsoftc *, const char *));
 	const u_int16_t	*dv_ispfw;	/* ptr to f/w */
-	u_int16_t 	dv_fwlen;	/* length of f/w */
-	u_int16_t	dv_codeorg;	/* code ORG for f/w */
-	u_int32_t	dv_fwrev;	/* f/w revision */
-	/*
-	 * Initial values for conf1 register
-	 */
 	u_int16_t	dv_conf1;
 	u_int16_t	dv_clock;	/* clock frequency */
 };
 
+/*
+ * Overall parameters
+ */
 #define	MAX_TARGETS	16
 #ifdef	ISP2100_FABRIC
 #define	MAX_FC_TARG	256
@@ -99,7 +91,8 @@ struct ispmdvec {
 
 
 /*
- * Macros to read, write ISP registers through bus specific code.
+ * Macros to access ISP registers through bus specific layers-
+ * mostly wrappers to vector through the mdvec structure.
  */
 
 #define	ISP_READ(isp, reg)	\
@@ -122,8 +115,8 @@ struct ispmdvec {
 	if ((isp)->isp_mdvec->dv_reset0) (*(isp)->isp_mdvec->dv_reset0)((isp))
 #define	ISP_RESET1(isp)	\
 	if ((isp)->isp_mdvec->dv_reset1) (*(isp)->isp_mdvec->dv_reset1)((isp))
-#define	ISP_DUMPREGS(isp)	\
-	if ((isp)->isp_mdvec->dv_dregs) (*(isp)->isp_mdvec->dv_dregs)((isp))
+#define	ISP_DUMPREGS(isp, m)	\
+	if ((isp)->isp_mdvec->dv_dregs) (*(isp)->isp_mdvec->dv_dregs)((isp),(m))
 
 #define	ISP_SETBITS(isp, reg, val)	\
  (*(isp)->isp_mdvec->dv_wr_reg)((isp), (reg), ISP_READ((isp), (reg)) | (val))
@@ -131,25 +124,41 @@ struct ispmdvec {
 #define	ISP_CLRBITS(isp, reg, val)	\
  (*(isp)->isp_mdvec->dv_wr_reg)((isp), (reg), ISP_READ((isp), (reg)) & ~(val))
 
-/* this is the size of a queue entry (request and response) */
+/*
+ * The MEMORYBARRIER macro is defined per platform (to provide synchronization
+ * on Request and Response Queues, Scratch DMA areas, and Registers)
+ *
+ * Defined Memory Barrier Synchronization Types
+ */
+#define	SYNC_REQUEST	0	/* request queue synchronization */
+#define	SYNC_RESULT	1	/* result queue synchronization */
+#define	SYNC_SFORDEV	2	/* scratch, sync for ISP */
+#define	SYNC_SFORCPU	3	/* scratch, sync for CPU */
+#define	SYNC_REG	4	/* for registers */
+
+/*
+ * Request/Response Queue defines and macros.
+ * The maximum is defined per platform (and can be based on board type).
+ */
+/* This is the size of a queue entry (request and response) */
 #define	QENTRY_LEN			64
-/* both request and result queue length must be a power of two */
-#define	RQUEST_QUEUE_LEN		MAXISPREQUEST
-/* I've seen wierdnesses with the result queue < 64 */
-#if	MAXISPREQUEST > 64
-#define	RESULT_QUEUE_LEN		(MAXISPREQUEST/2)
-#else
-#define	RESULT_QUEUE_LEN		MAXISPREQUEST
-#endif
+/* Both request and result queue length must be a power of two */
+#define	RQUEST_QUEUE_LEN(x)		MAXISPREQUEST(x)
+#define	RESULT_QUEUE_LEN(x)		\
+	(((MAXISPREQUEST(x) >> 2) < 64)? 64 : MAXISPREQUEST(x) >> 2)
 #define	ISP_QUEUE_ENTRY(q, idx)		((q) + ((idx) * QENTRY_LEN))
 #define	ISP_QUEUE_SIZE(n)		((n) * QENTRY_LEN)
 #define	ISP_NXT_QENTRY(idx, qlen)	(((idx) + 1) & ((qlen)-1))
-#define	ISP_QAVAIL(in, out, qlen)	\
+#define	ISP_QFREE(in, out, qlen)	\
 	((in == out)? (qlen - 1) : ((in > out)? \
 	((qlen - 1) - (in - out)) : (out - in - 1)))
+#define	ISP_QAVAIL(isp)	\
+	ISP_QFREE(isp->isp_reqidx, isp->isp_reqodx, RQUEST_QUEUE_LEN(isp))
 
 #define	ISP_ADD_REQUEST(isp, iptr)	\
-	ISP_WRITE(isp, INMAILBOX4, iptr), isp->isp_reqidx = iptr
+	MEMORYBARRIER(isp, SYNC_REQUEST, iptr, QENTRY_LEN); \
+	ISP_WRITE(isp, INMAILBOX4, iptr); \
+	isp->isp_reqidx = iptr
 
 /*
  * SCSI Specific Host Adapter Parameters- per bus, per target
@@ -165,7 +174,7 @@ typedef struct {
 			isp_ultramode		: 1,
 			isp_diffmode		: 1,
 			isp_lvdmode		: 1,
-						: 1,
+			isp_fast_mttr		: 1,	/* fast sram */
 			isp_initiator_id	: 4,
 			isp_async_data_setup	: 4;
 	u_int16_t	isp_selection_timeout;
@@ -200,15 +209,18 @@ typedef struct {
 #define	DPARM_ARQ	0x0400
 #define	DPARM_QFRZ	0x0200
 #define	DPARM_RENEG	0x0100
-#define	DPARM_NARROW	0x0080	/* Possibly only available with >= 7.55 fw */
-#define	DPARM_ASYNC	0x0040	/* Possibly only available with >= 7.55 fw */
+#define	DPARM_NARROW	0x0080
+#define	DPARM_ASYNC	0x0040
+#define	DPARM_PPR	0x0020
 #define	DPARM_DEFAULT	(0xFF00 & ~DPARM_QFRZ)
 #define	DPARM_SAFE_DFLT	(DPARM_DEFAULT & ~(DPARM_WIDE|DPARM_SYNC|DPARM_TQING))
 
 
 /* technically, not really correct, as they need to be rated based upon clock */
-#define	ISP_40M_SYNCPARMS	0x080a
-#define	ISP_20M_SYNCPARMS	0x080c
+#define	ISP_80M_SYNCPARMS	0x0c09
+#define	ISP_40M_SYNCPARMS	0x0c0a
+#define	ISP_20M_SYNCPARMS	0x0c0c
+#define	ISP_20M_SYNCPARMS_1040	0x080c
 #define	ISP_10M_SYNCPARMS	0x0c19
 #define	ISP_08M_SYNCPARMS	0x0c25
 #define	ISP_05M_SYNCPARMS	0x0c32
@@ -293,7 +305,7 @@ typedef struct {
 /*
  * Soft Structure per host adapter
  */
-struct ispsoftc {
+typedef struct ispsoftc {
 	/*
 	 * Platform (OS) specific data
 	 */
@@ -317,14 +329,19 @@ struct ispsoftc {
 	u_int8_t		isp_revision;	/* HBA Chip H/W Revision */
 	u_int32_t		isp_maxluns;	/* maximum luns supported */
 
-	u_int32_t				: 4,
+	u_int32_t
 				isp_touched	: 1,	/* board ever seen? */
-				isp_fast_mttr	: 1,	/* fast sram */
-				isp_bustype	: 1,	/* SBus or PCI */
 						: 1,
-				isp_dblev	: 8,	/* debug level */
+				isp_bustype	: 1,	/* SBus or PCI */
+				isp_loaded_fw	: 1,	/* loaded firmware */
+				isp_dblev	: 12,	/* debug log mask */
 				isp_clock	: 8,	/* input clock */
 				isp_confopts	: 8;	/* config options */
+	/*
+	 * Instrumentation
+	 */
+	u_int64_t		isp_intcnt;		/* total int count */
+	u_int64_t		isp_intbogus;		/* spurious int count */
 
 	/*
 	 * Volatile state
@@ -346,7 +363,7 @@ struct ispsoftc {
 	/*
 	 * Active commands are stored here, indexed by handle functions.
 	 */
-	ISP_SCSI_XFER_T **isp_xflist;
+	XS_T **isp_xflist;
 
 	/*
 	 * request/result queue pointers and dma handles for them.
@@ -355,13 +372,13 @@ struct ispsoftc {
 	caddr_t			isp_result;
 	u_int32_t		isp_rquest_dma;
 	u_int32_t		isp_result_dma;
-};
+} ispsoftc_t;
 
 #define	SDPARAM(isp)	((sdparam *) (isp)->isp_param)
 #define	FCPARAM(isp)	((fcparam *) (isp)->isp_param)
 
 /*
- * ISP States
+ * ISP Driver Run States
  */
 #define	ISP_NILSTATE	0
 #define	ISP_RESETSTATE	1
@@ -375,8 +392,16 @@ struct ispsoftc {
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
 #define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
 #define	ISP_CFG_OWNWWN		0x02	/* override NVRAM wwn */
-#define	ISP_CFG_NPORT		0x04	/* try to force N- instead of L-Port */
+#define	ISP_CFG_PORT_PREF	0x0C	/* Mask for Port Prefs (2200 only) */
+#define	ISP_CFG_LPORT		0x00	/* prefer {N/F}L-Port connection */
+#define	ISP_CFG_NPORT		0x04	/* prefer {N/F}-Port connection */
+#define	ISP_CFG_NPORT_ONLY	0x08	/* insist on {N/F}-Port connection */
+#define	ISP_CFG_LPORT_ONLY	0x0C	/* insist on {N/F}L-Port connection */
 
+/*
+ * Firmware related defines
+ */
+#define	ISP_CODE_ORG		0x1000	/* default f/w code start */
 #define	ISP_FW_REV(maj, min, mic)	((maj << 24) | (min << 16) | mic)
 #define	ISP_FW_REVX(xp)	((xp[0]<<24) | (xp[1] << 16) | xp[2])
 
@@ -420,9 +445,14 @@ struct ispsoftc {
 #define	IS_2100(isp)	(isp->isp_type == ISP_HA_FC_2100)
 #define	IS_2200(isp)	(isp->isp_type == ISP_HA_FC_2200)
 
+/*
+ * DMA cookie macros
+ */
+#define	DMA_MSW(x)	(((x) >> 16) & 0xffff)
+#define	DMA_LSW(x)	(((x) & 0xffff))
 
 /*
- * Function Prototypes
+ * Core System Function Prototypes
  */
 
 /*
@@ -439,7 +469,7 @@ void isp_init __P((struct ispsoftc *));
 /*
  * Reset the ISP and call completion for any orphaned commands.
  */
-void isp_restart __P((struct ispsoftc *));
+void isp_reinit __P((struct ispsoftc *));
 
 /*
  * Interrupt Service Routine
@@ -447,9 +477,19 @@ void isp_restart __P((struct ispsoftc *));
 int isp_intr __P((void *));
 
 /*
- * Command Entry Point
+ * Command Entry Point- Platform Dependent layers call into this
  */
-int32_t ispscsicmd __P((ISP_SCSI_XFER_T *));
+int isp_start __P((XS_T *));
+/* these values are what isp_start returns */
+#define	CMD_COMPLETE	101	/* command completed */
+#define	CMD_EAGAIN	102	/* busy- maybe retry later */
+#define	CMD_QUEUED	103	/* command has been queued for execution */
+#define	CMD_RQLATER 	104	/* requeue this command later */
+
+/*
+ * Command Completion Point- Core layers call out from this with completed cmds
+ */
+void isp_done __P((XS_T *));
 
 /*
  * Platform Dependent to External to Internal Control Function
@@ -492,8 +532,138 @@ typedef enum {
 int isp_async __P((struct ispsoftc *, ispasync_t, void *));
 
 /*
- * lost command routine (XXXX IN TRANSITION XXXX)
+ * Platform Dependent Error and Debug Printout
  */
-void isp_lostcmd __P((struct ispsoftc *, ISP_SCSI_XFER_T *));
+void isp_prt __P((struct ispsoftc *, int level, const char *, ...));
+#define	ISP_LOGALL	0x0	/* log always */
+#define	ISP_LOGCONFIG	0x1	/* log configuration messages */
+#define	ISP_LOGINFO	0x2	/* log informational messages */
+#define	ISP_LOGWARN	0x4	/* log warning messages */
+#define	ISP_LOGERR	0x8	/* log error messages */
+#define	ISP_LOGDEBUG0	0x10	/* log simple debug messages */
+#define	ISP_LOGDEBUG1	0x20	/* log intermediate debug messages */
+#define	ISP_LOGDEBUG2	0x40	/* log most debug messages */
+#define	ISP_LOGDEBUG3	0x100	/* log high frequency debug messages */
+#define	ISP_LOGTDEBUG0	0x200	/* log simple debug messages (target mode) */
+#define	ISP_LOGTDEBUG1	0x400	/* log intermediate debug messages (target) */
+#define	ISP_LOGTDEBUG2	0x800	/* log all debug messages (target) */
 
+/*
+ * Each Platform provides it's own isposinfo substructure of the ispsoftc
+ * defined above.
+ *
+ * Each platform must also provide the following macros/defines:
+ *
+ *
+ *	INLINE		-	platform specific define for 'inline' functions
+ *
+ *	ISP2100_FABRIC	-	defines whether FABRIC support is enabled
+ *	ISP2100_SCRLEN	-	length for the Fibre Channel scratch DMA area
+ *
+ *	MEMZERO(dst, src)			platform zeroing function
+ *	MEMCPY(dst, src, count)			platform copying function
+ *	SNPRINTF(buf, bufsize, fmt, ...)	snprintf
+ *	STRNCAT(dstbuf, size, srcbuf)		strncat
+ *	USEC_DELAY(usecs)			microsecond spindelay function
+ *	USEC_SLEEP(isp, usecs)			microsecond sleep function
+ *
+ *	NANOTIME_T				nanosecond time type
+ *
+ *	GET_NANOTIME(NANOTIME_T *)		get current nanotime.
+ *
+ *	GET_NANOSEC(NANOTIME_T *)		get u_int64_t from NANOTIME_T
+ *
+ *	NANOTIME_SUB(NANOTIME_T *, NANOTIME_T *)
+ *						subtract two NANOTIME_T values
+ *
+ *
+ *	MAXISPREQUEST(struct ispsoftc *)	maximum request queue size
+ *						for this particular board type
+ *
+ *	MEMORYBARRIER(struct ispsoftc *, barrier_type, offset, size)
+ *
+ *		Function/Macro the provides memory synchronization on
+ *		various objects so that the ISP's and the system's view
+ *		of the same object is consistent.
+ *
+ *	MBOX_ACQUIRE(struct ispsoftc *)		acquire lock on mailbox regs
+ *	MBOX_WAIT_COMPLETE(struct ispsoftc *)	wait for mailbox cmd to be done
+ *	MBOX_NOTIFY_COMPLETE(struct ispsoftc *)	notification of mbox cmd donee
+ *	MBOX_RELEASE(struct ispsoftc *)		release lock on mailbox regs
+ * 
+ *
+ *	SCSI_GOOD	SCSI 'Good' Status
+ *	SCSI_CHECK	SCSI 'Check Condition' Status
+ *	SCSI_BUSY	SCSI 'Busy' Status
+ *	SCSI_QFULL	SCSI 'Queue Full' Status
+ *
+ *	XS_T		Platform SCSI transaction type (i.e., command for HBA)
+ *	XS_ISP(xs)	gets an instance out of an XS_T
+ *	XS_CHANNEL(xs)	gets the channel (bus # for DUALBUS cards) ""
+ *	XS_TGT(xs)	gets the target ""
+ *	XS_LUN(xs)	gets the lun ""
+ *	XS_CDBP(xs)	gets a pointer to the scsi CDB ""
+ *	XS_CDBLEN(xs)	gets the CDB's length ""
+ *	XS_XFRLEN(xs)	gets the associated data transfer length ""
+ *	XS_TIME(xs)	gets the time (in milliseconds) for this command
+ *	XS_RESID(xs)	gets the current residual count
+ *	XS_STSP(xs)	gets a pointer to the SCSI status byte ""
+ *	XS_SNSP(xs)	gets a pointer to the associate sense data
+ *	XS_SNSLEN(xs)	gets the length of sense data storage
+ *	XS_SNSKEY(xs)	dereferences XS_SNSP to get the current stored Sense Key
+ *	XS_TAG_P(xs)	predicate of whether this command should be tagged
+ *	XS_TAG_TYPE(xs)	which type of tag to use
+ *	XS_SETERR(xs)	set error state
+ *
+ *		HBA_NOERROR	command has no erros
+ *		HBA_BOTCH	hba botched something
+ *		HBA_CMDTIMEOUT	command timed out
+ *		HBA_SELTIMEOUT	selection timed out (also port logouts for FC)
+ *		HBA_TGTBSY	target returned a BUSY status
+ *		HBA_BUSRESET	bus reset destroyed command
+ *		HBA_ABORTED	command was aborted (by request)
+ *		HBA_DATAOVR	a data overrun was detected
+ *		HBA_ARQFAIL	Automatic Request Sense failed
+ *
+ *	XS_ERR(xs)	return current error state
+ *	XS_NOERR(xs)	there is no error currently set
+ *	XS_INITERR(xs)	initialize error state
+ *
+ *	XS_SAVE_SENSE(xs, sp)		save sense data
+ *
+ *	XS_SET_STATE_STAT(isp, sp, xs)	platform dependent interpreter of
+ *					response queue entry status bits
+ *
+ *
+ *	DEFAULT_IID(struct ispsoftc *)		Default SCSI initiator ID
+ *	DEFAULT_LOOPID(struct ispsoftc *)	Default FC Loop ID
+ *	DEFAULT_NODEWWN(struct ispsoftc *)	Default Node WWN
+ *	DEFAULT_PORTWWN(struct ispsoftc *)	Default Port WWN
+ *		These establish reasonable defaults for each platform.
+ * 		These must be available independent of card NVRAM and are
+ *		to be used should NVRAM not be readable.
+ *
+ *	ISP_NODEWWN(struct ispsoftc *)	FC Node WWN to use
+ *	ISP_PORTWWN(struct ispsoftc *)	FC Port WWN to use
+ *
+ *		These are to be used after NVRAM is read. The tags
+ *		in fcparam.isp_{node,port}wwn reflect the values
+ *		read from NVRAM (possibly corrected for card botches).
+ *		Each platform can take that information and override
+ *		it or ignore and return the Node and Port WWNs to be
+ * 		used when sending the Qlogic f/w the Initialization Control
+ *		Block.
+ *
+ *	(XXX these do endian specific transformations- in transition XXX)
+ *	ISP_SWIZZLE_ICB
+ *	ISP_UNSWIZZLE_AND_COPY_PDBP
+ *	ISP_SWIZZLE_CONTINUATION
+ *	ISP_SWIZZLE_REQUEST
+ *	ISP_UNSWIZZLE_RESPONSE
+ *	ISP_SWIZZLE_SNS_REQ
+ *	ISP_UNSWIZZLE_SNS_RSP
+ *	ISP_SWIZZLE_NVRAM_WORD
+ *
+ *
+ */
 #endif	/* _ISPVAR_H */
