@@ -575,7 +575,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 {
 	struct uart_bas *bas;
 	int count, delay, error, limit;
-	uint8_t mcr;
+	uint8_t lsr, mcr;
 
 	bas = &sc->sc_bas;
 
@@ -598,16 +598,15 @@ ns8250_bus_probe(struct uart_softc *sc)
 	 * Set loopback mode. This avoids having garbage on the wire and
 	 * also allows us send and receive data. We set DTR and RTS to
 	 * avoid the possibility that automatic flow-control prevents
-	 * any data from being sent. We clear IE to avoid raising interrupts.
+	 * any data from being sent.
 	 */
-	uart_setreg(bas, REG_MCR, MCR_LOOPBACK | MCR_DTR | MCR_RTS);
+	uart_setreg(bas, REG_MCR, MCR_LOOPBACK | MCR_IE | MCR_DTR | MCR_RTS);
 	uart_barrier(bas);
 
 	/*
 	 * Enable FIFOs. And check that the UART has them. If not, we're
-	 * done. Otherwise we set DMA mode with the highest trigger level
-	 * so that we can determine the FIFO size. Since this is the first
-	 * time we enable the FIFOs, we reset them.
+	 * done. Since this is the first time we enable the FIFOs, we reset
+	 * them.
 	 */
 	uart_setreg(bas, REG_FCR, FCR_ENABLE);
 	uart_barrier(bas);
@@ -623,8 +622,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 		return (0);
 	}
 
-	uart_setreg(bas, REG_FCR, FCR_ENABLE | FCR_DMA | FCR_RX_HIGH |
-	    FCR_XMT_RST | FCR_RCV_RST);
+	uart_setreg(bas, REG_FCR, FCR_ENABLE | FCR_XMT_RST | FCR_RCV_RST);
 	uart_barrier(bas);
 
 	count = 0;
@@ -639,23 +637,26 @@ ns8250_bus_probe(struct uart_softc *sc)
 		goto describe;
 	}
 
-	uart_setreg(bas, REG_IER, IER_ERXRDY);
-	uart_barrier(bas);
-
 	/*
 	 * We should have a sufficiently clean "pipe" to determine the
 	 * size of the FIFOs. We send as much characters as is reasonable
-	 * and wait for the the RX interrupt to be asserted, counting the
-	 * characters as we send them. Based on that count we know the
-	 * FIFO size.
+	 * and wait for the the overflow bit in the LSR register to be
+	 * asserted, counting the characters as we send them. Based on
+	 * that count we know the FIFO size.
 	 */
-	while ((uart_getreg(bas, REG_IIR) & IIR_RXRDY) == 0 && count < 1030) {
+	do {
 		uart_setreg(bas, REG_DATA, 0);
 		uart_barrier(bas);
 		count++;
 
 		limit = 30;
-		while ((uart_getreg(bas, REG_LSR) & LSR_TEMT) == 0 && --limit)
+		lsr = 0;
+		/*
+		 * LSR bits are cleared upon read, so we must accumulate
+		 * them to be able to test LSR_OE below.
+		 */
+		while (((lsr |= uart_getreg(bas, REG_LSR)) & LSR_TEMT) == 0 &&
+		    --limit)
 			DELAY(delay);
 		if (limit == 0) {
 			uart_setreg(bas, REG_IER, 0);
@@ -665,25 +666,25 @@ ns8250_bus_probe(struct uart_softc *sc)
 			count = 0;
 			goto describe;
 		}
-	}
+	} while ((lsr & LSR_OE) == 0 && count < 1030);
+	count--;
 
-	uart_setreg(bas, REG_IER, 0);
 	uart_setreg(bas, REG_MCR, mcr);
 
 	/* Reset FIFOs. */
 	ns8250_flush(bas, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
 
  describe:
-	if (count >= 14 && count < 16) {
+	if (count >= 14 && count <= 16) {
 		sc->sc_rxfifosz = 16;
 		device_set_desc(sc->sc_dev, "16550 or compatible");
-	} else if (count >= 28 && count < 32) {
+	} else if (count >= 28 && count <= 32) {
 		sc->sc_rxfifosz = 32;
 		device_set_desc(sc->sc_dev, "16650 or compatible");
-	} else if (count >= 56 && count < 64) {
+	} else if (count >= 56 && count <= 64) {
 		sc->sc_rxfifosz = 64;
 		device_set_desc(sc->sc_dev, "16750 or compatible");
-	} else if (count >= 112 && count < 128) {
+	} else if (count >= 112 && count <= 128) {
 		sc->sc_rxfifosz = 128;
 		device_set_desc(sc->sc_dev, "16950 or compatible");
 	} else {
