@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.8 1998/07/22 08:20:57 dfr Exp $
+ *	$Id: machdep.c,v 1.9 1998/07/29 18:36:29 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -600,7 +600,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		prom_getenv(PROM_E_BOOTED_DEV, bootinfo.booted_dev,
 			    sizeof bootinfo.booted_dev);
 	}
-	printf("ssym=%lx, esym=%lx\n", bootinfo.ssym, bootinfo.esym);
 
 	/*
 	 * Initialize the kernel's mapping of the RPB.  It's needed for
