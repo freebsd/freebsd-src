@@ -1982,6 +1982,9 @@ END_DEBUG
 			if (sdev->status == SBP_DEV_RESET)
 				continue;
 			if (sdev->path) {
+				xpt_release_devq(sdev->path,
+						 sdev->freeze, TRUE);
+				sdev->freeze = 0;
 				xpt_async(AC_LOST_DEVICE, sdev->path, NULL);
 				xpt_free_path(sdev->path);
 				sdev->path = NULL;
