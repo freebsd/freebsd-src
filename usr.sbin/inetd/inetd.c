@@ -267,11 +267,6 @@ extern struct biltin biltins[];
 const char	*CONFIG = _PATH_INETDCONF;
 const char	*pid_file = _PATH_INETDPID;
 
-#ifdef OLD_SETPROCTITLE
-char	**Argv;
-char 	*LastArg;
-#endif
-
 int
 getvalue(arg, value, whine)
 	const char *arg, *whine;
@@ -290,9 +285,9 @@ getvalue(arg, value, whine)
 }
 
 int
-main(argc, argv, envp)
+main(argc, argv)
 	int argc;
-	char *argv[], *envp[];
+	char *argv[];
 {
 	struct servtab *sep;
 	struct passwd *pwd;
@@ -321,16 +316,6 @@ main(argc, argv, envp)
 	struct addrinfo hints, *res;
 	const char *servname;
 	int error;
-
-
-#ifdef OLD_SETPROCTITLE
-	Argv = argv;
-	if (envp == 0 || *envp == 0)
-		envp = argv;
-	while (*envp)
-		envp++;
-	LastArg = envp[-1] + strlen(envp[-1]);
-#endif
 
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
@@ -856,7 +841,7 @@ addchild(struct servtab *sep, pid_t pid)
 
 void
 flag_reapchild(signo)
-	int signo;
+	int signo __unused;
 {
 	flag_signal('C');
 }
@@ -894,7 +879,7 @@ reapchild()
 
 void
 flag_config(signo)
-	int signo;
+	int signo __unused;
 {
 	flag_signal('H');
 }
@@ -1123,7 +1108,7 @@ unregisterrpc(sep)
 
 void
 flag_retry(signo)
-	int signo;
+	int signo __unused;
 {
 	flag_signal('A');
 }
@@ -1969,31 +1954,6 @@ newstr(cp)
 	exit(EX_OSERR);
 }
 
-#ifdef OLD_SETPROCTITLE
-void
-inetd_setproctitle(a, s)
-	const char *a;
-	int s;
-{
-	int size;
-	char *cp;
-	struct sockaddr_storage ss;
-	char buf[80], pbuf[INET6_ADDRSTRLEN];
-
-	cp = Argv[0];
-	size = sizeof(ss);
-	if (getpeername(s, (struct sockaddr *)&ss, &size) == 0) {
-		getnameinfo((struct sockaddr *)&ss, size, pbuf, sizeof(pbuf),
-			    NULL, 0, NI_NUMERICHOST|NI_WITHSCOPEID);
-		(void) sprintf(buf, "-%s [%s]", a, pbuf);
-	} else
-		(void) sprintf(buf, "-%s", a);
-	strncpy(cp, buf, LastArg - cp);
-	cp += strlen(cp);
-	while (cp < LastArg)
-		*cp++ = ' ';
-}
-#else
 void
 inetd_setproctitle(a, s)
 	const char *a;
@@ -2012,8 +1972,6 @@ inetd_setproctitle(a, s)
 		(void) sprintf(buf, "%s", a);
 	setproctitle("%s", buf);
 }
-#endif
-
 
 int
 check_loop(sa, sep)
