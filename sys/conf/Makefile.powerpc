@@ -20,7 +20,7 @@
 %VERSREQ=	500003
 
 # Can be overridden by makeoptions or /etc/make.conf
-KERNEL_KO?=	kernel.ko
+KERNEL_KO?=	kernel
 KERNEL?=	kernel
 KODIR?=		/boot/${KERNEL}
 STD8X16FONT?=	iso
