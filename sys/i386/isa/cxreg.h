@@ -428,3 +428,26 @@
 #define CSRA_TXFLOFF 0x04       /* transmitter flow off */
 #define CSRA_TXFLON  0x02       /* transmitter flow on */
 #define CSRA_BITS "\20\2txflon\3txfloff\4txen\6rxflon\7rxfloff\10rxen"
+
+/*
+ * Hacks to avoid inb() and outb()'s checks that the port type is not
+ * pessimal.
+ */
+
+static __inline u_char
+xinb(u_int port)
+{
+	return (inb(port));
+}
+
+#undef inb
+#define	inb(port)		xinb(port)
+
+static __inline void
+xoutb(u_int port, u_char data)
+{
+	outb(port, data);
+}
+
+#undef outb
+#define	outb(port, data)	xoutb((port), (data))
