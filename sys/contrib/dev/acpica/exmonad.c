@@ -1,8 +1,8 @@
 
 /******************************************************************************
  *
- * Module Name: exmonad - ACPI AML (p-code) execution for monadic operators
- *              $Revision: 99 $
+ * Module Name: exmonad - ACPI AML execution for monadic (1 operand) operators
+ *              $Revision: 104 $
  *
  *****************************************************************************/
 
@@ -227,31 +227,42 @@ AcpiExMonadic1 (
     UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState)
 {
-    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_OPERAND_OBJECT     *ObjDesc = NULL;
     ACPI_STATUS             Status;
+    ACPI_STATUS             ResolveStatus;
 
 
     FUNCTION_TRACE_PTR ("ExMonadic1", WALK_OPERANDS);
 
 
-    /* Resolve all operands */
+    /* Resolve the operand */
 
-    Status = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
+    ResolveStatus = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
     DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE,
                     AcpiPsGetOpcodeName (Opcode),
                     1, "after AcpiExResolveOperands");
 
-    /* Get all operands */
+    /* Get the operand */
 
-    Status |= AcpiDsObjStackPopObject (&ObjDesc, WalkState);
-    if (ACPI_FAILURE (Status))
+    Status = AcpiDsObjStackPopObject (&ObjDesc, WalkState);
+
+    /* Check operand status */
+
+    if (ACPI_FAILURE (ResolveStatus))
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) %s\n",
-            AcpiPsGetOpcodeName (Opcode), AcpiUtFormatException(Status)));
+        DEBUG_PRINTP (ACPI_ERROR, ("[%s]: Could not resolve operands, %s\n",
+            AcpiPsGetOpcodeName (Opcode), AcpiFormatException (ResolveStatus)));
 
         goto Cleanup;
     }
 
+    if (ACPI_FAILURE (Status))
+    {
+        DEBUG_PRINTP (ACPI_ERROR, ("[%s]: bad operand(s) %s\n",
+            AcpiPsGetOpcodeName (Opcode), AcpiFormatException (Status)));
+
+        goto Cleanup;
+    }
 
     /* Examine the opcode */
 
@@ -345,6 +356,7 @@ AcpiExMonadic2R (
     ACPI_OPERAND_OBJECT     *RetDesc2 = NULL;
     UINT32                  ResVal;
     ACPI_STATUS             Status;
+    ACPI_STATUS             ResolveStatus;
     UINT32                  i;
     UINT32                  j;
     ACPI_INTEGER            Digit;
@@ -355,19 +367,30 @@ AcpiExMonadic2R (
 
     /* Resolve all operands */
 
-    Status = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
+    ResolveStatus = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
     DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE,
                     AcpiPsGetOpcodeName (Opcode),
                     2, "after AcpiExResolveOperands");
 
     /* Get all operands */
 
-    Status |= AcpiDsObjStackPopObject (&ResDesc, WalkState);
+    Status  = AcpiDsObjStackPopObject (&ResDesc, WalkState);
     Status |= AcpiDsObjStackPopObject (&ObjDesc, WalkState);
+
+    /* Now we can check the status codes */
+
+    if (ACPI_FAILURE (ResolveStatus))
+    {
+        DEBUG_PRINTP (ACPI_ERROR, ("[%s]: Could not resolve operands, %s\n",
+            AcpiPsGetOpcodeName (Opcode), AcpiFormatException (ResolveStatus)));
+
+        goto Cleanup;
+    }
+
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) %s\n",
-            AcpiPsGetOpcodeName (Opcode), AcpiUtFormatException(Status)));
+        DEBUG_PRINTP (ACPI_ERROR, ("[%s]: bad operand(s) %s\n",
+            AcpiPsGetOpcodeName (Opcode), AcpiFormatException(Status)));
 
         goto Cleanup;
     }
@@ -610,6 +633,31 @@ AcpiExMonadic2R (
 
 
     /*
+     * ACPI 2.0 Opcodes
+     */
+    case AML_TO_DECSTRING_OP:
+
+        DEBUG_PRINTP (ACPI_ERROR, ("%s is not implemented\n",
+                        AcpiPsGetOpcodeName (Opcode)));
+        Status = AE_NOT_IMPLEMENTED;
+        goto Cleanup;
+        break;
+
+
+    case AML_TO_HEXSTRING_OP:
+        Status = AcpiExConvertToString (ObjDesc, &RetDesc, ACPI_UINT32_MAX, WalkState);
+        break;
+
+    case AML_TO_BUFFER_OP:
+        Status = AcpiExConvertToBuffer (ObjDesc, &RetDesc, WalkState);
+        break;
+
+    case AML_TO_INTEGER_OP:
+        Status = AcpiExConvertToInteger (ObjDesc, &RetDesc, WalkState);
+        break;
+
+
+    /*
      * These are obsolete opcodes
      */
 
@@ -710,7 +758,7 @@ AcpiExMonadic2 (
     if (ACPI_FAILURE (ResolveStatus))
     {
         DEBUG_PRINTP (ACPI_ERROR, ("[%s]: Could not resolve operands, %s\n",
-            AcpiPsGetOpcodeName (Opcode), AcpiUtFormatException (ResolveStatus)));
+            AcpiPsGetOpcodeName (Opcode), AcpiFormatException (ResolveStatus)));
 
         goto Cleanup;
     }
@@ -718,7 +766,7 @@ AcpiExMonadic2 (
     if (ACPI_FAILURE (Status))
     {
         DEBUG_PRINTP (ACPI_ERROR, ("[%s]: Bad operand(s), %s\n",
-            AcpiPsGetOpcodeName (Opcode), AcpiUtFormatException (Status)));
+            AcpiPsGetOpcodeName (Opcode), AcpiFormatException (Status)));
 
         goto Cleanup;
     }
@@ -793,7 +841,7 @@ AcpiExMonadic2 (
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINTP (ACPI_ERROR, ("%s: bad operand(s) %s\n",
-                AcpiPsGetOpcodeName (Opcode), AcpiUtFormatException(Status)));
+                AcpiPsGetOpcodeName (Opcode), AcpiFormatException(Status)));
 
             goto Cleanup;
         }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utalloc - local memory allocation routines
- *              $Revision: 90 $
+ *              $Revision: 93 $
  *
  *****************************************************************************/
 
@@ -126,15 +126,18 @@
         MODULE_NAME         ("utalloc")
 
 
-#ifdef ACPI_DEBUG_TRACK_ALLOCATIONS
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+
 
 /*
- * Most of this code is for tracking memory leaks in the subsystem, and it
- * gets compiled out when the ACPI_DEBUG flag is not set.
- * Every memory allocation is kept track of in a doubly linked list.  Each
+ * This module is used for tracking memory leaks in the subsystem, and it
+ * gets compiled out when the ACPI_DBG_TRACK_ALLOCATIONS is not set.
+ *
+ * Each memory allocation is tracked via a doubly linked list.  Each
  * element contains the caller's component, module name, function name, and
- * line number.  _UtAllocate and _UtCallocate call AcpiUtAddElementToAllocList
- * to add an element to the list; deletion occurs in the bosy of _UtFree.
+ * line number.  AcpiUtAllocate and AcpiUtCallocate call 
+ * AcpiUtAddElementToAllocList to add an element to the list; deletion 
+ * occurs in the body of AcpiUtFree.
  */
 
 
@@ -433,7 +436,7 @@ AcpiUtDeleteElementFromAllocList (
     else
     {
         _REPORT_ERROR (Module, Line, Component,
-                ("_UtFree: Entry not found in list\n"));
+                ("AcpiUtFree: Entry not found in list\n"));
         DEBUG_PRINTP (ACPI_ERROR, ("Entry %p was not found in allocation list\n",
                 Address));
         AcpiUtReleaseMutex (ACPI_MTX_MEMORY);
@@ -614,11 +617,11 @@ AcpiUtDumpCurrentAllocations (
     return_VOID;
 
 }
-#endif  /* #ifdef ACPI_DEBUG_TRACK_ALLOCATIONS */
+
 
 /*******************************************************************************
  *
- * FUNCTION:    _UtAllocate
+ * FUNCTION:    AcpiUtAllocate
  *
  * PARAMETERS:  Size                - Size of the allocation
  *              Component           - Component type of caller
@@ -632,7 +635,7 @@ AcpiUtDumpCurrentAllocations (
  ******************************************************************************/
 
 void *
-_UtAllocate (
+AcpiUtAllocate (
     UINT32                  Size,
     UINT32                  Component,
     NATIVE_CHAR             *Module,
@@ -641,7 +644,7 @@ _UtAllocate (
     void                    *Address = NULL;
 
 
-    FUNCTION_TRACE_U32 ("_UtAllocate", Size);
+    FUNCTION_TRACE_U32 ("AcpiUtAllocate", Size);
 
 
     /* Check for an inadvertent size of zero bytes */
@@ -664,7 +667,6 @@ _UtAllocate (
         return_PTR (NULL);
     }
 
-#ifdef ACPI_DEBUG_TRACK_ALLOCATIONS
 
     if (ACPI_FAILURE (AcpiUtAddElementToAllocList (Address, Size, MEM_MALLOC,
                                 Component, Module, Line)))
@@ -674,7 +676,6 @@ _UtAllocate (
     }
 
     DEBUG_PRINTP (TRACE_ALLOCATIONS, ("%p Size %X\n", Address, Size));
-#endif
 
     return_PTR (Address);
 }
@@ -682,7 +683,7 @@ _UtAllocate (
 
 /*******************************************************************************
  *
- * FUNCTION:    _UtCallocate
+ * FUNCTION:    AcpiUtCallocate
  *
  * PARAMETERS:  Size                - Size of the allocation
  *              Component           - Component type of caller
@@ -696,7 +697,7 @@ _UtAllocate (
  ******************************************************************************/
 
 void *
-_UtCallocate (
+AcpiUtCallocate (
     UINT32                  Size,
     UINT32                  Component,
     NATIVE_CHAR             *Module,
@@ -705,7 +706,7 @@ _UtCallocate (
     void                    *Address = NULL;
 
 
-    FUNCTION_TRACE_U32 ("_UtCallocate", Size);
+    FUNCTION_TRACE_U32 ("AcpiUtCallocate", Size);
 
 
     /* Check for an inadvertent size of zero bytes */
@@ -728,7 +729,6 @@ _UtCallocate (
         return_PTR (NULL);
     }
 
-#ifdef ACPI_DEBUG_TRACK_ALLOCATIONS
 
     if (ACPI_FAILURE (AcpiUtAddElementToAllocList (Address, Size, MEM_CALLOC,
                             Component,Module, Line)))
@@ -736,7 +736,6 @@ _UtCallocate (
         AcpiOsFree (Address);
         return_PTR (NULL);
     }
-#endif
 
     DEBUG_PRINTP (TRACE_ALLOCATIONS, ("%p Size %X\n", Address, Size));
 
@@ -746,7 +745,7 @@ _UtCallocate (
 
 /*******************************************************************************
  *
- * FUNCTION:    _UtFree
+ * FUNCTION:    AcpiUtFree
  *
  * PARAMETERS:  Address             - Address of the memory to deallocate
  *              Component           - Component type of caller
@@ -760,27 +759,24 @@ _UtCallocate (
  ******************************************************************************/
 
 void
-_UtFree (
+AcpiUtFree (
     void                    *Address,
     UINT32                  Component,
     NATIVE_CHAR             *Module,
     UINT32                  Line)
 {
-    FUNCTION_TRACE_PTR ("_UtFree", Address);
+    FUNCTION_TRACE_PTR ("AcpiUtFree", Address);
 
 
     if (NULL == Address)
     {
         _REPORT_ERROR (Module, Line, Component,
-            ("_UtFree: Trying to delete a NULL address\n"));
+            ("AcpiUtFree: Trying to delete a NULL address\n"));
 
         return_VOID;
     }
 
-#ifdef ACPI_DEBUG_TRACK_ALLOCATIONS
     AcpiUtDeleteElementFromAllocList (Address, Component, Module, Line);
-#endif
-
     AcpiOsFree (Address);
 
     DEBUG_PRINTP (TRACE_ALLOCATIONS, ("%p freed\n", Address));
@@ -788,4 +784,5 @@ _UtFree (
     return_VOID;
 }
 
+#endif  /* #ifdef ACPI_DBG_TRACK_ALLOCATIONS */
 

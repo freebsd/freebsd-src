@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfield - ACPI AML (p-code) execution - field manipulation
- *              $Revision: 90 $
+ *              $Revision: 91 $
  *
  *****************************************************************************/
 
@@ -191,7 +191,7 @@ AcpiExReadDataFromField (
 
         /* Create the actual read buffer */
 
-        BufferDesc->Buffer.Pointer = AcpiUtCallocate (Length);
+        BufferDesc->Buffer.Pointer = ACPI_MEM_CALLOCATE (Length);
         if (!BufferDesc->Buffer.Pointer)
         {
             AcpiUtRemoveReference (BufferDesc);

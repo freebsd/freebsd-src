@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 34 $
+ *              $Revision: 36 $
  *
  *****************************************************************************/
 
@@ -179,7 +179,7 @@ AcpiExLoadTableOp (
 
     /* Allocate a buffer for the entire table */
 
-    TablePtr = AcpiUtAllocate (TableHeader.Length);
+    TablePtr = ACPI_MEM_ALLOCATE (TableHeader.Length);
     if (!TablePtr)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -273,8 +273,8 @@ AcpiExLoadTableOp (
 
 Cleanup:
 
-    AcpiUtFree (TableDesc);
-    AcpiUtFree (TablePtr);
+    ACPI_MEM_FREE (TableDesc);
+    ACPI_MEM_FREE (TablePtr);
     return_ACPI_STATUS (Status);
 
 }
@@ -394,7 +394,7 @@ AcpiExReconfiguration (
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (Load) (%s)\n",
-                AcpiUtFormatException (Status)));
+                AcpiFormatException (Status)));
 
             AcpiUtRemoveReference (RegionDesc);
             return_ACPI_STATUS (Status);
@@ -409,7 +409,7 @@ AcpiExReconfiguration (
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (unload) (%s)\n",
-                AcpiUtFormatException (Status)));
+                AcpiFormatException (Status)));
 
             return_ACPI_STATUS (Status);
         }

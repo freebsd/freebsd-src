@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 40 $
+ *              $Revision: 41 $
  *
  ******************************************************************************/
 
@@ -409,7 +409,9 @@ AcpiDbDisplayStatistics (
     {
 #ifndef PARSER_ONLY
     case CMD_ALLOCATIONS:
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
         AcpiUtDumpAllocationInfo ();
+#endif
         break;
 #endif
 

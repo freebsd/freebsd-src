@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 70 $
+ *              $Revision: 71 $
  *
  ******************************************************************************/
 
@@ -176,7 +176,7 @@ AcpiNsSearchNode (
             DEBUG_PRINTP (TRACE_NAMES, ("Searching %s [%p] For %4.4s (type %X)\n",
                 ScopeName, Node, &TargetName, Type));
 
-            AcpiUtFree (ScopeName);
+            ACPI_MEM_FREE (ScopeName);
         }
     }
 #endif

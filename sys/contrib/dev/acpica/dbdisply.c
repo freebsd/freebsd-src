@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 45 $
+ *              $Revision: 46 $
  *
  ******************************************************************************/
 
@@ -416,8 +416,17 @@ AcpiDbDecodeInternalObject (
         break;
 
     case ACPI_TYPE_STRING:
-        AcpiOsPrintf ("(%d) \"%.16s\"...",
+        AcpiOsPrintf ("(%d) \"%.24s",
                 ObjDesc->String.Length, ObjDesc->String.Pointer);
+
+        if (ObjDesc->String.Length > 24)
+        {
+            AcpiOsPrintf ("...");     
+        }
+        else
+        {
+            AcpiOsPrintf ("\"");
+        }
         break;
 
     case ACPI_TYPE_BUFFER:

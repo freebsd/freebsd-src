@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 45 $
+ *              $Revision: 46 $
  *
  *****************************************************************************/
 
@@ -971,11 +971,11 @@ AcpiDsCreateWalkState (
     {
         /* The cache is empty, create a new object */
 
-        /* Avoid deadlock with AcpiUtCallocate */
+        /* Avoid deadlock with ACPI_MEM_CALLOCATE */
 
         AcpiUtReleaseMutex (ACPI_MTX_CACHES);
 
-        WalkState = AcpiUtCallocate (sizeof (ACPI_WALK_STATE));
+        WalkState = ACPI_MEM_CALLOCATE (sizeof (ACPI_WALK_STATE));
         if (!WalkState)
         {
             return_PTR (NULL);
@@ -1080,7 +1080,7 @@ AcpiDsDeleteWalkState (
 
     if (AcpiGbl_WalkStateCacheDepth >= MAX_WALK_CACHE_DEPTH)
     {
-        AcpiUtFree (WalkState);
+        ACPI_MEM_FREE (WalkState);
     }
 
     /* Otherwise put this object back into the cache */
@@ -1138,7 +1138,8 @@ AcpiDsDeleteWalkStateCache (
         /* Delete one cached state object */
 
         Next = AcpiGbl_WalkStateCache->Next;
-        AcpiUtFree (AcpiGbl_WalkStateCache);
+        ACPI_MEM_FREE (AcpiGbl_WalkStateCache);
+
         AcpiGbl_WalkStateCache = Next;
         AcpiGbl_WalkStateCacheDepth--;
     }

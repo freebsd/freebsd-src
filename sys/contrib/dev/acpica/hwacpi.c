@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: hwacpi - ACPI Hardware Initialization/Mode Interface
- *              $Revision: 40 $
+ *              $Revision: 42 $
  *
  *****************************************************************************/
 
@@ -232,7 +232,8 @@ AcpiHwInitialize (
          * be modified. The PM1bEvtBlk behaves as expected.
          */
 
-        AcpiGbl_Pm1EnableRegisterSave = (UINT16) AcpiHwRegisterRead (ACPI_MTX_LOCK, PM1_EN);
+        AcpiGbl_Pm1EnableRegisterSave = (UINT16) AcpiHwRegisterRead (
+                                                    ACPI_MTX_LOCK, PM1_EN);
 
 
         /*
@@ -245,8 +246,8 @@ AcpiHwInitialize (
         {
             /* GPE0 specified in FADT  */
 
-            AcpiGbl_Gpe0EnableRegisterSave =
-                AcpiUtAllocate (DIV_2 (AcpiGbl_FADT->Gpe0BlkLen));
+            AcpiGbl_Gpe0EnableRegisterSave = ACPI_MEM_ALLOCATE (
+                                            DIV_2 (AcpiGbl_FADT->Gpe0BlkLen));
             if (!AcpiGbl_Gpe0EnableRegisterSave)
             {
                 return_ACPI_STATUS (AE_NO_MEMORY);
@@ -271,8 +272,8 @@ AcpiHwInitialize (
         {
             /* GPE1 defined */
 
-            AcpiGbl_Gpe1EnableRegisterSave =
-                AcpiUtAllocate (DIV_2 (AcpiGbl_FADT->Gpe1BlkLen));
+            AcpiGbl_Gpe1EnableRegisterSave = ACPI_MEM_ALLOCATE (
+                                            DIV_2 (AcpiGbl_FADT->Gpe1BlkLen));
             if (!AcpiGbl_Gpe1EnableRegisterSave)
             {
                 return_ACPI_STATUS (AE_NO_MEMORY);
@@ -324,7 +325,7 @@ AcpiHwSetMode (
     {
         /* BIOS should have disabled ALL fixed and GP events */
 
-        AcpiOsOut8 (AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->AcpiEnable);
+        AcpiOsWritePort (AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->AcpiEnable, 8);
         DEBUG_PRINTP (ACPI_INFO, ("Attempting to enable ACPI mode\n"));
     }
 
@@ -335,7 +336,7 @@ AcpiHwSetMode (
          * enable bits to default
          */
 
-        AcpiOsOut8 (AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->AcpiDisable);
+        AcpiOsWritePort (AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->AcpiDisable, 8);
         DEBUG_PRINTP (ACPI_INFO,
                     ("Attempting to enable Legacy (non-ACPI) mode\n"));
     }

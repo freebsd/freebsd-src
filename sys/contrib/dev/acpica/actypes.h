@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 180 $
+ *       $Revision: 184 $
  *
  *****************************************************************************/
 
@@ -281,7 +281,7 @@ typedef UINT64                          u64;
  */
 
 typedef UINT32                          ACPI_STATUS;    /* All ACPI Exceptions */
-typedef UINT32                          ACPI_NAME;      /* 4-INT8 ACPI name */
+typedef UINT32                          ACPI_NAME;      /* 4-byte ACPI name */
 typedef char*                           ACPI_STRING;    /* Null terminated ASCII string */
 typedef void*                           ACPI_HANDLE;    /* Actually a ptr to an Node */
 
@@ -334,6 +334,10 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_NO_DEVICE_INIT             0x10
 #define ACPI_NO_OBJECT_INIT             0x20
 
+/*
+ * Initialization state
+ */
+#define ACPI_INITIALIZED_OK             0x01
 
 /*
  * Power state values
@@ -347,8 +351,6 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_STATE_S3                   (UINT8) 3
 #define ACPI_STATE_S4                   (UINT8) 4
 #define ACPI_STATE_S5                   (UINT8) 5
-/* let's pretend S4BIOS didn't exist for now. ASG */
-#define ACPI_STATE_S4BIOS               (UINT8) 6
 #define ACPI_S_STATES_MAX               ACPI_STATE_S5
 #define ACPI_S_STATE_COUNT              6
 
@@ -676,30 +678,6 @@ typedef struct
 #define SYS_MODE_LEGACY                 0x0002
 #define SYS_MODES_MASK                  0x0003
 
-/*
- *  ACPI CPU Cx state handler
- */
-typedef
-ACPI_STATUS (*ACPI_SET_C_STATE_HANDLER) (
-    NATIVE_UINT                 PblkAddress);
-
-/*
- *  ACPI Cx State info
- */
-typedef struct
-{
-    UINT32                      StateNumber;
-    UINT32                      Latency;
-} ACPI_CX_STATE;
-
-/*
- *  ACPI CPU throttling info
- */
-typedef struct
-{
-    UINT32                      StateNumber;
-    UINT32                      PercentOfClock;
-} ACPI_CPU_THROTTLING_STATE;
 
 /*
  * ACPI Table Info.  One per ACPI table _type_
@@ -728,18 +706,6 @@ typedef struct _AcpiSysInfo
     ACPI_TABLE_INFO             TableInfo [NUM_ACPI_TABLES];
 
 } ACPI_SYSTEM_INFO;
-
-
-/*
- *  System Initiailization data.  This data is passed to ACPIInitialize
- *  copyied to global data and retained by ACPI CA
- */
-
-typedef struct _AcpiInitData
-{
-    void                        *RSDP_PhysicalAddress;  /*  Address of RSDP, needed it it is    */
-                                                        /*  not found in the IA32 manner        */
-} ACPI_INIT_DATA;
 
 
 /*
@@ -837,10 +803,11 @@ typedef struct
 
 typedef struct
 {
-    UINT32                      Seg;
-    UINT32                      Bus;
-    UINT32                      DevFunc;
-} ACPI_PCI_SPACE_CONTEXT;
+    UINT16                      Segment;
+    UINT16                      Bus;
+    UINT16                      Device;
+    UINT16                      Function;
+} ACPI_PCI_ID;
 
 
 typedef struct
@@ -849,13 +816,6 @@ typedef struct
     UINT8                       *MappedLogicalAddress;
     UINT32                      MappedLength;
 } ACPI_MEM_SPACE_CONTEXT;
-
-
-/*
- * C-state handler
- */
-
-typedef ACPI_STATUS (*ACPI_C_STATE_HANDLER) (ACPI_IO_ADDRESS, UINT32*);
 
 
 /*
