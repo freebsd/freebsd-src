@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mtab.c,v 1.2 1999/01/10 21:54:37 ezk Exp $
+ * $Id: mtab.c,v 1.3.2.3 2001/04/14 21:08:25 ezk Exp $
  *
  */
 
@@ -101,6 +101,43 @@ free_mntlist(mntlist *mp)
 
 
 /*
+ * Utility routine which returns a pointer to whatever follows an = in a
+ * string.  Returns null if = is not found in the string.
+ */
+char *
+haseq(char *instr)
+{
+  if (instr) {
+    char *eq = strchr(instr, '=');
+    if (eq) return ++eq;
+  }
+  return NULL;
+}
+
+
+/*
+ * Utility routine which returns a pointer to whatever
+ * follows an = in a mount option.  Returns null if option
+ * doesn't exist or doesn't have an '='.  Won't fall for opt,foo=.
+ */
+char *
+hasmnteq(mntent_t *mnt, char *opt)
+{
+  if (mnt && opt) {		/* disallow null input pointers */
+    if ( *opt ) {		/* disallow the null string as an opt */
+      char *str = hasmntopt(mnt, opt);
+      if ( str ) {		/* option was there */
+	char *eq = str + strlen(opt); /* Look at char just after option */
+	if (*eq == '=')		/* Is it '=' ? */
+	  return ++eq;		/* If so, return pointer to remaining str */
+      }
+    }
+  }
+  return NULL;
+}
+
+
+/*
  * Utility routine which determines the value of a
  * numeric option in the mount options (such as port=%d).
  * Returns 0 if the option is not specified.
@@ -110,12 +147,31 @@ hasmntval(mntent_t *mnt, char *opt)
 {
   char *str = hasmntopt(mnt, opt);
 
-  if (str) {
-    char *eq = strchr(str, '=');
-    if (eq)
-      return atoi(eq + 1);
-    else
-      plog(XLOG_USER, "bad numeric option \"%s\" in \"%s\"", opt, str);
+  if (str) { /* The option was there */
+
+    char *eq = hasmnteq(mnt, opt);
+
+    if (eq) { /* and had an = after it */
+
+      char *endptr = NULL;
+      long int i = strtol(eq,&endptr,0); /* hex and octal allowed ;-) */
+
+      if ( (! endptr) || /* endptr == NULL means all chars valid */
+	  /*
+	   * endptr set means strtol saw a non-digit.  If the
+	   * non-digit is a comma, it's probably the start of the next
+	   * option.  If the comma is the first char though, complain about
+	   * it (foo=,bar is made noticeable by this).
+	   */
+	   ((endptr == strchr(eq, ',')) && (endptr != eq))
+	   )
+	  return((int) i);
+      /* whatever was after = wasn't a number */
+      plog(XLOG_MAP, "invalid numeric option in \"%s\": \"%s\"", opt, str);
+    } else {
+      /* No argument to option (= was missing) */
+      plog(XLOG_MAP, "numeric option to \"%s\" missing", opt);
+    }
   }
   return 0;
 }

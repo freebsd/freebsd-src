@@ -1,6 +1,5 @@
 # -*- text -*-
 PRIMARY AUTHORS AND MAJOR CONTRIBUTORS TO AM_UTILS:
-
 Original authors of amd were the Berkeley team and especially Jan-Simon
 Pendry.  Since then many people have contributed patches.
 
@@ -85,6 +84,8 @@ syslog and/or syslog facilities.
 January 29, 1998: fix for 0.0.0.0 loopback on SunOS 3.X which defines
 IFF_ROUTE instead of IFF_LOOPBACK.
 
+May 30, 2000: correct logging types for addopts/mergeopts messages.
+
 * Daniel S. Riley  <dsr@mail.lns.cornell.edu>
 
 July 11, 1997: fixes to DU-4.0 to support string POSIX.1 signals, and struct
@@ -124,6 +125,12 @@ systems.  More misc fixes.
 
 February 3, 1998: don't start autofs listener unless autofs maps were in
 use.
+
+December 10, 1999: assorted fixed and lots of fixes to support in-kernel
+mount tables in Solaris 8.
+
+February 9, 2000: new debug options hrtime (hi-res timer) and xdrtrace.  bug
+fixes.
 
 * Jason Thorpe <thorpej@nas.nasa.gov>
 
@@ -274,3 +281,33 @@ September 5, 1999: pawd works for type:=nfsl.
 * Nick Williams <njw@ms.com>
 September 1, 1999: bug fix for incorrect symlinks when two locations are
 requested simultaneously.
+
+November 1, 1999: fixes to sync maps even if they are set to mapcache:=sync.
+
+January 19, 2000: fix (and reduce the incidence of) stale file handles when
+doing rapid mounts and umounts in succession.
+
+June 5, 2000: better handling of potential race-conditions during rapid
+u/mounts.  Correctly update d_drops stats for amq -s.
+
+* Johann Pfefferl <johann.pfefferl.jp@germany.agfa.com>
+November 16, 1999: fix to ldap code so repeated calls to string2he don't
+corrupt the string passed.
+
+* Amitha Perera <perera@cs.rpi.edu>
+December 9, 1999: detect all wire() interfaces correctly.
+
+* Steven Danz <sdanz@awc.kc.noaa.gov>
+January 25, 2000: allow browsable auto maps.
+
+* Wolfram Klaus	<klaus@physik.fu-berlin.de>.
+November 21, 2000: recognize proplist mnttab flag.
+
+* Thomas Klausner <wiz@danbala.ifoer.tuwien.ac.at>
+November 21, 2000: lots of NetBSD fixes (many of which are generic).
+
+* Olaf Kirch <okir@caldera.de>
+February 1, 2001: important Linux NFS error number mapping fixed
+
+* Ahmon Dancy <dancy@franz.com>
+February 9, 2001: Apple Rhapsody/Darwin/OS X port

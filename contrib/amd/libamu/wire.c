@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: wire.c,v 1.5 1999/09/08 23:36:52 ezk Exp $
+ * $Id: wire.c,v 1.8.2.5 2001/01/10 03:23:41 ezk Exp $
  *
  */
 
@@ -59,7 +59,6 @@
 #endif /* HAVE_CONFIG_H */
 #include <am_defs.h>
 #include <amu.h>
-
 
 #ifdef HAVE_IFADDRS_H
 #include <ifaddrs.h>
@@ -169,7 +168,17 @@ getwire_lookup(u_long address, u_long netmask, int ishost)
     u_char addr[4];
 
     if (irs_gen == NULL)
+#ifdef irs_irp_acc
+      /*
+       * bsdi4 added another argument to this function, without changing
+       * its name.  The irs_irp_acc is the one (hacky) distinguishing
+       * feature found in <irs.h> that can differentiate between bsdi3 and
+       * bsdi4.
+       */
+      irs_gen = irs_gen_acc("", NULL);
+#else /* not irs_irp_acc */
       irs_gen = irs_gen_acc("");
+#endif /* not irs_irp_acc */
     if (irs_gen && irs_nw == NULL)
       irs_nw = (*irs_gen->nw_map)(irs_gen);
     net = ntohl(address) & (mask = ntohl(netmask));
@@ -233,6 +242,12 @@ getwire_lookup(u_long address, u_long netmask, int ishost)
 
   /* fill in network name (string) */
   al->ip_net_name = strdup(s);
+  /* Let's be cautious here about buffer overflows -Ion */
+  if (strlen(s) > MAXHOSTNAMELEN) {
+    al->ip_net_name[MAXHOSTNAMELEN] = '\0';
+    plog(XLOG_WARNING, "Long hostname %s truncated to %d characters",
+	 s, MAXHOSTNAMELEN);
+  }
 
   return (al);
 }
@@ -376,7 +391,7 @@ void
 getwire(char **name1, char **number1)
 {
   struct ifconf ifc;
-  struct ifreq *ifr;
+  struct ifreq *ifr, ifrpool;
   caddr_t cp, cplim;
   int fd = -1;
   u_long address;
@@ -430,8 +445,10 @@ getwire(char **name1, char **number1)
   /*
    * Scan the list looking for a suitable interface
    */
-  for (cp = buf; cp < cplim; cp += SIZE(ifr)) {
-    ifr = (struct ifreq *) cp;
+  for (cp = buf; cp < cplim; /* increment in the loop body */) {
+    memcpy(&ifrpool, cp, sizeof(ifrpool));
+    ifr = &ifrpool;
+    cp += SIZE(ifr);
 
     if (ifr->ifr_addr.sa_family != AF_INET)
       continue;

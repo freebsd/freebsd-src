@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: get_args.c,v 1.4 1999/09/30 21:01:31 ezk Exp $
+ * $Id: get_args.c,v 1.7.2.1 2001/01/10 03:23:05 ezk Exp $
  *
  */
 
@@ -85,7 +85,7 @@ get_version_string(void)
 
   vers = xmalloc(2048 + wire_buf_len);
   sprintf(vers, "%s\n%s\n%s\n%s\n",
-	  "Copyright (c) 1997-1999 Erez Zadok",
+	  "Copyright (c) 1997-2001 Erez Zadok",
 	  "Copyright (c) 1990 Jan-Simon Pendry",
 	  "Copyright (c) 1990 Imperial College of Science, Technology & Medicine",
 	  "Copyright (c) 1990 The Regents of the University of California.");
@@ -334,6 +334,9 @@ get_args(int argc, char *argv[])
     if (debug_flags & D_MTAB)
       dlog("-D mtab option ignored");
 # endif /* DEBUG */
+# ifdef MNTTAB_FILE_NAME
+    mnttab_file_name = MNTTAB_FILE_NAME;
+# endif /* MNTTAB_FILE_NAME */
 #endif /* not MOUNT_TABLE_ON_FILE */
 
     if (switch_to_logfile(gopt.logfile, orig_umask) != 0)

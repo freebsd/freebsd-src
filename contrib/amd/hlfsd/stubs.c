@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: stubs.c,v 1.3 1999/01/13 23:31:19 ezk Exp $
+ * $Id: stubs.c,v 1.5.2.2 2001/01/10 03:23:36 ezk Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -61,7 +61,6 @@ static nfsfattr slinkfattr = {NFLNK, 0120777, 1, 0, 0, NFS_MAXPATHLEN, 512, 0,
 				/* user name file attributes */
 static nfsfattr un_fattr = {NFLNK, 0120777, 1, 0, 0, NFS_MAXPATHLEN, 512, 0,
 			    (NFS_MAXPATHLEN + 1) / 512, 0, INVALIDID};
-static int getcreds(struct svc_req *, uid_t *, gid_t *);
 static int started;
 static am_nfs_fh slink;
 static am_nfs_fh un_fhandle;
@@ -144,7 +143,7 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
     res.ns_u.ns_attr_u = slinkfattr;
   } else {
 
-    if (getcreds(rqstp, &uid, &gid) < 0) {
+    if (getcreds(rqstp, &uid, &gid, nfsxprt) < 0) {
       res.ns_status = NFSERR_STALE;
       return &res;
     }
@@ -223,13 +222,23 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
     }
 
     if (STREQ(argp->da_name, slinkname)) {
+#ifndef MNT2_NFS_OPT_SYMTTL
+      /*
+       * This code is needed to defeat Solaris 2.4's (and newer) symlink
+       * values cache.  It forces the last-modified time of the symlink to be
+       * current.  It is not needed if the O/S has an nfs flag to turn off the
+       * symlink-cache at mount time (such as Irix 5.x and 6.x). -Erez.
+       */
+      if (++slinkfattr.na_mtime.nt_useconds == 0)
+	++slinkfattr.na_mtime.nt_seconds;
+#endif /* not MNT2_NFS_OPT_SYMTTL */
       res.dr_u.dr_drok_u.drok_fhandle = slink;
       res.dr_u.dr_drok_u.drok_attributes = slinkfattr;
       res.dr_status = NFS_OK;
       return &res;
     }
 
-    if (getcreds(rqstp, &uid, &gid) < 0 || gid != hlfs_gid) {
+    if (getcreds(rqstp, &uid, &gid, nfsxprt) < 0 || gid != hlfs_gid) {
       res.dr_status = NFSERR_NOENT;
       return &res;
     }
@@ -260,40 +269,6 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
   return &res;
 }
 
-static int
-getcreds(struct svc_req *rp, uid_t *u, gid_t *g)
-{
-  struct authunix_parms *aup = (struct authunix_parms *) NULL;
-#ifdef HAVE_RPC_AUTH_DES_H
-  struct authdes_cred *adp;
-#endif /* HAVE_RPC_AUTH_DES_H */
-
-  switch (rp->rq_cred.oa_flavor) {
-
-  case AUTH_UNIX:
-    aup = (struct authunix_parms *) rp->rq_clntcred;
-    *u = aup->aup_uid;
-    *g = aup->aup_gid;
-    break;
-
-#ifdef HAVE_RPC_AUTH_DES_H
-  case AUTH_DES:
-    adp = (struct authdes_cred *) rp->rq_clntcred;
-    *g = INVALIDID;		/* some unknown group id */
-    if (sscanf(adp->adc_fullname.name, "unix.%lu@", (u_long *) u) == 1)
-        break;
-    /* fall through */
-#endif /* HAVE_RPC_AUTH_DES_H */
-
-  default:
-    *u = *g = INVALIDID;	/* just in case */
-    svcerr_weakauth(nfsxprt);
-    return -1;
-  }
-
-  return 0;			/* everything is ok */
-}
-
 
 nfsreadlinkres *
 nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
@@ -309,7 +284,7 @@ nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
   if (eq_fh(argp, &root)) {
     res.rlr_status = NFSERR_ISDIR;
   } else if (eq_fh(argp, &slink)) {
-    if (getcreds(rqstp, &userid, &groupid) < 0)
+    if (getcreds(rqstp, &userid, &groupid, nfsxprt) < 0)
       return (nfsreadlinkres *) NULL;
 
     gettimeofday((struct timeval *) &slinkfattr.na_atime, (struct timezone *) 0);
@@ -328,7 +303,7 @@ nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
 
   } else {			/* check if asked for user mailbox */
 
-    if (getcreds(rqstp, &userid, &groupid) < 0) {
+    if (getcreds(rqstp, &userid, &groupid, nfsxprt) < 0) {
       return (nfsreadlinkres *) NULL;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: transp_sockets.c,v 1.5 1999/08/22 21:12:31 ezk Exp $
+ * $Id: transp_sockets.c,v 1.6.2.5 2001/06/08 18:50:40 ezk Exp $
  *
  * Socket specific utilities.
  *      -Erez Zadok <ezk@cs.columbia.edu>
@@ -119,7 +119,7 @@ get_mount_client(char *unused_host, struct sockaddr_in *sin, struct timeval *tv,
      * Bind to a privileged port
      */
     if (bind_resv_port(*sock, (u_short *) 0) < 0)
-      plog(XLOG_ERROR, "can't bind privileged port");
+      plog(XLOG_ERROR, "can't bind privileged port (socket)");
 
     /*
      * Find mountd port to connect to.
@@ -174,7 +174,8 @@ get_mount_client(char *unused_host, struct sockaddr_in *sin, struct timeval *tv,
 struct sockaddr_in *
 amu_svc_getcaller(SVCXPRT *xprt)
 {
-  return svc_getcaller(xprt);
+  /* glibc 2.2 returns a sockaddr_storage ??? */
+  return (struct sockaddr_in *)svc_getcaller(xprt);
 }
 
 
@@ -188,7 +189,7 @@ create_nfs_service(int *soNFSp, u_short *nfs_portp, SVCXPRT **nfs_xprtp, void (*
   *soNFSp = socket(AF_INET, SOCK_DGRAM, 0);
 
   if (*soNFSp < 0 || bind_resv_port(*soNFSp, NULL) < 0) {
-    plog(XLOG_FATAL, "Can't create privileged nfs port");
+    plog(XLOG_FATAL, "Can't create privileged nfs port (socket)");
     return 1;
   }
   if ((*nfs_xprtp = svcudp_create(*soNFSp)) == NULL) {
@@ -200,7 +201,8 @@ create_nfs_service(int *soNFSp, u_short *nfs_portp, SVCXPRT **nfs_xprtp, void (*
     return 1;
   }
   if (!svc_register(*nfs_xprtp, NFS_PROGRAM, NFS_VERSION, dispatch_fxn, 0)) {
-    plog(XLOG_FATAL, "unable to register (NFS_PROGRAM, NFS_VERSION, 0)");
+    plog(XLOG_FATAL, "unable to register (%ld, %ld, 0)",
+	 (u_long) NFS_PROGRAM, (u_long) NFS_VERSION);
     return 3;
   }
 
@@ -328,7 +330,7 @@ try_again:
 
   if (clnt == NULL) {
 #ifdef HAVE_CLNT_SPCREATEERROR
-    plog(XLOG_INFO, "get_nfs_version NFS(%d,%s) failed for %s :%s",
+    plog(XLOG_INFO, "get_nfs_version NFS(%d,%s) failed for %s: %s",
 	 (int) nfs_version, proto, host, clnt_spcreateerror(""));
 #else /* not HAVE_CLNT_SPCREATEERROR */
     plog(XLOG_INFO, "get_nfs_version NFS(%d,%s) failed for %s",
