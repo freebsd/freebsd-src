@@ -4,14 +4,14 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.3 1995/04/22 17:14:21 amurai Exp $
+# $Id: ppp.conf.sample,v 1.4 1996/01/31 15:03:05 mpp Exp $
 #
 #################################################################
 #
 # Default setup. Executed always when PPP is invoked.
 #
 default:
- set device /dev/cua01
+ set device /dev/cuaa1
  set speed 38400
  disable lqr
  deny lqr
@@ -35,6 +35,12 @@ simplesite:
  set phone 12345678
  set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
  set timeout 120
+#
+# Multi-phone example
+#
+multiphone:
+ set phone 12345678:12345679:12345670:12345671
+ set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
 #
 # If peer requires to use CHAP, don't forget to supply authname and authkey.
 #
@@ -76,8 +82,8 @@ ondemand:
  set phone 1234567
  set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
  set timeout 120
- set ifaddr 192.244.185.226 192.244.176.44
- add 0 255.255.255.0 192.244.176.44
+ set ifaddr 192.244.185.226 192.244.176.44 255.255.255.0
+ add 0 0 192.244.176.44
 #
 # Another on demand example
 #  If peer assign some IP address for us, and we can't predict it
@@ -87,8 +93,8 @@ pmdemend:
  set phone 1234567
  set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
  set timeout 120
- set ifaddr 0 192.244.176.44
- add 0 255.255.255.0 192.244.176.44
+ set ifaddr 0 192.244.176.44 255.255.255.0
+ add 0 0 192.244.176.44
 #
 # Example to validate incoming user with CHAP
 #  Invod as ``ppp -direct users'' from login script. User's system name
