@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.34 1997/10/27 17:23:02 bde Exp $
+ *	$Id: cpu.h,v 1.35 1997/10/28 11:43:47 bde Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -46,17 +46,6 @@
 #include <machine/psl.h>
 #include <machine/frame.h>
 #include <machine/segments.h>
-
-/*
- * Architecture dependent constant for i386 based machines.
- */
-#ifdef PC98
-/* NEC PC-9801/9821 series and compatibles. */
-#define	MACHINE_ARCH	"pc-98"
-#else
-/* IBM-PC compatibles. */
-#define	MACHINE_ARCH	"ibm-pc"
-#endif
 
 /*
  * definitions of cpu-dependent requirements
