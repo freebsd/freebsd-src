@@ -107,10 +107,17 @@ SYSINIT(taskqueue_##name, SI_SUB_CONFIGURE, SI_ORDER_SECOND,		\
 struct __hack
 
 /*
- * This queue is serviced by a software interrupt handler.  To enqueue
- * a task, call taskqueue_enqueue(taskqueue_swi, &task).
+ * These queues are serviced by software interrupt handlers.  To enqueue
+ * a task, call taskqueue_enqueue(taskqueue_swi, &task) or
+ * taskqueue_enqueue(taskqueue_swi_giant, &task).
  */
 TASKQUEUE_DECLARE(swi_giant);
 TASKQUEUE_DECLARE(swi);
+
+/*
+ * This queue is serviced by a kernel thread.  To enqueue a task, call
+ * taskqueue_enqueue(taskqueue_thread, &task).
+ */
+TASKQUEUE_DECLARE(thread);
 
 #endif /* !_SYS_TASKQUEUE_H_ */

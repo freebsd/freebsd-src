@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/taskqueue.h>
+#include <sys/kthread.h>
+#include <sys/unistd.h>
 
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 
@@ -44,6 +46,7 @@ static STAILQ_HEAD(taskqueue_list, taskqueue) taskqueue_queues;
 static void	*taskqueue_ih;
 static void	*taskqueue_giant_ih;
 static struct mtx taskqueue_queues_mutex;
+static struct proc *taskqueue_thread_proc;
 
 struct taskqueue {
 	STAILQ_ENTRY(taskqueue)	tq_link;
@@ -233,6 +236,31 @@ taskqueue_swi_giant_run(void *dummy)
 	taskqueue_run(taskqueue_swi_giant);
 }
 
+static void
+taskqueue_kthread(void *arg)
+{
+	struct mtx kthread_mutex;
+
+	bzero(&kthread_mutex, sizeof(kthread_mutex));
+
+	mtx_init(&kthread_mutex, "taskqueue kthread", NULL, MTX_DEF);
+
+	mtx_lock(&kthread_mutex);
+
+	for (;;) {
+		mtx_unlock(&kthread_mutex);
+		taskqueue_run(taskqueue_thread);
+		mtx_lock(&kthread_mutex);
+		msleep(&taskqueue_thread, &kthread_mutex, PWAIT, "tqthr", 0); 
+	}
+}
+
+static void
+taskqueue_thread_enqueue(void *context)
+{
+	wakeup(&taskqueue_thread);
+}
+
 TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, 0,
 		 swi_add(NULL, "task queue", taskqueue_swi_run, NULL, SWI_TQ,
 		     INTR_MPSAFE, &taskqueue_ih)); 
@@ -240,3 +268,7 @@ TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, 0,
 TASKQUEUE_DEFINE(swi_giant, taskqueue_swi_giant_enqueue, 0,
 		 swi_add(NULL, "Giant task queue", taskqueue_swi_giant_run,
 		     NULL, SWI_TQ_GIANT, 0, &taskqueue_giant_ih)); 
+
+TASKQUEUE_DEFINE(thread, taskqueue_thread_enqueue, 0,
+		 kthread_create(taskqueue_kthread, NULL,
+		 &taskqueue_thread_proc, RFNOWAIT, 0, "taskqueue"));
