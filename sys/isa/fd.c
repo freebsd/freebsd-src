@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.57 1995/04/12 20:47:41 wollman Exp $
+ *	$Id: fd.c,v 1.58 1995/04/20 03:17:44 julian Exp $
  *
  */
 
@@ -52,9 +52,6 @@
 #undef NFDC
 #endif
 #include "fd.h"
-
-/* Flags */
-#define FT_PROBE		0x1
 
 #if NFDC > 0
 
@@ -605,8 +602,7 @@ fdattach(struct isa_device *dev)
 			unithasfd = 0;
 			if (fdu < NFD && fd->type != NO_TYPE)
 				unithasfd = 1;
-			if ((dev->id_flags & FT_PROBE) &&
-			    ftattach(dev, fdup, unithasfd))
+			if (ftattach(dev, fdup, unithasfd))
 				continue;
 			if (fdsu < DRVS_PER_CTLR) 
 				fd->type = NO_TYPE;
