@@ -439,7 +439,7 @@ ndis_attach(dev)
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/*
-	 * Figure out of we're allowed to use multipacket sends
+	 * Figure out if we're allowed to use multipacket sends
 	 * with this driver, and if so, how many.
 	 */
 
@@ -758,6 +758,12 @@ ndis_detach(dev)
 	if (sc->ndis_sc)
 		ndis_destroy_dma(sc);
 
+	if (sc->ndis_txarray)
+		free(sc->ndis_txarray, M_DEVBUF);
+
+	if (!sc->ndis_80211)
+		ifmedia_removeall(&sc->ifmedia);
+
 	ndis_unload_driver((void *)ifp);
 
 	if (sc->ndis_iftype == PCIBus)
@@ -765,8 +771,8 @@ ndis_detach(dev)
 
 #if __FreeBSD_version < 502113
 	sysctl_ctx_free(&sc->ndis_ctx);
-
 #endif
+
 	mtx_destroy(&sc->ndis_mtx);
 	mtx_destroy(&sc->ndis_intrmtx);
 
