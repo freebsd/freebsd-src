@@ -734,6 +734,7 @@ spec_getpages(ap)
 	KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
 	bp->b_rcred = crhold(curthread->td_ucred);
 	bp->b_wcred = crhold(curthread->td_ucred);
+	bp->b_iooffset = offset;
 	bp->b_blkno = blkno;
 	bp->b_lblkno = blkno;
 	pbgetvp(ap->a_vp, bp);

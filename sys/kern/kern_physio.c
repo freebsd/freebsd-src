@@ -69,6 +69,7 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 			bp->b_data = uio->uio_iov[i].iov_base;
 			bp->b_bcount = uio->uio_iov[i].iov_len;
 			bp->b_offset = uio->uio_offset;
+			bp->b_iooffset = uio->uio_offset;
 			bp->b_saveaddr = sa;
 
 			/* Don't exceed drivers iosize limit */
