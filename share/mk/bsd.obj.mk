@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.15 1996/09/28 19:39:18 nate Exp $
+#	$Id: bsd.obj.mk,v 1.16 1996/09/29 18:28:55 bde Exp $
 #
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
 # and cleaning up object files, log files etc.
@@ -117,9 +117,7 @@ cleanobj:
 	else \
 		cd ${.CURDIR} && ${MAKE} clean cleandepend; \
 	fi
-.if defined(OBJLINK)
 	@if [ -h ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
-.endif
 
 .if !target(cleanfiles)
 cleanfiles:
