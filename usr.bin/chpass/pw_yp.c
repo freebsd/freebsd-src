@@ -81,7 +81,6 @@ static HASHINFO openinfo = {
 
 static char passwdbyname[] = "passwd.byname";
 static char localhost[] = "localhost";
-static char blank[] = "";
 
 int force_old = 0;
 int _use_yp = 0;
@@ -437,8 +436,8 @@ yp_submit(struct passwd *pw)
 		master_yppasswd.newpw.pw_shell = strdup(pw->pw_shell);
 		master_yppasswd.newpw.pw_class = pw->pw_class != NULL
 						? strdup(pw->pw_class)
-						: blank;
-		master_yppasswd.oldpass = blank; /* not really needed */
+						: strdup("");
+		master_yppasswd.oldpass = strdup(""); /* not really needed */
 		master_yppasswd.domain = yp_domain;
 	} else {
 		yppasswd.newpw.pw_passwd = strdup(pw->pw_passwd);
@@ -448,7 +447,7 @@ yp_submit(struct passwd *pw)
 		yppasswd.newpw.pw_gecos = strdup(pw->pw_gecos);
 		yppasswd.newpw.pw_dir = strdup(pw->pw_dir);
 		yppasswd.newpw.pw_shell = strdup(pw->pw_shell);
-		yppasswd.oldpass = blank;
+		yppasswd.oldpass = strdup("");
 	}
 
 	/* Get the user's password for authentication purposes. */
