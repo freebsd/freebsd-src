@@ -290,9 +290,9 @@ printtrap(int vector, int imm, struct trapframe *framep, int isfatal, int user)
 	printf("    cr.ifa      = 0x%lx\n", framep->tf_cr_ifa);
 	printf("    cr.iim      = 0x%x\n", imm);
 	if (framep->tf_cr_ipsr & IA64_PSR_IS) {
-		printf("    ar.cflg     = 0x%x\n", ia64_get_cflg());
-		printf("    ar.csd      = 0x%x\n", ia64_get_csd());
-		printf("    ar.ssd      = 0x%x\n", ia64_get_ssd());
+		printf("    ar.cflg     = 0x%lx\n", ia64_get_cflg());
+		printf("    ar.csd      = 0x%lx\n", ia64_get_csd());
+		printf("    ar.ssd      = 0x%lx\n", ia64_get_ssd());
 	}
 	printf("    curthread   = %p\n", curthread);
 	if (curthread != NULL)
