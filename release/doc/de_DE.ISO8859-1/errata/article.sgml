@@ -8,8 +8,8 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.16 2003/01/16 20:25:38 ue Exp $
-	basiert auf: 1.17
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.17 2003/01/18 16:52:05 ue Exp $
+	basiert auf: 1.18
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -234,5 +234,11 @@
       nutzen, da es <filename>/dev/tty</filename> nicht &ouml;ffnen
       kann.  Dieser Fehler wurde in 5.0-CURRENT bereits
       behoben.</para>
+
+    <para>&man.growfs.8; funktioniert auf &man.vinum.4; Partitionen
+      nicht mehr, da auf ihnen kein Disklabel mehr emuliert wird
+      und &man.growfs.8; das Disklabel analysieren will.  Das Problem
+      betrifft wahrscheinlich auch alle anderen Massenspeicher,
+      f&uuml;r die &man.geom.4; benutzt wird.</para>
   </sect1>
 </article>
