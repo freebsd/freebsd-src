@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.79 1996/05/07 21:35:19 nate Exp $ -->
+<!-- $Id: contrib.sgml,v 1.80 1996/05/09 23:04:31 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -46,6 +46,10 @@
       &lt;wilko@yedi.iaf.nl&gt;, for providing us with a Wangtek and
       an Archive QIC-02 tape drive, in order to give us the hardware
       to improve the <tt>wt</tt> driver.
+
+      Also see <ref id="donors" name="the donor's gallery"> for
+      a list of people who have donated funding or services to the FreeBSD
+      Project.
 
   <sect><heading>The FreeBSD core team<label id="contrib:core"></heading>
 
