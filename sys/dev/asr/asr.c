@@ -267,7 +267,6 @@ static dpt_sig_S ASR_sig = {
 #include	"dev/asr/i2obscsi.h"
 #include	"dev/asr/i2odpt.h"
 #include	"dev/asr/i2oadptr.h"
-#include	"opt_asr.h"
 
 #include	"dev/asr/sys_info.h"
 
