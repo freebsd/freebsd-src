@@ -79,23 +79,17 @@ get_names(argc, argv)
 	gethostname(hostname, sizeof (hostname));
 	my_machine_name = hostname;
 	/* check for, and strip out, the machine name of the target */
-	for (cp = argv[1]; *cp && !index("@:!.", *cp); cp++)
+	for (cp = argv[1]; *cp && *cp != '@'; cp++)
 		;
 	if (*cp == '\0') {
 		/* this is a local to local talk */
 		his_name = argv[1];
 		his_machine_name = my_machine_name;
 	} else {
-		if (*cp++ == '@') {
 			/* user@host */
 			his_name = argv[1];
-			his_machine_name = cp;
-		} else {
-			/* host.user or host!user or host:user */
-			his_name = cp;
-			his_machine_name = argv[1];
-		}
-		*--cp = '\0';
+		his_machine_name = cp + 1;
+		*cp = '\0';
 	}
 	if (argc > 2)
 		his_tty = argv[2];	/* tty name is arg 2 */
