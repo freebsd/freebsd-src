@@ -1,30 +1,42 @@
 #!/usr/bin/perl
-# $Id: sgmlfmt.pl,v 1.1.1.1 1995/05/09 23:58:06 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.6 1995/08/31 00:14:02 jfieber Exp $
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation
 # project.  
 #
-# Usage: sgmlformat -format [-format ...] inputfile [inputfile ...]
+# Usage: sgmlformat -format [-format ...] [-links] inputfile [inputfile ...]
 #
 #  -format              outputfile         format
 #  -------------------------------------------------------------
 #   -html               inputfile.html     HTML
-#   -txt | -ascii       inputfile.txt      ascii text
+#   -txt | -ascii       inputfile.ascii    ascii text
 #   -tex | -latex       inputfile.tex      LaTeX
 #   -nroff              inputfile.nroff    groff for ms macros
-#   -ps                 inputfile.txt      postscript
+#   -ps                 inputfile.ps       postscript
+#
+#   -links              For each <label id="foo">, make a symbolic
+#                       link foo.html -> inputfile-n.html.  
 #
 # Bugs:
 #
 # Text lines that start with a period (.) confuse the conversions that
 # use groff.  The workaround is to make sure the SGML source doesn't
 # have any periods at the beginning of a line.
-
+#
+# Although legal by the DTD, it the ascii formatting gets botched if
+# the <heading></heading> tags are omitted following a <sect?>.
+#
+# The whole approach of using sgmlsasp and passing a few things
+# through for processing by this script is doomed.  This whole thing
+# needs to be re-thought and a better DTD should be used anyway.
+#
 #######################################################################
 
 # Look in a couple places for the SGML DTD and replacement files
 #
+
+require 'newgetopt.pl';
 
 if (-d "$ENV{'HOME'}/lib/sgml/FreeBSD") {
     $sgmldir = "$ENV{'HOME'}/lib/sgml";
@@ -57,6 +69,11 @@ if (! $ENV{"SGML_PATH"}) {
     $ENV{"SGML_PATH"} = "$sgmldir/%O/%C/%T";
 }
 
+sub usage {
+    print "Usage:\n";
+    print "sgmlfmt -f <format> [-i <namea> [-i <nameb> ...]] [-links] filename[.sgml]\n";
+    print "where <format> is one of: html, latex, ascii, nroff\n";
+}
 #
 # Look for the file specified on the command line
 #
@@ -96,8 +113,12 @@ sub getfile {
 
 sub sgmlparse {
     local($fhandle, $replacement) = @_;
+    $defines = join(" -i ", @opt_i);
+    if ($defines ne "") {
+	$defines = "-i $defines";
+    }
     $ENV{'SGML_PATH'} = "$replbase/$replacement.%N:$ENV{'SGML_PATH'}";
-    open($fhandle, "sgmls $decl $file | sgmlsasp $replbase/$replacement.mapping |");
+    open($fhandle, "sgmls $defines $decl $file | sgmlsasp $replbase/$replacement.mapping |");
 }
 
 #
@@ -130,7 +151,7 @@ sub gen_nroff {
 
 sub gen_ascii {
     &sgmlparse(infile, "nroff");
-    open(outfile, "| groff -T ascii -t -ms | col -b > $fileroot.txt");
+    open(outfile, "| groff -T ascii -t -ms | col -b > $fileroot.ascii");
     while (<infile>) {
 	print outfile;
     }
@@ -192,8 +213,28 @@ $num_depth = 4;			# depth of numbering
 $m_depth = 2;			# depth of menus
 
 
-$sc = 0;			# number of sections
-$filecount = 0;			# number of files
+$sc = 0;			# section counter
+$filecount = 0;			# file counter
+
+# Other variables:
+#
+#  st_xxxx  - Section Table.  Arrays containing information about a
+#             given section.  To be accesssed via the section counter $sc.
+#             
+#  st_ol    - The output level of the given section.  I.E. how many
+#             levels from the table of contents does it lie in terms
+#             of HTML files which is distinct from <sect1>, <sect2> etc.
+#             levels. 
+#
+#  st_sl    - The absolute depth of a section.  Contrast st_ol.
+# 
+#  st_num   - The section number in the form X.Y.Z....
+#
+#  st_file  - The HTML file the section belongs to.
+#
+#  st_header - The text of the section title.
+# 
+#  st_parent - The section number of the given sections parent.
 
 sub gen_html {
     local($i, $sl);
@@ -205,22 +246,26 @@ sub gen_html {
     while (<foo>) {
 	print bar;
 	# count up the number of files to be generated
+	# and gather assorted info about the document structure
 	if (/^<@@sect>/) {
-	    $sl++;
-	    $sc++;
+	    $sl++;		# current section level
+	    $sc++;		# current section number
 	    $st_sl[$sc] = $sl;
+
+	    # In case this section has subsections, set the parent
+	    # pointer for this level to point at this section.
+	    $parent_pointer[$sl] = $sc;
+
+	    # Figure out who is the parent if this section.
+	    $st_parent[$sc] = $parent_pointer[$sl - 1];
 
 	    # Per level counters
 	    $counter[$sl]++;
 	    $counter[$sl + 1] = 0;
 
 	    # calculate the section number in the form x.y.z.
-	    $st_num[$sc] = "";
 	    if ($sl <= $num_depth) {
-		for ($i = 1; $i <= $sl; $i++) {
-		    $st_num[$sc] .= "$counter[$i].";
-		}
-		$st_num[$sc] .= " ";
+		$st_num[$sc] = $st_num[$st_parent[$sc]] . "$counter[$sl].";
 	    }
 
 	    # calculate the file number and output level
@@ -248,12 +293,22 @@ sub gen_html {
 	    $sl--;
 	}
 
+	# record section titles
+	if (/^<@@head>/) {
+	    chop;
+	    s/^<@@head>//;
+	    $st_header[$sc] = $_;
+	}
+
 	# record the section number that a label occurs in
 	if (/^<@@label>/) {
 	    chop;
 	    s/^<@@label>//;
 	    if ($references{$_} eq "") {
 		$references{$_} = "$filecount";
+		if ($opt_links) {
+		    &extlink($_, "${fileroot}${filecount}.html");
+		}
 	    }
 	    else {
 		print STDERR "Warning: the label `$_' is multiply-defined.\n";
@@ -262,10 +317,8 @@ sub gen_html {
     }
     close(bar);
 
-#    print STDERR " Pass 2...";
     open(foofile, $tmpfile);
     &html2html(foofile, "boo");
-#    print STDERR ")\n";
 
     unlink($tmpfile);
 }
@@ -302,11 +355,13 @@ sub html2html {
 	  # titles and headings
 	  if (s/^<@@title>//) {
 	      chop;
-	      print tocfile "<HEAD>\n<TITLE>$_</TITLE>\n</HEAD>\n";
-	      print tocfile "<H1>$_</H1>\n";
+	      $st_header[0] = $_;
+	      $st_parent[0] = -1;
+	      print tocfile "<HEAD>\n<TITLE>$st_header[0]</TITLE>\n</HEAD>\n";
+	      print tocfile "<H1>$st_header[0]</H1>\n";
 	      $header[$st_ol[$sc]] = 
-		  "<HTML>\n<HEAD>\n<TITLE>$_</TITLE>\n" . 
-		      "</HEAD>\n<BODY>\n<H1>$_</H1>\n"; 
+		  "<HTML>\n<HEAD>\n<TITLE>$st_header[0]</TITLE>\n" . 
+		      "</HEAD>\n<BODY>\n<H1>$st_header[0]</H1>\n"; 
 	      $footer[$st_ol[$sc]] = "</BODY>\n</HTML>\n";
 	      last tagsw;
 	  }
@@ -322,7 +377,7 @@ sub html2html {
 		  last tagsw;
 	      }
 
-	      $href = "\"$fileroot-$st_file[$sc].html#$sc\"";
+	      $href = "\"${fileroot}$st_file[$sc].html#$sc\"";
 
 	      # set up headers and footers
 	      if ($st_sl[$sc] > 0 && $st_sl[$sc] <= $maxlevel) {
@@ -334,7 +389,7 @@ sub html2html {
 	      }
 
 	      # Add this to the master table of contents
-	      print tocfile "<DD>$st_num[$sc]" . 
+	      print tocfile "<DD>$st_num[$sc] " . 
 		  "<A HREF=$href>$_";
 
 	      # Calculate the <H?> level to use in the HTML file
@@ -344,12 +399,12 @@ sub html2html {
 	      $i = $st_ol[$sc];
 
 	      # Add the section header
-	      $text[$i] .= "<H$hlevel><A NAME=\"$sc\"></A>$st_num[$sc]$_";
+	      $text[$i] .= "<H$hlevel><A NAME=\"$sc\"></A>$st_num[$sc] $_";
 	      $i--;
 	      
 	      # And also to the parent 
 	      if ($st_sl[$sc] == $st_ol[$sc] && $i >= 0) {
-		  $text[$i] .= "<H$shlevel>$st_num[$sc]" . 
+		  $text[$i] .= "<H$shlevel>$st_num[$sc] " . 
 			  "<A HREF=$href>$_";
 		  $i--;
 	      }
@@ -397,7 +452,6 @@ sub html2html {
 	  if (s/^<@@part>//) {
 	      $part = 1;
 	      $partnum++;
-	      # not yet implemented in the DTD
 	      last tagsw;
 	  }
 
@@ -448,7 +502,7 @@ sub html2html {
 
 	      # If this section is below $maxlevel, write it now.
 	      if ($st_sl[$lsc] <= $maxlevel) {
-		  open(SECOUT, ">${fileroot}-$st_file[$lsc].html");
+		  open(SECOUT, ">${fileroot}$st_file[$lsc].html");
 		  print SECOUT "$header[$st_ol[$lsc]]  $text[$st_ol[$lsc]] " . 
 		      "$footer[$st_ol[$lsc]]";
 		  $text[$st_ol[$lsc]] = "";
@@ -466,8 +520,13 @@ sub html2html {
 	  if (s/^<@@ref>//) {
 	      chop;
 	      $refname = $_;
-	      $text[$st_ol[$sc]] .= 
-		  "<A HREF=\"${fileroot}-$references{$_}.html#$refname\">";
+	      if ($references{$_} eq "") {
+		  print "Warning: Reference to $_ has no defined target\n";
+	      }
+	      else {
+		  $text[$st_ol[$sc]] .= 
+		      "<A HREF=\"${fileroot}$references{$_}.html#$_\">";
+	      }
 	      last tagsw;
 	  }
 	  if (s/^<@@endref>//) {
@@ -507,69 +566,146 @@ sub html2html {
     close tocfile;
 }
 
+# navbar
+#
+# Generate a navigation bar to go on the top and bottom of the page.
+
 sub navbar {
     local ($fnum, $fmax, $sc) = @_;
+    local ($i, $itext, $prv, $nxt);
 
-    $prevf = $fnum - 1;
-    $nextf = $fnum + 1;
+    # Generate the section hierarchy
 
-    $navbar[$st_ol[$sc]] = "<B>\n";
+    $navbar[$st_ol[$sc]] =
+	"<B><A HREF=\"${fileroot}.html\"><EM>$st_header[0]</EM></A>\n";
+    $i = $st_parent[$sc];
+    while ($i > 0) {
+	$itext = " : <A HREF=\"${fileroot}$st_file[$i].html\"><EM>$st_header[$i]</EM></A>\n$itext";
+	$i = $st_parent[$i];
+    }
+    $navbar[$st_ol[$sc]] .= "$itext : <EM>$st_header[$sc]</EM><BR>\n";
+
+    # Generate previous and next pointers
+
+    # Previous pointer must be in a different file AND must be at the
+    # same or higher section level.  If the current node is the
+    # beginning of a chapter, then previous will go to the beginning
+    # of the previous chapter, not the end of the previous chapter.
+
+    $prv = $sc;
+    while ($prv >= 0 && $st_file[$prv] >= $st_file[$sc] - 1) { 
+	$prv--; 
+    }
+    $prv++;
     $navbar[$st_ol[$sc]] .=
-	"<A HREF=\"${fileroot}.html\">Table of Contents</A>\n";
-    if ($prevf <= 0) {
-	$navbar[$st_ol[$sc]] .=
-	    "| <A HREF=\"${fileroot}.html\">Previous</A>\n";
+	"Previous: <A HREF=\"${fileroot}$st_file[$prv].html\"><EM>$st_header[$prv]</EM></A><BR>\n";
+
+    # Then next pointer must be in a higher numbered file OR the home
+    # page of the document.
+
+    $nxt = $sc;
+    if ($st_file[$nxt] == $filecount) { 
+	$nxt = 0; 
     }
     else {
-	$navbar[$st_ol[$sc]] .=
-	    "| <A HREF=\"${fileroot}-${prevf}.html\">Previous</A>\n";
+	while ($st_file[$nxt] == $st_file[$sc]) {
+	    $nxt++;
+	}
     }
-    if ($nextf <= $fmax) {
-	$navbar[$st_ol[$sc]] .=
-	    "| <A HREF=\"${fileroot}-${nextf}.html\">Next</A>\n";
-    }
-    else {
-	$navbar[$st_ol[$sc]] .=
-	    "| <A HREF=\"${fileroot}.html\">Next</A>\n";
-    }
+
+    $navbar[$st_ol[$sc]] .=
+	"Next: <A HREF=\"${fileroot}$st_file[$nxt].html\"><EM>$st_header[$nxt]</EM></A>\n";
+
     $navbar[$st_ol[$sc]] .= "</B>\n";
+
 }
 
 
+# extlink
+#
+# creates a symbolic link from the name in a reference to the numbered
+# html file.  Since the file number that any given section has is 
+# subject to change as the document goes through revisions, this allows
+# for a fixed target that separate documents can hook into.
+#
+# Slashes (/) in the reference are converted to percents (%) while
+# spaces ( ) are converted to underscores (_);
 
+sub extlink {
+    local ($ref, $fn) = @_;
 
+    $ref =~ s/\//%/g;
+    $ref =~ s/ /_/g;
+
+    $file = "$ref.html";
+
+    if (-e $file) {
+	if (-l $file) {
+	    unlink($file);
+	    symlink($fn, $file);
+	}
+	else {
+	    print "Warning: $file exists and is not a symbolic link\n";
+	}
+    }
+    else {
+	symlink($fn, $file);
+    }
+}
 
 # Now, read the command line and take appropriate action
 
-$fcount = 0;
-for (@ARGV) {
-    if (/^-.*/) {
-	s/^-//;
-	$gen{$_} = 1;
+sub main {
+    # Check arguments
+    if (!&NGetOpt('f=s', 'links', 'i:s@')) {
+	&usage;
+	exit 1;
+    }
+    if (@ARGV == 0) {
+	print "An input file must be specified.\n";
+	&usage;
+	exit 1;
+    }
+    if (&getfile($ARGV[0]) == 0) {
+	print "Cannot locate specified file: $ARGV[0]\n";
+	&usage;
+	exit 1;
+    }
+
+    # Generate output
+    if ($opt_f eq 'html') {
+	print "generating $fileroot.html";
+	if ($opt_links == 1) {
+	    print " with external links";
+	}
+	print "...\n"; &gen_html(); 
+    }
+    elsif ($opt_f eq 'tex' || $opt_f eq 'latex') {
+	print "generating $fileroot.tex...\n"; &gen_latex(); 
+    }
+    elsif ($opt_f eq 'nroff') { 
+	print "generating $fileroot.nroff...\n"; &gen_nroff();
+    }
+    elsif ($opt_f eq 'ascii') {
+	print "generating $fileroot.ascii...\n"; &gen_ascii(); 
+    }
+    elsif ($opt_f eq 'ps') { 
+	print "generating $fileroot.ps...\n"; &gen_ps(); 
     }
     else {
-	@infiles[$fcount] = $_;
-	$fcount++;
+	if ($opt_f eq "") {
+	    print "An output format must be specified with the -f option.\n";
+	}
+	else {
+	    print "\"$opt_f\" is an unknown output format.\n";
+	}
+	&usage;
+	exit 1;
     }
+
 }
 
-for ($i = 0; $i < $fcount; $i++) {
-    if (&getfile($infiles[$i])) {
-	if ($gen{'html'}) { 
-	    print "generating $fileroot.html...\n"; &gen_html(); }
-	if ($gen{'tex'} || $gen{'latex'}) { 
-	    print "generating $fileroot.tex...\n"; &gen_latex(); }
-	if ($gen{'nroff'}) { 
-	    print "generating $fileroot.nroff...\n"; &gen_nroff(); }
-	if ($gen{'txt'} || $gen{'ascii'}) { 
-	    print "generating $fileroot.txt...\n"; &gen_ascii(); }
-	if ($gen{'ps'}) { 
-	    print "generating $fileroot.ps...\n"; &gen_ps(); }
-    }
-    else {
-	print "Input file $infiles[$i] not found\n";
-    }
-}
+&main;
 
 exit 0;
 
