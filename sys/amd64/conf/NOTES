@@ -41,7 +41,7 @@ machine		amd64
 #
 
 # Optional:
-device		atpic			# Legacy pic
+device		atpic			# Optional legacy pic support
 device		mptable			# Optional MPSPEC mptable support
 options 	NO_MIXED_MODE		# Disable use of mixed mode
 
@@ -265,9 +265,9 @@ device		wlan		# 802.11 layer
 # nsp: Workbit Ninja SCSI-3 based PC Card SCSI host adapters.
 # stg: TMC 18C30, 18C50 based SCSI host adapters.
 
-device          ncv
-device          nsp
-device          stg
+device		ncv
+device		nsp
+device		stg
 
 #
 # Adaptec FSA RAID controllers, including integrated DELL controllers,
