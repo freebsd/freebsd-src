@@ -38,5 +38,5 @@ while [ ! -z $1 ]; do
     esac
 done
 
-# the remaining arguments can be fed to cp
-exec cp -p $*
+# the remaining arguments are assumed to be files/dirs only.
+exec install -C -p $*
