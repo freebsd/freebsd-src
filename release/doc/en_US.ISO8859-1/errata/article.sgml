@@ -162,7 +162,7 @@
 
     <para>(9 Jan 2004) In some cases, ATA devices may behave
       erratically, particularly SATA devices.  Reported symptoms
-      include command timouts or missing interrupts.  These problems
+      include command timeouts or missing interrupts.  These problems
       appear to be timing-dependent, making them rather difficult to
       isolate.  Workarounds include:</para>
 
@@ -197,6 +197,21 @@
       channels with dynamic mixing in software) in the &man.pcm.4;
       driver has been known to cause some instability.</para>
 
+    <para>(10 Jan 2004) Although APIC interrupt routing seems to work
+      correctly on many systems, on some others (such as some laptops)
+      it can cause various errors, such as &man.ata.4; errors or hangs
+      when starting or exiting X11.  For these situations, it may be
+      advisable to disable APIC routing, using the <quote>safe
+      mode</quote> of the bootloader or the
+      <varname>hint.apic.0.disabled</varname> loader tunable.  Note
+      that disabling APIC is not compatible with SMP systems.</para>
+
+    <para>(10 Jan 2004) The NFSv4 client may panic when attempting an
+      NFSv4 operation against an NFSv3/NFSv2-only server.  This
+      problem has been fixed with revision 1.4 of
+      <filename>src/sys/rpc/rpcclnt.c</filename> in &os;
+      &release.current;.</para>
+
 ]]>
 
   </sect1>
@@ -209,7 +224,26 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>No news.</para>
+
+    <para>(10 Jan 2004) The TCP implementation in &os; now includes
+      protection against a certain class of TCP MSS resource
+      exhaustion attacks, in the form of limits on the size and rate
+      of TCP segments.  The first limit sets the minimum allowed
+      maximum TCP segment size, and is controlled by the
+      <varname>net.inet.tcp.minmss</varname> sysctl variable (the
+      default value is <literal>216</literal> bytes).  The second
+      limit is set by the
+      <varname>net.inet.tcp.minmssoverload</varname> variable, and
+      controls the maximum rate of connections whose average segment
+      size is less than <varname>net.inet.tcp.minmss</varname>.
+      Connections exceeding this packet rate are reset and dropped.
+      Because this feature was added late in the &release.prev;
+      release cycle, connection rate limiting is disabled by default,
+      but can be enabled manually by assigning a non-zero value to
+      <varname>net.inet.tcp.minmssoverload</varname> (the default
+      value in &release.current; at the time of this writing is
+      <literal>1000</literal> packets per second).</para>
+
 ]]>
 
   </sect1>
