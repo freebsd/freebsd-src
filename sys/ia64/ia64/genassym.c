@@ -67,6 +67,13 @@
 #include <nfs/nfs.h>
 #include <nfs/nfsdiskless.h>
 
+ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
+ASSYM(GD_FPCURPROC, offsetof(struct globaldata, gd_fpcurproc));
+ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
+ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
+ASSYM(GD_CPUNO, offsetof(struct globaldata, gd_cpuno));
+ASSYM(GD_ASTPENDING, offsetof(struct globaldata, gd_astpending));
+
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
 ASSYM(MTX_SAVEPSR, offsetof(struct mtx, mtx_savepsr));
@@ -74,7 +81,6 @@ ASSYM(MTX_UNOWNED, MTX_UNOWNED);
 
 ASSYM(P_ADDR, offsetof(struct proc, p_addr));
 ASSYM(P_MD_FLAGS, offsetof(struct proc, p_md.md_flags));
-ASSYM(P_MD_PCBPADDR, offsetof(struct proc, p_md.md_pcbpaddr));
 
 ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 
@@ -90,6 +96,13 @@ ASSYM(U_PCB_F3,		offsetof(struct user, u_pcb.pcb_f3));
 ASSYM(U_PCB_F4,		offsetof(struct user, u_pcb.pcb_f4));
 ASSYM(U_PCB_F5,		offsetof(struct user, u_pcb.pcb_f5));
 
+ASSYM(U_PCB_B0,		offsetof(struct user, u_pcb.pcb_b0));
+ASSYM(U_PCB_B1,		offsetof(struct user, u_pcb.pcb_b1));
+ASSYM(U_PCB_B2,		offsetof(struct user, u_pcb.pcb_b2));
+ASSYM(U_PCB_B3,		offsetof(struct user, u_pcb.pcb_b3));
+ASSYM(U_PCB_B4,		offsetof(struct user, u_pcb.pcb_b4));
+ASSYM(U_PCB_B5,		offsetof(struct user, u_pcb.pcb_b5));
+
 ASSYM(U_PCB_OLD_UNAT,	offsetof(struct user, u_pcb.pcb_old_unat));
 ASSYM(U_PCB_SP,		offsetof(struct user, u_pcb.pcb_sp));
 ASSYM(U_PCB_PFS,	offsetof(struct user, u_pcb.pcb_pfs));
@@ -98,7 +111,8 @@ ASSYM(U_PCB_BSPSTORE,	offsetof(struct user, u_pcb.pcb_bspstore));
 ASSYM(U_PCB_UNAT,	offsetof(struct user, u_pcb.pcb_unat));
 ASSYM(U_PCB_RNAT,	offsetof(struct user, u_pcb.pcb_rnat));
 ASSYM(U_PCB_PR,		offsetof(struct user, u_pcb.pcb_pr));
-ASSYM(U_PCB_IIP,	offsetof(struct user, u_pcb.pcb_iip));
+
+ASSYM(U_PCB_ONFAULT,	offsetof(struct user, u_pcb.pcb_onfault));
 
 ASSYM(UC_MCONTEXT_MC_AR_BSP,  offsetof(ucontext_t, uc_mcontext.mc_ar_bsp));
 ASSYM(UC_MCONTEXT_MC_AR_RNAT, offsetof(ucontext_t, uc_mcontext.mc_ar_rnat));

@@ -127,12 +127,6 @@ cpu_fork(p1, p2, flags)
 	p2->p_md.md_flags = p1->p_md.md_flags & (MDP_FPUSED | MDP_UAC_MASK);
 
 	/*
-	 * Cache the physical address of the pcb, so we can
-	 * swap to it easily.
-	 */
-	p2->p_md.md_pcbpaddr = (void*)vtophys((vm_offset_t)&p2->p_addr->u_pcb);
-
-	/*
 	 * Copy floating point state from the FP chip to the PCB
 	 * if this process has state stored there.
 	 */
@@ -145,10 +139,6 @@ cpu_fork(p1, p2, flags)
 	 * new process has FEN disabled.
 	 */
 	p2->p_addr->u_pcb = p1->p_addr->u_pcb;
-#if 0
-	p2->p_addr->u_pcb.pcb_hw.apcb_usp = ia64_pal_rdusp();
-	p2->p_addr->u_pcb.pcb_hw.apcb_flags &= ~IA64_PCB_FLAGS_FEN;
-#endif
 
 	/*
 	 * Set the floating point state.
@@ -179,6 +169,7 @@ cpu_fork(p1, p2, flags)
 	{
 		struct user *up = p2->p_addr;
 		struct trapframe *p2tf;
+		u_int64_t bspstore, *p1bs, *p2bs, rnatloc, rnat;
 
 		/*
 		 * Pick a stack pointer, leaving room for a trapframe;
@@ -193,27 +184,77 @@ cpu_fork(p1, p2, flags)
 		/*
 		 * Set up return-value registers as fork() libc stub expects.
 		 */
-#if 0
-		p2tf->tf_regs[FRAME_V0] = 0; 	/* child's pid (linux) 	*/
-		p2tf->tf_regs[FRAME_A3] = 0;	/* no error 		*/
-		p2tf->tf_regs[FRAME_A4] = 1;	/* is child (FreeBSD) 	*/
+		p2tf->tf_r[FRAME_R8] = 0; 	/* child's pid (linux) 	*/
+		p2tf->tf_r[FRAME_R9] = 0;	/* no error 		*/
+		p2tf->tf_r[FRAME_R10] = 1;	/* is child (FreeBSD) 	*/
+
+		/*
+		 * Turn off RSE for a moment and work out our current
+		 * ar.bspstore. This assumes that p1==curproc. Also
+		 * flush dirty regs to ensure that the user's stacked
+		 * regs are written out to backing store.
+		 *
+		 * We could cope with p1!=curproc by digging values
+		 * out of its PCB but I don't see the point since
+		 * current usage never allows it.
+		 */
+		__asm __volatile("mov ar.rsc=0;;");
+		__asm __volatile("flushrs;;" ::: "memory");
+		__asm __volatile("mov %0=ar.bspstore" : "=r"(bspstore));
+
+		p1bs = (u_int64_t *) (p1->p_addr + 1);
+		p2bs = (u_int64_t *) (p2->p_addr + 1);
+
+		/*
+		 * Copy enough of p1's backing store to include all
+		 * the user's stacked regs.
+		 */
+		bcopy(p1bs, p2bs, (p1->p_md.md_tf->tf_ar_bsp
+				   - p1->p_md.md_tf->tf_ar_bspstore));
+
+		/*
+		 * To calculate the ar.rnat for p2, we need to decide
+		 * if p1's ar.bspstore has advanced past the place
+		 * where the last ar.rnat which covers the user's
+		 * saved registers would be placed. If so, we read
+		 * that one from memory, otherwise we take p1's
+		 * current ar.rnat.
+		 */
+		rnatloc = (u_int64_t)
+			(p1bs + (p1->p_md.md_tf->tf_ar_bsp
+				 - p1->p_md.md_tf->tf_ar_bspstore));
+		rnatloc |= 0x1f8;
+		if (bspstore > rnatloc)
+			rnat = *(u_int64_t *) rnatloc;
+		else
+			__asm __volatile("mov %0=ar.rnat;;" : "=r"(rnat));
+		
+		/*
+		 * Switch the RSE back on.
+		 */
+		__asm __volatile("mov ar.rsc=3;;");
+
+		/*
+		 * Setup the child's pcb so that its ar.bspstore
+		 * starts just above the region which we copied. This
+		 * should work since the child will normally return
+		 * straight into exception_return.
+		 */
+		up->u_pcb.pcb_bspstore = (u_int64_t)
+			(p2bs + (p1->p_md.md_tf->tf_ar_bsp
+				 - p1->p_md.md_tf->tf_ar_bspstore));
+		up->u_pcb.pcb_rnat = rnat;
 
 		/*
 		 * Arrange for continuation at child_return(), which
 		 * will return to exception_return().  Note that the child
 		 * process doesn't stay in the kernel for long!
-		 * 
-		 * This is an inlined version of cpu_set_kpc.
 		 */
-		up->u_pcb.pcb_hw.apcb_ksp = (u_int64_t)p2tf;	
-		up->u_pcb.pcb_context[0] =
-		    (u_int64_t)child_return;		/* s0: pc */
-		up->u_pcb.pcb_context[1] =
-		    (u_int64_t)exception_return;	/* s1: ra */
-		up->u_pcb.pcb_context[2] = (u_long) p2;	/* s2: a0 */
-		up->u_pcb.pcb_context[7] =
-		    (u_int64_t)switch_trampoline;	/* ra: assembly magic */
-#endif
+		up->u_pcb.pcb_sp = (u_int64_t)p2tf - 16;	
+		up->u_pcb.pcb_r4 = (u_int64_t)child_return;
+		up->u_pcb.pcb_r5 = (u_int64_t)exception_return;
+		up->u_pcb.pcb_r6 = (u_int64_t)p2;
+		up->u_pcb.pcb_b0 = (u_int64_t)switch_trampoline;
 	}
 }
 
@@ -229,14 +270,8 @@ cpu_set_fork_handler(p, func, arg)
 	void (*func) __P((void *));
 	void *arg;
 {
-#if 0
-	/*
-	 * Note that the trap frame follows the args, so the function
-	 * is really called like this:  func(arg, frame);
-	 */
-	p->p_addr->u_pcb.pcb_context[0] = (u_long) func;
-	p->p_addr->u_pcb.pcb_context[2] = (u_long) arg;
-#endif
+	p->p_addr->u_pcb.pcb_r4 = (u_int64_t) func;
+	p->p_addr->u_pcb.pcb_r6 = (u_int64_t) arg;
 }
 
 /*

@@ -38,7 +38,6 @@
 struct mdproc {
 	u_long		md_flags;
 	struct	trapframe *md_tf;	/* trap/syscall registers */
-	struct pcb	*md_pcbpaddr;	/* phys addr of the pcb */
 };
 
 #define	MDP_FPUSED	0x0001		/* Process used the FPU */

@@ -34,17 +34,21 @@ BSS(ia64_pal_entry, 8)
  * struct ia64_pal_result ia64_call_pal_static(u_int64_t proc,
 	u_int64_t arg1, u_int64_t arg2, u_int64_t arg3)
  */
-	NESTED(ia64_call_pal_static, 4, 5, 0, r39, r40)
+	NESTED(ia64_call_pal_static, 4)
 	
+	.regstk	4,5,0,0
 palret	=	loc0
 entry	=	loc1
 rpsave	=	loc2
 pfssave =	loc3
 psrsave	=	loc4
 
+	alloc	pfssave=ar.pfs,4,5,0,0
+	;; 
+	mov	rpsave=rp
+
 	movl	entry=ia64_pal_entry
 1:	mov	palret=ip		// for return address
-	mov	rpsave=rp
 	;; 
 	mov	psrsave=psr
 	mov	r28=in0			// procedure number
@@ -62,10 +66,10 @@ psrsave	=	loc4
 	;;
 	br.cond.sptk b1			// call into firmware
 2:	mov	psr.l=psrsave
-	mov	b0=rpsave
+	mov	rp=rpsave
 	mov	ar.pfs=pfssave
 	;;
 	srlz.d
-	br.ret.sptk b0		
+	br.ret.sptk rp
 
 	END(ia64_call_pal_static)
