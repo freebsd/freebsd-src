@@ -143,7 +143,6 @@
 #include <ddb/ddb.h>
 #include <alpha/alpha/db_instruction.h>
 #include <sys/vnode.h>
-#include <fs/procfs/procfs.h>
 #include <machine/sigframe.h>
 
 u_int64_t cycles_per_usec;
@@ -1874,6 +1873,20 @@ set_regs(td, regs)
 	pcb->pcb_hw.apcb_usp = regs->r_regs[R_SP];
 
 	return (0);
+}
+
+int
+fill_dbregs(struct thread *td, struct dbreg *dbregs)
+{
+
+	return (ENOSYS);
+}
+
+int
+set_dbregs(struct thread *td, struct dbreg *dbregs)
+{
+
+	return (ENOSYS);
 }
 
 int
