@@ -37,6 +37,7 @@
 
 #ifdef _KERNEL
 #include <sys/ktr.h>
+#include <sys/systm.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/globals.h>
@@ -134,6 +135,9 @@ void	_mtx_lock_spin(struct mtx *m, int opts, u_int mtx_intr,
 		       const char *file, int line);
 void	_mtx_unlock_spin(struct mtx *m, int opts, const char *file, int line);
 int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
+#ifdef INVARIANT_SUPPORT
+void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
+#endif
 
 /*
  * We define our machine-independent (unoptimized) mutex micro-operations
@@ -249,42 +253,16 @@ int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
  *
  * mtx_recursed(m) returns non-zero if the lock `m' is presently recursed.
  */ 
-#define mtx_lock(m) do {						\
-	MPASS(curproc != NULL);						\
-	_get_sleep_lock((m), curproc, 0);				\
-	CTR5(KTR_LOCK, STR_mtx_lock_slp, (m)->mtx_description, (m),	\
-	    (m)->mtx_recurse, __FILE__,	__LINE__);			\
-	WITNESS_ENTER((m), (m)->mtx_flags, __FILE__, __LINE__);		\
-} while (0)
-
-#define mtx_lock_spin(m) do {						\
-	MPASS(curproc != NULL);						\
-	_get_spin_lock((m), curproc, 0);				\
-	CTR5(KTR_LOCK, STR_mtx_lock_spn, (m)->mtx_description, (m),	\
-	    (m)->mtx_recurse, __FILE__,	__LINE__);			\
-	WITNESS_ENTER((m), (m)->mtx_flags, __FILE__, __LINE__);		\
-} while (0)
-
-#define mtx_unlock(m) do {						\
-	MPASS(curproc != NULL);						\
-	WITNESS_EXIT((m), (m)->mtx_flags, __FILE__, __LINE__);		\
-	mtx_assert((m), MA_OWNED);					\
-	_rel_sleep_lock((m), curproc, 0);				\
-	CTR5(KTR_LOCK, STR_mtx_unlock_slp, (m)->mtx_description, (m),	\
-	    (m)->mtx_recurse, __FILE__,	__LINE__);			\
-} while (0)
-
-#define mtx_unlock_spin(m) do {						\
-	MPASS(curproc != NULL);						\
-	WITNESS_EXIT((m), (m)->mtx_flags, __FILE__, __LINE__);		\
-	mtx_assert((m), MA_OWNED);					\
-	_rel_spin_lock((m));						\
-	CTR5(KTR_LOCK, STR_mtx_unlock_spn, (m)->mtx_description, (m),	\
-	    (m)->mtx_recurse, __FILE__,	__LINE__);			\
-} while (0)
+#define mtx_lock(m)		mtx_lock_flags((m), 0)
+#define mtx_lock_spin(m)	mtx_lock_spin_flags((m), 0)
+#define mtx_trylock(m)		mtx_trylock_flags((m), 0)
+#define mtx_unlock(m)		mtx_unlock_flags((m), 0)
+#define mtx_unlock_spin(m)	mtx_unlock_spin_flags((m), 0)
 
 #define mtx_lock_flags(m, opts) do {					\
 	MPASS(curproc != NULL);						\
+	KASSERT(((opts) & MTX_NOSWITCH) == 0,				\
+	    ("MTX_NOSWITCH used at %s:%d", __FILE__, __LINE__));	\
 	_get_sleep_lock((m), curproc, (opts));				\
 	if (((opts) & MTX_QUIET) == 0)					\
 		CTR5(KTR_LOCK, STR_mtx_lock_slp,			\
@@ -307,9 +285,9 @@ int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
 
 #define mtx_unlock_flags(m, opts) do {					\
 	MPASS(curproc != NULL);						\
+	mtx_assert((m), MA_OWNED);					\
 	WITNESS_EXIT((m), ((m)->mtx_flags | (opts)), __FILE__,		\
 	    __LINE__);							\
-	mtx_assert((m), MA_OWNED);					\
 	_rel_sleep_lock((m), curproc, (opts));				\
 	if (((opts) & MTX_QUIET) == 0)					\
 		CTR5(KTR_LOCK, STR_mtx_unlock_slp,			\
@@ -317,25 +295,17 @@ int	_mtx_trylock(struct mtx *m, int opts, const char *file, int line);
 		    __FILE__, __LINE__);				\
 } while (0)
 
-/*
- * The MTX_SPIN unlock case is all inlined, so we handle the MTX_QUIET
- * flag right in the macro. Not a problem as if we don't have KTR_LOCK, this
- * check will be optimized out.
- */
 #define mtx_unlock_spin_flags(m, opts) do {				\
 	MPASS(curproc != NULL);						\
+	mtx_assert((m), MA_OWNED);					\
 	WITNESS_EXIT((m), ((m)->mtx_flags | (opts)), __FILE__,		\
 	    __LINE__);							\
-	mtx_assert((m), MA_OWNED);					\
 	_rel_spin_lock((m));						\
 	if (((opts) & MTX_QUIET) == 0)					\
 		CTR5(KTR_LOCK, STR_mtx_unlock_spn,			\
 		    (m)->mtx_description, (m), (m)->mtx_recurse, 	\
 		    __FILE__, __LINE__);				\
 } while (0)
-
-#define mtx_trylock(m)							\
-	_mtx_trylock((m), 0, __FILE__, __LINE__)
 
 #define mtx_trylock_flags(m, opts)					\
 	_mtx_trylock((m), (opts), __FILE__, __LINE__)
@@ -403,8 +373,6 @@ do {									\
 #define MA_NOTOWNED	0x02
 #define MA_RECURSED	0x04
 #define MA_NOTRECURSED	0x08
-
-void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #endif /* INVARIANT_SUPPORT */
 
 #ifdef INVARIANTS
@@ -415,34 +383,11 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #define mtx_assert(m, what)
 #endif	/* INVARIANTS */
 
-/*
- * The MUTEX_DEBUG-enabled MPASS*() extra sanity-check macros.
- */
-#ifdef MUTEX_DEBUG
-#define MPASS(ex)							\
-	if (!(ex))							\
-		panic("Assertion %s failed at %s:%d", #ex, __FILE__,	\
-		    __LINE__)
-
-#define MPASS2(ex, what)						\
-	if (!(ex))							\
-		panic("Assertion %s failed at %s:%d", what, __FILE__,	\
-		    __LINE__)
-
-#define MPASS3(ex, file, line)						\
-	if (!(ex))							\
-		panic("Assertion %s failed at %s:%d", #ex, file, line)
-
+#define MPASS(ex)		MPASS4(ex, #ex, __FILE__, __LINE__)
+#define MPASS2(ex, what)	MPASS4(ex, what, __FILE__, __LINE__)
+#define MPASS3(ex, file, line)	MPASS4(ex, #ex, file, line)
 #define MPASS4(ex, what, file, line)					\
-	if (!(ex))							\
-		panic("Assertion %s failed at %s:%d", what, file, line)
-
-#else	/* MUTEX_DEBUG */
-#define	MPASS(ex)
-#define	MPASS2(ex, what)
-#define	MPASS3(ex, file, line)
-#define	MPASS4(ex, what, file, line)
-#endif	/* MUTEX_DEBUG */
+	KASSERT((ex), ("Assertion %s failed at %s:%d", what, file, line))
 
 /*
  * Exported WITNESS-enabled functions and corresponding wrapper macros.
