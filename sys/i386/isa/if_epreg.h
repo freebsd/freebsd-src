@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- * $Id: if_epreg.h,v 1.4 1994/11/13 10:12:37 gibbs Exp $ Modified by:
+ * if_epreg.h,v 1.4 1994/11/13 10:12:37 gibbs Exp Modified by:
  * 
  October 2, 1994
  
@@ -29,6 +29,18 @@
  e-mail: avega@sophia.inria.fr 
  finger: avega@pax.inria.fr
 
+ */
+/*
+ *  March 28 1995
+ *
+ *  Promiscuous mode added and interrupt logic slightly changed
+ *  to reduce the number of adapter failures. Transceiver select
+ *  logic changed to use value from EEPROM. Autoconfiguration
+ *  features added.
+ *  Done by:
+ *          Serge Babkin
+ *          Chelindbank (Chelyabinsk, Russia)
+ *          babkin@hq.icb.chel.su
  */
 
 /*
@@ -287,6 +299,7 @@ struct ep_softc {
 #define C_RX_EARLY	(u_short) (ACK_INTR|0x20)
 #define C_INT_RQD		(u_short) (ACK_INTR|0x40)
 #define C_UPD_STATS	(u_short) (ACK_INTR|0x80)
+#define C_MASK	(u_short) 0xFF /* mask of C_* */
 
 /*
  * Status register. All windows.
@@ -314,9 +327,26 @@ struct ep_softc {
 #define S_RX_EARLY		(u_short) (0x20)
 #define S_INT_RQD		(u_short) (0x40)
 #define S_UPD_STATS		(u_short) (0x80)
+#define S_MASK	(u_short) 0xFF /* mask of S_* */
 #define S_5_INTS                (S_CARD_FAILURE|S_TX_COMPLETE|\
 				 S_TX_AVAIL|S_RX_COMPLETE|S_RX_EARLY)
 #define S_COMMAND_IN_PROGRESS	(u_short) (0x1000)
+
+/* Address Config. Register.
+ * Window 0/Port 06
+ */
+
+#define ACF_CONNECTOR_BITS	14
+#define ACF_CONNECTOR_UTP	0
+#define ACF_CONNECTOR_AUI	1
+#define ACF_CONNECTOR_BNC	3
+
+/* Resource configuration register.
+ * Window 0/Port 08
+ *
+ */
+
+#define SET_IRQ(i)	(((i)<<12) | 0xF00) /* set IRQ i */
 
 /*
  * FIFO Registers.  
