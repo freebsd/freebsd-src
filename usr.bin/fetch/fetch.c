@@ -65,7 +65,7 @@ int	 o_directory;	/*        output file is a directory */
 char	*o_filename;	/*        name of output file */
 int	 o_stdout;	/*        output file is stdout */
 int	 once_flag;	/*    -1: stop at first successful file */
-int	 p_flag = 1;	/* -[Pp]: use passive FTP */
+int	 p_flag;	/* -[Pp]: use passive FTP */
 int	 R_flag;	/*    -R: don't delete partially transferred files */
 int	 r_flag;	/*    -r: restart previously interrupted transfer */
 u_int	 T_secs = 0;	/*    -T: transfer timeout in seconds */
