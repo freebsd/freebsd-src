@@ -90,7 +90,7 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 		perror(PREFIX);
 		exit(2);
 	}
-#ifndef CONFIG_DONT_CLOBBER
+#ifdef CONFIG_DONT_CLOBBER
 	if (stat(p = path((char *)NULL), &buf)) {
 #else /* CONFIG_DONT_CLOBBER */
 	p = path((char *)NULL);
@@ -104,7 +104,7 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 	else if ((buf.st_mode & S_IFMT) != S_IFDIR) {
 		fprintf(stderr, "config: %s isn't a directory.\n", p);
 		exit(2);
-#ifdef CONFIG_DONT_CLOBBER
+#ifndef CONFIG_DONT_CLOBBER
 	}
 	else {
 		char tmp[strlen(p) + 8];
