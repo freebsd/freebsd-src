@@ -35,7 +35,6 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <dev/usb/usb.h>
-#include <dev/usb/usbdevs.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netgraph.h>
@@ -50,6 +49,9 @@
 #define BCMFW_INTR_EP	1
 #define BCMFW_BULK_EP	2
 #define BCMFW_BSIZE	4096
+
+#define USB_VENDOR_BROADCOM 0x0a5c
+#define USB_PRODUCT_BROADCOM_BCM2033 0x2033
 
 static int bcmfw_check_device
 	(char const *name);
@@ -133,7 +135,7 @@ bcmfw_check_device(char const *name)
 	}
 
 	if (UGETW(desc.idVendor) != USB_VENDOR_BROADCOM ||
-	    UGETW(desc.idProduct) != 0x2033) {
+	    UGETW(desc.idProduct) != USB_PRODUCT_BROADCOM_BCM2033) {
 		syslog(LOG_ERR, "Unsupported device, VendorID=%#x, " \
 				"ProductID=%#x", UGETW(desc.idVendor),
 				UGETW(desc.idProduct));
