@@ -50,18 +50,20 @@
 .Op Fl r
 .Op Fl t Ar table
 .Op Fl v
-.Op name ...
+.Op Ar item ...
 .Sh DESCRIPTION
 .Nm
 can be used to dump the state of a USB HID (Human Interface Device).
-The named items are printed.
+Each named
+.Ar item
+is printed.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl a
 Show all items.
 .It Fl f Ar device
-Specify a path name for device to operate on.
+Specify a path name for the device to operate on.
 .It Fl l
 Loop and dump the device data every time it changes.
 .It Fl n
@@ -77,11 +79,12 @@ Be verbose.
 .Pa /usr/share/misc/usb_hid_usages
 The default HID usage table.
 .Sh BUGS
-Cannot show or set output and feature items.
+.Nm
+cannot show nor set output and feature items.
 .Sh SEE ALSO
 .Xr usb 3 ,
-.Xr usb 4 ,
-.Xr uhid 4
+.Xr uhid 4 ,
+.Xr usb 4
 .Sh HISTORY
 The
 .Nm
