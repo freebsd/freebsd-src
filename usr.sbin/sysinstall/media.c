@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.88 1998/10/10 09:43:44 jkh Exp $
+ * $Id: media.c,v 1.89 1998/10/12 23:45:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -387,7 +387,11 @@ mediaSetFTP(dialogMenuItem *self)
 	msgDebug("port # = `%d'\n", FtpPort);
     }
     if (variable_get(VAR_NAMESERVER)) {
+    	if (isDebug())
+	    msgDebug("Starting DNS.\n");
 	kickstart_dns();
+    	if (isDebug())
+	    msgDebug("Looking up hostname: %s.\n", hostname);
 	if ((inet_addr(hostname) == INADDR_NONE) && (gethostbyname(hostname) == NULL)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", hostname);
