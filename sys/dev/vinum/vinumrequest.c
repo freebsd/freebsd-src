@@ -891,10 +891,10 @@ sdio(struct buf *bp)
 
     if (drive->state != drive_up) {
 	if (sd->state >= sd_crashed) {
-	    if (bp->b_flags & B_WRITE)			    /* writing, */
-		set_sd_state(sd->sdno, sd_stale, setstate_force);
-	    else
+	    if (bp->b_flags & B_READ)			    /* reading, */
 		set_sd_state(sd->sdno, sd_crashed, setstate_force);
+	    else
+		set_sd_state(sd->sdno, sd_stale, setstate_force);
 	}
 	bp->b_flags |= B_ERROR;
 	bp->b_error = EIO;
