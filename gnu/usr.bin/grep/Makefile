@@ -1,6 +1,5 @@
-#	$Id: Makefile,v 1.10 1997/12/20 18:46:06 wosch Exp $
+#	$Id: Makefile,v 1.11 1997/12/21 19:15:02 wosch Exp $
 
-CFLAGS=-g
 GREP_LIBZ= YES
 GREP_FTS=  YES
 
