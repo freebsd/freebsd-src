@@ -27,8 +27,6 @@
 #
 
 PROG=	kldload
-SRCS=	kldload.c
-MAN8=	kldload.8
 
 CFLAGS+=-I${.CURDIR}/../../sys
 

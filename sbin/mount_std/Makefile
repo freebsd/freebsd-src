@@ -3,7 +3,6 @@
 
 PROG=	mount_std
 SRCS=	mount_std.c getmntopts.c
-MAN8=	mount_std.8
 MLINKS=	mount_std.8 mount_devfs.8 \
 	mount_std.8 mount_fdesc.8 \
 	mount_std.8 mount_linprocfs.8 \
