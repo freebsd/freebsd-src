@@ -189,7 +189,7 @@ dev/dec/mcclock_if.m		optional	mcclock
 dev/ed/if_ed_isa.c		optional	ed isa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
-dev/fb/splash.c			count		splash
+dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		count		atkbdc
