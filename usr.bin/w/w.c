@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.16.2.4 1997/08/29 05:30:12 imp Exp $";
+	"$Id: w.c,v 1.16.2.5 1998/03/08 14:31:56 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -245,7 +245,7 @@ main(argc, argv)
 		if (wcmd == 0)
 			exit (0);
 
-#define HEADER	"USER             TTY FROM              LOGIN@  IDLE WHAT\n"
+#define HEADER	"USER     TTY FROM              LOGIN@  IDLE WHAT\n"
 #define WUSED	(sizeof (HEADER) - sizeof ("WHAT\n"))
 		(void)printf(HEADER);
 	}
