@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.20 1999/07/01 20:25:39 peter Exp $
+ *	$Id: cia.c,v 1.21 1999/07/29 16:44:22 gallatin Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -784,7 +784,7 @@ cia_init_sgmap(void)
 
 	/*
 	 * First setup Window 0 to map 8Mb to 16Mb with an
-	 * sgmap. Allocate the map aligned to a 32 boundary.
+	 * sgmap. Allocate the map aligned to a 32k boundary.
 	 */
 	REGVAL(CIA_PCI_W0BASE) = (CIA_SGMAP_BASE
 				  | CIA_PCI_WnBASE_SG_EN
@@ -803,7 +803,7 @@ cia_init_sgmap(void)
 		(pmap_kextract((vm_offset_t) sgtable) >> CIA_PCI_TnBASE_SHIFT);
 
 	chipset.sgmap = sgmap_map_create(CIA_SGMAP_BASE,
-					 CIA_SGMAP_BASE + CIA_SGMAP_SIZE,
+					 CIA_SGMAP_BASE + CIA_SGMAP_SIZE - 1,
 					 cia_sgmap_map, sgtable);
 
 	if (cia_ispyxis) {
