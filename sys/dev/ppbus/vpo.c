@@ -24,18 +24,14 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
  */
 
-#ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 
 #include <machine/clock.h>
-
-#endif	/* _KERNEL */
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -47,9 +43,7 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_da.h>
 
-#ifdef	_KERNEL
 #include <sys/kernel.h>
-#endif
 
 #include "opt_vpo.h"
 
@@ -81,31 +75,19 @@ struct vpo_data {
 	struct vpoio_data vpo_io;	/* interface to low level functions */
 };
 
-static int vpo_probe(device_t);
-static int vpo_attach(device_t);
-
 #define DEVTOSOFTC(dev) \
 	((struct vpo_data *)device_get_softc(dev))
-
-static devclass_t vpo_devclass;
-
-static device_method_t vpo_methods[] = {
-	/* device interface */
-	DEVMETHOD(device_probe,		vpo_probe),
-	DEVMETHOD(device_attach,	vpo_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t vpo_driver = {
-	"vpo",
-	vpo_methods,
-	sizeof(struct vpo_data),
-};
 
 /* cam related functions */
 static void	vpo_action(struct cam_sim *sim, union ccb *ccb);
 static void	vpo_poll(struct cam_sim *sim);
+
+static void
+vpo_identify(driver_t *driver, device_t parent)
+{
+
+	BUS_ADD_CHILD(parent, 0, "vpo", 0);
+}
 
 /*
  * vpo_probe()
@@ -437,4 +419,20 @@ vpo_poll(struct cam_sim *sim)
 	return;
 }
 
+static devclass_t vpo_devclass;
+
+static device_method_t vpo_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_identify,	vpo_identify),
+	DEVMETHOD(device_probe,		vpo_probe),
+	DEVMETHOD(device_attach,	vpo_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t vpo_driver = {
+	"vpo",
+	vpo_methods,
+	sizeof(struct vpo_data),
+};
 DRIVER_MODULE(vpo, ppbus, vpo_driver, vpo_devclass, 0, 0);

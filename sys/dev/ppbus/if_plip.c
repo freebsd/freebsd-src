@@ -77,9 +77,6 @@
 /*
  * Update for ppbus, PLIP support only - Nicolas Souchu
  */ 
-#include "plip.h"
-
-#if NPLIP > 0
 
 #include "opt_plip.h"
 
@@ -170,9 +167,6 @@ static u_char *ctxmith;
 #define ctrecvl (ctxmith+(3*LPIPTBLSIZE))
 
 /* Functions for the lp# interface */
-static int lp_probe(device_t dev);
-static int lp_attach(device_t dev);
-
 static int lpinittables(void);
 static int lpioctl(struct ifnet *, u_long, caddr_t);
 static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
@@ -188,20 +182,12 @@ static void lp_intr(void *);
 
 static devclass_t lp_devclass;
 
-static device_method_t lp_methods[] = {
-  	/* device interface */
-	DEVMETHOD(device_probe,		lp_probe),
-	DEVMETHOD(device_attach,	lp_attach),
+static void
+lp_identify(driver_t *driver, device_t parent)
+{
 
-	{ 0, 0 }
-};
-
-static driver_t lp_driver = {
-  "plip",
-  lp_methods,
-  sizeof(struct lp_data),
-};
-
+	BUS_ADD_CHILD(parent, 0, "plip", 0);
+}
 /*
  * lpprobe()
  */
@@ -785,6 +771,19 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     return 0;
 }
 
-DRIVER_MODULE(plip, ppbus, lp_driver, lp_devclass, 0, 0);
+static device_method_t lp_methods[] = {
+  	/* device interface */
+	DEVMETHOD(device_identify,	lp_identify),
+	DEVMETHOD(device_probe,		lp_probe),
+	DEVMETHOD(device_attach,	lp_attach),
 
-#endif /* NPLIP > 0 */
+	{ 0, 0 }
+};
+
+static driver_t lp_driver = {
+  "plip",
+  lp_methods,
+  sizeof(struct lp_data),
+};
+
+DRIVER_MODULE(plip, ppbus, lp_driver, lp_devclass, 0, 0);
