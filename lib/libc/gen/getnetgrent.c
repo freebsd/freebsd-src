@@ -202,7 +202,7 @@ setnetgrent(const char *group)
 				return;
 			}
 #else
-		if (netf = fopen(_PATH_NETGROUP, "r")) {
+		if ((netf = fopen(_PATH_NETGROUP, "r"))) {
 #endif
 			if (parse_netgrp(group))
 				endnetgrent();

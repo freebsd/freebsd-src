@@ -97,12 +97,16 @@ LIBPAM+=	${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
 MINUSLPAM+=	-lkrb5 -lasn1 -lcrypto -lcrypt -lroken -lcom_err
 .endif
 LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBCRYPT} \
-		${LIBUTIL} ${LIBOPIE} ${LIBMD} ${LIBYPCLNT}
+		${LIBUTIL} ${LIBOPIE} ${LIBMD}
 MINUSLPAM+=	-lradius -ltacplus -lcrypt \
-		-lutil -lopie -lmd -lypclnt
+		-lutil -lopie -lmd
 .if !defined(NO_OPENSSH) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 LIBPAM+=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
 MINUSLPAM+=	-lssh -lcrypto -lcrypt
+.endif
+.if !defined(NO_NIS)
+LIBPAM+=	${LIBYPCLNT}
+MINUSLPAM+=	-lypclnt
 .endif
 .endif
 
