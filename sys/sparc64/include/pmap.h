@@ -70,7 +70,7 @@ struct pmap {
 	struct	tte *pm_tsb;
 	vm_object_t pm_tsb_obj;
 	u_int	pm_active;
-	u_int	pm_context;
+	u_int	pm_context[MAXCPU];
 	u_int	pm_count;
 	struct	pmap_statistics pm_stats;
 };
