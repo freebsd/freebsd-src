@@ -79,6 +79,9 @@ static int ipsd_close(struct disk *dp)
 /* ipsd_finish is called to clean up and return a completed IO request */
 void ipsd_finish(struct bio *iobuf)
 {
+	ipsdisk_softc_t *dsc;
+	dsc = iobuf->bio_disk->d_drv1;	
+
 	if (iobuf->bio_flags & BIO_ERROR) {
 		ipsdisk_softc_t *dsc;
 		dsc = iobuf->bio_disk->d_drv1; 
@@ -87,6 +90,7 @@ void ipsd_finish(struct bio *iobuf)
 		iobuf->bio_resid = 0;
 
 	biodone(iobuf);	
+	ips_start_io_request(dsc->sc);
 }
 
 
@@ -97,7 +101,10 @@ static void ipsd_strategy(struct bio *iobuf)
 	dsc = iobuf->bio_disk->d_drv1;	
 	DEVICE_PRINTF(8,dsc->dev,"in strategy\n");
 	iobuf->bio_driver1 = (void *)(uintptr_t)dsc->sc->drives[dsc->disk_number].drivenum;
-	ips_start_io_request(dsc->sc, iobuf);
+	mtx_lock(&dsc->sc->queue_mtx);
+	bioq_disksort(&dsc->sc->queue, iobuf);
+	mtx_unlock(&dsc->sc->queue_mtx);
+	ips_start_io_request(dsc->sc);
 }
 
 static int ipsd_probe(device_t dev)
@@ -161,4 +168,3 @@ static int ipsd_detach(device_t dev)
 	disk_destroy(dsc->ipsd_disk);
 	return 0;
 }
-
