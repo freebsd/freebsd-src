@@ -431,13 +431,16 @@ acpi_attach(device_t dev)
      */
     sc->acpi_sleep_delay = 5;
     sc->acpi_disable_on_poweroff = 1;
-    sc->acpi_s4bios = 1;
     if (bootverbose)
 	sc->acpi_verbose = 1;
     if ((env = getenv("hw.acpi.verbose")) && strcmp(env, "0")) {
 	sc->acpi_verbose = 1;
 	freeenv(env);
     }
+
+    /* Only enable S4BIOS by default if the FACS says it is available. */
+    if (AcpiGbl_FACS->S4Bios_f != 0)
+	    sc->acpi_s4bios = 1;
 
     /*
      * Dispatch the default sleep state to devices.
@@ -1980,10 +1983,12 @@ acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 	    break;
 	}
 	state = *(int *)addr;
-	if (state >= ACPI_STATE_S0  && state <= ACPI_S_STATES_MAX)
-	    acpi_SetSleepState(sc, state);
-	else
+	if (state >= ACPI_STATE_S0  && state <= ACPI_S_STATES_MAX) {
+	    if (ACPI_FAILURE(acpi_SetSleepState(sc, state)))
+		error = EINVAL;
+	} else {
 	    error = EINVAL;
+	}
 	break;
     default:
 	if (error == 0)
