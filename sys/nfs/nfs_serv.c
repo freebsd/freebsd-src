@@ -2015,6 +2015,8 @@ out:
 		error = VFS_VPTOFH(vp, &fhp->fh_fid);
 		if (!error)
 			error = VOP_GETATTR(vp, vap, cred, procp);
+	}
+	if (vp) {
 		vput(vp);
 		vp = NULL;
 		nd.ni_vp = NULL;
