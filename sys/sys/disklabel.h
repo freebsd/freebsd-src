@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.35 1998/08/24 08:45:37 dfr Exp $
+ * $Id: disklabel.h,v 1.37 1999/03/23 04:08:42 grog Exp $
  */
 
 #ifndef	_SYS_DISKLABEL_H_
@@ -249,7 +249,7 @@ static char *dktypenames[] = {
 #define	FS_HPFS		11		/* OS/2 high-performance file system */
 #define	FS_ISO9660	12		/* ISO 9660, normally CD-ROM */
 #define	FS_BOOT		13		/* partition contains bootstrap */
-
+#define FS_VINUM	14		/* Vinum drive */
 #ifdef	DKTYPENAMES
 static char *fstypenames[] = {
 	"unused",
@@ -266,6 +266,7 @@ static char *fstypenames[] = {
 	"HPFS",
 	"ISO9660",
 	"boot",
+	"vinum",
 	NULL
 };
 #define FSMAXTYPES	(sizeof(fstypenames) / sizeof(fstypenames[0]) - 1)
