@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.45 1996/07/27 03:23:41 dyson Exp $
+ *	$Id: kern_exec.c,v 1.46 1996/07/30 03:08:34 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -368,6 +368,7 @@ exec_new_vmspace(imgp)
 	if (vmspace->vm_shm)
 		shmexit(imgp->proc);
 	vm_map_remove(&vmspace->vm_map, 0, USRSTACK);
+	pmap_remove_pages(&vmspace->vm_pmap, 0, USRSTACK);
 
 	/* Allocate a new stack */
 	error = vm_map_find(&vmspace->vm_map, NULL, 0, (vm_offset_t *)&stack_addr,

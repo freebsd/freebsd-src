@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.39 1996/09/13 09:17:03 bde Exp $
+ * $Id: kern_exit.c,v 1.40 1996/10/04 23:43:12 julian Exp $
  */
 
 #include "opt_ktrace.h"
@@ -182,9 +182,12 @@ exit1(p, rv)
 	 * Can't free the entire vmspace as the kernel stack
 	 * may be mapped within that space also.
 	 */
-	if (vm->vm_refcnt == 1)
+	if (vm->vm_refcnt == 1) {
+		pmap_remove_pages(&vm->vm_pmap, VM_MIN_ADDRESS,
+		    VM_MAXUSER_ADDRESS);
 		(void) vm_map_remove(&vm->vm_map, VM_MIN_ADDRESS,
 		    VM_MAXUSER_ADDRESS);
+	}
 
 	if (SESS_LEADER(p)) {
 		register struct session *sp = p->p_session;
