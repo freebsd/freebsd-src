@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.80 1997/08/05 00:01:56 dyson Exp $
+ * $Id: vm_map.c,v 1.81 1997/08/05 01:32:52 dyson Exp $
  */
 
 /*
@@ -207,7 +207,6 @@ vmspace_alloc(min, max, pageable)
 
 void
 vm_init2(void) {
-	pmap_init2();
 	_zinit(kmapentzone, &kmapentobj,
 		NULL, 0, 4096, ZONE_INTERRUPT, 4);
 	_zinit(mapentzone, &mapentobj,
@@ -304,7 +303,7 @@ vm_map_entry_dispose(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
 {
-	zfreei((map->system_map || !mapentzone) ? kmapentzone : mapentzone, entry);
+	zfree((map->system_map || !mapentzone) ? kmapentzone : mapentzone, entry);
 }
 
 /*
@@ -317,7 +316,7 @@ static vm_map_entry_t
 vm_map_entry_create(map)
 	vm_map_t map;
 {
-	return zalloci((map->system_map || !mapentzone) ? kmapentzone : mapentzone);
+	return zalloc((map->system_map || !mapentzone) ? kmapentzone : mapentzone);
 }
 
 /*
