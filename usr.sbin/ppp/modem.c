@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.45 1998/04/06 09:12:33 brian Exp $
+ * $Id: modem.c,v 1.77.2.46 1998/04/10 13:19:13 brian Exp $
  *
  *  TODO:
  */
@@ -861,7 +861,7 @@ modem_ShowStatus(struct cmdargs const *arg)
       prompt_Printf(arg->prompt, " Physical outq:   %d\n", nb);
 #endif
 
-  prompt_Printf(arg->prompt, " Queued Packets:    %d\n",
+  prompt_Printf(arg->prompt, " Queued Packets:  %d\n",
                 link_QueueLen(&modem->link));
   prompt_Printf(arg->prompt, " Phone Number:    %s\n", arg->cx->phone.chosen);
 
