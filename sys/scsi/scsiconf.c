@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.19 1995/02/14 06:18:06 phk Exp $
+ *      $Id: scsiconf.c,v 1.20 1995/03/01 22:24:43 dufault Exp $
  */
 
 #include <sys/types.h>
@@ -309,15 +309,15 @@ errval scsi_probe_bus(int bus, int targ, int lun);
 
 /* XXX dufault@hda.com
  * This scsi_device doesn't have the scsi_data_size.
- * This is used during probe and used to be "probe_switch".
+ * This is used during probe.
  */
-struct scsi_device inval_switch =
+struct scsi_device probe_switch =
 {
     NULL,
     NULL,
     NULL,
     NULL,
-    "??",
+    "probe",
     0,
 	{0, 0},
     NULL,
@@ -470,7 +470,7 @@ scsi_init(void)
 /* Feel free to take this out when everyone is sure this config
  * code works well:
  */
-#define CONFIGD() printf(" config'd at ")
+#define CONFIGD() printf(" is configured at ")
 
 /* scsi_bus_conf: Figure out which bus this is.  If it is wired in config
  * use that.  Otherwise use the next free one.
@@ -519,7 +519,6 @@ scsi_assign_unit(struct scsi_link *sc_link)
 {
 	int i;
 	int found;
-	printf("%s", sc_link->device->name);
 	found = 0;
  	for (i = 0; scsi_dinit[i].name; i++) {
 		if ((strcmp(sc_link->device->name, scsi_dinit[i].name) == 0) &&
@@ -529,17 +528,18 @@ scsi_assign_unit(struct scsi_link *sc_link)
 		 (sc_link->lun == 0 && scsi_dinit[i].lun == SCCONF_UNSPEC)
 		) &&
 		sc_link->scsibus == scsi_dinit[i].cunit) {
-			CONFIGD();
 			sc_link->dev_unit = scsi_dinit[i].unit;
 			found = 1;
+#ifdef CONFIGD
+			printf("%s is configured at %d\n",
+			sc_link->device->name, sc_link->dev_unit);
+#endif
 			break;
 		}
 	}
 
 	if (!found)
 		sc_link->dev_unit = sc_link->device->free_unit++;
-
-	printf("%d: ", sc_link->dev_unit);
 
 	return sc_link->dev_unit;
 }
@@ -669,6 +669,7 @@ scsi_probe_bus(int bus, int targ, int lun)
 	struct scsidevs *bestmatch = NULL;
 	struct scsi_link *sc_link = NULL;
 	boolean maybe_more;
+	int type;
 
 	if ((bus < 0 ) || ( bus >= scbusses->nelem)) {
 		return ENXIO;
@@ -717,11 +718,11 @@ scsi_probe_bus(int bus, int targ, int lun)
 			}
 			*sc_link = *sc_link_proto;	/* struct copy */
 			sc_link->opennings = 1;
-			sc_link->device = &inval_switch;
+			sc_link->device = &probe_switch;
 			sc_link->target = targ;
 			sc_link->lun = lun;
 			sc_link->quirks = 0;
-			bestmatch = scsi_probedev(sc_link, &maybe_more);
+			bestmatch = scsi_probedev(sc_link, &maybe_more, &type);
 #ifdef NEW_SCSICONF
 			if (bestmatch) {
 			    sc_link->quirks = bestmatch->quirks;
@@ -732,7 +733,7 @@ scsi_probe_bus(int bus, int targ, int lun)
 			}
 #endif
 			if (bestmatch) {		/* FOUND */
-				sc_link->device = scsi_device_lookup(bestmatch->type);
+				sc_link->device = scsi_device_lookup(type);
 
 				(void)scsi_assign_unit(sc_link);
 				
@@ -777,9 +778,10 @@ scsi_link_get(bus, targ, lun)
  * entry.
  */
 struct scsidevs *
-scsi_probedev(sc_link, maybe_more)
+scsi_probedev(sc_link, maybe_more, type_p)
 	boolean *maybe_more;
 	struct scsi_link *sc_link;
+	int *type_p;
 {
 	u_int8  unit = sc_link->adapter_unit;
 	u_int8  target = sc_link->target;
@@ -916,35 +918,20 @@ scsi_probedev(sc_link, maybe_more)
 	manu[8] = 0;
 	model[16] = 0;
 	version[4] = 0;
-	printf("%s%d targ %d lun %d: type %ld(%s) %s SCSI%d\n"
-	    ,scsi_adapter->name
-	    ,unit
-	    ,target
-	    ,lu
+	sc_print_addr(sc_link);
+	printf("type %ld(%s) %s SCSI%d\n"
 	    ,type
 	    ,dtype
 	    ,remov ? "removable" : "fixed"
 	    ,inqbuf->version & SID_ANSII
 	    );
-	printf("%s%d targ %d lun %d: <%s%s%s>\n"
-	    ,scsi_adapter->name
-	    ,unit
-	    ,target
-	    ,lu
-	    ,manu
-	    ,model
-	    ,version
-	    );
+	sc_print_addr(sc_link);
+	printf("<%s%s%s>\n", manu, model, version );
 	if (qtype[0]) {
-		printf("%s%d targ %d lun %d: qualifier %ld(%s)\n"
-		    ,scsi_adapter->name
-		    ,unit
-		    ,target
-		    ,lu
-		    ,qualifier
-		    ,qtype
-		    );
+		sc_print_addr(sc_link);
+		printf("qualifier %ld(%s)\n" ,qualifier ,qtype);
 	}
+
 	/*
 	 * Try make as good a match as possible with
 	 * available sub drivers       
@@ -954,6 +941,15 @@ scsi_probedev(sc_link, maybe_more)
 	if ((bestmatch) && (bestmatch->flags & SC_MORE_LUS)) {
 		*maybe_more = 1;
 	}
+
+	/* If the device is unknown then we should be trying to look up a
+	 * type driver based on the inquiry type.
+	 */
+	if (bestmatch == &unknowndev)
+		*type_p = type;
+	else
+		*type_p = bestmatch->type;
+
 	return bestmatch;
 }
 
@@ -1102,9 +1098,6 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 	}
 #endif /* NEW_SCSICONF */
 	if (bestmatch == (struct scsidevs *) 0) {
-	/* XXX At this point we should default to a base type driver.
-	 */
-		printf("No explicit driver match.  Attaching as unknown.\n");
 		bestmatch = &unknowndev;
 	}
 	return (bestmatch);

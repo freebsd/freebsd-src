@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.17 1995/02/14 06:17:23 phk Exp $
+ *	$Id: scsiconf.h,v 1.18 1995/03/01 22:24:44 dufault Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -148,6 +148,9 @@ struct scsi_data;
 
 struct scsi_link;	/* scsi_link refers to scsi_device and vice-versa */
 struct scsi_xfer;
+
+struct proc;
+
 /*
  * These entry points are called by the low-end drivers to get services from
  * whatever high-end drivers they are attached to.  Each device type has one
@@ -172,17 +175,20 @@ struct scsi_device
 
 /* 36*/ int32	link_flags;		/* Flags OR'd into sc_link at attach time */
 /* 40*/ errval  (*attach)(struct scsi_link *sc_link);
-/* 44*/ int (*open)(dev_t dev, int flags);
-/* 48*/ int sizeof_scsi_data;
-/* 52*/ int type;					/* Type of device this supports */
-/* 56*/ int	(*getunit)(dev_t dev);
-/* 60*/ dev_t  (*setunit)(dev_t dev, int unit);
+/* 44*/ char	*desc;		/* Description of device */
+/* 48*/ int (*open)(dev_t dev, int flags, int fmt, struct proc *p);
+/* 52*/ int sizeof_scsi_data;
+/* 56*/ int type;					/* Type of device this supports */
+/* 60*/ int	(*getunit)(dev_t dev);
+/* 64*/ dev_t  (*setunit)(dev_t dev, int unit);
 
-/* 64*/ errval (*dev_open)(dev_t dev, int flags, struct scsi_link *sc_link);
-/* 68*/ errval (*dev_ioctl)(dev_t dev, int cmd, caddr_t arg, int mode,
+/* 68*/ int (*dev_open)(dev_t dev, int flags, int fmt, struct proc *p,
          struct scsi_link *sc_link);
-/* 72*/ errval (*dev_close)(dev_t dev, struct scsi_link *sc_link);
-/* 76*/ void (*dev_strategy)(struct buf *bp, struct scsi_link *sc_link);
+/* 72*/ int (*dev_ioctl)(dev_t dev, int cmd, caddr_t arg, int mode,
+         struct proc *p, struct scsi_link *sc_link);
+/* 76*/ int (*dev_close)(dev_t dev, int flag, int fmt, struct proc *p,
+         struct scsi_link *sc_link);
+/* 80*/ void (*dev_strategy)(struct buf *bp, struct scsi_link *sc_link);
 
 	/* Not initialized after this */
 
@@ -212,17 +218,17 @@ void NAME##init(void)	\
 {	\
 	scsi_device_register(&NAME##_switch);	\
 }	\
-errval NAME##open(dev_t dev, int flags)	\
+int NAME##open(dev_t dev, int flags, int fmt, struct proc *p)	\
 {	\
-	return scsi_open(dev, flags, &NAME##_switch);	\
+	return scsi_open(dev, flags, fmt, p, &NAME##_switch);	\
 }	\
-errval NAME##ioctl(dev_t dev, int cmd, caddr_t addr, int flag)	\
+int NAME##ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p) \
 {	\
-	return scsi_ioctl(dev, cmd, addr, flag, &NAME##_switch);	\
+	return scsi_ioctl(dev, cmd, addr, flag, p, &NAME##_switch);	\
 }	\
-errval NAME##close(dev_t dev)	\
+int NAME##close(dev_t dev, int flag, int fmt, struct proc *p)	\
 {	\
-	return scsi_close(dev, &NAME##_switch);	\
+	return scsi_close(dev, flag, fmt, p, &NAME##_switch);	\
 }	\
 void NAME##minphys(struct buf *bp)	\
 {	\
@@ -439,7 +445,8 @@ char * scsi_type_name(int type);
 void scsi_attachdevs __P((struct scsi_link *sc_link_proto));
 struct scsi_xfer *get_xs( struct scsi_link *sc_link, u_int32 flags);
 void free_xs(struct scsi_xfer *xs, struct scsi_link *sc_link,u_int32 flags);
-u_int32 scsi_size( struct scsi_link *sc_link,u_int32 flags);
+u_int32 scsi_read_capacity __P(( struct scsi_link *sc_link,
+	u_int32 *blk_size, u_int32 flags));
 errval scsi_test_unit_ready( struct scsi_link *sc_link, u_int32 flags);
 errval scsi_change_def( struct scsi_link *sc_link, u_int32 flags);
 errval scsi_inquire( struct scsi_link *sc_link,
@@ -453,11 +460,12 @@ errval scsi_scsi_cmd( struct scsi_link *sc_link, struct scsi_generic *scsi_cmd,
 			u_int32 datalen, u_int32 retries,
 			u_int32 timeout, struct buf *bp,
 			u_int32 flags);
-errval	scsi_do_ioctl __P((dev_t dev,
-			int cmd, caddr_t addr, int f, struct scsi_link *sc_link));
+int	scsi_do_ioctl __P((dev_t dev, int cmd, caddr_t addr, int mode,
+        struct proc *p, struct scsi_link *sc_link));
 
 struct scsi_link *scsi_link_get __P((int bus, int targ, int lun));
-dev_t scsi_dev_lookup __P((int (*opener)(dev_t dev, int flags)));
+dev_t scsi_dev_lookup __P((int (*opener)(dev_t dev, int flags, int fmt,
+struct proc *p)));
 
 int scsi_opened_ok __P((dev_t dev, int flag, int type, struct scsi_link *sc_link));
 
@@ -469,6 +477,10 @@ void show_mem(unsigned char * , u_int32);
 void	scsi_uto3b __P((u_int32 val, u_char *bytes));
 u_int32	scsi_3btou __P((u_char *bytes));
 int32	scsi_3btoi __P((u_char *bytes));
+void	scsi_uto4b __P((u_int32 val, u_char *bytes));
+u_int32	scsi_4btou __P((u_char *bytes));
+void	scsi_uto2b __P((u_int32 val, u_char *bytes));
+u_int32	scsi_2btou __P((u_char *bytes));
 
 extern void sc_print_addr(struct scsi_link *);
 
@@ -560,10 +572,6 @@ extern struct kern_devconf kdc_scbus0; /* XXX should go away */
 #define CDUNITSHIFT          3
 #define CDUNIT(DEV)         SH3_UNIT(DEV)
 #define CDSETUNIT(DEV, U)   SH3SETUNIT((DEV), (U))
-
-#define SDUNITSHIFT          3
-#define SDUNIT(DEV)         SH3_UNIT(DEV)
-#define SDSETUNIT(DEV, U)   SH3SETUNIT((DEV), (U))
 
 #define CHUNIT(DEV)         SH4_UNIT(DEV)
 #define CHSETUNIT(DEV, U)   SH4SETUNIT((DEV), (U))
