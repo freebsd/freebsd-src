@@ -616,7 +616,6 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = td;
 
-	VOP_LEASE(backing_vnode, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(backing_vnode, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
 	error = VOP_READ(backing_vnode, &auio, IO_NODELOCKED,
 	    ump->um_extattr.uepm_ucred);
@@ -874,9 +873,7 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 	
 	/*
 	 * Acquire locks.
-	 */
-	VOP_LEASE(attribute->uele_backing_vnode, td, cred, LEASE_READ);
-	/*
+	 *
 	 * Don't need to get a lock on the backing file if the getattr is
 	 * being applied to the backing file, as the lock is already held.
 	 */
@@ -1086,10 +1083,7 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 
 	/*
 	 * Acquire locks.
-	 */
-	VOP_LEASE(attribute->uele_backing_vnode, td, cred, LEASE_WRITE);
-
-	/*
+	 *
 	 * Don't need to get a lock on the backing file if the setattr is
 	 * being applied to the backing file, as the lock is already held.
 	 */
@@ -1185,8 +1179,6 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 	local_aio.uio_td = td;
 	local_aio.uio_offset = base_offset;
 	local_aio.uio_resid = sizeof(struct ufs_extattr_header);
-
-	VOP_LEASE(attribute->uele_backing_vnode, td, cred, LEASE_WRITE);
 
 	/*
 	 * Don't need to get the lock on the backing vnode if the vnode we're
