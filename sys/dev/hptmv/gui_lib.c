@@ -45,7 +45,7 @@
 #include <dev/hptmv/global.h>
 #include <dev/hptmv/hptintf.h>
 #include <dev/hptmv/osbsd.h>
-#include <contrib/dev/hptmv/access601.h>
+#include <dev/hptmv/access601.h>
 
 static int hpt_get_driver_capabilities(PDRIVER_CAPABILITIES cap);
 static int hpt_get_controller_count(void);
