@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1994, 1995 Free Software Foundation, Inc.
+Copyright (C) 1994-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -36,6 +36,10 @@ hpftodit \- create font description files for use with groff \-Tlj4
 .I tfm_file
 .I map_file
 .I font
+.PP
+It is possible to have whitespace between the
+.B \-i
+command line option and its parameter.
 .SH DESCRIPTION
 .B hpftodit
 creates a font file for use with

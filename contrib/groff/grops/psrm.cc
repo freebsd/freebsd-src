@@ -51,6 +51,29 @@ const char *resource_table[] = {
 
 const int NRESOURCES = sizeof(resource_table)/sizeof(resource_table[0]);
 
+static int read_uint_arg(const char **pp, unsigned *res)
+{
+  while (white_space(**pp))
+    *pp += 1;
+  if (**pp == '\0') {
+    error("missing argument");
+    return 0;
+  }
+  const char *start = *pp;
+  // XXX use strtoul
+  long n = strtol(start, (char **)pp, 10);
+  if (n == 0 && *pp == start) {
+    error("not an integer");
+    return 0;
+  }
+  if (n < 0) {
+    error("argument must not be negative");
+    return 0;
+  }
+  *res = unsigned(n);
+  return 1;
+}
+
 struct resource {
   resource *next;
   resource_type type;
@@ -67,7 +90,7 @@ struct resource {
 };
 
 resource::resource(resource_type t, string &n, string &v, unsigned r)
-: type(t), revision(r), flags (0), filename(0), rank(-1), next(0)
+: next(0), type(t), flags(0), revision(r), filename(0), rank(-1)
 {
   name.move(n);
   version.move(v);
@@ -96,14 +119,18 @@ void resource::print_type_and_name(FILE *outfp)
 }
 
 resource_manager::resource_manager()
-: resource_list(0), extensions(0), language_level(0)
+: extensions(0), language_level(0), resource_list(0)
 {
   read_download_file();
   string procset_name("grops");
   extern const char *version_string;
+  extern const char *revision_string;
+  unsigned revision_uint;
+  if ( !read_uint_arg( &revision_string, &revision_uint) )
+	  revision_uint = 0;
   string procset_version(version_string);
   procset_resource = lookup_resource(RESOURCE_PROCSET, procset_name,
-				     procset_version, 0);
+				     procset_version, revision_uint);
   procset_resource->flags |= resource::SUPPLIED;
 }
 
@@ -450,29 +477,6 @@ static int read_text_arg(const char **pp, string &res)
   return 1;
 }
 
-static int read_uint_arg(const char **pp, unsigned *res)
-{
-  while (white_space(**pp))
-    *pp += 1;
-  if (**pp == '\0') {
-    error("missing argument");
-    return 0;
-  }
-  const char *start = *pp;
-  // XXX use strtoul
-  long n = strtol(start, (char **)pp, 10);
-  if (n == 0 && *pp == start) {
-    error("not an integer");
-    return 0;
-  }
-  if (n < 0) {
-    error("argument must not be negative");
-    return 0;
-  }
-  *res = unsigned(n);
-  return 1;
-}
-
 resource *resource_manager::read_file_arg(const char **ptr)
 {
   string arg;
@@ -695,7 +699,7 @@ int read_one_of(const char **ptr, const char **s, int n)
     return -1;
   const char *start = *ptr;
   do {
-    ++ptr;
+    ++(*ptr);
   } while (**ptr != '\0' && !white_space(**ptr));
   for (int i = 0; i < n; i++)
     if (strlen(s[i]) == *ptr - start
@@ -940,13 +944,13 @@ void resource_manager::process_file(int rank, FILE *fp, const char *filename,
 	  const char *ptr;
 	  int i;
 	  for (i = 0; i < NCOMMENTS; i++)
-	    if (ptr = matches_comment(buf, comment_table[i].name)) {
+	    if ((ptr = matches_comment(buf, comment_table[i].name))) {
 	      copy_this_line
 		= (this->*(comment_table[i].proc))(ptr, rank, fp, outfp);
 	      break;
 	    }
 	  if (i >= NCOMMENTS && in_header) {
-	    if (ptr = matches_comment(buf, "EndComments"))
+	    if ((ptr = matches_comment(buf, "EndComments")))
 	      in_header = 0;
 	    else if (!had_extensions_comment
 		     && (ptr = matches_comment(buf, "Extensions:"))) {

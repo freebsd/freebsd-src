@@ -440,7 +440,7 @@ node *copy_node_list(node *);
 int get_bold_fontno(int f);
 
 inline hyphen_list::hyphen_list(unsigned char code, hyphen_list *p)
-: hyphenation_code(code), next(p), hyphen(0), breakable(0)
+: hyphen(0), breakable(0), hyphenation_code(code), next(p)
 {
 }
 
@@ -466,6 +466,7 @@ public:
   virtual void begin_page(int pageno, vunits page_length) = 0;
   virtual void copy_file(hunits x, vunits y, const char *filename) = 0;
   virtual int is_printing() = 0;
+  virtual void put_filename (const char *filename);
 #ifdef COLUMN
   virtual void vjustify(vunits, symbol);
 #endif /* COLUMN */

@@ -1,6 +1,10 @@
 # Makefile.cpg
-MAKEFILEPARTS=$(srcdir)/../Makefile.comm ../Makefile.cfg \
-  $(srcdir)/Makefile.sub $(srcdir)/../Makefile.cpg $(srcdir)/Makefile.dep
+MAKEFILEPARTS=\
+  $(top_srcdir)/Makefile.comm \
+  $(top_builddir)/Makefile.cfg \
+  $(srcdir)/Makefile.sub \
+  $(top_srcdir)/Makefile.cpg \
+  Makefile.dep
 
 all: $(PROG) $(MANPAGES)
 
@@ -18,3 +22,6 @@ distfiles: $(YTABC)
 TAGS: TAGS_src
 TAGS_src: $(CCSRCS) $(CSRCS) $(GRAM) $(HDRS)
 Makefile: $(MAKEFILEPARTS)
+Makefile.dep:
+	touch Makefile.dep
+$(MANPAGES): $(top_srcdir)/VERSION $(top_srcdir)/REVISION

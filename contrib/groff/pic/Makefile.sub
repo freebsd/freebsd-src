@@ -2,10 +2,30 @@ PROG=pic
 MAN1=pic.n
 XLIBS=$(LIBGROFF)
 MLIB=$(LIBM)
-OBJS=pic.o lex.o main.o object.o common.o troff.o tex.o # fig.o 
-CCSRCS=lex.cc main.cc object.cc common.cc troff.cc tex.cc
-HDRS=common.h object.h output.h pic.h position.h text.h
-GRAM=pic.y
-YTABC=pic.cc
-YTABH=pic.tab.h
+OBJS=\
+  pic.o \
+  lex.o \
+  main.o \
+  object.o \
+  common.o \
+  troff.o \
+  tex.o
+  # fig.o 
+CCSRCS=\
+  $(srcdir)/lex.cc \
+  $(srcdir)/main.cc \
+  $(srcdir)/object.cc \
+  $(srcdir)/common.cc \
+  $(srcdir)/troff.cc \
+  $(srcdir)/tex.cc
+HDRS=\
+  $(srcdir)/common.h \
+  $(srcdir)/object.h \
+  $(srcdir)/output.h \
+  $(srcdir)/pic.h \
+  $(srcdir)/position.h \
+  $(srcdir)/text.h
+GRAM=$(srcdir)/pic.y
+YTABC=$(srcdir)/pic.cc
+YTABH=$(srcdir)/pic_tab.h
 NAMEPREFIX=$(g)

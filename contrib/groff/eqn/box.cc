@@ -264,7 +264,7 @@ void set_script_size()
 
 int box::next_uid = 0;
 
-box::box() : uid(next_uid++), spacing_type(ORDINARY_TYPE)
+box::box() : spacing_type(ORDINARY_TYPE), uid(next_uid++)
 {
 }
 

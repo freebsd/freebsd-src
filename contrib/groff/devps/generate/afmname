@@ -4,7 +4,7 @@ if test -f "$1"
 then
 	echo "$1"
 else
-	echo `dirname $1`/`basename $1 .afm | awk -e '
+	echo `dirname $1`/`basename $1 .afm | awk '
 /^AvantGarde-Book$/ { print "avangbk" }
 /^AvantGarde-BookOblique$/ { print "avangbko" }
 /^AvantGarde-Demi$/ { print "avangd" }

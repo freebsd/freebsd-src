@@ -165,7 +165,7 @@ void box::set_spacing_type(char *type)
 }
 
 char_box::char_box(unsigned char cc)
-: c(cc), prev_is_italic(0), next_is_italic(0)
+: c(cc), next_is_italic(0), prev_is_italic(0)
 {
   spacing_type = char_table[c].spacing_type;
 }

@@ -51,7 +51,7 @@ const char *reference_types[] = {
 static string temp_fields[256];
 
 reference::reference(const char *start, int len, reference_id *ridp)
-: no(-1), field(0), nfields(0), h(0), merged(0), label_ptr(0),
+: h(0), merged(0), no(-1), field(0), nfields(0), label_ptr(0),
   computed_authors(0), last_needed_author(-1), nauthors(-1)
 {
   int i;

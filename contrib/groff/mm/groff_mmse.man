@@ -1,5 +1,5 @@
 .\"
-.\" $Id: groff_mmse.man,v 1.32 1999/09/03 05:33:12 jh Exp $
+.\" $Id: groff_mmse.man,v 1.2 2000/02/21 20:32:58 jhaegg Exp $
 .\" Skrivet av Jörgen Hägg, Lund, Sverige
 .\"
 .TH GROFF_MMSE @MAN7EXT@ "@MDATE@" "Groff Version @VERSION@"
@@ -7,7 +7,7 @@
 groff_mmse \- svenska mm makro för groff
 .SH SYNTAX
 .B groff
-.B \-m@TMAC_M@se
+.B \-m@TMAC_M_PREFIX@mse
 [
 .IR flaggor .\|.\|.
 ]
@@ -15,7 +15,7 @@ groff_mmse \- svenska mm makro för groff
 .IR filer .\|.\|.
 ]
 .SH BESKRIVNING
-\fBm@TMAC_M@se\fP är en svensk variant av \fBm@TMAC_M@\fP. Alla texter
+\fBm@TMAC_M_PREFIX@mse\fP är en svensk variant av \fBm@TMAC_M_PREFIX@m\fP. Alla texter
 är översatta. En A4 sida får text som är 13 cm bred, 3.5 cm indragning
 samt är 28.5 cm hög.
 Det finns stöd för brevuppställning enligt svensk standard
@@ -70,7 +70,7 @@ Där lägger man lämpligen in postadress och annat som brevfot.
 .SH "SKRIVET AV"
 Jörgen Hägg, Lund, Sweden <Jorgen.Hagg@axis.se>
 .SH FILER
-.B @MACRODIR@/tmac.@TMAC_M@se
+.B @MACRODIR@/tmac.@TMAC_M_PREFIX@mse
 .B @TMAC_MDIR@/se_*.cov
 .SH "SE OCKSÅ"
 .BR groff (@MAN1EXT@),
@@ -79,4 +79,4 @@ Jörgen Hägg, Lund, Sweden <Jorgen.Hagg@axis.se>
 .BR @g@pic (@MAN1EXT@),
 .BR @g@eqn (@MAN1EXT@)
 .br
-.BR m@TMAC_M@ (@MAN7EXT@)
+.BR m@TMAC_M_PREFIX@m (@MAN7EXT@)

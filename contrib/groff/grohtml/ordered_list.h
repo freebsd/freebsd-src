@@ -9,11 +9,11 @@
 template <class T> class list_element
 {
  public:
-  list_element *right;
-  list_element *left;
+  list_element<T> *right;
+  list_element<T> *left;
 
-                list_element (T *in);
-  T            *data;
+                   list_element (T *in);
+  T               *data;
 };
 
 template <class T> class ordered_list

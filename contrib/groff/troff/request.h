@@ -73,8 +73,6 @@ extern void init_env_requests();
 extern void init_hyphen_requests();
 extern void init_request(const char *s, REQUEST_FUNCP f);
 
-extern int no_break_flag;	// indicates whether request was invoked with . or '
-
 class charinfo;
 class environment;
 

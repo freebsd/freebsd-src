@@ -12,8 +12,8 @@
 .char \(ul \v'.25m'\D'l .5m 0'\v'-.25m'
 .char \(br \v'.25m'\D'l 0 -1m'\v'.75m'
 .char \(rn \v'-.75m'\D'l .5m 0'\v'.75m'
-.char ~ \v'-.55m'\\s[\\n(.s/2u]\v'.2m'\(ti\v'-.2m'\s0\v'.55m'
-.char ^ \v'-.55m'\\s[\\n(.s/2u]\v'.3m'\(ha\v'-.3m'\s0\v'.55m'
+.\" .char ~ \v'-.55m'\\s[\\n(.s/2u]\v'.2m'\(ti\v'-.2m'\s0\v'.55m'
+.\" .char ^ \v'-.55m'\\s[\\n(.s/2u]\v'.3m'\(ha\v'-.3m'\s0\v'.55m'
 .if !c\(va .char \(va \o'\(ua\(da'
 .if !c\(em .char \(em --
 .if !c\(en .char \(en \-
@@ -56,3 +56,5 @@
 .\" it doesn't make sense to use hyphenation with html, so we turn it off.
 .hy 0
 .nr HY 0
+.\" avoid line breaks after hyphen-like characters.
+.cflags 0 -\(hy\(em\(en\[shc]

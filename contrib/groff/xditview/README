@@ -1,7 +1,7 @@
 This is gxditview, a X11 previewer for groff based on MIT's xditview.
 This version can be used with the output of gtroff -Tps as well as
-with -TX75 and -TX100.  You will need X11R5 to install it (it might
-work on X11R4, but I haven't tested it.)
+with -TX75 and -TX100.  You will need X11R5 or newer to install it (it
+might work on X11R4, but I haven't tested it.)
 
 See the file INSTALL in this directory for installation instructions.
 
