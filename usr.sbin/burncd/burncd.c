@@ -174,7 +174,7 @@ main(int argc, char **argv)
         		err(EX_IOERR, "ioctl(CDRIOCCLOSETRACK)");
 	}
 
-	if (ioctl(fd, CDRIOCGETBLOCKSIZE, &saved_block_size) < 0) 
+	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &saved_block_size) < 0) 
        		err(EX_IOERR, "ioctl(CDRIOCGETBLOCKSIZE)");
 
 	if (eject)
