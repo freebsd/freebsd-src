@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_vnops.c,v 1.8 1995/04/09 06:03:42 davidg Exp $
+ * $Id: lfs_vnops.c,v 1.9 1995/05/30 08:15:27 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -388,10 +388,10 @@ lfs_link(ap)
 {
 	int ret;
 
-	SET_DIROP(VTOI(ap->a_vp)->i_lfs);
-	MARK_VNODE(ap->a_vp);
+	SET_DIROP(VTOI(ap->a_tdvp)->i_lfs);
+	MARK_VNODE(ap->a_tdvp);
 	ret = ufs_link(ap);
-	SET_ENDOP(VTOI(ap->a_vp)->i_lfs);
+	SET_ENDOP(VTOI(ap->a_tdvp)->i_lfs);
 	return (ret);
 }
 
