@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.81 1999/07/25 01:20:36 hosokawa Exp $
+ *  $Id: if_ep.c,v 1.82 1999/08/18 06:11:58 mdodd Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -76,7 +76,11 @@
 #include <sys/select.h>
 #endif
 
+#include <net/ethernet.h>
 #include <net/if.h>
+
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
 
 #if NBPF > 0
 #include <net/bpf.h>
@@ -1211,7 +1215,6 @@ epioctl(ifp, cmd, data)
     caddr_t data;
 {
     struct ep_softc *sc = ifp->if_softc;
-    struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
 
     s = splimp();
@@ -1220,7 +1223,7 @@ epioctl(ifp, cmd, data)
       case SIOCSIFADDR:
       case SIOCGIFADDR:
       case SIOCSIFMTU:
-        error = ether_ioctl(ifp, command, data);
+        error = ether_ioctl(ifp, cmd, data);
         break;
 
       case SIOCSIFFLAGS:
