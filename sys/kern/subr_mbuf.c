@@ -1,6 +1,6 @@
-/*
+/*-
  * Copyright (c) 2001
- * 	Bosko Milekic <bmilekic@FreeBSD.org>. All rights reserved.
+ * 	Bosko Milekic <bmilekic@FreeBSD.org>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,6 +41,7 @@
 #include <sys/sysctl.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
@@ -50,18 +51,18 @@
  * explicitly define MBALLOC_NCPU to be exactly the number of CPUs on your
  * system during compilation, and thus prevent kernel structure bloat.
  *
- * SMP and non-SMP kernels clearly have a different number of possible cpus,
+ * SMP and non-SMP kernels clearly have a different number of possible CPUs,
  * but because we cannot assume a dense array of CPUs, we always allocate
  * and traverse PCPU containers up to NCPU amount and merely check for
  * CPU availability.
  */
-#ifdef	MBALLOC_NCPU
+#ifdef MBALLOC_NCPU
 #define	NCPU	MBALLOC_NCPU
 #else
 #define	NCPU	MAXCPU
 #endif
 
-/*
+/*-
  * The mbuf allocator is heavily based on Alfred Perlstein's
  * (alfred@FreeBSD.org) "memcache" allocator which is itself based
  * on concepts from several per-CPU memory allocators. The difference
@@ -84,43 +85,42 @@
  * are kept together, thus trying to put the TLB cache to good use.
  *
  * The buckets are kept on singly-linked lists called "containers." A container
- * is protected by a mutex lock in order to ensure consistency. The mutex lock
+ * is protected by a mutex lock in order to ensure consistency.  The mutex lock
  * itself is allocated seperately and attached to the container at boot time,
- * thus allowing for certain containers to share the same mutex lock. Per-CPU
+ * thus allowing for certain containers to share the same mutex lock.  Per-CPU
  * containers for mbufs and mbuf clusters all share the same per-CPU
- * lock whereas the "general system" containers (i.e. the "main lists") for
+ * lock whereas the "general system" containers (i.e., the "main lists") for
  * these objects share one global lock.
- *
  */
 struct mb_bucket {
-	SLIST_ENTRY(mb_bucket)	mb_blist;
-	int 			mb_owner;
-	int			mb_numfree;
-	void 			*mb_free[0];
+	SLIST_ENTRY(mb_bucket) mb_blist;
+	int 	mb_owner;
+	int	mb_numfree;
+	void 	*mb_free[0];
 };
 
 struct mb_container {
-	SLIST_HEAD(mc_buckethd, mb_bucket)	mc_bhead;
-	struct	mtx				*mc_lock;
-	int					mc_numowner;
-	u_int					mc_starved;
-	long					*mc_types;
-	u_long					*mc_objcount;
-	u_long					*mc_numpgs;
+	SLIST_HEAD(mc_buckethd, mb_bucket) mc_bhead;
+	struct	mtx *mc_lock;
+	int	mc_numowner;
+	u_int	mc_starved;
+	long	*mc_types;
+	u_long	*mc_objcount;
+	u_long	*mc_numpgs;
 };
 
 struct mb_gen_list {
-	struct	mb_container	mb_cont;
-	struct	cv		mgl_mstarved;
+	struct	mb_container mb_cont;
+	struct	cv mgl_mstarved;
 };
 
 struct mb_pcpu_list {
-	struct	mb_container	mb_cont;
+	struct	mb_container mb_cont;
 };
 
 /*
  * Boot-time configurable object counts that will determine the maximum
- * number of permitted objects in the mbuf and mcluster cases. In the
+ * number of permitted objects in the mbuf and mcluster cases.  In the
  * ext counter (nmbcnt) case, it's just an indicator serving to scale
  * kmem_map size properly - in other words, we may be allowed to allocate
  * more than nmbcnt counters, whereas we will never be allowed to allocate
@@ -131,13 +131,13 @@ struct mb_pcpu_list {
 #ifndef NMBCLUSTERS
 #define	NMBCLUSTERS	(1024 + maxusers * 64)
 #endif
-#ifndef	NMBUFS
+#ifndef NMBUFS
 #define	NMBUFS		(nmbclusters * 2)
 #endif
-#ifndef	NSFBUFS
+#ifndef NSFBUFS
 #define	NSFBUFS		(512 + maxusers * 16)
 #endif
-#ifndef	NMBCNTS
+#ifndef NMBCNTS
 #define	NMBCNTS		(nmbclusters + nsfbufs)
 #endif
 int	nmbufs;
@@ -168,57 +168,56 @@ tunable_mbinit(void *dummy)
 		nmbufs = nmbclusters * 2;
 	if (nmbcnt < nmbclusters + nsfbufs)
 		nmbcnt = nmbclusters + nsfbufs;
-
-	return;
 }
 SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_ANY, tunable_mbinit, NULL);
 
 /*
- * The freelist structures and mutex locks. The number statically declared
+ * The freelist structures and mutex locks.  The number statically declared
  * here depends on the number of CPUs.
  *
- * We setup in such a way that all the objects (mbufs, clusters)
- * share the same mutex lock. It has been established that we do not benefit
+ * We set up in such a way that all the objects (mbufs, clusters)
+ * share the same mutex lock.  It has been established that we do not benefit
  * from different locks for different objects, so we use the same lock,
  * regardless of object type.
  */
 struct mb_lstmngr {
-	struct	mb_gen_list	*ml_genlist;
-	struct	mb_pcpu_list	*ml_cntlst[NCPU];
-	struct	mb_bucket	**ml_btable;
-	vm_map_t		ml_map;
-	vm_offset_t		ml_mapbase;
-	vm_offset_t		ml_maptop;
-	int			ml_mapfull;
-	u_int			ml_objsize;
-	u_int			*ml_wmhigh;
+	struct mb_gen_list *ml_genlist;
+	struct mb_pcpu_list *ml_cntlst[NCPU];
+	struct mb_bucket **ml_btable;
+	vm_map_t	ml_map;
+	vm_offset_t	ml_mapbase;
+	vm_offset_t	ml_maptop;
+	int		ml_mapfull;
+	u_int		ml_objsize;
+	u_int		*ml_wmhigh;
 };
-struct	mb_lstmngr	mb_list_mbuf, mb_list_clust;
-struct	mtx		mbuf_gen, mbuf_pcpu[NCPU];
+static struct mb_lstmngr mb_list_mbuf, mb_list_clust;
+static struct mtx mbuf_gen, mbuf_pcpu[NCPU];
 
 /*
  * Local macros for internal allocator structure manipulations.
  */
 #ifdef SMP
-#define	MB_GET_PCPU_LIST(mb_lst)	  (mb_lst)->ml_cntlst[PCPU_GET(cpuid)]
+#define	MB_GET_PCPU_LIST(mb_lst)	(mb_lst)->ml_cntlst[PCPU_GET(cpuid)]
 #else
-#define	MB_GET_PCPU_LIST(mb_lst)	  (mb_lst)->ml_cntlst[0]
+#define	MB_GET_PCPU_LIST(mb_lst)	(mb_lst)->ml_cntlst[0]
 #endif
 
-#define	MB_GET_PCPU_LIST_NUM(mb_lst, num) (mb_lst)->ml_cntlst[(num)]
+#define	MB_GET_GEN_LIST(mb_lst)		(mb_lst)->ml_genlist
 
-#define	MB_GET_GEN_LIST(mb_lst)		  (mb_lst)->ml_genlist
+#define	MB_LOCK_CONT(mb_cnt)		mtx_lock((mb_cnt)->mb_cont.mc_lock)
 
-#define	MB_LOCK_CONT(mb_cnt)	 	  mtx_lock((mb_cnt)->mb_cont.mc_lock)
+#define	MB_UNLOCK_CONT(mb_cnt)		mtx_unlock((mb_cnt)->mb_cont.mc_lock)
 
-#define	MB_UNLOCK_CONT(mb_cnt)		  mtx_unlock((mb_cnt)->mb_cont.mc_lock)
+#define	MB_GET_PCPU_LIST_NUM(mb_lst, num)				\
+    (mb_lst)->ml_cntlst[(num)]
 
 #define	MB_BUCKET_INDX(mb_obj, mb_lst)					\
     (int)(((caddr_t)(mb_obj) - (caddr_t)(mb_lst)->ml_mapbase) / PAGE_SIZE)
 
 #define	MB_GET_OBJECT(mb_objp, mb_bckt, mb_lst)				\
 {									\
-	struct	mc_buckethd	*_mchd = &((mb_lst)->mb_cont.mc_bhead);	\
+	struct mc_buckethd *_mchd = &((mb_lst)->mb_cont.mc_bhead);	\
 									\
 	(mb_bckt)->mb_numfree--;					\
 	(mb_objp) = (mb_bckt)->mb_free[((mb_bckt)->mb_numfree)];	\
@@ -244,24 +243,29 @@ struct	mtx		mbuf_gen, mbuf_pcpu[NCPU];
 	    (*((mb_cnt)->mb_cont.mc_types + (mb_type))) -= (mb_num)
 
 /*
- * Ownership of buckets/containers is represented by integers. The PCPU
- * lists range from 0 to NCPU-1. We need a free numerical id for the general
- * list (we use NCPU). We also need a non-conflicting free bit to indicate
+ * Ownership of buckets/containers is represented by integers.  The PCPU
+ * lists range from 0 to NCPU-1.  We need a free numerical id for the general
+ * list (we use NCPU).  We also need a non-conflicting free bit to indicate
  * that the bucket is free and removed from a container, while not losing
- * the bucket's originating container id. We use the highest bit
+ * the bucket's originating container id.  We use the highest bit
  * for the free marker.
  */
 #define	MB_GENLIST_OWNER	(NCPU)
 #define	MB_BUCKET_FREE		(1 << (sizeof(int) * 8 - 1))
 
+/* Statistics structures for allocator (per-CPU and general). */
+static struct mbpstat mb_statpcpu[NCPU + 1];
+struct mbstat mbstat;
+
+/* Sleep time for wait code (in ticks). */
+static int mbuf_wait = 64;
+
+static u_int mbuf_limit = 512;	/* Upper limit on # of mbufs per CPU. */
+static u_int clust_limit = 128;	/* Upper limit on # of clusters per CPU. */
+
 /*
- * sysctl(8) exported objects
+ * Objects exported by sysctl(8).
  */
-struct	mbstat	mbstat;			/* General stats + infos. */
-struct	mbpstat	mb_statpcpu[NCPU+1];	/* PCPU + Gen. container alloc stats */
-int		mbuf_wait = 	64;	/* Sleep time for wait code (ticks) */
-u_int		mbuf_limit = 	512;	/* Upper lim. on # of mbufs per CPU */
-u_int		clust_limit = 	128;	/* Upper lim. on # of clusts per CPU */
 SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbclusters, CTLFLAG_RD, &nmbclusters, 0, 
     "Maximum number of mbuf clusters available");
@@ -285,16 +289,14 @@ SYSCTL_OPAQUE(_kern_ipc, OID_AUTO, mb_statpcpu, CTLFLAG_RD, mb_statpcpu,
 /*
  * Prototypes of local allocator routines.
  */
-static __inline	void	*mb_alloc(struct mb_lstmngr *, int, short);
-void			*mb_alloc_wait(struct mb_lstmngr *, short);
-static __inline	void	 mb_free(struct mb_lstmngr *, void *, short);
-static	void		 mbuf_init(void *);
-struct	mb_bucket	*mb_pop_cont(struct mb_lstmngr *, int,
+static void		*mb_alloc_wait(struct mb_lstmngr *, short);
+static struct mb_bucket	*mb_pop_cont(struct mb_lstmngr *, int,
 			    struct mb_pcpu_list *);
-void			 mb_reclaim(void);
+static void		 mb_reclaim(void);
+static void		 mbuf_init(void *);
 
 /*
- * Initial allocation numbers. Each parameter represents the number of buckets
+ * Initial allocation numbers.  Each parameter represents the number of buckets
  * of each object that will be placed initially in each PCPU container for
  * said object.
  */
@@ -309,7 +311,7 @@ void			 mb_reclaim(void);
  * allocations, due to fear of one type of allocation "stealing" address
  * space initially reserved for another.
  *
- * Setup both the general containers and all the PCPU containers. Populate
+ * Set up both the general containers and all the PCPU containers.  Populate
  * the PCPU containers with initial numbers.
  */
 MALLOC_DEFINE(M_MBUF, "mbufmgr", "mbuf subsystem management structures");
@@ -317,12 +319,12 @@ SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL)
 void
 mbuf_init(void *dummy)
 {
-	struct	mb_pcpu_list	*pcpu_cnt;
-	vm_size_t		mb_map_size;
-	int			i, j;
+	struct mb_pcpu_list *pcpu_cnt;
+	vm_size_t mb_map_size;
+	int i, j;
 
 	/*
-	 * Setup all the submaps, for each type of object that we deal
+	 * Set up all the submaps, for each type of object that we deal
 	 * with in this allocator.
 	 */
 	mb_map_size = (vm_size_t)(nmbufs * MSIZE);
@@ -350,7 +352,7 @@ mbuf_init(void *dummy)
 	mb_list_clust.ml_objsize = MCLBYTES;
 	mb_list_clust.ml_wmhigh = &clust_limit;
 
-	/* XXX XXX XXX: mbuf_map->system_map = clust_map->system_map = 1 */
+	/* XXX XXX XXX: mbuf_map->system_map = clust_map->system_map = 1. */
 
 	/*
 	 * Allocate required general (global) containers for each object type.
@@ -374,7 +376,7 @@ mbuf_init(void *dummy)
 	    mb_list_clust.ml_genlist->mb_cont.mc_lock = &mbuf_gen;
 
 	/*
-	 * Setup the general containers for each object.
+	 * Set up the general containers for each object.
 	 */
 	mb_list_mbuf.ml_genlist->mb_cont.mc_numowner =
 	    mb_list_clust.ml_genlist->mb_cont.mc_numowner = MB_GENLIST_OWNER;
@@ -395,7 +397,7 @@ mbuf_init(void *dummy)
 	SLIST_INIT(&(mb_list_clust.ml_genlist->mb_cont.mc_bhead));
 
 	/*
-	 * Initialize general mbuf statistics
+	 * Initialize general mbuf statistics.
 	 */
 	mbstat.m_msize = MSIZE;
 	mbstat.m_mclbytes = MCLBYTES;
@@ -472,26 +474,26 @@ bad:
 
 /*
  * Populate a given mbuf PCPU container with a bucket full of fresh new
- * buffers. Return a pointer to the new bucket (already in the container if
+ * buffers.  Return a pointer to the new bucket (already in the container if
  * successful), or return NULL on failure.
  *
  * LOCKING NOTES:
  * PCPU container lock must be held when this is called.
  * The lock is dropped here so that we can cleanly call the underlying VM
- * code. If we fail, we return with no locks held. If we succeed (i.e. return
+ * code.  If we fail, we return with no locks held. If we succeed (i.e., return
  * non-NULL), we return with the PCPU lock held, ready for allocation from
  * the returned bucket.
  */
-struct mb_bucket *
+static struct mb_bucket *
 mb_pop_cont(struct mb_lstmngr *mb_list, int how, struct mb_pcpu_list *cnt_lst)
 {
-	struct	mb_bucket	*bucket;
-	caddr_t			p;
-	int			i;
+	struct mb_bucket *bucket;
+	caddr_t p;
+	int i;
 
 	MB_UNLOCK_CONT(cnt_lst);
 	/*
-	 * If our object's (finite) map is starved now (i.e. no more address
+	 * If our object's (finite) map is starved now (i.e., no more address
 	 * space), bail out now.
 	 */
 	if (mb_list->ml_mapfull)
@@ -531,8 +533,8 @@ mb_pop_cont(struct mb_lstmngr *mb_list, int how, struct mb_pcpu_list *cnt_lst)
 
 /*
  * Allocate an mbuf-subsystem type object.
- * The general case is very easy. Complications only arise if our PCPU
- * container is empty. Things get worse if the PCPU container is empty,
+ * The general case is very easy.  Complications only arise if our PCPU
+ * container is empty.  Things get worse if the PCPU container is empty,
  * the general container is empty, and we've run out of address space
  * in our map; then we try to block if we're willing to (M_TRYWAIT).
  */
@@ -540,9 +542,10 @@ static __inline
 void *
 mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 {
-	struct	mb_pcpu_list	*cnt_lst;
-	struct	mb_bucket 	*bucket;
-	void			*m;
+	static int last_report;
+	struct mb_pcpu_list *cnt_lst;
+	struct mb_bucket *bucket;
+	void *m;
 
 	m = NULL;
 	cnt_lst = MB_GET_PCPU_LIST(mb_list);
@@ -559,7 +562,7 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 		MB_MBTYPES_INC(cnt_lst, type, 1); 
 		MB_UNLOCK_CONT(cnt_lst);
 	} else {
-		struct	mb_gen_list *gen_list;
+		struct mb_gen_list *gen_list;
 
 		/*
 		 * This is the less-common more difficult case. We must
@@ -615,25 +618,22 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 				MB_UNLOCK_CONT(cnt_lst);
 			} else {
 				if (how == M_TRYWAIT) {
-				  /*
-			 	   * Absolute worst-case scenario. We block if
-			 	   * we're willing to, but only after trying to
-				   * steal from other lists.
-				   */
+					/*
+				 	 * Absolute worst-case scenario.
+					 * We block if we're willing to, but
+					 * only after trying to steal from
+					 * other lists.
+					 */
 					m = mb_alloc_wait(mb_list, type);
 				} else {
-					/*
-					 * no way to indent this code decently
-					 * with 8-space tabs.
-					 */
-					static int last_report;
 					/* XXX: No consistency. */
 					mbstat.m_drops++;
+
 					if (ticks < last_report ||
 					   (ticks - last_report) >= hz) {
 						last_report = ticks;
 						printf(
-"mb_alloc for type %d failed, consider increase mbuf value.\n", type);
+"mb_alloc for mbuf type %d failed.\n", type);
 					}
 
 				}
@@ -646,19 +646,19 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 
 /*
  * This is the worst-case scenario called only if we're allocating with
- * M_TRYWAIT. We first drain all the protocols, then try to find an mbuf
- * by looking in every PCPU container. If we're still unsuccesful, we
+ * M_TRYWAIT.  We first drain all the protocols, then try to find an mbuf
+ * by looking in every PCPU container.  If we're still unsuccesful, we
  * try the general container one last time and possibly block on our
  * starved cv.
  */
-void *
+static void *
 mb_alloc_wait(struct mb_lstmngr *mb_list, short type)
 {
-	struct	mb_pcpu_list	*cnt_lst;
-	struct	mb_gen_list 	*gen_list;
-	struct	mb_bucket 	*bucket;
-	void			*m;
-	int			i, cv_ret;
+	struct mb_pcpu_list *cnt_lst;
+	struct mb_gen_list *gen_list;
+	struct mb_bucket *bucket;
+	void *m;
+	int i, cv_ret;
 
 	/*
 	 * Try to reclaim mbuf-related objects (mbufs, clusters).
@@ -727,7 +727,7 @@ mb_alloc_wait(struct mb_lstmngr *mb_list, short type)
 	return (m);
 }
 
-/*
+/*-
  * Free an object to its rightful container.
  * In the very general case, this operation is really very easy.
  * Complications arise primarily if:
@@ -744,10 +744,10 @@ static __inline
 void
 mb_free(struct mb_lstmngr *mb_list, void *m, short type)
 {
-	struct	mb_pcpu_list	*cnt_lst;
-	struct	mb_gen_list 	*gen_list;
-	struct	mb_bucket 	*bucket;
-	u_int			owner;
+	struct mb_pcpu_list *cnt_lst;
+	struct mb_gen_list *gen_list;
+	struct mb_bucket *bucket;
+	u_int owner;
 
 	bucket = mb_list->ml_btable[MB_BUCKET_INDX(m, mb_list)];
 
@@ -891,24 +891,22 @@ retry_lock:
 		MB_UNLOCK_CONT(cnt_lst);
 		break;
 	}
-
-	return;
 }
 
 /*
  * Drain protocols in hopes to free up some resources.
  *
  * LOCKING NOTES:
- * No locks should be held when this is called. The drain routines have to
+ * No locks should be held when this is called.  The drain routines have to
  * presently acquire some locks which raises the possibility of lock order
  * violation if we're holding any mutex if that mutex is acquired in reverse
  * order relative to one of the locks in the drain routines.
  */
-void
+static void
 mb_reclaim(void)
 {
-	struct	domain	*dp;
-	struct	protosw	*pr;
+	struct domain *dp;
+	struct protosw *pr;
 
 /*
  * XXX: Argh, we almost always trip here with witness turned on now-a-days
@@ -922,18 +920,17 @@ mb_reclaim(void)
 
 	mbstat.m_drain++;	/* XXX: No consistency. */
 
-	for (dp = domains; dp; dp = dp->dom_next)
+	for (dp = domains; dp != NULL; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
-			if (pr->pr_drain)
+			if (pr->pr_drain != NULL)
 				(*pr->pr_drain)();
-
 }
 
 /*
  * Local mbuf & cluster alloc macros and routines.
  * Local macro and function names begin with an underscore ("_").
  */
-void	_mclfree(struct mbuf *);
+static void	_mclfree(struct mbuf *);
 
 #define	_m_get(m, how, type) do {					\
 	(m) = (struct mbuf *)mb_alloc(&mb_list_mbuf, (how), (type));	\
@@ -960,7 +957,7 @@ void	_mclfree(struct mbuf *);
 	}								\
 } while (0)
 
-/* XXX: Check for M_PKTHDR && m_pkthdr.aux is bogus... please fix (see KAME) */
+/* XXX: Check for M_PKTHDR && m_pkthdr.aux is bogus... please fix (see KAME). */
 #define	_m_free(m, n) do {						\
 	(n) = (m)->m_next;						\
 	if ((m)->m_flags & M_EXT)					\
@@ -991,20 +988,19 @@ _mext_free(struct mbuf *mb)
 		mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF);
 	else
 		(*(mb->m_ext.ext_free))(mb->m_ext.ext_buf, mb->m_ext.ext_args);
-
 	_mext_dealloc_ref(mb);
-	return;
 }
 
-/* We only include this here to avoid making m_clget() excessively large
- * due to too much inlined code. */
-void
+/*
+ * We only include this here to avoid making m_clget() excessively large
+ * due to too much inlined code.
+ */
+static void
 _mclfree(struct mbuf *mb)
 {
 
 	mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF);
 	mb->m_ext.ext_buf = NULL;
-	return;
 }
 
 /*
@@ -1013,7 +1009,7 @@ _mclfree(struct mbuf *mb)
 struct mbuf *
 m_get(int how, int type)
 {
-	struct	mbuf *mb;
+	struct mbuf *mb;
 
 	_m_get(mb, how, type);
 	return (mb);
@@ -1022,7 +1018,7 @@ m_get(int how, int type)
 struct mbuf *
 m_gethdr(int how, int type)
 {
-	struct	mbuf *mb;
+	struct mbuf *mb;
 
 	_m_gethdr(mb, how, type);
 	return (mb);
@@ -1031,33 +1027,29 @@ m_gethdr(int how, int type)
 struct mbuf *
 m_get_clrd(int how, int type)
 {
-	struct	mbuf *mb;
+	struct mbuf *mb;
 
 	_m_get(mb, how, type);
-
 	if (mb != NULL)
 		bzero(mtod(mb, caddr_t), MLEN);
-
 	return (mb);
 }
 
 struct mbuf *
 m_gethdr_clrd(int how, int type)
 {
-	struct	mbuf *mb;
+	struct mbuf *mb;
 
 	_m_gethdr(mb, how, type);
-
 	if (mb != NULL)
 		bzero(mtod(mb, caddr_t), MHLEN);
-
 	return (mb);
 }
 
 struct mbuf *
 m_free(struct mbuf *mb)
 {
-	struct	mbuf *nb;
+	struct mbuf *nb;
 
 	_m_free(mb, nb);
 	return (nb);
@@ -1081,12 +1073,11 @@ m_clget(struct mbuf *mb, int how)
 			mb->m_ext.ext_type = EXT_CLUSTER;
 		}
 	}
-	return;
 }
 
 void
 m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-	 void (*freef)(caddr_t, void *), void *args, short flags, int type)
+    void (*freef)(caddr_t, void *), void *args, short flags, int type)
 {
 
 	_mext_init_ref(mb);
@@ -1099,7 +1090,6 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 		mb->m_ext.ext_args = args;
 		mb->m_ext.ext_type = type;
 	}
-	return;
 }
 
 /*
@@ -1109,7 +1099,7 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 void
 m_chtype(struct mbuf *mb, short new_type)
 {
-	struct	mb_gen_list *gen_list;
+	struct mb_gen_list *gen_list;
 
 	gen_list = MB_GET_GEN_LIST(&mb_list_mbuf);
 	MB_LOCK_CONT(gen_list);
@@ -1117,5 +1107,4 @@ m_chtype(struct mbuf *mb, short new_type)
 	MB_MBTYPES_INC(gen_list, new_type, 1);
 	MB_UNLOCK_CONT(gen_list);
 	mb->m_type = new_type;
-	return;
 }
