@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: test1.c,v 1.2 1995/12/23 14:53:07 jkh Exp $
+ * $Id: gauge.c,v 1.2 1996/02/08 11:55:15 jkh Exp $
  */
 
 #include <stdio.h>
@@ -31,7 +31,7 @@ main(int argc, unsigned char *argv[])
 
   init_dialog();
 
-  for (i = 0; i < 100; i++) {
+  for (i = 0; i <= 100; i++) {
     dialog_gauge("Gas tank", "When this gets 100% full, you'd better yank out the nozzle!", 10, 1, 7, 70, i);
     usleep(30000);
   }
