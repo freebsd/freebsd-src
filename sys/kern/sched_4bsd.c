@@ -441,6 +441,7 @@ sched_clock(struct kse *ke)
 	struct ksegrp *kg;
 	struct thread *td;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	kg = ke->ke_ksegrp;
 	td = ke->ke_thread;
 
@@ -476,6 +477,8 @@ sched_exit_kse(struct kse *ke, struct kse *child)
 void
 sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 {
+
+	mtx_assert(&sched_lock, MA_OWNED);
 	kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + child->kg_estcpu);
 }
 
@@ -501,6 +504,7 @@ sched_fork_kse(struct kse *ke, struct kse *child)
 void
 sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 {
+	mtx_assert(&sched_lock, MA_OWNED);
 	child->kg_estcpu = kg->kg_estcpu;
 }
 
@@ -522,6 +526,7 @@ sched_nice(struct ksegrp *kg, int nice)
 void
 sched_class(struct ksegrp *kg, int class)
 {
+	mtx_assert(&sched_lock, MA_OWNED);
 	kg->kg_pri_class = class;
 }
 
@@ -535,6 +540,7 @@ void
 sched_prio(struct thread *td, u_char prio)
 {
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	if (TD_ON_RUNQ(td)) {
 		adjustrunqueue(td, prio);
 	} else {
@@ -545,6 +551,8 @@ sched_prio(struct thread *td, u_char prio)
 void
 sched_sleep(struct thread *td, u_char prio)
 {
+
+	mtx_assert(&sched_lock, MA_OWNED);
 	td->td_ksegrp->kg_slptime = 0;
 	td->td_priority = prio;
 }
@@ -552,6 +560,8 @@ sched_sleep(struct thread *td, u_char prio)
 void
 sched_switchin(struct thread *td)
 {
+
+	mtx_assert(&sched_lock, MA_OWNED);
 	td->td_oncpu = PCPU_GET(cpuid);
 }
 
@@ -564,6 +574,7 @@ sched_switchout(struct thread *td)
 	ke = td->td_kse;
 	p = td->td_proc;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT((ke->ke_state == KES_THREAD), ("mi_switch: kse state?"));
 
 	td->td_lastcpu = td->td_oncpu;
@@ -593,6 +604,7 @@ sched_wakeup(struct thread *td)
 {
 	struct ksegrp *kg;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	kg = td->td_ksegrp;
 	if (kg->kg_slptime > 1)
 		updatepri(kg);
