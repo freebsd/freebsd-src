@@ -3,7 +3,7 @@
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
 # ------------------------------------------------------------------
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
-  001   esc    esc    nop    nop    esc    esc    debug  nop     O
+  001   esc    esc    esc    esc    esc    esc    debug  esc     O
   002   '1'    '!'    nop    nop    185    '!'    nop    nop     O
   003   '2'    '@'    nul    nul    178    '@'    nul    nul     O
   004   '3'    '#'    nop    nop    179    '#'    nop    nop     O
@@ -57,7 +57,7 @@
   052   '.'    '>'    nop    nop    '.'    '>'    nop    nop     O
   053   ';'    ':'    nop    nop    ';'    ':'    nop    nop     O
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
-  055   '*'    '*'    nscr   nscr   '*'    '*'    nscr   nscr    O
+  055   '*'    '*'    '*'    '*'    '*'    '*'    '*'    '*'     O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
   057   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
   058   clock  clock  clock  clock  clock  clock  clock  clock   O
@@ -86,7 +86,7 @@
   081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
   082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
   083   del    ','    ','    ','    ','    ','    boot   boot    N
-  084   us     us     us     us     us     us     us     us      O
+  084   nop    nop    nop    nop    nop    nop    nop    nop     O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
   086   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
@@ -94,7 +94,7 @@
   089   cr     cr     nl     nl     cr     cr     nl     nl      O
   090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     N
-  092   nscr   nop    debug  nop    nop    nop    nop    nop     O
+  092   nscr   nscr   debug  debug  nop    nop    nop    nop     O
   093   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
   094   fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49  O
   095   fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50  O
@@ -106,10 +106,10 @@
   101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
   102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
   103	fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
-  104   slock  slock  slock  slock  slock  slock  slock  slock   O
-  105	fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
-  106	fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
-  107	fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
+  104   slock  saver  slock  saver  susp   nop    susp   nop     O
+  105   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+  107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
   108   nop    nop    nop    nop    nop    nop    nop    nop     O
   109   nop    nop    nop    nop    nop    nop    nop    nop     O
   110   nop    nop    nop    nop    nop    nop    nop    nop     O
