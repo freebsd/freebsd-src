@@ -51,7 +51,7 @@ struct adapter *em_adapter_list = NULL;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "1.7.19";
+char em_driver_version[] = "1.7.25";
 
 
 /*********************************************************************
@@ -539,7 +539,8 @@ em_detach(device_t dev)
         ether_ifdetach(&adapter->interface_data.ac_if);
 #endif
 	em_free_pci_resources(adapter);
-	
+	bus_generic_detach(dev);
+
 	/* Free Transmit Descriptor ring */
         if (adapter->tx_desc_base) {
                 em_dma_free(adapter, &adapter->txdma);
@@ -764,7 +765,8 @@ em_watchdog(struct ifnet *ifp)
 		return;
 	}
 
-	printf("em%d: watchdog timeout -- resetting\n", adapter->unit);
+	if (em_check_for_link(&adapter->hw))
+		printf("em%d: watchdog timeout -- resetting\n", adapter->unit);
 
 	ifp->if_flags &= ~IFF_RUNNING;
 
@@ -857,6 +859,9 @@ em_init_locked(struct adapter * adapter)
 #endif /* DEVICE_POLLING */
 		em_enable_intr(adapter);
 
+	/* Don't reset the phy next time init gets called */
+	adapter->hw.phy_reset_disable = TRUE;
+	
 	return;
 }
 
@@ -1097,6 +1102,11 @@ em_media_change(struct ifnet *ifp)
 	default:
 		printf("em%d: Unsupported media type\n", adapter->unit);
 	}
+
+	/* As the speed/duplex settings my have changed we need to
+	 * reset the PHY.
+	 */
+	adapter->hw.phy_reset_disable = FALSE;
 
 	em_init(adapter);
 
@@ -1516,7 +1526,7 @@ em_set_multi(struct adapter * adapter)
                 reg_rctl |= E1000_RCTL_MPE;
                 E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
         } else
-                em_mc_addr_list_update(&adapter->hw, mta, mcnt, 0);
+                em_mc_addr_list_update(&adapter->hw, mta, mcnt, 0, 1);
 
         if (adapter->hw.mac_type == em_82542_rev2_0) {
                 reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
@@ -2952,13 +2962,13 @@ em_pci_clear_mwi(struct em_hw *hw)
 }
 
 uint32_t 
-em_io_read(struct em_hw *hw, uint32_t port)
+em_io_read(struct em_hw *hw, unsigned long port)
 {
 	return(inl(port));
 }
 
 void 
-em_io_write(struct em_hw *hw, uint32_t port, uint32_t value)
+em_io_write(struct em_hw *hw, unsigned long port, uint32_t value)
 {
 	outl(port, value);
 	return;
@@ -3136,6 +3146,15 @@ static void
 em_print_debug_info(struct adapter *adapter)
 {
         int unit = adapter->unit;
+	uint8_t *hw_addr = adapter->hw.hw_addr;
+ 
+	printf("em%d: Adapter hardware address = %p \n", unit, hw_addr);
+	printf("em%d:tx_int_delay = %d, tx_abs_int_delay = %d\n", unit, 
+              E1000_READ_REG(&adapter->hw, TIDV),
+	      E1000_READ_REG(&adapter->hw, TADV));
+	printf("em%d:rx_int_delay = %d, rx_abs_int_delay = %d\n", unit, 
+              E1000_READ_REG(&adapter->hw, RDTR),
+	      E1000_READ_REG(&adapter->hw, RADV));
 
 #ifdef DBG_STATS
         printf("em%d: Packets not Avail = %ld\n", unit,
