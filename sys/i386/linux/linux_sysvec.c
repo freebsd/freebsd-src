@@ -285,32 +285,6 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	PROC_UNLOCK(p);
 
 	/*
-	 * grow() will return FALSE if the fp will not fit inside the stack
-	 *	and the stack can not be grown. useracc will return FALSE
-	 *	if access is denied.
-	 */
-	if ((grow_stack (p, (int)fp) == FALSE) ||
-	    !useracc((caddr_t)fp, sizeof (struct l_rt_sigframe), 
-	    VM_PROT_WRITE)) {
-		/*
-		 * Process has trashed its stack; give it an illegal
-		 * instruction to halt it in its tracks.
-		 */
-		PROC_LOCK(p);
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-#ifdef DEBUG
-		if (ldebug(rt_sendsig))
-			printf(LMSG("rt_sendsig: bad stack %p, oonstack=%x"),
-			    fp, oonstack);
-#endif
-		psignal(p, SIGILL);
-		return;
-	}
-
-	/*
 	 * Build the argument list for the signal handler.
 	 */
 	if (p->p_sysent->sv_sigtbl)
@@ -374,9 +348,13 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+#ifdef DEBUG
+		if (ldebug(rt_sendsig))
+			printf(LMSG("rt_sendsig: bad stack %p, oonstack=%x"),
+			    fp, oonstack);
+#endif
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
-		/* NOTREACHED */
 	}
 
 	/*
@@ -444,27 +422,6 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	PROC_UNLOCK(p);
 
 	/*
-	 * grow() will return FALSE if the fp will not fit inside the stack
-	 *	and the stack can not be grown. useracc will return FALSE
-	 *	if access is denied.
-	 */
-	if ((grow_stack (p, (int)fp) == FALSE) ||
-	    !useracc((caddr_t)fp, sizeof (struct l_sigframe), 
-	    VM_PROT_WRITE)) {
-		/*
-		 * Process has trashed its stack; give it an illegal
-		 * instruction to halt it in its tracks.
-		 */
-		PROC_LOCK(p);
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-		psignal(p, SIGILL);
-		return;
-	}
-
-	/*
 	 * Build the argument list for the signal handler.
 	 */
 	if (p->p_sysent->sv_sigtbl)
@@ -511,7 +468,6 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 */
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
-		/* NOTREACHED */
 	}
 
 	/*
