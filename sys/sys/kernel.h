@@ -66,7 +66,6 @@ extern int domainnamelen;
 extern char kernelname[MAXPATHLEN];
 
 /* 1.2 */
-extern struct timeval boottime;
 
 extern int tick;			/* usec per tick (1000000 / hz) */
 extern int hz;				/* system clock's frequency */
