@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.22 1999/05/22 21:08:18 wpaul Exp $
+#	$Id: LINT,v 1.539.2.23 1999/05/25 14:08:01 des Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1066,11 +1066,30 @@ options		IDE_DELAY=8000	# Be optimistic about Joe IDE device
 device          acd0
 
 # IDE floppy driver - requires wdc controller and ATAPI option
-device          wfd0
+device		wfd0
 
 # IDE tape driver - requires wdc controller and ATAPI option
-device          wst0
+device		wst0
 
+#
+# Compaq Intelligent Disk Array Controller
+#
+controller	ida0	at isa? bio irq ? vector idaintr
+disk		id0	at ida0 drive 0
+disk		id1	at ida0 drive 1
+disk		id2	at ida0 drive 2
+disk		id3	at ida0 drive 3
+
+# Warning:
+# This driver can be configured to steal the ide devsw[] entries
+# so the IDE driver must also be present. If this behaviour is used,
+# the system will be unable to get to IDE drives. This is to allow 
+# systems to boot off the IDA array, while thinking they are booting off
+# an IDE drive. (The boot blocks only know about IDE and SCSI).
+# 
+# To disable this behaviour, the following line should be used.
+# Do this is you wish to boot of a different device.
+#options		IDA_CUCKOO_MODE=0
 
 #
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
