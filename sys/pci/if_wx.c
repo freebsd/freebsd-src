@@ -34,6 +34,21 @@
  */
 
 /*
+ * Options
+ */
+
+/*
+ * Use only every other 16 byte receive descriptor, leaving the ones
+ * in between empty. This card is most efficient at reading/writing
+ * 32 byte cache lines, so avoid all the (not working for early rev
+ * cards) MWI and/or READ/MODIFY/WRITE cycles updating one descriptor
+ * would have you do.
+ *
+ * This isn't debugged yet.
+ */
+/* #define	PADDED_CELL	1 */
+
+/*
  * Since the includes are a mess, they'll all be in if_wxvar.h
  */
 
@@ -47,28 +62,6 @@
 #undef vtophys
 #define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
 #endif /* __alpha__ */
-/*
- * Options
- */
-
-/* 
- * Use the 'pad short packet' bits.
- * This seems to have problems.
- */
-/* #define	WX_USE_PSP	1 */
-
-/*
- * According to what info I can gather, the minimum size for the xmitter
- * is 16 bytes. However, it seems that when you have multiple transmit
- * descriptors coalescing together, including some less than ETHERMIN,
- * the receiving end doesn't like the end result when it does IP reassembly.
- *
- * This may be due to something I don't yet know for correct checksum
- * insertion- we'll see. For the moment, we'll cluster xmits if any mbuf
- * in the chain is less than ETHERMIN.
- */
-
-/* #define	WX_XMIT_SMALL	1 */
 
 /*
  * Function Prototpes, yadda yadda...
@@ -224,7 +217,7 @@ wx_attach(parent, self, aux)
 
 	data = pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_BHLC_REG);
 	data &= ~(PCI_CACHELINE_MASK << PCI_CACHELINE_SHIFT);
-	data |= (0x10 << PCI_CACHELINE_SHIFT);
+	data |= (WX_CACHELINE_SIZE << PCI_CACHELINE_SHIFT);
 	pci_conf_write(pa->pa_pc, pa->pa_tag, PCI_BHLC_REG, data);
 
 
@@ -974,7 +967,6 @@ wx_start(ifp)
 		}
 		sc->wx_xmitwanted++;
 
-#ifndef	WX_USE_PSP
 		/*
 		 * If we have a packet less than ethermin, pad it out.
 		 */
@@ -993,7 +985,6 @@ wx_start(ifp)
 			m_freem(mb_head);
 			mb_head = m;
 		}
-#endif
 again:
 		cidx = sc->tnxtfree;
 		nactv = sc->tactive;
@@ -1021,17 +1012,10 @@ again:
 			 * If this packet is too small for the chip's minimum,
 			 * break out to to cluster it.
 			 */
-#ifdef	WX_XMIT_SMALL
-			if (m->m_len < WX_MIN_XPKT_SIZE) {
-				sc->wx_xmitrunt++;
-				break;
-			}
-#else
 			if (m->m_len < WX_MIN_RPKT_SIZE) {
 				sc->wx_xmitrunt++;
 				break;
 			}
-#endif
 
 			/*
 			 * Do we have a descriptor available for this mbuf?
@@ -1172,7 +1156,7 @@ wx_intr(arg)
 			wx_handle_link_intr(sc);
 		}
 		wx_handle_rxint(sc);
-		if (sc->tactive > (WX_MAX_TDESC >> 1)) {
+		if (sc->tactive) {
 			wx_gc(sc);
 		}
 		if (sc->wx_if.if_snd.ifq_head != NULL) {
@@ -1196,13 +1180,13 @@ wx_handle_rxint(sc)
 	wx_softc_t *sc;
 {
 	struct ether_header *eh;
-	struct mbuf *m0, *mtail, *mb, *pending[WX_MAX_RDESC];
+	struct mbuf *m0, *mb, *pending[WX_MAX_RDESC];
 	struct ifnet *ifp = &sc->wx_if;
-	int npkts, ndesc, idx, totlen;
+	int npkts, ndesc, lidx, idx, tlen;
 
-	for (m0 = mtail = NULL, totlen = ndesc = npkts = 0, idx = sc->rnxt;
-	    ndesc < WX_MAX_RDESC; ndesc++, WRITE_CSR(sc, WXREG_RDT0, idx),
-	    sc->rnxt = idx = R_NXT_IDX(idx)) {
+	for (m0 = sc->rpending, tlen = ndesc = npkts = 0, idx = sc->rnxt,
+	    lidx = R_PREV_IDX(idx); ndesc < WX_MAX_RDESC;
+	    ndesc++, lidx = idx, idx = R_NXT_IDX(idx)) {
 		wxrd_t *rd;
 		rxpkt_t *rxpkt;
 		int length, offset, lastframe;
@@ -1210,10 +1194,17 @@ wx_handle_rxint(sc)
 		rd = &sc->rdescriptors[idx];
 		if ((rd->status & RDSTAT_DD) == 0) {
 			if (m0) {
-				printf("%s: incomplete packet received\n",
-				    sc->wx_name);
-				m_freem(m0);
+				if (sc->rpending == NULL) {
+					m0->m_pkthdr.len = tlen;
+					sc->rpending = m0;
+				} else {
+					m_freem(m0);
+				}
 				m0 = NULL;
+			}
+			if (sc->wx_debug) {
+				printf("WXRX: ndesc %d idx %d lidx %d\n",
+				    ndesc, idx, lidx);
 			}
 			break;
 		}
@@ -1226,6 +1217,10 @@ wx_handle_rxint(sc)
 			if (m0) {
 				m_freem(m0);
 				m0 = NULL;
+				if (sc->rpending) {
+					m_freem(sc->rpending);
+					sc->rpending = NULL;
+				}
 			}
 			continue;
 		}
@@ -1242,6 +1237,10 @@ wx_handle_rxint(sc)
 			if (m0) {
 				m_freem(m0);
 				m0 = NULL;
+				if (sc->rpending) {
+					m_freem(sc->rpending);
+					sc->rpending = NULL;
+				}
 			}
 			continue;
 		}
@@ -1256,6 +1255,10 @@ wx_handle_rxint(sc)
 			if (m0) {
 				m_freem(m0);
 				m0 = NULL;
+				if (sc->rpending) {
+					m_freem(sc->rpending);
+					sc->rpending = NULL;
+				}
 			}
 			continue;
 		}
@@ -1274,41 +1277,80 @@ wx_handle_rxint(sc)
 		mb->m_data += offset;
 		mb->m_next = NULL;
 		if (m0 == NULL) {
-			mtail = m0 = mb;
-			totlen = length;
+			m0 = mb;
+			tlen = length;
+		} else if (m0 == sc->rpending) {
+			/*
+			 * Pick up where we left off before. If
+			 * we have an offset (we're assuming the
+			 * first frame has an offset), then we've
+			 * lost sync somewhere along the line.
+			 */
+			if (offset) {
+				printf("%s: lost sync with partial packet\n",
+				    sc->wx_name);
+				m_freem(sc->rpending);
+				sc->rpending = NULL;
+				m0 = mb;
+				tlen = length;
+			} else {
+				sc->rpending = NULL;
+				tlen = m0->m_pkthdr.len;
+			}
 		} else {
-			totlen += length;
+			tlen += length;
 		}
 
 		if (sc->wx_debug) {
 			printf("%s: RDESC[%d] len %d off %d lastframe %d\n",
 			    sc->wx_name, idx, mb->m_len, offset, lastframe);
+#ifdef	WX_EXTREME_DEBUGGING
+			{
+				int i, l = mb->m_len;
+				u_int8_t *p = mtod(mb, u_int8_t *);
+				printf("0000");
+				for (i = 0, l = mb->m_len; l != 0; l--, i++) {
+					printf(" %02x", (*(p++)) & 0xff);
+					if (((i + 1) & 0x7) == 0 &&
+					    ((i+1) & 0xf)) {
+						printf(" ");
+					}
+					if (((i + 1) & 0xf) == 0) {
+						printf("\n%04x", i+1);
+					}
+				}
+				printf("\n");
+			}
+#endif
 		}
+		if (m0 != mb)
+			m_cat(m0, mb);
 		if (lastframe == 0) {
-			mtail->m_next = mb;
-			mtail = mb;
 			continue;
 		}
-
-		/*
-		 * For the last frame, deduct the length of the
-		 * CRC (which we don't want to pass up) from both
-		 * the total and the length in the last frame.
-		 */
-		mtail->m_len -= WX_CRC_LENGTH;
 		m0->m_pkthdr.rcvif = ifp;
-		m0->m_pkthdr.len = totlen - WX_CRC_LENGTH;
+		m0->m_pkthdr.len = tlen - WX_CRC_LENGTH;
+		mb->m_len -= WX_CRC_LENGTH;
 
 		eh = mtod(m0, struct ether_header *);
 		if ((ifp->if_flags & IFF_PROMISC) &&
 		    (bcmp(eh->ether_dhost, sc->wx_enaddr, ETHER_ADDR_LEN) &&
 		    (eh->ether_dhost[0] & 1) == 0)) {
 			m_freem(m0);
+			if (sc->rpending) {
+				m_freem(sc->rpending);
+				sc->rpending = NULL;
+			}
                 } else {
 			pending[npkts++] = m0;
 		}
 		m0 = NULL;
-		totlen = 0;
+		tlen = 0;
+	}
+
+	if (ndesc) {
+		WRITE_CSR(sc, WXREG_RDT0, lidx);
+		sc->rnxt = idx;
 	}
 
 	if (npkts) {
@@ -1321,21 +1363,39 @@ wx_handle_rxint(sc)
                         bpf_mtap(WX_BPFTAP_ARG(ifp), mb);
 		}
                 ifp->if_ipackets++;
-		/*
-		 * As of DEC-26-1999 we do apparently seem to get a
-		 * chain of mbufs if we have more than a descriptor
-		 * per packet, but there's something in the midlayer
-		 * that doesn't like the length checksum.
-		 */
 		if (sc->wx_debug) {
 			printf("%s: RECV packet length %d\n",
 			    sc->wx_name, mb->m_pkthdr.len);
 		}
 #ifdef	__FreeBSD__
 		eh = mtod(mb, struct ether_header *);
-		mb->m_data += sizeof (struct ether_header);
-		mb->m_len -= sizeof (struct ether_header);
-		mb->m_pkthdr.len -= sizeof (struct ether_header);
+		m_adj(mb, sizeof (struct ether_header));
+#ifdef	WX_EXTREME_DEBUGGING
+		{
+			struct mbuf *mx = mb;
+			printf("pktlen %d\n", mb->m_pkthdr.len);
+			while (mx) {
+				int i, l = mx->m_len;
+				u_int8_t *p = mtod(mx, u_int8_t *);
+				printf("m_len %d\n", mx->m_len);
+				printf("0000");
+				for (i = 0, l = mx->m_len; l != 0; l--, i++) {
+					printf(" %02x", (*(p++)) & 0xff);
+					if (((i + 1) & 0x7) == 0 &&
+					    ((i+1) & 0xf)) {
+						printf(" ");
+					}
+					if (((i + 1) & 0xf) == 0) {
+						printf("\n%04x", i+1);
+					}
+				}
+				printf("\n");
+				mx = mx->m_next;
+				if (mx)
+					printf("\n");
+			}
+		}
+#endif
                 ether_input(ifp, eh, mb);
 #else
                 (*ifp->if_input)(ifp, mb);
@@ -1619,6 +1679,10 @@ wx_stop(sc)
 			rxp->dptr = NULL;
 		}
 	}
+	if (sc->rpending) {
+		m_freem(rxp->dptr);
+		sc->rpending = NULL;
+	}
 
 	/*
 	 * And we're outta here...
@@ -1648,9 +1712,9 @@ static int
 wx_init(xsc)
 	void *xsc;
 {
+	struct ifmedia *ifm;
 	wx_softc_t *sc = xsc;
 	struct ifnet *ifp = &sc->wx_if;
-	struct ifmedia *ifm;
 	rxpkt_t *rxpkt;
 	wxrd_t *rd;
 	size_t len;
@@ -1679,9 +1743,8 @@ wx_init(xsc)
 	len = sizeof (wxrd_t) * WX_MAX_RDESC;
 	bzero(sc->rdescriptors, len);
 	for (rxpkt = sc->rbase, i = 0; rxpkt != NULL && i < WX_MAX_RDESC;
-	    i++, rxpkt++) {
+	    i += RXINCR, rxpkt++) {
 		rd = &sc->rdescriptors[i];
-		bzero(rd, sizeof (wxrd_t));
 		if (wx_get_rbuf(sc, rxpkt)) {
 			break;
 		}
@@ -1725,7 +1788,7 @@ wx_init(xsc)
 	WRITE_CSR(sc, WXREG_RDBA0_HI, 0);
 	WRITE_CSR(sc, WXREG_RDLEN0, WX_MAX_RDESC * sizeof (wxrd_t));
 	WRITE_CSR(sc, WXREG_RDH0, 0);
-	WRITE_CSR(sc, WXREG_RDT0, (WX_MAX_RDESC - 1));
+	WRITE_CSR(sc, WXREG_RDT0, (WX_MAX_RDESC - RXINCR));
 	WRITE_CSR(sc, WXREG_RDTR1, 0);
 	WRITE_CSR(sc, WXREG_RDBA1_LO, 0);
 	WRITE_CSR(sc, WXREG_RDBA1_HI, 0);
