@@ -56,6 +56,8 @@ static const char rcsid[] =
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 
+#include <netdb.h>
+#include <arpa/inet.h>
 #ifdef ISO
 #include <netiso/iso.h>
 #endif
@@ -104,6 +106,7 @@ NFSKERBKEYSCHED_T kerb_keysched;
 
 void	nonfs __P((int));
 void	reapchild __P((int));
+void	setbindhost __P((struct sockaddr_in *ia, const char *bindhost));
 #ifdef OLD_SETPROCTITLE
 #ifdef __FreeBSD__
 void	setproctitle __P((char *));
@@ -145,6 +148,8 @@ main(argc, argv, envp)
 	int ch, cltpflag, connect_type_cnt, i, len, maxsock, msgsock;
 	int nfsdcnt, nfssvc_flag, on, reregister, sock, tcpflag, tcpsock;
 	int tp4cnt, tp4flag, tpipcnt, tpipflag, udpflag;
+	int bindhostc = 0, bindanyflag;
+	char **bindhost = NULL;
 #ifdef notyet
 	int tp4sock, tpipsock;
 #endif
@@ -184,16 +189,19 @@ main(argc, argv, envp)
 #define	DEFNFSDCNT	 4
 	nfsdcnt = DEFNFSDCNT;
 	cltpflag = reregister = tcpflag = tp4cnt = tp4flag = tpipcnt = 0;
-	tpipflag = udpflag = 0;
+	bindanyflag = tpipflag = udpflag = 0;
 #ifdef ISO
-#define	GETOPT	"cn:rtu"
-#define	USAGE	"[-crtu] [-n num_servers]"
+#define	GETOPT	"ach:n:rtu"
+#define	USAGE	"[-acrtu] [-n num_servers] [-h bindip]"
 #else
-#define	GETOPT	"n:rtu"
-#define	USAGE	"[-rtu] [-n num_servers]"
+#define	GETOPT	"ah:n:rtu"
+#define	USAGE	"[-artu] [-n num_servers] [-h bindip]"
 #endif
 	while ((ch = getopt(argc, argv, GETOPT)) != -1)
 		switch (ch) {
+		case 'a':
+			bindanyflag = 1;
+			break;
 		case 'n':
 			nfsdcnt = atoi(optarg);
 			if (nfsdcnt < 1 || nfsdcnt > MAXNFSDCNT) {
@@ -201,6 +209,15 @@ main(argc, argv, envp)
 				    DEFNFSDCNT);
 				nfsdcnt = DEFNFSDCNT;
 			}
+			break;
+		case 'h':
+			bindhostc++;
+			bindhost = realloc(bindhost,sizeof(char *)*bindhostc);
+			if (bindhost == NULL) 
+				errx(1, "Out of memory");
+			bindhost[bindhostc-1] = strdup(optarg);
+			if (bindhost[bindhostc-1] == NULL)
+				errx(1, "Out of memory");
 			break;
 		case 'r':
 			reregister = 1;
@@ -246,6 +263,16 @@ main(argc, argv, envp)
 			    DEFNFSDCNT);
 			nfsdcnt = DEFNFSDCNT;
 		}
+	}
+
+	if (bindhostc == 0 || bindanyflag) {
+		bindhostc++;
+		bindhost = realloc(bindhost,sizeof(char *)*bindhostc);
+		if (bindhost == NULL) 
+			errx(1, "Out of memory");
+		bindhost[bindhostc-1] = strdup("*");
+		if (bindhost[bindhostc-1] == NULL) 
+			errx(1, "Out of memory");
 	}
 
 	if (debug == 0) {
@@ -374,18 +401,15 @@ main(argc, argv, envp)
 	}
 
 	/* If we are serving udp, set up the socket. */
-	if (udpflag) {
+	for (i = 0; udpflag && i < bindhostc; i++) {
 		if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 			syslog(LOG_ERR, "can't create udp socket");
 			exit(1);
 		}
-		inetaddr.sin_family = AF_INET;
-		inetaddr.sin_addr.s_addr = INADDR_ANY;
-		inetaddr.sin_port = htons(NFS_PORT);
-		inetaddr.sin_len = sizeof(inetaddr);
+		setbindhost(&inetaddr, bindhost[i]);
 		if (bind(sock,
 		    (struct sockaddr *)&inetaddr, sizeof(inetaddr)) < 0) {
-			syslog(LOG_ERR, "can't bind udp addr");
+			syslog(LOG_ERR, "can't bind udp addr %s: %m", bindhost[i]);
 			exit(1);
 		}
 		if (!pmap_set(RPCPROG_NFS, 2, IPPROTO_UDP, NFS_PORT) ||
@@ -448,7 +472,7 @@ main(argc, argv, envp)
 	on = 1;
 	FD_ZERO(&sockbits);
 	connect_type_cnt = 0;
-	if (tcpflag) {
+	for (i = 0; tcpflag && i < bindhostc; i++) {
 		if ((tcpsock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 			syslog(LOG_ERR, "can't create tcp socket");
 			exit(1);
@@ -456,13 +480,10 @@ main(argc, argv, envp)
 		if (setsockopt(tcpsock,
 		    SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on)) < 0)
 			syslog(LOG_ERR, "setsockopt SO_REUSEADDR: %m");
-		inetaddr.sin_family = AF_INET;
-		inetaddr.sin_addr.s_addr = INADDR_ANY;
-		inetaddr.sin_port = htons(NFS_PORT);
-		inetaddr.sin_len = sizeof(inetaddr);
+		setbindhost(&inetaddr, bindhost[i]);
 		if (bind(tcpsock,
 		    (struct sockaddr *)&inetaddr, sizeof (inetaddr)) < 0) {
-			syslog(LOG_ERR, "can't bind tcp addr");
+			syslog(LOG_ERR, "can't bind tcp addr %s: %m", bindhost[i]);
 			exit(1);
 		}
 		if (listen(tcpsock, 5) < 0) {
@@ -520,7 +541,7 @@ main(argc, argv, envp)
 	}
 
 	/* Now set up the master server socket waiting for tpip connections. */
-	if (tpipflag) {
+	for (i = 0; tpipflag && i < bindhostc; i++) {
 		if ((tpipsock = socket(AF_INET, SOCK_SEQPACKET, 0)) < 0) {
 			syslog(LOG_ERR, "can't create tpip socket");
 			exit(1);
@@ -528,13 +549,10 @@ main(argc, argv, envp)
 		if (setsockopt(tpipsock,
 		    SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on)) < 0)
 			syslog(LOG_ERR, "setsockopt SO_REUSEADDR: %m");
-		inetaddr.sin_family = AF_INET;
-		inetaddr.sin_addr.s_addr = INADDR_ANY;
-		inetaddr.sin_port = htons(NFS_PORT);
-		inetaddr.sin_len = sizeof(inetaddr);
+		setbindhost(&inetaddr, bindhost[i]);
 		if (bind(tpipsock,
 		    (struct sockaddr *)&inetaddr, sizeof (inetaddr)) < 0) {
-			syslog(LOG_ERR, "can't bind tcp addr");
+			syslog(LOG_ERR, "can't bind tcp addr %s: %m", bindhost[i]);
 			exit(1);
 		}
 		if (listen(tpipsock, 5) < 0) {
@@ -627,6 +645,28 @@ main(argc, argv, envp)
 			(void)close(msgsock);
 		}
 #endif /* notyet */
+	}
+}
+
+void
+setbindhost(struct sockaddr_in *ia, const char *bindhost)
+{
+	ia->sin_family = AF_INET;
+	ia->sin_port = htons(NFS_PORT);
+	ia->sin_len = sizeof(*ia);
+	if (bindhost == NULL || strcmp(bindhost,"*") == 0) {
+		ia->sin_addr.s_addr = INADDR_ANY;
+	} else {
+		if (inet_aton(bindhost, &ia->sin_addr) == 0) {
+			struct hostent *he;
+
+			he = gethostbyname2(bindhost, ia->sin_family);
+			if (he == NULL) {
+				syslog(LOG_ERR, "gethostbyname of %s failed", bindhost);
+				exit(1);
+			}
+			bcopy(he->h_addr, &ia->sin_addr, he->h_length);
+		}
 	}
 }
 
