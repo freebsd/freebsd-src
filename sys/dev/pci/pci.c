@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.77 1997/06/25 20:56:29 fsmp Exp $
+ * $Id: pci.c,v 1.78 1997/08/02 14:33:12 bde Exp $
  *
  */
 
@@ -569,7 +569,7 @@ static unsigned pci_dev_list_size;
 
 static struct cdevsw pcicdev = {
 	pci_open, pci_close, noread, nowrite, pci_ioctl, nostop, noreset,
-	nodevtotty, noselect, nommap, nostrategy, "pci", 0, PCI_CDEV
+	nodevtotty, seltrue, nommap, nostrategy, "pci", 0, PCI_CDEV
 };
 
 #ifdef DEVFS

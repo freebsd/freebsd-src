@@ -145,6 +145,7 @@
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <sys/select.h>
+#include <sys/poll.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -215,13 +216,13 @@ static	d_open_t	twopen;
 static	d_close_t	twclose;
 static	d_read_t	twread;
 static	d_write_t	twwrite;
-static	d_select_t	twselect;
+static	d_poll_t	twpoll;
 
 #define CDEV_MAJOR 19
 static struct cdevsw tw_cdevsw = 
 	{ twopen,	twclose,	twread,		twwrite,	/*19*/
 	  noioc,	nullstop,	nullreset,	nodevtotty, /* tw */
-	  twselect,	nommap,		nostrat,	"tw",	NULL,	-1 };
+	  twpoll,	nommap,		nostrat,	"tw",	NULL,	-1 };
 
 /*
  * Software control structure for TW523
@@ -526,24 +527,26 @@ int twwrite(dev, uio, ioflag)
  * Determine if there is data available for reading
  */
 
-int twselect(dev, rw, p)
+int twpoll(dev, events, p)
      dev_t dev;
-     int rw;
+     int events;
      struct proc *p;
 {
   struct tw_sc *sc;
-  struct proc *pp;
-  int s, i;
+  int s;
+  int revents = 0;
 
   sc = &tw_sc[TWUNIT(dev)];
   s = spltty();
-  if(sc->sc_nextin != sc->sc_nextout) {
-    splx(s);
-    return(1);
-  }
-  selrecord(p, &sc->sc_selp);
+  /* XXX is this correct?  the original code didn't test select rw mode!! */
+  if (events & (POLLIN | POLLRDNORM))
+    if(sc->sc_nextin != sc->sc_nextout)
+      revents |= events & (POLLIN | POLLRDNORM);
+    else
+      selrecord(p, &sc->sc_selp);
+
   splx(s);
-  return(0);
+  return(revents);
 }
 
 /*

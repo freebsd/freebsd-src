@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.35 1997/09/03 19:08:05 sos Exp $
+ *	$Id: pcaudio.c,v 1.36 1997/09/06 17:38:29 helbig Exp $
  */
 
 #include "pca.h"
@@ -39,6 +39,7 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/filio.h>
+#include <sys/poll.h>
 
 #include <machine/clock.h>
 #include <machine/pcaudioio.h>
@@ -76,7 +77,7 @@ static struct pca_status {
 	char		current;	/* current buffer */
 	unsigned char	oldval;		/* old timer port value */
 	char		timer_on;	/* is playback running */
-	struct selinfo	wsel;		/* select status */
+	struct selinfo	wsel;		/* select/poll status */
 	char		non_block;	/* set non-block on write status */
 } pca_status;
 
@@ -105,13 +106,13 @@ static	d_open_t	pcaopen;
 static	d_close_t	pcaclose;
 static	d_write_t	pcawrite;
 static	d_ioctl_t	pcaioctl;
-static	d_select_t	pcaselect;
+static	d_poll_t	pcapoll;
 
 #define CDEV_MAJOR 24
 static struct cdevsw pca_cdevsw = 
  	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
  	  pcaioctl,     nostop,         nullreset,      nodevtotty,/* pcaudio */
- 	  pcaselect,	nommap,		NULL,	"pca",	NULL,	-1 };
+ 	  pcapoll,	nommap,		NULL,	"pca",	NULL,	-1 };
 
 static void pca_continue __P((void));
 static void pca_init __P((void));
@@ -488,29 +489,29 @@ pcaintr(struct clockframe *frame)
 
 
 static int
-pcaselect(dev_t dev, int rw, struct proc *p)
+pcapoll(dev_t dev, int events, struct proc *p)
 {
- 	int s = spltty();
+ 	int s;
  	struct proc *p1;
+	int revents = 0;
 
- 	switch (rw) {
+ 	s = spltty();
 
-	case FWRITE:
- 		if (!pca_status.in_use[0] || !pca_status.in_use[1] || !pca_status.in_use[2]) {
- 			splx(s);
- 			return(1);
- 		}
- 		if (pca_status.wsel.si_pid && (p1=pfind(pca_status.wsel.si_pid))
-		    && p1->p_wchan == (caddr_t)&selwait)
- 			pca_status.wsel.si_flags = SI_COLL;
- 		else
- 			pca_status.wsel.si_pid = p->p_pid;
- 		splx(s);
- 		return 0;
-	default:
- 		splx(s);
- 		return(0);
-	}
+	if (events & (POLLOUT | POLLWRNORM))
+ 		if (!pca_status.in_use[0] || !pca_status.in_use[1] ||
+ 		    !pca_status.in_use[2])
+ 			revents |= events & (POLLOUT | POLLWRNORM);
+ 		else {
+			if (pca_status.wsel.si_pid &&
+			    (p1=pfind(pca_status.wsel.si_pid))
+			    && p1->p_wchan == (caddr_t)&selwait)
+				pca_status.wsel.si_flags = SI_COLL;
+			else
+				pca_status.wsel.si_pid = p->p_pid;
+		}
+
+	splx(s);
+	return (revents);
 }
 
 static pca_devsw_installed = 0;

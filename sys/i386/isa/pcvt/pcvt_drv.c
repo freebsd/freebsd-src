@@ -124,7 +124,7 @@ static	d_mmap_t	pcmmap;
 static	struct cdevsw	pcdevsw = {
 	pcopen,		pcclose,	pcread,		pcwrite,
 	pcioctl,	nullstop,	noreset,	pcdevtotty,
-	ttselect,	pcmmap,		nostrategy, "vt", NULL, -1
+	ttpoll,		pcmmap,		nostrategy, "vt", NULL, -1
 };
 
 #if PCVT_FREEBSD > 205

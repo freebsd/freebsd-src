@@ -41,6 +41,7 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 #include <sys/uio.h>
+#include <sys/poll.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
@@ -113,13 +114,13 @@ static	d_close_t	crdclose;
 static	d_read_t	crdread;
 static	d_write_t	crdwrite;
 static	d_ioctl_t	crdioctl;
-static	d_select_t	crdselect;
+static	d_poll_t	crdpoll;
 
 #define CDEV_MAJOR 50
 static struct cdevsw crd_cdevsw = 
 	{ crdopen,	crdclose,	crdread,	crdwrite,	/*50*/
 	  crdioctl,	nostop,		nullreset,	nodevtotty,/* pcmcia */
-	  crdselect,	nommap,		NULL,	"crd",	NULL,	-1 };
+	  crdpoll,	nommap,		NULL,	"crd",	NULL,	-1 };
 
 
 /*
@@ -985,33 +986,35 @@ crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 }
 
 /*
- *	select - Selects on exceptions will return true
+ *	poll - Poll on exceptions will return true
  *	when a change in card status occurs.
  */
 static	int
-crdselect(dev_t dev, int rw, struct proc *p)
+crdpoll(dev_t dev, int events, struct proc *p)
 {
 	int s;
 	struct slot *sp = pccard_slots[minor(dev)];
+	int revents = 0;
 
-	switch (rw) {
-	case FREAD:
-		return 1;
-	case FWRITE:
-		return 1;
+	if (events & (POLLIN | POLLRDNORM))
+		revents |= events & (POLLIN | POLLRDNORM);
+
+	if (events & (POLLOUT | POLLWRNORM))
+		revents |= events & (POLLIN | POLLRDNORM);
+
+	s = splhigh();
 	/*
 	 *	select for exception - card event.
 	 */
-	case 0:
-		s = splhigh();
-		if (sp == 0 || sp->laststate != sp->state) {
-			splx(s);
-			return(1);
-		}
+	if (events & POLLRDBAND)
+		if (sp == 0 || sp->laststate != sp->state)
+			revents |= POLLRDBAND;
+
+	if (revents == 0)
 		selrecord(p, &sp->selp);
-		splx(s);
-	}
-	return(0);
+
+	splx(s);
+	return (revents);
 }
 
 /*

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.11 1997/03/24 11:23:52 bde Exp $
+ * $Id: istallion.c,v 1.12 1997/07/20 14:10:04 bde Exp $
  */
 
 /*****************************************************************************/
@@ -642,7 +642,7 @@ struct isa_driver	stlidriver = {
 static struct cdevsw stli_cdevsw = 
 	{ stliopen,	stliclose,	stliread,	stliwrite,
 	  stliioctl,	stlistop,	noreset,	stlidevtotty,
-	  ttselect,	nommap,		NULL,		stli_drvname,
+	  ttpoll,	nommap,		NULL,		stli_drvname,
 	  NULL,		-1 };
 
 static stli_devsw_installed = 0;

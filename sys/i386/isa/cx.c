@@ -87,7 +87,7 @@ static	d_write_t	cxwrite;
 static	d_ioctl_t	cxioctl;
 static	d_stop_t	cxstop;
 static	d_devtotty_t	cxdevtotty;
-static	d_select_t	cxselect;
+static	d_poll_t	cxpoll;
 
 # define CDEV_MAJOR 42
 
@@ -95,7 +95,7 @@ static	d_select_t	cxselect;
 struct cdevsw cx_cdevsw = 
 	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
 	  cxioctl,	cxstop,		nullreset,	cxdevtotty,/* cronyx */
-	  cxselect,	nommap,		NULL,	"cx",	NULL,	-1 };
+	  cxpoll,	nommap,		NULL,	"cx",	NULL,	-1 };
 #else
 struct tty *cx_tty [NCX*NCHAN];         /* tty data */
 #endif
@@ -736,17 +736,13 @@ struct tty *cxdevtotty (dev_t dev)
 	return (cxchan[unit]->ttyp);
 }
 
-int cxselect (dev_t dev, int flag, struct proc *p)
+int cxpoll (dev_t dev, int events, struct proc *p)
 {
 	int unit = UNIT (dev);
 
 	if (unit == UNIT_CTL || unit >= NCX*NCHAN)
 		return (0);
-#if defined (__FreeBSD__) && __FreeBSD__ < 2
-	return (ttselect (dev, flag, p));
-#else /* FreeBSD 2.x and BSDI */
-	return (ttyselect (cxchan[unit]->ttyp, flag, p));
-#endif
+	return (ttypoll (cxchan[unit]->ttyp, events, p));
 }
 
 /*

@@ -69,7 +69,7 @@ static	d_ioctl_t	qcam_ioctl;
 static struct cdevsw qcam_cdevsw = 
 	{ qcam_open,	qcam_close,	qcam_read,	nowrite,
 	  qcam_ioctl,	nostop,		nullreset,	nodevtotty,
-	  noselect,	nommap,		nostrategy,	"qcam",
+	  seltrue,	nommap,		nostrategy,	"qcam",
 	  NULL,		-1  };
 
 static int qcam_probe(struct isa_device *devp);

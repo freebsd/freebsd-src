@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.11 1997/03/24 21:38:51 davidn Exp $
+ * $Id: stallion.c,v 1.12 1997/07/20 14:10:12 bde Exp $
  */
 
 /*****************************************************************************/
@@ -537,7 +537,7 @@ DATA_SET (pcidevice_set, stlpcidriver);
 static struct cdevsw stl_cdevsw = 
 	{ stlopen,	stlclose,	stlread,	stlwrite,
 	  stlioctl,	stlstop,	noreset,	stldevtotty,
-	  ttselect,	nommap,		NULL,	"stl",	NULL,	-1 };
+	  ttpoll,	nommap,		NULL,	"stl",	NULL,	-1 };
 
 static stl_devsw_installed = 0;
 

@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.25 1997/03/24 11:23:39 bde Exp $
+ * $Id: asc.c,v 1.26 1997/04/14 16:47:38 jkh Exp $
  */
 
 #include "asc.h"
@@ -60,6 +60,7 @@
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/poll.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -209,14 +210,14 @@ static d_open_t		ascopen;
 static d_close_t	ascclose;
 static d_read_t		ascread;
 static d_ioctl_t	ascioctl;
-static d_select_t	ascselect;
+static d_poll_t		ascpoll;
 
 #define CDEV_MAJOR 71
 
 static struct cdevsw asc_cdevsw = 
 	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
 	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
-	  ascselect,    nommap,         NULL,	"asc",	NULL,	-1 };
+	  ascpoll,	nommap,         NULL,	"asc",	NULL,	-1 };
 
 #define STATIC static
 #else
@@ -891,32 +892,30 @@ ascioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 }
 
 STATIC int
-ascselect(dev_t dev, int rw, struct proc *p)
+ascpoll(dev_t dev, int events, struct proc *p)
 {
     int unit = UNIT(minor(dev));
     struct asc_unit *scu = unittab + unit;
-    int sps=spltty();
+    int sps;
     struct proc *p1;
+    int revents = 0;
 
-    if (scu->sbuf.count >0) {
-	splx(sps);
-	return 1;
-    }
-    if (!(scu->flags & DMA_ACTIVE)) dma_restart(scu);
-#ifdef FREEBSD_1_X
-    if (scu->selp== (pid_t)0) {
-	scu->selp= p->p_pid;
-    } else {
-	scu->flags |= SEL_COLL;
-    }
-#else
-    
-    if (scu->selp.si_pid && (p1=pfind(scu->selp.si_pid))
-	    && p1->p_wchan == (caddr_t)&selwait)
-	scu->selp.si_flags = SI_COLL;
-    else
-	scu->selp.si_pid = p->p_pid;
-#endif
+    sps=spltty();
+
+    if (events & (POLLIN | POLLRDNORM))
+	if (scu->sbuf.count >0)
+	    revents |= events & (POLLIN | POLLRDNORM);
+	else {
+	    if (!(scu->flags & DMA_ACTIVE))
+		dma_restart(scu);
+	    
+	    if (scu->selp.si_pid && (p1=pfind(scu->selp.si_pid))
+		    && p1->p_wchan == (caddr_t)&selwait)
+		scu->selp.si_flags = SI_COLL;
+	    else
+		scu->selp.si_pid = p->p_pid;
+	}
+
     splx(sps);
     return 0;
 }
