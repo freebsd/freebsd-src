@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.7 1994/08/18 22:34:20 wollman Exp $
+ *	$Id: db_command.c,v 1.8 1994/08/27 16:14:08 davidg Exp $
  */
 
 /*
@@ -309,6 +309,7 @@ extern void	vm_page_print();
 extern void	db_ps();
 extern void	ipc_port_print();
 void		db_show_help();
+void		db_panic();
 
 struct command db_show_all_cmds[] = {
 #if 0
@@ -364,6 +365,7 @@ struct command db_command_table[] = {
 	{ "call",	db_fncall,		CS_OWN,	0 },
 	{ "show",	0,			0,	db_show_cmds },
 	{ "ps",		db_ps,			0,	0 },
+	{ "panic",	db_panic,		0,	0 },
 	{ (char *)0, }
 };
 
@@ -379,6 +381,12 @@ db_help_cmd()
 	    db_end_line();
 	    cmd++;
 	}
+}
+
+void
+db_panic()
+{
+	panic("from debugger\n");
 }
 
 void
