@@ -118,7 +118,6 @@ table	:	entry
 
 entry	:	ENCODING STRING
 		{ if (strcmp($2, "NONE") &&
-		      strcmp($2, "UTF2") &&
 		      strcmp($2, "UTF-8") &&
 		      strcmp($2, "EUC") &&
 		      strcmp($2, "GBK") &&
