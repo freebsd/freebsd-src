@@ -36,7 +36,7 @@
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2003
+.Dd January 18, 2004
 .Dt PRINTF 3
 .Os
 .Sh NAME
@@ -517,30 +517,21 @@ decimal point appears only if it is followed by at least one digit.
 .It Cm aA
 The
 .Vt double
-argument is converted to hexadecimal notation in the style
+argument is rounded and converted to hexadecimal notation in the style
 .Sm off
 .Oo \- Oc Li 0x Ar h Li \&. Ar hhhp Oo \\*[Pm] Oc Ar d ,
 .Sm on
 where the number of digits after the hexadecimal-point character
 is equal to the precision specification.
-If the precision is missing, it is taken as enough to exactly
-represent the floating-point number; if the precision is
-explicitly zero, no hexadecimal-point character appears.
-This is an exact conversion of the mantissa+exponent internal
-floating point representation; the
-.Sm off
-.Oo \- Oc Li 0x Ar h Li \&. Ar hhh
-.Sm on
-portion represents exactly the mantissa; only denormalized
-mantissas have a zero value to the left of the hexadecimal
-point.
+If the precision is missing, it is taken as enough to represent
+the floating-point number exactly, and no rounding occurs.
+If the precision is zero, no hexadecimal-point character appears.
 The
 .Cm p
 is a literal character
-.Ql p ;
-the exponent is preceded by a positive or negative sign
-and is represented in decimal, using only enough characters
-to represent the exponent.
+.Ql p ,
+and the exponent consists of a positive or negative sign
+followed by a decimal number representing an exponent of 2.
 The
 .Cm A
 conversion uses the prefix
@@ -556,6 +547,22 @@ to represent the hex digits, and the letter
 (rather than
 .Ql p )
 to separate the mantissa and exponent.
+.Pp
+Note that there may be multiple valid ways to represent floating-point
+numbers in this hexadecimal format.  For example,
+.Li 0x3.24p+0
+and
+.Li 0x6.48p-1
+and
+.Li 0xc.9p-2
+are all equivalent.
+The format chosen depends on the internal representation of the
+number, but the implementation guarantees that the length of the
+mantissa will be minimized.
+Zeroes are always represented with a mantissa of 0 (preceded by a
+.Ql -
+if appropriate) and an exponent of
+.Li +0 .
 .It Cm C
 Treated as
 .Cm c
@@ -852,26 +859,6 @@ nonsensical combinations such as
 .Cm %Ld ,
 are not standard; such combinations
 should be avoided.
-.Pp
-The
-.Nm
-family of functions currently lack the ability to use the
-.Cm '
-flag in conjunction with the
-.Cm f
-conversion specifier.
-The
-.Cm a
-and
-.Cm A
-conversion specifiers have not yet been implemented.
-The
-.Cm L
-modifier for floating point formats simply round the
-.Vt "long double"
-argument to
-.Vt double ,
-providing no additional precision.
 .Pp
 The
 .Nm
