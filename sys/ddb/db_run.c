@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_run.c,v 1.15 1998/06/28 00:52:50 dfr Exp $
+ *	$Id: db_run.c,v 1.16 1998/07/05 10:12:18 dfr Exp $
  */
 
 /*
@@ -286,7 +286,6 @@ void
 db_clear_single_step(regs)
 	db_regs_t *regs;
 {
-	register db_breakpoint_t	bkpt;
 
 	if (db_not_taken_bkpt != 0) {
 	    db_delete_temp_breakpoint(db_not_taken_bkpt);
