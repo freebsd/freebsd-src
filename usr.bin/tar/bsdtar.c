@@ -55,7 +55,7 @@ static char **		 rewrite_argv(struct bsdtar *,
 			     int *argc, char ** src_argv,
 			     const char *optstring);
 
-const char *tar_opts = "Bb:C:cF:f:HhjkLlmnOoPprtT:UuvwXxyZz";
+const char *tar_opts = "Bb:C:cF:f:HhjkLlmnOoPprtT:UuvwX:xyZz";
 
 #ifdef HAVE_GETOPT_LONG
 /*
