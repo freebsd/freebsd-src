@@ -354,7 +354,7 @@ release rerelease:
 	# NB: clear any vestigial devfs mount, just in case
 	-umount ${CHROOTDIR}/dev > /dev/null 2>&1
 	-rm -rf ${CHROOTDIR} 2>/dev/null
-	-chflags -R noschg ${CHROOTDIR}/.
+	-chflags -R 0 ${CHROOTDIR}/.
 	-rm -rf ${CHROOTDIR}
 .endif
 	mkdir -p ${CHROOTDIR}
