@@ -15,6 +15,11 @@
 .Nd memory disk
 .Sh SYNOPSIS
 .Cd device md
+.Pp
+To specify the default maximum size of
+.Xr malloc 9
+backed disks:
+.Cd options MDNSECT=20000
 .Sh DESCRIPTION
 The
 .Nm
