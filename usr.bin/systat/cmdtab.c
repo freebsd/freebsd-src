@@ -68,6 +68,14 @@ struct	cmdtab cmdtab[] = {
 	{ "ip",		showip,		fetchip,	labelip,
 	  initip,	openip,		closeip,	cmdmode,
 	  resetip,	CF_LOADAV },
+#ifdef INET6
+	{ "icmp6",	showicmp6,	fetchicmp6,	labelicmp6,
+	  initicmp6,	openicmp6,	closeicmp6,	cmdmode,
+	  reseticmp6,	CF_LOADAV },
+	{ "ip6",	showip6,	fetchip6,	labelip6,
+	  initip6,	openip6,	closeip6,	cmdmode,
+	  resetip6,	CF_LOADAV },
+#endif
 	{ "tcp",	showtcp,	fetchtcp,	labeltcp,
 	  inittcp,	opentcp,	closetcp,	cmdmode,
 	  resettcp,	0 },
