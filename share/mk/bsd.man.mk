@@ -151,9 +151,9 @@ ${target}: ${page}
 
 .endif
 
-maninstall::
+maninstall:
 .if defined(MAN) && !empty(MAN)
-maninstall:: ${MAN}
+maninstall: ${MAN}
 .if defined(NOMANCOMPRESS)
 .if defined(MANFILTER)
 .for page in ${MAN}
