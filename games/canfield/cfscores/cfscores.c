@@ -75,10 +75,6 @@ main(argc, argv)
 		exit(2);
 	}
 
-	/* revoke privs */
-	setegid(getgid());
-	setgid(getgid());
-
 	setpwent();
 	if (argc == 1) {
 		uid = getuid();
