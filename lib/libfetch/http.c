@@ -825,7 +825,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	/* other headers */
 	_http_cmd(fd, "Host: %s:%d", host, url->port);
 	_http_cmd(fd, "User-Agent: %s " _LIBFETCH_VER, __progname);
-	if (URL->offset)
+	if (url->offset)
 	    _http_cmd(fd, "Range: bytes=%lld-", url->offset);
 	_http_cmd(fd, "Connection: close");
 	_http_cmd(fd, "");
@@ -950,19 +950,21 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	goto ouch;
     }
 
+    /* too far? */
+    if (offset > url->offset) {
+	_http_seterr(HTTP_PROTOCOL_ERROR);
+	goto ouch;
+    }
+
+    /* report back real offset */
+    URL->offset = offset;
+    
     /* wrap it up in a FILE */
     if ((f = chunked ? _http_funopen(fd) : fdopen(fd, "r")) == NULL) {
 	_fetch_syserr();
 	goto ouch;
     }
 
-    while (offset++ < url->offset)
-	if (fgetc(f) == EOF) {
-	    _fetch_syserr();
-	    fclose(f);
-	    f = NULL;
-	}
-    
     if (url != URL)
 	fetchFreeURL(url);
     
