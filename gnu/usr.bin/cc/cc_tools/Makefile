@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.26 1999/04/11 04:11:27 bde Exp $
+# $Id: Makefile,v 1.27 1999/04/11 04:32:42 bde Exp $
 #
 
 #
@@ -144,11 +144,11 @@ multilib.h:
 
 options.h:
 	echo '#include "cp/lang-options.h"' > ${.TARGET}
-	#echo '#include "f/lang-options.h"' >> ${.TARGET}
+	echo '#include "f/lang-options.h"' >> ${.TARGET}
 
 specs.h:
 	echo '#include "cp/lang-specs.h"' > ${.TARGET}
-	#echo '#include "f/lang-specs.h"'    >> ${.TARGET}
+	echo '#include "f/lang-specs.h"'    >> ${.TARGET}
 
 tconfig.h:
 	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"' > ${.TARGET}
