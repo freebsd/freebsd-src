@@ -499,7 +499,7 @@ linker_file_unload(linker_file_t file)
 			 * Give the module a chance to veto the unload.
 			 */
 			if ((error = module_unload(mod)) != 0) {
-				KLD_DPF(FILE, ("linker_file_unload: module %x"
+				KLD_DPF(FILE, ("linker_file_unload: module %p"
 				    " vetoes unload\n", mod));
 				goto out;
 			} else
@@ -594,7 +594,7 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 	size_t common_size = 0;
 	int i;
 
-	KLD_DPF(SYM, ("linker_file_lookup_symbol: file=%x, name=%s, deps=%d\n",
+	KLD_DPF(SYM, ("linker_file_lookup_symbol: file=%p, name=%s, deps=%d\n",
 	    file, name, deps));
 
 	if (LINKER_LOOKUP_SYMBOL(file, name, &sym) == 0) {
@@ -608,7 +608,7 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 			common_size = symval.size;
 		else {
 			KLD_DPF(SYM, ("linker_file_lookup_symbol: symbol"
-			    ".value=%x\n", symval.value));
+			    ".value=%p\n", symval.value));
 			return (symval.value);
 		}
 	}
@@ -618,7 +618,7 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 			    name, 0);
 			if (address) {
 				KLD_DPF(SYM, ("linker_file_lookup_symbol:"
-				    " deps value=%x\n", address));
+				    " deps value=%p\n", address));
 				return (address);
 			}
 		}
@@ -634,7 +634,7 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 		STAILQ_FOREACH(cp, &file->common, link) {
 			if (strcmp(cp->name, name) == 0) {
 				KLD_DPF(SYM, ("linker_file_lookup_symbol:"
-				    " old common value=%x\n", cp->address));
+				    " old common value=%p\n", cp->address));
 				return (cp->address);
 			}
 		}
@@ -656,7 +656,7 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 		STAILQ_INSERT_TAIL(&file->common, cp, link);
 
 		KLD_DPF(SYM, ("linker_file_lookup_symbol: new common"
-		    " value=%x\n", cp->address));
+		    " value=%p\n", cp->address));
 		return (cp->address);
 	}
 	KLD_DPF(SYM, ("linker_file_lookup_symbol: fail\n"));
@@ -1106,46 +1106,6 @@ modlist_newmodule(const char *modname, int version, linker_file_t container)
 	return (mod);
 }
 
-/*
- * This routine is cheap and nasty but will work for data pointers.
- */
-static void *
-linker_reloc_ptr(linker_file_t lf, const void *offset)
-{
-	return (lf->address + (uintptr_t)offset);
-}
-
-/*
- * Dereference MDT_VERSION metadata into module name and version
- */
-static void
-linker_mdt_version(linker_file_t lf, struct mod_metadata *mp,
-    const char **modname, int *version)
-{
-	struct mod_version *mvp;
-
-	if (modname)
-		*modname = linker_reloc_ptr(lf, mp->md_cval);
-	if (version) {
-		mvp = linker_reloc_ptr(lf, mp->md_data);
-		*version = mvp->mv_version;
-	}
-}
-
-/*
- * Dereference MDT_DEPEND metadata into module name and mod_depend structure
- */
-static void
-linker_mdt_depend(linker_file_t lf, struct mod_metadata *mp,
-    const char **modname, struct mod_depend **verinfo)
-{
-
-	if (modname)
-		*modname = linker_reloc_ptr(lf, mp->md_cval);
-	if (verinfo)
-		*verinfo = linker_reloc_ptr(lf, mp->md_data);
-}
-
 static void
 linker_addmodules(linker_file_t lf, struct mod_metadata **start,
     struct mod_metadata **stop, int preload)
@@ -1155,17 +1115,11 @@ linker_addmodules(linker_file_t lf, struct mod_metadata **start,
 	int ver;
 
 	for (mdp = start; mdp < stop; mdp++) {
-		if (preload)
-			mp = *mdp;
-		else
-			mp = linker_reloc_ptr(lf, *mdp);
+		mp = *mdp;
 		if (mp->md_type != MDT_VERSION)
 			continue;
-		if (preload) {
-			modname = mp->md_cval;
-			ver = ((struct mod_version *)mp->md_data)->mv_version;
-		} else
-	        	linker_mdt_version(lf, mp, &modname, &ver);
+		modname = mp->md_cval;
+		ver = ((struct mod_version *)mp->md_data)->mv_version;
 		if (modlist_lookup(modname, ver) != NULL) {
 			printf("module %s already present!\n", modname);
 			/* XXX what can we do? this is a build error. :-( */
@@ -1249,18 +1203,16 @@ restart:
 		resolves = 1;	/* unless we know otherwise */
 		if (!error) {
 			for (mdp = start; mdp < stop; mdp++) {
-				mp = linker_reloc_ptr(lf, *mdp);
+				mp = *mdp;
 				if (mp->md_type != MDT_DEPEND)
 					continue;
-				linker_mdt_depend(lf, mp, &modname, &verinfo);
+				modname = mp->md_cval;
+				verinfo = mp->md_data;
 				for (nmdp = start; nmdp < stop; nmdp++) {
-					nmp = linker_reloc_ptr(lf, *nmdp);
+					nmp = *nmdp;
 					if (nmp->md_type != MDT_VERSION)
 						continue;
-					linker_mdt_version(lf, nmp, &nmodname,
-					    NULL);
-					nmodname = linker_reloc_ptr(lf,
-					    nmp->md_cval);
+					nmodname = nmp->md_cval;
 					if (strcmp(modname, nmodname) == 0)
 						break;
 				}
@@ -1283,11 +1235,12 @@ restart:
 		if (resolves) {
 			if (!error) {
 				for (mdp = start; mdp < stop; mdp++) {
-					mp = linker_reloc_ptr(lf, *mdp);
+					mp = *mdp;
 					if (mp->md_type != MDT_VERSION)
 						continue;
-					linker_mdt_version(lf, mp,
-					    &modname, &nver);
+					modname = mp->md_cval;
+					nver = ((struct mod_version *)
+					    mp->md_data)->mv_version;
 					if (modlist_lookup(modname,
 					    nver) != NULL) {
 						printf("module %s already"
@@ -1338,10 +1291,11 @@ restart:
 		    &stop, NULL);
 		if (!error) {
 			for (mdp = start; mdp < stop; mdp++) {
-				mp = linker_reloc_ptr(lf, *mdp);
+				mp = *mdp;
 				if (mp->md_type != MDT_DEPEND)
 					continue;
-				linker_mdt_depend(lf, mp, &modname, &verinfo);
+				modname = mp->md_cval;
+				verinfo = mp->md_data;
 				mod = modlist_lookup2(modname, verinfo);
 				mod->container->refs++;
 				error = linker_file_add_dependency(lf,
@@ -1763,10 +1717,11 @@ linker_load_dependencies(linker_file_t lf)
 	    &count) != 0)
 		return (0);
 	for (mdp = start; mdp < stop; mdp++) {
-		mp = linker_reloc_ptr(lf, *mdp);
+		mp = *mdp;
 		if (mp->md_type != MDT_VERSION)
 			continue;
-		linker_mdt_version(lf, mp, &modname, &ver);
+		modname = mp->md_cval;
+		ver = ((struct mod_version *)mp->md_data)->mv_version;
 		mod = modlist_lookup(modname, ver);
 		if (mod != NULL) {
 			printf("interface %s.%d already present in the KLD"
@@ -1777,16 +1732,17 @@ linker_load_dependencies(linker_file_t lf)
 	}
 
 	for (mdp = start; mdp < stop; mdp++) {
-		mp = linker_reloc_ptr(lf, *mdp);
+		mp = *mdp;
 		if (mp->md_type != MDT_DEPEND)
 			continue;
-		linker_mdt_depend(lf, mp, &modname, &verinfo);
+		modname = mp->md_cval;
+		verinfo = mp->md_data;
 		nmodname = NULL;
 		for (nmdp = start; nmdp < stop; nmdp++) {
-			nmp = linker_reloc_ptr(lf, *nmdp);
+			nmp = *nmdp;
 			if (nmp->md_type != MDT_VERSION)
 				continue;
-			nmodname = linker_reloc_ptr(lf, nmp->md_cval);
+			nmodname = nmp->md_cval;
 			if (strcmp(modname, nmodname) == 0)
 				break;
 		}
