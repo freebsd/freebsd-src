@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utils.c,v 1.2 1994/09/24 02:53:42 davidg Exp $
+ *	$Id: utils.c,v 1.3 1995/05/30 00:06:22 rgrimes Exp $
  */
 
 #ifndef lint
@@ -143,13 +143,12 @@ copy_file(entp, dne)
 		}
 	}
 
-	/* If the copy went bad, lose the file. */
-	if (rval == 1) {
-		(void)unlink(to.p_path);
-		(void)close(from_fd);
-		(void)close(to_fd);
-		return (1);
-	}
+	/*
+	 * Don't remove the target even after an error.  The target might
+	 * not be a regular file, or its attributes might be important,
+	 * or its contents might be irreplacable.  It would only be safe
+	 * to remove it if we created it and its length is 0.
+	 */
 
 	if (pflag && setfile(fs, to_fd))
 		rval = 1;
