@@ -61,7 +61,7 @@ int _thread_PS_DEAD_value		= PS_DEAD;
 __weak_reference(_pthread_create, pthread_create);
 
 int
-_pthread_create(pthread_t * thread, const pthread_attr_t * attr,
+_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 	       void *(*start_routine) (void *), void *arg)
 {
 	struct pthread	*curthread = _get_curthread();
@@ -72,6 +72,9 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	pthread_t       new_thread;
 	pthread_attr_t	pattr;
 	void           *stack;
+
+	if (thread == NULL)
+		return (EINVAL);
 
 	/*
 	 * Locking functions in libc are required when there are
