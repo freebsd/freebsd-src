@@ -38,12 +38,15 @@ static char sccsid[] = "@(#)sigsetops.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <signal.h>
+#include <errno.h>
 
 #undef sigemptyset
 #undef sigfillset
 #undef sigaddset
 #undef sigdelset
 #undef sigismember
+
+#define	SIGBAD(signo) ((signo) <= 0 || (signo) >= NSIG)
 
 int
 sigemptyset(set)
@@ -66,6 +69,10 @@ sigaddset(set, signo)
 	sigset_t *set;
 	int signo;
 {
+	if (SIGBAD(signo)) {
+		errno = EINVAL;
+		return -1;
+	}
 	*set |= sigmask(signo);
 	return (0);
 }
@@ -75,6 +82,10 @@ sigdelset(set, signo)
 	sigset_t *set;
 	int signo;
 {
+	if (SIGBAD(signo)) {
+		errno = EINVAL;
+		return -1;
+	}
 	*set &= ~sigmask(signo);
 	return (0);
 }
@@ -84,5 +95,9 @@ sigismember(set, signo)
 	const sigset_t *set;
 	int signo;
 {
+	if (SIGBAD(signo)) {
+		errno = EINVAL;
+		return -1;
+	}
 	return ((*set & ~sigmask(signo)) != 0);
 }
