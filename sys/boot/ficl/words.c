@@ -4030,6 +4030,9 @@ static void pfopen(FICL_VM *pVM)
     int     fd;
     char    *p;
 
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 2, 1);
+#endif
     (void)stackPopINT32(pVM->pStack); /* don't need count value */
     p = stackPopPtr(pVM->pStack);
     fd = open(p, O_RDONLY);
@@ -4045,9 +4048,34 @@ static void pfclose(FICL_VM *pVM)
 {
     int fd;
 
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 0);
+#endif
     fd = stackPopINT32(pVM->pStack); /* get fd */
     if (fd != -1)
 	close(fd);
+    return;
+}
+
+/*          fread - read file contents
+ *
+ * fread  ( fd buf nbytes  -- nread )
+ */
+static void pfread(FICL_VM *pVM)
+{
+    int     fd, len;
+    char *buf;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 3, 1);
+#endif
+    len = stackPopINT32(pVM->pStack); /* get number of bytes to read */
+    buf = stackPopPtr(pVM->pStack); /* get buffer */
+    fd = stackPopINT32(pVM->pStack); /* get fd */
+    if (len > 0 && buf && fd != -1)
+	stackPushINT32(pVM->pStack, read(fd, buf, len));
+    else
+	stackPushINT32(pVM->pStack, -1);
     return;
 }
 
@@ -4059,30 +4087,12 @@ static void pfload(FICL_VM *pVM)
 {
     int     fd;
 
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 0);
+#endif
     fd = stackPopINT32(pVM->pStack); /* get fd */
     if (fd != -1)
 	ficlExecFD(pVM, fd);
-    return;
-}
-
-/*          fexists - check to see if file exists, returning TRUE or FALSE
- *
- * fexists  ( count ptr -- bool )
- */
-static void pfexists(FICL_VM *pVM)
-{
-    char    *p;
-    int     fd;
-
-    (void)stackPopINT32(pVM->pStack); /* don't need count value */
-    p = stackPopPtr(pVM->pStack);
-    fd = open(p, O_RDONLY);
-    if (fd > 0) {
-	stackPushINT32(pVM->pStack, TRUE);
-	close(fd);
-    }
-    else
-	stackPushINT32(pVM->pStack, FALSE);
     return;
 }
 
@@ -4092,23 +4102,32 @@ static void pfexists(FICL_VM *pVM)
  */
 static void key(FICL_VM *pVM)
 {
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 0, 1);
+#endif
     stackPushINT32(pVM->pStack, getchar());
     return;
 }
 
-#if 0
-/**************************************************************************
-
-** 
-**************************************************************************/
-static void funcname(FICL_VM *pVM)
+/*           fkey - get a character from a file
+ *
+ * fkey ( file -- char )
+ */
+static void fkey(FICL_VM *pVM)
 {
-    IGNORE(pVM);
+    int i, fd;
+    char ch;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 1);
+#endif
+    fd = stackPopINT32(pVM->pStack);
+    i = read(fd, &ch, 1);
+    stackPushINT32(pVM->pStack, i > 0 ? ch : -1);
     return;
 }
 
 
-#endif
 /**************************************************************************
                         f i c l C o m p i l e C o r e
 ** Builds the primitive wordset and the environment-query namespace.
@@ -4271,10 +4290,11 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "\\",        commentLine,    FW_IMMEDIATE);
 
     /* FreeBSD extention words */
-    dictAppendWord(dp, "fexists",   pfexists,	    FW_DEFAULT);
     dictAppendWord(dp, "fopen",	    pfopen,	    FW_DEFAULT);
     dictAppendWord(dp, "fclose",    pfclose,	    FW_DEFAULT);
+    dictAppendWord(dp, "fread",	    pfread,	    FW_DEFAULT);
     dictAppendWord(dp, "fload",	    pfload,	    FW_DEFAULT);
+    dictAppendWord(dp, "fkey",	    fkey,	    FW_DEFAULT);
     dictAppendWord(dp, "key",	    key,	    FW_DEFAULT);
 
     /*
