@@ -1856,6 +1856,10 @@ options 	AHD_REG_PRETTY_PRINT
 # The `amd' device provides support for the AMD 53C974 SCSI host
 # adapter chip as found on devices such as the Tekram DC-390(T).
 #
+# The `bfe' device provides support for Broadcom 440x fast ethernet
+# adapters these are commonly included on several popular motherboards
+# from Asus and on some DELL laptops.
+#
 # The `bge' device provides support for gigabit ethernet adapters
 # based on the Broadcom BCM570x familiy of controllers, including the
 # 3Com 3c996-T, the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41,
@@ -2076,6 +2080,7 @@ device		trm		# Tekram DC395U/UW/F and DC315U
 device		miibus
 
 # PCI Ethernet NICs that use the common MII bus controller code.
+device		bfe		# Broadcom BCM4401 10/100.
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		my		# Myson Fast Ethernet (MTD80X, MTD89X)
