@@ -687,40 +687,40 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha,ia64">Qlogic controllers and variants (&man.isp.4; driver)
+    <para arch="i386,pc98,alpha,ia64,sparc64">Qlogic controllers and variants (&man.isp.4; driver)
       <itemizedlist>
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 1020, 1040 SCSI and Ultra SCSI host
 	  adapters</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 1240 dual Ultra SCSI controllers</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD
 	  controllers</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 12160 Ultra3 LVD controllers</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI
 	  controllers</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 2300 and Qlogic 2312 2-Gigabit Fibre Channel SCSI
 	  controllers</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Performance Technology SBS440 ISP1000 variants</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Performance Technology SBS450 ISP1040 variants</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Performance Technology SBS470 ISP2100 variants</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Antares Microsystems P-0033 ISP2100 variants</para>
 	</listitem>
         <listitem arch="pc98">
@@ -2089,8 +2089,7 @@
       </note>
     </para>
 
-    <para arch="sparc64">Sun HME Ethernet and Fast Ethernet NICs
-    (hme driver)</para>
+    <para arch="sparc64">Sun HME and QFE Ethernet NICs (hme driver)</para>
 
     <para arch="sparc64">Sun GEM (Gigabit Ethernet) and ERI (Fast
     Ethernet) NICs (gem driver)</para>
@@ -2476,7 +2475,7 @@
 
   <sect2>
     <title>Serial Interfaces</title>
-    <para arch="i386,alpha,ia64,sparc64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
+    <para arch="i386,alpha,ia64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
 
     <para arch="sparc64">Serial ports based on the SAB82532 serial
       chip (sab driver)</para>
@@ -3276,6 +3275,8 @@
 
     <para arch="pc98">Power Management Controller of NEC PC-98 Note (pmc
     driver)</para>
+
+    <para arch="sparc64">OpenFirmware console (ofwcons driver)</para>
 
   </sect2>
 </sect1>
