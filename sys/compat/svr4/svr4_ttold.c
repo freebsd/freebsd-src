@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifndef BURN_BRIDGES
+
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
@@ -376,3 +378,5 @@ svr4_ttold_ioctl(fp, td, retval, fd, cmd, data)
 		return 0;	/* ENOSYS really */
 	}
 }
+
+#endif /* BURN_BRIDGES */

@@ -43,8 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 #include <sys/ioctl_compat.h>
+#endif
 #endif
 #include <sys/proc.h>
 #include <sys/tty.h>
@@ -659,9 +661,11 @@ ptyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			return (EAGAIN);
 
 		switch (cmd) {
+#ifndef BURN_BRIDGES
 #ifdef COMPAT_43
 		case TIOCSETP:
 		case TIOCSETN:
+#endif
 #endif
 		case TIOCSETD:
 		case TIOCSETA:
@@ -734,16 +738,16 @@ ptyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		case TIOCSETA:
 		case TIOCSETAW:
 		case TIOCSETAF:
+#ifndef BURN_BRIDGES
 #ifdef COMPAT_43
 		case TIOCSETP:
 		case TIOCSETN:
-#endif
-#if defined(COMPAT_43)
 		case TIOCSETC:
 		case TIOCSLTC:
 		case TIOCLBIS:
 		case TIOCLBIC:
 		case TIOCLSET:
+#endif
 #endif
 			pt->pt_send |= TIOCPKT_IOCTL;
 			ptcwakeup(tp, FREAD);

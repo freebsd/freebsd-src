@@ -35,8 +35,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 #include <sys/ioctl_compat.h>
+#endif
 #endif
 #include <sys/tty.h>
 #include <sys/proc.h>
@@ -703,10 +705,12 @@ sxioctl(
 	int mynor = minor(dev);
 	int oldspl;
 	int blocked = 0;
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	u_long oldcmd;        
 	
 	struct termios term;
+#endif
 #endif
 
 	pp = MINOR2PP(mynor);
@@ -752,6 +756,7 @@ sxioctl(
 	/*
 	 * Do the old-style ioctl compat routines...
 	 */
+#ifndef BURN_BRIDGES
 #if defined(COMPAT_43)
 	term = tp->t_termios;
 	oldcmd = cmd;
@@ -760,6 +765,7 @@ sxioctl(
 		return(error);
 	if (cmd != oldcmd)
 		data = (caddr_t)&term;
+#endif
 #endif
 	/*
 	 * Do the initial / lock state business
@@ -796,8 +802,10 @@ sxioctl(
 	case TIOCSETAW:
 	case TIOCSETAF:
 	case TIOCDRAIN:
+#ifndef BURN_BRIDGES
 #ifdef COMPAT_43
 	case TIOCSETP:
+#endif
 #endif
 		blocked++;	/* block writes for ttywait() and sxparam() */
 		sx_write_enable(pp, 0);
