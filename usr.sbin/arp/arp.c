@@ -99,7 +99,7 @@ int my_ether_aton(char *a, struct ether_addr *n);
 int rtmsg(int cmd);
 int get_ether_addr(u_int32_t ipaddr, struct ether_addr *hwaddr);
 
-static int pid;
+static pid_t pid;
 static int nflag;	/* no reverse dns lookups */
 static int aflag;	/* do it for all entries */
 static int s = -1;
