@@ -177,7 +177,6 @@ struct vnodeopv_entry_desc ext2_specop_entries[] = {
 struct vnodeopv_desc ext2fs_specop_opv_desc =
 	{ &ext2_specop_p, ext2_specop_entries };
 
-#if FIFO
 vop_t **ext2_fifoop_p;
 struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
@@ -226,14 +225,11 @@ struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 };
 struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 	{ &ext2_fifoop_p, ext2_fifoop_entries };
-#endif /* FIFO */
 
 #if defined(__FreeBSD__)
 	VNODEOP_SET(ext2fs_vnodeop_opv_desc);
 	VNODEOP_SET(ext2fs_specop_opv_desc);
-#if FIFO
 	VNODEOP_SET(ext2fs_fifoop_opv_desc);
-#endif
 #endif
 
 /*

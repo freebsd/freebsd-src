@@ -137,10 +137,12 @@ READ(ap)
 				break;
 			xfersize = size;
 		}
-		if (error =
-		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio))
-			break;
-
+		if (uio->uio_segflg != UIO_NOCOPY)
+			ip->i_flag |= IN_RECURSE;
+		error =
+		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		if (uio->uio_segflg != UIO_NOCOPY)
+			ip->i_flag &= ~IN_RECURSE;
 #if !defined(__FreeBSD__)
 		if (S_ISREG(mode) && (xfersize + blkoffset == fs->s_frag_size ||
 		    uio->uio_offset == ip->i_size))
@@ -261,8 +263,12 @@ WRITE(ap)
 		if (size < xfersize)
 			xfersize = size;
 
+		if (uio->uio_segflg != UIO_NOCOPY)
+			ip->i_flag |= IN_RECURSE;
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		if (uio->uio_segflg != UIO_NOCOPY)
+			ip->i_flag &= ~IN_RECURSE;
 
 		if (ioflag & IO_SYNC)
 			(void)bwrite(bp);
@@ -280,7 +286,8 @@ WRITE(ap)
 			}
 		} else {
 #if defined(__FreeBSD__)
-			bp->b_flags |= B_CLUSTEROK;
+			if (doclusterwrite)
+				bp->b_flags |= B_CLUSTEROK;
 #endif
 			bdwrite(bp);
 		}
