@@ -840,6 +840,8 @@ void
 readjust_priorities(struct pthread *pthread, struct pthread_mutex *mtx)
 {
 	if ((pthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0) {
+		PTHREAD_ASSERT(mtx != NULL,
+		    "mutex is NULL when it should not be");
 		mutex_queue_remove(mtx, pthread);
 		mutex_queue_enq(mtx, pthread);
 		PTHREAD_LOCK(mtx->m_owner);
