@@ -220,28 +220,28 @@ struct sbp_softc {
 	int flags;
 };
 
-static void sbp_post_explore __P((void *));
-static void sbp_recv __P((struct fw_xfer *));
-static void sbp_mgm_callback __P((struct fw_xfer *));
+static void sbp_post_explore (void *);
+static void sbp_recv (struct fw_xfer *);
+static void sbp_mgm_callback (struct fw_xfer *);
 #if 0
-static void sbp_cmd_callback __P((struct fw_xfer *));
+static void sbp_cmd_callback (struct fw_xfer *);
 #endif
-static void sbp_orb_pointer __P((struct sbp_dev *, struct sbp_ocb *));
-static void sbp_execute_ocb __P((void *,  bus_dma_segment_t *, int, int));
-static void sbp_free_ocb __P((struct sbp_dev *, struct sbp_ocb *));
-static void sbp_abort_ocb __P((struct sbp_ocb *, int));
-static void sbp_abort_all_ocbs __P((struct sbp_dev *, int));
-static struct fw_xfer * sbp_write_cmd __P((struct sbp_dev *, int, int));
-static struct sbp_ocb * sbp_get_ocb __P((struct sbp_dev *));
-static struct sbp_ocb * sbp_enqueue_ocb __P((struct sbp_dev *, struct sbp_ocb *));
-static struct sbp_ocb * sbp_dequeue_ocb __P((struct sbp_dev *, struct sbp_status *));
+static void sbp_orb_pointer (struct sbp_dev *, struct sbp_ocb *);
+static void sbp_execute_ocb (void *,  bus_dma_segment_t *, int, int);
+static void sbp_free_ocb (struct sbp_dev *, struct sbp_ocb *);
+static void sbp_abort_ocb (struct sbp_ocb *, int);
+static void sbp_abort_all_ocbs (struct sbp_dev *, int);
+static struct fw_xfer * sbp_write_cmd (struct sbp_dev *, int, int);
+static struct sbp_ocb * sbp_get_ocb (struct sbp_dev *);
+static struct sbp_ocb * sbp_enqueue_ocb (struct sbp_dev *, struct sbp_ocb *);
+static struct sbp_ocb * sbp_dequeue_ocb (struct sbp_dev *, struct sbp_status *);
 static void sbp_cam_detach_sdev(struct sbp_dev *);
 static void sbp_free_sdev(struct sbp_dev *);
-static void sbp_cam_detach_target __P((struct sbp_target *));
-static void sbp_free_target __P((struct sbp_target *));
-static void sbp_mgm_timeout __P((void *arg));
-static void sbp_timeout __P((void *arg));
-static void sbp_mgm_orb __P((struct sbp_dev *, int, struct sbp_ocb *));
+static void sbp_cam_detach_target (struct sbp_target *);
+static void sbp_free_target (struct sbp_target *);
+static void sbp_mgm_timeout (void *arg);
+static void sbp_timeout (void *arg);
+static void sbp_mgm_orb (struct sbp_dev *, int, struct sbp_ocb *);
 
 MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/FireWire");
 
