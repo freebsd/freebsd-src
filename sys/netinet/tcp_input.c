@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.28 1995/07/31 10:24:22 olah Exp $
+ *	$Id: tcp_input.c,v 1.29 1995/10/03 16:54:12 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -2079,12 +2079,6 @@ tcp_mssopt(tp)
 	rt = tcp_rtlookup(tp->t_inpcb);
 	if (rt == NULL)
 		return tcp_mssdflt;
-
-	/*
-	 * if there's an mtu associated with the route, use it
-	 */
-	if (rt->rt_rmx.rmx_mtu)
-		return rt->rt_rmx.rmx_mtu - sizeof(struct tcpiphdr);
 
 	return rt->rt_ifp->if_mtu - sizeof(struct tcpiphdr);
 }
