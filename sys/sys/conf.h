@@ -47,8 +47,6 @@
 #include <sys/queue.h>
 #include <sys/eventhandler.h>
 
-#define SPECNAMELEN	15
-
 struct tty;
 struct disk;
 struct vnode;
