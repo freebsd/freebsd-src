@@ -1,5 +1,4 @@
 PROG = sysinstall
-BINDIR = sbin
 MANEXT = 1
 NOMAN= yet
 
