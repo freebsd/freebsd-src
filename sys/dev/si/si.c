@@ -2756,13 +2756,3 @@ si_modulename(host_type, uart_type)
 	}
 	return("");
 }
-
-static void
-si_drvinit(void *unused)
-{
-
-	cdevsw_add(&si_cdevsw);
-}
-
-SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,si_drvinit,NULL)
-
