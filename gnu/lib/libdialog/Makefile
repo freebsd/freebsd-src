@@ -23,6 +23,8 @@ DPADD+= ${LIBNCURSES} ${LIBMYTINFO}
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dialog.h \
 	      ${DESTDIR}/usr/include
+
+afterinstall:
 .for file in ${EXAMPLES}
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	      ${.CURDIR}/TESTS/${file} ${DESTDIR}/usr/share/examples/libdialog
