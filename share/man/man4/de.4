@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: de.4,v 1.3 1997/02/22 13:25:16 peter Exp $
 .\"
 .Dd January 19, 1997
 .Dt DE 4 i386
@@ -40,9 +40,54 @@ The
 driver provides support for the Ethernet adapters based on the Digital
 Equipment DC21x4x based self-contained Ethernet chips.
 .Pp
-It supports the DEC PCI DE435 card, DEC EISA DE425, DEC DE450, SMC 9332,
-ZNYX ZX314, and others based on the 21040 and 21041 Ethernet controllers or
-the 21140[A] Fast 100Base-T Ethernet controller.
+It supports the DEC PCI DE435 card, DEC EISA DE425, DEC DE450, DEC DE500,
+SMC 8432, 9332 and 9334, Cogent EM100FX and EM440TX, Asante, 
+ZNYX ZX3xx, and others based on the 21040 and 21041 Ethernet controllers or
+the 21140[A], 21141, 21142 and 21143 Fast 100Mbps Ethernet controllers.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Pp
+.Bl -tag -width xxxxxxxxxxxxxxx
+.It autoselect
+Enable autoselection of the media type and options
+.It 10baseT/UTP
+Set 10Mbps operation on the 10baseT port
+.It 10base2/BNC
+Set 10Mbps operation on the BNC port
+.It 10base5/AUI
+Set 10Mbps operation on the AUI port
+.It 100baseTX
+Set 100Mbps (fast ethernet) operation
+.It 100baseFX
+Set 100Mbps operation
+.It 100baseT4
+Set 100Mbps operation (4-pair cat-3 cable)
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Pp
+.Bl -tag -width xxxxxxxxxxxxxxx
+.It full-duplex
+Set full duplex operation
+.El
+.Pp
+Note that the media types available depend on the particular card in use.
+Some cards are explicitly programmed to a particular media type by a
+setup utility and are not changeable.
+.Pp
+Use the
+.Xr ifconfig 8
+command an in particular the
+.Fl m
+flag to list the supported media types for your particular card.
+.Pp
+The old
+.Dq ifconfig linkN
+method of configuration is not supported.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "de%d: waking device from sleep/snooze mode"
@@ -61,8 +106,6 @@ Certain revisions of the chipset are not supported by this driver.
 .Sh CAVEATS
 Since the 21040 is available on both EISA and PCI boards, one must be careful
 in how defines the 21040 in the kernel config file.
-.Sh BUGS
-Currently the driver does not support multicast.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
