@@ -100,7 +100,6 @@ def disc2_packages():
             'www/apache2']
     if arch == 'i386':
         pkgs.extend(['comms/ltmdm',
-                     'print/acroread',
                      'www/opera'])
     return pkgs
 
