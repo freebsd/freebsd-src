@@ -1,7 +1,0 @@
-$ $Id: set15,v 1.1 2000/01/14 22:57:32 christos Exp $
-$ sh.func.c
-$set 15 
-1 %s: %s: rajoitusta ei voida %s %s\n
-2 poistaa
-3 asettaa
-4 ehdottomaksi

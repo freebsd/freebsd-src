@@ -1,9 +1,0 @@
-
-#------------------------------------------------------------------------------
-# figlet:  file(1) magic for FIGlet fonts and controlfiles
-# From figmagic supplied with Figlet version 2.2
-#
-0	string		flf		FIGlet font
->3	string		>2a		version %-2.2s
-0	string		flc		FIGlet controlfile
->3	string		>2a		version %-2.2s

@@ -1,5 +1,0 @@
-# $Id: hosts.en,v 1.1.1.1 1998/08/27 17:38:43 abial Exp $
-# This file should contain the addresses and aliases
-# for local hosts that share this file.
-127.0.0.1		localhost localhost.mydomain.edu
-127.0.0.1		pico.mydomain.edu

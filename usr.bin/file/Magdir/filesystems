@@ -1,6 +1,0 @@
-
-#------------------------------------------------------------------------------
-# filesystems:  file(1) magic for different filesystems
-#
-0x438	leshort	0xEF53			Linux/i386 ext2 filesystem
-0	string	\366\366\366\366	PC formatted floppy with no filesystem

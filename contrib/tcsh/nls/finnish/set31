@@ -1,7 +1,0 @@
-$ $Id: set31,v 1.1 2000/01/14 22:57:33 christos Exp $
-$ vms.termcap.c
-$set 31 
-1 Can't open TERMCAP: [%s]\n
-2 Can't open %s.\n
-3 Found %s in %s.\n
-4 No match found for %s in file %s\n

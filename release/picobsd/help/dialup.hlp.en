@@ -1,4 +1,0 @@
-[1mdialup[m	a simple PPP configuration script
-
-	This script attempts to create the /etc/ppp/ppp.conf file suitable for
-	automatic dialing and background operation of 'ppp' program.

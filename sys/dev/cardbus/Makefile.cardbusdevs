@@ -1,8 +1,0 @@
-#	$Id: Makefile.cardbusdevs,v 1.1.2.1 1999/02/16 16:46:06 haya Exp $
-# $FreeBSD$
-
-AWK=	awk
-
-cardbusdevs.h cardbusdevs_data.h: cardbusdevs devlist2h.awk
-	/bin/rm -f cardbusdevs.h cardbusdevs_data.h
-	${AWK} -f devlist2h.awk cardbusdevs

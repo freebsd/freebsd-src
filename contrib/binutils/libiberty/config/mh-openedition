@@ -1,3 +1,0 @@
-HDEFINES = -D_ALL_SOURCE
-CC=c89
-

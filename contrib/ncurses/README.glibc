@@ -1,5 +1,0 @@
-To compile this as an add-on for glibc, unpack it in the glibc source
-tree and put ncurses on the add-on list when you do configure.
-
-hjl@gnu.ai.mit.edu
-03/21/1997

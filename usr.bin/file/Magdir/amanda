@@ -1,7 +1,0 @@
-#------------------------------------------------------------------------------
-# amanda:  file(1) magic for amanda file format
-#
-0       string          AMANDA:\ TAPESTART\ DATE     AMANDA dump header file,
->23     string          X
->>25    string          >\                           Unused %s
->23     string          >\                           DATE %s

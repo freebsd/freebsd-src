@@ -1,7 +1,0 @@
-$ $Id: set15,v 1.1 1998/04/08 17:59:56 christos Exp $
-$ sh.func.c
-$set 15 
-1 %s: %s: No se puede %s el límite %s\n
-2 quitar
-3 poner
-4 \040(hard-limit)

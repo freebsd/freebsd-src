@@ -1,9 +1,0 @@
-To strip down a new version of gdb for import, extract
-the files like this:
-
-    tar -xvzf gdb-4.18.tar.gz -X FREEBSD-Xlist
-    tar -xvzf gdb-4.18.tar.gz gdb-4.18/gdb/config/i386
-    tar -xvzf gdb-4.18.tar.gz gdb-4.18/gdb/config/alpha
-    tar -xvzf gdb-4.18.tar.gz gdb-4.18/gdb/config/mips
-
-

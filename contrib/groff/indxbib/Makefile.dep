@@ -1,6 +1,0 @@
-indxbib.o: indxbib.cc ../include/posix.h ../include/lib.h \
- ../include/errarg.h ../include/error.h ../include/stringclass.h \
- ../include/cset.h ../include/cmap.h ../include/defs.h \
- ../include/index.h
-dirnamemax.o: dirnamemax.c
-signal.o: signal.c

@@ -1,4 +1,0 @@
-$ $Id: set12,v 1.2 1996/04/26 20:45:51 christos Exp $
-$ sh.dir.c
-$set 12 
-1 %s: Essaie de démarrer à partir de "%s"\n

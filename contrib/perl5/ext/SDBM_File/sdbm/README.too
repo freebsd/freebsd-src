@@ -1,9 +1,0 @@
-This version of sdbm merely has all the dbm_* names translated to sdbm_*
-so that we can link ndbm and sdbm into the same executable.  (It also has
-the bad() macro redefined to allow a zero-length key.)
-
-
-Fri Apr 15 10:15:30 EDT 1994.
-
-Additional portability/configuration changes for libsdbm by Andy Dougherty
-doughera@lafcol.lafayette.edu.

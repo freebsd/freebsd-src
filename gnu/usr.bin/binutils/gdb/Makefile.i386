@@ -1,7 +1,0 @@
-#
-# $FreeBSD$
-#
-
-XSRCS+= freebsd-nat.c i386-tdep.c i387-tdep.c kvm-fbsd.c
-
-.PATH: ${.CURDIR}/i386

@@ -1,4 +1,0 @@
-pass in on ed0 proto tcp from localhost to localhost port = telnet keep state
-block in log first on lo0 proto tcp/udp from any to any keep state
-pass in proto udp from localhost to localhost port = 2049 keep frags
-pass in proto udp from localhost to localhost port = 53 keep state keep frags
