@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.14 1997/05/10 03:39:52 brian Exp $
+ * $Id: defs.h,v 1.15 1997/06/09 03:27:18 brian Exp $
  *
  *	TODO:
  */
@@ -53,8 +53,8 @@
 #define	NEXT_REDIAL_PERIOD 3	/* Default Hold time to next number redial */
 
 #define	CONFFILE 	"ppp.conf"
-#define	LINKFILE 	"ppp.linkup"
-#define	ETHERFILE	"ppp.etherup"
+#define	LINKUPFILE 	"ppp.linkup"
+#define	LINKDOWNFILE 	"ppp.linkdown"
 #define	SECRETFILE	"ppp.secret"
 
 /*

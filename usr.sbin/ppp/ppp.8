@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.36 1997/06/09 23:38:34 brian Exp $
+.\" $Id: ppp.8,v 1.37 1997/06/13 00:04:58 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -379,7 +379,10 @@ connection is established.  See the provided
 example in
 .Pa /etc/ppp/ppp.conf.sample
 which adds a default route.  The string HISADDR is available as the IP
-address of the remote peer.
+address of the remote peer.  Similarly, when a connection is closed, the
+contents of the
+.Pa /etc/ppp/ppp.linkdown
+file are executed.
 
 .Sh BACKGROUND DIALING
 
@@ -1822,19 +1825,20 @@ commands.
 
 .Sh FILES
 .Nm Ppp
-refers to three files: ppp.conf, ppp.linkup and ppp.secret.
-These files are placed in
+refers to four files: ppp.conf, ppp.linkup, ppp.linkdown and
+ppp.secret.  These files are placed in
 .Pa /etc/ppp ,
 but the user can create his own files under his $HOME directory as
 .Pa .ppp.conf ,
-.Pa .ppp.linkup
+.Pa .ppp.linkup ,
+.Pa .ppp.linkdown
 and
 .Pa .ppp.secret.
 .Nm
 will always try to consult the user's personal setup first.
 
 .Bl -tag -width flag
-.Pa $HOME/ppp/.ppp.[conf|linkup|secret]
+.Pa $HOME/ppp/.ppp.[conf|linkup|linkdown|secret]
 User dependent configuration files.
 
 .Pa /etc/ppp/ppp.conf
@@ -1847,6 +1851,11 @@ An authorization file for each system.
 A file to check when
 .Nm
 establishes a network level connection.
+
+.Pa /etc/ppp/ppp.linkdown
+A file to check when
+.Nm
+closes a network level connection.
 
 .Pa /var/log/ppp.tun0.log
 Logging and debugging information file.
