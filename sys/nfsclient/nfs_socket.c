@@ -452,6 +452,11 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 	}
 
 	if (error) {
+		/*
+		 * Don't report EPIPE errors on nfs sockets.
+		 * These can be due to idle tcp mounts which will be closed by
+		 * netapp, solaris, etc. if left idle too long.
+		 */
 		if (error != EPIPE) {
 			log(LOG_INFO, "nfs send error %d for server %s\n",
 			    error,
