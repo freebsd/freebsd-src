@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.2 1999/05/26 23:01:36 gallatin Exp $
+ *      $Id: busdma_machdep.c,v 1.3 1999/06/05 13:29:50 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -477,7 +477,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 	do {
 		bus_size_t	size;
-		vm_offset_t	nextpaddr;	/* GCC warning expected */
+		vm_offset_t	nextpaddr = 0;
 
 		paddr = pmap_kextract(vaddr);
 		size = PAGE_SIZE - (paddr & PAGE_MASK);
