@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.46 1995/12/07 10:34:16 peter Exp $
+ * $Id: system.c,v 1.47 1996/03/02 07:31:56 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -52,7 +52,7 @@ systemInitialize(int argc, char **argv)
 	close(1); dup(0);
 	close(2); dup(0);
 	printf("%s running as init\n", argv[0]);
-
+	RunningAsInit = 1;
 	i = ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
 	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.20 1995/11/12 11:12:25 jkh Exp $
+ * $Id: installFinal.c,v 1.21 1995/11/17 23:49:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -158,7 +158,7 @@ configSamba(char *unused)
 			strcpy(tbuf, tptr);
 			if (tbuf[len - 1] == '/')
 			    tbuf[len - 1] = '\0';
-			if (directoryExists(tbuf)) {
+			if (directory_exists(tbuf)) {
 			    tptr = msgGetInput(pathBaseName(tbuf), "What do you want to call this share?");
 			    if (tptr && *tptr) {
 				fprintf(fptr, "[%s]\npath = %s\n", tptr, tbuf);

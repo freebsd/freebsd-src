@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.17 1995/09/18 16:52:22 peter Exp $
+ * $Id: config.c,v 1.18 1995/12/07 10:33:35 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -455,7 +455,7 @@ configPackages(char *str)
 	    if (ret == RET_DONE)
 		break;
 	    else if (ret != RET_FAIL) {
-		index_extract(mediaDevice, &plist);
+		index_extract(mediaDevice, &top, &plist);
 		break;
 	    }
 	}
@@ -477,7 +477,7 @@ configPorts(char *str)
 
     if (!variable_get(VAR_PORTS_PATH))
 	variable_set2(VAR_PORTS_PATH, dist = "/cdrom/ports");
-    while (!directoryExists(dist)) {
+    while (!directory_exists(dist)) {
 	dist = variable_get_value(VAR_PORTS_PATH,
 				  "Unable to locate a ports tree on CDROM.  Please specify the\n"
 				  "location of the master ports directory you wish to create the\n"

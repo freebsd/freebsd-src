@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.44 1995/12/07 10:34:14 peter Exp $
+ * $Id: sysinstall.h,v 1.45 1996/03/02 07:31:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -278,6 +278,7 @@ typedef struct _indexEntry {	/* A single entry in an INDEX file */
     char *prefix;		/* port prefix			*/
     char *comment;		/* one line description		*/
     char *descrfile;		/* path to description file	*/
+    char *deps;			/* packages this depends on	*/
     char *maintainer;		/* maintainer			*/
 } IndexEntry;
 typedef IndexEntry *IndexEntryPtr;
@@ -469,7 +470,7 @@ void		index_init(PkgNodePtr top, PkgNodePtr plist);
 void		index_node_free(PkgNodePtr top, PkgNodePtr plist);
 void		index_sort(PkgNodePtr top);
 void		index_print(PkgNodePtr top, int level);
-int		index_extract(Device *dev, PkgNodePtr plist);
+int		index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist);
 
 /* install.c */
 extern int	installCommit(char *str);
@@ -534,7 +535,7 @@ extern Boolean	mediaVerify(void);
 /* misc.c */
 extern Boolean	file_readable(char *fname);
 extern Boolean	file_executable(char *fname);
-extern Boolean	directoryExists(const char *dirname);
+extern Boolean	directory_exists(const char *dirname);
 extern char	*string_concat(char *p1, char *p2);
 extern char	*string_concat3(char *p1, char *p2, char *p3);
 extern char	*string_prune(char *str);

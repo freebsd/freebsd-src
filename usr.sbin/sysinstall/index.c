@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.19 1995/11/06 22:26:28 jkh Exp $
+ * $Id: index.c,v 1.20 1995/11/12 20:47:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,6 +53,8 @@
 #define MAX_MENU	13
 #define _MAX_DESC	62
 
+static int	index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who);
+
 /* Smarter strdup */
 inline char *
 _strdup(char *ptr)
@@ -92,6 +94,7 @@ static char *descrs[] = {
     "libraries", "Software development libraries.",
     "mail", "Electronic mail packages and utilities.",
     "math", "Mathematical computation software.",
+    "misc", "Miscellaneous utilities.",
     "net", "Networking utilities.",
     "networking", "Networking utilities.",
     "news", "USENET News support software.",
@@ -105,6 +108,7 @@ static char *descrs[] = {
     "security", "System security software.",
     "shells", "Various shells (tcsh, bash, etc).",
     "sysutils", "Various system utilities.",
+    "www", "WEB utilities (browers, HTTP servers, etc).",
     "troff", "TROFF Text formatting utilities.",
     "utils", "Various user utilities.",
     "utilities", "Various user utilities.",
@@ -135,7 +139,7 @@ new_pkg_node(char *name, node_type type)
 }
 
 static IndexEntryPtr
-new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint)
+new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *deps)
 {
     IndexEntryPtr tmp = safe_malloc(sizeof(IndexEntry));
 
@@ -145,6 +149,7 @@ new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, ch
     tmp->comment =	_strdup(comment);
     tmp->descrfile =	_strdup(descr);
     tmp->maintainer =	_strdup(maint);
+    tmp->deps =		_strdup(deps);
     return tmp;
 }
 
@@ -203,8 +208,7 @@ readline(int fd, char *buf, int max)
 }
 
 int
-index_parse(int fd, char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint,
-	    char *cats, char *keys)
+index_parse(int fd, char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *cats, char *deps)
 {
     char line[1024];
     char *cp;
@@ -221,7 +225,8 @@ index_parse(int fd, char *name, char *pathto, char *prefix, char *comment, char 
     cp += copy_to_sep(descr, cp, '|');
     cp += copy_to_sep(maint, cp, '|');
     cp += copy_to_sep(cats, cp, '|');
-    strcpy(keys, cp);
+    (void)copy_to_sep(deps, cp, '|');
+    /* We're not actually interested in any of the other fields */
     return 0;
 }
 
@@ -244,13 +249,13 @@ index_get(char *fname, PkgNodePtr papa)
 int
 index_read(int fd, PkgNodePtr papa)
 {
-    char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], keys[511];
+    char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], deps[511];
 
-    while (index_parse(fd, name, pathto, prefix, comment, descr, maint, cats, keys) != EOF) {
+    while (index_parse(fd, name, pathto, prefix, comment, descr, maint, cats, deps) != EOF) {
 	char *cp, *cp2, tmp[511];
 	IndexEntryPtr idx;
 
-	idx = new_index(name, pathto, prefix, comment, descr, maint);
+	idx = new_index(name, pathto, prefix, comment, descr, maint, deps);
 	/* For now, we only add things to menus if they're in categories.  Keywords are ignored */
 	for (cp = strcpy(tmp, cats); (cp2 = strchr(cp, ' ')) != NULL; cp = cp2 + 1) {
 	    *cp2 = '\0';
@@ -556,14 +561,48 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 }
 
 int
-index_extract(Device *dev, PkgNodePtr plist)
+index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist)
 {
     PkgNodePtr tmp;
     int status = RET_SUCCESS;
 
-    for (tmp = plist->kids; tmp; tmp = tmp->next) {
-	if (package_extract(dev, tmp->name) != RET_SUCCESS)
-	    status = RET_FAIL;
+    for (tmp = plist->kids; tmp; tmp = tmp->next)
+	status = index_extract_one(dev, top, tmp);
+    return status;
+}
+
+static int
+index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who)
+{
+    int status = RET_SUCCESS;
+    PkgNodePtr tmp2;
+
+    if (((IndexEntryPtr)who->data)->deps) {
+	char t[1024], *cp, *cp2;
+
+	strcpy(t, ((IndexEntryPtr)who->data)->deps);
+	cp = t;
+	while (cp) {
+	    if ((cp2 = index(cp, ' ')) != NULL)
+		*cp2 = '\0';
+	    if (index_search(top, cp, &tmp2)) {
+		status = index_extract_one(dev, top, tmp2);
+		if (status != RET_SUCCESS) {
+		    msgDebug("Loading of dependant package %s failed\n", cp);
+		    break;
+		}
+		status = package_extract(dev, cp);
+		if (status != RET_SUCCESS)
+		    break;
+		if (cp2)
+		    cp = cp2 + 1;
+		else
+		    cp = NULL;
+	    }
+	}
     }
+    /* Done with the deps?  Load the real m'coy */
+    if (status == RET_SUCCESS)
+	status = package_extract(dev, who->name);
     return status;
 }
