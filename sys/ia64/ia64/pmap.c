@@ -902,7 +902,7 @@ get_pv_entry(void)
 		pmap_pagedaemon_waken = 1;
 		wakeup (&vm_pages_needed);
 	}
-	return uma_zalloc(pvzone, M_WAITOK);
+	return uma_zalloc(pvzone, M_NOWAIT);
 }
 
 /*
