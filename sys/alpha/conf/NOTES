@@ -14,7 +14,10 @@
 # An exhaustive list of options and more detailed explanations of the
 # device lines is also present in the ../../i386/conf/LINT configuration file. 
 # If you are in doubt as to the purpose or necessity of a line, check first 
-# in LINT.
+# in LINT. Please note that this is the i386 LINT, but it still contains
+# valuable info for alpha too
+#
+# For hardware specific information check HARDWARE.TXT
 #
 # $FreeBSD$
 
@@ -50,7 +53,7 @@ options 	CD9660			#ISO 9660 Filesystem
 options 	CD9660_ROOT		#CD-ROM usable as root device
 options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options 	SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
+options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI 
 options 	UCONSOLE		#Allow users to grab the console
 options 	KTRACE			#ktrace(1) syscall trace support
 options 	SYSVSHM			#SYSV-style shared memory
