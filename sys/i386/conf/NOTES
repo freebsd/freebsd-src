@@ -2216,7 +2216,7 @@ options 	POWERFAIL_NMI	# make it beep instead of panicing
 device		smbus		# Bus support, required for smb below.
 
 device		intpm
-device		alpm	1
+device		alpm
 device		ichsmb
 
 device		smb
