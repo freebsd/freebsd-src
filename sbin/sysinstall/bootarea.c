@@ -28,8 +28,6 @@
 
 extern char *bootblocks;
 extern struct mbr *mbr;
-extern char boot1[];
-extern char boot2[];
 
 int
 write_bootblocks(int fd, struct disklabel *lbl)
