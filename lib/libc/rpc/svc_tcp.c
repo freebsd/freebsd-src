@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_tcp.c 1.21 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_tcp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_tcp.c,v 1.6 1996/06/10 20:13:09 jraynard Exp $";
+static char *rcsid = "$Id: svc_tcp.c,v 1.7 1996/08/12 14:00:25 peter Exp $";
 #endif
 
 /*
@@ -291,6 +291,13 @@ static struct timeval wait_per_try = { 35, 0 };
  * reads data from the tcp conection.
  * any error is fatal and the connection is closed.
  * (And a read of zero bytes is a half closed stream => error.)
+ *
+ * Note: we have to be careful here not to allow ourselves to become
+ * blocked too long in this routine. While we're waiting for data from one
+ * client, another client may be trying to connect. To avoid this situation,
+ * some code from svc_run() is transplanted here: the select() loop checks
+ * all RPC descriptors including the one we want and calls svc_getreqset2()
+ * to handle new requests if any are detected.
  */
 static int
 readtcp(xprt, buf, len)
@@ -300,23 +307,32 @@ readtcp(xprt, buf, len)
 {
 	register int sock = xprt->xp_sock;
 #ifdef FD_SETSIZE
-	fd_set mask;
 	fd_set readfds;
-
-	FD_ZERO(&mask);
-	FD_SET(sock, &mask);
 #else
 	register int mask = 1 << sock;
 	int readfds;
 #endif /* def FD_SETSIZE */
 	do {
-		readfds = mask;
+#ifdef FD_SETSIZE
+		readfds = svc_fdset;
+		FD_SET(sock, &readfds);
+#else
+		readfds = svc_fds;
+		readfds |= (1 << sock);
+#endif /* def FD_SETSIZE */
 		if (select(_rpc_dtablesize(), &readfds, (fd_set *)NULL,
 			   (fd_set *)NULL, &wait_per_try) <= 0) {
 			if (errno == EINTR) {
 				continue;
 			}
 			goto fatal_err;
+		} else {
+#ifdef FD_SETSIZE
+			if (!FD_ISSET(sock, &readfds))
+#else
+			if (readfds != mask)
+#endif
+				svc_getreqset(&readfds);
 		}
 #ifdef FD_SETSIZE
 	} while (!FD_ISSET(sock, &readfds));
@@ -382,6 +398,7 @@ svctcp_recv(xprt, msg)
 		cd->x_id = msg->rm_xid;
 		return (TRUE);
 	}
+	cd->strm_stat = XPRT_DIED;	/* XXXX */
 	return (FALSE);
 }
 
