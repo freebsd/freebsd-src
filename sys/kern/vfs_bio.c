@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.23 1995/01/20 23:30:42 ache Exp $
+ * $Id: vfs_bio.c,v 1.24 1995/01/21 06:32:26 ache Exp $
  */
 
 /*
@@ -83,6 +83,8 @@ caddr_t buffers_kva;
 vm_page_t bogus_page;
 vm_offset_t bogus_offset;
 
+int bufspace, maxbufspace;
+
 /*
  * Initialize buffer headers and related structures.
  */
@@ -119,6 +121,10 @@ bufinit()
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 	}
+/*
+ * this will change later!!!
+ */
+	maxbufspace = 2 * (nbuf + 8) * PAGE_SIZE;
 
 	bogus_offset = kmem_alloc_pageable(kernel_map, PAGE_SIZE);
 	bogus_page = vm_page_alloc(kernel_object, bogus_offset - VM_MIN_KERNEL_ADDRESS, 0);
@@ -239,172 +245,6 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 }
 
 /*
- * this routine is used by filesystems to get at pages in the PG_CACHE
- * queue.  also, it is used to read pages that are currently being
- * written out by the file i/o routines.
- */
-int
-vfs_read_bypass(struct vnode * vp, struct uio * uio, int maxread, daddr_t lbn)
-{
-	vm_page_t m;
-	vm_offset_t kv;
-	int nread;
-	int error;
-	struct buf *bp, *bpa;
-	vm_object_t obj;
-	int off;
-	int nrest;
-	int flags;
-	int s;
-
-	return 0;
-	/*
-	 * don't use the bypass mechanism for non-vmio vnodes
-	 */
-	if ((vp->v_flag & VVMIO) == 0)
-		return 0;
-	/*
-	 * get the VM object (it has the pages)
-	 */
-	obj = (vm_object_t) vp->v_vmdata;
-	if (obj == NULL)
-		return 0;
-
-	/*
-	 * if there is a buffer that is not busy, it is faster to use it.
-	 * This like read-ahead, etc work better
-	 */
-
-	s = splbio();
-	if ((bp = incore(vp, lbn)) &&
-	    (((bp->b_flags & B_READ) && (bp->b_flags & B_BUSY))
-		|| (bp->b_flags & B_BUSY) == 0)) {
-		splx(s);
-		return 0;
-	}
-	splx(s);
-
-	/*
-	 * get a pbuf --> we just use the kva
-	 */
-	kv = kmem_alloc_wait(pager_map, PAGE_SIZE);
-	nread = 0;
-	error = 0;
-
-	while (!error && uio->uio_resid && maxread > 0) {
-		int po;
-		int count;
-		int s;
-
-relookup:
-		/*
-		 * lookup the page
-		 */
-		m = vm_page_lookup(obj, trunc_page(uio->uio_offset));
-		if (!m)
-			break;
-		/*
-		 * get the offset into the page, and the amount to read in the
-		 * page
-		 */
-		nrest = round_page(uio->uio_offset) - uio->uio_offset;
-		if (nrest > uio->uio_resid)
-			nrest = uio->uio_resid;
-
-		/*
-		 * check the valid bits for the page (DEV_BSIZE chunks)
-		 */
-		if (!vm_page_is_valid(m, uio->uio_offset, nrest))
-			break;
-
-		/*
-		 * if the page is busy, wait for it
-		 */
-		s = splhigh();
-		if (!m->valid || (m->flags & PG_BUSY)) {
-			m->flags |= PG_WANTED;
-			tsleep((caddr_t) m, PVM, "vnibyp", 0);
-			splx(s);
-			goto relookup;
-		}
-		/*
-		 * if the page is on the cache queue, remove it -- cache queue
-		 * pages should be freeable by vm_page_alloc anytime.
-		 */
-		if (m->flags & PG_CACHE) {
-			if (cnt.v_free_count + cnt.v_cache_count < cnt.v_free_reserved) {
-				VM_WAIT;
-				goto relookup;
-			}
-			vm_page_unqueue(m);
-		}
-		/*
-		 * add a buffer mapping (essentially wires the page too).
-		 */
-		m->bmapped++;
-		splx(s);
-
-		/*
-		 * enter it into the kva
-		 */
-		pmap_qenter(kv, &m, 1);
-
-		/*
-		 * do the copy
-		 */
-		po = uio->uio_offset & (PAGE_SIZE - 1);
-		count = PAGE_SIZE - po;
-		if (count > maxread)
-			count = maxread;
-		if (count > uio->uio_resid)
-			count = uio->uio_resid;
-
-		error = uiomove((caddr_t) kv + po, count, uio);
-		if (!error) {
-			nread += count;
-			maxread -= count;
-		}
-		/*
-		 * remove from kva
-		 */
-		pmap_qremove(kv, 1);
-		PAGE_WAKEUP(m);	/* XXX probably unnecessary */
-		/*
-		 * If the page was on the cache queue, then by definition
-		 * bmapped was 0. Thus the following case will also take care
-		 * of the page being removed from the cache queue above.
-		 * Also, it is possible that the page was already entered onto
-		 * another queue (or was already there), so we don't put it
-		 * onto the cache queue...
-		 */
-		m->bmapped--;
-		if (m->bmapped == 0 &&
-		    (m->flags & (PG_CACHE | PG_ACTIVE | PG_INACTIVE)) == 0 &&
-		    m->wire_count == 0) {
-			vm_page_test_dirty(m);
-
-			/*
-			 * make sure that the darned page is on a queue
-			 * somewhere...
-			 */
-			if ((m->dirty & m->valid) == 0) {
-				vm_page_cache(m);
-			} else if (m->hold_count == 0) {
-				vm_page_deactivate(m);
-			} else {
-				vm_page_activate(m);
-			}
-		}
-	}
-	/*
-	 * release our buffer(kva).
-	 */
-	kmem_free_wakeup(pager_map, kv, PAGE_SIZE);
-	return nread;
-}
-
-
-/*
  * Write, release buffer on completion.  (Done by iodone
  * if async.)
  */
@@ -493,6 +333,10 @@ bdwrite(struct buf * bp)
 void
 bawrite(struct buf * bp)
 {
+#ifdef EVILFORNOW
+	/*
+	 * #ifdef EXTRA_DEADLOCKS is appropriate for this code for now :-)
+	 */
 	if (((bp->b_flags & B_DELWRI) == 0) && (bp->b_vp->v_numoutput > 24)) {
 		int s = splbio();
 
@@ -502,6 +346,7 @@ bawrite(struct buf * bp)
 		}
 		splx(s);
 	}
+#endif
 	bp->b_flags |= B_ASYNC;
 	(void) bwrite(bp);
 }
@@ -588,8 +433,12 @@ brelse(struct buf * bp)
 				--m->bmapped;
 				if (m->bmapped == 0) {
 					PAGE_WAKEUP(m);
-					if ((m->dirty & m->valid) == 0)
+					if ((m->dirty & m->valid) == 0 &&
+						(m->flags & PG_REFERENCED) == 0 &&
+							!pmap_is_referenced(VM_PAGE_TO_PHYS(m)))
 						vm_page_cache(m);
+					else if( (m->flags & PG_ACTIVE) == 0)
+						vm_page_activate(m);
 				}
 			}
 			foff += resid;
@@ -597,6 +446,7 @@ brelse(struct buf * bp)
 		}
 
 		if (bp->b_flags & B_INVAL) {
+			bufspace -= bp->b_bufsize;
 			pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
 			bp->b_npages = 0;
 			bp->b_bufsize = 0;
@@ -664,8 +514,9 @@ vfs_bio_awrite(struct buf * bp)
 
 	s = splbio();
 	if( vp->v_mount && (vp->v_flag & VVMIO) &&
-		(bp->b_flags & (B_CLUSTEROK|B_INVAL)) == B_CLUSTEROK) {
-		int size  = vp->v_mount->mnt_stat.f_iosize;
+	    	(bp->b_flags & (B_CLUSTEROK | B_INVAL)) == B_CLUSTEROK) {
+		int size = vp->v_mount->mnt_stat.f_iosize;
+
 		for (i = 1; i < MAXPHYS / size; i++) {
 			if ((bpa = incore(vp, lblkno + i)) &&
 			    ((bpa->b_flags & (B_BUSY | B_DELWRI | B_BUSY | B_CLUSTEROK | B_INVAL)) == B_DELWRI | B_CLUSTEROK) &&
@@ -696,8 +547,6 @@ vfs_bio_awrite(struct buf * bp)
 	splx(s);
 }
 
-int freebufspace;
-int allocbufspace;
 
 /*
  * Find a buffer header which is available for use.
@@ -711,6 +560,9 @@ getnewbuf(int slpflag, int slptimeo, int doingvmio)
 
 	s = splbio();
 start:
+	if (bufspace >= maxbufspace)
+		goto trytofreespace;
+
 	/* can we constitute a new buffer? */
 	if ((bp = bufqueues[QUEUE_EMPTY].tqh_first)) {
 		if (bp->b_qindex != QUEUE_EMPTY)
@@ -718,17 +570,18 @@ start:
 		bremfree(bp);
 		goto fillbuf;
 	}
+trytofreespace:
 	/*
 	 * we keep the file I/O from hogging metadata I/O
 	 */
 	if (bp = bufqueues[QUEUE_AGE].tqh_first) {
 		if (bp->b_qindex != QUEUE_AGE)
 			panic("getnewbuf: inconsistent AGE queue");
-	} else if ((nvmio > (2 * nbuf / 3))
+	} else if ((nvmio > (nbuf / 2))
 	    && (bp = bufqueues[QUEUE_VMIO].tqh_first)) {
 		if (bp->b_qindex != QUEUE_VMIO)
 			panic("getnewbuf: inconsistent VMIO queue");
-	} else if ((!doingvmio || (nlru > (2 * nbuf / 3))) &&
+	} else if ((!doingvmio || (nlru > (nbuf / 2))) &&
 	    (bp = bufqueues[QUEUE_LRU].tqh_first)) {
 		if (bp->b_qindex != QUEUE_LRU)
 			panic("getnewbuf: inconsistent LRU queue");
@@ -784,13 +637,14 @@ start:
 	if (bp->b_wcred != NOCRED)
 		crfree(bp->b_wcred);
 fillbuf:
-	bp->b_flags = B_BUSY;
+	bp->b_flags |= B_BUSY;
 	LIST_REMOVE(bp, b_hash);
 	LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 	splx(s);
 	if (bp->b_bufsize) {
 		allocbuf(bp, 0, 0);
 	}
+	bp->b_flags = B_BUSY;
 	bp->b_dev = NODEV;
 	bp->b_vp = NULL;
 	bp->b_blkno = bp->b_lblkno = 0;
@@ -803,6 +657,12 @@ fillbuf:
 	bp->b_data = buffers_kva + (bp - buf) * MAXBSIZE;
 	bp->b_dirtyoff = bp->b_dirtyend = 0;
 	bp->b_validoff = bp->b_validend = 0;
+	if (bufspace >= maxbufspace) {
+		s = splbio();
+		bp->b_flags |= B_INVAL;
+		brelse(bp);
+		goto trytofreespace;
+	}
 	return (bp);
 }
 
@@ -851,7 +711,7 @@ inmem(struct vnode * vp, daddr_t blkno)
 		return 1;
 	if (vp->v_mount == 0)
 		return 0;
-	if (vp->v_vmdata == 0)
+	if ((vp->v_vmdata == 0) || (vp->v_flag & VVMIO) == 0)
 		return 0;
 
 	obj = (vm_object_t) vp->v_vmdata;
@@ -920,8 +780,7 @@ loop:
 		vm_object_t obj;
 		int doingvmio;
 
-		if ((obj = (vm_object_t) vp->v_vmdata) &&
-		    (vp->v_flag & VVMIO) /* && (blkno >= 0) */ ) {
+		if ((obj = (vm_object_t) vp->v_vmdata) && (vp->v_flag & VVMIO)) {
 			doingvmio = 1;
 		} else {
 			doingvmio = 0;
@@ -985,52 +844,33 @@ allocbuf(struct buf * bp, int size, int vmio)
 {
 
 	int s;
-	int newbsize;
+	int newbsize, mbsize;
 	int i;
 
 	if ((bp->b_flags & B_VMIO) == 0) {
+		mbsize = ((size + DEV_BSIZE - 1) / DEV_BSIZE) * DEV_BSIZE;
 		newbsize = round_page(size);
+
 		if (newbsize == bp->b_bufsize) {
 			bp->b_bcount = size;
 			return 1;
 		} else if (newbsize < bp->b_bufsize) {
-			if (bp->b_flags & B_MALLOC) {
-				bp->b_bcount = size;
-				return 1;
-			}
 			vm_hold_free_pages(
 			    bp,
 			    (vm_offset_t) bp->b_data + newbsize,
 			    (vm_offset_t) bp->b_data + bp->b_bufsize);
+			bufspace -= (bp->b_bufsize - newbsize);
 		} else if (newbsize > bp->b_bufsize) {
-			if (bp->b_flags & B_MALLOC) {
-				vm_offset_t bufaddr;
-
-				bufaddr = (vm_offset_t) bp->b_data;
-				bp->b_data = buffers_kva + (bp - buf) * MAXBSIZE;
-				vm_hold_load_pages(
-				    bp,
-				    (vm_offset_t) bp->b_data,
-				    (vm_offset_t) bp->b_data + newbsize);
-				bcopy((caddr_t) bufaddr, bp->b_data, bp->b_bcount);
-				free((caddr_t) bufaddr, M_TEMP);
-			} else if ((newbsize <= PAGE_SIZE / 2) && (bp->b_bufsize == 0)) {
-				bp->b_flags |= B_MALLOC;
-				bp->b_data = malloc(newbsize, M_TEMP, M_WAITOK);
-				bp->b_npages = 0;
-			} else {
-				vm_hold_load_pages(
-				    bp,
-				    (vm_offset_t) bp->b_data + bp->b_bufsize,
-				    (vm_offset_t) bp->b_data + newbsize);
-			}
+			vm_hold_load_pages(
+			    bp,
+			    (vm_offset_t) bp->b_data + bp->b_bufsize,
+			    (vm_offset_t) bp->b_data + newbsize);
+			bufspace += (newbsize - bp->b_bufsize);
 		}
 		/*
 		 * adjust buffer cache's idea of memory allocated to buffer
 		 * contents
 		 */
-		freebufspace -= newbsize - bp->b_bufsize;
-		allocbufspace += newbsize - bp->b_bufsize;
 	} else {
 		vm_page_t m;
 		int desiredpages;
@@ -1067,6 +907,7 @@ allocbuf(struct buf * bp, int size, int vmio)
 					bp->b_pages[i] = NULL;
 				}
 				bp->b_npages = desiredpages;
+				bufspace -= (bp->b_bufsize - newbsize);
 			}
 		} else {
 			vm_object_t obj;
@@ -1108,10 +949,8 @@ allocbuf(struct buf * bp, int size, int vmio)
 							vm_page_activate(m);
 						continue;
 					}
-					s = splhigh();
 					m = vm_page_lookup(obj, objoff);
 					if (!m) {
-						splx(s);
 						m = vm_page_alloc(obj, objoff, 0);
 						if (!m) {
 							int j;
@@ -1120,7 +959,7 @@ allocbuf(struct buf * bp, int size, int vmio)
 								vm_page_t mt = bp->b_pages[j];
 
 								PAGE_WAKEUP(mt);
-								if (!mt->valid) {
+								if (mt->valid == 0 && mt->bmapped == 0) {
 									vm_page_free(mt);
 								}
 							}
@@ -1141,12 +980,11 @@ allocbuf(struct buf * bp, int size, int vmio)
 						int j;
 						int bufferdestroyed = 0;
 
-						splx(s);
 						for (j = bp->b_npages; j < pageindex; j++) {
 							vm_page_t mt = bp->b_pages[j];
 
 							PAGE_WAKEUP(mt);
-							if (mt->valid == 0) {
+							if (mt->valid == 0 && mt->bmapped == 0) {
 								vm_page_free(mt);
 							}
 						}
@@ -1162,9 +1000,9 @@ allocbuf(struct buf * bp, int size, int vmio)
 						if (m->flags & PG_BUSY) {
 							m->flags |= PG_WANTED;
 							tsleep(m, PRIBIO, "pgtblk", 0);
-						} else
-							if (m->valid == 0)
-								vm_page_free(m);
+						} else if( m->valid == 0 && m->bmapped == 0) {
+							vm_page_free(m);
+						}
 						splx(s);
 						if (bufferdestroyed)
 							return 0;
@@ -1177,12 +1015,11 @@ allocbuf(struct buf * bp, int size, int vmio)
 						    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) {
 							int j;
 
-							splx(s);
 							for (j = bp->b_npages; j < pageindex; j++) {
 								vm_page_t mt = bp->b_pages[j];
 
 								PAGE_WAKEUP(mt);
-								if (mt->valid == 0) {
+								if (mt->valid == 0 && mt->bmapped == 0) {
 									vm_page_free(mt);
 								}
 							}
@@ -1206,7 +1043,6 @@ allocbuf(struct buf * bp, int size, int vmio)
 						if ((m->flags & PG_ACTIVE) == 0)
 							vm_page_activate(m);
 						m->flags |= PG_BUSY;
-						splx(s);
 					}
 					bp->b_pages[pageindex] = m;
 					curbpnpages = pageindex + 1;
@@ -1220,6 +1056,13 @@ allocbuf(struct buf * bp, int size, int vmio)
 						m->bmapped++;
 						PAGE_WAKEUP(m);
 					}
+#if 0
+					if( bp->b_flags & B_CACHE) {
+						for (i = bp->b_npages; i < curbpnpages; i++) {
+							bp->b_pages[i]->flags |= PG_REFERENCED;
+						}
+					}
+#endif
 				} else {
 					if (!vm_page_is_valid(bp->b_pages[0], off, bsize))
 						bp->b_flags &= ~B_CACHE;
@@ -1231,6 +1074,7 @@ allocbuf(struct buf * bp, int size, int vmio)
 				pmap_qenter((vm_offset_t) bp->b_data, bp->b_pages, bp->b_npages);
 				bp->b_data += off % PAGE_SIZE;
 			}
+			bufspace += (newbsize - bp->b_bufsize);
 		}
 	}
 	bp->b_bufsize = newbsize;

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.7 1994/12/18 03:05:49 davidg Exp $
+ * $Id: vfs_cluster.c,v 1.8 1995/01/09 16:04:53 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -90,7 +90,7 @@ int totreadblocks;
 	 ((blk) == (vp)->v_lastr + 1 || (blk) == (vp)->v_lastr))
 #else
 #define ISSEQREAD(vp, blk) \
-	((blk) != 0 && ((blk) == (vp)->v_lastr + 1 || (blk) == (vp)->v_lastr))
+	(/* (blk) != 0 && */ ((blk) == (vp)->v_lastr + 1 || (blk) == (vp)->v_lastr))
 #endif
 
 /*
@@ -133,7 +133,12 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 		if (!ISSEQREAD(vp, origlblkno)) {
 			vp->v_ralen >>= 1;
 			return 0;
-		}
+		} else if( vp->v_maxra > origlblkno) {
+			if ((vp->v_ralen + 1) < (MAXPHYS / size))
+				vp->v_ralen++;
+			if ( vp->v_maxra > (origlblkno + 2*vp->v_ralen))
+				return 0;
+		} 
 		bp = NULL;
 	} else {
 		/*
@@ -193,11 +198,13 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 	    (rablkno + 1) * size <= filesize &&
 	    !(error = VOP_BMAP(vp, rablkno, NULL, &blkno, &num_ra)) &&
 	    blkno != -1) {
+		if ((vp->v_ralen + 1) < MAXPHYS / size)
+			vp->v_ralen++;
 		if (num_ra > vp->v_ralen)
 			num_ra = vp->v_ralen;
 
 		if (num_ra &&
-		    ((cnt.v_free_count + cnt.v_cache_count) > cnt.v_free_reserved)) {
+		    ((cnt.v_free_count + cnt.v_cache_count) > cnt.v_free_min)) {
 			rbp = cluster_rbuild(vp, filesize,
 			    NULL, rablkno, blkno, size, num_ra, B_READ | B_ASYNC);
 		} else {
@@ -206,7 +213,7 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 			rbp->b_blkno = blkno;
 		}
 	}
-skip_readahead:
+
 	/*
 	 * if the synchronous read is a cluster, handle it, otherwise do a
 	 * simple, non-clustered read.
@@ -218,6 +225,7 @@ skip_readahead:
 			vfs_busy_pages(bp, 0);
 			error = VOP_STRATEGY(bp);
 			vp->v_maxra = bp->b_lblkno + bp->b_bcount / size;
+			/* printf("r:(%d, %d)", bp->b_lblkno, bp->b_bcount / size);  */
 			totreads++;
 			totreadblocks += bp->b_bcount / size;
 			curproc->p_stats->p_ru.ru_inblock++;
@@ -234,12 +242,13 @@ skip_readahead:
 			vfs_busy_pages(rbp, 0);
 			(void) VOP_STRATEGY(rbp);
 			vp->v_maxra = rbp->b_lblkno + rbp->b_bcount / size;
+			/* printf("ra:(%d, %d)", rbp->b_lblkno, rbp->b_bcount / size); */
 			totreads++;
 			totreadblocks += rbp->b_bcount / size;
 			curproc->p_stats->p_ru.ru_inblock++;
 		}
 	}
-	if (bp)
+	if (bp && ((bp->b_flags & B_ASYNC) == 0))
 		return (biowait(bp));
 	return (error);
 }
@@ -312,9 +321,11 @@ cluster_rbuild(vp, filesize, bp, lbn, blkno, size, run, flags)
 	inc = btodb(size);
 	for (bn = blkno, i = 0; i <= run; ++i, bn += inc) {
 		if (i != 0) {
+/*
 			if (inmem(vp, lbn + i)) {
 				break;
 			}
+*/
 			tbp = getblk(vp, lbn + i, size, 0, 0);
 			if ((tbp->b_flags & B_CACHE) ||
 			    (tbp->b_flags & B_VMIO) != (bp->b_flags & B_VMIO)) {
@@ -408,7 +419,7 @@ cluster_write(bp, filesize)
 
 	if (vp->v_clen == 0 || lbn != vp->v_lastw + 1 ||
 	    (bp->b_blkno != vp->v_lasta + btodb(lblocksize))) {
-		maxclen = MAXPHYS / lblocksize;
+		maxclen = MAXPHYS / lblocksize - 1;
 		if (vp->v_clen != 0) {
 			/*
 			 * Next block is not sequential.
@@ -480,7 +491,7 @@ cluster_wbuild(vp, last_bp, size, start_lbn, len, lbn)
 	daddr_t lbn;
 {
 	struct cluster_save *b_save;
-	struct buf *bp, *tbp;
+	struct buf *bp, *tbp, *pb;
 	caddr_t cp;
 	int i, j, s;
 
@@ -495,8 +506,10 @@ redo:
 		--len;
 	}
 
+	pb = (struct buf *) trypbuf();
 	/* Get more memory for current buffer */
-	if (len <= 1) {
+	if (len <= 1 || pb == 0) {
+		relpbuf(pb);
 		if (last_bp) {
 			bawrite(last_bp);
 		} else if (len) {
@@ -507,6 +520,7 @@ redo:
 	}
 	tbp = getblk(vp, start_lbn, size, 0, 0);
 	if (!(tbp->b_flags & B_DELWRI)) {
+		relpbuf(pb);
 		++start_lbn;
 		--len;
 		brelse(tbp);
@@ -520,12 +534,13 @@ redo:
 	 * prematurely--too much hassle.
 	 */
 	if (tbp->b_bcount != tbp->b_bufsize) {
+		relpbuf(pb);
 		++start_lbn;
 		--len;
 		bawrite(tbp);
 		goto redo;
 	}
-	bp = getpbuf();
+	bp = pb;
 	b_save = malloc(sizeof(struct buf *) * (len + 1) + sizeof(struct cluster_save),
 	    M_SEGMENT, M_WAITOK);
 	b_save->bs_nchildren = 0;
@@ -555,7 +570,7 @@ redo:
 			    (last_bp == NULL && start_lbn == lbn))
 				break;
 
-			if ((tbp->b_flags & (B_INVAL | B_BUSY | B_CLUSTEROK)) != B_CLUSTEROK)
+			if ((tbp->b_flags & (B_INVAL | B_CLUSTEROK)) != B_CLUSTEROK)
 				break;
 
 			/*
@@ -564,6 +579,8 @@ redo:
 			 * explictly as last_bp).
 			 */
 			if (last_bp == NULL || start_lbn != lbn) {
+				if( tbp->b_flags & B_BUSY)
+					break;
 				tbp = getblk(vp, start_lbn, size, 0, 0);
 				if (!(tbp->b_flags & B_DELWRI) ||
 				    ((tbp->b_flags & B_VMIO) != (bp->b_flags & B_VMIO))) {
