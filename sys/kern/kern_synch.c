@@ -916,7 +916,7 @@ resetpriority(p)
 
 	if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
 		newpriority = PUSER + p->p_estcpu / INVERSE_ESTCPU_WEIGHT +
-		    NICE_WEIGHT * p->p_nice;
+		    NICE_WEIGHT * (p->p_nice - PRIO_MIN);
 		newpriority = min(newpriority, MAXPRI);
 		p->p_usrpri = newpriority;
 	}

@@ -404,12 +404,12 @@ extern int	whichidqs;	/* Bit mask summary of non-empty Q's. */
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
  * the range 100-256 Hz (approximately).
  */
-#define	ESTCPULIM(e) \
-    min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * PRIO_MAX - PPQ) + \
-	     INVERSE_ESTCPU_WEIGHT - 1)
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level) */
-#define	NICE_WEIGHT	2		/* priorities per nice level */
+#define	NICE_WEIGHT	1		/* priorities per nice level */
 #define	PPQ		(128 / NQS)	/* priorities per queue */
+#define	ESTCPULIM(e) \
+    min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * PRIO_TOTAL - PPQ) + \
+	INVERSE_ESTCPU_WEIGHT - 1)
 
 extern	u_long ps_arg_cache_limit;
 extern	int ps_argsopen;
