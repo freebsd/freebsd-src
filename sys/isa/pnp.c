@@ -104,19 +104,6 @@ static pnp_id necids[] = {
 };
 #endif
 
-#if 0
-/*
- * these entries are initialized using the autoconfig menu
- * The struct is invalid (and must be initialized) if the first
- * CSN is zero. The init code fills invalid entries with CSN 255
- * which is not a supported value.
- */
-
-struct pnp_cinfo pnp_ldn_overrides[MAX_PNP_LDN] = {
-    { 0 }
-};
-#endif
-
 /* The READ_DATA port that we are using currently */
 static int pnp_rd_port;
 
@@ -148,17 +135,6 @@ pnp_write(int d, u_char r)
 	outb (_PNP_ADDRESS, d);
 	outb (_PNP_WRITE_DATA, r);
 }
-
-#if 0
-
-static u_char
-pnp_read(int d)
-{
-	outb (_PNP_ADDRESS, d);
-	return (inb(3 | (pnp_rd_port <<2)));
-}
-
-#endif
 
 /*
  * Send Initiation LFSR as described in "Plug and Play ISA Specification",
@@ -246,67 +222,6 @@ pnp_get_resource_info(u_char *buffer, int len)
 	}
 	return count;
 }
-
-#if 0
-/*
- * write_pnp_parms initializes a logical device with the parms
- * in d, and then activates the board if the last parameter is 1.
- */
-
-static int
-write_pnp_parms(struct pnp_cinfo *d, pnp_id *p, int ldn)
-{
-    int i, empty = -1 ;
-
-    pnp_write (SET_LDN, ldn );
-    i = pnp_read(SET_LDN) ;
-    if (i != ldn) {
-	printf("Warning: LDN %d does not exist\n", ldn);
-    }
-    for (i = 0; i < 8; i++) {
-	pnp_write(IO_CONFIG_BASE + i * 2, d->ic_port[i] >> 8 );
-	pnp_write(IO_CONFIG_BASE + i * 2 + 1, d->ic_port[i] & 0xff );
-    }
-    for (i = 0; i < 4; i++) {
-	pnp_write(MEM_CONFIG + i*8, (d->ic_mem[i].base >> 16) & 0xff );
-	pnp_write(MEM_CONFIG + i*8+1, (d->ic_mem[i].base >> 8) & 0xff );
-	pnp_write(MEM_CONFIG + i*8+2, d->ic_mem[i].control & 0xff );
-	pnp_write(MEM_CONFIG + i*8+3, (d->ic_mem[i].range >> 16) & 0xff );
-	pnp_write(MEM_CONFIG + i*8+4, (d->ic_mem[i].range >> 8) & 0xff );
-    }
-    for (i = 0; i < 2; i++) {
-	pnp_write(IRQ_CONFIG + i*2    , d->irq[i] );
-	pnp_write(IRQ_CONFIG + i*2 + 1, d->irq_type[i] );
-	pnp_write(DRQ_CONFIG + i, d->drq[i] );
-    }
-    /*
-     * store parameters read into the current kernel
-     * so manual editing next time is easier
-     */
-    for (i = 0 ; i < MAX_PNP_LDN; i++) {
-	if (pnp_ldn_overrides[i].csn == d->csn &&
-		pnp_ldn_overrides[i].ldn == ldn) {
-	    d->flags = pnp_ldn_overrides[i].flags ;
-	    pnp_ldn_overrides[i] = *d ;
-	    break ;
-	} else if (pnp_ldn_overrides[i].csn < 1 ||
-		pnp_ldn_overrides[i].csn == 255)
-	    empty = i ;
-    }
-    if (i== MAX_PNP_LDN && empty != -1)
-	pnp_ldn_overrides[empty] = *d;
-
-    /*
-     * Here should really perform the range check, and
-     * return a failure if not successful.
-     */
-    pnp_write (IO_RANGE_CHECK, 0);
-    DELAY(1000); /* XXX is it really necessary ? */
-    pnp_write (ACTIVATE, d->enable ? 1 : 0);
-    DELAY(1000); /* XXX is it really necessary ? */
-    return 1 ;
-}
-#endif
 
 /*
  * This function is called after the bus has assigned resource
@@ -879,15 +794,6 @@ static void
 pnp_identify(driver_t *driver, device_t parent)
 {
 	int num_pnp_devs;
-
-#if 0
-	if (pnp_ldn_overrides[0].csn == 0) {
-		if (bootverbose)
-			printf("Initializing PnP override table\n");
-		bzero (pnp_ldn_overrides, sizeof(pnp_ldn_overrides));
-		pnp_ldn_overrides[0].csn = 255 ;
-	}
-#endif
 
 	/* Try various READ_DATA ports from 0x203-0x3ff */
 	for (pnp_rd_port = 0x80; (pnp_rd_port < 0xff); pnp_rd_port += 0x10) {
