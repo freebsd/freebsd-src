@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)fortune.c	5.5 (Berkeley) 6/10/91";
+#endif
+static const char rcsid[] =
+ "$FreeBSD$";
 #endif /* not lint */
 
 /* fortune.c		 Larn is copyrighted 1986 by Noah Morgan. */
