@@ -494,6 +494,10 @@ aac_detach(device_t dev)
 
 	aac_free(sc);
 
+	mtx_destroy(&sc->aac_aifq_lock);
+	mtx_destroy(&sc->aac_io_lock);
+	mtx_destroy(&sc->aac_container_lock);
+
 	return(0);
 }
 
