@@ -1,9 +1,10 @@
-# @(#)leapseconds	7.11
+# @(#)leapseconds	7.12
 
 # Allowance for leapseconds added to each timezone file.
 
 # The International Earth Rotation Service periodically uses leap seconds
-# to keep UTC to within 0.9 s of TAI (atomic time); see
+# to keep UTC to within 0.9 s of UT1
+# (which measures the true angular orientation of the earth in space); see
 # Terry J Quinn, The BIPM and the accurate measure of time,
 # Proc IEEE 79, 7 (July 1991), 894-905.
 # There were no leap seconds before 1972, because the official mechanism
