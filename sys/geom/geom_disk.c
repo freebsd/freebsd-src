@@ -99,9 +99,12 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	dev = dp->d_dev;
 	error = 0;
 	if ((pp->acr + pp->acw + pp->ace) == 0 && (r + w + e) > 0) {
-		if (dp->d_open != NULL) {
+		if (dp->d_open != NULL || dp->d_copen != NULL) {
 			g_disk_lock_giant(dp);
-			error = dp->d_open(dev, FREAD | FWRITE, 0, NULL);
+			if (dp->d_open != NULL)
+				error = dp->d_open(dp);
+			else
+				error = dp->d_copen(dev, FREAD|FWRITE, 0, NULL);
 			if (error != 0)
 				printf("Opened disk %s -> %d\n",
 				    pp->name, error);
@@ -111,9 +114,12 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		pp->sectorsize = dp->d_sectorsize;
 		dp->d_flags |= DISKFLAG_OPEN;
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
-		if (dp->d_close != NULL) {
+		if (dp->d_close != NULL || dp->d_cclose != NULL) {
 			g_disk_lock_giant(dp);
-			error = dp->d_close(dev, FREAD | FWRITE, 0, NULL);
+			if (dp->d_close != NULL)
+				error = dp->d_close(dp);
+			else
+				error = dp->d_cclose(dev, FREAD|FWRITE, 0, NULL);
 			if (error != 0)
 				printf("Closed disk %s -> %d\n",
 				    pp->name, error);
@@ -202,12 +208,17 @@ g_disk_start(struct bio *bp)
 			break;
 		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_disk_kerneldump(bp, dp);
-		else if (dp->d_ioctl != NULL &&
+		else if ((dp->d_ioctl != NULL || dp->d_cioctl != NULL) &&
 		    !strcmp(bp->bio_attribute, "GEOM::ioctl") &&
 		    bp->bio_length == sizeof *gio) {
 			gio = (struct g_ioctl *)bp->bio_data;
-			gio->func = dp->d_ioctl;
-			gio->dev =  dp->d_dev;
+			if (dp->d_ioctl != NULL) {
+				gio->func = (d_ioctl_t *)(dp->d_ioctl);
+				gio->dev =  dp;
+			} else {
+				gio->func = dp->d_cioctl;
+				gio->dev =  dp->d_dev;
+			}
 			error = EDIRIOCTL;
 		} else 
 			error = ENOIOCTL;
@@ -264,7 +275,7 @@ g_disk_create(void *arg)
 	gp->access = g_disk_access;
 	gp->softc = dev->si_disk;
 	gp->dumpconf = g_disk_dumpconf;
-	dev->si_disk->d_softc = gp;
+	dev->si_disk->d_geom = gp;
 	pp = g_new_providerf(gp, "%s", gp->name);
 	pp->mediasize = dev->si_disk->d_mediasize;
 	pp->sectorsize = dev->si_disk->d_sectorsize;
@@ -286,10 +297,10 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, void * 
 	dp->d_devsw = cdevsw;
 	dev->si_devsw = cdevsw;
 	if (cdevsw != NULL) {
-		dp->d_open = cdevsw->d_open;
-		dp->d_close = cdevsw->d_close;
+		dp->d_copen = cdevsw->d_open;
+		dp->d_cclose = cdevsw->d_close;
+		dp->d_cioctl = cdevsw->d_ioctl;
 		dp->d_strategy = cdevsw->d_strategy;
-		dp->d_ioctl = cdevsw->d_ioctl;
 		dp->d_dump = (dumper_t *)cdevsw->d_dump;
 		dp->d_name = cdevsw->d_name;
 	} 
@@ -312,7 +323,7 @@ disk_destroy(dev_t dev)
 	struct g_geom *gp;
 
 	dp = dev->si_disk;
-	gp = dp->d_softc;
+	gp = dp->d_geom;
 	g_free(dev);
 	gp->flags |= G_GEOM_WITHER;
 	gp->softc = NULL;
