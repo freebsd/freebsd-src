@@ -576,8 +576,8 @@ nodisks:
     if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
 	variable_set2("nfs_client_enable", "YES", 1);
 
-    if (msgYesNo("Do you want to select a default security profile for\n"
-	         "this host (\"medium\" security being the default)?"))
+    if (!msgYesNo("Do you want to select a default security profile for\n"
+	         "this host (select No for \"medium\" security)?"))
 	configSecurityProfile(self);
     else
 	configSecurityModerate(self);
