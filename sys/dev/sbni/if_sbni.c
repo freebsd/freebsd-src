@@ -246,8 +246,8 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	}
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
-	printf("%s%d: speed %ld, address %6D, rxl ", ifp->if_name,
-	       ifp->if_unit, ifp->if_baudrate, sc->arpcom.ac_enaddr, ":");
+	if_printf(ifp, "speed %ld, address %6D, rxl ",
+	       ifp->if_baudrate, sc->arpcom.ac_enaddr, ":");
 	if (sc->delta_rxl)
 		printf("auto\n");
 	else
@@ -817,8 +817,7 @@ get_rx_buf(struct sbni_softc *sc)
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
-		printf("sbni%d: cannot allocate header mbuf\n",
-		       sc->arpcom.ac_if.if_unit);
+		if_printf(&sc->arpcom.ac_if, "cannot allocate header mbuf\n");
 		return (0);
 	}
 
