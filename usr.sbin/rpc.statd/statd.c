@@ -55,8 +55,8 @@ static const char rcsid[] =
 int debug = 0;		/* Controls syslog() calls for debug messages	*/
 
 extern void sm_prog_1(struct svc_req *rqstp, SVCXPRT *transp);
-static void handle_sigchld();
-static void usage __P((void));
+static void handle_sigchld(int sig);
+static void usage(void);
 
 int
 main(int argc, char **argv)
@@ -126,7 +126,7 @@ usage()
 		children to exit when they have done their work.
 */
 
-static void handle_sigchld(int sig, int code, struct sigcontext *scp)
+static void handle_sigchld(int sig __unused)
 {
   int pid, status;
   pid = wait4(-1, &status, WNOHANG, (struct rusage*)0);
