@@ -1,42 +1,42 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
 # $FreeBSD$
 #
-# The include file <bsd.kmod.mk> handles installing Kernel Loadable Device
-# drivers (KLD's).
+# The include file <bsd.kmod.mk> handles building and installing loadable
+# kernel modules.
 #
 #
 # +++ variables +++
 #
 # CLEANFILES	Additional files to remove for the clean and cleandir targets.
 #
-# KMOD          The name of the kernel module to build.
+# EXPORT_SYMS	A list of symbols that should be exported from the module,
+#		or the name of a file containing a list of symbols, or YES
+#		to export all symbols.  If not defined, no symbols are
+#		exported.
+#
+# KMOD		The name of the kernel module to build.
 #
 # KMODDIR	Base path for kernel modules (see kld(4)). [/boot/kernel]
 #
-# KMODOWN	KLD owner. [${BINOWN}]
+# KMODOWN	Module file owner. [${BINOWN}]
 #
-# KMODGRP	KLD group. [${BINGRP}]
+# KMODGRP	Module file group. [${BINGRP}]
 #
-# KMODMODE	KLD mode. [${BINMODE}]
+# KMODMODE	Module file mode. [${BINMODE}]
 #
 # KMODLOAD	Command to load a kernel module [/sbin/kldload]
 #
 # KMODUNLOAD	Command to unload a kernel module [/sbin/kldunload]
 #
-# PROG          The name of the kernel module to build.
-#		If not supplied, ${KMOD}.o is used.
-#
-# SRCS          List of source files
-#
-# DESTDIR	Change the tree where the module gets installed. [not set]
-#
 # MFILES	Optionally a list of interfaces used by the module.
 #		This file contains a default list of interfaces.
 #
-# EXPORT_SYMS	A list of symbols that should be exported from the module,
-#		or the name of a file containing a list of symbols, or YES
-#		to export all symbols.  If not defined, no symbols are
-#		exported.
+# PROG		The name of the kernel module to build.
+#		If not supplied, ${KMOD}.ko is used.
+#
+# SRCS		List of source files.
+#
+# DESTDIR	The tree where the module gets installed. [not set]
 #
 # +++ targets +++
 #
@@ -48,13 +48,10 @@
 #		is executed.
 #
 # 	load:
-#		Load KLD.
+#		Load a module.
 #
 # 	unload:
-#		Unload KLD.
-#
-# bsd.obj.mk: clean, cleandir and obj
-# bsd.dep.mk: cleandepend, depend and tags
+#		Unload a module.
 #
 
 AWK?=		awk
@@ -63,7 +60,7 @@ KMODUNLOAD?=	/sbin/kldunload
 OBJCOPY?=	objcopy
 
 .if defined(KMODDEPS)
-.error "Do not use KMODDEPS on 5.0+, use MODULE_VERSION/MODULE_DEPEND"
+.error "Do not use KMODDEPS on 5.0+; use MODULE_VERSION/MODULE_DEPEND"
 .endif
 
 .include <bsd.init.mk>
@@ -88,10 +85,10 @@ NOSTDINC=	-nostdinc
 .endif
 CFLAGS+=	${NOSTDINC} -I- ${INCLMAGIC} ${_ICFLAGS}
 .if defined(KERNBUILDDIR)
-CFLAGS+=       -include ${KERNBUILDDIR}/opt_global.h
+CFLAGS+=	-include ${KERNBUILDDIR}/opt_global.h
 .endif
 
-# Add -I paths for system headers.  Individual KLD makefiles don't
+# Add -I paths for system headers.  Individual module makefiles don't
 # need any -I paths for this.  Similar defaults for .PATH can't be
 # set because there are no standard paths for non-headers.
 CFLAGS+=	-I. -I@
@@ -130,7 +127,7 @@ CFLAGS+=	${DEBUG_FLAGS}
 CFLAGS+=	-fno-omit-frame-pointer
 .endif
 
-OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
+OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
 .if !defined(PROG)
 PROG=	${KMOD}.ko
@@ -154,7 +151,7 @@ ${FULLPROG}: ${KMOD}.kld
 
 EXPORT_SYMS?=	NO
 .if ${EXPORT_SYMS} != YES
-CLEANFILES+=	${.OBJDIR}/export_syms
+CLEANFILES+=	export_syms
 .endif
 
 .if ${MACHINE_ARCH} != amd64
@@ -166,15 +163,14 @@ ${FULLPROG}: ${OBJS}
 .if defined(EXPORT_SYMS)
 .if ${EXPORT_SYMS} != YES
 .if ${EXPORT_SYMS} == NO
-	touch ${.OBJDIR}/export_syms
+	touch export_syms
 .elif !exists(${.CURDIR}/${EXPORT_SYMS})
-	echo ${EXPORT_SYMS} > ${.OBJDIR}/export_syms
+	echo ${EXPORT_SYMS} > export_syms
 .else
-	grep -v '^#' < ${EXPORT_SYMS} >  ${.OBJDIR}/export_syms
+	grep -v '^#' < ${EXPORT_SYMS} > export_syms
 .endif
 	awk -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
-		${.OBJDIR}/export_syms | \
-	xargs -J% ${OBJCOPY} % ${.TARGET}
+	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
 .endif
 .if !defined(DEBUG_FLAGS) && ${MACHINE_ARCH} == amd64
@@ -217,7 +213,7 @@ ${_ILINKS}:
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -s $$path ${.TARGET}
 
-CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS} ${_ILINKS} symb.tmp tmp.o
+CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS} ${_ILINKS}
 
 .if defined(DEBUG_FLAGS)
 CLEANFILES+= ${FULLPROG}
@@ -230,7 +226,7 @@ _INSTALLFLAGS:=	${INSTALLFLAGS}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
-.if defined(DEBUG_FLAGS)
+.if !target(install.debug) && defined(DEBUG_FLAGS)
 install.debug:
 	cd ${.CURDIR}; ${MAKE} -DINSTALL_DEBUG install
 .endif
@@ -264,18 +260,18 @@ _kldxref:
 .endif !target(install)
 
 .if !target(load)
-load:	${PROG}
-	${KMODLOAD} -v ${.OBJDIR}/${KMOD}.ko
+load: ${PROG}
+	${KMODLOAD} -v ${.OBJDIR}/${PROG}
 .endif
 
 .if !target(unload)
 unload:
-	${KMODUNLOAD} -v ${KMOD}
+	${KMODUNLOAD} -v ${PROG}
 .endif
 
 .if defined(KERNBUILDDIR)
 .PATH: ${KERNBUILDDIR}
-CFLAGS += -I${KERNBUILDDIR}
+CFLAGS+=	-I${KERNBUILDDIR}
 .for _src in ${SRCS:Mopt_*.h}
 CLEANFILES+=	${_src}
 .if !target(${_src})
@@ -358,8 +354,6 @@ acpi_quirks.h: @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
 .endif
 	${AWK} -f @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
 .endif
-
-regress:
 
 lint: ${SRCS}
 	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC:M*.c}
