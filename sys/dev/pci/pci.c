@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.22 1995/05/04 06:57:11 davidg Exp $
+**  $Id: pci.c,v 1.23 1995/05/30 08:13:09 rgrimes Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -600,6 +600,10 @@ pci_bus_config (void)
 #ifndef PCI_QUIET
 			printf ("\tbridge from pci%d to pci%d through %d.\n",
 				primary, secondary, subordinate);
+			printf ("\tmapping regs: io:%08x mem:%08x pmem:%08x",
+				pci_conf_read (tag, PCI_PCI_BRIDGE_IO_REG),
+				pci_conf_read (tag, PCI_PCI_BRIDGE_MEM_REG),
+				pci_conf_read (tag, PCI_PCI_BRIDGE_PMEM_REG));
 #endif
 			/*
 			**	check for uninitialized bridge.
@@ -687,9 +691,8 @@ pci_bus_config (void)
 					PCI_PCI_BRIDGE_MEM_REG);
 				pci_conf_write(tag,
 					PCI_PCI_BRIDGE_MEM_REG, reg);
-				mask = (0xFFFF0000 ^ (data & 0xFFFF0000))
-					| 0xFFFF;
 
+				mask = 0xFFFFFFFF ^ (data & 0xFFFF0000);
 				this->pcicb_membase  =
 					PCI_PPB_MEMBASE_EXTRACT (reg);
 				this->pcicb_memlimit =
@@ -714,8 +717,7 @@ pci_bus_config (void)
 				pci_conf_write(tag,
 					PCI_PCI_BRIDGE_PMEM_REG, reg);
 
-				mask = (0xFFFF0000 ^ (data & 0xFFFF0000))
-					| 0xFFFF;
+				mask = 0xFFFFFFFF ^ (data & 0xFFFF0000);
 				this->pcicb_p_membase=
 					PCI_PPB_MEMBASE_EXTRACT (reg);
 				this->pcicb_p_memlimit=
@@ -1022,7 +1024,11 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 			(unsigned) (paddr + psize - 1),
 			(unsigned) pcicb->pcicb_membase,
 			(unsigned) pcicb->pcicb_memlimit);
-		return (0);
+/*		return (0);*/
+/* ACHTUNG: Ist der Code richtig, wenn eine PCI-PCI-Bridge fuer
+ * die PCI-Slots verwendet wird, aber die Onboard-Devices direkt 
+ * an der CPU-PCI-Bridge haengen (Siehe Compaq Prolinea Problem) ???
+ */
 	}
 	pcibus->pb_write (tag, reg, paddr);
 
@@ -1464,11 +1470,15 @@ struct vt {
 };
 
 static struct vt VendorTable[] = {
+/*	{0x0e11, "? 0x0e11"},*/
 	{0x1002, "ATI TECHNOLOGIES INC"},
 	{0x1011, "DIGITAL EQUIPMENT CORPORATION"},
 	{0x101A, "NCR"},
+	{0x1022, "AMD"},
 	{0x102B, "MATROX"},
+/*	{0x1039, "? 0x1039"},*/
 	{0x1045, "OPTI"},
+/*	{0x1095, "? 0x1095"},*/
 	{0x5333, "S3 INC."},
 	{0x8086, "INTEL CORPORATION"},
 	{0,0}
