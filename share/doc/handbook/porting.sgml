@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.53 1997/01/01 22:39:12 obrien Exp $ -->
+<!-- $Id: porting.sgml,v 1.54 1997/01/05 21:41:09 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -961,7 +961,7 @@ MAN8=      baz.8
 	   non-standard place, such as many Perl modules ports, you
 	   can set individual man paths using
 	   <tt>MAN<em>sect</em>PREFIX</tt> (where <em>sect</em> is one
-	   of 1-9, L or N]).
+	   of 1-9, L or N).
 
       <sect3>
 	<heading>INSTALL_* macros</heading>
