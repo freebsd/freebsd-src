@@ -686,10 +686,10 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 	return DITEM_SUCCESS;
 
     /*
-     * What if the package is not available on the current media volume?
-     *
+     * Prompt user if the package is not available on the current volume.
      */
-    if (id->volume != dev->volume) {
+
+    while (id->volume != dev->volume) {
 	if (!msgYesNo("This is disc #%d.  Package %s is on disc #%d\n"
 	    "Would you like to switch discs now?\n", dev->volume,
 	    id->name, id->volume)) {
@@ -697,8 +697,6 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 		msgConfirm("Please remove disc #%d from your drive, and add disc #%d\n",
 		    dev->volume, id->volume);
 		DEVICE_INIT(mediaDevice);
-		/* XXX, at this point we check to see if this is the
-		 * correct disc, and if not, we loop */
 	} else {
 	    return DITEM_FAILURE;
 	}
