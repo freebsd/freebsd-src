@@ -1457,15 +1457,15 @@ SetVariable(struct cmdargs const *arg)
 
   case VAR_AUTHNAME:
     switch (bundle_Phase(arg->bundle)) {
+      default:
+        log_Printf(LogWARN, "Altering authname while at phase %s\n",
+                   bundle_PhaseName(arg->bundle));
+        /* drop through */
       case PHASE_DEAD:
       case PHASE_ESTABLISH:
         strncpy(arg->bundle->cfg.auth.name, argp,
                 sizeof arg->bundle->cfg.auth.name - 1);
         arg->bundle->cfg.auth.name[sizeof arg->bundle->cfg.auth.name-1] = '\0';
-        break;
-      default:
-        err = "set authname: Only available at phase DEAD/ESTABLISH\n";
-        log_Printf(LogWARN, err);
         break;
     }
     break;
