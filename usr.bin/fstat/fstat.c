@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)fstat.c	8.3 (Berkeley) 5/2/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fstat.c,v 1.11 1997/07/08 11:02:48 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -191,7 +191,7 @@ main(argc, argv)
 			if (pflg++)
 				usage();
 			if (!isdigit(*optarg)) {
-				warnx(" -p requires a process id");
+				warnx("-p requires a process id");
 				usage();
 			}
 			what = KERN_PROC_PID;
