@@ -3144,8 +3144,8 @@ raid_getcomponentsize(RF_Raid_t *raidPtr, RF_RowCol_t row, RF_RowCol_t col)
 		raidPtr->Disks[row][col].numBlocks = mediasize / secsize;
 
 		raidPtr->raid_cinfo[row][col].ci_vp = vp;
-		raidPtr->raid_cinfo[row][col].ci_dev = udev2dev(va.va_rdev, 0);
-		raidPtr->Disks[row][col].dev = udev2dev(va.va_rdev, 0);
+		raidPtr->raid_cinfo[row][col].ci_dev = udev2dev(va.va_rdev);
+		raidPtr->Disks[row][col].dev = udev2dev(va.va_rdev);
 		
 		/* we allow the user to specify that only a 
 		   fraction of the disks should be used this is 
