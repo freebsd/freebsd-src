@@ -117,7 +117,6 @@ struct knote;
 typedef int d_open_t __P((dev_t dev, int oflags, int devtype, struct proc *p));
 typedef int d_close_t __P((dev_t dev, int fflag, int devtype, struct proc *p));
 typedef void d_strategy_t __P((struct bio *bp));
-typedef int d_parms_t __P((dev_t dev, struct specinfo *sinfo, int ctl));
 typedef int d_ioctl_t __P((dev_t dev, u_long cmd, caddr_t data,
 			   int fflag, struct proc *p));
 typedef int d_dump_t __P((dev_t dev));
