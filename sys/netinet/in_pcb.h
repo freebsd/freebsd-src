@@ -333,6 +333,7 @@ extern int	ipport_firstauto;
 extern int	ipport_lastauto;
 extern int	ipport_hifirstauto;
 extern int	ipport_hilastauto;
+extern struct callout ipport_tick_callout;
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 int	in_pcballoc(struct socket *, struct inpcbinfo *, const char *);
@@ -362,6 +363,7 @@ struct sockaddr *
 	in_sockaddr(in_port_t port, struct in_addr *addr);
 void	in_pcbsosetlabel(struct socket *so);
 void	in_pcbremlists(struct inpcb *inp);
+void	ipport_tick(void *xtp);
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IN_PCB_H_ */

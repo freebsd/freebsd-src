@@ -38,6 +38,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/callout.h>
 #include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
@@ -186,6 +187,7 @@ SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
 
 static TAILQ_HEAD(ipqhead, ipq) ipq[IPREASS_NHASH];
 struct mtx ipqlock;
+struct callout ipport_tick_callout;
 
 #define	IPQ_LOCK()	mtx_lock(&ipqlock)
 #define	IPQ_UNLOCK()	mtx_unlock(&ipqlock)
@@ -279,11 +281,23 @@ ip_init()
 	maxnipq = nmbclusters / 32;
 	maxfragsperpacket = 16;
 
+	/* Start ipport_tick. */
+	callout_init(&ipport_tick_callout, CALLOUT_MPSAFE);
+	ipport_tick(NULL);
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, ip_fini, NULL,
+		SHUTDOWN_PRI_DEFAULT);
+
 	/* Initialize various other remaining things. */
 	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IP, ip_input, &ipintrq, NETISR_MPSAFE);
+}
+
+void ip_fini(xtp)
+	void *xtp;
+{
+	callout_stop(&ipport_tick_callout);
 }
 
 /*
