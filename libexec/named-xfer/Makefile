@@ -10,6 +10,17 @@ USE_LIBBIND=	true
 PROG=	named-xfer
 SRCS=	pathnames.h \
 	named-xfer.c db_glue.c ns_glue.c tmp_version.c 
+
+.if exists(${.OBJDIR}/../../lib/libisc)
+LIBISCDIR:=	${.OBJDIR}/../../lib/libisc
+.else
+LIBISCDIR!=	cd ${.CURDIR}/../../lib/libisc; make -V .OBJDIR
+.endif
+LIBISC:=	${LIBISCDIR}/libisc.a
+
+DPADD+=		${LIBISC}
+LDADD+=		${LIBISC}
+
 MAN8=	named-xfer.8
 
 .include <bsd.prog.mk>
