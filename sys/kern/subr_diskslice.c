@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.30.2.1 1997/09/27 17:50:01 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.30.2.2 1998/03/20 16:35:48 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -632,7 +632,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 			dsgone(sspp);
 			return (error);
 		}
-		lp->d_npartitions = RAW_PART + 1;
+		lp->d_npartitions = MAXPARTITIONS;
 		lp->d_partitions[RAW_PART].p_size = lp->d_secperunit;
 		ssp = *sspp;
 #ifdef DEVFS
@@ -676,8 +676,6 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 			lp1->d_rpm = 3600;
 		if (lp1->d_interleave == 0)
 			lp1->d_interleave = 1;
-		if (lp1->d_npartitions == 0)
-			lp1->d_npartitions = MAXPARTITIONS;
 		if (lp1->d_bbsize == 0)
 			lp1->d_bbsize = BBSIZE;
 		if (lp1->d_sbsize == 0)
