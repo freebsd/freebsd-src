@@ -521,6 +521,15 @@ ah4_finaldst(m)
 	q = (u_char *)(ip + 1);
 	i = 0;
 	while (i < optlen) {
+		if (i + IPOPT_OPTVAL >= optlen)
+			return NULL;
+		if (q[i + IPOPT_OPTVAL] == IPOPT_EOL ||
+		    q[i + IPOPT_OPTVAL] == IPOPT_NOP ||
+		    i + IPOPT_OLEN < optlen)
+			;
+		else
+			return NULL;
+
 		switch (q[i + IPOPT_OPTVAL]) {
 		case IPOPT_EOL:
 			i = optlen;	/* bye */
@@ -530,8 +539,8 @@ ah4_finaldst(m)
 			break;
 		case IPOPT_LSRR:
 		case IPOPT_SSRR:
-			if (q[i + IPOPT_OLEN] <= 0
-			 || optlen - i < q[i + IPOPT_OLEN]) {
+			if (q[i + IPOPT_OLEN] < 2 + sizeof(struct in_addr) ||
+			    optlen - i < q[i + IPOPT_OLEN]) {
 				ipseclog((LOG_ERR,
 				    "ip_finaldst: invalid IP option "
 				    "(code=%02x len=%02x)\n",
@@ -541,8 +550,8 @@ ah4_finaldst(m)
 			i += q[i + IPOPT_OLEN] - sizeof(struct in_addr);
 			return (struct in_addr *)(q + i);
 		default:
-			if (q[i + IPOPT_OLEN] <= 0
-			 || optlen - i < q[i + IPOPT_OLEN]) {
+			if (q[i + IPOPT_OLEN] < 2 ||
+			    optlen - i < q[i + IPOPT_OLEN]) {
 				ipseclog((LOG_ERR,
 				    "ip_finaldst: invalid IP option "
 				    "(code=%02x len=%02x)\n",
