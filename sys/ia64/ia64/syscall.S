@@ -116,7 +116,7 @@ gw_ret_ia32:
 }
 
 
-ENTRY(break_sigtramp, 0)
+ENTRY_NOPROFILE(break_sigtramp, 0)
 {	.mib
 	mov		ar.rsc=0
 	cmp.ne		p15,p0=0,gp
@@ -180,7 +180,7 @@ ENTRY(break_sigtramp, 0)
 }
 END(break_sigtramp)
 
-ENTRY(epc_sigtramp, 0)
+ENTRY_NOPROFILE(epc_sigtramp, 0)
 {	.mmi
 	ld8		r16=[r10],8		// function address
 	mov		ar.rsc=0
@@ -220,7 +220,7 @@ END(epc_sigtramp)
 
 	.text
 
-ENTRY(epc_syscall, 8)
+ENTRY_NOPROFILE(epc_syscall, 8)
 	.prologue
 	.unwabi		@svr4, 'E'
 	.save		rp, r0

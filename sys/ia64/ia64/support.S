@@ -68,7 +68,7 @@
  *	r15-r19	scratch
  *	ar.bsp	tranlated to new mode
  */
-ENTRY(ia64_change_mode, 0)
+ENTRY_NOPROFILE(ia64_change_mode, 0)
 	rsm	psr.i | psr.ic
 	mov	r19=ar.rsc		// save rsc while we change mode
 	tbit.nz	p6,p7=r14,17		// physical or virtual ?
