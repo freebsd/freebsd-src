@@ -83,6 +83,15 @@ if [ $? = 3 ]; then
     rc_ng=YES
 else
     rc_ng=NO
+    echo -n  ; sleep 1 ; echo -n  ; sleep 1 ; echo -n 
+    echo ''
+    echo '**** The old versions of the rc scripts are deprecated, and'
+    echo '     will soon be removed. Make sure to update /etc and'
+    echo '     check that rc_ng is YES in /etc/defaults/rc.conf.'
+    echo '     Please report any rc problems to freebsd-rc@yahoogroups.com'
+    echo '     and/or freebsd-current@freebsd.org.'
+    echo ''
+    sleep 3
 fi
 
 case ${rc_ng} in
