@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technologies, Inc.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_log.c#10 $
+ * $P4: //depot/projects/openpam/lib/openpam_log.c#12 $
  */
 
 #include <ctype.h>
@@ -62,6 +62,9 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 
 	switch (level) {
 	case PAM_LOG_DEBUG:
+#ifndef DEBUG
+		return;
+#endif
 		priority = LOG_DEBUG;
 		break;
 	case PAM_LOG_VERBOSE:
