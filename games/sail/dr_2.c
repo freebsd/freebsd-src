@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)dr_2.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <string.h>
 #include "driver.h"
 
 #define couldwin(f,t) (f->specs->crew2 > t->specs->crew2 * 1.5)
