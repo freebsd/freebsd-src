@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.9 1999/01/14 06:21:54 jdp Exp $
+ *      $Id: cam_periph.c,v 1.10 1999/01/21 08:29:02 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -593,7 +593,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	/*
 	 * XXX KDM should I use P_NOSWAP instead?
 	 */
-	curproc->p_flag |= P_PHYSIO;
+	PHOLD(curproc);
 
 	for (i = 0; i < numbufs; i++) {
 		/*
@@ -637,7 +637,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 	if (mapinfo->num_bufs_used <= 0) {
 		/* allow ourselves to be swapped once again */
-		curproc->p_flag &= ~P_PHYSIO;
+		PRELE(curproc);
 		return;
 	}
 
@@ -658,7 +658,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		break;
 	default:
 		/* allow ourselves to be swapped once again */
-		curproc->p_flag &= ~P_PHYSIO;
+		PRELE(curproc);
 		return;
 		break; /* NOTREACHED */ 
 	}
@@ -678,7 +678,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	}
 
 	/* allow ourselves to be swapped once again */
-	curproc->p_flag &= ~P_PHYSIO;
+	PRELE(curproc);
 }
 
 union ccb *
