@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id$
+ * $Id: vfs_bio.c,v 1.4 1994/08/02 07:43:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -673,6 +673,10 @@ vm_hold_load_pages(vm_offset_t froma, vm_offset_t toa) {
 		vm_offset_t pa;
 
 	tryagain:
+		if (cnt.v_free_count <= cnt.v_free_reserved) {
+			VM_WAIT;
+			goto tryagain;
+		}
 		p =  vm_page_alloc(kernel_object, pg - VM_MIN_KERNEL_ADDRESS);
 		if( !p) {
 			VM_WAIT;
