@@ -137,7 +137,6 @@ SUBDIR=	apply \
 	showmount \
 	sockstat \
 	soelim \
-	sort \
 	split \
 	su \
 	symorder \
