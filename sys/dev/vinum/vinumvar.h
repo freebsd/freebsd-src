@@ -258,6 +258,7 @@ enum objflags {
     VF_DAEMONOPEN = 0x80000,				    /* the daemon has us open (only superdev) */
     VF_CREATED = 0x100000,				    /* for volumes: freshly created, more then new */
     VF_HOTSPARE = 0x200000,				    /* for drives: use as hot spare */
+    VF_RETRYERRORS = 0x400000,				    /* don't down subdisks on I/O errors */
 };
 
 /* Global configuration information for the vinum subsystem */

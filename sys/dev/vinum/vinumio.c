@@ -554,28 +554,32 @@ format_config(char *config, int len)
 	     */
 	    if (drivename[0] == '\0')
 		drivename = "*invalid*";
+	    snprintf(s,
+		configend - s,
+		"sd name %s drive %s plex %s len %llus driveoffset %llus state %s",
+		sd->name,
+		drivename,
+		vinum_conf.plex[sd->plexno].name,
+		(unsigned long long) sd->sectors,
+		(unsigned long long) sd->driveoffset,
+		sd_state(sd->state));
+	    while (*s)
+		s++;					    /* find the end */
 	    if (sd->plexno >= 0)
 		snprintf(s,
 		    configend - s,
-		    "sd name %s drive %s plex %s state %s "
-		    "len %llus driveoffset %llus plexoffset %llds\n",
-		    sd->name,
-		    drivename,
-		    vinum_conf.plex[sd->plexno].name,
-		    sd_state(sd->state),
-		    (unsigned long long) sd->sectors,
-		    (unsigned long long) sd->driveoffset,
+		    " plexoffset %llds",
 		    (long long) sd->plexoffset);
 	    else
-		snprintf(s,
-		    configend - s,
-		    "sd name %s drive %s state %s "
-		    "len %llus driveoffset %llus detached\n",
-		    sd->name,
-		    drivename,
-		    sd_state(sd->state),
-		    (unsigned long long) sd->sectors,
-		    (unsigned long long) sd->driveoffset);
+		snprintf(s, configend - s, " detached");
+	    while (*s)
+		s++;					    /* find the end */
+	    if (sd->flags & VF_RETRYERRORS) {
+		snprintf(s, configend - s, " retryerrors");
+		while (*s)
+		    s++;				    /* find the end */
+	    }
+	    snprintf(s, configend - s, " \n");
 	    while (*s)
 		s++;					    /* find the end */
 	}

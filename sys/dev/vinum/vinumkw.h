@@ -128,6 +128,7 @@ enum keyword {
     kw_checkparity,
     kw_rebuildparity,
     kw_dumpconfig,
+    kw_retryerrors,
     kw_invalid_keyword = -1
 };
 
