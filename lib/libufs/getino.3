@@ -47,9 +47,9 @@ pointed to by
 It maintains a cache of nearby inodes, and may simply return pointers
 into memory that are in said cache.
 The pointer it returns may be modified as if it were of the type
-.Dq struct ufs1_dinode
+.Vt "struct ufs1_dinode"
 or
-.Dq struct ufs2_dinode
+.Vt "struct ufs2_dinode"
 depending on whether the disk being operated on is UFS1 or UFS2,
 respectively.
 .Pp
@@ -66,8 +66,8 @@ by
 Calls to
 .Fn putino
 immediately invalidate the inode cache.
-.Pp
-Both functions return 0 on success and -1 on error.
+.Sh RETURN VALUES
+.Rv -std
 .Sh ERRORS
 The function
 .Fn getino
