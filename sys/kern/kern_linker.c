@@ -128,7 +128,7 @@ linker_file_sysinit(linker_file_t lf)
      */
     for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
 	for (xipp = sipp + 1; *xipp; xipp++) {
-	    if ((*sipp)->subsystem <= (*xipp)->subsystem ||
+	    if ((*sipp)->subsystem < (*xipp)->subsystem ||
 		 ((*sipp)->subsystem == (*xipp)->subsystem &&
 		  (*sipp)->order <= (*xipp)->order))
 		continue;	/* skip*/
@@ -179,7 +179,7 @@ linker_file_sysuninit(linker_file_t lf)
      */
     for (sipp = (struct sysinit **)sysuninits->ls_items; *sipp; sipp++) {
 	for (xipp = sipp + 1; *xipp; xipp++) {
-	    if ((*sipp)->subsystem >= (*xipp)->subsystem ||
+	    if ((*sipp)->subsystem > (*xipp)->subsystem ||
 		 ((*sipp)->subsystem == (*xipp)->subsystem &&
 		  (*sipp)->order >= (*xipp)->order))
 		continue;	/* skip*/
