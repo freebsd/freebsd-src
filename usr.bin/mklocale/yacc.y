@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <rune.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -122,7 +123,9 @@ entry	:	ENCODING STRING
 		  strcpy((char *)new_locale.variable, $1);
 		}
 	|	INVALID RUNE
-		{ new_locale.invalid_rune = $2; }
+		{ warnx("the INVALID keyword is deprecated");
+		  new_locale.invalid_rune = $2;
+		}
 	|	LIST list
 		{ set_map(&types, $2, $1); }
 	|	MAPLOWER map
