@@ -514,7 +514,8 @@ sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *chan
 		return EINVAL;
 
 	count = FEEDER_FEED(feeder, channel, to->tmpbuf, count, from);
-	sndbuf_acquire(to, to->tmpbuf, count);
+	if (count)
+		sndbuf_acquire(to, to->tmpbuf, count);
 	/* the root feeder has called sndbuf_dispose(from, , bytes fetched) */
 
 	return 0;
