@@ -1146,18 +1146,18 @@ addrconfig(pai)
 		if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
 			af = AF_INET;
 		else {
-			close(s);
+			_close(s);
 			if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 				af = AF_INET6;
 			else
-				close(s);
+				_close(s);
 		}
 
 	}
 	if (af != AF_UNSPEC) {
 		if ((s = socket(af, SOCK_DGRAM, 0)) < 0)
 			return 0;
-		close(s);
+		_close(s);
 	}
 	pai->ai_family = af;
 	return 1;
