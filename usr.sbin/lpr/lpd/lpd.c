@@ -285,6 +285,12 @@ main(argc, argv)
 	if (pflag == 0) {
 		finet = socket(AF_INET, SOCK_STREAM, 0);
 		if (finet >= 0) {
+			i = 1;
+			if (setsockopt(finet, SOL_SOCKET, SO_REUSEADDR, &i,
+			    sizeof i) < 0) {
+				syslog(LOG_ERR, "setsockopt(SO_REUSEADDR): %m");
+				mcleanup(0);
+			}
 			if (options & SO_DEBUG &&
 			    setsockopt(finet, SOL_SOCKET, SO_DEBUG, 0, 0) < 0) {
 				syslog(LOG_ERR, "setsockopt (SO_DEBUG): %m");
@@ -377,8 +383,15 @@ static void
 mcleanup(signo)
 	int signo;
 {
-	if (lflag)
-		syslog(LOG_INFO, "exiting");
+	/*
+	 * XXX syslog(3) is not signal-safe.
+	 */
+	if (lflag) {
+		if (signo)
+			syslog(LOG_INFO, "exiting on signal %d", signo);
+		else
+			syslog(LOG_INFO, "exiting");
+	}
 	unlink(_PATH_SOCKETNAME);
 	exit(0);
 }
