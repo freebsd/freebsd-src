@@ -15,8 +15,9 @@
 /* This seems to be the right thing for FreeBSD and BSDI */
 #define	HOST_STACK_END_ADDR	USRSTACK
 
-/* BSDI defines this too (PST) */         
-#define HOST_DATA_START_ADDR	((bfd_vma)u.u_kproc.kp_eproc.e_vm.vm_daddr)
+/* Leave HOST_DATA_START_ADDR undefined, since the default when it is not
+   defined sort of works, and FreeBSD-2.0 through FreeBSD-2.2.2 do not
+   set u.u_kproc.kp_eproc.e_vm.vm_daddr.  */
 
 #define TRAD_UNIX_CORE_FILE_FAILING_SIGNAL(core_bfd) \
   ((core_bfd)->tdata.trad_core_data->u.u_sig)
