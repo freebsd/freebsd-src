@@ -274,6 +274,7 @@ userlist(argc, argv)
 	char conf_alias[LINE_MAX];
 	char *conf_realname;
 	int conf_length;
+	int nip;
 
 	if ((nargv = malloc((argc+1) * sizeof(char *))) == NULL ||
 	    (used = calloc(argc, sizeof(int))) == NULL)
@@ -318,20 +319,31 @@ userlist(argc, argv)
 
 	/*
 	 * Traverse the list of possible login names and check the login name
-	 * and real name against the name specified by the user.
+	 * and real name against the name specified by the user. If the name
+	 * begins with a '/', try to read the file of that name instead of
+	 * gathering the traditional finger information.
 	 */
 	if (mflag)
-		for (p = argv; *p; ++p)
-			if (((pw = getpwnam(*p)) != NULL) && !hide(pw))
-				enter_person(pw);
-			else
-				warnx("%s: no such user", *p);
+		for (p = argv; *p; ++p) {
+			if (**p != '/' || !show_text("", *p, "")) {
+				if (((pw = getpwnam(*p)) != NULL) && !hide(pw))
+					enter_person(pw);
+			   	else
+					warnx("%s: no such user", *p);
+			}
+		}
 	else {
-		while ((pw = getpwent()) != NULL) {
+		nip = 0;
+		while (nip < argc && (pw = getpwent()) != NULL) {
 			for (p = argv, ip = used; *p; ++p, ++ip)
-				if (match(pw, *p) && !hide(pw)) {
+				if (**p == '/' && *ip != 1
+				    && show_text("", *p, "")) {
+					*ip = 1;
+					nip++;
+				} else if (match(pw, *p) && !hide(pw)) {
 					enter_person(pw);
 					*ip = 1;
+					nip++;
 				}
 		}
 		for (p = argv, ip = used; *p; ++p, ++ip)

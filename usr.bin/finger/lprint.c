@@ -59,16 +59,14 @@ static const char rcsid[] =
 #include <string.h>
 #include <paths.h>
 #include "finger.h"
+#include "pathnames.h"
+#include "extern.h"
 
 #define	LINE_LEN	80
 #define	TAB_LEN		8		/* 8 spaces between tabs */
-#define	_PATH_FORWARD	".forward"
-#define	_PATH_PLAN	".plan"
-#define	_PATH_PROJECT	".project"
 
 static int	demi_print __P((char *, int));
 static void	lprint __P((PERSON *));
-static int	show_text __P((char *, char *, char *));
 static void     vputc __P((unsigned char));
 
 void
@@ -290,7 +288,7 @@ demi_print(str, oddfield)
 	return(oddfield);
 }
 
-static int
+int
 show_text(directory, file_name, header)
 	char *directory, *file_name, *header;
 {
@@ -316,7 +314,8 @@ show_text(directory, file_name, header)
 			if (*p == '\n')
 				break;
 		if (cnt <= 1) {
-			(void)printf("%s: ", header);
+			if (*header != '\0')
+				(void)printf("%s: ", header);
 			for (p = tbuf, cnt = nr; cnt--; ++p)
 				if (*p != '\r')
 					vputc(lastc = *p);
@@ -330,7 +329,8 @@ show_text(directory, file_name, header)
 	}
 	if ((fp = fdopen(fd, "r")) == NULL)
 		return(0);
-	(void)printf("%s:\n", header);
+	if (*header != '\0')
+		(void)printf("%s:\n", header);
 	while ((ch = getc(fp)) != EOF)
 		if (ch != '\r')
 			vputc(lastc = ch);

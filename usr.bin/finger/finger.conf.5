@@ -38,13 +38,17 @@ The optional
 file is used to provide aliases that can be fingered by local
 and network users.
 This may be useful where a user's login name is not the same
-as their preferred mail address.
+as their preferred mail address, or for providing virtual login names
+than can be fingered.
 .Pp
 Lines beginning with ``#'' are comments.
 Other lines must consist of an
 alias name and a target name separated by a colon.
-A target name should be either a user, or a forward
-reference to another alias.
+A target name should be either a user, a forward
+reference to another alias or the path of a world readable file.
+.Pp
+Where an alias points to a file, the contents of that file will be displayed
+when the alias is fingered.
 .Sh EXAMPLES
 .Bd -literal
 # /etc/finger.conf alias definition file
@@ -56,6 +60,11 @@ reference to another alias.
 markk:mkn
 john.smith:dev329
 john:dev329
+sue:/etc/finger/sue.txt
+#
+# Network status message
+#
+status:/usr/local/etc/status.txt
 #
 # Administrative redirects
 #
