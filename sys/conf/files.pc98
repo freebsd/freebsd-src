@@ -154,6 +154,7 @@ i386/i386/initcpu.c		standard
 i386/i386/intr_machdep.c	standard
 i386/i386/io_apic.c		optional	apic
 i386/i386/k6_mem.c		standard
+i386/i386/legacy.c		standard
 i386/i386/local_apic.c		optional	apic
 i386/i386/locore.s		standard	no-obj
 i386/i386/mem.c			standard
@@ -195,7 +196,6 @@ i386/ibcs2/ibcs2_xenix_sysent.c	optional	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
 i386/isa/atpic.c		standard
 i386/isa/atpic_vector.s		standard
-i386/isa/cy.c			count		cy
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
 i386/isa/isa.c			optional	isa
