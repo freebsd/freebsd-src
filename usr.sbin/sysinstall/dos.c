@@ -60,8 +60,7 @@ mediaInitDOS(Device *dev)
 	return FALSE;
     }
     DOSMounted = TRUE;
-    if (isDebug())
-	msgDebug("DOS partition %s mounted\n", dev->devname);
+    msgDebug("DOS partition %s mounted\n", dev->devname);
     return TRUE;
 }
 
