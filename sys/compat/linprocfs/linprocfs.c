@@ -424,13 +424,12 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	    T2J(cp_time[CP_NICE]),
 	    T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
 	    T2J(cp_time[CP_IDLE]));
-	if (mp_ncpus > 1)
-		for (i = 0; i < mp_ncpus; ++i)
-			sbuf_printf(sb, "cpu%d %ld %ld %ld %ld\n", i,
-			    T2J(cp_time[CP_USER]) / mp_ncpus,
-			    T2J(cp_time[CP_NICE]) / mp_ncpus,
-			    T2J(cp_time[CP_SYS]) / mp_ncpus,
-			    T2J(cp_time[CP_IDLE]) / mp_ncpus);
+	for (i = 0; i < mp_ncpus; ++i)
+		sbuf_printf(sb, "cpu%d %ld %ld %ld %ld\n", i,
+		    T2J(cp_time[CP_USER]) / mp_ncpus,
+		    T2J(cp_time[CP_NICE]) / mp_ncpus,
+		    T2J(cp_time[CP_SYS]) / mp_ncpus,
+		    T2J(cp_time[CP_IDLE]) / mp_ncpus);
 	sbuf_printf(sb,
 	    "disk 0 0 0 0\n"
 	    "page %u %u\n"
