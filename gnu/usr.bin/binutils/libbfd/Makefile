@@ -11,8 +11,9 @@ SRCS+=		archive.c archures.c bfd.c binary.c cache.c \
 		coffgen.c corefile.c elf.c format.c hash.c ihex.c \
 		init.c libbfd.c linker.c opncls.c reloc.c section.c \
 		srec.c stab-syms.c stabs.c syms.c targets.c tekhex.c \
-		targmatch.h dwarf2.c
+		targmatch.h dwarf1.c dwarf2.c
 CFLAGS+=	-I${SRCDIR}/bfd
+CFLAGS+=	-DBFD_VERSION=\"${VERSION}\"
 NOPROFILE=	true
 NOPIC=		true
 INTERNALLIB=	true
@@ -29,6 +30,9 @@ CFLAGS+=	-I${BINUTILSDISTDIR}/include
 .endif
 
 SELARCH=
+.if ${BINUTIL_ARCH} == "sparc64"
+SELARCH=&bfd_sparc_arch
+.else
 .for _a in ${ARCHS}
 .if ${SELARCH} == ""
 SELARCH+=&bfd_${_a}_arch
@@ -36,6 +40,7 @@ SELARCH+=&bfd_${_a}_arch
 SELARCH+=,&bfd_${_a}_arch
 .endif
 .endfor
+.endif
 CFLAGS+=	-DSELECT_ARCHITECTURES="${SELARCH}"
 
 SELVEC=

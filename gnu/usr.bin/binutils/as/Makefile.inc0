@@ -1,6 +1,4 @@
-#
 # $FreeBSD$
-#
 
 .include "${.CURDIR}/../../Makefile.inc0"
 
@@ -18,13 +16,11 @@ SRCS+=		app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 CFLAGS+=	-I${SRCDIR}/gas
 CFLAGS+=	-I${SRCDIR}/gas/config
 CFLAGS+=	-I${SRCDIR}
-CFLAGS+=	-DVERSION=\"${VERSION}\"
-LDADD+=		-L${RELTOP}/libbfd -lbfd
-LDADD+=		-L${RELTOP}/libiberty -liberty
-LDADD+=		-L${RELTOP}/libopcodes -lopcodes
-DPADD+=		${RELTOP}/libbfd/libbfd.a
+CFLAGS+=	-DVERSION=\"${VERSION}\" -DBFD_VERSION=\"${VERSION}\"
+DPADD=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libiberty/libiberty.a
 DPADD+=		${RELTOP}/libopcodes/libopcodes.a
+LDADD=		${DPADD}
 
 # If set, BINUTILSDISTDIR is the path to a directory containing the full GNU
 # binutils release. FreeBSD only distributes the bits that are required to
