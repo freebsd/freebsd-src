@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucontext.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/pmap.h>
 #include <vm/uma.h>
@@ -185,7 +186,7 @@ thread_init(void *mem, int size)
 
 	td = (struct thread *)mem;
 	mtx_lock(&Giant);
-	pmap_new_thread(td, 0);
+	vm_thread_new(td, 0);
 	mtx_unlock(&Giant);
 	cpu_thread_setup(td);
 	td->td_sched = (struct td_sched *)&td[1];
@@ -200,7 +201,7 @@ thread_fini(void *mem, int size)
 	struct thread	*td;
 
 	td = (struct thread *)mem;
-	pmap_dispose_thread(td);
+	vm_thread_dispose(td);
 }
 
 /*
