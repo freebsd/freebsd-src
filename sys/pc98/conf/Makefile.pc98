@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.65 1999/06/28 13:07:58 kato Exp $
+#	$Id: Makefile.pc98,v 1.66 1999/07/03 08:17:40 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -73,9 +73,6 @@ PROF+=	-mprofiler-epilogue
 NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
 NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} $<
 NORMAL_S= ${CC} -c ${ASM_CFLAGS} $<
-DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
-DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} $<
-DRIVER_S= ${CC} -c -x ${ASM_CFLAGS} $<
 PROFILE_C= ${CC} -c ${CFLAGS} $<
 
 GEN_CFILES= ${I386}/i386/genassym.c
@@ -204,7 +201,6 @@ genassym: genassym.o
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
-# XXX this assumes that the options for NORMAL_C* and DRIVER_C* are identical.
 depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
 	rm -f .newdep
 	mkdep -a -f .newdep ${CFLAGS} ${CFILES} ${SYSTEM_CFILES}
