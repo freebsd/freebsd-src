@@ -75,6 +75,8 @@ static void ar_print_conf(struct ar_softc *);
 static struct ar_softc **ar_table = NULL;
 static MALLOC_DEFINE(M_AR, "AR driver", "ATA RAID driver");
 
+#define AR_REBUILD_SIZE	128
+
 int
 ata_raiddisk_attach(struct ad_softc *adp)
 {
@@ -1008,14 +1010,15 @@ ar_rebuild(void *arg)
     /* setup start conditions */
     s = splbio();
     rdp->lock_start = 0;
-    rdp->lock_end = rdp->lock_start + 256;
+    rdp->lock_end = rdp->lock_start + AR_REBUILD_SIZE;
     rdp->flags |= AR_F_REBUILDING;
     splx(s);
-    buffer = malloc(256 * DEV_BSIZE, M_AR, M_NOWAIT | M_ZERO);
+    buffer = malloc(AR_REBUILD_SIZE * DEV_BSIZE, M_AR, M_NOWAIT | M_ZERO);
 
     /* now go copy entire disk(s) */
     while (rdp->lock_end < (rdp->total_sectors / rdp->width)) {
-	int size = min(256, (rdp->total_sectors / rdp->width) - rdp->lock_end);
+	int size = min(AR_REBUILD_SIZE, 
+		       (rdp->total_sectors / rdp->width) - rdp->lock_end);
 
 	for (disk = 0; disk < rdp->width; disk++) {
 	    struct ad_softc *adp;
