@@ -36,6 +36,10 @@
 #ifndef pcap_int_h
 #define pcap_int_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pcap.h>
 
 /*
@@ -114,4 +118,9 @@ int	pcap_read(pcap_t *, int cnt, pcap_handler, u_char *);
 
 /* XXX */
 extern	int pcap_fddipad;
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
