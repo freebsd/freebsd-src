@@ -105,8 +105,9 @@ confstr(int name, char *buf, size_t len)
 		goto docopy;
 
 	case _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS:
+		/* XXX - should have more complete coverage */
 		if (sizeof(long) * CHAR_BIT >= 64)
-			p = "_POSIX_V6_LPBIG_OFFBIG";
+			p = "_POSIX_V6_LP64_OFF64";
 		else
 			p = "_POSIX_V6_ILP32_OFFBIG";
 		goto docopy;
