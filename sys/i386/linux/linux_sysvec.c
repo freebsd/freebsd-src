@@ -76,6 +76,15 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 #define SHELLMAGIC      0x2321
 #endif
 
+/*
+ * Allow the sendsig functions to use the ldebug() facility
+ * even though they are not syscalls themselves. Map them
+ * to syscall 0. This is slightly less bogus than using
+ * ldebug(sigreturn).
+ */
+#define	LINUX_SYS_linux_rt_sendsig	0
+#define	LINUX_SYS_linux_sendsig		0
+
 extern char linux_sigcode[];
 extern int linux_szsigcode;
 
