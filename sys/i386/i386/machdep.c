@@ -2199,6 +2199,24 @@ set_dbregs(p, dbregs)
 	struct dbreg *dbregs;
 {
 	struct pcb *pcb;
+	int i;
+	u_int32_t mask1, mask2;
+
+	/*
+	 * Don't let an illegal value for dr7 get set.  Specifically,
+	 * check for undefined settings.  Setting these bit patterns
+	 * result in undefined behaviour and can lead to an unexpected
+	 * TRCTRAP.
+	 */
+	for (i = 0, mask1 = 0x3<<16, mask2 = 0x2<<16; i < 8; 
+	     i++, mask1 <<= 2, mask2 <<= 2)
+		if ((dbregs->dr7 & mask1) == mask2)
+			return (EINVAL);
+
+	if (dbregs->dr7 & 0x0000fc00)
+		return (EINVAL);
+
+
 
 	pcb = &p->p_addr->u_pcb;
 
