@@ -313,7 +313,9 @@
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para></para>
+      <para>&man.pkg.create.1; now supports a <option>-b</option>
+      option to create a package file from a locally-installed
+      package.</para>
     </sect3>
   </sect2>
 </sect1>
