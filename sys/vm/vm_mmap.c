@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id$
+ * $Id: vm_mmap.c,v 1.3 1994/08/02 07:55:28 davidg Exp $
  */
 
 /*
@@ -216,13 +216,13 @@ mmap(p, uap, retval)
 	 * Note that VM_*_ADDRESS are not constants due to casts (argh).
 	 */
 	if (flags & MAP_FIXED) {
-		if (VM_MAXUSER_ADDRESS > 0 && addr + size >= VM_MAXUSER_ADDRESS)
+		if (VM_MAXUSER_ADDRESS > 0 && addr + size > VM_MAXUSER_ADDRESS)
 			return (EINVAL);
 #ifndef i386
 		if (VM_MIN_ADDRESS > 0 && addr < VM_MIN_ADDRESS)
 			return (EINVAL);
 #endif
-		if (addr > addr + size)
+		if (addr + size < addr)
 			return (EINVAL);
 	}
 	/*
@@ -401,13 +401,13 @@ munmap(p, uap, retval)
 	 * Check for illegal addresses.  Watch out for address wrap...
 	 * Note that VM_*_ADDRESS are not constants due to casts (argh).
 	 */
-	if (VM_MAXUSER_ADDRESS > 0 && addr + size >= VM_MAXUSER_ADDRESS)
+	if (VM_MAXUSER_ADDRESS > 0 && addr + size > VM_MAXUSER_ADDRESS)
 		return (EINVAL);
 #ifndef i386
 	if (VM_MIN_ADDRESS > 0 && addr < VM_MIN_ADDRESS)
 		return (EINVAL);
 #endif
-	if (addr > addr + size)
+	if (addr + size < addr)
 		return (EINVAL);
 	map = &p->p_vmspace->vm_map;
 	/*
