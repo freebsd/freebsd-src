@@ -7,14 +7,14 @@
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm fetch
-.Op Fl AMPablmnpqrtv
+.Op Fl AFMPablmnpqrtv
 .Op Fl S Ar size
 .Op Fl T Ar timeout
 .Op Fl o Ar file
 .Ar URL
 .Op Ar ...
 .Nm fetch
-.Op Fl MPRlmnpqrv
+.Op Fl FMPRlmnpqrv
 .Op Fl S Ar size
 .Op Fl o Ar file
 .Op Fl c Ar dir
@@ -65,6 +65,14 @@ protocol.
 The file to retrieve is in directory
 .Ar dir
 on the remote host.
+.It Fl F
+Force restart without checking for the local file's date matching
+that of the remote file.  Use this with
+.Fl r
+to restart a transfer of a partial file where the modification
+time on the local file has been changed and you are sure that the
+remote file is still the same, as this will prevent retrieval from
+starting anew.
 .It Fl f Ar file
 The file to retrieve is named
 .Ar file
