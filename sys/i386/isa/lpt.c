@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.29 1995/05/09 01:33:16 phk Exp $
+ *	$Id: lpt.c,v 1.30 1995/05/30 08:02:42 rgrimes Exp $
  */
 
 /*
@@ -109,7 +109,6 @@
 #include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/ioctl.h>
-#include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
@@ -828,7 +827,7 @@ lpattach (struct lpt_softc *sc, int unit)
 	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT;
 	ifp->if_ioctl = lpioctl;
 	ifp->if_output = lpoutput;
-	ifp->if_type = IFT_SLIP;
+	ifp->if_type = IFT_PARA;
 	ifp->if_hdrlen = 0;
 	ifp->if_addrlen = 0;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
@@ -904,18 +903,18 @@ lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
 
     case SIOCSIFMTU:
 	ptr = sc->sc_ifbuf;
-	sc->sc_ifbuf = malloc(ifr->ifr_metric+LPIPHDRLEN, M_DEVBUF, M_NOWAIT);
+	sc->sc_ifbuf = malloc(ifr->ifr_mtu+LPIPHDRLEN, M_DEVBUF, M_NOWAIT);
 	if (!sc->sc_ifbuf) {
 	    sc->sc_ifbuf = ptr;
 	    return ENOBUFS;
 	}
 	if (ptr)
 	    free(ptr,M_DEVBUF);
-	sc->sc_if.if_mtu = ifr->ifr_metric;
+	sc->sc_if.if_mtu = ifr->ifr_mtu;
 	break;
 
     case SIOCGIFMTU:
-	ifr->ifr_metric = sc->sc_if.if_mtu;
+	ifr->ifr_mtu = sc->sc_if.if_mtu;
 	break;
 
     default:
