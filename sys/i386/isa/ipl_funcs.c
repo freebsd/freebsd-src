@@ -35,8 +35,9 @@
 #include <i386/isa/intr_machdep.h>
 
 /*
- * The volatile bitmap variables must be set atomically.  This normally
- * involves using a machine-dependent bit-set or `or' instruction.
+ * Bits in the ipending bitmap variable must be set atomically because
+ * ipending may be manipulated by interrupts or other cpu's without holding 
+ * any locks.
  *
  * Note: setbits uses a locked or, making simple cases MP safe.
  */
@@ -66,6 +67,10 @@ softclockpending(void)
 {
 	return (ipending & SWI_CLOCK_PENDING);
 }
+
+/*
+ * Support for SPL assertions.
+ */
 
 #ifdef INVARIANT_SUPPORT
 
@@ -112,6 +117,40 @@ NAME##assert(const char *msg)				\
 #define	GENSPLASSERT(NAME, MODIFIER)
 #endif
 
+/************************************************************************
+ *			GENERAL SPL CODE				*
+ ************************************************************************
+ *
+ *  Implement splXXX(), spl0(), splx(), and splq().  splXXX() disables a
+ *  set of interrupts (e.g. splbio() disables interrupts relating to 
+ *  device I/O) and returns the previous interrupt mask.  splx() restores
+ *  the previous interrupt mask, spl0() is a special case which enables
+ *  all interrupts and is typically used inside i386/i386 swtch.s and
+ *  fork_trampoline.  splq() is a generic version of splXXX().
+ *
+ *  The SPL routines mess around with the 'cpl' global, which masks 
+ *  interrupts.  Interrupts are not *actually* masked.  What happens is 
+ *  that if an interrupt masked by the cpl occurs, the appropriate bit
+ *  in 'ipending' is set and the interrupt is defered.  When we clear
+ *  bits in the cpl we must check to see if any ipending interrupts have
+ *  been unmasked and issue the synchronously, which is what the splz()
+ *  call does.
+ *
+ *  Because the cpl is often saved and restored in a nested fashion, cpl
+ *  modifications are only allowed in the SMP case when the MP lock is held
+ *  to prevent multiple processes from tripping over each other's masks.
+ *  The cpl is saved when you do a context switch (mi_switch()) and restored
+ *  when your process gets cpu again.
+ *
+ *  An interrupt routine is allowed to modify the cpl as long as it restores
+ *  it prior to returning (thus the interrupted mainline code doesn't notice
+ *  anything amiss).  For the SMP case, the interrupt routine must hold 
+ *  the MP lock for any cpl manipulation.
+ *
+ *  Likewise, due to the deterministic nature of cpl modifications, we do
+ *  NOT need to use locked instructions to modify it.
+ */
+
 #ifndef SMP
 
 #define	GENSPL(NAME, OP, MODIFIER, PC)		\
@@ -154,90 +193,12 @@ splq(intrmask_t mask)
 #include <machine/smp.h>
 #include <machine/smptests.h>
 
-#ifndef SPL_DEBUG_POSTCODE
-#undef POSTCODE
-#undef POSTCODE_LO
-#undef POSTCODE_HI
-#define POSTCODE(X)
-#define POSTCODE_LO(X)
-#define POSTCODE_HI(X)
-#endif /* SPL_DEBUG_POSTCODE */
-
-
 /*
- * This version has to check for bsp_apic_ready,
- * as calling simple_lock() (ie ss_lock) before then deadlocks the system.
- * A sample count of GENSPL calls before bsp_apic_ready was set: 2193
+ *	SMP CASE
+ *
+ *	Mostly the same as the non-SMP case now, but it didn't used to be
+ *	this clean.
  */
-
-#ifdef INTR_SPL
-
-#ifdef SPL_DEBUG
-#define MAXZ		100000000
-#define SPIN_VAR	unsigned z;
-#define SPIN_RESET	z = 0;
-#if 0
-#define SPIN_SPL							\
-			if (++z >= MAXZ) {				\
-				/* XXX allow lock-free panic */		\
-				bsp_apic_ready = 0;			\
-				panic("\ncil: 0x%08x", cil);		\
-			}
-#else
-#define SPIN_SPL							\
-			if (++z >= MAXZ) {				\
-				/* XXX allow lock-free panic */		\
-				bsp_apic_ready = 0;			\
-				printf("\ncil: 0x%08x", cil);		\
-				breakpoint();				\
-			}
-#endif /* 0/1 */
-#else /* SPL_DEBUG */
-#define SPIN_VAR
-#define SPIN_RESET
-#define SPIN_SPL
-#endif /* SPL_DEBUG */
-
-#endif
-
-#ifdef INTR_SPL
-
-#define	GENSPL(NAME, OP, MODIFIER, PC)					\
-GENSPLASSERT(NAME, MODIFIER)						\
-unsigned NAME(void)							\
-{									\
-	unsigned x, y;							\
-	SPIN_VAR;							\
-									\
-	if (!bsp_apic_ready) {						\
-		x = cpl;						\
-		cpl OP MODIFIER;					\
-		return (x);						\
-	}								\
-									\
-	for (;;) {							\
-		IFCPL_LOCK();		/* MP-safe */			\
-		x = y = cpl;		/* current value */		\
-		POSTCODE(0x20 | PC);					\
-		if (inside_intr)					\
-			break;		/* XXX only 1 INT allowed */	\
-		y OP MODIFIER;		/* desired value */		\
-		if (cil & y) {		/* not now */			\
-			IFCPL_UNLOCK();	/* allow cil to change */	\
-			SPIN_RESET;					\
-			while (cil & y)					\
-				SPIN_SPL				\
-			continue;	/* try again */			\
-		}							\
-		break;							\
-	}								\
-	cpl OP MODIFIER;		/* make the change */		\
-	IFCPL_UNLOCK();							\
-									\
-	return (x);							\
-}
-
-#else /* INTR_SPL */
 
 #define	GENSPL(NAME, OP, MODIFIER, PC)		\
 GENSPLASSERT(NAME, MODIFIER)			\
@@ -245,128 +206,52 @@ unsigned NAME(void)				\
 {						\
 	unsigned x;				\
 						\
-	IFCPL_LOCK();				\
 	x = cpl;				\
 	cpl OP MODIFIER;			\
-	IFCPL_UNLOCK();				\
 						\
 	return (x);				\
 }
 
-#endif /* INTR_SPL */
-
-
+/*
+ * spl0() -	unmask all interrupts
+ *
+ *	The MP lock must be held on entry
+ *	This routine may only be called from mainline code.
+ */
 void
 spl0(void)
 {
-	int unpend;
-#ifdef INTR_SPL
-	SPIN_VAR;
-
-	for (;;) {
-		IFCPL_LOCK();
-		POSTCODE_HI(0xc);
-		/*
-		 * XXX SWI_AST_MASK in ipending has moved to 1 in astpending,
-		 * so the following code is dead, but just removing it may
-		 * not be right.
-		 */
-#if 0
-		if (cil & SWI_AST_MASK) {	/* not now */
-			IFCPL_UNLOCK();		/* allow cil to change */
-			SPIN_RESET;
-			while (cil & SWI_AST_MASK)
-				SPIN_SPL
-			continue;		/* try again */
-		}
-#endif
-		break;
-	}
-#else /* INTR_SPL */
-	IFCPL_LOCK();
-#endif /* INTR_SPL */
-
+	KASSERT(inside_intr == 0, ("spl0: called from interrupt"));
 	cpl = 0;
-	unpend = ipending;
-	IFCPL_UNLOCK();
-
-	if (unpend && !inside_intr)
+	if (ipending)
 		splz();
 }
+
+/*
+ * splx() -	restore previous interrupt mask
+ *
+ *	The MP lock must be held on entry
+ */
 
 void
 splx(unsigned ipl)
 {
-	int unpend;
-#ifdef INTR_SPL
-	SPIN_VAR;
-
-	for (;;) {
-		IFCPL_LOCK();
-		POSTCODE_HI(0xe);
-		if (inside_intr)
-			break;			/* XXX only 1 INT allowed */
-		POSTCODE_HI(0xf);
-		if (cil & ipl) {		/* not now */
-			IFCPL_UNLOCK();		/* allow cil to change */
-			SPIN_RESET;
-			while (cil & ipl)
-				SPIN_SPL
-			continue;		/* try again */
-		}
-		break;
-	}
-#else /* INTR_SPL */
-	IFCPL_LOCK();
-#endif /* INTR_SPL */
-
 	cpl = ipl;
-	unpend = ipending & ~ipl;
-	IFCPL_UNLOCK();
-
-	if (unpend && !inside_intr)
+	if (inside_intr == 0 && (ipending & ~cpl) != 0)
 		splz();
 }
 
 
 /*
- * Replaces UP specific inline found in (?) pci/pci_support.c.
+ * splq() -	blocks specified interrupts
  *
- * Stefan said:
- * You know, that splq() is used in the shared interrupt multiplexer, and that
- * the SMP version should not have too much overhead. If it is significantly
- * slower, then moving the splq() out of the loop in intr_mux() and passing in
- * the logical OR of all mask values might be a better solution than the
- * current code. (This logical OR could of course be pre-calculated whenever
- * another shared interrupt is registered ...)
+ *	The MP lock must be held on entry
  */
 intrmask_t
 splq(intrmask_t mask)
 {
-	intrmask_t tmp;
-#ifdef INTR_SPL
-	intrmask_t tmp2;
-
-	for (;;) {
-		IFCPL_LOCK();
-		tmp = tmp2 = cpl;
-		tmp2 |= mask;
-		if (cil & tmp2) {		/* not now */
-			IFCPL_UNLOCK();		/* allow cil to change */
-			while (cil & tmp2)
-				/* spin */ ;
-			continue;		/* try again */
-		}
-		break;
-	}
-	cpl = tmp2;
-#else /* INTR_SPL */
-	IFCPL_LOCK();
-	tmp = cpl;
+	intrmask_t tmp = cpl;
 	cpl |= mask;
-#endif /* INTR_SPL */
-
-	IFCPL_UNLOCK();
 	return (tmp);
 }
 

@@ -3000,6 +3000,8 @@ getdents(p, uap)
 
 /*
  * Set the mode mask for creation of filesystem nodes.
+ *
+ * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct umask_args {

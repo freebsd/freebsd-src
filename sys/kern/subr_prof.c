@@ -42,6 +42,7 @@
 #include <sys/resourcevar.h>
 #include <sys/sysctl.h>
 
+#include <machine/ipl.h>
 #include <machine/cpu.h>
 
 #ifdef GPROF

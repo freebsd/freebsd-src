@@ -53,6 +53,7 @@
 #include <sys/user.h>
 
 #include <machine/cpu.h>
+#include <machine/ipl.h>
 #include <machine/pcb_ext.h>	/* pcb.h included by sys/user.h */
 #include <machine/sysarch.h>
 #ifdef SMP

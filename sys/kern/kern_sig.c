@@ -64,6 +64,7 @@
 
 #include <vm/vm_zone.h>
 
+#include <machine/ipl.h>
 #include <machine/cpu.h>
 #ifdef SMP
 #include <machine/smp.h>

@@ -29,15 +29,6 @@
 	.data
 	ALIGN_DATA
 
-/* current INTerrupt level */
-	.globl	_cil
-_cil:	.long	0
-
-/* current INTerrupt level mask */
-	.globl	_cml
-_cml:	.long	0
-
-
 /*
  * Routines used by splz_unpend to build an interrupt frame from a
  * trap frame.  The _vec[] routines build the proper frame on the stack,
@@ -78,6 +69,8 @@ _apic_imen:
 	SUPERALIGN_TEXT
 
 /*
+ * splz() -	dispatch pending interrupts after cpl reduced
+ *
  * Interrupt priority mechanism
  *	-- soft splXX masks with group mechanism (cpl)
  *	-- h/w masks for currently active or unused interrupts (imen)
@@ -87,20 +80,25 @@ _apic_imen:
 ENTRY(splz)
 	/*
 	 * The caller has restored cpl and checked that (ipending & ~cpl)
-	 * is nonzero.  We have to repeat the check since if there is an
-	 * interrupt while we're looking, _doreti processing for the
-	 * interrupt will handle all the unmasked pending interrupts
-	 * because we restored early.  We're repeating the calculation
-	 * of (ipending & ~cpl) anyway so that the caller doesn't have
-	 * to pass it, so this only costs one "jne".  "bsfl %ecx,%ecx"
-	 * is undefined when %ecx is 0 so we can't rely on the secondary
-	 * btrl tests.
+	 * is nonzero.  However, since ipending can change at any time
+	 * (by an interrupt or, with SMP, by another cpu), we have to
+	 * repeat the check.  At the moment we must own the MP lock in
+	 * the SMP case because the interruput handlers require it.  We
+	 * loop until no unmasked pending interrupts remain.  
+	 *
+	 * No new unmaksed pending interrupts will be added during the
+	 * loop because, being unmasked, the interrupt code will be able
+	 * to execute the interrupts.
+	 *
+	 * Interrupts come in two flavors:  Hardware interrupts and software
+	 * interrupts.  We have to detect the type of interrupt (based on the
+	 * position of the interrupt bit) and call the appropriate dispatch
+	 * routine.
+	 * 
+	 * NOTE: "bsfl %ecx,%ecx" is undefined when %ecx is 0 so we can't
+	 * rely on the secondary btrl tests.
 	 */
-	AICPL_LOCK
 	movl	_cpl,%eax
-#ifdef CPL_AND_CML
-	orl	_cml, %eax		/* add cml to cpl */
-#endif
 splz_next:
 	/*
 	 * We don't need any locking here.  (ipending & ~cpl) cannot grow 
@@ -110,7 +108,6 @@ splz_next:
 	notl	%ecx			/* set bit = unmasked level */
 	andl	_ipending,%ecx		/* set bit = unmasked pending INT */
 	jne	splz_unpend
-	AICPL_UNLOCK
 	ret
 
 	ALIGN_TEXT
@@ -131,9 +128,6 @@ splz_unpend:
 	 * The vec[] routines build the proper frame on the stack,
 	 * then call one of _Xintr0 thru _XintrNN.
 	 */
-	pushl	%ecx
-	AICPL_UNLOCK
-	popl	%ecx
 	jmp	*_vec(,%ecx,4)
 
 	ALIGN_TEXT
@@ -141,11 +135,7 @@ splz_swi:
 	pushl	%eax
 	orl	imasks(,%ecx,4),%eax
 	movl	%eax,_cpl
-	pushl	%ecx
-	AICPL_UNLOCK
-	popl	%ecx
 	call	*_ihandlers(,%ecx,4)
-	AICPL_LOCK
 	popl	%eax
 	movl	%eax,_cpl
 	jmp	splz_next

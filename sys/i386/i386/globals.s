@@ -61,9 +61,10 @@ globaldata:
 #else
 	.set	globaldata,0
 #endif
-	.globl	gd_curproc, gd_curpcb, gd_npxproc
+	.globl	gd_curproc, gd_curpcb, gd_npxproc, gd_astpending
 	.globl	gd_common_tss, gd_switchtime, gd_switchticks
 	.set	gd_curproc,globaldata + GD_CURPROC
+	.set	gd_astpending,globaldata + GD_ASTPENDING
 	.set	gd_curpcb,globaldata + GD_CURPCB
 	.set	gd_npxproc,globaldata + GD_NPXPROC
 	.set	gd_common_tss,globaldata + GD_COMMON_TSS
@@ -80,9 +81,10 @@ globaldata:
 #endif
 
 #ifndef SMP
-	.globl	_curproc, _curpcb, _npxproc
+	.globl	_curproc, _curpcb, _npxproc, _astpending
 	.globl	_common_tss, _switchtime, _switchticks
 	.set	_curproc,globaldata + GD_CURPROC
+	.set	_astpending,globaldata + GD_ASTPENDING
 	.set	_curpcb,globaldata + GD_CURPCB
 	.set	_npxproc,globaldata + GD_NPXPROC
 	.set	_common_tss,globaldata + GD_COMMON_TSS
