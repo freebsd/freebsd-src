@@ -288,10 +288,7 @@ fddata_rd(fdc_p fdc)
 static void
 fdctl_wr(fdc_p fdc, u_int8_t v)
 {
-	if (fdc->flags & FDC_ISPNP)
-		bus_space_write_1(fdc->ctlt, fdc->ctlh, 0, v);
-	else
-		bus_space_write_1(fdc->portt, fdc->porth, FDCTL, v);
+	bus_space_write_1(fdc->ctlt, fdc->ctlh, 0, v);
 }
 
 #if 0
@@ -410,13 +407,11 @@ fdc_err(struct fdc_data *fdc, const char *s)
 {
 	fdc->fdc_errs++;
 	if (s) {
-		if (fdc->fdc_errs < FDC_ERRMAX) {
-			device_print_prettyname(fdc->fdc_dev);
-			printf("%s", s);
-		} else if (fdc->fdc_errs == FDC_ERRMAX) {
-			device_print_prettyname(fdc->fdc_dev);
-			printf("too many errors, not logging any more\n");
-		}
+		if (fdc->fdc_errs < FDC_ERRMAX)
+			device_printf(fdc->fdc_dev, "%s", s);
+		else if (fdc->fdc_errs == FDC_ERRMAX)
+			device_printf(fdc->fdc_dev, "too many errors, not "
+						    "logging any more\n");
 	}
 
 	return FD_FAILED;
@@ -598,10 +593,14 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	fdc->rid_ioport = fdc->rid_irq = fdc->rid_drq = 0;
 	fdc->res_ioport = fdc->res_irq = fdc->res_drq = 0;
 
+	/*
+	 * We don't just use an 8 port range (e.g. 0x3f0-0x3f7) since that
+	 * covers an IDE control register at 0x3f6.
+	 * Isn't PC hardware wonderful.
+	 */
 	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
 					     &fdc->rid_ioport, 0ul, ~0ul, 
-					     ispnp ? 1 : IO_FDCSIZE,
-					     RF_ACTIVE);
+					     ispnp ? 1 : 6, RF_ACTIVE);
 	if (fdc->res_ioport == 0) {
 		device_printf(dev, "cannot reserve I/O port range\n");
 		return ENXIO;
@@ -610,9 +609,17 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	fdc->porth = rman_get_bushandle(fdc->res_ioport);
 
 	/*
-	 * Some bios' report the device at 0x3f2-0x3f5,0x3f7 and some at
+	 * Some BIOSen report the device at 0x3f2-0x3f5,0x3f7 and some at
 	 * 0x3f0-0x3f5,0x3f7. We detect the former by checking the size
 	 * and adjust the port address accordingly.
+	 */
+	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4)
+		fdc->port_off = -2;
+
+	/*
+	 * Register the control port range as rid 1 if it isn't there
+	 * already. Most PnP BIOSen will have already done this but
+	 * non-PnP configurations don't.
 	 *
 	 * And some (!!) report 0x3f2-0x3f5 and completely leave out the
 	 * control register!  It seems that some non-antique controller chips
@@ -620,38 +627,27 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	 * doesn't require the control register, but it's mighty bogus as the
 	 * chip still responds to the address for the control register.
 	 */
-	if (ispnp) {
-		int cntport0;
-		int cntport1;
+	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
 		u_long ctlstart;
-		u_long ctlend;
 
-		cntport0 = bus_get_resource_count(dev, SYS_RES_IOPORT, 0);
-		cntport1 = bus_get_resource_count(dev, SYS_RES_IOPORT, 1);
-		ctlstart = 0ul;
-		ctlend = ~0ul;
-		if (cntport0 == 4)
-			fdc->port_off = -2;
-		if (cntport1 == 0) {
-			/* GRRR, request a specific port */
-			ctlstart = rman_get_start(fdc->res_ioport) +
-			    fdc->port_off + 7;	/* usually 0x3f7 */
-			ctlend = ctlstart;
-			if (bootverbose)
-				device_printf(dev, "added missing ctrl port\n");
-		}
-		fdc->flags |= FDC_ISPNP;
-		fdc->rid_ctl = 1;
-		fdc->res_ctl = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						  &fdc->rid_ctl, ctlstart,
-						  ctlend, 1, RF_ACTIVE);
-		if (fdc->res_ctl == 0) {
-			device_printf(dev, "cannot reserve I/O port range 2\n");
-			return ENXIO;
-		}
-		fdc->ctlt = rman_get_bustag(fdc->res_ctl);
-		fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
+		/* Find the control port, usually 0x3f7 */
+		ctlstart = rman_get_start(fdc->res_ioport) + fdc->port_off + 7;
+
+		bus_set_resource(dev, SYS_RES_IOPORT, 1, ctlstart, 1);
 	}
+
+	/*
+	 * Now (finally!) allocate the control port.
+	 */
+	fdc->rid_ctl = 1;
+	fdc->res_ctl = bus_alloc_resource(dev, SYS_RES_IOPORT, &fdc->rid_ctl,
+					  0ul, ~0ul, 1, RF_ACTIVE);
+	if (fdc->res_ctl == 0) {
+		device_printf(dev, "cannot reserve control I/O port range\n");
+		return ENXIO;
+	}
+	fdc->ctlt = rman_get_bustag(fdc->res_ctl);
+	fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
 
 	fdc->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ,
 					  &fdc->rid_irq, 0ul, ~0ul, 1, 
@@ -954,8 +950,8 @@ fd_probe(device_t dev)
 	if (fd_fifo == 0 && fdc->fdct != FDC_NE765 && fdc->fdct != FDC_UNKNOWN
 	    && (device_get_flags(fdc->fdc_dev) & FDC_NO_FIFO) == 0
 	    && enable_fifo(fdc) == 0) {
-		device_print_prettyname(device_get_parent(dev));
-		printf("FIFO enabled, %d bytes threshold\n", fifo_threshold);
+		device_printf(device_get_parent(dev),
+		    "FIFO enabled, %d bytes threshold\n", fifo_threshold);
 	}
 	fd_fifo = 1;
 
@@ -1697,8 +1693,8 @@ fdstate(fdc_p fdc)
 		\***********************************************/
 		fdc->state = DEVIDLE;
 		if (fdc->fd) {
-			device_print_prettyname(fdc->fdc_dev);
-			printf("unexpected valid fd pointer\n");
+			device_printf(fdc->fdc_dev,
+			    "unexpected valid fd pointer\n");
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;
 		}
@@ -1708,10 +1704,8 @@ fdstate(fdc_p fdc)
 	fdu = FDUNIT(minor(bp->b_dev));
 	fd = devclass_get_softc(fd_devclass, fdu);
 	fdblk = 128 << fd->ft->secsize;
-	if (fdc->fd && (fd != fdc->fd)) {
-		device_print_prettyname(fd->dev);
-		printf("confused fd pointers\n");
-	}
+	if (fdc->fd && (fd != fdc->fd))
+		device_printf(fd->dev, "confused fd pointers\n");
 	read = bp->b_flags & B_READ;
 	format = bp->b_flags & B_FORMAT;
 	if (format) {
@@ -2115,8 +2109,7 @@ fdstate(fdc_p fdc)
 		}
 		return (1);	/* will return immediatly */
 	default:
-		device_print_prettyname(fdc->fdc_dev);
-		printf("unexpected FD int->");
+		device_printf(fdc->fdc_dev, "unexpected FD int->");
 		if (fd_read_status(fdc, fd->fdsu) == 0)
 			printf("FDC status :%x %x %x %x %x %x %x   ",
 			       fdc->status[0],
