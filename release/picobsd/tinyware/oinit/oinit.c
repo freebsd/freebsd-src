@@ -869,7 +869,7 @@ transition_machine()
 int
 main(int argc, char **argv)
 {
-	int devfs=0,c,i;
+	int c,i;
 
 	/* These are copied from real init(8) */
 	if(getuid()!=0)
@@ -896,7 +896,6 @@ main(int argc, char **argv)
 	while((c=getopt(argc,argv,"dsf"))!=-1) {
 		switch(c) {
 		case 'd':
-			devfs=1;
 			break;
 		case 's':
 			transition=SINGLE;
@@ -908,8 +907,6 @@ main(int argc, char **argv)
 			break;
 		}
 	}
-	if(devfs)
-		mount("devfs",_PATH_DEV,MNT_NOEXEC|MNT_RDONLY,0);
 
 	/* Fill in the sess structures. */
 	/* XXX Really, should be filled based upon config file. */
