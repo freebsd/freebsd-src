@@ -18,6 +18,8 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 
 /* Output dbx-format symbol table data.
    This consists of many symbol table entries, each of them
@@ -163,10 +165,12 @@ static int source_label_number = 1;
 #define FORCE_TEXT
 #endif
 
-/* If there is a system stabs.h, use it.  Otherwise, use our own.  */
-
-#ifndef HAVE_STABS_H
-#include "gstab.h"
+/* If there is a system stab.h, use it.  Otherwise, use our own.  */
+/* ??? This is supposed to describe the target's stab format, so using
+   the host HAVE_STAB_H appears to be wrong.  For now, we use our own file
+   when cross compiling.  */
+#if defined (USG) || !defined (HAVE_STAB_H) || defined (CROSS_COMPILE)
+#include "gstab.h" /* If doing DBX on sysV, use our own stab.h.  */
 #else
 #include <stab.h>
 
@@ -495,7 +499,7 @@ dbxout_typedefs (syms)
 
 void
 dbxout_start_new_source_file (filename)
-     char *filename;
+     char *filename ATTRIBUTE_UNUSED;
 {
 #ifdef DBX_USE_BINCL
   struct dbx_file *n = (struct dbx_file *) xmalloc (sizeof *n);
@@ -580,8 +584,8 @@ dbxout_source_line (file, filename, lineno)
 
 void
 dbxout_finish (file, filename)
-     FILE *file;
-     char *filename;
+     FILE *file ATTRIBUTE_UNUSED;
+     char *filename ATTRIBUTE_UNUSED;
 {
 #ifdef DBX_OUTPUT_MAIN_SOURCE_FILE_END
   DBX_OUTPUT_MAIN_SOURCE_FILE_END (file, filename);
@@ -1935,7 +1939,7 @@ dbxout_symbol (decl, local)
 
       DECL_RTL (decl) = eliminate_regs (DECL_RTL (decl), 0, NULL_RTX);
 #ifdef LEAF_REG_REMAP
-      if (leaf_function)
+      if (current_function_uses_only_leaf_regs)
 	leaf_renumber_regs_insn (DECL_RTL (decl));
 #endif
 
@@ -2188,7 +2192,7 @@ dbxout_symbol_name (decl, suffix, letter)
 
 static void
 dbxout_prepare_symbol (decl)
-     tree decl;
+     tree decl ATTRIBUTE_UNUSED;
 {
 #ifdef WINNING_GDB
   char *filename = DECL_SOURCE_FILE (decl);
@@ -2257,7 +2261,7 @@ dbxout_parms (parms)
 	  = eliminate_regs (DECL_INCOMING_RTL (parms), 0, NULL_RTX);
 	DECL_RTL (parms) = eliminate_regs (DECL_RTL (parms), 0, NULL_RTX);
 #ifdef LEAF_REG_REMAP
-	if (leaf_function)
+	if (current_function_uses_only_leaf_regs)
 	  {
 	    leaf_renumber_regs_insn (DECL_INCOMING_RTL (parms));
 	    leaf_renumber_regs_insn (DECL_RTL (parms));
@@ -2681,7 +2685,7 @@ dbxout_really_begin_function (decl)
 
 void
 dbxout_begin_function (decl)
-     tree decl;
+     tree decl ATTRIBUTE_UNUSED;
 {
 #ifdef DBX_FUNCTION_FIRST
   dbxout_really_begin_function (decl);
