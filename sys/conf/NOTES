@@ -417,6 +417,9 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #  The `ether' device provides generic code to handle
 #  Ethernets; it is MANDATORY when an Ethernet device driver is
 #  configured or token-ring is enabled.
+#  The 'wlan' device provides generic code to support 802.11
+#  drivers, including host AP mode; it is MANDATORY for the wi
+#  driver and will eventually be required by all 802.11 drivers.
 #  The `fddi' device provides generic code to support FDDI.
 #  The `arcnet' device provides generic code to support Arcnet.
 #  The `sppp' device serves a similar role for certain types
@@ -453,6 +456,7 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #
 device		ether			#Generic Ethernet
 device		vlan			#VLAN support
+device		wlan			#802.11 support
 device		token			#Generic TokenRing
 device		fddi			#Generic FDDI
 device		arcnet			#Generic Arcnet
