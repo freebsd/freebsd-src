@@ -374,8 +374,8 @@ Need to print a manpage? Use
 %
 Need to remove all those ^M characters from a DOS file? Try
 
-	col -bx < dosfile > newfile
-		-- Dru <genesis@istar.ca>
+	tr -d \\r < dosfile > newfile
+		-- Originally by Dru <genesis@istar.ca>
 %
 Forget what directory you are in? Type "pwd".
 		-- Dru <genesis@istar.ca>
