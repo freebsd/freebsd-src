@@ -79,14 +79,17 @@ struct lockuser {
 #define	_LCK_SET_PRIVATE2(lu, p)	(lu)->lu_private2 = (void *)(p)
 #define	_LCK_GET_PRIVATE2(lu)		(lu)->lu_private2
 
+void	_lock_acquire(struct lock *, struct lockuser *, int);
 void	_lock_destroy(struct lock *);
+void	_lock_grant(struct lock *, struct lockuser *);
 int	_lock_init(struct lock *, enum lock_type,
 	    lock_handler_t *, lock_handler_t *);
+int	_lock_reinit(struct lock *, enum lock_type,
+	    lock_handler_t *, lock_handler_t *);
+void	_lock_release(struct lock *, struct lockuser *);
 int	_lockuser_init(struct lockuser *lu, void *priv);
 void	_lockuser_destroy(struct lockuser *lu);
+int	_lockuser_reinit(struct lockuser *lu, void *priv);
 void	_lockuser_setactive(struct lockuser *lu, int active);
-void	_lock_acquire(struct lock *, struct lockuser *, int);
-void	_lock_release(struct lock *, struct lockuser *);
-void	_lock_grant(struct lock *, struct lockuser *);
 
 #endif
