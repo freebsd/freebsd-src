@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.20 1998/08/18 10:29:37 ache Exp $
+# $Id: Makefile,v 1.21 1998/09/15 19:34:01 fenner Exp $
 
 LIB=    pcap
 SRCS=	grammar.y tokdefs.h pcap-bpf.c \
@@ -7,7 +7,7 @@ SRCS=	grammar.y tokdefs.h pcap-bpf.c \
 	etherent.c savefile.c bpf_filter.c bpf_image.c \
         scanner.l version.c
 MAN3=	pcap.3
-CLEANFILES+= tokdefs.h
+CLEANFILES=tokdefs.h version.c
 
 DEFS=	-DHAVE_SYS_IOCCOM_H=1 -DHAVE_SYS_SOCKIO_H=1 \
 	-DHAVE_ETHER_HOSTTON=1 -DHAVE_STRERROR=1 \
