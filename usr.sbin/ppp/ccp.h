@@ -127,8 +127,8 @@ struct ccp_algorithm {
   int (*Usable)(struct fsm *);			/* Ok to negotiate ? */
   int (*Required)(struct fsm *);		/* Must negotiate ? */
   struct {
-    int (*Set)(struct fsm_opt *, const struct ccp_config *);
-    void *(*Init)(struct fsm_opt *);
+    int (*Set)(struct bundle *, struct fsm_opt *, const struct ccp_config *);
+    void *(*Init)(struct bundle *, struct fsm_opt *);
     void (*Term)(void *);
     void (*Reset)(void *);
     struct mbuf *(*Read)(void *, struct ccp *, u_short *, struct mbuf *);
@@ -136,9 +136,10 @@ struct ccp_algorithm {
   } i;
   struct {
     int MTUOverhead;
-    void (*OptInit)(struct fsm_opt *, const struct ccp_config *);
-    int (*Set)(struct fsm_opt *, const struct ccp_config *);
-    void *(*Init)(struct fsm_opt *);
+    void (*OptInit)(struct bundle *, struct fsm_opt *,
+                    const struct ccp_config *);
+    int (*Set)(struct bundle *, struct fsm_opt *, const struct ccp_config *);
+    void *(*Init)(struct bundle *, struct fsm_opt *);
     void (*Term)(void *);
     int (*Reset)(void *);
     struct mbuf *(*Write)(void *, struct ccp *, struct link *, int, u_short *,
