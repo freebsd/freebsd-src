@@ -33,8 +33,6 @@ __FBSDID("$FreeBSD$");
 
 #include <opencrypto/rijndael.h>
 
-#define FULL_UNROLL
-
 /*
 Te0[x] = S [x].[02, 01, 01, 03];
 Te1[x] = S [x].[03, 02, 01, 01];
