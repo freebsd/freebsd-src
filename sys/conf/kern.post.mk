@@ -139,9 +139,6 @@ genassym.o: $S/$M/$M/genassym.c
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
 kernel-depend:
-.if defined(EXTRA_KERNELDEP)
-	${EXTRA_KERNELDEP}
-.endif
 	rm -f .olddep
 	if [ -f .depend ]; then mv .depend .olddep; fi
 	${MAKE} _kernel-depend
