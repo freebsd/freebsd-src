@@ -81,6 +81,11 @@ log() {
     fi
 }
 
+logverbose() {
+    printf "\n*** %s\n" "$*"
+    read -p "=== Press enter to continue" foo
+}
+
 set_defaults() {
     # no way to use logging in this function, variable not set yet.
 
@@ -362,23 +367,23 @@ this as small as possible. " 10 70 2> ${c_reply} \
 	;;
 
     F)
-	(dialog --menu "Set floppy size" 15 70 4 \
+	{ dialog --menu "Set floppy size" 15 70 4 \
 	    1440 "1.44MB" 1720 "1.72MB" 2880 "2.88MB" 4096 "4MB" \
-		 2> ${c_reply} && fd_size=`cat ${c_reply}` ) || true
+		 2> ${c_reply} && fd_size=`cat ${c_reply}` ; } || true
 	;;
 
     M)
-	(dialog --title "MFS bytes per inode:" --inputbox \
+	{ dialog --title "MFS bytes per inode:" --inputbox \
 	"Enter MFS bytes per inode (typically 4096..65536). \
 	A larger value means fewer inodes but more space on MFS" \
-	10 70 2> ${c_reply} && mfs_inodes=`cat ${c_reply}` ) || true
+	10 70 2> ${c_reply} && mfs_inodes=`cat ${c_reply}`  ; } || true
 	;;
 
     U)
-	(dialog --title "Floppy bytes per inode:" --inputbox \
+	{ dialog --title "Floppy bytes per inode:" --inputbox \
 	"Enter floppy bytes per inode (typically 3072..65536). \
 	A larger value means fewer inodes but more space on the floppy." \
-	10 70 2> ${c_reply} && fd_inodes=`cat ${c_reply}` ) || true
+	10 70 2> ${c_reply} && fd_inodes=`cat ${c_reply}` ; } || true
 	;;
 
     N) break 2
@@ -514,7 +519,8 @@ create_mfs() {		# OK
     else
 	disklabel -rw ${l_vndev} auto || fail $? mfs_disklabel
     fi
-    newfs -i ${mfs_inodes} -m 0 -p 0 -o space /dev/${l_vndev}c > /dev/null
+    newfs -i ${mfs_inodes} -m 0 -p 0 -o space -f 512 -b 4096 \
+	/dev/${l_vndev}c > /dev/null
     mount /dev/${l_vndev}c ${c_mnt} || fail $? no_mount
     log "`df /dev/${l_vndev}c`"
 }
@@ -587,15 +593,14 @@ populate_mfs_tree() {
 	fi
     fi
 
-    if [ -d ${MY_TREE}/mfs_tree ]; then
-	log "Copy site-specific MFS tree..."
-	MFS_TREE=${MY_TREE}/mfs_tree
-    else
-	log "Copy generic MFS tree..."
-	MFS_TREE=${PICO_TREE}/mfs_tree
-    fi
-    (cd ${MFS_TREE} ; tar -cf - --exclude CVS . ) | \
-	    (cd ${dst} ; tar x${o_tarv}f - )
+    log "Copy generic and site-specific MFS tree..."
+    for MFS_TREE in ${PICO_TREE}/mfs_tree ${MY_TREE}/mfs_tree ; do
+	if [ -d ${MFS_TREE} ] ; then
+	    log "Copy ${MFS_TREE} ..."
+	    (cd ${MFS_TREE} ; tar -cf - --exclude CVS . ) | \
+		    (cd ${dst} ; tar x${o_tarv}f - )
+	fi
+    done
 
     if [ "${o_all_in_mfs}" = "yes" ]; then
 	log "Copy generic floppy_tree into MFS..."
@@ -753,14 +758,24 @@ fill_floppy_image() {
     log "Labeling floppy image"
     b2=${BUILDDIR}/boot2 # modified boot2
     perl -pne 's/\/boot\/loader/\/kernel\0\0\0\0\0/' ${c_boot2} > ${b2}
-    disklabel -Brw -b ${c_boot1} -s ${b2} ${l_vndev} fd${fd_size} || \
+
+    # create a disklabel ...
+    disklabel -Brw -b ${c_boot1} -s ${b2} ${l_vndev} auto || \
 	fail $?  floppy_disklabel
 
+    # and copy partition c: into partition a: using some sed magic
+    disklabel ${l_vndev} | sed -e '/  c:/{p;s/c:/a:/;}' | \
+	disklabel -R ${l_vndev} /dev/stdin
+
+    logverbose "`disklabel ${l_vndev}`"
+
     log "Newfs floppy image"
-    newfs -i ${fd_inodes} -m 0 -p 0 -o space /dev/${l_vndev}c > /dev/null
+    newfs -i ${fd_inodes} -m 0 -p 0 -o space -f 512 -b 4096 \
+	     /dev/${l_vndev}a > /dev/null
+    logverbose "`disklabel ${l_vndev}`"
 
     log "Mounting floppy image"
-    mount /dev/${l_vndev}c ${dst}
+    mount /dev/${l_vndev}a ${dst}
 
     (
     cd ${BUILDDIR}
