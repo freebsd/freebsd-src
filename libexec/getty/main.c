@@ -183,7 +183,8 @@ main(argc, argv)
 {
 	extern	char **environ;
 	const char *tname;
-	int repcnt = 0, failopenlogged = 0, first_time = 1;
+	int repcnt = 0, failopenlogged = 0;
+	int first_sleep = 1, first_time = 1;
 	struct rlimit limit;
 	int rval;
 
@@ -238,6 +239,7 @@ main(argc, argv)
 			setdefttymode(tname);
 			if (getty_chat(IC, CT, DC) > 0) {
 				syslog(LOG_ERR, "modem init problem on %s", ttyn);
+				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
 				exit(1);
 			}
 		}
@@ -258,11 +260,13 @@ main(argc, argv)
 				syslog(LOG_ERR, "select %s: %m", ttyn);
 			} else if (i == 0) {
 				syslog(LOG_NOTICE, "recycle tty %s", ttyn);
+				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
 				exit(0);  /* recycle for init */
 			}
 			i = getty_chat(AC, CT, DC);
 			if (i > 0) {
 				syslog(LOG_ERR, "modem answer problem on %s", ttyn);
+				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
 				exit(1);
 			}
 		} else { /* blocking open */
@@ -292,6 +296,17 @@ main(argc, argv)
 
 	for (;;) {
 
+		/*
+		 * if a delay was specified then sleep for that 
+		 * number of seconds before writing the initial prompt
+		 */
+		if (first_sleep && DE) {
+		    sleep(DE);
+		    /* remove any noise */
+		    (void)tcflush(STDIN_FILENO, TCIOFLUSH);
+		}
+		first_sleep = 0;
+
 		setttymode(tname, 0);
 		if (AB) {
 			tname = autobaud();
@@ -304,14 +319,6 @@ main(argc, argv)
 		if (CL && *CL)
 			putpad(CL);
 		edithost(HE);
-
-		/* if a delay was specified then sleep for that 
-		   number of seconds before writing the initial prompt */
-		if(DE) {
-		    sleep(DE);
-		    /* remove any noise */
-		    (void)tcflush(STDIN_FILENO, TCIOFLUSH);
-		}
 
 		/* if this is the first time through this, and an
 		   issue file has been given, then send it */
@@ -326,8 +333,8 @@ main(argc, argv)
 				}
 				close(fd);
 			}
-			first_time = 0;
 		}
+		first_time = 0;
 
 		if (IM && *IM)
 			putf(IM);
