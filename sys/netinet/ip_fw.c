@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.22 1995/07/31 13:58:35 gpalmer Exp $
+ *	$Id: ip_fw.c,v 1.24 1995/10/23 03:58:06 ugen Exp $
  */
 
 /*
@@ -851,7 +851,7 @@ clr_entry(chainptr, frwl)
 	struct ip_fw **chainptr;
 	struct ip_fw *frwl;
 {
-	struct ip_fw *ftmp, *ltmp;
+	struct ip_fw *ftmp;
 	u_short tport1, tport2, tmpnum;
 	char matches, was_found;
 

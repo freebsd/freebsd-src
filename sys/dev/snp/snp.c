@@ -182,7 +182,6 @@ snpin(snp, buf, n)
 	int             s, len, nblen;
 	caddr_t         from, to;
 	char           *nbuf;
-	struct tty     *tp;
 
 
 	if (n == 0)
@@ -471,7 +470,7 @@ snpselect(dev, rw, p)
 	int             rw;
 	struct proc    *p;
 {
-	int             unit = minor(dev), s;
+	int             unit = minor(dev);
 	struct snoop   *snp = &snoopsw[unit];
 
 	if (rw != FREAD)

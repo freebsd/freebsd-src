@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.5 1995/05/30 08:07:32 rgrimes Exp $ */
+/*	$Id: denode.h,v 1.6 1995/08/02 12:59:47 dfr Exp $ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-
@@ -227,45 +227,9 @@ struct defid {
 };
 
 extern int (**msdosfs_vnodeop_p)();
-
-/*
- * Prototypes for MSDOSFS vnode operations
- */
 int msdosfs_lookup __P((struct vop_lookup_args *));
-int msdosfs_create __P((struct vop_create_args *));
-int msdosfs_mknod __P((struct vop_mknod_args *));
-int msdosfs_open __P((struct vop_open_args *));
-int msdosfs_close __P((struct vop_close_args *));
-int msdosfs_access __P((struct vop_access_args *));
-int msdosfs_getattr __P((struct vop_getattr_args *));
-int msdosfs_setattr __P((struct vop_setattr_args *));
-int msdosfs_read __P((struct vop_read_args *));
-int msdosfs_write __P((struct vop_write_args *));
-int msdosfs_ioctl __P((struct vop_ioctl_args *));
-int msdosfs_select __P((struct vop_select_args *));
-int msdosfs_mmap __P((struct vop_mmap_args *));
-int msdosfs_fsync __P((struct vop_fsync_args *));
-int msdosfs_seek __P((struct vop_seek_args *));
-int msdosfs_remove __P((struct vop_remove_args *));
-int msdosfs_link __P((struct vop_link_args *));
-int msdosfs_rename __P((struct vop_rename_args *));
-int msdosfs_mkdir __P((struct vop_mkdir_args *));
-int msdosfs_rmdir __P((struct vop_rmdir_args *));
-int msdosfs_symlink __P((struct vop_symlink_args *));
-int msdosfs_readdir __P((struct vop_readdir_args *));
-int msdosfs_readlink __P((struct vop_readlink_args *));
-int msdosfs_abortop __P((struct vop_abortop_args *));
 int msdosfs_inactive __P((struct vop_inactive_args *));
 int msdosfs_reclaim __P((struct vop_reclaim_args *));
-int msdosfs_lock __P((struct vop_lock_args *));
-int msdosfs_unlock __P((struct vop_unlock_args *));
-int msdosfs_bmap __P((struct vop_bmap_args *));
-int msdosfs_strategy __P((struct vop_strategy_args *));
-int msdosfs_print __P((struct vop_print_args *));
-int msdosfs_islocked __P((struct vop_islocked_args *));
-int msdosfs_advlock __P((struct vop_advlock_args *));
-int msdosfs_reallocblks __P((struct vop_reallocblks_args *));
-
 /*
  * Internal service routine prototypes.
  */

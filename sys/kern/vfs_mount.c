@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.8 1995/08/30 00:17:18 bde Exp $
+ * $Id: vfs_conf.c,v 1.9 1995/09/09 18:10:15 davidg Exp $
  */
 
 /*
@@ -104,7 +104,6 @@ vfs_mountroot(data)
 	u_int			size;
 	int			err = 0;
 	struct proc		*p = curproc;	/* XXX */
-	register struct fs	*fs;
 	struct vfsops		*mnt_op = (struct vfsops *)data;
 
 	/*

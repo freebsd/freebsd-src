@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.22 1995/07/29 11:42:22 bde Exp $
+ * $Id: nfs_subs.c,v 1.23 1995/08/24 10:17:35 dfr Exp $
  */
 
 /*
@@ -1187,7 +1187,6 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	u_short vmode;
 	struct timespec mtime;
 	struct vnode *nvp;
-	quad_t tval;
 	int v3 = NFS_ISV3(vp);
 
 	md = *mdp;
@@ -1681,7 +1680,6 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag)
 	int kerbflag;
 {
 	register struct mount *mp;
-	register struct nfsuid *uidp;
 	register int i;
 	struct ucred *credanon;
 	int error, exflags;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.10 1995/06/27 11:06:33 dfr Exp $
+ * $Id: nfs.h,v 1.11 1995/07/29 11:42:21 bde Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -490,7 +490,6 @@ int	nfs_vinvalbuf __P((struct vnode *,int,struct ucred *,struct proc *,int));
 int	nfs_readrpc __P((struct vnode *,struct uio *,struct ucred *));
 int	nfs_writerpc __P((struct vnode *,struct uio *,struct ucred *,int *,int *));
 int	nfs_readdirrpc __P((register struct vnode *,struct uio *,struct ucred *));
-int	nfs_setattrrpc __P((struct vnode *,struct vattr *,struct ucred *,struct proc *));
 int	nfs_asyncio __P((struct buf *,struct ucred *));
 int	nfs_doio __P((struct buf *,struct ucred *,struct proc *));
 int	nfs_readlinkrpc __P((struct vnode *,struct uio *,struct ucred *));
@@ -537,7 +536,6 @@ int	nfsrv_errmap __P((struct nfsrv_descript *, int));
 void	nfsrvw_coalesce __P((struct nfsrv_descript *,struct nfsrv_descript *));
 void	nfsrvw_sort __P((gid_t [],int));
 void	nfsrv_setcred __P((struct ucred *,struct ucred *));
-int	nfs_flush __P((struct vnode *,struct ucred *,int,struct proc *,int));
 int	nfs_writebp __P((struct buf *,int));
 int	nfsrv_vput __P(( struct vnode * ));
 int	nfsrv_vrele __P(( struct vnode * ));

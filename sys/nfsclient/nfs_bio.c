@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.16 1995/07/07 11:01:30 dfr Exp $
+ * $Id: nfs_bio.c,v 1.17 1995/08/24 10:17:32 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -94,7 +94,6 @@ nfs_bioread(vp, uio, ioflag, cred)
 	daddr_t lbn, rabn;
 	int bufsize;
 	int nra, error = 0, n = 0, on = 0, not_readin;
-	nfsquad_t tquad;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_READ)
@@ -413,7 +412,7 @@ nfs_write(ap)
 	struct buf *bp;
 	struct vattr vattr;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
-	daddr_t lbn, bn;
+	daddr_t lbn;
 	int bufsize;
 	int n, on, error = 0, iomode, must_commit;
 
@@ -769,7 +768,6 @@ nfs_doio(bp, cr, p)
 	int error = 0, diff, len, iomode, must_commit = 0;
 	struct uio uio;
 	struct iovec io;
-	nfsquad_t tquad;
 
 	vp = bp->b_vp;
 	np = VTONFS(vp);

@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.22 1995/08/23 18:20:15 wollman Exp $
+ * $Id: ip_mroute.c,v 1.23 1995/10/06 19:30:43 wollman Exp $
  */
 
 
@@ -496,7 +496,6 @@ ip_mrouter_init(so, m)
 	struct mbuf *m;
 {
     int *v;
-    int i;
 
     if (mrtdebug)
 	log(LOG_DEBUG,"ip_mrouter_init: so_type = %d, pr_protocol = %d\n",
@@ -540,7 +539,6 @@ X_ip_mrouter_done()
     struct ifnet *ifp;
     struct ifreq ifr;
     struct mbuf *mb_rt;
-    struct mfc *rt;
     struct mbuf *m;
     struct rtdetq *rte;
     int s;
@@ -1008,7 +1006,7 @@ del_mfc(mfccp)
     struct mbuf 	*mb_rt;
     struct mbuf 	**nptr;
     u_long 		hash;
-    int s, i;
+    int s;
 
     origin = mfccp->mfcc_origin;
     mcastgrp = mfccp->mfcc_mcastgrp;
@@ -1086,7 +1084,6 @@ X_ip_mforward(ip, ifp, m, imo)
 {
     register struct mfc *rt = 0; /* XXX uninit warning */
     register u_char *ipoptions;
-    static struct sockproto	k_igmpproto 	= { AF_INET, IPPROTO_IGMP };
     static struct sockaddr_in 	k_igmpsrc	= { sizeof k_igmpsrc, AF_INET };
     static int srctun = 0;
     register struct mbuf *mm;
@@ -1376,7 +1373,6 @@ ip_mdq(m, ifp, rt, xmt_vif)
     register struct ip  *ip = mtod(m, struct ip *);
     register vifi_t vifi;
     register struct vif *vifp;
-    register struct mbuf *tmp;
     register int plen = ntohs(ip->ip_len);
 
 /*
@@ -1551,7 +1547,6 @@ encap_send(ip, vifp, m)
 {
     register struct mbuf *mb_copy;
     register struct ip *ip_copy;
-    int hlen = ip->ip_hl << 2;
     register int i, len = ip->ip_len;
 
     /*
@@ -1851,7 +1846,6 @@ tbf_dq_sel(vifp, ip)
     register struct vif *vifp;
     register struct ip *ip;
 {
-    register int i;
     register int s = splnet();
     register u_int p;
     register struct mbuf *m, *last;

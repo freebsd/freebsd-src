@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.15 1995/05/30 08:06:28 rgrimes Exp $
+ * $Id: vfs_cache.c,v 1.16 1995/07/29 11:40:19 bde Exp $
  */
 
 #include <sys/param.h>
@@ -296,7 +296,7 @@ cache_purgevfs(mp)
 	struct mount *mp;
 {
 	struct nchashhead *ncpp;
-	struct namecache *ncp, *nxtcp;
+	struct namecache *ncp;
 
 	/* Scan hash tables for applicable entries */
 	for (ncpp = &nchashtbl[nchash - 1]; ncpp >= nchashtbl; ncpp--) {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_syscalls.c,v 1.6 1995/05/30 08:12:45 rgrimes Exp $
+ * $Id: nfs_syscalls.c,v 1.7 1995/06/27 11:06:50 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -427,7 +427,6 @@ nfssvc_nfsd(nsd, argp, p)
 	struct nfsd *nfsd = nsd->nsd_nfsd;
 	struct nfsrv_descript *nd = NULL;
 	struct mbuf *mreq;
-	struct nfsuid *uidp;
 	int error = 0, cacherep, s, sotype, writes_todo;
 	u_quad_t cur_usec;
 
@@ -901,7 +900,6 @@ nfs_getnickauth(nmp, cred, auth_str, auth_len, verf_str, verf_len)
 	register struct nfsuid *nuidp;
 	register u_long *nickp, *verfp;
 	struct timeval ktvin, ktvout;
-	NFSKERBKEYSCHED_T keys;	/* stores key schedule */
 
 #ifdef DIAGNOSTIC
 	if (verf_len < (4 * NFSX_UNSIGNED))
@@ -974,7 +972,6 @@ nfs_savenickauth(nmp, cred, len, key, mdp, dposp, mrep)
 	struct mbuf *md = *mdp;
 	struct timeval ktvin, ktvout;
 	u_long nick;
-	NFSKERBKEYSCHED_T keys;
 	char *dpos = *dposp, *cp2;
 	int deltasec, error = 0;
 
