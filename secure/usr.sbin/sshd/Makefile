@@ -21,19 +21,16 @@ LDADD=	-lssh -lutil -lz -lwrap ${MINUSLPAM}
 
 .if !defined(NO_KERBEROS)
 CFLAGS+= -DGSSAPI -DKRB5 -DHEIMDAL
-DPADD+=	 ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
-LDADD+=	 -lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
+DPADD+=	 ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN}
+LDADD+=	 -lgssapi -lkrb5 -lasn1 -lcom_err -lroken
 .endif
-
-DPADD+=	${LIBOPIE} ${LIBMD}
-LDADD+=	-lopie -lmd
 
 .if defined(X11BASE)
 CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
 .endif
 
-DPADD+=	${LIBCRYPT} ${LIBCRYPTO}
-LDADD+=	-lcrypt -lcrypto
+DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
+LDADD+=	-lcrypto -lcrypt
 
 .if defined(OPENSSH_USE_POSIX_THREADS) && !defined(NOLIBC_R)
 CFLAGS+=-DUSE_POSIX_THREADS
