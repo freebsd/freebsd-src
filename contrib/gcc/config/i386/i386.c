@@ -1460,7 +1460,8 @@ function_prologue (file, size)
   int limit;
   rtx xops[4];
   int pic_reg_used = flag_pic && (current_function_uses_pic_offset_table
-				  || current_function_uses_const_pool);
+				  || current_function_uses_const_pool
+				  || profile_flag || profile_block_flag);
 
   xops[0] = stack_pointer_rtx;
   xops[1] = frame_pointer_rtx;
@@ -1521,8 +1522,16 @@ simple_386_epilogue ()
   int nregs = 0;
   int reglimit = (frame_pointer_needed
 		  ? FRAME_POINTER_REGNUM : STACK_POINTER_REGNUM);
-  int pic_reg_used = flag_pic && (current_function_uses_pic_offset_table
-				  || current_function_uses_const_pool);
+
+#ifdef FUNCTION_PROFILER_EPILOGUE
+  if (profile_flag)
+    return 0;
+#endif
+
+  if (flag_pic && (current_function_uses_pic_offset_table
+		   || current_function_uses_const_pool
+		   || profile_flag || profile_block_flag))
+    return 0;
 
 #ifdef NON_SAVING_SETJMP
   if (NON_SAVING_SETJMP && current_function_calls_setjmp)
@@ -1533,8 +1542,7 @@ simple_386_epilogue ()
     return 0;
 
   for (regno = reglimit - 1; regno >= 0; regno--)
-    if ((regs_ever_live[regno] && ! call_used_regs[regno])
-	|| (regno == PIC_OFFSET_TABLE_REGNUM && pic_reg_used))
+    if (regs_ever_live[regno] && ! call_used_regs[regno])
       nregs++;
 
   return nregs == 0 || ! frame_pointer_needed;
@@ -1556,6 +1564,11 @@ function_epilogue (file, size)
   rtx xops[3];
   int pic_reg_used = flag_pic && (current_function_uses_pic_offset_table
 				  || current_function_uses_const_pool);
+
+#ifdef FUNCTION_PROFILER_EPILOGUE
+  if (profile_flag)
+    FUNCTION_PROFILER_EPILOGUE (file);
+#endif
 
   /* Compute the number of registers to pop */
 

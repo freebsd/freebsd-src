@@ -20,9 +20,6 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* This goes away when the math-emulator is fixed */
-#define TARGET_CPU_DEFAULT 0400		/* TARGET_NO_FANCY_MATH_387 */
-
 /* This is tested by i386gas.h.  */
 #define YES_UNDERSCORES
 
@@ -33,13 +30,78 @@ Boston, MA 02111-1307, USA.  */
 
 /* Get perform_* macros to build libgcc.a.  */
 #include "i386/perform.h"
+
+/* This was cloned from ../netbsd.h.  It and several other things in
+   this file should be in ../freebsd.h.  */
+/* FREEBSD_NATIVE is defined when gcc is integrated into the FreeBSD
+   source tree so it can be configured appropriately without using
+   the GNU configure/build mechanism. */
 
+#ifdef FREEBSD_NATIVE
+
+/* Look for the include files in the system-defined places.  */
+
+#define GPLUSPLUS_INCLUDE_DIR		"/usr/include/g++"
+
+#define GCC_INCLUDE_DIR			"/usr/include"
+
+/* FreeBSD has GCC_INCLUDE_DIR first.  */
+#define INCLUDE_DEFAULTS		\
+  {					\
+    { GCC_INCLUDE_DIR, 0, 0 },		\
+    { GPLUSPLUS_INCLUDE_DIR, 1, 1 },	\
+    { 0, 0, 0 }				\
+  }
+
+/* Under FreeBSD, the normal location of the compiler back ends is the
+   /usr/libexec directory.  */
+
+#define STANDARD_EXEC_PREFIX		"/usr/libexec/"
+
+/* Under FreeBSD, the normal location of the various *crt*.o files is the
+   /usr/lib directory.  */
+
+#define STANDARD_STARTFILE_PREFIX	"/usr/lib/"
+
+/* On FreeBSD, gcc is called 'cc' */
+#define GCC_NAME			"cc"
+
+/* FreeBSD is 4.4BSD derived */
+#define bsd4_4
+
+#endif /* FREEBSD_NATIVE */
+
+#define MASK_PROFILER_EPILOGUE	010000000000
+
+#define TARGET_PROFILER_EPILOGUE (target_flags & MASK_PROFILER_EPILOGUE)
+
+#undef	SUBTARGET_SWITCHES
+#define SUBTARGET_SWITCHES						\
+     { "profiler-epilogue",	 MASK_PROFILER_EPILOGUE},		\
+     { "no-profiler-epilogue",	-MASK_PROFILER_EPILOGUE},
+
+
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__ -D__386BSD__ -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__=2 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
+
+#define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
 
 /* Like the default, except no -lg.  */
 #define LIB_SPEC "%{!p:%{!pg:-lc}}%{p:-lc_p}%{pg:-lc_p}"
 
+#define LINK_SPEC \
+  "%{!nostdlib:%{!r:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*} \
+   %{p:-Bstatic} %{pg:-Bstatic} %{Z}"
+
+#define LINK_LIBGCC_SPECIAL_1	1
+
+#define STARTFILE_SPEC  \
+  "%{pg:gcrt0.o%s}%{!pg:%{p:mcrt0.o%s}%{!p:%{static:scrt0.o%s}%{!static:crt0.o%s}}}"
+
+/* This goes away when the math emulator is fixed.  */
+#undef TARGET_DEFAULT
+#define TARGET_DEFAULT	(MASK_NO_FANCY_MATH_387 | 0301)
+
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"
 
@@ -47,19 +109,21 @@ Boston, MA 02111-1307, USA.  */
 #define PTRDIFF_TYPE "int"
 
 #undef WCHAR_TYPE
-#define WCHAR_TYPE "short unsigned int"
+#define WCHAR_TYPE "int"
 
-#define WCHAR_UNSIGNED 1
+#define WCHAR_UNSIGNED 0
 
 #undef WCHAR_TYPE_SIZE
-#define WCHAR_TYPE_SIZE 16
+#define WCHAR_TYPE_SIZE BITS_PER_WORD
 
 #define HAVE_ATEXIT
 
-/* There are conflicting reports about whether this system uses
-   a different assembler syntax.  wilson@cygnus.com says # is right.  */
-#undef COMMENT_BEGIN
-#define COMMENT_BEGIN "#"
+#define HAVE_PUTENV
+
+/* Override the default comment-starter of "/".  */
+
+#undef ASM_COMMENT_START
+#define ASM_COMMENT_START "#"
 
 #undef ASM_APP_ON
 #define ASM_APP_ON "#APP\n"
@@ -86,30 +150,39 @@ Boston, MA 02111-1307, USA.  */
 /* Don't default to pcc-struct-return, because gcc is the only compiler, and
    we want to retain compatibility with older gcc versions.  */
 #define DEFAULT_PCC_STRUCT_RETURN 0
-
-/* Profiling routines, partially copied from i386/osfrose.h.  */
 
-/* Redefine this to use %eax instead of %edx.  */
+/* Tell final.c that we don't need a label passed to mcount.  */
+
+#define NO_PROFILE_DATA
+
+/* Redefine this to not pass an unused label in %edx.  */
+
 #undef FUNCTION_PROFILER
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
 {									\
   if (flag_pic)								\
-    {									\
-      fprintf (FILE, "\tleal %sP%d@GOTOFF(%%ebx),%%eax\n",		\
-	       LPREFIX, (LABELNO));					\
-      fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
-    }									\
+    fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
   else									\
-    {									\
-      fprintf (FILE, "\tmovl $%sP%d,%%eax\n", LPREFIX, (LABELNO));	\
-      fprintf (FILE, "\tcall mcount\n");				\
-    }									\
+    fprintf (FILE, "\tcall mcount\n");					\
 }
 
+#define FUNCTION_PROFILER_EPILOGUE(FILE)  \
+{									\
+  if (TARGET_PROFILER_EPILOGUE)						\
+    {									\
+      if (flag_pic)							\
+	fprintf (FILE, "\tcall *mexitcount@GOT(%%ebx)\n");		\
+      else								\
+	fprintf (FILE, "\tcall mexitcount\n");				\
+    }									\
+}
+
 /*
  * Some imports from svr4.h in support of shared libraries.
  * Currently, we need the DECLARE_OBJECT_SIZE stuff.
  */
+
+#define HANDLE_SYSV_PRAGMA
 
 /* Define the strings used for the special svr4 .type and .size directives.
    These strings generally do not vary from one system running svr4 to
@@ -119,6 +192,18 @@ Boston, MA 02111-1307, USA.  */
 
 #define TYPE_ASM_OP	".type"
 #define SIZE_ASM_OP	".size"
+#define SET_ASM_OP	".set"
+
+/* This is how we tell the assembler that a symbol is weak.  */
+
+#if 0	/* not ready for this yet - work in progress.
+	 * We should probably update gas in the FreeBSD source to something
+	 * more recent, so that this is recognised. Our LD handles it already.
+	 */
+#define ASM_WEAKEN_LABEL(FILE,NAME) \
+  do { fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME); \
+       fputc ('\n', FILE); } while (0)
+#endif
 
 /* The following macro defines the format used to output the second
    operand of the .type assembler directive.  Different svr4 assemblers
@@ -217,34 +302,3 @@ do {                                                                    \
 	putc ('\n', FILE);						\
       }									\
   } while (0)
-
-#define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
-#define LINK_SPEC \
-  "%{!nostdlib:%{!r*:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*}"
-
-/* This is defined when gcc is compiled in the BSD-directory-tree, and must
- * make up for the gap to all the stuff done in the GNU-makefiles.
- */
-
-#ifdef FREEBSD_NATIVE
-
-#define INCLUDE_DEFAULTS { \
-	{ "/usr/include", 0 }, \
-	{ "/usr/include/g++", 1 }, \
-	{ 0, 0} \
-	}
-
-#undef MD_EXEC_PREFIX
-#define MD_EXEC_PREFIX "/usr/libexec/"
-
-#undef STANDARD_STARTFILE_PREFIX
-#define STANDARD_STARTFILE_PREFIX "/usr/lib"
-
-#if 0 /* This is very wrong!!! */
-#define DEFAULT_TARGET_MACHINE "i386-unknown-freebsd_1.0"
-#define GPLUSPLUS_INCLUDE_DIR "/usr/local/lib/gcc-lib/i386-unknown-freebsd_1.0/2.5.8/include"
-#define TOOL_INCLUDE_DIR "/usr/local/i386-unknown-freebsd_1.0/include"
-#define GCC_INCLUDE_DIR "/usr/local/lib/gcc-lib/i386-unknown-freebsd_1.0/2.5.8/include"
-#endif
-
-#endif /* FREEBSD_NATIVE */
