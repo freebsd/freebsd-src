@@ -33,6 +33,7 @@
 #include <machine/ansi.h>
 
 #define	_BSD_GID_T_	__uint32_t
+#define	_BSD_SA_FAMILY_T_	__uint8_t
 #define	_BSD_UID_T_	__uint32_t
 
 #endif /* !_SYS__TYPES_H_ */
