@@ -547,7 +547,7 @@ update:
 			vfs_unbusy(mp, td);
 			free((caddr_t)mp, M_MOUNT);
 		}
-		vput(vp);
+		vrele(vp);
 		error = EOPNOTSUPP;
 		goto bad;
 	}
@@ -895,7 +895,7 @@ update:
 			vfs_unbusy(mp, td);
 			free((caddr_t)mp, M_MOUNT);
 		}
-		vput(vp);
+		vrele(vp);
 		return (EOPNOTSUPP);
 	}
 
