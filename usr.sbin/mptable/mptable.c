@@ -21,13 +21,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: mptable.c,v 1.7 1997/08/26 05:12:45 fsmp Exp $
  */
 
 /*
  * mptable.c
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #define VMAJOR			2
 #define VMINOR			0
@@ -43,8 +46,11 @@
 #define EXTENDED_PROCESSING_READY
 #define OEM_PROCESSING_READY_NOT
 
-#include <stdio.h>
+#include <err.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 
@@ -257,7 +263,7 @@ static void apic_probe( vm_offset_t* paddr, int* where );
 
 static void MPConfigDefault( int featureByte );
 
-static int MPFloatingPointer( vm_offset_t paddr, int where, mpfps_t* mpfps );
+static void MPFloatingPointer( vm_offset_t paddr, int where, mpfps_t* mpfps );
 static void MPConfigTableHeader( void* pap );
 
 static int readType( void );
@@ -295,12 +301,7 @@ int	verbose;
 static void
 usage( void )
 {
-    fprintf( stderr, "\nusage: mptable [-help][-dmesg][-verbose]\n" );
-    fprintf( stderr, "where:\n" );
-    fprintf( stderr, "	'-dmesg' includes a dmesg dump\n" );
-    fprintf( stderr, "	'-grope' looks in areas it shouldn't NEED to\n" );
-    fprintf( stderr, "	'-help' prints this message and exits\n" );
-    fprintf( stderr, "	'-verbose' prints extra info\n" );
+    fprintf( stderr, "usage: mptable [-dmesg] [-verbose] [-grope] [-help]\n" );
     exit( 0 );
 }
 
@@ -315,8 +316,7 @@ main( int argc, char *argv[] )
     mpfps_t	mpfps;
     int		defaultConfig;
 
-    extern char* optarg;
-    extern int	optind, optreset;
+    extern int	optreset;
     int		ch;
 
     /* announce ourselves */
@@ -354,10 +354,8 @@ main( int argc, char *argv[] )
     }
 
     /* open physical memory for access to MP structures */
-    if ( (pfd = open( "/dev/mem", O_RDONLY )) < 0 ) {
-        perror( "mem open" );
-        exit( 1 );
-    }
+    if ( (pfd = open( "/dev/mem", O_RDONLY )) < 0 )
+        err( 1, "mem open" );
 
     /* probe for MP structures */
     apic_probe( &paddr, &where );
@@ -379,7 +377,7 @@ main( int argc, char *argv[] )
     puts( SEP_LINE );
 
     /* check whether an MP config table exists */
-    if ( defaultConfig = mpfps.mpfb1 )
+    if ( (defaultConfig = mpfps.mpfb1) )
         MPConfigDefault( defaultConfig );
     else
 	MPConfigTableHeader( mpfps.pap );
@@ -545,7 +543,7 @@ apic_probe( vm_offset_t* paddr, int* where )
 /*
  * 
  */
-static int
+static void
 MPFloatingPointer( vm_offset_t paddr, int where, mpfps_t* mpfps )
 {
 
@@ -556,7 +554,7 @@ MPFloatingPointer( vm_offset_t paddr, int where, mpfps_t* mpfps )
     /* show its contents */
     printf( "MP Floating Pointer Structure:\n\n" );
 
-    printf( "  location:\t\t\t", where );
+    printf( "  location:\t\t\t" );
     switch ( where )
     {
     case 1:
@@ -594,7 +592,7 @@ MPFloatingPointer( vm_offset_t paddr, int where, mpfps_t* mpfps )
 
     /* bits 0:6 are RESERVED */
     if ( mpfps->mpfb2 & 0x7f ) {
-        printf( " warning, MP feature byte 2: 0x%02x\n" );
+        printf( " warning, MP feature byte 2: 0x%02x\n", mpfps->mpfb2 );
     }
 
     /* bit 7 is IMCRP */
@@ -676,12 +674,10 @@ MPConfigTableHeader( void* pap )
 {
     vm_offset_t paddr;
     mpcth_t	cth;
-    int		x, y;
+    int		x;
     int		totalSize, t;
     int		count, c;
     int		type;
-    vm_offset_t poemtp;
-    void*	oemdata;
 
     if ( pap == 0 ) {
 	printf( "MP Configuration Table Header MISSING!\n" );
@@ -787,7 +783,7 @@ MPConfigTableHeader( void* pap )
 
 #if defined( EXTENDED_PROCESSING_READY )
     /* process any extended data */
-    if ( totalSize = cth.extended_table_length ) {
+    if ( (totalSize = cth.extended_table_length) ) {
 	puts( SEP_LINE );
 
         printf( "MP Config Extended Table Entries:\n\n" );
@@ -821,10 +817,8 @@ MPConfigTableHeader( void* pap )
         poemtp = (vm_offset_t)cth.oem_table_pointer;
 
         /* read in oem table structure */
-        if ( (oemdata = (void*)malloc( cth.oem_table_size )) == NULL ) {
-            perror( "oem malloc" );
-            exit( 1 );
-        }
+        if ( (oemdata = (void*)malloc( cth.oem_table_size )) == NULL )
+            err( 1, "oem malloc" );
 
         seekEntry( poemtp );
         readEntry( oemdata, cth.oem_table_size );
@@ -862,17 +856,11 @@ readType( void )
 {
     u_char	type;
 
-    if ( read( pfd, &type, sizeof( u_char ) ) != sizeof( u_char ) ) {
-        perror( "type read" );
-	fprintf( stderr, "\npfd: %d", pfd );
-	fflush( stderr );
-        exit( 1 );
-    }
+    if ( read( pfd, &type, sizeof( u_char ) ) != sizeof( u_char ) )
+        err( 1, "type read; pfd: %d", pfd );
 
-    if ( lseek( pfd, -1, SEEK_CUR ) < 0 ) {
-        perror( "type seek" );
-        exit( 1 );
-    }
+    if ( lseek( pfd, -1, SEEK_CUR ) < 0 )
+        err( 1, "type seek" );
 
     return (int)type;
 }
@@ -884,10 +872,8 @@ readType( void )
 static void
 seekEntry( vm_offset_t addr )
 {
-    if ( lseek( pfd, (off_t)addr, SEEK_SET ) < 0 ) {
-        perror( "/dev/mem seek" );
-        exit( 1 );
-    }
+    if ( lseek( pfd, (off_t)addr, SEEK_SET ) < 0 )
+        err( 1, "/dev/mem seek" );
 }
 
 
@@ -897,10 +883,8 @@ seekEntry( vm_offset_t addr )
 static void
 readEntry( void* entry, int size )
 {
-    if ( read( pfd, entry, size ) != size ) {
-        perror( "readEntry" );
-        exit( 1 );
-    }
+    if ( read( pfd, entry, size ) != size )
+        err( 1, "readEntry" );
 }
 
 
