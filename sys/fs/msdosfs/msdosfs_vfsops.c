@@ -86,20 +86,19 @@
 MALLOC_DEFINE(M_MSDOSFSMNT, "MSDOSFS mount", "MSDOSFS mount structure");
 static MALLOC_DEFINE(M_MSDOSFSFAT, "MSDOSFS FAT", "MSDOSFS file allocation table");
 
-static int	update_mp __P((struct mount *mp, struct msdosfs_args *argp));
-static int	mountmsdosfs __P((struct vnode *devvp, struct mount *mp,
-				  struct thread *td, struct msdosfs_args *argp));
-static int	msdosfs_fhtovp __P((struct mount *, struct fid *,
-				    struct vnode **));
-static int	msdosfs_mount __P((struct mount *, char *, caddr_t,
-				   struct nameidata *, struct thread *));
-static int	msdosfs_root __P((struct mount *, struct vnode **));
-static int	msdosfs_statfs __P((struct mount *, struct statfs *,
-				    struct thread *));
-static int	msdosfs_sync __P((struct mount *, int, struct ucred *,
-				  struct thread *));
-static int	msdosfs_unmount __P((struct mount *, int, struct thread *));
-static int	msdosfs_vptofh __P((struct vnode *, struct fid *));
+static int	update_mp(struct mount *mp, struct msdosfs_args *argp);
+static int	mountmsdosfs(struct vnode *devvp, struct mount *mp,
+				  struct thread *td, struct msdosfs_args *argp);
+static int	msdosfs_fhtovp(struct mount *, struct fid *, struct vnode **);
+static int	msdosfs_mount(struct mount *, char *, caddr_t,
+				   struct nameidata *, struct thread *);
+static int	msdosfs_root(struct mount *, struct vnode **);
+static int	msdosfs_statfs(struct mount *, struct statfs *,
+				    struct thread *);
+static int	msdosfs_sync(struct mount *, int, struct ucred *,
+				  struct thread *);
+static int	msdosfs_unmount(struct mount *, int, struct thread *);
+static int	msdosfs_vptofh(struct vnode *, struct fid *);
 
 static int
 update_mp(mp, argp)

@@ -260,26 +260,26 @@ struct defid {
 
 extern vop_t **msdosfs_vnodeop_p;
 
-int msdosfs_lookup __P((struct vop_cachedlookup_args *));
-int msdosfs_inactive __P((struct vop_inactive_args *));
-int msdosfs_reclaim __P((struct vop_reclaim_args *));
+int msdosfs_lookup(struct vop_cachedlookup_args *);
+int msdosfs_inactive(struct vop_inactive_args *);
+int msdosfs_reclaim(struct vop_reclaim_args *);
 
 /*
  * Internal service routine prototypes.
  */
-int deget __P((struct msdosfsmount *, u_long, u_long, struct denode **));
-int uniqdosname __P((struct denode *, struct componentname *, u_char *));
-int findwin95 __P((struct denode *));
+int deget(struct msdosfsmount *, u_long, u_long, struct denode **);
+int uniqdosname(struct denode *, struct componentname *, u_char *);
+int findwin95(struct denode *);
 
-int readep __P((struct msdosfsmount *pmp, u_long dirclu, u_long dirofs,  struct buf **bpp, struct direntry **epp));
-int readde __P((struct denode *dep, struct buf **bpp, struct direntry **epp));
-int deextend __P((struct denode *dep, u_long length, struct ucred *cred));
-int fillinusemap __P((struct msdosfsmount *pmp));
-void reinsert __P((struct denode *dep));
-int dosdirempty __P((struct denode *dep));
-int createde __P((struct denode *dep, struct denode *ddep, struct denode **depp, struct componentname *cnp));
-int deupdat __P((struct denode *dep, int waitfor));
-int removede __P((struct denode *pdep, struct denode *dep));
-int detrunc __P((struct denode *dep, u_long length, int flags, struct ucred *cred, struct thread *td));
-int doscheckpath __P(( struct denode *source, struct denode *target));
+int readep(struct msdosfsmount *pmp, u_long dirclu, u_long dirofs,  struct buf **bpp, struct direntry **epp);
+int readde(struct denode *dep, struct buf **bpp, struct direntry **epp);
+int deextend(struct denode *dep, u_long length, struct ucred *cred);
+int fillinusemap(struct msdosfsmount *pmp);
+void reinsert(struct denode *dep);
+int dosdirempty(struct denode *dep);
+int createde(struct denode *dep, struct denode *ddep, struct denode **depp, struct componentname *cnp);
+int deupdat(struct denode *dep, int waitfor);
+int removede(struct denode *pdep, struct denode *dep);
+int detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred, struct thread *td);
+int doscheckpath( struct denode *source, struct denode *target);
 #endif	/* _KERNEL */

@@ -81,26 +81,26 @@
 /*
  * Prototypes for MSDOSFS vnode operations
  */
-static int msdosfs_create __P((struct vop_create_args *));
-static int msdosfs_mknod __P((struct vop_mknod_args *));
-static int msdosfs_close __P((struct vop_close_args *));
-static int msdosfs_access __P((struct vop_access_args *));
-static int msdosfs_getattr __P((struct vop_getattr_args *));
-static int msdosfs_setattr __P((struct vop_setattr_args *));
-static int msdosfs_read __P((struct vop_read_args *));
-static int msdosfs_write __P((struct vop_write_args *));
-static int msdosfs_fsync __P((struct vop_fsync_args *));
-static int msdosfs_remove __P((struct vop_remove_args *));
-static int msdosfs_link __P((struct vop_link_args *));
-static int msdosfs_rename __P((struct vop_rename_args *));
-static int msdosfs_mkdir __P((struct vop_mkdir_args *));
-static int msdosfs_rmdir __P((struct vop_rmdir_args *));
-static int msdosfs_symlink __P((struct vop_symlink_args *));
-static int msdosfs_readdir __P((struct vop_readdir_args *));
-static int msdosfs_bmap __P((struct vop_bmap_args *));
-static int msdosfs_strategy __P((struct vop_strategy_args *));
-static int msdosfs_print __P((struct vop_print_args *));
-static int msdosfs_pathconf __P((struct vop_pathconf_args *ap));
+static int msdosfs_create(struct vop_create_args *);
+static int msdosfs_mknod(struct vop_mknod_args *);
+static int msdosfs_close(struct vop_close_args *);
+static int msdosfs_access(struct vop_access_args *);
+static int msdosfs_getattr(struct vop_getattr_args *);
+static int msdosfs_setattr(struct vop_setattr_args *);
+static int msdosfs_read(struct vop_read_args *);
+static int msdosfs_write(struct vop_write_args *);
+static int msdosfs_fsync(struct vop_fsync_args *);
+static int msdosfs_remove(struct vop_remove_args *);
+static int msdosfs_link(struct vop_link_args *);
+static int msdosfs_rename(struct vop_rename_args *);
+static int msdosfs_mkdir(struct vop_mkdir_args *);
+static int msdosfs_rmdir(struct vop_rmdir_args *);
+static int msdosfs_symlink(struct vop_symlink_args *);
+static int msdosfs_readdir(struct vop_readdir_args *);
+static int msdosfs_bmap(struct vop_bmap_args *);
+static int msdosfs_strategy(struct vop_strategy_args *);
+static int msdosfs_print(struct vop_print_args *);
+static int msdosfs_pathconf(struct vop_pathconf_args *ap);
 
 /*
  * Some general notes:

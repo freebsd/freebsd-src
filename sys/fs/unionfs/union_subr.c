@@ -62,7 +62,7 @@
 
 #include <sys/proc.h>
 
-extern int	union_init __P((void));
+extern int	union_init(void);
 
 /* must be power of two, otherwise change UNION_HASH() */
 #define NHASH 32
@@ -74,26 +74,26 @@ extern int	union_init __P((void));
 static LIST_HEAD(unhead, union_node) unhead[NHASH];
 static int unvplock[NHASH];
 
-static void	union_dircache_r __P((struct vnode *vp, struct vnode ***vppp,
-				      int *cntp));
-static int	union_list_lock __P((int ix));
-static void	union_list_unlock __P((int ix));
-static int	union_relookup __P((struct union_mount *um, struct vnode *dvp,
+static void	union_dircache_r(struct vnode *vp, struct vnode ***vppp,
+				      int *cntp);
+static int	union_list_lock(int ix);
+static void	union_list_unlock(int ix);
+static int	union_relookup(struct union_mount *um, struct vnode *dvp,
 				    struct vnode **vpp,
 				    struct componentname *cnp,
 				    struct componentname *cn, char *path,
-				    int pathlen));
-static void	union_updatevp __P((struct union_node *un,
+				    int pathlen);
+static void	union_updatevp(struct union_node *un,
 				    struct vnode *uppervp,
-				    struct vnode *lowervp));
-static void union_newlower __P((struct union_node *, struct vnode *));
-static void union_newupper __P((struct union_node *, struct vnode *));
-static int union_copyfile __P((struct vnode *, struct vnode *,
-					struct ucred *, struct thread *));
-static int union_vn_create __P((struct vnode **, struct union_node *,
-				struct thread *));
-static int union_vn_close __P((struct vnode *, int, struct ucred *,
-				struct thread *));
+				    struct vnode *lowervp);
+static void union_newlower(struct union_node *, struct vnode *);
+static void union_newupper(struct union_node *, struct vnode *);
+static int union_copyfile(struct vnode *, struct vnode *,
+					struct ucred *, struct thread *);
+static int union_vn_create(struct vnode **, struct union_node *,
+				struct thread *);
+static int union_vn_close(struct vnode *, int, struct ucred *,
+				struct thread *);
 
 int
 union_init()

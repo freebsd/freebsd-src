@@ -39,6 +39,6 @@ extern vop_t **fifo_vnodeop_p;
 /*
  * Prototypes for fifo operations on vnodes.
  */
-int	fifo_vnoperate __P((struct vop_generic_args *));
-int	fifo_printinfo __P((struct vnode *));
+int	fifo_vnoperate(struct vop_generic_args *);
+int	fifo_printinfo(struct vnode *);
 

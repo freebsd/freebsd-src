@@ -90,7 +90,7 @@
 /*
  * System initialization
  */
-static void vm_mem_init __P((void *));
+static void vm_mem_init(void *);
 SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL)
 
 /*

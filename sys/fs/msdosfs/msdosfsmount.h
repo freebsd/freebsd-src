@@ -196,9 +196,9 @@ struct msdosfsmount {
 #define	fsi_size(pmp) \
 	(1024 << ((pmp)->pm_BlkPerSec >> 2))
 
-int msdosfs_init __P((struct vfsconf *vfsp));
-int msdosfs_uninit __P((struct vfsconf *vfsp));
-int msdosfs_mountroot __P((void));
+int msdosfs_init(struct vfsconf *vfsp);
+int msdosfs_uninit(struct vfsconf *vfsp);
+int msdosfs_mountroot(void);
 
 #endif /* _KERNEL */
 

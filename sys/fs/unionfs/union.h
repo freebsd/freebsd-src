@@ -113,29 +113,29 @@ struct union_node {
 #define UNVP_WANT	0x01
 #define UNVP_LOCKED	0x02
 
-extern int union_allocvp __P((struct vnode **, struct mount *,
+extern int union_allocvp(struct vnode **, struct mount *,
 				struct vnode *, 
 				struct vnode *, 
 				struct componentname *, struct vnode *,
-				struct vnode *, int));
-extern int union_freevp __P((struct vnode *));
-extern struct vnode *union_dircache __P((struct vnode *, struct thread *));
-extern int union_copyup __P((struct union_node *, int, struct ucred *,
-				struct thread *));
-extern int union_dowhiteout __P((struct union_node *, struct ucred *,
-					struct thread *));
-extern int union_mkshadow __P((struct union_mount *, struct vnode *,
-				struct componentname *, struct vnode **));
-extern int union_mkwhiteout __P((struct union_mount *, struct vnode *,
-				struct componentname *, char *));
-extern int union_cn_close __P((struct vnode *, int, struct ucred *,
-				struct thread *));
-extern void union_removed_upper __P((struct union_node *un));
-extern struct vnode *union_lowervp __P((struct vnode *));
-extern void union_newsize __P((struct vnode *, off_t, off_t));
+				struct vnode *, int);
+extern int union_freevp(struct vnode *);
+extern struct vnode *union_dircache(struct vnode *, struct thread *);
+extern int union_copyup(struct union_node *, int, struct ucred *,
+				struct thread *);
+extern int union_dowhiteout(struct union_node *, struct ucred *,
+					struct thread *);
+extern int union_mkshadow(struct union_mount *, struct vnode *,
+				struct componentname *, struct vnode **);
+extern int union_mkwhiteout(struct union_mount *, struct vnode *,
+				struct componentname *, char *);
+extern int union_cn_close(struct vnode *, int, struct ucred *,
+				struct thread *);
+extern void union_removed_upper(struct union_node *un);
+extern struct vnode *union_lowervp(struct vnode *);
+extern void union_newsize(struct vnode *, off_t, off_t);
 
-extern int (*union_dircheckp) __P((struct thread *, struct vnode **,
-				 struct file *));
+extern int (*union_dircheckp)(struct thread *, struct vnode **,
+				 struct file *);
 
 #define	MOUNTTOUNIONMOUNT(mp) ((struct union_mount *)((mp)->mnt_data))
 #define	VTOUNION(vp) ((struct union_node *)(vp)->v_data)

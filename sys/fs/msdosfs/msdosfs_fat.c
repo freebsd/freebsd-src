@@ -80,23 +80,23 @@ static int fc_lmdistance[LMMAX];/* counters for how far off the last
 				 * cluster mapped entry was. */
 static int fc_largedistance;	/* off by more than LMMAX		 */
 
-static int	chainalloc __P((struct msdosfsmount *pmp, u_long start,
+static int	chainalloc(struct msdosfsmount *pmp, u_long start,
 				u_long count, u_long fillwith,
-				u_long *retcluster, u_long *got));
-static int	chainlength __P((struct msdosfsmount *pmp, u_long start,
-				 u_long count));
-static void	fatblock __P((struct msdosfsmount *pmp, u_long ofs,
-			      u_long *bnp, u_long *sizep, u_long *bop));
-static int	fatchain __P((struct msdosfsmount *pmp, u_long start,
-			      u_long count, u_long fillwith));
-static void	fc_lookup __P((struct denode *dep, u_long findcn,
-			       u_long *frcnp, u_long *fsrcnp));
-static void	updatefats __P((struct msdosfsmount *pmp, struct buf *bp,
-				u_long fatbn));
+				u_long *retcluster, u_long *got);
+static int	chainlength(struct msdosfsmount *pmp, u_long start,
+				 u_long count);
+static void	fatblock(struct msdosfsmount *pmp, u_long ofs,
+			      u_long *bnp, u_long *sizep, u_long *bop);
+static int	fatchain(struct msdosfsmount *pmp, u_long start,
+			      u_long count, u_long fillwith);
+static void	fc_lookup(struct denode *dep, u_long findcn,
+			       u_long *frcnp, u_long *fsrcnp);
+static void	updatefats(struct msdosfsmount *pmp, struct buf *bp,
+				u_long fatbn);
 static __inline void
-		usemap_alloc __P((struct msdosfsmount *pmp, u_long cn));
+		usemap_alloc(struct msdosfsmount *pmp, u_long cn);
 static __inline void
-		usemap_free __P((struct msdosfsmount *pmp, u_long cn));
+		usemap_free(struct msdosfsmount *pmp, u_long cn);
 
 static void
 fatblock(pmp, ofs, bnp, sizep, bop)

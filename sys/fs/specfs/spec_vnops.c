@@ -55,20 +55,20 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-static int	spec_advlock __P((struct vop_advlock_args *));
-static int	spec_bmap __P((struct vop_bmap_args *));
-static int	spec_close __P((struct vop_close_args *));
-static int	spec_freeblks __P((struct vop_freeblks_args *));
-static int	spec_fsync __P((struct  vop_fsync_args *));
-static int	spec_getpages __P((struct vop_getpages_args *));
-static int	spec_ioctl __P((struct vop_ioctl_args *));
-static int	spec_kqfilter __P((struct vop_kqfilter_args *));
-static int	spec_open __P((struct vop_open_args *));
-static int	spec_poll __P((struct vop_poll_args *));
-static int	spec_print __P((struct vop_print_args *));
-static int	spec_read __P((struct vop_read_args *));
-static int	spec_strategy __P((struct vop_strategy_args *));
-static int	spec_write __P((struct vop_write_args *));
+static int	spec_advlock(struct vop_advlock_args *);
+static int	spec_bmap(struct vop_bmap_args *);
+static int	spec_close(struct vop_close_args *);
+static int	spec_freeblks(struct vop_freeblks_args *);
+static int	spec_fsync(struct  vop_fsync_args *);
+static int	spec_getpages(struct vop_getpages_args *);
+static int	spec_ioctl(struct vop_ioctl_args *);
+static int	spec_kqfilter(struct vop_kqfilter_args *);
+static int	spec_open(struct vop_open_args *);
+static int	spec_poll(struct vop_poll_args *);
+static int	spec_print(struct vop_print_args *);
+static int	spec_read(struct vop_read_args *);
+static int	spec_strategy(struct vop_strategy_args *);
+static int	spec_write(struct vop_write_args *);
 
 vop_t **spec_vnodeop_p;
 static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
@@ -121,7 +121,7 @@ spec_vnoperate(ap)
 	return (VOCALL(spec_vnodeop_p, ap->a_desc->vdesc_offset, ap));
 }
 
-static void spec_getpages_iodone __P((struct buf *bp));
+static void spec_getpages_iodone(struct buf *bp);
 
 /*
  * Open a special file.
