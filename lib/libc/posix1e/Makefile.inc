@@ -39,6 +39,7 @@ MAN=	acl.3				\
 	acl_calc_mask.3			\
 	acl_clear_perms.3		\
 	acl_copy_entry.3		\
+	acl_create_entry.3		\
 	acl_delete.3			\
 	acl_delete_entry.3		\
 	acl_delete_perm.3		\
