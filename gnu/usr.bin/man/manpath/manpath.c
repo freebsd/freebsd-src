@@ -493,6 +493,9 @@ get_manpath (perrs, path)
       lp++;
     }
 
+  if (!len)
+    return strdup("");
+
   manpathlist = (char *) malloc (len);
   if (manpathlist == NULL)
     gripe_alloc (len, "manpathlist");
