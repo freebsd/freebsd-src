@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.85 1998/06/05 22:39:53 julian Exp $
+ *	$Id: ip_fw.c,v 1.86 1998/06/05 23:33:26 julian Exp $
  */
 
 /*
@@ -103,13 +103,8 @@ static ip_fw_chk_t *old_chk_ptr;
 static ip_fw_ctl_t *old_ctl_ptr;
 #endif
 
-#ifdef IPFW_DIVERT_OLDRESTART
 static int	ip_fw_chk __P((struct ip **pip, int hlen,
-			struct ifnet *oif, int ignport, struct mbuf **m));
-#else
-static int	ip_fw_chk __P((struct ip **pip, int hlen,
-			struct ifnet *oif, int pastrule, struct mbuf **m));
-#endif /* IPFW_DIVERT_OLDRESTART */
+			struct ifnet *oif, int *cookie, struct mbuf **m));
 static int	ip_fw_ctl __P((int stage, struct mbuf **mm));
 
 static char err_prefix[] = "ip_fw_ctl:";
@@ -387,9 +382,9 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
  *	hlen	Packet header length
  *	oif	Outgoing interface, or NULL if packet is incoming
  * #ifdef IPFW_DIVERT_OLDRESTART
- *	ignport	Ignore all divert/tee rules to this port (if non-zero)
+ *	*ignport	Ignore all divert/tee rules to this port (if non-zero)
  * #else
- *	pastrule Skip up to the first rule past this rule number;
+ *	*cookie Skip up to the first rule past this rule number;
  * #endif
  *	*m	The packet; we set to NULL when/if we nuke it.
  *
@@ -402,13 +397,8 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
  */
 
 static int 
-#ifdef IPFW_DIVERT_OLDRESTART
 ip_fw_chk(struct ip **pip, int hlen,
-	struct ifnet *oif, int ignport, struct mbuf **m)
-#else
-ip_fw_chk(struct ip **pip, int hlen,
-	struct ifnet *oif, int pastrule, struct mbuf **m)
-#endif /* IPFW_DIVERT_OLDRESTART */
+	struct ifnet *oif, int *cookie, struct mbuf **m)
 {
 	struct ip_fw_chain *chain;
 	struct ip_fw *rule = NULL;
@@ -416,7 +406,13 @@ ip_fw_chk(struct ip **pip, int hlen,
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
 	u_short offset = (ip->ip_off & IP_OFFMASK);
 	u_short src_port, dst_port;
+#ifdef	IPFW_DIVERT_OLDRESTART
+	int ignport = *cookie;
+#else
+	int skipto = *cookie;
+#endif /* IPFW_DIVERT_OLDRESTART */
 
+	*cookie = 0;
 	/*
 	 * Go down the chain, looking for enlightment
 	 * #ifndef IPFW_DIVERT_OLDRESTART
@@ -424,13 +420,14 @@ ip_fw_chk(struct ip **pip, int hlen,
 	 * #endif
 	 */
 #ifdef IPFW_DIVERT_OLDRESTART
-	for (chain=LIST_FIRST(&ip_fw_chain); chain; chain = LIST_NEXT(chain, chain)) {
+	for (chain=LIST_FIRST(&ip_fw_chain); chain;
+			chain = LIST_NEXT(chain, chain)) {
 #else
-	chain=LIST_FIRST(&ip_fw_chain);
-	if ( pastrule ) {
-		if (pastrule >= 65535)
+	chain = LIST_FIRST(&ip_fw_chain);
+	if ( skipto ) {
+		if (skipto >= 65535)
 			goto dropit;
-		while (chain && (chain->rule->fw_number <= pastrule)) {
+		while (chain && (chain->rule->fw_number <= skipto)) {
 			chain = LIST_NEXT(chain, chain);
 		}
 		if (! chain) goto dropit;
@@ -613,8 +610,10 @@ got_match:
 		case IP_FW_F_COUNT:
 			continue;
 		case IP_FW_F_DIVERT:
-#ifndef IPFW_DIVERT_OLDRESTART
-			ip_divert_in_cookie = f->fw_number;
+#ifdef IPFW_DIVERT_OLDRESTART
+			*cookie = f->fw_divert_port;
+#else
+			*cookie = f->fw_number;
 #endif /* IPFW_DIVERT_OLDRESTART */
 			return(f->fw_divert_port);
 		case IP_FW_F_TEE:
@@ -702,6 +701,7 @@ dropit:
 	/*
 	 * Finally, drop the packet.
 	 */
+	*cookie = 0;
 	if (*m) {
 		m_freem(*m);
 		*m = NULL;
