@@ -15,7 +15,7 @@ IMPORTS
 	enterprises
 		FROM SNMPv2-SMI;
 
-FreeBSD MODULE-IDENTITY
+freeBSD MODULE-IDENTITY
 	LAST-UPDATED "200404110000Z"
 	ORGANIZATION "The FreeBSD Project."
 	CONTACT-INFO
@@ -30,19 +30,19 @@ FreeBSD MODULE-IDENTITY
 	::= { enterprises 2238 }	-- assigned by IANA
 
 
-FreeBSDsrc OBJECT-IDENTITY
+freeBSDsrc OBJECT-IDENTITY
 	STATUS	current
 	DESCRIPTION
 		"Subtree for things which lives in the src tree."
-	::= { FreeBSD 1 }
+	::= { freeBSD 1 }
 
-FreeBSDports OBJECT-IDENTITY
+freeBSDports OBJECT-IDENTITY
 	STATUS	current
 	DESCRIPTION
 		"Subtree for things which lives in the ports tree."
-	::= { FreeBSD 2 }
+	::= { freeBSD 2 }
 
-FreeBSDpeople OBJECT-IDENTITY
+freeBSDpeople OBJECT-IDENTITY
 	STATUS	current
 	DESCRIPTION
 		"Subtree for FreeBSD people.
@@ -52,6 +52,6 @@ FreeBSDpeople OBJECT-IDENTITY
 		 must be prepended.
 		 Example: phk's subtree is: {FreeBSD 3 3 112 104 107}
 		"
-	::= { FreeBSD 3 }
+	::= { freeBSD 3 }
 
 END
