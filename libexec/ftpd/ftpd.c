@@ -204,9 +204,6 @@ main(argc, argv, envp)
 	int addrlen, ch, on = 1, tos;
 	char *cp, line[LINE_MAX];
 	FILE *fd;
-#ifdef SKEY
-	char addr_string[20];   /* XXX */
-#endif
 
 	/*
 	 * LOG_NDELAY sets up the logging connection immediately,
@@ -218,10 +215,6 @@ main(argc, argv, envp)
 		syslog(LOG_ERR, "getpeername (%s): %m",argv[0]);
 		exit(1);
 	}
-#ifdef SKEY
-	strcpy(addr_string, inet_ntoa(his_addr.sin_addr));
-	pwok = authfile(addr_string);
-#endif
 	addrlen = sizeof(ctrl_addr);
 	if (getsockname(0, (struct sockaddr *)&ctrl_addr, &addrlen) < 0) {
 		syslog(LOG_ERR, "getsockname (%s): %m",argv[0]);
@@ -470,6 +463,7 @@ user(name)
 	if (logging)
 		strncpy(curname, name, sizeof(curname)-1);
 #ifdef SKEY
+	pwok = skeyaccess(name, NULL, remotehost);
 	reply(331, "%s", skey_challenge(name, pw, pwok));
 #else
 	reply(331, "Password required for %s.", name);
@@ -545,6 +539,7 @@ pass(passwd)
 			salt = pw->pw_passwd;
 #ifdef SKEY
 		xpasswd = skey_crypt(passwd, salt, pw, pwok);
+		pwok = 0;
 #else
 		xpasswd = crypt(passwd, salt);
 #endif
