@@ -203,7 +203,7 @@ dkcksum(lp)
 #define	DTYPE_JFS2		16		/* IBM JFS 2 */
 
 #ifdef DKTYPENAMES
-static char *dktypenames[] = {
+static const char *dktypenames[] = {
 	"unknown",
 	"SMD",
 	"MSCP",
@@ -249,7 +249,7 @@ static char *dktypenames[] = {
 #define	FS_JFS2		21		/* IBM JFS2 */
 
 #ifdef	DKTYPENAMES
-static char *fstypenames[] = {
+static const char *fstypenames[] = {
 	"unused",
 	"swap",
 	"Version 6",
