@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.56 1999/06/02 00:46:50 brian Exp $
+ *	$Id: bundle.c,v 1.57 1999/06/22 11:31:42 brian Exp $
  */
 
 #include <sys/param.h>
@@ -854,6 +854,15 @@ bundle_Create(const char *prefix, int type, const char **argv)
   bundle.filter.dial.logok = 1;
   bundle.filter.alive.name = "ALIVE";
   bundle.filter.alive.logok = 1;
+  {
+    int	i;
+    for (i = 0; i < MAXFILTERS; i++) {
+        bundle.filter.in.rule[i].f_action = A_NONE;
+        bundle.filter.out.rule[i].f_action = A_NONE;
+        bundle.filter.dial.rule[i].f_action = A_NONE;
+        bundle.filter.alive.rule[i].f_action = A_NONE;
+    }
+  }
   memset(&bundle.idle.timer, '\0', sizeof bundle.idle.timer);
   bundle.idle.done = 0;
   bundle.notify.fd = -1;

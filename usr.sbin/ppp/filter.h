@@ -15,56 +15,66 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.h,v 1.15 1999/05/31 23:57:37 brian Exp $
+ * $Id: filter.h,v 1.16 1999/06/23 16:48:22 brian Exp $
  *
  *	TODO:
  */
 
-/* Actions */
-#define	A_NONE		0
-#define	A_PERMIT	1
-#define	A_DENY		2
-#define	A_MASK		3
-#define	A_UHOST		4
-#define	A_UPORT		8
-
-/* Known protocols */
+/* Known protocols - f_proto */
 #define	P_NONE	0
 #define	P_TCP	1
 #define	P_UDP	2
 #define	P_ICMP	3
 #define P_IGMP	4
 
-/* Operations */
+/* Operations - f_srcop, f_dstop */
 #define	OP_NONE	0
 #define	OP_EQ	1
 #define	OP_GT	2
-#define	OP_LT	4
+#define	OP_LT	3
 
 /* srctype or dsttype */
 #define T_ADDR		0
 #define T_MYADDR	1
 #define T_HISADDR	2
 
+/*
+ * There's a struct filterent for each possible filter rule.  The
+ * layout is designed to minimise size (there are 4 * MAXFILTERS of
+ * them) - which is also conveniently a power of 2 (32 bytes) on
+ * architectures where sizeof(int)==4 (this makes indexing faster).
+ *
+ * f_action and f_proto only need to be 6 and 3 bits, respectively,
+ * but making them 8 bits allows them to be efficently accessed using
+ * byte operations as well as allowing space for future expansion
+ * (expanding MAXFILTERS or converting f_proto IPPROTO_... values).
+ *
+ * Note that there are four free bits in the initial word for future
+ * extensions.
+ */
 struct filterent {
-  int action;			/* Filtering action */
-  unsigned srctype : 2;		/* T_ value of src */
-  struct in_range src;		/* Source address */
-  unsigned dsttype : 2;		/* T_ value of dst */
-  struct in_range dst;		/* Destination address */
-  int proto;			/* Protocol */
-  struct {
-    short srcop;
-    u_short srcport;
-    short dstop;
-    u_short dstport;
-    unsigned estab : 1;
-    unsigned syn : 1;
-    unsigned finrst : 1;
-  } opt;
+  unsigned f_action : 8;		/* Filtering action: goto or A_... */
+  unsigned f_proto : 8;		/* Protocol: P_... */
+  unsigned f_srcop : 2;		/* Source port operation: OP_... */
+  unsigned f_dstop : 2;		/* Destination port operation: OP_... */
+  unsigned f_srctype : 2;	/* T_ value of src */
+  unsigned f_dsttype : 2;	/* T_ value of dst */
+  unsigned f_estab : 1;		/* Check TCP ACK bit */
+  unsigned f_syn : 1;		/* Check TCP SYN bit */
+  unsigned f_finrst : 1;	/* Check TCP FIN/RST bits */
+  unsigned f_invert : 1;	/* true to complement match */
+  struct in_range f_src;	/* Source address and mask */
+  struct in_range f_dst;	/* Destination address and mask */
+  u_short f_srcport;		/* Source port, compared with f_srcop */
+  u_short f_dstport;		/* Destination port, compared with f_dstop */
 };
 
-#define	MAXFILTERS		40	/* in each filter set */
+#define	MAXFILTERS	40	/* in each filter set */
+
+/* f_action values [0..MAXFILTERS) specify the next filter rule, others are: */
+#define	A_NONE		(MAXFILTERS)
+#define	A_PERMIT	(A_NONE+1)
+#define	A_DENY		(A_PERMIT+1)
 
 struct filter {
   struct filterent rule[MAXFILTERS];	/* incoming packet filter */
@@ -73,6 +83,7 @@ struct filter {
   unsigned logok : 1;
 };
 
+/* Which filter set */
 #define FL_IN		0
 #define FL_OUT		1
 #define FL_DIAL		2
