@@ -17,6 +17,8 @@ LDADD=	-lhdb -lkrb5 -lroken ${LIBVERS} \
 DPADD=	${LIBHDB} ${LIBKRB5} ${LIBROKEN} ${LIBVERS} \
 	${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LDAPDPADD}
 
+LDFLAGS=${LDAPLDFLAGS}
+
 MAN=	hprop.8
 
 .include <bsd.prog.mk>
