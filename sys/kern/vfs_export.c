@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.208 1999/07/12 15:02:50 kris Exp $
+ * $Id: vfs_subr.c,v 1.209 1999/07/17 18:43:45 phk Exp $
  */
 
 /*
@@ -1275,7 +1275,7 @@ checkalias(nvp, nvp_rdev, mp)
 	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
 		return (NULLVP);
 
-	dev = udev2dev(nvp_rdev, 2);
+	dev = udev2dev(nvp_rdev, nvp->v_type == VBLK ? 1 : 0);
 
 	vpp = &speclisth[SPECHASH(dev)];
 loop:
