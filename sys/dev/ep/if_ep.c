@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_ep.c,v 1.4 1994/01/26 09:06:29 nate Exp $
+ *	$Id: if_ep.c,v 1.5 1994/01/26 09:13:56 nate Exp $
  */
 /*
  * TODO:
@@ -111,7 +111,7 @@ void epread __P((struct ep_softc *));
 void epreset __P((int));
 void epstart __P((struct ifnet *));
 void epstop __P((int));
-void epwatchdog __P(int));
+void epwatchdog __P((int));
 
 struct isa_driver epdriver = {
 	epprobe,
