@@ -1033,7 +1033,7 @@ ParseDoDependency (char *line)
 	 * set the initial character to a null-character so the loop to
 	 * get sources won't get anything
 	 */
-	Main_ParseArgLine(line);
+	Main_ParseArgLine(line, 0);
 	*line = '\0';
     } else if (specType == ExShell) {
 	if (Job_ParseShell(line) != SUCCESS) {
