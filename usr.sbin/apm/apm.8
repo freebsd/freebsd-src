@@ -15,10 +15,10 @@
 .Dt APM 8
 .Os
 .Sh NAME
-.Nm apm, zzz
+.Nm apm , zzz
 .Nd control the APM BIOS and display its information
 .Sh SYNOPSIS
-.Nm apm
+.Nm
 .Op Fl ablstzZ
 .Op Fl d Ar enable
 .Op Fl e Ar enable
@@ -34,12 +34,12 @@ displays the current status of APM on laptop PCs.
 suspends the system by controlling APM.
 .Pp
 The following options are available for 
-.Nm apm
+.Nm
 (no options are available for
 .Nm zzz
 ).
 If no options are specified,
-.Nm apm
+.Nm
 displays information and current status of APM in verbose mode.
 If multiple display options are given, the values are displayed one
 per line in the order given here.
@@ -117,9 +117,9 @@ It is equivalent to
 .El
 .Sh BUGS
 Some APM implementations do not support parameters needed by
-.Nm apm .
+.Nm .
 On such systems,
-.Nm apm
+.Nm
 displays them as unknown.
 .Pp
 Some APM implementations cannot handle events such as pushing the 
@@ -128,7 +128,7 @@ power button or closing the cover.  On such implementations, the system
 be suspended
 .Ar only
 by using
-.Nm apm
+.Nm
 or 
 .Nm zzz .
 .Sh NOTES

@@ -39,7 +39,7 @@
 .Nm lprm
 .Nd remove jobs from the line printer spooling queue
 .Sh SYNOPSIS
-.Nm lprm
+.Nm
 .Op Fl P Ns Ar printer
 .Op Fl
 .Op job # ...
@@ -95,7 +95,7 @@ If neither arguments or options are given,
 .Nm
 will delete the currently active job if it is
 owned by the user who invoked
-.Nm lprm  .
+.Nm .
 .Pp
 .Nm Lprm
 announces the names of any files it removes and is silent if
@@ -107,7 +107,7 @@ any spooling files.  If a daemon is killed, a new one is
 automatically restarted upon completion of file removals.
 .Sh ENVIRONMENT
 If the following environment variable exists, it is utilized by
-.Nm lprm .
+.Nm .
 .Bl -tag -width PRINTER
 .It Ev PRINTER
 If the environment variable

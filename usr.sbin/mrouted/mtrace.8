@@ -38,7 +38,7 @@
 .Nm mtrace
 .Nd print multicast path from a source to a receiver
 .Sh SYNOPSIS
-.Nm mtrace
+.Nm
 .Op Fl e Ar extrahops
 .Op Fl g Ar gateway
 .Op Fl i Ar if_addr
@@ -92,7 +92,7 @@ is a multicast address.
 If the
 .Fl g
 flag is specified, the source address defaults to the host running
-.Nm mtrace ,
+.Nm ,
 and the receiver defaults to the router being addressed with
 the
 .Fl g
@@ -311,7 +311,7 @@ additional attempt, the ttl is increased by another 32 each time up to
 a maximum of 192.  Since the desired router may not be able to send a
 multicast reply, the remainder of the attempts request that the
 response be sent via unicast to the host running
-.Nm mtrace .
+.Nm .
 Alternatively, the multicast ttl may be set explicitly with the
 .Fl t
 option, the initial multicast attempts can be forced to use unicast

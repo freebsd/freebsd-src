@@ -36,7 +36,7 @@
 .Nd executing and debugging AML interpreter
 .Pq with DSDT files
 .Sh SYNOPSIS
-.Nm amldb
+.Nm
 .Op Fl dhst
 .Ar dsdt_file ...
 .Sh DESCRIPTION
@@ -204,12 +204,12 @@ occurs as the beginning of word with the specified number of characters.
 .It Cm h
 .Em Show help messsage:
 Displays the command summary of
-.Nm amldb .
+.Nm .
 .El
 .Pp
 .Sh OPTIONS
 Exactly one of the following options must be specified.  Otherwise,
-.Nm amldb
+.Nm
 shows its usage and terminates.
 .Bl -tag -width indent
 .It Fl d
@@ -230,7 +230,7 @@ DSDT data file is read.
 .El
 .Sh EXAMPLES
 The following is an example including, invoking the
-.Nm amldb ,
+.Nm ,
 searching
 .Li _PRS
 .Pq Possible Resource Settings

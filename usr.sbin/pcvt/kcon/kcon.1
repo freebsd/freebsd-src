@@ -32,7 +32,7 @@
 .Nm kcon
 .Nd pcvt keyboard control and remapping
 .Sh SYNOPSIS
-.Nm kcon
+.Nm
 .Op Fl d Ar delay
 .Op Fl l 
 .Op Fl m Ar map
@@ -44,7 +44,7 @@
 .Op Fl t Ns Ar +/-
 .Op Fl x
 .Sh DESCRIPTION
-.Nm kcon
+.Nm
 is used for controlling all aspects of keyboard configuration for the 'pcvt'
 video driver.
 .Pp
@@ -59,7 +59,7 @@ Valid values are 0..3 corresponding to delays of 250, 500, 750 and
 Displays the current keyboard map in use by the driver.
 .It Fl m Ar map
 Specifies the map entry to be searched in the keyboard capabilities database
-.Nm keycap.
+.Nm keycap .
 The database is searched for the entry and if found, the mapping
 is loaded and is used in the driver from then on.
 .It Fl o
@@ -102,15 +102,15 @@ Keyboard raw device.
 .Xr keycap 3 ,
 .Xr keycap 5
 .Sh BUGS
-.Nm kcon
+.Nm
 detects several inconsistencies in the keycap database.
 In case of errors
-.Nm kcon
+.Nm
 exits with an error message.
 If this happens, the keyboard may remain in
 an undefined state.
 To recover from such situation, execute
-.Nm kcon -m default
+.Dq Li kcon -m default .
 .Sh EXAMPLES
 The command
 .Dq Li kcon -m gb
