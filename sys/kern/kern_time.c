@@ -45,6 +45,7 @@
 #include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/time.h>
+#include <sys/timetc.h>
 #include <sys/vnode.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -128,7 +129,7 @@ settime(tv)
 
 	ts.tv_sec = tv->tv_sec;
 	ts.tv_nsec = tv->tv_usec * 1000;
-	set_timecounter(&ts);
+	tc_setclock(&ts);
 	(void) splsoftclock();
 	lease_updatetime(delta.tv_sec);
 	splx(s);

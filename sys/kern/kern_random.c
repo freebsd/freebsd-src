@@ -44,6 +44,7 @@
 #include <sys/kernel.h>
 #include <sys/select.h>
 #include <sys/poll.h>
+#include <sys/timetc.h>
 #include <sys/md5.h>
 
 #include <machine/random.h>
