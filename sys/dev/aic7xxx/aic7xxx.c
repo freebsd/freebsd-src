@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#128 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#129 $
  *
  * $FreeBSD$
  */
@@ -291,7 +291,7 @@ ahc_restart(struct ahc_softc *ahc)
 			 ahc_inb(ahc, SEQ_FLAGS2) & ~SCB_DMA);
 	}
 	ahc_outb(ahc, MWI_RESIDUAL, 0);
-	ahc_outb(ahc, SEQCTL, FASTMODE);
+	ahc_outb(ahc, SEQCTL, ahc->seqctl);
 	ahc_outb(ahc, SEQADDR0, 0);
 	ahc_outb(ahc, SEQADDR1, 0);
 	ahc_unpause(ahc);
@@ -1467,7 +1467,7 @@ ahc_clear_critical_section(struct ahc_softc *ahc)
 			else
 				ahc_outb(ahc, SIMODE1, 0);
 			ahc_outb(ahc, CLRINT, CLRSCSIINT);
-			ahc_outb(ahc, SEQCTL, ahc_inb(ahc, SEQCTL) | STEP);
+			ahc_outb(ahc, SEQCTL, ahc->seqctl | STEP);
 			stepping = TRUE;
 		}
 		if ((ahc->features & AHC_DT) != 0) {
@@ -1481,7 +1481,7 @@ ahc_clear_critical_section(struct ahc_softc *ahc)
 	if (stepping) {
 		ahc_outb(ahc, SIMODE0, simode0);
 		ahc_outb(ahc, SIMODE1, simode1);
-		ahc_outb(ahc, SEQCTL, ahc_inb(ahc, SEQCTL) & ~STEP);
+		ahc_outb(ahc, SEQCTL, ahc->seqctl);
 	}
 }
 
@@ -3826,6 +3826,12 @@ ahc_alloc(void *platform_arg, char *name)
 	ahc->features = AHC_FENONE;
 	ahc->bugs = AHC_BUGNONE;
 	ahc->flags = AHC_FNONE;
+	/*
+	 * Default to all error reporting enabled with the
+	 * sequencer operating at its fastest speed.
+	 * The bus attach code may modify this.
+	 */
+	ahc->seqctl = FASTMODE;
 
 	for (i = 0; i < AHC_NUM_TARGETS; i++)
 		TAILQ_INIT(&ahc->untagged_queues[i]);

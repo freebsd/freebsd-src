@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#75 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#76 $
  *
  * $FreeBSD$
  */
@@ -1045,6 +1045,11 @@ struct ahc_softc {
 	 */
 	struct target_cmd	 *targetcmds;
 	uint8_t			  tqinfifonext;
+
+	/*
+	 * Cached copy of the sequencer control register.
+	 */
+	uint8_t			  seqctl;
 
 	/*
 	 * Incoming and outgoing message handling.
