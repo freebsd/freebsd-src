@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.36 1996/11/07 03:59:05 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.37 1996/11/07 15:07:00 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -161,7 +161,7 @@ The pattern is the year followed by the month.
  #
  
  DISTNAME=	oneko-1.1b
- CATEGORIES+=	games
+ CATEGORIES=	games
  MASTER_SITES=	ftp://ftp.cs.columbia.edu/archives/X11R5/contrib/
  
  MAINTAINER=	asami@FreeBSD.ORG
@@ -1159,7 +1159,7 @@ lib/libtcl.so.7.3
   and then MASTER_SITES, and optionally EXTRACT_SUFX or DISTFILES]
  DISTNAME=	xdvi
  PKGNAME=	xdvi-pl18
- CATEGORIES+=	print
+ CATEGORIES=	print
  [do not forget the trailing slash ("/")!]
  MASTER_SITES=	ftp://crl.dec.com/pub/X11/contrib/applications/
  [set this if the source is not in the standard ".tar.gz" form]
