@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/proc.h>
 #include <machine/cpufunc.h>
 #include <machine/pte.h>
+#include <machine/intr.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -109,3 +110,6 @@ ASSYM(P_TRACED, P_TRACED);
 ASSYM(P_SIGEVENT, P_SIGEVENT);
 ASSYM(P_PROFIL, P_PROFIL);
 ASSYM(TRAPFRAMESIZE, sizeof(struct trapframe));
+
+ASSYM(MAXCOMLEN, MAXCOMLEN);
+ASSYM(NIRQ, NIRQ);
