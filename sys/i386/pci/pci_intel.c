@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci_intel.c,v 1.2 94/09/15 21:01:52 wolf Exp $
+**  $Id: pci_intel.c,v 2.1 94/09/16 08:02:42 wolf Rel $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -244,7 +244,7 @@ int probe1(pcici_t config_id)
 
 static char confread (pcici_t config_id, int port)
 {
-    unsigned long portw = port & -3;
+    unsigned long portw = port & ~3;
     unsigned long ports = (port - portw) << 3;
 
     unsigned long l = pci_conf_read (config_id, portw);

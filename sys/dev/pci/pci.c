@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 2.0.0.12 94/09/15 20:49:23 wolf Exp $
+**  $Id: pci.c,v 2.1 94/09/16 08:01:20 wolf Rel $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -76,10 +76,6 @@
 #include <i386/pci/pci.h>
 #include <i386/pci/pci_device.h>
 #include <i386/pci/pcibios.h>
-
-
-char ident_pci_c[] =
-	"\n$Id: pci.c,v 2.0.0.12 94/09/15 20:49:23 wolf Exp $\n";
 
 /*
 **	Function prototypes missing in system headers
