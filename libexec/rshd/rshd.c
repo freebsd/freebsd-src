@@ -48,9 +48,10 @@ static const char copyright[] =
 #if 0
 static const char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * remote shell server:
@@ -108,9 +109,6 @@ int	keepalive = 1;
 int	log_success;		/* If TRUE, log all successful accesses */
 int	sent_null;
 int	no_delay;
-#ifdef CRYPT
-int	doencrypt = 0;
-#endif
 
 void	 doit(struct sockaddr *);
 static void	 rshd_errx(int, const char *, ...) __printf0like(2, 3);
@@ -118,6 +116,9 @@ void	 getstr(char *, int, const char *);
 int	 local_domain(char *);
 char	*topdomain(char *);
 void	 usage(void);
+
+char	 slash[] = "/";
+char	 bshell[] = _PATH_BSHELL;
 
 #define	OPTIONS	"alnDL"
 
@@ -143,11 +144,6 @@ main(int argc, char *argv[])
 		case 'n':
 			keepalive = 0;
 			break;
-#ifdef CRYPT
-		case 'x':
-			doencrypt = 1;
-			break;
-#endif
 		case 'D':
 			no_delay = 1;
 			break;
@@ -162,13 +158,6 @@ main(int argc, char *argv[])
 
 	argc -= optind;
 	argv += optind;
-
-#ifdef CRYPT
-	if (doencrypt) {
-		syslog(LOG_ERR, "-k is required for -x");
-		exit(2);
-	}
-#endif
 
 	fromlen = sizeof (from);
 	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0) {
@@ -208,11 +197,7 @@ doit(struct sockaddr *fromp)
 	char cmdbuf[NCARGS+1], luser[16], ruser[16];
 	char rhost[2 * MAXHOSTNAMELEN + 1];
 	char numericname[INET6_ADDRSTRLEN];
-	int af, error, srcport;
-#ifdef	CRYPT
-	int rc;
-	int pv1[2], pv2[2];
-#endif
+	int af, srcport;
 	login_cap_t *lc;
 
 	(void) signal(SIGINT, SIG_DFL);
@@ -223,11 +208,9 @@ doit(struct sockaddr *fromp)
 	if (af == AF_INET) {
 		inet_ntop(af, &((struct sockaddr_in *)fromp)->sin_addr,
 		    numericname, sizeof numericname);
-#ifdef INET6
 	} else if (af == AF_INET6) {
 		inet_ntop(af, &((struct sockaddr_in6 *)fromp)->sin6_addr,
 		    numericname, sizeof numericname);
-#endif
 	} else {
 		syslog(LOG_ERR, "malformed \"from\" address (af %d)", af);
 		exit(1);
@@ -314,23 +297,6 @@ doit(struct sockaddr *fromp)
 	rhost[sizeof(rhost) - 1] = '\0';
 	/* XXX truncation! */
 
-#ifdef CRYPT
-	if (doencrypt && af == AF_INET) {
-		struct sockaddr_in local_addr;
-		rc = sizeof(local_addr);
-		if (getsockname(0, (struct sockaddr *)&local_addr,
-		    &rc) < 0) {
-			syslog(LOG_ERR, "getsockname: %m");
-			rshd_errx(1, "rlogind: getsockname: %m"); /* XXX */
-		}
-		authopts = KOPT_DO_MUTUAL;
-		rc = krb_recvauth(authopts, 0, ticket,
-			"rcmd", instance, &fromaddr,
-			&local_addr, kdata, "", schedule,
-			version);
-		des_set_key(&kdata->session, schedule);
-	}
-#endif
 	(void) alarm(60);
 	getstr(ruser, sizeof(ruser), "ruser");
 	getstr(luser, sizeof(luser), "luser");
@@ -390,7 +356,7 @@ doit(struct sockaddr *fromp)
 			ruser, rhost, luser, cmdbuf);
 			rshd_errx(0, "No remote home directory.");
 		}
-		pwd->pw_dir = "/";
+		pwd->pw_dir = slash;
 	}
 
 	if (lc != NULL && fromp->sa_family == AF_INET) {	/*XXX*/
@@ -433,32 +399,12 @@ doit(struct sockaddr *fromp)
 	if (port) {
 		if (pipe(pv) < 0)
 			rshd_errx(1, "Can't make pipe.");
-#ifdef CRYPT
-		if (doencrypt) {
-			if (pipe(pv1) < 0)
-				rshd_errx(1, "Can't make 2nd pipe.");
-			if (pipe(pv2) < 0)
-				rshd_errx(1, "Can't make 3rd pipe.");
-		}
-#endif
 		pid = fork();
 		if (pid == -1)
 			rshd_errx(1, "Can't fork; try again.");
 		if (pid) {
-#ifdef CRYPT
-			if (doencrypt) {
-				static char msg[] = SECURE_MESSAGE;
-				(void) close(pv1[1]);
-				(void) close(pv2[1]);
-				des_enc_write(s, msg, sizeof(msg) - 1,
-					schedule, &kdata->session);
-
-			} else
-#endif
-			{
-				(void) close(0);
-				(void) close(1);
-			}
+			(void) close(0);
+			(void) close(1);
 			(void) close(2);
 			(void) close(pv[1]);
 
@@ -469,47 +415,22 @@ doit(struct sockaddr *fromp)
 				nfd = pv[0];
 			else
 				nfd = s;
-#ifdef CRYPT
-			if (doencrypt) {
-				FD_ZERO(&writeto);
-				FD_SET(pv2[0], &writeto);
-				FD_SET(pv1[0], &readfrom);
-
-				nfd = MAX(nfd, pv2[0]);
-				nfd = MAX(nfd, pv1[0]);
-			} else
-#endif
 				ioctl(pv[0], FIONBIO, (char *)&one);
 
 			/* should set s nbio! */
 			nfd++;
 			do {
 				ready = readfrom;
-#ifdef CRYPT
-				if (doencrypt) {
-					wready = writeto;
-					if (select(nfd, &ready,
-					    &wready, (fd_set *) 0,
-					    (struct timeval *) 0) < 0)
-						break;
-				} else
-#endif
-					if (select(nfd, &ready, (fd_set *)0,
-					  (fd_set *)0, (struct timeval *)0) < 0)
-						break;
+				if (select(nfd, &ready, (fd_set *)0,
+				  (fd_set *)0, (struct timeval *)0) < 0)
+					break;
 				if (FD_ISSET(s, &ready)) {
 					int	ret;
-#ifdef CRYPT
-					if (doencrypt)
-						ret = des_enc_read(s, &sig, 1,
-						schedule, &kdata->session);
-					else
-#endif
 						ret = read(s, &sig, 1);
-					if (ret <= 0)
-						FD_CLR(s, &readfrom);
-					else
-						killpg(pid, sig);
+				if (ret <= 0)
+					FD_CLR(s, &readfrom);
+				else
+					killpg(pid, sig);
 				}
 				if (FD_ISSET(pv[0], &ready)) {
 					errno = 0;
@@ -518,62 +439,17 @@ doit(struct sockaddr *fromp)
 						shutdown(s, 1+1);
 						FD_CLR(pv[0], &readfrom);
 					} else {
-#ifdef CRYPT
-						if (doencrypt)
-							(void)
-							  des_enc_write(s, buf, cc,
-								schedule, &kdata->session);
-						else
-#endif
-							(void)
-							  write(s, buf, cc);
+						(void)write(s, buf, cc);
 					}
 				}
-#ifdef CRYPT
-				if (doencrypt && FD_ISSET(pv1[0], &ready)) {
-					errno = 0;
-					cc = read(pv1[0], buf, sizeof(buf));
-					if (cc <= 0) {
-						shutdown(pv1[0], 1+1);
-						FD_CLR(pv1[0], &readfrom);
-					} else
-						(void) des_enc_write(STDOUT_FILENO,
-						    buf, cc,
-							schedule, &kdata->session);
-				}
-
-				if (doencrypt && FD_ISSET(pv2[0], &wready)) {
-					errno = 0;
-					cc = des_enc_read(STDIN_FILENO,
-					    buf, sizeof(buf),
-						schedule, &kdata->session);
-					if (cc <= 0) {
-						shutdown(pv2[0], 1+1);
-						FD_CLR(pv2[0], &writeto);
-					} else
-						(void) write(pv2[0], buf, cc);
-				}
-#endif
 
 			} while (FD_ISSET(s, &readfrom) ||
-#ifdef CRYPT
-			    (doencrypt && FD_ISSET(pv1[0], &readfrom)) ||
-#endif
 			    FD_ISSET(pv[0], &readfrom));
 			PAM_END;
 			exit(0);
 		}
 		(void) close(s);
 		(void) close(pv[0]);
-#ifdef CRYPT
-		if (doencrypt) {
-			close(pv1[0]); close(pv2[0]);
-			dup2(pv1[1], 1);
-			dup2(pv2[1], 0);
-			close(pv1[1]);
-			close(pv2[1]);
-		}
-#endif
 		dup2(pv[1], 2);
 		close(pv[1]);
 	}
@@ -598,7 +474,7 @@ doit(struct sockaddr *fromp)
 		syslog(LOG_ERR, "setlogin() failed: %m");
 
 	if (*pwd->pw_shell == '\0')
-		pwd->pw_shell = _PATH_BSHELL;
+		pwd->pw_shell = bshell;
 	(void) pam_setenv(pamh, "HOME", pwd->pw_dir, 1);
 	(void) pam_setenv(pamh, "SHELL", pwd->pw_shell, 1);
 	(void) pam_setenv(pamh, "USER", pwd->pw_name, 1);
