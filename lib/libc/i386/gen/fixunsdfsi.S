@@ -34,49 +34,34 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fixunsdfsi.s	5.1	12/17/90
- *	$Id: fixunsdfsi.S,v 1.1 1993/12/05 13:01:03 ats Exp $
+ *	$Id: fixunsdfsi.S,v 1.1 1994/08/05 01:18:05 wollman Exp $
  */
 
-#if defined(LIBC_SCCS)
-	.text
-	.asciz "$Id: fixunsdfsi.S,v 1.1 1993/12/05 13:01:03 ats Exp $"
-#endif
+#if defined(LIBC_SCCS) && !defined(lint)
+	.asciz "$Id: fixunsdfsi.S,v 1.1 1994/08/05 01:18:05 wollman Exp $"
+#endif /* LIBC_SCCS and not lint */
 
 #include "DEFS.h"
-#include "SYS.h"
 
 ENTRY(__fixunsdfsi)
-	fldl	4(%esp)		/* argument double to accum stack */
-	frndint			/* create integer */
-#ifdef PIC
-	PIC_PROLOGUE
-	leal	PIC_GOTOFF(fbiggestsigned),%eax
-	PIC_EPILOGUE
-	fcoml	(%eax)
-#else
-	fcoml	PIC_GOTOFF(fbiggestsigned)	/* bigger than biggest signed? */
-#endif
-	fstsw	%ax
-	sahf
-	jnb	1f
-
-	fistpl	4(%esp)
+	fldl	4(%esp)
+	fnstcw	4(%esp)
 	movl	4(%esp),%eax
+	orb	$(3 << 2),%ah	# change rounding mode bitfield to 3 (chop)
+	movl	%eax,8(%esp)
+	fldcw	8(%esp)
+	subl	$8,%esp
+	fistpq	(%esp)		# convert to 64 bit integer
+	popl	%eax
+	popl	%edx		# discard top 32 bits
+	fldcw	4(%esp)
 	ret
 
-1:
-#ifdef PIC
-	PIC_PROLOGUE
-	leal	PIC_GOTOFF(fbiggestsigned),%eax
-	PIC_EPILOGUE
-	fsubl	(%eax)
-#else
-	fsubl	PIC_GOTOFF(fbiggestsigned)	/* reduce for proper conversion */
-#endif
-	fistpl	4(%esp)		/* convert */
-	movl	4(%esp),%eax
-	orl	$0x80000000,%eax	/* restore bias */
-	PIC_EPILOGUE
-	ret
-
-fbiggestsigned:	.double	0r2147483648.0
+/*
+ * XXX - we are sloppy about overflow, the same as gcc-2.  Values too big
+ * for a 64-bit (signed) integer cause an overflow trap or are silently
+ * converted to 0 if the overflow trap is masked.  The remaining values
+ * too big for a 32-bit (unsigned) integer are silently truncated to 32
+ * bits.  Negative values are converted like negative ints (no overflow)
+ * if they fit in 32 bits.
+ */
