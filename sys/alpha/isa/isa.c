@@ -398,8 +398,10 @@ isa_teardown_intr(device_t dev, device_t child,
 		num_handlers++;
 	mtx_unlock(&ithread->it_lock);
 
-	/* only disable the interrupt in hardware if there are no
-	   other handlers sharing it */
+	/* 
+	 * Only disable the interrupt in hardware if there are no
+	 * other handlers sharing it.
+	 */
 
 	if (num_handlers == 1) {
 		mtx_lock_spin(&icu_lock);
