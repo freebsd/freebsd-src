@@ -51,6 +51,8 @@
 #include <machine/limits.h>
 #include "opt_vfs_aio.h"
 
+#ifdef VFS_AIO
+
 static	long jobrefid;
 
 #define JOBST_NULL		0x0
@@ -212,13 +214,6 @@ static int	aio_fphysio(struct proc *p, struct aiocblist *aiocbe, int type);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *uproc);
 
-static int	filt_aioattach(struct knote *kn);
-static void	filt_aiodetach(struct knote *kn);
-static int	filt_aio(struct knote *kn, long hint);
-
-struct filterops aio_filtops =
-	{ 0, filt_aioattach, filt_aiodetach, filt_aio };
-
 SYSINIT(aio, SI_SUB_VFS, SI_ORDER_ANY, aio_onceonly, NULL);
 
 static vm_zone_t kaio_zone = 0, aiop_zone = 0, aiocb_zone = 0, aiol_zone = 0;
@@ -379,6 +374,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 	aiocbe->jobstate = JOBST_NULL;
 	return 0;
 }
+#endif /* VFS_AIO */
 
 /*
  * Rundown the jobs for a given process.  
@@ -386,6 +382,9 @@ aio_free_entry(struct aiocblist *aiocbe)
 void
 aio_proc_rundown(struct proc *p)
 {
+#ifndef VFS_AIO
+	return;
+#else
 	int s;
 	struct kaioinfo *ki;
 	struct aio_liojob *lj, *ljn;
@@ -500,8 +499,10 @@ restart4:
 
 	zfree(kaio_zone, ki);
 	p->p_aioinfo = NULL;
+#endif /* VFS_AIO */
 }
 
+#ifdef VFS_AIO
 /*
  * Select a job to run (called by an AIO daemon).
  */
@@ -1133,6 +1134,7 @@ aio_fphysio(struct proc *p, struct aiocblist *iocb, int flgwait)
 	relpbuf(bp, NULL);
 	return (error);
 }
+#endif /* VFS_AIO */
 
 /*
  * Wake up aio requests that may be serviceable now.
@@ -1140,6 +1142,9 @@ aio_fphysio(struct proc *p, struct aiocblist *iocb, int flgwait)
 void
 aio_swake(struct socket *so, struct sockbuf *sb)
 {
+#ifndef VFS_AIO
+	return;
+#else
 	struct aiocblist *cb,*cbn;
 	struct proc *p;
 	struct kaioinfo *ki = NULL;
@@ -1177,8 +1182,10 @@ aio_swake(struct socket *so, struct sockbuf *sb)
 			wakeup(aiop->aioproc);
 		}
 	}
+#endif /* VFS_AIO */
 }
 
+#ifdef VFS_AIO
 /*
  * Queue a new AIO request.  Choosing either the threaded or direct physio VCHR
  * technique is done in this code.
@@ -1439,6 +1446,7 @@ aio_aqueue(struct proc *p, struct aiocb *job, int type)
 
 	return _aio_aqueue(p, job, NULL, type);
 }
+#endif /* VFS_AIO */
 
 /*
  * Support the aio_return system call, as a side-effect, kernel resources are
@@ -2155,6 +2163,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 #endif /* VFS_AIO */
 }
 
+#ifdef VFS_AIO
 /*
  * This is a wierd hack so that we can post a signal.  It is safe to do so from
  * a timeout routine, but *not* from an interrupt routine.
@@ -2246,6 +2255,7 @@ aio_physwakeup(struct buf *bp)
 	}
 	splx(s);
 }
+#endif /* VFS_AIO */
 
 int
 aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
@@ -2327,6 +2337,19 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 #endif /* VFS_AIO */
 }
 
+
+#ifndef VFS_AIO
+static int
+filt_aioattach(struct knote *kn)
+{
+
+	return (ENXIO);
+}
+
+struct filterops aio_filtops =
+	{ 0, filt_aioattach, NULL, NULL };
+
+#else
 static int
 filt_aioattach(struct knote *kn)
 {
@@ -2368,3 +2391,7 @@ filt_aio(struct knote *kn, long hint)
 	kn->kn_flags |= EV_EOF; 
 	return (1);
 }
+
+struct filterops aio_filtops =
+	{ 0, filt_aioattach, filt_aiodetach, filt_aio };
+#endif /* VFS_AIO */
