@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1994/09/07 21:48:45 csgr Exp $
+# $Id: Makefile,v 1.3 1994/09/09 09:43:18 csgr Exp $
 #
 
 
@@ -9,8 +9,8 @@ PRECIOUSLIB=	yes
 NOPROFILE=	yes
 
 #MAN3=   crypt.0
-#MLINKS= crypt.3 encrypt.3 crypt.3 setkey.3
-#MLINKS+=crypt.3 des_cipher.3 crypt.3 des_setkey.3
+MLINKS= crypt.3 encrypt.3 crypt.3 setkey.3
+MLINKS+=crypt.3 des_cipher.3 crypt.3 des_setkey.3
 
 #SUBDIR=		test
 

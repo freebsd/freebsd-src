@@ -6,8 +6,8 @@ TMACMODE?=	444
 TMACDIR?=	/usr/share/tmac
 MDOCDIR?=	${TMACDIR}/mdoc
 
-MAN7=		groff_ms.7 me.7
-MLINKS=		groff_ms.7 ms.7
+MAN7=		groff_ms.7 me.7 
+MLINKS=		groff_ms.7 ms.7 me.7 groff_me.7
 LINKS=          ${TMACDIR}/tmac.andoc ${TMACDIR}/tmac.an
 
 MANDEPEND=	${MAN7}

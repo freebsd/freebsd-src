@@ -808,7 +808,7 @@ Macros to undo the effect of
 .BI /tmp/grops XXXXXX
 Temporary file.
 .SH "SEE ALSO"
-.BR afmtodit (@MAN1EXT@),
+.\" .BR afmtodit (@MAN1EXT@),
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
 .BR psbb (@MAN1EXT@),

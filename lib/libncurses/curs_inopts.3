@@ -92,7 +92,7 @@ causes the terminal keypad to be turned on when \fBwgetch\fR is
 called.  The default value for keypad is false.
 
 Initially, whether the terminal returns 7 or 8 significant bits on
-input depends on the control mode of the tty driver [see termio(7)].
+input depends on the control mode of the tty driver [see termios(4)].
 To force 8 bits to be returned, invoke \fBmeta\fR(\fIwin\fR,
 \fBTRUE\fR).  To force 7 bits to be returned, invoke
 \fBmeta\fR(\fIwin\fR, \fBFALSE\fR).  The window argument, \fIwin\fR,
@@ -123,7 +123,7 @@ BREAK key depends on other bits in the tty driver that are not set by
 
 When the \fBnoqiflush\fR routine is used, normal flush of input and
 output queues associated with the \fBINTR\fR, \fBQUIT\fR and
-\fBSUSP\fR characters will not be done [see termio(7)].  When
+\fBSUSP\fR characters will not be done [see termios(4)].  When
 \fBqiflush\fR is called, the queues will be flushed when these control
 characters are read.
 
@@ -161,7 +161,7 @@ The entry points \fBintrflush\fR, \fBqiflush\fR, \fBnoqiflush\fR, and
 \fBtypeahead\fR are not yet implemented in ncurses 1.8.6.  The ncurses
 code does not do typeahead checking during input as SVr4 curses does.
 .SH SEE ALSO
-\fBncurses\fR(3), \fBcurs_getch\fR(3), \fBcurs_initscr\fR(3), \fBtermio\fR(7)
+\fBncurses\fR(3), \fBcurs_getch\fR(3), \fBcurs_initscr\fR(3), \fBtermios\fR(4)
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:
