@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.7 1994/11/26 19:24:13 bde Exp $
+ * $Id: tty.h,v 1.8 1995/01/05 00:01:06 ache Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -200,6 +200,7 @@ int	 nullmodem __P((struct tty *tp, int flag));
 int	 tputchar __P((int c, struct tty *tp));
 int	 ttioctl __P((struct tty *tp, int com, void *data, int flag));
 int	 ttread __P((struct tty *tp, struct uio *uio, int flag));
+int	 ttnread __P((struct tty *));
 void	 ttrstrt __P((void *tp));
 int	 ttselect __P((dev_t device, int rw, struct proc *p));
 void	 ttsetwater __P((struct tty *tp));
@@ -224,6 +225,8 @@ int	 ttysleep __P((struct tty *tp,
 	    void *chan, int pri, char *wmesg, int timeout));
 int	 ttywait __P((struct tty *tp));
 int	 ttywflush __P((struct tty *tp));
+struct tty *ttymalloc __P((void));
+void     ttyfree __P((struct tty *));
 #endif /* KERNEL */
 
 #endif /* !_SYS_TTY_H_ */
