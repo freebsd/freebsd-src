@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.52 1995/12/16 00:27:44 bde Exp $
+**  $Id: ncr.c,v 1.53 1995/12/28 13:04:03 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1249,7 +1249,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.52 1995/12/16 00:27:44 bde Exp $\n";
+	"\n$Id: ncr.c,v 1.53 1995/12/28 13:04:03 se Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1259,9 +1259,6 @@ static u_long	ncr_version = NCR_VERSION	* 11
 
 #ifdef KERNEL
 
-#ifndef __NetBSD__
-static ncb_p		ncrp [MAX_UNITS];
-#endif /* !__NetBSD__ */
 
 static int ncr_debug = SCSI_DEBUG_FLAGS;
 SYSCTL_INT(_debug, OID_AUTO, ncr_debug, CTLFLAG_RW, &ncr_debug, 0, "");
@@ -3267,7 +3264,6 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	if (!np) {
 		np = (ncb_p) malloc (sizeof (struct ncb), M_DEVBUF, M_WAITOK);
 		if (!np) return;
-		ncrp[unit]=np;
 	}
 
 	/*
@@ -3431,6 +3427,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	np->sc_link.openings = 1;
 #else /* !__NetBSD__ */
 	np->sc_link.adapter_unit = unit;
+	np->sc_link.adapter_softc = np;
 	np->sc_link.adapter_targ = np->myaddr;
 	np->sc_link.fordriver	 = 0;
 #endif /* !__NetBSD__ */
@@ -3535,11 +3532,7 @@ ncr_intr(vnp)
 
 static INT32 ncr_start (struct scsi_xfer * xp)
 {
-#ifdef __NetBSD__
-	ncb_p np  = xp->sc_link->adapter_softc;
-#else /*__NetBSD__*/
-	ncb_p np  = ncrp[xp->sc_link->adapter_unit];
-#endif/*__NetBSD__*/
+	ncb_p np  = (ncb_p) xp->sc_link->adapter_softc;
 
 	struct scsi_generic * cmd = xp->cmd;
 	ccb_p cp;
