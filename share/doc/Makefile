@@ -5,7 +5,7 @@ SUBDIR=	psd smm usd papers IPv6
 
 # Default output formats are ascii for troff documents, and 
 # ascii and html for sgml documents.  
-# To specify generate postscript versions of troff documents, use: 
-#  make PRINTER=ps
+# To generate postscript versions of troff documents, use:
+#  make PRINTERDEVICE=ps
 
 .include <bsd.subdir.mk>
