@@ -847,7 +847,7 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 	 * Deal with BIO_DELETE
 	 */
 
-	if (bp->b_iocmd & BIO_DELETE) {
+	if (bp->b_iocmd == BIO_DELETE) {
 		/*
 		 * FREE PAGE(s) - destroy underlying swap that is no longer
 		 *		  needed.
@@ -1333,6 +1333,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			bp = getpbuf(&nsw_wcount_async);
 			bp->b_flags = B_ASYNC;
 		}
+		bp->b_iocmd = BIO_WRITE;
 		bp->b_spc = NULL;	/* not used, but NULL-out anyway */
 
 		pmap_qenter((vm_offset_t)bp->b_data, &m[i], n);
