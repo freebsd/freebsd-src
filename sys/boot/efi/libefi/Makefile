@@ -2,25 +2,25 @@
 
 .PATH: ${.CURDIR}/../../../${MACHINE_ARCH}/${MACHINE_ARCH}
 
-LIB=		efi
+LIB=	efi
 INTERNALLIB=
 
-SRCS=	libefi.c efi_console.c time.c copy.c devicename.c module.c
-SRCS+=	delay.c efifs.c efinet.c elf_freebsd.c bootinfo.c pal.S
+SRCS=	bootinfo.c copy.c delay.c devicename.c efi_console.c efifs.c efinet.c \
+	elf_freebsd.c libefi.c module.c time.c
 
 .if ${MACHINE_ARCH} == "ia64"
-SRCS+=	efifpswa.c
+SRCS+=	efifpswa.c pal.S
 .endif
 
-CFLAGS+=	-I${.CURDIR}/../include
-CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_ARCH}
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
+CFLAGS+= -I${.CURDIR}/../include
+CFLAGS+= -I${.CURDIR}/../include/${MACHINE_ARCH}
+CFLAGS+= -I${.CURDIR}/../../../../lib/libstand
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+=	-I${.CURDIR}/../../common
+CFLAGS+= -I${.CURDIR}/../../common
 
-.if defined(BOOT_DISK_DEBUG)
 # Make the disk code more talkative
+.if defined(BOOT_DISK_DEBUG)
 CFLAGS+= -DDISK_DEBUG
 .endif
 
