@@ -117,6 +117,8 @@ struct ifnet {
 	short	if_unit;		/* sub-unit for lower level driver */
 	short	if_timer;		/* time 'til if_watchdog called */
 	short	if_flags;		/* up/down, broadcast, etc. */
+	int	if_capabilities;	/* interface capabilities */
+	int	if_capenable;		/* enabled features */
 	int	if_mpsafe;		/* XXX TEMPORARY */
 	int	if_ipending;		/* interrupts pending */
 	void	*if_linkmib;		/* link-type-specific MIB data */

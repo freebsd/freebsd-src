@@ -994,6 +994,11 @@ ifioctl(so, cmd, data, td)
 		ifr->ifr_flags = ifp->if_flags;
 		break;
 
+	case SIOCGIFCAP:
+		ifr->ifr_reqcap = ifp->if_capabilities;
+		ifr->ifr_curcap = ifp->if_capenable;
+		break;
+
 	case SIOCGIFMETRIC:
 		ifr->ifr_metric = ifp->if_metric;
 		break;
@@ -1029,6 +1034,15 @@ ifioctl(so, cmd, data, td)
 		if (ifp->if_ioctl)
 			(void) (*ifp->if_ioctl)(ifp, cmd, data);
 		getmicrotime(&ifp->if_lastchange);
+		break;
+
+	case SIOCSIFCAP:
+		error = suser_td(td);
+		if (error)
+			return (error);
+		if (ifr->ifr_reqcap & ~ifp->if_capabilities)
+			return (EINVAL);
+		(void) (*ifp->if_ioctl)(ifp, cmd, data);
 		break;
 
 	case SIOCSIFMETRIC:
