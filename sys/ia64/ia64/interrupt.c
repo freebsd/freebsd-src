@@ -259,22 +259,6 @@ ithds_init(void *dummy)
 SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
 
 static void
-ia64_enable(int vector)
-{
-	int irq, i;
-
-	irq = vector - IA64_HARDWARE_IRQ_BASE;
-	for (i = 0; i < ia64_sapic_count; i++) {
-		struct sapic *sa = ia64_sapics[i];
-		if (irq < sa->sa_base || irq > sa->sa_limit)
-			continue;
-		sapic_enable(sa, irq - sa->sa_base, vector,
-		    (irq < 16) ? SAPIC_TRIGGER_EDGE : SAPIC_TRIGGER_LEVEL,
-		    (irq < 16) ? SAPIC_POLARITY_HIGH : SAPIC_POLARITY_LOW);
-	}
-}
-
-static void
 ia64_send_eoi(int vector)
 {
 	int irq, i;
@@ -341,8 +325,7 @@ ia64_setup_intr(const char *name, int irq, driver_intr_t handler, void *arg,
 	if (errcode)
 		return errcode;
 
-	ia64_enable(vector);
-	return 0;
+	return (sapic_enable(irq, vector));
 }
 
 int
