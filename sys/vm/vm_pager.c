@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.30 1997/10/12 20:26:31 phk Exp $
+ * $Id: vm_pager.c,v 1.31 1997/12/29 00:25:06 dyson Exp $
  */
 
 /*
@@ -136,13 +136,11 @@ vm_pager_bufferinit()
 	/*
 	 * Now set up swap and physical I/O buffer headers.
 	 */
-	for (i = 0; i < nswbuf - 1; i++, bp++) {
+	for (i = 0; i < nswbuf; i++, bp++) {
 		TAILQ_INSERT_HEAD(&bswlist, bp, b_freelist);
 		bp->b_rcred = bp->b_wcred = NOCRED;
 		bp->b_vnbufs.le_next = NOLIST;
 	}
-	bp->b_rcred = bp->b_wcred = NOCRED;
-	bp->b_vnbufs.le_next = NOLIST;
 
 	swapbkva = kmem_alloc_pageable(pager_map, nswbuf * MAXPHYS);
 	if (!swapbkva)

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.36 1997/09/27 13:39:46 kato Exp $
+ * $Id: conf.h,v 1.37 1997/11/22 08:35:42 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -108,6 +108,7 @@ struct bdevsw {
 	char 		*d_name;	/* name of the driver e.g. audio */
 	struct cdevsw	*d_cdev; 	/* cross pointer to the cdev */
 	int		d_maj;		/* the major number we were assigned */
+	int		d_maxio;
 };
 
 #ifdef KERNEL

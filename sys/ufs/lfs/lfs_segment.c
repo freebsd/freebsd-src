@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.10 (Berkeley) 6/10/95
- * $Id: lfs_segment.c,v 1.25 1997/10/16 11:58:30 phk Exp $
+ * $Id: lfs_segment.c,v 1.26 1997/12/02 21:07:17 phk Exp $
  */
 
 #include <sys/param.h>
@@ -931,7 +931,7 @@ lfs_writeseg(fs, sp)
 	/*
 	 * When we simply write the blocks we lose a rotation for every block
 	 * written.  To avoid this problem, we allocate memory in chunks, copy
-	 * the buffers into the chunk and write the chunk.  MAXPHYS is the
+	 * the buffers into the chunk and write the chunk.  DFLTPHYS is the
 	 * largest size I/O devices can handle.
 	 * When the data is copied to the chunk, turn off the the B_LOCKED bit
 	 * and brelse the buffer (which will move them to the LRU list).  Add
@@ -945,16 +945,16 @@ lfs_writeseg(fs, sp)
 	 */
 	for (bpp = sp->bpp, i = nblocks; i;) {
 		cbp = lfs_newbuf(VTOI(fs->lfs_ivnode)->i_devvp,
-		    (*bpp)->b_blkno, MAXPHYS);
+		    (*bpp)->b_blkno, DFLTPHYS);
 		cbp->b_dev = i_dev;
 		cbp->b_flags |= B_ASYNC | B_BUSY;
 		cbp->b_bcount = 0;
 
 		s = splbio();
 		++fs->lfs_iocount;
-		for (p = cbp->b_data; i && cbp->b_bcount < MAXPHYS; i--) {
+		for (p = cbp->b_data; i && cbp->b_bcount < DFLTPHYS; i--) {
 			bp = *bpp;
-			if (bp->b_bcount > (MAXPHYS - cbp->b_bcount))
+			if (bp->b_bcount > (DFLTPHYS - cbp->b_bcount))
 				break;
 			bpp++;
 
