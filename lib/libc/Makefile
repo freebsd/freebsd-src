@@ -9,6 +9,7 @@
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
 LIB=c
+# If you bump SHLIB_MAJOR, remove kluge from gen/gethostname.c.
 SHLIB_MAJOR= 5
 SHLIBDIR?= /lib
 CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
