@@ -1379,7 +1379,7 @@ static driver_t apm_driver = {
 
 static devclass_t apm_devclass;
 
-DRIVER_MODULE(apm, nexus, apm_driver, apm_devclass, apm_modevent, 0);
+DRIVER_MODULE(apm, legacy, apm_driver, apm_devclass, apm_modevent, 0);
 MODULE_VERSION(apm, 1);
 
 static int
