@@ -261,7 +261,7 @@ struct kdpc {
 	void			*k_deferredctx;
 	void			*k_sysarg1;
 	void			*k_sysarg2;
-	uint32_t		*k_lock;
+	register_t		k_lock;
 };
 
 typedef struct kdpc kdpc;
@@ -480,6 +480,8 @@ __BEGIN_DECLS
 extern int ntoskrnl_libinit(void);
 extern int ntoskrnl_libfini(void);
 __stdcall extern void ntoskrnl_init_dpc(kdpc *, void *, void *);
+__stdcall extern uint8_t ntoskrnl_queue_dpc(kdpc *, void *, void *);
+__stdcall extern uint8_t ntoskrnl_dequeue_dpc(kdpc *);
 __stdcall extern void ntoskrnl_init_timer(ktimer *);
 __stdcall extern void ntoskrnl_init_timer_ex(ktimer *, uint32_t);
 __stdcall extern uint8_t ntoskrnl_set_timer(ktimer *, int64_t, kdpc *);  
