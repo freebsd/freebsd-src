@@ -680,7 +680,7 @@ osigreturn(td, uap)
 
 		/* Go back to user mode if both flags are set. */
 		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(p, SIGBUS, 0);
+			trapsignal(td, SIGBUS, 0);
 
 		if (vm86->vm86_has_vme) {
 			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
@@ -721,7 +721,7 @@ osigreturn(td, uap)
 		 * other selectors, invalid %eip's and invalid %esp's.
 		 */
 		if (!CS_SECURE(scp->sc_cs)) {
-			trapsignal(p, SIGBUS, T_PROTFLT);
+			trapsignal(td, SIGBUS, T_PROTFLT);
 			return (EINVAL);
 		}
 		regs->tf_ds = scp->sc_ds;
@@ -798,7 +798,7 @@ freebsd4_sigreturn(td, uap)
 
 		/* Go back to user mode if both flags are set. */
 		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(p, SIGBUS, 0);
+			trapsignal(td, SIGBUS, 0);
 
 		if (vm86->vm86_has_vme) {
 			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
@@ -844,7 +844,7 @@ freebsd4_sigreturn(td, uap)
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
 			printf("freebsd4_sigreturn: cs = 0x%x\n", cs);
-			trapsignal(p, SIGBUS, T_PROTFLT);
+			trapsignal(td, SIGBUS, T_PROTFLT);
 			return (EINVAL);
 		}
 
@@ -905,7 +905,7 @@ sigreturn(td, uap)
 
 		/* Go back to user mode if both flags are set. */
 		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(p, SIGBUS, 0);
+			trapsignal(td, SIGBUS, 0);
 
 		if (vm86->vm86_has_vme) {
 			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
@@ -951,7 +951,7 @@ sigreturn(td, uap)
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
 			printf("sigreturn: cs = 0x%x\n", cs);
-			trapsignal(p, SIGBUS, T_PROTFLT);
+			trapsignal(td, SIGBUS, T_PROTFLT);
 			return (EINVAL);
 		}
 

@@ -554,7 +554,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	 */
 #define	CS_SECURE(cs)	(ISPL(cs) == SEL_UPL)
 	if (!CS_SECURE(frame.sf_sc.sc_cs)) {
-		trapsignal(p, SIGBUS, T_PROTFLT);
+		trapsignal(td, SIGBUS, T_PROTFLT);
 		return(EINVAL);
 	}
 
@@ -652,7 +652,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	 */
 #define	CS_SECURE(cs)	(ISPL(cs) == SEL_UPL)
 	if (!CS_SECURE(context->sc_cs)) {
-		trapsignal(p, SIGBUS, T_PROTFLT);
+		trapsignal(td, SIGBUS, T_PROTFLT);
 		return(EINVAL);
 	}
 
