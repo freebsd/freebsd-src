@@ -30,6 +30,6 @@
 #define _LDPART_H
 
 extern int __part_load_locale(const char *, int*, char *, const char *,
-		int, const char **);
+		int, int, const char **);
 
 #endif /* _LDPART_H */
