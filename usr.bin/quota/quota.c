@@ -403,7 +403,7 @@ heading(type, id, name, tag)
 	if (!qflag && tag[0] == '\0') {
 		printf("%15s%8s %7s%8s%8s%8s %7s%8s%8s\n"
 			, "Filesystem"
-			, "blocks"
+			, "usage"
 			, "quota"
 			, "limit"
 			, "grace"
