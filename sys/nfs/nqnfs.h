@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.3 (Berkeley) 3/30/95
- * $Id: nqnfs.h,v 1.15 1998/03/30 09:54:45 phk Exp $
+ * $Id: nqnfs.h,v 1.16 1998/05/31 20:09:00 peter Exp $
  */
 
 
@@ -62,6 +62,7 @@
 #define	NQNFS_VER3	3
 #define	NQNFS_EVICTSIZ	156	/* Size of eviction request in bytes */
 
+#if defined(KERNEL) || defined(_KERNEL)
 /*
  * Definitions used for saving the "last lease expires" time in Non-volatile
  * RAM on the server. The default definitions below assume that NOVRAM is not
@@ -198,7 +199,6 @@ extern u_long nqfhhash;
 #define	NQNFS_EXPIRED	500
 #define	NQNFS_TRYLATER	501
 
-#if defined(KERNEL) || defined(_KERNEL)
 void	nqnfs_lease_check __P((struct vnode *, struct proc *, struct ucred *, int));
 void	nqnfs_lease_updatetime __P((int));
 int	nqsrv_getlease __P((struct vnode *, u_int32_t *, int,
