@@ -53,13 +53,6 @@
 #include <i386/isa/if_sr.h>
 #endif	/* NETGRAPH */
 
-#ifndef NETGRAPH
-#include "sppp.h"
-#if NSPPP <= 0
-#error Device 'sr' requires sppp.
-#endif
-#endif	/* NETGRAPH */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
