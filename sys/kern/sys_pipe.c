@@ -48,22 +48,40 @@
  * In order to limit the resource use of pipes, two sysctls exist:
  *
  * kern.ipc.maxpipekva - This is a hard limit on the amount of pageable
- * address space available to us in pipe_map.  Whenever the amount in use
- * exceeds half of this value, all new pipes will be created with size
- * SMALL_PIPE_SIZE, rather than PIPE_SIZE.  Big pipe creation will be limited
- * as well.  This value is loader tunable only.
+ * address space available to us in pipe_map. This value is normally
+ * autotuned, but may also be loader tuned.
  *
- * These values are autotuned in subr_param.c.
+ * kern.ipc.pipekva - This read-only sysctl tracks the current amount of
+ * memory in use by pipes.
  *
- * Memory usage may be monitored through the sysctls
- * kern.ipc.pipes, kern.ipc.pipekva and kern.ipc.pipekvawired.
+ * Based on how large pipekva is relative to maxpipekva, the following
+ * will happen:
  *
+ * 0% - 50%:
+ *     New pipes are given 16K of memory backing, pipes may dynamically
+ *     grow to as large as 64K where needed.
+ * 50% - 75%:
+ *     New pipes are given 4K (or PAGE_SIZE) of memory backing,
+ *     existing pipes may NOT grow.
+ * 75% - 100%:
+ *     New pipes are given 4K (or PAGE_SIZE) of memory backing,
+ *     existing pipes will be shrunk down to 4K whenever possible.
+ *
+ * Resizing may be disabled by setting kern.ipc.piperesizeallowed=0.  If
+ * that is set,  the only resize that will occur is the 0 -> SMALL_PIPE_SIZE
+ * resize which MUST occur for reverse-direction pipes when they are
+ * first used.
+ *
+ * Additional information about the current state of pipes may be obtained
+ * from kern.ipc.pipes, kern.ipc.pipefragretry, kern.ipc.pipeallocfail,
+ * and kern.ipc.piperesizefail.
  *
  * Locking rules:  There are two locks present here:  A mutex, used via
  * PIPE_LOCK, and a flag, used via pipelock().  All locking is done via
  * the flag, as mutexes can not persist over uiomove.  The mutex
  * exists only to guard access to the flag, and is not in itself a
- * locking mechanism.
+ * locking mechanism.  Also note that there is only a single mutex for
+ * both directions of a pipe.
  *
  * As pipelock() may have to sleep before it can acquire the flag, it
  * is important to reread all data after a call to pipelock(); everything
@@ -156,14 +174,12 @@ static struct filterops pipe_wfiltops =
 #define MINPIPESIZE (PIPE_SIZE/3)
 #define MAXPIPESIZE (2*PIPE_SIZE/3)
 
-/*
- * Limit the number of "big" pipes
- */
-#define LIMITBIGPIPES	32
-static int nbigpipe;
-
 static int amountpipes;
 static int amountpipekva;
+static int pipefragretry;
+static int pipeallocfail;
+static int piperesizefail;
+static int piperesizeallowed = 1;
 
 SYSCTL_DECL(_kern_ipc);
 
@@ -171,15 +187,21 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN,
 	   &maxpipekva, 0, "Pipe KVA limit");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipes, CTLFLAG_RD,
 	   &amountpipes, 0, "Current # of pipes");
-SYSCTL_INT(_kern_ipc, OID_AUTO, bigpipes, CTLFLAG_RD,
-	   &nbigpipe, 0, "Current # of big pipes");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipekva, CTLFLAG_RD,
 	   &amountpipekva, 0, "Pipe KVA usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, pipefragretry, CTLFLAG_RD,
+	  &pipefragretry, 0, "Pipe allocation retries due to fragmentation");
+SYSCTL_INT(_kern_ipc, OID_AUTO, pipeallocfail, CTLFLAG_RD,
+	  &pipeallocfail, 0, "Pipe allocation failures");
+SYSCTL_INT(_kern_ipc, OID_AUTO, piperesizefail, CTLFLAG_RD,
+	  &piperesizefail, 0, "Pipe resize failures");
+SYSCTL_INT(_kern_ipc, OID_AUTO, piperesizeallowed, CTLFLAG_RW,
+	  &piperesizeallowed, 0, "Pipe resizing allowed");
 
 static void pipeinit(void *dummy __unused);
 static void pipeclose(struct pipe *cpipe);
 static void pipe_free_kmem(struct pipe *cpipe);
-static int pipe_create(struct pipe *pipe);
+static int pipe_create(struct pipe *pipe, int backing);
 static __inline int pipelock(struct pipe *cpipe, int catch);
 static __inline void pipeunlock(struct pipe *cpipe);
 static __inline void pipeselwakeup(struct pipe *cpipe);
@@ -329,7 +351,8 @@ pipe(td, uap)
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
 
-	if (pipe_create(rpipe) || pipe_create(wpipe)) {
+	/* Only the forward direction pipe is backed by default */
+	if (pipe_create(rpipe, 1) || pipe_create(wpipe, 0)) {
 		pipeclose(rpipe);
 		pipeclose(wpipe);
 		return (ENFILE);
@@ -401,38 +424,61 @@ pipespace_new(cpipe, size)
 	int size;
 {
 	caddr_t buffer;
-	int error;
+	int error, cnt, firstseg;
 	static int curfail = 0;
 	static struct timeval lastfail;
 
 	KASSERT(!mtx_owned(PIPE_MTX(cpipe)), ("pipespace: pipe mutex locked"));
+	KASSERT(!(cpipe->pipe_state & PIPE_DIRECTW),
+		("pipespace: resize of direct writes not allowed"));
+retry:
+	cnt = cpipe->pipe_buffer.cnt;
+	if (cnt > size)
+		size = cnt;
 
 	size = round_page(size);
-	/*
-	 * XXX -- minor change needed here for NetBSD/OpenBSD VM systems.
-	 */
 	buffer = (caddr_t) vm_map_min(pipe_map);
 
-	/*
-	 * The map entry is, by default, pageable.
-	 * XXX -- minor change needed here for NetBSD/OpenBSD VM systems.
-	 */
 	error = vm_map_find(pipe_map, NULL, 0,
 		(vm_offset_t *) &buffer, size, 1,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error != KERN_SUCCESS) {
-		if (ppsratecheck(&lastfail, &curfail, 1))
-			printf("kern.ipc.maxpipekva exceeded; see tuning(7)\n");
+		if ((cpipe->pipe_buffer.buffer == NULL) &&
+			(size > SMALL_PIPE_SIZE)) {
+			size = SMALL_PIPE_SIZE;
+			pipefragretry++;
+			goto retry;
+		}
+		if (cpipe->pipe_buffer.buffer == NULL) {
+			pipeallocfail++;
+			if (ppsratecheck(&lastfail, &curfail, 1))
+				printf("kern.ipc.maxpipekva exceeded; see tuning(7)\n");
+		} else {
+			piperesizefail++;
+		}
 		return (ENOMEM);
 	}
 
-	/* free old resources if we're resizing */
+	/* copy data, then free old resources if we're resizing */
+	if (cnt > 0) {
+		if (cpipe->pipe_buffer.in <= cpipe->pipe_buffer.out) {
+			firstseg = cpipe->pipe_buffer.size - cpipe->pipe_buffer.out;
+			bcopy(&cpipe->pipe_buffer.buffer[cpipe->pipe_buffer.out],
+				buffer, firstseg);
+			if ((cnt - firstseg) > 0)
+				bcopy(cpipe->pipe_buffer.buffer, &buffer[firstseg],
+					cpipe->pipe_buffer.in);
+		} else {
+			bcopy(&cpipe->pipe_buffer.buffer[cpipe->pipe_buffer.out],
+				buffer, cnt);
+		}
+	}
 	pipe_free_kmem(cpipe);
 	cpipe->pipe_buffer.buffer = buffer;
 	cpipe->pipe_buffer.size = size;
-	cpipe->pipe_buffer.in = 0;
+	cpipe->pipe_buffer.in = cnt;
 	cpipe->pipe_buffer.out = 0;
-	cpipe->pipe_buffer.cnt = 0;
+	cpipe->pipe_buffer.cnt = cnt;
 	atomic_add_int(&amountpipekva, cpipe->pipe_buffer.size);
 	return (0);
 }
@@ -512,18 +558,21 @@ pipeselwakeup(cpipe)
  * will start out zero'd from the ctor, so we just manage the kmem.
  */
 static int
-pipe_create(pipe)
+pipe_create(pipe, backing)
 	struct pipe *pipe;
+	int backing;
 {
 	int error;
 
-	/*
-	 * Reduce to 1/4th pipe size if we're over our global max.
-	 */
-	if (amountpipekva > maxpipekva / 2)
-		error = pipespace_new(pipe, SMALL_PIPE_SIZE);
-	else
-		error = pipespace_new(pipe, PIPE_SIZE);
+	if (backing) {
+		if (amountpipekva > maxpipekva / 2)
+			error = pipespace_new(pipe, SMALL_PIPE_SIZE);
+		else
+			error = pipespace_new(pipe, PIPE_SIZE);
+	} else {
+		/* If we're not backing this pipe, no need to do anything. */
+		error = 0;
+	}
 	knlist_init(&pipe->pipe_sel.si_note, PIPE_MTX(pipe));
 	return (error);
 }
@@ -553,6 +602,16 @@ pipe_read(fp, uio, active_cred, flags, td)
 	if (error)
 		goto locked_error;
 #endif
+	if (amountpipekva > (3 * maxpipekva) / 4) {
+		if (!(rpipe->pipe_state & PIPE_DIRECTW) &&
+			(rpipe->pipe_buffer.size > SMALL_PIPE_SIZE) &&
+			(rpipe->pipe_buffer.cnt <= SMALL_PIPE_SIZE) &&
+			(piperesizeallowed == 1)) {
+			PIPE_UNLOCK(rpipe);
+			pipespace(rpipe, SMALL_PIPE_SIZE);
+			PIPE_LOCK(rpipe);
+		}
+	}
 
 	while (uio->uio_resid) {
 		/*
@@ -708,6 +767,8 @@ pipe_build_write_buffer(wpipe, uio)
 	vm_offset_t addr, endaddr;
 
 	PIPE_LOCK_ASSERT(wpipe, MA_NOTOWNED);
+	KASSERT(wpipe->pipe_state & PIPE_DIRECTW,
+		("Clone attempt on non-direct write pipe!"));
 
 	size = (u_int) uio->uio_iov->iov_len;
 	if (size > wpipe->pipe_buffer.size)
@@ -926,7 +987,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 	int flags;
 {
 	int error = 0;
-	int orig_resid;
+	int desiredsize, orig_resid;
 	struct pipe *wpipe, *rpipe;
 
 	rpipe = fp->f_data;
@@ -956,21 +1017,42 @@ pipe_write(fp, uio, active_cred, flags, td)
 #endif
 	++wpipe->pipe_busy;
 
-	/*
-	 * If it is advantageous to resize the pipe buffer, do
-	 * so.
-	 */
-	if ((uio->uio_resid > PIPE_SIZE) &&
-		(amountpipekva < maxpipekva / 2) &&
-		(nbigpipe < LIMITBIGPIPES) &&
-		(wpipe->pipe_state & PIPE_DIRECTW) == 0 &&
-		(wpipe->pipe_buffer.size <= PIPE_SIZE) &&
-		(wpipe->pipe_buffer.cnt == 0)) {
+	/* Choose a larger size if it's advantageous */
+	desiredsize = max(SMALL_PIPE_SIZE, wpipe->pipe_buffer.size);
+	while (desiredsize < wpipe->pipe_buffer.cnt + uio->uio_resid) {
+		if (piperesizeallowed != 1)
+			break;
+		if (amountpipekva > maxpipekva / 2)
+			break;
+		if (desiredsize == BIG_PIPE_SIZE)
+			break;
+		desiredsize = desiredsize * 2;
+	}
 
+	/* Choose a smaller size if we're in a OOM situation */
+	if ((amountpipekva > (3 * maxpipekva) / 4) &&
+		(wpipe->pipe_buffer.size > SMALL_PIPE_SIZE) &&
+		(wpipe->pipe_buffer.cnt <= SMALL_PIPE_SIZE) &&
+		(piperesizeallowed == 1))
+		desiredsize = SMALL_PIPE_SIZE;
+
+	/* Resize if the above determined that a new size was necessary */
+	if ((desiredsize != wpipe->pipe_buffer.size) &&
+		((wpipe->pipe_state & PIPE_DIRECTW) == 0)) {
 		PIPE_UNLOCK(wpipe);
-		if (pipespace(wpipe, BIG_PIPE_SIZE) == 0)
-			atomic_add_int(&nbigpipe, 1);
+		pipespace(wpipe, desiredsize);
 		PIPE_LOCK(wpipe);
+	}
+	if (wpipe->pipe_buffer.size == 0) {
+		/*
+		 * This can only happen for reverse direction use of pipes
+		 * in a complete OOM situation.
+		 */
+		error = ENOMEM;
+		--wpipe->pipe_busy;
+		pipeunlock(wpipe);
+		PIPE_UNLOCK(wpipe);
+		return (error);
 	}
 
 	pipeunlock(wpipe);
@@ -997,6 +1079,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		 * away on us.
 		 */
 		if ((uio->uio_iov->iov_len >= PIPE_MINDIRECT) &&
+		    (wpipe->pipe_buffer.size >= PIPE_MINDIRECT) &&
 		    (fp->f_flag & FNONBLOCK) == 0) {
 			pipeunlock(wpipe);
 			error = pipe_direct_write(wpipe, uio);
@@ -1325,7 +1408,7 @@ pipe_stat(fp, ub, active_cred, td)
 #endif
 	bzero(ub, sizeof(*ub));
 	ub->st_mode = S_IFIFO;
-	ub->st_blksize = pipe->pipe_buffer.size;
+	ub->st_blksize = PAGE_SIZE;
 	if (pipe->pipe_state & PIPE_DIRECTW)
 		ub->st_size = pipe->pipe_map.cnt;
 	else
@@ -1367,8 +1450,6 @@ pipe_free_kmem(cpipe)
 	    ("pipe_free_kmem: pipe mutex locked"));
 
 	if (cpipe->pipe_buffer.buffer != NULL) {
-		if (cpipe->pipe_buffer.size > PIPE_SIZE)
-			atomic_subtract_int(&nbigpipe, 1);
 		atomic_subtract_int(&amountpipekva, cpipe->pipe_buffer.size);
 		vm_map_remove(pipe_map,
 		    (vm_offset_t)cpipe->pipe_buffer.buffer,
