@@ -35,8 +35,12 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)function.c	8.10 (Berkeley) 5/4/95";
-static char rcsid[] = "$FreeBSD$";
+#if 0
+static const char sccsid[] = "@(#)function.c	8.10 (Berkeley) 5/4/95";
+#else
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -717,6 +721,67 @@ c_ls()
 }
 
 /*
+ * -maxdepth n functions --
+ *
+ *        Does the same as -prune if the level of the current file is greater
+ *        than the specified maximum depth.
+ *
+ *        Note that -maxdepth and -mindepth are handled specially in
+ *        find_execute() so their f_* functions here do nothing.
+ */
+int
+f_maxdepth(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	return (1);
+}
+
+PLAN *
+c_maxdepth(arg)
+	char *arg;
+{
+	PLAN *new;
+
+	if (*arg == '-')
+		/* all other errors handled by find_parsenum() */
+		errx(1, "-maxdepth: %s: value must be positive", arg);
+
+	new = palloc(N_MAXDEPTH, f_maxdepth);
+	maxdepth = find_parsenum(new, "-maxdepth", arg, NULL);
+	return (new);
+}
+
+/*
+ * -mindepth n functions --
+ *
+ *        True if the current file is at or deeper than the specified minimum
+ *        depth.
+ */
+int
+f_mindepth(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	return (1);
+}
+
+PLAN *
+c_mindepth(arg)
+  char *arg;
+{
+	PLAN *new;
+
+	if (*arg == '-')
+		/* all other errors handled by find_parsenum() */
+		errx(1, "-maxdepth: %s: value must be positive", arg);
+
+	new = palloc(N_MINDEPTH, f_mindepth);
+	mindepth = find_parsenum(new, "-mindepth", arg, NULL);
+	return (new);
+}
+
+/*
  * -mtime n functions --
  *
  *	True if the difference between the file modification time and the
@@ -1010,9 +1075,6 @@ c_flags(flags_str)
 #endif
 	return new;
 }
-  
-  /*
-
 
 /*
  * -print functions --
