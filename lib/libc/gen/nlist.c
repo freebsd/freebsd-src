@@ -54,7 +54,8 @@ static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/4/93";
 #define _NLIST_DO_ELF
 
 #ifdef _NLIST_DO_ELF
-#include <elf.h>
+#include <machine/elf.h>
+#include <elf-hints.h>
 #endif
 
 int __fdnlist		__P((int, struct nlist *));

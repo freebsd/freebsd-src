@@ -26,11 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_ELF_H_
-#define	_ELF_H_
-
-#include <sys/types.h>
-#include <machine/elf.h>
+#ifndef	_ELF_HINTS_H_
+#define	_ELF_HINTS_H_
 
 /*
  * Hints file produced by ldconfig.
@@ -50,4 +47,4 @@ struct elfhints_hdr {
 
 #define _PATH_ELF_HINTS	"/var/run/ld-elf.so.hints"
 
-#endif /* !_ELF_H_ */
+#endif /* !_ELF_HINTS_H_ */
