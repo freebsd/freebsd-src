@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.94 1996/09/06 23:09:18 phk Exp $
+ *      $Id: sd.c,v 1.95 1996/09/14 04:31:09 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -281,7 +281,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 	 * If it's been invalidated, then forget the label
 	 */
 	sc_link->flags |= SDEV_OPEN;	/* unit attn becomes an err now */
-	if (!(sc_link->flags & SDEV_MEDIA_LOADED)) {
+	if (!(sc_link->flags & SDEV_MEDIA_LOADED) && sd->dk_slices != NULL) {
 		/*
 		 * If somebody still has it open, then forbid re-entry.
 		 */
@@ -290,10 +290,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 			goto bad;
 		}
 
-		if (sd->dk_slices == NULL)
-			Debugger("sdopen: no slices");
-		else
-			dsgone(&sd->dk_slices);
+		dsgone(&sd->dk_slices);
 	}
 	/*
 	 * In case it is a funny one, tell it to start
