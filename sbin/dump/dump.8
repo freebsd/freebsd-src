@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dump.8	8.3 (Berkeley) 5/1/95
-.\"	$Id: dump.8,v 1.17 1997/10/12 13:10:26 joerg Exp $
+.\"	$Id: dump.8,v 1.18 1997/10/19 09:43:08 joerg Exp $
 .\"
 .Dd May 1, 1995
 .Dt DUMP 8
@@ -99,7 +99,7 @@ incremental backup,
 tells dump to
 copy all files new or modified since the
 last dump of any lower level.
-The default level is 9.
+The default level is 0.
 .It Fl B Ar records
 The number of 1 KB blocks per volume.
 This option overrides the calculation of tape size
