@@ -47,10 +47,10 @@
 
   <sect2>
     <title>Disk Controllers</title>
-      <para arch="i386,alpha,sparc64,ia64">IDE/ATA controllers (&man.ata.4; driver)
+      <para arch="i386,alpha,sparc64,ia64,pc98">IDE/ATA controllers (&man.ata.4; driver)
         <itemizedlist>
 	   <listitem>
-	     <para>Acerlabs Aladdin</para>
+	     <para>Acard ATP850 UDMA2, ATP860 UDMA4, ATP865 UDMA6</para>
 	   </listitem>
 	   <listitem>
 	     <para>AMD 756 ATA66, 766 ATA100, 768 ATA100</para>
@@ -120,7 +120,7 @@
     <para arch="pc98">IDE/ATA controllers (wdc driver)
       <itemizedlist>
         <listitem>
-	  <para>on-board IDE controller</para>
+	  <para>On-board IDE controller</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -2050,7 +2050,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">Gigabit Ethernet NICs based on the Broadcom BCM570x
+    <para arch="i386,pc98,ia64">Gigabit Ethernet NICs based on the Broadcom BCM570x
     (&man.bge.4; driver)
       <itemizedlist>
         <listitem>
