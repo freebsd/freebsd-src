@@ -93,7 +93,7 @@ struct acpi_cpu_softc {
     (bus_space_write_ ## width(rman_get_bustag((reg)), 			\
 		       rman_get_bushandle((reg)), 0, (val)))
 
-/* 
+/*
  * Speeds are stored in counts, from 1 - CPU_MAX_SPEED, and
  * reported to the user in tenths of a percent.
  */
@@ -294,7 +294,7 @@ acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id, uint32_t *cpu_id)
 {
     struct pcpu	*pcpu_data;
     uint32_t	 i;
-  
+
     KASSERT(acpi_id != NULL, ("Null acpi_id"));
     KASSERT(cpu_id != NULL, ("Null cpu_id"));
     for (i = 0; i <= mp_maxid; i++) {
@@ -320,7 +320,7 @@ acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id, uint32_t *cpu_id)
 
     return (ESRCH);
 }
-          
+
 static int
 acpi_cpu_shutdown(device_t dev)
 {
@@ -656,7 +656,7 @@ acpi_cpu_startup_throttling()
     cpu_economy_state = cpu_performance_state / 2;
 
     /* 0 is 'reserved' */
-    if (cpu_economy_state == 0)	
+    if (cpu_economy_state == 0)
 	cpu_economy_state++;
     if (TUNABLE_INT_FETCH("hw.acpi.cpu.performance_speed", &cpu_temp_speed) &&
 	cpu_temp_speed > 0 && cpu_temp_speed <= cpu_max_state) {
@@ -698,7 +698,7 @@ acpi_cpu_startup_throttling()
     /* Set initial speed */
     acpi_cpu_power_profile(NULL);
 
-    printf("acpi_cpu: throttling enabled, %d steps (100%% to %d.%d%%), " 
+    printf("acpi_cpu: throttling enabled, %d steps (100%% to %d.%d%%), "
 	   "currently %d.%d%%\n", CPU_MAX_SPEED, CPU_SPEED_PRINTABLE(1),
 	   CPU_SPEED_PRINTABLE(cpu_current_state));
 }
@@ -778,7 +778,7 @@ acpi_cpu_throttle_set(uint32_t speed)
 	    clk_val = CPU_MAX_SPEED << cpu_duty_offset;
 	    p_cnt &= ~clk_val;
 	    p_cnt |= (speed << cpu_duty_offset);
-	
+
 	    /* Write the new P_CNT value and then enable throttling */
 	    CPU_SET_REG(sc->cpu_p_cnt, 4, p_cnt);
 	    p_cnt |= CPU_P_CNT_THT_EN;
@@ -993,7 +993,7 @@ acpi_cpu_quirks(struct acpi_cpu_softc *sc)
 	 * Disable throttling control on PIIX4 A and B-step.
 	 * See specification changes #13 ("Manual Throttle Duty Cycle")
 	 * and #14 ("Enabling and Disabling Manual Throttle"), plus
-	 * erratum #5 ("STPCLK# Deassertion Time") from the January 
+	 * erratum #5 ("STPCLK# Deassertion Time") from the January
 	 * 2002 PIIX4 specification update.  Note that few (if any)
 	 * mobile systems ever used this part.
 	 */
@@ -1009,7 +1009,7 @@ acpi_cpu_quirks(struct acpi_cpu_softc *sc)
 	 * but we take the simpler approach of disabling C3 for these
 	 * parts.
 	 *
-	 * See erratum #18 ("C3 Power State/BMIDE and Type-F DMA 
+	 * See erratum #18 ("C3 Power State/BMIDE and Type-F DMA
 	 * Livelock") from the January 2002 PIIX4 specification update.
 	 * Applies to all PIIX4 models.
 	 */
@@ -1043,7 +1043,7 @@ acpi_cpu_power_profile(void *arg)
 	return;
 
     ACPI_LOCK;
-    
+
     switch (state) {
     case POWER_PROFILE_PERFORMANCE:
 	new = cpu_performance_state;
