@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.34 1997/02/22 09:44:58 peter Exp $
+ * $Id: conf.h,v 1.35 1997/09/14 02:25:40 peter Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -85,6 +85,15 @@ typedef int l_modem_t __P((struct tty *tp, int flag));
 #define	D_DISK	2
 #define	D_TTY	3
 
+#define	D_TYPEMASK	0xffff
+
+/*
+ * Flags for d_flags.
+ */
+#define	D_NOCLUSTERR	0x10000		/* disables cluter read */
+#define	D_NOCLUSTERW	0x20000		/* disables cluster write */
+#define	D_NOCLUSTERRW	(D_NOCLUSTERR | D_NOCLUSTERW)
+
 /*
  * Block device switch table
  */
@@ -95,7 +104,7 @@ struct bdevsw {
 	d_ioctl_t	*d_ioctl;
 	d_dump_t	*d_dump;
 	d_psize_t	*d_psize;
-	int		d_flags;
+	u_int		d_flags;
 	char 		*d_name;	/* name of the driver e.g. audio */
 	struct cdevsw	*d_cdev; 	/* cross pointer to the cdev */
 	int		d_maj;		/* the major number we were assigned */
